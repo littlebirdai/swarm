@@ -21,11 +21,19 @@ function fixture() {
       ],
     },
   };
-  const tables: Record<string, any[]> = { devices: [device], conversations: [], managed_sessions: [] };
+  const tables: Record<string, any[]> = {
+    devices: [device],
+    conversations: [],
+    managed_sessions: [],
+  };
   const db = makeFakeDb(tables);
   const ctx = {
     db,
-    auth: { async getUserIdentity() { return { subject: "users_owner|session" }; } },
+    auth: {
+      async getUserIdentity() {
+        return { subject: "users_owner|session" };
+      },
+    },
   };
 
   const session = (id: string, conversationId: string) =>
@@ -52,14 +60,21 @@ function fixture() {
   return { tables, db, ctx, device, session, conversation };
 }
 
-const listStale = (ctx: any) => (listStaleCodexSessions as any)._handler(ctx, {});
-const record = (ctx: any, args: any) => (recordCodexAccount as any)._handler(ctx, args);
+const listStale = (ctx: any) =>
+  (listStaleCodexSessions as any)._handler(ctx, {});
+const record = (ctx: any, args: any) =>
+  (recordCodexAccount as any)._handler(ctx, args);
 
 describe("recordCodexAccount", () => {
   test("stamps the account the launching daemon reported", async () => {
     const f = fixture();
     f.conversation("conversations_a");
-    expect(await record(f.ctx, { conversation_id: "conversations_a", codex_account: "ashot" })).toEqual({
+    expect(
+      await record(f.ctx, {
+        conversation_id: "conversations_a",
+        codex_account: "ashot",
+      }),
+    ).toEqual({
       codex_account: "ashot",
     });
     expect(f.tables.conversations[0].codex_account).toBe("ashot");
@@ -68,21 +83,31 @@ describe("recordCodexAccount", () => {
   test("clears the record when the daemon could not name the account", async () => {
     const f = fixture();
     f.conversation("conversations_a", { codex_account: "ashot" });
-    expect(await record(f.ctx, { conversation_id: "conversations_a" })).toEqual({ codex_account: null });
+    expect(await record(f.ctx, { conversation_id: "conversations_a" })).toEqual(
+      { codex_account: null },
+    );
     expect(f.tables.conversations[0].codex_account).toBeUndefined();
   });
 
   test("writes nothing when the row already says so", async () => {
     const f = fixture();
     f.conversation("conversations_a", { codex_account: "ashot" });
-    await record(f.ctx, { conversation_id: "conversations_a", codex_account: "ashot" });
+    await record(f.ctx, {
+      conversation_id: "conversations_a",
+      codex_account: "ashot",
+    });
     expect((f.db as any)._patched).toEqual([]);
   });
 
   test("refuses a conversation that is not the caller's", async () => {
     const f = fixture();
     f.conversation("conversations_a", { user_id: "users_someone_else" });
-    expect(await record(f.ctx, { conversation_id: "conversations_a", codex_account: "ashot" })).toBeNull();
+    expect(
+      await record(f.ctx, {
+        conversation_id: "conversations_a",
+        codex_account: "ashot",
+      }),
+    ).toBeNull();
     expect(f.tables.conversations[0].codex_account).toBeUndefined();
   });
 });
@@ -131,14 +156,22 @@ describe("listStaleCodexSessions", () => {
       user_id: "users_owner",
       device_id: "laptop",
       last_seen: NOW,
-      codex_accounts: { active_email: "f@x.com", profiles: [{ name: "footage", email: "f@x.com" }] },
+      codex_accounts: {
+        active_email: "f@x.com",
+        profiles: [{ name: "footage", email: "f@x.com" }],
+      },
     });
     // Same account name, opposite verdicts: current on the laptop, stale on the mac.
-    f.conversation("conversations_laptop", { codex_account: "footage", owner_device_id: "laptop" });
+    f.conversation("conversations_laptop", {
+      codex_account: "footage",
+      owner_device_id: "laptop",
+    });
     f.session("s-laptop", "conversations_laptop");
     f.conversation("conversations_mac", { codex_account: "footage" });
     f.session("s-mac", "conversations_mac");
-    expect((await listStale(f.ctx)).map((r: any) => r.conversation_id)).toEqual(["conversations_mac"]);
+    expect((await listStale(f.ctx)).map((r: any) => r.conversation_id)).toEqual(
+      ["conversations_mac"],
+    );
   });
 
   test("reports one row per conversation even when two panes claim it", async () => {
@@ -153,7 +186,14 @@ describe("listStaleCodexSessions", () => {
     const f = fixture();
     f.conversation("conversations_old", { codex_account: "footage" });
     f.session("s-old", "conversations_old");
-    const anon = { db: f.db, auth: { async getUserIdentity() { return null; } } };
+    const anon = {
+      db: f.db,
+      auth: {
+        async getUserIdentity() {
+          return null;
+        },
+      },
+    };
     expect(await listStale(anon)).toEqual([]);
   });
 });

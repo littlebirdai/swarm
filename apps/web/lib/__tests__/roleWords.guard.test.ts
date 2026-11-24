@@ -10,13 +10,21 @@ import { codeLines, walkSources, WEB_ROOT } from "./sourceWalk";
 // text, never identifiers or comments, so the stored field and the change
 // kinds keep their names while the surfaces speak plainly.
 
-const ROOTS = [join(WEB_ROOT, "app"), join(WEB_ROOT, "components"), join(WEB_ROOT, "lib"), join(WEB_ROOT, "hooks")];
+const ROOTS = [
+  join(WEB_ROOT, "app"),
+  join(WEB_ROOT, "components"),
+  join(WEB_ROOT, "lib"),
+  join(WEB_ROOT, "hooks"),
+];
 
 const WORDS: ReadonlyArray<[string, RegExp]> = [
   ["trust", /(?<![\w@#/._:$-])trust(?: stages?| levels?)?(?![\w./_:-])/i],
   // The stage words, in the stage sense only: "at understand", "trust decide", "decide stage", "direct trust".
   // "3 to decide" is a person deciding (S19), not a stage.
-  ["stage", /\b(?:at|stage|trust)\s+(?:understand|decide|direct)\b|\b(?:understand|decide|direct)\s+(?:stage|trust)\b/i],
+  [
+    "stage",
+    /\b(?:at|stage|trust)\s+(?:understand|decide|direct)\b|\b(?:understand|decide|direct)\s+(?:stage|trust)\b/i,
+  ],
   ["cap", /(?<![\w@#/._:$-])(?:daily )?caps?(?![\w./_:-])/i],
   ["budget", /(?<![\w@#/._:$-])budgets?(?![\w./_:-])/i],
   ["allowance", /(?<![\w@#/._:$-])allowances?(?![\w./_:-])/i],
@@ -24,7 +32,9 @@ const WORDS: ReadonlyArray<[string, RegExp]> = [
 
 function readable(line: string): string[] {
   const out: string[] = [];
-  for (const m of line.matchAll(/"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) {
+  for (const m of line.matchAll(
+    /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g,
+  )) {
     const s = (m[1] ?? m[2] ?? m[3] ?? "").replace(/\$\{[^}]*\}/g, " ");
     // A bare token is a key, a class or a data attribute, never a sentence.
     if (/^\s*\S+\s*$/.test(s)) continue;
@@ -38,7 +48,10 @@ function readable(line: string): string[] {
 // words never reach. One entry per line, path:line-text.
 const ALLOWED: ReadonlyArray<[string, string]> = [
   // The climb card's JSON field name in the frame station's example card (money a climb may spend), a key, not a role's limit.
-  ["apps/web/lib/line/shippedFlowStations.generated.ts", String.raw`\"budget\": {\"usd\"`],
+  [
+    "apps/web/lib/line/shippedFlowStations.generated.ts",
+    String.raw`\"budget\": {\"usd\"`,
+  ],
   // Anthropic's usage windows have a spend cap of their own.
   ["apps/web/components/AccountUsageMeter.tsx", "Extra spend cap reached"],
   ["apps/web/components/AccountUsageMeter.tsx", "extra spend cap reached"],
@@ -49,8 +62,14 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   // Team chat's hourly mention limit for agents: a rate, not a role's limit.
   ["apps/web/components/chat/ChatMessage.tsx", "hourly mention cap"],
   ["apps/web/lib/chatMentionWakes.ts", "over the hourly cap"],
-  ["apps/web/components/evals/__fixtures__/world/multiplayer.ts", "hourly wake caps hold"],
-  ["apps/web/components/evals/__fixtures__/world/multiplayer.ts", "under the mention caps"],
+  [
+    "apps/web/components/evals/__fixtures__/world/multiplayer.ts",
+    "hourly wake caps hold",
+  ],
+  [
+    "apps/web/components/evals/__fixtures__/world/multiplayer.ts",
+    "under the mention caps",
+  ],
   // The hosted assistant's paid plan: a month's allowance of use, billing, not a role's limit.
   ["apps/web/components/simple/lane.ts", "month's allowance"],
   ["apps/web/components/simple/lane.ts", "Allowance used"],
@@ -72,7 +91,10 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["apps/web/components/tasks/impact.ts", "breaks trust"],
   ["apps/web/components/tasks/ProblemSummary.tsx", "contact's trust"],
   // A line's billed spend cap: the Line's run money, not a role's limit.
-  ["apps/web/components/line/workspace/stages/DispatchStage.tsx", "Billed, cap"],
+  [
+    "apps/web/components/line/workspace/stages/DispatchStage.tsx",
+    "Billed, cap",
+  ],
   ["apps/web/lib/line/trialStopLedgers.ts", "Billed cap"],
 ];
 // A command name (`cast cap`) is not the word.
@@ -86,16 +108,27 @@ describe("the org's operating words are retired from what a person reads (S23)",
       for (const file of walkSources(root)) {
         // Marketing copy, the dev preview's sample proposals and the docs shots' fixture
         // world (a fictional team capping its webhook retries) are not the product's surfaces.
-        if (file.includes("(marketing)") || /Fixture\.tsx?$/.test(file) || file.includes("/lib/acmeWorld/")) continue;
+        if (
+          file.includes("(marketing)") ||
+          /Fixture\.tsx?$/.test(file) ||
+          file.includes("/lib/acmeWorld/")
+        )
+          continue;
         const rel = file.slice(repo.length + 1);
         for (const { line, n } of codeLines(readFileSync(file, "utf8"))) {
           // Cheap gate before the quote parse: most lines carry none of the words.
-          if (!/trust|understand|decide|direct|cap|budget|allowance/i.test(line)) continue;
+          if (
+            !/trust|understand|decide|direct|cap|budget|allowance/i.test(line)
+          )
+            continue;
           const strings = readable(line.replace(COMMAND, ""));
           const hit = WORDS.find(([, re]) => strings.some((s) => re.test(s)));
           if (!hit) continue;
-          if (ALLOWED.some(([f, text]) => rel === f && line.includes(text))) continue;
-          offenders.push(`${rel}:${n} [${hit[0]}]: ${line.trim().slice(0, 160)}`);
+          if (ALLOWED.some(([f, text]) => rel === f && line.includes(text)))
+            continue;
+          offenders.push(
+            `${rel}:${n} [${hit[0]}]: ${line.trim().slice(0, 160)}`,
+          );
         }
       }
     }

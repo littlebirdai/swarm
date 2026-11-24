@@ -36,7 +36,8 @@ const FAKE_SESSIONS = [
     duration: "12m",
     messages: 24,
     time: "3m ago",
-    subtitle: "Debug OAuth callback URL mismatch causing infinite redirect after login",
+    subtitle:
+      "Debug OAuth callback URL mismatch causing infinite redirect after login",
     active: true,
   },
   {
@@ -73,7 +74,8 @@ const FAKE_SESSIONS = [
     duration: "18m",
     messages: 32,
     time: "4h ago",
-    subtitle: "Track down event listener accumulation in long-running queue consumer",
+    subtitle:
+      "Track down event listener accumulation in long-running queue consumer",
   },
   {
     title: "Add WebSocket reconnection logic",
@@ -86,45 +88,95 @@ const FAKE_SESSIONS = [
   },
 ];
 
-function FakeSessionCard({ session, className = "" }: { session: typeof FAKE_SESSIONS[0]; className?: string }) {
+function FakeSessionCard({
+  session,
+  className = "",
+}: {
+  session: (typeof FAKE_SESSIONS)[0];
+  className?: string;
+}) {
   return (
-    <div className={`relative border rounded-xl p-3 md:p-4 bg-white dark:bg-sol-bg-alt border-sol-border/40 ${className}`}>
+    <div
+      className={`relative border rounded-xl p-3 md:p-4 bg-white dark:bg-sol-bg-alt border-sol-border/40 ${className}`}
+    >
       <div className="flex items-start justify-between gap-3 mb-1">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="w-4 h-4 rounded bg-sol-yellow flex items-center justify-center shrink-0">
-            <svg className="w-2.5 h-2.5 text-sol-bg" viewBox="0 0 24 24" fill="currentColor">
+            <svg
+              className="w-2.5 h-2.5 text-sol-bg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </span>
-          <span className="font-medium text-sm text-sol-text truncate">{session.title}</span>
+          <span className="font-medium text-sm text-sol-text truncate">
+            {session.title}
+          </span>
           {session.active && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sol-green/20 border border-sol-green/50 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
-              <span className="text-meta text-sol-green font-semibold">LIVE</span>
+              <span className="text-meta text-sol-green font-semibold">
+                LIVE
+              </span>
             </span>
           )}
         </div>
-        <span className="text-meta text-sol-text-dim/50 shrink-0">{session.time}</span>
+        <span className="text-meta text-sol-text-dim/50 shrink-0">
+          {session.time}
+        </span>
       </div>
       {session.subtitle && (
-        <p className="text-xs text-sol-text-muted mb-2 line-clamp-1">{session.subtitle}</p>
+        <p className="text-xs text-sol-text-muted mb-2 line-clamp-1">
+          {session.subtitle}
+        </p>
       )}
       <div className="flex items-center gap-2 text-xs text-sol-text-muted0">
         <span className="inline-flex items-center gap-1 text-sol-text-dim">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            />
           </svg>
           {session.project}
         </span>
         <span className="inline-flex items-center gap-1 text-sol-text-dim">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           {session.duration}
         </span>
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-sol-border/30 text-sol-text-dim">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
           </svg>
           <span className="text-meta font-semibold">{session.messages}</span>
         </span>
@@ -138,9 +190,19 @@ function FakeSessionCard({ session, className = "" }: { session: typeof FAKE_SES
 // The setup button's face: the inbox card's yellow, or the surrounding flow's
 // accent (.tf-primary, the setup flow's team color) when a flow hosts it.
 const setupButtonClass = (accent?: boolean) =>
-  accent ? "tf-primary text-sm font-medium rounded-xl" : "bg-sol-yellow/20 hover:bg-sol-yellow/30 text-sol-yellow text-sm font-medium rounded-xl border border-sol-yellow/30 transition-colors";
+  accent
+    ? "tf-primary text-sm font-medium rounded-xl"
+    : "bg-sol-yellow/20 hover:bg-sol-yellow/30 text-sol-yellow text-sm font-medium rounded-xl border border-sol-yellow/30 transition-colors";
 
-function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; accent?: boolean; auto?: boolean }) {
+function SetupTokenCommand({
+  onStart,
+  accent,
+  auto,
+}: {
+  onStart?: () => void;
+  accent?: boolean;
+  auto?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [setupToken, setSetupToken] = useState<string | null>(null);
   const [tokenExpiry, setTokenExpiry] = useState<number | null>(null);
@@ -150,7 +212,11 @@ function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; ac
 
   const handleCopy = async (text: string) => {
     await copyToClipboard(text);
-    track("install_command_copied", { location: "onboarding_empty_state", platform: "unix", with_token: true });
+    track("install_command_copied", {
+      location: "onboarding_empty_state",
+      platform: "unix",
+      with_token: true,
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -195,9 +261,24 @@ function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; ac
       >
         {isGenerating ? (
           <>
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <svg
+              className="w-4 h-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
             </svg>
             Generating...
           </>
@@ -214,7 +295,8 @@ function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; ac
         <div className="flex items-center justify-between gap-3 bg-sol-bg-inset px-4 py-3">
           <code className="text-sol-text text-sm font-mono truncate">
             <span className="text-sol-text-dim select-none">$ </span>
-            curl -fsSL codecast.sh/install | sh -s -- <span className="text-sol-green">{setupToken?.slice(0, 8)}...</span>
+            curl -fsSL codecast.sh/install | sh -s --{" "}
+            <span className="text-sol-green">{setupToken?.slice(0, 8)}...</span>
           </code>
           <button
             onClick={() => handleCopy(installCommand!)}
@@ -222,12 +304,32 @@ function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; ac
             title="Copy to clipboard"
           >
             {copied ? (
-              <svg className="w-4 h-4 text-sol-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="w-4 h-4 text-sol-green"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
               </svg>
             )}
           </button>
@@ -240,18 +342,34 @@ function SetupTokenCommand({ onStart, accent, auto }: { onStart?: () => void; ac
   );
 }
 
-const SETUP_ERRORS = ["invalid_token", "unsupported_platform", "installer_failed"] as const;
+const SETUP_ERRORS = [
+  "invalid_token",
+  "unsupported_platform",
+  "installer_failed",
+] as const;
 const setupError = (e?: string) => SETUP_ERRORS.find((k) => k === e) ?? "threw";
 
 // In the desktop app there is no terminal step: one click mints a setup token
 // and the shell runs the installer with it. A browser tab, an older shell or a
 // failed run falls back to the command to paste.
-export function SetupThisMachine({ onConnected, onStart, accent, auto }: { onConnected: () => void; onStart?: () => void; accent?: boolean; auto?: boolean }) {
+export function SetupThisMachine({
+  onConnected,
+  onStart,
+  accent,
+  auto,
+}: {
+  onConnected: () => void;
+  onStart?: () => void;
+  accent?: boolean;
+  auto?: boolean;
+}) {
   const createSetupToken = useMutation(api.apiTokens.createSetupToken);
   const [machine, setMachine] = useState<DaemonSetupState | null>(null);
   const [phase, setPhase] = useState<"idle" | "running" | "failed">("idle");
   useMountEffect(() => {
-    bridge("getDaemonSetup")?.().then(setMachine).catch(() => {});
+    bridge("getDaemonSetup")?.()
+      .then(setMachine)
+      .catch(() => {});
   });
   const run = bridge("runDaemonSetup");
 
@@ -263,7 +381,11 @@ export function SetupThisMachine({ onConnected, onStart, accent, auto }: { onCon
             Setup did not finish from here. Paste this in a terminal instead:
           </p>
         )}
-        <SetupTokenCommand onStart={phase === "failed" ? undefined : onStart} accent={accent} auto={auto && phase !== "failed"} />
+        <SetupTokenCommand
+          onStart={phase === "failed" ? undefined : onStart}
+          accent={accent}
+          auto={auto && phase !== "failed"}
+        />
       </>
     );
   }
@@ -275,7 +397,12 @@ export function SetupThisMachine({ onConnected, onStart, accent, auto }: { onCon
     try {
       const { token } = await createSetupToken({});
       const result = await run(token);
-      track("desktop_setup_finished", result.ok ? { ok: true } : { ok: false, error: setupError(result.error) });
+      track(
+        "desktop_setup_finished",
+        result.ok
+          ? { ok: true }
+          : { ok: false, error: setupError(result.error) },
+      );
       if (!result.ok) return setPhase("failed");
       markCliConnected();
       onConnected();
@@ -292,19 +419,26 @@ export function SetupThisMachine({ onConnected, onStart, accent, auto }: { onCon
         disabled={phase === "running"}
         className={`w-full px-4 py-3 ${setupButtonClass(accent)} disabled:opacity-60`}
       >
-        {phase === "running" ? "Setting up this machine…" : "Set up this machine"}
+        {phase === "running"
+          ? "Setting up this machine…"
+          : "Set up this machine"}
       </button>
       <p className="text-xs text-sol-text-dim text-center">
-        Installs the cast CLI and a background daemon, and syncs your agent sessions to your private workspace.
+        Installs the cast CLI and a background daemon, and syncs your agent
+        sessions to your private workspace.
       </p>
     </div>
   );
 }
 
-const chooseMachine = () => track("first_run_start_chosen", { start: "machine" });
+const chooseMachine = () =>
+  track("first_run_start_chosen", { start: "machine" });
 
 const SETUP_GUIDE = (
-  <a href="/settings/cli" className="text-sol-yellow hover:text-sol-yellow/80 transition-colors">
+  <a
+    href="/settings/cli"
+    className="text-sol-yellow hover:text-sol-yellow/80 transition-colors"
+  >
     Setup guide
   </a>
 );
@@ -312,7 +446,11 @@ const SETUP_GUIDE = (
 // The first run for a signed-in person with no machine: connect the coding
 // tools on their own machine. A machine that just connected replaces it with
 // the wait for its sessions.
-function OnboardingEmptyState({ hasOtherSessions }: { hasOtherSessions?: boolean }) {
+function OnboardingEmptyState({
+  hasOtherSessions,
+}: {
+  hasOtherSessions?: boolean;
+}) {
   const [connected, setConnected] = useState(() => cliJustConnected());
   const onConnected = () => setConnected(true);
   if (hasOtherSessions && !connected) {
@@ -320,7 +458,8 @@ function OnboardingEmptyState({ hasOtherSessions }: { hasOtherSessions?: boolean
       <div className="flex flex-col items-center justify-center py-16 text-center px-4">
         <div className="max-w-sm w-full">
           <p className="text-sm text-sol-text-muted mb-4">
-            No personal sessions yet. Install the CLI to start syncing your own sessions.
+            No personal sessions yet. Install the CLI to start syncing your own
+            sessions.
           </p>
           <SetupThisMachine onConnected={onConnected} onStart={chooseMachine} />
           <p className="text-xs text-sol-text-dim mt-3">
@@ -335,7 +474,10 @@ function OnboardingEmptyState({ hasOtherSessions }: { hasOtherSessions?: boolean
     // The faded sessions and the card share one grid cell, so the card sets
     // the height on a phone.
     <div className="relative grid grid-cols-1 overflow-hidden">
-      <div className="[grid-area:1/1] min-w-0 space-y-3 opacity-[0.12] pointer-events-none select-none" aria-hidden="true">
+      <div
+        className="[grid-area:1/1] min-w-0 space-y-3 opacity-[0.12] pointer-events-none select-none"
+        aria-hidden="true"
+      >
         {FAKE_SESSIONS.map((session, i) => (
           <FakeSessionCard key={i} session={session} />
         ))}
@@ -350,7 +492,9 @@ function OnboardingEmptyState({ hasOtherSessions }: { hasOtherSessions?: boolean
                   This machine is connected
                 </h2>
                 <p className="text-sm text-sol-text-muted">
-                  Your sessions start appearing here the moment the daemon starts, past ones included. If your terminal is asking setup questions, finish them first.
+                  Your sessions start appearing here the moment the daemon
+                  starts, past ones included. If your terminal is asking setup
+                  questions, finish them first.
                 </p>
               </div>
             ) : (
@@ -367,13 +511,22 @@ function OnboardingEmptyState({ hasOtherSessions }: { hasOtherSessions?: boolean
                 <div className="mx-auto max-w-sm">
                   <section className="flex flex-col rounded-xl border border-sol-border/70 bg-sol-bg-alt/40 p-4">
                     <div className="mb-2 flex items-center gap-2">
-                      <TerminalSquare aria-hidden className="h-5 w-5 text-sol-yellow" />
-                      <h3 className="text-sm font-semibold text-sol-text">Connect your coding tools</h3>
+                      <TerminalSquare
+                        aria-hidden
+                        className="h-5 w-5 text-sol-yellow"
+                      />
+                      <h3 className="text-sm font-semibold text-sol-text">
+                        Connect your coding tools
+                      </h3>
                     </div>
                     <p className="mb-4 flex-1 text-sm leading-relaxed text-sol-text-muted">
-                      For developers: sync your Claude Code, Codex, Cursor and Gemini sessions, and run them from anywhere. {SETUP_GUIDE}
+                      For developers: sync your Claude Code, Codex, Cursor and
+                      Gemini sessions, and run them from anywhere. {SETUP_GUIDE}
                     </p>
-                    <SetupThisMachine onConnected={onConnected} onStart={chooseMachine} />
+                    <SetupThisMachine
+                      onConnected={onConnected}
+                      onStart={chooseMachine}
+                    />
                   </section>
                   <StartOnCastMachine />
                   <StartTeamLink />
@@ -401,9 +554,13 @@ function StartOnCastMachine() {
     <section className="mt-3 flex flex-col rounded-xl border border-sol-border/70 bg-sol-bg-alt/40 p-4">
       <div className="mb-2 flex items-center gap-2">
         <Cloud aria-hidden className="h-5 w-5 text-sol-cyan" />
-        <h3 className="text-sm font-semibold text-sol-text">Start on a cloud machine</h3>
+        <h3 className="text-sm font-semibold text-sol-text">
+          Start on a cloud machine
+        </h3>
       </div>
-      <p className="mb-4 text-sm leading-relaxed text-sol-text-muted">Nothing to install. Cast works on a machine of your own.</p>
+      <p className="mb-4 text-sm leading-relaxed text-sol-text-muted">
+        Nothing to install. Cast works on a machine of your own.
+      </p>
       <Button onClick={start}>Start a session</Button>
     </section>
   );
@@ -415,16 +572,35 @@ function StartTeamLink() {
   const teamless = useInboxStore((s) => (s.teams ?? []).length === 0);
   if (!teamless) return null;
   return (
-    <a href="/start" className="mt-3 block text-center text-sm text-sol-text-muted transition-colors hover:text-sol-text">
+    <a
+      href="/start"
+      className="mt-3 block text-center text-sm text-sol-text-muted transition-colors hover:text-sol-text"
+    >
       Start a team: chat, calls, tasks and shared agents →
     </a>
   );
 }
 
-export function EmptyState({ title, description, action, variant, hasOtherSessions, icon }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  variant,
+  hasOtherSessions,
+  icon,
+}: EmptyStateProps) {
   const modern = useIsModernStyle();
-  if (variant === "onboarding") return <OnboardingEmptyState hasOtherSessions={hasOtherSessions} />;
-  if (modern) return <ModernPlainEmpty title={title} description={description} action={action} icon={icon} />;
+  if (variant === "onboarding")
+    return <OnboardingEmptyState hasOtherSessions={hasOtherSessions} />;
+  if (modern)
+    return (
+      <ModernPlainEmpty
+        title={title}
+        description={description}
+        action={action}
+        icon={icon}
+      />
+    );
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -446,10 +622,7 @@ export function EmptyState({ title, description, action, variant, hasOtherSessio
       <h3 className="text-lg font-medium text-sol-text mb-2">{title}</h3>
       <p className="text-sol-text-muted max-w-sm mb-4">{description}</p>
       {action && (
-        <a
-          href={action.href}
-          className="text-sol-cyan hover:underline text-sm"
-        >
+        <a href={action.href} className="text-sol-cyan hover:underline text-sm">
           {action.label} &rarr;
         </a>
       )}
@@ -462,23 +635,32 @@ export function EmptyState({ title, description, action, variant, hasOtherSessio
 // none), the title, and the one action as an in-app link. The description is
 // not drawn as a sentence: it is data (an error, a note about a filter), so it
 // opens behind "Details" on demand.
-function ModernPlainEmpty({ title, description, action, icon }: Pick<EmptyStateProps, "title" | "description" | "action" | "icon">) {
+function ModernPlainEmpty({
+  title,
+  description,
+  action,
+  icon,
+}: Pick<EmptyStateProps, "title" | "description" | "action" | "icon">) {
   return (
     <ModernEmptyState
       icon={icon ?? MessageSquare}
       title={title}
-      action={action ? (
-        <Button asChild size="sm">
-          <Link href={action.href}>{action.label}</Link>
-        </Button>
-      ) : undefined}
+      action={
+        action ? (
+          <Button asChild size="sm">
+            <Link href={action.href}>{action.label}</Link>
+          </Button>
+        ) : undefined
+      }
     >
       {description ? (
         <details className="max-w-sm text-meta text-sol-text-dim">
           <summary className="cursor-pointer select-none list-none rounded-control px-1 hover:text-sol-text [&::-webkit-details-marker]:hidden">
             Details
           </summary>
-          <p className="mt-1 text-sol-text-muted [overflow-wrap:anywhere]">{description}</p>
+          <p className="mt-1 text-sol-text-muted [overflow-wrap:anywhere]">
+            {description}
+          </p>
         </details>
       ) : null}
     </ModernEmptyState>

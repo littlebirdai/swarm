@@ -6,7 +6,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "./proc.js";
-import { pruneHostMoments, runExtractor, shadowDir, tickMoments, type MomentClaim } from "./momentsHost.js";
+import {
+  pruneHostMoments,
+  runExtractor,
+  shadowDir,
+  tickMoments,
+  type MomentClaim,
+} from "./momentsHost.js";
 import { readPublishSet } from "./momentsCommand.js";
 
 let root: string;
@@ -39,7 +45,10 @@ beforeAll(() => {
   spawnSync("git", ["init", "-q"], { cwd: root });
   fs.mkdirSync(path.join(root, ".codecast/moments"), { recursive: true });
   fs.mkdirSync(path.join(root, ".codecast/judges"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".codecast/moments/conversation.ts"), EXTRACTOR);
+  fs.writeFileSync(
+    path.join(root, ".codecast/moments/conversation.ts"),
+    EXTRACTOR,
+  );
   fs.writeFileSync(path.join(root, ".codecast/moments/Bad Name.ts"), "");
   fs.writeFileSync(path.join(root, ".codecast/judges/comms.md"), JUDGE);
   fs.writeFileSync(path.join(root, ".codecast/judges/broken.md"), "no header");
@@ -52,20 +61,50 @@ afterAll(() => {
   fs.rmSync(data, { recursive: true, force: true });
 });
 
-const claim = (subject: string, storage: "host" | "codecast" = "host", timeout_ms = 20_000): MomentClaim => ({
+const claim = (
+  subject: string,
+  storage: "host" | "codecast" = "host",
+  timeout_ms = 20_000,
+): MomentClaim => ({
   moment: `mo-${subject}`,
   source: "product-app",
-  input: { kind: "conversation", subject, at: Date.parse("2026-10-09T14:00:00Z"), refs: {}, events: 2, moment: `mo-${subject}` },
-  extractor: { path: ".codecast/moments/conversation.ts", root, version: "published", timeout_ms },
+  input: {
+    kind: "conversation",
+    subject,
+    at: Date.parse("2026-10-09T14:00:00Z"),
+    refs: {},
+    events: 2,
+    moment: `mo-${subject}`,
+  },
+  extractor: {
+    path: ".codecast/moments/conversation.ts",
+    root,
+    version: "published",
+    timeout_ms,
+  },
   storage,
 });
 
 describe("what a checkout publishes", () => {
   test("each extractor with its header and blob sha, each judge parsed, problems named", async () => {
     const set = await readPublishSet(root);
-    const sha = spawnSync("git", ["hash-object", ".codecast/moments/conversation.ts"], { cwd: root, encoding: "utf8" }).stdout.trim();
-    expect(set.extractors).toEqual([{ kind: "conversation", path: ".codecast/moments/conversation.ts", version: sha, quiet_ms: 600_000, timeout_ms: 20_000 }]);
-    expect(set.judges.map((j) => [j.name, j.moment, j.mode, j.projects])).toEqual([["comms", "conversation", "live", ["Agent Quality"]]]);
+    const sha = spawnSync(
+      "git",
+      ["hash-object", ".codecast/moments/conversation.ts"],
+      { cwd: root, encoding: "utf8" },
+    ).stdout.trim();
+    expect(set.extractors).toEqual([
+      {
+        kind: "conversation",
+        path: ".codecast/moments/conversation.ts",
+        version: sha,
+        quiet_ms: 600_000,
+        timeout_ms: 20_000,
+      },
+    ]);
+    expect(
+      set.judges.map((j) => [j.name, j.moment, j.mode, j.projects]),
+    ).toEqual([["comms", "conversation", "live", ["Agent Quality"]]]);
     expect(set.problems.some((p) => p.includes("Bad Name.ts"))).toBe(true);
     expect(set.problems.some((p) => p.includes("broken.md"))).toBe(true);
   }, 60_000);
@@ -77,19 +116,38 @@ describe("a file that names its source", () => {
     try {
       fs.mkdirSync(path.join(dir, ".codecast/moments"), { recursive: true });
       fs.mkdirSync(path.join(dir, ".codecast/judges"), { recursive: true });
-      fs.writeFileSync(path.join(dir, ".codecast/moments/conversation.ts"), "// quiet: forever\nconsole.log('{}');\n");
-      fs.writeFileSync(path.join(dir, ".codecast/moments/replay.ts"), "// quiet: 30m\n// source: product-posthog\nconsole.log('{}');\n");
-      fs.writeFileSync(path.join(dir, ".codecast/judges/comms.md"), "---\nmoment: conversation\nprojects: Agent Quality\n---\nRead it.\n");
-      fs.writeFileSync(path.join(dir, ".codecast/judges/visitor.md"), "---\nmoment: replay\nprojects: Funnel\nparts: none\nsource: Product-PostHog\n---\nSay what went wrong.\n");
+      fs.writeFileSync(
+        path.join(dir, ".codecast/moments/conversation.ts"),
+        "// quiet: forever\nconsole.log('{}');\n",
+      );
+      fs.writeFileSync(
+        path.join(dir, ".codecast/moments/replay.ts"),
+        "// quiet: 30m\n// source: product-posthog\nconsole.log('{}');\n",
+      );
+      fs.writeFileSync(
+        path.join(dir, ".codecast/judges/comms.md"),
+        "---\nmoment: conversation\nprojects: Agent Quality\n---\nRead it.\n",
+      );
+      fs.writeFileSync(
+        path.join(dir, ".codecast/judges/visitor.md"),
+        "---\nmoment: replay\nprojects: Funnel\nparts: none\nsource: Product-PostHog\n---\nSay what went wrong.\n",
+      );
       const replay = await readPublishSet(dir, "product-posthog");
       expect(replay.extractors.map((e) => e.kind)).toEqual(["replay"]);
-      expect(replay.judges.map((j) => [j.name, j.parts])).toEqual([["visitor", ["none"]]]);
-      expect(replay.files.map((f) => f.path)).toEqual([".codecast/moments/replay.ts", ".codecast/judges/visitor.md"]);
+      expect(replay.judges.map((j) => [j.name, j.parts])).toEqual([
+        ["visitor", ["none"]],
+      ]);
+      expect(replay.files.map((f) => f.path)).toEqual([
+        ".codecast/moments/replay.ts",
+        ".codecast/judges/visitor.md",
+      ]);
       expect(replay.problems).toEqual([]);
       const app = await readPublishSet(dir, "product-app");
       expect(app.extractors.map((e) => e.kind)).toEqual(["conversation"]);
       expect(app.judges.map((j) => j.name)).toEqual(["comms"]);
-      expect(app.problems).toEqual([expect.stringContaining("conversation.ts: quiet")]);
+      expect(app.problems).toEqual([
+        expect.stringContaining("conversation.ts: quiet"),
+      ]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -100,7 +158,9 @@ describe("running an extractor", () => {
   test("its stdout is the moment, at the file's current version", async () => {
     const r = await runExtractor(claim("t_81"));
     expect(r.error).toBeUndefined();
-    expect(JSON.parse(r.output!).refs).toEqual([{ label: "thread", id: "t_81" }]);
+    expect(JSON.parse(r.output!).refs).toEqual([
+      { label: "thread", id: "t_81" },
+    ]);
     expect(r.version).toMatch(/^[0-9a-f]{40}$/);
   }, 60_000);
 
@@ -117,53 +177,137 @@ describe("one daemon pass", () => {
       deviceId: "dev-1",
       post: async (route, body) => {
         posts.push({ route, body });
-        if (route === "/cli/moments/claim") return [claim("t_81"), claim("boom", "codecast")];
-        return { moment: body.moment, status: body.output ? "ready" : "waiting", ...(body.error ? { error: body.error } : {}) };
+        if (route === "/cli/moments/claim")
+          return [claim("t_81"), claim("boom", "codecast")];
+        return {
+          moment: body.moment,
+          status: body.output ? "ready" : "waiting",
+          ...(body.error ? { error: body.error } : {}),
+        };
       },
     });
     expect(results).toEqual([
       { moment: "mo-t_81", status: "ready" },
-      { moment: "mo-boom", status: "waiting", error: "the extractor exited 3: no such thread" },
+      {
+        moment: "mo-boom",
+        status: "waiting",
+        error: "the extractor exited 3: no such thread",
+      },
     ]);
     // Extractors run side by side, so the hand backs arrive in either order.
-    const complete = posts.find((p) => p.route === "/cli/moments/complete" && p.body.moment === "mo-t_81")!;
-    expect(complete.body).toMatchObject({ device_id: "dev-1", moment: "mo-t_81" });
+    const complete = posts.find(
+      (p) => p.route === "/cli/moments/complete" && p.body.moment === "mo-t_81",
+    )!;
+    expect(complete.body).toMatchObject({
+      device_id: "dev-1",
+      moment: "mo-t_81",
+    });
     expect(JSON.parse(complete.body.output).blocks).toHaveLength(1);
     const kept = path.join(shadowDir(), "product-app", "mo-t_81.json");
     expect(shadowDir().startsWith(data)).toBe(true);
-    expect(JSON.parse(fs.readFileSync(kept, "utf8")).output.refs[0].id).toBe("t_81");
+    expect(JSON.parse(fs.readFileSync(kept, "utf8")).output.refs[0].id).toBe(
+      "t_81",
+    );
     expect(fs.statSync(kept).mode & 0o777).toBe(0o600);
     // A codecast-stored claim is never written on the host.
-    expect(fs.existsSync(path.join(shadowDir(), "product-app", "mo-boom.json"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(shadowDir(), "product-app", "mo-boom.json")),
+    ).toBe(false);
   }, 60_000);
 
   test("judging handed back to this machine runs here and its replies go to /cli/moments/judged", async () => {
     const posts: Array<{ route: string; body: any }> = [];
     const asked: any[] = [];
-    const request = { model: "claude-sonnet-5-5", max_tokens: 16000, system: "Judge it.", prompt: "<moment>...</moment>", output: "json" as const };
-    const record = { kind: "conversation", subject: "t_81", blocks: [], refs: [] };
+    const request = {
+      model: "claude-sonnet-5-5",
+      max_tokens: 16000,
+      system: "Judge it.",
+      prompt: "<moment>...</moment>",
+      output: "json" as const,
+    };
+    const record = {
+      kind: "conversation",
+      subject: "t_81",
+      blocks: [],
+      refs: [],
+    };
     await tickMoments({
       deviceId: "dev-1",
       post: async (route, body) => {
         posts.push({ route, body });
         if (route === "/cli/moments/claim") return [claim("t_81", "codecast")];
-        if (route === "/cli/moments/complete") return { moment: body.moment, status: "ready", judged: [], judge_here: { moment: body.moment, clock: 5, record, lines: ["ex-1"], requests: [{ judge: "comms", request }, { judge: "tone", request }] } };
-        return { moment: body.moment, judged: [{ judge: "comms", status: "ok", findings: 0, filed: 0, cost_usd: 0 }] };
+        if (route === "/cli/moments/complete")
+          return {
+            moment: body.moment,
+            status: "ready",
+            judged: [],
+            judge_here: {
+              moment: body.moment,
+              clock: 5,
+              record,
+              lines: ["ex-1"],
+              requests: [
+                { judge: "comms", request },
+                { judge: "tone", request },
+              ],
+            },
+          };
+        return {
+          moment: body.moment,
+          judged: [
+            {
+              judge: "comms",
+              status: "ok",
+              findings: 0,
+              filed: 0,
+              cost_usd: 0,
+            },
+          ],
+        };
       },
       judgeCall: async (spec) => {
         asked.push(spec);
         return asked.length === 1
-          ? { ok: true, text: '{"deviations": []}', usage: { input_tokens: 9, output_tokens: 3 }, cost_usd: 0, model: spec.model, stop_reason: "end_turn" }
-          : { ok: false, reason: "failed", error: "the answer held no JSON", cost_usd: 0, model: spec.model };
+          ? {
+              ok: true,
+              text: '{"deviations": []}',
+              usage: { input_tokens: 9, output_tokens: 3 },
+              cost_usd: 0,
+              model: spec.model,
+              stop_reason: "end_turn",
+            }
+          : {
+              ok: false,
+              reason: "failed",
+              error: "the answer held no JSON",
+              cost_usd: 0,
+              model: spec.model,
+            };
       },
     });
     expect(asked).toEqual([request, request]);
     const judged = posts.find((p) => p.route === "/cli/moments/judged")!;
     expect(judged.body).toEqual({
-      device_id: "dev-1", moment: "mo-t_81", clock: 5, lines: ["ex-1"], record: JSON.stringify(record),
+      device_id: "dev-1",
+      moment: "mo-t_81",
+      clock: 5,
+      lines: ["ex-1"],
+      record: JSON.stringify(record),
       results: [
-        { judge: "comms", result: { ok: true, text: '{"deviations": []}', input_tokens: 9, output_tokens: 3, stop_reason: "end_turn" } },
-        { judge: "tone", result: { ok: false, error: "the answer held no JSON" } },
+        {
+          judge: "comms",
+          result: {
+            ok: true,
+            text: '{"deviations": []}',
+            input_tokens: 9,
+            output_tokens: 3,
+            stop_reason: "end_turn",
+          },
+        },
+        {
+          judge: "tone",
+          result: { ok: false, error: "the answer held no JSON" },
+        },
       ],
     });
   }, 60_000);

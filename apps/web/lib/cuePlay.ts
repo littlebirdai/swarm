@@ -14,15 +14,26 @@ import type { CueSpec } from "./cueSpec";
  *  so every level in this file was set by measuring a render, and the
  *  measurement is only worth anything while the two stay the same graph. Keep
  *  them in step: filter after the envelope for tones, before it for noise. */
-function scheduleEnvelope(gain: AudioParam, t0: number, n: { start: number; dur: number; gain: number }, attack: number) {
+function scheduleEnvelope(
+  gain: AudioParam,
+  t0: number,
+  n: { start: number; dur: number; gain: number },
+  attack: number,
+) {
   gain.setValueAtTime(attack > 0 ? 0 : n.gain, t0 + n.start);
   if (attack > 0) gain.linearRampToValueAtTime(n.gain, t0 + n.start + attack);
   gain.exponentialRampToValueAtTime(0.001, t0 + n.start + n.dur);
 }
 
-function scheduleGlide(freq: AudioParam, t0: number, n: { start: number; dur: number; sweepTo?: number }, from: number) {
+function scheduleGlide(
+  freq: AudioParam,
+  t0: number,
+  n: { start: number; dur: number; sweepTo?: number },
+  from: number,
+) {
   freq.setValueAtTime(from, t0 + n.start);
-  if (n.sweepTo !== undefined) freq.exponentialRampToValueAtTime(n.sweepTo, t0 + n.start + n.dur);
+  if (n.sweepTo !== undefined)
+    freq.exponentialRampToValueAtTime(n.sweepTo, t0 + n.start + n.dur);
 }
 
 /** Schedule `spec` on `ac`, starting now. `volume` multiplies the cue's own
@@ -92,16 +103,26 @@ export function scheduleCue(ac: AudioContext, spec: CueSpec, volume = 1): void {
   }
 }
 
-const decoded = new WeakMap<BaseAudioContext, Map<string, Promise<AudioBuffer | null>>>();
+const decoded = new WeakMap<
+  BaseAudioContext,
+  Map<string, Promise<AudioBuffer | null>>
+>();
 
 /** A recorded cue's buffer on `ac`, fetched and decoded on first ask. */
-export function loadSample(ac: BaseAudioContext, src: string): Promise<AudioBuffer | null> {
+export function loadSample(
+  ac: BaseAudioContext,
+  src: string,
+): Promise<AudioBuffer | null> {
   let byContext = decoded.get(ac);
   if (!byContext) decoded.set(ac, (byContext = new Map()));
   let buffer = byContext.get(src);
   if (!buffer) {
     buffer = fetch(src)
-      .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(`${src}: ${res.status}`))))
+      .then((res) =>
+        res.ok
+          ? res.arrayBuffer()
+          : Promise.reject(new Error(`${src}: ${res.status}`)),
+      )
       .then((bytes) => ac.decodeAudioData(bytes))
       .catch(() => {
         byContext!.delete(src); // a later play tries again

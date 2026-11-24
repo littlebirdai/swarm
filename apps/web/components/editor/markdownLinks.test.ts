@@ -10,7 +10,18 @@ let toMarkdown: typeof import("@codecast/convex/convex/docSync").toMarkdown;
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "getComputedStyle", "DOMParser", "Text"]) {
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "MutationObserver",
+    "getComputedStyle",
+    "DOMParser",
+    "Text",
+  ]) {
     (globalThis as any)[key] = (dom.window as any)[key];
   }
   ({ Editor } = await import("@tiptap/core"));
@@ -19,7 +30,10 @@ beforeAll(async () => {
 }, 120_000);
 
 const make = (markdown: string) =>
-  new Editor({ extensions: createBaseExtensions({ placeholder: "" }), content: markdown });
+  new Editor({
+    extensions: createBaseExtensions({ placeholder: "" }),
+    content: markdown,
+  });
 const md = (e: any) => e.storage.markdown.getMarkdown() as string;
 const saved = (e: any) => toMarkdown(e.getJSON()).trim();
 
@@ -27,7 +41,9 @@ describe("links in the editor", () => {
   test("a bare URL opens as a link and writes back bare", () => {
     const src = "Mockups of every screen: https://example.com/a/0a1cr8_x?y=1";
     const e = make(src);
-    expect(e.getHTML()).toContain('<a target="_blank" rel="noopener noreferrer nofollow" class="editor-link" href="https://example.com/a/0a1cr8_x?y=1">');
+    expect(e.getHTML()).toContain(
+      '<a target="_blank" rel="noopener noreferrer nofollow" class="editor-link" href="https://example.com/a/0a1cr8_x?y=1">',
+    );
     expect(md(e)).toBe(src);
     expect(saved(e)).toBe(src);
   });
@@ -48,7 +64,11 @@ describe("links in the editor", () => {
 describe("image tokens in the editor", () => {
   test("an [Image N] token writes back unescaped while other brackets stay escaped", () => {
     const e = make("");
-    e.commands.insertContent("[Image 1] crop it like [Image 2], not [this] when a < b");
-    expect(md(e)).toBe("[Image 1] crop it like [Image 2], not \\[this\\] when a &lt; b");
+    e.commands.insertContent(
+      "[Image 1] crop it like [Image 2], not [this] when a < b",
+    );
+    expect(md(e)).toBe(
+      "[Image 1] crop it like [Image 2], not \\[this\\] when a &lt; b",
+    );
   });
 });

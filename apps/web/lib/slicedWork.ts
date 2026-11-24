@@ -24,11 +24,15 @@ export function yieldEvery(every: number): () => boolean {
   return () => ++n % every === 0;
 }
 
-const channel = typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
+const channel =
+  typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
 const queue: Array<() => void> = [];
 if (channel) channel.port1.onmessage = () => queue.shift()?.();
 const later = (fn: () => void) => {
-  if (!channel) { setTimeout(fn, 0); return; }
+  if (!channel) {
+    setTimeout(fn, 0);
+    return;
+  }
   queue.push(fn);
   channel.port2.postMessage(0);
 };
@@ -37,33 +41,55 @@ const later = (fn: () => void) => {
 export type SlicedRun = { cancel: () => void };
 
 /** Runs a sliced computation in slices of about `budgetMs`, then hands its result to `done`. */
-export function runSliced<T>(work: Sliced<T>, done: (value: T) => void, budgetMs = 8): SlicedRun {
+export function runSliced<T>(
+  work: Sliced<T>,
+  done: (value: T) => void,
+  budgetMs = 8,
+): SlicedRun {
   let cancelled = false;
   const slice = () => {
     if (cancelled) return;
     const start = performance.now();
     for (;;) {
       const r = work.next();
-      if (r.done) { done(r.value); return; }
-      if (performance.now() - start >= budgetMs) { later(slice); return; }
+      if (r.done) {
+        done(r.value);
+        return;
+      }
+      if (performance.now() - start >= budgetMs) {
+        later(slice);
+        return;
+      }
     }
   };
   later(slice);
-  return { cancel: () => { cancelled = true; } };
+  return {
+    cancel: () => {
+      cancelled = true;
+    },
+  };
 }
 
 // ── a derivation kept outside render ──────────────────────────────────────────
 
 type StepSlot = { deps: ReadonlyArray<unknown>; value: unknown };
-const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) => a.length === b.length && a.every((d, i) => Object.is(d, b[i]));
-const isSliced = (x: unknown): x is Sliced<unknown> => !!x && typeof (x as Generator).next === "function" && typeof (x as Generator)[Symbol.iterator] === "function";
+const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
+  a.length === b.length && a.every((d, i) => Object.is(d, b[i]));
+const isSliced = (x: unknown): x is Sliced<unknown> =>
+  !!x &&
+  typeof (x as Generator).next === "function" &&
+  typeof (x as Generator)[Symbol.iterator] === "function";
 
 /** A derivation's steps, each kept in a slot with the inputs it was made from: a run whose inputs moved only a little
  *  makes again only the steps whose inputs moved. One value per slot, replaced when its inputs change. */
 export class StepCache {
   private slots = new Map<string, StepSlot>();
   /** The slot's value when its inputs are the ones given, else made (sliced when `make` returns a generator) and kept. */
-  *step<T>(slot: string, deps: ReadonlyArray<unknown>, make: () => T | Sliced<T>): Sliced<T> {
+  *step<T>(
+    slot: string,
+    deps: ReadonlyArray<unknown>,
+    make: () => T | Sliced<T>,
+  ): Sliced<T> {
     const was = this.slots.get(slot);
     if (was && sameDeps(was.deps, deps)) return was.value as T;
     const made = make();
@@ -82,8 +108,19 @@ export class SlicedJob<I, R> {
   private listeners = new Set<() => void>();
   private run: SlicedRun | null = null;
   private deps: ReadonlyArray<unknown> | null = null;
-  constructor(private readonly steps: (inputs: I, cache: StepCache, early: (result: R) => void) => Sliced<R>) {}
-  subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
+  constructor(
+    private readonly steps: (
+      inputs: I,
+      cache: StepCache,
+      early: (result: R) => void,
+    ) => Sliced<R>,
+  ) {}
+  subscribe = (fn: () => void) => {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  };
   read = () => this.view;
   private publish(result: R, scope: string) {
     this.view = { result, scope };
@@ -96,7 +133,12 @@ export class SlicedJob<I, R> {
     if (this.deps && sameDeps(this.deps, deps)) return;
     this.run?.cancel();
     this.deps = deps;
-    const early = (result: R) => { if (this.view.scope !== scope) this.publish(result, scope); };
-    this.run = runSliced(this.steps(inputs, this.cache, early), (result) => { this.run = null; this.publish(result, scope); });
+    const early = (result: R) => {
+      if (this.view.scope !== scope) this.publish(result, scope);
+    };
+    this.run = runSliced(this.steps(inputs, this.cache, early), (result) => {
+      this.run = null;
+      this.publish(result, scope);
+    });
   }
 }

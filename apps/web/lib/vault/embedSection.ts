@@ -15,7 +15,13 @@
 // outcome that misleads.
 
 import { splitFrontmatter } from "./frontmatter";
-import { parseNote, slugifyHeading, type NoteBlock, type NoteHeading, type ParsedNote } from "./parseNote";
+import {
+  parseNote,
+  slugifyHeading,
+  type NoteBlock,
+  type NoteHeading,
+  type ParsedNote,
+} from "./parseNote";
 
 export interface EmbedSection {
   /** Markdown ready to render — frontmatter already stripped. */
@@ -47,8 +53,14 @@ function trimBlankEdges(lines: string[]): string {
 /** Walk a `#`-separated heading path (`Parent#Child`), each segment resolved
  *  inside the previous one's span. Matches heading text, or its slug so a link
  *  written in fragment form still lands. First occurrence wins, as in Obsidian. */
-function findHeading(headings: NoteHeading[], subpath: string): NoteHeading | null {
-  const segments = subpath.split("#").map((s) => s.trim()).filter(Boolean);
+function findHeading(
+  headings: NoteHeading[],
+  subpath: string,
+): NoteHeading | null {
+  const segments = subpath
+    .split("#")
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (!segments.length) return null;
   let from = 1;
   let to = Infinity;
@@ -72,12 +84,20 @@ function findHeading(headings: NoteHeading[], subpath: string): NoteHeading | nu
 
 /** The paragraph a bare `^id` line labels: the contiguous non-blank lines above
  *  it. (The parser models the same rule when it attributes the block's text.) */
-function paragraphAbove(lines: string[], idLine: number): [number, number] | null {
+function paragraphAbove(
+  lines: string[],
+  idLine: number,
+): [number, number] | null {
   let end = idLine - 1; // 1-based line above the id
   while (end >= 1 && !lines[end - 1].trim()) end--;
   if (end < 1) return null;
   let start = end;
-  while (start > 1 && lines[start - 2].trim() && !/^\s{0,3}#{1,6}\s/.test(lines[start - 2])) start--;
+  while (
+    start > 1 &&
+    lines[start - 2].trim() &&
+    !/^\s{0,3}#{1,6}\s/.test(lines[start - 2])
+  )
+    start--;
   return [start, end];
 }
 
@@ -90,7 +110,8 @@ function paragraphAbove(lines: string[], idLine: number): [number, number] | nul
 const TAB_WIDTH = 4;
 function indentWidth(run: string): number {
   let width = 0;
-  for (const ch of run) width += ch === "\t" ? TAB_WIDTH - (width % TAB_WIDTH) : 1;
+  for (const ch of run)
+    width += ch === "\t" ? TAB_WIDTH - (width % TAB_WIDTH) : 1;
   return width;
 }
 
@@ -104,7 +125,9 @@ function listItemSpan(lines: string[], line: number): [number, number] {
     // Blank lines inside an item are kept only if something indented follows:
     // `end` only advances on a deeper line, and the slice carries the gaps.
     if (!text.trim()) continue;
-    const lead = indentWidth(text.slice(0, text.length - text.trimStart().length));
+    const lead = indentWidth(
+      text.slice(0, text.length - text.trimStart().length),
+    );
     if (lead <= indent) break;
     end = i + 1;
   }
@@ -148,7 +171,11 @@ export function extractEmbedSection(
       : LIST_ITEM_RE.test(lines[block.line - 1] ?? "")
         ? listItemSpan(lines, block.line)
         : [block.line, block.line];
-    return { content: trimBlankEdges(lines.slice(start - 1, end)), kind: "block", missing: false };
+    return {
+      content: trimBlankEdges(lines.slice(start - 1, end)),
+      kind: "block",
+      missing: false,
+    };
   }
 
   const heading = findHeading(source.headings, subpath);

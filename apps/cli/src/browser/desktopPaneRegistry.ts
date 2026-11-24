@@ -54,22 +54,36 @@ export function desktopPaneRegistryPath(): string {
 
 /** The document, checked field by field. Null for anything this version of
  *  the CLI cannot vouch for: a newer schema, a port that is not one. */
-export function parseDesktopPaneRegistry(raw: string): DesktopPaneRegistry | null {
+export function parseDesktopPaneRegistry(
+  raw: string,
+): DesktopPaneRegistry | null {
   let doc: any;
   try {
     doc = JSON.parse(raw);
   } catch {
     return null;
   }
-  if (!doc || typeof doc !== "object" || doc.version !== DESKTOP_PANE_REGISTRY_VERSION) return null;
+  if (
+    !doc ||
+    typeof doc !== "object" ||
+    doc.version !== DESKTOP_PANE_REGISTRY_VERSION
+  )
+    return null;
   const port = Number(doc.port);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) return null;
   const panes: DesktopPaneEntry[] = [];
   for (const p of Array.isArray(doc.panes) ? doc.panes : []) {
-    if (!p || typeof p !== "object" || typeof p.paneId !== "string" || !p.paneId) continue;
+    if (
+      !p ||
+      typeof p !== "object" ||
+      typeof p.paneId !== "string" ||
+      !p.paneId
+    )
+      continue;
     panes.push({
       paneId: p.paneId,
-      targetId: typeof p.targetId === "string" && p.targetId ? p.targetId : null,
+      targetId:
+        typeof p.targetId === "string" && p.targetId ? p.targetId : null,
       url: typeof p.url === "string" && p.url ? p.url : null,
       session: typeof p.session === "string" && p.session ? p.session : null,
     });
@@ -84,7 +98,9 @@ export function parseDesktopPaneRegistry(raw: string): DesktopPaneRegistry | nul
   };
 }
 
-export function readDesktopPaneRegistry(file = desktopPaneRegistryPath()): DesktopPaneRegistry | null {
+export function readDesktopPaneRegistry(
+  file = desktopPaneRegistryPath(),
+): DesktopPaneRegistry | null {
   try {
     return parseDesktopPaneRegistry(fs.readFileSync(file, "utf-8"));
   } catch {
@@ -114,7 +130,10 @@ export function liveDesktopPaneRegistry(
  * for the agent's process tree; either may be what the app wrote. The tmux
  * pane key is not an id anything else knows, so it never matches.
  */
-export function paneOwnerIds(ownerKey: string | null, env: NodeJS.ProcessEnv = process.env): string[] {
+export function paneOwnerIds(
+  ownerKey: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   const ids = new Set<string>();
   const m = ownerKey ? /^(session|env):(.+)$/.exec(ownerKey) : null;
   if (m) ids.add(m[2]);
@@ -131,7 +150,11 @@ export function paneOwnerIds(ownerKey: string | null, env: NodeJS.ProcessEnv = p
  * names a pane id outright, for a human at a bare shell who can see the
  * registry. A pane nobody offered matches no id, ever.
  */
-export function findDesktopPane<T extends DesktopPaneEntry>(panes: T[], ownerIds: string[], explicit?: string): T | null {
+export function findDesktopPane<T extends DesktopPaneEntry>(
+  panes: T[],
+  ownerIds: string[],
+  explicit?: string,
+): T | null {
   if (explicit) return panes.find((p) => p.paneId === explicit) ?? null;
   const owned = panes.filter((p) => p.session && ownerIds.includes(p.session));
   return owned.length ? owned[owned.length - 1] : null;
@@ -159,7 +182,11 @@ export async function liveDesktopPanes(
       if (byId.has(p.targetId)) out.push({ ...p, targetId: p.targetId });
       continue;
     }
-    const byUrl = p.url ? targets.find((t) => t.url === p.url && !out.some((o) => o.targetId === t.targetId)) : null;
+    const byUrl = p.url
+      ? targets.find(
+          (t) => t.url === p.url && !out.some((o) => o.targetId === t.targetId),
+        )
+      : null;
     if (byUrl) out.push({ ...p, targetId: byUrl.targetId });
   }
   return out;
@@ -171,8 +198,15 @@ export async function liveDesktopPanes(
  * gone (the registry no longer lists it) does not shadow the session's other
  * tab (watchSource.ts resolveEngineTab).
  */
-export function desktopPanePins(file = desktopPaneRegistryPath()): { endpoint: CdpEndpoint; targets: Set<string> } | null {
+export function desktopPanePins(
+  file = desktopPaneRegistryPath(),
+): { endpoint: CdpEndpoint; targets: Set<string> } | null {
   const reg = liveDesktopPaneRegistry(file);
   if (!reg) return null;
-  return { endpoint: reg.port, targets: new Set(reg.panes.map((p) => p.targetId).filter((t): t is string => !!t)) };
+  return {
+    endpoint: reg.port,
+    targets: new Set(
+      reg.panes.map((p) => p.targetId).filter((t): t is string => !!t),
+    ),
+  };
 }

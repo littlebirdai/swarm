@@ -17,7 +17,11 @@ import {
   validateIngestBatch,
   sourceConfigProblem,
 } from "./ingest";
-import { INGEST_TRIGGER_EVENTS, TRIGGER_EVENT_LABELS, TRIGGER_EVENT_SHORTHANDS } from "./triggerEvents";
+import {
+  INGEST_TRIGGER_EVENTS,
+  TRIGGER_EVENT_LABELS,
+  TRIGGER_EVENT_SHORTHANDS,
+} from "./triggerEvents";
 import { SIGNAL_KINDS } from "./signalFingerprint";
 
 const NOW = Date.UTC(2026, 9, 3, 12);
@@ -35,17 +39,46 @@ describe("validateIngestBatch", () => {
       release: "web@1.4",
       environment: "production",
       items: [
-        { type: "error", message: "boom", stack: "Error: boom\n    at f (app.js:1:2)", at: NOW - 1000 },
+        {
+          type: "error",
+          message: "boom",
+          stack: "Error: boom\n    at f (app.js:1:2)",
+          at: NOW - 1000,
+        },
         { type: "log", level: "warn", message: "slow", at: NOW },
-        { type: "job_failed", job: "sync", error: "timeout", attempt: 2, at: NOW },
+        {
+          type: "job_failed",
+          job: "sync",
+          error: "timeout",
+          attempt: 2,
+          at: NOW,
+        },
         { type: "check", id: "inv-1", ok: false, title: "orphans", at: NOW },
         { type: "event", name: "signup", props: { plan: "pro" }, at: NOW },
         { type: "deploy", version: "1.4", sha: "abc", at: NOW },
-        { type: "replay", replay_id: "r1", chunks: 2, counts: { clicks: 3 }, at: NOW },
+        {
+          type: "replay",
+          replay_id: "r1",
+          chunks: 2,
+          counts: { clicks: 3 },
+          at: NOW,
+        },
       ],
     });
-    expect(result.envelope).toEqual({ sdk: { name: "@platform/analytics", version: "1.2.0" }, release: "web@1.4", environment: "production" });
-    expect(result.items.map((i) => i.type)).toEqual(["error", "log", "job_failed", "check", "event", "deploy", "replay"]);
+    expect(result.envelope).toEqual({
+      sdk: { name: "@platform/analytics", version: "1.2.0" },
+      release: "web@1.4",
+      environment: "production",
+    });
+    expect(result.items.map((i) => i.type)).toEqual([
+      "error",
+      "log",
+      "job_failed",
+      "check",
+      "event",
+      "deploy",
+      "replay",
+    ]);
     expect(result.rejected).toEqual([]);
   });
 
@@ -66,36 +99,70 @@ describe("validateIngestBatch", () => {
   });
 
   test("structural problems refuse the batch with a status the SDK acts on", () => {
-    expect(validateIngestBatch("{not json", NOW)).toMatchObject({ ok: false, status: 400 });
-    expect(validateIngestBatch([], NOW)).toMatchObject({ ok: false, status: 400 });
-    expect(validateIngestBatch({ items: "x" }, NOW)).toMatchObject({ ok: false, status: 400 });
-    const many = { items: Array.from({ length: INGEST_LIMITS.max_items + 1 }, () => ({ type: "event", name: "x" })) };
-    expect(validateIngestBatch(many, NOW)).toMatchObject({ ok: false, status: 413 });
-    const huge = JSON.stringify({ items: [{ type: "error", message: "x".repeat(INGEST_LIMITS.max_bytes) }] });
-    expect(validateIngestBatch(huge, NOW)).toMatchObject({ ok: false, status: 413 });
+    expect(validateIngestBatch("{not json", NOW)).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(validateIngestBatch([], NOW)).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(validateIngestBatch({ items: "x" }, NOW)).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    const many = {
+      items: Array.from({ length: INGEST_LIMITS.max_items + 1 }, () => ({
+        type: "event",
+        name: "x",
+      })),
+    };
+    expect(validateIngestBatch(many, NOW)).toMatchObject({
+      ok: false,
+      status: 413,
+    });
+    const huge = JSON.stringify({
+      items: [{ type: "error", message: "x".repeat(INGEST_LIMITS.max_bytes) }],
+    });
+    expect(validateIngestBatch(huge, NOW)).toMatchObject({
+      ok: false,
+      status: 413,
+    });
   });
 
   test("exactly the item cap is accepted, and a raw string body parses", () => {
-    const body = { items: Array.from({ length: INGEST_LIMITS.max_items }, () => ({ type: "event", name: "x" })) };
-    expect(ok(JSON.stringify(body)).items).toHaveLength(INGEST_LIMITS.max_items);
+    const body = {
+      items: Array.from({ length: INGEST_LIMITS.max_items }, () => ({
+        type: "event",
+        name: "x",
+      })),
+    };
+    expect(ok(JSON.stringify(body)).items).toHaveLength(
+      INGEST_LIMITS.max_items,
+    );
   });
 
   test("long fields are clipped, big objects replaced by a note", () => {
     const [item] = ok({
-      items: [{
-        type: "error",
-        message: "m".repeat(5000),
-        stack: "s".repeat(40_000),
-        context: { blob: "c".repeat(20_000) },
-        tags: { a: "t".repeat(500), n: 3, nested: { no: 1 } },
-        at: NOW,
-      }],
+      items: [
+        {
+          type: "error",
+          message: "m".repeat(5000),
+          stack: "s".repeat(40_000),
+          context: { blob: "c".repeat(20_000) },
+          tags: { a: "t".repeat(500), n: 3, nested: { no: 1 } },
+          at: NOW,
+        },
+      ],
     }).items;
     if (item.type !== "error") throw new Error("type");
     expect(item.message).toHaveLength(INGEST_LIMITS.message_chars);
     expect(item.stack).toHaveLength(INGEST_LIMITS.stack_chars);
     expect(item.context?._truncated).toBeDefined();
-    expect(item.tags).toEqual({ a: "t".repeat(INGEST_LIMITS.tag_value_chars), n: "3" });
+    expect(item.tags).toEqual({
+      a: "t".repeat(INGEST_LIMITS.tag_value_chars),
+      n: "3",
+    });
   });
 
   test("timestamps: ISO strings parse, missing and far-future become now", () => {
@@ -107,18 +174,29 @@ describe("validateIngestBatch", () => {
         { type: "event", name: "d", at: NOW + 60_000 },
       ],
     }).items;
-    expect(items.map((i) => i.at)).toEqual([Date.UTC(2026, 9, 3, 11), NOW, NOW, NOW + 60_000]);
+    expect(items.map((i) => i.at)).toEqual([
+      Date.UTC(2026, 9, 3, 11),
+      NOW,
+      NOW,
+      NOW + 60_000,
+    ]);
   });
 
   test("absent optional fields leave no undefined keys", () => {
-    const [item] = ok({ items: [{ type: "check", id: "a", ok: true, at: NOW }] }).items;
+    const [item] = ok({
+      items: [{ type: "check", id: "a", ok: true, at: NOW }],
+    }).items;
     expect(Object.keys(item).sort()).toEqual(["at", "id", "ok", "type"]);
   });
 });
 
 describe("log levels", () => {
   test("only warn and above are grouped", () => {
-    expect(["debug", "info", "warn", "error", "fatal"].map((l) => isGroupedLogLevel(l as any))).toEqual([false, false, true, true, true]);
+    expect(
+      ["debug", "info", "warn", "error", "fatal"].map((l) =>
+        isGroupedLogLevel(l as any),
+      ),
+    ).toEqual([false, false, true, true, true]);
   });
 });
 
@@ -139,10 +217,18 @@ describe("transitions", () => {
     expect(transitionTriggerEvent("log", "regressed")).toBe("error_regressed");
     expect(transitionTriggerEvent("error", "spike")).toBe("error_spike");
     expect(transitionTriggerEvent("job", "job_failed")).toBe("job_failed");
-    expect(transitionTriggerEvent("check", "check_failed")).toBe("check_failed");
-    expect(transitionTriggerEvent("check", "check_recovered")).toBe("check_recovered");
-    expect(transitionTriggerEvent("metric", "metric_alert")).toBe("metric_alert");
-    expect(transitionTriggerEvent("metric", "metric_recovered")).toBe("metric_recovered");
+    expect(transitionTriggerEvent("check", "check_failed")).toBe(
+      "check_failed",
+    );
+    expect(transitionTriggerEvent("check", "check_recovered")).toBe(
+      "check_recovered",
+    );
+    expect(transitionTriggerEvent("metric", "metric_alert")).toBe(
+      "metric_alert",
+    );
+    expect(transitionTriggerEvent("metric", "metric_recovered")).toBe(
+      "metric_recovered",
+    );
     expect(transitionTriggerEvent(undefined, "deploy")).toBe("deploy");
   });
 
@@ -168,7 +254,8 @@ describe("transitions", () => {
   });
 
   test("the default promote set only names transitions that promote", () => {
-    for (const t of DEFAULT_PROMOTE) expect(transitionSignalKind(t)).toBeDefined();
+    for (const t of DEFAULT_PROMOTE)
+      expect(transitionSignalKind(t)).toBeDefined();
   });
 });
 
@@ -189,14 +276,18 @@ describe("ingest keys", () => {
   });
 
   test("the prefix shows 8 random characters after the fixed head", () => {
-    expect(ingestKeyPrefix("cc_ing_ABCDEFGHrest" + "x".repeat(20))).toBe("cc_ing_ABCDEFGH");
+    expect(ingestKeyPrefix("cc_ing_ABCDEFGHrest" + "x".repeat(20))).toBe(
+      "cc_ing_ABCDEFGH",
+    );
   });
 
   test("the hash is lowercase hex sha256 and stable", async () => {
     const h = await hashIngestKey("cc_ing_abc");
     expect(h).toMatch(/^[0-9a-f]{64}$/);
     expect(await hashIngestKey("cc_ing_abc")).toBe(h);
-    expect(await hashIngestKey("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    expect(await hashIngestKey("")).toBe(
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    );
   });
 });
 
@@ -221,38 +312,83 @@ describe("kindTriggerEvents", () => {
   });
 
   test("names only what a group of the kind can fire", () => {
-    expect(kindTriggerEvents("error")).toEqual(["error_new", "error_regressed", "error_spike"]);
-    expect(kindTriggerEvents("log")).toEqual(["error_new", "error_regressed", "error_spike"]);
+    expect(kindTriggerEvents("error")).toEqual([
+      "error_new",
+      "error_regressed",
+      "error_spike",
+    ]);
+    expect(kindTriggerEvents("log")).toEqual([
+      "error_new",
+      "error_regressed",
+      "error_spike",
+    ]);
     expect(kindTriggerEvents("job")).toEqual(["job_failed"]);
-    expect(kindTriggerEvents("check")).toEqual(["check_failed", "check_recovered"]);
-    expect(kindTriggerEvents("metric")).toEqual(["metric_alert", "metric_recovered"]);
+    expect(kindTriggerEvents("check")).toEqual([
+      "check_failed",
+      "check_recovered",
+    ]);
+    expect(kindTriggerEvents("metric")).toEqual([
+      "metric_alert",
+      "metric_recovered",
+    ]);
     expect(kindTriggerEvents("replay_issue")).toEqual([]);
   });
 });
 
 describe("sourceConfigProblem", () => {
   test("a setting for another provider, or a value its provider does not take, is refused", () => {
-    expect(sourceConfigProblem("sentry", { org: "acme", projects: ["web", "11"], environments: ["production"] })).toBeNull();
+    expect(
+      sourceConfigProblem("sentry", {
+        org: "acme",
+        projects: ["web", "11"],
+        environments: ["production"],
+      }),
+    ).toBeNull();
     expect(sourceConfigProblem("posthog", { project_id: "77" })).toBeNull();
-    expect(sourceConfigProblem("sdk", { allowed_origins: ["https://app.acme.dev"] })).toBeNull();
-    expect(sourceConfigProblem("posthog", { project_id: "abc" })).toMatch(/PostHog project id/);
-    expect(sourceConfigProblem("posthog", { org: "acme" })).toBe("org does not apply to a posthog source");
-    expect(sourceConfigProblem("sentry", { projects: ["web", "../x"] })).toMatch(/not a Sentry project slug/);
-    expect(sourceConfigProblem("sentry", { allowed_origins: ["https://x"] })).toMatch(/does not apply/);
+    expect(
+      sourceConfigProblem("sdk", { allowed_origins: ["https://app.acme.dev"] }),
+    ).toBeNull();
+    expect(sourceConfigProblem("posthog", { project_id: "abc" })).toMatch(
+      /PostHog project id/,
+    );
+    expect(sourceConfigProblem("posthog", { org: "acme" })).toBe(
+      "org does not apply to a posthog source",
+    );
+    expect(
+      sourceConfigProblem("sentry", { projects: ["web", "../x"] }),
+    ).toMatch(/not a Sentry project slug/);
+    expect(
+      sourceConfigProblem("sentry", { allowed_origins: ["https://x"] }),
+    ).toMatch(/does not apply/);
     expect(sourceConfigProblem("app", undefined)).toBeNull();
   });
 });
 
 describe("errorTitle", () => {
   test("an error that says itself twice says it once, and its words lead (ct-58610)", () => {
-    expect(errorTitle("Email dispatch giving up after >24h of transient deferral: Rate limit exceeded. Retry after 1 seconds.: Rate limit exceeded. Retry after 1 seconds.")).toEqual({
-      title: "Email dispatch giving up after >24h of transient deferral: Rate limit exceeded. Retry after 1 seconds.",
+    expect(
+      errorTitle(
+        "Email dispatch giving up after >24h of transient deferral: Rate limit exceeded. Retry after 1 seconds.: Rate limit exceeded. Retry after 1 seconds.",
+      ),
+    ).toEqual({
+      title:
+        "Email dispatch giving up after >24h of transient deferral: Rate limit exceeded. Retry after 1 seconds.",
       words: "Email dispatch giving up after >24h of transient deferral",
       error: "Rate limit exceeded. Retry after 1 seconds.",
     });
   });
   test("a bare error message stays whole", () => {
-    expect(errorTitle("TypeError: Cannot read properties of null (reading 'id')")).toEqual({ title: "TypeError: Cannot read properties of null (reading 'id')", words: null, error: null });
-    expect(errorTitle("Rate limit exceeded")).toEqual({ title: "Rate limit exceeded", words: null, error: null });
+    expect(
+      errorTitle("TypeError: Cannot read properties of null (reading 'id')"),
+    ).toEqual({
+      title: "TypeError: Cannot read properties of null (reading 'id')",
+      words: null,
+      error: null,
+    });
+    expect(errorTitle("Rate limit exceeded")).toEqual({
+      title: "Rate limit exceeded",
+      words: null,
+      error: null,
+    });
   });
 });

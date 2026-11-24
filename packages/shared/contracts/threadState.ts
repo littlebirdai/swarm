@@ -63,12 +63,30 @@ export const THREAD_STATE_STATUS_LABEL: Record<ThreadStateStatus, string> = {
 
 /** Map loose spellings (CLI flag input, older rows) onto the enum. Returns null
  * for anything unrecognized so callers can reject or fall back explicitly. */
-export function parseThreadStateStatus(input: string | null | undefined): ThreadStateStatus | null {
-  const word = (input ?? "").trim().toLowerCase().replace(/[_\s]+/g, "-");
-  if (["working", "in-progress", "progress", "wip", "active"].includes(word)) return "working";
-  if (["blocked", "needs-input", "needs-you", "input", "waiting", "stuck"].includes(word)) return "blocked";
-  if (["done", "complete", "completed", "finished", "delivered"].includes(word)) return "done";
-  if (["dormant", "parked", "asleep", "sleeping", "waiting-on"].includes(word)) return "dormant";
+export function parseThreadStateStatus(
+  input: string | null | undefined,
+): ThreadStateStatus | null {
+  const word = (input ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  if (["working", "in-progress", "progress", "wip", "active"].includes(word))
+    return "working";
+  if (
+    [
+      "blocked",
+      "needs-input",
+      "needs-you",
+      "input",
+      "waiting",
+      "stuck",
+    ].includes(word)
+  )
+    return "blocked";
+  if (["done", "complete", "completed", "finished", "delivered"].includes(word))
+    return "done";
+  if (["dormant", "parked", "asleep", "sleeping", "waiting-on"].includes(word))
+    return "dormant";
   return null;
 }
 
@@ -98,12 +116,17 @@ export function normalizeThreadState(input: string): string {
 export function threadStateProseCut(input: string): boolean {
   const collapsed = collapseThreadState(input);
   if (collapsed.length <= THREAD_STATE_MAX_CHARS) return false;
-  const shown = withoutJsonBlocks(normalizeThreadState(input)).replace(/…$/, "").trim();
+  const shown = withoutJsonBlocks(normalizeThreadState(input))
+    .replace(/…$/, "")
+    .trim();
   return shown.length < withoutJsonBlocks(collapsed).trim().length;
 }
 
 function collapseThreadState(input: string): string {
-  const lines = input.replace(/\r\n/g, "\n").split("\n").map((line) => line.trimEnd());
+  const lines = input
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd());
   // Drop the indentation the whole block shares — a heredoc written inside an
   // indented shell block carries it accidentally — while keeping the RELATIVE
   // indentation that makes nested bullets read as nested.
@@ -126,7 +149,10 @@ function collapseThreadState(input: string): string {
  * status. The convention puts what the session is working on here unlabeled.
  */
 export function threadStateHeadline(text: string): string {
-  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
   // A markdown heading ("## Where it stands") titles the note rather than saying where it stands.
   const line = lines.find((l) => !/^#{1,6}\s/.test(l)) ?? lines[0];
   if (!line) return "";
@@ -172,7 +198,10 @@ export function threadStateRows(text: string): ThreadStateRow[] {
  * line takes the slot only under a `Goal:` headline: elsewhere it is mostly
  * what already happened, and on a blocked card it used to push the ask out.
  */
-export function threadStateCardLine(text: string, rows: ThreadStateRow[] = threadStateRows(text)): string {
+export function threadStateCardLine(
+  text: string,
+  rows: ThreadStateRow[] = threadStateRows(text),
+): string {
   const ask = rows.find((r) => r.label === "You" || r.label === "Blocked");
   if (ask) {
     const { prose, command } = threadStateAskParts(ask.text);
@@ -187,7 +216,10 @@ export function threadStateCardLine(text: string, rows: ThreadStateRow[] = threa
 
 /** An ask split from the command that ends it ("paste it: `cmd`"): a card
  * shows the words, and the panel gives the command a line and a copy button. */
-export function threadStateAskParts(text: string): { prose: string; command: string | null } {
+export function threadStateAskParts(text: string): {
+  prose: string;
+  command: string | null;
+} {
   const m = text.match(/^(.*?)[\s:]*`([^`]+)`\s*$/);
   return m ? { prose: m[1], command: m[2] } : { prose: text, command: null };
 }
@@ -202,7 +234,11 @@ export function threadStateFreshness(
   fields: ThreadStateFields,
   liveMessageCount: number,
   now: number,
-): { freshness: ThreadStateFreshness; messagesSince: number | null; ageMs: number | null } {
+): {
+  freshness: ThreadStateFreshness;
+  messagesSince: number | null;
+  ageMs: number | null;
+} {
   const writtenAt = fields.thread_state_at ?? null;
   const writtenCount = fields.thread_state_msg_count ?? null;
   const ageMs = writtenAt == null ? null : Math.max(0, now - writtenAt);
@@ -210,16 +246,20 @@ export function threadStateFreshness(
     writtenCount == null ? null : Math.max(0, liveMessageCount - writtenCount);
 
   let freshness: ThreadStateFreshness = "fresh";
-  if (messagesSince != null && messagesSince >= THREAD_STATE_STALE_MSGS) freshness = "stale";
+  if (messagesSince != null && messagesSince >= THREAD_STATE_STALE_MSGS)
+    freshness = "stale";
   else if (ageMs != null && ageMs >= THREAD_STATE_STALE_MS) freshness = "stale";
-  else if (messagesSince != null && messagesSince >= THREAD_STATE_AGING_MSGS) freshness = "aging";
+  else if (messagesSince != null && messagesSince >= THREAD_STATE_AGING_MSGS)
+    freshness = "aging";
   else if (ageMs != null && ageMs >= THREAD_STATE_AGING_MS) freshness = "aging";
 
   return { freshness, messagesSince, ageMs };
 }
 
 /** True when the row carries a usable pinned state. */
-export function hasThreadState(fields: ThreadStateFields | null | undefined): boolean {
+export function hasThreadState(
+  fields: ThreadStateFields | null | undefined,
+): boolean {
   return !!fields?.thread_state && fields.thread_state.trim().length > 0;
 }
 
@@ -253,7 +293,9 @@ export function lastJsonBlock(text: string): string | null {
  * line. A block that no fence closes runs to the end of the text, as an
  * unclosed fence does in markdown.
  */
-function jsonBlocks(text: string): { from: number; to: number; body: string }[] {
+function jsonBlocks(
+  text: string,
+): { from: number; to: number; body: string }[] {
   const parses = (body: string) => {
     try {
       JSON.parse(body);
@@ -265,10 +307,18 @@ function jsonBlocks(text: string): { from: number; to: number; body: string }[] 
   const blocks: { from: number; to: number; body: string }[] = [];
   for (const open of text.matchAll(/```json[ \t]*\n/g)) {
     const from = open.index! + open[0].length;
-    for (let at = text.indexOf("```", from); ; at = text.indexOf("```", at + 3)) {
+    for (
+      let at = text.indexOf("```", from);
+      ;
+      at = text.indexOf("```", at + 3)
+    ) {
       const body = text.slice(from, at === -1 ? undefined : at).trim();
       if (parses(body)) {
-        blocks.push({ from: open.index!, to: at === -1 ? text.length : at + 3, body });
+        blocks.push({
+          from: open.index!,
+          to: at === -1 ? text.length : at + 3,
+          body,
+        });
         break;
       }
       if (at === -1) break;
@@ -313,9 +363,15 @@ export function answeredThreadStateFields(): {
 
 /** The patch that takes a pinned state down whole, its report included: the
  * session withdrawing what it said (`cast state clear`). */
-export function clearedThreadStateFields(): ReturnType<typeof answeredThreadStateFields> & {
+export function clearedThreadStateFields(): ReturnType<
+  typeof answeredThreadStateFields
+> & {
   thread_state_result: undefined;
   thread_state_result_at: undefined;
 } {
-  return { ...answeredThreadStateFields(), thread_state_result: undefined, thread_state_result_at: undefined };
+  return {
+    ...answeredThreadStateFields(),
+    thread_state_result: undefined,
+    thread_state_result_at: undefined,
+  };
 }

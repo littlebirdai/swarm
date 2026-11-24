@@ -16,7 +16,11 @@ describe("opencodeApiForkEligible", () => {
     sourceSessionId: "ses_08fca822fffeeAlucC44xJ71Kl",
     atTip: true,
   };
-  const partial = { ...atTip, atTip: false, forkMessageId: "msg_f70610ce20011hSq6ZHaX9zMEI" };
+  const partial = {
+    ...atTip,
+    atTip: false,
+    forkMessageId: "msg_f70610ce20011hSq6ZHaX9zMEI",
+  };
 
   test("at-tip opencode fork (full, no messageID) is eligible", () => {
     expect(opencodeApiForkEligible(atTip)).toBe(true);
@@ -27,26 +31,41 @@ describe("opencodeApiForkEligible", () => {
   });
 
   test("partial opencode fork that could NOT resolve a messageID is NOT eligible (honest fallback)", () => {
-    expect(opencodeApiForkEligible({ ...partial, forkMessageId: undefined })).toBe(false);
+    expect(
+      opencodeApiForkEligible({ ...partial, forkMessageId: undefined }),
+    ).toBe(false);
   });
 
   test("cross-agent switch (not a plain fork) is NOT eligible", () => {
-    expect(opencodeApiForkEligible({ ...atTip, isPlainFork: false })).toBe(false);
+    expect(opencodeApiForkEligible({ ...atTip, isPlainFork: false })).toBe(
+      false,
+    );
   });
 
   test("non-opencode target agent is NOT eligible", () => {
-    expect(opencodeApiForkEligible({ ...atTip, daemonAgentType: "claude" })).toBe(false);
+    expect(
+      opencodeApiForkEligible({ ...atTip, daemonAgentType: "claude" }),
+    ).toBe(false);
   });
 
   test("non-opencode source agent is NOT eligible", () => {
-    expect(opencodeApiForkEligible({ ...atTip, sourceAgentType: "codex" })).toBe(false);
+    expect(
+      opencodeApiForkEligible({ ...atTip, sourceAgentType: "codex" }),
+    ).toBe(false);
   });
 
   test("parent whose id is still a synthetic forked-<id> is NOT eligible", () => {
-    expect(opencodeApiForkEligible({ ...atTip, sourceSessionId: "forked-ses_x-abc" })).toBe(false);
+    expect(
+      opencodeApiForkEligible({
+        ...atTip,
+        sourceSessionId: "forked-ses_x-abc",
+      }),
+    ).toBe(false);
   });
 
   test("missing parent session id is NOT eligible", () => {
-    expect(opencodeApiForkEligible({ ...atTip, sourceSessionId: undefined })).toBe(false);
+    expect(
+      opencodeApiForkEligible({ ...atTip, sourceSessionId: undefined }),
+    ).toBe(false);
   });
 });

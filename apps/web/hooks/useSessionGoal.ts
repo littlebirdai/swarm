@@ -8,11 +8,29 @@ import { useCollectionRows } from "./useCollectionRows";
 
 const api = _api as any;
 
-const goalSig = (g: SessionGoal) => `${g._id}|${g.status}|${g.rounds}|${g.stalls}|${g.reason ?? ""}|${g.next_step ?? ""}|${g.objective.length}|${g.created_at}`;
-const newestFirst = (a: SessionGoal, b: SessionGoal) => b.created_at - a.created_at;
+const goalSig = (g: SessionGoal) =>
+  `${g._id}|${g.status}|${g.rounds}|${g.stalls}|${g.reason ?? ""}|${g.next_step ?? ""}|${g.objective.length}|${g.created_at}`;
+const newestFirst = (a: SessionGoal, b: SessionGoal) =>
+  b.created_at - a.created_at;
 
-export function useSessionGoal(conversationId: string | undefined): SessionGoal | null {
-  useSyncCollection("sessionGoals", api.sessionGoals.forConversation, entityIdArgs("conversation_id", conversationId));
-  const where = useMemo(() => (g: SessionGoal) => !!conversationId && String(g.conversation_id) === conversationId, [conversationId]);
-  return useCollectionRows<SessionGoal>("sessionGoals", { where, sig: goalSig, sort: newestFirst })[0] ?? null;
+export function useSessionGoal(
+  conversationId: string | undefined,
+): SessionGoal | null {
+  useSyncCollection(
+    "sessionGoals",
+    api.sessionGoals.forConversation,
+    entityIdArgs("conversation_id", conversationId),
+  );
+  const where = useMemo(
+    () => (g: SessionGoal) =>
+      !!conversationId && String(g.conversation_id) === conversationId,
+    [conversationId],
+  );
+  return (
+    useCollectionRows<SessionGoal>("sessionGoals", {
+      where,
+      sig: goalSig,
+      sort: newestFirst,
+    })[0] ?? null
+  );
 }

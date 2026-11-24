@@ -19,7 +19,10 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CdpConnection, listTargetsVia } from "../../../apps/cli/src/browser/cdp";
+import {
+  CdpConnection,
+  listTargetsVia,
+} from "../../../apps/cli/src/browser/cdp";
 import { readBridgeState } from "../../../apps/cli/src/browser/bridge/host";
 import { bridgeEndpointIfConfigured } from "../../../apps/cli/src/browser/bridge/real";
 
@@ -27,7 +30,9 @@ const OUT_DIR = "/tmp/guide-figure-shots";
 const phone = process.argv.includes("--phone");
 const args = process.argv.slice(2).filter((a) => a !== "--phone");
 const wantSlug = args.find((a) => !/^\d+$/.test(a));
-const only = args.find((a) => /^\d+$/.test(a)) ? Number(args.find((a) => /^\d+$/.test(a))) : null;
+const only = args.find((a) => /^\d+$/.test(a))
+  ? Number(args.find((a) => /^\d+$/.test(a)))
+  : null;
 const isArticle = (url: string) => {
   const m = /\/(documentation|blog)\/([^/?#]+)/.exec(url);
   return !!m && (!wantSlug || m[2] === wantSlug);
@@ -54,32 +59,56 @@ const FIGURE_BOX = (i: number) => `(async () => {
   return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height };
 })()`;
 
-
 const tabs = readBridgeState()?.sessionTabs ?? {};
-const session = Object.keys(tabs).find((k) => tabs[k].some((t) => isArticle(t.url)));
-if (!session) throw new Error("no cast browser tab on a guide or post: cast browser open <url> first");
+const session = Object.keys(tabs).find((k) =>
+  tabs[k].some((t) => isArticle(t.url)),
+);
+if (!session)
+  throw new Error(
+    "no cast browser tab on a guide or post: cast browser open <url> first",
+  );
 const ep = await bridgeEndpointIfConfigured(session);
-if (!ep) throw new Error("the cast browser bridge is not running: check cast browser extension status");
+if (!ep)
+  throw new Error(
+    "the cast browser bridge is not running: check cast browser extension status",
+  );
 
 const conn = await CdpConnection.fromPort(ep);
 let attached: string | undefined;
 try {
   const target = (await listTargetsVia(conn)).find((t) => isArticle(t.url));
   if (!target) throw new Error("the guide tab is not visible to this session");
-  const slug = new URL(target.url).pathname.split("/").filter(Boolean).pop() ?? "page";
-  const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+  const slug =
+    new URL(target.url).pathname.split("/").filter(Boolean).pop() ?? "page";
+  const { sessionId } = await conn.send<{ sessionId: string }>(
+    "Target.attachToTarget",
+    { targetId: target.targetId, flatten: true },
+  );
   attached = sessionId;
   const evaluate = async <T>(expression: string) =>
-    (await conn.send<{ result: { value: T } }>("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId)).result.value;
+    (
+      await conn.send<{ result: { value: T } }>(
+        "Runtime.evaluate",
+        { expression, awaitPromise: true, returnByValue: true },
+        sessionId,
+      )
+    ).result.value;
 
   // Reload so the capture reflects the files on disk, then wait for the page
   // and its lazy figures, which take a while under load.
-  if (phone) await conn.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 2400, deviceScaleFactor: 2, mobile: true }, sessionId);
+  if (phone)
+    await conn.send(
+      "Emulation.setDeviceMetricsOverride",
+      { width: 390, height: 2400, deviceScaleFactor: 2, mobile: true },
+      sessionId,
+    );
   else await conn.send("Emulation.clearDeviceMetricsOverride", {}, sessionId);
   await conn.send("Page.reload", { ignoreCache: true }, sessionId);
   await Bun.sleep(3000);
   for (let i = 0; i < 60; i++) {
-    const ready = await evaluate<boolean>(`document.querySelectorAll("article figure").length > 0 && !document.querySelector("article figure .h-64")`);
+    const ready = await evaluate<boolean>(
+      `document.querySelectorAll("article figure").length > 0 && !document.querySelector("article figure .h-64")`,
+    );
     if (ready) break;
     await Bun.sleep(2000);
   }
@@ -88,10 +117,19 @@ try {
   mkdirSync(OUT_DIR, { recursive: true });
   for (let i = 0; i < count; i++) {
     if (only !== null && only !== i + 1) continue;
-    const clip = await evaluate<{ x: number; y: number; width: number; height: number }>(FIGURE_BOX(i));
+    const clip = await evaluate<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }>(FIGURE_BOX(i));
     const { data } = await conn.send<{ data: string }>(
       "Page.captureScreenshot",
-      { format: "png", clip: { ...clip, scale: 1 }, captureBeyondViewport: true },
+      {
+        format: "png",
+        clip: { ...clip, scale: 1 },
+        captureBeyondViewport: true,
+      },
       sessionId,
       60_000,
     );
@@ -101,6 +139,9 @@ try {
   }
   if (count === 0) console.log("no <figure> in the article");
 } finally {
-  if (phone && attached) await conn.send("Emulation.clearDeviceMetricsOverride", {}, attached).catch(() => {});
+  if (phone && attached)
+    await conn
+      .send("Emulation.clearDeviceMetricsOverride", {}, attached)
+      .catch(() => {});
   conn.close();
 }

@@ -19,7 +19,11 @@ export const ORG_MEET_COMPOSER_GAP = 12;
  *  person must be able to send without dismissing it. Measured from the
  *  conversation composer's box and the toast's own distance from the bottom
  *  of the window; zero when no composer is on screen or it already clears. */
-export function composerLift(doc: Document, viewportHeight: number, toastBottomOffset = 32): number {
+export function composerLift(
+  doc: Document,
+  viewportHeight: number,
+  toastBottomOffset = 32,
+): number {
   // The sticky wrapper holds the summary bar and a gap above the composer
   // itself; the form is the box a hand reaches for.
   const wrap = doc.querySelector<HTMLElement>("[data-sv-composer]");
@@ -27,7 +31,10 @@ export function composerLift(doc: Document, viewportHeight: number, toastBottomO
   if (!composer) return 0;
   const r = composer.getBoundingClientRect();
   if (r.height === 0 || r.top >= viewportHeight) return 0;
-  return Math.max(0, viewportHeight - toastBottomOffset - (r.top - ORG_MEET_COMPOSER_GAP));
+  return Math.max(
+    0,
+    viewportHeight - toastBottomOffset - (r.top - ORG_MEET_COMPOSER_GAP),
+  );
 }
 
 // ---------------------------------------------------------------- the gate
@@ -60,10 +67,14 @@ export function orgIntroCardMayRise(f: OrgIntroCardFacts): boolean {
  *  composer, a doc's comment box, the chat line. Read from the DOM at rise
  *  time because each keeps its draft under its own key. */
 export function composerHasText(doc: Document = document): boolean {
-  for (const el of doc.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>("textarea, input[type=text]")) {
+  for (const el of doc.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>(
+    "textarea, input[type=text]",
+  )) {
     if (el.value.trim()) return true;
   }
-  for (const el of doc.querySelectorAll<HTMLElement>("[contenteditable=true], [contenteditable=''], [contenteditable=plaintext-only]")) {
+  for (const el of doc.querySelectorAll<HTMLElement>(
+    "[contenteditable=true], [contenteditable=''], [contenteditable=plaintext-only]",
+  )) {
     if ((el.textContent ?? "").trim()) return true;
   }
   return false;

@@ -10,7 +10,13 @@ import { useDebounce } from "./useDebounce";
 import { useInboxStore } from "../store/inboxStore";
 import { callTitle, type CallPlace } from "../lib/calls/roomLabels";
 
-type Line = { seq: number; speaker_id: string; speaker_name: string; text: string; t0: number };
+type Line = {
+  seq: number;
+  speaker_id: string;
+  speaker_name: string;
+  text: string;
+  t0: number;
+};
 
 export type CallSearchResult = {
   call: any;
@@ -29,7 +35,10 @@ export function termsOf(query: string): string[] {
 /** The first recap part (summary sentence, then action items) holding a term. */
 function recapHit(call: any, terms: string[]): string | null {
   const sentences: string[] = (call.summary ?? "").split(/(?<=[.!?])\s+/);
-  for (const part of [...sentences, ...((call.action_items ?? []) as string[])]) {
+  for (const part of [
+    ...sentences,
+    ...((call.action_items ?? []) as string[]),
+  ]) {
     const low = part.toLowerCase();
     if (terms.some((t) => low.includes(t))) return part;
   }
@@ -43,7 +52,10 @@ export function useCallSearch(
 ): { results: CallSearchResult[] | null; searching: boolean } {
   const q = query.trim();
   const settled = useDebounce(q, 180);
-  const words = useQueryNoThrow(api.transcripts.webSearchCalls, settled.length >= 2 ? { q: settled } : "skip");
+  const words = useQueryNoThrow(
+    api.transcripts.webSearchCalls,
+    settled.length >= 2 ? { q: settled } : "skip",
+  );
   const results = useMemo(() => {
     if (!q) return null;
     const terms = termsOf(q);
@@ -55,7 +67,9 @@ export function useCallSearch(
       const said = spoken.get(id);
       const haystack = [
         callTitle({ ...call, place: places[id] }, store),
-        ...((call.participants ?? []) as Array<{ name: string }>).map((p) => p.name),
+        ...((call.participants ?? []) as Array<{ name: string }>).map(
+          (p) => p.name,
+        ),
         call.summary ?? "",
         ...((call.action_items ?? []) as string[]),
       ]
@@ -73,6 +87,8 @@ export function useCallSearch(
     return out;
   }, [calls, places, q, words.data]);
   // The words answer lags the keystroke: the debounce, then the server.
-  const searching = q.length >= 2 && (settled !== q || (words.data === undefined && !words.error));
+  const searching =
+    q.length >= 2 &&
+    (settled !== q || (words.data === undefined && !words.error));
   return { results, searching };
 }

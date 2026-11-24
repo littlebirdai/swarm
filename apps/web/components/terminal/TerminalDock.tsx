@@ -10,7 +10,10 @@ import { useInboxStore } from "../../store/inboxStore";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { lazyNamed } from "../../lib/lazyNamed";
 
-const TerminalPanel = lazyNamed(() => import("./TerminalPanel"), "TerminalPanel");
+const TerminalPanel = lazyNamed(
+  () => import("./TerminalPanel"),
+  "TerminalPanel",
+);
 
 export function TerminalDock() {
   const open = useInboxStore((s) => s.workspace.dock.pane != null);
@@ -21,8 +24,11 @@ export function TerminalDock() {
       setWarm(true);
       return;
     }
-    const ric = typeof requestIdleCallback === "function" ? requestIdleCallback : null;
-    const handle = ric ? ric(() => setWarm(true), { timeout: 4000 }) : window.setTimeout(() => setWarm(true), 2000);
+    const ric =
+      typeof requestIdleCallback === "function" ? requestIdleCallback : null;
+    const handle = ric
+      ? ric(() => setWarm(true), { timeout: 4000 })
+      : window.setTimeout(() => setWarm(true), 2000);
     return () => (ric ? cancelIdleCallback(handle) : clearTimeout(handle));
   }, [open, warm]);
   if (!warm) return null;

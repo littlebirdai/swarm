@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { NodeViewWrapper, NodeViewContent, type NodeViewProps } from "@tiptap/react";
+import {
+  NodeViewWrapper,
+  NodeViewContent,
+  type NodeViewProps,
+} from "@tiptap/react";
 import { Copy, Check } from "lucide-react";
 import { copyToClipboard } from "../../lib/utils";
 
@@ -25,7 +29,9 @@ export function CodeBlockNodeView({ node }: NodeViewProps) {
         contentEditable={false}
       >
         {language && (
-          <span className="text-meta font-mono text-sol-text-dim select-none">{language}</span>
+          <span className="text-meta font-mono text-sol-text-dim select-none">
+            {language}
+          </span>
         )}
         <button
           onClick={handleCopy}

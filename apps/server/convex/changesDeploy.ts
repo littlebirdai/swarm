@@ -26,7 +26,10 @@ import { recordDevPush } from "./lib/devPushes";
 import { adderOf, targetPushes } from "./lib/droppedWork";
 import { sameSha } from "./deployCarries";
 import { devPushedOver } from "./deployTargetsState";
-import { normalizeDeployTarget, type AddedBy } from "@codecast/shared/contracts/deploys";
+import {
+  normalizeDeployTarget,
+  type AddedBy,
+} from "@codecast/shared/contracts/deploys";
 
 const SURFACE = /^[a-z][a-z0-9-]{0,31}$/;
 const SHA = /^[0-9a-f]{7,40}$/;
@@ -49,7 +52,9 @@ export async function deployTeamFor(
 ): Promise<Id<"teams">> {
   const team = await findDeployTeam(ctx, userId, repository);
   if (team) return team;
-  throw new Error(`None of your teams has ${repository} connected (GitHub App or a published checkout); pass --team <name|id>.`);
+  throw new Error(
+    `None of your teams has ${repository} connected (GitHub App or a published checkout); pass --team <name|id>.`,
+  );
 }
 
 /** deployTeamFor, answering null when none of the caller's teams works on the repository. */
@@ -59,7 +64,8 @@ export async function findDeployTeam(
   repository: string,
 ): Promise<Id<"teams"> | null> {
   const installed = await resolveTeamForRepository(ctx, repository);
-  if (installed && (await isTeamMember(ctx, userId, installed))) return installed;
+  if (installed && (await isTeamMember(ctx, userId, installed)))
+    return installed;
   const sources = await ctx.db
     .query("repo_sources")
     .withIndex("by_repository", (q: any) => q.eq("repository", repository))
@@ -69,7 +75,10 @@ export async function findDeployTeam(
     if (await isTeamMember(ctx, userId, id)) teams.push(id);
   }
   if (teams.length === 1) return teams[0];
-  if (teams.length > 1) throw new Error(`More than one of your teams works on ${repository}; pass --team <name|id>.`);
+  if (teams.length > 1)
+    throw new Error(
+      `More than one of your teams works on ${repository}; pass --team <name|id>.`,
+    );
   return null;
 }
 
@@ -84,15 +93,24 @@ export async function latestDeploy(
   teamId: Id<"teams">,
   repository: string,
   surface: string,
-): Promise<{ _id: Id<"external_events">; sha?: string; created_at: number } | null> {
+): Promise<{
+  _id: Id<"external_events">;
+  sha?: string;
+  created_at: number;
+} | null> {
   const recent = await ctx.db
     .query("external_events")
-    .withIndex("by_repository_created", (q: any) => q.eq("repository", normalizeRepository(repository)))
+    .withIndex("by_repository_created", (q: any) =>
+      q.eq("repository", normalizeRepository(repository)),
+    )
     .order("desc")
     .take(DEPLOY_SCAN);
   return (
     recent.find(
-      (e: any) => e.kind === "deploy" && String(e.team_id) === String(teamId) && e.meta?.surface === surface,
+      (e: any) =>
+        e.kind === "deploy" &&
+        String(e.team_id) === String(teamId) &&
+        e.meta?.surface === surface,
     ) ?? null
   );
 }
@@ -124,26 +142,62 @@ export const markDeploy = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const repository = parseOwnerRepo(args.repository);
-    if (!repository) throw new Error(`"${args.repository}" is not an owner/name repository.`);
+    if (!repository)
+      throw new Error(`"${args.repository}" is not an owner/name repository.`);
     const surface = args.surface.trim().toLowerCase();
-    if (!SURFACE.test(surface)) throw new Error(`"${args.surface}" is not a surface name (lowercase letters, digits and dashes).`);
+    if (!SURFACE.test(surface))
+      throw new Error(
+        `"${args.surface}" is not a surface name (lowercase letters, digits and dashes).`,
+      );
     const sha = args.sha.trim().toLowerCase();
     if (!SHA.test(sha)) throw new Error(`"${args.sha}" is not a commit sha.`);
     const version = args.version?.trim().slice(0, 64) || undefined;
 
     if (args.team_id) await requireTeamMembership(ctx, userId, args.team_id);
-    const teamId = args.team_id ?? (await deployTeamFor(ctx, userId, repository));
+    const teamId =
+      args.team_id ?? (await deployTeamFor(ctx, userId, repository));
     const user = await ctx.db.get(userId);
-    const startedBy = { kind: "person" as const, name: user?.name ?? user?.github_username ?? "someone", user_id: userId };
+    const startedBy = {
+      kind: "person" as const,
+      name: user?.name ?? user?.github_username ?? "someone",
+      user_id: userId,
+    };
 
     // A dev watcher's push is not a deploy: a dev push, and nothing else (no event, no deploy, no trigger).
     if (args.via === "dev watcher") {
       // The watcher pushes once as it starts: a committed tree whose diff found nothing, at the sha of the clean deploy
       // the target runs with no dev push on top, changed nothing, and is not recorded.
-      if (!args.dirty && Array.isArray(args.adds) && Array.isArray(args.drops) && !args.adds.length && !args.drops.length) {
-        const live = await latestLiveDeploy(ctx, `team:${teamId}`, surface, repository);
-        if (live && !live.dirty && sameSha(live.sha, sha) && !(await devPushedOver(ctx, live))) {
-          return { ok: true as const, dev_push: false as const, noop: true as const, event_id: null, team_id: teamId, repository, surface, sha, version: version ?? null, deploy: null };
+      if (
+        !args.dirty &&
+        Array.isArray(args.adds) &&
+        Array.isArray(args.drops) &&
+        !args.adds.length &&
+        !args.drops.length
+      ) {
+        const live = await latestLiveDeploy(
+          ctx,
+          `team:${teamId}`,
+          surface,
+          repository,
+        );
+        if (
+          live &&
+          !live.dirty &&
+          sameSha(live.sha, sha) &&
+          !(await devPushedOver(ctx, live))
+        ) {
+          return {
+            ok: true as const,
+            dev_push: false as const,
+            noop: true as const,
+            event_id: null,
+            team_id: teamId,
+            repository,
+            surface,
+            sha,
+            version: version ?? null,
+            deploy: null,
+          };
         }
       }
       await recordDevPush(ctx, {
@@ -159,21 +213,53 @@ export const markDeploy = mutation({
         ...(args.drops ? { drops: args.drops } : {}),
         at: Date.now(),
       });
-      return { ok: true as const, dev_push: true as const, event_id: null, team_id: teamId, repository, surface, sha, version: version ?? null, deploy: null };
+      return {
+        ok: true as const,
+        dev_push: true as const,
+        event_id: null,
+        team_id: teamId,
+        repository,
+        surface,
+        sha,
+        version: version ?? null,
+        deploy: null,
+      };
     }
 
     // The surface already runs this sha (a retried deploy.sh, a redeploy of
     // the same commit): one marker. A rollback to an earlier sha is a change
     // of what runs, so it gets a marker of its own.
     const previous = await latestDeploy(ctx, teamId, repository, surface);
-    const live = await latestLiveDeploy(ctx, `team:${teamId}`, surface, repository);
+    const live = await latestLiveDeploy(
+      ctx,
+      `team:${teamId}`,
+      surface,
+      repository,
+    );
     // A deploy of the same commit with uncommitted files is a different deploy, and one that changed what runs is news.
     // So is a clean deploy of a sha whose live deploy went out dirty: the tree it ran was not the sha's. So is one of a
     // sha the target no longer runs (a workflow run rolled it back since this repository's last marker), and one over a
     // dev push: it put the committed tree back.
-    if (previous?.sha === sha && !args.deploy && !args.dirty && !args.adds?.length && !args.drops?.length
-      && (!live || (!live.dirty && sameSha(live.sha, sha) && !(await devPushedOver(ctx, live))))) {
-      return { ok: true as const, event_id: previous._id, team_id: teamId, repository, surface, sha, version: version ?? null };
+    if (
+      previous?.sha === sha &&
+      !args.deploy &&
+      !args.dirty &&
+      !args.adds?.length &&
+      !args.drops?.length &&
+      (!live ||
+        (!live.dirty &&
+          sameSha(live.sha, sha) &&
+          !(await devPushedOver(ctx, live))))
+    ) {
+      return {
+        ok: true as const,
+        event_id: previous._id,
+        team_id: teamId,
+        repository,
+        surface,
+        sha,
+        version: version ?? null,
+      };
     }
 
     const now = Date.now();
@@ -209,11 +295,23 @@ export const markDeploy = mutation({
       // Sent exactly when the push's diff ran, empty or not: a deploy whose diff ran is evidence of what its tree held.
       ...(args.adds ? { adds: args.adds } : {}),
       ...(args.drops ? { drops: args.drops } : {}),
-      ...(args.changes_read_age_ms != null ? { changes_read_at: now - Math.max(0, args.changes_read_age_ms) } : {}),
+      ...(args.changes_read_age_ms != null
+        ? { changes_read_at: now - Math.max(0, args.changes_read_age_ms) }
+        : {}),
       started_by: startedBy,
       at: now,
     });
-    return { ok: true as const, dev_push: false as const, event_id: eventId, team_id: teamId, repository, surface, sha, version: version ?? null, deploy };
+    return {
+      ok: true as const,
+      dev_push: false as const,
+      event_id: eventId,
+      team_id: teamId,
+      repository,
+      surface,
+      sha,
+      version: version ?? null,
+      deploy,
+    };
   },
 });
 
@@ -234,16 +332,28 @@ export const addedBy = query({
   handler: async (ctx, args): Promise<{ found: AddedBy[] }> => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const repository = parseOwnerRepo(args.repository);
-    if (!repository) throw new Error(`"${args.repository}" is not an owner/name repository.`);
+    if (!repository)
+      throw new Error(`"${args.repository}" is not an owner/name repository.`);
     const surface = args.surface.trim().toLowerCase();
-    if (!SURFACE.test(surface)) throw new Error(`"${args.surface}" is not a surface name (lowercase letters, digits and dashes).`);
-    if (args.names.length > NAMES_MAX) throw new Error(`Ask about at most ${NAMES_MAX} names at once.`);
+    if (!SURFACE.test(surface))
+      throw new Error(
+        `"${args.surface}" is not a surface name (lowercase letters, digits and dashes).`,
+      );
+    if (args.names.length > NAMES_MAX)
+      throw new Error(`Ask about at most ${NAMES_MAX} names at once.`);
     const target = normalizeDeployTarget(surface);
     if (!target) return { found: [] };
 
     if (args.team_id) await requireTeamMembership(ctx, userId, args.team_id);
-    const teamId = args.team_id ?? (await deployTeamFor(ctx, userId, repository));
-    const pushes = await targetPushes(ctx, `team:${teamId}`, target, normalizeRepository(repository), ADDED_BY_SCAN);
+    const teamId =
+      args.team_id ?? (await deployTeamFor(ctx, userId, repository));
+    const pushes = await targetPushes(
+      ctx,
+      `team:${teamId}`,
+      target,
+      normalizeRepository(repository),
+      ADDED_BY_SCAN,
+    );
     const found: AddedBy[] = [];
     for (const name of new Set(args.names)) {
       const hit = adderOf(pushes, name);
@@ -255,10 +365,15 @@ export const addedBy = query({
         dev_push: adder.kind === "dev_push",
         by: adder.row.started_by?.name ?? null,
         machine: adder.row.machine ?? null,
-        via: adder.kind === "deploy" ? adder.row.pushed_via ?? null : "dev watcher",
+        via:
+          adder.kind === "deploy"
+            ? (adder.row.pushed_via ?? null)
+            : "dev watcher",
         at: adder.at,
         dirty: adder.row.dirty ?? 0,
-        ...(hit.committed_in ? { committed_in: hit.committed_in.short_id } : {}),
+        ...(hit.committed_in
+          ? { committed_in: hit.committed_in.short_id }
+          : {}),
       });
     }
     return { found };

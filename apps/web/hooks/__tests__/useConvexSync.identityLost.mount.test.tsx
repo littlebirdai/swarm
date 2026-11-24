@@ -26,26 +26,45 @@ const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convexReact,
   useConvexAuth: () => ({ isAuthenticated: authenticated, isLoading: false }),
-  useQuery: (_q: unknown, args: unknown) => (args === "skip" ? undefined : teamsAnswer),
+  useQuery: (_q: unknown, args: unknown) =>
+    args === "skip" ? undefined : teamsAnswer,
   // useQueryNoThrow's transport (useSyncTeams subscribes through it).
-  useQueries: (queries: Record<string, unknown>) => Object.fromEntries(Object.keys(queries).map((k) => [k, teamsAnswer])),
+  useQueries: (queries: Record<string, unknown>) =>
+    Object.fromEntries(Object.keys(queries).map((k) => [k, teamsAnswer])),
   useMutation: () => async () => {},
 }));
 const realSwitch = await import("../useSwitchWorkspace");
 mock.module("../useSwitchWorkspace", () => ({
   ...realSwitch,
-  useSwitchWorkspace: () => async (id: string | null) => { switched.push(id); },
+  useSwitchWorkspace: () => async (id: string | null) => {
+    switched.push(id);
+  },
 }));
 const realRole = await import("../useSyncRole");
-mock.module("../useSyncRole", () => ({ ...realRole, useIsSyncHost: () => true }));
+mock.module("../useSyncRole", () => ({
+  ...realRole,
+  useIsSyncHost: () => true,
+}));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, localStorage: dom.window.localStorage });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  localStorage: dom.window.localStorage,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
-const { useConvexSync } = await import(`${import.meta.dir}/../useConvexSync.ts?fresh-lost`);
-const { useSyncTeams } = await import(`${import.meta.dir}/../useSyncTeams.ts?fresh-lost`);
+const { useConvexSync } = await import(
+  `${import.meta.dir}/../useConvexSync.ts?fresh-lost`
+);
+const { useSyncTeams } = await import(
+  `${import.meta.dir}/../useSyncTeams.ts?fresh-lost`
+);
 const { useInboxStore } = await import("../../store/inboxStore");
 
 afterAll(() => {
@@ -58,7 +77,11 @@ afterAll(() => {
 
 let root: Root;
 beforeEach(() => {
-  root = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+  root = createRoot(
+    dom.window.document.body.appendChild(
+      dom.window.document.createElement("div"),
+    ),
+  );
 });
 
 describe("useConvexSync while the server identity is lost", () => {
@@ -103,7 +126,12 @@ describe("useSyncTeams while the server identity is lost", () => {
     const TEAM = "k97cc9y1a48swe3kfnwcs44a857wmxj2";
     switched.length = 0;
     useInboxStore.getState().syncTable("teams", []);
-    useInboxStore.setState((s: any) => ({ clientState: { ...s.clientState, ui: { ...s.clientState.ui, active_team_id: TEAM } } }));
+    useInboxStore.setState((s: any) => ({
+      clientState: {
+        ...s.clientState,
+        ui: { ...s.clientState.ui, active_team_id: TEAM },
+      },
+    }));
     function Probe() {
       useSyncTeams();
       return null;
@@ -111,13 +139,19 @@ describe("useSyncTeams while the server identity is lost", () => {
     authenticated = true;
     teamsAnswer = [{ _id: TEAM, name: "Union", features: { calls: true } }];
     await act(async () => root.render(<Probe />));
-    expect(useInboxStore.getState().teams.map((t: any) => t._id)).toEqual([TEAM]);
+    expect(useInboxStore.getState().teams.map((t: any) => t._id)).toEqual([
+      TEAM,
+    ]);
 
     // The repair waits 5s before it switches; record every timer armed while
     // the stranger's answer is in hand.
     const armed: number[] = [];
     const realSetTimeout = globalThis.setTimeout;
-    (globalThis as any).setTimeout = (fn: () => void, ms?: number, ...rest: unknown[]) => {
+    (globalThis as any).setTimeout = (
+      fn: () => void,
+      ms?: number,
+      ...rest: unknown[]
+    ) => {
       armed.push(ms ?? 0);
       return (realSetTimeout as any)(fn, ms, ...rest);
     };
@@ -129,7 +163,9 @@ describe("useSyncTeams while the server identity is lost", () => {
       globalThis.setTimeout = realSetTimeout;
     }
     expect(armed.filter((ms) => ms >= 5000)).toEqual([]);
-    expect(useInboxStore.getState().teams.map((t: any) => t._id)).toEqual([TEAM]);
+    expect(useInboxStore.getState().teams.map((t: any) => t._id)).toEqual([
+      TEAM,
+    ]);
     expect(switched).toEqual([]);
     await act(async () => root.unmount());
   });

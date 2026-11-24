@@ -15,15 +15,40 @@ import {
   pollGateResponse,
   updateProgress,
 } from "./workflow_runs";
-import { resolve, withdraw, withdrawCore, GATE_PRESENT_AGAIN, answerCore, askCore, settleClientResolution, edit } from "./sessionDecisions";
+import {
+  resolve,
+  withdraw,
+  withdrawCore,
+  GATE_PRESENT_AGAIN,
+  answerCore,
+  askCore,
+  settleClientResolution,
+  edit,
+} from "./sessionDecisions";
 import { hashToken } from "./apiTokens";
 
-import { HOST, MATE, STRANGER, TEAM, TOKEN, RUN, TASK, NOW, choices, seed, asUser, pause } from "./workflow_runs.gate.testkit";
+import {
+  HOST,
+  MATE,
+  STRANGER,
+  TEAM,
+  TOKEN,
+  RUN,
+  TASK,
+  NOW,
+  choices,
+  seed,
+  asUser,
+  pause,
+} from "./workflow_runs.gate.testkit";
 
 describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
   test("creates a blocking decision bound to the task at its station, with the options and the run", async () => {
     const { ctx, tables } = await seed();
-    const r = await pause(ctx, { doc_md: "# Review\n\nLooks good.", category: "review" });
+    const r = await pause(ctx, {
+      doc_md: "# Review\n\nLooks good.",
+      category: "review",
+    });
     expect(r.ok).toBe(true);
     expect(r.decision_short_id).toBe("sd-1");
 
@@ -50,8 +75,12 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
     expect(run.gate_decision_id).toBe(row._id);
     expect(run.gate_node_id).toBe("review");
     // The mirror for old readers keeps key, label and target.
-    expect(run.gate_choices).toEqual(choices.map(({ key, label, target }) => ({ key, label, target })));
-    expect(run.gate_prompt).toBe("Ship the branch?\nThe reviewer approved with two notes.");
+    expect(run.gate_choices).toEqual(
+      choices.map(({ key, label, target }) => ({ key, label, target })),
+    );
+    expect(run.gate_prompt).toBe(
+      "Ship the branch?\nThe reviewer approved with two notes.",
+    );
 
     const gateMsg = tables.messages.find((m) => m.subtype === "workflow_event");
     const parsed = JSON.parse(gateMsg.content);
@@ -65,15 +94,25 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
     await pause(ctx, { stack: "Launch checklist" });
     expect(tables.decision_stacks).toHaveLength(1);
     expect(tables.decision_stacks[0].title).toBe("Launch checklist");
-    expect(tables.session_decisions[0].stack_id).toBe(tables.decision_stacks[0]._id);
+    expect(tables.session_decisions[0].stack_id).toBe(
+      tables.decision_stacks[0]._id,
+    );
 
     // Answer it so the run resumes, then the next gate.
-    await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", answer_index: 0 });
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
     tables.workflow_runs[0].status = "running";
     await pause(ctx, { node_id: "ship", stack: "Launch checklist" });
     expect(tables.decision_stacks).toHaveLength(1);
-    expect(tables.session_decisions[1].stack_id).toBe(tables.decision_stacks[0]._id);
-    expect(tables.decision_stacks[0].decision_ids).toEqual(tables.session_decisions.map((d) => d._id));
+    expect(tables.session_decisions[1].stack_id).toBe(
+      tables.decision_stacks[0]._id,
+    );
+    expect(tables.decision_stacks[0].decision_ids).toEqual(
+      tables.session_decisions.map((d) => d._id),
+    );
     // Answering the first gate closed the stack; the second gate reopened it.
     expect(tables.decision_stacks[0].status).toBe("open");
   });
@@ -83,8 +122,12 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
     tables.conversations[0].user_id = MATE;
     const r: any = await pause(ctx);
     expect(r.error).toBeUndefined();
-    expect(tables.session_decisions[0].conversation_id).toBe("conversations_spawner");
-    expect(tables.workflow_runs[0].gate_decision_id).toBe(tables.session_decisions[0]._id);
+    expect(tables.session_decisions[0].conversation_id).toBe(
+      "conversations_spawner",
+    );
+    expect(tables.workflow_runs[0].gate_decision_id).toBe(
+      tables.session_decisions[0]._id,
+    );
   });
 
   test("a gate that could not ask anyone says so instead of waiting in silence", async () => {
@@ -98,13 +141,31 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].spawner_conversation_id = undefined;
     await pause(ctx);
-    expect(tables.session_decisions[0].conversation_id).toBe("conversations_primary");
+    expect(tables.session_decisions[0].conversation_id).toBe(
+      "conversations_primary",
+    );
   });
 
   // flows.md FL4: a run started over ssh on another machine has no spawner; its card opens on the session that
   // made the change (another account's, here), never on the run's own log. The server finds that session itself.
-  const maker = (over: Record<string, unknown> = {}) => ({ _id: "conversations_maker", session_id: "sess-maker", user_id: MATE, team_id: TEAM, is_private: false, message_count: 40, ...over });
-  const handoff = (conversation_id: string) => ({ _id: `task_comments_${conversation_id}`, task_id: TASK, author: "Mate", text: "Handoff: done\n\nverified", comment_type: "review", conversation_id, created_at: NOW });
+  const maker = (over: Record<string, unknown> = {}) => ({
+    _id: "conversations_maker",
+    session_id: "sess-maker",
+    user_id: MATE,
+    team_id: TEAM,
+    is_private: false,
+    message_count: 40,
+    ...over,
+  });
+  const handoff = (conversation_id: string) => ({
+    _id: `task_comments_${conversation_id}`,
+    task_id: TASK,
+    author: "Mate",
+    text: "Handoff: done\n\nverified",
+    comment_type: "review",
+    conversation_id,
+    created_at: NOW,
+  });
 
   test("a run with no spawner asks from the session bound to its task", async () => {
     const { ctx, tables } = await seed();
@@ -112,16 +173,22 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
     tables.conversations.push(maker({ active_task_id: TASK }));
     tables.tasks[0].conversation_ids = ["conversations_maker"];
     await pause(ctx);
-    expect(tables.session_decisions[0].conversation_id).toBe("conversations_maker");
+    expect(tables.session_decisions[0].conversation_id).toBe(
+      "conversations_maker",
+    );
     expect(tables.session_decisions[0].user_id).toBe(MATE);
   });
 
   test("with nobody bound, it asks from the session that handed the task off, linked to the task or not", async () => {
-    const { ctx, tables } = await seed({ task_comments: [handoff("conversations_maker")] });
+    const { ctx, tables } = await seed({
+      task_comments: [handoff("conversations_maker")],
+    });
     tables.workflow_runs[0].spawner_conversation_id = undefined;
     tables.conversations.push(maker());
     await pause(ctx);
-    expect(tables.session_decisions[0].conversation_id).toBe("conversations_maker");
+    expect(tables.session_decisions[0].conversation_id).toBe(
+      "conversations_maker",
+    );
   });
 
   test("a session the runner cannot read, or one reviewing the task, asks nothing of it", async () => {
@@ -129,20 +196,28 @@ describe("pauseAtGate asks through the decision rail (the-line.md L4)", () => {
       maker({ user_id: STRANGER, team_id: undefined, is_private: true }),
       maker({ review_of_task_id: TASK }),
     ]) {
-      const { ctx, tables } = await seed({ task_comments: [handoff("conversations_maker")] });
+      const { ctx, tables } = await seed({
+        task_comments: [handoff("conversations_maker")],
+      });
       tables.workflow_runs[0].spawner_conversation_id = undefined;
       tables.conversations.push(conv);
       await pause(ctx);
-      expect(tables.session_decisions[0].conversation_id).toBe("conversations_primary");
+      expect(tables.session_decisions[0].conversation_id).toBe(
+        "conversations_primary",
+      );
     }
   });
 
   test("the spawner still asks when the run has one", async () => {
-    const { ctx, tables } = await seed({ task_comments: [handoff("conversations_maker")] });
+    const { ctx, tables } = await seed({
+      task_comments: [handoff("conversations_maker")],
+    });
     tables.conversations.push(maker({ active_task_id: TASK }));
     tables.tasks[0].conversation_ids = ["conversations_maker"];
     await pause(ctx);
-    expect(tables.session_decisions[0].conversation_id).toBe("conversations_spawner");
+    expect(tables.session_decisions[0].conversation_id).toBe(
+      "conversations_spawner",
+    );
   });
 });
 
@@ -151,7 +226,11 @@ describe("answering a gate resumes the run (the-line.md L4)", () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
     const row = tables.session_decisions[0];
-    const r = await (resolve as any)._handler(asUser(ctx, HOST), { decision_id: row._id, status: "answered", answer_index: 1 });
+    const r = await (resolve as any)._handler(asUser(ctx, HOST), {
+      decision_id: row._id,
+      status: "answered",
+      answer_index: 1,
+    });
     expect(r.already_resolved).toBe(false);
     const run = tables.workflow_runs[0];
     expect(run.status).toBe("running");
@@ -159,14 +238,24 @@ describe("answering a gate resumes the run (the-line.md L4)", () => {
     expect(row.status).toBe("answered");
     expect(tables.pending_messages).toHaveLength(0);
     // The runner's poll reads the key, and the chosen option's own words for a key picked with no note.
-    const poll = await (pollGateResponse as any)._handler(ctx, { api_token: TOKEN, run_id: RUN });
-    expect(poll).toEqual({ status: "running", gate_response: "B", gate_answer: "Revise" });
+    const poll = await (pollGateResponse as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+    });
+    expect(poll).toEqual({
+      status: "running",
+      gate_response: "B",
+      gate_answer: "Revise",
+    });
   });
 
   test("respondToGate with 'B: go' answers option B and keeps the note in front of the runner", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    await (respondToGate as any)._handler(asUser(ctx, HOST), { id: RUN, response: "B: go" });
+    await (respondToGate as any)._handler(asUser(ctx, HOST), {
+      id: RUN,
+      response: "B: go",
+    });
     const row = tables.session_decisions[0];
     expect(row.status).toBe("answered");
     expect(row.answer_index).toBe(1);
@@ -181,22 +270,40 @@ describe("answering a gate resumes the run (the-line.md L4)", () => {
   test("respondToGateFromCli is the same call; free text becomes answer_text; first writer wins", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    const first = await (respondToGateFromCli as any)._handler(ctx, { api_token: TOKEN, run_id: RUN, response: "ship after the fix lands" });
+    const first = await (respondToGateFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+      response: "ship after the fix lands",
+    });
     expect(first).toEqual({ ok: true });
     const row = tables.session_decisions[0];
     expect(row.answer_index).toBeUndefined();
     expect(row.answer_text).toBe("ship after the fix lands");
-    expect(tables.workflow_runs[0].gate_response).toBe("ship after the fix lands");
-    const second = await (respondToGateFromCli as any)._handler(ctx, { api_token: TOKEN, run_id: RUN, response: "A" });
+    expect(tables.workflow_runs[0].gate_response).toBe(
+      "ship after the fix lands",
+    );
+    const second = await (respondToGateFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+      response: "A",
+    });
     expect(second.error).toBe("Not paused");
-    const late = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", answer_index: 0 });
+    const late = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
     expect(late.error).toMatch(/already answered/);
   });
 
   test("a stranger cannot answer through the run", async () => {
     const { ctx } = await seed();
     await pause(ctx);
-    const r = await (respondToGateFromCli as any)._handler(ctx, { api_token: "stranger-token", run_id: RUN, response: "A" });
+    const r = await (respondToGateFromCli as any)._handler(ctx, {
+      api_token: "stranger-token",
+      run_id: RUN,
+      response: "A",
+    });
     expect(r.error).toBe("Not found");
   });
 
@@ -204,21 +311,42 @@ describe("answering a gate resumes the run (the-line.md L4)", () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
     // Reading stays workspace wide (L8).
-    expect((await listRunsCore(ctx, MATE, { task_id: "ct-7" })).map((r: any) => r._id)).toEqual([RUN]);
-    await expect((cancel as any)._handler(asUser(ctx, MATE), { id: RUN })).rejects.toThrow(/not your run/);
+    expect(
+      (await listRunsCore(ctx, MATE, { task_id: "ct-7" })).map(
+        (r: any) => r._id,
+      ),
+    ).toEqual([RUN]);
+    await expect(
+      (cancel as any)._handler(asUser(ctx, MATE), { id: RUN }),
+    ).rejects.toThrow(/not your run/);
     expect(tables.workflow_runs[0].status).toBe("paused");
     // A run's decision on a task is the task's: whoever reads the task answers it.
-    await (respondToGate as any)._handler(asUser(ctx, MATE), { id: RUN, response: "A" });
+    await (respondToGate as any)._handler(asUser(ctx, MATE), {
+      id: RUN,
+      response: "A",
+    });
     expect(tables.session_decisions[0].status).toBe("answered");
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: "A" });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: "A",
+    });
   });
 
   test("the web dispatch path (settleClientResolution) consumes an open gate without delivering to the asker", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
     const row = tables.session_decisions[0];
-    await settleClientResolution(ctx, { ...row }, { status: "answered", answer_index: 0 }, HOST, NOW);
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: "A" });
+    await settleClientResolution(
+      ctx,
+      { ...row },
+      { status: "answered", answer_index: 0 },
+      HOST,
+      NOW,
+    );
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: "A",
+    });
     expect(tables.pending_messages).toHaveLength(0);
   });
 });
@@ -230,21 +358,29 @@ describe("a decision on a run that is past its gate is delivered like any other"
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].status = "failed";
     tables.workflow_runs[0].fail_reason = "review rejected";
-    const asked = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-spawner",
-      question: "Review rejected. What next?",
-      options: [{ label: "Retry" }, { label: "Stop" }],
-      blocking: true,
-      workflow_run_id: RUN as any,
-      gate_node_id: "reject",
-    });
+    const asked = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-spawner",
+        question: "Review rejected. What next?",
+        options: [{ label: "Retry" }, { label: "Stop" }],
+        blocking: true,
+        workflow_run_id: RUN as any,
+        gate_node_id: "reject",
+      },
+    );
     expect(asked.error).toBeUndefined();
     return { ctx, tables, row: tables.session_decisions[0] };
   }
 
   test("answerCore (cast decide answer, a role, a stack default) enqueues the answer into the asking session", async () => {
     const { ctx, tables, row } = await failedRunGate();
-    const r = await answerCore(ctx, { userId: HOST }, { decision_id: String(row._id), answer_index: 0 });
+    const r = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(row._id), answer_index: 0 },
+    );
     expect(r.already_resolved).toBe(false);
     expect(tables.workflow_runs[0].status).toBe("failed");
     expect(tables.pending_messages).toHaveLength(1);
@@ -253,14 +389,24 @@ describe("a decision on a run that is past its gate is delivered like any other"
 
   test("the web resolve delivers too, because the client never delivers a run's decision", async () => {
     const { ctx, tables, row } = await failedRunGate();
-    await (resolve as any)._handler(asUser(ctx, HOST), { decision_id: row._id, status: "answered", answer_index: 1 });
+    await (resolve as any)._handler(asUser(ctx, HOST), {
+      decision_id: row._id,
+      status: "answered",
+      answer_index: 1,
+    });
     expect(tables.pending_messages).toHaveLength(1);
     expect(tables.pending_messages[0].content).toContain("Stop");
   });
 
   test("the web dispatch path delivers the same message", async () => {
     const { ctx, tables, row } = await failedRunGate();
-    await settleClientResolution(ctx, { ...row }, { status: "answered", answer_index: 1 }, HOST, NOW);
+    await settleClientResolution(
+      ctx,
+      { ...row },
+      { status: "answered", answer_index: 1 },
+      HOST,
+      NOW,
+    );
     expect(tables.pending_messages).toHaveLength(1);
     expect(tables.pending_messages[0].content).toContain("Stop");
   });
@@ -281,9 +427,17 @@ describe("withdrawing a gate (the-line.md L4)", () => {
   test("cast workflow cancel stops the run the same way, with the owner's token", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    expect(await (cancelFromCli as any)._handler(ctx, { api_token: TOKEN, run_id: RUN })).toEqual({ run_id: RUN, was: "paused", cancelled: true });
+    expect(
+      await (cancelFromCli as any)._handler(ctx, {
+        api_token: TOKEN,
+        run_id: RUN,
+      }),
+    ).toEqual({ run_id: RUN, was: "paused", cancelled: true });
     expect(tables.session_decisions[0].status).toBe("withdrawn");
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "failed", fail_reason: "Cancelled by user" });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "failed",
+      fail_reason: "Cancelled by user",
+    });
   });
 
   test("a run that ends takes back a decision its presenter posted that no gate took up, and nothing else", async () => {
@@ -293,25 +447,83 @@ describe("withdrawing a gate (the-line.md L4)", () => {
     // to nothing, so an answer to it would have driven nothing.
     const { ctx, tables } = await seed({
       conversations: [
-        { _id: "conversations_spawner", session_id: "sess-spawner", user_id: HOST, team_id: TEAM, message_count: 2 },
-        { _id: "conversations_primary", session_id: `wf-${RUN}`, user_id: HOST, team_id: TEAM, message_count: 1, workflow_run_id: RUN, is_workflow_primary: true },
-        { _id: "conversations_present", session_id: "sess-present", short_id: "jx7pres", user_id: HOST, team_id: TEAM, message_count: 9, parent_conversation_id: "conversations_primary" },
-        { _id: "conversations_refine", session_id: "sess-refine", short_id: "jx7refi", user_id: HOST, team_id: TEAM, message_count: 9, parent_conversation_id: "conversations_primary" },
+        {
+          _id: "conversations_spawner",
+          session_id: "sess-spawner",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 2,
+        },
+        {
+          _id: "conversations_primary",
+          session_id: `wf-${RUN}`,
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 1,
+          workflow_run_id: RUN,
+          is_workflow_primary: true,
+        },
+        {
+          _id: "conversations_present",
+          session_id: "sess-present",
+          short_id: "jx7pres",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 9,
+          parent_conversation_id: "conversations_primary",
+        },
+        {
+          _id: "conversations_refine",
+          session_id: "sess-refine",
+          short_id: "jx7refi",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 9,
+          parent_conversation_id: "conversations_primary",
+        },
       ],
-      workflows: [{ _id: "workflows_line", user_id: HOST, name: "line", slug: "line", nodes: [
-        { id: "refine", type: "agent" }, { id: "card_write", type: "agent" }, { id: "decide", shape: "hexagon", type: "human", asker: "card_write" },
-      ], edges: [] }],
+      workflows: [
+        {
+          _id: "workflows_line",
+          user_id: HOST,
+          name: "line",
+          slug: "line",
+          nodes: [
+            { id: "refine", type: "agent" },
+            { id: "card_write", type: "agent" },
+            {
+              id: "decide",
+              shape: "hexagon",
+              type: "human",
+              asker: "card_write",
+            },
+          ],
+          edges: [],
+        },
+      ],
     });
-    const ask = (session_id: string) => askCore(ctx, { userId: HOST }, { session_id, question: "Ship it?", options: [{ label: "Ship" }, { label: "Drop" }], blocking: true } as any);
+    const ask = (session_id: string) =>
+      askCore(ctx, { userId: HOST }, {
+        session_id,
+        question: "Ship it?",
+        options: [{ label: "Ship" }, { label: "Drop" }],
+        blocking: true,
+      } as any);
     const presented = await ask("sess-present");
     const unrelated = await ask("sess-spawner");
     const proposal = await ask("sess-refine");
-    tables.workflow_runs[0].node_statuses = [{ node_id: "refine", status: "completed", session_id: "jx7refi" }, { node_id: "card_write", status: "completed", session_id: "jx7pres" }];
+    tables.workflow_runs[0].node_statuses = [
+      { node_id: "refine", status: "completed", session_id: "jx7refi" },
+      { node_id: "card_write", status: "completed", session_id: "jx7pres" },
+    ];
     tables.workflow_runs[0].current_node_id = "card_write";
     await (cancel as any)._handler(asUser(ctx, HOST), { id: RUN });
-    const row = (id: string) => tables.session_decisions.find((d) => String(d._id) === String(id));
+    const row = (id: string) =>
+      tables.session_decisions.find((d) => String(d._id) === String(id));
     expect(row((presented as any).id).status).toBe("withdrawn");
-    expect(row((presented as any).id).withdrawn_reason).toContain("stopped (Cancelled by user)");
+    expect(row((presented as any).id).withdrawn_reason).toContain(
+      "stopped (Cancelled by user)",
+    );
     expect(row((unrelated as any).id).status).toBe("pending");
     expect(row((proposal as any).id).status).toBe("pending");
   });
@@ -319,21 +531,38 @@ describe("withdrawing a gate (the-line.md L4)", () => {
   test("a card taken back with cast decide cancel sends its run back to the presenter", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    const r = await (withdraw as any)._handler(ctx, { api_token: TOKEN, decision_id: "sd-1" });
+    const r = await (withdraw as any)._handler(ctx, {
+      api_token: TOKEN,
+      decision_id: "sd-1",
+    });
     expect(r.status).toBe("withdrawn");
     expect(tables.workflow_runs[0].status).toBe("failed");
     expect(tables.workflow_runs[0].fail_reason).toBe(GATE_PRESENT_AGAIN);
-    const polled = await (pollGateResponse as any)._handler(ctx, { api_token: TOKEN, run_id: RUN });
+    const polled = await (pollGateResponse as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+    });
     expect(polled).toMatchObject({ status: "failed", present_again: true });
   });
 
   test("a card withdrawn because its problem closed ends the run", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    const decision = tables.session_decisions.find((d) => d.short_id === "sd-1");
-    await withdrawCore(ctx, decision, Date.now(), undefined, "the problem was dropped");
+    const decision = tables.session_decisions.find(
+      (d) => d.short_id === "sd-1",
+    );
+    await withdrawCore(
+      ctx,
+      decision,
+      Date.now(),
+      undefined,
+      "the problem was dropped",
+    );
     expect(tables.workflow_runs[0].fail_reason).toBe("gate withdrawn");
-    const polled = await (pollGateResponse as any)._handler(ctx, { api_token: TOKEN, run_id: RUN });
+    const polled = await (pollGateResponse as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+    });
     expect(polled.present_again).toBeUndefined();
   });
 });
@@ -342,49 +571,131 @@ describe("withdrawing a gate (the-line.md L4)", () => {
 // reported on, and the reports carried the run through Build and Present to a second card for the problem.
 describe("a run that is over (runOver)", () => {
   const report = (ctx: any, extra: Record<string, any>) =>
-    (updateProgress as any)._handler(ctx, { api_token: TOKEN, run_id: RUN, current_node_id: extra.node_id, ...extra });
-  const withPresenter = () => seed({
-    conversations: [
-      { _id: "conversations_spawner", session_id: "sess-spawner", user_id: HOST, team_id: TEAM, message_count: 2 },
-      { _id: "conversations_primary", session_id: `wf-${RUN}`, user_id: HOST, team_id: TEAM, message_count: 1, workflow_run_id: RUN, is_workflow_primary: true },
-      { _id: "conversations_present", session_id: "sess-present", short_id: "jx7pres", user_id: HOST, team_id: TEAM, message_count: 9, parent_conversation_id: "conversations_primary" },
-    ],
-    workflows: [{ _id: "workflows_line", user_id: HOST, name: "line", slug: "line", nodes: [
-      { id: "build_hold", type: "command" }, { id: "card_write", type: "agent" }, { id: "decide", shape: "hexagon", type: "human", asker: "card_write" },
-    ], edges: [] }],
-  });
+    (updateProgress as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+      current_node_id: extra.node_id,
+      ...extra,
+    });
+  const withPresenter = () =>
+    seed({
+      conversations: [
+        {
+          _id: "conversations_spawner",
+          session_id: "sess-spawner",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 2,
+        },
+        {
+          _id: "conversations_primary",
+          session_id: `wf-${RUN}`,
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 1,
+          workflow_run_id: RUN,
+          is_workflow_primary: true,
+        },
+        {
+          _id: "conversations_present",
+          session_id: "sess-present",
+          short_id: "jx7pres",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 9,
+          parent_conversation_id: "conversations_primary",
+        },
+      ],
+      workflows: [
+        {
+          _id: "workflows_line",
+          user_id: HOST,
+          name: "line",
+          slug: "line",
+          nodes: [
+            { id: "build_hold", type: "command" },
+            { id: "card_write", type: "agent" },
+            {
+              id: "decide",
+              shape: "hexagon",
+              type: "human",
+              asker: "card_write",
+            },
+          ],
+          edges: [],
+        },
+      ],
+    });
 
   test("a report from a run a person stopped changes nothing and tells its runner the run is over", async () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].current_node_id = "build_hold";
-    tables.workflow_runs[0].node_statuses = [{ node_id: "build_hold", status: "running", started_at: NOW }];
+    tables.workflow_runs[0].node_statuses = [
+      { node_id: "build_hold", status: "running", started_at: NOW },
+    ];
     await (cancel as any)._handler(asUser(ctx, HOST), { id: RUN });
-    const r = await report(ctx, { node_id: "build_hold", node_status: "completed", outcome: "success" });
-    expect(r).toEqual({ ended: { status: "failed", reason: "Cancelled by user" } });
-    expect(await report(ctx, { node_id: "build", node_status: "running" })).toEqual(r);
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "failed", fail_reason: "Cancelled by user", current_node_id: "build_hold" });
-    expect(tables.workflow_runs[0].node_statuses).toEqual([{ node_id: "build_hold", status: "running", started_at: NOW }]);
+    const r = await report(ctx, {
+      node_id: "build_hold",
+      node_status: "completed",
+      outcome: "success",
+    });
+    expect(r).toEqual({
+      ended: { status: "failed", reason: "Cancelled by user" },
+    });
+    expect(
+      await report(ctx, { node_id: "build", node_status: "running" }),
+    ).toEqual(r);
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "failed",
+      fail_reason: "Cancelled by user",
+      current_node_id: "build_hold",
+    });
+    expect(tables.workflow_runs[0].node_statuses).toEqual([
+      { node_id: "build_hold", status: "running", started_at: NOW },
+    ]);
   });
 
   test("a gate a stopped run reaches asks nobody, and the card its presenter posted on the way goes with the run", async () => {
     const { ctx, tables } = await withPresenter();
     await (cancel as any)._handler(asUser(ctx, HOST), { id: RUN });
     // A runner from before runOver carried on to Present, which posted its card.
-    const card: any = await askCore(ctx, { userId: HOST }, { session_id: "sess-present", question: "Ship it?", options: [{ label: "Ship" }, { label: "Drop" }], blocking: true } as any);
-    const r: any = await pause(ctx, { node_id: "decide", asker: "card_write", asker_session_id: "jx7pres" });
+    const card: any = await askCore(ctx, { userId: HOST }, {
+      session_id: "sess-present",
+      question: "Ship it?",
+      options: [{ label: "Ship" }, { label: "Drop" }],
+      blocking: true,
+    } as any);
+    const r: any = await pause(ctx, {
+      node_id: "decide",
+      asker: "card_write",
+      asker_session_id: "jx7pres",
+    });
     expect(r.error).toContain("the run is over (Cancelled by user)");
     expect(r.ended).toEqual({ status: "failed", reason: "Cancelled by user" });
-    const row = tables.session_decisions.find((d) => String(d._id) === String(card.id));
+    const row = tables.session_decisions.find(
+      (d) => String(d._id) === String(card.id),
+    );
     expect(row.status).toBe("withdrawn");
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "failed", fail_reason: "Cancelled by user" });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "failed",
+      fail_reason: "Cancelled by user",
+    });
   });
 
   test("a run whose card was taken back is live: its runner sends it back to the presenter", async () => {
     const { ctx, tables } = await seed();
     await pause(ctx);
-    await (withdraw as any)._handler(ctx, { api_token: TOKEN, decision_id: "sd-1" });
+    await (withdraw as any)._handler(ctx, {
+      api_token: TOKEN,
+      decision_id: "sd-1",
+    });
     expect(tables.workflow_runs[0].fail_reason).toBe(GATE_PRESENT_AGAIN);
-    const r = await report(ctx, { node_id: "review", node_status: "completed", outcome: "success", run_status: "running" });
+    const r = await report(ctx, {
+      node_id: "review",
+      node_status: "completed",
+      outcome: "success",
+      run_status: "running",
+    });
     expect(r).toEqual({ ok: true });
     expect(tables.workflow_runs[0].status).toBe("running");
     expect(tables.workflow_runs[0].fail_reason).toBeUndefined();
@@ -405,17 +716,28 @@ describe("runs belong to the workspace (the-line.md L8)", () => {
       gate_decision_short_id: "sd-1",
       gate_decision_status: "pending",
     });
-    const team = await listRunsCore(ctx, MATE, { team_id: TEAM, status: "paused" });
+    const team = await listRunsCore(ctx, MATE, {
+      team_id: TEAM,
+      status: "paused",
+    });
     expect(team.map((r) => r._id)).toEqual([RUN]);
-    expect(await listRunsCore(ctx, MATE, { team_id: TEAM, status: "completed" })).toEqual([]);
+    expect(
+      await listRunsCore(ctx, MATE, { team_id: TEAM, status: "completed" }),
+    ).toEqual([]);
 
     expect(await listRunsCore(ctx, STRANGER, { task_id: "ct-7" })).toEqual([]);
     expect(await listRunsCore(ctx, STRANGER, {})).toEqual([]);
     // One run by its id (`cast workflow show <run>`), for whoever reads it; slim leaves the station sessions out.
-    expect((await listRunsCore(ctx, MATE, { run_id: RUN, slim: true })).map((r: any) => r._id)).toEqual([RUN]);
+    expect(
+      (await listRunsCore(ctx, MATE, { run_id: RUN, slim: true })).map(
+        (r: any) => r._id,
+      ),
+    ).toEqual([RUN]);
     expect(await listRunsCore(ctx, STRANGER, { run_id: RUN })).toEqual([]);
     expect(await listRunsCore(ctx, MATE, { run_id: "not-a-run" })).toEqual([]);
-    await expect(listRunsCore(ctx, STRANGER, { team_id: TEAM })).rejects.toThrow();
+    await expect(
+      listRunsCore(ctx, STRANGER, { team_id: TEAM }),
+    ).rejects.toThrow();
     void tables;
   });
 
@@ -423,31 +745,66 @@ describe("runs belong to the workspace (the-line.md L8)", () => {
     // Oct 24: a run waiting at its card for a day sat behind hundreds of fresh
     // Start failures, and `--status paused` answered as if it did not exist.
     const run = (i: number, status: string, at: number) => ({
-      _id: `workflow_runs_${i}`, user_id: HOST, workflow_id: "workflows_line", status, node_statuses: [],
-      workspace: `team:${TEAM}`, team_id: TEAM, created_at: at, updated_at: at,
+      _id: `workflow_runs_${i}`,
+      user_id: HOST,
+      workflow_id: "workflows_line",
+      status,
+      node_statuses: [],
+      workspace: `team:${TEAM}`,
+      team_id: TEAM,
+      created_at: at,
+      updated_at: at,
     });
-    const failed = Array.from({ length: 450 }, (_, i) => run(i + 1, "failed", NOW + 1_000 + i));
-    const { ctx } = await seed({ workflow_runs: [run(0, "paused", NOW), ...failed] });
-    const paused = await listRunsCore(ctx, MATE, { team_id: TEAM, status: "paused", limit: 200 });
+    const failed = Array.from({ length: 450 }, (_, i) =>
+      run(i + 1, "failed", NOW + 1_000 + i),
+    );
+    const { ctx } = await seed({
+      workflow_runs: [run(0, "paused", NOW), ...failed],
+    });
+    const paused = await listRunsCore(ctx, MATE, {
+      team_id: TEAM,
+      status: "paused",
+      limit: 200,
+    });
     expect(paused.map((r: any) => r._id)).toEqual(["workflow_runs_0"]);
-    const newest = await listRunsCore(ctx, MATE, { team_id: TEAM, status: "failed", limit: 2 });
-    expect(newest.map((r: any) => r._id)).toEqual(["workflow_runs_450", "workflow_runs_449"]);
+    const newest = await listRunsCore(ctx, MATE, {
+      team_id: TEAM,
+      status: "failed",
+      limit: 2,
+    });
+    expect(newest.map((r: any) => r._id)).toEqual([
+      "workflow_runs_450",
+      "workflow_runs_449",
+    ]);
   });
 
   test("a teammate reads a run's graph without where it lives; its owner sees the origin", async () => {
     const { ctx, tables } = await seed();
-    tables.workflows[0].origin = { device_id: "dev_1", root: "/Users/owner/src/app", file: "line.cast" };
-    const asMate: any = await (graphOfRun as any)._handler(asUser(ctx, MATE), { run_id: RUN });
+    tables.workflows[0].origin = {
+      device_id: "dev_1",
+      root: "/Users/owner/src/app",
+      file: "line.cast",
+    };
+    const asMate: any = await (graphOfRun as any)._handler(asUser(ctx, MATE), {
+      run_id: RUN,
+    });
     expect(asMate?.name).toBe("line");
     expect(asMate?.origin).toBeUndefined();
-    const asOwner: any = await (graphOfRun as any)._handler(asUser(ctx, HOST), { run_id: RUN });
+    const asOwner: any = await (graphOfRun as any)._handler(asUser(ctx, HOST), {
+      run_id: RUN,
+    });
     expect(asOwner?.origin?.root).toBe("/Users/owner/src/app");
   });
 
   test("createFromCli stamps workspace and team_id from the bound task", async () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].status = "completed";
-    const r = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", spawner_session: "sess-spawner" });
+    const r = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+      spawner_session: "sess-spawner",
+    });
     const run = tables.workflow_runs.find((x) => x._id === r.run_id);
     expect(run.workspace).toBe(`team:${TEAM}`);
     expect(run.team_id).toBe(TEAM);
@@ -458,25 +815,61 @@ describe("runs belong to the workspace (the-line.md L8)", () => {
   test("a task's run logs into a session born stashed and hidden; a run without a task stays in the inbox", async () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].status = "completed";
-    const bound = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7" });
-    const log = tables.conversations.find((c) => c._id === bound.primary_conversation_id);
+    const bound = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+    });
+    const log = tables.conversations.find(
+      (c) => c._id === bound.primary_conversation_id,
+    );
     expect(log.inbox_stash_hidden).toBe(true);
     expect(log.inbox_stashed_at).toBeGreaterThan(0);
-    const free = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line" });
-    const own = tables.conversations.find((c) => c._id === free.primary_conversation_id);
+    const free = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+    });
+    const own = tables.conversations.find(
+      (c) => c._id === free.primary_conversation_id,
+    );
     expect(own.inbox_stashed_at).toBeUndefined();
   });
 
   test("a run started from outside any session runs as the lead of its cause's project, so its gates reach a person", async () => {
     const { ctx, tables } = await seed({
-      projects: [{ _id: "projects_aq", team_id: TEAM, title: "Agent Quality", owner_role_id: "org_roles_aq" }],
-      anchors: [{ _id: "anchors_aq", conversation_id: "conversations_spawner" }],
-      org_roles: [{ _id: "org_roles_aq", team_id: TEAM, handle: "agent-quality", status: "active", anchor_id: "anchors_aq", reports_to: { kind: "user", user_id: HOST } }],
+      projects: [
+        {
+          _id: "projects_aq",
+          team_id: TEAM,
+          title: "Agent Quality",
+          owner_role_id: "org_roles_aq",
+        },
+      ],
+      anchors: [
+        { _id: "anchors_aq", conversation_id: "conversations_spawner" },
+      ],
+      org_roles: [
+        {
+          _id: "org_roles_aq",
+          team_id: TEAM,
+          handle: "agent-quality",
+          status: "active",
+          anchor_id: "anchors_aq",
+          reports_to: { kind: "user", user_id: HOST },
+        },
+      ],
     });
     tables.workflow_runs[0].status = "completed";
     tables.tasks[0].project_id = "projects_aq";
-    const r = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7" });
-    expect(tables.workflow_runs.find((x) => x._id === r.run_id).spawner_conversation_id).toBe("conversations_spawner");
+    const r = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+    });
+    expect(
+      tables.workflow_runs.find((x) => x._id === r.run_id)
+        .spawner_conversation_id,
+    ).toBe("conversations_spawner");
     expect(r.spawner_conversation_id).toBe("conversations_spawner");
   });
 
@@ -484,73 +877,182 @@ describe("runs belong to the workspace (the-line.md L8)", () => {
     for (const status of ["pending", "running", "paused"]) {
       const { ctx, tables } = await seed();
       tables.workflow_runs[0].status = status;
-      await expect((createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7" }))
-        .rejects.toThrow(/ct-7 already has a live run/);
+      await expect(
+        (createFromCli as any)._handler(ctx, {
+          api_token: TOKEN,
+          workflow_name: "line",
+          task_id: "ct-7",
+        }),
+      ).rejects.toThrow(/ct-7 already has a live run/);
       expect(tables.workflow_runs).toHaveLength(1);
-      const forced = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", force: true });
+      const forced = await (createFromCli as any)._handler(ctx, {
+        api_token: TOKEN,
+        workflow_name: "line",
+        task_id: "ct-7",
+        force: true,
+      });
       expect(tables.workflow_runs.map((x) => x._id)).toContain(forced.run_id);
     }
   });
 
   test("createFromCli refuses a task, plan or workflow the caller cannot read (F15)", async () => {
     const { ctx, tables } = await seed({
-      plans: [{ _id: "plans_p1", short_id: "pl-3", user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, title: "Plan" }],
+      plans: [
+        {
+          _id: "plans_p1",
+          short_id: "pl-3",
+          user_id: HOST,
+          team_id: TEAM,
+          workspace: `team:${TEAM}`,
+          title: "Plan",
+        },
+      ],
     });
     tables.workflow_runs[0].status = "completed";
     const before = { ...tables.tasks[0] };
-    await expect((createFromCli as any)._handler(ctx, { api_token: "stranger-token", workflow_name: "line", task_id: "ct-7" }))
-      .rejects.toThrow(/ct-7 not found/);
-    await expect((createFromCli as any)._handler(ctx, { api_token: "stranger-token", workflow_name: "line", plan_id: "pl-3" }))
-      .rejects.toThrow(/pl-3 not found/);
-    await expect((createFromCli as any)._handler(ctx, { api_token: "stranger-token", workflow_name: "line", workflow_id: "workflows_line" }))
-      .rejects.toThrow(/Workflow not found/);
+    await expect(
+      (createFromCli as any)._handler(ctx, {
+        api_token: "stranger-token",
+        workflow_name: "line",
+        task_id: "ct-7",
+      }),
+    ).rejects.toThrow(/ct-7 not found/);
+    await expect(
+      (createFromCli as any)._handler(ctx, {
+        api_token: "stranger-token",
+        workflow_name: "line",
+        plan_id: "pl-3",
+      }),
+    ).rejects.toThrow(/pl-3 not found/);
+    await expect(
+      (createFromCli as any)._handler(ctx, {
+        api_token: "stranger-token",
+        workflow_name: "line",
+        workflow_id: "workflows_line",
+      }),
+    ).rejects.toThrow(/Workflow not found/);
     expect(tables.workflow_runs).toHaveLength(1);
     expect(tables.tasks[0]).toEqual(before);
     expect(tables.plans[0].workflow_run_id).toBeUndefined();
     // A teammate who can read the task still starts a run on it.
-    tables.api_tokens.push({ _id: "token_mate", user_id: MATE, token_hash: await hashToken("mate-token") });
-    const r = await (createFromCli as any)._handler(ctx, { api_token: "mate-token", workflow_name: "line", task_id: "ct-7", plan_id: "pl-3" });
+    tables.api_tokens.push({
+      _id: "token_mate",
+      user_id: MATE,
+      token_hash: await hashToken("mate-token"),
+    });
+    const r = await (createFromCli as any)._handler(ctx, {
+      api_token: "mate-token",
+      workflow_name: "line",
+      task_id: "ct-7",
+      plan_id: "pl-3",
+    });
     expect(r.run_id).toBeTruthy();
   });
 
   test("createFromCli --detach hands the run to the calling machine's daemon", async () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].status = "completed";
-    const r = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", detach: true, run_on_device: "dev-box" });
+    const r = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+      detach: true,
+      run_on_device: "dev-box",
+    });
     expect(tables.daemon_commands).toHaveLength(1);
-    expect(tables.daemon_commands[0]).toMatchObject({ user_id: HOST, command: "run_workflow", target_device_id: "dev-box" });
-    expect(JSON.parse(tables.daemon_commands[0].args)).toEqual({ workflow_run_id: r.run_id });
-    await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", force: true });
+    expect(tables.daemon_commands[0]).toMatchObject({
+      user_id: HOST,
+      command: "run_workflow",
+      target_device_id: "dev-box",
+    });
+    expect(JSON.parse(tables.daemon_commands[0].args)).toEqual({
+      workflow_run_id: r.run_id,
+    });
+    await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+      force: true,
+    });
     expect(tables.daemon_commands).toHaveLength(1);
   });
 
   test("a line run the daemon starts on a problem proves against unfixed code (fresh_branch)", async () => {
     const { ctx, tables } = await seed();
     tables.workflow_runs[0].status = "failed";
-    const line = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", detach: true, run_on_device: "dev-box" });
-    expect(tables.workflow_runs.find((w: any) => w._id === line.run_id)?.fresh_branch).toBe(true);
-    const other = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "review", task_id: "ct-7", detach: true, force: true });
-    expect(tables.workflow_runs.find((w: any) => w._id === other.run_id)?.fresh_branch).toBeUndefined();
+    const line = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+      detach: true,
+      run_on_device: "dev-box",
+    });
+    expect(
+      tables.workflow_runs.find((w: any) => w._id === line.run_id)
+        ?.fresh_branch,
+    ).toBe(true);
+    const other = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "review",
+      task_id: "ct-7",
+      detach: true,
+      force: true,
+    });
+    expect(
+      tables.workflow_runs.find((w: any) => w._id === other.run_id)
+        ?.fresh_branch,
+    ).toBeUndefined();
     // A line version the CLI chose names itself; it is a line run by what it serves.
-    tables.workflows.push({ _id: "workflows_v", user_id: HOST, name: "agentwatch", slug: "agentwatch", serves: ["union.desk"] });
-    const version = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "agentwatch", task_id: "ct-7", detach: true, force: true });
-    expect(tables.workflow_runs.find((w: any) => w._id === version.run_id)?.fresh_branch).toBe(true);
-    const here = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7", force: true });
-    expect(tables.workflow_runs.find((w: any) => w._id === here.run_id)?.fresh_branch).toBeUndefined();
+    tables.workflows.push({
+      _id: "workflows_v",
+      user_id: HOST,
+      name: "agentwatch",
+      slug: "agentwatch",
+      serves: ["union.desk"],
+    });
+    const version = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "agentwatch",
+      task_id: "ct-7",
+      detach: true,
+      force: true,
+    });
+    expect(
+      tables.workflow_runs.find((w: any) => w._id === version.run_id)
+        ?.fresh_branch,
+    ).toBe(true);
+    const here = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      task_id: "ct-7",
+      force: true,
+    });
+    expect(
+      tables.workflow_runs.find((w: any) => w._id === here.run_id)
+        ?.fresh_branch,
+    ).toBeUndefined();
   });
 
   test("createFromCli starts a new attempt once the cause's run has ended", async () => {
     for (const status of ["completed", "failed"]) {
       const { ctx, tables } = await seed();
       tables.workflow_runs[0].status = status;
-      const r = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", task_id: "ct-7" });
+      const r = await (createFromCli as any)._handler(ctx, {
+        api_token: TOKEN,
+        workflow_name: "line",
+        task_id: "ct-7",
+      });
       expect(tables.tasks[0].workflow_run_id).toBe(r.run_id);
     }
   });
 
   test("createFromCli with no task stamps the personal key from an unmapped directory", async () => {
     const { ctx, tables } = await seed();
-    const r = await (createFromCli as any)._handler(ctx, { api_token: TOKEN, workflow_name: "line", project_path: "/tmp/private" });
+    const r = await (createFromCli as any)._handler(ctx, {
+      api_token: TOKEN,
+      workflow_name: "line",
+      project_path: "/tmp/private",
+    });
     const run = tables.workflow_runs.find((x) => x._id === r.run_id);
     expect(run.workspace).toBe(`user:${HOST}`);
     expect(run.team_id).toBeUndefined();
@@ -560,7 +1062,13 @@ describe("runs belong to the workspace (the-line.md L8)", () => {
 // A gate that names its asking station (`asker=`): the decision lives in the thread of the session that wrote the card,
 // so a person reads it and talks to that session before answering.
 describe("a gate asks from the station that wrote its card", () => {
-  const station = { _id: "conversations_card", session_id: "sess-card", user_id: HOST, team_id: TEAM, message_count: 40 };
+  const station = {
+    _id: "conversations_card",
+    session_id: "sess-card",
+    user_id: HOST,
+    team_id: TEAM,
+    message_count: 40,
+  };
   const cardChoices = [
     { key: "S", label: "[S] Ship", target: "trial_ship" },
     { key: "R", label: "[R] Revise", target: "revise_build" },
@@ -571,51 +1079,147 @@ describe("a gate asks from the station that wrote its card", () => {
     const { ctx, tables } = await seed();
     tables.conversations.push(station);
     // The card session's last act: its own question, options in its own words and order, and its page.
-    const posted = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-card",
-      question: "Stop sending 'still waiting' notes with nothing new?",
-      context_md: "Two real threads where the note went out twice; the change sends none and every check passed.",
-      options: [{ label: "Drop: the cases are too thin" }, { label: "Ship it" }, { label: "Revise: keep one note at day 7" }],
-      blocking: true,
-    });
+    const posted = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-card",
+        question: "Stop sending 'still waiting' notes with nothing new?",
+        context_md:
+          "Two real threads where the note went out twice; the change sends none and every check passed.",
+        options: [
+          { label: "Drop: the cases are too thin" },
+          { label: "Ship it" },
+          { label: "Revise: keep one note at day 7" },
+        ],
+        blocking: true,
+      },
+    );
     expect(posted.error).toBeUndefined();
 
-    const r = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
+    const r = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
     expect((r as any)?.error).toBeUndefined();
     expect(tables.session_decisions).toHaveLength(1);
     const row = tables.session_decisions[0];
     expect(String(row.conversation_id)).toBe("conversations_card");
-    expect(row).toMatchObject({ workflow_run_id: RUN, gate_node_id: "decide", blocking: true, task_id: TASK });
+    expect(row).toMatchObject({
+      workflow_run_id: RUN,
+      gate_node_id: "decide",
+      blocking: true,
+      task_id: TASK,
+    });
     expect(tables.workflow_runs[0].gate_decision_id).toBe(row._id);
-    expect(tables.workflow_runs[0].gate_choices.map((c: any) => c.key)).toEqual(["D", "S", "R"]);
+    expect(tables.workflow_runs[0].gate_choices.map((c: any) => c.key)).toEqual(
+      ["D", "S", "R"],
+    );
 
-    await answerCore(ctx, { userId: HOST }, { decision_id: String(row._id), answer_index: 1 });
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: "S" });
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(row._id), answer_index: 1 },
+    );
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: "S",
+    });
   });
 
   // sd-2373: re-asked with its options reordered, "1" moved from Ship to the agent-only fix; the run read the answer 1
   // by position as Ship and ct-61509 went on toward a merge, and the ladder kept "recommends 1" beside a Ship note.
-  const shipFirst = [{ label: "Ship the separate read: it blocks texts" }, { label: "Let the agent handle it: remove the separate read" }, { label: "Drop it" }];
+  const shipFirst = [
+    { label: "Ship the separate read: it blocks texts" },
+    { label: "Let the agent handle it: remove the separate read" },
+    { label: "Drop it" },
+  ];
   const fixFirst = [shipFirst[1], shipFirst[0], shipFirst[2]];
   const question = "Should our agent alone handle an ask for email?";
   for (const via of ["a re-ask", "cast decide edit"] as const) {
     test(`an answer binds to the option's words after ${via} reorders the options, and so does the ladder's recommendation`, async () => {
       const { ctx, tables } = await seed();
       tables.conversations.push(station);
-      const posted = await askCore(ctx, { userId: HOST }, { session_id: "sess-card", question, options: shipFirst, blocking: true });
-      await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
-      expect(tables.workflow_runs[0].gate_choices.map((c: any) => c.key)).toEqual(["S", "", "D"]);
-      tables.session_decisions[0].hops = [{ role_id: "org_roles_lead", recommendation: 0, note: "Ship it.", at: NOW }];
+      const posted = await askCore(
+        ctx,
+        { userId: HOST },
+        {
+          session_id: "sess-card",
+          question,
+          options: shipFirst,
+          blocking: true,
+        },
+      );
+      await pauseAtGateCore(
+        ctx,
+        { userId: HOST },
+        {
+          run_id: RUN as any,
+          node_id: "decide",
+          prompt: "Ship this change?",
+          choices: cardChoices,
+          asker_session_id: "sess-card",
+        },
+      );
+      expect(
+        tables.workflow_runs[0].gate_choices.map((c: any) => c.key),
+      ).toEqual(["S", "", "D"]);
+      tables.session_decisions[0].hops = [
+        {
+          role_id: "org_roles_lead",
+          recommendation: 0,
+          note: "Ship it.",
+          at: NOW,
+        },
+      ];
 
-      if (via === "a re-ask") await askCore(ctx, { userId: HOST }, { session_id: "sess-card", question, options: fixFirst, blocking: true });
-      else expect((await (edit as any)._handler(ctx, { api_token: TOKEN, decision_id: String(posted.id), options: fixFirst })).error).toBeUndefined();
+      if (via === "a re-ask")
+        await askCore(
+          ctx,
+          { userId: HOST },
+          {
+            session_id: "sess-card",
+            question,
+            options: fixFirst,
+            blocking: true,
+          },
+        );
+      else
+        expect(
+          (
+            await (edit as any)._handler(ctx, {
+              api_token: TOKEN,
+              decision_id: String(posted.id),
+              options: fixFirst,
+            })
+          ).error,
+        ).toBeUndefined();
 
       expect(tables.session_decisions).toHaveLength(1);
-      expect(tables.workflow_runs[0].gate_choices.map((c: any) => c.key)).toEqual(["", "S", "D"]);
-      expect(tables.session_decisions[0].hops[0]).toMatchObject({ recommendation: 1, note: "Ship it." });
+      expect(
+        tables.workflow_runs[0].gate_choices.map((c: any) => c.key),
+      ).toEqual(["", "S", "D"]);
+      expect(tables.session_decisions[0].hops[0]).toMatchObject({
+        recommendation: 1,
+        note: "Ship it.",
+      });
 
-      await answerCore(ctx, { userId: HOST }, { decision_id: String(posted.id), answer_index: 0 });
-      expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: fixFirst[0].label });
+      await answerCore(
+        ctx,
+        { userId: HOST },
+        { decision_id: String(posted.id), answer_index: 0 },
+      );
+      expect(tables.workflow_runs[0]).toMatchObject({
+        status: "running",
+        gate_response: fixFirst[0].label,
+      });
     });
   }
 
@@ -624,17 +1228,72 @@ describe("a gate asks from the station that wrote its card", () => {
   test("a new card from the presenting station is the run's card at once, and the old answer no longer stands", async () => {
     const { ctx, tables } = await seed();
     tables.conversations.push({ ...station, workflow_run_id: RUN });
-    const first = await askCore(ctx, { userId: HOST }, { session_id: "sess-card", question: "Ship the mic message?", options: [{ label: "Ship it" }, { label: "Drop" }], blocking: true });
-    await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
-    await answerCore(ctx, { userId: HOST }, { decision_id: String(first.id), answer_index: 0 });
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: "S", gate_decision_id: first.id });
+    const first = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-card",
+        question: "Ship the mic message?",
+        options: [{ label: "Ship it" }, { label: "Drop" }],
+        blocking: true,
+      },
+    );
+    await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(first.id), answer_index: 0 },
+    );
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: "S",
+      gate_decision_id: first.id,
+    });
 
     // Another station's question leaves the run's card alone.
-    tables.conversations.push({ _id: "conversations_build", session_id: "sess-build", user_id: HOST, team_id: TEAM, message_count: 3, workflow_run_id: RUN });
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-build", question: "Which fixture?", options: [{ label: "A" }, { label: "B" }], blocking: true });
-    expect(tables.workflow_runs[0]).toMatchObject({ gate_response: "S", gate_decision_id: first.id });
+    tables.conversations.push({
+      _id: "conversations_build",
+      session_id: "sess-build",
+      user_id: HOST,
+      team_id: TEAM,
+      message_count: 3,
+      workflow_run_id: RUN,
+    });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-build",
+        question: "Which fixture?",
+        options: [{ label: "A" }, { label: "B" }],
+        blocking: true,
+      },
+    );
+    expect(tables.workflow_runs[0]).toMatchObject({
+      gate_response: "S",
+      gate_decision_id: first.id,
+    });
 
-    const second = await askCore(ctx, { userId: HOST }, { session_id: "sess-card", question: "Keep the mic message, now that it is live?", options: [{ label: "Ship it" }, { label: "Drop" }], blocking: true });
+    const second = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-card",
+        question: "Keep the mic message, now that it is live?",
+        options: [{ label: "Ship it" }, { label: "Drop" }],
+        blocking: true,
+      },
+    );
     expect(tables.workflow_runs[0].gate_decision_id).toBe(second.id);
     expect(tables.workflow_runs[0].gate_response).toBeUndefined();
   });
@@ -642,12 +1301,36 @@ describe("a gate asks from the station that wrote its card", () => {
   test("the runner names the station by its short id, and the gate still adopts its decision", async () => {
     const { ctx, tables } = await seed();
     tables.conversations.push({ ...station, short_id: "jx7card" });
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-card", question: "Ship it?", options: [{ label: "Ship it" }, { label: "Drop" }], blocking: true });
-    const r = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "jx7card" });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-card",
+        question: "Ship it?",
+        options: [{ label: "Ship it" }, { label: "Drop" }],
+        blocking: true,
+      },
+    );
+    const r = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "jx7card",
+      },
+    );
     expect((r as any)?.error).toBeUndefined();
     expect(tables.session_decisions).toHaveLength(1);
-    expect(String(tables.session_decisions[0].conversation_id)).toBe("conversations_card");
-    expect(tables.session_decisions[0]).toMatchObject({ workflow_run_id: RUN, gate_node_id: "decide" });
+    expect(String(tables.session_decisions[0].conversation_id)).toBe(
+      "conversations_card",
+    );
+    expect(tables.session_decisions[0]).toMatchObject({
+      workflow_run_id: RUN,
+      gate_node_id: "decide",
+    });
   });
 
   // A gate never asks its own Ship / Revise / Drop: the person would get a card without the change's own options, and a
@@ -655,23 +1338,60 @@ describe("a gate asks from the station that wrote its card", () => {
   test("with no card of its station standing, the gate asks nobody and the run goes back to present one", async () => {
     const { ctx, tables } = await seed();
     tables.conversations.push(station);
-    const r = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
+    const r = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
     expect(r).toMatchObject({ present_again: true });
     // Before the station ever ran, the gate knows it has one from the runner.
-    const early = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker: "card_write" });
+    const early = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker: "card_write",
+      },
+    );
     expect(early).toMatchObject({ present_again: true });
     expect(tables.session_decisions).toHaveLength(0);
   });
 
   const presented = (tables: any, startedAt: number) => {
-    tables.workflow_runs[0].node_statuses = [{ node_id: "card_write", status: "completed", session_id: "sess-card", started_at: startedAt }];
+    tables.workflow_runs[0].node_statuses = [
+      {
+        node_id: "card_write",
+        status: "completed",
+        session_id: "sess-card",
+        started_at: startedAt,
+      },
+    ];
   };
-  const postCard = (ctx: any) => askCore(ctx, { userId: HOST }, {
-    session_id: "sess-card",
-    question: "Should a promise count as kept only once they got the whole thing?",
-    options: [{ label: "Fix half-sent promises first, then bring it back" }, { label: "Ship it as built" }, { label: "Drop it" }],
-    blocking: true,
-  });
+  const postCard = (ctx: any) =>
+    askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-card",
+        question:
+          "Should a promise count as kept only once they got the whole thing?",
+        options: [
+          { label: "Fix half-sent promises first, then bring it back" },
+          { label: "Ship it as built" },
+          { label: "Drop it" },
+        ],
+        blocking: true,
+      },
+    );
 
   // sd-1600 was answered 26 s after it was posted, 3 s before decide paused, and the gate asked sd-1601 from scratch.
   test("a card answered before its gate paused is the gate's answer, in the card's own words", async () => {
@@ -679,16 +1399,43 @@ describe("a gate asks from the station that wrote its card", () => {
     tables.conversations.push(station);
     presented(tables, 0);
     const card = await postCard(ctx);
-    await answerCore(ctx, { userId: HOST }, { decision_id: String(card.id), answer_index: 0 });
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(card.id), answer_index: 0 },
+    );
 
-    const r = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
+    const r = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
     expect((r as any)?.error).toBeUndefined();
     expect(tables.session_decisions).toHaveLength(1);
     // The option names no edge, so its words route as the person's note (the graph's unlabelled edge is Revise).
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: "Fix half-sent promises first, then bring it back", gate_decision_id: card.id });
-    expect(tables.session_decisions[0]).toMatchObject({ workflow_run_id: RUN, gate_node_id: "decide" });
-    const poll = await (pollGateResponse as any)._handler(ctx, { api_token: TOKEN, run_id: RUN });
-    expect(poll).toMatchObject({ status: "running", gate_answer: "Fix half-sent promises first, then bring it back" });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: "Fix half-sent promises first, then bring it back",
+      gate_decision_id: card.id,
+    });
+    expect(tables.session_decisions[0]).toMatchObject({
+      workflow_run_id: RUN,
+      gate_node_id: "decide",
+    });
+    const poll = await (pollGateResponse as any)._handler(ctx, {
+      api_token: TOKEN,
+      run_id: RUN,
+    });
+    expect(poll).toMatchObject({
+      status: "running",
+      gate_answer: "Fix half-sent promises first, then bring it back",
+    });
   });
 
   // ct-61693: Revise on sd-1217 was lost to the build's spent visits; resumed at decide, the gate asked sd-1594 instead.
@@ -697,15 +1444,52 @@ describe("a gate asks from the station that wrote its card", () => {
     tables.conversations.push(station);
     presented(tables, 0);
     const card = await postCard(ctx);
-    await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
-    await answerCore(ctx, { userId: HOST }, { decision_id: String(card.id), answer_index: 0 });
+    await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(card.id), answer_index: 0 },
+    );
     const words = "Fix half-sent promises first, then bring it back";
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: words });
-    Object.assign(tables.workflow_runs[0], { status: "running", gate_node_id: undefined, gate_choices: undefined, gate_response: undefined, gate_decision_id: undefined });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: words,
+    });
+    Object.assign(tables.workflow_runs[0], {
+      status: "running",
+      gate_node_id: undefined,
+      gate_choices: undefined,
+      gate_response: undefined,
+      gate_decision_id: undefined,
+    });
 
-    await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
+    await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
     expect(tables.session_decisions).toHaveLength(1);
-    expect(tables.workflow_runs[0]).toMatchObject({ status: "running", gate_response: words, gate_decision_id: card.id });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      status: "running",
+      gate_response: words,
+      gate_decision_id: card.id,
+    });
   });
 
   // A Revise sends the run back through the station, which presents a new card: the old answer is spent.
@@ -714,9 +1498,23 @@ describe("a gate asks from the station that wrote its card", () => {
     tables.conversations.push(station);
     presented(tables, 0);
     const card = await postCard(ctx);
-    await answerCore(ctx, { userId: HOST }, { decision_id: String(card.id), answer_index: 0 });
+    await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: String(card.id), answer_index: 0 },
+    );
     presented(tables, Date.now() + 60_000);
-    const r = await pauseAtGateCore(ctx, { userId: HOST }, { run_id: RUN as any, node_id: "decide", prompt: "Ship this change?", choices: cardChoices, asker_session_id: "sess-card" });
+    const r = await pauseAtGateCore(
+      ctx,
+      { userId: HOST },
+      {
+        run_id: RUN as any,
+        node_id: "decide",
+        prompt: "Ship this change?",
+        choices: cardChoices,
+        asker_session_id: "sess-card",
+      },
+    );
     expect(r).toMatchObject({ present_again: true });
     expect(tables.workflow_runs[0].gate_response).toBeUndefined();
   });

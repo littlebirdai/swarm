@@ -1,6 +1,11 @@
 import { useInboxStore } from "../store/inboxStore";
 import { useModRows } from "../lib/mods/useMods";
-import { availableThemes, DEFAULT_COLOR_THEME, ORIGINAL_COLOR_THEME, resolveColorThemeKey } from "../lib/theme/colorTheme";
+import {
+  availableThemes,
+  DEFAULT_COLOR_THEME,
+  ORIGINAL_COLOR_THEME,
+  resolveColorThemeKey,
+} from "../lib/theme/colorTheme";
 import { useTheme } from "../components/ThemeProvider";
 
 /** The themes on offer, the one on screen, and choosing one. */
@@ -12,9 +17,15 @@ export function useColorThemes() {
   // Modern has no Solarized: Original paints the default there
   // (ThemeProvider), so it is not a choice of its own.
   const modern = useTheme().visualStyle === "modern";
-  const themes = availableThemes(rows, installed ?? []).filter((t) => !(modern && t.key === ORIGINAL_COLOR_THEME));
+  const themes = availableThemes(rows, installed ?? []).filter(
+    (t) => !(modern && t.key === ORIGINAL_COLOR_THEME),
+  );
   const key = resolveColorThemeKey(stored);
   // A theme whose mod is gone shows the default, as ThemeProvider does.
   const current = themes.some((t) => t.key === key) ? key : DEFAULT_COLOR_THEME;
-  return { themes, current, choose: (k: string) => updateUI({ color_theme: k }) };
+  return {
+    themes,
+    current,
+    choose: (k: string) => updateUI({ color_theme: k }),
+  };
 }

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { HEAD_OF_PEOPLE_HANDLE, performRetireRole, performStaff, staffTeamFor } from "./orgRoles";
+import {
+  HEAD_OF_PEOPLE_HANDLE,
+  performRetireRole,
+  performStaff,
+  staffTeamFor,
+} from "./orgRoles";
 import { performSeatRootRoles, planRootSeats } from "./orgRootSeat";
 
 // One agent at the root (docs/architecture/org-staffing.md S22): the run seats
@@ -24,23 +29,118 @@ function world() {
     ],
     team_memberships: [
       { _id: "m1", user_id: ME, team_id: TEAM, role: "admin", joined_at: 1 },
-      { _id: "m2", user_id: BOT_T, team_id: TEAM, role: "member", joined_at: 1, visibility: "full" },
+      {
+        _id: "m2",
+        user_id: BOT_T,
+        team_id: TEAM,
+        role: "member",
+        joined_at: 1,
+        visibility: "full",
+      },
     ],
     teams: [{ _id: TEAM, name: "Acme" }],
     counters: [],
     org_roles: [],
     anchors: [
-      { _id: "anchor-t", scope_type: "team", team_id: TEAM, bot_user_id: BOT_T, host_user_id: ME, name: "Anchor", status: "active", conversation_id: "conv-t", project_path: "/repo", created_at: 1, updated_at: 1 },
-      { _id: "anchor-p", scope_type: "user", scope_user_id: YOU, bot_user_id: BOT_P, host_user_id: YOU, name: "Anchor", status: "active", conversation_id: "conv-p", created_at: 1, updated_at: 1 },
+      {
+        _id: "anchor-t",
+        scope_type: "team",
+        team_id: TEAM,
+        bot_user_id: BOT_T,
+        host_user_id: ME,
+        name: "Anchor",
+        status: "active",
+        conversation_id: "conv-t",
+        project_path: "/repo",
+        created_at: 1,
+        updated_at: 1,
+      },
+      {
+        _id: "anchor-p",
+        scope_type: "user",
+        scope_user_id: YOU,
+        bot_user_id: BOT_P,
+        host_user_id: YOU,
+        name: "Anchor",
+        status: "active",
+        conversation_id: "conv-p",
+        created_at: 1,
+        updated_at: 1,
+      },
       // Never came online: nothing to seat.
-      { _id: "anchor-n", scope_type: "user", scope_user_id: ME, bot_user_id: BOT_P, host_user_id: ME, name: "Anchor", status: "provisioning", created_at: 1, updated_at: 1 },
+      {
+        _id: "anchor-n",
+        scope_type: "user",
+        scope_user_id: ME,
+        bot_user_id: BOT_P,
+        host_user_id: ME,
+        name: "Anchor",
+        status: "provisioning",
+        created_at: 1,
+        updated_at: 1,
+      },
       // Retired: passed over.
-      { _id: "anchor-d", scope_type: "team", team_id: TEAM, bot_user_id: BOT_T, host_user_id: ME, name: "Anchor", status: "decommissioned", conversation_id: "conv-d", created_at: 1, updated_at: 1 },
+      {
+        _id: "anchor-d",
+        scope_type: "team",
+        team_id: TEAM,
+        bot_user_id: BOT_T,
+        host_user_id: ME,
+        name: "Anchor",
+        status: "decommissioned",
+        conversation_id: "conv-d",
+        created_at: 1,
+        updated_at: 1,
+      },
     ],
     conversations: [
-      { _id: "conv-t", user_id: ME, acting_user_id: BOT_T, anchor_id: "anchor-t", session_id: "s-t", short_id: "jxanct1", title: "Anchor", title_is_custom: true, status: "active", agent_type: "claude_code", updated_at: NOW, message_count: 9, team_id: TEAM, is_private: false, persistent: true, project_path: "/repo" },
-      { _id: "conv-p", user_id: YOU, acting_user_id: BOT_P, anchor_id: "anchor-p", session_id: "s-p", short_id: "jxancp1", title: "Anchor", title_is_custom: true, status: "active", agent_type: "claude_code", updated_at: NOW, message_count: 3, is_private: true, persistent: true },
-      { _id: "conv-d", user_id: ME, acting_user_id: BOT_T, anchor_id: "anchor-d", session_id: "s-d", short_id: "jxancd1", status: "completed", agent_type: "claude_code", updated_at: NOW, message_count: 1, team_id: TEAM },
+      {
+        _id: "conv-t",
+        user_id: ME,
+        acting_user_id: BOT_T,
+        anchor_id: "anchor-t",
+        session_id: "s-t",
+        short_id: "jxanct1",
+        title: "Anchor",
+        title_is_custom: true,
+        status: "active",
+        agent_type: "claude_code",
+        updated_at: NOW,
+        message_count: 9,
+        team_id: TEAM,
+        is_private: false,
+        persistent: true,
+        project_path: "/repo",
+      },
+      {
+        _id: "conv-p",
+        user_id: YOU,
+        acting_user_id: BOT_P,
+        anchor_id: "anchor-p",
+        session_id: "s-p",
+        short_id: "jxancp1",
+        title: "Anchor",
+        title_is_custom: true,
+        status: "active",
+        agent_type: "claude_code",
+        updated_at: NOW,
+        message_count: 3,
+        is_private: true,
+        persistent: true,
+      },
+      {
+        _id: "conv-d",
+        user_id: ME,
+        acting_user_id: BOT_T,
+        anchor_id: "anchor-d",
+        session_id: "s-d",
+        short_id: "jxancd1",
+        status: "completed",
+        agent_type: "claude_code",
+        updated_at: NOW,
+        message_count: 1,
+        team_id: TEAM,
+      },
     ],
     agent_tasks: [],
     pending_messages: [],
@@ -63,12 +163,18 @@ function world() {
 // A mutation's writes commit together or not at all. The fake db has no
 // transaction, so this models the platform's rollback: every table is
 // snapshotted before the run and put back when it throws.
-async function atomic<T>(tables: Record<string, any[]>, run: () => Promise<T>): Promise<T> {
-  const before = Object.fromEntries(Object.entries(tables).map(([k, rows]) => [k, rows.map((r) => ({ ...r }))]));
+async function atomic<T>(
+  tables: Record<string, any[]>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const before = Object.fromEntries(
+    Object.entries(tables).map(([k, rows]) => [k, rows.map((r) => ({ ...r }))]),
+  );
   try {
     return await run();
   } catch (e) {
-    for (const [k, rows] of Object.entries(before)) tables[k].splice(0, tables[k].length, ...rows);
+    for (const [k, rows] of Object.entries(before))
+      tables[k].splice(0, tables[k].length, ...rows);
     throw e;
   }
 }
@@ -88,10 +194,18 @@ describe("orgRootSeat", () => {
 
   test("seats each workspace's anchor as its root role through the S16 seating: nothing restarts, personal too, and a second run is a no-op", async () => {
     const { ctx, tables } = world();
-    const before = { anchors: tables.anchors.length, users: tables.users.length, conversations: tables.conversations.length };
+    const before = {
+      anchors: tables.anchors.length,
+      users: tables.users.length,
+      conversations: tables.conversations.length,
+    };
     const out = await performSeatRootRoles(ctx, false);
     expect(out.seated).toBe(2);
-    expect(before).toEqual({ anchors: tables.anchors.length, users: tables.users.length, conversations: tables.conversations.length });
+    expect(before).toEqual({
+      anchors: tables.anchors.length,
+      users: tables.users.length,
+      conversations: tables.conversations.length,
+    });
 
     const roles = tables.org_roles;
     expect(roles).toHaveLength(2);
@@ -103,28 +217,55 @@ describe("orgRootSeat", () => {
     expect(personalRole.scope_user_id).toBe(YOU);
 
     // The anchor rows are the seats; the sessions carry the standing marker and the role's name.
-    expect(String(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id)).toBe(String(teamRole._id));
-    expect(String(tables.anchors.find((a) => a._id === "anchor-p")!.org_role_id)).toBe(String(personalRole._id));
+    expect(
+      String(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id),
+    ).toBe(String(teamRole._id));
+    expect(
+      String(tables.anchors.find((a) => a._id === "anchor-p")!.org_role_id),
+    ).toBe(String(personalRole._id));
     const convT = tables.conversations.find((c) => c._id === "conv-t")!;
     expect(String(convT.standing_role_id)).toBe(String(teamRole._id));
     expect(convT.title).toBe("Head of People");
-    expect(convT.seat_previous).toEqual({ title: "Anchor", title_is_custom: true });
+    expect(convT.seat_previous).toEqual({
+      title: "Anchor",
+      title_is_custom: true,
+    });
     expect(tables.users.find((u) => u._id === BOT_T)?.bot_kind).toBe("role");
     // The seating note and the briefing land in the thread; the review is armed on it.
-    expect(tables.pending_messages.filter((p) => p.conversation_id === "conv-t").length).toBeGreaterThanOrEqual(2);
-    expect(tables.agent_tasks.some((t) => t.originating_conversation_id === "conv-t")).toBe(true);
-    expect(tables.agent_tasks.some((t) => t.originating_conversation_id === "conv-p")).toBe(true);
+    expect(
+      tables.pending_messages.filter((p) => p.conversation_id === "conv-t")
+        .length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      tables.agent_tasks.some(
+        (t) => t.originating_conversation_id === "conv-t",
+      ),
+    ).toBe(true);
+    expect(
+      tables.agent_tasks.some(
+        (t) => t.originating_conversation_id === "conv-p",
+      ),
+    ).toBe(true);
     const armed = tables.agent_tasks.length;
 
     // Idempotent: the same run again seats nothing and mints nothing.
     const again = await performSeatRootRoles(ctx, false);
     expect(again.seated).toBe(0);
     expect(again.rows.filter((r) => r.action === "seat")).toEqual([]);
-    expect(again.rows.map((r) => r.action)).toEqual(["seated", "seated", "no_session"]);
+    expect(again.rows.map((r) => r.action)).toEqual([
+      "seated",
+      "seated",
+      "no_session",
+    ]);
     expect(tables.org_roles).toHaveLength(2);
     // Each Head of People seat carries its routine, its needs-input trigger,
     // its area watch and its inbox look (S25, S28, S29, S43), once: four per seat, and the second run mints none.
-    for (const conv of ["conv-t", "conv-p"]) expect(tables.agent_tasks.filter((t) => t.originating_conversation_id === conv)).toHaveLength(4);
+    for (const conv of ["conv-t", "conv-p"])
+      expect(
+        tables.agent_tasks.filter(
+          (t) => t.originating_conversation_id === conv,
+        ),
+      ).toHaveLength(4);
     expect(tables.agent_tasks).toHaveLength(8);
     expect(tables.agent_tasks).toHaveLength(armed);
   });
@@ -132,15 +273,31 @@ describe("orgRootSeat", () => {
   test("a workspace whose root role already stands in another session is left for a person", async () => {
     const { ctx, tables } = world();
     // A Head of People seated fresh earlier, with the old anchor still alive beside it.
-    tables.conversations.push({ _id: "mine", user_id: ME, session_id: "s-mine", short_id: "jxmine1", status: "active", agent_type: "claude_code", updated_at: NOW, message_count: 4, team_id: TEAM, project_path: "/repo" });
-    await performStaff(ctx, ME as any, { team_id: TEAM, adopt_conversation_id: "jxmine1" });
+    tables.conversations.push({
+      _id: "mine",
+      user_id: ME,
+      session_id: "s-mine",
+      short_id: "jxmine1",
+      status: "active",
+      agent_type: "claude_code",
+      updated_at: NOW,
+      message_count: 4,
+      team_id: TEAM,
+      project_path: "/repo",
+    });
+    await performStaff(ctx, ME as any, {
+      team_id: TEAM,
+      adopt_conversation_id: "jxmine1",
+    });
     const plan = await planRootSeats(ctx);
     const acme = plan.find((r) => r.anchor_id === "anchor-t")!;
     expect(acme.action).toBe("two_roots");
     expect(acme.root_role).toBeDefined();
     const out = await performSeatRootRoles(ctx, false);
     expect(out.seated).toBe(1);
-    expect(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id).toBeUndefined();
+    expect(
+      tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id,
+    ).toBeUndefined();
   });
 
   test("the run is all or nothing: a seating that fails throws, and the workspace seated before it keeps no row", async () => {
@@ -149,14 +306,26 @@ describe("orgRootSeat", () => {
     // its host is not a member of, so performCreateRole refuses it. It sorts
     // after Acme, whose seat has already been made when it throws.
     const bad = tables.anchors.find((a) => a._id === "anchor-p")!;
-    bad.scope_type = "team"; bad.team_id = "teams_other";
+    bad.scope_type = "team";
+    bad.team_id = "teams_other";
     let rowsBeforeThrow = -1;
-    await expect(atomic(tables, () => performSeatRootRoles(ctx, false).catch((e) => { rowsBeforeThrow = tables.org_roles.length; throw e; }))).rejects.toThrow("not a member");
+    await expect(
+      atomic(tables, () =>
+        performSeatRootRoles(ctx, false).catch((e) => {
+          rowsBeforeThrow = tables.org_roles.length;
+          throw e;
+        }),
+      ),
+    ).rejects.toThrow("not a member");
     // Acme's seat had been made when the throw came; the rollback took it with it.
     expect(rowsBeforeThrow).toBe(1);
     expect(tables.org_roles).toHaveLength(0);
-    expect(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id).toBeUndefined();
-    expect(tables.conversations.find((c) => c._id === "conv-t")!.standing_role_id).toBeUndefined();
+    expect(
+      tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id,
+    ).toBeUndefined();
+    expect(
+      tables.conversations.find((c) => c._id === "conv-t")!.standing_role_id,
+    ).toBeUndefined();
     expect(tables.pending_messages).toHaveLength(0);
   });
 
@@ -164,17 +333,29 @@ describe("orgRootSeat", () => {
     const { ctx, tables } = world();
     await performStaff(ctx, ME as any, { team_id: TEAM });
     const first = tables.org_roles[0];
-    await performRetireRole(ctx, ME as any, { role_id: String(first._id), standing_session: "keep" });
-    expect(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id).toBeUndefined();
+    await performRetireRole(ctx, ME as any, {
+      role_id: String(first._id),
+      standing_session: "keep",
+    });
+    expect(
+      tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id,
+    ).toBeUndefined();
     const plan = await planRootSeats(ctx);
     const acme = plan.find((r) => r.anchor_id === "anchor-t")!;
     expect(acme.action).toBe("retired_root");
-    expect(acme.retired_root).toEqual({ short_id: first.short_id, handle: HEAD_OF_PEOPLE_HANDLE });
+    expect(acme.retired_root).toEqual({
+      short_id: first.short_id,
+      handle: HEAD_OF_PEOPLE_HANDLE,
+    });
     const out = await performSeatRootRoles(ctx, false);
     expect(out.seated).toBe(2);
-    const live = tables.org_roles.filter((r) => r.team_id === TEAM && r.status !== "retired");
+    const live = tables.org_roles.filter(
+      (r) => r.team_id === TEAM && r.status !== "retired",
+    );
     expect(live).toHaveLength(1);
-    expect(String(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id)).toBe(String(live[0]._id));
+    expect(
+      String(tables.anchors.find((a) => a._id === "anchor-t")!.org_role_id),
+    ).toBe(String(live[0]._id));
   });
 
   test("a staff write names its team outright; a team scope with no team is refused", () => {
@@ -188,14 +369,20 @@ describe("orgRootSeat", () => {
     const { ctx, tables } = world();
     const out = await performSeatRootRoles(ctx, false, new Set(["anchor-t"]));
     expect(out.seated).toBe(1);
-    expect(out.rows.map((r) => [r.anchor_id, r.action, r.held ?? false])).toEqual([
+    expect(
+      out.rows.map((r) => [r.anchor_id, r.action, r.held ?? false]),
+    ).toEqual([
       ["anchor-t", "seated", false],
       ["anchor-p", "seat", true],
       ["anchor-n", "no_session", false],
     ]);
     expect(tables.org_roles).toHaveLength(1);
-    expect(tables.anchors.find((a) => a._id === "anchor-p")!.org_role_id).toBeUndefined();
-    expect(tables.pending_messages.some((p) => p.conversation_id === "conv-p")).toBe(false);
+    expect(
+      tables.anchors.find((a) => a._id === "anchor-p")!.org_role_id,
+    ).toBeUndefined();
+    expect(
+      tables.pending_messages.some((p) => p.conversation_id === "conv-p"),
+    ).toBe(false);
     // Without the filter, the held one is seated and the first is passed over.
     const later = await performSeatRootRoles(ctx, false);
     expect(later.seated).toBe(1);

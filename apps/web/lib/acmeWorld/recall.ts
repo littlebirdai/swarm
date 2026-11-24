@@ -9,14 +9,27 @@
 
 import type { AcmePart } from "./parts";
 import { MIN, PEOPLE, cid, session } from "./world";
-import { OWN_SESSIONS, TEAM_SESSIONS as T, type TeamSession } from "./teamSessions";
+import {
+  OWN_SESSIONS,
+  TEAM_SESSIONS as T,
+  type TeamSession,
+} from "./teamSessions";
 
-export const RECALL_SESSION = { _id: cid("whybackoff"), short_id: "jx7z4wb", title: "Why deliveries back off this way", agent_type: "claude_code" };
+export const RECALL_SESSION = {
+  _id: cid("whybackoff"),
+  short_id: "jx7z4wb",
+  title: "Why deliveries back off this way",
+  agent_type: "claude_code",
+};
 
-const TEAM_BY_ID = new Map<string, TeamSession>(Object.values(T).map((s) => [s._id, s]));
+const TEAM_BY_ID = new Map<string, TeamSession>(
+  Object.values(T).map((s) => [s._id, s]),
+);
 
 /** The feed, newest first: what a team-mode session is pointed at when it starts. */
-const FEED: TeamSession[] = [...OWN_SESSIONS, ...Object.values(T)].sort((a, b) => a.ago - b.ago);
+const FEED: TeamSession[] = [...OWN_SESSIONS, ...Object.values(T)].sort(
+  (a, b) => a.ago - b.ago,
+);
 
 const feedItem = (s: TeamSession, now: number) => ({
   id: s._id,
@@ -32,22 +45,44 @@ const feedItem = (s: TeamSession, now: number) => ({
 
 /** The record `cast stable-context` posts at injection: 15 pointers from the team feed. */
 const STABLE_CONTEXT = (now: number) =>
-  JSON.stringify({ mode: "team", global: false, injected_at: now - 6 * MIN, items: FEED.slice(0, 15).map((s) => feedItem(s, now)) });
+  JSON.stringify({
+    mode: "team",
+    global: false,
+    injected_at: now - 6 * MIN,
+    items: FEED.slice(0, 15).map((s) => feedItem(s, now)),
+  });
 
 const REPLY = `Because Maya measured it. In @[Backoff schedule for webhook retries ${T.backoff._id}] she replayed a week of failed deliveries: exponential backoff with jitter recovered 96% by the fifth attempt, against 71% for a fixed 5s retry. The 2s, 4s, 8s, 16s steps outlast the ledger's restarts without piling retries onto it while it comes back, and the jitter keeps a burst of failures from retrying in lockstep.`;
 
 export const RECALL_TRANSCRIPT = (now: number) => {
   const t = (minsAgo: number) => now - minsAgo * MIN;
-  const bash = (id: string, command: string, description: string) => ({ id, name: "Bash", input: JSON.stringify({ command, description }) });
+  const bash = (id: string, command: string, description: string) => ({
+    id,
+    name: "Bash",
+    input: JSON.stringify({ command, description }),
+  });
   return [
-    { _id: "hero-why-m1", role: "user", content: "Why do webhook retries back off the way they do?", timestamp: t(5) },
+    {
+      _id: "hero-why-m1",
+      role: "user",
+      content: "Why do webhook retries back off the way they do?",
+      timestamp: t(5),
+    },
     {
       _id: "hero-why-m2",
       role: "assistant",
       content: "That was decided in an earlier session. Looking it up.",
       tool_calls: [
-        bash("hero-why-tc1", 'cast search "webhook retry backoff"', "Search past sessions"),
-        bash("hero-why-tc2", `cast read ${T.backoff.short_id} --ask "Why exponential backoff with jitter for webhook retries?"`, "Ask the session that decided it"),
+        bash(
+          "hero-why-tc1",
+          'cast search "webhook retry backoff"',
+          "Search past sessions",
+        ),
+        bash(
+          "hero-why-tc2",
+          `cast read ${T.backoff.short_id} --ask "Why exponential backoff with jitter for webhook retries?"`,
+          "Ask the session that decided it",
+        ),
       ],
       tool_results: [
         {
@@ -56,7 +91,8 @@ export const RECALL_TRANSCRIPT = (now: number) => {
         },
         {
           tool_use_id: "hero-why-tc2",
-          content: "Maya replayed last week's 1,284 failed deliveries under three schedules (lines 31-38). Fixed 5s recovered 71% by attempt 5, linear 82%, exponential with jitter 96%. She chose exponential, capped at 5 attempts, so a retry outlasts a ledger restart (line 44). Jitter was added after the replay showed retries landing together (line 47).",
+          content:
+            "Maya replayed last week's 1,284 failed deliveries under three schedules (lines 31-38). Fixed 5s recovered 71% by attempt 5, linear 82%, exponential with jitter 96%. She chose exponential, capped at 5 attempts, so a retry outlasts a ledger restart (line 44). Jitter was added after the replay showed retries landing together (line 47).",
         },
       ],
       timestamp: t(4),
@@ -72,33 +108,59 @@ const recallRow = (now: number) =>
     waiting: "done",
     project: "~/src/billing",
     messages: 3,
-    extra: { stable_context: STABLE_CONTEXT(now), inbox_dismissed_at: now - 2 * MIN },
+    extra: {
+      stable_context: STABLE_CONTEXT(now),
+      inbox_dismissed_at: now - 2 * MIN,
+    },
   });
 
 export const RECALL_PART: AcmePart = {
   name: "recall",
   sessions: (now) => [recallRow(now)],
   seed: (s, now) => {
-    s.applyTailMessages(RECALL_SESSION._id, 0, RECALL_TRANSCRIPT(now) as any, null);
+    s.applyTailMessages(
+      RECALL_SESSION._id,
+      0,
+      RECALL_TRANSCRIPT(now) as any,
+      null,
+    );
   },
   answers: {
     // A reference to a teammate's session (the memory answer's citation) resolves through these.
-    "entities:resolveIdType": (a) => (TEAM_BY_ID.has(String(a?.id)) ? "session" : null),
+    "entities:resolveIdType": (a) =>
+      TEAM_BY_ID.has(String(a?.id)) ? "session" : null,
     "conversations:webGet": (a) => {
-      const s = TEAM_BY_ID.get(String(a?.id)) ?? [...TEAM_BY_ID.values()].find((x) => x.short_id === a?.short_id);
+      const s =
+        TEAM_BY_ID.get(String(a?.id)) ??
+        [...TEAM_BY_ID.values()].find((x) => x.short_id === a?.short_id);
       if (!s) return null;
       const now = Date.now();
       return {
-        _id: s._id, short_id: s.short_id, title: s.title, agent_type: s.agent_type, status: "active",
-        user_id: s.who._id, author_name: s.who.name, user: { name: s.who.name, image: s.who.image, avatar_url: s.who.image },
-        project_path: s.project, message_count: s.messages, updated_at: now - s.ago, started_at: now - s.ago - 40 * MIN,
-        agent_status: s.state === "working" ? "working" : "done", is_own: false,
+        _id: s._id,
+        short_id: s.short_id,
+        title: s.title,
+        agent_type: s.agent_type,
+        status: "active",
+        user_id: s.who._id,
+        author_name: s.who.name,
+        user: { name: s.who.name, image: s.who.image, avatar_url: s.who.image },
+        project_path: s.project,
+        message_count: s.messages,
+        updated_at: now - s.ago,
+        started_at: now - s.ago - 40 * MIN,
+        agent_status: s.state === "working" ? "working" : "done",
+        is_own: false,
       };
     },
     "conversations:feedForCLI": (a) => {
       const now = Date.now();
       const limit = Number(a?.limit) || 15;
-      return { conversations: FEED.slice(0, limit).map((s) => ({ ...feedItem(s, now), user: { name: s.who.name } })) };
+      return {
+        conversations: FEED.slice(0, limit).map((s) => ({
+          ...feedItem(s, now),
+          user: { name: s.who.name },
+        })),
+      };
     },
   },
 };

@@ -99,15 +99,15 @@ On the destination, the conversation is rebuilt from the server copy exactly as 
 
 ## Which one to pick
 
-| What you want | What to pick in the app | What happens |
-|---|---|---|
-| A cheaper or stronger model for the next step | Session control → Model, or Effort | The running agent switches on its next turn. Nothing restarts, no history moves. |
-| A second opinion, or an agent better at what comes next | Session control → Switch agent | Same thread and id. A "now using …" divider, and the new agent continues on the full rebuilt history. |
-| To try another agent and keep the original going | Session control → Fork as | A new linked session with a copy of the history, on the new agent. The original keeps running. |
-| A clean start: the thread is long and noisy | Session control → Hand off to, plus a direction | A new session that starts from a brief. The old one is marked handed off; both are linked. Any agent works. |
-| Another agent to do one piece and report back | Ask your session for a worker on that agent | A nested worker starts from a brief. Your session is woken when it finishes. |
-| Not to stop on a usage limit | Settings → Claude accounts → Switch automatically | Parked sessions continue on the account with the most room, or at reset. |
-| The session running somewhere else | Card menu or palette → Move to machine | It finishes its turn, moves, and continues on the full history there. |
+| What you want                                           | What to pick in the app                           | What happens                                                                                                |
+| ------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| A cheaper or stronger model for the next step           | Session control → Model, or Effort                | The running agent switches on its next turn. Nothing restarts, no history moves.                            |
+| A second opinion, or an agent better at what comes next | Session control → Switch agent                    | Same thread and id. A "now using …" divider, and the new agent continues on the full rebuilt history.       |
+| To try another agent and keep the original going        | Session control → Fork as                         | A new linked session with a copy of the history, on the new agent. The original keeps running.              |
+| A clean start: the thread is long and noisy             | Session control → Hand off to, plus a direction   | A new session that starts from a brief. The old one is marked handed off; both are linked. Any agent works. |
+| Another agent to do one piece and report back           | Ask your session for a worker on that agent       | A nested worker starts from a brief. Your session is woken when it finishes.                                |
+| Not to stop on a usage limit                            | Settings → Claude accounts → Switch automatically | Parked sessions continue on the account with the most room, or at reset.                                    |
+| The session running somewhere else                      | Card menu or palette → Move to machine            | It finishes its turn, moves, and continues on the full history there.                                       |
 
 ## Edge cases worth knowing
 

@@ -16,13 +16,31 @@
 // Module singleton beside callManager, same pattern: components read the small
 // status snapshot via subscribe/getSnapshot; nothing here touches the store
 // except through convex mutations.
-import { Room, RoomEvent, Track, TrackEvent, type LocalTrack } from "livekit-client";
-import { addressesAgent, agentSpokenNames, callSpeakerName, isAgentFaceIdentity, MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  TrackEvent,
+  type LocalTrack,
+} from "livekit-client";
+import {
+  addressesAgent,
+  agentSpokenNames,
+  callSpeakerName,
+  isAgentFaceIdentity,
+  MID_TURN_AGENT_STATUSES,
+} from "@codecast/shared/contracts";
 import { agentStatusAt } from "../liveness";
 import { useInboxStore } from "../../store/inboxStore";
 import { characterFor } from "../sessionIdentity";
 import { findSessionRow } from "./findSessionRow";
-import { createScribeEngine, type ConvexHandle, type ScribePacing, type ScribeRoute, type ScribeStatus } from "./scribeEngine";
+import {
+  createScribeEngine,
+  type ConvexHandle,
+  type ScribePacing,
+  type ScribeRoute,
+  type ScribeStatus,
+} from "./scribeEngine";
 
 export { GAP_MS, MAX_HOLD_MS, type ScribeStatus } from "./scribeEngine";
 
@@ -47,14 +65,25 @@ const pacing: ScribePacing = {
     const st = useInboxStore.getState() as any;
     const rows = feedTargets.map((t) => findSessionRow(st, t)).filter(Boolean);
     const now = Date.now();
-    return rows.length > 0 && rows.every((row) => MID_TURN_AGENT_STATUSES.has(agentStatusAt(row, now) ?? ""));
+    return (
+      rows.length > 0 &&
+      rows.every((row) =>
+        MID_TURN_AGENT_STATUSES.has(agentStatusAt(row, now) ?? ""),
+      )
+    );
   },
   addressed(text) {
     const st = useInboxStore.getState() as any;
     return feedTargets.some((t) => {
       const row = findSessionRow(st, t);
       if (!row) return false;
-      return addressesAgent(text, agentSpokenNames({ name: characterFor(row).name, agentType: row.agent_type }));
+      return addressesAgent(
+        text,
+        agentSpokenNames({
+          name: characterFor(row).name,
+          agentType: row.agent_type,
+        }),
+      );
     });
   },
 };
@@ -102,7 +131,9 @@ function watchLocalMic(track: LocalTrack | null) {
 function attachRoomTracks() {
   if (!room) return;
   // Local mic.
-  const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+  const micPub = room.localParticipant.getTrackPublication(
+    Track.Source.Microphone,
+  );
   const me = room.localParticipant;
   watchLocalMic(micPub?.track ?? null);
   if (micPub?.track?.mediaStreamTrack) {
@@ -142,7 +173,9 @@ function attachRoomTracks() {
 // same beat (switching back on clears the opt-out the auto-scribe watches),
 // and two runs opening pipes would append every word twice.
 let starting: Promise<boolean> | null = null;
-export function startScribe(opts: Parameters<typeof startScribeOnce>[0]): Promise<boolean> {
+export function startScribe(
+  opts: Parameters<typeof startScribeOnce>[0],
+): Promise<boolean> {
   starting ??= startScribeOnce(opts).finally(() => {
     starting = null;
   });
@@ -196,7 +229,10 @@ async function startScribeOnce(opts: {
  * handoff is what needs it — the huddle carries on in another window, and a
  * transcript must not end at a window boundary the speakers never saw.
  */
-export async function stopScribe(opts?: { keepLive?: boolean; graceful?: boolean }): Promise<void> {
+export async function stopScribe(opts?: {
+  keepLive?: boolean;
+  graceful?: boolean;
+}): Promise<void> {
   roomListener?.();
   roomListener = null;
   watchLocalMic(null);

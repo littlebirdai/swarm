@@ -9,7 +9,8 @@
 // the PKCE verifier, which never leaves the CLI process.
 
 /** The code page Claude Code's printed sign-in URL redirects to (2.1.289). */
-export const OAUTH_CODE_PASTE_REDIRECT = "https://platform.claude.com/oauth/code/callback";
+export const OAUTH_CODE_PASTE_REDIRECT =
+  "https://platform.claude.com/oauth/code/callback";
 
 /**
  * The sign-in URL that ends on Anthropic's code page, for finishing on another
@@ -17,7 +18,10 @@ export const OAUTH_CODE_PASTE_REDIRECT = "https://platform.claude.com/oauth/code
  * CLI's own printout when the pane shows one (so a moved callback follows the
  * CLI), else the known one. Null when the input is not an OAuth URL.
  */
-export function codePasteSignInUrl(browserUrl: string, pane = ""): string | null {
+export function codePasteSignInUrl(
+  browserUrl: string,
+  pane = "",
+): string | null {
   let url: URL;
   try {
     url = new URL(browserUrl.trim());
@@ -39,8 +43,13 @@ export function codePasteSignInUrl(browserUrl: string, pane = ""): string | null
 /** The approval code as Anthropic's code page shows it (`code#state`), trimmed; throws on anything else. */
 export function oauthApprovalCode(value: string): string {
   const code = value.trim();
-  if (!/^[A-Za-z0-9_-]+(?:#[A-Za-z0-9_-]+)?$/.test(code) || code.length > 4096) {
-    throw new Error("Paste the approval code shown by Claude, without any extra text.");
+  if (
+    !/^[A-Za-z0-9_-]+(?:#[A-Za-z0-9_-]+)?$/.test(code) ||
+    code.length > 4096
+  ) {
+    throw new Error(
+      "Paste the approval code shown by Claude, without any extra text.",
+    );
   }
   return code;
 }
@@ -50,7 +59,9 @@ export function oauthApprovalCode(value: string): string {
  * open on any device and the one-time code to enter there, read off the CLI's
  * printout. Null until both have appeared.
  */
-export function deviceCodePrompt(pane: string): { url: string; code: string } | null {
+export function deviceCodePrompt(
+  pane: string,
+): { url: string; code: string } | null {
   const text = pane.replace(/\x1b\[[0-9;]*m/g, "");
   const url = text.match(/https:\/\/\S+/)?.[0];
   const code = text.match(/\b[A-Z0-9]{4,}-[A-Z0-9]{4,}\b/)?.[0];

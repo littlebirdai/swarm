@@ -24,7 +24,11 @@ import { useWatchEffect } from "../../../hooks/useWatchEffect";
 // kind reuses the timeline rows below.
 
 /** The room's glyph: DM, private room, or channel. */
-export function RoomIcon({ channel }: { channel: { kind?: string; isPrivate?: boolean } | undefined }) {
+export function RoomIcon({
+  channel,
+}: {
+  channel: { kind?: string; isPrivate?: boolean } | undefined;
+}) {
   if (channel?.kind === "dm") return <Users className="w-3 h-3" />;
   if (channel?.isPrivate) return <Lock className="w-3 h-3" />;
   return <Hash className="w-3 h-3" />;
@@ -51,7 +55,9 @@ export function ChatLabel({ card }: { card: ThreadCardModel }) {
 export function ThreadUnavailableNote() {
   return (
     <div className="th-card-open">
-      <div className="th-card-note">This conversation isn&apos;t available anymore.</div>
+      <div className="th-card-note">
+        This conversation isn&apos;t available anymore.
+      </div>
     </div>
   );
 }
@@ -78,7 +84,8 @@ export function ChatTimelineRows({
           authorId: m.author.id,
           groupKey: authorGroupKey(m.author),
           createdAt: m.createdAt,
-          pendingAgent: m.agentStatus === "thinking" || m.agentStatus === "streaming",
+          pendingAgent:
+            m.agentStatus === "thinking" || m.agentStatus === "streaming",
           deleted: !!m.deletedAt,
           standalone: !!m.call,
           view: m,
@@ -188,9 +195,18 @@ export function ChatExpanded({
     // The replies are on screen, so the header count for them goes, whether
     // or not the row still had a number to clear.
     noteFaceContextRead(channelId, rootId);
-    if (entry.last_read_at >= entry.last_activity_at && entry.unread === 0) return;
+    if (entry.last_read_at >= entry.last_activity_at && entry.unread === 0)
+      return;
     useInboxStore.getState().markThreadRead("chat", rootId);
-  }, [seen, sync.loading, rootId, channelId, entry.last_activity_at, entry.last_read_at, entry.unread]);
+  }, [
+    seen,
+    sync.loading,
+    rootId,
+    channelId,
+    entry.last_activity_at,
+    entry.last_read_at,
+    entry.unread,
+  ]);
 
   // The thread on the reader's screen is being read: its own arrivals must not
   // toast at them.
@@ -200,7 +216,11 @@ export function ChatExpanded({
   }, [seen, channelId, rootId]);
 
   const send = useCallback(
-    (content: string, attachments?: ChatAttachment[], opts?: { broadcast?: boolean }) => {
+    (
+      content: string,
+      attachments?: ChatAttachment[],
+      opts?: { broadcast?: boolean },
+    ) => {
       return useInboxStore.getState().sendChatMessage(channelId, content, {
         threadRootId: rootId,
         attachments,
@@ -215,7 +235,12 @@ export function ChatExpanded({
   return (
     <div className="th-card-open">
       <EarlierButton count={fold.hidden} noun="reply" onClick={fold.showAll} />
-      <ChatTimelineRows messages={fold.visible} channelId={channelId} frozenReadAt={frozenReadAt} inThread />
+      <ChatTimelineRows
+        messages={fold.visible}
+        channelId={channelId}
+        frozenReadAt={frozenReadAt}
+        inThread
+      />
       <ChatComposer
         channelId={channelId}
         threadRootId={rootId}
@@ -223,7 +248,11 @@ export function ChatExpanded({
         // A DM's channel IS the conversation — "also send to #room" only makes
         // sense where the thread panel and the room are different audiences.
         channelName={channel?.kind === "dm" ? undefined : roomName}
-        placeholder={channel?.kind === "dm" ? `Reply to ${roomName}…` : `Reply in #${roomName}…`}
+        placeholder={
+          channel?.kind === "dm"
+            ? `Reply to ${roomName}…`
+            : `Reply in #${roomName}…`
+        }
         onSend={send}
         compact
         autoFocus={focusComposer}

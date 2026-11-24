@@ -5,7 +5,9 @@ import { replaceGlobals } from "../../test-helpers/globals";
 // opened: Esc, the chord again, an act. A doorway that is itself an overlay
 // (the palette's input) is passed over for the last focus outside overlays.
 const { JSDOM } = await import("jsdom");
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://local.codecast.sh" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://local.codecast.sh",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -20,7 +22,11 @@ const doc = dom.window.document;
 const unsubscribe = undoTimeline.subscribe(() => {});
 afterAll(() => unsubscribe());
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, parent: HTMLElement = doc.body) {
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  attrs: Record<string, string> = {},
+  parent: HTMLElement = doc.body,
+) {
   const node = doc.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   parent.appendChild(node);
@@ -29,7 +35,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
 
 /** What UndoTimelineHost renders while open, and how it takes focus. */
 function mountCard(): HTMLElement {
-  const card = el("div", { role: "dialog", "data-undo-timeline": "interactive" });
+  const card = el("div", {
+    role: "dialog",
+    "data-undo-timeline": "interactive",
+  });
   const inner = el("div", { tabindex: "-1" }, card);
   inner.focus();
   return card;
@@ -70,7 +79,11 @@ describe("undo card focus return", () => {
   it("opened from the toast's History button, focus returns past the toast", () => {
     const composer = el("textarea");
     composer.focus();
-    const toaster = el("ol", { "data-sonner-toaster": "" }, el("section", { "aria-label": "Notifications alt+T" }));
+    const toaster = el(
+      "ol",
+      { "data-sonner-toaster": "" },
+      el("section", { "aria-label": "Notifications alt+T" }),
+    );
     const history = el("button", {}, toaster);
     history.focus();
     undoTimeline.open();
@@ -183,17 +196,23 @@ describe("undo card focus return", () => {
   });
 });
 
-
 // The card and the toaster share the bottom-right corner. While the card is
 // open the toaster rises above it, and a press on a toast (closing a tip or
 // an error) is not a press outside the card.
 describe("the undo card and the toaster", () => {
   it("a press on a toast does not close the card; a press on the page does", () => {
     doc.body.innerHTML = "";
-    const card = el("div", { role: "dialog", "data-undo-timeline": "interactive" });
+    const card = el("div", {
+      role: "dialog",
+      "data-undo-timeline": "interactive",
+    });
     const row = el("button", {}, card);
     const toaster = el("ol", { "data-sonner-toaster": "" });
-    const close = el("button", {}, el("li", { "data-sonner-toast": "" }, toaster));
+    const close = el(
+      "button",
+      {},
+      el("li", { "data-sonner-toast": "" }, toaster),
+    );
     const page = el("button");
     expect(undoTimeline.pressLeavesCard(row, card)).toBe(false);
     expect(undoTimeline.pressLeavesCard(close, card)).toBe(false);
@@ -211,11 +230,26 @@ describe("the undo card and the toaster", () => {
   it("the lift reads the card's layout box, not its rect mid enter animation", async () => {
     const { cardToasterLift } = await import("../undoCardToasterLift");
     // Mid entry the scale and slide paint the card's top 28px low; the box is unmoved.
-    const card = { offsetHeight: 400, getBoundingClientRect: () => ({ top: 412 }) } as unknown as HTMLElement;
-    expect(cardToasterLift(card, { innerHeight: 800, getComputedStyle: () => ({ bottom: "16px" }) })).toBe(424);
-    expect(cardToasterLift(card, { innerHeight: 800, getComputedStyle: () => ({ bottom: "0px" }) })).toBe(408);
+    const card = {
+      offsetHeight: 400,
+      getBoundingClientRect: () => ({ top: 412 }),
+    } as unknown as HTMLElement;
+    expect(
+      cardToasterLift(card, {
+        innerHeight: 800,
+        getComputedStyle: () => ({ bottom: "16px" }),
+      }),
+    ).toBe(424);
+    expect(
+      cardToasterLift(card, {
+        innerHeight: 800,
+        getComputedStyle: () => ({ bottom: "0px" }),
+      }),
+    ).toBe(408);
     // The animated card is never measured by its painted rect.
-    const src = await Bun.file(new URL("../undoCardToasterLift.ts", import.meta.url)).text();
+    const src = await Bun.file(
+      new URL("../undoCardToasterLift.ts", import.meta.url),
+    ).text();
     expect(src).not.toContain("getBoundingClientRect(");
   });
 });

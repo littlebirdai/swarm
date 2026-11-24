@@ -50,8 +50,12 @@ export function hash53(str: string): string {
     h1 = Math.imul(h1 ^ ch, 2654435761);
     h2 = Math.imul(h2 ^ ch, 1597334677);
   }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  h1 =
+    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 =
+    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
@@ -66,15 +70,29 @@ const STAMP_MIN = 1e12;
 const STAMP_MAX = 1e13;
 
 /** A row is hot if any stamp on it is inside the window or still ahead (a deadline). */
-export function isHotRow(row: Record<string, unknown>, now: number, hotMs = INBOX_SPLIT_HOT_MS): boolean {
+export function isHotRow(
+  row: Record<string, unknown>,
+  now: number,
+  hotMs = INBOX_SPLIT_HOT_MS,
+): boolean {
   for (const v of Object.values(row)) {
-    if (typeof v === "number" && v > STAMP_MIN && v < STAMP_MAX && v >= now - hotMs) return true;
+    if (
+      typeof v === "number" &&
+      v > STAMP_MIN &&
+      v < STAMP_MAX &&
+      v >= now - hotMs
+    )
+      return true;
   }
   return false;
 }
 
 /** The hash over the cold rows, in result order. Both sides combine row hashes this way. */
-export function coldHashOf(ids: readonly string[], hot: ReadonlySet<string>, hashOf: (id: string) => string | undefined): string | null {
+export function coldHashOf(
+  ids: readonly string[],
+  hot: ReadonlySet<string>,
+  hashOf: (id: string) => string | undefined,
+): string | null {
   const parts: string[] = [];
   for (const id of ids) {
     if (hot.has(id)) continue;
@@ -85,14 +103,23 @@ export function coldHashOf(ids: readonly string[], hot: ReadonlySet<string>, has
   return hash53(parts.join("|"));
 }
 
-export type SplitRows<R> = { ids: string[]; hot: Array<[string, R]>; cold_hash: string };
+export type SplitRows<R> = {
+  ids: string[];
+  hot: Array<[string, R]>;
+  cold_hash: string;
+};
 
 /**
  * Server side: the split form of an ordered set of rows. `alsoHot` names rows
  * the caller judged hot before it stripped their stamps; the client never
  * classifies, so the server may widen the hot set freely.
  */
-export function splitRows<R extends Record<string, unknown>>(entries: Array<[string, R]>, now: number, hotMs = INBOX_SPLIT_HOT_MS, alsoHot?: ReadonlySet<string>): SplitRows<R> {
+export function splitRows<R extends Record<string, unknown>>(
+  entries: Array<[string, R]>,
+  now: number,
+  hotMs = INBOX_SPLIT_HOT_MS,
+  alsoHot?: ReadonlySet<string>,
+): SplitRows<R> {
   const ids: string[] = [];
   const hot: Array<[string, R]> = [];
   const hotIds = new Set<string>();
@@ -114,12 +141,17 @@ export type SplitCache<R> = Map<string, { row: R; hash?: string }>;
 
 /** A held row's hash. Hot rows arrive freshly decoded on every push, and only
  *  a row checked as cold needs its hash, so none is computed before then. */
-export function heldHash<R>(held: { row: R; hash?: string } | undefined): string | undefined {
+export function heldHash<R>(
+  held: { row: R; hash?: string } | undefined,
+): string | undefined {
   if (!held) return undefined;
   return (held.hash ??= rowHash(held.row));
 }
 
-export function cacheRows<R>(cache: SplitCache<R>, entries: Iterable<[string, R]>): void {
+export function cacheRows<R>(
+  cache: SplitCache<R>,
+  entries: Iterable<[string, R]>,
+): void {
   for (const [id, row] of entries) {
     const held = cache.get(id);
     if (held && held.row === row) continue;
@@ -133,13 +165,23 @@ export function cacheRows<R>(cache: SplitCache<R>, entries: Iterable<[string, R]
  * caller then fetches the whole result). Hot rows enter the cache, so a row
  * that cools off later is already held.
  */
-export function rebuildRows<R>(split: SplitRows<R>, cache: SplitCache<R>): Array<[string, R]> | null {
+export function rebuildRows<R>(
+  split: SplitRows<R>,
+  cache: SplitCache<R>,
+): Array<[string, R]> | null {
   cacheRows(cache, split.hot);
   const hot = new Map(split.hot);
   const hotIds = new Set(hot.keys());
-  if (coldHashOf(split.ids, hotIds, (id) => heldHash(cache.get(id))) !== split.cold_hash) return null;
+  if (
+    coldHashOf(split.ids, hotIds, (id) => heldHash(cache.get(id))) !==
+    split.cold_hash
+  )
+    return null;
   // The result is the whole set now: rows it no longer lists leave the cache.
   const listed = new Set(split.ids);
   for (const id of cache.keys()) if (!listed.has(id)) cache.delete(id);
-  return split.ids.map((id) => [id, hot.has(id) ? hot.get(id)! : cache.get(id)!.row]);
+  return split.ids.map((id) => [
+    id,
+    hot.has(id) ? hot.get(id)! : cache.get(id)!.row,
+  ]);
 }

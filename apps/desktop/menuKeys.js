@@ -9,7 +9,14 @@
 // gave to another action lets it go. With no rebinding the menu keeps its own
 // defaults.
 
-const MENU_ACTIONS = new Set(["ui.openSettings", "session.create", "nav.back", "nav.forward", "ui.undo", "ui.redo"]);
+const MENU_ACTIONS = new Set([
+  "ui.openSettings",
+  "session.create",
+  "nav.back",
+  "nav.forward",
+  "ui.undo",
+  "ui.redo",
+]);
 const ACCELERATOR = /^[A-Za-z0-9+,./;'[\]\\`=-]{1,40}$/;
 
 /** One accelerator in a comparable form: modifiers named and sorted. */
@@ -18,7 +25,8 @@ function normalize(accelerator, isMac) {
   const key = parts.pop().toLowerCase();
   const mods = parts.map((p) => {
     const m = p.toLowerCase();
-    if (m === "cmdorctrl" || m === "commandorcontrol") return isMac ? "command" : "control";
+    if (m === "cmdorctrl" || m === "commandorcontrol")
+      return isMac ? "command" : "control";
     if (m === "cmd") return "command";
     if (m === "ctrl") return "control";
     if (m === "option") return "alt";
@@ -37,9 +45,16 @@ function createMenuKeys({ isMac = process.platform === "darwin" } = {}) {
     if (raw && typeof raw === "object") {
       const keys = {};
       for (const [action, list] of Object.entries(raw.keys ?? {})) {
-        if (MENU_ACTIONS.has(action) && Array.isArray(list)) keys[action] = list.filter((a) => typeof a === "string" && ACCELERATOR.test(a)).slice(0, 8);
+        if (MENU_ACTIONS.has(action) && Array.isArray(list))
+          keys[action] = list
+            .filter((a) => typeof a === "string" && ACCELERATOR.test(a))
+            .slice(0, 8);
       }
-      const claimed = Array.isArray(raw.claimed) ? raw.claimed.filter((a) => typeof a === "string" && ACCELERATOR.test(a)).slice(0, 200) : [];
+      const claimed = Array.isArray(raw.claimed)
+        ? raw.claimed
+            .filter((a) => typeof a === "string" && ACCELERATOR.test(a))
+            .slice(0, 200)
+        : [];
       next = { keys, claimed };
     }
     const changed = JSON.stringify(next) !== JSON.stringify(state);
@@ -59,7 +74,8 @@ function createMenuKeys({ isMac = process.platform === "darwin" } = {}) {
    *  person moved that action elsewhere). */
   function chordRuns(action, chord) {
     if (!state) return true;
-    if (action in state.keys) return state.keys[action].some((a) => same(a, chord));
+    if (action in state.keys)
+      return state.keys[action].some((a) => same(a, chord));
     return !state.claimed.some((a) => same(a, chord));
   }
 

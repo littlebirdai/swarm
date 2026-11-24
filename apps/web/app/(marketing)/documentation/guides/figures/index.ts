@@ -15,12 +15,17 @@ import { loadedModule } from "../../../../../lib/lazyNamed";
 
 type FigureModule = Record<string, ComponentType>;
 
-const LOADERS: Record<string, () => Promise<unknown>> = import.meta.glob("./*.tsx");
+const LOADERS: Record<string, () => Promise<unknown>> = import.meta.glob(
+  "./*.tsx",
+);
 
 const cache = new Map<string, LazyExoticComponent<ComponentType>>();
 
 /** The named figure from a guide's figures file, loaded on first use. */
-export function guideFigure(slug: string, name: string): LazyExoticComponent<ComponentType> | null {
+export function guideFigure(
+  slug: string,
+  name: string,
+): LazyExoticComponent<ComponentType> | null {
   const load = LOADERS[`./${slug}.tsx`];
   if (!load) return null;
   const key = `${slug}/${name}`;
@@ -29,7 +34,10 @@ export function guideFigure(slug: string, name: string): LazyExoticComponent<Com
     comp = lazy(async () => {
       const mod = (await loadedModule(load)) as FigureModule;
       const found = mod[name];
-      if (!found) throw new Error(`Guide figure ${key} is not exported from figures/${slug}.tsx`);
+      if (!found)
+        throw new Error(
+          `Guide figure ${key} is not exported from figures/${slug}.tsx`,
+        );
       return { default: found };
     });
     cache.set(key, comp);

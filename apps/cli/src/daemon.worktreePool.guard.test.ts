@@ -34,9 +34,19 @@ describe("daemon warm worktree pool wiring", () => {
   });
 
   test("boot resumes the pools and shutdown stops them", () => {
-    const boot = sliceBetween(daemon, "const versionCheckInterval = startVersionChecker(", "const cursorWatcher = new CursorWatcher(", 0);
+    const boot = sliceBetween(
+      daemon,
+      "const versionCheckInterval = startVersionChecker(",
+      "const cursorWatcher = new CursorWatcher(",
+      0,
+    );
     expect(boot.text).toContain("startWorktreePools()");
-    const shutdown = sliceBetween(daemon, "clearInterval(statusCleanupInterval);", "stopHookServer();", 0);
+    const shutdown = sliceBetween(
+      daemon,
+      "clearInterval(statusCleanupInterval);",
+      "stopHookServer();",
+      0,
+    );
     expect(shutdown.text).toContain("await stopWorktreePools()");
   });
 

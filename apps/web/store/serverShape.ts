@@ -5,10 +5,16 @@
  *  as undefined makes that lock equal to the echo and lets it retire. Stored
  *  as null or [] it would re-assert the clear over every push until the
  *  settle window. Skips undefined (not part of the patch); bumps updated_at. */
-export function writeAsServerShape(row: Record<string, any>, fields: Record<string, any>): void {
+export function writeAsServerShape(
+  row: Record<string, any>,
+  fields: Record<string, any>,
+): void {
   for (const [k, v] of Object.entries(fields)) {
     if (v === undefined) continue;
-    row[k] = v === null || v === "" || (Array.isArray(v) && v.length === 0) ? undefined : v;
+    row[k] =
+      v === null || v === "" || (Array.isArray(v) && v.length === 0)
+        ? undefined
+        : v;
   }
   row.updated_at = Date.now();
 }

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import type { WhisperState } from './useTips';
-import { KeyCap } from '../components/KeyCap';
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import type { WhisperState } from "./useTips";
+import { KeyCap } from "../components/KeyCap";
 
 const FADE_IN_MS = 150;
 const VISIBLE_MS = 3000;
@@ -19,13 +19,22 @@ export function TipWhisper({ whisper, onDone }: TipWhisperProps) {
   useEffect(() => {
     if (!whisper?.visible) {
       setOpacity(0);
-      const t = setTimeout(() => { setFrozen(null); onDone(); }, FADE_OUT_MS);
+      const t = setTimeout(() => {
+        setFrozen(null);
+        onDone();
+      }, FADE_OUT_MS);
       return () => clearTimeout(t);
     }
     setFrozen(whisper);
     const fadeIn = requestAnimationFrame(() => setOpacity(1));
     const dismiss = setTimeout(() => setOpacity(0), FADE_IN_MS + VISIBLE_MS);
-    const cleanup = setTimeout(() => { setFrozen(null); onDone(); }, FADE_IN_MS + VISIBLE_MS + FADE_OUT_MS);
+    const cleanup = setTimeout(
+      () => {
+        setFrozen(null);
+        onDone();
+      },
+      FADE_IN_MS + VISIBLE_MS + FADE_OUT_MS,
+    );
     return () => {
       cancelAnimationFrame(fadeIn);
       clearTimeout(dismiss);
@@ -37,22 +46,28 @@ export function TipWhisper({ whisper, onDone }: TipWhisperProps) {
   if (!w) return null;
 
   const style: React.CSSProperties = {
-    position: 'fixed',
+    position: "fixed",
     left: w.x,
     top: w.y - 8,
     transform: `translate(-50%, -100%) translateY(${opacity ? 0 : 4}px)`,
     opacity,
     transition: `opacity ${opacity ? FADE_IN_MS : FADE_OUT_MS}ms ease, transform ${FADE_IN_MS}ms ease`,
     zIndex: 9999,
-    pointerEvents: 'none',
+    pointerEvents: "none",
   };
 
   return createPortal(
     <div style={style}>
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sol-bg-alt border border-sol-border/40 shadow-lg backdrop-blur-sm">
-        <span className="text-xs text-sol-text-muted whitespace-nowrap">{w.tip.content}</span>
+        <span className="text-xs text-sol-text-muted whitespace-nowrap">
+          {w.tip.content}
+        </span>
         <span className="inline-flex items-center gap-0.5">
-          {w.shortcutLabel.map((part, i) => <KeyCap key={i} size="xs">{part}</KeyCap>)}
+          {w.shortcutLabel.map((part, i) => (
+            <KeyCap key={i} size="xs">
+              {part}
+            </KeyCap>
+          ))}
         </span>
       </div>
     </div>,

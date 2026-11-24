@@ -155,17 +155,17 @@ them as health.
 
 ## S2. Field mapping
 
-| codecast              | Linear                                   | GitHub                                |
-|-----------------------|------------------------------------------|---------------------------------------|
-| title                 | title                                    | title                                 |
-| description           | description (markdown)                   | body (markdown)                       |
-| status (category)     | state.type: triage,backlog -> backlog; unstarted -> open; started -> in_progress; completed -> done; canceled, duplicate -> dropped. Team states named like "review" under started -> in_review | open -> open; closed+not_planned -> dropped; any other closed -> done (`githubStatusFor`) |
-| priority              | 0 none, 1 urgent, 2 high, 3 medium, 4 low | not synced (GitHub has none)          |
-| assignee              | assignee.email -> users.email / alternate_emails | assignees[0].login -> users.github_username |
-| (delegation signals)  | assignee.id (`assignee_id`), delegate.id (`delegate_id`); webhooks send `assigneeId`, `delegateId` | not read |
-| labels                | labels[].name                            | labels[].name                         |
-| parent_id (subtask)   | parentId (sub-issue), both ways          | not synced                            |
-| comments              | comments (markdown, user)                | issue comments                        |
+| codecast             | Linear                                                                                                                                                                                          | GitHub                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| title                | title                                                                                                                                                                                           | title                                                                                     |
+| description          | description (markdown)                                                                                                                                                                          | body (markdown)                                                                           |
+| status (category)    | state.type: triage,backlog -> backlog; unstarted -> open; started -> in_progress; completed -> done; canceled, duplicate -> dropped. Team states named like "review" under started -> in_review | open -> open; closed+not_planned -> dropped; any other closed -> done (`githubStatusFor`) |
+| priority             | 0 none, 1 urgent, 2 high, 3 medium, 4 low                                                                                                                                                       | not synced (GitHub has none)                                                              |
+| assignee             | assignee.email -> users.email / alternate_emails                                                                                                                                                | assignees[0].login -> users.github_username                                               |
+| (delegation signals) | assignee.id (`assignee_id`), delegate.id (`delegate_id`); webhooks send `assigneeId`, `delegateId`                                                                                              | not read                                                                                  |
+| labels               | labels[].name                                                                                                                                                                                   | labels[].name                                                                             |
+| parent_id (subtask)  | parentId (sub-issue), both ways                                                                                                                                                                 | not synced                                                                                |
+| comments             | comments (markdown, user)                                                                                                                                                                       | issue comments                                                                            |
 
 Outbound status uses the reverse map. For Linear the target state is the
 first workflow state of the team whose `type` matches; if the team has a
@@ -332,12 +332,12 @@ A task with `external` becomes a session three ways:
 
 1. Board and task page: the existing assign to agent action.
 2. CLI: `cast task start <id> --spawn [--agent <type>] [--isolated]
-   [--worktree <name>] [--device <name>] [--as <definition>]` calls
+[--worktree <name>] [--device <name>] [--as <definition>]` calls
    `/cli/work/spawn`, which shares `spawnSessionForTask` with `assignToAgent`.
    `--isolated` gives the session its own git worktree and `--worktree` names
    it (and implies `--isolated`). `--device` names the machine and `--as` runs
    the session as an agent definition; both mean what they mean on `cast
-   spawn`, except that a team machine is refused and no saved default device
+spawn`, except that a team machine is refused and no saved default device
    applies (`createSessionFromCli` uses `defaultDeviceFor`; the task spawn does
    not). The flags are sent only when given, so isolation stays opt-in here.
    The caller is passed as `callerUserId`, so the cloud upgrade applies when

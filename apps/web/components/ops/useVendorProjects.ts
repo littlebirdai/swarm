@@ -10,7 +10,10 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useOpsScope } from "../../hooks/useSyncOps";
 
 /** Null while the answer is out; an error answer when the list cannot be read (or the function is not deployed yet). */
-export function useVendorProjects(provider: "sentry" | "posthog" | null, onAnswer?: (a: VendorProjects) => void): VendorProjects | null {
+export function useVendorProjects(
+  provider: "sentry" | "posthog" | null,
+  onAnswer?: (a: VendorProjects) => void,
+): VendorProjects | null {
   const scope = useOpsScope();
   const list = useAction(api.sources.vendorProjects.listVendorProjects);
   const [answer, setAnswer] = useState<VendorProjects | null>(null);
@@ -25,14 +28,25 @@ export function useVendorProjects(provider: "sentry" | "posthog" | null, onAnswe
       })
       .catch((e: any) => {
         if (!live) return;
-        const a: VendorProjects = { ok: false, error: e?.data?.message ?? e?.message ?? "Could not list projects" };
+        const a: VendorProjects = {
+          ok: false,
+          error: e?.data?.message ?? e?.message ?? "Could not list projects",
+        };
         setAnswer(a);
         onAnswer?.(a);
       });
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [provider, scope === "skip" ? "" : JSON.stringify(scope)]);
   return answer;
 }
 
 /** A source name from a project's name: "Union Website" reads as "union-website". */
-export const projectSourceName = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+export const projectSourceName = (name: string) =>
+  name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);

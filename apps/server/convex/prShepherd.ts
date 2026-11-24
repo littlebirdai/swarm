@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, internalAction, mutation } from "./functions";
+import {
+  internalMutation,
+  internalQuery,
+  internalAction,
+  mutation,
+} from "./functions";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./lib/auth";
@@ -7,8 +12,20 @@ import { canAccessConversation, canAccessPullRequest } from "./lib/access";
 import { insertTask, patchTask } from "./agentTasks";
 import { scheduleTriggerMatch } from "./lib/triggerMatch";
 import { recordExternalEvent } from "./externalEvents";
-import { foldChecksState, foldShepherdState, isTaskLinkable, prUrl } from "./lib/gitRefs";
-import { QUIET_REASONS, TERMINAL_REASONS, buildWakePrompt, isCurrentWakeReason, pickWakeReason, type CommentLine } from "./lib/prWakePrompt";
+import {
+  foldChecksState,
+  foldShepherdState,
+  isTaskLinkable,
+  prUrl,
+} from "./lib/gitRefs";
+import {
+  QUIET_REASONS,
+  TERMINAL_REASONS,
+  buildWakePrompt,
+  isCurrentWakeReason,
+  pickWakeReason,
+  type CommentLine,
+} from "./lib/prWakePrompt";
 import { syncPullRequestSessions } from "./lib/prSessions";
 
 const SHEPHERD_MAX_RUNTIME_MS = 30 * 60 * 1000;
@@ -64,7 +81,11 @@ export async function patchPullRequest(
   ctx: Ctx,
   prId: Id<"pull_requests">,
   updates: Record<string, any>,
-): Promise<{ pr: PR; previousState: string | undefined; stateChanged: boolean } | null> {
+): Promise<{
+  pr: PR;
+  previousState: string | undefined;
+  stateChanged: boolean;
+} | null> {
   const before = await ctx.db.get(prId);
   if (!before) return null;
 
@@ -88,7 +109,8 @@ export async function patchPullRequest(
   // day of Postgres growth on 2026-10-22 (ct-60898). The reads below still run,
   // so a caller relying on their re-sync sees the same behavior either way.
   for (const key of Object.keys(patch)) {
-    if (JSON.stringify(patch[key]) === JSON.stringify((before as any)[key])) delete patch[key];
+    if (JSON.stringify(patch[key]) === JSON.stringify((before as any)[key]))
+      delete patch[key];
   }
   if (Object.keys(patch).length > 0) {
     patch.updated_at = patch.updated_at ?? Date.now();
@@ -105,8 +127,13 @@ export async function patchPullRequest(
   }
   // Tasks waiting on this PR settle in a transaction of their own, from every
   // path that moves it (webhook, refresh, reconcile): task-graph.md TG2.
-  if (after.waiting_task_ids?.length && (after.state !== before.state || after.checks_state !== before.checks_state)) {
-    await ctx.scheduler?.runAfter(0, internal.taskWaits.settlePr, { pr_id: prId });
+  if (
+    after.waiting_task_ids?.length &&
+    (after.state !== before.state || after.checks_state !== before.checks_state)
+  ) {
+    await ctx.scheduler?.runAfter(0, internal.taskWaits.settlePr, {
+      pr_id: prId,
+    });
   }
 
   return { pr: after, previousState, stateChanged: state !== previousState };
@@ -119,7 +146,10 @@ export async function patchPullRequest(
  * dismissed one has been withdrawn, so neither counts. One outstanding request
  * for changes outranks any number of approvals.
  */
-export async function recomputeReviewDecision(ctx: Ctx, pr: PR): Promise<string> {
+export async function recomputeReviewDecision(
+  ctx: Ctx,
+  pr: PR,
+): Promise<string> {
   const reviews = await ctx.db
     .query("reviews")
     .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pr._id))
@@ -127,11 +157,14 @@ export async function recomputeReviewDecision(ctx: Ctx, pr: PR): Promise<string>
 
   const latest = new Map<string, any>();
   for (const review of reviews) {
-    if (review.state !== "approved" && review.state !== "changes_requested") continue;
-    const who = review.author_github_username ?? String(review.reviewer_user_id ?? "");
+    if (review.state !== "approved" && review.state !== "changes_requested")
+      continue;
+    const who =
+      review.author_github_username ?? String(review.reviewer_user_id ?? "");
     if (!who) continue;
     const prior = latest.get(who);
-    if (!prior || (review.submitted_at ?? 0) >= (prior.submitted_at ?? 0)) latest.set(who, review);
+    if (!prior || (review.submitted_at ?? 0) >= (prior.submitted_at ?? 0))
+      latest.set(who, review);
   }
 
   const verdicts = [...latest.values()].map((r) => r.state);
@@ -156,15 +189,20 @@ export async function refreshConversationPrStatus(
 
   const prs: PR[] = await ctx.db
     .query("pull_requests")
-    .withIndex("by_shepherd_conversation", (q: any) => q.eq("shepherd_conversation_id", conversationId))
+    .withIndex("by_shepherd_conversation", (q: any) =>
+      q.eq("shepherd_conversation_id", conversationId),
+    )
     .collect();
 
-  const open = prs.filter((pr) => pr.state === "open").sort((a, b) => b.updated_at - a.updated_at);
+  const open = prs
+    .filter((pr) => pr.state === "open")
+    .sort((a, b) => b.updated_at - a.updated_at);
   const rest = prs.sort((a, b) => b.updated_at - a.updated_at);
   const chosen = open[0] ?? rest[0];
 
   if (!chosen) {
-    if (conversation.pr_status) await ctx.db.patch(conversationId, { pr_status: undefined });
+    if (conversation.pr_status)
+      await ctx.db.patch(conversationId, { pr_status: undefined });
     return;
   }
 
@@ -197,13 +235,23 @@ export async function refreshConversationPrStatus(
  * row is addressable and so a person can see, in their trigger list, which pull
  * request it belongs to.
  */
-export async function ensureShepherdTask(ctx: Ctx, pr: PR): Promise<Id<"agent_tasks"> | null> {
-  if (!pr.shepherd_enabled || !pr.shepherd_conversation_id || pr.state !== "open") return null;
+export async function ensureShepherdTask(
+  ctx: Ctx,
+  pr: PR,
+): Promise<Id<"agent_tasks"> | null> {
+  if (
+    !pr.shepherd_enabled ||
+    !pr.shepherd_conversation_id ||
+    pr.state !== "open"
+  )
+    return null;
 
   if (pr.shepherd_task_id) {
     const existing = await ctx.db.get(pr.shepherd_task_id);
     if (existing) {
-      return existing.status === "scheduled" || existing.status === "running" ? pr.shepherd_task_id : null;
+      return existing.status === "scheduled" || existing.status === "running"
+        ? pr.shepherd_task_id
+        : null;
     }
   }
 
@@ -216,7 +264,11 @@ export async function ensureShepherdTask(ctx: Ctx, pr: PR): Promise<Id<"agent_ta
     originating_conversation_id: String(pr.shepherd_conversation_id),
     project_path: conversation.project_path,
     schedule_type: "event",
-    event_filter: { event_type: "pr_shepherd", repository: pr.repository, pr_number: pr.number },
+    event_filter: {
+      event_type: "pr_shepherd",
+      repository: pr.repository,
+      pr_number: pr.number,
+    },
     mode: "apply",
     max_runtime_ms: SHEPHERD_MAX_RUNTIME_MS,
   });
@@ -226,12 +278,20 @@ export async function ensureShepherdTask(ctx: Ctx, pr: PR): Promise<Id<"agent_ta
 }
 
 /** Stand the trigger down. Used when the PR ends and when a person turns it off. */
-export async function retireShepherdTask(ctx: Ctx, pr: PR, summary?: string): Promise<void> {
+export async function retireShepherdTask(
+  ctx: Ctx,
+  pr: PR,
+  summary?: string,
+): Promise<void> {
   if (!pr.shepherd_task_id) return;
   const task = await ctx.db.get(pr.shepherd_task_id);
-  if (!task || task.status === "completed" || task.status === "cancelled") return;
+  if (!task || task.status === "completed" || task.status === "cancelled")
+    return;
   await patchTask(ctx, task, {
-    status: "completed", run_at: undefined, lease_holder: undefined, lease_expires_at: undefined,
+    status: "completed",
+    run_at: undefined,
+    lease_holder: undefined,
+    lease_expires_at: undefined,
     ...(summary ? { last_run_summary: summary } : {}),
   });
 }
@@ -258,7 +318,9 @@ function outstandingThreads(
     // in_reply_to_id names the comment that opened the thread; a comment that
     // opened one is its own root. Rows from before threads were recorded have
     // neither and stand alone, which is how they behaved before.
-    const root = String(c.github_in_reply_to_id ?? c.github_comment_id ?? c._id);
+    const root = String(
+      c.github_in_reply_to_id ?? c.github_comment_id ?? c._id,
+    );
     const bucket = threads.get(root);
     if (bucket) bucket.push(c);
     else threads.set(root, [c]);
@@ -267,7 +329,8 @@ function outstandingThreads(
   // A reply we mirrored to GitHub is the author speaking, whatever GitHub calls
   // the account it went out under.
   const isAuthor = (c: any) =>
-    !!c.codecast_origin || (!!prAuthor && c.author_github_username === prAuthor);
+    !!c.codecast_origin ||
+    (!!prAuthor && c.author_github_username === prAuthor);
 
   const out: any[] = [];
   for (const bucket of threads.values()) {
@@ -297,10 +360,12 @@ function outstandingThreads(
 async function gatherWakeContext(ctx: Ctx, pr: PR) {
   // A note still pending in someone's review has not been said; the agent
   // hears it when the review goes out, not before.
-  const comments = (await ctx.db
-    .query("review_comments")
-    .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pr._id))
-    .collect()).filter((c: any) => !c.pending_review);
+  const comments = (
+    await ctx.db
+      .query("review_comments")
+      .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pr._id))
+      .collect()
+  ).filter((c: any) => !c.pending_review);
 
   const reviews = await ctx.db
     .query("reviews")
@@ -308,11 +373,20 @@ async function gatherWakeContext(ctx: Ctx, pr: PR) {
     .collect();
 
   // Only tasks the PR's team or its shepherd's owner may link reach the prompt.
-  const shepherd: any = pr.shepherd_conversation_id ? await ctx.db.get(pr.shepherd_conversation_id) : null;
+  const shepherd: any = pr.shepherd_conversation_id
+    ? await ctx.db.get(pr.shepherd_conversation_id)
+    : null;
   const tasks: Array<{ short_id: string; title: string }> = [];
   for (const taskId of pr.task_ids ?? []) {
     const task = await ctx.db.get(taskId);
-    if (task && (await isTaskLinkable(ctx, task, { userId: shepherd?.user_id, teamId: pr.team_id }))) tasks.push({ short_id: task.short_id, title: task.title });
+    if (
+      task &&
+      (await isTaskLinkable(ctx, task, {
+        userId: shepherd?.user_id,
+        teamId: pr.team_id,
+      }))
+    )
+      tasks.push({ short_id: task.short_id, title: task.title });
   }
 
   return {
@@ -348,9 +422,11 @@ export async function wakeShepherd(
 ): Promise<{ woken: boolean; reason?: string }> {
   const pr = (await ctx.db.get(prId)) as PR | null;
   if (!pr) return { woken: false, reason: "no_pr" };
-  if (!pr.shepherd_enabled || !pr.shepherd_conversation_id) return { woken: false, reason: "disabled" };
+  if (!pr.shepherd_enabled || !pr.shepherd_conversation_id)
+    return { woken: false, reason: "disabled" };
   if (pr.state !== "open") return { woken: false, reason: "terminal" };
-  if (QUIET_REASONS.has(reason) || TERMINAL_REASONS.has(reason)) return { woken: false, reason: "not_actionable" };
+  if (QUIET_REASONS.has(reason) || TERMINAL_REASONS.has(reason))
+    return { woken: false, reason: "not_actionable" };
 
   const taskId = await ensureShepherdTask(ctx, pr);
   if (!taskId) return { woken: false, reason: "no_task" };
@@ -361,8 +437,14 @@ export async function wakeShepherd(
   // Remember this reason whether or not the wake lands now. A shepherd that is
   // mid-run collects several before it is free, and the newest is rarely the
   // most urgent one to lead with.
-  const pending = (pr.shepherd_pending_reasons ?? []).filter((r) => isCurrentWakeReason(pr, r));
-  if (!pending.includes(reason) && (attempt === 0 || isCurrentWakeReason(pr, reason))) pending.push(reason);
+  const pending = (pr.shepherd_pending_reasons ?? []).filter((r) =>
+    isCurrentWakeReason(pr, r),
+  );
+  if (
+    !pending.includes(reason) &&
+    (attempt === 0 || isCurrentWakeReason(pr, reason))
+  )
+    pending.push(reason);
   if (pending.length === 0) {
     await ctx.db.patch(prId, { shepherd_pending_reasons: [] });
     return { woken: false, reason: "not_actionable" };
@@ -370,7 +452,8 @@ export async function wakeShepherd(
 
   if (task.status === "running") {
     await ctx.db.patch(prId, { shepherd_pending_reasons: pending });
-    if (attempt >= MAX_WAKE_RETRIES) return { woken: false, reason: "still_running" };
+    if (attempt >= MAX_WAKE_RETRIES)
+      return { woken: false, reason: "still_running" };
     await ctx.scheduler?.runAfter(WAKE_RETRY_MS, internal.prShepherd.wake, {
       pr_id: prId,
       reason,
@@ -429,11 +512,20 @@ export const wake = internalMutation({
     if (args.unless_delivered_review != null) {
       const review = await ctx.db
         .query("reviews")
-        .withIndex("by_github_review_id", (q) => q.eq("github_review_id", args.unless_delivered_review))
+        .withIndex("by_github_review_id", (q) =>
+          q.eq("github_review_id", args.unless_delivered_review),
+        )
         .first();
-      if (review?.session_delivered_at) return { woken: false, reason: "delivered_directly" };
+      if (review?.session_delivered_at)
+        return { woken: false, reason: "delivered_directly" };
     }
-    return await wakeShepherd(ctx, args.pr_id, args.reason, args.detail, args.attempt ?? 0);
+    return await wakeShepherd(
+      ctx,
+      args.pr_id,
+      args.reason,
+      args.detail,
+      args.attempt ?? 0,
+    );
   },
 });
 
@@ -457,10 +549,14 @@ export const retire = internalMutation({
 
     const attempt = args.attempt ?? 0;
     if (task.status === "running" && attempt < MAX_RETIRE_ATTEMPTS) {
-      await ctx.scheduler.runAfter(RETIRE_RETRY_MS, internal.prShepherd.retire, {
-        pr_id: args.pr_id,
-        attempt: attempt + 1,
-      });
+      await ctx.scheduler.runAfter(
+        RETIRE_RETRY_MS,
+        internal.prShepherd.retire,
+        {
+          pr_id: args.pr_id,
+          attempt: attempt + 1,
+        },
+      );
       return { retired: false };
     }
 
@@ -476,10 +572,14 @@ export async function bindShepherd(
   conversationId: Id<"conversations"> | undefined,
   enabled: boolean,
 ): Promise<void> {
-  const patch: Record<string, any> = { shepherd_enabled: enabled && pr.state === "open", shepherd_pending_reasons: [] };
+  const patch: Record<string, any> = {
+    shepherd_enabled: enabled && pr.state === "open",
+    shepherd_pending_reasons: [],
+  };
   if (enabled && pr.shepherd_task_id) {
     const task = await ctx.db.get(pr.shepherd_task_id);
-    if (task && task.status !== "scheduled" && task.status !== "running") patch.shepherd_task_id = undefined;
+    if (task && task.status !== "scheduled" && task.status !== "running")
+      patch.shepherd_task_id = undefined;
   }
   if (conversationId) patch.shepherd_conversation_id = conversationId;
   await ctx.db.patch(pr._id, patch);
@@ -525,11 +625,15 @@ export const setShepherd = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const pr = await ctx.db.get(args.pr_id);
-    if (!pr || !(await canAccessPullRequest(ctx, userId, pr))) throw new Error("Pull request not found");
+    if (!pr || !(await canAccessPullRequest(ctx, userId, pr)))
+      throw new Error("Pull request not found");
 
     if (args.conversation_id) {
       const conversation = await ctx.db.get(args.conversation_id);
-      if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) {
+      if (
+        !conversation ||
+        !(await canAccessConversation(ctx, userId, conversation))
+      ) {
         throw new Error("Conversation not found");
       }
     }
@@ -574,14 +678,19 @@ export const applyMergeState = internalMutation({
     // Each field is written only when it carries an answer, so an unknown
     // never overwrites what GitHub last told us.
     const patch: Record<string, any> = {};
-    if (args.mergeable === true || args.mergeable === false) patch.mergeable = args.mergeable;
-    if (args.mergeable_state !== undefined && args.mergeable_state !== "unknown") {
+    if (args.mergeable === true || args.mergeable === false)
+      patch.mergeable = args.mergeable;
+    if (
+      args.mergeable_state !== undefined &&
+      args.mergeable_state !== "unknown"
+    ) {
       patch.mergeable_state = args.mergeable_state;
     }
     if (args.head_sha) patch.head_sha = args.head_sha;
     if (args.base_sha) patch.base_sha = args.base_sha;
     if (args.draft !== undefined) patch.draft = args.draft;
-    if (args.requested_reviewers) patch.requested_reviewers = args.requested_reviewers;
+    if (args.requested_reviewers)
+      patch.requested_reviewers = args.requested_reviewers;
     if (args.behind_by !== undefined) patch.behind_by = args.behind_by;
 
     const result = await patchPullRequest(ctx, args.pr_id, patch);
@@ -592,7 +701,11 @@ export const applyMergeState = internalMutation({
     if (result.stateChanged) {
       const state = result.pr.shepherd_state;
       const eventKind =
-        state === "conflicts" ? "pr_conflict" : state === "behind" ? "pr_behind" : "pr_ready";
+        state === "conflicts"
+          ? "pr_conflict"
+          : state === "behind"
+            ? "pr_behind"
+            : "pr_ready";
       // The prompt already spells out what each state means, so a detail that
       // repeats it reads as a stutter ("...merges cleanly: ...merges cleanly").
       // Say something the sentence does not already carry, or say nothing.
@@ -605,7 +718,12 @@ export const applyMergeState = internalMutation({
             ? `${result.pr.behind_by ?? 0} commit${result.pr.behind_by === 1 ? "" : "s"} behind ${result.pr.base_ref ?? "the base branch"}`
             : undefined;
 
-      if (state === "conflicts" || state === "behind" || result.previousState === "conflicts" || result.previousState === "behind") {
+      if (
+        state === "conflicts" ||
+        state === "behind" ||
+        result.previousState === "conflicts" ||
+        result.previousState === "behind"
+      ) {
         await recordExternalEvent(ctx, {
           source: "github",
           team_id: result.pr.team_id,
@@ -636,7 +754,11 @@ export const applyMergeState = internalMutation({
         await wakeShepherd(
           ctx,
           result.pr._id,
-          state === "conflicts" ? "conflict" : state === "behind" ? "behind" : "ready",
+          state === "conflicts"
+            ? "conflict"
+            : state === "behind"
+              ? "behind"
+              : "ready",
           detail,
         );
       }
@@ -654,7 +776,9 @@ async function fetchMergeState(
   prId: Id<"pull_requests">,
   tokenFor: (pr: PR) => Promise<string | null>,
 ): Promise<MergeStateResult> {
-  const pr: PR | null = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: prId });
+  const pr: PR | null = await ctx.runQuery(internal.prShepherd.getPR, {
+    pr_id: prId,
+  });
   if (!pr) return { ok: false, reason: "no_pr" };
   if (pr.state !== "open") return { ok: false, reason: "not_open" };
 
@@ -668,7 +792,10 @@ async function fetchMergeState(
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pr.number}`, { headers });
+  const response = await fetch(
+    `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${pr.number}`,
+    { headers },
+  );
   if (!response.ok) {
     return { ok: false, reason: `github ${response.status}` };
   }
@@ -695,7 +822,9 @@ async function fetchMergeState(
     head_sha: data.head?.sha,
     base_sha: data.base?.sha,
     draft: !!data.draft,
-    requested_reviewers: (data.requested_reviewers ?? []).map((r: any) => r.login),
+    requested_reviewers: (data.requested_reviewers ?? []).map(
+      (r: any) => r.login,
+    ),
     behind_by: behindBy,
   });
   return { ok: true, retry: result.retry };
@@ -712,10 +841,14 @@ export const refreshMergeState = internalAction({
       ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id }),
     );
     if (result.retry && attempt < MAX_MERGE_STATE_ATTEMPTS) {
-      await ctx.scheduler.runAfter(mergeStateRetryMs(attempt), internal.prShepherd.refreshMergeState, {
-        pr_id: args.pr_id,
-        attempt: attempt + 1,
-      });
+      await ctx.scheduler.runAfter(
+        mergeStateRetryMs(attempt),
+        internal.prShepherd.refreshMergeState,
+        {
+          pr_id: args.pr_id,
+          attempt: attempt + 1,
+        },
+      );
     }
     return result;
   },
@@ -736,10 +869,14 @@ export async function scheduleMergeStateRefreshes(
   delayMs: number,
 ): Promise<void> {
   for (let i = 0; i < prIds.length; i += MERGE_STATE_BATCH_SIZE) {
-    await ctx.scheduler.runAfter(delayMs, internal.prShepherd.refreshMergeStates, {
-      pr_ids: prIds.slice(i, i + MERGE_STATE_BATCH_SIZE),
-      attempt: 0,
-    });
+    await ctx.scheduler.runAfter(
+      delayMs,
+      internal.prShepherd.refreshMergeStates,
+      {
+        pr_ids: prIds.slice(i, i + MERGE_STATE_BATCH_SIZE),
+        attempt: 0,
+      },
+    );
   }
 }
 
@@ -757,7 +894,9 @@ export const refreshMergeStates = internalAction({
       const key = String(pr.team_id ?? "");
       const known = await tokens.get(key);
       if (known) return known;
-      const asked = ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id });
+      const asked = ctx.runAction(internal.prShepherd.tokenForPR, {
+        pr_id: pr._id,
+      });
       if (!tokens.has(key)) tokens.set(key, asked);
       return await asked;
     };
@@ -770,17 +909,26 @@ export const refreshMergeStates = internalAction({
           const result = await fetchMergeState(ctx, id, tokenFor);
           if (result.retry) unanswered.push(id);
         } catch (error) {
-          console.error(`[prShepherd] merge state refresh failed for ${id}:`, error);
+          console.error(
+            `[prShepherd] merge state refresh failed for ${id}:`,
+            error,
+          );
         }
       }
     };
-    await Promise.all(Array.from({ length: MERGE_STATE_BATCH_CONCURRENCY }, worker));
+    await Promise.all(
+      Array.from({ length: MERGE_STATE_BATCH_CONCURRENCY }, worker),
+    );
 
     if (unanswered.length > 0 && args.attempt < MAX_MERGE_STATE_ATTEMPTS) {
-      await ctx.scheduler.runAfter(mergeStateRetryMs(args.attempt), internal.prShepherd.refreshMergeStates, {
-        pr_ids: unanswered,
-        attempt: args.attempt + 1,
-      });
+      await ctx.scheduler.runAfter(
+        mergeStateRetryMs(args.attempt),
+        internal.prShepherd.refreshMergeStates,
+        {
+          pr_ids: unanswered,
+          attempt: args.attempt + 1,
+        },
+      );
     }
   },
 });
@@ -793,30 +941,50 @@ export const refreshMergeStates = internalAction({
 export const tokenForPR = internalAction({
   args: { pr_id: v.id("pull_requests") },
   handler: async (ctx, args): Promise<string | null> => {
-    const pr = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: args.pr_id });
+    const pr = await ctx.runQuery(internal.prShepherd.getPR, {
+      pr_id: args.pr_id,
+    });
     if (!pr) return null;
 
-    const installation = await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, {
-      repository: pr.repository,
-      team_id: pr.team_id,
-    });
+    const installation = await ctx.runQuery(
+      internal.githubApp.getInstallationForRepoInTeam,
+      {
+        repository: pr.repository,
+        team_id: pr.team_id,
+      },
+    );
     if (installation) {
       try {
-        const tokenResult = await ctx.runAction(internal.githubApp.getInstallationToken, {
-          installation_id: installation.installation_id,
-        });
+        const tokenResult = await ctx.runAction(
+          internal.githubApp.getInstallationToken,
+          {
+            installation_id: installation.installation_id,
+          },
+        );
         return tokenResult.token;
       } catch (error) {
         console.error("[prShepherd] installation token failed:", error);
       }
     }
 
-    return await ctx.runQuery(internal.githubWebhooks.getTokenForPR, { pr_id: args.pr_id });
+    return await ctx.runQuery(internal.githubWebhooks.getTokenForPR, {
+      pr_id: args.pr_id,
+    });
   },
 });
 
-export async function closeOutShepherd(ctx: Ctx, pr: PR, reason: "merged" | "closed"): Promise<void> {
-  await ctx.db.patch(pr._id, { shepherd_enabled: false, shepherd_pending_reasons: [] });
-  await retireShepherdTask(ctx, pr,
-    `Verified ${prUrl(pr.repository, pr.number)} ${reason}; retired PR shepherding. This does not verify completion of an in-flight run or linked tasks.`);
+export async function closeOutShepherd(
+  ctx: Ctx,
+  pr: PR,
+  reason: "merged" | "closed",
+): Promise<void> {
+  await ctx.db.patch(pr._id, {
+    shepherd_enabled: false,
+    shepherd_pending_reasons: [],
+  });
+  await retireShepherdTask(
+    ctx,
+    pr,
+    `Verified ${prUrl(pr.repository, pr.number)} ${reason}; retired PR shepherding. This does not verify completion of an in-flight run or linked tasks.`,
+  );
 }

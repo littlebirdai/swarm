@@ -2,9 +2,7 @@
   "asOf": "2026-10-06T12:00:00.000Z",
   "notes": "A standing recurring duty: a repeating trigger.",
   "label": {
-    "want": [
-      "cast\\s+trigger\\s+add\\b(?![^\\n]*--help)[\\s\\S]*--every"
-    ],
+    "want": ["cast\\s+trigger\\s+add\\b(?![^\\n]*--help)[\\s\\S]*--every"],
     "avoid": [
       "^CronCreate:",
       "^RemoteTrigger:",

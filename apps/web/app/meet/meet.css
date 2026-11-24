@@ -12,9 +12,18 @@
   min-height: 100dvh;
   font-family: var(--font-mono), ui-monospace, monospace;
   background:
-    radial-gradient(900px 520px at 12% -8%, rgba(42, 161, 152, 0.14), transparent 62%),
-    radial-gradient(760px 480px at 108% 112%, rgba(38, 139, 210, 0.11), transparent 60%),
-    radial-gradient(rgba(147, 161, 161, 0.07) 1px, transparent 1.2px) 0 0 / 22px 22px,
+    radial-gradient(
+      900px 520px at 12% -8%,
+      rgba(42, 161, 152, 0.14),
+      transparent 62%
+    ),
+    radial-gradient(
+      760px 480px at 108% 112%,
+      rgba(38, 139, 210, 0.11),
+      transparent 60%
+    ),
+    radial-gradient(rgba(147, 161, 161, 0.07) 1px, transparent 1.2px) 0 0 / 22px
+      22px,
     #002b36;
   color: var(--sol-text);
   -webkit-font-smoothing: antialiased;
@@ -46,14 +55,30 @@
 .meet-rise > * {
   animation: meet-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.meet-rise > *:nth-child(2) { animation-delay: 50ms; }
-.meet-rise > *:nth-child(3) { animation-delay: 100ms; }
-.meet-rise > *:nth-child(4) { animation-delay: 150ms; }
-.meet-rise > *:nth-child(5) { animation-delay: 200ms; }
-.meet-rise > *:nth-child(6) { animation-delay: 250ms; }
+.meet-rise > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.meet-rise > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.meet-rise > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.meet-rise > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.meet-rise > *:nth-child(6) {
+  animation-delay: 250ms;
+}
 @keyframes meet-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* The microphone button breathes with the voice: --meet-level (0..1) is
@@ -80,11 +105,21 @@
   animation: meet-knock 2.7s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
   z-index: -1;
 }
-.meet-knock::after { animation-delay: 0.9s; }
-.meet-knock > .meet-knock-ring { animation-delay: 1.8s; }
+.meet-knock::after {
+  animation-delay: 0.9s;
+}
+.meet-knock > .meet-knock-ring {
+  animation-delay: 1.8s;
+}
 @keyframes meet-knock {
-  from { transform: scale(1); opacity: 0.85; }
-  to { transform: scale(2.1); opacity: 0; }
+  from {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(2.1);
+    opacity: 0;
+  }
 }
 
 /* A device select that looks like the rest of the page and still opens the
@@ -93,13 +128,22 @@
   appearance: none;
   -webkit-appearance: none;
   background-color: rgba(255, 255, 255, 0.04);
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
-  background-size: 4px 4px, 4px 4px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 13px) 50%,
+    calc(100% - 9px) 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
   background-repeat: no-repeat;
   padding-right: 24px;
 }
-.meet-select option { background: #073642; color: #eee8d5; }
+.meet-select option {
+  background: #073642;
+  color: #eee8d5;
+}
 
 /* On a phone three device names truncate to "Micr...", "Came...", "Spea...",
    which says less than the icons beside them. Below sm the select is its icon
@@ -108,7 +152,9 @@
    chevron takes a fixed colour here because it normally follows the text. */
 @media (max-width: 639.98px) {
   .meet-select {
-    background-image: linear-gradient(45deg, transparent 50%, #93a1a1 50%), linear-gradient(135deg, #93a1a1 50%, transparent 50%);
+    background-image:
+      linear-gradient(45deg, transparent 50%, #93a1a1 50%),
+      linear-gradient(135deg, #93a1a1 50%, transparent 50%);
   }
 }
 
@@ -119,5 +165,8 @@
   .meet-knock > .meet-knock-ring {
     animation: none;
   }
-  .meet-knock::before { opacity: 0.4; transform: scale(1.35); }
+  .meet-knock::before {
+    opacity: 0.4;
+    transform: scale(1.35);
+  }
 }

@@ -33,8 +33,14 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { callFrameSeenRef, callFrameSeenText } from "@codecast/shared/contracts";
-import { replayFrameSeenRef, replayFrameSeenText } from "@codecast/shared/contracts/replayPlayer";
+import {
+  callFrameSeenRef,
+  callFrameSeenText,
+} from "@codecast/shared/contracts";
+import {
+  replayFrameSeenRef,
+  replayFrameSeenText,
+} from "@codecast/shared/contracts/replayPlayer";
 import { codecastDir, homeDir } from "./codecastDir.js";
 
 export type CallFrameEntry = {
@@ -60,15 +66,29 @@ function indexPath(): string {
   return path.join(codecastDir(), "call-frames.json");
 }
 
-let cache: { file: string; mtimeMs: number; size: number; index: Index } | null = null;
+let cache: {
+  file: string;
+  mtimeMs: number;
+  size: number;
+  index: Index;
+} | null = null;
 
 function load(): Index {
   const file = indexPath();
   try {
     const st = fs.statSync(file);
-    if (cache && cache.file === file && cache.mtimeMs === st.mtimeMs && cache.size === st.size) return cache.index;
+    if (
+      cache &&
+      cache.file === file &&
+      cache.mtimeMs === st.mtimeMs &&
+      cache.size === st.size
+    )
+      return cache.index;
     const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-    const index: Index = parsed?.v === 1 && parsed.frames && typeof parsed.frames === "object" ? parsed : { v: 1, frames: {} };
+    const index: Index =
+      parsed?.v === 1 && parsed.frames && typeof parsed.frames === "object"
+        ? parsed
+        : { v: 1, frames: {} };
     cache = { file, mtimeMs: st.mtimeMs, size: st.size, index };
     return index;
   } catch {
@@ -77,32 +97,58 @@ function load(): Index {
 }
 
 function normalize(p: string): string {
-  return path.resolve(p.startsWith("~/") ? path.join(homeDir(), p.slice(2)) : p);
+  return path.resolve(
+    p.startsWith("~/") ? path.join(homeDir(), p.slice(2)) : p,
+  );
 }
 
 /** Remember the frames a snap wrote (every tile too), with the reference each
  *  cites. Best effort: a frame not remembered syncs as before, so a failure
  *  here never fails the snap. */
 export function rememberCallFrames(
-  frames: ReadonlyArray<{ path: string; ref: string; recording_id: string; width?: number | null; height?: number | null; tiles?: ReadonlyArray<{ path: string; width: number; height: number }> }>,
+  frames: ReadonlyArray<{
+    path: string;
+    ref: string;
+    recording_id: string;
+    width?: number | null;
+    height?: number | null;
+    tiles?: ReadonlyArray<{ path: string; width: number; height: number }>;
+  }>,
   now = Date.now(),
 ): void {
   const index = load();
   const next: Record<string, CallFrameEntry> = {};
-  for (const [p, e] of Object.entries(index.frames)) if (now - e.at < CALL_FRAME_KEEP_MS) next[p] = e;
-  const add = (file: string, ref: string, recording_id: string, width: number | null, height: number | null) => {
+  for (const [p, e] of Object.entries(index.frames))
+    if (now - e.at < CALL_FRAME_KEEP_MS) next[p] = e;
+  const add = (
+    file: string,
+    ref: string,
+    recording_id: string,
+    width: number | null,
+    height: number | null,
+  ) => {
     try {
       const abs = normalize(file);
-      next[abs] = { ref, recording_id, bytes: fs.statSync(abs).size, width, height, at: now };
+      next[abs] = {
+        ref,
+        recording_id,
+        bytes: fs.statSync(abs).size,
+        width,
+        height,
+        at: now,
+      };
     } catch {
       // A frame that is not on disk cannot be read either.
     }
   };
   for (const f of frames) {
     add(f.path, f.ref, f.recording_id, f.width ?? null, f.height ?? null);
-    for (const t of f.tiles ?? []) add(t.path, f.ref, f.recording_id, t.width, t.height);
+    for (const t of f.tiles ?? [])
+      add(t.path, f.ref, f.recording_id, t.width, t.height);
   }
-  const kept = Object.entries(next).sort((a, b) => b[1].at - a[1].at).slice(0, MAX_FRAMES);
+  const kept = Object.entries(next)
+    .sort((a, b) => b[1].at - a[1].at)
+    .slice(0, MAX_FRAMES);
   const out: Index = { v: 1, frames: Object.fromEntries(kept) };
   const file = indexPath();
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -113,19 +159,25 @@ export function rememberCallFrames(
 }
 
 /** The frame at this path, if a snap wrote it. */
-export function callFrameAtPath(p: string | null | undefined): CallFrameEntry | null {
+export function callFrameAtPath(
+  p: string | null | undefined,
+): CallFrameEntry | null {
   if (!p) return null;
   return load().frames[normalize(p)] ?? null;
 }
 
 /** The frame whose file had this size (and these dimensions, when known):
  *  what Claude Code records about the file a Read image came from. */
-export function callFrameBySource(source: { bytes: number; width?: number; height?: number } | null | undefined): CallFrameEntry | null {
+export function callFrameBySource(
+  source: { bytes: number; width?: number; height?: number } | null | undefined,
+): CallFrameEntry | null {
   if (!source || !(source.bytes > 0)) return null;
   for (const e of Object.values(load().frames)) {
     if (e.bytes !== source.bytes) continue;
-    if (source.width != null && e.width != null && source.width !== e.width) continue;
-    if (source.height != null && e.height != null && source.height !== e.height) continue;
+    if (source.width != null && e.width != null && source.width !== e.width)
+      continue;
+    if (source.height != null && e.height != null && source.height !== e.height)
+      continue;
     return e;
   }
   return null;
@@ -138,7 +190,12 @@ const readPaths = new Map<string, string>();
 function noteReads(toolCalls: unknown): void {
   if (!Array.isArray(toolCalls)) return;
   for (const call of toolCalls) {
-    if (!call || typeof call !== "object" || typeof (call as any).id !== "string") continue;
+    if (
+      !call ||
+      typeof call !== "object" ||
+      typeof (call as any).id !== "string"
+    )
+      continue;
     let input: any = (call as any).input;
     if (typeof input === "string") {
       try {
@@ -151,7 +208,8 @@ function noteReads(toolCalls: unknown): void {
     if (typeof file !== "string" || !file) continue;
     readPaths.delete((call as any).id);
     readPaths.set((call as any).id, file);
-    while (readPaths.size > MAX_READS) readPaths.delete(readPaths.keys().next().value!);
+    while (readPaths.size > MAX_READS)
+      readPaths.delete(readPaths.keys().next().value!);
   }
 }
 
@@ -172,7 +230,9 @@ type FrameMessage = {
 
 /** The line a frame's reference becomes: a replay's moment or a call's. */
 function seenText(ref: string): string {
-  return ref.startsWith("rp-") ? replayFrameSeenText(ref) : callFrameSeenText(ref);
+  return ref.startsWith("rp-")
+    ? replayFrameSeenText(ref)
+    : callFrameSeenText(ref);
 }
 
 function seenRef(text: string): string | null {
@@ -181,9 +241,15 @@ function seenRef(text: string): string | null {
 
 /** Where a moment's reference goes: the tool result the image answered, else
  *  the message's own text. Said once however many images named it. */
-function cite(msg: FrameMessage, toolUseId: string | undefined, ref: string): void {
+function cite(
+  msg: FrameMessage,
+  toolUseId: string | undefined,
+  ref: string,
+): void {
   const line = seenText(ref);
-  const result = toolUseId ? msg.toolResults?.find((r) => r.toolUseId === toolUseId) : undefined;
+  const result = toolUseId
+    ? msg.toolResults?.find((r) => r.toolUseId === toolUseId)
+    : undefined;
   if (result) {
     if (seenRef(result.content) === ref) return;
     result.content = result.content ? `${result.content}\n${line}` : line;
@@ -198,7 +264,9 @@ function cite(msg: FrameMessage, toolUseId: string | undefined, ref: string): vo
  * place. Returns how many were replaced. Idempotent: an image already
  * uploaded is left alone, and a replaced one is gone.
  */
-export function referenceCallFrames(messages: ReadonlyArray<FrameMessage>): number {
+export function referenceCallFrames(
+  messages: ReadonlyArray<FrameMessage>,
+): number {
   for (const msg of messages) noteReads(msg.toolCalls);
   let replaced = 0;
   for (const msg of messages) {
@@ -211,10 +279,17 @@ export function referenceCallFrames(messages: ReadonlyArray<FrameMessage>): numb
     const typed = msg.role === "user" || msg.role === "human";
     const kept: FrameImage[] = [];
     for (const img of msg.images) {
-      const fromTool = !!img.toolUseId && !!msg.toolResults?.some((r) => r.toolUseId === img.toolUseId);
-      const hit = img.storageId || (typed && !fromTool)
-        ? null
-        : callFrameAtPath(img.localPath) ?? callFrameAtPath(img.toolUseId ? readPaths.get(img.toolUseId) : undefined) ?? callFrameBySource(img.source);
+      const fromTool =
+        !!img.toolUseId &&
+        !!msg.toolResults?.some((r) => r.toolUseId === img.toolUseId);
+      const hit =
+        img.storageId || (typed && !fromTool)
+          ? null
+          : (callFrameAtPath(img.localPath) ??
+            callFrameAtPath(
+              img.toolUseId ? readPaths.get(img.toolUseId) : undefined,
+            ) ??
+            callFrameBySource(img.source));
       if (!hit) {
         kept.push(img);
         continue;

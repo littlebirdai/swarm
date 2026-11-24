@@ -1,6 +1,15 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { blockerGatesPickup, isTerminalTaskStatus, topoLayers, waitLabel, waitLine, waitMetLabel, waitTone, type TaskWait } from "@codecast/shared/tasks";
+import {
+  blockerGatesPickup,
+  isTerminalTaskStatus,
+  topoLayers,
+  waitLabel,
+  waitLine,
+  waitMetLabel,
+  waitTone,
+  type TaskWait,
+} from "@codecast/shared/tasks";
 import { WAIT_TONE_STYLE } from "../lib/taskBlockers";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 
@@ -29,7 +38,8 @@ const STATUS_TONE: Record<string, string> = {
 const HOLDING = WAIT_TONE_STYLE.waiting.token;
 const HOLDING_DASH = "3 2";
 
-const tint = (tone: string, pct: number) => `color-mix(in srgb, var(${tone}) ${pct}%, var(--sol-card))`;
+const tint = (tone: string, pct: number) =>
+  `color-mix(in srgb, var(${tone}) ${pct}%, var(--sol-card))`;
 
 export const NODE_W = 216;
 export const NODE_H = 44;
@@ -49,17 +59,32 @@ const CHAR_EM = 0.6;
 const TITLE_SIZE = 11;
 const WAIT_SIZE = 10;
 /** How many characters fit a box `w` wide at `size`, with an 8px inset each side. */
-const fits = (w: number, size: number) => Math.floor((w - 16) / (size * CHAR_EM));
+const fits = (w: number, size: number) =>
+  Math.floor((w - 16) / (size * CHAR_EM));
 
 /** `inY`: where its connector enters the task, down from the task's top.
  *  `status`: the task's own, which decides whether the wait still holds it. */
-export type WaitNode = { key: string; wait: TaskWait; task: string; status: string; x: number; y: number; inY: number };
+export type WaitNode = {
+  key: string;
+  wait: TaskWait;
+  task: string;
+  status: string;
+  x: number;
+  y: number;
+  inY: number;
+};
 /** A task edge, blocker -> blocked, as the points it passes through: out of
  *  the blocker's right side, along the gap between rows in any column it
  *  skips, into its own port on the blocked task's left side. `settled`: the
  *  blocker is closed and holds nothing. `holding`: it is open and still gates
  *  the blocked task's pickup, so it draws as a waiting wait does. */
-export type PlanEdge = { from: string; to: string; settled: boolean; holding: boolean; points: { x: number; y: number }[] };
+export type PlanEdge = {
+  from: string;
+  to: string;
+  settled: boolean;
+  holding: boolean;
+  points: { x: number; y: number }[];
+};
 
 /**
  * Where everything sits. Columns are the graph's topological layers
@@ -74,36 +99,70 @@ export function planGraphLayout(tasks: Task[]) {
   const { layers, cyclic } = topoLayers(tasks);
   const cols = cyclic.length ? [...layers, cyclic] : [...layers];
   // A plan's older rows name blockers by _id.
-  const shortOf = new Map(tasks.flatMap((t) => [[t.short_id, t.short_id], [t._id, t.short_id]] as const));
-  const blockersOf = new Map(tasks.map((t) => [t.short_id, [...new Set((t.blocked_by ?? []).map((dep) => shortOf.get(dep)))].filter((f): f is string => !!f)]));
+  const shortOf = new Map(
+    tasks.flatMap(
+      (t) =>
+        [
+          [t.short_id, t.short_id],
+          [t._id, t.short_id],
+        ] as const,
+    ),
+  );
+  const blockersOf = new Map(
+    tasks.map((t) => [
+      t.short_id,
+      [...new Set((t.blocked_by ?? []).map((dep) => shortOf.get(dep)))].filter(
+        (f): f is string => !!f,
+      ),
+    ]),
+  );
   const dependentsOf = new Map<string, string[]>();
-  for (const [to, froms] of blockersOf) for (const f of froms) dependentsOf.set(f, [...(dependentsOf.get(f) ?? []), to]);
+  for (const [to, froms] of blockersOf)
+    for (const f of froms)
+      dependentsOf.set(f, [...(dependentsOf.get(f) ?? []), to]);
   // Order each column by where its neighbours sit (barycenter sweeps): left
   // to right by blockers, back by dependents, then left to right again, so
   // edges between columns cross only where the graph makes them. A rank is
   // the row index from the column's middle, since columns are centred.
   const rank = new Map<string, number>();
   const colOf = new Map<string, number>();
-  const rankCol = (ci: number) => cols[ci].forEach((t, i) => rank.set(t.short_id, i - (cols[ci].length - 1) / 2));
+  const rankCol = (ci: number) =>
+    cols[ci].forEach((t, i) =>
+      rank.set(t.short_id, i - (cols[ci].length - 1) / 2),
+    );
   cols.forEach((col, ci) => {
     rankCol(ci);
     for (const t of col) colOf.set(t.short_id, ci);
   });
   for (const down of [true, false, true]) {
     for (const ci of down ? [...cols.keys()] : [...cols.keys()].reverse()) {
-      const key = new Map(cols[ci].map((t) => {
-        const near = ((down ? blockersOf : dependentsOf).get(t.short_id) ?? []).filter((n) => (down ? colOf.get(n)! < ci : colOf.get(n)! > ci));
-        return [t.short_id, near.length ? near.reduce((s, n) => s + rank.get(n)!, 0) / near.length : rank.get(t.short_id)!];
-      }));
-      cols[ci] = [...cols[ci]].sort((a, b) => key.get(a.short_id)! - key.get(b.short_id)!);
+      const key = new Map(
+        cols[ci].map((t) => {
+          const near = (
+            (down ? blockersOf : dependentsOf).get(t.short_id) ?? []
+          ).filter((n) => (down ? colOf.get(n)! < ci : colOf.get(n)! > ci));
+          return [
+            t.short_id,
+            near.length
+              ? near.reduce((s, n) => s + rank.get(n)!, 0) / near.length
+              : rank.get(t.short_id)!,
+          ];
+        }),
+      );
+      cols[ci] = [...cols[ci]].sort(
+        (a, b) => key.get(a.short_id)! - key.get(b.short_id)!,
+      );
       rankCol(ci);
     }
   }
   // A closed task's waits are history (the task page keeps it), not lanes.
-  const waitsOf = (t: Task) => (isTerminalTaskStatus(t.status) ? [] : t.waits ?? []);
+  const waitsOf = (t: Task) =>
+    isTerminalTaskStatus(t.status) ? [] : (t.waits ?? []);
   const stackH = (n: number) => n * (WAIT_H + WAIT_GAP) - WAIT_GAP;
-  const slotH = (t: Task) => Math.max(NODE_H, NODE_H / 2 + stackH(waitsOf(t).length));
-  const colH = (col: Task[]) => col.reduce((h, t) => h + slotH(t), 0) + (col.length - 1) * GAP_Y;
+  const slotH = (t: Task) =>
+    Math.max(NODE_H, NODE_H / 2 + stackH(waitsOf(t).length));
+  const colH = (col: Task[]) =>
+    col.reduce((h, t) => h + slotH(t), 0) + (col.length - 1) * GAP_Y;
   const maxH = Math.max(0, ...cols.map(colH));
 
   const positions = new Map<string, { x: number; y: number }>();
@@ -123,7 +182,15 @@ export function planGraphLayout(tasks: Task[]) {
       let wy = y + NODE_H / 2;
       for (const [i, w] of ws.entries()) {
         const inY = NODE_H / 2 + ((i + 1) * NODE_H) / 2 / (ws.length + 1);
-        waitNodes.push({ key: `${t.short_id}:${w.id}`, wait: w, task: t.short_id, status: t.status, x, y: wy, inY });
+        waitNodes.push({
+          key: `${t.short_id}:${w.id}`,
+          wait: w,
+          task: t.short_id,
+          status: t.status,
+          x,
+          y: wy,
+          inY,
+        });
         wy += WAIT_H + WAIT_GAP;
       }
       gaps.push([y + h, y + h + GAP_Y]);
@@ -139,7 +206,8 @@ export function planGraphLayout(tasks: Task[]) {
   for (const t of tasks) {
     const to = positions.get(t.short_id);
     if (!to) continue;
-    const froms = blockersOf.get(t.short_id)!
+    const froms = blockersOf
+      .get(t.short_id)!
       .filter((f) => positions.has(f))
       .sort((a, b) => positions.get(a)!.y - positions.get(b)!.y);
     const band = waitsOf(t).length ? NODE_H / 2 : NODE_H;
@@ -148,27 +216,55 @@ export function planGraphLayout(tasks: Task[]) {
       const start = { x: p.x + NODE_W, y: p.y + NODE_H / 2 };
       const end = { x: to.x, y: to.y + ((i + 1) * band) / (froms.length + 1) };
       // Through each column it skips, along the free band nearest its line.
-      const via = spans.slice(colOf.get(from)! + 1, colOf.get(t.short_id)).flatMap((c) => {
-        const mid = (c.left + c.right) / 2;
-        const want = start.y + ((end.y - start.y) * (mid - start.x)) / (end.x - start.x);
-        const gap = c.gaps.reduce((best, g) => (Math.abs((g[0] + g[1]) / 2 - want) < Math.abs((best[0] + best[1]) / 2 - want) ? g : best));
-        const y = Math.min(Math.max(want, gap[0] + 4), gap[1] - 4);
-        return [{ x: c.left, y }, { x: c.right, y }];
-      });
+      const via = spans
+        .slice(colOf.get(from)! + 1, colOf.get(t.short_id))
+        .flatMap((c) => {
+          const mid = (c.left + c.right) / 2;
+          const want =
+            start.y + ((end.y - start.y) * (mid - start.x)) / (end.x - start.x);
+          const gap = c.gaps.reduce((best, g) =>
+            Math.abs((g[0] + g[1]) / 2 - want) <
+            Math.abs((best[0] + best[1]) / 2 - want)
+              ? g
+              : best,
+          );
+          const y = Math.min(Math.max(want, gap[0] + 4), gap[1] - 4);
+          return [
+            { x: c.left, y },
+            { x: c.right, y },
+          ];
+        });
       const settled = isTerminalTaskStatus(byShort.get(from)?.status);
-      edges.push({ from, to: t.short_id, settled, holding: !settled && blockerGatesPickup(t.status), points: [start, ...via, end] });
+      edges.push({
+        from,
+        to: t.short_id,
+        settled,
+        holding: !settled && blockerGatesPickup(t.status),
+        points: [start, ...via, end],
+      });
     }
   }
 
-  return { positions, edges, waitNodes, width: x - GAP_X + PAD, height: PAD * 2 + maxH };
+  return {
+    positions,
+    edges,
+    waitNodes,
+    width: x - GAP_X + PAD,
+    height: PAD * 2 + maxH,
+  };
 }
 
-const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+const clip = (s: string, n: number) =>
+  s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
 
 /** A title over two lines broken at a word: up to `first` characters on the
  *  id's line, the rest on the line below, clipped there. A first word too
  *  long for the id's line breaks inside it rather than leave that line empty. */
-export function wrapTitle(title: string, first: number, rest: number): [string, string] {
+export function wrapTitle(
+  title: string,
+  first: number,
+  rest: number,
+): [string, string] {
   if (title.length <= first) return [title, ""];
   const space = title.lastIndexOf(" ", first);
   const cut = space > 0 ? space : Math.max(0, first);
@@ -181,18 +277,28 @@ function edgePath(points: PlanEdge["points"]): string {
   for (const [i, b] of points.slice(1).entries()) {
     const a = points[i];
     const dx = (b.x - a.x) * 0.4;
-    d += a.y === b.y ? ` L ${b.x} ${b.y}` : ` C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+    d +=
+      a.y === b.y
+        ? ` L ${b.x} ${b.y}`
+        : ` C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
   }
   return d;
 }
 
 export function PlanGraphView({ tasks }: { tasks: Task[] }) {
-  const { positions, edges, waitNodes, width, height } = useMemo(() => planGraphLayout(tasks), [tasks]);
+  const { positions, edges, waitNodes, width, height } = useMemo(
+    () => planGraphLayout(tasks),
+    [tasks],
+  );
   const router = useRouter();
   const now = useCoarseNow(60_000);
 
   if (tasks.length === 0) {
-    return <div className="text-xs text-sol-text-dim text-center py-8">No tasks to visualize</div>;
+    return (
+      <div className="text-xs text-sol-text-dim text-center py-8">
+        No tasks to visualize
+      </div>
+    );
   }
 
   return (
@@ -203,9 +309,23 @@ export function PlanGraphView({ tasks }: { tasks: Task[] }) {
         className="block"
       >
         <defs>
-          {[["arrowhead", "--sol-text-dim"], ["arrowhead-holding", HOLDING]].map(([id, tone]) => (
-            <marker key={id} id={id} markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" style={{ fill: `var(${tone})` }} />
+          {[
+            ["arrowhead", "--sol-text-dim"],
+            ["arrowhead-holding", HOLDING],
+          ].map(([id, tone]) => (
+            <marker
+              key={id}
+              id={id}
+              markerWidth="8"
+              markerHeight="6"
+              refX="8"
+              refY="3"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 8 3, 0 6"
+                style={{ fill: `var(${tone})` }}
+              />
             </marker>
           ))}
         </defs>
@@ -217,7 +337,9 @@ export function PlanGraphView({ tasks }: { tasks: Task[] }) {
             key={`${edge.from}>${edge.to}`}
             d={edgePath(edge.points)}
             fill="none"
-            style={{ stroke: `var(${edge.holding ? HOLDING : "--sol-text-dim"})` }}
+            style={{
+              stroke: `var(${edge.holding ? HOLDING : "--sol-text-dim"})`,
+            }}
             strokeWidth={1.5}
             strokeOpacity={edge.holding ? 0.7 : 0.5}
             strokeDasharray={edge.holding ? HOLDING_DASH : undefined}
@@ -233,7 +355,10 @@ export function PlanGraphView({ tasks }: { tasks: Task[] }) {
           const tone = WAIT_TONE_STYLE[t].token;
           const holding = t === "waiting";
           // The node says what happened once it settled; a failed one is struck through.
-          const label = n.wait.state === "met" ? waitMetLabel(n.wait, { now, withDay: true }) : waitLabel(n.wait, { now });
+          const label =
+            n.wait.state === "met"
+              ? waitMetLabel(n.wait, { now, withDay: true })
+              : waitLabel(n.wait, { now });
           const x1 = n.x + WAIT_W;
           const y1 = n.y + WAIT_H / 2;
           const y2 = to.y + n.inY;
@@ -258,22 +383,39 @@ export function PlanGraphView({ tasks }: { tasks: Task[] }) {
                 style={{ fill: tint(tone, 14), stroke: `var(${tone})` }}
                 strokeWidth={1}
               />
-              <text x={n.x + 8} y={n.y + 12.5} fontSize={WAIT_SIZE} style={{ fill: `var(${tone})` }} textDecoration={n.wait.state === "failed" ? "line-through" : undefined}>
+              <text
+                x={n.x + 8}
+                y={n.y + 12.5}
+                fontSize={WAIT_SIZE}
+                style={{ fill: `var(${tone})` }}
+                textDecoration={
+                  n.wait.state === "failed" ? "line-through" : undefined
+                }
+              >
                 {clip(label, fits(WAIT_W, WAIT_SIZE))}
               </text>
             </g>
           );
         })}
 
-        {tasks.map(task => {
+        {tasks.map((task) => {
           const p = positions.get(task.short_id);
           if (!p) return null;
           const tone = STATUS_TONE[task.status] ?? STATUS_TONE.open;
-          const text = task.status === "dropped" ? "var(--sol-text-dim)" : "var(--sol-text)";
-          const isBlocked = task.execution_status === "blocked" || task.execution_status === "needs_context";
+          const text =
+            task.status === "dropped"
+              ? "var(--sol-text-dim)"
+              : "var(--sol-text)";
+          const isBlocked =
+            task.execution_status === "blocked" ||
+            task.execution_status === "needs_context";
           const open = () => router.push(`/tasks/${task.short_id}`);
           const width = fits(NODE_W, TITLE_SIZE);
-          const [line1, line2] = wrapTitle(task.title, width - task.short_id.length - 1, width);
+          const [line1, line2] = wrapTitle(
+            task.title,
+            width - task.short_id.length - 1,
+            width,
+          );
 
           return (
             <g
@@ -297,18 +439,36 @@ export function PlanGraphView({ tasks }: { tasks: Task[] }) {
                 width={NODE_W}
                 height={NODE_H}
                 rx={6}
-                style={{ fill: tint(tone, 14), stroke: isBlocked ? "var(--sol-red)" : `var(${tone})` }}
+                style={{
+                  fill: tint(tone, 14),
+                  stroke: isBlocked ? "var(--sol-red)" : `var(${tone})`,
+                }}
                 strokeWidth={isBlocked ? 2 : 1.5}
                 strokeDasharray={isBlocked ? "4 2" : undefined}
                 className="transition-[stroke-width] group-hover:[stroke-width:2.5] group-focus-visible:[stroke-width:2.5]"
               />
               {/* The id and the title share a line; a long title goes on below. */}
-              <text x={p.x + 8} y={p.y + (line2 ? 18 : 26)} style={{ fill: text }} fontSize={TITLE_SIZE}>
-                <tspan opacity={0.6} className="modern:font-mono">{task.short_id}</tspan>
-                <tspan dx={TITLE_SIZE * CHAR_EM} fontWeight={500}>{line1}</tspan>
+              <text
+                x={p.x + 8}
+                y={p.y + (line2 ? 18 : 26)}
+                style={{ fill: text }}
+                fontSize={TITLE_SIZE}
+              >
+                <tspan opacity={0.6} className="modern:font-mono">
+                  {task.short_id}
+                </tspan>
+                <tspan dx={TITLE_SIZE * CHAR_EM} fontWeight={500}>
+                  {line1}
+                </tspan>
               </text>
               {line2 && (
-                <text x={p.x + 8} y={p.y + 33} style={{ fill: text }} fontSize={TITLE_SIZE} fontWeight={500}>
+                <text
+                  x={p.x + 8}
+                  y={p.y + 33}
+                  style={{ fill: text }}
+                  fontSize={TITLE_SIZE}
+                  fontWeight={500}
+                >
                   {line2}
                 </text>
               )}

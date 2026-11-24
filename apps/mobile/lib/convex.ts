@@ -1,4 +1,7 @@
-import { isVideoSrc, MEDIA_ORIGIN } from "@codecast/shared/contracts/castPlayer";
+import {
+  isVideoSrc,
+  MEDIA_ORIGIN,
+} from "@codecast/shared/contracts/castPlayer";
 import { ConvexReactClient } from "convex/react";
 import { countingWebSocket } from "./socketStats";
 import { STORE_SHOTS } from "./storeShots/flag";
@@ -8,10 +11,14 @@ import { STORE_SHOTS } from "./storeShots/flag";
 // sign-in method errored under App Store review. Local/dev flows always set
 // the env var, so the fallback only engages when a build would otherwise be
 // pointed at nothing.
-export const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL || "https://convex.codecast.sh";
+export const CONVEX_URL =
+  process.env.EXPO_PUBLIC_CONVEX_URL || "https://convex.codecast.sh";
 
 // Origin of CONVEX_URL, derived by regex — `new URL` is a Hermes trap.
-export const CONVEX_ORIGIN = CONVEX_URL.replace(/^(https?:\/\/[^/?#]+).*$/i, "$1").toLowerCase();
+export const CONVEX_ORIGIN = CONVEX_URL.replace(
+  /^(https?:\/\/[^/?#]+).*$/i,
+  "$1",
+).toLowerCase();
 
 /** True when an image src reaches no third party: a data: URI or an absolute
  *  URL on our own Convex storage origin (pasted transcript images, `cast image`

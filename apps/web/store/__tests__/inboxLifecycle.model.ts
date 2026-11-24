@@ -35,8 +35,24 @@ import {
 import { PENDING_SEND_WORKING_TTL_MS } from "../inboxOverlays";
 import { LIVENESS_SUSPEND_GAP_MS } from "../../hooks/livenessHold";
 
-export type Section = "stashed" | "snoozed" | "questions" | "pinned" | "needs_input" | "done" | "dormant" | "working" | "idle" | "new";
-export type DaemonStatus = "working" | "idle" | "done" | "dormant" | "permission_blocked" | "stopped";
+export type Section =
+  | "stashed"
+  | "snoozed"
+  | "questions"
+  | "pinned"
+  | "needs_input"
+  | "done"
+  | "dormant"
+  | "working"
+  | "idle"
+  | "new";
+export type DaemonStatus =
+  | "working"
+  | "idle"
+  | "done"
+  | "dormant"
+  | "permission_blocked"
+  | "stopped";
 export type Pin = "done" | "dormant" | "blocked" | null;
 export type Rest = "needs_input" | "done" | "dormant";
 
@@ -60,7 +76,13 @@ export type Facts = {
   rest: { rest: Rest; at: number } | null;
 };
 
-export type Send = { clientId: string; at: number; enqueued: boolean; delivered: boolean; echoed: boolean };
+export type Send = {
+  clientId: string;
+  at: number;
+  enqueued: boolean;
+  delivered: boolean;
+  echoed: boolean;
+};
 
 export type HoldModel = {
   running: boolean;
@@ -127,8 +149,14 @@ export function initialModel(): Model {
 // the snooze on its own copy before any round-trip (inboxStore sendMessage,
 // clearSessionSnoozeInDraft), each under a field lock.
 export function localSend(m: Model) {
-  if (m.client.pin != null) { m.pinLock = true; m.client.pin = null; }
-  if (m.client.snoozedUntil != null) { m.snoozeLock = true; m.client.snoozedUntil = null; }
+  if (m.client.pin != null) {
+    m.pinLock = true;
+    m.client.pin = null;
+  }
+  if (m.client.snoozedUntil != null) {
+    m.snoozeLock = true;
+    m.client.snoozedUntil = null;
+  }
 }
 
 // A push lands: the window takes the server's facts, except a locked field,
@@ -136,8 +164,14 @@ export function localSend(m: Model) {
 export function applyPush(m: Model) {
   const s = m.server;
   m.client = { ...s, rest: s.rest && { ...s.rest } };
-  if (m.pinLock) { if (s.pin == null) m.pinLock = false; else m.client.pin = null; }
-  if (m.snoozeLock) { if (s.snoozedUntil == null) m.snoozeLock = false; else m.client.snoozedUntil = null; }
+  if (m.pinLock) {
+    if (s.pin == null) m.pinLock = false;
+    else m.client.pin = null;
+  }
+  if (m.snoozeLock) {
+    if (s.snoozedUntil == null) m.snoozeLock = false;
+    else m.client.snoozedUntil = null;
+  }
 }
 
 // ── The section rules ───────────────────────────────────────────────────────
@@ -164,7 +198,12 @@ export function trustedStatus(f: Facts, t: number): DaemonStatus {
 // (heartbeat, grace, trust) are read at; `epochT` the minute the placement
 // terms (snooze, the dormant claim) are read at. `asking` is the row's own
 // open prompt (decisionQueue.sessionHasOpenQuestion: permission_blocked).
-export function sectionAt(f: Facts, liveT: number, epochT: number, asking: boolean): Section {
+export function sectionAt(
+  f: Facts,
+  liveT: number,
+  epochT: number,
+  asking: boolean,
+): Section {
   // Filing order, first rule wins (inboxProjection.ts placeInboxRow).
   if (f.stashedAt != null) return "stashed";
   if (f.snoozedUntil != null && f.snoozedUntil > epochT) return "snoozed";
@@ -174,7 +213,12 @@ export function sectionAt(f: Facts, liveT: number, epochT: number, asking: boole
   return workSection(f, liveT, epochT, asking);
 }
 
-function workSection(f: Facts, liveT: number, epochT: number, asking: boolean): Section {
+function workSection(
+  f: Facts,
+  liveT: number,
+  epochT: number,
+  asking: boolean,
+): Section {
   // The user's own rest verdict stands until the next activity expires it
   // (userRestOf: stamp at >= updated_at). It outranks an open ask too: they
   // saw the ask and triaged past it (placeInboxRow, questions arm).
@@ -188,10 +232,12 @@ function workSection(f: Facts, liveT: number, epochT: number, asking: boolean): 
   const recently = quiet < AGENT_IDLE_GRACE_MS;
   // daemon_alive: the heartbeat window, and never for a stopped agent
   // (deriveLiveAt).
-  const daemonAlive = st !== "stopped" && liveT - f.lastBeat < HEARTBEAT_ALIVE_MS;
+  const daemonAlive =
+    st !== "stopped" && liveT - f.lastBeat < HEARTBEAT_ALIVE_MS;
   // Waiting on something nothing serves: no live daemon, a trailing user turn
   // or queued input, quiet past the grace (isUnservedSession).
-  const unresponsive = !daemonAlive && (f.lastRoleIsUser || f.queued) && !recently;
+  const unresponsive =
+    !daemonAlive && (f.lastRoleIsUser || f.queued) && !recently;
 
   // Blocked on the person: a permission prompt (classifyWorkState).
   if (st === "permission_blocked") return "needs_input";
@@ -201,14 +247,18 @@ function workSection(f: Facts, liveT: number, epochT: number, asking: boolean): 
   if (!unresponsive && st !== "stopped" && f.queued) return "working";
   // A process that exits after declaring done is the ordinary end of a run
   // (isExitAfterDone); any other dead or unserved session needs a person.
-  if (st === "stopped") return f.pin === "done" && !f.queued && !unresponsive ? "done" : "needs_input";
+  if (st === "stopped")
+    return f.pin === "done" && !f.queued && !unresponsive
+      ? "done"
+      : "needs_input";
   if (unresponsive) return "needs_input";
 
   // isSessionIdle: a settled status past the anti-flicker grace measured from
   // the status change; inside it, settled only when nothing points at more
   // work (no trailing user turn, no recent activity).
   const settledPastGrace = liveT - f.statusAt >= AGENT_IDLE_GRACE_MS;
-  const isIdle = !f.queued && (settledPastGrace || (!f.lastRoleIsUser && !recently));
+  const isIdle =
+    !f.queued && (settledPastGrace || (!f.lastRoleIsUser && !recently));
   if (!isIdle) return "working";
 
   // The rest verdicts (classifyWorkState restState):
@@ -218,7 +268,10 @@ function workSection(f: Facts, liveT: number, epochT: number, asking: boolean): 
   //   - a declared done files under done,
   //   - anything else settled needs the person.
   if (f.pin === "blocked" && st === "idle") return "needs_input";
-  if (st === "dormant") return epochT - f.updatedAt >= DORMANT_CLAIM_TTL_MS ? "needs_input" : "dormant";
+  if (st === "dormant")
+    return epochT - f.updatedAt >= DORMANT_CLAIM_TTL_MS
+      ? "needs_input"
+      : "dormant";
   if (st === "done") return "done";
   return "needs_input";
 }
@@ -239,7 +292,9 @@ export const clientNow = (m: Model) => Math.min(m.t, m.hold.heldAt ?? Infinity);
 // placement bound (inboxOverlays.ts convHasPendingSend with now).
 export function sendInFlight(m: Model): boolean {
   const now = clientNow(m);
-  return m.sends.some((s) => !s.echoed && now - s.at < PENDING_SEND_WORKING_TTL_MS);
+  return m.sends.some(
+    (s) => !s.echoed && now - s.at < PENDING_SEND_WORKING_TTL_MS,
+  );
 }
 
 // What this window renders: the shared placement over its own copy of the
@@ -252,7 +307,11 @@ export function clientSection(m: Model): Section {
   const asking = m.client.status === "permission_blocked";
   const base = sectionAt(m.client, now, epochOf(now), asking);
   if (!sendInFlight(m)) return base;
-  if ((base === "needs_input" || base === "done" || base === "dormant") && !m.client.snoozedUntil) return "working";
+  if (
+    (base === "needs_input" || base === "done" || base === "dormant") &&
+    !m.client.snoozedUntil
+  )
+    return "working";
   if (base === "questions") return "working";
   return base;
 }

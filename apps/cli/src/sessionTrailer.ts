@@ -35,20 +35,85 @@
 import { execFileSync } from "./proc.js";
 import * as path from "node:path";
 import type { CachedSessionLink } from "./localConversationMap.js";
-import { SESSION_TRAILER_KEY, sessionTrailerValue } from "@codecast/shared/blame";
+import {
+  SESSION_TRAILER_KEY,
+  sessionTrailerValue,
+} from "@codecast/shared/blame";
 import { CODECAST_BASE_URL, isConvexId } from "@codecast/shared/entities";
 
 type Token =
   | { kind: "word"; text: string; end: number }
   | { kind: "op"; text: string };
 
-const OPERATORS = ["&&", "||", ";;", "|&", "<<-", "<<<", "<<", ">>", ">&", "<&", "&>", ">|", "|", ";", "&", "(", ")", "<", ">"];
-const REDIRECTS = new Set(["<<-", "<<<", "<<", ">>", ">&", "<&", "&>", ">|", "<", ">"]);
-const WORD_BREAK = new Set([" ", "\t", "\n", ";", "&", "|", "(", ")", "<", ">"]);
+const OPERATORS = [
+  "&&",
+  "||",
+  ";;",
+  "|&",
+  "<<-",
+  "<<<",
+  "<<",
+  ">>",
+  ">&",
+  "<&",
+  "&>",
+  ">|",
+  "|",
+  ";",
+  "&",
+  "(",
+  ")",
+  "<",
+  ">",
+];
+const REDIRECTS = new Set([
+  "<<-",
+  "<<<",
+  "<<",
+  ">>",
+  ">&",
+  "<&",
+  "&>",
+  ">|",
+  "<",
+  ">",
+]);
+const WORD_BREAK = new Set([
+  " ",
+  "\t",
+  "\n",
+  ";",
+  "&",
+  "|",
+  "(",
+  ")",
+  "<",
+  ">",
+]);
 // Words after which the next word is still a command.
-const KEYWORDS = new Set(["!", "{", "}", "then", "do", "else", "elif", "if", "while", "until", "time"]);
+const KEYWORDS = new Set([
+  "!",
+  "{",
+  "}",
+  "then",
+  "do",
+  "else",
+  "elif",
+  "if",
+  "while",
+  "until",
+  "time",
+]);
 // git's global options that take their value as the next word.
-const GIT_OPTS_WITH_VALUE = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env", "--super-prefix"]);
+const GIT_OPTS_WITH_VALUE = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--config-env",
+  "--super-prefix",
+]);
 
 /** Index just past the quote, substitution or escape that starts at `i`. */
 function skipQuoted(s: string, i: number): number {
@@ -77,7 +142,10 @@ function skipQuoted(s: string, i: number): number {
     const c = s[j];
     if (c === open) depth++;
     else if (c === close && --depth === 0) return j + 1;
-    if (c === "'" || c === '"' || c === "`" || c === "\\") { j = skipQuoted(s, j); continue; }
+    if (c === "'" || c === '"' || c === "`" || c === "\\") {
+      j = skipQuoted(s, j);
+      continue;
+    }
     j++;
   }
   return s.length;
@@ -95,8 +163,14 @@ function tokenize(s: string): Token[] {
   let i = 0;
   while (i < s.length) {
     const ch = s[i];
-    if (ch === " " || ch === "\t") { i++; continue; }
-    if (ch === "\\" && s[i + 1] === "\n") { i += 2; continue; }
+    if (ch === " " || ch === "\t") {
+      i++;
+      continue;
+    }
+    if (ch === "\\" && s[i + 1] === "\n") {
+      i += 2;
+      continue;
+    }
     if (ch === "\n") {
       tokens.push({ kind: "op", text: "\n" });
       i++;
@@ -125,7 +199,14 @@ function tokenize(s: string): Token[] {
     const start = i;
     while (i < s.length && !WORD_BREAK.has(s[i])) {
       const c = s[i];
-      if (c === "'" || c === '"' || c === "`" || c === "\\" || (c === "$" && (s[i + 1] === "(" || s[i + 1] === "{" || s[i + 1] === "'"))) {
+      if (
+        c === "'" ||
+        c === '"' ||
+        c === "`" ||
+        c === "\\" ||
+        (c === "$" &&
+          (s[i + 1] === "(" || s[i + 1] === "{" || s[i + 1] === "'"))
+      ) {
         i = skipQuoted(s, i);
       } else {
         i++;
@@ -154,7 +235,8 @@ export interface GitCommitSite {
 // A `--trailer` value that names our key: `Codecast-Session: …` or `…=…`,
 // in any case, with the shell quoting taken off.
 const NAMES_KEY = new RegExp(`^${SESSION_TRAILER_KEY}\\s*[:=]`, "i");
-const namesKey = (word: string) => NAMES_KEY.test(word.replace(/['"\\]/g, "").replace(/^\$/, ""));
+const namesKey = (word: string) =>
+  NAMES_KEY.test(word.replace(/['"\\]/g, "").replace(/^\$/, ""));
 
 function joinDir(base: string, next: string): string {
   if (next.startsWith("/") || next.startsWith("~")) return next;
@@ -176,7 +258,10 @@ export function findGitCommits(command: string): GitCommitSite[] {
   let trailerValueNext = false;
   for (const token of tokenize(command)) {
     if (token.kind === "op") {
-      if (REDIRECTS.has(token.text)) { skipWord = true; continue; }
+      if (REDIRECTS.has(token.text)) {
+        skipWord = true;
+        continue;
+      }
       commandPosition = true;
       inGit = inCd = false;
       site = null;
@@ -189,7 +274,10 @@ export function findGitCommits(command: string): GitCommitSite[] {
         trailerValueNext = false;
       } else if (word === "--trailer") {
         trailerValueNext = true;
-      } else if (word.startsWith("--trailer=") && namesKey(word.slice("--trailer=".length))) {
+      } else if (
+        word.startsWith("--trailer=") &&
+        namesKey(word.slice("--trailer=".length))
+      ) {
         site.named = true;
       }
       continue;
@@ -206,7 +294,11 @@ export function findGitCommits(command: string): GitCommitSite[] {
       continue;
     }
     if (inGit) {
-      if (GIT_OPTS_WITH_VALUE.has(word)) { skipWord = true; valueFor = word === "-C" ? "-C" : null; continue; }
+      if (GIT_OPTS_WITH_VALUE.has(word)) {
+        skipWord = true;
+        valueFor = word === "-C" ? "-C" : null;
+        continue;
+      }
       if (word.startsWith("-")) continue;
       if (word === "commit") {
         site = { offset: token.end, dir: gitDir || cwd, named: false };
@@ -232,12 +324,19 @@ export function findGitCommits(command: string): GitCommitSite[] {
  * a Codecast-Session `--trailer`, or null when there is nothing to add. Only a
  * real `--trailer` argument counts: a message that mentions the key does not.
  */
-export function addCommitTrailer(command: string, trailer: string, keep: (dir: string) => boolean = () => true): string | null {
-  const sites = findGitCommits(command).filter((site) => !site.named && keep(site.dir));
+export function addCommitTrailer(
+  command: string,
+  trailer: string,
+  keep: (dir: string) => boolean = () => true,
+): string | null {
+  const sites = findGitCommits(command).filter(
+    (site) => !site.named && keep(site.dir),
+  );
   if (sites.length === 0) return null;
   const flag = ` --trailer '${trailer.replace(/'/g, "'\\''")}'`;
   let out = command;
-  for (const { offset } of sites.reverse()) out = out.slice(0, offset) + flag + out.slice(offset);
+  for (const { offset } of sites.reverse())
+    out = out.slice(0, offset) + flag + out.slice(offset);
   return out;
 }
 
@@ -261,7 +360,10 @@ export interface SessionTrailerDeps {
   /** The conversation id for an agent session id, or null. */
   conversationFor: (sessionId: string) => Promise<string | null>;
   /** Can the session's team read that conversation? Null: could not learn. */
-  teamVisible: (sessionId: string, conversationId: string) => Promise<boolean | null>;
+  teamVisible: (
+    sessionId: string,
+    conversationId: string,
+  ) => Promise<boolean | null>;
   webUrl: string;
   log: (line: string) => void;
 }
@@ -271,17 +373,30 @@ export interface SessionTrailerDeps {
  * command, or "" to leave it alone. Never throws and never blocks the call:
  * a commit without the trailer is always better than a commit that failed.
  */
-export async function sessionTrailerHookOutput(input: string, deps: SessionTrailerDeps): Promise<string> {
+export async function sessionTrailerHookOutput(
+  input: string,
+  deps: SessionTrailerDeps,
+): Promise<string> {
   const envSetting = trailerSetting(deps.env.CODECAST_SESSION_TRAILER);
   if (envSetting === "off") return "";
-  let hook: { session_id?: unknown; cwd?: unknown; tool_name?: unknown; tool_input?: Record<string, unknown> };
+  let hook: {
+    session_id?: unknown;
+    cwd?: unknown;
+    tool_name?: unknown;
+    tool_input?: Record<string, unknown>;
+  };
   try {
     hook = JSON.parse(input);
   } catch {
     return "";
   }
   const command = hook.tool_input?.command;
-  if (hook.tool_name !== "Bash" || typeof command !== "string" || typeof hook.session_id !== "string") return "";
+  if (
+    hook.tool_name !== "Bash" ||
+    typeof command !== "string" ||
+    typeof hook.session_id !== "string"
+  )
+    return "";
   // Placeholder first: the lookups below cost a process or a request, and most
   // commands that mention "git" and "commit" still add nothing.
   if (addCommitTrailer(command, "x") === null) return "";
@@ -293,39 +408,57 @@ export async function sessionTrailerHookOutput(input: string, deps: SessionTrail
   const settings = new Map<string, TrailerSetting>();
   const settingOf = (dir: string) => {
     const abs = path.resolve(cwd, dir.replace(/^~(?=\/|$)/, home));
-    if (!settings.has(abs)) settings.set(abs, trailerSetting(deps.repoSetting(abs)));
+    if (!settings.has(abs))
+      settings.set(abs, trailerSetting(deps.repoSetting(abs)));
     return settings.get(abs)!;
   };
   const keep = (dir: string) => settingOf(dir) !== "off";
   if (addCommitTrailer(command, "x", keep) === null) return "";
   if (!deps.gitTakesTrailer()) {
-    deps.log("codecast: git is older than 2.32 (no `commit --trailer`); commit left without a Codecast-Session trailer");
+    deps.log(
+      "codecast: git is older than 2.32 (no `commit --trailer`); commit left without a Codecast-Session trailer",
+    );
     return "";
   }
   const conversationId = await deps.conversationFor(hook.session_id);
   if (!conversationId) {
-    deps.log(`codecast: session ${hook.session_id} has not synced yet; commit left without a Codecast-Session trailer`);
+    deps.log(
+      `codecast: session ${hook.session_id} has not synced yet; commit left without a Codecast-Session trailer`,
+    );
     return "";
   }
   // The id comes from a local file or a server answer and lands in the
   // command and in history, so it must be exactly the id shape.
   if (!isConvexId(conversationId)) {
-    deps.log(`codecast: ${JSON.stringify(conversationId.slice(0, 64))} is not a conversation id; commit left without a Codecast-Session trailer`);
+    deps.log(
+      `codecast: ${JSON.stringify(conversationId.slice(0, 64))} is not a conversation id; commit left without a Codecast-Session trailer`,
+    );
     return "";
   }
   // The visibility policy, asked only when some commit is not overridden to always.
-  const always = (dir: string) => envSetting === "always" || settingOf(dir) === "always";
+  const always = (dir: string) =>
+    envSetting === "always" || settingOf(dir) === "always";
   let visible: boolean | null = true;
-  if (findGitCommits(command).some((site) => !site.named && keep(site.dir) && !always(site.dir))) {
+  if (
+    findGitCommits(command).some(
+      (site) => !site.named && keep(site.dir) && !always(site.dir),
+    )
+  ) {
     visible = await deps.teamVisible(hook.session_id, conversationId);
     if (visible !== true) {
-      deps.log(visible === false
-        ? "codecast: this session is private to you, so its commit gets no Codecast-Session trailer (git config codecast.sessionTrailer always adds it anyway)"
-        : "codecast: could not learn whether this session is shared with a team; commit left without a Codecast-Session trailer");
+      deps.log(
+        visible === false
+          ? "codecast: this session is private to you, so its commit gets no Codecast-Session trailer (git config codecast.sessionTrailer always adds it anyway)"
+          : "codecast: could not learn whether this session is shared with a team; commit left without a Codecast-Session trailer",
+      );
     }
   }
   const trail = (dir: string) => keep(dir) && (visible === true || always(dir));
-  const rewritten = addCommitTrailer(command, `${SESSION_TRAILER_KEY}: ${sessionTrailerValue(conversationId, deps.webUrl)}`, trail);
+  const rewritten = addCommitTrailer(
+    command,
+    `${SESSION_TRAILER_KEY}: ${sessionTrailerValue(conversationId, deps.webUrl)}`,
+    trail,
+  );
   if (!rewritten) return "";
   return JSON.stringify({
     hookSpecificOutput: {
@@ -347,7 +480,9 @@ export interface SessionLinkIO {
   cached: () => Record<string, CachedSessionLink>;
   save: (sessionId: string, link: CachedSessionLink) => void;
   /** /cli/session-links; null on any failure. */
-  fetch: (sessionId: string) => Promise<{ conversation_id?: unknown; team_visible?: unknown } | null>;
+  fetch: (
+    sessionId: string,
+  ) => Promise<{ conversation_id?: unknown; team_visible?: unknown } | null>;
   now: () => number;
 }
 
@@ -356,28 +491,49 @@ export interface SessionLinkIO {
  * server request at most per run. A fresh cache entry answers without the
  * network; a stale one still answers when the server cannot be reached.
  */
-export function sessionLinkLookup(io: SessionLinkIO): Pick<SessionTrailerDeps, "conversationFor" | "teamVisible"> {
+export function sessionLinkLookup(
+  io: SessionLinkIO,
+): Pick<SessionTrailerDeps, "conversationFor" | "teamVisible"> {
   let cache: Record<string, CachedSessionLink> | null = null;
   const cachedFor = (sessionId: string) => (cache ??= io.cached())[sessionId];
-  let asked: Promise<{ conversation_id: string | null; team_visible: boolean | null }> | null = null;
+  let asked: Promise<{
+    conversation_id: string | null;
+    team_visible: boolean | null;
+  }> | null = null;
   const server = (sessionId: string) =>
-    (asked ??= io.fetch(sessionId).then((r) => {
-      const conversation_id = typeof r?.conversation_id === "string" ? r.conversation_id : null;
-      const team_visible = typeof r?.team_visible === "boolean" ? r.team_visible : null;
-      if (conversation_id && team_visible !== null) {
-        io.save(sessionId, { conversation_id, team_visible, checked_at: io.now() });
-      }
-      return { conversation_id, team_visible };
-    }, () => ({ conversation_id: null, team_visible: null })));
+    (asked ??= io.fetch(sessionId).then(
+      (r) => {
+        const conversation_id =
+          typeof r?.conversation_id === "string" ? r.conversation_id : null;
+        const team_visible =
+          typeof r?.team_visible === "boolean" ? r.team_visible : null;
+        if (conversation_id && team_visible !== null) {
+          io.save(sessionId, {
+            conversation_id,
+            team_visible,
+            checked_at: io.now(),
+          });
+        }
+        return { conversation_id, team_visible };
+      },
+      () => ({ conversation_id: null, team_visible: null }),
+    ));
   return {
     conversationFor: async (sessionId) =>
-      io.local()[sessionId] ?? cachedFor(sessionId)?.conversation_id ?? (await server(sessionId)).conversation_id,
+      io.local()[sessionId] ??
+      cachedFor(sessionId)?.conversation_id ??
+      (await server(sessionId)).conversation_id,
     teamVisible: async (sessionId, conversationId) => {
       const hit = cachedFor(sessionId);
       const mine = hit && hit.conversation_id === conversationId ? hit : null;
-      if (mine && io.now() - mine.checked_at < SESSION_LINK_FRESH_MS) return mine.team_visible;
+      if (mine && io.now() - mine.checked_at < SESSION_LINK_FRESH_MS)
+        return mine.team_visible;
       const fresh = await server(sessionId);
-      if (fresh.conversation_id === conversationId && fresh.team_visible !== null) return fresh.team_visible;
+      if (
+        fresh.conversation_id === conversationId &&
+        fresh.team_visible !== null
+      )
+        return fresh.team_visible;
       return mine ? mine.team_visible : null;
     },
   };
@@ -385,8 +541,12 @@ export function sessionLinkLookup(io: SessionLinkIO): Pick<SessionTrailerDeps, "
 
 function gitTakesTrailer(): boolean {
   try {
-    const m = /(\d+)\.(\d+)/.exec(execFileSync("git", ["--version"], { encoding: "utf-8", timeout: 3000 }));
-    return !!m && (Number(m[1]) > 2 || (Number(m[1]) === 2 && Number(m[2]) >= 32));
+    const m = /(\d+)\.(\d+)/.exec(
+      execFileSync("git", ["--version"], { encoding: "utf-8", timeout: 3000 }),
+    );
+    return (
+      !!m && (Number(m[1]) > 2 || (Number(m[1]) === 2 && Number(m[2]) >= 32))
+    );
   } catch {
     return false;
   }
@@ -394,11 +554,15 @@ function gitTakesTrailer(): boolean {
 
 function repoSetting(cwd: string): string | null {
   try {
-    return execFileSync("git", ["-C", cwd, "config", "--get", "codecast.sessionTrailer"], {
-      encoding: "utf-8",
-      timeout: 3000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    return execFileSync(
+      "git",
+      ["-C", cwd, "config", "--get", "codecast.sessionTrailer"],
+      {
+        encoding: "utf-8",
+        timeout: 3000,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    ).trim();
   } catch {
     return null;
   }
@@ -406,7 +570,10 @@ function repoSetting(cwd: string): string | null {
 
 /** `cast _session-trailer`: the hook's stdin in, its JSON answer out. */
 export async function runSessionTrailerHook(): Promise<void> {
-  const [{ readAuthConfig, defaultConfigDir }, { readLocalConversationMap, readSessionLinkCache, writeSessionLinkCache }] = await Promise.all([
+  const [
+    { readAuthConfig, defaultConfigDir },
+    { readLocalConversationMap, readSessionLinkCache, writeSessionLinkCache },
+  ] = await Promise.all([
     import("./config/readAuthConfig.js"),
     import("./localConversationMap.js"),
   ]);
@@ -418,36 +585,47 @@ export async function runSessionTrailerHook(): Promise<void> {
   }
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-  const out = await sessionTrailerHookOutput(Buffer.concat(chunks).toString("utf-8"), {
-    env: process.env,
-    configEnabled: () => {
-      const v = (config as Record<string, unknown> | null)?.session_trailer;
-      return v !== false && !OFF.has(String(v ?? "").toLowerCase());
-    },
-    repoSetting,
-    gitTakesTrailer,
-    ...sessionLinkLookup({
-      local: readLocalConversationMap,
-      cached: () => readSessionLinkCache(),
-      save: (sessionId, link) => writeSessionLinkCache(sessionId, link),
-      fetch: async (sessionId) => {
-        if (!config?.auth_token || !config.convex_url) return null;
-        try {
-          const response = await fetch(`${config.convex_url.replace(".cloud", ".site")}/cli/session-links`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session_id: sessionId, api_token: config.auth_token }),
-            signal: AbortSignal.timeout(3000),
-          });
-          return response.ok ? ((await response.json()) as Record<string, unknown>) : null;
-        } catch {
-          return null;
-        }
+  const out = await sessionTrailerHookOutput(
+    Buffer.concat(chunks).toString("utf-8"),
+    {
+      env: process.env,
+      configEnabled: () => {
+        const v = (config as Record<string, unknown> | null)?.session_trailer;
+        return v !== false && !OFF.has(String(v ?? "").toLowerCase());
       },
-      now: Date.now,
-    }),
-    webUrl: config?.web_url || CODECAST_BASE_URL,
-    log: (line) => process.stderr.write(`${line}\n`),
-  });
+      repoSetting,
+      gitTakesTrailer,
+      ...sessionLinkLookup({
+        local: readLocalConversationMap,
+        cached: () => readSessionLinkCache(),
+        save: (sessionId, link) => writeSessionLinkCache(sessionId, link),
+        fetch: async (sessionId) => {
+          if (!config?.auth_token || !config.convex_url) return null;
+          try {
+            const response = await fetch(
+              `${config.convex_url.replace(".cloud", ".site")}/cli/session-links`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  session_id: sessionId,
+                  api_token: config.auth_token,
+                }),
+                signal: AbortSignal.timeout(3000),
+              },
+            );
+            return response.ok
+              ? ((await response.json()) as Record<string, unknown>)
+              : null;
+          } catch {
+            return null;
+          }
+        },
+        now: Date.now,
+      }),
+      webUrl: config?.web_url || CODECAST_BASE_URL,
+      log: (line) => process.stderr.write(`${line}\n`),
+    },
+  );
   if (out) process.stdout.write(`${out}\n`);
 }

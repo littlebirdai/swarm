@@ -8,9 +8,16 @@ import { routeTmuxArgs } from "./tmuxRoute.js";
 import { clientAcceptsBracketedPaste, pasteTextIntoPane } from "./tmuxPaste.js";
 import type { Config } from "./config/types.js";
 import { readAuthConfig } from "./config/readAuthConfig.js";
-import { resolveClaudeInstall, stableClaudeBinary } from "./stableClaudeBinary.js";
+import {
+  resolveClaudeInstall,
+  stableClaudeBinary,
+} from "./stableClaudeBinary.js";
 import { defaultConfigDir } from "./config/configDir.js";
-import { parsePollMessage, pollDeclineText, pollMenuSteps } from "./pollMessage.js";
+import {
+  parsePollMessage,
+  pollDeclineText,
+  pollMenuSteps,
+} from "./pollMessage.js";
 
 const CONFIG_DIR = defaultConfigDir();
 const INBOX_DIR = path.join(CONFIG_DIR, "inbox");
@@ -23,7 +30,10 @@ const CONVEX_URL = process.env.CONVEX_URL || "https://convex.codecast.sh";
 function readConfig(): Config | null {
   try {
     return readAuthConfig(CONFIG_DIR, {
-      onUnreadable: () => log(`auth token unreadable on this machine — run 'cast auth' to re-encrypt`),
+      onUnreadable: () =>
+        log(
+          `auth token unreadable on this machine — run 'cast auth' to re-encrypt`,
+        ),
     });
   } catch {
     return null;
@@ -46,7 +56,10 @@ function log(message: string): void {
 
 function getTtyPath(): string | null {
   try {
-    const tty = execSync("tty", { encoding: "utf-8", stdio: ["inherit", "pipe", "pipe"] }).trim();
+    const tty = execSync("tty", {
+      encoding: "utf-8",
+      stdio: ["inherit", "pipe", "pipe"],
+    }).trim();
     if (tty && tty !== "not a tty" && fs.existsSync(tty)) {
       return tty;
     }
@@ -56,9 +69,13 @@ function getTtyPath(): string | null {
 
   if (process.stdin.isTTY) {
     try {
-      const psOutput = execSync(`ps -p ${process.pid} -o tty=`, { encoding: "utf-8" }).trim();
+      const psOutput = execSync(`ps -p ${process.pid} -o tty=`, {
+        encoding: "utf-8",
+      }).trim();
       if (psOutput && psOutput !== "?" && psOutput !== "??") {
-        const ttyPath = psOutput.startsWith("/dev/") ? psOutput : `/dev/${psOutput}`;
+        const ttyPath = psOutput.startsWith("/dev/")
+          ? psOutput
+          : `/dev/${psOutput}`;
         if (fs.existsSync(ttyPath)) {
           return ttyPath;
         }
@@ -83,7 +100,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function pasteClaudeMessage(target: string, content: string): Promise<void> {
+async function pasteClaudeMessage(
+  target: string,
+  content: string,
+): Promise<void> {
   await pasteTextIntoPane(
     async (args) => tmuxExecSync(args),
     target,
@@ -92,7 +112,10 @@ async function pasteClaudeMessage(target: string, content: string): Promise<void
   );
 }
 
-export type InjectionAction = { op: "key"; key: string } | { op: "paste"; text: string } | { op: "sleep"; ms: number };
+export type InjectionAction =
+  | { op: "key"; key: string }
+  | { op: "paste"; text: string }
+  | { op: "sleep"; ms: number };
 
 // What to send to the pane for one pending message, in order. Poll answers follow the
 // daemon's tmux path (injectViaTmuxInner in daemon.ts): a free-text answer declines the
@@ -100,7 +123,10 @@ export type InjectionAction = { op: "key"; key: string } | { op: "paste"; text: 
 // `poll.text`, if any, is typed into the field the last option opened. See pollDeclineText
 // for why the decline must not happen per step. Unlike the daemon, the wrapper does not
 // check that the menu is still on screen before pressing keys.
-export function planInjection(content: string): { poll: boolean; actions: InjectionAction[] } {
+export function planInjection(content: string): {
+  poll: boolean;
+  actions: InjectionAction[];
+} {
   const actions: InjectionAction[] = [];
   const key = (k: string) => actions.push({ op: "key", key: k });
   const paste = (text: string) => actions.push({ op: "paste", text });
@@ -109,29 +135,36 @@ export function planInjection(content: string): { poll: boolean; actions: Inject
   const poll = parsePollMessage(content);
   if (!poll) {
     // Clear any stale input before injecting to prevent submitting draft text
-    key("Escape"); wait(100);
-    key("C-u"); wait(100);
-    paste(content); wait(150);
+    key("Escape");
+    wait(100);
+    key("C-u");
+    wait(100);
+    paste(content);
+    wait(150);
     key("Enter");
     return { poll: false, actions };
   }
 
   const declineText = pollDeclineText(poll);
   if (declineText !== null) {
-    key("Escape"); wait(500);
+    key("Escape");
+    wait(500);
     if (declineText) {
-      paste(declineText); wait(150);
+      paste(declineText);
+      wait(150);
       key("Enter");
     }
     return { poll: true, actions };
   }
 
   for (const step of pollMenuSteps(poll)) {
-    key(step.key); wait(500);
+    key(step.key);
+    wait(500);
   }
   if (poll.text) {
     wait(300);
-    paste(poll.text); wait(150);
+    paste(poll.text);
+    wait(150);
     key("Enter");
   }
   return { poll: true, actions };
@@ -145,11 +178,16 @@ export function pollAnswerText(content: string): string | null {
   return (poll.text || pollDeclineText(poll) || "").trim() || null;
 }
 
-async function injectIntoPane(target: string, content: string): Promise<boolean> {
+async function injectIntoPane(
+  target: string,
+  content: string,
+): Promise<boolean> {
   const plan = planInjection(content);
   for (const action of plan.actions) {
-    if (action.op === "key") tmuxExecSync(["send-keys", "-t", target, action.key]);
-    else if (action.op === "paste") await pasteClaudeMessage(target, action.text);
+    if (action.op === "key")
+      tmuxExecSync(["send-keys", "-t", target, action.key]);
+    else if (action.op === "paste")
+      await pasteClaudeMessage(target, action.text);
     else await sleep(action.ms);
   }
   return plan.poll;
@@ -182,7 +220,10 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
   let tmuxSessionName: string | undefined;
   if (process.env.TMUX) {
     try {
-      tmuxSessionName = tmuxExecSync(["display-message", "-p", "#{session_name}"], { timeout: 2000, encoding: "utf-8" }).trim();
+      tmuxSessionName = tmuxExecSync(
+        ["display-message", "-p", "#{session_name}"],
+        { timeout: 2000, encoding: "utf-8" },
+      ).trim();
     } catch {}
   }
 
@@ -193,7 +234,9 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
       tmux_session: tmuxSessionName,
       api_token: config.auth_token,
     });
-    log(`Registered managed session${tmuxSessionName ? ` (tmux: ${tmuxSessionName})` : ""}`);
+    log(
+      `Registered managed session${tmuxSessionName ? ` (tmux: ${tmuxSessionName})` : ""}`,
+    );
   } catch (err) {
     log(`Warning: Failed to register managed session: ${err}`);
   }
@@ -212,21 +255,45 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
 
     // Create tmux session and run claude inside it
     const tmuxCmd = [
-      "tmux", "new-session", "-d", "-s", tmuxSessionName, "-n", "claude",
-      claudePath, ...args
-    ].map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
+      "tmux",
+      "new-session",
+      "-d",
+      "-s",
+      tmuxSessionName,
+      "-n",
+      "claude",
+      claudePath,
+      ...args,
+    ]
+      .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+      .join(" ");
 
     try {
-      tmuxExecSync(["new-session", "-d", "-s", tmuxSessionName, "-n", "claude", "-x", "200", "-y", "50"]);
+      tmuxExecSync([
+        "new-session",
+        "-d",
+        "-s",
+        tmuxSessionName,
+        "-n",
+        "claude",
+        "-x",
+        "200",
+        "-y",
+        "50",
+      ]);
       const envVars = `CODECAST_MANAGED_SESSION='${sessionId}' CODECAST_SESSION_ID='${sessionId}'`;
-      const launchLine = `${envVars} ${claudePath} ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`;
+      const launchLine = `${envVars} ${claudePath} ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`;
       tmuxExecSync(["send-keys", "-t", tmuxSessionName, launchLine, "Enter"]);
       log(`Created tmux session and started Claude`);
 
       // Attach to the tmux session
-      const attach = spawn("tmux", routeTmuxArgs(["attach-session", "-t", tmuxSessionName])[0], {
-        stdio: "inherit",
-      });
+      const attach = spawn(
+        "tmux",
+        routeTmuxArgs(["attach-session", "-t", tmuxSessionName])[0],
+        {
+          stdio: "inherit",
+        },
+      );
 
       attach.on("exit", async (code) => {
         log(`Tmux attach exited with code ${code}`);
@@ -240,23 +307,34 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
       // Set up message polling with tmux injection
       const pollForMessages = async () => {
         try {
-          const messages = await client.query("managedSessions:getPendingMessagesForSession" as any, {
-            session_id: sessionId,
-            api_token: config.auth_token,
-          });
+          const messages = await client.query(
+            "managedSessions:getPendingMessagesForSession" as any,
+            {
+              session_id: sessionId,
+              api_token: config.auth_token,
+            },
+          );
 
           for (const msg of messages as any[]) {
             log(`Delivering message: ${msg.content.slice(0, 50)}...`);
             try {
-              const wasPoll = await injectIntoPane(tmuxSessionName!, msg.content);
-              log(wasPoll
-                ? `Injected poll response via tmux to session ${tmuxSessionName}`
-                : `Injected via tmux paste to session ${tmuxSessionName}`);
+              const wasPoll = await injectIntoPane(
+                tmuxSessionName!,
+                msg.content,
+              );
+              log(
+                wasPoll
+                  ? `Injected poll response via tmux to session ${tmuxSessionName}`
+                  : `Injected via tmux paste to session ${tmuxSessionName}`,
+              );
 
-              await client.mutation("managedSessions:markMessageDelivered" as any, {
-                message_id: msg._id,
-                api_token: config.auth_token,
-              });
+              await client.mutation(
+                "managedSessions:markMessageDelivered" as any,
+                {
+                  message_id: msg._id,
+                  api_token: config.auth_token,
+                },
+              );
               log(`Message delivered and marked`);
             } catch (err) {
               log(`Failed to inject: ${err}`);
@@ -284,60 +362,89 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
       if (fs.existsSync(claudeDir)) {
         let conversationId: string | null = null;
         let realSessionDiscovered = false;
-        const watcher = fs.watch(claudeDir, { recursive: true }, async (_eventType, filename) => {
-          if (!filename || !filename.endsWith(".jsonl") || conversationId) return;
-          const match = filename.match(/([0-9a-f-]{36})\.jsonl$/);
-          if (match) {
-            const claudeSessionId = match[1];
-            log(`Session file detected: ${claudeSessionId}`);
+        const watcher = fs.watch(
+          claudeDir,
+          { recursive: true },
+          async (_eventType, filename) => {
+            if (!filename || !filename.endsWith(".jsonl") || conversationId)
+              return;
+            const match = filename.match(/([0-9a-f-]{36})\.jsonl$/);
+            if (match) {
+              const claudeSessionId = match[1];
+              log(`Session file detected: ${claudeSessionId}`);
 
-            // Rename tmux session to use real session ID
-            if (!realSessionDiscovered && claudeSessionId !== sessionId && tmuxSessionName) {
-              realSessionDiscovered = true;
-              const newTmuxName = `codecast-${claudeSessionId.slice(0, 8)}`;
-              try {
-                tmuxExecSync(["rename-session", "-t", tmuxSessionName!, newTmuxName]);
-                log(`Renamed tmux session ${tmuxSessionName} -> ${newTmuxName}`);
-                tmuxSessionName = newTmuxName;
-              } catch (err) {
-                log(`Failed to rename tmux session: ${err}`);
-              }
-
-              // Re-register managed session with real ID
-              try {
-                await client.mutation("managedSessions:updateManagedSessionId" as any, {
-                  old_session_id: sessionId,
-                  new_session_id: claudeSessionId,
-                  api_token: config.auth_token,
-                });
-                activeSessionId = claudeSessionId;
-                log(`Updated managed session ID: ${sessionId.slice(0, 8)} -> ${claudeSessionId.slice(0, 8)}`);
-              } catch (err) {
-                log(`Failed to update managed session ID: ${err}`);
-              }
-            }
-
-            setTimeout(async () => {
-              try {
-                const result = await client.query("managedSessions:getConversationBySessionId" as any, {
-                  claude_session_id: claudeSessionId,
-                  api_token: config.auth_token,
-                });
-                if (result?.conversation_id && !conversationId) {
-                  conversationId = result.conversation_id;
-                  log(`Found conversation: ${conversationId}`);
-                  const activeSessionId = realSessionDiscovered ? claudeSessionId : sessionId;
-                  await client.mutation("managedSessions:updateSessionConversation" as any, {
-                    session_id: activeSessionId,
-                    conversation_id: conversationId,
-                    api_token: config.auth_token,
-                  });
-                  log(`Linked managed session to conversation`);
+              // Rename tmux session to use real session ID
+              if (
+                !realSessionDiscovered &&
+                claudeSessionId !== sessionId &&
+                tmuxSessionName
+              ) {
+                realSessionDiscovered = true;
+                const newTmuxName = `codecast-${claudeSessionId.slice(0, 8)}`;
+                try {
+                  tmuxExecSync([
+                    "rename-session",
+                    "-t",
+                    tmuxSessionName!,
+                    newTmuxName,
+                  ]);
+                  log(
+                    `Renamed tmux session ${tmuxSessionName} -> ${newTmuxName}`,
+                  );
+                  tmuxSessionName = newTmuxName;
+                } catch (err) {
+                  log(`Failed to rename tmux session: ${err}`);
                 }
-              } catch {}
-            }, 2000);
-          }
-        });
+
+                // Re-register managed session with real ID
+                try {
+                  await client.mutation(
+                    "managedSessions:updateManagedSessionId" as any,
+                    {
+                      old_session_id: sessionId,
+                      new_session_id: claudeSessionId,
+                      api_token: config.auth_token,
+                    },
+                  );
+                  activeSessionId = claudeSessionId;
+                  log(
+                    `Updated managed session ID: ${sessionId.slice(0, 8)} -> ${claudeSessionId.slice(0, 8)}`,
+                  );
+                } catch (err) {
+                  log(`Failed to update managed session ID: ${err}`);
+                }
+              }
+
+              setTimeout(async () => {
+                try {
+                  const result = await client.query(
+                    "managedSessions:getConversationBySessionId" as any,
+                    {
+                      claude_session_id: claudeSessionId,
+                      api_token: config.auth_token,
+                    },
+                  );
+                  if (result?.conversation_id && !conversationId) {
+                    conversationId = result.conversation_id;
+                    log(`Found conversation: ${conversationId}`);
+                    const activeSessionId = realSessionDiscovered
+                      ? claudeSessionId
+                      : sessionId;
+                    await client.mutation(
+                      "managedSessions:updateSessionConversation" as any,
+                      {
+                        session_id: activeSessionId,
+                        conversation_id: conversationId,
+                        api_token: config.auth_token,
+                      },
+                    );
+                    log(`Linked managed session to conversation`);
+                  }
+                } catch {}
+              }, 2000);
+            }
+          },
+        );
         attach.on("exit", () => watcher.close());
       }
 
@@ -368,9 +475,11 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
     if (tmuxPane) {
       try {
         const wasPoll = await injectIntoPane(tmuxPane, content);
-        log(wasPoll
-          ? `Injected poll response via tmux to pane ${tmuxPane}`
-          : `Injected via tmux paste to pane ${tmuxPane}`);
+        log(
+          wasPoll
+            ? `Injected poll response via tmux to pane ${tmuxPane}`
+            : `Injected via tmux paste to pane ${tmuxPane}`,
+        );
         return true;
       } catch (err) {
         log(`Failed to inject via tmux: ${err}`);
@@ -398,10 +507,13 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
 
   const pollForMessages = async () => {
     try {
-      const messages = await client.query("managedSessions:getPendingMessagesForSession" as any, {
-        session_id: sessionId,
-        api_token: config.auth_token,
-      });
+      const messages = await client.query(
+        "managedSessions:getPendingMessagesForSession" as any,
+        {
+          session_id: sessionId,
+          api_token: config.auth_token,
+        },
+      );
 
       for (const msg of messages as any[]) {
         log(`Delivering message: ${msg.content.slice(0, 50)}...`);
@@ -444,7 +556,9 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
         api_token: config.auth_token,
       });
       activeSessionId = claudeSessionId;
-      log(`Updated managed session ID: ${sessionId.slice(0, 8)} -> ${claudeSessionId.slice(0, 8)}`);
+      log(
+        `Updated managed session ID: ${sessionId.slice(0, 8)} -> ${claudeSessionId.slice(0, 8)}`,
+      );
     } catch (err) {
       log(`Failed to update managed session ID: ${err}`);
     }
@@ -456,20 +570,26 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
     await updateSessionIdIfNeeded(claudeSessionId);
 
     try {
-      const result = await client.query("managedSessions:getConversationBySessionId" as any, {
-        claude_session_id: claudeSessionId,
-        api_token: config.auth_token,
-      });
+      const result = await client.query(
+        "managedSessions:getConversationBySessionId" as any,
+        {
+          claude_session_id: claudeSessionId,
+          api_token: config.auth_token,
+        },
+      );
 
       if (result?.conversation_id) {
         conversationId = result.conversation_id;
         log(`Found conversation: ${conversationId}`);
 
-        await client.mutation("managedSessions:updateSessionConversation" as any, {
-          session_id: activeSessionId,
-          conversation_id: conversationId,
-          api_token: config.auth_token,
-        });
+        await client.mutation(
+          "managedSessions:updateSessionConversation" as any,
+          {
+            session_id: activeSessionId,
+            conversation_id: conversationId,
+            api_token: config.auth_token,
+          },
+        );
         log(`Linked managed session to conversation`);
       }
     } catch (err) {
@@ -481,17 +601,21 @@ export async function runClaudeWrapper(args: string[]): Promise<void> {
     const claudeDir = path.join(os.homedir(), ".claude", "projects");
     if (!fs.existsSync(claudeDir)) return;
 
-    const watcher = fs.watch(claudeDir, { recursive: true }, async (_eventType, filename) => {
-      if (!filename || !filename.endsWith(".jsonl") || conversationId) return;
+    const watcher = fs.watch(
+      claudeDir,
+      { recursive: true },
+      async (_eventType, filename) => {
+        if (!filename || !filename.endsWith(".jsonl") || conversationId) return;
 
-      const match = filename.match(/([0-9a-f-]{36})\.jsonl$/);
-      if (match) {
-        const claudeSessionId = match[1];
-        log(`Session file detected: ${claudeSessionId}`);
+        const match = filename.match(/([0-9a-f-]{36})\.jsonl$/);
+        if (match) {
+          const claudeSessionId = match[1];
+          log(`Session file detected: ${claudeSessionId}`);
 
-        setTimeout(() => linkConversation(claudeSessionId), 2000);
-      }
-    });
+          setTimeout(() => linkConversation(claudeSessionId), 2000);
+        }
+      },
+    );
 
     claude.on("exit", () => watcher.close());
   };

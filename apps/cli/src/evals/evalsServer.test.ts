@@ -5,7 +5,15 @@
 // so the bridge's real argv (`bun <entry> api --stdio`) is what runs. Never
 // touches the daemon, the real EVALS_HOME or the real eval tool.
 
-import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as http from "http";
@@ -13,7 +21,16 @@ import * as os from "os";
 import * as path from "path";
 import type { AddressInfo } from "net";
 import { agentSpawnPath } from "../agentSpawnPath.js";
-import { EVALS_API_COMMAND, EVALS_ENTRY, EVALS_SCRIPT_HEADER, createEvalsBridge, evalsHomeDir, lineReader, type EvalsBridge, type EvalsBridgeDeps } from "./evalsBridge.js";
+import {
+  EVALS_API_COMMAND,
+  EVALS_ENTRY,
+  EVALS_SCRIPT_HEADER,
+  createEvalsBridge,
+  evalsHomeDir,
+  lineReader,
+  type EvalsBridge,
+  type EvalsBridgeDeps,
+} from "./evalsBridge.js";
 import { handleEvalsHttp } from "./evalsServer.js";
 
 // Every test spawns git and bun children; at a load average in the hundreds a
@@ -52,16 +69,35 @@ let goodRoot = "";
 let rigCount = 0;
 const rigs: { bridge: EvalsBridge; server: http.Server }[] = [];
 
-const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "pipe" });
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", args, { cwd, stdio: "pipe" });
 
 /** A scratch checkout. `header: false` writes a foreign `evals` script, `entry: false` leaves out the child's entry, `api: false` its api command. */
-function makeCheckout(name: string, opts: { header?: boolean; entry?: boolean; api?: boolean; gitInit?: boolean } = {}): string {
+function makeCheckout(
+  name: string,
+  opts: {
+    header?: boolean;
+    entry?: boolean;
+    api?: boolean;
+    gitInit?: boolean;
+  } = {},
+): string {
   const root = path.join(tmp, name);
-  fs.mkdirSync(path.join(root, path.dirname(EVALS_API_COMMAND)), { recursive: true });
-  if (opts.api !== false) fs.writeFileSync(path.join(root, EVALS_API_COMMAND), "");
-  const header = opts.header === false ? ["#!/bin/sh", "# some other tool", "exec true"] : [...EVALS_SCRIPT_HEADER];
-  fs.writeFileSync(path.join(root, "evals"), `${header.join("\n")}\nroot="$(cd "$(dirname "$0")" && pwd)"\n`);
-  if (opts.entry !== false) fs.writeFileSync(path.join(root, EVALS_ENTRY), FAKE_CHILD);
+  fs.mkdirSync(path.join(root, path.dirname(EVALS_API_COMMAND)), {
+    recursive: true,
+  });
+  if (opts.api !== false)
+    fs.writeFileSync(path.join(root, EVALS_API_COMMAND), "");
+  const header =
+    opts.header === false
+      ? ["#!/bin/sh", "# some other tool", "exec true"]
+      : [...EVALS_SCRIPT_HEADER];
+  fs.writeFileSync(
+    path.join(root, "evals"),
+    `${header.join("\n")}\nroot="$(cd "$(dirname "$0")" && pwd)"\n`,
+  );
+  if (opts.entry !== false)
+    fs.writeFileSync(path.join(root, EVALS_ENTRY), FAKE_CHILD);
   if (opts.gitInit !== false) git(root, "init", "-q");
   return fs.realpathSync(root);
 }
@@ -75,7 +111,10 @@ function makeHome(name: string, root: string | null): string {
 }
 
 const pointAt = (home: string, root: string) =>
-  fs.writeFileSync(path.join(home, "checkout.json"), JSON.stringify({ root, at: new Date().toISOString() }));
+  fs.writeFileSync(
+    path.join(home, "checkout.json"),
+    JSON.stringify({ root, at: new Date().toISOString() }),
+  );
 
 type Auth = { token?: string | null; origin?: string };
 
@@ -90,7 +129,11 @@ async function use(home: string, deps: Partial<EvalsBridgeDeps> = {}) {
   const bridge = createEvalsBridge({
     evalsHome: () => home,
     repoRootOverride: () => undefined,
-    env: () => ({ ...process.env, PATH: agentSpawnPath(path.dirname(process.execPath)), FAKE_MARKER: marker }),
+    env: () => ({
+      ...process.env,
+      PATH: agentSpawnPath(path.dirname(process.execPath)),
+      FAKE_MARKER: marker,
+    }),
     crashBackoffMs: 0,
     ...deps,
   });
@@ -103,14 +146,26 @@ async function use(home: string, deps: Partial<EvalsBridgeDeps> = {}) {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   rigs.push({ bridge, server });
   const port = (server.address() as AddressInfo).port;
-  const api = (pathAndQuery: string, init: RequestInit = {}, auth: Auth = {}): Promise<Response> => {
+  const api = (
+    pathAndQuery: string,
+    init: RequestInit = {},
+    auth: Auth = {},
+  ): Promise<Response> => {
     const token = auth.token === undefined ? TOKEN : auth.token;
     return fetch(`http://127.0.0.1:${port}${pathAndQuery}`, {
       ...init,
-      headers: { Origin: auth.origin ?? ORIGIN, ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json", ...(init.headers ?? {}) },
+      headers: {
+        Origin: auth.origin ?? ORIGIN,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
     });
   };
-  const execs = () => (fs.existsSync(marker) ? fs.readFileSync(marker, "utf8").trim().split("\n").filter(Boolean) : []);
+  const execs = () =>
+    fs.existsSync(marker)
+      ? fs.readFileSync(marker, "utf8").trim().split("\n").filter(Boolean)
+      : [];
   return { bridge, api, execs };
 }
 
@@ -124,12 +179,15 @@ const alive = (pid: number) => {
 };
 const waitFor = async (cond: () => boolean, ms = 30_000) => {
   const until = Date.now() + ms;
-  while (!cond() && Date.now() < until) await new Promise((r) => setTimeout(r, 25));
+  while (!cond() && Date.now() < until)
+    await new Promise((r) => setTimeout(r, 25));
   return cond();
 };
 
 beforeAll(() => {
-  tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "evals-bridge-")));
+  tmp = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "evals-bridge-")),
+  );
   goodRoot = makeCheckout("good");
 });
 
@@ -149,18 +207,29 @@ describe("/evals envelope", () => {
   test("a missing token or a foreign origin gets 403 and execs nothing", async () => {
     const { api, execs } = await use(makeHome("auth", goodRoot));
     expect((await api("/evals/health", {}, { token: null })).status).toBe(403);
-    expect((await api("/evals/health", {}, { token: "f".repeat(32) })).status).toBe(403);
-    const foreign = await api("/evals/health", {}, { origin: "https://evil.example" });
+    expect(
+      (await api("/evals/health", {}, { token: "f".repeat(32) })).status,
+    ).toBe(403);
+    const foreign = await api(
+      "/evals/health",
+      {},
+      { origin: "https://evil.example" },
+    );
     expect(foreign.status).toBe(403);
     expect(foreign.headers.get("access-control-allow-origin")).toBeNull();
-    expect(await foreign.json()).toEqual({ error: "forbidden", reason: "forbidden" });
+    expect(await foreign.json()).toEqual({
+      error: "forbidden",
+      reason: "forbidden",
+    });
     expect(execs()).toEqual([]);
   });
 
   test("a path outside the contract is 404 and never starts the child", async () => {
     const { api, execs } = await use(makeHome("routes", goodRoot));
     expect((await api("/evals/nope")).status).toBe(404);
-    expect((await api("/evals/health", { method: "POST", body: "{}" })).status).toBe(404);
+    expect(
+      (await api("/evals/health", { method: "POST", body: "{}" })).status,
+    ).toBe(404);
     expect(execs()).toEqual([]);
   });
 
@@ -173,7 +242,11 @@ describe("/evals envelope", () => {
 });
 
 describe("checkout validation, before any exec", () => {
-  const refused = async (home: string, reason: string, deps: Partial<EvalsBridgeDeps> = {}) => {
+  const refused = async (
+    home: string,
+    reason: string,
+    deps: Partial<EvalsBridgeDeps> = {},
+  ) => {
     const { api, execs } = await use(home, deps);
     const res = await api("/evals/health");
     const body = await res.json();
@@ -190,46 +263,72 @@ describe("checkout validation, before any exec", () => {
   });
 
   test("checkout.json naming a folder that is gone", async () => {
-    await refused(makeHome("gone", path.join(tmp, "deleted-checkout")), "no-checkout");
+    await refused(
+      makeHome("gone", path.join(tmp, "deleted-checkout")),
+      "no-checkout",
+    );
   });
 
   test("a checkout another user owns", async () => {
-    await refused(makeHome("owner", goodRoot), "checkout-not-owned", { uid: () => (process.getuid?.() ?? 0) + 1 });
+    await refused(makeHome("owner", goodRoot), "checkout-not-owned", {
+      uid: () => (process.getuid?.() ?? 0) + 1,
+    });
   });
 
   test("an evals script without the known header", async () => {
-    await refused(makeHome("header", makeCheckout("foreign", { header: false })), "checkout-bad-header");
+    await refused(
+      makeHome("header", makeCheckout("foreign", { header: false })),
+      "checkout-bad-header",
+    );
   });
 
   test("a folder that is not a git top level", async () => {
-    await refused(makeHome("nogit", makeCheckout("nogit", { gitInit: false })), "checkout-not-toplevel");
+    await refused(
+      makeHome("nogit", makeCheckout("nogit", { gitInit: false })),
+      "checkout-not-toplevel",
+    );
   });
 
   test("a folder nested inside a git checkout", async () => {
     const nested = path.join(goodRoot, "nested");
-    fs.mkdirSync(path.join(nested, path.dirname(EVALS_ENTRY)), { recursive: true });
-    fs.writeFileSync(path.join(nested, "evals"), `${EVALS_SCRIPT_HEADER.join("\n")}\n`);
+    fs.mkdirSync(path.join(nested, path.dirname(EVALS_ENTRY)), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(nested, "evals"),
+      `${EVALS_SCRIPT_HEADER.join("\n")}\n`,
+    );
     fs.writeFileSync(path.join(nested, EVALS_ENTRY), FAKE_CHILD);
     await refused(makeHome("nested", nested), "checkout-not-toplevel");
   });
 
   test("a checkout without the child's entry", async () => {
-    await refused(makeHome("entry", makeCheckout("noentry", { entry: false })), "checkout-no-entry");
+    await refused(
+      makeHome("entry", makeCheckout("noentry", { entry: false })),
+      "checkout-no-entry",
+    );
   });
 
   test("a checkout whose eval tool predates the api command", async () => {
-    await refused(makeHome("noapi", makeCheckout("noapi", { api: false })), "checkout-no-entry");
+    await refused(
+      makeHome("noapi", makeCheckout("noapi", { api: false })),
+      "checkout-no-entry",
+    );
   });
 
   test("no bun on PATH", async () => {
-    const { api } = await use(makeHome("nobun", goodRoot), { command: () => ({ cmd: "codecast-test-no-such-bun", args: [] }) });
+    const { api } = await use(makeHome("nobun", goodRoot), {
+      command: () => ({ cmd: "codecast-test-no-such-bun", args: [] }),
+    });
     const res = await api("/evals/health");
     expect(res.status).toBe(503);
     expect((await res.json()).reason).toBe("no-bun");
   });
 
   test("CODECAST_EVALS_REPO_ROOT names the checkout in place of checkout.json", async () => {
-    const { api } = await use(makeHome("override", null), { repoRootOverride: () => goodRoot });
+    const { api } = await use(makeHome("override", null), {
+      repoRootOverride: () => goodRoot,
+    });
     expect((await api("/evals/health")).status).toBe(200);
   });
 });
@@ -237,19 +336,36 @@ describe("checkout validation, before any exec", () => {
 describe("the api child", () => {
   test("starts on demand in the checkout, once, and forwards method, path, query and body", async () => {
     const { api, execs } = await use(makeHome("happy", goodRoot));
-    const first = await (await api("/evals/surface/settle?from=2026-09-01&model=x")).json();
+    const first = await (
+      await api("/evals/surface/settle?from=2026-09-01&model=x")
+    ).json();
     expect(first.cwd).toBe(goodRoot);
     expect(first.args).toEqual(["api", "--stdio"]);
-    expect(first.req).toMatchObject({ method: "GET", path: "/surface/settle", query: { from: "2026-09-01", model: "x" } });
-    const posted = await (await api("/evals/bisect/plan", { method: "POST", body: JSON.stringify({ surface: "settle", good: "a", bad: "b" }) })).json();
-    expect(posted.req).toMatchObject({ method: "POST", path: "/bisect/plan", body: { surface: "settle", good: "a", bad: "b" } });
+    expect(first.req).toMatchObject({
+      method: "GET",
+      path: "/surface/settle",
+      query: { from: "2026-09-01", model: "x" },
+    });
+    const posted = await (
+      await api("/evals/bisect/plan", {
+        method: "POST",
+        body: JSON.stringify({ surface: "settle", good: "a", bad: "b" }),
+      })
+    ).json();
+    expect(posted.req).toMatchObject({
+      method: "POST",
+      path: "/bisect/plan",
+      body: { surface: "settle", good: "a", bad: "b" },
+    });
     expect(posted.pid).toBe(first.pid);
     expect(execs()).toHaveLength(1);
   });
 
   test("concurrent first requests start one child", async () => {
     const { api, execs } = await use(makeHome("burst", goodRoot));
-    const bodies = await Promise.all([1, 2, 3, 4].map(async () => (await api("/evals/health")).json()));
+    const bodies = await Promise.all(
+      [1, 2, 3, 4].map(async () => (await api("/evals/health")).json()),
+    );
     expect(new Set(bodies.map((b) => b.pid)).size).toBe(1);
     expect(execs()).toHaveLength(1);
   });
@@ -268,7 +384,10 @@ describe("the api child", () => {
     expect(res.status).toBe(502);
     const body = await res.json();
     expect(body.reason).toBe("child-crashed");
-    expect(body.stderr).toEqual(["loading surfaces", "boom: cannot find module ./meta.ts"]);
+    expect(body.stderr).toEqual([
+      "loading surfaces",
+      "boom: cannot find module ./meta.ts",
+    ]);
     expect(bridge.pid()).toBeNull();
     const again = await (await api("/evals/health")).json();
     expect(again.pid).not.toBe(ok.pid);
@@ -276,16 +395,22 @@ describe("the api child", () => {
   });
 
   test("inside the crash backoff the crash comes back without a fresh exec", async () => {
-    const { api, execs } = await use(makeHome("backoff", goodRoot), { crashBackoffMs: 600_000 });
+    const { api, execs } = await use(makeHome("backoff", goodRoot), {
+      crashBackoffMs: 600_000,
+    });
     expect((await api("/evals/overview?crash=1")).status).toBe(502);
     const res = await api("/evals/health");
     expect(res.status).toBe(502);
-    expect((await res.json()).stderr).toContain("boom: cannot find module ./meta.ts");
+    expect((await res.json()).stderr).toContain(
+      "boom: cannot find module ./meta.ts",
+    );
     expect(execs()).toHaveLength(1);
   });
 
   test("the child is killed after the idle window, and a later request starts a new one", async () => {
-    const { bridge, api } = await use(makeHome("idle", goodRoot), { idleMs: 150 });
+    const { bridge, api } = await use(makeHome("idle", goodRoot), {
+      idleMs: 150,
+    });
     const { pid } = await (await api("/evals/health")).json();
     expect(alive(pid)).toBe(true);
     expect(await waitFor(() => !alive(pid))).toBe(true);
@@ -301,7 +426,9 @@ describe("the api child", () => {
   });
 
   test("a child that never answers gets a 504 at the request timeout", async () => {
-    const { api } = await use(makeHome("timeout", goodRoot), { requestTimeoutMs: 150 });
+    const { api } = await use(makeHome("timeout", goodRoot), {
+      requestTimeoutMs: 150,
+    });
     const res = await api("/evals/health?slow=5000");
     expect(res.status).toBe(504);
   });
@@ -331,7 +458,9 @@ describe("a checkout.json that moves under a running child", () => {
     const first = await (await api("/evals/health")).json();
     expect(first.cwd).toBe(goodRoot);
     pointAt(home, other);
-    const replies = await Promise.all([1, 2, 3].map(() => api("/evals/health")));
+    const replies = await Promise.all(
+      [1, 2, 3].map(() => api("/evals/health")),
+    );
     expect(replies.map((r) => r.status)).toEqual([200, 200, 200]);
     const bodies = await Promise.all(replies.map((r) => r.json()));
     expect(new Set(bodies.map((b) => b.cwd))).toEqual(new Set([other]));
@@ -356,7 +485,11 @@ describe("a checkout.json that moves under a running child", () => {
     let envs = 0;
     const logs: string[] = [];
     // Every git spawn and child spawn reads deps.env once, so its count is the spawn count.
-    const env = { ...process.env, PATH: agentSpawnPath(path.dirname(process.execPath)), FAKE_MARKER: path.join(tmp, "execs-memo.log") };
+    const env = {
+      ...process.env,
+      PATH: agentSpawnPath(path.dirname(process.execPath)),
+      FAKE_MARKER: path.join(tmp, "execs-memo.log"),
+    };
     const { api } = await use(home, {
       log: (m) => logs.push(m),
       env: () => {
@@ -373,7 +506,9 @@ describe("a checkout.json that moves under a running child", () => {
       expect((await res.json()).pid).toBe(first.pid);
     }
     expect(envs - afterStart).toBe(1);
-    expect(logs.filter((m) => m.includes("predates the api command"))).toHaveLength(1);
+    expect(
+      logs.filter((m) => m.includes("predates the api command")),
+    ).toHaveLength(1);
   });
 
   test("with no child running, such a pointer falls back to the last checkout that served", async () => {
@@ -392,7 +527,16 @@ describe("a checkout.json that moves under a running child", () => {
   test("a destroyed worktree that held the pointer ends its child and falls back to its main checkout", async () => {
     const main = makeCheckout("wt-main");
     git(main, "add", "-A");
-    git(main, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "checkout");
+    git(
+      main,
+      "-c",
+      "user.email=t@example.com",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-qm",
+      "checkout",
+    );
     const wt = path.join(tmp, "wt-line");
     git(main, "worktree", "add", "-q", wt);
     const home = makeHome("wt", fs.realpathSync(wt));
@@ -431,12 +575,22 @@ describe("a checkout.json that moves under a running child", () => {
         return goodRoot;
       },
     }));
-    const first = await bridge.request({ method: "GET", path: "/health", query: {} });
+    const first = await bridge.request({
+      method: "GET",
+      path: "/health",
+      query: {},
+    });
     expect(first.status).toBe(200);
     endMidRead = true;
-    const next = await bridge.request({ method: "GET", path: "/health", query: {} });
+    const next = await bridge.request({
+      method: "GET",
+      path: "/health",
+      query: {},
+    });
     expect(next.status).toBe(200);
-    expect((next.body as { pid: number }).pid).not.toBe((first.body as { pid: number }).pid);
+    expect((next.body as { pid: number }).pid).not.toBe(
+      (first.body as { pid: number }).pid,
+    );
   });
 });
 
@@ -458,8 +612,16 @@ describe("the handler never blocks", () => {
   test("handleEvalsHttp returns before the bridge answers, and answers once it does", async () => {
     let release!: () => void;
     const pending = new Promise<void>((r) => (release = r));
-    const bridge: EvalsBridge = { request: async () => (await pending, { status: 200, body: {} }), stop: () => {}, pid: () => null };
-    const req = Object.assign(new http.IncomingMessage(null as never), { url: "/evals/health", method: "GET", headers: { origin: ORIGIN, authorization: `Bearer ${TOKEN}` } });
+    const bridge: EvalsBridge = {
+      request: async () => (await pending, { status: 200, body: {} }),
+      stop: () => {},
+      pid: () => null,
+    };
+    const req = Object.assign(new http.IncomingMessage(null as never), {
+      url: "/evals/health",
+      method: "GET",
+      headers: { origin: ORIGIN, authorization: `Bearer ${TOKEN}` },
+    });
     let status = 0;
     let ended!: () => void;
     const done = new Promise<void>((r) => (ended = r));
@@ -468,7 +630,9 @@ describe("the handler never blocks", () => {
       writeHead: (s: number) => ((status = s), res),
       end: () => ended(),
     } as unknown as http.ServerResponse;
-    expect(handleEvalsHttp(req, res, { token: TOKEN, log: () => {} }, bridge)).toBe(true);
+    expect(
+      handleEvalsHttp(req, res, { token: TOKEN, log: () => {} }, bridge),
+    ).toBe(true);
     expect(status).toBe(0);
     release();
     await done;
@@ -477,7 +641,9 @@ describe("the handler never blocks", () => {
 
   test("neither file makes a synchronous call", () => {
     for (const file of ["evalsBridge.ts", "evalsServer.ts"]) {
-      const src = fs.readFileSync(path.join(import.meta.dir, file), "utf8").replace(/^\s*(\/\/|\*).*$/gm, "");
+      const src = fs
+        .readFileSync(path.join(import.meta.dir, file), "utf8")
+        .replace(/^\s*(\/\/|\*).*$/gm, "");
       expect(src.match(/\b\w+Sync\s*\(/g) ?? []).toEqual([]);
     }
   });
@@ -496,7 +662,10 @@ describe("lineReader", () => {
     const feed = lineReader((l, over) => got.push([l, over]), 8);
     feed('{"id":7,"status":200');
     feed(',"body":1}\nok\n');
-    expect(got).toEqual([['{"id":7,', true], ["ok", false]]);
+    expect(got).toEqual([
+      ['{"id":7,', true],
+      ["ok", false],
+    ]);
   });
 
   test("a large line arriving in small chunks costs its length, not its length squared", () => {
@@ -514,13 +683,28 @@ describe("lineReader", () => {
 
 describe("agreement with the eval tool", () => {
   test("the header matches the repo's own evals script", () => {
-    const script = fs.readFileSync(path.join(import.meta.dir, "..", "..", "..", "..", "evals"), "utf8");
+    const script = fs.readFileSync(
+      path.join(import.meta.dir, "..", "..", "..", "..", "evals"),
+      "utf8",
+    );
     expect(script.split("\n").slice(0, 3)).toEqual([...EVALS_SCRIPT_HEADER]);
   });
 
   test("the default EVALS_HOME is the one apps/evals/src/paths.ts resolves", async () => {
-    const pathsFile = path.join(import.meta.dir, "..", "..", "..", "..", "apps", "evals", "src", "paths.ts");
-    const { evalsHome } = (await import(pathsFile)) as { evalsHome: () => string };
+    const pathsFile = path.join(
+      import.meta.dir,
+      "..",
+      "..",
+      "..",
+      "..",
+      "apps",
+      "evals",
+      "src",
+      "paths.ts",
+    );
+    const { evalsHome } = (await import(pathsFile)) as {
+      evalsHome: () => string;
+    };
     const saved = process.env.CODECAST_EVALS_HOME;
     try {
       delete process.env.CODECAST_EVALS_HOME;

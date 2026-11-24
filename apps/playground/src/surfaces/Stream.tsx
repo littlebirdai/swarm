@@ -3,7 +3,15 @@
 // when you are not, older pages loading as you scroll up. A version sits
 // where it landed, not where it was asked for, so the versions read in
 // order top to bottom.
-import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { MessageView } from "../../convex/messages";
 import { useIdentity } from "../lib/identity";
 import { inLandingOrder } from "../lib/streamOrder";
@@ -30,22 +38,34 @@ const LOAD_MORE_PX = 160;
 const HAND_MS = 250;
 
 /** `onBrowse`: the reader scrolled back into history by hand. */
-export const Stream = memo(function Stream({ onBrowse }: { onBrowse?: () => void }) {
+export const Stream = memo(function Stream({
+  onBrowse,
+}: {
+  onBrowse?: () => void;
+}) {
   const { reveal, setReveal } = useAppState();
   const stream = useStream();
   const here = useHereState();
   const { me } = useIdentity();
   const now = useNow(30_000);
   const behavior = useReducedMotion() ? "auto" : "smooth";
-  const items = useMemo(() => inLandingOrder(stream.messages), [stream.messages]);
+  const items = useMemo(
+    () => inLandingOrder(stream.messages),
+    [stream.messages],
+  );
 
   // Two people here sharing a name get their animal after it.
   const sharedNames = useMemo(() => {
     const ids = new Map<string, Set<string>>();
-    for (const p of [...here.people, ...stream.messages.flatMap((m) => (m.author ? [m.author] : []))]) {
+    for (const p of [
+      ...here.people,
+      ...stream.messages.flatMap((m) => (m.author ? [m.author] : [])),
+    ]) {
       ids.set(p.name, (ids.get(p.name) ?? new Set()).add(p.id));
     }
-    return new Set([...ids].filter(([, set]) => set.size > 1).map(([name]) => name));
+    return new Set(
+      [...ids].filter(([, set]) => set.size > 1).map(([name]) => name),
+    );
   }, [here.people, stream.messages]);
 
   const scroller = useRef<HTMLDivElement>(null);
@@ -64,10 +84,18 @@ export const Stream = memo(function Stream({ onBrowse }: { onBrowse?: () => void
     if (!el || items.length === 0) return;
     const first = itemKey(items[0]);
     const last = itemKey(items[items.length - 1]);
-    if (firstId.current && first !== firstId.current && last === lastId.current) {
+    if (
+      firstId.current &&
+      first !== firstId.current &&
+      last === lastId.current
+    ) {
       el.scrollTop += el.scrollHeight - heightBefore.current;
     } else if (last !== lastId.current) {
-      if (atBottom.current || lastId.current === null || mine(items[items.length - 1], me.id)) {
+      if (
+        atBottom.current ||
+        lastId.current === null ||
+        mine(items[items.length - 1], me.id)
+      ) {
         el.scrollTop = el.scrollHeight;
         setUnseen(0);
       } else {
@@ -97,9 +125,15 @@ export const Stream = memo(function Stream({ onBrowse }: { onBrowse?: () => void
 
   const onScroll = () => {
     const el = scroller.current!;
-    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    atBottom.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
     if (atBottom.current) setUnseen(0);
-    if (onBrowse && el.scrollTop < lastTop.current && performance.now() - handAt.current < HAND_MS) onBrowse();
+    if (
+      onBrowse &&
+      el.scrollTop < lastTop.current &&
+      performance.now() - handAt.current < HAND_MS
+    )
+      onBrowse();
     lastTop.current = el.scrollTop;
     if (el.scrollTop < LOAD_MORE_PX && stream.status === "CanLoadMore") {
       heightBefore.current = el.scrollHeight;
@@ -108,14 +142,19 @@ export const Stream = memo(function Stream({ onBrowse }: { onBrowse?: () => void
   };
 
   const toBottom = () => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior });
+    scroller.current?.scrollTo({
+      top: scroller.current.scrollHeight,
+      behavior,
+    });
     setUnseen(0);
   };
 
   // The toast's click: bring that card into view and flash it.
   useEffect(() => {
     if (!reveal) return;
-    const el = scroller.current?.querySelector<HTMLElement>(`[data-id="${reveal}"]`);
+    const el = scroller.current?.querySelector<HTMLElement>(
+      `[data-id="${reveal}"]`,
+    );
     if (!el) return;
     el.scrollIntoView({ block: "center", behavior });
     el.dataset.flash = "1";
@@ -138,12 +177,24 @@ export const Stream = memo(function Stream({ onBrowse }: { onBrowse?: () => void
         <div className={s.items} ref={list}>
           {exhausted && <OriginRow />}
           {!loading && items.length === 0 && <EmptyRoom />}
-          {stream.status === "LoadingMore" && <div className={s.more} aria-hidden><Dots /></div>}
+          {stream.status === "LoadingMore" && (
+            <div className={s.more} aria-hidden>
+              <Dots />
+            </div>
+          )}
           {/* Only new rows are news: older pages arrive while it is busy,
               and the typing row sits outside it. */}
-          <div className={s.log} role="log" aria-label="Room messages" aria-relevant="additions" aria-busy={stream.status === "LoadingMore" || loading}>
+          <div
+            className={s.log}
+            role="log"
+            aria-label="Room messages"
+            aria-relevant="additions"
+            aria-busy={stream.status === "LoadingMore" || loading}
+          >
             {items.map((m, i) => (
-              <Fragment key={m.id}>{renderItem(m, items[i - 1], now, me.id, sharedNames)}</Fragment>
+              <Fragment key={m.id}>
+                {renderItem(m, items[i - 1], now, me.id, sharedNames)}
+              </Fragment>
             ))}
           </div>
           <TypingRow />
@@ -165,32 +216,61 @@ function BuildStatus() {
   const { app, versionByNumber } = useAppState();
   const { messages } = useStream();
   const { me } = useIdentity();
-  const latest = messages.findLast((m) => m.build || m.note?.type === "restore");
+  const latest = messages.findLast(
+    (m) => m.build || m.note?.type === "restore",
+  );
   const b = latest?.build;
   const note = latest?.note?.type === "restore" ? latest.note : null;
-  const text =
-    note ? `v${note.version} is live. ${restoreSaid(note, versionByNumber, me.id)}`
-    : !b ? ""
-    : b.status === "queued" ? "A change is in line"
-    : b.status === "building" ? `Clay is building v${b.result_version ?? app.version_count + 1}`
-    : b.status === "live" ? `v${b.result_version} is live`
-    : b.failure === "declined" ? `Clay answered: ${b.error ?? ""}`
-    : `Didn't make it. ${b.error ?? ""}`;
-  return <p className="sr-only" role="status">{text}</p>;
+  const text = note
+    ? `v${note.version} is live. ${restoreSaid(note, versionByNumber, me.id)}`
+    : !b
+      ? ""
+      : b.status === "queued"
+        ? "A change is in line"
+        : b.status === "building"
+          ? `Clay is building v${b.result_version ?? app.version_count + 1}`
+          : b.status === "live"
+            ? `v${b.result_version} is live`
+            : b.failure === "declined"
+              ? `Clay answered: ${b.error ?? ""}`
+              : `Didn't make it. ${b.error ?? ""}`;
+  return (
+    <p className="sr-only" role="status">
+      {text}
+    </p>
+  );
 }
 
 const itemKey = (m: MessageView) => m.id;
 const mine = (m: MessageView, meId: string) => m.author?.id === meId;
 
-function renderItem(m: MessageView, p: MessageView | undefined, now: number, meId: string, sharedNames: Set<string>) {
+function renderItem(
+  m: MessageView,
+  p: MessageView | undefined,
+  now: number,
+  meId: string,
+  sharedNames: Set<string>,
+) {
   if (m.note?.type === "restore") return <RestoreCard m={m} note={m.note} />;
   if (m.kind === "system") return <SystemNote m={m} />;
   if (m.build) return <BuildCard m={m} b={m.build} />;
   if (m.kind === "request") return <WaitingCard m={m} />;
   if (m.kind === "build") return null;
   const grouped =
-    !!p && p.kind === "chat" && !p.build && p.author?.id === m.author?.id && m.created_at - p.created_at < GROUP_MS;
-  return <ChatMessage m={m} grouped={grouped} now={now} mine={m.author?.id === meId} sharedName={!!m.author && sharedNames.has(m.author.name)} />;
+    !!p &&
+    p.kind === "chat" &&
+    !p.build &&
+    p.author?.id === m.author?.id &&
+    m.created_at - p.created_at < GROUP_MS;
+  return (
+    <ChatMessage
+      m={m}
+      grouped={grouped}
+      now={now}
+      mine={m.author?.id === meId}
+      sharedName={!!m.author && sharedNames.has(m.author.name)}
+    />
+  );
 }
 
 function TypingRow() {
@@ -200,7 +280,11 @@ function TypingRow() {
   const t = here.people.slice(1).filter((p) => typing.has(p.id));
   if (t.length === 0) return null;
   const text =
-    t.length === 1 ? `${t[0].name} is typing` : t.length === 2 ? `${t[0].name} and ${t[1].name} are typing` : `${t.length} people are typing`;
+    t.length === 1
+      ? `${t[0].name} is typing`
+      : t.length === 2
+        ? `${t[0].name} and ${t[1].name} are typing`
+        : `${t.length} people are typing`;
   return (
     <div className={s.typing} aria-hidden>
       <span className={s.typingFaces}>
@@ -219,7 +303,9 @@ function EmptyRoom() {
     <div className={s.empty}>
       <Blob size={44} />
       <p className={s.quiet}>It's quiet in here.</p>
-      <p className={s.emptyHint}>Say what you'd change. Clay builds it and everyone sees it.</p>
+      <p className={s.emptyHint}>
+        Say what you'd change. Clay builds it and everyone sees it.
+      </p>
       <IdeaChips className={s.ideas} />
     </div>
   );
@@ -242,23 +328,34 @@ function OriginRow() {
   // change is someone else's and says nothing about who made it.
   const first = timeline?.find((v) => v.kind !== "seed");
   const firstShown = first && first.author?.id === by?.id ? first : undefined;
-  const firstAsk = firstShown?.kind === "build" ? firstShown.request_message_id : undefined;
-  const said = from ? null : (firstAsk && messages.find((m) => m.id === firstAsk)?.body);
-  const detail = from ? "Same code, a copy of the data. Change anything." : (said ?? firstShown?.summary);
+  const firstAsk =
+    firstShown?.kind === "build" ? firstShown.request_message_id : undefined;
+  const said = from
+    ? null
+    : firstAsk && messages.find((m) => m.id === firstAsk)?.body;
+  const detail = from
+    ? "Same code, a copy of the data. Change anything."
+    : (said ?? firstShown?.summary);
   return (
     <div className={s.origin}>
       {by ? <Face person={by} size={28} /> : <Blob size={28} />}
       <p className={s.originHead}>
-        <b>{by ? nameFor(by, me.id) : "Clay"}</b> {from ? "forked" : "made"} <b>{app.name}</b>
+        <b>{by ? nameFor(by, me.id) : "Clay"}</b> {from ? "forked" : "made"}{" "}
+        <b>{app.name}</b>
         {from && (
           <>
-            {" "}from{" "}
-            <Link className={s.originLink} to={appUrl(from.slug)}>{from.name} v{from.version}</Link>
+            {" "}
+            from{" "}
+            <Link className={s.originLink} to={appUrl(from.slug)}>
+              {from.name} v{from.version}
+            </Link>
           </>
         )}
         <time className={s.originWhen}>{chatTime(app.created_at, now)}</time>
       </p>
-      {detail && <p className={s.originDetail}>{said ? <q>{detail}</q> : detail}</p>}
+      {detail && (
+        <p className={s.originDetail}>{said ? <q>{detail}</q> : detail}</p>
+      )}
     </div>
   );
 }

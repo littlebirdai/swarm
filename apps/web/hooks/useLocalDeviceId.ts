@@ -2,14 +2,20 @@ import { useState } from "react";
 import { captureException } from "@sentry/react";
 import { useConvex, useConvexConnectionState } from "convex/react";
 import { useInboxStore } from "../store/inboxStore";
-import { getTerminalEndpoint, isOverrideEndpoint } from "../lib/terminal/endpoint";
+import {
+  getTerminalEndpoint,
+  isOverrideEndpoint,
+} from "../lib/terminal/endpoint";
 import { useWatchEffect } from "./useWatchEffect";
 
 export function useLocalDeviceId(ready: boolean): string | null {
   const convex = useConvex();
   const { isWebSocketConnected } = useConvexConnectionState();
   const viewer = useInboxStore((s) => s.currentUser?._id);
-  const [local, setLocal] = useState<{ viewer: string; deviceId: string } | null>(null);
+  const [local, setLocal] = useState<{
+    viewer: string;
+    deviceId: string;
+  } | null>(null);
 
   useWatchEffect(() => {
     if (!viewer || !ready || !isWebSocketConnected) return;
@@ -27,7 +33,9 @@ export function useLocalDeviceId(ready: boolean): string | null {
           found = true;
           setLocal({ viewer, deviceId: endpoint.deviceId });
           // Shared with readers that cannot probe per mount (an inbox card).
-          useInboxStore.setState({ localDevice: { viewer, deviceId: endpoint.deviceId } });
+          useInboxStore.setState({
+            localDevice: { viewer, deviceId: endpoint.deviceId },
+          });
         }
       } catch (error) {
         if (!stopped) captureException(error);
@@ -58,7 +66,12 @@ export function LocalDeviceProbe() {
 }
 
 /** This window's machine from the store, for the viewer it was found for. */
-export function localDeviceIdOf(s: { localDevice: { viewer: string; deviceId: string } | null; currentUser?: { _id?: unknown } | null }): string | null {
+export function localDeviceIdOf(s: {
+  localDevice: { viewer: string; deviceId: string } | null;
+  currentUser?: { _id?: unknown } | null;
+}): string | null {
   const viewer = s.currentUser?._id;
-  return s.localDevice && viewer && s.localDevice.viewer === String(viewer) ? s.localDevice.deviceId : null;
+  return s.localDevice && viewer && s.localDevice.viewer === String(viewer)
+    ? s.localDevice.deviceId
+    : null;
 }

@@ -26,7 +26,15 @@ export const lineTrialTables = {
     context_md: v.optional(v.string()),
     doc_md: v.optional(v.string()),
     category: v.optional(v.string()),
-    options: v.optional(v.array(v.object({ key: v.string(), label: v.string(), description: v.optional(v.string()) }))),
+    options: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          label: v.string(),
+          description: v.optional(v.string()),
+        }),
+      ),
+    ),
     /** The change card, as validated for a decision (shared/contracts/changeCard). */
     card: v.optional(v.any()),
     /** The proposal gate's card (shared/contracts/proposalCard), when its words node wrote one. */
@@ -34,9 +42,23 @@ export const lineTrialTables = {
     /** The judge route's card (shared/contracts/judgeFix): a fix to a judge, its extractor or an expectation, measured on the ruled moments; the project's reviewer answers it. */
     judge_fix: v.optional(v.any()),
     /** waiting: the run is paused on it. answered: a person answered here. closed: the run moved on or ended without an answer. */
-    status: v.union(v.literal("waiting"), v.literal("answered"), v.literal("closed")),
+    status: v.union(
+      v.literal("waiting"),
+      v.literal("answered"),
+      v.literal("closed"),
+    ),
     /** stand_in: an agent session answered an earlier gate so the run reaches its card; the card itself is only a person's. via: that session's short id. */
-    answer: v.optional(v.object({ key: v.string(), label: v.string(), note: v.optional(v.string()), by: v.id("users"), at: v.number(), stand_in: v.optional(v.boolean()), via: v.optional(v.string()) })),
+    answer: v.optional(
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        note: v.optional(v.string()),
+        by: v.id("users"),
+        at: v.number(),
+        stand_in: v.optional(v.boolean()),
+        via: v.optional(v.string()),
+      }),
+    ),
     /** Set when the card's branch was stale against main and its run was sent back to rebuild there (`cast line trial rebuild`): until the run's next card, it reads Rebuilding. */
     rebuild_at: v.optional(v.number()),
     /** When `cast line trial recard` last replaced the card's content: a count it carries was taken then, not at created_at. */

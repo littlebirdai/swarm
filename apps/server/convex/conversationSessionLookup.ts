@@ -3,7 +3,7 @@ type LookupCtx = { db: any };
 
 const hasMatchingUser = (
   record: LookupRecord | null,
-  authUserId: { toString(): string } | string
+  authUserId: { toString(): string } | string,
 ): boolean => {
   if (!record?.user_id) return false;
   return record.user_id.toString() === authUserId.toString();
@@ -16,7 +16,7 @@ const hasMatchingUser = (
 // the index holds first and hides the caller's own.
 const sessionIdCandidatesNewestFirst = async (
   ctx: LookupCtx,
-  sessionId: string
+  sessionId: string,
 ): Promise<LookupRecord[]> => {
   const candidates = await ctx.db
     .query("conversations")
@@ -28,18 +28,24 @@ const sessionIdCandidatesNewestFirst = async (
 export const findConversationBySessionReference = async (
   ctx: LookupCtx,
   sessionId: string,
-  authUserId: { toString(): string } | string
+  authUserId: { toString(): string } | string,
 ): Promise<LookupRecord | null> => {
-  const directConversation = (await sessionIdCandidatesNewestFirst(ctx, sessionId))
-    .find((conversation) => hasMatchingUser(conversation, authUserId));
+  const directConversation = (
+    await sessionIdCandidatesNewestFirst(ctx, sessionId)
+  ).find((conversation) => hasMatchingUser(conversation, authUserId));
   if (directConversation) return directConversation;
 
   const managedSession = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_session_id", (query: any) => query.eq("session_id", sessionId))
+    .withIndex("by_session_id", (query: any) =>
+      query.eq("session_id", sessionId),
+    )
     .first();
 
-  if (!hasMatchingUser(managedSession, authUserId) || !managedSession?.conversation_id) {
+  if (
+    !hasMatchingUser(managedSession, authUserId) ||
+    !managedSession?.conversation_id
+  ) {
     return null;
   }
 
@@ -71,7 +77,7 @@ export const findConversationBySessionReference = async (
 // newest match again. A longer ref that is a prefix of none still truncates.
 const shortIdCandidatesNewestFirst = async (
   ctx: LookupCtx,
-  ref: string
+  ref: string,
 ): Promise<LookupRecord[]> => {
   const candidates = await ctx.db
     .query("conversations")
@@ -92,7 +98,7 @@ const shortIdCandidatesNewestFirst = async (
 export const otherShortIdMatches = async (
   ctx: LookupCtx,
   ref: string,
-  chosen: LookupRecord
+  chosen: LookupRecord,
 ): Promise<LookupRecord[]> => {
   const trimmed = (ref ?? "").trim();
   if (trimmed.length < 7 || String(chosen._id) === trimmed) return [];
@@ -110,7 +116,7 @@ export const findConversationByAnyRefWhere = async (
   ctx: LookupCtx,
   ref: string,
   accept: (conversation: LookupRecord) => boolean | Promise<boolean>,
-  rank?: (conversation: LookupRecord) => number | Promise<number>
+  rank?: (conversation: LookupRecord) => number | Promise<number>,
 ): Promise<LookupRecord | null> => {
   const trimmed = (ref ?? "").trim();
   if (!trimmed) return null;
@@ -177,10 +183,10 @@ export const findConversationByAnyRefWhere = async (
 export const findConversationByAnyRef = async (
   ctx: LookupCtx,
   ref: string,
-  authUserId: { toString(): string } | string
+  authUserId: { toString(): string } | string,
 ): Promise<LookupRecord | null> =>
   findConversationByAnyRefWhere(ctx, ref, (conversation) =>
-    hasMatchingUser(conversation, authUserId)
+    hasMatchingUser(conversation, authUserId),
   );
 
 // Access-ranked resolver for the read paths (`cast read`/summary/export, webGet,
@@ -195,7 +201,7 @@ export const resolveConversationRefRanked = async (
   ctx: LookupCtx,
   ref: string,
   authUserId: { toString(): string } | string,
-  canAccess: (conversation: LookupRecord) => boolean | Promise<boolean>
+  canAccess: (conversation: LookupRecord) => boolean | Promise<boolean>,
 ): Promise<LookupRecord | null> => {
   const trimmed = (ref ?? "").trim();
   if (!trimmed) return null;

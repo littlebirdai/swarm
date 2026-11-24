@@ -20,9 +20,17 @@ import { modernChip } from "../ui/modernLook";
  * (AccountPoolPill). `deviceId`: the machine that holds the account, which
  * always keeps it.
  */
-export function AccountMachinesControl({ deviceId, email }: { deviceId: string; email: string }) {
+export function AccountMachinesControl({
+  deviceId,
+  email,
+}: {
+  deviceId: string;
+  email: string;
+}) {
   const key = email.toLowerCase();
-  const personal = useAccountPool().find((r) => r.mine && r.email === key && !r.team_id);
+  const personal = useAccountPool().find(
+    (r) => r.mine && r.email === key && !r.team_id,
+  );
   const { devices } = useDevices();
   const setAccountDevices = useInboxStore((s) => s.setAccountDevices);
   if (!personal) return null;
@@ -30,11 +38,20 @@ export function AccountMachinesControl({ deviceId, email }: { deviceId: string; 
   const list = personal.device_ids ?? null;
   const on = (id: string) => list === null || list.includes(id);
   const count = others.filter((d) => on(d.device_id)).length;
-  const sameName = (d: (typeof others)[number]) => others.filter((o) => deviceDisplayName(o) === deviceDisplayName(d)).length > 1;
-  const label = list === null ? "All machines" : count === 0 ? "This machine only" : `${count + 1} machines`;
+  const sameName = (d: (typeof others)[number]) =>
+    others.filter((o) => deviceDisplayName(o) === deviceDisplayName(d)).length >
+    1;
+  const label =
+    list === null
+      ? "All machines"
+      : count === 0
+        ? "This machine only"
+        : `${count + 1} machines`;
   const toggle = (id: string) => {
     const current = list ?? others.map((d) => d.device_id);
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
     setAccountDevices(email, next.length === others.length ? null : next);
   };
 
@@ -46,7 +63,9 @@ export function AccountMachinesControl({ deviceId, email }: { deviceId: string; 
           data-account-machines={key}
           title="Which of your machines run on this account"
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-meta transition-colors ${
-            list === null ? "border-sol-green/50 bg-sol-green/10 text-sol-text" : "border-sol-yellow/50 bg-sol-yellow/10 text-sol-text"
+            list === null
+              ? "border-sol-green/50 bg-sol-green/10 text-sol-text"
+              : "border-sol-yellow/50 bg-sol-yellow/10 text-sol-text"
           } ${modernChip({ active: true })}`}
         >
           <Monitor className="h-3 w-3 shrink-0" />
@@ -70,9 +89,16 @@ export function AccountMachinesControl({ deviceId, email }: { deviceId: string; 
             onSelect={(e) => e.preventDefault()}
             onCheckedChange={() => toggle(d.device_id)}
           >
-            <DeviceIcon d={d} className="mr-1.5 h-3 w-3 shrink-0 text-sol-text-muted" />
+            <DeviceIcon
+              d={d}
+              className="mr-1.5 h-3 w-3 shrink-0 text-sol-text-muted"
+            />
             <span className="truncate">{deviceDisplayName(d)}</span>
-            {sameName(d) && <span className="ml-1.5 truncate text-meta text-sol-text-dim">{d.hostname ?? d.device_id.slice(0, 8)}</span>}
+            {sameName(d) && (
+              <span className="ml-1.5 truncate text-meta text-sol-text-dim">
+                {d.hostname ?? d.device_id.slice(0, 8)}
+              </span>
+            )}
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>

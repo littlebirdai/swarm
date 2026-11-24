@@ -19,13 +19,17 @@ async function resolveRole(
   ref: string,
 ): Promise<Doc<"org_roles">> {
   const trimmed = ref.trim().replace(/^@/, "");
-  if (!trimmed) throw new Error("Name a role: its short id (or-N) or its handle");
+  if (!trimmed)
+    throw new Error("Name a role: its short id (or-N) or its handle");
   if (/^or-\d+$/i.test(trimmed)) {
     const role = await ctx.db
       .query("org_roles")
-      .withIndex("by_short_id", (q: any) => q.eq("short_id", trimmed.toLowerCase()))
+      .withIndex("by_short_id", (q: any) =>
+        q.eq("short_id", trimmed.toLowerCase()),
+      )
       .first();
-    if (!role || !(await userCanAdminRole(ctx, userId, role))) throw new Error(`Role ${trimmed} not found`);
+    if (!role || !(await userCanAdminRole(ctx, userId, role)))
+      throw new Error(`Role ${trimmed} not found`);
     return role;
   }
   const handle = trimmed.toLowerCase();
@@ -38,11 +42,18 @@ async function resolveRole(
     const role = await liveRoleByHandle(ctx, { team_id: m.team_id }, handle);
     if (role && (await userCanAdminRole(ctx, userId, role))) found.push(role);
   }
-  const personal = await liveRoleByHandle(ctx, { scope_user_id: userId }, handle);
+  const personal = await liveRoleByHandle(
+    ctx,
+    { scope_user_id: userId },
+    handle,
+  );
   if (personal) found.push(personal);
-  if (found.length === 0) throw new Error(`No role you administer answers to @${handle}`);
+  if (found.length === 0)
+    throw new Error(`No role you administer answers to @${handle}`);
   if (found.length > 1) {
-    throw new Error(`@${handle} names ${found.length} roles: ${found.map((r) => r.short_id).join(", ")}. Use the short id`);
+    throw new Error(
+      `@${handle} names ${found.length} roles: ${found.map((r) => r.short_id).join(", ")}. Use the short id`,
+    );
   }
   return found[0];
 }
@@ -57,16 +68,25 @@ async function resolveChannel(
 ): Promise<Doc<"chat_channels">> {
   const trimmed = ref.trim();
   if (trimmed.startsWith("#")) {
-    if (!role.team_id) throw new Error("A personal role follows channels by id: cast chat channels prints them");
+    if (!role.team_id)
+      throw new Error(
+        "A personal role follows channels by id: cast chat channels prints them",
+      );
     const name = trimmed.slice(1).toLowerCase();
     const channel = await ctx.db
       .query("chat_channels")
-      .withIndex("by_team_name", (q: any) => q.eq("team_id", role.team_id).eq("name", name))
+      .withIndex("by_team_name", (q: any) =>
+        q.eq("team_id", role.team_id).eq("name", name),
+      )
       .first();
     if (!channel) throw new Error(`No channel #${name} in this team`);
     return await loadChannel(ctx, userId, channel._id);
   }
-  const channel = await loadChannel(ctx, userId, trimmed as Id<"chat_channels">);
+  const channel = await loadChannel(
+    ctx,
+    userId,
+    trimmed as Id<"chat_channels">,
+  );
   if (role.team_id && channel.team_id.toString() !== role.team_id.toString()) {
     throw new Error("That channel belongs to another team");
   }
@@ -81,13 +101,21 @@ export async function followChannelForRole(
   channelId: Id<"chat_channels">,
 ): Promise<Id<"chat_channels">[]> {
   const current = role.follow_channel_ids ?? [];
-  if (current.some((id) => id.toString() === channelId.toString())) return current;
+  if (current.some((id) => id.toString() === channelId.toString()))
+    return current;
   const next = [...current, channelId];
-  await ctx.db.patch(role._id, { follow_channel_ids: next, updated_at: Date.now() });
+  await ctx.db.patch(role._id, {
+    follow_channel_ids: next,
+    updated_at: Date.now(),
+  });
   return next;
 }
 
-function summary(role: Doc<"org_roles">, channel: Doc<"chat_channels">, follows: Id<"chat_channels">[]) {
+function summary(
+  role: Doc<"org_roles">,
+  channel: Doc<"chat_channels">,
+  follows: Id<"chat_channels">[],
+) {
   return {
     role_id: role._id,
     short_id: role.short_id,
@@ -110,12 +138,18 @@ export const follow = mutation({
     const userId = await requireCaller(ctx, a.api_token);
     const role = await resolveRole(ctx, userId, a.role);
     const channel = await resolveChannel(ctx, userId, role, a.channel);
-    if (channel.kind === "dm") throw new Error("A role cannot follow a direct message");
+    if (channel.kind === "dm")
+      throw new Error("A role cannot follow a direct message");
     // A role's bot is never a member of a private room (chatAccess: a private
     // channel never has a bot member), so a follow there could only ever be
     // read through the host's access, which is a leak into the role's frame.
-    if (channel.kind === "private") throw new Error("A role cannot follow a private channel");
-    return summary(role, channel, await followChannelForRole(ctx, role, channel._id));
+    if (channel.kind === "private")
+      throw new Error("A role cannot follow a private channel");
+    return summary(
+      role,
+      channel,
+      await followChannelForRole(ctx, role, channel._id),
+    );
   },
 });
 
@@ -125,9 +159,14 @@ export const unfollow = mutation({
     const userId = await requireCaller(ctx, a.api_token);
     const role = await resolveRole(ctx, userId, a.role);
     const channel = await resolveChannel(ctx, userId, role, a.channel);
-    const next = (role.follow_channel_ids ?? []).filter((id) => id.toString() !== channel._id.toString());
+    const next = (role.follow_channel_ids ?? []).filter(
+      (id) => id.toString() !== channel._id.toString(),
+    );
     if (next.length !== (role.follow_channel_ids ?? []).length) {
-      await ctx.db.patch(role._id, { follow_channel_ids: next, updated_at: Date.now() });
+      await ctx.db.patch(role._id, {
+        follow_channel_ids: next,
+        updated_at: Date.now(),
+      });
     }
     return summary(role, channel, next);
   },

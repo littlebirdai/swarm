@@ -41,7 +41,8 @@ export function agentTempDir(kind: string): string {
   const dir = path.join(codecastDir(), "tmp", kind);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const st = fs.lstatSync(dir);
-  if (!st.isDirectory()) throw new Error(`the scratch path ${dir} is not a directory`);
+  if (!st.isDirectory())
+    throw new Error(`the scratch path ${dir} is not a directory`);
   if (process.getuid && st.uid !== process.getuid()) {
     throw new Error(`the scratch directory ${dir} belongs to another user`);
   }
@@ -64,7 +65,11 @@ export function sweepTempDir(
   const ttl = o.ttlMs ?? TEMP_TTL_MS;
   const marker = path.join(dir, TEMP_SWEEP_MARKER);
   try {
-    if (fs.statSync(marker).mtimeMs > now - (o.intervalMs ?? TEMP_SWEEP_INTERVAL_MS)) return 0;
+    if (
+      fs.statSync(marker).mtimeMs >
+      now - (o.intervalMs ?? TEMP_SWEEP_INTERVAL_MS)
+    )
+      return 0;
   } catch {
     // No marker, or one we cannot read: this process should sweep.
   }

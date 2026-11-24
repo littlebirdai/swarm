@@ -10,7 +10,10 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isSafeStatusSessionId, normalizeHookStatus } from "./daemon.js";
 
-const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "daemon.ts"), "utf8");
+const src = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "daemon.ts"),
+  "utf8",
+);
 
 describe("hook status session ids", () => {
   test("accepts the ids real callers send", () => {
@@ -61,11 +64,19 @@ describe("hook status session ids", () => {
   // ordered writer is what keeps a Stop from landing before the PostToolUse
   // that preceded it, and keeps two writes off one file.
   test("one ordered writer owns the agent status directory", () => {
-    const writes = src.match(/writeFile\(path\.join\(AGENT_STATUS_DIR/g) ?? [];
-    expect(writes.length, "every agent status write goes through queueAgentStatusWrite").toBe(1);
-    const chainAt = src.indexOf("agentStatusWriteChain = agentStatusWriteChain");
+    const writes =
+      src.match(/writeFile\(\s*path\.join\(\s*AGENT_STATUS_DIR/g) ?? [];
+    expect(
+      writes.length,
+      "every agent status write goes through queueAgentStatusWrite",
+    ).toBe(1);
+    const chainAt = src.indexOf(
+      "agentStatusWriteChain = agentStatusWriteChain",
+    );
     expect(chainAt).toBeGreaterThan(-1);
-    expect(src.indexOf("writeFile(path.join(AGENT_STATUS_DIR")).toBeGreaterThan(chainAt);
+    expect(
+      src.search(/writeFile\(\s*path\.join\(\s*AGENT_STATUS_DIR/),
+    ).toBeGreaterThan(chainAt);
   });
 });
 
@@ -76,28 +87,57 @@ describe("hook status wire coercion", () => {
   const base = { status: "idle" as const, ts: 1_800_000_000 };
 
   test("the hook's string extras become the typed record", () => {
-    expect(normalizeHookStatus({ ...base, session_boundary: "1", turn_completed_at: "1800000000" }))
-      .toEqual({ ...base, session_boundary: true, turn_completed_at: 1_800_000_000 });
+    expect(
+      normalizeHookStatus({
+        ...base,
+        session_boundary: "1",
+        turn_completed_at: "1800000000",
+      }),
+    ).toEqual({
+      ...base,
+      session_boundary: true,
+      turn_completed_at: 1_800_000_000,
+    });
   });
 
   test("a record with no extras claims neither", () => {
-    expect(normalizeHookStatus(base)).toEqual({ ...base, session_boundary: undefined, turn_completed_at: undefined });
+    expect(normalizeHookStatus(base)).toEqual({
+      ...base,
+      session_boundary: undefined,
+      turn_completed_at: undefined,
+    });
   });
 
   // persistHookStatus writes the coerced record back to the file the watcher
   // and the boot replay read, so a second pass must not double-convert.
   test("coercion is idempotent over its own output", () => {
-    const once = normalizeHookStatus({ ...base, session_boundary: "1", turn_completed_at: "1800000000" });
+    const once = normalizeHookStatus({
+      ...base,
+      session_boundary: "1",
+      turn_completed_at: "1800000000",
+    });
     expect(normalizeHookStatus(once)).toEqual(once);
   });
 
   test("the fallback file's dialog string becomes a flag", () => {
-    expect(normalizeHookStatus({ ...base, status: "permission_blocked", dialog: "1" }).dialog).toBe(true);
-    expect(normalizeHookStatus({ ...base, dialog: "0" }).dialog).toBeUndefined();
+    expect(
+      normalizeHookStatus({
+        ...base,
+        status: "permission_blocked",
+        dialog: "1",
+      }).dialog,
+    ).toBe(true);
+    expect(
+      normalizeHookStatus({ ...base, dialog: "0" }).dialog,
+    ).toBeUndefined();
   });
 
   test("junk claims nothing rather than a boundary at time zero", () => {
-    const out = normalizeHookStatus({ ...base, session_boundary: "0", turn_completed_at: "not-a-number" });
+    const out = normalizeHookStatus({
+      ...base,
+      session_boundary: "0",
+      turn_completed_at: "not-a-number",
+    });
     expect(out.session_boundary).toBeUndefined();
     expect(out.turn_completed_at).toBeUndefined();
   });
@@ -110,14 +150,21 @@ describe("hook status wire coercion", () => {
 // shape of the sink, which closes over a thousand lines of daemon state and
 // cannot be lifted out of it.
 describe("the hook status sink", () => {
-  const sink = src.slice(src.indexOf("setHookStatusSink((sessionId, data) => {"));
+  const sink = src.slice(
+    src.indexOf("setHookStatusSink((sessionId, data) => {"),
+  );
   const body = sink.slice(0, sink.indexOf("\n  });"));
 
   test("admission comes first, and a rejection returns before any effect", () => {
     const admitAt = body.indexOf("admitHookPost(sessionId, data)");
     expect(admitAt).toBeGreaterThan(-1);
     expect(body.slice(admitAt, admitAt + 60)).toContain("return");
-    for (const effect of ["persistHookStatus(sessionId, data)", "handleStatusData(sessionId, data)", "existingSync.invalidate()", "claudeTranscriptRetrySync("]) {
+    for (const effect of [
+      "persistHookStatus(sessionId, data)",
+      "handleStatusData(sessionId, data)",
+      "existingSync.invalidate()",
+      "claudeTranscriptRetrySync(",
+    ]) {
       expect(body.indexOf(effect), effect).toBeGreaterThan(admitAt);
     }
   });
@@ -140,7 +187,11 @@ describe("hook transcript resolution", () => {
   });
 
   test("an unmatched path falls back to the session file index rather than being used", () => {
-    const returns = fn.slice(0, fn.indexOf("\n  }\n")).match(/return [^;]+;/g) ?? [];
-    expect(returns).toEqual(["return supplied;", "return claudeTranscriptFor(sessionId);"]);
+    const returns =
+      fn.slice(0, fn.indexOf("\n  }\n")).match(/return [^;]+;/g) ?? [];
+    expect(returns).toEqual([
+      "return supplied;",
+      "return claudeTranscriptFor(sessionId);",
+    ]);
   });
 });

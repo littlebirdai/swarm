@@ -13,7 +13,13 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import { RecursiveWatcher } from "../recursiveWatcher.js";
-import { capabilityWatchDirs, readInventory, readInventoryAsync, type Inventory, type InventoryItem } from "./inventory.js";
+import {
+  capabilityWatchDirs,
+  readInventory,
+  readInventoryAsync,
+  type Inventory,
+  type InventoryItem,
+} from "./inventory.js";
 
 export interface CapabilityHeartbeatPayload {
   hash: string;
@@ -67,7 +73,10 @@ function attachMissingBodiesSync(items: InventoryItem[]): void {
 }
 
 /** Scan now, synchronously. Exported for tests and `cast doctor`. */
-export function collectCapabilityInventory(home = os.homedir(), projectPath?: string): CapabilityHeartbeatPayload {
+export function collectCapabilityInventory(
+  home = os.homedir(),
+  projectPath?: string,
+): CapabilityHeartbeatPayload {
   const inventory = readInventory(home, projectPath);
   attachMissingBodiesSync(inventory.items);
   return payloadFrom(inventory, Date.now());
@@ -87,10 +96,14 @@ async function attachMissingBodies(items: InventoryItem[]): Promise<void> {
   }
 }
 
-export async function collectCapabilityInventoryAsync(home = os.homedir(), projectPath?: string): Promise<CapabilityHeartbeatPayload> {
+export async function collectCapabilityInventoryAsync(
+  home = os.homedir(),
+  projectPath?: string,
+): Promise<CapabilityHeartbeatPayload> {
   const started = Date.now();
   const inventory = await readInventoryAsync(home, projectPath);
-  if (inventory.unreadable.length) throw new Error("capability inventory unavailable");
+  if (inventory.unreadable.length)
+    throw new Error("capability inventory unavailable");
   // The scan reads each markdown file for its frontmatter but returns no
   // body (neither the worker pages nor the in-process reader carry one), so
   // every body is read again from `source` here, one file per loop turn.
@@ -108,7 +121,10 @@ function stripBody(item: InventoryItem): InventoryItem {
   return rest;
 }
 
-function extractContents(items: InventoryItem[]): { items: InventoryItem[]; contents: CapabilityContentItem[] } {
+function extractContents(items: InventoryItem[]): {
+  items: InventoryItem[];
+  contents: CapabilityContentItem[];
+} {
   const stripped: InventoryItem[] = [];
   const contents: CapabilityContentItem[] = [];
   const seen = new Set<string>();
@@ -131,7 +147,10 @@ function extractContents(items: InventoryItem[]): { items: InventoryItem[]; cont
   return { items: stripped, contents };
 }
 
-function payloadFrom(inv: Inventory, started: number): CapabilityHeartbeatPayload {
+function payloadFrom(
+  inv: Inventory,
+  started: number,
+): CapabilityHeartbeatPayload {
   const { items, contents } = extractContents(inv.items);
   cachedContents = contents;
   const hash = crypto
@@ -143,9 +162,16 @@ function payloadFrom(inv: Inventory, started: number): CapabilityHeartbeatPayloa
   // A log line rather than a metric: a slow machine should be diagnosable from
   // a log tail. Only worth a line when it is actually slow.
   if (elapsed > 250) {
-    console.log(`[perf] capability scan: ${inv.items.length} items in ${elapsed}ms`);
+    console.log(
+      `[perf] capability scan: ${inv.items.length} items in ${elapsed}ms`,
+    );
   }
-  return { hash, collected_at: Date.now(), items, marketplaces: inv.marketplaces };
+  return {
+    hash,
+    collected_at: Date.now(),
+    items,
+    marketplaces: inv.marketplaces,
+  };
 }
 
 /** Watch user-scope skill/command/agent dirs. A new SKILL.md then shows up
@@ -220,7 +246,9 @@ export function ensureCapabilityInventoryFresh(home = os.homedir()): void {
 
 /** The payload to attach to this beat, or undefined to ride nothing.
  *  Rides when the hash changed, and once an hour regardless (the floor). */
-export function pendingCapabilityPayload(): CapabilityHeartbeatPayload | undefined {
+export function pendingCapabilityPayload():
+  | CapabilityHeartbeatPayload
+  | undefined {
   if (!cached) return undefined;
   if (cached.hash !== lastSentHash) return cached;
   if (Date.now() - lastSentAt >= RESEND_MS) return cached;
@@ -238,14 +266,17 @@ export function markCapabilityPayloadSent(hash: string): void {
  *  Independent of the inventory hash: a body-only edit still ships, and a
  *  first scan's 5MB of skills fills across a handful of beats rather than
  *  one giant payload. */
-export function pendingCapabilityContents(): CapabilityContentItem[] | undefined {
+export function pendingCapabilityContents():
+  | CapabilityContentItem[]
+  | undefined {
   if (cachedContents.length === 0) return undefined;
   const batch: CapabilityContentItem[] = [];
   let used = 0;
   for (const item of cachedContents) {
     if (!item.hash) item.hash = hashBody(item.body);
     if (sentContentHashes.has(item.hash)) continue;
-    if (used + item.body.length > CONTENT_BATCH_CHARS && batch.length > 0) break;
+    if (used + item.body.length > CONTENT_BATCH_CHARS && batch.length > 0)
+      break;
     batch.push(item);
     used += item.body.length;
   }
@@ -286,11 +317,18 @@ let dryPlannedRevision = 0;
 
 /** Called by the daemon with each heartbeat response. Cheap by design: the
  *  common case (nothing changed, mode unchanged) is two field writes. */
-export function recordConvergenceSignals(payload: { capabilities_mode?: unknown; capability_desired_revision?: unknown }): void {
+export function recordConvergenceSignals(payload: {
+  capabilities_mode?: unknown;
+  capability_desired_revision?: unknown;
+}): void {
   const mode = payload.capabilities_mode;
   if (mode === "off" || mode === "dry" || mode === "on") lastMode = mode;
   const rev = payload.capability_desired_revision;
-  if (typeof rev === "number" && Number.isFinite(rev) && rev >= desiredRevision) {
+  if (
+    typeof rev === "number" &&
+    Number.isFinite(rev) &&
+    rev >= desiredRevision
+  ) {
     desiredRevision = rev;
   }
 }
@@ -305,7 +343,10 @@ export function recordConvergenceSignals(payload: { capabilities_mode?: unknown;
  */
 export function reconcileNeeded(): { mode: CapabilitiesMode; behind: boolean } {
   if (lastMode === "off") return { mode: "off", behind: false };
-  const done = lastMode === "dry" ? Math.max(appliedRevision, dryPlannedRevision) : appliedRevision;
+  const done =
+    lastMode === "dry"
+      ? Math.max(appliedRevision, dryPlannedRevision)
+      : appliedRevision;
   return { mode: lastMode, behind: done < desiredRevision };
 }
 
@@ -321,7 +362,11 @@ export function markRevisionApplied(revision: number): void {
   if (revision > appliedRevision) appliedRevision = revision;
 }
 
-export function convergenceState(): { mode: CapabilitiesMode; desired: number; applied: number } {
+export function convergenceState(): {
+  mode: CapabilitiesMode;
+  desired: number;
+  applied: number;
+} {
   return { mode: lastMode, desired: desiredRevision, applied: appliedRevision };
 }
 

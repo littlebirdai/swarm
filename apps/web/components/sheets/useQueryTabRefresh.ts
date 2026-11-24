@@ -9,10 +9,18 @@ import type { TabMeta } from "@codecast/shared/artifacts/sheets";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 
-const refreshRef = makeFunctionReference<"mutation", { doc_id: string; tab: string }, { rows?: number; changed?: number; skipped?: boolean }>("sheetQueries:refresh");
+const refreshRef = makeFunctionReference<
+  "mutation",
+  { doc_id: string; tab: string },
+  { rows?: number; changed?: number; skipped?: boolean }
+>("sheetQueries:refresh");
 const STALE_MS = 60_000;
 
-export function useQueryTabRefresh(docId: string, meta: TabMeta, readOnly: boolean) {
+export function useQueryTabRefresh(
+  docId: string,
+  meta: TabMeta,
+  readOnly: boolean,
+) {
   const run = useMutation(refreshRef);
   const [refreshing, setRefreshing] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -25,7 +33,13 @@ export function useQueryTabRefresh(docId: string, meta: TabMeta, readOnly: boole
     setRefreshing(true);
     run({ doc_id: docId, tab: meta.id })
       .then(() => setLastError(null))
-      .catch((e: unknown) => setLastError(e instanceof Error ? e.message.replace(/^.*ConvexError:\s*/, "").split("\n")[0] : "Refresh failed"))
+      .catch((e: unknown) =>
+        setLastError(
+          e instanceof Error
+            ? e.message.replace(/^.*ConvexError:\s*/, "").split("\n")[0]
+            : "Refresh failed",
+        ),
+      )
       .finally(() => {
         inflight.current = false;
         setRefreshing(false);
@@ -37,7 +51,11 @@ export function useQueryTabRefresh(docId: string, meta: TabMeta, readOnly: boole
   const querySig = JSON.stringify(meta.query ?? null);
   useWatchEffect(() => {
     if (!isQuery || readOnly) return;
-    const first = !refreshedAt ? setTimeout(refresh, 800) : Date.now() - refreshedAt > STALE_MS ? (refresh(), undefined) : undefined;
+    const first = !refreshedAt
+      ? setTimeout(refresh, 800)
+      : Date.now() - refreshedAt > STALE_MS
+        ? (refresh(), undefined)
+        : undefined;
     const t = setInterval(refresh, STALE_MS);
     return () => {
       clearInterval(t);
@@ -54,10 +72,28 @@ export function useQueryTabRefresh(docId: string, meta: TabMeta, readOnly: boole
  * query names a project by): the project whose path is the sheet's folder or
  * holds it. Undefined when none does, so a new live tab starts on all projects.
  */
-export function useProjectTitleFor(path: string | undefined, workspace: string | undefined): string | undefined {
-  const projects = useWorkspaceCollection<{ title?: string; project_path?: string; status?: string }>("projects", (p) => `${p.title}|${p.project_path}|${p.status}`, workspace ?? null);
+export function useProjectTitleFor(
+  path: string | undefined,
+  workspace: string | undefined,
+): string | undefined {
+  const projects = useWorkspaceCollection<{
+    title?: string;
+    project_path?: string;
+    status?: string;
+  }>(
+    "projects",
+    (p) => `${p.title}|${p.project_path}|${p.status}`,
+    workspace ?? null,
+  );
   if (!path) return undefined;
-  const hits = projects.filter((p) => p.title && p.project_path && p.status === "active" && (path === p.project_path || path.startsWith(`${p.project_path}/`)));
+  const hits = projects.filter(
+    (p) =>
+      p.title &&
+      p.project_path &&
+      p.status === "active" &&
+      (path === p.project_path || path.startsWith(`${p.project_path}/`)),
+  );
   // The deepest folder wins: a project for a package beats one for the whole repo.
-  return hits.sort((a, b) => b.project_path!.length - a.project_path!.length)[0]?.title;
+  return hits.sort((a, b) => b.project_path!.length - a.project_path!.length)[0]
+    ?.title;
 }

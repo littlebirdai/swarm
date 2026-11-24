@@ -17,14 +17,26 @@ import { internalMutation, mutation, query } from "./functions";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireUserOrToken } from "./lib/auth";
-import { heldKeysFor, parseWorkspaceKey, resolveSessionConversation } from "./lib/access";
+import {
+  heldKeysFor,
+  parseWorkspaceKey,
+  resolveSessionConversation,
+} from "./lib/access";
 import { liveRoleByHandle } from "./lib/orgAccess";
 import { canAccessComment, setThreadResolved } from "./codeComments";
 import { createDataContext } from "./data";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { normalizeRepository } from "./lib/gitRefs";
-import { canSendProductMessage, enqueuePendingMessage } from "./pendingMessages";
-import { buildReviewBatchPrompt, deliveredOutcome, type ReviewVerdict, type SendOutcome } from "@codecast/shared/comments";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+} from "./pendingMessages";
+import {
+  buildReviewBatchPrompt,
+  deliveredOutcome,
+  type ReviewVerdict,
+  type SendOutcome,
+} from "@codecast/shared/comments";
 import { sessionWaiting } from "./lib/sendOutcome";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 
@@ -36,7 +48,9 @@ async function batchRows(
 ): Promise<Doc<"review_comments">[]> {
   const rows = await ctx.db
     .query("review_comments")
-    .withIndex("by_author_git_root", (q: any) => q.eq("author_user_id", userId).eq("git_root", gitRoot))
+    .withIndex("by_author_git_root", (q: any) =>
+      q.eq("author_user_id", userId).eq("git_root", gitRoot),
+    )
     .collect();
   return rows.sort((a: any, b: any) => a.created_at - b.created_at);
 }
@@ -46,7 +60,9 @@ function actorNameOf(user: any): string {
 }
 
 const dispositionArgs = {
-  disposition: v.optional(v.union(v.literal("fixed"), v.literal("deferred"), v.literal("rejected"))),
+  disposition: v.optional(
+    v.union(v.literal("fixed"), v.literal("deferred"), v.literal("rejected")),
+  ),
   owner_user_id: v.optional(v.id("users")),
   owner_role_id: v.optional(v.id("org_roles")),
   // A role handle (@growth) or a user's name/handle/email, resolved here.
@@ -103,7 +119,9 @@ export const add = mutation({
 
     const now = Date.now();
     const id = await ctx.db.insert("review_comments", {
-      repository: args.repository ? normalizeRepository(args.repository) : undefined,
+      repository: args.repository
+        ? normalizeRepository(args.repository)
+        : undefined,
       ref: args.ref,
       file_path: args.file_path,
       line_number: args.line_number || undefined,
@@ -134,7 +152,6 @@ export const add = mutation({
 // promise, and a promise with nobody to keep it or no day to keep it by is
 // refused here, the one write path, so no caller can file a vague one.
 
-
 type DispositionFields = {
   disposition?: "fixed" | "deferred" | "rejected";
   owner_user_id?: Id<"users">;
@@ -144,16 +161,27 @@ type DispositionFields = {
   promise_task_id?: Id<"tasks">;
 };
 
-export const DEFERRAL_NEEDS_OWNER = "A deferred finding is a promise: name who keeps it (--owner <@role or user>) and when (--due <date>)";
+export const DEFERRAL_NEEDS_OWNER =
+  "A deferred finding is a promise: name who keeps it (--owner <@role or user>) and when (--due <date>)";
 
 /** The fields to store for a disposition, or a thrown refusal. Pure on its inputs. */
-export function promiseFields(fields: DispositionFields, owner: { user_id?: Id<"users">; role_id?: Id<"org_roles"> }) {
+export function promiseFields(
+  fields: DispositionFields,
+  owner: { user_id?: Id<"users">; role_id?: Id<"org_roles"> },
+) {
   if (!fields.disposition) return {};
   const out: Record<string, unknown> = { disposition: fields.disposition };
   if (fields.disposition === "deferred") {
-    if ((!owner.user_id && !owner.role_id) || !fields.due_at) throw new Error(DEFERRAL_NEEDS_OWNER);
-    if (fields.due_at < Date.now() - 86_400_000) throw new Error("A promise's due date is in the future, not the past");
-    Object.assign(out, { owner_user_id: owner.user_id, owner_role_id: owner.role_id, due_at: fields.due_at, promise_task_id: fields.promise_task_id });
+    if ((!owner.user_id && !owner.role_id) || !fields.due_at)
+      throw new Error(DEFERRAL_NEEDS_OWNER);
+    if (fields.due_at < Date.now() - 86_400_000)
+      throw new Error("A promise's due date is in the future, not the past");
+    Object.assign(out, {
+      owner_user_id: owner.user_id,
+      owner_role_id: owner.role_id,
+      due_at: fields.due_at,
+      promise_task_id: fields.promise_task_id,
+    });
   }
   return out;
 }
@@ -163,28 +191,58 @@ export function promiseFields(fields: DispositionFields, owner: { user_id?: Id<"
  * a row with no key, the workspaces the caller holds): a handle or a name is
  * unique per workspace, never across the deployment.
  */
-async function resolvePromise(ctx: any, userId: Id<"users">, workspace: string | undefined, fields: DispositionFields) {
+async function resolvePromise(
+  ctx: any,
+  userId: Id<"users">,
+  workspace: string | undefined,
+  fields: DispositionFields,
+) {
   let user_id = fields.owner_user_id;
   let role_id = fields.owner_role_id;
   const name = fields.owner?.trim();
   if (name && !user_id && !role_id) {
     const handle = name.replace(/^@/, "").toLowerCase();
-    const keys = workspace ? [workspace] : [...(await heldKeysFor(ctx, userId))];
-    const boundaries = keys.map((k) => parseWorkspaceKey(k)).filter((b): b is NonNullable<typeof b> => !!b);
+    const keys = workspace
+      ? [workspace]
+      : [...(await heldKeysFor(ctx, userId))];
+    const boundaries = keys
+      .map((k) => parseWorkspaceKey(k))
+      .filter((b): b is NonNullable<typeof b> => !!b);
     for (const b of boundaries) {
-      const role = await liveRoleByHandle(ctx, b.type === "team" ? { team_id: b.teamId } : { scope_user_id: b.userId }, handle);
-      if (role) { role_id = role._id; break; }
+      const role = await liveRoleByHandle(
+        ctx,
+        b.type === "team" ? { team_id: b.teamId } : { scope_user_id: b.userId },
+        handle,
+      );
+      if (role) {
+        role_id = role._id;
+        break;
+      }
     }
     if (!role_id) {
       const candidates = new Set<string>();
       for (const b of boundaries) {
-        if (b.type === "personal") { candidates.add(String(b.userId)); continue; }
-        const members = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", b.teamId)).collect();
+        if (b.type === "personal") {
+          candidates.add(String(b.userId));
+          continue;
+        }
+        const members = await ctx.db
+          .query("team_memberships")
+          .withIndex("by_team_id", (q: any) => q.eq("team_id", b.teamId))
+          .collect();
         for (const m of members) candidates.add(String(m.user_id));
       }
       for (const id of candidates) {
         const u: any = await ctx.db.get(id as Id<"users">);
-        if (u && [u.github_username, u.email, u.name].some((x: string | undefined) => x && x.toLowerCase() === handle)) { user_id = u._id; break; }
+        if (
+          u &&
+          [u.github_username, u.email, u.name].some(
+            (x: string | undefined) => x && x.toLowerCase() === handle,
+          )
+        ) {
+          user_id = u._id;
+          break;
+        }
       }
       if (!user_id) throw new Error(`No role or user named ${name}`);
     }
@@ -193,14 +251,32 @@ async function resolvePromise(ctx: any, userId: Id<"users">, workspace: string |
 }
 
 export const setDisposition = mutation({
-  args: { api_token: v.optional(v.string()), comment_id: v.id("review_comments"), ...dispositionArgs },
+  args: {
+    api_token: v.optional(v.string()),
+    comment_id: v.id("review_comments"),
+    ...dispositionArgs,
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await ctx.db.get(args.comment_id);
-    if (!row || !(await canAccessComment(ctx, userId, row))) throw new Error("Finding not found");
-    const fields = await resolvePromise(ctx, userId, typeof row.workspace === "string" && row.workspace ? row.workspace : undefined, args);
+    if (!row || !(await canAccessComment(ctx, userId, row)))
+      throw new Error("Finding not found");
+    const fields = await resolvePromise(
+      ctx,
+      userId,
+      typeof row.workspace === "string" && row.workspace
+        ? row.workspace
+        : undefined,
+      args,
+    );
     const now = Date.now();
-    await ctx.db.patch(args.comment_id, { ...fields, updated_at: now, ...(args.disposition === "fixed" || args.disposition === "rejected" ? { resolved: true, resolved_at: now, resolved_by: userId } : {}) });
+    await ctx.db.patch(args.comment_id, {
+      ...fields,
+      updated_at: now,
+      ...(args.disposition === "fixed" || args.disposition === "rejected"
+        ? { resolved: true, resolved_at: now, resolved_by: userId }
+        : {}),
+    });
     return { id: args.comment_id, ...fields };
   },
 });
@@ -208,12 +284,19 @@ export const setDisposition = mutation({
 const PROMISE_SWEEP_BATCH = 50;
 
 /** Deferred findings past due and still open, not yet signalled: one signal each. Returns what it filed. */
-export async function overduePromises(db: any, now: number): Promise<Doc<"review_comments">[]> {
+export async function overduePromises(
+  db: any,
+  now: number,
+): Promise<Doc<"review_comments">[]> {
   const due: Doc<"review_comments">[] = await db
     .query("review_comments")
-    .withIndex("by_disposition_due", (q: any) => q.eq("disposition", "deferred").lt("due_at", now))
+    .withIndex("by_disposition_due", (q: any) =>
+      q.eq("disposition", "deferred").lt("due_at", now),
+    )
     .take(PROMISE_SWEEP_BATCH * 4);
-  return due.filter((r) => !r.resolved && !r.promise_signaled_at).slice(0, PROMISE_SWEEP_BATCH);
+  return due
+    .filter((r) => !r.resolved && !r.promise_signaled_at)
+    .slice(0, PROMISE_SWEEP_BATCH);
 }
 
 /** The cron's pass over promises (crons.ts, beside close quiet watches). */
@@ -244,7 +327,12 @@ Deferred on ${new Date(row.updated_at ?? row.created_at).toISOString().slice(0, 
         observed_at: now,
       });
     }
-    if (due.length === PROMISE_SWEEP_BATCH) await ctx.scheduler.runAfter(0, internal.reviewNotes.sweepOverduePromises, {});
+    if (due.length === PROMISE_SWEEP_BATCH)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.reviewNotes.sweepOverduePromises,
+        {},
+      );
     return { filed: due.length };
   },
 });
@@ -278,22 +366,37 @@ export const send = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    const conversation = await findConversationByAnyRef(ctx, args.conversation_ref, userId);
-    if (!conversation) throw new Error(`No session matches ${args.conversation_ref}`);
+    const conversation = await findConversationByAnyRef(
+      ctx,
+      args.conversation_ref,
+      userId,
+    );
+    if (!conversation)
+      throw new Error(`No session matches ${args.conversation_ref}`);
     if (!(await canSendProductMessage(ctx, userId, conversation))) {
       throw new Error("Forbidden: you cannot send to that session");
     }
 
-    const pending = (await batchRows(ctx, userId, args.git_root)).filter((r) => !r.sent_at);
-    if (pending.length === 0) throw new Error("No unsent review notes in this worktree");
+    const pending = (await batchRows(ctx, userId, args.git_root)).filter(
+      (r) => !r.sent_at,
+    );
+    if (pending.length === 0)
+      throw new Error("No unsent review notes in this worktree");
     const newest = pending[pending.length - 1];
-    return await sendNotesToSession(ctx, userId, args.conversation_ref, pending, {
-      repository: newest.repository ?? undefined,
-      ref: newest.ref ?? undefined,
-      url: args.url ?? undefined,
-      stale_ids: args.stale_ids,
-      resolve: args.resolve,
-    }, conversation);
+    return await sendNotesToSession(
+      ctx,
+      userId,
+      args.conversation_ref,
+      pending,
+      {
+        repository: newest.repository ?? undefined,
+        ref: newest.ref ?? undefined,
+        url: args.url ?? undefined,
+        stale_ids: args.stale_ids,
+        resolve: args.resolve,
+      },
+      conversation,
+    );
   },
 });
 
@@ -324,8 +427,15 @@ export async function sendNotesToSession(
     resolve?: boolean;
   },
   resolved?: Doc<"conversations">,
-): Promise<{ sent: number; conversation_id: Id<"conversations">; short_id?: string; content: string; outcome: SendOutcome }> {
-  const conversation = resolved ?? (await findConversationByAnyRef(ctx, conversationRef, userId));
+): Promise<{
+  sent: number;
+  conversation_id: Id<"conversations">;
+  short_id?: string;
+  content: string;
+  outcome: SendOutcome;
+}> {
+  const conversation =
+    resolved ?? (await findConversationByAnyRef(ctx, conversationRef, userId));
   if (!conversation) throw new Error(`No session matches ${conversationRef}`);
   if (!(await canSendProductMessage(ctx, userId, conversation))) {
     throw new Error("Forbidden: you cannot send to that session");
@@ -357,7 +467,11 @@ export async function sendNotesToSession(
   // (lib/reviewAnswered).
   const clientId = `review-batch:${conversation._id}:${rows[0]?._id ?? opts.verdict ?? "review"}:${now}`;
   const waiting = await sessionWaiting(ctx, conversation._id, now);
-  await enqueuePendingMessage(ctx, conversation, userId, { content, client_id: clientId, human: true });
+  await enqueuePendingMessage(ctx, conversation, userId, {
+    content,
+    client_id: clientId,
+    human: true,
+  });
   for (const row of rows) {
     await ctx.db.patch(row._id, {
       sent_at: now,
@@ -369,8 +483,18 @@ export async function sendNotesToSession(
   }
 
   const sentIds = rows.map((r) => String(r._id));
-  const outcome = deliveredOutcome(sentIds, waiting, opts.resolve ? await resolveSentRows(ctx, userId, rows) : undefined);
-  return { sent: rows.length, conversation_id: conversation._id, short_id: conversation.short_id ?? undefined, content, outcome };
+  const outcome = deliveredOutcome(
+    sentIds,
+    waiting,
+    opts.resolve ? await resolveSentRows(ctx, userId, rows) : undefined,
+  );
+  return {
+    sent: rows.length,
+    conversation_id: conversation._id,
+    short_id: conversation.short_id ?? undefined,
+    content,
+    outcome,
+  };
 }
 
 /** Resolve each sent note's thread; a refusal leaves that note open and is reported, never thrown. */
@@ -394,7 +518,10 @@ async function resolveSentRows(
 
 /** One note by id, for `cast review rm` / `edit` to confirm before acting. */
 export const get = query({
-  args: { api_token: v.optional(v.string()), comment_id: v.id("review_comments") },
+  args: {
+    api_token: v.optional(v.string()),
+    comment_id: v.id("review_comments"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await ctx.db.get(args.comment_id);

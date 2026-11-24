@@ -10,7 +10,11 @@ import { noteDisplayName } from "./VaultExplorer";
 import { MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { withShortcut } from "../../shortcuts";
 import { VaultFileHeader } from "./VaultFileHeader";
-import { VaultLinkContext, VaultMarkdown, FoldScopeContext } from "./VaultMarkdown";
+import {
+  VaultLinkContext,
+  VaultMarkdown,
+  FoldScopeContext,
+} from "./VaultMarkdown";
 import { useVaultLinkCtx } from "./useVaultLinkCtx";
 import { splitFrontmatter } from "../../lib/vault/frontmatter";
 import { useVaultStore } from "../../store/vaultStore";
@@ -75,7 +79,8 @@ export const VaultNoteView = memo(function VaultNoteView({
   // prefetch so it never reaches the index, and a note the scan missed (newer
   // than a cached list) only joined it when opened. Fetch it like code is.
   useWatchEffect(() => {
-    if (!isRemote && entryState === "present" && !body && endpoint) void useVaultStore.getState().loadTextBody(path);
+    if (!isRemote && entryState === "present" && !body && endpoint)
+      void useVaultStore.getState().loadTextBody(path);
   }, [isRemote, entryState, path, !!body, endpoint]);
 
   // Re-render (and re-resolve every wiki link) whenever the index changes — a
@@ -107,7 +112,6 @@ export const VaultNoteView = memo(function VaultNoteView({
       container.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-     
   }, [path, !!body]);
 
   // Scroll a search hit's section into view once the body has rendered, using
@@ -147,28 +151,41 @@ export const VaultNoteView = memo(function VaultNoteView({
           title={title}
           actions={
             onToggleEdit ? (
-            <button
-              type="button"
-              onClick={onToggleEdit}
-              aria-pressed={mode !== "reading"}
-              title={
-                mode === "reading"
-                  ? withShortcut("Edit", "vault.toggleEdit")
-                  : withShortcut(`Read, editing in ${mode === "live" ? "live preview" : "source"}`, "vault.toggleEdit")
-              }
-              className={`mt-1.5 flex-shrink-0 transition-colors ${
-                mode !== "reading" ? "text-sol-cyan" : "text-sol-text-dim hover:text-sol-text"
-              }`}
-            >
-              {mode === "reading" ? <Pencil className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
-            </button>
+              <button
+                type="button"
+                onClick={onToggleEdit}
+                aria-pressed={mode !== "reading"}
+                title={
+                  mode === "reading"
+                    ? withShortcut("Edit", "vault.toggleEdit")
+                    : withShortcut(
+                        `Read, editing in ${mode === "live" ? "live preview" : "source"}`,
+                        "vault.toggleEdit",
+                      )
+                }
+                className={`mt-1.5 flex-shrink-0 transition-colors ${
+                  mode !== "reading"
+                    ? "text-sol-cyan"
+                    : "text-sol-text-dim hover:text-sol-text"
+                }`}
+              >
+                {mode === "reading" ? (
+                  <Pencil className="w-4 h-4" />
+                ) : (
+                  <BookOpen className="w-4 h-4" />
+                )}
+              </button>
             ) : null
           }
         />
 
         {mode !== "reading" ? (
           <Suspense
-            fallback={<div className="text-sm text-sol-text-dim py-8">Loading editor…</div>}
+            fallback={
+              <div className="text-sm text-sol-text-dim py-8">
+                Loading editor…
+              </div>
+            }
           >
             {/* Keyed by path: an editor instance owns one note's document,
                 undo history and save timer. Handing it a different note would
@@ -187,7 +204,9 @@ export const VaultNoteView = memo(function VaultNoteView({
               <VaultProperties
                 frontmatter={vaultIndex.note(path)?.parsed?.frontmatter ?? null}
                 raw={frontmatter}
-                onTagClick={(t) => useVaultStore.getState().openTagPane(t.replace(/^#/, ""))}
+                onTagClick={(t) =>
+                  useVaultStore.getState().openTagPane(t.replace(/^#/, ""))
+                }
               />
             )}
 
@@ -198,10 +217,13 @@ export const VaultNoteView = memo(function VaultNoteView({
                 </FoldScopeContext.Provider>
               </div>
             ) : loading || entryState === "asking" ? (
-              <div className="text-sm text-sol-text-dim py-8">Loading note…</div>
+              <div className="text-sm text-sol-text-dim py-8">
+                Loading note…
+              </div>
             ) : (
               <div className="text-sm text-sol-text-dim py-8">
-                This note is empty. Press <MenuKeyCaps action="vault.toggleEdit" /> to write in it.
+                This note is empty. Press{" "}
+                <MenuKeyCaps action="vault.toggleEdit" /> to write in it.
               </div>
             )}
           </VaultLinkContext.Provider>
@@ -209,8 +231,12 @@ export const VaultNoteView = memo(function VaultNoteView({
 
         {body && mode === "reading" && (
           <div className="mt-8 pt-2 border-t border-sol-border/20 flex items-center gap-3 text-meta text-sol-text-dim">
-            <span className="tabular-nums">{vaultIndex.note(path)?.parsed?.wordCount ?? 0} words</span>
-            <span className="tabular-nums">{vaultIndex.backlinks(path).length} backlinks</span>
+            <span className="tabular-nums">
+              {vaultIndex.note(path)?.parsed?.wordCount ?? 0} words
+            </span>
+            <span className="tabular-nums">
+              {vaultIndex.backlinks(path).length} backlinks
+            </span>
           </div>
         )}
       </div>

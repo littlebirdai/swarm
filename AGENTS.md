@@ -31,6 +31,8 @@ Code comments are forbidden except for semantic tool directives. The baseline co
 
 ## Tests
 
+Run `bun run format` to format the repo with oxfmt. CI checks formatting, and `.git-blame-ignore-revs` lists the initial formatting commit.
+
 Each package's test guidance is in its own `AGENTS.md` (`apps/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
 
 ## Git history
@@ -143,7 +145,7 @@ Most people use codecast through the app (web, desktop, phone), not the CLI. Use
 
 ### Local-first is the law
 
-**Every piece of server data a surface renders lives in the store, and the surface reads the store.** A live Convex query is a *feeder*, never a render source: it subscribes in a hook, hands each push to `syncTable`, and the component paints from `useTrackedStore` / `useCollectionRows` / `useWorkspaceCollection` synchronously — a populated cache is the ordinary first paint, and a skeleton is only honest for a genuinely cold cache (`!ready && rows.length === 0`). Never gate paint on `result === undefined` when the store could already hold the answer.
+**Every piece of server data a surface renders lives in the store, and the surface reads the store.** A live Convex query is a _feeder_, never a render source: it subscribes in a hook, hands each push to `syncTable`, and the component paints from `useTrackedStore` / `useCollectionRows` / `useWorkspaceCollection` synchronously — a populated cache is the ordinary first paint, and a skeleton is only honest for a genuinely cold cache (`!ready && rows.length === 0`). Never gate paint on `result === undefined` when the store could already hold the answer.
 
 **Every fact has exactly one home in the store.** A field, a membership, a count: it is written in one place, and every other surface that needs it derives it from there at read time. Never keep a second writable copy (the same field on two collections, a list that repeats membership a row flag already holds, a derived twin stored beside its raw field, a component's local mirror of a row) and keep the copies in step by writing both. Copies drift the moment two feeders, two locks or two readers disagree about which one is current, and each drift costs a bespoke reconciler to paper over. When two queries return the same fact, feed both into the one home. When a surface needs a filtered or joined view, write a selector over the home, not a new key. If you find an existing duplicate, collapse it rather than add a sync between the copies.
 
@@ -151,7 +153,7 @@ Most people use codecast through the app (web, desktop, phone), not the CLI. Use
 
 **Registering a `feed` is a promise:** a source-level test (`lib/__tests__/registeredFeeds.guard.test.ts`) fails any file under `app/` or `components/` that subscribes to a registered feed query directly. If it fails on your code, the fix is to read the store and mount the feeder — not to widen the allowlist. Writes are `action()`s that patch the row on the draft and ride a named dispatch side effect (`convex/dispatch.ts`) to the real mutation; a `localFirst` collection then protects the field until the server echoes it.
 
-Every user-visible mutation renders from the local store synchronously — the UI must never wait on a server round-trip to show the result of a user action. The optimistic write happens in the `action()` draft; the server echo reconciles afterward through the sync/pending machinery. For **creates**, write a stub row keyed by a non-Convex id and let the collection's `altKey` config supersede it when the server row syncs back (`beginOptimisticSession`, `createBucket`, `assignSessionToBucket` are the canonical examples). If a feature seems to need an await-then-render flow, it is modeled wrong — restructure it as draft + side effect. `asyncAction` exists so a *caller* can await the server result (e.g. a real id for follow-up writes), never so the UI can.
+Every user-visible mutation renders from the local store synchronously — the UI must never wait on a server round-trip to show the result of a user action. The optimistic write happens in the `action()` draft; the server echo reconciles afterward through the sync/pending machinery. For **creates**, write a stub row keyed by a non-Convex id and let the collection's `altKey` config supersede it when the server row syncs back (`beginOptimisticSession`, `createBucket`, `assignSessionToBucket` are the canonical examples). If a feature seems to need an await-then-render flow, it is modeled wrong — restructure it as draft + side effect. `asyncAction` exists so a _caller_ can await the server result (e.g. a real id for follow-up writes), never so the UI can.
 
 **The store already provides optimism.** Update the draft through `action()` / `asyncAction()` and render from the store. Do not add parallel optimistic state, timers, reconciliation effects, or handwritten pending locks. Check the existing action and sync paths first; fix a bypass there. Any exception needs a concrete limitation of the default path, not an assumption that optimism must be implemented again.
 
@@ -193,9 +195,9 @@ Use `useTrackedStore` — declare deps (what triggers re-renders), access the fu
 
 ```ts
 const s = useTrackedStore([
-  s => s.messages[id],
-  s => s.sessions[id],
-  s => s.conversations[id],
+  (s) => s.messages[id],
+  (s) => s.sessions[id],
+  (s) => s.conversations[id],
 ]);
 // Full state access — read any field, call any getter
 const meta = s.conversations[id] ?? s.sessions[id];
@@ -210,9 +212,10 @@ const messages = s.messages[id] ?? [];
 
 ### Derived/enriched fields are snapshots — derive them live (`lib/liveEntities`)
 
-Convex queries return records enriched with **derived/joined** fields: `task.assignee_info` (from `assignee`), `plan.progress` (from task statuses), `plan.tasks` (embedded snapshot), `doc.display_title` (from `content`). These are **snapshots** — an optimistic store write to the underlying *raw* field (e.g. `updateTask` sets `task.assignee`) does NOT update the derived twin until the server round-trips. Binding a derived field straight off a server query is the root of "the change isn't instant" bugs.
+Convex queries return records enriched with **derived/joined** fields: `task.assignee_info` (from `assignee`), `plan.progress` (from task statuses), `plan.tasks` (embedded snapshot), `doc.display_title` (from `content`). These are **snapshots** — an optimistic store write to the underlying _raw_ field (e.g. `updateTask` sets `task.assignee`) does NOT update the derived twin until the server round-trips. Binding a derived field straight off a server query is the root of "the change isn't instant" bugs.
 
 **Default: never store-and-protect a derived object field; derive it at render** via `lib/liveEntities`:
+
 - `resolveAssigneeInfo(assignee, fallback, teamMembers, currentUser)` — avatar/name from the live roster.
 - `computePlanProgress(tasks)` — progress counts from a live task list.
 - `mergeLiveTasks(snapshotTasks, storeTasks, teamMembers, currentUser)` — overlay live store tasks onto a server snapshot (e.g. `plan.tasks`), preserving server-only fields and re-deriving `assignee_info`. Memo-stable (returns the same row ref when nothing diverged).
@@ -233,9 +236,11 @@ A list row holds what a list draws. The fields only an opened object draws live 
 Every build, dev and prod, exposes the store as `window.__inboxStore` (end of `store/inboxStore.ts`). Use it from the browser console (or `cast browser eval` when verifying) to inspect state or drive flows that have no URL of their own — e.g. fire an in-app deep-link to a message:
 
 ```js
-__inboxStore.getState().sessions            // inspect
-__inboxStore.getState().requestNavigate("<session key>", { scrollToMessageId: "<message _id>" })
-__navLog()                                  // audit trail of every view change (and blocked attempts)
+__inboxStore.getState().sessions; // inspect
+__inboxStore
+  .getState()
+  .requestNavigate("<session key>", { scrollToMessageId: "<message _id>" });
+__navLog(); // audit trail of every view change (and blocked attempts)
 ```
 
 Raw `setState` writes to `currentSessionId`/`pendingNavigateId` are reverted by the view-motion guard (`store/viewNav.ts`): every change of the visible conversation must declare a source, and machine-initiated sources can't move the view mid-session. If a "random session jump" is ever reported, read `__navLog()` first — it names the writer.

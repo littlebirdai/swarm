@@ -12,16 +12,25 @@ import {
 import { ORG_CONTEXT_GUIDANCE } from "./orgWhere";
 
 const variant = (name: string) =>
-  readFileSync(join(import.meta.dir, "../../../apps/evals/org-comms/suite/variants", `${name}.md`), "utf8").trim();
+  readFileSync(
+    join(
+      import.meta.dir,
+      "../../../apps/evals/org-comms/suite/variants",
+      `${name}.md`,
+    ),
+    "utf8",
+  ).trim();
 
 describe("messaging policies", () => {
   test("every name has its policy, under that name", () => {
-    for (const name of MESSAGING_POLICY_NAMES) expect(MESSAGING_POLICIES[name].name).toBe(name);
+    for (const name of MESSAGING_POLICY_NAMES)
+      expect(MESSAGING_POLICIES[name].name).toBe(name);
   });
 
   test("lead is the default, and an unset or unknown name resolves to it", () => {
     expect(DEFAULT_MESSAGING_POLICY).toBe("lead");
-    for (const name of [undefined, null, "", "peer", "LEAD"]) expect(resolveMessagingPolicy(name).name).toBe("lead");
+    for (const name of [undefined, null, "", "peer", "LEAD"])
+      expect(resolveMessagingPolicy(name).name).toBe("lead");
     expect(resolveMessagingPolicy("shared-log").name).toBe("shared-log");
     expect(isMessagingPolicyName("shared-log")).toBe(true);
     expect(isMessagingPolicyName(3)).toBe(false);
@@ -42,7 +51,8 @@ describe("messaging policies", () => {
       "A fail is an approach that did not work, with the reason, so that nobody tries it again.",
       "An interface is a contract that the work of another agent depends on.",
       "Leave out progress, plans and findings that matter only to you. Keep messages for what must change the next action of one agent now.",
-    ]) expect(log.guidance).toContain(line);
+    ])
+      expect(log.guidance).toContain(line);
     expect(log.guidance).toContain(`--type ${LOG_ENTRY_TYPES.join("|")}`);
   });
 });

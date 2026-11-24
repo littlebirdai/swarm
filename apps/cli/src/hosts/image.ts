@@ -22,33 +22,100 @@ import { shq } from "../remote/session-move.js";
 
 export const IMAGE_TAG = { Key: "managed-by", Value: "codecast" };
 
-export interface ImageRef { id: string; name: string; created: string; platform: string; source?: string }
+export interface ImageRef {
+  id: string;
+  name: string;
+  created: string;
+  platform: string;
+  source?: string;
+}
 
-export function aws(opts: { region: string; profile?: string }, args: string[]): any {
-  const output = execFileSync("aws", [...args, "--region", opts.region, ...(opts.profile ? ["--profile", opts.profile] : []), "--output", "json"], {
-    encoding: "utf8", timeout: 120_000, env: { ...process.env, PATH: agentSpawnPath(), AWS_PAGER: "" }, stdio: ["ignore", "pipe", "pipe"],
-  });
+export function aws(
+  opts: { region: string; profile?: string },
+  args: string[],
+): any {
+  const output = execFileSync(
+    "aws",
+    [
+      ...args,
+      "--region",
+      opts.region,
+      ...(opts.profile ? ["--profile", opts.profile] : []),
+      "--output",
+      "json",
+    ],
+    {
+      encoding: "utf8",
+      timeout: 120_000,
+      env: { ...process.env, PATH: agentSpawnPath(), AWS_PAGER: "" },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   return output.trim() ? JSON.parse(output) : {};
 }
 
-export function imageName(platform: string, sourceId: string, now = new Date()): string {
+export function imageName(
+  platform: string,
+  sourceId: string,
+  now = new Date(),
+): string {
   return `codecast-${platform}-${now.toISOString().slice(0, 19).replace(/[:T]/g, "-")}-${sourceId.slice(-6)}`;
 }
 
-export function createImageArgs(sourceId: string, platform: string, name: string): string[] {
-  const tags = [IMAGE_TAG, { Key: "codecast-platform", Value: platform }, { Key: "codecast-source", Value: sourceId }, { Key: "Name", Value: name }];
-  return ["ec2", "create-image", "--instance-id", sourceId, "--name", name, "--no-reboot",
-    "--description", `codecast ${platform} host image from ${sourceId}`,
-    "--tag-specifications", JSON.stringify([{ ResourceType: "image", Tags: tags }, { ResourceType: "snapshot", Tags: tags }])];
+export function createImageArgs(
+  sourceId: string,
+  platform: string,
+  name: string,
+): string[] {
+  const tags = [
+    IMAGE_TAG,
+    { Key: "codecast-platform", Value: platform },
+    { Key: "codecast-source", Value: sourceId },
+    { Key: "Name", Value: name },
+  ];
+  return [
+    "ec2",
+    "create-image",
+    "--instance-id",
+    sourceId,
+    "--name",
+    name,
+    "--no-reboot",
+    "--description",
+    `codecast ${platform} host image from ${sourceId}`,
+    "--tag-specifications",
+    JSON.stringify([
+      { ResourceType: "image", Tags: tags },
+      { ResourceType: "snapshot", Tags: tags },
+    ]),
+  ];
 }
 
 /** The account's codecast images for a platform, newest first. */
-export function listImages(opts: { region: string; profile?: string }, platform: string): ImageRef[] {
-  const out = aws(opts, ["ec2", "describe-images", "--owners", "self", "--filters", `Name=tag:managed-by,Values=codecast`, `Name=tag:codecast-platform,Values=${platform}`, "Name=state,Values=available"]);
-  return (out.Images ?? []).map((i: any) => ({
-    id: i.ImageId, name: i.Name, created: i.CreationDate, platform,
-    source: i.Tags?.find((t: { Key: string }) => t.Key === "codecast-source")?.Value,
-  })).sort((a: ImageRef, b: ImageRef) => (a.created < b.created ? 1 : -1));
+export function listImages(
+  opts: { region: string; profile?: string },
+  platform: string,
+): ImageRef[] {
+  const out = aws(opts, [
+    "ec2",
+    "describe-images",
+    "--owners",
+    "self",
+    "--filters",
+    `Name=tag:managed-by,Values=codecast`,
+    `Name=tag:codecast-platform,Values=${platform}`,
+    "Name=state,Values=available",
+  ]);
+  return (out.Images ?? [])
+    .map((i: any) => ({
+      id: i.ImageId,
+      name: i.Name,
+      created: i.CreationDate,
+      platform,
+      source: i.Tags?.find((t: { Key: string }) => t.Key === "codecast-source")
+        ?.Value,
+    }))
+    .sort((a: ImageRef, b: ImageRef) => (a.created < b.created ? 1 : -1));
 }
 
 /**
@@ -68,7 +135,13 @@ export function baseImageName(platform: string, now = new Date()): string {
 }
 
 /** Regions a base image is copied to, besides the one it is built in. */
-export const BASE_IMAGE_REGIONS = ["us-east-1", "us-east-2", "us-west-2", "eu-west-1", "eu-central-1"];
+export const BASE_IMAGE_REGIONS = [
+  "us-east-1",
+  "us-east-2",
+  "us-west-2",
+  "eu-west-1",
+  "eu-central-1",
+];
 
 /**
  * What leaves a base Mac before it is imaged: everything that is one
@@ -89,38 +162,96 @@ sudo rm -f /etc/ssh/ssh_host_*
 echo MAC-BASE-SCRUBBED`;
 }
 
-export function createBaseImageArgs(sourceId: string, platform: string, name: string): string[] {
-  const tags = [{ Key: "codecast-base", Value: platform }, { Key: "Name", Value: name }];
-  return ["ec2", "create-image", "--instance-id", sourceId, "--name", name,
-    "--description", `codecast ${platform} base image: runtimes, a managed codecast desktop login, and cast computer's grants`,
-    "--tag-specifications", JSON.stringify([{ ResourceType: "image", Tags: tags }, { ResourceType: "snapshot", Tags: tags }])];
+export function createBaseImageArgs(
+  sourceId: string,
+  platform: string,
+  name: string,
+): string[] {
+  const tags = [
+    { Key: "codecast-base", Value: platform },
+    { Key: "Name", Value: name },
+  ];
+  return [
+    "ec2",
+    "create-image",
+    "--instance-id",
+    sourceId,
+    "--name",
+    name,
+    "--description",
+    `codecast ${platform} base image: runtimes, a managed codecast desktop login, and cast computer's grants`,
+    "--tag-specifications",
+    JSON.stringify([
+      { ResourceType: "image", Tags: tags },
+      { ResourceType: "snapshot", Tags: tags },
+    ]),
+  ];
 }
 
 /** Make this account's available base images public in every base region,
  *  copying the newest into regions that lack it. Returns one line per region. */
-export function publishBaseImages(opts: { region: string; profile?: string }, platform: string): string[] {
-  const own = (region: string) => (aws({ ...opts, region }, ["ec2", "describe-images", "--owners", "self", "--filters", `Name=name,Values=codecast-base-${platform}-*`]).Images ?? [])
-    .sort((a: any, b: any) => (a.CreationDate < b.CreationDate ? 1 : -1));
+export function publishBaseImages(
+  opts: { region: string; profile?: string },
+  platform: string,
+): string[] {
+  const own = (region: string) =>
+    (
+      aws({ ...opts, region }, [
+        "ec2",
+        "describe-images",
+        "--owners",
+        "self",
+        "--filters",
+        `Name=name,Values=codecast-base-${platform}-*`,
+      ]).Images ?? []
+    ).sort((a: any, b: any) => (a.CreationDate < b.CreationDate ? 1 : -1));
   const source = own(opts.region).find((i: any) => i.State === "available");
-  if (!source) return [`${opts.region}: no available ${platform} base image yet`];
+  if (!source)
+    return [`${opts.region}: no available ${platform} base image yet`];
   const lines: string[] = [];
   for (const region of [...new Set([opts.region, ...BASE_IMAGE_REGIONS])]) {
     const ro = { ...opts, region };
     const here = own(region).find((i: any) => i.Name === source.Name);
     if (!here) {
-      const copy = aws(ro, ["ec2", "copy-image", "--source-region", opts.region, "--source-image-id", source.ImageId, "--name", source.Name,
-        "--description", source.Description ?? "", "--copy-image-tags"]);
-      lines.push(`${region}: copying ${source.Name} as ${copy.ImageId}; publish again once it is available`);
+      const copy = aws(ro, [
+        "ec2",
+        "copy-image",
+        "--source-region",
+        opts.region,
+        "--source-image-id",
+        source.ImageId,
+        "--name",
+        source.Name,
+        "--description",
+        source.Description ?? "",
+        "--copy-image-tags",
+      ]);
+      lines.push(
+        `${region}: copying ${source.Name} as ${copy.ImageId}; publish again once it is available`,
+      );
     } else if (here.State !== "available") {
-      lines.push(`${region}: ${here.ImageId} is ${here.State}; publish again once it is available`);
+      lines.push(
+        `${region}: ${here.ImageId} is ${here.State}; publish again once it is available`,
+      );
     } else if (!here.Public) {
       // AWS blocks public images per region by default; lifting it is the account owner's call.
-      const blocked = aws(ro, ["ec2", "get-image-block-public-access-state"]).ImageBlockPublicAccessState !== "unblocked";
+      const blocked =
+        aws(ro, ["ec2", "get-image-block-public-access-state"])
+          .ImageBlockPublicAccessState !== "unblocked";
       if (blocked) {
-        lines.push(`${region}: public images are blocked in this account; aws ec2 disable-image-block-public-access --region ${region}, then publish again`);
+        lines.push(
+          `${region}: public images are blocked in this account; aws ec2 disable-image-block-public-access --region ${region}, then publish again`,
+        );
         continue;
       }
-      aws(ro, ["ec2", "modify-image-attribute", "--image-id", here.ImageId, "--launch-permission", JSON.stringify({ Add: [{ Group: "all" }] })]);
+      aws(ro, [
+        "ec2",
+        "modify-image-attribute",
+        "--image-id",
+        here.ImageId,
+        "--launch-permission",
+        JSON.stringify({ Add: [{ Group: "all" }] }),
+      ]);
       lines.push(`${region}: ${here.ImageId} is public`);
     } else {
       lines.push(`${region}: ${here.ImageId} was already public`);
@@ -130,10 +261,30 @@ export function publishBaseImages(opts: { region: string; profile?: string }, pl
 }
 
 /** The newest public codecast base image for a platform in this region, or null. */
-export function latestBaseImage(opts: { region: string; profile?: string }, platform: string): ImageRef | null {
-  const out = aws(opts, ["ec2", "describe-images", "--owners", BASE_IMAGE_OWNER, "--filters", `Name=name,Values=codecast-base-${platform}-*`, "Name=state,Values=available"]);
-  const newest = (out.Images ?? []).sort((a: any, b: any) => (a.CreationDate < b.CreationDate ? 1 : -1))[0];
-  return newest ? { id: newest.ImageId, name: newest.Name, created: newest.CreationDate, platform } : null;
+export function latestBaseImage(
+  opts: { region: string; profile?: string },
+  platform: string,
+): ImageRef | null {
+  const out = aws(opts, [
+    "ec2",
+    "describe-images",
+    "--owners",
+    BASE_IMAGE_OWNER,
+    "--filters",
+    `Name=name,Values=codecast-base-${platform}-*`,
+    "Name=state,Values=available",
+  ]);
+  const newest = (out.Images ?? []).sort((a: any, b: any) =>
+    a.CreationDate < b.CreationDate ? 1 : -1,
+  )[0];
+  return newest
+    ? {
+        id: newest.ImageId,
+        name: newest.Name,
+        created: newest.CreationDate,
+        platform,
+      }
+    : null;
 }
 
 /**
@@ -143,11 +294,26 @@ export function latestBaseImage(opts: { region: string; profile?: string }, plat
  * Provisioning installs everything on top, so a plain image only makes the
  * first boot longer.
  */
-export function ubuntuImage(opts: { region: string; profile?: string }, arch: "amd64" | "arm64" = "amd64"): ImageRef | null {
+export function ubuntuImage(
+  opts: { region: string; profile?: string },
+  arch: "amd64" | "arm64" = "amd64",
+): ImageRef | null {
   try {
-    const out = aws(opts, ["ssm", "get-parameter", "--name", `/aws/service/canonical/ubuntu/server/24.04/stable/current/${arch}/hvm/ebs-gp3/ami-id`]);
+    const out = aws(opts, [
+      "ssm",
+      "get-parameter",
+      "--name",
+      `/aws/service/canonical/ubuntu/server/24.04/stable/current/${arch}/hvm/ebs-gp3/ami-id`,
+    ]);
     const id = out?.Parameter?.Value;
-    return typeof id === "string" && /^ami-[a-f0-9]+$/.test(id) ? { id, name: `Ubuntu 24.04 ${arch} (Canonical)`, created: out.Parameter.LastModifiedDate ?? "", platform: "linux" } : null;
+    return typeof id === "string" && /^ami-[a-f0-9]+$/.test(id)
+      ? {
+          id,
+          name: `Ubuntu 24.04 ${arch} (Canonical)`,
+          created: out.Parameter.LastModifiedDate ?? "",
+          platform: "linux",
+        }
+      : null;
   } catch {
     return null;
   }
@@ -158,9 +324,16 @@ export function ubuntuImage(opts: { region: string; profile?: string }, arch: "a
  * instance, early in boot, before the codecast daemon starts.
  */
 /** The CPU architecture an EC2 instance type runs: arm64 for Graviton (r8g, t4g, x2gd…), else amd64. */
-export function instanceTypeArch(opts: { region: string; profile?: string }, type: string): "amd64" | "arm64" {
-  const archs: string[] = aws(opts, ["ec2", "describe-instance-types", "--instance-types", type]).InstanceTypes?.[0]?.ProcessorInfo?.SupportedArchitectures ?? [];
-  return archs.includes("arm64") && !archs.includes("x86_64") ? "arm64" : "amd64";
+export function instanceTypeArch(
+  opts: { region: string; profile?: string },
+  type: string,
+): "amd64" | "arm64" {
+  const archs: string[] =
+    aws(opts, ["ec2", "describe-instance-types", "--instance-types", type])
+      .InstanceTypes?.[0]?.ProcessorInfo?.SupportedArchitectures ?? [];
+  return archs.includes("arm64") && !archs.includes("x86_64")
+    ? "arm64"
+    : "amd64";
 }
 
 export function cloneResetUserData(user = "ubuntu"): string {
@@ -212,10 +385,22 @@ export function brokenRefSweep(repo: string): string {
 }
 
 /** Deregister a codecast image and delete its snapshots (refuses an image that is not codecast's). */
-export function deleteImage(opts: { region: string; profile?: string }, imageId: string): void {
-  const img = aws(opts, ["ec2", "describe-images", "--image-ids", imageId]).Images?.[0];
+export function deleteImage(
+  opts: { region: string; profile?: string },
+  imageId: string,
+): void {
+  const img = aws(opts, ["ec2", "describe-images", "--image-ids", imageId])
+    .Images?.[0];
   if (!img) throw new Error(`no image ${imageId}`);
-  if (!img.Tags?.some((t: { Key: string; Value: string }) => t.Key === IMAGE_TAG.Key && t.Value === IMAGE_TAG.Value)) throw new Error(`${imageId} is not a codecast image`);
+  if (
+    !img.Tags?.some(
+      (t: { Key: string; Value: string }) =>
+        t.Key === IMAGE_TAG.Key && t.Value === IMAGE_TAG.Value,
+    )
+  )
+    throw new Error(`${imageId} is not a codecast image`);
   aws(opts, ["ec2", "deregister-image", "--image-id", imageId]);
-  for (const m of img.BlockDeviceMappings ?? []) if (m.Ebs?.SnapshotId) aws(opts, ["ec2", "delete-snapshot", "--snapshot-id", m.Ebs.SnapshotId]);
+  for (const m of img.BlockDeviceMappings ?? [])
+    if (m.Ebs?.SnapshotId)
+      aws(opts, ["ec2", "delete-snapshot", "--snapshot-id", m.Ebs.SnapshotId]);
 }

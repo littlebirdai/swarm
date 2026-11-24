@@ -6,11 +6,28 @@
  * `lib/links.ts` is the half that actually opens things.
  */
 
-import { entityRoute, flowSlugOf, isOrgObjectKind, orgObjectOfRef, parseProposalChangeRef, parseEntityUrl, parseMessageRefUrl, parseRepoObjectId, parseSharedEntityUrl, parseSharePath, sharePath, isAppHost, type EntityType } from '@codecast/shared/entities';
-import { laneRedirectTarget, pageAliasTarget } from '@codecast/web/lib/laneRedirect';
-import { settingsPathFor } from '@codecast/web/lib/settingsSections';
-import { notificationHref } from '@codecast/web/lib/notificationTypes';
-import { isMobileSettingsSection } from './settingsSections';
+import {
+  entityRoute,
+  flowSlugOf,
+  isOrgObjectKind,
+  orgObjectOfRef,
+  parseProposalChangeRef,
+  parseEntityUrl,
+  parseMessageRefUrl,
+  parseRepoObjectId,
+  parseSharedEntityUrl,
+  parseSharePath,
+  sharePath,
+  isAppHost,
+  type EntityType,
+} from "@codecast/shared/entities";
+import {
+  laneRedirectTarget,
+  pageAliasTarget,
+} from "@codecast/web/lib/laneRedirect";
+import { settingsPathFor } from "@codecast/web/lib/settingsSections";
+import { notificationHref } from "@codecast/web/lib/notificationTypes";
+import { isMobileSettingsSection } from "./settingsSections";
 
 /**
  * One URL vocabulary for every surface. `www.` hosts count: people paste them
@@ -18,12 +35,13 @@ import { isMobileSettingsSection } from './settingsSections';
  * isn't. The character class stops at whitespace and at the punctuation that
  * ends a sentence rather than a URL.
  */
-export const URL_SOURCE = 'https?:\\/\\/[^\\s<>\\])"\',]+|www\\.[^\\s<>\\])"\',]+|mailto:[^\\s<>\\])"\',]+';
+export const URL_SOURCE =
+  "https?:\\/\\/[^\\s<>\\])\"',]+|www\\.[^\\s<>\\])\"',]+|mailto:[^\\s<>\\])\"',]+";
 
 /** A fresh matcher for the shared vocabulary — each caller needs its own
  *  `lastIndex`, so this must never be a shared instance. */
 export function urlPattern(): RegExp {
-  return new RegExp(URL_SOURCE, 'g');
+  return new RegExp(URL_SOURCE, "g");
 }
 
 /**
@@ -31,18 +49,21 @@ export function urlPattern(): RegExp {
  * "read https://example.com/page." links to `/page`, not `/page.`.
  */
 export function trimUrlTail(raw: string): string {
-  return raw.replace(/[.,;:!?]+$/, '');
+  return raw.replace(/[.,;:!?]+$/, "");
 }
 
 /** A long URL reads as host + a hint of the path; the full URL is the target. */
 export function shortenUrl(url: string): string {
   if (url.length <= 50) return url;
   try {
-    const parsed = new URL(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`);
-    const path = parsed.pathname.length > 1 ? parsed.pathname.slice(0, 20) + '…' : '';
+    const parsed = new URL(
+      /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`,
+    );
+    const path =
+      parsed.pathname.length > 1 ? parsed.pathname.slice(0, 20) + "…" : "";
     return parsed.hostname + path;
   } catch {
-    return url.slice(0, 40) + '…';
+    return url.slice(0, 40) + "…";
   }
 }
 
@@ -57,32 +78,32 @@ export function isMentionStart(text: string, at: number): boolean {
 
 /** Mobile screen for each object type. Types absent here have no screen yet. */
 export const MOBILE_ENTITY_ROUTE: Partial<Record<EntityType, string>> = {
-  session: '/session',
-  task: '/task',
-  plan: '/plan',
-  doc: '/doc',
-  decision: '/decisions',
+  session: "/session",
+  task: "/task",
+  plan: "/plan",
+  doc: "/doc",
+  decision: "/decisions",
   // A call opens on the recording screen, which reads any call's words.
-  call: '/recording',
-  pr: '/pr',
+  call: "/recording",
+  pr: "/pr",
   // A product source and a recording (`rp-12`, or a moment of one, `rp-12@1:23`).
-  source: '/source',
-  replay: '/replay',
-  commit: '/commit',
-  deploy: '/deploy',
+  source: "/source",
+  replay: "/replay",
+  commit: "/commit",
+  deploy: "/deploy",
   // A flow of the pool by its slug (`flow:change`), and an org proposal (`op-55`, or one change of it, `op-55#3`).
-  flow: '/flow',
-  proposal: '/proposal',
+  flow: "/flow",
+  proposal: "/proposal",
   // The Vault is a settings page; a secret opens its detail there.
-  secret: '/settings/vault',
-  trigger: '/trigger',
+  secret: "/settings/vault",
+  trigger: "/trigger",
   // A role's page is its standing conversation (app/org/[id]); a person has
   // a screen of their own, addressed by handle like the web's /org/@<handle>.
-  role: '/org',
-  person: '/person',
+  role: "/org",
+  person: "/person",
   // A project and a goal have screens of their own (app/project, app/goal).
-  project: '/project',
-  initiative: '/goal',
+  project: "/project",
+  initiative: "/goal",
 };
 
 /** The mobile route for an object id, or null when that type has no screen.
@@ -93,70 +114,83 @@ export function mobileEntityRoute(type: EntityType, id: string): string | null {
   const base = MOBILE_ENTITY_ROUTE[type];
   if (!base) return null;
   // A pull request (codecast's page or GitHub's) opens the phone's PR screen.
-  if (type === 'pr') {
+  if (type === "pr") {
     const ref = parseRepoObjectId(id);
-    return ref?.type === 'pr' ? `${base}/${ref.repository}/${ref.number}` : null;
+    return ref?.type === "pr"
+      ? `${base}/${ref.repository}/${ref.number}`
+      : null;
   }
-  if (type === 'commit') {
+  if (type === "commit") {
     const ref = parseRepoObjectId(id);
-    return ref?.type === 'commit' ? `${base}/${ref.repository}/${ref.sha}` : null;
+    return ref?.type === "commit"
+      ? `${base}/${ref.repository}/${ref.sha}`
+      : null;
   }
-  if (type === 'secret') return `${base}?s=${encodeURIComponent(id)}`;
+  if (type === "secret") return `${base}?s=${encodeURIComponent(id)}`;
   // A source is named by its name (spaces and all) and a replay moment carries an `@`.
-  if (type === 'source' || type === 'replay') return `${base}/${encodeURIComponent(id)}`;
-  if (type === 'flow') {
+  if (type === "source" || type === "replay")
+    return `${base}/${encodeURIComponent(id)}`;
+  if (type === "flow") {
     const slug = flowSlugOf(/^flow:/i.test(id) ? id : `flow:${id}`);
     return slug ? `${base}/${slug}` : null;
   }
-  if (type === 'proposal') {
+  if (type === "proposal") {
     const change = parseProposalChangeRef(id);
-    return change ? `${base}/${change.proposal}?focus=${change.seq}` : `${base}/${id.toLowerCase()}`;
+    return change
+      ? `${base}/${change.proposal}?focus=${change.seq}`
+      : `${base}/${id.toLowerCase()}`;
   }
-  if (type === 'person') {
-    const handle = id.trim().replace(/^@/, '');
+  if (type === "person") {
+    const handle = id.trim().replace(/^@/, "");
     return handle ? `${base}/${encodeURIComponent(handle)}` : null;
   }
-  if (type === 'call') {
-    const web = entityRoute('call', id);
-    if (web?.startsWith('/calls/')) return `${base}/${web.slice('/calls/'.length)}`;
+  if (type === "call") {
+    const web = entityRoute("call", id);
+    if (web?.startsWith("/calls/"))
+      return `${base}/${web.slice("/calls/".length)}`;
   }
   return `${base}/${id}`;
 }
 
 /** Every object but a role and a person: those two are addressed under /org,
  *  which the org handler maps. A goal and a project have their own screens. */
-const opensOwnScreen = (type: EntityType): boolean => !isOrgObjectKind(type) || type === 'project' || type === 'initiative';
+const opensOwnScreen = (type: EntityType): boolean =>
+  !isOrgObjectKind(type) || type === "project" || type === "initiative";
 
 function safeDecode(segment: string): string {
-  try { return decodeURIComponent(segment); } catch { return segment; }
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 /** The web's pages the phone has a screen of its own for. Routines are a
  *  segment of the Tasks tab, which reads `segment` from its address. */
 const PAGE_ROUTES: Record<string, string> = {
-  '/inbox': '/(tabs)/inbox',
-  '/tasks': '/(tabs)/tasks',
-  '/notifications': '/(tabs)/notifications',
-  '/settings': '/(tabs)/settings',
-  '/decisions': '/decisions',
-  '/questions': '/decisions',
-  '/calls': '/calls',
+  "/inbox": "/(tabs)/inbox",
+  "/tasks": "/(tabs)/tasks",
+  "/notifications": "/(tabs)/notifications",
+  "/settings": "/(tabs)/settings",
+  "/decisions": "/decisions",
+  "/questions": "/decisions",
+  "/calls": "/calls",
   // The team's deploy targets, each with its live deploy and any dev push on top (a dev push's notice links here).
-  '/deploys': '/deploys',
-  '/plans': '/(tabs)/tasks?segment=plans',
-  '/docs': '/(tabs)/tasks?segment=docs',
-  '/triggers': '/(tabs)/tasks?segment=routines',
-  '/team/activity': '/(tabs)/chat?segment=activity',
-  '/vault': '/settings/vault',
+  "/deploys": "/deploys",
+  "/plans": "/(tabs)/tasks?segment=plans",
+  "/docs": "/(tabs)/tasks?segment=docs",
+  "/triggers": "/(tabs)/tasks?segment=routines",
+  "/team/activity": "/(tabs)/chat?segment=activity",
+  "/vault": "/settings/vault",
   // The settings sections the phone has a page for (components/settings/SettingsPages).
-  [settingsPathFor('general')]: '/settings/profile',
-  [settingsPathFor('notifications')]: '/settings/notifications',
-  [settingsPathFor('devices')]: '/settings/devices',
-  [settingsPathFor('team')]: '/settings/team',
-  [settingsPathFor('plan')]: '/settings/plan',
-  [settingsPathFor('integrations')]: '/settings/mail',
+  [settingsPathFor("general")]: "/settings/profile",
+  [settingsPathFor("notifications")]: "/settings/notifications",
+  [settingsPathFor("devices")]: "/settings/devices",
+  [settingsPathFor("team")]: "/settings/team",
+  [settingsPathFor("plan")]: "/settings/plan",
+  [settingsPathFor("integrations")]: "/settings/mail",
   // Passkeys are the web's Accounts section; the phone gives them a screen of their own.
-  [settingsPathFor('accounts')]: '/passkeys',
+  [settingsPathFor("accounts")]: "/passkeys",
 };
 
 /**
@@ -169,15 +203,20 @@ export function mobileRouteForUrl(url: string): string | null {
   // the org handler below maps to the phone's org screens.
   const ref = parseEntityUrl(url);
   // A task opened inside its project (/projects/<pj>/<task>) is the task.
-  const inProject = ref?.type === 'project' ? /^(?:https?:\/\/[^/]+)?\/projects\/[^/?#]+\/([^/?#]+)/i.exec(url) : null;
-  if (inProject) return mobileEntityRoute('task', safeDecode(inProject[1]));
+  const inProject =
+    ref?.type === "project"
+      ? /^(?:https?:\/\/[^/]+)?\/projects\/[^/?#]+\/([^/?#]+)/i.exec(url)
+      : null;
+  if (inProject) return mobileEntityRoute("task", safeDecode(inProject[1]));
   // A goal and a project open their own screens from any of their addresses,
   // /org/<ref> included; a role and a person go through the org handler below.
   if (ref && opensOwnScreen(ref.type)) {
     // A link to one message of a session (`#msg-<id>`) opens the session there.
-    const msg = ref.type === 'session' ? parseMessageRefUrl(url) : null;
+    const msg = ref.type === "session" ? parseMessageRefUrl(url) : null;
     const route = mobileEntityRoute(ref.type, ref.id);
-    return route && msg?.kind === 'message' ? `${route}?message=${msg.id}` : route;
+    return route && msg?.kind === "message"
+      ? `${route}?message=${msg.id}`
+      : route;
   }
   // A page link carrying its share token (`/conversation/<id>?share=<token>`,
   // what the web's share button copies) opens the same screen with the token
@@ -186,10 +225,14 @@ export function mobileRouteForUrl(url: string): string | null {
   // for the transcript queries; docs and plans read `?share=` themselves.
   const shared = parseSharedEntityUrl(url);
   if (shared && opensOwnScreen(shared.type)) {
-    const token = new URLSearchParams(shared.to.split(/[?#]/)[1] ?? '').get('share');
-    if (token && shared.type === 'session') return sharePath('conversation', token);
+    const token = new URLSearchParams(shared.to.split(/[?#]/)[1] ?? "").get(
+      "share",
+    );
+    if (token && shared.type === "session")
+      return sharePath("conversation", token);
     const route = mobileEntityRoute(shared.type, shared.id);
-    if (route && token && (shared.type === 'doc' || shared.type === 'plan')) return `${route}?share=${encodeURIComponent(token)}`;
+    if (route && token && (shared.type === "doc" || shared.type === "plan"))
+      return `${route}?share=${encodeURIComponent(token)}`;
     return route;
   }
 
@@ -213,7 +256,7 @@ export function mobileRouteForUrl(url: string): string | null {
   // object's screen. The token, not the app, decides what it addresses.
   const share = parseSharePath(path);
   if (share) {
-    return share.kind === 'conversation'
+    return share.kind === "conversation"
       ? `/share/${share.token}`
       : `/share/${share.kind}/${share.token}`;
   }
@@ -221,9 +264,10 @@ export function mobileRouteForUrl(url: string): string | null {
   // id, and "workspace" for the root. A ?tab= on a role's link names a board tab.
   const org = /^\/org(?:\/([^/]+))?\/?$/.exec(path);
   if (org) {
-    if (!org[1]) return '/org';
+    if (!org[1]) return "/org";
     const object = orgObjectOfRef(org[1]);
-    if (object?.kind === 'person') return mobileEntityRoute('person', object.ref);
+    if (object?.kind === "person")
+      return mobileEntityRoute("person", object.ref);
     return /[?&]tab=/.test(url) ? `/org/${org[1]}/board` : `/org/${org[1]}`;
   }
   // The retired assistant lane's addresses (/simple/...) lead where the web
@@ -232,8 +276,10 @@ export function mobileRouteForUrl(url: string): string | null {
   const issue = /^\/ops\/issues\/([^/]+)\/?$/.exec(path);
   if (issue) return `/issue/${issue[1]}`;
   // The Flows library with one flow open (`/flows?view=flows&item=change`, entityRoute's form for `flow:change`).
-  const flowItem = /^\/flows\/?$/.test(path) ? /[?&]item=([^&#]+)/.exec(url)?.[1] : null;
-  if (flowItem) return mobileEntityRoute('flow', decodeURIComponent(flowItem));
+  const flowItem = /^\/flows\/?$/.test(path)
+    ? /[?&]item=([^&#]+)/.exec(url)?.[1]
+    : null;
+  if (flowItem) return mobileEntityRoute("flow", decodeURIComponent(flowItem));
   const moved = laneRedirectTarget(path);
   if (moved) return mobileRouteForUrl(moved);
   // The web's other names for its pages (/approvals, /plan, /mail, /routines)
@@ -242,16 +288,18 @@ export function mobileRouteForUrl(url: string): string | null {
   // either mode.
   const alias = pageAliasTarget(path);
   if (alias) return mobileRouteForUrl(alias);
-  const page = PAGE_ROUTES[path.length > 1 ? path.replace(/\/+$/, '') : path];
+  const page = PAGE_ROUTES[path.length > 1 ? path.replace(/\/+$/, "") : path];
   if (page) return page;
   // A settings section the phone has a page of its own for, under the web's
   // name for it (/settings/devices, /settings/notifications). The web's other
   // sections (keyboard, daemon, ...) have no phone page and stay on the web.
   const section = /^\/settings\/([^/]+)\/?$/.exec(path);
-  if (section && isMobileSettingsSection(section[1])) return `/settings/${section[1]}`;
+  if (section && isMobileSettingsSection(section[1]))
+    return `/settings/${section[1]}`;
   // A person's activity profile (/team/<handle>) is a view of the person.
   const profile = /^\/team\/([^/]+)\/?$/.exec(path);
-  if (profile && profile[1] !== 'charts') return mobileEntityRoute('person', safeDecode(profile[1]));
+  if (profile && profile[1] !== "charts")
+    return mobileEntityRoute("person", safeDecode(profile[1]));
   // Pages the phone renders natively under its own address, keeping the
   // query the web reads (?w= for a week, ?c= for one comment on a page).
   const query = (key: string): string | null => {
@@ -263,29 +311,37 @@ export function mobileRouteForUrl(url: string): string | null {
   const metric = /^\/ops\/metrics\/([^/]+)\/?$/.exec(path);
   if (metric) return `/metric/${metric[1]}`;
   if (/^\/week\/?$/.test(path)) {
-    const week = query('w');
-    return week ? `/week?w=${encodeURIComponent(week)}` : '/week';
+    const week = query("w");
+    return week ? `/week?w=${encodeURIComponent(week)}` : "/week";
   }
   if (/^\/resources\/?$/.test(path)) {
-    const machine = query('offload');
+    const machine = query("offload");
     if (machine) return `/offload/${encodeURIComponent(machine)}`;
   }
   const published = /^\/a\/([^/]+)\/?$/.exec(path);
   if (published) {
-    const comment = query('c');
-    return comment ? `/page/${published[1]}?c=${encodeURIComponent(comment)}` : `/page/${published[1]}`;
+    const comment = query("c");
+    return comment
+      ? `/page/${published[1]}?c=${encodeURIComponent(comment)}`
+      : `/page/${published[1]}`;
   }
   // A channel by its id, at one message when the link names it (chatPermalink's shape).
   const channel = /^\/chat\/([a-z0-9]{32})\/?$/.exec(path);
   if (channel) {
-    const message = query('m');
-    return message ? `/chat/${channel[1]}?m=${encodeURIComponent(message)}` : `/chat/${channel[1]}`;
+    const message = query("m");
+    return message
+      ? `/chat/${channel[1]}?m=${encodeURIComponent(message)}`
+      : `/chat/${channel[1]}`;
   }
   // Team invites are completed on the web; the Chat tab (where the team
   // lives on the phone) is the nearest screen. The web's chat pages land
   // there too.
-  if (path.startsWith('/join/') || path === '/chat' || path.startsWith('/chat/')) {
-    return '/(tabs)/chat';
+  if (
+    path.startsWith("/join/") ||
+    path === "/chat" ||
+    path.startsWith("/chat/")
+  ) {
+    return "/(tabs)/chat";
   }
   return null;
 }
@@ -312,5 +368,5 @@ export function mobileNotificationRoute(n: {
     const route = href ? mobileRouteForUrl(href) : null;
     if (route) return route;
   }
-  return '/(tabs)/inbox';
+  return "/(tabs)/inbox";
 }

@@ -9,7 +9,12 @@ describe("decisionDetails sync", () => {
   const opts = (CLIENT_SYNC_REGISTRY.decisionDetails as any).sync;
   const row = (holder: string) => ({
     _id: "d1",
-    decision: { _id: "d1", status: "pending", holder: { kind: "user", id: holder }, asked_user_ids: [holder] },
+    decision: {
+      _id: "d1",
+      status: "pending",
+      holder: { kind: "user", id: holder },
+      asked_user_ids: [holder],
+    },
     doc: null,
     task: null,
     stack: null,
@@ -22,14 +27,26 @@ describe("decisionDetails sync", () => {
 
   test("an escalation that moves the holder reaches the cached row", () => {
     const prev = { d1: row("tess") as any };
-    const { table } = applySyncTable("decisionDetails", [row("ashot") as any], {}, prev, opts);
+    const { table } = applySyncTable(
+      "decisionDetails",
+      [row("ashot") as any],
+      {},
+      prev,
+      opts,
+    );
     expect(table.d1.decision.holder.id).toBe("ashot");
     expect(table.d1.asked_users[0]._id).toBe("ashot");
   });
 
   test("an unchanged push keeps the row's identity", () => {
     const prev = { d1: row("tess") as any };
-    const { table } = applySyncTable("decisionDetails", [row("tess") as any], {}, prev, opts);
+    const { table } = applySyncTable(
+      "decisionDetails",
+      [row("tess") as any],
+      {},
+      prev,
+      opts,
+    );
     expect(table.d1).toBe(prev.d1);
   });
 });

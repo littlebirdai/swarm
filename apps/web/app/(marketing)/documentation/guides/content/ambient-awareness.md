@@ -6,8 +6,8 @@ The list holds pointers to sessions, not the conversations themselves. When one 
 
 ## Turn it on
 
-1. Open **Settings** (**⌘,**), then **Agent Features** under *Machines*, and pick the computer your agents run on.
-2. On the **Stable context** card under *Context*, pick how much it shares:
+1. Open **Settings** (**⌘,**), then **Agent Features** under _Machines_, and pick the computer your agents run on.
+2. On the **Stable context** card under _Context_, pick how much it shares:
    - **Solo**: your 10 most recent sessions from the last 7 days.
    - **Team**: the team's 15 most recent sessions from the last 14 days.
    - **Off**: new sessions start without a list.
@@ -34,7 +34,7 @@ On the iPhone, the new session sheet has the same choice in its **Context** row.
 
 ## See what a session started with
 
-At the top of a conversation, a line reads *Started with 15 session pointers from the team feed*. Click it to open the cards: exactly what the agent knew when it began, each a link to that session. Sessions started with Stable context off have no line.
+At the top of a conversation, a line reads _Started with 15 session pointers from the team feed_. Click it to open the cards: exactly what the agent knew when it began, each a link to that session. Sessions started with Stable context off have no line.
 
 ## What changes
 
@@ -50,9 +50,9 @@ At the top of a conversation, a line reads *Started with 15 session pointers fro
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| No *Started with* line on new sessions | Check that Stable context isn't **Off** for the computer the session runs on |
-| A teammate's work is missing | Pick **Team**, and check that their folder is shared with the team |
-| The list is full of unrelated projects | Switch **All projects** off so it sticks to the session's folder |
-| One irrelevant session keeps showing up | Leave it out with its **×** on the new session screen |
+| What you notice                         | What to do                                                                   |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| No _Started with_ line on new sessions  | Check that Stable context isn't **Off** for the computer the session runs on |
+| A teammate's work is missing            | Pick **Team**, and check that their folder is shared with the team           |
+| The list is full of unrelated projects  | Switch **All projects** off so it sticks to the session's folder             |
+| One irrelevant session keeps showing up | Leave it out with its **×** on the new session screen                        |

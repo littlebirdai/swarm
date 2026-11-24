@@ -262,11 +262,7 @@ export type HookName =
   | "after-merge";
 
 /** Possible states of a workspace, persisted in .codecast/workspaces/<name>/state.json. */
-export type WorkspaceState =
-  | "creating"
-  | "ready"
-  | "broken"
-  | "destroying";
+export type WorkspaceState = "creating" | "ready" | "broken" | "destroying";
 
 /** Outcome of a single contract check. */
 export interface ContractCheck {

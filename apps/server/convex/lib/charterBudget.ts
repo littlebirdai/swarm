@@ -12,7 +12,9 @@
 // this module is bundled into the web client.
 export type CharterBudget = { tokens_per_day?: number; hands_per_day?: number };
 
-export function cleanBudget(b: CharterBudget | null | undefined): CharterBudget | undefined {
+export function cleanBudget(
+  b: CharterBudget | null | undefined,
+): CharterBudget | undefined {
   if (!b) return undefined;
   const out: CharterBudget = {};
   if (b.hands_per_day !== undefined) out.hands_per_day = b.hands_per_day;

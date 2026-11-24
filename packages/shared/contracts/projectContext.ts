@@ -4,7 +4,12 @@
 // Served inside org.where (convex/orgWhere.ts) and by projectContext.forSession;
 // rendered once here, injected by stable context at start and by the task
 // context hook after compaction or a resume.
-import { escapeForeignControlChars, inlineForeignText, capForeignText, fenceNonce } from "./fence";
+import {
+  escapeForeignControlChars,
+  inlineForeignText,
+  capForeignText,
+  fenceNonce,
+} from "./fence";
 
 export type ProjectMemoryItem = { id: string; title: string; gist: string };
 
@@ -43,10 +48,12 @@ export function utf8Bytes(text: string): number {
 /** `text` capped to at most `maxBytes` UTF-8 bytes, marker included, cut on a character. */
 function capForeignTextBytes(text: string, maxBytes: number): string {
   if (utf8Bytes(text) <= maxBytes) return text;
-  let lo = 0, hi = Math.min(text.length, maxBytes);
+  let lo = 0,
+    hi = Math.min(text.length, maxBytes);
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    if (utf8Bytes(capForeignText(text, mid)) <= maxBytes) lo = mid; else hi = mid - 1;
+    if (utf8Bytes(capForeignText(text, mid)) <= maxBytes) lo = mid;
+    else hi = mid - 1;
   }
   return capForeignText(text, lo);
 }
@@ -54,7 +61,10 @@ function capForeignTextBytes(text: string, maxBytes: number): string {
 /** The first line of a doc's body that is not its title heading, as one short line. */
 export function memoryGist(content: string, title: string): string {
   for (const raw of (content ?? "").split("\n")) {
-    const line = raw.trim().replace(/^#+\s*/, "").replace(/^[-*>]\s+/, "");
+    const line = raw
+      .trim()
+      .replace(/^#+\s*/, "")
+      .replace(/^[-*>]\s+/, "");
     if (!line || line === title.trim()) continue;
     return capForeignText(inlineForeignText(line), GIST_CHARS);
   }
@@ -69,38 +79,71 @@ export function projectContextLines(p: ProjectContext): string[] {
   out.push(p.goal ? `Goal: ${inlineForeignText(p.goal)}` : "Goal: not set");
   if (p.success_metrics.length) {
     out.push("Success is checked by:");
-    for (const m of p.success_metrics.slice(0, METRICS_SHOWN)) out.push(`  - ${inlineForeignText(m)}`);
-    if (p.success_metrics.length > METRICS_SHOWN) out.push(`  +${p.success_metrics.length - METRICS_SHOWN} more: cast project show ${id}`);
+    for (const m of p.success_metrics.slice(0, METRICS_SHOWN))
+      out.push(`  - ${inlineForeignText(m)}`);
+    if (p.success_metrics.length > METRICS_SHOWN)
+      out.push(
+        `  +${p.success_metrics.length - METRICS_SHOWN} more: cast project show ${id}`,
+      );
   } else out.push("Success is checked by: not set");
   const main = p.main_session;
-  out.push(main
-    ? `Main session: ${[main.short_id, main.title && inlineForeignText(main.title)].filter(Boolean).join(" ")}${p.is_main ? " (this session)" : ""}`
-    : "Main session: none yet");
+  out.push(
+    main
+      ? `Main session: ${[main.short_id, main.title && inlineForeignText(main.title)].filter(Boolean).join(" ")}${p.is_main ? " (this session)" : ""}`
+      : "Main session: none yet",
+  );
   return out;
 }
 
 /** The block injected for a session in a project. `nonce` keeps text inside it from closing it;
  *  `instructionsBytes` narrows how much of the instructions it carries, to fit a hook's budget. */
-export function projectContextBlock(p: ProjectContext, opts: { nonce?: string; instructionsBytes?: number } = {}): string {
+export function projectContextBlock(
+  p: ProjectContext,
+  opts: { nonce?: string; instructionsBytes?: number } = {},
+): string {
   const nonce = opts.nonce ?? fenceNonce();
   const id = ref(p);
-  const lines = [`<project-context-${nonce} project="${id}">`, "The project this session works in, read at session start.", "", ...projectContextLines(p)];
+  const lines = [
+    `<project-context-${nonce} project="${id}">`,
+    "The project this session works in, read at session start.",
+    "",
+    ...projectContextLines(p),
+  ];
 
   if (p.instructions?.trim()) {
     const text = escapeForeignControlChars(p.instructions.trim());
-    const room = Math.max(INSTRUCTIONS_FLOOR, Math.min(PROJECT_INSTRUCTIONS_SHOWN, opts.instructionsBytes ?? PROJECT_INSTRUCTIONS_SHOWN));
-    const shown = utf8Bytes(text) > room
-      ? `${capForeignTextBytes(text, room)}\nThe rest: cast project show ${id}`
-      : text;
-    lines.push("", "The project's instructions, which every session in it follows:", `<instructions-${nonce}>`, shown, `</instructions-${nonce}>`);
+    const room = Math.max(
+      INSTRUCTIONS_FLOOR,
+      Math.min(
+        PROJECT_INSTRUCTIONS_SHOWN,
+        opts.instructionsBytes ?? PROJECT_INSTRUCTIONS_SHOWN,
+      ),
+    );
+    const shown =
+      utf8Bytes(text) > room
+        ? `${capForeignTextBytes(text, room)}\nThe rest: cast project show ${id}`
+        : text;
+    lines.push(
+      "",
+      "The project's instructions, which every session in it follows:",
+      `<instructions-${nonce}>`,
+      shown,
+      `</instructions-${nonce}>`,
+    );
   }
 
   const total = p.memory.length + p.memory_more;
   lines.push("");
   if (total) {
-    lines.push(`Project memory (${total} pinned doc${total === 1 ? "" : "s"}; cast doc show <id> opens one):`);
-    for (const m of p.memory) lines.push(`  - ${m.id} ${inlineForeignText(m.title)}${m.gist ? `: ${m.gist}` : ""}`);
-    if (p.memory_more) lines.push(`  +${p.memory_more} more: cast project memory ${id}`);
+    lines.push(
+      `Project memory (${total} pinned doc${total === 1 ? "" : "s"}; cast doc show <id> opens one):`,
+    );
+    for (const m of p.memory)
+      lines.push(
+        `  - ${m.id} ${inlineForeignText(m.title)}${m.gist ? `: ${m.gist}` : ""}`,
+      );
+    if (p.memory_more)
+      lines.push(`  +${p.memory_more} more: cast project memory ${id}`);
   } else lines.push("Project memory: empty.");
 
   lines.push(
@@ -113,7 +156,9 @@ export function projectContextBlock(p: ProjectContext, opts: { nonce?: string; i
         : "A finding that changes the whole project's direction goes to the person, and into the project memory.",
   );
   if (!p.goal && p.is_main) {
-    lines.push(`The project's goal and how success will be checked are not set. Before building, work them out with the person, interviewing them where it helps, and record them with cast project update ${id} --goal and --metric.`);
+    lines.push(
+      `The project's goal and how success will be checked are not set. Before building, work them out with the person, interviewing them where it helps, and record them with cast project update ${id} --goal and --metric.`,
+    );
   }
   lines.push(`</project-context-${nonce}>`);
   return lines.join("\n");
@@ -122,16 +167,23 @@ export function projectContextBlock(p: ProjectContext, opts: { nonce?: string; i
 /** The block in at most `roomBytes` UTF-8 bytes where it can be: its
  *  instructions give way first, down to a floor, then its memory list from the
  *  oldest (counted under "+N more"). The charter and the rules always print. */
-export function fitProjectContextBlock(p: ProjectContext, roomBytes: number, opts: { nonce?: string } = {}): string {
+export function fitProjectContextBlock(
+  p: ProjectContext,
+  roomBytes: number,
+  opts: { nonce?: string } = {},
+): string {
   const nonce = opts.nonce ?? fenceNonce();
   const fits = (block: string) => utf8Bytes(block) <= roomBytes;
   const withInstructions = (q: ProjectContext): string => {
     const full = projectContextBlock(q, { nonce });
     if (!q.instructions?.trim() || fits(full)) return full;
-    let lo = INSTRUCTIONS_FLOOR, hi = PROJECT_INSTRUCTIONS_SHOWN;
+    let lo = INSTRUCTIONS_FLOOR,
+      hi = PROJECT_INSTRUCTIONS_SHOWN;
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2);
-      if (fits(projectContextBlock(q, { nonce, instructionsBytes: mid }))) lo = mid; else hi = mid - 1;
+      if (fits(projectContextBlock(q, { nonce, instructionsBytes: mid })))
+        lo = mid;
+      else hi = mid - 1;
     }
     return projectContextBlock(q, { nonce, instructionsBytes: lo });
   };

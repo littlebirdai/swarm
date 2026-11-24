@@ -29,7 +29,8 @@ export function currentPagePath(path: string): string {
   const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
   if (RENAMED_PAGES[pathname]) return RENAMED_PAGES[pathname] + rest;
   for (const [from, to] of Object.entries(RENAMED_PAGE_ROOTS)) {
-    if (pathname === from || pathname.startsWith(`${from}/`)) return to + pathname.slice(from.length) + rest;
+    if (pathname === from || pathname.startsWith(`${from}/`))
+      return to + pathname.slice(from.length) + rest;
   }
   return path;
 }

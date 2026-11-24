@@ -9,29 +9,63 @@
 // follow their page. Only what Modern changes is written here.
 import type { TeamFeatureKey } from "@codecast/shared/contracts";
 import type { NavPage } from "./navPages";
-import { NAV_REGISTRY, type NavGate, type NavId, type NavRow } from "./navRegistry";
+import {
+  NAV_REGISTRY,
+  type NavGate,
+  type NavId,
+  type NavRow,
+} from "./navRegistry";
 
 /** The registry's gates the palette keeps: the team features. A row behind
  *  any other gate (an active team, staff, the org feature) stays listed, as
  *  it always was; its page says what it needs. */
-const PALETTE_FEATURES: Partial<Record<NavGate, TeamFeatureKey>> = { chat: "chat", calls: "calls", changes: "changes", line: "line" };
+const PALETTE_FEATURES: Partial<Record<NavGate, TeamFeatureKey>> = {
+  chat: "chat",
+  calls: "calls",
+  changes: "changes",
+  line: "line",
+};
 
 /** What Modern changes about a page's row, or the whole row for a page the
  *  classic palette does not list. */
-const MODERN: Partial<Record<NavId, Partial<Pick<NavPage, "keywords" | "aliases" | "secondary" | "action"> & { path: string }>>> = {
+const MODERN: Partial<
+  Record<
+    NavId,
+    Partial<
+      Pick<NavPage, "keywords" | "aliases" | "secondary" | "action"> & {
+        path: string;
+      }
+    >
+  >
+> = {
   inbox: { keywords: "idle queue waiting needs you sessions" },
   // "routines" names the workflow graphs (Routines), not this page.
-  triggers: { keywords: "triggers schedules cron automation recurring followup reminders" },
+  triggers: {
+    keywords: "triggers schedules cron automation recurring followup reminders",
+  },
   workflows: { keywords: "workflows dynamic runs agents orchestration" },
   // Modern's /workflows is the whole Workflows page (Routines, Runs, Dynamic),
   // so the Routines row opens its tab there rather than the older address.
   routines: { path: "/workflows?tab=routines" },
   // A row of the rail, so listed before anyone types.
   flows: { secondary: false },
-  windows: { keywords: "windows window manager arrange tile desktop", secondary: true },
-  crosstalk: { keywords: "crosstalk agents talking to each other messages between sessions", secondary: true },
-  agentConfig: { keywords: "agent config configuration claude md settings hooks permissions", secondary: true },
-  feed: { keywords: "message feed messages stream everything said", secondary: true },
+  windows: {
+    keywords: "windows window manager arrange tile desktop",
+    secondary: true,
+  },
+  crosstalk: {
+    keywords:
+      "crosstalk agents talking to each other messages between sessions",
+    secondary: true,
+  },
+  agentConfig: {
+    keywords: "agent config configuration claude md settings hooks permissions",
+    secondary: true,
+  },
+  feed: {
+    keywords: "message feed messages stream everything said",
+    secondary: true,
+  },
 };
 
 /** Where a registry row's palette entry goes in Modern: its page, or the
@@ -49,14 +83,20 @@ function pathOf(page: NavPage): string {
  *  under Evals, /settings/team under Settings). */
 function parentOf(page: NavPage, rows: readonly NavRow[]): NavId {
   const prefix = page.label.split(":")[0];
-  const byLabel = page.label.includes(":") ? rows.find((r) => r.label === prefix) : undefined;
+  const byLabel = page.label.includes(":")
+    ? rows.find((r) => r.label === prefix)
+    : undefined;
   if (byLabel) return byLabel.id;
   const p = pathOf(page).split(/[?#]/)[0];
-  const byPath = [...rows].sort((a, b) => b.path.length - a.path.length).find((r) => p === r.path || p.startsWith(`${r.path}/`));
+  const byPath = [...rows]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((r) => p === r.path || p.startsWith(`${r.path}/`));
   return byPath?.id ?? "settings";
 }
 
-export function buildModernNavPages(classic: ReadonlyArray<NavPage>): NavPage[] {
+export function buildModernNavPages(
+  classic: ReadonlyArray<NavPage>,
+): NavPage[] {
   const registryPaths = new Set(NAV_REGISTRY.map((r) => r.path));
   const views = new Map<NavId, NavPage[]>();
   for (const page of classic) {
@@ -69,7 +109,14 @@ export function buildModernNavPages(classic: ReadonlyArray<NavPage>): NavPage[] 
     const over = MODERN[row.id] ?? {};
     const feature = row.feature ? PALETTE_FEATURES[row.feature] : undefined;
     // The classic name and any older one still find the page.
-    const aliases = [...new Set([...(over.aliases ?? base?.aliases ?? []), ...(row.classicLabel ? [row.classicLabel] : []), ...(base && base.label !== row.label ? [base.label] : []), ...(row.formerLabels ?? [])])];
+    const aliases = [
+      ...new Set([
+        ...(over.aliases ?? base?.aliases ?? []),
+        ...(row.classicLabel ? [row.classicLabel] : []),
+        ...(base && base.label !== row.label ? [base.label] : []),
+        ...(row.formerLabels ?? []),
+      ]),
+    ];
     const page: NavPage = {
       label: row.label,
       path: modernPalettePath(row),
@@ -78,8 +125,12 @@ export function buildModernNavPages(classic: ReadonlyArray<NavPage>): NavPage[] 
       keywords: over.keywords ?? base?.keywords ?? row.label.toLowerCase(),
       ...(aliases.length ? { aliases } : {}),
       ...((over.secondary ?? base?.secondary) ? { secondary: true } : {}),
-      ...((over.action ?? base?.action) ? { action: over.action ?? base?.action } : {}),
-      ...((base?.feature ?? feature) ? { feature: base?.feature ?? feature } : {}),
+      ...((over.action ?? base?.action)
+        ? { action: over.action ?? base?.action }
+        : {}),
+      ...((base?.feature ?? feature)
+        ? { feature: base?.feature ?? feature }
+        : {}),
     };
     return [page, ...(views.get(row.id) ?? [])];
   });

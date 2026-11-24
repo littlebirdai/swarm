@@ -12,7 +12,7 @@
  *  server's file_changes row both satisfy it. */
 export interface CumulativeChange {
   filePath: string;
-  changeType: 'write' | 'edit' | 'delete' | 'commit';
+  changeType: "write" | "edit" | "delete" | "commit";
   oldContent?: string;
   newContent: string;
   sequenceIndex: number;
@@ -44,19 +44,27 @@ export interface CumulativeDiff {
  * a whole-file change arrives with the text it replaced, which already holds
  * the earlier edits, so the session's original is that text with them undone.
  */
-function undoEdits(text: string, edits: Array<{ oldContent?: string; newContent: string }>): string {
+function undoEdits(
+  text: string,
+  edits: Array<{ oldContent?: string; newContent: string }>,
+): string {
   let result = text;
   for (let i = edits.length - 1; i >= 0; i--) {
     const edit = edits[i];
     if (!edit.newContent) continue;
     const idx = result.indexOf(edit.newContent);
     if (idx === -1) continue;
-    result = result.slice(0, idx) + (edit.oldContent ?? '') + result.slice(idx + edit.newContent.length);
+    result =
+      result.slice(0, idx) +
+      (edit.oldContent ?? "") +
+      result.slice(idx + edit.newContent.length);
   }
   return result;
 }
 
-export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDiff[] {
+export function computeCumulativeDiff(
+  changes: CumulativeChange[],
+): CumulativeDiff[] {
   if (changes.length === 0) {
     return [];
   }
@@ -64,7 +72,7 @@ export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDi
   const fileGroups = new Map<string, CumulativeChange[]>();
 
   for (const change of changes) {
-    if (change.changeType === 'commit') {
+    if (change.changeType === "commit") {
       continue;
     }
     const existing = fileGroups.get(change.filePath) || [];
@@ -85,14 +93,14 @@ export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDi
     const partialEdits: Array<{ oldContent?: string; newContent: string }> = [];
 
     for (const change of fileChanges) {
-      if (change.changeType === 'delete') {
+      if (change.changeType === "delete") {
         if (!hasFullContent && change.oldContent !== undefined) {
           originalContent = undoEdits(change.oldContent, partialEdits);
         }
-        currentContent = '';
+        currentContent = "";
         hasFullContent = true;
         deleted = true;
-      } else if (change.changeType === 'write') {
+      } else if (change.changeType === "write") {
         deleted = false;
         if (!hasFullContent && change.oldContent !== undefined) {
           // A whole-file replacement that knows the text before it: that text
@@ -102,9 +110,17 @@ export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDi
         }
         currentContent = change.newContent;
         hasFullContent = true;
-      } else if (change.changeType === 'edit') {
-        if (!hasFullContent) partialEdits.push({ oldContent: change.oldContent, newContent: change.newContent });
-        if (hasFullContent && currentContent !== undefined && change.oldContent) {
+      } else if (change.changeType === "edit") {
+        if (!hasFullContent)
+          partialEdits.push({
+            oldContent: change.oldContent,
+            newContent: change.newContent,
+          });
+        if (
+          hasFullContent &&
+          currentContent !== undefined &&
+          change.oldContent
+        ) {
           const idx = currentContent.indexOf(change.oldContent);
           if (idx !== -1) {
             currentContent =
@@ -124,8 +140,9 @@ export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDi
                 change.newContent +
                 currentContent.slice(idx + change.oldContent.length);
             } else {
-              originalContent = (originalContent || '') + '\n' + change.oldContent;
-              currentContent = currentContent + '\n' + change.newContent;
+              originalContent =
+                (originalContent || "") + "\n" + change.oldContent;
+              currentContent = currentContent + "\n" + change.newContent;
             }
           }
         }
@@ -148,9 +165,9 @@ export function computeCumulativeDiff(changes: CumulativeChange[]): CumulativeDi
 
 export function getCumulativeDiffForFile(
   changes: CumulativeChange[],
-  filePath: string
+  filePath: string,
 ): CumulativeDiff | null {
-  const fileChanges = changes.filter(c => c.filePath === filePath);
+  const fileChanges = changes.filter((c) => c.filePath === filePath);
   if (fileChanges.length === 0) {
     return null;
   }
@@ -159,18 +176,29 @@ export function getCumulativeDiffForFile(
   return result[0] || null;
 }
 
-export function computeCumulativeFiles(changes: CumulativeChange[], upToIndex: number | null): DiffFile[] {
+export function computeCumulativeFiles(
+  changes: CumulativeChange[],
+  upToIndex: number | null,
+): DiffFile[] {
   const endIndex = upToIndex !== null ? upToIndex : changes.length - 1;
   if (endIndex < 0) return [];
 
-  const relevantChanges = changes.slice(0, endIndex + 1).filter(c => c.changeType !== "commit");
+  const relevantChanges = changes
+    .slice(0, endIndex + 1)
+    .filter((c) => c.changeType !== "commit");
 
-  const lastIndexes = new Map(relevantChanges.map((change, index) => [change.filePath, index]));
+  const lastIndexes = new Map(
+    relevantChanges.map((change, index) => [change.filePath, index]),
+  );
   const newFiles = new Set<string>();
   const seenFiles = new Set<string>();
   for (const change of relevantChanges) {
     // A write that carries the text it replaced is a change to an existing file.
-    if (!seenFiles.has(change.filePath) && change.changeType === "write" && change.oldContent === undefined) {
+    if (
+      !seenFiles.has(change.filePath) &&
+      change.changeType === "write" &&
+      change.oldContent === undefined
+    ) {
       newFiles.add(change.filePath);
     }
     seenFiles.add(change.filePath);
@@ -184,7 +212,12 @@ export function computeCumulativeFiles(changes: CumulativeChange[], upToIndex: n
     if (oldStr === newStr && !isNewFile && !diff.deleted) continue;
 
     files.push({
-      ...diffFileOf(filePath, oldStr, newStr, diff.deleted ? "deleted" : isNewFile ? "added" : "modified"),
+      ...diffFileOf(
+        filePath,
+        oldStr,
+        newStr,
+        diff.deleted ? "deleted" : isNewFile ? "added" : "modified",
+      ),
       lastIndex: lastIndexes.get(filePath)!,
     });
   }
@@ -195,15 +228,35 @@ export function computeCumulativeFiles(changes: CumulativeChange[], upToIndex: n
 }
 
 /** One file of the tree from its text before and after. */
-export function diffFileOf(filePath: string, oldStr: string, newStr: string, status: string): DiffFile {
+export function diffFileOf(
+  filePath: string,
+  oldStr: string,
+  newStr: string,
+  status: string,
+): DiffFile {
   const patch = generateUnifiedPatch(filePath, oldStr, newStr);
-  const patchLines = patch.split('\n');
-  const additions = patchLines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
-  const deletions = patchLines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
-  return { filename: filePath, status, additions, deletions, changes: additions + deletions, patch };
+  const patchLines = patch.split("\n");
+  const additions = patchLines.filter(
+    (l) => l.startsWith("+") && !l.startsWith("+++"),
+  ).length;
+  const deletions = patchLines.filter(
+    (l) => l.startsWith("-") && !l.startsWith("---"),
+  ).length;
+  return {
+    filename: filePath,
+    status,
+    additions,
+    deletions,
+    changes: additions + deletions,
+    patch,
+  };
 }
 
-export function generateUnifiedPatch(filename: string, oldContent: string, newContent: string): string {
+export function generateUnifiedPatch(
+  filename: string,
+  oldContent: string,
+  newContent: string,
+): string {
   // A file's final newline ends its last line rather than starting an empty one.
   const oldLines = oldContent ? oldContent.replace(/\n$/, "").split("\n") : [];
   const newLines = newContent ? newContent.replace(/\n$/, "").split("\n") : [];
@@ -214,7 +267,9 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
 
   const m = oldLines.length;
   const n = newLines.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  const dp: number[][] = Array(m + 1)
+    .fill(null)
+    .map(() => Array(n + 1).fill(0));
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -227,12 +282,14 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
   }
 
   const diff: Array<{ type: "add" | "del" | "ctx"; line: string }> = [];
-  let i = m, j = n;
+  let i = m,
+    j = n;
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
       diff.unshift({ type: "ctx", line: oldLines[i - 1] });
-      i--; j--;
+      i--;
+      j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
       diff.unshift({ type: "add", line: newLines[j - 1] });
       j--;
@@ -244,7 +301,10 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
 
   let hunkStart = -1;
   let hunkLines: string[] = [];
-  let oldStart = 1, newStart = 1, oldCount = 0, newCount = 0;
+  let oldStart = 1,
+    newStart = 1,
+    oldCount = 0,
+    newCount = 0;
 
   const flushHunk = () => {
     if (hunkLines.length > 0) {
@@ -254,7 +314,8 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
     }
   };
 
-  let currentOldLine = 1, currentNewLine = 1;
+  let currentOldLine = 1,
+    currentNewLine = 1;
   let lastChangeIdx = -1;
 
   diff.forEach((d, idx) => {
@@ -298,7 +359,10 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
 
     if (d.type === "del") currentOldLine++;
     else if (d.type === "add") currentNewLine++;
-    else { currentOldLine++; currentNewLine++; }
+    else {
+      currentOldLine++;
+      currentNewLine++;
+    }
   });
 
   flushHunk();
@@ -306,6 +370,16 @@ export function generateUnifiedPatch(filename: string, oldContent: string, newCo
   return patch;
 }
 
-
 export { selectFoldInputs, type FoldInputRef } from "./foldInputs";
-export { selectRangeFoldInputs, selectReviewFoldInputs, lastChangeIds, computeRangeFiles, diffBaseStart, contentHash, DIFF_BASES, type DiffBase, type DiffBaseInputs, type RangeDiffFile } from "./rangeFold";
+export {
+  selectRangeFoldInputs,
+  selectReviewFoldInputs,
+  lastChangeIds,
+  computeRangeFiles,
+  diffBaseStart,
+  contentHash,
+  DIFF_BASES,
+  type DiffBase,
+  type DiffBaseInputs,
+  type RangeDiffFile,
+} from "./rangeFold";

@@ -8,33 +8,65 @@
 // That starts a paid run, so the press opens the shared review first
 // (components/consequential); only the review's button files the ask.
 import { useMemo, useState } from "react";
-import { askAgentFields, cameBackPattern, labeledCases, type AskCase } from "../../../../lib/line/lineActions";
+import {
+  askAgentFields,
+  cameBackPattern,
+  labeledCases,
+  type AskCase,
+} from "../../../../lib/line/lineActions";
 import { useInboxStore } from "../../../../store/inboxStore";
 import { taskStubId } from "../../../../store/taskStub";
-import { SwitchReview, type SwitchLedger } from "../../../consequential/ConsequentialSwitch";
-import { MERGES_NEVER, costFigure, listRow } from "../../../consequential/lineStartLedger";
+import {
+  SwitchReview,
+  type SwitchLedger,
+} from "../../../consequential/ConsequentialSwitch";
+import {
+  MERGES_NEVER,
+  costFigure,
+  listRow,
+} from "../../../consequential/lineStartLedger";
 import { useRunCost } from "../../../consequential/useRunCost";
 import { backTimes, useLineNav } from "../parts";
 import type { AskSlotProps } from "../actionSlots";
 import "./actions.css";
 
-const newClientKey = () => `ask_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+const newClientKey = () =>
+  `ask_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-type Sent = { key: string; result?: { task_id?: string; task_short_id?: string; started: boolean; reason?: string; role_handle?: string }; error?: string };
+type Sent = {
+  key: string;
+  result?: {
+    task_id?: string;
+    task_short_id?: string;
+    started: boolean;
+    reason?: string;
+    role_handle?: string;
+  };
+  error?: string;
+};
 
 export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
   const nav = useLineNav();
   // With no single project in scope the person picks where the ask is filed, here.
   const [picked, setPicked] = useState<string | null>(null);
-  const projectId = nav.projectId ?? picked ?? (projects?.length === 1 ? projects[0]._id : null);
+  const projectId =
+    nav.projectId ??
+    picked ??
+    (projects?.length === 1 ? projects[0]._id : null);
   const all = useMemo(() => labeledCases(step), [step]);
   const pattern = useMemo(() => cameBackPattern(step), [step]);
   // The cases the person took out of the ask, by run.
   const [dropped, setDropped] = useState<ReadonlySet<string>>(() => new Set());
-  const cases = useMemo(() => all.filter((c) => !dropped.has(c.runId)), [all, dropped]);
+  const cases = useMemo(
+    () => all.filter((c) => !dropped.has(c.runId)),
+    [all, dropped],
+  );
   // One chip per case: a case dissolved three times goes, or stays out, as one example of three runs.
   const chips = useMemo(() => {
-    const by = new Map<string, { key: string; label: string; first: AskCase; runs: string[] }>();
+    const by = new Map<
+      string,
+      { key: string; label: string; first: AskCase; runs: string[] }
+    >();
     for (const c of all) {
       const label = c.caseRef ?? c.caseTitle;
       // Runs on one case group when they are the same kind of example: a case labeled right stays apart from its closes that came back.
@@ -45,25 +77,41 @@ export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
     }
     return [...by.values()];
   }, [all]);
-  const toggle = (runs: ReadonlyArray<string>) => setDropped((had) => {
-    const next = new Set(had);
-    const out = runs.every((r) => had.has(r));
-    for (const r of runs) { if (out) next.delete(r); else next.add(r); }
-    return next;
-  });
+  const toggle = (runs: ReadonlyArray<string>) =>
+    setDropped((had) => {
+      const next = new Set(had);
+      const out = runs.every((r) => had.has(r));
+      for (const r of runs) {
+        if (out) next.delete(r);
+        else next.add(r);
+      }
+      return next;
+    });
   const [words, setWords] = useState("");
   const [sent, setSent] = useState<Sent | null>(null);
   // The cause as the store paints it, then as the server row supersedes it.
   const task = useInboxStore((s) => {
     if (!sent) return null;
     const tasks = (s as any).tasks ?? {};
-    return (sent.result?.task_id ? tasks[sent.result.task_id] : null) ?? tasks[taskStubId(sent.key)] ?? null;
+    return (
+      (sent.result?.task_id ? tasks[sent.result.task_id] : null) ??
+      tasks[taskStubId(sent.key)] ??
+      null
+    );
   });
   const caseCount = new Set(cases.map((c) => c.caseRef ?? c.caseTitle)).size;
   const back = cases.filter((c) => c.cameBack).length;
-  const wrong = cases.filter((c) => c.verdict === "wrong" && !c.cameBack).length;
+  const wrong = cases.filter(
+    (c) => c.verdict === "wrong" && !c.cameBack,
+  ).length;
   const can = !!projectId && (!!words.trim() || !!draft);
-  const project = useInboxStore((s) => (projectId ? (s.projects as Record<string, { title?: string }> | undefined)?.[projectId]?.title ?? null : null));
+  const project = useInboxStore((s) =>
+    projectId
+      ? ((s.projects as Record<string, { title?: string }> | undefined)?.[
+          projectId
+        ]?.title ?? null)
+      : null,
+  );
   const cost = useRunCost(projectId);
   const [review, setReview] = useState(false);
   const ledger: SwitchLedger = {
@@ -73,14 +121,19 @@ export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
     figures: [
       { value: "1", label: "run starts now", tone: "warn" },
       costFigure(cost, 1),
-      { value: String(caseCount), label: caseCount === 1 ? "case goes with it" : "cases go with it" },
+      {
+        value: String(caseCount),
+        label: caseCount === 1 ? "case goes with it" : "cases go with it",
+      },
     ],
     rows: [
       listRow(cost),
       ...(project ? [{ k: "Project", v: project }] : []),
       { k: "Files", v: "A problem on the flow" },
       { k: "An agent", v: `Edits ${step.label}, replays it on the cases` },
-      ...(draft ? [{ k: "Your edit", v: "Goes as the change you propose" }] : []),
+      ...(draft
+        ? [{ k: "Your edit", v: "Goes as the change you propose" }]
+        : []),
       { k: "Ends", v: "A card with before and after" },
       { k: "Merges", v: MERGES_NEVER, tone: "ok" as const },
     ],
@@ -91,12 +144,20 @@ export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
 
   const ask = async () => {
     if (!projectId) return;
-    const fields = askAgentFields({ graphTitle: model.title, step, words, draft, cases });
+    const fields = askAgentFields({
+      graphTitle: model.title,
+      step,
+      words,
+      draft,
+      cases,
+    });
     if (!fields) return;
     const key = newClientKey();
     setSent({ key });
     try {
-      const result = await useInboxStore.getState().askLineAgent(key, projectId, fields);
+      const result = await useInboxStore
+        .getState()
+        .askLineAgent(key, projectId, fields);
       setSent({ key, result: result ?? undefined });
       setWords("");
     } catch (err) {
@@ -111,27 +172,78 @@ export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
         <textarea
           value={words}
           onChange={(e) => setWords(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && can) { e.preventDefault(); setReview(true); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && can) {
+              e.preventDefault();
+              setReview(true);
+            }
+          }}
           rows={4}
-          placeholder={pattern ?? `Say what ${step.label} gets wrong, in a sentence.`}
+          placeholder={
+            pattern ?? `Say what ${step.label} gets wrong, in a sentence.`
+          }
         />
       </label>
       <div className="lw-ask-goes">
-        {cases.length > 0
-          ? <span>Goes with {caseCount} {caseCount === 1 ? "case" : "cases"}{[back ? `${back} ${back === 1 ? "close" : "closes"} that came back, presumed wrong` : null, wrong ? `${wrong} marked wrong` : null].filter(Boolean).map((x) => `, ${x}`).join("")}: the agent checks its change against each.</span>
-          : all.length > 0 ? <span>No cases go with the ask. Add one back below.</span>
-          : <span>No labeled cases yet. Mark decisions right or wrong and they go with the ask as examples.</span>}
-        {draft && <span>Your unsaved edit goes as the change you propose.</span>}
+        {cases.length > 0 ? (
+          <span>
+            Goes with {caseCount} {caseCount === 1 ? "case" : "cases"}
+            {[
+              back
+                ? `${back} ${back === 1 ? "close" : "closes"} that came back, presumed wrong`
+                : null,
+              wrong ? `${wrong} marked wrong` : null,
+            ]
+              .filter(Boolean)
+              .map((x) => `, ${x}`)
+              .join("")}
+            : the agent checks its change against each.
+          </span>
+        ) : all.length > 0 ? (
+          <span>No cases go with the ask. Add one back below.</span>
+        ) : (
+          <span>
+            No labeled cases yet. Mark decisions right or wrong and they go with
+            the ask as examples.
+          </span>
+        )}
+        {draft && (
+          <span>Your unsaved edit goes as the change you propose.</span>
+        )}
       </div>
       {all.length > 0 && (
         <div className="lw-ask-cases">
           {chips.map(({ key, label, first: c, runs }) => {
             const out = runs.every((r) => dropped.has(r));
             return (
-              <span key={key} className="lw-ask-case" data-out={out ? "" : undefined} title={runs.length > 1 ? `${runs.length} runs on this case go with the ask` : c.note ?? c.decided}>
-                <span className="lw-labelmark" data-verdict={c.verdict}>{c.cameBack ? `Came back ${backTimes(c.cameBackTotal ?? c.cameBack)}` : c.verdict === "right" ? "Right" : "Wrong"}</span>
-                <span className="lw-ask-case-t">{label}{runs.length > 1 && <small> ×{runs.length}</small>}</span>
-                <button type="button" className="lw-ask-case-x" onClick={() => toggle(runs)} aria-label={out ? `Add ${label} back` : `Leave ${label} out`} data-line-ask-case={key}>
+              <span
+                key={key}
+                className="lw-ask-case"
+                data-out={out ? "" : undefined}
+                title={
+                  runs.length > 1
+                    ? `${runs.length} runs on this case go with the ask`
+                    : (c.note ?? c.decided)
+                }
+              >
+                <span className="lw-labelmark" data-verdict={c.verdict}>
+                  {c.cameBack
+                    ? `Came back ${backTimes(c.cameBackTotal ?? c.cameBack)}`
+                    : c.verdict === "right"
+                      ? "Right"
+                      : "Wrong"}
+                </span>
+                <span className="lw-ask-case-t">
+                  {label}
+                  {runs.length > 1 && <small> ×{runs.length}</small>}
+                </span>
+                <button
+                  type="button"
+                  className="lw-ask-case-x"
+                  onClick={() => toggle(runs)}
+                  aria-label={out ? `Add ${label} back` : `Leave ${label} out`}
+                  data-line-ask-case={key}
+                >
                   {out ? "+" : "×"}
                 </button>
               </span>
@@ -140,27 +252,66 @@ export function AskPanel({ model, step, draft, projects }: AskSlotProps) {
         </div>
       )}
       <div className="lw-try-go">
-        <button type="button" className="lw-act" data-primary="" aria-haspopup="dialog" onClick={() => setReview(true)} disabled={!can || (!!sent && !sent.result && !sent.error)} data-line-ask-agent={step.id}>
+        <button
+          type="button"
+          className="lw-act"
+          data-primary=""
+          aria-haspopup="dialog"
+          onClick={() => setReview(true)}
+          disabled={!can || (!!sent && !sent.result && !sent.error)}
+          data-line-ask-agent={step.id}
+        >
           Ask an agent
         </button>
-        {review && <SwitchReview ledger={ledger} onClose={() => setReview(false)} onConfirm={() => { setReview(false); void ask(); }} />}
+        {review && (
+          <SwitchReview
+            ledger={ledger}
+            onClose={() => setReview(false)}
+            onConfirm={() => {
+              setReview(false);
+              void ask();
+            }}
+          />
+        )}
         {!nav.projectId && projects && projects.length > 1 && (
           <label className="lw-ask-project">
             <span>File it in</span>
-            <select value={picked ?? ""} onChange={(e) => setPicked(e.target.value || null)} data-line-ask-project>
+            <select
+              value={picked ?? ""}
+              onChange={(e) => setPicked(e.target.value || null)}
+              data-line-ask-project
+            >
               <option value="">Pick a project</option>
-              {projects.map((p) => <option key={p._id} value={p._id}>{p.title ?? "Untitled"}</option>)}
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.title ?? "Untitled"}
+                </option>
+              ))}
             </select>
           </label>
         )}
-        {projectId && !words.trim() && !draft && <span className="lw-try-fine">Say what should change, or edit the text above: either is enough to ask.</span>}
+        {projectId && !words.trim() && !draft && (
+          <span className="lw-try-fine">
+            Say what should change, or edit the text above: either is enough to
+            ask.
+          </span>
+        )}
       </div>
       {sent && (
-        <div className="lw-save-note" data-tone={sent.error || (sent.result && !sent.result.started) ? "warn" : "ok"} aria-live="polite">
-          {sent.error ? `Not filed: ${sent.error}`
-            : !sent.result ? `Filing ${task?.short_id && task.short_id !== "ct-…" ? task.short_id : "the ask"}…`
-            : sent.result.started ? `Filed ${task?.short_id ?? sent.result.task_short_id}${sent.result.role_handle ? `; @${sent.result.role_handle}'s flow is on it` : "; its flow is on it"}. Its card comes back with before and after.`
-            : `Filed ${task?.short_id ?? sent.result.task_short_id}, not started: ${sent.result.reason}`}
+        <div
+          className="lw-save-note"
+          data-tone={
+            sent.error || (sent.result && !sent.result.started) ? "warn" : "ok"
+          }
+          aria-live="polite"
+        >
+          {sent.error
+            ? `Not filed: ${sent.error}`
+            : !sent.result
+              ? `Filing ${task?.short_id && task.short_id !== "ct-…" ? task.short_id : "the ask"}…`
+              : sent.result.started
+                ? `Filed ${task?.short_id ?? sent.result.task_short_id}${sent.result.role_handle ? `; @${sent.result.role_handle}'s flow is on it` : "; its flow is on it"}. Its card comes back with before and after.`
+                : `Filed ${task?.short_id ?? sent.result.task_short_id}, not started: ${sent.result.reason}`}
         </div>
       )}
     </div>

@@ -46,7 +46,12 @@ export function ExpandableLine({
 }) {
   const [expanded, setExpanded] = useState(false);
   const innerRef = useRef<HTMLSpanElement>(null);
-  const overflows = useLayoutFlag(innerRef, (el) => el.scrollWidth > el.clientWidth + 1, [text], !expanded);
+  const overflows = useLayoutFlag(
+    innerRef,
+    (el) => el.scrollWidth > el.clientWidth + 1,
+    [text],
+    !expanded,
+  );
 
   const openable = overflows || expanded;
 
@@ -66,7 +71,10 @@ export function ExpandableLine({
       }
       title={!expanded && overflows ? (title ?? text) : title}
     >
-      <span ref={innerRef} className={expanded ? "whitespace-pre-wrap break-words" : "truncate"}>
+      <span
+        ref={innerRef}
+        className={expanded ? "whitespace-pre-wrap break-words" : "truncate"}
+      >
         {text}
       </span>
       {openable &&
@@ -122,16 +130,33 @@ export function CollapsibleBody({
   const clipped = overflows && !expanded && !hostsReveal;
 
   return (
-    <div className={className} onFocusCapture={openOnFocus && !expanded ? () => setExpanded(true) : undefined}>
-      <div style={clipped ? { maxHeight: collapsedHeight, overflow: "hidden", ...clipFade() } : undefined}>
-        <div ref={innerRef} data-collapsible-body="">{typeof children === "function" ? children(expanded) : children}</div>
+    <div
+      className={className}
+      onFocusCapture={
+        openOnFocus && !expanded ? () => setExpanded(true) : undefined
+      }
+    >
+      <div
+        style={
+          clipped
+            ? { maxHeight: collapsedHeight, overflow: "hidden", ...clipFade() }
+            : undefined
+        }
+      >
+        <div ref={innerRef} data-collapsible-body="">
+          {typeof children === "function" ? children(expanded) : children}
+        </div>
       </div>
       {overflows && (
         <button
           onClick={() => setExpanded((e) => !e)}
           className={`shrink-0 flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text-muted transition-colors ${toggleClassName}`}
         >
-          {expanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+          {expanded ? (
+            <ChevronUp className="w-2.5 h-2.5" />
+          ) : (
+            <ChevronDown className="w-2.5 h-2.5" />
+          )}
           {expanded ? collapseLabel : expandLabel}
         </button>
       )}

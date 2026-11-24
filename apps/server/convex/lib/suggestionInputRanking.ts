@@ -7,11 +7,56 @@
 // meaning, so "add a regression test to" and "a regression test" collapse
 // toward the same core phrase before counting.
 const PHRASE_STOPWORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "to", "of", "in", "on", "for", "with",
-  "at", "by", "is", "are", "was", "were", "be", "it", "this", "that", "i",
-  "we", "you", "me", "my", "your", "our", "as", "so", "do", "does", "did",
-  "can", "could", "should", "would", "will", "have", "has", "had", "not",
-  "its", "if", "then", "than", "also", "just", "like",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "to",
+  "of",
+  "in",
+  "on",
+  "for",
+  "with",
+  "at",
+  "by",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "it",
+  "this",
+  "that",
+  "i",
+  "we",
+  "you",
+  "me",
+  "my",
+  "your",
+  "our",
+  "as",
+  "so",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "should",
+  "would",
+  "will",
+  "have",
+  "has",
+  "had",
+  "not",
+  "its",
+  "if",
+  "then",
+  "than",
+  "also",
+  "just",
+  "like",
 ]);
 
 // Recurring multi-word fragments across the user's inputs — the "things I say
@@ -20,7 +65,9 @@ const PHRASE_STOPWORDS = new Set([
 // recurs, the sentence around it never does. Each phrase counts once per
 // input so one rambling message can't inflate it; when a longer phrase has
 // support close to a contained shorter one, the longer (more specific) wins.
-export function minePhrases(inputs: string[]): Array<{ text: string; count: number }> {
+export function minePhrases(
+  inputs: string[],
+): Array<{ text: string; count: number }> {
   const counts = new Map<string, number>();
   for (const input of inputs) {
     const words = input
@@ -66,12 +113,18 @@ export function minePhrases(inputs: string[]): Array<{ text: string; count: numb
 // order (style evidence even when nothing repeats). One- and two-word inputs
 // ("continue", "go", "do it") are deliberately excluded from `frequent` —
 // they dominate any frequency count but carry nothing worth suggesting.
-export function rankInputs(rows: Array<{ text: string; ts: number }>, now: number): {
+export function rankInputs(
+  rows: Array<{ text: string; ts: number }>,
+  now: number,
+): {
   frequent: Array<{ text: string; count: number }>;
   phrases: Array<{ text: string; count: number }>;
   recent: string[];
 } {
-  const byKey = new Map<string, { text: string; count: number; lastTs: number }>();
+  const byKey = new Map<
+    string,
+    { text: string; count: number; lastTs: number }
+  >();
   for (const r of rows) {
     const key = r.text.toLowerCase().replace(/\s+/g, " ");
     const e = byKey.get(key);
@@ -87,7 +140,9 @@ export function rankInputs(rows: Array<{ text: string; ts: number }>, now: numbe
   }
   const day = 24 * 60 * 60 * 1000;
   const score = (e: { count: number; lastTs: number }) =>
-    e.count + (now - e.lastTs < 7 * day ? 1.5 : 0) + (now - e.lastTs < day ? 1 : 0);
+    e.count +
+    (now - e.lastTs < 7 * day ? 1.5 : 0) +
+    (now - e.lastTs < day ? 1 : 0);
   const frequent = [...byKey.values()]
     .filter((e) => e.count >= 2 && e.text.trim().split(/\s+/).length >= 3)
     .sort((a, b) => score(b) - score(a))

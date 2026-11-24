@@ -171,7 +171,7 @@ line runs it like any change, with its own prove and build stations:
   checked directly (a graph's routing, a profile value, a script), it also
   leaves a failing test as `repro.sh`.
 - **Red** checks every claim against the run records (`cast line
-  proof-check`, `cli/src/lineProof.ts`) and fails a proof that names a run the
+proof-check`, `cli/src/lineProof.ts`) and fails a proof that names a run the
   line never recorded, or a status, outcome or reason the record does not
   hold; a `repro.sh` must also fail on the base. A comment is never proof.
 - **Implement line** (`line/implement_line.md`) edits the line's own files;

@@ -3,13 +3,29 @@
 import { describe, expect, test } from "bun:test";
 import { writersNamed } from "./subjectStation";
 
-const A = { conversation: "jx7aaaaaaaaaaaaaaaaaaaaaaaaaaaa1", session: "jx7aaaa" };
-const B = { conversation: "jx7bbbbbbbbbbbbbbbbbbbbbbbbbbbb2", session: "jx7bbbb" };
+const A = {
+  conversation: "jx7aaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+  session: "jx7aaaa",
+};
+const B = {
+  conversation: "jx7bbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+  session: "jx7bbbb",
+};
 
-const change = (writers: Record<string, typeof A>, more: string[] = []) => ({ paths: [...Object.keys(writers), ...more].sort(), writers });
-const named = (c: ReturnType<typeof change>, text: string, roots: string[] = []) => {
+const change = (writers: Record<string, typeof A>, more: string[] = []) => ({
+  paths: [...Object.keys(writers), ...more].sort(),
+  writers,
+});
+const named = (
+  c: ReturnType<typeof change>,
+  text: string,
+  roots: string[] = [],
+) => {
   const r = writersNamed(c, text, roots);
-  return { writers: Object.fromEntries(r.writers.map((w) => [w.shortId, w.files])), unclaimed: r.unclaimed };
+  return {
+    writers: Object.fromEntries(r.writers.map((w) => [w.shortId, w.files])),
+    unclaimed: r.unclaimed,
+  };
 };
 
 describe("writersNamed", () => {
@@ -23,7 +39,10 @@ describe("writersNamed", () => {
       "hint: Resolve all conflicts manually, mark them as resolved with",
       'hint: "git add/rm <conflicted_files>", then run "git rebase --continue".',
     ].join("\n");
-    expect(named(c, out)).toEqual({ writers: { jx7bbbb: ["src/b.ts"] }, unclaimed: [] });
+    expect(named(c, out)).toEqual({
+      writers: { jx7bbbb: ["src/b.ts"] },
+      unclaimed: [],
+    });
   });
 
   test("bun names the failing test file, not the header of a file whose tests passed", () => {
@@ -36,7 +55,7 @@ describe("writersNamed", () => {
       "(pass) a > works [0.40ms]",
       "",
       "src/b.test.ts:",
-      "  7 | test(\"breaks\", () => {",
+      '  7 | test("breaks", () => {',
       "  8 |   expect(b()).toBe(2);",
       "                   ^",
       "error: expect(received).toBe(expected)",
@@ -51,13 +70,18 @@ describe("writersNamed", () => {
       " 1 fail",
       "Ran 3 tests across 2 files. [40.00ms]",
     ].join("\n");
-    expect(named(c, out, ["/repo", "/repo/.codecast/worktrees/change-ct-9"])).toEqual({ writers: { jx7bbbb: ["src/b.test.ts"] }, unclaimed: [] });
+    expect(
+      named(c, out, ["/repo", "/repo/.codecast/worktrees/change-ct-9"]),
+    ).toEqual({ writers: { jx7bbbb: ["src/b.test.ts"] }, unclaimed: [] });
   });
 
   test("a stack frame under the run's worktree names the file once that root is read off", () => {
     const c = change({ "src/b.ts": B });
-    const out = "error: b is not a function\n      at run (/repo/.codecast/worktrees/change-ct-9/src/b.ts:3:9)";
-    expect(named(c, out, ["/repo/.codecast/worktrees/change-ct-9"]).writers).toEqual({ jx7bbbb: ["src/b.ts"] });
+    const out =
+      "error: b is not a function\n      at run (/repo/.codecast/worktrees/change-ct-9/src/b.ts:3:9)";
+    expect(
+      named(c, out, ["/repo/.codecast/worktrees/change-ct-9"]).writers,
+    ).toEqual({ jx7bbbb: ["src/b.ts"] });
     // Without it, an absolute path is some other tree's file, never the tail match it would otherwise be.
     expect(named(c, out).writers).toEqual({});
   });
@@ -68,18 +92,40 @@ describe("writersNamed", () => {
       "src/a.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.",
       "packages/web/src/b.ts(3,1): error TS2304: Cannot find name 'x'.",
     ].join("\n");
-    expect(named(c, out)).toEqual({ writers: { jx7aaaa: ["src/a.ts"] }, unclaimed: [] });
+    expect(named(c, out)).toEqual({
+      writers: { jx7aaaa: ["src/a.ts"] },
+      unclaimed: [],
+    });
   });
 
   test("a basename names its file standing alone or as a location, never inside another package's path", () => {
     const c = change({ "src/index.ts": A, "src/b.ts": B });
-    expect(named(c, "error: Cannot find module './gone' from node_modules/x/index.ts").writers).toEqual({});
-    expect(named(c, "error: Cannot find module './gone' from node_modules\\x\\index.ts").writers).toEqual({});
-    expect(named(c, "error: boom\n    at load (index.ts:3:9)").writers).toEqual({ jx7aaaa: ["src/index.ts"] });
-    expect(named(c, "index.ts(4,2): error TS1005: ';' expected.").writers).toEqual({ jx7aaaa: ["src/index.ts"] });
-    expect(named(c, "error: index.ts is not formatted").writers).toEqual({ jx7aaaa: ["src/index.ts"] });
+    expect(
+      named(
+        c,
+        "error: Cannot find module './gone' from node_modules/x/index.ts",
+      ).writers,
+    ).toEqual({});
+    expect(
+      named(
+        c,
+        "error: Cannot find module './gone' from node_modules\\x\\index.ts",
+      ).writers,
+    ).toEqual({});
+    expect(named(c, "error: boom\n    at load (index.ts:3:9)").writers).toEqual(
+      { jx7aaaa: ["src/index.ts"] },
+    );
+    expect(
+      named(c, "index.ts(4,2): error TS1005: ';' expected.").writers,
+    ).toEqual({ jx7aaaa: ["src/index.ts"] });
+    expect(named(c, "error: index.ts is not formatted").writers).toEqual({
+      jx7aaaa: ["src/index.ts"],
+    });
     // b.ts in b.tsx, data.b.ts or b.ts.map is not b.ts.
-    expect(named(c, "error: src/b.tsx and lib/data.b.ts and b.ts.map are wrong").writers).toEqual({});
+    expect(
+      named(c, "error: src/b.tsx and lib/data.b.ts and b.ts.map are wrong")
+        .writers,
+    ).toEqual({});
   });
 
   test("lines that say something failed outweigh files a tool merely lists", () => {
@@ -103,19 +149,31 @@ describe("writersNamed", () => {
 
   test("a finding with no failing line is read whole: a reviewer's note names its files", () => {
     const c = change({ "src/a.ts": A, "src/b.ts": B });
-    expect(named(c, "src/a.ts: the new branch drops the retry the old one had.").writers).toEqual({ jx7aaaa: ["src/a.ts"] });
+    expect(
+      named(c, "src/a.ts: the new branch drops the retry the old one had.")
+        .writers,
+    ).toEqual({ jx7aaaa: ["src/a.ts"] });
   });
 
   test("a named file no session wrote is unclaimed", () => {
     const c = change({ "src/a.ts": A }, ["notes.txt"]);
-    expect(named(c, "error: notes.txt is not good\nerror: src/a.ts is not good")).toEqual({ writers: { jx7aaaa: ["src/a.ts"] }, unclaimed: ["notes.txt"] });
+    expect(
+      named(c, "error: notes.txt is not good\nerror: src/a.ts is not good"),
+    ).toEqual({ writers: { jx7aaaa: ["src/a.ts"] }, unclaimed: ["notes.txt"] });
   });
 });
 
 // Paths as a tool run inside one package of the repo prints them, and the boundaries between one file's results and the next.
 describe("writersNamed in a repo of packages", () => {
-  const R = { conversation: "jx7rrrrrrrrrrrrrrrrrrrrrrrrrrrr3", session: "jx7rrrr" };
-  const c = change({ "apps/cli/src/land/checkoutReport.test.ts": A, "apps/cli/src/workflow/runner.ts": B, "packages/web/lib/foo.ts": R });
+  const R = {
+    conversation: "jx7rrrrrrrrrrrrrrrrrrrrrrrrrrrr3",
+    session: "jx7rrrr",
+  };
+  const c = change({
+    "apps/cli/src/land/checkoutReport.test.ts": A,
+    "apps/cli/src/workflow/runner.ts": B,
+    "packages/web/lib/foo.ts": R,
+  });
 
   test("cast check's tsc lines, relative to the package, name the file by its one tail", () => {
     // Captured from `cast check cli` in this repo.
@@ -124,38 +182,57 @@ describe("writersNamed in a repo of packages", () => {
       "  Property 'sendBrief' is missing in type '{ now: number; post: (p: string, b: any) => Promise<{}>; }' but required in type '{ post: Post; sendBrief: SendBrief; }'.",
       "✗ cli: 1 error (pass 8s old, watcher started by this call)",
     ].join("\n");
-    expect(named(c, out)).toEqual({ writers: { jx7aaaa: ["apps/cli/src/land/checkoutReport.test.ts"] }, unclaimed: [] });
+    expect(named(c, out)).toEqual({
+      writers: { jx7aaaa: ["apps/cli/src/land/checkoutReport.test.ts"] },
+      unclaimed: [],
+    });
     // tsc's pretty form.
-    expect(named(c, "src/workflow/runner.ts:12:5 - error TS2322: Type 'string' is not assignable to type 'number'.").writers).toEqual({ jx7bbbb: ["apps/cli/src/workflow/runner.ts"] });
+    expect(
+      named(
+        c,
+        "src/workflow/runner.ts:12:5 - error TS2322: Type 'string' is not assignable to type 'number'.",
+      ).writers,
+    ).toEqual({ jx7bbbb: ["apps/cli/src/workflow/runner.ts"] });
   });
 
   test("a tail two files of the change end with names neither", () => {
-    const two = change({ "apps/cli/src/index.ts": A, "packages/web/src/index.ts": B });
-    expect(named(two, "src/index.ts(1,1): error TS1005: ';' expected.").writers).toEqual({});
-    expect(named(two, "cli/src/index.ts(1,1): error TS1005: ';' expected.").writers).toEqual({ jx7aaaa: ["apps/cli/src/index.ts"] });
+    const two = change({
+      "apps/cli/src/index.ts": A,
+      "packages/web/src/index.ts": B,
+    });
+    expect(
+      named(two, "src/index.ts(1,1): error TS1005: ';' expected.").writers,
+    ).toEqual({});
+    expect(
+      named(two, "cli/src/index.ts(1,1): error TS1005: ';' expected.").writers,
+    ).toEqual({ jx7aaaa: ["apps/cli/src/index.ts"] });
   });
 
   test("bun run in a package names the failing files and not the one that passed", () => {
-    const t = change({ "apps/cli/src/a.test.ts": A, "apps/cli/src/b.test.ts": B, "apps/cli/src/c.test.ts": R });
+    const t = change({
+      "apps/cli/src/a.test.ts": A,
+      "apps/cli/src/b.test.ts": B,
+      "apps/cli/src/c.test.ts": R,
+    });
     // Captured from `bun test ./src` inside a package, not on a terminal: b.test.ts passed and prints nothing.
     const out = [
       "bun test v1.3.14 (0d9b296a)",
       "",
       "src/c.test.ts:",
-      "1 | import { expect, test } from \"bun:test\";",
-      "2 | test(\"c breaks\", () => { expect(\"x\").toBe(\"y\"); });",
+      '1 | import { expect, test } from "bun:test";',
+      '2 | test("c breaks", () => { expect("x").toBe("y"); });',
       "                                         ^",
       "error: expect(received).toBe(expected)",
       "",
-      "Expected: \"y\"",
-      "Received: \"x\"",
+      'Expected: "y"',
+      'Received: "x"',
       "",
       "      at <anonymous> (/repo/apps/cli/src/c.test.ts:2:38)",
       "(fail) c breaks [0.15ms]",
       "",
       "src/a.test.ts:",
-      "1 | import { expect, test } from \"bun:test\";",
-      "2 | test(\"a works\", () => { expect(1 + 1).toBe(3); });",
+      '1 | import { expect, test } from "bun:test";',
+      '2 | test("a works", () => { expect(1 + 1).toBe(3); });',
       "                                          ^",
       "error: expect(received).toBe(expected)",
       "",
@@ -170,11 +247,20 @@ describe("writersNamed in a repo of packages", () => {
       " 4 expect() calls",
       "Ran 4 tests across 3 files. [24.00ms]",
     ].join("\n");
-    expect(named(t, out, ["/repo"])).toEqual({ writers: { jx7rrrr: ["apps/cli/src/c.test.ts"], jx7aaaa: ["apps/cli/src/a.test.ts"] }, unclaimed: [] });
+    expect(named(t, out, ["/repo"])).toEqual({
+      writers: {
+        jx7rrrr: ["apps/cli/src/c.test.ts"],
+        jx7aaaa: ["apps/cli/src/a.test.ts"],
+      },
+      unclaimed: [],
+    });
   });
 
   test("bun's closing recap is its own section: the last passing file's header stays unnamed", () => {
-    const t = change({ "apps/cli/src/a.test.ts": A, "apps/cli/src/b.test.ts": B });
+    const t = change({
+      "apps/cli/src/a.test.ts": A,
+      "apps/cli/src/b.test.ts": B,
+    });
     const out = [
       "apps/cli/src/a.test.ts:",
       "error: expect(received).toBe(expected)",
@@ -190,7 +276,9 @@ describe("writersNamed in a repo of packages", () => {
       " 1 pass",
       " 1 fail",
     ].join("\n");
-    expect(named(t, out, ["/repo"]).writers).toEqual({ jx7aaaa: ["apps/cli/src/a.test.ts"] });
+    expect(named(t, out, ["/repo"]).writers).toEqual({
+      jx7aaaa: ["apps/cli/src/a.test.ts"],
+    });
   });
 
   test("eslint: a file with only warnings is not named by the next file's error", () => {
@@ -204,10 +292,14 @@ describe("writersNamed in a repo of packages", () => {
       "",
       "✖ 2 problems (1 error, 1 warning)",
     ].join("\n");
-    expect(named(t, out, ["/repo"]).writers).toEqual({ jx7bbbb: ["apps/cli/src/b.test.ts"] });
+    expect(named(t, out, ["/repo"]).writers).toEqual({
+      jx7bbbb: ["apps/cli/src/b.test.ts"],
+    });
   });
 
   test("a passed test whose name holds a file's name names nothing", () => {
-    expect(named(c, "(pass) runner.ts does x\nerror: something in other.ts").writers).toEqual({});
+    expect(
+      named(c, "(pass) runner.ts does x\nerror: something in other.ts").writers,
+    ).toEqual({});
   });
 });

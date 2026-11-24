@@ -18,8 +18,16 @@ export const PAGE_AGENT_PICKUP_MS = 90_000;
 
 /** state: the session's work state. awaitingSince: the newest send to the
  *  agent that no newer version has answered (null once one lands). */
-export function pageAgentChip(state: string, awaitingSince: number | null, now: number): PageAgentChip {
+export function pageAgentChip(
+  state: string,
+  awaitingSince: number | null,
+  now: number,
+): PageAgentChip {
   if (state === "needs_input") return "needs_input";
-  if (awaitingSince !== null && (state === "working" || now - awaitingSince < PAGE_AGENT_PICKUP_MS)) return "updating";
+  if (
+    awaitingSince !== null &&
+    (state === "working" || now - awaitingSince < PAGE_AGENT_PICKUP_MS)
+  )
+    return "updating";
   return state === "working" ? "working" : "idle";
 }

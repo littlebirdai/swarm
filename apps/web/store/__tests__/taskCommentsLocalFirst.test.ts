@@ -17,13 +17,21 @@ import { ingestTaskDetail } from "../../hooks/useSyncTasks";
 const TASK_ID = "a".repeat(32);
 
 function taskRow(comments: any[], extra: Record<string, unknown> = {}) {
-  return { _id: TASK_ID, short_id: "ct-1", title: "T", status: "open", comments, ...extra };
+  return {
+    _id: TASK_ID,
+    short_id: "ct-1",
+    title: "T",
+    status: "open",
+    comments,
+    ...extra,
+  };
 }
 
 const FIRST = { _id: "c1", author: "X", text: "first", created_at: 1 };
 const state = () => useInboxStore.getState() as any;
 const thread = () => state().taskComments[TASK_ID];
-const pendingKeys = () => Object.keys(state().pending).filter((k) => k.includes(TASK_ID));
+const pendingKeys = () =>
+  Object.keys(state().pending).filter((k) => k.includes(TASK_ID));
 
 describe("task comment stream local-first", () => {
   beforeEach(() => {
@@ -41,7 +49,10 @@ describe("task comment stream local-first", () => {
   it("appends optimistically, at once, without planting a lock", () => {
     ingestTaskDetail(taskRow([FIRST]));
     state().addTaskComment("ct-1", "hello");
-    expect(thread().comments.map((c: any) => c.text)).toEqual(["first", "hello"]);
+    expect(thread().comments.map((c: any) => c.text)).toEqual([
+      "first",
+      "hello",
+    ]);
     expect(thread().comments[1]._id.startsWith("temp_")).toBe(true);
     expect(state().tasks[TASK_ID].comments).toBeUndefined();
     expect(pendingKeys()).toEqual([]);
@@ -58,8 +69,13 @@ describe("task comment stream local-first", () => {
     // …and the echo carrying the real comment lands wholesale, from any
     // channel that carries the thread (here a list row, as the sync log's
     // refetch sends it).
-    const echoed = [FIRST, { _id: "c2", author: "You", text: "hello", created_at: 2 }];
-    state().syncTable("tasks", [taskRow(echoed, { last_comment_at: 2 })], { isDelta: true });
+    const echoed = [
+      FIRST,
+      { _id: "c2", author: "You", text: "hello", created_at: 2 },
+    ];
+    state().syncTable("tasks", [taskRow(echoed, { last_comment_at: 2 })], {
+      isDelta: true,
+    });
     expect(thread().comments.map((c: any) => c._id)).toEqual(["c1", "c2"]);
     expect(thread().as_of).toBe(2);
     expect(state().tasks[TASK_ID].comments).toBeUndefined();
@@ -69,7 +85,9 @@ describe("task comment stream local-first", () => {
   it("a comment on a task nothing has opened paints at once, and the next read of the thread completes it", () => {
     // The list row arrives with its thread; nothing has opened the task, so
     // the store holds no thread for it.
-    state().syncTable("tasks", [taskRow([FIRST], { last_comment_at: 1 })], { isDelta: true });
+    state().syncTable("tasks", [taskRow([FIRST], { last_comment_at: 1 })], {
+      isDelta: true,
+    });
     expect(thread()).toBeUndefined();
 
     state().addTaskComment("ct-1", "hello");
@@ -78,8 +96,13 @@ describe("task comment stream local-first", () => {
     expect(thread().as_of).toBe(0);
     expect(pendingKeys()).toEqual([]);
 
-    const echoed = [FIRST, { _id: "c2", author: "You", text: "hello", created_at: 2 }];
-    state().syncTable("tasks", [taskRow(echoed, { last_comment_at: 2 })], { isDelta: true });
+    const echoed = [
+      FIRST,
+      { _id: "c2", author: "You", text: "hello", created_at: 2 },
+    ];
+    state().syncTable("tasks", [taskRow(echoed, { last_comment_at: 2 })], {
+      isDelta: true,
+    });
     expect(thread().comments.map((c: any) => c._id)).toEqual(["c1", "c2"]);
   });
 
@@ -87,8 +110,14 @@ describe("task comment stream local-first", () => {
     const second = { _id: "c2", author: "Y", text: "second", created_at: 2 };
     ingestTaskDetail(taskRow([FIRST, second], { last_comment_at: 2 }));
     const third = { _id: "c3", author: "Z", text: "third", created_at: 3 };
-    ingestTaskDetail(taskRow([second, third], { last_comment_at: 3 }), { partialComments: true });
-    expect(thread().comments.map((c: any) => c._id)).toEqual(["c1", "c2", "c3"]);
+    ingestTaskDetail(taskRow([second, third], { last_comment_at: 3 }), {
+      partialComments: true,
+    });
+    expect(thread().comments.map((c: any) => c._id)).toEqual([
+      "c1",
+      "c2",
+      "c3",
+    ]);
     // Not the whole thread as of the newest comment: the stamp stays behind.
     expect(thread().as_of).toBe(2);
     // The count stays the last complete set's.
@@ -98,7 +127,11 @@ describe("task comment stream local-first", () => {
   it("drops a poisoned comments lock persisted by an older build at hydration", () => {
     const cleaned = expireExcludeTombstones(
       {
-        [`tasks:${TASK_ID}:comments`]: { type: "field", value: { _id: "temp_1" }, ts: 1 },
+        [`tasks:${TASK_ID}:comments`]: {
+          type: "field",
+          value: { _id: "temp_1" },
+          ts: 1,
+        },
         [`tasks:${TASK_ID}:status`]: { type: "field", value: "done", ts: 1 },
       },
       Date.now(),

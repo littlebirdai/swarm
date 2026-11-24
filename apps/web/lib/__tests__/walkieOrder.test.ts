@@ -11,14 +11,27 @@
 // first, what keeps the words comes second, and the room comes last and off to
 // one side — a release that beats it still lands a complete message.
 
-import { afterAll, afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  jest,
+  mock,
+  test,
+} from "bun:test";
 import { getFunctionName } from "convex/server";
 import { useInboxStore } from "../../store/inboxStore";
 import { micForPrewarm } from "../calls/walkieMic";
 
 // ── the world the engine talks to ──────────────────────────────────────────
 
-type Deferred<T> = { promise: Promise<T>; resolve: (v: T) => void; reject: (e?: any) => void };
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (v: T) => void;
+  reject: (e?: any) => void;
+};
 function defer<T>(): Deferred<T> {
   let resolve!: (v: T) => void;
   let reject!: (e?: any) => void;
@@ -35,15 +48,23 @@ function defer<T>(): Deferred<T> {
 // files' tests, wherever they sit in the alphabet. Each one below therefore
 // spreads the real module and overrides only what this file drives.
 
-const realCallManager = { ...await import("../calls/callManager") };
-afterAll(() => { mock.module("../calls/callManager", () => realCallManager); });
-const realAsrPipe = { ...await import("../calls/asrPipe") };
-afterAll(() => { mock.module("../calls/asrPipe", () => realAsrPipe); });
+const realCallManager = { ...(await import("../calls/callManager")) };
+afterAll(() => {
+  mock.module("../calls/callManager", () => realCallManager);
+});
+const realAsrPipe = { ...(await import("../calls/asrPipe")) };
+afterAll(() => {
+  mock.module("../calls/asrPipe", () => realAsrPipe);
+});
 
 /** The room join, held open so a test can ask what happened while it was still
  *  in flight — which is the whole question. */
 let joining: Deferred<void>;
-let joinCalls: Array<{ roomKey: string; micTrack?: MediaStreamTrack; intent?: string }> = [];
+let joinCalls: Array<{
+  roomKey: string;
+  micTrack?: MediaStreamTrack;
+  intent?: string;
+}> = [];
 /** Whether the join OPENS THE MICROPHONE the way the real one does. Off for
  *  every test that is about sequence, so the counts above stay arithmetic; on
  *  for the ones about a device that refuses, where the whole question is what
@@ -69,9 +90,18 @@ mock.module("../calls/callManager", () => ({
   ...realCallManager,
   getRoom: () =>
     seatedMic
-      ? { localParticipant: { getTrackPublication: () => ({ track: { mediaStreamTrack: seatedMic } }) } }
+      ? {
+          localParticipant: {
+            getTrackPublication: () => ({
+              track: { mediaStreamTrack: seatedMic },
+            }),
+          },
+        }
       : null,
-  joinCall: async (roomKey: string, opts?: { micTrack?: MediaStreamTrack; intent?: string }) => {
+  joinCall: async (
+    roomKey: string,
+    opts?: { micTrack?: MediaStreamTrack; intent?: string },
+  ) => {
     joinCalls.push({ roomKey, micTrack: opts?.micTrack, intent: opts?.intent });
     // A join handed a track publishes THAT one and opens no device; only a
     // join without one reaches for the microphone.
@@ -79,7 +109,10 @@ mock.module("../calls/callManager", () => ({
       await realCallManager.openMicForJoin(
         {
           setMicrophoneEnabled: async (on: boolean) => {
-            if (on) await (globalThis as any).navigator.mediaDevices.getUserMedia({ audio: true });
+            if (on)
+              await (globalThis as any).navigator.mediaDevices.getUserMedia({
+                audio: true,
+              });
           },
         },
         { intent: opts?.intent as any },
@@ -115,7 +148,12 @@ let pipes: FakePipe[] = [];
 mock.module("../calls/asrPipe", () => ({
   ...realAsrPipe,
   openAsrPipe: (opts: any) => {
-    const pipe: FakePipe = { finished: false, closed: false, finishing: defer<void>(), events: opts.events };
+    const pipe: FakePipe = {
+      finished: false,
+      closed: false,
+      finishing: defer<void>(),
+      events: opts.events,
+    };
     pipes.push(pipe);
     return {
       get speaking() {
@@ -137,8 +175,10 @@ mock.module("../calls/asrPipe", () => ({
  *  moment in the burst — the chirp to the microphone opening, the roger to the
  *  key coming up, the squelch to a teammate's burst ending — so a change of
  *  ordering in the engine cannot quietly move them somewhere less true. */
-const realSounds = { ...await import("../sounds") };
-afterAll(() => { mock.module("../sounds", () => realSounds); });
+const realSounds = { ...(await import("../sounds")) };
+afterAll(() => {
+  mock.module("../sounds", () => realSounds);
+});
 const soundLog: string[] = [];
 
 mock.module("../sounds", () => ({
@@ -154,8 +194,10 @@ mock.module("../sounds", () => ({
 const walkie = await import("../calls/walkie");
 // The real surface lookup, not a copy of it, so the question asked below is the
 // one the app asks.
-const { callDockSurface, walkieStripState } = await import("../../hooks/useWalkie");
-const { announceJoin, clearJoinAnnouncement, getJoinAnnouncement } = await import("../calls/joinAnnounce");
+const { callDockSurface, walkieStripState } =
+  await import("../../hooks/useWalkie");
+const { announceJoin, clearJoinAnnouncement, getJoinAnnouncement } =
+  await import("../calls/joinAnnounce");
 
 // ── the browser ────────────────────────────────────────────────────────────
 
@@ -171,7 +213,9 @@ class FakeRecorder {
   }
   start() {
     this.state = "recording";
-    this.ondataavailable?.({ data: new Blob(["audio"], { type: "audio/webm" }) });
+    this.ondataavailable?.({
+      data: new Blob(["audio"], { type: "audio/webm" }),
+    });
   }
   stop() {
     this.state = "inactive";
@@ -209,14 +253,23 @@ beforeEach(() => {
   getUserMediaCalls = 0;
   permissionState = "granted";
   joining = defer<void>();
-  S().setCallState({ roomKey: null, phase: "idle", muted: true, micDenied: false, error: null });
+  S().setCallState({
+    roomKey: null,
+    phase: "idle",
+    muted: true,
+    micDenied: false,
+    error: null,
+  });
   clock = 1_700_000_000_000;
   Date.now = () => clock;
 
   // The real upload path, answered rather than replaced: uploadBlobToStorage
   // mints a URL through convex and POSTs the bytes, and both halves are worth
   // exercising — a burst's recording only exists if that round trip works.
-  (globalThis as any).fetch = async () => ({ ok: true, json: async () => ({ storageId: "storage-1" }) });
+  (globalThis as any).fetch = async () => ({
+    ok: true,
+    json: async () => ({ storageId: "storage-1" }),
+  });
 
   (globalThis as any).MediaRecorder = FakeRecorder;
   (globalThis as any).MediaStream = class {
@@ -224,7 +277,11 @@ beforeEach(() => {
   };
   (globalThis as any).AudioContext = class {
     resume = () => Promise.resolve();
-    createAnalyser = () => ({ fftSize: 256, smoothingTimeConstant: 0, getByteTimeDomainData: () => {} });
+    createAnalyser = () => ({
+      fftSize: 256,
+      smoothingTimeConstant: 0,
+      getByteTimeDomainData: () => {},
+    });
     createMediaStreamSource = () => ({ connect() {} });
     close = () => Promise.resolve();
   };
@@ -260,14 +317,17 @@ afterEach(async () => {
 // ── the convex client ──────────────────────────────────────────────────────
 
 const mutations: Array<{ name: string; args: any }> = [];
-function bind(opts: { onFinalize?: () => void; onMutation?: (name: string) => void } = {}) {
+function bind(
+  opts: { onFinalize?: () => void; onMutation?: (name: string) => void } = {},
+) {
   const convex = {
     action: async () => null,
     mutation: async (ref: any, args: any) => {
       const name = getFunctionName(ref);
       mutations.push({ name, args });
       opts.onMutation?.(name);
-      if (name === "images:generateUploadUrl") return "https://storage.test/upload";
+      if (name === "images:generateUploadUrl")
+        return "https://storage.test/upload";
       if (name === "chat:finalizeVoiceBurst") opts.onFinalize?.();
       return { message_id: "msg-1" };
     },
@@ -276,7 +336,8 @@ function bind(opts: { onFinalize?: () => void; onMutation?: (name: string) => vo
   return convex;
 }
 
-const finalize = () => mutations.find((m) => m.name === "chat:finalizeVoiceBurst");
+const finalize = () =>
+  mutations.find((m) => m.name === "chat:finalizeVoiceBurst");
 
 /** The store, read for real: the burst's own bubble is store state, so the
  *  honest question is what the channel now holds, not which method was called. */
@@ -333,7 +394,12 @@ describe("walkie: pre-warming the microphone", () => {
   test("stays shut when the person turned opening ahead of a press off; a press still opens it", async () => {
     const s: any = useInboxStore.getState();
     const clientState = s.clientState;
-    useInboxStore.setState({ clientState: { ...(clientState ?? {}), ui: { ...(clientState?.ui ?? {}), call_mic_auto_open: false } } } as any);
+    useInboxStore.setState({
+      clientState: {
+        ...(clientState ?? {}),
+        ui: { ...(clientState?.ui ?? {}), call_mic_auto_open: false },
+      },
+    } as any);
     try {
       // Permission is granted, so only the switch stands between a hover and
       // the device. The warm and the prewarm's source both stay empty.
@@ -529,16 +595,25 @@ describe("walkie: who is holding the room after the key comes up", () => {
       const s = walkie.getWalkieStatus();
       const call = S().call as any;
       const seated =
-        call.roomKey === "dm:a:b" && (call.phase === "connected" || call.phase === "connecting");
+        call.roomKey === "dm:a:b" &&
+        (call.phase === "connected" || call.phase === "connecting");
       if (!seated) return;
       // Both halves of the same claim: the engine says it is in this room as a
       // burst, and the lookup that reads it says the strip. Neither alone would
       // catch a live room whose mode had drifted.
-      const held = s.liveRoom?.key === call.roomKey && s.liveRoom.mode !== "call";
-      const surface = callDockSurface(s, { roomKey: call.roomKey, phase: call.phase }, { expanded: false });
+      const held =
+        s.liveRoom?.key === call.roomKey && s.liveRoom.mode !== "call";
+      const surface = callDockSurface(
+        s,
+        { roomKey: call.roomKey, phase: call.phase },
+        { expanded: false },
+      );
       // My own seat, quiet after Stop: no card is the design, not a lapse.
       const quietOwnSeat =
-        surface === "none" && !s.sending && !s.incoming && s.liveRoom?.mode === "burst";
+        surface === "none" &&
+        !s.sending &&
+        !s.incoming &&
+        s.liveRoom?.mode === "burst";
       if (!held || (surface !== "walkie" && !quietOwnSeat)) {
         lapses.push(
           JSON.stringify({
@@ -558,7 +633,8 @@ describe("walkie: who is holding the room after the key comes up", () => {
     const heldAt: Record<string, string | null> = {};
     mutations.length = 0;
     bind({
-      onMutation: (name) => void (heldAt[name] = walkie.getWalkieStatus().liveRoom?.key ?? null),
+      onMutation: (name) =>
+        void (heldAt[name] = walkie.getWalkieStatus().liveRoom?.key ?? null),
     });
     await walkie.startBurst("chan-1", "dm:a:b");
     await roomAnswers();
@@ -604,7 +680,10 @@ describe("walkie: who is holding the room after the key comes up", () => {
   // brush had to be watched at BOTH timings, because they are different code
   // paths through `shouldReleaseRoom`: before the room answers there is no seat
   // to lose, and after it answers there is.
-  for (const when of ["before the room answers", "after the room answers"] as const) {
+  for (const when of [
+    "before the room answers",
+    "after the room answers",
+  ] as const) {
     test(`a brushed key ${when} never leaves the room ownerless`, async () => {
       const { lapses, off } = watchOwnership();
       await walkie.startBurst("chan-1", "dm:a:b");
@@ -664,7 +743,12 @@ describe("walkie: who is holding the room after the key comes up", () => {
     expect(finalize()).toBeUndefined();
     expect(walkie.getWalkieStatus().liveRoom).toBeNull();
     expect(
-      walkie.seatDeadline({ live: null, bursting: false, incoming: null, lastAudioAt: clock }),
+      walkie.seatDeadline({
+        live: null,
+        bursting: false,
+        incoming: null,
+        lastAudioAt: clock,
+      }),
     ).toBeNull();
     expect(leaveCalls).toBeGreaterThan(0);
   });
@@ -1088,7 +1172,9 @@ describe("walkie: the join and the away tick", () => {
       // NOT awaited: the join itself is a round trip the mocked room never
       // answers, and the cue deliberately sits in front of it — a person who
       // pressed a button is owed an answer now, not when the SFU says so.
-      const joining = walkie.joinWalkieLive("dm:join:sound", { name: "Jordan" });
+      const joining = walkie.joinWalkieLive("dm:join:sound", {
+        name: "Jordan",
+      });
       expect(soundLog).toContain("joined");
       void joining.catch(() => {});
     } finally {
@@ -1175,7 +1261,9 @@ describe("walkie: a receiver with no microphone still hears", () => {
     deviceAsks = 0;
     (globalThis as any).navigator.mediaDevices.getUserMedia = async () => {
       deviceAsks++;
-      throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
+      throw Object.assign(new Error("Permission denied"), {
+        name: "NotAllowedError",
+      });
     };
   }
 
@@ -1191,7 +1279,13 @@ describe("walkie: a receiver with no microphone still hears", () => {
   // ending does.
   afterEach(() => {
     walkie.observeWalkie({ bursts: [], doorOpen: false });
-    S().setCallState({ roomKey: null, phase: "idle", muted: true, micDenied: false, error: null });
+    S().setCallState({
+      roomKey: null,
+      phase: "idle",
+      muted: true,
+      micDenied: false,
+      error: null,
+    });
     walkie.refreshWalkie();
   });
 
@@ -1225,7 +1319,10 @@ describe("walkie: a receiver with no microphone still hears", () => {
     await seatTaken();
     S().setCallState({ roomKey: ROOM, phase: "connected" });
 
-    const strip = walkieStripState(walkie.getWalkieStatus(), S(), { name: "Sam", now: clock });
+    const strip = walkieStripState(walkie.getWalkieStatus(), S(), {
+      name: "Sam",
+      now: clock,
+    });
     // A listen is Sam talking and nothing about MY microphone: it was not
     // asked for, so "permission denied" is not a true thing to say either.
     expect(strip.headline).toBe("Sam is talking");
@@ -1250,13 +1347,19 @@ describe("walkie: a receiver with no microphone still hears", () => {
     S().setCallState({ roomKey: ROOM, phase: "connected" });
     expect(S().call.muted).toBe(true);
     expect(
-      walkieStripState(walkie.getWalkieStatus(), S(), { name: "Sam", now: clock }).hotMic,
+      walkieStripState(walkie.getWalkieStatus(), S(), {
+        name: "Sam",
+        now: clock,
+      }).hotMic,
     ).toBe(false);
 
     await seatTaken();
     expect(S().call.muted).toBe(true);
     expect(
-      walkieStripState(walkie.getWalkieStatus(), S(), { name: "Sam", now: clock }).hotMic,
+      walkieStripState(walkie.getWalkieStatus(), S(), {
+        name: "Sam",
+        now: clock,
+      }).hotMic,
     ).toBe(false);
   });
 
@@ -1272,14 +1375,19 @@ describe("walkie: a receiver with no microphone still hears", () => {
     S().setCallState({ roomKey: ROOM, phase: "connected" });
     expect(S().call.muted).toBe(true);
     expect(S().call.micDenied).toBe(false);
-    const strip = walkieStripState(walkie.getWalkieStatus(), S(), { name: "Sam", now: clock });
+    const strip = walkieStripState(walkie.getWalkieStatus(), S(), {
+      name: "Sam",
+      now: clock,
+    });
     expect(strip.hotMic).toBe(false);
     expect(strip.headline).toBe("Sam is talking");
 
     // The rule at its seam, against the real call manager: a listen never
     // reaches the participant; a deliberate join publishes.
     const asked: boolean[] = [];
-    const participant = { setMicrophoneEnabled: async (on: boolean) => void asked.push(on) };
+    const participant = {
+      setMicrophoneEnabled: async (on: boolean) => void asked.push(on),
+    };
     await realCallManager.openMicForJoin(participant, { intent: "listen" });
     expect(asked).toEqual([]);
     expect(S().call.muted).toBe(true);
@@ -1290,7 +1398,10 @@ describe("walkie: a receiver with no microphone still hears", () => {
 
     // And Join live is the gesture that issues that deliberate join.
     await walkie.joinWalkieLive(ROOM, { name: "Sam" });
-    expect(joinCalls.at(-1)).toMatchObject({ roomKey: ROOM, intent: "deliberate" });
+    expect(joinCalls.at(-1)).toMatchObject({
+      roomKey: ROOM,
+      intent: "deliberate",
+    });
   });
 
   test("a refused microphone is not mentioned on a listen — nothing was asked", async () => {
@@ -1311,7 +1422,9 @@ describe("walkie: a receiver with no microphone still hears", () => {
     // has; a person who pressed a button to talk is owed the sentence.
     const refusing = {
       setMicrophoneEnabled: async () => {
-        throw Object.assign(new Error("Permission denied"), { name: "NotAllowedError" });
+        throw Object.assign(new Error("Permission denied"), {
+          name: "NotAllowedError",
+        });
       },
     };
     permissionState = "denied";
@@ -1367,7 +1480,13 @@ describe("walkie: two keys down in one room", () => {
   // ending does.
   afterEach(() => {
     walkie.observeWalkie({ bursts: [], doorOpen: false });
-    S().setCallState({ roomKey: null, phase: "idle", muted: true, micDenied: false, error: null });
+    S().setCallState({
+      roomKey: null,
+      phase: "idle",
+      muted: true,
+      micDenied: false,
+      error: null,
+    });
     walkie.refreshWalkie();
   });
 
@@ -1434,13 +1553,19 @@ describe("walkie: two keys down in one room", () => {
     clock += 1_000;
     await release();
     expect(finalize()).toBeTruthy();
-    expect(mutations.some((m) => m.name === "chat:cancelVoiceBurst")).toBe(false);
+    expect(mutations.some((m) => m.name === "chat:cancelVoiceBurst")).toBe(
+      false,
+    );
   });
 
   test("borrows the microphone already publishing here, and is heard at once", async () => {
     // Hold-to-reply where the seat is REALLY connected: the mic is in the room
     // already, so there is no second device to open and nothing to wait for.
-    seatedMic = { readyState: "live", stop() {}, clone: () => ({ readyState: "live", stop() {} }) };
+    seatedMic = {
+      readyState: "live",
+      stop() {},
+      clone: () => ({ readyState: "live", stop() {} }),
+    };
     S().setCallState({ roomKey: ROOM, phase: "connected", muted: false });
     const gum = getUserMediaCalls;
 
@@ -1481,7 +1606,9 @@ describe("walkie: two keys down in one room", () => {
     await walkie.startBurst("chan-both", ROOM);
     const joinsBefore = joinCalls.length;
     walkie.observeWalkie({
-      bursts: [{ ...theirBurst(), messageId: "m-elsewhere", roomKey: "dm:some:other" }],
+      bursts: [
+        { ...theirBurst(), messageId: "m-elsewhere", roomKey: "dm:some:other" },
+      ],
       doorOpen: true,
     });
     expect(walkie.getWalkieStatus().incoming).toBeNull();
@@ -1506,7 +1633,13 @@ describe("walkie: a join stamp that lands after the key came up", () => {
   const ROOM = "dm:late:stamp";
 
   afterEach(() => {
-    S().setCallState({ roomKey: null, phase: "idle", muted: true, micDenied: false, error: null });
+    S().setCallState({
+      roomKey: null,
+      phase: "idle",
+      muted: true,
+      micDenied: false,
+      error: null,
+    });
     walkie.refreshWalkie();
   });
 
@@ -1562,7 +1695,13 @@ describe("walkie: the join announcement", () => {
 
   afterEach(() => {
     clearJoinAnnouncement();
-    S().setCallState({ roomKey: null, phase: "idle", muted: true, micDenied: false, error: null });
+    S().setCallState({
+      roomKey: null,
+      phase: "idle",
+      muted: true,
+      micDenied: false,
+      error: null,
+    });
     walkie.refreshWalkie();
   });
 

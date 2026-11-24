@@ -18,7 +18,17 @@ export interface FooterTab {
 
 /** Verbs after which the driven tab (or its page) may have changed. */
 export const TAB_AFFECTING_VERBS = new Set([
-  "open", "back", "forward", "reload", "click", "press", "type", "fill", "select", "batch", "tab",
+  "open",
+  "back",
+  "forward",
+  "reload",
+  "click",
+  "press",
+  "type",
+  "fill",
+  "select",
+  "batch",
+  "tab",
 ]);
 
 /** Reminder after a tab-affecting verb: close what you opened, unless the human still needs it. */
@@ -31,17 +41,23 @@ export const TAB_CLEANUP_NOTE =
  * Printed after every verb it drowned real output, and agents piped every
  * browser call through `tail` or /dev/null to get rid of it.
  */
-export function opensATab(verb: string, args: readonly string[], created: boolean): boolean {
+export function opensATab(
+  verb: string,
+  args: readonly string[],
+  created: boolean,
+): boolean {
   if (verb === "open") return created || args.includes("--new-tab");
   return verb === "tab" && args[0] === "new";
 }
 
 /** The lines to print, or [] when there is no active tab to name. */
 export function tabFooterLines(tabs: FooterTab[]): string[] {
-  const active = tabs.find((t) => t.active && t.targetId) ?? tabs.find((t) => t.targetId);
+  const active =
+    tabs.find((t) => t.active && t.targetId) ?? tabs.find((t) => t.targetId);
   if (!active) return [];
   const lines: string[] = [];
-  if (active.url && /^https?:\/\//.test(active.url)) lines.push(`  ${active.url}`);
+  if (active.url && /^https?:\/\//.test(active.url))
+    lines.push(`  ${active.url}`);
   lines.push(fmt.muted(`  ${tabLine(active.targetId)}`));
   return lines;
 }

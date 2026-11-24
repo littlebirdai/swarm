@@ -13,7 +13,10 @@ const api = _typedApi as any;
  * "Task #N" its result reports. The subject parse is memoized per call, so a
  * streamed update parses only the TaskCreate calls it added or changed.
  */
-export function taskSubjectMapOf(messages: readonly Message[], memo: ToolCallMemo<string | null>): Record<string, string> {
+export function taskSubjectMapOf(
+  messages: readonly Message[],
+  memo: ToolCallMemo<string | null>,
+): Record<string, string> {
   memo.begin();
   const createInputs: Record<string, string> = {};
   const idMap: Record<string, string> = {};
@@ -46,23 +49,33 @@ export function taskSubjectMapOf(messages: readonly Message[], memo: ToolCallMem
   return idMap;
 }
 
-export function useConversationTaskMaps({ conversation, deferredQueriesEnabled }: {
+export function useConversationTaskMaps({
+  conversation,
+  deferredQueriesEnabled,
+}: {
   conversation: ConversationData | null | undefined;
   deferredQueriesEnabled: boolean;
 }) {
   // Same identity while the subjects are unchanged: every AssistantBlock takes
   // this map and the record map built from it as props.
   const [subjectMemo] = useState(() => new ToolCallMemo<string | null>());
-  const taskSubjectMapRef = useRef<Record<string, string> | undefined>(undefined);
+  const taskSubjectMapRef = useRef<Record<string, string> | undefined>(
+    undefined,
+  );
   const taskSubjectMap = useMemo(() => {
-    const next = keepIfSameRecord(taskSubjectMapRef.current, taskSubjectMapOf(conversation?.messages ?? [], subjectMemo));
+    const next = keepIfSameRecord(
+      taskSubjectMapRef.current,
+      taskSubjectMapOf(conversation?.messages ?? [], subjectMemo),
+    );
     taskSubjectMapRef.current = next;
     return next;
   }, [conversation?.messages, subjectMemo]);
 
   const conversationTasks = useQueryNoThrow(
     api.tasks.webListByConversation,
-    deferredQueriesEnabled && conversation?._id && isConvexId(conversation._id) ? { conversationId: conversation._id } : "skip"
+    deferredQueriesEnabled && conversation?._id && isConvexId(conversation._id)
+      ? { conversationId: conversation._id }
+      : "skip",
   ).data;
 
   const taskRecordMap = useMemo(() => {

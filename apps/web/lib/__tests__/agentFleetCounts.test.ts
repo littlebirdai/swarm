@@ -2,9 +2,26 @@ import { describe, expect, it } from "bun:test";
 import { agentFleetCounts, sessionAwakeAt } from "../liveness";
 
 const NOW = 10_000_000;
-const working = { message_count: 5, updated_at: NOW - 1000, agent_status: "working", agent_status_updated_at: NOW - 1000, last_heartbeat: NOW - 1000 };
-const idleAwake = { message_count: 5, updated_at: NOW - 3600_000, agent_status: "idle", agent_status_updated_at: NOW - 3600_000, last_heartbeat: NOW - 1000 };
-const asleep = { message_count: 5, updated_at: NOW - 3600_000, agent_status: "idle", last_heartbeat: NOW - 3600_000 };
+const working = {
+  message_count: 5,
+  updated_at: NOW - 1000,
+  agent_status: "working",
+  agent_status_updated_at: NOW - 1000,
+  last_heartbeat: NOW - 1000,
+};
+const idleAwake = {
+  message_count: 5,
+  updated_at: NOW - 3600_000,
+  agent_status: "idle",
+  agent_status_updated_at: NOW - 3600_000,
+  last_heartbeat: NOW - 1000,
+};
+const asleep = {
+  message_count: 5,
+  updated_at: NOW - 3600_000,
+  agent_status: "idle",
+  last_heartbeat: NOW - 3600_000,
+};
 const hibernated = { ...idleAwake, agent_status: "hibernated" };
 
 describe("agentFleetCounts", () => {
@@ -25,6 +42,8 @@ describe("agentFleetCounts", () => {
   });
 
   it("never counts a killed row as awake", () => {
-    expect(sessionAwakeAt({ ...working, inbox_killed_at: NOW - 5 }, NOW)).toBe(false);
+    expect(sessionAwakeAt({ ...working, inbox_killed_at: NOW - 5 }, NOW)).toBe(
+      false,
+    );
   });
 });

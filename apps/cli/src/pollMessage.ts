@@ -4,12 +4,24 @@
 // declining the menu (web lib/pollPayload.ts builds it). The tmux path presses
 // the keys; the Claude SDK path reads them as answers (claudeSdk/pollAnswer.ts).
 
-export type PollMessage = { keys?: string[]; steps?: Array<{ key: string; text?: string }>; text?: string; display?: string; multi?: boolean };
+export type PollMessage = {
+  keys?: string[];
+  steps?: Array<{ key: string; text?: string }>;
+  text?: string;
+  display?: string;
+  multi?: boolean;
+};
 
 export function parsePollMessage(content: string): PollMessage | null {
   try {
     const parsed = JSON.parse(content);
-    if (parsed.__cc_poll && (Array.isArray(parsed.keys) || Array.isArray(parsed.steps) || typeof parsed.text === "string")) return parsed;
+    if (
+      parsed.__cc_poll &&
+      (Array.isArray(parsed.keys) ||
+        Array.isArray(parsed.steps) ||
+        typeof parsed.text === "string")
+    )
+      return parsed;
   } catch {}
   return null;
 }
@@ -29,17 +41,26 @@ export function parsePollMessage(content: string): PollMessage | null {
 // Enter in the TUI and submits early, which is why the normal paste path flattens too; the
 // middot keeps multi-answer prose readable on one line), or null when this isn't a decline.
 export function pollDeclineText(poll: PollMessage): string | null {
-  const steps: Array<{ key: string; text?: string }> = poll.steps || (poll.keys || []).map(k => ({ key: k }));
-  const menuSteps = steps.filter(s => !s.text);
-  const embeddedText = steps.filter(s => s.text).map(s => s.text!).join("\n\n");
-  const isDecline = (poll.text != null && menuSteps.length === 0) || (embeddedText !== "" && poll.text == null);
+  const steps: Array<{ key: string; text?: string }> =
+    poll.steps || (poll.keys || []).map((k) => ({ key: k }));
+  const menuSteps = steps.filter((s) => !s.text);
+  const embeddedText = steps
+    .filter((s) => s.text)
+    .map((s) => s.text!)
+    .join("\n\n");
+  const isDecline =
+    (poll.text != null && menuSteps.length === 0) ||
+    (embeddedText !== "" && poll.text == null);
   if (!isDecline) return null;
   return (poll.text ?? embeddedText).replace(/\r?\n+/g, "  ·  ").trim();
 }
 
 // The menu-navigation steps of a poll (the option keystrokes), excluding any step that
 // carries embedded free text (those decline the menu — see pollDeclineText).
-export function pollMenuSteps(poll: PollMessage): Array<{ key: string; text?: string }> {
-  const steps: Array<{ key: string; text?: string }> = poll.steps || (poll.keys || []).map(k => ({ key: k }));
-  return steps.filter(s => !s.text);
+export function pollMenuSteps(
+  poll: PollMessage,
+): Array<{ key: string; text?: string }> {
+  const steps: Array<{ key: string; text?: string }> =
+    poll.steps || (poll.keys || []).map((k) => ({ key: k }));
+  return steps.filter((s) => !s.text);
 }

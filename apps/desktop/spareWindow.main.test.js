@@ -32,7 +32,9 @@ test("detaching a tab discards a crashed spare and loads a fresh window", (t) =>
 
 test("detaching a tab still reuses a healthy ready spare", async (t) => {
   const { rig, spare } = warmSpare(t);
-  assert.ok(spare.options.webPreferences.additionalArguments.includes("--warm-spare"));
+  assert.ok(
+    spare.options.webPreferences.additionalArguments.includes("--warm-spare"),
+  );
   const events = [];
   spare.webContents.send = (channel, role) => {
     if (channel === "window-role") events.push(["role", role.spare]);
@@ -67,19 +69,30 @@ test("the preload sees the current role when a spare reloads after claim", (t) =
     let bridge;
     runInNewContext(preload, {
       location: { href: spare.webContents.getURL() },
-      process: { argv: spare.options.webPreferences.additionalArguments, env: {}, isMainFrame: true },
-      require: (name) => name !== "electron" ? require(name) : {
-        contextBridge: { exposeInMainWorld: (_name, value) => { bridge = value; } },
-        ipcRenderer: {
-          on() {},
-          sendSync(channel) {
-            const event = rig.event(spare.webContents);
-            rig.handlers.get(channel)(event);
-            return event.returnValue;
-          },
-        },
-        webFrame: { setZoomFactor() {} },
+      process: {
+        argv: spare.options.webPreferences.additionalArguments,
+        env: {},
+        isMainFrame: true,
       },
+      require: (name) =>
+        name !== "electron"
+          ? require(name)
+          : {
+              contextBridge: {
+                exposeInMainWorld: (_name, value) => {
+                  bridge = value;
+                },
+              },
+              ipcRenderer: {
+                on() {},
+                sendSync(channel) {
+                  const event = rig.event(spare.webContents);
+                  rig.handlers.get(channel)(event);
+                  return event.returnValue;
+                },
+              },
+              webFrame: { setZoomFactor() {} },
+            },
     });
     return bridge.isWarmSpare;
   };
@@ -115,43 +128,48 @@ test("main reveals the claimed spare if the renderer never answers", async (t) =
 });
 
 for (const hydrates of [true, false]) {
-  test(hydrates ? "reveal waits for hydration and the painted route" : "reveal has a deadline if hydration stalls", async (t) => {
-    const { rig, spare } = warmSpare(t);
-    const document = { title: "Inbox" };
-    const inboxState = { clientStateInitialized: false };
-    spare.webContents.executeJavaScript = (source) => {
-      if (source.includes("codecast-navigate")) {
-        document.title = "Questions";
-        return Promise.resolve();
-      }
-      return runInNewContext(source, {
-        document,
-        window: { __inboxStore: { getState: () => inboxState } },
-        requestAnimationFrame: (fn) => setTimeout(fn, 16),
-        cancelAnimationFrame: clearTimeout,
-        setTimeout,
-        clearTimeout,
-      });
-    };
-    rig.handlers.get("detach-tab")(rig.event(), "/questions");
-    t.mock.timers.tick(16);
-    const flush = () => new Promise((resolve) => setImmediate(resolve));
-    await flush();
-    assert.equal(spare.isVisible(), false);
+  test(
+    hydrates
+      ? "reveal waits for hydration and the painted route"
+      : "reveal has a deadline if hydration stalls",
+    async (t) => {
+      const { rig, spare } = warmSpare(t);
+      const document = { title: "Inbox" };
+      const inboxState = { clientStateInitialized: false };
+      spare.webContents.executeJavaScript = (source) => {
+        if (source.includes("codecast-navigate")) {
+          document.title = "Questions";
+          return Promise.resolve();
+        }
+        return runInNewContext(source, {
+          document,
+          window: { __inboxStore: { getState: () => inboxState } },
+          requestAnimationFrame: (fn) => setTimeout(fn, 16),
+          cancelAnimationFrame: clearTimeout,
+          setTimeout,
+          clearTimeout,
+        });
+      };
+      rig.handlers.get("detach-tab")(rig.event(), "/questions");
+      t.mock.timers.tick(16);
+      const flush = () => new Promise((resolve) => setImmediate(resolve));
+      await flush();
+      assert.equal(spare.isVisible(), false);
 
-    if (hydrates) {
-      inboxState.clientStateInitialized = true;
-      t.mock.timers.tick(16);
+      if (hydrates) {
+        inboxState.clientStateInitialized = true;
+        t.mock.timers.tick(16);
+        await flush();
+        assert.equal(spare.isVisible(), false);
+        t.mock.timers.tick(16);
+      } else {
+        t.mock.timers.tick(383);
+        await flush();
+        assert.equal(spare.isVisible(), false);
+        t.mock.timers.tick(1);
+      }
       await flush();
-      assert.equal(spare.isVisible(), false);
-      t.mock.timers.tick(16);
-    } else {
-      t.mock.timers.tick(383);
-      await flush();
-      assert.equal(spare.isVisible(), false);
-      t.mock.timers.tick(1);
-    }
-    await flush();
-    assert.equal(spare.isVisible(), true);
-  });
+      assert.equal(spare.isVisible(), true);
+    },
+  );
 }

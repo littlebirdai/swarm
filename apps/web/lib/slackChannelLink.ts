@@ -4,7 +4,10 @@ import "../components/chat/chat.css";
 /** An https link, not slack://: the desktop app only hands http(s) to the OS,
  *  and a browser without the Slack app does nothing with the custom scheme.
  *  Slack's redirect opens the app when installed and the web client otherwise. */
-export function slackChannelUrl(workspaceId: string, channelId: string): string {
+export function slackChannelUrl(
+  workspaceId: string,
+  channelId: string,
+): string {
   return `https://slack.com/app_redirect?team=${encodeURIComponent(workspaceId)}&channel=${encodeURIComponent(channelId)}`;
 }
 

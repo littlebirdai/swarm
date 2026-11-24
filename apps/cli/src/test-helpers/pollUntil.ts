@@ -11,7 +11,11 @@ import { loadScaledMs } from "./machineLoad.js";
 export async function pollUntil(
   check: () => boolean | Promise<boolean>,
   what: string,
-  { ms = 5000, every = 5, progress }: { ms?: number; every?: number; progress?: () => unknown } = {},
+  {
+    ms = 5000,
+    every = 5,
+    progress,
+  }: { ms?: number; every?: number; progress?: () => unknown } = {},
 ): Promise<number> {
   const start = Date.now();
   const budget = loadScaledMs(ms);
@@ -19,8 +23,12 @@ export async function pollUntil(
   let end = start + budget;
   while (!(await check())) {
     const now = JSON.stringify(progress?.());
-    if (now !== seen) { seen = now; end = Date.now() + budget; }
-    if (Date.now() > end) throw new Error(`${what} timed out` + (progress ? ` at ${now}` : ""));
+    if (now !== seen) {
+      seen = now;
+      end = Date.now() + budget;
+    }
+    if (Date.now() > end)
+      throw new Error(`${what} timed out` + (progress ? ` at ${now}` : ""));
     await new Promise((resolve) => setTimeout(resolve, every));
   }
   return Date.now() - start;

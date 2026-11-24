@@ -10,17 +10,32 @@ import { rosterWithGuests } from "../../../lib/calls/roomGuests";
 // neither, and the views read nothing but what they are handed.
 
 const seats = [{ user_id: "u-sam", user_name: "Sam Lee" }];
-const roster = rosterWithGuests(seats, [{ guest_id: "g1", identity: "guest:g1", name: "Ada Lovelace", joined_at: 1 }]);
+const roster = rosterWithGuests(seats, [
+  { guest_id: "g1", identity: "guest:g1", name: "Ada Lovelace", joined_at: 1 },
+]);
 
 const host: StageHost = {
   getRoom: () => null,
-  personActions: ({ identity, variant }) => <i data-action={identity} data-variant={variant} />,
+  personActions: ({ identity, variant }) => (
+    <i data-action={identity} data-variant={variant} />
+  ),
 };
 
-const draw = (el: React.ReactElement) => renderToStaticMarkup(<StageHostProvider value={host}>{el}</StageHostProvider>);
+const draw = (el: React.ReactElement) =>
+  renderToStaticMarkup(
+    <StageHostProvider value={host}>{el}</StageHostProvider>,
+  );
 
 test("audio only: a guest's face says guest; a teammate's does not", () => {
-  const html = draw(<AutoStage roster={roster} cameras={[]} screens={[]} speaking={new Set()} phase="connected" />);
+  const html = draw(
+    <AutoStage
+      roster={roster}
+      cameras={[]}
+      screens={[]}
+      speaking={new Set()}
+      phase="connected"
+    />,
+  );
   expect(html.match(/>guest</g)?.length).toBe(1);
   expect(html.indexOf("Ada")).toBeLessThan(html.indexOf(">guest<"));
   expect(html).toContain('data-action="guest:g1"');
@@ -28,14 +43,29 @@ test("audio only: a guest's face says guest; a teammate's does not", () => {
 });
 
 test("grid: the host decides the actions (a member's stage offers Remove only for a guest)", () => {
-  const html = draw(<GridStage roster={roster} cameras={[]} screens={[]} speaking={new Set(["guest:g1"])} />);
+  const html = draw(
+    <GridStage
+      roster={roster}
+      cameras={[]}
+      screens={[]}
+      speaking={new Set(["guest:g1"])}
+    />,
+  );
   expect(html).toContain('data-action="guest:g1"');
   // The speaking ring follows the guest's identity like anyone's.
   expect(html).toMatch(/ring-sol-cyan[^"]*"[^>]*>(?:(?!data-action).)*Ada/s);
 });
 
 test("without a host (a guest's own page) the views draw and offer nothing", () => {
-  const html = renderToStaticMarkup(<AutoStage roster={roster} cameras={[]} screens={[]} speaking={new Set()} phase="connected" />);
+  const html = renderToStaticMarkup(
+    <AutoStage
+      roster={roster}
+      cameras={[]}
+      screens={[]}
+      speaking={new Set()}
+      phase="connected"
+    />,
+  );
   expect(html).toContain("Ada");
   expect(html).toContain(">guest<");
   expect(html).not.toContain("data-action");

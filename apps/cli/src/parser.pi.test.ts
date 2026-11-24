@@ -11,10 +11,16 @@ import {
   parseTranscriptFor,
   extractPiCwd,
 } from "./parser.js";
-import { classifyPiTranscriptTail, classifyTranscriptTailFor } from "./daemon.js";
+import {
+  classifyPiTranscriptTail,
+  classifyTranscriptTailFor,
+} from "./daemon.js";
 
 const fixture = (name: string) =>
-  fs.readFileSync(path.join(import.meta.dir, "__fixtures__", "pi", name), "utf8");
+  fs.readFileSync(
+    path.join(import.meta.dir, "__fixtures__", "pi", name),
+    "utf8",
+  );
 
 describe("parsePiSessionFile — real linear session with a bash tool call", () => {
   const content = fixture("linear-bash-tool.jsonl");
@@ -29,12 +35,16 @@ describe("parsePiSessionFile — real linear session with a bash tool call", () 
     expect(messages[0].role).toBe("user");
     // timestamps are non-decreasing (root -> leaf order)
     for (let i = 1; i < messages.length; i++) {
-      expect(messages[i].timestamp).toBeGreaterThanOrEqual(messages[i - 1].timestamp);
+      expect(messages[i].timestamp).toBeGreaterThanOrEqual(
+        messages[i - 1].timestamp,
+      );
     }
   });
 
   test("maps a toolCall block to ToolCall{ id, name, input:arguments }", () => {
-    const withCall = messages.find((m) => m.toolCalls && m.toolCalls.length > 0);
+    const withCall = messages.find(
+      (m) => m.toolCalls && m.toolCalls.length > 0,
+    );
     expect(withCall).toBeDefined();
     const call = withCall!.toolCalls![0];
     expect(call.name).toBe("bash");
@@ -43,7 +53,9 @@ describe("parsePiSessionFile — real linear session with a bash tool call", () 
   });
 
   test("maps a toolResult message to a ParsedMessage with toolResults", () => {
-    const withResult = messages.find((m) => m.toolResults && m.toolResults.length > 0);
+    const withResult = messages.find(
+      (m) => m.toolResults && m.toolResults.length > 0,
+    );
     expect(withResult).toBeDefined();
     expect(withResult!.role).toBe("assistant");
     const result = withResult!.toolResults![0];
@@ -65,7 +77,9 @@ describe("parsePiSessionFile — thinking, multiple tools, and an image tool res
   const messages = parsePiSessionFile(fixture("thinking-image-tools.jsonl"));
 
   test("surfaces assistant thinking blocks", () => {
-    const withThinking = messages.filter((m) => m.thinking && m.thinking.length > 0);
+    const withThinking = messages.filter(
+      (m) => m.thinking && m.thinking.length > 0,
+    );
     expect(withThinking.length).toBeGreaterThan(0);
   });
 
@@ -105,7 +119,9 @@ describe("parsePiSessionFile — active-branch resolution (synthetic /tree branc
 
 describe("parsePiSessionFile — per-message usage", () => {
   const messages = parsePiSessionFile(fixture("usage.jsonl"));
-  const assistants = messages.filter((m) => m.role === "assistant" && !m.toolResults);
+  const assistants = messages.filter(
+    (m) => m.role === "assistant" && !m.toolResults,
+  );
 
   test("maps pi's input/output/cacheRead/cacheWrite onto the Claude usage shape", () => {
     expect(assistants[0].usage).toEqual({
@@ -124,7 +140,9 @@ describe("parsePiSessionFile — per-message usage", () => {
 
   test("leaves usage off a turn that has none, and off tool results", () => {
     expect(assistants[2].usage).toBeUndefined();
-    expect(messages.filter((m) => m.toolResults).every((m) => m.usage === undefined)).toBe(true);
+    expect(
+      messages.filter((m) => m.toolResults).every((m) => m.usage === undefined),
+    ).toBe(true);
   });
 
   test("each pi entry is one model call, so no turn id is needed to count it once", () => {
@@ -132,7 +150,11 @@ describe("parsePiSessionFile — per-message usage", () => {
   });
 
   test("older fixtures with an empty usage block carry no usage", () => {
-    expect(parsePiSessionFile(fixture("linear-bash-tool.jsonl")).every((m) => m.usage === undefined)).toBe(true);
+    expect(
+      parsePiSessionFile(fixture("linear-bash-tool.jsonl")).every(
+        (m) => m.usage === undefined,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -141,12 +163,17 @@ describe("parsePiSessionFile — degenerate input", () => {
     expect(parsePiSessionFile("")).toEqual([]);
   });
   test("header only (no tree entries) -> []", () => {
-    expect(parsePiSessionFile('{"type":"session","version":3,"id":"x","cwd":"/tmp"}')).toEqual([]);
+    expect(
+      parsePiSessionFile(
+        '{"type":"session","version":3,"id":"x","cwd":"/tmp"}',
+      ),
+    ).toEqual([]);
   });
   test("skips a partial/corrupt trailing line without throwing", () => {
-    const good = '{"type":"session","version":3,"id":"s","cwd":"/tmp"}\n'
-      + '{"type":"message","id":"a","parentId":null,"timestamp":"2026-03-03T14:00:00.000Z","message":{"role":"user","content":"hi"}}\n'
-      + '{"type":"message","id":"b","parentId":"a"'; // truncated mid-write
+    const good =
+      '{"type":"session","version":3,"id":"s","cwd":"/tmp"}\n' +
+      '{"type":"message","id":"a","parentId":null,"timestamp":"2026-03-03T14:00:00.000Z","message":{"role":"user","content":"hi"}}\n' +
+      '{"type":"message","id":"b","parentId":"a"'; // truncated mid-write
     const msgs = parsePiSessionFile(good);
     expect(msgs.length).toBe(1);
     expect(msgs[0].content).toBe("hi");
@@ -154,14 +181,22 @@ describe("parsePiSessionFile — degenerate input", () => {
 });
 
 describe("classifyPiTranscriptTail", () => {
-  const asstStop = '{"type":"message","id":"a","parentId":"u","message":{"role":"assistant","stopReason":"stop","content":[]}}';
-  const asstTool = '{"type":"message","id":"a","parentId":"u","message":{"role":"assistant","stopReason":"toolUse","content":[]}}';
-  const userMsg = '{"type":"message","id":"u","parentId":null,"message":{"role":"user","content":"go"}}';
-  const toolRes = '{"type":"message","id":"t","parentId":"a","message":{"role":"toolResult","toolCallId":"c","content":[]}}';
+  const asstStop =
+    '{"type":"message","id":"a","parentId":"u","message":{"role":"assistant","stopReason":"stop","content":[]}}';
+  const asstTool =
+    '{"type":"message","id":"a","parentId":"u","message":{"role":"assistant","stopReason":"toolUse","content":[]}}';
+  const userMsg =
+    '{"type":"message","id":"u","parentId":null,"message":{"role":"user","content":"go"}}';
+  const toolRes =
+    '{"type":"message","id":"t","parentId":"a","message":{"role":"toolResult","toolCallId":"c","content":[]}}';
 
   test("assistant stop/length/error/aborted -> idle", () => {
     expect(classifyPiTranscriptTail(asstStop)).toBe("idle");
-    expect(classifyPiTranscriptTail('{"type":"message","message":{"role":"assistant","stopReason":"aborted","content":[]}}')).toBe("idle");
+    expect(
+      classifyPiTranscriptTail(
+        '{"type":"message","message":{"role":"assistant","stopReason":"aborted","content":[]}}',
+      ),
+    ).toBe("idle");
   });
   test("assistant toolUse -> active", () => {
     expect(classifyPiTranscriptTail(asstTool)).toBe("active");
@@ -171,17 +206,27 @@ describe("classifyPiTranscriptTail", () => {
     expect(classifyPiTranscriptTail(toolRes)).toBe("active");
   });
   test("streaming assistant (no stopReason) -> unknown (defer)", () => {
-    expect(classifyPiTranscriptTail('{"type":"message","message":{"role":"assistant","content":[]}}')).toBe("unknown");
+    expect(
+      classifyPiTranscriptTail(
+        '{"type":"message","message":{"role":"assistant","content":[]}}',
+      ),
+    ).toBe("unknown");
   });
   test("scans past non-message entries (model_change) to the last real turn", () => {
-    expect(classifyPiTranscriptTail(`${asstStop}\n{"type":"model_change","id":"m","provider":"anthropic","modelId":"x"}`)).toBe("idle");
+    expect(
+      classifyPiTranscriptTail(
+        `${asstStop}\n{"type":"model_change","id":"m","provider":"anthropic","modelId":"x"}`,
+      ),
+    ).toBe("idle");
   });
   test("empty / unparseable tail -> unknown", () => {
     expect(classifyPiTranscriptTail("")).toBe("unknown");
   });
 
   test("a completed real session (linear-bash-tool) reads as idle", () => {
-    expect(classifyPiTranscriptTail(fixture("linear-bash-tool.jsonl"))).toBe("idle");
+    expect(classifyPiTranscriptTail(fixture("linear-bash-tool.jsonl"))).toBe(
+      "idle",
+    );
   });
 
   test("registered in classifyTranscriptTailFor('pi')", () => {
@@ -194,11 +239,44 @@ describe("classifyPiTranscriptTail", () => {
 describe("pi codecast import notice", () => {
   test("is dropped by the pi parser", () => {
     const lines = [
-      { type: "session", version: 3, id: "s1", timestamp: "2026-09-06T00:00:00.000Z", cwd: "/tmp/p" },
-      { type: "message", id: "n1", parentId: null, timestamp: "2026-09-06T00:00:01.000Z", message: { role: "user", content: [{ type: "text", text: "[Codecast import] This session was trimmed…" }], timestamp: 1 } },
-      { type: "message", id: "u1", parentId: "n1", timestamp: "2026-09-06T00:00:02.000Z", message: { role: "user", content: [{ type: "text", text: "hello" }], timestamp: 2 } },
+      {
+        type: "session",
+        version: 3,
+        id: "s1",
+        timestamp: "2026-09-06T00:00:00.000Z",
+        cwd: "/tmp/p",
+      },
+      {
+        type: "message",
+        id: "n1",
+        parentId: null,
+        timestamp: "2026-09-06T00:00:01.000Z",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "[Codecast import] This session was trimmed…",
+            },
+          ],
+          timestamp: 1,
+        },
+      },
+      {
+        type: "message",
+        id: "u1",
+        parentId: "n1",
+        timestamp: "2026-09-06T00:00:02.000Z",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          timestamp: 2,
+        },
+      },
     ];
-    const msgs = parsePiSessionFile(lines.map((l) => JSON.stringify(l)).join("\n"));
+    const msgs = parsePiSessionFile(
+      lines.map((l) => JSON.stringify(l)).join("\n"),
+    );
     expect(msgs.map((m) => m.uuid)).toEqual(["u1"]);
   });
 });

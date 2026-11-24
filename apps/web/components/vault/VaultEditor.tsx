@@ -39,7 +39,11 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import {
+  highlightSelectionMatches,
+  search,
+  searchKeymap,
+} from "@codemirror/search";
 import {
   autocompletion,
   closeBrackets,
@@ -60,18 +64,30 @@ import { tags as t } from "@lezer/highlight";
 import { isVaultMarkdownPath } from "@codecast/shared/contracts";
 import { entityRefRoute, parseEntityRefHref } from "@codecast/shared/vault";
 import { useRouter } from "next/navigation";
-import { useMentionQuery, useActiveMentionScope } from "../../hooks/useMentionQuery";
+import {
+  useMentionQuery,
+  useActiveMentionScope,
+} from "../../hooks/useMentionQuery";
 import {
   entityCompletions,
   wikiCompletionContext,
   type EntityCompletionItem,
 } from "../../lib/vault/entityCompletion";
-import { cssVar, isDarkTheme, observeTheme, withAlpha } from "../../lib/solTheme";
+import {
+  cssVar,
+  isDarkTheme,
+  observeTheme,
+  withAlpha,
+} from "../../lib/solTheme";
 import { detectLineSeparator, docChange } from "../../lib/vault/editorDoc";
 import { vaultIndex, useVaultIndexVersion } from "../../lib/vault/indexHost";
 import { parseNote } from "../../lib/vault/parseNote";
 import { noteDisplayName } from "../../lib/vault/explorerModel";
-import { livePreview, refreshLivePreview, type LivePreviewContext } from "../../lib/vault/livePreview";
+import {
+  livePreview,
+  refreshLivePreview,
+  type LivePreviewContext,
+} from "../../lib/vault/livePreview";
 import type { VaultEditMode } from "../../lib/vault/viewMode";
 import { useVaultLinkCtx } from "./useVaultLinkCtx";
 import type { VaultLinkContextValue } from "./VaultMarkdown";
@@ -127,17 +143,23 @@ function solEditorTheme(): Extension {
           caretColor: cyan,
         },
         ".cm-line": { padding: "0" },
-        ".cm-cursor, .cm-dropCursor": { borderLeftColor: cyan, borderLeftWidth: "2px" },
-        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-          backgroundColor: selection,
+        ".cm-cursor, .cm-dropCursor": {
+          borderLeftColor: cyan,
+          borderLeftWidth: "2px",
         },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+          {
+            backgroundColor: selection,
+          },
         ".cm-activeLine": { backgroundColor: withAlpha(bgAlt, 0.45) },
         ".cm-selectionMatch": { backgroundColor: withAlpha(yellow, 0.2) },
         ".cm-searchMatch": {
           backgroundColor: withAlpha(yellow, 0.25),
           outline: `1px solid ${withAlpha(yellow, 0.5)}`,
         },
-        ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: withAlpha(cyan, 0.35) },
+        ".cm-searchMatch.cm-searchMatch-selected": {
+          backgroundColor: withAlpha(cyan, 0.35),
+        },
         ".cm-matchingBracket, .cm-nonmatchingBracket": {
           backgroundColor: withAlpha(cyan, 0.18),
           outline: "none",
@@ -149,12 +171,15 @@ function solEditorTheme(): Extension {
           border: "none",
           fontFamily: "'JetBrains Mono', ui-monospace, monospace",
         },
-        ".cm-panels.cm-panels-top": { borderBottom: `1px solid ${withAlpha(border, 0.4)}` },
-        ".cm-panel.cm-search": { padding: "6px 8px", fontSize: "11px" },
-        ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label": {
-          fontFamily: "inherit",
-          fontSize: "11px",
+        ".cm-panels.cm-panels-top": {
+          borderBottom: `1px solid ${withAlpha(border, 0.4)}`,
         },
+        ".cm-panel.cm-search": { padding: "6px 8px", fontSize: "11px" },
+        ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label":
+          {
+            fontFamily: "inherit",
+            fontSize: "11px",
+          },
         ".cm-panel.cm-search input[type=text]": {
           backgroundColor: bg,
           color: text,
@@ -173,8 +198,15 @@ function solEditorTheme(): Extension {
           padding: "2px 6px",
           cursor: "pointer",
         },
-        ".cm-panel.cm-search button:not([name=close]):hover": { color: text, borderColor: cyan },
-        ".cm-panel.cm-search [name=close]": { color: dim, fontSize: "14px", padding: "0 4px" },
+        ".cm-panel.cm-search button:not([name=close]):hover": {
+          color: text,
+          borderColor: cyan,
+        },
+        ".cm-panel.cm-search [name=close]": {
+          color: dim,
+          fontSize: "14px",
+          padding: "0 4px",
+        },
         // Wiki-link completions.
         ".cm-tooltip.cm-tooltip-autocomplete": {
           backgroundColor: bg,
@@ -187,12 +219,19 @@ function solEditorTheme(): Extension {
           fontSize: "12px",
           maxHeight: "16em",
         },
-        ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "3px 8px", color: text },
+        ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+          padding: "3px 8px",
+          color: text,
+        },
         ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
           backgroundColor: withAlpha(cyan, 0.18),
           color: text,
         },
-        ".cm-completionDetail": { color: dim, fontStyle: "normal", marginLeft: "8px" },
+        ".cm-completionDetail": {
+          color: dim,
+          fontStyle: "normal",
+          marginLeft: "8px",
+        },
         ".cm-completionIcon": { display: "none" },
       },
       { dark: isDarkTheme() },
@@ -254,7 +293,11 @@ function noteCompletions(): Completion[] {
       boost: unique ? 1 : 0,
     });
     for (const alias of vaultIndex.note(path)?.parsed?.aliases ?? []) {
-      options.push({ label: alias, detail: `alias · ${base}`, apply: applyLinkTarget });
+      options.push({
+        label: alias,
+        detail: `alias · ${base}`,
+        apply: applyLinkTarget,
+      });
     }
   }
   return options;
@@ -263,7 +306,12 @@ function noteCompletions(): Completion[] {
 /** Insert the target and close the brackets — unless closeBrackets already put
  *  a `]]` there when the user typed the second `[`, in which case step over it
  *  rather than leaving `[[Note]]]]`. */
-function applyLinkTarget(view: EditorView, completion: Completion, from: number, to: number) {
+function applyLinkTarget(
+  view: EditorView,
+  completion: Completion,
+  from: number,
+  to: number,
+) {
   const closed = view.state.sliceDoc(to, to + 2) === "]]";
   const insert = closed ? completion.label : `${completion.label}]]`;
   view.dispatch({
@@ -275,7 +323,9 @@ function applyLinkTarget(view: EditorView, completion: Completion, from: number,
 
 function headingOptions(target: string, fromPath: string): Completion[] {
   const resolved = vaultIndex.resolveLink(target, fromPath);
-  const headings = resolved ? (vaultIndex.note(resolved)?.parsed?.headings ?? []) : [];
+  const headings = resolved
+    ? (vaultIndex.note(resolved)?.parsed?.headings ?? [])
+    : [];
   return headings.map((h) => ({
     label: h.text,
     detail: "#".repeat(h.level),
@@ -322,9 +372,13 @@ function wikiCompletionSource(fromPath: string) {
  *  reason: the next keystroke asks the query again rather than re-filtering a
  *  stale set. */
 function entityCompletionSource(
-  queryRef: MutableRefObject<(query: string) => Promise<EntityCompletionItem[]>>,
+  queryRef: MutableRefObject<
+    (query: string) => Promise<EntityCompletionItem[]>
+  >,
 ) {
-  return async (context: CompletionContext): Promise<CompletionResult | null> => {
+  return async (
+    context: CompletionContext,
+  ): Promise<CompletionResult | null> => {
     const line = context.state.doc.lineAt(context.pos);
     const where = wikiCompletionContext(line.text, line.from, context.pos);
     if (!where) return null;
@@ -363,7 +417,9 @@ function makeLiveContext(
       return { path: res.path, ambiguous: res.ambiguous };
     },
     assetUrl: (raw) =>
-      ABSOLUTE_URL.test(raw) ? raw : ref.current.assetUrl(decodeURIComponent(raw)),
+      ABSOLUTE_URL.test(raw)
+        ? raw
+        : ref.current.assetUrl(decodeURIComponent(raw)),
     openWikiLink: (parts, newTab) => {
       const res = ref.current.resolve(parts.target, parts);
       // A dangling link is an offer to write the note, the same offer the
@@ -479,7 +535,8 @@ export function VaultEditor({
     livePreview(
       makeLiveContext(
         linkCtxRef,
-        (p) => window.open(filesHref({ path: p }), "_blank", "noopener,noreferrer"),
+        (p) =>
+          window.open(filesHref({ path: p }), "_blank", "noopener,noreferrer"),
         (route) => routerRef.current.push(route),
       ),
     ),
@@ -550,9 +607,11 @@ export function VaultEditor({
   const adopt = useCallback((content: string) => {
     const view = viewRef.current;
     if (!view) return;
-    baseEtagRef.current = useVaultStore.getState().bodies[path]?.etag ?? baseEtagRef.current;
+    baseEtagRef.current =
+      useVaultStore.getState().bodies[path]?.etag ?? baseEtagRef.current;
     sepRef.current = detectLineSeparator(content);
-    const incoming = sepRef.current === "\r\n" ? content.split("\r\n").join("\n") : content;
+    const incoming =
+      sepRef.current === "\r\n" ? content.split("\r\n").join("\n") : content;
     const change = docChange(view.state.doc.toString(), incoming);
     if (change) view.dispatch({ changes: change });
     // Read back rather than trusting `incoming`: CodeMirror is the authority on
@@ -565,7 +624,8 @@ export function VaultEditor({
     if (!host) return;
     const initial = useVaultStore.getState().bodies[path]?.content ?? "";
     sepRef.current = detectLineSeparator(initial);
-    const doc = sepRef.current === "\r\n" ? initial.split("\r\n").join("\n") : initial;
+    const doc =
+      sepRef.current === "\r\n" ? initial.split("\r\n").join("\n") : initial;
     setWords(parseNote(initial).wordCount);
 
     // The app's undo chord asks this editor's own history (codeMirrorUndo.ts).
@@ -594,7 +654,10 @@ export function VaultEditor({
           // supported syntax. Markdown structure highlights either way.
           markdown({ base: markdownLanguage }),
           autocompletion({
-            override: [wikiCompletionSource(path), entityCompletionSource(mentionQueryRef)],
+            override: [
+              wikiCompletionSource(path),
+              entityCompletionSource(mentionQueryRef),
+            ],
             icons: false,
           }),
           themeRef.current.of(solEditorTheme()),
@@ -626,13 +689,18 @@ export function VaultEditor({
           ]),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
-            setStatus(update.state.doc.toString() === savedRef.current ? "clean" : "dirty");
+            setStatus(
+              update.state.doc.toString() === savedRef.current
+                ? "clean"
+                : "dirty",
+            );
             if (saveTimer.current) clearTimeout(saveTimer.current);
             saveTimer.current = setTimeout(() => {
               // The count the typist ends on is the one they look at, so it's
               // recomputed once more when the typing stops.
               const current = viewRef.current;
-              if (current) setWords(parseNote(current.state.doc.toString()).wordCount);
+              if (current)
+                setWords(parseNote(current.state.doc.toString()).wordCount);
               void saveNow();
             }, AUTOSAVE_MS);
             const now = Date.now();
@@ -654,7 +722,9 @@ export function VaultEditor({
     view.focus();
 
     const stopTheme = observeTheme(() =>
-      view.dispatch({ effects: themeRef.current.reconfigure(solEditorTheme()) }),
+      view.dispatch({
+        effects: themeRef.current.reconfigure(solEditorTheme()),
+      }),
     );
 
     return () => {
@@ -670,13 +740,18 @@ export function VaultEditor({
       // that's simply gone (deleted) gets no write at all.
       const docText = view.state.doc.toString();
       const st = useVaultStore.getState();
-      const target = st.bodies[path] !== undefined ? path : resolveRecentMove(path);
+      const target =
+        st.bodies[path] !== undefined ? path : resolveRecentMove(path);
       // (same resolution as writeTarget(); inlined so teardown captures no hook)
       if (target && docText !== savedRef.current && !st.conflicts[target]) {
         void st
           .writeFile(
             target,
-            view.state.doc.sliceString(0, view.state.doc.length, sepRef.current),
+            view.state.doc.sliceString(
+              0,
+              view.state.doc.length,
+              sepRef.current,
+            ),
             baseEtagRef.current || undefined,
           )
           .catch(() => {});
@@ -690,7 +765,9 @@ export function VaultEditor({
   // The initial configuration already matches, so this only ever does work on a
   // real change of mode.
   useWatchEffect(() => {
-    viewRef.current?.dispatch({ effects: liveRef.current.reconfigure(modeExt) });
+    viewRef.current?.dispatch({
+      effects: liveRef.current.reconfigure(modeExt),
+    });
   }, [modeExt]);
 
   // A note appearing or being renamed elsewhere in the vault turns a dangling
@@ -698,7 +775,8 @@ export function VaultEditor({
   // so the decorations have to be asked again, since nothing else would.
   const indexVersion = useVaultIndexVersion();
   useWatchEffect(() => {
-    if (mode === "live") viewRef.current?.dispatch({ effects: refreshLivePreview.of(null) });
+    if (mode === "live")
+      viewRef.current?.dispatch({ effects: refreshLivePreview.of(null) });
   }, [indexVersion, mode]);
 
   // The note changed underneath us — a WS echo of another writer, a link
@@ -710,7 +788,8 @@ export function VaultEditor({
     const view = viewRef.current;
     if (!view || body === undefined) return;
     const sep = detectLineSeparator(body.content);
-    const incoming = sep === "\r\n" ? body.content.split("\r\n").join("\n") : body.content;
+    const incoming =
+      sep === "\r\n" ? body.content.split("\r\n").join("\n") : body.content;
     const docText = view.state.doc.toString();
     if (incoming === docText) {
       savedRef.current = incoming;
@@ -766,13 +845,21 @@ export function VaultEditor({
             >
               Use the version on disk
             </button>
-            <span className="text-sol-text-dim">Keeping yours overwrites the file.</span>
+            <span className="text-sol-text-dim">
+              Keeping yours overwrites the file.
+            </span>
           </div>
         </div>
       )}
       <div ref={hostRef} />
       <div className="mt-6 pt-2 border-t border-sol-border/20 flex items-center gap-3 text-meta text-sol-text-dim">
-        <span className={status === "error" || status === "stale" ? "text-sol-yellow" : undefined}>
+        <span
+          className={
+            status === "error" || status === "stale"
+              ? "text-sol-yellow"
+              : undefined
+          }
+        >
           {MODE_LABEL[mode]}
           {STATUS_SUFFIX[status]}
         </span>

@@ -13,7 +13,9 @@ export type FuzzyHit = { path: string; score: number; positions: number[] };
 function isBoundary(text: string, at: number): boolean {
   if (at === 0) return true;
   const previous = text[at - 1];
-  return previous === "/" || previous === "." || previous === "_" || previous === "-";
+  return (
+    previous === "/" || previous === "." || previous === "_" || previous === "-"
+  );
 }
 
 /**
@@ -40,8 +42,8 @@ export function fuzzyMatch(path: string, query: string): FuzzyHit | null {
 
   let score = 0;
   positions.forEach((position, index) => {
-    if (position >= nameAt) score += 8;               // in the file name itself
-    if (isBoundary(path, position)) score += 4;        // at the start of a word
+    if (position >= nameAt) score += 8; // in the file name itself
+    if (isBoundary(path, position)) score += 4; // at the start of a word
     if (index > 0 && position === positions[index - 1] + 1) score += 6; // adjacent
   });
   // A short path carrying the same match is the more likely target.
@@ -50,12 +52,21 @@ export function fuzzyMatch(path: string, query: string): FuzzyHit | null {
 }
 
 /** The best matches first, ties broken by the shorter path. */
-export function rankPaths(paths: string[], query: string, limit = 50): FuzzyHit[] {
+export function rankPaths(
+  paths: string[],
+  query: string,
+  limit = 50,
+): FuzzyHit[] {
   const hits: FuzzyHit[] = [];
   for (const path of paths) {
     const hit = fuzzyMatch(path, query);
     if (hit) hits.push(hit);
   }
-  hits.sort((a, b) => b.score - a.score || a.path.length - b.path.length || a.path.localeCompare(b.path));
+  hits.sort(
+    (a, b) =>
+      b.score - a.score ||
+      a.path.length - b.path.length ||
+      a.path.localeCompare(b.path),
+  );
   return hits.slice(0, limit);
 }

@@ -8,7 +8,8 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { isEmptyInput, netGrade } from "./replayRail";
 
 /** The list under one person, every recording of theirs however short: the person card and the header link both open it. */
-export const personListHref = (who: string) => `${opsHref.tab("replays")}?person=${encodeURIComponent(who)}`;
+export const personListHref = (who: string) =>
+  `${opsHref.tab("replays")}?person=${encodeURIComponent(who)}`;
 
 const EV_INK: Partial<Record<ReplayEvent["type"], string>> = {
   nav: "var(--sol-blue)",
@@ -19,18 +20,34 @@ const EV_INK: Partial<Record<ReplayEvent["type"], string>> = {
 };
 
 export function inkOf(e: ReplayEvent): string {
-  if (e.type === "console") return e.level === "error" ? "var(--sol-red)" : "var(--sol-yellow)";
-  if (e.type === "network") return netGrade(e) === "failed" ? "var(--sol-red)" : netGrade(e) === "slow" ? "var(--sol-yellow)" : "var(--sol-text-muted)";
+  if (e.type === "console")
+    return e.level === "error" ? "var(--sol-red)" : "var(--sol-yellow)";
+  if (e.type === "network")
+    return netGrade(e) === "failed"
+      ? "var(--sol-red)"
+      : netGrade(e) === "slow"
+        ? "var(--sol-yellow)"
+        : "var(--sol-text-muted)";
   return EV_INK[e.type] ?? "var(--sol-text-muted)";
 }
 
 // The rail's type column: one short word each, so the column stays narrow.
 const TYPE_WORD: Record<ReplayEvent["type"], string> = {
-  nav: "page", click: "click", input: "type", submit: "submit", key: "key", scroll: "scroll",
-  console: "log", network: "net", error: "error", view: "view", mark: "mark",
+  nav: "page",
+  click: "click",
+  input: "type",
+  submit: "submit",
+  key: "key",
+  scroll: "scroll",
+  console: "log",
+  network: "net",
+  error: "error",
+  view: "view",
+  mark: "mark",
 };
 /** An event's kind word in the rail: a field entered without typing is a focus. */
-export const wordOf = (e: ReplayEvent) => (isEmptyInput(e) ? "focus" : TYPE_WORD[e.type]);
+export const wordOf = (e: ReplayEvent) =>
+  isEmptyInput(e) ? "focus" : TYPE_WORD[e.type];
 
 export type Speed = (typeof REPLAY_PLAYER_SPEEDS)[number];
 export const SPEEDS = REPLAY_PLAYER_SPEEDS;
@@ -77,16 +94,27 @@ const FIT_MIN_PX = 420;
  * its controls in view together, with no scroll before anything plays. Read
  * from where the player sits in its scroll container, on open and on resize.
  */
-export function useViewportFit(): { ref: (el: HTMLDivElement | null) => void; height: number | null } {
+export function useViewportFit(): {
+  ref: (el: HTMLDivElement | null) => void;
+  height: number | null;
+} {
   const [height, setHeight] = useState<number | null>(null);
   const node = useRef<HTMLDivElement | null>(null);
   const measure = () => {
     const el = node.current;
     if (!el || typeof window === "undefined") return;
     let sc: HTMLElement | null = el.parentElement;
-    while (sc && typeof window.getComputedStyle === "function" && !/(auto|scroll)/.test(window.getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+    while (
+      sc &&
+      typeof window.getComputedStyle === "function" &&
+      !/(auto|scroll)/.test(window.getComputedStyle(sc).overflowY)
+    )
+      sc = sc.parentElement;
     const scTop = sc ? sc.getBoundingClientRect().top : 0;
-    const offset = el.getBoundingClientRect().top - scTop + (sc ? sc.scrollTop : window.scrollY);
+    const offset =
+      el.getBoundingClientRect().top -
+      scTop +
+      (sc ? sc.scrollTop : window.scrollY);
     const view = sc ? sc.clientHeight : window.innerHeight;
     const next = Math.max(FIT_MIN_PX, Math.round(view - offset - 14));
     setHeight((prev) => (prev === next ? prev : next));
@@ -109,12 +137,17 @@ export const RAIL_BLOCK = 100;
 
 export function inBlocks<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  for (let i = 0; i < items.length; i += size)
+    out.push(items.slice(i, i + size));
   return out;
 }
 
 /** Where the page opens: `t` (ms, read as seconds from ?t), or `alt` (the same number read as ms) when the seconds run past the recording and the ms do not. */
-export function startTime(t: number | null, alt: number | undefined, lengthMs: number | null): number | null {
+export function startTime(
+  t: number | null,
+  alt: number | undefined,
+  lengthMs: number | null,
+): number | null {
   if (t === null || alt === undefined || !lengthMs) return t;
   return t > lengthMs + 2_000 && alt <= lengthMs ? alt : t;
 }

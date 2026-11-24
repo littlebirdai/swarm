@@ -17,5 +17,10 @@ import { isTransparentWindow } from "../lib/desktop";
  */
 export function RouteFallback({ screen = false }: { screen?: boolean }) {
   if (isTransparentWindow()) return null;
-  return <AppLoader className={screen ? undefined : "min-h-0 h-full bg-transparent"} deferIndicator />;
+  return (
+    <AppLoader
+      className={screen ? undefined : "min-h-0 h-full bg-transparent"}
+      deferIndicator
+    />
+  );
 }

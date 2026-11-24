@@ -22,36 +22,69 @@ export interface TeamPolicyView {
   policy: TeamPolicy;
 }
 
-function useTeamPolicyView(teamId: string | null | undefined): TeamPolicyView | null {
-  const team = useInboxStore((s) => (teamId ? (s.teams ?? []).find((t: any) => t && String(t._id) === teamId) : undefined));
-  return team ? { team_id: String(team._id), team_name: team.name, policy: parseTeamPolicy((team as any).policy) } : null;
+function useTeamPolicyView(
+  teamId: string | null | undefined,
+): TeamPolicyView | null {
+  const team = useInboxStore((s) =>
+    teamId
+      ? (s.teams ?? []).find((t: any) => t && String(t._id) === teamId)
+      : undefined,
+  );
+  return team
+    ? {
+        team_id: String(team._id),
+        team_name: team.name,
+        policy: parseTeamPolicy((team as any).policy),
+      }
+    : null;
 }
 
-function refusal(view: TeamPolicyView | null, key: RestrictionKey): string | null {
+function refusal(
+  view: TeamPolicyView | null,
+  key: RestrictionKey,
+): string | null {
   if (!view || view.policy[key] !== true) return null;
-  return policyBlockedMessage(key, { kind: "team", team_id: view.team_id, team_name: view.team_name });
+  return policyBlockedMessage(key, {
+    kind: "team",
+    team_id: view.team_id,
+    team_name: view.team_name,
+  });
 }
 
 /** Why `key` is off for a row in this team (policyTeamOf), or null when it is allowed. */
-export function usePolicyRefusal(key: RestrictionKey, teamId: string | null | undefined): string | null {
+export function usePolicyRefusal(
+  key: RestrictionKey,
+  teamId: string | null | undefined,
+): string | null {
   return refusal(useTeamPolicyView(teamId), key);
 }
 
 /** The policy of the team a device is enrolled in; null for an unmanaged or removed device. */
-export function useDevicePolicy(d: Device | null | undefined): TeamPolicyView | null {
-  return useTeamPolicyView(d?.managed?.state === "managed" ? d.managed.team_id : null);
+export function useDevicePolicy(
+  d: Device | null | undefined,
+): TeamPolicyView | null {
+  return useTeamPolicyView(
+    d?.managed?.state === "managed" ? d.managed.team_id : null,
+  );
 }
 
 /** Why an agent feature is held off on a device by its team, or null. */
-export function featureLock(view: TeamPolicyView | null, featureSlug: string): string | null {
+export function featureLock(
+  view: TeamPolicyView | null,
+  featureSlug: string,
+): string | null {
   const d = MANAGED_POLICY.find((p) => p.feature === featureSlug);
   return d ? refusal(view, d.key as RestrictionKey) : null;
 }
 
 /** The automatic-update value a device's team forces, with the words for it; null when the person decides. */
-export function autoUpdateLock(view: TeamPolicyView | null): { on: boolean; message: string } | null {
+export function autoUpdateLock(
+  view: TeamPolicyView | null,
+): { on: boolean; message: string } | null {
   const value = view?.policy.auto_update;
   if (!view || !value) return null;
-  return { on: value === "on", message: `${value === "on" ? "On" : "Off"}, set by ${view.team_name}'s admins.` };
+  return {
+    on: value === "on",
+    message: `${value === "on" ? "On" : "Off"}, set by ${view.team_name}'s admins.`,
+  };
 }
-

@@ -14,7 +14,12 @@ import { useInboxStore } from "../../store/inboxStore";
 // checks the chat knock: by what a cue builds, not by a claim that it played.
 
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { cueDuration, cueHighBandShare, cuePeak, renderCue } from "../cueRender";
+import {
+  cueDuration,
+  cueHighBandShare,
+  cuePeak,
+  renderCue,
+} from "../cueRender";
 import type { CueSpec } from "../cueSpec";
 import {
   WALKIE_AWAY,
@@ -67,7 +72,10 @@ describe("the renderer measures what it is given", () => {
     // The whole method rests on this. A tone with a long enough attack to
     // reach full scale, and no filter, must measure exactly what the two
     // numbers multiply out to.
-    const peak = cuePeak({ master: 0.09, tones: [{ freq: 440, start: 0, dur: 0.4, gain: 0.5 }] });
+    const peak = cuePeak({
+      master: 0.09,
+      tones: [{ freq: 440, start: 0, dur: 0.4, gain: 0.5 }],
+    });
     expect(peak).toBeGreaterThan(0.0445);
     expect(peak).toBeLessThan(0.045);
   });
@@ -77,7 +85,10 @@ describe("the renderer measures what it is given", () => {
   });
 
   test("a sine is almost nothing but its fundamental", () => {
-    const sine: CueSpec = { master: 1, tones: [{ freq: 880, start: 0, dur: 0.2, gain: 0.5 }] };
+    const sine: CueSpec = {
+      master: 1,
+      tones: [{ freq: 880, start: 0, dur: 0.2, gain: 0.5 }],
+    };
     expect(cueHighBandShare(sine)).toBeLessThan(0.01);
   });
 
@@ -88,8 +99,14 @@ describe("the renderer measures what it is given", () => {
     // harmonics give up goes straight back into the fundamental, whose
     // amplitude is 4/pi of the square's, so the peak actually goes UP. The
     // only measure that sees the change is where the energy sits.
-    const bare: CueSpec = { master: 1, tones: [{ freq: 880, start: 0, dur: 0.2, gain: 0.5, type: "square" }] };
-    const filtered: CueSpec = { master: 1, tones: [{ ...bare.tones![0], lowpass: 1500 }] };
+    const bare: CueSpec = {
+      master: 1,
+      tones: [{ freq: 880, start: 0, dur: 0.2, gain: 0.5, type: "square" }],
+    };
+    const filtered: CueSpec = {
+      master: 1,
+      tones: [{ ...bare.tones![0], lowpass: 1500 }],
+    };
 
     expect(cueHighBandShare(bare)).toBeGreaterThan(0.3);
     expect(cueHighBandShare(filtered)).toBeLessThan(0.1);
@@ -154,14 +171,28 @@ describe("the cues rank by how much they have to say", () => {
   test("every cue is louder than it was before this change", () => {
     // The four that existed, exactly as they stood on main.
     const was: Record<string, CueSpec> = {
-      keyUp: { master: 0.028, tones: [
-        { freq: 880, start: 0, dur: 0.06, gain: 0.4, type: "square" },
-        { freq: 1174.66, start: 0.06, dur: 0.09, gain: 0.35, type: "square" }] },
-      roger: { master: 0.035, tones: [{ freq: 659.25, start: 0, dur: 0.09, gain: 0.35 }] },
-      open: { master: 0.03, tones: [
-        { freq: 1046.5, start: 0, dur: 0.05, gain: 0.35, type: "square" },
-        { freq: 698.46, start: 0.06, dur: 0.09, gain: 0.3 }] },
-      squelch: { master: 0.018, noise: [{ start: 0, dur: 0.08, gain: 0.5, band: 1800, q: 0.8 }] },
+      keyUp: {
+        master: 0.028,
+        tones: [
+          { freq: 880, start: 0, dur: 0.06, gain: 0.4, type: "square" },
+          { freq: 1174.66, start: 0.06, dur: 0.09, gain: 0.35, type: "square" },
+        ],
+      },
+      roger: {
+        master: 0.035,
+        tones: [{ freq: 659.25, start: 0, dur: 0.09, gain: 0.35 }],
+      },
+      open: {
+        master: 0.03,
+        tones: [
+          { freq: 1046.5, start: 0, dur: 0.05, gain: 0.35, type: "square" },
+          { freq: 698.46, start: 0.06, dur: 0.09, gain: 0.3 },
+        ],
+      },
+      squelch: {
+        master: 0.018,
+        noise: [{ start: 0, dur: 0.08, gain: 0.5, band: 1800, q: 0.8 }],
+      },
     };
     for (const [name, old] of Object.entries(was)) {
       const now = CUES.find((c) => c.name === name)!.spec;
@@ -193,11 +224,14 @@ describe("every cue is long enough to register and short enough to stay out of t
     // sound like "someone entered a room". What separates them is the shape,
     // not the notes — joined steps a fifth then a fourth and covers a full
     // octave, where the call triad steps two thirds and covers a fifth.
-    const steps = (freqs: number[]) => freqs.slice(1).map((f, i) => f / freqs[i]);
+    const steps = (freqs: number[]) =>
+      freqs.slice(1).map((f, i) => f / freqs[i]);
     const climb = WALKIE_JOINED.tones!.slice(0, 3).map((t) => t.freq);
     const triad = CALL_JOIN.tones!.map((t) => t.freq);
 
-    expect(Math.min(...steps(climb))).toBeGreaterThan(Math.max(...steps(triad)));
+    expect(Math.min(...steps(climb))).toBeGreaterThan(
+      Math.max(...steps(triad)),
+    );
     expect(climb[2] / climb[0]).toBeGreaterThan(triad[2] / triad[0]);
   });
 
@@ -265,35 +299,65 @@ class FakeAudioContext {
   currentTime = 0;
   destination = {};
   resume() {}
-  createGain() { return { gain: fakeParam(), connect() {} }; }
-  createOscillator() {
-    return { type: "sine", frequency: fakeParam(), connect() {}, start() { oscStarts++; }, stop() {} };
+  createGain() {
+    return { gain: fakeParam(), connect() {} };
   }
-  createBuffer(_ch: number, len: number) { return { getChannelData: () => new Float32Array(len) }; }
-  decodeAudioData() { return Promise.resolve({ decoded: true }); }
+  createOscillator() {
+    return {
+      type: "sine",
+      frequency: fakeParam(),
+      connect() {},
+      start() {
+        oscStarts++;
+      },
+      stop() {},
+    };
+  }
+  createBuffer(_ch: number, len: number) {
+    return { getChannelData: () => new Float32Array(len) };
+  }
+  decodeAudioData() {
+    return Promise.resolve({ decoded: true });
+  }
   createBufferSource() {
     return {
       buffer: null as any,
       connect() {},
-      start() { if (this.buffer?.decoded) sampleStarts++; else bufferStarts++; },
+      start() {
+        if (this.buffer?.decoded) sampleStarts++;
+        else bufferStarts++;
+      },
       stop() {},
     };
   }
   createBiquadFilter() {
-    return { type: "lowpass", frequency: fakeParam(), Q: fakeParam(), connect() {} };
+    return {
+      type: "lowpass",
+      frequency: fakeParam(),
+      Q: fakeParam(),
+      connect() {},
+    };
   }
 }
 
 const restoreGlobals = replaceGlobals({
   AudioContext: FakeAudioContext,
-  fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }),
+  fetch: async () => ({
+    ok: true,
+    arrayBuffer: async () => new ArrayBuffer(8),
+  }),
 });
 afterAll(restoreGlobals);
 
-const realDesktop = { ...await import("../desktop") };
-afterAll(() => { mock.module("../desktop", () => realDesktop); });
+const realDesktop = { ...(await import("../desktop")) };
+afterAll(() => {
+  mock.module("../desktop", () => realDesktop);
+});
 let isLeader = true;
-mock.module("../desktop", () => ({ ...realDesktop, isNotificationLeader: () => isLeader }));
+mock.module("../desktop", () => ({
+  ...realDesktop,
+  isNotificationLeader: () => isLeader,
+}));
 
 const sounds = await import("../sounds");
 
@@ -388,7 +452,9 @@ describe("the switches", () => {
   const silence = async (ui: Record<string, unknown>) => {
     const { useInboxStore } = await import("../../store/inboxStore");
     const before = useInboxStore.getState().clientState;
-    useInboxStore.setState({ clientState: { ...(before ?? {}), ui: { ...(before?.ui ?? {}), ...ui } } } as any);
+    useInboxStore.setState({
+      clientState: { ...(before ?? {}), ui: { ...(before?.ui ?? {}), ...ui } },
+    } as any);
     oscStarts = 0;
     bufferStarts = 0;
     sampleStarts = 0;
@@ -404,7 +470,8 @@ describe("the switches", () => {
       expect(oscStarts).toBe(0);
       expect(bufferStarts).toBe(0);
       expect(sampleStarts).toBe(0);
-      for (const cue of sounds.WALKIE_PREVIEWS) sounds.previewWalkieCue(cue.spec);
+      for (const cue of sounds.WALKIE_PREVIEWS)
+        sounds.previewWalkieCue(cue.spec);
       await settle();
       expect(oscStarts).toBe(8);
       expect(bufferStarts).toBe(1);

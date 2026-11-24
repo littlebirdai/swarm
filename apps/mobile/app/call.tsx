@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   Image,
   Pressable,
@@ -12,7 +18,10 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { useInboxStore, useMyUserId } from "@codecast/web/store/inboxStore";
-import { roomRecordingLive, type RoomRecordingFields } from "@codecast/web/lib/calls/roomRecordingFields";
+import {
+  roomRecordingLive,
+  type RoomRecordingFields,
+} from "@codecast/web/lib/calls/roomRecordingFields";
 import {
   owedStopNotice,
   RECORD_ASK,
@@ -26,8 +35,15 @@ import {
   watchRoomRun,
   type StopNoticeCard,
 } from "@codecast/web/lib/calls/roomRecordingEnd";
-import { pressRoomRecording, pressedRunOf, useRecordingCooling } from "@codecast/web/lib/calls/recordingPress";
-import { useRoomTranscribeOff, useRoomWordsPublic } from "@codecast/web/hooks/useRoomTranscribeOff";
+import {
+  pressRoomRecording,
+  pressedRunOf,
+  useRecordingCooling,
+} from "@codecast/web/lib/calls/recordingPress";
+import {
+  useRoomTranscribeOff,
+  useRoomWordsPublic,
+} from "@codecast/web/hooks/useRoomTranscribeOff";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import { formatCallTime } from "@codecast/shared/entities";
 import { getLivekit } from "@/lib/calls/livekitNative";
@@ -65,13 +81,28 @@ import {
   setSpeaker,
   subscribeCall,
 } from "@/lib/calls/callManager";
-import { RingBanner, useIncomingRing, type RingRow } from "@/components/calls/CallOverlay";
+import {
+  RingBanner,
+  useIncomingRing,
+  type RingRow,
+} from "@/components/calls/CallOverlay";
 import { LivePulse } from "@/components/calls/LiveRooms";
 import { acceptInvite, declineInvite } from "@/lib/calls/callManager";
 import { stopRinging } from "@/lib/calls/ringtone";
-import { GuestDoor, GuestInviteRow, useGuestRemover } from "@/components/calls/GuestDoor";
-import { RecordingNotice, recNoticeStyles } from "@/components/calls/RecordingNotice";
-import { useConfirmStopRecording, useRecordingField, useRoomRecordingMark } from "@/lib/calls/recordingMark";
+import {
+  GuestDoor,
+  GuestInviteRow,
+  useGuestRemover,
+} from "@/components/calls/GuestDoor";
+import {
+  RecordingNotice,
+  recNoticeStyles,
+} from "@/components/calls/RecordingNotice";
+import {
+  useConfirmStopRecording,
+  useRecordingField,
+  useRoomRecordingMark,
+} from "@/lib/calls/recordingMark";
 import { appAlert } from "@/lib/popups";
 
 // The call stage, phone-shaped. The same design intents as the web stage,
@@ -88,7 +119,11 @@ export default function CallScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const call = useSyncExternalStore(subscribeCall, getCallSnapshot, getCallSnapshot);
+  const call = useSyncExternalStore(
+    subscribeCall,
+    getCallSnapshot,
+    getCallSnapshot,
+  );
 
   // The stage exists only while a call does; a call ending (any path) closes it.
   useEffect(() => {
@@ -106,8 +141,12 @@ export default function CallScreen() {
   // right on the stage's first frame.
   const outgoing = useInboxStore((s) => s.myCalls.outgoing) as any[];
   const outgoingHere = outgoing.filter((o: any) => o.room_key === call.roomKey);
-  const ringingNames = outgoingHere.filter((o: any) => o.status === "ringing").map((o: any) => firstName(o.to_name));
-  const declinedNames = outgoingHere.filter((o: any) => o.status === "declined").map((o: any) => firstName(o.to_name));
+  const ringingNames = outgoingHere
+    .filter((o: any) => o.status === "ringing")
+    .map((o: any) => firstName(o.to_name));
+  const declinedNames = outgoingHere
+    .filter((o: any) => o.status === "declined")
+    .map((o: any) => firstName(o.to_name));
   const onJoinRing = (r: RingRow) => {
     stopRinging();
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -123,18 +162,31 @@ export default function CallScreen() {
   // the Room itself).
   const { screenRef, cameraRefs } = useMemo(() => {
     let screen: any = null;
-    const cams: Array<{ ref: any; identity: string; name: string; isLocal: boolean }> = [];
+    const cams: Array<{
+      ref: any;
+      identity: string;
+      name: string;
+      isLocal: boolean;
+    }> = [];
     if (room) {
       const all = [room.localParticipant, ...room.remoteParticipants.values()];
       for (const p of all) {
         const scr = p.getTrackPublication(Track.Source.ScreenShare);
         if (!screen && scr?.track && (p.isLocal || scr.isSubscribed)) {
-          screen = { participant: p, publication: scr, source: Track.Source.ScreenShare };
+          screen = {
+            participant: p,
+            publication: scr,
+            source: Track.Source.ScreenShare,
+          };
         }
         const cam = p.getTrackPublication(Track.Source.Camera);
         if (cam?.track && !cam.isMuted && (p.isLocal || cam.isSubscribed)) {
           cams.push({
-            ref: { participant: p, publication: cam, source: Track.Source.Camera },
+            ref: {
+              participant: p,
+              publication: cam,
+              source: Track.Source.Camera,
+            },
             identity: p.identity,
             name: p.name || p.identity,
             isLocal: p.isLocal,
@@ -161,7 +213,9 @@ export default function CallScreen() {
   const transcribing = useRoomTranscribing(call.roomKey);
   const removeGuestOf = (identity: string) => {
     const guestId = guestIdFromIdentity(identity);
-    return guestId && removeGuest ? (name: string) => removeGuest(guestId, name) : null;
+    return guestId && removeGuest
+      ? (name: string) => removeGuest(guestId, name)
+      : null;
   };
 
   // A failed join is not a call: no controls, no captions — the reason, a
@@ -174,9 +228,15 @@ export default function CallScreen() {
           <Text style={styles.headerTitle}>huddle</Text>
         </View>
         <View style={styles.errorStage}>
-          <Ionicons name="alert-circle-outline" size={34} color={Theme.orange} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={34}
+            color={Theme.orange}
+          />
           <Text style={styles.errorTitle}>Couldn't join</Text>
-          <Text style={styles.errorText}>{call.error ?? "Something went wrong."}</Text>
+          <Text style={styles.errorText}>
+            {call.error ?? "Something went wrong."}
+          </Text>
           <View style={styles.errorActions}>
             {call.roomKey && (
               <Pressable
@@ -184,7 +244,11 @@ export default function CallScreen() {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   void joinCall(call.roomKey!);
                 }}
-                style={({ pressed }) => [styles.errorBtn, styles.errorBtnPrimary, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.errorBtn,
+                  styles.errorBtnPrimary,
+                  pressed && styles.pressed,
+                ]}
                 accessibilityLabel="Try again"
               >
                 <Text style={styles.errorBtnPrimaryText}>Try again</Text>
@@ -192,7 +256,10 @@ export default function CallScreen() {
             )}
             <Pressable
               onPress={() => void leaveCall()}
-              style={({ pressed }) => [styles.errorBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.errorBtn,
+                pressed && styles.pressed,
+              ]}
               accessibilityLabel="Close"
             >
               <Text style={styles.errorBtnText}>Close</Text>
@@ -207,18 +274,32 @@ export default function CallScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       {/* The stage is always dark, so the clock and battery are light on any phone scheme. */}
       <StatusBar style="light" />
-      <RingBanner ring={ring} top={insets.top + 6} onJoin={onJoinRing} onDecline={onDeclineRing} switching />
+      <RingBanner
+        ring={ring}
+        top={insets.top + 6}
+        onJoin={onJoinRing}
+        onDecline={onDeclineRing}
+        switching
+      />
       {/* Header: room context + collapse. */}
       <View style={styles.header}>
         <View style={styles.headerLead}>
-          {!filming && !transcribing.on && <Text style={styles.headerTitle}>huddle</Text>}
-          <RecordingBadge roomKey={call.roomKey} canStart={call.phase === "connected"} />
+          {!filming && !transcribing.on && (
+            <Text style={styles.headerTitle}>huddle</Text>
+          )}
+          <RecordingBadge
+            roomKey={call.roomKey}
+            canStart={call.phase === "connected"}
+          />
           <TranscribingChip transcribing={transcribing} />
         </View>
         <Pressable
           hitSlop={12}
           onPress={() => router.back()}
-          style={({ pressed }) => [styles.collapseBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.collapseBtn,
+            pressed && styles.pressed,
+          ]}
           accessibilityLabel="Collapse — the call continues"
         >
           <Ionicons name="chevron-down" size={18} color={Theme.textMuted} />
@@ -235,11 +316,20 @@ export default function CallScreen() {
         {screenRef ? (
           <>
             <View style={styles.hero}>
-              <VideoTrack trackRef={screenRef} style={styles.heroVideo} objectFit="contain" />
+              <VideoTrack
+                trackRef={screenRef}
+                style={styles.heroVideo}
+                objectFit="contain"
+              />
               <Text style={styles.plate}>
                 {screenRef.participant.isLocal
                   ? "your screen"
-                  : participantName(screenRef.participant.identity, screenRef.participant.name || screenRef.participant.identity, "'s screen")}
+                  : participantName(
+                      screenRef.participant.identity,
+                      screenRef.participant.name ||
+                        screenRef.participant.identity,
+                      "'s screen",
+                    )}
               </Text>
             </View>
             {cameraRefs.length > 0 && (
@@ -252,8 +342,15 @@ export default function CallScreen() {
                       speaking.has(c.identity) && styles.speakingBorder,
                     ]}
                   >
-                    <VideoTrack trackRef={c.ref} style={styles.fill} objectFit="cover" mirror={c.isLocal} />
-                    <Text style={styles.plateSmall}>{c.isLocal ? "you" : participantName(c.identity, c.name)}</Text>
+                    <VideoTrack
+                      trackRef={c.ref}
+                      style={styles.fill}
+                      objectFit="cover"
+                      mirror={c.isLocal}
+                    />
+                    <Text style={styles.plateSmall}>
+                      {c.isLocal ? "you" : participantName(c.identity, c.name)}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -266,19 +363,28 @@ export default function CallScreen() {
                 key={c.identity}
                 style={[
                   styles.gridTile,
-                  { width: cameraRefs.length === 1 ? "100%" : (width - 36) / 2 },
+                  {
+                    width: cameraRefs.length === 1 ? "100%" : (width - 36) / 2,
+                  },
                   cameraRefs.length <= 2 && styles.gridTileTall,
                   speaking.has(c.identity) && styles.speakingBorder,
                 ]}
               >
-                <VideoTrack trackRef={c.ref} style={styles.fill} objectFit="cover" mirror={c.isLocal} />
-                <Text style={styles.plateSmall}>{c.isLocal ? "you" : participantName(c.identity, c.name)}</Text>
+                <VideoTrack
+                  trackRef={c.ref}
+                  style={styles.fill}
+                  objectFit="cover"
+                  mirror={c.isLocal}
+                />
+                <Text style={styles.plateSmall}>
+                  {c.isLocal ? "you" : participantName(c.identity, c.name)}
+                </Text>
               </View>
             ))}
           </View>
         ) : (
           <View style={styles.audioStage}>
-            {(call.participants.length <= 1) && (
+            {call.participants.length <= 1 && (
               <Text style={styles.dimNote}>
                 {call.phase === "connecting"
                   ? "connecting…"
@@ -295,14 +401,26 @@ export default function CallScreen() {
                   key={p.identity}
                   style={styles.avatarCol}
                   disabled={!removeGuestOf(p.identity)}
-                  onPress={() => removeGuestOf(p.identity)?.(firstName(p.name ?? ""))}
-                  accessibilityLabel={removeGuestOf(p.identity) ? `${participantName(p.identity, p.name)}: remove from the call` : undefined}
+                  onPress={() =>
+                    removeGuestOf(p.identity)?.(firstName(p.name ?? ""))
+                  }
+                  accessibilityLabel={
+                    removeGuestOf(p.identity)
+                      ? `${participantName(p.identity, p.name)}: remove from the call`
+                      : undefined
+                  }
                 >
                   <View
-                    style={[styles.bigAvatar, speaking.has(p.identity) && styles.speakingRing]}
+                    style={[
+                      styles.bigAvatar,
+                      speaking.has(p.identity) && styles.speakingRing,
+                    ]}
                   >
                     {p.image ? (
-                      <Image source={{ uri: p.image }} style={styles.bigAvatarImage} />
+                      <Image
+                        source={{ uri: p.image }}
+                        style={styles.bigAvatarImage}
+                      />
                     ) : (
                       <Text style={styles.bigAvatarLetter}>
                         {(p.name || "?").charAt(0).toUpperCase()}
@@ -310,9 +428,15 @@ export default function CallScreen() {
                     )}
                   </View>
                   <View style={styles.avatarNameRow}>
-                    <Text style={styles.avatarName}>{p.isLocal ? "you" : participantName(p.identity, p.name)}</Text>
+                    <Text style={styles.avatarName}>
+                      {p.isLocal ? "you" : participantName(p.identity, p.name)}
+                    </Text>
                     {p.micMuted && (
-                      <Ionicons name="mic-off" size={11} color={Theme.textDim} />
+                      <Ionicons
+                        name="mic-off"
+                        size={11}
+                        color={Theme.textDim}
+                      />
                     )}
                   </View>
                 </Pressable>
@@ -328,11 +452,20 @@ export default function CallScreen() {
               <Pressable
                 key={p.identity}
                 disabled={!removeGuestOf(p.identity)}
-                onPress={() => removeGuestOf(p.identity)?.(firstName(p.name ?? ""))}
-                style={[styles.voiceChip, speaking.has(p.identity) && styles.speakingBorder]}
+                onPress={() =>
+                  removeGuestOf(p.identity)?.(firstName(p.name ?? ""))
+                }
+                style={[
+                  styles.voiceChip,
+                  speaking.has(p.identity) && styles.speakingBorder,
+                ]}
               >
-                <Text style={styles.voiceChipText}>{p.isLocal ? "you" : participantName(p.identity, p.name)}</Text>
-                {p.micMuted && <Ionicons name="mic-off" size={10} color={Theme.textDim} />}
+                <Text style={styles.voiceChipText}>
+                  {p.isLocal ? "you" : participantName(p.identity, p.name)}
+                </Text>
+                {p.micMuted && (
+                  <Ionicons name="mic-off" size={10} color={Theme.textDim} />
+                )}
               </Pressable>
             ))}
           </View>
@@ -348,13 +481,20 @@ export default function CallScreen() {
       )}
 
       {/* Control bar — one thumb row. */}
-      <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+      <View
+        style={[
+          styles.controls,
+          { paddingBottom: Math.max(insets.bottom, 14) },
+        ]}
+      >
         <ControlButton
           icon={call.muted ? "mic-off" : "mic"}
           active={!call.muted && call.pending !== "mic"}
           danger={call.muted && call.pending !== "mic"}
           disabled={call.pending === "mic"}
-          label={call.pending === "mic" ? "asking…" : call.muted ? "unmute" : "mute"}
+          label={
+            call.pending === "mic" ? "asking…" : call.muted ? "unmute" : "mute"
+          }
           onPress={() => {
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             void setMuted(!call.muted);
@@ -388,7 +528,9 @@ export default function CallScreen() {
           filled
           label="leave"
           onPress={() => {
-            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            void Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning,
+            );
             void leaveCall();
           }}
         />
@@ -411,7 +553,10 @@ const stopTold = (key: string) => toldStops.has(key);
 /** The web's wait after a stop (recordingPress useRecordingCooling), read
  *  off the room's row. */
 function useRoomRecordingCooling(roomKey: string | null): boolean {
-  return useRecordingCooling(useRecordingField(roomKey, "recording_status"), useRecordingField(roomKey, "recording_stop_requested_at"));
+  return useRecordingCooling(
+    useRecordingField(roomKey, "recording_status"),
+    useRecordingField(roomKey, "recording_stop_requested_at"),
+  );
 }
 
 /** Start recording for everyone, asked first: the room is filmed and every
@@ -428,13 +573,21 @@ function useConfirmStartRecording(roomKey: string | null): () => void {
         onPress: () => {
           if (!roomKey) return;
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          void pressRoomRecording(roomKey, true, (message) => appAlert("Couldn't start recording", message));
+          void pressRoomRecording(roomKey, true, (message) =>
+            appAlert("Couldn't start recording", message),
+          );
         },
       },
     ]);
 }
 
-function RecordingBadge({ roomKey, canStart }: { roomKey: string | null; canStart: boolean }) {
+function RecordingBadge({
+  roomKey,
+  canStart,
+}: {
+  roomKey: string | null;
+  canStart: boolean;
+}) {
   const recording = isRecordingFilming(useRoomRecordingMark(roomKey).status);
   // The file's time 0; null while the room is still starting to be filmed.
   const startedAt = useRecordingField(roomKey, "recording_started_at");
@@ -453,7 +606,10 @@ function RecordingBadge({ roomKey, canStart }: { roomKey: string | null; canStar
     // the server would accept one.
     if (cooling) {
       return (
-        <View style={[styles.recordBtn, styles.recordBtnQuiet]} accessibilityLabel={RECORDING_SAVING_WORDS}>
+        <View
+          style={[styles.recordBtn, styles.recordBtnQuiet]}
+          accessibilityLabel={RECORDING_SAVING_WORDS}
+        >
           {/* Still and grey, the web's saving dot: red means filming now. */}
           <View style={[styles.recordDot, styles.recordDotOff]} />
           <Text style={styles.recordText}>saving</Text>
@@ -469,7 +625,11 @@ function RecordingBadge({ roomKey, canStart }: { roomKey: string | null; canStar
         <Pressable
           onPress={() => appAlert("Recording is unavailable", unavailable)}
           hitSlop={8}
-          style={({ pressed }) => [styles.recordBtn, styles.recordBtnQuiet, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.recordBtn,
+            styles.recordBtnQuiet,
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
           accessibilityState={{ disabled: true }}
           accessibilityLabel={`Recording unavailable: ${unavailable}`}
@@ -501,7 +661,9 @@ function RecordingBadge({ roomKey, canStart }: { roomKey: string | null; canStar
       accessibilityLabel={`${RECORDING_STARTED_TITLE}.${shared ? ` ${RECORDING_SHARED_WORDS}` : ""} Tap to stop it`}
     >
       <LivePulse color={Theme.red} size={6} />
-      <Text style={styles.recText} numberOfLines={1}>REC</Text>
+      <Text style={styles.recText} numberOfLines={1}>
+        REC
+      </Text>
       {shared && <PublicGlyph color={Theme.red} />}
       {startedAt ? <RecordingClock startedAt={startedAt} /> : null}
     </Pressable>
@@ -514,15 +676,25 @@ function RecordingBadge({ roomKey, canStart }: { roomKey: string | null; canStar
  *  deciding to stop it. Its own component, so only the clock re-renders. */
 function RecordingClock({ startedAt }: { startedAt: number }) {
   const now = useCoarseNow(1000);
-  return <Text style={[styles.recText, styles.recClock]}>{formatCallTime(Math.max(0, now - startedAt))}</Text>;
+  return (
+    <Text style={[styles.recText, styles.recClock]}>
+      {formatCallTime(Math.max(0, now - startedAt))}
+    </Text>
+  );
 }
 
 // The room's words are being transcribed: a live record and the room not
 // switched off, the rule the web stage's thread dot follows (green there,
 // green here). The same getLive question Captions asks, so one subscription
 // answers both. Quiet: a fact about the room, not a control.
-function useRoomTranscribing(roomKey: string | null): { on: boolean; public: boolean } {
-  const live = useQuery(api.transcripts.getLive, roomKey ? { room_key: roomKey, tail: 3 } : "skip");
+function useRoomTranscribing(roomKey: string | null): {
+  on: boolean;
+  public: boolean;
+} {
+  const live = useQuery(
+    api.transcripts.getLive,
+    roomKey ? { room_key: roomKey, tail: 3 } : "skip",
+  );
   const off = useRoomTranscribeOff(roomKey);
   // The words reach anyone with the call's public link as they are said.
   const wordsPublic = useRoomWordsPublic(roomKey);
@@ -535,10 +707,21 @@ function useRoomTranscribing(roomKey: string | null): { on: boolean; public: boo
  *  (the chip's accessibility label still does). A phone's header has no room
  *  for the word beside REC and transcribing on an SE-sized screen. */
 function PublicGlyph({ color }: { color: string }) {
-  return <Ionicons name="globe-outline" size={10} color={color} style={styles.publicGlyph} />;
+  return (
+    <Ionicons
+      name="globe-outline"
+      size={10}
+      color={color}
+      style={styles.publicGlyph}
+    />
+  );
 }
 
-function TranscribingChip({ transcribing }: { transcribing: { on: boolean; public: boolean } }) {
+function TranscribingChip({
+  transcribing,
+}: {
+  transcribing: { on: boolean; public: boolean };
+}) {
   if (!transcribing.on) return null;
   return (
     <View
@@ -546,7 +729,9 @@ function TranscribingChip({ transcribing }: { transcribing: { on: boolean; publi
       accessibilityLabel={`This call is being transcribed.${transcribing.public ? ` ${TRANSCRIPT_SHARED_WORDS}` : ""}`}
     >
       <LivePulse color={Theme.green} size={5} />
-      <Text style={styles.transcribingText} numberOfLines={1}>transcribing</Text>
+      <Text style={styles.transcribingText} numberOfLines={1}>
+        transcribing
+      </Text>
       {transcribing.public && <PublicGlyph color={Theme.green} />}
     </View>
   );
@@ -578,8 +763,17 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
       setCard(null);
     }
     if (!roomKey) return;
-    const row = (useInboxStore.getState().callRooms as any)?.[roomKey] as RoomRecordingFields | undefined;
-    const { running } = watchRoomRun(watch.current, roomRecordingLive(row) ?? null, end, pressedRunOf(roomKey), stopTold, Date.now());
+    const row = (useInboxStore.getState().callRooms as any)?.[roomKey] as
+      | RoomRecordingFields
+      | undefined;
+    const { running } = watchRoomRun(
+      watch.current,
+      roomRecordingLive(row) ?? null,
+      end,
+      pressedRunOf(roomKey),
+      stopTold,
+      Date.now(),
+    );
     // A newer run is the news now; the last one's line goes.
     if (running) setCard(null);
     const owed = owedStopNotice(watch.current, end, me, stopTold, Date.now());
@@ -589,11 +783,15 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
     toldStops.add(owed.key);
     const next = stopNoticeCard(owed.how, owed.end, me);
     setCard(next);
-    if (next.failed || next.sticky) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    if (next.failed || next.sticky)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }, [roomKey, status, runId, end?.run_id, end?.status, me]);
   useEffect(() => {
     if (!card || card.sticky || card.failed) return;
-    const timer = setTimeout(() => setCard((cur) => (cur === card ? null : cur)), 10_000);
+    const timer = setTimeout(
+      () => setCard((cur) => (cur === card ? null : cur)),
+      10_000,
+    );
     return () => clearTimeout(timer);
   }, [card]);
   if (!card) return null;
@@ -602,13 +800,35 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
   // the old run's card has nothing to offer but itself.
   const again = card.sticky && !unavailable && !filming;
   return (
-    <View style={[recNoticeStyles.recNotice, card.failed ? recNoticeStyles.recNoticeFailed : recNoticeStyles.recNoticeEnded]} accessibilityRole="alert">
-      <View style={[recNoticeStyles.recNoticeDot, { backgroundColor: card.failed ? Theme.orange : Theme.textDim }]} />
+    <View
+      style={[
+        recNoticeStyles.recNotice,
+        card.failed
+          ? recNoticeStyles.recNoticeFailed
+          : recNoticeStyles.recNoticeEnded,
+      ]}
+      accessibilityRole="alert"
+    >
+      <View
+        style={[
+          recNoticeStyles.recNoticeDot,
+          { backgroundColor: card.failed ? Theme.orange : Theme.textDim },
+        ]}
+      />
       <View style={recNoticeStyles.recNoticeBody}>
         <Text style={recNoticeStyles.recNoticeTitle}>{card.title}</Text>
-        {!!card.body && <Text style={recNoticeStyles.recNoticeText}>{card.body}</Text>}
+        {!!card.body && (
+          <Text style={recNoticeStyles.recNoticeText}>{card.body}</Text>
+        )}
         <View style={recNoticeStyles.recNoticeActions}>
-          <Pressable onPress={() => setCard(null)} hitSlop={6} style={({ pressed }) => [recNoticeStyles.recNoticeBtn, pressed && styles.pressed]}>
+          <Pressable
+            onPress={() => setCard(null)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              recNoticeStyles.recNoticeBtn,
+              pressed && styles.pressed,
+            ]}
+          >
             <Text style={recNoticeStyles.recNoticeBtnText}>Got it</Text>
           </Pressable>
           {again && (
@@ -618,10 +838,17 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
             <Pressable
               onPress={confirmStart}
               hitSlop={6}
-              style={({ pressed }) => [recNoticeStyles.recNoticeBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                recNoticeStyles.recNoticeBtn,
+                pressed && styles.pressed,
+              ]}
               accessibilityLabel="Record this call again for everyone"
             >
-              <Text style={[recNoticeStyles.recNoticeBtnText, { color: Theme.red }]}>Record again</Text>
+              <Text
+                style={[recNoticeStyles.recNoticeBtnText, { color: Theme.red }]}
+              >
+                Record again
+              </Text>
             </Pressable>
           )}
           {route && (
@@ -631,7 +858,10 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
                 openAppRoute(router, route);
               }}
               hitSlop={6}
-              style={({ pressed }) => [recNoticeStyles.recNoticeBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                recNoticeStyles.recNoticeBtn,
+                pressed && styles.pressed,
+              ]}
               accessibilityLabel="Open the call at the recording"
             >
               <Text style={recNoticeStyles.recNoticeBtnText}>Open</Text>
@@ -649,7 +879,11 @@ function RecordingEndNotice({ roomKey }: { roomKey: string | null }) {
  *  teammate. The words are the shared markedName, from the mark the web's badge
  *  reads. `what` names something of theirs ("'s screen") and goes before
  *  the mark: "riley's screen (guest)". */
-function participantName(identity: string, name: string | undefined, what = ""): string {
+function participantName(
+  identity: string,
+  name: string | undefined,
+  what = "",
+): string {
   return markedName(firstName(name ?? ""), identity, name, what);
 }
 
@@ -663,7 +897,10 @@ function firstName(name: string): string {
 const CAPTION_MAX_AGE_MS = 45_000;
 
 function Captions({ roomKey }: { roomKey: string | null }) {
-  const live = useQuery(api.transcripts.getLive, roomKey ? { room_key: roomKey, tail: 3 } : "skip");
+  const live = useQuery(
+    api.transcripts.getLive,
+    roomKey ? { room_key: roomKey, tail: 3 } : "skip",
+  );
   // The query only re-renders on new segments; aging OUT needs a clock. Tick
   // coarsely and only while something is showing.
   const [now, setNow] = useState(() => Date.now());
@@ -674,17 +911,24 @@ function Captions({ roomKey }: { roomKey: string | null }) {
     return () => clearInterval(t);
   }, [hasTail]);
   if (!live || live.tail.length === 0) return null;
-  const fresh = live.tail.filter((seg: any) => !seg.at || now - seg.at < CAPTION_MAX_AGE_MS);
+  const fresh = live.tail.filter(
+    (seg: any) => !seg.at || now - seg.at < CAPTION_MAX_AGE_MS,
+  );
   if (fresh.length === 0) return null;
   return (
     <View style={styles.captions}>
       {fresh.slice(-2).map((seg: any, i: number, arr: any[]) => (
         <Text
           key={seg.seq}
-          style={[styles.captionLine, i === arr.length - 1 && styles.captionLatest]}
+          style={[
+            styles.captionLine,
+            i === arr.length - 1 && styles.captionLatest,
+          ]}
           numberOfLines={2}
         >
-          <Text style={styles.captionSpeaker}>{participantName(seg.speaker_id ?? "", seg.speaker_name)} </Text>
+          <Text style={styles.captionSpeaker}>
+            {participantName(seg.speaker_id ?? "", seg.speaker_name)}{" "}
+          </Text>
           {seg.text}
         </Text>
       ))}
@@ -735,7 +979,9 @@ function ControlButton({
                 : Theme.textMuted
         }
       />
-      <Text style={[styles.ctlLabel, filled && { color: "#fff" }]}>{label}</Text>
+      <Text style={[styles.ctlLabel, filled && { color: "#fff" }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -752,7 +998,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 14, color: Theme.bgAlt, opacity: 0.7 },
   // The chips give way before the collapse button does: an RN row never
   // wraps, so without a shrink the button is pushed off a small screen.
-  headerLead: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1, minWidth: 0 },
+  headerLead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   publicGlyph: { marginLeft: 3 },
   recBadge: {
     flexDirection: "row",
@@ -766,8 +1018,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(220,50,47,0.35)",
   },
-  recText: { fontSize: 10.5, fontWeight: "600", letterSpacing: 0.6, color: Theme.red },
-  recClock: { marginLeft: 4, fontWeight: "500", letterSpacing: 0, fontVariant: ["tabular-nums"] },
+  recText: {
+    fontSize: 10.5,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    color: Theme.red,
+  },
+  recClock: {
+    marginLeft: 4,
+    fontWeight: "500",
+    letterSpacing: 0,
+    fontVariant: ["tabular-nums"],
+  },
   recordBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -778,20 +1040,54 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(253,246,227,0.18)",
   },
-  recordDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Theme.red, opacity: 0.85 },
+  recordDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.red,
+    opacity: 0.85,
+  },
   recordText: { fontSize: 11, color: Theme.bgAlt, opacity: 0.75 },
   recordBtnQuiet: { opacity: 0.55 },
   recordDotOff: { backgroundColor: Theme.textDim, opacity: 0.6 },
-  transcribingChip: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1, minWidth: 0 },
+  transcribingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   transcribingText: { fontSize: 11, color: Theme.green },
-  collapseBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 6, flexShrink: 0 },
+  collapseBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    padding: 6,
+    flexShrink: 0,
+  },
   collapseText: { fontSize: 12, color: Theme.bgAlt, opacity: 0.7 },
   pressed: { opacity: 0.6 },
-  errorStage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
+  errorStage: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 10,
+  },
   errorTitle: { fontSize: 18, color: Theme.bgAlt },
-  errorText: { fontSize: 13, color: Theme.textDim, textAlign: "center", lineHeight: 19 },
+  errorText: {
+    fontSize: 13,
+    color: Theme.textDim,
+    textAlign: "center",
+    lineHeight: 19,
+  },
   errorActions: { flexDirection: "row", gap: 12, marginTop: 14 },
-  errorBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: "rgba(253,246,227,0.10)" },
+  errorBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(253,246,227,0.10)",
+  },
   errorBtnPrimary: { backgroundColor: Theme.green },
   errorBtnPrimaryText: { fontSize: 13, color: "#fff" },
   errorBtnText: { fontSize: 13, color: Theme.bgAlt },
@@ -853,7 +1149,12 @@ const styles = StyleSheet.create({
   gridTileTall: { aspectRatio: 3 / 4.6 },
   speakingBorder: { borderWidth: 2, borderColor: Theme.cyan },
 
-  audioStage: { flex: 1, alignItems: "center", justifyContent: "center", gap: 20 },
+  audioStage: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 20,
+  },
   dimNote: { fontSize: 13, color: Theme.bgAlt, opacity: 0.5 },
   avatarRow: {
     flexDirection: "row",
@@ -878,7 +1179,12 @@ const styles = StyleSheet.create({
   avatarNameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   avatarName: { fontSize: 12, color: Theme.bgAlt, opacity: 0.85 },
 
-  voiceRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingBottom: 4 },
+  voiceRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    paddingBottom: 4,
+  },
   voiceChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -891,7 +1197,12 @@ const styles = StyleSheet.create({
   voiceChipText: { fontSize: 11, color: Theme.bgAlt, opacity: 0.85 },
 
   captions: { paddingHorizontal: 22, paddingVertical: 6, gap: 2 },
-  captionLine: { fontSize: 12, color: Theme.bgAlt, opacity: 0.55, textAlign: "center" },
+  captionLine: {
+    fontSize: 12,
+    color: Theme.bgAlt,
+    opacity: 0.55,
+    textAlign: "center",
+  },
   captionLatest: { opacity: 0.95 },
   captionSpeaker: { color: Theme.cyan, fontSize: 11 },
 
@@ -911,7 +1222,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 10,
   },
-  ctl: { alignItems: "center", gap: 3, minWidth: 56, paddingVertical: 6, borderRadius: 12 },
+  ctl: {
+    alignItems: "center",
+    gap: 3,
+    minWidth: 56,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
   ctlActive: {},
   ctlDanger: {},
   ctlFilled: { backgroundColor: Theme.magenta, paddingHorizontal: 14 },

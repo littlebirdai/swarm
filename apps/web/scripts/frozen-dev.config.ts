@@ -8,11 +8,21 @@
 import base from "../vite.config";
 
 export default async (env: any) => {
-  const config: any = typeof base === "function" ? await (base as any)(env) : base;
+  const config: any =
+    typeof base === "function" ? await (base as any)(env) : base;
   const port = Number(process.env.FROZEN_PORT);
   config.root = new URL("..", import.meta.url).pathname;
   config.cacheDir = process.env.FROZEN_CACHE_DIR;
-  config.plugins = (config.plugins || []).flat().filter((p: any) => p && !/stall|deps-?cache-?guard/i.test(p.name || ""));
-  config.server = { ...config.server, port, strictPort: true, hmr: false, watch: null, headers: { ...config.server?.headers, "Document-Policy": "js-profiling" } };
+  config.plugins = (config.plugins || [])
+    .flat()
+    .filter((p: any) => p && !/stall|deps-?cache-?guard/i.test(p.name || ""));
+  config.server = {
+    ...config.server,
+    port,
+    strictPort: true,
+    hmr: false,
+    watch: null,
+    headers: { ...config.server?.headers, "Document-Policy": "js-profiling" },
+  };
   return config;
 };

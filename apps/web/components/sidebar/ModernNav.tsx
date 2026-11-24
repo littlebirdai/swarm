@@ -17,17 +17,46 @@ import { NavSection, RailHeading } from "./navPrimitives";
 import type { NavSectionList } from "./SidebarNav";
 import { RailIcon } from "./RailIcon";
 import { NewMark, RailButtonRow } from "./modernRailParts";
-import { RAIL_GROUPS, keptOnShortRail, navRow, navRowShown, navRowsIn, type NavGates, type NavId, type NavRow } from "../../lib/navRegistry";
+import {
+  RAIL_GROUPS,
+  keptOnShortRail,
+  navRow,
+  navRowShown,
+  navRowsIn,
+  type NavGates,
+  type NavId,
+  type NavRow,
+} from "../../lib/navRegistry";
 
 /** A registry row as a rail row: its name, address, icon and hover text from
  *  lib/navRegistry, the rest from the caller. */
-export function RegistryNavSection({ id, ...rest }: { id: NavId } & Omit<ComponentProps<typeof NavSection>, "label" | "href" | "icon">) {
+export function RegistryNavSection({
+  id,
+  ...rest
+}: { id: NavId } & Omit<
+  ComponentProps<typeof NavSection>,
+  "label" | "href" | "icon"
+>) {
   const row = navRow(id);
-  return <NavSection label={row.label} href={row.path} icon={<RailIcon name={row.icon} />} title={row.title} {...rest} />;
+  return (
+    <NavSection
+      label={row.label}
+      href={row.path}
+      icon={<RailIcon name={row.icon} />}
+      title={row.title}
+      {...rest}
+    />
+  );
 }
 
 /** The rows whose live counts the caller renders and hands in. */
-type LiveRowId = "inbox" | "decisions" | "threads" | "chat" | "calls" | "activity";
+type LiveRowId =
+  | "inbox"
+  | "decisions"
+  | "threads"
+  | "chat"
+  | "calls"
+  | "activity";
 
 export function ModernNavView({
   isNarrow,
@@ -77,7 +106,10 @@ export function ModernNavView({
 }) {
   const activeRow = activeId ? navRow(activeId) : null;
   // More is lit while the page you are on lives behind it.
-  const moreLit = !!activeRow && (activeRow.group === "more" || (focused && !keptOnShortRail(activeRow, daily)));
+  const moreLit =
+    !!activeRow &&
+    (activeRow.group === "more" ||
+      (focused && !keptOnShortRail(activeRow, daily)));
 
   const rowEl = (row: NavRow): ReactNode => {
     if (focused && !keptOnShortRail(row, daily)) return null;
@@ -92,7 +124,15 @@ export function ModernNavView({
         isNarrow={isNarrow}
         onMobileClose={onMobileClose}
         popped={row.group === "work" ? "work" : undefined}
-        badge={on === "offer" ? <NewMark /> : row.id === "org" ? orgBadge : row.id === "ops" ? opsBadge : undefined}
+        badge={
+          on === "offer" ? (
+            <NewMark />
+          ) : row.id === "org" ? (
+            orgBadge
+          ) : row.id === "ops" ? (
+            opsBadge
+          ) : undefined
+        }
         // Tasks drills into its saved views; Docs lists its own.
         items={list && !list.onDrill ? list.items : undefined}
         expanded={list?.expanded}
@@ -102,7 +142,10 @@ export function ModernNavView({
     );
   };
 
-  const group = (name: (typeof RAIL_GROUPS)[number]["group"], heading: string | null) => {
+  const group = (
+    name: (typeof RAIL_GROUPS)[number]["group"],
+    heading: string | null,
+  ) => {
     const rows = navRowsIn(name).flatMap((row) => {
       const el = rowEl(row);
       return el ? [<Fragment key={row.id}>{el}</Fragment>] : [];
@@ -111,8 +154,20 @@ export function ModernNavView({
     return (
       // The Work group is one hover group with its heading, so pointing
       // anywhere in it reveals the heading's pop-out (its window holds all of it).
-      <div key={name} data-rail-group={name} className={heading ? `mt-3${name === "work" ? " group/rail" : ""}` : undefined}>
-        {heading && <RailHeading label={heading} isNarrow={isNarrow} action={name === "work" ? workAction : undefined} />}
+      <div
+        key={name}
+        data-rail-group={name}
+        className={
+          heading ? `mt-3${name === "work" ? " group/rail" : ""}` : undefined
+        }
+      >
+        {heading && (
+          <RailHeading
+            label={heading}
+            isNarrow={isNarrow}
+            action={name === "work" ? workAction : undefined}
+          />
+        )}
         {rows}
       </div>
     );
@@ -122,11 +177,17 @@ export function ModernNavView({
   return (
     <>
       {workspaceHeader && (
-        <div data-rail-workspace="" className={`${isNarrow ? "mx-1" : "mx-2"} mb-2 overflow-hidden rounded-lg border border-sol-border/50`}>
+        <div
+          data-rail-workspace=""
+          className={`${isNarrow ? "mx-1" : "mx-2"} mb-2 overflow-hidden rounded-lg border border-sol-border/50`}
+        >
           {workspaceHeader}
         </div>
       )}
-      <div data-rail-new-session="" className={`${isNarrow ? "mx-1 flex justify-center" : "mx-2"} mb-3`}>
+      <div
+        data-rail-new-session=""
+        className={`${isNarrow ? "mx-1 flex justify-center" : "mx-2"} mb-3`}
+      >
         <NewSessionButton variant={isNarrow ? "icon" : "row"} />
       </div>
       {RAIL_GROUPS.map(({ group: name, heading }) => group(name, heading))}
@@ -146,4 +207,11 @@ export function ModernNavView({
   );
 }
 
-const LIVE_IDS: Record<LiveRowId, true> = { inbox: true, decisions: true, threads: true, chat: true, calls: true, activity: true };
+const LIVE_IDS: Record<LiveRowId, true> = {
+  inbox: true,
+  decisions: true,
+  threads: true,
+  chat: true,
+  calls: true,
+  activity: true,
+};

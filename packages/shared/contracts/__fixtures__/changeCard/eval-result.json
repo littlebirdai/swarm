@@ -13,8 +13,22 @@
       "title": "Session title",
       "separation": "better",
       "p": 0.004,
-      "base": { "batch": "b-0930", "reps": 5, "passed": 1, "median": 0.4, "mean": 0.42, "costUsd": 0.41 },
-      "branch": { "batch": "b-1002", "reps": 5, "passed": 5, "median": 0.92, "mean": 0.9, "costUsd": 0.43 },
+      "base": {
+        "batch": "b-0930",
+        "reps": 5,
+        "passed": 1,
+        "median": 0.4,
+        "mean": 0.42,
+        "costUsd": 0.41
+      },
+      "branch": {
+        "batch": "b-1002",
+        "reps": 5,
+        "passed": 5,
+        "median": 0.92,
+        "mean": 0.9,
+        "costUsd": 0.43
+      },
       "gatesFailed": [],
       "crashes": 0,
       "proven": [

@@ -21,12 +21,20 @@ const client = offlineConvexClient("https://example.convex.cloud");
 
 const NOW = Date.now();
 
-function render(row: Parameters<typeof TeammateItem>[0]["row"], following = false) {
+function render(
+  row: Parameters<typeof TeammateItem>[0]["row"],
+  following = false,
+) {
   return renderToStaticMarkup(
     <ConvexProvider client={client}>
       <CommandPrimitive>
         <CommandPrimitive.List>
-          <TeammateItem row={row} className="row" onOpen={() => {}} following={following} />
+          <TeammateItem
+            row={row}
+            className="row"
+            onOpen={() => {}}
+            following={following}
+          />
         </CommandPrimitive.List>
       </CommandPrimitive>
     </ConvexProvider>,
@@ -55,7 +63,7 @@ describe("palette Teammates row", () => {
     // The row drills into the person, not the session.
     expect(html).toContain('data-palette-type="person"');
     expect(html).toContain('data-palette-id="u-ann"');
-    expect(html).not.toContain("aria-disabled=\"true\"");
+    expect(html).not.toContain('aria-disabled="true"');
   });
 
   test("a session the store lacks is named plainly until its row arrives", () => {
@@ -77,7 +85,16 @@ describe("palette Teammates row", () => {
   });
 
   test("a teammate around but in no session, or offline, says so under the name", () => {
-    const base = { member: ann, id: "u-ann", name: "Ann", conversationId: null, title: undefined, inStore: false, since: undefined, score: 1 };
+    const base = {
+      member: ann,
+      id: "u-ann",
+      name: "Ann",
+      conversationId: null,
+      title: undefined,
+      inStore: false,
+      since: undefined,
+      score: 1,
+    };
     const around = render({ ...base, online: true });
     expect(around).toContain("around, not in a session");
     expect(around).toContain('aria-disabled="false"');
@@ -85,7 +102,18 @@ describe("palette Teammates row", () => {
   });
 
   test("a teammate this window already follows says so", () => {
-    const html = render({ member: ann, id: "u-ann", name: "Ann", conversationId: null, inStore: false, online: true, score: 0 } as any, true);
+    const html = render(
+      {
+        member: ann,
+        id: "u-ann",
+        name: "Ann",
+        conversationId: null,
+        inStore: false,
+        online: true,
+        score: 0,
+      } as any,
+      true,
+    );
     expect(html).toContain("following · around, not in a session");
   });
 });

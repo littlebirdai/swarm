@@ -34,7 +34,9 @@ function useComposerLift(ref: React.RefObject<HTMLDivElement | null>): number {
     const li = ref.current?.closest("li");
     if (!li) return;
     li.style.marginBottom = lift ? `${lift}px` : "";
-    return () => { li.style.marginBottom = ""; };
+    return () => {
+      li.style.marginBottom = "";
+    };
   }, [ref, lift]);
   return lift;
 }
@@ -75,11 +77,30 @@ export function RisingCard({
       <div className="rise-card-face">{face}</div>
       <div className="rise-card-body">
         <div className="rise-card-title">{title}</div>
-        {lines.map((line) => <p key={line} className="rise-card-copy">{line}</p>)}
+        {lines.map((line) => (
+          <p key={line} className="rise-card-copy">
+            {line}
+          </p>
+        ))}
         {children}
         <div className="rise-card-actions">
-          <OrgButton primary size="sm" onClick={onPrimary} style={{ background: accent }} data-rise-primary>{primaryLabel}</OrgButton>
-          <button type="button" className="rise-card-later" onClick={onLater} data-rise-later>{laterLabel}</button>
+          <OrgButton
+            primary
+            size="sm"
+            onClick={onPrimary}
+            style={{ background: accent }}
+            data-rise-primary
+          >
+            {primaryLabel}
+          </OrgButton>
+          <button
+            type="button"
+            className="rise-card-later"
+            onClick={onLater}
+            data-rise-later
+          >
+            {laterLabel}
+          </button>
         </div>
       </div>
     </div>

@@ -2,8 +2,14 @@ export function isInboxRoute(pathname?: string | null): boolean {
   return pathname === "/inbox" || pathname?.startsWith("/inbox/") || false;
 }
 
-export function isInboxSessionView(pathname?: string | null, source?: string | null): boolean {
-  return isInboxRoute(pathname) || ((pathname?.startsWith("/conversation/") ?? false) && source === "inbox");
+export function isInboxSessionView(
+  pathname?: string | null,
+  source?: string | null,
+): boolean {
+  return (
+    isInboxRoute(pathname) ||
+    ((pathname?.startsWith("/conversation/") ?? false) && source === "inbox")
+  );
 }
 
 /**
@@ -22,7 +28,10 @@ export function isInboxSessionView(pathname?: string | null, source?: string | n
  */
 export type SessionFocusKind = "current" | "url" | "panel";
 
-export function sessionFocusKind(pathname?: string | null, source?: string | null): SessionFocusKind {
+export function sessionFocusKind(
+  pathname?: string | null,
+  source?: string | null,
+): SessionFocusKind {
   if (isInboxSessionView(pathname, source)) return "current";
   if (pathname?.includes("/conversation/")) return "url";
   return "panel";
@@ -57,7 +66,10 @@ export function pageOwnsRailHighlight(pathname?: string | null): boolean {
  * "keep" covers the inbox and conversation pages, which highlight their own
  * pointer anyway, and the pages that publish the rail pointer themselves.
  */
-export function railPointerOnNavigate(pathname?: string | null, source?: string | null): "clear" | "keep" {
+export function railPointerOnNavigate(
+  pathname?: string | null,
+  source?: string | null,
+): "clear" | "keep" {
   if (pageOwnsRailHighlight(pathname)) return "keep";
   return sessionFocusKind(pathname, source) === "panel" ? "clear" : "keep";
 }

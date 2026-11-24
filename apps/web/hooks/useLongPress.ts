@@ -13,7 +13,10 @@ export const LONG_PRESS_MS = 500;
  * hold marks the click as spent and the click asks `takeSpent` first.
  */
 export function useLongPress<A>(onHold: (arg: A) => void) {
-  const state = useRef<{ timer: ReturnType<typeof setTimeout> | null; spent: boolean }>({ timer: null, spent: false });
+  const state = useRef<{
+    timer: ReturnType<typeof setTimeout> | null;
+    spent: boolean;
+  }>({ timer: null, spent: false });
   const hold = useRef(onHold);
   hold.current = onHold;
   const cancel = () => {

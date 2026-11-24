@@ -1,10 +1,10 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "../../lib/utils"
-import { modernFocusRing } from "./styles"
-import "./button.css"
+import { cn } from "../../lib/utils";
+import { modernFocusRing } from "./styles";
+import "./button.css";
 
 // THE button. Every action on the site is one of these: a filled face for
 // the one thing a surface is for (default, cyan, or an accent tone when the
@@ -20,11 +20,11 @@ import "./button.css"
 // focus ring. `primary` and `danger` (Modern's names for `default` and
 // `destructive`), `md`, `icon-lg` and `icon-xs` are aliases and additions; the
 // names call sites use are unchanged.
-const tone = (name: string) => `cc-btn-fill cc-btn-tone cc-btn-${name}`
+const tone = (name: string) => `cc-btn-fill cc-btn-tone cc-btn-${name}`;
 // The label on a filled face in Modern is the ink button.css works out from
 // the tint (Classic's text-* class stays for Classic).
-const MODERN_INK = "modern:text-[color:var(--btn-ink)]"
-const MODERN_BASE = `modern:rounded-control ${modernFocusRing}`
+const MODERN_INK = "modern:text-[color:var(--btn-ink)]";
+const MODERN_BASE = `modern:rounded-control ${modernFocusRing}`;
 
 const buttonVariants = cva(
   // Joined, not merged: tailwind-merge reads `outline` as a width and would
@@ -79,27 +79,28 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+  asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+    const Comp = asChild ? Slot : "button";
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

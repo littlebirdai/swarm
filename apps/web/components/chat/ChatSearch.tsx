@@ -2,7 +2,10 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Hash, Loader2, Lock, Search, User, X } from "lucide-react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { useQueryNoThrow, queryCircuitOpenError } from "../../hooks/useQueryNoThrow";
+import {
+  useQueryNoThrow,
+  queryCircuitOpenError,
+} from "../../hooks/useQueryNoThrow";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -13,7 +16,13 @@ import { ChatModalLegend } from "./ChatModalLegend";
 import { highlightMatch } from "../GlobalSearch";
 import { isConvexId } from "../../lib/entityLinks";
 import { dmOtherIds, startOfDay } from "@codecast/shared/chat";
-import { channelDisplayName, lineAuthorFor, memberHandles, memberName, type ChatMember } from "../../lib/chatViews";
+import {
+  channelDisplayName,
+  lineAuthorFor,
+  memberHandles,
+  memberName,
+  type ChatMember,
+} from "../../lib/chatViews";
 import type { ChatChannelView } from "./chatTypes";
 import type { ChatMessageRow } from "../../store/chatSlice";
 import "./chat.css";
@@ -65,44 +74,63 @@ function parseGrammar(
   raw: string,
   channels: ChatChannelView[],
   members: ChatMember[],
-): { q: string; channelId?: string; fromId?: string; inLabel?: string; fromLabel?: string } {
+): {
+  q: string;
+  channelId?: string;
+  fromId?: string;
+  inLabel?: string;
+  fromLabel?: string;
+} {
   let channelId: string | undefined;
   let fromId: string | undefined;
   let inLabel: string | undefined;
   let fromLabel: string | undefined;
-  const rest = raw.replace(/(?:^|\s)(in|from):(\S+)/gi, (whole, op: string, arg: string) => {
-    const needle = arg.replace(/^[#@]/, "").toLowerCase();
-    if (!needle) return whole;
-    if (op.toLowerCase() === "in") {
-      // An exact slug wins; otherwise a UNIQUE prefix resolves as you type, so
-      // "in:#des" already narrows to #design instead of searching literally.
-      const rooms = channels.filter((x) => x.kind !== "dm");
-      const c =
-        rooms.find((x) => x.name.toLowerCase() === needle) ??
-        uniqueOr(rooms.filter((x) => x.name.toLowerCase().startsWith(needle)));
-      if (c) {
-        channelId = c.id;
-        inLabel = c.name;
-        return " ";
+  const rest = raw.replace(
+    /(?:^|\s)(in|from):(\S+)/gi,
+    (whole, op: string, arg: string) => {
+      const needle = arg.replace(/^[#@]/, "").toLowerCase();
+      if (!needle) return whole;
+      if (op.toLowerCase() === "in") {
+        // An exact slug wins; otherwise a UNIQUE prefix resolves as you type, so
+        // "in:#des" already narrows to #design instead of searching literally.
+        const rooms = channels.filter((x) => x.kind !== "dm");
+        const c =
+          rooms.find((x) => x.name.toLowerCase() === needle) ??
+          uniqueOr(
+            rooms.filter((x) => x.name.toLowerCase().startsWith(needle)),
+          );
+        if (c) {
+          channelId = c.id;
+          inLabel = c.name;
+          return " ";
+        }
+      } else {
+        const answers = (x: ChatMember) => [
+          ...memberHandles(x),
+          memberName(x).toLowerCase(),
+          memberName(x).split(/\s+/)[0]?.toLowerCase() ?? "",
+        ];
+        const m =
+          members.find((x) => answers(x).includes(needle)) ??
+          uniqueOr(
+            members.filter((x) => answers(x).some((a) => a.startsWith(needle))),
+          );
+        if (m) {
+          fromId = String(m._id);
+          fromLabel = memberName(m);
+          return " ";
+        }
       }
-    } else {
-      const answers = (x: ChatMember) => [
-        ...memberHandles(x),
-        memberName(x).toLowerCase(),
-        memberName(x).split(/\s+/)[0]?.toLowerCase() ?? "",
-      ];
-      const m =
-        members.find((x) => answers(x).includes(needle)) ??
-        uniqueOr(members.filter((x) => answers(x).some((a) => a.startsWith(needle))));
-      if (m) {
-        fromId = String(m._id);
-        fromLabel = memberName(m);
-        return " ";
-      }
-    }
-    return whole;
-  });
-  return { q: rest.replace(/\s+/g, " ").trim(), channelId, fromId, inLabel, fromLabel };
+      return whole;
+    },
+  );
+  return {
+    q: rest.replace(/\s+/g, " ").trim(),
+    channelId,
+    fromId,
+    inLabel,
+    fromLabel,
+  };
 }
 
 /** Compact stamp for a hit row: a time today, "Yesterday" + time, else a short
@@ -117,7 +145,11 @@ function hitStamp(ts: number, now: number): string {
   if (day === today) return time;
   if (day === startOfDay(today - 1)) return `Yesterday ${time}`;
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return d.toLocaleDateString([], { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+  return d.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 export function ChatSearch({
@@ -137,7 +169,9 @@ export function ChatSearch({
   const authorLookups = useChatAuthorLookups();
   const teamMembers = useInboxStore(teamMembersOf) as ChatMember[];
   const viewer = useInboxStore((s) => (s as any).currentUser?._id ?? "");
-  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as string | undefined;
+  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
+    | string
+    | undefined;
 
   const [raw, setRaw] = useState(initialQuery ?? "");
   const debounced = useDebounce(raw, 250);
@@ -155,15 +189,21 @@ export function ChatSearch({
   );
 
   // Words, or a filter on its own: "from:@ana" lists that person's newest lines.
-  const filtered = !!parsed.fromId || !!(parsed.channelId && isConvexId(parsed.channelId));
-  const ready = (parsed.q.length >= 2 || (filtered && !parsed.q)) && !!teamId && isConvexId(teamId);
+  const filtered =
+    !!parsed.fromId || !!(parsed.channelId && isConvexId(parsed.channelId));
+  const ready =
+    (parsed.q.length >= 2 || (filtered && !parsed.q)) &&
+    !!teamId &&
+    isConvexId(teamId);
   const { data, error } = useQueryNoThrow(
     api.chat.searchMessages,
     ready
       ? {
           team_id: teamId,
           q: parsed.q,
-          ...(parsed.channelId && isConvexId(parsed.channelId) ? { channel_id: parsed.channelId } : {}),
+          ...(parsed.channelId && isConvexId(parsed.channelId)
+            ? { channel_id: parsed.channelId }
+            : {}),
           ...(parsed.fromId ? { from_user_id: parsed.fromId } : {}),
           limit: 30,
         }
@@ -201,14 +241,24 @@ export function ChatSearch({
   // The room's name comes from the ONE naming rule (chatViews.channelDisplayName)
   // — a DM is the other side, first names only past a 1:1 — so the search
   // header can never disagree with the rail beside it.
-  const roomLabel = (h: SearchHit): { icon: React.ReactNode; label: string } => {
+  const roomLabel = (
+    h: SearchHit,
+  ): { icon: React.ReactNode; label: string } => {
     const label = channelDisplayName(
-      { name: h.channel_name || "unknown", kind: h.channel_kind as any, dmMemberIds: dmOtherIds(h.dm_key, String(viewer)) },
+      {
+        name: h.channel_name || "unknown",
+        kind: h.channel_kind as any,
+        dmMemberIds: dmOtherIds(h.dm_key, String(viewer)),
+      },
       teamMembers,
     );
-    if (h.channel_kind === "dm") return { icon: <User className="w-3 h-3" />, label };
+    if (h.channel_kind === "dm")
+      return { icon: <User className="w-3 h-3" />, label };
     const priv = channels.find((c) => c.id === h.channel_id)?.isPrivate;
-    return { icon: priv ? <Lock className="w-3 h-3" /> : <Hash className="w-3 h-3" />, label };
+    return {
+      icon: priv ? <Lock className="w-3 h-3" /> : <Hash className="w-3 h-3" />,
+      label,
+    };
   };
 
   const open = (h: SearchHit | undefined) => {
@@ -217,7 +267,9 @@ export function ChatSearch({
     router.push(h.permalink);
   };
 
-  const currentChannel = channels.find((c) => c.id === currentChannelId && c.kind !== "dm");
+  const currentChannel = channels.find(
+    (c) => c.id === currentChannelId && c.kind !== "dm",
+  );
 
   // Keys live on the INPUT so Enter on a focused button (close, a chip) still
   // clicks that button instead of jumping to the top hit.
@@ -227,7 +279,9 @@ export function ChatSearch({
       setHighlight((h) => (flat.length ? (h + 1) % flat.length : 0));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((h) => (flat.length ? (h - 1 + flat.length) % flat.length : 0));
+      setHighlight((h) =>
+        flat.length ? (h - 1 + flat.length) % flat.length : 0,
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
       open(flat[highlight]);
@@ -237,17 +291,27 @@ export function ChatSearch({
   // The chip's on/off state reads the LIVE text, not the debounced parse — a
   // second click inside the debounce window must toggle off, not insert twice.
   const inToken = `in:#${currentChannel?.name ?? ""}`;
-  const inTokenRe = currentChannel ? new RegExp(`(?:^|\\s)in:#?${currentChannel.name}(?=\\s|$)`, "i") : null;
+  const inTokenRe = currentChannel
+    ? new RegExp(`(?:^|\\s)in:#?${currentChannel.name}(?=\\s|$)`, "i")
+    : null;
   const inThisLive = !!inTokenRe && inTokenRe.test(raw);
   const toggleInThis = () => {
     if (!currentChannel || !inTokenRe) return;
-    setRaw((r) => (inTokenRe.test(r) ? r.replace(inTokenRe, " ").replace(/\s+/g, " ").trim() : `${inToken} ${r}`.replace(/\s+$/, "") + " "));
+    setRaw((r) =>
+      inTokenRe.test(r)
+        ? r.replace(inTokenRe, " ").replace(/\s+/g, " ").trim()
+        : `${inToken} ${r}`.replace(/\s+$/, "") + " ",
+    );
     inputRef.current?.focus();
   };
 
   let flatIdx = -1;
   return (
-    <div className="ch-modal-overlay ch-search-overlay" onClick={onClose} role="presentation">
+    <div
+      className="ch-modal-overlay ch-search-overlay"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
         className="ch-modal ch-search"
         role="dialog"
@@ -275,7 +339,12 @@ export function ChatSearch({
               setHighlight(0);
             }}
           />
-          <button type="button" className="ch-modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="ch-modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -306,28 +375,44 @@ export function ChatSearch({
           )}
           {flat.length > 0 && (
             <span className="ch-search-count">
-              {flat.length}{flat.length === 30 ? "+" : ""} {flat.length === 1 ? "result" : "results"}
+              {flat.length}
+              {flat.length === 30 ? "+" : ""}{" "}
+              {flat.length === 1 ? "result" : "results"}
             </span>
           )}
         </div>
 
-        <div className="ch-search-list" ref={listRef} role="listbox" aria-label="Search results">
+        <div
+          className="ch-search-list"
+          ref={listRef}
+          role="listbox"
+          aria-label="Search results"
+        >
           {!ready && (
             <div className="ch-search-hint">
               <p>Search every conversation you can read.</p>
               <p className="ch-search-hint-sub">
-                Narrow with <code>in:#channel</code> or <code>from:@person</code>. <KeyCap size="xs">{"\u21a9"}</KeyCap> jumps to the message.
+                Narrow with <code>in:#channel</code> or{" "}
+                <code>from:@person</code>. <KeyCap size="xs">{"\u21a9"}</KeyCap>{" "}
+                jumps to the message.
               </p>
             </div>
           )}
           {ready && loading && (
-            <div className="ch-search-skel" role="status" aria-label="Searching">
+            <div
+              className="ch-search-skel"
+              role="status"
+              aria-label="Searching"
+            >
               {[0, 1, 2].map((i) => (
                 <div className="ch-skel-row" key={i}>
                   <div className="ch-skel-avatar" />
                   <div className="ch-skel-lines">
                     <div className="ch-skel-line ch-skel-head" />
-                    <div className="ch-skel-line" style={{ width: `${70 - i * 12}%` }} />
+                    <div
+                      className="ch-skel-line"
+                      style={{ width: `${70 - i * 12}%` }}
+                    />
                   </div>
                 </div>
               ))}
@@ -335,14 +420,22 @@ export function ChatSearch({
           )}
           {ready && !!error && (
             <div className="ch-search-hint">
-              <p>{error === queryCircuitOpenError ? "Search timed out." : "Search is not answering."}</p>
-              <p className="ch-search-hint-sub">Try again in a moment, or narrow with a filter.</p>
+              <p>
+                {error === queryCircuitOpenError
+                  ? "Search timed out."
+                  : "Search is not answering."}
+              </p>
+              <p className="ch-search-hint-sub">
+                Try again in a moment, or narrow with a filter.
+              </p>
             </div>
           )}
           {ready && !loading && !error && flat.length === 0 && (
             <div className="ch-search-hint">
               <p>No messages match.</p>
-              <p className="ch-search-hint-sub">Different words, or drop a filter.</p>
+              <p className="ch-search-hint-sub">
+                Different words, or drop a filter.
+              </p>
             </div>
           )}
           {groups.map((g) => {
@@ -356,7 +449,10 @@ export function ChatSearch({
                 {g.hits.map((h) => {
                   flatIdx++;
                   const idx = flatIdx;
-                  const author = lineAuthorFor(h, { members: byId as any, ...authorLookups });
+                  const author = lineAuthorFor(h, {
+                    members: byId as any,
+                    ...authorLookups,
+                  });
                   return (
                     <button
                       key={h._id}
@@ -371,15 +467,25 @@ export function ChatSearch({
                       <ChatAuthorFace author={author} size={22} letters={1} />
                       <span className="ch-search-hit-body">
                         <span className="ch-search-hit-head">
-                          <span className="ch-search-hit-author">{author.name}</span>
-                          <span className="ch-search-hit-time">{hitStamp(h.created_at, now)}</span>
-                          {h.thread_root_id && <span className="ch-search-hit-thread">in thread</span>}
+                          <span className="ch-search-hit-author">
+                            {author.name}
+                          </span>
+                          <span className="ch-search-hit-time">
+                            {hitStamp(h.created_at, now)}
+                          </span>
+                          {h.thread_root_id && (
+                            <span className="ch-search-hit-thread">
+                              in thread
+                            </span>
+                          )}
                         </span>
                         <span className="ch-search-hit-snippet">
                           {highlightMatch(h.snippet, parsed.q)}
                         </span>
                       </span>
-                      <span className="ch-search-hit-go" aria-hidden="true"><KeyCap size="xs">{"\u21a9"}</KeyCap></span>
+                      <span className="ch-search-hit-go" aria-hidden="true">
+                        <KeyCap size="xs">{"\u21a9"}</KeyCap>
+                      </span>
                     </button>
                   );
                 })}

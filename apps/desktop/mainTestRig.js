@@ -162,7 +162,8 @@ class FakeWindow {
   }
   setContentSize(w, h) {
     this.record("setContentSize", w, h);
-    if (!this.resizable) throw new Error("setContentSize on a non-resizable window");
+    if (!this.resizable)
+      throw new Error("setContentSize on a non-resizable window");
     this.contentSize = [w, h];
     this.bounds = { ...this.bounds, width: w, height: h };
   }
@@ -247,12 +248,23 @@ function fakeElectron({ packaged = false } = {}) {
       on: (channel, cb) => handlers.set(channel, cb),
       removeHandler: (channel) => handlers.delete(channel),
     },
-    nativeImage: { createFromPath: () => ({ setTemplateImage: noop, isEmpty: () => true }) },
+    nativeImage: {
+      createFromPath: () => ({ setTemplateImage: noop, isEmpty: () => true }),
+    },
     shell: { openExternal: noop, showItemInFolder: noop },
     screen: {
-      getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1600, height: 1000 }, workAreaSize: { width: 1600, height: 1000 } }),
-      getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1600, height: 1000 } }),
-      getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1600, height: 1000 }, workAreaSize: { width: 1600, height: 1000 }, scaleFactor: 2 }),
+      getPrimaryDisplay: () => ({
+        workArea: { x: 0, y: 0, width: 1600, height: 1000 },
+        workAreaSize: { width: 1600, height: 1000 },
+      }),
+      getDisplayMatching: () => ({
+        workArea: { x: 0, y: 0, width: 1600, height: 1000 },
+      }),
+      getDisplayNearestPoint: () => ({
+        workArea: { x: 0, y: 0, width: 1600, height: 1000 },
+        workAreaSize: { width: 1600, height: 1000 },
+        scaleFactor: 2,
+      }),
       getCursorScreenPoint: () => {
         cursorReads.count += 1;
         return { x: 400, y: 400 };
@@ -264,7 +276,15 @@ function fakeElectron({ packaged = false } = {}) {
         return false;
       }
     },
-    session: { defaultSession: { setPermissionRequestHandler: noop, webRequest: { onHeadersReceived: noop }, flushStorageData() { this.flushes = (this.flushes ?? 0) + 1; } } },
+    session: {
+      defaultSession: {
+        setPermissionRequestHandler: noop,
+        webRequest: { onHeadersReceived: noop },
+        flushStorageData() {
+          this.flushes = (this.flushes ?? 0) + 1;
+        },
+      },
+    },
     powerMonitor: { on: noop },
     desktopCapturer: { getSources: async () => [] },
   };
@@ -282,7 +302,9 @@ const harness = {
   userData: null,
 
   setup() {
-    harness.userData = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-mainrig-"));
+    harness.userData = fs.mkdtempSync(
+      path.join(os.tmpdir(), "codecast-mainrig-"),
+    );
   },
 
   teardown() {
@@ -300,8 +322,16 @@ const harness = {
    */
   loadShell(settings = {}, { packaged = false } = {}) {
     const rig = fakeElectron({ packaged });
-    fs.writeFileSync(path.join(harness.userData, "settings.json"), JSON.stringify(settings));
-    require.cache[ELECTRON] = { id: ELECTRON, filename: ELECTRON, loaded: true, exports: rig.electron };
+    fs.writeFileSync(
+      path.join(harness.userData, "settings.json"),
+      JSON.stringify(settings),
+    );
+    require.cache[ELECTRON] = {
+      id: ELECTRON,
+      filename: ELECTRON,
+      loaded: true,
+      exports: rig.electron,
+    };
     delete require.cache[MAIN];
     const realInterval = globalThis.setInterval;
     const realTimeout = globalThis.setTimeout;
@@ -323,12 +353,17 @@ const harness = {
       globalThis.setTimeout = realTimeout;
     }
     rig.mainWindow = rig.windows[rig.windows.length - 1];
-    rig.event = (wc = rig.mainWindow.webContents) => ({ sender: wc, senderFrame: wc.mainFrame });
+    rig.event = (wc = rig.mainWindow.webContents) => ({
+      sender: wc,
+      senderFrame: wc.mainFrame,
+    });
     return rig;
   },
 
   readSettings() {
-    return JSON.parse(fs.readFileSync(path.join(harness.userData, "settings.json"), "utf8"));
+    return JSON.parse(
+      fs.readFileSync(path.join(harness.userData, "settings.json"), "utf8"),
+    );
   },
 };
 
@@ -348,4 +383,11 @@ function openFacesWindow(rig) {
   return { win, sender };
 }
 
-module.exports = { FakeWindow, fakeElectron, harness, cursorReads, openCallWindow, openFacesWindow };
+module.exports = {
+  FakeWindow,
+  fakeElectron,
+  harness,
+  cursorReads,
+  openCallWindow,
+  openFacesWindow,
+};

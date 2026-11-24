@@ -30,7 +30,9 @@ export function TaskLabel({ card }: { card: ThreadCardModel }) {
   const task = useTaskRow(taskIdOf(card));
   return (
     <>
-      <span className="font-mono th-card-task-id">{task?.short_id ?? "task"}</span>
+      <span className="font-mono th-card-task-id">
+        {task?.short_id ?? "task"}
+      </span>
       {task?.external && <IssueLink external={task.external} />}
       {task?.title && <span className="th-card-task-name">{task.title}</span>}
       {task?.status && <TaskStatusBadge status={task.status} />}
@@ -45,16 +47,28 @@ export function TaskMeta({ card }: { card: ThreadCardModel }) {
   return (
     <div className="th-card-taskrow">
       {task.priority && (
-        <Badge variant="outline" className="text-meta px-1">{task.priority}</Badge>
+        <Badge variant="outline" className="text-meta px-1">
+          {task.priority}
+        </Badge>
       )}
       {task.assignee_info?.name && (
-        <span className="th-task-meta" title={`Assigned to ${task.assignee_info.name}`}>
-          <Avatar name={task.assignee_info.name} image={task.assignee_info.image} />
+        <span
+          className="th-task-meta"
+          title={`Assigned to ${task.assignee_info.name}`}
+        >
+          <Avatar
+            name={task.assignee_info.name}
+            image={task.assignee_info.image}
+          />
           {task.assignee_info.name.split(" ")[0]}
         </span>
       )}
       {task.plan?.short_id && (
-        <Link href={`/plans/${task.plan._id}`} className="th-task-meta" title={task.plan.title}>
+        <Link
+          href={`/plans/${task.plan._id}`}
+          className="th-task-meta"
+          title={task.plan.title}
+        >
           <ShortId id={task.plan.short_id} />
         </Link>
       )}
@@ -65,7 +79,18 @@ export function TaskMeta({ card }: { card: ThreadCardModel }) {
   );
 }
 
-export function TaskExpanded({ card, seen, frozenReadAt, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function TaskExpanded({
+  card,
+  seen,
+  frozenReadAt,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const row = rowOf(card);
   const taskId = taskIdOf(card);
   // TaskInlineThread mounts the detail feeder that fills the task's thread.
@@ -80,15 +105,24 @@ export function TaskExpanded({ card, seen, frozenReadAt, focusComposer }: { card
     if (row.unread > 0 && commentCount === 0) return;
     if (row.last_read_at >= row.last_activity_at && row.unread === 0) return;
     useInboxStore.getState().markThreadRead("task", row.root_key);
-  }, [seen, row.root_key, row.last_activity_at, row.last_read_at, row.unread, commentCount]);
+  }, [
+    seen,
+    row.root_key,
+    row.last_activity_at,
+    row.last_read_at,
+    row.unread,
+    commentCount,
+  ]);
 
   return (
     <div className="th-card-open th-card-open-task">
       {/* The input is always ready; the focus grab rides only the reader's
           own `r`, so opening a row never steals the keyboard from the walk. */}
-      <TaskInlineThread taskId={taskId} newSince={frozenReadAt} focusComposer={focusComposer} />
+      <TaskInlineThread
+        taskId={taskId}
+        newSince={frozenReadAt}
+        focusComposer={focusComposer}
+      />
     </div>
   );
 }
-
-

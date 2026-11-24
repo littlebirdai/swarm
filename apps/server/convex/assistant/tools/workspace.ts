@@ -14,8 +14,18 @@
 // No module here imports the harness; the tool definitions live beside it
 // (codecast.ts) and call these through ctx.runQuery / ctx.runMutation.
 import { v } from "convex/values";
-import { HOSTED_AGENT_TYPE, ROUTINE_SHOWS_UP } from "@codecast/shared/contracts/assistant";
-import { isActiveTask, isAssistantTask, isOnHumanBoard, isTerminalTaskStatus, TASK_PRIORITIES, TASK_STATUS_CATEGORIES } from "@codecast/shared/tasks";
+import {
+  HOSTED_AGENT_TYPE,
+  ROUTINE_SHOWS_UP,
+} from "@codecast/shared/contracts/assistant";
+import {
+  isActiveTask,
+  isAssistantTask,
+  isOnHumanBoard,
+  isTerminalTaskStatus,
+  TASK_PRIORITIES,
+  TASK_STATUS_CATEGORIES,
+} from "@codecast/shared/tasks";
 import { internalMutation, internalQuery } from "../../functions";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { scopedFetch } from "../../data";
@@ -28,7 +38,11 @@ import { docLiveState, docRevision } from "../../lib/docBody";
 const ASSISTANT_WRITER = { name: "Your assistant" };
 import { applyCancel, insertTask, logVerb } from "../../agentTasks";
 import { hostedHomeStamp, hostedOwnerRefusal } from "../routines";
-import { cadenceOf, firstCadenceRun, plainCadence } from "@platform/assistant/cadence";
+import {
+  cadenceOf,
+  firstCadenceRun,
+  plainCadence,
+} from "@platform/assistant/cadence";
 import { firstRunWords } from "@platform/assistant/rules";
 
 type Ctx = { db: any };
@@ -42,8 +56,15 @@ export const DOC_READ_MAX_CHARS = 20_000;
 
 const memoryKey = (userId: Id<"users">) => `assistant-memory:${userId}`;
 
-async function inPersonalWorkspace(ctx: Ctx, userId: Id<"users">, row: any): Promise<boolean> {
-  return (await resolveWorkspaceKey(ctx, row)) === workspaceKey({ type: "personal", userId });
+async function inPersonalWorkspace(
+  ctx: Ctx,
+  userId: Id<"users">,
+  row: any,
+): Promise<boolean> {
+  return (
+    (await resolveWorkspaceKey(ctx, row)) ===
+    workspaceKey({ type: "personal", userId })
+  );
 }
 
 type PublicCopy = { reason: string; changeIn: string };
@@ -58,44 +79,79 @@ const BY_LINK = "codecast on the web";
  *  (publicShare.getSharedProject). The tools that change rows without asking
  *  refuse such a row, so text read from mail or the web never leaves through
  *  them. */
-export async function publicCopy(ctx: Ctx, table: "tasks" | "docs", row: Doc<"tasks"> | Doc<"docs">): Promise<PublicCopy | null> {
+export async function publicCopy(
+  ctx: Ctx,
+  table: "tasks" | "docs",
+  row: Doc<"tasks"> | Doc<"docs">,
+): Promise<PublicCopy | null> {
   if (table === "tasks") {
     const external = (row as Doc<"tasks">).external;
     if (external) {
       const provider = external.provider === "github" ? "GitHub" : "Linear";
-      return { reason: `is linked to the ${provider} issue ${external.identifier}, so a change here would post to that issue`, changeIn: provider };
+      return {
+        reason: `is linked to the ${provider} issue ${external.identifier}, so a change here would post to that issue`,
+        changeIn: provider,
+      };
     }
   }
-  if (row.share_token) return { reason: "is shared by link, so anyone with the link would see a change made here", changeIn: BY_LINK };
+  if (row.share_token)
+    return {
+      reason:
+        "is shared by link, so anyone with the link would see a change made here",
+      changeIn: BY_LINK,
+    };
   const parent = await sharedParent(ctx, table, row);
-  if (parent) return { reason: `is in ${parent}, which is shared by link, so anyone with that link would see a change made here`, changeIn: BY_LINK };
+  if (parent)
+    return {
+      reason: `is in ${parent}, which is shared by link, so anyone with that link would see a change made here`,
+      changeIn: BY_LINK,
+    };
   return null;
 }
 
 /** The plan or project whose share link shows this row, named for the
  *  person, or null. A plan's task list (task_ids) is not always mirrored in
  *  task.plan_id, so a task is checked against the owner's shared plans too. */
-async function sharedParent(ctx: Ctx, table: "tasks" | "docs", row: Doc<"tasks"> | Doc<"docs">): Promise<string | null> {
-  const own: Doc<"plans"> | null = row.plan_id ? await ctx.db.get(row.plan_id) : null;
+async function sharedParent(
+  ctx: Ctx,
+  table: "tasks" | "docs",
+  row: Doc<"tasks"> | Doc<"docs">,
+): Promise<string | null> {
+  const own: Doc<"plans"> | null = row.plan_id
+    ? await ctx.db.get(row.plan_id)
+    : null;
   const plans: Doc<"plans">[] = own ? [own] : [];
   if (table === "docs") {
-    plans.push(...(await ctx.db.query("plans").withIndex("by_doc_id", (q: any) => q.eq("doc_id", row._id)).collect()));
+    plans.push(
+      ...(await ctx.db
+        .query("plans")
+        .withIndex("by_doc_id", (q: any) => q.eq("doc_id", row._id))
+        .collect()),
+    );
   } else {
     const projectId = (row as Doc<"tasks">).project_id;
-    const project: Doc<"projects"> | null = projectId ? await ctx.db.get(projectId) : null;
-    if (project?.share_token) return `project ${project.short_id ?? `"${project.title}"`}`;
+    const project: Doc<"projects"> | null = projectId
+      ? await ctx.db.get(projectId)
+      : null;
+    if (project?.share_token)
+      return `project ${project.short_id ?? `"${project.title}"`}`;
     const shared: Doc<"plans">[] = await ctx.db
       .query("plans")
       .withIndex("by_user_id", (q: any) => q.eq("user_id", row.user_id))
       .filter((q: any) => q.neq(q.field("share_token"), undefined))
       .collect();
-    plans.push(...shared.filter((p) => (p.task_ids ?? []).some((id) => String(id) === String(row._id))));
+    plans.push(
+      ...shared.filter((p) =>
+        (p.task_ids ?? []).some((id) => String(id) === String(row._id)),
+      ),
+    );
   }
   const plan = plans.find((p) => p.share_token);
   return plan ? `plan ${plan.short_id}` : null;
 }
 
-const iso = (ms: number | undefined) => (ms ? new Date(ms).toISOString() : undefined);
+const iso = (ms: number | undefined) =>
+  ms ? new Date(ms).toISOString() : undefined;
 const clip = (text: string | undefined, max: number) =>
   !text ? undefined : text.length > max ? `${text.slice(0, max)}…` : text;
 
@@ -117,17 +173,36 @@ export const listTasks = internalQuery({
     // shows: no mined suggestions, no unpromoted insights. Of those, only the
     // To-dos page's rows (isAssistantTask), so a coding agent's task never
     // reads as one of the person's to-dos.
-    const { records } = await scopedFetch(ctx, "tasks", { userId: args.user_id, workspace: "personal", limit: 500, updatedSince: 0 });
+    const { records } = await scopedFetch(ctx, "tasks", {
+      userId: args.user_id,
+      workspace: "personal",
+      limit: 500,
+      updatedSince: 0,
+    });
     const filter = args.filter ?? "open";
     const madeIn = new Map<string, string | null>();
     for (const t of records) {
-      const from = t.created_from_conversation as Id<"conversations"> | undefined;
-      if (from && !madeIn.has(from)) madeIn.set(from, (await ctx.db.get(from))?.agent_type ?? null);
+      const from = t.created_from_conversation as
+        | Id<"conversations">
+        | undefined;
+      if (from && !madeIn.has(from))
+        madeIn.set(from, (await ctx.db.get(from))?.agent_type ?? null);
     }
     return records
       .filter((t) => isActiveTask(t) && isOnHumanBoard(t))
-      .filter((t) => isAssistantTask({ ...t, source_agent_type: t.created_from_conversation ? madeIn.get(t.created_from_conversation as string) : null }))
-      .filter((t) => filter === "all" || isTerminalTaskStatus(t.status) === (filter === "done"))
+      .filter((t) =>
+        isAssistantTask({
+          ...t,
+          source_agent_type: t.created_from_conversation
+            ? madeIn.get(t.created_from_conversation as string)
+            : null,
+        }),
+      )
+      .filter(
+        (t) =>
+          filter === "all" ||
+          isTerminalTaskStatus(t.status) === (filter === "done"),
+      )
       .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
       .slice(0, limit)
       .map((t) => ({
@@ -155,18 +230,29 @@ export const createTask = internalMutation({
   },
   handler: async (ctx, args) => {
     const { user_id, conversation_id, ...fields } = args;
-    const created = await createTaskAs(ctx, user_id, { ...fields, workspace: "personal" });
-    if (conversation_id) await ctx.db.patch(created.id as Id<"tasks">, { created_from_conversation: conversation_id });
+    const created = await createTaskAs(ctx, user_id, {
+      ...fields,
+      workspace: "personal",
+    });
+    if (conversation_id)
+      await ctx.db.patch(created.id as Id<"tasks">, {
+        created_from_conversation: conversation_id,
+      });
     return { id: created.short_id as string };
   },
 });
 
-async function personalTask(ctx: Ctx, userId: Id<"users">, shortId: string): Promise<Doc<"tasks">> {
+async function personalTask(
+  ctx: Ctx,
+  userId: Id<"users">,
+  shortId: string,
+): Promise<Doc<"tasks">> {
   const task = await ctx.db
     .query("tasks")
     .withIndex("by_short_id", (q: any) => q.eq("short_id", shortId))
     .first();
-  if (!task || !(await inPersonalWorkspace(ctx, userId, task))) throw new Error(`No task ${shortId} in your own list`);
+  if (!task || !(await inPersonalWorkspace(ctx, userId, task)))
+    throw new Error(`No task ${shortId} in your own list`);
   return task;
 }
 
@@ -183,26 +269,43 @@ export const updateTask = internalMutation({
     const { user_id, id, ...fields } = args;
     const task = await personalTask(ctx, user_id, id);
     const shown = await publicCopy(ctx, "tasks", task);
-    if (shown) throw new Error(`Task ${id} ${shown.reason}. Change it in ${shown.changeIn}.`);
+    if (shown)
+      throw new Error(
+        `Task ${id} ${shown.reason}. Change it in ${shown.changeIn}.`,
+      );
     await updateTaskAs(ctx, user_id, { short_id: id, ...fields });
     const after = await personalTask(ctx, user_id, id);
-    return { id, title: after.title, status: after.status, priority: after.priority };
+    return {
+      id,
+      title: after.title,
+      status: after.status,
+      priority: after.priority,
+    };
   },
 });
 
 // ── Docs ────────────────────────────────────────────────────────────────────
 
-async function personalDoc(ctx: Ctx, userId: Id<"users">, id: string): Promise<Doc<"docs"> | null> {
+async function personalDoc(
+  ctx: Ctx,
+  userId: Id<"users">,
+  id: string,
+): Promise<Doc<"docs"> | null> {
   const docId = ctx.db.normalizeId("docs", id);
   const doc = docId ? await ctx.db.get(docId) : null;
-  if (!doc || doc.archived_at || !(await inPersonalWorkspace(ctx, userId, doc))) return null;
+  if (!doc || doc.archived_at || !(await inPersonalWorkspace(ctx, userId, doc)))
+    return null;
   return doc;
 }
 
 /** One doc by id, or the person's docs whose titles match `query`, the best
  *  match read in full. */
 export const readDoc = internalQuery({
-  args: { user_id: v.id("users"), id: v.optional(v.string()), query: v.optional(v.string()) },
+  args: {
+    user_id: v.id("users"),
+    id: v.optional(v.string()),
+    query: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     let doc: Doc<"docs"> | null = null;
     let others: { id: string; title: string }[] = [];
@@ -214,19 +317,31 @@ export const readDoc = internalQuery({
       if (!query) throw new Error("Give a doc id or words from its title");
       const hits = await ctx.db
         .query("docs")
-        .withSearchIndex("search_docs_v2", (q: any) => q.search("title", query).eq("user_id", args.user_id))
+        .withSearchIndex("search_docs_v2", (q: any) =>
+          q.search("title", query).eq("user_id", args.user_id),
+        )
         .take(10);
       const mine: Doc<"docs">[] = [];
-      for (const hit of hits) if (!hit.archived_at && (await inPersonalWorkspace(ctx, args.user_id, hit))) mine.push(hit);
+      for (const hit of hits)
+        if (
+          !hit.archived_at &&
+          (await inPersonalWorkspace(ctx, args.user_id, hit))
+        )
+          mine.push(hit);
       if (mine.length === 0) return { found: false as const };
       [doc] = mine;
-      others = mine.slice(1, 6).map((d) => ({ id: String(d._id), title: d.title }));
+      others = mine
+        .slice(1, 6)
+        .map((d) => ({ id: String(d._id), title: d.title }));
     }
     const content = doc!.content ?? "";
     return {
       found: true as const,
       id: String(doc!._id),
-      revision: docRevision(content, (await docLiveState(ctx, doc!._id)).version),
+      revision: docRevision(
+        content,
+        (await docLiveState(ctx, doc!._id)).version,
+      ),
       title: doc!.title,
       updated: iso(doc!.updated_at),
       content: content.slice(0, DOC_READ_MAX_CHARS),
@@ -252,7 +367,11 @@ export const writeDoc = internalMutation({
     if (!args.id) {
       const title = args.title?.trim();
       if (!title) throw new Error("A new doc needs a title");
-      const { id } = await createDocAs(ctx, args.user_id, { title, content: args.content, workspace: "personal" });
+      const { id } = await createDocAs(ctx, args.user_id, {
+        title,
+        content: args.content,
+        workspace: "personal",
+      });
       return { id: String(id), created: true };
     }
     const doc = await personalDoc(ctx, args.user_id, args.id);
@@ -262,19 +381,40 @@ export const writeDoc = internalMutation({
     // lines only through remember, whose gate asks once outside content is in
     // front of the model, so an email or page cannot add to it here.
     if (args.append && doc.source_file === memoryKey(args.user_id)) {
-      throw new Error(`Add to "${MEMORY_DOC_TITLE}" with remember, one fact at a time.`);
+      throw new Error(
+        `Add to "${MEMORY_DOC_TITLE}" with remember, one fact at a time.`,
+      );
     }
     const shown = args.append ? await publicCopy(ctx, "docs", doc) : null;
-    if (shown) throw new Error(`Doc "${doc.title}" ${shown.reason}. Use replace_doc, which shows the person the new text first.`);
+    if (shown)
+      throw new Error(
+        `Doc "${doc.title}" ${shown.reason}. Use replace_doc, which shows the person the new text first.`,
+      );
     // read_doc shows only the first DOC_READ_MAX_CHARS, so a whole rewrite
     // of a longer doc would drop the part it never saw.
     if (!args.append && (doc.content ?? "").length > DOC_READ_MAX_CHARS) {
-      throw new Error(`Doc "${doc.title}" is longer than read_doc shows, so rewriting it whole would lose its end. Ask the person to edit it, or add to it with write_doc.`);
+      throw new Error(
+        `Doc "${doc.title}" is longer than read_doc shows, so rewriting it whole would lose its end. Ask the person to edit it, or add to it with write_doc.`,
+      );
     }
-    const content = args.append ? `${(doc.content ?? "").trimEnd()}\n\n${args.content}` : args.content;
-    await updateDocAs(ctx, args.user_id, { id: doc._id, content, ...(args.title?.trim() ? { title: args.title.trim() } : {}) }, {
-      writer: ASSISTANT_WRITER, base: args.append ? undefined : args.base, requireBase: !args.append, reread: "read it again with read_doc",
-    });
+    const content = args.append
+      ? `${(doc.content ?? "").trimEnd()}\n\n${args.content}`
+      : args.content;
+    await updateDocAs(
+      ctx,
+      args.user_id,
+      {
+        id: doc._id,
+        content,
+        ...(args.title?.trim() ? { title: args.title.trim() } : {}),
+      },
+      {
+        writer: ASSISTANT_WRITER,
+        base: args.append ? undefined : args.base,
+        requireBase: !args.append,
+        reread: "read it again with read_doc",
+      },
+    );
     return { id: String(doc._id), created: false };
   },
 });
@@ -284,7 +424,10 @@ export const writeDoc = internalMutation({
 /** The person's live memory doc: their newest one not archived. Archiving it
  *  is how the person makes the assistant forget, so an archived one is gone:
  *  recall finds nothing and the next remember starts a fresh doc. */
-async function memoryDoc(ctx: Ctx, userId: Id<"users">): Promise<Doc<"docs"> | null> {
+async function memoryDoc(
+  ctx: Ctx,
+  userId: Id<"users">,
+): Promise<Doc<"docs"> | null> {
   return await ownDocsBySourceFile(ctx, userId, memoryKey(userId))
     .filter((q: any) => q.eq(q.field("archived_at"), undefined))
     .first();
@@ -294,7 +437,10 @@ export const recall = internalQuery({
   args: { user_id: v.id("users") },
   handler: async (ctx, args) => {
     const doc = await memoryDoc(ctx, args.user_id);
-    return { doc_id: doc ? String(doc._id) : undefined, content: doc?.content ?? "" };
+    return {
+      doc_id: doc ? String(doc._id) : undefined,
+      content: doc?.content ?? "",
+    };
   },
 });
 
@@ -309,17 +455,34 @@ export const remember = internalMutation({
     const line = `- ${fact}`;
     const doc = await memoryDoc(ctx, args.user_id);
     if (!doc) {
-      const { id } = await createDocAs(ctx, args.user_id, { title: MEMORY_DOC_TITLE, content: line, workspace: "personal" });
-      await ctx.db.patch(id, { source_file: memoryKey(args.user_id), source: "agent" });
+      const { id } = await createDocAs(ctx, args.user_id, {
+        title: MEMORY_DOC_TITLE,
+        content: line,
+        workspace: "personal",
+      });
+      await ctx.db.patch(id, {
+        source_file: memoryKey(args.user_id),
+        source: "agent",
+      });
       return { doc_id: String(id) };
     }
     const shown = await publicCopy(ctx, "docs", doc);
-    if (shown) throw new Error(`"${MEMORY_DOC_TITLE}" ${shown.reason}. Ask the person to stop sharing it before adding more.`);
+    if (shown)
+      throw new Error(
+        `"${MEMORY_DOC_TITLE}" ${shown.reason}. Ask the person to stop sharing it before adding more.`,
+      );
     const content = `${(doc.content ?? "").trimEnd()}\n${line}`;
     if (content.length > MEMORY_MAX_CHARS) {
-      throw new Error(`"${MEMORY_DOC_TITLE}" is full. Ask the person to tidy it before adding more.`);
+      throw new Error(
+        `"${MEMORY_DOC_TITLE}" is full. Ask the person to tidy it before adding more.`,
+      );
     }
-    await updateDocAs(ctx, args.user_id, { id: doc._id, content }, { writer: ASSISTANT_WRITER, reread: "try again in a moment" });
+    await updateDocAs(
+      ctx,
+      args.user_id,
+      { id: doc._id, content },
+      { writer: ASSISTANT_WRITER, reread: "try again in a moment" },
+    );
     return { doc_id: String(doc._id) };
   },
 });
@@ -329,9 +492,18 @@ export const remember = internalMutation({
 /** Refuses a routine anywhere but the person's own assistant conversation,
  *  by routines.ts's one definition of a hosted home and of who may anchor a
  *  routine on it. */
-async function hostedHome(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">) {
-  if (!(await hostedHomeStamp(ctx, conversationId)) || (await hostedOwnerRefusal(ctx, userId, [conversationId]))) {
-    throw new Error("Routines can only be set on your own assistant conversation");
+async function hostedHome(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
+  if (
+    !(await hostedHomeStamp(ctx, conversationId)) ||
+    (await hostedOwnerRefusal(ctx, userId, [conversationId]))
+  ) {
+    throw new Error(
+      "Routines can only be set on your own assistant conversation",
+    );
   }
 }
 
@@ -340,8 +512,14 @@ const routineView = (task: Doc<"agent_tasks">) => ({
   title: task.display_title ?? task.title,
   status: task.status,
   schedule: task.schedule_type,
-  ...(task.cadence ? { repeats: plainCadence(task.cadence) } : task.interval_ms ? { every_hours: Math.round((task.interval_ms / 3_600_000) * 100) / 100 } : {}),
-  ...(task.run_at && task.status === "scheduled" ? { next_run: iso(task.run_at) } : {}),
+  ...(task.cadence
+    ? { repeats: plainCadence(task.cadence) }
+    : task.interval_ms
+      ? { every_hours: Math.round((task.interval_ms / 3_600_000) * 100) / 100 }
+      : {}),
+  ...(task.run_at && task.status === "scheduled"
+    ? { next_run: iso(task.run_at) }
+    : {}),
   ...(task.last_run_at ? { last_run: iso(task.last_run_at) } : {}),
 });
 
@@ -367,10 +545,16 @@ export const scheduleRoutine = internalMutation({
     const prompt = args.prompt.trim();
     if (!prompt) throw new Error("A routine needs something to do");
     const timezone = (await ctx.db.get(args.user_id))?.timezone;
-    const run_at = args.minutes !== undefined && args.weekdays?.length
-      ? firstCadenceRun(cadenceOf(args.minutes, timezone, args.weekdays), Date.now(), args.starts_on)
-      : args.run_at;
-    if (run_at === undefined) throw new Error("A routine needs its first run, or its days and time");
+    const run_at =
+      args.minutes !== undefined && args.weekdays?.length
+        ? firstCadenceRun(
+            cadenceOf(args.minutes, timezone, args.weekdays),
+            Date.now(),
+            args.starts_on,
+          )
+        : args.run_at;
+    if (run_at === undefined)
+      throw new Error("A routine needs its first run, or its days and time");
     const created = await insertTask(ctx, args.user_id, {
       title: args.title?.trim() || prompt.slice(0, 60),
       prompt,
@@ -385,7 +569,9 @@ export const scheduleRoutine = internalMutation({
       weekdays: args.weekdays,
       ...(args.summary?.trim() ? { display_summary: args.summary.trim() } : {}),
     });
-    const row = (await ctx.db.get(created.id as Id<"agent_tasks">)) as Doc<"agent_tasks">;
+    const row = (await ctx.db.get(
+      created.id as Id<"agent_tasks">,
+    )) as Doc<"agent_tasks">;
     // When it first runs and where it arrives, worded here once, so the
     // reply says what the card and Routines say instead of its own paraphrase.
     return {
@@ -396,10 +582,16 @@ export const scheduleRoutine = internalMutation({
   },
 });
 
-async function routinesOf(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">): Promise<Doc<"agent_tasks">[]> {
+async function routinesOf(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<Doc<"agent_tasks">[]> {
   const rows: Doc<"agent_tasks">[] = await ctx.db
     .query("agent_tasks")
-    .withIndex("by_originating_conversation", (q: any) => q.eq("originating_conversation_id", conversationId))
+    .withIndex("by_originating_conversation", (q: any) =>
+      q.eq("originating_conversation_id", conversationId),
+    )
     .collect();
   return rows.filter((t) => String(t.user_id) === String(userId));
 }
@@ -409,19 +601,35 @@ export const listRoutines = internalQuery({
   handler: async (ctx, args) => {
     const rows = await routinesOf(ctx, args.user_id, args.conversation_id);
     return rows
-      .filter((t) => t.status === "scheduled" || t.status === "running" || t.status === "paused")
+      .filter(
+        (t) =>
+          t.status === "scheduled" ||
+          t.status === "running" ||
+          t.status === "paused",
+      )
       .sort((a, b) => (a.run_at ?? Infinity) - (b.run_at ?? Infinity))
       .map(routineView);
   },
 });
 
 export const cancelRoutine = internalMutation({
-  args: { user_id: v.id("users"), conversation_id: v.id("conversations"), id: v.string() },
+  args: {
+    user_id: v.id("users"),
+    conversation_id: v.id("conversations"),
+    id: v.string(),
+  },
   handler: async (ctx, args) => {
     const rows = await routinesOf(ctx, args.user_id, args.conversation_id);
-    const task = rows.find((t) => t.short_id === args.id || String(t._id) === args.id);
+    const task = rows.find(
+      (t) => t.short_id === args.id || String(t._id) === args.id,
+    );
     if (!task) throw new Error(`No routine ${args.id} on this conversation`);
-    const cancelled = await logVerb(ctx, task, { userId: args.user_id, source: "web" }, applyCancel);
+    const cancelled = await logVerb(
+      ctx,
+      task,
+      { userId: args.user_id, source: "web" },
+      applyCancel,
+    );
     return { id: args.id, cancelled };
   },
 });

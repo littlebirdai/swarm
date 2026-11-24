@@ -1,4 +1,9 @@
-import { HandoffLinkChip, HandoffSessionLink, SessionHandoffCard, SessionHandoffNotice } from "./conversation/SessionHandoff";
+import {
+  HandoffLinkChip,
+  HandoffSessionLink,
+  SessionHandoffCard,
+  SessionHandoffNotice,
+} from "./conversation/SessionHandoff";
 import { ChangesProvider } from "./changes/ChangesContext";
 import { WebBranchFeed } from "./changes/WebBranchFeed";
 import { RunThroughFlow } from "./line/widgets/RunThroughFlow";
@@ -9,25 +14,71 @@ import { firstUserPromptOf, forkFamilyOf } from "../hooks/useForkTree";
 import { conversationTitle, hostedTitle } from "../lib/conversationTitle";
 import { sessionRepository } from "../lib/repoNavigation";
 import { repoTreeHref, repoCommitsHref } from "../lib/repoView";
-import { knownPullRequestIds, madeInTranscript, transcriptGitOutcomes } from "../lib/gitToolOutcome";
-import { useConversationCommits, useConversationPullRequests, useSyncConversationCommits, useSyncConversationPullRequestLinks, useSyncConversationPullRequests } from "../hooks/useSyncTimeline";
+import {
+  knownPullRequestIds,
+  madeInTranscript,
+  transcriptGitOutcomes,
+} from "../lib/gitToolOutcome";
+import {
+  useConversationCommits,
+  useConversationPullRequests,
+  useSyncConversationCommits,
+  useSyncConversationPullRequestLinks,
+  useSyncConversationPullRequests,
+} from "../hooks/useSyncTimeline";
 import { BranchCodeLink } from "./repo/RepositoryLinks";
 import { captureException } from "@sentry/react";
-import { RefreshCw as PaletteRestart, Copy as PaletteCopy, Search as PaletteSearch, MessageCircleQuestion as PaletteAsk, Eye as PaletteEye, Pin as PalettePin, GitBranch as PaletteBranch, Rows3 as PaletteRows } from "lucide-react";
+import {
+  RefreshCw as PaletteRestart,
+  Copy as PaletteCopy,
+  Search as PaletteSearch,
+  MessageCircleQuestion as PaletteAsk,
+  Eye as PaletteEye,
+  Pin as PalettePin,
+  GitBranch as PaletteBranch,
+  Rows3 as PaletteRows,
+} from "lucide-react";
 import { usePaletteSessionCommands } from "../lib/paletteSessionCommands";
 import Link from "next/link";
 import { dragCarriesPane } from "../lib/stage";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useRef, useState, useMemo, useImperativeHandle, forwardRef, useCallback, memo, useContext, Fragment, Suspense, type ForwardedRef } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  useImperativeHandle,
+  forwardRef,
+  useCallback,
+  memo,
+  useContext,
+  Fragment,
+  Suspense,
+  type ForwardedRef,
+} from "react";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useEventListener } from "../hooks/useEventListener";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../lib/inputQuiet";
-import { useShortcutContext, usePaneShortcutAction, isMac, hasOpenModal, withShortcut } from "../shortcuts";
+import {
+  useShortcutContext,
+  usePaneShortcutAction,
+  isMac,
+  hasOpenModal,
+  withShortcut,
+} from "../shortcuts";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
-import { composerAgentStatus, useManagedSessionFields, useSessionEscape } from "../hooks/useSessionComposerControls";
+import {
+  composerAgentStatus,
+  useManagedSessionFields,
+  useSessionEscape,
+} from "../hooks/useSessionComposerControls";
 import { useStorageImageUrls } from "../hooks/useStorageImageUrl";
-import { extractSessionImages, mergeSessionImages, type SessionImageEntry } from "../lib/sessionImages";
+import {
+  extractSessionImages,
+  mergeSessionImages,
+  type SessionImageEntry,
+} from "../lib/sessionImages";
 import { isRemoteImageSrc } from "../lib/trustedImageOrigins";
 import { getShareTokenScope, shareTokenArg } from "../lib/shareTokenScope";
 import { ReferenceScopeContext } from "../lib/entityDisplay";
@@ -36,11 +87,44 @@ import { BrowserPaneOfferChip } from "./browser/BrowserPaneOfferChip";
 import { SessionCanvasToggle } from "./conversation/SessionCanvasToggle";
 import { BrowserSessionContext } from "../hooks/useBrowserTabActions";
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
-import { isCommandMessage, cleanContent, cleanTitle, extractFilePaths, isHiddenSystemNotice, isLimitNoticeSuperseded, isContextOnlyUserMessage, initialSubagentPromptId } from "../lib/conversationProcessor";
+import {
+  isCommandMessage,
+  cleanContent,
+  cleanTitle,
+  extractFilePaths,
+  isHiddenSystemNotice,
+  isLimitNoticeSuperseded,
+  isContextOnlyUserMessage,
+  initialSubagentPromptId,
+} from "../lib/conversationProcessor";
 import { foldHostedRetries, type RetryFoldRow } from "../lib/hostedNotice";
-import { ApprovalAnswerLine, HostedNotice, MailConnectChip, RoutineOfferChip, approvalAnswerAddsToReceipt, hostedNoticeKind, offersMailConnect, routineOffer } from "./conversation/HostedNotice";
-import { sessionRoomKey, agentSupportsFork, agentForksFromAnyMessage, isHostedAgentType, isModelSwitchStdout, isForkSeedClientId, isRecoveryContinueClientId, isMidWorkReviveNotice, isMoveInterruptNotice } from "@codecast/shared/contracts";
-import { hostedApprovalAnswer, hostedApprovalState, hostedAsks, type HostedApprovalState } from "../lib/hostedApproval";
+import {
+  ApprovalAnswerLine,
+  HostedNotice,
+  MailConnectChip,
+  RoutineOfferChip,
+  approvalAnswerAddsToReceipt,
+  hostedNoticeKind,
+  offersMailConnect,
+  routineOffer,
+} from "./conversation/HostedNotice";
+import {
+  sessionRoomKey,
+  agentSupportsFork,
+  agentForksFromAnyMessage,
+  isHostedAgentType,
+  isModelSwitchStdout,
+  isForkSeedClientId,
+  isRecoveryContinueClientId,
+  isMidWorkReviveNotice,
+  isMoveInterruptNotice,
+} from "@codecast/shared/contracts";
+import {
+  hostedApprovalAnswer,
+  hostedApprovalState,
+  hostedAsks,
+  type HostedApprovalState,
+} from "../lib/hostedApproval";
 import { GROUP_WINDOW_MS } from "@codecast/shared/chat";
 import { useNowWhen } from "../hooks/useCoarseNow";
 import { isAskTool } from "@codecast/shared/render";
@@ -51,17 +135,57 @@ import { UsageDisplay } from "./UsageDisplay";
 import { StableContextCards } from "./StableContextCards";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { cssZoomOf } from "../lib/cssZoom";
-import { RevealAncestryCtx, RevealInBandCtx, useHostsReveal, useOpenReveal, useRevealAncestryWith } from "../lib/revealHost";
+import {
+  RevealAncestryCtx,
+  RevealInBandCtx,
+  useHostsReveal,
+  useOpenReveal,
+  useRevealAncestryWith,
+} from "../lib/revealHost";
 import { MenuKeyCaps, ShortcutTooltip } from "./KeyboardShortcutsHelp";
-import { animatedHideSession, toggleSessionsLikeFirst } from "../store/undoActions";
+import {
+  animatedHideSession,
+  toggleSessionsLikeFirst,
+} from "../store/undoActions";
 import { toast } from "sonner";
 import { toastWriteError } from "../lib/dispatchBinding";
-import { goalCanPause, goalCanResume, goalFrameLine, goalObjectiveProblem, goalMessageBody, parseGoalCommand, sessionGoalOf } from "@codecast/shared/contracts/sessionGoal";
+import {
+  goalCanPause,
+  goalCanResume,
+  goalFrameLine,
+  goalObjectiveProblem,
+  goalMessageBody,
+  parseGoalCommand,
+  sessionGoalOf,
+} from "@codecast/shared/contracts/sessionGoal";
 import { SessionGoalPill } from "./SessionGoalPill";
-import { ConsequentialSwitch, SwitchReview } from "./consequential/ConsequentialSwitch";
+import {
+  ConsequentialSwitch,
+  SwitchReview,
+} from "./consequential/ConsequentialSwitch";
 import { sessionGoalLedger } from "../lib/sessionGoalLedger";
-import { isJumpReadyToScroll, shouldFollowStreaming, shouldLoadOlder, shouldLoadNewer, isUnrenderedBox, loadOlderNeedsNoRead, jumpRowForMessage, initialScrollEdge, settleTimelineItemAtOffset, cancelActiveItemSettle, releaseScrollTarget, shouldResumeFollow, READER_SCROLL_WINDOW_MS } from "./conversationScroll";
-import { deriveHostedRunningPhrase, deriveRunningPhrase, shouldShowIdleGap, workingSinceForClock, isProducingAgentStatus } from "./workingStatus";
+import {
+  isJumpReadyToScroll,
+  shouldFollowStreaming,
+  shouldLoadOlder,
+  shouldLoadNewer,
+  isUnrenderedBox,
+  loadOlderNeedsNoRead,
+  jumpRowForMessage,
+  initialScrollEdge,
+  settleTimelineItemAtOffset,
+  cancelActiveItemSettle,
+  releaseScrollTarget,
+  shouldResumeFollow,
+  READER_SCROLL_WINDOW_MS,
+} from "./conversationScroll";
+import {
+  deriveHostedRunningPhrase,
+  deriveRunningPhrase,
+  shouldShowIdleGap,
+  workingSinceForClock,
+  isProducingAgentStatus,
+} from "./workingStatus";
 import { quoteToComposer, submitReview } from "../lib/reviewActions";
 import { quoteSelectionIntoReply } from "../lib/quoteSelection";
 import { enterReviewNearCenter } from "../lib/reviewNav";
@@ -71,9 +195,17 @@ import { ReviewScrollIndicators } from "./ReviewNavigation";
 import { useReviewNavigation } from "../hooks/useReviewNavigation";
 import { useConversationCommentsSync } from "../hooks/useConversationComments";
 import { useSyncQuoteDrafts } from "../hooks/useSyncQuoteDrafts";
-import { useSyncConversationExternalEvents, useExternalEvents, externalEventsOldestFirst } from "../hooks/useSyncExternalEvents";
+import {
+  useSyncConversationExternalEvents,
+  useExternalEvents,
+  externalEventsOldestFirst,
+} from "../hooks/useSyncExternalEvents";
 import { ExternalEventRow } from "./feed/ExternalEventRow";
-import { externalEventRowToExternalEvent, isQuietExternalEvent, type ExternalEventRecord } from "../lib/externalEvents";
+import {
+  externalEventRowToExternalEvent,
+  isQuietExternalEvent,
+  type ExternalEventRecord,
+} from "../lib/externalEvents";
 import { extractFileChanges } from "../lib/fileChangeExtractor";
 import { CommitCard } from "./CommitCard";
 import { PRCard } from "./PRCard";
@@ -82,8 +214,21 @@ import { SessionCallPill } from "./calls/SessionCallPill";
 import { useSqueezeToFit } from "../hooks/useSqueezeToFit";
 import { useIsModernStyle } from "../hooks/useVisualStyle";
 import { BackControl } from "./nav/BackControl";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "./ui/dropdown-menu";
-import { ConversationHeaderBar, ConversationHeaderTitle } from "./conversation/ConversationHeaderBar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "./ui/dropdown-menu";
+import {
+  ConversationHeaderBar,
+  ConversationHeaderTitle,
+} from "./conversation/ConversationHeaderBar";
 import { HEADER_CHIP } from "../lib/headerChip";
 import { SessionStatusSlot } from "./conversation/SessionStatusSlot";
 import { DormantWakeChip } from "./conversation/DormantWakeChip";
@@ -94,42 +239,96 @@ import { api as _typedApi } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { ConversationAssignmentBadge } from "./AssignmentBadge";
 import { LocalMirrorChip } from "./LocalMirror";
-import { AssignedToYouBanner, useOwnersFromStore, type HandoffInfo } from "./OwnersBadge";
+import {
+  AssignedToYouBanner,
+  useOwnersFromStore,
+  type HandoffInfo,
+} from "./OwnersBadge";
 import { ThreadSuggestions } from "./org/SuggestionSet";
 import { TmuxAttachPill } from "./TmuxAttachPill";
 import { useAttachCopy } from "../hooks/useAttachCopy";
 import { SessionDaemonChip, SessionHooksOffChip } from "./DaemonStatusChip";
 import { BrowserWatchSplit } from "./browser/BrowserWatchSplit";
 import { PermissionStack, PERMISSION_SKIP_TOOLS } from "./PermissionCard";
-import { PermissionProposals, TeammatePermissions } from "./conversation/teamProposals";
-import { TeamProposalContext, type TeamProposalRole } from "../hooks/useTeamProposals";
-import { useSyncMyTeamSuggestions, useSyncPendingSuggestions } from "../hooks/useGuestSuggestions";
+import {
+  PermissionProposals,
+  TeammatePermissions,
+} from "./conversation/teamProposals";
+import {
+  TeamProposalContext,
+  type TeamProposalRole,
+} from "../hooks/useTeamProposals";
+import {
+  useSyncMyTeamSuggestions,
+  useSyncPendingSuggestions,
+} from "../hooks/useGuestSuggestions";
 import { ThreadDecisionCard } from "./SessionDecisionCard";
 import { PreloadPublishedPage } from "./PublishedPageEmbed";
-import { HostedApprovalCard, HostedApprovalPending, HostedApprovalSettled } from "./conversation/HostedApprovalCard";
-import { PermissionAnswer, PermissionAskCard, PermissionRecordLine } from "./conversation/PermissionAsk";
+import {
+  HostedApprovalCard,
+  HostedApprovalPending,
+  HostedApprovalSettled,
+} from "./conversation/HostedApprovalCard";
+import {
+  PermissionAnswer,
+  PermissionAskCard,
+  PermissionRecordLine,
+} from "./conversation/PermissionAsk";
 import { useRunningPermission } from "../hooks/useRunningPermission";
-import { DecisionStepperContext, usePendingDecisionItems } from "../hooks/useDecisionQueue";
+import {
+  DecisionStepperContext,
+  usePendingDecisionItems,
+} from "../hooks/useDecisionQueue";
 import { copyToClipboard, shareOrigin, inferHomeDir } from "../lib/utils";
 import { useWorkflowRun, useWorkflows } from "../hooks/useSyncWorkflows";
-import { usePendingMessageStatus, usePendingPermissions } from "../hooks/useSyncPendingPermissions";
+import {
+  usePendingMessageStatus,
+  usePendingPermissions,
+} from "../hooks/useSyncPendingPermissions";
 import { useAckActiveConversation } from "../hooks/useAckActiveConversation";
 import type { SentFileData } from "./tools/SentFileBlock";
 import { dropScrapedProseTwins } from "../lib/proseTwins";
 import { MessagePromptPreview } from "./MessagePromptPreview";
-import { ImageGalleryProvider, GalleryMessageScope, type GalleryImage } from "./ImageGallery";
+import {
+  ImageGalleryProvider,
+  GalleryMessageScope,
+  type GalleryImage,
+} from "./ImageGallery";
 import { PlanBadge } from "./PlanTaskHoverCard";
 import { TaskContextPanel } from "./work/TaskContextPanel";
 import { ContextRail } from "./ContextRail";
 import { EntityIdPill } from "./EntityIdPill";
 import { ThreadStatePanel } from "./ThreadStatePanel";
 import { HighlightContext } from "./HighlightContext";
-import { instancesFromMatches, planActivation, skipDeadHit, stepIndex, walkSearchPages, type MatchInstance, type PendingHit } from "../lib/conversationSearch";
+import {
+  instancesFromMatches,
+  planActivation,
+  skipDeadHit,
+  stepIndex,
+  walkSearchPages,
+  type MatchInstance,
+  type PendingHit,
+} from "../lib/conversationSearch";
 import { FilePathContext } from "../lib/filePathLinks";
 import { WorktreesProvider } from "./worktree/WorktreesContext";
 import { SessionWorktreePills } from "./worktree/WorktreePill";
-import { isStickyEligible, pickStickyFallback, stickyPromptContent, mergeNavigatorSources, buildNavigatorRows, resolveStickyPrompt, resolveNavigatorCurrentId, topVisibleIndexFromRects } from "../lib/messageNavigator";
-import { isToolResultCarrier, foldNudgeRuns, nudgeLabel, type NudgeRow, type ChatWakePrompt } from "./sessionMessage";
+import {
+  isStickyEligible,
+  pickStickyFallback,
+  stickyPromptContent,
+  mergeNavigatorSources,
+  buildNavigatorRows,
+  resolveStickyPrompt,
+  resolveNavigatorCurrentId,
+  topVisibleIndexFromRects,
+} from "../lib/messageNavigator";
+import {
+  isToolResultCarrier,
+  foldNudgeRuns,
+  nudgeLabel,
+  type NudgeRow,
+  type ChatWakePrompt,
+} from "./sessionMessage";
 import { CollabRequestBanner, OwnerComposerPresence } from "./CollabComposer";
 import { GhostDrafts } from "./conversation/GhostDrafts";
 import { SharedQueue } from "./conversation/SharedQueue";
@@ -137,12 +336,38 @@ import { ReaderFaces, ReadingMarks } from "./conversation/ReadingMarks";
 import { composerPresenceEnabled, hasCoPresent } from "../lib/composerPresence";
 import { ConversationViewers } from "./presence/ViewerFaces";
 import { anchorFromRects } from "../lib/follow";
-import { normalizeCastCategory, buildBrowserRowMap, sameBrowserRowMap, type BrowserRowInput, type BrowserRowState } from "./castCommand";
-import { useInboxStore, isConvexId, isIdleLandingStub, newProjectStartedBy, newProjectHref, viewerCommandsSession, computeNewDividerIndex, convBucketMap, type BucketItem, type ForkChild, type InboxSession, resolveSimpleView, resolveVisualStyle } from "../store/inboxStore";
-import { DispatchNotWiredError, isParkedDispatchError } from "../store/mutativeMiddleware";
+import {
+  normalizeCastCategory,
+  buildBrowserRowMap,
+  sameBrowserRowMap,
+  type BrowserRowInput,
+  type BrowserRowState,
+} from "./castCommand";
+import {
+  useInboxStore,
+  isConvexId,
+  isIdleLandingStub,
+  newProjectStartedBy,
+  newProjectHref,
+  viewerCommandsSession,
+  computeNewDividerIndex,
+  convBucketMap,
+  type BucketItem,
+  type ForkChild,
+  type InboxSession,
+  resolveSimpleView,
+  resolveVisualStyle,
+} from "../store/inboxStore";
+import {
+  DispatchNotWiredError,
+  isParkedDispatchError,
+} from "../store/mutativeMiddleware";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useForkNavigationStore } from "../store/forkNavigationStore";
-import { buildCompositeTimeline, mergeTimelineMessages } from "../lib/compositeTimeline";
+import {
+  buildCompositeTimeline,
+  mergeTimelineMessages,
+} from "../lib/compositeTimeline";
 import { useMessageSelection } from "../hooks/useMessageSelection";
 import { ForkMapBox, ForkMapFallback, BranchMapLayers } from "./ForkTreePanel";
 import { setupDesktopDrag, desktopHeaderClass } from "../lib/desktop";
@@ -156,7 +381,20 @@ import { askSideQuestion } from "../lib/sideAnswers";
 import { openSessionAtMessage } from "../lib/openSessionAtMessage";
 import type { MentionItem } from "./editor/MentionList";
 import { HeaderPinMenuItem } from "./anchor/AnchorPanel";
-import { Headphones, MessageSquare, CornerDownRight, Split, Workflow, Loader2, Bot, Forward, ArrowRightLeft, Cpu, FolderTree, ChevronLeft } from "lucide-react";
+import {
+  Headphones,
+  MessageSquare,
+  CornerDownRight,
+  Split,
+  Workflow,
+  Loader2,
+  Bot,
+  Forward,
+  ArrowRightLeft,
+  Cpu,
+  FolderTree,
+  ChevronLeft,
+} from "lucide-react";
 import { filesHref } from "../lib/vault/vaultHref";
 import { openFiles } from "../lib/filesPane";
 import { openForwardToChat } from "../lib/forwardToChat";
@@ -168,36 +406,148 @@ import { type IdentityRow } from "../lib/sessionIdentity";
 import { useConversationIdentityRow } from "../hooks/useLiveIdentityRow";
 import { SessionIdentityLine } from "./identity/SessionIdentityLine";
 import { buildMentionItems } from "../hooks/useMentionQuery";
-import { ECHO_SKEW_MS, isActiveAgentStatus, serverPendingBubbles, type LiveAgentStatus } from "../lib/pendingBanner";
-import { sessionStartupState, SESSION_STARTING_GRACE_MS } from "../lib/sessionLifecycle";
+import {
+  ECHO_SKEW_MS,
+  isActiveAgentStatus,
+  serverPendingBubbles,
+  type LiveAgentStatus,
+} from "../lib/pendingBanner";
+import {
+  sessionStartupState,
+  SESSION_STARTING_GRACE_MS,
+} from "../lib/sessionLifecycle";
 import { messageRowKey, uniqueRowKeys } from "../lib/messageRowKey";
 import { messageAgentTypes, sameMessageAuthor } from "../lib/messageAuthors";
-import { useSessionRestart, ghostRestartContextFor } from "../hooks/useSessionRestart";
+import {
+  useSessionRestart,
+  ghostRestartContextFor,
+} from "../hooks/useSessionRestart";
 import { devRenderCount, devCountElements } from "../lib/devRenderCount";
 import { MessageInput } from "./MessageInput";
 import { PlanBlock } from "./conversation/blocks/planBlock";
-import { CastBrowserRowContext, ChatWakeContext, HostedAskingContext, HostedCardShownContext } from "../lib/conversationBlockContexts";
+import {
+  CastBrowserRowContext,
+  ChatWakeContext,
+  HostedAskingContext,
+  HostedCardShownContext,
+} from "../lib/conversationBlockContexts";
 import { UserIcon } from "./conversation/blocks/shared";
 import { agentColorMap } from "../lib/conversationBlockStyles";
 import { VaultReadyLine } from "./conversation/blocks/VaultRequestCard";
-import { AgentSwitchDivider, BashCommandBlock, ContextRecoveryDivider, ChatWakeBlock, CommandMessageBlock, SlashCommandChip, CompactionSummaryBlock, EscalationDivider, FoldedPromptBlock, HuddleSummaryBlock, InterruptStatusLine, MachineMoveDivider, NudgeLine, ReviveDivider, ScheduledTaskBlock, SessionMessageBlock, SkillExpansionBlock, SystemBlock, TaskNotificationLine, TeammateEventsBlock, WorkflowEventBlock, WorkflowTaskBlock } from "./conversation/blocks/systemBlocks";
+import {
+  AgentSwitchDivider,
+  BashCommandBlock,
+  ContextRecoveryDivider,
+  ChatWakeBlock,
+  CommandMessageBlock,
+  SlashCommandChip,
+  CompactionSummaryBlock,
+  EscalationDivider,
+  FoldedPromptBlock,
+  HuddleSummaryBlock,
+  InterruptStatusLine,
+  MachineMoveDivider,
+  NudgeLine,
+  ReviveDivider,
+  ScheduledTaskBlock,
+  SessionMessageBlock,
+  SkillExpansionBlock,
+  SystemBlock,
+  TaskNotificationLine,
+  TeammateEventsBlock,
+  WorkflowEventBlock,
+  WorkflowTaskBlock,
+} from "./conversation/blocks/systemBlocks";
 import { CompactTurnCard } from "./conversation/blocks/compactTurnCard";
-import { AgentWorkingBubble, AssistantBlock, CompactCollapsedTurn, ForkSeedMark, GitDiffPanel, StoryTimelineView, ThreadSummaryView, UserPrompt } from "./conversation/blocks/turnBlocks";
+import {
+  AgentWorkingBubble,
+  AssistantBlock,
+  CompactCollapsedTurn,
+  ForkSeedMark,
+  GitDiffPanel,
+  StoryTimelineView,
+  ThreadSummaryView,
+  UserPrompt,
+} from "./conversation/blocks/turnBlocks";
 import { cleanChatOf, cleanKeepsSystemRow } from "../lib/cleanThread";
-import { COMPACT_TAIL_HEIGHT, EMPTY_CHILD_CONVERSATIONS, EMPTY_RECEIPT_ENTRIES } from "../lib/conversationTurnDefaults";
-import { FOLD_KEPT_USER_KINDS, canAnchorForkChips, classifyUserMessage, directUserOf, cleanStickyContent, stickyCommand, extractCompactionSummaryContent, isAlwaysVisibleToolCall, isHiddenStubMessage, isStickyWorthy, isToolReceiptRow, normalizePendingContent, parseCastCommand, parseWorkflowEventContent, sameStringArray, stripSystemTags } from "./conversation/classify";
-import { formatMessagePartsForCopy, formatRelativeTime } from "../lib/conversationFormat";
+import {
+  COMPACT_TAIL_HEIGHT,
+  EMPTY_CHILD_CONVERSATIONS,
+  EMPTY_RECEIPT_ENTRIES,
+} from "../lib/conversationTurnDefaults";
+import {
+  FOLD_KEPT_USER_KINDS,
+  canAnchorForkChips,
+  classifyUserMessage,
+  directUserOf,
+  cleanStickyContent,
+  stickyCommand,
+  extractCompactionSummaryContent,
+  isAlwaysVisibleToolCall,
+  isHiddenStubMessage,
+  isStickyWorthy,
+  isToolReceiptRow,
+  normalizePendingContent,
+  parseCastCommand,
+  parseWorkflowEventContent,
+  sameStringArray,
+  stripSystemTags,
+} from "./conversation/classify";
+import {
+  formatMessagePartsForCopy,
+  formatRelativeTime,
+} from "../lib/conversationFormat";
 import { PeerTransferStrip } from "./conversation/PeerTransferStrip";
-import { ConversationAgeMenuItems, ConversationMetadata, ConversationTaskProgress, ConversationTaskStatsMenuItem, DensityMenuOptions, DeviceMoveStatusStrip, EdgeMessagesIndicator, HandoffMarker, MessagesUnavailableState, RestartStatusStrip, SummaryOnlyState, SessionGalleryButton, ThreadTailLoader, TimelineRule } from "./conversation/sessionChrome";
+import {
+  ConversationAgeMenuItems,
+  ConversationMetadata,
+  ConversationTaskProgress,
+  ConversationTaskStatsMenuItem,
+  DensityMenuOptions,
+  DeviceMoveStatusStrip,
+  EdgeMessagesIndicator,
+  HandoffMarker,
+  MessagesUnavailableState,
+  RestartStatusStrip,
+  SummaryOnlyState,
+  SessionGalleryButton,
+  ThreadTailLoader,
+  TimelineRule,
+} from "./conversation/sessionChrome";
 import { SessionAccountLine } from "./conversation/SessionAccountLabel";
 import { HeaderModelControl } from "./SessionControlMenu";
 import { useEffortKeys } from "../hooks/useEffortKeys";
-import { DENSITY_BY_CONVERSATION, DENSITY_OPTIONS, FEED_DENSITY_CYCLE, defaultDensity } from "../lib/conversationDensity";
+import {
+  DENSITY_BY_CONVERSATION,
+  DENSITY_OPTIONS,
+  FEED_DENSITY_CYCLE,
+  defaultDensity,
+} from "../lib/conversationDensity";
 import { followRestoredConversation } from "../lib/followRestoredConversation";
-import { NewSessionFoot, NewSessionView, NonOwnerMessageInput } from "./conversation/sessionControls";
+import {
+  NewSessionFoot,
+  NewSessionView,
+  NonOwnerMessageInput,
+} from "./conversation/sessionControls";
 import { useRoleRecipient } from "./ComposeRolePicker";
 import { focusComposer } from "../lib/composerControl";
-import type { Commit, CondensedReceipt, ConversationDensity, ConversationViewHandle, ConversationViewProps, ImageData, Message, MessageFeedDensity, PullRequest, ReceiptEntry, TaskRecord, TimelineItem, ToolCallChangeSelection, ToolResult, UserMessageKind } from "./conversation/types";
+import type {
+  Commit,
+  CondensedReceipt,
+  ConversationDensity,
+  ConversationViewHandle,
+  ConversationViewProps,
+  ImageData,
+  Message,
+  MessageFeedDensity,
+  PullRequest,
+  ReceiptEntry,
+  TaskRecord,
+  TimelineItem,
+  ToolCallChangeSelection,
+  ToolResult,
+  UserMessageKind,
+} from "./conversation/types";
 import { useConversationFileDrop } from "../hooks/useConversationFileDrop";
 import { useWorkflowLaunch } from "../hooks/useWorkflowLaunch";
 import { usePermissionModeSwitch } from "../hooks/usePermissionModeSwitch";
@@ -215,14 +565,21 @@ import { useOfferedFeatures } from "./agentFeatures/useFeatureOffer";
 import { pickFeatureMoment, type MomentFeature } from "../lib/featureMoments";
 import { Button } from "./ui/button";
 import { attributeMeasurementsByKey } from "../lib/virtualList/attributeByKey";
-import { createScrollHold, type ScrollHold } from "../lib/virtualList/scrollHold";
+import {
+  createScrollHold,
+  type ScrollHold,
+} from "../lib/virtualList/scrollHold";
 import { visibleInterval, whileWindowVisible } from "../lib/windowVisibleWork";
 import { VLIST_LEGACY } from "../lib/virtualList/legacyFlags";
 import { useScrollSeek } from "../hooks/useScrollSeek";
 import { adjustScrollForResizeRule } from "../lib/virtualList/resizeAdjust";
 import { lazyNamed } from "../lib/lazyNamed";
 
-const MOMENT_FEATURES: readonly MomentFeature[] = ["decide", "visual", "publish"];
+const MOMENT_FEATURES: readonly MomentFeature[] = [
+  "decide",
+  "visual",
+  "publish",
+];
 /** Agent states in which the session is waiting on its human, not working. */
 const AWAITING_HUMAN = new Set(["idle", "waiting", "done"]);
 // Room under the last transcript row. Ghost drafts pull up into it so they sit
@@ -231,13 +588,29 @@ const VIRTUAL_PADDING_END = 100;
 // Debug override that keeps the sticky prompt on where it is disabled. Read
 // once: the scroll check runs every frame, and blocked storage throws.
 const STICKY_FORCE = (() => {
-  try { return typeof localStorage !== "undefined" && localStorage.getItem("__STICKY_FORCE") === "1"; } catch { return false; }
+  try {
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("__STICKY_FORCE") === "1"
+    );
+  } catch {
+    return false;
+  }
 })();
 const api = _typedApi as any;
 
-const CommentDock = lazyNamed(() => import("./comments/CommentDock"), "CommentDock");
-const ConversationTerminalSplit = lazyNamed(() => import("./terminal/ConversationTerminal"), "ConversationTerminalSplit");
-const SessionHuddleButton = lazyNamed(() => import("./calls/OccupancyChip"), "SessionHuddleButton");
+const CommentDock = lazyNamed(
+  () => import("./comments/CommentDock"),
+  "CommentDock",
+);
+const ConversationTerminalSplit = lazyNamed(
+  () => import("./terminal/ConversationTerminal"),
+  "ConversationTerminalSplit",
+);
+const SessionHuddleButton = lazyNamed(
+  () => import("./calls/OccupancyChip"),
+  "SessionHuddleButton",
+);
 
 const EMPTY_PENDING: any[] = [];
 const EMPTY_MESSAGES: any[] = [];
@@ -246,16 +619,23 @@ const EMPTY_MATCH_INSTANCES: MatchInstance[] = [];
 /** Search marks for one message inside its virtualizer row. Scoped to the
  *  message's own block when it has one; a message folded into another row
  *  (condensed density) has none, so the whole row is the scope. */
-function searchMarksIn(rowEl: Element | null, messageId: string): HTMLElement[] {
+function searchMarksIn(
+  rowEl: Element | null,
+  messageId: string,
+): HTMLElement[] {
   if (!rowEl) return [];
   const scope = rowEl.querySelector(`#msg-${CSS.escape(messageId)}`) ?? rowEl;
-  return Array.from(scope.querySelectorAll<HTMLElement>('mark[data-search-highlight]'));
+  return Array.from(
+    scope.querySelectorAll<HTMLElement>("mark[data-search-highlight]"),
+  );
 }
 
 /** Exactly one mark in the feed carries the active look (globals.css). */
 function markActive(container: Element, target: HTMLElement) {
-  container.querySelectorAll('mark[data-search-active]').forEach((m) => { if (m !== target) m.removeAttribute('data-search-active'); });
-  target.setAttribute('data-search-active', 'true');
+  container.querySelectorAll("mark[data-search-active]").forEach((m) => {
+    if (m !== target) m.removeAttribute("data-search-active");
+  });
+  target.setAttribute("data-search-active", "true");
 }
 
 // Skips a Convex query for the first paint after the keyed value (e.g. conversation id)
@@ -293,7 +673,10 @@ function virtHeightKey(itemKey: string | number, densityKey: string): string {
 
 function recordVirtHeight(key: string, size: number) {
   if (size <= 0) return; // 0-height rows are already exact via the heuristic; don't cache
-  if (VIRT_HEIGHT_CACHE.size >= VIRT_HEIGHT_CACHE_MAX && !VIRT_HEIGHT_CACHE.has(key)) {
+  if (
+    VIRT_HEIGHT_CACHE.size >= VIRT_HEIGHT_CACHE_MAX &&
+    !VIRT_HEIGHT_CACHE.has(key)
+  ) {
     const oldest = VIRT_HEIGHT_CACHE.keys().next().value;
     if (oldest !== undefined) VIRT_HEIGHT_CACHE.delete(oldest);
   }
@@ -305,24 +688,86 @@ function recordVirtHeight(key: string, size: number) {
 // Fast Refresh signs the caller, whose own hook list never changes, so an edit
 // that adds a hook here keeps the fiber and crashes on the shifted hook slot
 // ("Should have a queue"). The dev sizing happens inside the body instead.
-const ConversationViewInner = (
-  function ConversationView({ conversation, commits = [], pullRequests = [], backHref, backLabel = "Back", headerExtra, headerLeft, headerEnd, hasMoreAbove, hasMoreBelow, isLoadingOlder, isLoadingNewer, onLoadOlder, onLoadNewer, onJumpToStart, onJumpToEnd, onJumpToTimestamp, highlightQuery: propHighlightQuery, onClearHighlight: propClearHighlight, embedded, showMessageInput = true, targetMessageId, targetNonce, isJumpingToTarget, onTargetSettled, isOwner = true, guest = false, onSendAndAdvance, onSendAndDismiss, autoFocusInput, fallbackStickyContent: rawFallbackStickyContent, onBack, subHeaderContent, hideHeader, onSubmitWithIntent, onSendOverride, composerNode, leadNode, leadPinned, stickyPrompt = true, initialDensity, foldWorkingTurns: foldAsked = false, openAtTop = false, composerPlaceholder, hostsCommentRail = true, hideHeaderTitle }: ConversationViewProps, ref: ForwardedRef<ConversationViewHandle>) {
+const ConversationViewInner = function ConversationView(
+  {
+    conversation,
+    commits = [],
+    pullRequests = [],
+    backHref,
+    backLabel = "Back",
+    headerExtra,
+    headerLeft,
+    headerEnd,
+    hasMoreAbove,
+    hasMoreBelow,
+    isLoadingOlder,
+    isLoadingNewer,
+    onLoadOlder,
+    onLoadNewer,
+    onJumpToStart,
+    onJumpToEnd,
+    onJumpToTimestamp,
+    highlightQuery: propHighlightQuery,
+    onClearHighlight: propClearHighlight,
+    embedded,
+    showMessageInput = true,
+    targetMessageId,
+    targetNonce,
+    isJumpingToTarget,
+    onTargetSettled,
+    isOwner = true,
+    guest = false,
+    onSendAndAdvance,
+    onSendAndDismiss,
+    autoFocusInput,
+    fallbackStickyContent: rawFallbackStickyContent,
+    onBack,
+    subHeaderContent,
+    hideHeader,
+    onSubmitWithIntent,
+    onSendOverride,
+    composerNode,
+    leadNode,
+    leadPinned,
+    stickyPrompt = true,
+    initialDensity,
+    foldWorkingTurns: foldAsked = false,
+    openAtTop = false,
+    composerPlaceholder,
+    hostsCommentRail = true,
+    hideHeaderTitle,
+  }: ConversationViewProps,
+  ref: ForwardedRef<ConversationViewHandle>,
+) {
   devRenderCount("ConversationView2");
   const renderStart = performance.now();
   // Clean mode is the seat's own setting (anchors.clean_chat): the page asks
   // for it, and the agent's switch says whether its thread reads that way.
-  const foldWorkingTurns = useInboxStore((st) => foldAsked && cleanChatOf((st as any).anchors, conversation?._id));
-  const fallbackStickyContent = useMemo(() => stickyPromptContent(rawFallbackStickyContent), [rawFallbackStickyContent]);
+  const foldWorkingTurns = useInboxStore(
+    (st) => foldAsked && cleanChatOf((st as any).anchors, conversation?._id),
+  );
+  const fallbackStickyContent = useMemo(
+    () => stickyPromptContent(rawFallbackStickyContent),
+    [rawFallbackStickyContent],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const [userScrolled, _setUserScrolled] = useState(false);
   const userScrolledRef = useRef(false);
-  const setUserScrolled = useCallback((v: boolean) => { userScrolledRef.current = v; _setUserScrolled(v); }, []);
+  const setUserScrolled = useCallback((v: boolean) => {
+    userScrolledRef.current = v;
+    _setUserScrolled(v);
+  }, []);
   // Unsigned share-link visitors stay at the top until they choose the tail
   // (jump-to-end / scroll-to-bottom). End-follow and the size-reconciler pin
   // would otherwise yank them to the latest message as rows measure in.
-  const [guestStayAtTop, _setGuestStayAtTop] = useState(() => (guest || openAtTop) && !targetMessageId && !propHighlightQuery);
+  const [guestStayAtTop, _setGuestStayAtTop] = useState(
+    () => (guest || openAtTop) && !targetMessageId && !propHighlightQuery,
+  );
   const guestStayAtTopRef = useRef(guestStayAtTop);
-  const setGuestStayAtTop = useCallback((v: boolean) => { guestStayAtTopRef.current = v; _setGuestStayAtTop(v); }, []);
+  const setGuestStayAtTop = useCallback((v: boolean) => {
+    guestStayAtTopRef.current = v;
+    _setGuestStayAtTop(v);
+  }, []);
   const [isNearTop, setIsNearTop] = useState(true);
   // Position twin of isNearTop for the bottom edge (200px band). The jump
   // buttons hide inside these bands — the userScrolled gesture latch alone
@@ -332,28 +777,42 @@ const ConversationViewInner = (
   // Guests read in simple view (DashboardLayout's guest branch), so they get
   // its calmer condensed default too — without owning a simple_view pref.
   const resolveDefaultDensity = useCallback(
-    (): ConversationDensity => initialDensity ?? (guest ? "condensed" : defaultDensity()),
-    [guest, initialDensity]
+    (): ConversationDensity =>
+      initialDensity ?? (guest ? "condensed" : defaultDensity()),
+    [guest, initialDensity],
   );
-  const [density, setDensityState] = useState<ConversationDensity>(resolveDefaultDensity);
-  const setDensity = useCallback((d: ConversationDensity) => {
-    setDensityState(d);
-    if (conversation?._id) DENSITY_BY_CONVERSATION.set(conversation._id, d);
-  }, [conversation?._id]);
+  const [density, setDensityState] = useState<ConversationDensity>(
+    resolveDefaultDensity,
+  );
+  const setDensity = useCallback(
+    (d: ConversationDensity) => {
+      setDensityState(d);
+      if (conversation?._id) DENSITY_BY_CONVERSATION.set(conversation._id, d);
+    },
+    [conversation?._id],
+  );
   // Toggling Simple view retunes the open conversation immediately — but only
   // when the user hasn't explicitly picked a density for it (that choice wins).
-  const simpleViewPref = useInboxStore((st) => resolveSimpleView(st.clientState.ui));
+  const simpleViewPref = useInboxStore((st) =>
+    resolveSimpleView(st.clientState.ui),
+  );
   // Minimal tucks the schedule, plan and workflow strips under the header
   // away; this preference (session menu, command palette) brings them back.
-  const minimalStyle = useInboxStore((st) => resolveVisualStyle(st.clientState.ui) === "minimal");
-  const showSessionContext = useInboxStore((st) => st.clientState.ui?.show_session_context === true);
+  const minimalStyle = useInboxStore(
+    (st) => resolveVisualStyle(st.clientState.ui) === "minimal",
+  );
+  const showSessionContext = useInboxStore(
+    (st) => st.clientState.ui?.show_session_context === true,
+  );
   useWatchEffect(() => {
-    if (conversation?._id && DENSITY_BY_CONVERSATION.has(conversation._id)) return;
+    if (conversation?._id && DENSITY_BY_CONVERSATION.has(conversation._id))
+      return;
     setDensityState(resolveDefaultDensity());
   }, [simpleViewPref]);
   // Feed-rendering density: story/summary swap the feed out entirely, so the
   // virtualizer (and its height cache keys) only ever sees the first three.
-  const feedDensity: MessageFeedDensity = density === "condensed" || density === "compact" ? density : "full";
+  const feedDensity: MessageFeedDensity =
+    density === "condensed" || density === "compact" ? density : "full";
   const condensedFeed = feedDensity !== "full";
   // Turn level folding is compact's own. Fold mode hides machine prompts but
   // never a reply: every text the agent wrote stays on screen.
@@ -366,9 +825,10 @@ const ConversationViewInner = (
   // Cleared when the feed density changes (below) and on conversation switch.
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const toggleGroup = useCallback((key: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -384,7 +844,10 @@ const ConversationViewInner = (
   // preview (ThinkingBlock's own per-message state).
   const [showThinking, setShowThinking] = useState(false);
   const convex = useConvex();
-  const convexConvId = conversation?._id && isConvexId(conversation._id) ? conversation._id as Id<"conversations"> : undefined;
+  const convexConvId =
+    conversation?._id && isConvexId(conversation._id)
+      ? (conversation._id as Id<"conversations">)
+      : undefined;
   // Defer non-critical Convex queries one macrotask past a conversation switch so the
   // message list paints before the cascade fires.
   const deferredQueriesEnabled = useDeferUntilSettled(conversation?._id);
@@ -392,7 +855,7 @@ const ConversationViewInner = (
     api.conversations.getConversationGitDiff,
     deferredQueriesEnabled && diffExpanded && convexConvId
       ? { conversation_id: convexConvId, ...shareTokenArg(convexConvId) }
-      : "skip"
+      : "skip",
   ).data;
   const renamingSessionId = useInboxStore((s) => s.renamingSessionId);
   const isRenaming = renamingSessionId === conversation?._id;
@@ -404,10 +867,16 @@ const ConversationViewInner = (
       setTimeout(() => renameInputRef.current?.select(), 0);
     }
   }, [isRenaming]);
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [matchInstances, setMatchInstances] = useState<MatchInstance[]>(EMPTY_MATCH_INSTANCES);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
+  const [matchInstances, setMatchInstances] = useState<MatchInstance[]>(
+    EMPTY_MATCH_INSTANCES,
+  );
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [searchStatus, setSearchStatus] = useState<"idle" | "searching" | "done" | "error">("idle");
+  const [searchStatus, setSearchStatus] = useState<
+    "idle" | "searching" | "done" | "error"
+  >("idle");
   // The hit the view is bringing into view right now. Navigation points at
   // it; the activation loop (after the virtualizer) consumes it. Declared
   // here, above the session-switch reset that clears it during render.
@@ -416,7 +885,10 @@ const ConversationViewInner = (
   // the virtualizer remounts rows and streaming re-renders markdown, and
   // either one recreates the <mark> without the attribute. An effect below
   // re-applies it after every render.
-  const [activeHit, setActiveHit] = useState<{ messageId: string; localIndex: number } | null>(null);
+  const [activeHit, setActiveHit] = useState<{
+    messageId: string;
+    localIndex: number;
+  } | null>(null);
   const activationSeqRef = useRef(0);
   const [isLocalSearchOpen, setIsLocalSearchOpen] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState("");
@@ -434,16 +906,27 @@ const ConversationViewInner = (
   // `/btw <question>` in the composer: a side answer in the Ask panel, never a
   // message to the agent; the composer keeps focus. A bare `/btw` opens the
   // panel ready to type.
-  const handleSideQuestion = useCallback((question: string) => {
-    openAskPanel(!question);
-    return question ? askSideQuestion(askConversationId, question) : null;
-  }, [askConversationId, openAskPanel]);
+  const handleSideQuestion = useCallback(
+    (question: string) => {
+      openAskPanel(!question);
+      return question ? askSideQuestion(askConversationId, question) : null;
+    },
+    [askConversationId, openAskPanel],
+  );
   useWatchEffect(() => {
-    if (!localSearchQuery) { setDebouncedSearchQuery(""); return; }
-    const timer = setTimeout(() => setDebouncedSearchQuery(localSearchQuery), 300);
+    if (!localSearchQuery) {
+      setDebouncedSearchQuery("");
+      return;
+    }
+    const timer = setTimeout(
+      () => setDebouncedSearchQuery(localSearchQuery),
+      300,
+    );
     return () => clearTimeout(timer);
   }, [localSearchQuery]);
-  const highlightQuery = isLocalSearchOpen ? (debouncedSearchQuery || undefined) : propHighlightQuery;
+  const highlightQuery = isLocalSearchOpen
+    ? debouncedSearchQuery || undefined
+    : propHighlightQuery;
   const onClearHighlight = useCallback(() => {
     if (isLocalSearchOpen) {
       setIsLocalSearchOpen(false);
@@ -464,14 +947,21 @@ const ConversationViewInner = (
   const scrollbarHeldRef = useRef(false);
   const scrollProgressRef = useRef<HTMLDivElement>(null);
   // Not state: it moves on every scroll frame, and only the message rail reads it.
-  const [navScrollProgress] = useState(() => createScrollProgressSignal(guest && !targetMessageId && !propHighlightQuery ? 0 : 1));
+  const [navScrollProgress] = useState(() =>
+    createScrollProgressSignal(
+      guest && !targetMessageId && !propHighlightQuery ? 0 : 1,
+    ),
+  );
   const hasScrolledToTarget = useRef(false);
-  const [jumpPending, _setJumpPending] = useState<'start' | 'end' | null>(null);
+  const [jumpPending, _setJumpPending] = useState<"start" | "end" | null>(null);
   // Synchronous mirror of jumpPending so scroll handlers / effects can read it
   // without going through React state (which lags a render behind).
-  const jumpPendingRef = useRef<'start' | 'end' | null>(null);
-  const setJumpPending = useCallback((v: 'start' | 'end' | null) => { jumpPendingRef.current = v; _setJumpPending(v); }, []);
-  const jumpDirectionRef = useRef<'start' | 'end' | null>(null);
+  const jumpPendingRef = useRef<"start" | "end" | null>(null);
+  const setJumpPending = useCallback((v: "start" | "end" | null) => {
+    jumpPendingRef.current = v;
+    _setJumpPending(v);
+  }, []);
+  const jumpDirectionRef = useRef<"start" | "end" | null>(null);
   const isPaginatingRef = useRef(false);
   // Armed by a genuine user scroll-up (wheel/touch) and CONSUMED on each
   // older-page load. This is what keeps "scroll to the top → load older" from
@@ -499,17 +989,47 @@ const ConversationViewInner = (
   // (not virtualizer estimates) → pixel-perfect. Re-captured on every scroll
   // while the page is in flight, so it holds where the reader is when the page
   // lands, not where they were when it was asked for.
-  const pageAnchorRef = useRef<{ id: string; relTop: number; scrollHeight: number; scrollTop: number; dir: 'older' | 'newer'; until: number; loading?: boolean } | null>(null);
-  const paginationPropsRef = useRef({ hasMoreAbove: false, hasMoreBelow: false, isLoadingOlder: false, isLoadingNewer: false, onLoadOlder: undefined as (() => void) | undefined, onLoadNewer: undefined as (() => void) | undefined });
-  paginationPropsRef.current = { hasMoreAbove: !!hasMoreAbove, hasMoreBelow: !!hasMoreBelow, isLoadingOlder: !!isLoadingOlder, isLoadingNewer: !!isLoadingNewer, onLoadOlder, onLoadNewer };
-  const scrollCtxRef = useRef({ messageCount: 0, messagesLen: 0, timelineLen: 0, loadedStartIndex: 0 });
+  const pageAnchorRef = useRef<{
+    id: string;
+    relTop: number;
+    scrollHeight: number;
+    scrollTop: number;
+    dir: "older" | "newer";
+    until: number;
+    loading?: boolean;
+  } | null>(null);
+  const paginationPropsRef = useRef({
+    hasMoreAbove: false,
+    hasMoreBelow: false,
+    isLoadingOlder: false,
+    isLoadingNewer: false,
+    onLoadOlder: undefined as (() => void) | undefined,
+    onLoadNewer: undefined as (() => void) | undefined,
+  });
+  paginationPropsRef.current = {
+    hasMoreAbove: !!hasMoreAbove,
+    hasMoreBelow: !!hasMoreBelow,
+    isLoadingOlder: !!isLoadingOlder,
+    isLoadingNewer: !!isLoadingNewer,
+    onLoadOlder,
+    onLoadNewer,
+  };
+  const scrollCtxRef = useRef({
+    messageCount: 0,
+    messagesLen: 0,
+    timelineLen: 0,
+    loadedStartIndex: 0,
+  });
   const knownItemIdsRef = useRef<Set<string>>(new Set());
   const newItemIdsRef = useRef<Set<string>>(new Set());
   const mountTimeRef = useRef(Date.now());
   const [shareSelectionMode, setShareSelectionMode] = useState(false);
-  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
-  const [shareIncludeConversation, setShareIncludeConversation] = useState(false);
+  const [shareIncludeConversation, setShareIncludeConversation] =
+    useState(false);
   const chatOn = useTeamFeature("chat");
   const callsAvailable = useCallsAvailable();
   const [isImageLightboxActive, setIsImageLightboxActive] = useState(false);
@@ -525,9 +1045,11 @@ const ConversationViewInner = (
   // Last measured card height. The card unmounts while hidden, and the
   // next-prompt test must keep using its height then, or hide/show alternate.
   const stickyHeightRef = useRef(0);
-  const stickyPrefDisabled = useInboxStore(s => s.clientState.ui?.sticky_headers_disabled ?? false);
+  const stickyPrefDisabled = useInboxStore(
+    (s) => s.clientState.ui?.sticky_headers_disabled ?? false,
+  );
   const stickyDisabled = stickyPrefDisabled || !stickyPrompt;
-  const updateUI = useInboxStore(s => s.updateClientUI);
+  const updateUI = useInboxStore((s) => s.updateClientUI);
   const headerRef = useRef<HTMLElement>(null);
   // Zen mode on desktop: the head ROW is the window titlebar (drag +
   // traffic-light inset). The ref goes on the inner cc-panel__head — the
@@ -543,7 +1065,9 @@ const ConversationViewInner = (
   // Subagents carry parent_conversation_id; visible children (agent-team
   // teammates, spawns) carry spawned_by_conversation_id. The header chip and
   // the overflow menu row both link here, so folding the chip loses nothing.
-  const parentLinkId = conversation?.parent_conversation_id || (conversation as any)?.spawned_by_conversation_id;
+  const parentLinkId =
+    conversation?.parent_conversation_id ||
+    (conversation as any)?.spawned_by_conversation_id;
   // The unified session control panel behind the header badge (model, effort,
   // switch, fork, hand off). Controlled here so the overflow menu's one row
   // opens the same panel instead of duplicating it.
@@ -573,7 +1097,10 @@ const ConversationViewInner = (
     setGuestStayAtTop(guest && !targetMessageId && !propHighlightQuery);
     setIsNearTop(true);
     setIsNearBottom(true);
-    setDensityState((conversation?._id && DENSITY_BY_CONVERSATION.get(conversation._id)) || resolveDefaultDensity());
+    setDensityState(
+      (conversation?._id && DENSITY_BY_CONVERSATION.get(conversation._id)) ||
+        resolveDefaultDensity(),
+    );
     setExpandedGroups(new Set());
     setDiffExpanded(false);
     setShowThinking(false);
@@ -601,7 +1128,12 @@ const ConversationViewInner = (
     jumpDirectionRef.current = null;
     isPaginatingRef.current = false;
     paginationCooldownRef.current = 0;
-    scrollCtxRef.current = { messageCount: 0, messagesLen: 0, timelineLen: 0, loadedStartIndex: 0 };
+    scrollCtxRef.current = {
+      messageCount: 0,
+      messagesLen: 0,
+      timelineLen: 0,
+      loadedStartIndex: 0,
+    };
     knownItemIdsRef.current = new Set();
     newItemIdsRef.current = new Set();
     mountTimeRef.current = Date.now();
@@ -657,31 +1189,65 @@ const ConversationViewInner = (
   // The session's own questions (AskUserQuestion, plan approval) are answered
   // by the runner's daemon: their controls are live only for the people the
   // server lets command it (commandsSession), never for a team viewer.
-  const canAnswerSession = viewerCommandsSession(conversation as any, currentUser?._id);
+  const canAnswerSession = viewerCommandsSession(
+    conversation as any,
+    currentUser?._id,
+  );
   // A teammate's press on a question or a permission becomes a proposal the
   // owner submits; the owner sees those proposals on the same cards
   // (components/conversation/teamProposals, convex teamSuggestions.ts).
-  const proposalConvId = conversation?._id && isConvexId(String(conversation._id)) ? String(conversation._id) : null;
+  const proposalConvId =
+    conversation?._id && isConvexId(String(conversation._id))
+      ? String(conversation._id)
+      : null;
   const proposalRole = !proposalConvId
     ? null
     : canAnswerSession
-    ? "owner" as const
-    : ((conversation as any)?.access_level === "team" && !["summary", "minimal", "private"].includes((conversation as any)?.team_visibility))
-      || (conversation as any)?.access_level === "owner"
-    ? "teammate" as const
-    : null;
-  const proposalOwnerName = (conversation as any)?.user?.name || (conversation as any)?.user?.email?.split("@")[0] || "the owner";
+      ? ("owner" as const)
+      : ((conversation as any)?.access_level === "team" &&
+            !["summary", "minimal", "private"].includes(
+              (conversation as any)?.team_visibility,
+            )) ||
+          (conversation as any)?.access_level === "owner"
+        ? ("teammate" as const)
+        : null;
+  const proposalOwnerName =
+    (conversation as any)?.user?.name ||
+    (conversation as any)?.user?.email?.split("@")[0] ||
+    "the owner";
   const teamProposals = useMemo<TeamProposalRole>(
-    () => (proposalConvId && proposalRole ? { conversationId: proposalConvId, role: proposalRole, ownerName: proposalOwnerName } : null),
+    () =>
+      proposalConvId && proposalRole
+        ? {
+            conversationId: proposalConvId,
+            role: proposalRole,
+            ownerName: proposalOwnerName,
+          }
+        : null,
     [proposalConvId, proposalRole, proposalOwnerName],
   );
   // Permission prompts are the runner's alone to answer; anyone else who
   // sees them (a teammate, the owner of a session another account runs)
   // proposes, and keeps their composer.
-  const isRunner = !!currentUser?._id && String((conversation as any)?.user_id) === String(currentUser._id);
-  const permissionRole = !proposalConvId || !currentUser?._id ? null : isRunner ? "runner" as const : "proposer" as const;
-  useSyncPendingSuggestions(proposalConvId ?? "", proposalRole === "owner", currentUser?._id ? String(currentUser._id) : null);
-  useSyncMyTeamSuggestions(proposalConvId ?? "", currentUser?._id ? String(currentUser._id) : null, !!proposalConvId && !isRunner);
+  const isRunner =
+    !!currentUser?._id &&
+    String((conversation as any)?.user_id) === String(currentUser._id);
+  const permissionRole =
+    !proposalConvId || !currentUser?._id
+      ? null
+      : isRunner
+        ? ("runner" as const)
+        : ("proposer" as const);
+  useSyncPendingSuggestions(
+    proposalConvId ?? "",
+    proposalRole === "owner",
+    currentUser?._id ? String(currentUser._id) : null,
+  );
+  useSyncMyTeamSuggestions(
+    proposalConvId ?? "",
+    currentUser?._id ? String(currentUser._id) : null,
+    !!proposalConvId && !isRunner,
+  );
   // Per-message sender attribution, through lib/messageSender so the bubbles,
   // the sticky banner and the message navigator name the same person. A user
   // message carries from_user_id (team sends into a teammate's daemon, fork
@@ -695,15 +1261,27 @@ const ConversationViewInner = (
   // Locally-created optimistic rows have no server from_user_id yet, but the
   // sender is by definition the viewer. `wireFrom` is the name a direct send's
   // wrapper carries.
-  const resolveMsgSender = useCallback((msg: Message, wireFrom?: string) => resolveMessageSender(
-    { fromUserId: msg.from_user_id ? String(msg.from_user_id) : undefined, wireFrom, pending: !!(msg._isOptimistic || msg._isQueued) },
-    senderContext,
-  ), [senderContext]);
+  const resolveMsgSender = useCallback(
+    (msg: Message, wireFrom?: string) =>
+      resolveMessageSender(
+        {
+          fromUserId: msg.from_user_id ? String(msg.from_user_id) : undefined,
+          wireFrom,
+          pending: !!(msg._isOptimistic || msg._isQueued),
+        },
+        senderContext,
+      ),
+    [senderContext],
+  );
   // Width reserved on the right by the teammate comment rail (per-conversation, so
   // multiple tab panes don't fight). Pads the transcript/composer and nudges the
   // scroll affordances left so nothing hides under the panel.
   // A host that docks the rail itself makes room for it outside this view.
-  const commentRailW = useInboxStore((s) => (conversation && hostsCommentRail ? s.commentRailWidth[conversation._id] ?? 0 : 0));
+  const commentRailW = useInboxStore((s) =>
+    conversation && hostsCommentRail
+      ? (s.commentRailWidth[conversation._id] ?? 0)
+      : 0,
+  );
   // Pipe this conversation's comment thread into the inbox cache once; the dock
   // and the inline per-message threads all read from the store.
   useConversationCommentsSync(conversation?._id?.toString());
@@ -717,18 +1295,34 @@ const ConversationViewInner = (
   // (the one live session in the checkout, or the transcript that printed the
   // sha) and the PR events of the PR it shepherds. Never the team's.
   const externalEventsWhere = useMemo(
-    () => (convIdForEvents ? (e: ExternalEventRecord) => e.conversation_id === convIdForEvents && !isQuietExternalEvent(e) : () => false),
+    () =>
+      convIdForEvents
+        ? (e: ExternalEventRecord) =>
+            e.conversation_id === convIdForEvents && !isQuietExternalEvent(e)
+        : () => false,
     [convIdForEvents],
   );
-  const conversationExternalEvents = useExternalEvents(externalEventsWhere, externalEventsOldestFirst);
+  const conversationExternalEvents = useExternalEvents(
+    externalEventsWhere,
+    externalEventsOldestFirst,
+  );
 
-  const handleSendInlineMessage = useCallback(async (content: string) => {
-    if (!conversation || !effectiveConversationId) return;
-    const clientId = addOptimisticMsg(effectiveConversationId, content);
-    setUserScrolled(false);
-    requestAnimationFrame(() => scrollToBottomFnRef.current());
-    sendInlineMessage(effectiveConversationId, content, undefined, clientId);
-  }, [conversation, effectiveConversationId, sendInlineMessage, addOptimisticMsg, setUserScrolled]);
+  const handleSendInlineMessage = useCallback(
+    async (content: string) => {
+      if (!conversation || !effectiveConversationId) return;
+      const clientId = addOptimisticMsg(effectiveConversationId, content);
+      setUserScrolled(false);
+      requestAnimationFrame(() => scrollToBottomFnRef.current());
+      sendInlineMessage(effectiveConversationId, content, undefined, clientId);
+    },
+    [
+      conversation,
+      effectiveConversationId,
+      sendInlineMessage,
+      addOptimisticMsg,
+      setUserScrolled,
+    ],
+  );
   // Narrow subscription: this monolith only reads agent_status, permission_mode,
   // session_id, is_connected, tmux_session and team_id from the session row — but
   // the row's identity churns every ~1s heartbeat (updated_at / last_heartbeat /
@@ -744,14 +1338,37 @@ const ConversationViewInner = (
   const isSessionLive = !!managedSession?.is_connected;
   // The command palette's "Copy tmux attach command" — the same gesture as the
   // header pill's copy button, so it copies the same command for the same machine.
-  const { copyAttach: copyTmuxAttach } = useAttachCopy(managedSession?.tmux_session, conversation?._id?.toString());
+  const { copyAttach: copyTmuxAttach } = useAttachCopy(
+    managedSession?.tmux_session,
+    conversation?._id?.toString(),
+  );
 
   // Store-fed (hooks/useSyncWorkflows): the gate banner paints from the cached
   // run on the first frame; the feeder keeps it live.
   const workflowRun = useWorkflowRun(
-    deferredQueriesEnabled && conversation?.workflow_run_id ? conversation.workflow_run_id : null,
-  ) as { _id: string; status: string; gate_prompt?: string; gate_choices?: Array<{ key: string; label: string; target: string }>; gate_response?: string | null } | null | undefined;
-  const { handleGateChoice, handleGateRespond, showWorkflow, setShowWorkflow, selectedWorkflowId, setSelectedWorkflowId, workflows, handleWorkflowLaunch } = useWorkflowLaunch({ workflowRun, conversation });
+    deferredQueriesEnabled && conversation?.workflow_run_id
+      ? conversation.workflow_run_id
+      : null,
+  ) as
+    | {
+        _id: string;
+        status: string;
+        gate_prompt?: string;
+        gate_choices?: Array<{ key: string; label: string; target: string }>;
+        gate_response?: string | null;
+      }
+    | null
+    | undefined;
+  const {
+    handleGateChoice,
+    handleGateRespond,
+    showWorkflow,
+    setShowWorkflow,
+    selectedWorkflowId,
+    setSelectedWorkflowId,
+    workflows,
+    handleWorkflowLaunch,
+  } = useWorkflowLaunch({ workflowRun, conversation });
 
   // Claude Code owns the shift+tab cycle (it changed when auto mode arrived,
   // and bypass is only in it when the launch enabled it), so the client never
@@ -761,22 +1378,36 @@ const ConversationViewInner = (
   // mode, so it ends in the render the observed mode arrives, with a bounded
   // fallback for a press the daemon could not honour.
   const effectiveMode = managedSession?.permission_mode || "default";
-  const { handleCycleMode, modeSwitching, handleEnableBypass } = usePermissionModeSwitch({ effectiveMode, conversation, effectiveIsOwner, convexConvId, convCommand });
+  const { handleCycleMode, modeSwitching, handleEnableBypass } =
+    usePermissionModeSwitch({
+      effectiveMode,
+      conversation,
+      effectiveIsOwner,
+      convexConvId,
+      convCommand,
+    });
 
   const forkSelectedIndex = useForkNavigationStore((s) => s.selectedIndex);
 
   useWatchEffect(() => {
-    if (!conversation || !effectiveIsOwner || conversation.status !== "active") return;
+    if (!conversation || !effectiveIsOwner || conversation.status !== "active")
+      return;
     // Shift+Tab is also how a keyboard moves focus back. From any focused
     // field or control it does that; the composer takes the chord in its own
     // key handler. Here it is taken only while nothing holds focus and the
     // person's last click or key was in THIS pane, so a second mounted pane
     // never cycles too.
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || !e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== "Tab" || !e.shiftKey || e.metaKey || e.ctrlKey || e.altKey)
+        return;
       if (e.target !== document.body) return;
       if (hasOpenModal()) return;
-      if (!keyScopeHasFocus(containerRef.current?.closest<HTMLElement>("[data-cc-conversation]"))) return;
+      if (
+        !keyScopeHasFocus(
+          containerRef.current?.closest<HTMLElement>("[data-cc-conversation]"),
+        )
+      )
+        return;
       e.preventDefault();
       handleCycleMode();
     };
@@ -790,8 +1421,12 @@ const ConversationViewInner = (
     // Context-only import truncation notices are never user-facing. Rows synced by
     // older CLIs still carry them; drop here (some() guard keeps the common-case
     // array identity stable).
-    const base = messagesFromConv.some(m => m.role === "user" && isContextOnlyUserMessage(m.content))
-      ? messagesFromConv.filter(m => !(m.role === "user" && isContextOnlyUserMessage(m.content)))
+    const base = messagesFromConv.some(
+      (m) => m.role === "user" && isContextOnlyUserMessage(m.content),
+    )
+      ? messagesFromConv.filter(
+          (m) => !(m.role === "user" && isContextOnlyUserMessage(m.content)),
+        )
       : messagesFromConv;
     // A real (JSONL) AskUserQuestion tool call carries full fidelity. During the
     // brief race before its tool_use is detected, the daemon may also emit a
@@ -804,16 +1439,19 @@ const ConversationViewInner = (
     const withoutProseTwins = dropScrapedProseTwins(base);
 
     const realAskTimes = withoutProseTwins
-      .filter(m =>
-        m.tool_calls?.some(tc => isAskTool(tc.name)) &&
-        !m.message_uuid?.startsWith("interactive-prompt-")
+      .filter(
+        (m) =>
+          m.tool_calls?.some((tc) => isAskTool(tc.name)) &&
+          !m.message_uuid?.startsWith("interactive-prompt-"),
       )
-      .map(m => m.timestamp);
+      .map((m) => m.timestamp);
     if (realAskTimes.length === 0) return withoutProseTwins;
     const DUP_WINDOW_MS = 2 * 60_000;
-    return withoutProseTwins.filter(m => {
+    return withoutProseTwins.filter((m) => {
       if (!m.message_uuid?.startsWith("interactive-prompt-")) return true;
-      return !realAskTimes.some(rt => Math.abs(rt - m.timestamp) <= DUP_WINDOW_MS);
+      return !realAskTimes.some(
+        (rt) => Math.abs(rt - m.timestamp) <= DUP_WINDOW_MS,
+      );
     });
   }, [messagesFromConv]);
 
@@ -827,8 +1465,14 @@ const ConversationViewInner = (
   // toggle/shortcut when this conversation actually has some, loaded window
   // included, so the menu doesn't carry a dead entry for everyone else.
   const hasAnyThinking = useMemo(
-    () => messages.some(m => m.role === "assistant" && !!m.thinking && m.thinking.trim().length > 0),
-    [messages]
+    () =>
+      messages.some(
+        (m) =>
+          m.role === "assistant" &&
+          !!m.thinking &&
+          m.thinking.trim().length > 0,
+      ),
+    [messages],
   );
 
   const agentNameToChildMap = useMemo(() => {
@@ -870,8 +1514,12 @@ const ConversationViewInner = (
     const thisId = conversation?._id?.toString();
     const parentId = conversation?.forked_from?.toString();
     const allForks: ForkChild[] = [
-      ...(conversation?.fork_children || []).map((f) => ({ ...f, origin_id: thisId }) as ForkChild),
-      ...(conversation?.fork_siblings || []).map((f) => ({ ...f, origin_id: parentId }) as ForkChild),
+      ...(conversation?.fork_children || []).map(
+        (f) => ({ ...f, origin_id: thisId }) as ForkChild,
+      ),
+      ...(conversation?.fork_siblings || []).map(
+        (f) => ({ ...f, origin_id: parentId }) as ForkChild,
+      ),
       ...optimisticForkChildren,
     ];
     const seen = new Set<string>();
@@ -879,17 +1527,25 @@ const ConversationViewInner = (
       if (seen.has(fork._id)) continue;
       seen.add(fork._id);
       if (fork.parent_message_uuid) {
-        const anchor = reanchor[fork.parent_message_uuid] ?? fork.parent_message_uuid;
+        const anchor =
+          reanchor[fork.parent_message_uuid] ?? fork.parent_message_uuid;
         if (!map[anchor]) map[anchor] = [];
         map[anchor].push(fork);
       }
     }
     return map;
-  }, [conversation?._id, conversation?.forked_from, conversation?.fork_children, conversation?.fork_siblings, conversation?.messages, optimisticForkChildren]);
+  }, [
+    conversation?._id,
+    conversation?.forked_from,
+    conversation?.fork_children,
+    conversation?.fork_siblings,
+    conversation?.messages,
+    optimisticForkChildren,
+  ]);
 
   useWatchEffect(() => {
     if (!conversation?.fork_children) return;
-    const serverIds = new Set(conversation.fork_children.map(f => f._id));
+    const serverIds = new Set(conversation.fork_children.map((f) => f._id));
     pruneOptimisticForks(serverIds);
   }, [conversation?.fork_children, pruneOptimisticForks]);
 
@@ -901,27 +1557,44 @@ const ConversationViewInner = (
   // surface a private session. Gap-fill only — live rows are never downgraded.
   useWatchEffect(() => {
     if (conversation?.fork_children?.length) {
-      preloadForkSessions(conversation.fork_children as ForkChild[], conversation._id?.toString());
+      preloadForkSessions(
+        conversation.fork_children as ForkChild[],
+        conversation._id?.toString(),
+      );
     }
     if (conversation?.fork_siblings?.length) {
-      preloadForkSessions(conversation.fork_siblings as ForkChild[], conversation.forked_from?.toString());
+      preloadForkSessions(
+        conversation.fork_siblings as ForkChild[],
+        conversation.forked_from?.toString(),
+      );
     }
     const ffd = conversation?.forked_from_details;
     if (ffd?.conversation_id) {
       // Pass the triage fields through: a stashed/dismissed parent must seed
       // as such, or it flashes into the inbox as an active card at boot.
-      preloadForkSessions([{
-        _id: ffd.conversation_id.toString(),
-        title: ffd.title || "Parent session",
-        inbox_dismissed_at: ffd.inbox_dismissed_at,
-        inbox_stashed_at: ffd.inbox_stashed_at,
-        inbox_killed_at: ffd.inbox_killed_at,
-        inbox_pinned_at: ffd.inbox_pinned_at,
-      }]);
+      preloadForkSessions([
+        {
+          _id: ffd.conversation_id.toString(),
+          title: ffd.title || "Parent session",
+          inbox_dismissed_at: ffd.inbox_dismissed_at,
+          inbox_stashed_at: ffd.inbox_stashed_at,
+          inbox_killed_at: ffd.inbox_killed_at,
+          inbox_pinned_at: ffd.inbox_pinned_at,
+        },
+      ]);
     }
-  }, [conversation?.fork_children, conversation?.fork_siblings, conversation?.forked_from_details, conversation?._id, conversation?.forked_from, preloadForkSessions]);
+  }, [
+    conversation?.fork_children,
+    conversation?.fork_siblings,
+    conversation?.forked_from_details,
+    conversation?._id,
+    conversation?.forked_from,
+    preloadForkSessions,
+  ]);
 
-  const activeBranchId = conversation?.forked_from ? conversation._id.toString() : null;
+  const activeBranchId = conversation?.forked_from
+    ? conversation._id.toString()
+    : null;
 
   const handleStartShareSelection = useCallback((messageId: string) => {
     setShareSelectionMode(true);
@@ -930,10 +1603,11 @@ const ConversationViewInner = (
 
   // Sharing messages by link is the owner's to do (the server refuses anyone
   // else), so the control exists only for them.
-  const startShareSelection = isOwner && !guest ? handleStartShareSelection : undefined;
+  const startShareSelection =
+    isOwner && !guest ? handleStartShareSelection : undefined;
 
   const handleToggleMessageSelection = useCallback((messageId: string) => {
-    setSelectedMessageIds(prev => {
+    setSelectedMessageIds((prev) => {
       const next = new Set(prev);
       if (next.has(messageId)) {
         next.delete(messageId);
@@ -950,46 +1624,62 @@ const ConversationViewInner = (
     setShareIncludeConversation(false);
   }, []);
 
-  const handleConfirmShare = useCallback(async (destination?: "chat") => {
-    if (selectedMessageIds.size === 0) return;
+  const handleConfirmShare = useCallback(
+    async (destination?: "chat") => {
+      if (selectedMessageIds.size === 0) return;
 
-    setIsCreatingShareLink(true);
-    try {
-      const sortedIds = Array.from(selectedMessageIds).sort((a, b) => {
-        const msgA = messages.find(m => m._id === a);
-        const msgB = messages.find(m => m._id === b);
-        return (msgA?.timestamp || 0) - (msgB?.timestamp || 0);
-      });
-
-      const token = await generateShareLink({
-        message_id: sortedIds[0] as Id<"messages">,
-        context_before: 0,
-        context_after: 0,
-        message_ids: sortedIds as Id<"messages">[],
-        include_conversation_link: shareIncludeConversation || undefined,
-      });
-
-      const url = `${shareOrigin()}/share/message/${token}`;
-      if (destination === "chat") {
-        openForwardToChat({
-          url,
-          label: selectedMessageIds.size > 1 ? "messages" : "message",
-          previewTitle: conversation?.title,
-          previewText: sortedIds.map((id) => messages.find((m) => m._id === id)?.content).filter(Boolean).join("\n\n"),
+      setIsCreatingShareLink(true);
+      try {
+        const sortedIds = Array.from(selectedMessageIds).sort((a, b) => {
+          const msgA = messages.find((m) => m._id === a);
+          const msgB = messages.find((m) => m._id === b);
+          return (msgA?.timestamp || 0) - (msgB?.timestamp || 0);
         });
-      } else {
-        await copyToClipboard(url);
-        toast.success(shareIncludeConversation ? "Share link copied! The full conversation is now public via its link." : "Share link copied!");
+
+        const token = await generateShareLink({
+          message_id: sortedIds[0] as Id<"messages">,
+          context_before: 0,
+          context_after: 0,
+          message_ids: sortedIds as Id<"messages">[],
+          include_conversation_link: shareIncludeConversation || undefined,
+        });
+
+        const url = `${shareOrigin()}/share/message/${token}`;
+        if (destination === "chat") {
+          openForwardToChat({
+            url,
+            label: selectedMessageIds.size > 1 ? "messages" : "message",
+            previewTitle: conversation?.title,
+            previewText: sortedIds
+              .map((id) => messages.find((m) => m._id === id)?.content)
+              .filter(Boolean)
+              .join("\n\n"),
+          });
+        } else {
+          await copyToClipboard(url);
+          toast.success(
+            shareIncludeConversation
+              ? "Share link copied! The full conversation is now public via its link."
+              : "Share link copied!",
+          );
+        }
+        setShareSelectionMode(false);
+        setSelectedMessageIds(new Set());
+        setShareIncludeConversation(false);
+      } catch (err) {
+        toast.error("Failed to create share link");
+      } finally {
+        setIsCreatingShareLink(false);
       }
-      setShareSelectionMode(false);
-      setSelectedMessageIds(new Set());
-      setShareIncludeConversation(false);
-    } catch (err) {
-      toast.error("Failed to create share link");
-    } finally {
-      setIsCreatingShareLink(false);
-    }
-  }, [selectedMessageIds, messages, generateShareLink, shareIncludeConversation, conversation?.title]);
+    },
+    [
+      selectedMessageIds,
+      messages,
+      generateShareLink,
+      shareIncludeConversation,
+      conversation?.title,
+    ],
+  );
 
   const toolCallChangeSelectionMap = useMemo(() => {
     const fileChanges = extractFileChanges(messages as any);
@@ -1021,19 +1711,28 @@ const ConversationViewInner = (
     deferredQueriesEnabled,
     permissionRole === "proposer",
   );
-  const pendingPermissions = pendingPermissionsRaw?.filter((p: any) => !PERMISSION_SKIP_TOOLS.has(p.tool_name));
+  const pendingPermissions = pendingPermissionsRaw?.filter(
+    (p: any) => !PERMISSION_SKIP_TOOLS.has(p.tool_name),
+  );
   // A prompt takes the runner's composer's place until it is answered; a
   // teammate cannot answer it, so their composer stays (and they propose).
-  const permissionsHoldComposer = !!(pendingPermissions && pendingPermissions.length > 0) && permissionRole !== "proposer";
-  const hasAskUserQuestion = pendingPermissionsRaw?.some((p: any) => isAskTool(p.tool_name)) ?? false;
+  const permissionsHoldComposer =
+    !!(pendingPermissions && pendingPermissions.length > 0) &&
+    permissionRole !== "proposer";
+  const hasAskUserQuestion =
+    pendingPermissionsRaw?.some((p: any) => isAskTool(p.tool_name)) ?? false;
   // A `cast decide` ask renders as a card inside the pane: blocking owns the
   // pane, advisory docks above the composer (SessionDecisionCard). The queue
   // supplies a stepper — and, for a poll/permission card, the item itself.
   const decisionStepper = useContext(DecisionStepperContext);
-  const pendingDecisions = usePendingDecisionItems(conversation?._id && isConvexId(conversation._id) ? conversation._id : null);
+  const pendingDecisions = usePendingDecisionItems(
+    conversation?._id && isConvexId(conversation._id) ? conversation._id : null,
+  );
   const pendingDecision = pendingDecisions[0] ?? null;
   const decisionItem = pendingDecision ?? decisionStepper?.item ?? null;
-  const forkSetSelectedIndex = useForkNavigationStore((s) => s.setSelectedIndex);
+  const forkSetSelectedIndex = useForkNavigationStore(
+    (s) => s.setSelectedIndex,
+  );
   // Branch map open-state. One surface: a command-palette-style popover anchored
   // above the message input. Ctrl+B / the header icon open it at the branch
   // tree (mapDrill = null); double-Esc opens it drilled into the current
@@ -1048,27 +1747,35 @@ const ConversationViewInner = (
   // can't triage, so they get no button.
   const sendAndStashConvId = conversation?._id;
   const sendAndStashFallback = useMemo(
-    () => (isOwner && !guest && sendAndStashConvId ? () => animatedHideSession(sendAndStashConvId, "stash") : undefined),
+    () =>
+      isOwner && !guest && sendAndStashConvId
+        ? () => animatedHideSession(sendAndStashConvId, "stash")
+        : undefined,
     [isOwner, guest, sendAndStashConvId],
   );
 
   const isForkLoading = false;
   const [loadingBranchId, setLoadingBranchId] = useState<string | null>(null);
 
-
   // Pending messages: read directly so they ALWAYS render, regardless of what
   // setMessages/mergeMessages/buildCompositeTimeline do to the server message arrays.
-  const pendingConvId = effectiveConversationId || conversation?._id || '';
-  const pendingMsgs = useInboxStore((s) => s.pendingMessages[pendingConvId] ?? EMPTY_PENDING);
+  const pendingConvId = effectiveConversationId || conversation?._id || "";
+  const pendingMsgs = useInboxStore(
+    (s) => s.pendingMessages[pendingConvId] ?? EMPTY_PENDING,
+  );
   // Server-side pending row — the SAME pending_messages rail a human web send uses. The local
   // optimistic queue above only exists in the browser that hit Send; this surfaces a queued
   // message to EVERY viewer, and to CLI-originated `cast send`s that no browser optimistically
   // rendered, so it shows as pending immediately (before the JSONL echo) instead of nothing.
-  const serverPending = usePendingMessageStatus(isConvexId(pendingConvId) ? pendingConvId : null);
+  const serverPending = usePendingMessageStatus(
+    isConvexId(pendingConvId) ? pendingConvId : null,
+  );
   // Slack-style "New" divider anchor: "seen up to" advances only when you leave
   // a session, so it holds steady for the whole visit. Everything strictly after
   // it arrived while you were away.
-  const unreadAnchorAt = useInboxStore((s) => s._seenUpToAt[pendingConvId] ?? 0);
+  const unreadAnchorAt = useInboxStore(
+    (s) => s._seenUpToAt[pendingConvId] ?? 0,
+  );
   // The server-backed read mark, which is a different thing from the divider
   // above: the divider is where THIS device stopped reading, the ack is what
   // clears the card's unread dot on every device. Presence-gated inside.
@@ -1083,23 +1790,48 @@ const ConversationViewInner = (
   // published from its checkout, a PR opened from a terminal on its branch.
   // The ones a shell call here produced already render on that call, so they
   // are left out; what remains earns a card of its own in the timeline.
-  const gitLinkConversationId = conversation?._id ? String(conversation._id) : undefined;
+  const gitLinkConversationId = conversation?._id
+    ? String(conversation._id)
+    : undefined;
   useSyncConversationCommits(gitLinkConversationId);
   useSyncConversationPullRequests(gitLinkConversationId);
-  useSyncConversationPullRequestLinks(guest ? undefined : gitLinkConversationId);
+  useSyncConversationPullRequestLinks(
+    guest ? undefined : gitLinkConversationId,
+  );
   const linkedCommits = useConversationCommits(gitLinkConversationId);
   const linkedPullRequests = useConversationPullRequests(gitLinkConversationId);
-  const transcriptOutcomes = useMemo(() => transcriptGitOutcomes(messages as any), [messages]);
+  const transcriptOutcomes = useMemo(
+    () => transcriptGitOutcomes(messages as any),
+    [messages],
+  );
   const outsideCommits = useMemo(
-    () => linkedCommits.filter((c: any) => typeof c.sha === "string" && !madeInTranscript(c.sha, transcriptOutcomes.commitShas)),
+    () =>
+      linkedCommits.filter(
+        (c: any) =>
+          typeof c.sha === "string" &&
+          !madeInTranscript(c.sha, transcriptOutcomes.commitShas),
+      ),
     [linkedCommits, transcriptOutcomes],
   );
   const outsidePullRequests = useMemo(
-    () => linkedPullRequests.filter((p: any) => !transcriptOutcomes.prRefs.has(`${p.repository}#${p.number}`)),
+    () =>
+      linkedPullRequests.filter(
+        (p: any) =>
+          !transcriptOutcomes.prRefs.has(`${p.repository}#${p.number}`),
+      ),
     [linkedPullRequests, transcriptOutcomes],
   );
-  const allCommits = useMemo(() => (outsideCommits.length ? [...commits, ...outsideCommits] : commits), [commits, outsideCommits]);
-  const allPullRequests = useMemo(() => (outsidePullRequests.length ? [...pullRequests, ...outsidePullRequests] : pullRequests), [pullRequests, outsidePullRequests]);
+  const allCommits = useMemo(
+    () => (outsideCommits.length ? [...commits, ...outsideCommits] : commits),
+    [commits, outsideCommits],
+  );
+  const allPullRequests = useMemo(
+    () =>
+      outsidePullRequests.length
+        ? [...pullRequests, ...outsidePullRequests]
+        : pullRequests,
+    [pullRequests, outsidePullRequests],
+  );
 
   const timeline: TimelineItem[] = useMemo(() => {
     const base = buildCompositeTimeline(
@@ -1119,33 +1851,68 @@ const ConversationViewInner = (
     };
     let newestServerTs = 0;
     for (const item of base) {
-      if (item.type === 'message') {
+      if (item.type === "message") {
         const m = item.data as any;
         seen.add(m._id);
         if (m.client_id) seen.add(m.client_id);
-        if (m.role === 'user' && m.content) said(m.content, m.timestamp);
-        if (!m._isOptimistic && !m._isQueued && !m._isFailed && m.timestamp > newestServerTs) newestServerTs = m.timestamp;
+        if (m.role === "user" && m.content) said(m.content, m.timestamp);
+        if (
+          !m._isOptimistic &&
+          !m._isQueued &&
+          !m._isFailed &&
+          m.timestamp > newestServerTs
+        )
+          newestServerTs = m.timestamp;
       }
     }
     const toAdd: any[] = pendingMsgs.filter((m: any) => {
-      if (seen.has(m._id) || (m._clientId && seen.has(m._clientId))) return false;
+      if (seen.has(m._id) || (m._clientId && seen.has(m._clientId)))
+        return false;
       // Slash commands: the daemon can't always carry a client_id across the pending
       // "/cmd args" → synced tag-form echo, so also drop a pending command whose canonical
       // content already rendered as a synced message (prevents the command showing twice).
-      if (m.role === 'user' && m.content) {
+      if (m.role === "user" && m.content) {
         const norm = normalizePendingContent(m.content);
-        if (norm.startsWith('/') && (seenContent.get(norm) ?? -Infinity) >= m.timestamp - ECHO_SKEW_MS) return false;
+        if (
+          norm.startsWith("/") &&
+          (seenContent.get(norm) ?? -Infinity) >= m.timestamp - ECHO_SKEW_MS
+        )
+          return false;
       }
       return true;
     });
     for (const m of toAdd) if (m.content) said(m.content, m.timestamp);
     // Server-side pending rows: every queued message, whichever device or CLI sent it
     // (serverPendingBubbles).
-    toAdd.push(...serverPendingBubbles(serverPending, { seen, seenContent, local: toAdd, newestServerTs, atLiveTail: !hasMoreBelow, normalize: normalizePendingContent }));
+    toAdd.push(
+      ...serverPendingBubbles(serverPending, {
+        seen,
+        seenContent,
+        local: toAdd,
+        newestServerTs,
+        atLiveTail: !hasMoreBelow,
+        normalize: normalizePendingContent,
+      }),
+    );
     return mergeTimelineMessages(base, toAdd) as TimelineItem[];
-  }, [messages, allCommits, allPullRequests, conversationExternalEvents, pendingMsgs, serverPending, pendingConvId, hasMoreAbove, hasMoreBelow]);
+  }, [
+    messages,
+    allCommits,
+    allPullRequests,
+    conversationExternalEvents,
+    pendingMsgs,
+    serverPending,
+    pendingConvId,
+    hasMoreAbove,
+    hasMoreBelow,
+  ]);
   timelineRef.current = timeline;
-  scrollCtxRef.current = { messageCount: conversation?.message_count || messages.length, messagesLen: messages.length, timelineLen: timeline.length, loadedStartIndex: conversation?.loaded_start_index ?? 0 };
+  scrollCtxRef.current = {
+    messageCount: conversation?.message_count || messages.length,
+    messagesLen: messages.length,
+    timelineLen: timeline.length,
+    loadedStartIndex: conversation?.loaded_start_index ?? 0,
+  };
 
   // One card per workflow run: fork copies and transcript round-trips can leave
   // several messages carrying the same run anchor (with or without the
@@ -1154,11 +1921,12 @@ const ConversationViewInner = (
   const wfRunCardOwner = useMemo(() => {
     const owner = new Map<string, string>();
     for (const item of timeline) {
-      if (item.type !== 'message') continue;
+      if (item.type !== "message") continue;
       const m = item.data as Message;
-      if (m.role !== 'assistant') continue;
+      if (m.role !== "assistant") continue;
       const ev = parseWorkflowEventContent(m.content);
-      if (ev?.__wf === 'workflow_run' && ev.run_id && !owner.has(ev.run_id)) owner.set(ev.run_id, m._id);
+      if (ev?.__wf === "workflow_run" && ev.run_id && !owner.has(ev.run_id))
+        owner.set(ev.run_id, m._id);
     }
     return owner;
   }, [timeline]);
@@ -1168,14 +1936,18 @@ const ConversationViewInner = (
   // (`enteredAt`). The "New" divider renders above this row; -1 = nothing new
   // (first-ever visit, or everything unseen actually arrived live this visit).
   const firstUnseenIndex = useMemo(
-    () => computeNewDividerIndex(timeline, unreadAnchorAt, enteredAt, (item) => {
-      if (item.type !== 'message') return false;
-      const m = item.data as Message;
-      if (m.role !== 'user') return false;
-      const me = (currentUser as any)?._id;
-      if (!me) return false;
-      return resolveMsgSender(m, directUserOf((m.content ?? "").trim())?.from).key === String(me);
-    }),
+    () =>
+      computeNewDividerIndex(timeline, unreadAnchorAt, enteredAt, (item) => {
+        if (item.type !== "message") return false;
+        const m = item.data as Message;
+        if (m.role !== "user") return false;
+        const me = (currentUser as any)?._id;
+        if (!me) return false;
+        return (
+          resolveMsgSender(m, directUserOf((m.content ?? "").trim())?.from)
+            .key === String(me)
+        );
+      }),
     [timeline, unreadAnchorAt, enteredAt, currentUser, resolveMsgSender],
   );
   // Handoff markers, drawn the same way: each transfer sits above the first
@@ -1196,64 +1968,113 @@ const ConversationViewInner = (
     }
     return byIndex;
   }, [timeline, ownersApi.handoffs]);
-  const handoffRulesAt = (index: number) => handoffsByIndex.get(index)?.map((h) => (
-    <HandoffMarker key={`${h.to}:${h.at}`} handoff={h} meId={handoffMeId} />
-  ));
+  const handoffRulesAt = (index: number) =>
+    handoffsByIndex
+      .get(index)
+      ?.map((h) => (
+        <HandoffMarker key={`${h.to}:${h.at}`} handoff={h} meId={handoffMeId} />
+      ));
 
-
-  const populateInputRef = useRef<((text: string, opts?: { append?: boolean }) => void) | null>(null);
+  const populateInputRef = useRef<
+    ((text: string, opts?: { append?: boolean }) => void) | null
+  >(null);
   // `/goal` in the composer (shared/contracts/sessionGoal parseGoalCommand):
   // setting or resuming opens the consequential review, and the typed text
   // stays in the composer until the person confirms; pause, clear and show
   // act at once.
   const clearComposerRef = useRef<(() => void) | null>(null);
-  const [goalReview, setGoalReview] = useState<{ objective: string; resume: boolean } | null>(null);
+  const [goalReview, setGoalReview] = useState<{
+    objective: string;
+    resume: boolean;
+  } | null>(null);
   const goalConversationId = conversation?._id ? String(conversation._id) : "";
-  const handleGoalCommand = useCallback((text: string): boolean => {
-    const cmd = parseGoalCommand(text);
-    if (!cmd || !goalConversationId) return false;
-    const st = useInboxStore.getState();
-    const goal = sessionGoalOf(st.sessionGoals, goalConversationId);
-    const live = goal && goal.status !== "cleared" ? goal : null;
-    if (cmd.op === "set") {
-      const problem = goalObjectiveProblem(cmd.objective);
-      if (problem) toast(problem);
-      else setGoalReview({ objective: cmd.objective, resume: false });
+  const handleGoalCommand = useCallback(
+    (text: string): boolean => {
+      const cmd = parseGoalCommand(text);
+      if (!cmd || !goalConversationId) return false;
+      const st = useInboxStore.getState();
+      const goal = sessionGoalOf(st.sessionGoals, goalConversationId);
+      const live = goal && goal.status !== "cleared" ? goal : null;
+      if (cmd.op === "set") {
+        const problem = goalObjectiveProblem(cmd.objective);
+        if (problem) toast(problem);
+        else setGoalReview({ objective: cmd.objective, resume: false });
+        return true;
+      }
+      if (cmd.op === "resume") {
+        if (live && goalCanResume(live))
+          setGoalReview({ objective: live.objective, resume: true });
+        else
+          toast(
+            live
+              ? `The goal is ${live.status === "done" ? "met" : "running"}`
+              : "No goal on this session",
+          );
+        return true;
+      }
+      if (!live) toast("No goal on this session");
+      else if (cmd.op === "show")
+        toast(
+          `Goal ${live.status === "active" ? "running" : live.status === "done" ? "met" : live.status}, round ${live.rounds}/${live.max_rounds}`,
+          { description: live.reason || live.objective },
+        );
+      else if (cmd.op === "pause") {
+        if (goalCanPause(live)) st.pauseSessionGoal(goalConversationId);
+        else toast(`The goal is ${live.status}`);
+      } else if (cmd.op === "clear") st.clearSessionGoal(goalConversationId);
+      clearComposerRef.current?.();
       return true;
-    }
-    if (cmd.op === "resume") {
-      if (live && goalCanResume(live)) setGoalReview({ objective: live.objective, resume: true });
-      else toast(live ? `The goal is ${live.status === "done" ? "met" : "running"}` : "No goal on this session");
-      return true;
-    }
-    if (!live) toast("No goal on this session");
-    else if (cmd.op === "show") toast(`Goal ${live.status === "active" ? "running" : live.status === "done" ? "met" : live.status}, round ${live.rounds}/${live.max_rounds}`, { description: live.reason || live.objective });
-    else if (cmd.op === "pause") {
-      if (goalCanPause(live)) st.pauseSessionGoal(goalConversationId);
-      else toast(`The goal is ${live.status}`);
-    } else if (cmd.op === "clear") st.clearSessionGoal(goalConversationId);
-    clearComposerRef.current?.();
-    return true;
-  }, [goalConversationId]);
+    },
+    [goalConversationId],
+  );
   const confirmGoal = useCallback(() => {
     const review = goalReview;
     setGoalReview(null);
     if (!review || !goalConversationId) return;
     const st = useInboxStore.getState();
     if (review.resume) st.resumeSessionGoal(goalConversationId);
-    else st.setSessionGoal(goalConversationId, review.objective, `goal-${goalConversationId}-${Date.now().toString(36)}`);
+    else
+      st.setSessionGoal(
+        goalConversationId,
+        review.objective,
+        `goal-${goalConversationId}-${Date.now().toString(36)}`,
+      );
     clearComposerRef.current?.();
   }, [goalReview, goalConversationId]);
-  const { handleForkFromMessage, forkHandler, handleForkFromBranch, handleForkReply, forkTailHandler } = useForkActions({ injectSession, conversation, addOptimisticFork, currentUser, hasMoreAbove, convCommand, timelineRef, populateInputRef, addOptimisticMsg, sendInlineMessage });
+  const {
+    handleForkFromMessage,
+    forkHandler,
+    handleForkFromBranch,
+    handleForkReply,
+    forkTailHandler,
+  } = useForkActions({
+    injectSession,
+    conversation,
+    addOptimisticFork,
+    currentUser,
+    hasMoreAbove,
+    convCommand,
+    timelineRef,
+    populateInputRef,
+    addOptimisticMsg,
+    sendInlineMessage,
+  });
   // Bridge for the quote/comment review UI: lets MessageReview, the selection
   // toolbar, and the review bar push text into the composer without prop-drilling.
-  const { dropFilesRef, isDragging, handleDragEnter, handleDragOver, handleDragLeave, handleDrop } = useConversationFileDrop({ anyFile: true });
+  const {
+    dropFilesRef,
+    isDragging,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+  } = useConversationFileDrop({ anyFile: true });
 
   // Rewind/fork navigator reads the same cached list (populated by
   // useConversationMessages), gated to owners of an active session since
   // rewinding only applies there.
-  const cachedUserMessages = useInboxStore(
-    (s) => (conversation?._id ? s.userMessages[conversation._id] : undefined)
+  const cachedUserMessages = useInboxStore((s) =>
+    conversation?._id ? s.userMessages[conversation._id] : undefined,
   );
   // Escape in an empty composer interrupts the agent. Every press on an owned,
   // active conversation is forwarded and paints the "user interrupted" line at
@@ -1263,7 +2084,10 @@ const ConversationViewInner = (
   // daemon holds the facts and decides (cli/src/escapeInterrupt.ts); the press
   // time rides along so an Escape aimed at the previous turn cannot cancel the
   // one a queued message started after the press (the 2026-08-28 race).
-  const sendEscape = useSessionEscape(convexConvId, { active: conversation?.status === "active", isOwner: effectiveIsOwner });
+  const sendEscape = useSessionEscape(convexConvId, {
+    active: conversation?.status === "active",
+    isOwner: effectiveIsOwner,
+  });
   const handleSendEscape = useCallback(() => {
     if (!sendEscape()) return;
     setUserScrolled(false);
@@ -1273,7 +2097,9 @@ const ConversationViewInner = (
   const sentRouter = useRouter();
   const handleMessageSent = useCallback(() => {
     // A send that starts a new project opens the project's page.
-    const projectKey = conversation?._id ? newProjectStartedBy(conversation._id) : null;
+    const projectKey = conversation?._id
+      ? newProjectStartedBy(conversation._id)
+      : null;
     if (projectKey) sentRouter.push(newProjectHref(projectKey));
     setUserScrolled(false);
     requestAnimationFrame(() => scrollToBottomFnRef.current());
@@ -1289,7 +2115,9 @@ const ConversationViewInner = (
   // The map belongs to the session it was opened on: moving to another
   // session closes it, or it would sit over that one listing the last
   // session's messages.
-  useWatchEffect(() => { setTreePopoverOpen(false); }, [stableConvKey]);
+  useWatchEffect(() => {
+    setTreePopoverOpen(false);
+  }, [stableConvKey]);
   const handleOpenNavigator = useCallback(() => {
     if (!isOwner || !conversation?._id) return;
     // Escape pressed again and again to get out closes the map on the first
@@ -1305,38 +2133,118 @@ const ConversationViewInner = (
 
   // Branch map rewind (Enter in the drilled current-branch messages): fork at
   // that point and rewind the live session.
-  const handleRewindCurrent = useCallback((messageUuid: string, indexFromEnd: number) => {
-    if (!conversation) return;
-    handleForkFromMessage(messageUuid);
-    if (effectiveIsOwner && conversation.status === "active" && convexConvId) {
-      void convCommand(convexConvId, "rewindSession", { steps_back: indexFromEnd + 1 }).catch((err) => {
-        if (isParkedDispatchError(err)) return;
-        toastWriteError(err, "Failed to rewind session");
-      });
-    }
-  }, [handleForkFromMessage, conversation, effectiveIsOwner, convCommand, convexConvId]);
-  const { userMsgKindMap, turnAggregates, cleanRows, awaitingReplyTo, commandExpansionMap, nudgeRuns, isThinking, isWaitingForResponse } = useTimelineTurns({ messages, conversation, hasMoreAbove, timeline, messageAuthors, hasMoreBelow, foldWorkingTurns });
-  const { sessionSkills, sessionFilePaths, mentionItemsRef, handleMentionQuery } = useSessionMentions({ conversation, managedSession });
+  const handleRewindCurrent = useCallback(
+    (messageUuid: string, indexFromEnd: number) => {
+      if (!conversation) return;
+      handleForkFromMessage(messageUuid);
+      if (
+        effectiveIsOwner &&
+        conversation.status === "active" &&
+        convexConvId
+      ) {
+        void convCommand(convexConvId, "rewindSession", {
+          steps_back: indexFromEnd + 1,
+        }).catch((err) => {
+          if (isParkedDispatchError(err)) return;
+          toastWriteError(err, "Failed to rewind session");
+        });
+      }
+    },
+    [
+      handleForkFromMessage,
+      conversation,
+      effectiveIsOwner,
+      convCommand,
+      convexConvId,
+    ],
+  );
+  const {
+    userMsgKindMap,
+    turnAggregates,
+    cleanRows,
+    awaitingReplyTo,
+    commandExpansionMap,
+    nudgeRuns,
+    isThinking,
+    isWaitingForResponse,
+  } = useTimelineTurns({
+    messages,
+    conversation,
+    hasMoreAbove,
+    timeline,
+    messageAuthors,
+    hasMoreBelow,
+    foldWorkingTurns,
+  });
+  const {
+    sessionSkills,
+    sessionFilePaths,
+    mentionItemsRef,
+    handleMentionQuery,
+  } = useSessionMentions({ conversation, managedSession });
   // The owner composer runs /goal itself, so it offers it beside the agent's commands.
-  const composerSkills = useMemo(() => [GOAL_COMMAND, ...(sessionSkills ?? []).filter((k) => k.name !== GOAL_COMMAND.name)], [sessionSkills]);
-  const { serverUserMessages, stickyEligibleServerIds, stickyUserMsgIndices, navigatorTimelineIndices, timelineMessageIds, loadedMessageIds } = useNavigatorIndex({ cachedUserMessages, messages, timeline, userMsgKindMap });
+  const composerSkills = useMemo(
+    () => [
+      GOAL_COMMAND,
+      ...(sessionSkills ?? []).filter((k) => k.name !== GOAL_COMMAND.name),
+    ],
+    [sessionSkills],
+  );
+  const {
+    serverUserMessages,
+    stickyEligibleServerIds,
+    stickyUserMsgIndices,
+    navigatorTimelineIndices,
+    timelineMessageIds,
+    loadedMessageIds,
+  } = useNavigatorIndex({
+    cachedUserMessages,
+    messages,
+    timeline,
+    userMsgKindMap,
+  });
 
-  const [activeStickyMsg, setActiveStickyMsgRaw] = useState<{ index: number; content: string; id: string; fromUserId?: string } | null>(null);
-  const [navigatorCurrentId, setNavigatorCurrentId] = useState<string | null>(null);
-  const setActiveStickyMsg = useCallback((val: { index: number; content: string; id: string; fromUserId?: string } | null) => {
-    setActiveStickyMsgRaw(prev => {
-      if (prev === val) return prev;
-      if (prev === null || val === null) return val;
-      if (prev.index === val.index && prev.id === val.id && prev.content === val.content) return prev;
-      return val;
-    });
-  }, []);
+  const [activeStickyMsg, setActiveStickyMsgRaw] = useState<{
+    index: number;
+    content: string;
+    id: string;
+    fromUserId?: string;
+  } | null>(null);
+  const [navigatorCurrentId, setNavigatorCurrentId] = useState<string | null>(
+    null,
+  );
+  const setActiveStickyMsg = useCallback(
+    (
+      val: {
+        index: number;
+        content: string;
+        id: string;
+        fromUserId?: string;
+      } | null,
+    ) => {
+      setActiveStickyMsgRaw((prev) => {
+        if (prev === val) return prev;
+        if (prev === null || val === null) return val;
+        if (
+          prev.index === val.index &&
+          prev.id === val.id &&
+          prev.content === val.content
+        )
+          return prev;
+        return val;
+      });
+    },
+    [],
+  );
 
   const stickyMessageId = activeStickyMsg?.id;
   const stickyImages = useMemo(() => {
     if (!stickyMessageId) return undefined;
-    return messages.find(message => message._id === stickyMessageId)?.images
-      ?? serverUserMessages?.find(message => message._id === stickyMessageId)?.images;
+    return (
+      messages.find((message) => message._id === stickyMessageId)?.images ??
+      serverUserMessages?.find((message) => message._id === stickyMessageId)
+        ?.images
+    );
   }, [stickyMessageId, messages, serverUserMessages]);
 
   // Collapse and re-measure clamping whenever the sticky switches to a different message.
@@ -1351,7 +2259,12 @@ const ConversationViewInner = (
       setStickyClamped(el ? el.scrollHeight > el.clientHeight + 1 : false);
     });
     return () => cancelAnimationFrame(frame);
-  }, [activeStickyMsg?.id, activeStickyMsg?.content, stickyMsgVisible, stickyExpanded]);
+  }, [
+    activeStickyMsg?.id,
+    activeStickyMsg?.content,
+    stickyMsgVisible,
+    stickyExpanded,
+  ]);
 
   // Track the sticky prompt card's height (stickyHeightRef, read by the sticky
   // scroll check and by the render's insets, which must never read layout)
@@ -1378,30 +2291,45 @@ const ConversationViewInner = (
   }, [stickyMsgVisible, activeStickyMsg?.id]);
 
   useWatchEffect(() => {
-    const currentIds = new Set(timeline.map(item => {
-      if (item.type === 'message') return (item.data as Message)._id;
-      if (item.type === 'commit') return `commit-${(item.data as any).sha || (item.data as any)._id}`;
-      // The same ids the row renderer checks against (itemId in the feed below).
-      if (item.type === 'external_event') return `event-${(item.data as any)._id}`;
-      return `pr-${(item.data as any)._id}`;
-    }));
+    const currentIds = new Set(
+      timeline.map((item) => {
+        if (item.type === "message") return (item.data as Message)._id;
+        if (item.type === "commit")
+          return `commit-${(item.data as any).sha || (item.data as any)._id}`;
+        // The same ids the row renderer checks against (itemId in the feed below).
+        if (item.type === "external_event")
+          return `event-${(item.data as any)._id}`;
+        return `pr-${(item.data as any)._id}`;
+      }),
+    );
 
     // Suppress animation during initial hydration — IDB delivers cached messages first,
     // then Convex syncs the latest. Without this window, the Convex delta would
     // trigger slide-in animations for messages that aren't actually new.
     const isSettling = Date.now() - mountTimeRef.current < 1500;
 
-    if (knownItemIdsRef.current.size > 0 && !isPaginatingRef.current && !isSettling) {
+    if (
+      knownItemIdsRef.current.size > 0 &&
+      !isPaginatingRef.current &&
+      !isSettling
+    ) {
       const fresh = new Set<string>();
       for (const id of currentIds) {
         if (!knownItemIdsRef.current.has(id)) {
           if (isConvexId(id)) {
-            const item = timeline.find(i => {
-              if (i.type === 'message') return (i.data as Message)._id === id;
-              if (i.type === 'commit') return `commit-${(i.data as any).sha || (i.data as any)._id}` === id;
+            const item = timeline.find((i) => {
+              if (i.type === "message") return (i.data as Message)._id === id;
+              if (i.type === "commit")
+                return (
+                  `commit-${(i.data as any).sha || (i.data as any)._id}` === id
+                );
               return `pr-${(i.data as any)._id}` === id;
             });
-            if (item?.type === 'message' && (item.data as Message).role === 'user') continue;
+            if (
+              item?.type === "message" &&
+              (item.data as Message).role === "user"
+            )
+              continue;
           }
           fresh.add(id);
         }
@@ -1409,7 +2337,9 @@ const ConversationViewInner = (
       if (fresh.size > 0 && fresh.size <= 20) {
         newItemIdsRef.current = fresh;
         knownItemIdsRef.current = currentIds;
-        const timer = setTimeout(() => { newItemIdsRef.current = new Set(); }, 400);
+        const timer = setTimeout(() => {
+          newItemIdsRef.current = new Set();
+        }, 400);
         return () => clearTimeout(timer);
       }
     }
@@ -1419,27 +2349,47 @@ const ConversationViewInner = (
 
   // Ref of loaded message IDs for fast membership checks during navigation.
   const loadedIdsRef = useRef<Set<string>>(new Set());
-  loadedIdsRef.current = useMemo(() => new Set(messages.map((m: Message) => m._id)), [messages]);
+  loadedIdsRef.current = useMemo(
+    () => new Set(messages.map((m: Message) => m._id)),
+    [messages],
+  );
   const matchInstancesRef = useRef(matchInstances);
   matchInstancesRef.current = matchInstances;
   const currentMatchIndexRef = useRef(currentMatchIndex);
   currentMatchIndexRef.current = currentMatchIndex;
 
   const [activationTick, setActivationTick] = useState(0);
-  const navigateToHit = useCallback((index: number, dir: 1 | -1, instances: MatchInstance[]) => {
-    const target = instances[index];
-    if (!target) return;
-    setCurrentMatchIndex(index);
-    pendingHitRef.current = { ...target, dir, startedAt: Date.now(), jumped: false, skipped: 0 };
-    setActivationTick((t) => t + 1);
-  }, []);
+  const navigateToHit = useCallback(
+    (index: number, dir: 1 | -1, instances: MatchInstance[]) => {
+      const target = instances[index];
+      if (!target) return;
+      setCurrentMatchIndex(index);
+      pendingHitRef.current = {
+        ...target,
+        dir,
+        startedAt: Date.now(),
+        jumped: false,
+        skipped: 0,
+      };
+      setActivationTick((t) => t + 1);
+    },
+    [],
+  );
   const goToNextMatch = useCallback(() => {
     if (matchInstances.length === 0) return;
-    navigateToHit(stepIndex(currentMatchIndex, 1, matchInstances.length), 1, matchInstances);
+    navigateToHit(
+      stepIndex(currentMatchIndex, 1, matchInstances.length),
+      1,
+      matchInstances,
+    );
   }, [matchInstances, currentMatchIndex, navigateToHit]);
   const goToPrevMatch = useCallback(() => {
     if (matchInstances.length === 0) return;
-    navigateToHit(stepIndex(currentMatchIndex, -1, matchInstances.length), -1, matchInstances);
+    navigateToHit(
+      stepIndex(currentMatchIndex, -1, matchInstances.length),
+      -1,
+      matchInstances,
+    );
   }, [matchInstances, currentMatchIndex, navigateToHit]);
 
   // Every hit across the whole conversation, one bounded server page at a
@@ -1463,12 +2413,13 @@ const ConversationViewInner = (
     setSearchStatus("searching");
     let shown = false;
     walkSearchPages(
-      (after) => convex.query(api.messages.findAllMessagesByContent, {
-        conversation_id: convexConvId,
-        search_term: cleanedHighlight,
-        after_ts: after,
-        ...shareTokenArg(convexConvId),
-      }),
+      (after) =>
+        convex.query(api.messages.findAllMessagesByContent, {
+          conversation_id: convexConvId,
+          search_term: cleanedHighlight,
+          after_ts: after,
+          ...shareTokenArg(convexConvId),
+        }),
       (all, done) => {
         const instances = instancesFromMatches(all);
         setMatchInstances(instances);
@@ -1481,26 +2432,42 @@ const ConversationViewInner = (
       () => gen !== searchGenRef.current,
     ).catch((err: unknown) => {
       if (gen !== searchGenRef.current) return;
-      console.warn("[ConversationView] conversation search failed", { conversationId: convexConvId, err });
+      console.warn("[ConversationView] conversation search failed", {
+        conversationId: convexConvId,
+        err,
+      });
       setSearchStatus("error");
     });
   }, [convexConvId, cleanedHighlight]);
 
-  const jumpToStoryMessage = useCallback((messageId: string, timestamp: number) => {
-    setDensity("full");
-    setHighlightedMessageId(messageId);
-    let jumped = false;
-    const attempt = (tries: number) => {
-      const el = containerRef.current?.querySelector(`#msg-${CSS.escape(messageId)}`);
-      if (el) { el.scrollIntoView({ block: "center" }); return; }
-      if (!jumped && tries >= 2 && !loadedIdsRef.current.has(messageId) && onJumpToTimestamp) {
-        jumped = true;
-        onJumpToTimestamp(timestamp);
-      }
-      if (tries < 16) setTimeout(() => attempt(tries + 1), 150);
-    };
-    setTimeout(() => attempt(0), 60);
-  }, [onJumpToTimestamp, setDensity]);
+  const jumpToStoryMessage = useCallback(
+    (messageId: string, timestamp: number) => {
+      setDensity("full");
+      setHighlightedMessageId(messageId);
+      let jumped = false;
+      const attempt = (tries: number) => {
+        const el = containerRef.current?.querySelector(
+          `#msg-${CSS.escape(messageId)}`,
+        );
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          return;
+        }
+        if (
+          !jumped &&
+          tries >= 2 &&
+          !loadedIdsRef.current.has(messageId) &&
+          onJumpToTimestamp
+        ) {
+          jumped = true;
+          onJumpToTimestamp(timestamp);
+        }
+        if (tries < 16) setTimeout(() => attempt(tries + 1), 150);
+      };
+      setTimeout(() => attempt(0), 60);
+    },
+    [onJumpToTimestamp, setDensity],
+  );
 
   const handleCopyAll = () => {
     if (!convexConvId) {
@@ -1513,22 +2480,32 @@ const ConversationViewInner = (
       let cursor: string | null = null;
       // Safety cap: stop after ~100k messages so a corrupt cursor can't infinite-loop.
       for (let i = 0; i < 500; i++) {
-        const result: any = await convex.query(api.conversations.copyAllMessages, {
-          conversation_id: convexConvId,
-          paginationOpts: { numItems: 200, cursor },
-          ...shareTokenArg(convexConvId),
-        });
+        const result: any = await convex.query(
+          api.conversations.copyAllMessages,
+          {
+            conversation_id: convexConvId,
+            paginationOpts: { numItems: 200, cursor },
+            ...shareTokenArg(convexConvId),
+          },
+        );
         if (!result) break;
         if (result.page?.length) allMessages.push(...result.page);
         if (result.isDone) break;
         cursor = result.continueCursor;
       }
       return allMessages
-        .filter((msg: any) => msg.role !== "system" && msg.subtype !== "compact_boundary")
+        .filter(
+          (msg: any) =>
+            msg.role !== "system" && msg.subtype !== "compact_boundary",
+        )
         .map((msg: any) => {
           const ts = new Date(msg.timestamp).toLocaleString();
           const label = msg.role === "user" ? "User" : "Assistant";
-          const text = formatMessagePartsForCopy(msg.content, msg.tool_calls, msg.tool_results);
+          const text = formatMessagePartsForCopy(
+            msg.content,
+            msg.tool_calls,
+            msg.tool_results,
+          );
           if (!text) return null;
           return `[${ts}] ${label}:\n${text}\n`;
         })
@@ -1575,34 +2552,51 @@ const ConversationViewInner = (
       .catch(() => toast.error("Failed to copy to clipboard"));
   };
 
-  const buildResumeCommand = useCallback((targetAgent: "claude" | "codex"): string | null => {
-    if (!conversation) return null;
-    const projectDir = conversation.project_path || conversation.git_root;
-    const cdPrefix = projectDir ? `cd ${projectDir} && ` : "";
-    const sourceAgent = conversation.agent_type === "codex" ? "codex" : "claude";
-    if (targetAgent === sourceAgent && targetAgent === "codex") {
-      const codexId = managedSession?.session_id || conversation.session_id;
-      if (!codexId) return null;
-      return `${cdPrefix}codex resume ${codexId}`;
-    }
-    const resumeId = conversation.short_id || managedSession?.session_id || conversation.session_id;
-    if (!resumeId) return null;
-    return `${cdPrefix}cast resume ${resumeId}${targetAgent !== sourceAgent ? ` --as ${targetAgent}` : ""}`;
-  }, [conversation?.short_id, managedSession?.session_id, conversation?.session_id, conversation?.agent_type, conversation?.project_path, conversation?.git_root]);
-
-  const handleCopyResumeCommand = useCallback(async (targetAgent: "claude" | "codex") => {
-    try {
-      const cmd = buildResumeCommand(targetAgent);
-      if (!cmd) {
-        toast.error("No session to resume");
-        return;
+  const buildResumeCommand = useCallback(
+    (targetAgent: "claude" | "codex"): string | null => {
+      if (!conversation) return null;
+      const projectDir = conversation.project_path || conversation.git_root;
+      const cdPrefix = projectDir ? `cd ${projectDir} && ` : "";
+      const sourceAgent =
+        conversation.agent_type === "codex" ? "codex" : "claude";
+      if (targetAgent === sourceAgent && targetAgent === "codex") {
+        const codexId = managedSession?.session_id || conversation.session_id;
+        if (!codexId) return null;
+        return `${cdPrefix}codex resume ${codexId}`;
       }
-      await copyToClipboard(cmd);
-      toast.success(`Resume command copied (${targetAgent})`);
-    } catch {
-      toast.error("Failed to copy");
-    }
-  }, [buildResumeCommand]);
+      const resumeId =
+        conversation.short_id ||
+        managedSession?.session_id ||
+        conversation.session_id;
+      if (!resumeId) return null;
+      return `${cdPrefix}cast resume ${resumeId}${targetAgent !== sourceAgent ? ` --as ${targetAgent}` : ""}`;
+    },
+    [
+      conversation?.short_id,
+      managedSession?.session_id,
+      conversation?.session_id,
+      conversation?.agent_type,
+      conversation?.project_path,
+      conversation?.git_root,
+    ],
+  );
+
+  const handleCopyResumeCommand = useCallback(
+    async (targetAgent: "claude" | "codex") => {
+      try {
+        const cmd = buildResumeCommand(targetAgent);
+        if (!cmd) {
+          toast.error("No session to resume");
+          return;
+        }
+        await copyToClipboard(cmd);
+        toast.success(`Resume command copied (${targetAgent})`);
+      } catch {
+        toast.error("Failed to copy");
+      }
+    },
+    [buildResumeCommand],
+  );
 
   // Extract usage from loaded messages (local)
   const latestUsage = useMemo(() => {
@@ -1626,13 +2620,25 @@ const ConversationViewInner = (
   // client_id on two messages (a delivery ack once stamped it on the harness's
   // boot <task-notification> turn AND on the real echo), and rows sharing a key
   // garble the virtualizer — overlapping ghost copies accreting on re-renders.
-  const rowKeys = useMemo(() => uniqueRowKeys(timeline.map((item) => {
-    if (item.type === 'message') return messageRowKey(item.data as Message);
-    if (item.type === 'commit') return `commit-${(item.data as any).sha || (item.data as any)._id}`;
-    if (item.type === 'external_event') return `event-${(item.data as any)._id}`;
-    return `pr-${(item.data as any)._id}`;
-  })), [timeline]);
-  const getItemKey = useCallback((index: number) => rowKeys[index] ?? index, [rowKeys]);
+  const rowKeys = useMemo(
+    () =>
+      uniqueRowKeys(
+        timeline.map((item) => {
+          if (item.type === "message")
+            return messageRowKey(item.data as Message);
+          if (item.type === "commit")
+            return `commit-${(item.data as any).sha || (item.data as any)._id}`;
+          if (item.type === "external_event")
+            return `event-${(item.data as any)._id}`;
+          return `pr-${(item.data as any)._id}`;
+        }),
+      ),
+    [timeline],
+  );
+  const getItemKey = useCallback(
+    (index: number) => rowKeys[index] ?? index,
+    [rowKeys],
+  );
 
   // Height-cache discriminator. In compact and condensed a row's height depends
   // on its disclosure state (compact: card vs full turn; condensed: the owner
@@ -1641,103 +2647,184 @@ const ConversationViewInner = (
   // mis-lays the list. The Modern style draws every row at other heights (its
   // type, its rows, whole images), so its heights are cached apart: switching
   // styles never reuses the other style's measurements.
-  const rowDensityKey = useCallback((index: number): string => {
-    const base = `${foldWorkingTurns ? `${feedDensity}:fold` : feedDensity}${modernStyle ? ":m" : ""}`;
-    if (feedDensity === "full") return base;
-    const item = timeline[index];
-    if (item?.type !== "message") return base;
-    const msg = item.data as Message;
-    const groupKey = foldTurns ? turnAggregates.turnKeyOf.get(msg._id) : msg._id;
-    const expanded = groupKey ? expandedGroups.has(groupKey) : false;
-    return `${base}:${expanded ? "e" : "c"}`;
-  }, [feedDensity, foldWorkingTurns, foldTurns, timeline, turnAggregates, expandedGroups, modernStyle]);
+  const rowDensityKey = useCallback(
+    (index: number): string => {
+      const base = `${foldWorkingTurns ? `${feedDensity}:fold` : feedDensity}${modernStyle ? ":m" : ""}`;
+      if (feedDensity === "full") return base;
+      const item = timeline[index];
+      if (item?.type !== "message") return base;
+      const msg = item.data as Message;
+      const groupKey = foldTurns
+        ? turnAggregates.turnKeyOf.get(msg._id)
+        : msg._id;
+      const expanded = groupKey ? expandedGroups.has(groupKey) : false;
+      return `${base}:${expanded ? "e" : "c"}`;
+    },
+    [
+      feedDensity,
+      foldWorkingTurns,
+      foldTurns,
+      timeline,
+      turnAggregates,
+      expandedGroups,
+      modernStyle,
+    ],
+  );
 
-  const estimateUncachedSize = useCallback((index: number) => {
-    const item = timeline[index];
-    if (!item) return 100;
+  const estimateUncachedSize = useCallback(
+    (index: number) => {
+      const item = timeline[index];
+      if (!item) return 100;
 
-    if (item.type === 'commit') return 80;
-    // A git event is one line plus its pill row. Everything below this point
-    // reads item.data as a Message, so a non-message type must return here.
-    if (item.type === 'external_event') return 44;
-    if (item.type === 'pull_request') return 120;
+      if (item.type === "commit") return 80;
+      // A git event is one line plus its pill row. Everything below this point
+      // reads item.data as a Message, so a non-message type must return here.
+      if (item.type === "external_event") return 44;
+      if (item.type === "pull_request") return 120;
 
-    const msg = item.data as Message;
-    if (cleanRows && msg.role === "assistant") return cleanRows.has(msg._id) ? 120 : 0;
-    if (cleanRows && msg.role === "system" && !cleanKeepsSystemRow(msg.content, msg.subtype)) return 0;
-    // Compact: a collapsed turn is one card on the first assistant message; the
-    // rest of the turn is height 0 until expanded.
-    if (foldTurns && msg.role === "assistant") {
-      const turnKey = turnAggregates.turnKeyOf.get(msg._id);
-      if (turnKey && !expandedGroups.has(turnKey)) {
-        const lastText = turnAggregates.lastTextOf.get(turnKey);
-        if (lastText) return msg._id === lastText ? COMPACT_TAIL_HEIGHT : 0;
-        return turnAggregates.firstAssistOf.get(turnKey) === msg._id ? 64 : 0;
+      const msg = item.data as Message;
+      if (cleanRows && msg.role === "assistant")
+        return cleanRows.has(msg._id) ? 120 : 0;
+      if (
+        cleanRows &&
+        msg.role === "system" &&
+        !cleanKeepsSystemRow(msg.content, msg.subtype)
+      )
+        return 0;
+      // Compact: a collapsed turn is one card on the first assistant message; the
+      // rest of the turn is height 0 until expanded.
+      if (foldTurns && msg.role === "assistant") {
+        const turnKey = turnAggregates.turnKeyOf.get(msg._id);
+        if (turnKey && !expandedGroups.has(turnKey)) {
+          const lastText = turnAggregates.lastTextOf.get(turnKey);
+          if (lastText) return msg._id === lastText ? COMPACT_TAIL_HEIGHT : 0;
+          return turnAggregates.firstAssistOf.get(turnKey) === msg._id ? 64 : 0;
+        }
       }
-    }
-    if (feedDensity === "condensed" && msg.role === "assistant") {
-      // Tool-only messages folded into an earlier segment's receipt never
-      // render: their tools show inside the owner's opened group.
-      if (turnAggregates.absorbed.has(msg._id)) return 0;
-      const hasTextContent = msg.content && msg.content.trim().length > 0;
-      const receiptToolCount = turnAggregates.receiptOf.get(msg._id)?.reduce((n, e) => n + e.tools.length, 0) ?? 0;
-      const groupHeight = receiptToolCount > 0 && expandedGroups.has(msg._id) ? Math.min(receiptToolCount * 36, 400) : 0;
-      if (msg.tool_calls?.some((tc) => isAlwaysVisibleToolCall(tc))) return 200 + groupHeight;
-      // A tool-only receipt owner is just the one receipt row (plus its open group).
-      if (!hasTextContent && receiptToolCount > 0) return 28 + groupHeight;
-      if (groupHeight) return 200 + groupHeight;
-    }
-
-    if (msg.role === "system") return 8;
-    if (msg.role === "user") {
-      const kind = userMsgKindMap.get(msg._id);
-      if (foldWorkingTurns && !FOLD_KEPT_USER_KINDS.has(kind?.kind ?? 'normal')) return 0;
-      switch (kind?.kind) {
-        case 'command': return 120;
-        case 'bash_input': return 130;
-        case 'bash_output': return commandExpansionMap.consumed.has(msg._id) ? 0 : 110;
-        case 'interrupt': return 30;
-        case 'machine_move': return commandExpansionMap.consumed.has(msg._id) ? 0 : 40;
-        case 'agent_switch': return commandExpansionMap.consumed.has(msg._id) ? 0 : 40;
-        case 'session_escalation': return kind.escalation.line ? 110 : 40;
-        case 'continuation': return 30;
-        case 'screen_recording': return 480;
-        case 'normal':
-          if (nudgeRuns.folded.has(msg._id)) return 0;
-          if (nudgeRuns.runs.has(msg._id)) return 36;
-          break;
-        case 'skill_expansion': return commandExpansionMap.consumed.has(msg._id) ? 0 : 44;
-        case 'task_notification': return 40;
-        case 'scheduled_task': return 56;
-        case 'goal_round': return 44;
-        case 'role_brief': return 44;
-        case 'workflow_frame': return kind.frame === 'user request' ? 44 : 100;
-        case 'teammate_events': return 80;
-        case 'task_prompt': return 0;
-        case 'compaction_prompt': return 0;
-        case 'compaction_summary': return 60;
-        case 'noise': return 0;
-        case 'tool_results_only': return 0;
-        case 'empty': return 0;
-        case 'poll_response': return 0;
+      if (feedDensity === "condensed" && msg.role === "assistant") {
+        // Tool-only messages folded into an earlier segment's receipt never
+        // render: their tools show inside the owner's opened group.
+        if (turnAggregates.absorbed.has(msg._id)) return 0;
+        const hasTextContent = msg.content && msg.content.trim().length > 0;
+        const receiptToolCount =
+          turnAggregates.receiptOf
+            .get(msg._id)
+            ?.reduce((n, e) => n + e.tools.length, 0) ?? 0;
+        const groupHeight =
+          receiptToolCount > 0 && expandedGroups.has(msg._id)
+            ? Math.min(receiptToolCount * 36, 400)
+            : 0;
+        if (msg.tool_calls?.some((tc) => isAlwaysVisibleToolCall(tc)))
+          return 200 + groupHeight;
+        // A tool-only receipt owner is just the one receipt row (plus its open group).
+        if (!hasTextContent && receiptToolCount > 0) return 28 + groupHeight;
+        if (groupHeight) return 200 + groupHeight;
       }
-      return 100;
-    }
-    if (msg.role === "assistant") {
-      const hasTextContent = msg.content && msg.content.trim().length > 0;
-      const toolCount = msg.tool_calls?.length || 0;
-      if (!hasTextContent && !msg.thinking && !msg.images?.length && toolCount === 0) return 8;
-      if (!hasTextContent && toolCount > 0) return Math.min(toolCount * 20, 200);
-      return 200;
-    }
-    return 40;
-  }, [timeline, feedDensity, foldTurns, foldWorkingTurns, cleanRows, userMsgKindMap, commandExpansionMap, nudgeRuns, turnAggregates, expandedGroups]);
 
-  const estimateSize = useCallback((index: number) => {
-    const estimate = estimateUncachedSize(index);
-    if (estimate === 0) return 0;
-    return VIRT_HEIGHT_CACHE.get(virtHeightKey(getItemKey(index), rowDensityKey(index))) ?? estimate;
-  }, [estimateUncachedSize, getItemKey, rowDensityKey]);
+      if (msg.role === "system") return 8;
+      if (msg.role === "user") {
+        const kind = userMsgKindMap.get(msg._id);
+        if (
+          foldWorkingTurns &&
+          !FOLD_KEPT_USER_KINDS.has(kind?.kind ?? "normal")
+        )
+          return 0;
+        switch (kind?.kind) {
+          case "command":
+            return 120;
+          case "bash_input":
+            return 130;
+          case "bash_output":
+            return commandExpansionMap.consumed.has(msg._id) ? 0 : 110;
+          case "interrupt":
+            return 30;
+          case "machine_move":
+            return commandExpansionMap.consumed.has(msg._id) ? 0 : 40;
+          case "agent_switch":
+            return commandExpansionMap.consumed.has(msg._id) ? 0 : 40;
+          case "session_escalation":
+            return kind.escalation.line ? 110 : 40;
+          case "continuation":
+            return 30;
+          case "screen_recording":
+            return 480;
+          case "normal":
+            if (nudgeRuns.folded.has(msg._id)) return 0;
+            if (nudgeRuns.runs.has(msg._id)) return 36;
+            break;
+          case "skill_expansion":
+            return commandExpansionMap.consumed.has(msg._id) ? 0 : 44;
+          case "task_notification":
+            return 40;
+          case "scheduled_task":
+            return 56;
+          case "goal_round":
+            return 44;
+          case "role_brief":
+            return 44;
+          case "workflow_frame":
+            return kind.frame === "user request" ? 44 : 100;
+          case "teammate_events":
+            return 80;
+          case "task_prompt":
+            return 0;
+          case "compaction_prompt":
+            return 0;
+          case "compaction_summary":
+            return 60;
+          case "noise":
+            return 0;
+          case "tool_results_only":
+            return 0;
+          case "empty":
+            return 0;
+          case "poll_response":
+            return 0;
+        }
+        return 100;
+      }
+      if (msg.role === "assistant") {
+        const hasTextContent = msg.content && msg.content.trim().length > 0;
+        const toolCount = msg.tool_calls?.length || 0;
+        if (
+          !hasTextContent &&
+          !msg.thinking &&
+          !msg.images?.length &&
+          toolCount === 0
+        )
+          return 8;
+        if (!hasTextContent && toolCount > 0)
+          return Math.min(toolCount * 20, 200);
+        return 200;
+      }
+      return 40;
+    },
+    [
+      timeline,
+      feedDensity,
+      foldTurns,
+      foldWorkingTurns,
+      cleanRows,
+      userMsgKindMap,
+      commandExpansionMap,
+      nudgeRuns,
+      turnAggregates,
+      expandedGroups,
+    ],
+  );
+
+  const estimateSize = useCallback(
+    (index: number) => {
+      const estimate = estimateUncachedSize(index);
+      if (estimate === 0) return 0;
+      return (
+        VIRT_HEIGHT_CACHE.get(
+          virtHeightKey(getItemKey(index), rowDensityKey(index)),
+        ) ?? estimate
+      );
+    },
+    [estimateUncachedSize, getItemKey, rowDensityKey],
+  );
 
   // Mirror @tanstack/virtual-core's default measureElement, but persist every
   // measured height into VIRT_HEIGHT_CACHE keyed by the stable item key so a
@@ -1748,56 +2835,94 @@ const ConversationViewInner = (
   // The element's index comes from its own data-vkey stamp
   // (attributeMeasurementsByKey after the virtualizer), so the key here is
   // always the row's own, even mid deferred switch or prepend.
-  const measureElement = useCallback((element: Element, entry: ResizeObserverEntry | undefined, instance: any) => {
-    const horizontal = instance.options.horizontal;
-    const index = instance.indexFromElement(element);
-    if (index < 0) return 0;
-    const key = instance.options.getItemKey(index);
-    const stampedKey = (element as HTMLElement).dataset?.vkey;
-    if (VLIST_LEGACY && stampedKey !== undefined && stampedKey !== String(key)) {
-      return instance.itemSizeCache.get(key) ?? instance.options.estimateSize(index);
-    }
-    const box = entry?.borderBoxSize?.[0];
-    let size: number;
-    if (isUnrenderedBox(box)) {
-      // The pane went display:none (a background tab): the row has no box, and
-      // its height is whatever it was. Returning that leaves the virtualizer's
-      // cache and VIRT_HEIGHT_CACHE as they are.
-      return instance.itemSizeCache.get(key) ?? VIRT_HEIGHT_CACHE.get(virtHeightKey(key, rowDensityKey(index))) ?? instance.options.estimateSize(index);
-    }
-    if (box) {
-      size = Math.round(horizontal ? box.inlineSize : box.blockSize);
-    } else {
-      // The mount-time call has no observer entry, and is never answered by a
-      // layout read: rows are placed by writing `top` straight into the DOM,
-      // so each read laid the whole page out again, once per mounted row. The
-      // row's known height (this mount, an earlier visit, else the estimate)
-      // stands in; the observer's first entry arrives after this frame's
-      // layout and before its paint, with the real size.
-      return instance.itemSizeCache.get(key) ?? VIRT_HEIGHT_CACHE.get(virtHeightKey(key, rowDensityKey(index))) ?? instance.options.estimateSize(index);
-    }
-    // A fast-scroll placeholder reports its believed height back; keep that
-    // out of the cache, where it would pass for a measurement.
-    if (index >= 0 && (element as HTMLElement).dataset?.seek === undefined) recordVirtHeight(virtHeightKey(key, rowDensityKey(index)), size);
-    return size;
-  }, [rowDensityKey]);
+  const measureElement = useCallback(
+    (
+      element: Element,
+      entry: ResizeObserverEntry | undefined,
+      instance: any,
+    ) => {
+      const horizontal = instance.options.horizontal;
+      const index = instance.indexFromElement(element);
+      if (index < 0) return 0;
+      const key = instance.options.getItemKey(index);
+      const stampedKey = (element as HTMLElement).dataset?.vkey;
+      if (
+        VLIST_LEGACY &&
+        stampedKey !== undefined &&
+        stampedKey !== String(key)
+      ) {
+        return (
+          instance.itemSizeCache.get(key) ??
+          instance.options.estimateSize(index)
+        );
+      }
+      const box = entry?.borderBoxSize?.[0];
+      let size: number;
+      if (isUnrenderedBox(box)) {
+        // The pane went display:none (a background tab): the row has no box, and
+        // its height is whatever it was. Returning that leaves the virtualizer's
+        // cache and VIRT_HEIGHT_CACHE as they are.
+        return (
+          instance.itemSizeCache.get(key) ??
+          VIRT_HEIGHT_CACHE.get(virtHeightKey(key, rowDensityKey(index))) ??
+          instance.options.estimateSize(index)
+        );
+      }
+      if (box) {
+        size = Math.round(horizontal ? box.inlineSize : box.blockSize);
+      } else {
+        // The mount-time call has no observer entry, and is never answered by a
+        // layout read: rows are placed by writing `top` straight into the DOM,
+        // so each read laid the whole page out again, once per mounted row. The
+        // row's known height (this mount, an earlier visit, else the estimate)
+        // stands in; the observer's first entry arrives after this frame's
+        // layout and before its paint, with the real size.
+        return (
+          instance.itemSizeCache.get(key) ??
+          VIRT_HEIGHT_CACHE.get(virtHeightKey(key, rowDensityKey(index))) ??
+          instance.options.estimateSize(index)
+        );
+      }
+      // A fast-scroll placeholder reports its believed height back; keep that
+      // out of the cache, where it would pass for a measurement.
+      if (index >= 0 && (element as HTMLElement).dataset?.seek === undefined)
+        recordVirtHeight(virtHeightKey(key, rowDensityKey(index)), size);
+      return size;
+    },
+    [rowDensityKey],
+  );
 
-  const updateScrollProgress = useCallback((instance: Virtualizer<HTMLDivElement, Element>) => {
-    if (!scrollProgressRef.current || jumpPendingRef.current) return;
-    const ctx = scrollCtxRef.current;
-    let progress: number;
-    if (ctx.messageCount > 150) {
-      const items = instance.getVirtualItems();
-      if (items.length === 0) return;
-      const centerIdx = items[Math.floor(items.length / 2)].index;
-      progress = Math.max(0, Math.min(1, (ctx.loadedStartIndex + (centerIdx / Math.max(ctx.timelineLen, 1)) * ctx.messagesLen) / ctx.messageCount));
-    } else {
-      const maxScroll = instance.getTotalSize() - (instance.scrollRect?.height ?? 0);
-      progress = maxScroll > 0 ? Math.max(0, Math.min(1, (instance.scrollOffset ?? 0) / maxScroll)) : 1;
-    }
-    scrollProgressRef.current.style.height = `${progress * 100}%`;
-    navScrollProgress.set(progress);
-  }, [navScrollProgress]);
+  const updateScrollProgress = useCallback(
+    (instance: Virtualizer<HTMLDivElement, Element>) => {
+      if (!scrollProgressRef.current || jumpPendingRef.current) return;
+      const ctx = scrollCtxRef.current;
+      let progress: number;
+      if (ctx.messageCount > 150) {
+        const items = instance.getVirtualItems();
+        if (items.length === 0) return;
+        const centerIdx = items[Math.floor(items.length / 2)].index;
+        progress = Math.max(
+          0,
+          Math.min(
+            1,
+            (ctx.loadedStartIndex +
+              (centerIdx / Math.max(ctx.timelineLen, 1)) * ctx.messagesLen) /
+              ctx.messageCount,
+          ),
+        );
+      } else {
+        const maxScroll =
+          instance.getTotalSize() - (instance.scrollRect?.height ?? 0);
+        progress =
+          maxScroll > 0
+            ? Math.max(0, Math.min(1, (instance.scrollOffset ?? 0) / maxScroll))
+            : 1;
+      }
+      scrollProgressRef.current.style.height = `${progress * 100}%`;
+      navScrollProgress.set(progress);
+    },
+    [navScrollProgress],
+  );
 
   // The one pending programmatic scroll target (lib/virtualList/scrollHold).
   const holdRef = useRef<ScrollHold | null>(null);
@@ -1807,7 +2932,10 @@ const ConversationViewInner = (
     // compositor layer, and the browser re-layers the whole page on each frame
     // that moves the caret, so each keystroke paid for every visible row.
     directDomUpdatesMode: "position",
-    onChange: (instance) => { updateScrollProgress(instance); holdRef.current?.onChange(); },
+    onChange: (instance) => {
+      updateScrollProgress(instance);
+      holdRef.current?.onChange();
+    },
     // A measurement re-renders with the next batch, not synchronously inside
     // the ref or resize callback: synchronous re-renders turned the first
     // paint of a conversation into a chain of commits, each forcing the next
@@ -1846,13 +2974,19 @@ const ConversationViewInner = (
     // growth and re-measurements can move the geometry without user intent.
     // Gate both mechanisms on our real upward-scroll latch so a reader who left
     // the tail is never pulled back down by a newly rendered chunk.
-    anchorTo: shouldFollowStreaming(userScrolled, guestStayAtTop) ? "end" : undefined,
-    followOnAppend: shouldFollowStreaming(userScrolled, guestStayAtTop) ? "auto" : false,
+    anchorTo: shouldFollowStreaming(userScrolled, guestStayAtTop)
+      ? "end"
+      : undefined,
+    followOnAppend: shouldFollowStreaming(userScrolled, guestStayAtTop)
+      ? "auto"
+      : false,
     scrollEndThreshold: 8,
   });
   if (!VLIST_LEGACY) attributeMeasurementsByKey(virtualizer);
   holdRef.current ??= createScrollHold(virtualizer, () => containerRef.current);
-  const seek = useScrollSeek(containerRef, () => virtualizer.getVirtualItems().map((v) => v.key));
+  const seek = useScrollSeek(containerRef, () =>
+    virtualizer.getVirtualItems().map((v) => v.key),
+  );
   useMountEffect(() => () => holdRef.current?.release());
   // ConversationView stays mounted across switches: the previous
   // conversation's pending target must not pull the next one.
@@ -1871,14 +3005,36 @@ const ConversationViewInner = (
       const layout = `${rowDensityKey(index)}:${estimate}`;
       layouts.set(key, layout);
       if (!previous.has(key) || previous.get(key) === layout) continue;
-      const element = virtualizer.elementsCache.get(key) as HTMLElement | undefined;
+      const element = virtualizer.elementsCache.get(key) as
+        | HTMLElement
+        | undefined;
       canMeasure ??= containerRef.current?.offsetParent != null;
-      const mounted = canMeasure && element?.isConnected && element.dataset.index === String(index) && element.dataset.vkey === String(key);
-      corrections.push({ index, size: estimate === 0 ? 0 : mounted ? element.offsetHeight : estimateSize(index) });
+      const mounted =
+        canMeasure &&
+        element?.isConnected &&
+        element.dataset.index === String(index) &&
+        element.dataset.vkey === String(key);
+      corrections.push({
+        index,
+        size:
+          estimate === 0
+            ? 0
+            : mounted
+              ? element.offsetHeight
+              : estimateSize(index),
+      });
     }
     rowLayoutsRef.current = layouts;
-    for (const { index, size } of corrections) virtualizer.resizeItem(index, size);
-  }, [timeline.length, getItemKey, rowDensityKey, estimateUncachedSize, estimateSize, virtualizer]);
+    for (const { index, size } of corrections)
+      virtualizer.resizeItem(index, size);
+  }, [
+    timeline.length,
+    getItemKey,
+    rowDensityKey,
+    estimateUncachedSize,
+    estimateSize,
+    virtualizer,
+  ]);
 
   scrollToBottomFnRef.current = () => {
     virtualizer.scrollToEnd({ behavior: "auto" });
@@ -1897,7 +3053,9 @@ const ConversationViewInner = (
   // resize leaves scrollTop alone. Every other row follows the rule in
   // shouldAdjustScrollForResize (the library rule minus its scroll-direction
   // clause — see there for why).
-  const scrollHoldRef = useRef<{ key: string | number; until: number } | null>(null);
+  const scrollHoldRef = useRef<{ key: string | number; until: number } | null>(
+    null,
+  );
   // An inline reveal band is the same case: it opens under the reference the
   // reader just clicked, so its row's growth (and its fold on close) is below
   // the visible point and must never move the conversation. The row holding
@@ -1909,29 +3067,45 @@ const ConversationViewInner = (
   // opened near the tail is never re-pinned to the bottom.
   useLayoutEffect(() => {
     const anchor = openReveal?.anchor;
-    const key = anchor && containerRef.current?.contains(anchor) ? anchor.closest<HTMLElement>("[data-vkey]")?.dataset.vkey : undefined;
+    const key =
+      anchor && containerRef.current?.contains(anchor)
+        ? anchor.closest<HTMLElement>("[data-vkey]")?.dataset.vkey
+        : undefined;
     if (key) {
       revealRowRef.current = { key, until: Infinity };
       setUserScrolled(true);
     } else if (revealRowRef.current) {
-      revealRowRef.current = { ...revealRowRef.current, until: Date.now() + 800 };
+      revealRowRef.current = {
+        ...revealRowRef.current,
+        until: Date.now() + 800,
+      };
     }
   }, [openReveal, setUserScrolled]);
   adjustScrollForResizeRule(virtualizer, (key) => {
     const hold = scrollHoldRef.current;
     const revealRow = revealRowRef.current;
-    return (!!hold && key === hold.key && Date.now() < hold.until)
-      || (!!revealRow && String(key) === revealRow.key && Date.now() < revealRow.until);
+    return (
+      (!!hold && key === hold.key && Date.now() < hold.until) ||
+      (!!revealRow &&
+        String(key) === revealRow.key &&
+        Date.now() < revealRow.until)
+    );
   });
   const rowLookupRef = useRef({ timeline, getItemKey });
   rowLookupRef.current = { timeline, getItemKey };
-  const toggleReceipt = useCallback((ownerId: string) => {
-    const { timeline: tl, getItemKey: keyOf } = rowLookupRef.current;
-    const index = tl.findIndex((it) => it.type === "message" && (it.data as Message)._id === ownerId);
-    if (index >= 0) scrollHoldRef.current = { key: keyOf(index), until: Date.now() + 800 };
-    setUserScrolled(true);
-    toggleGroup(ownerId);
-  }, [toggleGroup, setUserScrolled]);
+  const toggleReceipt = useCallback(
+    (ownerId: string) => {
+      const { timeline: tl, getItemKey: keyOf } = rowLookupRef.current;
+      const index = tl.findIndex(
+        (it) => it.type === "message" && (it.data as Message)._id === ownerId,
+      );
+      if (index >= 0)
+        scrollHoldRef.current = { key: keyOf(index), until: Date.now() + 800 };
+      setUserScrolled(true);
+      toggleGroup(ownerId);
+    },
+    [toggleGroup, setUserScrolled],
+  );
   // A resize grip (HeightGrip) drags the bottom edge of a frame in a row: the
   // row is held while it is dragged, so its growth never shifts the rows on
   // screen, and the tail unpins, so the bottom follows the pointer instead of
@@ -1948,7 +3122,8 @@ const ConversationViewInner = (
       const release = () => {
         window.removeEventListener("pointerup", release, true);
         window.removeEventListener("pointercancel", release, true);
-        if (scrollHoldRef.current?.key === key) scrollHoldRef.current = { key, until: Date.now() + 800 };
+        if (scrollHoldRef.current?.key === key)
+          scrollHoldRef.current = { key, until: Date.now() + 800 };
       };
       window.addEventListener("pointerup", release, true);
       window.addEventListener("pointercancel", release, true);
@@ -1986,11 +3161,17 @@ const ConversationViewInner = (
       if (virtualizer.isScrolling) return;
       const container = containerRef.current;
       if (!container || container.offsetParent === null) return;
-      const byIndex = new Map(virtualizer.getVirtualItems().map((v) => [v.index, v]));
+      const byIndex = new Map(
+        virtualizer.getVirtualItems().map((v) => [v.index, v]),
+      );
       if (byIndex.size === 0) return;
-      const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      const nearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        100;
       const corrections: { index: number; size: number }[] = [];
-      for (const el of container.querySelectorAll<HTMLElement>("[data-index]")) {
+      for (const el of container.querySelectorAll<HTMLElement>(
+        "[data-index]",
+      )) {
         const v = byIndex.get(Number(el.dataset.index));
         if (!v || el.dataset.vkey !== String(v.key)) continue; // mid-commit row — skip
         // offsetHeight, NOT getBoundingClientRect: rect heights are screen px,
@@ -2000,25 +3181,45 @@ const ConversationViewInner = (
         // the same layout-px border box the virtualizer's own measurements use.
         const real = el.offsetHeight;
         if (Math.abs(real - v.size) > 1) {
-          if ((window as any).__RECON_DEBUG) (((window as any).__RECON_LOG) ??= []).push({ i: v.index, from: v.size, to: real });
+          if ((window as any).__RECON_DEBUG)
+            ((window as any).__RECON_LOG ??= []).push({
+              i: v.index,
+              from: v.size,
+              to: real,
+            });
           corrections.push({ index: v.index, size: real });
         }
       }
-      for (const { index, size } of corrections) virtualizer.resizeItem(index, size);
+      for (const { index, size } of corrections)
+        virtualizer.resizeItem(index, size);
       // A correction while the reader sits at the tail must keep them there
       // (same contract as followOnAppend) — without this, healing the sizes
       // under a bottom-pinned view leaves the last message's tail cut off.
-      if (corrections.length > 0 && nearBottom && !userScrolledRef.current && !guestStayAtTopRef.current) virtualizer.scrollToEnd({ behavior: "auto" });
+      if (
+        corrections.length > 0 &&
+        nearBottom &&
+        !userScrolledRef.current &&
+        !guestStayAtTopRef.current
+      )
+        virtualizer.scrollToEnd({ behavior: "auto" });
     };
     // Each second's pass waits for an idle moment after a frame, where the
     // page is already laid out: its reads (every row's height) then cost
     // nothing, where a timer landing after a DOM change paid a full layout.
     return whileWindowVisible(() => {
       let idle: number | null = null;
-      const ric = typeof requestIdleCallback === "function" ? requestIdleCallback : null;
+      const ric =
+        typeof requestIdleCallback === "function" ? requestIdleCallback : null;
       const id = setInterval(() => {
         if (!ric) return tick();
-        if (idle === null) idle = ric(() => { idle = null; tick(); }, { timeout: 1000 });
+        if (idle === null)
+          idle = ric(
+            () => {
+              idle = null;
+              tick();
+            },
+            { timeout: 1000 },
+          );
       }, 1000);
       return () => {
         clearInterval(id);
@@ -2033,24 +3234,33 @@ const ConversationViewInner = (
   // retry ladder as soon as the user scrolls somewhere on purpose (wheel latch)
   // — used by the initial open-at-bottom pin, where later retries must never
   // fight a reader who already started moving.
-  const scrollToEdgeRef = useRef<(edge: 'top' | 'bottom', opts?: { bailOnUserScroll?: boolean; holdMs?: number }) => void>(() => {});
+  const scrollToEdgeRef = useRef<
+    (
+      edge: "top" | "bottom",
+      opts?: { bailOnUserScroll?: boolean; holdMs?: number },
+    ) => void
+  >(() => {});
   scrollToEdgeRef.current = (edge, opts) => {
     const sc = containerRef.current;
     if (!sc) return;
     if (!VLIST_LEGACY) {
       holdRef.current?.set(edge, {
         holdMs: opts?.holdMs ?? 1000,
-        bail: opts?.bailOnUserScroll ? () => userScrolledRef.current : undefined,
+        bail: opts?.bailOnUserScroll
+          ? () => userScrolledRef.current
+          : undefined,
       });
       return;
     }
     const pull = () => {
       if (opts?.bailOnUserScroll && userScrolledRef.current) return;
-      if (edge === 'top') {
-        if (timeline.length > 0) virtualizer.scrollToIndex(0, { align: 'start' });
+      if (edge === "top") {
+        if (timeline.length > 0)
+          virtualizer.scrollToIndex(0, { align: "start" });
         sc.scrollTop = 0;
       } else {
-        if (timeline.length > 0) virtualizer.scrollToIndex(timeline.length - 1, { align: 'end' });
+        if (timeline.length > 0)
+          virtualizer.scrollToIndex(timeline.length - 1, { align: "end" });
         sc.scrollTop = sc.scrollHeight;
       }
       // Force the virtualizer to recompute its visible range against the offset
@@ -2058,7 +3268,8 @@ const ConversationViewInner = (
       // scroll event (same-value writes, batching), so without this the list can
       // paint one frame showing the items from the *previous* offset.
       queueMicrotask(() => {
-        if (sc.isConnected) sc.dispatchEvent(new Event('scroll', { bubbles: true }));
+        if (sc.isConnected)
+          sc.dispatchEvent(new Event("scroll", { bubbles: true }));
       });
     };
     pull();
@@ -2067,12 +3278,19 @@ const ConversationViewInner = (
   };
 
   // Fork navigation: message selection (Option+j/k to navigate, Option+f to fork)
-  const [selectedMessageContent, setSelectedMessageContent] = useState<string | null>(null);
-  const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null);
-  const handleSelectMessage = useCallback((uuid: string | null, content: string | null) => {
-    setSelectedMessageUuid(uuid);
-    setSelectedMessageContent(content);
-  }, []);
+  const [selectedMessageContent, setSelectedMessageContent] = useState<
+    string | null
+  >(null);
+  const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(
+    null,
+  );
+  const handleSelectMessage = useCallback(
+    (uuid: string | null, content: string | null) => {
+      setSelectedMessageUuid(uuid);
+      setSelectedMessageContent(content);
+    },
+    [],
+  );
   const handleClearSelection = useCallback(() => {
     forkSetSelectedIndex(null);
     setSelectedMessageContent(null);
@@ -2082,7 +3300,10 @@ const ConversationViewInner = (
   // mounted across session switches — without this, a rewrite preview left
   // active while switching would inject the old conversation's message into
   // the next composer.
-  useWatchEffect(() => () => handleClearSelection(), [conversation?._id, handleClearSelection]);
+  useWatchEffect(
+    () => () => handleClearSelection(),
+    [conversation?._id, handleClearSelection],
+  );
   const forkSelectionIdx = useForkNavigationStore((s) => s.selectedIndex);
   const { selectedIndex: _forkSelIdx } = useMessageSelection({
     timeline: timeline as any,
@@ -2112,76 +3333,111 @@ const ConversationViewInner = (
   // bounce through the redirector page (server resolveConversation + loading skeleton +
   // redirect back to /inbox) — a full reload for data the store already has.
   // null = switch to the conversation's parent (back to "main"); otherwise switch to that fork.
-  const handleBranchSwitch = useCallback((messageUuid: string, convId: string | null) => {
-    let targetId: string | undefined;
-    if (convId === null) {
-      const parentId = conversation?.forked_from;
-      if (parentId) targetId = parentId.toString();
-    } else {
-      targetId = convId;
-    }
-    if (!targetId) return;
-    if (targetId === conversation?._id?.toString()) return;
-    // Scroll-stable switch: branches share an identical message prefix (fork
-    // copy preserves message_uuid + timestamp), so remember where the fork
-    // point sits in the viewport and put its twin back at the same offset
-    // after the switch, instead of opening the target at its live tail.
-    branchAnchorRef.current = null;
-    const tl = timelineRef.current;
-    const anchorIdx = tl.findIndex((it) => it.type === "message" && it.data?.message_uuid === messageUuid);
-    if (anchorIdx >= 0 && conversation?._id) {
-      const container = containerRef.current;
-      let offset = 96;
-      if (container) {
-        const el = container.querySelector(`[data-index="${anchorIdx}"]`);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const raw = (rect.top - container.getBoundingClientRect().top) / cssZoomOf(container);
-          // Negative offsets are normal — a tall fork-point message often has
-          // its top above the fold while its chips sit in view; restoring the
-          // raw value is what keeps the visible part stable. Only clamp so the
-          // anchor row keeps a sliver in the viewport (a navigator-driven
-          // switch can anchor on a fully off-screen message).
-          offset = Math.min(Math.max(raw, Math.min(80 - (el as HTMLElement).offsetHeight, 0)), Math.max(container.clientHeight - 160, 0));
+  const handleBranchSwitch = useCallback(
+    (messageUuid: string, convId: string | null) => {
+      let targetId: string | undefined;
+      if (convId === null) {
+        const parentId = conversation?.forked_from;
+        if (parentId) targetId = parentId.toString();
+      } else {
+        targetId = convId;
+      }
+      if (!targetId) return;
+      if (targetId === conversation?._id?.toString()) return;
+      // Scroll-stable switch: branches share an identical message prefix (fork
+      // copy preserves message_uuid + timestamp), so remember where the fork
+      // point sits in the viewport and put its twin back at the same offset
+      // after the switch, instead of opening the target at its live tail.
+      branchAnchorRef.current = null;
+      const tl = timelineRef.current;
+      const anchorIdx = tl.findIndex(
+        (it) => it.type === "message" && it.data?.message_uuid === messageUuid,
+      );
+      if (anchorIdx >= 0 && conversation?._id) {
+        const container = containerRef.current;
+        let offset = 96;
+        if (container) {
+          const el = container.querySelector(`[data-index="${anchorIdx}"]`);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const raw =
+              (rect.top - container.getBoundingClientRect().top) /
+              cssZoomOf(container);
+            // Negative offsets are normal — a tall fork-point message often has
+            // its top above the fold while its chips sit in view; restoring the
+            // raw value is what keeps the visible part stable. Only clamp so the
+            // anchor row keeps a sliver in the viewport (a navigator-driven
+            // switch can anchor on a fully off-screen message).
+            offset = Math.min(
+              Math.max(raw, Math.min(80 - (el as HTMLElement).offsetHeight, 0)),
+              Math.max(container.clientHeight - 160, 0),
+            );
+          }
+        }
+        branchAnchorRef.current = {
+          sourceId: conversation._id.toString(),
+          targetId,
+          messageUuid,
+          timestamp: tl[anchorIdx].data.timestamp,
+          offset,
+          at: Date.now(),
+          jumped: false,
+        };
+      }
+      // Branches are normally preloaded into the store by the effect above, so this
+      // is an instant local switch. Belt-and-suspenders: if the target somehow isn't
+      // cached yet (a click landing before the seed flushed), seed it from the chip's
+      // own metadata so we still avoid the getConversation fetch-and-spin.
+      if (!useInboxStore.getState().sessions[targetId]) {
+        if (convId === null) {
+          const ffd = conversation?.forked_from_details;
+          if (ffd?.conversation_id)
+            preloadForkSessions([
+              {
+                _id: ffd.conversation_id.toString(),
+                title: ffd.title || "Parent session",
+                inbox_dismissed_at: ffd.inbox_dismissed_at,
+                inbox_stashed_at: ffd.inbox_stashed_at,
+                inbox_killed_at: ffd.inbox_killed_at,
+                inbox_pinned_at: ffd.inbox_pinned_at,
+              },
+            ]);
+        } else {
+          const child = (conversation?.fork_children || []).find(
+            (f) => f._id === targetId,
+          );
+          const sibling = child
+            ? undefined
+            : (conversation?.fork_siblings || []).find(
+                (f) => f._id === targetId,
+              );
+          if (child)
+            preloadForkSessions(
+              [child as ForkChild],
+              conversation?._id?.toString(),
+            );
+          else if (sibling)
+            preloadForkSessions(
+              [sibling as ForkChild],
+              conversation?.forked_from?.toString(),
+            );
         }
       }
-      branchAnchorRef.current = {
-        sourceId: conversation._id.toString(),
-        targetId,
-        messageUuid,
-        timestamp: tl[anchorIdx].data.timestamp,
-        offset,
-        at: Date.now(),
-        jumped: false,
-      };
-    }
-    // Branches are normally preloaded into the store by the effect above, so this
-    // is an instant local switch. Belt-and-suspenders: if the target somehow isn't
-    // cached yet (a click landing before the seed flushed), seed it from the chip's
-    // own metadata so we still avoid the getConversation fetch-and-spin.
-    if (!useInboxStore.getState().sessions[targetId]) {
-      if (convId === null) {
-        const ffd = conversation?.forked_from_details;
-        if (ffd?.conversation_id) preloadForkSessions([{
-          _id: ffd.conversation_id.toString(),
-          title: ffd.title || "Parent session",
-          inbox_dismissed_at: ffd.inbox_dismissed_at,
-          inbox_stashed_at: ffd.inbox_stashed_at,
-          inbox_killed_at: ffd.inbox_killed_at,
-          inbox_pinned_at: ffd.inbox_pinned_at,
-        }]);
-      } else {
-        const child = (conversation?.fork_children || []).find(f => f._id === targetId);
-        const sibling = child ? undefined : (conversation?.fork_siblings || []).find(f => f._id === targetId);
-        if (child) preloadForkSessions([child as ForkChild], conversation?._id?.toString());
-        else if (sibling) preloadForkSessions([sibling as ForkChild], conversation?.forked_from?.toString());
-      }
-    }
-    // The spinner is now a rare fallback (only if the switch can't resolve locally);
-    // it clears when the conversation changes, or via the safety timeout below.
-    setLoadingBranchId(convId === null ? "main" : targetId);
-    navigateToSession(targetId);
-  }, [conversation?.forked_from, conversation?._id, conversation?.fork_children, conversation?.fork_siblings, conversation?.forked_from_details, navigateToSession, preloadForkSessions]);
+      // The spinner is now a rare fallback (only if the switch can't resolve locally);
+      // it clears when the conversation changes, or via the safety timeout below.
+      setLoadingBranchId(convId === null ? "main" : targetId);
+      navigateToSession(targetId);
+    },
+    [
+      conversation?.forked_from,
+      conversation?._id,
+      conversation?.fork_children,
+      conversation?.fork_siblings,
+      conversation?.forked_from_details,
+      navigateToSession,
+      preloadForkSessions,
+    ],
+  );
 
   // Clear the branch-switch spinner once we've landed on a new conversation, and
   // guard against a switch that never resolves (e.g. a teammate's private fork
@@ -2195,10 +3451,13 @@ const ConversationViewInner = (
     return () => clearTimeout(t);
   }, [loadingBranchId]);
 
-  const handleTreeSwitchConversation = useCallback((convId: string) => {
-    if (convId === conversation?._id?.toString()) return;
-    navigateToSession(convId);
-  }, [conversation?._id, navigateToSession]);
+  const handleTreeSwitchConversation = useCallback(
+    (convId: string) => {
+      if (convId === conversation?._id?.toString()) return;
+      navigateToSession(convId);
+    },
+    [conversation?._id, navigateToSession],
+  );
 
   // Open/close the branch map. Shared by the header icon, the menu item, and
   // the Ctrl+B shortcut. Always available — even a single-branch session opens
@@ -2209,7 +3468,13 @@ const ConversationViewInner = (
   // composer's branch control.
   const forkFamily = useMemo(
     () => (conversation ? forkFamilyOf(conversation as any) : null),
-    [conversation?.forked_from, conversation?.fork_children, conversation?.fork_siblings, conversation?.agent_type, conversation?.session_id],
+    [
+      conversation?.forked_from,
+      conversation?.fork_children,
+      conversation?.fork_siblings,
+      conversation?.agent_type,
+      conversation?.session_id,
+    ],
   );
   const toggleMap = useCallback(() => {
     if (!isOwner || forkSelectionIdx !== null) return;
@@ -2217,67 +3482,99 @@ const ConversationViewInner = (
     setTreePopoverOpen((o) => !o);
   }, [isOwner, forkSelectionIdx]);
 
-  useShortcutContext('conversation');
-  usePaneShortcutAction('conv.toggleTree', useCallback(() => {
-    if (!isOwner || forkSelectionIdx !== null) return false;
-    setMapDrill(null); // open at the branch tree
-    setTreePopoverOpen((o) => !o);
-    return true;
-  }, [isOwner, forkSelectionIdx]));
+  useShortcutContext("conversation");
+  usePaneShortcutAction(
+    "conv.toggleTree",
+    useCallback(() => {
+      if (!isOwner || forkSelectionIdx !== null) return false;
+      setMapDrill(null); // open at the branch tree
+      setTreePopoverOpen((o) => !o);
+      return true;
+    }, [isOwner, forkSelectionIdx]),
+  );
 
   // A viewer who came in on a share link passes on that link: the bare
   // conversation URL denies anyone without the token.
   // A regulated team's audit log gets one entry per open (lib/accessLogOpen).
-  useRecordConversationOpen(conversation?._id ? String(conversation._id) : null, (conversation as any)?.team_id ?? null);
+  useRecordConversationOpen(
+    conversation?._id ? String(conversation._id) : null,
+    (conversation as any)?.team_id ?? null,
+  );
   const copyConversationLink = useCallback(() => {
     const token = getShareTokenScope(conversation?._id);
-    const url = token ? `${shareOrigin()}/share/${token}` : `${shareOrigin()}/conversation/${conversation?._id}`;
-    copyToClipboard(url).then(() => toast.success("Link copied")).catch(() => toast.error("Failed to copy"));
+    const url = token
+      ? `${shareOrigin()}/share/${token}`
+      : `${shareOrigin()}/conversation/${conversation?._id}`;
+    copyToClipboard(url)
+      .then(() => toast.success("Link copied"))
+      .catch(() => toast.error("Failed to copy"));
   }, [conversation?._id]);
-  usePaneShortcutAction('conv.copyLink', copyConversationLink);
+  usePaneShortcutAction("conv.copyLink", copyConversationLink);
   // A share-link viewer resolves this conversation's session references
   // through it, so its shared workers name and open (ReferenceScopeContext).
   const scopeConvId = conversation?._id ? String(conversation._id) : null;
   const scopeToken = getShareTokenScope(scopeConvId);
   const viaShare = !!scopeToken || conversation?.access_level === "shared";
   const referenceScope = useMemo(
-    () => (scopeConvId && viaShare ? { conversationId: scopeConvId, shareToken: scopeToken } : null),
+    () =>
+      scopeConvId && viaShare
+        ? { conversationId: scopeConvId, shareToken: scopeToken }
+        : null,
     [scopeConvId, viaShare, scopeToken],
   );
 
-  usePaneShortcutAction('conv.favorite', useCallback(() => {
-    if (!conversation || !isOwner) return;
-    toggleSessionsLikeFirst([conversation._id], "favorite");
-  }, [conversation, isOwner]));
+  usePaneShortcutAction(
+    "conv.favorite",
+    useCallback(() => {
+      if (!conversation || !isOwner) return;
+      toggleSessionsLikeFirst([conversation._id], "favorite");
+    }, [conversation, isOwner]),
+  );
 
   // `r` = quote. With text selected inside a reply it quotes THAT selection (the
   // key behind the floating "Quote into reply" button); with nothing selected it
   // enters inline review on the assistant reply nearest the viewport center, so a
   // keyboard-only user can start quoting/commenting without a mouse.
-  usePaneShortcutAction('conv.review', useCallback(() => {
-    if (!conversation) return;
-    if (quoteSelectionIntoReply(conversation._id)) return;
-    enterReviewNearCenter();
-  }, [conversation]));
+  usePaneShortcutAction(
+    "conv.review",
+    useCallback(() => {
+      if (!conversation) return;
+      if (quoteSelectionIntoReply(conversation._id)) return;
+      enterReviewNearCenter();
+    }, [conversation]),
+  );
 
-  usePaneShortcutAction('conv.toggleDiff', useCallback(() => {
-    if (!conversation?.git_branch) return;
-    setDiffExpanded((s) => !s);
-  }, [conversation?.git_branch]));
+  usePaneShortcutAction(
+    "conv.toggleDiff",
+    useCallback(() => {
+      if (!conversation?.git_branch) return;
+      setDiffExpanded((s) => !s);
+    }, [conversation?.git_branch]),
+  );
 
-  usePaneShortcutAction('conv.toggleThinking', useCallback(() => {
-    if (!hasAnyThinking) return;
-    setShowThinking((s) => !s);
-  }, [hasAnyThinking]));
+  usePaneShortcutAction(
+    "conv.toggleThinking",
+    useCallback(() => {
+      if (!hasAnyThinking) return;
+      setShowThinking((s) => !s);
+    }, [hasAnyThinking]),
+  );
 
   // Alt+. / Alt+, (Codex's keys): this session's effort one level up or down,
   // the blank launch and a live session alike.
-  useEffortKeys(conversation?._id, { blank: (conversation?.message_count ?? 0) === 0, enabled: !guest && isOwner, focusOnly: false });
+  useEffortKeys(conversation?._id, {
+    blank: (conversation?.message_count ?? 0) === 0,
+    enabled: !guest && isOwner,
+    focusOnly: false,
+  });
 
-  usePaneShortcutAction('conv.ask', useCallback(() => {
-    if (guest || !conversation?._id) return;
-    openAskPanel();
-  }, [guest, conversation?._id, openAskPanel]));
+  usePaneShortcutAction(
+    "conv.ask",
+    useCallback(() => {
+      if (guest || !conversation?._id) return;
+      openAskPanel();
+    }, [guest, conversation?._id, openAskPanel]),
+  );
 
   // The header's height anchors everything that floats under it (the pinned
   // prompt bubble, the files pill, the jump toast). Bound through a callback
@@ -2293,7 +3590,10 @@ const ConversationViewInner = (
     if (!el) return;
     // The entry's border box is the same fractional height, and the first one
     // lands after layout and before paint: no forced read on bind.
-    if (typeof ResizeObserver === "undefined") { setHeaderHeight(el.getBoundingClientRect().height); return; }
+    if (typeof ResizeObserver === "undefined") {
+      setHeaderHeight(el.getBoundingClientRect().height);
+      return;
+    }
     const ro = new ResizeObserver((entries) => {
       const box = entries[entries.length - 1]?.borderBoxSize?.[0];
       setHeaderHeight(box ? box.blockSize : el.getBoundingClientRect().height);
@@ -2323,16 +3623,26 @@ const ConversationViewInner = (
     const pane = feed?.closest("main");
     if (!feed || !pane) return;
     const measure = () =>
-      setMessageInputHeight(Math.max(0, Math.round(pane.getBoundingClientRect().bottom - feed.getBoundingClientRect().bottom)));
+      setMessageInputHeight(
+        Math.max(
+          0,
+          Math.round(
+            pane.getBoundingClientRect().bottom -
+              feed.getBoundingClientRect().bottom,
+          ),
+        ),
+      );
     // Measured in the observer's first callback (after layout, before paint);
     // a read on mount laid out the conversation the mount had just changed.
-    if (typeof ResizeObserver === "undefined") { measure(); return; }
+    if (typeof ResizeObserver === "undefined") {
+      measure();
+      return;
+    }
     const ro = new ResizeObserver(measure);
     ro.observe(feed);
     ro.observe(pane);
     return () => ro.disconnect();
   });
-
 
   useWatchEffect(() => {
     const el = containerRef.current;
@@ -2347,7 +3657,18 @@ const ConversationViewInner = (
     let ticking = false;
     const check = () => {
       ticking = false;
-      if ((window as any).__STICKY_DEBUG) { (((window as any).__STICKY_TOP) ??= []).push({ scrollTop: el.scrollTop, headerHeight, stickyDisabled, jumpPending: !!jumpPendingRef.current, idxCount: stickyUserMsgIndices.length, svrLen: (serverUserMessages?.length ?? -1), hasMoreAbove: paginationPropsRef.current.hasMoreAbove, fb: !!fallbackStickyContent }); }
+      if ((window as any).__STICKY_DEBUG) {
+        ((window as any).__STICKY_TOP ??= []).push({
+          scrollTop: el.scrollTop,
+          headerHeight,
+          stickyDisabled,
+          jumpPending: !!jumpPendingRef.current,
+          idxCount: stickyUserMsgIndices.length,
+          svrLen: serverUserMessages?.length ?? -1,
+          hasMoreAbove: paginationPropsRef.current.hasMoreAbove,
+          fb: !!fallbackStickyContent,
+        });
+      }
       // Frozen during a pending jump — the sticky header must not flip to the
       // target edge before the view actually moves there.
       if (jumpPendingRef.current) return;
@@ -2357,8 +3678,12 @@ const ConversationViewInner = (
       // The virtualizer holds each mounted row by key; a selector walk over the
       // feed per row per frame cost more than the boxes themselves.
       const rowEl = (v: { key: string | number | bigint; index: number }) => {
-        const node = virtualizer.elementsCache.get(v.key) as HTMLElement | undefined;
-        return node?.isConnected && node.dataset.index === String(v.index) ? node : null;
+        const node = virtualizer.elementsCache.get(v.key) as
+          | HTMLElement
+          | undefined;
+        return node?.isConnected && node.dataset.index === String(v.index)
+          ? node
+          : null;
       };
       const rects = [];
       for (const v of virtualItems) {
@@ -2367,40 +3692,86 @@ const ConversationViewInner = (
         const r = domEl.getBoundingClientRect();
         rects.push({ index: v.index, top: r.top, bottom: r.bottom });
       }
-      const { topVisibleIndex, visible } = topVisibleIndexFromRects(rects, containerRect.top, containerRect.bottom);
+      const { topVisibleIndex, visible } = topVisibleIndexFromRects(
+        rects,
+        containerRect.top,
+        containerRect.bottom,
+      );
       // Follow mode, and anyone else in this session's composer (reading
       // marks): its place in the transcript rides the same measurement the
       // sticky prompt takes. Read off the store without subscribing; a window
       // nobody follows and nobody shares writes nothing here.
       {
         const st = useInboxStore.getState();
-        if (conversation?._id && (st.followedBy.length > 0 || hasCoPresent(String(conversation._id)))) {
-          const a = anchorFromRects(rects, topVisibleIndex, containerRect.top, timelineMessageIds);
-          st.setViewAnchor(a ? { conversationId: String(conversation._id), ...a } : null);
+        if (
+          conversation?._id &&
+          (st.followedBy.length > 0 || hasCoPresent(String(conversation._id)))
+        ) {
+          const a = anchorFromRects(
+            rects,
+            topVisibleIndex,
+            containerRect.top,
+            timelineMessageIds,
+          );
+          st.setViewAnchor(
+            a ? { conversationId: String(conversation._id), ...a } : null,
+          );
         }
       }
       // A prompt the window does not hold wins over the one it resolved when
       // it is later and still above the top visible row (pickStickyFallback).
-      const topTs = timeline[Math.max(topVisibleIndex, 0)]?.timestamp ?? Infinity;
-      const laterUnloaded = (resolvedIndex: number | undefined) => pickStickyFallback(
-        serverUserMessages, loadedMessageIds, topTs,
-        resolvedIndex === undefined ? -Infinity : timeline[resolvedIndex]?.timestamp ?? -Infinity,
-        stickyEligibleServerIds,
+      const topTs =
+        timeline[Math.max(topVisibleIndex, 0)]?.timestamp ?? Infinity;
+      const laterUnloaded = (resolvedIndex: number | undefined) =>
+        pickStickyFallback(
+          serverUserMessages,
+          loadedMessageIds,
+          topTs,
+          resolvedIndex === undefined
+            ? -Infinity
+            : (timeline[resolvedIndex]?.timestamp ?? -Infinity),
+          stickyEligibleServerIds,
+        );
+      const navAbove = laterUnloaded(
+        resolveStickyPrompt(
+          navigatorTimelineIndices,
+          topVisibleIndex,
+          new Set(),
+        )?.index,
       );
-      const navAbove = laterUnloaded(resolveStickyPrompt(navigatorTimelineIndices, topVisibleIndex, new Set())?.index);
-      const navId = navAbove?.id ?? resolveNavigatorCurrentId(
-        navigatorTimelineIndices,
-        timelineMessageIds,
-        topVisibleIndex,
-        null,
-      );
+      const navId =
+        navAbove?.id ??
+        resolveNavigatorCurrentId(
+          navigatorTimelineIndices,
+          timelineMessageIds,
+          topVisibleIndex,
+          null,
+        );
       setNavigatorCurrentId(navId);
 
       const bannerOff = stickyDisabled && !STICKY_FORCE;
-      const stickyInWindow = resolveStickyPrompt(stickyUserMsgIndices, topVisibleIndex, visible);
+      const stickyInWindow = resolveStickyPrompt(
+        stickyUserMsgIndices,
+        topVisibleIndex,
+        visible,
+      );
       const stickyAbove = laterUnloaded(stickyInWindow?.index);
       const stickyResolved = stickyAbove ? null : stickyInWindow;
-      if ((window as any).__STICKY_DEBUG) { (((window as any).__STICKY_LOG) ??= []).push({ scrollTop, headerHeight, stickyDisabled, idxCount: stickyUserMsgIndices.length, topVisibleIndex, navId, stickyIdx: stickyResolved?.index ?? null, fb: !!fallbackStickyContent, clientHeight: el.clientHeight, hasMoreAbove: paginationPropsRef.current.hasMoreAbove, svrLen: (serverUserMessages?.length ?? -1) }); }
+      if ((window as any).__STICKY_DEBUG) {
+        ((window as any).__STICKY_LOG ??= []).push({
+          scrollTop,
+          headerHeight,
+          stickyDisabled,
+          idxCount: stickyUserMsgIndices.length,
+          topVisibleIndex,
+          navId,
+          stickyIdx: stickyResolved?.index ?? null,
+          fb: !!fallbackStickyContent,
+          clientHeight: el.clientHeight,
+          hasMoreAbove: paginationPropsRef.current.hasMoreAbove,
+          svrLen: serverUserMessages?.length ?? -1,
+        });
+      }
 
       if (bannerOff) {
         setActiveStickyMsg(null);
@@ -2410,7 +3781,7 @@ const ConversationViewInner = (
 
       if (stickyResolved) {
         const item = timeline[stickyResolved.index];
-        if (item?.type !== 'message') return;
+        if (item?.type !== "message") return;
         const msg = item.data as Message;
         const msgId = msg._id;
         if (dismissedStickyIdsRef.current.has(msgId)) {
@@ -2420,10 +3791,11 @@ const ConversationViewInner = (
         }
         let hideForNextMsg = false;
         const stickyBottom = headerHeight + stickyHeightRef.current;
-        const nextArrayIdx = stickyUserMsgIndices.indexOf(stickyResolved.index) + 1;
+        const nextArrayIdx =
+          stickyUserMsgIndices.indexOf(stickyResolved.index) + 1;
         if (nextArrayIdx > 0 && nextArrayIdx < stickyUserMsgIndices.length) {
           const nextTlIdx = stickyUserMsgIndices[nextArrayIdx];
-          const nextVItem = virtualItems.find(v => v.index === nextTlIdx);
+          const nextVItem = virtualItems.find((v) => v.index === nextTlIdx);
           if (nextVItem) {
             const nextDom = rowEl(nextVItem);
             const nextTop = nextDom
@@ -2434,7 +3806,11 @@ const ConversationViewInner = (
         }
         const prevId = prevStickyMsgIdRef.current;
         if (msgId !== prevId) {
-          if (prevId !== null && prevId !== '__fallback__' && prevStickyIdxRef.current !== null) {
+          if (
+            prevId !== null &&
+            prevId !== "__fallback__" &&
+            prevStickyIdxRef.current !== null
+          ) {
             stickyGapRef.current = { prevIdx: prevStickyIdxRef.current };
           }
           prevStickyMsgIdRef.current = msgId;
@@ -2442,7 +3818,9 @@ const ConversationViewInner = (
         }
         let inGap = false;
         if (stickyGapRef.current) {
-          const gapVItem = virtualItems.find(v => v.index === stickyGapRef.current!.prevIdx);
+          const gapVItem = virtualItems.find(
+            (v) => v.index === stickyGapRef.current!.prevIdx,
+          );
           if (gapVItem) {
             const prevMsgTopVisual = gapVItem.start - scrollTop;
             if (prevMsgTopVisual < headerHeight + 200) {
@@ -2454,19 +3832,35 @@ const ConversationViewInner = (
             stickyGapRef.current = null;
           }
         }
-        setActiveStickyMsg({ index: stickyResolved.index, content: msg.content!, id: msgId, fromUserId: msg.from_user_id });
-        setStickyMsgVisible(!stickyResolved.hidden && !inGap && !hideForNextMsg);
+        setActiveStickyMsg({
+          index: stickyResolved.index,
+          content: msg.content!,
+          id: msgId,
+          fromUserId: msg.from_user_id,
+        });
+        setStickyMsgVisible(
+          !stickyResolved.hidden && !inGap && !hideForNextMsg,
+        );
       } else if (stickyAbove) {
         prevStickyMsgIdRef.current = stickyAbove.id;
         prevStickyIdxRef.current = null;
         stickyGapRef.current = null;
-        setActiveStickyMsg({ index: -1, content: stickyAbove.content, id: stickyAbove.id, fromUserId: stickyAbove.fromUserId });
+        setActiveStickyMsg({
+          index: -1,
+          content: stickyAbove.content,
+          id: stickyAbove.id,
+          fromUserId: stickyAbove.fromUserId,
+        });
         setStickyMsgVisible(true);
       } else if (fallbackStickyContent && scrollTop > el.clientHeight) {
-        prevStickyMsgIdRef.current = '__fallback__';
+        prevStickyMsgIdRef.current = "__fallback__";
         prevStickyIdxRef.current = null;
         stickyGapRef.current = null;
-        setActiveStickyMsg({ index: -1, content: fallbackStickyContent, id: '__fallback__' });
+        setActiveStickyMsg({
+          index: -1,
+          content: fallbackStickyContent,
+          id: "__fallback__",
+        });
         setStickyMsgVisible(true);
       } else {
         prevStickyMsgIdRef.current = null;
@@ -2480,43 +3874,90 @@ const ConversationViewInner = (
     // these inputs move on every streamed message, and each check reads the
     // boxes of every rendered row.
     let frame = 0;
-    const schedule = () => { if (!ticking) { ticking = true; frame = requestAnimationFrame(check); } };
+    const schedule = () => {
+      if (!ticking) {
+        ticking = true;
+        frame = requestAnimationFrame(check);
+      }
+    };
     schedule();
-    el.addEventListener('scroll', schedule, { passive: true });
-    return () => { el.removeEventListener('scroll', schedule); cancelAnimationFrame(frame); };
-  }, [stickyUserMsgIndices, navigatorTimelineIndices, timelineMessageIds, virtualizer, timeline, fallbackStickyContent, serverUserMessages, stickyEligibleServerIds, loadedMessageIds, headerHeight, stickyDisabled]);
+    el.addEventListener("scroll", schedule, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, [
+    stickyUserMsgIndices,
+    navigatorTimelineIndices,
+    timelineMessageIds,
+    virtualizer,
+    timeline,
+    fallbackStickyContent,
+    serverUserMessages,
+    stickyEligibleServerIds,
+    loadedMessageIds,
+    headerHeight,
+    stickyDisabled,
+  ]);
 
-  const scrollToMessageById = useCallback((messageId: string) => {
-    // Open whatever group hides the message: walk the jump until nothing more
-    // needs opening, and open it all at once.
-    const aggregates = { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf };
-    const opened = new Set(expandedGroups);
-    let jump = jumpRowForMessage(messageId, feedDensity, aggregates);
-    while (jump.expandKey && !opened.has(jump.expandKey)) {
-      opened.add(jump.expandKey);
-      jump = jumpRowForMessage(messageId, feedDensity, aggregates);
-    }
-    if (opened.size !== expandedGroups.size) setExpandedGroups((prev) => new Set([...prev, ...opened]));
-    const itemIndex = timeline.findIndex(item =>
-      item.type === 'message' && item.data._id === jump.scrollToId
-    );
+  const scrollToMessageById = useCallback(
+    (messageId: string) => {
+      // Open whatever group hides the message: walk the jump until nothing more
+      // needs opening, and open it all at once.
+      const aggregates = { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf };
+      const opened = new Set(expandedGroups);
+      let jump = jumpRowForMessage(messageId, feedDensity, aggregates);
+      while (jump.expandKey && !opened.has(jump.expandKey)) {
+        opened.add(jump.expandKey);
+        jump = jumpRowForMessage(messageId, feedDensity, aggregates);
+      }
+      if (opened.size !== expandedGroups.size)
+        setExpandedGroups((prev) => new Set([...prev, ...opened]));
+      const itemIndex = timeline.findIndex(
+        (item) => item.type === "message" && item.data._id === jump.scrollToId,
+      );
 
-    if (itemIndex >= 0) {
-      setUserScrolled(true);
-      virtualizer.scrollToIndex(itemIndex, { align: "start", behavior: "auto" });
-      setHighlightedMessageId(jump.scrollToId);
-      setTimeout(() => setHighlightedMessageId(null), 2000);
-    } else if (conversation?._id) {
-      useInboxStore.getState().requestNavigate(conversation._id, { scrollToMessageId: messageId });
-    }
-  }, [timeline, virtualizer, conversation?._id, feedDensity, turnAggregates, nudgeRuns, expandedGroups]);
+      if (itemIndex >= 0) {
+        setUserScrolled(true);
+        virtualizer.scrollToIndex(itemIndex, {
+          align: "start",
+          behavior: "auto",
+        });
+        setHighlightedMessageId(jump.scrollToId);
+        setTimeout(() => setHighlightedMessageId(null), 2000);
+      } else if (conversation?._id) {
+        useInboxStore
+          .getState()
+          .requestNavigate(conversation._id, { scrollToMessageId: messageId });
+      }
+    },
+    [
+      timeline,
+      virtualizer,
+      conversation?._id,
+      feedDensity,
+      turnAggregates,
+      nudgeRuns,
+      expandedGroups,
+    ],
+  );
 
-  useImperativeHandle(ref, () => ({
-    scrollToMessage: scrollToMessageById,
-  }), [scrollToMessageById]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToMessage: scrollToMessageById,
+    }),
+    [scrollToMessageById],
+  );
 
   const onReviewNavigate = useCallback(() => setUserScrolled(true), []);
-  const reviewNavigation = useReviewNavigation(containerRef, virtualizer, scrollToMessageById, onReviewNavigate, stickyElRef);
+  const reviewNavigation = useReviewNavigation(
+    containerRef,
+    virtualizer,
+    scrollToMessageById,
+    onReviewNavigate,
+    stickyElRef,
+  );
   // The composer's send, attached by MessageInput while it is mounted, so a
   // proposal ledger in the thread can press it (S39).
   // Whether one is attached is state, so a ledger reading the bridge draws
@@ -2525,9 +3966,13 @@ const ConversationViewInner = (
   const composerSendRef = useRef<(() => void) | null>(null);
   const [composerCanSend, setComposerCanSend] = useState(false);
   // Stable, so the composer's attach effect runs once per mount, not once per bridge value.
-  const attachSend = useCallback((send: (() => void) | null) => { composerSendRef.current = send; setComposerCanSend(!!send); }, []);
+  const attachSend = useCallback((send: (() => void) | null) => {
+    composerSendRef.current = send;
+    setComposerCanSend(!!send);
+  }, []);
   const reviewComposer = useMemo(() => {
-    const populate = (t: string, o?: { append?: boolean }) => populateInputRef.current?.(t, o);
+    const populate = (t: string, o?: { append?: boolean }) =>
+      populateInputRef.current?.(t, o);
     return {
       quote: (text: string) => quoteToComposer(text, populate),
       populate,
@@ -2561,7 +4006,8 @@ const ConversationViewInner = (
       setIsNearBottom(distanceFromBottom < 200);
 
       const inFlight = pageAnchorRef.current;
-      if (inFlight && Date.now() <= inFlight.until) capturePageAnchor(scrollContainer, inFlight.dir, inFlight.until);
+      if (inFlight && Date.now() <= inFlight.until)
+        capturePageAnchor(scrollContainer, inFlight.dir, inFlight.until);
 
       const scrolledDown = scrollTop > lastScrollTopRef.current + 2;
       const scrolledUp = scrollTop < lastScrollTopRef.current - 2;
@@ -2576,8 +4022,16 @@ const ConversationViewInner = (
         setUserScrolled(true);
       }
 
-      const readerMovingDown = scrollbarHeldRef.current || Date.now() - readerDownAtRef.current < READER_SCROLL_WINDOW_MS;
-      if (shouldResumeFollow({ nearBottom: isAtBottom, scrolledDown, readerMovingDown })) {
+      const readerMovingDown =
+        scrollbarHeldRef.current ||
+        Date.now() - readerDownAtRef.current < READER_SCROLL_WINDOW_MS;
+      if (
+        shouldResumeFollow({
+          nearBottom: isAtBottom,
+          scrolledDown,
+          readerMovingDown,
+        })
+      ) {
         setUserScrolled(false);
       }
 
@@ -2591,7 +4045,18 @@ const ConversationViewInner = (
           if (items.length > 0) {
             const centerIdx = items[Math.floor(items.length / 2)].index;
             const tLen = Math.max(ctx.timelineLen, 1);
-            progress = totalMessages > 0 ? Math.max(0, Math.min(1, (ctx.loadedStartIndex + (centerIdx / tLen) * ctx.messagesLen) / totalMessages)) : 1;
+            progress =
+              totalMessages > 0
+                ? Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      (ctx.loadedStartIndex +
+                        (centerIdx / tLen) * ctx.messagesLen) /
+                        totalMessages,
+                    ),
+                  )
+                : 1;
           } else {
             progress = 0;
           }
@@ -2625,7 +4090,9 @@ const ConversationViewInner = (
   // at zero geometry — re-pins the view to the bottom. Save the last visible
   // offset when the pane hides and re-assert it when it shows, keeping the
   // tail-follow latch off unless the reader really was at the bottom.
-  const hiddenFreezeRef = useRef<{ scrollTop: number; pinned: boolean } | null>(null);
+  const hiddenFreezeRef = useRef<{ scrollTop: number; pinned: boolean } | null>(
+    null,
+  );
   useMountEffect(() => {
     const sc = containerRef.current;
     if (!sc) return;
@@ -2633,7 +4100,10 @@ const ConversationViewInner = (
     const ro = new ResizeObserver(() => {
       const h = sc.clientHeight;
       if (h === 0 && lastHeight > 0) {
-        hiddenFreezeRef.current = { scrollTop: lastScrollTopRef.current, pinned: isNearBottomRef.current };
+        hiddenFreezeRef.current = {
+          scrollTop: lastScrollTopRef.current,
+          pinned: isNearBottomRef.current,
+        };
       } else if (h > 0 && lastHeight === 0 && hiddenFreezeRef.current) {
         const frozen = hiddenFreezeRef.current;
         hiddenFreezeRef.current = null;
@@ -2643,7 +4113,10 @@ const ConversationViewInner = (
           setUserScrolled(true);
           // Re-assert across a few ticks: the virtualizer's own resize
           // handling lands on its own schedule and must not win.
-          const reassert = () => { if (Math.abs(sc.scrollTop - frozen.scrollTop) > 1) sc.scrollTop = frozen.scrollTop; };
+          const reassert = () => {
+            if (Math.abs(sc.scrollTop - frozen.scrollTop) > 1)
+              sc.scrollTop = frozen.scrollTop;
+          };
           reassert();
           requestAnimationFrame(reassert);
           setTimeout(reassert, 80);
@@ -2672,14 +4145,30 @@ const ConversationViewInner = (
   // The anchor lives until its load ends (below); `until` only covers a load
   // that never starts, so it can't be misapplied to a later streaming append.
   // A page on a long session can take several seconds to arrive.
-  const capturePageAnchor = (sc: HTMLElement, dir: 'older' | 'newer', until = Date.now() + 15_000) => {
+  const capturePageAnchor = (
+    sc: HTMLElement,
+    dir: "older" | "newer",
+    until = Date.now() + 15_000,
+  ) => {
     const scTop = sc.getBoundingClientRect().top;
     let anchorEl: Element | null = null;
     for (const m of sc.querySelectorAll('[id^="msg-"]')) {
-      if (m.getBoundingClientRect().bottom > scTop + 1) { anchorEl = m; break; }
+      if (m.getBoundingClientRect().bottom > scTop + 1) {
+        anchorEl = m;
+        break;
+      }
     }
     pageAnchorRef.current = anchorEl
-      ? { id: anchorEl.id, relTop: (anchorEl.getBoundingClientRect().top - scTop) / cssZoomOf(sc), scrollHeight: sc.scrollHeight, scrollTop: sc.scrollTop, dir, until, loading: pageAnchorRef.current?.loading }
+      ? {
+          id: anchorEl.id,
+          relTop:
+            (anchorEl.getBoundingClientRect().top - scTop) / cssZoomOf(sc),
+          scrollHeight: sc.scrollHeight,
+          scrollTop: sc.scrollTop,
+          dir,
+          until,
+          loading: pageAnchorRef.current?.loading,
+        }
       : null;
   };
   // A load that ended without rows (an empty page, a failure) drops its anchor.
@@ -2703,34 +4192,49 @@ const ConversationViewInner = (
     const pp = paginationPropsRef.current;
     // The conditions that need no layout first: this runs on every scroll
     // event, and a read of scrollHeight against a changed page is a full layout.
-    if (!sc || !pp.onLoadOlder || !pp.hasMoreAbove || pp.isLoadingOlder || pp.isLoadingNewer || Date.now() < paginationCooldownRef.current) return;
+    if (
+      !sc ||
+      !pp.onLoadOlder ||
+      !pp.hasMoreAbove ||
+      pp.isLoadingOlder ||
+      pp.isLoadingNewer ||
+      Date.now() < paginationCooldownRef.current
+    )
+      return;
     // Answered from the virtualizer's own numbers wherever they settle it: a
     // hidden pane, an unarmed list whose rows overflow the viewport (the
     // scroller is at least as tall as the virtual rows), and an armed load
     // whose reader is nowhere near the top (conversationScroll.ts). This runs
     // on every measurement while a window loads and on every streamed chunk.
     const observed = virtualizer.scrollRect;
-    if (observed && loadOlderNeedsNoRead({
-      armed: loadOlderArmedRef.current,
-      viewport: observed.height,
-      totalSize: virtualizer.getTotalSize(),
-      scrollOffset: virtualizer.scrollOffset ?? 0,
-      triggerPx: TOP_LOAD_TRIGGER_PX,
-    })) return;
+    if (
+      observed &&
+      loadOlderNeedsNoRead({
+        armed: loadOlderArmedRef.current,
+        viewport: observed.height,
+        totalSize: virtualizer.getTotalSize(),
+        scrollOffset: virtualizer.scrollOffset ?? 0,
+        triggerPx: TOP_LOAD_TRIGGER_PX,
+      })
+    )
+      return;
     if (sc.clientHeight === 0) return;
     const underfilled = sc.scrollHeight <= sc.clientHeight;
     if (!loadOlderArmedRef.current && !underfilled) return;
-    if (!shouldLoadOlder({
-      underfilled,
-      nearTop: sc.scrollTop < TOP_LOAD_TRIGGER_PX,
-      userScrolled: userScrolledRef.current,
-      hasMoreAbove: pp.hasMoreAbove,
-      isLoadingOlder: pp.isLoadingOlder,
-      isLoadingNewer: pp.isLoadingNewer,
-      cooldownActive: Date.now() < paginationCooldownRef.current,
-    })) return;
+    if (
+      !shouldLoadOlder({
+        underfilled,
+        nearTop: sc.scrollTop < TOP_LOAD_TRIGGER_PX,
+        userScrolled: userScrolledRef.current,
+        hasMoreAbove: pp.hasMoreAbove,
+        isLoadingOlder: pp.isLoadingOlder,
+        isLoadingNewer: pp.isLoadingNewer,
+        cooldownActive: Date.now() < paginationCooldownRef.current,
+      })
+    )
+      return;
     loadOlderArmedRef.current = false; // consume — one page per scroll-up to the top
-    capturePageAnchor(sc, 'older');
+    capturePageAnchor(sc, "older");
     isPaginatingRef.current = true;
     // Bridge the render gap: isLoadingOlder (a prop derived from paginationStatus)
     // only flips true on the next render, so a burst of wheel events could
@@ -2748,21 +4252,34 @@ const ConversationViewInner = (
   maybeLoadNewerRef.current = () => {
     const sc = containerRef.current;
     const pp = paginationPropsRef.current;
-    if (!sc || !pp.onLoadNewer || !pp.hasMoreBelow || pp.isLoadingOlder || pp.isLoadingNewer || Date.now() < paginationCooldownRef.current) return;
+    if (
+      !sc ||
+      !pp.onLoadNewer ||
+      !pp.hasMoreBelow ||
+      pp.isLoadingOlder ||
+      pp.isLoadingNewer ||
+      Date.now() < paginationCooldownRef.current
+    )
+      return;
     // A hidden pane has no geometry to read.
     if (virtualizer.scrollRect?.height === 0) return;
     if (!loadNewerArmedRef.current && virtualListOverfills()) return;
     if (sc.clientHeight === 0) return;
     if (!loadNewerArmedRef.current && sc.scrollHeight > sc.clientHeight) return;
-    if (!shouldLoadNewer({
-      nearBottom: sc.scrollHeight - sc.scrollTop - sc.clientHeight < BOTTOM_LOAD_TRIGGER_PX,
-      hasMoreBelow: pp.hasMoreBelow,
-      isLoadingOlder: pp.isLoadingOlder,
-      isLoadingNewer: pp.isLoadingNewer,
-      cooldownActive: Date.now() < paginationCooldownRef.current,
-    })) return;
+    if (
+      !shouldLoadNewer({
+        nearBottom:
+          sc.scrollHeight - sc.scrollTop - sc.clientHeight <
+          BOTTOM_LOAD_TRIGGER_PX,
+        hasMoreBelow: pp.hasMoreBelow,
+        isLoadingOlder: pp.isLoadingOlder,
+        isLoadingNewer: pp.isLoadingNewer,
+        cooldownActive: Date.now() < paginationCooldownRef.current,
+      })
+    )
+      return;
     loadNewerArmedRef.current = false; // consume — one page per scroll-down to the bottom
-    capturePageAnchor(sc, 'newer');
+    capturePageAnchor(sc, "newer");
     isPaginatingRef.current = true;
     paginationCooldownRef.current = Date.now() + 700;
     pp.onLoadNewer();
@@ -2771,7 +4288,15 @@ const ConversationViewInner = (
   const totalSize = virtualizer.getTotalSize();
   useWatchEffect(() => {
     updateScrollProgress(virtualizer);
-  }, [conversation?.message_count, messages.length, timeline.length, conversation?.loaded_start_index, totalSize, virtualizer, updateScrollProgress]);
+  }, [
+    conversation?.message_count,
+    messages.length,
+    timeline.length,
+    conversation?.loaded_start_index,
+    totalSize,
+    virtualizer,
+    updateScrollProgress,
+  ]);
 
   // A window shorter than the viewport fills itself, in both directions: no
   // wheel can arm a load on a list that cannot scroll (a share link opening on
@@ -2780,13 +4305,24 @@ const ConversationViewInner = (
   // end. A landed page holds a short cooldown, so check again once it lapses.
   useWatchEffect(() => {
     if (!initialScrollDone) return;
-    const fill = () => { maybeLoadOlderRef.current(); maybeLoadNewerRef.current(); };
+    const fill = () => {
+      maybeLoadOlderRef.current();
+      maybeLoadNewerRef.current();
+    };
     fill();
     const wait = paginationCooldownRef.current - Date.now();
     if (wait <= 0) return;
     const timer = setTimeout(fill, wait + 16);
     return () => clearTimeout(timer);
-  }, [initialScrollDone, timeline.length, totalSize, hasMoreAbove, hasMoreBelow, isLoadingOlder, isLoadingNewer]);
+  }, [
+    initialScrollDone,
+    timeline.length,
+    totalSize,
+    hasMoreAbove,
+    hasMoreBelow,
+    isLoadingOlder,
+    isLoadingNewer,
+  ]);
 
   // Pixel-perfect page mount, both directions. The virtualizer's own
   // anchorTo:'end' is estimate-based and doesn't hold the scroll when a page
@@ -2811,7 +4347,10 @@ const ConversationViewInner = (
     const pinExact = () => {
       const el = sc.querySelector(`#${CSS.escape(a.id)}`);
       if (!el) return false;
-      const correction = (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) / cssZoomOf(sc) - a.relTop;
+      const correction =
+        (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) /
+          cssZoomOf(sc) -
+        a.relTop;
       if (correction !== 0) sc.scrollTop += correction;
       lastScrollTopRef.current = sc.scrollTop;
       return true;
@@ -2822,15 +4361,21 @@ const ConversationViewInner = (
       // it exactly on the next frame. Older pages mount ABOVE, so position shifts
       // by how much the content grew; newer pages mount BELOW, so the pre-load
       // scrollTop is still the right offset (the end-anchor snap is what moved us).
-      if (a.dir === 'older') {
+      if (a.dir === "older") {
         const grew = sc.scrollHeight - a.scrollHeight;
-        if (grew > 0) { sc.scrollTop += grew; lastScrollTopRef.current = sc.scrollTop; }
+        if (grew > 0) {
+          sc.scrollTop += grew;
+          lastScrollTopRef.current = sc.scrollTop;
+        }
       } else {
         sc.scrollTop = a.scrollTop;
         lastScrollTopRef.current = sc.scrollTop;
       }
     }
-    requestAnimationFrame(() => { pinExact(); paginationCooldownRef.current = 0; });
+    requestAnimationFrame(() => {
+      pinExact();
+      paginationCooldownRef.current = 0;
+    });
   }, [timeline.length]);
 
   // Pagination bookkeeping only. A timeline growth from loading an older/newer
@@ -2848,7 +4393,10 @@ const ConversationViewInner = (
   }, [timeline.length, initialScrollDone]);
 
   const stopLegacyLandingRef = useRef<(() => void) | null>(null);
-  useLayoutEffect(() => () => stopLegacyLandingRef.current?.(), [conversation?._id]);
+  useLayoutEffect(
+    () => () => stopLegacyLandingRef.current?.(),
+    [conversation?._id],
+  );
 
   // Initial scroll: authed viewers snap to the live tail; unsigned share-link
   // visitors stay at the top so the thread reads from the beginning.
@@ -2898,16 +4446,19 @@ const ConversationViewInner = (
         // Held for a while rather than trusted once: height settling has a long
         // tail (late images, fonts), and the hold re-aims on each size change
         // until the reader takes the view.
-        scrollToEdgeRef.current('bottom', { bailOnUserScroll: true, holdMs: 8000 });
+        scrollToEdgeRef.current("bottom", {
+          bailOnUserScroll: true,
+          holdMs: 8000,
+        });
         lastScrollTopRef.current = sc.scrollTop;
         setTimeout(() => {
           paginationCooldownRef.current = 0;
-          sc.dispatchEvent(new Event('scroll'));
+          sc.dispatchEvent(new Event("scroll"));
         }, 1000);
         setInitialScrollDone(true);
         return;
       }
-      scrollToEdgeRef.current('bottom', { bailOnUserScroll: true });
+      scrollToEdgeRef.current("bottom", { bailOnUserScroll: true });
       lastScrollTopRef.current = sc.scrollTop;
       // Height settling has a long tail (late images, fonts, the drift
       // reconciler's 1s ticks), and the virtualizer's own end-anchor misses
@@ -2918,19 +4469,30 @@ const ConversationViewInner = (
       stopLegacyLandingRef.current?.();
       const stop = visibleInterval(() => {
         const el = containerRef.current;
-        if (!el || userScrolledRef.current || Date.now() - settleStart > 8000) { stop(); return; }
-        if (el.scrollHeight - el.scrollTop - el.clientHeight > 20) scrollToEdgeRef.current('bottom', { bailOnUserScroll: true });
+        if (!el || userScrolledRef.current || Date.now() - settleStart > 8000) {
+          stop();
+          return;
+        }
+        if (el.scrollHeight - el.scrollTop - el.clientHeight > 20)
+          scrollToEdgeRef.current("bottom", { bailOnUserScroll: true });
       }, 350);
       stopLegacyLandingRef.current = stop;
       // Fallback: clear cooldown after virtualizer has had time to measure,
       // then re-run scroll handler so pagination fires if we're already near top.
       setTimeout(() => {
         paginationCooldownRef.current = 0;
-        sc.dispatchEvent(new Event('scroll'));
+        sc.dispatchEvent(new Event("scroll"));
       }, 1000);
     }
     setInitialScrollDone(true);
-  }, [timeline.length, highlightQuery, initialScrollDone, virtualizer, guest, openAtTop]);
+  }, [
+    timeline.length,
+    highlightQuery,
+    initialScrollDone,
+    virtualizer,
+    guest,
+    openAtTop,
+  ]);
 
   // Detect user scroll-up via wheel events (fires synchronously, no race condition
   // with the async scroll event). This ensures userScrolledRef is set before any
@@ -2944,12 +4506,20 @@ const ConversationViewInner = (
   useWatchEffect(() => {
     const sc = containerRef.current;
     if (!sc) return;
-    const release = () => { releaseScrollTarget(virtualizer); holdRef.current?.release(); };
+    const release = () => {
+      releaseScrollTarget(virtualizer);
+      holdRef.current?.release();
+    };
     const readerEvents = ["touchmove", "pointerdown", "keydown"] as const;
-    for (const ev of readerEvents) sc.addEventListener(ev, release, { passive: true });
-    const movingDown = () => { readerDownAtRef.current = Date.now(); };
+    for (const ev of readerEvents)
+      sc.addEventListener(ev, release, { passive: true });
+    const movingDown = () => {
+      readerDownAtRef.current = Date.now();
+    };
     let touchY: number | null = null;
-    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY ?? null; };
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null;
+    };
     const onTouchMove = (e: TouchEvent) => {
       const y = e.touches[0]?.clientY;
       if (y == null) return;
@@ -2958,7 +4528,8 @@ const ConversationViewInner = (
     };
     const onKeyDown = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t?.isContentEditable || t?.closest?.("input, textarea, select")) return;
+      if (t?.isContentEditable || t?.closest?.("input, textarea, select"))
+        return;
       if (["ArrowDown", "PageDown", "End", " "].includes(e.key)) movingDown();
     };
     // A press in the scrollbar gutter (outside the client box) is a drag or a
@@ -2991,9 +4562,9 @@ const ConversationViewInner = (
         maybeLoadNewerRef.current(); // load newer if this scroll-down reached the bottom
       }
     };
-    sc.addEventListener('wheel', onWheel, { passive: true });
+    sc.addEventListener("wheel", onWheel, { passive: true });
     return () => {
-      sc.removeEventListener('wheel', onWheel);
+      sc.removeEventListener("wheel", onWheel);
       sc.removeEventListener("touchstart", onTouchStart);
       sc.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("keydown", onKeyDown, true);
@@ -3017,25 +4588,29 @@ const ConversationViewInner = (
   // normal-mode fallback messages while the first page is loading).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    if (!isJumpReadyToScroll({
-      direction: jumpDirectionRef.current,
-      hasTimeline: timeline.length > 0,
-      isLoadingOlder: paginationPropsRef.current.isLoadingOlder,
-      isLoadingNewer: paginationPropsRef.current.isLoadingNewer,
-    })) return;
+    if (
+      !isJumpReadyToScroll({
+        direction: jumpDirectionRef.current,
+        hasTimeline: timeline.length > 0,
+        isLoadingOlder: paginationPropsRef.current.isLoadingOlder,
+        isLoadingNewer: paginationPropsRef.current.isLoadingNewer,
+      })
+    )
+      return;
     const dir = jumpDirectionRef.current!;
     jumpDirectionRef.current = null;
     paginationCooldownRef.current = Date.now() + 900;
-    setUserScrolled(dir === 'start');
-    if (dir === 'end') setGuestStayAtTop(false);
+    setUserScrolled(dir === "start");
+    if (dir === "end") setGuestStayAtTop(false);
 
-    scrollToEdgeRef.current(dir === 'start' ? 'top' : 'bottom');
+    scrollToEdgeRef.current(dir === "start" ? "top" : "bottom");
 
     // Indicators were frozen for the whole pending window; snap them to the edge
     // we just landed on so they move in lockstep with this single jump rather
     // than lying ("at the top") while the content was still elsewhere.
-    const edgeProgress = dir === 'start' ? 0 : 1;
-    if (scrollProgressRef.current) scrollProgressRef.current.style.height = `${edgeProgress * 100}%`;
+    const edgeProgress = dir === "start" ? 0 : 1;
+    if (scrollProgressRef.current)
+      scrollProgressRef.current.style.height = `${edgeProgress * 100}%`;
     navScrollProgress.set(edgeProgress);
 
     // Release the freeze NOW, in this same commit. The scroll above is
@@ -3069,10 +4644,10 @@ const ConversationViewInner = (
     if (!timeline.length || !window.location.hash) return;
     if (targetMessageId && !hasScrolledToTarget.current) return;
     const targetId = window.location.hash.slice(1);
-    const itemIndex = timeline.findIndex(item => {
-      if (item.type === 'message') {
+    const itemIndex = timeline.findIndex((item) => {
+      if (item.type === "message") {
         return `msg-${item.data._id}` === targetId;
-      } else if (item.type === 'commit') {
+      } else if (item.type === "commit") {
         return `commit-${item.data.sha}` === targetId;
       }
       return false;
@@ -3080,14 +4655,21 @@ const ConversationViewInner = (
     if (itemIndex >= 0) {
       setUserScrolled(true);
       const item = timeline[itemIndex];
-      const msgId = item.type === 'message' ? item.data._id : null;
+      const msgId = item.type === "message" ? item.data._id : null;
       setTimeout(() => {
-        virtualizer.scrollToIndex(itemIndex, { align: "center", behavior: "smooth" });
+        virtualizer.scrollToIndex(itemIndex, {
+          align: "center",
+          behavior: "smooth",
+        });
         if (msgId) {
           setHighlightedMessageId(msgId);
           setTimeout(() => setHighlightedMessageId(null), 3000);
         }
-        history.replaceState(null, "", window.location.pathname + window.location.search);
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
       }, 100);
     }
   }, [timeline, virtualizer, targetMessageId]);
@@ -3108,7 +4690,9 @@ const ConversationViewInner = (
   // the direction of travel. planActivation (lib/conversationSearch) decides
   // each step; this effect only reads the DOM and acts.
   useWatchEffect(() => {
-    void activationTick; void messages; void expandedGroups;
+    void activationTick;
+    void messages;
+    void expandedGroups;
     if (!pendingHitRef.current) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -3117,12 +4701,20 @@ const ConversationViewInner = (
       const hit = pendingHitRef.current;
       const container = containerRef.current;
       if (!hit || !container) return;
-      const jump = jumpRowForMessage(hit.messageId, feedDensity, { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf });
-      const rowIndex = timeline.findIndex((item) => item.type === 'message' && item.data._id === jump.scrollToId);
+      const jump = jumpRowForMessage(hit.messageId, feedDensity, {
+        ...turnAggregates,
+        nudgeHeadOf: nudgeRuns.headOf,
+      });
+      const rowIndex = timeline.findIndex(
+        (item) => item.type === "message" && item.data._id === jump.scrollToId,
+      );
       // The virtualizer's wrapper, not `#msg-<id>`: command cards, plan and
       // skill blocks and system rows carry no message id, but their marks
       // live inside the wrapper all the same.
-      const rowEl = rowIndex >= 0 ? container.querySelector(`[data-index="${rowIndex}"]`) : null;
+      const rowEl =
+        rowIndex >= 0
+          ? container.querySelector(`[data-index="${rowIndex}"]`)
+          : null;
       const marks = searchMarksIn(rowEl, hit.messageId);
       const loaded = loadedIdsRef.current.has(hit.messageId);
       const now = Date.now();
@@ -3153,14 +4745,25 @@ const ConversationViewInner = (
           return; // the effect re-runs on expandedGroups
         case "scrollRow":
           setUserScrolled(true);
-          virtualizer.scrollToIndex(step.index, { align: "start", behavior: "auto" });
-          container.dispatchEvent(new Event('scroll', { bubbles: true }));
+          virtualizer.scrollToIndex(step.index, {
+            align: "start",
+            behavior: "auto",
+          });
+          container.dispatchEvent(new Event("scroll", { bubbles: true }));
           break;
         case "wait":
           break;
         case "dead": {
-          const next = skipDeadHit(hit, currentMatchIndexRef.current, matchInstancesRef.current, Date.now());
-          if (!next) { pendingHitRef.current = null; return; }
+          const next = skipDeadHit(
+            hit,
+            currentMatchIndexRef.current,
+            matchInstancesRef.current,
+            Date.now(),
+          );
+          if (!next) {
+            pendingHitRef.current = null;
+            return;
+          }
           pendingHitRef.current = next.hit;
           setCurrentMatchIndex(next.index);
           break;
@@ -3168,14 +4771,20 @@ const ConversationViewInner = (
         case "activate": {
           const target = marks[step.markIndex];
           markActive(container, target);
-          setActiveHit({ messageId: hit.messageId, localIndex: step.markIndex });
+          setActiveHit({
+            messageId: hit.messageId,
+            localIndex: step.markIndex,
+          });
           setUserScrolled(true);
           // Scroll the feed itself (not every ancestor, as scrollIntoView
           // would) so the mark sits in the band the reader can actually see:
           // below the sticky prompt that floats over the top of the feed.
           const placeInBand = () => {
             const c = container.getBoundingClientRect();
-            const top = Math.max(c.top, stickyElRef.current?.getBoundingClientRect().bottom ?? c.top);
+            const top = Math.max(
+              c.top,
+              stickyElRef.current?.getBoundingClientRect().bottom ?? c.top,
+            );
             const r = target.getBoundingClientRect();
             if (r.top >= top + 8 && r.bottom <= c.bottom - 8) return;
             const goal = top + (c.bottom - top) * 0.4;
@@ -3191,24 +4800,51 @@ const ConversationViewInner = (
           // effect re-runs on every new message.
           const seq = ++activationSeqRef.current;
           let readerMoved = false;
-          const onReader = () => { readerMoved = true; };
-          const readerEvents = ["wheel", "touchmove", "pointerdown", "keydown"] as const;
-          for (const ev of readerEvents) container.addEventListener(ev, onReader, { passive: true, once: true });
+          const onReader = () => {
+            readerMoved = true;
+          };
+          const readerEvents = [
+            "wheel",
+            "touchmove",
+            "pointerdown",
+            "keydown",
+          ] as const;
+          for (const ev of readerEvents)
+            container.addEventListener(ev, onReader, {
+              passive: true,
+              once: true,
+            });
           const settle = (last: boolean) => {
-            if (last) for (const ev of readerEvents) container.removeEventListener(ev, onReader);
-            if (readerMoved || seq !== activationSeqRef.current || !target.isConnected) return;
+            if (last)
+              for (const ev of readerEvents)
+                container.removeEventListener(ev, onReader);
+            if (
+              readerMoved ||
+              seq !== activationSeqRef.current ||
+              !target.isConnected
+            )
+              return;
             placeInBand();
           };
-          for (const ms of [250, 700, 1500, 3000]) setTimeout(() => settle(ms === 3000), ms);
+          for (const ms of [250, 700, 1500, 3000])
+            setTimeout(() => settle(ms === 3000), ms);
           return;
         }
       }
       // A jump in flight resolves through `messages`, which re-runs this
       // effect; polling it fast only burns the main thread.
-      timer = setTimeout(tick, step.kind === "wait" && !loadedIdsRef.current.has(hit.messageId) ? 500 : 100);
+      timer = setTimeout(
+        tick,
+        step.kind === "wait" && !loadedIdsRef.current.has(hit.messageId)
+          ? 500
+          : 100,
+      );
     };
     tick();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [activationTick, messages, expandedGroups, timeline, feedDensity]);
 
   // Keep the active hit painted. Runs after every render while a hit is
@@ -3216,23 +4852,39 @@ const ConversationViewInner = (
   // message that re-rendered, comes back with plain marks.
   const activeRowIndex = useMemo(() => {
     if (!activeHit) return -1;
-    const rowId = jumpRowForMessage(activeHit.messageId, feedDensity, { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf }).scrollToId;
-    return timeline.findIndex((item) => item.type === 'message' && item.data._id === rowId);
+    const rowId = jumpRowForMessage(activeHit.messageId, feedDensity, {
+      ...turnAggregates,
+      nudgeHeadOf: nudgeRuns.headOf,
+    }).scrollToId;
+    return timeline.findIndex(
+      (item) => item.type === "message" && item.data._id === rowId,
+    );
   }, [activeHit, timeline, feedDensity, turnAggregates, nudgeRuns]);
   useWatchEffect(() => {
     const container = containerRef.current;
     if (!activeHit || activeRowIndex < 0 || !container) return;
-    const marks = searchMarksIn(container.querySelector(`[data-index="${activeRowIndex}"]`), activeHit.messageId);
+    const marks = searchMarksIn(
+      container.querySelector(`[data-index="${activeRowIndex}"]`),
+      activeHit.messageId,
+    );
     const target = marks[Math.min(activeHit.localIndex, marks.length - 1)];
-    if (target && !target.hasAttribute('data-search-active')) markActive(container, target);
+    if (target && !target.hasAttribute("data-search-active"))
+      markActive(container, target);
   });
 
   useWatchEffect(() => {
-    if (!targetMessageId || timeline.length === 0 || hasScrolledToTarget.current) {
+    if (
+      !targetMessageId ||
+      timeline.length === 0 ||
+      hasScrolledToTarget.current
+    ) {
       return;
     }
 
-    const jump = jumpRowForMessage(targetMessageId, feedDensity, { ...turnAggregates, nudgeHeadOf: nudgeRuns.headOf });
+    const jump = jumpRowForMessage(targetMessageId, feedDensity, {
+      ...turnAggregates,
+      nudgeHeadOf: nudgeRuns.headOf,
+    });
     // A target folded inside a turn or a receipt group opens its group, and
     // the settle below lands on the row in the same pass: the row exists
     // folded too, the opening only grows what sits under its head, and the
@@ -3248,8 +4900,8 @@ const ConversationViewInner = (
       });
     }
 
-    const itemIndex = timeline.findIndex(item => {
-      if (item.type === 'message') {
+    const itemIndex = timeline.findIndex((item) => {
+      if (item.type === "message") {
         return item.data._id === jump.scrollToId;
       }
       return false;
@@ -3267,22 +4919,39 @@ const ConversationViewInner = (
         // A same-session jump starts on the tail timeline and the target-mode
         // window then replaces it — identity + re-resolution keep the settle
         // on the target row across that swap.
-        itemKey: targetItem?.type === "message" ? messageRowKey(targetItem.data as Message) : undefined,
+        itemKey:
+          targetItem?.type === "message"
+            ? messageRowKey(targetItem.data as Message)
+            : undefined,
         resolveIndex: () =>
           timelineRef.current.findIndex(
-            (item: any) => item.type === "message" && item.data._id === scrollToId,
+            (item: any) =>
+              item.type === "message" && item.data._id === scrollToId,
           ),
         onSettled: () => {
           setHighlightedMessageId(scrollToId);
           setTimeout(() => setHighlightedMessageId(null), 3000);
           if (window.location.hash) {
-            history.replaceState(null, "", window.location.pathname + window.location.search);
+            history.replaceState(
+              null,
+              "",
+              window.location.pathname + window.location.search,
+            );
           }
           onTargetSettledRef.current?.(targetMessageId, targetNonce);
         },
       });
     }
-  }, [targetMessageId, targetNonce, timeline, virtualizer, feedDensity, turnAggregates, expandedGroups, nudgeRuns]);
+  }, [
+    targetMessageId,
+    targetNonce,
+    timeline,
+    virtualizer,
+    feedDensity,
+    turnAggregates,
+    expandedGroups,
+    nudgeRuns,
+  ]);
 
   // Land a branch switch scroll-stable: once the target conversation renders,
   // find the fork-point message (same message_uuid — fork copies preserve it)
@@ -3309,14 +4978,22 @@ const ConversationViewInner = (
       return;
     }
     const itemIndex = timeline.findIndex(
-      (item) => item.type === "message" && item.data.message_uuid === anchor.messageUuid
+      (item) =>
+        item.type === "message" &&
+        item.data.message_uuid === anchor.messageUuid,
     );
     if (itemIndex >= 0) {
       branchAnchorRef.current = null;
       const container = containerRef.current;
       if (!container) return;
       setUserScrolled(true);
-      settleTimelineItemAtOffset(container, virtualizer, itemIndex, anchor.offset, { initialDelayMs: 0 });
+      settleTimelineItemAtOffset(
+        container,
+        virtualizer,
+        itemIndex,
+        anchor.offset,
+        { initialDelayMs: 0 },
+      );
     } else if (!timeline.some((item) => item.type === "message")) {
       // The target's window has not loaded yet (a branch never opened here):
       // wait for it. A jump is a fixed window with no live tail, so jumping now
@@ -3329,27 +5006,43 @@ const ConversationViewInner = (
       else branchAnchorRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversation?._id, timeline, virtualizer, onJumpToTimestamp, setUserScrolled]);
+  }, [
+    conversation?._id,
+    timeline,
+    virtualizer,
+    onJumpToTimestamp,
+    setUserScrolled,
+  ]);
 
   // Cycle the three local feed densities; the LLM views stay dropdown-only.
   // Bound through the shortcut registry (not a raw keydown) so the key combo, this
   // handler, and every tooltip / help-panel mention all read from one definition —
   // rebind 'conv.cycleDensity' once and the binding and its docs move together.
-  usePaneShortcutAction('conv.cycleDensity', useCallback(() => {
-    setDensity(FEED_DENSITY_CYCLE[(FEED_DENSITY_CYCLE.indexOf(feedDensity) + 1) % FEED_DENSITY_CYCLE.length]);
-  }, [feedDensity, setDensity]));
+  usePaneShortcutAction(
+    "conv.cycleDensity",
+    useCallback(() => {
+      setDensity(
+        FEED_DENSITY_CYCLE[
+          (FEED_DENSITY_CYCLE.indexOf(feedDensity) + 1) %
+            FEED_DENSITY_CYCLE.length
+        ],
+      );
+    }, [feedDensity, setDensity]),
+  );
 
   // A hosted conversation is called by the hosted rule (its ask until the
   // assistant names it), so a turn that failed before naming it never reads
   // "New Session".
   const title = isHostedAgentType(conversation?.agent_type)
-    ? hostedTitle(conversation as any, null, () => firstUserPromptOf(messages)) || conversationTitle(null)
+    ? hostedTitle(conversation as any, null, () =>
+        firstUserPromptOf(messages),
+      ) || conversationTitle(null)
     : cleanTitle(conversation?.title || "New Session");
   const truncatedTitle = title.length > 60 ? title.slice(0, 57) + "..." : title;
   const latestMessageTimestamp = useMemo(() => {
     for (let i = timeline.length - 1; i >= 0; i--) {
       const item = timeline[i];
-      if (item.type === 'message' && (item.data as Message).role !== 'system') {
+      if (item.type === "message" && (item.data as Message).role !== "system") {
         return item.timestamp;
       }
     }
@@ -3360,16 +5053,19 @@ const ConversationViewInner = (
   // is days old is not labeled "3d ago" under a response that just landed.
   const lastLiveAtRef = useRef({ id: "", at: 0 });
   const convIdForLive = conversation?._id ? String(conversation._id) : "";
-  if (lastLiveAtRef.current.id !== convIdForLive) lastLiveAtRef.current = { id: convIdForLive, at: 0 };
-  if (isProducingAgentStatus(managedSession?.agent_status)) lastLiveAtRef.current.at = Date.now();
-  const lastActivityAt = Math.max(latestMessageTimestamp ?? 0, lastLiveAtRef.current.at)
-    || conversation?.updated_at
-    || conversation?.started_at
-    || 0;
+  if (lastLiveAtRef.current.id !== convIdForLive)
+    lastLiveAtRef.current = { id: convIdForLive, at: 0 };
+  if (isProducingAgentStatus(managedSession?.agent_status))
+    lastLiveAtRef.current.at = Date.now();
+  const lastActivityAt =
+    Math.max(latestMessageTimestamp ?? 0, lastLiveAtRef.current.at) ||
+    conversation?.updated_at ||
+    conversation?.started_at ||
+    0;
   const lastMessageRole = useMemo(() => {
     for (let i = timeline.length - 1; i >= 0; i--) {
       const item = timeline[i];
-      if (item.type === 'message' && (item.data as Message).role !== 'system') {
+      if (item.type === "message" && (item.data as Message).role !== "system") {
         return (item.data as Message).role;
       }
     }
@@ -3387,20 +5083,38 @@ const ConversationViewInner = (
   const isHostedConv = isHostedAgentType(conversation?.agent_type);
   // The selector runs on every store write: derive only when one of its two
   // inputs changed identity, never on a heartbeat.
-  const hostedApprovalMemoRef = useRef<{ msgs: unknown; decisions: unknown; id: string; out: HostedApprovalState } | null>(null);
+  const hostedApprovalMemoRef = useRef<{
+    msgs: unknown;
+    decisions: unknown;
+    id: string;
+    out: HostedApprovalState;
+  } | null>(null);
   const hostedApproval = useInboxStore((st): HostedApprovalState => {
     if (!isHostedConv || !conversation?._id) return "none";
     const id = String(conversation._id);
     const msgs = st.messages[id];
     const decisions = st.sessionDecisions;
     const memo = hostedApprovalMemoRef.current;
-    if (memo && memo.msgs === msgs && memo.decisions === decisions && memo.id === id) return memo.out;
-    const out = hostedApprovalState(msgs as Message[] | undefined, Object.values(decisions) as any[], id);
+    if (
+      memo &&
+      memo.msgs === msgs &&
+      memo.decisions === decisions &&
+      memo.id === id
+    )
+      return memo.out;
+    const out = hostedApprovalState(
+      msgs as Message[] | undefined,
+      Object.values(decisions) as any[],
+      id,
+    );
     hostedApprovalMemoRef.current = { msgs, decisions, id, out };
     return out;
   });
-  const hostedStatusParked = managedSession?.agent_status === "permission_blocked";
-  const hostedAsking = isHostedConv ? hostedAsks(hostedApproval, hostedStatusParked) : null;
+  const hostedStatusParked =
+    managedSession?.agent_status === "permission_blocked";
+  const hostedAsking = isHostedConv
+    ? hostedAsks(hostedApproval, hostedStatusParked)
+    : null;
   // The parked turn's decision row has not landed yet: hold the card's place.
   const hostedCardPending = hostedApproval === "pending" && hostedStatusParked;
   // The answer to this conversation's parked approval, while the transcript
@@ -3412,23 +5126,50 @@ const ConversationViewInner = (
   // after the step it belongs to rather than docked above the composer, where
   // a short transcript left a screen of empty paper between the two and the
   // card read as a second input. The queue's stepper keeps the decision sheet.
-  const hostedOwnCard = !!decisionItem && isHostedAgentType(conversation?.agent_type) && !decisionStepper && decisionItem.source === "decide";
+  const hostedOwnCard =
+    !!decisionItem &&
+    isHostedAgentType(conversation?.agent_type) &&
+    !decisionStepper &&
+    decisionItem.source === "decide";
   // A permission ask (`cast decide --run`) is the same inline approval in any
   // conversation: the question and Yes / Not now, never a docked sheet.
-  const runAsk = useInboxStore((st) => !!decisionItem?.decisionId && !!st.sessionDecisions[decisionItem.decisionId]?.run);
-  const inlineApproval = hostedOwnCard || (runAsk && !decisionStepper && decisionItem?.source === "decide");
-  const runningPermission = useRunningPermission(conversation?._id ? String(conversation._id) : undefined);
-  const hostedTailCard = !conversation || onSendOverride ? null
-    : inlineApproval ? (runAsk ? <PermissionAskCard key={decisionItem!.key} item={decisionItem!} /> : <HostedApprovalCard key={decisionItem!.key} item={decisionItem!} keys />)
-    // A Yes still running: one line holds the card's place until the result lands.
-    : runningPermission ? <PermissionRecordLine question={runningPermission.question} outcome="running" className="pt-4" />
-    // The turn parked on an approval before its decision row arrived: hold
+  const runAsk = useInboxStore(
+    (st) =>
+      !!decisionItem?.decisionId &&
+      !!st.sessionDecisions[decisionItem.decisionId]?.run,
+  );
+  const inlineApproval =
+    hostedOwnCard ||
+    (runAsk && !decisionStepper && decisionItem?.source === "decide");
+  const runningPermission = useRunningPermission(
+    conversation?._id ? String(conversation._id) : undefined,
+  );
+  const hostedTailCard =
+    !conversation || onSendOverride ? null : inlineApproval ? (
+      runAsk ? (
+        <PermissionAskCard key={decisionItem!.key} item={decisionItem!} />
+      ) : (
+        <HostedApprovalCard key={decisionItem!.key} item={decisionItem!} keys />
+      )
+    ) : // A Yes still running: one line holds the card's place until the result lands.
+    runningPermission ? (
+      <PermissionRecordLine
+        question={runningPermission.question}
+        outcome="running"
+        className="pt-4"
+      />
+    ) : // The turn parked on an approval before its decision row arrived: hold
     // the card's place in one quiet line.
-    : !decisionItem && hostedSettledAnswer ? <HostedApprovalSettled label={hostedSettledAnswer} />
-    : !decisionItem && hostedCardPending ? <HostedApprovalPending />
-    : null;
+    !decisionItem && hostedSettledAnswer ? (
+      <HostedApprovalSettled label={hostedSettledAnswer} />
+    ) : !decisionItem && hostedCardPending ? (
+      <HostedApprovalPending />
+    ) : null;
   const workingPhrase = useMemo(
-    () => (hostedAsking === null ? deriveRunningPhrase(timeline) : deriveHostedRunningPhrase(timeline, hostedAsking)),
+    () =>
+      hostedAsking === null
+        ? deriveRunningPhrase(timeline)
+        : deriveHostedRunningPhrase(timeline, hostedAsking),
     [timeline, hostedAsking],
   );
   // Clock for the liveness booleans below. Re-renders THIS whole view only when
@@ -3436,16 +5177,19 @@ const ConversationViewInner = (
   // not on every tick — an unconditional 10s ticker re-rendered the entire
   // conversation view (60–250ms) forever, for three booleans.
   const startedAtForClock = conversation?.started_at ?? 0;
-  const now = useNowWhen(
-    (t) => {
-      const idle = t - lastActivityAt;
-      const age = t - startedAtForClock;
-      return `${idle < 45 * 1000 ? 1 : 0}${idle < 5 * 60 * 1000 ? 1 : 0}${age < SESSION_STARTING_GRACE_MS ? 1 : 0}${age < 120_000 ? 1 : 0}`;
-    },
-    10_000,
-  );
-  const isSessionConnected = !!conversation && conversation.status === "active" && (now - lastActivityAt) < 5 * 60 * 1000;
-  const isWorking = isSessionConnected && (now - lastActivityAt) < 45 * 1000 && lastMessageRole === "assistant";
+  const now = useNowWhen((t) => {
+    const idle = t - lastActivityAt;
+    const age = t - startedAtForClock;
+    return `${idle < 45 * 1000 ? 1 : 0}${idle < 5 * 60 * 1000 ? 1 : 0}${age < SESSION_STARTING_GRACE_MS ? 1 : 0}${age < 120_000 ? 1 : 0}`;
+  }, 10_000);
+  const isSessionConnected =
+    !!conversation &&
+    conversation.status === "active" &&
+    now - lastActivityAt < 5 * 60 * 1000;
+  const isWorking =
+    isSessionConnected &&
+    now - lastActivityAt < 45 * 1000 &&
+    lastMessageRole === "assistant";
   const isConversationLive = isWorking;
   // Only a row that says it is not connected (sessionRowFromSummary), and
   // never a hosted conversation (sessionDisconnected).
@@ -3456,19 +5200,32 @@ const ConversationViewInner = (
     agentType: conversation?.agent_type,
   });
   const sessionAge = now - (conversation?.started_at ?? 0);
-  const isNewEmptySession = !!conversation && conversation.status === "active" && (conversation.message_count ?? 0) === 0;
+  const isNewEmptySession =
+    !!conversation &&
+    conversation.status === "active" &&
+    (conversation.message_count ?? 0) === 0;
   // A fresh fork has messages but no daemon yet — give it the same
   // "Starting session…" → "Ready" lifecycle above the input as a new session.
-  const isFreshFork = !!conversation && conversation.status === "active" && !!conversation.forked_from && sessionAge < 120_000;
+  const isFreshFork =
+    !!conversation &&
+    conversation.status === "active" &&
+    !!conversation.forked_from &&
+    sessionAge < 120_000;
   // Same Starting…/Ready rule the inbox row renders, so the two never disagree
   // (see lib/sessionLifecycle). The < 120_000 visibility gate keeps the affordance
   // off an old-but-still-empty session — past it, it's just a normal live session.
   // The fresh-launch landing blank starts nothing until its first send.
-  const idleLandingStub = useInboxStore((st) => isIdleLandingStub(st, conversation?._id));
+  const idleLandingStub = useInboxStore((st) =>
+    isIdleLandingStub(st, conversation?._id),
+  );
   const isFreshSession = (isNewEmptySession && !idleLandingStub) || isFreshFork;
-  const sessionStartup = sessionStartupState({ isConnected: managedSession?.is_connected, ageMs: sessionAge });
+  const sessionStartup = sessionStartupState({
+    isConnected: managedSession?.is_connected,
+    ageMs: sessionAge,
+  });
   const isSessionStarting = isFreshSession && sessionStartup === "starting";
-  const isSessionReady = isFreshSession && sessionStartup === "ready" && sessionAge < 120_000;
+  const isSessionReady =
+    isFreshSession && sessionStartup === "ready" && sessionAge < 120_000;
 
   // The header dropdown's single "Restart session" action. One click drives both
   // recovery codepaths (resume-first, then a forced rebuild if it doesn't come
@@ -3479,20 +5236,28 @@ const ConversationViewInner = (
     !!managedSession?.is_connected ||
     isConversationLive ||
     isThinking ||
-    isActiveAgentStatus(managedSession?.agent_status as LiveAgentStatus | undefined);
+    isActiveAgentStatus(
+      managedSession?.agent_status as LiveAgentStatus | undefined,
+    );
   const restartGhostContext = useCallback(
     () => (conversation?._id ? ghostRestartContextFor(conversation._id) : {}),
     [conversation?._id],
   );
   const onRestartRestored = useCallback(
-    (res: unknown) => (conversation?._id ? followRestoredConversation(res, conversation._id) : false),
+    (res: unknown) =>
+      conversation?._id
+        ? followRestoredConversation(res, conversation._id)
+        : false,
     [conversation?._id],
   );
-  const restartNotify = useCallback((kind: "success" | "error" | "info", message: string) => {
-    if (kind === "error") toast.error(message);
-    else if (kind === "success") toast.success(message);
-    else toast(message);
-  }, []);
+  const restartNotify = useCallback(
+    (kind: "success" | "error" | "info", message: string) => {
+      if (kind === "error") toast.error(message);
+      else if (kind === "success") toast.success(message);
+      else toast(message);
+    },
+    [],
+  );
   const {
     restart: handleRestartSession,
     isRestarting: isHeaderRestarting,
@@ -3511,55 +5276,238 @@ const ConversationViewInner = (
   const togglePublicProfilePin = () => {
     if (!conversation || !isOwner) return;
     const pinned = !!conversation.profile_pinned_at;
-    void (pinned ? unpinFromProfile({ conversation_id: conversation._id as any }) : pinToProfile({ conversation_id: conversation._id as any }))
-      .then(() => toast.success(pinned ? "Removed from your public profile" : "Pinned — this session is now public on your profile"))
-      .catch((error) => { captureException(error); toast.error(error instanceof Error ? error.message : "Failed to update profile pin"); });
+    void (
+      pinned
+        ? unpinFromProfile({ conversation_id: conversation._id as any })
+        : pinToProfile({ conversation_id: conversation._id as any })
+    )
+      .then(() =>
+        toast.success(
+          pinned
+            ? "Removed from your public profile"
+            : "Pinned — this session is now public on your profile",
+        ),
+      )
+      .catch((error) => {
+        captureException(error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update profile pin",
+        );
+      });
   };
 
   const codeRouter = useRouter();
   const codeRepository = conversation ? sessionRepository(conversation) : null;
   // A cloud agent session's actions (Create PR, Apply, Archive), in the palette as in the header and the session menu.
-  const cloudAgentActions = useCloudAgentActions(conversation?._id, effectiveIsOwner);
+  const cloudAgentActions = useCloudAgentActions(
+    conversation?._id,
+    effectiveIsOwner,
+  );
   // A session with an agent process of its own (not a cloud agent's): the one a restart or a resume command reaches.
   // A share guest has no machine for a resume command to run on, and the hosted assistant has no process at all.
-  const hasLocalAgent = !guest && !!conversation?.session_id && !cloudAgentActions.cloud && !isHostedAgentType(conversation?.agent_type);
+  const hasLocalAgent =
+    !guest &&
+    !!conversation?.session_id &&
+    !cloudAgentActions.cloud &&
+    !isHostedAgentType(conversation?.agent_type);
   usePaletteSessionCommands(conversation?._id, [
     ...cloudAgentActions.palette,
-    { key: "view_restart", label: "Restart session", icon: PaletteRestart, available: !!isOwner && hasLocalAgent, run: handleRestartSession },
-    { key: "view_profile_pin", label: conversation?.profile_pinned_at ? "Unpin from public profile" : "Pin to public profile", icon: PalettePin, available: !!isOwner, run: togglePublicProfilePin },
-    { key: "view_copy_all", label: "Copy all messages", icon: PaletteCopy, run: handleCopyAll },
-    { key: "view_resume_claude", label: "Copy Claude resume command", icon: PaletteCopy, available: hasLocalAgent, run: () => { void handleCopyResumeCommand("claude"); } },
-    { key: "view_resume_codex", label: "Copy Codex resume command", icon: PaletteCopy, available: hasLocalAgent, run: () => { void handleCopyResumeCommand("codex"); } },
-    { key: "view_tmux", label: "Copy tmux attach command", icon: PaletteCopy, available: !!managedSession?.tmux_session, run: copyTmuxAttach },
-    { key: "view_ask", label: "Ask this session…", icon: PaletteAsk, shortcutAction: "conv.ask", available: !guest, run: openAskPanel },
-    { key: "view_search", label: "Search in conversation", icon: PaletteSearch, run: () => { setIsLocalSearchOpen(true); setLocalSearchQuery(""); setTimeout(() => localSearchInputRef.current?.focus(), 0); } },
-    { key: "view_thinking", label: showThinking ? "Hide thinking" : "Show thinking", icon: PaletteEye, shortcutAction: "conv.toggleThinking", available: hasAnyThinking, run: () => setShowThinking(s => !s) },
-    { key: "view_context", label: showSessionContext ? "Hide schedule and plan" : "Show schedule and plan", icon: PaletteEye, available: minimalStyle, run: () => updateUI({ show_session_context: !showSessionContext }) },
-    { key: "view_sticky", label: stickyDisabled ? "Enable sticky headers" : "Disable sticky headers", icon: PalettePin, run: () => { updateUI({ sticky_headers_disabled: !stickyDisabled }); setStickyMsgVisible(false); setActiveStickyMsg(null); } },
-    { key: "view_source", label: "Browse repository source", icon: PaletteBranch, available: !!codeRepository, run: () => { if (codeRepository) codeRouter.push(repoTreeHref(codeRepository, conversation?.git_branch || "HEAD")); } },
-    { key: "view_history", label: "Browse commit history", icon: PaletteBranch, available: !!codeRepository, run: () => { if (codeRepository) codeRouter.push(repoCommitsHref(codeRepository, conversation?.git_branch || "HEAD")); } },
-    { key: "view_diff", label: diffExpanded ? "Hide git diff" : "Show git diff", icon: PaletteBranch, available: !!conversation?.git_branch, run: () => setDiffExpanded(s => !s) },
-    { key: "view_branches", label: "Branch map", icon: PaletteBranch, shortcutAction: "conv.toggleTree", available: !!isOwner, run: toggleMap },
-    { key: "view_density", label: "Cycle message density", icon: PaletteRows, shortcutAction: "conv.cycleDensity", run: () => setDensity(DENSITY_OPTIONS[(DENSITY_OPTIONS.findIndex(o => o.value === density) + 1) % DENSITY_OPTIONS.length].value) },
+    {
+      key: "view_restart",
+      label: "Restart session",
+      icon: PaletteRestart,
+      available: !!isOwner && hasLocalAgent,
+      run: handleRestartSession,
+    },
+    {
+      key: "view_profile_pin",
+      label: conversation?.profile_pinned_at
+        ? "Unpin from public profile"
+        : "Pin to public profile",
+      icon: PalettePin,
+      available: !!isOwner,
+      run: togglePublicProfilePin,
+    },
+    {
+      key: "view_copy_all",
+      label: "Copy all messages",
+      icon: PaletteCopy,
+      run: handleCopyAll,
+    },
+    {
+      key: "view_resume_claude",
+      label: "Copy Claude resume command",
+      icon: PaletteCopy,
+      available: hasLocalAgent,
+      run: () => {
+        void handleCopyResumeCommand("claude");
+      },
+    },
+    {
+      key: "view_resume_codex",
+      label: "Copy Codex resume command",
+      icon: PaletteCopy,
+      available: hasLocalAgent,
+      run: () => {
+        void handleCopyResumeCommand("codex");
+      },
+    },
+    {
+      key: "view_tmux",
+      label: "Copy tmux attach command",
+      icon: PaletteCopy,
+      available: !!managedSession?.tmux_session,
+      run: copyTmuxAttach,
+    },
+    {
+      key: "view_ask",
+      label: "Ask this session…",
+      icon: PaletteAsk,
+      shortcutAction: "conv.ask",
+      available: !guest,
+      run: openAskPanel,
+    },
+    {
+      key: "view_search",
+      label: "Search in conversation",
+      icon: PaletteSearch,
+      run: () => {
+        setIsLocalSearchOpen(true);
+        setLocalSearchQuery("");
+        setTimeout(() => localSearchInputRef.current?.focus(), 0);
+      },
+    },
+    {
+      key: "view_thinking",
+      label: showThinking ? "Hide thinking" : "Show thinking",
+      icon: PaletteEye,
+      shortcutAction: "conv.toggleThinking",
+      available: hasAnyThinking,
+      run: () => setShowThinking((s) => !s),
+    },
+    {
+      key: "view_context",
+      label: showSessionContext
+        ? "Hide schedule and plan"
+        : "Show schedule and plan",
+      icon: PaletteEye,
+      available: minimalStyle,
+      run: () => updateUI({ show_session_context: !showSessionContext }),
+    },
+    {
+      key: "view_sticky",
+      label: stickyDisabled
+        ? "Enable sticky headers"
+        : "Disable sticky headers",
+      icon: PalettePin,
+      run: () => {
+        updateUI({ sticky_headers_disabled: !stickyDisabled });
+        setStickyMsgVisible(false);
+        setActiveStickyMsg(null);
+      },
+    },
+    {
+      key: "view_source",
+      label: "Browse repository source",
+      icon: PaletteBranch,
+      available: !!codeRepository,
+      run: () => {
+        if (codeRepository)
+          codeRouter.push(
+            repoTreeHref(codeRepository, conversation?.git_branch || "HEAD"),
+          );
+      },
+    },
+    {
+      key: "view_history",
+      label: "Browse commit history",
+      icon: PaletteBranch,
+      available: !!codeRepository,
+      run: () => {
+        if (codeRepository)
+          codeRouter.push(
+            repoCommitsHref(codeRepository, conversation?.git_branch || "HEAD"),
+          );
+      },
+    },
+    {
+      key: "view_diff",
+      label: diffExpanded ? "Hide git diff" : "Show git diff",
+      icon: PaletteBranch,
+      available: !!conversation?.git_branch,
+      run: () => setDiffExpanded((s) => !s),
+    },
+    {
+      key: "view_branches",
+      label: "Branch map",
+      icon: PaletteBranch,
+      shortcutAction: "conv.toggleTree",
+      available: !!isOwner,
+      run: toggleMap,
+    },
+    {
+      key: "view_density",
+      label: "Cycle message density",
+      icon: PaletteRows,
+      shortcutAction: "conv.cycleDensity",
+      run: () =>
+        setDensity(
+          DENSITY_OPTIONS[
+            (DENSITY_OPTIONS.findIndex((o) => o.value === density) + 1) %
+              DENSITY_OPTIONS.length
+          ].value,
+        ),
+    },
   ]);
   const knownPrIdsRaw = useMemo(
-    () => knownPullRequestIds(codeRepository, messages as any, [...pullRequests, ...linkedPullRequests], transcriptOutcomes.prRefs),
-    [codeRepository, messages, pullRequests, linkedPullRequests, transcriptOutcomes],
+    () =>
+      knownPullRequestIds(
+        codeRepository,
+        messages as any,
+        [...pullRequests, ...linkedPullRequests],
+        transcriptOutcomes.prRefs,
+      ),
+    [
+      codeRepository,
+      messages,
+      pullRequests,
+      linkedPullRequests,
+      transcriptOutcomes,
+    ],
   );
   // Same members, same set: a streamed message that named no new pull request
   // keeps the context value, so every markdown block below does not re-render.
   const knownPrIdsRef = useRef(knownPrIdsRaw);
-  if (knownPrIdsRef.current !== knownPrIdsRaw && (knownPrIdsRef.current.size !== knownPrIdsRaw.size || [...knownPrIdsRaw].some((id) => !knownPrIdsRef.current.has(id)))) {
+  if (
+    knownPrIdsRef.current !== knownPrIdsRaw &&
+    (knownPrIdsRef.current.size !== knownPrIdsRaw.size ||
+      [...knownPrIdsRaw].some((id) => !knownPrIdsRef.current.has(id)))
+  ) {
     knownPrIdsRef.current = knownPrIdsRaw;
   }
-  const { globalToolResultMap, globalImageMap, globalFileMap, filePathBase, filePathCtx } = useToolResultMaps({ conversation, codeRepository, pullRequestIds: knownPrIdsRef.current, foreign: !effectiveIsOwner || guest });
+  const {
+    globalToolResultMap,
+    globalImageMap,
+    globalFileMap,
+    filePathBase,
+    filePathCtx,
+  } = useToolResultMaps({
+    conversation,
+    codeRepository,
+    pullRequestIds: knownPrIdsRef.current,
+    foreign: !effectiveIsOwner || guest,
+  });
   // What this transcript is nested in, plus itself: the bound a reveal band
   // in it checks before showing a conversation (lib/revealHost).
   const revealAncestry = useRevealAncestryWith(conversation?._id ?? "");
   const inRevealBand = useContext(RevealInBandCtx);
   // Inside a reveal band the transcript is the point: the composer waits
   // behind a small button until the reader means to write (or a draft exists).
-  const [bandComposerOpen, setBandComposerOpen] = useState(() => !!conversation?.draft_message);
+  const [bandComposerOpen, setBandComposerOpen] = useState(
+    () => !!conversation?.draft_message,
+  );
   const focusBandComposerRef = useRef(false);
   useLayoutEffect(() => {
     if (!bandComposerOpen || !focusBandComposerRef.current) return;
@@ -3569,14 +5517,32 @@ const ConversationViewInner = (
   // Keyed on the conversation as well as the band: one instance of this view
   // serves every session the inbox selects, and a fold left over from the
   // session that hosted a band used to follow the reader to the next one.
-  const hostingReveal = useHostsReveal(headerRef, "[data-cc-conversation]", effectiveConversationId);
+  const hostingReveal = useHostsReveal(
+    headerRef,
+    "[data-cc-conversation]",
+    effectiveConversationId,
+  );
   // The pinned prompt floats over the top of the transcript; while a band is
   // open here it would cover the band's close strip, so it steps aside.
   const showSticky = stickyMsgVisible && !!activeStickyMsg && !hostingReveal;
-  const stickyCmd = activeStickyMsg ? stickyCommand(activeStickyMsg.content) : null;
-  const { browserRowMap, lastBrowserPage, browserSession, chatWakeMap } = useBrowserAndWakeRows({ conversation, globalToolResultMap, managedSession, userMsgKindMap });
-  const { sessionGalleryItems } = useSessionImages({ deferredQueriesEnabled, conversation });
-  const { taskSubjectMap, taskRecordMap } = useConversationTaskMaps({ conversation, deferredQueriesEnabled });
+  const stickyCmd = activeStickyMsg
+    ? stickyCommand(activeStickyMsg.content)
+    : null;
+  const { browserRowMap, lastBrowserPage, browserSession, chatWakeMap } =
+    useBrowserAndWakeRows({
+      conversation,
+      globalToolResultMap,
+      managedSession,
+      userMsgKindMap,
+    });
+  const { sessionGalleryItems } = useSessionImages({
+    deferredQueriesEnabled,
+    conversation,
+  });
+  const { taskSubjectMap, taskRecordMap } = useConversationTaskMaps({
+    conversation,
+    deferredQueriesEnabled,
+  });
 
   const getPreviousNonToolResultMessage = (index: number): Message | null => {
     for (let i = index - 1; i >= 0; i--) {
@@ -3585,7 +5551,13 @@ const ConversationViewInner = (
       const prevMsg = prevItem.data as Message;
       if (prevMsg.role === "user") {
         const kind = userMsgKindMap.get(prevMsg._id);
-        if (kind?.kind === 'tool_results_only' || kind?.kind === 'command' || kind?.kind === 'bash_input' || kind?.kind === 'bash_output') continue;
+        if (
+          kind?.kind === "tool_results_only" ||
+          kind?.kind === "command" ||
+          kind?.kind === "bash_input" ||
+          kind?.kind === "bash_output"
+        )
+          continue;
       }
       return prevMsg;
     }
@@ -3611,7 +5583,12 @@ const ConversationViewInner = (
       if (m.role === "assistant") {
         if (m.content?.trim()) return false;
         started = true;
-      } else if (m.role === "user" && started && userMsgKindMap.get(m._id)?.kind !== "tool_results_only") return true;
+      } else if (
+        m.role === "user" &&
+        started &&
+        userMsgKindMap.get(m._id)?.kind !== "tool_results_only"
+      )
+        return true;
     }
     return false;
   };
@@ -3639,14 +5616,22 @@ const ConversationViewInner = (
     for (const item of timeline) {
       if (item?.type !== "message") continue;
       const m = item.data as Message;
-      const kind = m.role === "user" ? (userMsgKindMap.get(m._id)?.kind ?? "normal") : null;
+      const kind =
+        m.role === "user"
+          ? (userMsgKindMap.get(m._id)?.kind ?? "normal")
+          : null;
       rows.push({ ...m, person: kind === "normal" || kind === "direct_user" });
     }
-    return { ...foldHostedRetries(rows), personTurns: rows.filter((r) => r.person).length };
+    return {
+      ...foldHostedRetries(rows),
+      personTurns: rows.filter((r) => r.person).length,
+    };
   }, [timeline, userMsgKindMap, conversation?.agent_type]);
   // A "continue" account recovery sent after a usage limit (not the person).
   const isRecoveryContinue = (m: Message | null | undefined): boolean =>
-    !!m && m.role === "user" && (isRecoveryContinueClientId(m.client_id) || !!(m as any)._recoveryContinue);
+    !!m &&
+    m.role === "user" &&
+    (isRecoveryContinueClientId(m.client_id) || !!(m as any)._recoveryContinue);
 
   // Caches for renderItem's per-row derived props (see the assistant branch).
   // Keyed by the message row object, which the store keeps identity-stable
@@ -3654,36 +5639,65 @@ const ConversationViewInner = (
   // they were derived from, and reuse the previous array when its contents
   // did not change (a new timeline array from an unrelated append must not
   // hand every row a fresh runMessageIds).
-  const assistantRowCacheRef = useRef(new WeakMap<Message, { timeline: TimelineItem[]; messageAuthors: typeof messageAuthors; showThinking: boolean; isFirstInSequence: boolean; runMessageIds: string[] }>());
+  const assistantRowCacheRef = useRef(
+    new WeakMap<
+      Message,
+      {
+        timeline: TimelineItem[];
+        messageAuthors: typeof messageAuthors;
+        showThinking: boolean;
+        isFirstInSequence: boolean;
+        runMessageIds: string[];
+      }
+    >(),
+  );
   const assistantRowDerived = (msg: Message, index: number) => {
     const cache = assistantRowCacheRef.current;
     const hit = cache.get(msg);
-    if (hit && hit.timeline === timeline && hit.messageAuthors === messageAuthors && hit.showThinking === showThinking) return hit;
+    if (
+      hit &&
+      hit.timeline === timeline &&
+      hit.messageAuthors === messageAuthors &&
+      hit.showThinking === showThinking
+    )
+      return hit;
     // Find previous VISIBLE non-commit assistant item to determine if this is first in assistant sequence
     // Skip invisible assistant messages (those whose content is only system tags with no tool calls/thinking/images)
     let prevIdx = index - 1;
     while (prevIdx >= 0) {
       const checkItem = timeline[prevIdx];
-      if (checkItem.type === 'commit') { prevIdx--; continue; }
-      if (checkItem.type !== 'message') break;
+      if (checkItem.type === "commit") {
+        prevIdx--;
+        continue;
+      }
+      if (checkItem.type !== "message") break;
       const checkMsg = checkItem.data as Message;
-      if (checkMsg.role !== 'assistant') break;
-      const hasVisibleContent = (checkMsg.content && stripSystemTags(checkMsg.content).trim().length > 0)
-        || (checkMsg.tool_calls && checkMsg.tool_calls.length > 0)
-        || (showThinking && checkMsg.thinking && checkMsg.thinking.trim().length > 0)
-        || (checkMsg.images && checkMsg.images.length > 0);
+      if (checkMsg.role !== "assistant") break;
+      const hasVisibleContent =
+        (checkMsg.content &&
+          stripSystemTags(checkMsg.content).trim().length > 0) ||
+        (checkMsg.tool_calls && checkMsg.tool_calls.length > 0) ||
+        (showThinking &&
+          checkMsg.thinking &&
+          checkMsg.thinking.trim().length > 0) ||
+        (checkMsg.images && checkMsg.images.length > 0);
       if (hasVisibleContent) break;
       prevIdx--;
     }
     const prevItem = prevIdx >= 0 ? timeline[prevIdx] : null;
-    const prevMsg = prevItem?.type === 'message' ? (prevItem.data as Message) : null;
-    const isFirstInSequence = !prevMsg || prevMsg.role !== "assistant" || !sameMessageAuthor(prevMsg, msg, messageAuthors) || msg.timestamp - prevMsg.timestamp > GROUP_WINDOW_MS;
+    const prevMsg =
+      prevItem?.type === "message" ? (prevItem.data as Message) : null;
+    const isFirstInSequence =
+      !prevMsg ||
+      prevMsg.role !== "assistant" ||
+      !sameMessageAuthor(prevMsg, msg, messageAuthors) ||
+      msg.timestamp - prevMsg.timestamp > GROUP_WINDOW_MS;
     // Compute all message IDs in the current run (for sharing)
     let runMessageIds: string[] = [];
     for (let i = index; i >= 0; i--) {
       const checkItem = timeline[i];
       if (!checkItem) break;
-      if (checkItem.type !== 'message') continue;
+      if (checkItem.type !== "message") continue;
       const checkMsg = checkItem.data as Message;
       if (checkMsg.role === "user") break;
       if (checkMsg.role === "assistant") runMessageIds.unshift(checkMsg._id);
@@ -3691,25 +5705,52 @@ const ConversationViewInner = (
     for (let i = index + 1; i < timeline.length; i++) {
       const checkItem = timeline[i];
       if (!checkItem) break;
-      if (checkItem.type !== 'message') continue;
+      if (checkItem.type !== "message") continue;
       const checkMsg = checkItem.data as Message;
       if (checkMsg.role === "user") break;
       if (checkMsg.role === "assistant") runMessageIds.push(checkMsg._id);
     }
-    if (hit && sameStringArray(hit.runMessageIds, runMessageIds)) runMessageIds = hit.runMessageIds;
-    const entry = { timeline, messageAuthors, showThinking, isFirstInSequence, runMessageIds };
+    if (hit && sameStringArray(hit.runMessageIds, runMessageIds))
+      runMessageIds = hit.runMessageIds;
+    const entry = {
+      timeline,
+      messageAuthors,
+      showThinking,
+      isFirstInSequence,
+      runMessageIds,
+    };
     cache.set(msg, entry);
     return entry;
   };
-  const toolResultsCacheRef = useRef(new WeakMap<Message, { globalToolResultMap: typeof globalToolResultMap; results: ToolResult[] | undefined }>());
+  const toolResultsCacheRef = useRef(
+    new WeakMap<
+      Message,
+      {
+        globalToolResultMap: typeof globalToolResultMap;
+        results: ToolResult[] | undefined;
+      }
+    >(),
+  );
   const relevantToolResultsFor = (msg: Message): ToolResult[] | undefined => {
     const cache = toolResultsCacheRef.current;
     const hit = cache.get(msg);
-    if (hit && hit.globalToolResultMap === globalToolResultMap) return hit.results;
+    if (hit && hit.globalToolResultMap === globalToolResultMap)
+      return hit.results;
     let results = msg.tool_calls
-      ?.map(tc => msg.tool_results?.find((tr) => tr.tool_use_id === tc.id) || globalToolResultMap[tc.id])
+      ?.map(
+        (tc) =>
+          msg.tool_results?.find((tr) => tr.tool_use_id === tc.id) ||
+          globalToolResultMap[tc.id],
+      )
       .filter((tr): tr is ToolResult => tr !== undefined);
-    if (hit && hit.results && results && hit.results.length === results.length && hit.results.every((r, i) => r === results![i])) results = hit.results;
+    if (
+      hit &&
+      hit.results &&
+      results &&
+      hit.results.length === results.length &&
+      hit.results.every((r, i) => r === results![i])
+    )
+      results = hit.results;
     cache.set(msg, { globalToolResultMap, results });
     return results;
   };
@@ -3717,21 +5758,47 @@ const ConversationViewInner = (
   // Same identity discipline for the condensed/compact per-row objects: a fresh
   // `{entries, expanded, onToggle}` per render re-rendered every visible row on
   // every virtualizer pass in condensed view.
-  const receiptCacheRef = useRef(new WeakMap<Message, { entries: ReceiptEntry[]; expanded: boolean; toggleReceipt: typeof toggleReceipt; value: CondensedReceipt | undefined }>());
-  const condensedReceiptFor = (msg: Message, entries: ReceiptEntry[], expanded: boolean): CondensedReceipt | undefined => {
+  const receiptCacheRef = useRef(
+    new WeakMap<
+      Message,
+      {
+        entries: ReceiptEntry[];
+        expanded: boolean;
+        toggleReceipt: typeof toggleReceipt;
+        value: CondensedReceipt | undefined;
+      }
+    >(),
+  );
+  const condensedReceiptFor = (
+    msg: Message,
+    entries: ReceiptEntry[],
+    expanded: boolean,
+  ): CondensedReceipt | undefined => {
     if (!entries.length) return undefined;
     const cache = receiptCacheRef.current;
     const hit = cache.get(msg);
-    if (hit && hit.entries === entries && hit.expanded === expanded && hit.toggleReceipt === toggleReceipt) return hit.value;
+    if (
+      hit &&
+      hit.entries === entries &&
+      hit.expanded === expanded &&
+      hit.toggleReceipt === toggleReceipt
+    )
+      return hit.value;
     const value = { entries, expanded, onToggle: () => toggleReceipt(msg._id) };
     cache.set(msg, { entries, expanded, toggleReceipt, value });
     return value;
   };
-  const collapseHandlerCacheRef = useRef(new WeakMap<Message, { turnKey: string; toggleGroup: typeof toggleGroup; fn: () => void }>());
+  const collapseHandlerCacheRef = useRef(
+    new WeakMap<
+      Message,
+      { turnKey: string; toggleGroup: typeof toggleGroup; fn: () => void }
+    >(),
+  );
   const collapseTurnHandlerFor = (msg: Message, turnKey: string) => {
     const cache = collapseHandlerCacheRef.current;
     const hit = cache.get(msg);
-    if (hit && hit.turnKey === turnKey && hit.toggleGroup === toggleGroup) return hit.fn;
+    if (hit && hit.turnKey === turnKey && hit.toggleGroup === toggleGroup)
+      return hit.fn;
     const fn = () => toggleGroup(turnKey);
     cache.set(msg, { turnKey, toggleGroup, fn });
     return fn;
@@ -3745,7 +5812,8 @@ const ConversationViewInner = (
     if (forkAnyMessage) return undefined;
     for (let i = timeline.length - 1; i >= 0; i--) {
       const it = timeline[i];
-      if (it.type === 'message' && it.data.message_uuid) return it.data.message_uuid;
+      if (it.type === "message" && it.data.message_uuid)
+        return it.data.message_uuid;
     }
     return undefined;
   }, [forkAnyMessage, timeline]);
@@ -3755,25 +5823,47 @@ const ConversationViewInner = (
   // file, or another agent's canvas or page showing what the feature makes.
   // Read from the messages themselves (lib/featureMoments); no model call.
   const offeredFeatures = useOfferedFeatures(MOMENT_FEATURES);
-  const momentAwaitsHuman = !!managedSession?.agent_status && AWAITING_HUMAN.has(managedSession.agent_status);
-  const momentWorking = managedSession?.agent_status === "working" || managedSession?.agent_status === "thinking";
+  const momentAwaitsHuman =
+    !!managedSession?.agent_status &&
+    AWAITING_HUMAN.has(managedSession.agent_status);
+  const momentWorking =
+    managedSession?.agent_status === "working" ||
+    managedSession?.agent_status === "thinking";
   const featureMoment = useMemo(() => {
-    if (!offeredFeatures || isHostedAgentType(conversation?.agent_type)) return null;
+    if (!offeredFeatures || isHostedAgentType(conversation?.agent_type))
+      return null;
     const messages: { id: string; text: string }[] = [];
     for (const it of timeline) {
-      if (it.type === 'message' && it.data.role === 'assistant' && typeof it.data.content === 'string') {
+      if (
+        it.type === "message" &&
+        it.data.role === "assistant" &&
+        typeof it.data.content === "string"
+      ) {
         messages.push({ id: it.data._id, text: it.data.content });
       }
     }
     const offered = new Set(offeredFeatures.split(" "));
-    return pickFeatureMoment(messages, { needsInput: momentAwaitsHuman, working: momentWorking }, (slug) => offered.has(slug));
-  }, [offeredFeatures, timeline, momentAwaitsHuman, momentWorking, conversation?.agent_type]);
+    return pickFeatureMoment(
+      messages,
+      { needsInput: momentAwaitsHuman, working: momentWorking },
+      (slug) => offered.has(slug),
+    );
+  }, [
+    offeredFeatures,
+    timeline,
+    momentAwaitsHuman,
+    momentWorking,
+    conversation?.agent_type,
+  ]);
   const forkHandlerFor = (messageUuid: string | undefined) =>
-    forkHandler && (forkAnyMessage || (!!messageUuid && messageUuid === forkTipUuid)) ? forkHandler : undefined;
+    forkHandler &&
+    (forkAnyMessage || (!!messageUuid && messageUuid === forkTipUuid))
+      ? forkHandler
+      : undefined;
 
   const renderItem = (item: TimelineItem, index: number) => {
     if (!item || index < 0 || index >= timeline.length) return null;
-    if (item.type === 'commit') {
+    if (item.type === "commit") {
       const commit = item.data;
       return (
         <CommitCard
@@ -3792,7 +5882,7 @@ const ConversationViewInner = (
       );
     }
 
-    if (item.type === 'pull_request') {
+    if (item.type === "pull_request") {
       const pr = item.data;
       return (
         <PRCard
@@ -3818,10 +5908,14 @@ const ConversationViewInner = (
       );
     }
 
-    if (item.type === 'external_event') {
+    if (item.type === "external_event") {
       const row = item.data as ExternalEventRecord;
       return (
-        <div key={row._id} className="mx-auto conv-col px-2 sm:px-4 py-0.5" title="This session's own git activity, and events on the pull request it shepherds">
+        <div
+          key={row._id}
+          className="mx-auto conv-col px-2 sm:px-4 py-0.5"
+          title="This session's own git activity, and events on the pull request it shepherds"
+        >
           <ExternalEventRow
             event={externalEventRowToExternalEvent(row)}
             density="transcript"
@@ -3833,124 +5927,414 @@ const ConversationViewInner = (
 
     const msg = item.data as Message;
     if (msg.role === "system") {
-      if (foldWorkingTurns && !cleanKeepsSystemRow(msg.content, msg.subtype)) return null;
-      if (isLimitNoticeSuperseded(msg.content, msg.subtype, getPreviousNonToolResultMessage(index), isRecoveryContinue(nextMessage(index)))) return null;
-      return <SystemBlock key={msg._id} content={msg.content || ""} subtype={msg.subtype} timestamp={msg.timestamp} messageUuid={msg.message_uuid} messageId={msg._id} conversationId={conversation?._id} onStartShareSelection={startShareSelection} />;
+      if (foldWorkingTurns && !cleanKeepsSystemRow(msg.content, msg.subtype))
+        return null;
+      if (
+        isLimitNoticeSuperseded(
+          msg.content,
+          msg.subtype,
+          getPreviousNonToolResultMessage(index),
+          isRecoveryContinue(nextMessage(index)),
+        )
+      )
+        return null;
+      return (
+        <SystemBlock
+          key={msg._id}
+          content={msg.content || ""}
+          subtype={msg.subtype}
+          timestamp={msg.timestamp}
+          messageUuid={msg.message_uuid}
+          messageId={msg._id}
+          conversationId={conversation?._id}
+          onStartShareSelection={startShareSelection}
+        />
+      );
     }
 
     if (msg.role === "user") {
-      const kind = userMsgKindMap.get(msg._id) ?? { kind: 'normal' as const };
+      const kind = userMsgKindMap.get(msg._id) ?? { kind: "normal" as const };
       // A machine sent this; fold mode drops it. A role's wake frame is kept
       // (FOLD_KEPT_USER_KINDS): it rests as one line saying the role woke and
       // why, and where the turn's message went (F4.2).
       if (foldWorkingTurns && !FOLD_KEPT_USER_KINDS.has(kind.kind)) return null;
       switch (kind.kind) {
-        case 'session_handoff':
-          return <SessionHandoffCard key={msg._id} handoff={kind.handoff} source={handedOffFrom} timestamp={msg.timestamp} convLink={convLink} navigateToSession={navigateToSession} />;
-        case 'context_recovery':
-          return <ContextRecoveryDivider key={msg._id} recovery={kind.recovery} timestamp={msg.timestamp} />;
-        case 'tool_results_only':
-        case 'compaction_prompt':
-        case 'noise':
-        case 'empty':
-        case 'poll_response':
+        case "session_handoff":
+          return (
+            <SessionHandoffCard
+              key={msg._id}
+              handoff={kind.handoff}
+              source={handedOffFrom}
+              timestamp={msg.timestamp}
+              convLink={convLink}
+              navigateToSession={navigateToSession}
+            />
+          );
+        case "context_recovery":
+          return (
+            <ContextRecoveryDivider
+              key={msg._id}
+              recovery={kind.recovery}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "tool_results_only":
+        case "compaction_prompt":
+        case "noise":
+        case "empty":
+        case "poll_response":
           return null;
-        case 'command': {
+        case "command": {
           const cmdSender = resolveMsgSender(msg);
-          return <CommandMessageBlock key={msg._id} messageId={msg._id} content={msg.content!} expansion={commandExpansionMap.byCommand.get(msg._id)} timestamp={msg.timestamp} userName={cmdSender.name} avatarUrl={cmdSender.image} agentType={conversation?.agent_type} />;
+          return (
+            <CommandMessageBlock
+              key={msg._id}
+              messageId={msg._id}
+              content={msg.content!}
+              expansion={commandExpansionMap.byCommand.get(msg._id)}
+              timestamp={msg.timestamp}
+              userName={cmdSender.name}
+              avatarUrl={cmdSender.image}
+              agentType={conversation?.agent_type}
+            />
+          );
         }
-        case 'bash_input': {
+        case "bash_input": {
           const bashSender = resolveMsgSender(msg);
           const paired = commandExpansionMap.bashByInput.get(msg._id);
-          return <BashCommandBlock key={msg._id} messageId={msg._id} command={kind.command} stdout={paired?.stdout} stderr={paired?.stderr} timestamp={msg.timestamp} userName={bashSender.name} avatarUrl={bashSender.image} />;
+          return (
+            <BashCommandBlock
+              key={msg._id}
+              messageId={msg._id}
+              command={kind.command}
+              stdout={paired?.stdout}
+              stderr={paired?.stderr}
+              timestamp={msg.timestamp}
+              userName={bashSender.name}
+              avatarUrl={bashSender.image}
+            />
+          );
         }
-        case 'bash_output': {
+        case "bash_output": {
           if (commandExpansionMap.consumed.has(msg._id)) return null;
           const bashSender = resolveMsgSender(msg);
-          return <BashCommandBlock key={msg._id} messageId={msg._id} stdout={kind.stdout} stderr={kind.stderr} timestamp={msg.timestamp} userName={bashSender.name} avatarUrl={bashSender.image} />;
+          return (
+            <BashCommandBlock
+              key={msg._id}
+              messageId={msg._id}
+              stdout={kind.stdout}
+              stderr={kind.stderr}
+              timestamp={msg.timestamp}
+              userName={bashSender.name}
+              avatarUrl={bashSender.image}
+            />
+          );
         }
-        case 'interrupt':
+        case "interrupt":
           // A hosted conversation's stop is told by its own notice
           // (HostedStatusLine); a plain "user interrupted" says nothing to
           // someone who only stopped typing.
-          if (isHostedAgentType(conversation?.agent_type)) return kind.tone === 'amber' ? <InterruptStatusLine key={msg._id} label="You stopped this" /> : null;
-          return <InterruptStatusLine key={msg._id} label={kind.tone === 'amber' ? "turn aborted" : undefined} tone={kind.tone} />;
-        case 'machine_move':
+          if (isHostedAgentType(conversation?.agent_type))
+            return kind.tone === "amber" ? (
+              <InterruptStatusLine key={msg._id} label="You stopped this" />
+            ) : null;
+          return (
+            <InterruptStatusLine
+              key={msg._id}
+              label={kind.tone === "amber" ? "turn aborted" : undefined}
+              tone={kind.tone}
+            />
+          );
+        case "machine_move":
           if (commandExpansionMap.consumed.has(msg._id)) return null;
-          return <MachineMoveDivider key={msg._id} content={msg.content || ""} destination={kind.destination} fromLabel={kind.fromLabel} machineChanged={kind.machineChanged} extra={commandExpansionMap.machineMoveExtra.get(msg._id)} timestamp={msg.timestamp} />;
-        case 'agent_switch':
+          return (
+            <MachineMoveDivider
+              key={msg._id}
+              content={msg.content || ""}
+              destination={kind.destination}
+              fromLabel={kind.fromLabel}
+              machineChanged={kind.machineChanged}
+              extra={commandExpansionMap.machineMoveExtra.get(msg._id)}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "agent_switch":
           if (commandExpansionMap.consumed.has(msg._id)) return null;
-          return <AgentSwitchDivider key={msg._id} toLabel={kind.toLabel} fromLabel={kind.fromLabel} content={msg.content || ""} timestamp={msg.timestamp} />;
-        case 'session_escalation':
-          return <EscalationDivider key={msg._id} escalation={kind.escalation} conversationShortId={conversation?.short_id ?? (conversation?._id ? String(conversation._id).slice(0, 7) : undefined)} timestamp={msg.timestamp} />;
-        case 'background_agent_stopped':
-          return <InterruptStatusLine key={msg._id} label={kind.agentName ? `background agent "${kind.agentName}" stopped` : "background agent stopped"} tone="amber" />;
-        case 'continuation':
-          return <InterruptStatusLine key={msg._id} label="session continued" tone="sky" />;
-        case 'skill_expansion':
+          return (
+            <AgentSwitchDivider
+              key={msg._id}
+              toLabel={kind.toLabel}
+              fromLabel={kind.fromLabel}
+              content={msg.content || ""}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "session_escalation":
+          return (
+            <EscalationDivider
+              key={msg._id}
+              escalation={kind.escalation}
+              conversationShortId={
+                conversation?.short_id ??
+                (conversation?._id
+                  ? String(conversation._id).slice(0, 7)
+                  : undefined)
+              }
+              timestamp={msg.timestamp}
+            />
+          );
+        case "background_agent_stopped":
+          return (
+            <InterruptStatusLine
+              key={msg._id}
+              label={
+                kind.agentName
+                  ? `background agent "${kind.agentName}" stopped`
+                  : "background agent stopped"
+              }
+              tone="amber"
+            />
+          );
+        case "continuation":
+          return (
+            <InterruptStatusLine
+              key={msg._id}
+              label="session continued"
+              tone="sky"
+            />
+          );
+        case "skill_expansion":
           if (commandExpansionMap.consumed.has(msg._id)) return null;
-          return <SkillExpansionBlock key={msg._id} content={msg.content!} timestamp={msg.timestamp} cmdName={kind.cmdName} collapsed={condensedFeed} />;
-        case 'task_notification':
-          return <TaskNotificationLine key={msg._id} content={msg.content!} timestamp={msg.timestamp} agentNameToChildMap={agentNameToChildMap} />;
-        case 'scheduled_task':
-          return <ScheduledTaskBlock key={msg._id} content={msg.content!} timestamp={msg.timestamp} hosted={isHostedAgentType(conversation?.agent_type)} unanswered={turnEndedSilent(index)} />;
-        case 'goal_round': {
+          return (
+            <SkillExpansionBlock
+              key={msg._id}
+              content={msg.content!}
+              timestamp={msg.timestamp}
+              cmdName={kind.cmdName}
+              collapsed={condensedFeed}
+            />
+          );
+        case "task_notification":
+          return (
+            <TaskNotificationLine
+              key={msg._id}
+              content={msg.content!}
+              timestamp={msg.timestamp}
+              agentNameToChildMap={agentNameToChildMap}
+            />
+          );
+        case "scheduled_task":
+          return (
+            <ScheduledTaskBlock
+              key={msg._id}
+              content={msg.content!}
+              timestamp={msg.timestamp}
+              hosted={isHostedAgentType(conversation?.agent_type)}
+              unanswered={turnEndedSilent(index)}
+            />
+          );
+        case "goal_round": {
           const line = goalFrameLine(kind.frame);
-          return <FoldedPromptBlock key={msg._id} label={line.label} preview={line.detail} content={goalMessageBody(msg.content!)} timestamp={msg.timestamp} />;
+          return (
+            <FoldedPromptBlock
+              key={msg._id}
+              label={line.label}
+              preview={line.detail}
+              content={goalMessageBody(msg.content!)}
+              timestamp={msg.timestamp}
+            />
+          );
         }
-        case 'role_brief':
-          return <FoldedPromptBlock key={msg._id} label="Role brief" preview={stripSystemTags(msg.content!).trim().split("\n")[0].replace(/\*\*/g, "")} content={stripSystemTags(msg.content!).trim()} timestamp={msg.timestamp} />;
-        case 'workflow_frame':
+        case "role_brief":
+          return (
+            <FoldedPromptBlock
+              key={msg._id}
+              label="Role brief"
+              preview={stripSystemTags(msg.content!)
+                .trim()
+                .split("\n")[0]
+                .replace(/\*\*/g, "")}
+              content={stripSystemTags(msg.content!).trim()}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "workflow_frame":
           // The launching session's ask is context, folded; the computed task
           // is this agent's brief from the workflow script, not the person's words.
-          if (kind.frame === 'user request') return <FoldedPromptBlock key={msg._id} label="Request" preview={kind.body.split("\n")[0]} content={kind.body} timestamp={msg.timestamp} />;
-          return <WorkflowTaskBlock key={msg._id} body={kind.body} timestamp={msg.timestamp} />;
-        case 'session_message':
+          if (kind.frame === "user request")
+            return (
+              <FoldedPromptBlock
+                key={msg._id}
+                label="Request"
+                preview={kind.body.split("\n")[0]}
+                content={kind.body}
+                timestamp={msg.timestamp}
+              />
+            );
+          return (
+            <WorkflowTaskBlock
+              key={msg._id}
+              body={kind.body}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "session_message":
           // A hosted conversation reads a message sent into it as words in
           // the thread: no sender header, no jump to the sending turn, which
           // are a developer's provenance.
           if (isHostedAgentType(conversation?.agent_type)) {
-            return <UserPrompt key={msg._id} content={kind.body} timestamp={msg.timestamp} messageId={msg._id} messageUuid={msg.message_uuid} conversationId={conversation?._id} collapsed={false} userName={conversation?.user?.name || conversation?.user?.email?.split("@")[0]} isHighlighted={highlightedMessageId === msg._id} />;
+            return (
+              <UserPrompt
+                key={msg._id}
+                content={kind.body}
+                timestamp={msg.timestamp}
+                messageId={msg._id}
+                messageUuid={msg.message_uuid}
+                conversationId={conversation?._id}
+                collapsed={false}
+                userName={
+                  conversation?.user?.name ||
+                  conversation?.user?.email?.split("@")[0]
+                }
+                isHighlighted={highlightedMessageId === msg._id}
+              />
+            );
           }
-          return <SessionMessageBlock key={msg._id} variant={kind.variant === 'agent' ? "agent" : "session"} from={kind.from} name={kind.name} body={kind.body} timestamp={msg.timestamp} linkToConversationId={kind.variant === 'agent' ? agentNameToChildMap?.[kind.from] : undefined} intent={kind.intent} />;
-        case 'huddle_summary':
-          return <HuddleSummaryBlock key={msg._id} huddle={kind.huddle} timestamp={msg.timestamp} />;
-        case 'chat_wake':
-          return <ChatWakeBlock key={msg._id} wake={kind.wake} timestamp={msg.timestamp} />;
-        case 'vault_ready':
-          return <VaultReadyLine key={msg._id} vault={kind.vault} timestamp={msg.timestamp} />;
-        case 'task_prompt':
+          return (
+            <SessionMessageBlock
+              key={msg._id}
+              variant={kind.variant === "agent" ? "agent" : "session"}
+              from={kind.from}
+              name={kind.name}
+              body={kind.body}
+              timestamp={msg.timestamp}
+              linkToConversationId={
+                kind.variant === "agent"
+                  ? agentNameToChildMap?.[kind.from]
+                  : undefined
+              }
+              intent={kind.intent}
+            />
+          );
+        case "huddle_summary":
+          return (
+            <HuddleSummaryBlock
+              key={msg._id}
+              huddle={kind.huddle}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "chat_wake":
+          return (
+            <ChatWakeBlock
+              key={msg._id}
+              wake={kind.wake}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "vault_ready":
+          return (
+            <VaultReadyLine
+              key={msg._id}
+              vault={kind.vault}
+              timestamp={msg.timestamp}
+            />
+          );
+        case "task_prompt":
           return null;
-        case 'compaction_summary':
-          return <CompactionSummaryBlock key={msg._id} content={msg.content!} />;
-        case 'plan':
-          return <PlanBlock key={msg._id} content={kind.planContent} timestamp={msg.timestamp} collapsed={false} messageId={msg._id} conversationId={conversation?._id} onStartShareSelection={startShareSelection} />;
-        case 'teammate_events':
-          return <TeammateEventsBlock key={msg._id} content={msg.content || ""} timestamp={msg.timestamp} spawnedByConversationId={(conversation as any)?.spawned_by_conversation_id} agentNameToChildMap={agentNameToChildMap} />;
-        case 'direct_user':
-        case 'decision_answer':
-        case 'screen_recording':
-        case 'normal': {
-          if (!msg.content?.trim() && !msg.images?.some(img => !img.tool_use_id)) return null;
+        case "compaction_summary":
+          return (
+            <CompactionSummaryBlock key={msg._id} content={msg.content!} />
+          );
+        case "plan":
+          return (
+            <PlanBlock
+              key={msg._id}
+              content={kind.planContent}
+              timestamp={msg.timestamp}
+              collapsed={false}
+              messageId={msg._id}
+              conversationId={conversation?._id}
+              onStartShareSelection={startShareSelection}
+            />
+          );
+        case "teammate_events":
+          return (
+            <TeammateEventsBlock
+              key={msg._id}
+              content={msg.content || ""}
+              timestamp={msg.timestamp}
+              spawnedByConversationId={
+                (conversation as any)?.spawned_by_conversation_id
+              }
+              agentNameToChildMap={agentNameToChildMap}
+            />
+          );
+        case "direct_user":
+        case "decision_answer":
+        case "screen_recording":
+        case "normal": {
+          if (
+            !msg.content?.trim() &&
+            !msg.images?.some((img) => !img.tool_use_id)
+          )
+            return null;
           if (nudgeRuns.folded.has(msg._id)) return null;
           // A direct send names its sender on the wire, so the bubble is theirs
           // even when the roster can't resolve the row (no from_user_id yet, or
           // a sender outside the viewer's team).
-          const msgSender = resolveMsgSender(msg, kind.kind === 'direct_user' ? kind.from : undefined);
+          const msgSender = resolveMsgSender(
+            msg,
+            kind.kind === "direct_user" ? kind.from : undefined,
+          );
           // A "continue" account recovery sent after a usage limit is part of
           // that recovery, not something the person said.
-          if (kind.kind === 'normal' && isMidWorkReviveNotice(msg.content)) {
-            return <ReviveDivider key={msg._id} content={msg.content!} timestamp={msg.timestamp} />;
+          if (kind.kind === "normal" && isMidWorkReviveNotice(msg.content)) {
+            return (
+              <ReviveDivider
+                key={msg._id}
+                content={msg.content!}
+                timestamp={msg.timestamp}
+              />
+            );
           }
-          if (kind.kind === 'normal' && isMoveInterruptNotice(msg.content)) {
-            return <ReviveDivider key={msg._id} content={msg.content!} timestamp={msg.timestamp} cause="move" />;
+          if (kind.kind === "normal" && isMoveInterruptNotice(msg.content)) {
+            return (
+              <ReviveDivider
+                key={msg._id}
+                content={msg.content!}
+                timestamp={msg.timestamp}
+                cause="move"
+              />
+            );
           }
-          if (kind.kind === 'normal' && isRecoveryContinue(msg)) {
-            return <NudgeLine key={msg._id} messageId={msg._id} text={nudgeLabel(msg.content) ?? (msg.content || "")} count={1} timestamp={msg.timestamp} recovery pending={!!msg._isOptimistic || !!msg._isQueued} />;
+          if (kind.kind === "normal" && isRecoveryContinue(msg)) {
+            return (
+              <NudgeLine
+                key={msg._id}
+                messageId={msg._id}
+                text={nudgeLabel(msg.content) ?? (msg.content || "")}
+                count={1}
+                timestamp={msg.timestamp}
+                recovery
+                pending={!!msg._isOptimistic || !!msg._isQueued}
+              />
+            );
           }
-          const nudgeRun = kind.kind === 'normal' ? nudgeRuns.runs.get(msg._id) : undefined;
+          const nudgeRun =
+            kind.kind === "normal" ? nudgeRuns.runs.get(msg._id) : undefined;
           if (nudgeRun) {
-            return <NudgeLine key={msg._id} messageId={msg._id} text={nudgeRun.text} count={nudgeRun.count} timestamp={msg.timestamp} userName={msgSender.name} avatarUrl={msgSender.image} />;
+            return (
+              <NudgeLine
+                key={msg._id}
+                messageId={msg._id}
+                text={nudgeRun.text}
+                count={nudgeRun.count}
+                timestamp={msg.timestamp}
+                userName={msgSender.name}
+                avatarUrl={msgSender.image}
+              />
+            );
           }
           const userName = msgSender.name;
           if (retryFold?.hidden.has(msg._id)) return null;
@@ -3959,23 +6343,102 @@ const ConversationViewInner = (
           // already reads "Didn't update the note (you said no)" in the step's
           // words. A plain yes or no drawn again named one action twice and
           // sat above the ask it answered.
-          if (kind.kind === 'decision_answer' && isHostedAgentType(conversation?.agent_type)) {
+          if (
+            kind.kind === "decision_answer" &&
+            isHostedAgentType(conversation?.agent_type)
+          ) {
             if (!approvalAnswerAddsToReceipt(kind.decision.answer)) return null;
-            return <ApprovalAnswerLine key={msg._id} answer={kind.decision.answer} />;
+            return (
+              <ApprovalAnswerLine key={msg._id} answer={kind.decision.answer} />
+            );
           }
           // A decision answer is a normal user bubble whose body is the chosen
           // option; the footer carries the question and the way back to the ask.
-          const decision = kind.kind === 'decision_answer' ? kind.decision : undefined;
-          const forkSeedParent = isForkSeedClientId(msg.client_id) ? conversation?.forked_from : undefined;
-          const userPrompt = <UserPrompt key={msg._id} bubble={foldWorkingTurns} content={kind.kind === 'direct_user' ? kind.body : kind.kind === 'screen_recording' ? kind.recording.caption : decision ? decision.answer : (msg.content || "")} screenRecording={kind.kind === 'screen_recording' ? kind.recording : undefined} decision={decision} images={msg.images} timestamp={msg.timestamp} messageId={msg._id} messageUuid={msg.message_uuid} conversationId={conversation?._id} collapsed={false} userName={userName} avatarUrl={msgSender.image} isHighlighted={highlightedMessageId === msg._id} shareSelectionMode={shareSelectionMode} isSelectedForShare={selectedMessageIds.has(msg._id)} onToggleShareSelection={handleToggleMessageSelection} onStartShareSelection={startShareSelection} onForkFromMessage={forkHandlerFor(msg.message_uuid)} forkChildren={msg.message_uuid ? forkPointMap[msg.message_uuid] : undefined} onBranchSwitch={handleBranchSwitch} activeBranchId={activeBranchId} loadingBranchId={loadingBranchId} isPending={!!msg._isOptimistic} isQueued={!!msg._isQueued} agentStatus={isSessionDisconnected || conversation?.status !== "active" ? undefined : (managedSession?.agent_status as LiveAgentStatus | undefined)} mainDivergentPreview={msg.message_uuid ? conversation?.main_divergent_previews_by_fork?.[msg.message_uuid] : undefined} />;
+          const decision =
+            kind.kind === "decision_answer" ? kind.decision : undefined;
+          const forkSeedParent = isForkSeedClientId(msg.client_id)
+            ? conversation?.forked_from
+            : undefined;
+          const userPrompt = (
+            <UserPrompt
+              key={msg._id}
+              bubble={foldWorkingTurns}
+              content={
+                kind.kind === "direct_user"
+                  ? kind.body
+                  : kind.kind === "screen_recording"
+                    ? kind.recording.caption
+                    : decision
+                      ? decision.answer
+                      : msg.content || ""
+              }
+              screenRecording={
+                kind.kind === "screen_recording" ? kind.recording : undefined
+              }
+              decision={decision}
+              images={msg.images}
+              timestamp={msg.timestamp}
+              messageId={msg._id}
+              messageUuid={msg.message_uuid}
+              conversationId={conversation?._id}
+              collapsed={false}
+              userName={userName}
+              avatarUrl={msgSender.image}
+              isHighlighted={highlightedMessageId === msg._id}
+              shareSelectionMode={shareSelectionMode}
+              isSelectedForShare={selectedMessageIds.has(msg._id)}
+              onToggleShareSelection={handleToggleMessageSelection}
+              onStartShareSelection={startShareSelection}
+              onForkFromMessage={forkHandlerFor(msg.message_uuid)}
+              forkChildren={
+                msg.message_uuid ? forkPointMap[msg.message_uuid] : undefined
+              }
+              onBranchSwitch={handleBranchSwitch}
+              activeBranchId={activeBranchId}
+              loadingBranchId={loadingBranchId}
+              isPending={!!msg._isOptimistic}
+              isQueued={!!msg._isQueued}
+              agentStatus={
+                isSessionDisconnected || conversation?.status !== "active"
+                  ? undefined
+                  : (managedSession?.agent_status as
+                      | LiveAgentStatus
+                      | undefined)
+              }
+              mainDivergentPreview={
+                msg.message_uuid
+                  ? conversation?.main_divergent_previews_by_fork?.[
+                      msg.message_uuid
+                    ]
+                  : undefined
+              }
+            />
+          );
           // A permission ask's answer reads as its one-line record instead.
-          const prompt = decision ? <PermissionAnswer key={msg._id} decision={decision}>{userPrompt}</PermissionAnswer> : userPrompt;
+          const prompt = decision ? (
+            <PermissionAnswer key={msg._id} decision={decision}>
+              {userPrompt}
+            </PermissionAnswer>
+          ) : (
+            userPrompt
+          );
           // A clean thread shows the agent took the message while it works on a reply.
-          if (awaitingReplyTo === msg._id && isSessionConnected) return <Fragment key={msg._id}>{prompt}<AgentWorkingBubble /></Fragment>;
+          if (awaitingReplyTo === msg._id && isSessionConnected)
+            return (
+              <Fragment key={msg._id}>
+                {prompt}
+                <AgentWorkingBubble />
+              </Fragment>
+            );
           if (!forkSeedParent) return prompt;
           return (
             <Fragment key={msg._id}>
-              <ForkSeedMark parentId={forkSeedParent} parentTitle={conversation?.forked_from_details?.title} parentUsername={conversation?.forked_from_details?.username} convLink={convLink} />
+              <ForkSeedMark
+                parentId={forkSeedParent}
+                parentTitle={conversation?.forked_from_details?.title}
+                parentUsername={conversation?.forked_from_details?.username}
+                convLink={convLink}
+              />
               {prompt}
             </Fragment>
           );
@@ -3986,8 +6449,20 @@ const ConversationViewInner = (
     if (msg.role === "assistant") {
       const wfEvent = parseWorkflowEventContent(msg.content);
       if (msg.subtype === "workflow_event" || wfEvent) {
-        if (wfEvent?.__wf === "workflow_run" && wfEvent.run_id && wfRunCardOwner.get(wfEvent.run_id) !== msg._id) return null;
-        return <WorkflowEventBlock key={msg._id} content={msg.content || ""} workflowRun={workflowRun as any} onGateChoice={handleGateChoice} />;
+        if (
+          wfEvent?.__wf === "workflow_run" &&
+          wfEvent.run_id &&
+          wfRunCardOwner.get(wfEvent.run_id) !== msg._id
+        )
+          return null;
+        return (
+          <WorkflowEventBlock
+            key={msg._id}
+            content={msg.content || ""}
+            workflowRun={workflowRun as any}
+            onGateChoice={handleGateChoice}
+          />
+        );
       }
 
       // A hosted turn's stop notice: one calm block with its action. Try
@@ -3997,7 +6472,17 @@ const ConversationViewInner = (
       if (notice) {
         if (retryFold?.hidden.has(msg._id)) return null;
         const asked = lastPersonWords(index);
-        return <HostedNotice key={msg._id} kind={notice} content={msg.content || ""} conversationId={conversation?._id} retryText={asked} live={!nextMessage(index)} retries={(retryFold?.attempts.get(msg._id) ?? 1) - 1} />;
+        return (
+          <HostedNotice
+            key={msg._id}
+            kind={notice}
+            content={msg.content || ""}
+            conversationId={conversation?._id}
+            retryText={asked}
+            live={!nextMessage(index)}
+            retries={(retryFold?.attempts.get(msg._id) ?? 1) - 1}
+          />
+        );
       }
 
       // Fold mode draws only what the agent said and the cards waiting on the
@@ -4006,10 +6491,18 @@ const ConversationViewInner = (
       if (cleanRows && !clean) return null;
 
       const prevMsgForCompaction = getPreviousNonToolResultMessage(index);
-      if (prevMsgForCompaction?.role === "user" && userMsgKindMap.get(prevMsgForCompaction._id)?.kind === 'compaction_prompt') {
-        const summaryContent = extractCompactionSummaryContent(msg.content || "");
+      if (
+        prevMsgForCompaction?.role === "user" &&
+        userMsgKindMap.get(prevMsgForCompaction._id)?.kind ===
+          "compaction_prompt"
+      ) {
+        const summaryContent = extractCompactionSummaryContent(
+          msg.content || "",
+        );
         if (!summaryContent) return null;
-        return <CompactionSummaryBlock key={msg._id} content={summaryContent} />;
+        return (
+          <CompactionSummaryBlock key={msg._id} content={summaryContent} />
+        );
       }
 
       // Skip empty "No response requested." messages
@@ -4020,7 +6513,10 @@ const ConversationViewInner = (
       // thinking toggle hands AssistantBlock the SAME arrays — memo(AssistantBlock)
       // holds and the row is skipped. Without this every virtualizer range
       // change re-rendered every visible row (fresh arrays each pass).
-      const { isFirstInSequence, runMessageIds } = assistantRowDerived(msg, index);
+      const { isFirstInSequence, runMessageIds } = assistantRowDerived(
+        msg,
+        index,
+      );
 
       // Turn-level behavior for the compact feed.
       const turnKey = turnAggregates.turnKeyOf.get(msg._id);
@@ -4032,25 +6528,54 @@ const ConversationViewInner = (
         const lastText = turnAggregates.lastTextOf.get(turnKey);
         if (lastText) {
           if (msg._id !== lastText) return null;
-          return <CompactCollapsedTurn key={msg._id} content={msg.content || ""} onExpand={() => toggleGroup(turnKey)} />;
+          return (
+            <CompactCollapsedTurn
+              key={msg._id}
+              content={msg.content || ""}
+              onExpand={() => toggleGroup(turnKey)}
+            />
+          );
         }
         if (turnAggregates.firstAssistOf.get(turnKey) !== msg._id) return null;
         const stats = turnAggregates.statsOf.get(turnKey);
-        return <CompactTurnCard key={msg._id} preview={stats?.preview || ""} messageCount={stats?.messages || 0} toolCount={stats?.tools || 0} workedMs={stats ? stats.endedAt - stats.startedAt : 0} onExpand={() => toggleGroup(turnKey)} />;
+        return (
+          <CompactTurnCard
+            key={msg._id}
+            preview={stats?.preview || ""}
+            messageCount={stats?.messages || 0}
+            toolCount={stats?.tools || 0}
+            workedMs={stats ? stats.endedAt - stats.startedAt : 0}
+            onExpand={() => toggleGroup(turnKey)}
+          />
+        );
       }
       // Condensed: a tool-only message folded into an earlier segment's receipt
       // never renders on its own — its tools show inside the owner's group.
-      if (feedDensity === "condensed" && turnAggregates.absorbed.has(msg._id)) return null;
+      if (feedDensity === "condensed" && turnAggregates.absorbed.has(msg._id))
+        return null;
       // An expanded compact turn renders at full density (nothing clipped); the
       // collapse control sits on its first message.
-      const effectiveDensity: MessageFeedDensity = feedDensity === "compact" ? "full" : feedDensity;
-      const isTurnFirst = turnKey ? turnAggregates.firstAssistOf.get(turnKey) === msg._id : false;
+      const effectiveDensity: MessageFeedDensity =
+        feedDensity === "compact" ? "full" : feedDensity;
+      const isTurnFirst = turnKey
+        ? turnAggregates.firstAssistOf.get(turnKey) === msg._id
+        : false;
       // Condensed: this message's segment tools fold into one receipt rendered
       // inline right after its text — where the activity happened. Opening it
       // reveals the group under the chip, inside this same row.
-      const receiptEntries = feedDensity === "condensed" ? (turnAggregates.receiptOf.get(msg._id) ?? EMPTY_RECEIPT_ENTRIES) : EMPTY_RECEIPT_ENTRIES;
-      const condensedReceipt = condensedReceiptFor(msg, receiptEntries, expandedGroups.has(msg._id));
-      const onCollapseTurn = foldTurns && turnKey && isTurnFirst ? collapseTurnHandlerFor(msg, turnKey) : undefined;
+      const receiptEntries =
+        feedDensity === "condensed"
+          ? (turnAggregates.receiptOf.get(msg._id) ?? EMPTY_RECEIPT_ENTRIES)
+          : EMPTY_RECEIPT_ENTRIES;
+      const condensedReceipt = condensedReceiptFor(
+        msg,
+        receiptEntries,
+        expandedGroups.has(msg._id),
+      );
+      const onCollapseTurn =
+        foldTurns && turnKey && isTurnFirst
+          ? collapseTurnHandlerFor(msg, turnKey)
+          : undefined;
 
       const relevantToolResults = relevantToolResultsFor(msg);
 
@@ -4069,7 +6594,9 @@ const ConversationViewInner = (
           conversationId={conversation?._id}
           density={clean ? "full" : effectiveDensity}
           condensedReceipt={clean ? undefined : condensedReceipt}
-          globalToolResultMap={condensedReceipt ? globalToolResultMap : undefined}
+          globalToolResultMap={
+            condensedReceipt ? globalToolResultMap : undefined
+          }
           onCollapseTurn={onCollapseTurn}
           childConversationMap={conversation?.child_conversation_map}
           childConversations={conversation?.child_conversations}
@@ -4087,13 +6614,23 @@ const ConversationViewInner = (
           taskSubjectMap={taskSubjectMap}
           taskRecordMap={taskRecordMap}
           onForkFromMessage={forkHandlerFor(msg.message_uuid)}
-          forkChildren={msg.message_uuid ? forkPointMap[msg.message_uuid] : undefined}
+          forkChildren={
+            msg.message_uuid ? forkPointMap[msg.message_uuid] : undefined
+          }
           onBranchSwitch={handleBranchSwitch}
           activeBranchId={activeBranchId}
           loadingBranchId={loadingBranchId}
-          mainDivergentPreview={msg.message_uuid ? conversation?.main_divergent_previews_by_fork?.[msg.message_uuid] : undefined}
+          mainDivergentPreview={
+            msg.message_uuid
+              ? conversation?.main_divergent_previews_by_fork?.[
+                  msg.message_uuid
+                ]
+              : undefined
+          }
           model={msg.model}
-          onSendInlineMessage={canAnswerSession ? handleSendInlineMessage : undefined}
+          onSendInlineMessage={
+            canAnswerSession ? handleSendInlineMessage : undefined
+          }
           isConversationActive={conversation?.status === "active"}
           globalImageMap={globalImageMap}
           globalFileMap={globalFileMap}
@@ -4103,24 +6640,46 @@ const ConversationViewInner = (
       // button to do it, as its standing instructions promise.
       // The conversation's first finished answer offers the same errand as a
       // routine, when the errand is one that repeats (HostedNotice routineOffer).
-      const hostedLast = isHostedAgentType(conversation?.agent_type) && !nextMessage(index);
-      const offer = hostedLast && !offersMailConnect(msg.content)
-        ? routineOffer(msg.content, lastPersonWords(index), retryFold?.personTurns ?? 0, managedSession?.agent_status === "working")
-        : null;
-      const connectChip = !hostedLast ? null
-        : offersMailConnect(msg.content) ? <MailConnectChip key={`${msg._id}:connect`} />
-        : offer ? <RoutineOfferChip key={`${msg._id}:routine`} offer={offer} onAsk={handleSendInlineMessage} />
-        : null;
-      const featureChip = featureMoment?.id === msg._id ? (
-        <FeatureUpsell
-          key={`${msg._id}:feature`}
-          slug={featureMoment.moment.slug}
-          variant="quiet"
-          reason={featureMoment.moment.reason}
-          className="mb-4 mt-0.5 pl-[42px] pr-4"
+      const hostedLast =
+        isHostedAgentType(conversation?.agent_type) && !nextMessage(index);
+      const offer =
+        hostedLast && !offersMailConnect(msg.content)
+          ? routineOffer(
+              msg.content,
+              lastPersonWords(index),
+              retryFold?.personTurns ?? 0,
+              managedSession?.agent_status === "working",
+            )
+          : null;
+      const connectChip = !hostedLast ? null : offersMailConnect(
+          msg.content,
+        ) ? (
+        <MailConnectChip key={`${msg._id}:connect`} />
+      ) : offer ? (
+        <RoutineOfferChip
+          key={`${msg._id}:routine`}
+          offer={offer}
+          onAsk={handleSendInlineMessage}
         />
       ) : null;
-      if (connectChip || featureChip) return <Fragment key={msg._id}>{assistantBlock}{connectChip}{featureChip}</Fragment>;
+      const featureChip =
+        featureMoment?.id === msg._id ? (
+          <FeatureUpsell
+            key={`${msg._id}:feature`}
+            slug={featureMoment.moment.slug}
+            variant="quiet"
+            reason={featureMoment.moment.reason}
+            className="mb-4 mt-0.5 pl-[42px] pr-4"
+          />
+        ) : null;
+      if (connectChip || featureChip)
+        return (
+          <Fragment key={msg._id}>
+            {assistantBlock}
+            {connectChip}
+            {featureChip}
+          </Fragment>
+        );
       return assistantBlock;
     }
 
@@ -4134,7 +6693,10 @@ const ConversationViewInner = (
   let newRuleIndex = -1;
   if (firstUnseenIndex >= 0) {
     for (let i = firstUnseenIndex; i < timeline.length; i++) {
-      if (renderItem(timeline[i], i)) { newRuleIndex = i; break; }
+      if (renderItem(timeline[i], i)) {
+        newRuleIndex = i;
+        break;
+      }
     }
   }
 
@@ -4145,14 +6707,26 @@ const ConversationViewInner = (
     const children = conversation?.child_conversations;
     if (!children || children.length === 0) return EMPTY_CHILD_CONVERSATIONS;
     const childMap = conversation.child_conversation_map || {};
-    const messageUuids = new Set(messages.map(m => m.message_uuid).filter(Boolean));
+    const messageUuids = new Set(
+      messages.map((m) => m.message_uuid).filter(Boolean),
+    );
     const renderedInlineIds = new Set(
       Object.entries(childMap)
         .filter(([uuid]) => messageUuids.has(uuid))
-        .map(([, childId]) => childId)
+        .map(([, childId]) => childId),
     );
-    return children.filter(c => !renderedInlineIds.has(c._id) && !c.is_subagent && c._id !== conversation._id);
-  }, [conversation?.child_conversations, conversation?.child_conversation_map, conversation?._id, messages]);
+    return children.filter(
+      (c) =>
+        !renderedInlineIds.has(c._id) &&
+        !c.is_subagent &&
+        c._id !== conversation._id,
+    );
+  }, [
+    conversation?.child_conversations,
+    conversation?.child_conversation_map,
+    conversation?._id,
+    messages,
+  ]);
 
   // Header menu: the subagent list. Built once per change of the child set,
   // not per render — a parent with 174 subagents otherwise re-created ~900
@@ -4162,7 +6736,8 @@ const ConversationViewInner = (
   const subagentMenuSig = useMemo(() => {
     if (!subagentChildren) return "";
     let sig = "";
-    for (const c of subagentChildren) if (c.is_subagent) sig += `${c._id}\u0000${c.title ?? ""}\n`;
+    for (const c of subagentChildren)
+      if (c.is_subagent) sig += `${c._id}\u0000${c.title ?? ""}\n`;
     return sig;
   }, [subagentChildren]);
   const subagentMenuItems = useMemo(() => {
@@ -4170,14 +6745,27 @@ const ConversationViewInner = (
     const subagents = subagentChildren!.filter((c) => c.is_subagent);
     return (
       <>
-        <DropdownMenuItem disabled className="text-mark uppercase tracking-wider text-sol-text-dim">
+        <DropdownMenuItem
+          disabled
+          className="text-mark uppercase tracking-wider text-sol-text-dim"
+        >
           Subagents ({subagents.length})
         </DropdownMenuItem>
         {subagents.map((child) => (
           <DropdownMenuItem key={child._id} asChild>
             <Link href={convLink(child._id)} className="text-xs">
-              <svg className="w-3 h-3 mr-1.5 text-sol-cyan flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <svg
+                className="w-3 h-3 mr-1.5 text-sol-cyan flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
               </svg>
               <span className="truncate">{child.title}</span>
             </Link>
@@ -4197,32 +6785,67 @@ const ConversationViewInner = (
   // composer leaves the bottom edge for the middle of the page, with the
   // project chips above it, the launch pickers in its foot and the project's
   // recent sessions below; NewSessionView fills the two slots by portal.
-  const newSessionPage = !!conversation && timeline.length === 0 && !(leadNode && !leadPinned) && effectiveIsOwner && showMessageInput
-    && conversation.fork_status !== "copying" && !(conversation.message_count ?? 0) && !runLogEnded;
-  const [newSessionFootSlot, setNewSessionFootSlot] = useState<HTMLElement | null>(null);
-  const [newSessionBelowSlot, setNewSessionBelowSlot] = useState<HTMLElement | null>(null);
+  const newSessionPage =
+    !!conversation &&
+    timeline.length === 0 &&
+    !(leadNode && !leadPinned) &&
+    effectiveIsOwner &&
+    showMessageInput &&
+    conversation.fork_status !== "copying" &&
+    !(conversation.message_count ?? 0) &&
+    !runLogEnded;
+  const [newSessionFootSlot, setNewSessionFootSlot] =
+    useState<HTMLElement | null>(null);
+  const [newSessionBelowSlot, setNewSessionBelowSlot] =
+    useState<HTMLElement | null>(null);
   // A new request can go to one of the viewer's roles instead (the picker
   // above the headline): the gate sends it into the role's standing session,
   // and this blank session stays unstarted for the next request.
   const roleSend = useRoleRecipient();
-  const sendToRole = useCallback(async (text: string, images?: Parameters<typeof roleSend.wakeRole>[1]) => {
-    const r = await roleSend.wakeRole(text, images);
-    if (!r) return;
-    roleSend.setRecipient(null);
-    toast.success(`Sent to ${r.name} · ${r.title}`, { action: { label: "Open", onClick: () => codeRouter.push(`/org/${r.role.short_id}`) } });
-  }, [roleSend.wakeRole, roleSend.setRecipient]);
-  const ownerComposerMounted = !!(showMessageInput && conversation && !runLogEnded && !permissionsHoldComposer && effectiveIsOwner);
+  const sendToRole = useCallback(
+    async (text: string, images?: Parameters<typeof roleSend.wakeRole>[1]) => {
+      const r = await roleSend.wakeRole(text, images);
+      if (!r) return;
+      roleSend.setRecipient(null);
+      toast.success(`Sent to ${r.name} · ${r.title}`, {
+        action: {
+          label: "Open",
+          onClick: () => codeRouter.push(`/org/${r.role.short_id}`),
+        },
+      });
+    },
+    [roleSend.wakeRole, roleSend.setRecipient],
+  );
+  const ownerComposerMounted = !!(
+    showMessageInput &&
+    conversation &&
+    !runLogEnded &&
+    !permissionsHoldComposer &&
+    effectiveIsOwner
+  );
   // The session control (model, effort, agent, fork, hand off) sits on the
   // composer's status row whenever that composer is up; the header strip
   // keeps a readout and takes the control back only when the composer is gone.
   // The new-session page picks these in its own foot (NewSessionView).
-  const composerHostsControl = ownerComposerMounted && !(inRevealBand && !bandComposerOpen) && !newSessionPage && !isHostedConv;
+  const composerHostsControl =
+    ownerComposerMounted &&
+    !(inRevealBand && !bandComposerOpen) &&
+    !newSessionPage &&
+    !isHostedConv;
   const threadStatePanel = conversation ? (
     <div data-cc-thread-state>
-      <SessionGoalPill conversationId={conversation._id.toString()} sessionTitle={conversation.title || "This session"} canSteer={effectiveIsOwner} />
+      <SessionGoalPill
+        conversationId={conversation._id.toString()}
+        sessionTitle={conversation.title || "This session"}
+        canSteer={effectiveIsOwner}
+      />
       {goalReview && (
         <SwitchReview
-          ledger={sessionGoalLedger({ objective: goalReview.objective, session: conversation.title || "This session", resume: goalReview.resume })}
+          ledger={sessionGoalLedger({
+            objective: goalReview.objective,
+            session: conversation.title || "This session",
+            resume: goalReview.resume,
+          })}
           onClose={() => setGoalReview(null)}
           onConfirm={confirmGoal}
         />
@@ -4241,1262 +6864,3239 @@ const ConversationViewInner = (
 
   const el = (
     <ReferenceScopeContext.Provider value={referenceScope}>
-    <HighlightContext.Provider value={highlightQuery}>
-    <FilePathContext.Provider value={filePathCtx}>
-    <WorktreesProvider repository={codeRepository}><ChangesProvider repository={codeRepository} BranchFeed={WebBranchFeed}>
-    <CastBrowserRowContext.Provider value={browserRowMap}>
-    <BrowserSessionContext.Provider value={browserSession}>
-    <RevealAncestryCtx.Provider value={revealAncestry}>
-    <ChatWakeContext.Provider value={chatWakeMap}>
-    <HostedAskingContext.Provider value={hostedAsking === true}>
-    <HostedCardShownContext.Provider value={hostedOwnCard}>
-    <ImageGalleryProvider conversationId={conversation?._id} onJumpToMessage={scrollToMessageById} quotable={showMessageInput && effectiveIsOwner}>
-    <ReviewComposerContext.Provider value={reviewComposer}>
-    <TeamProposalContext.Provider value={teamProposals}>
-    <main data-cc-conversation data-cc-context={showSessionContext ? "" : undefined} data-reveal-chrome={inRevealBand ? "band" : hostingReveal ? "host" : undefined} className="relative flex flex-col bg-sol-bg h-full overflow-x-clip" style={commentRailW ? { paddingRight: commentRailW } : undefined} onDragEnter={handleDragEnter} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-      {isDragging && !isHostedAgentType(conversation?.agent_type) && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-sol-bg/95" style={{ animation: "fadeIn 150ms ease-out" }}>
-          <div className="border-2 border-dashed border-sol-cyan rounded-xl p-12 text-center">
-            <svg className="w-10 h-10 mx-auto mb-3 text-sol-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            <p className="text-sol-cyan text-sm font-medium">Drop images or a screen recording</p>
-          </div>
-        </div>
-      )}
-      <ConversationHeaderBar
-        headerRef={bindHeader}
-        headRef={titlebarHeadRef}
-        squeezeRowRef={squeezeRowRef}
-        className={`${embedded ? "sticky top-0 z-20 bg-sol-bg-alt" : ""} ${!embedded ? deskClass : ""} ${isImageLightboxActive ? "invisible" : ""} ${hideHeader ? "hidden" : ""}`}
-        lead={<>
-            {/* The inbox's way back from a conversation to its home (the
+      <HighlightContext.Provider value={highlightQuery}>
+        <FilePathContext.Provider value={filePathCtx}>
+          <WorktreesProvider repository={codeRepository}>
+            <ChangesProvider
+              repository={codeRepository}
+              BranchFeed={WebBranchFeed}
+            >
+              <CastBrowserRowContext.Provider value={browserRowMap}>
+                <BrowserSessionContext.Provider value={browserSession}>
+                  <RevealAncestryCtx.Provider value={revealAncestry}>
+                    <ChatWakeContext.Provider value={chatWakeMap}>
+                      <HostedAskingContext.Provider
+                        value={hostedAsking === true}
+                      >
+                        <HostedCardShownContext.Provider value={hostedOwnCard}>
+                          <ImageGalleryProvider
+                            conversationId={conversation?._id}
+                            onJumpToMessage={scrollToMessageById}
+                            quotable={showMessageInput && effectiveIsOwner}
+                          >
+                            <ReviewComposerContext.Provider
+                              value={reviewComposer}
+                            >
+                              <TeamProposalContext.Provider
+                                value={teamProposals}
+                              >
+                                <main
+                                  data-cc-conversation
+                                  data-cc-context={
+                                    showSessionContext ? "" : undefined
+                                  }
+                                  data-reveal-chrome={
+                                    inRevealBand
+                                      ? "band"
+                                      : hostingReveal
+                                        ? "host"
+                                        : undefined
+                                  }
+                                  className="relative flex flex-col bg-sol-bg h-full overflow-x-clip"
+                                  style={
+                                    commentRailW
+                                      ? { paddingRight: commentRailW }
+                                      : undefined
+                                  }
+                                  onDragEnter={handleDragEnter}
+                                  onDragOver={handleDragOver}
+                                  onDragLeave={handleDragLeave}
+                                  onDrop={handleDrop}
+                                >
+                                  {isDragging &&
+                                    !isHostedAgentType(
+                                      conversation?.agent_type,
+                                    ) && (
+                                      <div
+                                        className="absolute inset-0 z-50 flex items-center justify-center bg-sol-bg/95"
+                                        style={{
+                                          animation: "fadeIn 150ms ease-out",
+                                        }}
+                                      >
+                                        <div className="border-2 border-dashed border-sol-cyan rounded-xl p-12 text-center">
+                                          <svg
+                                            className="w-10 h-10 mx-auto mb-3 text-sol-cyan"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={1.5}
+                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            />
+                                          </svg>
+                                          <p className="text-sol-cyan text-sm font-medium">
+                                            Drop images or a screen recording
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  <ConversationHeaderBar
+                                    headerRef={bindHeader}
+                                    headRef={titlebarHeadRef}
+                                    squeezeRowRef={squeezeRowRef}
+                                    className={`${embedded ? "sticky top-0 z-20 bg-sol-bg-alt" : ""} ${!embedded ? deskClass : ""} ${isImageLightboxActive ? "invisible" : ""} ${hideHeader ? "hidden" : ""}`}
+                                    lead={
+                                      <>
+                                        {/* The inbox's way back from a conversation to its home (the
                 board or the feed of your sessions). Modern shows it only at
                 phone width, where the session list is off screen: wider, the
                 list sits beside the conversation and the top bar carries Back,
                 and a named step before the title read as the session's parent
                 (components/nav/BackControl). */}
-            {onBack && modernStyle && <BackControl compact className="md:hidden" />}
-            {onBack && !modernStyle && (
-              <button type="button" onClick={onBack} aria-label="Back to all sessions" title="All sessions" data-cc-conv-back className="-ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sol-text-dim hover:bg-sol-bg-highlight hover:text-sol-text">
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-              </button>
-            )}
-            {headerLeft}
-            {/* On a phone a hosted conversation has a plain way back to the
+                                        {onBack && modernStyle && (
+                                          <BackControl
+                                            compact
+                                            className="md:hidden"
+                                          />
+                                        )}
+                                        {onBack && !modernStyle && (
+                                          <button
+                                            type="button"
+                                            onClick={onBack}
+                                            aria-label="Back to all sessions"
+                                            title="All sessions"
+                                            data-cc-conv-back
+                                            className="-ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sol-text-dim hover:bg-sol-bg-highlight hover:text-sol-text"
+                                          >
+                                            <ChevronLeft
+                                              className="h-4 w-4"
+                                              aria-hidden
+                                            />
+                                          </button>
+                                        )}
+                                        {headerLeft}
+                                        {/* On a phone a hosted conversation has a plain way back to the
                 inbox, rather than only the menu. */}
-            {!onBack && !embedded && isHostedAgentType(conversation?.agent_type) && (
-              <Link href="/inbox" aria-label="Back to Inbox" data-cc-conv-back className="sm:hidden -ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sol-text-dim hover:bg-sol-bg-highlight hover:text-sol-text">
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-              </Link>
-            )}
-            {/* Modern's title leads with the session's mark, which is this face. */}
-            {identityRow && !modernStyle && (
-              <IdentityFace
-                row={identityRow}
-                size={22}
-                className="flex-shrink-0"
-                onPick={(e) => headerCharacterPicker.open(e, [identityRow], { force: true })}
-                side="bottom"
-                align="start"
-              />
-            )}
-        </>}
-        title={hideHeaderTitle && !isRenaming ? null : isRenaming ? (
-              <input
-                ref={renameInputRef}
-                value={renameDraft}
-                onChange={(e) => setRenameDraft(e.target.value)}
-                onBlur={() => {
-                  const trimmed = renameDraft.trim();
-                  if (trimmed && trimmed !== cleanTitle(conversation?.title || "")) {
-                    useInboxStore.getState().renameSession(conversation!._id, trimmed);
-                  }
-                  useInboxStore.setState({ renamingSessionId: null });
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.currentTarget.blur(); }
-                  if (e.key === "Escape") { useInboxStore.setState({ renamingSessionId: null }); }
-                }}
-                className="text-xs sm:text-sm font-medium text-sol-text-secondary flex-1 min-w-0 bg-transparent border-b border-sol-cyan focus:outline-none"
-              />
-            ) : (
-              <ConversationHeaderTitle
-                lead={modernStyle && conversation ? (
-                  <SessionMark
-                    session={conversation as any}
-                    size={20}
-                    className="flex-shrink-0"
-                    onPick={identityRow ? (e) => headerCharacterPicker.open(e, [identityRow], { force: true }) : undefined}
-                  />
-                ) : undefined}
-                text={identityRow
-                  ? <SessionIdentityLine row={identityRow} title={truncatedTitle} className="max-w-full align-bottom" />
-                  : truncatedTitle}
-                tooltip={conversation?.messages?.[0]?.content ? cleanContent(conversation.messages[0].content)?.slice(0, 200) ?? undefined : undefined}
-                onDoubleClick={() => { if (isOwner) useInboxStore.setState({ renamingSessionId: conversation!._id }); }}
-              />
-            )}
-        titlePills={conversation && !guest && <>
-            <SessionCallPill conversationId={conversation._id.toString()} />
-            <BrowserPaneOfferChip conversationId={conversation._id.toString()} />
-        </>}
+                                        {!onBack &&
+                                          !embedded &&
+                                          isHostedAgentType(
+                                            conversation?.agent_type,
+                                          ) && (
+                                            <Link
+                                              href="/inbox"
+                                              aria-label="Back to Inbox"
+                                              data-cc-conv-back
+                                              className="sm:hidden -ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sol-text-dim hover:bg-sol-bg-highlight hover:text-sol-text"
+                                            >
+                                              <ChevronLeft
+                                                className="h-4 w-4"
+                                                aria-hidden
+                                              />
+                                            </Link>
+                                          )}
+                                        {/* Modern's title leads with the session's mark, which is this face. */}
+                                        {identityRow && !modernStyle && (
+                                          <IdentityFace
+                                            row={identityRow}
+                                            size={22}
+                                            className="flex-shrink-0"
+                                            onPick={(e) =>
+                                              headerCharacterPicker.open(
+                                                e,
+                                                [identityRow],
+                                                { force: true },
+                                              )
+                                            }
+                                            side="bottom"
+                                            align="start"
+                                          />
+                                        )}
+                                      </>
+                                    }
+                                    title={
+                                      hideHeaderTitle &&
+                                      !isRenaming ? null : isRenaming ? (
+                                        <input
+                                          ref={renameInputRef}
+                                          value={renameDraft}
+                                          onChange={(e) =>
+                                            setRenameDraft(e.target.value)
+                                          }
+                                          onBlur={() => {
+                                            const trimmed = renameDraft.trim();
+                                            if (
+                                              trimmed &&
+                                              trimmed !==
+                                                cleanTitle(
+                                                  conversation?.title || "",
+                                                )
+                                            ) {
+                                              useInboxStore
+                                                .getState()
+                                                .renameSession(
+                                                  conversation!._id,
+                                                  trimmed,
+                                                );
+                                            }
+                                            useInboxStore.setState({
+                                              renamingSessionId: null,
+                                            });
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            }
+                                            if (e.key === "Escape") {
+                                              useInboxStore.setState({
+                                                renamingSessionId: null,
+                                              });
+                                            }
+                                          }}
+                                          className="text-xs sm:text-sm font-medium text-sol-text-secondary flex-1 min-w-0 bg-transparent border-b border-sol-cyan focus:outline-none"
+                                        />
+                                      ) : (
+                                        <ConversationHeaderTitle
+                                          lead={
+                                            modernStyle && conversation ? (
+                                              <SessionMark
+                                                session={conversation as any}
+                                                size={20}
+                                                className="flex-shrink-0"
+                                                onPick={
+                                                  identityRow
+                                                    ? (e) =>
+                                                        headerCharacterPicker.open(
+                                                          e,
+                                                          [identityRow],
+                                                          { force: true },
+                                                        )
+                                                    : undefined
+                                                }
+                                              />
+                                            ) : undefined
+                                          }
+                                          text={
+                                            identityRow ? (
+                                              <SessionIdentityLine
+                                                row={identityRow}
+                                                title={truncatedTitle}
+                                                className="max-w-full align-bottom"
+                                              />
+                                            ) : (
+                                              truncatedTitle
+                                            )
+                                          }
+                                          tooltip={
+                                            conversation?.messages?.[0]?.content
+                                              ? (cleanContent(
+                                                  conversation.messages[0]
+                                                    .content,
+                                                )?.slice(0, 200) ?? undefined)
+                                              : undefined
+                                          }
+                                          onDoubleClick={() => {
+                                            if (isOwner)
+                                              useInboxStore.setState({
+                                                renamingSessionId:
+                                                  conversation!._id,
+                                              });
+                                          }}
+                                        />
+                                      )
+                                    }
+                                    titlePills={
+                                      conversation &&
+                                      !guest && (
+                                        <>
+                                          <SessionCallPill
+                                            conversationId={conversation._id.toString()}
+                                          />
+                                          <BrowserPaneOfferChip
+                                            conversationId={conversation._id.toString()}
+                                          />
+                                        </>
+                                      )
+                                    }
 
-        // A hosted conversation says its state once, in the composer's status
-        // line (HostedStatusLine) or its approval card, never as a header pill.
-        status={isHostedAgentType(conversation?.agent_type) ? null : <><SessionStatusSlot conversationId={conversation?._id} agentStatus={managedSession?.agent_status} disconnected={isSessionDisconnected} live={isConversationLive} onRestart={handleRestartSession} /><DormantWakeChip conversationId={conversation?._id} /><RewindStagedChip conversationId={conversation?._id} forkedFrom={conversation?.forked_from} /></>}
+                                    // A hosted conversation says its state once, in the composer's status
+                                    // line (HostedStatusLine) or its approval card, never as a header pill.
+                                    status={
+                                      isHostedAgentType(
+                                        conversation?.agent_type,
+                                      ) ? null : (
+                                        <>
+                                          <SessionStatusSlot
+                                            conversationId={conversation?._id}
+                                            agentStatus={
+                                              managedSession?.agent_status
+                                            }
+                                            disconnected={isSessionDisconnected}
+                                            live={isConversationLive}
+                                            onRestart={handleRestartSession}
+                                          />
+                                          <DormantWakeChip
+                                            conversationId={conversation?._id}
+                                          />
+                                          <RewindStagedChip
+                                            conversationId={conversation?._id}
+                                            forkedFrom={
+                                              conversation?.forked_from
+                                            }
+                                          />
+                                        </>
+                                      )
+                                    }
 
-        // The facts strip: what this session is (agent and model), where
-        // its code sits, and what it is for (task, plan, workflow run),
-        // as one run of dim text with dots between. The pills' own
-        // colours are stripped by [data-cc-facts] in globals.css; only
-        // things that are alive keep a tint on this row. Simple view
-        // keeps the strip (it owns the model picker) but dims it; the
-        // plan, task and workflow drop away there.
-        facts={conversation && (<>
-                <ConversationMetadata
-                  agentType={conversation.agent_type}
-                  model={conversation.model}
-                  effort={(conversation as any).effort}
-                  startedAt={conversation.started_at}
-                  messageCount={conversation.message_count}
-                  shortId={conversation.short_id}
-                  conversationId={conversation._id}
-                  canEditModel={effectiveIsOwner && !composerHostsControl}
-                  controlOpen={sessionControlOpen}
-                  onControlOpenChange={setSessionControlOpen}
-                />
-                {/* Ahead of the branch: on a phone the strip truncates, and what runs the session matters more than its branch.
+                                    // The facts strip: what this session is (agent and model), where
+                                    // its code sits, and what it is for (task, plan, workflow run),
+                                    // as one run of dim text with dots between. The pills' own
+                                    // colours are stripped by [data-cc-facts] in globals.css; only
+                                    // things that are alive keep a tint on this row. Simple view
+                                    // keeps the strip (it owns the model picker) but dims it; the
+                                    // plan, task and workflow drop away there.
+                                    facts={
+                                      conversation && (
+                                        <>
+                                          <ConversationMetadata
+                                            agentType={conversation.agent_type}
+                                            model={conversation.model}
+                                            effort={
+                                              (conversation as any).effort
+                                            }
+                                            startedAt={conversation.started_at}
+                                            messageCount={
+                                              conversation.message_count
+                                            }
+                                            shortId={conversation.short_id}
+                                            conversationId={conversation._id}
+                                            canEditModel={
+                                              effectiveIsOwner &&
+                                              !composerHostsControl
+                                            }
+                                            controlOpen={sessionControlOpen}
+                                            onControlOpenChange={
+                                              setSessionControlOpen
+                                            }
+                                          />
+                                          {/* Ahead of the branch: on a phone the strip truncates, and what runs the session matters more than its branch.
                     A share guest gets what ran and when; the rest links into a workspace they cannot open. */}
-                {!guest && <>
-                <AnchorHeaderFact conversationId={conversation._id.toString()} />
-                <CloudAgentLink actions={cloudAgentActions} />
-                <BranchCodeLink session={conversation} />
-                <SessionWorktreePills session={conversation} repository={codeRepository} className="text-meta max-w-[180px]" />
-            {(conversation as any)?.active_plan && (
-              <span data-simple-hide className="contents">
-                <PlanBadge plan={(conversation as any).active_plan} />
-              </span>
-            )}
-            {/* A workflow run in flight inside this session. The launch card
+                                          {!guest && (
+                                            <>
+                                              <AnchorHeaderFact
+                                                conversationId={conversation._id.toString()}
+                                              />
+                                              <CloudAgentLink
+                                                actions={cloudAgentActions}
+                                              />
+                                              <BranchCodeLink
+                                                session={conversation}
+                                              />
+                                              <SessionWorktreePills
+                                                session={conversation}
+                                                repository={codeRepository}
+                                                className="text-meta max-w-[180px]"
+                                              />
+                                              {(conversation as any)
+                                                ?.active_plan && (
+                                                <span
+                                                  data-simple-hide
+                                                  className="contents"
+                                                >
+                                                  <PlanBadge
+                                                    plan={
+                                                      (conversation as any)
+                                                        .active_plan
+                                                    }
+                                                  />
+                                                </span>
+                                              )}
+                                              {/* A workflow run in flight inside this session. The launch card
                 sits wherever the run was armed — often far above the tail —
                 so the header carries the standing signal, linking to the run's
                 live view. Server truth via the conversation's stamped run. */}
-            {(conversation as any)?.workflow_run_id && !(conversation as any)?.is_workflow_sub &&
-              ["pending", "running", "paused"].includes((conversation as any)?.workflow_run_status) && (
-              <span data-simple-hide className="contents">
-                <Link
-                  href={`/workflows/runs/${(conversation as any).workflow_run_id}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-meta flex-shrink-0 bg-sol-cyan/10 text-sol-cyan border border-sol-cyan/20 hover:bg-sol-cyan/20 transition-colors max-w-[180px]"
-                  title={`Workflow ${(conversation as any).workflow_run_status}${(conversation as any).workflow_run_name ? `: ${(conversation as any).workflow_run_name}` : ""} — open the live run`}
-                >
-                  <span className="w-1 h-1 rounded-full bg-sol-cyan animate-pulse motion-reduce:animate-none" />
-                  <Workflow className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{(conversation as any).workflow_run_name || "workflow"}</span>
-                </Link>
-              </span>
-            )}
-                </>}
-        </>)}
-        actions={conversation && (<>
+                                              {(conversation as any)
+                                                ?.workflow_run_id &&
+                                                !(conversation as any)
+                                                  ?.is_workflow_sub &&
+                                                [
+                                                  "pending",
+                                                  "running",
+                                                  "paused",
+                                                ].includes(
+                                                  (conversation as any)
+                                                    ?.workflow_run_status,
+                                                ) && (
+                                                  <span
+                                                    data-simple-hide
+                                                    className="contents"
+                                                  >
+                                                    <Link
+                                                      href={`/workflows/runs/${(conversation as any).workflow_run_id}`}
+                                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-meta flex-shrink-0 bg-sol-cyan/10 text-sol-cyan border border-sol-cyan/20 hover:bg-sol-cyan/20 transition-colors max-w-[180px]"
+                                                      title={`Workflow ${(conversation as any).workflow_run_status}${(conversation as any).workflow_run_name ? `: ${(conversation as any).workflow_run_name}` : ""} — open the live run`}
+                                                    >
+                                                      <span className="w-1 h-1 rounded-full bg-sol-cyan animate-pulse motion-reduce:animate-none" />
+                                                      <Workflow className="w-2.5 h-2.5 flex-shrink-0" />
+                                                      <span className="truncate">
+                                                        {(conversation as any)
+                                                          .workflow_run_name ||
+                                                          "workflow"}
+                                                      </span>
+                                                    </Link>
+                                                  </span>
+                                                )}
+                                            </>
+                                          )}
+                                        </>
+                                      )
+                                    }
+                                    actions={
+                                      conversation && (
+                                        <>
+                                          {/* Lineage chips (parent, handoffs, branch map) open sessions a share guest cannot read. */}
+                                          {!guest && parentLinkId && (
+                                            <Link
+                                              href={convLink(parentLinkId)}
+                                              onClick={(e) => {
+                                                // Plain left-click is an instant, store-driven switch (same as the
+                                                // BranchSelector chips) — bypass the /conversation redirector so the
+                                                // parent loads from cache without the resolveConversation + skeleton
+                                                // bounce. Modified clicks fall through to the Link for open-in-new-tab.
+                                                if (
+                                                  e.metaKey ||
+                                                  e.ctrlKey ||
+                                                  e.shiftKey ||
+                                                  e.altKey ||
+                                                  e.button !== 0
+                                                )
+                                                  return;
+                                                e.preventDefault();
+                                                navigateToSession(parentLinkId);
+                                              }}
+                                              className={`cq-sq6 ${HEADER_CHIP}`}
+                                              title="View parent conversation"
+                                            >
+                                              <svg
+                                                className="w-3 h-3"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                                                />
+                                              </svg>
+                                              <span className="cq-sq2">
+                                                Parent
+                                              </span>
+                                            </Link>
+                                          )}
 
-                {/* Lineage chips (parent, handoffs, branch map) open sessions a share guest cannot read. */}
-                {!guest && parentLinkId && (
-                  <Link
-                    href={convLink(parentLinkId)}
-                    onClick={(e) => {
-                      // Plain left-click is an instant, store-driven switch (same as the
-                      // BranchSelector chips) — bypass the /conversation redirector so the
-                      // parent loads from cache without the resolveConversation + skeleton
-                      // bounce. Modified clicks fall through to the Link for open-in-new-tab.
-                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                      e.preventDefault();
-                      navigateToSession(parentLinkId);
-                    }}
-                    className={`cq-sq6 ${HEADER_CHIP}`}
-                    title="View parent conversation"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    <span className="cq-sq2">Parent</span>
-                  </Link>
-                )}
+                                          {!guest && handedOffFrom && (
+                                            <HandoffLinkChip
+                                              details={handedOffFrom}
+                                              direction="from"
+                                              convLink={convLink}
+                                              navigateToSession={
+                                                navigateToSession
+                                              }
+                                            />
+                                          )}
+                                          {!guest && handedOffTo && (
+                                            <HandoffLinkChip
+                                              details={handedOffTo}
+                                              direction="to"
+                                              convLink={convLink}
+                                              navigateToSession={
+                                                navigateToSession
+                                              }
+                                            />
+                                          )}
 
-                {!guest && handedOffFrom && (
-                  <HandoffLinkChip details={handedOffFrom} direction="from" convLink={convLink} navigateToSession={navigateToSession} />
-                )}
-                {!guest && handedOffTo && (
-                  <HandoffLinkChip details={handedOffTo} direction="to" convLink={convLink} navigateToSession={navigateToSession} />
-                )}
+                                          {!guest && forkFamily && (
+                                            <button
+                                              data-branch-map-toggle
+                                              onClick={toggleMap}
+                                              className={`cq-sq6 ${HEADER_CHIP} ${treePopoverOpen ? "bg-sol-bg-alt text-sol-text" : ""}`}
+                                              title={withShortcut(
+                                                `Branch map: ${forkFamily.heading}`,
+                                                "conv.toggleTree",
+                                              )}
+                                            >
+                                              <Split className="w-3 h-3" />
+                                              {forkFamily.count > 1 && (
+                                                <span className="tabular-nums">
+                                                  {forkFamily.count}
+                                                </span>
+                                              )}
+                                            </button>
+                                          )}
 
-                {!guest && forkFamily && (
-                  <button
-                    data-branch-map-toggle
-                    onClick={toggleMap}
-                    className={`cq-sq6 ${HEADER_CHIP} ${treePopoverOpen ? "bg-sol-bg-alt text-sol-text" : ""}`}
-                    title={withShortcut(`Branch map: ${forkFamily.heading}`, "conv.toggleTree")}
-                  >
-                    <Split className="w-3 h-3" />
-                    {forkFamily.count > 1 && (
-                      <span className="tabular-nums">{forkFamily.count}</span>
-                    )}
-                  </button>
-                )}
+                                          {/* Run this session's change through a flow of the pool (flows.md FL4). */}
+                                          {!guest &&
+                                            isOwner &&
+                                            conversation?._id && (
+                                              <RunThroughFlow
+                                                conversationId={String(
+                                                  conversation._id,
+                                                )}
+                                                sessionTitle={
+                                                  conversation.title ||
+                                                  "This session"
+                                                }
+                                              />
+                                            )}
 
-                {/* Run this session's change through a flow of the pool (flows.md FL4). */}
-                {!guest && isOwner && conversation?._id && (
-                  <RunThroughFlow conversationId={String(conversation._id)} sessionTitle={conversation.title || "This session"} />
-                )}
-
-                {/* The runner: which machine, whose account, is its daemon
+                                          {/* The runner: which machine, whose account, is its daemon
                     delivering, and the terminal one click away. Three pills
                     joined into one by [data-cc-runner] in globals.css, so
                     "where is this running" reads as one thing. */}
-                <span data-cc-runner data-cc-keep="live" className="inline-flex items-center flex-shrink-0">
-                <ConversationAssignmentBadge conversation={conversation} isOwner={isOwner} guest={guest} compact={simpleViewPref} />
-                {conversation?._id && !guest && <>
-                  <SessionDaemonChip conversationId={String(conversation._id)} />
-                  <SessionHooksOffChip conversationId={String(conversation._id)} />
-                </>}
-                {/* Kept in simple view (dimmed, copy sub-button hidden inside
+                                          <span
+                                            data-cc-runner
+                                            data-cc-keep="live"
+                                            className="inline-flex items-center flex-shrink-0"
+                                          >
+                                            <ConversationAssignmentBadge
+                                              conversation={conversation}
+                                              isOwner={isOwner}
+                                              guest={guest}
+                                              compact={simpleViewPref}
+                                            />
+                                            {conversation?._id && !guest && (
+                                              <>
+                                                <SessionDaemonChip
+                                                  conversationId={String(
+                                                    conversation._id,
+                                                  )}
+                                                />
+                                                <SessionHooksOffChip
+                                                  conversationId={String(
+                                                    conversation._id,
+                                                  )}
+                                                />
+                                              </>
+                                            )}
+                                            {/* Kept in simple view (dimmed, copy sub-button hidden inside
                     the pill): the live tmux badge is how you reach the
                     terminal split, which simple view users still want. */}
-                {!guest && <span data-simple-dim className="inline-flex items-stretch">
-                  <TmuxAttachPill tmuxSession={managedSession?.tmux_session} agentType={conversation?.agent_type} isLive={isSessionLive} conversationKey={conversation?._id.toString()} canSwitchBackend={isOwner} />
-                </span>}
-                </span>
-                {/* Where a cloud session's edits land on a laptop, when mirrored (LocalMirror.tsx). */}
-                {conversation?._id && !guest && <LocalMirrorChip conversationId={String(conversation._id)} compact={simpleViewPref} />}
+                                            {!guest && (
+                                              <span
+                                                data-simple-dim
+                                                className="inline-flex items-stretch"
+                                              >
+                                                <TmuxAttachPill
+                                                  tmuxSession={
+                                                    managedSession?.tmux_session
+                                                  }
+                                                  agentType={
+                                                    conversation?.agent_type
+                                                  }
+                                                  isLive={isSessionLive}
+                                                  conversationKey={conversation?._id.toString()}
+                                                  canSwitchBackend={isOwner}
+                                                />
+                                              </span>
+                                            )}
+                                          </span>
+                                          {/* Where a cloud session's edits land on a laptop, when mirrored (LocalMirror.tsx). */}
+                                          {conversation?._id && !guest && (
+                                            <LocalMirrorChip
+                                              conversationId={String(
+                                                conversation._id,
+                                              )}
+                                              compact={simpleViewPref}
+                                            />
+                                          )}
 
-                {/* Who has this session open right now: teammates' faces off
+                                          {/* Who has this session open right now: teammates' faces off
                     the roster's viewing field. A solo session shows nothing. */}
-                {conversation?._id && !guest && <ConversationViewers conversationId={String(conversation._id)} className="cq-sq4" />}
+                                          {conversation?._id && !guest && (
+                                            <ConversationViewers
+                                              conversationId={String(
+                                                conversation._id,
+                                              )}
+                                              className="cq-sq4"
+                                            />
+                                          )}
 
-                {/* A live huddle on this session. The idle start button is
+                                          {/* A live huddle on this session. The idle start button is
                     hidden in the header (globals.css); the menu starts one. */}
-                {conversation._id && !guest && callsAvailable && (
-                  <span data-cc-keep="live" className="contents">
-                    <Suspense fallback={null}>
-                      <SessionHuddleButton conversationId={String(conversation._id)} />
-                    </Suspense>
-                  </span>
-                )}
+                                          {conversation._id &&
+                                            !guest &&
+                                            callsAvailable && (
+                                              <span
+                                                data-cc-keep="live"
+                                                className="contents"
+                                              >
+                                                <Suspense fallback={null}>
+                                                  <SessionHuddleButton
+                                                    conversationId={String(
+                                                      conversation._id,
+                                                    )}
+                                                  />
+                                                </Suspense>
+                                              </span>
+                                            )}
 
-                {/* Hairline between the live pills and the plain icon
+                                          {/* Hairline between the live pills and the plain icon
                     actions — the two families read as one soup without it. */}
-                <span aria-hidden className="w-px h-3.5 bg-sol-border/60 mx-0.5 flex-shrink-0" />
+                                          <span
+                                            aria-hidden
+                                            className="w-px h-3.5 bg-sol-border/60 mx-0.5 flex-shrink-0"
+                                          />
 
-                {(highlightQuery || isLocalSearchOpen) && (
-                  <div data-cc-keep className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-200/50 dark:bg-amber-800/30 text-amber-800 dark:text-amber-200">
-                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    {isLocalSearchOpen ? (
-                      <input
-                        ref={localSearchInputRef}
-                        type="text"
-                        value={localSearchQuery}
-                        onChange={(e) => setLocalSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") onClearHighlight();
-                          if (e.key === "Enter") { e.preventDefault(); e.shiftKey ? goToPrevMatch() : goToNextMatch(); }
-                        }}
-                        placeholder="Search messages..."
-                        data-cc-conv-search-input
-                        className="bg-transparent border-none outline-none text-xs placeholder:text-amber-600/50 dark:placeholder:text-amber-400/50"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="max-w-[100px] truncate">{highlightQuery}</span>
-                    )}
-                    {searchStatus === "searching" && <Loader2 className="w-3 h-3 shrink-0 animate-spin opacity-70" />}
-                    {matchInstances.length > 0 && (
-                      <>
-                        <span className="text-meta opacity-70 ml-1 tabular-nums whitespace-nowrap">
-                          {currentMatchIndex + 1}/{matchInstances.length}
-                        </span>
-                        <button
-                          onClick={goToPrevMatch}
-                          className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors"
-                          title="Previous match (Shift+Enter)"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={goToNextMatch}
-                          className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors"
-                          title="Next match (Enter)"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                    {matchInstances.length === 0 && highlightQuery && searchStatus === "done" && (
-                      <span className="text-meta opacity-70 ml-1 whitespace-nowrap">No matches</span>
-                    )}
-                    {searchStatus === "error" && (
-                      <span className="text-meta ml-1 whitespace-nowrap text-sol-red">Search failed</span>
-                    )}
-                    {isLocalSearchOpen && !guest && localSearchQuery.trim().length > 2 && (
-                      <button
-                        onClick={() => { void askSideQuestion(askConversationId, localSearchQuery); onClearHighlight(); openAskPanel(); }}
-                        className="ml-1 px-1 rounded text-meta font-medium whitespace-nowrap hover:bg-amber-300/50 dark:hover:bg-amber-700/40 transition-colors"
-                        title="Ask this session instead of searching it"
-                      >
-                        Ask
-                      </button>
-                    )}
-                    <button
-                      onClick={onClearHighlight}
-                      className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors ml-1"
-                      title="Clear search"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
+                                          {(highlightQuery ||
+                                            isLocalSearchOpen) && (
+                                            <div
+                                              data-cc-keep
+                                              className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-200/50 dark:bg-amber-800/30 text-amber-800 dark:text-amber-200"
+                                            >
+                                              <svg
+                                                className="w-3 h-3 shrink-0"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
+                                              </svg>
+                                              {isLocalSearchOpen ? (
+                                                <input
+                                                  ref={localSearchInputRef}
+                                                  type="text"
+                                                  value={localSearchQuery}
+                                                  onChange={(e) =>
+                                                    setLocalSearchQuery(
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Escape")
+                                                      onClearHighlight();
+                                                    if (e.key === "Enter") {
+                                                      e.preventDefault();
+                                                      e.shiftKey
+                                                        ? goToPrevMatch()
+                                                        : goToNextMatch();
+                                                    }
+                                                  }}
+                                                  placeholder="Search messages..."
+                                                  data-cc-conv-search-input
+                                                  className="bg-transparent border-none outline-none text-xs placeholder:text-amber-600/50 dark:placeholder:text-amber-400/50"
+                                                  autoFocus
+                                                />
+                                              ) : (
+                                                <span className="max-w-[100px] truncate">
+                                                  {highlightQuery}
+                                                </span>
+                                              )}
+                                              {searchStatus === "searching" && (
+                                                <Loader2 className="w-3 h-3 shrink-0 animate-spin opacity-70" />
+                                              )}
+                                              {matchInstances.length > 0 && (
+                                                <>
+                                                  <span className="text-meta opacity-70 ml-1 tabular-nums whitespace-nowrap">
+                                                    {currentMatchIndex + 1}/
+                                                    {matchInstances.length}
+                                                  </span>
+                                                  <button
+                                                    onClick={goToPrevMatch}
+                                                    className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors"
+                                                    title="Previous match (Shift+Enter)"
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M5 15l7-7 7 7"
+                                                      />
+                                                    </svg>
+                                                  </button>
+                                                  <button
+                                                    onClick={goToNextMatch}
+                                                    className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors"
+                                                    title="Next match (Enter)"
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M19 9l-7 7-7-7"
+                                                      />
+                                                    </svg>
+                                                  </button>
+                                                </>
+                                              )}
+                                              {matchInstances.length === 0 &&
+                                                highlightQuery &&
+                                                searchStatus === "done" && (
+                                                  <span className="text-meta opacity-70 ml-1 whitespace-nowrap">
+                                                    No matches
+                                                  </span>
+                                                )}
+                                              {searchStatus === "error" && (
+                                                <span className="text-meta ml-1 whitespace-nowrap text-sol-red">
+                                                  Search failed
+                                                </span>
+                                              )}
+                                              {isLocalSearchOpen &&
+                                                !guest &&
+                                                localSearchQuery.trim().length >
+                                                  2 && (
+                                                  <button
+                                                    onClick={() => {
+                                                      void askSideQuestion(
+                                                        askConversationId,
+                                                        localSearchQuery,
+                                                      );
+                                                      onClearHighlight();
+                                                      openAskPanel();
+                                                    }}
+                                                    className="ml-1 px-1 rounded text-meta font-medium whitespace-nowrap hover:bg-amber-300/50 dark:hover:bg-amber-700/40 transition-colors"
+                                                    title="Ask this session instead of searching it"
+                                                  >
+                                                    Ask
+                                                  </button>
+                                                )}
+                                              <button
+                                                onClick={onClearHighlight}
+                                                className="p-0.5 hover:bg-amber-300/50 dark:hover:bg-amber-700/40 rounded transition-colors ml-1"
+                                                title="Clear search"
+                                              >
+                                                <svg
+                                                  className="w-3 h-3"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M6 18L18 6M6 6l12 12"
+                                                  />
+                                                </svg>
+                                              </button>
+                                            </div>
+                                          )}
 
-                {sessionGalleryItems.length > 0 && <SessionGalleryButton items={sessionGalleryItems} />}
-                {!guest && conversation?._id && <SessionCanvasToggle conversationId={String(conversation._id)} />}
+                                          {sessionGalleryItems.length > 0 && (
+                                            <SessionGalleryButton
+                                              items={sessionGalleryItems}
+                                            />
+                                          )}
+                                          {!guest && conversation?._id && (
+                                            <SessionCanvasToggle
+                                              conversationId={String(
+                                                conversation._id,
+                                              )}
+                                            />
+                                          )}
 
-
-                {/* Copy link, send to chat, search, a huddle, density and the
+                                          {/* Copy link, send to chat, search, a huddle, density and the
                     project's files live in the share popover (headerExtra) and
                     in the menu below, not as bare icons: share and the menu are
                     the row's only plain actions. */}
-                {headerExtra}
+                                          {headerExtra}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {/* data-cc-keep: the Minimal style rests the header on the
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              {/* data-cc-keep: the Minimal style rests the header on the
                         title, the live status and this menu; the rest of the
                         cluster fades in on hover or keyboard focus. */}
-                    <button data-cc-keep aria-label="Session menu" title={modernStyle ? "Session menu" : undefined} className="p-1 rounded hover:bg-sol-bg-alt text-sol-text-dim hover:text-sol-text-secondary transition-colors modern:p-0 modern:w-7 modern:h-7 modern:inline-flex modern:items-center modern:justify-center modern:rounded-control">
-                      <svg className="w-3.5 h-3.5 modern:w-4 modern:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                      </svg>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {/* The full command surface: what the header squeeze sheds
+                                              <button
+                                                data-cc-keep
+                                                aria-label="Session menu"
+                                                title={
+                                                  modernStyle
+                                                    ? "Session menu"
+                                                    : undefined
+                                                }
+                                                className="p-1 rounded hover:bg-sol-bg-alt text-sol-text-dim hover:text-sol-text-secondary transition-colors modern:p-0 modern:w-7 modern:h-7 modern:inline-flex modern:items-center modern:justify-center modern:rounded-control"
+                                              >
+                                                <svg
+                                                  className="w-3.5 h-3.5 modern:w-4 modern:h-4"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                                  />
+                                                </svg>
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              {/* The full command surface: what the header squeeze sheds
                         (globals.css, cq-sq*) stays reachable here. */}
-                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Copy</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={copyConversationLink}>
-                      <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
-                      Copy link
-                      <MenuKeyCaps action="conv.copyLink" />
-                    </DropdownMenuItem>
-                    {!guest && conversation?.short_id && (
-                      <DropdownMenuItem onSelect={() => { setTimeout(() => { copyToClipboard(conversation.short_id!).then(() => toast.success("ID copied")).catch(() => toast.error("Failed to copy")); }); }}>
-                        <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                        </svg>
-                        Copy ID (<span className="modern:font-mono">{conversation.short_id}</span>)
-                      </DropdownMenuItem>
-                    )}
-                    {/* The tmux pill's copy button is the first thing the
+                                              <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                                                Copy
+                                              </DropdownMenuLabel>
+                                              <DropdownMenuItem
+                                                onSelect={copyConversationLink}
+                                              >
+                                                <svg
+                                                  className="w-3 h-3 mr-1.5"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                                                  />
+                                                </svg>
+                                                Copy link
+                                                <MenuKeyCaps action="conv.copyLink" />
+                                              </DropdownMenuItem>
+                                              {!guest &&
+                                                conversation?.short_id && (
+                                                  <DropdownMenuItem
+                                                    onSelect={() => {
+                                                      setTimeout(() => {
+                                                        copyToClipboard(
+                                                          conversation.short_id!,
+                                                        )
+                                                          .then(() =>
+                                                            toast.success(
+                                                              "ID copied",
+                                                            ),
+                                                          )
+                                                          .catch(() =>
+                                                            toast.error(
+                                                              "Failed to copy",
+                                                            ),
+                                                          );
+                                                      });
+                                                    }}
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3 mr-1.5"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                                                      />
+                                                    </svg>
+                                                    Copy ID (
+                                                    <span className="modern:font-mono">
+                                                      {conversation.short_id}
+                                                    </span>
+                                                    )
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {/* The tmux pill's copy button is the first thing the
                         header squeeze sheds (cq-sq1), so the menu repeats it. */}
-                    {!guest && managedSession?.tmux_session && (
-                      <DropdownMenuItem onSelect={() => setTimeout(copyTmuxAttach)}>
-                        <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Copy tmux attach
-                      </DropdownMenuItem>
-                    )}
-                    {/* Simple view strips the header's branch chip — resurface
+                                              {!guest &&
+                                                managedSession?.tmux_session && (
+                                                  <DropdownMenuItem
+                                                    onSelect={() =>
+                                                      setTimeout(copyTmuxAttach)
+                                                    }
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3 mr-1.5"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                      />
+                                                    </svg>
+                                                    Copy tmux attach
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {/* Simple view strips the header's branch chip — resurface
                         its copy here so the hamburger stays the full command
                         surface in that mode. */}
-                    {!guest && simpleViewPref && conversation?.git_branch && (
-                      <DropdownMenuItem onSelect={() => { setTimeout(() => { copyToClipboard(conversation.git_branch!).then(() => toast.success("Branch copied")).catch(() => toast.error("Failed to copy")); }); }}>
-                        <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 7a2 2 0 100-4 2 2 0 000 4zm0 0v6m0 0a2 2 0 100 4 2 2 0 000-4zm10-6a2 2 0 100-4 2 2 0 000 4zm0 0a5 5 0 01-5 5h-2" />
-                        </svg>
-                        Copy branch (<span className="modern:font-mono">{conversation.git_branch}</span>)
-                      </DropdownMenuItem>
-                    )}
-                    {/* Run synchronously (no setTimeout) so handleCopyAll's
+                                              {!guest &&
+                                                simpleViewPref &&
+                                                conversation?.git_branch && (
+                                                  <DropdownMenuItem
+                                                    onSelect={() => {
+                                                      setTimeout(() => {
+                                                        copyToClipboard(
+                                                          conversation.git_branch!,
+                                                        )
+                                                          .then(() =>
+                                                            toast.success(
+                                                              "Branch copied",
+                                                            ),
+                                                          )
+                                                          .catch(() =>
+                                                            toast.error(
+                                                              "Failed to copy",
+                                                            ),
+                                                          );
+                                                      });
+                                                    }}
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3 mr-1.5"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                      strokeWidth={2}
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M7 7a2 2 0 100-4 2 2 0 000 4zm0 0v6m0 0a2 2 0 100 4 2 2 0 000-4zm10-6a2 2 0 100-4 2 2 0 000 4zm0 0a5 5 0 01-5 5h-2"
+                                                      />
+                                                    </svg>
+                                                    Copy branch (
+                                                    <span className="modern:font-mono">
+                                                      {conversation.git_branch}
+                                                    </span>
+                                                    )
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {/* Run synchronously (no setTimeout) so handleCopyAll's
                         navigator.clipboard.write() fires inside the click's
                         transient user activation — deferring it loses activation
                         and the clipboard write hangs forever. */}
-                    <DropdownMenuItem onSelect={() => handleCopyAll()}>
-                      <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Copy all messages
-                    </DropdownMenuItem>
-                    {hasLocalAgent && (
-                      <>
-                        <DropdownMenuItem onSelect={() => setTimeout(() => handleCopyResumeCommand("claude"))}>
-                          <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Copy Claude resume
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setTimeout(() => handleCopyResumeCommand("codex"))}>
-                          <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Copy Codex resume
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {!guest && chatOn && (
-                      <DropdownMenuItem onSelect={() => setTimeout(() => openForwardToChat({ url: `${shareOrigin()}/conversation/${conversation?._id}`, label: "session" }))}>
-                        <Forward className="w-3 h-3 mr-1.5" />
-                        Send to chat
-                      </DropdownMenuItem>
-                    )}
-                    {/* A phone hides the header's facts strip, so the cloud agent's link and actions live here too. */}
-                    {!guest && <CloudAgentMenuItems actions={cloudAgentActions} />}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">View</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={() => setTimeout(() => { if (propHighlightQuery) propClearHighlight?.(); setIsLocalSearchOpen(true); setLocalSearchQuery(""); setTimeout(() => localSearchInputRef.current?.focus(), 0); })}>
-                      <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      Search in conversation
-                    </DropdownMenuItem>
-                    {!guest && (
-                      <DropdownMenuItem onSelect={() => setTimeout(openAskPanel)}>
-                        <PaletteAsk className="w-3 h-3 mr-1.5" />
-                        Ask this session…
-                        <MenuKeyCaps action="conv.ask" />
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        {(() => { const Icon = DENSITY_OPTIONS.find(o => o.value === density)!.icon; return <Icon className="w-3 h-3 mr-1.5" />; })()}
-                        View density
-                        <MenuKeyCaps action="conv.cycleDensity" />
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-72">
-                        <DensityMenuOptions density={density} setDensity={setDensity} guest={guest} />
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    {filePathBase && !guest && (
-                      <DropdownMenuItem onSelect={() => setTimeout(() => openFiles(filesHref({ localPath: filePathBase })))}>
-                        <FolderTree className="w-3 h-3 mr-1.5" />
-                        Browse project files
-                      </DropdownMenuItem>
-                    )}
-                    {hasAnyThinking && (
-                      <DropdownMenuItem onClick={() => setShowThinking((s) => !s)}>
-                        {showThinking ? "Hide thinking" : "Show thinking"}
-                        <MenuKeyCaps action="conv.toggleThinking" />
-                      </DropdownMenuItem>
-                    )}
-                    {!guest && <DropdownMenuItem onClick={() => {
-                      const next = !stickyDisabled;
-                      updateUI({ sticky_headers_disabled: next });
-                      if (next) { setStickyMsgVisible(false); setActiveStickyMsg(null); }
-                    }}>
-                      {stickyDisabled ? "Enable sticky headers" : "Disable sticky headers"}
-                    </DropdownMenuItem>}
-                    {minimalStyle && (
-                      <DropdownMenuItem onClick={() => updateUI({ show_session_context: !showSessionContext })}>
-                        {showSessionContext ? "Hide schedule and plan" : "Show schedule and plan"}
-                      </DropdownMenuItem>
-                    )}
-                    {!guest && conversation.git_branch && (
-                      <DropdownMenuItem onClick={() => setDiffExpanded(!diffExpanded)}>
-                        {diffExpanded ? "Hide git diff" : "Show git diff"}
-                        <MenuKeyCaps action="conv.toggleDiff" />
-                      </DropdownMenuItem>
-                    )}
-                    {(isOwner || (effectiveIsOwner && conversation?.session_id)) && (
-                      <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Session</DropdownMenuLabel>
-                    <SessionAccountLine conversationId={conversation?._id} />
-                      </>
-                    )}
-                    {/* The header shows a huddle only while one is live; starting one lives here. */}
-                    {!guest && callsAvailable && conversation?._id && (
-                      <DropdownMenuItem onSelect={() => { const roomKey = sessionRoomKey(String(conversation._id)); void import("../lib/calls/huddleStart").then((m) => m.requestHuddleStart({ roomKey, hint: "Talk to this session — what you say reaches the agent as you speak" })); }}>
-                        <Headphones className="w-3 h-3 mr-1.5" />
-                        Huddle with this session
-                      </DropdownMenuItem>
-                    )}
-                    {isOwner && (
-                      <DropdownMenuItem onSelect={() => setTimeout(() => useInboxStore.getState().openSessionRename(conversation))}>
-                        <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Rename
-                        <MenuKeyCaps action="session.rename" />
-                      </DropdownMenuItem>
-                    )}
-                    {isOwner && (
-                      <DropdownMenuItem onSelect={() => {
-                        toggleSessionsLikeFirst([conversation._id], "favorite");
-                      }}>
-                        <svg className={`w-3 h-3 mr-1.5 ${conversation.is_favorite ? "text-amber-400" : ""}`} fill={conversation.is_favorite ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        {conversation.is_favorite ? "Remove from favorites" : "Add to favorites"}
-                        <MenuKeyCaps action="conv.favorite" />
-                      </DropdownMenuItem>
-                    )}
-                    {isOwner && (
-                      <DropdownMenuItem onSelect={togglePublicProfilePin}>
-                        <svg className={`w-3 h-3 mr-1.5 ${conversation.profile_pinned_at ? "text-sol-cyan" : ""}`} fill={conversation.profile_pinned_at ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 4v6l3 3v2H5v-2l3-3V4M9 19h6m-3 0v3" />
-                        </svg>
-                        {conversation.profile_pinned_at ? "Unpin from public profile" : "Pin to public profile"}
-                      </DropdownMenuItem>
-                    )}
-                    {!guest && conversation?._id && <HeaderPinMenuItem sessionId={conversation._id} />}
-                    {effectiveIsOwner && hasLocalAgent && (
-                      <DropdownMenuItem disabled={isHeaderRestarting} onSelect={() => { setTimeout(() => handleRestartSession()); }}>
-                        <svg className={`w-3 h-3 mr-1.5 text-orange-400 ${isHeaderRestarting ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        {isHeaderRestarting ? "Restarting…" : "Restart session"}
-                      </DropdownMenuItem>
-                    )}
-                    {isOwner && (
-                      <>
-                        {/* One row for the whole session control panel (model,
+                                              <DropdownMenuItem
+                                                onSelect={() => handleCopyAll()}
+                                              >
+                                                <svg
+                                                  className="w-3 h-3 mr-1.5"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                                  />
+                                                </svg>
+                                                Copy all messages
+                                              </DropdownMenuItem>
+                                              {hasLocalAgent && (
+                                                <>
+                                                  <DropdownMenuItem
+                                                    onSelect={() =>
+                                                      setTimeout(() =>
+                                                        handleCopyResumeCommand(
+                                                          "claude",
+                                                        ),
+                                                      )
+                                                    }
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3 mr-1.5"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                      />
+                                                    </svg>
+                                                    Copy Claude resume
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem
+                                                    onSelect={() =>
+                                                      setTimeout(() =>
+                                                        handleCopyResumeCommand(
+                                                          "codex",
+                                                        ),
+                                                      )
+                                                    }
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3 mr-1.5"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                      />
+                                                    </svg>
+                                                    Copy Codex resume
+                                                  </DropdownMenuItem>
+                                                </>
+                                              )}
+                                              {!guest && chatOn && (
+                                                <DropdownMenuItem
+                                                  onSelect={() =>
+                                                    setTimeout(() =>
+                                                      openForwardToChat({
+                                                        url: `${shareOrigin()}/conversation/${conversation?._id}`,
+                                                        label: "session",
+                                                      }),
+                                                    )
+                                                  }
+                                                >
+                                                  <Forward className="w-3 h-3 mr-1.5" />
+                                                  Send to chat
+                                                </DropdownMenuItem>
+                                              )}
+                                              {/* A phone hides the header's facts strip, so the cloud agent's link and actions live here too. */}
+                                              {!guest && (
+                                                <CloudAgentMenuItems
+                                                  actions={cloudAgentActions}
+                                                />
+                                              )}
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                                                View
+                                              </DropdownMenuLabel>
+                                              <DropdownMenuItem
+                                                onSelect={() =>
+                                                  setTimeout(() => {
+                                                    if (propHighlightQuery)
+                                                      propClearHighlight?.();
+                                                    setIsLocalSearchOpen(true);
+                                                    setLocalSearchQuery("");
+                                                    setTimeout(
+                                                      () =>
+                                                        localSearchInputRef.current?.focus(),
+                                                      0,
+                                                    );
+                                                  })
+                                                }
+                                              >
+                                                <svg
+                                                  className="w-3 h-3 mr-1.5"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                  />
+                                                </svg>
+                                                Search in conversation
+                                              </DropdownMenuItem>
+                                              {!guest && (
+                                                <DropdownMenuItem
+                                                  onSelect={() =>
+                                                    setTimeout(openAskPanel)
+                                                  }
+                                                >
+                                                  <PaletteAsk className="w-3 h-3 mr-1.5" />
+                                                  Ask this session…
+                                                  <MenuKeyCaps action="conv.ask" />
+                                                </DropdownMenuItem>
+                                              )}
+                                              <DropdownMenuSub>
+                                                <DropdownMenuSubTrigger>
+                                                  {(() => {
+                                                    const Icon =
+                                                      DENSITY_OPTIONS.find(
+                                                        (o) =>
+                                                          o.value === density,
+                                                      )!.icon;
+                                                    return (
+                                                      <Icon className="w-3 h-3 mr-1.5" />
+                                                    );
+                                                  })()}
+                                                  View density
+                                                  <MenuKeyCaps action="conv.cycleDensity" />
+                                                </DropdownMenuSubTrigger>
+                                                <DropdownMenuSubContent className="w-72">
+                                                  <DensityMenuOptions
+                                                    density={density}
+                                                    setDensity={setDensity}
+                                                    guest={guest}
+                                                  />
+                                                </DropdownMenuSubContent>
+                                              </DropdownMenuSub>
+                                              {filePathBase && !guest && (
+                                                <DropdownMenuItem
+                                                  onSelect={() =>
+                                                    setTimeout(() =>
+                                                      openFiles(
+                                                        filesHref({
+                                                          localPath:
+                                                            filePathBase,
+                                                        }),
+                                                      ),
+                                                    )
+                                                  }
+                                                >
+                                                  <FolderTree className="w-3 h-3 mr-1.5" />
+                                                  Browse project files
+                                                </DropdownMenuItem>
+                                              )}
+                                              {hasAnyThinking && (
+                                                <DropdownMenuItem
+                                                  onClick={() =>
+                                                    setShowThinking((s) => !s)
+                                                  }
+                                                >
+                                                  {showThinking
+                                                    ? "Hide thinking"
+                                                    : "Show thinking"}
+                                                  <MenuKeyCaps action="conv.toggleThinking" />
+                                                </DropdownMenuItem>
+                                              )}
+                                              {!guest && (
+                                                <DropdownMenuItem
+                                                  onClick={() => {
+                                                    const next =
+                                                      !stickyDisabled;
+                                                    updateUI({
+                                                      sticky_headers_disabled:
+                                                        next,
+                                                    });
+                                                    if (next) {
+                                                      setStickyMsgVisible(
+                                                        false,
+                                                      );
+                                                      setActiveStickyMsg(null);
+                                                    }
+                                                  }}
+                                                >
+                                                  {stickyDisabled
+                                                    ? "Enable sticky headers"
+                                                    : "Disable sticky headers"}
+                                                </DropdownMenuItem>
+                                              )}
+                                              {minimalStyle && (
+                                                <DropdownMenuItem
+                                                  onClick={() =>
+                                                    updateUI({
+                                                      show_session_context:
+                                                        !showSessionContext,
+                                                    })
+                                                  }
+                                                >
+                                                  {showSessionContext
+                                                    ? "Hide schedule and plan"
+                                                    : "Show schedule and plan"}
+                                                </DropdownMenuItem>
+                                              )}
+                                              {!guest &&
+                                                conversation.git_branch && (
+                                                  <DropdownMenuItem
+                                                    onClick={() =>
+                                                      setDiffExpanded(
+                                                        !diffExpanded,
+                                                      )
+                                                    }
+                                                  >
+                                                    {diffExpanded
+                                                      ? "Hide git diff"
+                                                      : "Show git diff"}
+                                                    <MenuKeyCaps action="conv.toggleDiff" />
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {(isOwner ||
+                                                (effectiveIsOwner &&
+                                                  conversation?.session_id)) && (
+                                                <>
+                                                  <DropdownMenuSeparator />
+                                                  <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                                                    Session
+                                                  </DropdownMenuLabel>
+                                                  <SessionAccountLine
+                                                    conversationId={
+                                                      conversation?._id
+                                                    }
+                                                  />
+                                                </>
+                                              )}
+                                              {/* The header shows a huddle only while one is live; starting one lives here. */}
+                                              {!guest &&
+                                                callsAvailable &&
+                                                conversation?._id && (
+                                                  <DropdownMenuItem
+                                                    onSelect={() => {
+                                                      const roomKey =
+                                                        sessionRoomKey(
+                                                          String(
+                                                            conversation._id,
+                                                          ),
+                                                        );
+                                                      void import("../lib/calls/huddleStart").then(
+                                                        (m) =>
+                                                          m.requestHuddleStart({
+                                                            roomKey,
+                                                            hint: "Talk to this session — what you say reaches the agent as you speak",
+                                                          }),
+                                                      );
+                                                    }}
+                                                  >
+                                                    <Headphones className="w-3 h-3 mr-1.5" />
+                                                    Huddle with this session
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {isOwner && (
+                                                <DropdownMenuItem
+                                                  onSelect={() =>
+                                                    setTimeout(() =>
+                                                      useInboxStore
+                                                        .getState()
+                                                        .openSessionRename(
+                                                          conversation,
+                                                        ),
+                                                    )
+                                                  }
+                                                >
+                                                  <svg
+                                                    className="w-3 h-3 mr-1.5"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                    />
+                                                  </svg>
+                                                  Rename
+                                                  <MenuKeyCaps action="session.rename" />
+                                                </DropdownMenuItem>
+                                              )}
+                                              {isOwner && (
+                                                <DropdownMenuItem
+                                                  onSelect={() => {
+                                                    toggleSessionsLikeFirst(
+                                                      [conversation._id],
+                                                      "favorite",
+                                                    );
+                                                  }}
+                                                >
+                                                  <svg
+                                                    className={`w-3 h-3 mr-1.5 ${conversation.is_favorite ? "text-amber-400" : ""}`}
+                                                    fill={
+                                                      conversation.is_favorite
+                                                        ? "currentColor"
+                                                        : "none"
+                                                    }
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                    />
+                                                  </svg>
+                                                  {conversation.is_favorite
+                                                    ? "Remove from favorites"
+                                                    : "Add to favorites"}
+                                                  <MenuKeyCaps action="conv.favorite" />
+                                                </DropdownMenuItem>
+                                              )}
+                                              {isOwner && (
+                                                <DropdownMenuItem
+                                                  onSelect={
+                                                    togglePublicProfilePin
+                                                  }
+                                                >
+                                                  <svg
+                                                    className={`w-3 h-3 mr-1.5 ${conversation.profile_pinned_at ? "text-sol-cyan" : ""}`}
+                                                    fill={
+                                                      conversation.profile_pinned_at
+                                                        ? "currentColor"
+                                                        : "none"
+                                                    }
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      d="M16 4v6l3 3v2H5v-2l3-3V4M9 19h6m-3 0v3"
+                                                    />
+                                                  </svg>
+                                                  {conversation.profile_pinned_at
+                                                    ? "Unpin from public profile"
+                                                    : "Pin to public profile"}
+                                                </DropdownMenuItem>
+                                              )}
+                                              {!guest && conversation?._id && (
+                                                <HeaderPinMenuItem
+                                                  sessionId={conversation._id}
+                                                />
+                                              )}
+                                              {effectiveIsOwner &&
+                                                hasLocalAgent && (
+                                                  <DropdownMenuItem
+                                                    disabled={
+                                                      isHeaderRestarting
+                                                    }
+                                                    onSelect={() => {
+                                                      setTimeout(() =>
+                                                        handleRestartSession(),
+                                                      );
+                                                    }}
+                                                  >
+                                                    <svg
+                                                      className={`w-3 h-3 mr-1.5 text-orange-400 ${isHeaderRestarting ? "animate-spin" : ""}`}
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                      />
+                                                    </svg>
+                                                    {isHeaderRestarting
+                                                      ? "Restarting…"
+                                                      : "Restart session"}
+                                                  </DropdownMenuItem>
+                                                )}
+                                              {isOwner && (
+                                                <>
+                                                  {/* One row for the whole session control panel (model,
                             effort, switch agent, fork as, hand off) — the
                             header badge opens the same panel, so the menu
                             never grows a second copy of its rails. The menu
                             closes first; the panel opens on the next tick so
                             the two Radix layers don't fight over focus. */}
-                        <DropdownMenuItem
-                          className="hidden sm:flex"
-                          onSelect={() => { setTimeout(() => setSessionControlOpen(true), 0); }}
-                        >
-                          <Cpu className="w-3 h-3 mr-1.5 text-sol-violet" />
-                          Model, agent, fork, hand off…
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {/* Lineage, stats and usage describe the workspace around the session, not the transcript a guest is reading. */}
-                    {!guest && (parentLinkId || handedOffFrom || handedOffTo || conversation.forked_from_details || (conversation.fork_children?.length ?? 0) > 0 || conversation.forked_from) && (
-                      <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Lineage</DropdownMenuLabel>
-                    {parentLinkId && (
-                      <DropdownMenuItem asChild>
-                        <Link href={convLink(parentLinkId)}>
-                          View parent conversation
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {handedOffFrom && (
-                      <DropdownMenuItem asChild>
-                        <HandoffSessionLink details={handedOffFrom} compact convLink={convLink} navigateToSession={navigateToSession} className="flex items-center gap-1.5">
-                          <ArrowRightLeft className="w-3 h-3 shrink-0 text-sol-cyan" />
-                          <span className="shrink-0">Handed off from</span>
-                        </HandoffSessionLink>
-                      </DropdownMenuItem>
-                    )}
-                    {handedOffTo && (
-                      <DropdownMenuItem asChild>
-                        <HandoffSessionLink details={handedOffTo} compact convLink={convLink} navigateToSession={navigateToSession} className="flex items-center gap-1.5">
-                          <ArrowRightLeft className="w-3 h-3 shrink-0 text-sol-cyan" />
-                          <span className="shrink-0">Continued in</span>
-                        </HandoffSessionLink>
-                      </DropdownMenuItem>
-                    )}
-                    {conversation.forked_from_details && (
-                      <DropdownMenuItem asChild>
-                        <Link href={conversation.forked_from_details.share_token ? `/share/${conversation.forked_from_details.share_token}` : convLink(conversation.forked_from_details.conversation_id)}>
-                          <svg className="w-3 h-3 mr-1.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                          </svg>
-                          Forked from @{conversation.forked_from_details.username}
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {((conversation.fork_children && conversation.fork_children.length > 0) || conversation.forked_from) && (
-                      <>
-                        <DropdownMenuItem onClick={() => toggleMap()}>
-                          <Split className="w-3 h-3 mr-1.5 text-sol-cyan" />
-                          Branch map
-                          <MenuKeyCaps action="conv.toggleTree" />
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                      </>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Stats</DropdownMenuLabel>
-                    <ConversationAgeMenuItems startedAt={conversation.started_at} endedAt={cloudAgentActions.cloud ? conversation.messages?.at(-1)?.timestamp : undefined} messageCount={conversation.message_count} />
-                    {!guest && ((conversation.fork_count ?? 0) > 0 || (conversation.fork_children?.length ?? 0) > 0 || (conversation.compaction_count ?? 0) > 0 || subagentMenuItems) && (
-                      <>
-                    {((conversation.fork_count ?? 0) > 0 || (conversation.fork_children?.length ?? 0) > 0) && (
-                      <DropdownMenuItem disabled>
-                        <Split className="w-3 h-3 mr-1.5 text-sol-cyan" />
-                        {conversation.fork_count || conversation.fork_children?.length || 0} fork{(conversation.fork_count || conversation.fork_children?.length || 0) === 1 ? '' : 's'}
-                      </DropdownMenuItem>
-                    )}
-                    {(conversation.compaction_count ?? 0) > 0 && (
-                      <DropdownMenuItem disabled>
-                        <svg className="w-3 h-3 mr-1.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        {conversation.compaction_count} compaction{conversation.compaction_count === 1 ? '' : 's'}
-                      </DropdownMenuItem>
-                    )}
-                    {subagentMenuItems}
-                      </>
-                    )}
-                    {!guest && conversation?._id && <ConversationTaskStatsMenuItem conversationId={conversation._id} />}
-                    {!guest && latestUsage && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <div className="px-2 py-1.5">
-                          <UsageDisplay usage={latestUsage} />
-                        </div>
-                      </>
-                    )}
-                  </DropdownMenuContent>                </DropdownMenu>
-        </>)}
-        end={headerEnd}
-        strips={<>
-          {conversation?._id && !guest && <ConversationTaskProgress conversationId={conversation._id} />}
-          <RestartStatusStrip
-            phase={restartPhase}
-            stage={restartStripStage}
-            failure={restartFailure}
-            startedAt={restartStartedAt}
-            onRetry={handleRestartSession}
-          />
-          {conversation?._id && !guest && <DeviceMoveStatusStrip conversationId={conversation._id} />}
-          {conversation?._id && !guest && isOwner && <PeerTransferStrip conversationId={conversation._id} onRetry={handleRestartSession} />}
-        </>}
-      >
-        {conversation && (
-          <div className="absolute top-full right-3 mt-24 z-30">
-            <MessageNavButton
-              conversationId={conversation._id}
-              senders={senderContext}
-              currentMessageId={navigatorCurrentId ?? activeStickyMsg?.id ?? null}
-              loadedMessages={messages}
-              scrollProgress={navScrollProgress}
-              onScrollToMessage={(messageId) => {
-                setNavigatorCurrentId(messageId);
-                scrollToMessageById(messageId);
-              }}
-            />
-          </div>
-        )}
-        {/* Live tmux view (opened from the tmux pill), docked across the top,
+                                                  <DropdownMenuItem
+                                                    className="hidden sm:flex"
+                                                    onSelect={() => {
+                                                      setTimeout(
+                                                        () =>
+                                                          setSessionControlOpen(
+                                                            true,
+                                                          ),
+                                                        0,
+                                                      );
+                                                    }}
+                                                  >
+                                                    <Cpu className="w-3 h-3 mr-1.5 text-sol-violet" />
+                                                    Model, agent, fork, hand
+                                                    off…
+                                                  </DropdownMenuItem>
+                                                </>
+                                              )}
+                                              {/* Lineage, stats and usage describe the workspace around the session, not the transcript a guest is reading. */}
+                                              {!guest &&
+                                                (parentLinkId ||
+                                                  handedOffFrom ||
+                                                  handedOffTo ||
+                                                  conversation.forked_from_details ||
+                                                  (conversation.fork_children
+                                                    ?.length ?? 0) > 0 ||
+                                                  conversation.forked_from) && (
+                                                  <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                                                      Lineage
+                                                    </DropdownMenuLabel>
+                                                    {parentLinkId && (
+                                                      <DropdownMenuItem asChild>
+                                                        <Link
+                                                          href={convLink(
+                                                            parentLinkId,
+                                                          )}
+                                                        >
+                                                          View parent
+                                                          conversation
+                                                        </Link>
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {handedOffFrom && (
+                                                      <DropdownMenuItem asChild>
+                                                        <HandoffSessionLink
+                                                          details={
+                                                            handedOffFrom
+                                                          }
+                                                          compact
+                                                          convLink={convLink}
+                                                          navigateToSession={
+                                                            navigateToSession
+                                                          }
+                                                          className="flex items-center gap-1.5"
+                                                        >
+                                                          <ArrowRightLeft className="w-3 h-3 shrink-0 text-sol-cyan" />
+                                                          <span className="shrink-0">
+                                                            Handed off from
+                                                          </span>
+                                                        </HandoffSessionLink>
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {handedOffTo && (
+                                                      <DropdownMenuItem asChild>
+                                                        <HandoffSessionLink
+                                                          details={handedOffTo}
+                                                          compact
+                                                          convLink={convLink}
+                                                          navigateToSession={
+                                                            navigateToSession
+                                                          }
+                                                          className="flex items-center gap-1.5"
+                                                        >
+                                                          <ArrowRightLeft className="w-3 h-3 shrink-0 text-sol-cyan" />
+                                                          <span className="shrink-0">
+                                                            Continued in
+                                                          </span>
+                                                        </HandoffSessionLink>
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {conversation.forked_from_details && (
+                                                      <DropdownMenuItem asChild>
+                                                        <Link
+                                                          href={
+                                                            conversation
+                                                              .forked_from_details
+                                                              .share_token
+                                                              ? `/share/${conversation.forked_from_details.share_token}`
+                                                              : convLink(
+                                                                  conversation
+                                                                    .forked_from_details
+                                                                    .conversation_id,
+                                                                )
+                                                          }
+                                                        >
+                                                          <svg
+                                                            className="w-3 h-3 mr-1.5 text-purple-400"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                          >
+                                                            <path
+                                                              strokeLinecap="round"
+                                                              strokeLinejoin="round"
+                                                              strokeWidth={2}
+                                                              d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                                                            />
+                                                          </svg>
+                                                          Forked from @
+                                                          {
+                                                            conversation
+                                                              .forked_from_details
+                                                              .username
+                                                          }
+                                                        </Link>
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {((conversation.fork_children &&
+                                                      conversation.fork_children
+                                                        .length > 0) ||
+                                                      conversation.forked_from) && (
+                                                      <>
+                                                        <DropdownMenuItem
+                                                          onClick={() =>
+                                                            toggleMap()
+                                                          }
+                                                        >
+                                                          <Split className="w-3 h-3 mr-1.5 text-sol-cyan" />
+                                                          Branch map
+                                                          <MenuKeyCaps action="conv.toggleTree" />
+                                                        </DropdownMenuItem>
+                                                      </>
+                                                    )}
+                                                  </>
+                                                )}
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                                                Stats
+                                              </DropdownMenuLabel>
+                                              <ConversationAgeMenuItems
+                                                startedAt={
+                                                  conversation.started_at
+                                                }
+                                                endedAt={
+                                                  cloudAgentActions.cloud
+                                                    ? conversation.messages?.at(
+                                                        -1,
+                                                      )?.timestamp
+                                                    : undefined
+                                                }
+                                                messageCount={
+                                                  conversation.message_count
+                                                }
+                                              />
+                                              {!guest &&
+                                                ((conversation.fork_count ??
+                                                  0) > 0 ||
+                                                  (conversation.fork_children
+                                                    ?.length ?? 0) > 0 ||
+                                                  (conversation.compaction_count ??
+                                                    0) > 0 ||
+                                                  subagentMenuItems) && (
+                                                  <>
+                                                    {((conversation.fork_count ??
+                                                      0) > 0 ||
+                                                      (conversation
+                                                        .fork_children
+                                                        ?.length ?? 0) > 0) && (
+                                                      <DropdownMenuItem
+                                                        disabled
+                                                      >
+                                                        <Split className="w-3 h-3 mr-1.5 text-sol-cyan" />
+                                                        {conversation.fork_count ||
+                                                          conversation
+                                                            .fork_children
+                                                            ?.length ||
+                                                          0}{" "}
+                                                        fork
+                                                        {(conversation.fork_count ||
+                                                          conversation
+                                                            .fork_children
+                                                            ?.length ||
+                                                          0) === 1
+                                                          ? ""
+                                                          : "s"}
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {(conversation.compaction_count ??
+                                                      0) > 0 && (
+                                                      <DropdownMenuItem
+                                                        disabled
+                                                      >
+                                                        <svg
+                                                          className="w-3 h-3 mr-1.5 text-amber-500"
+                                                          fill="none"
+                                                          viewBox="0 0 24 24"
+                                                          stroke="currentColor"
+                                                        >
+                                                          <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                                                          />
+                                                        </svg>
+                                                        {
+                                                          conversation.compaction_count
+                                                        }{" "}
+                                                        compaction
+                                                        {conversation.compaction_count ===
+                                                        1
+                                                          ? ""
+                                                          : "s"}
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    {subagentMenuItems}
+                                                  </>
+                                                )}
+                                              {!guest && conversation?._id && (
+                                                <ConversationTaskStatsMenuItem
+                                                  conversationId={
+                                                    conversation._id
+                                                  }
+                                                />
+                                              )}
+                                              {!guest && latestUsage && (
+                                                <>
+                                                  <DropdownMenuSeparator />
+                                                  <div className="px-2 py-1.5">
+                                                    <UsageDisplay
+                                                      usage={latestUsage}
+                                                    />
+                                                  </div>
+                                                </>
+                                              )}
+                                            </DropdownMenuContent>
+                                            {"                "}
+                                          </DropdownMenu>
+                                        </>
+                                      )
+                                    }
+                                    end={headerEnd}
+                                    strips={
+                                      <>
+                                        {conversation?._id && !guest && (
+                                          <ConversationTaskProgress
+                                            conversationId={conversation._id}
+                                          />
+                                        )}
+                                        <RestartStatusStrip
+                                          phase={restartPhase}
+                                          stage={restartStripStage}
+                                          failure={restartFailure}
+                                          startedAt={restartStartedAt}
+                                          onRetry={handleRestartSession}
+                                        />
+                                        {conversation?._id && !guest && (
+                                          <DeviceMoveStatusStrip
+                                            conversationId={conversation._id}
+                                          />
+                                        )}
+                                        {conversation?._id &&
+                                          !guest &&
+                                          isOwner && (
+                                            <PeerTransferStrip
+                                              conversationId={conversation._id}
+                                              onRetry={handleRestartSession}
+                                            />
+                                          )}
+                                      </>
+                                    }
+                                  >
+                                    {conversation && (
+                                      <div className="absolute top-full right-3 mt-24 z-30">
+                                        <MessageNavButton
+                                          conversationId={conversation._id}
+                                          senders={senderContext}
+                                          currentMessageId={
+                                            navigatorCurrentId ??
+                                            activeStickyMsg?.id ??
+                                            null
+                                          }
+                                          loadedMessages={messages}
+                                          scrollProgress={navScrollProgress}
+                                          onScrollToMessage={(messageId) => {
+                                            setNavigatorCurrentId(messageId);
+                                            scrollToMessageById(messageId);
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                    {/* Live tmux view (opened from the tmux pill), docked across the top,
             above the trigger/plan/workflow strips in subHeaderContent.
             INSIDE the header on purpose: headerHeight's ResizeObserver counts
             it, so the sticky prompt card, files-changed pill and jump toast
             all anchor below the terminal — including live during a resize
             drag. */}
-        {conversation && !guest && (
-          <ErrorBoundary name="ConversationTerminal" level="inline" fallback={null}>
-            <Suspense fallback={null}>
-              <ConversationTerminalSplit convKey={conversation._id.toString()} tmuxSession={managedSession?.tmux_session} />
-            </Suspense>
-            <BrowserWatchSplit convKey={conversation._id.toString()} sessionUuid={managedSession?.session_id} tmuxSession={managedSession?.tmux_session} lastPage={lastBrowserPage} />
-          </ErrorBoundary>
-        )}
-        {/* What this session belongs to, on one row: the task it owns (the
+                                    {conversation && !guest && (
+                                      <ErrorBoundary
+                                        name="ConversationTerminal"
+                                        level="inline"
+                                        fallback={null}
+                                      >
+                                        <Suspense fallback={null}>
+                                          <ConversationTerminalSplit
+                                            convKey={conversation._id.toString()}
+                                            tmuxSession={
+                                              managedSession?.tmux_session
+                                            }
+                                          />
+                                        </Suspense>
+                                        <BrowserWatchSplit
+                                          convKey={conversation._id.toString()}
+                                          sessionUuid={
+                                            managedSession?.session_id
+                                          }
+                                          tmuxSession={
+                                            managedSession?.tmux_session
+                                          }
+                                          lastPage={lastBrowserPage}
+                                        />
+                                      </ErrorBoundary>
+                                    )}
+                                    {/* What this session belongs to, on one row: the task it owns (the
             task page carries this session the same way, so each face holds
             the other), then the trigger, plan and workflow strips in
             subHeaderContent. */}
-        <ContextRail>
-          {conversation && !guest && (conversation as any).active_task && (
-            <TaskContextPanel task={(conversation as any).active_task} sessionId={conversation._id.toString()} />
-          )}
-          {subHeaderContent}
-        </ContextRail>
-        {/* Unacked handoff strip. Lives INSIDE the header so headerHeight's
+                                    <ContextRail>
+                                      {conversation &&
+                                        !guest &&
+                                        (conversation as any).active_task && (
+                                          <TaskContextPanel
+                                            task={
+                                              (conversation as any).active_task
+                                            }
+                                            sessionId={conversation._id.toString()}
+                                          />
+                                        )}
+                                      {subHeaderContent}
+                                    </ContextRail>
+                                    {/* Unacked handoff strip. Lives INSIDE the header so headerHeight's
             ResizeObserver counts it and the sticky-message overlay (anchored at
             top: headerHeight) lands below instead of covering it. */}
-        {conversation && !guest && <AssignedToYouBanner conversationId={conversation._id.toString()} />}
-      </ConversationHeaderBar>
+                                    {conversation && !guest && (
+                                      <AssignedToYouBanner
+                                        conversationId={conversation._id.toString()}
+                                      />
+                                    )}
+                                  </ConversationHeaderBar>
 
-      {askOpen && !guest && conversation?._id && (
-        <AskSessionPanel
-          conversationId={String(conversation._id)}
-          top={headerHeight}
-          inputRef={askInputRef}
-          onCite={(messageId) => openSessionAtMessage(String(conversation._id), messageId)}
-          onClose={closeAskPanel}
-        />
-      )}
+                                  {askOpen && !guest && conversation?._id && (
+                                    <AskSessionPanel
+                                      conversationId={String(conversation._id)}
+                                      top={headerHeight}
+                                      inputRef={askInputRef}
+                                      onCite={(messageId) =>
+                                        openSessionAtMessage(
+                                          String(conversation._id),
+                                          messageId,
+                                        )
+                                      }
+                                      onClose={closeAskPanel}
+                                    />
+                                  )}
 
-      {showSticky && activeStickyMsg && (
-        <div
-          ref={stickyElRef}
-          className="absolute left-0 right-0 z-[15] px-2 sm:px-3 md:px-4 pt-1 cursor-pointer"
-          style={{ top: headerHeight }}
-          onClick={() => {
-            if (activeStickyMsg.index >= 0) {
-              virtualizer.scrollToIndex(activeStickyMsg.index, { align: 'start' });
-            } else if (activeStickyMsg.id && activeStickyMsg.id !== '__fallback__' && conversation?._id) {
-              useInboxStore.getState().requestNavigate(conversation._id, { scrollToMessageId: activeStickyMsg.id });
-            } else if (onJumpToStart) {
-              jumpDirectionRef.current = 'start';
-              setJumpPending('start');
-              onJumpToStart();
-            }
-          }}
-        >
-          <div className="conv-col mx-auto">
-            <div data-sv-sticky className="bg-[color-mix(in_srgb,var(--sol-blue)_10%,var(--sol-bg))] px-4 py-3 rounded-b-lg border border-sol-blue/30 shadow-lg relative group">
-              <div data-sv-sticky-tools className="absolute top-1.5 right-1.5 flex items-center gap-0.5">
-                {(stickyClamped || stickyExpanded) && (
-                  <button
-                    className="p-0.5 rounded hover:bg-sol-blue/20 text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-                    title={stickyExpanded ? "Collapse" : "Show full message"}
-                    aria-label={stickyExpanded ? "Collapse" : "Show full message"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setStickyExpanded(v => !v);
-                    }}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stickyExpanded ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
-                    </svg>
-                  </button>
-                )}
-                <button
-                  className="p-0.5 rounded hover:bg-sol-blue/20 text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-                  title="Dismiss"
-                  aria-label="Dismiss"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    dismissedStickyIdsRef.current.add(activeStickyMsg!.id);
-                    setStickyMsgVisible(false);
-                    setActiveStickyMsg(null);
-                  }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div data-sv-sticky-who className="flex items-center gap-2 mb-1">
-                {(() => {
-                  const kind = userMsgKindMap.get(activeStickyMsg.id);
-                  if (kind?.kind === "session_message") {
-                    // A subagent's report names an agent, not a session — a pill would
-                    // resolve nothing, so it keeps the badge the card gives it.
-                    if (kind.variant === "agent") {
-                      return <><Bot className="w-4 h-4 text-sol-violet" /><span className="text-sol-violet text-xs">Report from</span><span className={`px-1.5 py-0.5 rounded border text-meta font-mono ${agentColorMap.purple}`}>{kind.from}</span></>;
-                    }
-                    return <><CornerDownRight className="w-4 h-4 text-sol-cyan" /><span className="text-sol-cyan text-xs">Message from</span><EntityIdPill shortId={kind.from} /></>;
-                  }
-                  // A workflow agent's brief came from the script, not the person.
-                  if (kind?.kind === "workflow_frame") {
-                    return <><Workflow className="w-4 h-4 text-sol-cyan" /><span className="text-sol-cyan text-xs">{kind.frame === "user request" ? "Request" : "Workflow task"}</span></>;
-                  }
-                  const stickySender = resolveMessageSender({ fromUserId: activeStickyMsg.fromUserId ? String(activeStickyMsg.fromUserId) : undefined, wireFrom: kind?.kind === "direct_user" ? kind.from : undefined }, senderContext);
-                  return (
-                    <>
-                      <UserIcon avatarUrl={stickySender.image} />
-                      <span className="text-sol-blue text-xs font-medium">{stickySender.name}</span>
-                    </>
-                  );
-                })()}
-              </div>
-              <div data-sv-sticky-body className="pl-8 pr-4">
-                {stickyCmd && <SlashCommandChip cmdName={stickyCmd.cmdName} className={stickyCmd.args ? "mb-1.5" : ""} />}
-                {(!stickyCmd || stickyCmd.args) && <MessagePromptPreview
-                  content={stickyCmd ? stickyCmd.args : cleanStickyContent(activeStickyMsg.content)}
-                  images={stickyImages}
-                  messageId={activeStickyMsg.id && activeStickyMsg.id !== '__fallback__' ? activeStickyMsg.id : undefined}
-                  variant="sticky"
-                  compactQuotes={!stickyExpanded}
-                  textRef={stickyTextRef}
-                  textClassName={`text-sm text-sol-text whitespace-pre-wrap ${stickyExpanded ? "max-h-[50vh] overflow-y-auto cursor-auto select-text" : "line-clamp-3"}`}
-                  onTextClick={stickyExpanded ? (e) => e.stopPropagation() : undefined}
-                />}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                                  {showSticky && activeStickyMsg && (
+                                    <div
+                                      ref={stickyElRef}
+                                      className="absolute left-0 right-0 z-[15] px-2 sm:px-3 md:px-4 pt-1 cursor-pointer"
+                                      style={{ top: headerHeight }}
+                                      onClick={() => {
+                                        if (activeStickyMsg.index >= 0) {
+                                          virtualizer.scrollToIndex(
+                                            activeStickyMsg.index,
+                                            { align: "start" },
+                                          );
+                                        } else if (
+                                          activeStickyMsg.id &&
+                                          activeStickyMsg.id !==
+                                            "__fallback__" &&
+                                          conversation?._id
+                                        ) {
+                                          useInboxStore
+                                            .getState()
+                                            .requestNavigate(conversation._id, {
+                                              scrollToMessageId:
+                                                activeStickyMsg.id,
+                                            });
+                                        } else if (onJumpToStart) {
+                                          jumpDirectionRef.current = "start";
+                                          setJumpPending("start");
+                                          onJumpToStart();
+                                        }
+                                      }}
+                                    >
+                                      <div className="conv-col mx-auto">
+                                        <div
+                                          data-sv-sticky
+                                          className="bg-[color-mix(in_srgb,var(--sol-blue)_10%,var(--sol-bg))] px-4 py-3 rounded-b-lg border border-sol-blue/30 shadow-lg relative group"
+                                        >
+                                          <div
+                                            data-sv-sticky-tools
+                                            className="absolute top-1.5 right-1.5 flex items-center gap-0.5"
+                                          >
+                                            {(stickyClamped ||
+                                              stickyExpanded) && (
+                                              <button
+                                                className="p-0.5 rounded hover:bg-sol-blue/20 text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                                                title={
+                                                  stickyExpanded
+                                                    ? "Collapse"
+                                                    : "Show full message"
+                                                }
+                                                aria-label={
+                                                  stickyExpanded
+                                                    ? "Collapse"
+                                                    : "Show full message"
+                                                }
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setStickyExpanded((v) => !v);
+                                                }}
+                                              >
+                                                <svg
+                                                  className="w-3.5 h-3.5"
+                                                  fill="none"
+                                                  viewBox="0 0 24 24"
+                                                  stroke="currentColor"
+                                                >
+                                                  <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d={
+                                                      stickyExpanded
+                                                        ? "M5 15l7-7 7 7"
+                                                        : "M19 9l-7 7-7-7"
+                                                    }
+                                                  />
+                                                </svg>
+                                              </button>
+                                            )}
+                                            <button
+                                              className="p-0.5 rounded hover:bg-sol-blue/20 text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                                              title="Dismiss"
+                                              aria-label="Dismiss"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                dismissedStickyIdsRef.current.add(
+                                                  activeStickyMsg!.id,
+                                                );
+                                                setStickyMsgVisible(false);
+                                                setActiveStickyMsg(null);
+                                              }}
+                                            >
+                                              <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M6 18L18 6M6 6l12 12"
+                                                />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                          <div
+                                            data-sv-sticky-who
+                                            className="flex items-center gap-2 mb-1"
+                                          >
+                                            {(() => {
+                                              const kind = userMsgKindMap.get(
+                                                activeStickyMsg.id,
+                                              );
+                                              if (
+                                                kind?.kind === "session_message"
+                                              ) {
+                                                // A subagent's report names an agent, not a session — a pill would
+                                                // resolve nothing, so it keeps the badge the card gives it.
+                                                if (kind.variant === "agent") {
+                                                  return (
+                                                    <>
+                                                      <Bot className="w-4 h-4 text-sol-violet" />
+                                                      <span className="text-sol-violet text-xs">
+                                                        Report from
+                                                      </span>
+                                                      <span
+                                                        className={`px-1.5 py-0.5 rounded border text-meta font-mono ${agentColorMap.purple}`}
+                                                      >
+                                                        {kind.from}
+                                                      </span>
+                                                    </>
+                                                  );
+                                                }
+                                                return (
+                                                  <>
+                                                    <CornerDownRight className="w-4 h-4 text-sol-cyan" />
+                                                    <span className="text-sol-cyan text-xs">
+                                                      Message from
+                                                    </span>
+                                                    <EntityIdPill
+                                                      shortId={kind.from}
+                                                    />
+                                                  </>
+                                                );
+                                              }
+                                              // A workflow agent's brief came from the script, not the person.
+                                              if (
+                                                kind?.kind === "workflow_frame"
+                                              ) {
+                                                return (
+                                                  <>
+                                                    <Workflow className="w-4 h-4 text-sol-cyan" />
+                                                    <span className="text-sol-cyan text-xs">
+                                                      {kind.frame ===
+                                                      "user request"
+                                                        ? "Request"
+                                                        : "Workflow task"}
+                                                    </span>
+                                                  </>
+                                                );
+                                              }
+                                              const stickySender =
+                                                resolveMessageSender(
+                                                  {
+                                                    fromUserId:
+                                                      activeStickyMsg.fromUserId
+                                                        ? String(
+                                                            activeStickyMsg.fromUserId,
+                                                          )
+                                                        : undefined,
+                                                    wireFrom:
+                                                      kind?.kind ===
+                                                      "direct_user"
+                                                        ? kind.from
+                                                        : undefined,
+                                                  },
+                                                  senderContext,
+                                                );
+                                              return (
+                                                <>
+                                                  <UserIcon
+                                                    avatarUrl={
+                                                      stickySender.image
+                                                    }
+                                                  />
+                                                  <span className="text-sol-blue text-xs font-medium">
+                                                    {stickySender.name}
+                                                  </span>
+                                                </>
+                                              );
+                                            })()}
+                                          </div>
+                                          <div
+                                            data-sv-sticky-body
+                                            className="pl-8 pr-4"
+                                          >
+                                            {stickyCmd && (
+                                              <SlashCommandChip
+                                                cmdName={stickyCmd.cmdName}
+                                                className={
+                                                  stickyCmd.args ? "mb-1.5" : ""
+                                                }
+                                              />
+                                            )}
+                                            {(!stickyCmd || stickyCmd.args) && (
+                                              <MessagePromptPreview
+                                                content={
+                                                  stickyCmd
+                                                    ? stickyCmd.args
+                                                    : cleanStickyContent(
+                                                        activeStickyMsg.content,
+                                                      )
+                                                }
+                                                images={stickyImages}
+                                                messageId={
+                                                  activeStickyMsg.id &&
+                                                  activeStickyMsg.id !==
+                                                    "__fallback__"
+                                                    ? activeStickyMsg.id
+                                                    : undefined
+                                                }
+                                                variant="sticky"
+                                                compactQuotes={!stickyExpanded}
+                                                textRef={stickyTextRef}
+                                                textClassName={`text-sm text-sol-text whitespace-pre-wrap ${stickyExpanded ? "max-h-[50vh] overflow-y-auto cursor-auto select-text" : "line-clamp-3"}`}
+                                                onTextClick={
+                                                  stickyExpanded
+                                                    ? (e) => e.stopPropagation()
+                                                    : undefined
+                                                }
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
 
-      {diffExpanded && gitDiffData && (gitDiffData.git_diff?.trim() || gitDiffData.git_diff_staged?.trim()) && (
-        <GitDiffPanel
-          gitDiff={gitDiffData.git_diff}
-          gitDiffStaged={gitDiffData.git_diff_staged}
-        />
-      )}
+                                  {diffExpanded &&
+                                    gitDiffData &&
+                                    (gitDiffData.git_diff?.trim() ||
+                                      gitDiffData.git_diff_staged?.trim()) && (
+                                      <GitDiffPanel
+                                        gitDiff={gitDiffData.git_diff}
+                                        gitDiffStaged={
+                                          gitDiffData.git_diff_staged
+                                        }
+                                      />
+                                    )}
 
-      {/* A pinned lead (the scope page's introduction) sits above the feed, in
+                                  {/* A pinned lead (the scope page's introduction) sits above the feed, in
           view however far the feed is scrolled; the chronological lead (the
           proposal letter) stays inside it at the transcript's start. */}
-      {leadNode && leadPinned && <div className="shrink-0 border-b" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 22%, transparent)" }} data-lead-pinned>{leadNode}</div>}
-      {/* Open proposals this session posted, pinned over the transcript wherever the thread is opened. A pinned lead (the org drawer's set) already shows them. */}
-      {conversation && !guest && !(leadNode && leadPinned) && (
-        <ErrorBoundary name="ThreadSuggestions" level="inline" fallback={null}>
-          <ThreadSuggestions conversationId={conversation._id.toString()} />
-        </ErrorBoundary>
-      )}
-      <div className={`flex-1 min-h-0 relative flex ${isImageLightboxActive ? "invisible" : ""}`}>
-      {(isJumpingToTarget || (targetMessageId && timeline.length === 0)) && (
-        <div
-          className="absolute inset-x-0 z-20 flex justify-center pt-3 sm:pt-4 pointer-events-none"
-          style={{
-            top: showSticky ? stickyHeightRef.current + 4 : 0,
-            animation: "fadeIn 150ms ease-out",
-          }}
-        >
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-sol-cyan/15 text-sol-cyan border border-sol-cyan/30 backdrop-blur-md text-xs font-medium shadow-md">
-            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            Jumping to message...
-          </div>
-        </div>
-      )}
-      {conversation && density !== "story" && density !== "summary" && (
-        <ReviewScrollIndicators
-          conversationId={conversation._id}
-          scrollRef={containerRef}
-          messageIds={timelineMessageIds}
-          virtualizer={virtualizer}
-          topInset={showSticky ? stickyHeightRef.current : 0}
-        />
-      )}
-      <div ref={containerRef} data-sv-feed data-cc-density={feedDensity} className="flex-1 min-h-0 overflow-y-auto" style={{ overflowAnchor: "none" }}>
-        <div className="flex flex-col min-h-full">
-        {conversation && timeline.length === 0 && leadNode && !leadPinned ? (
-          <div className="flex-1">{leadNode}</div>
-        ) : (!conversation || timeline.length === 0) ? (
-          <div className={`flex-1 flex flex-col items-center gap-3 ${newSessionPage ? "justify-end pt-6 pb-5" : hideHeader ? "justify-start pt-6" : "justify-start pt-16"}`}>
-            {conversation && (
-              (conversation as any).content_access === "summary" ? (
-                <SummaryOnlyState conversation={conversation as any} />
-              ) : (conversation.fork_status === "copying" || (conversation.message_count ?? 0) > 0) ? (
-                <MessagesUnavailableState
-                  messageCount={conversation.message_count ?? 0}
-                  forkStatus={conversation.fork_status}
-                  forkCopied={conversation.fork_copied}
-                  forkTotal={conversation.fork_copy_total}
-                />
-              ) : isOwner ? (
-                <NewSessionView
-                  conversation={conversation}
-                  slots={newSessionPage ? { foot: newSessionFootSlot, below: newSessionBelowSlot } : undefined}
-                  role={newSessionPage ? { picked: roleSend.recipient, onPick: roleSend.setRecipient, onDone: () => { focusComposer(); } } : undefined}
-                  agentControls={{
-                    showWorkflow,
-                    onToggleWorkflow: () => setShowWorkflow((v) => !v),
-                    selectedWorkflowId,
-                    onSelectWorkflow: setSelectedWorkflowId,
-                    workflows: workflows as any,
-                  }}
-                />
-              ) : (
-                // Starting a session is the owner's: a teammate or a share-link
-                // guest sees that nothing has happened yet, not the picker.
-                <p className="text-sm text-sol-text-dim">No messages yet.</p>
-              )
-            )}
-          </div>
-        ) : (
-          <>
-          {/* Where the session came from and what it was briefed with are
+                                  {leadNode && leadPinned && (
+                                    <div
+                                      className="shrink-0 border-b"
+                                      style={{
+                                        borderColor:
+                                          "color-mix(in srgb, var(--sol-border) 22%, transparent)",
+                                      }}
+                                      data-lead-pinned
+                                    >
+                                      {leadNode}
+                                    </div>
+                                  )}
+                                  {/* Open proposals this session posted, pinned over the transcript wherever the thread is opened. A pinned lead (the org drawer's set) already shows them. */}
+                                  {conversation &&
+                                    !guest &&
+                                    !(leadNode && leadPinned) && (
+                                      <ErrorBoundary
+                                        name="ThreadSuggestions"
+                                        level="inline"
+                                        fallback={null}
+                                      >
+                                        <ThreadSuggestions
+                                          conversationId={conversation._id.toString()}
+                                        />
+                                      </ErrorBoundary>
+                                    )}
+                                  <div
+                                    className={`flex-1 min-h-0 relative flex ${isImageLightboxActive ? "invisible" : ""}`}
+                                  >
+                                    {(isJumpingToTarget ||
+                                      (targetMessageId &&
+                                        timeline.length === 0)) && (
+                                      <div
+                                        className="absolute inset-x-0 z-20 flex justify-center pt-3 sm:pt-4 pointer-events-none"
+                                        style={{
+                                          top: showSticky
+                                            ? stickyHeightRef.current + 4
+                                            : 0,
+                                          animation: "fadeIn 150ms ease-out",
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-sol-cyan/15 text-sol-cyan border border-sol-cyan/30 backdrop-blur-md text-xs font-medium shadow-md">
+                                          <svg
+                                            className="w-3.5 h-3.5 animate-spin"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            />
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            />
+                                          </svg>
+                                          Jumping to message...
+                                        </div>
+                                      </div>
+                                    )}
+                                    {conversation &&
+                                      density !== "story" &&
+                                      density !== "summary" && (
+                                        <ReviewScrollIndicators
+                                          conversationId={conversation._id}
+                                          scrollRef={containerRef}
+                                          messageIds={timelineMessageIds}
+                                          virtualizer={virtualizer}
+                                          topInset={
+                                            showSticky
+                                              ? stickyHeightRef.current
+                                              : 0
+                                          }
+                                        />
+                                      )}
+                                    <div
+                                      ref={containerRef}
+                                      data-sv-feed
+                                      data-cc-density={feedDensity}
+                                      className="flex-1 min-h-0 overflow-y-auto"
+                                      style={{ overflowAnchor: "none" }}
+                                    >
+                                      <div className="flex flex-col min-h-full">
+                                        {conversation &&
+                                        timeline.length === 0 &&
+                                        leadNode &&
+                                        !leadPinned ? (
+                                          <div className="flex-1">
+                                            {leadNode}
+                                          </div>
+                                        ) : !conversation ||
+                                          timeline.length === 0 ? (
+                                          <div
+                                            className={`flex-1 flex flex-col items-center gap-3 ${newSessionPage ? "justify-end pt-6 pb-5" : hideHeader ? "justify-start pt-6" : "justify-start pt-16"}`}
+                                          >
+                                            {conversation &&
+                                              ((conversation as any)
+                                                .content_access ===
+                                              "summary" ? (
+                                                <SummaryOnlyState
+                                                  conversation={
+                                                    conversation as any
+                                                  }
+                                                />
+                                              ) : conversation.fork_status ===
+                                                  "copying" ||
+                                                (conversation.message_count ??
+                                                  0) > 0 ? (
+                                                <MessagesUnavailableState
+                                                  messageCount={
+                                                    conversation.message_count ??
+                                                    0
+                                                  }
+                                                  forkStatus={
+                                                    conversation.fork_status
+                                                  }
+                                                  forkCopied={
+                                                    conversation.fork_copied
+                                                  }
+                                                  forkTotal={
+                                                    conversation.fork_copy_total
+                                                  }
+                                                />
+                                              ) : isOwner ? (
+                                                <NewSessionView
+                                                  conversation={conversation}
+                                                  slots={
+                                                    newSessionPage
+                                                      ? {
+                                                          foot: newSessionFootSlot,
+                                                          below:
+                                                            newSessionBelowSlot,
+                                                        }
+                                                      : undefined
+                                                  }
+                                                  role={
+                                                    newSessionPage
+                                                      ? {
+                                                          picked:
+                                                            roleSend.recipient,
+                                                          onPick:
+                                                            roleSend.setRecipient,
+                                                          onDone: () => {
+                                                            focusComposer();
+                                                          },
+                                                        }
+                                                      : undefined
+                                                  }
+                                                  agentControls={{
+                                                    showWorkflow,
+                                                    onToggleWorkflow: () =>
+                                                      setShowWorkflow(
+                                                        (v) => !v,
+                                                      ),
+                                                    selectedWorkflowId,
+                                                    onSelectWorkflow:
+                                                      setSelectedWorkflowId,
+                                                    workflows: workflows as any,
+                                                  }}
+                                                />
+                                              ) : (
+                                                // Starting a session is the owner's: a teammate or a share-link
+                                                // guest sees that nothing has happened yet, not the picker.
+                                                <p className="text-sm text-sol-text-dim">
+                                                  No messages yet.
+                                                </p>
+                                              ))}
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {/* Where the session came from and what it was briefed with are
               machine context: fold mode (foldWorkingTurns) renders none of it. */}
-          {conversation?.parent_conversation_id && !hasMoreAbove && !foldWorkingTurns && (
-            <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-2 pb-1">
-              <Link
-                href={convLink(conversation.parent_conversation_id)}
-                className="inline-flex items-center gap-1.5 text-xs text-sol-cyan/70 hover:text-sol-cyan transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                </svg>
-                Spawned from parent session
-              </Link>
-            </div>
-          )}
-          {conversation?.fork_status === "copying" && (
-            <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-2 pb-1">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-sol-cyan/10 border border-sol-cyan/30 text-sol-cyan text-meta">
-                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <span className="tabular-nums">
-                  Copying messages from parent
-                  {conversation.fork_copy_total
-                    ? ` · ${(conversation.fork_copied ?? 0).toLocaleString()} / ${conversation.fork_copy_total.toLocaleString()}`
-                    : ` · ${(conversation.fork_copied ?? 0).toLocaleString()} copied`}
-                </span>
-              </div>
-            </div>
-          )}
-          {/* Context the session was started with — anchored to the transcript
+                                            {conversation?.parent_conversation_id &&
+                                              !hasMoreAbove &&
+                                              !foldWorkingTurns && (
+                                                <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-2 pb-1">
+                                                  <Link
+                                                    href={convLink(
+                                                      conversation.parent_conversation_id,
+                                                    )}
+                                                    className="inline-flex items-center gap-1.5 text-xs text-sol-cyan/70 hover:text-sol-cyan transition-colors"
+                                                  >
+                                                    <svg
+                                                      className="w-3 h-3"
+                                                      fill="none"
+                                                      viewBox="0 0 24 24"
+                                                      stroke="currentColor"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                                                      />
+                                                    </svg>
+                                                    Spawned from parent session
+                                                  </Link>
+                                                </div>
+                                              )}
+                                            {conversation?.fork_status ===
+                                              "copying" && (
+                                              <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-2 pb-1">
+                                                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-sol-cyan/10 border border-sol-cyan/30 text-sol-cyan text-meta">
+                                                  <svg
+                                                    className="w-3 h-3 animate-spin"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <circle
+                                                      className="opacity-25"
+                                                      cx="12"
+                                                      cy="12"
+                                                      r="10"
+                                                      stroke="currentColor"
+                                                      strokeWidth="4"
+                                                    />
+                                                    <path
+                                                      className="opacity-75"
+                                                      fill="currentColor"
+                                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                    />
+                                                  </svg>
+                                                  <span className="tabular-nums">
+                                                    Copying messages from parent
+                                                    {conversation.fork_copy_total
+                                                      ? ` · ${(conversation.fork_copied ?? 0).toLocaleString()} / ${conversation.fork_copy_total.toLocaleString()}`
+                                                      : ` · ${(conversation.fork_copied ?? 0).toLocaleString()} copied`}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            )}
+                                            {/* Context the session was started with — anchored to the transcript
               start, so only when the whole top is loaded (never floating above a
               mid-conversation window). */}
-          {conversation?.stable_context && !hasMoreAbove && !isLoadingOlder && !foldWorkingTurns && (
-            <StableContextCards stableContext={conversation.stable_context} />
-          )}
-          {leadNode && !leadPinned && !hasMoreAbove && !isLoadingOlder && leadNode}
-          {(density === "story" || density === "summary") ? (
-            <div className="conv-col mx-auto px-4 sm:px-5 md:px-6">
-              {density === "story" ? (
-                <StoryTimelineView
-                  conversationId={convexConvId}
-                  userName={conversation?.user?.name || conversation?.user?.email?.split("@")[0]}
-                  avatarUrl={conversation?.user?.avatar_url}
-                  onJump={jumpToStoryMessage}
-                />
-              ) : (
-                <ThreadSummaryView
-                  conversationId={convexConvId}
-                  userName={conversation?.user?.name || conversation?.user?.email?.split("@")[0]}
-                  avatarUrl={conversation?.user?.avatar_url}
-                  onJump={jumpToStoryMessage}
-                />
-              )}
-            </div>
-          ) : (
-          <div
-            ref={virtualizer.containerRef}
-            style={{
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {/* Earlier messages indicator at top (chevron, or spinner while loading) */}
-            {(hasMoreAbove || isLoadingOlder) && (
-              <EdgeMessagesIndicator dir="up" loading={!!isLoadingOlder}>
-                {conversation?.message_count && messages.length < conversation.message_count
-                  ? `${conversation.message_count - messages.length} earlier messages`
-                  : "Scroll up to load more"}
-              </EdgeMessagesIndicator>
-            )}
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const item = timeline[virtualItem.index];
-              if (seek.placeholder(virtualItem.key)) {
-                return (
-                  <div
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    data-vkey={String(virtualItem.key)}
-                    data-seek=""
-                    ref={virtualizer.measureElement}
-                    style={{ position: "absolute", left: 0, width: "100%", height: virtualItem.size }}
-                  />
-                );
-              }
-              const content = renderItem(item, virtualItem.index);
-              // Only once the scan is complete: pages land oldest first, so dimming
-              // earlier would grey out recent rows whose hits are not counted yet.
-              const itemId = item.type === 'message' ? (item.data as Message)._id : item.type === 'commit' ? `commit-${(item.data as any).sha || (item.data as any)._id}` : item.type === 'external_event' ? `event-${(item.data as any)._id}` : `pr-${(item.data as any)._id}`;
-              const isNew = newItemIdsRef.current.has(itemId);
-              const isToolRow = item.type === 'message' && isToolReceiptRow(item.data as Message, showThinking);
-              const isForkSelected = forkSelectionIdx !== null && forkSelectionIdx === virtualItem.index;
-              const isBelowForkSelection = forkSelectionIdx !== null && virtualItem.index > forkSelectionIdx;
-              // A row's rules draw even when the row itself renders nothing: a
-              // turn that died on a tool result ends on an empty row, and the
-              // idle stamp and trailing handoffs must not vanish with it.
-              const isTail = virtualItem.index === timeline.length - 1;
-              const showNewRule = virtualItem.index === newRuleIndex;
-              const rulesHere = handoffRulesAt(virtualItem.index);
-              // A hosted transcript never ends on a time rule: below the last
-              // reply it read as the divider of a message that never came.
-              const showIdleGap = isTail && !isHostedConv && shouldShowIdleGap({ lastActivityAt, now, hasMoreBelow: !!hasMoreBelow, agentStatus: managedSession?.agent_status });
-              const tailRules = isTail && !hasMoreBelow ? handoffRulesAt(timeline.length) : undefined;
-              const visible = !!content || showNewRule || !!rulesHere || showIdleGap || !!tailRules || (isTail && !hasMoreBelow && !!hostedTailCard);
-              return (
-                <div
-                  key={virtualItem.key}
-                  data-index={virtualItem.index}
-                  data-vkey={String(virtualItem.key)}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    width: "100%",
-                    ...(visible ? {} : { height: 0, overflow: "hidden" }),
-                  }}
-                >
-                  {visible && (
-                    <div className={`relative conv-col mx-auto px-4 sm:px-5 md:px-6 ${condensedFeed || isToolRow ? "py-px" : "py-0.5 sm:py-1"} ${isNew ? "animate-message-in" : ""} ${isForkSelected ? "ring-2 ring-sol-cyan/60 bg-sol-cyan/5 rounded-lg" : ""} ${isBelowForkSelection ? "opacity-30 pointer-events-none" : ""} transition-opacity`}>
-                      {showNewRule && (
-                        <TimelineRule color="var(--sol-orange)" label="New messages">
-                          <span className="text-mark font-semibold uppercase tracking-[0.15em] text-sol-orange">New</span>
-                        </TimelineRule>
-                      )}
-                      {rulesHere}
-                      {content && <GalleryMessageScope messageId={item.type === 'message' ? (item.data as Message)._id : undefined}>{content}</GalleryMessageScope>}
-                      {showIdleGap && (
-                        <TimelineRule color="var(--sol-border)" className="mt-5 mb-1" faint>
-                          <span className="text-meta text-sol-text-dim/60">{formatRelativeTime(lastActivityAt)}</span>
-                        </TimelineRule>
-                      )}
-                      {tailRules}
-                      {isTail && !hasMoreBelow && hostedTailCard}
-                      {item.type === 'message' && conversation && composerPresenceEnabled(conversation) && (
-                        <ReaderFaces conversationId={conversation._id.toString()} messageId={(item.data as Message)._id} />
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          )}
-          {/* Other people's drafts, live, where they will land. */}
-          {!hasMoreBelow && conversation && composerPresenceEnabled(conversation) && (
-            <div style={{ marginTop: -(VIRTUAL_PADDING_END - 16) }}><GhostDrafts conversationId={conversation._id.toString()} populate={effectiveIsOwner ? (t, o) => populateInputRef.current?.(t, o) : undefined} /></div>
-          )}
-          {/* Later pages exist only in target mode (a deep-linked window); in
+                                            {conversation?.stable_context &&
+                                              !hasMoreAbove &&
+                                              !isLoadingOlder &&
+                                              !foldWorkingTurns && (
+                                                <StableContextCards
+                                                  stableContext={
+                                                    conversation.stable_context
+                                                  }
+                                                />
+                                              )}
+                                            {leadNode &&
+                                              !leadPinned &&
+                                              !hasMoreAbove &&
+                                              !isLoadingOlder &&
+                                              leadNode}
+                                            {density === "story" ||
+                                            density === "summary" ? (
+                                              <div className="conv-col mx-auto px-4 sm:px-5 md:px-6">
+                                                {density === "story" ? (
+                                                  <StoryTimelineView
+                                                    conversationId={
+                                                      convexConvId
+                                                    }
+                                                    userName={
+                                                      conversation?.user
+                                                        ?.name ||
+                                                      conversation?.user?.email?.split(
+                                                        "@",
+                                                      )[0]
+                                                    }
+                                                    avatarUrl={
+                                                      conversation?.user
+                                                        ?.avatar_url
+                                                    }
+                                                    onJump={jumpToStoryMessage}
+                                                  />
+                                                ) : (
+                                                  <ThreadSummaryView
+                                                    conversationId={
+                                                      convexConvId
+                                                    }
+                                                    userName={
+                                                      conversation?.user
+                                                        ?.name ||
+                                                      conversation?.user?.email?.split(
+                                                        "@",
+                                                      )[0]
+                                                    }
+                                                    avatarUrl={
+                                                      conversation?.user
+                                                        ?.avatar_url
+                                                    }
+                                                    onJump={jumpToStoryMessage}
+                                                  />
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <div
+                                                ref={virtualizer.containerRef}
+                                                style={{
+                                                  width: "100%",
+                                                  position: "relative",
+                                                }}
+                                              >
+                                                {/* Earlier messages indicator at top (chevron, or spinner while loading) */}
+                                                {(hasMoreAbove ||
+                                                  isLoadingOlder) && (
+                                                  <EdgeMessagesIndicator
+                                                    dir="up"
+                                                    loading={!!isLoadingOlder}
+                                                  >
+                                                    {conversation?.message_count &&
+                                                    messages.length <
+                                                      conversation.message_count
+                                                      ? `${conversation.message_count - messages.length} earlier messages`
+                                                      : "Scroll up to load more"}
+                                                  </EdgeMessagesIndicator>
+                                                )}
+                                                {virtualizer
+                                                  .getVirtualItems()
+                                                  .map((virtualItem) => {
+                                                    const item =
+                                                      timeline[
+                                                        virtualItem.index
+                                                      ];
+                                                    if (
+                                                      seek.placeholder(
+                                                        virtualItem.key,
+                                                      )
+                                                    ) {
+                                                      return (
+                                                        <div
+                                                          key={virtualItem.key}
+                                                          data-index={
+                                                            virtualItem.index
+                                                          }
+                                                          data-vkey={String(
+                                                            virtualItem.key,
+                                                          )}
+                                                          data-seek=""
+                                                          ref={
+                                                            virtualizer.measureElement
+                                                          }
+                                                          style={{
+                                                            position:
+                                                              "absolute",
+                                                            left: 0,
+                                                            width: "100%",
+                                                            height:
+                                                              virtualItem.size,
+                                                          }}
+                                                        />
+                                                      );
+                                                    }
+                                                    const content = renderItem(
+                                                      item,
+                                                      virtualItem.index,
+                                                    );
+                                                    // Only once the scan is complete: pages land oldest first, so dimming
+                                                    // earlier would grey out recent rows whose hits are not counted yet.
+                                                    const itemId =
+                                                      item.type === "message"
+                                                        ? (item.data as Message)
+                                                            ._id
+                                                        : item.type === "commit"
+                                                          ? `commit-${(item.data as any).sha || (item.data as any)._id}`
+                                                          : item.type ===
+                                                              "external_event"
+                                                            ? `event-${(item.data as any)._id}`
+                                                            : `pr-${(item.data as any)._id}`;
+                                                    const isNew =
+                                                      newItemIdsRef.current.has(
+                                                        itemId,
+                                                      );
+                                                    const isToolRow =
+                                                      item.type === "message" &&
+                                                      isToolReceiptRow(
+                                                        item.data as Message,
+                                                        showThinking,
+                                                      );
+                                                    const isForkSelected =
+                                                      forkSelectionIdx !==
+                                                        null &&
+                                                      forkSelectionIdx ===
+                                                        virtualItem.index;
+                                                    const isBelowForkSelection =
+                                                      forkSelectionIdx !==
+                                                        null &&
+                                                      virtualItem.index >
+                                                        forkSelectionIdx;
+                                                    // A row's rules draw even when the row itself renders nothing: a
+                                                    // turn that died on a tool result ends on an empty row, and the
+                                                    // idle stamp and trailing handoffs must not vanish with it.
+                                                    const isTail =
+                                                      virtualItem.index ===
+                                                      timeline.length - 1;
+                                                    const showNewRule =
+                                                      virtualItem.index ===
+                                                      newRuleIndex;
+                                                    const rulesHere =
+                                                      handoffRulesAt(
+                                                        virtualItem.index,
+                                                      );
+                                                    // A hosted transcript never ends on a time rule: below the last
+                                                    // reply it read as the divider of a message that never came.
+                                                    const showIdleGap =
+                                                      isTail &&
+                                                      !isHostedConv &&
+                                                      shouldShowIdleGap({
+                                                        lastActivityAt,
+                                                        now,
+                                                        hasMoreBelow:
+                                                          !!hasMoreBelow,
+                                                        agentStatus:
+                                                          managedSession?.agent_status,
+                                                      });
+                                                    const tailRules =
+                                                      isTail && !hasMoreBelow
+                                                        ? handoffRulesAt(
+                                                            timeline.length,
+                                                          )
+                                                        : undefined;
+                                                    const visible =
+                                                      !!content ||
+                                                      showNewRule ||
+                                                      !!rulesHere ||
+                                                      showIdleGap ||
+                                                      !!tailRules ||
+                                                      (isTail &&
+                                                        !hasMoreBelow &&
+                                                        !!hostedTailCard);
+                                                    return (
+                                                      <div
+                                                        key={virtualItem.key}
+                                                        data-index={
+                                                          virtualItem.index
+                                                        }
+                                                        data-vkey={String(
+                                                          virtualItem.key,
+                                                        )}
+                                                        ref={
+                                                          virtualizer.measureElement
+                                                        }
+                                                        style={{
+                                                          position: "absolute",
+                                                          left: 0,
+                                                          width: "100%",
+                                                          ...(visible
+                                                            ? {}
+                                                            : {
+                                                                height: 0,
+                                                                overflow:
+                                                                  "hidden",
+                                                              }),
+                                                        }}
+                                                      >
+                                                        {visible && (
+                                                          <div
+                                                            className={`relative conv-col mx-auto px-4 sm:px-5 md:px-6 ${condensedFeed || isToolRow ? "py-px" : "py-0.5 sm:py-1"} ${isNew ? "animate-message-in" : ""} ${isForkSelected ? "ring-2 ring-sol-cyan/60 bg-sol-cyan/5 rounded-lg" : ""} ${isBelowForkSelection ? "opacity-30 pointer-events-none" : ""} transition-opacity`}
+                                                          >
+                                                            {showNewRule && (
+                                                              <TimelineRule
+                                                                color="var(--sol-orange)"
+                                                                label="New messages"
+                                                              >
+                                                                <span className="text-mark font-semibold uppercase tracking-[0.15em] text-sol-orange">
+                                                                  New
+                                                                </span>
+                                                              </TimelineRule>
+                                                            )}
+                                                            {rulesHere}
+                                                            {content && (
+                                                              <GalleryMessageScope
+                                                                messageId={
+                                                                  item.type ===
+                                                                  "message"
+                                                                    ? (
+                                                                        item.data as Message
+                                                                      )._id
+                                                                    : undefined
+                                                                }
+                                                              >
+                                                                {content}
+                                                              </GalleryMessageScope>
+                                                            )}
+                                                            {showIdleGap && (
+                                                              <TimelineRule
+                                                                color="var(--sol-border)"
+                                                                className="mt-5 mb-1"
+                                                                faint
+                                                              >
+                                                                <span className="text-meta text-sol-text-dim/60">
+                                                                  {formatRelativeTime(
+                                                                    lastActivityAt,
+                                                                  )}
+                                                                </span>
+                                                              </TimelineRule>
+                                                            )}
+                                                            {tailRules}
+                                                            {isTail &&
+                                                              !hasMoreBelow &&
+                                                              hostedTailCard}
+                                                            {item.type ===
+                                                              "message" &&
+                                                              conversation &&
+                                                              composerPresenceEnabled(
+                                                                conversation,
+                                                              ) && (
+                                                                <ReaderFaces
+                                                                  conversationId={conversation._id.toString()}
+                                                                  messageId={
+                                                                    (
+                                                                      item.data as Message
+                                                                    )._id
+                                                                  }
+                                                                />
+                                                              )}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                              </div>
+                                            )}
+                                            {/* Other people's drafts, live, where they will land. */}
+                                            {!hasMoreBelow &&
+                                              conversation &&
+                                              composerPresenceEnabled(
+                                                conversation,
+                                              ) && (
+                                                <div
+                                                  style={{
+                                                    marginTop: -(
+                                                      VIRTUAL_PADDING_END - 16
+                                                    ),
+                                                  }}
+                                                >
+                                                  <GhostDrafts
+                                                    conversationId={conversation._id.toString()}
+                                                    populate={
+                                                      effectiveIsOwner
+                                                        ? (t, o) =>
+                                                            populateInputRef.current?.(
+                                                              t,
+                                                              o,
+                                                            )
+                                                        : undefined
+                                                    }
+                                                  />
+                                                </div>
+                                              )}
+                                            {/* Later pages exist only in target mode (a deep-linked window); in
               normal mode hasMoreBelow is always false, so the first-page load
               that lights isLoadingNewer never shows this. */}
-          {hasMoreBelow && (
-            <div className="conv-col w-full mx-auto px-4 sm:px-5 md:px-6">
-              <ThreadTailLoader loading={!!isLoadingNewer} />
-            </div>
-          )}
-          {handedOffTo && !hasMoreBelow && (
-            <div className="conv-col mx-auto px-4 sm:px-5 md:px-6">
-              <SessionHandoffNotice details={handedOffTo} convLink={convLink} navigateToSession={navigateToSession} />
-            </div>
-          )}
-          {continuationChildren.length > 0 && !hasMoreBelow && (() => {
-            return (
-              <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-3 pb-8">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-mark text-sol-text-secondary uppercase tracking-wider font-medium">Continued in</span>
-                  {continuationChildren.map((child) => (
-                    <Link
-                      key={child._id}
-                      href={convLink(child._id)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-sol-cyan/15 text-sol-text-secondary border border-sol-cyan/30 hover:bg-sol-cyan/25 hover:text-sol-text transition-colors max-w-[400px]"
-                    >
-                      <svg className="w-2.5 h-2.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                      <span className="truncate min-w-0">{child.title}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-          </>
-        )}
+                                            {hasMoreBelow && (
+                                              <div className="conv-col w-full mx-auto px-4 sm:px-5 md:px-6">
+                                                <ThreadTailLoader
+                                                  loading={!!isLoadingNewer}
+                                                />
+                                              </div>
+                                            )}
+                                            {handedOffTo && !hasMoreBelow && (
+                                              <div className="conv-col mx-auto px-4 sm:px-5 md:px-6">
+                                                <SessionHandoffNotice
+                                                  details={handedOffTo}
+                                                  convLink={convLink}
+                                                  navigateToSession={
+                                                    navigateToSession
+                                                  }
+                                                />
+                                              </div>
+                                            )}
+                                            {continuationChildren.length > 0 &&
+                                              !hasMoreBelow &&
+                                              (() => {
+                                                return (
+                                                  <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 pt-3 pb-8">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      <span className="text-mark text-sol-text-secondary uppercase tracking-wider font-medium">
+                                                        Continued in
+                                                      </span>
+                                                      {continuationChildren.map(
+                                                        (child) => (
+                                                          <Link
+                                                            key={child._id}
+                                                            href={convLink(
+                                                              child._id,
+                                                            )}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-sol-cyan/15 text-sol-text-secondary border border-sol-cyan/30 hover:bg-sol-cyan/25 hover:text-sol-text transition-colors max-w-[400px]"
+                                                          >
+                                                            <svg
+                                                              className="w-2.5 h-2.5 flex-shrink-0"
+                                                              fill="none"
+                                                              viewBox="0 0 24 24"
+                                                              stroke="currentColor"
+                                                            >
+                                                              <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                                              />
+                                                            </svg>
+                                                            <span className="truncate min-w-0">
+                                                              {child.title}
+                                                            </span>
+                                                          </Link>
+                                                        ),
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })()}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
 
-        </div>
-      </div>
-
-      {/* The branch map renders in-flow above the message input (see the
+                                    {/* The branch map renders in-flow above the message input (see the
           composer block below) so it matches the input's width and reads as one
           piece. This fixed fallback only covers the rare case where there is no
           composer to anchor to (owner with a permission prompt instead). */}
-      {conversation && treePopoverOpen && !(showMessageInput && !permissionsHoldComposer) && (
-        <ForkMapFallback
-          conversation={conversation}
-          conversationId={conversation._id.toString()}
-          currentBranchId={conversation._id.toString()}
-          open={treePopoverOpen}
-          initialDrillId={mapDrill}
-          onClose={closeMap}
-          onSwitchToConversation={handleTreeSwitchConversation}
-          onForkFromBranch={handleForkFromBranch}
-          forkAnyMessage={forkAnyMessage}
-          onRewindCurrent={handleRewindCurrent}
-        />
-      )}
+                                    {conversation &&
+                                      treePopoverOpen &&
+                                      !(
+                                        showMessageInput &&
+                                        !permissionsHoldComposer
+                                      ) && (
+                                        <ForkMapFallback
+                                          conversation={conversation}
+                                          conversationId={conversation._id.toString()}
+                                          currentBranchId={conversation._id.toString()}
+                                          open={treePopoverOpen}
+                                          initialDrillId={mapDrill}
+                                          onClose={closeMap}
+                                          onSwitchToConversation={
+                                            handleTreeSwitchConversation
+                                          }
+                                          onForkFromBranch={
+                                            handleForkFromBranch
+                                          }
+                                          forkAnyMessage={forkAnyMessage}
+                                          onRewindCurrent={handleRewindCurrent}
+                                        />
+                                      )}
+                                  </div>
 
-      </div>
-
-      {/* The pinned thread state belongs under the composer's status line
+                                  {/* The pinned thread state belongs under the composer's status line
           (threadStateNode on MessageInput below). When the owner composer is
           not mounted — a permission prompt owns the input, or a non-owner is
           reading — it sits here between the feed and whatever replaces the
           composer, outside data-sv-feed so it can't perturb the virtualizer.
           It renders nothing when the agent has not pinned a state. */}
-      {!ownerComposerMounted && !onSendOverride && threadStatePanel}
+                                  {!ownerComposerMounted &&
+                                    !onSendOverride &&
+                                    threadStatePanel}
 
-      {/* A hosted conversation's own approval and a permission ask live in
+                                  {/* A hosted conversation's own approval and a permission ask live in
           the transcript's flow (hostedTailCard); the rest dock above the composer. */}
-      {decisionItem && conversation && !onSendOverride && !inlineApproval && (
-        <ThreadDecisionCard conversationId={conversation._id} asks={pendingDecisions} fallback={decisionStepper?.item ?? null} stepper={decisionStepper} targetNonce={targetMessageId ? targetNonce : undefined} scrollToMessage={scrollToMessageById} />
-      )}
-      {/* The decision answering this one brings up: its page loads ahead. */}
-      {pendingDecisions[1]?.reportSlug && <PreloadPublishedPage slug={pendingDecisions[1].reportSlug} decision={pendingDecisions[1].key.replace(/^decide:/, "")} />}
+                                  {decisionItem &&
+                                    conversation &&
+                                    !onSendOverride &&
+                                    !inlineApproval && (
+                                      <ThreadDecisionCard
+                                        conversationId={conversation._id}
+                                        asks={pendingDecisions}
+                                        fallback={decisionStepper?.item ?? null}
+                                        stepper={decisionStepper}
+                                        targetNonce={
+                                          targetMessageId
+                                            ? targetNonce
+                                            : undefined
+                                        }
+                                        scrollToMessage={scrollToMessageById}
+                                      />
+                                    )}
+                                  {/* The decision answering this one brings up: its page loads ahead. */}
+                                  {pendingDecisions[1]?.reportSlug && (
+                                    <PreloadPublishedPage
+                                      slug={pendingDecisions[1].reportSlug}
+                                      decision={pendingDecisions[1].key.replace(
+                                        /^decide:/,
+                                        "",
+                                      )}
+                                    />
+                                  )}
 
-      {showMessageInput && conversation && runLogEnded && workflowRun && <RunLogEndedBar run={workflowRun as any} />}
+                                  {showMessageInput &&
+                                    conversation &&
+                                    runLogEnded &&
+                                    workflowRun && (
+                                      <RunLogEndedBar
+                                        run={workflowRun as any}
+                                      />
+                                    )}
 
-      {showMessageInput && conversation && !runLogEnded && !permissionsHoldComposer && (
-        <div ref={messageInputRef} className="relative">
-          {inRevealBand && !bandComposerOpen ? (
-            <div className="flex justify-end px-4 pb-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  focusBandComposerRef.current = true;
-                  setBandComposerOpen(true);
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-sol-border bg-sol-bg-alt px-3 py-1 text-xs text-sol-text-muted transition-colors hover:border-sol-blue/50 hover:text-sol-text"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Message
-              </button>
-            </div>
-          ) : <>
-          {/* The branch map is melded INTO the owner composer box (see the
+                                  {showMessageInput &&
+                                    conversation &&
+                                    !runLogEnded &&
+                                    !permissionsHoldComposer && (
+                                      <div
+                                        ref={messageInputRef}
+                                        className="relative"
+                                      >
+                                        {inRevealBand && !bandComposerOpen ? (
+                                          <div className="flex justify-end px-4 pb-3 pt-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                focusBandComposerRef.current = true;
+                                                setBandComposerOpen(true);
+                                              }}
+                                              className="flex items-center gap-1.5 rounded-full border border-sol-border bg-sol-bg-alt px-3 py-1 text-xs text-sol-text-muted transition-colors hover:border-sol-blue/50 hover:text-sol-text"
+                                            >
+                                              <MessageSquare className="h-3.5 w-3.5" />
+                                              Message
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {/* The branch map is melded INTO the owner composer box (see the
               branchMapNode prop on MessageInput below), the same way the quote
               ReviewBar tray is — so it reads as one piece with the input rather
               than a floating overlay. treePopoverOpen is owner-only, so only the
               owner branch needs it; the no-composer case is the fixed fallback
               above. */}
-          {!effectiveIsOwner ? (
-            <NonOwnerMessageInput
-              conversation={conversation}
-              onForkReply={handleForkReply}
-              autoFocusInput={autoFocusInput}
-              onPopulateInput={populateInputRef}
-            />
-          ) : (
-            <>
-              {workflowRun?.status === "paused" && workflowRun.gate_prompt ? (
-                <div className="absolute left-0 right-0 bottom-full flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5 bg-sol-bg border-t border-sol-magenta/20 text-xs">
-                  <span className="text-sol-magenta font-semibold shrink-0">Gate</span>
-                  {/* The floor makes the choices wrap to a second line before the prompt disappears. */}
-                  <span className="text-sol-text-muted truncate flex-1 min-w-[8rem]" title={workflowRun.gate_prompt}>{workflowRun.gate_prompt}</span>
-                  {workflowRun.gate_choices?.map(choice => (
-                    <button
-                      key={choice.key}
-                      onClick={() => handleGateRespond(choice.key)}
-                      className="shrink-0 px-1.5 py-0.5 text-meta font-mono font-medium text-sol-magenta border border-sol-magenta/30 rounded hover:bg-sol-magenta/10 transition-colors disabled:opacity-40"
-                    >
-                      [{choice.key}] {choice.label.replace(/^\[.\]\s*/, "")}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <MessageInput key={conversation.session_id || conversation._id} conversationId={conversation._id} sharedDraft={composerPresenceEnabled(conversation) && !onSendOverride && !newSessionPage} status={conversation.status} embedded={embedded} hero={newSessionPage} sessionControl={composerHostsControl && (
-                <HeaderModelControl variant="composer" conversationId={conversation._id} agentType={conversation.agent_type} model={conversation.model} effort={(conversation as any).effort} messageCount={conversation.message_count} canEdit open={sessionControlOpen} onOpenChange={setSessionControlOpen} />
-              )} composerFoot={newSessionPage ? <NewSessionFoot slotRef={setNewSessionFootSlot} dropRef={dropFilesRef} /> : undefined} onSendAndAdvance={onSendAndAdvance} onSendAndDismiss={onSendAndDismiss ?? sendAndStashFallback} autoFocusInput={autoFocusInput} initialDraft={conversation.draft_message} isWaitingForResponse={isWaitingForResponse} isThinking={isThinking} isConversationLive={isConversationLive} workingSinceTs={workingSinceForClock(latestMessageTimestamp, now)} workingPhrase={workingPhrase} isSessionDisconnected={conversation.is_workflow_primary ? false : isSessionDisconnected} isSessionStarting={isSessionStarting} isSessionReady={isSessionReady} sessionId={conversation.session_id} agentType={conversation.agent_type} agentStatus={composerAgentStatus(managedSession?.agent_status, { active: conversation.status === "active", disconnected: isSessionDisconnected })} deliveryStatus={managedSession?.agent_status as any} pendingPermissionsCount={permissionRole === "proposer" ? 0 : pendingPermissions?.length ?? 0} hasAskUserQuestion={hasAskUserQuestion} selectedMessageContent={selectedMessageContent} selectedMessageUuid={selectedMessageUuid} onClearSelection={handleClearSelection} onForkFromMessage={forkHandler} onForkTail={forkTailHandler} onSendEscape={handleSendEscape} onOpenNavigator={handleOpenNavigator} onPopulateInput={populateInputRef} permissionMode={effectiveMode} permissionModePending={modeSwitching} onCycleMode={handleCycleMode} onMessageSent={handleMessageSent} onLightboxChange={setIsImageLightboxActive} onDropFiles={dropFilesRef} acceptFiles onWorkflowLaunch={showWorkflow && selectedWorkflowId ? handleWorkflowLaunch : undefined} onSideQuestion={!guest && !newSessionPage && !onSendOverride ? handleSideQuestion : undefined} onEscapeClose={askOpen ? closeAskPanel : undefined} onGoalCommand={newSessionPage || onSendOverride ? undefined : handleGoalCommand} clearInputRef={clearComposerRef} onGateSend={onSendOverride ?? (newSessionPage && roleSend.recipient ? sendToRole : workflowRun?.status === "paused" ? handleGateRespond : undefined)} composerNode={<>
-                {/* Who else is in this box (a teammate's live draft, or "is
+                                            {!effectiveIsOwner ? (
+                                              <NonOwnerMessageInput
+                                                conversation={conversation}
+                                                onForkReply={handleForkReply}
+                                                autoFocusInput={autoFocusInput}
+                                                onPopulateInput={
+                                                  populateInputRef
+                                                }
+                                              />
+                                            ) : (
+                                              <>
+                                                {workflowRun?.status ===
+                                                  "paused" &&
+                                                workflowRun.gate_prompt ? (
+                                                  <div className="absolute left-0 right-0 bottom-full flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5 bg-sol-bg border-t border-sol-magenta/20 text-xs">
+                                                    <span className="text-sol-magenta font-semibold shrink-0">
+                                                      Gate
+                                                    </span>
+                                                    {/* The floor makes the choices wrap to a second line before the prompt disappears. */}
+                                                    <span
+                                                      className="text-sol-text-muted truncate flex-1 min-w-[8rem]"
+                                                      title={
+                                                        workflowRun.gate_prompt
+                                                      }
+                                                    >
+                                                      {workflowRun.gate_prompt}
+                                                    </span>
+                                                    {workflowRun.gate_choices?.map(
+                                                      (choice) => (
+                                                        <button
+                                                          key={choice.key}
+                                                          onClick={() =>
+                                                            handleGateRespond(
+                                                              choice.key,
+                                                            )
+                                                          }
+                                                          className="shrink-0 px-1.5 py-0.5 text-meta font-mono font-medium text-sol-magenta border border-sol-magenta/30 rounded hover:bg-sol-magenta/10 transition-colors disabled:opacity-40"
+                                                        >
+                                                          [{choice.key}]{" "}
+                                                          {choice.label.replace(
+                                                            /^\[.\]\s*/,
+                                                            "",
+                                                          )}
+                                                        </button>
+                                                      ),
+                                                    )}
+                                                  </div>
+                                                ) : null}
+                                                <MessageInput
+                                                  key={
+                                                    conversation.session_id ||
+                                                    conversation._id
+                                                  }
+                                                  conversationId={
+                                                    conversation._id
+                                                  }
+                                                  sharedDraft={
+                                                    composerPresenceEnabled(
+                                                      conversation,
+                                                    ) &&
+                                                    !onSendOverride &&
+                                                    !newSessionPage
+                                                  }
+                                                  status={conversation.status}
+                                                  embedded={embedded}
+                                                  hero={newSessionPage}
+                                                  sessionControl={
+                                                    composerHostsControl && (
+                                                      <HeaderModelControl
+                                                        variant="composer"
+                                                        conversationId={
+                                                          conversation._id
+                                                        }
+                                                        agentType={
+                                                          conversation.agent_type
+                                                        }
+                                                        model={
+                                                          conversation.model
+                                                        }
+                                                        effort={
+                                                          (conversation as any)
+                                                            .effort
+                                                        }
+                                                        messageCount={
+                                                          conversation.message_count
+                                                        }
+                                                        canEdit
+                                                        open={
+                                                          sessionControlOpen
+                                                        }
+                                                        onOpenChange={
+                                                          setSessionControlOpen
+                                                        }
+                                                      />
+                                                    )
+                                                  }
+                                                  composerFoot={
+                                                    newSessionPage ? (
+                                                      <NewSessionFoot
+                                                        slotRef={
+                                                          setNewSessionFootSlot
+                                                        }
+                                                        dropRef={dropFilesRef}
+                                                      />
+                                                    ) : undefined
+                                                  }
+                                                  onSendAndAdvance={
+                                                    onSendAndAdvance
+                                                  }
+                                                  onSendAndDismiss={
+                                                    onSendAndDismiss ??
+                                                    sendAndStashFallback
+                                                  }
+                                                  autoFocusInput={
+                                                    autoFocusInput
+                                                  }
+                                                  initialDraft={
+                                                    conversation.draft_message
+                                                  }
+                                                  isWaitingForResponse={
+                                                    isWaitingForResponse
+                                                  }
+                                                  isThinking={isThinking}
+                                                  isConversationLive={
+                                                    isConversationLive
+                                                  }
+                                                  workingSinceTs={workingSinceForClock(
+                                                    latestMessageTimestamp,
+                                                    now,
+                                                  )}
+                                                  workingPhrase={workingPhrase}
+                                                  isSessionDisconnected={
+                                                    conversation.is_workflow_primary
+                                                      ? false
+                                                      : isSessionDisconnected
+                                                  }
+                                                  isSessionStarting={
+                                                    isSessionStarting
+                                                  }
+                                                  isSessionReady={
+                                                    isSessionReady
+                                                  }
+                                                  sessionId={
+                                                    conversation.session_id
+                                                  }
+                                                  agentType={
+                                                    conversation.agent_type
+                                                  }
+                                                  agentStatus={composerAgentStatus(
+                                                    managedSession?.agent_status,
+                                                    {
+                                                      active:
+                                                        conversation.status ===
+                                                        "active",
+                                                      disconnected:
+                                                        isSessionDisconnected,
+                                                    },
+                                                  )}
+                                                  deliveryStatus={
+                                                    managedSession?.agent_status as any
+                                                  }
+                                                  pendingPermissionsCount={
+                                                    permissionRole ===
+                                                    "proposer"
+                                                      ? 0
+                                                      : (pendingPermissions?.length ??
+                                                        0)
+                                                  }
+                                                  hasAskUserQuestion={
+                                                    hasAskUserQuestion
+                                                  }
+                                                  selectedMessageContent={
+                                                    selectedMessageContent
+                                                  }
+                                                  selectedMessageUuid={
+                                                    selectedMessageUuid
+                                                  }
+                                                  onClearSelection={
+                                                    handleClearSelection
+                                                  }
+                                                  onForkFromMessage={
+                                                    forkHandler
+                                                  }
+                                                  onForkTail={forkTailHandler}
+                                                  onSendEscape={
+                                                    handleSendEscape
+                                                  }
+                                                  onOpenNavigator={
+                                                    handleOpenNavigator
+                                                  }
+                                                  onPopulateInput={
+                                                    populateInputRef
+                                                  }
+                                                  permissionMode={effectiveMode}
+                                                  permissionModePending={
+                                                    modeSwitching
+                                                  }
+                                                  onCycleMode={handleCycleMode}
+                                                  onMessageSent={
+                                                    handleMessageSent
+                                                  }
+                                                  onLightboxChange={
+                                                    setIsImageLightboxActive
+                                                  }
+                                                  onDropFiles={dropFilesRef}
+                                                  acceptFiles
+                                                  onWorkflowLaunch={
+                                                    showWorkflow &&
+                                                    selectedWorkflowId
+                                                      ? handleWorkflowLaunch
+                                                      : undefined
+                                                  }
+                                                  onSideQuestion={
+                                                    !guest &&
+                                                    !newSessionPage &&
+                                                    !onSendOverride
+                                                      ? handleSideQuestion
+                                                      : undefined
+                                                  }
+                                                  onEscapeClose={
+                                                    askOpen
+                                                      ? closeAskPanel
+                                                      : undefined
+                                                  }
+                                                  onGoalCommand={
+                                                    newSessionPage ||
+                                                    onSendOverride
+                                                      ? undefined
+                                                      : handleGoalCommand
+                                                  }
+                                                  clearInputRef={
+                                                    clearComposerRef
+                                                  }
+                                                  onGateSend={
+                                                    onSendOverride ??
+                                                    (newSessionPage &&
+                                                    roleSend.recipient
+                                                      ? sendToRole
+                                                      : workflowRun?.status ===
+                                                          "paused"
+                                                        ? handleGateRespond
+                                                        : undefined)
+                                                  }
+                                                  composerNode={
+                                                    <>
+                                                      {/* Who else is in this box (a teammate's live draft, or "is
                     here" for a share link guest with no face on the roster)
                     and who asks to send into it. Inside the composer, so they
                     sit on its background under the fade that dims the feed. */}
-                {composerPresenceEnabled(conversation) && (
-                  <SharedQueue conversationId={conversation._id.toString()} canSteerQueue />
-                )}
-                {composerPresenceEnabled(conversation) && (
-                  <OwnerComposerPresence conversationId={conversation._id.toString()} showHere={!!conversation.share_token} onPopulate={(t) => populateInputRef.current?.(t)} />
-                )}
-                <CollabRequestBanner conversationId={conversation._id.toString()} />
-                {composerNode}
-              </>} composerPlaceholder={newSessionPage && roleSend.recipient ? `Ask ${roleSend.recipient.name} for anything…` : composerPlaceholder} skills={newSessionPage || onSendOverride ? sessionSkills : composerSkills} filePaths={sessionFilePaths} mentionItemsRef={mentionItemsRef} onMentionQuery={handleMentionQuery} onSubmitWithIntent={onSubmitWithIntent} threadStateNode={onSendOverride ? undefined : threadStatePanel} branchControl={forkFamily && !newSessionPage && !onSendOverride ? (
-                <BranchMapLayers heading={forkFamily.heading} open={treePopoverOpen} onToggle={toggleMap} />
-              ) : undefined} branchMapNode={treePopoverOpen ? (
-                <ForkMapBox
-                  tray
-                  open
-                  className="max-h-[55vh]"
-                  conversation={conversation}
-                  conversationId={conversation._id.toString()}
-                  currentBranchId={conversation._id.toString()}
-                  initialDrillId={mapDrill}
-                  onClose={closeMap}
-                  onSwitchToConversation={handleTreeSwitchConversation}
-                  onForkFromBranch={handleForkFromBranch}
-                  forkAnyMessage={forkAnyMessage}
-                  onRewindCurrent={handleRewindCurrent}
-                />
-              ) : null} />
-            </>
-          )}
-          </>}
-        </div>
-      )}
-      {newSessionPage && <div ref={setNewSessionBelowSlot} className="flex-1 min-h-0 overflow-y-auto pb-6" />}
+                                                      {composerPresenceEnabled(
+                                                        conversation,
+                                                      ) && (
+                                                        <SharedQueue
+                                                          conversationId={conversation._id.toString()}
+                                                          canSteerQueue
+                                                        />
+                                                      )}
+                                                      {composerPresenceEnabled(
+                                                        conversation,
+                                                      ) && (
+                                                        <OwnerComposerPresence
+                                                          conversationId={conversation._id.toString()}
+                                                          showHere={
+                                                            !!conversation.share_token
+                                                          }
+                                                          onPopulate={(t) =>
+                                                            populateInputRef.current?.(
+                                                              t,
+                                                            )
+                                                          }
+                                                        />
+                                                      )}
+                                                      <CollabRequestBanner
+                                                        conversationId={conversation._id.toString()}
+                                                      />
+                                                      {composerNode}
+                                                    </>
+                                                  }
+                                                  composerPlaceholder={
+                                                    newSessionPage &&
+                                                    roleSend.recipient
+                                                      ? `Ask ${roleSend.recipient.name} for anything…`
+                                                      : composerPlaceholder
+                                                  }
+                                                  skills={
+                                                    newSessionPage ||
+                                                    onSendOverride
+                                                      ? sessionSkills
+                                                      : composerSkills
+                                                  }
+                                                  filePaths={sessionFilePaths}
+                                                  mentionItemsRef={
+                                                    mentionItemsRef
+                                                  }
+                                                  onMentionQuery={
+                                                    handleMentionQuery
+                                                  }
+                                                  onSubmitWithIntent={
+                                                    onSubmitWithIntent
+                                                  }
+                                                  threadStateNode={
+                                                    onSendOverride
+                                                      ? undefined
+                                                      : threadStatePanel
+                                                  }
+                                                  branchControl={
+                                                    forkFamily &&
+                                                    !newSessionPage &&
+                                                    !onSendOverride ? (
+                                                      <BranchMapLayers
+                                                        heading={
+                                                          forkFamily.heading
+                                                        }
+                                                        open={treePopoverOpen}
+                                                        onToggle={toggleMap}
+                                                      />
+                                                    ) : undefined
+                                                  }
+                                                  branchMapNode={
+                                                    treePopoverOpen ? (
+                                                      <ForkMapBox
+                                                        tray
+                                                        open
+                                                        className="max-h-[55vh]"
+                                                        conversation={
+                                                          conversation
+                                                        }
+                                                        conversationId={conversation._id.toString()}
+                                                        currentBranchId={conversation._id.toString()}
+                                                        initialDrillId={
+                                                          mapDrill
+                                                        }
+                                                        onClose={closeMap}
+                                                        onSwitchToConversation={
+                                                          handleTreeSwitchConversation
+                                                        }
+                                                        onForkFromBranch={
+                                                          handleForkFromBranch
+                                                        }
+                                                        forkAnyMessage={
+                                                          forkAnyMessage
+                                                        }
+                                                        onRewindCurrent={
+                                                          handleRewindCurrent
+                                                        }
+                                                      />
+                                                    ) : null
+                                                  }
+                                                />
+                                              </>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  {newSessionPage && (
+                                    <div
+                                      ref={setNewSessionBelowSlot}
+                                      className="flex-1 min-h-0 overflow-y-auto pb-6"
+                                    />
+                                  )}
 
-      {timeline.length > 0 && conversation && composerPresenceEnabled(conversation) && (
-        <ReadingMarks
-          conversationId={conversation._id.toString()}
-          scrollRef={containerRef}
-          messageIds={timelineMessageIds}
-          onJump={(id) => useInboxStore.getState().requestNavigate(conversation._id, { scrollToMessageId: id })}
-          top={headerHeight}
-          bottom={messageInputHeight}
-        />
-      )}
+                                  {timeline.length > 0 &&
+                                    conversation &&
+                                    composerPresenceEnabled(conversation) && (
+                                      <ReadingMarks
+                                        conversationId={conversation._id.toString()}
+                                        scrollRef={containerRef}
+                                        messageIds={timelineMessageIds}
+                                        onJump={(id) =>
+                                          useInboxStore
+                                            .getState()
+                                            .requestNavigate(conversation._id, {
+                                              scrollToMessageId: id,
+                                            })
+                                        }
+                                        top={headerHeight}
+                                        bottom={messageInputHeight}
+                                      />
+                                    )}
 
-      {timeline.length > 0 && (
-        <div data-cc-scroll-tools className="absolute right-3 sm:right-8 z-30 flex items-stretch gap-2.5" style={{ bottom: Math.max(messageInputHeight + 16, 115), transform: commentRailW ? `translateX(-${commentRailW}px)` : undefined, transition: "transform 160ms ease" }}>
-          <div className="flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  if (jumpPending === 'start') {
-                    handleCancelJump();
-                  } else if (hasMoreAbove && onJumpToStart) {
-                    jumpDirectionRef.current = 'start';
-                    setJumpPending('start');
-                    onJumpToStart();
-                  } else {
-                    setUserScrolled(true);
-                    paginationCooldownRef.current = Date.now() + 1000;
-                    scrollToEdgeRef.current('top');
-                  }
-                }}
-                className={`group p-1.5 sm:p-2 rounded-full bg-sol-bg-alt border border-sol-border shadow-lg hover:bg-sol-cyan hover:text-white transition-all ${((!isNearTop && isScrollable) || hasMoreAbove || jumpPending === 'start') ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                tabIndex={((!isNearTop && isScrollable) || hasMoreAbove || jumpPending === 'start') ? undefined : -1}
-                aria-hidden={((!isNearTop && isScrollable) || hasMoreAbove || jumpPending === 'start') ? undefined : true}
-                aria-label={jumpPending === 'start' ? "Cancel jump to top" : "Scroll to top"}
-                title={jumpPending === 'start' ? "Cancel" : undefined}
-              >
-                {(isLoadingOlder || jumpPending === 'start') ? (
-                  <>
-                    {/* Spinner by default; reveal a cancel (×) on hover so the
+                                  {timeline.length > 0 && (
+                                    <div
+                                      data-cc-scroll-tools
+                                      className="absolute right-3 sm:right-8 z-30 flex items-stretch gap-2.5"
+                                      style={{
+                                        bottom: Math.max(
+                                          messageInputHeight + 16,
+                                          115,
+                                        ),
+                                        transform: commentRailW
+                                          ? `translateX(-${commentRailW}px)`
+                                          : undefined,
+                                        transition: "transform 160ms ease",
+                                      }}
+                                    >
+                                      <div className="flex flex-col gap-2">
+                                        <button
+                                          onClick={() => {
+                                            if (jumpPending === "start") {
+                                              handleCancelJump();
+                                            } else if (
+                                              hasMoreAbove &&
+                                              onJumpToStart
+                                            ) {
+                                              jumpDirectionRef.current =
+                                                "start";
+                                              setJumpPending("start");
+                                              onJumpToStart();
+                                            } else {
+                                              setUserScrolled(true);
+                                              paginationCooldownRef.current =
+                                                Date.now() + 1000;
+                                              scrollToEdgeRef.current("top");
+                                            }
+                                          }}
+                                          className={`group p-1.5 sm:p-2 rounded-full bg-sol-bg-alt border border-sol-border shadow-lg hover:bg-sol-cyan hover:text-white transition-all ${(!isNearTop && isScrollable) || hasMoreAbove || jumpPending === "start" ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                                          tabIndex={
+                                            (!isNearTop && isScrollable) ||
+                                            hasMoreAbove ||
+                                            jumpPending === "start"
+                                              ? undefined
+                                              : -1
+                                          }
+                                          aria-hidden={
+                                            (!isNearTop && isScrollable) ||
+                                            hasMoreAbove ||
+                                            jumpPending === "start"
+                                              ? undefined
+                                              : true
+                                          }
+                                          aria-label={
+                                            jumpPending === "start"
+                                              ? "Cancel jump to top"
+                                              : "Scroll to top"
+                                          }
+                                          title={
+                                            jumpPending === "start"
+                                              ? "Cancel"
+                                              : undefined
+                                          }
+                                        >
+                                          {isLoadingOlder ||
+                                          jumpPending === "start" ? (
+                                            <>
+                                              {/* Spinner by default; reveal a cancel (×) on hover so the
                         in-flight jump can be aborted by clicking it. */}
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:hidden" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 hidden group-hover:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </>
-                ) : (
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                  </svg>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  if (jumpPending === 'end') {
-                    handleCancelJump();
-                  } else if (hasMoreBelow && onJumpToEnd) {
-                    jumpDirectionRef.current = 'end';
-                    setJumpPending('end');
-                    setGuestStayAtTop(false);
-                    onJumpToEnd();
-                  } else {
-                    setGuestStayAtTop(false);
-                    setUserScrolled(false);
-                    paginationCooldownRef.current = Date.now() + 1000;
-                    scrollToEdgeRef.current('bottom');
-                  }
-                }}
-                className={`group p-1.5 sm:p-2 rounded-full bg-sol-bg-alt border border-sol-border shadow-lg transition-all hover:bg-sol-cyan hover:text-white ${(((userScrolled || guestStayAtTop) && !isNearBottom && isScrollable) || hasMoreBelow || jumpPending === 'end') ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                tabIndex={(((userScrolled || guestStayAtTop) && !isNearBottom && isScrollable) || hasMoreBelow || jumpPending === 'end') ? undefined : -1}
-                aria-hidden={(((userScrolled || guestStayAtTop) && !isNearBottom && isScrollable) || hasMoreBelow || jumpPending === 'end') ? undefined : true}
-                aria-label={jumpPending === 'end' ? "Cancel jump to bottom" : "Scroll to bottom"}
-                title={jumpPending === 'end' ? "Cancel" : undefined}
-              >
-                {((isLoadingNewer && hasMoreBelow) || jumpPending === 'end') ? (
-                  <>
-                    {/* Spinner ONLY for a genuine in-flight load of more content
+                                              <svg
+                                                className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:hidden"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                              >
+                                                <circle
+                                                  className="opacity-25"
+                                                  cx="12"
+                                                  cy="12"
+                                                  r="10"
+                                                  stroke="currentColor"
+                                                  strokeWidth="4"
+                                                />
+                                                <path
+                                                  className="opacity-75"
+                                                  fill="currentColor"
+                                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                                />
+                                              </svg>
+                                              <svg
+                                                className="w-4 h-4 sm:w-5 sm:h-5 hidden group-hover:block"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M6 18L18 6M6 6l12 12"
+                                                />
+                                              </svg>
+                                            </>
+                                          ) : (
+                                            <svg
+                                              className="w-4 h-4 sm:w-5 sm:h-5"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M5 10l7-7m0 0l7 7m-7-7v18"
+                                              />
+                                            </svg>
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            if (jumpPending === "end") {
+                                              handleCancelJump();
+                                            } else if (
+                                              hasMoreBelow &&
+                                              onJumpToEnd
+                                            ) {
+                                              jumpDirectionRef.current = "end";
+                                              setJumpPending("end");
+                                              setGuestStayAtTop(false);
+                                              onJumpToEnd();
+                                            } else {
+                                              setGuestStayAtTop(false);
+                                              setUserScrolled(false);
+                                              paginationCooldownRef.current =
+                                                Date.now() + 1000;
+                                              scrollToEdgeRef.current("bottom");
+                                            }
+                                          }}
+                                          className={`group p-1.5 sm:p-2 rounded-full bg-sol-bg-alt border border-sol-border shadow-lg transition-all hover:bg-sol-cyan hover:text-white ${((userScrolled || guestStayAtTop) && !isNearBottom && isScrollable) || hasMoreBelow || jumpPending === "end" ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                                          tabIndex={
+                                            ((userScrolled || guestStayAtTop) &&
+                                              !isNearBottom &&
+                                              isScrollable) ||
+                                            hasMoreBelow ||
+                                            jumpPending === "end"
+                                              ? undefined
+                                              : -1
+                                          }
+                                          aria-hidden={
+                                            ((userScrolled || guestStayAtTop) &&
+                                              !isNearBottom &&
+                                              isScrollable) ||
+                                            hasMoreBelow ||
+                                            jumpPending === "end"
+                                              ? undefined
+                                              : true
+                                          }
+                                          aria-label={
+                                            jumpPending === "end"
+                                              ? "Cancel jump to bottom"
+                                              : "Scroll to bottom"
+                                          }
+                                          title={
+                                            jumpPending === "end"
+                                              ? "Cancel"
+                                              : undefined
+                                          }
+                                        >
+                                          {(isLoadingNewer && hasMoreBelow) ||
+                                          jumpPending === "end" ? (
+                                            <>
+                                              {/* Spinner ONLY for a genuine in-flight load of more content
                         below (target mode: isLoadingNewer && hasMoreBelow) or an
                         explicit jump-to-end. In normal mode hasMoreBelow is always
                         false, so the initial-page LoadingFirstPage (which drives
@@ -5504,158 +10104,273 @@ const ConversationViewInner = (
                         a fresh open — the button shows the static down-chevron.
                         Reveal a cancel (×) on hover so an in-flight jump can be
                         aborted by clicking it. */}
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:hidden" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 hidden group-hover:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </>
-                ) : (
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                  </svg>
-                )}
-              </button>
-          </div>
-          {(isScrollable || hasMoreAbove || hasMoreBelow) && (
-            <div className="hidden sm:block w-2 self-stretch bg-sol-bg-highlight rounded-full overflow-hidden">
-              <div
-                data-cc-scroll-progress
-                ref={scrollProgressRef}
-                className="w-full bg-sol-green/80 rounded-full"
-                style={{ height: '0%', transition: 'height 0.15s ease-out' }}
-              />
-            </div>
-          )}
-        </div>
-      )}
+                                              <svg
+                                                className="w-4 h-4 sm:w-5 sm:h-5 animate-spin group-hover:hidden"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                              >
+                                                <circle
+                                                  className="opacity-25"
+                                                  cx="12"
+                                                  cy="12"
+                                                  r="10"
+                                                  stroke="currentColor"
+                                                  strokeWidth="4"
+                                                />
+                                                <path
+                                                  className="opacity-75"
+                                                  fill="currentColor"
+                                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                                />
+                                              </svg>
+                                              <svg
+                                                className="w-4 h-4 sm:w-5 sm:h-5 hidden group-hover:block"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M6 18L18 6M6 6l12 12"
+                                                />
+                                              </svg>
+                                            </>
+                                          ) : (
+                                            <svg
+                                              className="w-4 h-4 sm:w-5 sm:h-5"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                              />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                      {(isScrollable ||
+                                        hasMoreAbove ||
+                                        hasMoreBelow) && (
+                                        <div className="hidden sm:block w-2 self-stretch bg-sol-bg-highlight rounded-full overflow-hidden">
+                                          <div
+                                            data-cc-scroll-progress
+                                            ref={scrollProgressRef}
+                                            className="w-full bg-sol-green/80 rounded-full"
+                                            style={{
+                                              height: "0%",
+                                              transition:
+                                                "height 0.15s ease-out",
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
 
-      {pendingPermissions && pendingPermissions.length > 0 && (
-        <div className={`border-t border-sol-border/40 shrink-0 ${embedded ? "-mx-[9999px] px-[9999px]" : ""}`}>
-          {/* The composer, and the suggestion cards above it, wait under a prompt; the cards do not. */}
-          {permissionRole === "runner" && <CollabRequestBanner conversationId={proposalConvId!} />}
-          <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 py-1.5">
-            {permissionRole === "proposer" ? <TeammatePermissions permissions={pendingPermissions as any} /> : <>
-            <PermissionProposals permissions={pendingPermissions as any} />
-            <PermissionStack
-              permissions={pendingPermissions as any}
-              onAllowAll={
-                (conversation?.agent_type ?? "claude_code") === "claude_code" &&
-                effectiveIsOwner &&
-                conversation?.status === "active" &&
-                effectiveMode !== "bypassPermissions"
-                  ? handleEnableBypass
-                  : undefined
-              }
-            />
-            </>}
-          </div>
-        </div>
-      )}
+                                  {pendingPermissions &&
+                                    pendingPermissions.length > 0 && (
+                                      <div
+                                        className={`border-t border-sol-border/40 shrink-0 ${embedded ? "-mx-[9999px] px-[9999px]" : ""}`}
+                                      >
+                                        {/* The composer, and the suggestion cards above it, wait under a prompt; the cards do not. */}
+                                        {permissionRole === "runner" && (
+                                          <CollabRequestBanner
+                                            conversationId={proposalConvId!}
+                                          />
+                                        )}
+                                        <div className="conv-col mx-auto px-2 sm:px-3 md:px-4 py-1.5">
+                                          {permissionRole === "proposer" ? (
+                                            <TeammatePermissions
+                                              permissions={
+                                                pendingPermissions as any
+                                              }
+                                            />
+                                          ) : (
+                                            <>
+                                              <PermissionProposals
+                                                permissions={
+                                                  pendingPermissions as any
+                                                }
+                                              />
+                                              <PermissionStack
+                                                permissions={
+                                                  pendingPermissions as any
+                                                }
+                                                onAllowAll={
+                                                  (conversation?.agent_type ??
+                                                    "claude_code") ===
+                                                    "claude_code" &&
+                                                  effectiveIsOwner &&
+                                                  conversation?.status ===
+                                                    "active" &&
+                                                  effectiveMode !==
+                                                    "bypassPermissions"
+                                                    ? handleEnableBypass
+                                                    : undefined
+                                                }
+                                              />
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
 
-      {shareSelectionMode && (
-        // Anchored in this pane (main is relative), not the window: a split
-        // pane keeps its own bar, and on a phone the bar wraps instead of
-        // running off both edges.
-        <div className="absolute bottom-4 inset-x-4 mx-auto w-fit z-50 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 bg-sol-bg-alt border border-sol-border rounded-lg shadow-xl px-4 py-3">
-          <span className="text-sm text-sol-text-secondary">
-            {selectedMessageIds.size} message{selectedMessageIds.size !== 1 ? "s" : ""} selected
-          </span>
-          {/* Linking the full conversation makes it readable by anyone with
+                                  {shareSelectionMode && (
+                                    // Anchored in this pane (main is relative), not the window: a split
+                                    // pane keeps its own bar, and on a phone the bar wraps instead of
+                                    // running off both edges.
+                                    <div className="absolute bottom-4 inset-x-4 mx-auto w-fit z-50 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 bg-sol-bg-alt border border-sol-border rounded-lg shadow-xl px-4 py-3">
+                                      <span className="text-sm text-sol-text-secondary">
+                                        {selectedMessageIds.size} message
+                                        {selectedMessageIds.size !== 1
+                                          ? "s"
+                                          : ""}{" "}
+                                        selected
+                                      </span>
+                                      {/* Linking the full conversation makes it readable by anyone with
               the link: turning it on is a reviewed press, turning it off one. */}
-          <ConsequentialSwitch
-            on={shareIncludeConversation}
-            ledger={{
-              name: "Link full conversation",
-              subject: conversation?.title || "This conversation",
-              figures: [],
-              rows: [
-                { k: "Shared page", v: "Links the whole conversation", tone: "warn" },
-                { k: "Who reads it", v: "Anyone with the link", tone: "warn" },
-                { k: "Selected", v: `${selectedMessageIds.size} message${selectedMessageIds.size !== 1 ? "s" : ""}` },
-              ],
-              confirm: "Link full conversation",
-              keep: "Not now",
-            }}
-            onTurnOn={() => setShareIncludeConversation(true)}
-            onTurnOff={() => setShareIncludeConversation(false)}
-            trigger={({ on, press, reviewing }) => (
-              <label
-                className="flex items-center gap-1.5 text-sm text-sol-text-secondary cursor-pointer select-none"
-                title="Add a link to the full conversation on the shared page. This makes the conversation viewable by anyone with that link."
-              >
-                <input
-                  type="checkbox"
-                  checked={on}
-                  onChange={press}
-                  aria-haspopup="dialog"
-                  aria-expanded={reviewing}
-                  className="accent-[var(--sol-cyan)]"
-                />
-                Link full conversation
-                {on && <span className="text-xs text-sol-text-dim">(becomes public)</span>}
-              </label>
-            )}
-          />
-          <button
-            onClick={handleCancelShareSelection}
-            className="px-3 py-1.5 text-sm text-sol-text-dim hover:text-sol-text-secondary transition-colors"
-          >
-            Cancel
-          </button>
-          {chatOn && (
-            <button
-              onClick={() => handleConfirmShare("chat")}
-              disabled={selectedMessageIds.size === 0 || isCreatingShareLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sol-bg hover:bg-sol-border text-sol-text-secondary rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Forward className="w-4 h-4" />
-              Send to chat
-            </button>
-          )}
-          <Button
-            variant="cyan"
-            size="sm"
-            onClick={() => handleConfirmShare()}
-            disabled={selectedMessageIds.size === 0 || isCreatingShareLink}
-          >
-            {isCreatingShareLink ? "Creating..." : "Copy share link"}
-          </Button>
-        </div>
-      )}
-      {/* The header face's picker (session-characters.md S2), one instance. */}
-      <CursorPopover state={headerCharacterPicker}>
-        {(rows) => <CharacterPicker rows={rows as any} onDone={headerCharacterPicker.close} />}
-      </CursorPopover>
-      <SelectionQuoteToolbar conversationId={conversation?._id ?? ""} />
-      {conversation && hostsCommentRail && (
-        <Suspense fallback={null}>
-          <CommentDock conversationId={conversation._id.toString()} onJumpToMessage={scrollToMessageById} />
-        </Suspense>
-      )}
-    </main>
-    </TeamProposalContext.Provider>
-    </ReviewComposerContext.Provider>
-    </ImageGalleryProvider>
-    </HostedCardShownContext.Provider>
-    </HostedAskingContext.Provider>
-    </ChatWakeContext.Provider>
-    </RevealAncestryCtx.Provider>
-    </BrowserSessionContext.Provider>
-    </CastBrowserRowContext.Provider>
-    </ChangesProvider></WorktreesProvider>
-    </FilePathContext.Provider>
-    </HighlightContext.Provider>
+                                      <ConsequentialSwitch
+                                        on={shareIncludeConversation}
+                                        ledger={{
+                                          name: "Link full conversation",
+                                          subject:
+                                            conversation?.title ||
+                                            "This conversation",
+                                          figures: [],
+                                          rows: [
+                                            {
+                                              k: "Shared page",
+                                              v: "Links the whole conversation",
+                                              tone: "warn",
+                                            },
+                                            {
+                                              k: "Who reads it",
+                                              v: "Anyone with the link",
+                                              tone: "warn",
+                                            },
+                                            {
+                                              k: "Selected",
+                                              v: `${selectedMessageIds.size} message${selectedMessageIds.size !== 1 ? "s" : ""}`,
+                                            },
+                                          ],
+                                          confirm: "Link full conversation",
+                                          keep: "Not now",
+                                        }}
+                                        onTurnOn={() =>
+                                          setShareIncludeConversation(true)
+                                        }
+                                        onTurnOff={() =>
+                                          setShareIncludeConversation(false)
+                                        }
+                                        trigger={({ on, press, reviewing }) => (
+                                          <label
+                                            className="flex items-center gap-1.5 text-sm text-sol-text-secondary cursor-pointer select-none"
+                                            title="Add a link to the full conversation on the shared page. This makes the conversation viewable by anyone with that link."
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={on}
+                                              onChange={press}
+                                              aria-haspopup="dialog"
+                                              aria-expanded={reviewing}
+                                              className="accent-[var(--sol-cyan)]"
+                                            />
+                                            Link full conversation
+                                            {on && (
+                                              <span className="text-xs text-sol-text-dim">
+                                                (becomes public)
+                                              </span>
+                                            )}
+                                          </label>
+                                        )}
+                                      />
+                                      <button
+                                        onClick={handleCancelShareSelection}
+                                        className="px-3 py-1.5 text-sm text-sol-text-dim hover:text-sol-text-secondary transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                      {chatOn && (
+                                        <button
+                                          onClick={() =>
+                                            handleConfirmShare("chat")
+                                          }
+                                          disabled={
+                                            selectedMessageIds.size === 0 ||
+                                            isCreatingShareLink
+                                          }
+                                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sol-bg hover:bg-sol-border text-sol-text-secondary rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          <Forward className="w-4 h-4" />
+                                          Send to chat
+                                        </button>
+                                      )}
+                                      <Button
+                                        variant="cyan"
+                                        size="sm"
+                                        onClick={() => handleConfirmShare()}
+                                        disabled={
+                                          selectedMessageIds.size === 0 ||
+                                          isCreatingShareLink
+                                        }
+                                      >
+                                        {isCreatingShareLink
+                                          ? "Creating..."
+                                          : "Copy share link"}
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {/* The header face's picker (session-characters.md S2), one instance. */}
+                                  <CursorPopover state={headerCharacterPicker}>
+                                    {(rows) => (
+                                      <CharacterPicker
+                                        rows={rows as any}
+                                        onDone={headerCharacterPicker.close}
+                                      />
+                                    )}
+                                  </CursorPopover>
+                                  <SelectionQuoteToolbar
+                                    conversationId={conversation?._id ?? ""}
+                                  />
+                                  {conversation && hostsCommentRail && (
+                                    <Suspense fallback={null}>
+                                      <CommentDock
+                                        conversationId={conversation._id.toString()}
+                                        onJumpToMessage={scrollToMessageById}
+                                      />
+                                    </Suspense>
+                                  )}
+                                </main>
+                              </TeamProposalContext.Provider>
+                            </ReviewComposerContext.Provider>
+                          </ImageGalleryProvider>
+                        </HostedCardShownContext.Provider>
+                      </HostedAskingContext.Provider>
+                    </ChatWakeContext.Provider>
+                  </RevealAncestryCtx.Provider>
+                </BrowserSessionContext.Provider>
+              </CastBrowserRowContext.Provider>
+            </ChangesProvider>
+          </WorktreesProvider>
+        </FilePathContext.Provider>
+      </HighlightContext.Provider>
     </ReferenceScopeContext.Provider>
   );
   devCountElements("ConversationView2", el, performance.now() - renderStart);
   return el;
-}
-);
+};
 
 // memo: the parents (InboxConversation, ConversationDiffLayout) re-run several
 // times per session switch on their own hooks; without memo every one of those
 // passes re-ran this 5k-line body (measured 44 body executions per switch).
-export const ConversationView = memo(forwardRef<ConversationViewHandle, ConversationViewProps>(ConversationViewInner));
+export const ConversationView = memo(
+  forwardRef<ConversationViewHandle, ConversationViewProps>(
+    ConversationViewInner,
+  ),
+);

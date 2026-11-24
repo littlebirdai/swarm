@@ -26,7 +26,8 @@ export class FreshRows {
     }
     // The unknown keys at the newest end, before the first row already shown.
     const tail: string[] = [];
-    for (let i = keys.length - 1; i >= 0 && !this.known.has(keys[i]); i--) tail.push(keys[i]);
+    for (let i = keys.length - 1; i >= 0 && !this.known.has(keys[i]); i--)
+      tail.push(keys[i]);
     const burst = tail.length > BURST || tail.length === keys.length;
     for (const k of keys) {
       if (this.known.has(k)) continue;

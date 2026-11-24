@@ -2,14 +2,34 @@
 // /share/plan/<token>: a plan's goal, criteria, progress, body and tasks.
 import { api } from "@codecast/convex/convex/_generated/api";
 import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
-import { Bullets, Callout, Pill, Prose, Row, Rows, Section, ShareHead, SharedObjectPage, StatusPill, humanize, statusTone } from "../../SharedObjectPage";
+import {
+  Bullets,
+  Callout,
+  Pill,
+  Prose,
+  Row,
+  Rows,
+  Section,
+  ShareHead,
+  SharedObjectPage,
+  StatusPill,
+  humanize,
+  statusTone,
+} from "../../SharedObjectPage";
 
 export default function SharedPlanClient() {
   return (
-    <SharedObjectPage<any> kind="plan" query={(api as any).plans.getShared} noun="plan">
+    <SharedObjectPage<any>
+      kind="plan"
+      query={(api as any).plans.getShared}
+      noun="plan"
+    >
       {(plan) => {
         const progress = plan.progress;
-        const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : null;
+        const pct =
+          progress && progress.total > 0
+            ? Math.round((progress.done / progress.total) * 100)
+            : null;
         return (
           <>
             <ShareHead
@@ -22,12 +42,32 @@ export default function SharedPlanClient() {
               title={plan.title}
               user={plan.user}
               at={plan.created_at}
-              meta={pct !== null ? <span>{progress.done} of {progress.total} tasks done</span> : null}
+              meta={
+                pct !== null ? (
+                  <span>
+                    {progress.done} of {progress.total} tasks done
+                  </span>
+                ) : null
+              }
             />
             {plan.goal && <Callout label="What it is for">{plan.goal}</Callout>}
             {pct !== null && (
-              <div style={{ margin: "-12px 0 36px", height: 6, borderRadius: 99, background: "var(--rule)", overflow: "hidden" }}>
-                <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #859900, #2aa198)" }} />
+              <div
+                style={{
+                  margin: "-12px 0 36px",
+                  height: 6,
+                  borderRadius: 99,
+                  background: "var(--rule)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    background: "linear-gradient(90deg, #859900, #2aa198)",
+                  }}
+                />
               </div>
             )}
             {plan.acceptance_criteria?.length > 0 && (
@@ -44,7 +84,12 @@ export default function SharedPlanClient() {
               <Section title="Tasks" count={plan.tasks.length}>
                 <Rows>
                   {plan.tasks.map((t: any) => (
-                    <Row key={t._id} lead="●" tone={statusTone(t.status)} trail={t.short_id}>
+                    <Row
+                      key={t._id}
+                      lead="●"
+                      tone={statusTone(t.status)}
+                      trail={t.short_id}
+                    >
                       {t.title}
                     </Row>
                   ))}
@@ -57,8 +102,16 @@ export default function SharedPlanClient() {
                   {plan.comments.map((e: any, i: number) => (
                     <Row
                       key={i}
-                      trail={<span title={formatDateFull(e.timestamp)}>{formatDateSmart(e.timestamp)}</span>}
-                      note={e.rationale ? `${humanize(e.type)}: ${e.rationale}` : humanize(e.type)}
+                      trail={
+                        <span title={formatDateFull(e.timestamp)}>
+                          {formatDateSmart(e.timestamp)}
+                        </span>
+                      }
+                      note={
+                        e.rationale
+                          ? `${humanize(e.type)}: ${e.rationale}`
+                          : humanize(e.type)
+                      }
                     >
                       {e.content}
                     </Row>

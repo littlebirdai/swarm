@@ -6,21 +6,33 @@ import { buildDisclaimShellPrefix } from "./disclaim.js";
 
 describe("buildDisclaimShellPrefix", () => {
   test("darwin gets the wrapper prefix", () => {
-    expect(buildDisclaimShellPrefix("cast", { platform: "darwin", env: {} })).toBe("cast _disclaimed -- ");
+    expect(
+      buildDisclaimShellPrefix("cast", { platform: "darwin", env: {} }),
+    ).toBe("cast _disclaimed -- ");
   });
 
   test("multi-token cast invocations pass through verbatim", () => {
     expect(
-      buildDisclaimShellPrefix("/usr/local/bin/bun /repo/src/index.ts", { platform: "darwin", env: {} }),
+      buildDisclaimShellPrefix("/usr/local/bin/bun /repo/src/index.ts", {
+        platform: "darwin",
+        env: {},
+      }),
     ).toBe("/usr/local/bin/bun /repo/src/index.ts _disclaimed -- ");
   });
 
   test("no wrapper off-macOS", () => {
-    expect(buildDisclaimShellPrefix("cast", { platform: "linux", env: {} })).toBe("");
+    expect(
+      buildDisclaimShellPrefix("cast", { platform: "linux", env: {} }),
+    ).toBe("");
   });
 
   test("CODECAST_NO_DISCLAIM=1 is the kill switch", () => {
-    expect(buildDisclaimShellPrefix("cast", { platform: "darwin", env: { CODECAST_NO_DISCLAIM: "1" } })).toBe("");
+    expect(
+      buildDisclaimShellPrefix("cast", {
+        platform: "darwin",
+        env: { CODECAST_NO_DISCLAIM: "1" },
+      }),
+    ).toBe("");
   });
 });
 
@@ -65,7 +77,10 @@ describe("runDisclaimed (subprocess)", () => {
     // The wrapper runs in the agent's project directory, where bun loads .env into process.env.
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "disclaim-dotenv-"));
     try {
-      fs.writeFileSync(path.join(dir, ".env"), "DISCLAIM_DOTENV_PROBE=leaked\n");
+      fs.writeFileSync(
+        path.join(dir, ".env"),
+        "DISCLAIM_DOTENV_PROBE=leaked\n",
+      );
       const r = Bun.spawnSync({
         cmd: [
           process.execPath,
@@ -94,12 +109,23 @@ describe("runDisclaimed (subprocess)", () => {
       stdout: "pipe",
       stderr: "pipe",
     });
-    expect(r.stderr.toString()).toContain("attrs ok, exec'ing /bin/echo disclaimed");
+    expect(r.stderr.toString()).toContain(
+      "attrs ok, exec'ing /bin/echo disclaimed",
+    );
     expect(r.stdout.toString().trim()).toBe("via-ffi");
   });
 
   test("handles the daemon's real command shape (env prefix with var assignments)", () => {
-    const r = run(["--", "env", "-u", "CLAUDECODE", "DISCLAIM_SHAPE=yes", "/bin/sh", "-c", "echo shape=$DISCLAIM_SHAPE claudecode=$CLAUDECODE"]);
+    const r = run([
+      "--",
+      "env",
+      "-u",
+      "CLAUDECODE",
+      "DISCLAIM_SHAPE=yes",
+      "/bin/sh",
+      "-c",
+      "echo shape=$DISCLAIM_SHAPE claudecode=$CLAUDECODE",
+    ]);
     expect(r.stdout.toString().trim()).toBe("shape=yes claudecode=");
     expect(r.exitCode).toBe(0);
   });

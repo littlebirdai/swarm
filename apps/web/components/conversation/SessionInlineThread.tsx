@@ -11,7 +11,10 @@ import { PanelRight, Wrench } from "lucide-react";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
 import { summaryCount } from "../../lib/threadCards";
 import { threadStateView } from "../../lib/threadState";
-import { useConversationMessages, type Message } from "../../hooks/useConversationMessages";
+import {
+  useConversationMessages,
+  type Message,
+} from "../../hooks/useConversationMessages";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { classifyUserMessage, stripSystemTags } from "./classify";
 import type { Message as ConvMessage, UserMessageKind } from "./types";
@@ -19,7 +22,11 @@ import { AssistantBlock, UserPrompt } from "./blocks/turnBlocks";
 import { SessionMessageBlock } from "./blocks/systemBlocks";
 import { openConversationBeside } from "../../hooks/useOpenLinkedSession";
 import { MessageInput } from "../MessageInput";
-import { composerAgentStatus, useManagedSessionFields, useSessionEscape } from "../../hooks/useSessionComposerControls";
+import {
+  composerAgentStatus,
+  useManagedSessionFields,
+  useSessionEscape,
+} from "../../hooks/useSessionComposerControls";
 import { usePermissionModeSwitch } from "../../hooks/usePermissionModeSwitch";
 import { animatedHideSession } from "../../store/undoActions";
 import { EarlierButton } from "../threads/readerFold";
@@ -38,7 +45,13 @@ import "../chat/chat.css";
 // tool-only turns folds into one count.
 type SessionRow =
   | { key: string; role: "user"; msg: ConvMessage; kind: UserMessageKind }
-  | { key: string; role: "assistant"; msg?: ConvMessage; tools: number; first: boolean };
+  | {
+      key: string;
+      role: "assistant";
+      msg?: ConvMessage;
+      tools: number;
+      first: boolean;
+    };
 
 function toRows(messages: Message[], agentType?: string): SessionRow[] {
   const rows: SessionRow[] = [];
@@ -50,7 +63,12 @@ function toRows(messages: Message[], agentType?: string): SessionRow[] {
     const key = m._id;
     if (m.role === "user") {
       const kind = classifyUserMessage(m, agentType, immediatePrev);
-      if (kind.kind === "normal" || kind.kind === "direct_user" || kind.kind === "decision_answer" || kind.kind === "session_message") {
+      if (
+        kind.kind === "normal" ||
+        kind.kind === "direct_user" ||
+        kind.kind === "decision_answer" ||
+        kind.kind === "session_message"
+      ) {
         rows.push({ key, role: "user", msg: m, kind });
       }
     } else if (m.role === "assistant") {
@@ -64,21 +82,48 @@ function toRows(messages: Message[], agentType?: string): SessionRow[] {
         last.tools += tools;
         continue;
       }
-      rows.push({ key, role: "assistant", msg: hasText ? m : undefined, tools, first: !last || last.role !== "assistant" });
+      rows.push({
+        key,
+        role: "assistant",
+        msg: hasText ? m : undefined,
+        tools,
+        first: !last || last.role !== "assistant",
+      });
     }
   }
   return rows;
 }
 
-function SessionUserRow({ row, conversationId }: { row: Extract<SessionRow, { role: "user" }>; conversationId: string }) {
+function SessionUserRow({
+  row,
+  conversationId,
+}: {
+  row: Extract<SessionRow, { role: "user" }>;
+  conversationId: string;
+}) {
   const { msg, kind } = row;
   if (kind.kind === "session_message") {
-    return <SessionMessageBlock variant={kind.variant === "agent" ? "agent" : "session"} from={kind.from} name={kind.name} body={kind.body} timestamp={msg.timestamp} intent={kind.intent} />;
+    return (
+      <SessionMessageBlock
+        variant={kind.variant === "agent" ? "agent" : "session"}
+        from={kind.from}
+        name={kind.name}
+        body={kind.body}
+        timestamp={msg.timestamp}
+        intent={kind.intent}
+      />
+    );
   }
   const decision = kind.kind === "decision_answer" ? kind.decision : undefined;
   return (
     <UserPrompt
-      content={kind.kind === "direct_user" ? kind.body : decision ? decision.answer : (msg.content || "")}
+      content={
+        kind.kind === "direct_user"
+          ? kind.body
+          : decision
+            ? decision.answer
+            : msg.content || ""
+      }
       decision={decision}
       images={msg.images}
       timestamp={msg.timestamp}
@@ -93,16 +138,32 @@ function SessionUserRow({ row, conversationId }: { row: Extract<SessionRow, { ro
   );
 }
 
-function SessionRows({ rows, agentType, conversationId }: { rows: SessionRow[]; agentType?: string; conversationId: string }) {
+function SessionRows({
+  rows,
+  agentType,
+  conversationId,
+}: {
+  rows: SessionRow[];
+  agentType?: string;
+  conversationId: string;
+}) {
   // The newest few messages, the rest behind one button above: a session has
   // no read boundary here, so the fold keeps the tail the card is about.
   const fold = useReaderFold(rows, () => 0, 0);
   return (
     <div className="th-card-replies th-session-rows">
-      <EarlierButton count={fold.hidden} noun="message" onClick={fold.showAll} />
+      <EarlierButton
+        count={fold.hidden}
+        noun="message"
+        onClick={fold.showAll}
+      />
       {fold.visible.map((row, i) =>
         row.role === "user" ? (
-          <SessionUserRow key={row.key} row={row} conversationId={conversationId} />
+          <SessionUserRow
+            key={row.key}
+            row={row}
+            conversationId={conversationId}
+          />
         ) : (
           <div key={row.key} className="th-session-assistant">
             {row.msg ? (
@@ -121,7 +182,8 @@ function SessionRows({ rows, agentType, conversationId }: { rows: SessionRow[]; 
             ) : null}
             {row.tools > 0 && (
               <div className="th-session-row-tools">
-                <Wrench className="w-3 h-3" /> {summaryCount(row.tools, "tool call")}
+                <Wrench className="w-3 h-3" />{" "}
+                {summaryCount(row.tools, "tool call")}
               </div>
             )}
           </div>
@@ -131,7 +193,17 @@ function SessionRows({ rows, agentType, conversationId }: { rows: SessionRow[]; 
   );
 }
 
-export function SessionInlineThread({ session, seen, focusComposer = false, maxRows = 20, placeholder = "Reply to this session", foot = true, composer = true, before, className = "" }: {
+export function SessionInlineThread({
+  session,
+  seen,
+  focusComposer = false,
+  maxRows = 20,
+  placeholder = "Reply to this session",
+  foot = true,
+  composer = true,
+  before,
+  className = "",
+}: {
   /** The session's store row (or the row a surface already holds). */
   session: InboxSession;
   /** The reader has this thread in view: its messages are marked seen. */
@@ -157,7 +229,10 @@ export function SessionInlineThread({ session, seen, focusComposer = false, maxR
   const { conversation } = useConversationMessages(sessionId);
   const all: Message[] = conversation?.messages ?? [];
   const rows = useMemo(() => {
-    const r = toRows(before ? all.filter((m) => (m.timestamp ?? 0) < before) : all, session.agent_type);
+    const r = toRows(
+      before ? all.filter((m) => (m.timestamp ?? 0) < before) : all,
+      session.agent_type,
+    );
     return r.length > maxRows ? r.slice(-maxRows) : r;
   }, [all, maxRows, before]);
   const newestId = all.length ? all[all.length - 1]._id : undefined;
@@ -178,50 +253,80 @@ export function SessionInlineThread({ session, seen, focusComposer = false, maxR
   const isOwner = String(session.user_id) === String(viewerId);
   const mode = managed?.permission_mode || "default";
   const convCommand = useInboxStore((s) => s.convCommand);
-  const { handleCycleMode, modeSwitching } = usePermissionModeSwitch({ effectiveMode: mode, conversation: conversation as any, effectiveIsOwner: isOwner, convexConvId: sessionId as any, convCommand });
+  const { handleCycleMode, modeSwitching } = usePermissionModeSwitch({
+    effectiveMode: mode,
+    conversation: conversation as any,
+    effectiveIsOwner: isOwner,
+    convexConvId: sessionId as any,
+    convCommand,
+  });
   const sendEscape = useSessionEscape(sessionId, { active, isOwner });
-  const onEscape = useCallback(() => { sendEscape(); }, [sendEscape]);
-  const stash = useMemo(() => (isOwner ? () => animatedHideSession(sessionId, "stash") : undefined), [isOwner, sessionId]);
+  const onEscape = useCallback(() => {
+    sendEscape();
+  }, [sendEscape]);
+  const stash = useMemo(
+    () => (isOwner ? () => animatedHideSession(sessionId, "stash") : undefined),
+    [isOwner, sessionId],
+  );
 
-  const state = threadStateView(session as any, session.message_count ?? 0, now);
+  const state = threadStateView(
+    session as any,
+    session.message_count ?? 0,
+    now,
+  );
   return (
     <div className={`th-card-open th-card-open-session ${className}`}>
       {rows.length === 0 ? (
-        <div className="th-card-note">{conversation ? "Nothing to show yet." : "Loading…"}</div>
+        <div className="th-card-note">
+          {conversation ? "Nothing to show yet." : "Loading…"}
+        </div>
       ) : (
-        <SessionRows rows={rows} agentType={session.agent_type} conversationId={sessionId} />
-      )}
-      {composer && <div className="th-session-composer">
-        <MessageInput
-          key={sessionId}
-          conversationId={sessionId}
-          sessionId={session.session_id}
+        <SessionRows
+          rows={rows}
           agentType={session.agent_type}
-          status={conversation?.status ?? "active"}
-          inline
-          embedded
-          initialDraft={(conversation as any)?.draft_message}
-          agentStatus={composerAgentStatus(managed?.agent_status, { active, disconnected: managed?.is_connected === false })}
-          deliveryStatus={managed?.agent_status}
-          permissionMode={mode}
-          permissionModePending={modeSwitching}
-          onCycleMode={isOwner ? handleCycleMode : undefined}
-          onSendEscape={onEscape}
-          onSendAndDismiss={stash}
-          composerPlaceholder={placeholder}
-          autoFocusInput={focusComposer}
+          conversationId={sessionId}
         />
-      </div>}
-      {foot && <div className="th-session-foot">
-        {state?.cardLine && <span className="th-session-state">{state.cardLine}</span>}
-        <button
-          type="button"
-          className="th-session-openpanel"
-          onClick={() => openConversationBeside(sessionId)}
-        >
-          <PanelRight className="w-3 h-3" /> Open beside
-        </button>
-      </div>}
+      )}
+      {composer && (
+        <div className="th-session-composer">
+          <MessageInput
+            key={sessionId}
+            conversationId={sessionId}
+            sessionId={session.session_id}
+            agentType={session.agent_type}
+            status={conversation?.status ?? "active"}
+            inline
+            embedded
+            initialDraft={(conversation as any)?.draft_message}
+            agentStatus={composerAgentStatus(managed?.agent_status, {
+              active,
+              disconnected: managed?.is_connected === false,
+            })}
+            deliveryStatus={managed?.agent_status}
+            permissionMode={mode}
+            permissionModePending={modeSwitching}
+            onCycleMode={isOwner ? handleCycleMode : undefined}
+            onSendEscape={onEscape}
+            onSendAndDismiss={stash}
+            composerPlaceholder={placeholder}
+            autoFocusInput={focusComposer}
+          />
+        </div>
+      )}
+      {foot && (
+        <div className="th-session-foot">
+          {state?.cardLine && (
+            <span className="th-session-state">{state.cardLine}</span>
+          )}
+          <button
+            type="button"
+            className="th-session-openpanel"
+            onClick={() => openConversationBeside(sessionId)}
+          >
+            <PanelRight className="w-3 h-3" /> Open beside
+          </button>
+        </div>
+      )}
     </div>
   );
 }

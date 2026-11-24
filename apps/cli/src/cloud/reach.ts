@@ -78,10 +78,17 @@ const SFTP_SERVER = "/usr/libexec/sftp-server";
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 
 /** The refusal for a remote exit code that retrying cannot fix, or null. */
-export function reachRefusal(code: number | null, hostId: string, mountpoint: string): string | null {
-  if (code === REACH_NO_SSHFS_EXIT) return `the host has no sshfs — run cast hosts provision ${hostId}`;
-  if (code === REACH_NO_MOUNTPOINT_EXIT) return `the host cannot create or write ${mountpoint} (no passwordless sudo?)`;
-  if (code === REACH_OCCUPIED_EXIT) return `${mountpoint} already holds files on the host; move them away there, then cast hosts reach ${hostId} ${mountpoint} again`;
+export function reachRefusal(
+  code: number | null,
+  hostId: string,
+  mountpoint: string,
+): string | null {
+  if (code === REACH_NO_SSHFS_EXIT)
+    return `the host has no sshfs — run cast hosts provision ${hostId}`;
+  if (code === REACH_NO_MOUNTPOINT_EXIT)
+    return `the host cannot create or write ${mountpoint} (no passwordless sudo?)`;
+  if (code === REACH_OCCUPIED_EXIT)
+    return `${mountpoint} already holds files on the host; move them away there, then cast hosts reach ${hostId} ${mountpoint} again`;
   return null;
 }
 
@@ -94,7 +101,8 @@ export function reachHostRefusal(host: CloudHost): string | null {
   // A Mac host never stops itself (no idle watchdog to keep awake); whether it
   // has FUSE-T and sshfs is answered by the host itself (REACH_NO_SSHFS_EXIT).
   if (isMacHost(host)) return null;
-  if ((host.watchdogVersion ?? 0) < REACH_MIN_WATCHDOG) return `run \`cast hosts provision ${host.id}\` first: it installs sshfs and an idle watchdog that ignores the reach's own connection (its watchdog is version ${host.watchdogVersion ?? 1}, reach needs ${REACH_MIN_WATCHDOG})`;
+  if ((host.watchdogVersion ?? 0) < REACH_MIN_WATCHDOG)
+    return `run \`cast hosts provision ${host.id}\` first: it installs sshfs and an idle watchdog that ignores the reach's own connection (its watchdog is version ${host.watchdogVersion ?? 1}, reach needs ${REACH_MIN_WATCHDOG})`;
   return null;
 }
 
@@ -103,16 +111,42 @@ export function reachHostRefusal(host: CloudHost): string | null {
  * directory, and narrower than a whole home or the filesystem root, both of
  * which would hand the host the laptop's keys and every other secret.
  */
-export function normalizeReachFolder(input: string, home = os.homedir()): string {
-  const expanded = input === "~" ? home : input.startsWith("~/") ? path.join(home, input.slice(2)) : input;
+export function normalizeReachFolder(
+  input: string,
+  home = os.homedir(),
+): string {
+  const expanded =
+    input === "~"
+      ? home
+      : input.startsWith("~/")
+        ? path.join(home, input.slice(2))
+        : input;
   const abs = path.resolve(expanded).replace(/\/+$/, "") || "/";
   let real: string;
-  try { real = fs.realpathSync(abs); } catch { throw new Error(`${abs} does not exist on this laptop`); }
-  if (!fs.statSync(real).isDirectory()) throw new Error(`${abs} is not a folder`);
-  const realHome = (() => { try { return fs.realpathSync(home); } catch { return home; } })();
-  if (real === "/" || real === realHome || realHome.startsWith(real + "/")) throw new Error(`${abs} is too broad: it holds your whole home folder. Reach a project or notes folder inside it`);
+  try {
+    real = fs.realpathSync(abs);
+  } catch {
+    throw new Error(`${abs} does not exist on this laptop`);
+  }
+  if (!fs.statSync(real).isDirectory())
+    throw new Error(`${abs} is not a folder`);
+  const realHome = (() => {
+    try {
+      return fs.realpathSync(home);
+    } catch {
+      return home;
+    }
+  })();
+  if (real === "/" || real === realHome || realHome.startsWith(real + "/"))
+    throw new Error(
+      `${abs} is too broad: it holds your whole home folder. Reach a project or notes folder inside it`,
+    );
   // The folder itself, one inside a credential store, or one that contains a store (~/.config holds ~/.config/gh).
-  if (real.startsWith(realHome + "/") && credentialStoreFor(path.relative(realHome, real), true)) throw new Error(`${abs} holds credentials; it cannot be reached`);
+  if (
+    real.startsWith(realHome + "/") &&
+    credentialStoreFor(path.relative(realHome, real), true)
+  )
+    throw new Error(`${abs} holds credentials; it cannot be reached`);
   return abs;
 }
 
@@ -127,9 +161,13 @@ function sbString(s: string): string {
  * listing) for the folder's ancestors so its path resolves, and the folder
  * itself. Later rules win in SBPL, so the order is the meaning.
  */
-export function reachSandboxProfile(realFolder: string, readOnly: boolean): string {
+export function reachSandboxProfile(
+  realFolder: string,
+  readOnly: boolean,
+): string {
   const ancestors: string[] = [];
-  for (let p = path.dirname(realFolder); p !== "/"; p = path.dirname(p)) ancestors.push(p);
+  for (let p = path.dirname(realFolder); p !== "/"; p = path.dirname(p))
+    ancestors.push(p);
   return [
     "(version 1)",
     "(allow default)",
@@ -139,7 +177,11 @@ export function reachSandboxProfile(realFolder: string, readOnly: boolean): stri
     "(deny file-read* file-write*)",
     `(allow file-read* (literal "/") (subpath "/usr/lib") (subpath "/usr/libexec") (subpath "/System") (subpath "/private/var/db/dyld") (subpath "/private/var/db/timezone") (literal "/private/etc/localtime") (subpath "/dev"))`,
     `(allow file-write* (subpath "/dev"))`,
-    ...(ancestors.length ? [`(allow file-read-metadata ${ancestors.map((a) => `(literal ${sbString(a)})`).join(" ")})`] : []),
+    ...(ancestors.length
+      ? [
+          `(allow file-read-metadata ${ancestors.map((a) => `(literal ${sbString(a)})`).join(" ")})`,
+        ]
+      : []),
     `(allow file-read* ${readOnly ? "" : "file-write* "}(subpath ${sbString(realFolder)}))`,
   ].join("\n");
 }
@@ -209,16 +251,31 @@ chmod u+w "$mp" && rm -f "$mp/${REACH_NOTE}"
 rmdir "$mp" 2>/dev/null || sudo -n rmdir "$mp"`;
 
 /** argv for `ssh`: remove a no-longer-reached folder's mountpoint on the host. */
-export function reachRemoveArgs(host: RemoteHost, mountpoint: string): string[] {
-  return heldSshArgs(host, `bash -c ${shq(REACH_REMOVE_SCRIPT)} ${REACH_ARGV0} ${shq(mountpoint)}`);
+export function reachRemoveArgs(
+  host: RemoteHost,
+  mountpoint: string,
+): string[] {
+  return heldSshArgs(
+    host,
+    `bash -c ${shq(REACH_REMOVE_SCRIPT)} ${REACH_ARGV0} ${shq(mountpoint)}`,
+  );
 }
 
 /** argv for `bash` on the laptop: one reach of `folder` onto `host`. */
-export function reachLaptopArgs(host: RemoteHost, folder: ReachFolder, realFolder: string, laptopName: string): string[] {
+export function reachLaptopArgs(
+  host: RemoteHost,
+  folder: ReachFolder,
+  realFolder: string,
+  laptopName: string,
+): string[] {
   const remote = `bash -c ${shq(REACH_REMOTE_SCRIPT)} ${REACH_ARGV0} ${shq(folder.path)} ${shq(realFolder)} ${shq(laptopName)}`;
   return [
-    "-c", REACH_LAPTOP_SCRIPT, REACH_ARGV0,
-    reachSandboxProfile(realFolder, folder.readOnly === true), realFolder, folder.readOnly ? "-R" : "",
+    "-c",
+    REACH_LAPTOP_SCRIPT,
+    REACH_ARGV0,
+    reachSandboxProfile(realFolder, folder.readOnly === true),
+    realFolder,
+    folder.readOnly ? "-R" : "",
     ...heldSshArgs(host, remote),
   ];
 }
@@ -227,20 +284,40 @@ export function reachLaptopArgs(host: RemoteHost, folder: ReachFolder, realFolde
 // Live state, written by the daemon and read by `cast hosts reach`.
 // ---------------------------------------------------------------------------
 
-export type ReachState = "mounted" | "connecting" | "waiting" | "refused" | "missing" | "unreachable";
+export type ReachState =
+  | "mounted"
+  | "connecting"
+  | "waiting"
+  | "refused"
+  | "missing"
+  | "unreachable";
 
-export interface ReachStatusEntry { state: ReachState; detail?: string; since: number }
-export interface ReachStatus { updatedAt: number; hosts: Record<string, Record<string, ReachStatusEntry>> }
+export interface ReachStatusEntry {
+  state: ReachState;
+  detail?: string;
+  since: number;
+}
+export interface ReachStatus {
+  updatedAt: number;
+  hosts: Record<string, Record<string, ReachStatusEntry>>;
+}
 
 export function reachStatusPath(): string {
   return codecastPath("reach-status.json");
 }
 
 export function readReachStatus(p = reachStatusPath()): ReachStatus | null {
-  try { return JSON.parse(fs.readFileSync(p, "utf-8")) as ReachStatus; } catch { return null; }
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8")) as ReachStatus;
+  } catch {
+    return null;
+  }
 }
 
-export function writeReachStatus(status: ReachStatus, p = reachStatusPath()): void {
+export function writeReachStatus(
+  status: ReachStatus,
+  p = reachStatusPath(),
+): void {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   const tmp = `${p}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(status, null, 2));
@@ -248,9 +325,14 @@ export function writeReachStatus(status: ReachStatus, p = reachStatusPath()): vo
 }
 
 /** One line per reached folder for `cast hosts reach` and `cast hosts ls`. */
-export function reachLine(folder: ReachFolder, entry: ReachStatusEntry | undefined, statusAgeMs: number | null): string {
+export function reachLine(
+  folder: ReachFolder,
+  entry: ReachStatusEntry | undefined,
+  statusAgeMs: number | null,
+): string {
   const ro = folder.readOnly ? " (read-only)" : "";
-  if (!entry || statusAgeMs === null || statusAgeMs > 3 * 60_000) return `${folder.path}${ro}: approved — the daemon has not reported on it (is it running?)`;
+  if (!entry || statusAgeMs === null || statusAgeMs > 3 * 60_000)
+    return `${folder.path}${ro}: approved — the daemon has not reported on it (is it running?)`;
   const what: Record<ReachState, string> = {
     mounted: "mounted on the host",
     connecting: "connecting",

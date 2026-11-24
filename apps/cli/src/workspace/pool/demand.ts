@@ -38,9 +38,13 @@ export function demandFile(repoRoot: string): string {
 /** Epoch-ms stamps of recent workspace creates, oldest first. */
 export function readDemand(repoRoot: string): number[] {
   try {
-    const raw = JSON.parse(fs.readFileSync(demandFile(repoRoot), "utf-8")) as unknown;
+    const raw = JSON.parse(
+      fs.readFileSync(demandFile(repoRoot), "utf-8"),
+    ) as unknown;
     if (!Array.isArray(raw)) return [];
-    return raw.filter((n): n is number => typeof n === "number" && Number.isFinite(n));
+    return raw.filter(
+      (n): n is number => typeof n === "number" && Number.isFinite(n),
+    );
   } catch {
     return [];
   }
@@ -74,7 +78,9 @@ export function desiredPoolSize(
   now = Date.now(),
   cap = POOL_MAX_SLOTS,
 ): number {
-  const inWindow = creates.filter((t) => now - t <= POOL_BURST_WINDOW_MS).length;
+  const inWindow = creates.filter(
+    (t) => now - t <= POOL_BURST_WINDOW_MS,
+  ).length;
   return Math.max(0, Math.min(cap, inWindow - 1));
 }
 

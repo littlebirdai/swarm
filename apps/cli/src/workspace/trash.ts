@@ -20,7 +20,10 @@ export const TRASH_GRACE_MS = 5 * 60_000;
 
 /** Rename `target` to a trash sibling and return the new path. */
 export function moveToTrash(target: string): string {
-  const trashPath = path.join(path.dirname(target), `${TRASH_PREFIX}${randomUUID()}`);
+  const trashPath = path.join(
+    path.dirname(target),
+    `${TRASH_PREFIX}${randomUUID()}`,
+  );
   fs.renameSync(target, trashPath);
   // Why: a rename leaves the directory's own mtime untouched, and the sweep
   // ages trash by mtime — without this an idle worktree is swept at once.

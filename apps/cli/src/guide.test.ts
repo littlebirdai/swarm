@@ -12,7 +12,11 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { guideText, guideTopics, snippetBySlug } from "@codecast/shared/contracts";
+import {
+  guideText,
+  guideTopics,
+  snippetBySlug,
+} from "@codecast/shared/contracts";
 import { DAEMON_BUILD_ID } from "./daemonBuildId.js";
 import { getVersion } from "./update.js";
 import { guideHeader, guidePayload, unknownTopicMessage } from "./guide.js";
@@ -31,7 +35,11 @@ function scratchHome(): string {
   return home;
 }
 
-function runGuide(args: string[]): { status: number | null; stdout: string; stderr: string } {
+function runGuide(args: string[]): {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+} {
   const home = scratchHome();
   try {
     const proc = spawnSync(process.execPath, [cliEntry, "guide", ...args], {
@@ -39,7 +47,11 @@ function runGuide(args: string[]): { status: number | null; stdout: string; stde
       encoding: "utf8",
       timeout: 60_000,
     });
-    return { status: proc.status, stdout: proc.stdout ?? "", stderr: proc.stderr ?? "" };
+    return {
+      status: proc.status,
+      stdout: proc.stdout ?? "",
+      stderr: proc.stderr ?? "",
+    };
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
@@ -53,8 +65,12 @@ describe("cast guide", () => {
       // assertion is a real comparison and not the function agreeing with
       // itself.
       const body = section.body.split(section.spec.endMarker).join("").trim();
-      const expected = section.reference ? `${body}\n\n${section.reference.trim()}` : body;
-      expect(`${topic.slug}: ${guideText(topic)}`).toBe(`${topic.slug}: ${expected}`);
+      const expected = section.reference
+        ? `${body}\n\n${section.reference.trim()}`
+        : body;
+      expect(`${topic.slug}: ${guideText(topic)}`).toBe(
+        `${topic.slug}: ${expected}`,
+      );
       expect(guideText(topic)).toContain(section.spec.headings[0]);
     }
   });
@@ -81,7 +97,9 @@ describe("cast guide", () => {
   });
 
   test("a typo or a singular names the topic it was reaching for", () => {
-    expect(unknownTopicMessage("brwser")).toContain("did you mean 'cast guide browser'?");
+    expect(unknownTopicMessage("brwser")).toContain(
+      "did you mean 'cast guide browser'?",
+    );
     expect(unknownTopicMessage("workflow")).toContain("'cast guide workflows'");
     expect(unknownTopicMessage("zzzzzz")).not.toContain("did you mean");
   });

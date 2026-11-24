@@ -2,8 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { groupIdleNotifications, summarizeIdleDigest } from "./idleDigest";
 
 // Rows as the bell holds them: newest first.
-const row = (id: string, type: string, created_at: number, read = false) =>
-  ({ _id: id, type, created_at, read });
+const row = (id: string, type: string, created_at: number, read = false) => ({
+  _id: id,
+  type,
+  created_at,
+  read,
+});
 const keyOf = (r: any) => r._id;
 const group = (rows: any[]) => groupIdleNotifications(rows, keyOf);
 
@@ -13,9 +17,15 @@ describe("the fold-up line", () => {
       title: "1 session needs your attention",
       message: "A needs your attention",
     });
-    expect(summarizeIdleDigest(["A", "B"]).message).toBe("A and B need your attention");
-    expect(summarizeIdleDigest(["A", "B", "C"]).message).toBe("A, B and 1 other need your attention");
-    expect(summarizeIdleDigest(["A", "B", "C", "D"]).message).toBe("A, B and 2 others need your attention");
+    expect(summarizeIdleDigest(["A", "B"]).message).toBe(
+      "A and B need your attention",
+    );
+    expect(summarizeIdleDigest(["A", "B", "C"]).message).toBe(
+      "A, B and 1 other need your attention",
+    );
+    expect(summarizeIdleDigest(["A", "B", "C", "D"]).message).toBe(
+      "A, B and 2 others need your attention",
+    );
   });
 });
 
@@ -53,13 +63,19 @@ describe("grouping the waiting burst", () => {
   });
 
   test("one waiting session stays its own row", () => {
-    const out = group([row("i1", "session_idle", 1000), row("c1", "chat_dm", 900)]);
+    const out = group([
+      row("i1", "session_idle", 1000),
+      row("c1", "chat_dm", 900),
+    ]);
     expect(out.map((e) => e.kind)).toEqual(["single", "single"]);
   });
 
   test("two waiting sessions group even with no fold-up row yet", () => {
     // The window is still open: the alerting row and the quiet one behind it.
-    const out = group([row("i2", "session_idle", 1050), row("i1", "session_idle", 1000)]);
+    const out = group([
+      row("i2", "session_idle", 1050),
+      row("i1", "session_idle", 1000),
+    ]);
     expect(out.length).toBe(1);
     const g = out[0] as any;
     expect(g.digest).toBeNull();
@@ -67,7 +83,10 @@ describe("grouping the waiting burst", () => {
   });
 
   test("a fold-up whose sessions are all superseded stays one row", () => {
-    const out = group([row("d1", "sessions_need_input", 1100), row("c1", "chat_dm", 900)]);
+    const out = group([
+      row("d1", "sessions_need_input", 1100),
+      row("c1", "chat_dm", 900),
+    ]);
     expect(out.map((e) => e.kind)).toEqual(["single", "single"]);
   });
 

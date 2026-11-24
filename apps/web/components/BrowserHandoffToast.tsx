@@ -50,11 +50,26 @@ let handoffGen = 0;
 
 // Keyed by path, so a background tab re-firing the same handoff refreshes the
 // one card instead of stacking duplicates.
-export function showBrowserHandoffToast(path: string, onOpen: (path: string) => void) {
+export function showBrowserHandoffToast(
+  path: string,
+  onOpen: (path: string) => void,
+) {
   const gen = ++handoffGen;
   toast.custom(
-    (toastId) => <BrowserHandoffToast toastId={toastId} path={path} onOpen={onOpen} gen={gen} />,
-    { id: toastKey(path), duration: Infinity, unstyled: true, style: TOAST_STYLE },
+    (toastId) => (
+      <BrowserHandoffToast
+        toastId={toastId}
+        path={path}
+        onOpen={onOpen}
+        gen={gen}
+      />
+    ),
+    {
+      id: toastKey(path),
+      duration: Infinity,
+      unstyled: true,
+      style: TOAST_STYLE,
+    },
   );
 }
 
@@ -68,7 +83,8 @@ function closeHandoffToast(path: string, toastId: string | number) {
 // the Electron deep-link bridge, so this is the only way to drive the card in
 // a browser — __showBrowserHandoffToast("/conversation/<id>").
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined")
-  (window as any).__showBrowserHandoffToast = (path: string) => showBrowserHandoffToast(path, () => {});
+  (window as any).__showBrowserHandoffToast = (path: string) =>
+    showBrowserHandoffToast(path, () => {});
 
 function BrowserHandoffToast({
   toastId,
@@ -84,16 +100,29 @@ function BrowserHandoffToast({
   const convId = conversationIdFromPath(path);
   const { data: fetched, error } = useQueryNoThrow(
     api.conversations.webGet,
-    convId ? (isConvexId(convId) ? { id: convId } : { short_id: convId.slice(0, 7).toLowerCase() }) : "skip",
+    convId
+      ? isConvexId(convId)
+        ? { id: convId }
+        : { short_id: convId.slice(0, 7).toLowerCase() }
+      : "skip",
   );
-  const storeRow = useInboxStore((s) => (convId ? s.sessions[convId] : undefined));
-  const session = (fetched ?? storeRow ?? null) as Record<string, unknown> | null;
+  const storeRow = useInboxStore((s) =>
+    convId ? s.sessions[convId] : undefined,
+  );
+  const session = (fetched ?? storeRow ?? null) as Record<
+    string,
+    unknown
+  > | null;
   const loading = !!convId && fetched === undefined && !storeRow && !error;
   const thumbSrc = imageBytes.useSrc(
-    typeof session?.image_preview_url === "string" ? session.image_preview_url : undefined,
+    typeof session?.image_preview_url === "string"
+      ? session.image_preview_url
+      : undefined,
   );
 
-  const arrived = useInboxStore((s) => convId != null && s.currentSessionId === convId);
+  const arrived = useInboxStore(
+    (s) => convId != null && s.currentSessionId === convId,
+  );
   useWatchEffect(() => {
     if (arrived) closeHandoffToast(path, toastId);
   }, [arrived, path, toastId]);
@@ -157,15 +186,23 @@ export function BrowserHandoffCard({
   onDismiss: () => void;
 }) {
   const hasSession = !!session && (session.title || session.short_id);
-  const title = hasSession ? cleanTitle(session.title || session.short_id || "Session") : null;
+  const title = hasSession
+    ? cleanTitle(session.title || session.short_id || "Session")
+    : null;
   const isLive = !!(session?.is_active || session?.status === "active");
   const summary = session ? sessionCardSummary(session) : "";
-  const userLine = session ? cleanUserMessage(session.last_message_preview) : null;
-  const project = session?.project_path ? getProjectName(undefined, session.project_path) : null;
+  const userLine = session
+    ? cleanUserMessage(session.last_message_preview)
+    : null;
+  const project = session?.project_path
+    ? getProjectName(undefined, session.project_path)
+    : null;
   const projectColor = project ? getLabelColor(project) : null;
   const model = session ? abbrevModel(session.model) : null;
   const timeAgo = session ? relativeTime(session.updated_at) : null;
-  const agent = session?.agent_type ? formatAgentType(session.agent_type) : null;
+  const agent = session?.agent_type
+    ? formatAgentType(session.agent_type)
+    : null;
   const isForeign = !!(session?.author_name || session?.author_avatar);
 
   return (
@@ -175,7 +212,12 @@ export function BrowserHandoffCard({
           <MonitorDown className="h-4 w-4" />
         </span>
         <span className="handoff-toast-kicker">From the browser</span>
-        <button type="button" className="handoff-toast-x" onClick={onDismiss} title="Dismiss">
+        <button
+          type="button"
+          className="handoff-toast-x"
+          onClick={onDismiss}
+          title="Dismiss"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -185,12 +227,18 @@ export function BrowserHandoffCard({
           <div className="handoff-toast-row">
             <div className="handoff-toast-copy">
               <div className="handoff-toast-title">
-                <AgentTypeIcon agentType={session.agent_type || "claude_code"} className="h-[18px] w-[18px]" />
+                <AgentTypeIcon
+                  agentType={session.agent_type || "claude_code"}
+                  className="h-[18px] w-[18px]"
+                />
                 <span>{title}</span>
               </div>
               <div className="handoff-toast-status">
                 {isLive && (
-                  <span className="relative flex h-2 w-2 flex-shrink-0" title="Live">
+                  <span
+                    className="relative flex h-2 w-2 flex-shrink-0"
+                    title="Live"
+                  >
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sol-green opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-sol-green" />
                   </span>
@@ -202,7 +250,11 @@ export function BrowserHandoffCard({
                 {isForeign && session.author_name && (
                   <span className="inline-flex min-w-0 items-center gap-1">
                     <span aria-hidden="true">·</span>
-                    <AuthorAvatar name={session.author_name} avatar={session.author_avatar} size={14} />
+                    <AuthorAvatar
+                      name={session.author_name}
+                      avatar={session.author_avatar}
+                      size={14}
+                    />
                     <span className="truncate">{session.author_name}</span>
                   </span>
                 )}
@@ -219,7 +271,9 @@ export function BrowserHandoffCard({
                 </p>
               )}
             </div>
-            {thumbSrc && <img src={thumbSrc} alt="" className="handoff-toast-thumb" />}
+            {thumbSrc && (
+              <img src={thumbSrc} alt="" className="handoff-toast-thumb" />
+            )}
           </div>
           <div className="handoff-toast-meta">
             {project && projectColor && (
@@ -255,7 +309,11 @@ export function BrowserHandoffCard({
         <button type="button" className="handoff-toast-open" onClick={onOpen}>
           {hasSession ? "Open session" : "Open"}
         </button>
-        <button type="button" className="handoff-toast-stay" onClick={onDismiss}>
+        <button
+          type="button"
+          className="handoff-toast-stay"
+          onClick={onDismiss}
+        >
           Not now
         </button>
       </div>

@@ -17,8 +17,15 @@ import { useMountEffect } from "./useMountEffect";
 // React view of the shared OS-permissions store (lib/osPermissions.ts).
 const getServerSnapshot = () => UNKNOWN_PERMISSIONS;
 
-export function useOsPermissions(): { permissions: PermissionMap; refresh: () => Promise<void> } {
-  const permissions = useSyncExternalStore(subscribeOsPermissions, peekOsPermissions, getServerSnapshot);
+export function useOsPermissions(): {
+  permissions: PermissionMap;
+  refresh: () => Promise<void>;
+} {
+  const permissions = useSyncExternalStore(
+    subscribeOsPermissions,
+    peekOsPermissions,
+    getServerSnapshot,
+  );
   const refresh = useCallback(() => refreshOsPermissions(), []);
   // A consumer mounting while the poll is parked (nothing was actionable at
   // the time) still wants one fresh read.
@@ -40,8 +47,15 @@ const getServerComputerSnapshot = () => UNKNOWN_COMPUTER_PERMISSIONS;
 // rows are actually on screen. `checking` is true for the first read alone;
 // later reads (a return to the window) replace an answer that is already
 // drawn.
-export function useComputerPermissions(): { permissions: ComputerPermissionMap; checking: boolean } {
-  const permissions = useSyncExternalStore(subscribeComputerPermissions, peekComputerPermissions, getServerComputerSnapshot);
+export function useComputerPermissions(): {
+  permissions: ComputerPermissionMap;
+  checking: boolean;
+} {
+  const permissions = useSyncExternalStore(
+    subscribeComputerPermissions,
+    peekComputerPermissions,
+    getServerComputerSnapshot,
+  );
   const [checking, setChecking] = useState(true);
   useMountEffect(() => {
     refreshComputerPermissions().finally(() => setChecking(false));

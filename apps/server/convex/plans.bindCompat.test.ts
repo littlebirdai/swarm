@@ -28,19 +28,25 @@ async function tables() {
     users: [{ _id: USER, name: "Owner" }],
     teams: [],
     team_memberships: [],
-    api_tokens: [{ _id: "tok", user_id: USER, token_hash: await hashToken(TOKEN) }],
-    plans: [{
-      _id: "plan_1",
-      short_id: "pl-1",
-      user_id: USER,
-      title: "Capability Library",
-      session_ids: [],
-    }],
-    conversations: [{
-      _id: "conv_1",
-      session_id: "sess-abc",
-      user_id: USER,
-    }],
+    api_tokens: [
+      { _id: "tok", user_id: USER, token_hash: await hashToken(TOKEN) },
+    ],
+    plans: [
+      {
+        _id: "plan_1",
+        short_id: "pl-1",
+        user_id: USER,
+        title: "Capability Library",
+        session_ids: [],
+      },
+    ],
+    conversations: [
+      {
+        _id: "conv_1",
+        session_id: "sess-abc",
+        user_id: USER,
+      },
+    ],
     entity_conversations: [],
   };
 }
@@ -108,7 +114,11 @@ describe("plans.bindSession accepts both wire spellings", () => {
 
   test("conversation_id wins when both are sent, so a mixed body is never ambiguous", async () => {
     const t = await tables();
-    t.conversations.push({ _id: "conv_2", session_id: "sess-other", user_id: USER });
+    t.conversations.push({
+      _id: "conv_2",
+      session_id: "sess-other",
+      user_id: USER,
+    });
     const c = ctx(t);
     await (bindSession as any)._handler(c, {
       api_token: TOKEN,
@@ -122,10 +132,12 @@ describe("plans.bindSession accepts both wire spellings", () => {
 
   test("omitting both is a clear error, not a lookup for undefined", async () => {
     const t = await tables();
-    await expect((bindSession as any)._handler(ctx(t), {
-      api_token: TOKEN,
-      short_id: "pl-1",
-    })).rejects.toThrow(/required/);
+    await expect(
+      (bindSession as any)._handler(ctx(t), {
+        api_token: TOKEN,
+        short_id: "pl-1",
+      }),
+    ).rejects.toThrow(/required/);
   });
 
   test("rebinding to a new plan re-points active_plan_id (last bind wins)", async () => {
@@ -142,7 +154,10 @@ describe("plans.bindSession accepts both wire spellings", () => {
       session_ids: ["conv_1"],
       current_session_id: "conv_1",
     } as any);
-    Object.assign(t.conversations[0], { active_plan_id: "plan_old", plan_ids: ["plan_old"] });
+    Object.assign(t.conversations[0], {
+      active_plan_id: "plan_old",
+      plan_ids: ["plan_old"],
+    });
     const c = ctx(t);
     await (bindSession as any)._handler(c, {
       api_token: TOKEN,
@@ -156,10 +171,12 @@ describe("plans.bindSession accepts both wire spellings", () => {
 
   test("an unknown session still fails closed", async () => {
     const t = await tables();
-    await expect((bindSession as any)._handler(ctx(t), {
-      api_token: TOKEN,
-      short_id: "pl-1",
-      session_id: "sess-does-not-exist",
-    })).rejects.toThrow();
+    await expect(
+      (bindSession as any)._handler(ctx(t), {
+        api_token: TOKEN,
+        short_id: "pl-1",
+        session_id: "sess-does-not-exist",
+      }),
+    ).rejects.toThrow();
   });
 });

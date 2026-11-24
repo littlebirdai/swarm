@@ -41,8 +41,13 @@ export const AUTO_HANDOFF_PARAM = "cc_handoff";
 // The real route is nested under a fixed `open` host so the path survives a
 // round trip: a bare `codecast://conversation/x` parses "conversation" as the
 // URL host and drops it, landing the app on the wrong page.
-export function buildDesktopDeepLink(pathWithSearch: string, opts?: { auto?: boolean }): string {
-  const p = pathWithSearch.startsWith("/") ? pathWithSearch : `/${pathWithSearch}`;
+export function buildDesktopDeepLink(
+  pathWithSearch: string,
+  opts?: { auto?: boolean },
+): string {
+  const p = pathWithSearch.startsWith("/")
+    ? pathWithSearch
+    : `/${pathWithSearch}`;
   if (!opts?.auto) return `codecast://${DEEP_LINK_HOST}${p}`;
   const sep = p.includes("?") ? "&" : "?";
   return `codecast://${DEEP_LINK_HOST}${p}${sep}${AUTO_HANDOFF_PARAM}=auto`;
@@ -50,14 +55,20 @@ export function buildDesktopDeepLink(pathWithSearch: string, opts?: { auto?: boo
 
 // Split an incoming deep-link path into the navigable path and whether it was
 // an auto handoff (stripping the marker so it never reaches the router).
-export function extractDeepLinkIntent(pathWithSearch: string): { path: string; auto: boolean } {
+export function extractDeepLinkIntent(pathWithSearch: string): {
+  path: string;
+  auto: boolean;
+} {
   const qIdx = pathWithSearch.indexOf("?");
   if (qIdx === -1) return { path: pathWithSearch, auto: false };
   const sp = new URLSearchParams(pathWithSearch.slice(qIdx + 1));
   const auto = sp.get(AUTO_HANDOFF_PARAM) === "auto";
   sp.delete(AUTO_HANDOFF_PARAM);
   const rest = sp.toString();
-  return { path: pathWithSearch.slice(0, qIdx) + (rest ? `?${rest}` : ""), auto };
+  return {
+    path: pathWithSearch.slice(0, qIdx) + (rest ? `?${rest}` : ""),
+    auto,
+  };
 }
 
 // Inverse of buildDesktopDeepLink: turn an incoming codecast:// URL into a
@@ -129,10 +140,58 @@ const HANDOFF_DENY = [
 // this set, so drift fails loudly.
 export const IN_SHELL_ROOT_SEGMENTS = new Set([
   // Tab pages (RoutePane patterns)
-  "inbox", "feed", "changes", "deploys", "prompts", "crosstalk", "map", "org", "browser", "simulator", "chat", "community", "search", "notifications", "decisions", "flows", "line", "expectations", "trial", "view", "threads", "docs", "capabilities", "agent-features", "week", "plans", "goals", "projects", "tasks", "files", "vault", "pages", "artifacts",
-  "workflows", "routines", "triggers", "schedules", "sessions", "resources", "anchor", "config", "memory", "evals", "calls", "ops", "mods",
+  "inbox",
+  "feed",
+  "changes",
+  "deploys",
+  "prompts",
+  "crosstalk",
+  "map",
+  "org",
+  "browser",
+  "simulator",
+  "chat",
+  "community",
+  "search",
+  "notifications",
+  "decisions",
+  "flows",
+  "line",
+  "expectations",
+  "trial",
+  "view",
+  "threads",
+  "docs",
+  "capabilities",
+  "agent-features",
+  "week",
+  "plans",
+  "goals",
+  "projects",
+  "tasks",
+  "files",
+  "vault",
+  "pages",
+  "artifacts",
+  "workflows",
+  "routines",
+  "triggers",
+  "schedules",
+  "sessions",
+  "resources",
+  "anchor",
+  "config",
+  "memory",
+  "evals",
+  "calls",
+  "ops",
+  "mods",
   // Standalone shell pages (own <Route>, not in RoutePane)
-  "explore", "windows", "orchestration", "cli", "start",
+  "explore",
+  "windows",
+  "orchestration",
+  "cli",
+  "start",
   // The repository index (its history, source and commit pages are deeper paths)
   "repo",
 ]);
@@ -140,7 +199,10 @@ export const IN_SHELL_ROOT_SEGMENTS = new Set([
 /** A public profile handle at the root (/:username): a bare single segment
  *  that names no app route. */
 export function isPublicProfilePath(path: string): boolean {
-  const single = path.split("?")[0].split("#")[0].match(/^\/([^/]+)$/);
+  const single = path
+    .split("?")[0]
+    .split("#")[0]
+    .match(/^\/([^/]+)$/);
   return !!single && !IN_SHELL_ROOT_SEGMENTS.has(single[1]);
 }
 
@@ -204,7 +266,9 @@ export function isAgentDrivenTab(): boolean {
 // left in the browser. Unknown (no entry) is treated as fresh.
 export function isFreshNavigation(): boolean {
   try {
-    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const nav = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
     return nav ? nav.type === "navigate" : true;
   } catch {
     return true;
@@ -406,7 +470,9 @@ export type PreBootVerdict = "handoff" | "hold" | "boot";
 export function preBootVerdict(c: PreBootHandoffContext): PreBootVerdict {
   if (shouldAttemptPreBootHandoff(c)) return "handoff";
   if (c.foreground) return "boot";
-  return shouldAttemptPreBootHandoff({ ...c, foreground: true }) ? "hold" : "boot";
+  return shouldAttemptPreBootHandoff({ ...c, foreground: true })
+    ? "hold"
+    : "boot";
 }
 
 // window.__CODECAST_ELECTRON__ is exposed by the desktop preload before any page
@@ -416,7 +482,9 @@ export function preBootVerdict(c: PreBootHandoffContext): PreBootVerdict {
 // because this file is inlined pre-boot and may import nothing.
 function isDesktopShell(): boolean {
   if ((window as any).__CODECAST_ELECTRON__) return true;
-  return typeof navigator !== "undefined" && / Electron\//.test(navigator.userAgent);
+  return (
+    typeof navigator !== "undefined" && / Electron\//.test(navigator.userAgent)
+  );
 }
 
 function currentUrl(): string {
@@ -449,7 +517,10 @@ export function openDesktop(opts?: { auto?: boolean }): void {
  * `onLapse` runs when the window closes without a handoff. Returns a teardown
  * for the caller that unmounts first.
  */
-export function armForegroundHandoff(attempt: () => boolean, onLapse?: () => void): () => void {
+export function armForegroundHandoff(
+  attempt: () => boolean,
+  onLapse?: () => void,
+): () => void {
   const armedAt = Date.now();
   const teardown = () => {
     clearTimeout(timer);
@@ -526,7 +597,11 @@ export function showHandoffScreen(opts: HandoffScreenOptions): () => void {
   return hide;
 }
 
-function onScreenClick(e: Event, opts: HandoffScreenOptions, hide: () => void): void {
+function onScreenClick(
+  e: Event,
+  opts: HandoffScreenOptions,
+  hide: () => void,
+): void {
   const target = (e.target as Element | null)?.closest?.(`[${ACTION_ATTR}]`);
   const action = target?.getAttribute(ACTION_ATTR);
   if (!action) return;
@@ -571,7 +646,9 @@ function onScreenClick(e: Event, opts: HandoffScreenOptions, hide: () => void): 
 function closeTab(): void {
   const root = document.documentElement;
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || "");
-  for (const el of Array.from(document.querySelectorAll(`[${MODIFIER_ATTR}]`))) {
+  for (const el of Array.from(
+    document.querySelectorAll(`[${MODIFIER_ATTR}]`),
+  )) {
     el.textContent = isMac ? "⌘" : "Ctrl";
   }
   root.setAttribute(HANDOFF_KEEP_ATTR, "");
@@ -588,7 +665,9 @@ function closeTab(): void {
  * stand in their way.
  */
 export function isStandaloneSharePath(path: string): boolean {
-  return /^\/share\/[a-z]+\/[^/]+\/?$/.test(path) || /^\/meet\/[^/]+\/?$/.test(path);
+  return (
+    /^\/share\/[a-z]+\/[^/]+\/?$/.test(path) || /^\/meet\/[^/]+\/?$/.test(path)
+  );
 }
 
 /**
@@ -644,19 +723,16 @@ export function runPreBootHandoff(
       preload();
       resolve(false);
     };
-    const disarm = armForegroundHandoff(
-      () => {
-        let go = false;
-        try {
-          go = shouldAttemptPreBootHandoff(readPreBootContext());
-        } catch {}
-        if (!go) return false;
-        takeOverBoot();
-        resolve(true);
-        return true;
-      },
-      boot,
-    );
+    const disarm = armForegroundHandoff(() => {
+      let go = false;
+      try {
+        go = shouldAttemptPreBootHandoff(readPreBootContext());
+      } catch {}
+      if (!go) return false;
+      takeOverBoot();
+      resolve(true);
+      return true;
+    }, boot);
     // A driver that attached after this document started parsing stamps it
     // late (see AGENT_TAB_EVENT): the tab is an agent's, so boot it now
     // rather than leaving it dead until the arm window lapses.

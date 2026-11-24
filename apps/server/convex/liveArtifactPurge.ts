@@ -31,16 +31,22 @@ export const purgeDoc = internalMutation({
     ];
     for (const [table, index] of tables) {
       if (budget <= 0) break;
-      const rows = await (ctx.db.query(table as any) as any).withIndex(index, byDoc).take(budget);
+      const rows = await (ctx.db.query(table as any) as any)
+        .withIndex(index, byDoc)
+        .take(budget);
       for (const r of rows) {
-        if (table === "live_versions" && r.snapshot) await ctx.storage.delete(r.snapshot).catch(() => {});
+        if (table === "live_versions" && r.snapshot)
+          await ctx.storage.delete(r.snapshot).catch(() => {});
         await ctx.db.delete(r._id);
       }
       budget -= rows.length;
     }
     const purged = PURGE_ROWS - budget;
     const done = budget > 0;
-    if (!done) await ctx.scheduler.runAfter(0, internal.liveArtifactPurge.purgeDoc, { doc_id: args.doc_id });
+    if (!done)
+      await ctx.scheduler.runAfter(0, internal.liveArtifactPurge.purgeDoc, {
+        doc_id: args.doc_id,
+      });
     return { purged, done };
   },
 });

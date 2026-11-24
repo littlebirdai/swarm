@@ -2,7 +2,29 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseDecideOption, parseImpact, pickDecisionTarget, looksLikeDecisionId, describeResolution, formatDecisionList, formatAge, formatSpan, isStaleDecision, parseAnswerSpec, parseDecideSpec, parseOptionBodyArg, parseOptionPageArg, pageRefToSlug, attachOptionPages, parseAnsweredSince, formatAnsweredList, formatCalibration, answeredVerdict, type DecideOption, type DecisionRow } from "./decideCommand.js";
+import {
+  parseDecideOption,
+  parseImpact,
+  pickDecisionTarget,
+  looksLikeDecisionId,
+  describeResolution,
+  formatDecisionList,
+  formatAge,
+  formatSpan,
+  isStaleDecision,
+  parseAnswerSpec,
+  parseDecideSpec,
+  parseOptionBodyArg,
+  parseOptionPageArg,
+  pageRefToSlug,
+  attachOptionPages,
+  parseAnsweredSince,
+  formatAnsweredList,
+  formatCalibration,
+  answeredVerdict,
+  type DecideOption,
+  type DecisionRow,
+} from "./decideCommand.js";
 
 describe("cast decide option parsing", () => {
   it("keeps a bare label as a label", () => {
@@ -38,7 +60,10 @@ describe("cast decide option parsing", () => {
 const row = (over: Partial<DecisionRow>): DecisionRow => ({
   id: "k57abcdefghijklmnopqrstuv",
   question: "Which schema wins?",
-  options: [{ label: "Frontmatter" }, { label: "Path", description: "stable across edits" }],
+  options: [
+    { label: "Frontmatter" },
+    { label: "Path", description: "stable across edits" },
+  ],
   blocking: true,
   status: "pending",
   created_at: 1,
@@ -46,27 +71,45 @@ const row = (over: Partial<DecisionRow>): DecisionRow => ({
 });
 
 describe("cast decide --impact", () => {
-  it("reads the score and its why, the same \"a :: b\" shape as an option", () => {
-    expect(parseImpact("4 :: the release waits on it")).toEqual({ impact: 4, impact_reason: "the release waits on it" });
+  it('reads the score and its why, the same "a :: b" shape as an option', () => {
+    expect(parseImpact("4 :: the release waits on it")).toEqual({
+      impact: 4,
+      impact_reason: "the release waits on it",
+    });
     expect(parseImpact("2")).toEqual({ impact: 2 });
   });
   it("refuses a score off the 1-5 scale", () => {
-    for (const bad of ["0", "6", "3.5", "high", ""]) expect(() => parseImpact(bad)).toThrow("whole number from 1 to 5");
+    for (const bad of ["0", "6", "3.5", "high", ""])
+      expect(() => parseImpact(bad)).toThrow("whole number from 1 to 5");
   });
 });
 
 describe("cast decide edit/cancel target", () => {
   it("an explicit id always wins", () => {
-    expect(pickDecisionTarget([], "k57abcdefghijklmnopqrstuv")).toEqual({ id: "k57abcdefghijklmnopqrstuv" });
+    expect(pickDecisionTarget([], "k57abcdefghijklmnopqrstuv")).toEqual({
+      id: "k57abcdefghijklmnopqrstuv",
+    });
   });
 
   it("acts on the session's one open decision when no id is given", () => {
-    const rows = [row({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", status: "answered", answer_index: 1 }), row({})];
-    expect(pickDecisionTarget(rows)).toEqual({ id: "k57abcdefghijklmnopqrstuv" });
+    const rows = [
+      row({
+        id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+        status: "answered",
+        answer_index: 1,
+      }),
+      row({}),
+    ];
+    expect(pickDecisionTarget(rows)).toEqual({
+      id: "k57abcdefghijklmnopqrstuv",
+    });
   });
 
   it("refuses to guess between several open decisions and lists them", () => {
-    const rows = [row({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", question: "A?" }), row({ id: "bbbbbbbbbbbbbbbbbbbbbbbb", question: "B?" })];
+    const rows = [
+      row({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", question: "A?" }),
+      row({ id: "bbbbbbbbbbbbbbbbbbbbbbbb", question: "B?" }),
+    ];
     const out = pickDecisionTarget(rows);
     expect("error" in out).toBe(true);
     expect((out as any).error).toContain("2 open decisions");
@@ -95,7 +138,12 @@ describe("cast decide id shape", () => {
 describe("cast decide ls formatting", () => {
   it("names the answer label, marks the chosen option, and flags advisory", () => {
     const text = formatDecisionList([
-      row({ status: "answered", answer_index: 1, blocking: false, default_option: 0 }),
+      row({
+        status: "answered",
+        answer_index: 1,
+        blocking: false,
+        default_option: 0,
+      }),
     ]);
     expect(text).toContain("answered: Path  (advisory)");
     expect(text).toContain("✓ 2. Path: stable across edits");
@@ -104,13 +152,20 @@ describe("cast decide ls formatting", () => {
 
   it("marks the default of an open advisory decision", () => {
     const now = 1 + 5 * 60_000;
-    const text = formatDecisionList([row({ blocking: false, default_option: 0 })], now);
+    const text = formatDecisionList(
+      [row({ blocking: false, default_option: 0 })],
+      now,
+    );
     expect(text).toContain("→ 1. Frontmatter");
     expect(text).toContain("still open, asked 5m ago  (advisory)");
   });
 
   it("describes a free-text answer and a withdrawal", () => {
-    expect(describeResolution(row({ status: "answered", answer_text: "neither, merge them" }))).toBe("answered: neither, merge them");
+    expect(
+      describeResolution(
+        row({ status: "answered", answer_text: "neither, merge them" }),
+      ),
+    ).toBe("answered: neither, merge them");
     expect(describeResolution(row({ status: "withdrawn" }))).toBe("withdrawn");
   });
 
@@ -140,7 +195,12 @@ describe("decision staleness", () => {
     expect(isStaleDecision(row({}), 1 + 60_000)).toBe(false);
     expect(isStaleDecision(row({}), 1 + 3 * 60 * 60_000)).toBe(true);
     expect(isStaleDecision(row({ messages_since: 40 }), 1 + 60_000)).toBe(true);
-    expect(isStaleDecision(row({ status: "answered", messages_since: 40 }), 1 + 3 * 60 * 60_000)).toBe(false);
+    expect(
+      isStaleDecision(
+        row({ status: "answered", messages_since: 40 }),
+        1 + 3 * 60 * 60_000,
+      ),
+    ).toBe(false);
   });
 
   it("formats ages coarsely", () => {
@@ -161,23 +221,48 @@ describe("cast decide answer parsing (W2)", () => {
   it("single takes one 1-based number and rejects lists", () => {
     expect(parseAnswerSpec("single", "2", [], 3)).toEqual({ answer_index: 1 });
     expect(() => parseAnswerSpec("single", "1,2", [], 3)).toThrow(/one option/);
-    expect(() => parseAnswerSpec("single", "4", [], 3)).toThrow(/not an option/);
+    expect(() => parseAnswerSpec("single", "4", [], 3)).toThrow(
+      /not an option/,
+    );
   });
   it("multi takes a comma list, rank an ordered list, form key=value pairs", () => {
-    expect(parseAnswerSpec("multi", "1,3", [], 3)).toEqual({ answer_json: [0, 2], answer_index: 0 });
-    expect(parseAnswerSpec("rank", "2>1>3", [], 3)).toEqual({ answer_json: [1, 0, 2], answer_index: 1 });
+    expect(parseAnswerSpec("multi", "1,3", [], 3)).toEqual({
+      answer_json: [0, 2],
+      answer_index: 0,
+    });
+    expect(parseAnswerSpec("rank", "2>1>3", [], 3)).toEqual({
+      answer_json: [1, 0, 2],
+      answer_index: 1,
+    });
     expect(() => parseAnswerSpec("rank", "2", [], 3)).toThrow(/at least two/);
     const fields = [
-      { key: "env", label: "Env", type: "select" as const, options: ["dev", "prod"] },
+      {
+        key: "env",
+        label: "Env",
+        type: "select" as const,
+        options: ["dev", "prod"],
+      },
       { key: "n", label: "N", type: "number" as const },
       { key: "ok", label: "Ok", type: "bool" as const },
       { key: "note", label: "Note", type: "text" as const },
     ];
-    expect(parseAnswerSpec("form", undefined, ["env=prod", "n=3", "ok=true", "note=42"], undefined, fields)).toEqual({
+    expect(
+      parseAnswerSpec(
+        "form",
+        undefined,
+        ["env=prod", "n=3", "ok=true", "note=42"],
+        undefined,
+        fields,
+      ),
+    ).toEqual({
       answer_json: { env: "prod", n: 3, ok: true, note: "42" },
     });
-    expect(() => parseAnswerSpec("form", undefined, ["n=lots"], undefined, fields)).toThrow(/must be a number/);
-    expect(() => parseAnswerSpec("form", undefined, ["ok=yes"], undefined, fields)).toThrow(/true or false/);
+    expect(() =>
+      parseAnswerSpec("form", undefined, ["n=lots"], undefined, fields),
+    ).toThrow(/must be a number/);
+    expect(() =>
+      parseAnswerSpec("form", undefined, ["ok=yes"], undefined, fields),
+    ).toThrow(/true or false/);
     expect(() => parseAnswerSpec("form", undefined, [])).toThrow(/--form/);
   });
   it("sd-N short ids count as decision ids", () => {
@@ -185,14 +270,30 @@ describe("cast decide answer parsing (W2)", () => {
     expect(isId("edit")).toBe(false);
   });
   it("a spec parses string options and validates kind and form", () => {
-    const spec = parseDecideSpec(JSON.stringify({ question: "Q", kind: "multi", options: ["A :: a", { label: "B", cost: "1d" }] }));
-    expect(spec.options).toEqual([{ label: "A", description: "a" }, { label: "B", cost: "1d" }]);
-    expect(() => parseDecideSpec(JSON.stringify({ kind: "weird" }))).toThrow(/kind/);
-    expect(() => parseDecideSpec(JSON.stringify({ form: { fields: [] } }))).toThrow(/form.fields/);
+    const spec = parseDecideSpec(
+      JSON.stringify({
+        question: "Q",
+        kind: "multi",
+        options: ["A :: a", { label: "B", cost: "1d" }],
+      }),
+    );
+    expect(spec.options).toEqual([
+      { label: "A", description: "a" },
+      { label: "B", cost: "1d" },
+    ]);
+    expect(() => parseDecideSpec(JSON.stringify({ kind: "weird" }))).toThrow(
+      /kind/,
+    );
+    expect(() =>
+      parseDecideSpec(JSON.stringify({ form: { fields: [] } })),
+    ).toThrow(/form.fields/);
     expect(() => parseDecideSpec("not json")).toThrow(/JSON/);
   });
   it("--option-body takes n=file", () => {
-    expect(parseOptionBodyArg("2=why.md")).toEqual({ index: 1, file: "why.md" });
+    expect(parseOptionBodyArg("2=why.md")).toEqual({
+      index: 1,
+      file: "why.md",
+    });
     expect(() => parseOptionBodyArg("why.md")).toThrow(/n=file/);
   });
 });
@@ -206,13 +307,20 @@ describe("cast decide option pages (the-line.md L6)", () => {
   fs.writeFileSync(fileA, "<h1>A</h1>");
 
   it("--option-page takes n=file, like --option-body", () => {
-    expect(parseOptionPageArg("2=mockup-b.html")).toEqual({ index: 1, file: "mockup-b.html" });
-    expect(() => parseOptionPageArg("mockup.html")).toThrow(/--option-page expects n=file/);
+    expect(parseOptionPageArg("2=mockup-b.html")).toEqual({
+      index: 1,
+      file: "mockup-b.html",
+    });
+    expect(() => parseOptionPageArg("mockup.html")).toThrow(
+      /--option-page expects n=file/,
+    );
   });
 
   it("a codecast page url or a bare slug is an existing page; a file on disk is not", () => {
     expect(pageRefToSlug("https://codecast.sh/a/abc123xyz")).toBe("abc123xyz");
-    expect(pageRefToSlug("https://codecast.sh/a/abc123xyz?v=2")).toBe("abc123xyz");
+    expect(pageRefToSlug("https://codecast.sh/a/abc123xyz?v=2")).toBe(
+      "abc123xyz",
+    );
     expect(pageRefToSlug("abc123xyz")).toBe("abc123xyz");
     expect(pageRefToSlug("mockup-b.html")).toBeNull();
     expect(pageRefToSlug(fileA)).toBeNull();
@@ -222,9 +330,16 @@ describe("cast decide option pages (the-line.md L6)", () => {
     const published: string[] = [];
     const publish = async (file: string) => {
       published.push(file);
-      return { slug: `slug-${published.length}`, url: `https://codecast.sh/a/slug-${published.length}` };
+      return {
+        slug: `slug-${published.length}`,
+        url: `https://codecast.sh/a/slug-${published.length}`,
+      };
     };
-    const optionList: DecideOption[] = [{ label: "A" }, { label: "B", page: "https://codecast.sh/a/existing1" }, { label: "C" }];
+    const optionList: DecideOption[] = [
+      { label: "A" },
+      { label: "B", page: "https://codecast.sh/a/existing1" },
+      { label: "C" },
+    ];
     const urls = await attachOptionPages(optionList, [`1=${fileA}`], publish);
     expect(published).toEqual([fileA]);
     expect(optionList[0]).toEqual({ label: "A", page_slug: "slug-1" });
@@ -232,32 +347,71 @@ describe("cast decide option pages (the-line.md L6)", () => {
     expect(optionList[2]).toEqual({ label: "C" });
     expect(urls).toEqual({ 0: "https://codecast.sh/a/slug-1" });
     // The wire shape carries page_slug only: no `page`, no `page_url`.
-    for (const o of optionList) expect(Object.keys(o).every((k) => k !== "page" && k !== "page_url")).toBe(true);
+    for (const o of optionList)
+      expect(
+        Object.keys(o).every((k) => k !== "page" && k !== "page_url"),
+      ).toBe(true);
   });
 
   it("a flag names the option by number and refuses one that does not exist or a file that is missing", async () => {
     const publish = async () => ({ slug: "x", url: "u" });
-    await expect(attachOptionPages([{ label: "A" }, { label: "B" }], ["3=" + fileA], publish)).rejects.toThrow(/no option 3/);
-    await expect(attachOptionPages([{ label: "A" }, { label: "B" }], ["1=" + path.join(dir, "missing.html")], publish)).rejects.toThrow(/no such file or page/);
+    await expect(
+      attachOptionPages(
+        [{ label: "A" }, { label: "B" }],
+        ["3=" + fileA],
+        publish,
+      ),
+    ).rejects.toThrow(/no option 3/);
+    await expect(
+      attachOptionPages(
+        [{ label: "A" }, { label: "B" }],
+        ["1=" + path.join(dir, "missing.html")],
+        publish,
+      ),
+    ).rejects.toThrow(/no such file or page/);
   });
 
   it("a flag wins over the spec's page for the same option", async () => {
-    const publish = async (file: string) => ({ slug: "fromfile", url: `u:${file}` });
-    const optionList: DecideOption[] = [{ label: "A", page: "specslug1" }, { label: "B" }];
+    const publish = async (file: string) => ({
+      slug: "fromfile",
+      url: `u:${file}`,
+    });
+    const optionList: DecideOption[] = [
+      { label: "A", page: "specslug1" },
+      { label: "B" },
+    ];
     await attachOptionPages(optionList, [`1=${fileA}`], publish);
     expect(optionList[0].page_slug).toBe("fromfile");
   });
 
   it("ls prints an option's page url, and --mine has its own empty line", () => {
-    const out = formatDecisionList([row({ options: [{ label: "A", page_slug: "s1", page_url: "https://codecast.sh/a/s1" }, { label: "B" }] })], 1);
+    const out = formatDecisionList(
+      [
+        row({
+          options: [
+            {
+              label: "A",
+              page_slug: "s1",
+              page_url: "https://codecast.sh/a/s1",
+            },
+            { label: "B" },
+          ],
+        }),
+      ],
+      1,
+    );
     expect(out).toContain("1. A");
     expect(out).toContain("page: https://codecast.sh/a/s1");
     expect(out.split("page:").length).toBe(2);
-    expect(formatDecisionList([], 1, "No pending decisions held by you.")).toBe("No pending decisions held by you.");
+    expect(formatDecisionList([], 1, "No pending decisions held by you.")).toBe(
+      "No pending decisions held by you.",
+    );
   });
 
   it("a spec option may carry page", () => {
-    const spec = parseDecideSpec(JSON.stringify({ options: [{ label: "A", page: "mockup-a.html" }, "B"] }));
+    const spec = parseDecideSpec(
+      JSON.stringify({ options: [{ label: "A", page: "mockup-a.html" }, "B"] }),
+    );
     expect(spec.options?.[0].page).toBe("mockup-a.html");
   });
 });
@@ -271,18 +425,26 @@ describe("cast decide ls --mine on the wire", () => {
   const realFetch = globalThis.fetch;
   const realLog = console.log;
   let logs: string[] = [];
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => "s1" } as any;
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => "s1",
+  } as any;
 
   beforeEach(() => {
     calls.length = 0;
     logs = [];
-    globalThis.fetch = (async (url: string | URL | Request, init: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init: RequestInit,
+    ) => {
       const path = String(url).slice(SITE.length);
       const { api_token: _token, ...body } = JSON.parse(String(init.body));
       calls.push({ path, body });
       return new Response(JSON.stringify({ decisions: [] }), { status: 200 });
     }) as typeof fetch;
-    console.log = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
   });
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -300,7 +462,12 @@ describe("cast decide ls --mine on the wire", () => {
 
   it("posts mine: true and prints the empty line for decisions held by you", async () => {
     await run("ls", "--mine");
-    expect(calls).toEqual([{ path: "/cli/decide", body: { action: "ls", session_id: "s1", mine: true } }]);
+    expect(calls).toEqual([
+      {
+        path: "/cli/decide",
+        body: { action: "ls", session_id: "s1", mine: true },
+      },
+    ]);
     expect(logs.join("\n")).toContain("No pending decisions held by you.");
     calls.length = 0;
     await run("ls");
@@ -316,18 +483,42 @@ describe("cast decide answer from a plain shell on the wire", () => {
   const calls: Array<{ path: string; body: Record<string, unknown> }> = [];
   const realFetch = globalThis.fetch;
   const realLog = console.log;
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => null } as any;
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => null,
+  } as any;
 
   beforeEach(() => {
     calls.length = 0;
-    globalThis.fetch = (async (url: string | URL | Request, init: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init: RequestInit,
+    ) => {
       const path = String(url).slice(SITE.length);
       const { api_token: _token, ...body } = JSON.parse(String(init.body));
       calls.push({ path, body });
       if (path === "/cli/decide/show") {
-        return new Response(JSON.stringify({ decision: { short_id: "sd-1", kind: "single", options: [{ label: "A" }, { label: "B" }], status: "pending" } }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            decision: {
+              short_id: "sd-1",
+              kind: "single",
+              options: [{ label: "A" }, { label: "B" }],
+              status: "pending",
+            },
+          }),
+          { status: 200 },
+        );
       }
-      return new Response(JSON.stringify({ ok: true, short_id: "sd-1", answer_label: "A", answered_by: { kind: "user", id: "u1" } }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          short_id: "sd-1",
+          answer_label: "A",
+          answered_by: { kind: "user", id: "u1" },
+        }),
+        { status: 200 },
+      );
     }) as typeof fetch;
     console.log = () => {};
   });
@@ -357,13 +548,30 @@ describe("cast decide ls --answered-since", () => {
     expect(parseAnsweredSince("30m", now)).toBe(now - 30 * 60_000);
     expect(parseAnsweredSince("24h", now)).toBe(now - 86_400_000);
     expect(parseAnsweredSince("7d", now)).toBe(now - 7 * 86_400_000);
-    expect(parseAnsweredSince("2026-10-23T00:00:00Z", now)).toBe(Date.parse("2026-10-23T00:00:00Z"));
+    expect(parseAnsweredSince("2026-10-23T00:00:00Z", now)).toBe(
+      Date.parse("2026-10-23T00:00:00Z"),
+    );
     expect(parseAnsweredSince("soon", now)).toBeNull();
   });
 
   it("prints the card, its answer and the task it rules on", () => {
     const out = formatAnsweredList([
-      { id: "x", short_id: "sd-9", question: "Raise the fee?", options: ["Yes", "No"], answer_label: "Yes", answer_text: "before the intro", answered_by: { kind: "user", name: "Cam" }, resolved_at: now, task: { short_id: "ct-1", title: "Fee", status: "done", project: "People & Deals" } },
+      {
+        id: "x",
+        short_id: "sd-9",
+        question: "Raise the fee?",
+        options: ["Yes", "No"],
+        answer_label: "Yes",
+        answer_text: "before the intro",
+        answered_by: { kind: "user", name: "Cam" },
+        resolved_at: now,
+        task: {
+          short_id: "ct-1",
+          title: "Fee",
+          status: "done",
+          project: "People & Deals",
+        },
+      },
     ]);
     expect(out).toContain("sd-9  Raise the fee?");
     expect(out).toContain("→ Yes: before the intro (Cam)");
@@ -383,21 +591,36 @@ describe("cast decide pass --to and escalate on the wire", () => {
   const realError = console.error;
   const realExit = process.exit;
   let logs: string[] = [];
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => null } as any;
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => null,
+  } as any;
 
   beforeEach(() => {
     calls.length = 0;
     logs = [];
-    globalThis.fetch = (async (url: string | URL | Request, init: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init: RequestInit,
+    ) => {
       const path = String(url).slice(SITE.length);
       const { api_token: _token, ...body } = JSON.parse(String(init.body));
       calls.push({ path, body });
-      const reply = path === "/cli/decide/pass-to" ? { passed: true, short_id: "sd-7", to: { _id: "u2", name: "Sam" } } : { escalated: true, short_id: "sd-7", to: ["Morgan"] };
+      const reply =
+        path === "/cli/decide/pass-to"
+          ? { passed: true, short_id: "sd-7", to: { _id: "u2", name: "Sam" } }
+          : { escalated: true, short_id: "sd-7", to: ["Morgan"] };
       return new Response(JSON.stringify(reply), { status: 200 });
     }) as typeof fetch;
-    console.log = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
-    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
-    process.exit = ((code?: number) => { throw new Error(`exit ${code}`); }) as any;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+    console.error = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+    process.exit = ((code?: number) => {
+      throw new Error(`exit ${code}`);
+    }) as any;
   });
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -417,13 +640,23 @@ describe("cast decide pass --to and escalate on the wire", () => {
 
   it("pass --to posts the person and the note, and names who has it", async () => {
     await run("pass", "sd-7", "--to", "sam", "--note", "You know the parser");
-    expect(calls).toEqual([{ path: "/cli/decide/pass-to", body: { decision_id: "sd-7", to: "sam", note: "You know the parser" } }]);
+    expect(calls).toEqual([
+      {
+        path: "/cli/decide/pass-to",
+        body: { decision_id: "sd-7", to: "sam", note: "You know the parser" },
+      },
+    ]);
     expect(logs.join("\n")).toContain("sd-7 to Sam, with your note");
   });
 
   it("escalate posts the note and names whom it went to", async () => {
     await run("escalate", "sd-7", "--note", "Costs money");
-    expect(calls).toEqual([{ path: "/cli/decide/escalate", body: { decision_id: "sd-7", note: "Costs money" } }]);
+    expect(calls).toEqual([
+      {
+        path: "/cli/decide/escalate",
+        body: { decision_id: "sd-7", note: "Costs money" },
+      },
+    ]);
     expect(logs.join("\n")).toContain("Escalated: sd-7 to Morgan");
   });
 
@@ -448,7 +681,10 @@ describe("cast decide --category outside the vocabulary", () => {
   const realError = console.error;
   const realExit = process.exit;
   let errors: string[] = [];
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => "s1" } as any;
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => "s1",
+  } as any;
 
   beforeEach(() => {
     calls.length = 0;
@@ -457,8 +693,12 @@ describe("cast decide --category outside the vocabulary", () => {
       calls.push(String(url).slice(SITE.length));
       return new Response(JSON.stringify({ decisions: [] }), { status: 200 });
     }) as typeof fetch;
-    console.error = (...args: unknown[]) => { errors.push(args.map(String).join(" ")); };
-    process.exit = ((code?: number) => { throw new Error(`exit ${code}`); }) as any;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map(String).join(" "));
+    };
+    process.exit = ((code?: number) => {
+      throw new Error(`exit ${code}`);
+    }) as any;
   });
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -476,49 +716,90 @@ describe("cast decide --category outside the vocabulary", () => {
   }
 
   it("an ask with --category deploy is refused, naming the categories", async () => {
-    await expect(run("Ship the fix?", "-o", "Ship", "-o", "Hold", "--context", "The fix is ready.", "--category", "deploy")).rejects.toThrow("exit 1");
+    await expect(
+      run(
+        "Ship the fix?",
+        "-o",
+        "Ship",
+        "-o",
+        "Hold",
+        "--context",
+        "The fix is ready.",
+        "--category",
+        "deploy",
+      ),
+    ).rejects.toThrow("exit 1");
     expect(calls).toEqual([]);
     expect(errors.join("\n")).toContain("--category deploy is not a category");
-    expect(errors.join("\n")).toContain("production, billing, data, access, external, product, limit");
+    expect(errors.join("\n")).toContain(
+      "production, billing, data, access, external, product, limit",
+    );
   });
 
   it("an edit with --category deploy is refused", async () => {
-    await expect(run("edit", "sd-7", "--category", "deploy")).rejects.toThrow("exit 1");
+    await expect(run("edit", "sd-7", "--category", "deploy")).rejects.toThrow(
+      "exit 1",
+    );
     expect(calls.filter((c) => c === "/cli/decide")).toEqual([]);
     expect(errors.join("\n")).toContain("--category deploy is not a category");
   });
 });
 
 describe("the cards' confidence against their answers", () => {
-  const row = (answer_label: string, verdict: "ship" | "revise" | "drop", confidence?: number) => ({
-    id: answer_label, question: "q", options: [], answer_label,
-    recommended: { verdict, ...(confidence !== undefined ? { confidence } : {}) },
+  const row = (
+    answer_label: string,
+    verdict: "ship" | "revise" | "drop",
+    confidence?: number,
+  ) => ({
+    id: answer_label,
+    question: "q",
+    options: [],
+    answer_label,
+    recommended: {
+      verdict,
+      ...(confidence !== undefined ? { confidence } : {}),
+    },
     task: { short_id: "ct-1", title: "t", status: "open" },
   });
 
   it("an answer that opens with neither Ship nor Drop is the Revise route", () => {
-    expect(answeredVerdict(row("Ship it: raisers stay their own list", "ship"))).toBe("ship");
+    expect(
+      answeredVerdict(row("Ship it: raisers stay their own list", "ship")),
+    ).toBe("ship");
     expect(answeredVerdict(row("Drop it: keep one list", "drop"))).toBe("drop");
-    expect(answeredVerdict(row("Also show the investor list before shipping", "ship"))).toBe("revise");
+    expect(
+      answeredVerdict(
+        row("Also show the investor list before shipping", "ship"),
+      ),
+    ).toBe("revise");
   });
 
   it("groups answered cards by confidence, each band with how often people answered as recommended", () => {
     const out = formatCalibration([
-      row("Ship it", "ship", 92), row("Ship it", "ship", 95), row("Revise: book it", "ship", 90),
-      row("Revise: queue it", "revise", 60), row("Drop it", "revise", 55),
+      row("Ship it", "ship", 92),
+      row("Ship it", "ship", 95),
+      row("Revise: book it", "ship", 90),
+      row("Revise: queue it", "revise", 60),
+      row("Drop it", "revise", 55),
       row("Ship it", "ship"),
     ]);
-    expect(out).toBe([
-      "confidence  cards  answered as recommended",
-      "50-69%          2  1 (50%)",
-      "90-99%          3  2 (67%)",
-      "all             5  3 (60%), against 78% said on average",
-      "1 more recommended without a confidence.",
-    ].join("\n"));
+    expect(out).toBe(
+      [
+        "confidence  cards  answered as recommended",
+        "50-69%          2  1 (50%)",
+        "90-99%          3  2 (67%)",
+        "all             5  3 (60%), against 78% said on average",
+        "1 more recommended without a confidence.",
+      ].join("\n"),
+    );
   });
 
   it("says so while no answered card carries a confidence", () => {
-    expect(formatCalibration([row("Ship it", "ship")])).toBe("No answered card carries a confidence yet (1 recommended without one).");
-    expect(formatCalibration([])).toBe("No answered card carries a confidence yet.");
+    expect(formatCalibration([row("Ship it", "ship")])).toBe(
+      "No answered card carries a confidence yet (1 recommended without one).",
+    );
+    expect(formatCalibration([])).toBe(
+      "No answered card carries a confidence yet.",
+    );
   });
 });

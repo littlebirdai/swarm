@@ -9,8 +9,21 @@
 // the team mid-turn, her phone closes, and the laptop's follower window keeps
 // the session in its team slot after the world settles.
 
-import type { SimEvent, SimFailureResult, SimMinimal, SimRunResponse, SimRunRow, SimSession, SimShrinkProgress, SimWorld } from "@codecast/shared/contracts/evalsApi";
-import { bisectCommand, formatOrder, replayCommands } from "../../../store/__tests__/sim/replay";
+import type {
+  SimEvent,
+  SimFailureResult,
+  SimMinimal,
+  SimRunResponse,
+  SimRunRow,
+  SimSession,
+  SimShrinkProgress,
+  SimWorld,
+} from "@codecast/shared/contracts/evalsApi";
+import {
+  bisectCommand,
+  formatOrder,
+  replayCommands,
+} from "../../../store/__tests__/sim/replay";
 
 type Line = ["step", string, string, string] | [string, string, string];
 
@@ -21,15 +34,31 @@ const PH = "phone-host";
 /** The run in delivery order: a step row is ["step", verb, actor, label]; a delivery is [channel, label, producer]. */
 const SCRIPT: Line[] = [
   [`live:${LH}:inbox`, "push conversations:listInboxSessions", `${LH} inbox`],
-  [`live:${LH}:decisions`, "push sessionDecisions:listForUser", `${LH} decisions`],
+  [
+    `live:${LH}:decisions`,
+    "push sessionDecisions:listForUser",
+    `${LH} decisions`,
+  ],
   [`conn:${LH}`, "req query syncLog:getHeads", `${LH} syncLog:getHeads`],
   [`conn:${LH}`, "res syncLog:getHeads", `${LH} syncLog:getHeads`],
   [`repl:${LH}>${LF}`, "slice sessions ada/s", `${LH} replicate`],
   [`live:${PH}:inbox`, "push conversations:listInboxSessions", `${PH} inbox`],
-  [`conn:${PH}`, "req query conversations:listInboxSessionsPaginated", `${PH} conversations:listInboxSessionsPaginated`],
+  [
+    `conn:${PH}`,
+    "req query conversations:listInboxSessionsPaginated",
+    `${PH} conversations:listInboxSessionsPaginated`,
+  ],
   [`bridge:laptop:daemon`, "daemon heartbeat", "laptop daemon"],
-  [`conn:${PH}`, "res conversations:listInboxSessionsPaginated", `${PH} conversations:listInboxSessionsPaginated`],
-  ["sched", "sched agentTasks:generateDisplaySummary", "sched agentTasks:generateDisplaySummary"],
+  [
+    `conn:${PH}`,
+    "res conversations:listInboxSessionsPaginated",
+    `${PH} conversations:listInboxSessionsPaginated`,
+  ],
+  [
+    "sched",
+    "sched agentTasks:generateDisplaySummary",
+    "sched agentTasks:generateDisplaySummary",
+  ],
   ["step", "settle", "world", "settle #1"],
   [`live:${LH}:team`, "push conversations:listTeamInboxSessions", `${LH} team`],
   [`repl:${LH}>${LF}`, "slice team acme", `${LH} replicate`],
@@ -41,7 +70,11 @@ const SCRIPT: Line[] = [
   [`repl:${LH}>${LF}`, "slice pending ada/s", `${LH} replicate`],
   ["step", "remove", "bo.admin", "remove acme ada"],
   ["actor:bo.admin", "bo.admin remove acme ada", "actor:bo.admin remove"],
-  ["sched", "sched teamActivity:recordTeamActivity", "sched teamActivity:recordTeamActivity"],
+  [
+    "sched",
+    "sched teamActivity:recordTeamActivity",
+    "sched teamActivity:recordTeamActivity",
+  ],
   [`live:${PH}:team`, "push conversations:listTeamInboxSessions", `${PH} team`],
   ["step", "close", PH, "close phone-host"],
   [`actor:${PH}`, `${PH} close`, `actor:${PH} close`],
@@ -50,12 +83,32 @@ const SCRIPT: Line[] = [
   [`conn:${LH}`, "req query syncLog:getRange", `${LH} syncLog:getRange`],
   [`conn:${LH}`, "res syncLog:getRange", `${LH} syncLog:getRange`],
   [`live:${LH}:heads`, "push syncLog:getHeads", `${LH} heads`],
-  [`timer:${LH}`, "setTimeout(flushApplyTally, 60000)", `${LH} setTimeout(flushApplyTally, 60000)`],
+  [
+    `timer:${LH}`,
+    "setTimeout(flushApplyTally, 60000)",
+    `${LH} setTimeout(flushApplyTally, 60000)`,
+  ],
   ["step", "settle", "world", "settle #2"],
-  [`conn:${LH}`, "req query conversations:getInboxSessionsByIds", `${LH} conversations:getInboxSessionsByIds`],
-  [`conn:${LH}`, "res conversations:getInboxSessionsByIds", `${LH} conversations:getInboxSessionsByIds`],
-  [`live:${LH}:liveness`, "push conversations:sessionsLiveness", `${LH} liveness`],
-  [`timer:${LF}`, "setTimeout(settleLocks, 1500)", `${LF} setTimeout(settleLocks, 1500)`],
+  [
+    `conn:${LH}`,
+    "req query conversations:getInboxSessionsByIds",
+    `${LH} conversations:getInboxSessionsByIds`,
+  ],
+  [
+    `conn:${LH}`,
+    "res conversations:getInboxSessionsByIds",
+    `${LH} conversations:getInboxSessionsByIds`,
+  ],
+  [
+    `live:${LH}:liveness`,
+    "push conversations:sessionsLiveness",
+    `${LH} liveness`,
+  ],
+  [
+    `timer:${LF}`,
+    "setTimeout(settleLocks, 1500)",
+    `${LF} setTimeout(settleLocks, 1500)`,
+  ],
   [`conn:${LH}`, "req query tasks:webList", `${LH} tasks:webList`],
   [`conn:${LH}`, "res tasks:webList", `${LH} tasks:webList`],
   [`repl:${LH}>${LF}`, "slice liveness", `${LH} replicate`],
@@ -76,13 +129,17 @@ export const SIM_FIXTURE_LABELS: Record<string, string> = {
 /** The row the failure names: its label is the trace line's. */
 const ROW_ID = "sessionadasz11000000000000000000";
 
-const INVARIANT = { id: "INV-followers", meaning: "every follower holds the host's replicated slice byte for byte" };
+const INVARIANT = {
+  id: "INV-followers",
+  meaning: "every follower holds the host's replicated slice byte for byte",
+};
 
 function eventsOf(): SimEvent[] {
   const deliveries = SCRIPT.filter((l) => l[0] !== "step").length;
   // Enqueue numbers run ahead of delivery order in places: swap every third pair.
   const seqs = Array.from({ length: deliveries }, (_, i) => i + 1);
-  for (let i = 1; i + 1 < seqs.length; i += 3) [seqs[i], seqs[i + 1]] = [seqs[i + 1], seqs[i]];
+  for (let i = 1; i + 1 < seqs.length; i += 3)
+    [seqs[i], seqs[i + 1]] = [seqs[i + 1], seqs[i]];
   const out: SimEvent[] = [];
   let d = 0;
   for (let k = 0; k < SCRIPT.length; k++) {
@@ -93,18 +150,42 @@ function eventsOf(): SimEvent[] {
       out.push({ kind: "step", seq: world ? 0 : seqs[d], verb, actor, label });
     } else {
       const [channel, label, producer] = line;
-      out.push({ seq: seqs[d++], channel, due: 1_800_000_025_000, label, producer });
+      out.push({
+        seq: seqs[d++],
+        channel,
+        due: 1_800_000_025_000,
+        label,
+        producer,
+      });
     }
   }
   return out;
 }
 
-const orderOf = (events: SimEvent[]) => events.flatMap((e) => (e.kind === "step" ? [] : [e.channel]));
+const orderOf = (events: SimEvent[]) =>
+  events.flatMap((e) => (e.kind === "step" ? [] : [e.channel]));
 
 /** The replay lines, built by the sim's own replay.ts as report.ts and the api child build them. */
-function replayOf(scenario: string, seed: number, order: string[], minimal: string[] | null, artifactDir: string): SimRunResponse["replay"] {
-  const [trace, full, min = null] = replayCommands(scenario, seed, order, SIM_FIXTURE_LABELS[ROW_ID], minimal ?? undefined);
-  return { trace, order: full, minimal: min, bisect: bisectCommand(artifactDir) };
+function replayOf(
+  scenario: string,
+  seed: number,
+  order: string[],
+  minimal: string[] | null,
+  artifactDir: string,
+): SimRunResponse["replay"] {
+  const [trace, full, min = null] = replayCommands(
+    scenario,
+    seed,
+    order,
+    SIM_FIXTURE_LABELS[ROW_ID],
+    minimal ?? undefined,
+  );
+  return {
+    trace,
+    order: full,
+    minimal: min,
+    bisect: bisectCommand(artifactDir),
+  };
 }
 
 /** Where the fixture's sim history lives, as `simHome()` would name it on a laptop. */
@@ -120,11 +201,31 @@ export interface SimFixtureRunOpts {
   shrinking?: SimShrinkProgress | null;
 }
 
-export function simFixtureRun({ session, run, gitHead, shrunk = false, shrinking = null }: SimFixtureRunOpts): SimRunResponse {
+export function simFixtureRun({
+  session,
+  run,
+  gitHead,
+  shrunk = false,
+  shrinking = null,
+}: SimFixtureRunOpts): SimRunResponse {
   const events = eventsOf();
   const order = orderOf(events);
-  const minimal: SimMinimal | null = shrunk ? { order: KEPT.map((i) => order[i]), removed: order.map((_, i) => i).filter((i) => !KEPT.includes(i)), attempts: 61, ms: 48_000, oneMinimal: true } : null;
-  const replay = replayOf(run.scenario, run.seed, order, minimal?.order ?? null, `${SIM_FIXTURE_HOME}/sessions/${session.id}/${run.dir ?? `${run.scenario}-${run.mode}-${run.seed}`}`);
+  const minimal: SimMinimal | null = shrunk
+    ? {
+        order: KEPT.map((i) => order[i]),
+        removed: order.map((_, i) => i).filter((i) => !KEPT.includes(i)),
+        attempts: 61,
+        ms: 48_000,
+        oneMinimal: true,
+      }
+    : null;
+  const replay = replayOf(
+    run.scenario,
+    run.seed,
+    order,
+    minimal?.order ?? null,
+    `${SIM_FIXTURE_HOME}/sessions/${session.id}/${run.dir ?? `${run.scenario}-${run.mode}-${run.seed}`}`,
+  );
   const result: SimFailureResult = {
     scenario: run.scenario,
     mode: run.mode,
@@ -136,7 +237,8 @@ export function simFixtureRun({ session, run, gitHead, shrunk = false, shrinking
     step: "settle #2",
     delivery: order.length,
     invariant: INVARIANT,
-    message: "laptop-follower still lists ada/s in its team slot after the removal",
+    message:
+      "laptop-follower still lists ada/s in its team slot after the removal",
     window: { name: LF, principal: "ada", scope: "team:acme" },
     row: {
       table: "sessions",
@@ -151,7 +253,11 @@ export function simFixtureRun({ session, run, gitHead, shrunk = false, shrinking
     order: formatOrder(order),
     labels: SIM_FIXTURE_LABELS,
     t0: 1_800_000_025_000,
-    replay: [replay.trace, replay.order, ...(replay.minimal ? [replay.minimal] : [])],
+    replay: [
+      replay.trace,
+      replay.order,
+      ...(replay.minimal ? [replay.minimal] : []),
+    ],
     text: `sim failure: ${run.scenario} [${run.mode} seed ${run.seed}] at step "settle #2", after ${order.length} deliveries`,
     ...(minimal ? { minimalOrder: formatOrder(minimal.order) } : {}),
   };
@@ -161,7 +267,13 @@ export function simFixtureRun({ session, run, gitHead, shrunk = false, shrinking
     seed: run.seed,
     labels: SIM_FIXTURE_LABELS,
     devices: [
-      { name: "laptop", windows: [{ name: LH, role: "host", closed: false }, { name: LF, role: "follower", closed: false }] },
+      {
+        name: "laptop",
+        windows: [
+          { name: LH, role: "host", closed: false },
+          { name: LF, role: "follower", closed: false },
+        ],
+      },
       { name: "phone", windows: [{ name: PH, role: "host", closed: true }] },
     ],
   };
@@ -174,14 +286,37 @@ export function simFixtureRun({ session, run, gitHead, shrunk = false, shrinking
     final: {
       deliveries: order.length,
       writesSpent: 14,
-      producers: { [`${LH} inbox`]: 2, [`${LH} team`]: 3, [`${LH} replicate`]: 4, "laptop daemon": 2, "sched agentTasks:generateDisplaySummary": 1 },
+      producers: {
+        [`${LH} inbox`]: 2,
+        [`${LH} team`]: 3,
+        [`${LH} replicate`]: 4,
+        "laptop daemon": 2,
+        "sched agentTasks:generateDisplaySummary": 1,
+      },
       calls: [
         { seq: 3, name: "teams:removeMember", kind: "mutation", ok: true },
         { seq: 9, name: "messages:send", kind: "mutation", ok: true },
-        { seq: 14, name: "dispatch:dispatch", kind: "mutation", ok: false, error: "Forbidden: ada is not a member of acme" },
+        {
+          seq: 14,
+          name: "dispatch:dispatch",
+          kind: "mutation",
+          ok: false,
+          error: "Forbidden: ada is not a member of acme",
+        },
       ],
-      actors: [{ actor: LH, verb: "send", ok: true }, { actor: "bo.admin", verb: "remove", ok: true }, { actor: PH, verb: "close", ok: false, error: "window already closing" }],
-      windowErrors: { [LF]: ["applySlice: stale team slot for acme (cursor 41, head 44)"] },
+      actors: [
+        { actor: LH, verb: "send", ok: true },
+        { actor: "bo.admin", verb: "remove", ok: true },
+        {
+          actor: PH,
+          verb: "close",
+          ok: false,
+          error: "window already closing",
+        },
+      ],
+      windowErrors: {
+        [LF]: ["applySlice: stale team slot for acme (cursor 41, head 44)"],
+      },
     },
     minimal,
     shrinking,

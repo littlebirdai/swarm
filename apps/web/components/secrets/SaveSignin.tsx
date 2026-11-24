@@ -10,83 +10,172 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
-import { Check, ChevronDown, ExternalLink, Laptop, Loader2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Laptop,
+  Loader2,
+} from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { SECRET_NAME_RE, keepsOwnLogin, signinName, signinSite, type SecretMeta } from "@codecast/shared/contracts/secrets";
+import {
+  SECRET_NAME_RE,
+  keepsOwnLogin,
+  signinName,
+  signinSite,
+  type SecretMeta,
+} from "@codecast/shared/contracts/secrets";
 import { peopleOf } from "@codecast/shared/team/memberKind";
 import { useInboxStore } from "../../store/inboxStore";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useDevices, type Device } from "../DeviceBadge";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { ConsequentialSwitch, SwitchReview } from "../consequential/ConsequentialSwitch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import {
+  ConsequentialSwitch,
+  SwitchReview,
+} from "../consequential/ConsequentialSwitch";
 import { KeyCap } from "../KeyCap";
 import { ScopePicker, type VaultScope } from "./AddSecretDialog";
 import { CommandDisclosure, KindGlyph, Row } from "./parts";
 import { FIELD_MONO, VAULT_DIALOG } from "../../lib/secretLook";
 import { cn } from "../../lib/utils";
 import { buttonVariants } from "../ui/button";
-import { shareSigninLedger, signinAutofillLedger } from "../../lib/secretLedgers";
+import {
+  shareSigninLedger,
+  signinAutofillLedger,
+} from "../../lib/secretLedgers";
 import { vaultFailure } from "./vaultModel";
 import { useSampleVault, type SampleVault } from "./sampleVault";
 import { modernButton } from "../ui/modernLook";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 type Team = { id: string; name: string } | null;
-type Saved = { short_id: string; name: string; host: string; cookies: number; action: "created" | "rotated" | "filled"; account_hint?: string };
+type Saved = {
+  short_id: string;
+  name: string;
+  host: string;
+  cookies: number;
+  action: "created" | "rotated" | "filled";
+  account_hint?: string;
+};
 
 /** The command a person runs in their own terminal to save it from their Chrome there (agents are refused this read). */
 function terminalLine(host: string, name: string, team: Team): string {
   const site = host || "<site>";
-  const where = team ? ` --team ${/^[\w.-]+$/.test(team.name) ? team.name : `"${team.name.replace(/"/g, '\\"')}"`}` : " --personal";
+  const where = team
+    ? ` --team ${/^[\w.-]+$/.test(team.name) ? team.name : `"${team.name.replace(/"/g, '\\"')}"`}`
+    : " --personal";
   return `cast vault save-signin ${site} --from-chrome${name && name !== signinName(host) ? ` --name ${name}` : ""}${where}`;
 }
 
 /** The command's outcome in words a person can act on. */
 function captureFailure(error: string, laptop: string): string {
-  if (error === "expired_ttl") return `${laptop} never picked it up: is it asleep, or its codecast daemon stopped?`;
-  if (/Unknown command/i.test(error)) return `codecast on ${laptop} is too old for this: run cast update there`;
+  if (error === "expired_ttl")
+    return `${laptop} never picked it up: is it asleep, or its codecast daemon stopped?`;
+  if (/Unknown command/i.test(error))
+    return `codecast on ${laptop} is too old for this: run cast update there`;
   return error;
 }
 
 /** `profile` is the Chrome profile a 0 count was read from (a laptop on an older codecast leaves it out). */
-type Checked = { host: string; cookies: number; account_hint?: string; profile?: string };
+type Checked = {
+  host: string;
+  cookies: number;
+  account_hint?: string;
+  profile?: string;
+};
 
 /** A sample Vault's one laptop, whose Chrome always holds the site. */
-const SAMPLE_LAPTOPS: Device[] = [{ device_id: "sample-laptop", label: "Sample laptop", platform: "darwin", last_seen: 0, is_remote: false, local_project_roots: [], online: true }];
+const SAMPLE_LAPTOPS: Device[] = [
+  {
+    device_id: "sample-laptop",
+    label: "Sample laptop",
+    platform: "darwin",
+    last_seen: 0,
+    is_remote: false,
+    local_project_roots: [],
+    online: true,
+  },
+];
 
 /** What a laptop would answer a sample Vault's command, at once. */
-function sampleAnswer(sample: SampleVault, check: boolean, args: { site: string; name: string; team: Team }) {
-  return JSON.stringify(check ? { host: args.site, cookies: 2, account_hint: "sample@example.test" } : sample.saveSignin(args));
+function sampleAnswer(
+  sample: SampleVault,
+  check: boolean,
+  args: { site: string; name: string; team: Team },
+) {
+  return JSON.stringify(
+    check
+      ? { host: args.site, cookies: 2, account_hint: "sample@example.test" }
+      : sample.saveSignin(args),
+  );
 }
 
 /** One `requestSigninCapture` command on a laptop and its answer: a check (counts the cookies) or a save. A sample Vault answers it itself. */
 function useLaptopCommand<T>(check: boolean) {
   const request = useMutation(api.secrets.requestSigninCapture);
   const sample = useSampleVault();
-  const [sent, setSent] = useState<{ id: Id<"daemon_commands">; laptop: string; at: number; answer?: string } | null>(null);
+  const [sent, setSent] = useState<{
+    id: Id<"daemon_commands">;
+    laptop: string;
+    at: number;
+    answer?: string;
+  } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
-  const { data: live } = useQueryNoThrow(api.users.getCommandResult, sent && !sent.answer ? { command_id: sent.id } : "skip");
-  const data = sent?.answer ? { result: sent.answer, error: undefined, claimed_at: Date.now() } : live;
+  const { data: live } = useQueryNoThrow(
+    api.users.getCommandResult,
+    sent && !sent.answer ? { command_id: sent.id } : "skip",
+  );
+  const data = sent?.answer
+    ? { result: sent.answer, error: undefined, claimed_at: Date.now() }
+    : live;
   const reset = () => {
     setRefused(null);
     setSent(null);
   };
-  const start = async (args: { site: string; name: string; device: Device; team: Team }) => {
+  const start = async (args: {
+    site: string;
+    name: string;
+    device: Device;
+    team: Team;
+  }) => {
     reset();
-    if (sample) return setSent({ id: "sample" as Id<"daemon_commands">, laptop: args.device.label, at: Date.now(), answer: sampleAnswer(sample, check, args) });
+    if (sample)
+      return setSent({
+        id: "sample" as Id<"daemon_commands">,
+        laptop: args.device.label,
+        at: Date.now(),
+        answer: sampleAnswer(sample, check, args),
+      });
     const res: any = await request({
       site: args.site,
       name: args.name || undefined,
       device_id: args.device.device_id,
       ...(check ? { check: true } : {}),
-      ...(args.team ? { team_id: args.team.id as Id<"teams"> } : { personal: true }),
+      ...(args.team
+        ? { team_id: args.team.id as Id<"teams"> }
+        : { personal: true }),
     }).catch(vaultFailure);
     if (res?.error) return setRefused(res.error);
-    setSent({ id: res.command_id, laptop: res.label ?? args.device.label, at: Date.now() });
+    setSent({
+      id: res.command_id,
+      laptop: res.label ?? args.device.label,
+      at: Date.now(),
+    });
   };
   let result: T | null = null;
   let failed = refused;
@@ -95,12 +184,16 @@ function useLaptopCommand<T>(check: boolean) {
     try {
       result = JSON.parse(data.result);
     } catch {
-      failed = "The laptop answered in a form this page does not read: update codecast there";
+      failed =
+        "The laptop answered in a form this page does not read: update codecast there";
     }
   }
   const waiting = !!sent && !result && !failed ? sent.laptop : null;
   // Waiting has two stages a person can tell apart: the laptop has not picked it up yet (claimed_at null), or it is working on it.
-  const progress = waiting && sent ? { since: sent.at, unpicked: data?.claimed_at === null } : null;
+  const progress =
+    waiting && sent
+      ? { since: sent.at, unpicked: data?.claimed_at === null }
+      : null;
   return { start, reset, waiting, progress, result, failed };
 }
 
@@ -111,7 +204,17 @@ function useLaptopCommand<T>(check: boolean) {
  * confirms a share that was never possible. `review` is the share review,
  * for the caller to show in place of its own dialog.
  */
-function useSigninWays({ host, name, team, onSaved }: { host: string; name: string; team: Team; onSaved?: (s: Saved) => void }) {
+function useSigninWays({
+  host,
+  name,
+  team,
+  onSaved,
+}: {
+  host: string;
+  name: string;
+  team: Team;
+  onSaved?: (s: Saved) => void;
+}) {
   const devices = useDevices();
   const onlineLocals = useSampleVault() ? SAMPLE_LAPTOPS : devices.onlineLocals;
   const people = useInboxStore((s) => peopleOf(teamMembersOf(s)).length);
@@ -119,8 +222,15 @@ function useSigninWays({ host, name, team, onSaved }: { host: string; name: stri
   const [reviewing, setReviewing] = useState(false);
   const check = useLaptopCommand<Checked>(true);
   const save = useLaptopCommand<Saved>(false);
-  const device = onlineLocals.find((d) => d.device_id === picked) ?? onlineLocals[0] ?? null;
-  const blocked = !host ? "Name the site" : keepsOwnLogin(host) ? "Google keeps its own login" : !SECRET_NAME_RE.test(name) ? "Fix the name" : null;
+  const device =
+    onlineLocals.find((d) => d.device_id === picked) ?? onlineLocals[0] ?? null;
+  const blocked = !host
+    ? "Name the site"
+    : keepsOwnLogin(host)
+      ? "Google keeps its own login"
+      : !SECRET_NAME_RE.test(name)
+        ? "Fix the name"
+        : null;
   const found = check.result && check.result.cookies > 0 ? check.result : null;
   const go = () => {
     setReviewing(false);
@@ -144,7 +254,13 @@ function useSigninWays({ host, name, team, onSaved }: { host: string; name: stri
   useWatchEffect(() => {
     if (save.result) onSaved?.(save.result);
   }, [save.result?.short_id]);
-  const state: "idle" | "checking" | "signed-out" | "saving" | "saved" | "failed" = save.result
+  const state:
+    | "idle"
+    | "checking"
+    | "signed-out"
+    | "saving"
+    | "saved"
+    | "failed" = save.result
     ? "saved"
     : save.waiting
       ? "saving"
@@ -158,12 +274,34 @@ function useSigninWays({ host, name, team, onSaved }: { host: string; name: stri
   const review =
     reviewing && team && device && found ? (
       <SwitchReview
-        ledger={shareSigninLedger({ host, team: team.name, people, laptop: device.label, cookies: found.cookies, account_hint: found.account_hint })}
+        ledger={shareSigninLedger({
+          host,
+          team: team.name,
+          people,
+          laptop: device.label,
+          cookies: found.cookies,
+          account_hint: found.account_hint,
+        })}
         onClose={() => (setReviewing(false), check.reset())}
         onConfirm={go}
       />
     ) : null;
-  return { host, name, team, onlineLocals, device, setPicked, blocked, press, state, progress: save.progress ?? check.progress, checkedProfile: check.result?.profile, failed: save.failed ?? check.failed, saved: save.result, review };
+  return {
+    host,
+    name,
+    team,
+    onlineLocals,
+    device,
+    setPicked,
+    blocked,
+    press,
+    state,
+    progress: save.progress ?? check.progress,
+    checkedProfile: check.result?.profile,
+    failed: save.failed ?? check.failed,
+    saved: save.result,
+    review,
+  };
 }
 
 export type SigninWaysState = ReturnType<typeof useSigninWays>;
@@ -171,14 +309,21 @@ export type SigninWaysState = ReturnType<typeof useSigninWays>;
 /** Seconds since a press, so a wait reads as progress rather than a spinner. */
 function Elapsed({ since }: { since: number }) {
   const now = useCoarseNow(1000);
-  return <span className="shrink-0 tabular-nums opacity-70">{Math.max(0, Math.round((now - since) / 1000))}s</span>;
+  return (
+    <span className="shrink-0 tabular-nums opacity-70">
+      {Math.max(0, Math.round((now - since) / 1000))}s
+    </span>
+  );
 }
 
 /** The laptop button; its face is the state: waiting for the laptop, reading Chrome, saving, or not signed in (Check again, and Open the site). */
 export function ChromeButton({ ways: w }: { ways: SigninWaysState }) {
   if (!w.device) {
     return (
-      <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-sol-border px-3 text-[12px] text-sol-text-dim" data-vault-signin-no-laptop>
+      <span
+        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-sol-border px-3 text-[12px] text-sol-text-dim"
+        data-vault-signin-no-laptop
+      >
         <Laptop size={13} /> No laptop online
       </span>
     );
@@ -204,10 +349,20 @@ export function ChromeButton({ ways: w }: { ways: SigninWaysState }) {
           className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-sol-border px-3 text-[12.5px] text-sol-text hover:border-sol-text-dim ${modernButton({ variant: "outline", size: "md" })}`}
           data-vault-signin-open
         >
-          Open <span className="modern:font-mono">{w.host}</span> <ExternalLink size={12} className="text-sol-text-dim" />
+          Open <span className="modern:font-mono">{w.host}</span>{" "}
+          <ExternalLink size={12} className="text-sol-text-dim" />
         </a>
       )}
-      <div className={cn(buttonVariants({ variant: signedOut ? "outline" : "yellow", size: "sm" }), "min-w-0 items-stretch gap-0 overflow-hidden p-0")} data-vault-signin-button={w.state}>
+      <div
+        className={cn(
+          buttonVariants({
+            variant: signedOut ? "outline" : "yellow",
+            size: "sm",
+          }),
+          "min-w-0 items-stretch gap-0 overflow-hidden p-0",
+        )}
+        data-vault-signin-button={w.state}
+      >
         <button
           type="button"
           disabled={!!w.blocked || busy}
@@ -215,20 +370,32 @@ export function ChromeButton({ ways: w }: { ways: SigninWaysState }) {
           className="inline-flex min-w-0 items-center gap-1.5 px-3 text-[12.5px] font-semibold hover:brightness-110 disabled:cursor-not-allowed disabled:bg-sol-border disabled:text-sol-text-dim"
           data-vault-signin-chrome
         >
-          {busy ? <Loader2 size={13} className="shrink-0 animate-spin" /> : <Laptop size={13} className="shrink-0" />}
+          {busy ? (
+            <Loader2 size={13} className="shrink-0 animate-spin" />
+          ) : (
+            <Laptop size={13} className="shrink-0" />
+          )}
           <span className="truncate">{label}</span>
           {busy && w.progress ? <Elapsed since={w.progress.since} /> : null}
         </button>
         {w.onlineLocals.length > 1 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" aria-label="Pick a laptop" disabled={busy} className={`border-l px-1.5 hover:brightness-110 ${signedOut ? "border-sol-border" : "border-sol-bg/25"}`}>
+              <button
+                type="button"
+                aria-label="Pick a laptop"
+                disabled={busy}
+                className={`border-l px-1.5 hover:brightness-110 ${signedOut ? "border-sol-border" : "border-sol-bg/25"}`}
+              >
                 <ChevronDown size={13} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {w.onlineLocals.map((d) => (
-                <DropdownMenuItem key={d.device_id} onSelect={() => w.setPicked(d.device_id)}>
+                <DropdownMenuItem
+                  key={d.device_id}
+                  onSelect={() => w.setPicked(d.device_id)}
+                >
                   <Laptop size={13} />
                   {d.label}
                 </DropdownMenuItem>
@@ -245,49 +412,117 @@ export function ChromeButton({ ways: w }: { ways: SigninWaysState }) {
 function Outcome({ ways: w }: { ways: SigninWaysState }) {
   if (w.saved) {
     return (
-      <div className="flex min-w-0 items-center gap-1.5 text-[12px]" data-vault-signin-state="saved">
+      <div
+        className="flex min-w-0 items-center gap-1.5 text-[12px]"
+        data-vault-signin-state="saved"
+      >
         <Check size={13} className="shrink-0 text-sol-green" />
-        <Link href={`/vault?s=${w.saved.short_id}`} className="truncate font-mono text-sol-text hover:underline">{w.saved.name}</Link>
-        <span className="shrink-0 tabular-nums text-sol-text-muted">{w.saved.cookies} cookies</span>
-        {w.saved.account_hint && <span className="truncate text-sol-text-muted">· {w.saved.account_hint}</span>}
+        <Link
+          href={`/vault?s=${w.saved.short_id}`}
+          className="truncate font-mono text-sol-text hover:underline"
+        >
+          {w.saved.name}
+        </Link>
+        <span className="shrink-0 tabular-nums text-sol-text-muted">
+          {w.saved.cookies} cookies
+        </span>
+        {w.saved.account_hint && (
+          <span className="truncate text-sol-text-muted">
+            · {w.saved.account_hint}
+          </span>
+        )}
       </div>
     );
   }
   if (w.state === "signed-out" && w.device) {
     return (
-      <div className="flex min-w-0 items-center gap-1.5 text-[12px]" data-vault-signin-state="signed-out">
+      <div
+        className="flex min-w-0 items-center gap-1.5 text-[12px]"
+        data-vault-signin-state="signed-out"
+      >
         <span className="size-1.5 shrink-0 rounded-full bg-sol-red" />
-        <span className="shrink-0 text-sol-red">Not signed in to <span className="modern:font-mono">{w.host}</span></span>
+        <span className="shrink-0 text-sol-red">
+          Not signed in to <span className="modern:font-mono">{w.host}</span>
+        </span>
         <span className="truncate text-sol-text-muted">
-          · Chrome{w.checkedProfile ? `, profile ${w.checkedProfile}` : ""}, on {w.device.label}
+          · Chrome{w.checkedProfile ? `, profile ${w.checkedProfile}` : ""}, on{" "}
+          {w.device.label}
         </span>
       </div>
     );
   }
-  if (w.state === "failed") return <div className="text-[12px] text-sol-red" data-vault-signin-state="failed">{w.failed}</div>;
-  if (w.blocked && w.host) return <div className="text-meta text-sol-text-dim">{w.blocked}</div>;
+  if (w.state === "failed")
+    return (
+      <div
+        className="text-[12px] text-sol-red"
+        data-vault-signin-state="failed"
+      >
+        {w.failed}
+      </div>
+    );
+  if (w.blocked && w.host)
+    return <div className="text-meta text-sol-text-dim">{w.blocked}</div>;
   return null;
 }
 
 /** The same save from a terminal on the laptop, folded behind "In a terminal". */
 function InTerminal({ ways: w }: { ways: SigninWaysState }) {
-  return <CommandDisclosure label="In a terminal" text={terminalLine(w.host, w.name, w.team)} data-vault-signin-terminal />;
+  return (
+    <CommandDisclosure
+      label="In a terminal"
+      text={terminalLine(w.host, w.name, w.team)}
+      data-vault-signin-terminal
+    />
+  );
 }
 
 /** Add > Sign-in on the Vault page: the site, its name and who can use it, then the laptop button; the share review replaces the dialog while it is open. */
-export function SaveSigninDialog({ scope, rows, onClose, onSaved }: { scope: VaultScope; rows: SecretMeta[]; onClose: () => void; onSaved?: (shortId: string) => void }) {
+export function SaveSigninDialog({
+  scope,
+  rows,
+  onClose,
+  onSaved,
+}: {
+  scope: VaultScope;
+  rows: SecretMeta[];
+  onClose: () => void;
+  onSaved?: (shortId: string) => void;
+}) {
   const [siteText, setSiteText] = useState("");
   const [typedName, setTypedName] = useState<string | null>(null);
-  const [where, setWhere] = useState<"team" | "personal">(scope.team ? "team" : "personal");
-  const host = (signinSite(siteText) ?? "");
+  const [where, setWhere] = useState<"team" | "personal">(
+    scope.team ? "team" : "personal",
+  );
+  const host = signinSite(siteText) ?? "";
   const name = typedName ?? signinName(host);
-  const team: Team = where === "team" && scope.team ? { id: scope.team.id, name: scope.team.name } : null;
+  const team: Team =
+    where === "team" && scope.team
+      ? { id: scope.team.id, name: scope.team.name }
+      : null;
   const workspace = team ? scope.team!.key : scope.personal;
   // A name already holding a sign-in here is replaced; one holding anything else is not free.
-  const clash = useMemo(() => rows.find((r) => r.workspace === workspace && r.name === name), [rows, workspace, name]);
-  const nameState = !name ? null : !SECRET_NAME_RE.test(name) ? "Lowercase letters, digits and dashes" : clash && clash.kind !== "signin" ? "Taken by a " + clash.kind : clash ? "Replaces the saved one" : null;
-  const nameBad = !!name && (!SECRET_NAME_RE.test(name) || (!!clash && clash.kind !== "signin"));
-  const ways = useSigninWays({ host, name: nameBad ? "" : name, team, onSaved: (s) => onSaved?.(s.short_id) });
+  const clash = useMemo(
+    () => rows.find((r) => r.workspace === workspace && r.name === name),
+    [rows, workspace, name],
+  );
+  const nameState = !name
+    ? null
+    : !SECRET_NAME_RE.test(name)
+      ? "Lowercase letters, digits and dashes"
+      : clash && clash.kind !== "signin"
+        ? "Taken by a " + clash.kind
+        : clash
+          ? "Replaces the saved one"
+          : null;
+  const nameBad =
+    !!name &&
+    (!SECRET_NAME_RE.test(name) || (!!clash && clash.kind !== "signin"));
+  const ways = useSigninWays({
+    host,
+    name: nameBad ? "" : name,
+    team,
+    onSaved: (s) => onSaved?.(s.short_id),
+  });
   if (ways.review) return ways.review;
 
   return (
@@ -295,30 +530,64 @@ export function SaveSigninDialog({ scope, rows, onClose, onSaved }: { scope: Vau
       <DialogContent hideClose className={VAULT_DIALOG} data-vault-save-signin>
         <header className="flex items-center gap-2.5 border-b border-sol-border/60 px-5 py-3.5">
           <KindGlyph kind="signin" />
-          <DialogTitle className="text-[15px] font-semibold tracking-normal text-sol-text">Save a sign-in</DialogTitle>
-          <DialogDescription className="sr-only">Store a site's sign-in so every agent's browser starts signed in.</DialogDescription>
+          <DialogTitle className="text-[15px] font-semibold tracking-normal text-sol-text">
+            Save a sign-in
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Store a site's sign-in so every agent's browser starts signed in.
+          </DialogDescription>
         </header>
         <div className="flex min-h-0 flex-col overflow-y-auto px-5 py-3">
           <Row label="Site" align="input">
-            <input value={siteText} onChange={(e) => setSiteText(e.target.value)} placeholder="vercel.com" spellCheck={false} autoFocus className={FIELD_MONO} data-vault-signin-site />
+            <input
+              value={siteText}
+              onChange={(e) => setSiteText(e.target.value)}
+              placeholder="vercel.com"
+              spellCheck={false}
+              autoFocus
+              className={FIELD_MONO}
+              data-vault-signin-site
+            />
           </Row>
           <Row label="Name" align="input">
             <div className="flex items-center gap-2">
-              <input value={name} onChange={(e) => setTypedName(e.target.value.toLowerCase())} placeholder="vercel-signin" spellCheck={false} className={`${FIELD_MONO} ${nameBad ? "border-sol-red/70" : ""}`} />
-              {nameState && <span className={`shrink-0 text-meta ${nameBad ? "text-sol-red" : clash ? "text-sol-orange" : "text-sol-green"}`}>{nameState}</span>}
+              <input
+                value={name}
+                onChange={(e) => setTypedName(e.target.value.toLowerCase())}
+                placeholder="vercel-signin"
+                spellCheck={false}
+                className={`${FIELD_MONO} ${nameBad ? "border-sol-red/70" : ""}`}
+              />
+              {nameState && (
+                <span
+                  className={`shrink-0 text-meta ${nameBad ? "text-sol-red" : clash ? "text-sol-orange" : "text-sol-green"}`}
+                >
+                  {nameState}
+                </span>
+              )}
             </div>
           </Row>
           <Row label="Who can use it" align="input">
             <ScopePicker scope={scope} value={where} onChange={setWhere} />
           </Row>
-          <div className="flex min-w-0 flex-col gap-1.5 pt-2" data-vault-signin-ways>
+          <div
+            className="flex min-w-0 flex-col gap-1.5 pt-2"
+            data-vault-signin-ways
+          >
             <Outcome ways={ways} />
             <InTerminal ways={ways} />
           </div>
         </div>
         <footer className="flex items-center justify-between gap-2 border-t border-sol-border/60 bg-sol-bg-alt/40 px-5 py-3">
-          <button type="button" onClick={onClose} className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sol-border px-3 text-[12.5px] text-sol-text-muted hover:text-sol-text ${modernButton({ variant: "outline", size: "md" })}`}>
-            Cancel <span className="hidden sm:inline-flex"><KeyCap size="xs">esc</KeyCap></span>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sol-border px-3 text-[12.5px] text-sol-text-muted hover:text-sol-text ${modernButton({ variant: "outline", size: "md" })}`}
+          >
+            Cancel{" "}
+            <span className="hidden sm:inline-flex">
+              <KeyCap size="xs">esc</KeyCap>
+            </span>
           </button>
           <ChromeButton ways={ways} />
         </footer>
@@ -329,13 +598,30 @@ export function SaveSigninDialog({ scope, rows, onClose, onSaved }: { scope: Vau
 
 /** A sign-in request's fill: the laptop button, aimed at the request's own name, site and workspace. */
 export function SigninRequestFill({ row }: { row: SecretMeta }) {
-  const teamName = useInboxStore((s) => (s.teams ?? []).find((t: any) => String(t._id) === row.team_id)?.name ?? "the team");
+  const teamName = useInboxStore(
+    (s) =>
+      (s.teams ?? []).find((t: any) => String(t._id) === row.team_id)?.name ??
+      "the team",
+  );
   const [siteText, setSiteText] = useState(row.sites?.[0] ?? "");
-  const ways = useSigninWays({ host: (signinSite(siteText) ?? ""), name: row.name, team: row.team_id ? { id: row.team_id, name: teamName } : null });
+  const ways = useSigninWays({
+    host: signinSite(siteText) ?? "",
+    name: row.name,
+    team: row.team_id ? { id: row.team_id, name: teamName } : null,
+  });
   return (
-    <div className="flex min-w-0 flex-col gap-1.5" data-vault-signin-request={row.name}>
+    <div
+      className="flex min-w-0 flex-col gap-1.5"
+      data-vault-signin-request={row.name}
+    >
       {!row.sites?.length && (
-        <input value={siteText} onChange={(e) => setSiteText(e.target.value)} placeholder="Site, like vercel.com" spellCheck={false} className={FIELD_MONO} />
+        <input
+          value={siteText}
+          onChange={(e) => setSiteText(e.target.value)}
+          placeholder="Site, like vercel.com"
+          spellCheck={false}
+          className={FIELD_MONO}
+        />
       )}
       <div className="flex min-w-0">
         <ChromeButton ways={ways} />
@@ -363,21 +649,35 @@ export function SigninAutofill({ team, asked }: { team: Team; asked: number }) {
   const set = useMutation(api.signinAutofill.set);
   const [picked, setPicked] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const laptop = onlineLocals.find((d) => d.label === picked) ?? onlineLocals[0] ?? null;
+  const laptop =
+    onlineLocals.find((d) => d.label === picked) ?? onlineLocals[0] ?? null;
   const on = !!grant;
-  const onLabel = devices.find((d) => d.device_id === grant?.device_id)?.label ?? "a laptop";
+  const onLabel =
+    devices.find((d) => d.device_id === grant?.device_id)?.label ?? "a laptop";
   const turn = async (device_id?: string) => {
     setFailed(null);
-    const res: any = await set({ ...where, ...(device_id ? { device_id } : {}) }).catch(vaultFailure);
+    const res: any = await set({
+      ...where,
+      ...(device_id ? { device_id } : {}),
+    }).catch(vaultFailure);
     if (res?.error) setFailed(res.error);
   };
   if (!on && !laptop) return null;
   return (
-    <span className="inline-flex min-w-0 items-center gap-2 text-[12.5px]" data-vault-signin-autofill={on ? "on" : "off"}>
+    <span
+      className="inline-flex min-w-0 items-center gap-2 text-[12.5px]"
+      data-vault-signin-autofill={on ? "on" : "off"}
+    >
       {failed && <span className="truncate text-sol-red">{failed}</span>}
       <ConsequentialSwitch
         on={on}
-        ledger={signinAutofillLedger({ team: team?.name ?? null, people, laptop: laptop?.label ?? "", laptops: onlineLocals.map((d) => d.label), asked })}
+        ledger={signinAutofillLedger({
+          team: team?.name ?? null,
+          people,
+          laptop: laptop?.label ?? "",
+          laptops: onlineLocals.map((d) => d.label),
+          asked,
+        })}
         onPick={setPicked}
         onTurnOn={() => laptop && void turn(laptop.device_id)}
         onTurnOff={() => void turn()}
@@ -388,8 +688,16 @@ export function SigninAutofill({ team, asked }: { team: Team; asked: number }) {
             title={on ? "Turn off" : undefined}
             className={`inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md border px-3 ${on ? "border-sol-green/60 text-sol-text" : "border-sol-border text-sol-text-muted hover:text-sol-text"} ${modernButton({ variant: "outline", size: "md" })}`}
           >
-            {on ? <span className="size-1.5 shrink-0 rounded-full bg-sol-green" /> : <Laptop size={13} className="shrink-0" />}
-            <span className="truncate">{on ? `Sign-ins from Chrome on ${onLabel}` : "Sign-ins from Chrome"}</span>
+            {on ? (
+              <span className="size-1.5 shrink-0 rounded-full bg-sol-green" />
+            ) : (
+              <Laptop size={13} className="shrink-0" />
+            )}
+            <span className="truncate">
+              {on
+                ? `Sign-ins from Chrome on ${onLabel}`
+                : "Sign-ins from Chrome"}
+            </span>
           </button>
         )}
       />

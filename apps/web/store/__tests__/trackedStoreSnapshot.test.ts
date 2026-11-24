@@ -5,8 +5,14 @@ describe("resolveTrackedStoreSnapshot", () => {
   it("reuses the prior snapshot when every watched value is unchanged", () => {
     let calls = 0;
     const deps = [
-      (state: { a: number; b: number }) => { calls++; return state.a; },
-      (state: { a: number; b: number }) => { calls++; return state.b; },
+      (state: { a: number; b: number }) => {
+        calls++;
+        return state.a;
+      },
+      (state: { a: number; b: number }) => {
+        calls++;
+        return state.b;
+      },
     ];
     const first = resolveTrackedStoreSnapshot({ a: 1, b: 2 }, deps, null);
     calls = 0;
@@ -18,7 +24,10 @@ describe("resolveTrackedStoreSnapshot", () => {
   });
 
   it("returns the new state and values when a watched dependency changes", () => {
-    const deps = [(state: { a: number; b: number }) => state.a, (state: { a: number; b: number }) => state.b];
+    const deps = [
+      (state: { a: number; b: number }) => state.a,
+      (state: { a: number; b: number }) => state.b,
+    ];
     const first = resolveTrackedStoreSnapshot({ a: 1, b: 2 }, deps, null);
     const state = { a: 1, b: 3 };
 
@@ -32,7 +41,11 @@ describe("resolveTrackedStoreSnapshot", () => {
     const state = { a: 1, b: 2 };
     const first = resolveTrackedStoreSnapshot(state, [(s) => s.a], null);
 
-    const second = resolveTrackedStoreSnapshot(state, [(s) => s.a, (s) => s.b], first);
+    const second = resolveTrackedStoreSnapshot(
+      state,
+      [(s) => s.a, (s) => s.b],
+      first,
+    );
 
     expect(second).toEqual({ deps: [1, 2], state });
   });

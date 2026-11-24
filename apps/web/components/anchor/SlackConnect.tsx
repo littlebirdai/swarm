@@ -11,7 +11,15 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { SlackLogo } from "../SlackLogo";
 import { useAnchorSpace } from "../../hooks/useSyncAnchorSpace";
 
-export function SlackConnect({ scope, teamId, agentName }: { scope: "team" | "user"; teamId?: string | null; agentName: string }) {
+export function SlackConnect({
+  scope,
+  teamId,
+  agentName,
+}: {
+  scope: "team" | "user";
+  teamId?: string | null;
+  agentName: string;
+}) {
   const { space } = useAnchorSpace(scope, teamId);
   const getInstallUrl = useAction(api.slack.getInstallUrl);
   const unlink = useMutation(api.slack.unlinkChannel);
@@ -25,7 +33,12 @@ export function SlackConnect({ scope, teamId, agentName }: { scope: "team" | "us
     setErr(null);
     try {
       const returnTo = "/org/workspace";
-      const res = await getInstallUrl({ scope_type: scope, team_id: teamId ?? undefined, return_to: returnTo, origin: window.location.origin } as any);
+      const res = await getInstallUrl({
+        scope_type: scope,
+        team_id: teamId ?? undefined,
+        return_to: returnTo,
+        origin: window.location.origin,
+      } as any);
       if (res?.ok && res.url) {
         window.location.href = res.url;
       } else {
@@ -44,33 +57,49 @@ export function SlackConnect({ scope, teamId, agentName }: { scope: "team" | "us
         <>
           <div className="flex items-center gap-2 text-xs text-sol-green mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
-            Connected{space?.slack?.workspace_name ? ` · ${space.slack.workspace_name}` : ""}
+            Connected
+            {space?.slack?.workspace_name
+              ? ` · ${space.slack.workspace_name}`
+              : ""}
           </div>
           {channels.length === 0 ? (
             <p className="text-xs text-sol-text-dim leading-relaxed">
-              Invite the bot to a channel in Slack, then run <code>cast anchor link-channel &lt;id&gt;</code>.
-              @mentions there wake {agentName}.
+              Invite the bot to a channel in Slack, then run{" "}
+              <code>cast anchor link-channel &lt;id&gt;</code>. @mentions there
+              wake {agentName}.
             </p>
           ) : (
             <ul className="space-y-1">
               {channels.map((c) => (
-                <li key={c.channel_key} className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-sol-text-muted truncate">{c.channel_key}</span>
-                  <button onClick={() => unlink({ channel: c.channel_key } as any)} className="text-sol-text-dim hover:text-sol-red">
+                <li
+                  key={c.channel_key}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="font-mono text-sol-text-muted truncate">
+                    {c.channel_key}
+                  </span>
+                  <button
+                    onClick={() => unlink({ channel: c.channel_key } as any)}
+                    className="text-sol-text-dim hover:text-sol-red"
+                  >
                     unlink
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          <button onClick={connect} className="mt-3 text-xs text-sol-text-dim hover:text-sol-text">
+          <button
+            onClick={connect}
+            className="mt-3 text-xs text-sol-text-dim hover:text-sol-text"
+          >
             Reconnect
           </button>
         </>
       ) : (
         <>
           <p className="text-xs text-sol-text-muted mb-3 leading-relaxed">
-            Let {agentName} answer @mentions in your Slack. One click, no manual tokens.
+            Let {agentName} answer @mentions in your Slack. One click, no manual
+            tokens.
           </p>
           <button
             onClick={connect}

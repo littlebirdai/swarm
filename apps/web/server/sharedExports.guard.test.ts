@@ -10,27 +10,48 @@ import { join } from "node:path";
 const SERVER = import.meta.dir;
 const SHARED_PKG = join(SERVER, "../../../packages/shared/package.json");
 
-function missingSharedExports(sources: string[], exportKeys: string[]): string[] {
+function missingSharedExports(
+  sources: string[],
+  exportKeys: string[],
+): string[] {
   const exact = new Set(exportKeys);
-  const patterns = exportKeys.filter((k) => k.includes("*")).map((k) => new RegExp(`^${k.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace("\\*", ".*").replace("*", ".*")}$`));
+  const patterns = exportKeys
+    .filter((k) => k.includes("*"))
+    .map(
+      (k) =>
+        new RegExp(
+          `^${k
+            .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+            .replace("\\*", ".*")
+            .replace("*", ".*")}$`,
+        ),
+    );
   const missing = new Set<string>();
   for (const src of sources) {
-    for (const m of src.matchAll(/from\s+["']@codecast\/shared(\/[^"']+)?["']/g)) {
+    for (const m of src.matchAll(
+      /from\s+["']@codecast\/shared(\/[^"']+)?["']/g,
+    )) {
       const key = m[1] ? `.${m[1]}` : ".";
-      if (!exact.has(key) && !patterns.some((re) => re.test(key))) missing.add(key);
+      if (!exact.has(key) && !patterns.some((re) => re.test(key)))
+        missing.add(key);
     }
   }
   return [...missing].sort();
 }
 
 test("the checker catches an unexported subpath", () => {
-  const src = 'import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";';
-  expect(missingSharedExports([src], [".", "./contracts"])).toEqual(["./contracts/agentAccess"]);
+  const src =
+    'import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";';
+  expect(missingSharedExports([src], [".", "./contracts"])).toEqual([
+    "./contracts/agentAccess",
+  ]);
   expect(missingSharedExports([src], [".", "./contracts/*"])).toEqual([]);
 });
 
 test("every shared subpath the web server imports is exported", () => {
-  const exportKeys = Object.keys(JSON.parse(readFileSync(SHARED_PKG, "utf8")).exports ?? {});
+  const exportKeys = Object.keys(
+    JSON.parse(readFileSync(SHARED_PKG, "utf8")).exports ?? {},
+  );
   const sources = readdirSync(SERVER)
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
     .map((f) => readFileSync(join(SERVER, f), "utf8"));

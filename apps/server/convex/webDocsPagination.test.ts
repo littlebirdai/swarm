@@ -17,7 +17,9 @@ import {
 describe("webDocsNeedsUserDoc — hot user doc is read ONLY on the unpinned path", () => {
   // Every real web/mobile caller pins a workspace, so none of these read the user doc.
   test("team view (workspace pinned + team_id) does NOT read the user doc", () => {
-    expect(webDocsNeedsUserDoc({ workspace: "team", team_id: "tm_1" })).toBe(false);
+    expect(webDocsNeedsUserDoc({ workspace: "team", team_id: "tm_1" })).toBe(
+      false,
+    );
   });
 
   test("personal view (workspace pinned) does NOT read the user doc", () => {
@@ -38,13 +40,18 @@ describe("webDocsNeedsUserDoc — hot user doc is read ONLY on the unpinned path
 
 describe("resolveWebDocsTeamId — team resolution matches the read decision", () => {
   test("pinned team view uses the pinned team_id, never the user doc value", () => {
-    expect(resolveWebDocsTeamId({ workspace: "team", team_id: "tm_pinned" }, "tm_user")).toBe(
-      "tm_pinned"
-    );
+    expect(
+      resolveWebDocsTeamId(
+        { workspace: "team", team_id: "tm_pinned" },
+        "tm_user",
+      ),
+    ).toBe("tm_pinned");
   });
 
   test("pinned personal view resolves to no team", () => {
-    expect(resolveWebDocsTeamId({ workspace: "personal" }, "tm_user")).toBeUndefined();
+    expect(
+      resolveWebDocsTeamId({ workspace: "personal" }, "tm_user"),
+    ).toBeUndefined();
   });
 
   test("unpinned caller falls back to the user doc's active_team_id", () => {

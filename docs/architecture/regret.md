@@ -9,13 +9,13 @@ and how they are recorded. Sections are R1 onward so code can cite them.
 One row per commit that reached a repository's default branch, written only
 by `landedChanges.record` (convex):
 
-| Field | What it holds |
-|---|---|
-| `repository`, `sha`, `subject` | the commit |
-| `landed_at` | its place on main: `commits.main_at` when the webhook saw the push, else its commit time |
+| Field                                         | What it holds                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `repository`, `sha`, `subject`                | the commit                                                                                                                                                                                                                                                                     |
+| `landed_at`                                   | its place on main: `commits.main_at` when the webhook saw the push, else its commit time                                                                                                                                                                                       |
 | `conversation_id`, `run_id`, `role_id`, `via` | the session that wrote it, the run that session worked under and the role it worked for, as the blame resolver finds them (`blame.resolveCommitSessions`: the Codecast-Session trailer, a commits row, a stored hash, subject and time), resolved once when the row is written |
-| `fix_reason` | set when the commit is itself a fix: a bug task, a fix story, or a subject starting `fix:` / `fix(` (`lineFixloop.selectFixCommits`) |
-| `fixed_by` | every traced fix that changed this commit's lines: the fix's sha, its `landed_at`, how many of this commit's lines it changed |
+| `fix_reason`                                  | set when the commit is itself a fix: a bug task, a fix story, or a subject starting `fix:` / `fix(` (`lineFixloop.selectFixCommits`)                                                                                                                                           |
+| `fixed_by`                                    | every traced fix that changed this commit's lines: the fix's sha, its `landed_at`, how many of this commit's lines it changed                                                                                                                                                  |
 
 A fix's trace is the SZZ trace `cast line fixloop` already runs: the lines the
 fix removed or rewrote, blamed at the fix's parent revision. Each introducing

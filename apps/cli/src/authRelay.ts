@@ -22,7 +22,10 @@ export type { RelayPoller };
 /** A fresh verifier and the hash the server stores for it. */
 export function makeVerifier(): { verifier: string; verifierHash: string } {
   const verifier = randomBytes(32).toString("hex");
-  return { verifier, verifierHash: createHash("sha256").update(verifier).digest("hex") };
+  return {
+    verifier,
+    verifierHash: createHash("sha256").update(verifier).digest("hex"),
+  };
 }
 
 /**
@@ -32,7 +35,12 @@ export function makeVerifier(): { verifier: string; verifierHash: string } {
  */
 export async function registerAuthRequest(
   convexSiteUrl: string,
-  req: { nonce: string; verifierHash: string; deviceName: string; deviceId?: string },
+  req: {
+    nonce: string;
+    verifierHash: string;
+    deviceName: string;
+    deviceId?: string;
+  },
   fetchImpl: typeof cliFetch = cliFetch,
 ): Promise<boolean> {
   try {
@@ -59,13 +67,27 @@ export async function registerAuthRequest(
 export function startRelayPoller(
   convexSiteUrl: string,
   nonce: string,
-  opts: { intervalMs?: number; fetchImpl?: typeof cliFetch; verifier?: string } = {}
+  opts: {
+    intervalMs?: number;
+    fetchImpl?: typeof cliFetch;
+    verifier?: string;
+  } = {},
 ): RelayPoller {
   const baseFetch = opts.fetchImpl ?? cliFetch;
   const verifier = opts.verifier;
   const fetchImpl: typeof cliFetch = verifier
     ? (url, init, o) =>
-        baseFetch(url, { ...init, body: JSON.stringify({ ...JSON.parse(String(init?.body ?? "{}")), verifier }) }, o)
+        baseFetch(
+          url,
+          {
+            ...init,
+            body: JSON.stringify({
+              ...JSON.parse(String(init?.body ?? "{}")),
+              verifier,
+            }),
+          },
+          o,
+        )
     : baseFetch;
   return startPackageRelayPoller(convexSiteUrl, nonce, {
     intervalMs: opts.intervalMs,

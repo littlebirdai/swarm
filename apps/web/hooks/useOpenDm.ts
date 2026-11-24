@@ -29,5 +29,8 @@ export function useOpenDm(): (memberIds: string[]) => void {
  *  moves. One hook, so the DM opener and the strip's Chat button agree. */
 export function useOpenChatPath(): (path: string) => void {
   const router = useRouter();
-  return useCallback((path: string) => navigateFromHere(path, (p) => router.push(p)), [router]);
+  return useCallback(
+    (path: string) => navigateFromHere(path, (p) => router.push(p)),
+    [router],
+  );
 }

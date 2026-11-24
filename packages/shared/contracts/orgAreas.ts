@@ -6,9 +6,23 @@
 // People's review and the area watch all speak from one reading.
 //
 // Pure: no reads, no clock. The server hands it the counts it already holds.
-import type { InitiativeLink, InitiativeRow, MetricReading } from "./initiative";
+import type {
+  InitiativeLink,
+  InitiativeRow,
+  MetricReading,
+} from "./initiative";
 
-export const AREA_STATUSES = ["down", "waiting_on_you", "stuck", "overloaded", "off", "quiet", "on_track", "paused", "not_started"] as const;
+export const AREA_STATUSES = [
+  "down",
+  "waiting_on_you",
+  "stuck",
+  "overloaded",
+  "off",
+  "quiet",
+  "on_track",
+  "paused",
+  "not_started",
+] as const;
 export type AreaStatus = (typeof AREA_STATUSES)[number];
 
 /** The status as one or two words a person reads. */
@@ -26,7 +40,10 @@ export const AREA_STATUS_WORDS: Record<AreaStatus, string> = {
 
 /** Whether a status asks a person for anything; the panel sorts nothing by
  *  it, the watch fires on the two that last. */
-export const AREA_STATUS_ATTENTION: Record<AreaStatus, "person" | "head" | "none"> = {
+export const AREA_STATUS_ATTENTION: Record<
+  AreaStatus,
+  "person" | "head" | "none"
+> = {
   down: "head",
   waiting_on_you: "person",
   stuck: "head",
@@ -38,10 +55,21 @@ export const AREA_STATUS_ATTENTION: Record<AreaStatus, "person" | "head" | "none
   not_started: "none",
 };
 
-export type AreaSignalCode = "waiting_sessions" | "review_stall" | "blocked_sessions" | "overloaded" | "idle" | "program_ended" | "raised";
+export type AreaSignalCode =
+  | "waiting_sessions"
+  | "review_stall"
+  | "blocked_sessions"
+  | "overloaded"
+  | "idle"
+  | "program_ended"
+  | "raised";
 
 /** One sentence that changes what a person would do about the area. */
-export type AreaSignal = { code: AreaSignalCode; text: string; severity: "info" | "warn" | "blocker" };
+export type AreaSignal = {
+  code: AreaSignalCode;
+  text: string;
+  severity: "info" | "warn" | "blocker";
+};
 
 export type AreaWaitingSession = {
   id: string;
@@ -101,7 +129,12 @@ export const AREA_ROUTE_WORDS: Record<AreaRoute, string> = {
 export type AreaReached = Record<AreaRoute, number>;
 
 /** The route a session under a role took, from the row's own facts: its hold stamp and its binding. */
-export function handRouteOf(raw: { org_role_hold?: "bound" | "filed" | null; active_task_id?: unknown; active_plan_id?: unknown; plan_ids?: readonly unknown[] | null }): AreaRoute {
+export function handRouteOf(raw: {
+  org_role_hold?: "bound" | "filed" | null;
+  active_task_id?: unknown;
+  active_plan_id?: unknown;
+  plan_ids?: readonly unknown[] | null;
+}): AreaRoute {
   if (raw.org_role_hold === "filed") return "filed";
   if (raw.active_task_id) return "task";
   if (raw.active_plan_id || (raw.plan_ids?.length ?? 0) > 0) return "plan";
@@ -110,29 +143,55 @@ export function handRouteOf(raw: { org_role_hold?: "bound" | "filed" | null; act
   return "folder";
 }
 
-export type AreaSession = { id: string; short_id: string; title: string; state: string; route: AreaRoute };
+export type AreaSession = {
+  id: string;
+  short_id: string;
+  title: string;
+  state: string;
+  route: AreaRoute;
+};
 
-export const emptyReached = (): AreaReached => ({ task: 0, plan: 0, filed: 0, folder: 0 });
+export const emptyReached = (): AreaReached => ({
+  task: 0,
+  plan: 0,
+  filed: 0,
+  folder: 0,
+});
 
-export const reachedTotal = (r: AreaReached): number => AREA_ROUTES.reduce((n, k) => n + (r[k] ?? 0), 0);
+export const reachedTotal = (r: AreaReached): number =>
+  AREA_ROUTES.reduce((n, k) => n + (r[k] ?? 0), 0);
 
 /** Every route with a count, busiest first: "8 through a task, 2 filed by a person or role, 1 by the folder rule". */
 export function reachedBreakdown(r: AreaReached): string {
-  return AREA_ROUTES.filter((k) => (r[k] ?? 0) > 0).sort((a, b) => r[b] - r[a]).map((k) => `${r[k]} ${AREA_ROUTE_WORDS[k]}`).join(", ");
+  return AREA_ROUTES.filter((k) => (r[k] ?? 0) > 0)
+    .sort((a, b) => r[b] - r[a])
+    .map((k) => `${r[k]} ${AREA_ROUTE_WORDS[k]}`)
+    .join(", ");
 }
 
 /** The sentence an alert carries: which route most of the sessions took, and the rest. Empty when nothing sits under the role. */
 export function reachedSentence(r: AreaReached): string {
   const total = reachedTotal(r);
   if (total === 0) return "";
-  const [top, ...rest] = AREA_ROUTES.filter((k) => (r[k] ?? 0) > 0).sort((a, b) => r[b] - r[a]);
-  if (rest.length === 0) return `${total === 1 ? "Its one session" : `All ${total} of its sessions`} reached it ${AREA_ROUTE_WORDS[top]}.`;
-  const lead = r[top] * 2 >= total ? `Most of its ${total} sessions reached it ${AREA_ROUTE_WORDS[top]} (${r[top]})` : `Of its ${total} sessions, ${r[top]} reached it ${AREA_ROUTE_WORDS[top]}`;
+  const [top, ...rest] = AREA_ROUTES.filter((k) => (r[k] ?? 0) > 0).sort(
+    (a, b) => r[b] - r[a],
+  );
+  if (rest.length === 0)
+    return `${total === 1 ? "Its one session" : `All ${total} of its sessions`} reached it ${AREA_ROUTE_WORDS[top]}.`;
+  const lead =
+    r[top] * 2 >= total
+      ? `Most of its ${total} sessions reached it ${AREA_ROUTE_WORDS[top]} (${r[top]})`
+      : `Of its ${total} sessions, ${r[top]} reached it ${AREA_ROUTE_WORDS[top]}`;
   return `${lead}; the rest ${rest.map((k) => `${r[k]} ${AREA_ROUTE_WORDS[k]}`).join(", ")}.`;
 }
 
 /** A role's dated line from its brief (briefStanding.StandingLine, minus the raw). */
-export type AreaStandingLine = { project: string; text: string; written_on: string | null; written_at: number | null };
+export type AreaStandingLine = {
+  project: string;
+  text: string;
+  written_on: string | null;
+  written_at: number | null;
+};
 
 /** The role's check as a person controls it: the routine trigger on its
  *  standing session, in whatever status it stands. */
@@ -158,15 +217,44 @@ export type AreaCheck = {
  *  "off" is a check a person cancelled: their call (S25), shown, never
  *  pressed. A paused check is the person's hold and reads as neither. The
  *  label fits a chip; the reason is the whole of it. */
-export type CheckFault = { status: "down" | "off"; label: string; reason: string };
+export type CheckFault = {
+  status: "down" | "off";
+  label: string;
+  reason: string;
+};
 export function checkFaultOf(check: AreaCheck | null): CheckFault | null {
-  if (!check) return { status: "down", label: "no check", reason: "it has no check" };
-  if (check.status === "completed" && check.canceled_on_kill) return { status: "down", label: "check stopped", reason: "its check stopped when its session was killed" };
-  if (check.status === "completed" || check.status === "cancelled") return { status: "off", label: "check off", reason: "its check was cancelled" };
-  const why = String(check.last_run_summary ?? "").split("\n")[0].replace(/^Failed:\s*/, "").trim().slice(0, 160);
+  if (!check)
+    return { status: "down", label: "no check", reason: "it has no check" };
+  if (check.status === "completed" && check.canceled_on_kill)
+    return {
+      status: "down",
+      label: "check stopped",
+      reason: "its check stopped when its session was killed",
+    };
+  if (check.status === "completed" || check.status === "cancelled")
+    return {
+      status: "off",
+      label: "check off",
+      reason: "its check was cancelled",
+    };
+  const why = String(check.last_run_summary ?? "")
+    .split("\n")[0]
+    .replace(/^Failed:\s*/, "")
+    .trim()
+    .slice(0, 160);
   const because = (lead: string) => (why ? `${lead}: ${why}` : lead);
-  if (check.status === "failed") return { status: "down", label: "check stopped", reason: because("its check stopped after failing") };
-  if (check.last_run_failed) return { status: "down", label: "last check failed", reason: because("its last check failed") };
+  if (check.status === "failed")
+    return {
+      status: "down",
+      label: "check stopped",
+      reason: because("its check stopped after failing"),
+    };
+  if (check.last_run_failed)
+    return {
+      status: "down",
+      label: "last check failed",
+      reason: because("its last check failed"),
+    };
   return null;
 }
 
@@ -225,7 +313,8 @@ export type AreaInput = {
   program_ended: { ended: string; then: "retire" | "review" } | null;
 };
 
-const n = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+const n = (count: number, one: string, many = `${one}s`) =>
+  `${count} ${count === 1 ? one : many}`;
 
 /** The status the signals add up to, most pressing first. */
 export function areaStatusOf(a: AreaInput): AreaStatus {
@@ -233,7 +322,8 @@ export function areaStatusOf(a: AreaInput): AreaStatus {
   if (!a.has_standing) return "not_started";
   if (a.check_fault?.status === "down") return "down";
   if (a.standing_waits_on_person) return "waiting_on_you";
-  if (a.waiting_unanswered > 0 || a.review_stalls > 0 || a.blocked_sessions > 0) return "stuck";
+  if (a.waiting_unanswered > 0 || a.review_stalls > 0 || a.blocked_sessions > 0)
+    return "stuck";
   if (a.overloaded) return "overloaded";
   // A check a person turned off: nothing presses, but nothing wakes the role
   // either, so it never reads as on track.
@@ -245,25 +335,43 @@ export function areaStatusOf(a: AreaInput): AreaStatus {
 /** The status as one sentence a row can stand on. */
 export function areaStatusLine(a: AreaInput, status: AreaStatus): string {
   switch (status) {
-    case "paused": return "Paused: its checks hold until you resume it.";
-    case "not_started": return "Not started: it has no session yet.";
-    case "down": return `Down: ${a.check_fault?.reason ?? "its check does not run"}.`;
-    case "off": return `Check off: ${a.check_fault?.reason ?? "it has no check running"}.`;
-    case "waiting_on_you": return a.standing_state_line ? `Waiting on you: ${a.standing_state_line}` : "Waiting on you.";
+    case "paused":
+      return "Paused: its checks hold until you resume it.";
+    case "not_started":
+      return "Not started: it has no session yet.";
+    case "down":
+      return `Down: ${a.check_fault?.reason ?? "its check does not run"}.`;
+    case "off":
+      return `Check off: ${a.check_fault?.reason ?? "it has no check running"}.`;
+    case "waiting_on_you":
+      return a.standing_state_line
+        ? `Waiting on you: ${a.standing_state_line}`
+        : "Waiting on you.";
     case "stuck": {
       const parts: string[] = [];
-      if (a.waiting_unanswered > 0) parts.push(`${n(a.waiting_unanswered, "session")} under it waiting unanswered`);
-      if (a.review_stalls > 0) parts.push(`${n(a.review_stalls, "task")} stuck in review`);
-      if (a.blocked_sessions > 0) parts.push(`${n(a.blocked_sessions, "task")} blocked`);
+      if (a.waiting_unanswered > 0)
+        parts.push(
+          `${n(a.waiting_unanswered, "session")} under it waiting unanswered`,
+        );
+      if (a.review_stalls > 0)
+        parts.push(`${n(a.review_stalls, "task")} stuck in review`);
+      if (a.blocked_sessions > 0)
+        parts.push(`${n(a.blocked_sessions, "task")} blocked`);
       return `Stuck: ${parts.join(", ")}.`;
     }
     case "overloaded": {
-      const by = a.overloaded_by.length ? `Overloaded: ${a.overloaded_by.join(", ")}.` : "Overloaded: more reaches it than one role can answer.";
+      const by = a.overloaded_by.length
+        ? `Overloaded: ${a.overloaded_by.join(", ")}.`
+        : "Overloaded: more reaches it than one role can answer.";
       const why = a.reached ? reachedSentence(a.reached) : "";
       return why ? `${by} ${why}` : by;
     }
-    case "quiet": return a.idle_days === null ? `Quiet: nothing has moved since it started ${n(a.age_days, "day")} ago.` : `Quiet: nothing has moved for ${n(a.idle_days, "day")}.`;
-    case "on_track": return "On track.";
+    case "quiet":
+      return a.idle_days === null
+        ? `Quiet: nothing has moved since it started ${n(a.age_days, "day")} ago.`
+        : `Quiet: nothing has moved for ${n(a.idle_days, "day")}.`;
+    case "on_track":
+      return "On track.";
   }
 }
 
@@ -273,22 +381,68 @@ export function areaStatusLine(a: AreaInput, status: AreaStatus): string {
  *  not to a row (S29). */
 export function areaSignalsOf(a: AreaInput): AreaSignal[] {
   const out: AreaSignal[] = [];
-  if (a.standing_waits_on_person) out.push({ code: "raised", severity: "blocker", text: a.standing_state_line ? `It raised something for you: ${a.standing_state_line}` : "It raised something for you in its thread." });
-  if (a.waiting_unanswered > 0) out.push({ code: "waiting_sessions", severity: "warn", text: `${n(a.waiting_unanswered, "session")} under it ${a.waiting_unanswered === 1 ? "has" : "have"} waited more than a day with no answer from it.` });
-  else if (a.waiting_total > 0) out.push({ code: "waiting_sessions", severity: "info", text: `${n(a.waiting_total, "session")} under it ${a.waiting_total === 1 ? "is" : "are"} waiting on someone.` });
-  if (a.review_stalls > 0) out.push({ code: "review_stall", severity: "warn", text: `${n(a.review_stalls, "task")} ${a.review_stalls === 1 ? "has" : "have"} sat in review for more than a day with nobody owning the verdict.` });
-  if (a.blocked_sessions > 0) out.push({ code: "blocked_sessions", severity: "warn", text: `${n(a.blocked_sessions, "task")} still open whose session reported blocked or missing context.` });
+  if (a.standing_waits_on_person)
+    out.push({
+      code: "raised",
+      severity: "blocker",
+      text: a.standing_state_line
+        ? `It raised something for you: ${a.standing_state_line}`
+        : "It raised something for you in its thread.",
+    });
+  if (a.waiting_unanswered > 0)
+    out.push({
+      code: "waiting_sessions",
+      severity: "warn",
+      text: `${n(a.waiting_unanswered, "session")} under it ${a.waiting_unanswered === 1 ? "has" : "have"} waited more than a day with no answer from it.`,
+    });
+  else if (a.waiting_total > 0)
+    out.push({
+      code: "waiting_sessions",
+      severity: "info",
+      text: `${n(a.waiting_total, "session")} under it ${a.waiting_total === 1 ? "is" : "are"} waiting on someone.`,
+    });
+  if (a.review_stalls > 0)
+    out.push({
+      code: "review_stall",
+      severity: "warn",
+      text: `${n(a.review_stalls, "task")} ${a.review_stalls === 1 ? "has" : "have"} sat in review for more than a day with nobody owning the verdict.`,
+    });
+  if (a.blocked_sessions > 0)
+    out.push({
+      code: "blocked_sessions",
+      severity: "warn",
+      text: `${n(a.blocked_sessions, "task")} still open whose session reported blocked or missing context.`,
+    });
   if (a.overloaded) {
     const why = a.reached ? reachedSentence(a.reached) : "";
-    out.push({ code: "overloaded", severity: "warn", text: `More reaches it than one role can answer: ${a.overloaded_by.join(", ")}.${why ? ` ${why}` : ""}` });
+    out.push({
+      code: "overloaded",
+      severity: "warn",
+      text: `More reaches it than one role can answer: ${a.overloaded_by.join(", ")}.${why ? ` ${why}` : ""}`,
+    });
   }
-  if (a.program_ended) out.push({ code: "program_ended", severity: "warn", text: `The work it was hired for ended: ${a.program_ended.ended}. Its tenure says ${a.program_ended.then === "retire" ? "retire it" : "review it"}.` });
-  if (a.idle && !a.standing_waits_on_person) out.push({ code: "idle", severity: "info", text: a.idle_days === null ? `Nothing has moved in its area since it started ${n(a.age_days, "day")} ago.` : `Nothing has moved in its area for ${n(a.idle_days, "day")}.` });
+  if (a.program_ended)
+    out.push({
+      code: "program_ended",
+      severity: "warn",
+      text: `The work it was hired for ended: ${a.program_ended.ended}. Its tenure says ${a.program_ended.then === "retire" ? "retire it" : "review it"}.`,
+    });
+  if (a.idle && !a.standing_waits_on_person)
+    out.push({
+      code: "idle",
+      severity: "info",
+      text:
+        a.idle_days === null
+          ? `Nothing has moved in its area since it started ${n(a.age_days, "day")} ago.`
+          : `Nothing has moved in its area for ${n(a.idle_days, "day")}.`,
+    });
   return out.slice(0, 3);
 }
 
 /** The newest dated line first; undated lines keep their written order after the dated ones. */
-export function newestStandingFirst<L extends { written_at: number | null }>(lines: L[]): L[] {
+export function newestStandingFirst<L extends { written_at: number | null }>(
+  lines: L[],
+): L[] {
   return [...lines].sort((x, y) => (y.written_at ?? -1) - (x.written_at ?? -1));
 }
 
@@ -298,17 +452,46 @@ export function newestStandingFirst<L extends { written_at: number | null }>(lin
  *  a row, or a project with work and no owner. Rides the Head of People's
  *  trigger frame as its own block (machineMessages AreaChange). */
 export type AreaChange =
-  | { kind: "status"; role_handle: string; role_name: string; from: AreaStatus | null; to: AreaStatus; since: number; line: string }
-  | { kind: "unowned_project"; project_id: string; project_title: string; since: number; line: string }
+  | {
+      kind: "status";
+      role_handle: string;
+      role_name: string;
+      from: AreaStatus | null;
+      to: AreaStatus;
+      since: number;
+      line: string;
+    }
+  | {
+      kind: "unowned_project";
+      project_id: string;
+      project_title: string;
+      since: number;
+      line: string;
+    }
   /** Work that reaches no goal (ct-95901): an open plan filed under no project, or an active project with open work that no open goal carries. `record` is its short id. */
-  | { kind: "plan_without_project"; record: string; record_title: string; since: number; line: string }
-  | { kind: "project_without_goal"; record: string; record_title: string; since: number; line: string };
+  | {
+      kind: "plan_without_project";
+      record: string;
+      record_title: string;
+      since: number;
+      line: string;
+    }
+  | {
+      kind: "project_without_goal";
+      record: string;
+      record_title: string;
+      since: number;
+      line: string;
+    };
 
 /** One line that says the change in words, for the frame and the thread. */
 export function areaChangeLine(c: AreaChange): string {
-  if (c.kind === "unowned_project") return `The project "${c.project_title}" has work and no role looking after it.`;
-  if (c.kind === "plan_without_project") return `The plan "${c.record_title}" (${c.record}) is open and filed under no project, so it reaches no goal. ${c.line}`.trim();
-  if (c.kind === "project_without_goal") return `The project "${c.record_title}"${c.record ? ` (${c.record})` : ""} has open work and no open goal carries it. ${c.line}`.trim();
+  if (c.kind === "unowned_project")
+    return `The project "${c.project_title}" has work and no role looking after it.`;
+  if (c.kind === "plan_without_project")
+    return `The plan "${c.record_title}" (${c.record}) is open and filed under no project, so it reaches no goal. ${c.line}`.trim();
+  if (c.kind === "project_without_goal")
+    return `The project "${c.record_title}"${c.record ? ` (${c.record})` : ""} has open work and no open goal carries it. ${c.line}`.trim();
   const was = c.from ? `, was ${AREA_STATUS_WORDS[c.from]}` : "";
   return `${c.role_name} (@${c.role_handle}) has read ${AREA_STATUS_WORDS[c.to]} at two checks in a row${was}. ${c.line}`.trim();
 }

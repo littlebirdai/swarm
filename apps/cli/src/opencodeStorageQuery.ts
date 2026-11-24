@@ -22,20 +22,28 @@ export function openOpencodeDb(dbPath: string): Database | null {
  * mapping a multi-gigabyte file under memory pressure is what pins the daemon
  * loop, which is why the watcher runs this on a worker thread.
  */
-export function queryOpencodeDelta(dbPath: string, watermark: number): OpencodeDelta {
+export function queryOpencodeDelta(
+  dbPath: string,
+  watermark: number,
+): OpencodeDelta {
   const db = openOpencodeDb(dbPath);
   if (!db) return { globalMax: 0, sessionIds: [] };
   try {
-    const globalMax = db.query<{ mx: number | null }, []>(
-      "SELECT MAX(mx) AS mx FROM (SELECT MAX(time_updated) mx FROM message UNION ALL SELECT MAX(time_updated) FROM part UNION ALL SELECT MAX(time_updated) FROM session)",
-    ).get()?.mx ?? 0;
+    const globalMax =
+      db
+        .query<{ mx: number | null }, []>(
+          "SELECT MAX(mx) AS mx FROM (SELECT MAX(time_updated) mx FROM message UNION ALL SELECT MAX(time_updated) FROM part UNION ALL SELECT MAX(time_updated) FROM session)",
+        )
+        .get()?.mx ?? 0;
     if (globalMax <= watermark) return { globalMax, sessionIds: [] };
-    const changed = db.query<{ sid: string }, [number, number, number]>(
-      "SELECT DISTINCT sid FROM (" +
-        "SELECT session_id AS sid, time_updated AS t FROM message WHERE time_updated > ?1 " +
-        "UNION ALL SELECT session_id, time_updated FROM part WHERE time_updated > ?2 " +
-        "UNION ALL SELECT id, time_updated FROM session WHERE time_updated > ?3)",
-    ).all(watermark, watermark, watermark);
+    const changed = db
+      .query<{ sid: string }, [number, number, number]>(
+        "SELECT DISTINCT sid FROM (" +
+          "SELECT session_id AS sid, time_updated AS t FROM message WHERE time_updated > ?1 " +
+          "UNION ALL SELECT session_id, time_updated FROM part WHERE time_updated > ?2 " +
+          "UNION ALL SELECT id, time_updated FROM session WHERE time_updated > ?3)",
+      )
+      .all(watermark, watermark, watermark);
     return { globalMax, sessionIds: changed.map((row) => row.sid) };
   } finally {
     db.close();

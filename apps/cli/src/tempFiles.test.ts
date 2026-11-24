@@ -14,8 +14,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  agentTempDir, agentTempPath, secureTempFile, sweepTempDir,
-  TEMP_FILE_MODE, TEMP_SWEEP_MARKER, TEMP_TTL_MS,
+  agentTempDir,
+  agentTempPath,
+  secureTempFile,
+  sweepTempDir,
+  TEMP_FILE_MODE,
+  TEMP_SWEEP_MARKER,
+  TEMP_TTL_MS,
 } from "./tempFiles.js";
 
 let home: string;
@@ -49,9 +54,16 @@ describe("agentTempDir", () => {
   });
 
   test("refuses a path that is a symlink rather than our directory", () => {
-    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "cast-temp-decoy-"));
-    fs.mkdirSync(path.join(process.env.CODECAST_DIR!, "tmp"), { recursive: true });
-    fs.symlinkSync(elsewhere, path.join(process.env.CODECAST_DIR!, "tmp", "shots"));
+    const elsewhere = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cast-temp-decoy-"),
+    );
+    fs.mkdirSync(path.join(process.env.CODECAST_DIR!, "tmp"), {
+      recursive: true,
+    });
+    fs.symlinkSync(
+      elsewhere,
+      path.join(process.env.CODECAST_DIR!, "tmp", "shots"),
+    );
     expect(() => agentTempDir("shots")).toThrow(/not a directory/);
     fs.rmSync(elsewhere, { recursive: true, force: true });
   });

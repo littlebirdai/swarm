@@ -25,13 +25,28 @@
  */
 
 import type http from "http";
-import { CdpConnection, listTargets, type CdpEndpoint, type CdpTarget } from "./cdp.js";
+import {
+  CdpConnection,
+  listTargets,
+  type CdpEndpoint,
+  type CdpTarget,
+} from "./cdp.js";
 import { raiseAppByPid, raiseAppByPidSync } from "./raiseApp.js";
 import { noteDeliberateRaise } from "./focusSentinel.js";
 import { readState } from "./instance.js";
-import { knownRealChromePid, lastBrowserProcesses, listChromeDebugPorts } from "./localChrome.js";
+import {
+  knownRealChromePid,
+  lastBrowserProcesses,
+  listChromeDebugPorts,
+} from "./localChrome.js";
 import { sessionPinnedTabs } from "./engineReap.js";
-import { bridgeEndpoint, proveBridgeHost, readBridgeState, type BridgeState, type ProvenBridge } from "./bridge/host.js";
+import {
+  bridgeEndpoint,
+  proveBridgeHost,
+  readBridgeState,
+  type BridgeState,
+  type ProvenBridge,
+} from "./bridge/host.js";
 import { isPidAlive } from "../workspace/chrome.js";
 import {
   authorizeLocalRequest,
@@ -45,7 +60,10 @@ import type { ReopenDeps } from "./reopenTab.js";
 
 /** Why a focus request could not be honored; the web treats them all the same
  *  (fall back to opening the URL) but the distinction keeps logs debuggable. */
-export type FocusFailure = "browser-stopped" | "browser-unreachable" | "tab-not-found";
+export type FocusFailure =
+  | "browser-stopped"
+  | "browser-unreachable"
+  | "tab-not-found";
 
 export interface FocusResult {
   ok: boolean;
@@ -73,8 +91,12 @@ export interface FocusTab {
 }
 
 /** The CDP endpoint a tab is reached through (cdp.ts CdpEndpoint). */
-export function focusEndpoint(tab: Pick<FocusTab, "port" | "token">): CdpEndpoint {
-  return tab.token ? { port: tab.port, token: tab.token, raise: true } : tab.port;
+export function focusEndpoint(
+  tab: Pick<FocusTab, "port" | "token">,
+): CdpEndpoint {
+  return tab.token
+    ? { port: tab.port, token: tab.token, raise: true }
+    : tab.port;
 }
 
 /**
@@ -95,7 +117,10 @@ export interface FocusEngine {
  * --tab: exact id first, then case-insensitive prefix — the CLI prints a
  * shortened id, so a prefix is what the web actually holds.
  */
-export function matchTab<T extends { id: string }>(tabs: T[], query: string): T | null {
+export function matchTab<T extends { id: string }>(
+  tabs: T[],
+  query: string,
+): T | null {
   if (!query) return null;
   return (
     tabs.find((t) => t.id === query) ??
@@ -108,7 +133,12 @@ export function matchTab<T extends { id: string }>(tabs: T[], query: string): T 
 async function activateViaCdp(tab: FocusTab): Promise<void> {
   const conn = await CdpConnection.fromPort(focusEndpoint(tab), 5_000);
   try {
-    await conn.send("Target.activateTarget", { targetId: tab.id }, undefined, 5_000);
+    await conn.send(
+      "Target.activateTarget",
+      { targetId: tab.id },
+      undefined,
+      5_000,
+    );
   } finally {
     conn.close();
   }
@@ -120,7 +150,12 @@ export const builtinFocusEngine: FocusEngine = {
   async listTabs() {
     const state = readState();
     if (!state || !isPidAlive(state.pid)) return [];
-    return (await listTargets(state.port)).map((t) => ({ id: t.targetId, url: t.url, port: state.port, pid: state.pid }));
+    return (await listTargets(state.port)).map((t) => ({
+      id: t.targetId,
+      url: t.url,
+      port: state.port,
+      pid: state.pid,
+    }));
   },
   activate: activateViaCdp,
 };
@@ -138,13 +173,16 @@ export const localChromeFocusEngine: FocusEngine = {
   async listTabs() {
     const tabs: FocusTab[] = [];
     await Promise.all(
-      listChromeDebugPorts(await lastBrowserProcesses()).map(async ({ port, pid }) => {
-        try {
-          for (const t of await listTargets(port)) tabs.push({ id: t.targetId, url: t.url, port, pid });
-        } catch {
-          /* not ours to worry about */
-        }
-      }),
+      listChromeDebugPorts(await lastBrowserProcesses()).map(
+        async ({ port, pid }) => {
+          try {
+            for (const t of await listTargets(port))
+              tabs.push({ id: t.targetId, url: t.url, port, pid });
+          } catch {
+            /* not ours to worry about */
+          }
+        },
+      ),
     );
     return tabs;
   },
@@ -183,7 +221,13 @@ export function makeBridgeFocusEngine(deps: BridgeFocusDeps): FocusEngine {
       if (!state.hostPid || !deps.isPidAlive(state.hostPid)) return [];
       const ep = bridgeEndpoint(await deps.prove(state));
       const pid = deps.realChromePid() ?? undefined;
-      return (await deps.listTargets(ep)).map((t) => ({ id: t.targetId, url: t.url, port: state.port, token: state.token, pid }));
+      return (await deps.listTargets(ep)).map((t) => ({
+        id: t.targetId,
+        url: t.url,
+        port: state.port,
+        token: state.token,
+        pid,
+      }));
     },
     activate: activateViaCdp,
   };
@@ -211,7 +255,11 @@ export const bridgeFocusEngine: FocusEngine = makeBridgeFocusEngine({
 // selection already happened if it fails.
 
 /** Engines the route consults, in order. */
-const engines: FocusEngine[] = [builtinFocusEngine, localChromeFocusEngine, bridgeFocusEngine];
+const engines: FocusEngine[] = [
+  builtinFocusEngine,
+  localChromeFocusEngine,
+  bridgeFocusEngine,
+];
 
 export interface FocusDeps {
   engines: FocusEngine[];
@@ -232,17 +280,33 @@ export interface FocusDeps {
  */
 const sessionTabsOf = (candidates: string[]): string[] => {
   const watched = cdpWatchEngine().resolveTab(candidates);
-  return [...sessionPinnedTabs(candidates), ...("tabId" in watched ? [watched.tabId] : [])];
+  return [
+    ...sessionPinnedTabs(candidates),
+    ...("tabId" in watched ? [watched.tabId] : []),
+  ];
 };
 
-const defaultDeps = (raiseApp = raiseAppByPid): FocusDeps => ({ engines, raiseApp, resolveSessionTabs: sessionTabsOf });
+const defaultDeps = (raiseApp = raiseAppByPid): FocusDeps => ({
+  engines,
+  raiseApp,
+  resolveSessionTabs: sessionTabsOf,
+});
 
 /** The session a request names, the way the watch stream's hello does. */
-function ownerOf(fields: { session_uuid?: unknown; tmux_session?: unknown }): Promise<string[]> {
+function ownerOf(fields: {
+  session_uuid?: unknown;
+  tmux_session?: unknown;
+}): Promise<string[]> {
   return ownerCandidates(
     {
-      session_uuid: typeof fields.session_uuid === "string" ? fields.session_uuid : undefined,
-      tmux_session: typeof fields.tmux_session === "string" ? fields.tmux_session : undefined,
+      session_uuid:
+        typeof fields.session_uuid === "string"
+          ? fields.session_uuid
+          : undefined,
+      tmux_session:
+        typeof fields.tmux_session === "string"
+          ? fields.tmux_session
+          : undefined,
     },
     tmuxPaneId,
   );
@@ -255,7 +319,9 @@ function ownerOf(fields: { session_uuid?: unknown; tmux_session?: unknown }): Pr
  * focus back if the managed Chrome took it during the call — an async raise
  * that completes mid-call is read as a theft and undone.
  */
-export function focusBrowserTabBlocking(query: string | string[]): Promise<FocusResult> {
+export function focusBrowserTabBlocking(
+  query: string | string[],
+): Promise<FocusResult> {
   return focusBrowserTab(query, defaultDeps(raiseAppByPidSync));
 }
 
@@ -285,7 +351,11 @@ async function findTab(
   activate?: (engine: FocusEngine, tab: FocusTab) => Promise<void>,
 ): Promise<{ tab: FocusTab } | { reason: FocusFailure }> {
   let reason: FocusFailure = "browser-stopped";
-  const rank: Record<FocusFailure, number> = { "browser-stopped": 0, "browser-unreachable": 1, "tab-not-found": 2 };
+  const rank: Record<FocusFailure, number> = {
+    "browser-stopped": 0,
+    "browser-unreachable": 1,
+    "tab-not-found": 2,
+  };
   const worse = (r: FocusFailure) => {
     if (rank[r] > rank[reason]) reason = r;
   };
@@ -298,13 +368,16 @@ async function findTab(
   let wake: (() => void) | null = null;
   let pending = engines.length;
   for (const engine of engines) {
-    engine.listTabs().then(
-      (tabs) => queue.push({ engine, tabs }),
-      () => queue.push({ engine, tabs: null }),
-    ).finally(() => {
-      pending -= 1;
-      wake?.();
-    });
+    engine
+      .listTabs()
+      .then(
+        (tabs) => queue.push({ engine, tabs }),
+        () => queue.push({ engine, tabs: null }),
+      )
+      .finally(() => {
+        pending -= 1;
+        wake?.();
+      });
   }
 
   while (queue.length || pending) {
@@ -322,7 +395,10 @@ async function findTab(
     }
     if (!tabs.length) continue;
 
-    const tab = queries.reduce<FocusTab | null>((found, q) => found ?? matchTab(tabs, q), null);
+    const tab = queries.reduce<FocusTab | null>(
+      (found, q) => found ?? matchTab(tabs, q),
+      null,
+    );
     if (!tab) {
       worse("tab-not-found");
       continue;
@@ -339,8 +415,13 @@ async function findTab(
   return { reason };
 }
 
-export async function focusBrowserTab(query: string | string[], deps: FocusDeps = defaultDeps()): Promise<FocusResult> {
-  const found = await findTab([query].flat(), deps.engines, (engine, tab) => engine.activate(tab));
+export async function focusBrowserTab(
+  query: string | string[],
+  deps: FocusDeps = defaultDeps(),
+): Promise<FocusResult> {
+  const found = await findTab([query].flat(), deps.engines, (engine, tab) =>
+    engine.activate(tab),
+  );
   if ("reason" in found) return { ok: false, reason: found.reason };
   const { tab } = found;
   // This raise is asked for — tell the sentinel not to bounce it.
@@ -353,9 +434,14 @@ export async function focusBrowserTab(query: string | string[], deps: FocusDeps 
  * Whether the tab still exists, touching nothing: the web asks on hover so a
  * pill whose tab an agent closed reads as gone before the transcript says so.
  */
-export async function probeBrowserTab(query: string | string[], deps: Pick<FocusDeps, "engines"> = defaultDeps()): Promise<FocusResult> {
+export async function probeBrowserTab(
+  query: string | string[],
+  deps: Pick<FocusDeps, "engines"> = defaultDeps(),
+): Promise<FocusResult> {
   const found = await findTab([query].flat(), deps.engines);
-  return "reason" in found ? { ok: false, reason: found.reason } : { ok: true, tab: found.tab.id };
+  return "reason" in found
+    ? { ok: false, reason: found.reason }
+    : { ok: true, tab: found.tab.id };
 }
 
 /**
@@ -371,13 +457,28 @@ export async function probeBrowserTab(query: string | string[], deps: Pick<Focus
 export async function focusRequestedTab(
   params: URLSearchParams,
   deps: FocusDeps,
-  act: (tabs: string[], deps: FocusDeps) => Promise<FocusResult> = focusBrowserTab,
+  act: (
+    tabs: string[],
+    deps: FocusDeps,
+  ) => Promise<FocusResult> = focusBrowserTab,
 ): Promise<{ tab: string; result: FocusResult }> {
   const rowTab = params.get("tab") ?? "";
   const sessionTabs =
-    deps.resolveSessionTabs?.(await ownerOf({ session_uuid: params.get("session_uuid"), tmux_session: params.get("tmux_session") })) ?? [];
-  const queries = [rowTab, ...sessionTabs].filter((q, i, all) => q && !all.slice(0, i).some((earlier) => earlier && matchTab([{ id: q }], earlier)));
-  if (!queries.length) return { tab: "", result: { ok: false, reason: "tab-not-found" } };
+    deps.resolveSessionTabs?.(
+      await ownerOf({
+        session_uuid: params.get("session_uuid"),
+        tmux_session: params.get("tmux_session"),
+      }),
+    ) ?? [];
+  const queries = [rowTab, ...sessionTabs].filter(
+    (q, i, all) =>
+      q &&
+      !all
+        .slice(0, i)
+        .some((earlier) => earlier && matchTab([{ id: q }], earlier)),
+  );
+  if (!queries.length)
+    return { tab: "", result: { ok: false, reason: "tab-not-found" } };
   const result = await act(queries, deps);
   return { tab: result.tab ?? queries[0], result };
 }
@@ -394,7 +495,10 @@ export function handleBrowserFocusHttp(
 ): boolean {
   const url = req.url ?? "";
   if (!url.startsWith("/browser/")) return false;
-  const headers = { "Content-Type": "application/json", ...corsHeaders(req.headers.origin, opts) };
+  const headers = {
+    "Content-Type": "application/json",
+    ...corsHeaders(req.headers.origin, opts),
+  };
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, headers);
@@ -412,7 +516,9 @@ export function handleBrowserFocusHttp(
   // engine, the body read, the reopen import) must still answer the request:
   // unhandled, the rejection reaches the daemon and the caller waits forever.
   const failed = (err: unknown): void => {
-    opts.log(`[BROWSER] ${url.split("?")[0]} failed: ${(err as Error)?.message ?? err}`);
+    opts.log(
+      `[BROWSER] ${url.split("?")[0]} failed: ${(err as Error)?.message ?? err}`,
+    );
     if (res.headersSent) {
       res.end();
       return;
@@ -423,14 +529,20 @@ export function handleBrowserFocusHttp(
 
   if (req.method === "POST" && url.startsWith("/browser/focus")) {
     const params = new URL(url, "http://localhost").searchParams;
-    void focusRequestedTab(params, { ...deps, log: deps.log ?? opts.log }).then(({ tab, result }) => {
-      // Both outcomes are logged: a click that did nothing is otherwise
-      // invisible from every side (the web stays quiet by design).
-      const label = tab || "for the session";
-      opts.log(result.ok ? `[BROWSER] Focused tab ${label}` : `[BROWSER] Could not focus tab ${label}: ${result.reason}`);
-      res.writeHead(result.ok ? 200 : 404, headers);
-      res.end(JSON.stringify(result));
-    }).catch(failed);
+    void focusRequestedTab(params, { ...deps, log: deps.log ?? opts.log })
+      .then(({ tab, result }) => {
+        // Both outcomes are logged: a click that did nothing is otherwise
+        // invisible from every side (the web stays quiet by design).
+        const label = tab || "for the session";
+        opts.log(
+          result.ok
+            ? `[BROWSER] Focused tab ${label}`
+            : `[BROWSER] Could not focus tab ${label}: ${result.reason}`,
+        );
+        res.writeHead(result.ok ? 200 : 404, headers);
+        res.end(JSON.stringify(result));
+      })
+      .catch(failed);
     return true;
   }
 
@@ -438,10 +550,12 @@ export function handleBrowserFocusHttp(
   // raises nothing. Not logged: the web asks on every hover.
   if (req.method === "POST" && url.startsWith("/browser/probe")) {
     const params = new URL(url, "http://localhost").searchParams;
-    void focusRequestedTab(params, deps, probeBrowserTab).then(({ result }) => {
-      res.writeHead(result.ok ? 200 : 404, headers);
-      res.end(JSON.stringify(result));
-    }).catch(failed);
+    void focusRequestedTab(params, deps, probeBrowserTab)
+      .then(({ result }) => {
+        res.writeHead(result.ok ? 200 : 404, headers);
+        res.end(JSON.stringify(result));
+      })
+      .catch(failed);
     return true;
   }
 
@@ -451,7 +565,11 @@ export function handleBrowserFocusHttp(
   if (req.method === "POST" && url.startsWith("/browser/reopen")) {
     void (async () => {
       const raw = await readBody(req, 16 * 1024);
-      let body: { url?: unknown; session_uuid?: unknown; tmux_session?: unknown } = {};
+      let body: {
+        url?: unknown;
+        session_uuid?: unknown;
+        tmux_session?: unknown;
+      } = {};
       try {
         body = raw ? JSON.parse(raw.toString("utf8")) : {};
       } catch {
@@ -461,17 +579,32 @@ export function handleBrowserFocusHttp(
       const candidates = await ownerOf(body);
       // Loaded on the reopen route only (boot graph guard).
       const { reopenBrowserTab } = await import("./reopenTab.js");
-      const result = await reopenBrowserTab({ url: pageUrl, candidates }, deps.reopen);
+      const result = await reopenBrowserTab(
+        { url: pageUrl, candidates },
+        deps.reopen,
+      );
       if (!result.ok) {
-        opts.log(`[BROWSER] Could not reopen ${pageUrl}: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`);
+        opts.log(
+          `[BROWSER] Could not reopen ${pageUrl}: ${result.reason}${result.detail ? ` (${result.detail})` : ""}`,
+        );
         res.writeHead(result.reason === "bad-request" ? 400 : 502, headers);
         res.end(JSON.stringify(result));
         return;
       }
       opts.log(`[BROWSER] Reopened ${pageUrl} as tab ${result.tabId}`);
-      const focused = await focusBrowserTab(result.tabId, { ...deps, log: deps.log ?? opts.log });
+      const focused = await focusBrowserTab(result.tabId, {
+        ...deps,
+        log: deps.log ?? opts.log,
+      });
       res.writeHead(200, headers);
-      res.end(JSON.stringify({ ok: true, tabId: result.tabId, focused: focused.ok, ...(focused.pid ? { pid: focused.pid } : {}) }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          tabId: result.tabId,
+          focused: focused.ok,
+          ...(focused.pid ? { pid: focused.pid } : {}),
+        }),
+      );
     })().catch(failed);
     return true;
   }

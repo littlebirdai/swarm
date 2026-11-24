@@ -8,15 +8,30 @@
 // anything a surface already handled (a file link's own menu, defaultPrevented)
 // keep the browser's menu; Shift+right-click always does.
 
-import { Columns2, Copy, ExternalLink, PanelTop, AppWindow, History } from "lucide-react";
+import {
+  Columns2,
+  Copy,
+  ExternalLink,
+  PanelTop,
+  AppWindow,
+  History,
+} from "lucide-react";
 import { toast } from "sonner";
-import { ContextMenu, CtxItem, CtxSeparator, useContextMenu } from "./ui/context-menu";
+import {
+  ContextMenu,
+  CtxItem,
+  CtxSeparator,
+  useContextMenu,
+} from "./ui/context-menu";
 import { useEventListener } from "../hooks/useEventListener";
 import { anchorAppPath, navigateHere, openIn } from "../lib/openIntent";
 import { canOpenBeside } from "../lib/stage";
 import { isDesktop } from "../lib/desktop";
 import { copyToClipboard, shareOrigin } from "../lib/utils";
-import { sessionsLinkForAppPath, type SessionsLink } from "../lib/sessionSearchLinks";
+import {
+  sessionsLinkForAppPath,
+  type SessionsLink,
+} from "../lib/sessionSearchLinks";
 
 /** "Sessions that touched this" for a file, commit or pull request: the one
  *  cross-link into /search, offered by both link menus. */
@@ -25,29 +40,52 @@ export function SessionsLinkItem({ link }: { link: SessionsLink | null }) {
   return (
     <>
       <CtxSeparator />
-      <CtxItem icon={History} onSelect={() => navigateHere(link.href)}>{link.label}</CtxItem>
+      <CtxItem icon={History} onSelect={() => navigateHere(link.href)}>
+        {link.label}
+      </CtxItem>
     </>
   );
 }
 
 /** The open destinations for one in-app path — shared by this host and the
  *  file link menu, so the two menus can never offer different verbs. */
-export function OpenLinkItems({ href, openLabel = "Open" }: { href: string; openLabel?: string }) {
+export function OpenLinkItems({
+  href,
+  openLabel = "Open",
+}: {
+  href: string;
+  openLabel?: string;
+}) {
   const desktop = isDesktop();
   return (
     <>
-      <CtxItem icon={ExternalLink} onSelect={() => navigateHere(href)}>{openLabel}</CtxItem>
+      <CtxItem icon={ExternalLink} onSelect={() => navigateHere(href)}>
+        {openLabel}
+      </CtxItem>
       {canOpenBeside() && (
-        <CtxItem icon={Columns2} onSelect={() => openIn("split", href)}>Open beside</CtxItem>
+        <CtxItem icon={Columns2} onSelect={() => openIn("split", href)}>
+          Open beside
+        </CtxItem>
       )}
-      <CtxItem icon={PanelTop} onSelect={() => openIn("tab", href)}>Open in new tab</CtxItem>
-      <CtxItem icon={AppWindow} onSelect={() => desktop ? openIn("window", href) : window.open(href, "_blank")}>
+      <CtxItem icon={PanelTop} onSelect={() => openIn("tab", href)}>
+        Open in new tab
+      </CtxItem>
+      <CtxItem
+        icon={AppWindow}
+        onSelect={() =>
+          desktop ? openIn("window", href) : window.open(href, "_blank")
+        }
+      >
         {desktop ? "Open in new window" : "Open in browser tab"}
       </CtxItem>
       <CtxSeparator />
       <CtxItem
         icon={Copy}
-        onSelect={() => copyToClipboard(`${shareOrigin()}${href}`).then(() => toast.success("Link copied"))}
+        onSelect={() =>
+          copyToClipboard(`${shareOrigin()}${href}`).then(() =>
+            toast.success("Link copied"),
+          )
+        }
       >
         Copy link
       </CtxItem>
@@ -67,14 +105,24 @@ export function LinkMenuHost() {
       if (!a) return;
       // A link a surface already gave its own menu (FilePathLink) never
       // reaches here: that menu stops propagation at the React root.
-      if (target?.closest?.('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return;
+      if (
+        target?.closest?.(
+          'input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]',
+        )
+      )
+        return;
       const sel = window.getSelection();
-      if (sel && !sel.isCollapsed && target && sel.containsNode?.(target, true)) return;
+      if (sel && !sel.isCollapsed && target && sel.containsNode?.(target, true))
+        return;
       const path = anchorAppPath(a);
       if (!path) return; // external, hash, download, _blank: the browser's menu
       menu.open(e as unknown as React.MouseEvent, path, { force: true });
     },
     document,
   );
-  return <ContextMenu state={menu}>{(href) => <OpenLinkItems href={href} />}</ContextMenu>;
+  return (
+    <ContextMenu state={menu}>
+      {(href) => <OpenLinkItems href={href} />}
+    </ContextMenu>
+  );
 }

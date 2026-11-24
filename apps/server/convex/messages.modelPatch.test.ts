@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { buildExistingMessagePatch, lastKnownModelFromBatch, modelFromSwitchLine, effortFromSwitchLine, lastKnownEffortFromBatch } from "./messages";
+import {
+  buildExistingMessagePatch,
+  lastKnownModelFromBatch,
+  modelFromSwitchLine,
+  effortFromSwitchLine,
+  lastKnownEffortFromBatch,
+} from "./messages";
 
 // Per-message model arrives with the transcript sync (parser → daemon →
 // addMessages). For rows synced before the field existed, the existing-uuid
@@ -112,16 +118,24 @@ describe("modelFromSwitchLine", () => {
   test("maps the display name to the stored id shape", () => {
     expect(modelFromSwitchLine(switchLine("Fable 5"))).toBe("claude-fable-5");
     expect(modelFromSwitchLine(switchLine("Opus 4.8"))).toBe("claude-opus-4-8");
-    expect(modelFromSwitchLine(switchLine("Sonnet 4.6"))).toBe("claude-sonnet-4-6");
+    expect(modelFromSwitchLine(switchLine("Sonnet 4.6"))).toBe(
+      "claude-sonnet-4-6",
+    );
   });
 
   test("matches without ANSI escapes", () => {
-    expect(modelFromSwitchLine("<local-command-stdout>Set model to Fable 5</local-command-stdout>")).toBe("claude-fable-5");
+    expect(
+      modelFromSwitchLine(
+        "<local-command-stdout>Set model to Fable 5</local-command-stdout>",
+      ),
+    ).toBe("claude-fable-5");
   });
 
   test("Default and quoted mentions are not signals", () => {
     expect(modelFromSwitchLine(switchLine("Default"))).toBeNull();
-    expect(modelFromSwitchLine("the log said: Set model to Opus 4.8")).toBeNull();
+    expect(
+      modelFromSwitchLine("the log said: Set model to Opus 4.8"),
+    ).toBeNull();
     expect(modelFromSwitchLine(undefined)).toBeNull();
   });
 });
@@ -167,7 +181,11 @@ describe("effortFromSwitchLine", () => {
   });
 
   test("model-only switches and prose are not signals", () => {
-    expect(effortFromSwitchLine(`<local-command-stdout>Set model to ${ESC}[1mOpus 4.8${ESC}[22m and saved as your default for new sessions</local-command-stdout>`)).toBeNull();
+    expect(
+      effortFromSwitchLine(
+        `<local-command-stdout>Set model to ${ESC}[1mOpus 4.8${ESC}[22m and saved as your default for new sessions</local-command-stdout>`,
+      ),
+    ).toBeNull();
     expect(effortFromSwitchLine("please work with max effort")).toBeNull();
     expect(effortFromSwitchLine(undefined)).toBeNull();
   });
@@ -195,7 +213,11 @@ describe("lastKnownEffortFromBatch", () => {
     expect(
       lastKnownEffortFromBatch([
         { role: "assistant", content: "hi", timestamp: 100 },
-        { role: "user", content: "switch to max effort please", timestamp: 200 },
+        {
+          role: "user",
+          content: "switch to max effort please",
+          timestamp: 200,
+        },
       ]),
     ).toBeNull();
   });

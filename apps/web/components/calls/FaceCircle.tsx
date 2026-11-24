@@ -1,4 +1,14 @@
-import { Circle, Link2, Maximize2, Mic, MicOff, PhoneOff, User, Users, X } from "lucide-react";
+import {
+  Circle,
+  Link2,
+  Maximize2,
+  Mic,
+  MicOff,
+  PhoneOff,
+  User,
+  Users,
+  X,
+} from "lucide-react";
 import { useMicLevelVar } from "../../hooks/useMicLevelVar";
 import { useCircleFace } from "../../hooks/useCircleFace";
 import { AvatarImg } from "../../lib/avatarCache";
@@ -54,12 +64,27 @@ export function FacesChrome({
         data-chrome-btn="mode"
         className="faces-btn"
         onClick={onMode}
-        title={mode === "speaker" ? "Show everyone on the call" : "Show only whoever is talking"}
+        title={
+          mode === "speaker"
+            ? "Show everyone on the call"
+            : "Show only whoever is talking"
+        }
       >
-        {mode === "speaker" ? <Users className="h-4 w-4" /> : <User className="h-4 w-4" />}
-        <span className="faces-btn-word">{mode === "speaker" ? "All" : "Talker"}</span>
+        {mode === "speaker" ? (
+          <Users className="h-4 w-4" />
+        ) : (
+          <User className="h-4 w-4" />
+        )}
+        <span className="faces-btn-word">
+          {mode === "speaker" ? "All" : "Talker"}
+        </span>
       </button>
-      <button data-chrome-btn="size" className="faces-btn" onClick={onSize} title={tiny ? "Make the face bigger" : "Shrink to a tiny face"}>
+      <button
+        data-chrome-btn="size"
+        className="faces-btn"
+        onClick={onSize}
+        title={tiny ? "Make the face bigger" : "Shrink to a tiny face"}
+      >
         <Circle className="h-4 w-4" />
         <span className="faces-btn-word">{tiny ? "Big" : "Tiny"}</span>
       </button>
@@ -68,13 +93,22 @@ export function FacesChrome({
         data-chrome-btn="mute"
         className={`faces-btn faces-mic${muted ? " faces-btn--alert" : " faces-btn--on"}`}
         onClick={onMute}
-        title={muted ? "Unmute — they hear you again" : "Mute — they stop hearing you"}
+        title={
+          muted
+            ? "Unmute — they hear you again"
+            : "Mute — they stop hearing you"
+        }
       >
         {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         <span className="faces-btn-word">{muted ? "Unmute" : "Mute"}</span>
         <span className="faces-mic-level" aria-hidden="true" />
       </button>
-      <button data-chrome-btn="restore" className="faces-btn" onClick={onRestore} title="Back to the full call window">
+      <button
+        data-chrome-btn="restore"
+        className="faces-btn"
+        onClick={onRestore}
+        title="Back to the full call window"
+      >
         <Maximize2 className="h-4 w-4" />
         <span className="faces-btn-word">Window</span>
       </button>
@@ -82,7 +116,11 @@ export function FacesChrome({
         data-chrome-btn="leave"
         className="faces-btn faces-btn--alert"
         onClick={onLeave}
-        title={held ? "Leave the call — hang up" : "Close this window — the call stays where it is"}
+        title={
+          held
+            ? "Leave the call — hang up"
+            : "Close this window — the call stays where it is"
+        }
       >
         {held ? <PhoneOff className="h-4 w-4" /> : <X className="h-4 w-4" />}
         <span className="faces-btn-word">{held ? "Leave" : "Close"}</span>
@@ -126,15 +164,24 @@ export function FaceCircle({
     diameter,
     active: shown,
   });
-  const levelRef = useMicLevelVar<HTMLDivElement>(person.isLocal && !person.muted && shown);
-  const followed = useInboxStore((s) => !standalone && !!person.id && s.followLeaderId === String(person.id));
+  const levelRef = useMicLevelVar<HTMLDivElement>(
+    person.isLocal && !person.muted && shown,
+  );
+  const followed = useInboxStore(
+    (s) => !standalone && !!person.id && s.followLeaderId === String(person.id),
+  );
 
   return (
     // The slot is the circle's square and nothing more, so a row of them still
     // measures as circles and gaps. The name hangs out of the bottom of it,
     // which is why the slot exists at all: the circle clips its own contents,
     // and a name under the chin has to escape that clip.
-    <div ref={levelRef} data-local={person.isLocal || undefined} className="face-slot" style={{ width: diameter, height: diameter }}>
+    <div
+      ref={levelRef}
+      data-local={person.isLocal || undefined}
+      className="face-slot"
+      style={{ width: diameter, height: diameter }}
+    >
       <div
         ref={hostRef}
         data-face-hit
@@ -169,7 +216,11 @@ export function FaceCircle({
           link, not one of the team, and never passing for a teammate in the
           one view of the call that floats over other apps. */}
       {person.guest && (
-        <span className="face-guest-mark" aria-label="guest" title="A guest from outside the team">
+        <span
+          className="face-guest-mark"
+          aria-label="guest"
+          title="A guest from outside the team"
+        >
           <Link2 aria-hidden="true" />
         </span>
       )}
@@ -180,7 +231,6 @@ export function FaceCircle({
     </div>
   );
 }
-
 
 /** The contents of that circle. Paired with `useCircleFace`, which owns the
  *  refs it needs and the cropping behind both branches. */
@@ -203,11 +253,25 @@ export function CircleFace({
 }) {
   if (track) {
     return (
-      <video ref={videoRef} autoPlay playsInline muted style={{ width: diameter, height: diameter }} />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ width: diameter, height: diameter }}
+      />
     );
   }
   if (frame) {
-    return <img src={frame} alt="" className="face-frame" style={{ width: diameter, height: diameter }} draggable={false} />;
+    return (
+      <img
+        src={frame}
+        alt=""
+        className="face-frame"
+        style={{ width: diameter, height: diameter }}
+        draggable={false}
+      />
+    );
   }
   // Camera off. Their picture fills the circle — the same shape a face would
   // have, so a row of faces does not go ragged when somebody turns their
@@ -219,7 +283,10 @@ export function CircleFace({
       className="face-avatar-img"
       draggable={false}
       fallback={
-        <span className="face-avatar-fallback" style={{ fontSize: Math.max(12, diameter / 2.6) }}>
+        <span
+          className="face-avatar-fallback"
+          style={{ fontSize: Math.max(12, diameter / 2.6) }}
+        >
           {(name || "?").charAt(0).toUpperCase()}
         </span>
       }

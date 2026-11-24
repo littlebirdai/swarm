@@ -45,8 +45,8 @@ Aivery lives in `~/src/union-mobile/outreach/backend`. It has four moving parts 
 persona:
 
 1. **A declarative agent + tool spec.** `AgentDefinition = { model, buildSystemPrompt(ctx),
-   tools[], maxSteps, maxCostUsd, enableMemory }`. A tool is `{ name, description, zod schema,
-   execute(input, ctx) }` with three sharp touches: `contextOutput` (a slim version fed back
+tools[], maxSteps, maxCostUsd, enableMemory }`. A tool is `{ name, description, zod schema,
+execute(input, ctx) }` with three sharp touches: `contextOutput` (a slim version fed back
    to the model while the full output is stored for audit), `isTerminal` (a tool that ends the
    run), and a per-tool `timeoutMs`.
 2. **A runner loop** (`runAgent`, ~1100 lines): insert an `agent_run`, build a 3-layer context
@@ -75,15 +75,15 @@ persona:
 
 ## The reframe: codecast already owns the expensive parts
 
-| Aivery built by hand | What it does | Codecast equivalent (with evidence) |
-|---|---|---|
-| The "intern" service (tmux + worktrees + HTTP + idle webhook) | Spawn / steer / wake remote Claude Code sessions | `cast spawn` → `POST /cli/spawn` → `createSessionFromCli` (`spawn.ts:32`) → `daemon_commands` start_session → daemon tmux spawn (`daemon.ts:1888`). Multi-machine, multi-agent (claude/codex/cursor/gemini). |
-| `send_to_cc_session` + idle re-wake | Deliver a follow-up to a running OR dormant session | `cast send` → `POST /cli/messages/send` → `pending_messages` → `deliverMessage()` (`daemon.ts:10828`): injects to a live pane, or **auto-resumes a dormant session from Convex JSONL**. |
-| `runAgent` while-loop + `agent_steps` | The agentic loop | **No port needed.** A codecast session *is* the loop — Claude Code runs tools to completion, goes idle, can be re-woken. |
-| `agent_runs` + activity feed + admin web chat | Audit / inspect / share a run | Session sync + `conversations.share_token` → `/share/<token>` guest URL + `cast link <id> [line]` (`#msg-<uuid>` anchors) + the web/desktop/mobile dashboard. |
-| `dispatchActivityTriggers` (event → enqueue run) | Wake an agent on an event | `agent_tasks.event_filter` → `matchTaskTriggers` (`agentTasks.ts:519`) → patches `run_at=now()` → `TaskScheduler` (30s poll) spawns/injects. **Event-type-neutral string match** — see Gap C. |
-| `agent_memories` + 3-layer context | Persistent scoped memory | The session's `CLAUDE.md` + the per-project memory dir (`MEMORY.md` index + one-fact files) + `cast task`/`plan`/`doc` persistence. |
-| `AGENT_BUDGET_MAP` / `maxCostUsd` | Spend governance | `agent_tasks.max_runtime_ms` exists; per-run cost caps do **not** — see Gap D. |
+| Aivery built by hand                                          | What it does                                        | Codecast equivalent (with evidence)                                                                                                                                                                          |
+| ------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The "intern" service (tmux + worktrees + HTTP + idle webhook) | Spawn / steer / wake remote Claude Code sessions    | `cast spawn` → `POST /cli/spawn` → `createSessionFromCli` (`spawn.ts:32`) → `daemon_commands` start_session → daemon tmux spawn (`daemon.ts:1888`). Multi-machine, multi-agent (claude/codex/cursor/gemini). |
+| `send_to_cc_session` + idle re-wake                           | Deliver a follow-up to a running OR dormant session | `cast send` → `POST /cli/messages/send` → `pending_messages` → `deliverMessage()` (`daemon.ts:10828`): injects to a live pane, or **auto-resumes a dormant session from Convex JSONL**.                      |
+| `runAgent` while-loop + `agent_steps`                         | The agentic loop                                    | **No port needed.** A codecast session _is_ the loop — Claude Code runs tools to completion, goes idle, can be re-woken.                                                                                     |
+| `agent_runs` + activity feed + admin web chat                 | Audit / inspect / share a run                       | Session sync + `conversations.share_token` → `/share/<token>` guest URL + `cast link <id> [line]` (`#msg-<uuid>` anchors) + the web/desktop/mobile dashboard.                                                |
+| `dispatchActivityTriggers` (event → enqueue run)              | Wake an agent on an event                           | `agent_tasks.event_filter` → `matchTaskTriggers` (`agentTasks.ts:519`) → patches `run_at=now()` → `TaskScheduler` (30s poll) spawns/injects. **Event-type-neutral string match** — see Gap C.                |
+| `agent_memories` + 3-layer context                            | Persistent scoped memory                            | The session's `CLAUDE.md` + the per-project memory dir (`MEMORY.md` index + one-fact files) + `cast task`/`plan`/`doc` persistence.                                                                          |
+| `AGENT_BUDGET_MAP` / `maxCostUsd`                             | Spend governance                                    | `agent_tasks.max_runtime_ms` exists; per-run cost caps do **not** — see Gap D.                                                                                                                               |
 
 The pattern: **the two hardest things Union built from scratch (the remote-session service and
 the run audit/share surface) are exactly what codecast already does, and does better** —
@@ -95,9 +95,9 @@ Aivery splits into a **brain** (the ops agent, woken repeatedly) and **hands** (
 it spawns for code work, whose completion wakes the brain). That split maps onto codecast and tells
 us where the loop lives.
 
-The grounding surfaced a reframe that *strengthens* the long-lived model rather than arguing against
+The grounding surfaced a reframe that _strengthens_ the long-lived model rather than arguing against
 it. Notice Aivery is itself **not** a long-lived conversation: every wake (`runAgent`) assembles a
-*fresh* context from durable stores — activity log, memory table, task roster — runs to completion, and
+_fresh_ context from durable stores — activity log, memory table, task roster — runs to completion, and
 discards the transcript. It had to be stateless: Postgres + pg-boss gave it nowhere to keep a living
 conversation, so it faked persistence with side-stores. **Codecast has exactly the substrate Aivery
 lacked — a real, resumable session — so it can build the thing Aivery could only imitate. And a
@@ -149,22 +149,22 @@ Why **a long-lived persona + ephemeral hands**:
 
 - It is the primitive codecast lacks and the one thing this whole effort adds: a standing agent member
   with a living conversation, durable memory, and an inbox presence — not a one-shot task session.
-- The persona's "tools" are *free*: any codecast session has `cast` on its PATH, so `cast spawn` /
+- The persona's "tools" are _free_: any codecast session has `cast` on its PATH, so `cast spawn` /
   `cast send` / `cast read` / `cast sessions` ARE `create_cc_session` and friends. No custom tool layer.
 - "Follow up on its own" falls out of the same bridge: a spawned hand goes idle → (Gap C) an internal
   event → `cast send` wakes the persona → it reads the result and posts to Slack.
 
 ## Integrating with codecast's existing system
 
-A grounding pass against the real lifecycle code answered the load-bearing question — *will codecast's
-own garbage-collection kill a session that is supposed to sit dormant for days?* — and the answer is
+A grounding pass against the real lifecycle code answered the load-bearing question — _will codecast's
+own garbage-collection kill a session that is supposed to sit dormant for days?_ — and the answer is
 **almost no**. The long-lived primitive is close to native; the work is small and named.
 
 ### What already works (reuse, no change)
 
 - **Waking a dormant persona.** `cast send`'s auto-resume path (`deliverMessage`, `daemon.ts`) already
   materializes a dormant session from Convex JSONL, spins a process, and injects the message. The wake
-  mechanism *is* the existing message-delivery path.
+  mechanism _is_ the existing message-delivery path.
 - **Hosting on an always-on machine.** `owner_device_id` + `claimConversationForStart` (`devices.ts:605`)
   already pin a session to one daemon — a remote/cloud daemon owns the persona, local daemons skip
   delivery, and ownership self-heals if the host drops. Point the persona at the headless m1 or a cloud daemon.
@@ -173,7 +173,7 @@ own garbage-collection kill a session that is supposed to sit dormant for days?*
   author chip off `user_id`. No schema or rendering change to show "Aivery" with its avatar. Add it to the
   team via `team_memberships` (which references a normal `users` id) and it appears in the team feed.
 - **Standing presence in the inbox.** Pinning (`is_pinned` / `inbox_pinned_at`) gives a stable top slot
-  *and* exempts the session from the idle→needs-input reclassification churn — the work-state logic carries
+  _and_ exempts the session from the idle→needs-input reclassification churn — the work-state logic carries
   `AND NOT pinned` throughout (`inboxStore.ts`). A pinned persona sits at the top as "available" without
   thrashing buckets on every heartbeat.
 - **Never auto-completes server-side.** `conversations.status` stays "active" indefinitely unless explicitly
@@ -184,7 +184,7 @@ own garbage-collection kill a session that is supposed to sit dormant for days?*
 
 The **daemon watchdog** is the single thing that would kill a dormant persona: `shouldMarkSessionCompleted`
 (`daemon.ts:12399`) marks a session "completed" after 10 min (idle/stopped) or 30 min (working) when it finds
-no live process — it checks only liveness, never intent. A persona that is *deliberately* dormant trips it.
+no live process — it checks only liveness, never intent. A persona that is _deliberately_ dormant trips it.
 
 Fix: a conversation flag (`persistent: true`, or `auto_completion_disabled`) and one guard at
 `daemon.ts:12406` — `if (persistent) return false;`. That is the entire lifecycle change. Deliberately we do
@@ -193,7 +193,7 @@ and pinning keeps it stable without the lie. It goes live only when an event act
 
 ### Wake routing (net-new, small)
 
-Triggers must wake the *persona's* conversation, not spawn a new one. The existing event→trigger bridge
+Triggers must wake the _persona's_ conversation, not spawn a new one. The existing event→trigger bridge
 (`matchTaskTriggers`) spawns or injects-to-originating; the new piece is an "inject into THIS standing
 session" target plus a `(surface → persona conversation_id)` map. The primitive is `cast send <persona_conv>`;
 the registry is what knows which persona owns which channel.
@@ -204,7 +204,7 @@ The spawn path (`createSessionFromCli`, `daemon_commands.args`) carries `model`/
 
 - **Ship now:** package the persona as a **project-scoped skill** (`.claude/skills/aivery/SKILL.md`) — codecast
   already discovers and syncs `.claude/skills/*.md` per session (`daemon.ts:744` `readAvailableSkills`), and a
-  skill body *is* a system prompt. Or put it in the project's `CLAUDE.md`. The persona adopts on start.
+  skill body _is_ a system prompt. Or put it in the project's `CLAUDE.md`. The persona adopts on start.
 - **Clean seam (later):** thread an optional `append_system_prompt` (or `agent: "aivery"`) through
   `createSessionFromCli` → `daemon_commands.args` → the daemon's `claude …` invocation as
   `--append-system-prompt`. The natural home for a future `.claude/agents/<name>.md` registry shaped like
@@ -212,7 +212,7 @@ The spawn path (`createSessionFromCli`, `daemon_commands.args`) carries `model`/
 
 ### Internal events as triggers (Gap C — the most valuable lift from Union)
 
-Today the trigger matcher fires only on **external GitHub webhooks**. Aivery's bridge fires on *any* activity,
+Today the trigger matcher fires only on **external GitHub webhooks**. Aivery's bridge fires on _any_ activity,
 crucially when a spawned hand goes idle — that is how a finished hand re-wakes the brain.
 
 - **Ship now (no backend change):** the brain tells each hand, by persona instruction, to run
@@ -227,10 +227,10 @@ crucially when a spawned hand goes idle — that is how a finished hand re-wakes
 ### Identity ⇄ spend, and governance (Gaps A-spend + D)
 
 The synthetic Aivery user needs **its own Claude credentials** — every `cast spawn` it issues bills somewhere.
-Decide this *with* identity, not after: a dedicated API key / subscription seat for the bot, so its spend is
+Decide this _with_ identity, not after: a dedicated API key / subscription seat for the bot, so its spend is
 attributable and cap-able. For v1 (single dogfooding team), `max_runtime_ms` plus a per-persona daily session
 ceiling suffices; the per-channel cost cap, threshold alerts, and "decline, never silently truncate" behavior
-are required before any multi-tenant exposure. Bake decline-not-truncate into the *persona's instructions* even
+are required before any multi-tenant exposure. Bake decline-not-truncate into the _persona's instructions_ even
 before it is enforced in code — the agent should escalate rather than ship half a job.
 
 ## Build phases
@@ -251,7 +251,7 @@ the Aivery user its own Claude credentials. After this, a dormant persona surviv
 `/api/webhooks/slack` httpAction in `apps/server/convex/http.ts` (mirror the GitHub handler's HMAC verify
 at `http.ts:207`) → `storeWebhookEvent({ event_type:"slack_message", action:"mention"|"dm"|"thread", … })`.
 A `(channel → persona conversation_id)` map; mention → `cast send` the persona via existing delivery; a Slack
-Web API post-back the persona calls to reply *as the bot*.
+Web API post-back the persona calls to reply _as the bot_.
 
 **Phase 3 — Internal `session_idle` trigger (Gap C, productized).**
 Route daemon idle detection into `storeWebhookEvent` / `matchTaskTriggers` so the persona wakes on hand
@@ -289,4 +289,4 @@ required before any multi-tenant / public exposure.
 Not a port of Union's Drizzle/Postgres/pg-boss runner — that loop is replaced by Claude Code. Not a new agent
 engine — codecast's session is the engine. The deliverable is thin: a persistence flag, a Slack producer, one
 internal trigger event, a persona seam, and a bot identity — layered on a spine codecast already ships. The one
-genuinely new *primitive* is the long-lived agent member, and the grounding shows it costs a single flag plus reuse.
+genuinely new _primitive_ is the long-lived agent member, and the grounding shows it costs a single flag plus reuse.

@@ -16,7 +16,10 @@ import { scenario } from "../dsl";
 scenario({ name: "reapVsFollowerLock" }, async (w) => {
   w.user("ada");
   // A live pre-warm with nothing in it. _creationTime puts it in gc's window.
-  const s = w.session("ada", "s", { agentStatus: "idle", row: { message_count: 0, _creationTime: w.realm.now() - 60_000 } });
+  const s = w.session("ada", "s", {
+    agentStatus: "idle",
+    row: { message_count: 0, _creationTime: w.realm.now() - 60_000 },
+  });
   const a = await w.device("ada", { followers: 1 });
   const [f] = a.followers;
   await w.expect(f).shows(s);

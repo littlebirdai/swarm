@@ -22,10 +22,14 @@ function seed() {
   useInboxStore.setState({ pending: {}, sessions, conversations } as any);
 }
 
-const rest = (id: string) => (useInboxStore.getState().sessions[id] as any)?.inbox_rest ?? null;
+const rest = (id: string) =>
+  (useInboxStore.getState().sessions[id] as any)?.inbox_rest ?? null;
 
 describe("fileSessionsAsRest", () => {
-  beforeEach(() => { _resetUndoStacks(); seed(); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
 
   test("three rows file as one entry, and one undo restores all three", async () => {
     await fileSessionsAsRest(IDS, "done");
@@ -38,7 +42,9 @@ describe("fileSessionsAsRest", () => {
 
     expect(performUndo()).toBe(true);
     expect(IDS.map(rest)).toEqual([null, null, null]);
-    expect((useInboxStore.getState().sessions[IDS[1]!] as any).inbox_snoozed_until).toBe(SNOOZE_UNTIL);
+    expect(
+      (useInboxStore.getState().sessions[IDS[1]!] as any).inbox_snoozed_until,
+    ).toBe(SNOOZE_UNTIL);
     expect(getUndoHistory().items[0]!.status).toBe("undone");
 
     expect(performRedo()).toBe(true);
@@ -51,7 +57,12 @@ describe("fileSessionsAsRest", () => {
   });
 
   test("killed rows are skipped and record nothing", async () => {
-    useInboxStore.setState((s: any) => ({ sessions: { ...s.sessions, [IDS[0]!]: { ...s.sessions[IDS[0]!], inbox_killed_at: 5 } } }));
+    useInboxStore.setState((s: any) => ({
+      sessions: {
+        ...s.sessions,
+        [IDS[0]!]: { ...s.sessions[IDS[0]!], inbox_killed_at: 5 },
+      },
+    }));
     await fileSessionsAsRest([IDS[0]!], "done");
     expect(rest(IDS[0]!)).toBe(null);
     expect(getUndoHistory().items).toHaveLength(0);
@@ -59,8 +70,12 @@ describe("fileSessionsAsRest", () => {
 });
 
 describe("animatedHideSessions", () => {
-  beforeEach(() => { _resetUndoStacks(); seed(); });
-  const stashed = (id: string) => !!(useInboxStore.getState().sessions[id] as any)?.inbox_stashed_at;
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
+  const stashed = (id: string) =>
+    !!(useInboxStore.getState().sessions[id] as any)?.inbox_stashed_at;
 
   test("stashing a three-row selection is one entry, and one undo brings all three back", async () => {
     await animatedHideSessions(IDS, "stash");
@@ -91,7 +106,10 @@ describe("labelSessions", () => {
   beforeEach(() => {
     _resetUndoStacks();
     seed();
-    useInboxStore.setState({ buckets: { [BUCKET]: { _id: BUCKET, name: "infra" } }, bucketAssignments: {} } as any);
+    useInboxStore.setState({
+      buckets: { [BUCKET]: { _id: BUCKET, name: "infra" } },
+      bucketAssignments: {},
+    } as any);
   });
 
   test("the group label counts the rows it filed, not the stubs it skipped", () => {

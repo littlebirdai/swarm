@@ -14,12 +14,14 @@ const SAMPLES = {
   awsAsia: "ASIAY34FZKBOKM02T4EX",
   githubClassic: "ghp_0123456789abcdefghijklmnopqrstuvwxyz",
   githubOauth: "gho_abcdefghijklmnopqrstuvwxyz0123456789",
-  githubFineGrained: "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwxyz1234567890",
+  githubFineGrained:
+    "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwxyz1234567890",
   // Slack/Stripe fixtures are split so no contiguous secret literal appears in
   // this file (GitHub push protection blocks those); the runtime value is intact.
   slackBot: "xox" + "b-1234567890-1234567890-abcdefghijklmnopqrstuv",
   slackWebhook:
-    "https://hooks.slack" + ".com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+    "https://hooks.slack" +
+    ".com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
   discordWebhook:
     "https://discord.com/api/webhooks/123456789012345678/abcdefGHIjklMNOpqrs_tuvwxyz-1234567890",
   stripeLive: "sk_" + "live_0123456789abcdefghijABCD",
@@ -32,8 +34,12 @@ const SAMPLES = {
 describe("redactSecrets — high-confidence patterns", () => {
   test("PEM private key blocks (RSA, OPENSSH, bare)", () => {
     expect(redactSecrets(SAMPLES.rsaPrivateKey)).toBe("[redacted:private-key]");
-    expect(redactSecrets(SAMPLES.opensshPrivateKey)).toBe("[redacted:private-key]");
-    expect(redactSecrets(SAMPLES.plainPrivateKey)).toBe("[redacted:private-key]");
+    expect(redactSecrets(SAMPLES.opensshPrivateKey)).toBe(
+      "[redacted:private-key]",
+    );
+    expect(redactSecrets(SAMPLES.plainPrivateKey)).toBe(
+      "[redacted:private-key]",
+    );
   });
 
   test("JWT (three base64url segments)", () => {
@@ -48,30 +54,44 @@ describe("redactSecrets — high-confidence patterns", () => {
   });
 
   test("GitHub tokens (classic, oauth, fine-grained)", () => {
-    expect(redactSecrets(SAMPLES.githubClassic)).toBe("[redacted:github-token]");
+    expect(redactSecrets(SAMPLES.githubClassic)).toBe(
+      "[redacted:github-token]",
+    );
     expect(redactSecrets(SAMPLES.githubOauth)).toBe("[redacted:github-token]");
-    expect(redactSecrets(SAMPLES.githubFineGrained)).toBe("[redacted:github-token]");
+    expect(redactSecrets(SAMPLES.githubFineGrained)).toBe(
+      "[redacted:github-token]",
+    );
   });
 
   test("Slack token and webhook", () => {
     expect(redactSecrets(SAMPLES.slackBot)).toBe("[redacted:slack-token]");
-    expect(redactSecrets(SAMPLES.slackWebhook)).toBe("[redacted:slack-webhook]");
+    expect(redactSecrets(SAMPLES.slackWebhook)).toBe(
+      "[redacted:slack-webhook]",
+    );
   });
 
   test("Discord webhook", () => {
-    expect(redactSecrets(SAMPLES.discordWebhook)).toBe("[redacted:discord-webhook]");
+    expect(redactSecrets(SAMPLES.discordWebhook)).toBe(
+      "[redacted:discord-webhook]",
+    );
   });
 
   test("Stripe live secret key", () => {
-    expect(redactSecrets(SAMPLES.stripeLive)).toBe("[redacted:stripe-secret-key]");
+    expect(redactSecrets(SAMPLES.stripeLive)).toBe(
+      "[redacted:stripe-secret-key]",
+    );
   });
 
   test("Google API key", () => {
-    expect(redactSecrets(SAMPLES.googleApiKey)).toBe("[redacted:google-api-key]");
+    expect(redactSecrets(SAMPLES.googleApiKey)).toBe(
+      "[redacted:google-api-key]",
+    );
   });
 
   test("Anthropic and OpenAI keys", () => {
-    expect(redactSecrets(SAMPLES.anthropicKey)).toBe("[redacted:anthropic-key]");
+    expect(redactSecrets(SAMPLES.anthropicKey)).toBe(
+      "[redacted:anthropic-key]",
+    );
     expect(redactSecrets(SAMPLES.openaiProject)).toBe("[redacted:openai-key]");
     expect(redactSecrets(SAMPLES.openaiLegacy)).toBe("[redacted:openai-key]");
   });
@@ -96,16 +116,22 @@ describe("redactSecrets — high-confidence patterns", () => {
 
 describe("redactSecrets — is deterministic and idempotent", () => {
   test("same input → same output", () => {
-    expect(redactSecrets(SAMPLES.githubClassic)).toBe(redactSecrets(SAMPLES.githubClassic));
+    expect(redactSecrets(SAMPLES.githubClassic)).toBe(
+      redactSecrets(SAMPLES.githubClassic),
+    );
   });
 
   test("re-running over redacted text is a no-op", () => {
-    const once = redactSecrets(`key=${SAMPLES.openaiLegacy} and ${SAMPLES.jwt}`);
+    const once = redactSecrets(
+      `key=${SAMPLES.openaiLegacy} and ${SAMPLES.jwt}`,
+    );
     expect(redactSecrets(once)).toBe(once);
   });
 
   test("markers are not themselves re-redacted", () => {
-    expect(redactSecrets("[redacted:github-token]")).toBe("[redacted:github-token]");
+    expect(redactSecrets("[redacted:github-token]")).toBe(
+      "[redacted:github-token]",
+    );
   });
 
   test("nullish / non-string input", () => {
@@ -124,11 +150,17 @@ describe("redactSecrets — zero false positives on legitimate content", () => {
       "code referencing env vars by name",
       "const apiKey = process.env.API_KEY;\nif (FOREIGN_KEY === PRIMARY_KEY) return;\nDATABASE_PASSWORD is read from env.",
     ],
-    ["env var with placeholder value", "API_KEY=<your-key-here>\nSECRET_TOKEN=changeme"],
+    [
+      "env var with placeholder value",
+      "API_KEY=<your-key-here>\nSECRET_TOKEN=changeme",
+    ],
     ["short sk- fragment", "The sk-learn library and sk-abc123 are fine."],
     ["bare AKIA word", "AKIA is a Japanese word; AKIA appears in docs."],
     ["file path", "/Users/ashot/src/codecast/apps/cli/src/secretRedaction.ts"],
-    ["git commit hash", "commit a1b2c3d4e5f6789012345678901234567890abcd landed"],
+    [
+      "git commit hash",
+      "commit a1b2c3d4e5f6789012345678901234567890abcd landed",
+    ],
     ["short git hash", "see 6a036abb and c58530d7 for context"],
     ["uuid", "session 550e8400-e29b-41d4-a716-446655440000 started"],
     [
@@ -225,7 +257,8 @@ describe("cast browser bridge token", () => {
   });
 
   test("Chrome's own socket URL (a dashed UUID) and a short hex id are left alone", () => {
-    const chrome = "ws://127.0.0.1:9222/devtools/browser/3f0b2c1a-8d4e-4b7a-9c6d-1e2f3a4b5c6d";
+    const chrome =
+      "ws://127.0.0.1:9222/devtools/browser/3f0b2c1a-8d4e-4b7a-9c6d-1e2f3a4b5c6d";
     expect(redactSecrets(chrome)).toBe(chrome);
     expect(redactSecrets("token abcdef0123")).toBe("token abcdef0123");
     expect(containsSecrets(chrome)).toBe(false);

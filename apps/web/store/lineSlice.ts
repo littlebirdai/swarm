@@ -14,28 +14,72 @@ import { action, asyncAction, sync } from "./mutativeMiddleware";
 import { stampSessionCommand } from "./sessionCommandStamp";
 import type { LineProfileEdit } from "@codecast/shared/contracts/lineProfile";
 import { editKey } from "../lib/lineSettings";
-import { LINE_CAUSE_CATEGORY, type LineCauseFields } from "../lib/line/lineCause";
+import {
+  LINE_CAUSE_CATEGORY,
+  type LineCauseFields,
+} from "../lib/line/lineCause";
 import { taskCreateStub, taskStubId } from "./taskStub";
 import { lineLabelKey, type LabelVerdict } from "../lib/line/lineLabels";
-import { levelWriters, toldOf, type CheckoutRow, type CheckoutTold } from "@codecast/shared/contracts/checkouts";
+import {
+  levelWriters,
+  toldOf,
+  type CheckoutRow,
+  type CheckoutTold,
+} from "@codecast/shared/contracts/checkouts";
 
 export type LineSliceActions = {
   /** "Tell <writer>" / "File a finding" on a stuck checkout: `who` is a session that wrote some of its conflicting files,
    *  or "finding" for the files nobody wrote (convex checkoutAsk). The ask reads as told at once; `at` is its moment,
    *  which the server keeps too, so its echo is the level painted here and the lock retires. */
   askCheckout: (checkoutId: string, who: string, at: number) => void;
-  editLineProfile: (requestId: string, projectId: string, edits: LineProfileEdit[]) => Promise<{ command_id: string } | null | undefined>;
-  fileLineCause: (clientKey: string, projectId: string, fields: LineCauseFields) => Promise<{ task_id: string; task_short_id: string } | null | undefined>;
+  editLineProfile: (
+    requestId: string,
+    projectId: string,
+    edits: LineProfileEdit[],
+  ) => Promise<{ command_id: string } | null | undefined>;
+  fileLineCause: (
+    clientKey: string,
+    projectId: string,
+    fields: LineCauseFields,
+  ) => Promise<{ task_id: string; task_short_id: string } | null | undefined>;
   /** `queued`: the role's machines are full, so the problem went back to the line's queue instead of starting (convex lineCause). */
-  startLineCause: (taskId: string) => Promise<{ run_id: string | null; role_handle: string; queued?: string } | null | undefined>;
+  startLineCause: (
+    taskId: string,
+  ) => Promise<
+    | { run_id: string | null; role_handle: string; queued?: string }
+    | null
+    | undefined
+  >;
   /** "Make this a problem" on a finding nothing filed: a problem of its own (convex signals makeProblemOfFindingCore). */
-  makeProblemOfFinding: (signalId: string, more?: string[], title?: string, into?: string) => Promise<{ task_id: string; task_short_id: string | null; created: boolean } | null | undefined>;
+  makeProblemOfFinding: (
+    signalId: string,
+    more?: string[],
+    title?: string,
+    into?: string,
+  ) => Promise<
+    | { task_id: string; task_short_id: string | null; created: boolean }
+    | null
+    | undefined
+  >;
   /** "Not this problem": the finding, and its problem's findings under the same key, leave for a problem of their own
    *  (convex signals moveFindingOutCore). They leave this problem's page at once. */
-  moveFindingOut: (signalId: string) => Promise<{ from: string; to: string; task_id: string; moved: number } | null | undefined>;
+  moveFindingOut: (
+    signalId: string,
+  ) => Promise<
+    | { from: string; to: string; task_id: string; moved: number }
+    | null
+    | undefined
+  >;
   /** "Merge into ct-N": a problem the line reads as an older one's twin folds into it, findings and all, and is dropped
    *  as its duplicate (convex signals mergeProblemCore). Both refs are short ids. */
-  mergeProblem: (taskRef: string, intoRef: string) => Promise<{ task: string; into: string; moved: number; already: boolean } | null | undefined>;
+  mergeProblem: (
+    taskRef: string,
+    intoRef: string,
+  ) => Promise<
+    | { task: string; into: string; moved: number; already: boolean }
+    | null
+    | undefined
+  >;
   resumeLineRun: (runId: string) => Promise<{ ok: true } | null | undefined>;
   /** "Rebase and land": an approved fix its landing step refused for being behind picks up at the line's Rebase station
    *  on its machine (convex workflow_runs landAgainCore). */
@@ -43,53 +87,136 @@ export type LineSliceActions = {
   /** Deploy on the Deploys view (deploys.md DP2): one deploy sending the project's waiting fixes, painted at once as
    *  requested; the server row supersedes the stub by its client key (convex deploys requestDeployCore). */
   /** Deploy, redeploy or roll back one of a team's targets (Deploys page); the requested deploy paints at once. */
-  deployTarget: (clientKey: string, teamId: string, repository: string, target: string, action: "deploy" | "redeploy" | "rollback", of: string | null, stub: { started_by: string; sha: string | null; previous_sha: string | null; commits: number; sessions: Array<{ conversation_id: string; short_id?: string | null; title?: string | null }> }) => Promise<{ _id: string; short_id: string } | null | undefined>;
+  deployTarget: (
+    clientKey: string,
+    teamId: string,
+    repository: string,
+    target: string,
+    action: "deploy" | "redeploy" | "rollback",
+    of: string | null,
+    stub: {
+      started_by: string;
+      sha: string | null;
+      previous_sha: string | null;
+      commits: number;
+      sessions: Array<{
+        conversation_id: string;
+        short_id?: string | null;
+        title?: string | null;
+      }>;
+    },
+  ) => Promise<{ _id: string; short_id: string } | null | undefined>;
   /** Stop a live run (convex workflow_runs cancelRunByPerson): it ends at once, as a person's cancel. */
   stopLineRun: (runId: string) => Promise<{ ok: true } | null | undefined>;
-  labelDecision: (runId: string, nodeId: string, verdict: LabelVerdict | null, note?: string | null) => void;
+  labelDecision: (
+    runId: string,
+    nodeId: string,
+    verdict: LabelVerdict | null,
+    note?: string | null,
+  ) => void;
   /** A live flow's switch (convex liveFlows.setOn, human only): the row reads on or off at once. */
   setLiveFlowOn: (id: string, on: boolean) => void;
   /** Lift a live flow's hold (convex liveFlows.clearHold, team admins): it starts again at once. */
   clearLiveFlowHold: (id: string) => void;
   /** Make one of the team's library flows its live flow (convex liveFlows.startLiveFlowCore, team admins): a row keyed
    *  by `clientKey` paints at once, off until the server says what it carried, and the real row supersedes it. */
-  startLiveFlow: (teamId: string, flow: { id: string; slug: string; label: string }, clientKey: string) => void;
+  startLiveFlow: (
+    teamId: string,
+    flow: { id: string; slug: string; label: string },
+    clientKey: string,
+  ) => void;
   /** Move the team's live flow onto another of its library flows (convex liveFlows.moveLiveFlowCore, team admins): the
    *  row names the new flow at once; its switch, queue and settings stay. */
-  moveLiveFlow: (id: string, flow: { id: string; slug: string; label: string }) => void;
+  moveLiveFlow: (
+    id: string,
+    flow: { id: string; slug: string; label: string },
+  ) => void;
   /** Save a flow a session ran into the team's library (convex flowLibrary.save): the row reads saved at once, under the
    *  slug it asks for, as a new version when that slug is saved already. */
-  saveSessionFlow: (id: string, opts?: { slug?: string; label?: string; variant_of?: string }) => void;
+  saveSessionFlow: (
+    id: string,
+    opts?: { slug?: string; label?: string; variant_of?: string },
+  ) => void;
   /** Save a step's prompt of a published graph (LW4): the file the .cast names, on the machine that pushed it. */
-  editLineGraph: (requestId: string, workflowId: string, input: LineGraphEditInput) => Promise<{ command_id: string; workflow_id: string } | null | undefined>;
+  editLineGraph: (
+    requestId: string,
+    workflowId: string,
+    input: LineGraphEditInput,
+  ) => Promise<{ command_id: string; workflow_id: string } | null | undefined>;
   /** Try a step's edited prompt on past cases (LW4): each case a lineTries row, queued at once. */
-  tryLineStep: (tryId: string, workflowId: string, input: LineTryInput) => Promise<{ try_id: string; rows: string[] } | null | undefined>;
+  tryLineStep: (
+    tryId: string,
+    workflowId: string,
+    input: LineTryInput,
+  ) => Promise<{ try_id: string; rows: string[] } | null | undefined>;
   /** Ask an agent to change a step (LW4): the line cause filed with the labeled cases, and its run started. */
-  askLineAgent: (clientKey: string, projectId: string, fields: LineCauseFields) => Promise<{ task_id: string; task_short_id: string; started: boolean; run_id?: string; reason?: string } | null | undefined>;
+  askLineAgent: (
+    clientKey: string,
+    projectId: string,
+    fields: LineCauseFields,
+  ) => Promise<
+    | {
+        task_id: string;
+        task_short_id: string;
+        started: boolean;
+        run_id?: string;
+        reason?: string;
+      }
+    | null
+    | undefined
+  >;
 };
 
 /** What the Deploys view knows of a deploy it asks for: its target, who pressed, the fixes waiting. */
 
-export type LineGraphEditInput = { node: string; field?: "prompt" | "script"; text: string; base_hash?: string | null; base_text?: string | null };
+export type LineGraphEditInput = {
+  node: string;
+  field?: "prompt" | "script";
+  text: string;
+  base_hash?: string | null;
+  base_text?: string | null;
+};
 /** `project_id` paints the cases into the project's feed; the server reads it off each case's run. */
-export type LineTryInput = { node: string; text: string; runs: string[]; base_hash?: string | null; base_text?: string | null; project_id?: string | null };
+export type LineTryInput = {
+  node: string;
+  text: string;
+  runs: string[];
+  base_hash?: string | null;
+  base_text?: string | null;
+  project_id?: string | null;
+};
 
 /** A try's case painted before the server has it: its natural key, which the server row supersedes (registry altKey). */
 export const lineTryKey = (tryId: string, runId: string) => `${tryId}:${runId}`;
 export const lineTryStubId = (key: string) => `try:${key}`;
 
 type Tasks = { tasks: Record<string, any> };
-type Labels = { lineLabels: Record<string, any>; workflowRuns: Record<string, any>; signals?: Record<string, any>; pending: Record<string, any>; currentUser?: { _id: string } | null };
+type Labels = {
+  lineLabels: Record<string, any>;
+  workflowRuns: Record<string, any>;
+  signals?: Record<string, any>;
+  pending: Record<string, any>;
+  currentUser?: { _id: string } | null;
+};
 
 /** A label painted before the server has it: keyed by its natural key, which the server row supersedes (registry altKey). */
 export const lineLabelStubId = (key: string) => `label:${key}`;
 
 export function createLineSlice(): LineSliceActions {
   return {
-    editLineProfile: asyncAction(function (this: { sessionCommands: Record<string, any> }, requestId: string, projectId: string, edits: LineProfileEdit[]) {
+    editLineProfile: asyncAction(function (
+      this: { sessionCommands: Record<string, any> },
+      requestId: string,
+      projectId: string,
+      edits: LineProfileEdit[],
+    ) {
       stampSessionCommand(this, {
-        _id: requestId, command: "line_profile_edit", kind: "line_edit",
-        project_id: projectId, edits: structuredClone(edits), keys: edits.map(editKey),
+        _id: requestId,
+        command: "line_profile_edit",
+        kind: "line_edit",
+        project_id: projectId,
+        edits: structuredClone(edits),
+        keys: edits.map(editKey),
       });
     }) as LineSliceActions["editLineProfile"],
 
@@ -97,7 +224,12 @@ export function createLineSlice(): LineSliceActions {
     // painted at once as a task create stub (taskStub.ts, superseded by the
     // server row carrying the same client_key), and rides
     // dispatch to fileLineCause, which files it through the signal door.
-    fileLineCause: asyncAction(function (this: Tasks, clientKey: string, projectId: string, fields: LineCauseFields) {
+    fileLineCause: asyncAction(function (
+      this: Tasks,
+      clientKey: string,
+      projectId: string,
+      fields: LineCauseFields,
+    ) {
       const now = Date.now();
       this.tasks[taskStubId(clientKey)] = taskCreateStub(clientKey, {
         title: fields.title,
@@ -107,96 +239,223 @@ export function createLineSlice(): LineSliceActions {
         triage_status: "suggested",
         category: LINE_CAUSE_CATEGORY,
         project_id: projectId,
-        cause: { signal_count: 1, first_seen: now, last_seen: now, fingerprints: [] },
+        cause: {
+          signal_count: 1,
+          first_seen: now,
+          last_seen: now,
+          fingerprints: [],
+        },
       });
     }) as LineSliceActions["fileLineCause"],
 
     // "Start now": the cause leaves the queue the moment its run exists.
     startLineCause: asyncAction(function (this: Tasks, taskId: string) {
       const task = this.tasks[taskId];
-      if (task) { task.status = "in_progress"; task.updated_at = Date.now(); }
+      if (task) {
+        task.status = "in_progress";
+        task.updated_at = Date.now();
+      }
     }) as LineSliceActions["startLineCause"],
 
     // A stuck checkout's ask: painted on the row's told (the daemon's own record of whom it asked), and carried to the
     // server, which sends the same words the daemon would and keeps the ask on the row.
-    askCheckout: action(function (this: { checkouts: Record<string, CheckoutRow> }, checkoutId: string, who: string, at: number) {
+    askCheckout: action(function (
+      this: { checkouts: Record<string, CheckoutRow> },
+      checkoutId: string,
+      who: string,
+      at: number,
+    ) {
       const row = this.checkouts[checkoutId];
       if (!row || row.level.state !== "stuck") return;
       // A finding waits until the daemon knows who wrote the files (convex checkoutAsk refuses it before then).
       if (who === "finding" && row.uncommitted.attributing) return;
       const { writers, nobody } = levelWriters(row);
-      const files = who === "finding" ? nobody.length : writers.find((w) => w.conversation_id === who)?.files.length ?? 0;
+      const files =
+        who === "finding"
+          ? nobody.length
+          : (writers.find((w) => w.conversation_id === who)?.files.length ?? 0);
       if (!files) return;
-      const ask: CheckoutTold = who === "finding" ? { at, files, to: "finding" } : { at, files, to: "session", conversation_id: who };
+      const ask: CheckoutTold =
+        who === "finding"
+          ? { at, files, to: "finding" }
+          : { at, files, to: "session", conversation_id: who };
       // The whole level is assigned, so the field holds until the server's row echoes this same level.
       row.level = { ...row.level, told: [...toldOf(row.level), ask] };
     }) as LineSliceActions["askCheckout"],
 
     // "Make this a problem": the server opens it; the finding's row comes back filed through the signals feed.
-    makeProblemOfFinding: asyncAction(function (_signalId: string, _more?: string[], _title?: string, _into?: string) {}) as LineSliceActions["makeProblemOfFinding"],
+    makeProblemOfFinding: asyncAction(function (
+      _signalId: string,
+      _more?: string[],
+      _title?: string,
+      _into?: string,
+    ) {}) as LineSliceActions["makeProblemOfFinding"],
 
     // "Not this problem": the findings under its key leave the problem on the draft; the server files them under their
     // new problem and the signals feed brings them back there.
-    moveFindingOut: asyncAction(function (this: { signals: Record<string, { task_id?: string | null; fingerprint?: string }> }, signalId: string) {
+    moveFindingOut: asyncAction(function (
+      this: {
+        signals: Record<
+          string,
+          { task_id?: string | null; fingerprint?: string }
+        >;
+      },
+      signalId: string,
+    ) {
       const row = this.signals[signalId];
       if (!row?.task_id) return;
       const from = row.task_id;
-      for (const s of Object.values(this.signals)) if (s.task_id === from && s.fingerprint === row.fingerprint) s.task_id = null;
+      for (const s of Object.values(this.signals))
+        if (s.task_id === from && s.fingerprint === row.fingerprint)
+          s.task_id = null;
     }) as LineSliceActions["moveFindingOut"],
 
     // "Merge into": the twin reads dropped as the older problem's duplicate, and its findings read under the older one,
     // on the draft; the server moves them and the feeds bring them back there.
-    mergeProblem: asyncAction(function (this: { tasks: Record<string, { short_id?: string; status?: string; duplicate_of?: string; updated_at?: number }>; signals: Record<string, { task_id?: string | null }> }, taskRef: string, intoRef: string) {
+    mergeProblem: asyncAction(function (
+      this: {
+        tasks: Record<
+          string,
+          {
+            short_id?: string;
+            status?: string;
+            duplicate_of?: string;
+            updated_at?: number;
+          }
+        >;
+        signals: Record<string, { task_id?: string | null }>;
+      },
+      taskRef: string,
+      intoRef: string,
+    ) {
       const rows = Object.entries(this.tasks);
       const twin = rows.find(([, t]) => t.short_id === taskRef);
       const into = rows.find(([, t]) => t.short_id === intoRef);
       if (!twin || !into) return;
       const [twinId, t] = twin;
-      t.status = "dropped"; t.duplicate_of = intoRef; t.updated_at = Date.now();
-      for (const s of Object.values(this.signals)) if (s.task_id === twinId) s.task_id = into[0];
+      t.status = "dropped";
+      t.duplicate_of = intoRef;
+      t.updated_at = Date.now();
+      for (const s of Object.values(this.signals))
+        if (s.task_id === twinId) s.task_id = into[0];
     }) as LineSliceActions["mergeProblem"],
 
     // "Resume": a run whose runner died continues where it stands on its
     // machine (cli workflow/runResume.ts), keeping every answer it was given.
-    resumeLineRun: asyncAction(function (this: { workflowRuns: Record<string, any> }, runId: string) {
+    resumeLineRun: asyncAction(function (
+      this: { workflowRuns: Record<string, any> },
+      runId: string,
+    ) {
       const run = this.workflowRuns[runId];
-      if (run) { const now = Date.now(); run.resume_requested_at = now; run.updated_at = now; }
+      if (run) {
+        const now = Date.now();
+        run.resume_requested_at = now;
+        run.updated_at = now;
+      }
     }) as LineSliceActions["resumeLineRun"],
 
     // "Rebase and land": the run reads running at Rebase on the draft, as the server leaves it.
-    landLineRun: asyncAction(function (this: { workflowRuns: Record<string, any> }, runId: string) {
+    landLineRun: asyncAction(function (
+      this: { workflowRuns: Record<string, any> },
+      runId: string,
+    ) {
       const run = this.workflowRuns[runId];
-      if (run) { const now = Date.now(); run.status = "running"; run.current_node_id = "rebase"; run.fail_reason = undefined; run.resume_requested_at = now; run.updated_at = now; }
+      if (run) {
+        const now = Date.now();
+        run.status = "running";
+        run.current_node_id = "rebase";
+        run.fail_reason = undefined;
+        run.resume_requested_at = now;
+        run.updated_at = now;
+      }
     }) as LineSliceActions["landLineRun"],
 
-    deployTarget: asyncAction(function (this: { teamDeploys: Record<string, any> }, clientKey: string, teamId: string, repository: string, target: string, action: "deploy" | "redeploy" | "rollback", of: string | null, stub: { started_by: string; sha: string | null; previous_sha: string | null; commits: number; sessions: Array<{ conversation_id: string; short_id?: string | null; title?: string | null }> }) {
+    deployTarget: asyncAction(function (
+      this: { teamDeploys: Record<string, any> },
+      clientKey: string,
+      teamId: string,
+      repository: string,
+      target: string,
+      action: "deploy" | "redeploy" | "rollback",
+      of: string | null,
+      stub: {
+        started_by: string;
+        sha: string | null;
+        previous_sha: string | null;
+        commits: number;
+        sessions: Array<{
+          conversation_id: string;
+          short_id?: string | null;
+          title?: string | null;
+        }>;
+      },
+    ) {
       const now = Date.now();
       this.teamDeploys[clientKey] = {
-        _id: clientKey, client_key: clientKey, workspace: `team:${teamId}`, target, repository, short_id: "", status: "requested", trigger: "person",
-        action, rollback_of: of, sha: stub.sha, previous_sha: stub.previous_sha, version: null, url: null, source: "codecast", started_by: stub.started_by,
-        note: null, commits: stub.commits, sessions: stub.sessions, steps: [], created_at: now, live_at: null, finished_at: null,
+        _id: clientKey,
+        client_key: clientKey,
+        workspace: `team:${teamId}`,
+        target,
+        repository,
+        short_id: "",
+        status: "requested",
+        trigger: "person",
+        action,
+        rollback_of: of,
+        sha: stub.sha,
+        previous_sha: stub.previous_sha,
+        version: null,
+        url: null,
+        source: "codecast",
+        started_by: stub.started_by,
+        note: null,
+        commits: stub.commits,
+        sessions: stub.sessions,
+        steps: [],
+        created_at: now,
+        live_at: null,
+        finished_at: null,
       };
     }) as LineSliceActions["deployTarget"],
 
     // "Stop the run": the run reads ended on the draft, as the server's cancel leaves it.
-    stopLineRun: asyncAction(function (this: { workflowRuns: Record<string, any> }, runId: string) {
+    stopLineRun: asyncAction(function (
+      this: { workflowRuns: Record<string, any> },
+      runId: string,
+    ) {
       const run = this.workflowRuns[runId];
-      if (run && run.status !== "completed" && run.status !== "failed") { const now = Date.now(); run.status = "failed"; run.fail_reason = "Cancelled by user"; run.updated_at = now; }
+      if (run && run.status !== "completed" && run.status !== "failed") {
+        const now = Date.now();
+        run.status = "failed";
+        run.fail_reason = "Cancelled by user";
+        run.updated_at = now;
+      }
     }) as LineSliceActions["stopLineRun"],
 
     // A decision marked right or wrong, with a note (line-workspace.md LW4);
     // a null verdict takes the viewer's label back. One label per person per
     // decision, living where the run lives; the dispatch of the same name
     // writes it (convex lineWorkspace.label).
-    labelDecision: action(function (this: Labels, runId: string, nodeId: string, verdict: LabelVerdict | null, note?: string | null) {
+    labelDecision: action(function (
+      this: Labels,
+      runId: string,
+      nodeId: string,
+      verdict: LabelVerdict | null,
+      note?: string | null,
+    ) {
       const me = String(this.currentUser?._id ?? "");
       if (!me) return;
       const key = lineLabelKey(runId, nodeId, me);
-      const mine = Object.values(this.lineLabels).find((l: any) => l.key === key);
+      const mine = Object.values(this.lineLabels).find(
+        (l: any) => l.key === key,
+      );
       if (verdict === null) {
         if (mine) {
           delete this.lineLabels[mine._id];
-          this.pending[`lineLabels:${mine._id}`] = { type: "exclude", ts: Date.now() };
+          this.pending[`lineLabels:${mine._id}`] = {
+            type: "exclude",
+            ts: Date.now(),
+          };
         }
         return;
       }
@@ -211,26 +470,67 @@ export function createLineSlice(): LineSliceActions {
       const run = this.workflowRuns[runId] ?? this.signals?.[runId];
       const id = lineLabelStubId(key);
       this.lineLabels[id] = {
-        _id: id, key, run_id: runId, node_id: nodeId, verdict, ...(text ? { note: text } : {}), by: me, at: Date.now(),
-        ...(run?.workspace ? { workspace: run.workspace } : {}), ...(run?.team_id ? { team_id: String(run.team_id) } : {}),
+        _id: id,
+        key,
+        run_id: runId,
+        node_id: nodeId,
+        verdict,
+        ...(text ? { note: text } : {}),
+        by: me,
+        at: Date.now(),
+        ...(run?.workspace ? { workspace: run.workspace } : {}),
+        ...(run?.team_id ? { team_id: String(run.team_id) } : {}),
       };
     }) as LineSliceActions["labelDecision"],
 
-    setLiveFlowOn: action(function (this: { liveFlows: Record<string, any> }, id: string, on: boolean) {
+    setLiveFlowOn: action(function (
+      this: { liveFlows: Record<string, any> },
+      id: string,
+      on: boolean,
+    ) {
       const row = this.liveFlows[id];
       if (row) row.on = on;
     }) as LineSliceActions["setLiveFlowOn"],
 
-    startLiveFlow: action(function (this: { liveFlows: Record<string, any>; currentUser?: { _id: string } | null }, teamId: string, flow: { id: string; slug: string; label: string }, clientKey: string) {
+    startLiveFlow: action(function (
+      this: {
+        liveFlows: Record<string, any>;
+        currentUser?: { _id: string } | null;
+      },
+      teamId: string,
+      flow: { id: string; slug: string; label: string },
+      clientKey: string,
+    ) {
       const now = Date.now();
       this.liveFlows[clientKey] = {
-        _id: clientKey, client_key: clientKey, workspace: `team:${teamId}`, team_id: teamId, flow, sources: null, on: false,
-        caps: { hands_per_day: null }, hands_today: 0, hold: null, load: { working: 0, cap: 0 }, waiting: null, watcher: null,
-        changed_by: this.currentUser?._id ?? null, changed_at: now, running: [], queue: [],
+        _id: clientKey,
+        client_key: clientKey,
+        workspace: `team:${teamId}`,
+        team_id: teamId,
+        flow,
+        sources: null,
+        on: false,
+        caps: { hands_per_day: null },
+        hands_today: 0,
+        hold: null,
+        load: { working: 0, cap: 0 },
+        waiting: null,
+        watcher: null,
+        changed_by: this.currentUser?._id ?? null,
+        changed_at: now,
+        running: [],
+        queue: [],
       };
     }) as unknown as LineSliceActions["startLiveFlow"],
 
-    moveLiveFlow: action(function (this: { liveFlows: Record<string, any>; currentUser?: { _id: string } | null }, id: string, flow: { id: string; slug: string; label: string }) {
+    moveLiveFlow: action(function (
+      this: {
+        liveFlows: Record<string, any>;
+        currentUser?: { _id: string } | null;
+      },
+      id: string,
+      flow: { id: string; slug: string; label: string },
+    ) {
       const row = this.liveFlows[id];
       if (!row) return;
       row.flow = flow;
@@ -238,17 +538,33 @@ export function createLineSlice(): LineSliceActions {
       row.changed_at = Date.now();
     }) as unknown as LineSliceActions["moveLiveFlow"],
 
-    clearLiveFlowHold: action(function (this: { liveFlows: Record<string, any> }, id: string) {
+    clearLiveFlowHold: action(function (
+      this: { liveFlows: Record<string, any> },
+      id: string,
+    ) {
       const row = this.liveFlows[id];
       if (row) row.hold = null;
     }) as LineSliceActions["clearLiveFlowHold"],
 
-    saveSessionFlow: action(function (this: { sessionFlows: Record<string, any> }, id: string, opts?: { slug?: string; label?: string; variant_of?: string }) {
+    saveSessionFlow: action(function (
+      this: { sessionFlows: Record<string, any> },
+      id: string,
+      opts?: { slug?: string; label?: string; variant_of?: string },
+    ) {
       const row = this.sessionFlows[id];
       if (!row) return;
       // The server's default: the last saved slug, else the label's.
-      const slug = opts?.slug ?? row.saved?.slug ?? String(row.label ?? row.name ?? row.graph_hash).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      row.saved = { slug, version: (row.saved?.slug === slug ? row.saved.version : 0) + 1 };
+      const slug =
+        opts?.slug ??
+        row.saved?.slug ??
+        String(row.label ?? row.name ?? row.graph_hash)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+      row.saved = {
+        slug,
+        version: (row.saved?.slug === slug ? row.saved.version : 0) + 1,
+      };
     }) as LineSliceActions["saveSessionFlow"],
 
     // A step's save (line-workspace.md LW4): the drawn graph's copy of the
@@ -256,20 +572,38 @@ export function createLineSlice(): LineSliceActions {
     // the request id) rides dispatch to editLineGraph, which hands the daemon
     // on the graph's machine the write; its answer and its push report settle
     // the row. A refusal takes the paint back with the row.
-    editLineGraph: asyncAction(function (this: { sessionCommands: Record<string, any>; workflows: Record<string, any>; currentUser?: { _id: string } | null }, requestId: string, workflowId: string, input: LineGraphEditInput) {
+    editLineGraph: asyncAction(function (
+      this: {
+        sessionCommands: Record<string, any>;
+        workflows: Record<string, any>;
+        currentUser?: { _id: string } | null;
+      },
+      requestId: string,
+      workflowId: string,
+      input: LineGraphEditInput,
+    ) {
       const field = input.field ?? "prompt";
       stampSessionCommand(this, {
-        _id: requestId, command: "line_graph_edit", kind: "line_graph_edit",
-        workflow_id: workflowId, node: input.node, field, text: input.text, ...(input.base_hash ? { base_hash: input.base_hash } : {}),
+        _id: requestId,
+        command: "line_graph_edit",
+        kind: "line_graph_edit",
+        workflow_id: workflowId,
+        node: input.node,
+        field,
+        text: input.text,
+        ...(input.base_hash ? { base_hash: input.base_hash } : {}),
       });
       // Paint the row the server writes (lineActions.editableGraph): the drawn
       // graph when it is the viewer's, else the viewer's own push of it. A
       // teammate's row is never painted, or its next sync would take the edit back.
       const drawn = this.workflows[workflowId];
       const me = String(this.currentUser?._id ?? "");
-      const target = drawn && String(drawn.user_id) === me
-        ? drawn
-        : Object.values(this.workflows).find((w: any) => String(w.user_id) === me && w.slug === drawn?.slug);
+      const target =
+        drawn && String(drawn.user_id) === me
+          ? drawn
+          : Object.values(this.workflows).find(
+              (w: any) => String(w.user_id) === me && w.slug === drawn?.slug,
+            );
       const node = target?.nodes?.find((n: any) => n.id === input.node);
       if (node) node[field] = input.text;
     }) as LineSliceActions["editLineGraph"],
@@ -277,16 +611,34 @@ export function createLineSlice(): LineSliceActions {
     // Try (LW4): each chosen case paints queued under its natural key, and
     // rides dispatch to tryLineStep, which queues the server rows and hands
     // the graph's machine the run; its reports stream into lineTries.
-    tryLineStep: asyncAction(function (this: { lineTries: Record<string, any>; workflowRuns: Record<string, any>; currentUser?: { _id: string } | null }, tryId: string, workflowId: string, input: LineTryInput) {
+    tryLineStep: asyncAction(function (
+      this: {
+        lineTries: Record<string, any>;
+        workflowRuns: Record<string, any>;
+        currentUser?: { _id: string } | null;
+      },
+      tryId: string,
+      workflowId: string,
+      input: LineTryInput,
+    ) {
       const now = Date.now();
       for (const runId of input.runs) {
         const key = lineTryKey(tryId, runId);
         const run = this.workflowRuns[runId];
         this.lineTries[lineTryStubId(key)] = {
-          _id: lineTryStubId(key), key, try_id: tryId, workflow_id: workflowId, node_id: input.node, run_id: runId,
+          _id: lineTryStubId(key),
+          key,
+          try_id: tryId,
+          workflow_id: workflowId,
+          node_id: input.node,
+          run_id: runId,
           ...(input.project_id ? { project_id: input.project_id } : {}),
           ...(run?.task_id ? { case_id: String(run.task_id) } : {}),
-          by: String(this.currentUser?._id ?? ""), at: now, updated_at: now, status: "queued", old: {},
+          by: String(this.currentUser?._id ?? ""),
+          at: now,
+          updated_at: now,
+          status: "queued",
+          old: {},
           ...(input.base_hash ? { base_hash: input.base_hash } : {}),
         };
       }
@@ -294,7 +646,12 @@ export function createLineSlice(): LineSliceActions {
 
     // Ask an agent (LW4): painted like fileLineCause, already in progress,
     // since the side effect files the cause and starts its run in one write.
-    askLineAgent: asyncAction(function (this: Tasks, clientKey: string, projectId: string, fields: LineCauseFields) {
+    askLineAgent: asyncAction(function (
+      this: Tasks,
+      clientKey: string,
+      projectId: string,
+      fields: LineCauseFields,
+    ) {
       const now = Date.now();
       this.tasks[taskStubId(clientKey)] = taskCreateStub(clientKey, {
         title: fields.title,
@@ -305,7 +662,12 @@ export function createLineSlice(): LineSliceActions {
         status: "in_progress",
         category: LINE_CAUSE_CATEGORY,
         project_id: projectId,
-        cause: { signal_count: 1, first_seen: now, last_seen: now, fingerprints: [] },
+        cause: {
+          signal_count: 1,
+          first_seen: now,
+          last_seen: now,
+          fingerprints: [],
+        },
       });
     }) as LineSliceActions["askLineAgent"],
   };

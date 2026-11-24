@@ -38,7 +38,11 @@ const baseManifest = (): WorkspaceManifest => ({
   services: {},
   env: { NODE_ENV: "development" },
   teardown: { run: [] },
-  browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
+  browser: {
+    enabled: false,
+    headless: true,
+    cdpPort: { base: 9222, range: 100 },
+  },
   backend: "local",
   detected: "bun",
 });
@@ -47,7 +51,10 @@ function makeReadyWorkspace(name: string): Workspace {
   // Init a real git worktree on the requested branch so git checks pass.
   const wtPath = path.join(repoRoot, ".codecast/worktrees", name);
   fs.mkdirSync(wtPath, { recursive: true });
-  execSync("git init -q", { cwd: wtPath, stdio: ["ignore", "ignore", "ignore"] });
+  execSync("git init -q", {
+    cwd: wtPath,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
   execSync("git config user.email t@t.t && git config user.name t", {
     cwd: wtPath,
     stdio: ["ignore", "ignore", "ignore"],
@@ -138,7 +145,9 @@ describe("state persistence", () => {
         updatedAt: "2026-05-18T00:00:00.000Z",
       });
     }
-    const states = listStates(repoRoot).map((s) => s.name).sort();
+    const states = listStates(repoRoot)
+      .map((s) => s.name)
+      .sort();
     expect(states).toEqual(["a", "b", "c"]);
   });
 
@@ -201,7 +210,9 @@ describe("validateContract", () => {
     fs.rmSync(ws.path, { recursive: true, force: true });
     const r = await validateContract(ws);
     expect(r.ok).toBe(false);
-    expect(r.checks.find((c) => c.name === "worktree-exists")?.reason).toContain("missing");
+    expect(
+      r.checks.find((c) => c.name === "worktree-exists")?.reason,
+    ).toContain("missing");
   });
 
   test("wrong branch → broken with reason naming actual + expected", async () => {
@@ -216,7 +227,10 @@ describe("validateContract", () => {
 
   test("missing node_modules → broken", async () => {
     const ws = makeReadyWorkspace("m3");
-    fs.rmSync(path.join(ws.path, "node_modules"), { recursive: true, force: true });
+    fs.rmSync(path.join(ws.path, "node_modules"), {
+      recursive: true,
+      force: true,
+    });
     const r = await validateContract(ws);
     const depCheck = r.checks.find((c) => c.name === "deps-installed");
     expect(depCheck?.ok).toBe(false);
@@ -226,15 +240,31 @@ describe("validateContract", () => {
   test("an install that runs in a subdirectory is probed there, not at the root", async () => {
     // Union's install is `cd outreach && bun install`: its node_modules is outreach/node_modules.
     const ws = makeReadyWorkspace("m3b");
-    ws.manifest.setup.install = ["cd outreach && bun install --frozen-lockfile"];
-    fs.rmSync(path.join(ws.path, "node_modules"), { recursive: true, force: true });
-    fs.mkdirSync(path.join(ws.path, "outreach/node_modules"), { recursive: true });
-    expect((await validateContract(ws)).checks.find((c) => c.name === "deps-installed")?.ok).toBe(true);
+    ws.manifest.setup.install = [
+      "cd outreach && bun install --frozen-lockfile",
+    ];
+    fs.rmSync(path.join(ws.path, "node_modules"), {
+      recursive: true,
+      force: true,
+    });
+    fs.mkdirSync(path.join(ws.path, "outreach/node_modules"), {
+      recursive: true,
+    });
+    expect(
+      (await validateContract(ws)).checks.find(
+        (c) => c.name === "deps-installed",
+      )?.ok,
+    ).toBe(true);
 
     // node_modules at the root says nothing about the subdirectory's install.
-    fs.rmSync(path.join(ws.path, "outreach/node_modules"), { recursive: true, force: true });
+    fs.rmSync(path.join(ws.path, "outreach/node_modules"), {
+      recursive: true,
+      force: true,
+    });
     fs.mkdirSync(path.join(ws.path, "node_modules"), { recursive: true });
-    const missing = (await validateContract(ws)).checks.find((c) => c.name === "deps-installed");
+    const missing = (await validateContract(ws)).checks.find(
+      (c) => c.name === "deps-installed",
+    );
     expect(missing?.ok).toBe(false);
     expect(missing?.reason).toContain("outreach/node_modules");
   });
@@ -258,11 +288,16 @@ describe("validateContract", () => {
 
   test("multiple failures reported together (doesn't short-circuit)", async () => {
     const ws = makeReadyWorkspace("m6");
-    fs.rmSync(path.join(ws.path, "node_modules"), { recursive: true, force: true });
+    fs.rmSync(path.join(ws.path, "node_modules"), {
+      recursive: true,
+      force: true,
+    });
     ws.env = {}; // missing all env
     const r = await validateContract(ws);
     expect(r.ok).toBe(false);
-    const failed = r.checks.filter((c) => !c.ok && !c.name.startsWith("port-free:"));
+    const failed = r.checks.filter(
+      (c) => !c.ok && !c.name.startsWith("port-free:"),
+    );
     // deps-installed + env-vars + port:web all fail.
     expect(failed.length).toBeGreaterThanOrEqual(3);
   });
@@ -294,12 +329,27 @@ describe("locateWorkspace", () => {
     const main = fs.mkdtempSync(path.join(os.tmpdir(), "ws-main-"));
     const linked = fs.mkdtempSync(path.join(os.tmpdir(), "ws-linked-"));
     const slot = fs.mkdtempSync(path.join(os.tmpdir(), "ws-slot-"));
-    writeState(linked, { name: "fix", path: slot, branch: "b", state: "ready", ports: {}, updatedAt: "" } as unknown as PersistedWorkspaceState);
+    writeState(linked, {
+      name: "fix",
+      path: slot,
+      branch: "b",
+      state: "ready",
+      ports: {},
+      updatedAt: "",
+    } as unknown as PersistedWorkspaceState);
     expect(locateWorkspace([main], "fix")).toBeNull();
-    expect(locateWorkspace([main, linked], "fix")).toEqual({ path: slot, root: linked });
+    expect(locateWorkspace([main, linked], "fix")).toEqual({
+      path: slot,
+      root: linked,
+    });
     // The default layout counts when nothing tracks it; a missing path never does.
-    fs.mkdirSync(path.join(main, ".codecast/worktrees/fix"), { recursive: true });
-    expect(locateWorkspace([main, linked], "fix")).toEqual({ path: path.join(main, ".codecast/worktrees/fix"), root: main });
+    fs.mkdirSync(path.join(main, ".codecast/worktrees/fix"), {
+      recursive: true,
+    });
+    expect(locateWorkspace([main, linked], "fix")).toEqual({
+      path: path.join(main, ".codecast/worktrees/fix"),
+      root: main,
+    });
     expect(locateWorkspace([main, linked], "gone")).toBeNull();
   });
 });

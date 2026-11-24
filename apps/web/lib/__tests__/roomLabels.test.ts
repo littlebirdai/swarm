@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { callNeedsPlace, callTitle, describeRoom, describeRoomLive } from "../calls/roomLabels";
+import {
+  callNeedsPlace,
+  callTitle,
+  describeRoom,
+  describeRoomLive,
+} from "../calls/roomLabels";
 import { chatViewRoomKey } from "../chatViews";
 import { withTeamRoster } from "../../test-helpers/teamRoster";
 
@@ -26,23 +31,53 @@ const store = {
 
 describe("chatViewRoomKey", () => {
   test("a 1:1 DM and the avatar-bar ring share one room", () => {
-    expect(chatViewRoomKey({ id: "dm0", kind: "dm", dmMemberIds: ["ann"] }, "me")).toBe("dm:ann:me");
+    expect(
+      chatViewRoomKey({ id: "dm0", kind: "dm", dmMemberIds: ["ann"] }, "me"),
+    ).toBe("dm:ann:me");
   });
   test("a group thread huddles in the room of its members", () => {
-    expect(chatViewRoomKey({ id: "dm1", kind: "dm", dmMemberIds: ["bo", "ann"] }, "me")).toBe("dm:ann:bo:me");
+    expect(
+      chatViewRoomKey(
+        { id: "dm1", kind: "dm", dmMemberIds: ["bo", "ann"] },
+        "me",
+      ),
+    ).toBe("dm:ann:bo:me");
   });
   test("a group thread with a departed member falls back to its channel room", () => {
     const teammates = [{ _id: "me" }, { _id: "ann" }];
     // bo left the team: the member-set room would be refused server-side.
-    expect(chatViewRoomKey({ id: "dm1", kind: "dm", dmMemberIds: ["ann", "bo"] }, "me", teammates)).toBe("channel:dm1");
+    expect(
+      chatViewRoomKey(
+        { id: "dm1", kind: "dm", dmMemberIds: ["ann", "bo"] },
+        "me",
+        teammates,
+      ),
+    ).toBe("channel:dm1");
     // Everyone still present: the member-set room as usual.
-    expect(chatViewRoomKey({ id: "dm1", kind: "dm", dmMemberIds: ["ann"] }, "me", teammates)).toBe("dm:ann:me");
+    expect(
+      chatViewRoomKey(
+        { id: "dm1", kind: "dm", dmMemberIds: ["ann"] },
+        "me",
+        teammates,
+      ),
+    ).toBe("dm:ann:me");
   });
   test("a channel keeps its own room; a DM with no roster yet does not guess", () => {
-    expect(chatViewRoomKey({ id: "ch1", kind: "public" }, "me")).toBe("channel:ch1");
-    expect(chatViewRoomKey({ id: "chp", kind: "private", memberIds: ["me", "ann"] }, "me")).toBe("channel:chp");
-    expect(chatViewRoomKey({ id: "dmx", kind: "dm" }, "me")).toBe("channel:dmx");
-    expect(chatViewRoomKey({ id: "dmx", kind: "dm", dmMemberIds: ["ann"] }, "")).toBe("channel:dmx");
+    expect(chatViewRoomKey({ id: "ch1", kind: "public" }, "me")).toBe(
+      "channel:ch1",
+    );
+    expect(
+      chatViewRoomKey(
+        { id: "chp", kind: "private", memberIds: ["me", "ann"] },
+        "me",
+      ),
+    ).toBe("channel:chp");
+    expect(chatViewRoomKey({ id: "dmx", kind: "dm" }, "me")).toBe(
+      "channel:dmx",
+    );
+    expect(
+      chatViewRoomKey({ id: "dmx", kind: "dm", dmMemberIds: ["ann"] }, ""),
+    ).toBe("channel:dmx");
   });
 });
 
@@ -57,19 +92,29 @@ describe("describeRoom", () => {
     const three = describeRoom("dm:ann:bo:me", store as any);
     expect(three.label).toBe("Ann, Bo");
     expect(three.otherIds).toEqual(["ann", "bo"]);
-    expect(describeRoom("dm:ann:bo:cy:me", store as any).label).toBe("Ann, Bo, Cy");
+    expect(describeRoom("dm:ann:bo:cy:me", store as any).label).toBe(
+      "Ann, Bo, Cy",
+    );
   });
   test("guests in the live roster join the name: the key says Bob, the room says Bob and Cy", () => {
     const withGuest = {
       ...store,
-      callOccupancy: { "dm:ann:me": [{ user_id: "ann" }, { user_id: "cy" }, { user_id: "me" }] },
+      callOccupancy: {
+        "dm:ann:me": [{ user_id: "ann" }, { user_id: "cy" }, { user_id: "me" }],
+      },
     };
     expect(describeRoom("dm:ann:me", withGuest as any).label).toBe("Ann, Cy");
   });
   test("a channel is its hash name; a DM channel room reads like the rail", () => {
-    expect(describeRoom("channel:ch1", store as any)).toEqual({ label: "#design", anchorTitle: "#design", otherIds: [] });
+    expect(describeRoom("channel:ch1", store as any)).toEqual({
+      label: "#design",
+      anchorTitle: "#design",
+      otherIds: [],
+    });
     expect(describeRoom("channel:dm1", store as any).label).toBe("Ann, Bo");
-    expect(describeRoom("channel:unknown", store as any).label).toBe("Channel huddle");
+    expect(describeRoom("channel:unknown", store as any).label).toBe(
+      "Channel huddle",
+    );
   });
   test("a session huddle is about its title", () => {
     expect(describeRoom("session:conv1", store as any)).toEqual({
@@ -77,7 +122,9 @@ describe("describeRoom", () => {
       anchorTitle: "about: Fix the auth race",
       otherIds: [],
     });
-    expect(describeRoom("session:nope", store as any).label).toBe("Session huddle");
+    expect(describeRoom("session:nope", store as any).label).toBe(
+      "Session huddle",
+    );
   });
   test("unknown or absent keys fall back honestly", () => {
     expect(describeRoom(null, store as any).label).toBe("Huddle");
@@ -112,47 +159,90 @@ describe("describeRoom", () => {
       conversations: { conv1: { _id: "conv1", title: "Acquisition terms" } },
       liveRooms: [{ room_key: "session:conv1", redacted: true }],
     };
-    expect(describeRoomLive("session:conv1", leaky as any).label).toBe("a huddle");
+    expect(describeRoomLive("session:conv1", leaky as any).label).toBe(
+      "a huddle",
+    );
     // Same store, same room, membership restored: the name comes back.
-    const visible = { ...leaky, liveRooms: [{ room_key: "session:conv1", redacted: false }] };
-    expect(describeRoomLive("session:conv1", visible as any).label).toBe("Acquisition terms");
+    const visible = {
+      ...leaky,
+      liveRooms: [{ room_key: "session:conv1", redacted: false }],
+    };
+    expect(describeRoomLive("session:conv1", visible as any).label).toBe(
+      "Acquisition terms",
+    );
   });
 
   test("a room the live list does not know is named the ordinary way", () => {
     // A ring toast names a room nobody has joined yet: no live row, no ruling.
-    expect(describeRoomLive("session:conv1", store as any).label).toBe("Fix the auth race");
-    expect(describeRoomLive("channel:unknown", { ...store, liveRooms: [
-      { room_key: "channel:unknown", title: "ops" },
-    ] } as any).label).toBe("#ops");
+    expect(describeRoomLive("session:conv1", store as any).label).toBe(
+      "Fix the auth race",
+    );
+    expect(
+      describeRoomLive("channel:unknown", {
+        ...store,
+        liveRooms: [{ room_key: "channel:unknown", title: "ops" }],
+      } as any).label,
+    ).toBe("#ops");
   });
 
   test("the server's title names a room the store has never seen", () => {
-    expect(describeRoom("channel:unknown", store as any, { serverTitle: "ops" })).toEqual({
+    expect(
+      describeRoom("channel:unknown", store as any, { serverTitle: "ops" }),
+    ).toEqual({
       label: "#ops",
       anchorTitle: "#ops",
       otherIds: [],
     });
-    expect(describeRoom("session:nope", store as any, { serverTitle: "Ship it" }).label).toBe("Ship it");
-    expect(describeRoom("channel:ch1", store as any, { serverTitle: "stale" }).label).toBe("#design");
-    expect(describeRoom("session:conv1", store as any, { serverTitle: "stale" }).label).toBe("Fix the auth race");
+    expect(
+      describeRoom("session:nope", store as any, { serverTitle: "Ship it" })
+        .label,
+    ).toBe("Ship it");
+    expect(
+      describeRoom("channel:ch1", store as any, { serverTitle: "stale" }).label,
+    ).toBe("#design");
+    expect(
+      describeRoom("session:conv1", store as any, { serverTitle: "stale" })
+        .label,
+    ).toBe("Fix the auth race");
   });
 });
 
 describe("callTitle", () => {
   test("an untitled call is named by the room the dock would name, never its key", () => {
-    expect(callTitle({ room_key: "dm:ann:me" }, store as any)).toBe("Call with Ann Lee");
-    expect(callTitle({ room_key: "channel:ch1" }, store as any)).toBe("Huddle in #design");
-    expect(callTitle({ room_key: "channel:dm1" }, store as any)).toBe("Call with Ann, Bo");
-    expect(callTitle({ room_key: "session:sess1" }, store as any)).toBe("Huddle in Fix the auth race");
+    expect(callTitle({ room_key: "dm:ann:me" }, store as any)).toBe(
+      "Call with Ann Lee",
+    );
+    expect(callTitle({ room_key: "channel:ch1" }, store as any)).toBe(
+      "Huddle in #design",
+    );
+    expect(callTitle({ room_key: "channel:dm1" }, store as any)).toBe(
+      "Call with Ann, Bo",
+    );
+    expect(callTitle({ room_key: "session:sess1" }, store as any)).toBe(
+      "Huddle in Fix the auth race",
+    );
   });
   test("a title wins; a place the store does not know falls back to a plain word", () => {
-    expect(callTitle({ title: "Launch review", room_key: "dm:ann:me" }, store as any)).toBe("Launch review");
-    expect(callTitle({ room_key: "session:unknown", place: null }, store as any)).toBe("Untitled huddle");
-    expect(callTitle({ room_key: "channel:nope", place: null }, store as any)).toBe("Untitled huddle");
-    expect(callTitle({ room_key: "rec:1fad0bfc-aaaa" }, store as any)).toBe("Untitled voice note");
-    expect(callTitle({ room_key: "session:unknown", place: null }, store as any, { untitled: "Typed huddle, nothing said" })).toBe(
-      "Typed huddle, nothing said",
+    expect(
+      callTitle(
+        { title: "Launch review", room_key: "dm:ann:me" },
+        store as any,
+      ),
+    ).toBe("Launch review");
+    expect(
+      callTitle({ room_key: "session:unknown", place: null }, store as any),
+    ).toBe("Untitled huddle");
+    expect(
+      callTitle({ room_key: "channel:nope", place: null }, store as any),
+    ).toBe("Untitled huddle");
+    expect(callTitle({ room_key: "rec:1fad0bfc-aaaa" }, store as any)).toBe(
+      "Untitled voice note",
     );
+    expect(
+      callTitle({ room_key: "session:unknown", place: null }, store as any, {
+        untitled: "Typed huddle, nothing said",
+      }),
+    ).toBe("Typed huddle, nothing said");
   });
   test("a session the store never loaded takes the server's place before the guest", () => {
     // Two huddles with Pat in two different sessions read "A call with Pat"
@@ -162,35 +252,77 @@ describe("callTitle", () => {
       participants: [{ id: "guest:g1", name: "Pat" }],
       place: { session_title: "Computer performance troubleshooting" },
     };
-    expect(callTitle(call, store as any)).toBe("Huddle in Computer performance troubleshooting");
-    expect(callTitle({ ...call, place: null }, store as any)).toBe("A call with Pat");
-    expect(callTitle({ room_key: "channel:nope", place: { channel_name: "ops" } }, store as any)).toBe("Huddle in #ops");
-    // The store still wins where it knows the room: it renames live.
-    expect(callTitle({ room_key: "session:sess1", place: { session_title: "stale" } }, store as any)).toBe(
-      "Huddle in Fix the auth race",
+    expect(callTitle(call, store as any)).toBe(
+      "Huddle in Computer performance troubleshooting",
     );
+    expect(callTitle({ ...call, place: null }, store as any)).toBe(
+      "A call with Pat",
+    );
+    expect(
+      callTitle(
+        { room_key: "channel:nope", place: { channel_name: "ops" } },
+        store as any,
+      ),
+    ).toBe("Huddle in #ops");
+    // The store still wins where it knows the room: it renames live.
+    expect(
+      callTitle(
+        { room_key: "session:sess1", place: { session_title: "stale" } },
+        store as any,
+      ),
+    ).toBe("Huddle in Fix the auth race");
   });
   // The server's answer for a place is out, answered, or answered empty, and
   // only the last may name the call after its guest: a name shown while the
   // answer is out is taken back when it lands.
   test("a place still being asked for is called by its kind, not its guest", () => {
-    const pat = { room_key: "session:unknown", participants: [{ id: "guest:g1", name: "Pat" }] };
+    const pat = {
+      room_key: "session:unknown",
+      participants: [{ id: "guest:g1", name: "Pat" }],
+    };
     expect(callTitle(pat, store as any)).toBe("Huddle");
-    expect(callTitle({ room_key: "channel:nope", participants: pat.participants }, store as any)).toBe("Huddle");
-    expect(callTitle({ ...pat, place: { session_title: "Call recording E2E test" } }, store as any)).toBe(
-      "Huddle in Call recording E2E test",
+    expect(
+      callTitle(
+        { room_key: "channel:nope", participants: pat.participants },
+        store as any,
+      ),
+    ).toBe("Huddle");
+    expect(
+      callTitle(
+        { ...pat, place: { session_title: "Call recording E2E test" } },
+        store as any,
+      ),
+    ).toBe("Huddle in Call recording E2E test");
+    expect(callTitle({ ...pat, place: null }, store as any)).toBe(
+      "A call with Pat",
     );
-    expect(callTitle({ ...pat, place: null }, store as any)).toBe("A call with Pat");
     // A room the store names never waits on the server.
-    expect(callTitle({ room_key: "session:sess1" }, store as any)).toBe("Huddle in Fix the auth race");
-    expect(callTitle({ room_key: "dm:ann:me" }, store as any)).toBe("Call with Ann Lee");
+    expect(callTitle({ room_key: "session:sess1" }, store as any)).toBe(
+      "Huddle in Fix the auth race",
+    );
+    expect(callTitle({ room_key: "dm:ann:me" }, store as any)).toBe(
+      "Call with Ann Lee",
+    );
   });
   test("only an untitled session or channel the store cannot name is asked of the server", () => {
-    expect(callNeedsPlace({ room_key: "session:unknown" }, store as any)).toBe(true);
-    expect(callNeedsPlace({ room_key: "channel:nope" }, store as any)).toBe(true);
-    expect(callNeedsPlace({ room_key: "session:sess1" }, store as any)).toBe(false);
-    expect(callNeedsPlace({ title: "Launch", room_key: "session:unknown" }, store as any)).toBe(false);
+    expect(callNeedsPlace({ room_key: "session:unknown" }, store as any)).toBe(
+      true,
+    );
+    expect(callNeedsPlace({ room_key: "channel:nope" }, store as any)).toBe(
+      true,
+    );
+    expect(callNeedsPlace({ room_key: "session:sess1" }, store as any)).toBe(
+      false,
+    );
+    expect(
+      callNeedsPlace(
+        { title: "Launch", room_key: "session:unknown" },
+        store as any,
+      ),
+    ).toBe(false);
     expect(callNeedsPlace({ room_key: "dm:ann:me" }, store as any)).toBe(false);
-    expect(callNeedsPlace({ room_key: "rec:1fad0bfc-aaaa" }, store as any)).toBe(false);
+    expect(
+      callNeedsPlace({ room_key: "rec:1fad0bfc-aaaa" }, store as any),
+    ).toBe(false);
   });
 });

@@ -9,12 +9,12 @@
 // store write.
 // Frames are requestAnimationFrame callbacks, which the main thread's display
 // link drives, so a stall on either thread lengthens the gap.
-import type { GestureResponderEvent } from 'react-native';
-import { readStoreListenerCount } from '@codecast/web/store/storeListenerCensus';
+import type { GestureResponderEvent } from "react-native";
+import { readStoreListenerCount } from "@codecast/web/store/storeListenerCensus";
 
-export const PERF_PROBE = process.env.EXPO_PUBLIC_PERF_PROBE === '1';
+export const PERF_PROBE = process.env.EXPO_PUBLIC_PERF_PROBE === "1";
 
-let route = '';
+let route = "";
 let seq = 0;
 const renders: Record<string, number> = {};
 

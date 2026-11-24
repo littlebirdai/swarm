@@ -25,7 +25,11 @@ export function embeddingWorstCase(text: string): number {
 }
 
 /** Null also when the gate's team may not send to OpenAI (lib/vendorGuard). */
-export async function embedText(gate: VendorGate, text: string, opts: { timeout_ms?: number } = {}): Promise<Embedded | null> {
+export async function embedText(
+  gate: VendorGate,
+  text: string,
+  opts: { timeout_ms?: number } = {},
+): Promise<Embedded | null> {
   const input = text.trim().slice(0, MAX_CHARS);
   if (!input) return null;
   const abort = new AbortController();
@@ -39,13 +43,21 @@ export async function embedText(gate: VendorGate, text: string, opts: { timeout_
     });
     if (!res) return null;
     if (!res.ok) {
-      console.error("Embedding API error:", res.status, (await res.text()).slice(0, 300));
+      console.error(
+        "Embedding API error:",
+        res.status,
+        (await res.text()).slice(0, 300),
+      );
       return null;
     }
     const data: any = await res.json();
     const vector = data?.data?.[0]?.embedding;
-    if (!Array.isArray(vector) || vector.length !== FINDING_VECTOR_DIMENSIONS) return null;
-    const tokens = typeof data?.usage?.total_tokens === "number" ? data.usage.total_tokens : Math.ceil(input.length / 3);
+    if (!Array.isArray(vector) || vector.length !== FINDING_VECTOR_DIMENSIONS)
+      return null;
+    const tokens =
+      typeof data?.usage?.total_tokens === "number"
+        ? data.usage.total_tokens
+        : Math.ceil(input.length / 3);
     return { vector, cost_usd: tokens * PRICE_PER_TOKEN };
   } catch (error) {
     console.error("Embedding failed:", error);

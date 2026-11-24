@@ -28,7 +28,10 @@ describe("placeSections top-level slices", () => {
       b: mk("b"),
       d: mk("d", { inbox_dismissed_at: NOW - 100 }),
       s: mk("s", { inbox_stashed_at: NOW - 100 }),
-      ds: mk("ds", { inbox_dismissed_at: NOW - 150, inbox_stashed_at: NOW - 50 }),
+      ds: mk("ds", {
+        inbox_dismissed_at: NOW - 150,
+        inbox_stashed_at: NOW - 50,
+      }),
     };
     const { sorted, dismissed, stashed } = placeSections(sessions, new Set());
     expect(ids(sorted).sort()).toEqual(["a", "b"]); // hidden ones excluded
@@ -81,12 +84,22 @@ describe("placeSections top-level slices", () => {
       blank: mk("blank", { message_count: 0 }),
     };
     const stubIds = new Set(["land", "blank"]);
-    const viewingLanding = placeSections(sessions, new Set(), new Set(), { stubIds, currentSessionId: "land" });
+    const viewingLanding = placeSections(sessions, new Set(), new Set(), {
+      stubIds,
+      currentSessionId: "land",
+    });
     expect(ids(viewingLanding.newSessions)).toEqual([]);
     // A focused ordinary blank (Ctrl+N) still shows.
-    const viewingBlank = placeSections(sessions, new Set(), new Set(), { stubIds, currentSessionId: "blank" });
+    const viewingBlank = placeSections(sessions, new Set(), new Set(), {
+      stubIds,
+      currentSessionId: "blank",
+    });
     expect(ids(viewingBlank.newSessions)).toEqual(["blank"]);
-    const sent = placeSections(sessions, new Set(), new Set(), { stubIds, currentSessionId: "land", pendingCreateIds: new Set(["land"]) });
+    const sent = placeSections(sessions, new Set(), new Set(), {
+      stubIds,
+      currentSessionId: "land",
+      pendingCreateIds: new Set(["land"]),
+    });
     expect(ids(sent.newSessions)).toEqual(["land"]);
   });
 });

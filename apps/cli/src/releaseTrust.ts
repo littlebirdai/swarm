@@ -4,7 +4,11 @@
 // the watchdog's shell fallback (supervision.ts) and host installs
 // (hosts/installRelease.ts) read one definition.
 
-import { isManifestSignatureFile, verifyDetached, type ManifestSigningPolicy } from "@platform/cli-kit/update";
+import {
+  isManifestSignatureFile,
+  verifyDetached,
+  type ManifestSigningPolicy,
+} from "@platform/cli-kit/update";
 
 export const RELEASE_BASE_URL = "https://dl.codecast.sh";
 
@@ -28,7 +32,11 @@ export const RELEASE_MANIFEST_SIGNING: ManifestSigningPolicy = {
  * given the text of latest.json.sig (null when there is none). The sync form
  * of the updater's check, for callers that read the manifest with curl.
  */
-export function manifestSignedByPinnedKey(manifestBytes: Uint8Array, signatureText: string | null, policy: ManifestSigningPolicy = RELEASE_MANIFEST_SIGNING): boolean {
+export function manifestSignedByPinnedKey(
+  manifestBytes: Uint8Array,
+  signatureText: string | null,
+  policy: ManifestSigningPolicy = RELEASE_MANIFEST_SIGNING,
+): boolean {
   if (!signatureText) return false;
   let file: unknown;
   try {
@@ -37,11 +45,17 @@ export function manifestSignedByPinnedKey(manifestBytes: Uint8Array, signatureTe
     return false;
   }
   if (!isManifestSignatureFile(file)) return false;
-  return file.signatures.some((s) => policy.keys[s.keyId] !== undefined && verifyDetached(manifestBytes, s.sig, policy.keys[s.keyId]!));
+  return file.signatures.some(
+    (s) =>
+      policy.keys[s.keyId] !== undefined &&
+      verifyDetached(manifestBytes, s.sig, policy.keys[s.keyId]!),
+  );
 }
 
 const shQuote = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
-const pinned = Object.entries(RELEASE_MANIFEST_SIGNING.keys).map(([id, key]) => shQuote(`${id}=${key}`)).join(" ");
+const pinned = Object.entries(RELEASE_MANIFEST_SIGNING.keys)
+  .map(([id, key]) => shQuote(`${id}=${key}`))
+  .join(" ");
 
 /** The same check in sh, for scripts that run where this binary does not: \`manifest_signed DIR\` (and its \`b64decode\` helper). */
 export const MANIFEST_SIGNED_SH = `b64decode() { base64 -d 2>/dev/null || base64 -D; }

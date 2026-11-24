@@ -15,15 +15,28 @@ function money(cents: number, currency: string): string {
 }
 
 function per(price: SeatPrice): string {
-  return price.interval_count === 1 ? `a ${price.interval}` : `every ${price.interval_count} ${price.interval}s`;
+  return price.interval_count === 1
+    ? `a ${price.interval}`
+    : `every ${price.interval_count} ${price.interval}s`;
 }
 
 export type SeatBillingChoice = "monthly" | "annual";
-export const BILLED_OPTIONS = { Monthly: "monthly", Yearly: "annual" } as const satisfies Record<string, SeatBillingChoice>;
+export const BILLED_OPTIONS = {
+  Monthly: "monthly",
+  Yearly: "annual",
+} as const satisfies Record<string, SeatBillingChoice>;
 
-export function seatUpgradeLedger(r: { team: string; seats: number; renew: boolean; offer: SeatOffer | undefined; billing: SeatBillingChoice }): SwitchLedger {
+export function seatUpgradeLedger(r: {
+  team: string;
+  seats: number;
+  renew: boolean;
+  offer: SeatOffer | undefined;
+  billing: SeatBillingChoice;
+}): SwitchLedger {
   const offer = r.offer?.ok ? r.offer : null;
-  const price = offer ? (r.billing === "annual" && offer.annual) || offer.monthly : null;
+  const price = offer
+    ? (r.billing === "annual" && offer.annual) || offer.monthly
+    : null;
   const seats = offer?.seats ?? Math.max(1, r.seats);
   const trial = offer?.trial_days ?? 0;
   return {
@@ -31,9 +44,16 @@ export function seatUpgradeLedger(r: { team: string; seats: number; renew: boole
     subject: r.team,
     shift: ["Starter", "Pro"],
     figures: [
-      { value: price ? money(price.unit_amount, price.currency) : "…", label: "per seat" },
+      {
+        value: price ? money(price.unit_amount, price.currency) : "…",
+        label: "per seat",
+      },
       { value: String(seats), label: seats === 1 ? "seat now" : "seats now" },
-      { value: price ? money(price.unit_amount * seats, price.currency) : "…", label: price ? per(price) : "total", tone: "warn" },
+      {
+        value: price ? money(price.unit_amount * seats, price.currency) : "…",
+        label: price ? per(price) : "total",
+        tone: "warn",
+      },
       ...(trial > 0 ? [{ value: String(trial), label: "days free" }] : []),
     ],
     rows: [
@@ -46,7 +66,19 @@ export function seatUpgradeLedger(r: { team: string; seats: number; renew: boole
     stop: "Cancel in Billing",
     confirm: "Continue to Stripe",
     keep: "Not now",
-    ...(offer?.annual ? { pick: { k: "Billed", options: Object.keys(BILLED_OPTIONS), value: r.billing === "annual" ? "Yearly" : "Monthly" } } : {}),
-    ...(r.offer === undefined ? { blocked: "Loading price" } : !r.offer.ok ? { blocked: "Price unavailable" } : {}),
+    ...(offer?.annual
+      ? {
+          pick: {
+            k: "Billed",
+            options: Object.keys(BILLED_OPTIONS),
+            value: r.billing === "annual" ? "Yearly" : "Monthly",
+          },
+        }
+      : {}),
+    ...(r.offer === undefined
+      ? { blocked: "Loading price" }
+      : !r.offer.ok
+        ? { blocked: "Price unavailable" }
+        : {}),
   };
 }

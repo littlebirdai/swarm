@@ -12,7 +12,9 @@ let repoRoot: string;
 beforeEach(() => {
   repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "cloud-backend-"));
   execSync("git init -q -b main", { cwd: repoRoot });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: repoRoot });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: repoRoot,
+  });
   fs.writeFileSync(path.join(repoRoot, "README.md"), "x\n");
   execSync("git add . && git commit -q -m init", { cwd: repoRoot });
 });
@@ -50,12 +52,18 @@ describe("E2bBackend — credential + SDK guards", () => {
   });
 
   test("exec on missing workspace throws not-found", async () => {
-    await expect(E2bBackend.exec(repoRoot, "nope", "ls")).rejects.toThrow(/not found/);
+    await expect(E2bBackend.exec(repoRoot, "nope", "ls")).rejects.toThrow(
+      /not found/,
+    );
   });
 
   test("readFile/writeFile on missing workspace throw not-found", async () => {
-    await expect(E2bBackend.readFile(repoRoot, "nope", "x")).rejects.toThrow(/not found/);
-    await expect(E2bBackend.writeFile(repoRoot, "nope", "x", "y")).rejects.toThrow(/not found/);
+    await expect(E2bBackend.readFile(repoRoot, "nope", "x")).rejects.toThrow(
+      /not found/,
+    );
+    await expect(
+      E2bBackend.writeFile(repoRoot, "nope", "x", "y"),
+    ).rejects.toThrow(/not found/);
   });
 
   test("release of unknown workspace is a no-op", async () => {
@@ -63,7 +71,9 @@ describe("E2bBackend — credential + SDK guards", () => {
   });
 
   test("validate on missing workspace throws not-found", async () => {
-    await expect(E2bBackend.validate(repoRoot, "nope")).rejects.toThrow(/not found/);
+    await expect(E2bBackend.validate(repoRoot, "nope")).rejects.toThrow(
+      /not found/,
+    );
   });
 });
 
@@ -107,9 +117,15 @@ describe("MacMiniBackend — credential guards", () => {
   });
 
   test("exec/readFile/writeFile on missing workspace throw not-found", async () => {
-    await expect(MacMiniBackend.exec(repoRoot, "nope", "ls")).rejects.toThrow(/not found/);
-    await expect(MacMiniBackend.readFile(repoRoot, "nope", "x")).rejects.toThrow(/not found/);
-    await expect(MacMiniBackend.writeFile(repoRoot, "nope", "x", "y")).rejects.toThrow(/not found/);
+    await expect(MacMiniBackend.exec(repoRoot, "nope", "ls")).rejects.toThrow(
+      /not found/,
+    );
+    await expect(
+      MacMiniBackend.readFile(repoRoot, "nope", "x"),
+    ).rejects.toThrow(/not found/);
+    await expect(
+      MacMiniBackend.writeFile(repoRoot, "nope", "x", "y"),
+    ).rejects.toThrow(/not found/);
   });
 
   test("release of unknown workspace is a no-op", async () => {

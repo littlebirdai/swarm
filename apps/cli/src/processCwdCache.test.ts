@@ -3,14 +3,30 @@ import { ProcessCwdCache } from "./processCwdCache.js";
 
 /** `lsof -a -d cwd -p <pids> -F pn` as lsof prints it, for the pids that are alive. */
 function lsofOut(cwds: Record<number, string>, pids: number[]): string {
-  return pids.filter((p) => p in cwds).map((p) => `p${p}\nfcwd\nn${cwds[p]}\n`).join("");
+  return pids
+    .filter((p) => p in cwds)
+    .map((p) => `p${p}\nfcwd\nn${cwds[p]}\n`)
+    .join("");
 }
 
 function harness(cwds: Record<number, string>) {
   let now = 1_000;
   const calls: number[][] = [];
-  const cache = new ProcessCwdCache(async (pids) => { calls.push(pids); return lsofOut(cwds, pids); }, () => now, 30_000);
-  return { cache, calls, advance: (ms: number) => { now += ms; } };
+  const cache = new ProcessCwdCache(
+    async (pids) => {
+      calls.push(pids);
+      return lsofOut(cwds, pids);
+    },
+    () => now,
+    30_000,
+  );
+  return {
+    cache,
+    calls,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 describe("ProcessCwdCache", () => {
@@ -18,7 +34,11 @@ describe("ProcessCwdCache", () => {
     const { cache, calls } = harness({ 10: "/a", 11: "/b" });
     const got = await cache.cwds([10, 11, 12]);
     expect(calls).toEqual([[10, 11, 12]]);
-    expect([...got]).toEqual([[10, "/a"], [11, "/b"], [12, null]]);
+    expect([...got]).toEqual([
+      [10, "/a"],
+      [11, "/b"],
+      [12, null],
+    ]);
   });
 
   test("answers stay for the TTL, then the next read asks again", async () => {
@@ -42,7 +62,10 @@ describe("ProcessCwdCache", () => {
 
   test("concurrent readers share the read under way", async () => {
     const { cache, calls } = harness({ 10: "/a", 11: "/b" });
-    const [a, b] = await Promise.all([cache.cwds([10, 11]), cache.cwds([11, 10])]);
+    const [a, b] = await Promise.all([
+      cache.cwds([10, 11]),
+      cache.cwds([11, 10]),
+    ]);
     expect(calls.length).toBe(1);
     expect(a.get(10)).toBe("/a");
     expect(b.get(11)).toBe("/b");

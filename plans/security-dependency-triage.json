@@ -22,9 +22,7 @@
   "rows": [
     {
       "name": "@auth/core",
-      "resolvedVersions": [
-        "0.37.4"
-      ],
+      "resolvedVersions": ["0.37.4"],
       "dependencyTree": "@auth/core@0.37.4\n  ├─ @codecast/convex@workspace (requires ^0.37.2)\n  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer @convex-dev/auth@0.0.79 (requires ^0.37.0)\n  │  ├─ @codecast/convex@workspace (requires 0.0.79)\n  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  │  \n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  ├─ @codecast/web@workspace (requires 0.0.79)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  ├─ peer @platform/auth@platform/packages/auth (requires 0.0.79)\n  │  │  ├─ @codecast/cli@workspace (requires file:../../platform/packages/auth)\n  │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/auth)\n  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  │  │  \n  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  │  \n  │  │  └─ @codecast/web@workspace (requires file:../../platform/packages/auth)\n  │  │     └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  └─ dev @platform/auth@platform/packages/auth (requires 0.0.79)\n  │     ├─ @codecast/cli@workspace (requires file:../../platform/packages/auth)\n  │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/auth)\n  │     │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  └─ mobile@workspace (requires workspace:*)\n  │     └─ @codecast/web@workspace (requires file:../../platform/packages/auth)\n  │        └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer @convex-dev/auth@0.0.90 (requires ^0.37.0)\n  │  └─ mobile@workspace (requires ^0.0.90)\n  ├─ optional peer @platform/auth@platform/packages/auth (requires ^0.37.2)",
       "advisories": [
         {
@@ -51,9 +49,7 @@
       ],
       "determination": {
         "versions": "0.37.4 (peer of @convex-dev/auth)",
-        "modes": [
-          "runtime-backend"
-        ],
+        "modes": ["runtime-backend"],
         "symbol": "email normaliser (GHSA-7rqj-j65f-68wh) and getToken() bearer parsing (GHSA-xmf8-cvqr-rfgj)",
         "untrustedInput": "indirect",
         "decision": "fix-planned",
@@ -78,9 +74,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "compiler",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -92,9 +86,7 @@
     },
     {
       "name": "@hono/node-server",
-      "resolvedVersions": [
-        "1.19.14"
-      ],
+      "resolvedVersions": ["1.19.14"],
       "dependencyTree": "@hono/node-server@1.19.14\n  └─ @codecast/web@workspace (requires ^1.19.11)\n     └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -107,9 +99,7 @@
       ],
       "determination": {
         "versions": "resolved with hono",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "request handling",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -121,9 +111,7 @@
     },
     {
       "name": "@opentelemetry/core",
-      "resolvedVersions": [
-        "2.2.0"
-      ],
+      "resolvedVersions": ["2.2.0"],
       "dependencyTree": "@opentelemetry/core@2.2.0\n  ├─ @opentelemetry/exporter-logs-otlp-http@0.208.0 (requires 2.2.0)\n  │  └─ posthog-js@1.372.3 (requires ^0.208.0)\n  │     ├─ @codecast/web@workspace (requires ^1.363.3)\n  │     │  └─ mobile@workspace (requires workspace:*)\n  │     │  \n  │     ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n  │     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  \n  │     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  \n  │     │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  \n  │     │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n  │     │  \n  │     ├─ dev @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n  │     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  \n  │     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  ├─ @codecast/cli@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -136,9 +124,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "n/a",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -150,9 +136,7 @@
     },
     {
       "name": "@tiptap/core",
-      "resolvedVersions": [
-        "3.22.5"
-      ],
+      "resolvedVersions": ["3.22.5"],
       "dependencyTree": "@tiptap/core@3.22.5\n  ├─ peer @tiptap/extension-blockquote@3.22.5 (requires 3.22.5)\n  │  └─ @tiptap/starter-kit@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)\n  │        └─ mobile@workspace (requires workspace:*)\n  │        \n  ├─ peer @tiptap/extension-bold@3.22.5 (requires 3.22.5)\n  │  └─ @tiptap/starter-kit@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)\n  │        └─ mobile@workspace (requires workspace:*)\n  │        \n  ├─ peer @tiptap/extension-bubble-menu@3.22.5 (requires 3.22.5)\n  │  ├─ @codecast/web@workspace (requires ^3.20.4)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  └─ optional @tiptap/react@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)\n  │        └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer @tiptap/extension-code@3.22.5 (requires 3.22.5)\n  │  └─ @tiptap/starter-kit@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)\n  │        └─ mobile@workspace (requires workspace:*)\n  │        \n  ├─ peer @tiptap/extension-code-block@3.22.5 (requires 3.22.5)\n  │  ├─ peer @tiptap/extension-code-block-lowlight@3.22.5 (requires 3.22.5)\n  │  │  └─ @codecast/web@workspace (requires ^3.20.4)\n  │  │     └─ mobile@workspace (requires workspace:*)\n  │  │     \n  │  └─ @tiptap/starter-kit@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)\n  │        └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer @tiptap/extension-code-block-lowlight@3.22.5 (requires 3.22.5)\n  │  └─ @codecast/web@workspace (requires ^3.20.4)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  ├─ peer @tiptap/extension-document@3.22.5 (requires 3.22.5)\n  │  └─ @tiptap/starter-kit@3.22.5 (requires ^3.22.5)\n  │     └─ @codecast/web@workspace (requires ^3.20.4)",
       "advisories": [
         {
@@ -172,9 +156,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "editor HTML handling",
         "untrustedInput": "indirect",
         "decision": "fix-planned",
@@ -186,9 +168,7 @@
     },
     {
       "name": "@tootallnate/once",
-      "resolvedVersions": [
-        "2.0.0"
-      ],
+      "resolvedVersions": ["2.0.0"],
       "dependencyTree": "@tootallnate/once@2.0.0\n  └─ http-proxy-agent@5.0.0 (requires 2)\n     └─ make-fetch-happen@10.2.1 (requires ^5.0.0)\n        └─ node-gyp@9.4.1 (requires ^10.0.3)\n           └─ @electron/rebuild@3.6.1 (requires ^9.0.0)\n              └─ app-builder-lib@25.1.8 (requires 3.6.1)\n                 ├─ dmg-builder@25.1.8 (requires 25.1.8)\n                 │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n                 │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n                 │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n                 │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n                 │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n                 │     └─ *circular\n                 ├─ electron-builder@25.1.8 (requires 25.1.8)\n                 │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n                 │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n                 │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n                 └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n                    └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n                       └─ *circular",
       "advisories": [
         {
@@ -201,9 +181,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "n/a",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -215,9 +193,7 @@
     },
     {
       "name": "@xmldom/xmldom",
-      "resolvedVersions": [
-        "0.8.13"
-      ],
+      "resolvedVersions": ["0.8.13"],
       "dependencyTree": "@xmldom/xmldom@0.8.13\n  ├─ @expo/plist@0.4.8 (requires ^0.8.8)\n  │  ├─ @expo/cli@54.0.24 (requires ^0.4.8)\n  │  │  └─ expo@54.0.34 (requires 54.0.24)\n  │  │     ├─ mobile@workspace (requires ~54.0.29)\n  │  │     ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n  │  │     │  └─ mobile@workspace (requires 5.0.0)\n  │  │     ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n  │  │     │  ├─ mobile@workspace (requires ^8.5.0)\n  │  │     │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │  │     │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  │  \n  │  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  \n  │  │     │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │  │     │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │  │     │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n  │  │     │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │     │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  │  │  \n  │  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  │  \n  │  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  │  \n  │  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  \n  │  │     │  │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n  │  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │  │  │  \n  │  │     │  │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n  │  │     │  │  \n  │  │     │  └─ dev @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │  │     │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │  │     │     │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │     │     │  │  └─ mobile@workspace (requires workspace:*)\n  │  │     │     │  └─ mobile@workspace (requires workspace:*)\n  │  │     │     ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)",
       "advisories": [
         {
@@ -419,9 +395,7 @@
       ],
       "determination": {
         "versions": "see bun why @xmldom/xmldom",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "XML parsing",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -433,9 +407,7 @@
     },
     {
       "name": "app-builder-lib",
-      "resolvedVersions": [
-        "25.1.8"
-      ],
+      "resolvedVersions": ["25.1.8"],
       "dependencyTree": "app-builder-lib@25.1.8\n  ├─ dmg-builder@25.1.8 (requires 25.1.8)\n  │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  │  \n  │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │     ├─ dmg-builder@25.1.8 (requires 25.1.8)\n  │     │  └─ *circular\n  │     ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │     │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │     │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │     │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │     └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n  │        └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │           └─ *circular\n  │  \n  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  \n  └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n     └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n        ├─ dmg-builder@25.1.8 (requires 25.1.8)\n        │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n        │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n        │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n        │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n        │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n        │     └─ *circular\n        ├─ electron-builder@25.1.8 (requires 25.1.8)\n        │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n        │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n        │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n        └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n           └─ *circular",
       "advisories": [
         {
@@ -448,9 +420,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "packaging",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -475,9 +445,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "n/a",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -565,10 +533,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only",
-          "dev-only"
-        ],
+        "modes": ["build-only", "dev-only"],
         "symbol": "ReDoS",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -600,9 +565,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "query ReDoS",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -614,9 +577,7 @@
     },
     {
       "name": "builder-util-runtime",
-      "resolvedVersions": [
-        "9.2.10"
-      ],
+      "resolvedVersions": ["9.2.10"],
       "dependencyTree": "builder-util-runtime@9.2.10\n  ├─ app-builder-lib@25.1.8 (requires 9.2.10)\n  │  ├─ dmg-builder@25.1.8 (requires 25.1.8)\n  │  │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │  │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  │  │  \n  │  │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │  │     └─ *circular\n  │  │  \n  │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  │  \n  │  └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n  │     └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │        └─ *circular\n  │  \n  ├─ builder-util@25.1.7 (requires 9.2.10)\n  │  ├─ app-builder-lib@25.1.8 (requires 25.1.7)\n  │  │  ├─ dmg-builder@25.1.8 (requires 25.1.8)\n  │  │  │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  │  │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  │  │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │  │  │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  │  │  │  \n  │  │  │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │  │  │     └─ *circular\n  │  │  │  \n  │  │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n  │  │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n  │  │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n  │  │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n  │  │  │  \n  │  │  └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n  │  │     └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n  │  │        └─ *circular\n  │  │",
       "advisories": [
         {
@@ -629,9 +590,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "packaging",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -643,9 +602,7 @@
     },
     {
       "name": "decode-uri-component",
-      "resolvedVersions": [
-        "0.2.2"
-      ],
+      "resolvedVersions": ["0.2.2"],
       "dependencyTree": "decode-uri-component@0.2.2\n  └─ query-string@7.1.3 (requires ^0.2.2)\n     ├─ @react-navigation/core@7.17.2 (requires ^7.1.3)\n     │  └─ @react-navigation/native@7.2.2 (requires ^7.17.2)\n     │     ├─ expo-router@6.0.23 (requires ^7.1.8)\n     │     │  ├─ mobile@workspace (requires ~6.0.20)\n     │     │  └─ optional peer @expo/cli@54.0.24 (requires *)\n     │     │     └─ expo@54.0.34 (requires 54.0.24)\n     │     │        ├─ mobile@workspace (requires ~54.0.29)\n     │     │        ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n     │     │        │  └─ mobile@workspace (requires 5.0.0)\n     │     │        ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n     │     │        │  ├─ mobile@workspace (requires ^8.5.0)\n     │     │        │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n     │     │        │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │     │        │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │     │        │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │     │        │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │     │        │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │        │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n     │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │  │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n     │     │        │  └─ dev @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n     │     │        │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │     │        │     │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │        │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │        │     │  └─ mobile@workspace (requires workspace:*)\n     │     │        │     ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │     │        │     │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │     │        │     │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │     │        │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │        │     │  │  │  └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -658,9 +615,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "DoS",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -672,10 +627,7 @@
     },
     {
       "name": "dompurify",
-      "resolvedVersions": [
-        "3.4.8",
-        "3.4.1"
-      ],
+      "resolvedVersions": ["3.4.8", "3.4.1"],
       "dependencyTree": "dompurify@3.4.8\n  └─ @codecast/web@workspace (requires ^3.4.8)\n     └─ mobile@workspace (requires workspace:*)\n\ndompurify@3.4.1\n  ├─ mermaid@11.14.0 (requires ^3.3.1)\n  │  └─ @codecast/web@workspace (requires ^11.13.0)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  └─ posthog-js@1.372.3 (requires ^3.3.2)\n     ├─ @codecast/web@workspace (requires ^1.363.3)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n     ├─ dev @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -751,9 +703,7 @@
       ],
       "determination": {
         "versions": "see bun why dompurify",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "sanitiser bypass (mXSS) advisories",
         "untrustedInput": "yes",
         "decision": "fix-planned",
@@ -765,10 +715,7 @@
     },
     {
       "name": "esbuild",
-      "resolvedVersions": [
-        "0.24.2",
-        "0.27.0"
-      ],
+      "resolvedVersions": ["0.24.2", "0.27.0"],
       "dependencyTree": "esbuild@0.24.2\n  └─ dev codecast-blame@workspace (requires ^0.24.0)\n\nesbuild@0.27.0\n  └─ convex@1.36.1 (requires 0.27.0)\n     ├─ @codecast/convex@workspace (requires ^1.31.6)\n     │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ @codecast/web@workspace (requires ^1.31.6)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ codecast (requires ^1.31.6)\n     ├─ mobile@workspace (requires ^1.31.2)\n     ├─ peer @convex-dev/auth@0.0.79 (requires ^1.17.0)\n     │  ├─ @codecast/convex@workspace (requires 0.0.79)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/web@workspace (requires 0.0.79)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ peer @platform/auth@platform/packages/auth (requires 0.0.79)\n     │  │  ├─ @codecast/cli@workspace (requires file:../../platform/packages/auth)\n     │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/auth)\n     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ @codecast/web@workspace (requires file:../../platform/packages/auth)\n     │  │     └─ mobile@workspace (requires workspace:*)\n     │  └─ dev @platform/auth@platform/packages/auth (requires 0.0.79)\n     │     ├─ @codecast/cli@workspace (requires file:../../platform/packages/auth)\n     │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/auth)\n     │     │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  └─ mobile@workspace (requires workspace:*)\n     │     └─ @codecast/web@workspace (requires file:../../platform/packages/auth)\n     │        └─ mobile@workspace (requires workspace:*)\n     ├─ peer @convex-dev/auth@0.0.90 (requires ^1.17.0)\n     │  └─ mobile@workspace (requires ^0.0.90)\n     ├─ peer @convex-dev/prosemirror-sync@0.2.3 (requires ^1.24.8)\n     │  ├─ @codecast/convex@workspace (requires ^0.2.3)",
       "advisories": [
         {
@@ -788,9 +735,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "dev server CORS (GHSA-67mh-4wv8-2f99)",
         "untrustedInput": "no",
         "decision": "accepted-risk",
@@ -802,9 +747,7 @@
     },
     {
       "name": "fast-uri",
-      "resolvedVersions": [
-        "3.1.0"
-      ],
+      "resolvedVersions": ["3.1.0"],
       "dependencyTree": "fast-uri@3.1.0\n  └─ ajv@8.20.0 (requires ^3.0.1)\n     ├─ expo-build-properties@1.0.10 (requires ^8.11.0)\n     │  └─ mobile@workspace (requires ~1.0.10)\n     ├─ expo-dev-launcher@6.0.21 (requires ^8.11.0)\n     │  └─ expo-dev-client@6.0.21 (requires 6.0.21)\n     │     └─ mobile@workspace (requires ~6.0.20)\n     ├─ workbox-build@7.4.1 (requires ^8.6.0)\n     │  └─ vite-plugin-pwa@1.3.0 (requires ^7.4.1)\n     │     └─ dev @codecast/web@workspace (requires ^1.3.0)\n     │        └─ mobile@workspace (requires workspace:*)\n     └─ peer @apideck/better-ajv-errors@0.3.7 (requires >=8)\n        └─ workbox-build@7.4.1 (requires ^0.3.1)\n           └─ vite-plugin-pwa@1.3.0 (requires ^7.4.1)\n              └─ dev @codecast/web@workspace (requires ^1.3.0)\n                 └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -859,9 +802,7 @@
       ],
       "determination": {
         "versions": "see bun why fast-uri",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "URI parsing",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -873,9 +814,7 @@
     },
     {
       "name": "fflate",
-      "resolvedVersions": [
-        "0.4.8"
-      ],
+      "resolvedVersions": ["0.4.8"],
       "dependencyTree": "fflate@0.4.8\n  ├─ @codecast/convex@workspace (requires ^0.4.8)\n  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  └─ mobile@workspace (requires workspace:*)\n  │  \n  └─ posthog-js@1.372.3 (requires ^0.4.8)\n     ├─ @codecast/web@workspace (requires ^1.363.3)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n     ├─ dev @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  └─ mobile@workspace (requires workspace:*)\n     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │  │  └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -888,10 +827,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "runtime-web",
-          "dev-only"
-        ],
+        "modes": ["runtime-web", "dev-only"],
         "symbol": "decompression bomb",
         "untrustedInput": "indirect",
         "decision": "accepted-risk",
@@ -903,9 +839,7 @@
     },
     {
       "name": "form-data",
-      "resolvedVersions": [
-        "4.0.5"
-      ],
+      "resolvedVersions": ["4.0.5"],
       "dependencyTree": "form-data@4.0.5\n  └─ app-builder-lib@25.1.8 (requires ^4.0.0)\n     ├─ dmg-builder@25.1.8 (requires 25.1.8)\n     │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n     │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n     │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n     │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n     │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n     │     └─ *circular\n     ├─ electron-builder@25.1.8 (requires 25.1.8)\n     │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n     │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n     │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n     └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n        └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n           └─ *circular",
       "advisories": [
         {
@@ -918,9 +852,7 @@
       ],
       "determination": {
         "versions": "see bun why form-data",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "boundary randomness",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -932,10 +864,7 @@
     },
     {
       "name": "highlight.js",
-      "resolvedVersions": [
-        "11.11.1",
-        "9.12.0"
-      ],
+      "resolvedVersions": ["11.11.1", "9.12.0"],
       "dependencyTree": "highlight.js@11.11.1\n  ├─ @codecast/convex@workspace (requires ^11.11.1)\n  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer @tiptap/extension-code-block-lowlight@3.22.5 (requires ^11)\n  │  └─ @codecast/web@workspace (requires ^3.20.4)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  └─ lowlight@3.3.0 (requires ~11.11.0)\n     ├─ @codecast/web@workspace (requires ^3.3.0)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ rehype-highlight@7.0.2 (requires ^3.0.0)\n     │  └─ @codecast/web@workspace (requires ^7.0.2)\n     │     └─ mobile@workspace (requires workspace:*)\n     └─ peer @tiptap/extension-code-block-lowlight@3.22.5 (requires ^2 || ^3)\n        └─ @codecast/web@workspace (requires ^3.20.4)\n           └─ mobile@workspace (requires workspace:*)\n\nhighlight.js@9.12.0\n  ├─ lowlight@1.9.2 (requires ~9.12.0)\n  │  └─ react-syntax-highlighter@6.1.2 (requires ~1.9.1)\n  │     └─ react-native-syntax-highlighter@2.1.0 (requires ^6.0.4)\n  │        └─ mobile@workspace (requires ^2.1.0)\n  └─ react-syntax-highlighter@6.1.2 (requires ~9.12.0)\n     └─ react-native-syntax-highlighter@2.1.0 (requires ^6.0.4)\n        └─ mobile@workspace (requires ^2.1.0)",
       "advisories": [
         {
@@ -955,9 +884,7 @@
       ],
       "determination": {
         "versions": "see bun why highlight.js",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "ReDoS in language grammars",
         "untrustedInput": "yes",
         "decision": "accepted-risk",
@@ -969,9 +896,7 @@
     },
     {
       "name": "hono",
-      "resolvedVersions": [
-        "4.12.15"
-      ],
+      "resolvedVersions": ["4.12.15"],
       "dependencyTree": "hono@4.12.15\n  ├─ @codecast/web@workspace (requires ^4.12.8)\n  │  └─ mobile@workspace (requires workspace:*)\n  │  \n  └─ peer @hono/node-server@1.19.14 (requires ^4)\n     └─ @codecast/web@workspace (requires ^1.19.11)\n        └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1145,9 +1070,7 @@
       ],
       "determination": {
         "versions": "resolved copies under @platform/auth and tooling",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "router / body parsing advisories",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1179,9 +1102,7 @@
       ],
       "determination": {
         "versions": "see bun why image-size",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "malformed image DoS",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1193,9 +1114,7 @@
     },
     {
       "name": "ip-address",
-      "resolvedVersions": [
-        "10.1.1"
-      ],
+      "resolvedVersions": ["10.1.1"],
       "dependencyTree": "ip-address@10.1.1\n  └─ socks@2.8.8 (requires ^10.1.1)\n     └─ socks-proxy-agent@7.0.0 (requires ^2.6.2)\n        └─ make-fetch-happen@10.2.1 (requires ^7.0.0)\n           └─ node-gyp@9.4.1 (requires ^10.0.3)\n              └─ @electron/rebuild@3.6.1 (requires ^9.0.0)\n                 └─ app-builder-lib@25.1.8 (requires 3.6.1)\n                    ├─ dmg-builder@25.1.8 (requires 25.1.8)\n                    │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n                    │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n                    │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n                    │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n                    │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n                    │     └─ *circular\n                    ├─ electron-builder@25.1.8 (requires 25.1.8)\n                    │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n                    │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n                    │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n                    └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n                       └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n                          └─ *circular",
       "advisories": [
         {
@@ -1222,9 +1141,7 @@
       ],
       "determination": {
         "versions": "see bun why ip-address",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "IP parsing",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1298,10 +1215,7 @@
       ],
       "determination": {
         "versions": "see bun why js-yaml",
-        "modes": [
-          "build-only",
-          "dev-only"
-        ],
+        "modes": ["build-only", "dev-only"],
         "symbol": "prototype pollution on merge keys",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1313,9 +1227,7 @@
     },
     {
       "name": "linkify-it",
-      "resolvedVersions": [
-        "5.0.0"
-      ],
+      "resolvedVersions": ["5.0.0"],
       "dependencyTree": "linkify-it@5.0.0\n  └─ markdown-it@14.1.1 (requires ^5.0.0)\n     ├─ prosemirror-markdown@1.13.4 (requires ^14.0.0)\n     │  └─ tiptap-markdown@0.9.0 (requires ^1.11.1)\n     │     └─ @codecast/web@workspace (requires ^0.9.0)\n     │        └─ mobile@workspace (requires workspace:*)\n     └─ tiptap-markdown@0.9.0 (requires ^14.1.0)\n        └─ @codecast/web@workspace (requires ^0.9.0)\n           └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1335,9 +1247,7 @@
       ],
       "determination": {
         "versions": "with markdown-it",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "link detection",
         "untrustedInput": "yes",
         "decision": "fix-planned",
@@ -1349,9 +1259,7 @@
     },
     {
       "name": "markdown-it",
-      "resolvedVersions": [
-        "14.1.1"
-      ],
+      "resolvedVersions": ["14.1.1"],
       "dependencyTree": "markdown-it@14.1.1\n  ├─ prosemirror-markdown@1.13.4 (requires ^14.0.0)\n  │  └─ tiptap-markdown@0.9.0 (requires ^1.11.1)\n  │     └─ @codecast/web@workspace (requires ^0.9.0)\n  │        └─ mobile@workspace (requires workspace:*)\n  │        \n  └─ tiptap-markdown@0.9.0 (requires ^14.1.0)\n     └─ @codecast/web@workspace (requires ^0.9.0)\n        └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1364,9 +1272,7 @@
       ],
       "determination": {
         "versions": "see bun why markdown-it",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "linkify / reference parsing",
         "untrustedInput": "yes",
         "decision": "fix-planned",
@@ -1378,9 +1284,7 @@
     },
     {
       "name": "mermaid",
-      "resolvedVersions": [
-        "11.14.0"
-      ],
+      "resolvedVersions": ["11.14.0"],
       "dependencyTree": "mermaid@11.14.0\n  └─ @codecast/web@workspace (requires ^11.13.0)\n     └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1449,9 +1353,7 @@
       ],
       "determination": {
         "versions": "see bun why mermaid",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "diagram rendering from untrusted text",
         "untrustedInput": "yes",
         "decision": "fix-planned",
@@ -1463,10 +1365,7 @@
     },
     {
       "name": "nanoid",
-      "resolvedVersions": [
-        "5.1.9",
-        "3.3.11"
-      ],
+      "resolvedVersions": ["5.1.9", "3.3.11"],
       "dependencyTree": "nanoid@5.1.9\n  └─ codecast (requires ^5.1.7)\n\nnanoid@3.3.11\n  ├─ @react-navigation/core@7.17.2 (requires ^3.3.11)\n  │  └─ @react-navigation/native@7.2.2 (requires ^7.17.2)\n  │     ├─ expo-router@6.0.23 (requires ^7.1.8)\n  │     │  ├─ mobile@workspace (requires ~6.0.20)\n  │     │  └─ optional peer @expo/cli@54.0.24 (requires *)\n  │     │     └─ expo@54.0.34 (requires 54.0.24)\n  │     │        ├─ mobile@workspace (requires ~54.0.29)\n  │     │        ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n  │     │        │  └─ mobile@workspace (requires 5.0.0)\n  │     │        ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n  │     │        │  ├─ mobile@workspace (requires ^8.5.0)\n  │     │        │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │     │        │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │        │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │        │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │     │        │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n  │     │        │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │        │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │        │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n  │     │        │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │  │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n  │     │        │  └─ dev @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │     │        │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │        │     │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │        │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │        │     │  └─ mobile@workspace (requires workspace:*)\n  │     │        │     ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │        │     │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │     │        │     │  ├─ @codecast/convex@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1507,10 +1406,7 @@
       ],
       "determination": {
         "versions": "see bun why nanoid",
-        "modes": [
-          "runtime-web",
-          "runtime-backend"
-        ],
+        "modes": ["runtime-web", "runtime-backend"],
         "symbol": "predictable ids when a non-integer size is passed",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1522,9 +1418,7 @@
     },
     {
       "name": "postcss",
-      "resolvedVersions": [
-        "8.5.12"
-      ],
+      "resolvedVersions": ["8.5.12"],
       "dependencyTree": "postcss@8.5.12\n  ├─ tailwindcss@3.4.19 (requires ^8.4.47)\n  │  ├─ dev @codecast/web@workspace (requires ^3.4.16)\n  │  │  └─ mobile@workspace (requires workspace:*)\n  │  │  \n  │  ├─ peer @tailwindcss/typography@0.5.19 (requires >=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1)\n  │  │  └─ dev @codecast/web@workspace (requires ^0.5.19)\n  │  │     └─ mobile@workspace (requires workspace:*)\n  │  │     \n  │  └─ peer tailwindcss-animate@1.0.7 (requires >=3.0.0 || insiders)\n  │     └─ @codecast/web@workspace (requires ^1.0.7)\n  │        └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ vite@6.4.2 (requires ^8.5.3)\n  │  ├─ peer @vitejs/plugin-react@4.7.0 (requires ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0)\n  │  │  └─ dev @codecast/web@workspace (requires ^4.5.2)\n  │  │     └─ mobile@workspace (requires workspace:*)\n  │  │     \n  │  ├─ peer vite-plugin-pwa@1.3.0 (requires ^3.1.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0)\n  │  │  └─ dev @codecast/web@workspace (requires ^1.3.0)\n  │  │     └─ mobile@workspace (requires workspace:*)\n  │  │     \n  │  └─ dev @codecast/web@workspace (requires ^6.3.5)\n  │     └─ mobile@workspace (requires workspace:*)\n  │  \n  ├─ peer autoprefixer@10.5.0 (requires ^8.1.0)\n  │  └─ dev @codecast/web@workspace (requires ^10.4.20)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  ├─ peer postcss-import@15.1.0 (requires ^8.0.0)\n  │  └─ tailwindcss@3.4.19 (requires ^15.1.0)\n  │     ├─ dev @codecast/web@workspace (requires ^3.4.16)\n  │     │  └─ mobile@workspace (requires workspace:*)\n  │     │  \n  │     ├─ peer @tailwindcss/typography@0.5.19 (requires >=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1)\n  │     │  └─ dev @codecast/web@workspace (requires ^0.5.19)\n  │     │     └─ mobile@workspace (requires workspace:*)\n  │     │     \n  │     └─ peer tailwindcss-animate@1.0.7 (requires >=3.0.0 || insiders)\n  │        └─ @codecast/web@workspace (requires ^1.0.7)",
       "advisories": [
         {
@@ -1558,9 +1452,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "parser",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1572,10 +1464,7 @@
     },
     {
       "name": "postcss-selector-parser",
-      "resolvedVersions": [
-        "6.0.10",
-        "6.1.2"
-      ],
+      "resolvedVersions": ["6.0.10", "6.1.2"],
       "dependencyTree": "postcss-selector-parser@6.0.10\n  └─ @tailwindcss/typography@0.5.19 (requires 6.0.10)\n     └─ dev @codecast/web@workspace (requires ^0.5.19)\n        └─ mobile@workspace (requires workspace:*)\n\npostcss-selector-parser@6.1.2\n  ├─ postcss-nested@6.2.0 (requires ^6.1.1)\n  │  └─ tailwindcss@3.4.19 (requires ^6.2.0)\n  │     ├─ dev @codecast/web@workspace (requires ^3.4.16)\n  │     │  └─ mobile@workspace (requires workspace:*)\n  │     │  \n  │     ├─ peer @tailwindcss/typography@0.5.19 (requires >=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1)\n  │     │  └─ dev @codecast/web@workspace (requires ^0.5.19)\n  │     │     └─ mobile@workspace (requires workspace:*)\n  │     │     \n  │     └─ peer tailwindcss-animate@1.0.7 (requires >=3.0.0 || insiders)\n  │        └─ @codecast/web@workspace (requires ^1.0.7)\n  │           └─ mobile@workspace (requires workspace:*)\n  │     \n  └─ tailwindcss@3.4.19 (requires ^6.1.2)\n     ├─ dev @codecast/web@workspace (requires ^3.4.16)\n     │  └─ mobile@workspace (requires workspace:*)\n     ├─ peer @tailwindcss/typography@0.5.19 (requires >=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1)\n     │  └─ dev @codecast/web@workspace (requires ^0.5.19)\n     │     └─ mobile@workspace (requires workspace:*)\n     └─ peer tailwindcss-animate@1.0.7 (requires >=3.0.0 || insiders)\n        └─ @codecast/web@workspace (requires ^1.0.7)\n           └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1588,9 +1477,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "parser",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1602,10 +1489,7 @@
     },
     {
       "name": "prismjs",
-      "resolvedVersions": [
-        "1.30.0",
-        "1.17.1"
-      ],
+      "resolvedVersions": ["1.30.0", "1.17.1"],
       "dependencyTree": "prismjs@1.30.0\n  ├─ @codecast/web@workspace (requires ^1.30.0)\n  │  └─ mobile@workspace (requires workspace:*)\n  │  \n  └─ react-syntax-highlighter@6.1.2 (requires ^1.8.4)\n     └─ react-native-syntax-highlighter@2.1.0 (requires ^6.0.4)\n        └─ mobile@workspace (requires ^2.1.0)\n\nprismjs@1.17.1\n  └─ refractor@2.10.1 (requires ~1.17.0)\n     └─ react-syntax-highlighter@6.1.2 (requires ^2.0.0)\n        └─ react-native-syntax-highlighter@2.1.0 (requires ^6.0.4)\n           └─ mobile@workspace (requires ^2.1.0)",
       "advisories": [
         {
@@ -1653,9 +1537,7 @@
       ],
       "determination": {
         "versions": "see bun why prismjs",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "ReDoS in language grammars",
         "untrustedInput": "yes",
         "decision": "accepted-risk",
@@ -1667,9 +1549,7 @@
     },
     {
       "name": "protobufjs",
-      "resolvedVersions": [
-        "7.5.6"
-      ],
+      "resolvedVersions": ["7.5.6"],
       "dependencyTree": "protobufjs@7.5.6\n  └─ @opentelemetry/otlp-transformer@0.208.0 (requires ^7.3.0)\n     ├─ @opentelemetry/exporter-logs-otlp-http@0.208.0 (requires 0.208.0)\n     │  └─ posthog-js@1.372.3 (requires ^0.208.0)\n     │     ├─ @codecast/web@workspace (requires ^1.363.3)\n     │     │  └─ mobile@workspace (requires workspace:*)\n     │     ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n     │     ├─ dev @platform/analytics@platform/packages/analytics (requires ^1.363.3)\n     │     │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │     │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n     │     │  │  └─ mobile@workspace (requires workspace:*)\n     │     │  └─ mobile@workspace (requires file:../../platform/packages/analytics)",
       "advisories": [
         {
@@ -1703,9 +1583,7 @@
       ],
       "determination": {
         "versions": "see bun why protobufjs",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "prototype pollution in reflection",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1717,9 +1595,7 @@
     },
     {
       "name": "react-router",
-      "resolvedVersions": [
-        "7.14.2"
-      ],
+      "resolvedVersions": ["7.14.2"],
       "dependencyTree": "react-router@7.14.2\n  └─ @codecast/web@workspace (requires ^7.5.0)\n     └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1774,9 +1650,7 @@
       ],
       "determination": {
         "versions": "7.14.2",
-        "modes": [
-          "runtime-web"
-        ],
+        "modes": ["runtime-web"],
         "symbol": "client routing: open redirect via a backslash in <Link>/useNavigate (fixed 7.18.0); the RSC, manifest and SSR advisories concern server paths we do not run",
         "untrustedInput": "indirect",
         "decision": "fix-planned",
@@ -1808,9 +1682,7 @@
       ],
       "determination": {
         "versions": "see bun why shell-quote",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "quote() injection",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1822,9 +1694,7 @@
     },
     {
       "name": "tar",
-      "resolvedVersions": [
-        "7.5.13"
-      ],
+      "resolvedVersions": ["7.5.13"],
       "dependencyTree": "tar@7.5.13\n  ├─ @expo/cli@54.0.24 (requires ^7.5.2)\n  │  └─ expo@54.0.34 (requires 54.0.24)\n  │     ├─ mobile@workspace (requires ~54.0.29)\n  │     ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n  │     │  └─ mobile@workspace (requires 5.0.0)\n  │     ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n  │     │  ├─ mobile@workspace (requires ^8.5.0)\n  │     │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │     │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │     │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n  │     │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  │  \n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  └─ mobile@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  \n  │     │  └─ dev @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │     │     ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │     │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │     │  │  └─ mobile@workspace (requires workspace:*)\n  │     │     │  └─ mobile@workspace (requires workspace:*)\n  │     │     ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │     │  ├─ @codecast/cli@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -1914,9 +1784,7 @@
       ],
       "determination": {
         "versions": "see bun why tar",
-        "modes": [
-          "build-only"
-        ],
+        "modes": ["build-only"],
         "symbol": "path traversal on extraction",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1928,9 +1796,7 @@
     },
     {
       "name": "tmp",
-      "resolvedVersions": [
-        "0.2.5"
-      ],
+      "resolvedVersions": ["0.2.5"],
       "dependencyTree": "tmp@0.2.5\n  └─ tmp-promise@3.0.3 (requires ^0.2.0)\n     └─ @malept/flatpak-bundler@0.4.0 (requires ^3.0.2)\n        └─ app-builder-lib@25.1.8 (requires ^0.4.0)\n           ├─ dmg-builder@25.1.8 (requires 25.1.8)\n           │  ├─ electron-builder@25.1.8 (requires 25.1.8)\n           │  │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n           │  │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n           │  │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n           │  └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n           │     └─ *circular\n           ├─ electron-builder@25.1.8 (requires 25.1.8)\n           │  ├─ dev @codecast/electron@workspace (requires ^25.0.0)\n           │  └─ optional peer @platform/desktop@platform/packages/desktop (requires >=24)\n           │     └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n           └─ electron-builder-squirrel-windows@25.1.8 (requires 25.1.8)\n              └─ peer app-builder-lib@25.1.8 (requires 25.1.8)\n                 └─ *circular",
       "advisories": [
         {
@@ -1943,10 +1809,7 @@
       ],
       "determination": {
         "versions": "see bun why tmp",
-        "modes": [
-          "build-only",
-          "dev-only"
-        ],
+        "modes": ["build-only", "dev-only"],
         "symbol": "symlink temp dir",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1958,9 +1821,7 @@
     },
     {
       "name": "turbo",
-      "resolvedVersions": [
-        "2.9.6"
-      ],
+      "resolvedVersions": ["2.9.6"],
       "dependencyTree": "turbo@2.9.6\n  └─ dev codecast (requires ^2.3.0)",
       "advisories": [
         {
@@ -1980,9 +1841,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "task runner",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -1994,10 +1853,7 @@
     },
     {
       "name": "undici",
-      "resolvedVersions": [
-        "7.26.0",
-        "6.25.0"
-      ],
+      "resolvedVersions": ["7.26.0", "6.25.0"],
       "dependencyTree": "undici@7.26.0\n  ├─ e2b@2.24.0 (requires ^7.25.0)\n  │  └─ codecast (requires ^2.24.0)\n  └─ optional @electron/get@5.1.0 (requires ^7.24.4)\n     └─ electron@44.3.0 (requires ^5.0.0)\n        ├─ dev @codecast/electron@workspace (requires ^44.3.0)\n        └─ peer @platform/desktop@platform/packages/desktop (requires >=28)\n           └─ @codecast/electron@workspace (requires file:../../platform/packages/desktop)\n\nundici@6.25.0\n  ├─ @expo/cli@54.0.24 (requires ^6.18.2)\n  │  └─ expo@54.0.34 (requires 54.0.24)\n  │     ├─ mobile@workspace (requires ~54.0.29)\n  │     ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n  │     │  └─ mobile@workspace (requires 5.0.0)\n  │     ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n  │     │  ├─ mobile@workspace (requires ^8.5.0)\n  │     │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n  │     │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n  │     │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n  │     │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  │  \n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  │  \n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │  \n  │     │  │  ├─ @codecast/web@workspace (requires file:../../platform/packages/analytics)\n  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n  │     │  │  │",
       "advisories": [
         {
@@ -2136,10 +1992,7 @@
       ],
       "determination": {
         "versions": "see bun why undici",
-        "modes": [
-          "dev-only",
-          "build-only"
-        ],
+        "modes": ["dev-only", "build-only"],
         "symbol": "fetch client advisories",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -2151,12 +2004,7 @@
     },
     {
       "name": "uuid",
-      "resolvedVersions": [
-        "11.1.0",
-        "8.3.2",
-        "10.0.0",
-        "7.0.3"
-      ],
+      "resolvedVersions": ["11.1.0", "8.3.2", "10.0.0", "7.0.3"],
       "dependencyTree": "uuid@11.1.0\n  └─ mermaid@11.14.0 (requires ^11.1.0)\n     └─ @codecast/web@workspace (requires ^11.13.0)\n        └─ mobile@workspace (requires workspace:*)\n\nuuid@8.3.2\n  └─ @bacons/xcode@1.0.0-alpha.32 (requires ^8.3.2)\n     └─ @bacons/apple-targets@5.0.0 (requires 1.0.0-alpha.32)\n        └─ mobile@workspace (requires 5.0.0)\n\nuuid@10.0.0\n  └─ svix@1.90.0 (requires ^10.0.0)\n     └─ resend@6.12.2 (requires 1.90.0)\n        └─ @codecast/convex@workspace (requires ^6.6.0)\n           ├─ @codecast/web@workspace (requires workspace:*)\n           │  └─ mobile@workspace (requires workspace:*)\n           └─ mobile@workspace (requires workspace:*)\n\nuuid@7.0.3\n  └─ xcode@3.0.1 (requires ^7.0.3)\n     ├─ @expo/config-plugins@54.0.4 (requires ^3.0.1)\n     │  ├─ @expo/cli@54.0.24 (requires ~54.0.4)\n     │  │  └─ expo@54.0.34 (requires 54.0.24)\n     │  │     ├─ mobile@workspace (requires ~54.0.29)\n     │  │     ├─ peer @bacons/apple-targets@5.0.0 (requires >=52)\n     │  │     │  └─ mobile@workspace (requires 5.0.0)\n     │  │     ├─ optional peer @sentry/react-native@8.9.2 (requires >=49.0.0)\n     │  │     │  ├─ mobile@workspace (requires ^8.5.0)\n     │  │     │  ├─ optional peer @platform/analytics@platform/packages/analytics (requires ^8.5.0)\n     │  │     │  │  ├─ @codecast/convex@workspace (requires file:../../platform/packages/analytics)\n     │  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │     │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │     │  │  ├─ @codecast/shared@workspace (requires file:../../platform/packages/analytics)\n     │  │     │  │  │  ├─ @codecast/cli@workspace (requires workspace:*)\n     │  │     │  │  │  ├─ @codecast/convex@workspace (requires workspace:*)\n     │  │     │  │  │  │  ├─ @codecast/web@workspace (requires workspace:*)\n     │  │     │  │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │     │  │  │  │  └─ mobile@workspace (requires workspace:*)\n     │  │     │  │  │  ├─ @codecast/web@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -2169,9 +2017,7 @@
       ],
       "determination": {
         "versions": "see bun why uuid",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "predictable v1 ids",
         "untrustedInput": "no",
         "decision": "not-reachable",
@@ -2183,9 +2029,7 @@
     },
     {
       "name": "vite",
-      "resolvedVersions": [
-        "6.4.2"
-      ],
+      "resolvedVersions": ["6.4.2"],
       "dependencyTree": "vite@6.4.2\n  ├─ peer @vitejs/plugin-react@4.7.0 (requires ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0)\n  │  └─ dev @codecast/web@workspace (requires ^4.5.2)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  ├─ peer vite-plugin-pwa@1.3.0 (requires ^3.1.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0)\n  │  └─ dev @codecast/web@workspace (requires ^1.3.0)\n  │     └─ mobile@workspace (requires workspace:*)\n  │     \n  └─ dev @codecast/web@workspace (requires ^6.3.5)\n     └─ mobile@workspace (requires workspace:*)",
       "advisories": [
         {
@@ -2205,9 +2049,7 @@
       ],
       "determination": {
         "versions": "see bun why",
-        "modes": [
-          "dev-only"
-        ],
+        "modes": ["dev-only"],
         "symbol": "dev server file access / websocket advisories",
         "untrustedInput": "indirect",
         "decision": "accepted-risk",
@@ -2253,10 +2095,7 @@
       ],
       "determination": {
         "versions": "8.21.3 (apps/cli), 8.18.0 (nested under convex@1.36.1), 8.20.0 (@expo/cli, ink), 7.5.10 (metro, react-devtools-core), 6.2.3 (react-native)",
-        "modes": [
-          "runtime-cli",
-          "dev-only"
-        ],
+        "modes": ["runtime-cli", "dev-only"],
         "symbol": "receiver fragment handling (GHSA-96hv-2xvq-fx4p): memory exhaustion from tiny fragments on a server socket",
         "untrustedInput": "yes",
         "decision": "fixed",

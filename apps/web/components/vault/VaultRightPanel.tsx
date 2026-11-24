@@ -5,7 +5,14 @@
 
 import { memo, useMemo, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { ArrowUpRight, Bookmark, ChevronRight, Hash, Link2, List } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bookmark,
+  ChevronRight,
+  Hash,
+  Link2,
+  List,
+} from "lucide-react";
 import { vaultIndex, useVaultIndexVersion } from "../../lib/vault/indexHost";
 import type { TagTreeNode, VaultEntityRef } from "../../lib/vault/vaultIndex";
 import { EntityRefPill } from "./VaultMarkdown";
@@ -53,7 +60,8 @@ function findUnlinkedMentions(
 function distinctEntityRefs(path: string): VaultEntityRef[] {
   const seen = new Map<string, VaultEntityRef>();
   for (const occurrence of vaultIndex.entityRefs(path)) {
-    if (!seen.has(occurrence.ref.key)) seen.set(occurrence.ref.key, occurrence.ref);
+    if (!seen.has(occurrence.ref.key))
+      seen.set(occurrence.ref.key, occurrence.ref);
   }
   return [...seen.values()];
 }
@@ -81,7 +89,10 @@ const BacklinksPane = memo(function BacklinksPane({
   }, [backlinks]);
 
   const unlinked = useMemo(
-    () => (showUnlinked ? findUnlinkedMentions(path, new Set(backlinks.map((b) => b.source))) : []),
+    () =>
+      showUnlinked
+        ? findUnlinkedMentions(path, new Set(backlinks.map((b) => b.source)))
+        : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [showUnlinked, path, version],
   );
@@ -95,7 +106,9 @@ const BacklinksPane = memo(function BacklinksPane({
       distinctEntityRefs(path)
         .map((ref) => ({
           ref,
-          notes: vaultIndex.notesReferencingEntity(ref.key).filter((p) => p !== path),
+          notes: vaultIndex
+            .notesReferencingEntity(ref.key)
+            .filter((p) => p !== path),
         }))
         .filter((entry) => entry.notes.length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +120,9 @@ const BacklinksPane = memo(function BacklinksPane({
       {grouped.length === 0 ? (
         <div className="px-3 py-4 text-xs text-sol-text-dim text-center">
           No backlinks found. Notes that link here with{" "}
-          <code className="text-sol-text-muted">[[{noteDisplayName(path.split("/").pop()!)}]]</code>{" "}
+          <code className="text-sol-text-muted">
+            [[{noteDisplayName(path.split("/").pop()!)}]]
+          </code>{" "}
           will appear in this list.
         </div>
       ) : (
@@ -124,7 +139,9 @@ const BacklinksPane = memo(function BacklinksPane({
                 title={source}
               >
                 {noteDisplayName(source.split("/").pop()!)}
-                <span className="ml-1.5 text-meta text-sol-text-dim tabular-nums">{links.length}</span>
+                <span className="ml-1.5 text-meta text-sol-text-dim tabular-nums">
+                  {links.length}
+                </span>
               </button>
               {links.map((bl, i) => (
                 <button
@@ -133,7 +150,9 @@ const BacklinksPane = memo(function BacklinksPane({
                   onClick={() => onNavigate(source)}
                   className="w-full text-left px-3 py-1 text-meta leading-4 text-sol-text-muted hover:bg-sol-bg-alt"
                 >
-                  <span className="line-clamp-2">{contextLine(bodies[source]?.content, bl.link.line)}</span>
+                  <span className="line-clamp-2">
+                    {contextLine(bodies[source]?.content, bl.link.line)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -172,9 +191,13 @@ const BacklinksPane = memo(function BacklinksPane({
         onClick={() => setShowUnlinked((v) => !v)}
         className="w-full flex items-center gap-1 px-3 py-1.5 text-mark uppercase tracking-wide text-sol-text-dim hover:text-sol-text-muted border-t border-sol-border/20 mt-1"
       >
-        <ChevronRight className={`w-3 h-3 transition-transform ${showUnlinked ? "rotate-90" : ""}`} />
+        <ChevronRight
+          className={`w-3 h-3 transition-transform ${showUnlinked ? "rotate-90" : ""}`}
+        />
         Unlinked mentions
-        {showUnlinked && <span className="tabular-nums normal-case">({unlinked.length})</span>}
+        {showUnlinked && (
+          <span className="tabular-nums normal-case">({unlinked.length})</span>
+        )}
       </button>
       {showUnlinked &&
         (unlinked.length === 0 ? (
@@ -231,7 +254,6 @@ const OutlinePane = memo(function OutlinePane({ path }: { path: string }) {
       container.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-     
   }, [path, version]);
 
   if (headings.length === 0) {
@@ -239,8 +261,8 @@ const OutlinePane = memo(function OutlinePane({ path }: { path: string }) {
       <div className="px-3 py-6 text-xs leading-5 text-sol-text-dim text-center">
         No headings in this note.
         <div className="mt-1">
-          Start a line with <code className="text-sol-text-muted">##</code> and its sections show up
-          here.
+          Start a line with <code className="text-sol-text-muted">##</code> and
+          its sections show up here.
         </div>
       </div>
     );
@@ -252,7 +274,12 @@ const OutlinePane = memo(function OutlinePane({ path }: { path: string }) {
       {headings.map((h, i) => {
         const slug = `vh-${slugList[i]}`;
         const isCurrent = slug === currentSlug;
-        const target = { kind: "heading" as const, path, headingText: h.text, slug: slugList[i] };
+        const target = {
+          kind: "heading" as const,
+          path,
+          headingText: h.text,
+          slug: slugList[i],
+        };
         const pinned = isBookmarked(bookmarks, target);
         return (
           <div
@@ -266,7 +293,9 @@ const OutlinePane = memo(function OutlinePane({ path }: { path: string }) {
             <button
               type="button"
               onClick={() => {
-                document.getElementById(slug)?.scrollIntoView({ block: "start", behavior: "smooth" });
+                document
+                  .getElementById(slug)
+                  ?.scrollIntoView({ block: "start", behavior: "smooth" });
               }}
               className="flex-1 min-w-0 text-left py-[3px] text-[12px] truncate"
               style={{ paddingLeft: 10 + (h.level - minLevel) * 14 }}
@@ -304,7 +333,9 @@ function TagNode({
     <>
       <div
         className={`flex items-center gap-1 px-3 py-[3px] text-[12px] cursor-pointer hover:bg-sol-bg-alt ${
-          selected === node.tag ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted"
+          selected === node.tag
+            ? "bg-sol-bg-highlight text-sol-text"
+            : "text-sol-text-muted"
         }`}
         style={{ paddingLeft: 12 + depth * 14 }}
         onClick={() => onSelect(node.tag)}
@@ -322,17 +353,29 @@ function TagNode({
         )}
         <Hash className="w-3 h-3 flex-shrink-0 opacity-50" />
         <span className="truncate">{node.name}</span>
-        <span className="ml-auto text-meta text-sol-text-dim tabular-nums">{node.total}</span>
+        <span className="ml-auto text-meta text-sol-text-dim tabular-nums">
+          {node.total}
+        </span>
       </div>
       {open &&
         node.children.map((c) => (
-          <TagNode key={c.tag} node={c} depth={depth + 1} onSelect={onSelect} selected={selected} />
+          <TagNode
+            key={c.tag}
+            node={c}
+            depth={depth + 1}
+            onSelect={onSelect}
+            selected={selected}
+          />
         ))}
     </>
   );
 }
 
-const TagsPane = memo(function TagsPane({ onNavigate }: { onNavigate: (path: string) => void }) {
+const TagsPane = memo(function TagsPane({
+  onNavigate,
+}: {
+  onNavigate: (path: string) => void;
+}) {
   useVaultIndexVersion();
   const selected = useVaultStore((s) => s.selectedTag);
   const setSelected = useVaultStore((s) => s.setSelectedTag);
@@ -342,7 +385,8 @@ const TagsPane = memo(function TagsPane({ onNavigate }: { onNavigate: (path: str
   if (tree.length === 0) {
     return (
       <div className="px-3 py-6 text-xs text-sol-text-dim text-center">
-        No tags yet. Add <code className="text-sol-text-muted">#tags</code> inline or in frontmatter.
+        No tags yet. Add <code className="text-sol-text-muted">#tags</code>{" "}
+        inline or in frontmatter.
       </div>
     );
   }
@@ -350,7 +394,13 @@ const TagsPane = memo(function TagsPane({ onNavigate }: { onNavigate: (path: str
     <div className="py-1 flex flex-col min-h-0 h-full">
       <div className="flex-1 overflow-y-auto min-h-0">
         {tree.map((n) => (
-          <TagNode key={n.tag} node={n} depth={0} onSelect={(t) => setSelected(t === selected ? null : t)} selected={selected} />
+          <TagNode
+            key={n.tag}
+            node={n}
+            depth={0}
+            onSelect={(t) => setSelected(t === selected ? null : t)}
+            selected={selected}
+          />
         ))}
       </div>
       {selected && (
@@ -393,8 +443,9 @@ const OutgoingPane = memo(function OutgoingPane({
   if (outgoing.length === 0 && objects.length === 0) {
     return (
       <div className="px-3 py-6 text-xs text-sol-text-dim text-center">
-        No links in this note yet. Write <code className="text-sol-text-muted">[[wiki links]]</code>{" "}
-        to connect it.
+        No links in this note yet. Write{" "}
+        <code className="text-sol-text-muted">[[wiki links]]</code> to connect
+        it.
       </div>
     );
   }
@@ -414,8 +465,14 @@ const OutgoingPane = memo(function OutgoingPane({
               title={l.resolved!}
             >
               {noteDisplayName(l.resolved!.split("/").pop()!)}
-              {l.link.subpath && <span className="text-sol-text-dim"> › {l.link.subpath}</span>}
-              {l.isAmbiguous && <span className="ml-1 text-meta text-sol-yellow">ambiguous</span>}
+              {l.link.subpath && (
+                <span className="text-sol-text-dim"> › {l.link.subpath}</span>
+              )}
+              {l.isAmbiguous && (
+                <span className="ml-1 text-meta text-sol-yellow">
+                  ambiguous
+                </span>
+              )}
             </button>
           ))}
         </>
@@ -427,7 +484,9 @@ const OutgoingPane = memo(function OutgoingPane({
           </div>
           {unresolved.map((l, i) => (
             <div key={i} className="px-3 py-1 text-[12px]">
-              <span className="wiki-link wiki-link-unresolved">{l.link.target || l.link.raw}</span>
+              <span className="wiki-link wiki-link-unresolved">
+                {l.link.target || l.link.raw}
+              </span>
             </div>
           ))}
         </>
@@ -448,7 +507,11 @@ const OutgoingPane = memo(function OutgoingPane({
   );
 });
 
-const TABS: { id: VaultRightPanelTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const TABS: {
+  id: VaultRightPanelTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { id: "backlinks", label: "Backlinks", icon: Link2 },
   { id: "outgoing", label: "Outgoing", icon: ArrowUpRight },
   { id: "outline", label: "Outline", icon: List },
@@ -502,7 +565,8 @@ export const VaultRightPanel = memo(function VaultRightPanel({
           <div className="px-3 py-6 text-xs leading-5 text-sol-text-dim text-center">
             Open a note first.
             <div className="mt-1">
-              Backlinks, outgoing links and the outline all describe the note you&apos;re reading.
+              Backlinks, outgoing links and the outline all describe the note
+              you&apos;re reading.
             </div>
           </div>
         )}

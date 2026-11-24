@@ -18,12 +18,19 @@ import type { ChatMessageRow, ChatReactionRow } from "../../store/chatSlice";
 import { sessionPersonasFrom } from "../../hooks/useChatSync";
 import { dmOtherIds, sessionDmKeyFor } from "@codecast/shared/chat";
 
-const ME: ChatMember = { _id: "u1", name: "Ashot", github_username: "Ashot", email: "ashot@codecast.sh" };
+const ME: ChatMember = {
+  _id: "u1",
+  name: "Ashot",
+  github_username: "Ashot",
+  email: "ashot@codecast.sh",
+};
 const MAYA: ChatMember = { _id: "u2", name: "Maya", email: "maya@codecast.sh" };
 const ANCHOR: ChatMember = { _id: "u9", name: "The Anchor", is_bot: true };
 const NAMELESS: ChatMember = { _id: "u4", email: "a.b+tag@codecast.sh" };
 
-const byId = new Map<string, ChatMember>([ME, MAYA, ANCHOR, NAMELESS].map((m) => [m._id, m]));
+const byId = new Map<string, ChatMember>(
+  [ME, MAYA, ANCHOR, NAMELESS].map((m) => [m._id, m]),
+);
 
 const row = (over: Partial<ChatMessageRow>): ChatMessageRow => ({
   _id: "m1",
@@ -39,7 +46,9 @@ describe("memberHandles", () => {
   it("resolves a person by github handle and email local part, lowercased", () => {
     expect(memberHandles(ME)).toEqual(["ashot"]); // github and email agree — one handle
     expect(memberHandles(MAYA)).toEqual(["maya"]);
-    expect(memberHandles({ _id: "u6", github_username: "GH", email: "other@x.com" })).toEqual(["gh", "other"]);
+    expect(
+      memberHandles({ _id: "u6", github_username: "GH", email: "other@x.com" }),
+    ).toEqual(["gh", "other"]);
   });
 
   it("never gives a person a handle from their display name", () => {
@@ -82,7 +91,10 @@ describe("buildHandleSets", () => {
 
 describe("authorFor", () => {
   it("draws identity from the live roster", () => {
-    expect(authorFor(MAYA._id, "user", byId)).toMatchObject({ id: "u2", name: "Maya" });
+    expect(authorFor(MAYA._id, "user", byId)).toMatchObject({
+      id: "u2",
+      name: "Maya",
+    });
   });
 
   it("renders a bot as an agent and never with a photo", () => {
@@ -96,26 +108,45 @@ describe("authorFor", () => {
   });
 
   it("degrades to a placeholder for a user the roster has not loaded", () => {
-    expect(authorFor("u404", "user", byId)).toMatchObject({ id: "u404", name: "Someone" });
+    expect(authorFor("u404", "user", byId)).toMatchObject({
+      id: "u404",
+      name: "Someone",
+    });
     expect(authorFor("u404", "agent", byId)).toMatchObject({ isAgent: true });
   });
 });
 
 describe("seatAuthorFor", () => {
   const byId = new Map([ME, ANCHOR].map((m) => [m._id, m]));
-  const seat = { name: "Rowan", title: "Escalations lead", shortId: "or-7", handle: "escalations", avatar: "fox" };
+  const seat = {
+    name: "Rowan",
+    title: "Escalations lead",
+    shortId: "or-7",
+    handle: "escalations",
+    avatar: "fox",
+  };
   const seatFor = (id: string) => (id === ANCHOR._id ? seat : undefined);
 
   it("names a role's standing agent by the role, with its face and page", () => {
-    expect(seatAuthorFor(ANCHOR._id, { members: byId, seatFor }, "agent")).toMatchObject({
+    expect(
+      seatAuthorFor(ANCHOR._id, { members: byId, seatFor }, "agent"),
+    ).toMatchObject({
       name: "Rowan",
       isAgent: true,
-      role: { shortId: "or-7", title: "Escalations lead", handle: "escalations", avatar: "fox" },
+      role: {
+        shortId: "or-7",
+        title: "Escalations lead",
+        handle: "escalations",
+        avatar: "fox",
+      },
     });
   });
 
   it("never dresses a person as a role", () => {
-    expect(seatAuthorFor(ME._id, { members: byId, seatFor: () => seat }, "user").role).toBeUndefined();
+    expect(
+      seatAuthorFor(ME._id, { members: byId, seatFor: () => seat }, "user")
+        .role,
+    ).toBeUndefined();
   });
 });
 
@@ -147,19 +178,72 @@ describe("threadRollups", () => {
       row({ _id: "r2", thread_root_id: "m1", user_id: "u3", created_at: 20 }),
       row({ _id: "r3", thread_root_id: "m1", user_id: "u2", created_at: 30 }),
     ]);
-    expect(rollups.get("m1")).toEqual({ replyCount: 3, lastReplyAt: 30, faces: [{ user_id: "u2" }, { user_id: "u3" }] });
+    expect(rollups.get("m1")).toEqual({
+      replyCount: 3,
+      lastReplyAt: 30,
+      faces: [{ user_id: "u2" }, { user_id: "u3" }],
+    });
   });
 
   it("keeps Slack repliers apart by the person behind the bridge user, with their own face", () => {
     // Every line mirrored in from Slack is written by the one bridge user.
     const rollups = threadRollups([
-      row({ _id: "r1", thread_root_id: "m1", user_id: "bridge", created_at: 10, external: { provider: "slack", direction: "inbound", user: "U1" } as any, external_author: { name: "Samvit", avatar_url: "https://s/1.png" } }),
-      row({ _id: "r2", thread_root_id: "m1", user_id: "bridge", created_at: 20, external: { provider: "slack", direction: "inbound", user: "U2" } as any, external_author: { name: "Aivery", is_bot: true } }),
-      row({ _id: "r3", thread_root_id: "m1", user_id: "bridge", created_at: 30, external: { provider: "slack", direction: "inbound", user: "U1" } as any, external_author: { name: "Samvit", avatar_url: "https://s/1.png" } }),
+      row({
+        _id: "r1",
+        thread_root_id: "m1",
+        user_id: "bridge",
+        created_at: 10,
+        external: {
+          provider: "slack",
+          direction: "inbound",
+          user: "U1",
+        } as any,
+        external_author: { name: "Samvit", avatar_url: "https://s/1.png" },
+      }),
+      row({
+        _id: "r2",
+        thread_root_id: "m1",
+        user_id: "bridge",
+        created_at: 20,
+        external: {
+          provider: "slack",
+          direction: "inbound",
+          user: "U2",
+        } as any,
+        external_author: { name: "Aivery", is_bot: true },
+      }),
+      row({
+        _id: "r3",
+        thread_root_id: "m1",
+        user_id: "bridge",
+        created_at: 30,
+        external: {
+          provider: "slack",
+          direction: "inbound",
+          user: "U1",
+        } as any,
+        external_author: { name: "Samvit", avatar_url: "https://s/1.png" },
+      }),
     ]);
     expect(rollups.get("m1")!.faces).toEqual([
-      { user_id: "bridge", slack: { user: "U1", name: "Samvit", avatar_url: "https://s/1.png", is_bot: undefined } },
-      { user_id: "bridge", slack: { user: "U2", name: "Aivery", avatar_url: undefined, is_bot: true } },
+      {
+        user_id: "bridge",
+        slack: {
+          user: "U1",
+          name: "Samvit",
+          avatar_url: "https://s/1.png",
+          is_bot: undefined,
+        },
+      },
+      {
+        user_id: "bridge",
+        slack: {
+          user: "U2",
+          name: "Aivery",
+          avatar_url: undefined,
+          is_bot: true,
+        },
+      },
     ]);
   });
 
@@ -175,9 +259,27 @@ describe("threadRollups", () => {
 describe("foldReactions", () => {
   it("counts distinct users, so an optimistic stub and its server twin read as one", () => {
     const rows: ChatReactionRow[] = [
-      { _id: "stub", message_id: "m1", user_id: "u1", emoji: "👍", created_at: 5 },
-      { _id: "real", message_id: "m1", user_id: "u1", emoji: "👍", created_at: 7 },
-      { _id: "other", message_id: "m1", user_id: "u2", emoji: "👍", created_at: 9 },
+      {
+        _id: "stub",
+        message_id: "m1",
+        user_id: "u1",
+        emoji: "👍",
+        created_at: 5,
+      },
+      {
+        _id: "real",
+        message_id: "m1",
+        user_id: "u1",
+        emoji: "👍",
+        created_at: 7,
+      },
+      {
+        _id: "other",
+        message_id: "m1",
+        user_id: "u2",
+        emoji: "👍",
+        created_at: 9,
+      },
     ];
     const folded = foldReactions(rows, "u1");
     expect(folded).toEqual([{ emoji: "👍", count: 2, mine: true }]);
@@ -185,8 +287,20 @@ describe("foldReactions", () => {
 
   it("orders pills by first use and resolves names when asked", () => {
     const rows: ChatReactionRow[] = [
-      { _id: "a", message_id: "m1", user_id: "u2", emoji: "🚀", created_at: 20 },
-      { _id: "b", message_id: "m1", user_id: "u2", emoji: "🎉", created_at: 10 },
+      {
+        _id: "a",
+        message_id: "m1",
+        user_id: "u2",
+        emoji: "🚀",
+        created_at: 20,
+      },
+      {
+        _id: "b",
+        message_id: "m1",
+        user_id: "u2",
+        emoji: "🎉",
+        created_at: 10,
+      },
     ];
     const folded = foldReactions(rows, "u1", (id) => memberName(byId.get(id)));
     expect(folded.map((r) => r.emoji)).toEqual(["🎉", "🚀"]);
@@ -196,12 +310,32 @@ describe("foldReactions", () => {
 
   it("names an unmatched Slack reactor as themselves and counts each one, not the bridge", () => {
     const rows: ChatReactionRow[] = [
-      { _id: "a", message_id: "m1", user_id: "bridge", emoji: "➕", created_at: 1, slack_user: "UDAN", external_author: { name: "Dan" } },
-      { _id: "b", message_id: "m1", user_id: "bridge", emoji: "➕", created_at: 2, slack_user: "UERIN", external_author: { name: "Erin" } },
+      {
+        _id: "a",
+        message_id: "m1",
+        user_id: "bridge",
+        emoji: "➕",
+        created_at: 1,
+        slack_user: "UDAN",
+        external_author: { name: "Dan" },
+      },
+      {
+        _id: "b",
+        message_id: "m1",
+        user_id: "bridge",
+        emoji: "➕",
+        created_at: 2,
+        slack_user: "UERIN",
+        external_author: { name: "Erin" },
+      },
       { _id: "c", message_id: "m1", user_id: "u2", emoji: "➕", created_at: 3 },
     ];
-    const folded = foldReactions(rows, "u1", (id) => (id === "bridge" ? "Union (Slack)" : memberName(byId.get(id))));
-    expect(folded).toEqual([{ emoji: "➕", count: 3, mine: false, names: ["Dan", "Erin", "Maya"] }]);
+    const folded = foldReactions(rows, "u1", (id) =>
+      id === "bridge" ? "Union (Slack)" : memberName(byId.get(id)),
+    );
+    expect(folded).toEqual([
+      { emoji: "➕", count: 3, mine: false, names: ["Dan", "Erin", "Maya"] },
+    ]);
   });
 });
 
@@ -231,17 +365,36 @@ describe("sessionAuthorFor", () => {
   it("prefers the live session title and agent when the viewer can see it", () => {
     const view = toMessageView(sessionRow(), {
       ...base,
-      sessionFor: (id) => (id === "sess-1" ? { title: "Auth race (renamed)", agentType: "claude_code" } : undefined),
+      sessionFor: (id) =>
+        id === "sess-1"
+          ? { title: "Auth race (renamed)", agentType: "claude_code" }
+          : undefined,
     });
     expect(view.author.name).toBe("Auth race (renamed)");
     expect(view.author.session?.agentType).toBe("claude_code");
   });
 
   it("falls back to a generic session name without a snapshot, and never fires without the origin stamp", () => {
-    const bare = toMessageView(row({ _id: "s2", user_id: "u2", origin: "agent", origin_session_id: "x" } as any), base);
+    const bare = toMessageView(
+      row({
+        _id: "s2",
+        user_id: "u2",
+        origin: "agent",
+        origin_session_id: "x",
+      } as any),
+      base,
+    );
     expect(bare.author.name).toBe("Agent session");
     expect(bare.author.session?.agentType).toBe("claude_code");
-    const human = toMessageView(row({ _id: "s3", user_id: "u2", origin_session_id: "x", origin_session_title: "T" } as any), base);
+    const human = toMessageView(
+      row({
+        _id: "s3",
+        user_id: "u2",
+        origin_session_id: "x",
+        origin_session_title: "T",
+      } as any),
+      base,
+    );
     expect(human.author.session).toBeUndefined();
     expect(human.author.name).toBe("Maya");
   });
@@ -252,13 +405,33 @@ describe("sessionPersonasFrom", () => {
   // carries that as _id and the agent's own id as session_id. Keyed by only
   // session_id, a renamed session's lines kept the title they were sent under.
   test("finds a session by its conversation id and by its agent session id", () => {
-    const lookup = sessionPersonasFrom({ c1: { _id: "c1", session_id: "uuid-1", title: "<pasted_content id=\"375a\">\nKey vault migration", agent_type: "claude_code" } }, null, {} as any);
+    const lookup = sessionPersonasFrom(
+      {
+        c1: {
+          _id: "c1",
+          session_id: "uuid-1",
+          title: '<pasted_content id="375a">\nKey vault migration',
+          agent_type: "claude_code",
+        },
+      },
+      null,
+      {} as any,
+    );
     expect(lookup("c1")?.title).toBe("Key vault migration");
     expect(lookup("uuid-1")?.title).toBe("Key vault migration");
   });
 
   test("a line from a session the viewer does not hold reads its stamped title without paste markers", () => {
-    const view = toMessageView(row({ _id: "s9", user_id: "u2", origin: "agent", origin_session_id: "c9", origin_session_title: "<pasted_content id=\"375a\"> Requested by Ashot" } as any), { members: byId, viewerId: ME._id });
+    const view = toMessageView(
+      row({
+        _id: "s9",
+        user_id: "u2",
+        origin: "agent",
+        origin_session_id: "c9",
+        origin_session_title: '<pasted_content id="375a"> Requested by Ashot',
+      } as any),
+      { members: byId, viewerId: ME._id },
+    );
     expect(view.author.name).toBe("Requested by Ashot");
   });
 });
@@ -267,14 +440,24 @@ describe("toMessageView", () => {
   const ctx = {
     members: byId,
     viewerId: ME._id,
-    rollups: threadRollups([row({ _id: "r1", thread_root_id: "m1", user_id: "u2", created_at: 50 })]),
-    sendState: (r: ChatMessageRow) => (r._failedAt ? ("failed" as const) : r._id === "stub" ? ("pending" as const) : ("sent" as const)),
+    rollups: threadRollups([
+      row({ _id: "r1", thread_root_id: "m1", user_id: "u2", created_at: 50 }),
+    ]),
+    sendState: (r: ChatMessageRow) =>
+      r._failedAt
+        ? ("failed" as const)
+        : r._id === "stub"
+          ? ("pending" as const)
+          : ("sent" as const),
     reactionsFor: (id: string) =>
       id === "m1" ? [{ emoji: "👍", count: 1, mine: false }] : undefined,
   };
 
   it("carries the fields the message row renders", () => {
-    const view = toMessageView(row({ _id: "m1", mentions: [ME._id], edited_at: 99 }), ctx);
+    const view = toMessageView(
+      row({ _id: "m1", mentions: [ME._id], edited_at: 99 }),
+      ctx,
+    );
     expect(view).toMatchObject({
       id: "m1",
       content: "hi",
@@ -292,39 +475,108 @@ describe("toMessageView", () => {
   });
 
   it("draws a Slack replier's own face on the thread link, and groups its author by the Slack person", () => {
-    const slackRow = row({ _id: "r1", thread_root_id: "m1", user_id: "bridge", created_at: 50, external: { provider: "slack", direction: "inbound", user: "U1" } as any, external_author: { name: "Samvit", avatar_url: "https://s/1.png" } });
-    const view = toMessageView(row({ _id: "m1" }), { ...ctx, rollups: threadRollups([slackRow]) });
-    expect(view.replyFaces).toEqual([{ id: "slack:U1", name: "Samvit", avatarUrl: "https://s/1.png" }]);
+    const slackRow = row({
+      _id: "r1",
+      thread_root_id: "m1",
+      user_id: "bridge",
+      created_at: 50,
+      external: { provider: "slack", direction: "inbound", user: "U1" } as any,
+      external_author: { name: "Samvit", avatar_url: "https://s/1.png" },
+    });
+    const view = toMessageView(row({ _id: "m1" }), {
+      ...ctx,
+      rollups: threadRollups([slackRow]),
+    });
+    expect(view.replyFaces).toEqual([
+      { id: "slack:U1", name: "Samvit", avatarUrl: "https://s/1.png" },
+    ]);
     // The server's summary carries the same faces once it has them.
     const fromSummary = toMessageView(row({ _id: "m1" }), {
       ...ctx,
       rollups: undefined,
-      summaries: { m1: { reply_count: 1, last_reply_at: 60, reply_user_ids: ["bridge"], reply_faces: [{ user_id: "bridge", slack: { user: "U1", name: "Samvit" } }] } },
+      summaries: {
+        m1: {
+          reply_count: 1,
+          last_reply_at: 60,
+          reply_user_ids: ["bridge"],
+          reply_faces: [
+            { user_id: "bridge", slack: { user: "U1", name: "Samvit" } },
+          ],
+        },
+      },
     });
-    expect(fromSummary.replyFaces).toEqual([{ id: "slack:U1", name: "Samvit", avatarUrl: undefined }]);
-    expect(toMessageView(slackRow, ctx).author.slack).toEqual({ isBot: false, userId: "U1" });
+    expect(fromSummary.replyFaces).toEqual([
+      { id: "slack:U1", name: "Samvit", avatarUrl: undefined },
+    ]);
+    expect(toMessageView(slackRow, ctx).author.slack).toEqual({
+      isBot: false,
+      userId: "U1",
+    });
   });
 
   it("draws a session's face on the thread link, apart from the human it ran as", () => {
-    const human = row({ _id: "r0", thread_root_id: "m1", user_id: "u2", created_at: 40 });
-    const session = row({ _id: "r1", thread_root_id: "m1", user_id: "u2", created_at: 50, origin: "agent", origin_session_id: "conv-1", origin_session_title: "Build", origin_agent_type: "codex" } as any);
-    const view = toMessageView(row({ _id: "m1" }), { ...ctx, rollups: threadRollups([human, session]) });
+    const human = row({
+      _id: "r0",
+      thread_root_id: "m1",
+      user_id: "u2",
+      created_at: 40,
+    });
+    const session = row({
+      _id: "r1",
+      thread_root_id: "m1",
+      user_id: "u2",
+      created_at: 50,
+      origin: "agent",
+      origin_session_id: "conv-1",
+      origin_session_title: "Build",
+      origin_agent_type: "codex",
+    } as any);
+    const view = toMessageView(row({ _id: "m1" }), {
+      ...ctx,
+      rollups: threadRollups([human, session]),
+    });
     expect(view.replyFaces).toEqual([
       expect.objectContaining({ id: "u2", name: "Maya" }),
-      { id: "session:conv-1", name: "Build", isAgent: true, agentType: "codex" },
+      {
+        id: "session:conv-1",
+        name: "Build",
+        isAgent: true,
+        agentType: "codex",
+      },
     ]);
     // The server's summary carries the session the same way.
     const fromSummary = toMessageView(row({ _id: "m1" }), {
       ...ctx,
       rollups: undefined,
-      summaries: { m1: { reply_count: 1, last_reply_at: 60, reply_user_ids: ["u2"], reply_faces: [{ user_id: "u2", session: { id: "conv-1", title: "Build", agent_type: "codex" } }] } },
+      summaries: {
+        m1: {
+          reply_count: 1,
+          last_reply_at: 60,
+          reply_user_ids: ["u2"],
+          reply_faces: [
+            {
+              user_id: "u2",
+              session: { id: "conv-1", title: "Build", agent_type: "codex" },
+            },
+          ],
+        },
+      },
     });
-    expect(fromSummary.replyFaces).toEqual([{ id: "session:conv-1", name: "Build", isAgent: true, agentType: "codex" }]);
+    expect(fromSummary.replyFaces).toEqual([
+      {
+        id: "session:conv-1",
+        name: "Build",
+        isAgent: true,
+        agentType: "codex",
+      },
+    ]);
   });
 
   it("marks an optimistic row pending and a given-up row failed", () => {
     expect(toMessageView(row({ _id: "stub" }), ctx).pending).toBe(true);
-    expect(toMessageView(row({ _id: "m2", _failedAt: 1 }), ctx).failed).toBe(true);
+    expect(toMessageView(row({ _id: "m2", _failedAt: 1 }), ctx).failed).toBe(
+      true,
+    );
   });
 
   it("leaves reactions undefined rather than empty, so the row renders no pill strip", () => {
@@ -336,7 +588,11 @@ describe("toMessageView", () => {
       row({ _id: "m3", voice: { status: "live", room_key: "dm:a:b" } } as any),
       ctx,
     );
-    expect(live.voice).toEqual({ status: "live", durationMs: undefined, roomKey: "dm:a:b" });
+    expect(live.voice).toEqual({
+      status: "live",
+      durationMs: undefined,
+      roomKey: "dm:a:b",
+    });
     const done = toMessageView(
       row({ _id: "m4", voice: { status: "done", duration_ms: 4200 } } as any),
       ctx,
@@ -352,14 +608,27 @@ describe("toMessageView", () => {
     // watchers holding the live row stop pulsing. That tombstone is a message to
     // the client, not a line in the DM — showing it would put "This message was
     // deleted" on screen every time a hand brushed the key.
-    const brushed = row({ _id: "m6", voice: { status: "canceled" }, deleted_at: 5 } as any);
+    const brushed = row({
+      _id: "m6",
+      voice: { status: "canceled" },
+      deleted_at: 5,
+    } as any);
     expect(toMessageViews([brushed], ctx)).toHaveLength(0);
     // "m1" is the root the context's rollups give a reply to: with something
     // hanging off it, the tombstone does an ordinary deleted message's job.
-    const answered = row({ _id: "m1", voice: { status: "canceled" }, deleted_at: 5 } as any);
+    const answered = row({
+      _id: "m1",
+      voice: { status: "canceled" },
+      deleted_at: 5,
+    } as any);
     expect(toMessageViews([answered], ctx)).toHaveLength(1);
     // And an ordinary burst is never dropped.
-    expect(toMessageViews([row({ _id: "m7", voice: { status: "done" } } as any)], ctx)).toHaveLength(1);
+    expect(
+      toMessageViews(
+        [row({ _id: "m7", voice: { status: "done" } } as any)],
+        ctx,
+      ),
+    ).toHaveLength(1);
   });
 });
 
@@ -369,35 +638,75 @@ describe("railRowTip", () => {
     { _id: "u_me", name: "Me" },
   ] as any;
   test("a channel: hash name, topic, and the loudest state", () => {
-    expect(railRowTip({ id: "c1", name: "team", topic: "Everything", mentionCount: 2, unreadCount: 9 }, members)).toEqual({
+    expect(
+      railRowTip(
+        {
+          id: "c1",
+          name: "team",
+          topic: "Everything",
+          mentionCount: 2,
+          unreadCount: 9,
+        },
+        members,
+      ),
+    ).toEqual({
       title: "#team",
       detail: "Everything",
       state: "2 mentions",
     });
-    expect(railRowTip({ id: "c1", name: "team", unreadCount: 1 }, members)).toEqual({
+    expect(
+      railRowTip({ id: "c1", name: "team", unreadCount: 1 }, members),
+    ).toEqual({
       title: "#team",
       detail: undefined,
       state: "1 unread",
     });
-    expect(railRowTip({ id: "c1", name: "team", mentionCount: 1 }, members).state).toBe("1 mention");
-    expect(railRowTip({ id: "c1", name: "team", muted: true }, members).state).toBe("Muted");
-    expect(railRowTip({ id: "c1", name: "team" }, members).state).toBeUndefined();
+    expect(
+      railRowTip({ id: "c1", name: "team", mentionCount: 1 }, members).state,
+    ).toBe("1 mention");
+    expect(
+      railRowTip({ id: "c1", name: "team", muted: true }, members).state,
+    ).toBe("Muted");
+    expect(
+      railRowTip({ id: "c1", name: "team" }, members).state,
+    ).toBeUndefined();
   });
   test("a DM: the person's name, no hash, no topic", () => {
-    const tip = railRowTip({ id: "d1", name: "", kind: "dm", dmMemberIds: ["u_ann"], topic: "ignored" }, members);
+    const tip = railRowTip(
+      {
+        id: "d1",
+        name: "",
+        kind: "dm",
+        dmMemberIds: ["u_ann"],
+        topic: "ignored",
+      },
+      members,
+    );
     expect(tip.title).toBe("Ann Diaz");
     expect(tip.detail).toBeUndefined();
   });
   test("a live huddle outranks every other state", () => {
-    expect(railRowTip({ id: "c1", name: "team", mentionCount: 3 }, members, { live: true }).state).toBe("Huddle live");
+    expect(
+      railRowTip({ id: "c1", name: "team", mentionCount: 3 }, members, {
+        live: true,
+      }).state,
+    ).toBe("Huddle live");
   });
 });
 
 describe("role and session mentions on the view", () => {
   it("carries the refs and the fold flag, and never counts them as the viewer", () => {
     const row: any = {
-      _id: "m1", channel_id: "c1", user_id: "u1", content: "@growth @jx7c6zk", created_at: 1, updated_at: 1,
-      mentions: [{ kind: "role", role_id: "r1", short_id: "or-1", handle: "growth" }, { kind: "session", conversation_id: "jx7c6zkabc", short_id: "jx7c6zk" }],
+      _id: "m1",
+      channel_id: "c1",
+      user_id: "u1",
+      content: "@growth @jx7c6zk",
+      created_at: 1,
+      updated_at: 1,
+      mentions: [
+        { kind: "role", role_id: "r1", short_id: "or-1", handle: "growth" },
+        { kind: "session", conversation_id: "jx7c6zkabc", short_id: "jx7c6zk" },
+      ],
       mention_folded: true,
     };
     const view = toMessageView(row, { members: new Map(), viewerId: "r1" });
@@ -413,9 +722,18 @@ describe("channelDisplayName", () => {
     // Maya sees the session alone; Ashot (its owner, not a member) is never named.
     const forMaya = dmOtherIds(key, MAYA._id);
     expect(forMaya).toEqual(["session:conv-1"]);
-    expect(channelDisplayName({ name: "Morning deal desk refresh", kind: "dm", dmMemberIds: forMaya }, [ME, MAYA]))
-      .toBe("Morning deal desk refresh");
+    expect(
+      channelDisplayName(
+        { name: "Morning deal desk refresh", kind: "dm", dmMemberIds: forMaya },
+        [ME, MAYA],
+      ),
+    ).toBe("Morning deal desk refresh");
     // A people DM still reads as its people.
-    expect(channelDisplayName({ name: "", kind: "dm", dmMemberIds: [MAYA._id] }, [ME, MAYA])).toBe("Maya");
+    expect(
+      channelDisplayName({ name: "", kind: "dm", dmMemberIds: [MAYA._id] }, [
+        ME,
+        MAYA,
+      ]),
+    ).toBe("Maya");
   });
 });

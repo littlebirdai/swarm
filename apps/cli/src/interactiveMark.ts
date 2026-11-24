@@ -23,19 +23,29 @@ export function healInteractiveMark(
   headFlags: string | null | undefined,
   log: (line: string) => void = () => {},
 ): void {
-  if (unsupported || !headFlags?.split(/\s+/).includes("--interactive") || asked.has(conversationId)) return;
+  if (
+    unsupported ||
+    !headFlags?.split(/\s+/).includes("--interactive") ||
+    asked.has(conversationId)
+  )
+    return;
   asked.add(conversationId);
   mark(conversationId).catch((err) => {
     const message = err instanceof Error ? err.message : String(err);
     if (MISSING_FUNCTION.test(message)) {
       // An older server: asking again on every pass for every session would only spend the shared write throttle.
-      if (!unsupported) log(`The server cannot mark sessions interactive yet (${message}); not asking again until the daemon restarts`);
+      if (!unsupported)
+        log(
+          `The server cannot mark sessions interactive yet (${message}); not asking again until the daemon restarts`,
+        );
       unsupported = true;
       return;
     }
     // Any other failure is asked again on a later pass.
     asked.delete(conversationId);
-    log(`Could not mark ${conversationId.slice(0, 12)} interactive: ${message}`);
+    log(
+      `Could not mark ${conversationId.slice(0, 12)} interactive: ${message}`,
+    );
   });
 }
 

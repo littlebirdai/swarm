@@ -18,9 +18,19 @@
  * typing and scrolls, so a viewer can draw the cursor the frames never show.
  */
 
-import { CdpConnection, listTargets, type CdpEndpoint, type CdpTarget } from "./cdp.js";
+import {
+  CdpConnection,
+  listTargets,
+  type CdpEndpoint,
+  type CdpTarget,
+} from "./cdp.js";
 import { sessionTarget, type SessionTarget } from "./engineReap.js";
-import { engineSessionKey, engineStateDir, paneSessionKey, realSessionKey } from "./engine.js";
+import {
+  engineSessionKey,
+  engineStateDir,
+  paneSessionKey,
+  realSessionKey,
+} from "./engine.js";
 import { desktopPanePins } from "./desktopPaneRegistry.js";
 import { readState, type InstanceState } from "./instance.js";
 import { readBridgeState } from "./bridge/host.js";
@@ -96,7 +106,14 @@ export type WatchInput =
       deltaY?: number;
       modifiers?: number;
     }
-  | { kind: "key"; type: "keyDown" | "keyUp"; key: string; code?: string; text?: string; modifiers?: number }
+  | {
+      kind: "key";
+      type: "keyDown" | "keyUp";
+      key: string;
+      code?: string;
+      text?: string;
+      modifiers?: number;
+    }
   | { kind: "insertText"; text: string }
   /** A device's hardware button (the simulator engine, sim/watch.ts). A
    *  browser has none, so the CDP source ignores it, as it does the three
@@ -123,12 +140,19 @@ export interface FrameSource {
 
 /** no-browser / no-tab: the browser engine. no-simulators / no-sim: the
  *  simulator engine (this machine runs none; the session holds none). */
-export type WatchResolveError = "no-browser" | "no-tab" | "no-simulators" | "no-sim";
+export type WatchResolveError =
+  | "no-browser"
+  | "no-tab"
+  | "no-simulators"
+  | "no-sim";
 
 /** An engine's own reason a stream could not open; the watch session sends
  *  its code and message to the viewer as they are. */
 export class WatchOpenError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -139,13 +163,19 @@ export interface WatchEngine {
    * ownerCandidates in watchServer.ts). Called on connect AND on every poll,
    * so it must be cheap: read a state file, not the browser.
    */
-  resolveTab(candidates: string[]): { tabId: string } | { error: WatchResolveError };
+  resolveTab(
+    candidates: string[],
+  ): { tabId: string } | { error: WatchResolveError };
   /**
    * Begin streaming frames for a tab. Rejects if the tab cannot be attached
    * (closed under us, engine unreachable). The returned source calls
    * `onGone` if the tab disappears later.
    */
-  open(tabId: string, opts: FrameSourceOptions, handlers: FrameSourceHandlers): Promise<FrameSource>;
+  open(
+    tabId: string,
+    opts: FrameSourceOptions,
+    handlers: FrameSourceHandlers,
+  ): Promise<FrameSource>;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +209,8 @@ export interface CdpEngineDeps {
 /** The bridge host's CDP face, when a host is up. Cheap: a file and a pid. */
 export function liveBridgeEndpoint(): CdpEndpoint | null {
   const state = readBridgeState();
-  if (!state?.token || !state.hostPid || !isPidAlive(state.hostPid)) return null;
+  if (!state?.token || !state.hostPid || !isPidAlive(state.hostPid))
+    return null;
   return { port: state.port, token: state.token };
 }
 
@@ -212,7 +243,11 @@ const realCdpDeps: CdpEngineDeps = {
  */
 export function resolveEngineTab(
   candidates: string[],
-  browsers: { clone: CdpEndpoint | null; bridge: CdpEndpoint | null; pane?: DesktopPaneBrowser | null },
+  browsers: {
+    clone: CdpEndpoint | null;
+    bridge: CdpEndpoint | null;
+    pane?: DesktopPaneBrowser | null;
+  },
   stateDir: string,
 ): { tabId: string; endpoint: CdpEndpoint } | null {
   let best: { target: SessionTarget; endpoint: CdpEndpoint } | null = null;
@@ -223,13 +258,18 @@ export function resolveEngineTab(
     const pins: Array<[CdpEndpoint | null, string, Set<string> | null]> = [
       [browsers.clone, key, null],
       [browsers.bridge, realSessionKey(key), null],
-      [browsers.pane?.endpoint ?? null, paneSessionKey(key), browsers.pane?.targets ?? null],
+      [
+        browsers.pane?.endpoint ?? null,
+        paneSessionKey(key),
+        browsers.pane?.targets ?? null,
+      ],
     ];
     for (const [endpoint, engineKey, allowed] of pins) {
       if (!endpoint) continue;
       const target = sessionTarget(engineKey, stateDir);
       if (!target || (allowed && !allowed.has(target.targetId))) continue;
-      if (!best || target.mtimeMs > best.target.mtimeMs) best = { target, endpoint };
+      if (!best || target.mtimeMs > best.target.mtimeMs)
+        best = { target, endpoint };
     }
   }
   return best ? { tabId: best.target.targetId, endpoint: best.endpoint } : null;
@@ -294,7 +334,10 @@ export async function openCdpScreencast(
     clearInterval(fallbackTimer);
     // Best effort: the CDP connection is ours alone, so closing it tears
     // the screencast down browser-side even if stopScreencast never lands.
-    if (cdpSessionId) void conn.send("Page.stopScreencast", {}, cdpSessionId, 2000).catch(() => {});
+    if (cdpSessionId)
+      void conn
+        .send("Page.stopScreencast", {}, cdpSessionId, 2000)
+        .catch(() => {});
     conn.close();
   };
 
@@ -314,9 +357,19 @@ export async function openCdpScreencast(
       }
       ackTimer = null;
       lastAckAt = Date.now();
-      void conn.send("Page.screencastFrameAck", { sessionId: frameSession }, cdpSessionId, 10_000).catch(() => {});
+      void conn
+        .send(
+          "Page.screencastFrameAck",
+          { sessionId: frameSession },
+          cdpSessionId,
+          10_000,
+        )
+        .catch(() => {});
     };
-    ackTimer = setTimeout(attempt, Math.max(0, lastAckAt + opts.minIntervalMs - Date.now()));
+    ackTimer = setTimeout(
+      attempt,
+      Math.max(0, lastAckAt + opts.minIntervalMs - Date.now()),
+    );
     ackTimer.unref?.();
   };
 
@@ -358,20 +411,37 @@ export async function openCdpScreencast(
       return;
     }
     if (ev.method === "Page.frameNavigated") {
-      const frame = (ev.params as { frame?: { parentId?: string; url?: string } }).frame;
+      const frame = (
+        ev.params as { frame?: { parentId?: string; url?: string } }
+      ).frame;
       if (frame && !frame.parentId && typeof frame.url === "string") {
-        emitAction({ type: "action", kind: "nav", x: lastPoint.x, y: lastPoint.y, url: frame.url, at: Date.now() });
+        emitAction({
+          type: "action",
+          kind: "nav",
+          x: lastPoint.x,
+          y: lastPoint.y,
+          url: frame.url,
+          at: Date.now(),
+        });
       }
       return;
     }
     if (ev.method === "Page.screencastFrame") {
-      const p = ev.params as { data: string; metadata: Record<string, number>; sessionId: number };
+      const p = ev.params as {
+        data: string;
+        metadata: Record<string, number>;
+        sessionId: number;
+      };
       lastFrameAt = Date.now();
       if (p.metadata?.deviceWidth && p.metadata?.deviceHeight) {
         viewport.w = p.metadata.deviceWidth;
         viewport.h = p.metadata.deviceHeight;
       }
-      handlers.onFrame({ data: p.data, width: p.metadata?.deviceWidth ?? 0, height: p.metadata?.deviceHeight ?? 0 });
+      handlers.onFrame({
+        data: p.data,
+        width: p.metadata?.deviceWidth ?? 0,
+        height: p.metadata?.deviceHeight ?? 0,
+      });
       scheduleAck(p.sessionId);
     }
   });
@@ -381,9 +451,19 @@ export async function openCdpScreencast(
   // submits a form or moves a caret, which makes control feel broken exactly
   // on the keys an OAuth form needs most.
   const VIRTUAL_KEYS: Record<string, number> = {
-    Enter: 13, Backspace: 8, Tab: 9, Escape: 27, Delete: 46,
-    ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
-    Home: 36, End: 35, PageUp: 33, PageDown: 34,
+    Enter: 13,
+    Backspace: 8,
+    Tab: 9,
+    Escape: 27,
+    Delete: 46,
+    ArrowLeft: 37,
+    ArrowUp: 38,
+    ArrowRight: 39,
+    ArrowDown: 40,
+    Home: 36,
+    End: 35,
+    PageUp: 33,
+    PageDown: 34,
   };
 
   const input = (msg: WatchInput): void => {
@@ -406,7 +486,12 @@ export async function openCdpScreencast(
       });
     } else if (msg.kind === "key") {
       const vk = VIRTUAL_KEYS[msg.key];
-      const text = msg.type === "keyDown" ? (msg.key === "Enter" ? "\r" : msg.text) : undefined;
+      const text =
+        msg.type === "keyDown"
+          ? msg.key === "Enter"
+            ? "\r"
+            : msg.text
+          : undefined;
       send("Input.dispatchKeyEvent", {
         // keyDown without text is a rawKeyDown in CDP terms; sending the
         // right subtype keeps IME/autofill listeners from double-firing.
@@ -436,26 +521,34 @@ export async function openCdpScreencast(
   let lastFallbackData = "";
   let capturing = false;
   const staleAfterMs = Math.max(1200, opts.minIntervalMs * 3);
-  const fallbackTimer = setInterval(() => {
-    if (stopped || !cdpSessionId || capturing) return;
-    if (opts.shouldHold()) return;
-    if (Date.now() - lastFrameAt < staleAfterMs) return;
-    capturing = true;
-    conn
-      .send<{ data?: string }>("Page.captureScreenshot", { format: "jpeg", quality: opts.quality }, cdpSessionId, 5000)
-      .then((shot) => {
-        if (stopped || !shot?.data) return;
-        // A hidden page is usually static: don't resend the identical JPEG.
-        if (shot.data === lastFallbackData) return;
-        lastFallbackData = shot.data;
-        lastFrameAt = Date.now();
-        handlers.onFrame({ data: shot.data, width: 0, height: 0 });
-      })
-      .catch(() => {})
-      .finally(() => {
-        capturing = false;
-      });
-  }, Math.max(250, opts.minIntervalMs));
+  const fallbackTimer = setInterval(
+    () => {
+      if (stopped || !cdpSessionId || capturing) return;
+      if (opts.shouldHold()) return;
+      if (Date.now() - lastFrameAt < staleAfterMs) return;
+      capturing = true;
+      conn
+        .send<{ data?: string }>(
+          "Page.captureScreenshot",
+          { format: "jpeg", quality: opts.quality },
+          cdpSessionId,
+          5000,
+        )
+        .then((shot) => {
+          if (stopped || !shot?.data) return;
+          // A hidden page is usually static: don't resend the identical JPEG.
+          if (shot.data === lastFallbackData) return;
+          lastFallbackData = shot.data;
+          lastFrameAt = Date.now();
+          handlers.onFrame({ data: shot.data, width: 0, height: 0 });
+        })
+        .catch(() => {})
+        .finally(() => {
+          capturing = false;
+        });
+    },
+    Math.max(250, opts.minIntervalMs),
+  );
   fallbackTimer.unref?.();
 
   const pollTimer = setInterval(() => {
@@ -497,11 +590,19 @@ export async function openCdpScreencast(
     if (opts.signal.aborted) throw new Error("aborted");
     await conn.send(
       "Page.startScreencast",
-      { format: "jpeg", quality: opts.quality, maxWidth: opts.maxWidth, maxHeight: opts.maxHeight, everyNthFrame: 1 },
+      {
+        format: "jpeg",
+        quality: opts.quality,
+        maxWidth: opts.maxWidth,
+        maxHeight: opts.maxHeight,
+        everyNthFrame: 1,
+      },
       sessionId,
       10_000,
     );
-    const t = (await deps.listTargets(endpoint)).find((x) => x.targetId === tabId);
+    const t = (await deps.listTargets(endpoint)).find(
+      (x) => x.targetId === tabId,
+    );
     tab.title = t?.title ?? "";
     tab.url = t?.url ?? "";
   } catch (err) {
@@ -531,11 +632,25 @@ const VIEWER_ECHO_MS = 800;
  * Resolves with what the page had already seen (a previous viewer's script
  * keeps a ring), so a viewer who connects mid flow sees the cursor at once.
  */
-async function observeActions(conn: CdpConnection, sessionId: string, signal: AbortSignal): Promise<WatchAction[]> {
+async function observeActions(
+  conn: CdpConnection,
+  sessionId: string,
+  signal: AbortSignal,
+): Promise<WatchAction[]> {
   await conn.send("Runtime.enable", {}, sessionId, 10_000);
-  await conn.send("Runtime.addBinding", { name: ACTION_BINDING }, sessionId, 10_000);
+  await conn.send(
+    "Runtime.addBinding",
+    { name: ACTION_BINDING },
+    sessionId,
+    10_000,
+  );
   if (signal.aborted) return [];
-  await conn.send("Page.addScriptToEvaluateOnNewDocument", { source: actionObserverSource() }, sessionId, 10_000);
+  await conn.send(
+    "Page.addScriptToEvaluateOnNewDocument",
+    { source: actionObserverSource() },
+    sessionId,
+    10_000,
+  );
   const r = await conn.send<{ result?: { value?: unknown } }>(
     "Runtime.evaluate",
     { expression: actionObserverInstallExpression(), returnByValue: true },
@@ -561,7 +676,11 @@ export function cdpWatchEngine(deps: CdpEngineDeps = realCdpDeps): WatchEngine {
       // key flattened into an engine session name (engine.ts) — in the clone,
       // with the `-real` suffix in the human's Chrome via the bridge, or with
       // the `-pane` suffix in the desktop app's pane over the app's own port.
-      const pinned = resolveEngineTab(candidates, { clone, bridge, pane }, deps.stateDir ?? engineStateDir());
+      const pinned = resolveEngineTab(
+        candidates,
+        { clone, bridge, pane },
+        deps.stateDir ?? engineStateDir(),
+      );
       if (pinned) {
         endpointByTab.set(pinned.tabId, pinned.endpoint);
         return { tabId: pinned.tabId };
@@ -574,11 +693,13 @@ export function cdpWatchEngine(deps: CdpEngineDeps = realCdpDeps): WatchEngine {
       // With no clone but a live bridge, "no browser" would be a lie: the
       // human's Chrome is right there, this session just has no tab in it.
       // The same for a desktop app that is up: it has panes, not this one's.
-      if (own.error === "no-browser" && (bridge || pane)) return { error: "no-tab" };
+      if (own.error === "no-browser" && (bridge || pane))
+        return { error: "no-tab" };
       return own;
     },
     open(tabId, opts, handlers) {
-      const endpoint = endpointByTab.get(tabId) ?? deps.getState()?.port ?? null;
+      const endpoint =
+        endpointByTab.get(tabId) ?? deps.getState()?.port ?? null;
       if (endpoint === null) return Promise.reject(new Error("no-browser"));
       return openCdpScreencast(endpoint, tabId, opts, handlers, deps);
     },
@@ -591,7 +712,10 @@ export function cdpWatchEngine(deps: CdpEngineDeps = realCdpDeps): WatchEngine {
 export interface PollingEngineDeps {
   resolveTab: WatchEngine["resolveTab"];
   /** JPEG bytes (base64) + dimensions, or null if the tab is gone. */
-  screenshot(tabId: string, opts: { quality: number; maxWidth: number; maxHeight: number }): Promise<WatchFrame | null>;
+  screenshot(
+    tabId: string,
+    opts: { quality: number; maxWidth: number; maxHeight: number },
+  ): Promise<WatchFrame | null>;
   /** Current title/URL, or null if the tab is gone. */
   describe(tabId: string): Promise<{ title: string; url: string } | null>;
 }
@@ -617,7 +741,11 @@ export function pollingWatchEngine(deps: PollingEngineDeps): WatchEngine {
         if (!opts.shouldHold()) {
           try {
             const [frame, info] = await Promise.all([
-              deps.screenshot(tabId, { quality: opts.quality, maxWidth: opts.maxWidth, maxHeight: opts.maxHeight }),
+              deps.screenshot(tabId, {
+                quality: opts.quality,
+                maxWidth: opts.maxWidth,
+                maxHeight: opts.maxHeight,
+              }),
               deps.describe(tabId),
             ]);
             if (stopped) return;

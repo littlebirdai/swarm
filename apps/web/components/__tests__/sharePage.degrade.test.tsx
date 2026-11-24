@@ -13,7 +13,11 @@
 //               link closed, and it does not spin forever
 // Run: cd apps/web && bun test --isolate components/__tests__/sharePage.degrade.test.tsx
 import { afterEach, expect, test } from "bun:test";
-import { describeFailures, installDom, installMissingBackend } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  installDom,
+  installMissingBackend,
+} from "../../test-helpers/missingBackend";
 
 const TOKEN = "shr7Kq2xLaunchNotes";
 
@@ -21,7 +25,8 @@ const { mountSurface } = installDom(`https://app.test/share/doc/${TOKEN}`);
 const backend = await installMissingBackend();
 
 const { MemoryRouter, Routes, Route } = await import("react-router");
-const { default: ShareDocPage } = await import("../../app/share/doc/[token]/page");
+const { default: ShareDocPage } =
+  await import("../../app/share/doc/[token]/page");
 
 const mountShare = () =>
   mountSurface(
@@ -70,7 +75,11 @@ test("a shared doc with no preload says the server did not answer, not that the 
     const text = page.text();
     expect(text).toContain("This doc could not be loaded");
     expect(text).not.toContain("This link is closed");
-    expect([...page.container.querySelectorAll("button")].some((b) => b.textContent === "Try again")).toBe(true);
+    expect(
+      [...page.container.querySelectorAll("button")].some(
+        (b) => b.textContent === "Try again",
+      ),
+    ).toBe(true);
   } finally {
     await page.unmount();
   }

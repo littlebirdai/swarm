@@ -6,10 +6,16 @@
 // and nothing waits.
 let lastInputAt = Number.NEGATIVE_INFINITY;
 
-const clock = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+const clock = (): number =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
 
-if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
-  const note = () => { lastInputAt = clock(); };
+if (
+  typeof window !== "undefined" &&
+  typeof window.addEventListener === "function"
+) {
+  const note = () => {
+    lastInputAt = clock();
+  };
   window.addEventListener("keydown", note, { capture: true, passive: true });
   window.addEventListener("input", note, { capture: true, passive: true });
 }
@@ -40,7 +46,10 @@ export function whenInputQuiet(fn: () => void, maxDeferMs: number): () => void {
     fn();
   };
   attempt();
-  return () => { if (timer !== null) clearTimeout(timer); timer = null; };
+  return () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
 }
 
 /** For tests: record an input at this moment. */

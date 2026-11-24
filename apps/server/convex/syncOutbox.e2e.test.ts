@@ -8,10 +8,15 @@ import { makeSyncAckCollector } from "./syncLog";
 import { readRangePage } from "./syncLog";
 
 function fixture() {
-  const db = makeFakeDb({ users: [{ _id: "owner" }] }, {
-    strictPatch: true, indexes: schemaIndexes(schema), mintId: (table, n) => `${table}_${n}`,
-    creationTime: () => Date.now(),
-  });
+  const db = makeFakeDb(
+    { users: [{ _id: "owner" }] },
+    {
+      strictPatch: true,
+      indexes: schemaIndexes(schema),
+      mintId: (table, n) => `${table}_${n}`,
+      creationTime: () => Date.now(),
+    },
+  );
   // The scheduler as convex keeps it: each job is a row whose state moves from
   // pending to success, failed or canceled.
   const scheduled: any[] = [];
@@ -46,18 +51,27 @@ function fixture() {
   };
   return { db, ctx, scheduled, jobs, runJobs };
 }
-const save = (mutation({
-  args: {},
-  handler: async (ctx: any, args: any) => {
-    if (args.id) await ctx.db.patch(args.id, args.fields);
-    else args.id = await ctx.db.insert("conversations", { user_id: "owner", title: "Initial", ...args.fields });
-    return { id: args.id, receipts: syncAckReceipts(ctx) };
-  },
-}) as any)._handler;
+const save = (
+  mutation({
+    args: {},
+    handler: async (ctx: any, args: any) => {
+      if (args.id) await ctx.db.patch(args.id, args.fields);
+      else
+        args.id = await ctx.db.insert("conversations", {
+          user_id: "owner",
+          title: "Initial",
+          ...args.fields,
+        });
+      return { id: args.id, receipts: syncAckReceipts(ctx) };
+    },
+  }) as any
+)._handler;
 
 async function deliverAll(ctx: any) {
   for (let i = 0; i < 20; i++) {
-    const pending = (ctx.db._tables.sync_outbox ?? []).find((r: any) => r.pending);
+    const pending = (ctx.db._tables.sync_outbox ?? []).find(
+      (r: any) => r.pending,
+    );
     if (!pending) return;
     await drainSyncOutbox(ctx, pending._id);
   }
@@ -69,10 +83,15 @@ describe("durable sync delivery through wrapped application saves", () => {
     const { ctx, db } = fixture();
     const query = db.query.bind(db);
     db.query = ((table: string) => {
-      if (table === "sync_heads") throw new Error("application save read shared counter");
+      if (table === "sync_heads")
+        throw new Error("application save read shared counter");
       return query(table);
     }) as any;
-    const saved = await Promise.all(Array.from({ length: 64 }, (_, i) => save(ctx, { fields: { title: `Session ${i}` } })));
+    const saved = await Promise.all(
+      Array.from({ length: 64 }, (_, i) =>
+        save(ctx, { fields: { title: `Session ${i}` } }),
+      ),
+    );
     expect(db._tables.conversations).toHaveLength(64);
     expect(db._tables.sync_outbox).toHaveLength(64);
     expect(db._tables.sync_heads ?? []).toHaveLength(0);
@@ -81,21 +100,31 @@ describe("durable sync delivery through wrapped application saves", () => {
     await deliverAll(ctx);
     expect(db._tables.sync_actions).toHaveLength(64);
     expect(db._tables.sync_heads[0].position).toBe(64);
-    expect(new Set(db._tables.sync_actions.map((r: any) => r.position)).size).toBe(64);
+    expect(
+      new Set(db._tables.sync_actions.map((r: any) => r.position)).size,
+    ).toBe(64);
   });
 
   test("superseded writes and unsets coalesce, receipts settle only after delivery", async () => {
     const { ctx, db } = fixture();
     const a = await save(ctx, { fields: { title: "Old", subtitle: "Remove" } });
-    const b = await save(ctx, { id: a.id, fields: { title: "New", subtitle: undefined } });
+    const b = await save(ctx, {
+      id: a.id,
+      fields: { title: "New", subtitle: undefined },
+    });
     expect(b.receipts[0].revision).toBe(2);
-    expect(await readDeliveryReceipts(db, [a.receipts[0]], new Set(["user:owner"])))
-      .toMatchObject([{ revision: 0, position: 0 }]);
+    expect(
+      await readDeliveryReceipts(db, [a.receipts[0]], new Set(["user:owner"])),
+    ).toMatchObject([{ revision: 0, position: 0 }]);
     await deliverAll(ctx);
-    expect(db._tables.sync_actions[0]).toMatchObject({ patch: { title: "New" }, unset: ["subtitle"] });
+    expect(db._tables.sync_actions[0]).toMatchObject({
+      patch: { title: "New" },
+      unset: ["subtitle"],
+    });
     expect(db._tables.sync_actions[0].patch.subtitle).toBeUndefined();
-    expect(await readDeliveryReceipts(db, [a.receipts[0]], new Set(["user:owner"])))
-      .toMatchObject([{ revision: 2, position: 1 }]);
+    expect(
+      await readDeliveryReceipts(db, [a.receipts[0]], new Set(["user:owner"])),
+    ).toMatchObject([{ revision: 2, position: 1 }]);
     await drainSyncOutbox(ctx, a.receipts[0].id);
     expect(db._tables.sync_heads[0].position).toBe(1);
   });
@@ -106,10 +135,13 @@ describe("durable sync delivery through wrapped application saves", () => {
     const patch = db.patch.bind(db);
     db.__beginJournal();
     db.patch = (async (id: any, fields: any) => {
-      if (fields.delivered_revision) throw new Error("worker crashed before commit");
+      if (fields.delivered_revision)
+        throw new Error("worker crashed before commit");
       return patch(id, fields);
     }) as any;
-    await expect(drainSyncOutbox(ctx, a.receipts[0].id)).rejects.toThrow("worker crashed");
+    await expect(drainSyncOutbox(ctx, a.receipts[0].id)).rejects.toThrow(
+      "worker crashed",
+    );
     db.__rollback();
     db.patch = patch;
     expect((await db.get(a.id))?.title).toBe("Saved");
@@ -135,7 +167,10 @@ describe("durable sync delivery through wrapped application saves", () => {
   test("deletion before delivery emits only a tombstone and cannot resurrect cargo", async () => {
     const { ctx, db } = fixture();
     const a = await save(ctx, { fields: { title: "Delete me" } });
-    const remove = mutation({ args: {}, handler: async (wrapped: any) => wrapped.db.delete(a.id) });
+    const remove = mutation({
+      args: {},
+      handler: async (wrapped: any) => wrapped.db.delete(a.id),
+    });
     await (remove as any)._handler(ctx, {});
     await deliverAll(ctx);
     expect(await db.get(a.id)).toBeNull();
@@ -151,19 +186,36 @@ describe("durable sync delivery through wrapped application saves", () => {
     await save(ctx, { id: a.id, fields: { title: "Second" } });
     await drainSyncOutbox(ctx, a.receipts[0].id);
     await drainSyncOutbox(ctx, a.receipts[0].id);
-    expect(db._tables.sync_actions[0]).toMatchObject({ position: 2, patch: { title: "Second" } });
+    expect(db._tables.sync_actions[0]).toMatchObject({
+      position: 2,
+      patch: { title: "Second" },
+    });
     expect((await db.get(a.receipts[0].id))?.delivered_revision).toBe(2);
   });
 
   test("pending revoke fences old cargo immediately; revoke then regrant cannot replay a stale delete", async () => {
     const { ctx, db } = fixture();
-    const extra = { cargo: { patch: { title: "Secret" }, full: true }, access: async () => ({ access_owner: "owner", access_key: "team:team" }) };
-    const a = await enqueueSyncAction(ctx, "team:team", "tasks", "task", "upsert", extra);
+    const extra = {
+      cargo: { patch: { title: "Secret" }, full: true },
+      access: async () => ({ access_owner: "owner", access_key: "team:team" }),
+    };
+    const a = await enqueueSyncAction(
+      ctx,
+      "team:team",
+      "tasks",
+      "task",
+      "upsert",
+      extra,
+    );
     await deliverAll(ctx);
     await enqueueSyncAction(ctx, "team:team", "tasks", "task", "delete");
     const viewer = { userId: "member", heldKeys: new Set(["team:team"]) };
-    expect((await readRangePage(db, "team:team", 0, 10, viewer, { cargo: true })).actions)
-      .toEqual([{ position: 1, entity_type: "tasks", entity_id: "task", op: "delete" }]);
+    expect(
+      (await readRangePage(db, "team:team", 0, 10, viewer, { cargo: true }))
+        .actions,
+    ).toEqual([
+      { position: 1, entity_type: "tasks", entity_id: "task", op: "delete" },
+    ]);
     await enqueueSyncAction(ctx, "team:team", "tasks", "task", "upsert", extra);
     await drainSyncOutbox(ctx, a.id);
     expect(db._tables.sync_actions).toHaveLength(1);
@@ -176,12 +228,16 @@ describe("durable sync delivery through wrapped application saves", () => {
     const a = await save(ctx, { fields: { title: "Before snapshot" } });
     await deliverAll(ctx);
     await save(ctx, { id: a.id, fields: { title: "Snapshot value" } });
-    const page = await readRangePage(db, "user:owner", 0, 10, undefined, { cargo: true });
+    const page = await readRangePage(db, "user:owner", 0, 10, undefined, {
+      cargo: true,
+    });
     expect(page.actions[0]).not.toHaveProperty("patch");
     expect((await db.get(a.id))?.title).toBe("Snapshot value");
     await deliverAll(ctx);
-    expect((await readRangePage(db, "user:owner", 1, 10, undefined, { cargo: true })).actions[0])
-      .toMatchObject({ patch: { title: "Snapshot value" } });
+    expect(
+      (await readRangePage(db, "user:owner", 1, 10, undefined, { cargo: true }))
+        .actions[0],
+    ).toMatchObject({ patch: { title: "Snapshot value" } });
   });
 
   test("membership events preserve remove/add/remove order and are not deduplicated", async () => {
@@ -189,8 +245,14 @@ describe("durable sync delivery through wrapped application saves", () => {
     for (const op of ["scope_removed", "scope_added", "scope_removed"] as const)
       await enqueueSyncAction(ctx, "user:owner", "scope", "team", op);
     await deliverAll(ctx);
-    expect(db._tables.sync_actions.map((r: any) => r.op)).toEqual(["scope_removed", "scope_added", "scope_removed"]);
-    expect(db._tables.sync_actions.map((r: any) => r.position)).toEqual([1, 2, 3]);
+    expect(db._tables.sync_actions.map((r: any) => r.op)).toEqual([
+      "scope_removed",
+      "scope_added",
+      "scope_removed",
+    ]);
+    expect(db._tables.sync_actions.map((r: any) => r.position)).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   // Every drain job costs the scheduler a slot whether or not it finds work,
@@ -199,9 +261,24 @@ describe("durable sync delivery through wrapped application saves", () => {
     const { ctx, db, scheduled } = fixture();
     const collector = makeSyncAckCollector();
     attachSyncOutbox(ctx, collector);
-    for (let i = 0; i < 10; i++) await collector.enqueue!("user:owner", "conversations" as any, `c${i}`, "upsert", { cargo: { partial: true } } as any);
-    await collector.enqueue!("team:t1", "conversations" as any, "c0", "upsert", { cargo: { partial: true } } as any);
-    expect(db._tables.sync_outbox.filter((r: any) => r.pending)).toHaveLength(11);
+    for (let i = 0; i < 10; i++)
+      await collector.enqueue!(
+        "user:owner",
+        "conversations" as any,
+        `c${i}`,
+        "upsert",
+        { cargo: { partial: true } } as any,
+      );
+    await collector.enqueue!(
+      "team:t1",
+      "conversations" as any,
+      "c0",
+      "upsert",
+      { cargo: { partial: true } } as any,
+    );
+    expect(db._tables.sync_outbox.filter((r: any) => r.pending)).toHaveLength(
+      11,
+    );
     expect(scheduled.map((args) => args[2].id)).toHaveLength(2);
     await deliverAll(ctx);
     expect(db._tables.sync_actions).toHaveLength(11);
@@ -212,32 +289,51 @@ describe("durable sync delivery through wrapped application saves", () => {
   // nothing to do; the delivered slots' drains are now canceled instead.
   test("saves in separate transactions run one drain for the scope", async () => {
     const { ctx, db, scheduled, jobs, runJobs } = fixture();
-    for (let i = 0; i < 10; i++) await save(ctx, { fields: { title: `Session ${i}` } });
+    for (let i = 0; i < 10; i++)
+      await save(ctx, { fields: { title: `Session ${i}` } });
     expect(scheduled).toHaveLength(10);
     expect(await runJobs()).toBe(1);
     expect(db._tables.sync_actions).toHaveLength(10);
-    expect([...jobs.values()].filter((j) => j.state.kind === "canceled")).toHaveLength(9);
-    expect(db._tables.sync_outbox.every((r: any) => !r.pending && r.drain_job === undefined)).toBe(true);
+    expect(
+      [...jobs.values()].filter((j) => j.state.kind === "canceled"),
+    ).toHaveLength(9);
+    expect(
+      db._tables.sync_outbox.every(
+        (r: any) => !r.pending && r.drain_job === undefined,
+      ),
+    ).toBe(true);
   });
 
   test("recover leaves a scope whose drain is still waiting alone", async () => {
     const { ctx, db, scheduled, jobs, runJobs } = fixture();
     await save(ctx, { fields: { title: "Waiting" } });
-    await enqueueSyncAction(ctx, "team:t1", "tasks", "task", "upsert", { cargo: { partial: true } } as any);
+    await enqueueSyncAction(ctx, "team:t1", "tasks", "task", "upsert", {
+      cargo: { partial: true },
+    } as any);
     scheduled.length = 0;
-    for (let minute = 0; minute < 5; minute++) await (recover as any)._handler(ctx, {});
+    for (let minute = 0; minute < 5; minute++)
+      await (recover as any)._handler(ctx, {});
     expect(scheduled).toHaveLength(0);
     // A drain that died without delivering leaves its scope to recover.
     jobs.get("job_1")!.state = { kind: "failed" };
     await (recover as any)._handler(ctx, {});
-    expect(scheduled.map((args) => args[2].id)).toEqual([db._tables.sync_outbox[0]._id]);
+    expect(scheduled.map((args) => args[2].id)).toEqual([
+      db._tables.sync_outbox[0]._id,
+    ]);
     expect(await runJobs()).toBe(2);
     expect(db._tables.sync_actions).toHaveLength(2);
   });
 
   test("a lifecycle slot past one pass's event cap gets exactly one follow-up drain", async () => {
     const { ctx, db, scheduled } = fixture();
-    for (let i = 0; i < 40; i++) await enqueueSyncAction(ctx, "user:owner", "member", "m1", i % 2 ? "scope_added" : "scope_removed");
+    for (let i = 0; i < 40; i++)
+      await enqueueSyncAction(
+        ctx,
+        "user:owner",
+        "member",
+        "m1",
+        i % 2 ? "scope_added" : "scope_removed",
+      );
     scheduled.length = 0;
     await drainSyncOutbox(ctx, db._tables.sync_outbox[0]._id);
     expect(db._tables.sync_actions).toHaveLength(32);
@@ -250,8 +346,13 @@ describe("durable sync delivery through wrapped application saves", () => {
     const { ctx, db } = fixture();
     const a = await save(ctx, { fields: {} });
     await deliverAll(ctx);
-    expect(await readDeliveryReceipts(db, [a.receipts[0]], new Set(["user:intruder"])))
-      .toEqual([{ id: a.receipts[0].id, revision: 1, revoked: true }]);
+    expect(
+      await readDeliveryReceipts(
+        db,
+        [a.receipts[0]],
+        new Set(["user:intruder"]),
+      ),
+    ).toEqual([{ id: a.receipts[0].id, revision: 1, revoked: true }]);
   });
 });
 
@@ -266,23 +367,41 @@ test("Convex transactions validate the schema and deliver actual title mutations
   const ids = await t.run(async (ctx) => {
     const user = await ctx.db.insert("users", { name: "Sync fixture" });
     const conversations = [];
-    for (let i = 0; i < 12; i++) conversations.push(await ctx.db.insert("conversations", {
-      user_id: user, agent_type: "claude_code", session_id: `outbox-${i}`, started_at: 1, updated_at: 1,
-      is_private: true, status: "active", title: "Before",
-    } as any));
+    for (let i = 0; i < 12; i++)
+      conversations.push(
+        await ctx.db.insert("conversations", {
+          user_id: user,
+          agent_type: "claude_code",
+          session_id: `outbox-${i}`,
+          started_at: 1,
+          updated_at: 1,
+          is_private: true,
+          status: "active",
+          title: "Before",
+        } as any),
+      );
     return conversations;
   });
-  const title = makeFunctionReference<"mutation">("titleGeneration:setTitleAndSubtitle");
-  await Promise.all(ids.map((conversation_id, i) => t.mutation(title, { conversation_id, title: `After ${i}` })));
+  const title = makeFunctionReference<"mutation">(
+    "titleGeneration:setTitleAndSubtitle",
+  );
+  await Promise.all(
+    ids.map((conversation_id, i) =>
+      t.mutation(title, { conversation_id, title: `After ${i}` }),
+    ),
+  );
   await new Promise((resolve) => setTimeout(resolve, 100));
   await t.finishInProgressScheduledFunctions();
   await t.run(async (ctx) => {
     const pending = await ctx.db.query("sync_outbox").collect();
     expect(pending).toHaveLength(12);
-    expect(pending.every((r) => !r.pending && r.delivered_revision === 1)).toBe(true);
+    expect(pending.every((r) => !r.pending && r.delivered_revision === 1)).toBe(
+      true,
+    );
     const actions = await ctx.db.query("sync_actions").collect();
     expect(actions).toHaveLength(12);
     expect(new Set(actions.map((r) => r.position)).size).toBe(12);
-    for (let i = 0; i < ids.length; i++) expect((await ctx.db.get(ids[i]))?.title).toBe(`After ${i}`);
+    for (let i = 0; i < ids.length; i++)
+      expect((await ctx.db.get(ids[i]))?.title).toBe(`After ${i}`);
   });
 }, 120_000);

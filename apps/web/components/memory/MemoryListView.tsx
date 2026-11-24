@@ -29,17 +29,40 @@ const sortValue = (n: MemoryNote, key: SortKey): string | number =>
     changed: n.mtime,
   })[key];
 
-export function MemoryListView({ notes, active, onOpen }: { notes: MemoryNote[]; active: string | null; onOpen: (file: string) => void }) {
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "changed", dir: -1 });
+export function MemoryListView({
+  notes,
+  active,
+  onOpen,
+}: {
+  notes: MemoryNote[];
+  active: string | null;
+  onOpen: (file: string) => void;
+}) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "changed",
+    dir: -1,
+  });
   const rows = useMemo(
-    () => [...notes].sort((a, b) => {
-      const x = sortValue(a, sort.key), y = sortValue(b, sort.key);
-      return (x > y ? 1 : x < y ? -1 : 0) * sort.dir;
-    }),
+    () =>
+      [...notes].sort((a, b) => {
+        const x = sortValue(a, sort.key),
+          y = sortValue(b, sort.key);
+        return (x > y ? 1 : x < y ? -1 : 0) * sort.dir;
+      }),
     [notes, sort],
   );
   const toggle = (key: SortKey) =>
-    setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : key === "name" || key === "type" || key === "reach" ? 1 : -1 }));
+    setSort((s) => ({
+      key,
+      dir:
+        s.key === key
+          ? s.dir === 1
+            ? -1
+            : 1
+          : key === "name" || key === "type" || key === "reach"
+            ? 1
+            : -1,
+    }));
 
   return (
     <div className="h-full overflow-y-auto px-5 pb-16">
@@ -69,19 +92,37 @@ export function MemoryListView({ notes, active, onOpen }: { notes: MemoryNote[];
             >
               <td className="py-2 px-2 align-top max-w-0 w-[52%]">
                 <div className="text-sol-text truncate">{n.name}</div>
-                <div className="text-xs text-sol-text-dim line-clamp-2">{n.description || <i>No description</i>}</div>
+                <div className="text-xs text-sol-text-dim line-clamp-2">
+                  {n.description || <i>No description</i>}
+                </div>
               </td>
-              <td className="py-2 px-2 align-top"><TypeBadge type={n.type} /></td>
-              <td className="py-2 px-2 align-top"><ReachBadge reach={n.reach} /></td>
-              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">{n.inbound.length}</td>
-              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">{n.links.length}</td>
-              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">{formatBytes(n.bytes)}</td>
-              <td className="py-2 px-2 align-top text-right text-meta text-sol-text-dim whitespace-nowrap">{formatRelative(n.mtime)}</td>
+              <td className="py-2 px-2 align-top">
+                <TypeBadge type={n.type} />
+              </td>
+              <td className="py-2 px-2 align-top">
+                <ReachBadge reach={n.reach} />
+              </td>
+              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">
+                {n.inbound.length}
+              </td>
+              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">
+                {n.links.length}
+              </td>
+              <td className="py-2 px-2 align-top text-right font-mono text-meta text-sol-text-muted tabular-nums">
+                {formatBytes(n.bytes)}
+              </td>
+              <td className="py-2 px-2 align-top text-right text-meta text-sol-text-dim whitespace-nowrap">
+                {formatRelative(n.mtime)}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && <div className="py-10 text-center text-sm text-sol-text-dim">No memory matches.</div>}
+      {rows.length === 0 && (
+        <div className="py-10 text-center text-sm text-sol-text-dim">
+          No memory matches.
+        </div>
+      )}
     </div>
   );
 }

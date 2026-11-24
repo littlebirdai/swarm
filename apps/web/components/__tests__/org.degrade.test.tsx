@@ -11,7 +11,13 @@
 // paints, while the conversation stays mounted behind it.
 // Run: cd apps/web && bun test --isolate components/__tests__/org.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, installDom, installMissingBackend, seedViewer, TEAM_ID } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+  TEAM_ID,
+} from "../../test-helpers/missingBackend";
 
 const { mountPage } = installDom("https://app.test/org?show=map");
 const backend = await installMissingBackend();
@@ -21,7 +27,12 @@ const { useInboxStore } = await import("../../store/inboxStore");
 const { ORG_FIXTURE } = await import("../org/orgFixture");
 const { default: OrgPage } = await import("../../app/org/page");
 
-useInboxStore.setState({ orgTree: { ...ORG_FIXTURE, workspace: { kind: "team", id: TEAM_ID, name: "Degrade Co" } } } as any);
+useInboxStore.setState({
+  orgTree: {
+    ...ORG_FIXTURE,
+    workspace: { kind: "team", id: TEAM_ID, name: "Degrade Co" },
+  },
+} as any);
 
 test("the org chart paints its cached people and roles with every query missing", async () => {
   const page = await mountPage("/org?show=map", { org: <OrgPage /> });
@@ -31,7 +42,8 @@ test("the org chart paints its cached people and roles with every query missing"
     const text = page.text();
     expect(text).toContain("Head of Growth");
     expect(text).toContain("Samvit Jain");
-    for (const fn of ["org:tree", "orgProposals:list"]) expect(backend.refused).toContain(fn);
+    for (const fn of ["org:tree", "orgProposals:list"])
+      expect(backend.refused).toContain(fn);
   } finally {
     await page.unmount();
   }

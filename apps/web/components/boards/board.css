@@ -12,17 +12,54 @@
   --board-paper: #fffdf6;
   --board-ink: #22211d;
   --board-on-solid: #fff;
-  --board-chrome-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 8px 22px -8px rgb(0 0 0 / 0.35);
+  --board-chrome-shadow:
+    0 1px 2px rgb(0 0 0 / 0.12), 0 8px 22px -8px rgb(0 0 0 / 0.35);
   /* Sticky paper per color. Dark themes wash the theme color into paper; light themes use clear pastels (a theme color mixed into white turns muddy). */
-  --board-sticky-yellow: color-mix(in srgb, var(--sol-yellow) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-orange: color-mix(in srgb, var(--sol-orange) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-red: color-mix(in srgb, var(--sol-red) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-pink: color-mix(in srgb, var(--sol-magenta) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-violet: color-mix(in srgb, var(--sol-violet) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-blue: color-mix(in srgb, var(--sol-blue) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-cyan: color-mix(in srgb, var(--sol-cyan) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-green: color-mix(in srgb, var(--sol-green) var(--board-sticky-mix), var(--board-paper));
-  --board-sticky-gray: color-mix(in srgb, var(--sol-text-dim) var(--board-sticky-mix), var(--board-paper));
+  --board-sticky-yellow: color-mix(
+    in srgb,
+    var(--sol-yellow) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-orange: color-mix(
+    in srgb,
+    var(--sol-orange) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-red: color-mix(
+    in srgb,
+    var(--sol-red) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-pink: color-mix(
+    in srgb,
+    var(--sol-magenta) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-violet: color-mix(
+    in srgb,
+    var(--sol-violet) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-blue: color-mix(
+    in srgb,
+    var(--sol-blue) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-cyan: color-mix(
+    in srgb,
+    var(--sol-cyan) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-green: color-mix(
+    in srgb,
+    var(--sol-green) var(--board-sticky-mix),
+    var(--board-paper)
+  );
+  --board-sticky-gray: color-mix(
+    in srgb,
+    var(--sol-text-dim) var(--board-sticky-mix),
+    var(--board-paper)
+  );
   position: relative;
   width: 100%;
   height: 100%;
@@ -49,23 +86,39 @@ html.light .board-root {
   --board-sticky-gray: #e4e4e1;
 }
 .board-root.board-tool-hand,
-.board-root[data-space] { cursor: grab; }
-.board-root[data-panning] { cursor: grabbing; }
-.board-root.board-tool-pen { cursor: crosshair; }
+.board-root[data-space] {
+  cursor: grab;
+}
+.board-root[data-panning] {
+  cursor: grabbing;
+}
+.board-root.board-tool-pen {
+  cursor: crosshair;
+}
 .board-root.board-tool-sticky,
 .board-root.board-tool-shape,
 .board-root.board-tool-frame,
 .board-root.board-tool-connector,
 .board-root.board-tool-stamp,
-.board-root.board-tool-card { cursor: crosshair; }
-.board-root.board-tool-text { cursor: text; }
-.board-root.board-tool-comment { cursor: copy; }
+.board-root.board-tool-card {
+  cursor: crosshair;
+}
+.board-root.board-tool-text {
+  cursor: text;
+}
+.board-root.board-tool-comment {
+  cursor: copy;
+}
 
 .board-grid {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sol-text-dim) 26%, transparent) 1px, transparent 1.2px);
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, var(--sol-text-dim) 26%, transparent) 1px,
+    transparent 1.2px
+  );
   background-size: var(--grid-size) var(--grid-size);
   background-position: var(--grid-x) var(--grid-y);
 }
@@ -93,13 +146,19 @@ html.light .board-root {
   pointer-events: none;
 }
 .board-svg path,
-.board-svg polygon { pointer-events: none; }
+.board-svg polygon {
+  pointer-events: none;
+}
 .board-svg .board-hit {
   fill: none;
   stroke: transparent;
   pointer-events: stroke;
 }
-.board-connector { width: 0; height: 0; pointer-events: none; }
+.board-connector {
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
 
 .board-sticky {
   border-radius: 3px;
@@ -109,7 +168,9 @@ html.light .board-root {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.06), 0 4px 10px -4px rgb(0 0 0 / 0.2);
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.06),
+    0 4px 10px -4px rgb(0 0 0 / 0.2);
   color: var(--board-ink);
   overflow: hidden;
 }
@@ -130,29 +191,60 @@ html.light .board-root {
   flex-direction: column;
   gap: 2px;
 }
-.board-sticky-text strong { font-weight: 650; }
-.board-sticky .board-sticky-text[data-list] { text-align: left; }
+.board-sticky-text strong {
+  font-weight: 650;
+}
+.board-sticky .board-sticky-text[data-list] {
+  text-align: left;
+}
 /* A link on a pastel sticky: the theme's blue darkened toward the sticky's ink, so it reads on cream. */
-.board-a { color: var(--sol-blue); text-decoration: underline; text-underline-offset: 0.15em; cursor: pointer; }
-.board-sticky .board-a, .board-sticky .board-rich-edit a { color: color-mix(in srgb, var(--sol-blue) 55%, var(--board-ink)); }
+.board-a {
+  color: var(--sol-blue);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+.board-sticky .board-a,
+.board-sticky .board-rich-edit a {
+  color: color-mix(in srgb, var(--sol-blue) 55%, var(--board-ink));
+}
 /* One line of formatted text; list items lay their mark beside their words. */
-.board-line { display: block; }
-.board-li { display: flex; }
+.board-line {
+  display: block;
+}
+.board-li {
+  display: flex;
+}
 /* Overview: the title alone, scaled up so it still reads at a glance. */
-.board-root[data-lod="far"] .board-sticky-text span { display: none; }
-.board-root[data-lod="far"] .board-sticky-text:not([data-long]) { font-size: min(calc(var(--fs) * 1.6), 26px) !important; line-height: 1.15; }
-.board-sticky-text span { color: color-mix(in srgb, var(--board-ink) 72%, transparent); }
+.board-root[data-lod="far"] .board-sticky-text span {
+  display: none;
+}
+.board-root[data-lod="far"] .board-sticky-text:not([data-long]) {
+  font-size: min(calc(var(--fs) * 1.6), 26px) !important;
+  line-height: 1.15;
+}
+.board-sticky-text span {
+  color: color-mix(in srgb, var(--board-ink) 72%, transparent);
+}
 
 .board-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   padding: 0 2px;
 }
-.board-placeholder { color: var(--sol-text-dim); }
+.board-placeholder {
+  color: var(--sol-text-dim);
+}
 
 .board-shape-svg,
-.board-shape-box { position: absolute; inset: 0; overflow: visible; }
-.board-shape-box { box-sizing: border-box; }
+.board-shape-box {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.board-shape-box {
+  box-sizing: border-box;
+}
 .board-shape-text {
   position: absolute;
   inset: 0;
@@ -184,16 +276,35 @@ html.light .board-root {
   pointer-events: auto;
 }
 
-.board-image { border-radius: 4px; overflow: hidden; background: var(--sol-bg-alt); }
-.board-image img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.board-image {
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--sol-bg-alt);
+}
+.board-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
 .board-image-pending {
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, var(--sol-bg-alt), var(--sol-card), var(--sol-bg-alt));
+  background: linear-gradient(
+    90deg,
+    var(--sol-bg-alt),
+    var(--sol-card),
+    var(--sol-bg-alt)
+  );
   background-size: 200% 100%;
   animation: board-shimmer 1.1s linear infinite;
 }
-@keyframes board-shimmer { to { background-position: -200% 0; } }
+@keyframes board-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
 
 .board-stamp {
   display: flex;
@@ -207,7 +318,9 @@ html.light .board-root {
   border-radius: 10px;
   overflow: hidden;
   background: var(--sol-card);
-  box-shadow: 0 0 0 1px var(--sol-border), 0 4px 14px -6px rgb(0 0 0 / 0.25);
+  box-shadow:
+    0 0 0 1px var(--sol-border),
+    0 4px 14px -6px rgb(0 0 0 / 0.25);
 }
 .board-card-inner {
   pointer-events: none;
@@ -216,10 +329,14 @@ html.light .board-root {
   -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
   mask-image: linear-gradient(to bottom, #000 82%, transparent);
 }
-.board-card-inner > * { margin: 0 !important; }
+.board-card-inner > * {
+  margin: 0 !important;
+}
 /* Selected alone, a card's own controls (open, open beside, expand) work. */
 .board-card.is-interactive .board-card-inner a,
-.board-card.is-interactive .board-card-inner button { pointer-events: auto; }
+.board-card.is-interactive .board-card-inner button {
+  pointer-events: auto;
+}
 
 /* A published page: a header strip over the live page. The page takes no pointer until it is entered. */
 .board-page {
@@ -228,11 +345,16 @@ html.light .board-root {
   border-radius: 10px;
   overflow: hidden;
   background: var(--sol-card);
-  box-shadow: 0 0 0 1px var(--sol-border), 0 6px 20px -8px rgb(0 0 0 / 0.3);
+  box-shadow:
+    0 0 0 1px var(--sol-border),
+    0 6px 20px -8px rgb(0 0 0 / 0.3);
   transition: box-shadow 0.15s ease-out;
 }
 .board-page.is-live {
-  box-shadow: 0 0 0 2px var(--board-sel), 0 0 0 7px color-mix(in srgb, var(--board-sel) 16%, transparent), 0 10px 28px -10px rgb(0 0 0 / 0.35);
+  box-shadow:
+    0 0 0 2px var(--board-sel),
+    0 0 0 7px color-mix(in srgb, var(--board-sel) 16%, transparent),
+    0 10px 28px -10px rgb(0 0 0 / 0.35);
 }
 .board-page-head {
   flex: none;
@@ -246,8 +368,21 @@ html.light .board-root {
   font-size: 13px;
   white-space: nowrap;
 }
-.board-page-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--sol-text); }
-.board-page-caption { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--sol-text-muted); }
+.board-page-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--sol-text);
+}
+.board-page-caption {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--sol-text-muted);
+}
 .board-page-act {
   flex: none;
   height: 26px;
@@ -260,11 +395,23 @@ html.light .board-root {
   gap: 6px;
   color: var(--sol-text-muted);
   font-size: 12px;
-  transition: background-color 0.1s ease-out, color 0.1s ease-out;
+  transition:
+    background-color 0.1s ease-out,
+    color 0.1s ease-out;
 }
-.board-page-act:hover { background: var(--sol-bg-highlight); color: var(--sol-text); }
-.board-page-body { position: relative; flex: 1 1 0; min-height: 0; pointer-events: none; }
-.board-page.is-live .board-page-body { pointer-events: auto; }
+.board-page-act:hover {
+  background: var(--sol-bg-highlight);
+  color: var(--sol-text);
+}
+.board-page-body {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  pointer-events: none;
+}
+.board-page.is-live .board-page-body {
+  pointer-events: auto;
+}
 
 .board-connector-label {
   position: absolute;
@@ -293,9 +440,17 @@ html.light .board-root {
   -webkit-user-select: text;
   cursor: text;
 }
-.board-sticky .board-edit { text-align: center; field-sizing: content; max-height: 100%; }
+.board-sticky .board-edit {
+  text-align: center;
+  field-sizing: content;
+  max-height: 100%;
+}
 /* The rich editor reads like the sticky it edits: a title line over a softer body. */
-.board-rich-edit { white-space: pre-wrap; outline: none; min-height: 1.3em; }
+.board-rich-edit {
+  white-space: pre-wrap;
+  outline: none;
+  min-height: 1.3em;
+}
 .board-bar-link {
   width: 220px;
   height: 28px;
@@ -307,29 +462,83 @@ html.light .board-root {
   border-radius: 6px;
   outline: none;
 }
-.board-bar-link:focus { border-color: var(--board-sel); }
-.board-rich-edit a { color: var(--sol-blue); text-decoration: underline; text-underline-offset: 0.15em; }
-.board-sticky .board-rich-edit > div:first-child:not(:only-child) { font-weight: 650; }
-.board-sticky .board-rich-edit.is-formatting > div:first-child { font-weight: inherit; }
-.board-sticky .board-rich-edit > div:not(:first-child) { color: color-mix(in srgb, var(--board-ink) 72%, transparent); }
-.board-text .board-edit { height: 100%; }
-.board-shape .board-edit { inset: 6px 12px; position: absolute; width: auto; text-align: center; align-content: center; }
-.board-frame-title .board-edit { field-sizing: content; min-width: 40px; }
-.board-connector-label .board-edit { field-sizing: content; min-width: 20px; }
+.board-bar-link:focus {
+  border-color: var(--board-sel);
+}
+.board-rich-edit a {
+  color: var(--sol-blue);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.board-sticky .board-rich-edit > div:first-child:not(:only-child) {
+  font-weight: 650;
+}
+.board-sticky .board-rich-edit.is-formatting > div:first-child {
+  font-weight: inherit;
+}
+.board-sticky .board-rich-edit > div:not(:first-child) {
+  color: color-mix(in srgb, var(--board-ink) 72%, transparent);
+}
+.board-text .board-edit {
+  height: 100%;
+}
+.board-shape .board-edit {
+  inset: 6px 12px;
+  position: absolute;
+  width: auto;
+  text-align: center;
+  align-content: center;
+}
+.board-frame-title .board-edit {
+  field-sizing: content;
+  min-width: 40px;
+}
+.board-connector-label .board-edit {
+  field-sizing: content;
+  min-width: 20px;
+}
 
 /* ── Overlay (world space) ─────────────────────────────────────────────── */
 
-.board-overlay { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
-.board-overlay > * { position: absolute; box-sizing: border-box; }
-.board-overlay-svg { overflow: visible; }
+.board-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.board-overlay > * {
+  position: absolute;
+  box-sizing: border-box;
+}
+.board-overlay-svg {
+  overflow: visible;
+}
 .board-sel {
   border: calc(1.5px / var(--z)) solid var(--board-sel);
   border-radius: calc(2px / var(--z));
 }
-.board-sel-item { border: calc(1px / var(--z)) solid color-mix(in srgb, var(--board-sel) 55%, transparent); }
-.board-end { r: calc(4.5px / var(--z)); fill: var(--sol-bg); stroke: var(--board-sel); stroke-width: calc(1.5px / var(--z)); }
-.board-end.is-attached { fill: var(--board-sel); }
-.board-sel-path { fill: none; stroke: var(--board-sel); stroke-width: calc(5px / var(--z)); stroke-opacity: 0.35; stroke-linecap: round; }
+.board-sel-item {
+  border: calc(1px / var(--z)) solid
+    color-mix(in srgb, var(--board-sel) 55%, transparent);
+}
+.board-end {
+  r: calc(4.5px / var(--z));
+  fill: var(--sol-bg);
+  stroke: var(--board-sel);
+  stroke-width: calc(1.5px / var(--z));
+}
+.board-end.is-attached {
+  fill: var(--board-sel);
+}
+.board-sel-path {
+  fill: none;
+  stroke: var(--board-sel);
+  stroke-width: calc(5px / var(--z));
+  stroke-opacity: 0.35;
+  stroke-linecap: round;
+}
 .board-handle {
   width: calc(9px / var(--z));
   height: calc(9px / var(--z));
@@ -339,15 +548,35 @@ html.light .board-root {
   border-radius: calc(2px / var(--z));
   pointer-events: auto;
 }
-.board-handle-n, .board-handle-s { cursor: ns-resize; }
-.board-handle-e, .board-handle-w { cursor: ew-resize; }
-.board-handle-nw, .board-handle-se { cursor: nwse-resize; }
-.board-handle-ne, .board-handle-sw { cursor: nesw-resize; }
-.board-handle-n, .board-handle-s, .board-handle-e, .board-handle-w { opacity: 0; }
+.board-handle-n,
+.board-handle-s {
+  cursor: ns-resize;
+}
+.board-handle-e,
+.board-handle-w {
+  cursor: ew-resize;
+}
+.board-handle-nw,
+.board-handle-se {
+  cursor: nwse-resize;
+}
+.board-handle-ne,
+.board-handle-sw {
+  cursor: nesw-resize;
+}
+.board-handle-n,
+.board-handle-s,
+.board-handle-e,
+.board-handle-w {
+  opacity: 0;
+}
 .board-handle-rotate {
   width: calc(10px / var(--z));
   height: calc(10px / var(--z));
-  transform: translate(calc(-50% + 16px / var(--z)), calc(-50% - 16px / var(--z)));
+  transform: translate(
+    calc(-50% + 16px / var(--z)),
+    calc(-50% - 16px / var(--z))
+  );
   border-radius: 50%;
   background: var(--sol-bg);
   border: calc(1.5px / var(--z)) solid var(--board-sel);
@@ -365,32 +594,72 @@ html.light .board-root {
   opacity: 0.85;
   transition: transform 120ms ease-out;
 }
-.board-link-n { transform: translate(-50%, calc(-50% - 26px / var(--z))); }
-.board-link-s { transform: translate(-50%, calc(-50% + 22px / var(--z))); }
-.board-link-e { transform: translate(calc(-50% + 22px / var(--z)), -50%); }
-.board-link-w { transform: translate(calc(-50% - 22px / var(--z)), -50%); }
-.board-link-dot:hover { opacity: 1; }
-.board-guide { border-left: calc(1px / var(--z)) solid var(--sol-magenta); border-top: calc(1px / var(--z)) solid var(--sol-magenta); }
+.board-link-n {
+  transform: translate(-50%, calc(-50% - 26px / var(--z)));
+}
+.board-link-s {
+  transform: translate(-50%, calc(-50% + 22px / var(--z)));
+}
+.board-link-e {
+  transform: translate(calc(-50% + 22px / var(--z)), -50%);
+}
+.board-link-w {
+  transform: translate(calc(-50% - 22px / var(--z)), -50%);
+}
+.board-link-dot:hover {
+  opacity: 1;
+}
+.board-guide {
+  border-left: calc(1px / var(--z)) solid var(--sol-magenta);
+  border-top: calc(1px / var(--z)) solid var(--sol-magenta);
+}
 .board-marquee {
   border: calc(1px / var(--z)) solid var(--board-sel);
   background: color-mix(in srgb, var(--board-sel) 8%, transparent);
 }
-.board-draft { border: calc(1.5px / var(--z)) dashed var(--board-sel); border-radius: calc(4px / var(--z)); }
-.board-pen-live { fill: none; stroke: var(--sol-text-muted); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.board-link-live { fill: none; stroke: var(--board-sel); stroke-width: calc(2px / var(--z)); stroke-dasharray: calc(6px / var(--z)) calc(4px / var(--z)); }
-.board-link-target { border: calc(2px / var(--z)) solid var(--board-sel); border-radius: calc(4px / var(--z)); background: color-mix(in srgb, var(--board-sel) 6%, transparent); }
+.board-draft {
+  border: calc(1.5px / var(--z)) dashed var(--board-sel);
+  border-radius: calc(4px / var(--z));
+}
+.board-pen-live {
+  fill: none;
+  stroke: var(--sol-text-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.board-link-live {
+  fill: none;
+  stroke: var(--board-sel);
+  stroke-width: calc(2px / var(--z));
+  stroke-dasharray: calc(6px / var(--z)) calc(4px / var(--z));
+}
+.board-link-target {
+  border: calc(2px / var(--z)) solid var(--board-sel);
+  border-radius: calc(4px / var(--z));
+  background: color-mix(in srgb, var(--board-sel) 6%, transparent);
+}
 
 .board-remote-sel {
   border: calc(2px / var(--z)) solid var(--who);
   border-radius: calc(3px / var(--z));
-  transition: left 160ms ease-out, top 160ms ease-out, width 160ms ease-out, height 160ms ease-out;
+  transition:
+    left 160ms ease-out,
+    top 160ms ease-out,
+    width 160ms ease-out,
+    height 160ms ease-out;
 }
-.board-remote-sel.is-agent { box-shadow: 0 0 0 calc(4px / var(--z)) color-mix(in srgb, var(--who) 18%, transparent); }
+.board-remote-sel.is-agent {
+  box-shadow: 0 0 0 calc(4px / var(--z))
+    color-mix(in srgb, var(--who) 18%, transparent);
+}
 
 /* ── Comment pins ──────────────────────────────────────────────────────── */
 
 /* A pin on an element's face stays small until hovered or open, so it covers few of the words under it. */
-.board-pin.is-on-face:not(.is-open):not(:hover) { transform: translate(0, -100%) scale(calc(0.72 / var(--z))); }
+.board-pin.is-on-face:not(.is-open):not(:hover) {
+  transform: translate(0, -100%) scale(calc(0.72 / var(--z)));
+}
 .board-pin {
   position: absolute;
   transform-origin: 0 100%;
@@ -400,7 +669,9 @@ html.light .board-root {
   border-radius: 15px 15px 15px 3px;
   /* A solid bubble with a light ring reads on any surface: the canvas, a dark shape, a pastel sticky. */
   background: var(--sol-blue);
-  box-shadow: 0 0 0 2px var(--sol-bg), var(--board-chrome-shadow);
+  box-shadow:
+    0 0 0 2px var(--sol-bg),
+    var(--board-chrome-shadow);
   color: white;
   font-size: var(--fs-mark);
   font-weight: 650;
@@ -410,8 +681,15 @@ html.light .board-root {
   cursor: pointer;
   transition: box-shadow 120ms ease-out;
 }
-.board-pin.is-agent { background: var(--sol-violet); }
-.board-pin.is-open { box-shadow: 0 0 0 2px var(--sol-bg), 0 0 0 4px var(--sol-blue), var(--board-chrome-shadow); }
+.board-pin.is-agent {
+  background: var(--sol-violet);
+}
+.board-pin.is-open {
+  box-shadow:
+    0 0 0 2px var(--sol-bg),
+    0 0 0 4px var(--sol-blue),
+    var(--board-chrome-shadow);
+}
 .board-pin em {
   position: absolute;
   top: -5px;
@@ -458,15 +736,41 @@ html.light .board-root {
   align-items: center;
   justify-content: center;
   color: var(--sol-text-muted);
-  transition: background-color 100ms ease-out, color 100ms ease-out;
+  transition:
+    background-color 100ms ease-out,
+    color 100ms ease-out;
   flex: none;
 }
-.board-tool:hover { background: var(--sol-bg-alt); color: var(--sol-text); }
-.board-tool.is-active { background: color-mix(in srgb, var(--board-sel) 16%, transparent); color: var(--board-sel); }
-.board-tool:active { transform: scale(0.94); }
-.board-tool-dot { position: absolute; right: 6px; bottom: 6px; width: 5px; height: 5px; border-radius: 50%; }
-.board-tool-emoji { font-size: 17px; line-height: 1; }
-.board-toolbar-sep { width: 1px; height: 20px; background: var(--sol-border); margin: 0 4px; flex: none; }
+.board-tool:hover {
+  background: var(--sol-bg-alt);
+  color: var(--sol-text);
+}
+.board-tool.is-active {
+  background: color-mix(in srgb, var(--board-sel) 16%, transparent);
+  color: var(--board-sel);
+}
+.board-tool:active {
+  transform: scale(0.94);
+}
+.board-tool-dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.board-tool-emoji {
+  font-size: 17px;
+  line-height: 1;
+}
+.board-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--sol-border);
+  margin: 0 4px;
+  flex: none;
+}
 .board-ask {
   height: 34px;
   padding: 0 12px;
@@ -487,18 +791,66 @@ html.light .board-root {
   box-shadow: var(--board-chrome-shadow);
   animation: board-pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
-.board-stamp-menu { display: block; padding: 6px; }
+.board-stamp-menu {
+  display: block;
+  padding: 6px;
+}
 /* The illustration picker: a search field over a scrolling grid of the painted set, then emoji. */
-.board-art-picker { display: flex; flex-direction: column; gap: 6px; width: 296px; }
-.board-art-picker .board-bar-link { width: 100%; box-sizing: border-box; }
-.board-art-grid { display: grid; grid-template-columns: repeat(7, 38px); gap: 2px; max-height: 232px; overflow-y: auto; overscroll-behavior: contain; }
-.board-art-cell { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 7px; font-size: 20px; }
-.board-art-cell img { width: 30px; height: 30px; object-fit: contain; }
-.board-art-cell:hover { background: var(--sol-bg-alt); }
-.board-art-cell.is-active { background: color-mix(in srgb, var(--board-sel) 16%, transparent); }
-.board-art-none { width: 18px; height: 18px; border: 1.5px dashed var(--sol-text-dim); border-radius: 50%; }
-.board-stamp-pick { width: 32px; height: 32px; border-radius: 7px; font-size: 18px; line-height: 1; }
-.board-stamp-pick:hover, .board-stamp-pick.is-active { background: var(--sol-bg-alt); }
+.board-art-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 296px;
+}
+.board-art-picker .board-bar-link {
+  width: 100%;
+  box-sizing: border-box;
+}
+.board-art-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 38px);
+  gap: 2px;
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.board-art-cell {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 20px;
+}
+.board-art-cell img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.board-art-cell:hover {
+  background: var(--sol-bg-alt);
+}
+.board-art-cell.is-active {
+  background: color-mix(in srgb, var(--board-sel) 16%, transparent);
+}
+.board-art-none {
+  width: 18px;
+  height: 18px;
+  border: 1.5px dashed var(--sol-text-dim);
+  border-radius: 50%;
+}
+.board-stamp-pick {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  font-size: 18px;
+  line-height: 1;
+}
+.board-stamp-pick:hover,
+.board-stamp-pick.is-active {
+  background: var(--sol-bg-alt);
+}
 .board-swatch {
   width: 22px;
   height: 22px;
@@ -508,9 +860,20 @@ html.light .board-root {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
   transition: transform 100ms ease-out;
 }
-.board-swatch:hover { transform: scale(1.12); }
-.board-swatch.is-active { box-shadow: 0 0 0 2px var(--sol-card), 0 0 0 3.5px var(--sw); }
-@keyframes board-pop { from { opacity: 0; transform: translate(-50%, 4px) scale(0.97); } }
+.board-swatch:hover {
+  transform: scale(1.12);
+}
+.board-swatch.is-active {
+  box-shadow:
+    0 0 0 2px var(--sol-card),
+    0 0 0 3.5px var(--sw);
+}
+@keyframes board-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px) scale(0.97);
+  }
+}
 
 .board-zoom {
   position: absolute;
@@ -534,7 +897,10 @@ html.light .board-root {
   color: var(--sol-text-muted);
   border-radius: 6px;
 }
-.board-zoom-pct:hover { background: var(--sol-bg-alt); color: var(--sol-text); }
+.board-zoom-pct:hover {
+  background: var(--sol-bg-alt);
+  color: var(--sol-text);
+}
 
 .board-bar {
   position: absolute;
@@ -551,8 +917,14 @@ html.light .board-root {
   white-space: nowrap;
   animation: board-bar-in 120ms ease-out;
 }
-.board-bar.is-below { transform: translate(-50%, 0); }
-@keyframes board-bar-in { from { opacity: 0; } }
+.board-bar.is-below {
+  transform: translate(-50%, 0);
+}
+@keyframes board-bar-in {
+  from {
+    opacity: 0;
+  }
+}
 .board-bar-btn {
   height: 28px;
   min-width: 28px;
@@ -564,17 +936,53 @@ html.light .board-root {
   gap: 6px;
   color: var(--sol-text-muted);
   font-size: 12px;
-  transition: background-color 100ms ease-out, color 100ms ease-out;
+  transition:
+    background-color 100ms ease-out,
+    color 100ms ease-out;
 }
-.board-bar-btn:hover { background: var(--sol-bg-alt); color: var(--sol-text); }
-.board-bar-btn.is-active { color: var(--board-sel); background: color-mix(in srgb, var(--board-sel) 12%, transparent); }
-.board-bar-text { padding: 0 8px; font-weight: 500; }
-.board-bar-ask:hover { color: var(--sol-violet); background: color-mix(in srgb, var(--sol-violet) 12%, transparent); }
-.board-bar-sep { width: 1px; height: 18px; background: var(--sol-border); margin: 0 3px; flex: none; }
-.board-bar-swatch { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15); }
-.board-bar-fill { width: 14px; height: 14px; border-radius: 3px; }
-.board-bar-dash { width: 15px; border-top: 2px dashed currentColor; }
-.board-bar-num { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 16px; }
+.board-bar-btn:hover {
+  background: var(--sol-bg-alt);
+  color: var(--sol-text);
+}
+.board-bar-btn.is-active {
+  color: var(--board-sel);
+  background: color-mix(in srgb, var(--board-sel) 12%, transparent);
+}
+.board-bar-text {
+  padding: 0 8px;
+  font-weight: 500;
+}
+.board-bar-ask:hover {
+  color: var(--sol-violet);
+  background: color-mix(in srgb, var(--sol-violet) 12%, transparent);
+}
+.board-bar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--sol-border);
+  margin: 0 3px;
+  flex: none;
+}
+.board-bar-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+}
+.board-bar-fill {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.board-bar-dash {
+  width: 15px;
+  border-top: 2px dashed currentColor;
+}
+.board-bar-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 16px;
+}
 .board-bar-menu {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -588,13 +996,29 @@ html.light .board-root {
   border-radius: 10px;
   box-shadow: var(--board-chrome-shadow);
 }
-.board-bar.is-below .board-bar-menu { bottom: auto; top: calc(100% + 6px); }
+.board-bar.is-below .board-bar-menu {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
 
 /* The composer: comment pins, Ask agent, Describe a change. */
-.board-prompt { position: absolute; z-index: 30; display: flex; gap: 8px; align-items: flex-start; }
-.board-prompt-ask, .board-prompt-describe { transform: translate(-50%, -100%); }
-.board-prompt-describe { transform: translate(-50%, 0); }
-.board-prompt-comment { transform: translate(-6px, -32px); }
+.board-prompt {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.board-prompt-ask,
+.board-prompt-describe {
+  transform: translate(-50%, -100%);
+}
+.board-prompt-describe {
+  transform: translate(-50%, 0);
+}
+.board-prompt-comment {
+  transform: translate(-6px, -32px);
+}
 .board-prompt-avatar {
   flex: none;
   width: 30px;
@@ -608,7 +1032,12 @@ html.light .board-root {
   align-items: center;
   justify-content: center;
 }
-.board-prompt-avatar.is-small { width: 22px; height: 22px; font-size: var(--fs-mark); border-radius: 11px; }
+.board-prompt-avatar.is-small {
+  width: 22px;
+  height: 22px;
+  font-size: var(--fs-mark);
+  border-radius: 11px;
+}
 .board-prompt-card {
   width: min(400px, calc(100cqw - 60px));
   background: var(--sol-card);
@@ -618,7 +1047,12 @@ html.light .board-root {
   padding: 10px 10px 8px 12px;
   animation: board-prompt-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
-@keyframes board-prompt-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes board-prompt-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
 .board-prompt-input {
   width: 100%;
   resize: none;
@@ -631,12 +1065,40 @@ html.light .board-root {
   max-height: 160px;
   user-select: text;
 }
-.board-prompt-input::placeholder { color: var(--sol-text-dim); }
-.board-prompt-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.board-prompt-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sol-text-muted); cursor: pointer; }
-.board-prompt-check input { accent-color: var(--sol-blue); }
-.board-prompt-hint { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sol-text-dim); }
-.board-prompt-keys { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--sol-text-dim); }
+.board-prompt-input::placeholder {
+  color: var(--sol-text-dim);
+}
+.board-prompt-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.board-prompt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--sol-text-muted);
+  cursor: pointer;
+}
+.board-prompt-check input {
+  accent-color: var(--sol-blue);
+}
+.board-prompt-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--sol-text-dim);
+}
+.board-prompt-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--sol-text-dim);
+}
 .board-prompt-send {
   width: 26px;
   height: 26px;
@@ -648,8 +1110,11 @@ html.light .board-root {
   color: var(--sol-bg);
   transition: opacity 100ms ease-out;
 }
-.board-prompt-send:disabled { opacity: 0.25; }
-.board-prompt-alt, .board-prompt-go {
+.board-prompt-send:disabled {
+  opacity: 0.25;
+}
+.board-prompt-alt,
+.board-prompt-go {
   height: 26px;
   padding: 0 6px 0 9px;
   border-radius: 7px;
@@ -658,13 +1123,29 @@ html.light .board-root {
   gap: 4px;
   font-size: 12px;
   white-space: nowrap;
-  transition: opacity 100ms ease-out, background-color 100ms ease-out;
+  transition:
+    opacity 100ms ease-out,
+    background-color 100ms ease-out;
 }
-.board-prompt-alt { color: var(--sol-text-muted); }
-.board-prompt-alt:hover { background: var(--sol-bg-alt); color: var(--sol-text); }
-.board-prompt-go { background: var(--sol-violet); color: #fff; font-weight: 600; }
-.board-prompt-go:hover { opacity: 0.9; }
-.board-prompt-alt:disabled, .board-prompt-go:disabled { opacity: 0.35; }
+.board-prompt-alt {
+  color: var(--sol-text-muted);
+}
+.board-prompt-alt:hover {
+  background: var(--sol-bg-alt);
+  color: var(--sol-text);
+}
+.board-prompt-go {
+  background: var(--sol-violet);
+  color: #fff;
+  font-weight: 600;
+}
+.board-prompt-go:hover {
+  opacity: 0.9;
+}
+.board-prompt-alt:disabled,
+.board-prompt-go:disabled {
+  opacity: 0.35;
+}
 
 .board-thread {
   position: absolute;
@@ -676,14 +1157,50 @@ html.light .board-root {
   box-shadow: var(--board-chrome-shadow);
   padding: 6px 10px 8px;
 }
-.board-thread-head { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
-.board-thread-agent { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--sol-violet); }
-.board-thread-list { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; }
-.board-thread-item { display: flex; gap: 8px; }
-.board-thread-meta { font-size: 11.5px; color: var(--sol-text-dim); }
-.board-thread-meta b { color: var(--sol-text); font-weight: 600; margin-right: 4px; }
-.board-thread-text { font-size: 13px; color: var(--sol-text); white-space: pre-wrap; user-select: text; }
-.board-thread-reply { border-top: 1px solid var(--sol-border); padding-top: 8px; }
+.board-thread-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+}
+.board-thread-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--sol-violet);
+}
+.board-thread-list {
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+.board-thread-item {
+  display: flex;
+  gap: 8px;
+}
+.board-thread-meta {
+  font-size: 11.5px;
+  color: var(--sol-text-dim);
+}
+.board-thread-meta b {
+  color: var(--sol-text);
+  font-weight: 600;
+  margin-right: 4px;
+}
+.board-thread-text {
+  font-size: 13px;
+  color: var(--sol-text);
+  white-space: pre-wrap;
+  user-select: text;
+}
+.board-thread-reply {
+  border-top: 1px solid var(--sol-border);
+  padding-top: 8px;
+}
 
 .board-empty {
   position: absolute;
@@ -710,26 +1227,55 @@ html.light .board-root {
   box-shadow: var(--board-chrome-shadow);
   transition: transform 120ms ease-out;
 }
-.board-empty-btn:hover { transform: translateY(-1px); }
+.board-empty-btn:hover {
+  transform: translateY(-1px);
+}
 
 .board-root.is-readonly .board-handle,
-.board-root.is-readonly .board-link-dot { display: none; }
+.board-root.is-readonly .board-link-dot {
+  display: none;
+}
 
 /* A narrow pane, not a narrow window: the board sizes itself to its own box. */
 @container board (max-width: 560px) {
-  .board-tool { width: 30px; height: 30px; }
-  .board-ask { padding: 0 10px; height: 30px; }
-  .board-toolbar { bottom: 10px; gap: 0; padding: 4px; }
-  .board-toolbar-sep { margin: 0 2px; }
-  .board-bar-text span { display: none; }
-  .board-prompt-alt kbd { display: none; }
+  .board-tool {
+    width: 30px;
+    height: 30px;
+  }
+  .board-ask {
+    padding: 0 10px;
+    height: 30px;
+  }
+  .board-toolbar {
+    bottom: 10px;
+    gap: 0;
+    padding: 4px;
+  }
+  .board-toolbar-sep {
+    margin: 0 2px;
+  }
+  .board-bar-text span {
+    display: none;
+  }
+  .board-prompt-alt kbd {
+    display: none;
+  }
 }
 @container board (max-width: 420px) {
-  .board-tool { width: 27px; height: 28px; }
-  .board-zoom .board-zoom-pct { min-width: 38px; }
+  .board-tool {
+    width: 27px;
+    height: 28px;
+  }
+  .board-zoom .board-zoom-pct {
+    min-width: 38px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .board-root *, .board-root *::before { animation: none !important; transition: none !important; }
+  .board-root *,
+  .board-root *::before {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Workshop: dot vote and timer, top left */
@@ -750,8 +1296,14 @@ html.light .board-root {
   border-radius: 9px;
   box-shadow: var(--board-chrome-shadow);
 }
-.board-session > .board-bar-btn, .board-session-timer > .board-bar-btn { height: 34px; padding: 0 10px; }
-.board-session-timer { position: relative; }
+.board-session > .board-bar-btn,
+.board-session-timer > .board-bar-btn {
+  height: 34px;
+  padding: 0 10px;
+}
+.board-session-timer {
+  position: relative;
+}
 .board-session-chip {
   height: 34px;
   display: inline-flex;
@@ -761,11 +1313,27 @@ html.light .board-root {
   font-size: 12px;
   color: var(--sol-text-muted);
 }
-.board-session-chip.is-live { border-color: color-mix(in srgb, var(--sol-blue) 45%, var(--sol-border)); color: var(--sol-blue); }
-.board-session-chip.is-done { border-color: var(--sol-red); color: var(--sol-red); animation: board-session-pulse 1s ease-in-out 3; }
-.board-session-chip.is-out { animation: board-session-shake 0.35s ease-in-out; }
-.board-session-val { color: var(--sol-text); font-variant-numeric: tabular-nums; min-width: 34px; }
-.board-session-chip.is-done .board-session-val { color: var(--sol-red); font-weight: 600; }
+.board-session-chip.is-live {
+  border-color: color-mix(in srgb, var(--sol-blue) 45%, var(--sol-border));
+  color: var(--sol-blue);
+}
+.board-session-chip.is-done {
+  border-color: var(--sol-red);
+  color: var(--sol-red);
+  animation: board-session-pulse 1s ease-in-out 3;
+}
+.board-session-chip.is-out {
+  animation: board-session-shake 0.35s ease-in-out;
+}
+.board-session-val {
+  color: var(--sol-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+}
+.board-session-chip.is-done .board-session-val {
+  color: var(--sol-red);
+  font-weight: 600;
+}
 .board-session-act {
   height: 26px;
   padding: 0 8px;
@@ -774,7 +1342,10 @@ html.light .board-root {
   color: var(--sol-text);
   white-space: nowrap;
 }
-.board-session-act:hover, .board-session-act:focus-visible { background: var(--sol-bg-alt); }
+.board-session-act:hover,
+.board-session-act:focus-visible {
+  background: var(--sol-bg-alt);
+}
 .board-session-menu {
   position: absolute;
   top: 40px;
@@ -787,10 +1358,32 @@ html.light .board-root {
   border-radius: 8px;
   box-shadow: 0 4px 16px color-mix(in srgb, black 14%, transparent);
 }
-.board-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-@keyframes board-session-pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--sol-red) 25%, transparent); } }
-@keyframes board-session-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-@media (prefers-reduced-motion: reduce) { .board-session-chip.is-done, .board-session-chip.is-out { animation: none; } }
+.board-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@keyframes board-session-pulse {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sol-red) 25%, transparent);
+  }
+}
+@keyframes board-session-shake {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-session-chip.is-done,
+  .board-session-chip.is-out {
+    animation: none;
+  }
+}
 
 .board-votes {
   position: absolute;
@@ -821,7 +1414,16 @@ html.light .board-root {
   border: 2px solid var(--sol-card);
   box-shadow: 0 1px 3px color-mix(in srgb, black 25%, transparent);
 }
-.board-root.is-voting .board-sticky { cursor: pointer; }
+.board-root.is-voting .board-sticky {
+  cursor: pointer;
+}
 /* A narrow pane: the workshop chips sit under the zoom bar instead of beside it. */
-.board-session.is-compact { top: 54px; left: auto; right: 12px; }
-.board-session.is-compact .board-session-menu { left: auto; right: 0; }
+.board-session.is-compact {
+  top: 54px;
+  left: auto;
+  right: 12px;
+}
+.board-session.is-compact .board-session-menu {
+  left: auto;
+  right: 0;
+}

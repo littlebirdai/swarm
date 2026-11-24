@@ -9,11 +9,19 @@
 /** The parent session a user message hands off from: null when the message
  *  carries no transcript pointer, "" when its pointer is not a plan handoff or names no other
  *  session. */
-export function handoffParentSessionId(content: string, ownSessionId: string): string | null {
+export function handoffParentSessionId(
+  content: string,
+  ownSessionId: string,
+): string | null {
   if (!/read the full transcript at:\s*\S+\.jsonl/i.test(content)) return null;
-  const pointer = content.match(/before exiting plan mode\b[^\n]*?read the full transcript at:\s*(\S+\.jsonl)/i);
+  const pointer = content.match(
+    /before exiting plan mode\b[^\n]*?read the full transcript at:\s*(\S+\.jsonl)/i,
+  );
   if (!pointer) return "";
-  const parent = pointer[1].match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/)?.[1] ?? "";
+  const parent =
+    pointer[1].match(
+      /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/,
+    )?.[1] ?? "";
   return parent === ownSessionId ? "" : parent;
 }
 
@@ -21,7 +29,11 @@ export function handoffParentSessionId(content: string, ownSessionId: string): s
  *  answer to several session ids (a resume repair or an agent switch keeps the
  *  old id), so a pointer to an older id of the same conversation still reaches
  *  here: a conversation never becomes its own child. */
-export function linkPlanHandoffChild(children: Map<string, string>, parent: string, child: string): boolean {
+export function linkPlanHandoffChild(
+  children: Map<string, string>,
+  parent: string,
+  child: string,
+): boolean {
   if (parent === child) return false;
   children.set(parent, child);
   return true;
@@ -30,10 +42,17 @@ export function linkPlanHandoffChild(children: Map<string, string>, parent: stri
 /** Where a message sent to `conversationId` belongs: the last session down its
  *  handoff chain, or undefined when it has none. A chain that loops has no
  *  last session, so the message stays where it was sent. */
-export function planHandoffTarget(children: ReadonlyMap<string, string>, conversationId: string): string | undefined {
+export function planHandoffTarget(
+  children: ReadonlyMap<string, string>,
+  conversationId: string,
+): string | undefined {
   const seen = new Set([conversationId]);
   let target: string | undefined;
-  for (let next = children.get(conversationId); next; next = children.get(next)) {
+  for (
+    let next = children.get(conversationId);
+    next;
+    next = children.get(next)
+  ) {
     if (seen.has(next)) return undefined;
     seen.add(next);
     target = next;

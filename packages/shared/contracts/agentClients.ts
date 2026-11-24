@@ -20,7 +20,10 @@
 import type { CapabilityKind } from "./capabilities";
 import type { ModelOption } from "./modelOptions";
 import { ANTIGRAVITY_CLIENT } from "./antigravityClient";
-import { CLOUD_AGENT_PROVIDERS, cloudAgentLaunchModelOptions } from "./cloudAgents";
+import {
+  CLOUD_AGENT_PROVIDERS,
+  cloudAgentLaunchModelOptions,
+} from "./cloudAgents";
 import {
   CLAUDE_MODEL_OPTIONS,
   CODEX_MODEL_OPTIONS,
@@ -60,7 +63,11 @@ export type LocalAgentClientId = Exclude<AgentClientId, "codecast">;
 
 /** Runtime transports that may create/deliver for a fenced execution binding.
  *  `hosted` is codecast's own backend: no device, no binding, no daemon. */
-export type AgentExecutionTransport = "tmux" | "app-server" | "external" | "hosted";
+export type AgentExecutionTransport =
+  | "tmux"
+  | "app-server"
+  | "external"
+  | "hosted";
 
 /**
  * How a client runs non-interactively — the `cast exec` / `claude -p` analog.
@@ -124,7 +131,9 @@ export function toConvexAgentType(id: AgentClientId): ConvexAgentType {
  * themselves; everything unrecognized falls through the `default` case to
  * `claude`.
  */
-export function fromConvexAgentType(agentType: string | null | undefined): AgentClientId {
+export function fromConvexAgentType(
+  agentType: string | null | undefined,
+): AgentClientId {
   switch (agentType) {
     case "codex":
       return "codex";
@@ -161,7 +170,9 @@ export class InvalidExecutionAgentTypeError extends Error {
   readonly code = "INVALID_EXECUTION_AGENT_TYPE" as const;
 
   constructor(readonly agentType: unknown) {
-    super(`Unsupported execution agent type: ${formatUnknownAgentType(agentType)}`);
+    super(
+      `Unsupported execution agent type: ${formatUnknownAgentType(agentType)}`,
+    );
     this.name = "InvalidExecutionAgentTypeError";
   }
 }
@@ -180,7 +191,9 @@ function formatUnknownAgentType(value: unknown): string {
  * values fail closed instead of entering the historical Claude fallback. The
  * hosted `codecast` client is refused too: nothing on a machine executes it.
  */
-export function parseExecutionAgentClientId(agentType: unknown): LocalAgentClientId {
+export function parseExecutionAgentClientId(
+  agentType: unknown,
+): LocalAgentClientId {
   switch (agentType) {
     case "claude":
     case "claude_code":
@@ -560,13 +573,24 @@ const CLAUDE_MODEL: AgentModelConfig = {
 };
 // The Agents API runs the Codex models the API serves: every listed one but
 // Codex Spark, which /v1/models does not list.
-const AGENTS_API_MODELS = CODEX_MODEL_OPTIONS.filter((m) => m.cliAlias && m.key !== "gpt-5.3-codex-spark");
-const AGENTS_API_DEFAULT = AGENTS_API_MODELS.find((m) => m.key === CLOUD_AGENT_PROVIDERS.codex_api.defaultModel)?.label;
+const AGENTS_API_MODELS = CODEX_MODEL_OPTIONS.filter(
+  (m) => m.cliAlias && m.key !== "gpt-5.3-codex-spark",
+);
+const AGENTS_API_DEFAULT = AGENTS_API_MODELS.find(
+  (m) => m.key === CLOUD_AGENT_PROVIDERS.codex_api.defaultModel,
+)?.label;
 const CODEX_MODEL: AgentModelConfig = {
   models: [
     ...CODEX_MODEL_OPTIONS,
-    ...cloudAgentLaunchModelOptions(CLOUD_AGENT_PROVIDERS.codex, "A Codex Cloud task on your ChatGPT plan, in this repository's Codex environment"),
-    ...cloudAgentLaunchModelOptions(CLOUD_AGENT_PROVIDERS.codex_api, `An OpenAI Agents API session on your API key, on ${AGENTS_API_DEFAULT}`, AGENTS_API_MODELS),
+    ...cloudAgentLaunchModelOptions(
+      CLOUD_AGENT_PROVIDERS.codex,
+      "A Codex Cloud task on your ChatGPT plan, in this repository's Codex environment",
+    ),
+    ...cloudAgentLaunchModelOptions(
+      CLOUD_AGENT_PROVIDERS.codex_api,
+      `An OpenAI Agents API session on your API key, on ${AGENTS_API_DEFAULT}`,
+      AGENTS_API_MODELS,
+    ),
   ],
   efforts: CODEX_EFFORT_LEVELS,
   midSession: false,
@@ -627,7 +651,10 @@ const MUSE_MODEL: AgentModelConfig = {
  * prefixes, prompt-ready glyphs). Every daemon, launch, tmux, watcher and
  * picker path iterates THIS map, so the hosted client never reaches one.
  */
-export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescriptor> = {
+export const LOCAL_AGENT_CLIENTS: Record<
+  LocalAgentClientId,
+  AgentClientDescriptor
+> = {
   claude: {
     id: "claude",
     displayName: "Claude",
@@ -645,7 +672,12 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     promptReadyPattern: /❯|⏵/,
     tmuxPrefix: "cc",
     modelConfig: CLAUDE_MODEL,
-    capabilities: { panePromptMonitoring: true, fork: true, reconstitute: true, bracketedPaste: true },
+    capabilities: {
+      panePromptMonitoring: true,
+      fork: true,
+      reconstitute: true,
+      bracketedPaste: true,
+    },
     // Why: Claude Code 2.1.277+ (remote flag tengu_virtual_pancake) wraps a
     // paste long enough to collapse into a "[Pasted text]" chip in
     // <pasted_content> and tells the model to act on it only where the user's
@@ -661,16 +693,27 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     // read back null there) — the two files must not be conflated. `~/.agents/skills`
     // is reachable only via a user-made symlink, so no `shared` slot here.
     agentFileTargets: {
-      instructionFile: { user: "~/.claude/CLAUDE.md", project: "CLAUDE.md", format: "markdown" },
+      instructionFile: {
+        user: "~/.claude/CLAUDE.md",
+        project: "CLAUDE.md",
+        format: "markdown",
+      },
       skillsDir: { user: "~/.claude/skills", project: ".claude/skills" },
       agentsDir: { user: "~/.claude/agents", project: ".claude/agents" },
-      mcpConfig: { user: "~/.claude.json", project: ".mcp.json", shape: "json_mcpservers" },
+      mcpConfig: {
+        user: "~/.claude.json",
+        project: ".mcp.json",
+        shape: "json_mcpservers",
+      },
       pluginSettings: {
         user: "~/.claude/settings.json",
         project: ".claude/settings.json",
         local: ".claude/settings.local.json",
       },
-      hooksConfig: { path: "~/.claude/settings.json", shape: "claude_settings" },
+      hooksConfig: {
+        path: "~/.claude/settings.json",
+        shape: "claude_settings",
+      },
       sessionOverlay: { kind: "add-dir", launchFlag: "--add-dir" },
       nativeManager: { plugin: "claude plugin", mcp: "claude mcp" },
     },
@@ -713,7 +756,12 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     paneReadiness: { frameCompleteAfter: /·/, settleMs: 500 },
     tmuxPrefix: "cx",
     modelConfig: CODEX_MODEL,
-    capabilities: { panePromptMonitoring: true, fork: true, reconstitute: true, bracketedPaste: true },
+    capabilities: {
+      panePromptMonitoring: true,
+      fork: true,
+      reconstitute: true,
+      bracketedPaste: true,
+    },
     // Codex's documented user skills path IS the cross-client dir (`$HOME/.agents/
     // skills` in its lookup order), so `user` and `shared` are the same string —
     // `~/.codex/skills` exists on real machines but is undocumented legacy, treated
@@ -723,12 +771,24 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     // pluginSettings (marketplaces are OpenAI-operated; no third-party registration
     // found), so both kinds stay honestly unsupported.
     agentFileTargets: {
-      instructionFile: { user: "~/.codex/AGENTS.md", project: "AGENTS.md", format: "markdown" },
-      skillsDir: { user: "~/.agents/skills", project: ".agents/skills", shared: "~/.agents/skills" },
+      instructionFile: {
+        user: "~/.codex/AGENTS.md",
+        project: "AGENTS.md",
+        format: "markdown",
+      },
+      skillsDir: {
+        user: "~/.agents/skills",
+        project: ".agents/skills",
+        shared: "~/.agents/skills",
+      },
       // The project file loads ONLY for projects the user has marked trusted —
       // a driver writing it in an untrusted checkout writes bytes codex never
       // loads, so surfaces should prefer the user file when trust is unknown.
-      mcpConfig: { user: "~/.codex/config.toml", project: ".codex/config.toml", shape: "toml_mcp_servers" },
+      mcpConfig: {
+        user: "~/.codex/config.toml",
+        project: ".codex/config.toml",
+        shape: "toml_mcp_servers",
+      },
       hooksConfig: { path: "~/.codex/hooks.json", shape: "json_hooks" },
       nativeManager: { mcp: "codex mcp" },
     },
@@ -779,7 +839,11 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
         // why codex declares no such slot.
         sharedProject: ".agents/skills",
       },
-      mcpConfig: { user: "~/.cursor/mcp.json", project: ".cursor/mcp.json", shape: "json_mcpservers" },
+      mcpConfig: {
+        user: "~/.cursor/mcp.json",
+        project: ".cursor/mcp.json",
+        shape: "json_mcpservers",
+      },
       hooksConfig: { path: "~/.cursor/hooks.json", shape: "unverified" },
     },
   },
@@ -816,7 +880,10 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     // screen with the cursor hidden at 3636ms, cursor back at 9361ms on the same
     // poll that first saw the footer. Requiring both closes a 5.7s window in
     // which the footer could be read off a half-painted frame.
-    paneReadiness: { modes: { alternateScreen: true, cursorVisible: true }, settleMs: 500 },
+    paneReadiness: {
+      modes: { alternateScreen: true, cursorVisible: true },
+      settleMs: 500,
+    },
     // `oc-` tmux prefix — distinct from claude `cc`, codex `cx`, cursor `cu`,
     // gemini `gm`. (`ct-` is a task-id prefix, not a tmux prefix; no collision.)
     tmuxPrefix: "oc",
@@ -884,7 +951,11 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
     // from the server copy and `pi --session <uuid>` loads it (live-verified
     // 2026-09-06). No `fork`: pi has no fork verb and a rebuilt copy would be a
     // plain resume of the same chain — a switch INTO pi is the supported move.
-    capabilities: { panePromptMonitoring: false, bracketedPaste: true, reconstitute: true },
+    capabilities: {
+      panePromptMonitoring: false,
+      bracketedPaste: true,
+      reconstitute: true,
+    },
   },
   grok: {
     id: "grok",
@@ -982,7 +1053,11 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
       // is NO GROK.md (a planted one was ignored; the string is absent from
       // the grok-build repo) — grok's instruction slot is the shared AGENTS.md
       // standard, not a bespoke file.
-      instructionFile: { user: "~/.grok/AGENTS.md", project: "AGENTS.md", format: "markdown" },
+      instructionFile: {
+        user: "~/.grok/AGENTS.md",
+        project: "AGENTS.md",
+        format: "markdown",
+      },
       // All four dirs verified live by the same planted-file `grok inspect`
       // run: project .grok/skills + .agents/skills list as "project", user
       // ~/.grok/skills + ~/.agents/skills list as "user" (source:
@@ -996,7 +1071,11 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
       // TOML [mcp_servers] in ~/.grok/config.toml (user) / ./.grok/config.toml
       // (project) — from `grok mcp add --help`. Same surgical-edit rule as
       // codex's config.toml: a shared user-owned file, never rewrite.
-      mcpConfig: { user: "~/.grok/config.toml", project: ".grok/config.toml", shape: "toml_mcp_servers" },
+      mcpConfig: {
+        user: "~/.grok/config.toml",
+        project: ".grok/config.toml",
+        shape: "toml_mcp_servers",
+      },
       // `grok mcp add|remove|list|enable|disable|doctor` exists (help captured).
       // The native manager outranks the file write in capabilitySupport.
       nativeManager: { mcp: "grok mcp" },
@@ -1080,7 +1159,10 @@ export const LOCAL_AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescript
       // project-level settings file: planted .agents/settings.json and
       // .muse/settings.json are both ignored. Same surgical-edit rule as
       // codex's config.toml: a shared user-owned file, never rewrite.
-      mcpConfig: { user: "~/.config/muse/settings.json", shape: "json_mcpservers" },
+      mcpConfig: {
+        user: "~/.config/muse/settings.json",
+        shape: "json_mcpservers",
+      },
       // `muse mcp login|logout <server>` (OAuth for streamable-HTTP entries).
       // The native manager outranks the file write in capabilitySupport.
       nativeManager: { mcp: "muse mcp" },
@@ -1141,7 +1223,8 @@ export const HOSTED_AGENT_CLIENTS: { codecast: HostedAgentClientDescriptor } = {
 /** Every client, local and hosted. Read the common facts (display name,
  *  capabilities, model config) here; reach the local-run facts through
  *  LOCAL_AGENT_CLIENTS or localAgentClient. */
-export const AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescriptor> & typeof HOSTED_AGENT_CLIENTS = {
+export const AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescriptor> &
+  typeof HOSTED_AGENT_CLIENTS = {
   ...LOCAL_AGENT_CLIENTS,
   ...HOSTED_AGENT_CLIENTS,
 };
@@ -1151,14 +1234,23 @@ export const AGENT_CLIENTS: Record<LocalAgentClientId, AgentClientDescriptor> & 
 export class HostedAgentClientError extends Error {
   readonly code = "HOSTED_AGENT_CLIENT" as const;
   constructor(readonly agentType: AgentClientId) {
-    super(`${agentType} runs hosted; no machine launches, resumes or watches it`);
+    super(
+      `${agentType} runs hosted; no machine launches, resumes or watches it`,
+    );
     this.name = "HostedAgentClientError";
   }
 }
 
 /** Whether a client id (or a Convex agent_type spelling) is a hosted client. */
-export function isHostedAgentType(agentType: string | null | undefined): boolean {
-  return !!agentType && AGENT_CLIENTS[fromConvexAgentType(agentType)].executionTransports.includes("hosted");
+export function isHostedAgentType(
+  agentType: string | null | undefined,
+): boolean {
+  return (
+    !!agentType &&
+    AGENT_CLIENTS[fromConvexAgentType(agentType)].executionTransports.includes(
+      "hosted",
+    )
+  );
 }
 
 /** Why a conversation's agent_type may not move from `prev` to `next`, or
@@ -1166,7 +1258,10 @@ export function isHostedAgentType(agentType: string | null | undefined): boolean
  *  becomes hosted: a hosted transcript holds untrusted tool results (mail, web
  *  pages) that must never resume as a local agent with a shell, and the
  *  hosted rules (owner-only input, engine-only transcript) key on agent_type. */
-export function agentTypeChangeRefusal(prev: string | null | undefined, next: string | null | undefined): string | null {
+export function agentTypeChangeRefusal(
+  prev: string | null | undefined,
+  next: string | null | undefined,
+): string | null {
   if (isHostedAgentType(prev) === isHostedAgentType(next)) return null;
   return isHostedAgentType(prev)
     ? "A hosted assistant conversation cannot switch to a local agent"
@@ -1182,7 +1277,9 @@ export function localAgentClient(id: AgentClientId): AgentClientDescriptor {
 /** The client a machine runs for an agent_type (either spelling), for every
  *  writer of a daemon start or resume. Throws HostedAgentClientError for a
  *  hosted conversation, which no machine runs. */
-export function localAgentTypeOf(agentType: string | null | undefined): LocalAgentClientId {
+export function localAgentTypeOf(
+  agentType: string | null | undefined,
+): LocalAgentClientId {
   const id = fromConvexAgentType(agentType);
   if (id === "codecast") throw new HostedAgentClientError(id);
   return id;
@@ -1199,11 +1296,12 @@ export function localAgentTypeOf(agentType: string | null | undefined): LocalAge
  * before; consumers guard with `?.`. Typed `Record<string, …>` (not `Partial`) to
  * preserve the pre-existing call-site typing.
  */
-export const AGENT_MODEL_CONFIG: Record<string, AgentModelConfig> = Object.fromEntries(
-  (Object.entries(AGENT_CLIENTS) as [AgentClientId, AgentClientCommon][])
-    .filter(([, d]) => d.modelConfig)
-    .map(([id, d]) => [id, d.modelConfig as AgentModelConfig]),
-);
+export const AGENT_MODEL_CONFIG: Record<string, AgentModelConfig> =
+  Object.fromEntries(
+    (Object.entries(AGENT_CLIENTS) as [AgentClientId, AgentClientCommon][])
+      .filter(([, d]) => d.modelConfig)
+      .map(([id, d]) => [id, d.modelConfig as AgentModelConfig]),
+  );
 
 /** One new-session agent choice: both id spellings plus the picker label, so
  *  each surface keys off whichever spelling its wire calls take. */
@@ -1217,7 +1315,9 @@ export interface AgentLaunchOption {
  *  side of every launch, switch, fork and hand-off (moveAgentOptions, the
  *  agent library's client pick). Never the hosted assistant, which no machine
  *  runs; a new-session picker reads AGENT_PICKER_OPTIONS instead. */
-export const AGENT_LAUNCH_OPTIONS: AgentLaunchOption[] = Object.values(LOCAL_AGENT_CLIENTS).map((d) => ({
+export const AGENT_LAUNCH_OPTIONS: AgentLaunchOption[] = Object.values(
+  LOCAL_AGENT_CLIENTS,
+).map((d) => ({
   id: d.id,
   convexType: d.convexId,
   label: d.displayName,
@@ -1235,7 +1335,9 @@ export interface AgentPickerOption {
 /** The agent row of every new-conversation surface (web AgentSwitcher and
  *  context composer, mobile sheet): every client, local then hosted, so
  *  adding a descriptor is all it takes to appear in the pickers. */
-export const AGENT_PICKER_OPTIONS: AgentPickerOption[] = (Object.values(AGENT_CLIENTS) as AgentClientCommon[]).map((d) => ({
+export const AGENT_PICKER_OPTIONS: AgentPickerOption[] = (
+  Object.values(AGENT_CLIENTS) as AgentClientCommon[]
+).map((d) => ({
   id: d.id,
   convexType: d.convexId,
   label: d.displayName,
@@ -1254,7 +1356,11 @@ export function isPinnableAgentId(id: string): id is AgentClientId {
 export function agentDisplayName(agentType: string | null | undefined): string {
   if (!agentType) return AGENT_CLIENTS.claude.displayName;
   if (agentType === "codex_cli") return AGENT_CLIENTS.codex.displayName;
-  if (!isPinnableAgentId(agentType) && !(Object.values(CONVEX_BY_ID) as string[]).includes(agentType)) return agentType;
+  if (
+    !isPinnableAgentId(agentType) &&
+    !(Object.values(CONVEX_BY_ID) as string[]).includes(agentType)
+  )
+    return agentType;
   return AGENT_CLIENTS[fromConvexAgentType(agentType)].displayName;
 }
 
@@ -1262,7 +1368,10 @@ export function agentDisplayName(agentType: string | null | undefined): string {
  *  "default" stop (= omit the flag, the agent's saved default wins). One
  *  definition for the web menu, the mobile switcher chip, and the mobile
  *  new-session sheet; a live session's is liveRailOptions. */
-export function launchRailOptions(cfg: AgentModelConfig): { models: ModelOption[]; efforts: string[] } {
+export function launchRailOptions(cfg: AgentModelConfig): {
+  models: ModelOption[];
+  efforts: string[];
+} {
   return {
     models: listedModels(cfg),
     efforts: ["default", ...cfg.efforts],
@@ -1270,12 +1379,17 @@ export function launchRailOptions(cfg: AgentModelConfig): { models: ModelOption[
 }
 
 /** The model/effort rail for a live session (mid-session switching): no "default" effort stop. The web menu and the mobile chip. */
-export function liveRailOptions(cfg: AgentModelConfig): { models: ModelOption[]; efforts: string[] } {
+export function liveRailOptions(cfg: AgentModelConfig): {
+  models: ModelOption[];
+  efforts: string[];
+} {
   return { models: listedModels(cfg), efforts: [...cfg.efforts] };
 }
 
 /** The options a picker lists: every catalog entry but the hidden ones (ModelOption.hidden). */
-export function listedModels(cfg: Pick<AgentModelConfig, "models">): ModelOption[] {
+export function listedModels(
+  cfg: Pick<AgentModelConfig, "models">,
+): ModelOption[] {
   return cfg.models.filter((m) => !m.hidden);
 }
 
@@ -1290,7 +1404,9 @@ export function modelAgentKey(agentType: string | undefined): AgentClientId {
  *  fabricates a context-less session. Accepts a convex agent_type (claude_code)
  *  or a registry id. */
 export function agentSupportsFork(agentType: string | undefined): boolean {
-  return AGENT_CLIENTS[fromConvexAgentType(agentType)].capabilities.fork === true;
+  return (
+    AGENT_CLIENTS[fromConvexAgentType(agentType)].capabilities.fork === true
+  );
 }
 
 /** Whether codecast can rebuild this client's transcript from the server copy
@@ -1299,30 +1415,44 @@ export function agentSupportsFork(agentType: string | undefined): boolean {
  *  that never ran it all need this; refusing early keeps the row's agent_type
  *  truthful instead of stamping an agent the daemon then cannot launch. */
 export function agentReconstitutes(agentType: string | undefined): boolean {
-  return AGENT_CLIENTS[fromConvexAgentType(agentType)].capabilities.reconstitute === true;
+  return (
+    AGENT_CLIENTS[fromConvexAgentType(agentType)].capabilities.reconstitute ===
+    true
+  );
 }
 
 /** Whether a fork can start from ANY message rather than only the tip. A rebuild
  *  (`reconstitute`) or a fork API that cuts at a message (`forkApi`) honors an
  *  earlier fork point; a native resume-flag fork (`forkCmd`) copies the client's
  *  whole context and so is offered only on the last message. */
-export function agentForksFromAnyMessage(agentType: string | undefined): boolean {
+export function agentForksFromAnyMessage(
+  agentType: string | undefined,
+): boolean {
   const caps = AGENT_CLIENTS[fromConvexAgentType(agentType)].capabilities;
-  return caps.fork === true && (caps.reconstitute === true || caps.forkApi === true);
+  return (
+    caps.fork === true && (caps.reconstitute === true || caps.forkApi === true)
+  );
 }
 
 /** Whether a session can be switched to, or forked as, `targetAgentType`. A
  *  blank session is simply relaunched and can become anything; one with history
  *  needs the target to rebuild that history (`reconstitute`). One predicate for
  *  the switch menu, the palette, and the mutations behind them. */
-export function canSessionBecomeAgent(targetAgentType: string | undefined, messageCount: number | null | undefined): boolean {
+export function canSessionBecomeAgent(
+  targetAgentType: string | undefined,
+  messageCount: number | null | undefined,
+): boolean {
   return (messageCount ?? 0) === 0 || agentReconstitutes(targetAgentType);
 }
 
 /** Whether the daemon forks this client through its own resume flags. */
 export function agentForksNatively(agentType: string | undefined): boolean {
   const d = AGENT_CLIENTS[fromConvexAgentType(agentType)];
-  return d.capabilities.fork === true && "forkCmd" in d && typeof d.forkCmd === "function";
+  return (
+    d.capabilities.fork === true &&
+    "forkCmd" in d &&
+    typeof d.forkCmd === "function"
+  );
 }
 
 /**
@@ -1339,7 +1469,11 @@ export function agentForksNatively(agentType: string | undefined): boolean {
  *   unsupported  no verified way in — the UI must hide the control, exactly
  *                like the fork gate above.
  */
-export type CapabilityKindSupport = "native" | "write" | "render" | "unsupported";
+export type CapabilityKindSupport =
+  | "native"
+  | "write"
+  | "render"
+  | "unsupported";
 
 /**
  * Which `CapabilityKind`s a client can express, DERIVED from the same
@@ -1352,7 +1486,10 @@ export type CapabilityKindSupport = "native" | "write" | "render" | "unsupported
  * support for an unknown client, which is exactly the false "supported" this
  * function exists to prevent.
  */
-export function capabilitySupport(kind: CapabilityKind, clientId: AgentClientId): CapabilityKindSupport {
+export function capabilitySupport(
+  kind: CapabilityKind,
+  clientId: AgentClientId,
+): CapabilityKindSupport {
   // The `?.` guards the RUNTIME hole the strict type can't close: wire values
   // ("claude_code") reach here through unsafe casts, and an unknown client must
   // answer "unsupported" — literally true, and safer than a TypeError. Callers
@@ -1375,7 +1512,11 @@ export function capabilitySupport(kind: CapabilityKind, clientId: AgentClientId)
       // The user-level MCP config is a client-owned file with unrelated content
       // (~/.claude.json, ~/.codex/config.toml): where the client ships its own
       // `mcp` command that is the safe writer, so it outranks direct file edits.
-      return targets.nativeManager?.mcp ? "native" : targets.mcpConfig ? "write" : "unsupported";
+      return targets.nativeManager?.mcp
+        ? "native"
+        : targets.mcpConfig
+          ? "write"
+          : "unsupported";
     case "plugin":
       // The declarative settings render outranks the native manager: `claude
       // plugin install` clones marketplaces over SSH per machine, while the
@@ -1403,7 +1544,10 @@ export function agentSupportsExecutionTransport(
   return AGENT_CLIENTS[agent].executionTransports.includes(transport);
 }
 
-export function findModelOption(agentType: string | undefined, key: string): ModelOption | undefined {
+export function findModelOption(
+  agentType: string | undefined,
+  key: string,
+): ModelOption | undefined {
   const cfg = AGENT_MODEL_CONFIG[modelAgentKey(agentType)];
   const hit = cfg?.models.find((m) => m.key === key);
   if (hit) return hit;
@@ -1424,13 +1568,18 @@ export function findModelOption(agentType: string | undefined, key: string): Mod
  * Falls back to "default" when nothing matches (e.g. a claude model id read back
  * under the codex agent after an agent switch).
  */
-export function modelOptionKey(model: string | undefined | null, agentType: string | undefined): string {
+export function modelOptionKey(
+  model: string | undefined | null,
+  agentType: string | undefined,
+): string {
   const cfg = AGENT_MODEL_CONFIG[modelAgentKey(agentType)];
   if (!model || !cfg) return "default";
   // Dynamic clients store the full `provider/model` string as both the wire key
   // and the row's model stamp — it IS the option key.
   if (cfg.dynamic && isDynamicModelKey(model)) return model;
-  const bare = model.startsWith("claude-") ? model.slice("claude-".length) : model;
+  const bare = model.startsWith("claude-")
+    ? model.slice("claude-".length)
+    : model;
   // Exact match wins over a versioned-prefix match so a longer key ("gpt-5.4-mini")
   // isn't swallowed by a shorter one that prefixes it ("gpt-5.4"); the prefix pass
   // then resolves "opus-4-8" → "opus".
@@ -1448,7 +1597,10 @@ export function modelOptionKey(model: string | undefined | null, agentType: stri
  * figure for that model, which every caller must render as "no share" rather
  * than falling back to a number nobody measured.
  */
-export function contextWindowTokens(model: string | undefined | null, agentType: string | undefined): number | null {
+export function contextWindowTokens(
+  model: string | undefined | null,
+  agentType: string | undefined,
+): number | null {
   if (!model) return null;
   const option = findModelOption(agentType, modelOptionKey(model, agentType));
   return option?.contextWindow ?? null;
@@ -1461,7 +1613,10 @@ export function contextWindowTokens(model: string | undefined | null, agentType:
  * still on the row after switching to Codex): the header chip must not keep
  * showing the previous agent's model.
  */
-export function modelFitsAgent(model: string | undefined | null, agentType: string | undefined): boolean {
+export function modelFitsAgent(
+  model: string | undefined | null,
+  agentType: string | undefined,
+): boolean {
   if (!model) return false;
   if (modelOptionKey(model, agentType) !== "default") return true;
   const mine = modelAgentKey(agentType);

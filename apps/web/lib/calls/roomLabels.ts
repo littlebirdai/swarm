@@ -6,7 +6,11 @@
 // channel or its session live in the store, so this stays a pure function of
 // (key, state) and re-derives at render (lib/liveEntities' rule — a renamed
 // teammate renames the huddle everywhere at once).
-import { callDisplayTitle, isGuestParticipant, parseRoomKey } from "@codecast/shared/contracts";
+import {
+  callDisplayTitle,
+  isGuestParticipant,
+  parseRoomKey,
+} from "@codecast/shared/contracts";
 import { meetingTitle } from "./roomGuests";
 import { channelDisplayName } from "../chatViews";
 import { teamMembersOf } from "../activeTeam";
@@ -29,7 +33,11 @@ type Store = {
 
 /** The naming half of a live room row: what the server was willing to tell
  *  this viewer about what the room is called. */
-export type LiveRoomName = { room_key: string; redacted?: boolean; title?: string };
+export type LiveRoomName = {
+  room_key: string;
+  redacted?: boolean;
+  title?: string;
+};
 
 export type RoomDescription = {
   /** Short name for the dock pill and stage header. */
@@ -50,7 +58,10 @@ export type RoomDescription = {
 // huddle ("Ann, Bo").
 function peopleLabel(others: string[], s: Store): string {
   if (others.length === 0) return "Huddle";
-  return channelDisplayName({ name: "", kind: "dm", dmMemberIds: others }, teamMembersOf(s));
+  return channelDisplayName(
+    { name: "", kind: "dm", dmMemberIds: others },
+    teamMembersOf(s),
+  );
 }
 
 /** Naming a room the viewer sees from OUTSIDE (the live-rooms lists). Two
@@ -87,13 +98,21 @@ export function describeRoom(
   if (parsed.kind === "channel") {
     const ch = s.chatChannels?.[parsed.channelId];
     if (!ch) {
-      const name = opts?.serverTitle ? `#${opts.serverTitle}` : "Channel huddle";
-      return { label: name, anchorTitle: opts?.serverTitle ? name : undefined, otherIds: [] };
+      const name = opts?.serverTitle
+        ? `#${opts.serverTitle}`
+        : "Channel huddle";
+      return {
+        label: name,
+        anchorTitle: opts?.serverTitle ? name : undefined,
+        otherIds: [],
+      };
     }
     if (ch.kind === "dm") {
       // A DM channel that huddles in its channel room (roster unknown at
       // key time): name it the way the rail does.
-      const roster = s.chatRail?.find((r) => String(r.channel_id) === parsed.channelId)?.member_ids ?? [];
+      const roster =
+        s.chatRail?.find((r) => String(r.channel_id) === parsed.channelId)
+          ?.member_ids ?? [];
       const others = roster.filter((id: string) => String(id) !== me);
       return { label: peopleLabel(others, s), otherIds: others };
     }
@@ -118,8 +137,12 @@ export function describeRoom(
   // session
   const conv =
     s.conversations?.[parsed.conversationId] ??
-    Object.values(s.conversations ?? {}).find((c: any) => String(c?._id) === parsed.conversationId) ??
-    Object.values(s.sessions ?? {}).find((c: any) => String(c?._id) === parsed.conversationId);
+    Object.values(s.conversations ?? {}).find(
+      (c: any) => String(c?._id) === parsed.conversationId,
+    ) ??
+    Object.values(s.sessions ?? {}).find(
+      (c: any) => String(c?._id) === parsed.conversationId,
+    );
   const title = conv?.title || conv?.name || opts?.serverTitle;
   return {
     label: title ? String(title) : "Session huddle",
@@ -138,9 +161,17 @@ export function describeRoom(
 // conversation in the local cache would put its real title on screen the
 // moment they walked in. One function, so the room a listing calls "a huddle"
 // cannot introduce itself by name after you enter it.
-export function describeRoomLive(roomKey: string | null, s: Store): RoomDescription {
-  const live = roomKey ? (s.liveRooms ?? []).find((r) => r.room_key === roomKey) : undefined;
-  return describeRoom(roomKey, s, { redacted: live?.redacted, serverTitle: live?.title });
+export function describeRoomLive(
+  roomKey: string | null,
+  s: Store,
+): RoomDescription {
+  const live = roomKey
+    ? (s.liveRooms ?? []).find((r) => r.room_key === roomKey)
+    : undefined;
+  return describeRoom(roomKey, s, {
+    redacted: live?.redacted,
+    serverTitle: live?.title,
+  });
 }
 
 /** What a call is called in the history and on its page (callDisplayTitle),
@@ -158,7 +189,11 @@ export function describeRoomLive(roomKey: string | null, s: Store): RoomDescript
 /** The place names the server read for a call this client could not name
  *  (transcripts.webCallPlaces, the same callPlaceNames `cast calls` prints
  *  from), access checked there. */
-export type CallPlace = { session_title?: string | null; peer_name?: string | null; channel_name?: string | null };
+export type CallPlace = {
+  session_title?: string | null;
+  peer_name?: string | null;
+  channel_name?: string | null;
+};
 
 type TitledCall = {
   title?: string | null;
@@ -183,7 +218,11 @@ export function callNeedsPlace(call: TitledCall, s: Store): boolean {
   return !d.anchorTitle && !d.otherIds.length;
 }
 
-export function callTitle(call: TitledCall, s: Store, opts?: { untitled?: string }): string {
+export function callTitle(
+  call: TitledCall,
+  s: Store,
+  opts?: { untitled?: string },
+): string {
   if (call.title?.trim()) return call.title.trim();
   const parsed = parseRoomKey(call.room_key);
   const d = describeRoom(call.room_key, s);
@@ -194,16 +233,26 @@ export function callTitle(call: TitledCall, s: Store, opts?: { untitled?: string
   // it). Only an answer that named nothing hands on to the guest.
   if (call.place === undefined && callNeedsPlace(call, s)) return "Huddle";
   const guest =
-    call.participants?.find((p) => isGuestParticipant(p.id, p.name))?.name ?? call.guests?.[0]?.name ?? null;
+    call.participants?.find((p) => isGuestParticipant(p.id, p.name))?.name ??
+    call.guests?.[0]?.name ??
+    null;
   // The store's name first (it renames live), the server's when the store
   // found nothing, and only then the guest: the precedence callDisplayTitle
   // applies, so the web and `cast calls` call the same call the same thing.
   const place = call.place ?? null;
   return callDisplayTitle(call, {
-    peerName: d.otherIds.length ? d.label : place?.peer_name ?? null,
-    sessionTitle: parsed?.kind === "session" && d.anchorTitle ? d.label : place?.session_title ?? null,
-    channelName: parsed?.kind === "channel" && d.anchorTitle ? d.label.replace(/^#/, "") : place?.channel_name ?? null,
-    untitled: opts?.untitled ?? (guest ? meetingTitle(null, { name: guest }) : undefined),
+    peerName: d.otherIds.length ? d.label : (place?.peer_name ?? null),
+    sessionTitle:
+      parsed?.kind === "session" && d.anchorTitle
+        ? d.label
+        : (place?.session_title ?? null),
+    channelName:
+      parsed?.kind === "channel" && d.anchorTitle
+        ? d.label.replace(/^#/, "")
+        : (place?.channel_name ?? null),
+    untitled:
+      opts?.untitled ??
+      (guest ? meetingTitle(null, { name: guest }) : undefined),
     viewerId: s.currentUser?._id ? String(s.currentUser._id) : null,
   });
 }

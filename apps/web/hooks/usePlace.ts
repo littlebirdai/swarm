@@ -26,7 +26,12 @@ export function usePlaceCrumbs(path?: string): PlaceCrumb[] {
       sig
         ? sig.split("\x1f").map((part) => {
             const [label, href, more, mono] = part.split("\x1e");
-            return { label, href: href || undefined, more: more === "1" ? (true as const) : undefined, mono: mono === "1" || undefined };
+            return {
+              label,
+              href: href || undefined,
+              more: more === "1" ? (true as const) : undefined,
+              mono: mono === "1" || undefined,
+            };
           })
         : [],
     [sig],

@@ -14,17 +14,29 @@ const modules = {
 const ROOM = "channel:fold-test";
 
 /** Three fragments of one talk, each ended a few seconds before the next. */
-async function fragments(t: any, pin?: (ctx: any, ids: any[], team: any, user: any) => Promise<void>) {
+async function fragments(
+  t: any,
+  pin?: (ctx: any, ids: any[], team: any, user: any) => Promise<void>,
+) {
   return await t.run(async (ctx: any) => {
     const user = await ctx.db.insert("users", { name: "Ana" } as any);
-    const team = await ctx.db.insert("teams", { name: "T", created_by: user } as any);
+    const team = await ctx.db.insert("teams", {
+      name: "T",
+      created_by: user,
+    } as any);
     const base = Date.now() - 3_600_000;
     const ids = [];
     for (const i of [0, 1, 2]) {
       ids.push(
         await ctx.db.insert("transcripts", {
-          room_key: ROOM, team_id: team, started_by: user, status: "ended",
-          started_at: base + i * 60_000, ended_at: base + i * 60_000 + 55_000, routes: [], last_seq: 0,
+          room_key: ROOM,
+          team_id: team,
+          started_by: user,
+          status: "ended",
+          started_at: base + i * 60_000,
+          ended_at: base + i * 60_000 + 55_000,
+          routes: [],
+          last_seq: 0,
         } as any),
       );
     }
@@ -33,13 +45,21 @@ async function fragments(t: any, pin?: (ctx: any, ids: any[], team: any, user: a
   });
 }
 
-const left = (t: any) => t.run(async (ctx: any) => (await ctx.db.query("transcripts").collect()).map((r: any) => String(r._id)));
+const left = (t: any) =>
+  t.run(async (ctx: any) =>
+    (await ctx.db.query("transcripts").collect()).map((r: any) =>
+      String(r._id),
+    ),
+  );
 
 describe("huddleBackfill fold", () => {
   test("fragments with nothing pointing at them fold into the first record", async () => {
     const t = convexTest(schema, modules);
     const ids = await fragments(t);
-    const out = await t.mutation(internal.huddleBackfill.run, { room_key: ROOM, dryRun: false });
+    const out = await t.mutation(internal.huddleBackfill.run, {
+      room_key: ROOM,
+      dryRun: false,
+    });
     expect(out.skipped).toEqual([]);
     expect(await left(t)).toEqual([ids[0]]);
   });
@@ -48,18 +68,31 @@ describe("huddleBackfill fold", () => {
     const t = convexTest(schema, modules);
     const ids = await fragments(t, async (ctx, rows, team, user) => {
       await ctx.db.insert("call_recordings", {
-        transcript_id: rows[1], room_key: ROOM, team_id: team, kind: "composite", status: "ready",
-        r2_key: `calls/${rows[1]}/0-composite.mp4`, started_by: user, requested_at: Date.now(), updated_at: Date.now(),
+        transcript_id: rows[1],
+        room_key: ROOM,
+        team_id: team,
+        kind: "composite",
+        status: "ready",
+        r2_key: `calls/${rows[1]}/0-composite.mp4`,
+        started_by: user,
+        requested_at: Date.now(),
+        updated_at: Date.now(),
       } as any);
       await ctx.db.patch(rows[2], { share_token: "tok" });
     });
-    const out = await t.mutation(internal.huddleBackfill.run, { room_key: ROOM, dryRun: false });
+    const out = await t.mutation(internal.huddleBackfill.run, {
+      room_key: ROOM,
+      dryRun: false,
+    });
     expect(out.skipped.map((s: any) => [s.id, s.reason])).toEqual([
       [ids[1], "it has recordings"],
       [ids[2], "it is shared by a public link"],
     ]);
     expect((await left(t)).sort()).toEqual([...ids].sort());
-    const recording = await t.run(async (ctx: any) => (await ctx.db.query("call_recordings").first()).transcript_id);
+    const recording = await t.run(
+      async (ctx: any) =>
+        (await ctx.db.query("call_recordings").first()).transcript_id,
+    );
     expect(String(recording)).toBe(ids[1]);
   });
 
@@ -68,9 +101,24 @@ describe("huddleBackfill fold", () => {
     const ids = await fragments(t, async (ctx, rows, _team, user) => {
       await ctx.db.patch(rows[1], { recorded_people: [user] });
     });
-    const out = await t.mutation(internal.huddleBackfill.run, { room_key: ROOM, dryRun: true });
-    expect(out.skipped).toEqual([{ id: ids[1], started_at: expect.any(Number), reason: "people were seated while it recorded" }]);
+    const out = await t.mutation(internal.huddleBackfill.run, {
+      room_key: ROOM,
+      dryRun: true,
+    });
+    expect(out.skipped).toEqual([
+      {
+        id: ids[1],
+        started_at: expect.any(Number),
+        reason: "people were seated while it recorded",
+      },
+    ]);
     // The fragment after it still folds, into the pinned record.
-    expect(out.groups).toEqual([{ keep: ids[1], title: null, fold: [expect.objectContaining({ id: ids[2] })] }]);
+    expect(out.groups).toEqual([
+      {
+        keep: ids[1],
+        title: null,
+        fold: [expect.objectContaining({ id: ids[2] })],
+      },
+    ]);
   });
 });

@@ -8,7 +8,11 @@ import { type PeopleRosterData } from "./usePeopleRoster";
 
 /** The pulse from roster data the caller already holds — never a second
  *  subscription. The panel reads the roster once and derives this from it. */
-export function usePulseFrom({ members, fleets, huddles }: PeopleRosterData): TeamPulse {
+export function usePulseFrom({
+  members,
+  fleets,
+  huddles,
+}: PeopleRosterData): TeamPulse {
   return useMemo(
     () => teamPulse(members, (m: any) => fleets.get(String(m._id)), huddles),
     [members, fleets, huddles],

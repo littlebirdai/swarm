@@ -11,7 +11,8 @@ import "./sonner.css";
 // Set once here so every `toast.error` call site gets it; a call that passes
 // its own duration still wins.
 const timedError = toast.error;
-toast.error = (message, data) => timedError(message, { ...persistentToast, ...data });
+toast.error = (message, data) =>
+  timedError(message, { ...persistentToast, ...data });
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -20,8 +21,16 @@ const GLYPH = { size: 13, strokeWidth: 2.5, "aria-hidden": true } as const;
 // The error mark is a "!" in the red chip: an X there read as a second close
 // button. Lucide has no bare "!", so this draws one in the same stroke.
 const ErrorMark = () => (
-  <svg width={GLYPH.size} height={GLYPH.size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={GLYPH.strokeWidth} strokeLinecap="round" aria-hidden>
+  <svg
+    width={GLYPH.size}
+    height={GLYPH.size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={GLYPH.strokeWidth}
+    strokeLinecap="round"
+    aria-hidden
+  >
     <path d="M12 6v8" />
     <path d="M12 18.5h.01" />
   </svg>
@@ -43,7 +52,9 @@ const Toaster = (props: ToasterProps) => {
       theme={theme}
       className="cc-toaster"
       closeButton
-      toastOptions={{ classNames: { actionButton: "cc-btn cc-btn-fill cc-btn-cyan" } }}
+      toastOptions={{
+        classNames: { actionButton: "cc-btn cc-btn-fill cc-btn-cyan" },
+      }}
       icons={{
         success: <Check {...GLYPH} />,
         error: <ErrorMark />,

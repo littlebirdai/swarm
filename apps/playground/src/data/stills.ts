@@ -24,7 +24,12 @@ function captureFrom(target: Window): Promise<Blob | null> {
       resolve(image);
     };
     const onMessage = (e: MessageEvent) => {
-      if (e.source === target && isAppMessage(e.data) && e.data.type === "captured") done(e.data.image);
+      if (
+        e.source === target &&
+        isAppMessage(e.data) &&
+        e.data.type === "captured"
+      )
+        done(e.data.image);
     };
     const timer = setTimeout(() => done(null), CAPTURE_WAIT_MS);
     addEventListener("message", onMessage);
@@ -45,8 +50,14 @@ export function useTakeStill() {
         const url = await uploadUrl({ app_id: appId, number });
         const image = url && (await captureFrom(target));
         if (!url || !image) return;
-        const res = await fetch(url, { method: "POST", headers: { "Content-Type": image.type }, body: image });
-        const { storageId } = (await res.json()) as { storageId: Id<"_storage"> };
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": image.type },
+          body: image,
+        });
+        const { storageId } = (await res.json()) as {
+          storageId: Id<"_storage">;
+        };
         await attach({ app_id: appId, number, storage_id: storageId });
       } catch {
         // A missing picture is only a plainer gallery tile; another screen takes it.

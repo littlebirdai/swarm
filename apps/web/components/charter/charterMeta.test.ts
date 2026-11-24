@@ -39,25 +39,56 @@ describe("charter priority palette", () => {
 
 describe("charterOf / hasCharter", () => {
   const row = {
-    _id: "x", title: "T",
-    goal: "Ship it", success_metrics: ["a"], priority: "p1", owner_role_id: "or-1",
-    non_goals: ["b"], risks: ["c"], budget: { tokens_per_day: 400_000 },
-    description: "not a charter field", status: "active",
+    _id: "x",
+    title: "T",
+    goal: "Ship it",
+    success_metrics: ["a"],
+    priority: "p1",
+    owner_role_id: "or-1",
+    non_goals: ["b"],
+    risks: ["c"],
+    budget: { tokens_per_day: 400_000 },
+    description: "not a charter field",
+    status: "active",
   };
 
   it("picks the project field set and the plan subset", () => {
-    expect(Object.keys(charterOf(row, "project")).sort()).toEqual(["budget", "goal", "non_goals", "owner_role_id", "priority", "risks", "success_metrics"]);
-    expect(Object.keys(charterOf(row, "plan")).sort()).toEqual(["goal", "non_goals", "owner_role_id", "priority", "success_metrics"]);
+    expect(Object.keys(charterOf(row, "project")).sort()).toEqual([
+      "budget",
+      "goal",
+      "non_goals",
+      "owner_role_id",
+      "priority",
+      "risks",
+      "success_metrics",
+    ]);
+    expect(Object.keys(charterOf(row, "plan")).sort()).toEqual([
+      "goal",
+      "non_goals",
+      "owner_role_id",
+      "priority",
+      "success_metrics",
+    ]);
   });
 
   it("drops null (a cleared scalar rides the row as null until the echo)", () => {
-    expect(charterOf({ ...row, priority: null, owner_role_id: null }, "project").priority).toBeUndefined();
+    expect(
+      charterOf({ ...row, priority: null, owner_role_id: null }, "project")
+        .priority,
+    ).toBeUndefined();
     expect(charterOf(null, "project")).toEqual({});
   });
 
   it("an empty charter is nothing to show", () => {
     expect(hasCharter({})).toBe(false);
-    expect(hasCharter({ goal: "   ", success_metrics: [], non_goals: [], risks: [] })).toBe(false);
+    expect(
+      hasCharter({
+        goal: "   ",
+        success_metrics: [],
+        non_goals: [],
+        risks: [],
+      }),
+    ).toBe(false);
     expect(hasCharter({ budget: {} })).toBe(false);
     expect(hasCharter({ goal: "Ship" })).toBe(true);
     expect(hasCharter({ priority: "p3" })).toBe(true);
@@ -68,8 +99,19 @@ describe("charterOf / hasCharter", () => {
 });
 
 describe("roles from the org tree", () => {
-  const head = { ...ORG_FIXTURE.roles[0], _id: "role-head", short_id: "or-99", handle: HEAD_OF_PEOPLE_HANDLE, name: "Head of People", status: "active" as const };
-  const retiredHead = { ...head, _id: "role-head-old", status: "retired" as const };
+  const head = {
+    ...ORG_FIXTURE.roles[0],
+    _id: "role-head",
+    short_id: "or-99",
+    handle: HEAD_OF_PEOPLE_HANDLE,
+    name: "Head of People",
+    status: "active" as const,
+  };
+  const retiredHead = {
+    ...head,
+    _id: "role-head-old",
+    status: "retired" as const,
+  };
 
   it("finds a live head of people by handle, never a retired one", () => {
     expect(headOfPeopleOf(ORG_FIXTURE.roles)).toBeNull();
@@ -88,28 +130,40 @@ describe("roles from the org tree", () => {
 
   it("a retired owner is no owner: the chip falls to 'No owner' instead of linking to a seat that no longer exists", () => {
     const role = ORG_FIXTURE.roles[0];
-    const roles = ORG_FIXTURE.roles.map((r) => (r._id === role._id ? { ...r, status: "retired" as const } : r));
+    const roles = ORG_FIXTURE.roles.map((r) =>
+      r._id === role._id ? { ...r, status: "retired" as const } : r,
+    );
     expect(ownerRoleOf(roles, role._id)).toBeNull();
     expect(ownerRoleOf(ORG_FIXTURE.roles, role._id)?._id).toBe(role._id);
   });
 
   it("owner candidates exclude retired roles and the head of people", () => {
-    const ids = ownerCandidates([...ORG_FIXTURE.roles, head, { ...ORG_FIXTURE.roles[0], _id: "gone", status: "retired" as const }]).map((r) => r._id);
+    const ids = ownerCandidates([
+      ...ORG_FIXTURE.roles,
+      head,
+      { ...ORG_FIXTURE.roles[0], _id: "gone", status: "retired" as const },
+    ]).map((r) => r._id);
     expect(ids).not.toContain("role-head");
     expect(ids).not.toContain("gone");
-    expect(ids).toEqual(ORG_FIXTURE.roles.filter((r) => r.status !== "retired").map((r) => r._id));
+    expect(ids).toEqual(
+      ORG_FIXTURE.roles.filter((r) => r.status !== "retired").map((r) => r._id),
+    );
   });
 });
 
 describe("the ask to the head of people", () => {
   it("opens /org with the composer prefilled for this title", () => {
-    expect(composeCharterHref("Codecast: Product")).toBe(`/org?compose=${encodeURIComponent("draft a charter for Codecast: Product")}`);
+    expect(composeCharterHref("Codecast: Product")).toBe(
+      `/org?compose=${encodeURIComponent("draft a charter for Codecast: Product")}`,
+    );
   });
 });
 
 describe("budget shape", () => {
   it("is the server's cleaner: sorted keys (the order Convex echoes) whatever order the person edited in", () => {
-    expect(Object.keys(cleanBudget({ tokens_per_day: 1, hands_per_day: 2 })!)).toEqual(["hands_per_day", "tokens_per_day"]);
+    expect(
+      Object.keys(cleanBudget({ tokens_per_day: 1, hands_per_day: 2 })!),
+    ).toEqual(["hands_per_day", "tokens_per_day"]);
     expect(cleanBudget({ hands_per_day: undefined })).toBeUndefined();
   });
 });

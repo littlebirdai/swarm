@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { extractSessionImages, mergeSessionImages, type SessionImageEntry } from "./sessionImages";
+import {
+  extractSessionImages,
+  mergeSessionImages,
+  type SessionImageEntry,
+} from "./sessionImages";
 
 // The header gallery used to scan only the loaded message window (200 messages
 // a page), so a long thread showed its tail and nothing else. The server now
@@ -12,7 +16,10 @@ describe("extractSessionImages", () => {
   test("stamps transcript position on every channel", () => {
     const entries = extractSessionImages(
       [
-        { timestamp: 100, images: [{ media_type: "image/png", storage_id: "a" }] },
+        {
+          timestamp: 100,
+          images: [{ media_type: "image/png", storage_id: "a" }],
+        },
         {
           timestamp: 200,
           content: "before ![x](https://ours/1.png) after",
@@ -50,7 +57,11 @@ describe("extractSessionImages", () => {
   test("stamps the owning message id on every channel", () => {
     const entries = extractSessionImages(
       [
-        { _id: "m1", timestamp: 1, images: [{ media_type: "image/png", storage_id: "a" }] },
+        {
+          _id: "m1",
+          timestamp: 1,
+          images: [{ media_type: "image/png", storage_id: "a" }],
+        },
         { _id: "m2", timestamp: 2, content: "![x](https://ours/1.png)" },
         { timestamp: 3, images: [{ media_type: "image/png", data: "AAAA" }] },
       ],
@@ -105,29 +116,55 @@ describe("mergeSessionImages", () => {
 
   test("un-materialized entries (inline data:) survive the merge", () => {
     const dataSrc = "data:image/png;base64,AAAA";
-    const merged = mergeSessionImages([at("a", 100)], [{ key: dataSrc, src: dataSrc, timestamp: 150, seq: 0 }]);
+    const merged = mergeSessionImages(
+      [at("a", 100)],
+      [{ key: dataSrc, src: dataSrc, timestamp: 150, seq: 0 }],
+    );
     expect(merged.map((e) => e.key)).toEqual(["a", dataSrc]);
   });
 
   test("an empty server list leaves the window order untouched", () => {
     const window = [{ key: "a" }, { key: "b" }, { key: "c" }];
-    expect(mergeSessionImages([], window).map((e) => e.key)).toEqual(["a", "b", "c"]);
+    expect(mergeSessionImages([], window).map((e) => e.key)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 
   test("timestamp-less entries sort after positioned ones, order preserved", () => {
-    const merged = mergeSessionImages([at("a", 100)], [{ key: "x" }, { key: "y" }]);
+    const merged = mergeSessionImages(
+      [at("a", 100)],
+      [{ key: "x" }, { key: "y" }],
+    );
     expect(merged.map((e) => e.key)).toEqual(["a", "x", "y"]);
   });
 });
 
 describe("attachment views", () => {
-  const attach = { _id: "m1", timestamp: 100, content: "[Image 1] look", images: [{ media_type: "image/png", storage_id: "att" }] };
+  const attach = {
+    _id: "m1",
+    timestamp: 100,
+    content: "[Image 1] look",
+    images: [{ media_type: "image/png", storage_id: "att" }],
+  };
   const read = {
     _id: "m2",
     timestamp: 200,
-    tool_calls: [{ id: "tu1", input: JSON.stringify({ file_path: "/tmp/codecast/images/att.png" }) }],
+    tool_calls: [
+      {
+        id: "tu1",
+        input: JSON.stringify({ file_path: "/tmp/codecast/images/att.png" }),
+      },
+    ],
   };
-  const result = { _id: "m3", timestamp: 300, images: [{ media_type: "image/png", storage_id: "copy", tool_use_id: "tu1" }] };
+  const result = {
+    _id: "m3",
+    timestamp: 300,
+    images: [
+      { media_type: "image/png", storage_id: "copy", tool_use_id: "tu1" },
+    ],
+  };
 
   test("an agent opening an attached image shows it once", () => {
     const entries = extractSessionImages([attach, read, result], trustOurs);
@@ -135,8 +172,16 @@ describe("attachment views", () => {
   });
 
   test("other tool screenshots keep their own identity", () => {
-    const shot = { timestamp: 400, images: [{ media_type: "image/png", storage_id: "shot", tool_use_id: "tu2" }] };
-    const entries = extractSessionImages([attach, read, result, shot], trustOurs);
+    const shot = {
+      timestamp: 400,
+      images: [
+        { media_type: "image/png", storage_id: "shot", tool_use_id: "tu2" },
+      ],
+    };
+    const entries = extractSessionImages(
+      [attach, read, result, shot],
+      trustOurs,
+    );
     expect(entries.map((e) => e.key)).toEqual(["att", "shot"]);
   });
 
@@ -145,7 +190,10 @@ describe("attachment views", () => {
       { key: "att", storage_id: "att", timestamp: 100, seq: 0 },
       { key: "copy", storage_id: "copy", timestamp: 300, seq: 0 },
     ];
-    const merged = mergeSessionImages(server, extractSessionImages([read, result], trustOurs));
+    const merged = mergeSessionImages(
+      server,
+      extractSessionImages([read, result], trustOurs),
+    );
     expect(merged.map((e) => e.key)).toEqual(["att"]);
   });
 });

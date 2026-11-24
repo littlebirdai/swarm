@@ -1,4 +1,8 @@
-import { workProjectChipKey, workProjectsBySession, type WorkProjectSource } from "../store/workProjects";
+import {
+  workProjectChipKey,
+  workProjectsBySession,
+  type WorkProjectSource,
+} from "../store/workProjects";
 
 export const WORK_PROJECT_SEP = "\u0000";
 
@@ -15,6 +19,11 @@ export function workProjectSig(s: SigState, sessionId: string): string {
   const pid = workProjectsBySession(s).get(sessionId);
   const p = pid ? s.projects[pid] : undefined;
   if (!pid || !p) return "";
-  if (s.activeProjectFilter === workProjectChipKey(pid) && !s.chipFilterExclude && !s.extraProjectFilters?.length) return "";
+  if (
+    s.activeProjectFilter === workProjectChipKey(pid) &&
+    !s.chipFilterExclude &&
+    !s.extraProjectFilters?.length
+  )
+    return "";
   return [pid, p.color ?? "", p.title ?? ""].join(WORK_PROJECT_SEP);
 }

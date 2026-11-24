@@ -36,7 +36,9 @@ export function shortcodeToEmoji(name: string): string | null {
 export function emojiToShortcode(emoji: string): string | null {
   const direct = NAME_BY_EMOJI[emoji];
   if (direct) return direct;
-  const stripped = emoji.replace(SKIN_TONE_MODIFIER_RE, "").replace(VARIATION_SELECTOR_RE, "");
+  const stripped = emoji
+    .replace(SKIN_TONE_MODIFIER_RE, "")
+    .replace(VARIATION_SELECTOR_RE, "");
   if (NAME_BY_EMOJI[stripped]) return NAME_BY_EMOJI[stripped];
   for (const [glyph, name] of Object.entries(NAME_BY_EMOJI)) {
     if (glyph.replace(VARIATION_SELECTOR_RE, "") === stripped) return name;
@@ -46,8 +48,11 @@ export function emojiToShortcode(emoji: string): string | null {
 
 /** Replace :name: shortcodes in prose with their glyphs. Unknown names stay. */
 export function replaceShortcodes(text: string): string {
-  return text.replace(/:([a-z0-9_+\-']+)(?:::skin-tone-[2-6])?:/gi, (whole, name: string) => {
-    const glyph = EMOJI_BY_NAME[name] ?? EMOJI_BY_NAME[name.toLowerCase()];
-    return glyph ?? whole;
-  });
+  return text.replace(
+    /:([a-z0-9_+\-']+)(?:::skin-tone-[2-6])?:/gi,
+    (whole, name: string) => {
+      const glyph = EMOJI_BY_NAME[name] ?? EMOJI_BY_NAME[name.toLowerCase()];
+      return glyph ?? whole;
+    },
+  );
 }

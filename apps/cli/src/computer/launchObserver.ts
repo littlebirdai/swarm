@@ -43,11 +43,18 @@ export interface ObservedLaunch {
  * The caller keeps the reference alive for as long as it cares; the child is
  * unref'd, so an observer nobody consults never holds the process open.
  */
-export function spawnObserved(cmd: string, args: string[], logFile: string): ObservedLaunch {
+export function spawnObserved(
+  cmd: string,
+  args: string[],
+  logFile: string,
+): ObservedLaunch {
   const fd = fs.openSync(logFile, "a", 0o600);
   let child: ChildProcess;
   try {
-    child = spawn(cmd, args, { detached: true, stdio: ["ignore", "ignore", fd] });
+    child = spawn(cmd, args, {
+      detached: true,
+      stdio: ["ignore", "ignore", fd],
+    });
   } finally {
     // The child holds its own dup of the descriptor.
     fs.closeSync(fd);
@@ -56,7 +63,10 @@ export function spawnObserved(cmd: string, args: string[], logFile: string): Obs
 
   let reason: string | null = null;
   const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-    reason = typeof code === "number" ? `exited with code ${code}` : `was killed by ${signal ?? "an unknown signal"}`;
+    reason =
+      typeof code === "number"
+        ? `exited with code ${code}`
+        : `was killed by ${signal ?? "an unknown signal"}`;
   };
   const onError = (err: Error) => {
     reason = `could not be launched: ${err.message}`;

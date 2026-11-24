@@ -7,19 +7,30 @@
 // mark on every row read as four switches for one window.
 import { AppWindowMac, PictureInPicture2 } from "lucide-react";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
-import { useDesktopAppWindow, useHasAppWindow } from "../../hooks/useDesktopWindowRole";
+import {
+  useDesktopAppWindow,
+  useHasAppWindow,
+} from "../../hooks/useDesktopWindowRole";
 import { DESKTOP_APPS, type DesktopApp } from "../../lib/desktopApps";
 import { cn } from "../../lib/utils";
 import { popOutApp } from "../../lib/popOutApp";
 
-export function AppPopOutButton({ app, className }: { app: DesktopApp; className?: string }) {
+export function AppPopOutButton({
+  app,
+  className,
+}: {
+  app: DesktopApp;
+  className?: string;
+}) {
   const popped = useHasAppWindow(app);
   const ownWindow = useDesktopAppWindow() === app;
   // Inside the app's own window there is no gesture to make.
   if (ownWindow) return null;
   const title = DESKTOP_APPS[app].title;
   // The label names what pressing does; the glyph alone carries the state.
-  const label = popped ? `Raise the ${title} window` : `Open ${title} in its own window`;
+  const label = popped
+    ? `Raise the ${title} window`
+    : `Open ${title} in its own window`;
   return (
     <ShortcutTooltip label={label}>
       <button
@@ -42,7 +53,11 @@ export function AppPopOutButton({ app, className }: { app: DesktopApp; className
         aria-label={label}
         aria-pressed={popped}
       >
-        {popped ? <AppWindowMac className="h-3.5 w-3.5" /> : <PictureInPicture2 className="h-3.5 w-3.5" />}
+        {popped ? (
+          <AppWindowMac className="h-3.5 w-3.5" />
+        ) : (
+          <PictureInPicture2 className="h-3.5 w-3.5" />
+        )}
       </button>
     </ShortcutTooltip>
   );

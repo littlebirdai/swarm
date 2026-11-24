@@ -1,5 +1,9 @@
 import { createContext, useMemo } from "react";
-import { useTrackedStore, sessionsWakeSig, filterInboxScope } from "../store/inboxStore";
+import {
+  useTrackedStore,
+  sessionsWakeSig,
+  filterInboxScope,
+} from "../store/inboxStore";
 import { agentStatusAt } from "../lib/liveness";
 import { makeCollectionSig } from "../store/wakeSig";
 import {
@@ -16,7 +20,8 @@ import { SYNTHETIC_POLL_OPTION, type PollQuestion } from "../lib/pollPayload";
 // branches on, nothing that churns. Rows only change on ask/answer, so this
 // is cheap, but it keeps the queue from re-rendering on unrelated store work.
 const decisionsWakeSig = makeCollectionSig<any>(
-  (d) => `${d._id}:${d.status}:${d.blocking}:${d.stack_id ?? ""}:${d.created_at}:${d.updated_at ?? 0}:${d.options?.length ?? 0}`
+  (d) =>
+    `${d._id}:${d.status}:${d.blocking}:${d.stack_id ?? ""}:${d.created_at}:${d.updated_at ?? 0}:${d.options?.length ?? 0}`,
 );
 
 // listMessages pages newest-first; every other caller works oldest-first.
@@ -35,7 +40,8 @@ export function openQuestionFromMessages(raw: any[] | undefined): {
   const messages = chronological(raw);
   const resultIds = new Set<string>();
   for (const m of messages) {
-    for (const r of m.tool_results ?? []) if (r.tool_use_id) resultIds.add(r.tool_use_id);
+    for (const r of m.tool_results ?? [])
+      if (r.tool_use_id) resultIds.add(r.tool_use_id);
   }
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -43,10 +49,18 @@ export function openQuestionFromMessages(raw: any[] | undefined): {
       if (tc.name !== "AskUserQuestion") continue;
       if (resultIds.has(tc.id)) continue;
       let parsed: any = {};
-      try { parsed = JSON.parse(tc.input); } catch { continue; }
+      try {
+        parsed = JSON.parse(tc.input);
+      } catch {
+        continue;
+      }
       const q = parsed?.questions?.[0];
       if (!q?.question || !Array.isArray(q.options)) continue;
-      return { question: q as PollQuestion, toolUseId: tc.id, createdAt: m.timestamp ?? 0 };
+      return {
+        question: q as PollQuestion,
+        toolUseId: tc.id,
+        createdAt: m.timestamp ?? 0,
+      };
     }
   }
   return null;
@@ -88,7 +102,10 @@ export function lastAssistantText(raw: any[] | undefined): string | undefined {
 // which reorders equal-tier cards once rather than continuously.
 const blockedSince = new Map<string, number>();
 
-function blockedSinceFor(conversationId: string, updatedAt: number | undefined): number {
+function blockedSinceFor(
+  conversationId: string,
+  updatedAt: number | undefined,
+): number {
   const seen = blockedSince.get(conversationId);
   if (seen !== undefined) return seen;
   // First sighting: trust the row's own timestamp if it is in the past, so a
@@ -110,11 +127,17 @@ function forgetBlocked(conversationId: string): void {
 export function buildDecisionQueue(
   decisions: Record<string, any>,
   sessions: Record<string, any>,
-  resolutions: Record<string, { at: number; message_count: number }> | undefined,
+  resolutions:
+    | Record<string, { at: number; message_count: number }>
+    | undefined,
   meId: string | undefined,
 ): QueueItem[] {
   const mine = filterInboxScope(sessions, "mine", meId);
-  const items = decisionQueueItems(decisions, sessions, (d) => isStackedAsk(d) && askedOfViewer(d, meId));
+  const items = decisionQueueItems(
+    decisions,
+    sessions,
+    (d) => isStackedAsk(d) && askedOfViewer(d, meId),
+  );
 
   // A session that has an authored decision open is already represented;
   // its AUQ row would be the same interruption counted twice.
@@ -154,13 +177,21 @@ export function useDecisionQueue(): QueueItem[] {
   ]);
 
   return useMemo(
-    () => buildDecisionQueue(s.sessionDecisions, s.sessions, s.questionResolutions, s.currentUser?._id),
+    () =>
+      buildDecisionQueue(
+        s.sessionDecisions,
+        s.sessions,
+        s.questionResolutions,
+        s.currentUser?._id,
+      ),
     [s.sessionDecisions, s.sessions, s.questionResolutions, s.currentUser?._id],
   );
 }
 
 /** Options minus Claude Code's synthetic affordance rows, keeping true indices. */
-export function visibleOptions(q: PollQuestion): Array<{ label: string; description?: string; index: number }> {
+export function visibleOptions(
+  q: PollQuestion,
+): Array<{ label: string; description?: string; index: number }> {
   return q.options
     .map((o, index) => ({ label: o.label, description: o.description, index }))
     .filter((o) => !SYNTHETIC_POLL_OPTION.test(o.label.trim()));
@@ -184,24 +215,31 @@ export type DecisionStepper = {
   item?: QueueItem;
 };
 
-export const DecisionStepperContext = createContext<DecisionStepper | null>(null);
+export const DecisionStepperContext = createContext<DecisionStepper | null>(
+  null,
+);
 
 // A conversation's pending `cast decide` rows as queue items, in the order
 // they are answered: the first is the one its card shows, the rest follow as
 // each is answered. Signature-gated: rows change only on ask/answer.
-export function usePendingDecisionItems(conversationId: string | null | undefined): QueueItem[] {
+export function usePendingDecisionItems(
+  conversationId: string | null | undefined,
+): QueueItem[] {
   const s = useTrackedStore([
     (st: any) => {
       if (!conversationId) return "";
       let sig = "";
       for (const d of Object.values(st.sessionDecisions) as any[]) {
-        if (d.conversation_id === conversationId && d.status === "pending") sig += `${d._id}:${d.created_at}:${d.updated_at ?? 0}|`;
+        if (d.conversation_id === conversationId && d.status === "pending")
+          sig += `${d._id}:${d.created_at}:${d.updated_at ?? 0}|`;
       }
       return sig;
     },
     (st: any) => {
       const row = conversationId ? st.sessions[conversationId] : undefined;
-      return row ? `${row.title}|${row.project_path}|${row.is_idle}|${agentStatusAt(row, Date.now())}|${row.is_unresponsive}|${row.inbox_killed_at}` : "";
+      return row
+        ? `${row.title}|${row.project_path}|${row.is_idle}|${agentStatusAt(row, Date.now())}|${row.is_unresponsive}|${row.inbox_killed_at}`
+        : "";
     },
   ]);
   return useMemo(() => {
@@ -213,7 +251,8 @@ export function usePendingDecisionItems(conversationId: string | null | undefine
     // A blocking ask parks the session, so it outranks an advisory one that
     // happened to be posted earlier; otherwise oldest first, as in the queue.
     return decisionQueueItems(mine, s.sessions).sort(
-      (a, b) => Number(b.blocking) - Number(a.blocking) || a.createdAt - b.createdAt
+      (a, b) =>
+        Number(b.blocking) - Number(a.blocking) || a.createdAt - b.createdAt,
     );
   }, [conversationId, s.sessionDecisions, s.sessions]);
 }

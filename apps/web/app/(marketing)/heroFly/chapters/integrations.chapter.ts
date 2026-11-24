@@ -8,7 +8,9 @@ import type { HeroChapter } from "./contract";
 
 export const chapter: HeroChapter = {
   id: "integrations",
-  parts: [{ key: "main", region: "pr.main", order: 0, Component: PullRequestPage }],
+  parts: [
+    { key: "main", region: "pr.main", order: 0, Component: PullRequestPage },
+  ],
   flyers: {
     "integrations.merged": MergedFlyer,
   },

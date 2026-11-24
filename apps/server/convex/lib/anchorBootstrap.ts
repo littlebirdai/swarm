@@ -46,7 +46,10 @@ export const SAY_GUIDANCE =
 const LAST_MESSAGE_GUIDANCE =
   "Answer people here, in plain words, and say where each piece of work went. The person sees only your last message of each turn, so make it stand on its own: what you found, what you did and where it went, what you need from them, and any page, image or canvas they should see.";
 
-const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+const andList = (xs: string[]) =>
+  xs.length < 2
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 // Every role's opening is who it is and its job (the Head of People's and the
 // Executive Assistant's are their own texts), then this one account of how a
@@ -58,7 +61,10 @@ function standingRoleWays(role: RoleBootstrap, cleanChat: boolean): string {
     : `raise it in this thread: say what they will decide and why in your pinned state (\`cast state --status blocked\`), and post a real choice between options as a \`cast decide\` card here, with your recommendation.`;
   return [
     `You wake on your routine, when a session under you finishes or is waiting, and when someone writes to you; a person can see and change those triggers on your page. Start every turn with \`cast brief\`: what changed, your sessions, and how the people who report to you are doing against their goals.`,
-    roleLevelGuidance({ parent: role.parentName, startsOnItsOwn: role.startsOnItsOwn }),
+    roleLevelGuidance({
+      parent: role.parentName,
+      startsOnItsOwn: role.startsOnItsOwn,
+    }),
     `The sessions that report to you stay out of the person's inbox; what they need reaches you as messages, and you answer what you can. What you cannot answer goes up to ${role.parentName}: ${up}`,
     cleanChat ? SAY_GUIDANCE : LAST_MESSAGE_GUIDANCE,
     `A message from another session is a colleague's, not your person's; answer it with \`cast send <its id>\`.`,
@@ -67,37 +73,80 @@ function standingRoleWays(role: RoleBootstrap, cleanChat: boolean): string {
   ].join("\n\n");
 }
 
-function roleOpeningMessage(name: string, workspace: string, role: RoleBootstrap, cleanChat: boolean): string {
+function roleOpeningMessage(
+  name: string,
+  workspace: string,
+  role: RoleBootstrap,
+  cleanChat: boolean,
+): string {
   // The Head of People's first review follows at once and is its first
   // message, so it posts no hello of its own.
   const close = role.rebrief
     ? "These are your current instructions. Read `cast brief` now and carry on; there is nothing to announce."
-    : isHeadOfPeopleRole(role) ? "Read `cast brief` now." : `Read \`cast brief\` now, ${cleanChat ? "say" : "post"} a one-line hello, then stand by.`;
+    : isHeadOfPeopleRole(role)
+      ? "Read `cast brief` now."
+      : `Read \`cast brief\` now, ${cleanChat ? "say" : "post"} a one-line hello, then stand by.`;
   const ways = standingRoleWays(role, cleanChat);
-  if (role.assistantOpening) return [role.assistantOpening, ways, close].join("\n\n");
-  if (isHeadOfPeopleRole(role)) return [headOfPeopleOpening({ workspace, person: role.parentName }), ways, close].join("\n\n");
+  if (role.assistantOpening)
+    return [role.assistantOpening, ways, close].join("\n\n");
+  if (isHeadOfPeopleRole(role))
+    return [
+      headOfPeopleOpening({ workspace, person: role.parentName }),
+      ways,
+      close,
+    ].join("\n\n");
   // Scope is opt in (org-staffing.md S26): a role that names no area looks
   // after none, and is never told the workspace is its own.
   const area = role.scopeNames.length
     ? `You look after ${andList(role.scopeNames)}: keep that work moving and its people informed. What falls outside it goes to ${role.parentName}.`
     : `You look after no area of your own: you run your routine and answer what you are asked.`;
-  return [`You are the **${name}** (@${role.handle}) in ${workspace}. You report to ${role.parentName}.`, area, ways, close].join("\n\n");
+  return [
+    `You are the **${name}** (@${role.handle}) in ${workspace}. You report to ${role.parentName}.`,
+    area,
+    ways,
+    close,
+  ].join("\n\n");
 }
 
 // What a role's opening says about it, read from the role as it stands now:
 // one reading for the first turn (orgRoles.provision) and for a rebrief.
-export async function roleBootstrapOf(ctx: { db: any }, role: any): Promise<RoleBootstrap> {
+export async function roleBootstrapOf(
+  ctx: { db: any },
+  role: any,
+): Promise<RoleBootstrap> {
   const scopeNames: string[] = [];
-  for (const id of role.scope?.project_ids ?? []) { const p = await ctx.db.get(id); if (p) scopeNames.push(p.title); }
-  for (const id of role.scope?.plan_ids ?? []) { const p = await ctx.db.get(id); if (p) scopeNames.push(p.title); }
+  for (const id of role.scope?.project_ids ?? []) {
+    const p = await ctx.db.get(id);
+    if (p) scopeNames.push(p.title);
+  }
+  for (const id of role.scope?.plan_ids ?? []) {
+    const p = await ctx.db.get(id);
+    if (p) scopeNames.push(p.title);
+  }
   if (role.reports_to?.kind === "role") {
     const parent = await ctx.db.get(role.reports_to.role_id);
-    return { handle: role.handle, scopeNames, parentName: parent ? `${parent.name} (@${parent.handle})` : "a role", parentHandle: parent?.handle, startsOnItsOwn: roleStartsOnItsOwn(role) };
+    return {
+      handle: role.handle,
+      scopeNames,
+      parentName: parent ? `${parent.name} (@${parent.handle})` : "a role",
+      parentHandle: parent?.handle,
+      startsOnItsOwn: roleStartsOnItsOwn(role),
+    };
   }
-  const user = role.reports_to?.user_id ? await ctx.db.get(role.reports_to.user_id) : null;
+  const user = role.reports_to?.user_id
+    ? await ctx.db.get(role.reports_to.user_id)
+    : null;
   const parentName = user?.name || user?.email?.split("@")[0] || "a person";
-  const assistantOpening = role.assistant ? await assistantOpeningFor(ctx, role, parentName) : undefined;
-  return { handle: role.handle, scopeNames, parentName, startsOnItsOwn: roleStartsOnItsOwn(role), ...(assistantOpening ? { assistantOpening } : {}) };
+  const assistantOpening = role.assistant
+    ? await assistantOpeningFor(ctx, role, parentName)
+    : undefined;
+  return {
+    handle: role.handle,
+    scopeNames,
+    parentName,
+    startsOnItsOwn: roleStartsOnItsOwn(role),
+    ...(assistantOpening ? { assistantOpening } : {}),
+  };
 }
 
 // The first turn that brings the workspace's own standing agent "online" when
@@ -119,12 +168,21 @@ export function bootstrapMessage(opts: {
 }): string {
   const { name, scopeType, scopeLabel, persona, role } = opts;
   const cleanChat = !!opts.cleanChat;
-  if (role) return roleOpeningMessage(name, scopeType === "team" ? opts.teamName ?? "the team" : `${opts.ownerName ?? "one person"}'s personal workspace`, role, cleanChat);
-  const who = scopeType === "team"
-    ? `the **team** workspace's standing agent for ${opts.teamName ?? "this team"}: every member of that team can reach you and read this conversation, and you speak for the team's shared context`
-    : opts.sharedWithTeam
-      ? `the **personal** workspace's standing agent for ${opts.ownerName ?? "one person"}: you speak only in their voice and interest, but this conversation is shared with ${opts.sharedWithTeam}, and every member of that team can read it`
-      : `the **personal** workspace's standing agent for ${opts.ownerName ?? "one person"}: private to them, and you speak only in their voice and interest`;
+  if (role)
+    return roleOpeningMessage(
+      name,
+      scopeType === "team"
+        ? (opts.teamName ?? "the team")
+        : `${opts.ownerName ?? "one person"}'s personal workspace`,
+      role,
+      cleanChat,
+    );
+  const who =
+    scopeType === "team"
+      ? `the **team** workspace's standing agent for ${opts.teamName ?? "this team"}: every member of that team can reach you and read this conversation, and you speak for the team's shared context`
+      : opts.sharedWithTeam
+        ? `the **personal** workspace's standing agent for ${opts.ownerName ?? "one person"}: you speak only in their voice and interest, but this conversation is shared with ${opts.sharedWithTeam}, and every member of that team can read it`
+        : `the **personal** workspace's standing agent for ${opts.ownerName ?? "one person"}: private to them, and you speak only in their voice and interest`;
   return [
     `You are **${name}**, ${who}. You are a persistent member, not a one-shot task: people ask you anything about the work, and you act with a peer's judgment. A person may have several workspace agents (a personal one, and one per team); when there is any chance of confusion, say which one you are.`,
     ``,
@@ -153,8 +211,12 @@ export function bootstrapMessage(opts: {
     cleanChat ? `- ${SAY_GUIDANCE}` : ``,
     `- Be concise and additive. Don't repeat yourself across channels.`,
     `- ${DECISION_DISCUSSION_GUIDANCE}`,
-    persona ? `\n## Your persona\nAdopt the **${persona}** persona/skill if it is available in this project.` : ``,
+    persona
+      ? `\n## Your persona\nAdopt the **${persona}** persona/skill if it is available in this project.`
+      : ``,
     ``,
     `Save your role to memory now, ${cleanChat ? "say" : "post"} a one-line hello confirming you are online and which workspace you serve, then stand by.`,
-  ].filter((line) => line !== ``).join("\n");
+  ]
+    .filter((line) => line !== ``)
+    .join("\n");
 }

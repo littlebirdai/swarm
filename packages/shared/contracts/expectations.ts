@@ -12,7 +12,21 @@
 
 // "person": a person's own words, typed where the expectations are read
 // (the Line tab, the map's panel); its ref is their user id.
-export const CITATION_KINDS = ["call", "chat", "session", "task", "decision", "commit", "file", "doc", "desk", "call_grade", "signal", "person", "other"] as const;
+export const CITATION_KINDS = [
+  "call",
+  "chat",
+  "session",
+  "task",
+  "decision",
+  "commit",
+  "file",
+  "doc",
+  "desk",
+  "call_grade",
+  "signal",
+  "person",
+  "other",
+] as const;
 export type CitationKind = (typeof CITATION_KINDS)[number];
 
 export type ExpectationCitation = {
@@ -51,10 +65,32 @@ export type Expectation = {
   changed_in: number;
 };
 
-export type AddOp = { op: "add"; text: string; part: string; note?: string; since?: string; citations: ExpectationCitation[]; status?: ExpectationStatus; reason?: string };
+export type AddOp = {
+  op: "add";
+  text: string;
+  part: string;
+  note?: string;
+  since?: string;
+  citations: ExpectationCitation[];
+  status?: ExpectationStatus;
+  reason?: string;
+};
 /** `since: ""` puts the line in force for everything again. */
-export type EditOp = { op: "edit"; id: string; text?: string; part?: string; note?: string; since?: string; citations: ExpectationCitation[] };
-export type RetireOp = { op: "retire"; id: string; reason: string; citations: ExpectationCitation[] };
+export type EditOp = {
+  op: "edit";
+  id: string;
+  text?: string;
+  part?: string;
+  note?: string;
+  since?: string;
+  citations: ExpectationCitation[];
+};
+export type RetireOp = {
+  op: "retire";
+  id: string;
+  reason: string;
+  citations: ExpectationCitation[];
+};
 export type ExpectationOp = AddOp | EditOp | RetireOp;
 
 export type ExpectationProposalInput = {
@@ -87,15 +123,32 @@ export type ExpectationsVersion = {
  */
 export type ExpectationsHow = "person" | "auto" | "stand_in";
 
-export const LIMITS = { text: 400, part: 80, note: 400, reason: 400, ref: 200, quote: 600, when: 40, summary: 300, citations: 20, ops: 120 } as const;
+export const LIMITS = {
+  text: 400,
+  part: 80,
+  note: 400,
+  reason: 400,
+  ref: 200,
+  quote: 600,
+  when: 40,
+  summary: 300,
+  citations: 20,
+  ops: 120,
+} as const;
 
-const clip = (s: unknown, max: number): string => (typeof s === "string" ? s.trim().slice(0, max) : "");
+const clip = (s: unknown, max: number): string =>
+  typeof s === "string" ? s.trim().slice(0, max) : "";
 /** A line's own words are never cut: one over its limit is refused by opErrors, so a stored line is never half a sentence. */
 const whole = (s: unknown): string => (typeof s === "string" ? s.trim() : "");
 
 function normCitation(raw: any): ExpectationCitation {
-  const out: ExpectationCitation = { kind: clip(raw?.kind, 20).toLowerCase() as CitationKind, ref: clip(raw?.ref, LIMITS.ref) };
-  const quote = clip(raw?.quote, LIMITS.quote).replace(/^["“]|["”]$/g, "").trim();
+  const out: ExpectationCitation = {
+    kind: clip(raw?.kind, 20).toLowerCase() as CitationKind,
+    ref: clip(raw?.ref, LIMITS.ref),
+  };
+  const quote = clip(raw?.quote, LIMITS.quote)
+    .replace(/^["“]|["”]$/g, "")
+    .trim();
   const when = clip(raw?.when, LIMITS.when);
   if (quote) out.quote = quote;
   if (when) out.when = when;
@@ -104,45 +157,85 @@ function normCitation(raw: any): ExpectationCitation {
 
 /** A proposal's fields trimmed and bounded, unknown fields dropped. */
 export function normalizeOp(raw: any): ExpectationOp {
-  const citations = Array.isArray(raw?.citations) ? raw.citations.map(normCitation) : [];
+  const citations = Array.isArray(raw?.citations)
+    ? raw.citations.map(normCitation)
+    : [];
   const op = clip(raw?.op, 10).toLowerCase();
   if (op === "add") {
-    const out: AddOp = { op: "add", text: whole(raw.text), part: clip(raw.part, LIMITS.part), citations };
+    const out: AddOp = {
+      op: "add",
+      text: whole(raw.text),
+      part: clip(raw.part, LIMITS.part),
+      citations,
+    };
     if (whole(raw.note)) out.note = whole(raw.note);
     if (clip(raw.since, 10)) out.since = clip(raw.since, 10);
-    if (raw.status === "retired") { out.status = "retired"; out.reason = whole(raw.reason); }
+    if (raw.status === "retired") {
+      out.status = "retired";
+      out.reason = whole(raw.reason);
+    }
     return out;
   }
   if (op === "edit") {
     const out: EditOp = { op: "edit", id: clip(raw.id, 80), citations };
-    for (const key of ["text", "part", "note", "since"] as const) if (typeof raw[key] === "string") out[key] = key === "part" ? clip(raw[key], LIMITS.part) : key === "since" ? clip(raw[key], 10) : whole(raw[key]);
+    for (const key of ["text", "part", "note", "since"] as const)
+      if (typeof raw[key] === "string")
+        out[key] =
+          key === "part"
+            ? clip(raw[key], LIMITS.part)
+            : key === "since"
+              ? clip(raw[key], 10)
+              : whole(raw[key]);
     return out;
   }
-  return { op: op as "retire", id: clip(raw?.id, 80), reason: whole(raw?.reason), citations };
+  return {
+    op: op as "retire",
+    id: clip(raw?.id, 80),
+    reason: whole(raw?.reason),
+    citations,
+  };
 }
 
 /** What is wrong with one op, as short sentences; empty when it can apply. */
 export function opErrors(op: ExpectationOp): string[] {
   const errors: string[] = [];
-  if (!["add", "edit", "retire"].includes(op.op)) return [`unknown op "${op.op}" (add, edit or retire)`];
+  if (!["add", "edit", "retire"].includes(op.op))
+    return [`unknown op "${op.op}" (add, edit or retire)`];
   if (op.citations.length === 0) errors.push("needs at least one source");
   for (const key of ["text", "note", "reason"] as const) {
     const words = (op as Record<string, unknown>)[key];
-    if (typeof words === "string" && words.length > LIMITS[key]) errors.push(`${key} is ${words.length} characters; a line holds at most ${LIMITS[key]}, so say it shorter`);
+    if (typeof words === "string" && words.length > LIMITS[key])
+      errors.push(
+        `${key} is ${words.length} characters; a line holds at most ${LIMITS[key]}, so say it shorter`,
+      );
   }
-  if (op.op !== "retire" && op.since && !IN_FORCE_DAY.test(op.since)) errors.push(`since "${op.since}" is not a day (YYYY-MM-DD)`);
+  if (op.op !== "retire" && op.since && !IN_FORCE_DAY.test(op.since))
+    errors.push(`since "${op.since}" is not a day (YYYY-MM-DD)`);
   op.citations.forEach((c, i) => {
-    if (!CITATION_KINDS.includes(c.kind)) errors.push(`source ${i + 1}: kind "${c.kind}" is not one of ${CITATION_KINDS.join(", ")}`);
+    if (!CITATION_KINDS.includes(c.kind))
+      errors.push(
+        `source ${i + 1}: kind "${c.kind}" is not one of ${CITATION_KINDS.join(", ")}`,
+      );
     if (!c.ref) errors.push(`source ${i + 1}: needs a ref`);
   });
   if (op.op === "add") {
     if (!op.text) errors.push("needs the expected behavior (text)");
     if (!op.part) errors.push("needs the part of the system (part)");
-    if (op.status === "retired" && !op.reason) errors.push("a retired line needs the reason");
+    if (op.status === "retired" && !op.reason)
+      errors.push("a retired line needs the reason");
   } else {
-    if (!isExpectationId(op.id)) errors.push(`"${op.id}" is not an expectation id (ex-<project>-<n>)`);
-    if (op.op === "edit" && op.text === undefined && op.part === undefined && op.note === undefined && op.since === undefined) errors.push("changes nothing (text, part, note or since)");
-    if (op.op === "edit" && op.text === "") errors.push("an edit cannot empty the text; retire the line instead");
+    if (!isExpectationId(op.id))
+      errors.push(`"${op.id}" is not an expectation id (ex-<project>-<n>)`);
+    if (
+      op.op === "edit" &&
+      op.text === undefined &&
+      op.part === undefined &&
+      op.note === undefined &&
+      op.since === undefined
+    )
+      errors.push("changes nothing (text, part, note or since)");
+    if (op.op === "edit" && op.text === "")
+      errors.push("an edit cannot empty the text; retire the line instead");
     if (op.op === "retire" && !op.reason) errors.push("needs the reason");
   }
   return errors;
@@ -152,11 +245,16 @@ const IN_FORCE_DAY = /^\d{4}-\d\d-\d\d$/;
 
 /** The lines that came into force on a day, by id (Expectation.since): what a brief carries so a judge grades a moment only against the lines in force when it happened. */
 export function linesSince(items: Expectation[]): Record<string, string> {
-  return Object.fromEntries(items.filter((e) => e.status === "active" && e.since).map((e) => [e.id, e.since!]));
+  return Object.fromEntries(
+    items
+      .filter((e) => e.status === "active" && e.since)
+      .map((e) => [e.id, e.since!]),
+  );
 }
 
 /** A source a reader can trace to the words: a quote, and when it was said. */
-export const isQuotedAndDated = (c: ExpectationCitation): boolean => (c.quote?.length ?? 0) >= 8 && !!c.when;
+export const isQuotedAndDated = (c: ExpectationCitation): boolean =>
+  (c.quote?.length ?? 0) >= 8 && !!c.when;
 
 /**
  * The kinds whose quote can be a person's own words, checked against the
@@ -166,14 +264,30 @@ export const isQuotedAndDated = (c: ExpectationCitation): boolean => (c.quote?.l
  * session) can carry an agent's account of what shipped, so it never lets a
  * line in without a person.
  */
-export const PERSON_SOURCE_KINDS: readonly CitationKind[] = ["call", "chat", "decision", "person"];
+export const PERSON_SOURCE_KINDS: readonly CitationKind[] = [
+  "call",
+  "chat",
+  "decision",
+  "person",
+];
 
 // Words that carry no claim: a line and a quote that share only these say nothing about each other.
-const FILLER = new Set("about after again against also always another anything because been before being between both cannot could does done each even every everything from going have here into itself just know like made make makes more most must need needs never okay only onto other over really same shall should some something still such sure than that their them then there these they thing things think this those under unless until very want wants were what when where which while will with would yeah your".split(" "));
+const FILLER = new Set(
+  "about after again against also always another anything because been before being between both cannot could does done each even every everything from going have here into itself just know like made make makes more most must need needs never okay only onto other over really same shall should some something still such sure than that their them then there these they thing things think this those under unless until very want wants were what when where which while will with would yeah your".split(
+    " ",
+  ),
+);
 
 /** The words of a sentence that carry its claim: four letters or more, no filler. */
 function claimWords(s: string): string[] {
-  return [...new Set(s.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 4 && !FILLER.has(w)))];
+  return [
+    ...new Set(
+      s
+        .toLowerCase()
+        .split(/[^a-z]+/)
+        .filter((w) => w.length >= 4 && !FILLER.has(w)),
+    ),
+  ];
 }
 
 /** Two forms of one word (track, tracked; bounce, bouncing): the shorter, less its last letter, opens the longer. */
@@ -194,12 +308,20 @@ export const SHARED_WORDS_NEEDED = 2;
  */
 export function followsFromQuote(text: string, quote: string): boolean {
   const said = claimWords(quote);
-  return claimWords(text).filter((w) => said.some((q) => sameWord(w, q))).length >= SHARED_WORDS_NEEDED;
+  return (
+    claimWords(text).filter((w) => said.some((q) => sameWord(w, q))).length >=
+    SHARED_WORDS_NEEDED
+  );
 }
 
 /** The sources of an addition that could let it in without a person: quoted, dated, a kind a person speaks in, and about what the line says. */
 export function groundingCandidates(op: AddOp): ExpectationCitation[] {
-  return op.citations.filter((c) => isQuotedAndDated(c) && PERSON_SOURCE_KINDS.includes(c.kind) && followsFromQuote(op.text, c.quote!));
+  return op.citations.filter(
+    (c) =>
+      isQuotedAndDated(c) &&
+      PERSON_SOURCE_KINDS.includes(c.kind) &&
+      followsFromQuote(op.text, c.quote!),
+  );
 }
 
 /**
@@ -213,8 +335,16 @@ export function groundingCandidates(op: AddOp): ExpectationCitation[] {
  * Anything that edits or retires a line, or adds one whose words cannot be
  * traced to a person, waits for the project's person.
  */
-export function autoApplies(ops: ExpectationOp[], personSaid: (c: ExpectationCitation) => boolean): boolean {
-  return ops.length > 0 && ops.every((op) => op.op === "add" && groundingCandidates(op).some(personSaid));
+export function autoApplies(
+  ops: ExpectationOp[],
+  personSaid: (c: ExpectationCitation) => boolean,
+): boolean {
+  return (
+    ops.length > 0 &&
+    ops.every(
+      (op) => op.op === "add" && groundingCandidates(op).some(personSaid),
+    )
+  );
 }
 
 /**
@@ -226,24 +356,49 @@ export function autoApplies(ops: ExpectationOp[], personSaid: (c: ExpectationCit
  * question was settled); it is their words on the record.
  */
 export type PersonEdit =
-  | { op: "add"; text: string; part: string; note?: string; source?: ExpectationCitation }
-  | { op: "edit"; id: string; text?: string; part?: string; note?: string; why?: string }
+  | {
+      op: "add";
+      text: string;
+      part: string;
+      note?: string;
+      source?: ExpectationCitation;
+    }
+  | {
+      op: "edit";
+      id: string;
+      text?: string;
+      part?: string;
+      note?: string;
+      why?: string;
+    }
   | { op: "retire"; id: string; reason: string };
 
 /** The words a person's edit puts on the record as theirs. */
 function personWords(edit: PersonEdit): string {
   if (edit.op === "add") return edit.text;
   if (edit.op === "retire") return edit.reason;
-  return edit.why?.trim() || edit.text?.trim() || edit.note?.trim() || "Changed by hand";
+  return (
+    edit.why?.trim() ||
+    edit.text?.trim() ||
+    edit.note?.trim() ||
+    "Changed by hand"
+  );
 }
 
 /** The op a person's edit becomes: their own words are its source, cited as them on the day they typed them, beside the source they named. */
-export function personOp(edit: PersonEdit, userId: string, now: number): ExpectationOp {
+export function personOp(
+  edit: PersonEdit,
+  userId: string,
+  now: number,
+): ExpectationOp {
   const when = new Date(now).toISOString().slice(0, 10);
   const own = { kind: "person", ref: userId, quote: personWords(edit), when };
   if (edit.op === "add") {
     const { source, ...rest } = edit;
-    return normalizeOp({ ...rest, citations: source?.ref ? [own, source] : [own] });
+    return normalizeOp({
+      ...rest,
+      citations: source?.ref ? [own, source] : [own],
+    });
   }
   if (edit.op === "edit") {
     const { why: _why, ...rest } = edit;
@@ -256,8 +411,10 @@ export function personOp(edit: PersonEdit, userId: string, now: number): Expecta
 export function personEditSummary(edit: PersonEdit, who: string): string {
   if (edit.op === "add") return `${who} added: ${edit.text}`;
   if (edit.op === "retire") return `${who} retired ${edit.id}: ${edit.reason}`;
-  if (edit.note === "") return `${who} settled the open question on ${edit.id}${edit.why ? `: ${edit.why}` : ""}`;
-  if (edit.note && edit.text === undefined && edit.part === undefined) return `${who} raised a question on ${edit.id}: ${edit.note}`;
+  if (edit.note === "")
+    return `${who} settled the open question on ${edit.id}${edit.why ? `: ${edit.why}` : ""}`;
+  if (edit.note && edit.text === undefined && edit.part === undefined)
+    return `${who} raised a question on ${edit.id}: ${edit.note}`;
   return `${who} changed ${edit.id}${edit.text ? `: ${edit.text}` : ""}`;
 }
 
@@ -266,15 +423,29 @@ export function personEditSummary(edit: PersonEdit, who: string): string {
  * id (ct-, cl-, sd-, a session's seven characters, doc:), a codecast link to
  * one, a chat message link, a commit (repo@sha), or anything else as "other".
  */
-export function citationFromInput(input: string): { kind: CitationKind; ref: string } | null {
+export function citationFromInput(
+  input: string,
+): { kind: CitationKind; ref: string } | null {
   const raw = input.trim();
   if (!raw) return null;
-  const chat = /\/chat\/([^/?#\s]+)(?:\/|\?(?:[^#]*&)?(?:m|message|msg)=)([a-z0-9]{20,})/i.exec(raw);
+  const chat =
+    /\/chat\/([^/?#\s]+)(?:\/|\?(?:[^#]*&)?(?:m|message|msg)=)([a-z0-9]{20,})/i.exec(
+      raw,
+    );
   if (chat) return { kind: "chat", ref: `#${chat[1]}/${chat[2]}` };
-  const path = /^https?:\/\//i.test(raw) ? (() => { try { return new URL(raw).pathname.split("/").filter(Boolean).pop() ?? raw; } catch { return raw; } })() : raw;
+  const path = /^https?:\/\//i.test(raw)
+    ? (() => {
+        try {
+          return new URL(raw).pathname.split("/").filter(Boolean).pop() ?? raw;
+        } catch {
+          return raw;
+        }
+      })()
+    : raw;
   const id = path.replace(/^@/, "");
   if (/^ct-\d+$/i.test(id)) return { kind: "task", ref: id.toLowerCase() };
-  if (/^cl-\d+(:\d+)?$/i.test(id)) return { kind: "call", ref: id.toLowerCase() };
+  if (/^cl-\d+(:\d+)?$/i.test(id))
+    return { kind: "call", ref: id.toLowerCase() };
   if (/^sd-\d+$/i.test(id)) return { kind: "decision", ref: id.toLowerCase() };
   if (/^doc:\S+$/i.test(id)) return { kind: "doc", ref: id };
   if (/^sg-\d+$/i.test(id)) return { kind: "signal", ref: id.toLowerCase() };
@@ -290,24 +461,41 @@ export function citationFromInput(input: string): { kind: CitationKind; ref: str
  * waits for the project's person. The web paints from this and the server
  * applies by it, so both say the same thing.
  */
-export function personEditApplies(op: ExpectationOp, isProjectPerson: boolean): boolean {
+export function personEditApplies(
+  op: ExpectationOp,
+  isProjectPerson: boolean,
+): boolean {
   return isProjectPerson || autoApplies([op], (c) => c.kind === "person");
 }
 
 /** A quote's words, for checking that a record holds them: lowercase words only; an ellipsis splits it into pieces that must each appear. */
 export function quotePieces(quote: string): string[] {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  return quote.split(/\.\.\.|\u2026/).map(norm).filter((p) => p.length > 0);
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  return quote
+    .split(/\.\.\.|\u2026/)
+    .map(norm)
+    .filter((p) => p.length > 0);
 }
 
 /** Whether `text` holds the quote, compared word for word. */
 export function holdsQuote(text: string, quote: string): boolean {
-  const hay = ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const hay = ` ${text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()} `;
   const pieces = quotePieces(quote);
   return pieces.length > 0 && pieces.every((p) => hay.includes(` ${p} `));
 }
 
-const normText = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normText = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
 /**
  * The lines after a proposal, or why it cannot apply. `baseVersion` is the
@@ -320,7 +508,9 @@ export function applyOps(
   ops: ExpectationOp[],
   version: number,
   baseVersion: number,
-): { ok: true; items: Expectation[]; next_n: number } | { ok: false; errors: string[] } {
+):
+  | { ok: true; items: Expectation[]; next_n: number }
+  | { ok: false; errors: string[] } {
   const errors: string[] = [];
   const items = state.items.map((e) => ({ ...e, citations: [...e.citations] }));
   const byId = new Map(items.map((e) => [e.id, e]));
@@ -329,11 +519,27 @@ export function applyOps(
   ops.forEach((op, i) => {
     const at = `op ${i + 1} (${op.op}${op.op === "add" ? "" : ` ${op.id}`})`;
     const own = opErrors(op);
-    if (own.length) { errors.push(...own.map((e) => `${at}: ${e}`)); return; }
+    if (own.length) {
+      errors.push(...own.map((e) => `${at}: ${e}`));
+      return;
+    }
     if (op.op === "add") {
-      const twin = items.find((e) => e.status === "active" && normText(e.text) === normText(op.text));
-      if (twin) { errors.push(`${at}: already expected as ${twin.id}`); return; }
-      const line: Expectation = { id: `ex-${state.prefix}-${next++}`, text: op.text, part: op.part, status: op.status ?? "active", citations: keep(op.citations), added_in: version, changed_in: version };
+      const twin = items.find(
+        (e) => e.status === "active" && normText(e.text) === normText(op.text),
+      );
+      if (twin) {
+        errors.push(`${at}: already expected as ${twin.id}`);
+        return;
+      }
+      const line: Expectation = {
+        id: `ex-${state.prefix}-${next++}`,
+        text: op.text,
+        part: op.part,
+        status: op.status ?? "active",
+        citations: keep(op.citations),
+        added_in: version,
+        changed_in: version,
+      };
       if (op.note) line.note = op.note;
       if (op.since) line.since = op.since;
       if (op.status === "retired") line.retired_reason = op.reason;
@@ -342,36 +548,67 @@ export function applyOps(
       return;
     }
     const line = byId.get(op.id);
-    if (!line) { errors.push(`${at}: no such expectation`); return; }
-    if (line.changed_in > baseVersion) { errors.push(`${at}: changed in version ${line.changed_in}, after the version ${baseVersion} this proposal read; propose again from the current version`); return; }
-    if (line.status === "retired") { errors.push(`${at}: already retired`); return; }
+    if (!line) {
+      errors.push(`${at}: no such expectation`);
+      return;
+    }
+    if (line.changed_in > baseVersion) {
+      errors.push(
+        `${at}: changed in version ${line.changed_in}, after the version ${baseVersion} this proposal read; propose again from the current version`,
+      );
+      return;
+    }
+    if (line.status === "retired") {
+      errors.push(`${at}: already retired`);
+      return;
+    }
     if (op.op === "edit") {
       if (op.text !== undefined) line.text = op.text;
       if (op.part !== undefined && op.part) line.part = op.part;
-      if (op.note !== undefined) { if (op.note) line.note = op.note; else delete line.note; }
-      if (op.since !== undefined) { if (op.since) line.since = op.since; else delete line.since; }
+      if (op.note !== undefined) {
+        if (op.note) line.note = op.note;
+        else delete line.note;
+      }
+      if (op.since !== undefined) {
+        if (op.since) line.since = op.since;
+        else delete line.since;
+      }
     } else {
       line.status = "retired";
       line.retired_reason = op.reason;
     }
     line.citations = keep([...line.citations, ...op.citations]);
     // A day in force alone leaves the words a judge graded and a ruling judged as they were (judgeRetire.rulings reads changed_in as when the words last changed).
-    const daysOnly = op.op === "edit" && op.text === undefined && op.part === undefined && op.note === undefined;
+    const daysOnly =
+      op.op === "edit" &&
+      op.text === undefined &&
+      op.part === undefined &&
+      op.note === undefined;
     if (!daysOnly) line.changed_in = version;
   });
-  return errors.length ? { ok: false, errors } : { ok: true, items, next_n: next };
+  return errors.length
+    ? { ok: false, errors }
+    : { ok: true, items, next_n: next };
 }
 
 /** Is this a line's id, `ex-<prefix>-<n>`? The form a finding cites (LM5) and a signal carries as its subject. */
-export const isExpectationId = (value: string | null | undefined): value is string => !!value && /^ex-[a-z0-9-]+-\d+$/.test(value);
+export const isExpectationId = (
+  value: string | null | undefined,
+): value is string => !!value && /^ex-[a-z0-9-]+-\d+$/.test(value);
 
 /** The prefix inside a line's id, which names its project within a workspace. */
-export const expectationIdPrefix = (id: string): string => id.replace(/^ex-/, "").replace(/-\d+$/, "");
+export const expectationIdPrefix = (id: string): string =>
+  id.replace(/^ex-/, "").replace(/-\d+$/, "");
 
 /** The id prefix a project's lines carry: its title's first two words. */
 export function expectationPrefix(title: string): string {
   const stop = new Set(["and", "the", "of", "a", "an", "for"]);
-  const words = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter((w) => w && !stop.has(w));
+  const words = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter((w) => w && !stop.has(w));
   return words.slice(0, 2).join("-") || "project";
 }
 
@@ -380,7 +617,8 @@ function parseTime(raw: unknown): number | undefined {
   if (typeof raw !== "string" || !raw.trim()) return undefined;
   const s = raw.trim();
   const n = /^\d{10,}$/.test(s) ? Number(s) : Date.parse(s);
-  if (!Number.isFinite(n)) throw new Error(`"${s}" is not a time (ISO, or epoch ms)`);
+  if (!Number.isFinite(n))
+    throw new Error(`"${s}" is not a time (ISO, or epoch ms)`);
   return n;
 }
 
@@ -415,7 +653,13 @@ export function parseProposal(input: string): ExpectationProposalInput {
   if (!text) throw new Error("The proposal is empty");
   let raw: any;
   if (text.startsWith("{")) {
-    try { raw = JSON.parse(text); } catch (err) { throw new Error(`The proposal is not valid JSON: ${(err as Error).message}`); }
+    try {
+      raw = JSON.parse(text);
+    } catch (err) {
+      throw new Error(
+        `The proposal is not valid JSON: ${(err as Error).message}`,
+      );
+    }
   } else {
     raw = { ops: [] as any[] };
     const errors: string[] = [];
@@ -424,27 +668,83 @@ export function parseProposal(input: string): ExpectationProposalInput {
       const l = line.trim();
       if (!l) return;
       const head = l.match(OP_HEAD);
-      if (head) { current = { op: head[1].toLowerCase(), ...(head[2] ? { id: head[2] } : {}), citations: [] }; raw.ops.push(current); return; }
-      if (!current && /^# /.test(l)) { raw.summary = l.slice(2).trim(); return; }
+      if (head) {
+        current = {
+          op: head[1].toLowerCase(),
+          ...(head[2] ? { id: head[2] } : {}),
+          citations: [],
+        };
+        raw.ops.push(current);
+        return;
+      }
+      if (!current && /^# /.test(l)) {
+        raw.summary = l.slice(2).trim();
+        return;
+      }
       const cite = l.match(CITE_LINE);
-      if (cite && current) { current.citations.push({ kind: cite[1], ref: cite[2], when: cite[3], quote: cite[4] }); return; }
+      if (cite && current) {
+        current.citations.push({
+          kind: cite[1],
+          ref: cite[2],
+          when: cite[3],
+          quote: cite[4],
+        });
+        return;
+      }
       const field = l.match(FIELD);
-      if (field && !current && (field[1] === "since" || field[1] === "until" || field[1] === "summary")) { raw[field[1]] = field[2]; return; }
-      if (field && current && ["text", "part", "note", "reason", "status"].includes(field[1])) { current[field[1]] = field[2]; return; }
-      const why = /^-/.test(l) ? (current ? ": a source reads - <kind> <ref> (<when>): \"<quote>\"" : ": a source goes under a ## add, ## edit or ## retire heading")
-        : field ? (current ? `: a change takes text, part, note, reason or status, not ${field[1]}` : `: before the first ## heading only since, until and summary go, not ${field[1]}`)
-        : /^##/.test(l) ? ": a heading reads ## add, ## edit ex-<project>-<n> or ## retire ex-<project>-<n>"
-        : "";
+      if (
+        field &&
+        !current &&
+        (field[1] === "since" || field[1] === "until" || field[1] === "summary")
+      ) {
+        raw[field[1]] = field[2];
+        return;
+      }
+      if (
+        field &&
+        current &&
+        ["text", "part", "note", "reason", "status"].includes(field[1])
+      ) {
+        current[field[1]] = field[2];
+        return;
+      }
+      const why = /^-/.test(l)
+        ? current
+          ? ': a source reads - <kind> <ref> (<when>): "<quote>"'
+          : ": a source goes under a ## add, ## edit or ## retire heading"
+        : field
+          ? current
+            ? `: a change takes text, part, note, reason or status, not ${field[1]}`
+            : `: before the first ## heading only since, until and summary go, not ${field[1]}`
+          : /^##/.test(l)
+            ? ": a heading reads ## add, ## edit ex-<project>-<n> or ## retire ex-<project>-<n>"
+            : "";
       errors.push(`line ${i + 1}: cannot read "${l.slice(0, 80)}"${why}`);
     });
-    if (errors.length) throw new Error(`The proposal has lines it cannot read:\n${errors.join("\n")}\n${PROPOSAL_FORM}`);
+    if (errors.length)
+      throw new Error(
+        `The proposal has lines it cannot read:\n${errors.join("\n")}\n${PROPOSAL_FORM}`,
+      );
   }
-  if (!Array.isArray(raw?.ops)) throw new Error("The proposal needs an ops list");
-  if (raw.ops.length > LIMITS.ops) throw new Error(`At most ${LIMITS.ops} changes in one proposal`);
+  if (!Array.isArray(raw?.ops))
+    throw new Error("The proposal needs an ops list");
+  if (raw.ops.length > LIMITS.ops)
+    throw new Error(`At most ${LIMITS.ops} changes in one proposal`);
   const ops = raw.ops.map(normalizeOp);
-  const errors = ops.flatMap((op: ExpectationOp, i: number) => opErrors(op).map((e) => `op ${i + 1} (${op.op}${op.op === "add" ? "" : ` ${op.id}`}): ${e}`));
-  if (errors.length) throw new Error(`The proposal cannot apply:\n${errors.join("\n")}`);
-  const out: ExpectationProposalInput = { summary: clip(raw.summary, LIMITS.summary) || `${ops.length} change${ops.length === 1 ? "" : "s"}`, ops };
+  const errors = ops.flatMap((op: ExpectationOp, i: number) =>
+    opErrors(op).map(
+      (e) =>
+        `op ${i + 1} (${op.op}${op.op === "add" ? "" : ` ${op.id}`}): ${e}`,
+    ),
+  );
+  if (errors.length)
+    throw new Error(`The proposal cannot apply:\n${errors.join("\n")}`);
+  const out: ExpectationProposalInput = {
+    summary:
+      clip(raw.summary, LIMITS.summary) ||
+      `${ops.length} change${ops.length === 1 ? "" : "s"}`,
+    ops,
+  };
   const since = parseTime(raw.since);
   const until = parseTime(raw.until);
   if (since !== undefined) out.since = since;
@@ -469,7 +769,10 @@ function byPart(items: Expectation[]): Map<string, Expectation[]> {
  * their ids and notes, grouped by part, under the version to cite. The full
  * form adds every line's sources and the retired lines with their reasons.
  */
-export function renderExpectations(doc: ExpectationsVersion, opts: { brief?: boolean } = {}): string {
+export function renderExpectations(
+  doc: ExpectationsVersion,
+  opts: { brief?: boolean } = {},
+): string {
   const active = doc.items.filter((e) => e.status === "active");
   const retired = doc.items.filter((e) => e.status === "retired");
   const out: string[] = [
@@ -482,13 +785,17 @@ export function renderExpectations(doc: ExpectationsVersion, opts: { brief?: boo
       out.push(`${e.id}: ${e.text}`);
       if (e.note) out.push(`  note: ${e.note}`);
       if (!opts.brief && e.since) out.push(`  in force since ${e.since}`);
-      if (!opts.brief) for (const c of e.citations) out.push(`  - ${citationLine(c)}`);
+      if (!opts.brief)
+        for (const c of e.citations) out.push(`  - ${citationLine(c)}`);
     }
   }
   if (!opts.brief && retired.length) {
     out.push("", "## Retired (never graded against)");
     for (const e of retired) {
-      out.push(`${e.id}: ${e.text}`, `  retired in version ${e.changed_in}: ${e.retired_reason ?? ""}`);
+      out.push(
+        `${e.id}: ${e.text}`,
+        `  retired in version ${e.changed_in}: ${e.retired_reason ?? ""}`,
+      );
       for (const c of e.citations) out.push(`  - ${citationLine(c)}`);
     }
   }
@@ -496,24 +803,37 @@ export function renderExpectations(doc: ExpectationsVersion, opts: { brief?: boo
 }
 
 /** A proposal as a person reads it before applying: each change with its sources, edits shown against the current words. */
-export function renderProposal(p: { summary: string; ops: ExpectationOp[] }, current: Expectation[]): string {
+export function renderProposal(
+  p: { summary: string; ops: ExpectationOp[] },
+  current: Expectation[],
+): string {
   const byId = new Map(current.map((e) => [e.id, e]));
   const out: string[] = [p.summary];
   for (const op of p.ops) {
     out.push("");
     if (op.op === "add") {
-      out.push(`**Add${op.status === "retired" ? " as retired" : ""}** (${op.part}): ${op.text}`);
+      out.push(
+        `**Add${op.status === "retired" ? " as retired" : ""}** (${op.part}): ${op.text}`,
+      );
       if (op.note) out.push(`Note: ${op.note}`);
       if (op.since) out.push(`In force since ${op.since}`);
       if (op.status === "retired") out.push(`Retired because: ${op.reason}`);
     } else if (op.op === "edit") {
       const was = byId.get(op.id);
       out.push(`**Change ${op.id}**${op.part ? ` (part: ${op.part})` : ""}`);
-      if (op.text !== undefined) out.push(`Was: ${was?.text ?? "(unknown line)"}`, `Now: ${op.text}`);
-      if (op.note !== undefined) out.push(op.note ? `Note: ${op.note}` : "Note removed");
-      if (op.since !== undefined) out.push(op.since ? `In force since ${op.since}` : "In force for everything");
+      if (op.text !== undefined)
+        out.push(`Was: ${was?.text ?? "(unknown line)"}`, `Now: ${op.text}`);
+      if (op.note !== undefined)
+        out.push(op.note ? `Note: ${op.note}` : "Note removed");
+      if (op.since !== undefined)
+        out.push(
+          op.since ? `In force since ${op.since}` : "In force for everything",
+        );
     } else {
-      out.push(`**Retire ${op.id}**: ${byId.get(op.id)?.text ?? "(unknown line)"}`, `Because: ${op.reason}`);
+      out.push(
+        `**Retire ${op.id}**: ${byId.get(op.id)?.text ?? "(unknown line)"}`,
+        `Because: ${op.reason}`,
+      );
     }
     for (const c of op.citations) out.push(`- ${citationLine(c)}`);
   }
@@ -527,13 +847,25 @@ export function renderProposal(p: { summary: string; ops: ExpectationOp[] }, cur
  * it open for the session that asked. The proposing session writes its own
  * answers, so the verb is the contract, never the answer's position.
  */
-export function proposalAnswerAction(label: string | undefined): "apply" | "drop" | null {
-  const word = (label ?? "").trim().split(/[\s:,.;]/)[0]?.toLowerCase();
-  return word === "apply" ? "apply" : word === "keep" || word === "drop" ? "drop" : null;
+export function proposalAnswerAction(
+  label: string | undefined,
+): "apply" | "drop" | null {
+  const word = (label ?? "")
+    .trim()
+    .split(/[\s:,.;]/)[0]
+    ?.toLowerCase();
+  return word === "apply"
+    ? "apply"
+    : word === "keep" || word === "drop"
+      ? "drop"
+      : null;
 }
 
 /** The answer that does `action` among a decision's options, or -1. */
-export function proposalAnswerIndex(options: ReadonlyArray<{ label: string }>, action: "apply" | "drop"): number {
+export function proposalAnswerIndex(
+  options: ReadonlyArray<{ label: string }>,
+  action: "apply" | "drop",
+): number {
   return options.findIndex((o) => proposalAnswerAction(o.label) === action);
 }
 
@@ -542,11 +874,18 @@ export function proposalAnswerIndex(options: ReadonlyArray<{ label: string }>, a
  * answer applies it and exactly one keeps the lines, so every other course
  * (rework it, narrow it) leaves it open rather than closing it by its first word.
  */
-export function proposalAnswersError(options: ReadonlyArray<{ label: string }>): string | null {
-  const count = (action: "apply" | "drop") => options.filter((o) => proposalAnswerAction(o.label) === action).length;
+export function proposalAnswersError(
+  options: ReadonlyArray<{ label: string }>,
+): string | null {
+  const count = (action: "apply" | "drop") =>
+    options.filter((o) => proposalAnswerAction(o.label) === action).length;
   const wrong = [
-    count("apply") !== 1 && `exactly one answer opening with "Apply" (it lands the proposal)`,
-    count("drop") !== 1 && `exactly one opening with "Keep" (it closes the proposal and the lines stay as they are)`,
+    count("apply") !== 1 &&
+      `exactly one answer opening with "Apply" (it lands the proposal)`,
+    count("drop") !== 1 &&
+      `exactly one opening with "Keep" (it closes the proposal and the lines stay as they are)`,
   ].filter(Boolean);
-  return wrong.length ? `A proposal's decision needs ${wrong.join(" and ")}; any other course opens with another word and leaves the proposal open` : null;
+  return wrong.length
+    ? `A proposal's decision needs ${wrong.join(" and ")}; any other course opens with another word and leaves the proposal open`
+    : null;
 }

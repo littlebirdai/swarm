@@ -15,29 +15,48 @@ import { placeKey } from "./navPlace";
 import { placeName } from "./placeTitle";
 import { recordTrail, type TrailMove } from "./navTrail";
 
-type ShownState = { tabs: Array<{ id: string; path: string }>; activeTabId: string | null; showMySessions?: boolean };
+type ShownState = {
+  tabs: Array<{ id: string; path: string }>;
+  activeTabId: string | null;
+  showMySessions?: boolean;
+};
 
 /** The place the active tab shows, or null with no tab. */
-export function shownPlace(st: ShownState): { scope: string; path: string } | null {
+export function shownPlace(
+  st: ShownState,
+): { scope: string; path: string } | null {
   const tab = st.tabs.find((t) => t.id === st.activeTabId);
   if (!tab?.path) return null;
-  const path = tab.path.split("?")[0] === "/inbox" && st.showMySessions ? "/inbox" : tab.path;
+  const path =
+    tab.path.split("?")[0] === "/inbox" && st.showMySessions
+      ? "/inbox"
+      : tab.path;
   return { scope: tab.id, path };
 }
 
 // The one-shot intents a move declares before it happens. A history step is
 // known from popstate; the back control says where it is going.
-const intent: { traverseAt: number; back: { key: string; at: number; move: "back" | "up" } | null } = { traverseAt: 0, back: null };
+const intent: {
+  traverseAt: number;
+  back: { key: string; at: number; move: "back" | "up" } | null;
+} = { traverseAt: 0, back: null };
 
 /** The back control is about to go to `path`: along the trail ("back"), or up
  *  to the page's parent when there was none ("up"). */
-export function noteTrailBack(path: string, move: "back" | "up" = "back"): void {
+export function noteTrailBack(
+  path: string,
+  move: "back" | "up" = "back",
+): void {
   intent.back = { key: placeKey(path), at: Date.now(), move };
 }
 
 function moveFor(path: string): TrailMove {
   const now = Date.now();
-  if (intent.back && now - intent.back.at < 3000 && intent.back.key === placeKey(path)) {
+  if (
+    intent.back &&
+    now - intent.back.at < 3000 &&
+    intent.back.key === placeKey(path)
+  ) {
     const move = intent.back.move;
     intent.back = null;
     return move;
@@ -65,7 +84,13 @@ export function startNavTrail(): () => void {
     last = shown.path;
     lastScope = shown.scope;
     if (!moved && !fresh) return;
-    recordTrail(shown.scope, shown.path, fresh ? "push" : moveFor(shown.path), placeName(st, shown.path), st.tabs.map((t) => t.id));
+    recordTrail(
+      shown.scope,
+      shown.path,
+      fresh ? "push" : moveFor(shown.path),
+      placeName(st, shown.path),
+      st.tabs.map((t) => t.id),
+    );
   };
   // Decide after the move settles: a history step's popstate listeners all run
   // before this, whichever registered first.
@@ -81,7 +106,12 @@ export function startNavTrail(): () => void {
   run();
   let prev = useInboxStore.getState();
   const unsub = useInboxStore.subscribe((st) => {
-    if (st.tabs === prev.tabs && st.activeTabId === prev.activeTabId && st.showMySessions === prev.showMySessions) return;
+    if (
+      st.tabs === prev.tabs &&
+      st.activeTabId === prev.activeTabId &&
+      st.showMySessions === prev.showMySessions
+    )
+      return;
     prev = st;
     schedule();
   });

@@ -66,14 +66,14 @@ GitHub's 250-commit PR endpoint limit; a larger known count is retained.
 Every change made here reaches GitHub, through the App's installation token
 unless the act needs a person's name on it:
 
-| Act | Path | Token |
-| --- | --- | --- |
-| Comment on a line or the conversation | `codeComments.create` then `mirrorToGitHub` | App |
-| Reply | same, posted under the parent's GitHub id; waits while the parent is still in flight | App |
-| Edit, delete | `mirrorEditToGitHub`, `mirrorDeleteToGitHub` | App |
-| Resolve, unresolve a thread | `mirrorThreadResolution` through GitHub's GraphQL review thread mutation | the person's, then the App's |
-| Review with a verdict | `reviews.submitReviewWithNotes`: one GitHub review carrying every pending note | the person's only |
-| Merge, close, reopen, draft, ready, reviewers, title, body | `prCli.*` verbs | the person's, then the App's |
+| Act                                                        | Path                                                                                 | Token                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
+| Comment on a line or the conversation                      | `codeComments.create` then `mirrorToGitHub`                                          | App                          |
+| Reply                                                      | same, posted under the parent's GitHub id; waits while the parent is still in flight | App                          |
+| Edit, delete                                               | `mirrorEditToGitHub`, `mirrorDeleteToGitHub`                                         | App                          |
+| Resolve, unresolve a thread                                | `mirrorThreadResolution` through GitHub's GraphQL review thread mutation             | the person's, then the App's |
+| Review with a verdict                                      | `reviews.submitReviewWithNotes`: one GitHub review carrying every pending note       | the person's only            |
+| Merge, close, reopen, draft, ready, reviewers, title, body | `prCli.*` verbs                                                                      | the person's, then the App's |
 
 A GitHub installation token cannot resolve a review thread ("Resource not
 accessible by integration"), so resolution prefers the resolver's own token.

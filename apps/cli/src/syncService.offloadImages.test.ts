@@ -5,13 +5,22 @@ import { tmpdir } from "node:os";
 import { SyncService } from "./syncService.js";
 
 function makeService(): SyncService {
-  return new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+  return new SyncService({
+    convexUrl: "http://localhost:0",
+    userId: "u",
+    authToken: "t",
+  });
 }
 
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
 
 function pngBase64(size: number): string {
-  return Buffer.concat([PNG_SIGNATURE, Buffer.alloc(Math.max(0, size - PNG_SIGNATURE.length))]).toString("base64");
+  return Buffer.concat([
+    PNG_SIGNATURE,
+    Buffer.alloc(Math.max(0, size - PNG_SIGNATURE.length)),
+  ]).toString("base64");
 }
 
 describe("SyncService.offloadImages", () => {
@@ -20,7 +29,12 @@ describe("SyncService.offloadImages", () => {
     (sync as any).uploadImage = async (data: string) => `sid-${data}`;
 
     const messages = [
-      { images: [{ mediaType: "image/png", data: "A" }, { mediaType: "image/png", data: "B" }] },
+      {
+        images: [
+          { mediaType: "image/png", data: "A" },
+          { mediaType: "image/png", data: "B" },
+        ],
+      },
       { images: [{ mediaType: "image/png", data: "C", toolUseId: "t1" }] },
     ];
     await sync.offloadImages(messages);
@@ -37,13 +51,20 @@ describe("SyncService.offloadImages", () => {
   it("leaves already-offloaded images untouched (idempotent)", async () => {
     const sync = makeService();
     let calls = 0;
-    (sync as any).uploadImage = async () => { calls++; return "sid"; };
+    (sync as any).uploadImage = async () => {
+      calls++;
+      return "sid";
+    };
 
-    const messages = [{ images: [{ mediaType: "image/png", storageId: "existing" }] }];
+    const messages = [
+      { images: [{ mediaType: "image/png", storageId: "existing" }] },
+    ];
     await sync.offloadImages(messages);
 
     expect(calls).toBe(0);
-    expect(messages[0].images).toEqual([{ mediaType: "image/png", storageId: "existing" }] as any);
+    expect(messages[0].images).toEqual([
+      { mediaType: "image/png", storageId: "existing" },
+    ] as any);
   });
 
   it("inlines small images whose upload failed and drops oversized ones", async () => {
@@ -78,14 +99,24 @@ describe("SyncService.offloadImages", () => {
     };
 
     try {
-      const first = [{ images: [{ mediaType: "image/png", localPath: imagePath }] }];
-      const second = [{ images: [{ mediaType: "image/png", localPath: imagePath }] }];
+      const first = [
+        { images: [{ mediaType: "image/png", localPath: imagePath }] },
+      ];
+      const second = [
+        { images: [{ mediaType: "image/png", localPath: imagePath }] },
+      ];
       await sync.offloadImages(first);
       await sync.offloadImages(second);
 
-      expect(uploads).toEqual([{ data: bytes.toString("base64"), mediaType: "image/png" }]);
-      expect(first[0].images).toEqual([{ mediaType: "image/png", storageId: "sid-local" }] as any);
-      expect(second[0].images).toEqual([{ mediaType: "image/png", storageId: "sid-local" }] as any);
+      expect(uploads).toEqual([
+        { data: bytes.toString("base64"), mediaType: "image/png" },
+      ]);
+      expect(first[0].images).toEqual([
+        { mediaType: "image/png", storageId: "sid-local" },
+      ] as any);
+      expect(second[0].images).toEqual([
+        { mediaType: "image/png", storageId: "sid-local" },
+      ] as any);
     } finally {
       await rm(dir, { recursive: true });
     }
@@ -103,7 +134,9 @@ describe("SyncService.offloadImages", () => {
     };
 
     try {
-      const messages = [{ images: [{ mediaType: "image/png", localPath: imagePath }] }];
+      const messages = [
+        { images: [{ mediaType: "image/png", localPath: imagePath }] },
+      ];
       await sync.offloadImages(messages);
       expect(uploads).toBe(0);
       expect(messages[0].images).toBeUndefined();
@@ -126,7 +159,12 @@ describe("SyncService.offloadImages", () => {
 
     // 12 images across messages; serial would peak at maxActive=1.
     const messages: Array<{
-      images?: Array<{ mediaType: string; data?: string; storageId?: string; toolUseId?: string }>;
+      images?: Array<{
+        mediaType: string;
+        data?: string;
+        storageId?: string;
+        toolUseId?: string;
+      }>;
     }> = Array.from({ length: 12 }, (_, i) => ({
       images: [{ mediaType: "image/png", data: String(i) }],
     }));

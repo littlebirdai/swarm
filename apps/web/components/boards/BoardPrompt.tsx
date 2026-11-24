@@ -6,7 +6,12 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Bot } from "lucide-react";
 import type { ArtifactElement } from "@codecast/shared/artifacts";
-import { pickAskTarget, sendAsk, useAskDraft, type AskDoc } from "../live/askAgent";
+import {
+  pickAskTarget,
+  sendAsk,
+  useAskDraft,
+  type AskDoc,
+} from "../live/askAgent";
 import { BOARD_ASK_SLOT } from "./boardModel";
 import { KeyCap } from "../KeyCap";
 import { Switch } from "../ui/switch";
@@ -15,7 +20,16 @@ import { isMac } from "../../shortcuts/registry";
 
 export type PromptMode = "comment" | "ask" | "describe";
 
-export function BoardPrompt({ mode, at, doc, selected, initials, onComment, onClose, onSent }: {
+export function BoardPrompt({
+  mode,
+  at,
+  doc,
+  selected,
+  initials,
+  onComment,
+  onClose,
+  onSent,
+}: {
   mode: PromptMode;
   /** Screen point the bubble hangs from (its top-left for comments, bottom-center otherwise). */
   at: { x: number; y: number };
@@ -35,26 +49,52 @@ export function BoardPrompt({ mode, at, doc, selected, initials, onComment, onCl
   const [toAgent, setToAgent] = useState(mode !== "comment");
   const sending = mode !== "comment" || toAgent;
 
-  useLayoutEffect(() => { ref.current?.focus(); }, []);
+  useLayoutEffect(() => {
+    ref.current?.focus();
+  }, []);
 
   // The comment posts once, even when the person backs out of the session picker and sends again.
   const postedKey = useRef<string | undefined>(undefined);
   const submit = (pick: boolean, typed?: string) => {
     const body = (typed ?? text).trim();
     if (!body) return;
-    if (mode === "comment" && !postedKey.current) postedKey.current = onComment(body);
+    if (mode === "comment" && !postedKey.current)
+      postedKey.current = onComment(body);
     const commentKey = postedKey.current;
-    if (!sending) { onClose(); return; }
+    if (!sending) {
+      onClose();
+      return;
+    }
     const go = async (target: Parameters<typeof sendAsk>[2]) => {
       onClose();
       // A new agent opens the shared start confirm; a cancel there resolves to null.
-      onSent(await sendAsk(doc, { slot: mode === "comment" ? undefined : BOARD_ASK_SLOT, prompt: body, selected, comment_key: commentKey }, target), commentKey);
+      onSent(
+        await sendAsk(
+          doc,
+          {
+            slot: mode === "comment" ? undefined : BOARD_ASK_SLOT,
+            prompt: body,
+            selected,
+            comment_key: commentKey,
+          },
+          target,
+        ),
+        commentKey,
+      );
     };
-    if (pick) pickAskTarget(mode === "comment" ? "Send this comment to…" : "Ask which agent?", (t) => void go(t), () => ref.current?.focus());
+    if (pick)
+      pickAskTarget(
+        mode === "comment" ? "Send this comment to…" : "Ask which agent?",
+        (t) => void go(t),
+        () => ref.current?.focus(),
+      );
     else void go({ kind: "new" });
   };
 
-  const placeholder = mode === "describe" ? `Describe a change to ${selected.length === 1 ? "this" : `these ${selected.length}`}` : "What should the agent lay out?";
+  const placeholder =
+    mode === "describe"
+      ? `Describe a change to ${selected.length === 1 ? "this" : `these ${selected.length}`}`
+      : "What should the agent lay out?";
   return (
     <div
       className={`board-prompt board-prompt-${mode}`}
@@ -64,10 +104,15 @@ export function BoardPrompt({ mode, at, doc, selected, initials, onComment, onCl
       onKeyDown={(e) => {
         e.stopPropagation();
         // Escape that nothing inside used (an open @ menu takes its own) closes the draft, as FigJam's does.
-        if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); }
+        if (e.key === "Escape" && !e.defaultPrevented) {
+          e.preventDefault();
+          onClose();
+        }
       }}
     >
-      {mode === "comment" && <span className="board-prompt-avatar">{initials}</span>}
+      {mode === "comment" && (
+        <span className="board-prompt-avatar">{initials}</span>
+      )}
       <div className="board-prompt-card">
         {mode === "comment" ? (
           // The same composer as the comments panel (mentions, its keys), so a comment reads as one control everywhere.
@@ -83,36 +128,65 @@ export function BoardPrompt({ mode, at, doc, selected, initials, onComment, onCl
             onSubmit={(body) => submit(true, body)}
           />
         ) : (
-        <textarea
-          ref={ref}
-          rows={1}
-          value={text}
-          placeholder={placeholder}
-          onChange={(e) => askDraft.setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") { e.preventDefault(); onClose(); }
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(e.metaKey || e.ctrlKey); }
-          }}
-          className="board-prompt-input"
-        />
+          <textarea
+            ref={ref}
+            rows={1}
+            value={text}
+            placeholder={placeholder}
+            onChange={(e) => askDraft.setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onClose();
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit(e.metaKey || e.ctrlKey);
+              }
+            }}
+            className="board-prompt-input"
+          />
         )}
         <div className="board-prompt-foot">
           {mode === "comment" ? (
             <label className="board-prompt-check">
-              <Switch checked={sending} onCheckedChange={setToAgent} aria-label="Send to agent" />
+              <Switch
+                checked={sending}
+                onCheckedChange={setToAgent}
+                aria-label="Send to agent"
+              />
               Send to agent
             </label>
           ) : (
-            selected.length > 0 && <span className="board-prompt-hint"><Bot size={13} strokeWidth={1.75} />{selected.length} selected</span>
+            selected.length > 0 && (
+              <span className="board-prompt-hint">
+                <Bot size={13} strokeWidth={1.75} />
+                {selected.length} selected
+              </span>
+            )
           )}
           {mode !== "comment" && (
             <>
               <span className="flex-1" />
-              <button type="button" className="board-prompt-alt" disabled={!text.trim()} onClick={() => submit(true)}>
-                Session… <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap><KeyCap size="xs">↵</KeyCap>
+              <button
+                type="button"
+                className="board-prompt-alt"
+                disabled={!text.trim()}
+                onClick={() => submit(true)}
+              >
+                Session… <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
+                <KeyCap size="xs">↵</KeyCap>
               </button>
-              <button type="button" className="board-prompt-go" disabled={!text.trim()} onClick={() => submit(false)}>
-                New agent <KeyCap size="xs" tone="onAccent">↵</KeyCap>
+              <button
+                type="button"
+                className="board-prompt-go"
+                disabled={!text.trim()}
+                onClick={() => submit(false)}
+              >
+                New agent{" "}
+                <KeyCap size="xs" tone="onAccent">
+                  ↵
+                </KeyCap>
               </button>
             </>
           )}

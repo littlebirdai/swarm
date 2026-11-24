@@ -30,7 +30,11 @@
 // Pure, so the assembler, the vendor import and a regroup pass all read a
 // stream the same way.
 import type { ReplayEvent } from "../contracts/replay";
-import { dropRequestIds, normalizeErrorMessage, replayIssueFingerprint } from "../contracts/signalFingerprint";
+import {
+  dropRequestIds,
+  normalizeErrorMessage,
+  replayIssueFingerprint,
+} from "../contracts/signalFingerprint";
 import { isFailedRequest } from "./events";
 
 export const REPLAY_ISSUE_KINDS = ["error", "request", "rage_click"] as const;
@@ -92,7 +96,11 @@ function decodedSegment(s: string): string {
 /** A path with the segments that name one record folded to `:id`, so every record's page is one route, and no caller's number or address reaches a title. */
 export function routeOf(path: string): string {
   const clean = path.split(/[?#]/)[0] || "/";
-  const segments = clean.split("/").map((s) => (s && ID_SEGMENT.some((re) => re.test(decodedSegment(s))) ? ":id" : s));
+  const segments = clean
+    .split("/")
+    .map((s) =>
+      s && ID_SEGMENT.some((re) => re.test(decodedSegment(s))) ? ":id" : s,
+    );
   const out = segments.join("/").replace(/\/+$/, "");
   return out || "/";
 }
@@ -110,12 +118,19 @@ function parse(url: string | undefined): URL | null {
 function siteOf(host: string): string {
   const labels = host.toLowerCase().split(".");
   if (labels.length <= 2) return labels.join(".");
-  const take = labels[labels.length - 2].length <= 3 && labels[labels.length - 1].length === 2 ? 3 : 2;
+  const take =
+    labels[labels.length - 2].length <= 3 &&
+    labels[labels.length - 1].length === 2
+      ? 3
+      : 2;
   return labels.slice(-take).join(".");
 }
 
 /** The request went to the product itself (its own host or a sibling like api.<site>), not a vendor's. */
-export function sameSite(requestUrl: string, pageUrl: string | undefined): boolean {
+export function sameSite(
+  requestUrl: string,
+  pageUrl: string | undefined,
+): boolean {
   const req = parse(requestUrl);
   const page = parse(pageUrl);
   if (!req) return requestUrl.startsWith("/");
@@ -127,7 +142,10 @@ export function sameSite(requestUrl: string, pageUrl: string | undefined): boole
 export function errorLine(message: string): string {
   const first = message.split("\n")[0];
   return first
-    .replace(/\s+at\s+(?:[\w$.<>\[\]]+\s+)?\(?(?:https?:|file:|webpack:|\/|<anonymous>).*$/, "")
+    .replace(
+      /\s+at\s+(?:[\w$.<>\[\]]+\s+)?\(?(?:https?:|file:|webpack:|\/|<anonymous>).*$/,
+      "",
+    )
     .replace(/\s*[\w$.<>]*@(?:https?:|file:|webpack:)\S*:\d+:\d+.*$/, "")
     .replace(/[\s:]+$/, "")
     .trim();
@@ -137,11 +155,14 @@ export function errorLine(message: string): string {
 export function serviceOf(route: string): string {
   const segs = route.split("/").filter(Boolean);
   if (!segs.length) return "/";
-  return segs[0] === "api" && segs[1] && segs[1] !== ":id" ? `/api/${segs[1]}` : `/${segs[0]}`;
+  return segs[0] === "api" && segs[1] && segs[1] !== ":id"
+    ? `/api/${segs[1]}`
+    : `/${segs[0]}`;
 }
 
 type ErrorEvent = Extract<ReplayEvent, { type: "error" | "console" }>;
-const isErrorEvent = (e: ReplayEvent): e is ErrorEvent => e.type === "error" || (e.type === "console" && e.level === "error");
+const isErrorEvent = (e: ReplayEvent): e is ErrorEvent =>
+  e.type === "error" || (e.type === "console" && e.level === "error");
 
 /**
  * Each error event's failure: errors within ECHO_MS of the one before are one
@@ -149,25 +170,39 @@ const isErrorEvent = (e: ReplayEvent): e is ErrorEvent => e.type === "error" || 
  * error whose line names a request that failed within ECHO_MS before it is
  * that request's echo and files nothing of its own (null).
  */
-function errorFailures(events: readonly ReplayEvent[]): Map<ReplayEvent, string | null> {
+function errorFailures(
+  events: readonly ReplayEvent[],
+): Map<ReplayEvent, string | null> {
   const out = new Map<ReplayEvent, string | null>();
   let cluster: ErrorEvent[] = [];
   const close = () => {
-    const lines = cluster.map((e) => normalizeErrorMessage(errorLine(e.message)).slice(0, 300)).filter(Boolean);
+    const lines = cluster
+      .map((e) => normalizeErrorMessage(errorLine(e.message)).slice(0, 300))
+      .filter(Boolean);
     const key = lines.length ? [...lines].sort()[0] : null;
     for (const e of cluster) if (!out.has(e)) out.set(e, key);
     cluster = [];
   };
-  let lastFailedRequest: Extract<ReplayEvent, { type: "network" }> | null = null;
+  let lastFailedRequest: Extract<ReplayEvent, { type: "network" }> | null =
+    null;
   for (const e of events) {
     if (e.type === "network" && isFailedRequest(e)) lastFailedRequest = e;
     if (!isErrorEvent(e)) continue;
-    const path = lastFailedRequest ? parse(lastFailedRequest.url)?.pathname : undefined;
-    if (lastFailedRequest && path && path !== "/" && e.t - lastFailedRequest.t <= ECHO_MS && e.message.includes(path)) {
+    const path = lastFailedRequest
+      ? parse(lastFailedRequest.url)?.pathname
+      : undefined;
+    if (
+      lastFailedRequest &&
+      path &&
+      path !== "/" &&
+      e.t - lastFailedRequest.t <= ECHO_MS &&
+      e.message.includes(path)
+    ) {
       out.set(e, null);
       continue;
     }
-    if (cluster.length && e.t - cluster[cluster.length - 1].t > ECHO_MS) close();
+    if (cluster.length && e.t - cluster[cluster.length - 1].t > ECHO_MS)
+      close();
     cluster.push(e);
   }
   close();
@@ -181,14 +216,18 @@ function clip(s: string, max: number): string {
 /** A click on something that should answer a press: a button or a link, by role or tag. */
 function pressable(e: Extract<ReplayEvent, { type: "click" }>): boolean {
   if (e.role) return PRESSABLE_ROLES.has(e.role);
-  return /^(button|a)(?=$|[.#\[:\s>])/i.test(e.selector) || /^input\[type=(submit|button)\]/i.test(e.selector);
+  return (
+    /^(button|a)(?=$|[.#\[:\s>])/i.test(e.selector) ||
+    /^input\[type=(submit|button)\]/i.test(e.selector)
+  );
 }
 
 /** A click's target as a person would name it. */
 function targetName(e: Extract<ReplayEvent, { type: "click" }>): string {
   const label = e.label?.trim();
   if (label) return `${e.role ? `${e.role} ` : ""}"${clip(label, 60)}"`;
-  if (e.role) return `${e.role} ${e.selector ? clip(e.selector, 60) : "(unlabeled)"}`;
+  if (e.role)
+    return `${e.role} ${e.selector ? clip(e.selector, 60) : "(unlabeled)"}`;
   return e.selector ? clip(e.selector, 80) : "(unlabeled)";
 }
 
@@ -199,13 +238,33 @@ function targetName(e: Extract<ReplayEvent, { type: "click" }>): string {
  * recorder counts from it (0), a vendor stream from some clock of its own, so
  * its first event stands in.
  */
-export function replayIssues(events: readonly ReplayEvent[], startUrl?: string, t0: number = events[0]?.t ?? 0): ReplayIssue[] {
+export function replayIssues(
+  events: readonly ReplayEvent[],
+  startUrl?: string,
+  t0: number = events[0]?.t ?? 0,
+): ReplayIssue[] {
   const out = new Map<string, ReplayIssue>();
   let page = startUrl;
   const route = () => routeOf(parse(page)?.pathname ?? "/");
-  const add = (kind: ReplayIssueKind, failure: string, title: string, t: number, message: string) => {
+  const add = (
+    kind: ReplayIssueKind,
+    failure: string,
+    title: string,
+    t: number,
+    message: string,
+  ) => {
     const fp = replayIssueFingerprint(kind, failure);
-    if (!out.has(fp)) out.set(fp, { kind, fp, title: clip(title, 200), route: route(), failure, t: Math.max(0, t - t0), message: clip(message, 2000), ...(page ? { url: page } : {}) });
+    if (!out.has(fp))
+      out.set(fp, {
+        kind,
+        fp,
+        title: clip(title, 200),
+        route: route(),
+        failure,
+        t: Math.max(0, t - t0),
+        message: clip(message, 2000),
+        ...(page ? { url: page } : {}),
+      });
   };
   // Recent clicks per element, for the rage rule.
   const clicks = new Map<string, number[]>();
@@ -224,8 +283,19 @@ export function replayIssues(events: readonly ReplayEvent[], startUrl?: string, 
         const failure = failures.get(e);
         if (!line || !failure) break;
         // The title is the line its failure is keyed by, so every recording names one failure alike.
-        const title = failure === normalizeErrorMessage(line).slice(0, 300) ? line : failure;
-        add("error", failure, clip(dropRequestIds(title), 120), e.t, e.type === "error" && e.stack ? `${e.message}\n${e.stack}` : e.message);
+        const title =
+          failure === normalizeErrorMessage(line).slice(0, 300)
+            ? line
+            : failure;
+        add(
+          "error",
+          failure,
+          clip(dropRequestIds(title), 120),
+          e.t,
+          e.type === "error" && e.stack
+            ? `${e.message}\n${e.stack}`
+            : e.message,
+        );
         break;
       }
       case "network": {
@@ -241,25 +311,47 @@ export function replayIssues(events: readonly ReplayEvent[], startUrl?: string, 
         const status = e.status === 0 ? "no response" : String(e.status);
         if (GATEWAY_STATUSES.has(e.status)) {
           const service = `${host}${serviceOf(route)}`;
-          add("request", `${service} unavailable`, `${service} does not answer (${status} on ${where})`, e.t, `${method} ${e.url} -> ${status} (${e.ms} ms)`);
+          add(
+            "request",
+            `${service} unavailable`,
+            `${service} does not answer (${status} on ${where})`,
+            e.t,
+            `${method} ${e.url} -> ${status} (${e.ms} ms)`,
+          );
           break;
         }
-        add("request", `${method} ${where} ${status}`, `${method} ${where} answers ${status}`, e.t, `${method} ${e.url} -> ${status} (${e.ms} ms)`);
+        add(
+          "request",
+          `${method} ${where} ${status}`,
+          `${method} ${where} answers ${status}`,
+          e.t,
+          `${method} ${e.url} -> ${status} (${e.ms} ms)`,
+        );
         break;
       }
       case "click": {
         if (!pressable(e)) break;
         const key = e.selector || `${e.role ?? ""}|${e.label}`;
-        const times = (clicks.get(key) ?? []).filter((t) => e.t - t <= RAGE_CLICK_MS);
+        const times = (clicks.get(key) ?? []).filter(
+          (t) => e.t - t <= RAGE_CLICK_MS,
+        );
         times.push(e.t);
         clicks.set(key, times);
         if (times.length === RAGE_CLICK_COUNT) {
           const name = targetName(e);
-          add("rage_click", `${route()} ${key}`, `Rage click on ${name} on ${route()}`, times[0], `${times.length} clicks on ${name} within ${e.t - times[0]} ms`);
+          add(
+            "rage_click",
+            `${route()} ${key}`,
+            `Rage click on ${name} on ${route()}`,
+            times[0],
+            `${times.length} clicks on ${name} within ${e.t - times[0]} ms`,
+          );
         }
         break;
       }
     }
   }
-  return [...out.values()].sort((a, b) => a.t - b.t).slice(0, REPLAY_ISSUES_MAX);
+  return [...out.values()]
+    .sort((a, b) => a.t - b.t)
+    .slice(0, REPLAY_ISSUES_MAX);
 }

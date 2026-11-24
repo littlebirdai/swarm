@@ -31,8 +31,17 @@ export type { FaceState } from "./faceState";
 // shared by React (hooks/useFaceRow) and non React readers (engine callbacks,
 // the desktop bridge). It is memoized on a signature of its inputs, so a store
 // push that changed nothing a face draws hands back the same row object.
-import { CALL_HEARTBEAT_MS, CALL_MEMBER_STALE_MS, parseRoomKey } from "@codecast/shared/contracts";
-import { JOIN_TITLE_MS, getJoinAnnouncement, subscribeJoinAnnouncement, type JoinAnnouncement } from "../calls/joinAnnounce";
+import {
+  CALL_HEARTBEAT_MS,
+  CALL_MEMBER_STALE_MS,
+  parseRoomKey,
+} from "@codecast/shared/contracts";
+import {
+  JOIN_TITLE_MS,
+  getJoinAnnouncement,
+  subscribeJoinAnnouncement,
+  type JoinAnnouncement,
+} from "../calls/joinAnnounce";
 import { getCallTiles, subscribeCallTiles } from "../calls/callManager";
 import {
   getWalkieStatus,
@@ -65,9 +74,16 @@ import { subscribeCoarseTick } from "../../hooks/useCoarseNow";
 
 /** The ONE state vocabulary every surface draws from. */
 
-
 /** Display bands, in row order. `linked` is every face joined to the viewer's. */
-export const FACE_TIERS = ["me", "linked", "call", "online", "idle", "away", "offline"] as const;
+export const FACE_TIERS = [
+  "me",
+  "linked",
+  "call",
+  "online",
+  "idle",
+  "away",
+  "offline",
+] as const;
 export type FaceTier = (typeof FACE_TIERS)[number];
 
 /** What the row draws BETWEEN two faces: the walkie's direction, a call, or a ring. */
@@ -143,12 +159,36 @@ export type FaceCard =
     }
   /** Somebody stepped in: the live card, with the join said in words for a
    *  few seconds. Same controls as `live`, so nothing disappears under the notice. */
-  | { kind: "joined-notice"; roomKey: string; text: string; end: true; mute: boolean; muted: boolean; camera: boolean; cameraOn: boolean }
-  | { kind: "ring-in"; roomKey: string; from: string; name: string; answer: true; decline: true }
+  | {
+      kind: "joined-notice";
+      roomKey: string;
+      text: string;
+      end: true;
+      mute: boolean;
+      muted: boolean;
+      camera: boolean;
+      cameraOn: boolean;
+    }
+  | {
+      kind: "ring-in";
+      roomKey: string;
+      from: string;
+      name: string;
+      answer: true;
+      decline: true;
+    }
   /** `hangUp`: the ring goes out from a room the viewer sits in alone, so
    *  Cancel ends the call with it rather than leaving them on a line with
    *  nobody. */
-  | { kind: "ring-out"; roomKey: string; to: string; name: string; cancel: true; status: string; hangUp: boolean };
+  | {
+      kind: "ring-out";
+      roomKey: string;
+      to: string;
+      name: string;
+      cancel: true;
+      status: string;
+      hangUp: boolean;
+    };
 
 export type FaceRow = {
   entries: FaceEntry[];
@@ -233,7 +273,12 @@ export type FaceRowInput = {
   followLeaderId: string | null;
   rings: {
     incoming: { from_user: unknown; room_key: string; from_name?: string }[];
-    outgoing: { to_user: unknown; room_key: string; to_name?: string; status?: string }[];
+    outgoing: {
+      to_user: unknown;
+      room_key: string;
+      to_name?: string;
+      status?: string;
+    }[];
   };
   announcement: JoinAnnouncement | null;
   unread: ReadonlyMap<string, number>;
@@ -255,7 +300,13 @@ const ENGAGED: ReadonlySet<FaceState> = new Set([
   "speaking",
 ]);
 
-const EMPTY_ROW: FaceRow = { entries: [], links: [], card: { kind: "none" }, me: null, room: null };
+const EMPTY_ROW: FaceRow = {
+  entries: [],
+  links: [],
+  card: { kind: "none" },
+  me: null,
+  room: null,
+};
 
 function idOf(v: unknown): string {
   return v == null ? "" : String(v);
@@ -294,9 +345,15 @@ function withoutLeftRoom(input: FaceRowInput): FaceRowInput {
   if (!left || !me || input.now - left.at >= LEFT_HOLD_MS) return input;
   const key = left.roomKey;
   // Back in it (a rejoin, a fresh ring to the same person): the press is over.
-  if (input.walkie.liveRoom?.key === key || (input.call.phase !== "idle" && input.call.roomKey === key)) return input;
-  const seated = (seats: FaceSeat[]) => seats.some((m) => idOf(m.user_id) === me);
-  const unseat = (seats: FaceSeat[]) => seats.filter((m) => idOf(m.user_id) !== me);
+  if (
+    input.walkie.liveRoom?.key === key ||
+    (input.call.phase !== "idle" && input.call.roomKey === key)
+  )
+    return input;
+  const seated = (seats: FaceSeat[]) =>
+    seats.some((m) => idOf(m.user_id) === me);
+  const unseat = (seats: FaceSeat[]) =>
+    seats.filter((m) => idOf(m.user_id) !== me);
   const stale =
     input.rings.outgoing.some((r) => r.room_key === key) ||
     seated(input.occupancy[key] ?? []) ||
@@ -304,9 +361,16 @@ function withoutLeftRoom(input: FaceRowInput): FaceRowInput {
   if (!stale) return input;
   return {
     ...input,
-    occupancy: input.occupancy[key] ? { ...input.occupancy, [key]: unseat(input.occupancy[key]) } : input.occupancy,
-    liveRooms: input.liveRooms.map((r) => (r.room_key === key ? { ...r, members: unseat(r.members) } : r)),
-    rings: { ...input.rings, outgoing: input.rings.outgoing.filter((r) => r.room_key !== key) },
+    occupancy: input.occupancy[key]
+      ? { ...input.occupancy, [key]: unseat(input.occupancy[key]) }
+      : input.occupancy,
+    liveRooms: input.liveRooms.map((r) =>
+      r.room_key === key ? { ...r, members: unseat(r.members) } : r,
+    ),
+    rings: {
+      ...input.rings,
+      outgoing: input.rings.outgoing.filter((r) => r.room_key !== key),
+    },
   };
 }
 
@@ -316,23 +380,44 @@ function withoutLeftRoom(input: FaceRowInput): FaceRowInput {
  *  reads answered here, so the live card is never covered by "X is calling".
  *  A burst the viewer is only listening to is not that call: a ring into it
  *  still asks whether to make it one. */
-function withoutAnsweredRings(input: FaceRowInput, room: string | null, mode: string | null): FaceRowInput {
-  if (!room || mode !== "call" || !input.rings.incoming.some((r) => r.room_key === room)) return input;
-  return { ...input, rings: { ...input.rings, incoming: input.rings.incoming.filter((r) => r.room_key !== room) } };
+function withoutAnsweredRings(
+  input: FaceRowInput,
+  room: string | null,
+  mode: string | null,
+): FaceRowInput {
+  if (
+    !room ||
+    mode !== "call" ||
+    !input.rings.incoming.some((r) => r.room_key === room)
+  )
+    return input;
+  return {
+    ...input,
+    rings: {
+      ...input.rings,
+      incoming: input.rings.incoming.filter((r) => r.room_key !== room),
+    },
+  };
 }
 
 function engagedRoomOf(input: FaceRowInput): string | null {
   const walkieRoom = input.walkie.liveRoom?.key ?? null;
   if (walkieRoom) return walkieRoom;
-  if (input.call.phase !== "idle" && input.call.roomKey) return input.call.roomKey;
+  if (input.call.phase !== "idle" && input.call.roomKey)
+    return input.call.roomKey;
   const me = input.viewer?.id ?? "";
   if (!me) return null;
-  const seated = input.liveRooms.find((r) => r.members.some((m) => idOf(m.user_id) === me));
+  const seated = input.liveRooms.find((r) =>
+    r.members.some((m) => idOf(m.user_id) === me),
+  );
   return seated?.room_key ?? null;
 }
 
 /** Burst, listen or call: what the engaged room IS. */
-function roomModeOf(input: FaceRowInput, room: string | null): "burst" | "listen" | "call" | null {
+function roomModeOf(
+  input: FaceRowInput,
+  room: string | null,
+): "burst" | "listen" | "call" | null {
   if (!room) return null;
   const live = input.walkie.liveRoom;
   if (live && live.key === room) return live.mode;
@@ -349,7 +434,11 @@ function presenceTierOf(m: FaceMember): FaceTier {
   return s === "active" ? "online" : s;
 }
 
-function linkKindOf(input: FaceRowInput, mode: "burst" | "listen" | "call", id: string): LinkKind {
+function linkKindOf(
+  input: FaceRowInput,
+  mode: "burst" | "listen" | "call",
+  id: string,
+): LinkKind {
   const tx = !!input.walkie.sending;
   const rx = input.walkie.incoming?.fromUserId === id;
   if (tx && rx) return "both";
@@ -375,8 +464,13 @@ function stateOf(
   },
 ): FaceState {
   const { id, room, mode, inMyRoom, named, prev } = ctx;
-  if (input.rings.incoming.some((r) => idOf(r.from_user) === id)) return "ringing-me";
-  if (input.rings.outgoing.some((r) => idOf(r.to_user) === id && (r.status ?? "ringing") === "ringing")) {
+  if (input.rings.incoming.some((r) => idOf(r.from_user) === id))
+    return "ringing-me";
+  if (
+    input.rings.outgoing.some(
+      (r) => idOf(r.to_user) === id && (r.status ?? "ringing") === "ringing",
+    )
+  ) {
     return "ringing-them";
   }
   // They answered. The ring settles a round trip before their seat lands, so
@@ -388,7 +482,12 @@ function stateOf(
     room &&
     mode === "call" &&
     !inMyRoom &&
-    input.rings.outgoing.some((r) => idOf(r.to_user) === id && r.room_key === room && r.status === "accepted")
+    input.rings.outgoing.some(
+      (r) =>
+        idOf(r.to_user) === id &&
+        r.room_key === room &&
+        r.status === "accepted",
+    )
   ) {
     return "ringing-them";
   }
@@ -396,8 +495,15 @@ function stateOf(
   if (room && mode) {
     if (inMyRoom) {
       const ann = input.announcement;
-      if (mode === "call" && ann && ann.roomKey === room && input.now - ann.at < JOIN_TITLE_MS) return "joining";
-      if (mode === "call" && input.call.speaking.includes(id)) return "speaking";
+      if (
+        mode === "call" &&
+        ann &&
+        ann.roomKey === room &&
+        input.now - ann.at < JOIN_TITLE_MS
+      )
+        return "joining";
+      if (mode === "call" && input.call.speaking.includes(id))
+        return "speaking";
       if (mode === "burst" && input.walkie.sending) return "hearing-me";
       return "live-with-me";
     }
@@ -407,8 +513,15 @@ function stateOf(
     // room is now says (hearing me while my key is down, else live with me);
     // it never drops to plain presence and comes back. A face that was never
     // engaged is plain presence, and the link says who is being talked to.
-    if (named && prev && ENGAGED.has(prev.state) && input.walkie.liveRoom?.key === room) {
-      return mode === "burst" && input.walkie.sending ? "hearing-me" : "live-with-me";
+    if (
+      named &&
+      prev &&
+      ENGAGED.has(prev.state) &&
+      input.walkie.liveRoom?.key === room
+    ) {
+      return mode === "burst" && input.walkie.sending
+        ? "hearing-me"
+        : "live-with-me";
     }
   }
   // A seat somewhere the viewer is not. A burst seats everyone who hears it
@@ -416,9 +529,12 @@ function stateOf(
   // which, so a burst is presence and a call is a call (memberInHuddle's
   // rule, with the answer the roster now carries).
   const theirRoom = m.in_room_key ? String(m.in_room_key) : "";
-  const liveRow = input.liveRooms.find((r) => r.members.some((s) => idOf(s.user_id) === id));
+  const liveRow = input.liveRooms.find((r) =>
+    r.members.some((s) => idOf(s.user_id) === id),
+  );
   const seatClass = m.seat ?? liveRow?.seat;
-  if ((m.in_huddle || theirRoom || liveRow) && seatClass !== "walkie") return "in-call";
+  if ((m.in_huddle || theirRoom || liveRow) && seatClass !== "walkie")
+    return "in-call";
   return presenceStateOf(m);
 }
 
@@ -428,7 +544,11 @@ function tierOf(state: FaceState, linked: boolean, m: FaceMember): FaceTier {
   return presenceTierOf(m);
 }
 
-function stageWordsFor(input: FaceRowInput, mode: "burst" | "listen" | "call", name: string): WalkieStageWords {
+function stageWordsFor(
+  input: FaceRowInput,
+  mode: "burst" | "listen" | "call",
+  name: string,
+): WalkieStageWords {
   const s = input.walkie.sending;
   const locked = mode === "call";
   return walkieStageWords({
@@ -446,7 +566,12 @@ function stageWordsFor(input: FaceRowInput, mode: "burst" | "listen" | "call", n
 
 function cardOf(
   input: FaceRowInput,
-  ctx: { room: string | null; mode: "burst" | "listen" | "call" | null; others: FaceEntry[]; label: string },
+  ctx: {
+    room: string | null;
+    mode: "burst" | "listen" | "call" | null;
+    others: FaceEntry[];
+    label: string;
+  },
 ): FaceCard {
   const { room, mode, others, label } = ctx;
   const ringIn = input.rings.incoming[0];
@@ -461,7 +586,9 @@ function cardOf(
     };
   }
   const walkie = input.walkie;
-  const other = others.find((e) => e.state !== "ringing-them" && e.state !== "ringing-me");
+  const other = others.find(
+    (e) => e.state !== "ringing-them" && e.state !== "ringing-me",
+  );
   const name = other?.name ?? label;
   if (room && mode === "listen") {
     return {
@@ -478,8 +605,13 @@ function cardOf(
   // Ringing from inside the room: startHuddle seats the caller before the
   // ring goes out, so until somebody else is seated the card is the ring out
   // (ringing, declined, no answer), not a live call with nobody on it.
-  const ringOutHere = other ? undefined : input.rings.outgoing.find((r) => r.room_key === room && r.status !== "accepted");
-  if (room && mode === "call" && ringOutHere) return ringOutCard(ringOutHere, true);
+  const ringOutHere = other
+    ? undefined
+    : input.rings.outgoing.find(
+        (r) => r.room_key === room && r.status !== "accepted",
+      );
+  if (room && mode === "call" && ringOutHere)
+    return ringOutCard(ringOutHere, true);
   if (room && mode) {
     const end = true as const;
     const mute = mode === "call";
@@ -490,7 +622,16 @@ function cardOf(
     const cameraOn = !!input.call.camera;
     const ann = input.announcement;
     if (ann && ann.roomKey === room && input.now - ann.at < JOIN_TITLE_MS) {
-      return { kind: "joined-notice", roomKey: room, text: ann.text, end, mute, muted, camera, cameraOn };
+      return {
+        kind: "joined-notice",
+        roomKey: room,
+        text: ann.text,
+        end,
+        mute,
+        muted,
+        camera,
+        cameraOn,
+      };
     }
     const walkieHeld = walkie.liveRoom?.key === room;
     let hearing: SenderHearing | null = null;
@@ -515,17 +656,24 @@ function cardOf(
       cameraOn,
       words: walkieHeld ? stageWordsFor(input, mode, name) : null,
       hearing,
-      joining: mode === "call" && input.call.phase === "connecting" && input.call.roomKey === room,
+      joining:
+        mode === "call" &&
+        input.call.phase === "connecting" &&
+        input.call.roomKey === room,
       private: !!input.roomPrivate,
     };
   }
   const ringOut =
-    input.rings.outgoing.find((r) => (r.status ?? "ringing") === "ringing") ?? input.rings.outgoing.find((r) => r.status !== "accepted");
+    input.rings.outgoing.find((r) => (r.status ?? "ringing") === "ringing") ??
+    input.rings.outgoing.find((r) => r.status !== "accepted");
   if (ringOut) return ringOutCard(ringOut, false);
   return { kind: "none" };
 }
 
-function ringOutCard(r: FaceRowInput["rings"]["outgoing"][number], hangUp: boolean): FaceCard {
+function ringOutCard(
+  r: FaceRowInput["rings"]["outgoing"][number],
+  hangUp: boolean,
+): FaceCard {
   return {
     kind: "ring-out",
     roomKey: r.room_key,
@@ -548,7 +696,10 @@ export function isCallCard(card: FaceCard): boolean {
  * The row. Pure: everything it reads is in `input`, and `prev` is the row it
  * last produced (or null), which is what lets a state hold through a seam.
  */
-export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow {
+export function deriveFaceRow(
+  raw: FaceRowInput,
+  prev: FaceRow | null,
+): FaceRow {
   const left = withoutLeftRoom(raw);
   const viewer = left.viewer;
   if (!viewer?.id) return EMPTY_ROW;
@@ -559,7 +710,9 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
   const seats = seatsIn(input, room);
   const seatedIds = new Set(seats.map((s) => idOf(s.user_id)));
   const parsed = room ? parseRoomKey(room) : null;
-  const namedIds = new Set(parsed?.kind === "dm" ? parsed.users.map(String) : []);
+  const namedIds = new Set(
+    parsed?.kind === "dm" ? parsed.users.map(String) : [],
+  );
   const prevById = new Map((prev?.entries ?? []).map((e) => [e.id, e]));
   const prevOrder = new Map((prev?.entries ?? []).map((e, i) => [e.id, i]));
   const cameraOf = new Set(input.call.cameras);
@@ -576,17 +729,34 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
     // In my room by any of three reports: the occupancy feed, the live rooms
     // list, or their own roster row naming my room. Three sources so a face
     // never blinks while one of them catches up.
-    const inMyRoom = !!room && (seatedIds.has(id) || (m.in_room_key ? String(m.in_room_key) === room : false));
+    const inMyRoom =
+      !!room &&
+      (seatedIds.has(id) ||
+        (m.in_room_key ? String(m.in_room_key) === room : false));
     const named = namedIds.has(id);
-    const state = stateOf(input, m, { id, room, mode, inMyRoom, named, prev: prevEntry });
+    const state = stateOf(input, m, {
+      id,
+      room,
+      mode,
+      inMyRoom,
+      named,
+      prev: prevEntry,
+    });
     const ring = state === "ringing-me" || state === "ringing-them";
     // Linked: a ring either way, an engaged state (only ever earned in the
     // viewer's room), or being the person a people room the walkie holds is
     // named after, seated or not: the link is how "I am talking to them"
     // reads, and it is true from the first word, before their seat lands.
-    const linked = ring || ENGAGED.has(state) || (named && !!room && input.walkie.liveRoom?.key === room);
+    const linked =
+      ring ||
+      ENGAGED.has(state) ||
+      (named && !!room && input.walkie.liveRoom?.key === room);
     if (linked) {
-      links.push({ from: meId, to: id, kind: ring ? "ring" : linkKindOf(input, mode ?? "call", id) });
+      links.push({
+        from: meId,
+        to: id,
+        kind: ring ? "ring" : linkKindOf(input, mode ?? "call", id),
+      });
     }
     const seat = seats.find((s) => idOf(s.user_id) === id);
     const stamp = m.walkie_joined_at ?? seat?.walkie_joined_at;
@@ -616,11 +786,14 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
   // reload waiting on a press, a dropped page) is not drawn as here, and a
   // guest it does have wears their real microphone.
   const guestMedia =
-    input.call.phase === "connected" && input.call.roomKey === room && input.call.guests
+    input.call.phase === "connected" &&
+    input.call.roomKey === room &&
+    input.call.guests
       ? new Map(input.call.guests.map((g) => [g.identity, g]))
       : null;
   if (room && mode === "call") {
-    for (const g of input.liveRooms.find((r) => r.room_key === room)?.guests ?? []) {
+    for (const g of input.liveRooms.find((r) => r.room_key === room)?.guests ??
+      []) {
       const id = g.identity;
       if (!id || rows.some((r) => r.entry.id === id)) continue;
       if (guestMedia && !guestMedia.has(id)) continue;
@@ -652,7 +825,8 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
     // People before agents, whatever their presence: an agent is always "on",
     // and four of them took four of the header's six seats from teammates.
     // A linked agent (one I am engaged with) keeps its place at the head.
-    if (!a.linked && !b.linked && !!a.entry.bot !== !!b.entry.bot) return a.entry.bot ? 1 : -1;
+    if (!a.linked && !b.linked && !!a.entry.bot !== !!b.entry.bot)
+      return a.entry.bot ? 1 : -1;
     const ta = rank.get(a.entry.tier)!;
     const tb = rank.get(b.entry.tier)!;
     if (ta !== tb) return ta - tb;
@@ -666,20 +840,24 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
   });
 
   const others = rows.map((r) => r.entry);
-  const ringing = input.rings.incoming.length > 0 || input.rings.outgoing.some((r) => (r.status ?? "ringing") === "ringing");
+  const ringing =
+    input.rings.incoming.length > 0 ||
+    input.rings.outgoing.some((r) => (r.status ?? "ringing") === "ringing");
   let me: FaceEntry | null = null;
   if (room || ringing) {
     const myRow = input.roster.find((m) => idOf(m._id) === meId);
     const sendingLive = !!input.walkie.sending?.live;
     const inCall = !!room;
-    const state: FaceState = sendingLive || (inCall && input.call.speaking.includes(meId))
-      ? "speaking"
-      : inCall
-        ? "in-call"
-        : input.rings.incoming.length > 0
-          ? "ringing-me"
-          : "ringing-them";
-    const micOpen = sendingLive || (inCall && mode === "call" && !input.call.muted);
+    const state: FaceState =
+      sendingLive || (inCall && input.call.speaking.includes(meId))
+        ? "speaking"
+        : inCall
+          ? "in-call"
+          : input.rings.incoming.length > 0
+            ? "ringing-me"
+            : "ringing-them";
+    const micOpen =
+      sendingLive || (inCall && mode === "call" && !input.call.muted);
     me = {
       id: meId,
       name: myRow ? memberDisplayName(myRow as any) : (viewer.name ?? "You"),
@@ -688,7 +866,8 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
       tier: "me",
       state,
       level: micOpen ? "mic" : null,
-      video: inCall && (input.call.camera || cameraOf.has(meId)) ? "self" : null,
+      video:
+        inCall && (input.call.camera || cameraOf.has(meId)) ? "self" : null,
       muted: inCall && mode === "call" ? input.call.muted : false,
       followed: false,
       joinedAgo: null,
@@ -696,8 +875,14 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
     };
   }
 
-  const label = input.roomLabel || others.find((e) => namedIds.has(e.id))?.name || "Huddle";
-  const card = cardOf(input, { room, mode, others: others.filter((e) => e.tier === "linked"), label });
+  const label =
+    input.roomLabel || others.find((e) => namedIds.has(e.id))?.name || "Huddle";
+  const card = cardOf(input, {
+    room,
+    mode,
+    others: others.filter((e) => e.tier === "linked"),
+    label,
+  });
   const entries = me ? [me, ...others] : others;
   return { entries, links, card, me, room };
 }
@@ -712,7 +897,8 @@ export function deriveFaceRow(raw: FaceRowInput, prev: FaceRow | null): FaceRow 
 
 function seatSig(seats: FaceSeat[] | undefined): string {
   let s = "";
-  for (const m of seats ?? []) s += `${idOf(m.user_id)}:${m.muted ? 1 : 0}:${m.camera ? 1 : 0}:${m.walkie_joined_at ?? ""},`;
+  for (const m of seats ?? [])
+    s += `${idOf(m.user_id)}:${m.muted ? 1 : 0}:${m.camera ? 1 : 0}:${m.walkie_joined_at ?? ""},`;
   return s;
 }
 
@@ -730,7 +916,9 @@ function liveRoomsSig(rooms: FaceLiveRoom[] | undefined): string {
   return s;
 }
 
-function lockedRoomsSig(rooms: Record<string, { locked?: boolean }> | undefined): string {
+function lockedRoomsSig(
+  rooms: Record<string, { locked?: boolean }> | undefined,
+): string {
   let s = "";
   for (const k in rooms ?? {}) if (rooms![k]?.locked) s += `${k},`;
   return s;
@@ -740,7 +928,11 @@ function lockedRoomsSig(rooms: Record<string, { locked?: boolean }> | undefined)
  *  room from the server; the lock's home is `callRooms`, flipped locally, so
  *  opening the door (which makes the huddle ordinary) reads at once. */
 export function roomIsPrivate(st: any, roomKey: string): boolean {
-  return !!st.callRooms?.[roomKey]?.locked && !!(st.liveRooms ?? []).find((r: FaceLiveRoom) => r.room_key === roomKey)?.private;
+  return (
+    !!st.callRooms?.[roomKey]?.locked &&
+    !!(st.liveRooms ?? []).find((r: FaceLiveRoom) => r.room_key === roomKey)
+      ?.private
+  );
 }
 
 function rosterFaceSig(members: FaceMember[] | undefined): string {
@@ -749,15 +941,19 @@ function rosterFaceSig(members: FaceMember[] | undefined): string {
   let extra = "";
   for (const m of members ?? []) {
     if (!m?._id) continue;
-    extra += `${m.seat ?? ""}|${m.walkie_joined_at ?? ""}|${m.walkie_pref ?? ""}|${m.walkie_snoozed_until ?? ""}|${m.is_bot ? m.bot_kind ?? "bot" : ""}\n`;
+    extra += `${m.seat ?? ""}|${m.walkie_joined_at ?? ""}|${m.walkie_pref ?? ""}|${m.walkie_snoozed_until ?? ""}|${m.is_bot ? (m.bot_kind ?? "bot") : ""}\n`;
   }
   return teamBarSig((members ?? []) as any[]) + extra;
 }
 
-function ringsSig(myCalls: { incoming?: any[]; outgoing?: any[] } | undefined): string {
+function ringsSig(
+  myCalls: { incoming?: any[]; outgoing?: any[] } | undefined,
+): string {
   let s = "";
-  for (const r of myCalls?.incoming ?? []) s += `in:${idOf(r.from_user)}:${r.room_key}:${r.from_name ?? ""},`;
-  for (const r of myCalls?.outgoing ?? []) s += `out:${idOf(r.to_user)}:${r.room_key}:${r.status ?? ""}:${r.to_name ?? ""},`;
+  for (const r of myCalls?.incoming ?? [])
+    s += `in:${idOf(r.from_user)}:${r.room_key}:${r.from_name ?? ""},`;
+  for (const r of myCalls?.outgoing ?? [])
+    s += `out:${idOf(r.to_user)}:${r.room_key}:${r.status ?? ""}:${r.to_name ?? ""},`;
   return s;
 }
 
@@ -766,7 +962,6 @@ function walkieRowSig(w: WalkieStatus): string {
   const live = w.liveRoom;
   return `${live?.key ?? ""}|${live?.mode ?? ""}|${s ? `${s.roomKey}:${s.live ? 1 : 0}:${s.heardLive ? 1 : 0}` : ""}|${w.incoming?.fromUserId ?? ""}:${w.incoming?.roomKey ?? ""}|${w.canReply ? 1 : 0}|${walkieJoinedRoom(w) ?? ""}|${walkieHoldsRoom(w, null) ? 1 : 0}`;
 }
-
 
 /** The clock the row needs: `joinedAgo` and a snooze running out move on
  *  this, the join notice on its own timer (JOIN_TITLE_MS is under one tick,
@@ -812,18 +1007,34 @@ export function faceRowInputFrom(
   // the camera and the speakers all come from the mirror or from nowhere.
   const call = walkieCallState();
   const u = st.currentUser;
-  const room = walkie.liveRoom?.key ?? (call.phase !== "idle" ? call.roomKey : null);
+  const room =
+    walkie.liveRoom?.key ?? (call.phase !== "idle" ? call.roomKey : null);
   return {
-    viewer: u?._id ? { id: idOf(u._id), name: u.name ?? u.email, image: u.image ?? u.github_avatar_url } : null,
+    viewer: u?._id
+      ? {
+          id: idOf(u._id),
+          name: u.name ?? u.email,
+          image: u.image ?? u.github_avatar_url,
+        }
+      : null,
     roster: teamMembersOf(st),
     occupancy: st.callOccupancy ?? {},
     liveRooms: st.liveRooms ?? [],
     walkie: {
       liveRoom: walkie.liveRoom,
       sending: walkie.sending
-        ? { roomKey: walkie.sending.roomKey, live: walkie.sending.live, heardLive: walkie.sending.heardLive }
+        ? {
+            roomKey: walkie.sending.roomKey,
+            live: walkie.sending.live,
+            heardLive: walkie.sending.heardLive,
+          }
         : null,
-      incoming: walkie.incoming ? { fromUserId: walkie.incoming.fromUserId, roomKey: walkie.incoming.roomKey } : null,
+      incoming: walkie.incoming
+        ? {
+            fromUserId: walkie.incoming.fromUserId,
+            roomKey: walkie.incoming.roomKey,
+          }
+        : null,
       canReply: walkie.canReply,
     },
     call: {
@@ -838,7 +1049,10 @@ export function faceRowInputFrom(
       left: st.call?.left ?? null,
     },
     followLeaderId: st.followLeaderId ?? null,
-    rings: { incoming: st.myCalls?.incoming ?? [], outgoing: st.myCalls?.outgoing ?? [] },
+    rings: {
+      incoming: st.myCalls?.incoming ?? [],
+      outgoing: st.myCalls?.outgoing ?? [],
+    },
     announcement,
     unread: dmUnreadByMember(st),
     roomLabel: room ? describeRoomLive(room, st).label : undefined,
@@ -853,7 +1067,13 @@ let lastRow: FaceRow = EMPTY_ROW;
 // hands every subscriber the same state object, so the first reader after a
 // write builds the signature and the rest compare five references: a roster
 // of faces, each with its own subscription, costs one signature per write.
-let lastInputs: { st: unknown; walkie: unknown; announcement: unknown; tiles: unknown; tick: number } | null = null;
+let lastInputs: {
+  st: unknown;
+  walkie: unknown;
+  announcement: unknown;
+  tiles: unknown;
+  tick: number;
+} | null = null;
 
 /** A stand in for the engine, from the console: the walkie's status and the
  *  join announcement as a demo wants them (cameras ride `input.call`), so every
@@ -882,23 +1102,40 @@ const fakeListeners = new Set<() => void>();
 /** The row, derived once per change of its inputs and shared by every reader. */
 export function readFaceRow(): FaceRow {
   const st = useInboxStore.getState();
-  const walkie = fake?.walkie ? { ...getWalkieStatus(), ...fake.walkie } : getWalkieStatus();
-  const announcement = fake && "announcement" in fake ? (fake.announcement ?? null) : getJoinAnnouncement();
+  const walkie = fake?.walkie
+    ? { ...getWalkieStatus(), ...fake.walkie }
+    : getWalkieStatus();
+  const announcement =
+    fake && "announcement" in fake
+      ? (fake.announcement ?? null)
+      : getJoinAnnouncement();
   // The tiles are read for their identity only: a camera coming or going in
   // this window is a new array, and the call state below reads who from it.
   const tiles = getCallTiles();
   const now = Date.now();
   const tick = Math.floor(now / FACE_ROW_TICK_MS);
   const li = lastInputs;
-  if (li && li.st === st && li.walkie === walkie && li.announcement === announcement && li.tiles === tiles && li.tick === tick) {
+  if (
+    li &&
+    li.st === st &&
+    li.walkie === walkie &&
+    li.announcement === announcement &&
+    li.tiles === tiles &&
+    li.tick === tick
+  ) {
     return lastRow;
   }
   lastInputs = { st, walkie, announcement, tiles, tick };
-  const sig = faceRowInputSig(st, walkie, announcement, now) + (fake ? `\u0001fake${fakeSeq}` : "");
+  const sig =
+    faceRowInputSig(st, walkie, announcement, now) +
+    (fake ? `\u0001fake${fakeSeq}` : "");
   if (sig === lastSig) return lastRow;
   lastSig = sig;
   const gathered = faceRowInputFrom(st, walkie, announcement, now);
-  lastRow = deriveFaceRow(fake?.input ? { ...gathered, ...fake.input } : gathered, lastRow);
+  lastRow = deriveFaceRow(
+    fake?.input ? { ...gathered, ...fake.input } : gathered,
+    lastRow,
+  );
   return lastRow;
 }
 
@@ -940,7 +1177,10 @@ if (typeof window !== "undefined") {
 // the shared row, so a chip, a pill and the desktop bridge cannot disagree.
 
 /** This person's face state, `offline` for somebody the row does not know. */
-export function engagementOf(memberId: string, row: FaceRow = readFaceRow()): FaceState {
+export function engagementOf(
+  memberId: string,
+  row: FaceRow = readFaceRow(),
+): FaceState {
   return row.entries.find((e) => e.id === memberId)?.state ?? "offline";
 }
 
@@ -956,13 +1196,19 @@ const IN_CALL: ReadonlySet<FaceState> = new Set([
 
 /** Their voice is audible right now: a burst playing here, or an active
  *  speaker in the viewer's call. For the viewer: their own microphone is live. */
-export function isTalking(memberId: string, row: FaceRow = readFaceRow()): boolean {
+export function isTalking(
+  memberId: string,
+  row: FaceRow = readFaceRow(),
+): boolean {
   return TALKING.has(engagementOf(memberId, row));
 }
 
 /** Seated in a live room: a call anywhere, or the room the viewer holds. A
  *  ring is not a call yet, and a third party's burst is not one either. */
-export function isInCall(memberId: string, row: FaceRow = readFaceRow()): boolean {
+export function isInCall(
+  memberId: string,
+  row: FaceRow = readFaceRow(),
+): boolean {
   return IN_CALL.has(engagementOf(memberId, row));
 }
 
@@ -975,7 +1221,10 @@ const BURST_LINKS: ReadonlySet<LinkKind> = new Set(["tx", "rx", "both"]);
  *  drawn as a link and a ring, never as a chip: a voice message is not a
  *  conversation. The rule memberInHuddle used to answer off the roster and
  *  the walkie, on the row. */
-export function isInHuddle(memberId: string, row: FaceRow = readFaceRow()): boolean {
+export function isInHuddle(
+  memberId: string,
+  row: FaceRow = readFaceRow(),
+): boolean {
   if (!isInCall(memberId, row)) return false;
   const link = row.links.find((l) => l.to === memberId);
   return !link || !BURST_LINKS.has(link.kind);
@@ -985,7 +1234,10 @@ export function isInHuddle(memberId: string, row: FaceRow = readFaceRow()): bool
  *  or a listen rather than a call: what the links say about it. The surfaces
  *  that stand down while a burst plays (the room's occupancy chip) ask this,
  *  and the row says the room became a call the moment its links do. */
-export function roomHeldAsBurst(roomKey: string, row: FaceRow = readFaceRow()): boolean {
+export function roomHeldAsBurst(
+  roomKey: string,
+  row: FaceRow = readFaceRow(),
+): boolean {
   return row.room === roomKey && row.links.some((l) => BURST_LINKS.has(l.kind));
 }
 

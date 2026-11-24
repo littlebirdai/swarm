@@ -16,14 +16,18 @@ export function summarizeMemory(samples: readonly MemorySample[]) {
   let inventorySamples = 0;
   const processes = new Map<string, AgentMemorySample>();
   for (const sample of samples) {
-    if (sample.daemonRssBytes !== null) peakBytes = Math.max(peakBytes ?? 0, sample.daemonRssBytes);
+    if (sample.daemonRssBytes !== null)
+      peakBytes = Math.max(peakBytes ?? 0, sample.daemonRssBytes);
     if (sample.agents === null) continue;
     inventorySamples++;
     for (const agent of sample.agents) {
       const previous = processes.get(agent.identity);
       processes.set(agent.identity, {
         ...agent,
-        provider: agent.provider === "unknown" ? previous?.provider ?? agent.provider : agent.provider,
+        provider:
+          agent.provider === "unknown"
+            ? (previous?.provider ?? agent.provider)
+            : agent.provider,
         rssBytes: Math.max(previous?.rssBytes ?? 0, agent.rssBytes),
       });
     }
@@ -40,12 +44,26 @@ export function summarizeMemory(samples: readonly MemorySample[]) {
       peakBytes,
       endBytes: samples.at(-1)?.daemonRssBytes ?? null,
     },
-    agentRss: inventorySamples === 0 ? null : [...byProvider].sort(([a], [b]) => a.localeCompare(b)).map(([provider, values]) => {
-      values.sort((a, b) => a - b);
-      const count = values.length;
-      const middle = Math.floor(count / 2);
-      const medianBytes = count % 2 === 0 ? (values[middle - 1] + values[middle]) / 2 : values[middle];
-      return { provider, count, medianBytes, p90Bytes: percentile(values, 0.9)!, maxBytes: values[count - 1] };
-    }),
+    agentRss:
+      inventorySamples === 0
+        ? null
+        : [...byProvider]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([provider, values]) => {
+              values.sort((a, b) => a - b);
+              const count = values.length;
+              const middle = Math.floor(count / 2);
+              const medianBytes =
+                count % 2 === 0
+                  ? (values[middle - 1] + values[middle]) / 2
+                  : values[middle];
+              return {
+                provider,
+                count,
+                medianBytes,
+                p90Bytes: percentile(values, 0.9)!,
+                maxBytes: values[count - 1],
+              };
+            }),
   };
 }

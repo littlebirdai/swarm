@@ -6,7 +6,11 @@ import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
 import { CHARACTER_NAMES } from "@codecast/shared/contracts/sessionCharacter";
 import { spreadCharacters } from "../../lib/spreadCharacters";
 
-const ids = (n: number) => Array.from({ length: n }, (_, i) => `k97${i.toString(36)}session${(i * 7919).toString(36)}`);
+const ids = (n: number) =>
+  Array.from(
+    { length: n },
+    (_, i) => `k97${i.toString(36)}session${(i * 7919).toString(36)}`,
+  );
 
 describe("spreadCharacters", () => {
   test("starts at the picked face and walks the set, one animal each", () => {
@@ -27,6 +31,8 @@ describe("spreadCharacters", () => {
 
   test("the same selection and face always produce the same assignment", () => {
     const rows = ids(5);
-    expect(spreadCharacters(rows, "fox")).toEqual(spreadCharacters(rows, "fox"));
+    expect(spreadCharacters(rows, "fox")).toEqual(
+      spreadCharacters(rows, "fox"),
+    );
   });
 });

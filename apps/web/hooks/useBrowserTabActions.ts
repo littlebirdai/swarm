@@ -6,7 +6,13 @@
 
 import { createContext, useRef, useState } from "react";
 import { useConvex } from "convex/react";
-import { focusBrowserTab, probeBrowserTab, reopenBrowserTab, type BrowserSessionRef, type BrowserTabFailure } from "../lib/browserFocus";
+import {
+  focusBrowserTab,
+  probeBrowserTab,
+  reopenBrowserTab,
+  type BrowserSessionRef,
+  type BrowserTabFailure,
+} from "../lib/browserFocus";
 import { useWatchEffect } from "./useWatchEffect";
 import { useMountEffect } from "./useMountEffect";
 import { bridge } from "../lib/desktop";
@@ -18,7 +24,6 @@ export const BrowserSessionContext = createContext<BrowserSessionRef>({});
 export const BROWSER_ROW_PILL =
   "flex-shrink-0 inline-flex items-center gap-1 rounded-full border border-sol-border/60 bg-sol-bg-highlight/40 " +
   "px-1.5 py-px text-meta leading-4 font-mono text-sol-text-muted hover:text-sol-cyan hover:border-sol-cyan/40 transition-colors";
-
 
 export type BrowserTabActionState =
   | { kind: "idle" }
@@ -65,11 +70,20 @@ export function useBrowserTabActions(
   tab: { tabId: string | null; url: string | null; gone?: boolean },
   session: BrowserSessionRef,
   onReopened?: (tabId: string) => void,
-): { state: BrowserTabActionState; tabId: string | null; focus: () => void; reopen: () => void; check: () => void } {
+): {
+  state: BrowserTabActionState;
+  tabId: string | null;
+  focus: () => void;
+  reopen: () => void;
+  check: () => void;
+} {
   const convex = useConvex();
   const canReopen = !!tab.url && !!(session.sessionUuid || session.tmuxSession);
-  const goneOffer: BrowserTabActionState | null = tab.gone && canReopen ? { kind: "offer", reason: "tab-gone" } : null;
-  const [state, setState] = useState<BrowserTabActionState>(goneOffer ?? { kind: "idle" });
+  const goneOffer: BrowserTabActionState | null =
+    tab.gone && canReopen ? { kind: "offer", reason: "tab-gone" } : null;
+  const [state, setState] = useState<BrowserTabActionState>(
+    goneOffer ?? { kind: "idle" },
+  );
   const [tabId, setTabId] = useState(tab.tabId);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const probedAt = useRef(0);
@@ -86,7 +100,10 @@ export function useBrowserTabActions(
   const note = (text: string) => {
     setState({ kind: "note", text });
     if (noteTimer.current) clearTimeout(noteTimer.current);
-    noteTimer.current = setTimeout(() => setState((s) => (s.kind === "note" ? { kind: "idle" } : s)), NOTE_MS);
+    noteTimer.current = setTimeout(
+      () => setState((s) => (s.kind === "note" ? { kind: "idle" } : s)),
+      NOTE_MS,
+    );
   };
 
   const bySession = !!(session.sessionUuid || session.tmuxSession);
@@ -98,8 +115,18 @@ export function useBrowserTabActions(
         raiseInShell(out.pid);
         return setState({ kind: "idle" });
       }
-      if ((out.reason === "tab-gone" || out.reason === "browser-stopped") && canReopen) return setState({ kind: "offer", reason: out.reason });
-      note(out.reason === "tab-gone" ? "tab is gone" : out.reason === "browser-stopped" ? "browser is not running" : noteFor(out.reason, out.detail));
+      if (
+        (out.reason === "tab-gone" || out.reason === "browser-stopped") &&
+        canReopen
+      )
+        return setState({ kind: "offer", reason: out.reason });
+      note(
+        out.reason === "tab-gone"
+          ? "tab is gone"
+          : out.reason === "browser-stopped"
+            ? "browser is not running"
+            : noteFor(out.reason, out.detail),
+      );
     });
   };
 
@@ -109,12 +136,18 @@ export function useBrowserTabActions(
   // takes the offer back when the session still drives a tab (the daemon
   // answers for the session's current tab when the row's is gone).
   const check = () => {
-    if (!canReopen || (state.kind !== "idle" && state.kind !== "offer") || (!tabId && !bySession)) return;
+    if (
+      !canReopen ||
+      (state.kind !== "idle" && state.kind !== "offer") ||
+      (!tabId && !bySession)
+    )
+      return;
     const now = Date.now();
     if (now - probedAt.current < PROBE_EVERY_MS) return;
     probedAt.current = now;
     void probeBrowserTab(convex, { tabId, ...session }).then((out) => {
-      if (out.ok) return setState((s) => (s.kind === "offer" ? { kind: "idle" } : s));
+      if (out.ok)
+        return setState((s) => (s.kind === "offer" ? { kind: "idle" } : s));
       if (out.reason !== "tab-gone" && out.reason !== "browser-stopped") return;
       const reason = out.reason;
       setState((s) => (s.kind === "idle" ? { kind: "offer", reason } : s));

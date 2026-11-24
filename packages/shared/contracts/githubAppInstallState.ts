@@ -26,7 +26,9 @@ export function newGithubAppInstallNonce(): string {
  * The nonce a callback's `state` names, or null when the state is not one —
  * including every legacy identity-carrying state, which now binds nothing.
  */
-export function parseGithubAppInstallState(raw: string | null | undefined): string | null {
+export function parseGithubAppInstallState(
+  raw: string | null | undefined,
+): string | null {
   if (typeof raw !== "string") return null;
   return /^[0-9a-f]{48}$/.test(raw) ? raw : null;
 }

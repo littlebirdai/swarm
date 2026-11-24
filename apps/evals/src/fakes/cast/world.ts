@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 
-import { writeJsonAtomic } from '../../paths';
+import { writeJsonAtomic } from "../../paths";
 
 // What the fake remembers between one call and the next inside a run: who is
 // calling, what it created, what it sent. A run starts from a seed (the
@@ -41,8 +41,20 @@ export interface FakeWorld {
   pin?: { text: string; status: string };
   brief?: string;
   tasks: Record<string, FakeTask>;
-  triggers: Record<string, { id: string; title: string; schedule: string; status: string }>;
-  decisions: Record<string, { id: string; question: string; options: string[]; status: string; recommended?: string }>;
+  triggers: Record<
+    string,
+    { id: string; title: string; schedule: string; status: string }
+  >;
+  decisions: Record<
+    string,
+    {
+      id: string;
+      question: string;
+      options: string[];
+      status: string;
+      recommended?: string;
+    }
+  >;
   /** Every outbound message, in order: a send, a role wake, a chat post. */
   sent: Array<{ seq: number; kind: string; to: string; text: string }>;
   /** Calls answered so far; orders comments and sends. */
@@ -67,19 +79,33 @@ export interface WorldSeed {
   open?: boolean;
 }
 
-export const DEFAULT_NEXT: Record<string, number> = { 'ct-': 96001, 'tr-': 7301, 'sd-': 3101, msg: 1 };
+export const DEFAULT_NEXT: Record<string, number> = {
+  "ct-": 96001,
+  "tr-": 7301,
+  "sd-": 3101,
+  msg: 1,
+};
 
 /** A map with no prototype: a key the agent types (`__proto__`, `constructor`) is only ever a key. */
-const bare = <T>(from: Record<string, T> | undefined): Record<string, T> => Object.assign(Object.create(null) as Record<string, T>, from ?? {});
+const bare = <T>(from: Record<string, T> | undefined): Record<string, T> =>
+  Object.assign(Object.create(null) as Record<string, T>, from ?? {});
 
 /** Every map in a world made prototype-free, as a world arrives from JSON or a seed. */
 function bareWorld(w: FakeWorld): FakeWorld {
-  return { ...w, roles: bare(w.roles), people: bare(w.people), next: bare(w.next), tasks: bare(w.tasks), triggers: bare(w.triggers), decisions: bare(w.decisions) };
+  return {
+    ...w,
+    roles: bare(w.roles),
+    people: bare(w.people),
+    next: bare(w.next),
+    tasks: bare(w.tasks),
+    triggers: bare(w.triggers),
+    decisions: bare(w.decisions),
+  };
 }
 
 export function newWorld(seed: WorldSeed = {}): FakeWorld {
   return bareWorld({
-    self: seed.self ?? 'jx7f4k3',
+    self: seed.self ?? "jx7f4k3",
     roles: seed.roles ?? {},
     people: seed.people ?? {},
     next: { ...DEFAULT_NEXT, ...seed.next },
@@ -103,10 +129,13 @@ export function mint(w: FakeWorld, prefix: string): string {
 }
 
 export function loadWorld(path: string, seed?: WorldSeed): FakeWorld {
-  return existsSync(path) ? bareWorld(JSON.parse(readFileSync(path, 'utf8')) as FakeWorld) : newWorld(seed);
+  return existsSync(path)
+    ? bareWorld(JSON.parse(readFileSync(path, "utf8")) as FakeWorld)
+    : newWorld(seed);
 }
 
-export const saveWorld = (path: string, w: FakeWorld): void => writeJsonAtomic(path, w);
+export const saveWorld = (path: string, w: FakeWorld): void =>
+  writeJsonAtomic(path, w);
 
 /**
  * Runs fn holding a lock beside the world file, so two calls in flight (a
@@ -121,9 +150,13 @@ export function withLock<T>(path: string, fn: () => T): T {
       break;
     } catch {
       try {
-        if (Date.now() - statSync(lock).mtimeMs > 30_000) rmSync(lock, { recursive: true, force: true });
-      } catch { /* the holder just released it */ }
-      if (waited > 20_000) throw new Error(`the fake's world is locked: ${lock}`);
+        if (Date.now() - statSync(lock).mtimeMs > 30_000)
+          rmSync(lock, { recursive: true, force: true });
+      } catch {
+        /* the holder just released it */
+      }
+      if (waited > 20_000)
+        throw new Error(`the fake's world is locked: ${lock}`);
       Bun.sleepSync(20);
     }
   }

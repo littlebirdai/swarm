@@ -1,9 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -15,17 +10,37 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from 'react-native';
-import { Text as RNText, TextInput } from '@/components/Themed';
+} from "react-native";
+import { Text as RNText, TextInput } from "@/components/Themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { linkArrival } from "@/lib/linkArrival";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Theme, Spacing, themedStyles, useAppearanceKey, useTheme } from "@/constants/Theme";
-import { useInboxStore, type TaskItem, type PlanItem, type DocItem } from "@codecast/web/store/inboxStore";
+import {
+  Theme,
+  Spacing,
+  themedStyles,
+  useAppearanceKey,
+  useTheme,
+} from "@/constants/Theme";
+import {
+  useInboxStore,
+  type TaskItem,
+  type PlanItem,
+  type DocItem,
+} from "@codecast/web/store/inboxStore";
 import { createTaskAndAdopt } from "@codecast/web/lib/taskActions";
-import { buildTaskTree, isOnHumanBoard, taskFamilyIndex } from "@codecast/shared/tasks";
-import { filterDocsByShelf, compareDocsDefault, DOC_SHELF_FILTER_LABELS, type DocShelfFilter } from "@codecast/shared/docs";
+import {
+  buildTaskTree,
+  isOnHumanBoard,
+  taskFamilyIndex,
+} from "@codecast/shared/tasks";
+import {
+  filterDocsByShelf,
+  compareDocsDefault,
+  DOC_SHELF_FILTER_LABELS,
+  type DocShelfFilter,
+} from "@codecast/shared/docs";
 import { useWorkspaceCollection } from "@codecast/web/hooks/useWorkspaceCollection";
 import { filterToWorkspace } from "@codecast/web/lib/workspaceScope";
 import { useFeedLoading } from "@/hooks/useSyncWorkspaceData";
@@ -33,30 +48,70 @@ import { useActiveTeam, useSwitchActiveTeam } from "@/hooks/useWorkspaceArgs";
 import { useOrgRoles } from "@codecast/web/hooks/useOrgRoles";
 import { resolveAssigneeInfo } from "@codecast/web/lib/liveEntities";
 import { sameAssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
-import { TaskItemRow, STATUS_CONFIG, PRIORITY_CONFIG, PRIORITY_ORDER, showTaskActions } from "@/components/TaskItem";
-import { PlanItemRow, PLAN_STATUS_CONFIG, PLAN_STATUS_ORDER } from "@/components/PlanItem";
+import {
+  TaskItemRow,
+  STATUS_CONFIG,
+  PRIORITY_CONFIG,
+  PRIORITY_ORDER,
+  showTaskActions,
+} from "@/components/TaskItem";
+import {
+  PlanItemRow,
+  PLAN_STATUS_CONFIG,
+  PLAN_STATUS_ORDER,
+} from "@/components/PlanItem";
 import { DocItemRow } from "@/components/DocItem";
 import { showActionSheet } from "@/lib/popups";
 import { RoutineList } from "@/components/hosted/Routines";
 
 const ICON_EMOJI: Record<string, string> = {
-  rocket: "🚀", flame: "🔥", zap: "⚡", star: "⭐", diamond: "💎", crown: "👑",
-  shield: "🛡️", sword: "⚔️", anchor: "⚓", compass: "🧭", mountain: "⛰️", tree: "🌲",
-  sun: "☀️", moon: "🌙", cloud: "☁️", bolt: "🔩", atom: "⚛️", dna: "🧬",
+  rocket: "🚀",
+  flame: "🔥",
+  zap: "⚡",
+  star: "⭐",
+  diamond: "💎",
+  crown: "👑",
+  shield: "🛡️",
+  sword: "⚔️",
+  anchor: "⚓",
+  compass: "🧭",
+  mountain: "⛰️",
+  tree: "🌲",
+  sun: "☀️",
+  moon: "🌙",
+  cloud: "☁️",
+  bolt: "🔩",
+  atom: "⚛️",
+  dna: "🧬",
 };
 
 type Segment = "tasks" | "plans" | "docs" | "routines";
-const SEGMENT_LABELS: Record<Segment, string> = { tasks: "Tasks", plans: "Plans", docs: "Docs", routines: "Triggers" };
+const SEGMENT_LABELS: Record<Segment, string> = {
+  tasks: "Tasks",
+  plans: "Plans",
+  docs: "Docs",
+  routines: "Triggers",
+};
 const SEGMENTS = Object.keys(SEGMENT_LABELS) as Segment[];
 type SourceFilter = "" | "human" | "bot";
-type TaskStatus = "backlog" | "open" | "in_progress" | "in_review" | "done" | "dropped";
+type TaskStatus =
+  | "backlog"
+  | "open"
+  | "in_progress"
+  | "in_review"
+  | "done"
+  | "dropped";
 type GroupBy = "status" | "assignee" | "priority" | "plan";
 type SortBy = "priority" | "updated" | "created";
 
 const ACTIVE_STATUSES: TaskStatus[] = ["open", "in_progress", "in_review"];
 const TERMINAL_STATUSES: TaskStatus[] = ["done", "dropped"];
 
-const GROUP_BY_OPTIONS: { key: GroupBy; label: string; icon: React.ComponentProps<typeof FontAwesome>["name"] }[] = [
+const GROUP_BY_OPTIONS: {
+  key: GroupBy;
+  label: string;
+  icon: React.ComponentProps<typeof FontAwesome>["name"];
+}[] = [
   { key: "status", label: "Status", icon: "circle-o" },
   { key: "assignee", label: "Assignee", icon: "user" },
   { key: "priority", label: "Priority", icon: "arrow-up" },
@@ -69,10 +124,18 @@ const SOURCE_OPTIONS: { key: SourceFilter; label: string }[] = [
   { key: "bot", label: "Bot" },
 ];
 
-const DOC_SHELF_OPTIONS = (Object.keys(DOC_SHELF_FILTER_LABELS) as DocShelfFilter[])
-  .map((key) => ({ key, label: DOC_SHELF_FILTER_LABELS[key] }));
+const DOC_SHELF_OPTIONS = (
+  Object.keys(DOC_SHELF_FILTER_LABELS) as DocShelfFilter[]
+).map((key) => ({ key, label: DOC_SHELF_FILTER_LABELS[key] }));
 
-const FILTER_STATUSES: TaskStatus[] = ["open", "in_progress", "in_review", "backlog", "done", "dropped"];
+const FILTER_STATUSES: TaskStatus[] = [
+  "open",
+  "in_progress",
+  "in_review",
+  "backlog",
+  "done",
+  "dropped",
+];
 const FILTER_PRIORITIES = ["urgent", "high", "medium", "low"] as const;
 
 const SORT_OPTIONS: { key: SortBy; label: string }[] = [
@@ -105,23 +168,40 @@ function CreateTaskModal({
     onClose();
   };
 
-  const priorities = (["urgent", "high", "medium", "low"] as const).map((key) => ({
-    key,
-    label: PRIORITY_CONFIG[key].label,
-    color: PRIORITY_CONFIG[key].color,
-  }));
+  const priorities = (["urgent", "high", "medium", "low"] as const).map(
+    (key) => ({
+      key,
+      label: PRIORITY_CONFIG[key].label,
+      color: PRIORITY_CONFIG[key].color,
+    }),
+  );
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={modalStyles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={modalStyles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <RNView style={modalStyles.header}>
           <RNText style={modalStyles.title}>New Task</RNText>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Close">
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Close"
+          >
             <FontAwesome name="times" size={20} color={Theme.textMuted} />
           </TouchableOpacity>
         </RNView>
 
-        <ScrollView style={modalStyles.body} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={modalStyles.body}
+          keyboardShouldPersistTaps="handled"
+        >
           <RNText style={modalStyles.label}>Title</RNText>
           <TextInput
             style={modalStyles.input}
@@ -136,7 +216,10 @@ function CreateTaskModal({
 
           <RNText style={modalStyles.label}>Description</RNText>
           <TextInput
-            style={[modalStyles.input, { minHeight: 80, textAlignVertical: "top" }]}
+            style={[
+              modalStyles.input,
+              { minHeight: 80, textAlignVertical: "top" },
+            ]}
             value={description}
             onChangeText={setDescription}
             placeholder="Add details..."
@@ -152,7 +235,10 @@ function CreateTaskModal({
                 key={p.key}
                 style={[
                   modalStyles.priorityBtn,
-                  priority === p.key && { borderColor: p.color, backgroundColor: p.color + "18" },
+                  priority === p.key && {
+                    borderColor: p.color,
+                    backgroundColor: p.color + "18",
+                  },
                 ]}
                 onPress={() => setPriority(p.key)}
                 activeOpacity={0.7}
@@ -171,7 +257,11 @@ function CreateTaskModal({
         </ScrollView>
 
         <RNView style={modalStyles.footer}>
-          <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={modalStyles.cancelBtn}
+            onPress={onClose}
+            activeOpacity={0.7}
+          >
             <RNText style={modalStyles.cancelBtnText}>Cancel</RNText>
           </TouchableOpacity>
           <TouchableOpacity
@@ -189,7 +279,14 @@ function CreateTaskModal({
 }
 
 type TaskListItem =
-  | { kind: "header"; key: string; icon: React.ComponentProps<typeof FontAwesome>["name"]; color: string; label: string; count: number }
+  | {
+      kind: "header";
+      key: string;
+      icon: React.ComponentProps<typeof FontAwesome>["name"];
+      color: string;
+      label: string;
+      count: number;
+    }
   | { kind: "task"; key: string; task: TaskItem }
   | { kind: "doneToggle"; key: string };
 
@@ -203,7 +300,10 @@ export default function TasksScreen() {
   // the starting segment, and again when a new link arrives while the tab is
   // mounted. Tapping a segment afterwards is the person's own choice, and
   // drops the link's name from the address so the same link works again.
-  const linkParams = useLocalSearchParams<{ segment?: string; assignee?: string }>();
+  const linkParams = useLocalSearchParams<{
+    segment?: string;
+    assignee?: string;
+  }>();
   const linked = linkParams.segment;
   const linkedSegment = SEGMENTS.find((s) => s === linked) ?? null;
   const [segment, setSegment] = useState<Segment>(linkedSegment ?? "tasks");
@@ -223,7 +323,9 @@ export default function TasksScreen() {
   const [sortBy, setSortBy] = useState<SortBy>("priority");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>(linkParams.assignee ?? "");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(
+    linkParams.assignee ?? "",
+  );
   // A person's page links here with their user id (`?assignee=`): it opens the
   // task list filtered to them, again whenever a new person's link arrives.
   // The link is an arrival, not a standing filter (lib/linkArrival): once
@@ -234,7 +336,10 @@ export default function TasksScreen() {
   const arrival = linkArrival(linkedAssignee, seenAssignee);
   if (arrival.seen !== seenAssignee) {
     setSeenAssignee(arrival.seen);
-    if (arrival.apply) { setSegment("tasks"); setAssigneeFilter(arrival.apply); }
+    if (arrival.apply) {
+      setSegment("tasks");
+      setAssigneeFilter(arrival.apply);
+    }
   }
   const navigation = useNavigation();
   useEffect(() => {
@@ -278,12 +383,26 @@ export default function TasksScreen() {
   // held task groups and filters as "Unassigned". The roles are fed app-wide
   // (useSyncWorkspaceData), so they are in the store before this tab opens.
   const { roles: orgRoles } = useOrgRoles();
-  const tasksList = useMemo(() => filterToWorkspace(Object.values(tasks), teamId)
-    .map((t) => {
-      const info = resolveAssigneeInfo(t.assignee, t.assignee_info, null, null, orgRoles);
-      return sameAssigneeInfo(info, t.assignee_info) ? t : ({ ...t, assignee_info: info } as TaskItem);
-    }), [tasks, teamId, orgRoles]);
-  const plansList = useMemo(() => filterToWorkspace(Object.values(plans), teamId), [plans, teamId]);
+  const tasksList = useMemo(
+    () =>
+      filterToWorkspace(Object.values(tasks), teamId).map((t) => {
+        const info = resolveAssigneeInfo(
+          t.assignee,
+          t.assignee_info,
+          null,
+          null,
+          orgRoles,
+        );
+        return sameAssigneeInfo(info, t.assignee_info)
+          ? t
+          : ({ ...t, assignee_info: info } as TaskItem);
+      }),
+    [tasks, teamId, orgRoles],
+  );
+  const plansList = useMemo(
+    () => filterToWorkspace(Object.values(plans), teamId),
+    [plans, teamId],
+  );
   // Docs go through the workspace key and the registry's listed rule (archived
   // docs stay held but leave lists), the same read the web docs page makes.
   const docsList = useWorkspaceCollection<DocItem>("docs");
@@ -295,19 +414,38 @@ export default function TasksScreen() {
   // for them this degrades to a plain source split.
   const onBoard = isOnHumanBoard;
   // Ephemeral bookkeeping (task-graph.md TG9) stays out of every view but "bot".
-  const applySourceFilter = useCallback(<T extends { source?: string; promoted?: boolean; assignee?: string | null; ephemeral?: boolean | null }>(list: T[]): T[] => {
-    if (sourceFilter === "human") return list.filter(onBoard);
-    if (sourceFilter === "bot") return list.filter((i) => !onBoard(i));
-    return list.filter((i) => !i.ephemeral);
-  }, [sourceFilter]);
+  const applySourceFilter = useCallback(
+    <
+      T extends {
+        source?: string;
+        promoted?: boolean;
+        assignee?: string | null;
+        ephemeral?: boolean | null;
+      },
+    >(
+      list: T[],
+    ): T[] => {
+      if (sourceFilter === "human") return list.filter(onBoard);
+      if (sourceFilter === "bot") return list.filter((i) => !onBoard(i));
+      return list.filter((i) => !i.ephemeral);
+    },
+    [sourceFilter],
+  );
 
   const filteredTasks = useMemo(() => {
     let list = applySourceFilter(tasksList);
     if (statusFilter) list = list.filter((t) => t.status === statusFilter);
-    if (priorityFilter) list = list.filter((t) => t.priority === priorityFilter);
+    if (priorityFilter)
+      list = list.filter((t) => t.priority === priorityFilter);
     if (assigneeFilter) {
-      if (assigneeFilter === "_unassigned") list = list.filter((t) => !t.assignee);
-      else list = list.filter((t) => t.assignee === assigneeFilter || t.assignee_info?.name === assigneeFilter);
+      if (assigneeFilter === "_unassigned")
+        list = list.filter((t) => !t.assignee);
+      else
+        list = list.filter(
+          (t) =>
+            t.assignee === assigneeFilter ||
+            t.assignee_info?.name === assigneeFilter,
+        );
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -320,21 +458,35 @@ export default function TasksScreen() {
       );
     }
     return list;
-  }, [tasksList, searchQuery, applySourceFilter, statusFilter, priorityFilter, assigneeFilter]);
+  }, [
+    tasksList,
+    searchQuery,
+    applySourceFilter,
+    statusFilter,
+    priorityFilter,
+    assigneeFilter,
+  ]);
 
   // Sort, then nest: buildTaskTree reorders so each subtask follows its parent
   // while the sort order holds within every level. Every group runs through
   // here, so this one call nests them all. Same helper as web — one rule for
   // what nests under what. It only reorders: a subtask whose parent was
   // filtered out is promoted to the top level, never dropped.
-  const sortTasks = useCallback((list: TaskItem[]) => {
-    const sorted = [...list].sort((a, b) => {
-      if (sortBy === "priority") return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3) || b.updated_at - a.updated_at;
-      if (sortBy === "created") return b.created_at - a.created_at;
-      return b.updated_at - a.updated_at;
-    });
-    return buildTaskTree(sorted).map((r) => r.task);
-  }, [sortBy]);
+  const sortTasks = useCallback(
+    (list: TaskItem[]) => {
+      const sorted = [...list].sort((a, b) => {
+        if (sortBy === "priority")
+          return (
+            (PRIORITY_ORDER[a.priority] ?? 3) -
+              (PRIORITY_ORDER[b.priority] ?? 3) || b.updated_at - a.updated_at
+          );
+        if (sortBy === "created") return b.created_at - a.created_at;
+        return b.updated_at - a.updated_at;
+      });
+      return buildTaskTree(sorted).map((r) => r.task);
+    },
+    [sortBy],
+  );
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, TaskItem[]> = {};
@@ -357,10 +509,17 @@ export default function TasksScreen() {
   // inside each group, so a parent under one header never adopts a child filed
   // under another) plus the on-screen descendant count from the same rows.
   const viewNesting = useMemo(() => {
-    const byId = new Map<string, { indent: number; depth: number; visibleDescendants: number }>();
+    const byId = new Map<
+      string,
+      { indent: number; depth: number; visibleDescendants: number }
+    >();
     for (const rows of Object.values(groupedTasks)) {
       for (const row of buildTaskTree(rows)) {
-        byId.set(row.task._id, { indent: row.indent, depth: row.depth, visibleDescendants: row.descendantCount });
+        byId.set(row.task._id, {
+          indent: row.indent,
+          depth: row.depth,
+          visibleDescendants: row.descendantCount,
+        });
       }
     }
     return byId;
@@ -381,37 +540,113 @@ export default function TasksScreen() {
 
   // Every filter and view option sits behind the one Filter button: a sheet
   // naming each setting with its current value, each opening its own picker.
-  const pickGroupBy = useCallback(() => showActionSheet("Group By", GROUP_BY_OPTIONS.map((o) => ({
-    label: o.label, selected: o.key === groupBy, onPress: () => setGroupBy(o.key),
-  }))), [groupBy]);
+  const pickGroupBy = useCallback(
+    () =>
+      showActionSheet(
+        "Group By",
+        GROUP_BY_OPTIONS.map((o) => ({
+          label: o.label,
+          selected: o.key === groupBy,
+          onPress: () => setGroupBy(o.key),
+        })),
+      ),
+    [groupBy],
+  );
 
-  const pickSort = useCallback(() => showActionSheet("Sort By", SORT_OPTIONS.map((o) => ({
-    label: o.label, selected: o.key === sortBy, onPress: () => setSortBy(o.key),
-  }))), [sortBy]);
+  const pickSort = useCallback(
+    () =>
+      showActionSheet(
+        "Sort By",
+        SORT_OPTIONS.map((o) => ({
+          label: o.label,
+          selected: o.key === sortBy,
+          onPress: () => setSortBy(o.key),
+        })),
+      ),
+    [sortBy],
+  );
 
-  const pickSource = useCallback(() => showActionSheet("Show", SOURCE_OPTIONS.map((o) => ({
-    label: o.label, selected: o.key === sourceFilter, onPress: () => setSourceFilter(o.key),
-  }))), [sourceFilter]);
+  const pickSource = useCallback(
+    () =>
+      showActionSheet(
+        "Show",
+        SOURCE_OPTIONS.map((o) => ({
+          label: o.label,
+          selected: o.key === sourceFilter,
+          onPress: () => setSourceFilter(o.key),
+        })),
+      ),
+    [sourceFilter],
+  );
 
-  const pickDocShelf = useCallback(() => showActionSheet("Show", DOC_SHELF_OPTIONS.map((o) => ({
-    label: o.label, selected: o.key === docShelf, onPress: () => setDocShelf(o.key),
-  }))), [docShelf]);
+  const pickDocShelf = useCallback(
+    () =>
+      showActionSheet(
+        "Show",
+        DOC_SHELF_OPTIONS.map((o) => ({
+          label: o.label,
+          selected: o.key === docShelf,
+          onPress: () => setDocShelf(o.key),
+        })),
+      ),
+    [docShelf],
+  );
 
-  const pickStatus = useCallback(() => showActionSheet("Filter by Status", [
-    { label: "All Statuses", selected: !statusFilter, onPress: () => setStatusFilter("") },
-    ...FILTER_STATUSES.map((st) => ({ label: STATUS_CONFIG[st].label, selected: st === statusFilter, onPress: () => setStatusFilter(st) })),
-  ]), [statusFilter]);
+  const pickStatus = useCallback(
+    () =>
+      showActionSheet("Filter by Status", [
+        {
+          label: "All Statuses",
+          selected: !statusFilter,
+          onPress: () => setStatusFilter(""),
+        },
+        ...FILTER_STATUSES.map((st) => ({
+          label: STATUS_CONFIG[st].label,
+          selected: st === statusFilter,
+          onPress: () => setStatusFilter(st),
+        })),
+      ]),
+    [statusFilter],
+  );
 
-  const pickPriority = useCallback(() => showActionSheet("Filter by Priority", [
-    { label: "All Priorities", selected: !priorityFilter, onPress: () => setPriorityFilter("") },
-    ...FILTER_PRIORITIES.map((pr) => ({ label: PRIORITY_CONFIG[pr].label, selected: pr === priorityFilter, onPress: () => setPriorityFilter(pr) })),
-  ]), [priorityFilter]);
+  const pickPriority = useCallback(
+    () =>
+      showActionSheet("Filter by Priority", [
+        {
+          label: "All Priorities",
+          selected: !priorityFilter,
+          onPress: () => setPriorityFilter(""),
+        },
+        ...FILTER_PRIORITIES.map((pr) => ({
+          label: PRIORITY_CONFIG[pr].label,
+          selected: pr === priorityFilter,
+          onPress: () => setPriorityFilter(pr),
+        })),
+      ]),
+    [priorityFilter],
+  );
 
-  const pickAssignee = useCallback(() => showActionSheet("Filter by Assignee", [
-    { label: "All Assignees", selected: !assigneeFilter, onPress: () => setAssigneeFilter("") },
-    { label: "Unassigned", selected: assigneeFilter === "_unassigned", onPress: () => setAssigneeFilter("_unassigned") },
-    ...uniqueAssignees.map((name) => ({ label: name, selected: name === assigneeFilter, onPress: () => setAssigneeFilter(name) })),
-  ]), [assigneeFilter, uniqueAssignees]);
+  const pickAssignee = useCallback(
+    () =>
+      showActionSheet("Filter by Assignee", [
+        {
+          label: "All Assignees",
+          selected: !assigneeFilter,
+          onPress: () => setAssigneeFilter(""),
+        },
+        {
+          label: "Unassigned",
+          selected: assigneeFilter === "_unassigned",
+          onPress: () => setAssigneeFilter("_unassigned"),
+        },
+        ...uniqueAssignees.map((name) => ({
+          label: name,
+          selected: name === assigneeFilter,
+          onPress: () => setAssigneeFilter(name),
+        })),
+      ]),
+    [assigneeFilter, uniqueAssignees],
+  );
 
   // The active filters, one entry each: the chips under the header and the
   // count on the Filter button both read this list. Status, priority and
@@ -419,39 +654,129 @@ export default function TasksScreen() {
   const activeFilters = useMemo(() => {
     const list: { key: string; label: string; clear: () => void }[] = [];
     if (segment === "docs") {
-      if (docShelf) list.push({ key: "source", label: DOC_SHELF_FILTER_LABELS[docShelf], clear: () => setDocShelf("") });
+      if (docShelf)
+        list.push({
+          key: "source",
+          label: DOC_SHELF_FILTER_LABELS[docShelf],
+          clear: () => setDocShelf(""),
+        });
       return list;
     }
-    if (sourceFilter) list.push({ key: "source", label: sourceFilter === "human" ? "Human" : "Bot", clear: () => setSourceFilter("") });
+    if (sourceFilter)
+      list.push({
+        key: "source",
+        label: sourceFilter === "human" ? "Human" : "Bot",
+        clear: () => setSourceFilter(""),
+      });
     if (segment !== "tasks") return list;
-    if (statusFilter) list.push({ key: "status", label: STATUS_CONFIG[statusFilter]?.label, clear: () => setStatusFilter("") });
-    if (priorityFilter) list.push({ key: "priority", label: PRIORITY_CONFIG[priorityFilter as keyof typeof PRIORITY_CONFIG]?.label, clear: () => setPriorityFilter("") });
+    if (statusFilter)
+      list.push({
+        key: "status",
+        label: STATUS_CONFIG[statusFilter]?.label,
+        clear: () => setStatusFilter(""),
+      });
+    if (priorityFilter)
+      list.push({
+        key: "priority",
+        label:
+          PRIORITY_CONFIG[priorityFilter as keyof typeof PRIORITY_CONFIG]
+            ?.label,
+        clear: () => setPriorityFilter(""),
+      });
     if (assigneeFilter) {
       // A linked filter holds a user id; the chip names the person.
-      const named = assigneeFilter === "_unassigned" ? "Unassigned" : tasksList.find((t) => t.assignee === assigneeFilter)?.assignee_info?.name ?? assigneeFilter;
-      list.push({ key: "assignee", label: named, clear: () => setAssigneeFilter("") });
+      const named =
+        assigneeFilter === "_unassigned"
+          ? "Unassigned"
+          : (tasksList.find((t) => t.assignee === assigneeFilter)?.assignee_info
+              ?.name ?? assigneeFilter);
+      list.push({
+        key: "assignee",
+        label: named,
+        clear: () => setAssigneeFilter(""),
+      });
     }
     return list;
-  }, [segment, sourceFilter, docShelf, statusFilter, priorityFilter, assigneeFilter, tasksList]);
+  }, [
+    segment,
+    sourceFilter,
+    docShelf,
+    statusFilter,
+    priorityFilter,
+    assigneeFilter,
+    tasksList,
+  ]);
 
   const openFilterMenu = useCallback(() => {
-    const valueOf = <T,>(opts: { key: T; label: string }[], key: T) => opts.find((o) => o.key === key)?.label ?? "";
+    const valueOf = <T,>(opts: { key: T; label: string }[], key: T) =>
+      opts.find((o) => o.key === key)?.label ?? "";
     showActionSheet(segment === "tasks" ? "Filter & Sort" : "Filter", [
       segment === "docs"
-        ? { label: `Show: ${DOC_SHELF_FILTER_LABELS[docShelf]}`, onPress: pickDocShelf }
-        : { label: `Show: ${valueOf(SOURCE_OPTIONS, sourceFilter)}`, onPress: pickSource },
-      ...(segment === "tasks" ? [
-        { label: `Status: ${statusFilter ? STATUS_CONFIG[statusFilter].label : "All"}`, onPress: pickStatus },
-        { label: `Priority: ${priorityFilter ? PRIORITY_CONFIG[priorityFilter as keyof typeof PRIORITY_CONFIG].label : "All"}`, onPress: pickPriority },
-        { label: `Assignee: ${assigneeFilter ? (assigneeFilter === "_unassigned" ? "Unassigned" : assigneeFilter) : "All"}`, onPress: pickAssignee },
-        { label: `Group by: ${valueOf(GROUP_BY_OPTIONS, groupBy)}`, onPress: pickGroupBy },
-        { label: `Sort by: ${valueOf(SORT_OPTIONS, sortBy)}`, onPress: pickSort },
-      ] : []),
-      ...(activeFilters.length > 0 ? [{ label: "Clear filters", destructive: true, onPress: () => activeFilters.forEach((f) => f.clear()) }] : []),
+        ? {
+            label: `Show: ${DOC_SHELF_FILTER_LABELS[docShelf]}`,
+            onPress: pickDocShelf,
+          }
+        : {
+            label: `Show: ${valueOf(SOURCE_OPTIONS, sourceFilter)}`,
+            onPress: pickSource,
+          },
+      ...(segment === "tasks"
+        ? [
+            {
+              label: `Status: ${statusFilter ? STATUS_CONFIG[statusFilter].label : "All"}`,
+              onPress: pickStatus,
+            },
+            {
+              label: `Priority: ${priorityFilter ? PRIORITY_CONFIG[priorityFilter as keyof typeof PRIORITY_CONFIG].label : "All"}`,
+              onPress: pickPriority,
+            },
+            {
+              label: `Assignee: ${assigneeFilter ? (assigneeFilter === "_unassigned" ? "Unassigned" : assigneeFilter) : "All"}`,
+              onPress: pickAssignee,
+            },
+            {
+              label: `Group by: ${valueOf(GROUP_BY_OPTIONS, groupBy)}`,
+              onPress: pickGroupBy,
+            },
+            {
+              label: `Sort by: ${valueOf(SORT_OPTIONS, sortBy)}`,
+              onPress: pickSort,
+            },
+          ]
+        : []),
+      ...(activeFilters.length > 0
+        ? [
+            {
+              label: "Clear filters",
+              destructive: true,
+              onPress: () => activeFilters.forEach((f) => f.clear()),
+            },
+          ]
+        : []),
     ]);
-  }, [segment, sourceFilter, docShelf, statusFilter, priorityFilter, assigneeFilter, groupBy, sortBy, activeFilters, pickSource, pickDocShelf, pickStatus, pickPriority, pickAssignee, pickGroupBy, pickSort]);
+  }, [
+    segment,
+    sourceFilter,
+    docShelf,
+    statusFilter,
+    priorityFilter,
+    assigneeFilter,
+    groupBy,
+    sortBy,
+    activeFilters,
+    pickSource,
+    pickDocShelf,
+    pickStatus,
+    pickPriority,
+    pickAssignee,
+    pickGroupBy,
+    pickSort,
+  ]);
 
-  const filteredPlans = useMemo(() => applySourceFilter(plansList), [plansList, applySourceFilter]);
+  const filteredPlans = useMemo(
+    () => applySourceFilter(plansList),
+    [plansList, applySourceFilter],
+  );
 
   const groupedPlans = useMemo(() => {
     const groups: Record<string, PlanItem[]> = {};
@@ -482,12 +807,17 @@ export default function TasksScreen() {
   }, [docsList, searchQuery, docShelf]);
 
   const activeTaskCount = useMemo(
-    () => filteredTasks.filter((t) => ACTIVE_STATUSES.includes(t.status as TaskStatus)).length,
+    () =>
+      filteredTasks.filter((t) =>
+        ACTIVE_STATUSES.includes(t.status as TaskStatus),
+      ).length,
     [filteredTasks],
   );
 
   const activePlanCount = useMemo(
-    () => filteredPlans.filter((p) => p.status === "active" || p.status === "draft").length,
+    () =>
+      filteredPlans.filter((p) => p.status === "active" || p.status === "draft")
+        .length,
     [filteredPlans],
   );
 
@@ -508,7 +838,9 @@ export default function TasksScreen() {
         priority,
         description,
         status: "open",
-        ...(teamId ? { workspace: "team", team_id: teamId } : { workspace: "personal" }),
+        ...(teamId
+          ? { workspace: "team", team_id: teamId }
+          : { workspace: "personal" }),
       });
     },
     [teamId],
@@ -523,7 +855,8 @@ export default function TasksScreen() {
 
   const taskGroupOrder = useMemo(() => {
     if (groupBy === "status") return [...ACTIVE_STATUSES, "backlog"];
-    if (groupBy === "priority") return ["urgent", "high", "medium", "low", "none"];
+    if (groupBy === "priority")
+      return ["urgent", "high", "medium", "low", "none"];
     return Object.keys(groupedTasks).sort((a, b) => {
       if (a === "Unassigned" || a === "No Plan") return 1;
       if (b === "Unassigned" || b === "No Plan") return -1;
@@ -543,10 +876,18 @@ export default function TasksScreen() {
       let label = groupKey;
       if (groupBy === "status") {
         const cfg = STATUS_CONFIG[groupKey as TaskStatus];
-        if (cfg) { icon = cfg.icon; color = cfg.color; label = cfg.label; }
+        if (cfg) {
+          icon = cfg.icon;
+          color = cfg.color;
+          label = cfg.label;
+        }
       } else if (groupBy === "priority") {
         const cfg = PRIORITY_CONFIG[groupKey as keyof typeof PRIORITY_CONFIG];
-        if (cfg) { icon = cfg.icon; color = cfg.color; label = cfg.label; }
+        if (cfg) {
+          icon = cfg.icon;
+          color = cfg.color;
+          label = cfg.label;
+        }
       } else if (groupBy === "assignee") {
         icon = groupKey === "Unassigned" ? "user-o" : "user";
         color = groupKey === "Unassigned" ? Theme.textMuted0 : Theme.accent;
@@ -557,8 +898,19 @@ export default function TasksScreen() {
         label = groupKey;
       }
       return [
-        { kind: "header", key: `h:${groupKey}`, icon, color, label, count: items.length },
-        ...items.map((t): TaskListItem => ({ kind: "task", key: t._id, task: t })),
+        {
+          kind: "header",
+          key: `h:${groupKey}`,
+          icon,
+          color,
+          label,
+          count: items.length,
+        },
+        ...items.map((t): TaskListItem => ({
+          kind: "task",
+          key: t._id,
+          task: t,
+        })),
       ];
     },
     [groupedTasks, groupBy],
@@ -566,7 +918,10 @@ export default function TasksScreen() {
 
   const taskListItems = useMemo((): TaskListItem[] => {
     const out = taskGroupOrder.flatMap(taskGroupItems);
-    if (groupBy === "status" && TERMINAL_STATUSES.some((s) => groupedTasks[s]?.length)) {
+    if (
+      groupBy === "status" &&
+      TERMINAL_STATUSES.some((s) => groupedTasks[s]?.length)
+    ) {
       out.push({ kind: "doneToggle", key: "doneToggle" });
       if (showDone) out.push(...TERMINAL_STATUSES.flatMap(taskGroupItems));
     }
@@ -608,9 +963,10 @@ export default function TasksScreen() {
       const total = familyIndex.descendants.get(t._id) ?? 0;
       // Floated subtask: parent_id set but the tree kept it at depth 0
       // (parent filtered out), so name the parent.
-      const parent = t.parent_id && (nest?.depth ?? 0) === 0
-        ? (tasks[String(t.parent_id)] as TaskItem | undefined)
-        : undefined;
+      const parent =
+        t.parent_id && (nest?.depth ?? 0) === 0
+          ? (tasks[String(t.parent_id)] as TaskItem | undefined)
+          : undefined;
       return (
         <TaskItemRow
           task={t}
@@ -618,7 +974,10 @@ export default function TasksScreen() {
           onLongPress={() => showTaskActions(t, updateTask)}
           indent={nest?.indent ?? 0}
           progress={familyIndex.progress.get(t._id)}
-          hiddenDescendantCount={Math.max(0, total - (nest?.visibleDescendants ?? 0))}
+          hiddenDescendantCount={Math.max(
+            0,
+            total - (nest?.visibleDescendants ?? 0),
+          )}
           parentChip={parent ? { short_id: parent.short_id } : null}
         />
       );
@@ -626,12 +985,13 @@ export default function TasksScreen() {
     [router, updateTask, viewNesting, familyIndex, tasks, showDone],
   );
 
-
   const renderPlanSection = useCallback(
     (status: string) => {
       const items = groupedPlans[status];
       if (!items?.length) return null;
-      const cfg = PLAN_STATUS_CONFIG[status as keyof typeof PLAN_STATUS_CONFIG] ?? PLAN_STATUS_CONFIG.draft;
+      const cfg =
+        PLAN_STATUS_CONFIG[status as keyof typeof PLAN_STATUS_CONFIG] ??
+        PLAN_STATUS_CONFIG.draft;
       return (
         <RNView key={status}>
           <RNView style={styles.sectionHeader}>
@@ -655,7 +1015,10 @@ export default function TasksScreen() {
 
   const renderDocItem = useCallback(
     ({ item }: { item: DocItem }) => (
-      <DocItemRow doc={item} onPress={() => router.push(`/doc/${item._id}` as any)} />
+      <DocItemRow
+        doc={item}
+        onPress={() => router.push(`/doc/${item._id}` as any)}
+      />
     ),
     [router],
   );
@@ -664,11 +1027,16 @@ export default function TasksScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <RNView style={styles.header}>
         <RNView style={styles.headerLeft}>
-          <RNText style={styles.headerTitle}>
-            {SEGMENT_LABELS[segment]}
-          </RNText>
+          <RNText style={styles.headerTitle}>{SEGMENT_LABELS[segment]}</RNText>
           {(() => {
-            const count = segment === "tasks" ? activeTaskCount : segment === "plans" ? activePlanCount : segment === "docs" ? docCount : 0;
+            const count =
+              segment === "tasks"
+                ? activeTaskCount
+                : segment === "plans"
+                  ? activePlanCount
+                  : segment === "docs"
+                    ? docCount
+                    : 0;
             return count > 0 ? (
               <RNView style={styles.countBadge}>
                 <RNText style={styles.countBadgeText}>{count}</RNText>
@@ -677,37 +1045,60 @@ export default function TasksScreen() {
           })()}
         </RNView>
         <RNView style={styles.headerRight}>
-          {(segment === "tasks" || segment === "docs") && !searchOpen && !searchInput && (
+          {(segment === "tasks" || segment === "docs") &&
+            !searchOpen &&
+            !searchInput && (
+              <TouchableOpacity
+                style={styles.headerIconBtn}
+                onPress={() => setSearchOpen(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                accessibilityLabel={`Search ${SEGMENT_LABELS[segment].toLowerCase()}`}
+              >
+                <FontAwesome name="search" size={15} color={Theme.textMuted} />
+              </TouchableOpacity>
+            )}
+          {segment !== "routines" && (
             <TouchableOpacity
-              style={styles.headerIconBtn}
-              onPress={() => setSearchOpen(true)}
+              style={[
+                styles.filterBtn,
+                activeFilters.length > 0 && styles.filterBtnActive,
+              ]}
+              onPress={openFilterMenu}
               activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-              accessibilityLabel={`Search ${SEGMENT_LABELS[segment].toLowerCase()}`}
+              accessibilityLabel={
+                activeFilters.length > 0
+                  ? `Filters, ${activeFilters.length} active`
+                  : "Filters"
+              }
             >
-              <FontAwesome name="search" size={15} color={Theme.textMuted} />
+              <FontAwesome
+                name="sliders"
+                size={13}
+                color={
+                  activeFilters.length > 0 ? Theme.accent : Theme.textMuted
+                }
+              />
+              {activeFilters.length > 0 && (
+                <RNText style={styles.filterBtnCount}>
+                  {activeFilters.length}
+                </RNText>
+              )}
             </TouchableOpacity>
           )}
-          {segment !== "routines" && (
           <TouchableOpacity
-            style={[styles.filterBtn, activeFilters.length > 0 && styles.filterBtnActive]}
-            onPress={openFilterMenu}
+            style={styles.workspaceBtn}
+            onPress={showWorkspacePicker}
             activeOpacity={0.7}
-            accessibilityLabel={activeFilters.length > 0 ? `Filters, ${activeFilters.length} active` : "Filters"}
           >
-            <FontAwesome name="sliders" size={13} color={activeFilters.length > 0 ? Theme.accent : Theme.textMuted} />
-            {activeFilters.length > 0 && (
-              <RNText style={styles.filterBtnCount}>{activeFilters.length}</RNText>
-            )}
-          </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.workspaceBtn} onPress={showWorkspacePicker} activeOpacity={0.7}>
             {teamId && activeTeam ? (
               <>
                 <RNText style={styles.workspaceIcon}>
                   {ICON_EMOJI[activeTeam.icon || ""] || ""}
                 </RNText>
-                <RNText style={styles.workspaceName} numberOfLines={1}>{activeTeam.name}</RNText>
+                <RNText style={styles.workspaceName} numberOfLines={1}>
+                  {activeTeam.name}
+                </RNText>
               </>
             ) : (
               <>
@@ -715,7 +1106,11 @@ export default function TasksScreen() {
                 <RNText style={styles.workspaceName}>Personal</RNText>
               </>
             )}
-            <FontAwesome name="chevron-down" size={8} color={Theme.textMuted0} />
+            <FontAwesome
+              name="chevron-down"
+              size={8}
+              color={Theme.textMuted0}
+            />
           </TouchableOpacity>
         </RNView>
       </RNView>
@@ -725,11 +1120,25 @@ export default function TasksScreen() {
           {SEGMENTS.map((s) => (
             <TouchableOpacity
               key={s}
-              style={[styles.segmentBtn, segment === s && styles.segmentBtnActive]}
-              onPress={() => { setSegment(s); if (linked) router.setParams({ segment: undefined }); setSearchInput(""); setSearchQuery(""); setSearchOpen(false); }}
+              style={[
+                styles.segmentBtn,
+                segment === s && styles.segmentBtnActive,
+              ]}
+              onPress={() => {
+                setSegment(s);
+                if (linked) router.setParams({ segment: undefined });
+                setSearchInput("");
+                setSearchQuery("");
+                setSearchOpen(false);
+              }}
               activeOpacity={0.7}
             >
-              <RNText style={[styles.segmentText, segment === s && styles.segmentTextActive]}>
+              <RNText
+                style={[
+                  styles.segmentText,
+                  segment === s && styles.segmentTextActive,
+                ]}
+              >
                 {SEGMENT_LABELS[s]}
               </RNText>
             </TouchableOpacity>
@@ -737,12 +1146,19 @@ export default function TasksScreen() {
         </RNView>
       </RNView>
 
-      {(activeFilters.length > 0 || ((segment === "tasks" || segment === "docs") && (searchOpen || searchInput))) && (
+      {(activeFilters.length > 0 ||
+        ((segment === "tasks" || segment === "docs") &&
+          (searchOpen || searchInput))) && (
         <RNView style={styles.filterBar}>
           {activeFilters.length > 0 && (
             <RNView style={styles.activeFiltersRow}>
               {activeFilters.map((f) => (
-                <TouchableOpacity key={f.key} style={styles.activeFilterChip} onPress={f.clear} activeOpacity={0.7}>
+                <TouchableOpacity
+                  key={f.key}
+                  style={styles.activeFilterChip}
+                  onPress={f.clear}
+                  activeOpacity={0.7}
+                >
                   <RNText style={styles.activeFilterText}>{f.label}</RNText>
                   <FontAwesome name="times" size={9} color={Theme.textMuted} />
                 </TouchableOpacity>
@@ -750,29 +1166,40 @@ export default function TasksScreen() {
             </RNView>
           )}
 
-          {(segment === "tasks" || segment === "docs") && (searchOpen || searchInput) && (
-            <RNView style={styles.searchBarRow}>
-              <RNView style={styles.searchInputRow}>
-                <FontAwesome name="search" size={13} color={Theme.textMuted0} style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.searchInput}
-                  value={searchInput}
-                  onChangeText={handleSearchChange}
-                  placeholder={segment === "tasks" ? "Filter tasks..." : "Filter docs..."}
-                  placeholderTextColor={Theme.textMuted0}
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  autoFocus={!searchInput}
-                />
+          {(segment === "tasks" || segment === "docs") &&
+            (searchOpen || searchInput) && (
+              <RNView style={styles.searchBarRow}>
+                <RNView style={styles.searchInputRow}>
+                  <FontAwesome
+                    name="search"
+                    size={13}
+                    color={Theme.textMuted0}
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={styles.searchInput}
+                    value={searchInput}
+                    onChangeText={handleSearchChange}
+                    placeholder={
+                      segment === "tasks" ? "Filter tasks..." : "Filter docs..."
+                    }
+                    placeholderTextColor={Theme.textMuted0}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    autoFocus={!searchInput}
+                  />
+                </RNView>
+                <TouchableOpacity
+                  onPress={() => {
+                    handleSearchChange("");
+                    setSearchOpen(false);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+                >
+                  <RNText style={styles.searchCancel}>Cancel</RNText>
+                </TouchableOpacity>
               </RNView>
-              <TouchableOpacity
-                onPress={() => { handleSearchChange(""); setSearchOpen(false); }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
-              >
-                <RNText style={styles.searchCancel}>Cancel</RNText>
-              </TouchableOpacity>
-            </RNView>
-          )}
+            )}
         </RNView>
       )}
 
@@ -785,7 +1212,11 @@ export default function TasksScreen() {
           maxToRenderPerBatch={16}
           windowSize={9}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.textMuted} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Theme.textMuted}
+            />
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -803,7 +1234,11 @@ export default function TasksScreen() {
           maxToRenderPerBatch={16}
           windowSize={9}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.textMuted} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Theme.textMuted}
+            />
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -811,70 +1246,92 @@ export default function TasksScreen() {
           ListFooterComponent={<RNView style={{ height: 80 }} />}
         />
       ) : (
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.textMuted} />
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {segment === "tasks" ? (
-          <>
-            {!tasksReady && tasksList.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <ActivityIndicator size="small" color={Theme.textMuted} />
-              </RNView>
-            ) : filteredTasks.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <FontAwesome name="check-square-o" size={32} color={Theme.textMuted0} />
-                <RNText style={styles.emptyText}>No tasks</RNText>
-                <RNText style={styles.emptySubtext}>
-                  {searchQuery || sourceFilter ? "Try a different filter" : "Create a task to get started"}
-                </RNText>
-              </RNView>
-            ) : null}
-          </>
-        ) : segment === "plans" ? (
-          <>
-            {!plansReady && plansList.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <ActivityIndicator size="small" color={Theme.textMuted} />
-              </RNView>
-            ) : filteredPlans.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <FontAwesome name="map-o" size={32} color={Theme.textMuted0} />
-                <RNText style={styles.emptyText}>No plans</RNText>
-                <RNText style={styles.emptySubtext}>
-                  {sourceFilter ? "Try a different filter" : "Plans group tasks toward a goal"}
-                </RNText>
-              </RNView>
-            ) : (
-              PLAN_STATUS_ORDER.map((s) => renderPlanSection(s))
-            )}
-          </>
-        ) : segment === "routines" ? (
-          <RNView style={styles.routines}>
-            <RoutineList />
-          </RNView>
-        ) : (
-          <>
-            {!docsReady && docsList.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <ActivityIndicator size="small" color={Theme.textMuted} />
-              </RNView>
-            ) : filteredDocs.length === 0 ? (
-              <RNView style={styles.emptyState}>
-                <FontAwesome name="file-text-o" size={32} color={Theme.textMuted0} />
-                <RNText style={styles.emptyText}>No docs</RNText>
-                <RNText style={styles.emptySubtext}>
-                  {searchQuery || docShelf ? "Try a different filter" : "Documents you write or star"}
-                </RNText>
-              </RNView>
-            ) : null}
-          </>
-        )}
-        <RNView style={{ height: 80 }} />
-      </ScrollView>
+        <ScrollView
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Theme.textMuted}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {segment === "tasks" ? (
+            <>
+              {!tasksReady && tasksList.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <ActivityIndicator size="small" color={Theme.textMuted} />
+                </RNView>
+              ) : filteredTasks.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <FontAwesome
+                    name="check-square-o"
+                    size={32}
+                    color={Theme.textMuted0}
+                  />
+                  <RNText style={styles.emptyText}>No tasks</RNText>
+                  <RNText style={styles.emptySubtext}>
+                    {searchQuery || sourceFilter
+                      ? "Try a different filter"
+                      : "Create a task to get started"}
+                  </RNText>
+                </RNView>
+              ) : null}
+            </>
+          ) : segment === "plans" ? (
+            <>
+              {!plansReady && plansList.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <ActivityIndicator size="small" color={Theme.textMuted} />
+                </RNView>
+              ) : filteredPlans.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <FontAwesome
+                    name="map-o"
+                    size={32}
+                    color={Theme.textMuted0}
+                  />
+                  <RNText style={styles.emptyText}>No plans</RNText>
+                  <RNText style={styles.emptySubtext}>
+                    {sourceFilter
+                      ? "Try a different filter"
+                      : "Plans group tasks toward a goal"}
+                  </RNText>
+                </RNView>
+              ) : (
+                PLAN_STATUS_ORDER.map((s) => renderPlanSection(s))
+              )}
+            </>
+          ) : segment === "routines" ? (
+            <RNView style={styles.routines}>
+              <RoutineList />
+            </RNView>
+          ) : (
+            <>
+              {!docsReady && docsList.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <ActivityIndicator size="small" color={Theme.textMuted} />
+                </RNView>
+              ) : filteredDocs.length === 0 ? (
+                <RNView style={styles.emptyState}>
+                  <FontAwesome
+                    name="file-text-o"
+                    size={32}
+                    color={Theme.textMuted0}
+                  />
+                  <RNText style={styles.emptyText}>No docs</RNText>
+                  <RNText style={styles.emptySubtext}>
+                    {searchQuery || docShelf
+                      ? "Try a different filter"
+                      : "Documents you write or star"}
+                  </RNText>
+                </RNView>
+              ) : null}
+            </>
+          )}
+          <RNView style={{ height: 80 }} />
+        </ScrollView>
       )}
 
       {segment === "tasks" && (
@@ -901,321 +1358,325 @@ export default function TasksScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Theme.bgAlt,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.borderLight,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: Theme.text,
-  },
-  countBadge: {
-    backgroundColor: Theme.accent,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 22,
-    alignItems: "center",
-  },
-  countBadgeText: {
-    fontSize: 12,
-    color: Theme.bg,
-    fontWeight: "700",
-  },
-  // The controls' height, held when a segment has none (Routines), so the
-  // title and segments sit at the same place on every segment.
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minHeight: 30,
-  },
-  headerIconBtn: {
-    width: 32,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    height: 30,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    backgroundColor: Theme.bg,
-  },
-  filterBtnActive: {
-    borderColor: Theme.accent + "80",
-    backgroundColor: Theme.accent + "14",
-  },
-  filterBtnCount: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Theme.accent,
-    fontVariant: ["tabular-nums"],
-  },
-  searchBarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  searchCancel: {
-    fontSize: 14,
-    color: Theme.blue,
-  },
-  workspaceBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    backgroundColor: Theme.bg,
-  },
-  workspaceIcon: {
-    fontSize: 13,
-  },
-  workspaceName: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: Theme.textMuted,
-    maxWidth: 100,
-  },
-  segmentBar: {
-    backgroundColor: Theme.bgAlt,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  segmentContainer: {
-    flexDirection: "row",
-    backgroundColor: Theme.bgHighlight,
-    borderRadius: 8,
-    padding: 2,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  segmentBtnActive: {
-    backgroundColor: Theme.bg,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Theme.textMuted0,
-  },
-  segmentTextActive: {
-    color: Theme.text,
-  },
-  filterBar: {
-    backgroundColor: Theme.bgAlt,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.borderLight,
-    gap: 6,
-  },
-  activeFiltersRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    paddingBottom: 4,
-  },
-  activeFilterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: Theme.accent + "18",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.accent + "40",
-  },
-  activeFilterText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: Theme.accent,
-  },
-  searchInputRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Theme.bg,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.md,
-    height: 34,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Theme.text,
-    paddingVertical: 0,
-  },
-  // Room under the last row for the floating + (48pt, 24pt up), so the
-  // last row's time can scroll clear of it.
-  listContent: {
-    paddingBottom: 88,
-  },
-  routines: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Theme.bgAlt,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 60,
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: Theme.textMuted,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Theme.textMuted0,
-  },
-  doneToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: Theme.bgHighlight,
-    marginTop: Spacing.sm,
-  },
-  doneToggleText: {
-    fontSize: 13,
-    color: Theme.textMuted0,
-    fontWeight: "500",
-  },
-  fabContainer: {
-    position: "absolute",
-    bottom: 24,
-    right: 20,
-    zIndex: 100,
-    elevation: 100,
-  },
-  fab: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Theme.bgAlt,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      backgroundColor: Theme.bgAlt,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.borderLight,
+    },
+    headerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: Theme.text,
+    },
+    countBadge: {
+      backgroundColor: Theme.accent,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      minWidth: 22,
+      alignItems: "center",
+    },
+    countBadgeText: {
+      fontSize: 12,
+      color: Theme.bg,
+      fontWeight: "700",
+    },
+    // The controls' height, held when a segment has none (Routines), so the
+    // title and segments sit at the same place on every segment.
+    headerRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      minHeight: 30,
+    },
+    headerIconBtn: {
+      width: 32,
+      height: 30,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    filterBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      height: 30,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      backgroundColor: Theme.bg,
+    },
+    filterBtnActive: {
+      borderColor: Theme.accent + "80",
+      backgroundColor: Theme.accent + "14",
+    },
+    filterBtnCount: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: Theme.accent,
+      fontVariant: ["tabular-nums"],
+    },
+    searchBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    searchCancel: {
+      fontSize: 14,
+      color: Theme.blue,
+    },
+    workspaceBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      backgroundColor: Theme.bg,
+    },
+    workspaceIcon: {
+      fontSize: 13,
+    },
+    workspaceName: {
+      fontSize: 13,
+      fontWeight: "500",
+      color: Theme.textMuted,
+      maxWidth: 100,
+    },
+    segmentBar: {
+      backgroundColor: Theme.bgAlt,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.sm,
+    },
+    segmentContainer: {
+      flexDirection: "row",
+      backgroundColor: Theme.bgHighlight,
+      borderRadius: 8,
+      padding: 2,
+    },
+    segmentBtn: {
+      flex: 1,
+      paddingVertical: 6,
+      borderRadius: 6,
+      alignItems: "center",
+    },
+    segmentBtnActive: {
+      backgroundColor: Theme.bg,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.textMuted0,
+    },
+    segmentTextActive: {
+      color: Theme.text,
+    },
+    filterBar: {
+      backgroundColor: Theme.bgAlt,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.xs,
+      paddingBottom: Spacing.xs,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.borderLight,
+      gap: 6,
+    },
+    activeFiltersRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      paddingBottom: 4,
+    },
+    activeFilterChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      backgroundColor: Theme.accent + "18",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.accent + "40",
+    },
+    activeFilterText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: Theme.accent,
+    },
+    searchInputRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: Theme.bg,
+      borderRadius: 10,
+      paddingHorizontal: Spacing.md,
+      height: 34,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: Theme.text,
+      paddingVertical: 0,
+    },
+    // Room under the last row for the floating + (48pt, 24pt up), so the
+    // last row's time can scroll clear of it.
+    listContent: {
+      paddingBottom: 88,
+    },
+    routines: {
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.md,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
+      backgroundColor: Theme.bgAlt,
+    },
+    sectionTitle: {
+      fontSize: 12,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: 60,
+      gap: 8,
+    },
+    emptyText: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: Theme.textMuted0,
+    },
+    doneToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: Theme.bgHighlight,
+      marginTop: Spacing.sm,
+    },
+    doneToggleText: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      fontWeight: "500",
+    },
+    fabContainer: {
+      position: "absolute",
+      bottom: 24,
+      right: 20,
+      zIndex: 100,
+      elevation: 100,
+    },
+    fab: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: Theme.bgAlt,
+      borderWidth: 1,
+      borderColor: Theme.border,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+  }),
+);
 
-const modalStyles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.borderLight,
-  },
-  title: { fontSize: 18, fontWeight: "600", color: Theme.text },
-  body: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
-  label: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Theme.textMuted,
-    marginBottom: 6,
-    marginTop: Spacing.md,
-  },
-  input: {
-    backgroundColor: Theme.bgAlt,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: Theme.text,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  priorityRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  priorityBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: Theme.borderLight,
-    alignItems: "center",
-  },
-  priorityBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Theme.textMuted,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Theme.borderLight,
-  },
-  cancelBtn: { paddingHorizontal: 16, paddingVertical: 10 },
-  cancelBtnText: { fontSize: 15, color: Theme.textMuted },
-  submitBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: Theme.accent,
-  },
-  submitBtnText: { fontSize: 15, fontWeight: "600", color: Theme.bg },
-}));
+const modalStyles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.borderLight,
+    },
+    title: { fontSize: 18, fontWeight: "600", color: Theme.text },
+    body: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+    label: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.textMuted,
+      marginBottom: 6,
+      marginTop: Spacing.md,
+    },
+    input: {
+      backgroundColor: Theme.bgAlt,
+      borderRadius: 10,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: Theme.text,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    priorityRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    priorityBtn: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      borderColor: Theme.borderLight,
+      alignItems: "center",
+    },
+    priorityBtnText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    footer: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 10,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Theme.borderLight,
+    },
+    cancelBtn: { paddingHorizontal: 16, paddingVertical: 10 },
+    cancelBtnText: { fontSize: 15, color: Theme.textMuted },
+    submitBtn: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: Theme.accent,
+    },
+    submitBtnText: { fontSize: 15, fontWeight: "600", color: Theme.bg },
+  }),
+);

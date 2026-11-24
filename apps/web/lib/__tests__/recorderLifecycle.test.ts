@@ -102,7 +102,9 @@ class FakeMediaRecorder {
   }
   stop() {
     this.state = "inactive";
-    this.ondataavailable?.({ data: new Blob(["audio"], { type: "audio/webm" }) });
+    this.ondataavailable?.({
+      data: new Blob(["audio"], { type: "audio/webm" }),
+    });
     this.onstop?.();
   }
 }
@@ -149,8 +151,10 @@ const convex = {
   mutation: async (ref: any, args: any) => {
     const name = getFunctionName(ref);
     mutations.push({ name, args });
-    if (name === "transcripts:start") return { transcript_id: "t-rec-1", existing: false };
-    if (name === "images:generateUploadUrl") return "https://storage.test/upload";
+    if (name === "transcripts:start")
+      return { transcript_id: "t-rec-1", existing: false };
+    if (name === "images:generateUploadUrl")
+      return "https://storage.test/upload";
     return null;
   },
 };
@@ -169,10 +173,17 @@ beforeEach(() => {
   FakeAudioContext.made = [];
   FakeMediaRecorder.made = [];
   for (const key of ORIGINAL_KEYS) {
-    originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key) ?? null);
+    originals.set(
+      key,
+      Object.getOwnPropertyDescriptor(globalThis, key) ?? null,
+    );
   }
   const install = (key: string, value: unknown) =>
-    Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+    Object.defineProperty(globalThis, key, {
+      value,
+      configurable: true,
+      writable: true,
+    });
   install("AudioContext", FakeAudioContext);
   install("MediaRecorder", FakeMediaRecorder);
   (globalThis as any).MediaStream = class {
@@ -344,7 +355,8 @@ describe("the recorder", () => {
 });
 
 describe("choosing the microphone", () => {
-  const remember = (id: string) => useInboxStore.getState().updateClientUI({ call_mic_device_id: id } as any);
+  const remember = (id: string) =>
+    useInboxStore.getState().updateClientUI({ call_mic_device_id: id } as any);
   afterEach(() => remember(""));
 
   test("a recording opens the remembered microphone", async () => {

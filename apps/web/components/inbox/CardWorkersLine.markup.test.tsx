@@ -6,9 +6,11 @@ import { CardWorkersLine } from "./SessionCardParts";
 // The quiet line under a card whose agent spawned workers: the count in
 // secondary ink, and only the "needs you" part in the accent.
 
-const w = (id: string) => ({ _id: id } as InboxSession);
+const w = (id: string) => ({ _id: id }) as InboxSession;
 const html = (count: number, needsYou: InboxSession[]) =>
-  renderToStaticMarkup(<CardWorkersLine count={count} needsYou={needsYou} onOpen={() => {}} />);
+  renderToStaticMarkup(
+    <CardWorkersLine count={count} needsYou={needsYou} onOpen={() => {}} />,
+  );
 
 describe("CardWorkersLine", () => {
   test("silent with no workers", () => {

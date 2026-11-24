@@ -26,15 +26,26 @@ export type SpawnSessionInput = {
 
 /** The stub id, usable at once for optimistic reads; the real id arrives
  *  through the outbox. */
-export function spawnSessionWithPrompt(input: SpawnSessionInput): { stubId: string } {
+export function spawnSessionWithPrompt(input: SpawnSessionInput): {
+  stubId: string;
+} {
   const store = useInboxStore.getState();
-  const agentType = input.agentType || store.currentConversation?.agentType || "claude_code";
+  const agentType =
+    input.agentType || store.currentConversation?.agentType || "claude_code";
   const path = input.projectPath;
   const { stubId } = store.beginOptimisticSession({
     agentType,
     projectPath: path,
     gitRoot: path || undefined,
-    create: (stubId) => store.createSessionFromStub(stubId, { agentType, projectPath: path, gitRoot: path || undefined, private: input.private, model: input.model, targetDeviceId: input.targetDeviceId }),
+    create: (stubId) =>
+      store.createSessionFromStub(stubId, {
+        agentType,
+        projectPath: path,
+        gitRoot: path || undefined,
+        private: input.private,
+        model: input.model,
+        targetDeviceId: input.targetDeviceId,
+      }),
   });
   const clientId = store.addOptimisticMessage(stubId, input.prompt);
   void store

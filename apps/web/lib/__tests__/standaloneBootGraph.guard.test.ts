@@ -22,9 +22,14 @@ const ALIASES: Record<string, string> = {
   "next/navigation": "src/compat/next-navigation.ts",
   "next/link": "src/compat/next-link.tsx",
 };
-const FORBIDDEN = [/^store\//, /^lib\/calls\/callManager\.ts$/, /^src\/compat\/next-navigation\.ts$/];
+const FORBIDDEN = [
+  /^store\//,
+  /^lib\/calls\/callManager\.ts$/,
+  /^src\/compat\/next-navigation\.ts$/,
+];
 
-const IMPORT_RE = /(?:^|[\s;])(?:import|export)\s+(type\s+)?(?:[^'"]*?\sfrom\s+)?["']([^"']+)["']/g;
+const IMPORT_RE =
+  /(?:^|[\s;])(?:import|export)\s+(type\s+)?(?:[^'"]*?\sfrom\s+)?["']([^"']+)["']/g;
 
 function resolveFile(base: string): string | null {
   for (const ext of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
@@ -75,7 +80,8 @@ function rel(p: string): string {
 function leaks(entry: string): string[] {
   const out: string[] = [];
   for (const [file, chain] of walk(join(WEB, entry))) {
-    if (FORBIDDEN.some((re) => re.test(rel(file)))) out.push(chain.join(" -> "));
+    if (FORBIDDEN.some((re) => re.test(rel(file))))
+      out.push(chain.join(" -> "));
   }
   return out;
 }

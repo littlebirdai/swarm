@@ -27,19 +27,32 @@ function run(bin: "devbox" | "nsc", args: string[], timeout: number): string {
     });
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string | Buffer };
-    if (e.code === "ENOENT") throw new NamespaceCliFailed(`the ${bin} CLI is not installed (or not on any known PATH) on this machine`);
-    throw new NamespaceCliFailed(String(e.stderr ?? "").trim().split("\n")[0] || e.message || `${bin} failed`);
+    if (e.code === "ENOENT")
+      throw new NamespaceCliFailed(
+        `the ${bin} CLI is not installed (or not on any known PATH) on this machine`,
+      );
+    throw new NamespaceCliFailed(
+      String(e.stderr ?? "")
+        .trim()
+        .split("\n")[0] ||
+        e.message ||
+        `${bin} failed`,
+    );
   }
 }
 
-export const devbox = (args: string[], timeout = WRITE_TIMEOUT_MS): string => run("devbox", args, timeout);
-export const nsc = (args: string[], timeout = WRITE_TIMEOUT_MS): string => run("nsc", args, timeout);
+export const devbox = (args: string[], timeout = WRITE_TIMEOUT_MS): string =>
+  run("devbox", args, timeout);
+export const nsc = (args: string[], timeout = WRITE_TIMEOUT_MS): string =>
+  run("nsc", args, timeout);
 
 function json(bin: "devbox" | "nsc", out: string): unknown {
   try {
     return JSON.parse(out);
   } catch {
-    throw new NamespaceCliFailed(`${bin} printed output that is not JSON: ${out.trim().slice(0, 80)}`);
+    throw new NamespaceCliFailed(
+      `${bin} printed output that is not JSON: ${out.trim().slice(0, 80)}`,
+    );
   }
 }
 
@@ -56,13 +69,25 @@ export function devboxList(): DevboxInfo[] {
   return Array.isArray(boxes) ? boxes : [];
 }
 
-export const namespaceKeyPath = (name: string): string => path.join(process.env.HOME || os.homedir(), ".namespace", "ssh", `${name}.devbox.namespace.key`);
+export const namespaceKeyPath = (name: string): string =>
+  path.join(
+    process.env.HOME || os.homedir(),
+    ".namespace",
+    "ssh",
+    `${name}.devbox.namespace.key`,
+  );
 
-const describeArgs = (host: CloudHost): string[] => ["list", "--label", `devbox.id=${host.id}`, "-o", "json"];
+const describeArgs = (host: CloudHost): string[] => [
+  "list",
+  "--label",
+  `devbox.id=${host.id}`,
+  "-o",
+  "json",
+];
 
 function firstInstance(out: string): any {
   const list = json("nsc", out);
-  return Array.isArray(list) ? list[0] ?? null : null;
+  return Array.isArray(list) ? (list[0] ?? null) : null;
 }
 
 export function namespaceDescribe(host: CloudHost): any {
@@ -71,10 +96,23 @@ export function namespaceDescribe(host: CloudHost): any {
 
 export function namespaceDescribeAsync(host: CloudHost): Promise<any> {
   return new Promise((resolve, reject) => {
-    execFile("nsc", describeArgs(host), { encoding: "utf-8", timeout: ASYNC_READ_TIMEOUT_MS, env: { ...process.env, PATH: agentSpawnPath() } }, (err, stdout) => {
-      if (err) return reject(new NamespaceCliFailed(err.message));
-      try { resolve(firstInstance(stdout)); } catch (parseErr) { reject(parseErr); }
-    });
+    execFile(
+      "nsc",
+      describeArgs(host),
+      {
+        encoding: "utf-8",
+        timeout: ASYNC_READ_TIMEOUT_MS,
+        env: { ...process.env, PATH: agentSpawnPath() },
+      },
+      (err, stdout) => {
+        if (err) return reject(new NamespaceCliFailed(err.message));
+        try {
+          resolve(firstInstance(stdout));
+        } catch (parseErr) {
+          reject(parseErr);
+        }
+      },
+    );
   });
 }
 
@@ -87,7 +125,11 @@ function factsOf({ box, inst }: { box?: DevboxInfo; inst: any }): HostFacts {
   if (!box) return { state: "missing" };
   const startedAt = Date.parse(inst?.created_at);
   return inst
-    ? { state: "running", address: box.name, ...(Number.isFinite(startedAt) ? { startedAt } : {}) }
+    ? {
+        state: "running",
+        address: box.name,
+        ...(Number.isFinite(startedAt) ? { startedAt } : {}),
+      }
     : { state: "stopped", address: box.name };
 }
 
@@ -97,7 +139,11 @@ function inspect(host: CloudHost): HostInspection {
   return {
     ...factsOf(found),
     ...(found.box ? { name: found.box.name, platform: "linux" as const } : {}),
-    ...(shape?.virtual_cpu && shape.memory_megabytes ? { instanceType: `${shape.virtual_cpu} vCPU / ${Math.round(shape.memory_megabytes / 1024)} GB` } : {}),
+    ...(shape?.virtual_cpu && shape.memory_megabytes
+      ? {
+          instanceType: `${shape.virtual_cpu} vCPU / ${Math.round(shape.memory_megabytes / 1024)} GB`,
+        }
+      : {}),
   };
 }
 
@@ -113,7 +159,10 @@ export const namespaceProvider: HostProvider = {
   state: (host) => factsOf(lookup(host)),
   inspect,
   stop(host) {
-    if (!host.address) throw new NamespaceCliFailed(`${host.id} has no box name recorded: cast hosts add --provider namespace <name>`);
+    if (!host.address)
+      throw new NamespaceCliFailed(
+        `${host.id} has no box name recorded: cast hosts add --provider namespace <name>`,
+      );
     devbox(["stop", "--force", host.address]);
   },
   forget(host) {

@@ -4,7 +4,10 @@
 import { proposalChangeRefId } from "../entities";
 
 /** "a, b and c" */
-export const andList = (xs: string[]) => xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+export const andList = (xs: string[]) =>
+  xs.length <= 1
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 // ── A card answers the agent (org-staffing.md S39) ──────────────────────────
 
@@ -13,21 +16,39 @@ export const andList = (xs: string[]) => xs.length <= 1 ? xs.join("") : `${xs.sl
 export type OrgReplyVerdict = "approve" | "reject" | "note";
 /** One answer to the changes of one card. `seqs` empty = about the whole
  *  proposal (a note only). `line` is the card's sentence. */
-export type OrgReplyItem = { verdict: OrgReplyVerdict; seqs: number[]; text?: string; line: string };
+export type OrgReplyItem = {
+  verdict: OrgReplyVerdict;
+  seqs: number[];
+  text?: string;
+  line: string;
+};
 /** A person's answers to one proposal, sent together. `proposal` is its short
  *  id (`op-55`). `applied` is whether every approval had landed when the
  *  words were written (absent means yes): the server's send knows, and says
  *  "Approved" alone when a continuation or a failure leaves some to read on
  *  the rows. */
-export type OrgProposalReply = { proposal: string; title: string; items: OrgReplyItem[]; applied?: boolean };
+export type OrgProposalReply = {
+  proposal: string;
+  title: string;
+  items: OrgReplyItem[];
+  applied?: boolean;
+};
 /** What a change row keeps of the person's answer, so a card says it after a reload and on another device. */
-export type OrgChangeReply = { verdict: OrgReplyVerdict; text?: string; at: number; by?: string };
+export type OrgChangeReply = {
+  verdict: OrgReplyVerdict;
+  text?: string;
+  at: number;
+  by?: string;
+};
 /** The author's answer to a question on a change (`cast org revise --answer`). */
 export type OrgChangeAnswer = { text: string; at: number };
 
 /** The word a surface shows for a verdict: `act` on the control before the
  *  send, `done` on the card after it. */
-export const ORG_REPLY_WORDS: Record<OrgReplyVerdict, { act: string; done: string }> = {
+export const ORG_REPLY_WORDS: Record<
+  OrgReplyVerdict,
+  { act: string; done: string }
+> = {
   approve: { act: "Accept", done: "Accepted" },
   reject: { act: "Reject", done: "Rejected" },
   note: { act: "Adjust", done: "Noted" },
@@ -55,32 +76,50 @@ export const ORG_REPLY_WORDS: Record<OrgReplyVerdict, { act: string; done: strin
  */
 export function proposalReplyText(reply: OrgProposalReply): string {
   const applied = reply.applied !== false;
-  const refs = (seqs: number[]) => andList([...new Set(seqs)].sort((a, b) => a - b).map((seq) => proposalChangeRefId(reply.proposal, seq)));
+  const refs = (seqs: number[]) =>
+    andList(
+      [...new Set(seqs)]
+        .sort((a, b) => a - b)
+        .map((seq) => proposalChangeRefId(reply.proposal, seq)),
+    );
   // A card's sentence inside a line: no capital, no full stop ("make Growth a high priority").
   const named = (item: OrgReplyItem) => {
     const line = item.line.trim().replace(/\.$/, "");
     return `${refs(item.seqs)}${line ? ` (${line.charAt(0).toLowerCase()}${line.slice(1)})` : ""}`;
   };
   // A person's words stay inside their bullet: a new line is indented, a blank one is dropped.
-  const wordsOf = (item: OrgReplyItem) => (item.text ?? "").trim().replace(/\s*\n\s*/g, "\n  ");
-  const said = (lead: string, words: string) => (words ? `${lead}: ${words}` : `${lead}.`);
+  const wordsOf = (item: OrgReplyItem) =>
+    (item.text ?? "").trim().replace(/\s*\n\s*/g, "\n  ");
+  const said = (lead: string, words: string) =>
+    words ? `${lead}: ${words}` : `${lead}.`;
 
   const folded: number[] = [];
   const about: OrgReplyItem[] = [];
   const whole: string[] = [];
   for (const item of reply.items) {
     const words = wordsOf(item);
-    if (!item.seqs.length) { if (words) whole.push(`On the whole proposal: ${words}`); }
-    else if (item.verdict === "approve" && !words) folded.push(...item.seqs);
+    if (!item.seqs.length) {
+      if (words) whole.push(`On the whole proposal: ${words}`);
+    } else if (item.verdict === "approve" && !words) folded.push(...item.seqs);
     else if (item.verdict !== "note" || words) about.push(item);
   }
   const lines = [
-    ...(folded.length ? [`Approved${applied ? ", and applied" : ""}: ${refs(folded)}.`] : []),
-    ...about.sort((a, b) => Math.min(...a.seqs) - Math.min(...b.seqs)).map((item) => {
-      const words = wordsOf(item);
-      if (item.verdict === "approve") return `Approved ${refs(item.seqs)}${applied ? ", and applied" : ""}: ${words}`;
-      return said(item.verdict === "reject" ? `Rejected ${named(item)}` : `On ${named(item)}`, words);
-    }),
+    ...(folded.length
+      ? [`Approved${applied ? ", and applied" : ""}: ${refs(folded)}.`]
+      : []),
+    ...about
+      .sort((a, b) => Math.min(...a.seqs) - Math.min(...b.seqs))
+      .map((item) => {
+        const words = wordsOf(item);
+        if (item.verdict === "approve")
+          return `Approved ${refs(item.seqs)}${applied ? ", and applied" : ""}: ${words}`;
+        return said(
+          item.verdict === "reject"
+            ? `Rejected ${named(item)}`
+            : `On ${named(item)}`,
+          words,
+        );
+      }),
     ...whole,
   ];
   if (!lines.length) return "";

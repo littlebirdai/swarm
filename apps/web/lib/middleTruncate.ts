@@ -21,7 +21,10 @@ export function splitPath(path: string): PathParts {
   const trimmed = path.replace(/[\\/]+$/, "");
   let cut = -1;
   for (let i = trimmed.length - 1; i >= 0; i--) {
-    if (SEP.test(trimmed[i])) { cut = i; break; }
+    if (SEP.test(trimmed[i])) {
+      cut = i;
+      break;
+    }
   }
   if (cut < 0) return { dir: "", base: path };
   return { dir: trimmed.slice(0, cut + 1), base: path.slice(cut + 1) };
@@ -36,7 +39,8 @@ export function splitPath(path: string): PathParts {
 export function middleTruncate(path: string, max: number): string {
   if (path.length <= max) return path;
   const { dir, base } = splitPath(path);
-  if (base.length >= max) return base.length === max ? base : `…${base.slice(base.length - max + 1)}`;
+  if (base.length >= max)
+    return base.length === max ? base : `…${base.slice(base.length - max + 1)}`;
   const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
   const root = SEP.test(dir[0] ?? "") ? sep : "";
   const segments = dir.split(SEP).filter(Boolean);

@@ -7,11 +7,18 @@
  * set() refills it in place.
  */
 
-export function replaceContents<K, V>(target: Map<K, V>, source: Map<K, V>): void;
+export function replaceContents<K, V>(
+  target: Map<K, V>,
+  source: Map<K, V>,
+): void;
 export function replaceContents<T>(target: Set<T>, source: Set<T>): void;
-export function replaceContents(target: Map<unknown, unknown> | Set<unknown>, source: Map<unknown, unknown> | Set<unknown>): void {
+export function replaceContents(
+  target: Map<unknown, unknown> | Set<unknown>,
+  source: Map<unknown, unknown> | Set<unknown>,
+): void {
   target.clear();
-  if (target instanceof Map) for (const [k, v] of source as Map<unknown, unknown>) target.set(k, v);
+  if (target instanceof Map)
+    for (const [k, v] of source as Map<unknown, unknown>) target.set(k, v);
   else for (const v of source as Set<unknown>) target.add(v);
 }
 

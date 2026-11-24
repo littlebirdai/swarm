@@ -57,13 +57,21 @@ const usage = (verb: string) =>
   `cast browser ${verb} <target> <text>, or --vault <name>[/username|/password|/otp] or --stdin in place of the text`;
 
 /** `name` or `name/field` → the entry and the field it names. */
-export function parseVaultSpec(spec: string): { name: string; field?: SecretTypeField } | { error: string } {
+export function parseVaultSpec(
+  spec: string,
+): { name: string; field?: SecretTypeField } | { error: string } {
   const slash = spec.indexOf("/");
   const name = slash < 0 ? spec : spec.slice(0, slash);
   const field = slash < 0 ? undefined : spec.slice(slash + 1);
-  if (!name) return { error: "--vault needs a secret name: --vault <name>[/field]" };
-  if (field !== undefined && !(SECRET_TYPE_FIELDS as readonly string[]).includes(field)) {
-    return { error: `--vault ${spec}: the field after / is one of ${SECRET_TYPE_FIELDS.join(", ")}` };
+  if (!name)
+    return { error: "--vault needs a secret name: --vault <name>[/field]" };
+  if (
+    field !== undefined &&
+    !(SECRET_TYPE_FIELDS as readonly string[]).includes(field)
+  ) {
+    return {
+      error: `--vault ${spec}: the field after / is one of ${SECRET_TYPE_FIELDS.join(", ")}`,
+    };
   }
   return { name, field: field as SecretTypeField | undefined };
 }
@@ -73,7 +81,11 @@ export function parseVaultSpec(spec: string): { name: string; field?: SecretType
  * split off), checked. `lastFind` is the ref a bare action falls back to.
  * Pure: it reads nothing and prints nothing.
  */
-export function parseTypeArgs(verb: string, args: string[], lastFind: string | null = null): TypeArgs {
+export function parseTypeArgs(
+  verb: string,
+  args: string[],
+  lastFind: string | null = null,
+): TypeArgs {
   const positional: string[] = [];
   const flags: string[] = [];
   let vault: string | undefined;
@@ -90,7 +102,11 @@ export function parseTypeArgs(verb: string, args: string[], lastFind: string | n
     }
     if (a === "--vault" || a.startsWith("--vault=")) {
       const v = a === "--vault" ? args[++i] : a.slice("--vault=".length);
-      if (!v || v.startsWith("--")) return { error: "--vault needs a secret name: --vault <name>[/field]", hint: usage(verb) };
+      if (!v || v.startsWith("--"))
+        return {
+          error: "--vault needs a secret name: --vault <name>[/field]",
+          hint: usage(verb),
+        };
       vault = v;
     } else if (a === "--stdin") {
       stdin = true;
@@ -104,14 +120,30 @@ export function parseTypeArgs(verb: string, args: string[], lastFind: string | n
     }
   }
   if (!vault && !stdin) return { mode: "text", args };
-  if (vault && stdin) return { error: `${verb} takes --vault or --stdin, not both`, hint: usage(verb) };
+  if (vault && stdin)
+    return {
+      error: `${verb} takes --vault or --stdin, not both`,
+      hint: usage(verb),
+    };
   const how = vault ? "--vault" : "--stdin";
   if (positional.length > 1) {
-    return { error: `${verb} ${how} takes only the target: the value comes from ${vault ? "the Vault" : "stdin"}, never an argument`, hint: usage(verb) };
+    return {
+      error: `${verb} ${how} takes only the target: the value comes from ${vault ? "the Vault" : "stdin"}, never an argument`,
+      hint: usage(verb),
+    };
   }
   const target = positional[0] ?? lastFind;
-  if (!target) return { error: `${verb} ${how} needs a target`, hint: "a #e12 ref from `cast browser snapshot -i`, or a CSS selector" };
-  const base = { target, submit: flags.includes("--submit"), json: flags.includes("--json"), stepFlags: flags.filter((f) => f === "--no-shot" || f === "--no-capture") };
+  if (!target)
+    return {
+      error: `${verb} ${how} needs a target`,
+      hint: "a #e12 ref from `cast browser snapshot -i`, or a CSS selector",
+    };
+  const base = {
+    target,
+    submit: flags.includes("--submit"),
+    json: flags.includes("--json"),
+    stepFlags: flags.filter((f) => f === "--no-shot" || f === "--no-capture"),
+  };
   if (!vault) return { mode: "stdin", ...base };
   const spec = parseVaultSpec(vault);
   if ("error" in spec) return { error: spec.error, hint: usage(verb) };
@@ -119,8 +151,14 @@ export function parseTypeArgs(verb: string, args: string[], lastFind: string | n
 }
 
 /** stdin as the value: one trailing newline (from a pipe or heredoc) is not part of it. */
-export function stdinValue(read: () => string = () => fs.readFileSync(0, "utf-8")): string {
-  if (process.stdin.isTTY) throw new SecretTypeRefusal("--stdin reads the value from a pipe", "cast vault get <name> | cast browser fill <target> --stdin, or use --vault <name>");
+export function stdinValue(
+  read: () => string = () => fs.readFileSync(0, "utf-8"),
+): string {
+  if (process.stdin.isTTY)
+    throw new SecretTypeRefusal(
+      "--stdin reads the value from a pipe",
+      "cast vault get <name> | cast browser fill <target> --stdin, or use --vault <name>",
+    );
   const text = read().replace(/\r?\n$/, "");
   if (!text) throw new SecretTypeRefusal("stdin was empty");
   return text;
@@ -134,24 +172,45 @@ export function stdinValue(read: () => string = () => fs.readFileSync(0, "utf-8"
 export async function typeSecretInput(
   verb: string,
   input: SecretInput,
-  env: { page: SecretTypePage; vault: Pick<SecretTypeDeps, "meta" | "read">; policy: SitePolicy | null; text?: string },
+  env: {
+    page: SecretTypePage;
+    vault: Pick<SecretTypeDeps, "meta" | "read">;
+    policy: SitePolicy | null;
+    text?: string;
+  },
 ): Promise<string> {
   const append = verb === "type";
   if (input.mode === "stdin") {
     const res = await typeText(env.text ?? "", { append }, env.page);
-    return input.json ? JSON.stringify({ typed: true, source: "stdin", origin: res.origin }) : `${fmt.success(icons.check)} typed the value from stdin on ${res.origin}`;
+    return input.json
+      ? JSON.stringify({ typed: true, source: "stdin", origin: res.origin })
+      : `${fmt.success(icons.check)} typed the value from stdin on ${res.origin}`;
   }
-  const res = await typeSecret(input.name!, { field: input.field, append }, { ...env.vault, policy: env.policy, page: env.page });
+  const res = await typeSecret(
+    input.name!,
+    { field: input.field, append },
+    { ...env.vault, policy: env.policy, page: env.page },
+  );
   return input.json ? JSON.stringify(res) : typedLine(res);
 }
 
 /** typeSecretInput on this session's tab, with this session's Vault reads. */
-export async function runSecretInput(verb: string, input: SecretInput, ctx: PageCtx, deps: PublishDeps): Promise<string> {
+export async function runSecretInput(
+  verb: string,
+  input: SecretInput,
+  ctx: PageCtx,
+  deps: PublishDeps,
+): Promise<string> {
   // Read stdin before touching the page: a failed read types nothing.
   const text = input.mode === "stdin" ? stdinValue() : undefined;
   const tab = await engineTabFor(ctx);
   try {
-    return await typeSecretInput(verb, input, { page: secretPageFor(tab, input.target), vault: vaultReads(deps), policy: loadSitePolicy(), text });
+    return await typeSecretInput(verb, input, {
+      page: secretPageFor(tab, input.target),
+      vault: vaultReads(deps),
+      policy: loadSitePolicy(),
+      text,
+    });
   } finally {
     tab.conn.close();
   }

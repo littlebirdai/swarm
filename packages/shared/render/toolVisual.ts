@@ -163,18 +163,25 @@ export const TOOL_VISUALS: Record<string, ToolVisual> = {
 // Resolve the visual for an `mcp__claude-in-chrome__*` browser tool by the
 // substring of its id (the same dispatch the mobile fork used).
 function mcpBrowserVisual(name: string): ToolVisual {
-  if (name.includes("tabs_context") || name.includes("tabs_create")) return { icon: "chrome", color: "textDim" };
-  if (name.includes("browser_batch")) return { icon: "chrome", color: "orange" };
-  if (name.includes("computer") || name.includes("screenshot")) return { icon: "desktop", color: "orange" };
+  if (name.includes("tabs_context") || name.includes("tabs_create"))
+    return { icon: "chrome", color: "textDim" };
+  if (name.includes("browser_batch"))
+    return { icon: "chrome", color: "orange" };
+  if (name.includes("computer") || name.includes("screenshot"))
+    return { icon: "desktop", color: "orange" };
   if (name.includes("navigate")) return { icon: "chrome", color: "blue" };
-  if (name.includes("read_page") || name.includes("get_page_text")) return { icon: "chrome", color: "blue" };
+  if (name.includes("read_page") || name.includes("get_page_text"))
+    return { icon: "chrome", color: "blue" };
   if (name.includes("find")) return { icon: "search", color: "violet" };
-  if (name.includes("form_input") || name.includes("javascript_tool")) return { icon: "chrome", color: "orange" };
+  if (name.includes("form_input") || name.includes("javascript_tool"))
+    return { icon: "chrome", color: "orange" };
   if (name.includes("gif_creator")) return { icon: "chrome", color: "magenta" };
-  if (name.includes("console") || name.includes("network")) return { icon: "chrome", color: "green" };
+  if (name.includes("console") || name.includes("network"))
+    return { icon: "chrome", color: "green" };
   if (name.includes("update_plan")) return { icon: "chrome", color: "cyan" };
   if (name.includes("upload_image")) return { icon: "upload", color: "blue" };
-  if (name.includes("resize_window")) return { icon: "arrows-alt", color: "textDim" };
+  if (name.includes("resize_window"))
+    return { icon: "arrows-alt", color: "textDim" };
   if (name.includes("shortcuts")) return { icon: "bolt", color: "violet" };
   return { icon: "plug", color: "cyan" };
 }

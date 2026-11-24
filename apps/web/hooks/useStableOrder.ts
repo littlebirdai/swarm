@@ -11,7 +11,12 @@ interface StableOrderOptions<T> {
   onBeforeReorder?: () => void;
 }
 
-export function useStableOrder<T>({ items, getKey, isHovered, onBeforeReorder }: StableOrderOptions<T>): T[] {
+export function useStableOrder<T>({
+  items,
+  getKey,
+  isHovered,
+  onBeforeReorder,
+}: StableOrderOptions<T>): T[] {
   const [displayOrder, setDisplayOrder] = useState<string[]>([]);
   const latestItemsRef = useRef<T[]>(items);
 
@@ -28,11 +33,14 @@ export function useStableOrder<T>({ items, getKey, isHovered, onBeforeReorder }:
   const latestMapRef = useRef(latestMap);
   latestMapRef.current = latestMap;
 
-  const commitOrder = useCallback((animate: boolean) => {
-    if (animate) onBeforeReorder?.();
-    const newOrder = latestItemsRef.current.map(getKey);
-    setDisplayOrder(newOrder);
-  }, [getKey, onBeforeReorder]);
+  const commitOrder = useCallback(
+    (animate: boolean) => {
+      if (animate) onBeforeReorder?.();
+      const newOrder = latestItemsRef.current.map(getKey);
+      setDisplayOrder(newOrder);
+    },
+    [getKey, onBeforeReorder],
+  );
 
   const commitOrderRef = useRef(commitOrder);
   commitOrderRef.current = commitOrder;
@@ -56,7 +64,9 @@ export function useStableOrder<T>({ items, getKey, isHovered, onBeforeReorder }:
 
   let effectiveOrder = displayOrder.filter((key) => currentKeys.has(key));
 
-  const newKeys = items.filter((item) => !orderKeys.has(getKey(item))).map(getKey);
+  const newKeys = items
+    .filter((item) => !orderKeys.has(getKey(item)))
+    .map(getKey);
   if (newKeys.length > 0) {
     effectiveOrder = [...newKeys, ...effectiveOrder];
   }

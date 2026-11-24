@@ -2,20 +2,27 @@ import { describe, test, expect, afterEach } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { SessionWatcher, isTestProjectDir, isWorkflowAgentTranscript, watchFilter, watchDirFilter, type SessionEvent } from "./sessionWatcher.js";
+import {
+  SessionWatcher,
+  isTestProjectDir,
+  isWorkflowAgentTranscript,
+  watchFilter,
+  watchDirFilter,
+  type SessionEvent,
+} from "./sessionWatcher.js";
 import { RecursiveWatcher } from "./recursiveWatcher.js";
 
 function tmpDir(prefix: string): string {
   return path.join(
     os.tmpdir(),
-    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   );
 }
 
 function waitForSessionEvent(
   watcher: SessionWatcher,
   predicate: (event: SessionEvent) => boolean,
-  timeoutMs = 5000
+  timeoutMs = 5000,
 ): Promise<SessionEvent> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -37,7 +44,9 @@ function waitForSessionEvent(
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const fn of cleanups) {
-    try { fn(); } catch {}
+    try {
+      fn();
+    } catch {}
   }
   cleanups.length = 0;
 });
@@ -49,7 +58,10 @@ describe("SessionWatcher", () => {
     fs.mkdirSync(projectDir, { recursive: true });
 
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     await watcher.start();
     await watcher.whenPrimed();
@@ -59,7 +71,7 @@ describe("SessionWatcher", () => {
 
     const eventPromise = waitForSessionEvent(
       watcher,
-      (e) => e.sessionId === sessionId
+      (e) => e.sessionId === sessionId,
     );
 
     fs.writeFileSync(filePath, '{"role":"user","content":"hello"}\n');
@@ -80,14 +92,17 @@ describe("SessionWatcher", () => {
     fs.writeFileSync(filePath, '{"role":"user","content":"first"}\n');
 
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     await watcher.start();
     await watcher.whenPrimed();
 
     const eventPromise = waitForSessionEvent(
       watcher,
-      (e) => e.sessionId === sessionId
+      (e) => e.sessionId === sessionId,
     );
 
     fs.appendFileSync(filePath, '{"role":"assistant","content":"reply"}\n');
@@ -103,7 +118,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
@@ -113,7 +131,7 @@ describe("SessionWatcher", () => {
     fs.writeFileSync(path.join(projectDir, "config.json"), "{}");
     fs.writeFileSync(path.join(projectDir, "data.txt"), "data");
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
     expect(events.length).toBe(0);
   });
@@ -132,7 +150,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
@@ -151,7 +172,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
@@ -160,9 +184,9 @@ describe("SessionWatcher", () => {
     watcher.stop();
 
     fs.writeFileSync(path.join(projectDir, "during-stop.jsonl"), "{}");
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 300));
 
-    expect(events.filter(e => e.sessionId === "during-stop").length).toBe(0);
+    expect(events.filter((e) => e.sessionId === "during-stop").length).toBe(0);
   });
 
   test("restart resumes watching", async () => {
@@ -171,7 +195,10 @@ describe("SessionWatcher", () => {
     fs.mkdirSync(projectDir, { recursive: true });
 
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     await watcher.start();
     await watcher.whenPrimed();
@@ -181,7 +208,7 @@ describe("SessionWatcher", () => {
 
     const eventPromise = waitForSessionEvent(
       watcher,
-      (e) => e.sessionId === "after-restart"
+      (e) => e.sessionId === "after-restart",
     );
     fs.writeFileSync(path.join(projectDir, "after-restart.jsonl"), "{}");
     const event = await eventPromise;
@@ -195,7 +222,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
@@ -210,17 +240,20 @@ describe("SessionWatcher", () => {
       fs.writeFileSync(path.join(projDir, `${sid}.jsonl`), `{"i": ${i}}\n`);
     }
 
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
 
     for (const sid of sessionIds) {
-      expect(events.some(e => e.sessionId === sid)).toBe(true);
+      expect(events.some((e) => e.sessionId === sid)).toBe(true);
     }
   });
 
   test("skips JSONL files in test-harness project dirs", async () => {
     const root = tmpDir("sw-test-skip");
     const realProj = path.join(root, "real-project");
-    const harnessProj = path.join(root, "-private-tmp-codecast-test-cwd-ABC123");
+    const harnessProj = path.join(
+      root,
+      "-private-tmp-codecast-test-cwd-ABC123",
+    );
     const shimProj = path.join(root, "-private-tmp-codecast-fake-claude-XYZ");
     fs.mkdirSync(realProj, { recursive: true });
     fs.mkdirSync(harnessProj, { recursive: true });
@@ -228,7 +261,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
@@ -238,48 +274,92 @@ describe("SessionWatcher", () => {
     fs.writeFileSync(path.join(harnessProj, "harness-session.jsonl"), "{}");
     fs.writeFileSync(path.join(shimProj, "shim-session.jsonl"), "{}");
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
-    expect(events.map(e => e.sessionId).sort()).toEqual(["real-session"]);
+    expect(events.map((e) => e.sessionId).sort()).toEqual(["real-session"]);
   });
 
   test("isTestProjectDir matches harness markers", () => {
-    expect(isTestProjectDir("-private-tmp-codecast-test-cwd-D1V9e5")).toBe(true);
+    expect(isTestProjectDir("-private-tmp-codecast-test-cwd-D1V9e5")).toBe(
+      true,
+    );
     expect(isTestProjectDir("-tmp-codecast-fake-claude-AbC")).toBe(true);
     expect(isTestProjectDir("-Users-ashot-src-codecast")).toBe(false);
     expect(isTestProjectDir("real-project-abc123")).toBe(false);
   });
 
   test("watchFilter matches workflow agent transcripts, not their neighbors", () => {
-    const wfDir = ["proj", "sess-uuid", "subagents", "workflows", "wf_8300ef22-6b5"].join(path.sep);
-    expect(isWorkflowAgentTranscript(`${wfDir}${path.sep}agent-af865cb759119c484.jsonl`)).toBe(true);
-    expect(watchFilter(`${wfDir}${path.sep}agent-af865cb759119c484.jsonl`)).toBe(true);
+    const wfDir = [
+      "proj",
+      "sess-uuid",
+      "subagents",
+      "workflows",
+      "wf_8300ef22-6b5",
+    ].join(path.sep);
+    expect(
+      isWorkflowAgentTranscript(
+        `${wfDir}${path.sep}agent-af865cb759119c484.jsonl`,
+      ),
+    ).toBe(true);
+    expect(
+      watchFilter(`${wfDir}${path.sep}agent-af865cb759119c484.jsonl`),
+    ).toBe(true);
     // The runtime's run journal sits alongside agent transcripts — not a session.
     expect(watchFilter(`${wfDir}${path.sep}journal.jsonl`)).toBe(false);
     // Task-tool subagents (historical depth) still match via the plain .jsonl rule.
-    expect(watchFilter(["proj", "sess-uuid", "subagents", "agent-abc.jsonl"].join(path.sep))).toBe(true);
+    expect(
+      watchFilter(
+        ["proj", "sess-uuid", "subagents", "agent-abc.jsonl"].join(path.sep),
+      ),
+    ).toBe(true);
     // Top-level transcripts and workflow snapshots unchanged.
     expect(watchFilter(["proj", "sess-uuid.jsonl"].join(path.sep))).toBe(true);
-    expect(watchFilter(["proj", "sess-uuid", "workflows", "wf_x.json"].join(path.sep))).toBe(true);
+    expect(
+      watchFilter(
+        ["proj", "sess-uuid", "workflows", "wf_x.json"].join(path.sep),
+      ),
+    ).toBe(true);
     // A stray deep .jsonl that matches no known shape stays excluded.
-    expect(watchFilter(["proj", "sess-uuid", "tool-results", "deep", "deeper", "x.jsonl"].join(path.sep))).toBe(false);
+    expect(
+      watchFilter(
+        ["proj", "sess-uuid", "tool-results", "deep", "deeper", "x.jsonl"].join(
+          path.sep,
+        ),
+      ),
+    ).toBe(false);
   });
 
   test("emits workflow agent transcripts as sessions, skips the run journal", async () => {
     const root = tmpDir("sw-wf-agent");
-    const wfDir = path.join(root, "proj1", "6f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b", "subagents", "workflows", "wf_run123");
+    const wfDir = path.join(
+      root,
+      "proj1",
+      "6f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+      "subagents",
+      "workflows",
+      "wf_run123",
+    );
     fs.mkdirSync(wfDir, { recursive: true });
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
     await watcher.whenPrimed();
 
-    const eventPromise = waitForSessionEvent(watcher, (e) => e.sessionId === "agent-a1b2c3");
-    fs.writeFileSync(path.join(wfDir, "agent-a1b2c3.jsonl"), '{"role":"user","content":"go"}\n');
+    const eventPromise = waitForSessionEvent(
+      watcher,
+      (e) => e.sessionId === "agent-a1b2c3",
+    );
+    fs.writeFileSync(
+      path.join(wfDir, "agent-a1b2c3.jsonl"),
+      '{"role":"user","content":"go"}\n',
+    );
     fs.writeFileSync(path.join(wfDir, "journal.jsonl"), '{"agent":"a1b2c3"}\n');
 
     const event = await eventPromise;
@@ -287,8 +367,10 @@ describe("SessionWatcher", () => {
     expect(event.projectPath).toBe("proj1");
     expect(event.workflowRunId).toBeUndefined();
 
-    await new Promise(r => setTimeout(r, 300));
-    expect(events.some(e => e.filePath.endsWith("journal.jsonl"))).toBe(false);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(events.some((e) => e.filePath.endsWith("journal.jsonl"))).toBe(
+      false,
+    );
   });
 
   test("does not start twice", async () => {
@@ -296,7 +378,10 @@ describe("SessionWatcher", () => {
     fs.mkdirSync(root, { recursive: true });
 
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     await watcher.start();
     await watcher.start(); // should be no-op
@@ -314,7 +399,10 @@ describe("SessionWatcher", () => {
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.on("session", (e) => events.push(e));
     await watcher.start();
     expect(events.map((e) => e.sessionId).sort()).toEqual(["s1", "s2"]);
@@ -328,10 +416,15 @@ describe("SessionWatcher", () => {
     const sess = path.join(root, "slug", UUID);
     fs.mkdirSync(path.join(sess, "tool-results"), { recursive: true });
     fs.mkdirSync(path.join(root, "slug", "memory"), { recursive: true });
-    fs.mkdirSync(path.join(sess, "subagents", "workflows", "wf_1"), { recursive: true });
+    fs.mkdirSync(path.join(sess, "subagents", "workflows", "wf_1"), {
+      recursive: true,
+    });
     fs.writeFileSync(path.join(sess, "tool-results", "x.jsonl"), "{}\n");
     fs.writeFileSync(path.join(root, "slug", "memory", "x.jsonl"), "{}\n");
-    fs.writeFileSync(path.join(sess, "subagents", "workflows", "wf_1", "agent-a.jsonl"), "{}\n");
+    fs.writeFileSync(
+      path.join(sess, "subagents", "workflows", "wf_1", "agent-a.jsonl"),
+      "{}\n",
+    );
     cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
 
     // The wrapper hides the walk, so probe the same RecursiveWatcher shape the
@@ -339,7 +432,10 @@ describe("SessionWatcher", () => {
     const visited: string[] = [];
     const probe = new RecursiveWatcher({
       path: root,
-      filter: (rel) => { visited.push(path.dirname(rel)); return watchFilter(rel); },
+      filter: (rel) => {
+        visited.push(path.dirname(rel));
+        return watchFilter(rel);
+      },
       dirFilter: watchDirFilter,
       maxDepth: 6,
       callback: () => {},
@@ -348,8 +444,12 @@ describe("SessionWatcher", () => {
     probe.start();
     await probe.whenPrimed();
     probe.stop();
-    expect(visited.some((d) => d.split(path.sep).includes("tool-results"))).toBe(false);
-    expect(visited.some((d) => d.split(path.sep).includes("memory"))).toBe(false);
+    expect(
+      visited.some((d) => d.split(path.sep).includes("tool-results")),
+    ).toBe(false);
+    expect(visited.some((d) => d.split(path.sep).includes("memory"))).toBe(
+      false,
+    );
 
     const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
@@ -369,11 +469,21 @@ describe("SessionWatcher", () => {
     expect(watchDirFilter(j("slug", UUID, "workflows"))).toBe(true);
     expect(watchDirFilter(j("slug", UUID, "tool-results"))).toBe(false);
     expect(watchDirFilter(j("slug", UUID, "session-memory"))).toBe(false);
-    expect(watchDirFilter(j("slug", UUID, "subagents", "workflows"))).toBe(true);
+    expect(watchDirFilter(j("slug", UUID, "subagents", "workflows"))).toBe(
+      true,
+    );
     expect(watchDirFilter(j("slug", UUID, "subagents", "other"))).toBe(false);
     expect(watchDirFilter(j("slug", UUID, "workflows", "wf_1"))).toBe(false);
-    expect(watchDirFilter(j("slug", UUID, "subagents", "workflows", "wf_1"))).toBe(true);
-    expect(watchDirFilter(j("slug", UUID, "subagents", "workflows", "other"))).toBe(false);
-    expect(watchDirFilter(j("slug", UUID, "subagents", "workflows", "wf_1", "deeper"))).toBe(false);
+    expect(
+      watchDirFilter(j("slug", UUID, "subagents", "workflows", "wf_1")),
+    ).toBe(true);
+    expect(
+      watchDirFilter(j("slug", UUID, "subagents", "workflows", "other")),
+    ).toBe(false);
+    expect(
+      watchDirFilter(
+        j("slug", UUID, "subagents", "workflows", "wf_1", "deeper"),
+      ),
+    ).toBe(false);
   });
 });

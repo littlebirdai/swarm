@@ -20,24 +20,37 @@ const POSTING_SCRIPTS: Array<[string, string]> = [
 ];
 
 describe("installed hook scripts", () => {
-  test.each(POSTING_SCRIPTS)("%s reads the secret from the 0600 file", (_name, script) => {
-    // From the state directory every hook resolves once (HOOK_STATE_DIR).
-    expect(script).toContain(HOOK_STATE_DIR);
-    expect(script).toContain('<"$CC_DIR/hook-token"');
-  });
+  test.each(POSTING_SCRIPTS)(
+    "%s reads the secret from the 0600 file",
+    (_name, script) => {
+      // From the state directory every hook resolves once (HOOK_STATE_DIR).
+      expect(script).toContain(HOOK_STATE_DIR);
+      expect(script).toContain('<"$CC_DIR/hook-token"');
+    },
+  );
 
-  test.each(POSTING_SCRIPTS)("%s sends it as a bearer header", (_name, script) => {
-    expect(script).toMatch(/-H "Authorization: Bearer /);
-  });
+  test.each(POSTING_SCRIPTS)(
+    "%s sends it as a bearer header",
+    (_name, script) => {
+      expect(script).toMatch(/-H "Authorization: Bearer /);
+    },
+  );
 
-  test.each(POSTING_SCRIPTS)("%s never puts the secret in a query parameter", (_name, script) => {
-    expect(script).not.toMatch(/(hook_token|token)=\$?\{?(CODECAST_HOOK_TOKEN|cc_token)/);
-  });
+  test.each(POSTING_SCRIPTS)(
+    "%s never puts the secret in a query parameter",
+    (_name, script) => {
+      expect(script).not.toMatch(
+        /(hook_token|token)=\$?\{?(CODECAST_HOOK_TOKEN|cc_token)/,
+      );
+    },
+  );
 
   test("the status script reads the secret with builtins, not another process", () => {
     // A hook runs on every tool call; one extra process per event is what blew
     // Claude Code's hook timeout before.
-    const read = CODECAST_STATUS_HOOK.slice(CODECAST_STATUS_HOOK.indexOf("CODECAST_HOOK_TOKEN="));
+    const read = CODECAST_STATUS_HOOK.slice(
+      CODECAST_STATUS_HOOK.indexOf("CODECAST_HOOK_TOKEN="),
+    );
     const line = read.split("\n").find((l) => l.includes("hook-token"))!;
     expect(line).toContain("read -r");
     expect(line).not.toContain("$(cat");

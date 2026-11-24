@@ -45,7 +45,9 @@ const FORBIDDEN: Array<{ rx: RegExp; what: string }> = [
   {
     // ".codecast" ends the argument or opens a subpath inside the config dir.
     // Demanding the closing quote is how `".codecast/scaleway"` escaped.
-    rx: new RegExp(String.raw`${HOME}\s*(?:\+\s*"/?\.codecast|,\s*"\.codecast["/])`),
+    rx: new RegExp(
+      String.raw`${HOME}\s*(?:\+\s*"/?\.codecast|,\s*"\.codecast["/])`,
+    ),
     what: "builds the config dir from the home directory",
   },
   {
@@ -60,14 +62,17 @@ const ALLOWED: Record<string, string> = {
   // The isolation helper itself: it WRITES CODECAST_DIR and has to know the
   // real directory to tell "already redirected" from "pointed at the human's
   // state" (ct-49576). Calling the resolver here would only hide that.
-  "test-helpers/codecastDir.ts": "sets and restores CODECAST_DIR; naming the real directory is its whole job",
+  "test-helpers/codecastDir.ts":
+    "sets and restores CODECAST_DIR; naming the real directory is its whole job",
   // The process entry compares CODECAST_DIR with a dry run's empty directory to
   // send a call back to the dry run's guard; it never resolves the config dir,
   // and the resolver would grow the boot graph main.ts must keep to fastPath.
-  "main.ts": "compares CODECAST_DIR with DRY_RUN_EMPTY_CODECAST_DIR before anything loads",
+  "main.ts":
+    "compares CODECAST_DIR with DRY_RUN_EMPTY_CODECAST_DIR before anything loads",
   // The host side of `cast run` ships to the host as its own source and can
   // import nothing, so it names the host's ~/.codecast once, in its body.
-  [path.join("run", "hostRunner.ts")]: "ships as source to the host and cannot import the resolver",
+  [path.join("run", "hostRunner.ts")]:
+    "ships as source to the host and cannot import the resolver",
 };
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__"]);
@@ -80,7 +85,8 @@ function walk(dir: string, out: string[] = []): string[] {
     }
     // Tests are exempt: setting CODECAST_DIR and building a scratch home is
     // exactly the isolation the resolver exists to honour.
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
+    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
+      continue;
     out.push(path.join(dir, entry.name));
   }
   return out;
@@ -99,7 +105,9 @@ describe("the config dir has exactly one resolver", () => {
         seenAllowed.add(rel);
         continue;
       }
-      offenders.push(`${rel}:${n} ${hit.what} — import defaultConfigDir from config/configDir.js`);
+      offenders.push(
+        `${rel}:${n} ${hit.what} — import defaultConfigDir from config/configDir.js`,
+      );
     }
   }
 
@@ -108,19 +116,28 @@ describe("the config dir has exactly one resolver", () => {
   });
 
   test("no stale allowlist entries", () => {
-    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual([]);
+    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual(
+      [],
+    );
   });
 
   test("the resolver stays a leaf, so any caller can import it", () => {
-    const src = fs.readFileSync(path.join(SRC, "config", "configDir.ts"), "utf8");
-    const imports = (src.match(/^import .* from "([^"]+)";$/gm) ?? [])
-      .map((line) => line.match(/from "([^"]+)"/)![1]);
+    const src = fs.readFileSync(
+      path.join(SRC, "config", "configDir.ts"),
+      "utf8",
+    );
+    const imports = (src.match(/^import .* from "([^"]+)";$/gm) ?? []).map(
+      (line) => line.match(/from "([^"]+)"/)![1],
+    );
     expect(imports.every((spec) => spec.startsWith("node:"))).toBe(true);
   });
 });
 
 describe("defaultConfigDir", () => {
-  const saved = { HOME: process.env.HOME, CODECAST_DIR: process.env.CODECAST_DIR };
+  const saved = {
+    HOME: process.env.HOME,
+    CODECAST_DIR: process.env.CODECAST_DIR,
+  };
   const scratch: string[] = [];
   const tmp = () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), "configdir-"));
@@ -133,7 +150,8 @@ describe("defaultConfigDir", () => {
       if (saved[key] === undefined) delete process.env[key];
       else process.env[key] = saved[key];
     }
-    for (const d of scratch.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+    for (const d of scratch.splice(0))
+      fs.rmSync(d, { recursive: true, force: true });
   });
 
   test("CODECAST_DIR wins over HOME", () => {

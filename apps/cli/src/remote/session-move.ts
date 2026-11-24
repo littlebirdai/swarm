@@ -24,21 +24,57 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { credentialHealth, readFleetCredential, readFleetCredentialAsync, readFleetState, readProfileIndex } from "../ccAccounts.js";
-import { collectCopyFiles, containedRemotePath, InvalidWorkspaceManifest, manifestCopyEntries } from "../workspace/copyFiles.js";
-import { laptopHome, trustOnlyBundle, type AgentAuthBundle } from "./agentAuth.js";
+import {
+  credentialHealth,
+  readFleetCredential,
+  readFleetCredentialAsync,
+  readFleetState,
+  readProfileIndex,
+} from "../ccAccounts.js";
+import {
+  collectCopyFiles,
+  containedRemotePath,
+  InvalidWorkspaceManifest,
+  manifestCopyEntries,
+} from "../workspace/copyFiles.js";
+import {
+  laptopHome,
+  trustOnlyBundle,
+  type AgentAuthBundle,
+} from "./agentAuth.js";
 import { AGENT_AUTH_RECEIVER } from "./agentAuthReceiver.py.js";
 import { deviceId as localDeviceId } from "./device.js";
 import { readLocalConfig } from "../config/readLocalConfig.js";
 import { claudeProjectDirName } from "../projectPathResolver.js";
 import { CLAUDE_PROJECTS, resolveLocalSession } from "./localSession.js";
-import { applySnapshotFastForward, buildSnapshotMessage, CLOUD_SEED_EXCLUDES, createWipSnapshot, isWipSnapshotMessage, remoteSnapshotScript, SNAPSHOT_IDENTITY, snapshotTreeShell } from "../wipSnapshot.js";
+import {
+  applySnapshotFastForward,
+  buildSnapshotMessage,
+  CLOUD_SEED_EXCLUDES,
+  createWipSnapshot,
+  isWipSnapshotMessage,
+  remoteSnapshotScript,
+  SNAPSHOT_IDENTITY,
+  snapshotTreeShell,
+} from "../wipSnapshot.js";
 import { defaultConfigDir } from "../config/configDir.js";
-import { readLocalCredential, readLocalCredentialAsync } from "../ccKeychain.js";
+import {
+  readLocalCredential,
+  readLocalCredentialAsync,
+} from "../ccKeychain.js";
 import { remapContextPaths } from "../cloud/mirror/transform.js";
 import { mirrorUntouchedInCheckoutScript } from "../cloud/mirror/apply.js";
-export { cwdFromTranscript, resolveLocalSession, slugToCwd, type LocalSession } from "./localSession.js";
-import { SHARED_HOST_PUSH_GUARD, SHARED_HOST_REFUSAL, SHARED_HOST_REFUSED_STATUS } from "./sharedHostGuard.js";
+export {
+  cwdFromTranscript,
+  resolveLocalSession,
+  slugToCwd,
+  type LocalSession,
+} from "./localSession.js";
+import {
+  SHARED_HOST_PUSH_GUARD,
+  SHARED_HOST_REFUSAL,
+  SHARED_HOST_REFUSED_STATUS,
+} from "./sharedHostGuard.js";
 
 export interface RemoteHost {
   /** SSH host/IP. */
@@ -65,14 +101,36 @@ export function remoteHome(host: RemoteHost): string {
 // SSH / rsync primitives
 // --------------------------------------------------------------------------
 
-export const sshIdentity = (host: Pick<RemoteHost, "keyPath" | "proxyCommand">): string[] => [
-  "-i", host.keyPath,
-  ...(host.proxyCommand ? ["-o", `ProxyCommand=${host.proxyCommand}`, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"] : []),
+export const sshIdentity = (
+  host: Pick<RemoteHost, "keyPath" | "proxyCommand">,
+): string[] => [
+  "-i",
+  host.keyPath,
+  ...(host.proxyCommand
+    ? [
+        "-o",
+        `ProxyCommand=${host.proxyCommand}`,
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+      ]
+    : []),
 ];
-export const sshDestination = (host: Pick<RemoteHost, "user" | "address">): string => `${host.user}@${host.address}`;
-export const sshControlPath = (host: Pick<RemoteHost, "user" | "address">): string => path.join(os.tmpdir(), `cast-ssh-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`);
-export const shellWord = (a: string): string => (/^[\w@%+=:,./-]+$/.test(a) ? a : shq(a));
-export const sshShell = (argv: string[]): string => `ssh ${argv.map(shellWord).join(" ")}`;
+export const sshDestination = (
+  host: Pick<RemoteHost, "user" | "address">,
+): string => `${host.user}@${host.address}`;
+export const sshControlPath = (
+  host: Pick<RemoteHost, "user" | "address">,
+): string =>
+  path.join(
+    os.tmpdir(),
+    `cast-ssh-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`,
+  );
+export const shellWord = (a: string): string =>
+  /^[\w@%+=:,./-]+$/.test(a) ? a : shq(a);
+export const sshShell = (argv: string[]): string =>
+  `ssh ${argv.map(shellWord).join(" ")}`;
 const rsyncShell = (host: RemoteHost): string => sshShell(sshBase(host));
 
 export function sshBase(host: RemoteHost): string[] {
@@ -86,13 +144,20 @@ export function sshBase(host: RemoteHost): string[] {
   const socket = sshControlPath(host);
   return [
     ...sshIdentity(host),
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "ConnectTimeout=20",
-    "-o", "ServerAliveInterval=15",
-    "-o", "ServerAliveCountMax=4",
-    "-o", "ControlMaster=auto",
-    "-o", `ControlPath=${socket}`,
-    "-o", "ControlPersist=120",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=4",
+    "-o",
+    "ControlMaster=auto",
+    "-o",
+    `ControlPath=${socket}`,
+    "-o",
+    "ControlPersist=120",
   ];
 }
 
@@ -102,27 +167,55 @@ export function sshBase(host: RemoteHost): string[] {
  * not interleave their warnings), and a failure throws its last stderr line,
  * which names the cause, instead of the whole ssh command line.
  */
-export function ssh(host: RemoteHost, command: string, timeoutMs?: number, opts: { quiet?: boolean } = {}): string {
+export function ssh(
+  host: RemoteHost,
+  command: string,
+  timeoutMs?: number,
+  opts: { quiet?: boolean } = {},
+): string {
   try {
-    return execFileSync("ssh", [...sshBase(host), sshDestination(host), command], {
-      encoding: "utf-8",
-      // Hand the child the environment we hold now. bun otherwise resolves the
-      // binary against the PATH it snapshotted at startup, so a PATH set after
-      // launch (a test's stand-in ssh, a tool added to the path) is not seen.
-      env: process.env,
-      maxBuffer: 64 * 1024 * 1024,
-      ...(opts.quiet ? { stdio: ["ignore", "pipe", "pipe"] as const } : {}),
-      ...(timeoutMs ? { timeout: timeoutMs } : {}),
-    });
+    return execFileSync(
+      "ssh",
+      [...sshBase(host), sshDestination(host), command],
+      {
+        encoding: "utf-8",
+        // Hand the child the environment we hold now. bun otherwise resolves the
+        // binary against the PATH it snapshotted at startup, so a PATH set after
+        // launch (a test's stand-in ssh, a tool added to the path) is not seen.
+        env: process.env,
+        maxBuffer: 64 * 1024 * 1024,
+        ...(opts.quiet ? { stdio: ["ignore", "pipe", "pipe"] as const } : {}),
+        ...(timeoutMs ? { timeout: timeoutMs } : {}),
+      },
+    );
   } catch (err) {
     if (!opts.quiet) throw err;
-    const e = err as { stderr?: string | Buffer; signal?: string; message?: string };
-    const last = String(e.stderr ?? "").split("\n").map((l) => l.trim()).filter(Boolean).pop();
-    throw new Error(e.signal === "SIGTERM" && timeoutMs ? `no answer in ${Math.round(timeoutMs / 1000)}s` : last ?? e.message ?? "ssh failed");
+    const e = err as {
+      stderr?: string | Buffer;
+      signal?: string;
+      message?: string;
+    };
+    const last = String(e.stderr ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .pop();
+    throw new Error(
+      e.signal === "SIGTERM" && timeoutMs
+        ? `no answer in ${Math.round(timeoutMs / 1000)}s`
+        : (last ?? e.message ?? "ssh failed"),
+    );
   }
 }
 
-const FOLDER_EXCLUDES = ["node_modules", ".git", ".conductor", "dist", ".next", ".DS_Store"].flatMap((p) => ["--exclude", p]);
+const FOLDER_EXCLUDES = [
+  "node_modules",
+  ".git",
+  ".conductor",
+  "dist",
+  ".next",
+  ".DS_Store",
+].flatMap((p) => ["--exclude", p]);
 
 /**
  * What git ignores under `dir`, as anchored rsync patterns (empty outside a
@@ -133,43 +226,102 @@ const FOLDER_EXCLUDES = ["node_modules", ".git", ".conductor", "dist", ".next", 
  * list on the way home keeps this machine's copies.
  */
 export function gitIgnoredPatterns(dir: string): string[] {
-  const r = gitSafe(dir, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]);
+  const r = gitSafe(dir, [
+    "ls-files",
+    "-z",
+    "--others",
+    "--ignored",
+    "--exclude-standard",
+    "--directory",
+  ]);
   if (!r.ok) return [];
-  return r.out.split("\0").filter(Boolean).map((p) => `/${p.replace(/[[*?\\]/g, "\\$&")}`);
+  return r.out
+    .split("\0")
+    .filter(Boolean)
+    .map((p) => `/${p.replace(/[[*?\\]/g, "\\$&")}`);
 }
 
 /** Runs rsync over a folder with `FOLDER_EXCLUDES` plus what git ignores under `localDir`. */
-function rsyncFolder(localDir: string, flags: string[], from: string, to: string) {
+function rsyncFolder(
+  localDir: string,
+  flags: string[],
+  from: string,
+  to: string,
+) {
   const ignored = gitIgnoredPatterns(localDir);
-  const dir = ignored.length ? fs.mkdtempSync(path.join(os.tmpdir(), "cast-move-exclude-")) : null;
+  const dir = ignored.length
+    ? fs.mkdtempSync(path.join(os.tmpdir(), "cast-move-exclude-"))
+    : null;
   try {
     const exclude = dir ? [`--exclude-from=${path.join(dir, "exclude")}`] : [];
-    if (dir) fs.writeFileSync(path.join(dir, "exclude"), ignored.join("\n") + "\n");
-    execFileSync("rsync", [...flags, ...FOLDER_EXCLUDES, ...exclude, from, to], { stdio: "pipe", maxBuffer: 64 * 1024 * 1024 });
+    if (dir)
+      fs.writeFileSync(path.join(dir, "exclude"), ignored.join("\n") + "\n");
+    execFileSync(
+      "rsync",
+      [...flags, ...FOLDER_EXCLUDES, ...exclude, from, to],
+      { stdio: "pipe", maxBuffer: 64 * 1024 * 1024 },
+    );
   } finally {
     if (dir) fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
 function rsyncUp(host: RemoteHost, localDir: string, remoteDir: string) {
-  rsyncFolder(localDir, ["-az", "--update", "-e", rsyncShell(host)],
-    `${localDir.replace(/\/?$/, "/")}`, `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`);
+  rsyncFolder(
+    localDir,
+    ["-az", "--update", "-e", rsyncShell(host)],
+    `${localDir.replace(/\/?$/, "/")}`,
+    `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`,
+  );
 }
 
-function rsyncDown(host: RemoteHost, remoteDir: string, localDir: string, opts: { delete?: boolean } = {}) {
-  rsyncFolder(localDir, ["-az", ...(opts.delete ? ["--delete"] : []), "-e", rsyncShell(host)],
-    `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`, `${localDir.replace(/\/?$/, "/")}`);
+function rsyncDown(
+  host: RemoteHost,
+  remoteDir: string,
+  localDir: string,
+  opts: { delete?: boolean } = {},
+) {
+  rsyncFolder(
+    localDir,
+    ["-az", ...(opts.delete ? ["--delete"] : []), "-e", rsyncShell(host)],
+    `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`,
+    `${localDir.replace(/\/?$/, "/")}`,
+  );
 }
 
 /** Copy ONE file into a remote directory (trailing-slash target avoids dir corruption). */
 function rsyncFileInto(host: RemoteHost, localFile: string, remoteDir: string) {
   ssh(host, `mkdir -p ${shq(remoteDir)}`);
-  execFileSync("rsync", ["-az", "-e", rsyncShell(host), localFile, `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`], { stdio: "pipe" });
+  execFileSync(
+    "rsync",
+    [
+      "-az",
+      "-e",
+      rsyncShell(host),
+      localFile,
+      `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`,
+    ],
+    { stdio: "pipe" },
+  );
 }
 
-function rsyncFileDownInto(host: RemoteHost, remoteFile: string, localDir: string) {
+function rsyncFileDownInto(
+  host: RemoteHost,
+  remoteFile: string,
+  localDir: string,
+) {
   fs.mkdirSync(localDir, { recursive: true });
-  execFileSync("rsync", ["-az", "-e", rsyncShell(host), `${sshDestination(host)}:${remoteFile}`, `${localDir.replace(/\/?$/, "/")}`], { stdio: "pipe" });
+  execFileSync(
+    "rsync",
+    [
+      "-az",
+      "-e",
+      rsyncShell(host),
+      `${sshDestination(host)}:${remoteFile}`,
+      `${localDir.replace(/\/?$/, "/")}`,
+    ],
+    { stdio: "pipe" },
+  );
 }
 
 export function shq(s: string): string {
@@ -180,13 +332,27 @@ export function shq(s: string): string {
 // Git-over-SSH transport
 // --------------------------------------------------------------------------
 
-function git(cwd: string, args: string[], env?: Record<string, string>): string {
-  return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, ...(env ? { env: { ...process.env, ...env } } : {}) }).trim();
+function git(
+  cwd: string,
+  args: string[],
+  env?: Record<string, string>,
+): string {
+  return execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    maxBuffer: 64 * 1024 * 1024,
+    ...(env ? { env: { ...process.env, ...env } } : {}),
+  }).trim();
 }
 
 function gitSafe(cwd: string, args: string[]): { ok: boolean; out: string } {
-  try { return { ok: true, out: git(cwd, args) }; }
-  catch (e) { return { ok: false, out: (e as { stderr?: Buffer }).stderr?.toString() ?? String(e) }; }
+  try {
+    return { ok: true, out: git(cwd, args) };
+  } catch (e) {
+    return {
+      ok: false,
+      out: (e as { stderr?: Buffer }).stderr?.toString() ?? String(e),
+    };
+  }
 }
 
 /** Branch checked out in a worktree. */
@@ -200,7 +366,10 @@ export function currentBranch(cwd: string): string {
  * moves as a folder.
  */
 export function isWorktree(cwd: string): boolean {
-  return gitSafe(cwd, ["rev-parse", "--is-inside-work-tree"]).out === "true" && gitSafe(cwd, ["rev-parse", "--verify", "-q", "HEAD"]).ok;
+  return (
+    gitSafe(cwd, ["rev-parse", "--is-inside-work-tree"]).out === "true" &&
+    gitSafe(cwd, ["rev-parse", "--verify", "-q", "HEAD"]).ok
+  );
 }
 
 /** SSH url for git push to a path on the remote. */
@@ -212,16 +381,27 @@ export function gitSshUrl(host: RemoteHost, remotePath: string): string {
 export function gitEnv(host: RemoteHost): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    GIT_SSH_COMMAND: sshShell([...sshIdentity(host), "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=20"]),
+    GIT_SSH_COMMAND: sshShell([
+      ...sshIdentity(host),
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "ConnectTimeout=20",
+    ]),
   };
 }
 
 /** Does the remote already have a git repo at remotePath? */
 function remoteRepoExists(host: RemoteHost, remotePath: string): boolean {
   try {
-    const out = ssh(host, `test -d ${shq(remotePath)}/.git && echo yes || echo no`).trim();
+    const out = ssh(
+      host,
+      `test -d ${shq(remotePath)}/.git && echo yes || echo no`,
+    ).trim();
     return out === "yes";
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -231,9 +411,17 @@ function remoteRepoExists(host: RemoteHost, remotePath: string): boolean {
  * receive.denyCurrentBranch=updateInstead so subsequent branch pushes update
  * its working tree in place.
  */
-export function ensureRemoteRepo(host: RemoteHost, localCwd: string, remotePath: string, seedFrom?: string): void {
+export function ensureRemoteRepo(
+  host: RemoteHost,
+  localCwd: string,
+  remotePath: string,
+  seedFrom?: string,
+): void {
   if (remoteRepoExists(host, remotePath)) {
-    ssh(host, `cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead`);
+    ssh(
+      host,
+      `cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead`,
+    );
     repairRemoteOrigin(host, localCwd, remotePath);
     return;
   }
@@ -241,7 +429,10 @@ export function ensureRemoteRepo(host: RemoteHost, localCwd: string, remotePath:
   // local clone shares its objects, so only the session's snapshot crosses
   // the network.
   if (seedFrom && remoteRepoExists(host, seedFrom)) {
-    ssh(host, `${cloneInto(seedFrom, remotePath)} && cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead`);
+    ssh(
+      host,
+      `${cloneInto(seedFrom, remotePath)} && cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead`,
+    );
     repairRemoteOrigin(host, localCwd, remotePath);
     return;
   }
@@ -249,13 +440,18 @@ export function ensureRemoteRepo(host: RemoteHost, localCwd: string, remotePath:
   const bundle = path.join(os.tmpdir(), `codecast-bundle-${Date.now()}.bundle`);
   git(localCwd, ["bundle", "create", bundle, "--all"]);
   const remoteBundle = `/tmp/${path.basename(bundle)}`;
-  execFileSync("scp", [...sshBase(host), bundle, `${sshDestination(host)}:${remoteBundle}`], { stdio: "pipe" });
+  execFileSync(
+    "scp",
+    [...sshBase(host), bundle, `${sshDestination(host)}:${remoteBundle}`],
+    { stdio: "pipe" },
+  );
   // No repo-local identity: the host's ~/.gitconfig carries the mirrored
   // laptop identity or the global codecast placeholder (cloud/hostGit.ts,
   // run by pushSession before this), and a repo-local one would shadow it.
-  ssh(host,
+  ssh(
+    host,
     `${cloneInto(remoteBundle, remotePath)} && ` +
-    `cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead && rm -f ${shq(remoteBundle)}`,
+      `cd ${shq(remotePath)} && git config receive.denyCurrentBranch updateInstead && rm -f ${shq(remoteBundle)}`,
   );
   fs.rmSync(bundle, { force: true });
   repairRemoteOrigin(host, localCwd, remotePath);
@@ -269,8 +465,10 @@ export function ensureRemoteRepo(host: RemoteHost, localCwd: string, remotePath:
  */
 export function cloneInto(src: string, dest: string): string {
   const d = shq(dest);
-  return `mkdir -p ${d} && if [ -z "$(ls -A ${d})" ]; then git clone -q ${shq(src)} ${d}; ` +
-    `else t=$(mktemp -d ${shq(`${dest}.clone-`)}XXXXXX) && git clone -q --no-checkout ${shq(src)} "$t" && mv "$t/.git" ${d}/.git && rmdir "$t" && git -C ${d} reset -q --hard; fi`;
+  return (
+    `mkdir -p ${d} && if [ -z "$(ls -A ${d})" ]; then git clone -q ${shq(src)} ${d}; ` +
+    `else t=$(mktemp -d ${shq(`${dest}.clone-`)}XXXXXX) && git clone -q --no-checkout ${shq(src)} "$t" && mv "$t/.git" ${d}/.git && rmdir "$t" && git -C ${d} reset -q --hard; fi`
+  );
 }
 
 /**
@@ -291,19 +489,33 @@ export function cloneInto(src: string, dest: string): string {
  * URL is left alone: the machine may have its own credential-appropriate form
  * (SSH vs HTTPS) for the same repo.
  */
-function repairRemoteOrigin(host: RemoteHost, localCwd: string, remotePath: string): void {
+function repairRemoteOrigin(
+  host: RemoteHost,
+  localCwd: string,
+  remotePath: string,
+): void {
   let canonical: string;
   try {
     canonical = git(localCwd, ["remote", "get-url", "origin"]).trim();
   } catch {
     return; // Local repo has no origin — nothing canonical to teach the remote.
   }
-  if (!canonical || canonical.startsWith("/") || canonical.startsWith("file://")) return;
+  if (
+    !canonical ||
+    canonical.startsWith("/") ||
+    canonical.startsWith("file://")
+  )
+    return;
   try {
-    const current = ssh(host, `cd ${shq(remotePath)} && git remote get-url origin 2>/dev/null || true`).trim();
-    const isDeadLocalPath = current.startsWith("/") || current.startsWith("file://");
+    const current = ssh(
+      host,
+      `cd ${shq(remotePath)} && git remote get-url origin 2>/dev/null || true`,
+    ).trim();
+    const isDeadLocalPath =
+      current.startsWith("/") || current.startsWith("file://");
     if (current === canonical || (current && !isDeadLocalPath)) return;
-    ssh(host,
+    ssh(
+      host,
       `cd ${shq(remotePath)} && (git remote set-url origin ${shq(canonical)} 2>/dev/null || git remote add origin ${shq(canonical)})`,
     );
   } catch {
@@ -342,7 +554,10 @@ export const LANDED_REF = "refs/codecast/landed";
 /** Where a move parks this folder's snapshot, and then the merged commit, for the host to read. */
 const INCOMING_REF = "refs/codecast/incoming";
 /** The rules a host keeps in a checkout's exclude list: where its workspaces and worktrees live inside the checkout. */
-export const HOST_EXCLUDES = ["/.codecast/workspaces/", "/.codecast/worktrees/"];
+export const HOST_EXCLUDES = [
+  "/.codecast/workspaces/",
+  "/.codecast/worktrees/",
+];
 /** Where the host parks a snapshot of its own tree for the laptop to merge against. */
 const HOST_TREE_REF = "refs/codecast/host-tree";
 
@@ -353,31 +568,57 @@ export async function gitPushWorktree(
   seedFrom?: string,
 ): Promise<{ branch: string; head: string }> {
   const branch = currentBranch(localRoot);
-  const snap = await createWipSnapshot(localRoot, { exclude: CLOUD_SEED_EXCLUDES });
+  const snap = await createWipSnapshot(localRoot, {
+    exclude: CLOUD_SEED_EXCLUDES,
+  });
   if (!snap) throw new Error(`${localRoot} has no commit to move`);
   ensureRemoteRepo(host, localRoot, remotePath, seedFrom);
   // The repo's own ignore list (.git/info/exclude) is not something a push
   // carries; without it the host snapshots files this folder never would, and
   // bringing the session home then trips over them. The host's own rules for
   // the folders its workspaces and worktrees live in are kept on top.
-  const exclude = git(localRoot, ["rev-parse", "--path-format=absolute", "--git-path", "info/exclude"]);
-  if (fs.existsSync(exclude)) rsyncFileInto(host, exclude, `${remotePath}/.git/info`);
-  ssh(host, `cd ${shq(remotePath)} && f=$(git rev-parse --git-path info/exclude) && mkdir -p "$(dirname "$f")" && for r in ${HOST_EXCLUDES.map(shq).join(" ")}; do grep -qxF "$r" "$f" 2>/dev/null || echo "$r" >> "$f"; done`);
+  const exclude = git(localRoot, [
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-path",
+    "info/exclude",
+  ]);
+  if (fs.existsSync(exclude))
+    rsyncFileInto(host, exclude, `${remotePath}/.git/info`);
+  ssh(
+    host,
+    `cd ${shq(remotePath)} && f=$(git rev-parse --git-path info/exclude) && mkdir -p "$(dirname "$f")" && for r in ${HOST_EXCLUDES.map(shq).join(" ")}; do grep -qxF "$r" "$f" 2>/dev/null || echo "$r" >> "$f"; done`,
+  );
   const url = gitSshUrl(host, remotePath);
-  const push = (sha: string) => execFileSync("git", ["-C", localRoot, "push", "--force", url, `${sha}:${INCOMING_REF}`], { env: gitEnv(host), stdio: "pipe", encoding: "utf-8" });
+  const push = (sha: string) =>
+    execFileSync(
+      "git",
+      ["-C", localRoot, "push", "--force", url, `${sha}:${INCOMING_REF}`],
+      { env: gitEnv(host), stdio: "pipe", encoding: "utf-8" },
+    );
   push(snap.sha);
   // A host session that writes a file the merge also changes, between the
   // host's snapshot and the apply, refuses the apply; the next attempt merges
   // against the tree as it is then.
   for (let attempt = 1; ; attempt++) {
-    const landing = planLanding(host, localRoot, remotePath, url, branch, snap.sha);
+    const landing = planLanding(
+      host,
+      localRoot,
+      remotePath,
+      url,
+      branch,
+      snap.sha,
+    );
     if (landing.commit !== snap.sha) push(landing.commit);
     try {
       ssh(host, landing.apply);
       markSynced(localRoot, host, remotePath, landing.commit);
       return { branch, head: landing.commit };
     } catch (e) {
-      if (attempt >= 3) throw new Error(`the host checkout ${remotePath} kept changing under the move: ${((e as { stderr?: string }).stderr ?? String(e)).trim().slice(0, 300)}`);
+      if (attempt >= 3)
+        throw new Error(
+          `the host checkout ${remotePath} kept changing under the move: ${((e as { stderr?: string }).stderr ?? String(e)).trim().slice(0, 300)}`,
+        );
     }
   }
 }
@@ -392,7 +633,10 @@ const HOST_FACT_MARK = "@cast-fact:";
  * of a macOS host, prints `echo -` as an empty line, which once made every
  * first move into a Mac host's checkout ask for a ref the host did not have.
  */
-export function parseHostFacts<K extends string>(out: string, keys: readonly K[]): Record<K, string> {
+export function parseHostFacts<K extends string>(
+  out: string,
+  keys: readonly K[],
+): Record<K, string> {
   const found = new Map<string, string>();
   for (const line of out.split("\n")) {
     const at = line.indexOf(HOST_FACT_MARK);
@@ -402,8 +646,14 @@ export function parseHostFacts<K extends string>(out: string, keys: readonly K[]
     if (eq > 0) found.set(pair.slice(0, eq), pair.slice(eq + 1).trim());
   }
   const missing = keys.filter((k) => !found.has(k));
-  if (missing.length) throw new Error(`the host did not report ${missing.join(", ")}: ${out.trim().slice(-300)}`);
-  return Object.fromEntries(keys.map((k) => [k, found.get(k)!])) as Record<K, string>;
+  if (missing.length)
+    throw new Error(
+      `the host did not report ${missing.join(", ")}: ${out.trim().slice(-300)}`,
+    );
+  return Object.fromEntries(keys.map((k) => [k, found.get(k)!])) as Record<
+    K,
+    string
+  >;
 }
 
 /** Shell that prints one fact parseHostFacts reads: `key` and the output of `expr` (empty when it fails). */
@@ -417,15 +667,38 @@ export function hostFactLine(key: string, expr: string): string {
  * apply. Records only the host's own snapshot ref. `hostHas` false means the
  * host has no checkout yet and a move would clone one.
  */
-export async function rehearseLanding(host: RemoteHost, localRoot: string, remotePath: string): Promise<{ hostHas: boolean; error: string | null }> {
-  if (!remoteRepoExists(host, remotePath)) return { hostHas: false, error: null };
-  const snap = await createWipSnapshot(localRoot, { exclude: CLOUD_SEED_EXCLUDES });
-  if (!snap) return { hostHas: true, error: `${localRoot} has no commit to move` };
+export async function rehearseLanding(
+  host: RemoteHost,
+  localRoot: string,
+  remotePath: string,
+): Promise<{ hostHas: boolean; error: string | null }> {
+  if (!remoteRepoExists(host, remotePath))
+    return { hostHas: false, error: null };
+  const snap = await createWipSnapshot(localRoot, {
+    exclude: CLOUD_SEED_EXCLUDES,
+  });
+  if (!snap)
+    return { hostHas: true, error: `${localRoot} has no commit to move` };
   try {
-    planLanding(host, localRoot, remotePath, gitSshUrl(host, remotePath), currentBranch(localRoot), snap.sha);
+    planLanding(
+      host,
+      localRoot,
+      remotePath,
+      gitSshUrl(host, remotePath),
+      currentBranch(localRoot),
+      snap.sha,
+    );
     return { hostHas: true, error: null };
   } catch (e) {
-    return { hostHas: true, error: ((e as { stderr?: string }).stderr || (e instanceof Error ? e.message : String(e))).trim().slice(0, 400) };
+    return {
+      hostHas: true,
+      error: (
+        (e as { stderr?: string }).stderr ||
+        (e instanceof Error ? e.message : String(e))
+      )
+        .trim()
+        .slice(0, 400),
+    };
   }
 }
 
@@ -442,42 +715,118 @@ export function landingFactsScript(remotePath: string, branch: string): string {
 }
 
 /** The host's side of a landing, read and merged here; `apply` is the script that lands it there. */
-function planLanding(host: RemoteHost, localRoot: string, remotePath: string, url: string, branch: string, sent: string): { commit: string; apply: string } {
+function planLanding(
+  host: RemoteHost,
+  localRoot: string,
+  remotePath: string,
+  url: string,
+  branch: string,
+  sent: string,
+): { commit: string; apply: string } {
   const q = shq(remotePath);
-  const facts = parseHostFacts(ssh(host, landingFactsScript(remotePath, branch)), LANDING_FACTS);
-  const hostSnap = facts.snap, hostBranch = facts.branch;
-  const branchTip = facts.tip || "-", landed = facts.landed || "-";
-  if (!hostSnap) throw new Error(`could not snapshot the host checkout ${remotePath}`);
-  const refs = [HOST_TREE_REF, ...(landed !== "-" ? [LANDED_REF] : []), ...(branchTip !== "-" ? [`refs/heads/${branch}`] : [])];
-  execFileSync("git", ["-C", localRoot, "fetch", "-q", "--no-write-fetch-head", url, ...refs], { env: gitEnv(host), stdio: "pipe" });
+  const facts = parseHostFacts(
+    ssh(host, landingFactsScript(remotePath, branch)),
+    LANDING_FACTS,
+  );
+  const hostSnap = facts.snap,
+    hostBranch = facts.branch;
+  const branchTip = facts.tip || "-",
+    landed = facts.landed || "-";
+  if (!hostSnap)
+    throw new Error(`could not snapshot the host checkout ${remotePath}`);
+  const refs = [
+    HOST_TREE_REF,
+    ...(landed !== "-" ? [LANDED_REF] : []),
+    ...(branchTip !== "-" ? [`refs/heads/${branch}`] : []),
+  ];
+  execFileSync(
+    "git",
+    ["-C", localRoot, "fetch", "-q", "--no-write-fetch-head", url, ...refs],
+    { env: gitEnv(host), stdio: "pipe" },
+  );
 
   const tree = (c: string) => git(localRoot, ["rev-parse", `${c}^{tree}`]);
-  const isAncestor = (a: string, b: string) => gitSafe(localRoot, ["merge-base", "--is-ancestor", a, b]).ok;
+  const isAncestor = (a: string, b: string) =>
+    gitSafe(localRoot, ["merge-base", "--is-ancestor", a, b]).ok;
   const hostHead = git(localRoot, ["rev-parse", `${hostSnap}^`]);
   const local = git(localRoot, ["rev-parse", `${sent}^`]);
   const hostDirty = tree(hostSnap) !== tree(hostHead);
   const sameBranch = hostBranch === branch;
   if (!sameBranch && hostDirty) {
-    throw new Error(`the host checkout ${remotePath} is on ${hostBranch} with uncommitted work, and this session is on ${branch}; nothing was moved`);
+    throw new Error(
+      `the host checkout ${remotePath} is on ${hostBranch} with uncommitted work, and this session is on ${branch}; nothing was moved`,
+    );
   }
   // The commit the host's checkout starts from for this branch: where it is,
   // or (clean, on another branch) where its copy of this branch is.
   const start = sameBranch ? hostHead : branchTip !== "-" ? branchTip : local;
-  const head = isAncestor(start, local) ? local : isAncestor(local, start) ? start : null;
-  if (!head) throw new Error(`${branch} has commits on the host that this folder lacks and the other way round; nothing was moved`);
+  const head = isAncestor(start, local)
+    ? local
+    : isAncestor(local, start)
+      ? start
+      : null;
+  if (!head)
+    throw new Error(
+      `${branch} has commits on the host that this folder lacks and the other way round; nothing was moved`,
+    );
   const ours = sameBranch && hostDirty ? hostSnap : start;
   const common = gitSafe(localRoot, ["merge-base", start, local]);
-  const base = sameBranch && landed !== "-" ? landed : common.ok && common.out ? common.out : start;
+  const base =
+    sameBranch && landed !== "-"
+      ? landed
+      : common.ok && common.out
+        ? common.out
+        : start;
 
-  const merge = spawnSync("git", ["-C", localRoot, "merge-tree", "--write-tree", "--name-only", "--no-messages", `--merge-base=${base}`, ours, sent], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
-  const [merged, ...conflicts] = (merge.stdout ?? "").trim().split("\n").filter(Boolean);
+  const merge = spawnSync(
+    "git",
+    [
+      "-C",
+      localRoot,
+      "merge-tree",
+      "--write-tree",
+      "--name-only",
+      "--no-messages",
+      `--merge-base=${base}`,
+      ours,
+      sent,
+    ],
+    { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  const [merged, ...conflicts] = (merge.stdout ?? "")
+    .trim()
+    .split("\n")
+    .filter(Boolean);
   if (merge.status === 1) {
     const files = [...new Set(conflicts)];
-    throw new Error(`this folder and the host checkout ${remotePath} both changed ${files.slice(0, 3).join(", ")}${files.length > 3 ? ` and ${files.length - 3} more` : ""}; nothing was moved`);
+    throw new Error(
+      `this folder and the host checkout ${remotePath} both changed ${files.slice(0, 3).join(", ")}${files.length > 3 ? ` and ${files.length - 3} more` : ""}; nothing was moved`,
+    );
   }
-  if (merge.status !== 0 || !merged) throw new Error(`could not merge with the host checkout: ${(merge.stderr ?? "").trim().slice(0, 300)}`);
+  if (merge.status !== 0 || !merged)
+    throw new Error(
+      `could not merge with the host checkout: ${(merge.stderr ?? "").trim().slice(0, 300)}`,
+    );
   const date = git(localRoot, ["log", "-1", "--format=%cI", head]);
-  const commit = merged === tree(sent) && head === local ? sent : git(localRoot, ["commit-tree", merged, "-p", head, "-m", buildSnapshotMessage({ branch })], { ...SNAPSHOT_IDENTITY, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date });
+  const commit =
+    merged === tree(sent) && head === local
+      ? sent
+      : git(
+          localRoot,
+          [
+            "commit-tree",
+            merged,
+            "-p",
+            head,
+            "-m",
+            buildSnapshotMessage({ branch }),
+          ],
+          {
+            ...SNAPSHOT_IDENTITY,
+            GIT_AUTHOR_DATE: date,
+            GIT_COMMITTER_DATE: date,
+          },
+        );
 
   const apply = [
     `cd ${q}`,
@@ -510,23 +859,55 @@ function retreeShell(from: string, to: string): string {
  * and a file a host process touched since the way home's snapshot refuses the
  * reset. Returns why the checkout was kept, or null when it is clean now.
  */
-export function clearHostLeftovers(host: RemoteHost, localRoot: string, remoteRoot: string): string | null {
-  const snap = gitSafe(localRoot, ["rev-parse", "--verify", "-q", remoteBackRef(currentBranch(localRoot))]);
+export function clearHostLeftovers(
+  host: RemoteHost,
+  localRoot: string,
+  remoteRoot: string,
+): string | null {
+  const snap = gitSafe(localRoot, [
+    "rev-parse",
+    "--verify",
+    "-q",
+    remoteBackRef(currentBranch(localRoot)),
+  ]);
   if (!snap.ok) return "no snapshot of the host to compare with";
   const hostHead = git(localRoot, ["rev-parse", `${snap.out}^`]);
-  const changed = git(localRoot, ["diff", "--name-only", "-z", hostHead, snap.out]).split("\0").filter(Boolean);
+  const changed = git(localRoot, [
+    "diff",
+    "--name-only",
+    "-z",
+    hostHead,
+    snap.out,
+  ])
+    .split("\0")
+    .filter(Boolean);
   if (!changed.length) return null;
   for (const rel of changed) {
-    const there = gitSafe(localRoot, ["rev-parse", "--verify", "-q", `${snap.out}:${rel}`]);
-    const st = fs.lstatSync(path.join(localRoot, rel), { throwIfNoEntry: false });
-    const here = !st ? null : execFileSync("git", ["-C", localRoot, "hash-object", "--stdin"], {
-      input: st.isSymbolicLink() ? fs.readlinkSync(path.join(localRoot, rel)) : fs.readFileSync(path.join(localRoot, rel)),
-      encoding: "utf-8",
-    }).trim();
-    if ((there.ok ? there.out : null) !== here) return `${rel} on the host differs from this folder`;
+    const there = gitSafe(localRoot, [
+      "rev-parse",
+      "--verify",
+      "-q",
+      `${snap.out}:${rel}`,
+    ]);
+    const st = fs.lstatSync(path.join(localRoot, rel), {
+      throwIfNoEntry: false,
+    });
+    const here = !st
+      ? null
+      : execFileSync("git", ["-C", localRoot, "hash-object", "--stdin"], {
+          input: st.isSymbolicLink()
+            ? fs.readlinkSync(path.join(localRoot, rel))
+            : fs.readFileSync(path.join(localRoot, rel)),
+          encoding: "utf-8",
+        }).trim();
+    if ((there.ok ? there.out : null) !== here)
+      return `${rel} on the host differs from this folder`;
   }
   try {
-    ssh(host, `cd ${shq(remoteRoot)} && [ "$(git rev-parse HEAD)" = ${shq(hostHead)} ] && ${retreeShell(git(localRoot, ["rev-parse", `${snap.out}^{tree}`]), git(localRoot, ["rev-parse", `${hostHead}^{tree}`]))} && git reset -q`);
+    ssh(
+      host,
+      `cd ${shq(remoteRoot)} && [ "$(git rev-parse HEAD)" = ${shq(hostHead)} ] && ${retreeShell(git(localRoot, ["rev-parse", `${snap.out}^{tree}`]), git(localRoot, ["rev-parse", `${hostHead}^{tree}`]))} && git reset -q`,
+    );
     return null;
   } catch {
     return "the host checkout changed after its work came home";
@@ -542,11 +923,19 @@ export function clearHostLeftovers(host: RemoteHost, localRoot: string, remoteRo
  * of 14 sessions from one shared cloud checkout rewrote the same conflict
  * markers here after the first one had resolved them, 2026-11-18).
  */
-export function syncedRef(host: Pick<RemoteHost, "user" | "address">, remotePath: string): string {
+export function syncedRef(
+  host: Pick<RemoteHost, "user" | "address">,
+  remotePath: string,
+): string {
   return `refs/codecast/synced/${createHash("sha256").update(`${host.user}@${host.address}:${remotePath}`).digest("hex").slice(0, 16)}`;
 }
 
-function markSynced(localRoot: string, host: RemoteHost, remotePath: string, commit: string): void {
+function markSynced(
+  localRoot: string,
+  host: RemoteHost,
+  remotePath: string,
+  commit: string,
+): void {
   gitSafe(localRoot, ["update-ref", syncedRef(host, remotePath), commit]);
 }
 
@@ -575,31 +964,78 @@ export async function gitPullWorktree(
   localCwd: string,
   remotePath: string,
   start?: string,
-): Promise<{ ff: boolean; reason?: string; appliedWork?: boolean; conflicts?: string[] }> {
+): Promise<{
+  ff: boolean;
+  reason?: string;
+  appliedWork?: boolean;
+  conflicts?: string[];
+}> {
   const branch = currentBranch(localCwd);
   const ref = remoteBackRef(branch);
   let skip: string[] = [];
   try {
-    skip = ssh(host, `python3 -c ${shq(mirrorUntouchedInCheckoutScript())} ${shq(remotePath)} 2>/dev/null || true`).split("\n").filter(Boolean);
-  } catch { /* no stamp read: every change comes home */ }
-  try {
-    ssh(host, remoteSnapshotScript({ cwd: remotePath, ref, exclude: CLOUD_SEED_EXCLUDES }));
-  } catch (e) {
-    const err = e as { stderr?: Buffer; message?: string };
-    return { ff: false, reason: `could not snapshot the remote worktree: ${(err.stderr?.toString() || err.message || String(e)).slice(0, 200)}` };
+    skip = ssh(
+      host,
+      `python3 -c ${shq(mirrorUntouchedInCheckoutScript())} ${shq(remotePath)} 2>/dev/null || true`,
+    )
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    /* no stamp read: every change comes home */
   }
   try {
-    execFileSync("git", ["-C", localCwd, "fetch", "--force", gitSshUrl(host, remotePath), `${ref}:${ref}`],
-      { env: gitEnv(host), stdio: "pipe" });
+    ssh(
+      host,
+      remoteSnapshotScript({
+        cwd: remotePath,
+        ref,
+        exclude: CLOUD_SEED_EXCLUDES,
+      }),
+    );
   } catch (e) {
     const err = e as { stderr?: Buffer; message?: string };
-    return { ff: false, reason: `could not fetch the remote snapshot: ${(err.stderr?.toString() || err.message || String(e)).slice(0, 200)}` };
+    return {
+      ff: false,
+      reason: `could not snapshot the remote worktree: ${(err.stderr?.toString() || err.message || String(e)).slice(0, 200)}`,
+    };
   }
-  const synced = gitSafe(localCwd, ["rev-parse", "--verify", "-q", `${syncedRef(host, remotePath)}^{commit}`]);
-  const applied = await applySnapshotFastForward(localCwd, ref, { start: synced.ok && synced.out ? synced.out : start, skip });
+  try {
+    execFileSync(
+      "git",
+      [
+        "-C",
+        localCwd,
+        "fetch",
+        "--force",
+        gitSshUrl(host, remotePath),
+        `${ref}:${ref}`,
+      ],
+      { env: gitEnv(host), stdio: "pipe" },
+    );
+  } catch (e) {
+    const err = e as { stderr?: Buffer; message?: string };
+    return {
+      ff: false,
+      reason: `could not fetch the remote snapshot: ${(err.stderr?.toString() || err.message || String(e)).slice(0, 200)}`,
+    };
+  }
+  const synced = gitSafe(localCwd, [
+    "rev-parse",
+    "--verify",
+    "-q",
+    `${syncedRef(host, remotePath)}^{commit}`,
+  ]);
+  const applied = await applySnapshotFastForward(localCwd, ref, {
+    start: synced.ok && synced.out ? synced.out : start,
+    skip,
+  });
   if (!applied.ok) return { ff: false, reason: applied.reason };
   markSynced(localCwd, host, remotePath, git(localCwd, ["rev-parse", ref]));
-  return { ff: true, appliedWork: applied.appliedWork, conflicts: applied.conflicts };
+  return {
+    ff: true,
+    appliedWork: applied.appliedWork,
+    conflicts: applied.conflicts,
+  };
 }
 
 // --------------------------------------------------------------------------
@@ -620,7 +1056,11 @@ export function replaceFromStdin(dir: string, file: string): string {
 
 /** ssh argv that writes stdin to the remote's credential file. */
 function credentialPushArgs(host: RemoteHost): string[] {
-  return [...sshBase(host), sshDestination(host), `${SHARED_HOST_PUSH_GUARD}${replaceFromStdin("~/.claude", ".credentials.json")}`];
+  return [
+    ...sshBase(host),
+    sshDestination(host),
+    `${SHARED_HOST_PUSH_GUARD}${replaceFromStdin("~/.claude", ".credentials.json")}`,
+  ];
 }
 
 export interface CredentialPushOutcome {
@@ -644,12 +1084,23 @@ export interface CredentialPushOutcome {
  * primary's), so an expired or logged-out blob would just park every remote
  * session on "Login expired".
  */
-export function readPushableCredential(): { cred: string | null; reason?: string } {
-  return gatePushableCredential((fleetOnPoolCopy() ? null : readFleetCredential()) ?? readLocalCredential());
+export function readPushableCredential(): {
+  cred: string | null;
+  reason?: string;
+} {
+  return gatePushableCredential(
+    (fleetOnPoolCopy() ? null : readFleetCredential()) ?? readLocalCredential(),
+  );
 }
 
-export async function readPushableCredentialAsync(): Promise<{ cred: string | null; reason?: string }> {
-  return gatePushableCredential((fleetOnPoolCopy() ? null : await readFleetCredentialAsync()) ?? (await readLocalCredentialAsync()));
+export async function readPushableCredentialAsync(): Promise<{
+  cred: string | null;
+  reason?: string;
+}> {
+  return gatePushableCredential(
+    (fleetOnPoolCopy() ? null : await readFleetCredentialAsync()) ??
+      (await readLocalCredentialAsync()),
+  );
 }
 
 /** The fleet runs on a pool copy (ccPool.ts): its token goes only where the
@@ -659,16 +1110,22 @@ function fleetOnPoolCopy(): boolean {
   return !!profile && !!readProfileIndex().profiles[profile]?.pool_share_id;
 }
 
-function gatePushableCredential(cred: string | null): { cred: string | null; reason?: string } {
+function gatePushableCredential(cred: string | null): {
+  cred: string | null;
+  reason?: string;
+} {
   const health = credentialHealth(cred);
-  if (!health.pushable) return { cred: null, reason: health.reason ?? "no credential" };
+  if (!health.pushable)
+    return { cred: null, reason: health.reason ?? "no credential" };
   return { cred: cred! };
 }
 
 /** The remote already holds a Claude login that can serve a request now. */
 export function remoteClaudeLoginLive(host: RemoteHost): boolean {
   try {
-    return credentialHealth(ssh(host, "cat ~/.claude/.credentials.json 2>/dev/null || true")).pushable;
+    return credentialHealth(
+      ssh(host, "cat ~/.claude/.credentials.json 2>/dev/null || true"),
+    ).pushable;
   } catch {
     return false;
   }
@@ -679,13 +1136,16 @@ export function remoteClaudeLoginLive(host: RemoteHost): boolean {
  * FILE form). Piped via ssh stdin so the secret never lands on disk locally or
  * in argv. Skips (with a reason) when the local credential is unusable.
  */
-export function copyCredentialToRemote(host: RemoteHost): CredentialPushOutcome {
+export function copyCredentialToRemote(
+  host: RemoteHost,
+): CredentialPushOutcome {
   const gate = readPushableCredential();
   if (!gate.cred) return { pushed: false, reason: gate.reason };
   try {
     execFileSync("ssh", credentialPushArgs(host), { input: gate.cred });
   } catch (err) {
-    if ((err as { status?: number }).status === SHARED_HOST_REFUSED_STATUS) return { pushed: false, reason: SHARED_HOST_REFUSAL };
+    if ((err as { status?: number }).status === SHARED_HOST_REFUSED_STATUS)
+      return { pushed: false, reason: SHARED_HOST_REFUSAL };
     throw err;
   }
   return { pushed: true, cred: gate.cred };
@@ -696,23 +1156,39 @@ export function copyCredentialToRemote(host: RemoteHost): CredentialPushOutcome 
  * event loop (heartbeats, delivery) for the round-trip. Hard 60s kill so a
  * wedged ssh can't leak.
  */
-export async function copyCredentialToRemoteAsync(host: RemoteHost): Promise<CredentialPushOutcome> {
+export async function copyCredentialToRemoteAsync(
+  host: RemoteHost,
+): Promise<CredentialPushOutcome> {
   const gate = await readPushableCredentialAsync();
   if (!gate.cred) return { pushed: false, reason: gate.reason };
   const cred = gate.cred;
   await new Promise<void>((resolve, reject) => {
-    const child = spawn("ssh", credentialPushArgs(host), { stdio: ["pipe", "ignore", "pipe"] });
+    const child = spawn("ssh", credentialPushArgs(host), {
+      stdio: ["pipe", "ignore", "pipe"],
+    });
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
       reject(new Error("credential push timed out"));
     }, 60_000);
     let stderr = "";
-    child.stderr?.on("data", (d) => { stderr += d; });
-    child.on("error", (err) => { clearTimeout(timer); reject(err); });
+    child.stderr?.on("data", (d) => {
+      stderr += d;
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve();
-      else reject(new Error(code === SHARED_HOST_REFUSED_STATUS ? SHARED_HOST_REFUSAL : `ssh exited ${code}: ${stderr.slice(0, 200)}`));
+      else
+        reject(
+          new Error(
+            code === SHARED_HOST_REFUSED_STATUS
+              ? SHARED_HOST_REFUSAL
+              : `ssh exited ${code}: ${stderr.slice(0, 200)}`,
+          ),
+        );
     });
     child.stdin.write(cred);
     child.stdin.end();
@@ -729,7 +1205,11 @@ export async function copyCredentialToRemoteAsync(host: RemoteHost): Promise<Cre
 
 /** ssh argv that writes stdin to the remote's provider-key store. */
 function providerKeysPushArgs(host: RemoteHost): string[] {
-  return [...sshBase(host), sshDestination(host), `${SHARED_HOST_PUSH_GUARD}${replaceFromStdin("~/.codecast", "provider-keys.json")}`];
+  return [
+    ...sshBase(host),
+    sshDestination(host),
+    `${SHARED_HOST_PUSH_GUARD}${replaceFromStdin("~/.codecast", "provider-keys.json")}`,
+  ];
 }
 
 export interface ProviderKeysPushOutcome {
@@ -743,23 +1223,48 @@ export interface ProviderKeysPushOutcome {
  * removes the remote file so a cleared key clears everywhere. Async (mirrors the
  * credential push) with a hard 60s kill so a wedged ssh can't leak.
  */
-export async function copyProviderKeysToRemoteAsync(host: RemoteHost, blob: string | null): Promise<ProviderKeysPushOutcome> {
+export async function copyProviderKeysToRemoteAsync(
+  host: RemoteHost,
+  blob: string | null,
+): Promise<ProviderKeysPushOutcome> {
   // No local keys → remove the remote store so "cleared here" means "cleared there".
-  const argv = blob === null
-    ? [...sshBase(host), sshDestination(host), "rm -f ~/.codecast/provider-keys.json"]
-    : providerKeysPushArgs(host);
+  const argv =
+    blob === null
+      ? [
+          ...sshBase(host),
+          sshDestination(host),
+          "rm -f ~/.codecast/provider-keys.json",
+        ]
+      : providerKeysPushArgs(host);
   await new Promise<void>((resolve, reject) => {
     const child = spawn("ssh", argv, { stdio: ["pipe", "ignore", "pipe"] });
-    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("provider-key push timed out")); }, 60_000);
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error("provider-key push timed out"));
+    }, 60_000);
     let stderr = "";
-    child.stderr?.on("data", (d) => { stderr += d; });
-    child.on("error", (err) => { clearTimeout(timer); reject(err); });
+    child.stderr?.on("data", (d) => {
+      stderr += d;
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve();
-      else reject(new Error(code === SHARED_HOST_REFUSED_STATUS ? SHARED_HOST_REFUSAL : `ssh exited ${code}: ${stderr.slice(0, 200)}`));
+      else
+        reject(
+          new Error(
+            code === SHARED_HOST_REFUSED_STATUS
+              ? SHARED_HOST_REFUSAL
+              : `ssh exited ${code}: ${stderr.slice(0, 200)}`,
+          ),
+        );
     });
-    if (blob !== null) { child.stdin.write(blob); }
+    if (blob !== null) {
+      child.stdin.write(blob);
+    }
     child.stdin.end();
   });
   return { pushed: true };
@@ -774,7 +1279,11 @@ export async function copyProviderKeysToRemoteAsync(host: RemoteHost, blob: stri
 
 /** ssh argv that runs the receiver with the bundle JSON on stdin. */
 function agentAuthPushArgs(host: RemoteHost): string[] {
-  return [...sshBase(host), sshDestination(host), `${SHARED_HOST_PUSH_GUARD}umask 077; python3 -c ${shq(AGENT_AUTH_RECEIVER)}`];
+  return [
+    ...sshBase(host),
+    sshDestination(host),
+    `${SHARED_HOST_PUSH_GUARD}umask 077; python3 -c ${shq(AGENT_AUTH_RECEIVER)}`,
+  ];
 }
 
 export interface AgentAuthPushOutcome {
@@ -796,19 +1305,46 @@ export interface AgentAuthPushOutcome {
 export const AGENT_AUTH_OTHER_USER_REASON = "host holds another user's logins";
 
 /** The receiver's stdout + exit status as an outcome. Exported for the daemon's and the tests' benefit. */
-export function parseAgentAuthReceiverOutput(stdout: string, status: number | null, stderr = ""): AgentAuthPushOutcome {
-  const lines = stdout.split("\n").map((l) => l.trim()).filter(Boolean);
-  if (status === 3 || lines.includes("refused:other-user")) return { pushed: false, kept: [], reason: AGENT_AUTH_OTHER_USER_REASON };
-  if (status === SHARED_HOST_REFUSED_STATUS) return { pushed: false, kept: [], reason: SHARED_HOST_REFUSAL };
+export function parseAgentAuthReceiverOutput(
+  stdout: string,
+  status: number | null,
+  stderr = "",
+): AgentAuthPushOutcome {
+  const lines = stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (status === 3 || lines.includes("refused:other-user"))
+    return { pushed: false, kept: [], reason: AGENT_AUTH_OTHER_USER_REASON };
+  if (status === SHARED_HOST_REFUSED_STATUS)
+    return { pushed: false, kept: [], reason: SHARED_HOST_REFUSAL };
   const applied = [...lines].reverse().find((l) => l.startsWith("applied "));
   if (status !== 0 || !applied) {
-    const detail = stderr.trim().split("\n").filter(Boolean).pop() ?? lines.filter((l) => l.startsWith("error:")).pop() ?? "";
-    const older = /python3: (command )?not found|No such file/.test(stderr) ? "python3 missing on the host" : "";
-    return { pushed: false, kept: [], reason: older || `receiver exited ${status ?? "by signal"}${detail ? `: ${detail.slice(0, 200)}` : ""}` };
+    const detail =
+      stderr.trim().split("\n").filter(Boolean).pop() ??
+      lines.filter((l) => l.startsWith("error:")).pop() ??
+      "";
+    const older = /python3: (command )?not found|No such file/.test(stderr)
+      ? "python3 missing on the host"
+      : "";
+    return {
+      pushed: false,
+      kept: [],
+      reason:
+        older ||
+        `receiver exited ${status ?? "by signal"}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+    };
   }
-  const field = (name: string) => new RegExp(`\\b${name}=(\\S*)`).exec(applied)?.[1] ?? "";
-  const list = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean);
-  const errors = lines.filter((l) => l.startsWith("error:")).map((l) => l.slice("error:".length));
+  const field = (name: string) =>
+    new RegExp(`\\b${name}=(\\S*)`).exec(applied)?.[1] ?? "";
+  const list = (v: string) =>
+    v
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const errors = lines
+    .filter((l) => l.startsWith("error:"))
+    .map((l) => l.slice("error:".length));
   return {
     pushed: true,
     kept: list(field("kept")).map((k) => k.replace(/:/g, " ")),
@@ -817,7 +1353,9 @@ export function parseAgentAuthReceiverOutput(stdout: string, status: number | nu
     env: list(field("env")),
     trust: Number(field("trust")) || 0,
     ...(errors.length ? { errors } : {}),
-    ...(lines.includes("settings:unparseable") ? { unparseableSettings: true } : {}),
+    ...(lines.includes("settings:unparseable")
+      ? { unparseableSettings: true }
+      : {}),
   };
 }
 
@@ -826,28 +1364,65 @@ export function parseAgentAuthReceiverOutput(stdout: string, status: number | nu
  * failures come back as `pushed:false` with a reason rather than throwing:
  * a host with the Claude login alone is still useful.
  */
-export function copyAgentAuthToRemote(host: RemoteHost, bundle: AgentAuthBundle): AgentAuthPushOutcome {
+export function copyAgentAuthToRemote(
+  host: RemoteHost,
+  bundle: AgentAuthBundle,
+): AgentAuthPushOutcome {
   const r = spawnSync("ssh", agentAuthPushArgs(host), {
-    input: JSON.stringify(bundle), encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60_000, maxBuffer: 16 * 1024 * 1024, env: process.env,
+    input: JSON.stringify(bundle),
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+    timeout: 60_000,
+    maxBuffer: 16 * 1024 * 1024,
+    env: process.env,
   });
-  if (r.error) return { pushed: false, kept: [], reason: `ssh failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})` };
+  if (r.error)
+    return {
+      pushed: false,
+      kept: [],
+      reason: `ssh failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})`,
+    };
   return parseAgentAuthReceiverOutput(r.stdout ?? "", r.status, r.stderr ?? "");
 }
 
 /** Async twin for the daemon's timers: a sync ssh would block the event loop. Hard 60s SIGKILL. */
-export async function copyAgentAuthToRemoteAsync(host: RemoteHost, bundle: AgentAuthBundle): Promise<AgentAuthPushOutcome> {
+export async function copyAgentAuthToRemoteAsync(
+  host: RemoteHost,
+  bundle: AgentAuthBundle,
+): Promise<AgentAuthPushOutcome> {
   return new Promise<AgentAuthPushOutcome>((resolve) => {
-    const child = spawn("ssh", agentAuthPushArgs(host), { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("ssh", agentAuthPushArgs(host), {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     let stdout = "";
     let stderr = "";
     let settled = false;
-    const done = (o: AgentAuthPushOutcome) => { if (!settled) { settled = true; clearTimeout(timer); resolve(o); } };
-    const timer = setTimeout(() => { child.kill("SIGKILL"); done({ pushed: false, kept: [], reason: "agent auth push timed out" }); }, 60_000);
-    child.stdout?.on("data", (d) => { stdout += d; });
-    child.stderr?.on("data", (d) => { stderr = (stderr + d).slice(-4000); });
-    child.on("error", (err) => done({ pushed: false, kept: [], reason: `ssh failed (${err.message})` }));
-    child.on("close", (code) => done(parseAgentAuthReceiverOutput(stdout, code, stderr)));
-    child.stdin.on("error", () => { /* the receiver exited first; close reports it */ });
+    const done = (o: AgentAuthPushOutcome) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve(o);
+      }
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      done({ pushed: false, kept: [], reason: "agent auth push timed out" });
+    }, 60_000);
+    child.stdout?.on("data", (d) => {
+      stdout += d;
+    });
+    child.stderr?.on("data", (d) => {
+      stderr = (stderr + d).slice(-4000);
+    });
+    child.on("error", (err) =>
+      done({ pushed: false, kept: [], reason: `ssh failed (${err.message})` }),
+    );
+    child.on("close", (code) =>
+      done(parseAgentAuthReceiverOutput(stdout, code, stderr)),
+    );
+    child.stdin.on("error", () => {
+      /* the receiver exited first; close reports it */
+    });
     child.stdin.write(JSON.stringify(bundle));
     child.stdin.end();
   });
@@ -860,13 +1435,22 @@ export async function copyAgentAuthToRemoteAsync(host: RemoteHost, bundle: Agent
  * ~/work, so it needs its own `[projects."…"]` table. No files, no env, no
  * stamp. Needs this laptop's login for the receiver's identity check.
  */
-export function ensureRemoteCodexTrust(host: RemoteHost, remoteCwd: string, origin?: { userId: string; deviceId: string }): AgentAuthPushOutcome {
+export function ensureRemoteCodexTrust(
+  host: RemoteHost,
+  remoteCwd: string,
+  origin?: { userId: string; deviceId: string },
+): AgentAuthPushOutcome {
   let who = origin;
   if (!who) {
     const cfg = readLocalConfig();
     if (cfg?.user_id) who = { userId: cfg.user_id, deviceId: localDeviceId() };
   }
-  if (!who) return { pushed: false, kept: [], reason: "not logged in on this laptop — cast login" };
+  if (!who)
+    return {
+      pushed: false,
+      kept: [],
+      reason: "not logged in on this laptop — cast login",
+    };
   return copyAgentAuthToRemote(host, trustOnlyBundle(who, [remoteCwd]));
 }
 
@@ -907,7 +1491,11 @@ export function verifyRemoteSync(
 ): SyncVerification {
   const branch = currentBranch(localCwd);
   const sent = expectedHead ?? git(localCwd, ["rev-parse", "HEAD"]);
-  const unfolded = !!expectedHead && isWipSnapshotMessage(gitSafe(localCwd, ["show", "-s", "--format=%B", sent]).out);
+  const unfolded =
+    !!expectedHead &&
+    isWipSnapshotMessage(
+      gitSafe(localCwd, ["show", "-s", "--format=%B", sent]).out,
+    );
   const localHead = unfolded ? git(localCwd, ["rev-parse", `${sent}^`]) : sent;
   const tree = git(localCwd, ["rev-parse", `${sent}^{tree}`]);
   let remoteHead: string | null = null;
@@ -918,12 +1506,23 @@ export function verifyRemoteSync(
     const lines = ssh(
       host,
       `cd ${shq(remoteCwd)} && git rev-parse HEAD && t=$(mktemp -d) && (${snapshotTreeShell("$t/index", CLOUD_SEED_EXCLUDES)} && GIT_INDEX_FILE="$t/index" git diff-index --cached --name-only ${shq(tree)} | wc -l); s=$?; rm -rf "$t"; exit $s`,
-    ).trim().split("\n");
+    )
+      .trim()
+      .split("\n");
     remoteHead = lines[0]?.trim() || null;
     const dirty = parseInt(lines[2]?.trim() ?? "", 10);
-    remoteDirty = lines[1]?.trim() === tree ? 0 : Number.isNaN(dirty) ? null : dirty;
-  } catch { /* verification unavailable — report unknown, don't block the move */ }
-  return { branch, localHead, remoteHead, headsMatch: remoteHead === localHead, remoteDirty };
+    remoteDirty =
+      lines[1]?.trim() === tree ? 0 : Number.isNaN(dirty) ? null : dirty;
+  } catch {
+    /* verification unavailable — report unknown, don't block the move */
+  }
+  return {
+    branch,
+    localHead,
+    remoteHead,
+    headsMatch: remoteHead === localHead,
+    remoteDirty,
+  };
 }
 
 export interface MoveResult {
@@ -964,7 +1563,8 @@ export interface BroughtPath {
  */
 export function remoteRepoPath(host: RemoteHost, localGitRoot: string): string {
   const rel = path.relative(laptopHome(), localGitRoot);
-  if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) return path.posix.join(remoteHome(host), ...rel.split(path.sep));
+  if (rel && !rel.startsWith("..") && !path.isAbsolute(rel))
+    return path.posix.join(remoteHome(host), ...rel.split(path.sep));
   return path.posix.join(host.remoteBaseDir, path.basename(localGitRoot));
 }
 
@@ -979,7 +1579,10 @@ export function remoteRepoPath(host: RemoteHost, localGitRoot: string): string {
 export const MOVE_CLONE_RE = /-mv-[a-z0-9]+$/;
 
 /** The checkout a move clone stands in for, or `root` itself when it is not one (or that checkout is gone). */
-export function checkoutOfMoveClone(root: string, exists: (p: string) => boolean = (p) => fs.existsSync(path.join(p, ".git"))): string {
+export function checkoutOfMoveClone(
+  root: string,
+  exists: (p: string) => boolean = (p) => fs.existsSync(path.join(p, ".git")),
+): string {
   if (!MOVE_CLONE_RE.test(root)) return root;
   const main = root.replace(MOVE_CLONE_RE, "");
   return exists(main) ? main : root;
@@ -994,16 +1597,25 @@ export function checkoutOfMoveClone(root: string, exists: (p: string) => boolean
  * tree push is idempotent for git worktrees, but a plain directory rsyncs
  * with --delete, and two sessions in one directory must not race that.
  */
-export async function pushSession(sessionId: string, host: RemoteHost, opts: { skipTree?: boolean; pushedHead?: string; bring?: string[] } = {}): Promise<MoveResult> {
+export async function pushSession(
+  sessionId: string,
+  host: RemoteHost,
+  opts: { skipTree?: boolean; pushedHead?: string; bring?: string[] } = {},
+): Promise<MoveResult> {
   const s = resolveLocalSession(sessionId);
   // The checkout moves whole, and the session lands in the same folder of it
   // it ran in here (a session in apps/web resumes in apps/web).
   const repo = isWorktree(s.cwd);
   const root = repo ? gitRootOf(s.cwd) : s.cwd;
   const remoteRoot = remoteRepoPath(host, root);
-  const remoteCwd = path.posix.join(remoteRoot, ...path.relative(root, s.cwd).split(path.sep).filter(Boolean));
+  const remoteCwd = path.posix.join(
+    remoteRoot,
+    ...path.relative(root, s.cwd).split(path.sep).filter(Boolean),
+  );
   const remoteProjectDir = path.posix.join(
-    remoteHome(host), ".claude", "projects",
+    remoteHome(host),
+    ".claude",
+    "projects",
     claudeProjectDirName(remoteCwd),
   );
 
@@ -1012,7 +1624,9 @@ export async function pushSession(sessionId: string, host: RemoteHost, opts: { s
   //    heals the remote within a minute of the local login recovering.
   const credPush = copyCredentialToRemote(host);
   if (!credPush.pushed) {
-    console.error(`WARNING: credential not pushed (${credPush.reason}) — the moved session will hit "Login expired" until the local login is healthy`);
+    console.error(
+      `WARNING: credential not pushed (${credPush.reason}) — the moved session will hit "Login expired" until the local login is healthy`,
+    );
   }
   // 2. host git readiness BEFORE the first commit lands there: known_hosts,
   //    the device key, and the mirrored identity (or the global placeholder)
@@ -1020,9 +1634,15 @@ export async function pushSession(sessionId: string, host: RemoteHost, opts: { s
   if (repo) {
     try {
       const { ensureHostGitReady } = await import("../cloud/hostGit.js");
-      ensureHostGitReady(host, { localGitRoot: root, repoPath: remoteRoot, onProgress: (m) => console.error(`  ${m}`) });
+      ensureHostGitReady(host, {
+        localGitRoot: root,
+        repoPath: remoteRoot,
+        onProgress: (m) => console.error(`  ${m}`),
+      });
     } catch (err) {
-      console.error(`WARNING: host git setup skipped: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `WARNING: host git setup skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
   // 3. working tree — git-over-SSH for repos (full git on the remote), else rsync
@@ -1031,9 +1651,15 @@ export async function pushSession(sessionId: string, host: RemoteHost, opts: { s
   if (opts.skipTree) {
     // Nothing to push; prove the tree is still there and at the tip the
     // sibling pushed (its snapshot, never this folder's plain HEAD).
-    if (repo) verification = verifyRemoteSync(host, root, remoteRoot, opts.pushedHead);
+    if (repo)
+      verification = verifyRemoteSync(host, root, remoteRoot, opts.pushedHead);
   } else if (repo) {
-    const { head } = await gitPushWorktree(host, root, remoteRoot, seedFor(host, root));
+    const { head } = await gitPushWorktree(
+      host,
+      root,
+      remoteRoot,
+      seedFor(host, root),
+    );
     pushedHead = head;
     copyGitignoredFiles(host, root, remoteRoot); // .env etc, not carried by git
     // Verify against what landed (the merged commit), not local HEAD.
@@ -1046,31 +1672,69 @@ export async function pushSession(sessionId: string, host: RemoteHost, opts: { s
   // 4. transcript, its laptop paths rewritten to the host's, and the session
   //    folder beside it: the tool outputs the transcript refers to by path
   //    (tool-results) and its workflow scripts. Subagent transcripts stay.
-  const relocated = relocatedTranscriptCopy(s.jsonlPath, { home: laptopHome(), cwd: s.cwd }, { home: remoteHome(host), cwd: remoteCwd });
+  const relocated = relocatedTranscriptCopy(
+    s.jsonlPath,
+    { home: laptopHome(), cwd: s.cwd },
+    { home: remoteHome(host), cwd: remoteCwd },
+  );
   try {
     rsyncFileInto(host, relocated.file, remoteProjectDir);
   } finally {
     fs.rmSync(relocated.dir, { recursive: true, force: true });
   }
   const sessionDir = path.join(s.projectDir, sessionId);
-  if (fs.existsSync(sessionDir)) rsyncSessionDir(sessionDir, path.posix.join(remoteProjectDir, sessionId), host, "up");
+  if (fs.existsSync(sessionDir))
+    rsyncSessionDir(
+      sessionDir,
+      path.posix.join(remoteProjectDir, sessionId),
+      host,
+      "up",
+    );
 
-  return { sessionId, localCwd: s.cwd, remoteCwd, ...(repo ? { remoteRoot } : {}), remoteProjectDir, verification, pushedHead, ...(brought.length ? { brought } : {}) };
+  return {
+    sessionId,
+    localCwd: s.cwd,
+    remoteCwd,
+    ...(repo ? { remoteRoot } : {}),
+    remoteProjectDir,
+    verification,
+    pushedHead,
+    ...(brought.length ? { brought } : {}),
+  };
 }
 
 /** A linked worktree seeds from the host's checkout of its main repository, so only its own snapshot crosses. */
 function seedFor(host: RemoteHost, root: string): string | undefined {
-  const main = path.dirname(git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  const main = path.dirname(
+    git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]),
+  );
   return main !== root ? remoteRepoPath(host, main) : undefined;
 }
 
 /** A session's folder beside its transcript, without the subagent transcripts (large, and nothing a resume reads). */
-function rsyncSessionDir(localDir: string, remoteDir: string, host: RemoteHost, way: "up" | "down") {
+function rsyncSessionDir(
+  localDir: string,
+  remoteDir: string,
+  host: RemoteHost,
+  way: "up" | "down",
+) {
   const remote = `${sshDestination(host)}:${remoteDir.replace(/\/?$/, "/")}`;
   const local = `${localDir.replace(/\/?$/, "/")}`;
   if (way === "up") ssh(host, `mkdir -p ${shq(remoteDir)}`);
   else fs.mkdirSync(localDir, { recursive: true });
-  execFileSync("rsync", ["-az", "--update", "--exclude", "/subagents/", "-e", rsyncShell(host), ...(way === "up" ? [local, remote] : [remote, local])], { stdio: "pipe", maxBuffer: 64 * 1024 * 1024 });
+  execFileSync(
+    "rsync",
+    [
+      "-az",
+      "--update",
+      "--exclude",
+      "/subagents/",
+      "-e",
+      rsyncShell(host),
+      ...(way === "up" ? [local, remote] : [remote, local]),
+    ],
+    { stdio: "pipe", maxBuffer: 64 * 1024 * 1024 },
+  );
 }
 
 /**
@@ -1080,14 +1744,21 @@ function rsyncSessionDir(localDir: string, remoteDir: string, host: RemoteHost, 
  * commit yet stays one on the host, on the same branch, and its gitignored
  * secrets (.env) come along as they would for a checkout with commits.
  */
-function pushFolder(host: RemoteHost, localDir: string, remoteDir: string): void {
+function pushFolder(
+  host: RemoteHost,
+  localDir: string,
+  remoteDir: string,
+): void {
   ssh(host, `mkdir -p ${shq(remoteDir)}`);
   rsyncUp(host, localDir, remoteDir);
   const unborn = gitSafe(localDir, ["symbolic-ref", "--short", "HEAD"]);
   if (unborn.ok && !isWorktree(localDir)) {
     const top = gitRootOf(localDir);
     const remoteTop = remoteRepoPath(host, top);
-    ssh(host, `mkdir -p ${shq(remoteTop)} && cd ${shq(remoteTop)} && { git rev-parse --git-dir >/dev/null 2>&1 || git init -q -b ${shq(unborn.out)}; }`);
+    ssh(
+      host,
+      `mkdir -p ${shq(remoteTop)} && cd ${shq(remoteTop)} && { git rev-parse --git-dir >/dev/null 2>&1 || git init -q -b ${shq(unborn.out)}; }`,
+    );
     copyGitignoredFiles(host, top, remoteTop);
   }
 }
@@ -1098,12 +1769,20 @@ function pushFolder(host: RemoteHost, localDir: string, remoteDir: string): void
  * (merged beside whatever the host has there), anything else as files. A path
  * that cannot cross is reported, never fatal: the session still moves.
  */
-export async function pushPath(host: RemoteHost, localPath: string): Promise<BroughtPath> {
+export async function pushPath(
+  host: RemoteHost,
+  localPath: string,
+): Promise<BroughtPath> {
   const remote = remoteRepoPath(host, localPath);
   const repo = isWorktree(localPath) && gitRootOf(localPath) === localPath;
   try {
     if (repo) {
-      const { head } = await gitPushWorktree(host, localPath, remote, seedFor(host, localPath));
+      const { head } = await gitPushWorktree(
+        host,
+        localPath,
+        remote,
+        seedFor(host, localPath),
+      );
       copyGitignoredFiles(host, localPath, remote);
       return { local: localPath, remote, kind: "repo", head };
     }
@@ -1111,7 +1790,12 @@ export async function pushPath(host: RemoteHost, localPath: string): Promise<Bro
     pushFolder(host, localPath, remote);
     return { local: localPath, remote, kind: "folder" };
   } catch (e) {
-    return { local: localPath, remote, kind: repo ? "repo" : "folder", error: (e instanceof Error ? e.message : String(e)).slice(0, 300) };
+    return {
+      local: localPath,
+      remote,
+      kind: repo ? "repo" : "folder",
+      error: (e instanceof Error ? e.message : String(e)).slice(0, 300),
+    };
   }
 }
 
@@ -1120,14 +1804,24 @@ export async function pushPath(host: RemoteHost, localPath: string): Promise<Bro
  * session's checkout; a folder gains what the host added or changed and loses
  * nothing, since this machine may have written there too.
  */
-export async function pullPath(host: RemoteHost, b: BroughtPath): Promise<string | null> {
+export async function pullPath(
+  host: RemoteHost,
+  b: BroughtPath,
+): Promise<string | null> {
   if (b.error) return null;
   try {
     if (b.kind === "repo") {
       const r = await gitPullWorktree(host, b.local, b.remote, b.head);
-      return r.ff && !r.conflicts?.length ? null : (r.reason ?? `conflicts in ${r.conflicts?.join(", ")}`);
+      return r.ff && !r.conflicts?.length
+        ? null
+        : (r.reason ?? `conflicts in ${r.conflicts?.join(", ")}`);
     }
-    rsyncFolder(b.local, ["-az", "--update", "-e", rsyncShell(host)], `${sshDestination(host)}:${b.remote.replace(/\/?$/, "/")}`, `${b.local.replace(/\/?$/, "/")}`);
+    rsyncFolder(
+      b.local,
+      ["-az", "--update", "-e", rsyncShell(host)],
+      `${sshDestination(host)}:${b.remote.replace(/\/?$/, "/")}`,
+      `${b.local.replace(/\/?$/, "/")}`,
+    );
     return null;
   } catch (e) {
     return (e instanceof Error ? e.message : String(e)).slice(0, 300);
@@ -1141,20 +1835,36 @@ export async function pullPath(host: RemoteHost, b: BroughtPath): Promise<string
  * files that exist where it now runs. Only whole paths change: a path that
  * merely starts with the checkout's name is left alone.
  */
-export function relocateTranscript(text: string, from: { home: string; cwd: string }, to: { home: string; cwd: string }): string {
-  const projects = (m: { home: string; cwd: string }) => path.posix.join(m.home, ".claude", "projects", claudeProjectDirName(m.cwd));
+export function relocateTranscript(
+  text: string,
+  from: { home: string; cwd: string },
+  to: { home: string; cwd: string },
+): string {
+  const projects = (m: { home: string; cwd: string }) =>
+    path.posix.join(m.home, ".claude", "projects", claudeProjectDirName(m.cwd));
   return remapContextPaths(text, {
     fromHome: from.home,
     toHome: to.home,
-    pathMappings: [{ from: projects(from), to: projects(to) }, { from: from.cwd, to: to.cwd }],
+    pathMappings: [
+      { from: projects(from), to: projects(to) },
+      { from: from.cwd, to: to.cwd },
+    ],
   });
 }
 
 /** The transcript relocated into a temp directory under its own name (rsyncFileInto keeps the basename); the caller removes the directory. */
-function relocatedTranscriptCopy(jsonlPath: string, from: { home: string; cwd: string }, to: { home: string; cwd: string }): { file: string; dir: string } {
+function relocatedTranscriptCopy(
+  jsonlPath: string,
+  from: { home: string; cwd: string },
+  to: { home: string; cwd: string },
+): { file: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-move-transcript-"));
   const file = path.join(dir, path.basename(jsonlPath));
-  fs.writeFileSync(file, relocateTranscript(fs.readFileSync(jsonlPath, "utf-8"), from, to), { mode: 0o600 });
+  fs.writeFileSync(
+    file,
+    relocateTranscript(fs.readFileSync(jsonlPath, "utf-8"), from, to),
+    { mode: 0o600 },
+  );
   return { file, dir };
 }
 
@@ -1178,20 +1888,51 @@ export async function pullSession(
   sessionId: string,
   host: RemoteHost,
   move: MoveResult,
-  opts: { aloneInCheckout?: (remoteRoot: string) => Promise<boolean>; hostFolderInRepo?: boolean } = {},
-): Promise<{ ff: boolean; reason?: string; appliedWork?: boolean; conflicts?: string[]; hostKept?: string; hostCleared?: boolean }> {
+  opts: {
+    aloneInCheckout?: (remoteRoot: string) => Promise<boolean>;
+    hostFolderInRepo?: boolean;
+  } = {},
+): Promise<{
+  ff: boolean;
+  reason?: string;
+  appliedWork?: boolean;
+  conflicts?: string[];
+  hostKept?: string;
+  hostCleared?: boolean;
+}> {
   // transcript back (rsync into the project dir)
-  const remoteJsonl = path.posix.join(move.remoteProjectDir, `${sessionId}.jsonl`);
-  const localProjectDir = path.join(CLAUDE_PROJECTS, claudeProjectDirName(move.localCwd));
+  const remoteJsonl = path.posix.join(
+    move.remoteProjectDir,
+    `${sessionId}.jsonl`,
+  );
+  const localProjectDir = path.join(
+    CLAUDE_PROJECTS,
+    claudeProjectDirName(move.localCwd),
+  );
   rsyncFileDownInto(host, remoteJsonl, localProjectDir);
   // …and its host paths rewritten back to this machine's.
   const localJsonl = path.join(localProjectDir, `${sessionId}.jsonl`);
   const tmp = `${localJsonl}.cast-relocate`;
-  fs.writeFileSync(tmp, relocateTranscript(fs.readFileSync(localJsonl, "utf-8"), { home: remoteHome(host), cwd: move.remoteCwd }, { home: laptopHome(), cwd: move.localCwd }), { mode: 0o600 });
+  fs.writeFileSync(
+    tmp,
+    relocateTranscript(
+      fs.readFileSync(localJsonl, "utf-8"),
+      { home: remoteHome(host), cwd: move.remoteCwd },
+      { home: laptopHome(), cwd: move.localCwd },
+    ),
+    { mode: 0o600 },
+  );
   fs.renameSync(tmp, localJsonl);
   try {
-    rsyncSessionDir(path.join(localProjectDir, sessionId), path.posix.join(move.remoteProjectDir, sessionId), host, "down");
-  } catch { /* a host session folder that was never written: nothing to bring */ }
+    rsyncSessionDir(
+      path.join(localProjectDir, sessionId),
+      path.posix.join(move.remoteProjectDir, sessionId),
+      host,
+      "down",
+    );
+  } catch {
+    /* a host session folder that was never written: nothing to bring */
+  }
   for (const b of move.brought ?? []) {
     const why = await pullPath(host, b);
     if (why) console.error(`WARNING: ${b.local} did not come back: ${why}`);
@@ -1200,17 +1941,30 @@ export async function pullSession(
   // A host folder in no repository holds no git work to replay, and copying it
   // over a checkout here would replace that checkout's files with the host's
   // loose copies: its files stay on the host.
-  if (opts.hostFolderInRepo === false && isWorktree(move.localCwd)) return { ff: true, hostKept: "the host folder is not a git repository" };
+  if (opts.hostFolderInRepo === false && isWorktree(move.localCwd))
+    return { ff: true, hostKept: "the host folder is not a git repository" };
   if (isWorktree(move.localCwd)) {
     // Where the host's work began: the commit this move pushed, else the one the host was at when the session landed.
     // Whole checkout to whole checkout: the session's own folder in it is only where it runs.
     const localRoot = gitRootOf(move.localCwd);
     const remoteRoot = move.remoteRoot ?? move.remoteCwd;
-    const pulled = await gitPullWorktree(host, localRoot, remoteRoot, move.pushedHead ?? move.verification?.remoteHead ?? undefined);
-    if (!pulled.ff || pulled.conflicts?.length || !opts.aloneInCheckout) return pulled;
-    if (!(await opts.aloneInCheckout(remoteRoot).catch(() => false))) return { ...pulled, hostKept: "another session works in the host checkout" };
+    const pulled = await gitPullWorktree(
+      host,
+      localRoot,
+      remoteRoot,
+      move.pushedHead ?? move.verification?.remoteHead ?? undefined,
+    );
+    if (!pulled.ff || pulled.conflicts?.length || !opts.aloneInCheckout)
+      return pulled;
+    if (!(await opts.aloneInCheckout(remoteRoot).catch(() => false)))
+      return {
+        ...pulled,
+        hostKept: "another session works in the host checkout",
+      };
     const kept = clearHostLeftovers(host, localRoot, remoteRoot);
-    return kept ? { ...pulled, hostKept: kept } : { ...pulled, hostCleared: true };
+    return kept
+      ? { ...pulled, hostKept: kept }
+      : { ...pulled, hostCleared: true };
   }
   rsyncDown(host, move.remoteCwd, move.localCwd, { delete: true });
   return { ff: true };
@@ -1241,11 +1995,23 @@ export function copyGitignoredFiles(
   remoteCwd: string,
   // The two process boundaries are injectable so a regression can assert what
   // this WOULD transfer without an ssh or an rsync ever running.
-  opts: { onWarn?: (msg: string) => void; rsync?: (args: string[]) => void; mkdirRemote?: (dir: string) => void } = {},
+  opts: {
+    onWarn?: (msg: string) => void;
+    rsync?: (args: string[]) => void;
+    mkdirRemote?: (dir: string) => void;
+  } = {},
 ): string[] {
   const warn = opts.onWarn ?? ((m: string) => console.error(`WARNING: ${m}`));
-  const rsync = opts.rsync ?? ((args: string[]) => { execFileSync("rsync", args, { stdio: "pipe" }); });
-  const mkdirRemote = opts.mkdirRemote ?? ((d: string) => { ssh(host, `mkdir -p ${shq(d)}`); });
+  const rsync =
+    opts.rsync ??
+    ((args: string[]) => {
+      execFileSync("rsync", args, { stdio: "pipe" });
+    });
+  const mkdirRemote =
+    opts.mkdirRemote ??
+    ((d: string) => {
+      ssh(host, `mkdir -p ${shq(d)}`);
+    });
 
   let root: string;
   try {
@@ -1274,7 +2040,9 @@ export function copyGitignoredFiles(
   try {
     files = collectCopyFiles(root, candidates);
   } catch (err) {
-    warn(`setup-file copy refused: ${err instanceof Error ? err.message : String(err)}`);
+    warn(
+      `setup-file copy refused: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return [];
   }
 
@@ -1284,16 +2052,26 @@ export function copyGitignoredFiles(
     try {
       destDir = path.posix.dirname(containedRemotePath(remoteCwd, rel));
     } catch (err) {
-      warn(`setup-file copy refused: ${err instanceof Error ? err.message : String(err)}`);
+      warn(
+        `setup-file copy refused: ${err instanceof Error ? err.message : String(err)}`,
+      );
       continue;
     }
     const local = path.join(root, rel);
-    const args = ["-az", "-e", rsyncShell(host), local, `${sshDestination(host)}:${destDir}/`];
+    const args = [
+      "-az",
+      "-e",
+      rsyncShell(host),
+      local,
+      `${sshDestination(host)}:${destDir}/`,
+    ];
     try {
       if (destDir !== remoteCwd) mkdirRemote(destDir);
       rsync(args);
       copied.push(rel);
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
   return copied;
 }
@@ -1304,7 +2082,10 @@ export function copyGitignoredFiles(
  *   - pre-trust the worktree path so the folder-trust dialog is skipped
  * Without this, a resumed session hangs on an interactive prompt.
  */
-export function ensureRemoteClaudeReady(host: RemoteHost, remoteCwd: string): void {
+export function ensureRemoteClaudeReady(
+  host: RemoteHost,
+  remoteCwd: string,
+): void {
   const script = `python3 - ${shq(remoteCwd)} << 'PY'
 import json, os, sys
 p = os.path.expanduser("~/.claude.json")
@@ -1325,7 +2106,9 @@ PY`;
 
 /** Re-copy a fresh credential to the remote (the local keychain stays current;
  * the remote copy expires after ~1h). Call around remote activity. */
-export function refreshRemoteCredential(host: RemoteHost): CredentialPushOutcome {
+export function refreshRemoteCredential(
+  host: RemoteHost,
+): CredentialPushOutcome {
   return copyCredentialToRemote(host);
 }
 
@@ -1341,18 +2124,25 @@ export function listScalewayHosts(): RemoteHost[] {
   if (!fs.existsSync(hostsFile)) return [];
   try {
     const { hosts } = JSON.parse(fs.readFileSync(hostsFile, "utf-8")) as {
-      hosts: Array<{ id: string; address: string; sshUsername: string; stopped?: boolean }>;
+      hosts: Array<{
+        id: string;
+        address: string;
+        sshUsername: string;
+        stopped?: boolean;
+      }>;
     };
-    return hosts.filter((h) => !h.stopped).map((h) => {
-      const perHost = path.join(SCALEWAY_DIR, h.id, "id_ed25519");
-      const fallback = path.join(SCALEWAY_DIR, "d7_id_ed25519");
-      return {
-        address: h.address,
-        user: h.sshUsername || "m1",
-        keyPath: fs.existsSync(perHost) ? perHost : fallback,
-        remoteBaseDir: `/Users/${h.sshUsername || "m1"}/work`,
-      };
-    });
+    return hosts
+      .filter((h) => !h.stopped)
+      .map((h) => {
+        const perHost = path.join(SCALEWAY_DIR, h.id, "id_ed25519");
+        const fallback = path.join(SCALEWAY_DIR, "d7_id_ed25519");
+        return {
+          address: h.address,
+          user: h.sshUsername || "m1",
+          keyPath: fs.existsSync(perHost) ? perHost : fallback,
+          remoteBaseDir: `/Users/${h.sshUsername || "m1"}/work`,
+        };
+      });
   } catch {
     return [];
   }
@@ -1365,9 +2155,16 @@ export function loadRemoteHost(hostId?: string): RemoteHost {
     throw new Error(`No remote hosts registered (${hostsFile}).`);
   }
   const { hosts } = JSON.parse(fs.readFileSync(hostsFile, "utf-8")) as {
-    hosts: Array<{ id: string; address: string; sshUsername: string; stopped?: boolean }>;
+    hosts: Array<{
+      id: string;
+      address: string;
+      sshUsername: string;
+      stopped?: boolean;
+    }>;
   };
-  const host = hostId ? hosts.find((h) => h.id === hostId) : hosts.find((h) => !h.stopped) ?? hosts[0];
+  const host = hostId
+    ? hosts.find((h) => h.id === hostId)
+    : (hosts.find((h) => !h.stopped) ?? hosts[0]);
   if (!host) throw new Error(`No usable remote host found in ${hostsFile}`);
   const perHost = path.join(SCALEWAY_DIR, host.id, "id_ed25519");
   const fallback = path.join(SCALEWAY_DIR, "d7_id_ed25519");
@@ -1386,7 +2183,10 @@ export function loadRemoteHost(hostId?: string): RemoteHost {
  * remote claude (onboarding + folder trust). Returns the remote placement.
  * The OWNERSHIP flip + resume is a separate Convex mutation the caller runs.
  */
-export async function performMoveToRemote(host: RemoteHost, sessionId: string): Promise<MoveResult> {
+export async function performMoveToRemote(
+  host: RemoteHost,
+  sessionId: string,
+): Promise<MoveResult> {
   // A host behind this laptop's cast refuses the move before anything moves
   // (cloud/prepare.ts readyHostCast); readyHostHome below checks again.
   const { readyHostCast } = await import("../cloud/prepare.js");
@@ -1396,7 +2196,10 @@ export async function performMoveToRemote(host: RemoteHost, sessionId: string): 
   // codex's folder trust for the moved dir (its own `[projects."…"]` table:
   // a top-level dir under ~/work is not a worktree under a trusted checkout).
   const trust = ensureRemoteCodexTrust(host, move.remoteCwd);
-  if (!trust.pushed) console.error(`WARNING: codex trust for ${move.remoteCwd} not written on the host (${trust.reason})`);
+  if (!trust.pushed)
+    console.error(
+      `WARNING: codex trust for ${move.remoteCwd} not written on the host (${trust.reason})`,
+    );
   refreshRemoteCredential(host);
   // The host-home steps (cloud/prepare.ts readyHostHome): the home mirror,
   // stamp-gated and honouring cloud_mirror_enabled, plus whatever the other
@@ -1405,9 +2208,14 @@ export async function performMoveToRemote(host: RemoteHost, sessionId: string): 
   try {
     const { readyHostHome } = await import("../cloud/prepare.js");
     // The git step already ran in pushSession, with the moved repo in hand.
-    await readyHostHome(host, { onProgress: (m) => console.error(`  ${m}`), skipGit: true });
+    await readyHostHome(host, {
+      onProgress: (m) => console.error(`  ${m}`),
+      skipGit: true,
+    });
   } catch (err) {
-    console.error(`WARNING: host home steps failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `WARNING: host home steps failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   return move;
 }
@@ -1423,7 +2231,9 @@ export function remotePrompt(
   remoteCwd: string,
   sessionId: string,
   prompt: string,
-  opts: { permissionMode?: "acceptEdits" | "bypassPermissions" | "default" } = {},
+  opts: {
+    permissionMode?: "acceptEdits" | "bypassPermissions" | "default";
+  } = {},
 ): string {
   const mode = opts.permissionMode ?? "acceptEdits";
   return ssh(

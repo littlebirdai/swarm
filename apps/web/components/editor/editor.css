@@ -156,12 +156,22 @@
   transition: all 0.15s ease;
 }
 
-.doc-editor .tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+.doc-editor
+  .tiptap
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:checked {
   background: #2aa198;
   border-color: #2aa198;
 }
 
-.doc-editor .tiptap ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
+.doc-editor
+  .tiptap
+  ul[data-type="taskList"]
+  li
+  > label
+  input[type="checkbox"]:checked::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -201,7 +211,7 @@
 }
 
 .doc-editor .tiptap pre::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 4px;
@@ -436,7 +446,9 @@
 }
 
 @keyframes img-upload-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Selection */
@@ -503,8 +515,14 @@
 }
 
 @keyframes collab-cursor-fade {
-  from { opacity: 0; transform: translateY(2px); }
-  to { opacity: 0.9; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 0.9;
+    transform: translateY(0);
+  }
 }
 
 /* Compose editor overrides */
@@ -543,10 +561,26 @@
   border-color: color-mix(in srgb, var(--sol-cyan) 40%, transparent);
 }
 
-.doc-editor .wiki-link-note { color: var(--sol-text-muted); border-color: color-mix(in srgb, var(--sol-text-dim) 20%, transparent); background: color-mix(in srgb, var(--sol-text-dim) 8%, transparent); }
-.doc-editor .wiki-link-design { color: var(--sol-violet); border-color: color-mix(in srgb, var(--sol-violet) 20%, transparent); background: color-mix(in srgb, var(--sol-violet) 10%, transparent); }
-.doc-editor .wiki-link-spec { color: var(--sol-cyan); border-color: color-mix(in srgb, var(--sol-cyan) 20%, transparent); background: color-mix(in srgb, var(--sol-cyan) 10%, transparent); }
-.doc-editor .wiki-link-investigation { color: var(--sol-yellow); border-color: color-mix(in srgb, var(--sol-yellow) 20%, transparent); background: color-mix(in srgb, var(--sol-yellow) 10%, transparent); }
+.doc-editor .wiki-link-note {
+  color: var(--sol-text-muted);
+  border-color: color-mix(in srgb, var(--sol-text-dim) 20%, transparent);
+  background: color-mix(in srgb, var(--sol-text-dim) 8%, transparent);
+}
+.doc-editor .wiki-link-design {
+  color: var(--sol-violet);
+  border-color: color-mix(in srgb, var(--sol-violet) 20%, transparent);
+  background: color-mix(in srgb, var(--sol-violet) 10%, transparent);
+}
+.doc-editor .wiki-link-spec {
+  color: var(--sol-cyan);
+  border-color: color-mix(in srgb, var(--sol-cyan) 20%, transparent);
+  background: color-mix(in srgb, var(--sol-cyan) 10%, transparent);
+}
+.doc-editor .wiki-link-investigation {
+  color: var(--sol-yellow);
+  border-color: color-mix(in srgb, var(--sol-yellow) 20%, transparent);
+  background: color-mix(in srgb, var(--sol-yellow) 10%, transparent);
+}
 
 /* Wiki link typing state — the [[ trigger highlight */
 .wiki-link-typing {
@@ -625,7 +659,9 @@
   text-decoration-color: color-mix(in srgb, var(--draft) 38%, transparent);
   text-underline-offset: 5px;
   border-radius: 2px;
-  transition: background-color 140ms ease, text-decoration-color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    text-decoration-color 140ms ease;
 }
 .drafting-on .draft-alt:hover {
   text-decoration-color: var(--draft);
@@ -667,7 +703,9 @@
   border-radius: 999px;
   border: 1px solid var(--draft-soft);
   cursor: pointer;
-  transition: transform 120ms ease, background-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
 }
 .draft-dot:hover {
   transform: scale(1.5);
@@ -696,7 +734,13 @@
   top: 0.35em;
   bottom: 0.35em;
   width: 1px;
-  background: linear-gradient(to bottom, transparent, var(--draft-soft) 15%, var(--draft-soft) 85%, transparent);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--draft-soft) 15%,
+    var(--draft-soft) 85%,
+    transparent
+  );
 }
 .draft-dots--para {
   position: absolute;
@@ -728,13 +772,23 @@
 }
 
 @keyframes draft-in {
-  from { opacity: 0; transform: translateY(-2px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── Drafting surfaces around the editor ── */
-.draft-accent { color: var(--sol-violet); }
-.draft-accent-bg { background: var(--sol-violet); }
+.draft-accent {
+  color: var(--sol-violet);
+}
+.draft-accent-bg {
+  background: var(--sol-violet);
+}
 .draft-toggle--on {
   color: var(--sol-violet);
   background: color-mix(in srgb, var(--sol-violet) 12%, transparent);
@@ -768,17 +822,31 @@
 .draft-panel--left {
   width: 248px;
   border-right: 1px solid color-mix(in srgb, var(--sol-border) 35%, transparent);
-  background: linear-gradient(to right, color-mix(in srgb, var(--sol-bg-alt) 70%, transparent), transparent);
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--sol-bg-alt) 70%, transparent),
+    transparent
+  );
 }
 .draft-panel--right {
   width: 288px;
   border-left: 1px solid color-mix(in srgb, var(--sol-border) 35%, transparent);
-  background: linear-gradient(to left, color-mix(in srgb, var(--sol-bg-alt) 70%, transparent), transparent);
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--sol-bg-alt) 70%, transparent),
+    transparent
+  );
   --enter: 8px;
 }
 @keyframes draft-panel-in {
-  from { opacity: 0; transform: translateX(var(--enter, -8px)); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateX(var(--enter, -8px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .draft-scope {
@@ -787,21 +855,28 @@
   color: var(--sol-text-dim);
   transition: color 120ms ease;
 }
-.draft-scope:hover { color: var(--sol-text-muted); }
-.draft-scope--on { color: var(--sol-violet); }
+.draft-scope:hover {
+  color: var(--sol-text-muted);
+}
+.draft-scope--on {
+  color: var(--sol-violet);
+}
 
 .draft-input {
   width: 100%;
   background: transparent;
   border: 0;
-  border-bottom: 1px dashed color-mix(in srgb, var(--sol-border) 70%, transparent);
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--sol-border) 70%, transparent);
   padding: 4px 0 4px 20px;
   font-size: 13px;
   color: var(--sol-text);
   outline: none;
   font-variant-ligatures: none;
 }
-.draft-input:focus { border-bottom-color: var(--sol-violet); }
+.draft-input:focus {
+  border-bottom-color: var(--sol-violet);
+}
 
 .draft-overflow {
   width: 100%;
@@ -815,7 +890,9 @@
   color: var(--sol-text-muted);
   font-variant-ligatures: none;
 }
-.draft-overflow::placeholder { color: color-mix(in srgb, var(--sol-text-dim) 70%, transparent); }
+.draft-overflow::placeholder {
+  color: color-mix(in srgb, var(--sol-text-dim) 70%, transparent);
+}
 
 .draft-trimbar {
   position: sticky;
@@ -837,8 +914,14 @@
   animation: draft-bar-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes draft-bar-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .draft-chip {
   padding: 3px 9px;
@@ -846,15 +929,29 @@
   border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
   color: var(--sol-text-muted);
   white-space: nowrap;
-  transition: color 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
 }
-.draft-chip:hover { color: var(--sol-text); border-color: var(--sol-violet); }
+.draft-chip:hover {
+  color: var(--sol-text);
+  border-color: var(--sol-violet);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .draft-dots__row, .draft-panel, .draft-trimbar { animation: none; }
+  .draft-dots__row,
+  .draft-panel,
+  .draft-trimbar {
+    animation: none;
+  }
 }
 
 /* Modern (.modern-style): a document and the draft tools read in the interface sans; code
    spans keep .tiptap code's mono. */
 .modern-style .doc-editor,
-.mention-date-resolved:is(.modern-style *), .draft-lab-button:is(.modern-style *), .draft-panel:is(.modern-style *), .draft-trimbar:is(.modern-style *) { font-family: var(--font-ui), sans-serif; }
+.mention-date-resolved:is(.modern-style *),
+.draft-lab-button:is(.modern-style *),
+.draft-panel:is(.modern-style *),
+.draft-trimbar:is(.modern-style *) {
+  font-family: var(--font-ui), sans-serif;
+}

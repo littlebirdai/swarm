@@ -13,7 +13,12 @@ type FakeEl = {
   hasAttribute: (name: string) => boolean;
 };
 function el(tagName: string, children: FakeEl[] = []): FakeEl {
-  const node: FakeEl = { tagName, children, parentElement: null, hasAttribute: () => false };
+  const node: FakeEl = {
+    tagName,
+    children,
+    parentElement: null,
+    hasAttribute: () => false,
+  };
   children.forEach((c) => (c.parentElement = node));
   return node;
 }

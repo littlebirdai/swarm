@@ -1,4 +1,10 @@
-import { createContext, useContext, useRef, useState, type CSSProperties } from "react";
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { SOL } from "../../blog/blogChrome";
 
@@ -35,10 +41,12 @@ export const FLOOR = SOL.base03;
 export const FLOOR_2 = "#06323d";
 export const FLOOR_LINE = "rgba(147,161,161,.18)";
 
-export const tint = (c: string, pct = 12) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+export const tint = (c: string, pct = 12) =>
+  `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 
 /** Animation delay as a CSS variable, read by the `--d` keyframe classes in flows.css. */
-export const at = (d: number, extra?: CSSProperties) => ({ ["--d" as string]: `${d}s`, ...extra }) as CSSProperties;
+export const at = (d: number, extra?: CSSProperties) =>
+  ({ ["--d" as string]: `${d}s`, ...extra }) as CSSProperties;
 
 /** Still mode for the whole page, provided once by Page.tsx. */
 export const StillContext = createContext(false);
@@ -49,7 +57,10 @@ export const useStill = () => useContext(StillContext);
  * still mode it is always "played" (the end frame). Use the returned ref on
  * the figure's root and gate clocks and `data-play` on `playing`.
  */
-export function usePlayOnView<T extends Element>(): [React.RefObject<T | null>, boolean] {
+export function usePlayOnView<T extends Element>(): [
+  React.RefObject<T | null>,
+  boolean,
+] {
   const ref = useRef<T | null>(null);
   // Not playing on the server and on the first client render alike, so the
   // prerendered markup hydrates without a mismatch; the resting CSS is the
@@ -59,11 +70,14 @@ export function usePlayOnView<T extends Element>(): [React.RefObject<T | null>, 
     const el = ref.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") return setSeen(true);
-    const io = new IntersectionObserver((entries) => {
-      if (!entries[entries.length - 1]?.isIntersecting) return;
-      setSeen(true);
-      io.disconnect();
-    }, { rootMargin: "0px 0px -22% 0px" });
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[entries.length - 1]?.isIntersecting) return;
+        setSeen(true);
+        io.disconnect();
+      },
+      { rootMargin: "0px 0px -22% 0px" },
+    );
     io.observe(el);
     return () => io.disconnect();
   });

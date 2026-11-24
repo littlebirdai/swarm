@@ -22,7 +22,9 @@ export async function resolveWorkerParentConversation(
   } catch {
     return undefined;
   }
-  const creatorId = plan?.created_from_conversation_id as Id<"conversations"> | undefined;
+  const creatorId = plan?.created_from_conversation_id as
+    | Id<"conversations">
+    | undefined;
   if (!creatorId) return undefined;
   let parent;
   try {
@@ -49,7 +51,11 @@ export async function resolveTaskGitContext(
   task: any,
   mappings: any[],
   seed?: { project_path?: string; git_root?: string },
-): Promise<{ project_path?: string; git_root?: string; git_remote_url?: string }> {
+): Promise<{
+  project_path?: string;
+  git_root?: string;
+  git_remote_url?: string;
+}> {
   let git_root = seed?.git_root;
   let git_remote_url: string | undefined;
 
@@ -60,16 +66,26 @@ export async function resolveTaskGitContext(
   // three sessions into ~/src/codecast this way). Otherwise the team's mapped
   // directory routes, and a foreign seed is the last resort that keeps a task
   // whose team has no mapping startable at all.
-  const project = task.project_id ? await ctx.db.get(task.project_id).catch(() => null) : null;
+  const project = task.project_id
+    ? await ctx.db.get(task.project_id).catch(() => null)
+    : null;
   const teamKey = task.team_id?.toString();
-  const seedInTaskTeam = !!teamKey
-    && resolveTeamForPath(mappings, seed?.project_path, undefined).teamId?.toString() === teamKey;
+  const seedInTaskTeam =
+    !!teamKey &&
+    resolveTeamForPath(
+      mappings,
+      seed?.project_path,
+      undefined,
+    ).teamId?.toString() === teamKey;
   const project_path: string | undefined =
-    task.project_path
-    || project?.project_path
-    || (seedInTaskTeam ? seed?.project_path : undefined)
-    || (teamKey ? mappings.find((m: any) => m.team_id?.toString() === teamKey)?.path_prefix : undefined)
-    || seed?.project_path;
+    task.project_path ||
+    project?.project_path ||
+    (seedInTaskTeam ? seed?.project_path : undefined) ||
+    (teamKey
+      ? mappings.find((m: any) => m.team_id?.toString() === teamKey)
+          ?.path_prefix
+      : undefined) ||
+    seed?.project_path;
   if (!git_root && project_path !== seed?.project_path) git_root = project_path;
 
   // A git_root that isn't an ancestor of the resolved project_path describes a
@@ -77,7 +93,12 @@ export async function resolveTaskGitContext(
   // alongside a task-derived path. The daemon prefers git_root when picking a
   // cwd, so an unrelated root that happens to exist on the target machine would
   // launch the session in the wrong repo. Drop it; the project_path routes.
-  if (git_root && project_path && project_path !== git_root && !project_path.startsWith(git_root.replace(/\/+$/, "") + "/")) {
+  if (
+    git_root &&
+    project_path &&
+    project_path !== git_root &&
+    !project_path.startsWith(git_root.replace(/\/+$/, "") + "/")
+  ) {
     git_root = undefined;
   }
 
@@ -85,15 +106,22 @@ export async function resolveTaskGitContext(
   // task's source conversations (which a daemon stamped git metadata onto) so a
   // daemon on a different machine can remap a foreign path to the local checkout.
   const sourceIds: Id<"conversations">[] = [];
-  if (task.created_from_conversation) sourceIds.push(task.created_from_conversation);
-  for (const cid of (task.conversation_ids ?? [])) {
-    if (!sourceIds.some((s) => s.toString() === cid.toString())) sourceIds.push(cid);
+  if (task.created_from_conversation)
+    sourceIds.push(task.created_from_conversation);
+  for (const cid of task.conversation_ids ?? []) {
+    if (!sourceIds.some((s) => s.toString() === cid.toString()))
+      sourceIds.push(cid);
   }
   const sources: GitMetaSource[] = [];
   for (const cid of sourceIds) {
     const c = await ctx.db.get(cid).catch(() => null);
     if (c && c.user_id.toString() === userId.toString()) {
-      sources.push({ git_remote_url: c.git_remote_url, git_root: c.git_root, updated_at: c.updated_at, started_at: c.started_at });
+      sources.push({
+        git_remote_url: c.git_remote_url,
+        git_root: c.git_root,
+        updated_at: c.updated_at,
+        started_at: c.started_at,
+      });
     }
   }
   const inherited = pickInheritedGitMeta(sources);
@@ -101,9 +129,12 @@ export async function resolveTaskGitContext(
     git_remote_url = inherited.git_remote_url;
     // Prefer the real repo root over a foreign full path so the daemon can keep
     // the in-repo subpath when remapping to a local checkout.
-    if (inherited.git_root && project_path
-        && project_path.startsWith(inherited.git_root)
-        && inherited.git_root !== git_root) {
+    if (
+      inherited.git_root &&
+      project_path &&
+      project_path.startsWith(inherited.git_root) &&
+      inherited.git_root !== git_root
+    ) {
       git_root = inherited.git_root;
     }
   }
@@ -112,5 +143,10 @@ export async function resolveTaskGitContext(
 }
 
 export function worktreeNameFor(identifier: string): string {
-  return identifier.toLowerCase().replace(/[^a-z0-9._-]/g, "-").replace(/\.{2,}/g, ".").slice(-64).replace(/^[^a-z0-9]+/, "");
+  return identifier
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "-")
+    .replace(/\.{2,}/g, ".")
+    .slice(-64)
+    .replace(/^[^a-z0-9]+/, "");
 }

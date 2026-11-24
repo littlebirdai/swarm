@@ -105,7 +105,9 @@ function requireNonEmptyString(
 ): string {
   const candidate = value[field];
   if (typeof candidate !== "string" || candidate.length === 0) {
-    throw new TypeError(`Invalid started delivery permit: ${field} must be a non-empty string`);
+    throw new TypeError(
+      `Invalid started delivery permit: ${field} must be a non-empty string`,
+    );
   }
   return candidate;
 }
@@ -116,30 +118,60 @@ function requirePositiveInteger(
 ): number {
   const candidate = value[field];
   if (!Number.isSafeInteger(candidate) || (candidate as number) < 1) {
-    throw new TypeError(`Invalid started delivery permit: ${field} must be a positive integer`);
+    throw new TypeError(
+      `Invalid started delivery permit: ${field} must be a positive integer`,
+    );
   }
   return candidate as number;
 }
 
-function requireCanonicalAgent(value: Record<string, unknown>, field: string): AgentClientId {
+function requireCanonicalAgent(
+  value: Record<string, unknown>,
+  field: string,
+): AgentClientId {
   const candidate = requireNonEmptyString(value, field);
-  if (!["claude", "codex", "cursor", "gemini", "opencode", "pi", "grok", "muse", "antigravity"].includes(candidate)) {
-    throw new TypeError(`Invalid ready binding: ${field} is not a canonical agent id`);
+  if (
+    ![
+      "claude",
+      "codex",
+      "cursor",
+      "gemini",
+      "opencode",
+      "pi",
+      "grok",
+      "muse",
+      "antigravity",
+    ].includes(candidate)
+  ) {
+    throw new TypeError(
+      `Invalid ready binding: ${field} is not a canonical agent id`,
+    );
   }
   return candidate as AgentClientId;
 }
 
-function requireRuntimeTransport(value: Record<string, unknown>, field: string): RuntimeTransport {
+function requireRuntimeTransport(
+  value: Record<string, unknown>,
+  field: string,
+): RuntimeTransport {
   const candidate = requireNonEmptyString(value, field);
   if (!["tmux", "app-server", "external"].includes(candidate)) {
-    throw new TypeError(`Invalid ready binding: ${field} is not a runtime transport`);
+    throw new TypeError(
+      `Invalid ready binding: ${field} is not a runtime transport`,
+    );
   }
   return candidate as RuntimeTransport;
 }
 
-function requireCapabilities(value: Record<string, unknown>, field: string): RuntimeCapability[] {
+function requireCapabilities(
+  value: Record<string, unknown>,
+  field: string,
+): RuntimeCapability[] {
   const candidate = value[field];
-  if (!Array.isArray(candidate) || candidate.some((item) => typeof item !== "string")) {
+  if (
+    !Array.isArray(candidate) ||
+    candidate.some((item) => typeof item !== "string")
+  ) {
     throw new TypeError(`Invalid ready binding: ${field} must be an array`);
   }
   const normalized = [...new Set(candidate)].sort();
@@ -148,22 +180,29 @@ function requireCapabilities(value: Record<string, unknown>, field: string): Run
     normalized.length !== required.length ||
     normalized.some((capability, index) => capability !== required[index])
   ) {
-    throw new TypeError("Invalid ready binding: capabilities do not exactly match protocol v1");
+    throw new TypeError(
+      "Invalid ready binding: capabilities do not exactly match protocol v1",
+    );
   }
   return normalized as RuntimeCapability[];
 }
 
 /** Strictly parse the only server shape that can authorize a runtime effect. */
 export function parseReadyBinding(value: unknown): ReadyBinding {
-  if (!isRecord(value)) throw new TypeError("Invalid ready binding: expected an object");
+  if (!isRecord(value))
+    throw new TypeError("Invalid ready binding: expected an object");
   const requestedAgent = requireCanonicalAgent(value, "requestedAgent");
   const actualAgent = requireCanonicalAgent(value, "actualAgent");
   if (requestedAgent !== actualAgent) {
-    throw new TypeError("Invalid ready binding: actualAgent must equal requestedAgent");
+    throw new TypeError(
+      "Invalid ready binding: actualAgent must equal requestedAgent",
+    );
   }
   const protocolVersion = requirePositiveInteger(value, "protocolVersion");
   if (protocolVersion !== FENCED_EXECUTION_PROTOCOL_VERSION) {
-    throw new TypeError(`Invalid ready binding: unsupported protocol ${protocolVersion}`);
+    throw new TypeError(
+      `Invalid ready binding: unsupported protocol ${protocolVersion}`,
+    );
   }
   return {
     conversationId: requireNonEmptyString(value, "conversationId"),
@@ -176,7 +215,10 @@ export function parseReadyBinding(value: unknown): ReadyBinding {
     daemonBootId: requireNonEmptyString(value, "daemonBootId"),
     runtimeId: requireNonEmptyString(value, "runtimeId"),
     operationId: requireNonEmptyString(value, "operationId"),
-    appliedConfigurationRevision: requirePositiveInteger(value, "appliedConfigurationRevision"),
+    appliedConfigurationRevision: requirePositiveInteger(
+      value,
+      "appliedConfigurationRevision",
+    ),
     protocolVersion,
     capabilities: requireCapabilities(value, "capabilities"),
   };
@@ -187,9 +229,13 @@ export function parseReadyBinding(value: unknown): ReadyBinding {
  * `startDelivery` mutation. A claimed or hand-built object is not sufficient to
  * authorize an external effect.
  */
-export function parseStartedDeliveryPermit(value: unknown): StartedDeliveryPermit {
+export function parseStartedDeliveryPermit(
+  value: unknown,
+): StartedDeliveryPermit {
   if (!isRecord(value) || value.state !== "delivery-started") {
-    throw new TypeError("Invalid started delivery permit: state must be delivery-started");
+    throw new TypeError(
+      "Invalid started delivery permit: state must be delivery-started",
+    );
   }
 
   const permit: StartedDeliveryPermitWire = {
@@ -200,7 +246,10 @@ export function parseStartedDeliveryPermit(value: unknown): StartedDeliveryPermi
     attemptId: requireNonEmptyString(value, "attemptId"),
     conversationId: requireNonEmptyString(value, "conversationId"),
     executionEpoch: requirePositiveInteger(value, "executionEpoch"),
-    configurationRevision: requirePositiveInteger(value, "configurationRevision"),
+    configurationRevision: requirePositiveInteger(
+      value,
+      "configurationRevision",
+    ),
     ownerDeviceId: requireNonEmptyString(value, "ownerDeviceId"),
     daemonBootId: requireNonEmptyString(value, "daemonBootId"),
     runtimeId: requireNonEmptyString(value, "runtimeId"),

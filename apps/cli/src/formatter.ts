@@ -1,7 +1,19 @@
 import { c, fmt, UNVERIFIABLE_MARK } from "./colors.js";
-import { computeCumulativeFiles, type CumulativeChange } from "@codecast/shared/diff";
-import { structuredPayloadSummary, structuredPayloadKeysFromRaw, toolSummary } from "@codecast/shared/render";
-import { agentDisplayName, threadStateHeadline, parseThreadStateStatus, sessionLivenessVerdict } from "@codecast/shared/contracts";
+import {
+  computeCumulativeFiles,
+  type CumulativeChange,
+} from "@codecast/shared/diff";
+import {
+  structuredPayloadSummary,
+  structuredPayloadKeysFromRaw,
+  toolSummary,
+} from "@codecast/shared/render";
+import {
+  agentDisplayName,
+  threadStateHeadline,
+  parseThreadStateStatus,
+  sessionLivenessVerdict,
+} from "@codecast/shared/contracts";
 import type { AskResult, LivenessVerdict } from "@codecast/shared/contracts";
 import {
   parseToolInput,
@@ -34,12 +46,18 @@ export function worktreeFromPath(path: string | undefined): string | undefined {
  * project (or its worktree copy) when possible, last segments otherwise. The
  * generic shortenToolPath can't be used here — an absolute path under ~/src
  * matches its `src/` anchor and yields a misleading "src/<repo>/…" prefix. */
-export function feedFilePath(filePath: string, projectPath?: string | null): string {
+export function feedFilePath(
+  filePath: string,
+  projectPath?: string | null,
+): string {
   let rel = filePath;
   const wt = filePath.match(/^.*\/worktrees\/[^/]+\//);
   if (wt) {
     rel = filePath.slice(wt[0].length);
-  } else if (projectPath && filePath.startsWith(projectPath.replace(/\/$/, "") + "/")) {
+  } else if (
+    projectPath &&
+    filePath.startsWith(projectPath.replace(/\/$/, "") + "/")
+  ) {
     rel = filePath.slice(projectPath.replace(/\/$/, "").length + 1);
   }
   // Still absolute = outside the project entirely; keep that visible (~ or a
@@ -47,7 +65,8 @@ export function feedFilePath(filePath: string, projectPath?: string | null): str
   if (rel.startsWith("/")) return truncatePath(rel, 45);
   if (rel.length <= 45) return rel;
   const segments = rel.split("/");
-  while (segments.length > 2 && segments.join("/").length > 42) segments.shift();
+  while (segments.length > 2 && segments.join("/").length > 42)
+    segments.shift();
   return "…/" + segments.join("/");
 }
 
@@ -59,11 +78,15 @@ function shortenToolPath(path: string): string {
   return path;
 }
 
-export function summarizeToolCall(tc: { name?: string; input?: unknown }): string {
+export function summarizeToolCall(tc: {
+  name?: string;
+  input?: unknown;
+}): string {
   const name = tc.name || "unknown";
   let param = "";
   try {
-    const input = typeof tc.input === "string" ? JSON.parse(tc.input) : tc.input;
+    const input =
+      typeof tc.input === "string" ? JSON.parse(tc.input) : tc.input;
     if (input && typeof input === "object") {
       const obj = input as Record<string, unknown>;
       switch (name) {
@@ -102,9 +125,16 @@ export function summarizeToolCall(tc: { name?: string; input?: unknown }): strin
   // Any other client's tool (Codex's commandExecution, Grok's run_terminal_command): the summary
   // every client renderer gives it, under its own name.
   if (!param) {
-    const summary = toolSummary({ name, input: typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input ?? {}) }).split("\n")[0];
+    const summary = toolSummary({
+      name,
+      input:
+        typeof tc.input === "string"
+          ? tc.input
+          : JSON.stringify(tc.input ?? {}),
+    }).split("\n")[0];
     // An MCP tool's summary falls back to its method, which its name already says.
-    if (!name.includes(summary)) param = summary.length > 60 ? `${summary.slice(0, 60)}...` : summary;
+    if (!name.includes(summary))
+      param = summary.length > 60 ? `${summary.slice(0, 60)}...` : summary;
   }
   return param ? `${name} ${param}` : name;
 }
@@ -177,22 +207,37 @@ interface SearchResult {
   excluded_self?: ExcludedSelf;
 }
 
-export interface SearchPartial { words: string[]; missing_everywhere: string[] }
-export interface ExcludedSelf { id?: string; sessions: number }
+export interface SearchPartial {
+  words: string[];
+  missing_everywhere: string[];
+}
+export interface ExcludedSelf {
+  id?: string;
+  sessions: number;
+}
 
 /** What a reader must know before the rows: the results are near misses, or
  *  the calling session's own matches were left out. Shared by every surface
  *  that prints /cli/search rows (search, search -l, context). */
-export function searchQualifiers(r: { partial?: SearchPartial; excluded_self?: ExcludedSelf }): string[] {
+export function searchQualifiers(r: {
+  partial?: SearchPartial;
+  excluded_self?: ExcludedSelf;
+}): string[] {
   const out: string[] = [];
   if (r.partial) {
     const missing = r.partial.missing_everywhere;
-    out.push(`${c.yellow}Partial:${c.reset} no result holds every word of "${r.partial.words.join(" ")}"` +
-      (missing.length ? `; ${missing.map((w) => `"${w}"`).join(", ")} found nowhere searched` : "; each row names the words not found in it"));
+    out.push(
+      `${c.yellow}Partial:${c.reset} no result holds every word of "${r.partial.words.join(" ")}"` +
+        (missing.length
+          ? `; ${missing.map((w) => `"${w}"`).join(", ")} found nowhere searched`
+          : "; each row names the words not found in it"),
+    );
   }
   if (r.excluded_self) {
     const { id, sessions } = r.excluded_self;
-    out.push(`${c.dim}Left out ${sessions} matching session${sessions === 1 ? "" : "s"}: this one${id ? ` (${id})` : ""} and its workers. --include-self keeps them.${c.reset}`);
+    out.push(
+      `${c.dim}Left out ${sessions} matching session${sessions === 1 ? "" : "s"}: this one${id ? ` (${id})` : ""} and its workers. --include-self keeps them.${c.reset}`,
+    );
   }
   return out;
 }
@@ -206,12 +251,21 @@ function livenessWord(s: SessionPresence): string {
 }
 
 /** "commits=3 pr=#482,#490 failed=4": what a hit's session did, empty when nothing. */
-export function sessionFacts(conv: Pick<SearchConversation, "commits" | "prs" | "prs_capped" | "failed_tools">): string {
+export function sessionFacts(
+  conv: Pick<
+    SearchConversation,
+    "commits" | "prs" | "prs_capped" | "failed_tools"
+  >,
+): string {
   return [
     conv.commits ? `commits=${conv.commits}` : "",
-    conv.prs?.length ? `pr=${conv.prs.map((n) => `#${n}`).join(",")}${conv.prs_capped ? "+" : ""}` : "",
+    conv.prs?.length
+      ? `pr=${conv.prs.map((n) => `#${n}`).join(",")}${conv.prs_capped ? "+" : ""}`
+      : "",
     conv.failed_tools ? `failed=${conv.failed_tools}` : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 interface SearchOptions {
@@ -226,33 +280,54 @@ function grepCommand(id: string, text: string | undefined): string {
 }
 
 /** `cast search -l`: one line per session, with how many of its messages matched. */
-export function formatSearchSessions(result: SearchResult, options: SearchOptions = {}): string {
+export function formatSearchSessions(
+  result: SearchResult,
+  options: SearchOptions = {},
+): string {
   const qualifiers = searchQualifiers(result);
   if (result.conversations.length === 0) {
-    return [...qualifiers, "No matches found. Use --mine for only your sessions, -g for all teams."].join("\n");
+    return [
+      ...qualifiers,
+      "No matches found. Use --mine for only your sessions, -g for all teams.",
+    ].join("\n");
   }
   const lines = result.conversations.map((conv) => {
     const who = conv.user?.name || conv.user?.email;
     // A row with no message snippet matched on its title or summary.
-    const hits = conv.matches.length === 0 ? "title" : `${conv.matches.length} match${conv.matches.length === 1 ? "" : "es"}`;
+    const hits =
+      conv.matches.length === 0
+        ? "title"
+        : `${conv.matches.length} match${conv.matches.length === 1 ? "" : "es"}`;
     return [
       `${c.cyan}${truncateId(conv.id)}${c.reset}`,
       hits.padEnd(10),
       conv.title,
       `${c.dim}${[
-        [livenessWord(conv), formatRelativeTime(conv.updated_at)].filter(Boolean).join(" "),
+        [livenessWord(conv), formatRelativeTime(conv.updated_at)]
+          .filter(Boolean)
+          .join(" "),
         `${conv.message_count} msgs`,
         truncatePath(conv.project_path),
         who,
-        conv.workers ? `+${conv.workers} worker${conv.workers === 1 ? "" : "s"}` : "",
+        conv.workers
+          ? `+${conv.workers} worker${conv.workers === 1 ? "" : "s"}`
+          : "",
         sessionFacts(conv),
-        conv.missing_terms?.length ? `not found: ${conv.missing_terms.join(",")}` : "",
-      ].filter(Boolean).join(" · ")}${c.reset}`,
+        conv.missing_terms?.length
+          ? `not found: ${conv.missing_terms.join(",")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")}${c.reset}`,
     ].join("  ");
   });
-  for (const line of result.truncated ?? []) lines.unshift(`${c.yellow}Partial:${c.reset}${c.dim} ${line}${c.reset}`);
+  for (const line of result.truncated ?? [])
+    lines.unshift(`${c.yellow}Partial:${c.reset}${c.dim} ${line}${c.reset}`);
   lines.unshift(...qualifiers);
-  if (options.text?.trim()) lines.push(`${c.dim}inside one: ${grepCommand("<id>", options.text)}${c.reset}`);
+  if (options.text?.trim())
+    lines.push(
+      `${c.dim}inside one: ${grepCommand("<id>", options.text)}${c.reset}`,
+    );
   return lines.join("\n");
 }
 
@@ -263,7 +338,10 @@ export function formatDate(isoDate: string): string {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
   } else if (diffDays === 1) {
     return "Yesterday";
   } else if (diffDays < 7) {
@@ -377,14 +455,20 @@ function formatStateBadge(s: SessionPresence): string {
   const ws = s.work_state || "idle";
   const liveGlyph = LIVENESS_GLYPH[sessionLivenessVerdict(s)];
   const label = WORK_STATE_LABEL[ws] ?? ws;
-  const detail = s.is_live && s.agent_status && s.agent_status !== ws && WORK_STATE_LABEL[s.agent_status] === undefined
-    ? `${c.dim}:${s.agent_status}${c.reset}`
-    : "";
+  const detail =
+    s.is_live &&
+    s.agent_status &&
+    s.agent_status !== ws &&
+    WORK_STATE_LABEL[s.agent_status] === undefined
+      ? `${c.dim}:${s.agent_status}${c.reset}`
+      : "";
   // A completed row (its process ended: SessionEnd, watchdog, teardown) that
   // is not live again reads "ended"; a kill says more, so it wins.
   const kill = s.is_killed
     ? ` ${c.red}killed${c.reset}`
-    : s.is_completed && !s.is_live ? ` ${c.gray}ended${c.reset}` : "";
+    : s.is_completed && !s.is_live
+      ? ` ${c.gray}ended${c.reset}`
+      : "";
   const pin = s.is_pinned ? ` ${c.magenta}pinned${c.reset}` : "";
   return `${liveGlyph} ${colorForState(ws)}${label}${c.reset}${detail}${kill}${pin}`;
 }
@@ -406,15 +490,31 @@ export interface SessionPresence {
 /** Copy just the liveness facts off a server row, for commands that rebuild
  * session rows from several sources (`cast context`, `cast ask`). */
 export function pickSessionPresence(row: SessionPresence): SessionPresence {
-  const { work_state, is_live, is_killed, is_completed, agent_status, recency_rank } = row;
-  return { work_state, is_live, is_killed, is_completed, agent_status, recency_rank };
+  const {
+    work_state,
+    is_live,
+    is_killed,
+    is_completed,
+    agent_status,
+    recency_rank,
+  } = row;
+  return {
+    work_state,
+    is_live,
+    is_killed,
+    is_completed,
+    agent_status,
+    recency_rank,
+  };
 }
 
 /** "● working | just now" / "○ idle killed | 3 days ago": the state badge and
  * last activity age, so an agent sees before it messages a session whether the
  * session is live, done, retired, or long quiet. A row from a server that ships
  * no liveness facts shows the age alone rather than a made-up "idle". */
-export function formatSessionPresence(s: SessionPresence & { updated_at: string }): string {
+export function formatSessionPresence(
+  s: SessionPresence & { updated_at: string },
+): string {
   const age = formatRelativeTime(s.updated_at);
   return s.work_state === undefined ? age : `${formatStateBadge(s)} | ${age}`;
 }
@@ -429,7 +529,11 @@ function wrapText(text: string, indent: string, maxWidth: number = 72): string {
       continue;
     }
 
-    if (paragraph.startsWith("```") || paragraph.startsWith("   ") || paragraph.startsWith("\t")) {
+    if (
+      paragraph.startsWith("```") ||
+      paragraph.startsWith("   ") ||
+      paragraph.startsWith("\t")
+    ) {
       lines.push(paragraph);
       continue;
     }
@@ -457,16 +561,23 @@ function wrapText(text: string, indent: string, maxWidth: number = 72): string {
   return lines.join("\n");
 }
 
-export function formatSearchResults(result: SearchResult, options: SearchOptions = {}): string {
+export function formatSearchResults(
+  result: SearchResult,
+  options: SearchOptions = {},
+): string {
   const lines: string[] = [];
 
   lines.push("<SEARCHRESULTS>");
 
   if (result.titles_only) {
-    lines.push(`${c.yellow}Content search unavailable${c.reset}${c.dim} (${result.content_search_error || "backend overloaded"}) — showing title/summary matches only. Try a more specific word for full-text results.${c.reset}`);
+    lines.push(
+      `${c.yellow}Content search unavailable${c.reset}${c.dim} (${result.content_search_error || "backend overloaded"}) — showing title/summary matches only. Try a more specific word for full-text results.${c.reset}`,
+    );
     lines.push("");
   } else if (result.content_window_days) {
-    lines.push(`${c.dim}Content search covers the last ${result.content_window_days} days; older sessions in this window match by title/summary only (marked "title match").${c.reset}`);
+    lines.push(
+      `${c.dim}Content search covers the last ${result.content_window_days} days; older sessions in this window match by title/summary only (marked "title match").${c.reset}`,
+    );
     lines.push("");
   }
   for (const line of result.truncated ?? []) {
@@ -484,14 +595,17 @@ export function formatSearchResults(result: SearchResult, options: SearchOptions
   }
 
   const allTitleRows =
-    result.conversations.length > 0 && result.conversations.every((cv) => cv.title_match);
+    result.conversations.length > 0 &&
+    result.conversations.every((cv) => cv.title_match);
   const sessions = `${result.conversations.length} session${result.conversations.length === 1 ? "" : "s"}`;
-  lines.push(result.titles_only || allTitleRows
-    ? `Found ${sessions} by title/summary\n`
-    // An operator-only query (file:, commit:, pr: …) matches sessions, not messages.
-    : result.total_matches === 0
-    ? `Found ${sessions} matching the filters\n`
-    : `Found ${result.total_matches} match${result.total_matches === 1 ? "" : "es"} in ${result.conversations.length} conversation${result.conversations.length === 1 ? "" : "s"}\n`);
+  lines.push(
+    result.titles_only || allTitleRows
+      ? `Found ${sessions} by title/summary\n`
+      : // An operator-only query (file:, commit:, pr: …) matches sessions, not messages.
+        result.total_matches === 0
+        ? `Found ${sessions} matching the filters\n`
+        : `Found ${result.total_matches} match${result.total_matches === 1 ? "" : "es"} in ${result.conversations.length} conversation${result.conversations.length === 1 ? "" : "s"}\n`,
+  );
 
   for (const conv of result.conversations) {
     lines.push(""); // Extra spacing before each conversation
@@ -504,12 +618,20 @@ export function formatSearchResults(result: SearchResult, options: SearchOptions
       `${c.cyan}${truncateId(conv.id)}${c.reset}`,
       formatSessionPresence(conv),
       `${c.dim}${conv.message_count} msgs${c.reset}`,
-      truncatePath(conv.project_path) ? `${c.dim}${truncatePath(conv.project_path)}${c.reset}` : "",
+      truncatePath(conv.project_path)
+        ? `${c.dim}${truncatePath(conv.project_path)}${c.reset}`
+        : "",
       userDisplay ? `${c.yellow}${userDisplay}${c.reset}` : "",
       sessionFacts(conv),
-      !result.titles_only && conv.title_match ? `${c.dim}title match${c.reset}` : "",
-      conv.missing_terms?.length ? `${c.yellow}not found: ${conv.missing_terms.join(",")}${c.reset}` : "",
-    ].filter(Boolean).join(" | ");
+      !result.titles_only && conv.title_match
+        ? `${c.dim}title match${c.reset}`
+        : "",
+      conv.missing_terms?.length
+        ? `${c.yellow}not found: ${conv.missing_terms.join(",")}${c.reset}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
     lines.push(meta);
 
     // Same location signals as the feed card: worktree residence (explicit or
@@ -518,32 +640,47 @@ export function formatSearchResults(result: SearchResult, options: SearchOptions
     const place = [
       worktree ? `${c.magenta}worktree ${worktree}${c.reset}` : "",
       conv.machine ? `on ${conv.machine}` : "",
-    ].filter(Boolean).join(" · ");
+    ]
+      .filter(Boolean)
+      .join(" · ");
     if (place) lines.push(`${c.dim}${place}${c.reset}`);
     if (conv.recent_files?.length) {
-      const shown = conv.recent_files.slice(0, 3).map((p) => feedFilePath(p, conv.project_path)).join(", ");
-      const more = conv.recent_files.length > 3 ? ` +${conv.recent_files.length - 3}` : "";
+      const shown = conv.recent_files
+        .slice(0, 3)
+        .map((p) => feedFilePath(p, conv.project_path))
+        .join(", ");
+      const more =
+        conv.recent_files.length > 3 ? ` +${conv.recent_files.length - 3}` : "";
       lines.push(`${c.dim}edits:${c.reset} ${shown}${c.dim}${more}${c.reset}`);
     }
     // A long session drifts: say what it was before its title moved on.
     if (conv.origin?.earlier_titles?.length) {
-      lines.push(`${c.dim}earlier titled:${c.reset} ${conv.origin.earlier_titles.join(" · ")}`);
+      lines.push(
+        `${c.dim}earlier titled:${c.reset} ${conv.origin.earlier_titles.join(" · ")}`,
+      );
     }
-    if (conv.origin?.started_as) lines.push(`${c.dim}began as:${c.reset} ${conv.origin.started_as}`);
+    if (conv.origin?.started_as)
+      lines.push(`${c.dim}began as:${c.reset} ${conv.origin.started_as}`);
     if (conv.workers) {
-      lines.push(`${c.dim}${conv.workers} worker session${conv.workers === 1 ? "" : "s"} of this one matched too${c.reset}`);
+      lines.push(
+        `${c.dim}${conv.workers} worker session${conv.workers === 1 ? "" : "s"} of this one matched too${c.reset}`,
+      );
     }
     lines.push("");
 
     // No line numbers here: the server ranks the best few messages without
     // numbering the transcript. A message id opens the match in place.
     for (const msg of conv.matches) {
-      const role = msg.role === "user"
-        ? `${c.blue}[user]${c.reset}`
-        : `${c.green}[assistant]${c.reset}`;
+      const role =
+        msg.role === "user"
+          ? `${c.blue}[user]${c.reset}`
+          : `${c.green}[assistant]${c.reset}`;
       if (msg.content) {
         lines.push(`  ${role} ${msg.content}`);
-        if (msg.message_id) lines.push(`  ${c.dim}↳ cast read ${truncateId(conv.id)}#${msg.message_id} -c 3${c.reset}`);
+        if (msg.message_id)
+          lines.push(
+            `  ${c.dim}↳ cast read ${truncateId(conv.id)}#${msg.message_id} -c 3${c.reset}`,
+          );
       }
       lines.push("");
     }
@@ -551,10 +688,16 @@ export function formatSearchResults(result: SearchResult, options: SearchOptions
 
   if (result.conversations.length > 0) {
     lines.push("To explore:");
-    lines.push(`  ${grepCommand("<id>", options.text)}   # every message in it with the text, by line number`);
+    lines.push(
+      `  ${grepCommand("<id>", options.text)}   # every message in it with the text, by line number`,
+    );
     lines.push("  cast read <id> -n 20           # its last 20 messages");
-    lines.push("  cast read <id> --ask \"<q>\"     # answer from the whole session, with citations");
-    lines.push("  cast diff <id>                 # files a session changed, before attributing work");
+    lines.push(
+      '  cast read <id> --ask "<q>"     # answer from the whole session, with citations',
+    );
+    lines.push(
+      "  cast diff <id>                 # files a session changed, before attributing work",
+    );
   }
 
   lines.push("</SEARCHRESULTS>");
@@ -589,18 +732,31 @@ export function formatAskResult(result: ReadAskResult): string {
   const conv = result.conversation;
   const header = `── ${conv.title} `;
   const out = [header + "─".repeat(Math.max(0, 60 - header.length))];
-  out.push(`   ${fmt.id(conv.short_id)} | ${conv.lines}${result.scan_complete ? "" : "+"} lines | ${fmt.muted(result.question)}`, "");
+  out.push(
+    `   ${fmt.id(conv.short_id)} | ${conv.lines}${result.scan_complete ? "" : "+"} lines | ${fmt.muted(result.question)}`,
+    "",
+  );
   out.push(result.answer.trim(), "");
   // Lines counted from the end read back the same way: `cast read <id> -12:-10`.
-  const reads = lineRanges(result.cited_lines).map((r) => `cast read ${conv.short_id} ${r}`);
-  if (reads.length) out.push(`${fmt.label("read:")} ${reads.map((r) => fmt.cmd(r)).join("  ")}`);
-  const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
-  out.push(fmt.muted([
-    `${result.model.replace(/-\d{8}$/, "")}`,
-    `read ${result.scanned_lines} lines${result.scan_complete ? "" : ` (too long to read whole: msg ${result.unread?.after ?? "?"} to ${result.unread?.before ?? "?"} not read)`}, ${result.matched_lines} matched, showed ${result.shown_lines}`,
-    `${k(result.usage.input_tokens)} in / ${k(result.usage.output_tokens)} out, $${result.usage.cost_usd.toFixed(3)}`,
-    `${(result.took_ms / 1000).toFixed(1)}s`,
-  ].join(" · ")));
+  const reads = lineRanges(result.cited_lines).map(
+    (r) => `cast read ${conv.short_id} ${r}`,
+  );
+  if (reads.length)
+    out.push(
+      `${fmt.label("read:")} ${reads.map((r) => fmt.cmd(r)).join("  ")}`,
+    );
+  const k = (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  out.push(
+    fmt.muted(
+      [
+        `${result.model.replace(/-\d{8}$/, "")}`,
+        `read ${result.scanned_lines} lines${result.scan_complete ? "" : ` (too long to read whole: msg ${result.unread?.after ?? "?"} to ${result.unread?.before ?? "?"} not read)`}, ${result.matched_lines} matched, showed ${result.shown_lines}`,
+        `${k(result.usage.input_tokens)} in / ${k(result.usage.output_tokens)} out, $${result.usage.cost_usd.toFixed(3)}`,
+        `${(result.took_ms / 1000).toFixed(1)}s`,
+      ].join(" · "),
+    ),
+  );
   return out.join("\n");
 }
 
@@ -616,21 +772,37 @@ export function formatStreamedMessage(msg: {
   tool_results?: Array<{ content?: string; isError?: boolean }>;
 }): string {
   const time = msg.timestamp
-    ? new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })
+    ? new Date(msg.timestamp).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+      })
     : "";
-  const roleColor = msg.role === "assistant" ? c.green : msg.role === "user" ? c.cyan : c.gray;
+  const roleColor =
+    msg.role === "assistant" ? c.green : msg.role === "user" ? c.cyan : c.gray;
   // In multi-session mode each line is prefixed with its session so the merged
   // stream stays legible; single-session follow omits it.
   const label = msg.label ? `${c.magenta}${msg.label}${c.reset}  ` : "";
-  const out: string[] = [`${c.dim}${time}${c.reset}  ${label}${roleColor}${msg.role}${c.reset}`];
+  const out: string[] = [
+    `${c.dim}${time}${c.reset}  ${label}${roleColor}${msg.role}${c.reset}`,
+  ];
   const content = (msg.content || "").trim();
-  if (content) out.push(content.split("\n").map((l) => "       " + l).join("\n"));
+  if (content)
+    out.push(
+      content
+        .split("\n")
+        .map((l) => "       " + l)
+        .join("\n"),
+    );
   if (msg.tool_calls && msg.tool_calls.length > 0) {
     const first = summarizeToolCall(msg.tool_calls[0]);
-    const more = msg.tool_calls.length > 1 ? ` …(${msg.tool_calls.length - 1} more)` : "";
+    const more =
+      msg.tool_calls.length > 1 ? ` …(${msg.tool_calls.length - 1} more)` : "";
     out.push(`       ${fmt.muted(`${first}${more}`)}`);
   } else if (!content && msg.tool_results && msg.tool_results.length > 0) {
-    out.push(`       ${fmt.muted(`(${msg.tool_results.length} tool result${msg.tool_results.length > 1 ? "s" : ""})`)}`);
+    out.push(
+      `       ${fmt.muted(`(${msg.tool_results.length} tool result${msg.tool_results.length > 1 ? "s" : ""})`)}`,
+    );
   }
   return out.join("\n");
 }
@@ -754,7 +926,10 @@ interface ListOptions {
   page?: number;
 }
 
-export function formatListResults(result: ListResult, options: ListOptions = {}): string {
+export function formatListResults(
+  result: ListResult,
+  options: ListOptions = {},
+): string {
   const lines: string[] = [];
 
   if (result.conversations.length === 0) {
@@ -777,13 +952,17 @@ export function formatListResults(result: ListResult, options: ListOptions = {})
     const textWidth = Math.max(20, termWidth - col);
 
     const titleWrapped = wrapLines(conv.title, textWidth);
-    lines.push(`${c.dim}${time}${c.reset}${timePad}${c.bold}${titleWrapped[0]}${c.reset}`);
+    lines.push(
+      `${c.dim}${time}${c.reset}${timePad}${c.bold}${titleWrapped[0]}${c.reset}`,
+    );
     for (let i = 1; i < titleWrapped.length; i++) {
       lines.push(`${indent}${c.bold}${titleWrapped[i]}${c.reset}`);
     }
     if (conv.subtitle) {
       const subWrapped = wrapLines(conv.subtitle, textWidth);
-      lines.push(`${c.cyan}${id}${c.reset}${idPad}${c.dim}${subWrapped[0]}${c.reset}`);
+      lines.push(
+        `${c.cyan}${id}${c.reset}${idPad}${c.dim}${subWrapped[0]}${c.reset}`,
+      );
       for (let i = 1; i < subWrapped.length; i++) {
         lines.push(`${indent}${c.dim}${subWrapped[i]}${c.reset}`);
       }
@@ -795,12 +974,17 @@ export function formatListResults(result: ListResult, options: ListOptions = {})
   }
 
   const page = options.page ?? 1;
-  lines.push(`${c.dim}Page ${page}. Next: codecast list -p ${page + 1}${c.reset}`);
+  lines.push(
+    `${c.dim}Page ${page}. Next: codecast list -p ${page + 1}${c.reset}`,
+  );
 
   return lines.join("\n");
 }
 
-export function formatFeedResults(result: FeedResult, options: FeedOptions = {}): string {
+export function formatFeedResults(
+  result: FeedResult,
+  options: FeedOptions = {},
+): string {
   const lines: string[] = [];
 
   lines.push("<FEED>");
@@ -812,8 +996,11 @@ export function formatFeedResults(result: FeedResult, options: FeedOptions = {})
     return lines.join("\n");
   }
 
-  const pageInfo = options.page && options.page > 1 ? ` (page ${options.page})` : "";
-  lines.push(`Recent conversations (${result.conversations.length})${pageInfo}\n`);
+  const pageInfo =
+    options.page && options.page > 1 ? ` (page ${options.page})` : "";
+  lines.push(
+    `Recent conversations (${result.conversations.length})${pageInfo}\n`,
+  );
 
   // Machine labels earn their line only when they discriminate: several
   // machines in view, or another person's session (their machine ≠ yours by
@@ -840,7 +1027,9 @@ export function formatFeedResults(result: FeedResult, options: FeedOptions = {})
       truncatePath(conv.project_path),
       userDisplay ? `${c.yellow}${userDisplay}${c.reset}` : "",
       ownerDisplay ? `${c.magenta}${ownerDisplay}${c.reset}` : "",
-    ].filter(Boolean).join(" | ");
+    ]
+      .filter(Boolean)
+      .join(" | ");
     lines.push(`   ${meta}`);
 
     // WHERE the session actually works: an explicit worktree beats one derived
@@ -850,21 +1039,34 @@ export function formatFeedResults(result: FeedResult, options: FeedOptions = {})
       conv.last_activity_at && conv.work_state !== "working"
         ? formatRelativeTime(conv.last_activity_at)
         : "";
-    const showMachine = !!conv.machine && (distinctMachines >= 2 || !!conv.user);
+    const showMachine =
+      !!conv.machine && (distinctMachines >= 2 || !!conv.user);
     const place = [
       worktree ? `${c.magenta}worktree ${worktree}${c.reset}` : "",
-      conv.git_branch && conv.git_branch !== worktree && conv.git_branch !== "HEAD"
+      conv.git_branch &&
+      conv.git_branch !== worktree &&
+      conv.git_branch !== "HEAD"
         ? `branch ${conv.git_branch}`
         : "",
       showMachine ? `on ${conv.machine}` : "",
-      quiet && quiet !== formatRelativeTime(conv.updated_at) ? `last msg ${quiet}` : "",
-    ].filter(Boolean).join(" · ");
+      quiet && quiet !== formatRelativeTime(conv.updated_at)
+        ? `last msg ${quiet}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
     if (place) lines.push(`   ${c.dim}${place}${c.reset}`);
 
     if (conv.recent_files?.length) {
-      const shown = conv.recent_files.slice(0, 3).map((p) => feedFilePath(p, conv.project_path)).join(", ");
-      const more = conv.recent_files.length > 3 ? ` +${conv.recent_files.length - 3}` : "";
-      lines.push(`   ${c.dim}edits:${c.reset} ${shown}${c.dim}${more}${c.reset}`);
+      const shown = conv.recent_files
+        .slice(0, 3)
+        .map((p) => feedFilePath(p, conv.project_path))
+        .join(", ");
+      const more =
+        conv.recent_files.length > 3 ? ` +${conv.recent_files.length - 3}` : "";
+      lines.push(
+        `   ${c.dim}edits:${c.reset} ${shown}${c.dim}${more}${c.reset}`,
+      );
     }
 
     if (conv.idle_summary && conv.work_state !== "working") {
@@ -897,9 +1099,15 @@ export function formatFeedResults(result: FeedResult, options: FeedOptions = {})
   if (result.conversations.length > 0) {
     const firstId = truncateId(result.conversations[0].id);
     const page = options.page ?? 1;
-    lines.push(`Use: cast read ${firstId} <range>        # read messages by line range`);
-    lines.push(`     cast read ${firstId} <line> --full   # expand tool calls for a message`);
-    lines.push(`     cast diff ${firstId}                # files a session changed, before attributing work`);
+    lines.push(
+      `Use: cast read ${firstId} <range>        # read messages by line range`,
+    );
+    lines.push(
+      `     cast read ${firstId} <line> --full   # expand tool calls for a message`,
+    );
+    lines.push(
+      `     cast diff ${firstId}                # files a session changed, before attributing work`,
+    );
     lines.push(`     cast feed -p ${page + 1}                  # next page`);
   }
 
@@ -945,7 +1153,20 @@ interface MonitorResult {
   // stashed / dismissed / killed are three distinct retirement states, not one
   // "hidden" figure: stashed = hidden but agent ALIVE, dismissed = hidden and
   // agent torn down, killed = retired (outranks both, so they never double-count).
-  counts: { working: number; needs_input: number; done?: number; dormant?: number; idle: number; pinned: number; live: number; stashed?: number; dismissed?: number; killed?: number; below_fold?: number; total: number };
+  counts: {
+    working: number;
+    needs_input: number;
+    done?: number;
+    dormant?: number;
+    idle: number;
+    pinned: number;
+    live: number;
+    stashed?: number;
+    dismissed?: number;
+    killed?: number;
+    below_fold?: number;
+    total: number;
+  };
   labels?: Array<{ name: string; count: number }>;
   scope: string;
 }
@@ -977,10 +1198,18 @@ function changeLabel(change: string): string {
 // to === null means the session left the watched set (stopped matching the
 // --state filter, or was dismissed).
 export function formatSessionChangeLine(ch: {
-  id: string; title?: string | null; from?: string | null; to: string | null;
-  is_pinned?: boolean; is_live?: boolean;
+  id: string;
+  title?: string | null;
+  from?: string | null;
+  to: string | null;
+  is_pinned?: boolean;
+  is_live?: boolean;
 }): string {
-  const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  const time = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   if (ch.to == null) {
     const was = String(ch.from ?? "").replace("_", " ");
     return `${c.dim}${time}${c.reset}  ${c.gray}○${c.reset} ${c.gray}gone${c.reset}  ${c.magenta}${truncateId(ch.id)}${c.reset}  ${ch.title || "New Session"}  ${c.dim}(left the watched set${was ? ` — was ${was}` : ""})${c.reset}`;
@@ -998,29 +1227,54 @@ export function formatSessionChangeLine(ch: {
 // session's work state. Renders flat when a --state filter is set, otherwise
 // grouped NEEDS YOU → WORKING → IDLE. This is the STATIC view (no -w); watch
 // mode is a change stream rendered line-by-line via formatSessionChangeLine.
-export function formatMonitor(result: MonitorResult, options: MonitorOptions = {}): string {
+export function formatMonitor(
+  result: MonitorResult,
+  options: MonitorOptions = {},
+): string {
   const lines: string[] = [];
-  const counts = result.counts || { working: 0, needs_input: 0, idle: 0, pinned: 0, live: 0, total: 0 };
+  const counts = result.counts || {
+    working: 0,
+    needs_input: 0,
+    idle: 0,
+    pinned: 0,
+    live: 0,
+    total: 0,
+  };
   const changes = options.changes || {};
   const command = options.command || "cast sessions";
-  const clock = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const clock = new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
-  const scope = options.scopeLabel ? `${c.dim} · ${options.scopeLabel}${c.reset}` : "";
-  const live = options.watch ? `${c.dim} — live, every ${options.interval ?? 3}s (Ctrl-C to exit)${c.reset}` : "";
-  lines.push(`${c.bold}${command}${c.reset}${scope}${live}  ${c.dim}${clock}${c.reset}`);
+  const scope = options.scopeLabel
+    ? `${c.dim} · ${options.scopeLabel}${c.reset}`
+    : "";
+  const live = options.watch
+    ? `${c.dim} — live, every ${options.interval ?? 3}s (Ctrl-C to exit)${c.reset}`
+    : "";
+  lines.push(
+    `${c.bold}${command}${c.reset}${scope}${live}  ${c.dim}${clock}${c.reset}`,
+  );
 
   // The header reads as "who acts next": you (needs input, done to review),
   // the agent (working), a machine (dormant), nobody (idle). Older servers
   // don't send done/dormant; those columns are simply absent then.
   const summary = [
     `${c.yellow}needs you ${counts.needs_input}${c.reset}`,
-    ...(counts.done !== undefined ? [`${c.cyan}done ${counts.done}${c.reset}`] : []),
+    ...(counts.done !== undefined
+      ? [`${c.cyan}done ${counts.done}${c.reset}`]
+      : []),
     `${c.green}working ${counts.working}${c.reset}`,
-    ...(counts.dormant !== undefined ? [`${c.blue}dormant ${counts.dormant}${c.reset}`] : []),
+    ...(counts.dormant !== undefined
+      ? [`${c.blue}dormant ${counts.dormant}${c.reset}`]
+      : []),
     `${c.gray}idle ${counts.idle}${c.reset}`,
   ];
   const extra: string[] = [];
-  if (counts.pinned) extra.push(`${c.magenta}pinned ${counts.pinned}${c.reset}`);
+  if (counts.pinned)
+    extra.push(`${c.magenta}pinned ${counts.pinned}${c.reset}`);
   if (counts.live) extra.push(`${c.green}live ${counts.live}${c.reset}`);
   // Stashed keeps an agent ALIVE while dismissed does not, so merging them into
   // one figure hid how many processes were still running. All three are TALLIES
@@ -1038,14 +1292,16 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
   // `stashed` advertises "agents still running", and a killed agent isn't one.
   // See classifyRetirement (convex/inboxFilters.ts) for the full scope.
   if (counts.stashed) extra.push(`${c.dim}stashed ${counts.stashed}${c.reset}`);
-  if (counts.dismissed) extra.push(`${c.dim}dismissed ${counts.dismissed}${c.reset}`);
+  if (counts.dismissed)
+    extra.push(`${c.dim}dismissed ${counts.dismissed}${c.reset}`);
   if (counts.killed) extra.push(`${c.red}killed ${counts.killed}${c.reset}`);
   // Rows under the inbox's cluster cut (the fold): its own figure, listed only
   // under -a, never folded into the work-state columns.
-  if (counts.below_fold) extra.push(`${c.dim}folded ${counts.below_fold}${c.reset}`);
+  if (counts.below_fold)
+    extra.push(`${c.dim}folded ${counts.below_fold}${c.reset}`);
   lines.push(
     summary.join(`  ${c.dim}·${c.reset}  `) +
-    (extra.length ? `   ${c.dim}(${extra.join(", ")})${c.reset}` : "")
+      (extra.length ? `   ${c.dim}(${extra.join(", ")})${c.reset}` : ""),
   );
 
   // Events line (--watch only): summarize what changed since the previous frame.
@@ -1056,13 +1312,17 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
     const bits = [
       newCount ? `${newCount} new` : "",
       moved ? `${moved} changed state` : "",
-    ].filter(Boolean).join(", ");
+    ]
+      .filter(Boolean)
+      .join(", ");
     lines.push(`${c.cyan}Δ ${bits} since last refresh${c.reset}`);
   }
   lines.push("");
 
   if (result.sessions.length === 0) {
-    lines.push(`${c.dim}Nothing${options.state ? ` in "${options.state}"` : " to show"}.${c.reset}`);
+    lines.push(
+      `${c.dim}Nothing${options.state ? ` in "${options.state}"` : " to show"}.${c.reset}`,
+    );
     return lines.join("\n");
   }
 
@@ -1072,18 +1332,31 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
     const mark = changes[s.id] ? `  ${changeLabel(changes[s.id])}` : "";
     // Second-party-owned rows: show who runs it (this inbox shows it because
     // the caller OWNS it), or who it's assigned to when the caller is the runner.
-    const runBy = s.run_by && s.owned_by_me ? `  ${c.magenta}⇄ run by ${s.run_by}${c.reset}` : "";
-    const ownedBy = !s.owned_by_me && s.owner ? `  ${c.dim}→ owner ${s.owner.name || s.owner.email}${c.reset}` : "";
-    lines.push(`${badge}  ${idPart}  ${c.bold}${s.title || "New Session"}${c.reset}${runBy}${ownedBy}${mark}`);
+    const runBy =
+      s.run_by && s.owned_by_me
+        ? `  ${c.magenta}⇄ run by ${s.run_by}${c.reset}`
+        : "";
+    const ownedBy =
+      !s.owned_by_me && s.owner
+        ? `  ${c.dim}→ owner ${s.owner.name || s.owner.email}${c.reset}`
+        : "";
+    lines.push(
+      `${badge}  ${idPart}  ${c.bold}${s.title || "New Session"}${c.reset}${runBy}${ownedBy}${mark}`,
+    );
 
     const metaBits = [
       formatRelativeTime(s.updated_at),
       `${s.message_count} msgs`,
       truncatePath(s.project_path),
       s.agent_type,
-    ].filter(Boolean).join(`  ${c.dim}·${c.reset}  `);
+    ]
+      .filter(Boolean)
+      .join(`  ${c.dim}·${c.reset}  `);
     // Label chip is redundant inside a --by-label group header.
-    const labelChip = s.label && !options.groupByLabel ? `  ${c.cyan}#${s.label}${c.reset}` : "";
+    const labelChip =
+      s.label && !options.groupByLabel
+        ? `  ${c.cyan}#${s.label}${c.reset}`
+        : "";
     lines.push(`   ${c.dim}${metaBits}${c.reset}${labelChip}`);
 
     const ctx = s.active_plan
@@ -1101,10 +1374,22 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
       // Marker color = the agent's declared status: cyan working, yellow
       // blocked (ball in the human's court), green done, blue dormant.
       const status = parseThreadStateStatus(s.thread_state_status);
-      const markerColor = status === "blocked" ? c.yellow : status === "done" ? c.green : status === "dormant" ? c.blue : c.cyan;
-      lines.push(`   ${markerColor}▪${c.reset} ${pinned.replace(/\s+/g, " ").slice(0, 86)}`);
+      const markerColor =
+        status === "blocked"
+          ? c.yellow
+          : status === "done"
+            ? c.green
+            : status === "dormant"
+              ? c.blue
+              : c.cyan;
+      lines.push(
+        `   ${markerColor}▪${c.reset} ${pinned.replace(/\s+/g, " ").slice(0, 86)}`,
+      );
     } else {
-      const snippet = (s.idle_summary || s.last_user_message || "").replace(/\s+/g, " ").trim().slice(0, 88);
+      const snippet = (s.idle_summary || s.last_user_message || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 88);
       if (snippet) lines.push(`   ${c.dim}${snippet}${c.reset}`);
     }
     lines.push("");
@@ -1116,12 +1401,16 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
     const groups: Array<{ title: string; items: MonitorSession[] }> = [];
     for (const { name } of result.labels ?? []) {
       const items = result.sessions.filter((s) => s.label === name);
-      if (items.length) groups.push({ title: `${c.cyan}${name}${c.reset}`, items });
+      if (items.length)
+        groups.push({ title: `${c.cyan}${name}${c.reset}`, items });
     }
     const unlabeled = result.sessions.filter((s) => !s.label);
-    if (unlabeled.length) groups.push({ title: `${c.gray}unlabeled${c.reset}`, items: unlabeled });
+    if (unlabeled.length)
+      groups.push({ title: `${c.gray}unlabeled${c.reset}`, items: unlabeled });
     for (const g of groups) {
-      lines.push(`${c.bold}${g.title}${c.reset} ${c.dim}(${g.items.length})${c.reset}`);
+      lines.push(
+        `${c.bold}${g.title}${c.reset} ${c.dim}(${g.items.length})${c.reset}`,
+      );
       lines.push("");
       g.items.forEach(renderRow);
     }
@@ -1143,24 +1432,36 @@ export function formatMonitor(result: MonitorResult, options: MonitorOptions = {
     for (const [ws, label] of groups) {
       const group = result.sessions.filter((s) => s.work_state === ws);
       if (group.length === 0) continue;
-      lines.push(`${c.bold}${label}${c.reset} ${c.dim}(${group.length})${c.reset}`);
+      lines.push(
+        `${c.bold}${label}${c.reset} ${c.dim}(${group.length})${c.reset}`,
+      );
       lines.push("");
       group.forEach(renderRow);
     }
 
     if (!options.all) {
-      const idleCount = result.sessions.filter((s) => s.work_state === "idle").length;
-      if (idleCount > 0) lines.push(`${c.dim}+ ${idleCount} idle (${command} -a to show)${c.reset}`);
+      const idleCount = result.sessions.filter(
+        (s) => s.work_state === "idle",
+      ).length;
+      if (idleCount > 0)
+        lines.push(
+          `${c.dim}+ ${idleCount} idle (${command} -a to show)${c.reset}`,
+        );
       lines.push("");
     }
   }
 
-  lines.push(`${c.dim}cast read <id> <range>  ·  cast send <id> "msg"  ·  ${command} -w to watch${c.reset}`);
+  lines.push(
+    `${c.dim}cast read <id> <range>  ·  cast send <id> "msg"  ·  ${command} -w to watch${c.reset}`,
+  );
   return lines.join("\n");
 }
 
 // `cast sessions --labels`: the user's labels with view-scoped session counts.
-export function formatLabelsList(result: MonitorResult, opts?: { project?: string | null }): string {
+export function formatLabelsList(
+  result: MonitorResult,
+  opts?: { project?: string | null },
+): string {
   const labels = result.labels ?? [];
   if (labels.length === 0) {
     return opts?.project
@@ -1171,14 +1472,23 @@ export function formatLabelsList(result: MonitorResult, opts?: { project?: strin
   const labeled = labels.reduce((n, l) => n + l.count, 0);
   const unlabeled = Math.max(0, (result.counts?.total ?? 0) - labeled);
   const width = Math.max(...labels.map((l) => l.name.length));
-  const scope = opts?.project ? ` in ${opts.project} ${c.reset}${c.dim}(-g for all projects)` : "";
-  lines.push(`${c.bold}labels${c.reset} ${c.dim}· ${labels.length} labels, ${labeled} sessions filed${scope}${c.reset}\n`);
+  const scope = opts?.project
+    ? ` in ${opts.project} ${c.reset}${c.dim}(-g for all projects)`
+    : "";
+  lines.push(
+    `${c.bold}labels${c.reset} ${c.dim}· ${labels.length} labels, ${labeled} sessions filed${scope}${c.reset}\n`,
+  );
   for (const l of labels) {
     const count = l.count > 0 ? `${l.count}` : `${c.dim}0${c.reset}`;
     lines.push(`  ${c.cyan}${l.name.padEnd(width)}${c.reset}  ${count}`);
   }
-  if (unlabeled > 0) lines.push(`  ${c.dim}${"unlabeled".padEnd(width)}  ${unlabeled}${c.reset}`);
-  lines.push(`\n${c.dim}cast sessions --label <name>  ·  cast sessions --by-label${c.reset}`);
+  if (unlabeled > 0)
+    lines.push(
+      `  ${c.dim}${"unlabeled".padEnd(width)}  ${unlabeled}${c.reset}`,
+    );
+  lines.push(
+    `\n${c.dim}cast sessions --label <name>  ·  cast sessions --by-label${c.reset}`,
+  );
   return lines.join("\n");
 }
 
@@ -1211,7 +1521,11 @@ export function formatHandoff(result: HandoffResult): string {
   lines.push(`# Session Handoff: ${conv.title}`);
   lines.push("");
 
-  const userRequests: Array<{ line: number; content: string; completed: boolean }> = [];
+  const userRequests: Array<{
+    line: number;
+    content: string;
+    completed: boolean;
+  }> = [];
   const filesModified = new Set<string>();
   const filesRead = new Set<string>();
   let currentFile: string | null = null;
@@ -1221,10 +1535,13 @@ export function formatHandoff(result: HandoffResult): string {
 
     if (msg.role === "user" && msg.content) {
       const nextMsgs = result.messages.slice(i + 1);
-      const hasResponse = nextMsgs.some(m => m.role === "assistant" && (m.content || m.tool_calls?.length));
+      const hasResponse = nextMsgs.some(
+        (m) => m.role === "assistant" && (m.content || m.tool_calls?.length),
+      );
       userRequests.push({
         line: msg.line,
-        content: msg.content.slice(0, 200) + (msg.content.length > 200 ? "..." : ""),
+        content:
+          msg.content.slice(0, 200) + (msg.content.length > 200 ? "..." : ""),
         completed: hasResponse,
       });
     }
@@ -1250,8 +1567,8 @@ export function formatHandoff(result: HandoffResult): string {
   }
 
   lines.push("## Current State");
-  const completed = userRequests.filter(r => r.completed);
-  const pending = userRequests.filter(r => !r.completed);
+  const completed = userRequests.filter((r) => r.completed);
+  const pending = userRequests.filter((r) => !r.completed);
 
   if (completed.length > 0) {
     const recentCompleted = completed.slice(-3);
@@ -1287,7 +1604,9 @@ export function formatHandoff(result: HandoffResult): string {
   if (conv.project_path) {
     lines.push(`- Project: ${truncatePath(conv.project_path)}`);
   }
-  lines.push(`- Session: ${truncateId(conv.id)} (${conv.message_count} messages)`);
+  lines.push(
+    `- Session: ${truncateId(conv.id)} (${conv.message_count} messages)`,
+  );
   lines.push(`- Last activity: ${formatDate(conv.updated_at)}`);
   lines.push("");
 
@@ -1310,7 +1629,9 @@ export function formatHandoff(result: HandoffResult): string {
     lines.push("");
   }
 
-  const recentFiles = Array.from(filesRead).slice(-5).concat(Array.from(filesModified).slice(-5));
+  const recentFiles = Array.from(filesRead)
+    .slice(-5)
+    .concat(Array.from(filesModified).slice(-5));
   const uniqueFiles = [...new Set(recentFiles)].slice(-5);
   if (uniqueFiles.length > 0) {
     lines.push("## Files to Review");
@@ -1406,7 +1727,12 @@ function extractDiffData(sessions: DiffSession[]): {
             const filePath = tcInput.file_path as string;
             if (!filePath) continue;
 
-            const existing = files.get(filePath) || { status: "M" as const, additions: 0, deletions: 0, edits: [] };
+            const existing = files.get(filePath) || {
+              status: "M" as const,
+              additions: 0,
+              deletions: 0,
+              edits: [],
+            };
             const oldStr = (tcInput.old_string as string) || "";
             const newStr = (tcInput.new_string as string) || "";
             existing.additions += newStr.split("\n").length;
@@ -1422,7 +1748,13 @@ function extractDiffData(sessions: DiffSession[]): {
             const lineCount = content.split("\n").length;
 
             if (!existing) {
-              files.set(filePath, { status: "A", additions: lineCount, deletions: 0, edits: [], writeContent: content });
+              files.set(filePath, {
+                status: "A",
+                additions: lineCount,
+                deletions: 0,
+                edits: [],
+                writeContent: content,
+              });
             } else {
               existing.additions += lineCount;
               existing.writeContent = content;
@@ -1430,9 +1762,14 @@ function extractDiffData(sessions: DiffSession[]): {
             }
           } else if (tc.name === "Bash") {
             const command = (tcInput.command as string) || "";
-            const commitMatch = command.match(/git commit\s+(?:-m\s+)?["']([^"']+)["']/);
+            const commitMatch = command.match(
+              /git commit\s+(?:-m\s+)?["']([^"']+)["']/,
+            );
             if (commitMatch) {
-              commits.push({ hash: "pending", message: commitMatch[1].slice(0, 80) });
+              commits.push({
+                hash: "pending",
+                message: commitMatch[1].slice(0, 80),
+              });
             }
           }
         }
@@ -1445,9 +1782,17 @@ function extractDiffData(sessions: DiffSession[]): {
 
           const contentLines = tr.content.split("\n");
           for (const line of contentLines) {
-            const gitCommitMatch = line.match(/\[[\w-]+\s+([a-f0-9]{7,8})\]\s+(.+)/);
-            if (gitCommitMatch && !commits.find(c => c.hash === gitCommitMatch[1])) {
-              commits.push({ hash: gitCommitMatch[1], message: gitCommitMatch[2].slice(0, 80) });
+            const gitCommitMatch = line.match(
+              /\[[\w-]+\s+([a-f0-9]{7,8})\]\s+(.+)/,
+            );
+            if (
+              gitCommitMatch &&
+              !commits.find((c) => c.hash === gitCommitMatch[1])
+            ) {
+              commits.push({
+                hash: gitCommitMatch[1],
+                message: gitCommitMatch[2].slice(0, 80),
+              });
             }
           }
         }
@@ -1459,7 +1804,8 @@ function extractDiffData(sessions: DiffSession[]): {
     if (!session.fileChanges?.length) continue;
     for (const file of computeCumulativeFiles(session.fileChanges, null)) {
       files.set(file.filename, {
-        status: file.status === "added" ? "A" : file.status === "deleted" ? "D" : "M",
+        status:
+          file.status === "added" ? "A" : file.status === "deleted" ? "D" : "M",
         additions: file.additions,
         deletions: file.deletions,
         edits: [],
@@ -1468,9 +1814,10 @@ function extractDiffData(sessions: DiffSession[]): {
     }
   }
 
-  const duration = firstTimestamp && lastTimestamp
-    ? Math.round((lastTimestamp - firstTimestamp) / 60000)
-    : 0;
+  const duration =
+    firstTimestamp && lastTimestamp
+      ? Math.round((lastTimestamp - firstTimestamp) / 60000)
+      : 0;
 
   return { files, commits, toolCounts, duration, messageCount };
 }
@@ -1526,7 +1873,8 @@ export function formatDiffResults(input: DiffInput): string {
     return "No sessions to analyze";
   }
 
-  const { files, commits, toolCounts, duration, messageCount } = extractDiffData(sessions);
+  const { files, commits, toolCounts, duration, messageCount } =
+    extractDiffData(sessions);
 
   if (mode === "patch") {
     for (const [filePath, stats] of Array.from(files.entries())) {
@@ -1552,20 +1900,27 @@ export function formatDiffResults(input: DiffInput): string {
   if (duration > 0) {
     const hours = Math.floor(duration / 60);
     const mins = duration % 60;
-    const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} minute${mins !== 1 ? "s" : ""}`;
+    const durationStr =
+      hours > 0
+        ? `${hours}h ${mins}m`
+        : `${mins} minute${mins !== 1 ? "s" : ""}`;
     lines.push(`Duration: ${durationStr}`);
   }
   lines.push(`Messages: ${messageCount}`);
   if (sessions.some((session) => session.fileChangesTruncated)) {
-    lines.push("Note: the session's file changes exceed the payload budget; some files are missing below.");
+    lines.push(
+      "Note: the session's file changes exceed the payload budget; some files are missing below.",
+    );
   }
   lines.push("");
 
   if (files.size > 0) {
     lines.push(`## Files Changed (${files.size})`);
 
-    const sortedFiles = Array.from(files.entries())
-      .sort((a, b) => (b[1].additions + b[1].deletions) - (a[1].additions + a[1].deletions));
+    const sortedFiles = Array.from(files.entries()).sort(
+      (a, b) =>
+        b[1].additions + b[1].deletions - (a[1].additions + a[1].deletions),
+    );
 
     for (const [filePath, stats] of sortedFiles.slice(0, 15)) {
       const shortPath = truncatePath(filePath);
@@ -1575,9 +1930,13 @@ export function formatDiffResults(input: DiffInput): string {
       if (stats.status === "A") {
         lines.push(` ${statusIcon} ${paddedPath} +${stats.additions} (new)`);
       } else if (stats.status === "D") {
-        lines.push(` ${statusIcon} ${paddedPath} -${stats.deletions} (deleted)`);
+        lines.push(
+          ` ${statusIcon} ${paddedPath} -${stats.deletions} (deleted)`,
+        );
       } else if (stats.deletions > 0) {
-        lines.push(` ${statusIcon} ${paddedPath} +${stats.additions} -${stats.deletions}`);
+        lines.push(
+          ` ${statusIcon} ${paddedPath} +${stats.additions} -${stats.deletions}`,
+        );
       } else {
         lines.push(` ${statusIcon} ${paddedPath} +${stats.additions}`);
       }
@@ -1600,7 +1959,7 @@ export function formatDiffResults(input: DiffInput): string {
     }
   }
 
-  const validCommits = commits.filter(c => c.hash !== "pending");
+  const validCommits = commits.filter((c) => c.hash !== "pending");
   if (validCommits.length > 0) {
     lines.push(`## Commits (${validCommits.length})`);
     for (const commit of validCommits.slice(0, 10)) {
@@ -1614,8 +1973,9 @@ export function formatDiffResults(input: DiffInput): string {
 
   if (toolCounts.size > 0) {
     lines.push("## Tools Used");
-    const sortedTools = Array.from(toolCounts.entries())
-      .sort((a, b) => b[1] - a[1]);
+    const sortedTools = Array.from(toolCounts.entries()).sort(
+      (a, b) => b[1] - a[1],
+    );
 
     for (const [tool, count] of sortedTools) {
       lines.push(`- ${tool}: ${count} call${count === 1 ? "" : "s"}`);
@@ -1650,10 +2010,15 @@ interface SimilarResult {
   query_value?: string;
 }
 
-export function formatSimilarResults(result: SimilarResult, query: { file?: string; session?: string }): string {
+export function formatSimilarResults(
+  result: SimilarResult,
+  query: { file?: string; session?: string },
+): string {
   const lines: string[] = [];
 
-  const queryStr = query.file ? `--file ${query.file}` : `--session ${query.session}`;
+  const queryStr = query.file
+    ? `--file ${query.file}`
+    : `--session ${query.session}`;
   lines.push(`<SIMILAR query="${queryStr}">`);
 
   if (result.count === 0) {
@@ -1669,10 +2034,14 @@ export function formatSimilarResults(result: SimilarResult, query: { file?: stri
   }
 
   const queryLabel = query.file || query.session || "query";
-  lines.push(`Found ${result.count} session${result.count === 1 ? "" : "s"} that touched ${queryLabel}\n`);
+  lines.push(
+    `Found ${result.count} session${result.count === 1 ? "" : "s"} that touched ${queryLabel}\n`,
+  );
 
   for (const session of result.sessions) {
-    const sessionId = session.session_id ? truncateId(session.session_id) : truncateId(session.conversation_id);
+    const sessionId = session.session_id
+      ? truncateId(session.session_id)
+      : truncateId(session.conversation_id);
     const date = formatDate(session.updated_at);
     const title = session.title || "Untitled";
 
@@ -1696,7 +2065,9 @@ export function formatSimilarResults(result: SimilarResult, query: { file?: stri
     const firstId = result.sessions[0].session_id
       ? truncateId(result.sessions[0].session_id)
       : truncateId(result.sessions[0].conversation_id);
-    lines.push(`Use: cast read ${firstId} <range>  # read messages from a session`);
+    lines.push(
+      `Use: cast read ${firstId} <range>  # read messages from a session`,
+    );
   }
 
   lines.push("</SIMILAR>");
@@ -1735,7 +2106,9 @@ export function formatBlameResults(result: BlameResult): string {
     return lines.join("\n");
   }
 
-  lines.push(`File touched by ${result.count} session${result.count === 1 ? "" : "s"}\n`);
+  lines.push(
+    `File touched by ${result.count} session${result.count === 1 ? "" : "s"}\n`,
+  );
 
   const groupedBySession = new Map<string, BlameTouch[]>();
   for (const touch of result.touches) {
@@ -1764,9 +2137,11 @@ export function formatBlameResults(result: BlameResult): string {
     }
     lines.push(`  Operations: ${opSummary.join(", ")}`);
 
-    const lineRanges = touches.filter(t => t.line_range).map(t => t.line_range);
+    const lineRanges = touches
+      .filter((t) => t.line_range)
+      .map((t) => t.line_range);
     if (result.line && lineRanges.length > 0) {
-      const matching = lineRanges.filter(r => {
+      const matching = lineRanges.filter((r) => {
         if (!r) return false;
         const [start, end] = r.split("-").map(Number);
         return result.line! >= start && result.line! <= (end || start);
@@ -1781,7 +2156,9 @@ export function formatBlameResults(result: BlameResult): string {
 
   if (groupedBySession.size > 0) {
     const firstSession = result.touches[0];
-    const firstId = truncateId(firstSession.session_id || firstSession.conversation_id);
+    const firstId = truncateId(
+      firstSession.session_id || firstSession.conversation_id,
+    );
     lines.push(`Use: cast read ${firstId}                # read full session`);
   }
 
@@ -1829,20 +2206,24 @@ export function formatContextResults(input: ContextInput): string {
     lines.push("No relevant sessions found.");
     lines.push("");
     lines.push("Try:");
-    lines.push("  cast context \"your task description\"");
+    lines.push('  cast context "your task description"');
     lines.push("  cast context --file path/to/file.ts");
     lines.push("</CONTEXT>");
     return lines.join("\n");
   }
 
-  lines.push(`Found ${sessions.length} relevant session${sessions.length === 1 ? "" : "s"}\n`);
+  lines.push(
+    `Found ${sessions.length} relevant session${sessions.length === 1 ? "" : "s"}\n`,
+  );
 
   lines.push("## Most Relevant");
   for (const session of sessions.slice(0, 5)) {
     const shortId = truncateId(session.id);
     const title = session.title || "Untitled";
 
-    lines.push(`[${shortId}] ${formatSessionPresence(session)} - "${title}"${session.facts ? ` ${c.dim}${session.facts}${c.reset}` : ""}`);
+    lines.push(
+      `[${shortId}] ${formatSessionPresence(session)} - "${title}"${session.facts ? ` ${c.dim}${session.facts}${c.reset}` : ""}`,
+    );
 
     if (session.preview) {
       const previewClean = session.preview.replace(/\n+/g, " ").trim();
@@ -1872,8 +2253,12 @@ export function formatContextResults(input: ContextInput): string {
 
   if (sessions.length > 0) {
     const firstId = truncateId(sessions[0].id);
-    lines.push(`Use: cast read ${firstId} <range>      # read session messages, e.g. 12:20`);
-    lines.push(`     cast read ${firstId} --ask "<q>"   # answer from the whole session, with citations`);
+    lines.push(
+      `Use: cast read ${firstId} <range>      # read session messages, e.g. 12:20`,
+    );
+    lines.push(
+      `     cast read ${firstId} --ask "<q>"   # answer from the whole session, with citations`,
+    );
   }
 
   lines.push("</CONTEXT>");
@@ -1908,15 +2293,17 @@ export function formatResumeResults(result: ResumeResult): string {
     lines.push(`${c.dim}No sessions found matching "${query}"${c.reset}`);
     lines.push("");
     lines.push("Try:");
-    lines.push("  cast resume \"different query\"");
+    lines.push('  cast resume "different query"');
     lines.push("  cast feed -g  # browse all sessions");
     return lines.join("\n");
   }
 
-  const ownConvs = conversations.filter(cv => !cv.user);
-  const teamConvs = conversations.filter(cv => cv.user);
+  const ownConvs = conversations.filter((cv) => !cv.user);
+  const teamConvs = conversations.filter((cv) => cv.user);
 
-  lines.push(`${c.dim}Found ${conversations.length} session${conversations.length === 1 ? "" : "s"} matching "${query}"${c.reset}`);
+  lines.push(
+    `${c.dim}Found ${conversations.length} session${conversations.length === 1 ? "" : "s"} matching "${query}"${c.reset}`,
+  );
   lines.push("");
 
   const formatConv = (conv: ResumeConversation, idx: number) => {
@@ -1968,7 +2355,9 @@ export function formatResumeResults(result: ResumeResult): string {
         }
       }
       if (subtitleLines.length > maxLines) {
-        lines.push(`      ${c.dim}... (${subtitleLines.length - maxLines} more)${c.reset}`);
+        lines.push(
+          `      ${c.dim}... (${subtitleLines.length - maxLines} more)${c.reset}`,
+        );
       }
     }
 
@@ -1987,7 +2376,9 @@ export function formatResumeResults(result: ResumeResult): string {
     }
   }
 
-  lines.push(`${c.dim}Run: cast resume "${query}" and use arrows to pick a session (q to quit)${c.reset}`);
+  lines.push(
+    `${c.dim}Run: cast resume "${query}" and use arrows to pick a session (q to quit)${c.reset}`,
+  );
 
   return lines.join("\n");
 }
@@ -2010,21 +2401,32 @@ export function formatTree(tree: TreeNode): string {
   lines.push(`${c.bold}Fork Tree${c.reset}`);
   lines.push("");
 
-  const renderNode = (node: TreeNode, prefix: string, isLast: boolean, isRoot: boolean) => {
+  const renderNode = (
+    node: TreeNode,
+    prefix: string,
+    isLast: boolean,
+    isRoot: boolean,
+  ) => {
     const connector = isRoot ? "" : isLast ? "+-- " : "+-- ";
     const marker = node.is_current ? `${c.bold}${c.magenta}*${c.reset} ` : "  ";
     const shortId = node.short_id || node.id.slice(0, 7);
-    const title = node.title.length > 50 ? node.title.slice(0, 47) + "..." : node.title;
+    const title =
+      node.title.length > 50 ? node.title.slice(0, 47) + "..." : node.title;
     const titleColor = node.is_current ? `${c.bold}${c.magenta}` : "";
     const titleReset = node.is_current ? c.reset : "";
 
     lines.push(
-      `${prefix}${connector}${marker}${titleColor}${title}${titleReset} ${c.dim}(${shortId}, ${node.message_count} msgs)${c.reset}`
+      `${prefix}${connector}${marker}${titleColor}${title}${titleReset} ${c.dim}(${shortId}, ${node.message_count} msgs)${c.reset}`,
     );
 
     const childPrefix = isRoot ? "" : prefix + (isLast ? "    " : "|   ");
     for (let i = 0; i < node.children.length; i++) {
-      renderNode(node.children[i], childPrefix, i === node.children.length - 1, false);
+      renderNode(
+        node.children[i],
+        childPrefix,
+        i === node.children.length - 1,
+        false,
+      );
     }
   };
 

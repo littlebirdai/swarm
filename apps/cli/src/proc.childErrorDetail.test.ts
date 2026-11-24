@@ -17,7 +17,9 @@ describe("childErrorDetail", () => {
   });
 
   test("falls back to stdout, caps length", () => {
-    expect(childErrorDetail("", "plain failure text")).toBe("plain failure text");
+    expect(childErrorDetail("", "plain failure text")).toBe(
+      "plain failure text",
+    );
     expect(childErrorDetail("x".repeat(900)).length).toBe(500);
   });
 
@@ -30,8 +32,11 @@ describe("childErrorDetail", () => {
 
 describe("lastErrorLine", () => {
   test("names the cause of a Bun crash, not its version banner", () => {
-    const stderr = "installing…\nerror: ENOSPC: no space left on device, write\n\nBun v1.4.0 (Linux x64)\n";
-    expect(lastErrorLine(stderr)).toBe("error: ENOSPC: no space left on device, write");
+    const stderr =
+      "installing…\nerror: ENOSPC: no space left on device, write\n\nBun v1.4.0 (Linux x64)\n";
+    expect(lastErrorLine(stderr)).toBe(
+      "error: ENOSPC: no space left on device, write",
+    );
   });
 
   test("is the last non-empty line otherwise, and empty for nothing", () => {

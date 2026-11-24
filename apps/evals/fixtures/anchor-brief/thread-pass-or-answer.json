@@ -3,16 +3,8 @@
   "notes": "Red list #16: six replies wake the team agent in a thread it follows; three ask it something by name, three are people talking to each other.",
   "label": {
     "placeholders": {
-      "answer": [
-        "cm7ph162",
-        "cm7ph164",
-        "cm7ph166"
-      ],
-      "pass": [
-        "cm7ph161",
-        "cm7ph163",
-        "cm7ph165"
-      ]
+      "answer": ["cm7ph162", "cm7ph164", "cm7ph166"],
+      "pass": ["cm7ph161", "cm7ph163", "cm7ph165"]
     }
   },
   "snapshot": {
@@ -26,37 +18,23 @@
     "world": "fernhill",
     "reads": [
       {
-        "argv": [
-          "brief"
-        ],
+        "argv": ["brief"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       },
       {
-        "argv": [
-          "brief",
-          "--json"
-        ],
+        "argv": ["brief", "--json"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       },
       {
-        "argv": [
-          "chat",
-          "thread",
-          "cm7launch"
-        ],
+        "argv": ["chat", "thread", "cm7launch"],
         "out": "This dry run holds no record of the thread beyond what the wake quotes: the excerpt in the wake is the thread as it stands.",
         "exit": 1,
         "prefix": true
       },
       {
-        "argv": [
-          "chat",
-          "read",
-          "--channel",
-          "ch7launch"
-        ],
+        "argv": ["chat", "read", "--channel", "ch7launch"],
         "out": "This dry run holds no record of the thread beyond what the wake quotes: the excerpt in the wake is the thread as it stands.",
         "exit": 1,
         "prefix": true

@@ -5,7 +5,12 @@ import { DEFAULT_CONVEX_URL } from "./convexPreconnect";
 
 describe("Convex preconnect", () => {
   test("hints the deployment the app connects to when the build sets none", () => {
-    const source = readFileSync(join(import.meta.dir, "../lib/convexUrl.ts"), "utf8");
-    expect(source).toContain(`const FALLBACK_CONVEX_URL = "${DEFAULT_CONVEX_URL}";`);
+    const source = readFileSync(
+      join(import.meta.dir, "../lib/convexUrl.ts"),
+      "utf8",
+    );
+    expect(source).toContain(
+      `const FALLBACK_CONVEX_URL = "${DEFAULT_CONVEX_URL}";`,
+    );
   });
 });

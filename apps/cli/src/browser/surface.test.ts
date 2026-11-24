@@ -42,10 +42,19 @@ import * as path from "node:path";
  * reason it is acceptable. Empty this as items land; do not add to it without
  * one.
  */
-const KNOWN_GAPS: Record<string, { flags?: string[]; verb?: boolean; why: string }> = {
-  "click-at": { verb: true, why: "engine restoration pending in jx76a64's rebase" },
+const KNOWN_GAPS: Record<
+  string,
+  { flags?: string[]; verb?: boolean; why: string }
+> = {
+  "click-at": {
+    verb: true,
+    why: "engine restoration pending in jx76a64's rebase",
+  },
   do: { flags: ["--tab"], why: "an engine session drives one tab of its own" },
-  find: { flags: ["--tab"], why: "an engine session drives one tab of its own" },
+  find: {
+    flags: ["--tab"],
+    why: "an engine session drives one tab of its own",
+  },
   close: { verb: true, why: "engine restoration pending in jx76a64's rebase" },
   shot: {
     flags: ["--jpeg", "--out", "--tab", "--viewports"],
@@ -82,13 +91,19 @@ const TARGET_FLAGS = ["--real"];
  */
 export function readSurface(src: string): Surface {
   const out: Surface = {};
-  for (const m of src.matchAll(/br\.command\("([a-z0-9-]+)[^"]*"\)((?:.|\n)*?)\.action/g)) {
-    out[m[1]] = new Set([...m[2].matchAll(/\.option\("(--[a-z-]+)/g)].map((o) => o[1]));
+  for (const m of src.matchAll(
+    /br\s*\.command\(\s*"([a-z0-9-]+)[^"]*",?\s*\)((?:.|\n)*?)\.action/g,
+  )) {
+    out[m[1]] = new Set(
+      [...m[2].matchAll(/\.option\(\s*"(--[a-z-]+)/g)].map((o) => o[1]),
+    );
   }
-  for (const m of src.matchAll(/targetFlags\(br\.command\("([a-z0-9-]+)[^"]*"\)\)/g)) {
+  for (const m of src.matchAll(
+    /targetFlags\(\s*br\s*\.command\(\s*"([a-z0-9-]+)[^"]*",?\s*\)\)/g,
+  )) {
     for (const f of TARGET_FLAGS) (out[m[1]] ??= new Set()).add(f);
   }
-  for (const m of src.matchAll(/\{ verb: "([a-z0-9-]+)"/g)) {
+  for (const m of src.matchAll(/\{\s*verb: "([a-z0-9-]+)"/g)) {
     if (!(m[1] in out)) out[m[1]] = new Set();
   }
   return out;
@@ -101,7 +116,9 @@ export interface Drift {
 
 /** What the engine path does not answer for. Passthrough verbs take any flag. */
 export function surfaceDrift(builtin: Surface, engine: Surface): Drift {
-  const verbsLost = Object.keys(builtin).filter((v) => !(v in engine)).sort();
+  const verbsLost = Object.keys(builtin)
+    .filter((v) => !(v in engine))
+    .sort();
   const flagsLost: Record<string, string[]> = {};
   for (const verb of Object.keys(builtin).sort()) {
     const eng = engine[verb];
@@ -150,9 +167,14 @@ describe("command surface: built-in driver vs engine", () => {
     // command an agent would be told to run and find missing.
     const report = [
       ...drift.verbsLost.map((v) => `  verb lost:  cast browser ${v}`),
-      ...Object.entries(drift.flagsLost).map(([v, f]) => `  flags lost: cast browser ${v} ${f.join(" ")}`),
+      ...Object.entries(drift.flagsLost).map(
+        ([v, f]) => `  flags lost: cast browser ${v} ${f.join(" ")}`,
+      ),
     ].join("\n");
-    expect(report, `\n${report}\n\nAdd to KNOWN_GAPS with a reason, or map it in cliEngine.ts.`).toBe("");
+    expect(
+      report,
+      `\n${report}\n\nAdd to KNOWN_GAPS with a reason, or map it in cliEngine.ts.`,
+    ).toBe("");
   });
 
   test("every KNOWN_GAPS entry is still real, so the list cannot rot", () => {
@@ -162,12 +184,17 @@ describe("command surface: built-in driver vs engine", () => {
     const drift = surfaceDrift(builtin, engine);
     const stale: string[] = [];
     for (const [verb, gap] of Object.entries(KNOWN_GAPS)) {
-      if (gap.verb && !drift.verbsLost.includes(verb)) stale.push(`${verb} (verb is present now)`);
+      if (gap.verb && !drift.verbsLost.includes(verb))
+        stale.push(`${verb} (verb is present now)`);
       for (const f of gap.flags ?? []) {
-        if (!drift.flagsLost[verb]?.includes(f)) stale.push(`${verb} ${f} (flag is present now)`);
+        if (!drift.flagsLost[verb]?.includes(f))
+          stale.push(`${verb} ${f} (flag is present now)`);
       }
     }
-    expect(stale, `stale KNOWN_GAPS entries — delete them:\n  ${stale.join("\n  ")}`).toEqual([]);
+    expect(
+      stale,
+      `stale KNOWN_GAPS entries — delete them:\n  ${stale.join("\n  ")}`,
+    ).toEqual([]);
   });
 });
 
@@ -182,26 +209,45 @@ describe("readSurface", () => {
   });
 
   test("a passthrough verb never reports lost flags", () => {
-    const builtin = readSurface(`br.command("eval").option("--tab <id>", "x").action(() => {});`);
+    const builtin = readSurface(
+      `br.command("eval").option("--tab <id>", "x").action(() => {});`,
+    );
     const engine = readSurface(`const T = [{ verb: "eval", desc: "y" }];`);
-    expect(surfaceDrift(builtin, engine)).toEqual({ verbsLost: [], flagsLost: {} });
+    expect(surfaceDrift(builtin, engine)).toEqual({
+      verbsLost: [],
+      flagsLost: {},
+    });
   });
 
   test("a flag present in one path and absent in the other is drift", () => {
-    const builtin = readSurface(`br.command("shot").option("--full", "x").option("--jpeg", "y").action(() => {});`);
-    const engine = readSurface(`br.command("shot").option("--full", "x").action(() => {});`);
-    expect(surfaceDrift(builtin, engine).flagsLost).toEqual({ shot: ["--jpeg"] });
+    const builtin = readSurface(
+      `br.command("shot").option("--full", "x").option("--jpeg", "y").action(() => {});`,
+    );
+    const engine = readSurface(
+      `br.command("shot").option("--full", "x").action(() => {});`,
+    );
+    expect(surfaceDrift(builtin, engine).flagsLost).toEqual({
+      shot: ["--jpeg"],
+    });
   });
 
   test("flags registered through targetFlags count as registered", () => {
-    const s = readSurface(`targetFlags(br.command("shot [path]")).option("--full", "x").action(() => {});`);
+    const s = readSurface(
+      `targetFlags(br.command("shot [path]")).option("--full", "x").action(() => {});`,
+    );
     expect([...s.shot].sort()).toEqual(["--full", "--real"]);
-    const builtin = readSurface(`br.command("shot").option("--real", "x").action(() => {});`);
+    const builtin = readSurface(
+      `br.command("shot").option("--real", "x").action(() => {});`,
+    );
     expect(surfaceDrift(builtin, s)).toEqual({ verbsLost: [], flagsLost: {} });
   });
 
   test("a verb missing from the engine entirely is drift", () => {
-    const builtin = readSurface(`br.command("click-at").option("--tab <id>", "x").action(() => {});`);
-    expect(surfaceDrift(builtin, readSurface("")).verbsLost).toEqual(["click-at"]);
+    const builtin = readSurface(
+      `br.command("click-at").option("--tab <id>", "x").action(() => {});`,
+    );
+    expect(surfaceDrift(builtin, readSurface("")).verbsLost).toEqual([
+      "click-at",
+    ]);
   });
 });

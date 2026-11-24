@@ -6,7 +6,7 @@
 //
 // The counting lives here, in a subclass of the shared wrapper, so the CLI and
 // web, which share that wrapper, carry none of it.
-import { recoveringWebSocket } from '@codecast/shared/network';
+import { recoveringWebSocket } from "@codecast/shared/network";
 
 export const socketStats = {
   lastConnectAt: 0,
@@ -26,28 +26,35 @@ export function countingWebSocket(): typeof WebSocket | undefined {
     constructor(url: string | URL, protocols?: string | string[]) {
       super(url, protocols);
       socketStats.lastConnectAt = Date.now();
-      this.addEventListener('open', () => {
-        socketStats.opens++;
-        socketStats.lastOpenAt = Date.now();
-      }, { once: true });
+      this.addEventListener(
+        "open",
+        () => {
+          socketStats.opens++;
+          socketStats.lastOpenAt = Date.now();
+        },
+        { once: true },
+      );
       // Registered after the wrapper's own listeners, so the counts read its
       // bookkeeping after it ran.
-      this.addEventListener('message', () => {
+      this.addEventListener("message", () => {
         socketStats.lastMessageAt = Date.now();
         socketStats.messagesIn++;
         this.countMutations();
       });
-      this.addEventListener('close', () => this.countMutations());
+      this.addEventListener("close", () => this.countMutations());
     }
 
-    override send(data: Parameters<WebSocket['send']>[0]) {
+    override send(data: Parameters<WebSocket["send"]>[0]) {
       super.send(data);
       this.countMutations();
     }
 
     // The wrapper's queues are private to it; read, never written.
     private countMutations() {
-      const self = this as unknown as { pendingMutations?: Map<number, string>; activeMutations?: Set<number> };
+      const self = this as unknown as {
+        pendingMutations?: Map<number, string>;
+        activeMutations?: Set<number>;
+      };
       socketStats.heldMutations = self.pendingMutations?.size ?? 0;
       socketStats.activeMutations = self.activeMutations?.size ?? 0;
     }

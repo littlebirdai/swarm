@@ -25,13 +25,9 @@
     ],
     "context": {
       "userId": "u1",
-      "teamIds": [
-        "team1"
-      ],
+      "teamIds": ["team1"],
       "deviceId": "dev1",
-      "projectKeys": [
-        "git:github.com/o/r"
-      ],
+      "projectKeys": ["git:github.com/o/r"],
       "conversationId": "conv1"
     }
   },

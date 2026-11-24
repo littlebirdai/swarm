@@ -30,7 +30,10 @@ export interface HandoffPromptInput {
 }
 
 /** "Claude (opus)" / "Codex" — the agent a session ran on, for humans. */
-export function describeAgentRun(agent_type: string | null | undefined, model?: string | null): string {
+export function describeAgentRun(
+  agent_type: string | null | undefined,
+  model?: string | null,
+): string {
   const name = AGENT_CLIENTS[fromConvexAgentType(agent_type)].displayName;
   const m = (model ?? "").trim();
   return m ? `${name} (${m})` : name;
@@ -47,7 +50,7 @@ export function composeHandoffPrompt(input: HandoffPromptInput): string {
   lines.push("");
   lines.push(
     "This session continues that work. Read the brief below, then pick up at the first next step. " +
-    "The transcript is one command away when the brief is not enough.",
+      "The transcript is one command away when the brief is not enough.",
   );
   lines.push("");
   lines.push("## Brief");
@@ -72,30 +75,54 @@ function sessionTitle(source: HandoffSourceRef): string {
 
 // The commands that open the rest of a transcript. Shared by the handoff and
 // the context recovery, whose agents both start without the history.
-function pushReadMore(lines: string[], source: HandoffSourceRef, recovery: boolean): void {
+function pushReadMore(
+  lines: string[],
+  source: HandoffSourceRef,
+  recovery: boolean,
+): void {
   const id = source.short_id;
   const count = source.message_count ?? 0;
   const messages = `${count} message${count === 1 ? "" : "s"}`;
   lines.push("## Read more");
   lines.push("");
-  lines.push(recovery
-    ? `This session's earlier transcript has ${messages}, all still in codecast. Read it in windows, not whole:`
-    : `The source transcript has ${messages}. Read it in windows, not whole:`);
+  lines.push(
+    recovery
+      ? `This session's earlier transcript has ${messages}, all still in codecast. Read it in windows, not whole:`
+      : `The source transcript has ${messages}. Read it in windows, not whole:`,
+  );
   lines.push("");
   lines.push("```bash");
   if (count <= 20) {
-    lines.push(`cast read ${id} 1:${Math.max(count, 1)}   # the whole transcript (N:M is a message window)`);
+    lines.push(
+      `cast read ${id} 1:${Math.max(count, 1)}   # the whole transcript (N:M is a message window)`,
+    );
   } else {
-    lines.push(`cast read ${id} 1:20   # the opening: goal and first decisions (N:M is a message window)`);
-    lines.push(`cast read ${id} ${count - 19}:${count}   # the tail: latest work`);
+    lines.push(
+      `cast read ${id} 1:20   # the opening: goal and first decisions (N:M is a message window)`,
+    );
+    lines.push(
+      `cast read ${id} ${count - 19}:${count}   # the tail: latest work`,
+    );
   }
-  lines.push(`cast read ${id} N:M --full   # full tool payloads; the only way to see a StructuredOutput return`);
-  lines.push(`cast read ${id} --ask "<question>"   # an answer from ${recovery ? "this session's" : "the source"} transcript, with line citations`);
-  lines.push(`cast search "<topic>"   # earlier sessions on the same work, this one included`);
+  lines.push(
+    `cast read ${id} N:M --full   # full tool payloads; the only way to see a StructuredOutput return`,
+  );
+  lines.push(
+    `cast read ${id} --ask "<question>"   # an answer from ${recovery ? "this session's" : "the source"} transcript, with line citations`,
+  );
+  lines.push(
+    `cast search "<topic>"   # earlier sessions on the same work, this one included`,
+  );
   lines.push(`cast diff ${id}   # files changed, commits, tools used`);
   lines.push(`cast state show ${id}   # the pinned state`);
-  if (source.task_short_id) lines.push(`cast task context ${source.task_short_id}   # the bound task; this session is bound to it too`);
-  if (source.plan_short_id) lines.push(`cast plan context ${source.plan_short_id}   # the bound plan; this session is bound to it too`);
+  if (source.task_short_id)
+    lines.push(
+      `cast task context ${source.task_short_id}   # the bound task; this session is bound to it too`,
+    );
+  if (source.plan_short_id)
+    lines.push(
+      `cast plan context ${source.plan_short_id}   # the bound plan; this session is bound to it too`,
+    );
   lines.push("```");
 }
 
@@ -143,24 +170,31 @@ export interface ContextRecoveryPromptInput {
 /** A fence longer than any backtick run inside the text, so quoted content
  *  with its own code blocks stays one block. */
 function fenceFor(text: string): string {
-  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const longest = Math.max(
+    0,
+    ...(text.match(/`+/g) ?? []).map((run) => run.length),
+  );
   return "`".repeat(Math.max(3, longest + 1));
 }
 
-export function composeContextRecoveryPrompt(input: ContextRecoveryPromptInput): string {
+export function composeContextRecoveryPrompt(
+  input: ContextRecoveryPromptInput,
+): string {
   const { source } = input;
   const lines: string[] = [];
-  lines.push(`${CONTEXT_RECOVERY_HEADING}: ${source.short_id} · ${sessionTitle(source)}`);
+  lines.push(
+    `${CONTEXT_RECOVERY_HEADING}: ${source.short_id} · ${sessionTitle(source)}`,
+  );
   lines.push("");
   lines.push(
     `You are session ${source.short_id}, continuing in a fresh context. The previous context filled up and could not be compacted, ` +
-    "so codecast restarted you in the same conversation with this brief. Nothing else changed: same session, same role, same work, " +
-    "same people. Carry on as yourself from where the work stopped, without announcing the restart.",
+      "so codecast restarted you in the same conversation with this brief. Nothing else changed: same session, same role, same work, " +
+      "same people. Carry on as yourself from where the work stopped, without announcing the restart.",
   );
   lines.push("");
   lines.push(
     "The brief is a summary and can be wrong or thin. Before acting on anything it does not settle, read the transcript " +
-    "with the commands under Read more; the latest messages below are exact.",
+      "with the commands under Read more; the latest messages below are exact.",
   );
   const role = (input.roleBrief ?? "").trim();
   if (role) {
@@ -174,7 +208,9 @@ export function composeContextRecoveryPrompt(input: ContextRecoveryPromptInput):
     lines.push("");
     lines.push("## Your last compaction summary");
     lines.push("");
-    lines.push("Written by you when you last compacted. Exact; the brief below covers what came after it.");
+    lines.push(
+      "Written by you when you last compacted. Exact; the brief below covers what came after it.",
+    );
     lines.push("");
     const fence = fenceFor(summary);
     lines.push(fence);
@@ -189,11 +225,15 @@ export function composeContextRecoveryPrompt(input: ContextRecoveryPromptInput):
     lines.push("");
     lines.push("## Latest messages");
     lines.push("");
-    lines.push("Verbatim, oldest first. The last one from the person is what you owe an answer to, unless the brief shows it was already answered.");
+    lines.push(
+      "Verbatim, oldest first. The last one from the person is what you owe an answer to, unless the brief shows it was already answered.",
+    );
     for (const m of input.latest) {
       const fence = fenceFor(m.content);
       lines.push("");
-      lines.push(`### ${m.role === "user" ? "User" : "You"} · ${new Date(m.timestamp).toISOString()}`);
+      lines.push(
+        `### ${m.role === "user" ? "User" : "You"} · ${new Date(m.timestamp).toISOString()}`,
+      );
       lines.push("");
       lines.push(fence);
       lines.push(m.content.trim());
@@ -209,17 +249,22 @@ export function composeContextRecoveryPrompt(input: ContextRecoveryPromptInput):
  *  from codecast (the first rung, convex handoff.applyContextRecovery): the
  *  agent resumes on its latest compaction summary plus the newest messages
  *  verbatim, so the prompt only says what happened and points at the rest. */
-export function composeContextRebuildPrompt(input: { source: HandoffSourceRef; roleBrief?: string | null }): string {
+export function composeContextRebuildPrompt(input: {
+  source: HandoffSourceRef;
+  roleBrief?: string | null;
+}): string {
   const { source } = input;
   const lines: string[] = [];
-  lines.push(`${CONTEXT_RECOVERY_HEADING}: ${source.short_id} · ${sessionTitle(source)}`);
+  lines.push(
+    `${CONTEXT_RECOVERY_HEADING}: ${source.short_id} · ${sessionTitle(source)}`,
+  );
   lines.push("");
   lines.push(
     `You are session ${source.short_id}. Your context filled up and could not be compacted, so codecast rebuilt this session ` +
-    "from codecast's copy of this conversation: your latest compaction summary when there is one, the instructions since it, " +
-    "and the newest messages verbatim (the notice at the top of the rebuilt transcript says what was kept). " +
-    "Same session, same role, same work, same people. Carry on from where the work stopped, without announcing the restart; " +
-    "the newest message from the person that has no answer yet is what you owe.",
+      "from codecast's copy of this conversation: your latest compaction summary when there is one, the instructions since it, " +
+      "and the newest messages verbatim (the notice at the top of the rebuilt transcript says what was kept). " +
+      "Same session, same role, same work, same people. Carry on from where the work stopped, without announcing the restart; " +
+      "the newest message from the person that has no answer yet is what you owe.",
   );
   const role = (input.roleBrief ?? "").trim();
   if (role) {
@@ -234,6 +279,10 @@ export function composeContextRebuildPrompt(input: { source: HandoffSourceRef; r
 }
 
 /** Is this the prompt a context recovery seeded the fresh agent with? */
-export function isContextRecoveryPrompt(content: string | null | undefined): boolean {
-  return !!content && content.trimStart().startsWith(`${CONTEXT_RECOVERY_HEADING}: `);
+export function isContextRecoveryPrompt(
+  content: string | null | undefined,
+): boolean {
+  return (
+    !!content && content.trimStart().startsWith(`${CONTEXT_RECOVERY_HEADING}: `)
+  );
 }

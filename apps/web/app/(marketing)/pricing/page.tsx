@@ -10,7 +10,11 @@ import { ComparisonList } from "../compare/ComparisonList";
 import { PLANS } from "@codecast/shared/contracts/assistant";
 import { planPoints, planPrice } from "@/components/simple/planWords";
 import { useUpgradesOpen } from "@/components/simple/billing";
-import { REQUEST_MEANS, assistantPromise, useConnectAvailable } from "@/components/simple/assistantPromise";
+import {
+  REQUEST_MEANS,
+  assistantPromise,
+  useConnectAvailable,
+} from "@/components/simple/assistantPromise";
 import { AssistantPrivacyNote } from "@/components/simple/AssistantPrivacyNote";
 
 /** The family's faces and accent (@platform/design), as the marketing
@@ -19,9 +23,20 @@ const READ = "var(--pd-font-read, Georgia, serif)";
 const UI = "var(--pd-font-ui, ui-sans-serif, system-ui)";
 const ACCENT = "var(--pd-accent, #cb4b16)";
 
-function CheckIcon({ className, color }: { className?: string; color: string }) {
+function CheckIcon({
+  className,
+  color,
+}: {
+  className?: string;
+  color: string;
+}) {
   return (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20" style={{ color }}>
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 20 20"
+      style={{ color }}
+    >
       <path
         fillRule="evenodd"
         d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -49,7 +64,8 @@ const TIERS: Tier[] = [
     name: "Free",
     price: "$0",
     cadence: "free forever",
-    tagline: "For individuals. Everything you need to watch, steer, and remember your own agents.",
+    tagline:
+      "For individuals. Everything you need to watch, steer, and remember your own agents.",
     accent: "#268bd2",
     features: [
       "Unlimited agent sessions",
@@ -66,7 +82,8 @@ const TIERS: Tier[] = [
     price: "$20",
     cadence: "per seat / month",
     badge: "Early access",
-    tagline: "Shared memory and a live inbox for everyone's agents. Waitlist now, no self-serve billing yet.",
+    tagline:
+      "Shared memory and a live inbox for everyone's agents. Waitlist now, no self-serve billing yet.",
     featured: true,
     accent: "#b58900",
     featuresLead: "Everything in Free, plus:",
@@ -88,7 +105,8 @@ const TIERS: Tier[] = [
     name: "Enterprise",
     price: "Contact",
     cadence: "custom",
-    tagline: "For organizations that need identity, audit, and supported deployment.",
+    tagline:
+      "For organizations that need identity, audit, and supported deployment.",
     accent: "#6c71c4",
     featuresLead: "Everything in Team, plus:",
     features: [
@@ -114,7 +132,10 @@ const TRACK_LINKS = [
  *  query on this page. */
 function cameForAssistant(): boolean {
   if (typeof window === "undefined") return false;
-  return window.location.hash === "#assistant" || new URLSearchParams(window.location.search).get("for") === "assistant";
+  return (
+    window.location.hash === "#assistant" ||
+    new URLSearchParams(window.location.search).get("for") === "assistant"
+  );
 }
 
 export default function PricingPage() {
@@ -139,18 +160,36 @@ export default function PricingPage() {
               className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
               style={{ backgroundColor: "rgba(133,153,0,0.15)" }}
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="#859900">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="#859900"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold mb-2 font-mono" style={{ color: "#fdf6e3" }}>
+              <h2
+                className="text-2xl font-bold mb-2 font-mono"
+                style={{ color: "#fdf6e3" }}
+              >
                 Bring your own agent subscriptions
               </h2>
-              <p className="text-lg leading-relaxed" style={{ color: "#93a1a1" }}>
-                For your coding agents, your Claude, OpenAI, and Gemini plans stay yours. Codecast never
-                resells or marks up their model usage: you pay those providers directly, at their price. We
-                charge for the shared memory and mission control on top, and nothing for the tokens underneath.
+              <p
+                className="text-lg leading-relaxed"
+                style={{ color: "#93a1a1" }}
+              >
+                For your coding agents, your Claude, OpenAI, and Gemini plans
+                stay yours. Codecast never resells or marks up their model
+                usage: you pay those providers directly, at their price. We
+                charge for the shared memory and mission control on top, and
+                nothing for the tokens underneath.
               </p>
             </div>
           </div>
@@ -169,15 +208,25 @@ export default function PricingPage() {
             const bodyColor = dark ? "#93a1a1" : "#657b83";
             const featureColor = dark ? "#eee8d5" : "#586e75";
             return (
-              <div key={tier.name} className="rounded-2xl p-7 h-full flex flex-col" style={cardStyle}>
+              <div
+                key={tier.name}
+                className="rounded-2xl p-7 h-full flex flex-col"
+                style={cardStyle}
+              >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold font-mono" style={{ color: headingColor }}>
+                  <h3
+                    className="text-xl font-semibold font-mono"
+                    style={{ color: headingColor }}
+                  >
                     {tier.name}
                   </h3>
                   {tier.badge && (
                     <span
                       className="tracking-wider font-mono text-mark uppercase font-medium px-2.5 py-1 rounded-md"
-                      style={{ backgroundColor: "rgba(181,137,0,0.18)", color: "#b58900" }}
+                      style={{
+                        backgroundColor: "rgba(181,137,0,0.18)",
+                        color: "#b58900",
+                      }}
                     >
                       {tier.badge}
                     </span>
@@ -185,7 +234,10 @@ export default function PricingPage() {
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-4xl font-bold font-mono" style={{ color: headingColor }}>
+                  <span
+                    className="text-4xl font-bold font-mono"
+                    style={{ color: headingColor }}
+                  >
                     {tier.price}
                   </span>
                   {tier.cadence && (
@@ -195,7 +247,10 @@ export default function PricingPage() {
                   )}
                 </div>
 
-                <p className="text-sm leading-relaxed mb-6" style={{ color: bodyColor }}>
+                <p
+                  className="text-sm leading-relaxed mb-6"
+                  style={{ color: bodyColor }}
+                >
                   {tier.tagline}
                 </p>
 
@@ -228,14 +283,24 @@ export default function PricingPage() {
                 )}
 
                 {tier.featuresLead && (
-                  <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: bodyColor }}>
+                  <p
+                    className="text-xs font-medium uppercase tracking-wide mb-3"
+                    style={{ color: bodyColor }}
+                  >
                     {tier.featuresLead}
                   </p>
                 )}
                 <ul className="space-y-3">
                   {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3 text-sm" style={{ color: featureColor }}>
-                      <CheckIcon className="w-5 h-5 shrink-0 mt-px" color={tier.accent} />
+                    <li
+                      key={feature}
+                      className="flex items-start gap-3 text-sm"
+                      style={{ color: featureColor }}
+                    >
+                      <CheckIcon
+                        className="w-5 h-5 shrink-0 mt-px"
+                        color={tier.accent}
+                      />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -246,11 +311,10 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-sm mt-8" style={{ color: "#93a1a1" }}>
-          Prefer to run it all yourself? Codecast is MIT licensed and self-hostable: clone it,
-          deploy it, own the whole stack.
+          Prefer to run it all yourself? Codecast is MIT licensed and
+          self-hostable: clone it, deploy it, own the whole stack.
         </p>
       </section>
-
     </>
   );
 
@@ -259,38 +323,101 @@ export default function PricingPage() {
       {/* Cast: the hosted plans for people who do not
           write code. Every figure and word comes from the PLANS catalog
           through the same plan words Settings > Plan shows. */}
-      <section id="assistant" className="max-w-6xl mx-auto px-6 pb-20 scroll-mt-24">
-        <div className="text-center max-w-2xl mx-auto mb-10" style={{ fontFamily: UI }}>
-          <h2 className="text-[32px] leading-tight mb-3" style={{ color: "var(--pd-ink, #1f1a14)", fontFamily: READ, fontWeight: 500 }}>
+      <section
+        id="assistant"
+        className="max-w-6xl mx-auto px-6 pb-20 scroll-mt-24"
+      >
+        <div
+          className="text-center max-w-2xl mx-auto mb-10"
+          style={{ fontFamily: UI }}
+        >
+          <h2
+            className="text-[32px] leading-tight mb-3"
+            style={{
+              color: "var(--pd-ink, #1f1a14)",
+              fontFamily: READ,
+              fontWeight: 500,
+            }}
+          >
             Cast
           </h2>
-          <p className="text-lg leading-relaxed" style={{ color: "var(--pd-ink-muted, #6b6152)" }}>
+          <p
+            className="text-lg leading-relaxed"
+            style={{ color: "var(--pd-ink-muted, #6b6152)" }}
+          >
             {/* What it does, once: the hero (or the developer hero) already
                 says there is nothing to install and that plans include the
                 AI. */}
             {assistantPromise(mail)}
           </p>
-          <AssistantPrivacyNote mail={mail} className="mt-3 text-[14px] leading-relaxed" style={{ color: "var(--pd-ink-faint, #8f8676)" }} />
+          <AssistantPrivacyNote
+            mail={mail}
+            className="mt-3 text-[14px] leading-relaxed"
+            style={{ color: "var(--pd-ink-faint, #8f8676)" }}
+          />
         </div>
         <div className="grid md:grid-cols-3 gap-6 items-start">
           {Object.values(PLANS).map((plan) => (
-            <div key={plan.id} className="rounded-2xl p-7 h-full flex flex-col" style={{ backgroundColor: "var(--pd-bg-raised, #fdfbf6)", border: "1px solid var(--pd-rule, #e6dccb)", fontFamily: UI }}>
+            <div
+              key={plan.id}
+              className="rounded-2xl p-7 h-full flex flex-col"
+              style={{
+                backgroundColor: "var(--pd-bg-raised, #fdfbf6)",
+                border: "1px solid var(--pd-rule, #e6dccb)",
+                fontFamily: UI,
+              }}
+            >
               <div className="flex items-center justify-between gap-2 mb-3">
-                <h3 className="text-xl" style={{ color: "var(--pd-ink, #1f1a14)", fontFamily: READ, fontWeight: 500 }}>{plan.label}</h3>
+                <h3
+                  className="text-xl"
+                  style={{
+                    color: "var(--pd-ink, #1f1a14)",
+                    fontFamily: READ,
+                    fontWeight: 500,
+                  }}
+                >
+                  {plan.label}
+                </h3>
                 {/* A paid plan says so while it cannot be bought yet, as the
                     app's Plan settings do (useUpgradesOpen). */}
                 {plan.price_usd > 0 && !upgradesOpen ? (
-                  <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "#eee8d5", color: "#586e75" }}>Coming soon</span>
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: "#eee8d5", color: "#586e75" }}
+                  >
+                    Coming soon
+                  </span>
                 ) : null}
               </div>
               <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-4xl tabular-nums" style={{ color: "var(--pd-ink, #1f1a14)", fontFamily: READ, fontWeight: 500 }}>{planPrice(plan).replace(/ a month$/, "")}</span>
-                <span className="text-sm" style={{ color: "var(--pd-ink-muted, #6b6152)" }}>a month</span>
+                <span
+                  className="text-4xl tabular-nums"
+                  style={{
+                    color: "var(--pd-ink, #1f1a14)",
+                    fontFamily: READ,
+                    fontWeight: 500,
+                  }}
+                >
+                  {planPrice(plan).replace(/ a month$/, "")}
+                </span>
+                <span
+                  className="text-sm"
+                  style={{ color: "var(--pd-ink-muted, #6b6152)" }}
+                >
+                  a month
+                </span>
               </div>
               <ul className="space-y-3 flex-1">
                 {planPoints(plan).map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-sm" style={{ color: "var(--pd-ink-muted, #6b6152)" }}>
-                    <CheckIcon className="w-5 h-5 shrink-0 mt-px" color={ACCENT} />
+                  <li
+                    key={point}
+                    className="flex items-start gap-3 text-sm"
+                    style={{ color: "var(--pd-ink-muted, #6b6152)" }}
+                  >
+                    <CheckIcon
+                      className="w-5 h-5 shrink-0 mt-px"
+                      color={ACCENT}
+                    />
                     <span>{point}</span>
                   </li>
                 ))}
@@ -299,98 +426,190 @@ export default function PricingPage() {
           ))}
         </div>
         {/* The plans count requests; say once what one is. */}
-        <p className="mt-6 text-center text-[13.5px]" style={{ color: "var(--pd-ink-faint, #8f8676)", fontFamily: UI }}>{REQUEST_MEANS}</p>
+        <p
+          className="mt-6 text-center text-[13.5px]"
+          style={{ color: "var(--pd-ink-faint, #8f8676)", fontFamily: UI }}
+        >
+          {REQUEST_MEANS}
+        </p>
         <div className="flex justify-center mt-8">
           <Link href="/signup">
-            <Button className="text-[15px] px-6 h-11 font-semibold text-[#fdf6e3] border-0" style={{ background: ACCENT, fontFamily: UI }}>
+            <Button
+              className="text-[15px] px-6 h-11 font-semibold text-[#fdf6e3] border-0"
+              style={{ background: ACCENT, fontFamily: UI }}
+            >
               Get started with the assistant
             </Button>
           </Link>
         </div>
       </section>
-
     </>
   );
 
   return (
     // Through the assistant's door the page sits on the family's paper
     // (@platform/design), as the app and Whisk do, not Solarized cream.
-    <main className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: assistantFirst ? "var(--pd-bg, #f6f3ec)" : "#fdf6e3" }}>
-      <MarketingNav active="/pricing" door={assistantFirst ? "assistant" : undefined} />
+    <main
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{
+        backgroundColor: assistantFirst ? "var(--pd-bg, #f6f3ec)" : "#fdf6e3",
+      }}
+    >
+      <MarketingNav
+        active="/pricing"
+        door={assistantFirst ? "assistant" : undefined}
+      />
 
       {/* Hero. Through the assistant's door it speaks for the assistant in
           the family's faces, as #everyone does; otherwise it
           names both products. */}
       {assistantFirst ? (
-        <section className="max-w-3xl mx-auto px-6 pt-20 pb-8 text-center" style={{ fontFamily: UI }}>
-          <p className="mb-4 text-[14px] font-medium" style={{ color: "var(--pd-ink-muted, #6b6152)" }}>Pricing</p>
-          <h1 className="text-[40px] md:text-[52px] leading-[1.1] mb-5" style={{ color: "var(--pd-ink, #1f1a14)", fontFamily: READ, fontWeight: 500 }}>
+        <section
+          className="max-w-3xl mx-auto px-6 pt-20 pb-8 text-center"
+          style={{ fontFamily: UI }}
+        >
+          <p
+            className="mb-4 text-[14px] font-medium"
+            style={{ color: "var(--pd-ink-muted, #6b6152)" }}
+          >
+            Pricing
+          </p>
+          <h1
+            className="text-[40px] md:text-[52px] leading-[1.1] mb-5"
+            style={{
+              color: "var(--pd-ink, #1f1a14)",
+              fontFamily: READ,
+              fontWeight: 500,
+            }}
+          >
             Free to start, nothing to install.
           </h1>
-          <p className="text-lg leading-relaxed max-w-xl mx-auto" style={{ color: "var(--pd-ink-muted, #6b6152)" }}>
-            The assistant runs on our AI, so its plans include it. Free covers everyday asks each month,
-            with no card. Codecast for teams running coding agents has its own plans below.
+          <p
+            className="text-lg leading-relaxed max-w-xl mx-auto"
+            style={{ color: "var(--pd-ink-muted, #6b6152)" }}
+          >
+            The assistant runs on our AI, so its plans include it. Free covers
+            everyday asks each month, with no card. Codecast for teams running
+            coding agents has its own plans below.
           </p>
         </section>
       ) : (
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-8 text-center">
-        <div
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md mb-6"
-          style={{ backgroundColor: "rgba(133,153,0,0.1)", color: "#859900" }}
-        >
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#859900" }}></span>
-          <span className="tracking-wider font-mono text-mark uppercase font-medium">Pricing</span>
-        </div>
-        <h1 className="text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight mb-6 font-mono" style={{ color: "#002b36" }}>
-          Honest pricing,<br />
-          <span style={{ color: "#93a1a1" }}>free where it counts</span>
-        </h1>
-        <p className="text-xl leading-relaxed max-w-2xl mx-auto" style={{ color: "#657b83" }}>
-          Two products on one page. The assistant runs on our AI, so its plans include it. Codecast
-          for teams running coding agents is free for individuals and a flat $20 per seat for teams.
-        </p>
-      </section>
+        <section className="max-w-4xl mx-auto px-6 pt-20 pb-8 text-center">
+          <div
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md mb-6"
+            style={{ backgroundColor: "rgba(133,153,0,0.1)", color: "#859900" }}
+          >
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: "#859900" }}
+            ></span>
+            <span className="tracking-wider font-mono text-mark uppercase font-medium">
+              Pricing
+            </span>
+          </div>
+          <h1
+            className="text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight mb-6 font-mono"
+            style={{ color: "#002b36" }}
+          >
+            Honest pricing,
+            <br />
+            <span style={{ color: "#93a1a1" }}>free where it counts</span>
+          </h1>
+          <p
+            className="text-xl leading-relaxed max-w-2xl mx-auto"
+            style={{ color: "#657b83" }}
+          >
+            Two products on one page. The assistant runs on our AI, so its plans
+            include it. Codecast for teams running coding agents is free for
+            individuals and a flat $20 per seat for teams.
+          </p>
+        </section>
       )}
 
       {/* Two products, two tracks, labelled up top. Whoever came from the
           assistant's door (its #assistant link or ?for=assistant)
           reads its plans first; everyone else starts with the developer
           product. */}
-      <nav aria-label="Pricing tracks" className="max-w-4xl mx-auto px-6 pb-12 flex flex-wrap justify-center gap-3">
-        {(assistantFirst ? TRACK_LINKS : [...TRACK_LINKS].reverse()).map((track) => (
-          <a
-            key={track.href}
-            href={track.href}
-            className="rounded-full px-4 py-2 text-sm font-medium"
-            style={assistantFirst
-              ? { border: "1px solid var(--pd-rule, #e4ddce)", color: "var(--pd-ink-muted, #6b6355)", backgroundColor: "var(--pd-bg-raised, #fdfbf6)", fontFamily: UI, fontSize: 14 }
-              : { border: "1px solid #eee8d5", color: "#586e75", backgroundColor: "#fdf6e3" }}
-          >
-            {track.label}
-          </a>
-        ))}
+      <nav
+        aria-label="Pricing tracks"
+        className="max-w-4xl mx-auto px-6 pb-12 flex flex-wrap justify-center gap-3"
+      >
+        {(assistantFirst ? TRACK_LINKS : [...TRACK_LINKS].reverse()).map(
+          (track) => (
+            <a
+              key={track.href}
+              href={track.href}
+              className="rounded-full px-4 py-2 text-sm font-medium"
+              style={
+                assistantFirst
+                  ? {
+                      border: "1px solid var(--pd-rule, #e4ddce)",
+                      color: "var(--pd-ink-muted, #6b6355)",
+                      backgroundColor: "var(--pd-bg-raised, #fdfbf6)",
+                      fontFamily: UI,
+                      fontSize: 14,
+                    }
+                  : {
+                      border: "1px solid #eee8d5",
+                      color: "#586e75",
+                      backgroundColor: "#fdf6e3",
+                    }
+              }
+            >
+              {track.label}
+            </a>
+          ),
+        )}
       </nav>
 
-      {assistantFirst ? <>{assistantTrack}{teamsTrack}</> : <>{teamsTrack}{assistantTrack}</>}
+      {assistantFirst ? (
+        <>
+          {assistantTrack}
+          {teamsTrack}
+        </>
+      ) : (
+        <>
+          {teamsTrack}
+          {assistantTrack}
+        </>
+      )}
 
       {/* CTA */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
-        <div className="rounded-2xl p-12 text-center" style={{ backgroundColor: "#eee8d5" }}>
-          <h2 className="text-3xl font-bold mb-4 font-mono" style={{ color: "#002b36" }}>
+        <div
+          className="rounded-2xl p-12 text-center"
+          style={{ backgroundColor: "#eee8d5" }}
+        >
+          <h2
+            className="text-3xl font-bold mb-4 font-mono"
+            style={{ color: "#002b36" }}
+          >
             Start free today
           </h2>
-          <p className="text-lg mb-8 max-w-xl mx-auto" style={{ color: "#657b83" }}>
-            Write code? Install the CLI, connect your agents, and watch them from anywhere. Don&apos;t?
-            Start with the assistant, nothing to install.
+          <p
+            className="text-lg mb-8 max-w-xl mx-auto"
+            style={{ color: "#657b83" }}
+          >
+            Write code? Install the CLI, connect your agents, and watch them
+            from anywhere. Don&apos;t? Start with the assistant, nothing to
+            install.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup">
-              <Button size="lg" className="text-white text-base px-8 h-12 font-medium" style={{ backgroundColor: "#002b36" }}>
+              <Button
+                size="lg"
+                className="text-white text-base px-8 h-12 font-medium"
+                style={{ backgroundColor: "#002b36" }}
+              >
                 Get started free
               </Button>
             </Link>
             <Link href="/signup">
-              <Button size="lg" className="text-base px-8 h-12 font-medium text-[#fdf6e3]" style={{ backgroundColor: "#cb4b16" }}>
+              <Button
+                size="lg"
+                className="text-base px-8 h-12 font-medium text-[#fdf6e3]"
+                style={{ backgroundColor: "#cb4b16" }}
+              >
                 Start with the assistant
               </Button>
             </Link>
@@ -409,11 +628,15 @@ export default function PricingPage() {
       </section>
 
       <section className="max-w-3xl mx-auto px-6 pb-24">
-        <h2 className="font-mono text-2xl font-bold mb-3" style={{ color: "#002b36" }}>
+        <h2
+          className="font-mono text-2xl font-bold mb-3"
+          style={{ color: "#002b36" }}
+        >
           Comparing tools?
         </h2>
         <p className="leading-relaxed mb-8" style={{ color: "#586e75" }}>
-          Side by side comparisons with other coding agent tools, including when the other one is the better choice.
+          Side by side comparisons with other coding agent tools, including when
+          the other one is the better choice.
         </p>
         <ComparisonList />
       </section>

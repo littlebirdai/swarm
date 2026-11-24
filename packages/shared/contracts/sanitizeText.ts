@@ -24,7 +24,8 @@ export const MAX_FOREIGN_TEXT_LENGTH = 1024;
 export function sanitizeForeignText(input: unknown): string | null {
   if (typeof input !== "string") return null;
   // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(input)) return null;
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(input))
+    return null;
   const trimmed = input.trim();
   if (trimmed.length === 0) return null;
   if (trimmed.length <= MAX_FOREIGN_TEXT_LENGTH) return trimmed;

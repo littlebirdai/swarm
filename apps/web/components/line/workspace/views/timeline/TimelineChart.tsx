@@ -9,12 +9,41 @@
 // Performance: the marks are one memoized SVG built from the history and the
 // domain; the pointer (crosshair, tooltip, brush) moves through refs, so a
 // hover never re-renders a bar.
-import { memo, useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { backTimes, type CauseHistory, type HistoryAttempt, type HistoryClose } from "../../../../../lib/line/causeHistory";
 import {
-  defaultRange, rangeDomain, TIME_RANGES, type TimeRange,
-  alignDown, attemptEndWords, attemptMarkWords, attemptTone, bucketCounts, bucketStep, bucketWords, closeStepLabel, comebackTimes, momentWords, notDeployed, shownWatches, spanWords, timeTicks,
-  type Domain, type MarkTone,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  backTimes,
+  type CauseHistory,
+  type HistoryAttempt,
+  type HistoryClose,
+} from "../../../../../lib/line/causeHistory";
+import {
+  defaultRange,
+  rangeDomain,
+  TIME_RANGES,
+  type TimeRange,
+  alignDown,
+  attemptEndWords,
+  attemptMarkWords,
+  attemptTone,
+  bucketCounts,
+  bucketStep,
+  bucketWords,
+  closeStepLabel,
+  comebackTimes,
+  momentWords,
+  notDeployed,
+  shownWatches,
+  spanWords,
+  timeTicks,
+  type Domain,
+  type MarkTone,
 } from "../../../../../lib/line/timeline";
 import { useDerivedSize } from "../../../../../hooks/useDerivedSize";
 import { navigateHere } from "../../../../../lib/openIntent";
@@ -44,50 +73,91 @@ const NONE_CH = 7.2;
 /** The room a "came back 7x after #5" label takes, in px: a closer label folds into the next one. */
 const BACK_LABEL_W = 170;
 // A shipped close is flagged here only when no deploy carried it (one that did has its deploy flag), so it reads as merged.
-const CLOSE_WORDS: Record<HistoryClose["kind"], string> = { shipped: "merged", dissolved: "dissolved", dropped: "dropped" };
+const CLOSE_WORDS: Record<HistoryClose["kind"], string> = {
+  shipped: "merged",
+  dissolved: "dissolved",
+  dropped: "dropped",
+};
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 /** The narrowest a bar is ever drawn, when the next attempt in its row leaves no room for its "#n". */
 const MIN_BAR_W = 8;
 
 /** One mark in the attempt lanes: an attempt, or a run of attempts too close to tell apart on screen, folded into one "#1-#3" pill. */
-type AttemptMark = { key: string; start: number; end: number | null; minW: number; attempts: HistoryAttempt[] };
+type AttemptMark = {
+  key: string;
+  start: number;
+  end: number | null;
+  minW: number;
+  attempts: HistoryAttempt[];
+};
 
-const markLabel = (m: AttemptMark) => (m.attempts.length > 1 ? `#${m.attempts[0].n}-#${m.attempts[m.attempts.length - 1].n}` : `#${m.attempts[0].n}`);
+const markLabel = (m: AttemptMark) =>
+  m.attempts.length > 1
+    ? `#${m.attempts[0].n}-#${m.attempts[m.attempts.length - 1].n}`
+    : `#${m.attempts[0].n}`;
 const labelW = (text: string) => text.length * 6.2 + 12;
 
 /** Attempts as marks, oldest first: finished attempts that start closer than one "#n" apart fold into one pill, so each mark on screen can be named. */
-function attemptMarks(attempts: ReadonlyArray<HistoryAttempt>, x: (t: number) => number): AttemptMark[] {
+function attemptMarks(
+  attempts: ReadonlyArray<HistoryAttempt>,
+  x: (t: number) => number,
+): AttemptMark[] {
   const out: AttemptMark[] = [];
   for (const a of [...attempts].sort((p, q) => p.start - q.start)) {
     const prev = out[out.length - 1];
     const last = prev?.attempts[prev.attempts.length - 1];
-    if (prev && last && !a.live && !last.live && x(a.start) - x(last.start) < MIN_ATT_W + 3) {
+    if (
+      prev &&
+      last &&
+      !a.live &&
+      !last.live &&
+      x(a.start) - x(last.start) < MIN_ATT_W + 3
+    ) {
       prev.attempts.push(a);
       prev.end = Math.max(prev.end ?? a.start, a.end ?? a.start);
       prev.minW = labelW(markLabel(prev));
       continue;
     }
-    out.push({ key: a.runId, start: a.start, end: a.end, minW: MIN_ATT_W, attempts: [a] });
+    out.push({
+      key: a.runId,
+      start: a.start,
+      end: a.end,
+      minW: MIN_ATT_W,
+      attempts: [a],
+    });
   }
   return out;
 }
 
 /** Marks in rows, oldest first: one row unless two spans really overlap on screen. A short bar widens to its label's width
  *  so its "#n" reads, but only into the room before the next bar in its row, so a minutes-long dissolve never pushes the next attempt down a row. */
-function packLanes(marks: ReadonlyArray<AttemptMark>, x: (t: number) => number, now: number): Map<string, { lane: number; w: number }> {
+function packLanes(
+  marks: ReadonlyArray<AttemptMark>,
+  x: (t: number) => number,
+  now: number,
+): Map<string, { lane: number; w: number }> {
   const ends: number[] = [];
   const out = new Map<string, { lane: number; w: number }>();
-  const last: Array<{ key: string; x0: number; span: number; minW: number } | undefined> = [];
+  const last: Array<
+    { key: string; x0: number; span: number; minW: number } | undefined
+  > = [];
   for (const m of marks) {
     const x0 = x(m.start);
     const span = Math.max(MIN_BAR_W, x(m.end ?? now) - x0);
     let lane = ends.findIndex((e) => e + 3 <= x0);
-    if (lane < 0) lane = ends.length < MAX_LANES ? ends.length : ends.indexOf(Math.min(...ends));
+    if (lane < 0)
+      lane =
+        ends.length < MAX_LANES ? ends.length : ends.indexOf(Math.min(...ends));
     // The bar before it in this row widens only into the room left.
     const prev = last[lane];
-    if (prev) out.set(prev.key, { lane, w: Math.max(prev.span, Math.min(prev.minW, x0 - prev.x0 - 3)) });
+    if (prev)
+      out.set(prev.key, {
+        lane,
+        w: Math.max(prev.span, Math.min(prev.minW, x0 - prev.x0 - 3)),
+      });
     ends[lane] = x0 + Math.max(span, m.minW);
     last[lane] = { key: m.key, x0, span, minW: m.minW };
     out.set(m.key, { lane, w: Math.max(span, m.minW) });
@@ -96,26 +166,55 @@ function packLanes(marks: ReadonlyArray<AttemptMark>, x: (t: number) => number, 
 }
 
 /** A flag's left edge, moved left so all of it stays inside the plot (which clips at its right edge): a flag at the newest moment reads whole. */
-const flagInside = (fx: number, w: number, width: number) => Math.max(GUTTER, Math.min(fx, width - PAD_R - w - 1));
+const flagInside = (fx: number, w: number, width: number) =>
+  Math.max(GUTTER, Math.min(fx, width - PAD_R - w - 1));
 
-const RANGE_WORDS: Record<TimeRange, string> = { "24h": "24h", "7d": "7d", "30d": "30d", all: "All" };
+const RANGE_WORDS: Record<TimeRange, string> = {
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "All",
+};
 
 /** The window a chart shows: a range preset (opening on the smallest that holds the history), or a span dragged to zoom. */
 export function useTimelineDomain(h: CauseHistory, now: number) {
   const [range, setRange] = useState<TimeRange>(() => defaultRange(h, now));
   const [zoom, setZoom] = useState<Domain | null>(null);
-  const domain = useMemo(() => zoom ?? rangeDomain(range, h, now), [zoom, range, h, now]);
-  const pickRange = useCallback((r: TimeRange) => { setRange(r); setZoom(null); }, []);
+  const domain = useMemo(
+    () => zoom ?? rangeDomain(range, h, now),
+    [zoom, range, h, now],
+  );
+  const pickRange = useCallback((r: TimeRange) => {
+    setRange(r);
+    setZoom(null);
+  }, []);
   const onZoom = useCallback((d: Domain) => setZoom(d), []);
   const onReset = useCallback(() => setZoom(null), []);
   return { range: zoom ? null : range, pickRange, domain, onZoom, onReset };
 }
 
 /** The range presets over a chart; none is pressed while zoomed. */
-export function TimeRangeSeg({ range, pick }: { range: TimeRange | null; pick: (r: TimeRange) => void }) {
+export function TimeRangeSeg({
+  range,
+  pick,
+}: {
+  range: TimeRange | null;
+  pick: (r: TimeRange) => void;
+}) {
   return (
     <span className="lw-seg" role="tablist" aria-label="Time range">
-      {TIME_RANGES.map((r) => <button key={r} type="button" role="tab" aria-selected={range === r} onClick={() => pick(r)} data-line-timeline-range={r}>{RANGE_WORDS[r]}</button>)}
+      {TIME_RANGES.map((r) => (
+        <button
+          key={r}
+          type="button"
+          role="tab"
+          aria-selected={range === r}
+          onClick={() => pick(r)}
+          data-line-timeline-range={r}
+        >
+          {RANGE_WORDS[r]}
+        </button>
+      ))}
     </span>
   );
 }
@@ -147,38 +246,96 @@ function otherDeploys(h: CauseHistory) {
   return (h.coverage.live ?? []).filter((d) => !carried.has(d._id));
 }
 
-export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, domain, now, selectedRun, pick, onPick, onZoom, onReset, offTopic }: TimelineChartProps) {
+export const TimelineChart = memo(function TimelineChart({
+  history: h,
+  labelOf,
+  domain,
+  now,
+  selectedRun,
+  pick,
+  onPick,
+  onZoom,
+  onReset,
+  offTopic,
+}: TimelineChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   // Down to 360px it draws at the box's width; narrower, the box scrolls (timeline.css) so the newest marks and "now" stay reachable.
-  const width = useDerivedSize(boxRef, (w) => Math.max(360, Math.round(w)), () => 960);
+  const width = useDerivedSize(
+    boxRef,
+    (w) => Math.max(360, Math.round(w)),
+    () => 960,
+  );
   const [d0, d1] = domain;
   const plotW = width - GUTTER - PAD_R;
-  const x = useCallback((t: number) => GUTTER + ((t - d0) / (d1 - d0)) * plotW, [d0, d1, plotW]);
-  const tAt = useCallback((px: number) => d0 + ((px - GUTTER) / plotW) * (d1 - d0), [d0, d1, plotW]);
+  const x = useCallback(
+    (t: number) => GUTTER + ((t - d0) / (d1 - d0)) * plotW,
+    [d0, d1, plotW],
+  );
+  const tAt = useCallback(
+    (px: number) => d0 + ((px - GUTTER) / plotW) * (d1 - d0),
+    [d0, d1, plotW],
+  );
 
   // ── the marks, built once per history, domain and width ──
   const drawn = useMemo(() => {
     const tips = new Map<string, Tip>();
     const times = h.occurrences.map((o) => o.at);
-    const step = bucketStep(d1 - d0, Math.max(24, Math.min(96, Math.floor(plotW / 9))));
+    const step = bucketStep(
+      d1 - d0,
+      Math.max(24, Math.min(96, Math.floor(plotW / 9))),
+    );
     const b0 = alignDown(d0, step);
     const all = bucketCounts(times, b0, d1, step);
     const backTimesAll = comebackTimes(h);
-    const back = bucketCounts(backTimesAll.filter((t) => !offTopic?.has(t)), b0, d1, step);
-    const off = bucketCounts(times.filter((t) => !!offTopic?.has(t)), b0, d1, step);
-    const reopened = bucketCounts(h.occurrences.filter((o) => o.reopened).map((o) => o.at), b0, d1, step);
+    const back = bucketCounts(
+      backTimesAll.filter((t) => !offTopic?.has(t)),
+      b0,
+      d1,
+      step,
+    );
+    const off = bucketCounts(
+      times.filter((t) => !!offTopic?.has(t)),
+      b0,
+      d1,
+      step,
+    );
+    const reopened = bucketCounts(
+      h.occurrences.filter((o) => o.reopened).map((o) => o.at),
+      b0,
+      d1,
+      step,
+    );
     const max = Math.max(1, ...all);
-    const bars = all.map((n, i) => {
-      const from = b0 + i * step;
-      return { i, from, to: from + step, n, back: back[i], off: off[i], reopened: reopened[i] };
-    }).filter((b) => b.n > 0 && b.to > d0);
+    const bars = all
+      .map((n, i) => {
+        const from = b0 + i * step;
+        return {
+          i,
+          from,
+          to: from + step,
+          n,
+          back: back[i],
+          off: off[i],
+          reopened: reopened[i],
+        };
+      })
+      .filter((b) => b.n > 0 && b.to > d0);
     for (const b of bars) {
       const lines = [bucketWords(b.from, step)];
-      if (b.back) lines.push(`${b.back === b.n ? (b.n === 1 ? "It" : "All") : b.back} came back after an attempt closed it`);
+      if (b.back)
+        lines.push(
+          `${b.back === b.n ? (b.n === 1 ? "It" : "All") : b.back} came back after an attempt closed it`,
+        );
       if (b.off) lines.push(`${b.off} off topic: another expectation`);
-      if (b.reopened) lines.push(`${plural(b.reopened, "report")} reopened the problem`);
-      tips.set(`b:${b.i}`, { title: `${plural(b.n, "finding")} on this problem`, lines, tone: b.back ? "bad" : undefined, hint: "Click to read them" });
+      if (b.reopened)
+        lines.push(`${plural(b.reopened, "report")} reopened the problem`);
+      tips.set(`b:${b.i}`, {
+        title: `${plural(b.n, "finding")} on this problem`,
+        lines,
+        tone: b.back ? "bad" : undefined,
+        hint: "Click to read them",
+      });
     }
 
     const marks = attemptMarks(h.attempts, x);
@@ -196,9 +353,18 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     // A lane draws only when it holds something: no runs lane without runs, no ship lane when nothing shipped.
     const hasRuns = h.attempts.length > 0;
     const hasShips = h.ships.length > 0 || h.deploys.length > 0;
-    const laneCount = hasRuns ? Math.max(1, Math.min(MAX_LANES, Math.max(0, ...[...lanes.values()].map((l) => l.lane + 1)))) : 0;
+    const laneCount = hasRuns
+      ? Math.max(
+          1,
+          Math.min(
+            MAX_LANES,
+            Math.max(0, ...[...lanes.values()].map((l) => l.lane + 1)),
+          ),
+        )
+      : 0;
     const attTop = HIST_TOP + HIST_H + 18;
-    const shipTop = attTop + laneCount * (LANE_H + LANE_GAP) + (hasRuns ? 6 : -12);
+    const shipTop =
+      attTop + laneCount * (LANE_H + LANE_GAP) + (hasRuns ? 6 : -12);
     const axisTop = hasShips ? shipTop + LANE_H + 10 : shipTop + 4;
     const height = axisTop + AXIS_H;
 
@@ -206,18 +372,43 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     // fix whose deploy is drawn already has its deploy flag. Closes of one kind
     // too close to flag apart share one flag ("#1 to #3 dissolved"), each
     // keeping its own line.
-    const marked = h.closes.filter((c) => !(c.kind === "shipped" && h.ships.find((s) => s.runId === c.runId)?.basis === "deploy"));
-    const closes: Array<{ c: HistoryClose; cx: number }> = marked.map((c) => ({ c, cx: x(c.at) }));
+    const marked = h.closes.filter(
+      (c) =>
+        !(
+          c.kind === "shipped" &&
+          h.ships.find((s) => s.runId === c.runId)?.basis === "deploy"
+        ),
+    );
+    const closes: Array<{ c: HistoryClose; cx: number }> = marked.map((c) => ({
+      c,
+      cx: x(c.at),
+    }));
     // A flag of another kind that would overlap slides right of the one before it, its line still at its own time.
-    const flags: Array<{ key: string; cx: number; fx: number; text: string; w: number; kind: HistoryClose["kind"]; runId: string }> = [];
+    const flags: Array<{
+      key: string;
+      cx: number;
+      fx: number;
+      text: string;
+      w: number;
+      kind: HistoryClose["kind"];
+      runId: string;
+    }> = [];
     // A fix's flag says the run's one outcome (attemptVerdict): "merged", "shipped, not deployed".
     const closeWord = (c: HistoryClose) => {
-      const a = c.kind === "shipped" ? h.attempts.find((x) => x.runId === c.runId) : undefined;
+      const a =
+        c.kind === "shipped"
+          ? h.attempts.find((x) => x.runId === c.runId)
+          : undefined;
       return a ? attemptEndWords(a, h) : CLOSE_WORDS[c.kind];
     };
     for (const { c, cx } of closes) {
       const prev = flags[flags.length - 1];
-      if (prev && prev.kind === c.kind && closeWord(c) === prev.text.replace(/^#\d+(?: to #\d+)? /, "") && cx < prev.fx + prev.w + 4) {
+      if (
+        prev &&
+        prev.kind === c.kind &&
+        closeWord(c) === prev.text.replace(/^#\d+(?: to #\d+)? /, "") &&
+        cx < prev.fx + prev.w + 4
+      ) {
         const first = prev.text.match(/^#(\d+)/)![1];
         prev.text = `#${first} to #${c.n} ${closeWord(c)}`;
         prev.w = prev.text.length * 6 + 14;
@@ -227,15 +418,34 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
       }
       const text = `#${c.n} ${closeWord(c)}`;
       const w = text.length * 6 + 14;
-      flags.push({ key: c.runId, cx, fx: flagInside(prev ? Math.max(cx, prev.fx + prev.w + 4) : cx, w, width), text, w, kind: c.kind, runId: c.runId });
+      flags.push({
+        key: c.runId,
+        cx,
+        fx: flagInside(
+          prev ? Math.max(cx, prev.fx + prev.w + 4) : cx,
+          w,
+          width,
+        ),
+        text,
+        w,
+        kind: c.kind,
+        runId: c.runId,
+      });
     }
     for (const { c } of closes) {
       const step = closeStepLabel(c.step, labelOf);
       // Whether it held: what came after it until a later fix went live, as the attempt rows say it.
       tips.set(`c:${c.runId}`, {
-        title: c.kind === "shipped" ? `Run #${c.n}'s fix went live` : `Run #${c.n} closed it without a change`,
+        title:
+          c.kind === "shipped"
+            ? `Run #${c.n}'s fix went live`
+            : `Run #${c.n} closed it without a change`,
         lines: [
-          ...(c.kind === "shipped" ? [] : [`It ${c.kind} the problem${step ? ` at its ${step} step` : ""}: nothing was built or shipped`]),
+          ...(c.kind === "shipped"
+            ? []
+            : [
+                `It ${c.kind} the problem${step ? ` at its ${step} step` : ""}: nothing was built or shipped`,
+              ]),
           momentWords(c.at),
           c.back ? `${c.back.words}.` : "Nothing came back after it",
         ],
@@ -261,12 +471,24 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
       const a = h.attempts.find((p) => p.runId === s.runId);
       if (s.merge) {
         tips.set(`m:${s.runId}`, {
-          title: s.merge.byHand ? `Run #${a?.n ?? "?"}'s fix merged by hand` : `Run #${a?.n ?? "?"}'s fix merged into ${s.merge.into}`,
-          lines: [s.merge.byHand ? `Pull request ${s.merge.prUrl}` : `Commit ${s.merge.sha.slice(0, 7)}, from ${s.merge.branch}`, momentWords(s.merge.at), ...(s.deploys.length ? [] : [s.words])],
+          title: s.merge.byHand
+            ? `Run #${a?.n ?? "?"}'s fix merged by hand`
+            : `Run #${a?.n ?? "?"}'s fix merged into ${s.merge.into}`,
+          lines: [
+            s.merge.byHand
+              ? `Pull request ${s.merge.prUrl}`
+              : `Commit ${s.merge.sha.slice(0, 7)}, from ${s.merge.branch}`,
+            momentWords(s.merge.at),
+            ...(s.deploys.length ? [] : [s.words]),
+          ],
           tone: "ok",
         });
       } else {
-        tips.set(`s:${s.runId}`, { title: `Run #${a?.n ?? "?"}'s fix shipped`, lines: [s.words, momentWords(s.at)], tone: "ok" });
+        tips.set(`s:${s.runId}`, {
+          title: `Run #${a?.n ?? "?"}'s fix shipped`,
+          lines: [s.words, momentWords(s.at)],
+          tone: "ok",
+        });
       }
     }
     for (const dpl of h.deploys) {
@@ -284,21 +506,36 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     }
     // Every other live deploy of the project: a faint marker, so a finding that starts after one reads against it.
     for (const o of otherDeploys(h)) {
-      tips.set(`o:${o._id}`, { title: `${o.short_id ? `${o.short_id}: ` : ""}${o.title}`, lines: [momentWords(o.at), "Did not carry this problem's fix"], ...(o.short_id ? { hint: "Click to open the deploy" } : {}) });
+      tips.set(`o:${o._id}`, {
+        title: `${o.short_id ? `${o.short_id}: ` : ""}${o.title}`,
+        lines: [momentWords(o.at), "Did not carry this problem's fix"],
+        ...(o.short_id ? { hint: "Click to open the deploy" } : {}),
+      });
     }
     for (const w of shownWatches(h)) {
       const a = h.attempts.find((p) => p.runId === w.runId);
-      const words = w.state === "reopened" ? `Reopened ${momentWords(w.reopenedAt ?? w.start)}`
-        : w.state === "quiet" ? `Ended quiet${w.end ? ` ${momentWords(w.end)}` : ""}`
-        : w.state === "watching" ? `Watching${w.end ? ` until ${momentWords(w.end)}` : ""}`
-        : "No end recorded";
-      tips.set(`w:${w.runId}`, { title: `Watching for it to come back after run #${a?.n ?? "?"}'s fix`, lines: [words, `From ${momentWords(w.start)}`], tone: w.state === "reopened" ? "bad" : "ok" });
+      const words =
+        w.state === "reopened"
+          ? `Reopened ${momentWords(w.reopenedAt ?? w.start)}`
+          : w.state === "quiet"
+            ? `Ended quiet${w.end ? ` ${momentWords(w.end)}` : ""}`
+            : w.state === "watching"
+              ? `Watching${w.end ? ` until ${momentWords(w.end)}` : ""}`
+              : "No end recorded";
+      tips.set(`w:${w.runId}`, {
+        title: `Watching for it to come back after run #${a?.n ?? "?"}'s fix`,
+        lines: [words, `From ${momentWords(w.start)}`],
+        tone: w.state === "reopened" ? "bad" : "ok",
+      });
     }
     for (const r of h.regressions) {
       const a = h.attempts.find((p) => p.runId === r.afterRunId);
       tips.set(`r:${r.afterRunId}`, {
         title: "Came back after a fix",
-        lines: [`${r.words}.`, `Run #${a?.n ?? "?"}'s fix went live ${momentWords(r.liveAt)}; first back ${momentWords(r.at)}`],
+        lines: [
+          `${r.words}.`,
+          `Run #${a?.n ?? "?"}'s fix went live ${momentWords(r.liveAt)}; first back ${momentWords(r.at)}`,
+        ],
         tone: "bad",
         hint: "Click for the findings",
       });
@@ -306,37 +543,109 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     for (const r of h.recurrences) {
       tips.set(`r:${r.afterRunId}`, {
         title: "Came back after a close",
-        lines: [`${r.words}.`, `Closed ${momentWords(r.closedAt)}; first back ${momentWords(r.at)}`],
+        lines: [
+          `${r.words}.`,
+          `Closed ${momentWords(r.closedAt)}; first back ${momentWords(r.at)}`,
+        ],
         tone: "bad",
         hint: "Click for the findings",
       });
     }
     // Each comeback's span, a fix's or a close's, drawn the same way.
     const comebacks = [
-      ...h.regressions.map((r) => ({ runId: r.afterRunId, from: r.liveAt, at: r.at, until: r.until, count: r.count, n: h.attempts.find((p) => p.runId === r.afterRunId)?.n ?? 0 })),
-      ...h.recurrences.map((r) => ({ runId: r.afterRunId, from: r.closedAt, at: r.at, until: r.until, count: r.count, n: r.n })),
+      ...h.regressions.map((r) => ({
+        runId: r.afterRunId,
+        from: r.liveAt,
+        at: r.at,
+        until: r.until,
+        count: r.count,
+        n: h.attempts.find((p) => p.runId === r.afterRunId)?.n ?? 0,
+      })),
+      ...h.recurrences.map((r) => ({
+        runId: r.afterRunId,
+        from: r.closedAt,
+        at: r.at,
+        until: r.until,
+        count: r.count,
+        n: r.n,
+      })),
     ].sort((a, b) => a.at - b.at);
-    const unreadBefore = h.capped && h.since ? h.since : h.occurrencesFrom === "recent" ? now - 14 * 24 * 3_600_000 : null;
+    const unreadBefore =
+      h.capped && h.since
+        ? h.since
+        : h.occurrencesFrom === "recent"
+          ? now - 14 * 24 * 3_600_000
+          : null;
     if (unreadBefore != null) {
       tips.set("unread", {
         title: "Older findings not shown",
-        lines: [h.capped ? "The series stops at its limit; older ones exist but were not read." : "Only the last two weeks of reports are here until the full series arrives."],
+        lines: [
+          h.capped
+            ? "The series stops at its limit; older ones exist but were not read."
+            : "Only the last two weeks of reports are here until the full series arrives.",
+        ],
       });
     }
     const ticks = timeTicks([d0, d1], Math.max(3, Math.floor(plotW / 92)));
-    return { tips, step, max, bars, marks, lanes, laneCount, attTop, shipTop, axisTop, height, ticks, unreadBefore, closes, flags, comebacks, hasRuns, hasShips };
+    return {
+      tips,
+      step,
+      max,
+      bars,
+      marks,
+      lanes,
+      laneCount,
+      attTop,
+      shipTop,
+      axisTop,
+      height,
+      ticks,
+      unreadBefore,
+      closes,
+      flags,
+      comebacks,
+      hasRuns,
+      hasShips,
+    };
   }, [h, d0, d1, width, plotW, x, now, labelOf, offTopic]);
 
-  const { tips, step, max, bars, marks, lanes, attTop, shipTop, axisTop, height, ticks, unreadBefore, closes, flags, comebacks, hasRuns, hasShips } = drawn;
+  const {
+    tips,
+    step,
+    max,
+    bars,
+    marks,
+    lanes,
+    attTop,
+    shipTop,
+    axisTop,
+    height,
+    ticks,
+    unreadBefore,
+    closes,
+    flags,
+    comebacks,
+    hasRuns,
+    hasShips,
+  } = drawn;
   // The marks through every lane end at the last lane drawn.
-  const laneEnd = hasShips ? shipTop + LANE_H : hasRuns ? shipTop - 6 : HIST_TOP + HIST_H;
+  const laneEnd = hasShips
+    ? shipTop + LANE_H
+    : hasRuns
+      ? shipTop - 6
+      : HIST_TOP + HIST_H;
   const clampX = (v: number) => Math.max(GUTTER, Math.min(GUTTER + plotW, v));
   const barW = Math.max(2, x(d0 + step) - x(d0) - 2);
   const histY = (n: number) => HIST_TOP + HIST_H - (n / max) * (HIST_H - 8);
   const inView = (t0: number, t1: number) => t1 >= d0 && t0 <= d1;
-  const shipNone = h.ships.length ? ["None in this window"] : ["Nothing shipped"];
+  const shipNone = h.ships.length
+    ? ["None in this window"]
+    : ["Nothing shipped"];
   // An empty lane's words go where no close or deploy line crosses them: the span nearest the middle that holds them whole, else the widest.
-  const lineXs = [...closes.filter(({ c }) => c.at >= d0 && c.at <= d1).map(({ cx }) => cx), ...h.deploys.filter((d) => d.at >= d0 && d.at <= d1).map((d) => x(d.at))];
+  const lineXs = [
+    ...closes.filter(({ c }) => c.at >= d0 && c.at <= d1).map(({ cx }) => cx),
+    ...h.deploys.filter((d) => d.at >= d0 && d.at <= d1).map((d) => x(d.at)),
+  ];
   const spans = () => {
     const xs = [GUTTER, GUTTER + plotW, ...lineXs].sort((a, b) => a - b);
     return xs.slice(1).map((b, i) => [xs[i], b] as const);
@@ -354,7 +663,10 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     return best;
   };
   const freeAt = (words: string) => {
-    const widest = spans().reduce((w, s) => (s[1] - s[0] > w[1] - w[0] ? s : w), [GUTTER, GUTTER + plotW] as const);
+    const widest = spans().reduce(
+      (w, s) => (s[1] - s[0] > w[1] - w[0] ? s : w),
+      [GUTTER, GUTTER + plotW] as const,
+    );
     return fitAt(words) ?? (widest[0] + widest[1]) / 2;
   };
   // The empty ship lane's words: before the first close when they sit whole there (nothing had shipped by then either),
@@ -363,7 +675,8 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
     const firstLine = Math.min(...lineXs);
     for (const words of shipNone) {
       const half = (words.length * NONE_CH) / 2 + 16;
-      if (Number.isFinite(firstLine) && firstLine - GUTTER >= half * 2) return { words, at: GUTTER + (firstLine - GUTTER) / 2 };
+      if (Number.isFinite(firstLine) && firstLine - GUTTER >= half * 2)
+        return { words, at: GUTTER + (firstLine - GUTTER) / 2 };
       const at = fitAt(words);
       if (at != null) return { words, at };
     }
@@ -389,7 +702,9 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
 
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const px = localX(e);
-    const target = (e.target as Element).closest?.("[data-tip]")?.getAttribute("data-tip") ?? null;
+    const target =
+      (e.target as Element).closest?.("[data-tip]")?.getAttribute("data-tip") ??
+      null;
     if (target !== tipKey) setTipKey(target);
     const cx = e.clientX;
     const cy = e.clientY;
@@ -403,15 +718,23 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
       const inside = px >= GUTTER && px <= GUTTER + plotW;
       if (crossRef.current) {
         crossRef.current.style.opacity = inside ? "1" : "0";
-        crossRef.current.setAttribute("transform", `translate(${px.toFixed(1)},0)`);
+        crossRef.current.setAttribute(
+          "transform",
+          `translate(${px.toFixed(1)},0)`,
+        );
       }
-      if (crossText.current && inside) crossText.current.textContent = momentWords(tAt(px));
+      if (crossText.current && inside)
+        crossText.current.textContent = momentWords(tAt(px));
       const wrap = wrapRef.current?.getBoundingClientRect();
       if (tipRef.current && wrap) {
-        const left = Math.min(cx - wrap.left + 14, wrap.width - (tipRef.current.offsetWidth || 280) - 8);
+        const left = Math.min(
+          cx - wrap.left + 14,
+          wrap.width - (tipRef.current.offsetWidth || 280) - 8,
+        );
         // Below the pointer in the chart's top half, above it in the bottom half, so it never covers the time under the axis.
         const y = cy - wrap.top;
-        const top = y > wrap.height / 2 ? y - tipRef.current.offsetHeight - 14 : y + 16;
+        const top =
+          y > wrap.height / 2 ? y - tipRef.current.offsetHeight - 14 : y + 16;
         tipRef.current.style.transform = `translate(${Math.max(0, left)}px, ${top}px)`;
       }
       const dr = drag.current;
@@ -451,263 +774,582 @@ export const TimelineChart = memo(function TimelineChart({ history: h, labelOf, 
   return (
     <div className="lwt-chart" ref={wrapRef} data-line-timeline-chart>
       <div ref={boxRef} className="lwt-box">
-      <svg
-        ref={svgRef}
-        className="lwt-svg"
-        style={{ width }}
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        onPointerMove={onMove}
-        onPointerDown={onDown}
-        onPointerUp={onUp}
-        onPointerLeave={onLeave}
-        onDoubleClick={onReset}
-        onClickCapture={(e) => {
-          if (swallowClick.current) { swallowClick.current = false; e.stopPropagation(); }
-        }}
-        role="img"
-        aria-label="The problem's findings, runs, closes, merges, deploys and watches over time"
-      >
-        <defs>
-          <pattern id="lwt-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" className="lwt-hatch-line" />
-          </pattern>
-          <pattern id="lwt-live" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="10" height="10" className="lwt-live-bg" />
-            <rect width="4" height="10" className="lwt-live-stripe" />
-          </pattern>
-          <clipPath id="lwt-plot"><rect x={GUTTER} y={0} width={plotW} height={height} /></clipPath>
-        </defs>
+        <svg
+          ref={svgRef}
+          className="lwt-svg"
+          style={{ width }}
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          onPointerMove={onMove}
+          onPointerDown={onDown}
+          onPointerUp={onUp}
+          onPointerLeave={onLeave}
+          onDoubleClick={onReset}
+          onClickCapture={(e) => {
+            if (swallowClick.current) {
+              swallowClick.current = false;
+              e.stopPropagation();
+            }
+          }}
+          role="img"
+          aria-label="The problem's findings, runs, closes, merges, deploys and watches over time"
+        >
+          <defs>
+            <pattern
+              id="lwt-hatch"
+              width="6"
+              height="6"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <line x1="0" y1="0" x2="0" y2="6" className="lwt-hatch-line" />
+            </pattern>
+            <pattern
+              id="lwt-live"
+              width="10"
+              height="10"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <rect width="10" height="10" className="lwt-live-bg" />
+              <rect width="4" height="10" className="lwt-live-stripe" />
+            </pattern>
+            <clipPath id="lwt-plot">
+              <rect x={GUTTER} y={0} width={plotW} height={height} />
+            </clipPath>
+          </defs>
 
-        {/* lane labels */}
-        <g className="lwt-lane-labels">
-          <text x={0} y={HIST_TOP + 12}>Findings</text>
-          <text x={0} y={HIST_TOP + 27} className="lwt-lane-sub">{max > 1 ? `≤${max} / ${spanWords(step)}` : `per ${spanWords(step)}`}</text>
-          {hasRuns && <text x={0} y={attTop + 14}>Runs</text>}
-          {hasShips && <text x={0} y={shipTop + 14}>Fix shipped</text>}
-        </g>
+          {/* lane labels */}
+          <g className="lwt-lane-labels">
+            <text x={0} y={HIST_TOP + 12}>
+              Findings
+            </text>
+            <text x={0} y={HIST_TOP + 27} className="lwt-lane-sub">
+              {max > 1
+                ? `≤${max} / ${spanWords(step)}`
+                : `per ${spanWords(step)}`}
+            </text>
+            {hasRuns && (
+              <text x={0} y={attTop + 14}>
+                Runs
+              </text>
+            )}
+            {hasShips && (
+              <text x={0} y={shipTop + 14}>
+                Fix shipped
+              </text>
+            )}
+          </g>
 
-        {/* grid and axis */}
-        <g className="lwt-grid">
-          {ticks.map((t) => (
-            <line key={t.at} x1={x(t.at)} x2={x(t.at)} y1={HIST_TOP} y2={axisTop} data-major={t.major ? "" : undefined} />
-          ))}
-          <line x1={GUTTER} x2={GUTTER + plotW} y1={HIST_TOP + HIST_H} y2={HIST_TOP + HIST_H} className="lwt-base" />
-          <line x1={GUTTER} x2={GUTTER + plotW} y1={axisTop} y2={axisTop} className="lwt-base" />
-        </g>
-        <g className="lwt-ticks">
-          {ticks.map((t) => (
-            <text key={t.at} x={x(t.at)} y={axisTop + 16} data-major={t.major ? "" : undefined}>{t.label}</text>
-          ))}
-        </g>
-
-        <g clipPath="url(#lwt-plot)">
-          {/* what the series does not cover */}
-          {unreadBefore != null && unreadBefore > d0 && (
-            <rect x={GUTTER} y={HIST_TOP} width={Math.max(0, x(unreadBefore) - GUTTER)} height={HIST_H} fill="url(#lwt-hatch)" className="lwt-unread" data-tip="unread" />
-          )}
-
-          {/* watch windows, behind everything */}
-          {shownWatches(h).map((w) => {
-            const end = w.end ?? d1;
-            if (!inView(w.start, end)) return null;
-            return (
-              <g key={`w${w.runId}`} className="lwt-watch" data-state={w.state} data-tip={`w:${w.runId}`}>
-                <rect x={x(w.start)} y={HIST_TOP} width={Math.max(2, x(end) - x(w.start))} height={laneEnd - HIST_TOP} />
-                <text x={x(w.start) + 6} y={HIST_TOP + 12}>{w.state === "reopened" ? "watch, reopened" : w.state === "quiet" ? "watch, quiet" : "watching"}</text>
-              </g>
-            );
-          })}
-
-          {/* what came back after a close: a fix that did not hold, or a close without a change that did not */}
-          {comebacks.map((r, i) => {
-            const end = r.until ?? Math.max(now, r.at);
-            if (!inView(r.from, end)) return null;
-            // Closes too close together to label apart share one label, the latest's (drawn over the bars below).
-            return (
-              <g
-                key={`r${r.runId}`}
-                className="lwt-regress"
-                data-picked={pickRun === r.runId ? "" : undefined}
-                data-tip={`r:${r.runId}`}
-                onClick={() => onPick({ kind: "comeback", runId: r.runId })}
+          {/* grid and axis */}
+          <g className="lwt-grid">
+            {ticks.map((t) => (
+              <line
+                key={t.at}
+                x1={x(t.at)}
+                x2={x(t.at)}
+                y1={HIST_TOP}
+                y2={axisTop}
+                data-major={t.major ? "" : undefined}
+              />
+            ))}
+            <line
+              x1={GUTTER}
+              x2={GUTTER + plotW}
+              y1={HIST_TOP + HIST_H}
+              y2={HIST_TOP + HIST_H}
+              className="lwt-base"
+            />
+            <line
+              x1={GUTTER}
+              x2={GUTTER + plotW}
+              y1={axisTop}
+              y2={axisTop}
+              className="lwt-base"
+            />
+          </g>
+          <g className="lwt-ticks">
+            {ticks.map((t) => (
+              <text
+                key={t.at}
+                x={x(t.at)}
+                y={axisTop + 16}
+                data-major={t.major ? "" : undefined}
               >
-                <rect x={x(r.from)} y={HIST_TOP} width={Math.max(2, x(end) - x(r.from))} height={HIST_H} />
-              </g>
-            );
-          })}
-
-          {/* the histogram */}
-          <g className="lwt-bars">
-            {bars.map((b) => {
-              const bx = x(b.from) + 1;
-              const picked = !!pickBucket && b.from >= pickBucket.from && b.to <= pickBucket.to;
-              return (
-                <g key={b.i} data-tip={`b:${b.i}`} data-picked={picked ? "" : undefined} onClick={() => onPick({ kind: "bucket", from: b.from, to: b.to })}>
-                  <rect className="lwt-bar-hit" x={bx - 1} y={HIST_TOP} width={barW + 2} height={HIST_H} />
-                  <rect className="lwt-bar" x={bx} y={histY(b.n)} width={barW} height={HIST_TOP + HIST_H - histY(b.n)} rx={Math.min(2, barW / 2)} />
-                  {b.off > 0 && <rect className="lwt-bar" data-off="" x={bx} y={histY(b.back + b.off)} width={barW} height={histY(b.back) - histY(b.back + b.off)} rx={Math.min(2, barW / 2)} />}
-                  {b.back > 0 && <rect className="lwt-bar" data-back="" x={bx} y={histY(b.back)} width={barW} height={HIST_TOP + HIST_H - histY(b.back)} rx={Math.min(2, barW / 2)} />}
-                  {b.reopened > 0 && <circle className="lwt-reopen" cx={bx + barW / 2} cy={histY(b.n) - 6} r={3} />}
-                </g>
-              );
-            })}
-          </g>
-          {/* each comeback's label over the bars, so a tall bar never hides it; it reads on a halo of the chart's own ground */}
-          {comebacks.map((r, i) => {
-            const end = r.until ?? Math.max(now, r.at);
-            if (!inView(r.from, end)) return null;
-            const labelX = Math.max(x(r.at), GUTTER + 4) + 4;
-            const nextBack = comebacks[i + 1];
-            if (nextBack && Math.max(x(nextBack.at), GUTTER + 4) + 4 - labelX < BACK_LABEL_W) return null;
-            return <text key={`rl${r.runId}`} className="lwt-regress-label" x={labelX} y={HIST_TOP + 12}>came back {backTimes(r.count)} after #{r.n}</text>;
-          })}
-          {!h.occurrences.some((o) => o.at >= d0 && o.at <= d1) && (
-            <text className="lwt-none" x={freeAt("None in this window")} y={HIST_TOP + HIST_H / 2 + 4}>None in this window</text>
-          )}
-
-          {/* fix attempts */}
-          <g className="lwt-attempts">
-            {marks.map((m) => {
-              const a = m.attempts[m.attempts.length - 1];
-              const folded = m.attempts.length > 1;
-              const end = m.end ?? now;
-              if (!inView(m.start, end)) return null;
-              const packed = lanes.get(m.key);
-              const lane = packed?.lane ?? 0;
-              const ax = x(m.start);
-              const w = packed?.w ?? Math.max(m.minW, x(end) - ax);
-              const y = attTop + lane * (LANE_H + LANE_GAP);
-              const name = markLabel(m);
-              const ended = new Set(m.attempts.map((x) => attemptEndWords(x, h)));
-              const words = ended.size === 1 ? `${name} ${attemptEndWords(a, h)}` : name;
-              // The whole words when they fit, else the bare "#n" (or "#1-#3") centered in the bar, which needs only its own width.
-              const full = w > labelW(words);
-              const label = full ? words : w >= name.length * 6.2 + 3 ? name : null;
-              const tones = new Set(m.attempts.map((x) => attemptTone(x, h)));
-              return (
-                <g
-                  key={m.key}
-                  className="lwt-att"
-                  data-tone={tones.size === 1 ? attemptTone(a, h) : "none"}
-                  data-folded={folded ? "" : undefined}
-                  data-live={a.live ? "" : undefined}
-                  data-superseded={!folded && a.superseded ? "" : undefined}
-                  data-selected={m.attempts.some((x) => x.runId === selectedRun) ? "" : undefined}
-                  data-tip={folded ? `k:${m.key}` : `a:${a.runId}`}
-                  onClick={() => onPick({ kind: "attempt", runId: a.runId })}
-                >
-                  <rect className="lwt-att-ring" x={ax - 2.5} y={y - 2.5} width={w + 5} height={LANE_H + 5} rx={8} />
-                  <rect className="lwt-att-bar" x={ax} y={y} width={w} height={LANE_H} rx={6} fill={a.live ? "url(#lwt-live)" : undefined} />
-                  {label && <text x={full ? ax + 7 : ax + w / 2} y={y + 14} textAnchor={full ? undefined : "middle"} className="lwt-att-t">{label}</text>}
-                  {a.live && <circle className="lwt-att-pulse" cx={ax + w} cy={y + LANE_H / 2} r={4} />}
-                </g>
-              );
-            })}
-          </g>
-
-          {/* merges and ships, and what is not known about their deploys */}
-          {hasShips && !h.ships.some((sh) => (sh.merge?.at ?? sh.at) >= d0 && (sh.merge?.at ?? sh.at) <= d1) && (
-            <text className="lwt-none" x={shipCaption.at} y={shipTop + 14}>{shipCaption.words}</text>
-          )}
-          <g className="lwt-ships">
-            {h.ships.map((s) => {
-              const at = s.merge?.at ?? s.at;
-              if (at < d0 || at > d1) return null;
-              const cx = x(at);
-              const cy = shipTop + LANE_H / 2;
-              const missing = notDeployed(s.runId, h);
-              return (
-                <g key={s.runId} className="lwt-merge" data-unmerged={s.merge ? undefined : ""} data-tip={s.merge ? `m:${s.runId}` : `s:${s.runId}`} onClick={() => onPick({ kind: "attempt", runId: s.runId })}>
-                  <rect className="lwt-hitbox" x={cx - 10} y={cy - 10} width={20} height={20} />
-                  {s.merge
-                    ? <rect x={cx - 5.5} y={cy - 5.5} width={11} height={11} rx={2} transform={`rotate(45 ${cx} ${cy})`} />
-                    : <circle cx={cx} cy={cy} r={5.5} />}
-                  {missing && <text className="lwt-ship-missing" x={cx + 12} y={cy + 4}>not deployed</text>}
-                </g>
-              );
-            })}
-          </g>
-
-          {/* a marker at each close: its line through every lane, then the flags over them */}
-          <g className="lwt-closes">
-            {closes.map(({ c, cx }) => {
-              if (c.at < d0 || c.at > d1) return null;
-              return (
-                <g key={`c${c.runId}`} className="lwt-close" data-kind={c.kind} data-tip={`c:${c.runId}`} onClick={() => onPick({ kind: "attempt", runId: c.runId })}>
-                  <line x1={cx} x2={cx} y1={FLAG_H - 4} y2={laneEnd} />
-                  <rect className="lwt-hitbox" x={cx - 4} y={FLAG_H} width={8} height={laneEnd - FLAG_H} />
-                </g>
-              );
-            })}
-            {flags.map((f) => (
-              <g key={`f${f.key}`} className="lwt-close" data-kind={f.kind} data-tip={`c:${f.runId}`} onClick={() => onPick({ kind: "attempt", runId: f.runId })}>
-                {(f.cx < f.fx || f.cx > f.fx + f.w) && <path className="lwt-close-leader" d={`M${f.cx} 17 L${f.cx < f.fx ? f.fx : f.fx + f.w} 10`} />}
-                <path d={`M${f.fx} 3 h${f.w} l-5 7 l5 7 h-${f.w} z`} />
-                <text x={f.fx + 5} y={14}>{f.text}</text>
-              </g>
+                {t.label}
+              </text>
             ))}
           </g>
 
-          {/* the project's other deploys: a faint rule through the findings, opening the deploy */}
-          <g className="lwt-other-deploys">
-            {otherDeploys(h).map((o) => {
-              if (o.at < d0 || o.at > d1) return null;
-              const dx = x(o.at);
+          <g clipPath="url(#lwt-plot)">
+            {/* what the series does not cover */}
+            {unreadBefore != null && unreadBefore > d0 && (
+              <rect
+                x={GUTTER}
+                y={HIST_TOP}
+                width={Math.max(0, x(unreadBefore) - GUTTER)}
+                height={HIST_H}
+                fill="url(#lwt-hatch)"
+                className="lwt-unread"
+                data-tip="unread"
+              />
+            )}
+
+            {/* watch windows, behind everything */}
+            {shownWatches(h).map((w) => {
+              const end = w.end ?? d1;
+              if (!inView(w.start, end)) return null;
               return (
-                <g key={o._id} className="lwt-other-deploy" data-tip={`o:${o._id}`} onClick={() => o.short_id && openDeploy(o.short_id)} data-deploy-ref={o.short_id ?? undefined}>
-                  <line x1={dx} x2={dx} y1={HIST_TOP} y2={HIST_TOP + HIST_H} />
-                  <rect className="lwt-hitbox" x={dx - 4} y={HIST_TOP} width={8} height={HIST_H} />
+                <g
+                  key={`w${w.runId}`}
+                  className="lwt-watch"
+                  data-state={w.state}
+                  data-tip={`w:${w.runId}`}
+                >
+                  <rect
+                    x={x(w.start)}
+                    y={HIST_TOP}
+                    width={Math.max(2, x(end) - x(w.start))}
+                    height={laneEnd - HIST_TOP}
+                  />
+                  <text x={x(w.start) + 6} y={HIST_TOP + 12}>
+                    {w.state === "reopened"
+                      ? "watch, reopened"
+                      : w.state === "quiet"
+                        ? "watch, quiet"
+                        : "watching"}
+                  </text>
                 </g>
               );
             })}
-          </g>
 
-          {/* deploys that carried a fix: a flag and a line through every lane */}
-          <g className="lwt-deploys">
-            {h.deploys.map((dpl) => {
-              if (dpl.at < d0 || dpl.at > d1) return null;
-              const dx = x(dpl.at);
-              const label = dpl.target ?? "deploy";
-              const fw = label.length * 6.2 + 14;
-              const fx = flagInside(dx, fw, width);
+            {/* what came back after a close: a fix that did not hold, or a close without a change that did not */}
+            {comebacks.map((r, i) => {
+              const end = r.until ?? Math.max(now, r.at);
+              if (!inView(r.from, end)) return null;
+              // Closes too close together to label apart share one label, the latest's (drawn over the bars below).
               return (
-                <g key={dpl.id} className="lwt-deploy" data-tip={`d:${dpl.id}`} onClick={() => (dpl.ref ? openDeploy(dpl.ref) : onPick({ kind: "attempt", runId: dpl.runId }))} data-deploy-ref={dpl.ref ?? undefined}>
-                  <line x1={dx} x2={dx} y1={FLAG_H - 4} y2={laneEnd} />
-                  <rect className="lwt-hitbox" x={fx - 4} y={0} width={fw + 6} height={FLAG_H} />
-                  <rect className="lwt-hitbox" x={dx - 4} y={FLAG_H} width={8} height={laneEnd - FLAG_H} />
-                  <path d={`M${fx} 3 h${fw} l-5 7 l5 7 h-${fw} z`} />
-                  <text x={fx + 5} y={14}>{label}</text>
+                <g
+                  key={`r${r.runId}`}
+                  className="lwt-regress"
+                  data-picked={pickRun === r.runId ? "" : undefined}
+                  data-tip={`r:${r.runId}`}
+                  onClick={() => onPick({ kind: "comeback", runId: r.runId })}
+                >
+                  <rect
+                    x={x(r.from)}
+                    y={HIST_TOP}
+                    width={Math.max(2, x(end) - x(r.from))}
+                    height={HIST_H}
+                  />
                 </g>
               );
             })}
-          </g>
 
-          {/* now */}
-          {now >= d0 && now <= d1 && (
-            <g className="lwt-now">
-              <line x1={x(now)} x2={x(now)} y1={HIST_TOP} y2={axisTop} />
-              <text x={x(now) - 4} y={axisTop - 4}>now</text>
+            {/* the histogram */}
+            <g className="lwt-bars">
+              {bars.map((b) => {
+                const bx = x(b.from) + 1;
+                const picked =
+                  !!pickBucket &&
+                  b.from >= pickBucket.from &&
+                  b.to <= pickBucket.to;
+                return (
+                  <g
+                    key={b.i}
+                    data-tip={`b:${b.i}`}
+                    data-picked={picked ? "" : undefined}
+                    onClick={() =>
+                      onPick({ kind: "bucket", from: b.from, to: b.to })
+                    }
+                  >
+                    <rect
+                      className="lwt-bar-hit"
+                      x={bx - 1}
+                      y={HIST_TOP}
+                      width={barW + 2}
+                      height={HIST_H}
+                    />
+                    <rect
+                      className="lwt-bar"
+                      x={bx}
+                      y={histY(b.n)}
+                      width={barW}
+                      height={HIST_TOP + HIST_H - histY(b.n)}
+                      rx={Math.min(2, barW / 2)}
+                    />
+                    {b.off > 0 && (
+                      <rect
+                        className="lwt-bar"
+                        data-off=""
+                        x={bx}
+                        y={histY(b.back + b.off)}
+                        width={barW}
+                        height={histY(b.back) - histY(b.back + b.off)}
+                        rx={Math.min(2, barW / 2)}
+                      />
+                    )}
+                    {b.back > 0 && (
+                      <rect
+                        className="lwt-bar"
+                        data-back=""
+                        x={bx}
+                        y={histY(b.back)}
+                        width={barW}
+                        height={HIST_TOP + HIST_H - histY(b.back)}
+                        rx={Math.min(2, barW / 2)}
+                      />
+                    )}
+                    {b.reopened > 0 && (
+                      <circle
+                        className="lwt-reopen"
+                        cx={bx + barW / 2}
+                        cy={histY(b.n) - 6}
+                        r={3}
+                      />
+                    )}
+                  </g>
+                );
+              })}
             </g>
-          )}
-        </g>
+            {/* each comeback's label over the bars, so a tall bar never hides it; it reads on a halo of the chart's own ground */}
+            {comebacks.map((r, i) => {
+              const end = r.until ?? Math.max(now, r.at);
+              if (!inView(r.from, end)) return null;
+              const labelX = Math.max(x(r.at), GUTTER + 4) + 4;
+              const nextBack = comebacks[i + 1];
+              if (
+                nextBack &&
+                Math.max(x(nextBack.at), GUTTER + 4) + 4 - labelX < BACK_LABEL_W
+              )
+                return null;
+              return (
+                <text
+                  key={`rl${r.runId}`}
+                  className="lwt-regress-label"
+                  x={labelX}
+                  y={HIST_TOP + 12}
+                >
+                  came back {backTimes(r.count)} after #{r.n}
+                </text>
+              );
+            })}
+            {!h.occurrences.some((o) => o.at >= d0 && o.at <= d1) && (
+              <text
+                className="lwt-none"
+                x={freeAt("None in this window")}
+                y={HIST_TOP + HIST_H / 2 + 4}
+              >
+                None in this window
+              </text>
+            )}
 
-        {/* the pointer */}
-        <g ref={crossRef} className="lwt-cross" style={{ opacity: 0 }} pointerEvents="none">
-          <line x1={0} x2={0} y1={HIST_TOP} y2={axisTop} />
-          <rect x={-56} y={axisTop + 3} width={112} height={18} rx={5} />
-          <text ref={crossText} x={0} y={axisTop + 16} />
-        </g>
-        <rect ref={brushRef} className="lwt-brush" x={0} y={HIST_TOP} width={0} height={axisTop - HIST_TOP} pointerEvents="none" />
-      </svg>
+            {/* fix attempts */}
+            <g className="lwt-attempts">
+              {marks.map((m) => {
+                const a = m.attempts[m.attempts.length - 1];
+                const folded = m.attempts.length > 1;
+                const end = m.end ?? now;
+                if (!inView(m.start, end)) return null;
+                const packed = lanes.get(m.key);
+                const lane = packed?.lane ?? 0;
+                const ax = x(m.start);
+                const w = packed?.w ?? Math.max(m.minW, x(end) - ax);
+                const y = attTop + lane * (LANE_H + LANE_GAP);
+                const name = markLabel(m);
+                const ended = new Set(
+                  m.attempts.map((x) => attemptEndWords(x, h)),
+                );
+                const words =
+                  ended.size === 1 ? `${name} ${attemptEndWords(a, h)}` : name;
+                // The whole words when they fit, else the bare "#n" (or "#1-#3") centered in the bar, which needs only its own width.
+                const full = w > labelW(words);
+                const label = full
+                  ? words
+                  : w >= name.length * 6.2 + 3
+                    ? name
+                    : null;
+                const tones = new Set(m.attempts.map((x) => attemptTone(x, h)));
+                return (
+                  <g
+                    key={m.key}
+                    className="lwt-att"
+                    data-tone={tones.size === 1 ? attemptTone(a, h) : "none"}
+                    data-folded={folded ? "" : undefined}
+                    data-live={a.live ? "" : undefined}
+                    data-superseded={!folded && a.superseded ? "" : undefined}
+                    data-selected={
+                      m.attempts.some((x) => x.runId === selectedRun)
+                        ? ""
+                        : undefined
+                    }
+                    data-tip={folded ? `k:${m.key}` : `a:${a.runId}`}
+                    onClick={() => onPick({ kind: "attempt", runId: a.runId })}
+                  >
+                    <rect
+                      className="lwt-att-ring"
+                      x={ax - 2.5}
+                      y={y - 2.5}
+                      width={w + 5}
+                      height={LANE_H + 5}
+                      rx={8}
+                    />
+                    <rect
+                      className="lwt-att-bar"
+                      x={ax}
+                      y={y}
+                      width={w}
+                      height={LANE_H}
+                      rx={6}
+                      fill={a.live ? "url(#lwt-live)" : undefined}
+                    />
+                    {label && (
+                      <text
+                        x={full ? ax + 7 : ax + w / 2}
+                        y={y + 14}
+                        textAnchor={full ? undefined : "middle"}
+                        className="lwt-att-t"
+                      >
+                        {label}
+                      </text>
+                    )}
+                    {a.live && (
+                      <circle
+                        className="lwt-att-pulse"
+                        cx={ax + w}
+                        cy={y + LANE_H / 2}
+                        r={4}
+                      />
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* merges and ships, and what is not known about their deploys */}
+            {hasShips &&
+              !h.ships.some(
+                (sh) =>
+                  (sh.merge?.at ?? sh.at) >= d0 &&
+                  (sh.merge?.at ?? sh.at) <= d1,
+              ) && (
+                <text className="lwt-none" x={shipCaption.at} y={shipTop + 14}>
+                  {shipCaption.words}
+                </text>
+              )}
+            <g className="lwt-ships">
+              {h.ships.map((s) => {
+                const at = s.merge?.at ?? s.at;
+                if (at < d0 || at > d1) return null;
+                const cx = x(at);
+                const cy = shipTop + LANE_H / 2;
+                const missing = notDeployed(s.runId, h);
+                return (
+                  <g
+                    key={s.runId}
+                    className="lwt-merge"
+                    data-unmerged={s.merge ? undefined : ""}
+                    data-tip={s.merge ? `m:${s.runId}` : `s:${s.runId}`}
+                    onClick={() => onPick({ kind: "attempt", runId: s.runId })}
+                  >
+                    <rect
+                      className="lwt-hitbox"
+                      x={cx - 10}
+                      y={cy - 10}
+                      width={20}
+                      height={20}
+                    />
+                    {s.merge ? (
+                      <rect
+                        x={cx - 5.5}
+                        y={cy - 5.5}
+                        width={11}
+                        height={11}
+                        rx={2}
+                        transform={`rotate(45 ${cx} ${cy})`}
+                      />
+                    ) : (
+                      <circle cx={cx} cy={cy} r={5.5} />
+                    )}
+                    {missing && (
+                      <text className="lwt-ship-missing" x={cx + 12} y={cy + 4}>
+                        not deployed
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* a marker at each close: its line through every lane, then the flags over them */}
+            <g className="lwt-closes">
+              {closes.map(({ c, cx }) => {
+                if (c.at < d0 || c.at > d1) return null;
+                return (
+                  <g
+                    key={`c${c.runId}`}
+                    className="lwt-close"
+                    data-kind={c.kind}
+                    data-tip={`c:${c.runId}`}
+                    onClick={() => onPick({ kind: "attempt", runId: c.runId })}
+                  >
+                    <line x1={cx} x2={cx} y1={FLAG_H - 4} y2={laneEnd} />
+                    <rect
+                      className="lwt-hitbox"
+                      x={cx - 4}
+                      y={FLAG_H}
+                      width={8}
+                      height={laneEnd - FLAG_H}
+                    />
+                  </g>
+                );
+              })}
+              {flags.map((f) => (
+                <g
+                  key={`f${f.key}`}
+                  className="lwt-close"
+                  data-kind={f.kind}
+                  data-tip={`c:${f.runId}`}
+                  onClick={() => onPick({ kind: "attempt", runId: f.runId })}
+                >
+                  {(f.cx < f.fx || f.cx > f.fx + f.w) && (
+                    <path
+                      className="lwt-close-leader"
+                      d={`M${f.cx} 17 L${f.cx < f.fx ? f.fx : f.fx + f.w} 10`}
+                    />
+                  )}
+                  <path d={`M${f.fx} 3 h${f.w} l-5 7 l5 7 h-${f.w} z`} />
+                  <text x={f.fx + 5} y={14}>
+                    {f.text}
+                  </text>
+                </g>
+              ))}
+            </g>
+
+            {/* the project's other deploys: a faint rule through the findings, opening the deploy */}
+            <g className="lwt-other-deploys">
+              {otherDeploys(h).map((o) => {
+                if (o.at < d0 || o.at > d1) return null;
+                const dx = x(o.at);
+                return (
+                  <g
+                    key={o._id}
+                    className="lwt-other-deploy"
+                    data-tip={`o:${o._id}`}
+                    onClick={() => o.short_id && openDeploy(o.short_id)}
+                    data-deploy-ref={o.short_id ?? undefined}
+                  >
+                    <line
+                      x1={dx}
+                      x2={dx}
+                      y1={HIST_TOP}
+                      y2={HIST_TOP + HIST_H}
+                    />
+                    <rect
+                      className="lwt-hitbox"
+                      x={dx - 4}
+                      y={HIST_TOP}
+                      width={8}
+                      height={HIST_H}
+                    />
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* deploys that carried a fix: a flag and a line through every lane */}
+            <g className="lwt-deploys">
+              {h.deploys.map((dpl) => {
+                if (dpl.at < d0 || dpl.at > d1) return null;
+                const dx = x(dpl.at);
+                const label = dpl.target ?? "deploy";
+                const fw = label.length * 6.2 + 14;
+                const fx = flagInside(dx, fw, width);
+                return (
+                  <g
+                    key={dpl.id}
+                    className="lwt-deploy"
+                    data-tip={`d:${dpl.id}`}
+                    onClick={() =>
+                      dpl.ref
+                        ? openDeploy(dpl.ref)
+                        : onPick({ kind: "attempt", runId: dpl.runId })
+                    }
+                    data-deploy-ref={dpl.ref ?? undefined}
+                  >
+                    <line x1={dx} x2={dx} y1={FLAG_H - 4} y2={laneEnd} />
+                    <rect
+                      className="lwt-hitbox"
+                      x={fx - 4}
+                      y={0}
+                      width={fw + 6}
+                      height={FLAG_H}
+                    />
+                    <rect
+                      className="lwt-hitbox"
+                      x={dx - 4}
+                      y={FLAG_H}
+                      width={8}
+                      height={laneEnd - FLAG_H}
+                    />
+                    <path d={`M${fx} 3 h${fw} l-5 7 l5 7 h-${fw} z`} />
+                    <text x={fx + 5} y={14}>
+                      {label}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* now */}
+            {now >= d0 && now <= d1 && (
+              <g className="lwt-now">
+                <line x1={x(now)} x2={x(now)} y1={HIST_TOP} y2={axisTop} />
+                <text x={x(now) - 4} y={axisTop - 4}>
+                  now
+                </text>
+              </g>
+            )}
+          </g>
+
+          {/* the pointer */}
+          <g
+            ref={crossRef}
+            className="lwt-cross"
+            style={{ opacity: 0 }}
+            pointerEvents="none"
+          >
+            <line x1={0} x2={0} y1={HIST_TOP} y2={axisTop} />
+            <rect x={-56} y={axisTop + 3} width={112} height={18} rx={5} />
+            <text ref={crossText} x={0} y={axisTop + 16} />
+          </g>
+          <rect
+            ref={brushRef}
+            className="lwt-brush"
+            x={0}
+            y={HIST_TOP}
+            width={0}
+            height={axisTop - HIST_TOP}
+            pointerEvents="none"
+          />
+        </svg>
       </div>
 
-      <div ref={tipRef} className="lwt-tip" data-open={tip ? "" : undefined} data-tone={tip?.tone} role="tooltip" aria-hidden={!tip}>
+      <div
+        ref={tipRef}
+        className="lwt-tip"
+        data-open={tip ? "" : undefined}
+        data-tone={tip?.tone}
+        role="tooltip"
+        aria-hidden={!tip}
+      >
         {tip && (
           <>
             <b>{tip.title}</b>
-            {tip.lines.map((l, i) => <span key={i}>{l}</span>)}
+            {tip.lines.map((l, i) => (
+              <span key={i}>{l}</span>
+            ))}
             {tip.hint && <em>{tip.hint}</em>}
           </>
         )}

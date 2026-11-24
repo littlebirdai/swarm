@@ -31,13 +31,17 @@ import {
 describe("isForkArtifactSessionId", () => {
   test("matches server-minted fork session ids", () => {
     expect(
-      isForkArtifactSessionId("forked-azjz8ulql2fxfulwa4v4w-4181aeab-629f-4f4f-bdc3-9b84ceccc6f0"),
+      isForkArtifactSessionId(
+        "forked-azjz8ulql2fxfulwa4v4w-4181aeab-629f-4f4f-bdc3-9b84ceccc6f0",
+      ),
     ).toBe(true);
   });
 
   test("does not match subagent or UUID session ids", () => {
     expect(isForkArtifactSessionId("agent-ac3f2b1d")).toBe(false);
-    expect(isForkArtifactSessionId("290a5496-17c2-4a2b-a3c4-4f689a375929")).toBe(false);
+    expect(
+      isForkArtifactSessionId("290a5496-17c2-4a2b-a3c4-4f689a375929"),
+    ).toBe(false);
     // A UUID that merely embeds the word is still not a fork id
     expect(isForkArtifactSessionId("not-forked-prefix")).toBe(false);
   });
@@ -58,13 +62,15 @@ describe("removeForkArtifactJsonl", () => {
     const p = path.join(dir, `${sessionId}.jsonl`);
     fs.writeFileSync(
       p,
-      JSON.stringify({ sessionId, type: "user", message: { content: "hi" } }) + "\n",
+      JSON.stringify({ sessionId, type: "user", message: { content: "hi" } }) +
+        "\n",
     );
     return p;
   };
 
   test("rewrite + cleanup leaves only the UUID copy (the regression)", () => {
-    const forkedId = "forked-azjz8ulql2fxfulwa4v4w-4181aeab-629f-4f4f-bdc3-9b84ceccc6f0";
+    const forkedId =
+      "forked-azjz8ulql2fxfulwa4v4w-4181aeab-629f-4f4f-bdc3-9b84ceccc6f0";
     const sourcePath = writeJsonl(forkedId);
 
     const rewrite = rewriteSubagentJsonlToUuid(forkedId, sourcePath);

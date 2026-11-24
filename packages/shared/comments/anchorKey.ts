@@ -21,15 +21,24 @@ export function commentAnchorKey(c: CommentAnchorLike): string {
 }
 
 /** `${conversationId}:${commentAnchorKey(c)}`: the thread_reads root_key of a comment thread. */
-export function commentThreadRootKey(conversationId: string, c: CommentAnchorLike): string {
+export function commentThreadRootKey(
+  conversationId: string,
+  c: CommentAnchorLike,
+): string {
   return `${conversationId}:${commentAnchorKey(c)}`;
 }
 
 /** Inverse of commentThreadRootKey. Splits on the FIRST ":" (conversation ids contain none). */
-export function parseCommentThreadRootKey(rootKey: string): { conversationId: string; anchorKey: string } {
+export function parseCommentThreadRootKey(rootKey: string): {
+  conversationId: string;
+  anchorKey: string;
+} {
   const i = rootKey.indexOf(":");
   if (i < 0) return { conversationId: rootKey, anchorKey: GLOBAL_ANCHOR_KEY };
-  return { conversationId: rootKey.slice(0, i), anchorKey: rootKey.slice(i + 1) };
+  return {
+    conversationId: rootKey.slice(0, i),
+    anchorKey: rootKey.slice(i + 1),
+  };
 }
 
 /** Web thread key (lib/commentThread.ts format): `msg:<id>` becomes `<id>`; file and global stay. */
@@ -56,7 +65,11 @@ export function codeAnchorKey(c: CodeAnchorLike): string {
 }
 
 /** `${repository}@${ref}#${codeAnchorKey(c)}`: the thread_reads root_key of a code comment thread. */
-export function codeThreadRootKey(repository: string, ref: string, c: CodeAnchorLike): string {
+export function codeThreadRootKey(
+  repository: string,
+  ref: string,
+  c: CodeAnchorLike,
+): string {
   return `${repository}@${ref}#${codeAnchorKey(c)}`;
 }
 
@@ -79,5 +92,11 @@ export function parseCodeThreadRootKey(rootKey: string): {
   const colon = rest.lastIndexOf(":");
   const filePath = colon < 0 ? rest : rest.slice(0, colon);
   const line = colon < 0 ? "" : rest.slice(colon + 1);
-  return { repository, ref, anchorKey, filePath, lineNumber: line ? Number(line) : undefined };
+  return {
+    repository,
+    ref,
+    anchorKey,
+    filePath,
+    lineNumber: line ? Number(line) : undefined,
+  };
 }

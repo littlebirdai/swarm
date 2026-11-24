@@ -13,24 +13,43 @@ import { requireApp } from "./model";
 import { requireVisitor } from "./visitors";
 import { visitorArgs } from "./validators";
 
-function reportRow(ctx: QueryCtx, appId: Id<"apps">, visitorId: Id<"visitors">) {
+function reportRow(
+  ctx: QueryCtx,
+  appId: Id<"apps">,
+  visitorId: Id<"visitors">,
+) {
   return ctx.db
     .query("reports")
-    .withIndex("by_app_visitor", (q) => q.eq("app_id", appId).eq("visitor_id", visitorId))
+    .withIndex("by_app_visitor", (q) =>
+      q.eq("app_id", appId).eq("visitor_id", visitorId),
+    )
     .unique();
 }
 
 /** Report an app. `version` is the one on screen (the live one when omitted). */
 export const report = mutation({
-  args: { ...visitorArgs, app_id: v.id("apps"), version: v.optional(v.number()), reason: v.optional(v.string()) },
+  args: {
+    ...visitorArgs,
+    app_id: v.id("apps"),
+    version: v.optional(v.number()),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{ fresh: boolean }> => {
     const visitor = await requireVisitor(ctx, args);
     const app = await requireApp(ctx, args.app_id);
     const version = args.version ?? app.live_version;
-    if (!Number.isInteger(version) || version < 1 || version > app.version_count) fail("invalid", "That version does not exist.");
+    if (
+      !Number.isInteger(version) ||
+      version < 1 ||
+      version > app.version_count
+    )
+      fail("invalid", "That version does not exist.");
     if (await reportRow(ctx, app._id, visitor._id)) return { fresh: false };
     await takeRate(ctx, "report", visitor._id);
-    const reason = args.reason === undefined ? null : cleanLine(args.reason, REPORT_REASON_MAX);
+    const reason =
+      args.reason === undefined
+        ? null
+        : cleanLine(args.reason, REPORT_REASON_MAX);
     await ctx.db.insert("reports", {
       app_id: app._id,
       visitor_id: visitor._id,

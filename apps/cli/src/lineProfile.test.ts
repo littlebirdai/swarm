@@ -73,8 +73,19 @@ describe("line profile (LP2)", () => {
       principles: ["outreach/docs/line/principles.md"],
       size_budget: 400,
       caps: { cards: 5 },
-      deploy: { command: "./outreach/deploy.sh --actor $actor", target: "production", trigger: "person" },
-      finders: [{ id: "invariants", kind: ["regression"], project: "Infrastructure", runs: "backend job captureInvariantSnapshots" }],
+      deploy: {
+        command: "./outreach/deploy.sh --actor $actor",
+        target: "production",
+        trigger: "person",
+      },
+      finders: [
+        {
+          id: "invariants",
+          kind: ["regression"],
+          project: "Infrastructure",
+          runs: "backend job captureInvariantSnapshots",
+        },
+      ],
     });
     expect(r.profile.commands.eval).toContain("reps.json");
     expect(Object.values(r.sources).every((s) => s === "file")).toBe(true);
@@ -96,137 +107,309 @@ describe("line profile (LP2)", () => {
       finders: [],
     });
     expect(Object.values(r.sources).every((s) => s === "default")).toBe(true);
-    expect(r.notes.join("\n")).toContain("the prove station passes with a note");
+    expect(r.notes.join("\n")).toContain(
+      "the prove station passes with a note",
+    );
     expect(r.notes.join("\n")).toContain("the eval station passes with a note");
   });
 
   test("a partial file keeps the defaults it does not set", () => {
-    const r = resolveLineProfile(parseLineProfileText(`[line]\nproject = "X"\n[line.commands]\neval = "./evals line"\n`).values);
-    expect(r.profile.commands).toEqual({ check: "cast ws check", prove: null, eval: "./evals line", ship: null });
+    const r = resolveLineProfile(
+      parseLineProfileText(
+        `[line]\nproject = "X"\n[line.commands]\neval = "./evals line"\n`,
+      ).values,
+    );
+    expect(r.profile.commands).toEqual({
+      check: "cast ws check",
+      prove: null,
+      eval: "./evals line",
+      ship: null,
+    });
     expect(r.sources["commands.eval"]).toBe("file");
     expect(r.sources["commands.check"]).toBe("default");
     expect(r.sources.project).toBe("file");
   });
 
   test("[line.merge] takes auto as a boolean and a known method", () => {
-    const r = resolveLineProfile(parseLineProfileText(`[line.merge]\nauto = true\n`).values);
+    const r = resolveLineProfile(
+      parseLineProfileText(`[line.merge]\nauto = true\n`).values,
+    );
     expect(r.profile.merge).toEqual({ auto: true, method: "squash" });
     expect(r.sources["merge.auto"]).toBe("file");
-    const err = (t: string) => { try { parseLineProfileText(t); } catch (e) { return (e as Error).message; } return null; };
+    const err = (t: string) => {
+      try {
+        parseLineProfileText(t);
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return null;
+    };
     expect(err(`[line.merge]\nauto = "yes"`)).toContain("true or false");
-    expect(err(`[line.merge]\nmethod = "octopus"`)).toContain("squash, merge, rebase");
+    expect(err(`[line.merge]\nmethod = "octopus"`)).toContain(
+      "squash, merge, rebase",
+    );
   });
 
   test("[line.deploy] takes a command, a target and a known trigger", () => {
-    const err = (t: string) => { try { parseLineProfileText(t); } catch (e) { return (e as Error).message; } return null; };
-    expect(err(`[line.deploy]\ntrigger = "nightly"`)).toContain("person, role, schedule, count");
+    const err = (t: string) => {
+      try {
+        parseLineProfileText(t);
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return null;
+    };
+    expect(err(`[line.deploy]\ntrigger = "nightly"`)).toContain(
+      "person, role, schedule, count",
+    );
     expect(err(`[line.deploy]\nwhen = "now"`)).toContain('unknown key "when"');
-    const r = resolveLineProfile(parseLineProfileText(`[line.deploy]\ncommand = "./deploy.sh"\n`).values);
-    expect(r.profile.deploy).toEqual({ command: "./deploy.sh", target: null, trigger: "person" });
+    const r = resolveLineProfile(
+      parseLineProfileText(`[line.deploy]\ncommand = "./deploy.sh"\n`).values,
+    );
+    expect(r.profile.deploy).toEqual({
+      command: "./deploy.sh",
+      target: null,
+      trigger: "person",
+    });
     expect(r.sources["deploy.command"]).toBe("file");
     expect(r.sources["deploy.trigger"]).toBe("default");
   });
 
   test("[line.deploy] names the role that deploys and a command per step; unset ones stay off the profile", () => {
-    const err = (t: string) => { try { parseLineProfileText(t); } catch (e) { return (e as Error).message; } return null; };
-    expect(err(`[line.deploy]\ncommand = "./deploy.sh"\ntrigger = "role"`)).toContain("needs role");
-    const parsed = parseLineProfileText(`[line.deploy]\ncommand = "./deploy.sh --no-watch"\ntrigger = "role"\nrole = "@Release"\nci = "cast line deploy ci"\nlive = "curl -sf https://x/health"\n`);
+    const err = (t: string) => {
+      try {
+        parseLineProfileText(t);
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return null;
+    };
+    expect(
+      err(`[line.deploy]\ncommand = "./deploy.sh"\ntrigger = "role"`),
+    ).toContain("needs role");
+    const parsed = parseLineProfileText(
+      `[line.deploy]\ncommand = "./deploy.sh --no-watch"\ntrigger = "role"\nrole = "@Release"\nci = "cast line deploy ci"\nlive = "curl -sf https://x/health"\n`,
+    );
     const r = resolveLineProfile(parsed.values);
-    expect(r.profile.deploy).toEqual({ command: "./deploy.sh --no-watch", target: null, trigger: "role", role: "release", ci: "cast line deploy ci", live: "curl -sf https://x/health" });
+    expect(r.profile.deploy).toEqual({
+      command: "./deploy.sh --no-watch",
+      target: null,
+      trigger: "role",
+      role: "release",
+      ci: "cast line deploy ci",
+      live: "curl -sf https://x/health",
+    });
     expect(r.sources["deploy.live"]).toBe("file");
-    expect(parseLineProfileText(`[line.deploy]\ntrigger = "count"`).warnings[0]).toContain("not built yet");
+    expect(
+      parseLineProfileText(`[line.deploy]\ntrigger = "count"`).warnings[0],
+    ).toContain("not built yet");
   });
 
   test("a station cap is read by station id and reaches the runner as a variable", () => {
-    const { values } = parseLineProfileText(`[line.caps]\ncards = 3\n[line.caps.stations]\neval = 8\n`);
+    const { values } = parseLineProfileText(
+      `[line.caps]\ncards = 3\n[line.caps.stations]\neval = 8\n`,
+    );
     const resolved = resolveLineProfile(values);
     const profile = resolved.profile;
     expect(profile.caps).toEqual({ cards: 3, stations: { eval: 8 } });
     expect(lineProfileVars(profile)["line.caps.stations.eval"]).toBe("8");
     // Each station's row names where its cap came from (it printed "(undefined)").
-    expect(formatLineProfile(resolved)).toMatch(/caps\.stations\.eval\s+8 at once\s+\(file\)/);
+    expect(formatLineProfile(resolved)).toMatch(
+      /caps\.stations\.eval\s+8 at once\s+\(file\)/,
+    );
     expect(resolveLineProfile({}).profile.caps.stations).toBeUndefined();
-    const err = (t: string) => { try { parseLineProfileText(t); } catch (e) { return e as Error; } return null; };
-    expect(err(`[line.caps.stations]\neval = 0`)?.message).toContain("[line.caps.stations] eval must be a positive integer");
-    expect(err(`[line.caps.stations]\n"Eval Step" = 2`)?.message).toContain('"Eval Step" is not a station id');
-    expect(err(`[line.caps]\nstations = 4`)?.message).toContain("[line.caps.stations] must be a table");
+    const err = (t: string) => {
+      try {
+        parseLineProfileText(t);
+      } catch (e) {
+        return e as Error;
+      }
+      return null;
+    };
+    expect(err(`[line.caps.stations]\neval = 0`)?.message).toContain(
+      "[line.caps.stations] eval must be a positive integer",
+    );
+    expect(err(`[line.caps.stations]\n"Eval Step" = 2`)?.message).toContain(
+      '"Eval Step" is not a station id',
+    );
+    expect(err(`[line.caps]\nstations = 4`)?.message).toContain(
+      "[line.caps.stations] must be a table",
+    );
   });
 
   test("unknown keys are refused with where they are", () => {
-    const err = (t: string) => { try { parseLineProfileText(t, ".codecast/line.toml"); } catch (e) { return e as Error; } return null; };
-    expect(err(`[line]\nprojet = "X"`)?.message).toBe('.codecast/line.toml: [line] has unknown key "projet" (known: team, project, principles, prompting, size_budget, watch_days, commands, caps, merge, deploy, finders, ci_paths)');
-    expect(err(`[line.commands]\nverify = "x"`)?.message).toContain('[line.commands] has unknown key "verify"');
-    expect(err(`[line.caps]\nhands = 3`)?.message).toContain('[line.caps] has unknown key "hands"');
-    expect(err(`[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\nowner = "x"`)?.message).toContain('[[line.finders]] #1 has unknown key "owner"');
-    expect(err(`[verify]\ncommand = "x"`)?.message).toContain('the file has unknown key "verify"');
-    expect(err(`[line]\nsize_budget = "big"`)?.message).toContain("[line] size_budget must be a positive integer");
-    expect(err(`[[line.finders]]\nid = "a"\nsource = "s"\nkind = "crash"\nfingerprint = "f"`)?.message).toContain('names unknown kind "crash"');
-    expect(err(`[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\n[[line.finders]]\nid = "a"\nsource = "t"\nkind = "bug"\nfingerprint = "g"`)?.message).toContain('repeats id "a"');
+    const err = (t: string) => {
+      try {
+        parseLineProfileText(t, ".codecast/line.toml");
+      } catch (e) {
+        return e as Error;
+      }
+      return null;
+    };
+    expect(err(`[line]\nprojet = "X"`)?.message).toBe(
+      '.codecast/line.toml: [line] has unknown key "projet" (known: team, project, principles, prompting, size_budget, watch_days, commands, caps, merge, deploy, finders, ci_paths)',
+    );
+    expect(err(`[line.commands]\nverify = "x"`)?.message).toContain(
+      '[line.commands] has unknown key "verify"',
+    );
+    expect(err(`[line.caps]\nhands = 3`)?.message).toContain(
+      '[line.caps] has unknown key "hands"',
+    );
+    expect(
+      err(
+        `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\nowner = "x"`,
+      )?.message,
+    ).toContain('[[line.finders]] #1 has unknown key "owner"');
+    expect(err(`[verify]\ncommand = "x"`)?.message).toContain(
+      'the file has unknown key "verify"',
+    );
+    expect(err(`[line]\nsize_budget = "big"`)?.message).toContain(
+      "[line] size_budget must be a positive integer",
+    );
+    expect(
+      err(
+        `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "crash"\nfingerprint = "f"`,
+      )?.message,
+    ).toContain('names unknown kind "crash"');
+    expect(
+      err(
+        `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\n[[line.finders]]\nid = "a"\nsource = "t"\nkind = "bug"\nfingerprint = "g"`,
+      )?.message,
+    ).toContain('repeats id "a"');
     expect(err(`[line]\nteam = = 1`)?.message).toContain("invalid TOML");
   });
 
   test("a finder names itself for people: label, a one-line what, and its group", () => {
-    const finder = (extra: string) => `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\n${extra}`;
-    const parsed = parseLineProfileText(finder(`label = "Aivery corrections"\nwhat = "A thumbs-down on one of Aivery's posts"\ngroup = "people"`));
-    expect(parsed.values.finders![0]).toMatchObject({ label: "Aivery corrections", what: "A thumbs-down on one of Aivery's posts", group: "people" });
-    expect(parseLineProfileText(finder("")).values.finders![0]).not.toHaveProperty("label");
-    expect(() => parseLineProfileText(finder(`group = "ops"`))).toThrow('[[line.finders]] "a" group must be one of conversations, people, product, pipeline');
+    const finder = (extra: string) =>
+      `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\n${extra}`;
+    const parsed = parseLineProfileText(
+      finder(
+        `label = "Aivery corrections"\nwhat = "A thumbs-down on one of Aivery's posts"\ngroup = "people"`,
+      ),
+    );
+    expect(parsed.values.finders![0]).toMatchObject({
+      label: "Aivery corrections",
+      what: "A thumbs-down on one of Aivery's posts",
+      group: "people",
+    });
+    expect(
+      parseLineProfileText(finder("")).values.finders![0],
+    ).not.toHaveProperty("label");
+    expect(() => parseLineProfileText(finder(`group = "ops"`))).toThrow(
+      '[[line.finders]] "a" group must be one of conversations, people, product, pipeline',
+    );
   });
 
   test("kind is one value, a list, or any; a sentence is read as its list with a warning", () => {
-    const parse = (kind: string) => parseLineProfileText(`[[line.finders]]\nid = "a"\nsource = "s"\nkind = ${kind}\nfingerprint = "f"`);
+    const parse = (kind: string) =>
+      parseLineProfileText(
+        `[[line.finders]]\nid = "a"\nsource = "s"\nkind = ${kind}\nfingerprint = "f"`,
+      );
     expect(parse(`"bug"`).values.finders![0].kind).toEqual(["bug"]);
-    expect(parse(`["prompt_miss", "bug"]`).values.finders![0].kind).toEqual(["prompt_miss", "bug"]);
+    expect(parse(`["prompt_miss", "bug"]`).values.finders![0].kind).toEqual([
+      "prompt_miss",
+      "bug",
+    ]);
     expect(parse(`"any"`).values.finders![0].kind).toBe("any");
     const sentence = parse(`"prompt_miss, bug or request"`);
-    expect(sentence.values.finders![0].kind).toEqual(["prompt_miss", "bug", "request"]);
-    expect(sentence.warnings).toEqual(['[[line.finders]] "a" kind = "prompt_miss, bug or request" is a sentence; write the list: kind = ["prompt_miss", "bug", "request"]']);
+    expect(sentence.values.finders![0].kind).toEqual([
+      "prompt_miss",
+      "bug",
+      "request",
+    ]);
+    expect(sentence.warnings).toEqual([
+      '[[line.finders]] "a" kind = "prompt_miss, bug or request" is a sentence; write the list: kind = ["prompt_miss", "bug", "request"]',
+    ]);
   });
 
   test("opens_causes is the finder's explicit conversion step: true keeps it, false drops it, anything else is refused", () => {
-    const parse = (v: string) => parseLineProfileText(`[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\nopens_causes = ${v}`, ".codecast/line.toml");
+    const parse = (v: string) =>
+      parseLineProfileText(
+        `[[line.finders]]\nid = "a"\nsource = "s"\nkind = "bug"\nfingerprint = "f"\nopens_causes = ${v}`,
+        ".codecast/line.toml",
+      );
     expect(parse("true").values.finders![0].opens_causes).toBe(true);
     expect("opens_causes" in parse("false").values.finders![0]).toBe(false);
-    expect(() => parse(`"yes"`)).toThrow('[[line.finders]] "a" opens_causes must be true or false');
+    expect(() => parse(`"yes"`)).toThrow(
+      '[[line.finders]] "a" opens_causes must be true or false',
+    );
   });
 
   test("the loader walks up from a subdirectory to the profile, and stops at the repository root", () => {
-    const repo = tmpRepo({ ".codecast/line.toml": `[line]\nproject = "Agent Quality"\n`, "outreach/backend/x.ts": "" });
+    const repo = tmpRepo({
+      ".codecast/line.toml": `[line]\nproject = "Agent Quality"\n`,
+      "outreach/backend/x.ts": "",
+    });
     const r = loadLineProfile(path.join(repo, "outreach", "backend"));
     expect(r.file).toBe(path.join(repo, ".codecast/line.toml"));
     expect(r.root).toBe(repo);
     expect(r.profile.project).toBe("Agent Quality");
     const bare = tmpRepo({ "src/a.ts": "" });
-    expect(findLineProfile(path.join(bare, "src"))).toEqual({ file: null, root: bare });
+    expect(findLineProfile(path.join(bare, "src"))).toEqual({
+      file: null,
+      root: bare,
+    });
     expect(loadLineProfile(bare).profile.commands.check).toBe("cast ws check");
   });
 
   test("[line.deploy] target names a deploy.toml target: the line sends that target's command, and a drifted copy warns", async () => {
     const targets = `[[target]]\nname = "production"\nrun = "./deploy.sh --sha $sha"\n`;
-    const only = tmpRepo({ ".codecast/line.toml": `[line.deploy]\ntarget = "production"\n`, ".codecast/deploy.toml": targets });
-    expect((await loadLineDeployProfile(only)).profile.deploy?.command).toBe("./deploy.sh --sha $sha");
+    const only = tmpRepo({
+      ".codecast/line.toml": `[line.deploy]\ntarget = "production"\n`,
+      ".codecast/deploy.toml": targets,
+    });
+    expect((await loadLineDeployProfile(only)).profile.deploy?.command).toBe(
+      "./deploy.sh --sha $sha",
+    );
     // The profile alone is line.toml's: the daemon reads it without the deploy files.
     expect(loadLineProfile(only).profile.deploy?.command).toBeNull();
-    const copy = tmpRepo({ ".codecast/line.toml": `[line.deploy]\ntarget = "production"\ncommand = "./deploy.sh --sha $sha"\n`, ".codecast/deploy.toml": targets });
+    const copy = tmpRepo({
+      ".codecast/line.toml": `[line.deploy]\ntarget = "production"\ncommand = "./deploy.sh --sha $sha"\n`,
+      ".codecast/deploy.toml": targets,
+    });
     expect((await loadLineDeployProfile(copy)).warnings).toEqual([]);
-    const drifted = tmpRepo({ ".codecast/line.toml": `[line.deploy]\ntarget = "production"\ncommand = "./old.sh"\n`, ".codecast/deploy.toml": targets });
+    const drifted = tmpRepo({
+      ".codecast/line.toml": `[line.deploy]\ntarget = "production"\ncommand = "./old.sh"\n`,
+      ".codecast/deploy.toml": targets,
+    });
     const r = await loadLineDeployProfile(drifted);
     expect(r.profile.deploy?.command).toBe("./deploy.sh --sha $sha");
     expect(r.warnings.join("\n")).toContain('differs from target "production"');
     // A target the file does not declare leaves line.toml's own command.
-    const other = tmpRepo({ ".codecast/line.toml": `[line.deploy]\ntarget = "web"\ncommand = "./web.sh"\n`, ".codecast/deploy.toml": targets });
-    expect((await loadLineDeployProfile(other)).profile.deploy?.command).toBe("./web.sh");
+    const other = tmpRepo({
+      ".codecast/line.toml": `[line.deploy]\ntarget = "web"\ncommand = "./web.sh"\n`,
+      ".codecast/deploy.toml": targets,
+    });
+    expect((await loadLineDeployProfile(other)).profile.deploy?.command).toBe(
+      "./web.sh",
+    );
   });
 
   test("a .git directory that is no repository (a leftover of hooks) does not stop the walk", () => {
-    const repo = tmpRepo({ ".codecast/line.toml": `[line]\nteam = "Union"\n`, "outreach/.git/hooks/pre-commit": "", "outreach/x.ts": "" });
-    expect(loadLineProfile(path.join(repo, "outreach")).profile.team).toBe("Union");
-    const worktree = tmpRepo({ ".codecast/line.toml": `[line]\nteam = "Union"\n`, "wt/.git": "gitdir: /elsewhere\n", "wt/x.ts": "" });
-    expect(findLineProfile(path.join(worktree, "wt"))).toEqual({ file: null, root: path.join(worktree, "wt") });
+    const repo = tmpRepo({
+      ".codecast/line.toml": `[line]\nteam = "Union"\n`,
+      "outreach/.git/hooks/pre-commit": "",
+      "outreach/x.ts": "",
+    });
+    expect(loadLineProfile(path.join(repo, "outreach")).profile.team).toBe(
+      "Union",
+    );
+    const worktree = tmpRepo({
+      ".codecast/line.toml": `[line]\nteam = "Union"\n`,
+      "wt/.git": "gitdir: /elsewhere\n",
+      "wt/x.ts": "",
+    });
+    expect(findLineProfile(path.join(worktree, "wt"))).toEqual({
+      file: null,
+      root: path.join(worktree, "wt"),
+    });
   });
 
   test("Union's committed profile loads, and only its sentence kinds warn", () => {
-    const union = path.join(os.homedir(), "src/union-mobile/.codecast/worktrees/line-union/.codecast/line.toml");
+    const union = path.join(
+      os.homedir(),
+      "src/union-mobile/.codecast/worktrees/line-union/.codecast/line.toml",
+    );
     if (!fs.existsSync(union)) return;
     const r = loadLineProfile(path.dirname(path.dirname(union)));
     expect(r.profile.team).toBe("Union");
@@ -237,18 +420,31 @@ describe("line profile (LP2)", () => {
   });
 
   test("vars flatten the profile for the runner", () => {
-    const vars = lineProfileVars(resolveLineProfile(parseLineProfileText(LP2_EXAMPLE).values).profile);
+    const vars = lineProfileVars(
+      resolveLineProfile(parseLineProfileText(LP2_EXAMPLE).values).profile,
+    );
     expect(vars["line.commands.check"]).toContain("test:touched");
     expect(vars["line.size_budget"]).toBe("400");
-    expect(vars["line.principles"]).toBe(`${CODECAST_PRINCIPLES} (the shared set) and outreach/docs/line/principles.md (this project's own)`);
+    expect(vars["line.principles"]).toBe(
+      `${CODECAST_PRINCIPLES} (the shared set) and outreach/docs/line/principles.md (this project's own)`,
+    );
     const empty = lineProfileVars(resolveLineProfile({}).profile);
     expect(empty["line.commands.prove"]).toBe("");
-    expect(empty["line.principles"]).toBe(`${CODECAST_PRINCIPLES} (the shared set)`);
+    expect(empty["line.principles"]).toBe(
+      `${CODECAST_PRINCIPLES} (the shared set)`,
+    );
     expect(empty["line.commands.check"]).toBe("cast ws check");
   });
 
   test("a station's command env carries the run values a profile command names, and nothing else", () => {
-    expect(lineCommandEnv({ task_id: "ct-1", run_dir: "/r", task_title: "x", "red.json": "{}" })).toEqual({ task_id: "ct-1", run_dir: "/r" });
+    expect(
+      lineCommandEnv({
+        task_id: "ct-1",
+        run_dir: "/r",
+        task_title: "x",
+        "red.json": "{}",
+      }),
+    ).toEqual({ task_id: "ct-1", run_dir: "/r" });
   });
 });
 
@@ -256,11 +452,24 @@ describe("line profile (LP2)", () => {
 // defaults written out, the project filled in, and nothing else in force.
 describe("starterLineProfile", () => {
   test("parses back to exactly the defaults plus the project and team", async () => {
-    const { starterLineProfile, parseLineProfileText, resolveLineProfile, LINE_PROFILE_DEFAULTS } = await import("./lineProfile");
-    const { values, warnings } = parseLineProfileText(starterLineProfile({ project: "Codecast \"core\"", team: "Union" }));
+    const {
+      starterLineProfile,
+      parseLineProfileText,
+      resolveLineProfile,
+      LINE_PROFILE_DEFAULTS,
+    } = await import("./lineProfile");
+    const { values, warnings } = parseLineProfileText(
+      starterLineProfile({ project: 'Codecast "core"', team: "Union" }),
+    );
     expect(warnings).toEqual([]);
-    expect(resolveLineProfile(values).profile).toEqual({ ...LINE_PROFILE_DEFAULTS, project: "Codecast \"core\"", team: "Union" });
-    const bare = parseLineProfileText(starterLineProfile({ project: "Codecast" })).values;
+    expect(resolveLineProfile(values).profile).toEqual({
+      ...LINE_PROFILE_DEFAULTS,
+      project: 'Codecast "core"',
+      team: "Union",
+    });
+    const bare = parseLineProfileText(
+      starterLineProfile({ project: "Codecast" }),
+    ).values;
     expect(bare.team).toBeUndefined();
     expect(bare.finders).toBeUndefined();
   });

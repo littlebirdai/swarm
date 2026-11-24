@@ -2,9 +2,25 @@ import assert from "node:assert/strict";
 import { mock } from "bun:test";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: "http://localhost/" });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "CustomEvent", "getComputedStyle"]) {
-  Object.defineProperty(globalThis, key, { configurable: true, value: (dom.window as any)[key] });
+const dom = new JSDOM(
+  '<!doctype html><html><body><div id="root"></div></body></html>',
+  { url: "http://localhost/" },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "CustomEvent",
+  "getComputedStyle",
+]) {
+  Object.defineProperty(globalThis, key, {
+    configurable: true,
+    value: (dom.window as any)[key],
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -13,18 +29,27 @@ for (const key of ["window", "document", "navigator", "HTMLElement", "Element", 
 let fetched: unknown = undefined;
 mock.module("../../../hooks/useMissingSessionRow", () => ({
   useMissingSessionRow: (id: string | null) => (id ? fetched : undefined),
-  useMissingSessionLookup: (id: string | null) => ({ row: id ? fetched : undefined, failed: false }),
+  useMissingSessionLookup: (id: string | null) => ({
+    row: id ? fetched : undefined,
+    failed: false,
+  }),
 }));
 mock.module("../../../app/inbox/QueuePageClient", () => ({
-  SessionPage: ({ sessionId }: { sessionId: string }) => <div data-conversation={sessionId} />,
+  SessionPage: ({ sessionId }: { sessionId: string }) => (
+    <div data-conversation={sessionId} />
+  ),
 }));
 mock.module("../../ConversationPlaceholder", () => ({
-  ConversationPlaceholder: ({ id }: { id: string }) => <div data-placeholder={id} />,
+  ConversationPlaceholder: ({ id }: { id: string }) => (
+    <div data-placeholder={id} />
+  ),
 }));
 // The shared unavailable note, reduced to a marker that carries the action the
 // pane offers, so the test asserts which state renders rather than its copy.
 mock.module("../../ConversationUnavailable", () => ({
-  ConversationUnavailable: ({ actionLabel }: { actionLabel?: string }) => <div data-unavailable={actionLabel ?? ""} />,
+  ConversationUnavailable: ({ actionLabel }: { actionLabel?: string }) => (
+    <div data-unavailable={actionLabel ?? ""} />
+  ),
 }));
 
 const { act } = await import("react");
@@ -34,11 +59,24 @@ const { useInboxStore } = await import("../../../store/inboxStore");
 
 const root = createRoot(document.getElementById("root")!);
 const q = (sel: string) => document.querySelector(sel);
-const row = (id: string) => ({ _id: id, session_id: id, title: "Teammate session", updated_at: 1, agent_type: "claude_code", message_count: 3, is_idle: true, has_pending: false });
+const row = (id: string) => ({
+  _id: id,
+  session_id: id,
+  title: "Teammate session",
+  updated_at: 1,
+  agent_type: "claude_code",
+  message_count: 3,
+  is_idle: true,
+  has_pending: false,
+});
 let n = 0;
 const mount = async (id: string) => {
-  await act(async () => { root.render(<SessionPane key={n++} sessionId={id} onClose={() => {}} />); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+  await act(async () => {
+    root.render(<SessionPane key={n++} sessionId={id} onClose={() => {}} />);
+  });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 20));
+  });
 };
 
 useInboxStore.setState({ sessions: {}, pending: {} } as any);
@@ -52,21 +90,44 @@ assert.equal(q("[data-unavailable]"), null, "loading never says unavailable");
 // Found: the row lands in the store and the conversation renders from it.
 fetched = row("teammate1");
 await mount("teammate1");
-assert.equal((useInboxStore.getState().sessions as any).teammate1?.title, "Teammate session", "the fetched row is seeded");
-assert.ok(q('[data-conversation="teammate1"]'), "the conversation renders once seeded");
-assert.equal(useInboxStore.getState().currentSessionId ?? null, null, "seeding never moves the view");
+assert.equal(
+  (useInboxStore.getState().sessions as any).teammate1?.title,
+  "Teammate session",
+  "the fetched row is seeded",
+);
+assert.ok(
+  q('[data-conversation="teammate1"]'),
+  "the conversation renders once seeded",
+);
+assert.equal(
+  useInboxStore.getState().currentSessionId ?? null,
+  null,
+  "seeding never moves the view",
+);
 
 // Unavailable: the honest note.
 fetched = null;
 await mount("gone1");
-assert.equal(q("[data-unavailable]")?.getAttribute("data-unavailable"), "Close pane", "a row the server withholds reads as unavailable, with a way to close the pane");
+assert.equal(
+  q("[data-unavailable]")?.getAttribute("data-unavailable"),
+  "Close pane",
+  "a row the server withholds reads as unavailable, with a way to close the pane",
+);
 
 // Killed locally: stays out even though the server still has it.
-useInboxStore.setState({ pending: { "sessions:killed1": { type: "exclude" } } } as any);
+useInboxStore.setState({
+  pending: { "sessions:killed1": { type: "exclude" } },
+} as any);
 fetched = row("killed1");
 await mount("killed1");
-assert.ok(!(useInboxStore.getState().sessions as any).killed1, "a locally killed session is not seeded back");
-assert.ok(q("[data-unavailable]"), "a locally killed session reads as unavailable");
+assert.ok(
+  !(useInboxStore.getState().sessions as any).killed1,
+  "a locally killed session is not seeded back",
+);
+assert.ok(
+  q("[data-unavailable]"),
+  "a locally killed session reads as unavailable",
+);
 
 await act(async () => root.unmount());
 console.log("session pane missing row verified");

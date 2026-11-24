@@ -10,17 +10,17 @@ role, the Head of People, with a routine that reviews the company on a cadence.
 
 The words the product uses, on every surface and in every prompt:
 
-| Word | Meaning | Row |
-|---|---|---|
-| Company | The workspace (a team, or a person's personal workspace) | teams / users |
-| Executive | A person. Owns budget, answers decisions, hires roles | users |
-| Manager (role) | A standing agent with a scope, a charter, a brief, a budget | org_roles |
-| Contributor (hand) | A session doing one piece of work; transient | conversations |
-| Business line (project) | A lasting area of work with a charter | projects |
-| Program (plan) | A bounded effort under a project with a goal and criteria | plans |
-| Budget | Daily caps on a role (hands, wakes, tokens); rolled up the line | org_roles.caps |
-| Staffing | Which roles exist, their scope, who they report to, their budget | org_proposals |
-| Head of People | The role that reviews the company and proposes staffing | org_roles (handle head-of-people) |
+| Word                    | Meaning                                                          | Row                               |
+| ----------------------- | ---------------------------------------------------------------- | --------------------------------- |
+| Company                 | The workspace (a team, or a person's personal workspace)         | teams / users                     |
+| Executive               | A person. Owns budget, answers decisions, hires roles            | users                             |
+| Manager (role)          | A standing agent with a scope, a charter, a brief, a budget      | org_roles                         |
+| Contributor (hand)      | A session doing one piece of work; transient                     | conversations                     |
+| Business line (project) | A lasting area of work with a charter                            | projects                          |
+| Program (plan)          | A bounded effort under a project with a goal and criteria        | plans                             |
+| Budget                  | Daily caps on a role (hands, wakes, tokens); rolled up the line  | org_roles.caps                    |
+| Staffing                | Which roles exist, their scope, who they report to, their budget | org_proposals                     |
+| Head of People          | The role that reviews the company and proposes staffing          | org_roles (handle head-of-people) |
 
 A proposal is staffing and budgeting in one: it moves scope, people and budget.
 
@@ -214,6 +214,7 @@ A proposed thing wears one quiet mark on the chart: the tint and outline
 (`changeFrameStyle`, `orgMeta.ts`) with its icon in violet. Its tag is a plain
 word, its chips are solid, and no card, tag, chip or edge on the chart is
 dashed. A chart full of proposals must still read as a chart.
+
 - adopt: a ghost node marked "this session" when the viewer is looking from the session that offered.
 
 Every ghost carries an action row: Approve, Reject, Reply, Edit. The first
@@ -796,7 +797,7 @@ only, not records, leads, initiatives or sessions.
 
 **One log.** `org_changes`, append only, one row per thing that changed the
 organization, written inside the transaction that changed it, at the few
-cores every door already goes through (the proposal apply core, 
+cores every door already goes through (the proposal apply core,
 `performUpdateRole`, `performRetireRole`, the reparent core and its batch
 form, `performSetProjectLead`, `performCoverProjects`, the seat, escalation
 is not an org change and is not logged here). A row carries: the workspace
@@ -833,6 +834,7 @@ The log only ever grows, so it stays an audit trail.
 preview built by a dry run of the inverse, the same pattern as the takeover
 count: the sentence for each thing that will change back, and, stated
 plainly, what will not:
+
 - A row whose subject changed again since is left alone and named ("3 of
   100 records were changed after this and stay as they are"): undo never
   overwrites a later decision by a person or another change.
@@ -1114,7 +1116,7 @@ Written 2026-09-30. The org page's health panel ("Company health", the staffing 
 
 **Needs you.** Only what a person must act on now: decisions the org routed to them (a lead's `cast decide` in its own thread, or one from a session under a role that no role could answer, read from the person's own decision queue), a role whose standing session declared itself waiting on a person, and a proposal still open that the pane is not already showing. A single-choice decision answers in place; everything else opens in one click. A decision and a blocked pin from the same thread are one ask. Empty, it says "Nothing needs you."
 
-**Areas.** One row per role in tree order (the Head of People first, then each person's roles with their reports under them; retired roles left out): the face, the name, one status word, and the role's latest dated line from `## Where it stands` in its brief. The status is derived on the server from measures that exist in today's product and nothing else, most pressing first: *waiting on you* (its standing session declared blocked, or stopped on a prompt), *stuck* (a session under it waiting more than a day unanswered, a task in review more than a day, an open task whose session reported blocked), *overloaded* (more reached it this week than one role answers: `orgCapacity.isOverloaded`, said in words), *quiet* (nothing moved in its area for two weeks), else *on track*; *paused* and *not started* read from the role row. A row opens inline to its goals and progress (each project in its area with its goal and this week's counts), the sessions waiting under it (oldest first, each opening the session), at most three signals in plain words that change what a person would do, its check (last, next, pause, run now, the cadence editable in place, "change" to the trigger's page), and "Ask @role", one line into the role's own thread. Signals that matter only to structure (span, an unowned project, a stale record, a wide ledger) never reach a row; they are inputs to the Head of People's review.
+**Areas.** One row per role in tree order (the Head of People first, then each person's roles with their reports under them; retired roles left out): the face, the name, one status word, and the role's latest dated line from `## Where it stands` in its brief. The status is derived on the server from measures that exist in today's product and nothing else, most pressing first: _waiting on you_ (its standing session declared blocked, or stopped on a prompt), _stuck_ (a session under it waiting more than a day unanswered, a task in review more than a day, an open task whose session reported blocked), _overloaded_ (more reached it this week than one role answers: `orgCapacity.isOverloaded`, said in words), _quiet_ (nothing moved in its area for two weeks), else _on track_; _paused_ and _not started_ read from the role row. A row opens inline to its goals and progress (each project in its area with its goal and this week's counts), the sessions waiting under it (oldest first, each opening the session), at most three signals in plain words that change what a person would do, its check (last, next, pause, run now, the cadence editable in place, "change" to the trigger's page), and "Ask @role", one line into the role's own thread. Signals that matter only to structure (span, an unowned project, a stale record, a wide ledger) never reach a row; they are inputs to the Head of People's review.
 
 **The Head of People's read.** Its latest read of the company: the `Company:` line it writes under `## Where it stands` at the end of every review (the prompt asks for it; the trigger's last run summary stands in until the first), its newest proposal with how far it is decided, the next review with its trigger (cadence editable, Review now, pause), and the composer into its thread, which is where a person iterates on the structure.
 
@@ -1123,8 +1125,6 @@ Written 2026-09-30. The org page's health panel ("Company health", the staffing 
 **Continuous.** The loop keeps itself current without the person asking. Signals are live, roles write their line at every check, and a change that lasts reaches the Head of People through the trigger system the way a waiting session reaches a lead (S28): one event trigger on the Head of People's standing session, "An area needs your review" (`lib/orgRoutine.HEAD_AREA_CHANGE_SPEC`, event `org_area_change`), armed with its routine and route up (`ensureRoleEventTriggers`), visible and controllable on its page, fired once per episode with the change in its frame (`triggerFrameFor` carries an `<area-change>` block beside the waiting session; the run block draws it). The area watch (`orgWatch.ts`, a cron every six hours) reads health for every workspace with a live Head of People, remembers each area's status on its role row (`org_roles.area_watch`: status, since, passes, told), and fires when a status that needs the Head of People (stuck, overloaded) has held across two passes in a row and was not yet told for this episode, and once for each project with work and no owner (`org_roles.unowned_told` on the Head of People, pruned when the project gains an owner). A paused or cancelled trigger, or a workspace with the org off, is not told and the episode still counts as told, so nothing fires twice when it comes back; the panel shows the status live either way. What needs a person (waiting on you) never goes to the Head of People: it is already in front of the person.
 
 **What is gone.** The findings list, the roles-per-person bar, the strain chips, `spanOfControl` and `bottleneckRoles`, and every place the panel read a flag's detail to a person. `FLAG_LABEL` and the node badges on the chart stay for the flags that remain.
-
-
 
 **An overload says why (2026-10-02).** A lead's overload alert ("11 sessions at once, 15 threads stuck, 3 days at its daily limit") did not say where the load came from. Health now names how each session under a role reached it, by the route S35 defines: `task` (bound to a task in its area), `plan` (bound to a plan), `filed` (`conversations.org_role_hold === "filed"`: a person's drag, the owner menu, `cast org reparent`, the role's own hand start), or `folder` (under the role with neither a hold stamp nor a binding: the retired folder rule put it there, until `migrations:releaseFolderHeldSessions` hands it back). The reading is `orgAreas.handRouteOf` over the row's own facts; `org.health` carries `area.reached` (counts by route) and `area.sessions` (each session with its route, capped at 40). The overloaded status line and signal end with `reachedSentence`: "Most of its 11 sessions reached it by the folder rule (9); the rest 2 through a task." The area watch's alert carries the status line, so the Head of People reads the cause in the frame; `cast org health` prints a `reached` line per role and the panel's opened row shows the breakdown.
 
@@ -1138,11 +1138,11 @@ Written 2026-10-02, from the founder. The one root role carried two jobs: it rev
 
 **Executive Assistant** is a role (an `org_roles` row, so it has a face, a brief, a standing session, triggers, a page and a seat in the inbox like any role) marked by `org_roles.assistant?: { reach: "global" } | { reach: "team"; team_id }`. It names no scope and owns no work (S26 already allows the standing role). What tells one from another is where its row lives (ACCESS) and what it reaches (its brief and routine):
 
-| kind | row lives in | reaches | who sees its thread |
-|---|---|---|---|
-| global (the default hire) | the person's boundary, `user:<id>` | every workspace the person is in | the person alone |
-| personal, for one team | `user:<id>`, `assistant.team_id` set | that team's work | the person alone |
-| team | the team's boundary, `team:<id>` | that team | every member; the hirer hosts it |
+| kind                      | row lives in                         | reaches                          | who sees its thread              |
+| ------------------------- | ------------------------------------ | -------------------------------- | -------------------------------- |
+| global (the default hire) | the person's boundary, `user:<id>`   | every workspace the person is in | the person alone                 |
+| personal, for one team    | `user:<id>`, `assistant.team_id` set | that team's work                 | the person alone                 |
+| team                      | the team's boundary, `team:<id>`     | that team                        | every member; the hirer hosts it |
 
 It runs on its host's daemon as every role does, so it sees exactly what its host can see and nothing more. The global one reaches across workspaces with no new query and no new grant: its session is personal, and it reads each workspace the way the person does from a shell, `--team` on every write and the read defaults of `resolveWorkspaceForRead` (CLAUDE.md, "reads may default, writes must be explicit"). The server never joins across boundaries for it; `listAnchors` already returns every row the viewer may see, personal and per team, and that is what the header draws from. A personal per team assistant is the same row shape with its working directory and brief pointed at one team. A team assistant's thread is team visible through the same chokepoint a team seat uses today (`patchConversationVisibility` in `provisionStandingAgent`). Several assistants may stand in one boundary; the default handle is `executive-assistant` for the first and `executive-assistant-<team slug>` for a personal per team one, and the hire form lets the person change it as for any role.
 
@@ -1187,7 +1187,7 @@ about it has nothing to hand over, and is not asked.
    why, direction, verified and not, open questions, people and threads, next
    steps), delivered with `cast role handoff @receiver -`. The body lands at
    the end of the receiver's brief as `## Handed over from @outgoing (date):
-   <areas>` and wakes the receiver with one line.
+<areas>` and wakes the receiver with one line.
 4. Marks the outgoing role `handing_over` (reason, deadline, receivers, the
    trigger). The role page shows the banner: who takes what, who has been
    handed, the deadline, "Hand over now" and "Close now".
@@ -1399,7 +1399,6 @@ the caller, the target and the anchors and builds the roster; a landing is
 `route@<team>:<ct-N>` and `route@fixture:<case>`; gates `parse`, `no-misfile`,
 `owner-known`).
 
-
 ## S36. Goals on the chart, and the chart beside a conversation
 
 Written 2026-10-04. The chart drew who reports to whom. It now also draws
@@ -1469,13 +1468,13 @@ parent, one row per change. The card joins and nests those rows
 resolves a goal ref, an owner ref or a parent a second time, and a tag reads
 the same word in both places.
 
-| Change | Drawn as |
-|---|---|
-| `initiative` | A ghost goal under its parent (or under the company), the word "new", its projects as ghost rows beneath it (or reference chips, when a live goal already draws them), its owner's face, a violet line for its metrics |
-| `initiative_shape` with a parent | The goal under its new parent, tag "moves here" (or "to the top"), with a line "was under X" |
-| `initiative_shape` with metrics | A violet line on the goal: the metrics and their targets |
-| `initiative_projects` | Ghost project rows under the goal, tag "added" |
-| `initiative_owner` | The new owner's face on the goal and a violet line "owner X"; pointing at the goal shows a violet edge to the new owner and a faint one to the old |
+| Change                           | Drawn as                                                                                                                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `initiative`                     | A ghost goal under its parent (or under the company), the word "new", its projects as ghost rows beneath it (or reference chips, when a live goal already draws them), its owner's face, a violet line for its metrics |
+| `initiative_shape` with a parent | The goal under its new parent, tag "moves here" (or "to the top"), with a line "was under X"                                                                                                                           |
+| `initiative_shape` with metrics  | A violet line on the goal: the metrics and their targets                                                                                                                                                               |
+| `initiative_projects`            | Ghost project rows under the goal, tag "added"                                                                                                                                                                         |
+| `initiative_owner`               | The new owner's face on the goal and a violet line "owner X"; pointing at the goal shows a violet edge to the new owner and a faint one to the old                                                                     |
 
 A proposed change is a ghost, an accepted one is drawn solid until the store
 carries it, an applied or skipped one draws nothing. An owner nothing answers
@@ -1524,11 +1523,11 @@ Written 2026-10-04. A card on the chart says more the closer you look. The
 canvas zoom picks one of three levels for every card (`orgZoom.ts`,
 `useZoomLevel`), and nothing else changes: there is no second view.
 
-| Level | Zoom | A goal | A role or a person |
-|---|---|---|---|
-| far | under 0.55 | The title, large, and its health dot | The name, large, and one dot in the seat's colour |
-| middle | 0.55 to 1.15 | The card: owner face, the first metric against its target, the health word, how many projects carry it, a line per proposed change | The card as before: standing line, area, session counts |
-| close | from 1.15 | Under a rule: the description, every metric with its latest value, trend and date, the next milestone, the latest update in its owner's words, the sessions working under its projects now. A project row adds its number, status and lead; an owner card its standing line | The line under the name moves to a row of its own so the name, the title and the session count read whole; the changes on the card become a line each instead of a row of chips; then the charter line, the role's open work (open tasks, in flight, active plans: `org.health`'s ledger for its area) and the sessions running now |
+| Level  | Zoom         | A goal                                                                                                                                                                                                                                                                      | A role or a person                                                                                                                                                                                                                                                                                                                  |
+| ------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| far    | under 0.55   | The title, large, and its health dot                                                                                                                                                                                                                                        | The name, large, and one dot in the seat's colour                                                                                                                                                                                                                                                                                   |
+| middle | 0.55 to 1.15 | The card: owner face, the first metric against its target, the health word, how many projects carry it, a line per proposed change                                                                                                                                          | The card as before: standing line, area, session counts                                                                                                                                                                                                                                                                             |
+| close  | from 1.15    | Under a rule: the description, every metric with its latest value, trend and date, the next milestone, the latest update in its owner's words, the sessions working under its projects now. A project row adds its number, status and lead; an owner card its standing line | The line under the name moves to a row of its own so the name, the title and the session count read whole; the changes on the card become a line each instead of a row of chips; then the charter line, the role's open work (open tasks, in flight, active plans: `org.health`'s ledger for its area) and the sessions running now |
 
 The goal card's health, metric, milestone and update lines are the intent
 layer's atoms (`InitiativeAtoms`: `HealthChip`, `MetricReadingLine`,
@@ -1570,13 +1569,13 @@ A role that runs for months learns things its next run would otherwise learn aga
 
 **The playbook is five sections of the brief**, written by the role with `cast brief edit -`, beside "Where it stands". Each is a list, one line per entry, and each line carries its date, so the wake frame, the role page and the learning loop read the same sentences (`packages/shared/contracts/rolePlaybook.ts`, built on the `briefStanding.ts` line reader).
 
-| Section | A line holds |
-| --- | --- |
-| `## North metric` | A first line naming the one number the area is read by, then one reading per line, dated. The role keeps the recent readings and the milestones and drops the rest |
-| `## Rules learned` | The rule, the mistake that taught it (`Learned from:`), the date |
-| `## Refuted` | What turned out false and what showed it, the date, so it is not chased again |
-| `## Standing decisions` | What was decided, who decided it, when |
-| `## Open threads` | What is open and what it waits for, when it opened, when it is due |
+| Section                 | A line holds                                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `## North metric`       | A first line naming the one number the area is read by, then one reading per line, dated. The role keeps the recent readings and the milestones and drops the rest |
+| `## Rules learned`      | The rule, the mistake that taught it (`Learned from:`), the date                                                                                                   |
+| `## Refuted`            | What turned out false and what showed it, the date, so it is not chased again                                                                                      |
+| `## Standing decisions` | What was decided, who decided it, when                                                                                                                             |
+| `## Open threads`       | What is open and what it waits for, when it opened, when it is due                                                                                                 |
 
 A section the role has nothing for is left out. `cast brief` prints the shape of an entry in each section under the brief, at every read, so the format lives in one place and the wake prompt carries none of it. It prints them every time, not only for a section the brief lacks: in the first dry runs the shapes showed only for missing sections, and a role condensing a full brief kept the facts and dropped every date and every "Learned from", which left a brief no reader could parse.
 
@@ -1602,13 +1601,13 @@ Written 2026-10-05. A proposal used to draw its changes as a small tree in a con
 
 **One card per subject.** `proposalSubjects(changes, live)` (`components/org/proposalSubjects.ts`, pure, built on `proposalChangeRows` so no ref is resolved twice) groups one proposal's changes by what they change:
 
-| Changes | One card for |
-| --- | --- |
-| Everything on one handle: a new role, its move, what it looks after, its routine, its session, a retirement | that role |
-| A new goal, where it sits, how it is measured, the projects that carry it, its owner | that goal |
-| A project's priority, lead and status | that project |
-| A plan's status, and where it is filed | that plan; the tasks it closes ride with it, named under "Closes with it" |
-| A task's status | that task |
+| Changes                                                                                                     | One card for                                                              |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Everything on one handle: a new role, its move, what it looks after, its routine, its session, a retirement | that role                                                                 |
+| A new goal, where it sits, how it is measured, the projects that carry it, its owner                        | that goal                                                                 |
+| A project's priority, lead and status                                                                       | that project                                                              |
+| A plan's status, and where it is filed                                                                      | that plan; the tasks it closes ride with it, named under "Closes with it" |
+| A task's status                                                                                             | that task                                                                 |
 
 A limit is never a row or a number on a card (S23.2): it rides with its role's card and is decided with it. A proposal that holds only a limit draws one plain sentence. A removed change is in no card. Cards are ordered goals, projects, roles, plans, tasks; goals and roles parents first, projects by the priority the proposal leaves them with.
 
@@ -1630,13 +1629,13 @@ A limit is never a row or a number on a card (S23.2): it rides with its role's c
 
 **A decided card reads the stamp.**
 
-| The change is | Before comes from |
-| --- | --- |
-| waiting, or failed (a failed apply wrote nothing) | the live record |
-| approved, not yet applied | the live record; a field that already reads as the new value is drawn with no before |
-| applied | the stamp; with no stamp, only what was set |
-| rejected | nothing: the card shows what was proposed |
-| any, in a proposal of another workspace | nothing: the reader's own records are not that company's |
+| The change is                                     | Before comes from                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| waiting, or failed (a failed apply wrote nothing) | the live record                                                                      |
+| approved, not yet applied                         | the live record; a field that already reads as the new value is drawn with no before |
+| applied                                           | the stamp; with no stamp, only what was set                                          |
+| rejected                                          | nothing: the card shows what was proposed                                            |
+| any, in a proposal of another workspace           | nothing: the reader's own records are not that company's                             |
 
 **Order of shipping.** The fields are optional, so Convex goes first and an older web ignores them. A change ref on a client older than the renderer is the proposal's pill followed by plain text.
 
@@ -1674,11 +1673,11 @@ working", `stateWords`), with the bar for the proportion and the whole tally
 on hover. On the People filter the reporting chart draws no session stacks
 (`view.sessionCards: false`); the cards say the same words.
 
-| Filter | What it draws |
-|---|---|
+| Filter               | What it draws                                                                                                                                                                                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Everything (default) | The outline, and beside it every person and active role in a fixed order (people, me first; roles by name): face, owns N, "under X" for a role, sessions in words. The order does not depend on the proposal, so the column reads the same with the overlay on and off |
-| Goals | The outline alone |
-| People | Who reports to whom: `layoutOrgTree` with the counts on the cards |
+| Goals                | The outline alone                                                                                                                                                                                                                                                      |
+| People               | Who reports to whom: `layoutOrgTree` with the counts on the cards                                                                                                                                                                                                      |
 
 **As proposed** overlays the open proposal on whichever filter is on, in the
 quiet violet mark every proposal wears: goal changes through `goalsPlan`
@@ -1740,6 +1739,7 @@ Written 2026-10-07. This section supersedes the split of S41 (a conversation bes
 **The gate.** The team feature `org` gates only the left pane. With it off, `/org` is the company alone: the document, the map and the sheets, with no conversation and no seam. Goals, projects and people do not need agents.
 
 **This week.** The health page (S29) is folded into the screen; its three parts each have a better home.
+
 - The picture: on the map's People filter, the corner's **This week** toggle (`?week=1`) draws each role card as its week (work that reached it against work it closed, day by day, and the signals that need a person) and the reporting lines as the work flowing down them, with handoffs between roles drawn across the tree (`OrgGraph`'s `flow` mode, numbers from `orgFlow.ts`). The open role sheet's lines stay lit. A health read that failed is said in the map's corner, never drawn as a quiet company. Leaving People or choosing Read drops the week from the address, and an address that asks for it shows the map.
 - A role's week: the role sheet's **This week** section shows the same card (`RoleWeekBody`), its fix loop, and behind **What if** its two levers (`RoleLevers`, `healthParts.tsx`): its daily limit replayed over the week and set in place, and part of its work handed to another role, asked of the Head of People.
 - The controls: pause, resume and run now live on the role's Triggers tab, and its daily limits in its Settings tab.

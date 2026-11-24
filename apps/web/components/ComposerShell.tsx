@@ -1,4 +1,11 @@
-import { forwardRef, type FormEventHandler, type ReactElement, type ReactNode, type Ref, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  type FormEventHandler,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  type TextareaHTMLAttributes,
+} from "react";
 import { ListEnd } from "lucide-react";
 import { ComposerFade } from "./ComposerFade";
 import { composerColumn, FIELD_SIZING_STYLE } from "./composerLayout";
@@ -72,9 +79,16 @@ export function ComposerShell({
   // "MODERN · COMPOSER"): only the conversation's docked one changes shape.
   const variant = bare ? "bare" : inline ? "inline" : hero ? "hero" : "dock";
   return (
-    <div ref={rootRef} data-sv-composer className={`shrink-0 pointer-events-none ${inline || hero ? "" : "sticky bottom-0"} ${lightboxOpen ? "z-[10002]" : "z-10"}`}>
+    <div
+      ref={rootRef}
+      data-sv-composer
+      className={`shrink-0 pointer-events-none ${inline || hero ? "" : "sticky bottom-0"} ${lightboxOpen ? "z-[10002]" : "z-10"}`}
+    >
       {!lightboxOpen && !inline && !hero && <ComposerFade />}
-      <div data-cc-composer-frame={variant} className={`${inline || hero ? "" : bare ? "pb-4" : "pb-3"} pointer-events-auto ${!lightboxOpen && !inline && !hero ? "bg-sol-bg" : ""}`}>
+      <div
+        data-cc-composer-frame={variant}
+        className={`${inline || hero ? "" : bare ? "pb-4" : "pb-3"} pointer-events-auto ${!lightboxOpen && !inline && !hero ? "bg-sol-bg" : ""}`}
+      >
         <div data-cc-composer-stack={variant} className="relative">
           {before}
           {/* The composer's status line: always one row tall, so focusing the
@@ -82,22 +96,33 @@ export function ComposerShell({
               left side carries the live status (or nothing); the right side
               is the send-options "?" and the permission mode dot. */}
           {!bare && (
-            <div data-cc-composer-meta className={`mx-auto mb-1 min-h-[18px] flex justify-between items-center ${colClass} ${lightboxOpen ? "hidden" : ""}`}>
-              <p className="text-meta text-sol-text-muted pl-1">
-                {meta}
-              </p>
-              <div data-cc-composer-controls className="flex items-center gap-2">
+            <div
+              data-cc-composer-meta
+              className={`mx-auto mb-1 min-h-[18px] flex justify-between items-center ${colClass} ${lightboxOpen ? "hidden" : ""}`}
+            >
+              <p className="text-meta text-sol-text-muted pl-1">{meta}</p>
+              <div
+                data-cc-composer-controls
+                className="flex items-center gap-2"
+              >
                 {metaEnd}
               </div>
             </div>
           )}
           {between}
-          <form onSubmit={onSubmit} className={bare ? "w-full" : `mx-auto ${colClass}`}>
+          <form
+            onSubmit={onSubmit}
+            className={bare ? "w-full" : `mx-auto ${colClass}`}
+          >
             {/* A zero-height anchor at the field's top edge: positioning the
                 form itself would paint the field over the status controls
                 that Modern lays into its footer. */}
             {!bare && tab && <div className="relative h-0">{tab}</div>}
-            <div data-composer-field={composeMode ? "" : undefined} data-cc-composer-box={variant} className={`flex flex-col ${bare ? "" : "border"} transition-colors duration-150 ${bare ? "px-2.5 py-0.5 rounded-lg bg-sol-text/[0.04] focus-within:bg-sol-text/[0.07]" : inline ? "border px-3 py-1.5 rounded-xl bg-sol-bg-alt" : hero ? "border px-4 pt-3 pb-1 rounded-2xl shadow-lg bg-sol-bg-alt focus-within:border-sol-cyan/50 [&_textarea]:min-h-[4.5rem]" : `border px-4 py-2 shadow-lg bg-sol-bg-alt ${expanded ? "rounded-2xl" : "rounded-full"}`} ${composeMode ? "min-h-[min(40vh,var(--composer-max-h,40vh))] max-h-[var(--composer-max-h,45vh)]" : ""} ${selectionActive ? "border-sol-cyan/40 ring-1 ring-sol-cyan/20" : composeMode ? "border-sol-cyan/20" : bare ? "" : hero ? "border-sol-border/60" : "border-sol-border"}`}>
+            <div
+              data-composer-field={composeMode ? "" : undefined}
+              data-cc-composer-box={variant}
+              className={`flex flex-col ${bare ? "" : "border"} transition-colors duration-150 ${bare ? "px-2.5 py-0.5 rounded-lg bg-sol-text/[0.04] focus-within:bg-sol-text/[0.07]" : inline ? "border px-3 py-1.5 rounded-xl bg-sol-bg-alt" : hero ? "border px-4 pt-3 pb-1 rounded-2xl shadow-lg bg-sol-bg-alt focus-within:border-sol-cyan/50 [&_textarea]:min-h-[4.5rem]" : `border px-4 py-2 shadow-lg bg-sol-bg-alt ${expanded ? "rounded-2xl" : "rounded-full"}`} ${composeMode ? "min-h-[min(40vh,var(--composer-max-h,40vh))] max-h-[var(--composer-max-h,45vh)]" : ""} ${selectionActive ? "border-sol-cyan/40 ring-1 ring-sol-cyan/20" : composeMode ? "border-sol-cyan/20" : bare ? "" : hero ? "border-sol-border/60" : "border-sol-border"}`}
+            >
               {fieldTop}
               {children}
               {hero && foot}
@@ -141,11 +166,13 @@ export function ComposerTextRow({
           grows the box and the textarea stretches to cover it. The 12rem
           basis is the narrowest the field may get beside the cluster: below
           it the cluster wraps under, whatever the fit measurement said. */}
-      <div className="grid flex-[1_1_12rem] min-w-0">
-        {children}
-      </div>
+      <div className="grid flex-[1_1_12rem] min-w-0">{children}</div>
       {(actions || send) && (
-        <div ref={sendRef} data-cc-composer-send className={`shrink-0 ml-auto flex items-center gap-1 ${tucked ? "basis-full justify-end" : ""}`}>
+        <div
+          ref={sendRef}
+          data-cc-composer-send
+          className={`shrink-0 ml-auto flex items-center gap-1 ${tucked ? "basis-full justify-end" : ""}`}
+        >
           {actions}
           {send}
         </div>
@@ -159,7 +186,13 @@ export function ComposerTextRow({
  * the surface's own controls on the left, the send cluster pinned right, all
  * on one centre line.
  */
-export function ComposerFoot({ start, end }: { start?: ReactNode; end: ReactNode }) {
+export function ComposerFoot({
+  start,
+  end,
+}: {
+  start?: ReactNode;
+  end: ReactNode;
+}) {
   return (
     <div className="flex items-center gap-1.5 min-h-[36px] pt-0.5 pb-1.5">
       <div className="flex flex-1 min-w-0 items-center gap-1.5">{start}</div>
@@ -172,19 +205,20 @@ export function ComposerFoot({ start, end }: { start?: ReactNode; end: ReactNode
  * The autosizing composer textarea. `dim` greys the text while a rewrite
  * still holds the original message unedited.
  */
-export const ComposerTextarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & { dim?: boolean }>(
-  function ComposerTextarea({ dim = false, ...props }, ref) {
-    return (
-      <textarea
-        ref={ref}
-        {...props}
-        rows={1}
-        style={FIELD_SIZING_STYLE}
-        className={`block w-full [grid-area:1/1] bg-transparent text-sm placeholder:text-sol-text-dim focus:outline-none disabled:opacity-50 resize-none overflow-y-auto max-h-[var(--composer-max-h,45vh)] leading-relaxed py-1 ${dim ? "text-sol-text-dim italic" : "text-sol-text"}`}
-      />
-    );
-  },
-);
+export const ComposerTextarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement> & { dim?: boolean }
+>(function ComposerTextarea({ dim = false, ...props }, ref) {
+  return (
+    <textarea
+      ref={ref}
+      {...props}
+      rows={1}
+      style={FIELD_SIZING_STYLE}
+      className={`block w-full [grid-area:1/1] bg-transparent text-sm placeholder:text-sol-text-dim focus:outline-none disabled:opacity-50 resize-none overflow-y-auto max-h-[var(--composer-max-h,45vh)] leading-relaxed py-1 ${dim ? "text-sol-text-dim italic" : "text-sol-text"}`}
+    />
+  );
+});
 
 /**
  * Send. Tinted cyan when the send is carried entirely by attached quotes, to
@@ -220,14 +254,31 @@ export function ComposerSendButton({
    *  square: its words (the mode's stopWorking) and what it does. */
   stop?: { label: string; onStop: () => void; accel?: string };
   /** Stop the running turn, then send. `wrap` puts a tooltip on the square. */
-  stopAndSend?: { onStopAndSend: () => void; wrap?: (square: ReactElement) => ReactNode };
+  stopAndSend?: {
+    onStopAndSend: () => void;
+    wrap?: (square: ReactElement) => ReactNode;
+  };
   /** Hold the text for the end of the running turn. `wrap` puts a tooltip on it. */
-  queueSend?: { onQueue: () => void; wrap?: (button: ReactElement) => ReactNode };
+  queueSend?: {
+    onQueue: () => void;
+    wrap?: (button: ReactElement) => ReactNode;
+  };
   /** Wraps a button in a tooltip with its words and, when it can act, its key. */
   tip?: (button: ReactElement, label: string, accel?: string) => ReactNode;
 }) {
-  const tipped = (button: ReactElement, words: string, accel?: string, enabled = true) =>
-    tip ? tip(enabled ? button : <span className="inline-flex">{button}</span>, words, enabled ? accel : undefined) : button;
+  const tipped = (
+    button: ReactElement,
+    words: string,
+    accel?: string,
+    enabled = true,
+  ) =>
+    tip
+      ? tip(
+          enabled ? button : <span className="inline-flex">{button}</span>,
+          words,
+          enabled ? accel : undefined,
+        )
+      : button;
   const sendWords = title ?? "Send";
   if (stop && !bare) {
     return tipped(
@@ -261,31 +312,53 @@ export function ComposerSendButton({
       <div className="h-8 rounded-full border border-sol-blue/50 bg-sol-blue/20 flex items-stretch overflow-hidden">
         {stopAndSend.wrap ? stopAndSend.wrap(square) : square}
         <span aria-hidden className="w-px my-2 bg-sol-blue/30" />
-        {queueSend && (() => {
-          const button = (
-            <button
-              type="button"
-              onClick={queueSend.onQueue}
-              className="h-full px-2 flex items-center justify-center text-sol-text-muted transition-colors hover:text-sol-blue hover:bg-sol-blue/30"
-              aria-label="Send when this turn ends"
-              data-cc-queue-send=""
+        {queueSend &&
+          (() => {
+            const button = (
+              <button
+                type="button"
+                onClick={queueSend.onQueue}
+                className="h-full px-2 flex items-center justify-center text-sol-text-muted transition-colors hover:text-sol-blue hover:bg-sol-blue/30"
+                aria-label="Send when this turn ends"
+                data-cc-queue-send=""
+              >
+                <ListEnd className="w-4 h-4" aria-hidden />
+              </button>
+            );
+            return (
+              <>
+                {queueSend.wrap ? queueSend.wrap(button) : button}
+                <span aria-hidden className="w-px my-2 bg-sol-blue/30" />
+              </>
+            );
+          })()}
+        {tipped(
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className={`h-full pl-2 pr-2.5 flex items-center justify-center text-sol-blue transition-colors ${canSubmit ? "hover:bg-sol-blue/30" : "opacity-40 cursor-not-allowed"}`}
+            aria-label={queueSend ? "Send now" : "Send"}
+            data-cc-send=""
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden
             >
-              <ListEnd className="w-4 h-4" aria-hidden />
-            </button>
-          );
-          return <>{queueSend.wrap ? queueSend.wrap(button) : button}<span aria-hidden className="w-px my-2 bg-sol-blue/30" /></>;
-        })()}
-        {tipped(<button
-          type="submit"
-          disabled={!canSubmit}
-          className={`h-full pl-2 pr-2.5 flex items-center justify-center text-sol-blue transition-colors ${canSubmit ? "hover:bg-sol-blue/30" : "opacity-40 cursor-not-allowed"}`}
-          aria-label={queueSend ? "Send now" : "Send"}
-          data-cc-send=""
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-        </button>, queueSend && !title ? "Send now" : sendWords, "enter", canSubmit)}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 19V5M5 12l7-7 7 7"
+              />
+            </svg>
+          </button>,
+          queueSend && !title ? "Send now" : sendWords,
+          "enter",
+          canSubmit,
+        )}
       </div>
     );
   }
@@ -300,8 +373,19 @@ export function ComposerSendButton({
         data-cc-send-label={label}
       >
         {label}
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+        <svg
+          className="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 19V5M5 12l7-7 7 7"
+          />
         </svg>
       </button>,
       title ?? label,
@@ -311,7 +395,9 @@ export function ComposerSendButton({
   }
   const className = bare
     ? `w-6 h-6 rounded-md transition-colors flex items-center justify-center ${
-        !canSubmit ? "text-sol-text-dim/30 cursor-not-allowed" : "text-sol-cyan hover:bg-sol-cyan/10"
+        !canSubmit
+          ? "text-sol-text-dim/30 cursor-not-allowed"
+          : "text-sol-cyan hover:bg-sol-cyan/10"
       }`
     : `w-8 h-8 rounded-full transition-colors flex items-center justify-center border modern:border-transparent modern:bg-sol-cyan modern:text-sol-bg ${
         !canSubmit
@@ -328,8 +414,18 @@ export function ComposerSendButton({
       aria-label="Send"
       data-cc-send={bare ? undefined : ""}
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 19V5M5 12l7-7 7 7"
+        />
       </svg>
     </button>,
     sendWords,

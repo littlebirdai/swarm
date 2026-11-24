@@ -18,7 +18,12 @@ import {
   taskSessionHref,
 } from "../../lib/liveEntities";
 import { sessionPanePath, startPaneDrag } from "../../lib/stage";
-import { compactAge, threadStateView, THREAD_STATE_PIN_CLASS, THREAD_STATE_STATUS_META } from "../../lib/threadState";
+import {
+  compactAge,
+  threadStateView,
+  THREAD_STATE_PIN_CLASS,
+  THREAD_STATE_STATUS_META,
+} from "../../lib/threadState";
 import { getProjectName, useInboxStore } from "../../store/inboxStore";
 import { LivePulseDot } from "../SessionActivityLine";
 import { modernPill } from "../ui/modernLook";
@@ -51,7 +56,11 @@ export type TaskLinkedSession = {
 
 function rowIsLive(conv: TaskLinkedSession, now: number): boolean {
   // Heartbeat facts come from the store; the detail snapshot only has is_active.
-  if (conv.last_heartbeat != null || conv.producing_until != null || conv.daemon_alive_until != null) {
+  if (
+    conv.last_heartbeat != null ||
+    conv.producing_until != null ||
+    conv.daemon_alive_until != null
+  ) {
     return sessionLiveAt(conv, now);
   }
   return !!conv.is_active;
@@ -60,13 +69,28 @@ function rowIsLive(conv: TaskLinkedSession, now: number): boolean {
 function liveRowSig(row: any | undefined): string {
   if (!row) return "";
   return [
-    row.title, row.subtitle, row.headline, row.is_idle, row.updated_at, row.message_count,
-    row.agent_type, row.agent_status, row.git_branch, row.git_root, row.project_path,
-    row.thread_state, row.thread_state_status, row.thread_state_at, row.last_user_message,
+    row.title,
+    row.subtitle,
+    row.headline,
+    row.is_idle,
+    row.updated_at,
+    row.message_count,
+    row.agent_type,
+    row.agent_status,
+    row.git_branch,
+    row.git_root,
+    row.project_path,
+    row.thread_state,
+    row.thread_state_status,
+    row.thread_state_at,
+    row.last_user_message,
   ].join("\u0001");
 }
 
-function overlayLive(snapshot: TaskLinkedSession, live: any | undefined): TaskLinkedSession {
+function overlayLive(
+  snapshot: TaskLinkedSession,
+  live: any | undefined,
+): TaskLinkedSession {
   if (!live) return snapshot;
   return {
     ...snapshot,
@@ -111,7 +135,8 @@ export function TaskSessionRow({
 }) {
   const liveSig = useInboxStore((s) => liveRowSig(s.sessions[snapshot._id]));
   const conv = useMemo(
-    () => overlayLive(snapshot, useInboxStore.getState().sessions[snapshot._id]),
+    () =>
+      overlayLive(snapshot, useInboxStore.getState().sessions[snapshot._id]),
     // liveSig stands in for the churny sessions ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snapshot, liveSig],
@@ -126,16 +151,26 @@ export function TaskSessionRow({
   const project = getProjectName(conv.git_root, conv.project_path);
   const msgs = conv.message_count ?? 0;
   const age = conv.updated_at ? compactAge(now - conv.updated_at) : null;
-  const line = stateView?.cardLine && stateView.cardLine !== title
-    ? stateView.cardLine
-    : (!stateView ? (fallbackLine || cleanUserMessage(conv.last_user_message) || "") : (fallbackLine || ""));
-  const branch = conv.git_branch && conv.git_branch !== "main" && conv.git_branch !== "master" ? conv.git_branch : null;
+  const line =
+    stateView?.cardLine && stateView.cardLine !== title
+      ? stateView.cardLine
+      : !stateView
+        ? fallbackLine || cleanUserMessage(conv.last_user_message) || ""
+        : fallbackLine || "";
+  const branch =
+    conv.git_branch &&
+    conv.git_branch !== "main" &&
+    conv.git_branch !== "master"
+      ? conv.git_branch
+      : null;
 
   return (
     <div
       data-session-id={conv._id}
       draggable
-      onDragStart={(e) => startPaneDrag(e, { path: sessionPanePath(conv._id), title })}
+      onDragStart={(e) =>
+        startPaneDrag(e, { path: sessionPanePath(conv._id), title })
+      }
       className={`group relative rounded-md transition-colors hover:bg-sol-bg-alt/70 ${
         live
           ? "border-l-2 border-l-sol-green/50 bg-sol-green/[0.03]"
@@ -151,7 +186,14 @@ export function TaskSessionRow({
       <Link
         href={href}
         onClick={(e) => {
-          if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.button === 1) return;
+          if (
+            e.metaKey ||
+            e.ctrlKey ||
+            e.altKey ||
+            e.shiftKey ||
+            e.button === 1
+          )
+            return;
           e.preventDefault();
           onOpen(conv);
         }}
@@ -170,7 +212,9 @@ export function TaskSessionRow({
               titleClassName={prominent || live ? "font-medium" : undefined}
             />
             {origin && (
-              <span className={`flex-shrink-0 text-meta font-medium px-1 py-px rounded bg-sol-violet/10 text-sol-violet border border-sol-violet/25 ${modernPill({ tone: "violet" })}`}>
+              <span
+                className={`flex-shrink-0 text-meta font-medium px-1 py-px rounded bg-sol-violet/10 text-sol-violet border border-sol-violet/25 ${modernPill({ tone: "violet" })}`}
+              >
                 from
               </span>
             )}
@@ -178,37 +222,63 @@ export function TaskSessionRow({
             {live && (
               <span className="flex items-center gap-1 flex-shrink-0">
                 <LivenessDot state="active" size="xs" />
-                <span className="text-mark font-medium uppercase tracking-wider text-sol-green/70">live</span>
+                <span className="text-mark font-medium uppercase tracking-wider text-sol-green/70">
+                  live
+                </span>
               </span>
             )}
           </div>
-          {stateView && ((stateView.status && stateView.status !== "working") || line) ? (
-            <div className="mt-0.5 flex items-start gap-1 min-w-0" title={stateView.text}>
+          {stateView &&
+          ((stateView.status && stateView.status !== "working") || line) ? (
+            <div
+              className="mt-0.5 flex items-start gap-1 min-w-0"
+              title={stateView.text}
+            >
               <Pin
                 className={`w-2 h-2 mt-[3px] shrink-0 ${stateView.status ? THREAD_STATE_STATUS_META[stateView.status].dot : THREAD_STATE_PIN_CLASS[stateView.freshness]}`}
                 strokeWidth={2.4}
               />
               {stateView.status && stateView.status !== "working" && (
-                <span className={`shrink-0 mt-px px-1 py-0 rounded border text-mark font-semibold uppercase tracking-wide ${THREAD_STATE_STATUS_META[stateView.status].chip}`}>
+                <span
+                  className={`shrink-0 mt-px px-1 py-0 rounded border text-mark font-semibold uppercase tracking-wide ${THREAD_STATE_STATUS_META[stateView.status].chip}`}
+                >
                   {THREAD_STATE_STATUS_META[stateView.status].label}
                 </span>
               )}
-              {line ? <span className="text-meta text-sol-text-secondary truncate leading-snug">{line}</span> : null}
+              {line ? (
+                <span className="text-meta text-sol-text-secondary truncate leading-snug">
+                  {line}
+                </span>
+              ) : null}
             </div>
           ) : line ? (
-            <p className="mt-0.5 text-meta text-sol-text-muted truncate leading-snug">{line}</p>
+            <p className="mt-0.5 text-meta text-sol-text-muted truncate leading-snug">
+              {line}
+            </p>
           ) : null}
           <div className="mt-0.5 flex items-center gap-1.5 text-meta text-sol-text-dim/70 min-w-0">
             {project !== "unknown" && (
-              <span className={`flex items-center gap-1 min-w-0 font-medium ${getLabelColor(project).text}`}>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getLabelColor(project).dot}`} />
+              <span
+                className={`flex items-center gap-1 min-w-0 font-medium ${getLabelColor(project).text}`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getLabelColor(project).dot}`}
+                />
                 <span className="truncate">{project}</span>
               </span>
             )}
-            {msgs > 0 && <span className="tabular-nums flex-shrink-0">{msgs} msg{msgs === 1 ? "" : "s"}</span>}
-            {branch && <span className="font-mono truncate max-w-[7rem]">{branch}</span>}
+            {msgs > 0 && (
+              <span className="tabular-nums flex-shrink-0">
+                {msgs} msg{msgs === 1 ? "" : "s"}
+              </span>
+            )}
+            {branch && (
+              <span className="font-mono truncate max-w-[7rem]">{branch}</span>
+            )}
             {meta}
-            {age && <span className="tabular-nums flex-shrink-0 ml-auto">{age}</span>}
+            {age && (
+              <span className="tabular-nums flex-shrink-0 ml-auto">{age}</span>
+            )}
           </div>
         </div>
       </Link>
@@ -243,13 +313,19 @@ export function TaskSessionList({
   onOpen: (conv: TaskLinkedSession) => void;
 }) {
   const now = useCoarseNow(30_000);
-  const liveSig = useInboxStore((s) => sessions.map((c) => `${c._id}:${liveRowSig(s.sessions[c._id])}`).join("|"));
+  const liveSig = useInboxStore((s) =>
+    sessions.map((c) => `${c._id}:${liveRowSig(s.sessions[c._id])}`).join("|"),
+  );
   const rows = useMemo(() => {
     // The task's conversation ids and its comment trail can name one session
     // twice; one row per id keeps React keys unique.
     const seen = new Set<string>();
-    const unique = sessions.filter((c) => (seen.has(String(c._id)) ? false : (seen.add(String(c._id)), true)));
-    const overlaid = unique.map((c) => overlayLive(c, useInboxStore.getState().sessions[c._id]));
+    const unique = sessions.filter((c) =>
+      seen.has(String(c._id)) ? false : (seen.add(String(c._id)), true),
+    );
+    const overlaid = unique.map((c) =>
+      overlayLive(c, useInboxStore.getState().sessions[c._id]),
+    );
     return sortTaskLinkedConversations(overlaid, originId);
     // liveSig stands in for the churny sessions ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,9 +338,13 @@ export function TaskSessionList({
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-1.5">
         <div className="text-xs font-medium text-sol-text-dim">{heading}</div>
-        <span className="text-meta font-mono text-sol-text-muted">{rows.length}</span>
+        <span className="text-meta font-mono text-sol-text-muted">
+          {rows.length}
+        </span>
         {liveCount > 0 && (
-          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sol-green/15 text-sol-green text-meta ${modernPill({ tone: "green" })}`}>
+          <span
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sol-green/15 text-sol-green text-meta ${modernPill({ tone: "green" })}`}
+          >
             <LivePulseDot className="w-1.5 h-1.5" />
             {liveCount} live
           </span>

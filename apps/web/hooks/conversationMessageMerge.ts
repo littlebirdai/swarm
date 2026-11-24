@@ -18,22 +18,36 @@ import type { Message } from "./useConversationMessages";
  * were there, where the approval card was, and after any answer already
  * placed there, so two answers given together keep their order.
  */
-export function mergeUnconfirmedMessages(storeMessages: Message[], storePending: Message[], hosted = false): Message[] {
+export function mergeUnconfirmedMessages(
+  storeMessages: Message[],
+  storePending: Message[],
+  hosted = false,
+): Message[] {
   if (storePending.length === 0) return storeMessages;
   // Dedup by both _id (optimistic messages now live in messages[]) and client_id (server-confirmed)
   const storeIds = new Set(storeMessages.map((m) => m._id));
-  const serverClientIds = new Set(storeMessages.filter((m) => m.client_id).map((m) => m.client_id));
-  const unconfirmed = storePending.filter((m) =>
-    !m._isLocalQueue && !storeIds.has(m._id) && (!m._clientId || !serverClientIds.has(m._clientId))
-  ).sort((a, b) => a.timestamp - b.timestamp);
+  const serverClientIds = new Set(
+    storeMessages.filter((m) => m.client_id).map((m) => m.client_id),
+  );
+  const unconfirmed = storePending
+    .filter(
+      (m) =>
+        !m._isLocalQueue &&
+        !storeIds.has(m._id) &&
+        (!m._clientId || !serverClientIds.has(m._clientId)),
+    )
+    .sort((a, b) => a.timestamp - b.timestamp);
   if (unconfirmed.length === 0) return storeMessages;
-  const answers = hosted ? unconfirmed.filter((m) => isTaggedDecisionAnswer(m.content)) : [];
+  const answers = hosted
+    ? unconfirmed.filter((m) => isTaggedDecisionAnswer(m.content))
+    : [];
   if (answers.length === 0) return [...storeMessages, ...unconfirmed];
   const isAnswer = new Set<Message>(answers);
   // An answer the server already took is a note about a place in the
   // transcript. Before any of the transcript is read back it has no place,
   // so it waits rather than standing alone on a cold open.
-  if (storeMessages.length === 0) return unconfirmed.filter((m) => !(isAnswer.has(m) && m._isSettled));
+  if (storeMessages.length === 0)
+    return unconfirmed.filter((m) => !(isAnswer.has(m) && m._isSettled));
   const placed = [...storeMessages];
   for (const answer of answers) {
     const sentAt = answer._sentBaselineTs ?? answer.timestamp;
@@ -54,7 +68,10 @@ export function mergeUnconfirmedMessages(storeMessages: Message[], storePending:
 // length stay fixed while content/thinking/tools grow. Keep the cheap structural
 // guard, but include the full live tail so partial and final same-id updates are
 // never mistaken for an unchanged page.
-export function messagePageSyncKey(conversationId: string, messages: Message[]): string {
+export function messagePageSyncKey(
+  conversationId: string,
+  messages: Message[],
+): string {
   return JSON.stringify([
     conversationId,
     messages.length,

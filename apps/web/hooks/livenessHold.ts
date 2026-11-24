@@ -18,11 +18,15 @@ export const LIVENESS_SUSPEND_GAP_MS = 40_000;
 export const LIVENESS_HIDDEN_SUSPEND_GAP_MS = 150_000;
 
 /** The latest heartbeat the cached facts carry: about when they were last refreshed. */
-export function cachedFactsAsOf(sessions: Record<string, { last_heartbeat?: number | null } | undefined>, now: number): number | null {
+export function cachedFactsAsOf(
+  sessions: Record<string, { last_heartbeat?: number | null } | undefined>,
+  now: number,
+): number | null {
   let at: number | null = null;
   for (const id in sessions) {
     const beat = sessions[id]?.last_heartbeat;
-    if (typeof beat === "number" && beat <= now && (at === null || beat > at)) at = beat;
+    if (typeof beat === "number" && beat <= now && (at === null || beat > at))
+      at = beat;
   }
   return at;
 }
@@ -31,7 +35,10 @@ export type LivenessHoldIO = {
   now: () => number;
   /** Store reads and the two transitions. */
   hydrated: () => boolean;
-  sessions: () => Record<string, { last_heartbeat?: number | null } | undefined>;
+  sessions: () => Record<
+    string,
+    { last_heartbeat?: number | null } | undefined
+  >;
   heldAt: () => number | null;
   holdSeq: () => number;
   hold: (at: number) => void;
@@ -87,7 +94,9 @@ export function startLivenessHold(io: LivenessHoldIO): () => void {
   // Facts are current up to the last moment the process ran with a socket.
   const check = () => {
     const now = io.now();
-    const gap = aliveHidden ? LIVENESS_HIDDEN_SUSPEND_GAP_MS : LIVENESS_SUSPEND_GAP_MS;
+    const gap = aliveHidden
+      ? LIVENESS_HIDDEN_SUSPEND_GAP_MS
+      : LIVENESS_SUSPEND_GAP_MS;
     if (now - lastAlive > gap) hold(lastAlive);
     else if (!io.connected() && io.heldAt() == null) hold(lastAlive);
     if (io.connected()) {

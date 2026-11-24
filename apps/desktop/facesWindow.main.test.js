@@ -23,7 +23,10 @@ const DEFAULT_ANCHOR = { x: 1572, y: 28 };
 function cornerOf(win, corner) {
   const b = win.getBounds();
   const [v, h] = corner.split("-");
-  return { x: h === "right" ? b.x + b.width : b.x, y: v === "bottom" ? b.y + b.height : b.y };
+  return {
+    x: h === "right" ? b.x + b.width : b.x,
+    y: v === "bottom" ? b.y + b.height : b.y,
+  };
 }
 
 function bootHost(rig) {
@@ -32,7 +35,8 @@ function bootHost(rig) {
   return { win, sender };
 }
 
-const setSize = (rig, sender, size) => rig.handlers.get("set-call-window-size")(sender, size);
+const setSize = (rig, sender, size) =>
+  rig.handlers.get("set-call-window-size")(sender, size);
 const report = (rig, sender, width, height) =>
   rig.handlers.get("set-call-window-content-size")(sender, { width, height });
 
@@ -49,7 +53,10 @@ test("asking for the faces builds the voice window: see-through, hidden, on /cal
   // Idle: the window waits, invisible, until the renderer takes a shape.
   win.emit("ready-to-show");
   assert.equal(win.isVisible(), false);
-  assert.equal(rig.handlers.get("get-call-window-size")(rig.event(win.webContents)), "idle");
+  assert.equal(
+    rig.handlers.get("get-call-window-size")(rig.event(win.webContents)),
+    "idle",
+  );
 });
 
 test("popping the row out is a standing arrangement: the flag persists, closing withdraws it, the window stays", () => {
@@ -68,7 +75,10 @@ test("the float is above the work, on every desktop, click-through, revealed wit
   assert.equal(setSize(rig, sender, "float"), "float");
   assert.deepEqual(win.last("setAlwaysOnTop"), [true, "status"]);
   assert.deepEqual(win.last("setIgnoreMouseEvents"), [true, { forward: true }]);
-  assert.deepEqual(win.last("setVisibleOnAllWorkspaces"), [true, { visibleOnFullScreen: false, skipTransformProcessType: true }]);
+  assert.deepEqual(win.last("setVisibleOnAllWorkspaces"), [
+    true,
+    { visibleOnFullScreen: false, skipTransformProcessType: true },
+  ]);
   assert.equal(win.isResizable(), false);
   // A glance kept beside the work: shown, never focused.
   assert.equal(win.did("showInactive").length, 1);
@@ -115,7 +125,14 @@ test("the names the states used to go by are the float, at the same anchor", () 
   const { win, sender } = bootHost(rig);
   assert.equal(setSize(rig, sender, "ring"), "float");
   const moves = win.did("setPosition").length;
-  for (const legacy of ["walkie", "circles", "speaker", "tiny", "faces", "float"]) {
+  for (const legacy of [
+    "walkie",
+    "circles",
+    "speaker",
+    "tiny",
+    "faces",
+    "float",
+  ]) {
     assert.equal(setSize(rig, sender, legacy), "float", legacy);
   }
   assert.equal(win.did("setPosition").length, moves);
@@ -146,7 +163,11 @@ test("a dragged float remembers the corner it was left in, and comes back growin
   win.setPosition(1380, 900);
   win.emit("move");
   await new Promise((r) => setTimeout(r, 500));
-  assert.deepEqual(readSettings().callPanelWindow.float, { x: 1580, y: 980, corner: "bottom-right" });
+  assert.deepEqual(readSettings().callPanelWindow.float, {
+    x: 1580,
+    y: 980,
+    corner: "bottom-right",
+  });
   // Hidden and shown again: hung from that anchor by its bottom right corner.
   setSize(rig, sender, "idle");
   setSize(rig, sender, "float");
@@ -159,7 +180,9 @@ test("a dragged float remembers the corner it was left in, and comes back growin
 });
 
 test("a saved anchor from a display that is gone is pulled back on screen", () => {
-  const rig = loadShell({ callPanelWindow: { float: { x: 4000, y: -300, corner: "top-right" } } });
+  const rig = loadShell({
+    callPanelWindow: { float: { x: 4000, y: -300, corner: "top-right" } },
+  });
   const { win, sender } = bootHost(rig);
   setSize(rig, sender, "float");
   const [x, y] = win.getPosition();
@@ -169,7 +192,9 @@ test("a saved anchor from a display that is gone is pulled back on screen", () =
 });
 
 test("a row that grows near the screen edge is pulled back on screen", () => {
-  const rig = loadShell({ callPanelWindow: { float: { x: 100, y: 28, corner: "top-right" } } });
+  const rig = loadShell({
+    callPanelWindow: { float: { x: 100, y: 28, corner: "top-right" } },
+  });
   const { win, sender } = bootHost(rig);
   setSize(rig, sender, "float");
   report(rig, sender, 600, 60);

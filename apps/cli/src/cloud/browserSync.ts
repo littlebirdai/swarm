@@ -23,11 +23,29 @@
  * server-side wake is refreshed from AWS (describe only, never start).
  */
 
-import { AwsCliFailed, hostForDevice, hostState, patchHost, reachableRemoteHost, sshReachable, toRemoteHost, type CloudHost } from "../browser/cloudHost.js";
-import { OWN_LOGIN_REASON, provisionLocalLogins, type ProvisionResult } from "../browser/credentials.js";
+import {
+  AwsCliFailed,
+  hostForDevice,
+  hostState,
+  patchHost,
+  reachableRemoteHost,
+  sshReachable,
+  toRemoteHost,
+  type CloudHost,
+} from "../browser/cloudHost.js";
+import {
+  OWN_LOGIN_REASON,
+  provisionLocalLogins,
+  type ProvisionResult,
+} from "../browser/credentials.js";
 import { readState, type InstanceState } from "../browser/instance.js";
 import { checkUrl, loadMachinePolicy } from "../browser/policy.js";
-import { keepsOwnLogin, listRealProfiles, type ChromeChannel, type RealProfile } from "../browser/profile.js";
+import {
+  keepsOwnLogin,
+  listRealProfiles,
+  type ChromeChannel,
+  type RealProfile,
+} from "../browser/profile.js";
 import { withCdpTunnel } from "../browser/remote.js";
 import { signInHost } from "../browser/siteGuard.js";
 import type { RemoteHost } from "../remote/session-move.js";
@@ -56,7 +74,9 @@ export interface BrowserSyncArgs {
  * The child re-parses the same shape so it validates exactly what the daemon
  * validated (cloud/cli.ts builds the JSON back from its flags).
  */
-export function parseBrowserSyncArgs(json: string | undefined): BrowserSyncArgs {
+export function parseBrowserSyncArgs(
+  json: string | undefined,
+): BrowserSyncArgs {
   let parsed: any;
   try {
     parsed = json ? JSON.parse(json) : {};
@@ -64,26 +84,41 @@ export function parseBrowserSyncArgs(json: string | undefined): BrowserSyncArgs 
     throw new Error("args are not JSON");
   }
   const hostDeviceId = parsed.host_device_id;
-  if (typeof hostDeviceId !== "string" || !hostDeviceId) throw new Error("missing host_device_id");
+  if (typeof hostDeviceId !== "string" || !hostDeviceId)
+    throw new Error("missing host_device_id");
   const cdpPort = parsed.cdp_port;
-  if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) throw new Error(`cdp_port ${cdpPort} is not a port`);
+  if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535)
+    throw new Error(`cdp_port ${cdpPort} is not a port`);
   const origin = parsed.origin ?? null;
   const all = parsed.all === true;
   if (origin !== null && all) throw new Error("origin and all are exclusive");
   if (origin === null && !all) throw new Error("name an origin or all");
   if (origin !== null) {
     if (typeof origin !== "string") throw new Error("origin must be a string");
-    if (!isHttpOrigin(origin)) throw new Error(`${origin} is not an http(s) origin`);
+    if (!isHttpOrigin(origin))
+      throw new Error(`${origin} is not an http(s) origin`);
   }
-  const conversationId = typeof parsed.conversation_id === "string" && parsed.conversation_id ? parsed.conversation_id : undefined;
-  return { hostDeviceId, cdpPort, origin, all, ...(conversationId ? { conversationId } : {}) };
+  const conversationId =
+    typeof parsed.conversation_id === "string" && parsed.conversation_id
+      ? parsed.conversation_id
+      : undefined;
+  return {
+    hostDeviceId,
+    cdpPort,
+    origin,
+    all,
+    ...(conversationId ? { conversationId } : {}),
+  };
 }
 
 /** The `cast cloud browser-sync` argv the daemon runs for these args. */
 export function browserSyncArgv(a: BrowserSyncArgs): string[] {
   return [
-    "cloud", "browser-sync", a.hostDeviceId,
-    "--port", String(a.cdpPort),
+    "cloud",
+    "browser-sync",
+    a.hostDeviceId,
+    "--port",
+    String(a.cdpPort),
     ...(a.origin ? ["--origin", a.origin] : ["--all"]),
     ...(a.conversationId ? ["--conversation", a.conversationId] : []),
   ];
@@ -103,8 +138,12 @@ export function pickLaptopProfile(
   state: InstanceState | null,
   profiles: RealProfile[],
 ): { profileDir: string; channel: ChromeChannel } {
-  if (state?.sourceProfile) return { profileDir: state.sourceProfile, channel: state.channel };
-  return { profileDir: profiles.find((p) => p.lastUsed)?.dir ?? "Default", channel: "chrome" };
+  if (state?.sourceProfile)
+    return { profileDir: state.sourceProfile, channel: state.channel };
+  return {
+    profileDir: profiles.find((p) => p.lastUsed)?.dir ?? "Default",
+    channel: "chrome",
+  };
 }
 
 export interface CarryHostDeps {
@@ -115,9 +154,17 @@ export interface CarryHostDeps {
   patchHost: (id: string, patch: Partial<CloudHost>) => CloudHost | undefined;
 }
 
-const defaultHostDeps: CarryHostDeps = { hostForDevice, toRemoteHost, sshReachable, hostState, patchHost };
+const defaultHostDeps: CarryHostDeps = {
+  hostForDevice,
+  toRemoteHost,
+  sshReachable,
+  hostState,
+  patchHost,
+};
 
-export type ResolvedCarryHost = { ok: true; host: RemoteHost; cloud: CloudHost } | { ok: false; reason: string };
+export type ResolvedCarryHost =
+  | { ok: true; host: RemoteHost; cloud: CloudHost }
+  | { ok: false; reason: string };
 
 /** The reason a laptop without the host in its registry cannot carry, with the way out. */
 export function noRegistryEntryReason(hostDeviceId: string): string {
@@ -137,11 +184,17 @@ export function noRegistryEntryReason(hostDeviceId: string): string {
  * recorded through patchHost and probed again. A stopped, pending or missing
  * host is a refusal: nothing here ever starts an instance.
  */
-export async function resolveCarryHost(hostDeviceId: string, deps: CarryHostDeps = defaultHostDeps): Promise<ResolvedCarryHost> {
+export async function resolveCarryHost(
+  hostDeviceId: string,
+  deps: CarryHostDeps = defaultHostDeps,
+): Promise<ResolvedCarryHost> {
   const cloud = deps.hostForDevice(hostDeviceId);
   if (!cloud) return { ok: false, reason: noRegistryEntryReason(hostDeviceId) };
   if (cloud.browserSync === false) {
-    return { ok: false, reason: `cookie carries into host ${cloud.id} are disabled in ~/.codecast/browser/hosts.json (browserSync: false)` };
+    return {
+      ok: false,
+      reason: `cookie carries into host ${cloud.id} are disabled in ~/.codecast/browser/hosts.json (browserSync: false)`,
+    };
   }
   if (cloud.address) {
     const remote = await reachableRemoteHost(cloud, deps);
@@ -154,33 +207,49 @@ export async function resolveCarryHost(hostDeviceId: string, deps: CarryHostDeps
     const why = (err as Error).message;
     return {
       ok: false,
-      reason: err instanceof AwsCliFailed
-        ? `host ${cloud.id} is not reachable at ${cloud.address ?? "its last address"} and the aws CLI could not check its state: ${why}`
-        : `host ${cloud.id} is not reachable at ${cloud.address ?? "its last address"} (${why})`,
+      reason:
+        err instanceof AwsCliFailed
+          ? `host ${cloud.id} is not reachable at ${cloud.address ?? "its last address"} and the aws CLI could not check its state: ${why}`
+          : `host ${cloud.id} is not reachable at ${cloud.address ?? "its last address"} (${why})`,
     };
   }
   if (st.state !== "running") {
-    return { ok: false, reason: `host ${cloud.id} is ${st.state} — nothing was carried (a sleeping host is never woken for cookies)` };
+    return {
+      ok: false,
+      reason: `host ${cloud.id} is ${st.state} — nothing was carried (a sleeping host is never woken for cookies)`,
+    };
   }
   if (st.address && st.address !== cloud.address) {
     const fresh: CloudHost = { ...cloud, address: st.address };
     deps.patchHost(cloud.id, { address: st.address });
     const remote = await reachableRemoteHost(fresh, deps);
     if (remote) return { ok: true, host: remote, cloud: fresh };
-    return { ok: false, reason: `host ${cloud.id} is running at ${st.address} but not reachable over ssh — nothing was carried` };
+    return {
+      ok: false,
+      reason: `host ${cloud.id} is running at ${st.address} but not reachable over ssh — nothing was carried`,
+    };
   }
-  return { ok: false, reason: `host ${cloud.id} is running but not reachable at ${cloud.address ?? "its address"} — nothing was carried` };
+  return {
+    ok: false,
+    reason: `host ${cloud.id} is running but not reachable at ${cloud.address ?? "its address"} — nothing was carried`,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // The carry
 // ---------------------------------------------------------------------------
 
-export type CarryOutcome = ({ ok: true } & ProvisionResult) | { ok: false; reason: string };
+export type CarryOutcome =
+  | ({ ok: true } & ProvisionResult)
+  | { ok: false; reason: string };
 
 export interface CarryDeps {
   resolveCarryHost: (hostDeviceId: string) => Promise<ResolvedCarryHost>;
-  withCdpTunnel: <T>(host: RemoteHost, remotePort: number, fn: (localPort: number) => Promise<T>) => Promise<T>;
+  withCdpTunnel: <T>(
+    host: RemoteHost,
+    remotePort: number,
+    fn: (localPort: number) => Promise<T>,
+  ) => Promise<T>;
   provisionLocalLogins: typeof provisionLocalLogins;
   loadMachinePolicy: typeof loadMachinePolicy;
   readState: () => InstanceState | null;
@@ -189,7 +258,10 @@ export interface CarryDeps {
 
 const defaultCarryDeps: CarryDeps = {
   resolveCarryHost: (id) => resolveCarryHost(id),
-  withCdpTunnel: (host, port, fn) => withCdpTunnel(host, port, fn, { deadlineMs: BROWSER_SYNC_CARRY_DEADLINE_MS }),
+  withCdpTunnel: (host, port, fn) =>
+    withCdpTunnel(host, port, fn, {
+      deadlineMs: BROWSER_SYNC_CARRY_DEADLINE_MS,
+    }),
   provisionLocalLogins,
   loadMachinePolicy,
   readState,
@@ -206,27 +278,48 @@ const defaultCarryDeps: CarryDeps = {
  * own-login exclusion, the same "already has the same cookies" idempotency
  * and the same Storage.setCookies the laptop's own browser gets.
  */
-export async function carryLoginsToHost(a: BrowserSyncArgs, deps: CarryDeps = defaultCarryDeps): Promise<CarryOutcome> {
+export async function carryLoginsToHost(
+  a: BrowserSyncArgs,
+  deps: CarryDeps = defaultCarryDeps,
+): Promise<CarryOutcome> {
   const hostname = a.origin ? new URL(a.origin).hostname : null;
-  if (hostname && keepsOwnLogin(hostname)) return { ok: true, injected: 0, host: hostname, reason: OWN_LOGIN_REASON };
+  if (hostname && keepsOwnLogin(hostname))
+    return { ok: true, injected: 0, host: hostname, reason: OWN_LOGIN_REASON };
 
   const policy = deps.loadMachinePolicy();
   if (policy) {
-    if (a.all) return { ok: false, reason: "with browser_allow set on this laptop, name the site (a whole-jar carry is refused under a site allowlist)" };
+    if (a.all)
+      return {
+        ok: false,
+        reason:
+          "with browser_allow set on this laptop, name the site (a whole-jar carry is refused under a site allowlist)",
+      };
     const verdict = checkUrl(policy, a.origin!);
-    if (!verdict.allowed) return { ok: false, reason: `this laptop refuses to carry its login: ${verdict.reason}` };
+    if (!verdict.allowed)
+      return {
+        ok: false,
+        reason: `this laptop refuses to carry its login: ${verdict.reason}`,
+      };
   }
 
   const resolved = await deps.resolveCarryHost(a.hostDeviceId);
   if (!resolved.ok) return resolved;
   if (a.all && resolved.cloud.browserSyncAll !== true) {
-    return { ok: false, reason: `name the site: a whole cookie jar carry into host ${resolved.cloud.id} is off unless its entry in ~/.codecast/browser/hosts.json on this laptop sets "browserSyncAll": true` };
+    return {
+      ok: false,
+      reason: `name the site: a whole cookie jar carry into host ${resolved.cloud.id} is off unless its entry in ~/.codecast/browser/hosts.json on this laptop sets "browserSyncAll": true`,
+    };
   }
 
   const state = deps.readState();
-  const source = pickLaptopProfile(state, state?.sourceProfile ? [] : deps.listRealProfiles("chrome"));
+  const source = pickLaptopProfile(
+    state,
+    state?.sourceProfile ? [] : deps.listRealProfiles("chrome"),
+  );
   try {
-    const r = await deps.withCdpTunnel(resolved.host, a.cdpPort, (localPort) => deps.provisionLocalLogins(localPort, a.origin, source));
+    const r = await deps.withCdpTunnel(resolved.host, a.cdpPort, (localPort) =>
+      deps.provisionLocalLogins(localPort, a.origin, source),
+    );
     return { ok: true, ...r };
   } catch (err) {
     return { ok: false, reason: (err as Error).message };
@@ -264,7 +357,8 @@ export const BROWSER_SYNC_CHILD_TIMEOUT_MS = 3 * 60 * 1000;
  * host's idle watchdog from ever sleeping the box, so the child must close
  * the tunnel itself, before the daemon gives up on it.
  */
-export const BROWSER_SYNC_CARRY_DEADLINE_MS = BROWSER_SYNC_CHILD_TIMEOUT_MS - 30_000;
+export const BROWSER_SYNC_CARRY_DEADLINE_MS =
+  BROWSER_SYNC_CHILD_TIMEOUT_MS - 30_000;
 
 export interface BrowserSyncHandlerDeps {
   isRemoteDevice: () => boolean;
@@ -273,7 +367,10 @@ export interface BrowserSyncHandlerDeps {
    * cap to kill that whole group, so the ssh forward dies with the child even
    * when the child's own deadline did not fire (the second layer).
    */
-  runCastCommand: (args: string[], opts: { timeoutMs?: number; killGroup?: boolean }) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+  runCastCommand: (
+    args: string[],
+    opts: { timeoutMs?: number; killGroup?: boolean },
+  ) => Promise<{ code: number | null; stdout: string; stderr: string }>;
   log: (message: string, level?: "info" | "warn" | "error") => void;
   childErrorDetail: (stderr: string, stdout?: string) => string;
   /** Per-host carries in flight; module-level by default, injectable for tests. */
@@ -289,7 +386,13 @@ const browserSyncInFlight = new Map<string, Promise<unknown>>();
 
 /** The last stdout line that is a JSON object, or null. */
 function lastJsonLine(stdout: string): string | null {
-  return stdout.trim().split("\n").reverse().find((l) => l.trim().startsWith("{")) ?? null;
+  return (
+    stdout
+      .trim()
+      .split("\n")
+      .reverse()
+      .find((l) => l.trim().startsWith("{")) ?? null
+  );
 }
 
 /**
@@ -302,7 +405,10 @@ export async function handleBrowserSyncCommand(
   commandArgs: string | undefined,
   deps: BrowserSyncHandlerDeps,
 ): Promise<{ result?: string; error?: string }> {
-  if (deps.isRemoteDevice()) return { error: "cloud_browser_sync: a cloud host holds no logins to carry" };
+  if (deps.isRemoteDevice())
+    return {
+      error: "cloud_browser_sync: a cloud host holds no logins to carry",
+    };
   let a: BrowserSyncArgs;
   try {
     a = parseBrowserSyncArgs(commandArgs);
@@ -311,25 +417,43 @@ export async function handleBrowserSyncCommand(
   }
   const inFlight = deps.inFlight ?? browserSyncInFlight;
   const prev = inFlight.get(a.hostDeviceId);
-  if (prev) deps.log(`[BROWSER-SYNC] a carry into device ${a.hostDeviceId.slice(0, 8)} is running — waiting for it first`);
+  if (prev)
+    deps.log(
+      `[BROWSER-SYNC] a carry into device ${a.hostDeviceId.slice(0, 8)} is running — waiting for it first`,
+    );
   const carry = async () => {
-    deps.log(`[BROWSER-SYNC] carrying ${a.origin ?? "every site"} to device ${a.hostDeviceId.slice(0, 8)}:${a.cdpPort} (async child)`);
-    const res = await deps.runCastCommand(browserSyncArgv(a), { timeoutMs: BROWSER_SYNC_CHILD_TIMEOUT_MS, killGroup: true });
+    deps.log(
+      `[BROWSER-SYNC] carrying ${a.origin ?? "every site"} to device ${a.hostDeviceId.slice(0, 8)}:${a.cdpPort} (async child)`,
+    );
+    const res = await deps.runCastCommand(browserSyncArgv(a), {
+      timeoutMs: BROWSER_SYNC_CHILD_TIMEOUT_MS,
+      killGroup: true,
+    });
     const line = lastJsonLine(res.stdout);
     if (res.code === 0 && line) {
-      deps.log(`[BROWSER-SYNC] done for device ${a.hostDeviceId.slice(0, 8)}: ${line}`);
+      deps.log(
+        `[BROWSER-SYNC] done for device ${a.hostDeviceId.slice(0, 8)}: ${line}`,
+      );
       return { result: line };
     }
     let refused: string | undefined;
     if (line) {
       try {
         const parsed = JSON.parse(line);
-        if (parsed && parsed.ok === false && typeof parsed.reason === "string") refused = parsed.reason;
-      } catch { /* not the child's line */ }
+        if (parsed && parsed.ok === false && typeof parsed.reason === "string")
+          refused = parsed.reason;
+      } catch {
+        /* not the child's line */
+      }
     }
     const detail = deps.childErrorDetail(res.stderr, res.stdout);
-    const error = refused ?? `login carry failed (exit ${res.code})${detail ? `: ${detail}` : ""}`;
-    deps.log(`[BROWSER-SYNC] FAILED for device ${a.hostDeviceId.slice(0, 8)}: ${error}`, "warn");
+    const error =
+      refused ??
+      `login carry failed (exit ${res.code})${detail ? `: ${detail}` : ""}`;
+    deps.log(
+      `[BROWSER-SYNC] FAILED for device ${a.hostDeviceId.slice(0, 8)}: ${error}`,
+      "warn",
+    );
     return { error };
   };
   // Chain onto the running carry and claim the slot SYNCHRONOUSLY: a
@@ -367,18 +491,28 @@ export function cloudHostSignInHint(url: string): string | null {
 }
 
 /** One actionable line for a request that came back with an error. */
-export function explainSyncFailure(error: string): { message: string; hint?: string } {
+export function explainSyncFailure(error: string): {
+  message: string;
+  hint?: string;
+} {
   if (error === "expired_ttl") {
     return {
-      message: "your laptop never picked the request up within 5 minutes (asleep, or its daemon stopped)",
+      message:
+        "your laptop never picked the request up within 5 minutes (asleep, or its daemon stopped)",
       hint: "the laptop must be awake with codecast running; once it is, rerun `cast browser sync <site>`",
     };
   }
   if (/Unknown command/.test(error)) {
-    return { message: "your laptop's cast is older than this host's", hint: `ask your person, then rerun the sync: ${askToRun("Update codecast on your laptop?", "cast update", RUN_ON_LAPTOP)}` };
+    return {
+      message: "your laptop's cast is older than this host's",
+      hint: `ask your person, then rerun the sync: ${askToRun("Update codecast on your laptop?", "cast update", RUN_ON_LAPTOP)}`,
+    };
   }
   if (/no entry for device/.test(error)) {
-    return { message: error, hint: "cast browser sync <site> --via <device id of the laptop that provisioned this host>" };
+    return {
+      message: error,
+      hint: "cast browser sync <site> --via <device id of the laptop that provisioned this host>",
+    };
   }
   if (/Keychain/.test(error)) {
     return {

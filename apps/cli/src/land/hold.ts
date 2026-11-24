@@ -10,7 +10,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-export interface HoldMark { reason: string; at: number; by?: string }
+export interface HoldMark {
+  reason: string;
+  at: number;
+  by?: string;
+}
 
 const MARKER = "cast-held";
 
@@ -31,7 +35,11 @@ export function readHold(tree: string): HoldMark | null {
   const dir = treeGitDir(tree);
   if (!dir) return null;
   let text: string;
-  try { text = fs.readFileSync(path.join(dir, MARKER), "utf-8"); } catch { return null; }
+  try {
+    text = fs.readFileSync(path.join(dir, MARKER), "utf-8");
+  } catch {
+    return null;
+  }
   try {
     const mark = JSON.parse(text) as HoldMark;
     if (typeof mark.reason === "string" && mark.reason.trim()) return mark;
@@ -42,7 +50,11 @@ export function readHold(tree: string): HoldMark | null {
 export function writeHold(tree: string, reason: string, by?: string): HoldMark {
   const dir = treeGitDir(tree);
   if (!dir) throw new Error(`${tree} is not a git worktree`);
-  const mark: HoldMark = { reason: reason.trim(), at: Date.now(), ...(by ? { by } : {}) };
+  const mark: HoldMark = {
+    reason: reason.trim(),
+    at: Date.now(),
+    ...(by ? { by } : {}),
+  };
   fs.writeFileSync(path.join(dir, MARKER), JSON.stringify(mark) + "\n");
   return mark;
 }
@@ -51,5 +63,10 @@ export function writeHold(tree: string, reason: string, by?: string): HoldMark {
 export function clearHold(tree: string): boolean {
   const dir = treeGitDir(tree);
   if (!dir) return false;
-  try { fs.unlinkSync(path.join(dir, MARKER)); return true; } catch { return false; }
+  try {
+    fs.unlinkSync(path.join(dir, MARKER));
+    return true;
+  } catch {
+    return false;
+  }
 }

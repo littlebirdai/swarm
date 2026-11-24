@@ -9,13 +9,22 @@ import { cn } from "../../lib/utils";
 
 const TITLE = "min-w-0 truncate text-read font-semibold text-sol-text";
 
-export function PageHeaderTitle({ title, onRename, renameLabel = "Rename" }: {
+export function PageHeaderTitle({
+  title,
+  onRename,
+  renameLabel = "Rename",
+}: {
   title: string;
   onRename?: (next: string) => void;
   renameLabel?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  if (!onRename) return <h1 title={title} className={TITLE}>{title}</h1>;
+  if (!onRename)
+    return (
+      <h1 title={title} className={TITLE}>
+        {title}
+      </h1>
+    );
   if (draft !== null) {
     const save = () => {
       const next = draft.trim();
@@ -33,12 +42,20 @@ export function PageHeaderTitle({ title, onRename, renameLabel = "Rename" }: {
           if (e.key === "Enter") save();
           if (e.key === "Escape") setDraft(null);
         }}
-        className={cn(TITLE, "min-w-[12ch] flex-1 border-b border-sol-cyan bg-transparent outline-none")}
+        className={cn(
+          TITLE,
+          "min-w-[12ch] flex-1 border-b border-sol-cyan bg-transparent outline-none",
+        )}
       />
     );
   }
   return (
-    <h1 title={title} className={cn(TITLE, "cursor-text rounded-[4px] hover:bg-sol-bg-alt")} onClick={() => setDraft(title)} data-cc-page-rename>
+    <h1
+      title={title}
+      className={cn(TITLE, "cursor-text rounded-[4px] hover:bg-sol-bg-alt")}
+      onClick={() => setDraft(title)}
+      data-cc-page-rename
+    >
       {title}
     </h1>
   );

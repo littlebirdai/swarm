@@ -1,4 +1,3 @@
-
 import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
 
@@ -8,7 +7,9 @@ import { useWatchEffect } from "./useWatchEffect";
  * read it, so an unset zone quietly meant UTC for everyone.
  */
 export function useAdoptTimezone(): void {
-  const missing = useInboxStore((s) => !!s.currentUser?._id && !(s.currentUser as any).timezone);
+  const missing = useInboxStore(
+    (s) => !!s.currentUser?._id && !(s.currentUser as any).timezone,
+  );
   useWatchEffect(() => {
     if (!missing) return;
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;

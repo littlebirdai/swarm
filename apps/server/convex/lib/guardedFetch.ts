@@ -11,7 +11,11 @@
 // answers our resolver and the backend's differently); egress rules on the
 // host are the layer that closes it.
 // A leaf module with no Convex imports.
-import { internalAddressRefusal, internalHostRefusal as literalHostRefusal, isIpLiteral } from "@codecast/shared/contracts/internalHost";
+import {
+  internalAddressRefusal,
+  internalHostRefusal as literalHostRefusal,
+  isIpLiteral,
+} from "@codecast/shared/contracts/internalHost";
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 /** A host name's addresses, [] when it has none, or null when no resolver answered. */
@@ -20,7 +24,11 @@ export type Resolver = (host: string) => Promise<string[] | null>;
 /** The deployment's own hosts, from the env Convex sets. */
 function ownHosts(): string[] {
   const out = ["convex.codecast.sh"];
-  for (const name of ["CONVEX_SITE_URL", "CONVEX_CLOUD_URL", "CONVEX_CLOUD_ORIGIN"]) {
+  for (const name of [
+    "CONVEX_SITE_URL",
+    "CONVEX_CLOUD_URL",
+    "CONVEX_CLOUD_ORIGIN",
+  ]) {
     try {
       const raw = process.env[name];
       if (raw) out.push(new URL(raw).hostname.toLowerCase());
@@ -36,25 +44,42 @@ export function internalHostRefusal(raw: string): string | null {
   return literalHostRefusal(raw, ownHosts());
 }
 
-const DOH_RESOLVERS = ["https://cloudflare-dns.com/dns-query", "https://dns.google/resolve"];
+const DOH_RESOLVERS = [
+  "https://cloudflare-dns.com/dns-query",
+  "https://dns.google/resolve",
+];
 const DOH_TIMEOUT_MS = 5_000;
 const CACHE_MAX = 500;
 const cache = new Map<string, { addrs: string[]; until: number }>();
 
-async function dohQuery(fetchImpl: FetchLike, base: string, host: string, type: "A" | "AAAA"): Promise<{ addrs: string[]; ttl: number } | null> {
+async function dohQuery(
+  fetchImpl: FetchLike,
+  base: string,
+  host: string,
+  type: "A" | "AAAA",
+): Promise<{ addrs: string[]; ttl: number } | null> {
   try {
-    const res = await fetchImpl(`${base}?name=${encodeURIComponent(host)}&type=${type}`, {
-      headers: { Accept: "application/dns-json" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(DOH_TIMEOUT_MS),
-    });
+    const res = await fetchImpl(
+      `${base}?name=${encodeURIComponent(host)}&type=${type}`,
+      {
+        headers: { Accept: "application/dns-json" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(DOH_TIMEOUT_MS),
+      },
+    );
     if (!res.ok) return null;
-    const body = (await res.json()) as { Status?: number; Answer?: { type: number; data: string; TTL?: number }[] };
+    const body = (await res.json()) as {
+      Status?: number;
+      Answer?: { type: number; data: string; TTL?: number }[];
+    };
     // NOERROR and NXDOMAIN are answers; anything else (SERVFAIL, REFUSED) is a resolver that did not answer.
     if (body.Status !== 0 && body.Status !== 3) return null;
     const want = type === "A" ? 1 : 28;
     const records = (body.Answer ?? []).filter((r) => r.type === want);
-    return { addrs: records.map((r) => String(r.data)), ttl: Math.min(...records.map((r) => r.TTL ?? 60), 300) };
+    return {
+      addrs: records.map((r) => String(r.data)),
+      ttl: Math.min(...records.map((r) => r.TTL ?? 60), 300),
+    };
   } catch {
     return null;
   }
@@ -66,11 +91,17 @@ export function dohResolver(fetchImpl: FetchLike = fetch): Resolver {
     const hit = cache.get(host);
     if (hit && hit.until > Date.now()) return hit.addrs;
     for (const base of DOH_RESOLVERS) {
-      const [a, aaaa] = await Promise.all([dohQuery(fetchImpl, base, host, "A"), dohQuery(fetchImpl, base, host, "AAAA")]);
+      const [a, aaaa] = await Promise.all([
+        dohQuery(fetchImpl, base, host, "A"),
+        dohQuery(fetchImpl, base, host, "AAAA"),
+      ]);
       if (!a || !aaaa) continue;
       const addrs = [...a.addrs, ...aaaa.addrs];
       if (cache.size >= CACHE_MAX) cache.clear();
-      cache.set(host, { addrs, until: Date.now() + Math.max(Math.min(a.ttl, aaaa.ttl), 0) * 1000 });
+      cache.set(host, {
+        addrs,
+        until: Date.now() + Math.max(Math.min(a.ttl, aaaa.ttl), 0) * 1000,
+      });
       return addrs;
     }
     return null;
@@ -78,10 +109,16 @@ export function dohResolver(fetchImpl: FetchLike = fetch): Resolver {
 }
 
 /** Why a URL may not be fetched from our servers, its literal host and its resolved addresses both checked, or null when it may. */
-export async function fetchTargetRefusal(raw: string, resolve: Resolver): Promise<string | null> {
+export async function fetchTargetRefusal(
+  raw: string,
+  resolve: Resolver,
+): Promise<string | null> {
   const literal = internalHostRefusal(raw);
   if (literal) return literal;
-  const host = new URL(raw).hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const host = new URL(raw).hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
   if (isIpLiteral(host)) return null;
   const addrs = await resolve(host);
   if (addrs === null) return `${host} could not be resolved`;
@@ -114,7 +151,11 @@ export interface GuardedFetchOptions {
  * fetch() for a URL someone else chose. Throws RefusedHostError when the URL,
  * a name's resolved address, or any redirect hop is inside our network.
  */
-export async function guardedFetch(raw: string, init: RequestInit = {}, opts: GuardedFetchOptions = {}): Promise<Response> {
+export async function guardedFetch(
+  raw: string,
+  init: RequestInit = {},
+  opts: GuardedFetchOptions = {},
+): Promise<Response> {
   const doFetch = opts.fetch ?? fetch;
   const resolve = opts.resolve ?? dohResolver(doFetch);
   let url = raw;
@@ -124,11 +165,21 @@ export async function guardedFetch(raw: string, init: RequestInit = {}, opts: Gu
     if (refused) throw new RefusedHostError(refused);
     const res = await doFetch(url, current);
     const location = res.headers.get("location");
-    if (res.status < 300 || res.status >= 400 || !location || hop >= (opts.maxRedirects ?? 0)) return res;
+    if (
+      res.status < 300 ||
+      res.status >= 400 ||
+      !location ||
+      hop >= (opts.maxRedirects ?? 0)
+    )
+      return res;
     await res.body?.cancel().catch(() => {});
     url = new URL(location, url).href;
     // 303, and 301/302 after a POST, continue as a GET without the body, the way browsers do.
-    if (res.status === 303 || ((res.status === 301 || res.status === 302) && (current.method ?? "GET").toUpperCase() === "POST")) {
+    if (
+      res.status === 303 ||
+      ((res.status === 301 || res.status === 302) &&
+        (current.method ?? "GET").toUpperCase() === "POST")
+    ) {
       const { body: _body, ...rest } = current;
       current = { ...rest, method: "GET" };
     }

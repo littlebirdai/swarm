@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Brain, Radar, Terminal } from "lucide-react";
-import { formatFullTimestamp, formatRelativeTime } from "../../../lib/conversationFormat";
+import {
+  formatFullTimestamp,
+  formatRelativeTime,
+} from "../../../lib/conversationFormat";
 
 // Rows that record something that happened, in the Modern style's one row
 // anatomy (ModernRow.tsx names the parts, app/globals.css "MODERN · ROWS"
@@ -9,10 +12,24 @@ import { formatFullTimestamp, formatRelativeTime } from "../../../lib/conversati
 // branch here only under useIsModernStyle, so Classic draws what it drew.
 
 /** The head of a row that opens: a real button, its chevron from aria-expanded. */
-function OpenableHead({ open, onToggle, children }: { open: boolean; onToggle?: () => void; children: React.ReactNode }) {
+function OpenableHead({
+  open,
+  onToggle,
+  children,
+}: {
+  open: boolean;
+  onToggle?: () => void;
+  children: React.ReactNode;
+}) {
   if (!onToggle) return <div data-cc-row-head>{children}</div>;
   return (
-    <button type="button" data-cc-row-head aria-expanded={open} onClick={onToggle} className="w-full text-left">
+    <button
+      type="button"
+      data-cc-row-head
+      aria-expanded={open}
+      onClick={onToggle}
+      className="w-full text-left"
+    >
       {children}
     </button>
   );
@@ -26,13 +43,24 @@ export function ModernThinking({ content }: { content: string }) {
   const long = lines.length > 1 || content.length > 120;
   return (
     <div data-cc-row="thinking">
-      <OpenableHead open={open} onToggle={long ? () => setOpen((v) => !v) : undefined}>
-        <Brain data-cc-row-icon aria-hidden className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+      <OpenableHead
+        open={open}
+        onToggle={long ? () => setOpen((v) => !v) : undefined}
+      >
+        <Brain
+          data-cc-row-icon
+          aria-hidden
+          className="w-4 h-4 shrink-0"
+          strokeWidth={1.75}
+        />
         <span data-cc-row-verb>Thought</span>
         {!open && <span data-cc-row-text>{first}</span>}
       </OpenableHead>
       {open && (
-        <div data-cc-row-detail className="px-3.5 py-2.5 text-ui leading-5 text-sol-text-muted whitespace-pre-wrap break-words">
+        <div
+          data-cc-row-detail
+          className="px-3.5 py-2.5 text-ui leading-5 text-sol-text-muted whitespace-pre-wrap break-words"
+        >
           {content}
         </div>
       )}
@@ -46,7 +74,18 @@ export function ModernThinking({ content }: { content: string }) {
  * word, never a pulse: a row draws no animation. Open, the panel holds the
  * whole command and the last event.
  */
-export function ModernMonitorRow({ background, description, command, status, tone, events, lastEvent, lastEventAt, persistent, title }: {
+export function ModernMonitorRow({
+  background,
+  description,
+  command,
+  status,
+  tone,
+  events,
+  lastEvent,
+  lastEventAt,
+  persistent,
+  title,
+}: {
   background: boolean;
   description?: string;
   command?: string;
@@ -64,25 +103,63 @@ export function ModernMonitorRow({ background, description, command, status, ton
   const Icon = background ? Terminal : Radar;
   const openable = !!command || !!lastEvent;
   return (
-    <div data-cc-row="monitor" data-cc-row-tone={tone === "error" ? "error" : undefined}>
-      <OpenableHead open={open} onToggle={openable ? () => setOpen((v) => !v) : undefined}>
-        <Icon data-cc-row-icon aria-hidden className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+    <div
+      data-cc-row="monitor"
+      data-cc-row-tone={tone === "error" ? "error" : undefined}
+    >
+      <OpenableHead
+        open={open}
+        onToggle={openable ? () => setOpen((v) => !v) : undefined}
+      >
+        <Icon
+          data-cc-row-icon
+          aria-hidden
+          className="w-4 h-4 shrink-0"
+          strokeWidth={1.75}
+        />
         <span data-cc-row-verb>{background ? "Background" : "Monitor"}</span>
-        {description ? <span data-cc-row-text>{description}</span> : firstLine ? <span data-cc-row-object className="font-mono">{firstLine}</span> : null}
+        {description ? (
+          <span data-cc-row-text>{description}</span>
+        ) : firstLine ? (
+          <span data-cc-row-object className="font-mono">
+            {firstLine}
+          </span>
+        ) : null}
         {persistent && <span data-cc-row-tag>persistent</span>}
         <span data-cc-row-meta title={title}>
           {events > 0 && `${events} event${events === 1 ? "" : "s"} · `}
-          <span className={tone === "live" ? "text-sol-green" : tone === "error" ? "text-sol-red" : undefined}>{status}</span>
+          <span
+            className={
+              tone === "live"
+                ? "text-sol-green"
+                : tone === "error"
+                  ? "text-sol-red"
+                  : undefined
+            }
+          >
+            {status}
+          </span>
         </span>
       </OpenableHead>
       {open && (
         <div data-cc-row-detail className="px-3.5 py-2.5 space-y-2">
-          {command && <pre className="font-mono text-meta leading-5 text-sol-text-secondary whitespace-pre-wrap break-words">{command}</pre>}
+          {command && (
+            <pre className="font-mono text-meta leading-5 text-sol-text-secondary whitespace-pre-wrap break-words">
+              {command}
+            </pre>
+          )}
           {lastEvent && (
             <div className="flex items-baseline gap-2 min-w-0 text-meta">
-              <span className="min-w-0 flex-1 font-mono text-sol-text-muted break-words">{lastEvent}</span>
+              <span className="min-w-0 flex-1 font-mono text-sol-text-muted break-words">
+                {lastEvent}
+              </span>
               {lastEventAt !== undefined && (
-                <span className="shrink-0 tabular-nums text-sol-text-dim" title={formatFullTimestamp(lastEventAt)}>{formatRelativeTime(lastEventAt)}</span>
+                <span
+                  className="shrink-0 tabular-nums text-sol-text-dim"
+                  title={formatFullTimestamp(lastEventAt)}
+                >
+                  {formatRelativeTime(lastEventAt)}
+                </span>
               )}
             </div>
           )}

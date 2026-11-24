@@ -9,16 +9,21 @@ import { pickAddressSpaceInit } from "../client";
 // string took the whole vault down there while the terminal kept working.
 describe("pickAddressSpaceInit", () => {
   test("uses loopback on a runtime that accepts it (Chrome 142+)", () => {
-    expect(pickAddressSpaceInit(() => undefined)).toEqual({ targetAddressSpace: "loopback" });
+    expect(pickAddressSpaceInit(() => undefined)).toEqual({
+      targetAddressSpace: "loopback",
+    });
   });
 
   test("falls back to local when loopback is rejected (Electron 33 / Chromium 130)", () => {
     const chromium130 = (init: RequestInit) => {
-      const value = (init as { targetAddressSpace?: string }).targetAddressSpace;
+      const value = (init as { targetAddressSpace?: string })
+        .targetAddressSpace;
       if (value !== "local") throw new TypeError(`invalid enum value ${value}`);
       return undefined;
     };
-    expect(pickAddressSpaceInit(chromium130)).toEqual({ targetAddressSpace: "local" });
+    expect(pickAddressSpaceInit(chromium130)).toEqual({
+      targetAddressSpace: "local",
+    });
   });
 
   test("sends nothing when the runtime rejects every value", () => {

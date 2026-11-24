@@ -67,7 +67,12 @@ export function readIdentity(configDir: string): LoopbackIdentity | null {
   } catch {
     return null;
   }
-  let parsed: { port?: unknown; token?: unknown; created_at?: unknown; pid?: unknown };
+  let parsed: {
+    port?: unknown;
+    token?: unknown;
+    created_at?: unknown;
+    pid?: unknown;
+  };
   try {
     parsed = JSON.parse(raw);
   } catch {
@@ -75,9 +80,16 @@ export function readIdentity(configDir: string): LoopbackIdentity | null {
   }
   if (typeof parsed.token !== "string" || !parsed.token) return null;
   const createdAt =
-    typeof parsed.created_at === "number" && Number.isFinite(parsed.created_at) ? parsed.created_at : Date.now();
-  const id: LoopbackIdentity = { port: usablePort(parsed.port), token: parsed.token, created_at: createdAt };
-  if (typeof parsed.pid === "number" && Number.isFinite(parsed.pid)) id.pid = parsed.pid;
+    typeof parsed.created_at === "number" && Number.isFinite(parsed.created_at)
+      ? parsed.created_at
+      : Date.now();
+  const id: LoopbackIdentity = {
+    port: usablePort(parsed.port),
+    token: parsed.token,
+    created_at: createdAt,
+  };
+  if (typeof parsed.pid === "number" && Number.isFinite(parsed.pid))
+    id.pid = parsed.pid;
   return id;
 }
 
@@ -97,7 +109,11 @@ export function writeHookPort(configDir: string, port: number): void {
 export function loadOrCreateIdentity(configDir: string): LoopbackIdentity {
   const existing = readIdentity(configDir);
   if (existing) return existing;
-  const minted: LoopbackIdentity = { port: 0, token: generateTerminalToken(), created_at: Date.now() };
+  const minted: LoopbackIdentity = {
+    port: 0,
+    token: generateTerminalToken(),
+    created_at: Date.now(),
+  };
   try {
     writeIdentity(configDir, minted);
   } catch {
@@ -147,7 +163,10 @@ export interface ListenOptions {
  * Both take the same path, or a corrupt identity file would become an
  * unhandled rejection, and node aborts the process on one.
  */
-export function listenOnSavedPort(server: Server, opts: ListenOptions): Promise<number> {
+export function listenOnSavedPort(
+  server: Server,
+  opts: ListenOptions,
+): Promise<number> {
   const { configDir, identity, log } = opts;
   const warn = opts.warn ?? log;
   return new Promise<number>((resolve) => {
@@ -166,11 +185,15 @@ export function listenOnSavedPort(server: Server, opts: ListenOptions): Promise<
       if (listening) return;
       if (!fellBack) {
         fellBack = true;
-        warn(`Hook server could not bind port ${identity.port} (${err.code || err.message}), asking the OS for another`);
+        warn(
+          `Hook server could not bind port ${identity.port} (${err.code || err.message}), asking the OS for another`,
+        );
         tryListen(0);
         return;
       }
-      warn(`Hook server listen failed, no loopback surface on this daemon: ${err.message}`);
+      warn(
+        `Hook server listen failed, no loopback surface on this daemon: ${err.message}`,
+      );
     }
 
     server.on("error", onError);
@@ -184,7 +207,9 @@ export function listenOnSavedPort(server: Server, opts: ListenOptions): Promise<
         writeHookPort(configDir, port);
         writeIdentity(configDir, { ...identity, port, pid: process.pid });
       } catch (err) {
-        log(`Hook server could not persist its identity: ${err instanceof Error ? err.message : String(err)}`);
+        log(
+          `Hook server could not persist its identity: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
       // `cast bench daemon` measures boot blackout by matching this line
       // exactly (bench/logReport.ts LISTEN_RE, anchored at both ends). Any

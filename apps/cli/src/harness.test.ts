@@ -32,7 +32,10 @@ describe("writeHarnessFile", () => {
     expect(writeHarnessFile(file, "a\n", "section:memory")).toBe(true);
     expect(writeHarnessFile(file, "a\n", "section:memory")).toBe(false);
     expect(writeHarnessFile(file, "b\n", "section:memory")).toBe(true);
-    expect(readHarnessChanges().map((c) => c.action)).toEqual(["modified", "created"]);
+    expect(readHarnessChanges().map((c) => c.action)).toEqual([
+      "modified",
+      "created",
+    ]);
   });
 
   test("keeps the mode the user gave an existing file", () => {
@@ -44,7 +47,9 @@ describe("writeHarnessFile", () => {
 
   test("attributes a write to the scoped cause", () => {
     const file = path.join(dir, "x");
-    withHarnessCause({ why: "a team turned chat on", automatic: true }, () => writeHarnessFile(file, "1", "section:chat"));
+    withHarnessCause({ why: "a team turned chat on", automatic: true }, () =>
+      writeHarnessFile(file, "1", "section:chat"),
+    );
     const [c] = readHarnessChanges();
     expect(c.why).toBe("a team turned chat on");
     expect(c.automatic).toBe(true);
@@ -55,15 +60,29 @@ describe("editHarnessJson", () => {
   test("keeps the file's indent, and a no-op edit writes nothing", () => {
     const file = path.join(dir, "settings.json");
     fs.writeFileSync(file, JSON.stringify({ model: "opus" }, null, 4));
-    expect(editHarnessJson(file, "model", (s) => { s.model = "opus"; })).toBe(false);
-    expect(editHarnessJson(file, "model", (s) => { s.model = "sonnet"; })).toBe(true);
-    expect(fs.readFileSync(file, "utf-8")).toBe('{\n    "model": "sonnet"\n}\n');
+    expect(
+      editHarnessJson(file, "model", (s) => {
+        s.model = "opus";
+      }),
+    ).toBe(false);
+    expect(
+      editHarnessJson(file, "model", (s) => {
+        s.model = "sonnet";
+      }),
+    ).toBe(true);
+    expect(fs.readFileSync(file, "utf-8")).toBe(
+      '{\n    "model": "sonnet"\n}\n',
+    );
   });
 
   test("never overwrites a file it cannot parse", () => {
     const file = path.join(dir, "settings.json");
     fs.writeFileSync(file, "{ not json");
-    expect(editHarnessJson(file, "hooks", (s) => { s.hooks = {}; })).toBe(false);
+    expect(
+      editHarnessJson(file, "hooks", (s) => {
+        s.hooks = {};
+      }),
+    ).toBe(false);
     expect(fs.readFileSync(file, "utf-8")).toBe("{ not json");
   });
 });

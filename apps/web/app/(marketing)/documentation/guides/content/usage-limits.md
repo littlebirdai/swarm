@@ -6,8 +6,8 @@ Codecast treats a limit as a pause with a known end. The session is parked, and 
 
 ## Turn it on
 
-1. Open **Settings** and choose **Agent Features** under *Machines*, then pick the computer.
-2. Find **Usage limits** under *Hands on the machine*, switch it on, and confirm with **Turn on Usage limits**.
+1. Open **Settings** and choose **Agent Features** under _Machines_, then pick the computer.
+2. Find **Usage limits** under _Hands on the machine_, switch it on, and confirm with **Turn on Usage limits**.
 
 It turns itself on when a computer has more than one saved Claude account, because a limit is then only a short pause. The card's **How it works** shows what it changes.
 
@@ -15,7 +15,7 @@ It turns itself on when a computer has more than one saved Claude account, becau
 
 ## Save more than one account
 
-Open **Settings** and choose **Claude Accounts** under *Machines*. Each computer has its own section listing the Claude accounts saved on it, with how much of each window they have used and a **Switch** button.
+Open **Settings** and choose **Claude Accounts** under _Machines_. Each computer has its own section listing the Claude accounts saved on it, with how much of each window they have used and a **Switch** button.
 
 ![Claude Accounts: one computer's saved accounts with their Session and Week usage and a Switch button](/documentation/usage-limits/accounts.webp "Each computer's saved Claude accounts and how much room each has.")
 
@@ -29,19 +29,19 @@ At the top of each computer's section on the same page, **When a session stops o
 
 ![The four recovery choices on the Claude Accounts page](/documentation/usage-limits/recovery-mode.webp "One choice per computer, for every session on it.")
 
-| Choice | What codecast does |
-|--------|-----------|
-| **Never continue for me** | Nothing. A stopped session waits until you continue it. This is the default |
-| **Continue on this account** | Continues sessions after a limit resets, an error or a crash. Never changes accounts |
-| **Continue, and ask before switching accounts** | The same, and on a limit it recommends the saved account with the most room and waits for you to approve |
+| Choice                                          | What codecast does                                                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Never continue for me**                       | Nothing. A stopped session waits until you continue it. This is the default                                         |
+| **Continue on this account**                    | Continues sessions after a limit resets, an error or a crash. Never changes accounts                                |
+| **Continue, and ask before switching accounts** | The same, and on a limit it recommends the saved account with the most room and waits for you to approve            |
 | **Continue, and switch accounts automatically** | The same, and on a limit it moves the computer to the saved account with the most room and continues without asking |
 
 An account that is out of room, or whose sign-in has expired, is never picked. When every saved account is spent, sessions wait for the earliest reset. When many sessions are parked, they come back a few at a time, so the restart itself doesn't look like a burst to Claude and trip another limit.
 
 ## What you see
 
-- **In the conversation**, a **Usage limit** card names the window that closed, the account, and when it resets, then says what happens next ("Resumes on its own when the window resets", or a proposed switch). Its buttons approve a switch for this session, **Continue** once the window is open again, or open **Accounts**. While a session restarts, the card shows each step; afterwards it reads *Usage limit · resolved*.
-- **Above the message box**, a line counts down: *Usage limit · resets in 2h 12m*.
+- **In the conversation**, a **Usage limit** card names the window that closed, the account, and when it resets, then says what happens next ("Resumes on its own when the window resets", or a proposed switch). Its buttons approve a switch for this session, **Continue** once the window is open again, or open **Accounts**. While a session restarts, the card shows each step; afterwards it reads _Usage limit · resolved_.
+- **Above the message box**, a line counts down: _Usage limit · resets in 2h 12m_.
 - **In the inbox**, a parked session carries a **limit** badge, and when several are parked a banner sums them up ("3 sessions blocked on usage limits") with **Switch & continue** or **Continue**.
 - **In the header**, the account chip shows the account in use, with a warning dot once a window passes 80%. Hover it for each account's **Session** and **Week** bars and the same choice of what happens on a limit; **Manage accounts** opens the settings page.
 
@@ -58,12 +58,12 @@ Codex accounts show in the header chip with their 5 hour and weekly windows, and
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| An account shows **login expired** | Click **sign in again** on its row |
-| A session stays parked after the reset | Click **Continue** on its card, or check that the computer isn't set to **Never continue for me** |
-| A switch never happens | Save a second account, and set the computer to **Continue, and switch accounts automatically**, or approve the proposal on the card |
-| The header says no Claude account is connected | Sign in to Claude Code on that computer |
+| What you notice                                | What to do                                                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| An account shows **login expired**             | Click **sign in again** on its row                                                                                                  |
+| A session stays parked after the reset         | Click **Continue** on its card, or check that the computer isn't set to **Never continue for me**                                   |
+| A switch never happens                         | Save a second account, and set the computer to **Continue, and switch accounts automatically**, or approve the proposal on the card |
+| The header says no Claude account is connected | Sign in to Claude Code on that computer                                                                                             |
 
 ## For agents and scripts
 

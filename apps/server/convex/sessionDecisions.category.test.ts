@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { adoptedCategory, assignCategory, categoryFor, isHumanOnlyCategory } from "./lib/decisionCategory";
+import {
+  adoptedCategory,
+  assignCategory,
+  categoryFor,
+  isHumanOnlyCategory,
+} from "./lib/decisionCategory";
 
 describe("category assignment", () => {
   test("the asker's proposal stands, open or protected", () => {
@@ -28,8 +33,12 @@ describe("categoryFor", () => {
   });
 
   test("the run's own ask takes the flow's word, else a person", () => {
-    expect(categoryFor(undefined, { current: null, runDeclares: true, runs: true })).toBe("unknown");
-    expect(categoryFor("review", { current: null, runDeclares: true, runs: true })).toBe("review");
+    expect(
+      categoryFor(undefined, { current: null, runDeclares: true, runs: true }),
+    ).toBe("unknown");
+    expect(
+      categoryFor("review", { current: null, runDeclares: true, runs: true }),
+    ).toBe("review");
   });
 
   test("a station's new card is a person's unless it proposes a person's category", () => {
@@ -40,12 +49,42 @@ describe("categoryFor", () => {
   });
 
   test("a re-ask or edit keeps the category without a proposal; on a run's card a proposal only tightens", () => {
-    expect(categoryFor(undefined, { current: "production", runDeclares: false, runs: false })).toBe("production");
-    expect(categoryFor("scope", { current: "production", runDeclares: false, runs: false })).toBe("scope");
-    expect(categoryFor("review", { current: "unknown", runDeclares: false, runs: true })).toBe("unknown");
-    expect(categoryFor("production", { current: "review", runDeclares: false, runs: true })).toBe("production");
+    expect(
+      categoryFor(undefined, {
+        current: "production",
+        runDeclares: false,
+        runs: false,
+      }),
+    ).toBe("production");
+    expect(
+      categoryFor("scope", {
+        current: "production",
+        runDeclares: false,
+        runs: false,
+      }),
+    ).toBe("scope");
+    expect(
+      categoryFor("review", {
+        current: "unknown",
+        runDeclares: false,
+        runs: true,
+      }),
+    ).toBe("unknown");
+    expect(
+      categoryFor("production", {
+        current: "review",
+        runDeclares: false,
+        runs: true,
+      }),
+    ).toBe("production");
     // A row from before categories keeps a person's hold.
-    expect(categoryFor(undefined, { current: undefined, runDeclares: false, runs: false })).toBe("unknown");
+    expect(
+      categoryFor(undefined, {
+        current: undefined,
+        runDeclares: false,
+        runs: false,
+      }),
+    ).toBe("unknown");
   });
 });
 

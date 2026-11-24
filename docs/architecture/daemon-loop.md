@@ -48,19 +48,19 @@ does not enter this worker path, matching the daemon's existing platform limit.
 The ingest implementation is still under development review. Its presence in
 source does not establish correctness or fleet performance.
 
-| Kind | Current production work | Supervisor responsibility |
-| --- | --- | --- |
-| `probe` | Validated read-only process, tmux, focus, launchd and keychain commands | Scheduling, identity decisions and mutations |
-| `scan` | Paged filesystem walks, index refresh, watcher scans, inventory and Cursor workspace observations | Cache publication, generation checks and sync decisions |
+| Kind     | Current production work                                                                                                                                                                        | Supervisor responsibility                                     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `probe`  | Validated read-only process, tmux, focus, launchd and keychain commands                                                                                                                        | Scheduling, identity decisions and mutations                  |
+| `scan`   | Paged filesystem walks, index refresh, watcher scans, inventory and Cursor workspace observations                                                                                              | Cache publication, generation checks and sync decisions       |
 | `ingest` | Reads and parses nine client formats (`INGEST_CLIENTS` in `workers/ingestTypes.ts`) and runs the `prepare`, `messagesSdk` and `payloadCodec` operations; not independently accepted (ct-47711) | Positions, deduplication, retries and Convex writes stay here |
 
 The host launches the same executable through `main` before ordinary CLI boot:
 
-| Install | Child invocation shape |
-| --- | --- |
-| Source | `bun apps/cli/src/main.ts _worker <kind>` |
+| Install          | Child invocation shape                             |
+| ---------------- | -------------------------------------------------- |
+| Source           | `bun apps/cli/src/main.ts _worker <kind>`          |
 | Built JavaScript | `node apps/cli/dist/main.js _worker <kind>` or Bun |
-| Compiled binary | `codecast _worker <kind>` |
+| Compiled binary  | `codecast _worker <kind>`                          |
 
 These are supervised invocation shapes, not commands to start by hand. The
 child checks its parent PID and worker context. JavaScript packaging uses Bun's
@@ -80,14 +80,14 @@ kind, correlation ID and operation. Requests carry an absolute deadline; the
 host validates results against the pending operation and current generation.
 Invalid UTF-8, oversized frames and protocol mismatches reject the connection.
 
-| Bound | Current value |
-| --- | --- |
-| Encoded frame | 16 MiB |
-| Active requests per host | 4 |
-| Waiting requests per host | 32 |
-| Request deadline | At most 60 seconds |
-| Scan page | At most 128 rows and 256 KiB |
-| Idle scan cursor | 30 seconds |
+| Bound                     | Current value                |
+| ------------------------- | ---------------------------- |
+| Encoded frame             | 16 MiB                       |
+| Active requests per host  | 4                            |
+| Waiting requests per host | 32                           |
+| Request deadline          | At most 60 seconds           |
+| Scan page                 | At most 128 rows and 256 KiB |
+| Idle scan cursor          | 30 seconds                   |
 
 The host uses monotonic time for crash/backoff and heartbeat age, with the shared
 suspend classifier. Results still have to meet their wall-clock request deadline.
@@ -371,15 +371,15 @@ package's test script is `bun test ./src/`.
 
 Recorded pre-worker observation, `2026-09-05T01:22:38.671Z`, 120 seconds:
 
-| Context or measurement | Value |
-| --- | --- |
-| Daemon PID / build | 82084 / 6817851b45ac |
-| Fleet / machine | 128 tmux sessions, 1,501 processes |
-| Load average | 8.1 / 20.1 / 36.0 |
-| Health RTT p99 / maximum | 73 / 116 ms |
-| Health failures / skips / samples above 1 second | 0 / 0 / 0 |
-| Terminal list RTT p99 / maximum | 158 / 227 ms |
-| Invalid hook request RTT p99 | 65 ms, HTTP 400 only |
+| Context or measurement                           | Value                              |
+| ------------------------------------------------ | ---------------------------------- |
+| Daemon PID / build                               | 82084 / 6817851b45ac               |
+| Fleet / machine                                  | 128 tmux sessions, 1,501 processes |
+| Load average                                     | 8.1 / 20.1 / 36.0                  |
+| Health RTT p99 / maximum                         | 73 / 116 ms                        |
+| Health failures / skips / samples above 1 second | 0 / 0 / 0                          |
+| Terminal list RTT p99 / maximum                  | 158 / 227 ms                       |
+| Invalid hook request RTT p99                     | 65 ms, HTTP 400 only               |
 
 This quiet observation misses the terminal-list target and is not comparable to
 the earlier 200-session stress runs. Later unrelated reloads also mean PID 82084

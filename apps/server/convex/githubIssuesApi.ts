@@ -12,7 +12,10 @@
 const GITHUB_API_BASE = "https://api.github.com";
 const TIMEOUT_MS = 15_000;
 
-function headers(token: string, extra: Record<string, string> = {}): Record<string, string> {
+function headers(
+  token: string,
+  extra: Record<string, string> = {},
+): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
@@ -21,14 +24,23 @@ function headers(token: string, extra: Record<string, string> = {}): Record<stri
   };
 }
 
-async function githubJson(token: string, path: string, init: RequestInit = {}): Promise<any> {
+async function githubJson(
+  token: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<any> {
   const res = await fetch(`${GITHUB_API_BASE}${path}`, {
     ...init,
-    headers: headers(token, init.body ? { "Content-Type": "application/json" } : {}),
+    headers: headers(
+      token,
+      init.body ? { "Content-Type": "application/json" } : {},
+    ),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) {
-    throw new Error(`GitHub API ${res.status} ${path}: ${(await res.text()).slice(0, 500)}`);
+    throw new Error(
+      `GitHub API ${res.status} ${path}: ${(await res.text()).slice(0, 500)}`,
+    );
   }
   return res.status === 204 ? null : await res.json();
 }
@@ -64,17 +76,33 @@ export async function listIssuesPage(
     direction: "desc",
   });
   if (opts.since) params.set("since", new Date(opts.since).toISOString());
-  const rows = await githubJson(token, `/repos/${repo}/issues?${params.toString()}`);
-  return Array.isArray(rows) ? { issues: rows.filter((r) => !isPullRequest(r)), raw: rows.length } : { issues: [], raw: 0 };
+  const rows = await githubJson(
+    token,
+    `/repos/${repo}/issues?${params.toString()}`,
+  );
+  return Array.isArray(rows)
+    ? { issues: rows.filter((r) => !isPullRequest(r)), raw: rows.length }
+    : { issues: [], raw: 0 };
 }
 
-export async function getIssue(token: string, repo: string, number: number): Promise<any | null> {
+export async function getIssue(
+  token: string,
+  repo: string,
+  number: number,
+): Promise<any | null> {
   const row = await githubJson(token, `/repos/${repo}/issues/${number}`);
   return isPullRequest(row) ? null : row;
 }
 
-export async function listIssueComments(token: string, repo: string, number: number): Promise<any[]> {
-  const rows = await githubJson(token, `/repos/${repo}/issues/${number}/comments?per_page=100`);
+export async function listIssueComments(
+  token: string,
+  repo: string,
+  number: number,
+): Promise<any[]> {
+  const rows = await githubJson(
+    token,
+    `/repos/${repo}/issues/${number}/comments?per_page=100`,
+  );
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -99,7 +127,11 @@ export async function updateIssue(
   });
 }
 
-export async function createIssue(token: string, repo: string, issue: GithubIssuePatch): Promise<any> {
+export async function createIssue(
+  token: string,
+  repo: string,
+  issue: GithubIssuePatch,
+): Promise<any> {
   return await githubJson(token, `/repos/${repo}/issues`, {
     method: "POST",
     body: JSON.stringify(issue),
@@ -112,10 +144,14 @@ export async function createIssueComment(
   number: number,
   body: string,
 ): Promise<{ id: string; url?: string }> {
-  const row = await githubJson(token, `/repos/${repo}/issues/${number}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ body }),
-  });
+  const row = await githubJson(
+    token,
+    `/repos/${repo}/issues/${number}/comments`,
+    {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    },
+  );
   // node_id is what inbound webhooks carry, so it is the id we store (S1.2) —
   // storing the numeric id would never match the echo and every pushed comment
   // would come back as a duplicate.
@@ -123,10 +159,15 @@ export async function createIssueComment(
 }
 
 /** Repos an installation can reach when its selection is "all". */
-export async function listInstallationRepos(token: string): Promise<Array<{ full_name: string; html_url?: string }>> {
+export async function listInstallationRepos(
+  token: string,
+): Promise<Array<{ full_name: string; html_url?: string }>> {
   const out: Array<{ full_name: string; html_url?: string }> = [];
   for (let page = 1; page <= 5; page++) {
-    const data = await githubJson(token, `/installation/repositories?per_page=100&page=${page}`);
+    const data = await githubJson(
+      token,
+      `/installation/repositories?per_page=100&page=${page}`,
+    );
     const repos = data?.repositories ?? [];
     out.push(...repos);
     if (repos.length < 100) break;

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { conversationIdsFromTrailers, parseOldSpans } from "./decisionsTouching";
+import {
+  conversationIdsFromTrailers,
+  parseOldSpans,
+} from "./decisionsTouching";
 
 describe("decisionsTouching", () => {
   test("old-side spans: replaced lines, a pure insertion anchored after its line, new files skipped", () => {
@@ -15,11 +18,23 @@ describe("decisionsTouching", () => {
       "+++ b/src/new.ts",
       "@@ -0,0 +1,5 @@",
     ].join("\n");
-    expect([...parseOldSpans(patch)]).toEqual([["src/a.ts", [[10, 12], [40, 40], [7, 7]]]]);
+    expect([...parseOldSpans(patch)]).toEqual([
+      [
+        "src/a.ts",
+        [
+          [10, 12],
+          [40, 40],
+          [7, 7],
+        ],
+      ],
+    ]);
   });
 
   test("conversation ids from trailer values", () => {
-    const text = "https://codecast.sh/conversation/jx73nf7n75yr54qqcjvssnm6498jcfed\n\nhttps://codecast.sh/conversation/jx73nf7n75yr54qqcjvssnm6498jcfed\n";
-    expect(conversationIdsFromTrailers(text)).toEqual(["jx73nf7n75yr54qqcjvssnm6498jcfed"]);
+    const text =
+      "https://codecast.sh/conversation/jx73nf7n75yr54qqcjvssnm6498jcfed\n\nhttps://codecast.sh/conversation/jx73nf7n75yr54qqcjvssnm6498jcfed\n";
+    expect(conversationIdsFromTrailers(text)).toEqual([
+      "jx73nf7n75yr54qqcjvssnm6498jcfed",
+    ]);
   });
 });

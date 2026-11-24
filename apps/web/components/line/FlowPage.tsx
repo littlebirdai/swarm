@@ -25,8 +25,12 @@ export function FlowPage({ owner }: { owner: string }) {
   const space = useLineSpace(selection);
   useOrgScope(space.key);
   useSyncOrgTreeFeeder();
-  const roles = useInboxStore((s) => windowOrgTree(s)?.roles) as OrgRole[] | undefined;
-  const projects = useInboxStore((s) => s.projects) as Record<string, Project> | undefined;
+  const roles = useInboxStore((s) => windowOrgTree(s)?.roles) as
+    | OrgRole[]
+    | undefined;
+  const projects = useInboxStore((s) => s.projects) as
+    | Record<string, Project>
+    | undefined;
   const role = roles?.find((r) => r.handle === owner) ?? null;
   const intake = useMemo(() => {
     if (!role || !roles || !projects) return [];
@@ -35,12 +39,20 @@ export function FlowPage({ owner }: { owner: string }) {
       .map((id) => ({ id, title: projects[id].title ?? "Untitled" }));
   }, [role, roles, projects]);
   const asked = useLineProjectId(selection.project);
-  const projectId = intake.find((p) => p.id === asked)?.id ?? intake[0]?.id ?? null;
-  const flow = useMemo<FlowFrame | null>(() => (role ? { owner, name: role.name, projects: intake } : null), [role, owner, intake]);
+  const projectId =
+    intake.find((p) => p.id === asked)?.id ?? intake[0]?.id ?? null;
+  const flow = useMemo<FlowFrame | null>(
+    () => (role ? { owner, name: role.name, projects: intake } : null),
+    [role, owner, intake],
+  );
   return (
     <WorkspaceScopeProvider value={space.key}>
       <FlowPageContext.Provider value={owner}>
-        <LineWorkspace space={space} projectId={projectId} flow={flow ?? { owner, name: `@${owner}`, projects: [] }} />
+        <LineWorkspace
+          space={space}
+          projectId={projectId}
+          flow={flow ?? { owner, name: `@${owner}`, projects: [] }}
+        />
       </FlowPageContext.Provider>
     </WorkspaceScopeProvider>
   );

@@ -7,16 +7,27 @@ import { makeFakeDb } from "./testDb";
 // temporary gate, and leaves a person's own precheck alone.
 
 const ME = ("u".repeat(31) + "m") as any;
-const db = () => makeFakeDb({ agent_tasks: [], counters: [], conversations: [] });
+const db = () =>
+  makeFakeDb({ agent_tasks: [], counters: [], conversations: [] });
 const ctx = (d: any) => ({ db: d }) as any;
 const DAY = 86_400_000;
 
 describe("paused create", () => {
   test("a recurring trigger created paused has no run_at and does not fire until activated", async () => {
     const d = db();
-    const { id } = await insertTask(ctx(d), ME, { title: "Ads daily", prompt: "loader", schedule_type: "recurring", interval_ms: DAY, status: "paused" });
+    const { id } = await insertTask(ctx(d), ME, {
+      title: "Ads daily",
+      prompt: "loader",
+      schedule_type: "recurring",
+      interval_ms: DAY,
+      status: "paused",
+    });
     const row = await d.get(id);
-    expect(row).toMatchObject({ status: "paused", run_count: 0, interval_ms: DAY });
+    expect(row).toMatchObject({
+      status: "paused",
+      run_count: 0,
+      interval_ms: DAY,
+    });
     expect(row.run_at).toBeUndefined();
     const before = Date.now();
     expect(await applyActivate(ctx(d), row)).toBe(true);
@@ -27,14 +38,41 @@ describe("paused create", () => {
   });
   test("activation clears the install gate but keeps a person's precheck; event triggers cannot be paused at birth", async () => {
     const d = db();
-    const { id } = await insertTask(ctx(d), ME, { title: "Gated", prompt: "p", schedule_type: "recurring", interval_ms: DAY, status: "paused", precheck: "exit 1" });
+    const { id } = await insertTask(ctx(d), ME, {
+      title: "Gated",
+      prompt: "p",
+      schedule_type: "recurring",
+      interval_ms: DAY,
+      status: "paused",
+      precheck: "exit 1",
+    });
     await applyActivate(ctx(d), await d.get(id));
     expect((await d.get(id)).precheck).toBeUndefined();
-    const own = await insertTask(ctx(d), ME, { title: "Guarded", prompt: "p", schedule_type: "recurring", interval_ms: DAY, status: "paused", precheck: "test -f ready" });
+    const own = await insertTask(ctx(d), ME, {
+      title: "Guarded",
+      prompt: "p",
+      schedule_type: "recurring",
+      interval_ms: DAY,
+      status: "paused",
+      precheck: "test -f ready",
+    });
     await applyActivate(ctx(d), await d.get(own.id));
     expect((await d.get(own.id)).precheck).toBe("test -f ready");
-    await expect(insertTask(ctx(d), ME, { title: "E", prompt: "p", schedule_type: "event", event_filter: { event_type: "push" }, status: "paused" })).rejects.toThrow(/cannot be created paused/);
-    const plain = await insertTask(ctx(d), ME, { title: "Plain", prompt: "p", schedule_type: "recurring", interval_ms: DAY });
+    await expect(
+      insertTask(ctx(d), ME, {
+        title: "E",
+        prompt: "p",
+        schedule_type: "event",
+        event_filter: { event_type: "push" },
+        status: "paused",
+      }),
+    ).rejects.toThrow(/cannot be created paused/);
+    const plain = await insertTask(ctx(d), ME, {
+      title: "Plain",
+      prompt: "p",
+      schedule_type: "recurring",
+      interval_ms: DAY,
+    });
     expect((await d.get(plain.id)).status).toBe("scheduled");
   });
 });

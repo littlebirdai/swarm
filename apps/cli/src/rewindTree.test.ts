@@ -4,17 +4,30 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createTurnSnapshot } from "./treeSnapshot.js";
-import { RewindRefused, diffRewind, keepRewind, ownTrees, planRewind, putBackRewind, readStaged, stageRewind, type RewindRow } from "./rewindTree.js";
+import {
+  RewindRefused,
+  diffRewind,
+  keepRewind,
+  ownTrees,
+  planRewind,
+  putBackRewind,
+  readStaged,
+  stageRewind,
+  type RewindRow,
+} from "./rewindTree.js";
 
 // Real git in temp repos: slow on a loaded machine, so no 5 s default.
 setDefaultTimeout(180_000);
 const tmps: string[] = [];
 afterEach(() => {
   while (tmps.length) {
-    try { fs.rmSync(tmps.pop()!, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(tmps.pop()!, { recursive: true, force: true });
+    } catch {}
   }
 });
-const git = (cwd: string, args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
+const git = (cwd: string, args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
 const tick = () => new Promise((r) => setTimeout(r, 5));
 // Edits in these scenes happen milliseconds apart; the daemon's minute of slack would blur them together.
 const SLACK = { slackMs: 1 };
@@ -25,12 +38,16 @@ function repo(): string {
   git(cwd, ["init", "-q", "-b", "main"]);
   git(cwd, ["config", "user.email", "t@t.t"]);
   git(cwd, ["config", "user.name", "t"]);
-  for (const f of ["a.txt", "b.txt", "c.txt", "gone.txt"]) fs.writeFileSync(path.join(cwd, f), `${f} v0\n`);
+  for (const f of ["a.txt", "b.txt", "c.txt", "gone.txt"])
+    fs.writeFileSync(path.join(cwd, f), `${f} v0\n`);
   git(cwd, ["add", "."]);
   git(cwd, ["commit", "-qm", "base"]);
   return cwd;
 }
-const read = (cwd: string, f: string) => (fs.existsSync(path.join(cwd, f)) ? fs.readFileSync(path.join(cwd, f), "utf8") : null);
+const read = (cwd: string, f: string) =>
+  fs.existsSync(path.join(cwd, f))
+    ? fs.readFileSync(path.join(cwd, f), "utf8")
+    : null;
 const put = (cwd: string, f: string, s: string) => {
   fs.mkdirSync(path.dirname(path.join(cwd, f)), { recursive: true });
   fs.writeFileSync(path.join(cwd, f), s);
@@ -47,12 +64,22 @@ function session(cwd: string) {
   const snap = async (source: "turn" | "prompt") => {
     await tick();
     const s = (await createTurnSnapshot(cwd))!;
-    rows.push({ sha: s.sha, base_sha: s.base, prev_sha: s.prev, taken_at: s.takenAt, ...(source === "turn" ? { turn_completed_at: s.takenAt, source } : { source }) });
+    rows.push({
+      sha: s.sha,
+      base_sha: s.base,
+      prev_sha: s.prev,
+      taken_at: s.takenAt,
+      ...(source === "turn"
+        ? { turn_completed_at: s.takenAt, source }
+        : { source }),
+    });
     await tick();
   };
   return {
     rows,
-    get edits() { return [...edits].map(([p, at]) => ({ path: p, at })); },
+    get edits() {
+      return [...edits].map(([p, at]) => ({ path: p, at }));
+    },
     /** The person sends a message: its time, then the daemon's prompt snapshot. */
     async ask(prompt = true): Promise<number> {
       await tick();
@@ -64,14 +91,19 @@ function session(cwd: string) {
     async write(f: string, s: string | null) {
       await tick();
       edits.set(f, [...(edits.get(f) ?? []), Date.now()]);
-      if (s === null) fs.rmSync(path.join(cwd, f), { recursive: true, force: true });
+      if (s === null)
+        fs.rmSync(path.join(cwd, f), { recursive: true, force: true });
       else put(cwd, f, s);
     },
     end: () => snap("turn"),
   };
 }
 /** Another session's turn end in the same checkout: a snapshot with no row of ours. */
-const sibling = async (cwd: string) => { await tick(); await createTurnSnapshot(cwd); await tick(); };
+const sibling = async (cwd: string) => {
+  await tick();
+  await createTurnSnapshot(cwd);
+  await tick();
+};
 
 /** Three turns; the person rewinds to the second message. */
 async function scene() {
@@ -90,7 +122,8 @@ async function scene() {
   await s.end();
   return { cwd, s, at };
 }
-const plan = (cwd: string, s: ReturnType<typeof session>, at: number) => planRewind(cwd, "conv", s.rows, at, s.edits, SLACK);
+const plan = (cwd: string, s: ReturnType<typeof session>, at: number) =>
+  planRewind(cwd, "conv", s.rows, at, s.edits, SLACK);
 
 describe("planRewind", () => {
   test("restores, deletes and recreates exactly the files the session's turns after the message touched", async () => {
@@ -112,7 +145,9 @@ describe("planRewind", () => {
     expect(read(cwd, "gone.txt")).toBe("gone.txt v0\n");
     expect(read(cwd, "new/dir/created.txt")).toBeNull();
     expect(fs.existsSync(path.join(cwd, "new"))).toBe(false);
-    expect(read(cwd, "c.txt")).toBe("a person's edit, never touched by the session\n");
+    expect(read(cwd, "c.txt")).toBe(
+      "a person's edit, never touched by the session\n",
+    );
     expect(git(cwd, ["diff", "--cached", "--name-only"])).toBe("");
 
     expect((await putBackRewind(cwd)).restored).toBe(4);
@@ -128,8 +163,12 @@ describe("planRewind", () => {
     const { cwd, s, at } = await scene();
     put(cwd, "b.txt", "someone else's later edit\n");
     const p = await plan(cwd, s, at);
-    expect(p.files.filter((f) => f.conflict).map((f) => f.path)).toEqual(["b.txt"]);
-    const refused = await stageRewind(p, { fingerprint: p.fingerprint }).catch((e) => e);
+    expect(p.files.filter((f) => f.conflict).map((f) => f.path)).toEqual([
+      "b.txt",
+    ]);
+    const refused = await stageRewind(p, { fingerprint: p.fingerprint }).catch(
+      (e) => e,
+    );
     expect(refused).toBeInstanceOf(RewindRefused);
     expect((refused as RewindRefused).paths).toEqual(["b.txt"]);
     expect(read(cwd, "a.txt")).toBe("a turn2\n");
@@ -189,7 +228,11 @@ describe("planRewind", () => {
     await s.write("b.txt", "ours after the sibling\n");
     await s.end();
     const p = await plan(cwd, s, at);
-    expect(p.files.map((f) => [f.path, f.conflict])).toEqual([["a.txt", false], ["b.txt", false], ["c.txt", false]]);
+    expect(p.files.map((f) => [f.path, f.conflict])).toEqual([
+      ["a.txt", false],
+      ["b.txt", false],
+      ["c.txt", false],
+    ]);
     await stageRewind(p, { fingerprint: p.fingerprint });
     expect(read(cwd, "a.txt")).toBe("a turn2\n");
     expect(read(cwd, "b.txt")).toBe("b turn3\n");
@@ -206,7 +249,14 @@ describe("planRewind", () => {
     await s.write("a.txt", "turn 2, before the deferred snapshot\n");
     await tick();
     const d = (await createTurnSnapshot(cwd))!; // turn 1's deferred snapshot, dated by turn 1's Stop
-    s.rows.push({ sha: d.sha, base_sha: d.base, prev_sha: d.prev, taken_at: d.takenAt, turn_completed_at: stop, source: "turn" });
+    s.rows.push({
+      sha: d.sha,
+      base_sha: d.base,
+      prev_sha: d.prev,
+      taken_at: d.takenAt,
+      turn_completed_at: stop,
+      source: "turn",
+    });
     await s.write("c.txt", "turn 2\n");
     await s.end();
     const p = await plan(cwd, s, at);
@@ -225,7 +275,9 @@ describe("planRewind", () => {
     await s.end();
     const p = await plan(cwd, s, at);
     expect(p.files.find((f) => f.path === "a.txt")?.conflict).toBe(true);
-    await expect(stageRewind(p, { fingerprint: p.fingerprint })).rejects.toThrow(/changed since by someone else/);
+    await expect(
+      stageRewind(p, { fingerprint: p.fingerprint }),
+    ).rejects.toThrow(/changed since by someone else/);
   });
 
   test("a file the person's other session in this checkout also edited is a conflict, whatever the snapshots say", async () => {
@@ -239,7 +291,10 @@ describe("planRewind", () => {
     await s.end();
     const clean = await plan(cwd, s, at);
     expect(clean.files.find((f) => f.path === "a.txt")?.conflict).toBe(false); // the snapshots alone cannot see it
-    const p = await planRewind(cwd, "conv", s.rows, at, s.edits, { ...SLACK, others: [{ path: path.join(cwd, "a.txt"), at: [theirs] }] });
+    const p = await planRewind(cwd, "conv", s.rows, at, s.edits, {
+      ...SLACK,
+      others: [{ path: path.join(cwd, "a.txt"), at: [theirs] }],
+    });
     expect(p.files.find((f) => f.path === "a.txt")?.conflict).toBe(true);
   });
 
@@ -249,11 +304,20 @@ describe("planRewind", () => {
     await s.write("c.txt", "the agent was quick\n"); // before the prompt snapshot is taken
     await tick();
     const pr = (await createTurnSnapshot(cwd))!;
-    s.rows.push({ sha: pr.sha, base_sha: pr.base, prev_sha: pr.prev, taken_at: pr.takenAt, source: "prompt" });
+    s.rows.push({
+      sha: pr.sha,
+      base_sha: pr.base,
+      prev_sha: pr.prev,
+      taken_at: pr.takenAt,
+      source: "prompt",
+    });
     await s.write("b.txt", "after the snapshot\n");
     await s.end();
     const p = await plan(cwd, s, at);
-    expect(p.files.map((f) => [f.path, f.conflict])).toEqual([["b.txt", false], ["c.txt", true]]);
+    expect(p.files.map((f) => [f.path, f.conflict])).toEqual([
+      ["b.txt", false],
+      ["c.txt", true],
+    ]);
     await stageRewind(p, { fingerprint: p.fingerprint, overwrite: true });
     expect(read(cwd, "c.txt")).toBe("c.txt v0\n");
   });
@@ -265,7 +329,13 @@ describe("planRewind", () => {
     await s.write("a.txt", "the agent was quick\n");
     await tick();
     const pr = (await createTurnSnapshot(cwd))!;
-    s.rows.push({ sha: pr.sha, base_sha: pr.base, prev_sha: pr.prev, taken_at: pr.takenAt, source: "prompt" });
+    s.rows.push({
+      sha: pr.sha,
+      base_sha: pr.base,
+      prev_sha: pr.prev,
+      taken_at: pr.takenAt,
+      source: "prompt",
+    });
     await s.end();
     const err = await plan(cwd, s, at).catch((e) => e);
     expect(err).toBeInstanceOf(RewindRefused);
@@ -280,7 +350,14 @@ describe("planRewind", () => {
     await s.write("a.txt", "a turn4\n");
     await s.end();
     const outside = path.join(os.tmpdir(), "elsewhere.txt");
-    const p = await planRewind(cwd, "conv", s.rows, at, [...s.edits, { path: outside, at: [Date.now()] }], SLACK);
+    const p = await planRewind(
+      cwd,
+      "conv",
+      s.rows,
+      at,
+      [...s.edits, { path: outside, at: [Date.now()] }],
+      SLACK,
+    );
     expect(p.files.map((f) => f.path)).toEqual(["a.txt"]);
     expect(p.left_alone).toEqual(expect.arrayContaining([".env", outside]));
   });
@@ -292,7 +369,9 @@ describe("planRewind", () => {
     const queued = await s.ask(false); // delivered mid-turn: no prompt hook, no snapshot
     await s.write("b.txt", "answering the queued message\n");
     await s.end();
-    await expect(plan(cwd, s, queued)).rejects.toThrow(/no snapshot was taken when this message was sent/);
+    await expect(plan(cwd, s, queued)).rejects.toThrow(
+      /no snapshot was taken when this message was sent/,
+    );
   });
 
   test("at the daemon's real slack, a person's edit between turns is still a conflict", async () => {
@@ -328,7 +407,9 @@ describe("planRewind", () => {
     const { cwd, s, at } = await scene();
     const p = await plan(cwd, s, at);
     put(cwd, "a.txt", "saved during the rewind\n");
-    const err = await stageRewind(p, { fingerprint: p.fingerprint }).catch((e) => e);
+    const err = await stageRewind(p, { fingerprint: p.fingerprint }).catch(
+      (e) => e,
+    );
     expect((err as RewindRefused).paths).toEqual(["a.txt"]);
     expect(read(cwd, "a.txt")).toBe("saved during the rewind\n");
     expect(read(cwd, "b.txt")).toBe("b turn3\n");
@@ -339,7 +420,9 @@ describe("planRewind", () => {
     const { cwd, s, at } = await scene();
     const p = await plan(cwd, s, at);
     put(cwd, "gone.txt", "someone made a new one\n");
-    const err = await stageRewind(p, { fingerprint: p.fingerprint }).catch((e) => e);
+    const err = await stageRewind(p, { fingerprint: p.fingerprint }).catch(
+      (e) => e,
+    );
     expect((err as RewindRefused).paths).toEqual(["gone.txt"]);
     expect(read(cwd, "gone.txt")).toBe("someone made a new one\n");
   });
@@ -383,8 +466,12 @@ describe("planRewind", () => {
     fs.rmSync(path.join(cwd, "new"));
     fs.rmSync(path.join(cwd, "a.txt"));
     put(cwd, "a.txt/inside.txt", "the fork's folder\n");
-    const token = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused).token;
-    const err2 = await putBackRewind(cwd, { force: true, discardToken: token }).catch((e) => e);
+    const token = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused)
+      .token;
+    const err2 = await putBackRewind(cwd, {
+      force: true,
+      discardToken: token,
+    }).catch((e) => e);
     expect((err2 as RewindRefused).paths).toEqual(["a.txt/inside.txt"]);
     expect(read(cwd, "a.txt/inside.txt")).toBe("the fork's folder\n");
   });
@@ -393,8 +480,12 @@ describe("planRewind", () => {
     const { cwd, s, at } = await scene();
     const p = await plan(cwd, s, at);
     const staged = await stageRewind(p, { fingerprint: p.fingerprint });
-    await expect(keepRewind(cwd, { expectId: "an-older-one" })).rejects.toThrow(/a different rewind is staged/);
-    await expect(putBackRewind(cwd, { expectId: "an-older-one" })).rejects.toThrow(/a different rewind is staged/);
+    await expect(keepRewind(cwd, { expectId: "an-older-one" })).rejects.toThrow(
+      /a different rewind is staged/,
+    );
+    await expect(
+      putBackRewind(cwd, { expectId: "an-older-one" }),
+    ).rejects.toThrow(/a different rewind is staged/);
     expect((await readStaged(cwd))?.id).toBe(staged.id);
     await putBackRewind(cwd, { expectId: staged.id });
     expect(read(cwd, "a.txt")).toBe("a turn2\n");
@@ -405,12 +496,17 @@ describe("planRewind", () => {
     const p = await plan(cwd, s, at);
     await stageRewind(p, { fingerprint: p.fingerprint });
     put(cwd, "a.txt", "the fork, reviewed\n");
-    const seen = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused).token;
+    const seen = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused)
+      .token;
     put(cwd, "b.txt", "the fork, after the review\n");
-    const err = await putBackRewind(cwd, { force: true, discardToken: seen }).catch((e) => e);
+    const err = await putBackRewind(cwd, {
+      force: true,
+      discardToken: seen,
+    }).catch((e) => e);
     expect(err).toBeInstanceOf(RewindRefused);
     expect(read(cwd, "b.txt")).toBe("the fork, after the review\n");
-    const again = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused).token;
+    const again = ((await putBackRewind(cwd).catch((e) => e)) as RewindRefused)
+      .token;
     await putBackRewind(cwd, { force: true, discardToken: again });
     expect(read(cwd, "a.txt")).toBe("a turn2\n");
   });
@@ -422,7 +518,13 @@ describe("planRewind", () => {
     await s.write("p.txt", "the session's one edit\n");
     await sibling(cwd); // a sweep-like snapshot holding the session's write
     const sweep = (await createTurnSnapshot(cwd))!;
-    s.rows.push({ sha: sweep.sha, base_sha: sweep.base, prev_sha: sweep.prev, taken_at: sweep.takenAt, source: "sweep" });
+    s.rows.push({
+      sha: sweep.sha,
+      base_sha: sweep.base,
+      prev_sha: sweep.prev,
+      taken_at: sweep.takenAt,
+      source: "sweep",
+    });
     await tick();
     put(cwd, "p.txt", "the session's one edit\nthe person's line\n");
     await s.end();
@@ -439,17 +541,36 @@ describe("planRewind", () => {
     const p = await plan(cwd, s, at);
     expect(p.files.map((f) => f.path)).toEqual(["a.txt"]);
     expect(p.left_alone).toEqual(["notes.md"]);
-    expect((await planRewind(cwd, "conv", s.rows, at, null, SLACK)).files).toEqual([]);
+    expect(
+      (await planRewind(cwd, "conv", s.rows, at, null, SLACK)).files,
+    ).toEqual([]);
   });
 
   test("edited paths named through a symlinked folder, or relative to the session's folder, still count", async () => {
     const { cwd, s, at } = await scene();
-    const link = path.join(os.tmpdir(), `rewind-link-${process.pid}-${Date.now()}`);
+    const link = path.join(
+      os.tmpdir(),
+      `rewind-link-${process.pid}-${Date.now()}`,
+    );
     fs.symlinkSync(cwd, link);
     tmps.push(link);
-    const edits = s.edits.map((e) => (e.path === "a.txt" ? { ...e, path: path.join(link, "a.txt") } : e.path === "b.txt" ? { ...e, path: "dir/../b.txt" } : e));
-    const p = await planRewind(cwd, "conv", s.rows, at, edits, { ...SLACK, cwd });
-    expect(p.files.map((f) => f.path)).toEqual(["a.txt", "b.txt", "gone.txt", "new/dir/created.txt"]);
+    const edits = s.edits.map((e) =>
+      e.path === "a.txt"
+        ? { ...e, path: path.join(link, "a.txt") }
+        : e.path === "b.txt"
+          ? { ...e, path: "dir/../b.txt" }
+          : e,
+    );
+    const p = await planRewind(cwd, "conv", s.rows, at, edits, {
+      ...SLACK,
+      cwd,
+    });
+    expect(p.files.map((f) => f.path)).toEqual([
+      "a.txt",
+      "b.txt",
+      "gone.txt",
+      "new/dir/created.txt",
+    ]);
   });
 
   test("a file the session turned into a directory comes back as the file, and put back restores the directory", async () => {
@@ -461,7 +582,10 @@ describe("planRewind", () => {
     await s.write("x/inner.txt", "now a directory\n");
     await s.end();
     const p = await plan(cwd, s, at);
-    expect(p.files.map((f) => [f.path, f.action])).toEqual([["x", "recreate"], ["x/inner.txt", "delete"]]);
+    expect(p.files.map((f) => [f.path, f.action])).toEqual([
+      ["x", "recreate"],
+      ["x/inner.txt", "delete"],
+    ]);
     await stageRewind(p, { fingerprint: p.fingerprint });
     expect(read(cwd, "x")).toBe("x as a file\n");
     await putBackRewind(cwd);
@@ -489,7 +613,9 @@ describe("planRewind", () => {
     fs.chmodSync(path.join(cwd, "b.txt"), 0o755);
     await s.end();
     const p = await plan(cwd, s, at);
-    expect(p.files.map((f) => [f.path, f.action])).toEqual([["b.txt", "restore"]]);
+    expect(p.files.map((f) => [f.path, f.action])).toEqual([
+      ["b.txt", "restore"],
+    ]);
     await stageRewind(p, { fingerprint: p.fingerprint });
     expect(fs.statSync(path.join(cwd, "b.txt")).mode & 0o111).toBe(0);
   });
@@ -512,8 +638,13 @@ describe("planRewind", () => {
   test("a message older than every row returned at the cap is refused rather than rewound part way", async () => {
     const { cwd, s } = await scene();
     const last = s.rows[s.rows.length - 1];
-    const many = Array.from({ length: 500 }, (_, i) => ({ ...last, taken_at: last.taken_at + 1 + i }));
-    await expect(planRewind(cwd, "conv", many, last.taken_at - 10_000, s.edits)).rejects.toThrow(/more than 500 snapshots/);
+    const many = Array.from({ length: 500 }, (_, i) => ({
+      ...last,
+      taken_at: last.taken_at + 1 + i,
+    }));
+    await expect(
+      planRewind(cwd, "conv", many, last.taken_at - 10_000, s.edits),
+    ).rejects.toThrow(/more than 500 snapshots/);
   });
 
   test("a stale review is refused, and only one rewind is staged at a time", async () => {
@@ -522,16 +653,26 @@ describe("planRewind", () => {
     put(cwd, "a.txt", "moved after the review\n");
     const fresh = await plan(cwd, s, at);
     expect(fresh.fingerprint).not.toBe(p.fingerprint);
-    await expect(stageRewind(fresh, { fingerprint: p.fingerprint })).rejects.toThrow(/changed since the review/);
-    await stageRewind(fresh, { fingerprint: fresh.fingerprint, overwrite: true });
+    await expect(
+      stageRewind(fresh, { fingerprint: p.fingerprint }),
+    ).rejects.toThrow(/changed since the review/);
+    await stageRewind(fresh, {
+      fingerprint: fresh.fingerprint,
+      overwrite: true,
+    });
     const again = await plan(cwd, s, at);
-    await expect(stageRewind(again, { fingerprint: again.fingerprint, overwrite: true })).rejects.toThrow(/already staged/);
+    await expect(
+      stageRewind(again, { fingerprint: again.fingerprint, overwrite: true }),
+    ).rejects.toThrow(/already staged/);
   });
 
   test("a second step while one holds the checkout's lock is refused, not interleaved", async () => {
     const { cwd, s, at } = await scene();
     const p = await plan(cwd, s, at);
-    const [a, b] = await Promise.allSettled([stageRewind(p, { fingerprint: p.fingerprint }), stageRewind(p, { fingerprint: p.fingerprint })]);
+    const [a, b] = await Promise.allSettled([
+      stageRewind(p, { fingerprint: p.fingerprint }),
+      stageRewind(p, { fingerprint: p.fingerprint }),
+    ]);
     expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
     expect((await readStaged(cwd))?.files.length).toBe(4);
     await putBackRewind(cwd);
@@ -568,23 +709,42 @@ describe("planRewind", () => {
     const { cwd, s } = await scene();
     const p = await plan(cwd, s, await s.ask());
     expect(p.files).toEqual([]);
-    await expect(stageRewind(p, { fingerprint: p.fingerprint })).rejects.toThrow(/nothing to rewind/);
+    await expect(
+      stageRewind(p, { fingerprint: p.fingerprint }),
+    ).rejects.toThrow(/nothing to rewind/);
   });
 });
 
 describe("ownTrees", () => {
   test("starts at the message's prompt snapshot, else the last tree before it; skips repeats; counts only turns", () => {
     const rows: RewindRow[] = [
-      { sha: "s1", base_sha: "h", taken_at: 100, turn_completed_at: 100, source: "turn" },
+      {
+        sha: "s1",
+        base_sha: "h",
+        taken_at: 100,
+        turn_completed_at: 100,
+        source: "turn",
+      },
       { sha: "p2", base_sha: "h", taken_at: 1_001, source: "prompt" },
-      { sha: "s2", base_sha: "h", taken_at: 2_000, turn_completed_at: 2_000, source: "turn" },
+      {
+        sha: "s2",
+        base_sha: "h",
+        taken_at: 2_000,
+        turn_completed_at: 2_000,
+        source: "turn",
+      },
       { sha: "s2", base_sha: "h", taken_at: 2_500, source: "sweep" },
       { sha: "s3", base_sha: "h", taken_at: 3_000, source: "sweep" },
     ];
     const withPrompt = ownTrees(rows, 1_000);
     expect(withPrompt.fromPrompt).toBe(true);
-    expect(withPrompt.trees.map((t) => `${t.sha}${t.turn ? "*" : ""}`)).toEqual(["p2", "s2*", "s3"]);
-    const without = ownTrees(rows.filter((r) => r.source !== "prompt"), 1_000);
+    expect(withPrompt.trees.map((t) => `${t.sha}${t.turn ? "*" : ""}`)).toEqual(
+      ["p2", "s2*", "s3"],
+    );
+    const without = ownTrees(
+      rows.filter((r) => r.source !== "prompt"),
+      1_000,
+    );
     expect(without.fromPrompt).toBe(false);
     expect(without.trees.map((t) => t.sha)).toEqual(["s1", "s2", "s3"]);
   });

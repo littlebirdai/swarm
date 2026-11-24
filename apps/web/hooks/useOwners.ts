@@ -67,17 +67,28 @@ export type HandoffInfo = {
 const pendingHandoffsByConv = new Map<string, Record<string, HandoffInfo>>();
 const pendingListeners = new Set<() => void>();
 const EMPTY_PENDING: Record<string, HandoffInfo> = {};
-function setPendingHandoffs(conversationId: string, update: (p: Record<string, HandoffInfo>) => Record<string, HandoffInfo>) {
+function setPendingHandoffs(
+  conversationId: string,
+  update: (p: Record<string, HandoffInfo>) => Record<string, HandoffInfo>,
+) {
   const prev = pendingHandoffsByConv.get(conversationId) ?? EMPTY_PENDING;
   const next = update(prev);
   if (next === prev) return;
-  if (Object.keys(next).length === 0) pendingHandoffsByConv.delete(conversationId);
+  if (Object.keys(next).length === 0)
+    pendingHandoffsByConv.delete(conversationId);
   else pendingHandoffsByConv.set(conversationId, next);
   for (const l of pendingListeners) l();
 }
-function usePendingHandoffs(conversationId: string): Record<string, HandoffInfo> {
+function usePendingHandoffs(
+  conversationId: string,
+): Record<string, HandoffInfo> {
   return useSyncExternalStore(
-    (l) => { pendingListeners.add(l); return () => { pendingListeners.delete(l); }; },
+    (l) => {
+      pendingListeners.add(l);
+      return () => {
+        pendingListeners.delete(l);
+      };
+    },
     () => pendingHandoffsByConv.get(conversationId) ?? EMPTY_PENDING,
     () => EMPTY_PENDING,
   );
@@ -103,7 +114,12 @@ export type OwnerReparentTarget =
  * the thread under the wrong person. Deleting before adding moves them to the
  * end. `keepSelf` decides whether the person handing it over stays an owner.
  */
-export function handoffOwnerSet(ownerIds: Iterable<string>, to: string, meId?: string, keepSelf = false): string[] {
+export function handoffOwnerSet(
+  ownerIds: Iterable<string>,
+  to: string,
+  meId?: string,
+  keepSelf = false,
+): string[] {
   const desired = new Set(ownerIds);
   if (!keepSelf && meId && meId !== to) desired.delete(meId);
   desired.delete(to);
@@ -122,7 +138,10 @@ export type OwnersEnv = {
   // store's reparentOrgSession, so the chart node moves in the same tick and
   // one dispatch reaches the core. It owns its own toast (the "now reports to"
   // line from the told counts, or the fallback for a plain remove/clear).
-  reparent: (target: OwnerReparentTarget, opts: { note?: string; parentName?: string; toastFallback?: string }) => Promise<void>;
+  reparent: (
+    target: OwnerReparentTarget,
+    opts: { note?: string; parentName?: string; toastFallback?: string },
+  ) => Promise<void>;
   // Human who started the session (author, else runner). When the owner set
   // is empty the chip and menu treat them as the owner — a person who started
   // a thread already owns it, even before a session_owners row exists.
@@ -137,7 +156,10 @@ export type OwnersEnv = {
  * link has nothing to assign. The server also returns null without auth
  * rather than throwing, so a stale cookie cannot unmount the view.
  */
-export function shouldQueryOwners(conversationId: string, currentUser: unknown): boolean {
+export function shouldQueryOwners(
+  conversationId: string,
+  currentUser: unknown,
+): boolean {
   return Boolean(conversationId && isConvexId(conversationId) && currentUser);
 }
 
@@ -181,7 +203,9 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
   // useQuery does with a terminal server error.
   const { data, error } = useQueryNoThrow(
     api.sessionOwnership.listOwners,
-    shouldQueryOwners(conversationId, currentUser) ? { session_id: conversationId } : "skip",
+    shouldQueryOwners(conversationId, currentUser)
+      ? { session_id: conversationId }
+      : "skip",
   );
   const ackAssignment = useMutation(api.sessionOwnership.ackSessionAssignment);
 
@@ -199,8 +223,10 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
   );
   const ownerIds = useMemo(() => {
     const s = new Set(serverIds);
-    for (const [id, want] of Object.entries(overrides)) want ? s.add(id) : s.delete(id);
-    if (s.size === 0 && implicitOwnerId && overrides[implicitOwnerId] !== false) s.add(implicitOwnerId);
+    for (const [id, want] of Object.entries(overrides))
+      want ? s.add(id) : s.delete(id);
+    if (s.size === 0 && implicitOwnerId && overrides[implicitOwnerId] !== false)
+      s.add(implicitOwnerId);
     return s;
   }, [serverIds, overrides, implicitOwnerId]);
 
@@ -216,8 +242,15 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
     const mem = memberById.get(id);
     const info = (data?.owners ?? []).find((o: OwnerInfo) => o.user_id === id);
     const name =
-      mem?.name || info?.name || mem?.email?.split("@")[0] || info?.email?.split("@")[0] || "Teammate";
-    return { name, image: mem?.image || mem?.github_avatar_url || info?.image || undefined };
+      mem?.name ||
+      info?.name ||
+      mem?.email?.split("@")[0] ||
+      info?.email?.split("@")[0] ||
+      "Teammate";
+    return {
+      name,
+      image: mem?.image || mem?.github_avatar_url || info?.image || undefined,
+    };
   };
 
   const meId = currentUser?._id?.toString?.();
@@ -233,10 +266,19 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
       const to = memberById.get(o.user_id);
       byTo.set(o.user_id, {
         to: o.user_id,
-        to_name: to?.name || o.name || to?.email?.split("@")[0] || o.email?.split("@")[0] || "Teammate",
+        to_name:
+          to?.name ||
+          o.name ||
+          to?.email?.split("@")[0] ||
+          o.email?.split("@")[0] ||
+          "Teammate",
         to_image: to?.image || to?.github_avatar_url || o.image,
         from: o.added_by,
-        from_name: from?.name || o.added_by_name || from?.email?.split("@")[0] || "A teammate",
+        from_name:
+          from?.name ||
+          o.added_by_name ||
+          from?.email?.split("@")[0] ||
+          "A teammate",
         from_image: from?.image || from?.github_avatar_url || o.added_by_image,
         at: o.added_at,
         note: o.note ?? null,
@@ -253,7 +295,10 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
       let changed = false;
       const n = { ...o };
       for (const [id, want] of Object.entries(o)) {
-        if (serverIds.has(id) === want) { delete n[id]; changed = true; }
+        if (serverIds.has(id) === want) {
+          delete n[id];
+          changed = true;
+        }
       }
       return changed ? n : o;
     });
@@ -261,8 +306,17 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
       let changed = false;
       const n = { ...p };
       for (const [id, h] of Object.entries(p)) {
-        const row = (data?.owners ?? []).find((o: OwnerInfo) => o.user_id === id);
-        if (row && row.added_by === h.from && (row.added_at ?? 0) >= h.at - 60_000) { delete n[id]; changed = true; }
+        const row = (data?.owners ?? []).find(
+          (o: OwnerInfo) => o.user_id === id,
+        );
+        if (
+          row &&
+          row.added_by === h.from &&
+          (row.added_at ?? 0) >= h.at - 60_000
+        ) {
+          delete n[id];
+          changed = true;
+        }
       }
       return changed ? n : p;
     });
@@ -277,11 +331,17 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
       // remove leaves the line to whoever remains. The binding toasts.
       await env.reparent(
         { kind: "user", owners: [id], mode: wasOwner ? "remove" : "add" },
-        wasOwner ? { toastFallback: `Removed ${disp.name}` } : { note, parentName: disp.name },
+        wasOwner
+          ? { toastFallback: `Removed ${disp.name}` }
+          : { note, parentName: disp.name },
       );
       // Leave the override; the reconcile effect clears it when the query catches up.
     } catch (e: any) {
-      setOverrides((o) => { const n = { ...o }; delete n[id]; return n; }); // revert
+      setOverrides((o) => {
+        const n = { ...o };
+        delete n[id];
+        return n;
+      }); // revert
       notify?.(humanizeConvexError(e, "Owner change failed"), "error");
     }
   };
@@ -290,7 +350,10 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
    *  Clears the person-owner line the way the chart drop onto a role does. */
   const moveToRole = async (roleId: string, roleName: string) => {
     try {
-      await env.reparent({ kind: "role", role_id: roleId }, { parentName: roleName, toastFallback: `Filed under ${roleName}` });
+      await env.reparent(
+        { kind: "role", role_id: roleId },
+        { parentName: roleName, toastFallback: `Filed under ${roleName}` },
+      );
     } catch (e: any) {
       notify?.(humanizeConvexError(e, "Move to a role failed"), "error");
     }
@@ -303,27 +366,62 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
    * transcript marker everyone sees. The marker is drawn optimistically so it
    * lands the instant the composer clears.
    */
-  const handoffTo = async (id: string, note: string, opts: { keepSelf?: boolean } = {}) => {
+  const handoffTo = async (
+    id: string,
+    note: string,
+    opts: { keepSelf?: boolean } = {},
+  ) => {
     const trimmed = note.trim();
     // The named person goes last; see handoffOwnerSet for why that matters.
     const desired = handoffOwnerSet(ownerIds, id, meId, opts.keepSelf);
     const disp = displayFor(id);
     const me = meId ? displayFor(meId) : { name: "You", image: undefined };
-    setOverrides((o) => ({ ...o, [id]: true, ...(!opts.keepSelf && meId ? { [meId]: false } : {}) }));
+    setOverrides((o) => ({
+      ...o,
+      [id]: true,
+      ...(!opts.keepSelf && meId ? { [meId]: false } : {}),
+    }));
     if (meId) {
       setPendingHandoffs(conversationId, (p) => ({
         ...p,
-        [id]: { to: id, to_name: disp.name, to_image: disp.image, from: meId, from_name: me.name, from_image: me.image, at: Date.now(), note: trimmed || null, seen: false, pending: true },
+        [id]: {
+          to: id,
+          to_name: disp.name,
+          to_image: disp.image,
+          from: meId,
+          from_name: me.name,
+          from_image: me.image,
+          at: Date.now(),
+          note: trimmed || null,
+          seen: false,
+          pending: true,
+        },
       }));
     }
     try {
       // One path (S11): set the owner line to `desired`, last listed becomes
       // the reporting parent. The binding toasts the "now reports to" line.
-      await env.reparent({ kind: "user", owners: desired, mode: "set" }, { note: trimmed, parentName: disp.name, toastFallback: `Handed off to ${disp.name}` });
+      await env.reparent(
+        { kind: "user", owners: desired, mode: "set" },
+        {
+          note: trimmed,
+          parentName: disp.name,
+          toastFallback: `Handed off to ${disp.name}`,
+        },
+      );
       return true;
     } catch (e: any) {
-      setOverrides((o) => { const n = { ...o }; delete n[id]; if (meId) delete n[meId]; return n; });
-      setPendingHandoffs(conversationId, (p) => { const n = { ...p }; delete n[id]; return n; });
+      setOverrides((o) => {
+        const n = { ...o };
+        delete n[id];
+        if (meId) delete n[meId];
+        return n;
+      });
+      setPendingHandoffs(conversationId, (p) => {
+        const n = { ...p };
+        delete n[id];
+        return n;
+      });
       notify?.(humanizeConvexError(e, "Handoff failed"), "error");
       return false;
     }
@@ -331,10 +429,17 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
 
   const clearAll = async () => {
     const ids = Array.from(ownerIds);
-    setOverrides((o) => { const n = { ...o }; for (const id of ids) n[id] = false; return n; });
+    setOverrides((o) => {
+      const n = { ...o };
+      for (const id of ids) n[id] = false;
+      return n;
+    });
     try {
       // One path (S11): an empty set disowns everyone in one call.
-      await env.reparent({ kind: "user", owners: [], mode: "set" }, { toastFallback: "Cleared owners" });
+      await env.reparent(
+        { kind: "user", owners: [], mode: "set" },
+        { toastFallback: "Cleared owners" },
+      );
     } catch (e: any) {
       notify?.(humanizeConvexError(e, "Failed to clear owners"), "error");
     }
@@ -348,12 +453,16 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
   // seen_at) — drives the "assigned to you" banner. Locally-acked state hides
   // it instantly while the mutation round-trips.
   const [ackedLocally, setAckedLocally] = useState(false);
-  const myRow = meId ? (data?.owners ?? []).find((o: OwnerInfo) => o.user_id === meId) : undefined;
+  const myRow = meId
+    ? (data?.owners ?? []).find((o: OwnerInfo) => o.user_id === meId)
+    : undefined;
   // The handoff: my owner row when someone ELSE added me. Outlives the ack —
   // the conversation marks where in the timeline the handoff landed for as
   // long as I own the session, not just until I press "Got it".
-  const handoff = myRow && myRow.added_by && myRow.added_by !== meId ? myRow : null;
-  const myAssignment = !ackedLocally && handoff && !handoff.seen_at ? handoff : null;
+  const handoff =
+    myRow && myRow.added_by && myRow.added_by !== meId ? myRow : null;
+  const myAssignment =
+    !ackedLocally && handoff && !handoff.seen_at ? handoff : null;
   const ack = async () => {
     setAckedLocally(true);
     try {
@@ -364,7 +473,23 @@ export function useOwners(conversationId: string, env: OwnersEnv) {
   };
 
   const canManage = error || data === null ? false : data ? true : undefined;
-  return { ownerIds, ownerList, implicitOwnerId, displayFor, toggle, moveToRole, handoffTo, handoffs, clearAll, selectable, currentUser, handoff, myAssignment, ack, canManage };
+  return {
+    ownerIds,
+    ownerList,
+    implicitOwnerId,
+    displayFor,
+    toggle,
+    moveToRole,
+    handoffTo,
+    handoffs,
+    clearAll,
+    selectable,
+    currentUser,
+    handoff,
+    myAssignment,
+    ack,
+    canManage,
+  };
 }
 
 export type OwnersApi = ReturnType<typeof useOwners>;

@@ -6,55 +6,134 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultCharacterFor } from "@codecast/shared/contracts/sessionCharacter";
-import { NO_CHARACTER_PREFS, PERSONIFY_ALL_PREFS, identityLine, identityPrefsOf, liveRoleSig, roleAuthorOf, roleOfUser, roleTile, sessionIdentity, speakerOf, standingRoleOf, viewerFace, withLiveRole, type RoleRows } from "../sessionIdentity";
+import {
+  NO_CHARACTER_PREFS,
+  PERSONIFY_ALL_PREFS,
+  identityLine,
+  identityPrefsOf,
+  liveRoleSig,
+  roleAuthorOf,
+  roleOfUser,
+  roleTile,
+  sessionIdentity,
+  speakerOf,
+  standingRoleOf,
+  viewerFace,
+  withLiveRole,
+  type RoleRows,
+} from "../sessionIdentity";
 import { characterNameFor } from "@codecast/shared/contracts/sessionCharacter";
 import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
 
 const ID = "k97xcyp74gaa0q43my0mpnvnsd8ekyj4";
-const ROLE = { _id: "org_roles_infra", short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "stag", status: "active", tenure_kind: "standing", given_name: "Rowan" } as const;
+const ROLE = {
+  _id: "org_roles_infra",
+  short_id: "or-7",
+  name: "Infra lead",
+  handle: "infra",
+  avatar: "stag",
+  status: "active",
+  tenure_kind: "standing",
+  given_name: "Rowan",
+} as const;
 
 describe("sessionIdentity", () => {
   test("the resolver module does not import the store, so menus can load the named export", () => {
     // A value import of inboxStore from this file is a cycle: ObjectContextMenus
     // imports sessionIdentity then the store, and Vite then serves a module
     // with no named `sessionIdentity` export ("does not provide an export named").
-    const src = readFileSync(join(import.meta.dir, "../sessionIdentity.ts"), "utf8");
-    expect(src).not.toMatch(/^(?!import type\b)import\s[^;]*from ["']\.\.\/store\/inboxStore["']/m);
+    const src = readFileSync(
+      join(import.meta.dir, "../sessionIdentity.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(
+      /^(?!import type\b)import\s[^;]*from ["']\.\.\/store\/inboxStore["']/m,
+    );
     expect(src).toMatch(/export function sessionIdentity\b/);
   });
 
   test("a session nobody personified stays plain — the face is opt in", () => {
-    expect(sessionIdentity({ _id: ID })).toEqual({ kind: "plain", reportsTo: null });
+    expect(sessionIdentity({ _id: ID })).toEqual({
+      kind: "plain",
+      reportsTo: null,
+    });
   });
 
   test("the workspace switch personifies a plain session with its hash default", () => {
     const d = defaultCharacterFor(ID);
-    expect(sessionIdentity({ _id: ID }, PERSONIFY_ALL_PREFS)).toEqual({ kind: "character", avatar: d.avatar, name: d.name, chosen: false, reportsTo: null });
+    expect(sessionIdentity({ _id: ID }, PERSONIFY_ALL_PREFS)).toEqual({
+      kind: "character",
+      avatar: d.avatar,
+      name: d.name,
+      chosen: false,
+      reportsTo: null,
+    });
   });
 
   test("a chosen face and name win, and mark the row as chosen", () => {
-    const id = sessionIdentity({ _id: ID, character_avatar: "owl", character_name: "Minerva" });
-    expect(id).toEqual({ kind: "character", avatar: "owl", name: "Minerva", chosen: true, reportsTo: null });
+    const id = sessionIdentity({
+      _id: ID,
+      character_avatar: "owl",
+      character_name: "Minerva",
+    });
+    expect(id).toEqual({
+      kind: "character",
+      avatar: "owl",
+      name: "Minerva",
+      chosen: true,
+      reportsTo: null,
+    });
   });
 
   test("a role's standing session wears the role, not its character fields", () => {
-    const id = sessionIdentity({ _id: ID, standing_role_id: ROLE._id, role: { ...ROLE }, character_avatar: "fox", character_name: "Ember" });
-    expect(id).toMatchObject({ kind: "role", style: "character", avatar: "stag", name: "Rowan", title: "Infra lead", handle: "infra", role: { ...ROLE } });
+    const id = sessionIdentity({
+      _id: ID,
+      standing_role_id: ROLE._id,
+      role: { ...ROLE },
+      character_avatar: "fox",
+      character_name: "Ember",
+    });
+    expect(id).toMatchObject({
+      kind: "role",
+      style: "character",
+      avatar: "stag",
+      name: "Rowan",
+      title: "Infra lead",
+      handle: "infra",
+      role: { ...ROLE },
+    });
   });
 
   test("a role whose avatar key this build does not know still gets a stable face", () => {
-    const id = sessionIdentity({ _id: ID, standing_role_id: ROLE._id, role: { ...ROLE, avatar: "griffin" } });
+    const id = sessionIdentity({
+      _id: ID,
+      standing_role_id: ROLE._id,
+      role: { ...ROLE, avatar: "griffin" },
+    });
     expect(id.kind).toBe("role");
     // the handle's default, so two builds agree on the face
-    expect(id.avatar).toBe(sessionIdentity({ _id: ID, standing_role_id: ROLE._id, role: { ...ROLE, avatar: "" } }).avatar);
+    expect(id.avatar).toBe(
+      sessionIdentity({
+        _id: ID,
+        standing_role_id: ROLE._id,
+        role: { ...ROLE, avatar: "" },
+      }).avatar,
+    );
   });
 
   test("a hand under a role keeps its own character and points at the role", () => {
     // Reporting to a role does NOT personify you: only the role's own standing
     // session wears the role. The pointer rides along either way, so the hover
     // card can say who this session answers to.
-    expect(sessionIdentity({ _id: ID, org_role_id: ROLE._id, role: { ...ROLE } })).toEqual({ kind: "plain", reportsTo: { ...ROLE } });
-    const id = sessionIdentity({ _id: ID, org_role_id: ROLE._id, role: { ...ROLE }, character_avatar: "owl" });
+    expect(
+      sessionIdentity({ _id: ID, org_role_id: ROLE._id, role: { ...ROLE } }),
+    ).toEqual({ kind: "plain", reportsTo: { ...ROLE } });
+    const id = sessionIdentity({
+      _id: ID,
+      org_role_id: ROLE._id,
+      role: { ...ROLE },
+      character_avatar: "owl",
+    });
     expect(id.kind).toBe("character");
     if (id.kind !== "character") throw new Error("unreachable");
     expect(id.avatar).toBe("owl");
@@ -65,26 +144,48 @@ describe("sessionIdentity", () => {
     // The row claims to be a role's session but the snapshot has not synced.
     // Falling back to plain is right: inventing a character for a row that is
     // about to become a role would flash the wrong identity.
-    expect(sessionIdentity({ _id: ID, standing_role_id: ROLE._id }).kind).toBe("plain");
-    expect(sessionIdentity({ _id: ID, standing_role_id: ROLE._id }, PERSONIFY_ALL_PREFS).kind).toBe("character");
+    expect(sessionIdentity({ _id: ID, standing_role_id: ROLE._id }).kind).toBe(
+      "plain",
+    );
+    expect(
+      sessionIdentity(
+        { _id: ID, standing_role_id: ROLE._id },
+        PERSONIFY_ALL_PREFS,
+      ).kind,
+    ).toBe("character");
   });
 });
 
 describe("identityLine", () => {
   test("a character leads with its name and keeps the title", () => {
-    expect(identityLine({ _id: ID, character_name: "Ember" }, "Fixing the auth race"))
-      .toEqual({ name: "Ember", title: "Fixing the auth race", handle: null });
+    expect(
+      identityLine(
+        { _id: ID, character_name: "Ember" },
+        "Fixing the auth race",
+      ),
+    ).toEqual({ name: "Ember", title: "Fixing the auth race", handle: null });
   });
 
   test("a session nobody personified is the title alone, as the card always read", () => {
-    expect(identityLine({ _id: ID }, "Fixing the auth race"))
-      .toEqual({ name: null, title: "Fixing the auth race", handle: null });
+    expect(identityLine({ _id: ID }, "Fixing the auth race")).toEqual({
+      name: null,
+      title: "Fixing the auth race",
+      handle: null,
+    });
   });
 
   test("a role drops a title that only repeats its name, and keeps its role title beside its name", () => {
     const row = { _id: ID, standing_role_id: ROLE._id, role: { ...ROLE } };
-    expect(identityLine(row, "Rowan")).toEqual({ name: "Rowan", title: null, handle: "infra" });
-    expect(identityLine(row, "Infra lead")).toEqual({ name: "Rowan", title: "Infra lead", handle: "infra" });
+    expect(identityLine(row, "Rowan")).toEqual({
+      name: "Rowan",
+      title: null,
+      handle: "infra",
+    });
+    expect(identityLine(row, "Infra lead")).toEqual({
+      name: "Rowan",
+      title: "Infra lead",
+      handle: "infra",
+    });
   });
 
   test("an empty or whitespace title reads as no title", () => {
@@ -98,27 +199,60 @@ describe("identityLine", () => {
 // so nothing that names the session may read it.
 describe("role identity read from the role rows", () => {
   const BOT = "kd72wjbnhf1exb75acb92rtwzx8gvdva";
-  const live = { _id: ROLE._id, short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "hare", status: "active", given_name: null };
-  const rows: RoleRows = { roles: [live], anchors: [{ bot_user_id: BOT, org_role_id: ROLE._id }, { bot_user_id: "kd7other", org_role_id: undefined }] };
+  const live = {
+    _id: ROLE._id,
+    short_id: "or-7",
+    name: "Infra lead",
+    handle: "infra",
+    avatar: "hare",
+    status: "active",
+    given_name: null,
+  };
+  const rows: RoleRows = {
+    roles: [live],
+    anchors: [
+      { bot_user_id: BOT, org_role_id: ROLE._id },
+      { bot_user_id: "kd7other", org_role_id: undefined },
+    ],
+  };
 
   test("a role nobody named wears its face's character name, never its title", () => {
-    const id = sessionIdentity({ _id: ID, standing_role_id: ROLE._id, role: { ...ROLE, given_name: null, avatar: "hare" } });
-    expect(id.kind === "role" && id.name).toBe(characterNameFor(ROLE._id, "hare"));
+    const id = sessionIdentity({
+      _id: ID,
+      standing_role_id: ROLE._id,
+      role: { ...ROLE, given_name: null, avatar: "hare" },
+    });
+    expect(id.kind === "role" && id.name).toBe(
+      characterNameFor(ROLE._id, "hare"),
+    );
     expect(id.kind === "role" && id.name).not.toBe("Infra lead");
   });
 
   test("a thin row with only the acting bot finds its role through the seat", () => {
-    expect(standingRoleOf({ _id: ID, acting_user_id: BOT }, rows)).toBe(ROLE._id);
-    expect(standingRoleOf({ _id: ID, acting_user_id: "kd7other" }, rows)).toBeNull();
+    expect(standingRoleOf({ _id: ID, acting_user_id: BOT }, rows)).toBe(
+      ROLE._id,
+    );
+    expect(
+      standingRoleOf({ _id: ID, acting_user_id: "kd7other" }, rows),
+    ).toBeNull();
     expect(standingRoleOf({ _id: ID }, rows)).toBeNull();
     const row = withLiveRole({ _id: ID, acting_user_id: BOT }, rows);
-    expect(roleAuthorOf(row)).toMatchObject({ name: characterNameFor(ROLE._id, "hare"), face: "hare" });
+    expect(roleAuthorOf(row)).toMatchObject({
+      name: characterNameFor(ROLE._id, "hare"),
+      face: "hare",
+    });
   });
 
   test("the live role row wins over a stale snapshot: a rename and a new face show at once", () => {
     const stale = { _id: ID, standing_role_id: ROLE._id, role: { ...ROLE } };
-    const renamed: RoleRows = { ...rows, roles: [{ ...live, given_name: "Hazel", avatar: "otter" }] };
-    expect(roleAuthorOf(withLiveRole(stale, renamed))).toMatchObject({ name: "Hazel", face: "otter" });
+    const renamed: RoleRows = {
+      ...rows,
+      roles: [{ ...live, given_name: "Hazel", avatar: "otter" }],
+    };
+    expect(roleAuthorOf(withLiveRole(stale, renamed))).toMatchObject({
+      name: "Hazel",
+      face: "otter",
+    });
     expect(liveRoleSig(stale, renamed)).not.toBe(liveRoleSig(stale, rows));
   });
 
@@ -132,9 +266,22 @@ describe("role identity read from the role rows", () => {
   });
 
   test("a user is read as the role it is the bot of, by its given name and face", () => {
-    const named: RoleRows = { ...rows, roles: [{ ...live, given_name: "Hazel" }] };
-    expect(roleOfUser(BOT, named)).toMatchObject({ roleId: ROLE._id, name: "Hazel", title: "Infra lead", handle: "infra", shortId: "or-7", face: "hare", style: "character" });
-    expect(roleOfUser(BOT, rows)?.name).toBe(characterNameFor(ROLE._id, "hare"));
+    const named: RoleRows = {
+      ...rows,
+      roles: [{ ...live, given_name: "Hazel" }],
+    };
+    expect(roleOfUser(BOT, named)).toMatchObject({
+      roleId: ROLE._id,
+      name: "Hazel",
+      title: "Infra lead",
+      handle: "infra",
+      shortId: "or-7",
+      face: "hare",
+      style: "character",
+    });
+    expect(roleOfUser(BOT, rows)?.name).toBe(
+      characterNameFor(ROLE._id, "hare"),
+    );
     expect(roleOfUser("kd7person", rows)).toBeNull();
     expect(roleOfUser(BOT, null)).toBeNull();
     expect(roleOfUser(null, rows)).toBeNull();
@@ -143,56 +290,136 @@ describe("role identity read from the role rows", () => {
 
 describe("characters off (show_characters: false)", () => {
   const ICON = ROLE_ICON_EXAMPLES[0].icon;
-  const roleRow = { _id: ID, standing_role_id: ROLE._id, role: { ...ROLE, icon: ICON } };
+  const roleRow = {
+    _id: ID,
+    standing_role_id: ROLE._id,
+    role: { ...ROLE, icon: ICON },
+  };
   const BOT = "kd72wjbnhf1exb75acb92rtwzx8gvdva";
-  const live = { _id: ROLE._id, short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "hare", status: "active", given_name: null };
-  const rows: RoleRows = { roles: [live], anchors: [{ bot_user_id: BOT, org_role_id: ROLE._id }] };
+  const live = {
+    _id: ROLE._id,
+    short_id: "or-7",
+    name: "Infra lead",
+    handle: "infra",
+    avatar: "hare",
+    status: "active",
+    given_name: null,
+  };
+  const rows: RoleRows = {
+    roles: [live],
+    anchors: [{ bot_user_id: BOT, org_role_id: ROLE._id }],
+  };
 
   test("the stored settings map to one shared prefs object each", () => {
     expect(identityPrefsOf(undefined)).toBe(identityPrefsOf({}));
     expect(identityPrefsOf(undefined)).toBe(NO_CHARACTER_PREFS);
-    expect(identityPrefsOf({ show_characters: false, personify_sessions: true })).toBe(NO_CHARACTER_PREFS);
-    expect(identityPrefsOf({ show_characters: true, personify_sessions: true })).toBe(PERSONIFY_ALL_PREFS);
+    expect(
+      identityPrefsOf({ show_characters: false, personify_sessions: true }),
+    ).toBe(NO_CHARACTER_PREFS);
+    expect(
+      identityPrefsOf({ show_characters: true, personify_sessions: true }),
+    ).toBe(PERSONIFY_ALL_PREFS);
     expect(NO_CHARACTER_PREFS.personifyAll).toBe(false);
   });
 
   test("a role wears its icon and is named by its title", () => {
     const id = sessionIdentity(roleRow, NO_CHARACTER_PREFS);
-    expect(id).toMatchObject({ kind: "role", style: "icon", name: "Infra lead", title: "Infra lead", avatar: "stag" });
+    expect(id).toMatchObject({
+      kind: "role",
+      style: "icon",
+      name: "Infra lead",
+      title: "Infra lead",
+      avatar: "stag",
+    });
     if (id.kind !== "role") throw new Error("not a role");
-    expect(id.tile).toEqual({ icon: ICON, monogram: "I", accent: ICON.accent, title: "Infra lead" });
-    expect(identityLine(roleRow, "Infra lead", NO_CHARACTER_PREFS)).toEqual({ name: "Infra lead", title: null, handle: "infra" });
-    expect(speakerOf(roleRow, "claude_code", NO_CHARACTER_PREFS).name).toBe("Infra lead");
-    expect(roleAuthorOf(roleRow, NO_CHARACTER_PREFS)).toMatchObject({ name: "Infra lead", style: "icon" });
-    expect(viewerFace(roleRow, NO_CHARACTER_PREFS)).toEqual({ kind: "tile", tile: id.tile, name: "Infra lead" });
+    expect(id.tile).toEqual({
+      icon: ICON,
+      monogram: "I",
+      accent: ICON.accent,
+      title: "Infra lead",
+    });
+    expect(identityLine(roleRow, "Infra lead", NO_CHARACTER_PREFS)).toEqual({
+      name: "Infra lead",
+      title: null,
+      handle: "infra",
+    });
+    expect(speakerOf(roleRow, "claude_code", NO_CHARACTER_PREFS).name).toBe(
+      "Infra lead",
+    );
+    expect(roleAuthorOf(roleRow, NO_CHARACTER_PREFS)).toMatchObject({
+      name: "Infra lead",
+      style: "icon",
+    });
+    expect(viewerFace(roleRow, NO_CHARACTER_PREFS)).toEqual({
+      kind: "tile",
+      tile: id.tile,
+      name: "Infra lead",
+    });
   });
 
   test("a role with no icon, or an invalid one, wears the monogram of its title", () => {
-    expect(roleTile({ name: "Head of Growth", handle: "growth" }).icon).toBeNull();
-    expect(roleTile({ name: "Head of Growth", handle: "growth" }).monogram).toBe("G");
-    expect(roleTile({ name: "Infra lead", handle: "infra", icon: { ...ICON, shapes: [{ t: "script" }] } }).icon).toBeNull();
+    expect(
+      roleTile({ name: "Head of Growth", handle: "growth" }).icon,
+    ).toBeNull();
+    expect(
+      roleTile({ name: "Head of Growth", handle: "growth" }).monogram,
+    ).toBe("G");
+    expect(
+      roleTile({
+        name: "Infra lead",
+        handle: "infra",
+        icon: { ...ICON, shapes: [{ t: "script" }] },
+      }).icon,
+    ).toBeNull();
     // a stable hue for the monogram, from the handle
-    expect(roleTile({ name: "x", handle: "growth" }).accent).toBe(roleTile({ name: "y", handle: "growth" }).accent);
+    expect(roleTile({ name: "x", handle: "growth" }).accent).toBe(
+      roleTile({ name: "y", handle: "growth" }).accent,
+    );
   });
 
   test("a session with a chosen character is plain: no invented name, no face", () => {
     const row = { _id: ID, character_avatar: "owl", character_name: "Minerva" };
-    expect(sessionIdentity(row, NO_CHARACTER_PREFS)).toEqual({ kind: "plain", reportsTo: null });
-    expect(identityLine(row, "Fixing the auth race", NO_CHARACTER_PREFS)).toEqual({ name: null, title: "Fixing the auth race", handle: null });
-    expect(speakerOf(row, "claude_code", NO_CHARACTER_PREFS).identity).toBeNull();
+    expect(sessionIdentity(row, NO_CHARACTER_PREFS)).toEqual({
+      kind: "plain",
+      reportsTo: null,
+    });
+    expect(
+      identityLine(row, "Fixing the auth race", NO_CHARACTER_PREFS),
+    ).toEqual({ name: null, title: "Fixing the auth race", handle: null });
+    expect(
+      speakerOf(row, "claude_code", NO_CHARACTER_PREFS).identity,
+    ).toBeNull();
     expect(viewerFace(row, NO_CHARACTER_PREFS)).toEqual({ kind: "none" });
   });
 
   test("a role read through the role rows carries the live icon", () => {
     const iconRows: RoleRows = { ...rows, roles: [{ ...live, icon: ICON }] };
-    const id = sessionIdentity(withLiveRole({ _id: ID, acting_user_id: BOT }, iconRows), NO_CHARACTER_PREFS);
+    const id = sessionIdentity(
+      withLiveRole({ _id: ID, acting_user_id: BOT }, iconRows),
+      NO_CHARACTER_PREFS,
+    );
     expect(id.kind === "role" && id.tile.icon).toEqual(ICON);
-    expect(roleOfUser(BOT, iconRows, NO_CHARACTER_PREFS)).toMatchObject({ name: "Infra lead", style: "icon", tile: { icon: ICON } });
-    expect(liveRoleSig({ _id: ID, acting_user_id: BOT }, iconRows)).not.toBe(liveRoleSig({ _id: ID, acting_user_id: BOT }, rows));
+    expect(roleOfUser(BOT, iconRows, NO_CHARACTER_PREFS)).toMatchObject({
+      name: "Infra lead",
+      style: "icon",
+      tile: { icon: ICON },
+    });
+    expect(liveRoleSig({ _id: ID, acting_user_id: BOT }, iconRows)).not.toBe(
+      liveRoleSig({ _id: ID, acting_user_id: BOT }, rows),
+    );
   });
 
   test("with characters on, nothing changes: the role keeps its given name and animal", () => {
-    expect(sessionIdentity(roleRow)).toMatchObject({ kind: "role", style: "character", name: "Rowan", avatar: "stag" });
-    expect(viewerFace(roleRow, PERSONIFY_ALL_PREFS)).toMatchObject({ kind: "animal", avatar: "stag", role: true });
+    expect(sessionIdentity(roleRow)).toMatchObject({
+      kind: "role",
+      style: "character",
+      name: "Rowan",
+      avatar: "stag",
+    });
+    expect(viewerFace(roleRow, PERSONIFY_ALL_PREFS)).toMatchObject({
+      kind: "animal",
+      avatar: "stag",
+      role: true,
+    });
   });
 });

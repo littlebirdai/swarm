@@ -12,7 +12,11 @@ import { cachedAt, pinDetailRows } from "../lib/detailRows";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWatchEffect } from "./useWatchEffect";
 
-export type DeployReachRow = DeployReach & { _id: string; ref: string; _cachedAt?: number };
+export type DeployReachRow = DeployReach & {
+  _id: string;
+  ref: string;
+  _cachedAt?: number;
+};
 
 /**
  * How one ref's answer lands in the store: its row, stamped with when it was
@@ -22,17 +26,42 @@ export type DeployReachRow = DeployReach & { _id: string; ref: string; _cachedAt
 export function deployReachFeed(ref: string) {
   return {
     select: (row: DeployReachRow | null) =>
-      row ? [{ ...row, _cachedAt: cachedAt(useInboxStore.getState().deployReach?.[row._id] as DeployReachRow | undefined, Date.now()) }] : [],
+      row
+        ? [
+            {
+              ...row,
+              _cachedAt: cachedAt(
+                useInboxStore.getState().deployReach?.[row._id] as
+                  | DeployReachRow
+                  | undefined,
+                Date.now(),
+              ),
+            },
+          ]
+        : [],
     dropAbsent: (row: { _id: string }) => row._id === ref,
   };
 }
 
 /** The reach of `ref` (`owner/repo#N` or `owner/repo@sha`); `feed` false reads only what another surface fed. */
-export function useDeployReach(ref: string | null, feed = true): DeployReachRow | undefined {
+export function useDeployReach(
+  ref: string | null,
+  feed = true,
+): DeployReachRow | undefined {
   const opts = useMemo(() => (ref ? deployReachFeed(ref) : undefined), [ref]);
-  useSyncCollection("deployReach", api.deployReach.get, ref && feed ? { ref } : "skip", opts);
-  useWatchEffect(() => (ref ? pinDetailRows("deployReach", [ref]) : undefined), [ref]);
-  const row = useInboxStore((s) => (ref ? (s.deployReach?.[ref] as DeployReachRow | undefined) : undefined));
+  useSyncCollection(
+    "deployReach",
+    api.deployReach.get,
+    ref && feed ? { ref } : "skip",
+    opts,
+  );
+  useWatchEffect(
+    () => (ref ? pinDetailRows("deployReach", [ref]) : undefined),
+    [ref],
+  );
+  const row = useInboxStore((s) =>
+    ref ? (s.deployReach?.[ref] as DeployReachRow | undefined) : undefined,
+  );
   // A change that touches no target has no reach (the server answers null; a row without targets is the same).
   return row?.targets?.length ? row : undefined;
 }

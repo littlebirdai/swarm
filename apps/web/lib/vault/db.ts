@@ -53,7 +53,9 @@ db.version(2).stores({
 
 export const bodyKey = (vaultId: string, path: string) => `${vaultId}:${path}`;
 
-export async function loadVaultMeta(vaultId: string): Promise<VaultMetaRow | undefined> {
+export async function loadVaultMeta(
+  vaultId: string,
+): Promise<VaultMetaRow | undefined> {
   try {
     return await db.vault_meta.get(vaultId);
   } catch {
@@ -67,7 +69,9 @@ export async function saveVaultMeta(row: VaultMetaRow): Promise<void> {
   } catch {}
 }
 
-export async function loadVaultBodies(vaultId: string): Promise<VaultBodyRow[]> {
+export async function loadVaultBodies(
+  vaultId: string,
+): Promise<VaultBodyRow[]> {
   try {
     return await db.vault_bodies.where("vaultId").equals(vaultId).toArray();
   } catch {
@@ -82,14 +86,19 @@ export async function saveVaultBodies(rows: VaultBodyRow[]): Promise<void> {
   } catch {}
 }
 
-export async function deleteVaultBodies(vaultId: string, paths: string[]): Promise<void> {
+export async function deleteVaultBodies(
+  vaultId: string,
+  paths: string[],
+): Promise<void> {
   if (!paths.length) return;
   try {
     await db.vault_bodies.bulkDelete(paths.map((p) => bodyKey(vaultId, p)));
   } catch {}
 }
 
-export async function loadVaultBookmarks(vaultId: string): Promise<BookmarkItem[]> {
+export async function loadVaultBookmarks(
+  vaultId: string,
+): Promise<BookmarkItem[]> {
   try {
     const row = await db.vault_prefs.get(vaultId);
     return Array.isArray(row?.bookmarks) ? row.bookmarks : [];
@@ -98,7 +107,10 @@ export async function loadVaultBookmarks(vaultId: string): Promise<BookmarkItem[
   }
 }
 
-export async function saveVaultBookmarks(vaultId: string, bookmarks: BookmarkItem[]): Promise<void> {
+export async function saveVaultBookmarks(
+  vaultId: string,
+  bookmarks: BookmarkItem[],
+): Promise<void> {
   try {
     await db.vault_prefs.put({ vaultId, bookmarks });
   } catch {}

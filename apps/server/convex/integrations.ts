@@ -13,7 +13,10 @@ import { v } from "convex/values";
 import { action, internalMutation } from "./functions";
 import { api, internal } from "./_generated/api";
 import { verifyApiToken } from "./apiTokens";
-import { deleteInstallationRows, requireInstallationRevoker } from "./githubApp";
+import {
+  deleteInstallationRows,
+  requireInstallationRevoker,
+} from "./githubApp";
 import {
   APP_DESCRIPTORS,
   APP_IDS,
@@ -24,11 +27,16 @@ import {
 } from "@codecast/shared/contracts";
 
 /** The scope a CLI call named, defaulting to team like the web buttons do. */
-function scopeArg(raw: string | undefined, provider: AppId): AppConnectionScope | { error: string } {
+function scopeArg(
+  raw: string | undefined,
+  provider: AppId,
+): AppConnectionScope | { error: string } {
   const scope: AppConnectionScope = isAppConnectionScope(raw) ? raw : "team";
   const supported = APP_DESCRIPTORS[provider].scopes;
   if (!supported.includes(scope)) {
-    return { error: `${APP_DESCRIPTORS[provider].name} connects at ${supported.join(" or ")} scope only` };
+    return {
+      error: `${APP_DESCRIPTORS[provider].name} connects at ${supported.join(" or ")} scope only`,
+    };
   }
   return scope;
 }
@@ -61,8 +69,15 @@ const unknownProvider = (raw: string) => ({
  * ========================================================================== */
 
 export const cliConnectUrl = action({
-  args: { api_token: v.string(), provider: v.string(), scope: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ ok: boolean; url?: string; error?: string }> => {
+  args: {
+    api_token: v.string(),
+    provider: v.string(),
+    scope: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; url?: string; error?: string }> => {
     const provider = resolveProvider(args.provider);
     if (!provider) return unknownProvider(args.provider);
     const scope = scopeArg(args.scope, provider);
@@ -70,7 +85,10 @@ export const cliConnectUrl = action({
 
     // A pasted-token app has no URL to open; the CLI sends the token instead.
     if (APP_DESCRIPTORS[provider].connectKind === "token-paste") {
-      return { ok: false, error: `${APP_DESCRIPTORS[provider].name} connects with a token: cast integrations connect ${provider} reads it from stdin` };
+      return {
+        ok: false,
+        error: `${APP_DESCRIPTORS[provider].name} connects with a token: cast integrations connect ${provider} reads it from stdin`,
+      };
     }
     if (provider === "linear" || provider === "notion") {
       return await ctx.runAction(api.oauthConnectors.getConnectUrl, {
@@ -80,7 +98,9 @@ export const cliConnectUrl = action({
       });
     }
     if (provider === "gmail") {
-      return await ctx.runAction(api.googleOAuth.getConnectUrl, { api_token: args.api_token });
+      return await ctx.runAction(api.googleOAuth.getConnectUrl, {
+        api_token: args.api_token,
+      });
     }
     if (provider === "slack") {
       return await ctx.runAction(api.slack.getInstallUrl, {
@@ -92,7 +112,10 @@ export const cliConnectUrl = action({
     // GitHub is an App INSTALL, not an OAuth authorize: no code exchange and no
     // scope list, only the install intent githubApp.getInstallUrl mints for the
     // caller — the same one the web button and the callback use.
-    return await ctx.runAction(api.githubApp.getInstallUrl, { scope, api_token: args.api_token });
+    return await ctx.runAction(api.githubApp.getInstallUrl, {
+      scope,
+      api_token: args.api_token,
+    });
   },
 });
 
@@ -109,11 +132,17 @@ export const cliConnectToken = action({
     /** `--team <name|id>`: the team a team connection binds to, required for team scope. */
     team: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; id?: string; label?: string; error?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; id?: string; label?: string; error?: string }> => {
     const provider = resolveProvider(args.provider);
     if (!provider) return unknownProvider(args.provider);
     if (APP_DESCRIPTORS[provider].connectKind !== "token-paste") {
-      return { ok: false, error: `${APP_DESCRIPTORS[provider].name} connects in the browser: cast integrations connect ${provider}` };
+      return {
+        ok: false,
+        error: `${APP_DESCRIPTORS[provider].name} connects in the browser: cast integrations connect ${provider}`,
+      };
     }
     const scope = scopeArg(args.scope, provider);
     if (typeof scope !== "string") return { ok: false, error: scope.error };
@@ -133,7 +162,11 @@ export const cliConnectToken = action({
  * ========================================================================== */
 
 export const cliDisconnect = action({
-  args: { api_token: v.string(), provider: v.string(), scope: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    provider: v.string(),
+    scope: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
     const provider = resolveProvider(args.provider);
     if (!provider) return unknownProvider(args.provider);
@@ -143,9 +176,12 @@ export const cliDisconnect = action({
     // its rule that a non-admin gets no github disconnect_id at all. With no
     // scope named, the one connected entry is the target; two connected
     // entries need the caller to say which.
-    const { apps }: { apps: any[] } = await ctx.runQuery(api.appConnections.listConnections, {
-      api_token: args.api_token,
-    });
+    const { apps }: { apps: any[] } = await ctx.runQuery(
+      api.appConnections.listConnections,
+      {
+        api_token: args.api_token,
+      },
+    );
     const entries = apps.filter((a) => a.id === provider);
     if (entries.length === 0) return { ok: false, error: "not signed in" };
     const connected = entries.filter((a) => a.status === "connected");
@@ -155,9 +191,13 @@ export const cliDisconnect = action({
         ? connected[0]
         : undefined;
     if (!app && connected.length > 1) {
-      return { ok: false, error: `${provider} is connected at team and personal scope — name one with --personal or --team` };
+      return {
+        ok: false,
+        error: `${provider} is connected at team and personal scope — name one with --personal or --team`,
+      };
     }
-    if (!app || app.status !== "connected") return { ok: false, error: `${provider} is not connected` };
+    if (!app || app.status !== "connected")
+      return { ok: false, error: `${provider} is not connected` };
     if (!app.disconnect_id) {
       return {
         ok: false,
@@ -184,10 +224,13 @@ export const cliDisconnect = action({
         installation_id: app.disconnect_id,
       });
     }
-    return await ctx.runMutation(internal.integrations.deleteGithubInstallation, {
-      api_token: args.api_token,
-      installation_id: app.disconnect_id,
-    });
+    return await ctx.runMutation(
+      internal.integrations.deleteGithubInstallation,
+      {
+        api_token: args.api_token,
+        installation_id: app.disconnect_id,
+      },
+    );
   },
 });
 
@@ -198,7 +241,10 @@ export const deleteGithubInstallation = internalMutation({
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { ok: false, error: "Unauthorized" };
-    const rowId = ctx.db.normalizeId("github_app_installations", args.installation_id);
+    const rowId = ctx.db.normalizeId(
+      "github_app_installations",
+      args.installation_id,
+    );
     if (!rowId) return { ok: false, error: "no_such_installation" };
     const install = await ctx.db.get(rowId);
     if (!install) return { ok: true };

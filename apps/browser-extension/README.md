@@ -213,7 +213,7 @@ Rules the CLI enforces in real mode:
   discover to the tabs that session opened or was granted, so one session's
   frozen tab cannot stall another's commands, and a session cannot close or
   navigate a tab it did not open by accident. Sharing is deliberate: `cast
-  browser tab switch <id>` asks the host to grant that tab, and the host
+browser tab switch <id>` asks the host to grant that tab, and the host
   grants only agent tabs, never yours.
   The group's title never changes while a session works: any change to it
   resizes the chip and shifts every tab after it. The group disappears with
@@ -256,8 +256,8 @@ Rules the CLI enforces in real mode:
   The settings page (the same one pairing opens) explains all of this with
   live status and keeps the pair by hand form for the rare machine where
   setup cannot open Chrome.
-- **Chrome's own infobar:** *"Codecast" started debugging this
-  browser*. Chrome shows it for as long as any tab is attached. While a tab
+- **Chrome's own infobar:** _"Codecast" started debugging this
+  browser_. Chrome shows it for as long as any tab is attached. While a tab
   is attached the extension also holds a debugger session on its own service
   worker (see below), which adds no time to the banner. **Cancel** detaches
   at once; the extension notices and lets the tab go. An extension

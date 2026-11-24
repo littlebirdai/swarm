@@ -11,26 +11,57 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-export function daemonUnitFor(units: { name: string; content: string }[], user: string): string | null {
+export function daemonUnitFor(
+  units: { name: string; content: string }[],
+  user: string,
+): string | null {
   let template: string | null = null;
   for (const { name, content } of units) {
     if (!name.endsWith(".service")) continue;
     const lines = content.split("\n").map((l) => l.trim());
-    if (!lines.some((l) => l.startsWith("ExecStart=") && /\s_daemon(\s|$)/.test(l))) continue;
-    const owner = lines.find((l) => l.startsWith("User="))?.slice("User=".length).trim();
+    if (
+      !lines.some(
+        (l) => l.startsWith("ExecStart=") && /\s_daemon(\s|$)/.test(l),
+      )
+    )
+      continue;
+    const owner = lines
+      .find((l) => l.startsWith("User="))
+      ?.slice("User=".length)
+      .trim();
     if (owner === user) return name;
-    if ((owner === "%i" || owner === "%I") && name.endsWith("@.service") && user !== "root") template ??= `${name.slice(0, -"@.service".length)}@${user}.service`;
+    if (
+      (owner === "%i" || owner === "%I") &&
+      name.endsWith("@.service") &&
+      user !== "root"
+    )
+      template ??= `${name.slice(0, -"@.service".length)}@${user}.service`;
   }
   return template;
 }
 
-export function findSystemDaemonUnit(user = os.userInfo().username, dir = "/etc/systemd/system"): string | null {
+export function findSystemDaemonUnit(
+  user = os.userInfo().username,
+  dir = "/etc/systemd/system",
+): string | null {
   if (process.platform !== "linux") return null;
   let names: string[];
-  try { names = fs.readdirSync(dir); } catch { return null; }
-  const units = names.filter((n) => n.endsWith(".service")).flatMap((name) => {
-    try { return [{ name, content: fs.readFileSync(path.join(dir, name), "utf-8") }]; } catch { return []; }
-  });
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return null;
+  }
+  const units = names
+    .filter((n) => n.endsWith(".service"))
+    .flatMap((name) => {
+      try {
+        return [
+          { name, content: fs.readFileSync(path.join(dir, name), "utf-8") },
+        ];
+      } catch {
+        return [];
+      }
+    });
   return daemonUnitFor(units, user);
 }
 
@@ -40,14 +71,21 @@ export function isTemplateInstance(unit: string): boolean {
 }
 
 /** CODECAST_NO_AUTOSTART=1: something else (a system unit, a container entrypoint) runs the daemon. */
-export function autostartDisabledByEnv(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.CODECAST_NO_AUTOSTART === "1" || env.CODECAST_NO_AUTOSTART === "true";
+export function autostartDisabledByEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    env.CODECAST_NO_AUTOSTART === "1" || env.CODECAST_NO_AUTOSTART === "true"
+  );
 }
 
 /** This process runs under a systemd service (INVOCATION_ID is set for every
  *  service process) and this user has a daemon unit: the unit restarts the
  *  daemon itself, so a restart is an exit, never a spawned replacement. */
-export function supervisedBySystemdUnit(env: NodeJS.ProcessEnv = process.env, unit: () => string | null = findSystemDaemonUnit): boolean {
+export function supervisedBySystemdUnit(
+  env: NodeJS.ProcessEnv = process.env,
+  unit: () => string | null = findSystemDaemonUnit,
+): boolean {
   return !!env.INVOCATION_ID && unit() !== null;
 }
 
@@ -65,9 +103,20 @@ export function daemonWantedPath(home = os.homedir()): string {
 }
 
 /** Does the installed unit that runs `unit` start and stop on the wanted file? */
-export function unitUsesWantedFlag(unit: string, dir = "/etc/systemd/system"): boolean {
-  const file = isTemplateInstance(unit) ? unit.replace(/@[^@/]+\.service$/, "@.service") : unit;
-  try { return fs.readFileSync(path.join(dir, file), "utf-8").includes(DAEMON_WANTED_FILE); } catch { return false; }
+export function unitUsesWantedFlag(
+  unit: string,
+  dir = "/etc/systemd/system",
+): boolean {
+  const file = isTemplateInstance(unit)
+    ? unit.replace(/@[^@/]+\.service$/, "@.service")
+    : unit;
+  try {
+    return fs
+      .readFileSync(path.join(dir, file), "utf-8")
+      .includes(DAEMON_WANTED_FILE);
+  } catch {
+    return false;
+  }
 }
 
 /** Create or remove the wanted file. Its path unit notices within a second. */

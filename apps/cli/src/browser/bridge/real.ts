@@ -15,30 +15,67 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { CdpConnection, listTargets, type CdpEndpoint, type CdpTarget, withSession } from "../cdp.js";
-import { attachToTarget, type InstanceState, type PageSession } from "../instance.js";
+import {
+  CdpConnection,
+  listTargets,
+  type CdpEndpoint,
+  type CdpTarget,
+  withSession,
+} from "../cdp.js";
+import {
+  attachToTarget,
+  type InstanceState,
+  type PageSession,
+} from "../instance.js";
 import { browserHome } from "../profile.js";
 import { isPidAlive } from "../../workspace/chrome.js";
 import { withFileLockSync } from "../../lockFile.js";
 import { armRecorder } from "../observe.js";
-import { isRealSession, requestTabName, type EngineOptions } from "../engine.js";
+import {
+  isRealSession,
+  requestTabName,
+  type EngineOptions,
+} from "../engine.js";
 import { agentSetupLines } from "@codecast/shared/contracts";
 import { fmt } from "../../colors.js";
 import {
-  bridgeEndpoint, bridgeStatus, bridgeWsUrl, ensureBridgeHost, proveBridgeHost, readBridgeState, waitForExtension, type BridgeHostStarter,
-  type BridgeHostStatus, type BridgeState, type ProvenBridge,
+  bridgeEndpoint,
+  bridgeStatus,
+  bridgeWsUrl,
+  ensureBridgeHost,
+  proveBridgeHost,
+  readBridgeState,
+  waitForExtension,
+  type BridgeHostStarter,
+  type BridgeHostStatus,
+  type BridgeState,
+  type ProvenBridge,
   requestBrowserProfile,
 } from "./host.js";
-import { launchRealChrome, realChromeRunning, settlePairingPage, wakeExtension } from "./realChrome.js";
+import {
+  launchRealChrome,
+  realChromeRunning,
+  settlePairingPage,
+  wakeExtension,
+} from "./realChrome.js";
 import { realChromePid } from "../localChrome.js";
 import { BRIDGE_STORE_URL } from "./protocol.js";
 import { isRemoteDevice } from "../../remote/device.js";
-import { lastLinkedLaptop, probeLaptopLink, readLaptopLink, readLaptopLinkClosed, revokedVerdict, switchNotice, type LinkVerdict } from "./laptopLink.js";
+import {
+  lastLinkedLaptop,
+  probeLaptopLink,
+  readLaptopLink,
+  readLaptopLinkClosed,
+  revokedVerdict,
+  switchNotice,
+  type LinkVerdict,
+} from "./laptopLink.js";
 
 const cloneScope = new AsyncLocalStorage<boolean>();
 
 export const isAdvancedClone = (): boolean => cloneScope.getStore() === true;
-export const withAdvancedClone = <T>(run: () => T): T => cloneScope.run(true, run);
+export const withAdvancedClone = <T>(run: () => T): T =>
+  cloneScope.run(true, run);
 
 // ---------------------------------------------------------------------------
 // Per-session state: which real tab is mine, and is real mode sticky
@@ -98,8 +135,17 @@ function updateRealState(change: (s: RealState) => RealState | null): void {
 /** Sessions with no key share one slot, same as the clone's activeTargetId. */
 const keyOf = (sessionKey: string | null): string => sessionKey ?? "global";
 
-export function setStickyTarget(sessionKey: string | null, mode: StickyMode): void {
-  updateRealState((s) => ({ ...s, stickyBySession: { ...(s.stickyBySession ?? {}), [keyOf(sessionKey)]: mode } }));
+export function setStickyTarget(
+  sessionKey: string | null,
+  mode: StickyMode,
+): void {
+  updateRealState((s) => ({
+    ...s,
+    stickyBySession: {
+      ...(s.stickyBySession ?? {}),
+      [keyOf(sessionKey)]: mode,
+    },
+  }));
 }
 
 /** The choice a session made with `cast browser target`, or null when it never did. */
@@ -107,11 +153,26 @@ export function explicitTarget(sessionKey: string | null): StickyMode | null {
   return readRealState().stickyBySession?.[keyOf(sessionKey)] ?? null;
 }
 
-export function rememberDesktopPane(sessionKey: string | null, paneId: string): void {
-  updateRealState((s) => (s.paneBySession?.[keyOf(sessionKey)] === paneId ? null : { ...s, paneBySession: { ...(s.paneBySession ?? {}), [keyOf(sessionKey)]: paneId } }));
+export function rememberDesktopPane(
+  sessionKey: string | null,
+  paneId: string,
+): void {
+  updateRealState((s) =>
+    s.paneBySession?.[keyOf(sessionKey)] === paneId
+      ? null
+      : {
+          ...s,
+          paneBySession: {
+            ...(s.paneBySession ?? {}),
+            [keyOf(sessionKey)]: paneId,
+          },
+        },
+  );
 }
 
-export function rememberedDesktopPane(sessionKey: string | null): string | null {
+export function rememberedDesktopPane(
+  sessionKey: string | null,
+): string | null {
   return readRealState().paneBySession?.[keyOf(sessionKey)] ?? null;
 }
 
@@ -146,7 +207,9 @@ let hostBrowserVerdict: LinkVerdict | null = null;
  * choice changed since the last command here. A no-op off a remote device,
  * and on one with no link file or its own paired extension.
  */
-export async function selectHostBrowser(note: (line: string) => void = (l) => console.error(fmt.muted(l))): Promise<LinkVerdict | null> {
+export async function selectHostBrowser(
+  note: (line: string) => void = (l) => console.error(fmt.muted(l)),
+): Promise<LinkVerdict | null> {
   laptopBridge = null;
   hostBrowserVerdict = null;
   if (!isRemoteDevice() || humanExtensionPaired()) return null;
@@ -155,11 +218,17 @@ export async function selectHostBrowser(note: (line: string) => void = (l) => co
   // that just went away usually leaves no file at all: still a switch. A
   // laptop that closed it because it revoked this host said so first.
   const closed = link ? null : readLaptopLinkClosed();
-  const gone = link ? null : closed?.laptop ?? lastLinkedLaptop();
+  const gone = link ? null : (closed?.laptop ?? lastLinkedLaptop());
   if (!link && !gone) return null;
-  const v: LinkVerdict = link ? await probeLaptopLink(link)
-    : closed ? revokedVerdict(closed.laptop, closed.hostId)
-    : { mode: "host", laptop: gone!, reason: `${gone}'s link is closed (the laptop is off, asleep or offline)` };
+  const v: LinkVerdict = link
+    ? await probeLaptopLink(link)
+    : closed
+      ? revokedVerdict(closed.laptop, closed.hostId)
+      : {
+          mode: "host",
+          laptop: gone!,
+          reason: `${gone}'s link is closed (the laptop is off, asleep or offline)`,
+        };
   hostBrowserVerdict = v;
   if (v.mode === "laptop") laptopBridge = { ...v.bridge, laptop: v.laptop };
   const line = switchNotice(v);
@@ -188,9 +257,50 @@ let hostChromeReason: string | null = null;
  * may launch, so a new or internal verb never launches by accident.
  */
 const PAGE_VERBS = new Set([
-  "open", "snapshot", "read", "click", "type", "fill", "press", "hover", "focus", "select", "scroll", "upload", "download", "drag",
-  "wait", "text", "get", "diff", "back", "forward", "reload", "tab", "console", "errors", "network", "cookies", "storage", "inspect",
-  "react", "vitals", "a11y", "trace", "record", "shot", "do", "show", "find", "eval", "viewport", "dialogs", "start", "handoff", "subscribe", "type-secret",
+  "open",
+  "snapshot",
+  "read",
+  "click",
+  "type",
+  "fill",
+  "press",
+  "hover",
+  "focus",
+  "select",
+  "scroll",
+  "upload",
+  "download",
+  "drag",
+  "wait",
+  "text",
+  "get",
+  "diff",
+  "back",
+  "forward",
+  "reload",
+  "tab",
+  "console",
+  "errors",
+  "network",
+  "cookies",
+  "storage",
+  "inspect",
+  "react",
+  "vitals",
+  "a11y",
+  "trace",
+  "record",
+  "shot",
+  "do",
+  "show",
+  "find",
+  "eval",
+  "viewport",
+  "dialogs",
+  "start",
+  "handoff",
+  "subscribe",
+  "type-secret",
 ]);
 
 /** Verbs that act on the whole profile rather than a tab: on a host they always take CDP to its Chrome. */
@@ -203,11 +313,16 @@ const PROFILE_VERBS = new Set(["sync", "login", "grant"]);
  * Anything that stops that leaves this verb on CDP alone, said once.
  * `CAST_BROWSER_HOST_EXTENSION=0` keeps a host on CDP alone.
  */
-export async function prepareHostChrome(verb: string, note: (line: string) => void = (l) => console.error(fmt.muted(l))): Promise<void> {
+export async function prepareHostChrome(
+  verb: string,
+  note: (line: string) => void = (l) => console.error(fmt.muted(l)),
+): Promise<void> {
   hostChromeLive = false;
   hostChromeReason = null;
-  if (!hostOwnsBrowser() || process.env.CAST_BROWSER_HOST_EXTENSION === "0") return;
-  const { hostExtensionDir, readyHostChrome } = await import("../hostExtension.js");
+  if (!hostOwnsBrowser() || process.env.CAST_BROWSER_HOST_EXTENSION === "0")
+    return;
+  const { hostExtensionDir, readyHostChrome } =
+    await import("../hostExtension.js");
   if (!hostExtensionDir()) {
     hostChromeReason = "this cast carries no copy of the extension";
     return;
@@ -220,16 +335,24 @@ export async function prepareHostChrome(verb: string, note: (line: string) => vo
     hostChromeLive = extensionReady();
     return;
   }
-  const r = await readyHostChrome((l) => note(`  ${l}`)).catch((err: Error) => ({ ok: false as const, reason: err.message }));
+  const r = await readyHostChrome((l) => note(`  ${l}`)).catch(
+    (err: Error) => ({ ok: false as const, reason: err.message }),
+  );
   hostChromeLive = r.ok;
   if (!r.ok) {
     hostChromeReason = r.reason;
-    note(`  this host's Chrome runs without the Codecast extension for now: ${r.reason}`);
-  } else if (r.paired) note("  paired the Codecast extension in this host's Chrome");
+    note(
+      `  this host's Chrome runs without the Codecast extension for now: ${r.reason}`,
+    );
+  } else if (r.paired)
+    note("  paired the Codecast extension in this host's Chrome");
 }
 
 /** What prepareHostChrome found, for status: driven through the extension, or why not. */
-export const hostChromeExtension = (): { live: boolean; reason: string | null } => ({ live: hostChromeLive, reason: hostChromeReason });
+export const hostChromeExtension = (): {
+  live: boolean;
+  reason: string | null;
+} => ({ live: hostChromeLive, reason: hostChromeReason });
 
 /** What selectHostBrowser decided this invocation, for status. */
 export const hostBrowserChoice = (): LinkVerdict | null => hostBrowserVerdict;
@@ -247,7 +370,12 @@ function activeBridgeState(): BridgeState | null {
 export function extensionReady(): boolean {
   if (laptopBridge) return true;
   const state = readBridgeState();
-  return !!state?.token && !!state.hostPid && isPidAlive(state.hostPid) && state.extensionConnected === true;
+  return (
+    !!state?.token &&
+    !!state.hostPid &&
+    isPidAlive(state.hostPid) &&
+    state.extensionConnected === true
+  );
 }
 
 /**
@@ -278,7 +406,10 @@ export function hostHasNoHumanChrome(): boolean {
  * A session that chose its desktop pane keeps it until it chooses again or
  * the pane is reported closed (desktopPane.ts resolveDesktopPane).
  */
-export function stickyTarget(sessionKey: string | null, opts: { settle?: boolean } = {}): StickyMode {
+export function stickyTarget(
+  sessionKey: string | null,
+  opts: { settle?: boolean } = {},
+): StickyMode {
   if (isAdvancedClone()) return "clone";
   if (hostOwnsBrowser()) return hostChromeLive ? "real" : "clone";
   if (explicitTarget(sessionKey) === "pane") return "pane";
@@ -292,8 +423,14 @@ export interface TargetFlags {
   pane?: boolean;
 }
 
-export function isRealMode(opts: TargetFlags, sessionKey: string | null): boolean {
-  if (opts.clone) throw new Error("The --clone shortcut is no longer supported. Ordinary browser commands use the human's Chrome; a disconnected extension is not permission to launch another browser.");
+export function isRealMode(
+  opts: TargetFlags,
+  sessionKey: string | null,
+): boolean {
+  if (opts.clone)
+    throw new Error(
+      "The --clone shortcut is no longer supported. Ordinary browser commands use the human's Chrome; a disconnected extension is not permission to launch another browser.",
+    );
   if (opts.real) return true;
   if (opts.pane) return false;
   return stickyTarget(sessionKey, { settle: true }) === "real";
@@ -304,8 +441,12 @@ export function isRealMode(opts: TargetFlags, sessionKey: string | null): boolea
  * session's sticky choice. `--real` on the line overrides the sticky pane for
  * one verb, the same way it overrides everything else.
  */
-export function isPaneMode(opts: TargetFlags, sessionKey: string | null): boolean {
-  if (opts.real || opts.clone || isAdvancedClone() || hostOwnsBrowser()) return false;
+export function isPaneMode(
+  opts: TargetFlags,
+  sessionKey: string | null,
+): boolean {
+  if (opts.real || opts.clone || isAdvancedClone() || hostOwnsBrowser())
+    return false;
   return opts.pane === true || explicitTarget(sessionKey) === "pane";
 }
 
@@ -330,7 +471,9 @@ export function realModeHint(sessionKey: string | null): string | null {
  * accept unknown options and forward them to the engine, so these two must
  * be taken off the line here or the engine would receive them.
  */
-export function splitTargetFlags(args: string[]): TargetFlags & { args: string[] } {
+export function splitTargetFlags(
+  args: string[],
+): TargetFlags & { args: string[] } {
   const real = args.includes("--real") || undefined;
   const clone = args.includes("--clone") || undefined;
   const pane = args.includes("--pane") || undefined;
@@ -371,7 +514,9 @@ export function splitTargetFlags(args: string[]): TargetFlags & { args: string[]
 export function requireBridgeConfigured(): BridgeState {
   const state = activeBridgeState();
   if (!state?.token) {
-    throw new Error(`the extension bridge is not set up (the Codecast extension: ${BRIDGE_STORE_URL}). No separate browser was started.\n${agentSetupLines("browser").join("\n")}`);
+    throw new Error(
+      `the extension bridge is not set up (the Codecast extension: ${BRIDGE_STORE_URL}). No separate browser was started.\n${agentSetupLines("browser").join("\n")}`,
+    );
   }
   return state;
 }
@@ -382,7 +527,9 @@ export function requireBridgeConfigured(): BridgeState {
  * running, or what answers on the port cannot prove it is our host. Those
  * callers are courtesies that never start a host, so all three are "no".
  */
-export async function bridgeEndpointIfConfigured(session?: string | null): Promise<CdpEndpoint | null> {
+export async function bridgeEndpointIfConfigured(
+  session?: string | null,
+): Promise<CdpEndpoint | null> {
   if (laptopBridge) return bridgeEndpoint(laptopBridge, session);
   const state = readBridgeState();
   if (!state?.token) return null;
@@ -406,16 +553,38 @@ export async function bridgeEndpointIfConfigured(session?: string | null): Promi
  * `requireRealBridge` returned, which started the host if it had to and saw
  * the extension on it.
  */
-export async function engineBrowserFor(session: string, bridge?: ProvenBridge): Promise<EngineOptions & { session: string }> {
+export async function engineBrowserFor(
+  session: string,
+  bridge?: ProvenBridge,
+): Promise<EngineOptions & { session: string }> {
   if (!isRealSession(session)) return { session };
   // The session rides on the socket URL: the host scopes what this engine
   // discovers to the tabs granted to that session (bridge/host.ts).
-  const state = bridge ?? laptopBridge ?? (await proveBridgeHost(requireBridgeConfigured()));
-  return { session, cdp: withSession(bridgeWsUrl(state), bridgeEndpoint(state, session)) };
+  const state =
+    bridge ??
+    laptopBridge ??
+    (await proveBridgeHost(requireBridgeConfigured()));
+  return {
+    session,
+    cdp: withSession(bridgeWsUrl(state), bridgeEndpoint(state, session)),
+  };
 }
 
-export function rememberRealTab(sessionKey: string | null, targetId: string): void {
-  updateRealState((s) => (s.tabsBySession?.[keyOf(sessionKey)] === targetId ? null : { ...s, tabsBySession: { ...(s.tabsBySession ?? {}), [keyOf(sessionKey)]: targetId } }));
+export function rememberRealTab(
+  sessionKey: string | null,
+  targetId: string,
+): void {
+  updateRealState((s) =>
+    s.tabsBySession?.[keyOf(sessionKey)] === targetId
+      ? null
+      : {
+          ...s,
+          tabsBySession: {
+            ...(s.tabsBySession ?? {}),
+            [keyOf(sessionKey)]: targetId,
+          },
+        },
+  );
 }
 
 export function ownedRealTab(sessionKey: string | null): string | undefined {
@@ -426,12 +595,19 @@ export function ownedRealTab(sessionKey: string | null): string | undefined {
 export function pruneRealTabs(live: Set<string>): void {
   updateRealState((s) => {
     const tabs = s.tabsBySession ?? {};
-    const kept = Object.fromEntries(Object.entries(tabs).filter(([, id]) => live.has(id)));
-    return Object.keys(kept).length === Object.keys(tabs).length ? null : { ...s, tabsBySession: kept };
+    const kept = Object.fromEntries(
+      Object.entries(tabs).filter(([, id]) => live.has(id)),
+    );
+    return Object.keys(kept).length === Object.keys(tabs).length
+      ? null
+      : { ...s, tabsBySession: kept };
   });
 }
 
-export function realTabOwnership(sessionKey: string | null): { mine?: string; others: Set<string> } {
+export function realTabOwnership(sessionKey: string | null): {
+  mine?: string;
+  others: Set<string>;
+} {
   const tabs = readRealState().tabsBySession ?? {};
   const mine = tabs[keyOf(sessionKey)];
   const others = new Set(
@@ -460,11 +636,19 @@ export function walledOffFromExtension(url: string): string | null {
   } catch {
     return null;
   }
-  if (u.protocol === "chrome:" || u.protocol === "chrome-extension:" || u.protocol === "devtools:") {
+  if (
+    u.protocol === "chrome:" ||
+    u.protocol === "chrome-extension:" ||
+    u.protocol === "devtools:"
+  ) {
     return `Chrome does not let an extension drive ${u.protocol}// pages`;
   }
   const host = u.hostname.toLowerCase();
-  if (host === "chromewebstore.google.com" || (host === "chrome.google.com" && u.pathname.toLowerCase().startsWith("/webstore"))) {
+  if (
+    host === "chromewebstore.google.com" ||
+    (host === "chrome.google.com" &&
+      u.pathname.toLowerCase().startsWith("/webstore"))
+  ) {
     return "Chrome does not let an extension drive the Chrome Web Store or its developer dashboard";
   }
   return null;
@@ -485,7 +669,12 @@ export const EXTENSION_ALARM_MS = 35_000;
 export const EXTENSION_WAKE_WAIT_MS = 25_000;
 export const CHROME_LAUNCH_WAIT_MS = 60_000;
 
-export type ExtensionWaits = { grace: number; alarm: number; wake: number; launch: number };
+export type ExtensionWaits = {
+  grace: number;
+  alarm: number;
+  wake: number;
+  launch: number;
+};
 
 /** Test seams for the rungs, and where progress lines go. */
 export interface RealChromeDeps {
@@ -517,32 +706,55 @@ export interface RealChromeDeps {
 export async function connectRealBridge(
   start?: BridgeHostStarter,
   deps: RealChromeDeps = {},
-): Promise<{ bridge: ProvenBridge & { started: boolean }; status: BridgeHostStatus }> {
+): Promise<{
+  bridge: ProvenBridge & { started: boolean };
+  status: BridgeHostStatus;
+}> {
   requireBridgeConfigured();
   // The laptop's bridge was proven this invocation; nothing here can start
   // its host or its Chrome, so its status is the whole answer.
-  if (laptopBridge) return { bridge: { ...laptopBridge, started: false }, status: await bridgeStatus(laptopBridge) };
-  const note = deps.note ?? ((line: string) => console.error(fmt.muted(`  ${line}`)));
+  if (laptopBridge)
+    return {
+      bridge: { ...laptopBridge, started: false },
+      status: await bridgeStatus(laptopBridge),
+    };
+  const note =
+    deps.note ?? ((line: string) => console.error(fmt.muted(`  ${line}`)));
   // The host's own Chrome is cast's to start and pair, never a human's to wake.
   if (hostOwnsBrowser() && hostChromeLive) {
     const { readyHostChrome } = await import("../hostExtension.js");
     const r = await readyHostChrome(note);
-    if (!r.ok) throw new Error(`this host's Chrome lost its Codecast extension: ${r.reason}`);
+    if (!r.ok)
+      throw new Error(
+        `this host's Chrome lost its Codecast extension: ${r.reason}`,
+      );
     return { bridge: { ...r.bridge, started: false }, status: r.status };
   }
   const bridge = await ensureBridgeHost(start, { note });
-  const w: ExtensionWaits = { grace: EXTENSION_RECONNECT_GRACE_MS, alarm: EXTENSION_ALARM_MS, wake: EXTENSION_WAKE_WAIT_MS, launch: CHROME_LAUNCH_WAIT_MS, ...deps.waits };
+  const w: ExtensionWaits = {
+    grace: EXTENSION_RECONNECT_GRACE_MS,
+    alarm: EXTENSION_ALARM_MS,
+    wake: EXTENSION_WAKE_WAIT_MS,
+    launch: CHROME_LAUNCH_WAIT_MS,
+    ...deps.waits,
+  };
   let status = await waitForExtension(bridge, w.grace);
-  if (status.extensionConnected || !extensionPaired() || deps.repair === false) return { bridge, status };
+  if (status.extensionConnected || !extensionPaired() || deps.repair === false)
+    return { bridge, status };
 
   if (!(deps.chromeRunning ?? realChromeRunning)()) {
-    note("Chrome is not running; starting it in the background and waiting for the extension…");
-    if (await (deps.launchChrome ?? launchRealChrome)()) status = await waitForExtension(bridge, w.launch);
+    note(
+      "Chrome is not running; starting it in the background and waiting for the extension…",
+    );
+    if (await (deps.launchChrome ?? launchRealChrome)())
+      status = await waitForExtension(bridge, w.launch);
     else note("no Chrome binary found to start");
     return { bridge, status };
   }
 
-  note(`the Chrome extension has not reconnected yet; giving it up to ${Math.round(w.alarm / 1000)}s…`);
+  note(
+    `the Chrome extension has not reconnected yet; giving it up to ${Math.round(w.alarm / 1000)}s…`,
+  );
   status = await waitForExtension(bridge, Math.max(0, w.alarm - w.grace));
   if (status.extensionConnected) return { bridge, status };
   // One wake per outage machine wide (realChrome.ts takeWake): a session
@@ -551,8 +763,12 @@ export async function connectRealBridge(
   // relaunched during the outage never proved anything yet, and it deserves
   // its one wake even though extensionSeenAt has not moved.
   const outage = `${readBridgeState()?.extensionSeenAt ?? 0}:${(deps.chromePid ?? realChromePid)() ?? 0}`;
-  if (await (deps.wakeExtension ?? wakeExtension)(outage)) note("waking the extension from its options page (a tab opens in Chrome and closes itself)…");
-  else note("the extension was already woken for this outage; waiting on that…");
+  if (await (deps.wakeExtension ?? wakeExtension)(outage))
+    note(
+      "waking the extension from its options page (a tab opens in Chrome and closes itself)…",
+    );
+  else
+    note("the extension was already woken for this outage; waiting on that…");
   status = await waitForExtension(bridge, w.wake).catch((err) => {
     settlePairingPage(false);
     throw err;
@@ -566,7 +782,10 @@ export async function connectRealBridge(
  * with the setup instructions, beats failing on the first verb with less
  * context — a host with no extension can only ever answer errors.
  */
-export async function requireRealBridge(start?: BridgeHostStarter, deps?: RealChromeDeps): Promise<ProvenBridge> {
+export async function requireRealBridge(
+  start?: BridgeHostStarter,
+  deps?: RealChromeDeps,
+): Promise<ProvenBridge> {
   const { bridge, status } = await connectRealBridge(start, deps);
   if (!status.extensionConnected) {
     throw new Error(
@@ -583,7 +802,9 @@ export async function requireRealBridge(start?: BridgeHostStarter, deps?: RealCh
 }
 
 /** Live page targets in the real Chrome; also prunes stale ownership. */
-export async function listRealTargets(state: ProvenBridge): Promise<CdpTarget[]> {
+export async function listRealTargets(
+  state: ProvenBridge,
+): Promise<CdpTarget[]> {
   const targets = await listTargets(bridgeEndpoint(state));
   pruneRealTabs(new Set(targets.map((t) => t.targetId)));
   return targets;
@@ -594,15 +815,21 @@ export function resolveRealTarget(
   explicit: string | undefined,
   sessionKey: string | null,
 ): CdpTarget {
-  if (!targets.length) throw new Error("the real browser reports no drivable tabs");
+  if (!targets.length)
+    throw new Error("the real browser reports no drivable tabs");
 
   if (explicit) {
     const match =
       targets.find((t) => t.targetId === explicit.toUpperCase()) ||
       targets.find((t) => t.targetId.startsWith(explicit.toUpperCase())) ||
       targets.find((t) => t.url.includes(explicit)) ||
-      targets.find((t) => t.title.toLowerCase().includes(explicit.toLowerCase()));
-    if (!match) throw new Error(`no real-browser tab matching '${explicit}' — see \`cast browser tabs --real\``);
+      targets.find((t) =>
+        t.title.toLowerCase().includes(explicit.toLowerCase()),
+      );
+    if (!match)
+      throw new Error(
+        `no real-browser tab matching '${explicit}' — see \`cast browser tabs --real\``,
+      );
     return match;
   }
 
@@ -645,13 +872,21 @@ export function realStateStub(state: BridgeState): InstanceState {
 /** The real-mode counterpart of cli.ts's withPage. Throws; the caller renders. */
 export async function withRealPage<T>(
   opts: { tab?: string },
-  fn: (page: PageSession, state: InstanceState, conn: CdpConnection) => Promise<T>,
+  fn: (
+    page: PageSession,
+    state: InstanceState,
+    conn: CdpConnection,
+  ) => Promise<T>,
   sessionKey: string | null,
 ): Promise<T> {
   const bridge = await requireRealBridge();
   const conn = await CdpConnection.fromPort(bridgeEndpoint(bridge));
   try {
-    const target = resolveRealTarget(await listRealTargets(bridge), opts.tab, sessionKey);
+    const target = resolveRealTarget(
+      await listRealTargets(bridge),
+      opts.tab,
+      sessionKey,
+    );
     const page = await attachToTarget(conn, target.targetId);
     rememberRealTab(sessionKey, target.targetId);
     // Same re-arm the clone path does: console/network capture lives in the

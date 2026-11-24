@@ -27,13 +27,44 @@ describe("resolveRecentVisits", () => {
   it("resolves every kind to its object type with the live row attached", () => {
     const state = {
       ...base,
-      sessions: { s1: { _id: "s1", title: "Fix auth", message_count: 3, git_root: "/x/codecast", user_id: ME } },
-      tasks: { t1: { _id: "t1", short_id: "ct-1", title: "Ship it", status: "in_progress", priority: "high" } },
-      plans: { p1: { _id: "p1", short_id: "pl-1", title: "Big plan", status: "active", progress: { total: 4, done: 1, in_progress: 1, open: 2 } } },
+      sessions: {
+        s1: {
+          _id: "s1",
+          title: "Fix auth",
+          message_count: 3,
+          git_root: "/x/codecast",
+          user_id: ME,
+        },
+      },
+      tasks: {
+        t1: {
+          _id: "t1",
+          short_id: "ct-1",
+          title: "Ship it",
+          status: "in_progress",
+          priority: "high",
+        },
+      },
+      plans: {
+        p1: {
+          _id: "p1",
+          short_id: "pl-1",
+          title: "Big plan",
+          status: "active",
+          progress: { total: 4, done: 1, in_progress: 1, open: 2 },
+        },
+      },
       docs: { d1: { _id: "d1", title: "Spec doc", doc_type: "spec" } },
       chatChannels: { c1: { _id: "c1", name: "design", kind: "public" } },
       buckets: { b1: { _id: "b1", name: "api" } },
-      bucketAssignments: { a1: { _id: "a1", conversation_id: "s1", bucket_id: "b1", created_at: 1 } },
+      bucketAssignments: {
+        a1: {
+          _id: "a1",
+          conversation_id: "s1",
+          bucket_id: "b1",
+          created_at: 1,
+        },
+      },
       recentVisits: [
         { kind: "session", key: "s1", ts: 9 },
         { kind: "page", key: "page:/tasks/ct-1", path: "/tasks/ct-1", ts: 8 },
@@ -41,8 +72,20 @@ describe("resolveRecentVisits", () => {
         { kind: "page", key: "page:/docs/d1", path: "/docs/d1", ts: 6 },
         { kind: "page", key: "page:/chat/c1", path: "/chat/c1", ts: 5 },
         { kind: "view", key: "label:b1", ts: 4 },
-        { kind: "view", key: "project:codecast", label: "codecast", path: "/x/codecast", ts: 3 },
-        { kind: "page", key: "page:/inbox", path: "/inbox", label: "Inbox", ts: 2 },
+        {
+          kind: "view",
+          key: "project:codecast",
+          label: "codecast",
+          path: "/x/codecast",
+          ts: 3,
+        },
+        {
+          kind: "page",
+          key: "page:/inbox",
+          path: "/inbox",
+          label: "Inbox",
+          ts: 2,
+        },
       ],
     };
     const rows = resolveRecentVisits(state, 20);
@@ -68,7 +111,15 @@ describe("resolveRecentVisits", () => {
   it("keeps the object type when the row has left the store, falling back to the label", () => {
     const state = {
       ...base,
-      recentVisits: [{ kind: "page", key: "page:/tasks/ct-9", path: "/tasks/ct-9", label: "Old task", ts: 1 }],
+      recentVisits: [
+        {
+          kind: "page",
+          key: "page:/tasks/ct-9",
+          path: "/tasks/ct-9",
+          label: "Old task",
+          ts: 1,
+        },
+      ],
     };
     const [row] = resolveRecentVisits(state, 10);
     expect(row.objectType).toBe("task");
@@ -85,11 +136,31 @@ describe("resolveRecentVisits", () => {
       // The inbox scope hides the teammate's row; history must not.
       clientState: { ui: { inbox_scope: "mine", active_team_id: "team_a" } },
       sessions: {
-        [mine]: { _id: mine, title: "Mine", message_count: 1, user_id: ME, team_id: "team_b" },
-        [teammate]: { _id: teammate, title: "x influence", message_count: 4, user_id: "user_pal", team_id: "team_a" },
-        [otherTeam]: { _id: otherTeam, title: "Other team", message_count: 1, user_id: "user_far", team_id: "team_b" },
+        [mine]: {
+          _id: mine,
+          title: "Mine",
+          message_count: 1,
+          user_id: ME,
+          team_id: "team_b",
+        },
+        [teammate]: {
+          _id: teammate,
+          title: "x influence",
+          message_count: 4,
+          user_id: "user_pal",
+          team_id: "team_a",
+        },
+        [otherTeam]: {
+          _id: otherTeam,
+          title: "Other team",
+          message_count: 1,
+          user_id: "user_far",
+          team_id: "team_b",
+        },
       },
-      conversations: { convOnly: { _id: "convOnly", title: "From search", message_count: 2 } },
+      conversations: {
+        convOnly: { _id: "convOnly", title: "From search", message_count: 2 },
+      },
       recentVisits: [
         { kind: "session", key: otherTeam, ts: 4 },
         { kind: "session", key: teammate, ts: 3 },
@@ -97,6 +168,10 @@ describe("resolveRecentVisits", () => {
         { kind: "session", key: "convOnly", ts: 1 },
       ],
     };
-    expect(resolveRecentVisits(state, 10).map((r) => r.title)).toEqual(["x influence", "Mine", "From search"]);
+    expect(resolveRecentVisits(state, 10).map((r) => r.title)).toEqual([
+      "x influence",
+      "Mine",
+      "From search",
+    ]);
   });
 });

@@ -22,7 +22,10 @@ import {
  * pills (parseEntityUrl). This is how a pasted github.com link opens inside
  * the app instead of leaving it.
  */
-export function githubLocationHref(href: string | undefined | null, family: RepoRouteFamily = "app"): string | null {
+export function githubLocationHref(
+  href: string | undefined | null,
+  family: RepoRouteFamily = "app",
+): string | null {
   const loc = parseGitHubLocationUrl(href);
   if (!loc) return null;
   const { repository } = loc;
@@ -32,12 +35,24 @@ export function githubLocationHref(href: string | undefined | null, family: Repo
     case "tree":
       return repoTreeHref(repository, loc.ref ?? "HEAD", loc.path, family);
     case "blob":
-      return repoBlobHref(repository, loc.ref ?? "HEAD", loc.path ?? "", family)
-        + formatLineHash(loc.line ? { start: loc.line, end: loc.endLine ?? loc.line } : null);
+      return (
+        repoBlobHref(repository, loc.ref ?? "HEAD", loc.path ?? "", family) +
+        formatLineHash(
+          loc.line ? { start: loc.line, end: loc.endLine ?? loc.line } : null,
+        )
+      );
     case "commits":
-      return repoCommitsHref(repository, loc.ref ?? "HEAD", { path: loc.path, family });
+      return repoCommitsHref(repository, loc.ref ?? "HEAD", {
+        path: loc.path,
+        family,
+      });
     case "compare":
-      return repoCompareHref(repository, loc.base ?? "", loc.head ?? "", family);
+      return repoCompareHref(
+        repository,
+        loc.base ?? "",
+        loc.head ?? "",
+        family,
+      );
     case "branches":
       return repoBranchesHref(repository, family);
     case "tags":
@@ -55,7 +70,9 @@ export function githubRepository(value?: string | null): string | null {
 
 export function repositoryName(value?: string | null): string | null {
   if (!value) return null;
-  return githubRepository(repositoryPattern.test(value) ? `https://github.com/${value}` : value);
+  return githubRepository(
+    repositoryPattern.test(value) ? `https://github.com/${value}` : value,
+  );
 }
 
 /** The branch a checkout sits on when nobody moved it. A session carries no
@@ -68,36 +85,85 @@ export function isDefaultBranch(branch: string | null | undefined): boolean {
 /** The repository a session works in. A checkout rooted at a home directory
  *  (dotfiles under git) is not one: a session started in `~` works in the
  *  repos below it, and that remote would claim every PR number it names. */
-export function sessionRepository(session: { git_remote_url?: string | null; git_root?: string | null; pr_status?: { repository?: string } | null }): string | null {
-  const homeCheckout = !!session.git_root && /^(\/Users\/[^/]+|\/home\/[^/]+|\/root)\/?$/.test(session.git_root);
-  return (homeCheckout ? null : githubRepository(session.git_remote_url)) ?? repositoryName(session.pr_status?.repository);
+export function sessionRepository(session: {
+  git_remote_url?: string | null;
+  git_root?: string | null;
+  pr_status?: { repository?: string } | null;
+}): string | null {
+  const homeCheckout =
+    !!session.git_root &&
+    /^(\/Users\/[^/]+|\/home\/[^/]+|\/root)\/?$/.test(session.git_root);
+  return (
+    (homeCheckout ? null : githubRepository(session.git_remote_url)) ??
+    repositoryName(session.pr_status?.repository)
+  );
 }
 
-export function taskRepository(task: { external?: { provider?: string; identifier?: string } | null }): string | null {
-  return task.external?.provider === "github" ? repositoryName(task.external.identifier?.split("#")[0]) : null;
+export function taskRepository(task: {
+  external?: { provider?: string; identifier?: string } | null;
+}): string | null {
+  return task.external?.provider === "github"
+    ? repositoryName(task.external.identifier?.split("#")[0])
+    : null;
 }
 
-export function repositoryJump(input: string): { repository: string; href: string; label: string } | null {
+export function repositoryJump(
+  input: string,
+): { repository: string; href: string; label: string } | null {
   const text = input.trim().replace(/^https?:\/\/github\.com\//i, "");
-  const match = text.match(/^([a-z0-9][a-z0-9-]*\/[a-z0-9_.-]+)(?:@([^\s:#?]+))?(?::([^#?]+))?(#L\d+(?:-L?\d+)?)?$/i);
+  const match = text.match(
+    /^([a-z0-9][a-z0-9-]*\/[a-z0-9_.-]+)(?:@([^\s:#?]+))?(?::([^#?]+))?(#L\d+(?:-L?\d+)?)?$/i,
+  );
   if (!match) return null;
   const repository = repositoryName(match[1]);
   const ref = match[2];
   const path = match[3]?.trim();
-  if (!repository || (path && (path.startsWith("/") || path.split("/").some(p => p === ".." || p === ".")))) return null;
+  if (
+    !repository ||
+    (path &&
+      (path.startsWith("/") ||
+        path.split("/").some((p) => p === ".." || p === ".")))
+  )
+    return null;
   const range = parseLineHash(match[4]);
   if (match[4] && (!path || !range)) return null;
-  const href = path ? repoBlobHref(repository, ref || "HEAD", path) : ref ? repoTreeHref(repository, ref) : repoHomeHref(repository);
-  return { repository, href: href + formatLineHash(range), label: path ? `${repository} · ${path}` : ref ? `${repository} · ${ref}` : repository };
+  const href = path
+    ? repoBlobHref(repository, ref || "HEAD", path)
+    : ref
+      ? repoTreeHref(repository, ref)
+      : repoHomeHref(repository);
+  return {
+    repository,
+    href: href + formatLineHash(range),
+    label: path
+      ? `${repository} · ${path}`
+      : ref
+        ? `${repository} · ${ref}`
+        : repository,
+  };
 }
 
-export type RepositoryScope = { taskId?: string; planId?: string; projectId?: string; conversationIds?: readonly string[] };
+export type RepositoryScope = {
+  taskId?: string;
+  planId?: string;
+  projectId?: string;
+  conversationIds?: readonly string[];
+};
 
-export function repositoryEventMatches(row: Record<string, any>, scope: RepositoryScope): boolean {
+export function repositoryEventMatches(
+  row: Record<string, any>,
+  scope: RepositoryScope,
+): boolean {
   return !!(
-    (scope.taskId && (row.task_id === scope.taskId || row.task_ids?.includes(scope.taskId))) ||
-    (scope.planId && (row.plan_id === scope.planId || row.plan_ids?.includes(scope.planId))) ||
-    (scope.projectId && (row.project_id === scope.projectId || row.project_ids?.includes(scope.projectId))) ||
-    scope.conversationIds?.some(id => row.conversation_id === id || row.conversation_ids?.includes(id))
+    (scope.taskId &&
+      (row.task_id === scope.taskId || row.task_ids?.includes(scope.taskId))) ||
+    (scope.planId &&
+      (row.plan_id === scope.planId || row.plan_ids?.includes(scope.planId))) ||
+    (scope.projectId &&
+      (row.project_id === scope.projectId ||
+        row.project_ids?.includes(scope.projectId))) ||
+    scope.conversationIds?.some(
+      (id) => row.conversation_id === id || row.conversation_ids?.includes(id),
+    )
   );
 }

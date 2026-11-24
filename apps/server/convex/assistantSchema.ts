@@ -13,26 +13,44 @@ import {
   TURN_STATUSES,
   WAKE_CAUSES,
 } from "@codecast/shared/contracts/assistant";
-import type { RuleDecision, ToolRisk, TurnReason } from "@codecast/shared/contracts/assistant";
-import type { GateVerdict, StopReason, ToolRisk as HarnessToolRisk } from "@platform/agent";
+import type {
+  RuleDecision,
+  ToolRisk,
+  TurnReason,
+} from "@codecast/shared/contracts/assistant";
+import type {
+  GateVerdict,
+  StopReason,
+  ToolRisk as HarnessToolRisk,
+} from "@platform/agent";
 import { convexTables } from "@platform/tidemark/stores/convex";
 
 // The contract's lists restate unions the harness (@platform/agent) defines,
 // so clients can read them without depending on the harness. This fails to
 // compile when either side gains or loses a value.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-const harnessVocabularyMatches: [Same<TurnReason, StopReason>, Same<ToolRisk, HarnessToolRisk>, Same<RuleDecision, GateVerdict>] = [
-  true,
-  true,
-  true,
-];
+const harnessVocabularyMatches: [
+  Same<TurnReason, StopReason>,
+  Same<ToolRisk, HarnessToolRisk>,
+  Same<RuleDecision, GateVerdict>,
+] = [true, true, true];
 void harnessVocabularyMatches;
 
-export const turnStatusValidator = v.union(...TURN_STATUSES.map((s) => v.literal(s)));
-export const turnReasonValidator = v.union(...TURN_REASONS.map((r) => v.literal(r)));
-export const wakeCauseValidator = v.union(...WAKE_CAUSES.map((c) => v.literal(c)));
-export const ruleDecisionValidator = v.union(...RULE_DECISIONS.map((d) => v.literal(d)));
-export const ledgerKindValidator = v.union(...LEDGER_KINDS.map((k) => v.literal(k)));
+export const turnStatusValidator = v.union(
+  ...TURN_STATUSES.map((s) => v.literal(s)),
+);
+export const turnReasonValidator = v.union(
+  ...TURN_REASONS.map((r) => v.literal(r)),
+);
+export const wakeCauseValidator = v.union(
+  ...WAKE_CAUSES.map((c) => v.literal(c)),
+);
+export const ruleDecisionValidator = v.union(
+  ...RULE_DECISIONS.map((d) => v.literal(d)),
+);
+export const ledgerKindValidator = v.union(
+  ...LEDGER_KINDS.map((k) => v.literal(k)),
+);
 export const planIdValidator = v.union(...PLAN_IDS.map((p) => v.literal(p)));
 
 /** The tool call a turn stopped on to ask the person (gate `ask`). The

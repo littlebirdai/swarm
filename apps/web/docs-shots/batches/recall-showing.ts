@@ -12,10 +12,14 @@ const RECALL = `/conversation/${RECALL_SESSION._id}`;
 const BLOB = `/repo/${CODE_REPO}/blob/main?path=${encodeURIComponent(CODE_FILE)}`;
 /** Opens `path` from the inbox, so its back link reads Inbox whatever the shot before showed. */
 const from = (path: string): Step[] => [
-  { js: `history.pushState(null, "", ${JSON.stringify(path)}); dispatchEvent(new PopStateEvent("popstate"))` },
+  {
+    js: `history.pushState(null, "", ${JSON.stringify(path)}); dispatchEvent(new PopStateEvent("popstate"))`,
+  },
   { sleep: 1500 },
   // closeSidePanel() can leave the session rail open; none of these shots wants it.
-  { js: `document.querySelector("[data-sv-rail]") && __inboxStore.getState().toggleSidePanel()` },
+  {
+    js: `document.querySelector("[data-sv-rail]") && __inboxStore.getState().toggleSidePanel()`,
+  },
   { sleep: 500 },
 ];
 
@@ -25,7 +29,11 @@ const markAround = (first: string, last: string): Step => ({
 });
 
 /** Blame set to Sessions, once the session strip has painted. */
-const SESSION_BLAME = [{ click: "[role=radio]", text: "Sessions" }, { wait: ".repo-session-chip" }, { sleep: 600 }];
+const SESSION_BLAME = [
+  { click: "[role=radio]", text: "Sessions" },
+  { wait: ".repo-session-chip" },
+  { sleep: 600 },
+];
 
 export const RECALL_SHOWING: Shot[] = [
   /* ── Main docs page ──────────────────────────────────────────────────── */
@@ -47,8 +55,26 @@ export const RECALL_SHOWING: Shot[] = [
     name: "ambient-awareness/stable-context",
     route: "/inbox",
     viewport: { width: 1200, height: 800 },
-    steps: [...from(RECALL), { wait: "[data-sv-feed] button[aria-expanded]", text: "session pointers" }, { js: `document.querySelector("button[aria-expanded=false]:has(.lucide-layers)")?.click()` }, { wait: "button[aria-expanded=true]", text: "session pointers" }, { sleep: 600 }, { js: `document.querySelector("div.conv-col:has(> button[aria-expanded=true])").scrollIntoView({ block: "end" })` }, { sleep: 600 }],
-    crop: { selector: "div.conv-col:has(> button[aria-expanded=true])", pad: 8 },
+    steps: [
+      ...from(RECALL),
+      {
+        wait: "[data-sv-feed] button[aria-expanded]",
+        text: "session pointers",
+      },
+      {
+        js: `document.querySelector("button[aria-expanded=false]:has(.lucide-layers)")?.click()`,
+      },
+      { wait: "button[aria-expanded=true]", text: "session pointers" },
+      { sleep: 600 },
+      {
+        js: `document.querySelector("div.conv-col:has(> button[aria-expanded=true])").scrollIntoView({ block: "end" })`,
+      },
+      { sleep: 600 },
+    ],
+    crop: {
+      selector: "div.conv-col:has(> button[aria-expanded=true])",
+      pad: 8,
+    },
     frame: "element",
     out: "public/documentation/ambient-awareness/stable-context.webp",
   },
@@ -57,13 +83,21 @@ export const RECALL_SHOWING: Shot[] = [
     route: "/inbox",
     viewport: { width: 1280, height: 860 },
     steps: [
-      { js: `[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "New session").click()` },
+      {
+        js: `[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "New session").click()`,
+      },
       { wait: "button[aria-expanded]", text: "Context" },
-      { js: `document.querySelector("button[aria-expanded=false]:has(.lucide-layers)")?.click()` },
+      {
+        js: `document.querySelector("button[aria-expanded=false]:has(.lucide-layers)")?.click()`,
+      },
       { wait: "button", text: "Solo" },
-      { js: `[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Team").click()` },
+      {
+        js: `[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Team").click()`,
+      },
       { wait: "button[title='Exclude from context']" },
-      { js: `document.querySelectorAll("button[title='Exclude from context']")[1].click()` },
+      {
+        js: `document.querySelectorAll("button[title='Exclude from context']")[1].click()`,
+      },
       { sleep: 2000 },
     ],
     frame: "window",
@@ -81,10 +115,13 @@ export const RECALL_SHOWING: Shot[] = [
     name: "memory/conversation",
     route: "/inbox",
     viewport: { width: 1100, height: 900 },
-    steps: [...from(RECALL), 
+    steps: [
+      ...from(RECALL),
       { wait: "[data-sv-feed]", text: "Because Maya measured it" },
       // Folded, as a conversation opens; the strip keeps its open state from the shot before.
-      { js: `document.querySelector("button[aria-expanded=true]:has(.lucide-layers)")?.click(); document.activeElement?.blur()` },
+      {
+        js: `document.querySelector("button[aria-expanded=true]:has(.lucide-layers)")?.click(); document.activeElement?.blur()`,
+      },
       { sleep: 800 },
     ],
     frame: "window",
@@ -100,7 +137,9 @@ export const RECALL_SHOWING: Shot[] = [
       { click: "input[placeholder*=phrases]" },
       { type: "webhook retry" },
       { wait: "[data-search-session]" },
-      { js: `[...document.querySelectorAll("button")].find((b) => /^Sessions\\s*\\d/.test(b.textContent.trim()))?.click()` },
+      {
+        js: `[...document.querySelectorAll("button")].find((b) => /^Sessions\\s*\\d/.test(b.textContent.trim()))?.click()`,
+      },
       { sleep: 1000 },
       { js: `document.activeElement?.blur()` },
     ],
@@ -111,7 +150,12 @@ export const RECALL_SHOWING: Shot[] = [
     name: "search-sessions-across-machines/palette",
     route: "/inbox",
     viewport: { width: 1280, height: 800 },
-    steps: [{ js: "__inboxStore.getState().openPalette()" }, { wait: "[cmdk-root]" }, { type: "webhook" }, { sleep: 1500 }],
+    steps: [
+      { js: "__inboxStore.getState().openPalette()" },
+      { wait: "[cmdk-root]" },
+      { type: "webhook" },
+      { sleep: 1500 },
+    ],
     crop: { selector: "[cmdk-root]", pad: 40 },
     frame: "element",
     out: "public/documentation/search-sessions-across-machines/palette.webp",
@@ -147,7 +191,13 @@ export const RECALL_SHOWING: Shot[] = [
     name: "which-session-wrote-this-line/chip-hover",
     route: "/inbox",
     viewport: { width: 1280, height: 900 },
-    steps: [...from(BLOB), ...SESSION_BLAME, { hover: ".repo-session-chip button", text: "Backoff" }, { wait: ".repo-session-chip[data-active=true]" }, { sleep: 800 }],
+    steps: [
+      ...from(BLOB),
+      ...SESSION_BLAME,
+      { hover: ".repo-session-chip button", text: "Backoff" },
+      { wait: ".repo-session-chip[data-active=true]" },
+      { sleep: 800 },
+    ],
     crop: { selector: ".repo-page", pad: 0 },
     frame: "element",
     out: "public/documentation/which-session-wrote-this-line/chip-hover.webp",
@@ -209,7 +259,11 @@ export const RECALL_SHOWING: Shot[] = [
     name: "publish/publish-feature",
     route: "/agent-features",
     viewport: { width: 1280, height: 900 },
-    steps: [{ click: "[data-feature-card=publish]" }, { wait: "[role=dialog][data-state=open]" }, { sleep: 800 }],
+    steps: [
+      { click: "[data-feature-card=publish]" },
+      { wait: "[role=dialog][data-state=open]" },
+      { sleep: 800 },
+    ],
     crop: { selector: "[role=dialog][data-state=open]", pad: 24 },
     frame: "element",
     out: "public/documentation/publish/publish-feature.webp",
@@ -220,7 +274,16 @@ export const RECALL_SHOWING: Shot[] = [
     name: "visual-canvas/conversation",
     route: "/inbox",
     viewport: { width: 1100, height: 900 },
-    steps: [...from(`/conversation/${SESSIONS.ui._id}`), { wait: "[data-sv-feed]", text: "I replayed last week" }, { sleep: 1500 }, markAround("Cursor", "five attempts at most"), { js: `document.querySelector("[data-docs-crop]")?.scrollIntoView({ block: "center" })` }, { sleep: 600 }],
+    steps: [
+      ...from(`/conversation/${SESSIONS.ui._id}`),
+      { wait: "[data-sv-feed]", text: "I replayed last week" },
+      { sleep: 1500 },
+      markAround("Cursor", "five attempts at most"),
+      {
+        js: `document.querySelector("[data-docs-crop]")?.scrollIntoView({ block: "center" })`,
+      },
+      { sleep: 600 },
+    ],
     crop: { selector: "[data-docs-crop]", pad: 20 },
     frame: "element",
     out: "public/documentation/visual-canvas/conversation.webp",
@@ -229,7 +292,11 @@ export const RECALL_SHOWING: Shot[] = [
     name: "visual-canvas/visual-feature",
     route: "/agent-features",
     viewport: { width: 1280, height: 900 },
-    steps: [{ click: "[data-feature-card=visual]" }, { wait: "[role=dialog][data-state=open]" }, { sleep: 800 }],
+    steps: [
+      { click: "[data-feature-card=visual]" },
+      { wait: "[role=dialog][data-state=open]" },
+      { sleep: 800 },
+    ],
     crop: { selector: "[role=dialog][data-state=open]", pad: 24 },
     frame: "element",
     out: "public/documentation/visual-canvas/visual-feature.webp",

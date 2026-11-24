@@ -41,7 +41,9 @@ function makeSeedFetcher(store: Store) {
   let calls = 0;
   const fetchSeedMessageId = async (convId: string): Promise<string | null> => {
     calls++;
-    const msgs = [...(store[convId]?.msgs ?? [])].sort((a, b) => a.timestamp - b.timestamp);
+    const msgs = [...(store[convId]?.msgs ?? [])].sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
     return msgs[0]?._id ?? null;
   };
   return { fetchSeedMessageId, calls: () => calls };
@@ -54,7 +56,7 @@ function makeFetcher(store: Store) {
   const fetchUserMessages = async (
     convId: string,
     cursor: number | undefined,
-    take: number
+    take: number,
   ): Promise<FeedRawMessage[]> => {
     calls++;
     const rows = (store[convId]?.msgs ?? [])
@@ -78,7 +80,8 @@ function oracle(store: Store): { _id: string; timestamp: number }[] {
   for (const c of Object.values(store)) {
     for (const m of c.msgs) {
       const content = m.content ?? `real prompt ${m._id}`;
-      if (content.trim().length > 10) all.push({ _id: m._id, timestamp: m.timestamp });
+      if (content.trim().length > 10)
+        all.push({ _id: m._id, timestamp: m.timestamp });
     }
   }
   return all.sort((a, b) => b.timestamp - a.timestamp);
@@ -93,7 +96,12 @@ async function drain(store: Store, limit: number): Promise<string[]> {
   let cursor: number | undefined = undefined;
   for (let page = 0; page < 100; page++) {
     const { fetchUserMessages } = makeFetcher(store);
-    const res = await mergeUserMessageFeed({ candidates, cursor, limit, fetchUserMessages });
+    const res = await mergeUserMessageFeed({
+      candidates,
+      cursor,
+      limit,
+      fetchUserMessages,
+    });
     for (const m of res.messages) {
       expect(seen.has(m._id)).toBe(false); // no duplicates across pages
       seen.add(m._id);
@@ -109,8 +117,20 @@ async function drain(store: Store, limit: number): Promise<string[]> {
 describe("mergeUserMessageFeed", () => {
   test("merges newest-first across conversations", async () => {
     const store: Store = {
-      a: { updated_at: 300, msgs: [{ _id: "a1", timestamp: 300 }, { _id: "a2", timestamp: 100 }] },
-      b: { updated_at: 250, msgs: [{ _id: "b1", timestamp: 250 }, { _id: "b2", timestamp: 50 }] },
+      a: {
+        updated_at: 300,
+        msgs: [
+          { _id: "a1", timestamp: 300 },
+          { _id: "a2", timestamp: 100 },
+        ],
+      },
+      b: {
+        updated_at: 250,
+        msgs: [
+          { _id: "b1", timestamp: 250 },
+          { _id: "b2", timestamp: 50 },
+        ],
+      },
     };
     const { fetchUserMessages } = makeFetcher(store);
     const res = await mergeUserMessageFeed({
@@ -125,9 +145,18 @@ describe("mergeUserMessageFeed", () => {
 
   test("paginates to exactly the oracle order with no gaps or dupes", async () => {
     const store: Store = {
-      a: { updated_at: 1000, msgs: [10, 90, 80, 5].map((t) => ({ _id: `a${t}`, timestamp: t })) },
-      b: { updated_at: 95, msgs: [95, 85, 70, 1].map((t) => ({ _id: `b${t}`, timestamp: t })) },
-      c: { updated_at: 999, msgs: [999, 60].map((t) => ({ _id: `c${t}`, timestamp: t })) },
+      a: {
+        updated_at: 1000,
+        msgs: [10, 90, 80, 5].map((t) => ({ _id: `a${t}`, timestamp: t })),
+      },
+      b: {
+        updated_at: 95,
+        msgs: [95, 85, 70, 1].map((t) => ({ _id: `b${t}`, timestamp: t })),
+      },
+      c: {
+        updated_at: 999,
+        msgs: [999, 60].map((t) => ({ _id: `c${t}`, timestamp: t })),
+      },
     };
     const expected = oracle(store).map((m) => m._id);
     for (const limit of [1, 2, 3, 5]) {
@@ -139,8 +168,14 @@ describe("mergeUserMessageFeed", () => {
     // `a` has a high updated_at (recently bumped) but its messages are old; it
     // must keep contributing as the cursor walks past `b`'s newer messages.
     const store: Store = {
-      a: { updated_at: 10_000, msgs: [100, 90, 80].map((t) => ({ _id: `a${t}`, timestamp: t })) },
-      b: { updated_at: 95, msgs: [95, 85].map((t) => ({ _id: `b${t}`, timestamp: t })) },
+      a: {
+        updated_at: 10_000,
+        msgs: [100, 90, 80].map((t) => ({ _id: `a${t}`, timestamp: t })),
+      },
+      b: {
+        updated_at: 95,
+        msgs: [95, 85].map((t) => ({ _id: `b${t}`, timestamp: t })),
+      },
     };
     expect(await drain(store, 2)).toEqual(["a100", "b95", "a90", "b85", "a80"]);
   });
@@ -169,10 +204,19 @@ describe("mergeUserMessageFeed", () => {
   test("early-exit: once the page is full, older conversations are never fetched", async () => {
     // One busy recent conversation fills the page; 50 stale ones must be skipped.
     const store: Store = {
-      hot: { updated_at: 5000, msgs: [5000, 4999, 4998, 4997].map((t) => ({ _id: `h${t}`, timestamp: t })) },
+      hot: {
+        updated_at: 5000,
+        msgs: [5000, 4999, 4998, 4997].map((t) => ({
+          _id: `h${t}`,
+          timestamp: t,
+        })),
+      },
     };
     for (let i = 0; i < 50; i++) {
-      store[`cold${i}`] = { updated_at: 100 + i, msgs: [{ _id: `c${i}`, timestamp: 100 + i }] };
+      store[`cold${i}`] = {
+        updated_at: 100 + i,
+        msgs: [{ _id: `c${i}`, timestamp: 100 + i }],
+      };
     }
     const { fetchUserMessages, calls } = makeFetcher(store);
     const res = await mergeUserMessageFeed({
@@ -188,8 +232,18 @@ describe("mergeUserMessageFeed", () => {
 
   test("carries per-conversation projection (title, session, author, is_own)", async () => {
     const store: Store = {
-      mine: { updated_at: 300, isOwn: true, author: "me", msgs: [{ _id: "m1", timestamp: 300 }] },
-      theirs: { updated_at: 250, isOwn: false, author: "sam", msgs: [{ _id: "t1", timestamp: 250 }] },
+      mine: {
+        updated_at: 300,
+        isOwn: true,
+        author: "me",
+        msgs: [{ _id: "m1", timestamp: 300 }],
+      },
+      theirs: {
+        updated_at: 250,
+        isOwn: false,
+        author: "sam",
+        msgs: [{ _id: "t1", timestamp: 250 }],
+      },
     };
     const { fetchUserMessages } = makeFetcher(store);
     const res = await mergeUserMessageFeed({
@@ -217,13 +271,23 @@ describe("mergeUserMessageFeed", () => {
         isSubagent: true,
         agentSource: "jx79rjr",
         msgs: [
-          { _id: "s1", timestamp: 300, content: "Implement task ct-49524 in this worktree" },
-          { _id: "s2", timestamp: 200, content: "Now run the contract tests and report" },
+          {
+            _id: "s1",
+            timestamp: 300,
+            content: "Implement task ct-49524 in this worktree",
+          },
+          {
+            _id: "s2",
+            timestamp: 200,
+            content: "Now run the contract tests and report",
+          },
         ],
       },
       mine: {
         updated_at: 250,
-        msgs: [{ _id: "h1", timestamp: 250, content: "why is the release failing?" }],
+        msgs: [
+          { _id: "h1", timestamp: 250, content: "why is the release failing?" },
+        ],
       },
     };
     const { fetchUserMessages } = makeFetcher(store);
@@ -253,8 +317,16 @@ describe("mergeUserMessageFeed", () => {
         machineSeeded: true,
         agentSource: "jx7abcd",
         msgs: [
-          { _id: "later", timestamp: 300, content: "actually, skip the codesign step" },
-          { _id: "seed", timestamp: 100, content: "Implement task ct-49524. Run cast task start." },
+          {
+            _id: "later",
+            timestamp: 300,
+            content: "actually, skip the codesign step",
+          },
+          {
+            _id: "seed",
+            timestamp: 100,
+            content: "Implement task ct-49524. Run cast task start.",
+          },
         ],
       },
     };
@@ -280,7 +352,9 @@ describe("mergeUserMessageFeed", () => {
     const store: Store = {
       a: {
         updated_at: 300,
-        msgs: [{ _id: "a1", timestamp: 300, content: "a genuine question here" }],
+        msgs: [
+          { _id: "a1", timestamp: 300, content: "a genuine question here" },
+        ],
       },
     };
     const { fetchUserMessages } = makeFetcher(store);

@@ -5,14 +5,53 @@
 import type { Id, Doc } from "../_generated/dataModel";
 import { isBannerTurn } from "../inboxFilters";
 
-const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
 
-function zonedWallToUtc(y: number, mo: number, d: number, h: number, mi: number, timeZone: string): number | undefined {
+function zonedWallToUtc(
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number,
+  timeZone: string,
+): number | undefined {
   const guess = Date.UTC(y, mo, d, h, mi);
   try {
-    const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(guess));
-    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-    return guess - (Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) - guess);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(guess));
+    const get = (t: string) =>
+      Number(parts.find((p) => p.type === t)?.value ?? "0");
+    return (
+      guess -
+      (Date.UTC(
+        get("year"),
+        get("month") - 1,
+        get("day"),
+        get("hour"),
+        get("minute"),
+      ) -
+        guess)
+    );
   } catch {
     return undefined;
   }
@@ -25,16 +64,37 @@ function zonedWallToUtc(y: number, mo: number, d: number, h: number, mi: number,
  *  nearest weekly reset), and the account a host claims to run can differ from the token the process
  *  holds (an inherited CLAUDE_CODE_OAUTH_TOKEN, 2026-11-12). Undefined for any
  *  other banner. */
-export function spendCapUntil(content: string | null | undefined, bannerTs: number): number | undefined {
+export function spendCapUntil(
+  content: string | null | undefined,
+  bannerTs: number,
+): number | undefined {
   if (!content || !/spend limit/i.test(content)) return undefined;
-  const m = content.match(/resets\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i);
+  const m = content.match(
+    /resets\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i,
+  );
   if (!m) return undefined;
   const month = MONTHS.indexOf(m[1].toLowerCase());
   if (month < 0) return undefined;
-  return resetInstant(month, Number(m[2]), Number(m[3]), Number(m[4] ?? "0"), m[5], m[6], bannerTs);
+  return resetInstant(
+    month,
+    Number(m[2]),
+    Number(m[3]),
+    Number(m[4] ?? "0"),
+    m[5],
+    m[6],
+    bannerTs,
+  );
 }
 
-function resetInstant(month: number, day: number, hour12: number, minute: number, ampm: string, zone: string, bannerTs: number): number | undefined {
+function resetInstant(
+  month: number,
+  day: number,
+  hour12: number,
+  minute: number,
+  ampm: string,
+  zone: string,
+  bannerTs: number,
+): number | undefined {
   const hour = (hour12 % 12) + (ampm.toLowerCase() === "pm" ? 12 : 0);
   const at = (y: number) => zonedWallToUtc(y, month, day, hour, minute, zone);
   const year = new Date(bannerTs).getUTCFullYear();
@@ -47,22 +107,42 @@ function resetInstant(month: number, day: number, hour12: number, minute: number
  *  the account, the way a spend banner does. A Fable banner, a 5-hour banner
  *  and a weekly line with no date do not: those resets do not name one
  *  account's week. Undefined for anything else, including a spend banner. */
-export function weeklyLimitUntil(content: string | null | undefined, bannerTs: number): number | undefined {
-  if (!content || !/you['’]ve hit your weekly limit\b/i.test(content)) return undefined;
-  const m = content.match(/resets\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i);
+export function weeklyLimitUntil(
+  content: string | null | undefined,
+  bannerTs: number,
+): number | undefined {
+  if (!content || !/you['’]ve hit your weekly limit\b/i.test(content))
+    return undefined;
+  const m = content.match(
+    /resets\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i,
+  );
   if (!m) return undefined;
   const month = MONTHS.indexOf(m[1].toLowerCase());
   if (month < 0) return undefined;
-  return resetInstant(month, Number(m[2]), Number(m[3]), Number(m[4] ?? "0"), m[5], m[6], bannerTs);
+  return resetInstant(
+    month,
+    Number(m[2]),
+    Number(m[3]),
+    Number(m[4] ?? "0"),
+    m[5],
+    m[6],
+    bannerTs,
+  );
 }
 
 // A banner's printed reset can sit this far from the meter's resets_at and still name that account.
 const SPEND_CAP_MATCH_MS = 90 * 60_000;
 
-export async function spendCapsOf(ctx: { db: any }, userId: Id<"users">, now: number): Promise<number[]> {
+export async function spendCapsOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+  now: number,
+): Promise<number[]> {
   const parked: Doc<"conversations">[] = await ctx.db
     .query("conversations")
-    .withIndex("by_user_pending_api_error", (q: any) => q.eq("user_id", userId).eq("pending_api_error", true))
+    .withIndex("by_user_pending_api_error", (q: any) =>
+      q.eq("user_id", userId).eq("pending_api_error", true),
+    )
     .order("desc")
     .take(50);
   const caps: number[] = [];
@@ -73,13 +153,18 @@ export async function spendCapsOf(ctx: { db: any }, userId: Id<"users">, now: nu
     // a reset in the future. Keep every such reset in this tail.
     const tail: Doc<"messages">[] = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .order("desc")
       .take(20);
     for (const turn of tail) {
       if (!isBannerTurn(turn) || typeof turn.timestamp !== "number") continue;
-      const until = spendCapUntil(turn.content, turn.timestamp) ?? weeklyLimitUntil(turn.content, turn.timestamp);
-      if (until !== undefined && until > now && !caps.includes(until)) caps.push(until);
+      const until =
+        spendCapUntil(turn.content, turn.timestamp) ??
+        weeklyLimitUntil(turn.content, turn.timestamp);
+      if (until !== undefined && until > now && !caps.includes(until))
+        caps.push(until);
     }
   }
   return caps;
@@ -92,19 +177,28 @@ export async function spendCapsOf(ctx: { db: any }, userId: Id<"users">, now: nu
  *  for nearest, the banner cannot say which it was and blocks neither: a
  *  wrong block takes a working account out of the pool, while a missed one
  *  only lets a session park again. */
-export function withSpendCap<P extends { usage?: any }>(profiles: P[], caps: number[]): P[] {
+export function withSpendCap<P extends { usage?: any }>(
+  profiles: P[],
+  caps: number[],
+): P[] {
   if (!caps.length) return profiles;
   const blocked = new Map<P, number>();
   for (const cap of caps) {
     const near = profiles
-      .map((p) => ({ p, d: Math.abs(cap - (p.usage?.weekly?.resets_at ?? Infinity)) }))
+      .map((p) => ({
+        p,
+        d: Math.abs(cap - (p.usage?.weekly?.resets_at ?? Infinity)),
+      }))
       .filter((x) => x.d <= SPEND_CAP_MATCH_MS);
     const best = Math.min(...near.map((x) => x.d));
     const nearest = near.filter((x) => x.d === best);
-    if (nearest.length === 1) blocked.set(nearest[0].p, Math.max(cap, blocked.get(nearest[0].p) ?? 0));
+    if (nearest.length === 1)
+      blocked.set(nearest[0].p, Math.max(cap, blocked.get(nearest[0].p) ?? 0));
   }
   return profiles.map((p) => {
     const until = blocked.get(p);
-    return until === undefined ? p : { ...p, usage: { ...p.usage, blocked_until: until } };
+    return until === undefined
+      ? p
+      : { ...p, usage: { ...p.usage, blocked_until: until } };
   });
 }

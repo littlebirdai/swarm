@@ -4,12 +4,23 @@
 // Light on purpose: the public pages import it.
 import { LogoMark } from "./Logo";
 
-export function HostedWordmark({ size = 18, className = "" }: { size?: number; className?: string }) {
+export function HostedWordmark({
+  size = 18,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
     <span
       data-cc-hosted-wordmark
       className={`inline-flex items-center gap-2 ${className}`}
-      style={{ fontFamily: "var(--pd-font-read, Georgia, serif)", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--pd-ink, #201c17)" }}
+      style={{
+        fontFamily: "var(--pd-font-read, Georgia, serif)",
+        fontWeight: 600,
+        letterSpacing: "-0.01em",
+        color: "var(--pd-ink, #201c17)",
+      }}
     >
       <LogoMark size={size} monochrome className="shrink-0" />
       <span>Codecast</span>

@@ -24,7 +24,12 @@ import {
   type AgentClientId,
   type CapabilityKindSupport,
 } from "./agentClients";
-import { pinnedAgentIds, pinnableAgentIds, pinnedLaunchOptions, pinnedPickerOptions } from "./agentPins";
+import {
+  pinnedAgentIds,
+  pinnableAgentIds,
+  pinnedLaunchOptions,
+  pinnedPickerOptions,
+} from "./agentPins";
 import { CAPABILITY_KINDS, type CapabilityKind } from "./capabilities";
 
 // fromConvexAgentType is the single convex-spelling -> daemon-spelling translation.
@@ -88,7 +93,9 @@ describe("parseExecutionAgentClientId", () => {
 
   it("fails closed for unknown, nullish, and non-string execution values", () => {
     for (const value of ["whatever", "", null, undefined, 1, {}]) {
-      expect(() => parseExecutionAgentClientId(value)).toThrow(InvalidExecutionAgentTypeError);
+      expect(() => parseExecutionAgentClientId(value)).toThrow(
+        InvalidExecutionAgentTypeError,
+      );
     }
   });
 
@@ -108,22 +115,52 @@ describe("print mode", () => {
   });
 
   it("uses -p for flag clients and a subcommand for codex/opencode", () => {
-    expect(AGENT_CLIENTS.claude.printMode).toEqual({ kind: "flag", token: "-p" });
-    expect(AGENT_CLIENTS.cursor.printMode).toEqual({ kind: "flag", token: "-p" });
+    expect(AGENT_CLIENTS.claude.printMode).toEqual({
+      kind: "flag",
+      token: "-p",
+    });
+    expect(AGENT_CLIENTS.cursor.printMode).toEqual({
+      kind: "flag",
+      token: "-p",
+    });
     expect(AGENT_CLIENTS.pi.printMode).toEqual({ kind: "flag", token: "-p" });
-    expect(AGENT_CLIENTS.grok.printMode).toEqual({ kind: "flag", token: "-p", promptAsValue: true });
-    expect(AGENT_CLIENTS.gemini.printMode).toEqual({ kind: "flag", token: "-p", promptAsValue: true });
-    expect(AGENT_CLIENTS.codex.printMode).toEqual({ kind: "subcommand", token: "exec" });
-    expect(AGENT_CLIENTS.opencode.printMode).toEqual({ kind: "subcommand", token: "run" });
-    expect(AGENT_CLIENTS.muse.printMode).toEqual({ kind: "subcommand", token: "exec" });
-    expect(AGENT_CLIENTS.antigravity.printMode).toEqual({ kind: "flag", token: "-p", promptAsValue: true });
+    expect(AGENT_CLIENTS.grok.printMode).toEqual({
+      kind: "flag",
+      token: "-p",
+      promptAsValue: true,
+    });
+    expect(AGENT_CLIENTS.gemini.printMode).toEqual({
+      kind: "flag",
+      token: "-p",
+      promptAsValue: true,
+    });
+    expect(AGENT_CLIENTS.codex.printMode).toEqual({
+      kind: "subcommand",
+      token: "exec",
+    });
+    expect(AGENT_CLIENTS.opencode.printMode).toEqual({
+      kind: "subcommand",
+      token: "run",
+    });
+    expect(AGENT_CLIENTS.muse.printMode).toEqual({
+      kind: "subcommand",
+      token: "exec",
+    });
+    expect(AGENT_CLIENTS.antigravity.printMode).toEqual({
+      kind: "flag",
+      token: "-p",
+      promptAsValue: true,
+    });
   });
 });
 
 describe("fenced execution transports", () => {
   it("declares the exact implemented transport set for every agent family", () => {
     expect(AGENT_CLIENTS.claude.executionTransports).toEqual(["tmux"]);
-    expect(AGENT_CLIENTS.codex.executionTransports).toEqual(["tmux", "app-server"]);
+    expect(AGENT_CLIENTS.codex.executionTransports).toEqual([
+      "tmux",
+      "app-server",
+    ]);
     expect(AGENT_CLIENTS.cursor.executionTransports).toEqual(["tmux"]);
     expect(AGENT_CLIENTS.gemini.executionTransports).toEqual(["tmux"]);
     expect(AGENT_CLIENTS.opencode.executionTransports).toEqual(["tmux"]);
@@ -136,8 +173,12 @@ describe("fenced execution transports", () => {
   it("rejects unsupported app-server and external routing without fallback", () => {
     expect(agentSupportsExecutionTransport("codex", "app-server")).toBe(true);
     expect(agentSupportsExecutionTransport("claude", "app-server")).toBe(false);
-    expect(agentSupportsExecutionTransport("opencode", "app-server")).toBe(false);
-    for (const agent of Object.keys(AGENT_CLIENTS) as Array<keyof typeof AGENT_CLIENTS>) {
+    expect(agentSupportsExecutionTransport("opencode", "app-server")).toBe(
+      false,
+    );
+    for (const agent of Object.keys(AGENT_CLIENTS) as Array<
+      keyof typeof AGENT_CLIENTS
+    >) {
       expect(agentSupportsExecutionTransport(agent, "external")).toBe(false);
     }
   });
@@ -151,7 +192,9 @@ describe("fenced execution transports", () => {
 describe("new-session launch options", () => {
   it("derives one launch option per local registry client, in declaration order", () => {
     expect(AGENT_LAUNCH_OPTIONS.map((a) => a.id)).toEqual(
-      Object.keys(LOCAL_AGENT_CLIENTS) as Array<keyof typeof LOCAL_AGENT_CLIENTS>,
+      Object.keys(LOCAL_AGENT_CLIENTS) as Array<
+        keyof typeof LOCAL_AGENT_CLIENTS
+      >,
     );
     for (const opt of AGENT_LAUNCH_OPTIONS) {
       expect(opt.convexType).toBe(AGENT_CLIENTS[opt.id].convexId);
@@ -163,7 +206,14 @@ describe("new-session launch options", () => {
   it("launch rail prepends the default effort stop", () => {
     const claude = launchRailOptions(AGENT_CLIENTS.claude.modelConfig!);
     expect(claude.models.some((m) => m.key === "opus")).toBe(true);
-    expect(claude.efforts).toEqual(["default", "low", "medium", "high", "xhigh", "max"]);
+    expect(claude.efforts).toEqual([
+      "default",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ]);
 
     // No-effort clients still get the default stop (opencode's effort list is empty).
     const opencode = launchRailOptions(AGENT_CLIENTS.opencode.modelConfig!);
@@ -173,15 +223,36 @@ describe("new-session launch options", () => {
   it("offers the current Codex models and extended reasoning levels", () => {
     const codex = launchRailOptions(AGENT_CLIENTS.codex.modelConfig!);
     expect(codex.models.map((model) => model.key)).toEqual([
-      "default", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
-      "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex-spark",
+      "default",
+      "gpt-6-astra",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-5.3-codex-spark",
       // Codex Cloud's plain launch; its ask mode and attempts are hidden keys the composer's own switches set.
       "cloud",
       // The Agents API lane: its default launch, then one key per model it runs.
-      "api", "api:gpt-6-astra", "api:gpt-5.6-sol", "api:gpt-5.6-terra", "api:gpt-5.6-luna",
-      "api:gpt-5.5", "api:gpt-5.4", "api:gpt-5.4-mini",
+      "api",
+      "api:gpt-6-astra",
+      "api:gpt-5.6-sol",
+      "api:gpt-5.6-terra",
+      "api:gpt-5.6-luna",
+      "api:gpt-5.5",
+      "api:gpt-5.4",
+      "api:gpt-5.4-mini",
     ]);
-    expect(codex.efforts).toEqual(["default", "low", "medium", "high", "xhigh", "max", "ultra"]);
+    expect(codex.efforts).toEqual([
+      "default",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra",
+    ]);
   });
 
   it("offers the observed Muse Spark model and full reasoning-effort range", () => {
@@ -190,7 +261,17 @@ describe("new-session launch options", () => {
       "default",
       "muse-spark-1.3-contributor",
     ]);
-    expect(muse.efforts).toEqual(["default", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
+    expect(muse.efforts).toEqual([
+      "default",
+      "none",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+      "ultra",
+    ]);
   });
 });
 
@@ -208,7 +289,10 @@ describe("capabilitySupport", () => {
   // enabledPlugins is the mechanism, not `claude plugin install`), codex/hook
   // write (installStableHookCodex already writes ~/.codex/hooks.json),
   // cursor/subagent and cursor/hook unsupported (format/shape unverified).
-  const ORACLE: Record<AgentClientId, Record<CapabilityKind, CapabilityKindSupport>> = {
+  const ORACLE: Record<
+    AgentClientId,
+    Record<CapabilityKind, CapabilityKindSupport>
+  > = {
     claude: {
       snippet: "write",
       skill: "write",
@@ -353,7 +437,9 @@ describe("capabilitySupport", () => {
   it("answers unsupported for out-of-registry strings instead of throwing", () => {
     for (const bogus of ["claude_code", "cowork", "whatever", ""]) {
       for (const kind of CAPABILITY_KINDS) {
-        expect(capabilitySupport(kind, bogus as AgentClientId)).toBe("unsupported");
+        expect(capabilitySupport(kind, bogus as AgentClientId)).toBe(
+          "unsupported",
+        );
       }
     }
   });
@@ -365,10 +451,19 @@ describe("capabilitySupport", () => {
 // paths are repo-root-relative, and nothing is ever a resolved absolute path or
 // uses a platform separator.
 describe("agentFileTargets path templates", () => {
-  const withTargets = Object.values(AGENT_CLIENTS).filter((d) => d.agentFileTargets);
+  const withTargets = Object.values(AGENT_CLIENTS).filter(
+    (d) => d.agentFileTargets,
+  );
 
   it("declares targets for exactly the verified clients", () => {
-    expect(withTargets.map((d) => d.id).sort()).toEqual(["antigravity", "claude", "codex", "cursor", "grok", "muse"]);
+    expect(withTargets.map((d) => d.id).sort()).toEqual([
+      "antigravity",
+      "claude",
+      "codex",
+      "cursor",
+      "grok",
+      "muse",
+    ]);
   });
 
   // The cross-client `.agents/skills` project dir is read by cursor (via
@@ -378,25 +473,53 @@ describe("agentFileTargets path templates", () => {
   // shared user dir nor the shared project dir (symlink-only) — a slot
   // appearing there would tell a driver to write bytes claude never loads.
   it("pins who reads the cross-client .agents/skills project dir", () => {
-    expect(AGENT_CLIENTS.cursor.agentFileTargets?.skillsDir?.sharedProject).toBe(".agents/skills");
+    expect(
+      AGENT_CLIENTS.cursor.agentFileTargets?.skillsDir?.sharedProject,
+    ).toBe(".agents/skills");
     // grok reads both the shared user dir and the shared project dir directly
     // (skills.rs lookup order; all four verified live by inspect).
-    expect(AGENT_CLIENTS.grok.agentFileTargets?.skillsDir?.shared).toBe("~/.agents/skills");
-    expect(AGENT_CLIENTS.grok.agentFileTargets?.skillsDir?.sharedProject).toBe(".agents/skills");
-    expect(AGENT_CLIENTS.codex.agentFileTargets?.skillsDir?.project).toBe(".agents/skills");
-    expect(AGENT_CLIENTS.codex.agentFileTargets?.skillsDir?.sharedProject).toBeUndefined();
+    expect(AGENT_CLIENTS.grok.agentFileTargets?.skillsDir?.shared).toBe(
+      "~/.agents/skills",
+    );
+    expect(AGENT_CLIENTS.grok.agentFileTargets?.skillsDir?.sharedProject).toBe(
+      ".agents/skills",
+    );
+    expect(AGENT_CLIENTS.codex.agentFileTargets?.skillsDir?.project).toBe(
+      ".agents/skills",
+    );
+    expect(
+      AGENT_CLIENTS.codex.agentFileTargets?.skillsDir?.sharedProject,
+    ).toBeUndefined();
     // muse reads the user config dir, the shared user dir, and the shared
     // project dir — but has no muse-native project dir (a planted
     // .muse/skills is ignored) and no verified user instruction file.
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.user).toBe("~/.config/muse/skills");
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.shared).toBe("~/.agents/skills");
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.sharedProject).toBe(".agents/skills");
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.project).toBeUndefined();
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.instructionFile?.project).toBe("AGENTS.md");
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.instructionFile?.user).toBeUndefined();
-    expect(AGENT_CLIENTS.muse.agentFileTargets?.mcpConfig?.user).toBe("~/.config/muse/settings.json");
-    expect(AGENT_CLIENTS.claude.agentFileTargets?.skillsDir?.shared).toBeUndefined();
-    expect(AGENT_CLIENTS.claude.agentFileTargets?.skillsDir?.sharedProject).toBeUndefined();
+    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.user).toBe(
+      "~/.config/muse/skills",
+    );
+    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.shared).toBe(
+      "~/.agents/skills",
+    );
+    expect(AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.sharedProject).toBe(
+      ".agents/skills",
+    );
+    expect(
+      AGENT_CLIENTS.muse.agentFileTargets?.skillsDir?.project,
+    ).toBeUndefined();
+    expect(AGENT_CLIENTS.muse.agentFileTargets?.instructionFile?.project).toBe(
+      "AGENTS.md",
+    );
+    expect(
+      AGENT_CLIENTS.muse.agentFileTargets?.instructionFile?.user,
+    ).toBeUndefined();
+    expect(AGENT_CLIENTS.muse.agentFileTargets?.mcpConfig?.user).toBe(
+      "~/.config/muse/settings.json",
+    );
+    expect(
+      AGENT_CLIENTS.claude.agentFileTargets?.skillsDir?.shared,
+    ).toBeUndefined();
+    expect(
+      AGENT_CLIENTS.claude.agentFileTargets?.skillsDir?.sharedProject,
+    ).toBeUndefined();
   });
 
   it("user-level paths are ~/ templates; project paths are repo-relative; none absolute", () => {
@@ -518,18 +641,30 @@ describe("pinned agents", () => {
     const ids = pinnedAgentIds(undefined);
     expect(ids).not.toContain("gemini");
     expect(ids).toContain("claude");
-    expect(ids).toEqual((Object.keys(LOCAL_AGENT_CLIENTS) as Array<keyof typeof LOCAL_AGENT_CLIENTS>).filter((id) => LOCAL_AGENT_CLIENTS[id].pinnedByDefault !== false));
+    expect(ids).toEqual(
+      (
+        Object.keys(LOCAL_AGENT_CLIENTS) as Array<
+          keyof typeof LOCAL_AGENT_CLIENTS
+        >
+      ).filter((id) => LOCAL_AGENT_CLIENTS[id].pinnedByDefault !== false),
+    );
   });
 
   it("a user's list wins, in registry order, dropping unknown ids", () => {
     const known = pinnableAgentIds();
-    expect(pinnedAgentIds(["gemini", "nope", "claude"], known)).toEqual(["claude", "gemini"]);
+    expect(pinnedAgentIds(["gemini", "nope", "claude"], known)).toEqual([
+      "claude",
+      "gemini",
+    ]);
     expect(pinnedAgentIds([], known)).toEqual([]);
   });
 
   it("a client added after the list was saved follows its own default", () => {
     const known = pinnableAgentIds().filter((id) => id !== "antigravity");
-    expect(pinnedAgentIds(["claude"], known)).toEqual(["claude", "antigravity"]);
+    expect(pinnedAgentIds(["claude"], known)).toEqual([
+      "claude",
+      "antigravity",
+    ]);
     // A list saved before the known set was recorded predates antigravity.
     expect(pinnedAgentIds(["claude"])).toEqual(["claude", "antigravity"]);
     // Once the list records antigravity, unpinning it holds.
@@ -537,13 +672,21 @@ describe("pinned agents", () => {
   });
 
   it("a picker keeps the agent a session already runs", () => {
-    expect(pinnedLaunchOptions(["claude"], "gemini").map((o) => o.id)).toEqual(["claude", "gemini"]);
-    expect(pinnedLaunchOptions(undefined, null).map((o) => o.id)).toEqual(pinnedAgentIds(undefined));
+    expect(pinnedLaunchOptions(["claude"], "gemini").map((o) => o.id)).toEqual([
+      "claude",
+      "gemini",
+    ]);
+    expect(pinnedLaunchOptions(undefined, null).map((o) => o.id)).toEqual(
+      pinnedAgentIds(undefined),
+    );
   });
 
   it("the hosted assistant is pinnable but unpinned by default", () => {
     expect(pinnedAgentIds(undefined)).not.toContain("codecast");
-    expect(pinnedAgentIds(["codecast", "claude"], pinnableAgentIds())).toEqual(["claude", "codecast"]);
+    expect(pinnedAgentIds(["codecast", "claude"], pinnableAgentIds())).toEqual([
+      "claude",
+      "codecast",
+    ]);
     expect(isPinnableAgentId("codecast")).toBe(true);
     expect(isPinnableAgentId("claude")).toBe(true);
     expect(isPinnableAgentId("claude_code")).toBe(false);
@@ -556,15 +699,27 @@ describe("pinned agents", () => {
 // start a conversation with (every client, the hosted assistant included).
 describe("picker options vs launch options", () => {
   it("launch options stay local-only", () => {
-    expect(AGENT_LAUNCH_OPTIONS.map((o) => o.id)).toEqual(Object.keys(LOCAL_AGENT_CLIENTS) as Array<keyof typeof LOCAL_AGENT_CLIENTS>);
-    expect(AGENT_LAUNCH_OPTIONS.some((o) => isHostedAgentType(o.convexType))).toBe(false);
+    expect(AGENT_LAUNCH_OPTIONS.map((o) => o.id)).toEqual(
+      Object.keys(LOCAL_AGENT_CLIENTS) as Array<
+        keyof typeof LOCAL_AGENT_CLIENTS
+      >,
+    );
+    expect(
+      AGENT_LAUNCH_OPTIONS.some((o) => isHostedAgentType(o.convexType)),
+    ).toBe(false);
   });
 
   it("picker options are every client, local then hosted, flagged", () => {
-    expect(AGENT_PICKER_OPTIONS.map((o) => o.id)).toEqual(Object.keys(AGENT_CLIENTS) as Array<keyof typeof AGENT_CLIENTS>);
-    expect(AGENT_PICKER_OPTIONS.filter((o) => !o.hosted).map((o) => o.id)).toEqual(AGENT_LAUNCH_OPTIONS.map((o) => o.id));
+    expect(AGENT_PICKER_OPTIONS.map((o) => o.id)).toEqual(
+      Object.keys(AGENT_CLIENTS) as Array<keyof typeof AGENT_CLIENTS>,
+    );
+    expect(
+      AGENT_PICKER_OPTIONS.filter((o) => !o.hosted).map((o) => o.id),
+    ).toEqual(AGENT_LAUNCH_OPTIONS.map((o) => o.id));
     const hosted = AGENT_PICKER_OPTIONS.filter((o) => o.hosted);
-    expect(hosted).toEqual([{ id: "codecast", convexType: "codecast", label: "Cast", hosted: true }]);
+    expect(hosted).toEqual([
+      { id: "codecast", convexType: "codecast", label: "Cast", hosted: true },
+    ]);
     for (const o of AGENT_PICKER_OPTIONS) {
       expect(o.convexType).toBe(AGENT_CLIENTS[o.id].convexId);
       expect(o.label).toBe(AGENT_CLIENTS[o.id].displayName);
@@ -572,9 +727,21 @@ describe("picker options vs launch options", () => {
   });
 
   it("a picker shows the hosted assistant when kept or pinned", () => {
-    expect(pinnedPickerOptions(["claude"], null, pinnableAgentIds()).map((o) => o.id)).toEqual(["claude"]);
-    expect(pinnedPickerOptions(["claude"], "codecast", pinnableAgentIds()).map((o) => o.id)).toEqual(["claude", "codecast"]);
-    expect(pinnedPickerOptions(["codecast", "codex"], null, pinnableAgentIds()).map((o) => o.id)).toEqual(["codex", "codecast"]);
+    expect(
+      pinnedPickerOptions(["claude"], null, pinnableAgentIds()).map(
+        (o) => o.id,
+      ),
+    ).toEqual(["claude"]);
+    expect(
+      pinnedPickerOptions(["claude"], "codecast", pinnableAgentIds()).map(
+        (o) => o.id,
+      ),
+    ).toEqual(["claude", "codecast"]);
+    expect(
+      pinnedPickerOptions(["codecast", "codex"], null, pinnableAgentIds()).map(
+        (o) => o.id,
+      ),
+    ).toEqual(["codex", "codecast"]);
   });
 });
 
@@ -603,16 +770,24 @@ describe("the hosted codecast client", () => {
     expect(fromConvexAgentType("codecast")).toBe("codecast");
     expect(toConvexAgentType("codecast")).toBe("codecast");
     expect(AGENT_CLIENTS.codecast.displayName).toBe("Cast");
-    expect(Object.keys(AGENT_CLIENTS).filter((id) => isHostedAgentType(id))).toEqual(["codecast"]);
+    expect(
+      Object.keys(AGENT_CLIENTS).filter((id) => isHostedAgentType(id)),
+    ).toEqual(["codecast"]);
     expect(isHostedAgentType("claude_code")).toBe(false);
     expect(isHostedAgentType(undefined)).toBe(false);
   });
 
   it("stays out of every local path: pickers, pins, execution and local lookups", () => {
     expect("codecast" in LOCAL_AGENT_CLIENTS).toBe(false);
-    expect(AGENT_LAUNCH_OPTIONS.some((o) => o.id === ("codecast" as string))).toBe(false);
-    expect(pinnedLaunchOptions(["codecast", "claude"], "codecast").map((o) => o.id)).toEqual(["claude"]);
-    expect(() => parseExecutionAgentClientId("codecast")).toThrow(InvalidExecutionAgentTypeError);
+    expect(
+      AGENT_LAUNCH_OPTIONS.some((o) => o.id === ("codecast" as string)),
+    ).toBe(false);
+    expect(
+      pinnedLaunchOptions(["codecast", "claude"], "codecast").map((o) => o.id),
+    ).toEqual(["claude"]);
+    expect(() => parseExecutionAgentClientId("codecast")).toThrow(
+      InvalidExecutionAgentTypeError,
+    );
     expect(() => localAgentClient("codecast")).toThrow(HostedAgentClientError);
     expect(localAgentClient("codex")).toBe(LOCAL_AGENT_CLIENTS.codex);
     expect(agentSupportsExecutionTransport("codecast", "hosted")).toBe(true);
@@ -629,15 +804,19 @@ describe("antigravity descriptor", () => {
 
   it("launches agy and resumes a conversation by id", () => {
     expect(agy.binary).toBe("agy");
-    expect(agy.resumeCmd("42733a6f-f5ef-48ca-9f08-d571bd62efdd")).toBe("agy --conversation 42733a6f-f5ef-48ca-9f08-d571bd62efdd");
+    expect(agy.resumeCmd("42733a6f-f5ef-48ca-9f08-d571bd62efdd")).toBe(
+      "agy --conversation 42733a6f-f5ef-48ca-9f08-d571bd62efdd",
+    );
     expect(agy.transcriptRoots).toEqual(["~/.gemini/antigravity-cli/brain"]);
     expect(agy.tmuxPrefix).toBe("ag");
   });
 
   it("reads the composer under its rule, never the trust dialog or a shell continuation", () => {
-    const idle = "────────────────\n> Auto mode: edits & safe commands auto-approved (shift+tab to cycle)\n────────────────\n? for shortcuts      auto · Gemini 4 Argon · high";
+    const idle =
+      "────────────────\n> Auto mode: edits & safe commands auto-approved (shift+tab to cycle)\n────────────────\n? for shortcuts      auto · Gemini 4 Argon · high";
     const empty = "────────────────\n>\n────────────────";
-    const trust = "Do you trust the contents of this project?\nAntigravity CLI requires permission to read, edit, and execute files here.\n> Yes, I trust this folder\n  No, exit\n  ↑/↓ Navigate · enter Confirm";
+    const trust =
+      "Do you trust the contents of this project?\nAntigravity CLI requires permission to read, edit, and execute files here.\n> Yes, I trust this folder\n  No, exit\n  ↑/↓ Navigate · enter Confirm";
     const shell = "$ echo 'unterminated\n> ";
     expect(agy.promptReadyPattern.test(idle)).toBe(true);
     expect(agy.promptReadyPattern.test(empty)).toBe(true);

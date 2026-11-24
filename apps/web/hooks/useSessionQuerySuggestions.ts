@@ -1,6 +1,16 @@
-import { useMemo, useState, type KeyboardEvent, type RefObject, type SyntheticEvent } from "react";
+import {
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+  type SyntheticEvent,
+} from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { applySessionQueryCompletion, sessionQueryCompletion, type SessionQueryCompletion } from "@codecast/shared/search";
+import {
+  applySessionQueryCompletion,
+  sessionQueryCompletion,
+  type SessionQueryCompletion,
+} from "@codecast/shared/search";
 import { useInboxStore } from "../store/inboxStore";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { teamMembersOf } from "../lib/activeTeam";
@@ -22,10 +32,19 @@ import {
 export function useSessionQuerySuggestions(
   input: string,
   caret: number = input.length,
-): { completion: SessionQueryCompletion | null; suggestions: QuerySuggestion[] } {
-  const completion = useMemo(() => sessionQueryCompletion(input, caret), [input, caret]);
+): {
+  completion: SessionQueryCompletion | null;
+  suggestions: QuerySuggestion[];
+} {
+  const completion = useMemo(
+    () => sessionQueryCompletion(input, caret),
+    [input, caret],
+  );
   const op = completion?.kind === "value" ? completion.op : null;
-  const { data: files } = useQueryNoThrow(api.sessionQuerySuggest.recentFiles, op === "file" ? {} : "skip");
+  const { data: files } = useQueryNoThrow(
+    api.sessionQuerySuggest.recentFiles,
+    op === "file" ? {} : "skip",
+  );
 
   const suggestions = useMemo(() => {
     if (!completion) return [];
@@ -41,9 +60,13 @@ export function useSessionQuerySuggestions(
     } else if (op === "repo") {
       src.repos = reposFromSessions(Object.values(s.sessions ?? {}) as any);
     } else if (op === "pr") {
-      src.prs = (Object.values(s.pullRequests ?? {}) as any[]).sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
+      src.prs = (Object.values(s.pullRequests ?? {}) as any[]).sort(
+        (a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
+      );
     } else if (op === "commit") {
-      src.commits = (Object.values(s.commits ?? {}) as any[]).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+      src.commits = (Object.values(s.commits ?? {}) as any[]).sort(
+        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+      );
     }
     return sessionQuerySuggestions(completion, src);
   }, [completion, op, files]);
@@ -72,18 +95,27 @@ export function useSessionQueryAutocomplete(
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [pick, setPick] = useState<{ key: string; index: number } | null>(null);
   const caretAt = Math.min(caret ?? query.length, query.length);
-  const { completion, suggestions } = useSessionQuerySuggestions(query, caretAt);
+  const { completion, suggestions } = useSessionQuerySuggestions(
+    query,
+    caretAt,
+  );
   const key = `${query}|${caretAt}`;
   const open = focused && suggestions.length > 0 && dismissed !== query;
   const selected =
-    pick?.key === key ? Math.min(pick.index, suggestions.length - 1) : completion?.kind === "value" ? 0 : -1;
+    pick?.key === key
+      ? Math.min(pick.index, suggestions.length - 1)
+      : completion?.kind === "value"
+        ? 0
+        : -1;
 
   const accept = (s: QuerySuggestion) => {
     if (!completion) return;
     const next = applySessionQueryCompletion(query, completion, s.text);
     setQuery(next.value);
     setCaret(next.caret);
-    requestAnimationFrame(() => inputRef.current?.setSelectionRange(next.caret, next.caret));
+    requestAnimationFrame(() =>
+      inputRef.current?.setSelectionRange(next.caret, next.caret),
+    );
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>): boolean => {
@@ -91,10 +123,17 @@ export function useSessionQueryAutocomplete(
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       const n = suggestions.length;
-      setPick({ key, index: e.key === "ArrowDown" ? (selected + 1) % n : (selected - 1 + n) % n });
+      setPick({
+        key,
+        index:
+          e.key === "ArrowDown" ? (selected + 1) % n : (selected - 1 + n) % n,
+      });
       return true;
     }
-    if ((e.key === "Tab" && !e.shiftKey) || (e.key === "Enter" && selected >= 0 && !e.metaKey && !e.ctrlKey)) {
+    if (
+      (e.key === "Tab" && !e.shiftKey) ||
+      (e.key === "Enter" && selected >= 0 && !e.metaKey && !e.ctrlKey)
+    ) {
       e.preventDefault();
       accept(suggestions[Math.max(selected, 0)]);
       return true;
@@ -113,10 +152,16 @@ export function useSessionQueryAutocomplete(
     trackCaret: (el: HTMLInputElement) => setCaret(el.selectionStart),
     resetCaret: () => setCaret(null),
     inputHandlers: {
-      onSelect: (e: SyntheticEvent<HTMLInputElement>) => setCaret(e.currentTarget.selectionStart),
+      onSelect: (e: SyntheticEvent<HTMLInputElement>) =>
+        setCaret(e.currentTarget.selectionStart),
       onFocus: () => setFocused(true),
       onBlur: () => setFocused(false),
     },
-    listProps: { suggestions, selected, onPick: accept, onHover: (index: number) => setPick({ key, index }) },
+    listProps: {
+      suggestions,
+      selected,
+      onPick: accept,
+      onHover: (index: number) => setPick({ key, index }),
+    },
   };
 }

@@ -26,7 +26,7 @@ describe("matchScore", () => {
 
   it("treats each word as a prefix, so partial words still match", () => {
     expect(matchScore(DOC, "road plain")).toBeLessThan(Infinity); // "road" prefixes "roadmap"
-    expect(matchScore(DOC, "out road")).toBeLessThan(Infinity);   // "out" prefixes "outreach"
+    expect(matchScore(DOC, "out road")).toBeLessThan(Infinity); // "out" prefixes "outreach"
   });
 
   it("requires EVERY word to match — one absent word fails the whole query", () => {
@@ -37,7 +37,7 @@ describe("matchScore", () => {
   it("ranks tighter (more exact/earlier) matches ahead of looser ones", () => {
     // exact word + prefix should beat two loose substring hits
     const tight = matchScore(DOC, "plain language"); // both exact words
-    const loose = matchScore(DOC, "lai uag");         // mid-word substrings
+    const loose = matchScore(DOC, "lai uag"); // mid-word substrings
     expect(tight).toBeLessThan(loose);
   });
 
@@ -52,9 +52,24 @@ describe("matchScore", () => {
 });
 
 describe("mentionItemMatches", () => {
-  const jason = { id: "u1", type: "person", label: "Jason Benn", sublabel: "@jasonbenn", shortId: "@jasonbenn" };
-  const task = { id: "t1", type: "task", label: "Decide: what is our fee, and how much do we say on a call" };
-  const sess = { id: "s1", type: "session", label: "Untitled", idleSummary: "Stop the matchmaker from waking up" };
+  const jason = {
+    id: "u1",
+    type: "person",
+    label: "Jason Benn",
+    sublabel: "@jasonbenn",
+    shortId: "@jasonbenn",
+  };
+  const task = {
+    id: "t1",
+    type: "task",
+    label: "Decide: what is our fee, and how much do we say on a call",
+  };
+  const sess = {
+    id: "s1",
+    type: "session",
+    label: "Untitled",
+    idleSummary: "Stop the matchmaker from waking up",
+  };
 
   it("hits a person through the handle in sublabel/shortId", () => {
     expect(mentionItemMatches(jason, "jasonbenn")).toBe(true);

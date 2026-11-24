@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { collectMigrationCandidates, heldReason, movabilityFacts } from "./sessionMigrations";
+import {
+  collectMigrationCandidates,
+  heldReason,
+  movabilityFacts,
+} from "./sessionMigrations";
 import { makeFakeDb } from "./testDb";
 
 const USER = "users_me" as any;
@@ -10,16 +14,55 @@ describe("collectMigrationCandidates", () => {
   // moving one would have to resume it there. They wake on the old machine.
   test("a closed or killed session is not a candidate, by either path", async () => {
     const now = Date.now();
-    const closed = { user_id: USER, owner_device_id: LAPTOP, status: "active", inbox_dismissed_at: 5, inbox_closed_at: 5 };
+    const closed = {
+      user_id: USER,
+      owner_device_id: LAPTOP,
+      status: "active",
+      inbox_dismissed_at: 5,
+      inbox_closed_at: 5,
+    };
     const conversations = [
-      { _id: "conversations_seat", _creationTime: 1, ...closed, standing_role_id: "roles_1" },
-      { _id: "conversations_killed", _creationTime: 2, user_id: USER, owner_device_id: LAPTOP, status: "completed", inbox_dismissed_at: 5, inbox_killed_at: 5 },
-      { _id: "conversations_open", _creationTime: 3, user_id: USER, owner_device_id: LAPTOP, status: "active" },
-      { _id: "conversations_live_closed", _creationTime: 4, ...closed, owner_device_id: "elsewhere" },
+      {
+        _id: "conversations_seat",
+        _creationTime: 1,
+        ...closed,
+        standing_role_id: "roles_1",
+      },
+      {
+        _id: "conversations_killed",
+        _creationTime: 2,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "completed",
+        inbox_dismissed_at: 5,
+        inbox_killed_at: 5,
+      },
+      {
+        _id: "conversations_open",
+        _creationTime: 3,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+      },
+      {
+        _id: "conversations_live_closed",
+        _creationTime: 4,
+        ...closed,
+        owner_device_id: "elsewhere",
+      },
     ];
-    const managed_sessions = [{ _id: "managed_sessions_1", user_id: USER, conversation_id: "conversations_live_closed", last_heartbeat: now - 30_000 }];
+    const managed_sessions = [
+      {
+        _id: "managed_sessions_1",
+        user_id: USER,
+        conversation_id: "conversations_live_closed",
+        last_heartbeat: now - 30_000,
+      },
+    ];
     const ctx = { db: makeFakeDb({ conversations, managed_sessions }) } as any;
-    const ids = (await collectMigrationCandidates(ctx, USER, [{ device_id: LAPTOP }])).map((c) => String(c._id));
+    const ids = (
+      await collectMigrationCandidates(ctx, USER, [{ device_id: LAPTOP }])
+    ).map((c) => String(c._id));
     expect(ids).toEqual(["conversations_open"]);
   });
 
@@ -29,12 +72,34 @@ describe("collectMigrationCandidates", () => {
   test("a live session older than the newest 300 is still a candidate", async () => {
     const now = Date.now();
     const conversations = [
-      { _id: "conversations_old", _creationTime: 1, user_id: USER, owner_device_id: LAPTOP, status: "active", agent_type: "claude_code" },
-      ...Array.from({ length: 300 }, (_, i) => ({ _id: `conversations_${i}`, _creationTime: 100 + i, user_id: USER, owner_device_id: LAPTOP, status: "active" })),
+      {
+        _id: "conversations_old",
+        _creationTime: 1,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+        agent_type: "claude_code",
+      },
+      ...Array.from({ length: 300 }, (_, i) => ({
+        _id: `conversations_${i}`,
+        _creationTime: 100 + i,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+      })),
     ];
-    const managed_sessions = [{ _id: "managed_sessions_1", user_id: USER, conversation_id: "conversations_old", last_heartbeat: now - 30_000 }];
+    const managed_sessions = [
+      {
+        _id: "managed_sessions_1",
+        user_id: USER,
+        conversation_id: "conversations_old",
+        last_heartbeat: now - 30_000,
+      },
+    ];
     const ctx = { db: makeFakeDb({ conversations, managed_sessions }) } as any;
-    const ids = (await collectMigrationCandidates(ctx, USER, [{ device_id: LAPTOP }])).map((c) => String(c._id));
+    const ids = (
+      await collectMigrationCandidates(ctx, USER, [{ device_id: LAPTOP }])
+    ).map((c) => String(c._id));
     expect(ids).toContain("conversations_old");
     expect(ids.filter((id) => id === "conversations_old").length).toBe(1);
   });
@@ -44,16 +109,51 @@ describe("collectMigrationCandidates", () => {
   test("a subagent with its own live agent is a candidate that moves on its own", async () => {
     const now = Date.now();
     const conversations = [
-      { _id: "conversations_parent", _creationTime: 1, user_id: USER, owner_device_id: LAPTOP, status: "active" },
-      { _id: "conversations_worker", _creationTime: 2, user_id: USER, owner_device_id: LAPTOP, status: "active", is_subagent: true, parent_conversation_id: "conversations_parent" },
-      { _id: "conversations_task", _creationTime: 3, user_id: USER, owner_device_id: LAPTOP, status: "active", is_subagent: true, parent_conversation_id: "conversations_parent" },
+      {
+        _id: "conversations_parent",
+        _creationTime: 1,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+      },
+      {
+        _id: "conversations_worker",
+        _creationTime: 2,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+        is_subagent: true,
+        parent_conversation_id: "conversations_parent",
+      },
+      {
+        _id: "conversations_task",
+        _creationTime: 3,
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+        is_subagent: true,
+        parent_conversation_id: "conversations_parent",
+      },
     ];
-    const managed_sessions = [{ _id: "managed_sessions_1", user_id: USER, conversation_id: "conversations_worker", last_heartbeat: now - 30_000 }];
-    const ctx = { db: makeFakeDb({ conversations, managed_sessions, workflow_runs: [] }) } as any;
-    const found = await collectMigrationCandidates(ctx, USER, [{ device_id: LAPTOP }]);
+    const managed_sessions = [
+      {
+        _id: "managed_sessions_1",
+        user_id: USER,
+        conversation_id: "conversations_worker",
+        last_heartbeat: now - 30_000,
+      },
+    ];
+    const ctx = {
+      db: makeFakeDb({ conversations, managed_sessions, workflow_runs: [] }),
+    } as any;
+    const found = await collectMigrationCandidates(ctx, USER, [
+      { device_id: LAPTOP },
+    ]);
     expect(found.map((c) => String(c._id))).toContain("conversations_worker");
     const facts = await movabilityFacts(ctx, USER);
-    const held = Object.fromEntries(conversations.map((c) => [c._id, heldReason(c as any, facts)]));
+    const held = Object.fromEntries(
+      conversations.map((c) => [c._id, heldReason(c as any, facts)]),
+    );
     expect(held.conversations_worker).toBeNull();
     expect(held.conversations_task).toContain("moves with its parent");
   });
@@ -62,17 +162,62 @@ describe("collectMigrationCandidates", () => {
   test("a running workflow step stays, named by short id or by its run's conversation", async () => {
     const now = Date.now();
     const conversations = [
-      { _id: "jx78540bjtf69k6dyr4kk9ayk58geqyz", user_id: USER, owner_device_id: LAPTOP, status: "active", is_subagent: true },
-      { _id: "conversations_tmuxstep", user_id: USER, owner_device_id: LAPTOP, status: "active", is_subagent: true, parent_conversation_id: "conversations_line" },
+      {
+        _id: "jx78540bjtf69k6dyr4kk9ayk58geqyz",
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+        is_subagent: true,
+      },
+      {
+        _id: "conversations_tmuxstep",
+        user_id: USER,
+        owner_device_id: LAPTOP,
+        status: "active",
+        is_subagent: true,
+        parent_conversation_id: "conversations_line",
+      },
     ];
-    const managed_sessions = conversations.map((c, i) => ({ _id: `managed_sessions_${i}`, user_id: USER, conversation_id: c._id, last_heartbeat: now - 1000 }));
+    const managed_sessions = conversations.map((c, i) => ({
+      _id: `managed_sessions_${i}`,
+      user_id: USER,
+      conversation_id: c._id,
+      last_heartbeat: now - 1000,
+    }));
     const workflow_runs = [
-      { _id: "workflow_runs_1", user_id: USER, status: "running", node_statuses: [{ node_id: "implement", status: "running", session_id: "jx78540" }] },
-      { _id: "workflow_runs_2", user_id: USER, status: "running", primary_conversation_id: "conversations_line", node_statuses: [{ node_id: "review", status: "running", session_id: "wf-review-ab12" }] },
-      { _id: "workflow_runs_3", user_id: "users_other", status: "running", node_statuses: [] },
+      {
+        _id: "workflow_runs_1",
+        user_id: USER,
+        status: "running",
+        node_statuses: [
+          { node_id: "implement", status: "running", session_id: "jx78540" },
+        ],
+      },
+      {
+        _id: "workflow_runs_2",
+        user_id: USER,
+        status: "running",
+        primary_conversation_id: "conversations_line",
+        node_statuses: [
+          {
+            node_id: "review",
+            status: "running",
+            session_id: "wf-review-ab12",
+          },
+        ],
+      },
+      {
+        _id: "workflow_runs_3",
+        user_id: "users_other",
+        status: "running",
+        node_statuses: [],
+      },
     ];
-    const ctx = { db: makeFakeDb({ conversations, managed_sessions, workflow_runs }) } as any;
+    const ctx = {
+      db: makeFakeDb({ conversations, managed_sessions, workflow_runs }),
+    } as any;
     const facts = await movabilityFacts(ctx, USER);
-    for (const c of conversations) expect(heldReason(c as any, facts)).toContain("workflow step");
+    for (const c of conversations)
+      expect(heldReason(c as any, facts)).toContain("workflow step");
   });
 });

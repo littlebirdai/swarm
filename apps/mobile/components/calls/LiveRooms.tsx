@@ -6,12 +6,24 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { useLiveRoomRows, type LiveRoomRow } from "@codecast/web/hooks/liveRoomRows";
+import {
+  useLiveRoomRows,
+  type LiveRoomRow,
+} from "@codecast/web/hooks/liveRoomRows";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { Text } from "@/components/Themed";
-import { SolarizedLight, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  SolarizedLight,
+  Spacing,
+  themedStyles,
+  useTheme,
+} from "@/constants/Theme";
 import { ChatAvatar } from "@/components/chat/MessageRow";
-import { getCallSnapshot, joinCall, subscribeCall } from "@/lib/calls/callManager";
+import {
+  getCallSnapshot,
+  joinCall,
+  subscribeCall,
+} from "@/lib/calls/callManager";
 import { useActiveTeam } from "@/hooks/useWorkspaceArgs";
 
 // Live now, phone-shaped: the huddles running anywhere in your teams, listed
@@ -30,14 +42,25 @@ export type { LiveRoomRow };
  *  when the deployment has no LiveKit. */
 export function useCallsOn(): boolean {
   const { teamId } = useActiveTeam();
-  const callConfig = useInboxStore((s) => s.callConfig) as { enabled: boolean; teams?: string[] } | null;
-  return callConfig?.enabled === true && !!teamId && (callConfig.teams ?? []).includes(String(teamId));
+  const callConfig = useInboxStore((s) => s.callConfig) as {
+    enabled: boolean;
+    teams?: string[];
+  } | null;
+  return (
+    callConfig?.enabled === true &&
+    !!teamId &&
+    (callConfig.teams ?? []).includes(String(teamId))
+  );
 }
 
 /** The live huddles off the store (the sync bridge feeds calls.getLiveRooms),
  *  through web's own derivation, with "mine" meaning my call plane's room. */
 export function useLiveRooms(enabled: boolean): LiveRoomRow[] {
-  const myRoomKey = useSyncExternalStore(subscribeCall, () => getCallSnapshot().roomKey, () => null);
+  const myRoomKey = useSyncExternalStore(
+    subscribeCall,
+    () => getCallSnapshot().roomKey,
+    () => null,
+  );
   const rows = useLiveRoomRows(myRoomKey);
   return enabled ? rows : NO_ROWS;
 }
@@ -61,20 +84,41 @@ function useKnock(): (roomKey: string) => Promise<void> {
 }
 
 /** A slow breathing dot: the section is alive, and says so without a count. */
-export function LivePulse({ color, size = 8 }: { color: string; size?: number }) {
+export function LivePulse({
+  color,
+  size = 8,
+}: {
+  color: string;
+  size?: number;
+}) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.6, duration: 900, useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(scale, {
+          toValue: 1.6,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [scale]);
   return (
-    <RNView style={{ width: size * 2, height: size * 2, alignItems: "center", justifyContent: "center" }}>
+    <RNView
+      style={{
+        width: size * 2,
+        height: size * 2,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <Animated.View
         style={{
           position: "absolute",
@@ -86,13 +130,28 @@ export function LivePulse({ color, size = 8 }: { color: string; size?: number })
           transform: [{ scale }],
         }}
       />
-      <RNView style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />
+      <RNView
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+        }}
+      />
     </RNView>
   );
 }
 
 /** Overlapping faces, newest on top. */
-export function Facepile({ members, max = 3, size = 26 }: { members: LiveRoomRow["members"]; max?: number; size?: number }) {
+export function Facepile({
+  members,
+  max = 3,
+  size = 26,
+}: {
+  members: LiveRoomRow["members"];
+  max?: number;
+  size?: number;
+}) {
   const Theme = useTheme();
   const shown = members.slice(0, max);
   const extra = members.length - shown.length;
@@ -109,7 +168,14 @@ export function Facepile({ members, max = 3, size = 26 }: { members: LiveRoomRow
             zIndex: shown.length - i,
           }}
         >
-          <ChatAvatar author={{ id: m.user_id, name: m.user_name || "Teammate", avatarUrl: m.user_image }} size={size} />
+          <ChatAvatar
+            author={{
+              id: m.user_id,
+              name: m.user_name || "Teammate",
+              avatarUrl: m.user_image,
+            }}
+            size={size}
+          />
         </RNView>
       ))}
       {extra > 0 && (
@@ -134,9 +200,16 @@ export function Facepile({ members, max = 3, size = 26 }: { members: LiveRoomRow
 }
 
 function peopleLine(row: LiveRoomRow): string {
-  const names = row.members.map((m) => (m.user_name || "Teammate").split(/\s+/)[0]);
-  const list = names.length <= 3 ? names.join(", ") : `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
-  return row.mine ? `you're in it with ${names.length === 1 ? "nobody yet" : list}` : list;
+  const names = row.members.map(
+    (m) => (m.user_name || "Teammate").split(/\s+/)[0],
+  );
+  const list =
+    names.length <= 3
+      ? names.join(", ")
+      : `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
+  return row.mine
+    ? `you're in it with ${names.length === 1 ? "nobody yet" : list}`
+    : list;
 }
 
 /** Walk into a room open to you: the call plane joins, the call screen opens. */
@@ -156,11 +229,19 @@ export function LiveRoomAction({ row }: { row: LiveRoomRow }) {
   const knock = useKnock();
   const walkIn = useWalkIn();
   return row.mine ? (
-    <Pressable onPress={() => router.push("/call")} style={({ pressed }) => [styles.actionGhost, pressed && styles.pressed]} accessibilityLabel={`Show ${row.label}`}>
+    <Pressable
+      onPress={() => router.push("/call")}
+      style={({ pressed }) => [styles.actionGhost, pressed && styles.pressed]}
+      accessibilityLabel={`Show ${row.label}`}
+    >
       <Text style={styles.actionGhostText}>open</Text>
     </Pressable>
   ) : row.canJoin ? (
-    <Pressable onPress={() => walkIn(row)} style={({ pressed }) => [styles.actionJoin, pressed && styles.pressed]} accessibilityLabel={`Join ${row.label}`}>
+    <Pressable
+      onPress={() => walkIn(row)}
+      style={({ pressed }) => [styles.actionJoin, pressed && styles.pressed]}
+      accessibilityLabel={`Join ${row.label}`}
+    >
       <Ionicons name="headset" size={13} color={SolarizedLight.bgAlt} />
       <Text style={styles.actionJoinText}>join</Text>
     </Pressable>
@@ -185,82 +266,132 @@ export function LiveRoomAction({ row }: { row: LiveRoomRow }) {
 /** One live huddle: faces, name, who is in it, and the one thing you may do
  *  about it. With `onOpen` (the huddle's words are readable), the card itself
  *  opens them and walking in stays on the button. */
-export function LiveRoomCard({ row, onOpen }: { row: LiveRoomRow; onOpen?: () => void }) {
+export function LiveRoomCard({
+  row,
+  onOpen,
+}: {
+  row: LiveRoomRow;
+  onOpen?: () => void;
+}) {
   const Theme = useTheme();
   const walkIn = useWalkIn();
-  const onPress = row.mine ? () => walkIn(row) : onOpen ?? (row.canJoin ? () => walkIn(row) : undefined);
+  const onPress = row.mine
+    ? () => walkIn(row)
+    : (onOpen ?? (row.canJoin ? () => walkIn(row) : undefined));
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, row.mine && styles.cardMine, pressed && !!onPress && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        row.mine && styles.cardMine,
+        pressed && !!onPress && styles.pressed,
+      ]}
     >
       <Facepile members={row.members} />
       <RNView style={styles.cardMain}>
         <RNView style={styles.cardHead}>
-          {row.locked && <FontAwesome name="lock" size={11} color={Theme.textMuted0} style={{ marginRight: 4 }} />}
-          <Text style={[styles.cardLabel, row.redacted && styles.cardLabelRedacted]} numberOfLines={1}>
+          {row.locked && (
+            <FontAwesome
+              name="lock"
+              size={11}
+              color={Theme.textMuted0}
+              style={{ marginRight: 4 }}
+            />
+          )}
+          <Text
+            style={[styles.cardLabel, row.redacted && styles.cardLabelRedacted]}
+            numberOfLines={1}
+          >
             {row.label}
           </Text>
           {/* Being filmed, said before anyone walks in: the web's
               LiveRoomLabel dot, off the same row. */}
-          {row.recording && <RNView style={styles.recDot} accessible accessibilityLabel="This call is being recorded" />}
+          {row.recording && (
+            <RNView
+              style={styles.recDot}
+              accessible
+              accessibilityLabel="This call is being recorded"
+            />
+          )}
         </RNView>
-        <Text style={styles.cardSub} numberOfLines={1}>{peopleLine(row)}</Text>
+        <Text style={styles.cardSub} numberOfLines={1}>
+          {peopleLine(row)}
+        </Text>
       </RNView>
       <LiveRoomAction row={row} />
     </Pressable>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginHorizontal: Spacing.md,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: Theme.violet + "14",
-    borderWidth: 1,
-    borderColor: Theme.violet + "38",
-  },
-  cardMine: { backgroundColor: Theme.green + "16", borderColor: Theme.green + "44" },
-  cardMain: { flex: 1, minWidth: 0 },
-  cardHead: { flexDirection: "row", alignItems: "center" },
-  cardLabel: { flexShrink: 1, fontSize: 14, fontWeight: "600", color: Theme.text },
-  recDot: { width: 6, height: 6, borderRadius: 3, marginLeft: 6, backgroundColor: Theme.red },
-  cardLabelRedacted: { fontStyle: "italic", color: Theme.textMuted },
-  cardSub: { fontSize: 11.5, color: Theme.textMuted, marginTop: 2 },
-  actionJoin: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: Theme.violet,
-  },
-  actionJoinText: { fontSize: 12.5, fontWeight: "700", color: SolarizedLight.bgAlt },
-  actionKnock: {
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Theme.violet + "80",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionKnockText: { fontSize: 12.5, fontWeight: "600", color: Theme.violet },
-  actionGhost: {
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Theme.bg + "80",
-  },
-  actionGhostText: { fontSize: 12, color: Theme.textMuted },
-  pressed: { opacity: 0.7 },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginHorizontal: Spacing.md,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 14,
+      backgroundColor: Theme.violet + "14",
+      borderWidth: 1,
+      borderColor: Theme.violet + "38",
+    },
+    cardMine: {
+      backgroundColor: Theme.green + "16",
+      borderColor: Theme.green + "44",
+    },
+    cardMain: { flex: 1, minWidth: 0 },
+    cardHead: { flexDirection: "row", alignItems: "center" },
+    cardLabel: {
+      flexShrink: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      color: Theme.text,
+    },
+    recDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginLeft: 6,
+      backgroundColor: Theme.red,
+    },
+    cardLabelRedacted: { fontStyle: "italic", color: Theme.textMuted },
+    cardSub: { fontSize: 11.5, color: Theme.textMuted, marginTop: 2 },
+    actionJoin: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: Theme.violet,
+    },
+    actionJoinText: {
+      fontSize: 12.5,
+      fontWeight: "700",
+      color: SolarizedLight.bgAlt,
+    },
+    actionKnock: {
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: Theme.violet + "80",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionKnockText: { fontSize: 12.5, fontWeight: "600", color: Theme.violet },
+    actionGhost: {
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: Theme.bg + "80",
+    },
+    actionGhostText: { fontSize: 12, color: Theme.textMuted },
+    pressed: { opacity: 0.7 },
+  }),
+);

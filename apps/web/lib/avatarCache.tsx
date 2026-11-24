@@ -43,7 +43,9 @@ const avatarBytes = createByteCache({
  * string = render it (cached object URL, or the remote URL while resolving),
  * undefined = nothing renderable (no URL / known-dead) — show initials.
  */
-export function useAvatarSrc(url: string | null | undefined): string | undefined {
+export function useAvatarSrc(
+  url: string | null | undefined,
+): string | undefined {
   return avatarBytes.useSrc(url);
 }
 
@@ -67,5 +69,12 @@ export function AvatarImg({
   // chance to render automatically.
   const [erroredSrc, setErroredSrc] = useState<string | null>(null);
   if (!resolved || erroredSrc === resolved) return <>{fallback}</>;
-  return <img src={resolved} alt={alt} {...imgProps} onError={() => setErroredSrc(resolved)} />;
+  return (
+    <img
+      src={resolved}
+      alt={alt}
+      {...imgProps}
+      onError={() => setErroredSrc(resolved)}
+    />
+  );
 }

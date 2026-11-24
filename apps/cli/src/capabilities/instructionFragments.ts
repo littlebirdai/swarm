@@ -33,7 +33,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import { atomicWriteFile } from "../atomicWrite.js";
-import { apply, planSections, type DesiredSection, type DriverLedger, type PlannedOp } from "./driver.js";
+import {
+  apply,
+  planSections,
+  type DesiredSection,
+  type DriverLedger,
+  type PlannedOp,
+} from "./driver.js";
 import type { ProjectWritesSetting } from "./projectWrites.js";
 
 export interface InstructionFragment {
@@ -74,7 +80,10 @@ export function sectionsLedgerPath(home: string): string {
 function readLedger(file: string): DriverLedger {
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
-    return { files: {}, sections: raw && typeof raw.sections === "object" ? raw.sections : {} };
+    return {
+      files: {},
+      sections: raw && typeof raw.sections === "object" ? raw.sections : {},
+    };
   } catch {
     return { files: {}, sections: {} };
   }
@@ -95,7 +104,9 @@ export function fragmentSection(f: InstructionFragment): DesiredSection {
   };
 }
 
-export function applyInstructionFragments(input: InstructionFragmentsInput): InstructionFragmentsOutcome {
+export function applyInstructionFragments(
+  input: InstructionFragmentsInput,
+): InstructionFragmentsOutcome {
   const ledgerFile = sectionsLedgerPath(input.home);
   const ledger = readLedger(ledgerFile);
   const ops = planSections(input.fragments.map(fragmentSection), ledger, {
@@ -104,16 +115,32 @@ export function applyInstructionFragments(input: InstructionFragmentsInput): Ins
     projectWrites: input.projectWrites,
     log: input.log,
   });
-  const conflicts = ops.flatMap((op) => (op.op === "conflict" ? [{ slug: op.slug, reason: op.reason, detail: op.detail }] : []));
+  const conflicts = ops.flatMap((op) =>
+    op.op === "conflict"
+      ? [{ slug: op.slug, reason: op.reason, detail: op.detail }]
+      : [],
+  );
   if (input.dryRun) return { ops, wrote: [], removed: [], conflicts };
 
   const outcome = apply(ops, ledger);
-  if (JSON.stringify(outcome.ledger.sections ?? {}) !== JSON.stringify(ledger.sections ?? {})) {
+  if (
+    JSON.stringify(outcome.ledger.sections ?? {}) !==
+    JSON.stringify(ledger.sections ?? {})
+  ) {
     fs.mkdirSync(path.dirname(ledgerFile), { recursive: true });
-    atomicWriteFile(ledgerFile, JSON.stringify({ sections: outcome.ledger.sections ?? {} }, null, 2) + "\n");
+    atomicWriteFile(
+      ledgerFile,
+      JSON.stringify({ sections: outcome.ledger.sections ?? {} }, null, 2) +
+        "\n",
+    );
   }
   // Planned conflicts are already in `conflicts`; a write that failed during
   // the apply is new here and must reach the caller so the pass is retried.
   const failed = outcome.conflicts.filter((c) => c.reason === "write_failed");
-  return { ops, wrote: outcome.wrote, removed: outcome.removed, conflicts: [...conflicts, ...failed] };
+  return {
+    ops,
+    wrote: outcome.wrote,
+    removed: outcome.removed,
+    conflicts: [...conflicts, ...failed],
+  };
 }

@@ -6,7 +6,12 @@ import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useGuestLinks } from "@codecast/web/hooks/useGuestLinks";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { useConvexSync } from "@codecast/web/hooks/useConvexSync";
-import { admitGuest, denyGuest, guestLinkUrl, removeGuest } from "@codecast/web/lib/calls/guestDoorActions";
+import {
+  admitGuest,
+  denyGuest,
+  guestLinkUrl,
+  removeGuest,
+} from "@codecast/web/lib/calls/guestDoorActions";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { humanizeConvexError } from "@codecast/shared/contracts";
 import { Text } from "@/components/Themed";
@@ -68,20 +73,32 @@ function linkOf(k: GuestKnock): string | null {
  *  again in a private window and knock as somebody new). Null for a viewer
  *  who could not (the same answer the web's remove button reads: whether
  *  the room's link list answers them at all). */
-export function useGuestRemover(roomKey: string | null): ((guestId: string, name: string) => void) | null {
+export function useGuestRemover(
+  roomKey: string | null,
+): ((guestId: string, name: string) => void) | null {
   const { canInvite } = useGuestLinks(roomKey);
   if (!roomKey || !canInvite) return null;
   return (guestId, name) => {
     // Off the faces now; a refusal puts them back and says why.
     const out = (revokeLink: boolean) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      void removeGuest(roomKey, guestId, revokeLink, (message) => appAlert("Couldn't remove them", message));
+      void removeGuest(roomKey, guestId, revokeLink, (message) =>
+        appAlert("Couldn't remove them", message),
+      );
     };
-    appAlert(`Remove ${name} (guest)?`, "They leave the call at once. Turning off their link also stops anyone new from using it.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => out(false) },
-      { text: "Remove and turn off link", style: "destructive", onPress: () => out(true) },
-    ]);
+    appAlert(
+      `Remove ${name} (guest)?`,
+      "They leave the call at once. Turning off their link also stops anyone new from using it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => out(false) },
+        {
+          text: "Remove and turn off link",
+          style: "destructive",
+          onPress: () => out(true),
+        },
+      ],
+    );
   };
 }
 
@@ -112,30 +129,46 @@ export function GuestInviteRow({ roomKey }: { roomKey: string | null }) {
       const url = guestLinkUrl(link.path);
       await Share.share({ message: `Join my call on codecast: ${url}`, url });
     } catch (err) {
-      appAlert("Couldn't make a guest link", humanizeConvexError(err, "Something went wrong"));
+      appAlert(
+        "Couldn't make a guest link",
+        humanizeConvexError(err, "Something went wrong"),
+      );
     } finally {
       setBusy(null);
     }
   };
   const turnOff = () => {
     if (!mine) return;
-    appAlert("Turn off your guest link?", "Nobody new can use it. Guests already in the call stay.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Turn off",
-        style: "destructive",
-        onPress: () => {
-          setBusy("off");
-          void revoke({ link_id: mine.link_id as any })
-            .catch((err: unknown) => appAlert("Couldn't turn the link off", humanizeConvexError(err, "Something went wrong")))
-            .finally(() => setBusy(null));
+    appAlert(
+      "Turn off your guest link?",
+      "Nobody new can use it. Guests already in the call stay.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Turn off",
+          style: "destructive",
+          onPress: () => {
+            setBusy("off");
+            void revoke({ link_id: mine.link_id as any })
+              .catch((err: unknown) =>
+                appAlert(
+                  "Couldn't turn the link off",
+                  humanizeConvexError(err, "Something went wrong"),
+                ),
+              )
+              .finally(() => setBusy(null));
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
   const state = mine
-    ? [mine.waiting > 0 ? `${mine.waiting} waiting` : null, mine.admitted > 0 ? `${mine.admitted} in the call` : null].filter(Boolean).join(" · ") ||
-      "Your link is open"
+    ? [
+        mine.waiting > 0 ? `${mine.waiting} waiting` : null,
+        mine.admitted > 0 ? `${mine.admitted} in the call` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || "Your link is open"
     : "They join from a link in a browser, no account";
 
   return (
@@ -152,20 +185,33 @@ export function GuestInviteRow({ roomKey }: { roomKey: string | null }) {
             disabled={!!busy}
             onPress={turnOff}
             hitSlop={6}
-            style={({ pressed }) => [styles.btn, (pressed || busy === "off") && styles.pressed]}
+            style={({ pressed }) => [
+              styles.btn,
+              (pressed || busy === "off") && styles.pressed,
+            ]}
             accessibilityLabel="Turn off your guest link"
           >
-            <Text style={styles.btnText}>{busy === "off" ? "…" : "Turn off"}</Text>
+            <Text style={styles.btnText}>
+              {busy === "off" ? "…" : "Turn off"}
+            </Text>
           </Pressable>
         )}
         <Pressable
           disabled={!!busy}
           onPress={() => void share()}
           hitSlop={6}
-          style={({ pressed }) => [styles.btn, styles.btnPrimary, (pressed || busy === "share") && styles.pressed]}
-          accessibilityLabel={mine ? "Share your guest link" : "Make a guest link and share it"}
+          style={({ pressed }) => [
+            styles.btn,
+            styles.btnPrimary,
+            (pressed || busy === "share") && styles.pressed,
+          ]}
+          accessibilityLabel={
+            mine ? "Share your guest link" : "Make a guest link and share it"
+          }
         >
-          <Text style={styles.btnPrimaryText}>{busy === "share" ? "…" : mine ? "Share link" : "Get link"}</Text>
+          <Text style={styles.btnPrimaryText}>
+            {busy === "share" ? "…" : mine ? "Share link" : "Get link"}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -181,9 +227,12 @@ export function GuestDoor({ roomKey }: { roomKey: string | null }) {
     api.calls.getRoomKnocks,
     isAuthenticated && roomKey ? { room_key: roomKey, guests: true } : "skip",
   );
-  useConvexSync(knockFeed, useCallback((d: any) => {
-    useInboxStore.getState().syncTable("roomKnocks", d);
-  }, []));
+  useConvexSync(
+    knockFeed,
+    useCallback((d: any) => {
+      useInboxStore.getState().syncTable("roomKnocks", d);
+    }, []),
+  );
   const knocks = useInboxStore((s) => s.roomKnocks) as GuestKnock[];
   const guests = knocks.filter((k) => k.kind === "guest" && k.guest_id);
 
@@ -196,15 +245,22 @@ export function GuestDoor({ roomKey }: { roomKey: string | null }) {
       if (!heard.current.has(key)) fresh = true;
       heard.current.add(key);
     }
-    if (fresh) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    if (fresh)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }, [guests.map((k) => `${k.guest_id}:${k.created_at}`).join("|")]);
 
   if (guests.length === 0) return null;
 
   const answer = (k: GuestKnock, how: "admit" | "deny" | "deny_link") => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (how === "admit") void admitGuest(k.guest_id!, k.from_name, (message) => appAlert("Couldn't let them in", message));
-    else void denyGuest(k.guest_id!, how === "deny_link", (message) => appAlert("Couldn't turn them away", message));
+    if (how === "admit")
+      void admitGuest(k.guest_id!, k.from_name, (message) =>
+        appAlert("Couldn't let them in", message),
+      );
+    else
+      void denyGuest(k.guest_id!, how === "deny_link", (message) =>
+        appAlert("Couldn't turn them away", message),
+      );
   };
 
   return (
@@ -226,11 +282,15 @@ export function GuestDoor({ roomKey }: { roomKey: string | null }) {
                 <Pressable
                   onPress={() => answer(k, "deny_link")}
                   hitSlop={6}
-                  style={({ pressed }) => [styles.linkBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.linkBtn,
+                    pressed && styles.pressed,
+                  ]}
                   accessibilityLabel={`Turn ${k.from_name} away and turn the link off`}
                 >
                   <Text style={styles.linkBtnText}>
-                    {k.link_turned_away} turned away from this link already · Deny and turn off link
+                    {k.link_turned_away} turned away from this link already ·
+                    Deny and turn off link
                   </Text>
                 </Pressable>
               )}
@@ -240,7 +300,10 @@ export function GuestDoor({ roomKey }: { roomKey: string | null }) {
                 <Pressable
                   onPress={() => answer(k, "deny")}
                   hitSlop={6}
-                  style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    pressed && styles.pressed,
+                  ]}
                   accessibilityLabel={`Don't let ${k.from_name} in`}
                 >
                   <Text style={styles.btnText}>Deny</Text>
@@ -248,7 +311,11 @@ export function GuestDoor({ roomKey }: { roomKey: string | null }) {
                 <Pressable
                   onPress={() => answer(k, "admit")}
                   hitSlop={6}
-                  style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    styles.btnPrimary,
+                    pressed && styles.pressed,
+                  ]}
                   accessibilityLabel={`Let ${k.from_name} in`}
                 >
                   <Text style={styles.btnPrimaryText}>Admit</Text>
@@ -294,7 +361,12 @@ const styles = StyleSheet.create({
   guest: { fontSize: 12.5, color: Theme.yellow },
   text: { fontSize: 11.5, lineHeight: 16, color: Theme.textDim },
   actions: { flexDirection: "row", gap: 6 },
-  btn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "rgba(253,246,227,0.10)" },
+  btn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(253,246,227,0.10)",
+  },
   btnPrimary: { backgroundColor: Theme.yellow },
   btnText: { fontSize: 12, color: Theme.bgAlt },
   btnPrimaryText: { fontSize: 12, color: "#002b36" },

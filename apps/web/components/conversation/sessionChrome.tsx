@@ -4,7 +4,14 @@ import { useState, useMemo, Fragment, type ReactNode } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { isSupersededBanner } from "../../lib/limitRecovery";
-import { withSafetyBlock, SAFETY_BLOCK_HINT, PROVIDER_KEYS, getProviderKeySpec, isHostedAgentType, isSessionActivityFresh } from "@codecast/shared/contracts";
+import {
+  withSafetyBlock,
+  SAFETY_BLOCK_HINT,
+  PROVIDER_KEYS,
+  getProviderKeySpec,
+  isHostedAgentType,
+  isSessionActivityFresh,
+} from "@codecast/shared/contracts";
 import { LimitParkCard } from "../LimitParkCard";
 import { KeyCap, ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { toast } from "sonner";
@@ -23,20 +30,40 @@ import { useImageGallery } from "../ImageGallery";
 import { PageFavicon } from "../PublishedPageEmbed";
 import { isGalleryPage, type GalleryItem } from "../../lib/galleryItems";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
-import { Check, KeyRound, ExternalLink, Loader2, ArrowRightLeft } from "lucide-react";
+import {
+  Check,
+  KeyRound,
+  ExternalLink,
+  Loader2,
+  ArrowRightLeft,
+} from "lucide-react";
 import { useDevices, useDeviceMoveStatus } from "../DeviceBadge";
-import { useProviderKeyCommand, deviceManagedKeys } from "../../lib/useProviderKeyCommand";
+import {
+  useProviderKeyCommand,
+  deviceManagedKeys,
+} from "../../lib/useProviderKeyCommand";
 import type { RestartPhase, RestartStage } from "../../hooks/useSessionRestart";
 import { CopyCommand } from "./blocks/shared";
 import { Spinner } from "../ui/spinner";
 import { authRemedy, detectProviderFromError } from "./classify";
-import { cloudAgentCardHeading, CloudAgentSetupHint, CloudAgentSetupText } from "../cloudAgents";
+import {
+  cloudAgentCardHeading,
+  CloudAgentSetupHint,
+  CloudAgentSetupText,
+} from "../cloudAgents";
 import { useCloudAgentSetupCard } from "../cloudAgents/sessionAgent";
-import { formatDuration, formatFullTimestamp, formatRelativeTime } from "../../lib/conversationFormat";
+import {
+  formatDuration,
+  formatFullTimestamp,
+  formatRelativeTime,
+} from "../../lib/conversationFormat";
 import { MessageMarkdown } from "./markdown";
 import type { ConversationDensity, ParsedApiError } from "./types";
 import { DENSITY_OPTIONS } from "../../lib/conversationDensity";
-export { ConversationTaskProgress, ConversationTaskStatsMenuItem } from "./ConversationTaskProgress";
+export {
+  ConversationTaskProgress,
+  ConversationTaskStatsMenuItem,
+} from "./ConversationTaskProgress";
 import { Button } from "../ui/button";
 import { useIsModernStyle } from "../../hooks/useVisualStyle";
 import { ModernApiErrorRow } from "./ModernApiErrorRow";
@@ -44,23 +71,52 @@ import { ModernApiErrorRow } from "./ModernApiErrorRow";
 // The density dropdown's option list. Guests (unauthenticated share-link
 // viewers) get the local render densities only — the AI retellings need an
 // account to read or generate (storyMode auth-gates both).
-export function DensityMenuOptions({ density, setDensity, guest }: { density: ConversationDensity; setDensity: (d: ConversationDensity) => void; guest: boolean }) {
-  const options = guest ? DENSITY_OPTIONS.filter((o) => !o.ai) : DENSITY_OPTIONS;
+export function DensityMenuOptions({
+  density,
+  setDensity,
+  guest,
+}: {
+  density: ConversationDensity;
+  setDensity: (d: ConversationDensity) => void;
+  guest: boolean;
+}) {
+  const options = guest
+    ? DENSITY_OPTIONS.filter((o) => !o.ai)
+    : DENSITY_OPTIONS;
   return (
     <>
       {options.map((opt, i) => (
         <Fragment key={opt.value}>
           {opt.ai && !options[i - 1]?.ai && <DropdownMenuSeparator />}
-          <DropdownMenuItem onSelect={() => setDensity(opt.value)} className="items-start gap-2.5 py-2">
-            <opt.icon className={`w-4 h-4 mt-0.5 shrink-0 ${density === opt.value ? "text-sol-cyan" : "text-sol-text-dim"}`} />
+          <DropdownMenuItem
+            onSelect={() => setDensity(opt.value)}
+            className="items-start gap-2.5 py-2"
+          >
+            <opt.icon
+              className={`w-4 h-4 mt-0.5 shrink-0 ${density === opt.value ? "text-sol-cyan" : "text-sol-text-dim"}`}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[13px]">
-                <span className={density === opt.value ? "text-sol-cyan font-medium" : ""}>{opt.label}</span>
-                {opt.ai && <span className="text-mark uppercase tracking-wider px-1 py-px rounded bg-sol-violet/15 text-sol-violet">AI</span>}
+                <span
+                  className={
+                    density === opt.value ? "text-sol-cyan font-medium" : ""
+                  }
+                >
+                  {opt.label}
+                </span>
+                {opt.ai && (
+                  <span className="text-mark uppercase tracking-wider px-1 py-px rounded bg-sol-violet/15 text-sol-violet">
+                    AI
+                  </span>
+                )}
               </div>
-              <div className="text-meta text-sol-text-dim leading-snug">{opt.description}</div>
+              <div className="text-meta text-sol-text-dim leading-snug">
+                {opt.description}
+              </div>
             </div>
-            {density === opt.value && <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sol-cyan" />}
+            {density === opt.value && (
+              <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sol-cyan" />
+            )}
           </DropdownMenuItem>
         </Fragment>
       ))}
@@ -77,7 +133,10 @@ export function DensityMenuOptions({ density, setDensity, guest }: { density: Co
 // the header should make them easy to spot.
 export function SessionGalleryButton({ items }: { items: GalleryItem[] }) {
   const pages = useMemo(() => items.filter(isGalleryPage), [items]);
-  const images = useMemo(() => items.filter(item => !isGalleryPage(item)), [items]);
+  const images = useMemo(
+    () => items.filter((item) => !isGalleryPage(item)),
+    [items],
+  );
   return (
     <>
       {images.length > 0 && (
@@ -87,8 +146,18 @@ export function SessionGalleryButton({ items }: { items: GalleryItem[] }) {
           className="bg-sol-magenta/10 text-sol-magenta border-sol-magenta/30 hover:bg-sol-magenta/20"
           pill
           icon={
-            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg
+              className="w-3 h-3 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
           }
         />
@@ -96,7 +165,11 @@ export function SessionGalleryButton({ items }: { items: GalleryItem[] }) {
       {pages.length > 0 && (
         <GalleryPill
           items={pages}
-          label={pages.length === 1 ? "1 published page" : `${pages.length} published pages`}
+          label={
+            pages.length === 1
+              ? "1 published page"
+              : `${pages.length} published pages`
+          }
           className={HEADER_CHIP}
           icon={<PageFavicon className="h-3 w-3" />}
         />
@@ -105,7 +178,19 @@ export function SessionGalleryButton({ items }: { items: GalleryItem[] }) {
   );
 }
 
-function GalleryPill({ items, label, className, icon, pill }: { items: GalleryItem[]; label: string; className: string; icon: ReactNode; pill?: boolean }) {
+function GalleryPill({
+  items,
+  label,
+  className,
+  icon,
+  pill,
+}: {
+  items: GalleryItem[];
+  label: string;
+  className: string;
+  icon: ReactNode;
+  pill?: boolean;
+}) {
   const gallery = useImageGallery();
   return (
     <ShortcutTooltip label={`View ${label}`} side="bottom">
@@ -122,14 +207,38 @@ function GalleryPill({ items, label, className, icon, pill }: { items: GalleryIt
   );
 }
 
-function ForkCopyingState({ copied, total }: { copied: number; total?: number }) {
-  const pct = total && total > 0 ? Math.min(100, Math.round((copied / total) * 100)) : null;
+function ForkCopyingState({
+  copied,
+  total,
+}: {
+  copied: number;
+  total?: number;
+}) {
+  const pct =
+    total && total > 0
+      ? Math.min(100, Math.round((copied / total) * 100))
+      : null;
   return (
     <div className="flex flex-col items-center gap-3 max-w-md text-center px-6">
       <div className="flex items-center gap-2 text-sm font-medium text-sol-text">
-        <svg className="w-4 h-4 animate-spin text-sol-cyan" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        <svg
+          className="w-4 h-4 animate-spin text-sol-cyan"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
         </svg>
         Copying messages from parent…
       </div>
@@ -147,7 +256,8 @@ function ForkCopyingState({ copied, total }: { copied: number; total?: number })
         </div>
       )}
       <div className="text-meta text-sol-text-dim/60">
-        Large forks copy in batches. Messages will appear automatically as they arrive.
+        Large forks copy in batches. Messages will appear automatically as they
+        arrive.
       </div>
     </div>
   );
@@ -171,10 +281,27 @@ export function TimelineRule({
 }) {
   const line = `flex-1 h-px${faint ? " opacity-40" : ""}`;
   return (
-    <div className={`flex items-center gap-3 select-none ${className}`} aria-label={label} data-cc-divider data-cc-row-lead>
-      <div data-cc-row-rule className={line} style={{ background: `linear-gradient(to right, transparent, ${color})` }} />
+    <div
+      className={`flex items-center gap-3 select-none ${className}`}
+      aria-label={label}
+      data-cc-divider
+      data-cc-row-lead
+    >
+      <div
+        data-cc-row-rule
+        className={line}
+        style={{
+          background: `linear-gradient(to right, transparent, ${color})`,
+        }}
+      />
       {children}
-      <div data-cc-row-rule className={line} style={{ background: `linear-gradient(to left, transparent, ${color})` }} />
+      <div
+        data-cc-row-rule
+        className={line}
+        style={{
+          background: `linear-gradient(to left, transparent, ${color})`,
+        }}
+      />
     </div>
   );
 }
@@ -183,10 +310,18 @@ export function TimelineRule({
 // rule with a quiet spinner, since reaching it is what loads the next page.
 export function ThreadTailLoader({ loading }: { loading: boolean }) {
   return (
-    <TimelineRule color="color-mix(in srgb, var(--sol-text-dim) 35%, transparent)" className="mt-6 mb-10 animate-in fade-in duration-700" label="Later messages">
+    <TimelineRule
+      color="color-mix(in srgb, var(--sol-text-dim) 35%, transparent)"
+      className="mt-6 mb-10 animate-in fade-in duration-700"
+      label="Later messages"
+    >
       <span className="flex items-center gap-2 px-1 text-meta tracking-wide text-sol-text-dim">
-        <Spinner className={`w-3 h-3 text-sol-cyan transition-opacity duration-500 ${loading ? "opacity-100" : "opacity-75"}`} />
-        <span className={`transition-opacity duration-500 ${loading ? "opacity-100" : "opacity-75"}`}>
+        <Spinner
+          className={`w-3 h-3 text-sol-cyan transition-opacity duration-500 ${loading ? "opacity-100" : "opacity-75"}`}
+        />
+        <span
+          className={`transition-opacity duration-500 ${loading ? "opacity-100" : "opacity-75"}`}
+        >
           {loading ? "Loading later messages" : "Later messages"}
         </span>
       </span>
@@ -199,17 +334,45 @@ export function ThreadTailLoader({ loading }: { loading: boolean }) {
 // message from the assigner. Every viewer sees it — it is the record of the
 // transfer, not a private ping (that is AssignedToYouBanner, for the assignee
 // until they acknowledge). A transfer still in flight renders dimmed.
-export function HandoffMarker({ handoff, meId }: { handoff: HandoffInfo; meId?: string }) {
+export function HandoffMarker({
+  handoff,
+  meId,
+}: {
+  handoff: HandoffInfo;
+  meId?: string;
+}) {
   "use no memo"; // formatRelativeTime() reads the clock as this renders; compiled, the time shown would stop moving.
   const from = handoff.from === meId ? "You" : handoff.from_name;
   const to = handoff.to === meId ? "you" : handoff.to_name;
   return (
-    <div className={`mt-2 mb-3 ${handoff.pending ? "opacity-70" : ""}`} data-handoff-marker={handoff.to}>
-      <TimelineRule color="var(--sol-violet)" className="mb-2" label={`${from} handed this to ${to}`}>
-        <span className="flex items-center gap-2 text-mark font-semibold uppercase tracking-[0.15em] text-sol-violet" title={formatFullTimestamp(handoff.at)}>
+    <div
+      className={`mt-2 mb-3 ${handoff.pending ? "opacity-70" : ""}`}
+      data-handoff-marker={handoff.to}
+    >
+      <TimelineRule
+        color="var(--sol-violet)"
+        className="mb-2"
+        label={`${from} handed this to ${to}`}
+      >
+        <span
+          className="flex items-center gap-2 text-mark font-semibold uppercase tracking-[0.15em] text-sol-violet"
+          title={formatFullTimestamp(handoff.at)}
+        >
           <span className="flex items-center -space-x-1.5">
-            <span className="rounded-full ring-2 ring-sol-bg"><OwnerAvatar name={handoff.from_name} image={handoff.from_image ?? undefined} size="w-5 h-5" /></span>
-            <span className="rounded-full ring-2 ring-sol-bg"><OwnerAvatar name={handoff.to_name} image={handoff.to_image ?? undefined} size="w-5 h-5" /></span>
+            <span className="rounded-full ring-2 ring-sol-bg">
+              <OwnerAvatar
+                name={handoff.from_name}
+                image={handoff.from_image ?? undefined}
+                size="w-5 h-5"
+              />
+            </span>
+            <span className="rounded-full ring-2 ring-sol-bg">
+              <OwnerAvatar
+                name={handoff.to_name}
+                image={handoff.to_image ?? undefined}
+                size="w-5 h-5"
+              />
+            </span>
           </span>
           {from} handed this to {to} · {formatRelativeTime(handoff.at)}
         </span>
@@ -217,11 +380,23 @@ export function HandoffMarker({ handoff, meId }: { handoff: HandoffInfo; meId?: 
       {handoff.note && (
         <div className="mx-auto max-w-[640px] rounded-lg border border-sol-violet/35 bg-sol-violet/[0.07] px-3.5 py-2.5">
           <div className="flex items-center gap-2 mb-1.5 text-meta">
-            <OwnerAvatar name={handoff.from_name} image={handoff.from_image ?? undefined} size="w-4 h-4" />
-            <span className="font-semibold text-sol-text">{handoff.from_name}</span>
+            <OwnerAvatar
+              name={handoff.from_name}
+              image={handoff.from_image ?? undefined}
+              size="w-4 h-4"
+            />
+            <span className="font-semibold text-sol-text">
+              {handoff.from_name}
+            </span>
             <ArrowRightLeft className="w-3 h-3 text-sol-violet" />
-            <OwnerAvatar name={handoff.to_name} image={handoff.to_image ?? undefined} size="w-4 h-4" />
-            <span className="font-semibold text-sol-text">{handoff.to_name}</span>
+            <OwnerAvatar
+              name={handoff.to_name}
+              image={handoff.to_image ?? undefined}
+              size="w-4 h-4"
+            />
+            <span className="font-semibold text-sol-text">
+              {handoff.to_name}
+            </span>
             {handoff.seen && handoff.to !== meId && (
               <span className="ml-auto text-meta text-sol-text-dim">seen</span>
             )}
@@ -249,13 +424,27 @@ export function EdgeMessagesIndicator({
 }) {
   const isUp = dir === "up";
   return (
-    <div data-cc-edge={dir} data-loading={loading ? "true" : undefined} className={`sticky ${isUp ? "top-0" : "bottom-0"} z-10 flex justify-center py-1 sm:py-2 pointer-events-none`}>
+    <div
+      data-cc-edge={dir}
+      data-loading={loading ? "true" : undefined}
+      className={`sticky ${isUp ? "top-0" : "bottom-0"} z-10 flex justify-center py-1 sm:py-2 pointer-events-none`}
+    >
       <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-sol-bg border border-sol-border text-sol-text-muted text-meta sm:text-xs shadow-sm pointer-events-auto">
         {loading ? (
           <Spinner className="w-3 h-3" />
         ) : (
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isUp ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d={isUp ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+            />
           </svg>
         )}
         {children}
@@ -286,11 +475,22 @@ export function MessagesUnavailableState({
 
 /** A teammate's session shared with this team as a summary: what it was
  *  about, in place of a transcript the server does not send. */
-export function SummaryOnlyState({ conversation }: { conversation: { subtitle?: string | null; idle_summary?: string | null; user?: { name?: string | null } | null } }) {
+export function SummaryOnlyState({
+  conversation,
+}: {
+  conversation: {
+    subtitle?: string | null;
+    idle_summary?: string | null;
+    user?: { name?: string | null } | null;
+  };
+}) {
   const about = conversation.idle_summary || conversation.subtitle;
   return (
     <div className="max-w-xl w-full px-6 flex flex-col gap-2 text-center">
-      <span className="text-xs uppercase tracking-wide text-sol-text-dim">Shared as summary{conversation.user?.name ? ` by ${conversation.user.name}` : ""}</span>
+      <span className="text-xs uppercase tracking-wide text-sol-text-dim">
+        Shared as summary
+        {conversation.user?.name ? ` by ${conversation.user.name}` : ""}
+      </span>
       {about && <p className="text-sm text-sol-text">{about}</p>}
     </div>
   );
@@ -323,26 +523,75 @@ function useApiErrorLive(conversationId?: string, timestamp?: number): boolean {
   });
 }
 
-export function ApiErrorCard({ error, agentType, conversationId, messageUuid, timestamp, compact = false }: { error: ParsedApiError; agentType?: string; conversationId?: string; messageUuid?: string; timestamp?: number; compact?: boolean }) {
+export function ApiErrorCard({
+  error,
+  agentType,
+  conversationId,
+  messageUuid,
+  timestamp,
+  compact = false,
+}: {
+  error: ParsedApiError;
+  agentType?: string;
+  conversationId?: string;
+  messageUuid?: string;
+  timestamp?: number;
+  compact?: boolean;
+}) {
   "use no memo"; // formatRelativeTime() reads the clock as this renders; compiled, the time shown would stop moving.
   // A cloud agent's setup card (the daemon's): its provider is the session's, its kind in the id the daemon posted it under.
-  const cloudCard = useCloudAgentSetupCard(conversationId, messageUuid, error.message);
+  const cloudCard = useCloudAgentSetupCard(
+    conversationId,
+    messageUuid,
+    error.message,
+  );
   // A credential card is history once the machine has the credential, whatever the session did since.
-  const live = useApiErrorLive(conversationId, timestamp) && !cloudCard?.resolved;
+  const live =
+    useApiErrorLive(conversationId, timestamp) && !cloudCard?.resolved;
   const modern = useIsModernStyle();
   // A usage-limit park has its own card in every density and style: the reset
   // in the viewer's clock, the owner machine's recovery flags as "what next".
   if (error.isLimit) {
-    return <LimitParkCard message={error.message} timestamp={timestamp} conversationId={conversationId} live={live} compact={compact} />;
+    return (
+      <LimitParkCard
+        message={error.message}
+        timestamp={timestamp}
+        conversationId={conversationId}
+        live={live}
+        compact={compact}
+      />
+    );
   }
-  const isServerError = !error.isAuth && !error.isLimit && !error.isConnection && !error.isThrottle && (error.statusCode ?? 0) >= 500;
+  const isServerError =
+    !error.isAuth &&
+    !error.isLimit &&
+    !error.isConnection &&
+    !error.isThrottle &&
+    (error.statusCode ?? 0) >= 500;
 
   // Tone: amber (or red for a 5xx) while in force; muted once the session moved past it.
   const tone = !live
-    ? { border: "border-sol-border/40 bg-sol-bg-alt/30", fg: "text-sol-text-muted", badge: "border-sol-border/40 bg-sol-bg-alt/50 text-sol-text-muted", icon: "bg-sol-bg-alt text-sol-text-muted" }
+    ? {
+        border: "border-sol-border/40 bg-sol-bg-alt/30",
+        fg: "text-sol-text-muted",
+        badge: "border-sol-border/40 bg-sol-bg-alt/50 text-sol-text-muted",
+        icon: "bg-sol-bg-alt text-sol-text-muted",
+      }
     : isServerError
-      ? { border: "border-sol-red/40 bg-sol-red/10", fg: "text-sol-red", badge: "border-sol-red/40 bg-sol-red/10 text-sol-red", icon: "bg-sol-red/20 text-sol-red" }
-      : { border: "border-amber-500/40 bg-amber-500/10", fg: error.isSafety ? "text-amber-700 dark:text-amber-500" : "text-amber-500", badge: "border-amber-500/40 bg-amber-500/10 text-amber-500", icon: "bg-amber-500/20 text-amber-500" };
+      ? {
+          border: "border-sol-red/40 bg-sol-red/10",
+          fg: "text-sol-red",
+          badge: "border-sol-red/40 bg-sol-red/10 text-sol-red",
+          icon: "bg-sol-red/20 text-sol-red",
+        }
+      : {
+          border: "border-amber-500/40 bg-amber-500/10",
+          fg: error.isSafety
+            ? "text-amber-700 dark:text-amber-500"
+            : "text-amber-500",
+          badge: "border-amber-500/40 bg-amber-500/10 text-amber-500",
+          icon: "bg-amber-500/20 text-amber-500",
+        };
 
   let heading: string;
   let icon: ReactNode;
@@ -354,60 +603,109 @@ export function ApiErrorCard({ error, agentType, conversationId, messageUuid, ti
   // refuses), or a message the provider may have acted on: its sentence says
   // where to look, and no retry is offered, since sending it again could
   // start the agent twice.
-  const cloudSetup = cloudCard?.kind === "setup" || cloudCard?.kind === "unsent" ? cloudCard : null;
+  const cloudSetup =
+    cloudCard?.kind === "setup" || cloudCard?.kind === "unsent"
+      ? cloudCard
+      : null;
   if (cloudSetup) {
     // Ahead of the auth branch: a workspace that turned the provider off reads
     // as a refusal, but no sign-in fixes it.
     heading = cloudAgentCardHeading(cloudSetup);
     icon = <span className="text-meta font-semibold">!</span>;
-    hint = cloudSetup.kind === "setup" ? <CloudAgentSetupHint card={cloudSetup} conversationId={conversationId} live={live} /> : null;
+    hint =
+      cloudSetup.kind === "setup" ? (
+        <CloudAgentSetupHint
+          card={cloudSetup}
+          conversationId={conversationId}
+          live={live}
+        />
+      ) : null;
   } else if (error.isSafety) {
     heading = "Safety review required";
     icon = <span className="text-meta font-semibold">!</span>;
-    hint = <p className="mt-1.5 text-xs text-sol-text-dim">{SAFETY_BLOCK_HINT}</p>;
+    hint = (
+      <p className="mt-1.5 text-xs text-sol-text-dim">{SAFETY_BLOCK_HINT}</p>
+    );
   } else if (error.isAuth) {
     heading = "Authentication required";
     icon = (
-      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <svg
+        className="w-2.5 h-2.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
         <circle cx="7.5" cy="15.5" r="3.5" />
-        <path d="M10 13L20 3M17 6l2 2M14 9l2 2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M10 13L20 3M17 6l2 2M14 9l2 2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     );
     // A cloud agent turn stopped for want of usable credentials.
-    hint = cloudCard?.kind === "credential" ? (
-      <CloudAgentSetupHint card={cloudCard} conversationId={conversationId} live={live} />
-    ) : (
-      <>
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap text-xs text-sol-text-dim">
-          <span>Run</span>
-          <CopyCommand command={remedy.command} />
-          <span>{remedy.where} to {remedy.inPane ? "re-authenticate" : "set up an account"}, then retry.</span>
-        </div>
-        {agentType === "opencode" && (
-          <ProviderKeyInlineEntry errorMessage={error.message} conversationId={conversationId} />
-        )}
-      </>
-    );
+    hint =
+      cloudCard?.kind === "credential" ? (
+        <CloudAgentSetupHint
+          card={cloudCard}
+          conversationId={conversationId}
+          live={live}
+        />
+      ) : (
+        <>
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap text-xs text-sol-text-dim">
+            <span>Run</span>
+            <CopyCommand command={remedy.command} />
+            <span>
+              {remedy.where} to{" "}
+              {remedy.inPane ? "re-authenticate" : "set up an account"}, then
+              retry.
+            </span>
+          </div>
+          {agentType === "opencode" && (
+            <ProviderKeyInlineEntry
+              errorMessage={error.message}
+              conversationId={conversationId}
+            />
+          )}
+        </>
+      );
   } else if (error.isThrottle) {
     heading = "Rate limited";
     icon = (
-      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <svg
+        className="w-2.5 h-2.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
     hint = (
       <p className="mt-1.5 text-xs text-sol-text-dim">
-        A burst of requests hit the account&apos;s per-minute cap, not a usage window — codecast continues throttled
-        sessions a few at a time after about a minute. Send{" "}
-        <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">continue</code>{" "}
+        A burst of requests hit the account&apos;s per-minute cap, not a usage
+        window — codecast continues throttled sessions a few at a time after
+        about a minute. Send{" "}
+        <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">
+          continue
+        </code>{" "}
         to retry now.
       </p>
     );
   } else if (error.isContext) {
     heading = "Context limit reached";
     icon = (
-      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <svg
+        className="w-2.5 h-2.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
         <path d="M4 6h16M4 12h16M4 18h10" strokeLinecap="round" />
       </svg>
     );
@@ -415,14 +713,26 @@ export function ApiErrorCard({ error, agentType, conversationId, messageUuid, ti
   } else if (error.isConnection) {
     heading = "Connection dropped";
     icon = (
-      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8" strokeLinecap="round" strokeLinejoin="round" />
+      <svg
+        className="w-2.5 h-2.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
+        <path
+          d="M13 2L3 14h7l-1 8 10-12h-7l1-8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     );
     hint = (
       <p className="mt-1.5 text-xs text-sol-text-dim">
         The turn was cut off mid-response — send{" "}
-        <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">continue</code>{" "}
+        <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">
+          continue
+        </code>{" "}
         (or any message) and the session picks up where it left off.
       </p>
     );
@@ -434,7 +744,9 @@ export function ApiErrorCard({ error, agentType, conversationId, messageUuid, ti
         {error.isFatal ? (
           <>
             The agent won&apos;t retry this on its own — send{" "}
-            <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">continue</code>{" "}
+            <code className="px-1 py-0.5 rounded bg-sol-bg-alt/60 text-sol-text-secondary font-mono">
+              continue
+            </code>{" "}
             (or any message) to retry the turn.
           </>
         ) : (
@@ -445,49 +757,102 @@ export function ApiErrorCard({ error, agentType, conversationId, messageUuid, ti
   }
 
   // Modern: one row in the Error colour with its fix as a button; the hint opens under it.
-  if (modern) return <ModernApiErrorRow heading={heading} error={error} live={live} timestamp={timestamp} conversationId={conversationId} signIn={error.isAuth && cloudCard?.kind !== "credential" ? remedy.command : undefined} detail={cloudSetup || (hint && !error.isContext) ? <>{cloudSetup && <CloudAgentSetupText spec={cloudSetup.spec} message={error.message} />}{error.isContext ? null : hint}</> : undefined} />;
+  if (modern)
+    return (
+      <ModernApiErrorRow
+        heading={heading}
+        error={error}
+        live={live}
+        timestamp={timestamp}
+        conversationId={conversationId}
+        signIn={
+          error.isAuth && cloudCard?.kind !== "credential"
+            ? remedy.command
+            : undefined
+        }
+        detail={
+          cloudSetup || (hint && !error.isContext) ? (
+            <>
+              {cloudSetup && (
+                <CloudAgentSetupText
+                  spec={cloudSetup.spec}
+                  message={error.message}
+                />
+              )}
+              {error.isContext ? null : hint}
+            </>
+          ) : undefined
+        }
+      />
+    );
   return (
-    <div className={`rounded-lg border ${tone.border} ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}>
+    <div
+      className={`rounded-lg border ${tone.border} ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}
+    >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full ${tone.icon}`}>
+        <span
+          className={`inline-flex items-center justify-center w-4 h-4 rounded-full ${tone.icon}`}
+        >
           {icon}
         </span>
-        <span className={`text-xs font-semibold uppercase tracking-wide ${tone.fg}`}>
+        <span
+          className={`text-xs font-semibold uppercase tracking-wide ${tone.fg}`}
+        >
           {heading}
         </span>
         {error.statusCode && !error.isLimit && !error.isConnection && (
-          <span className={`text-meta px-1.5 py-0.5 rounded border font-mono ${tone.badge}`}>
+          <span
+            className={`text-meta px-1.5 py-0.5 rounded border font-mono ${tone.badge}`}
+          >
             {error.statusCode}
           </span>
         )}
-        {error.errorType && !error.isAuth && !error.isLimit && !error.isConnection && (
-          <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border/40 bg-sol-bg-alt/50 text-sol-text-dim font-mono">
-            {error.errorType}
-          </span>
-        )}
+        {error.errorType &&
+          !error.isAuth &&
+          !error.isLimit &&
+          !error.isConnection && (
+            <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border/40 bg-sol-bg-alt/50 text-sol-text-dim font-mono">
+              {error.errorType}
+            </span>
+          )}
         {!live && (
           <span className="text-mark px-1.5 py-0.5 rounded border border-sol-green/40 bg-sol-green/10 text-sol-green uppercase tracking-wide">
             resolved
           </span>
         )}
         {timestamp != null && (
-          <span className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap" title={formatFullTimestamp(timestamp)}>
+          <span
+            className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap"
+            title={formatFullTimestamp(timestamp)}
+          >
             {formatRelativeTime(timestamp)}
           </span>
         )}
       </div>
-      <p className={`mt-1 text-sm ${tone.fg}`}>{cloudSetup ? <CloudAgentSetupText spec={cloudSetup.spec} message={error.message} /> : error.message}</p>
-      {error.requestId && !error.isAuth && !error.isLimit && !error.isConnection && (
-        <p className="mt-1 text-meta text-sol-text-muted font-mono">
-          request_id: <span className="text-sol-text-secondary">{error.requestId}</span>
-        </p>
-      )}
+      <p className={`mt-1 text-sm ${tone.fg}`}>
+        {cloudSetup ? (
+          <CloudAgentSetupText spec={cloudSetup.spec} message={error.message} />
+        ) : (
+          error.message
+        )}
+      </p>
+      {error.requestId &&
+        !error.isAuth &&
+        !error.isLimit &&
+        !error.isConnection && (
+          <p className="mt-1 text-meta text-sol-text-muted font-mono">
+            request_id:{" "}
+            <span className="text-sol-text-secondary">{error.requestId}</span>
+          </p>
+        )}
       {/* A credential card the machine has since resolved says so in its own hint. */}
       {!live && !cloudCard?.resolved ? (
         <p className="mt-1.5 text-xs text-sol-text-dim">
           The session continued after this — nothing to do here.
         </p>
-      ) : (!compact || error.isContext || cloudCard) && hint}
+      ) : (
+        (!compact || error.isContext || cloudCard) && hint
+      )}
     </div>
   );
 }
@@ -509,8 +874,8 @@ function ContextParkActions({ conversationId }: { conversationId?: string }) {
   return (
     <div className="mt-1.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-xs text-sol-text-dim">
       <span className="min-w-0 flex-1">
-        The agent cannot take another turn until the history is compacted or cleared. A plain retry sends the same
-        oversized prompt again.
+        The agent cannot take another turn until the history is compacted or
+        cleared. A plain retry sends the same oversized prompt again.
       </span>
       {conversationId && (
         <span className="ml-auto flex items-center gap-2 shrink-0">
@@ -552,8 +917,13 @@ function ProviderKeyInlineEntry({
   conversationId?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const detected = useMemo(() => detectProviderFromError(errorMessage), [errorMessage]);
-  const [provider, setProvider] = useState<string>(detected ?? PROVIDER_KEYS[0].id);
+  const detected = useMemo(
+    () => detectProviderFromError(errorMessage),
+    [errorMessage],
+  );
+  const [provider, setProvider] = useState<string>(
+    detected ?? PROVIDER_KEYS[0].id,
+  );
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -564,7 +934,10 @@ function ProviderKeyInlineEntry({
   const { setKey } = useProviderKeyCommand();
 
   // The device running this session, else the primary online machine.
-  const device = (ownerDeviceId ? byId.get(ownerDeviceId) : undefined) ?? mostRecentOnlineLocal ?? null;
+  const device =
+    (ownerDeviceId ? byId.get(ownerDeviceId) : undefined) ??
+    mostRecentOnlineLocal ??
+    null;
   const pubkey = device ? deviceManagedKeys(device).pubkey : undefined;
   const spec = getProviderKeySpec(provider);
 
@@ -600,11 +973,15 @@ function ProviderKeyInlineEntry({
     <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 space-y-2">
       {!device ? (
         <p className="text-xs text-sol-text-dim">
-          No online machine to store a key on. Start your daemon, then try again.
+          No online machine to store a key on. Start your daemon, then try
+          again.
         </p>
       ) : !pubkey ? (
         <div className="flex items-center gap-1.5 flex-wrap text-xs text-sol-text-dim">
-          <span>This machine&apos;s daemon predates managed keys — set it from a terminal:</span>
+          <span>
+            This machine&apos;s daemon predates managed keys — set it from a
+            terminal:
+          </span>
           <CopyCommand command={`cast keys set ${provider}`} />
         </div>
       ) : (
@@ -616,7 +993,9 @@ function ProviderKeyInlineEntry({
               className="rounded border border-sol-border bg-sol-bg px-2 py-1 text-xs text-sol-text focus:border-sol-cyan focus:outline-none"
             >
               {PROVIDER_KEYS.map((p) => (
-                <option key={p.id} value={p.id}>{p.label}</option>
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
               ))}
             </select>
             {spec && (
@@ -639,7 +1018,10 @@ function ProviderKeyInlineEntry({
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") save();
-                if (e.key === "Escape") { setOpen(false); setValue(""); }
+                if (e.key === "Escape") {
+                  setOpen(false);
+                  setValue("");
+                }
               }}
               placeholder={spec?.keyPrefix ? `${spec.keyPrefix}…` : "API key"}
               className="flex-1 min-w-0 rounded border border-sol-border bg-sol-bg px-2 py-1 text-xs text-sol-text font-mono placeholder:text-sol-base01 focus:border-sol-cyan focus:outline-none"
@@ -649,7 +1031,11 @@ function ProviderKeyInlineEntry({
               disabled={busy || !value.trim()}
               className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-500 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              {busy ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Check className="w-3 h-3" />
+              )}
               Save &amp; retry
             </button>
           </div>
@@ -694,7 +1080,10 @@ export function ConversationMetadata({
     // flex-shrink-0 inside the header's facts strip, which shrinks and fades
     // its tail ([data-cc-facts] in globals.css) until the squeeze removes it.
     // Its parts are facts of their own: the strip's dots separate them.
-    <div data-cc-fact-run className="flex items-center text-meta sm:text-xs text-sol-text-dim flex-shrink-0">
+    <div
+      data-cc-fact-run
+      className="flex items-center text-meta sm:text-xs text-sol-text-dim flex-shrink-0"
+    >
       {resolvedAgent && !modern && (
         <div
           className="flex items-center flex-shrink-0 cursor-default"
@@ -707,18 +1096,19 @@ export function ConversationMetadata({
           to move or local agent to switch to: nothing for this control. An
           owner's blank session picks its agent and model in the composer
           foot (NewSessionView), so the header leaves it there. */}
-      {!isHostedAgentType(resolvedAgent) && !(canEditModel && !messageCount) && (
-        <HeaderModelControl
-          conversationId={conversationId}
-          agentType={resolvedAgent}
-          model={resolvedModel}
-          effort={live ? (live.effort ?? undefined) : effort}
-          messageCount={messageCount}
-          canEdit={!!canEditModel}
-          open={controlOpen}
-          onOpenChange={onControlOpenChange}
-        />
-      )}
+      {!isHostedAgentType(resolvedAgent) &&
+        !(canEditModel && !messageCount) && (
+          <HeaderModelControl
+            conversationId={conversationId}
+            agentType={resolvedAgent}
+            model={resolvedModel}
+            effort={live ? (live.effort ?? undefined) : effort}
+            messageCount={messageCount}
+            canEdit={!!canEditModel}
+            open={controlOpen}
+            onOpenChange={onControlOpenChange}
+          />
+        )}
       <SessionAccountFact conversationId={conversationId} />
     </div>
   );
@@ -728,19 +1118,36 @@ export function ConversationMetadata({
  *  looking up, not for reading at a glance, so the facts strip leaves them
  *  out. `endedAt` ends the duration where a session's span ends (a cloud
  *  agent's mirror: its last message), else it runs to now. */
-export function ConversationAgeMenuItems({ startedAt, endedAt, messageCount }: { startedAt?: number; endedAt?: number; messageCount?: number }) {
+export function ConversationAgeMenuItems({
+  startedAt,
+  endedAt,
+  messageCount,
+}: {
+  startedAt?: number;
+  endedAt?: number;
+  messageCount?: number;
+}) {
   "use no memo"; // formatDuration() reads the clock as this renders; compiled, the time shown would stop moving.
   return (
     <>
       {startedAt && (
-        <DropdownMenuItem disabled className="tabular-nums modern:text-sol-text-muted modern:data-[disabled]:opacity-100">
+        <DropdownMenuItem
+          disabled
+          className="tabular-nums modern:text-sol-text-muted modern:data-[disabled]:opacity-100"
+        >
           <span className="truncate">{formatFullTimestamp(startedAt)}</span>
-          <span className="ml-auto pl-3 text-sol-text-dim">{formatDuration(startedAt, endedAt)}</span>
+          <span className="ml-auto pl-3 text-sol-text-dim">
+            {formatDuration(startedAt, endedAt)}
+          </span>
         </DropdownMenuItem>
       )}
       {!!messageCount && (
-        <DropdownMenuItem disabled className="tabular-nums modern:text-sol-text-muted modern:data-[disabled]:opacity-100">
-          {messageCount.toLocaleString()} {messageCount === 1 ? "message" : "messages"}
+        <DropdownMenuItem
+          disabled
+          className="tabular-nums modern:text-sol-text-muted modern:data-[disabled]:opacity-100"
+        >
+          {messageCount.toLocaleString()}{" "}
+          {messageCount === 1 ? "message" : "messages"}
         </DropdownMenuItem>
       )}
     </>
@@ -753,7 +1160,15 @@ export function ConversationAgeMenuItems({ startedAt, endedAt, messageCount }: {
 // Driven entirely by useSessionRestart's phase/stage; mounted only while a
 // restart is in some visible state, so the 1s elapsed tick costs nothing
 // otherwise.
-export function RestartStatusStrip({ phase, stage, failure, startedAt, onRetry, onCancel, restoredLabel }: {
+export function RestartStatusStrip({
+  phase,
+  stage,
+  failure,
+  startedAt,
+  onRetry,
+  onCancel,
+  restoredLabel,
+}: {
   phase: RestartPhase;
   stage: RestartStage | null;
   failure: string | null;
@@ -770,24 +1185,40 @@ export function RestartStatusStrip({ phase, stage, failure, startedAt, onRetry, 
     return visibleInterval(() => setNow(Date.now()), 1000);
   }, [phase]);
   if (phase === "idle") return null;
-  const tone = phase === "restored" ? "ok" : phase === "failed" ? "error" : (stage?.tone ?? "active");
+  const tone =
+    phase === "restored"
+      ? "ok"
+      : phase === "failed"
+        ? "error"
+        : (stage?.tone ?? "active");
   const label =
-    phase === "restored" ? (restoredLabel ?? "Session is back live")
-    : phase === "failed" ? (failure ?? "Restart failed")
-    : (stage?.label ?? "Restarting session — contacting daemon…");
+    phase === "restored"
+      ? (restoredLabel ?? "Session is back live")
+      : phase === "failed"
+        ? (failure ?? "Restart failed")
+        : (stage?.label ?? "Restarting session — contacting daemon…");
   const toneClass = {
     active: { wrap: "bg-sol-orange/10 text-sol-orange", dot: "bg-sol-orange" },
     warn: { wrap: "bg-sol-yellow/10 text-sol-yellow", dot: "bg-sol-yellow" },
     error: { wrap: "bg-sol-red/10 text-sol-red", dot: "bg-sol-red" },
     ok: { wrap: "bg-sol-green/10 text-sol-green", dot: "bg-sol-green" },
   }[tone];
-  const elapsed = phase === "restarting" && startedAt ? Math.max(0, Math.round((now - startedAt) / 1000)) : null;
+  const elapsed =
+    phase === "restarting" && startedAt
+      ? Math.max(0, Math.round((now - startedAt) / 1000))
+      : null;
   return (
-    <div className={`flex items-center gap-2 px-4 py-1.5 text-[12px] ${toneClass.wrap}`}>
-      <span className={`w-2 h-2 rounded-full shrink-0 ${toneClass.dot} ${tone === "error" ? "" : "animate-pulse"}`} />
+    <div
+      className={`flex items-center gap-2 px-4 py-1.5 text-[12px] ${toneClass.wrap}`}
+    >
+      <span
+        className={`w-2 h-2 rounded-full shrink-0 ${toneClass.dot} ${tone === "error" ? "" : "animate-pulse"}`}
+      />
       <span className="min-w-0 truncate">{label}</span>
       {elapsed !== null && elapsed >= 3 && (
-        <span className="shrink-0 tabular-nums opacity-60">{elapsed < 60 ? `${elapsed}s` : formatElapsedClock(elapsed * 1000)}</span>
+        <span className="shrink-0 tabular-nums opacity-60">
+          {elapsed < 60 ? `${elapsed}s` : formatElapsedClock(elapsed * 1000)}
+        </span>
       )}
       {phase === "restarting" && onCancel && (
         <button
@@ -815,8 +1246,13 @@ export function RestartStatusStrip({ phase, stage, failure, startedAt, onRetry, 
 // pipeline — worktree transfer, resume on the destination — narrated live from
 // the same daemon command rows. useDeviceMoveStatus reads the move's
 // sessionCommands row, so this stays mounted-cheap when idle.
-export function DeviceMoveStatusStrip({ conversationId }: { conversationId: string }) {
-  const { phase, stage, failure, startedAt, restoredLabel, retry, cancel } = useDeviceMoveStatus(conversationId);
+export function DeviceMoveStatusStrip({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
+  const { phase, stage, failure, startedAt, restoredLabel, retry, cancel } =
+    useDeviceMoveStatus(conversationId);
   return (
     <RestartStatusStrip
       phase={phase}
@@ -837,17 +1273,38 @@ export function DeviceMoveStatusStrip({ conversationId }: { conversationId: stri
 // chat.ts"), the fallback when the row's activity stamp (written at ingest, shown
 // on the inbox card) is absent or stale. Its own 1s ticker re-renders only this
 // node, not the composer; the activity dep is per row, text plus stamp.
-export function WorkingStatusLine({ startedAt, phrase, conversationId, stopHint }: { startedAt?: number; phrase?: string; conversationId: string; stopHint?: boolean }) {
+export function WorkingStatusLine({
+  startedAt,
+  phrase,
+  conversationId,
+  stopHint,
+}: {
+  startedAt?: number;
+  phrase?: string;
+  conversationId: string;
+  stopHint?: boolean;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useMountEffect(() => {
     return visibleInterval(() => setNow(Date.now()), 1000);
   });
-  const st = useTrackedStore([(s) => activitySig(s.sessions[conversationId]?.activity)]);
+  const st = useTrackedStore([
+    (s) => activitySig(s.sessions[conversationId]?.activity),
+  ]);
   const rowActivity = st.sessions[conversationId]?.activity;
   // This line renders only while the turn is working, so the work state half
   // of the shared rule is already true here.
-  const label = isSessionActivityFresh(rowActivity, "working", now) ? rowActivity.text : phrase;
-  return <WorkingStatusLineView startedAt={startedAt} now={now} label={label} stopHint={stopHint} />;
+  const label = isSessionActivityFresh(rowActivity, "working", now)
+    ? rowActivity.text
+    : phrase;
+  return (
+    <WorkingStatusLineView
+      startedAt={startedAt}
+      now={now}
+      label={label}
+      stopHint={stopHint}
+    />
+  );
 }
 
 /**
@@ -856,16 +1313,43 @@ export function WorkingStatusLine({ startedAt, phrase, conversationId, stopHint 
  * the empty composer stops the turn (a cloud agent's included), said here
  * because nothing else on screen does.
  */
-export function WorkingStatusLineView({ startedAt, now, label, stopHint, labelNow }: { startedAt?: number; now: number; label?: string; stopHint?: boolean; /** Show the label from the first second, not only once the clock shows. */ labelNow?: boolean }) {
+export function WorkingStatusLineView({
+  startedAt,
+  now,
+  label,
+  stopHint,
+  labelNow,
+}: {
+  startedAt?: number;
+  now: number;
+  label?: string;
+  stopHint?: boolean;
+  /** Show the label from the first second, not only once the clock shows. */ labelNow?: boolean;
+}) {
   const elapsedMs = startedAt ? now - startedAt : 0;
   const showElapsed = shouldShowElapsed(startedAt, now);
   return (
     <span className="flex items-center gap-1.5 min-w-0">
       <LivePulseDot className="w-2 h-2 modern:animate-none" />
       Working
-      {showElapsed && <span className="text-sol-text-dim tabular-nums modern:text-meta">· {formatElapsedClock(elapsedMs)}</span>}
-      {stopHint && <span data-stop-hint className="inline-flex shrink-0 items-center gap-1 text-sol-text-dim/60">· <KeyCap size="xs">Esc</KeyCap> stop</span>}
-      {(showElapsed || labelNow) && label && <span className="text-sol-text-dim truncate" title={label}>· {label}</span>}
+      {showElapsed && (
+        <span className="text-sol-text-dim tabular-nums modern:text-meta">
+          · {formatElapsedClock(elapsedMs)}
+        </span>
+      )}
+      {stopHint && (
+        <span
+          data-stop-hint
+          className="inline-flex shrink-0 items-center gap-1 text-sol-text-dim/60"
+        >
+          · <KeyCap size="xs">Esc</KeyCap> stop
+        </span>
+      )}
+      {(showElapsed || labelNow) && label && (
+        <span className="text-sol-text-dim truncate" title={label}>
+          · {label}
+        </span>
+      )}
     </span>
   );
 }

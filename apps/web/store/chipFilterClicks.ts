@@ -1,4 +1,9 @@
-import { useInboxStore, chipBucketFilters, chipProjectFilters, type BucketFilterTerm } from "./inboxStore";
+import {
+  useInboxStore,
+  chipBucketFilters,
+  chipProjectFilters,
+  type BucketFilterTerm,
+} from "./inboxStore";
 
 // Click is a pure toggle: include the chip, click again to clear. Exclude
 // ("everything but this") is a deliberate gesture — ⌥/Alt-click, or the
@@ -31,16 +36,36 @@ function clickTerm(
   }
 }
 
-export function clickBucketChip(bucketId: string, alt?: boolean, shift?: boolean) {
+export function clickBucketChip(
+  bucketId: string,
+  alt?: boolean,
+  shift?: boolean,
+) {
   const store = useInboxStore.getState();
-  clickTerm(chipBucketFilters(store), bucketId, alt, shift,
+  clickTerm(
+    chipBucketFilters(store),
+    bucketId,
+    alt,
+    shift,
     (id, exclude) => store.setActiveBucketFilter(id, exclude),
-    (id, exclude) => store.toggleBucketFilterTerm(id, exclude));
+    (id, exclude) => store.toggleBucketFilterTerm(id, exclude),
+  );
 }
 
-export function clickProjectChip(name: string, path: string | null, alt?: boolean, shift?: boolean) {
+export function clickProjectChip(
+  name: string,
+  path: string | null,
+  alt?: boolean,
+  shift?: boolean,
+) {
   const store = useInboxStore.getState();
-  clickTerm(chipProjectFilters(store), name, alt, shift,
-    (id, exclude) => store.setActiveProjectFilter(id, id ? path : null, exclude),
-    (id, exclude) => store.toggleProjectFilterTerm(id, path, exclude));
+  clickTerm(
+    chipProjectFilters(store),
+    name,
+    alt,
+    shift,
+    (id, exclude) =>
+      store.setActiveProjectFilter(id, id ? path : null, exclude),
+    (id, exclude) => store.toggleProjectFilterTerm(id, path, exclude),
+  );
 }

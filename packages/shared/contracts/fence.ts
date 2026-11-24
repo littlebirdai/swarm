@@ -24,6 +24,12 @@ import { fenceForeignText } from "@platform/fence";
  * readers that the delimiter is noise. The rule mirrors the store's trust
  * boundary: anything whose slug is not `builtin/` came from outside.
  */
-export function fenceUnlessBuiltin(text: string, slug: string, provenance: string): string {
-  return slug.startsWith("builtin/") ? text : fenceForeignText(text, provenance);
+export function fenceUnlessBuiltin(
+  text: string,
+  slug: string,
+  provenance: string,
+): string {
+  return slug.startsWith("builtin/")
+    ? text
+    : fenceForeignText(text, provenance);
 }

@@ -4,7 +4,11 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
-const vLayer = v.union(v.literal("main"), v.literal("draft"), v.literal("comments"));
+const vLayer = v.union(
+  v.literal("main"),
+  v.literal("draft"),
+  v.literal("comments"),
+);
 const vPosition = v.object({
   point: v.optional(v.object({ x: v.number(), y: v.number() })),
   cell: v.optional(v.string()),
@@ -58,7 +62,14 @@ export const liveArtifactTables = {
     search_due: v.optional(v.number()),
     // When the newest version was taken: steady editing autosaves from it.
     last_version_at: v.optional(v.number()),
-    draft: v.optional(v.object({ by: v.string(), by_name: v.string(), at: v.number(), label: v.optional(v.string()) })),
+    draft: v.optional(
+      v.object({
+        by: v.string(),
+        by_name: v.string(),
+        at: v.number(),
+        label: v.optional(v.string()),
+      }),
+    ),
     // Elements the open draft holds (capped so it can always close in one transaction).
     draft_count: v.optional(v.number()),
     draft_bytes: v.optional(v.number()),
@@ -66,13 +77,33 @@ export const liveArtifactTables = {
     // set by the first chunk, cleared by the last. Left behind only if the
     // restore stopped partway; the page offers to finish (restore to `to`)
     // or undo it (restore to `from`).
-    restoring: v.optional(v.object({ to: v.number(), from: v.number(), by: v.string(), by_name: v.string(), at: v.number() })),
+    restoring: v.optional(
+      v.object({
+        to: v.number(),
+        from: v.number(),
+        by: v.string(),
+        by_name: v.string(),
+        at: v.number(),
+      }),
+    ),
     // Whole-range rewrites in flight (a sort, a paste over a range), by scope ("tab:<id>"): a write
     // too big for one batch owns its scope until its last batch, so two rewrites never interleave.
-    claims: v.optional(v.record(v.string(), v.object({ write: v.string(), actor: v.string(), name: v.string(), at: v.number() }))),
+    claims: v.optional(
+      v.record(
+        v.string(),
+        v.object({
+          write: v.string(),
+          actor: v.string(),
+          name: v.string(),
+          at: v.number(),
+        }),
+      ),
+    ),
     // Per scope, who wrote into it last and at which revision: a rewrite computed from an older
     // revision than someone else's newer write is refused.
-    scope_writes: v.optional(v.record(v.string(), v.object({ rev: v.number(), actor: v.string() }))),
+    scope_writes: v.optional(
+      v.record(v.string(), v.object({ rev: v.number(), actor: v.string() })),
+    ),
   }).index("by_doc", ["doc_id"]),
 
   // The op log: every written batch, in order. History folds it.
@@ -97,7 +128,12 @@ export const liveArtifactTables = {
     doc_id: v.id("docs"),
     rev: v.number(),
     label: v.string(),
-    reason: v.union(v.literal("auto"), v.literal("manual"), v.literal("draft_saved"), v.literal("restore")),
+    reason: v.union(
+      v.literal("auto"),
+      v.literal("manual"),
+      v.literal("draft_saved"),
+      v.literal("restore"),
+    ),
     by: v.string(),
     by_name: v.string(),
     at: v.number(),
@@ -115,7 +151,10 @@ export const liveArtifactTables = {
     at: v.number(),
   })
     .index("by_doc", ["doc_id"])
-    .searchIndex("search_text", { searchField: "text", filterFields: ["workspace"] }),
+    .searchIndex("search_text", {
+      searchField: "text",
+      filterFields: ["workspace"],
+    }),
 
   // Who is in an artifact now: a person's tab or an agent session.
   live_presence: defineTable({

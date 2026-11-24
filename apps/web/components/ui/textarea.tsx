@@ -1,7 +1,7 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
-import { modernField } from "./styles"
+import { cn } from "@/lib/utils";
+import { modernField } from "./styles";
 
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
@@ -14,13 +14,13 @@ const Textarea = React.forwardRef<
         // Modern: the field face Input wears (styles.ts), 13px from md up.
         modernField,
         "modern:px-2.5 modern:md:text-ui",
-        className
+        className,
       )}
       ref={ref}
       {...props}
     />
-  )
-})
-Textarea.displayName = "Textarea"
+  );
+});
+Textarea.displayName = "Textarea";
 
-export { Textarea }
+export { Textarea };

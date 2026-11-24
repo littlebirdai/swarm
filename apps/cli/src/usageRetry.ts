@@ -26,7 +26,11 @@ export interface UsageRetryState {
 }
 
 /** The backoff state after one failed probe. */
-export function nextUsageRetry(prev: UsageRetryState | undefined, err: unknown, now: number): UsageRetryState {
+export function nextUsageRetry(
+  prev: UsageRetryState | undefined,
+  err: unknown,
+  now: number,
+): UsageRetryState {
   const failures = (prev?.failures ?? 0) + 1;
   const http = err instanceof CloudApiError ? err : undefined;
   const named = http?.retryAfterMs;

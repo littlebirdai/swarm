@@ -32,16 +32,26 @@ import { teamHasFeature } from "../lib/teamFeatures";
 import { PRESENCE_BUCKET_MS } from "@codecast/convex/convex/presenceState";
 import { describeRoom } from "../lib/calls/roomLabels";
 import { memberDisplayName } from "../lib/liveEntities";
-import { useShortcutAction, useShortcutContext } from "../shortcuts/ShortcutProvider";
+import {
+  useShortcutAction,
+  useShortcutContext,
+} from "../shortcuts/ShortcutProvider";
 import { useNowWhen } from "./useCoarseNow";
 import { usePagePresence } from "./usePagePresence";
 import { useDesktopWindowRole } from "./useDesktopWindowRole";
-import { focusExistingHuddle, huddleInOtherWindow } from "../lib/calls/huddleWindow";
+import {
+  focusExistingHuddle,
+  huddleInOtherWindow,
+} from "../lib/calls/huddleWindow";
 import { isNotificationLeader, voiceHostElsewhere } from "../lib/desktop";
 import { teamMembersOf } from "../lib/activeTeam";
 
 export function useWalkieStatus(): WalkieStatus {
-  return useSyncExternalStore(subscribeWalkie, getWalkieStatus, getWalkieStatus);
+  return useSyncExternalStore(
+    subscribeWalkie,
+    getWalkieStatus,
+    getWalkieStatus,
+  );
 }
 
 // One subscription to the engine, for the two facts no single component owns.
@@ -80,10 +90,10 @@ subscribeWalkie(() => {
   // with three windows open reads the same sentence three times.
   if (s.error !== reportedError) {
     reportedError = s.error;
-    if (s.error && (!voiceHostElsewhere() || isNotificationLeader())) toast.error(s.error);
+    if (s.error && (!voiceHostElsewhere() || isNotificationLeader()))
+      toast.error(s.error);
   }
 });
-
 
 /** Calls are available at all: the deployment has LiveKit and the ACTIVE team
  *  has the feature on. Read from the store rather than the hook so the two
@@ -91,7 +101,10 @@ subscribeWalkie(() => {
  *  bubble and every push-to-talk surface share one answer. */
 export function callsAvailableNow(): boolean {
   const s = useInboxStore.getState() as any;
-  return !!s.callConfig?.enabled && teamHasFeature(s.teams, s.clientState?.ui?.active_team_id, "calls");
+  return (
+    !!s.callConfig?.enabled &&
+    teamHasFeature(s.teams, s.clientState?.ui?.active_team_id, "calls")
+  );
 }
 
 /**
@@ -117,7 +130,8 @@ export function walkieJoinReason(roomKey: string | undefined): string | null {
   const blocked = walkieBlockedFor(roomKey);
   if (blocked === "another-call") return "You are in another call";
   if (blocked === "not-ready") return "Calls are not ready yet";
-  if (blocked === "recorded") return "This call is being recorded. Join it to talk";
+  if (blocked === "recorded")
+    return "This call is being recorded. Join it to talk";
   return null;
 }
 
@@ -136,7 +150,9 @@ export function walkieJoinReason(roomKey: string | undefined): string | null {
  * release, which is the engine tidying up after a burst doing real damage to a
  * conversation.
  */
-export function walkieBlockedReason(roomKey: string | undefined): string | null {
+export function walkieBlockedReason(
+  roomKey: string | undefined,
+): string | null {
   if (!voiceHostElsewhere() && huddleInOtherWindow()) return null;
   if (!roomKey) return "There is nobody to talk to here yet";
   const engine = walkieJoinReason(roomKey);
@@ -250,7 +266,12 @@ export function walkieBurstDropped(
 
 export function walkieKeyName(
   state: ReturnType<typeof walkieKeyState>,
-  opts: { reason?: string | null; live?: boolean; label?: string; title?: string },
+  opts: {
+    reason?: string | null;
+    live?: boolean;
+    label?: string;
+    title?: string;
+  },
 ): string {
   if (opts.reason) return opts.reason;
   if (state === "dropped") return "Nobody is hearing this — still recording";
@@ -260,7 +281,8 @@ export function walkieKeyName(
       ? "Talking — they hear you now. Click to stop"
       : "Talking — they get it as a message. Click to stop";
   }
-  if (state === "locked") return "You are on the line, hands free — End hangs up";
+  if (state === "locked")
+    return "You are on the line, hands free — End hangs up";
   return opts.label ?? opts.title ?? "Talk";
 }
 
@@ -273,7 +295,10 @@ export function walkieKeyName(
  * microphone is open, the words are reaching the room, and whether the gesture
  * is available at all — and nothing else in the engine changes what it says.
  */
-export function walkieKeySig(s: WalkieStatus, roomKey: string | undefined): string {
+export function walkieKeySig(
+  s: WalkieStatus,
+  roomKey: string | undefined,
+): string {
   const mine = roomKey && s.sending?.roomKey === roomKey ? s.sending : null;
   return [
     mine ? "1" : "0",
@@ -303,7 +328,10 @@ export function useWalkieKeySig(roomKey: string | undefined): string {
     const sig = walkieKeySig(getWalkieStatus(), roomKey);
     if (!voiceHostElsewhere()) return sig;
     const call = walkieCallState();
-    const here = call.roomKey === roomKey ? `${call.phase}:${call.muted ? 1 : 0}:${call.micDenied ? 1 : 0}` : "";
+    const here =
+      call.roomKey === roomKey
+        ? `${call.phase}:${call.muted ? 1 : 0}:${call.micDenied ? 1 : 0}`
+        : "";
     return `${sig}|${here}`;
   }, [roomKey]);
   return useSyncExternalStore(subscribeWalkie, read, read);
@@ -365,7 +393,12 @@ export function usePushToTalk(
     // With a voice host the press is sent there, and the host — which knows
     // whether it is already talking in this room — decides; raising a window
     // is not what a talk key does.
-    if (!voiceHostElsewhere() && huddleInOtherWindow() && await focusExistingHuddle()) return;
+    if (
+      !voiceHostElsewhere() &&
+      huddleInOtherWindow() &&
+      (await focusExistingHuddle())
+    )
+      return;
     if (getWalkieStatus().sending || walkieBlockedReason(roomKey)) return;
     const channelId = resolveChannelId();
     if (!channelId || !roomKey) return;
@@ -457,7 +490,10 @@ export function useTalkShortcut(
  * `identity` picks whose voice: absent is this client's own microphone while
  * the key is down, a LiveKit participant identity is the teammate being heard.
  */
-export function useWalkieLevelVar<T extends HTMLElement>(active: boolean, identity?: string) {
+export function useWalkieLevelVar<T extends HTMLElement>(
+  active: boolean,
+  identity?: string,
+) {
   return useCallback(
     (el: T | null) => {
       if (!el) return;
@@ -466,7 +502,8 @@ export function useWalkieLevelVar<T extends HTMLElement>(active: boolean, identi
       // The engine already debounces: it wakes subscribers only when a level
       // moved by more than a couple of percent, and stops its loop when nobody
       // is talking. So this writes as often as the number really changes.
-      const write = () => el.style.setProperty("--level", getWalkieLevel(identity).toFixed(3));
+      const write = () =>
+        el.style.setProperty("--level", getWalkieLevel(identity).toFixed(3));
       write();
       const off = subscribeWalkieLevel(write);
       return () => {
@@ -534,7 +571,9 @@ export function useWalkieDoor(): {
   setOpen: (open: boolean) => void;
 } {
   const pref = useInboxStore((s: any) => s.currentUser?.walkie_pref ?? "team");
-  const snoozedUntil = Number(useInboxStore((s: any) => s.currentUser?.walkie_snoozed_until ?? 0));
+  const snoozedUntil = Number(
+    useInboxStore((s: any) => s.currentUser?.walkie_snoozed_until ?? 0),
+  );
   const now = useNowWhen((n) => (snoozedUntil > n ? "shut" : "open"), 30_000);
   const snoozed = snoozedUntil > now;
   const setOpen = useCallback(
@@ -590,7 +629,8 @@ export function otherJoinedLive(
   // the same minute this client walked in still counts as news. The cases it
   // exists for — a browser that died an hour ago, a room somebody left
   // yesterday — are minutes to days old and still rejected.
-  const floor = since > 0 ? Math.floor(since / PRESENCE_BUCKET_MS) * PRESENCE_BUCKET_MS : 0;
+  const floor =
+    since > 0 ? Math.floor(since / PRESENCE_BUCKET_MS) * PRESENCE_BUCKET_MS : 0;
   return roster.some(
     (m) =>
       !!m?.walkie_joined_at &&
@@ -653,7 +693,8 @@ export function senderHearing(
   // Busy and away are the same outcome — a message instead of a voice — and
   // two different sentences, because one of them is a person who chose it and
   // the other is a person who is not there.
-  const busy = other.status === "busy" || other.pref === "off" || !!other.snoozed;
+  const busy =
+    other.status === "busy" || other.pref === "off" || !!other.snoozed;
   return busy
     ? { state: "busy", text: `${other.name} is busy, so they get the message` }
     : { state: "away", text: `${other.name} is away, so they get the message` };
@@ -729,7 +770,11 @@ export type WalkieStage =
   | "mic-off"
   | "open";
 
-export type WalkieStageWords = { stage: WalkieStage; badge: string; hint: string };
+export type WalkieStageWords = {
+  stage: WalkieStage;
+  badge: string;
+  hint: string;
+};
 
 export function walkieStageWords(input: {
   sending: { live: boolean; heardLive: boolean } | null;
@@ -744,22 +789,54 @@ export function walkieStageWords(input: {
   // END is the word on the card's button (EngagementCard), so the hint names it.
   const stopHint = "Click END when you are done.";
   if (sending) {
-    if (dropped) return { stage: "dropped", badge: "NOT HEARD", hint: `Still recording. ${name} gets it as a message. ${stopHint}` };
-    if (!sending.live) return { stage: "opening", badge: "OPENING MIC", hint: "One moment. Do not talk yet." };
-    if (incoming) return { stage: "both", badge: "BOTH TALKING", hint: stopHint };
+    if (dropped)
+      return {
+        stage: "dropped",
+        badge: "NOT HEARD",
+        hint: `Still recording. ${name} gets it as a message. ${stopHint}`,
+      };
+    if (!sending.live)
+      return {
+        stage: "opening",
+        badge: "OPENING MIC",
+        hint: "One moment. Do not talk yet.",
+      };
+    if (incoming)
+      return { stage: "both", badge: "BOTH TALKING", hint: stopHint };
     // The card prints the roster's own verdict ("Riley hears you", senderHearing)
     // right above this hint, so the hint does not say it again.
     if (sending.heardLive) {
-      return { stage: "live", badge: "TALKING", hint: `You will not hear them until they JOIN. ${stopHint}` };
+      return {
+        stage: "live",
+        badge: "TALKING",
+        hint: `You will not hear them until they JOIN. ${stopHint}`,
+      };
     }
-    return { stage: "recording", badge: "RECORDING", hint: `Opening the line to ${name}. If they are away they get this as a message. ${stopHint}` };
+    return {
+      stage: "recording",
+      badge: "RECORDING",
+      hint: `Opening the line to ${name}. If they are away they get this as a message. ${stopHint}`,
+    };
   }
   if (locked) {
     return muted
-      ? { stage: "locked", badge: "ON THE LINE · MUTED", hint: `${name} cannot hear you. Press UNMUTE to talk, END to hang up.` }
-      : { stage: "locked", badge: "ON THE LINE", hint: `Hands free. ${name} hears everything you say. Press END to hang up.` };
+      ? {
+          stage: "locked",
+          badge: "ON THE LINE · MUTED",
+          hint: `${name} cannot hear you. Press UNMUTE to talk, END to hang up.`,
+        }
+      : {
+          stage: "locked",
+          badge: "ON THE LINE",
+          hint: `Hands free. ${name} hears everything you say. Press END to hang up.`,
+        };
   }
-  if (micDenied) return { stage: "mic-off", badge: "MIC OFF", hint: `You can hear ${name}. Your mic permission is denied, so you cannot answer.` };
+  if (micDenied)
+    return {
+      stage: "mic-off",
+      badge: "MIC OFF",
+      hint: `You can hear ${name}. Your mic permission is denied, so you cannot answer.`,
+    };
   if (incoming) {
     return {
       stage: "incoming",
@@ -767,7 +844,11 @@ export function walkieStageWords(input: {
       hint: `${name} is talking to you. You hear them; they cannot hear you. TALK to answer · JOIN LIVE to talk back and forth · SNOOZE to stop bursts for an hour.`,
     };
   }
-  return { stage: "open", badge: "THEY STOPPED", hint: `${name} just talked to you. TALK to answer, or JOIN LIVE to talk back and forth.` };
+  return {
+    stage: "open",
+    badge: "THEY STOPPED",
+    hint: `${name} just talked to you. TALK to answer, or JOIN LIVE to talk back and forth.`,
+  };
 }
 
 export type WalkieStrip = WalkieStageWords & {
@@ -801,7 +882,12 @@ export type WalkieStrip = WalkieStageWords & {
 export function walkieStripState(
   status: WalkieStatus,
   state: {
-    call: { roomKey: string | null; phase: string; muted: boolean; micDenied?: boolean };
+    call: {
+      roomKey: string | null;
+      phase: string;
+      muted: boolean;
+      micDenied?: boolean;
+    };
     [key: string]: any;
   },
   ctx: { name: string; now: number },
@@ -836,7 +922,9 @@ export function walkieStripState(
         otherJoinedLive(seats, me, status.liveRoom?.since ?? 0)));
   return {
     ...walkieStageWords({
-      sending: sending ? { live: sending.live, heardLive: sending.heardLive } : null,
+      sending: sending
+        ? { live: sending.live, heardLive: sending.heardLive }
+        : null,
       incoming: rx,
       locked,
       muted: call.muted !== false,
@@ -844,7 +932,14 @@ export function walkieStripState(
       micDenied,
       name,
     }),
-    headline: stripHeadline({ status, state, name, now: ctx.now, dropped, micDenied }),
+    headline: stripHeadline({
+      status,
+      state,
+      name,
+      now: ctx.now,
+      dropped,
+      micDenied,
+    }),
     tx,
     rx,
     hotMic: hotMic && !locked,
@@ -885,13 +980,15 @@ function stripHeadline(input: {
     // alternative was a strip claiming only my own half while a second person
     // was already talking into it.
     if (incoming) return `You and ${name} are both talking`;
-    if (sending.heardLive) return senderHearingFrom(state, sending.roomKey, now).text;
+    if (sending.heardLive)
+      return senderHearingFrom(state, sending.roomKey, now).text;
     return `Recording — ${name} gets it`;
   }
   // A SEAT WITH NO MICROPHONE. The burst plays, the words arrive, and nothing
   // this person says can leave — so the strip says exactly that rather than
   // "Riley is talking", which reads as a conversation and is half of one.
-  if (micDenied) return `You can hear ${name} — your mic is off (permission denied)`;
+  if (micDenied)
+    return `You can hear ${name} — your mic is off (permission denied)`;
   // LOCKED: a deliberate seat, hands off the key. Muted is said first because
   // it flips what every other sentence here promises; a two-way line when they
   // are in; otherwise the roster answers whether they can actually hear this —
@@ -972,6 +1069,11 @@ export function callDockSurface(
   // own shape — faces and an End, not a video card for a conversation with no
   // video in it. The fill locking, and Join live, both land here. Video
   // arriving or the person expanding hands the room to the ordinary dock.
-  if (!opts.expanded && !opts.video && walkieJoinedRoom(status) === call.roomKey) return "walkie";
+  if (
+    !opts.expanded &&
+    !opts.video &&
+    walkieJoinedRoom(status) === call.roomKey
+  )
+    return "walkie";
   return opts.expanded ? "stage" : "dock";
 }

@@ -22,16 +22,24 @@ import { join } from "node:path";
 // shows a session (the conversation view, a Threads card) sends its Escape
 // through the hook.
 describe("Escape is forwarded on every press, stamped with the press time", () => {
-  const read = (rel: string) => readFileSync(join(import.meta.dir, "..", rel), "utf-8");
+  const read = (rel: string) =>
+    readFileSync(join(import.meta.dir, "..", rel), "utf-8");
   const src = read("../hooks/useSessionComposerControls.ts");
   const start = src.indexOf("export function useSessionEscape(");
   const dispatch = src.indexOf("sendEscape(conversationId)", start);
   const body = src.slice(start, dispatch);
   const store = read("../store/inboxStore.ts");
-  const storeDispatch = store.slice(store.indexOf("  sendEscape: (convId: string) => get()"));
+  const dispatchStart = store.indexOf("  sendEscape: (convId: string) =>\n");
+  const storeDispatch = store.slice(
+    dispatchStart,
+    store.indexOf("\n    }),", dispatchStart) + 8,
+  );
 
   test("every composer sends Escape through the one hook", () => {
-    for (const rel of ["ConversationView.tsx", "conversation/SessionInlineThread.tsx"]) {
+    for (const rel of [
+      "ConversationView.tsx",
+      "conversation/SessionInlineThread.tsx",
+    ]) {
       const surface = read(rel);
       expect(surface, rel).toContain("useSessionEscape(");
       expect(surface, rel).not.toContain('"sendEscapeToSession"');
@@ -45,7 +53,7 @@ describe("Escape is forwarded on every press, stamped with the press time", () =
   });
 
   test("the dispatch carries pressed_at", () => {
-    const call = storeDispatch.slice(0, storeDispatch.indexOf("\n"));
+    const call = storeDispatch;
     expect(call).toContain('"sendEscapeToSession"');
     expect(call).toMatch(/pressed_at:\s*Date\.now\(\)/);
   });

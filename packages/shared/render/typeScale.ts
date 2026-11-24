@@ -37,6 +37,9 @@ export function floorTextSize(
   if (typeof fontSize !== "number") return { fontSize, lineHeight };
   const floor = caps ? MARK_FLOOR : WORD_FLOOR;
   if (fontSize >= floor) return { fontSize, lineHeight };
-  const raised = typeof lineHeight === "number" ? Math.round((lineHeight * floor) / fontSize) : lineHeight;
+  const raised =
+    typeof lineHeight === "number"
+      ? Math.round((lineHeight * floor) / fontSize)
+      : lineHeight;
   return { fontSize: floor, lineHeight: raised };
 }

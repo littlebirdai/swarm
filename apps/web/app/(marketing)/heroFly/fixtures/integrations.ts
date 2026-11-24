@@ -14,7 +14,12 @@ import type { PrStatus } from "@/store/inboxStore";
 import { MIN, OBJECTS, PEOPLE, SESSIONS } from "./story";
 
 /** Where the pull request stands at a moment of the chapter. */
-export type PrStage = { approved: boolean; checksPassed: number; ready: boolean; merged: boolean };
+export type PrStage = {
+  approved: boolean;
+  checksPassed: number;
+  ready: boolean;
+  merged: boolean;
+};
 
 export const HEAD_REF = "retry-webhooks";
 const REVIEWER = "sarahchen";
@@ -60,8 +65,18 @@ export function pullRequest(now: number, s: PrStage) {
     labels: [{ name: "webhooks", color: "0e8a16" }],
     shepherd_conversation_id: SESSIONS.lead.shortId,
     shepherd_enabled: !s.merged,
-    shepherd_state: s.merged ? "merged" : s.ready ? "ready" : s.checksPassed < CHECK_NAMES.length ? "ci_pending" : "review_pending",
-    linked_session_ids: [SESSIONS.lead.shortId, SESSIONS.api.shortId, SESSIONS.ui.shortId],
+    shepherd_state: s.merged
+      ? "merged"
+      : s.ready
+        ? "ready"
+        : s.checksPassed < CHECK_NAMES.length
+          ? "ci_pending"
+          : "review_pending",
+    linked_session_ids: [
+      SESSIONS.lead.shortId,
+      SESSIONS.api.shortId,
+      SESSIONS.ui.shortId,
+    ],
     task_ids: [OBJECTS.task.shortId],
     github_created_at: now - 6 * MIN,
   };
@@ -72,12 +87,24 @@ export const CHECK_COUNT = CHECK_NAMES.length;
 /** Sarah's review, once she has approved. */
 export function reviews(now: number, s: PrStage): PrReviewRow[] {
   if (!s.approved) return [];
-  return [{ _id: "hero-rv1", state: "approved", body: "Five attempts over about thirty minutes covers the ledger restarts. Ship it.", submitted_at: now - 40_000, author_github_username: REVIEWER }];
+  return [
+    {
+      _id: "hero-rv1",
+      state: "approved",
+      body: "Five attempts over about thirty minutes covers the ledger restarts. Ship it.",
+      submitted_at: now - 40_000,
+      author_github_username: REVIEWER,
+    },
+  ];
 }
 
 /** What GitHub reported, as the external events the timeline lists. */
 export function events(now: number, s: PrStage) {
-  const base = { source: "github", repository: OBJECTS.pr.repository, pr_number: OBJECTS.pr.number };
+  const base = {
+    source: "github",
+    repository: OBJECTS.pr.repository,
+    pr_number: OBJECTS.pr.number,
+  };
   return [
     {
       ...base,
@@ -90,7 +117,18 @@ export function events(now: number, s: PrStage) {
       meta: { branch: HEAD_REF, commit_count: 3 },
       created_at: now - 5 * MIN,
     },
-    ...(s.merged ? [{ ...base, _id: "hero-ev-merged", kind: "pr_merged", title: `${HEAD_REF} into main`, actor_login: AUTHOR, created_at: now - 2_000 }] : []),
+    ...(s.merged
+      ? [
+          {
+            ...base,
+            _id: "hero-ev-merged",
+            kind: "pr_merged",
+            title: `${HEAD_REF} into main`,
+            actor_login: AUTHOR,
+            created_at: now - 2_000,
+          },
+        ]
+      : []),
   ];
 }
 

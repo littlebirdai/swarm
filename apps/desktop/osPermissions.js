@@ -25,12 +25,16 @@ const KINDS = ["notifications", "microphone", "camera", "screen"];
 // an app bundle, or Notification Center didn't reply in time).
 function authorizationStatusToReadiness(status) {
   switch (status) {
-    case 0: return "ask"; // notDetermined
-    case 1: return "off"; // denied
+    case 0:
+      return "ask"; // notDetermined
+    case 1:
+      return "off"; // denied
     case 2: // authorized
     case 3: // provisional
-    case 4: return "granted"; // ephemeral
-    default: return "unknown";
+    case 4:
+      return "granted"; // ephemeral
+    default:
+      return "unknown";
   }
 }
 
@@ -47,11 +51,15 @@ function loadNotificationsAddon() {
 // systemPreferences.getMediaAccessStatus vocabulary → readiness.
 function mediaStatusToReadiness(status) {
   switch (status) {
-    case "granted": return "granted";
-    case "not-determined": return "ask";
+    case "granted":
+      return "granted";
+    case "not-determined":
+      return "ask";
     case "denied":
-    case "restricted": return "off";
-    default: return "unknown";
+    case "restricted":
+      return "off";
+    default:
+      return "unknown";
   }
 }
 
@@ -81,7 +89,12 @@ function settingsUrl(kind, bundleId) {
 // request outright ("requestAuthorization not allowed: com.github.Electron"),
 // with no prompt and an error the addon cannot pass back. Its notifications
 // read as n/a, so no surface offers a button that cannot work.
-function createOsPermissions({ electron, bundleId, notifications = loadNotificationsAddon(), notificationsGrantable = true }) {
+function createOsPermissions({
+  electron,
+  bundleId,
+  notifications = loadNotificationsAddon(),
+  notificationsGrantable = true,
+}) {
   const { systemPreferences, desktopCapturer, shell } = electron;
   const mac = process.platform === "darwin";
 
@@ -89,7 +102,9 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
     if (!notificationsGrantable) return "n/a";
     if (!notifications) return "unknown";
     try {
-      return authorizationStatusToReadiness(notifications.authorizationStatus());
+      return authorizationStatusToReadiness(
+        notifications.authorizationStatus(),
+      );
     } catch {
       return "unknown";
     }
@@ -104,7 +119,9 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
     }
     const media = (k) => {
       try {
-        return mediaStatusToReadiness(systemPreferences.getMediaAccessStatus(k));
+        return mediaStatusToReadiness(
+          systemPreferences.getMediaAccessStatus(k),
+        );
       } catch {
         return "unknown";
       }
@@ -148,7 +165,10 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
         // Recording (and, on recent versions, show its own "open System
         // Settings" dialog); then send them to the pane.
         try {
-          await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } });
+          await desktopCapturer.getSources({
+            types: ["screen"],
+            thumbnailSize: { width: 1, height: 1 },
+          });
         } catch {}
         shell.openExternal(settingsUrl("screen", bundleId));
         return "ask";
@@ -192,7 +212,12 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
   // delegate from whoever took it since (Electron's notification presenter).
   function listenForClicks(handler) {
     if (handler) onPayloadClick = handler;
-    if (!mac || !notifications || typeof notifications.onActivate !== "function") return false;
+    if (
+      !mac ||
+      !notifications ||
+      typeof notifications.onActivate !== "function"
+    )
+      return false;
     try {
       notifications.onActivate(onActivate);
       listening = true;
@@ -203,17 +228,21 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
   }
 
   function notify(title, body, onClick, payload) {
-    if (!mac || !notifications || typeof notifications.post !== "function") return false;
+    if (!mac || !notifications || typeof notifications.post !== "function")
+      return false;
     try {
       if (!listening) listenForClicks();
       // Never asked: raise the prompt, then post anyway (the answer lands in
       // Notification Center, and a later notification benefits).
       if (readNotificationState() === "ask") {
-        try { notifications.requestAuthorization(); } catch {}
+        try {
+          notifications.requestAuthorization();
+        } catch {}
       }
-      const id = typeof payload === "string" && payload
-        ? notifications.post(String(title), String(body), payload)
-        : notifications.post(String(title), String(body));
+      const id =
+        typeof payload === "string" && payload
+          ? notifications.post(String(title), String(body), payload)
+          : notifications.post(String(title), String(body));
       if (!id) return false;
       if (onClick) clickHandlers.set(id, onClick);
       return true;
@@ -222,7 +251,14 @@ function createOsPermissions({ electron, bundleId, notifications = loadNotificat
     }
   }
 
-  return { getAll, request, openSettings, notify, listenForClicks, readNotificationState };
+  return {
+    getAll,
+    request,
+    openSettings,
+    notify,
+    listenForClicks,
+    readNotificationState,
+  };
 }
 
 module.exports = {

@@ -2,10 +2,16 @@
 
 /** The recents pool with the person's favorites added (once each), for a
  *  typed query that ranks them all together. */
-export function withFavorites<T extends { _id: unknown }>(pool: T[], favorites: T[], exclude?: readonly string[]): T[] {
+export function withFavorites<T extends { _id: unknown }>(
+  pool: T[],
+  favorites: T[],
+  exclude?: readonly string[],
+): T[] {
   const seen = new Set(pool.map((c) => String(c._id)));
   const skip = new Set(exclude ?? []);
-  const added = favorites.filter((f) => !seen.has(String(f._id)) && !skip.has(String(f._id)));
+  const added = favorites.filter(
+    (f) => !seen.has(String(f._id)) && !skip.has(String(f._id)),
+  );
   return added.length ? [...pool, ...added] : pool;
 }
 

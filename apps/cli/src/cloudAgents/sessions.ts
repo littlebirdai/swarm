@@ -11,7 +11,11 @@
 import { execFile } from "../proc.js";
 import * as fs from "fs";
 import { promisify } from "util";
-import { cloudAgentLaunch, cloudAgentRootId, isCloudAgentId } from "@codecast/shared/contracts";
+import {
+  cloudAgentLaunch,
+  cloudAgentRootId,
+  isCloudAgentId,
+} from "@codecast/shared/contracts";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { splitPatches } from "../repoMirror.js";
 import { codecastPath } from "../codecastDir.js";
@@ -19,9 +23,24 @@ import { githubRepo } from "../cloud/gitOrigin.js";
 import { cloudApiVerdict, CloudApiError } from "./http.js";
 import { CloudShapeError } from "./shape.js";
 import { repoOwnerName } from "./poll.js";
-import { git, githubOriginAt, gitRaw, porcelainEntries, repoRootFor } from "../gitPlane.js";
+import {
+  git,
+  githubOriginAt,
+  gitRaw,
+  porcelainEntries,
+  repoRootFor,
+} from "../gitPlane.js";
 import { deviceLabel } from "../remote/device.js";
-import { CloudAgentBusyError, CloudAgentSetupError, CloudAgentUnsentError, errorText, logTag, type AnyCloudAgentAdapter, type CloudAgentApplyPlan, type CloudAgentCreated } from "./types.js";
+import {
+  CloudAgentBusyError,
+  CloudAgentSetupError,
+  CloudAgentUnsentError,
+  errorText,
+  logTag,
+  type AnyCloudAgentAdapter,
+  type CloudAgentApplyPlan,
+  type CloudAgentCreated,
+} from "./types.js";
 import type { CloudAgentWatcher } from "./watcher.js";
 
 const execFileAsync = promisify(execFile);
@@ -51,12 +70,23 @@ export interface CloudAgentSession {
 
 export interface CloudAgentSessionsDeps {
   /** The provider's mirror, once it runs: told to mirror an agent codecast just moved. */
-  watcher: () => Pick<CloudAgentWatcher, "follow" | "setNotice" | "isRunning" | "setupProblem" | "report" | "sent"> | null;
+  watcher: () => Pick<
+    CloudAgentWatcher,
+    "follow" | "setNotice" | "isRunning" | "setupProblem" | "report" | "sent"
+  > | null;
   /** Map the agent id to the conversation, locally and on the server. */
-  bindSession: (conversationId: string, agentId: string, projectPath: string | undefined, repoUrl: string | undefined) => void;
+  bindSession: (
+    conversationId: string,
+    agentId: string,
+    projectPath: string | undefined,
+    repoUrl: string | undefined,
+  ) => void;
   /** The agent id the conversation is already mapped to, from the session cache. */
   agentForConversation: (conversationId: string) => string | undefined;
-  setStatus: (conversationId: string, status: "connected" | "working" | "idle" | "stopped") => void;
+  setStatus: (
+    conversationId: string,
+    status: "connected" | "working" | "idle" | "stopped",
+  ) => void;
   log: (msg: string) => void;
 }
 
@@ -65,15 +95,23 @@ export class CloudAgentSessions {
   private readonly file: string;
   private readonly tag: string;
 
-  constructor(readonly adapter: AnyCloudAgentAdapter, private readonly deps: CloudAgentSessionsDeps, file = codecastPath(adapter.spec.mirrorDir, "sessions.json")) {
+  constructor(
+    readonly adapter: AnyCloudAgentAdapter,
+    private readonly deps: CloudAgentSessionsDeps,
+    file = codecastPath(adapter.spec.mirrorDir, "sessions.json"),
+  ) {
     this.file = file;
     this.tag = logTag(adapter);
-    try { this.sessions = JSON.parse(fs.readFileSync(file, "utf8")) ?? {}; } catch {}
+    try {
+      this.sessions = JSON.parse(fs.readFileSync(file, "utf8")) ?? {};
+    } catch {}
   }
 
   private save(): void {
     try {
-      atomicWriteFile(this.file, JSON.stringify(this.sessions, null, 2), { mode: 0o600 });
+      atomicWriteFile(this.file, JSON.stringify(this.sessions, null, 2), {
+        mode: 0o600,
+      });
     } catch (err) {
       this.deps.log(`${this.tag} could not save sessions: ${errorText(err)}`);
     }
@@ -81,7 +119,11 @@ export class CloudAgentSessions {
 
   /** The agents codecast started (or was bound to). */
   agentIds(): Set<string> {
-    return new Set(Object.values(this.sessions).flatMap((s) => (s.agentId ? [s.agentId] : [])));
+    return new Set(
+      Object.values(this.sessions).flatMap((s) =>
+        s.agentId ? [s.agentId] : [],
+      ),
+    );
   }
 
   /** The conversation's cloud session: one codecast started, or a mirrored agent it was bound to. */
@@ -89,7 +131,8 @@ export class CloudAgentSessions {
     const known = this.sessions[conversationId];
     if (known) return known;
     const agentId = this.deps.agentForConversation(conversationId);
-    if (!agentId || !isCloudAgentId(this.adapter.spec, agentId)) return undefined;
+    if (!agentId || !isCloudAgentId(this.adapter.spec, agentId))
+      return undefined;
     const adopted: CloudAgentSession = { agentId, model: "" };
     this.sessions[conversationId] = adopted;
     this.save();
@@ -97,13 +140,28 @@ export class CloudAgentSessions {
   }
 
   /** Record a conversation that runs on this provider. `modelKey` is the launch key (`cloud`, `cloud:<id>`, `cloud:ask+x2`). */
-  async start(conversationId: string, projectPath: string | undefined, modelKey: string): Promise<void> {
-    const { model, ask, attempts } = cloudAgentLaunch(this.adapter.spec.agentType, modelKey) ?? { model: "", ask: false, attempts: 1 };
-    const session: CloudAgentSession = { ...this.sessions[conversationId], projectPath, model, ...(ask ? { ask } : {}), ...(attempts > 1 ? { attempts } : {}) };
+  async start(
+    conversationId: string,
+    projectPath: string | undefined,
+    modelKey: string,
+  ): Promise<void> {
+    const { model, ask, attempts } = cloudAgentLaunch(
+      this.adapter.spec.agentType,
+      modelKey,
+    ) ?? { model: "", ask: false, attempts: 1 };
+    const session: CloudAgentSession = {
+      ...this.sessions[conversationId],
+      projectPath,
+      model,
+      ...(ask ? { ask } : {}),
+      ...(attempts > 1 ? { attempts } : {}),
+    };
     await readRepo(session);
     this.sessions[conversationId] = session;
     this.save();
-    this.deps.log(`${this.tag} conversation ${conversationId.slice(0, 12)} runs on ${this.adapter.spec.label} (${session.repoUrl ? `${session.repoUrl}${session.startingRef ? `@${session.startingRef}` : ""}` : "no repo"}, model ${model || "default"}${ask ? ", ask" : ""}${attempts > 1 ? `, ${attempts} attempts` : ""})`);
+    this.deps.log(
+      `${this.tag} conversation ${conversationId.slice(0, 12)} runs on ${this.adapter.spec.label} (${session.repoUrl ? `${session.repoUrl}${session.startingRef ? `@${session.startingRef}` : ""}` : "no repo"}, model ${model || "default"}${ask ? ", ask" : ""}${attempts > 1 ? `, ${attempts} attempts` : ""})`,
+    );
     this.deps.setStatus(conversationId, "connected");
   }
 
@@ -134,20 +192,33 @@ export class CloudAgentSessions {
         const problem = await this.problemOf(client, err, session);
         // The provider took a request that starts something and answered in a shape codecast can't read: the agent
         // may exist, and sending again could start a second one, so the message is not held for a retry.
-        if (err instanceof CloudShapeError && err.wrote) throw new CloudAgentUnsentError(this.adapter, err);
+        if (err instanceof CloudShapeError && err.wrote)
+          throw new CloudAgentUnsentError(this.adapter, err);
         throw problem ?? err;
       }
       session.agentId = created.agentId;
       // What the checkout says about where the agent starts, then what the provider says about where it works.
-      session.notice = [session.notice, created.notice].filter(Boolean).join(" ") || undefined;
+      session.notice =
+        [session.notice, created.notice].filter(Boolean).join(" ") || undefined;
       this.save();
       if (session.notice) watcher?.setNotice(created.agentId, session.notice);
-      this.deps.bindSession(conversationId, created.agentId, session.projectPath, session.repoUrl);
-      this.deps.log(`${this.tag} created agent ${created.agentId} for conversation ${conversationId.slice(0, 12)} (${created.url ?? ""})`);
+      this.deps.bindSession(
+        conversationId,
+        created.agentId,
+        session.projectPath,
+        session.repoUrl,
+      );
+      this.deps.log(
+        `${this.tag} created agent ${created.agentId} for conversation ${conversationId.slice(0, 12)} (${created.url ?? ""})`,
+      );
     } else {
       // Last seen running: busy without asking the provider (each retry of a held message would be a read),
       // unless the provider steers the running turn with it.
-      if (!this.adapter.steersRunningTurn && watcher?.isRunning(session.agentId)) throw new CloudAgentBusyError(this.adapter.spec.label);
+      if (
+        !this.adapter.steersRunningTurn &&
+        watcher?.isRunning(session.agentId)
+      )
+        throw new CloudAgentBusyError(this.adapter.spec.label);
       try {
         await this.adapter.followUp(client, session.agentId, content);
       } catch (err) {
@@ -166,8 +237,18 @@ export class CloudAgentSessions {
   }
 
   /** The setup problem a failed send names (judgeCloudFailure). */
-  private problemOf(client: unknown, err: unknown, session: CloudAgentSession): Promise<CloudAgentSetupError | null> {
-    return judgeCloudFailure(this.adapter, this.deps.watcher(), client, err, session);
+  private problemOf(
+    client: unknown,
+    err: unknown,
+    session: CloudAgentSession,
+  ): Promise<CloudAgentSetupError | null> {
+    return judgeCloudFailure(
+      this.adapter,
+      this.deps.watcher(),
+      client,
+      err,
+      session,
+    );
   }
 
   /**
@@ -176,18 +257,27 @@ export class CloudAgentSessions {
    * Apply runs there, rather than in whichever checkout of the repository
    * this machine finds first.
    */
-  async startedIn(agentId: string, repo: { owner: string; name: string }): Promise<string | null> {
+  async startedIn(
+    agentId: string,
+    repo: { owner: string; name: string },
+  ): Promise<string | null> {
     const root = cloudAgentRootId(agentId);
-    const dir = Object.values(this.sessions).find((s) => s.projectPath && s.agentId && cloudAgentRootId(s.agentId) === root)?.projectPath;
+    const dir = Object.values(this.sessions).find(
+      (s) => s.projectPath && s.agentId && cloudAgentRootId(s.agentId) === root,
+    )?.projectPath;
     if (!dir) return null;
-    return (await githubOriginAt(dir))?.toLowerCase() === `https://github.com/${repo.owner}/${repo.name}`.toLowerCase() ? dir : null;
+    return (await githubOriginAt(dir))?.toLowerCase() ===
+      `https://github.com/${repo.owner}/${repo.name}`.toLowerCase()
+      ? dir
+      : null;
   }
 
   /** Cancel the agent's running turn. Resolves false when there is none (or no cloud session). */
   async interrupt(conversationId: string): Promise<boolean> {
     const session = this.get(conversationId);
     const client = session?.agentId ? this.adapter.client() : null;
-    if (!session?.agentId || !client || client instanceof CloudAgentSetupError) return false;
+    if (!session?.agentId || !client || client instanceof CloudAgentSetupError)
+      return false;
     const cancelled = await this.adapter.cancel(client, session.agentId);
     if (!cancelled) return false;
     this.deps.log(`${this.tag} cancelled ${cancelled} of ${session.agentId}`);
@@ -203,19 +293,36 @@ export class CloudAgentSessions {
  * vendor-specific cases, then credentials the provider refused. Null for
  * anything else.
  */
-export async function cloudSetupErrorOf(adapter: AnyCloudAgentAdapter, client: unknown, err: unknown, session?: CloudAgentSession): Promise<CloudAgentSetupError | null> {
-  if (err instanceof CloudShapeError) return CloudAgentSetupError.changed(adapter, err.message);
+export async function cloudSetupErrorOf(
+  adapter: AnyCloudAgentAdapter,
+  client: unknown,
+  err: unknown,
+  session?: CloudAgentSession,
+): Promise<CloudAgentSetupError | null> {
+  if (err instanceof CloudShapeError)
+    return CloudAgentSetupError.changed(adapter, err.message);
   const apiError = err instanceof CloudApiError ? err : null;
   const verdict = cloudApiVerdict(err);
   if (apiError && verdict === "limit") {
     const { retryAfterMs } = apiError;
     const used = await adapter.usageLimit?.(client, apiError).catch(() => null);
-    if (used) return CloudAgentSetupError.limited(adapter, used.detail, { waitMs: used.waitMs, resetsAt: used.resetsAt, retryAfterMs });
-    return CloudAgentSetupError.limited(adapter, `requests from ${deviceLabel()} are rate limited (${apiError.message})`, { retryAfterMs });
+    if (used)
+      return CloudAgentSetupError.limited(adapter, used.detail, {
+        waitMs: used.waitMs,
+        resetsAt: used.resetsAt,
+        retryAfterMs,
+      });
+    return CloudAgentSetupError.limited(
+      adapter,
+      `requests from ${deviceLabel()} are rate limited (${apiError.message})`,
+      { retryAfterMs },
+    );
   }
   const specific = adapter.setupErrorOf?.(err, session);
   if (specific) return specific;
-  return apiError && verdict === "refused" ? CloudAgentSetupError.credentialsRejected(adapter, apiError.message) : null;
+  return apiError && verdict === "refused"
+    ? CloudAgentSetupError.credentialsRejected(adapter, apiError.message)
+    : null;
 }
 
 /**
@@ -225,8 +332,16 @@ export async function cloudSetupErrorOf(adapter: AnyCloudAgentAdapter, client: u
  * The session's agent goes with it: a break the mirror already found to be
  * that agent's alone holds this session only, never the lane.
  */
-export function judgeCloudFailure(adapter: AnyCloudAgentAdapter, watcher: Pick<CloudAgentWatcher, "report"> | null | undefined, client: unknown, err: unknown, session?: CloudAgentSession): Promise<CloudAgentSetupError | null> {
-  return watcher ? watcher.report(client, err, { session, agentId: session?.agentId }) : cloudSetupErrorOf(adapter, client, err, session);
+export function judgeCloudFailure(
+  adapter: AnyCloudAgentAdapter,
+  watcher: Pick<CloudAgentWatcher, "report"> | null | undefined,
+  client: unknown,
+  err: unknown,
+  session?: CloudAgentSession,
+): Promise<CloudAgentSetupError | null> {
+  return watcher
+    ? watcher.report(client, err, { session, agentId: session?.agentId })
+    : cloudSetupErrorOf(adapter, client, err, session);
 }
 
 /**
@@ -234,9 +349,14 @@ export function judgeCloudFailure(adapter: AnyCloudAgentAdapter, watcher: Pick<C
  * provider answering it with a conflict (409: a turn still runs), which every
  * provider means the same way.
  */
-function busyErrorOf(adapter: AnyCloudAgentAdapter, err: unknown): CloudAgentBusyError | null {
+function busyErrorOf(
+  adapter: AnyCloudAgentAdapter,
+  err: unknown,
+): CloudAgentBusyError | null {
   if (err instanceof CloudAgentBusyError) return err;
-  return cloudApiVerdict(err) === "busy" ? new CloudAgentBusyError(adapter.spec.label) : null;
+  return cloudApiVerdict(err) === "busy"
+    ? new CloudAgentBusyError(adapter.spec.label)
+    : null;
 }
 
 /** The session's repository, starting branch and notice, as its checkout is now. */
@@ -258,12 +378,20 @@ const CLONE_CHECK_MS = 10_000;
  * one; undefined when GitHub did not say (the agent is then tried, and its
  * setup says).
  */
-export async function clonesAnonymously(repo: { owner: string; name: string }, fetchImpl: typeof fetch = fetch): Promise<boolean | undefined> {
+export async function clonesAnonymously(
+  repo: { owner: string; name: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean | undefined> {
   try {
-    const resp = await fetchImpl(`https://github.com/${repo.owner}/${repo.name}.git/info/refs?service=git-upload-pack`, { signal: AbortSignal.timeout(CLONE_CHECK_MS), redirect: "follow" });
+    const resp = await fetchImpl(
+      `https://github.com/${repo.owner}/${repo.name}.git/info/refs?service=git-upload-pack`,
+      { signal: AbortSignal.timeout(CLONE_CHECK_MS), redirect: "follow" },
+    );
     await resp.body?.cancel().catch(() => {});
     if (resp.ok) return true;
-    return resp.status === 401 || resp.status === 403 || resp.status === 404 ? false : undefined;
+    return resp.status === 401 || resp.status === 403 || resp.status === 404
+      ? false
+      : undefined;
   } catch {
     return undefined;
   }
@@ -276,25 +404,46 @@ export async function clonesAnonymously(repo: { owner: string; name: string }, f
  * it never sees commits that are not pushed. `notice` says so when either
  * applies.
  */
-export async function githubRepoAt(dir: string): Promise<{ repoUrl: string; startingRef?: string; notice?: string } | null> {
+export async function githubRepoAt(
+  dir: string,
+): Promise<{ repoUrl: string; startingRef?: string; notice?: string } | null> {
   const repoUrl = await githubOriginAt(dir);
   if (!repoUrl) return null;
   let branch: string | undefined;
-  try { branch = await git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]); } catch {}
+  try {
+    branch = await git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  } catch {}
   if (!branch || branch === "HEAD") return { repoUrl };
   let onRemote: boolean;
   try {
     onRemote = !!(await git(dir, ["ls-remote", "--heads", "origin", branch]));
   } catch {
-    return { repoUrl, notice: `Started from the repository's default branch: GitHub did not answer whether \`${branch}\` is there.` };
+    return {
+      repoUrl,
+      notice: `Started from the repository's default branch: GitHub did not answer whether \`${branch}\` is there.`,
+    };
   }
-  if (!onRemote) return { repoUrl, notice: `Started from the repository's default branch: \`${branch}\` is not on GitHub yet. Push it to start the agent from it.` };
+  if (!onRemote)
+    return {
+      repoUrl,
+      notice: `Started from the repository's default branch: \`${branch}\` is not on GitHub yet. Push it to start the agent from it.`,
+    };
   let ahead = 0;
-  try { ahead = parseInt(await git(dir, ["rev-list", "--count", `origin/${branch}..HEAD`]), 10) || 0; } catch {}
+  try {
+    ahead =
+      parseInt(
+        await git(dir, ["rev-list", "--count", `origin/${branch}..HEAD`]),
+        10,
+      ) || 0;
+  } catch {}
   return {
     repoUrl,
     startingRef: branch,
-    ...(ahead > 0 ? { notice: `Started from \`${branch}\` on GitHub. ${ahead} local commit${ahead === 1 ? " is" : "s are"} not pushed, so the agent can't see ${ahead === 1 ? "it" : "them"}.` } : {}),
+    ...(ahead > 0
+      ? {
+          notice: `Started from \`${branch}\` on GitHub. ${ahead} local commit${ahead === 1 ? " is" : "s are"} not pushed, so the agent can't see ${ahead === 1 ? "it" : "them"}.`,
+        }
+      : {}),
   };
 }
 
@@ -307,17 +456,42 @@ export async function githubRepoAt(dir: string): Promise<{ repoUrl: string; star
  * changed (`already` when the checkout holds the changes already, so nothing
  * was done); a failure throws git's own words.
  */
-export async function applyInCheckout(plan: CloudAgentApplyPlan, dir: string | null): Promise<{ root: string; files: string[]; already?: true }> {
-  if (!dir) throw new Error(`${deviceLabel()} has no checkout of ${plan.repo}: clone it there, then apply again`);
+export async function applyInCheckout(
+  plan: CloudAgentApplyPlan,
+  dir: string | null,
+): Promise<{ root: string; files: string[]; already?: true }> {
+  if (!dir)
+    throw new Error(
+      `${deviceLabel()} has no checkout of ${plan.repo}: clone it there, then apply again`,
+    );
   const root = await repoRootFor(dir);
   if (!root) throw new Error(`${dir} is not a git checkout of ${plan.repo}`);
   const files = [...splitPatches(plan.diff).keys()];
   // Applied before (and maybe committed since): the local changes are these, never ones to stash.
-  if (await gitApply(root, plan.diff, ["--reverse", "--check"]).then(() => true, () => false)) return { root, files, already: true };
+  if (
+    await gitApply(root, plan.diff, ["--reverse", "--check"]).then(
+      () => true,
+      () => false,
+    )
+  )
+    return { root, files, already: true };
   // Literal: a path the provider's diff names is a file, never a glob or a magic pathspec that widens or narrows the check.
-  const dirty = files.length ? porcelainEntries(await gitRaw(root, ["--literal-pathspecs", "status", "--porcelain", "-z", "--", ...files])).map((e) => e.path) : [];
+  const dirty = files.length
+    ? porcelainEntries(
+        await gitRaw(root, [
+          "--literal-pathspecs",
+          "status",
+          "--porcelain",
+          "-z",
+          "--",
+          ...files,
+        ]),
+      ).map((e) => e.path)
+    : [];
   if (dirty.length) {
-    throw new Error(`${root} has local changes to ${dirty.length === 1 ? "a file" : `${dirty.length} files`} these changes touch (${dirty.slice(0, 5).join(", ")}): commit or stash them, then apply again`);
+    throw new Error(
+      `${root} has local changes to ${dirty.length === 1 ? "a file" : `${dirty.length} files`} these changes touch (${dirty.slice(0, 5).join(", ")}): commit or stash them, then apply again`,
+    );
   }
   try {
     await gitApply(root, plan.diff);
@@ -325,13 +499,23 @@ export async function applyInCheckout(plan: CloudAgentApplyPlan, dir: string | n
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string };
     const said = (e.stderr ?? "").trim();
-    throw new Error(said ? said.split("\n").slice(-6).join("\n") : errorText(err));
+    throw new Error(
+      said ? said.split("\n").slice(-6).join("\n") : errorText(err),
+    );
   }
 }
 
 /** `git apply` of a diff at a checkout's root, the diff on stdin (`args`: --check, --reverse). */
-async function gitApply(root: string, diff: string, args: string[] = []): Promise<void> {
-  const run = execFileAsync("git", ["-C", root, "apply", "--whitespace=nowarn", ...args, "-"], { timeout: 120_000 });
+async function gitApply(
+  root: string,
+  diff: string,
+  args: string[] = [],
+): Promise<void> {
+  const run = execFileAsync(
+    "git",
+    ["-C", root, "apply", "--whitespace=nowarn", ...args, "-"],
+    { timeout: 120_000 },
+  );
   run.child.stdin?.end(diff.endsWith("\n") ? diff : `${diff}\n`);
   await run;
 }

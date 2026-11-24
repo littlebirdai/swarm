@@ -19,11 +19,13 @@ type DispatchCall = { action: string; args: any[] };
 
 function installFakeDispatch(): { calls: DispatchCall[] } {
   const calls: DispatchCall[] = [];
-  (useInboxStore.getState() as any)._setDispatch((action: string, args: any[]) => {
-    calls.push({ action, args });
-    if (action === "createSession") return Promise.resolve(REAL_ID);
-    return Promise.resolve(undefined);
-  });
+  (useInboxStore.getState() as any)._setDispatch(
+    (action: string, args: any[]) => {
+      calls.push({ action, args });
+      if (action === "createSession") return Promise.resolve(REAL_ID);
+      return Promise.resolve(undefined);
+    },
+  );
   return { calls };
 }
 
@@ -47,13 +49,27 @@ function seedStub(targetDeviceId: string | null) {
         target_device_id: targetDeviceId,
       } as any,
     },
-    conversations: { [STUB]: { _id: STUB, session_id: STUB, project_path: "/repo" } as any },
+    conversations: {
+      [STUB]: { _id: STUB, session_id: STUB, project_path: "/repo" } as any,
+    },
   } as any);
 }
 
 const ROSTER = [
-  { device_id: "laptop", is_remote: false, online: true, last_seen: 9000, local_project_roots: [] },
-  { device_id: "desktop", is_remote: false, online: true, last_seen: 1000, local_project_roots: ["/repo"] },
+  {
+    device_id: "laptop",
+    is_remote: false,
+    online: true,
+    last_seen: 9000,
+    local_project_roots: [],
+  },
+  {
+    device_id: "desktop",
+    is_remote: false,
+    online: true,
+    last_seen: 1000,
+    local_project_roots: ["/repo"],
+  },
 ];
 
 const createOpts = (calls: DispatchCall[]) =>
@@ -61,7 +77,12 @@ const createOpts = (calls: DispatchCall[]) =>
 
 describe("createSessionFromStub target_device_id", () => {
   beforeEach(() => {
-    useInboxStore.setState({ sessions: {}, conversations: {}, machineRoster: [], isolatedWorktreeMode: false } as any);
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      machineRoster: [],
+      isolatedWorktreeMode: false,
+    } as any);
   });
 
   it("carries a pick that routing would NOT have chosen", async () => {
@@ -102,7 +123,10 @@ describe("createSessionFromStub target_device_id", () => {
     useInboxStore.setState({ machineRoster: ROSTER } as any);
     useInboxStore.getState().updateSessionProject(STUB, "/laptop-only");
     useInboxStore.setState({
-      machineRoster: [{ ...ROSTER[0], local_project_roots: ["/laptop-only"] }, ROSTER[1]],
+      machineRoster: [
+        { ...ROSTER[0], local_project_roots: ["/laptop-only"] },
+        ROSTER[1],
+      ],
     } as any);
 
     await useInboxStore.getState().createSessionFromStub(STUB);

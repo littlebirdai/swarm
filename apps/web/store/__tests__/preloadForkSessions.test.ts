@@ -44,7 +44,11 @@ describe("sessionRowFromSummary", () => {
     expect("inbox_dismissed_at" in bare).toBe(false);
     expect("is_pinned" in bare).toBe(false);
 
-    const stamped = sessionRowFromSummary({ _id: FORK_ID, inbox_stashed_at: 123, inbox_dismissed_at: null });
+    const stamped = sessionRowFromSummary({
+      _id: FORK_ID,
+      inbox_stashed_at: 123,
+      inbox_dismissed_at: null,
+    });
     expect(stamped.inbox_stashed_at).toBe(123);
     expect(stamped.inbox_dismissed_at).toBe(null);
     expect("inbox_killed_at" in stamped).toBe(false);
@@ -55,18 +59,34 @@ describe("sessionRowFromSummary", () => {
   // active card (the warm loop seeds every role's standing session).
   it("keeps a standing session's anchor so the seed stays out of the inbox", () => {
     const seeded = sessionRowFromConversation(FORK_ID, {
-      title: "Market Growth lead", message_count: 9, is_idle: true, anchor_id: "a1",
-      updated_at: Date.now(), started_at: Date.now() - 1000,
+      title: "Market Growth lead",
+      message_count: 9,
+      is_idle: true,
+      anchor_id: "a1",
+      updated_at: Date.now(),
+      started_at: Date.now() - 1000,
     });
     expect(seeded.is_anchor).toBe(true);
     const cat = placeSections({ [FORK_ID]: seeded }, new Set());
-    const shown = [...cat.questions, ...cat.pinned, ...cat.newSessions, ...cat.needsInput, ...cat.done, ...cat.dormant, ...cat.working];
+    const shown = [
+      ...cat.questions,
+      ...cat.pinned,
+      ...cat.newSessions,
+      ...cat.needsInput,
+      ...cat.done,
+      ...cat.dormant,
+      ...cat.working,
+    ];
     expect(shown.map((s) => s._id)).not.toContain(FORK_ID);
   });
 
   it("derives is_pinned only when the pin stamp was delivered", () => {
-    expect(sessionRowFromSummary({ _id: FORK_ID, inbox_pinned_at: 5 }).is_pinned).toBe(true);
-    expect(sessionRowFromSummary({ _id: FORK_ID, inbox_pinned_at: null }).is_pinned).toBe(false);
+    expect(
+      sessionRowFromSummary({ _id: FORK_ID, inbox_pinned_at: 5 }).is_pinned,
+    ).toBe(true);
+    expect(
+      sessionRowFromSummary({ _id: FORK_ID, inbox_pinned_at: null }).is_pinned,
+    ).toBe(false);
     expect("is_pinned" in sessionRowFromSummary({ _id: FORK_ID })).toBe(false);
   });
 
@@ -75,7 +95,9 @@ describe("sessionRowFromSummary", () => {
       _id: FORK_ID,
       started_at: 1000,
       // Unknown extras a fat server object might carry must not leak onto the row.
-      username: "alice", fork_copied: 7, share_token: "tok",
+      username: "alice",
+      fork_copied: 7,
+      share_token: "tok",
     } as any);
     expect(row.session_id).toBe(FORK_ID);
     expect(row.updated_at).toBe(1000); // falls back to started_at
@@ -89,7 +111,11 @@ describe("sessionRowFromSummary", () => {
   });
 
   it("passes through parent linkage so a workflow-agent stub nests as a subagent", () => {
-    const row = sessionRowFromSummary({ _id: FORK_ID, parent_conversation_id: PARENT_ID, is_idle: false });
+    const row = sessionRowFromSummary({
+      _id: FORK_ID,
+      parent_conversation_id: PARENT_ID,
+      is_idle: false,
+    });
     expect(row.parent_conversation_id).toBe(PARENT_ID);
     expect(row.is_idle).toBe(false);
   });
@@ -106,7 +132,10 @@ describe("preloadForkSessions triage state", () => {
 
   it("seeds a stashed fork as hidden, never as an active needs-input card", () => {
     const stashedAt = Date.now() - 60 * 60 * 1000;
-    preload([child({ inbox_stashed_at: stashedAt, inbox_dismissed_at: null })], PARENT_ID);
+    preload(
+      [child({ inbox_stashed_at: stashedAt, inbox_dismissed_at: null })],
+      PARENT_ID,
+    );
     const row = useInboxStore.getState().sessions[FORK_ID];
     expect(row).toBeTruthy();
     expect(row.inbox_stashed_at).toBe(stashedAt);
@@ -119,14 +148,26 @@ describe("preloadForkSessions triage state", () => {
 
   it("seeds a dismissed fork into the dismissed bucket", () => {
     const dismissedAt = Date.now() - 60 * 60 * 1000;
-    preload([child({ inbox_dismissed_at: dismissedAt, inbox_stashed_at: null })], PARENT_ID);
+    preload(
+      [child({ inbox_dismissed_at: dismissedAt, inbox_stashed_at: null })],
+      PARENT_ID,
+    );
     const cat = placeSections(useInboxStore.getState().sessions, new Set());
     expect(cat.needsInput.map((s) => s._id)).not.toContain(FORK_ID);
     expect(cat.dismissed.map((s) => s._id)).toContain(FORK_ID);
   });
 
   it("derives is_pinned from inbox_pinned_at", () => {
-    preload([child({ inbox_pinned_at: 123, inbox_stashed_at: null, inbox_dismissed_at: null })], PARENT_ID);
+    preload(
+      [
+        child({
+          inbox_pinned_at: 123,
+          inbox_stashed_at: null,
+          inbox_dismissed_at: null,
+        }),
+      ],
+      PARENT_ID,
+    );
     expect(useInboxStore.getState().sessions[FORK_ID].is_pinned).toBe(true);
   });
 
@@ -142,7 +183,10 @@ describe("preloadForkSessions triage state", () => {
   it("heals an existing stampless stub when a triage-carrying payload arrives", () => {
     preload([child()], PARENT_ID); // legacy-shaped stub, no triage fields
     const stashedAt = Date.now() - 60 * 60 * 1000;
-    preload([child({ inbox_stashed_at: stashedAt, inbox_dismissed_at: null })], PARENT_ID);
+    preload(
+      [child({ inbox_stashed_at: stashedAt, inbox_dismissed_at: null })],
+      PARENT_ID,
+    );
     const row = useInboxStore.getState().sessions[FORK_ID];
     expect(row.inbox_stashed_at).toBe(stashedAt);
     expect(isSessionHidden(row)).toBe(true);
@@ -165,7 +209,17 @@ describe("preloadForkSessions triage state", () => {
         } as any,
       },
     } as any);
-    preload([child({ title: "Fork: old title", message_count: 7, inbox_stashed_at: 999, inbox_dismissed_at: null })], PARENT_ID);
+    preload(
+      [
+        child({
+          title: "Fork: old title",
+          message_count: 7,
+          inbox_stashed_at: 999,
+          inbox_dismissed_at: null,
+        }),
+      ],
+      PARENT_ID,
+    );
     const row = useInboxStore.getState().sessions[FORK_ID];
     expect(row.title).toBe("Renamed branch");
     expect(row.message_count).toBe(95);

@@ -33,7 +33,12 @@ function fixtures(convs: Array<Record<string, any>>) {
 describe("listActiveSessions surfaces killed rows", () => {
   test("a killed session is LISTED, not dropped", async () => {
     const db = fixtures([
-      { _id: "conv_killed", user_id: USER, title: "Retired", inbox_killed_at: 111 },
+      {
+        _id: "conv_killed",
+        user_id: USER,
+        title: "Retired",
+        inbox_killed_at: 111,
+      },
     ]);
     const rows = await performListActiveSessions({ db } as any, USER as any);
     expect(rows).toHaveLength(1);
@@ -46,14 +51,21 @@ describe("listActiveSessions surfaces killed rows", () => {
   // has to ride the projection or the badge can never render.
   test("the row carries is_killed so the page needs no join", async () => {
     const db = fixtures([
-      { _id: "conv_killed", user_id: USER, title: "Retired", inbox_killed_at: 111 },
+      {
+        _id: "conv_killed",
+        user_id: USER,
+        title: "Retired",
+        inbox_killed_at: 111,
+      },
     ]);
     const rows = await performListActiveSessions({ db } as any, USER as any);
     expect(rows[0].is_killed).toBe(true);
   });
 
   test("a live session reports is_killed false, not undefined", async () => {
-    const db = fixtures([{ _id: "conv_live", user_id: USER, title: "Working" }]);
+    const db = fixtures([
+      { _id: "conv_live", user_id: USER, title: "Working" },
+    ]);
     const rows = await performListActiveSessions({ db } as any, USER as any);
     expect(rows[0].is_killed).toBe(false);
   });
@@ -61,11 +73,19 @@ describe("listActiveSessions surfaces killed rows", () => {
   // Conversation-less tmux-only rows are listed too; they must not read as killed.
   test("a session with no conversation reports is_killed false", async () => {
     const db = makeFakeDb({
-      managed_sessions: [{
-        _id: "ms_bare", session_id: "sess_bare", user_id: USER,
-        pid: 1, started_at: Date.now(), last_heartbeat: Date.now(),
-      }],
-      conversations: [], session_metrics: [], session_insights: [],
+      managed_sessions: [
+        {
+          _id: "ms_bare",
+          session_id: "sess_bare",
+          user_id: USER,
+          pid: 1,
+          started_at: Date.now(),
+          last_heartbeat: Date.now(),
+        },
+      ],
+      conversations: [],
+      session_metrics: [],
+      session_insights: [],
     });
     const rows = await performListActiveSessions({ db } as any, USER as any);
     expect(rows).toHaveLength(1);
@@ -74,7 +94,12 @@ describe("listActiveSessions surfaces killed rows", () => {
 
   test("killed and live sessions are listed side by side", async () => {
     const db = fixtures([
-      { _id: "conv_killed", user_id: USER, title: "Retired", inbox_killed_at: 111 },
+      {
+        _id: "conv_killed",
+        user_id: USER,
+        title: "Retired",
+        inbox_killed_at: 111,
+      },
       { _id: "conv_live", user_id: USER, title: "Working" },
     ]);
     const rows = await performListActiveSessions({ db } as any, USER as any);
@@ -88,7 +113,12 @@ describe("listActiveSessions surfaces killed rows", () => {
   // this pins the user scope rather than the cutoff arithmetic.)
   test("the scan stays scoped to the calling user", async () => {
     const db = fixtures([
-      { _id: "conv_killed", user_id: USER, title: "Retired", inbox_killed_at: 111 },
+      {
+        _id: "conv_killed",
+        user_id: USER,
+        title: "Retired",
+        inbox_killed_at: 111,
+      },
     ]);
     const rows = await performListActiveSessions({ db } as any, OTHER as any);
     expect(rows).toHaveLength(0);

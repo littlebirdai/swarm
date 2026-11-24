@@ -7,6 +7,9 @@ import { useWatchEffect } from "./useWatchEffect";
 export function useSeedOwnership(conversationId: string, seed: boolean) {
   useWatchEffect(() => {
     if (!seed) return;
-    useInboxStore.getState().syncRecord("conversations", conversationId, { _id: conversationId, is_own: true });
+    useInboxStore.getState().syncRecord("conversations", conversationId, {
+      _id: conversationId,
+      is_own: true,
+    });
   }, [conversationId, seed]);
 }

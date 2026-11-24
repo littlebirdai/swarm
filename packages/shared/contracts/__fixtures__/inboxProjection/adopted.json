@@ -122,21 +122,9 @@
     },
     "set_digest": "f5585e597df1f8e3",
     "placements": {
-      "stationadopteddismissedz23000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "stationadoptedworkingz2100000000": [
-        "working",
-        "working",
-        false
-      ],
-      "stationadoptedz14000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ]
+      "stationadopteddismissedz23000000": ["dismissed", "needs_input", false],
+      "stationadoptedworkingz2100000000": ["working", "working", false],
+      "stationadoptedz14000000000000000": ["needs_input", "needs_input", false]
     },
     "sort_at": {
       "stationadopteddismissedz23000000": -10800000,

@@ -27,7 +27,6 @@ import { useTabContext } from "../../../lib/tabParams";
 import type { BackendProps, PaneStripAction } from "./types";
 import { PaneCard } from "./PaneCard";
 
-
 /** How long to keep re-measuring after something moved the pane. A split
  *  animates, a sidebar collapses over 200ms, a drag settles — the view has to
  *  follow the pane through the motion, not jump to where it ended up. */
@@ -87,7 +86,12 @@ export function NativeBackend({
       r.width > 0 &&
       r.height > 0 &&
       (typeof document === "undefined" || !document.hidden) &&
-      !paneIsCovered({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+      !paneIsCovered({
+        left: r.left,
+        top: r.top,
+        right: r.right,
+        bottom: r.bottom,
+      });
     // The shell is another process: an unchanged rect sent 60 times a second
     // is 60 IPC round trips for nothing.
     const signature = `${show}:${rect.x}:${rect.y}:${rect.width}:${rect.height}`;
@@ -106,7 +110,8 @@ export function NativeBackend({
     if (chasing.current) return;
     const step = () => {
       measure();
-      if (Date.now() < until.current) chasing.current = requestAnimationFrame(step);
+      if (Date.now() < until.current)
+        chasing.current = requestAnimationFrame(step);
       else chasing.current = 0;
     };
     chasing.current = requestAnimationFrame(step);
@@ -127,7 +132,9 @@ export function NativeBackend({
       .send("create", {
         paneId,
         url,
-        rect: r ? { x: r.left, y: r.top, width: r.width, height: r.height } : undefined,
+        rect: r
+          ? { x: r.left, y: r.top, width: r.width, height: r.height }
+          : undefined,
         visible: false,
         // The offering session, so the shell's pane registry names who may
         // drive this view from `cast browser`. BrowserPane already confirmed
@@ -141,7 +148,10 @@ export function NativeBackend({
         if (!ok) {
           const reason = (answer as { reason?: string })?.reason ?? "unknown";
           setFailed(reason);
-          onState({ kind: "error", message: "The desktop shell refused to open this view" });
+          onState({
+            kind: "error",
+            message: "The desktop shell refused to open this view",
+          });
           return;
         }
         lastSent.current = "";
@@ -213,13 +223,18 @@ export function NativeBackend({
         case "loading":
           // A native view reads its own page, so it is never opaque: the strip
           // can stop offering "did this even load?" — it knows.
-          onState(e.loading ? { kind: "loading" } : { kind: "ready", opaque: false });
+          onState(
+            e.loading ? { kind: "loading" } : { kind: "ready", opaque: false },
+          );
           break;
         case "fail":
           onState(
             UNREACHABLE_CODES.has(e.errorCode ?? 0)
               ? { kind: "unreachable", loopback: isLoopbackUrl(e.url ?? url) }
-              : { kind: "error", message: e.errorDescription ?? "The page did not load" },
+              : {
+                  kind: "error",
+                  message: e.errorDescription ?? "The page did not load",
+                },
           );
           break;
         case "focus":
@@ -287,13 +302,20 @@ export function NativeBackend({
 
   // Nothing but a hole the right shape: the page itself is painted by the
   // shell, over exactly this rect.
-  return <div ref={host} className="w-full h-full bg-sol-bg" data-native-pane={paneId} />;
+  return (
+    <div
+      ref={host}
+      className="w-full h-full bg-sol-bg"
+      data-native-pane={paneId}
+    />
+  );
 }
 
 /** Re-raise a key the page swallowed, as the app's own keystroke. */
 function raiseChord(key: string) {
   if (!key || typeof window === "undefined") return;
-  const mac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+  const mac =
+    typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
   window.dispatchEvent(
     new KeyboardEvent("keydown", {
       key,

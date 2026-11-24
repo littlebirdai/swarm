@@ -29,8 +29,18 @@ describe("isRecognizedAgentComm", () => {
   test("recognizes Muse's versioned executable after its launcher execs it", () => {
     const binary = "/Users/ashot/.local/bin/muse-bin-1.3.0-R3401.1";
     expect(isRecognizedAgentComm(binary)).toBe(true);
-    expect(agentBinaryFromPsRow("/Users/ashot/.lo", `${binary} resume 01a0b9e4-d00c-7321-8003-742a94210384 --yolo`)).toBe("muse");
-    expect(isResumeInvocation("muse", `${binary} resume 01a0b9e4-d00c-7321-8003-742a94210384`)).toBe(true);
+    expect(
+      agentBinaryFromPsRow(
+        "/Users/ashot/.lo",
+        `${binary} resume 01a0b9e4-d00c-7321-8003-742a94210384 --yolo`,
+      ),
+    ).toBe("muse");
+    expect(
+      isResumeInvocation(
+        "muse",
+        `${binary} resume 01a0b9e4-d00c-7321-8003-742a94210384`,
+      ),
+    ).toBe(true);
     expect(isRecognizedAgentComm("muse-bin-helper")).toBe(false);
     expect(isRecognizedAgentComm("not-muse-bin-1.3.0-R3401.1")).toBe(false);
   });
@@ -76,7 +86,15 @@ describe("isRecognizedAgentComm", () => {
   test("rejects unrelated processes, incl. names that merely contain 'pi'", () => {
     // Basename-exact for binary names keeps the short "pi" id from substring-hitting
     // unrelated tools.
-    for (const comm of ["", "bash", "pip", "pipenv", "python3", "vim", "/usr/bin/ssh"]) {
+    for (const comm of [
+      "",
+      "bash",
+      "pip",
+      "pipenv",
+      "python3",
+      "vim",
+      "/usr/bin/ssh",
+    ]) {
       expect(isRecognizedAgentComm(comm)).toBe(false);
     }
   });
@@ -84,23 +102,28 @@ describe("isRecognizedAgentComm", () => {
 
 describe("isResumeInvocation", () => {
   test("matches codex resume subcommand", () => {
-    const line = "ashot 123 0.0 0.0 ... /path/to/codex/codex resume 019c9626-6f6e-7fb1-b340-cdea1d861268";
+    const line =
+      "ashot 123 0.0 0.0 ... /path/to/codex/codex resume 019c9626-6f6e-7fb1-b340-cdea1d861268";
     expect(isResumeInvocation("codex", line)).toBe(true);
   });
 
   test("matches codex --resume flag", () => {
-    const line = "ashot 123 0.0 0.0 ... codex --resume 019c9626-6f6e-7fb1-b340-cdea1d861268";
+    const line =
+      "ashot 123 0.0 0.0 ... codex --resume 019c9626-6f6e-7fb1-b340-cdea1d861268";
     expect(isResumeInvocation("codex", line)).toBe(true);
   });
 
   test("does not match codex without resume", () => {
-    const line = "ashot 123 0.0 0.0 ... /path/to/codex/codex -c shell_environment_policy.inherit=all";
+    const line =
+      "ashot 123 0.0 0.0 ... /path/to/codex/codex -c shell_environment_policy.inherit=all";
     expect(isResumeInvocation("codex", line)).toBe(false);
   });
 
   test("matches claude --resume and not plain resume subcommand", () => {
-    const withFlag = "ashot 123 0.0 0.0 ... claude --resume 5b1c47b3-16c0-42d5-a6d2-82459a01f640";
-    const withSubcommand = "ashot 123 0.0 0.0 ... claude resume 5b1c47b3-16c0-42d5-a6d2-82459a01f640";
+    const withFlag =
+      "ashot 123 0.0 0.0 ... claude --resume 5b1c47b3-16c0-42d5-a6d2-82459a01f640";
+    const withSubcommand =
+      "ashot 123 0.0 0.0 ... claude resume 5b1c47b3-16c0-42d5-a6d2-82459a01f640";
     expect(isResumeInvocation("claude", withFlag)).toBe(true);
     expect(isResumeInvocation("claude", withSubcommand)).toBe(false);
   });
@@ -113,8 +136,10 @@ describe("isResumeInvocation", () => {
   });
 
   test("matches grok --resume <uuid> (the registry resumeCmd shape) and not a fresh launch", () => {
-    const withFlag = "ashot 123 0.0 0.0 ... grok --resume 01a04000-4d49-70f3-88b4-316e8f48a5fb";
-    const fresh = "ashot 123 0.0 0.0 ... grok --permission-mode bypassPermissions -m grok-4.6";
+    const withFlag =
+      "ashot 123 0.0 0.0 ... grok --resume 01a04000-4d49-70f3-88b4-316e8f48a5fb";
+    const fresh =
+      "ashot 123 0.0 0.0 ... grok --permission-mode bypassPermissions -m grok-4.6";
     expect(isResumeInvocation("grok", withFlag)).toBe(true);
     expect(isResumeInvocation("grok", fresh)).toBe(false);
   });
@@ -124,8 +149,18 @@ describe("isResumeInvocation", () => {
       "codex 83954 ashot 20w REG ... /Users/ashot/.codex/sessions/2026/02/25/rollout-2026-02-25T10-53-47-019c9626-6f6e-7fb1-b340-cdea1d861268.jsonl",
       "codex 83954 ashot 21u unix ...",
     ].join("\n");
-    expect(hasCodexSessionFileOpen(lsofOutput, "019c9626-6f6e-7fb1-b340-cdea1d861268")).toBe(true);
-    expect(hasCodexSessionFileOpen(lsofOutput, "00000000-0000-0000-0000-000000000000")).toBe(false);
+    expect(
+      hasCodexSessionFileOpen(
+        lsofOutput,
+        "019c9626-6f6e-7fb1-b340-cdea1d861268",
+      ),
+    ).toBe(true);
+    expect(
+      hasCodexSessionFileOpen(
+        lsofOutput,
+        "00000000-0000-0000-0000-000000000000",
+      ),
+    ).toBe(false);
   });
 
   test("prefers non-tmux codex candidate when both tmux and iTerm are available", () => {
@@ -154,8 +189,18 @@ describe("isResumeInvocation", () => {
       "codex 55521 jason 20w REG ... /Users/jason/.codex/sessions/2026/08/02/rollout-2026-08-02T09-15-01-019fb73a-a85c-7d31-b0a2-3f9c5e2d8a41.jsonl",
       "codex 55521 jason 21w REG ... /Users/jason/.codex/sessions/2026/08/02/rollout-2026-08-02T09-15-01-019fb73a-a740-7c02-9e11-6b4d0a7f3c88.jsonl",
     ].join("\n");
-    expect(hasCodexSessionFileOpen(lsofOutput, "019fb73a-a85c-7d31-b0a2-3f9c5e2d8a41")).toBe(true);
-    expect(hasCodexSessionFileOpen(lsofOutput, "019fb73a-a740-7c02-9e11-6b4d0a7f3c88")).toBe(true);
+    expect(
+      hasCodexSessionFileOpen(
+        lsofOutput,
+        "019fb73a-a85c-7d31-b0a2-3f9c5e2d8a41",
+      ),
+    ).toBe(true);
+    expect(
+      hasCodexSessionFileOpen(
+        lsofOutput,
+        "019fb73a-a740-7c02-9e11-6b4d0a7f3c88",
+      ),
+    ).toBe(true);
   });
 });
 
@@ -165,19 +210,25 @@ describe("classifyProcessOwnership", () => {
   test("an in-process subagent THREAD borrows its parent's process", () => {
     // source.subagent is an OBJECT carrying thread_spawn — the only shape that
     // actually runs inside the parent TUI's process.
-    expect(classifyProcessOwnership({
-      parentThreadId: PARENT,
-      source: { subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } } },
-    })).toBe("borrowed");
+    expect(
+      classifyProcessOwnership({
+        parentThreadId: PARENT,
+        source: {
+          subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } },
+        },
+      }),
+    ).toBe("borrowed");
   });
 
   test("thread_spawn alone is enough — the top-level parent id is redundant", () => {
     // thread_spawn.parent_thread_id carries the same value in all 31 real
     // rollouts, so requiring BOTH created a fail-open direction: drop the
     // top-level field and a genuine borrower read as "owned".
-    expect(classifyProcessOwnership({
-      source: { subagent: { thread_spawn: { parent_thread_id: PARENT } } },
-    })).toBe("borrowed");
+    expect(
+      classifyProcessOwnership({
+        source: { subagent: { thread_spawn: { parent_thread_id: PARENT } } },
+      }),
+    ).toBe("borrowed");
   });
 
   test("a `codex exec` review child OWNS its process, despite carrying a parent", () => {
@@ -186,18 +237,22 @@ describe("classifyProcessOwnership", () => {
     // all parent-carrying sessions. They are separate OS processes (originator
     // codex_exec, spawned via another session's Bash tool), so calling them
     // borrowers would leave a review running after the user killed its card.
-    expect(classifyProcessOwnership({
-      parentThreadId: PARENT,
-      originator: "codex_exec",
-      source: { subagent: "review" },
-    })).toBe("owned");
+    expect(
+      classifyProcessOwnership({
+        parentThreadId: PARENT,
+        originator: "codex_exec",
+        source: { subagent: "review" },
+      }),
+    ).toBe("owned");
   });
 
   test("a root session owns its own process", () => {
     // 019fc268 is a distinct root (originator codex_cli_rs, no parent) that the
     // daemon still matched to another root's pid. Root-to-root collisions are a
     // separate defect; this classifier must not paper over them.
-    expect(classifyProcessOwnership({ originator: "codex_cli_rs", source: "cli" })).toBe("owned");
+    expect(
+      classifyProcessOwnership({ originator: "codex_cli_rs", source: "cli" }),
+    ).toBe("owned");
     expect(classifyProcessOwnership({ source: "exec" })).toBe("owned");
     expect(classifyProcessOwnership({})).toBe("owned");
     expect(classifyProcessOwnership(undefined)).toBe("owned");
@@ -207,13 +262,22 @@ describe("classifyProcessOwnership", () => {
     // Fails CLOSED. Every unrecognized shape that resolved to "owned" re-opened
     // the SIGKILL hole; "unknown" costs only a card that retires without reaping,
     // since planSessionTeardown treats unknown and borrowed identically.
-    expect(classifyProcessOwnership({ parentThreadId: PARENT })).toBe("unknown");
-    expect(classifyProcessOwnership({ parentThreadId: PARENT, source: { custom: "x" } })).toBe("unknown");
+    expect(classifyProcessOwnership({ parentThreadId: PARENT })).toBe(
+      "unknown",
+    );
+    expect(
+      classifyProcessOwnership({
+        parentThreadId: PARENT,
+        source: { custom: "x" },
+      }),
+    ).toBe("unknown");
     // A renamed/unseen nesting under subagent — e.g. a future Codex spawn kind.
-    expect(classifyProcessOwnership({
-      parentThreadId: PARENT,
-      source: { subagent: { process_spawn: { parent_thread_id: PARENT } } },
-    })).toBe("unknown");
+    expect(
+      classifyProcessOwnership({
+        parentThreadId: PARENT,
+        source: { subagent: { process_spawn: { parent_thread_id: PARENT } } },
+      }),
+    ).toBe("unknown");
   });
 });
 
@@ -225,16 +289,25 @@ describe("planSessionTeardown", () => {
   // tmux, since resolveLiveTmuxTarget fills it through the borrowed pid.
 
   test("a borrower may destroy nothing", () => {
-    expect(planSessionTeardown("borrowed")).toEqual({ reapPidTree: false, killCachedResumeTmux: false });
+    expect(planSessionTeardown("borrowed")).toEqual({
+      reapPidTree: false,
+      killCachedResumeTmux: false,
+    });
   });
 
   test("unknown ownership fails CLOSED", () => {
     // An unreadable or half-written rollout must never authorize a SIGKILL.
-    expect(planSessionTeardown("unknown")).toEqual({ reapPidTree: false, killCachedResumeTmux: false });
+    expect(planSessionTeardown("unknown")).toEqual({
+      reapPidTree: false,
+      killCachedResumeTmux: false,
+    });
   });
 
   test("an owner may destroy both", () => {
-    expect(planSessionTeardown("owned")).toEqual({ reapPidTree: true, killCachedResumeTmux: true });
+    expect(planSessionTeardown("owned")).toEqual({
+      reapPidTree: true,
+      killCachedResumeTmux: true,
+    });
   });
 });
 
@@ -257,37 +330,106 @@ describe("shortId", () => {
 describe("matchStartedConversation", () => {
   test("matches an assigned id after discovery expires without process evidence", () => {
     const entries = new Map([
-      ["call", { sessionId: "assigned", tmuxSession: "call-pane", projectPath: "/repo", startedAt: 0 }],
-      ["other", { sessionId: "different", tmuxSession: "other-pane", projectPath: "/repo", startedAt: 0 }],
+      [
+        "call",
+        {
+          sessionId: "assigned",
+          tmuxSession: "call-pane",
+          projectPath: "/repo",
+          startedAt: 0,
+        },
+      ],
+      [
+        "other",
+        {
+          sessionId: "different",
+          tmuxSession: "other-pane",
+          projectPath: "/repo",
+          startedAt: 0,
+        },
+      ],
     ]);
-    expect(matchStartedConversation(entries.entries(), { sessionId: "assigned", now: 900_000 })).toBe("call");
+    expect(
+      matchStartedConversation(entries.entries(), {
+        sessionId: "assigned",
+        now: 900_000,
+      }),
+    ).toBe("call");
   });
 
   test("does not give a different assigned session the transcript through a pane or cwd fallback", () => {
-    const entries: Array<[string, { sessionId: string; tmuxSession: string; projectPath: string; startedAt: number }]> = [
-      ["call", { sessionId: "assigned", tmuxSession: "call-pane", projectPath: "/repo", startedAt: 1000 }],
+    const entries: Array<
+      [
+        string,
+        {
+          sessionId: string;
+          tmuxSession: string;
+          projectPath: string;
+          startedAt: number;
+        },
+      ]
+    > = [
+      [
+        "call",
+        {
+          sessionId: "assigned",
+          tmuxSession: "call-pane",
+          projectPath: "/repo",
+          startedAt: 1000,
+        },
+      ],
     ];
-    expect(matchStartedConversation(entries, { sessionId: "different", tmuxSessionName: "call-pane", now: 1001 })).toBeNull();
-    expect(matchStartedConversation(entries, { sessionId: "different", projectPath: "/repo", now: 1001 })).toBeNull();
+    expect(
+      matchStartedConversation(entries, {
+        sessionId: "different",
+        tmuxSessionName: "call-pane",
+        now: 1001,
+      }),
+    ).toBeNull();
+    expect(
+      matchStartedConversation(entries, {
+        sessionId: "different",
+        projectPath: "/repo",
+        now: 1001,
+      }),
+    ).toBeNull();
   });
 
   test("keeps terminal discovery for launches without an assigned id", () => {
-    expect(matchStartedConversation([
-      ["legacy", { tmuxSession: "legacy-pane", projectPath: "/repo", startedAt: 0 }],
-    ], { sessionId: "discovered", tmuxSessionName: "legacy-pane" })).toBe("legacy");
+    expect(
+      matchStartedConversation(
+        [
+          [
+            "legacy",
+            { tmuxSession: "legacy-pane", projectPath: "/repo", startedAt: 0 },
+          ],
+        ],
+        { sessionId: "discovered", tmuxSessionName: "legacy-pane" },
+      ),
+    ).toBe("legacy");
   });
 
   test("matches by tmux session first", () => {
     const match = matchStartedConversation(
       [
-        ["conv-old", { tmuxSession: "cc-codex-old", projectPath: "/tmp", startedAt: 1000 }],
-        ["conv-new", { tmuxSession: "cc-codex-abc", projectPath: "/repo", startedAt: 2000 }],
+        [
+          "conv-old",
+          { tmuxSession: "cc-codex-old", projectPath: "/tmp", startedAt: 1000 },
+        ],
+        [
+          "conv-new",
+          {
+            tmuxSession: "cc-codex-abc",
+            projectPath: "/repo",
+            startedAt: 2000,
+          },
+        ],
       ],
       {
         tmuxSessionName: "cc-codex-abc",
         projectPath: "/tmp",
         now: 5000,
-      }
+      },
     );
     expect(match).toBe("conv-new");
   });
@@ -295,26 +437,37 @@ describe("matchStartedConversation", () => {
   test("falls back to fresh project-path match when tmux is missing", () => {
     const match = matchStartedConversation(
       [
-        ["conv-stale", { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 1000 }],
-        ["conv-fresh", { tmuxSession: "cc-codex-2", projectPath: "/repo", startedAt: 4900 }],
+        [
+          "conv-stale",
+          { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 1000 },
+        ],
+        [
+          "conv-fresh",
+          { tmuxSession: "cc-codex-2", projectPath: "/repo", startedAt: 4900 },
+        ],
       ],
       {
         projectPath: "/repo",
         now: 5000,
         ttlMs: 300,
-      }
+      },
     );
     expect(match).toBe("conv-fresh");
   });
 
   test("returns null when only stale path matches exist", () => {
     const match = matchStartedConversation(
-      [["conv-stale", { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 1000 }]],
+      [
+        [
+          "conv-stale",
+          { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 1000 },
+        ],
+      ],
       {
         projectPath: "/repo",
         now: 5000,
         ttlMs: 300,
-      }
+      },
     );
     expect(match).toBeNull();
   });
@@ -322,21 +475,41 @@ describe("matchStartedConversation", () => {
   test("returns null when multiple entries match same projectPath within TTL", () => {
     const match = matchStartedConversation(
       [
-        ["conv-1", { tmuxSession: "cc-claude-aaa", projectPath: "/repo", startedAt: 4800 }],
-        ["conv-2", { tmuxSession: "cc-claude-bbb", projectPath: "/repo", startedAt: 4900 }],
+        [
+          "conv-1",
+          {
+            tmuxSession: "cc-claude-aaa",
+            projectPath: "/repo",
+            startedAt: 4800,
+          },
+        ],
+        [
+          "conv-2",
+          {
+            tmuxSession: "cc-claude-bbb",
+            projectPath: "/repo",
+            startedAt: 4900,
+          },
+        ],
       ],
       {
         projectPath: "/repo",
         now: 5000,
         ttlMs: 300,
-      }
+      },
     );
     expect(match).toBeNull();
   });
 
   test("supports single-pass iterator inputs (Map.entries)", () => {
-    const entries = new Map<string, { tmuxSession: string; projectPath: string; startedAt: number }>([
-      ["conv-1", { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 4900 }],
+    const entries = new Map<
+      string,
+      { tmuxSession: string; projectPath: string; startedAt: number }
+    >([
+      [
+        "conv-1",
+        { tmuxSession: "cc-codex-1", projectPath: "/repo", startedAt: 4900 },
+      ],
     ]);
 
     // No tmuxSessionName → cwd fallback path, which must still consume an
@@ -355,13 +528,22 @@ describe("matchStartedConversation", () => {
     // another conversation). The only conversation waiting in this cwd was
     // jx7cz32, so the old projectPath fallback stole the session for it.
     const match = matchStartedConversation(
-      [["jx7cz32", { tmuxSession: "cc-claude-a3438587a2bs", projectPath: "/repo", startedAt: 4900 }]],
+      [
+        [
+          "jx7cz32",
+          {
+            tmuxSession: "cc-claude-a3438587a2bs",
+            projectPath: "/repo",
+            startedAt: 4900,
+          },
+        ],
+      ],
       {
         tmuxSessionName: "cc-claude-4atddd87bmnx",
         projectPath: "/repo",
         now: 5000,
         ttlMs: 300,
-      }
+      },
     );
     expect(match).toBeNull();
   });
@@ -371,7 +553,7 @@ describe("matchSingleFreshStartedConversation", () => {
   test("returns only fresh single candidate", () => {
     const match = matchSingleFreshStartedConversation(
       [["conv-1", { startedAt: 9800 }]],
-      { now: 10_000, freshnessMs: 500 }
+      { now: 10_000, freshnessMs: 500 },
     );
     expect(match).toBe("conv-1");
   });
@@ -382,7 +564,7 @@ describe("matchSingleFreshStartedConversation", () => {
         ["conv-1", { startedAt: 9800 }],
         ["conv-2", { startedAt: 9900 }],
       ],
-      { now: 10_000, freshnessMs: 500 }
+      { now: 10_000, freshnessMs: 500 },
     );
     expect(match).toBeNull();
   });
@@ -390,7 +572,7 @@ describe("matchSingleFreshStartedConversation", () => {
   test("returns null when only stale candidates exist", () => {
     const match = matchSingleFreshStartedConversation(
       [["conv-1", { startedAt: 1000 }]],
-      { now: 10_000, freshnessMs: 500 }
+      { now: 10_000, freshnessMs: 500 },
     );
     expect(match).toBeNull();
   });
@@ -398,7 +580,8 @@ describe("matchSingleFreshStartedConversation", () => {
 
 describe("spawn-parent resolution", () => {
   test("parsePidPpidMap parses ps -axo pid=,ppid= output with irregular whitespace", () => {
-    const psOut = "    1     0\n  500     1\n 8123   500\n98765  8123\n\nbad line\n";
+    const psOut =
+      "    1     0\n  500     1\n 8123   500\n98765  8123\n\nbad line\n";
     const map = parsePidPpidMap(psOut);
     expect(map.get(98765)).toBe(8123);
     expect(map.get(8123)).toBe(500);
@@ -408,12 +591,22 @@ describe("spawn-parent resolution", () => {
 
   test("collectAncestorPids walks nearest-first and stops at pid 1", () => {
     // codex(98765) <- bash(8123) <- claude(500) <- zsh(400) <- launchd(1)
-    const map = new Map([[98765, 8123], [8123, 500], [500, 400], [400, 1], [1, 0]]);
+    const map = new Map([
+      [98765, 8123],
+      [8123, 500],
+      [500, 400],
+      [400, 1],
+      [1, 0],
+    ]);
     expect(collectAncestorPids(map, 98765)).toEqual([8123, 500, 400]);
   });
 
   test("collectAncestorPids is cycle-safe and depth-capped", () => {
-    const cyclic = new Map([[10, 20], [20, 30], [30, 10]]);
+    const cyclic = new Map([
+      [10, 20],
+      [20, 30],
+      [30, 10],
+    ]);
     expect(collectAncestorPids(cyclic, 10)).toEqual([20, 30]);
 
     const deep = new Map<number, number>();
@@ -450,7 +643,11 @@ describe("spawn-parent resolution", () => {
   });
 
   test("resolveSpawnerSessionId returns null when no ancestor is registered", () => {
-    const sid = resolveSpawnerSessionId([8123, 500, 400], () => null, "child-session");
+    const sid = resolveSpawnerSessionId(
+      [8123, 500, 400],
+      () => null,
+      "child-session",
+    );
     expect(sid).toBeNull();
   });
 
@@ -466,40 +663,78 @@ describe("spawn-parent resolution", () => {
     ].join("\n");
     expect(parseLsofPidPaths(out)).toEqual(
       new Map([
-        [46028, [
-          "/Users/j/.codex/sessions/2026/08/01/rollout-2026-08-01T23-03-27-019fbf23-9395-7c32-9946-f420e4f967b4.jsonl",
-          "/dev/null",
-        ]],
+        [
+          46028,
+          [
+            "/Users/j/.codex/sessions/2026/08/01/rollout-2026-08-01T23-03-27-019fbf23-9395-7c32-9946-f420e4f967b4.jsonl",
+            "/dev/null",
+          ],
+        ],
         [45992, ["/Users/j/.claude/projects/-Users-j-code/abc.jsonl"]],
       ]),
     );
   });
 
   test("parseLsofPidPaths ignores n-lines with no open process block and unparseable pids", () => {
-    const out = ["n/orphan/path", "pnotapid", "n/also/orphan", "p77junk", "n/still-orphan", "p77", "n/kept"].join("\n");
+    const out = [
+      "n/orphan/path",
+      "pnotapid",
+      "n/also/orphan",
+      "p77junk",
+      "n/still-orphan",
+      "p77",
+      "n/kept",
+    ].join("\n");
     expect(parseLsofPidPaths(out)).toEqual(new Map([[77, ["/kept"]]]));
   });
 });
 
 describe("argvSessionId", () => {
   test("reads claude --resume / -r / --session-id", () => {
-    expect(argvSessionId("claude --resume 3d2a9117-83fc-47ef-9993-5180b2cf7017 --model fable --dangerously-skip-permissions"))
-      .toBe("3d2a9117-83fc-47ef-9993-5180b2cf7017");
-    expect(argvSessionId("claude -r 3d2a9117-83fc-47ef-9993-5180b2cf7017")).toBe("3d2a9117-83fc-47ef-9993-5180b2cf7017");
-    expect(argvSessionId("claude --session-id=c291b8e9-5dc0-4b96-a5c6-a1f60bf9ef00 --chrome")).toBe("c291b8e9-5dc0-4b96-a5c6-a1f60bf9ef00");
+    expect(
+      argvSessionId(
+        "claude --resume 3d2a9117-83fc-47ef-9993-5180b2cf7017 --model fable --dangerously-skip-permissions",
+      ),
+    ).toBe("3d2a9117-83fc-47ef-9993-5180b2cf7017");
+    expect(
+      argvSessionId("claude -r 3d2a9117-83fc-47ef-9993-5180b2cf7017"),
+    ).toBe("3d2a9117-83fc-47ef-9993-5180b2cf7017");
+    expect(
+      argvSessionId(
+        "claude --session-id=c291b8e9-5dc0-4b96-a5c6-a1f60bf9ef00 --chrome",
+      ),
+    ).toBe("c291b8e9-5dc0-4b96-a5c6-a1f60bf9ef00");
   });
   test("a native fork declares the child (--session-id), not the parent it resumes", () => {
     const parent = "e1d4009c-ee25-4e8e-9090-5671b3a134e6";
     const child = "9bea2246-353d-492a-923d-302f763392f2";
-    expect(argvSessionId(`grok --resume ${parent} --fork-session --session-id ${child} --permission-mode bypassPermissions`)).toBe(child);
-    expect(argvSessionId(`claude --resume ${parent} --fork-session --session-id ${child}`)).toBe(child);
+    expect(
+      argvSessionId(
+        `grok --resume ${parent} --fork-session --session-id ${child} --permission-mode bypassPermissions`,
+      ),
+    ).toBe(child);
+    expect(
+      argvSessionId(
+        `claude --resume ${parent} --fork-session --session-id ${child}`,
+      ),
+    ).toBe(child);
     // A plain resume still names the resumed session.
-    expect(argvSessionId(`grok --resume ${parent} --permission-mode bypassPermissions`)).toBe(parent);
+    expect(
+      argvSessionId(
+        `grok --resume ${parent} --permission-mode bypassPermissions`,
+      ),
+    ).toBe(parent);
   });
   test("reads codex resume <id> only right after the codex binary", () => {
-    expect(argvSessionId("node /opt/homebrew/bin/codex resume 019fb73a-a740-7000-8000-000000000000")).toBe("019fb73a-a740-7000-8000-000000000000");
+    expect(
+      argvSessionId(
+        "node /opt/homebrew/bin/codex resume 019fb73a-a740-7000-8000-000000000000",
+      ),
+    ).toBe("019fb73a-a740-7000-8000-000000000000");
     // "resume" inside a prompt argument is just a word.
-    expect(argvSessionId('claude "please resume abcdefghijk where we left off"')).toBeNull();
+    expect(
+      argvSessionId('claude "please resume abcdefghijk where we left off"'),
+    ).toBeNull();
   });
   test("returns null for a bare launch", () => {
     expect(argvSessionId("claude --dangerously-skip-permissions")).toBeNull();
@@ -508,9 +743,13 @@ describe("argvSessionId", () => {
   test("reads muse resume <uuid> and muse exec --session-id <uuid>", () => {
     const id = "01a04000-4d49-70f3-88b4-316e8f48a5fb";
     expect(argvSessionId(`muse resume ${id} --disable-approval`)).toBe(id);
-    expect(argvSessionId(`muse exec --session-id ${id} "do the thing"`)).toBe(id);
+    expect(argvSessionId(`muse exec --session-id ${id} "do the thing"`)).toBe(
+      id,
+    );
     // "resume" inside a muse prompt argument is just a word.
-    expect(argvSessionId('muse "please resume abcdefghijk where we left off"')).toBeNull();
+    expect(
+      argvSessionId('muse "please resume abcdefghijk where we left off"'),
+    ).toBeNull();
   });
 });
 
@@ -534,54 +773,126 @@ describe("processDeclaredSessionId / judgeProcessIdentity", () => {
   const start = 1786761275; // 02:34:35Z
 
   test("argv names another session and no hook claim contradicts it: foreign", () => {
-    const r = judgeProcessIdentity({ sessionId: S, argvId: F, claims: [], processStartSec: start });
+    const r = judgeProcessIdentity({
+      sessionId: S,
+      argvId: F,
+      claims: [],
+      processStartSec: start,
+    });
     expect(r).toEqual({ verdict: "foreign", declared: F });
   });
 
   test("argv names the session itself: owned", () => {
-    expect(judgeProcessIdentity({ sessionId: F, argvId: F, claims: [], processStartSec: start }).verdict).toBe("owned");
+    expect(
+      judgeProcessIdentity({
+        sessionId: F,
+        argvId: F,
+        claims: [],
+        processStartSec: start,
+      }).verdict,
+    ).toBe("owned");
   });
 
   test("a newer hook claim beats argv (in-process /clear or /resume switch)", () => {
     // Launched for S, then the TUI switched to F: the hook wrote F's claim after start.
-    const claims = [{ sessionId: S, ts: start + 2 }, { sessionId: F, ts: start + 900 }];
-    expect(judgeProcessIdentity({ sessionId: S, argvId: S, claims, processStartSec: start }).verdict).toBe("foreign");
-    expect(judgeProcessIdentity({ sessionId: F, argvId: S, claims, processStartSec: start }).verdict).toBe("owned");
+    const claims = [
+      { sessionId: S, ts: start + 2 },
+      { sessionId: F, ts: start + 900 },
+    ];
+    expect(
+      judgeProcessIdentity({
+        sessionId: S,
+        argvId: S,
+        claims,
+        processStartSec: start,
+      }).verdict,
+    ).toBe("foreign");
+    expect(
+      judgeProcessIdentity({
+        sessionId: F,
+        argvId: S,
+        claims,
+        processStartSec: start,
+      }).verdict,
+    ).toBe("owned");
   });
 
   test("a claim older than the process is a reused pid, not evidence", () => {
     // F's registry still names this pid from a process that died an hour before
     // S launched on the same pid.
     const claims = [{ sessionId: F, ts: start - 3600 }];
-    expect(judgeProcessIdentity({ sessionId: S, argvId: S, claims, processStartSec: start }).verdict).toBe("owned");
+    expect(
+      judgeProcessIdentity({
+        sessionId: S,
+        argvId: S,
+        claims,
+        processStartSec: start,
+      }).verdict,
+    ).toBe("owned");
     // With no argv either, a stale claim must not manufacture an identity.
-    expect(judgeProcessIdentity({ sessionId: S, argvId: null, claims, processStartSec: start }).verdict).toBe("unknown");
+    expect(
+      judgeProcessIdentity({
+        sessionId: S,
+        argvId: null,
+        claims,
+        processStartSec: start,
+      }).verdict,
+    ).toBe("unknown");
   });
 
   test("unknown start time ignores claims and falls back to argv", () => {
     const claims = [{ sessionId: F, ts: start + 10 }];
-    expect(processDeclaredSessionId({ argvId: S, claims, processStartSec: null })).toBe(S);
-    expect(processDeclaredSessionId({ argvId: null, claims, processStartSec: null })).toBeNull();
+    expect(
+      processDeclaredSessionId({ argvId: S, claims, processStartSec: null }),
+    ).toBe(S);
+    expect(
+      processDeclaredSessionId({ argvId: null, claims, processStartSec: null }),
+    ).toBeNull();
   });
 
   test("no signal at all: unknown, so callers keep their current answer", () => {
-    expect(judgeProcessIdentity({ sessionId: S, argvId: null, claims: [], processStartSec: start }))
-      .toEqual({ verdict: "unknown", declared: null });
+    expect(
+      judgeProcessIdentity({
+        sessionId: S,
+        argvId: null,
+        claims: [],
+        processStartSec: start,
+      }),
+    ).toEqual({ verdict: "unknown", declared: null });
   });
 });
 
 describe("headlessAgentOfCommand", () => {
   test("a -p inside grok's --rules text is not a headless run (jx7c12d, 2026-11-18)", () => {
-    const rules = "<org-context> Use: cast read jx70dwp <range> cast feed -p 2 # next page </org-context>";
-    expect(headlessAgentOfCommand(`grok --resume 3800b3f5-fca1-48da-94bb-d0e08ad2f634 --permission-mode bypassPermissions --rules ${rules}`)).toBeNull();
-    expect(headlessAgentOfCommand(`claude --resume abc --append-system-prompt ${rules}`)).toBeNull();
-    expect(headlessAgentOfCommand(`claude --resume abc --system-prompt=${rules}`)).toBeNull();
+    const rules =
+      "<org-context> Use: cast read jx70dwp <range> cast feed -p 2 # next page </org-context>";
+    expect(
+      headlessAgentOfCommand(
+        `grok --resume 3800b3f5-fca1-48da-94bb-d0e08ad2f634 --permission-mode bypassPermissions --rules ${rules}`,
+      ),
+    ).toBeNull();
+    expect(
+      headlessAgentOfCommand(
+        `claude --resume abc --append-system-prompt ${rules}`,
+      ),
+    ).toBeNull();
+    expect(
+      headlessAgentOfCommand(`claude --resume abc --system-prompt=${rules}`),
+    ).toBeNull();
   });
 
   test("a -p before any prose-valued flag still reads as headless", () => {
-    expect(headlessAgentOfCommand("grok -p do the thing --rules be brief")).toBe("grok -p");
-    expect(headlessAgentOfCommand("claude -p [Codecast Task: X] --dangerously-skip-permissions --append-system-prompt mandate")).toBe("claude -p");
-    expect(headlessAgentOfCommand("claude --model opus --print hi")).toBe("claude -p");
+    expect(
+      headlessAgentOfCommand("grok -p do the thing --rules be brief"),
+    ).toBe("grok -p");
+    expect(
+      headlessAgentOfCommand(
+        "claude -p [Codecast Task: X] --dangerously-skip-permissions --append-system-prompt mandate",
+      ),
+    ).toBe("claude -p");
+    expect(headlessAgentOfCommand("claude --model opus --print hi")).toBe(
+      "claude -p",
+    );
     expect(headlessAgentOfCommand("codex exec do it")).toBe("codex exec");
   });
 });
@@ -599,7 +910,9 @@ describe("agentBinaryFromPsRow", () => {
   });
 
   test("names a script client through its interpreter (codex under node)", () => {
-    expect(agentBinaryFromPsRow("node", "node /Users/ashot/.bun/bin/codex")).toBe("codex");
+    expect(
+      agentBinaryFromPsRow("node", "node /Users/ashot/.bun/bin/codex"),
+    ).toBe("codex");
   });
 
   test("falls back to comm when argv says nothing", () => {
@@ -608,9 +921,16 @@ describe("agentBinaryFromPsRow", () => {
   });
 
   test("is null for shells, tmux, the daemon and a bare interpreter", () => {
-    expect(agentBinaryFromPsRow("/bin/bash", "/bin/bash -c source snapshot.sh")).toBeNull();
+    expect(
+      agentBinaryFromPsRow("/bin/bash", "/bin/bash -c source snapshot.sh"),
+    ).toBeNull();
     expect(agentBinaryFromPsRow("tmux", "tmux new-session -d -s x")).toBeNull();
-    expect(agentBinaryFromPsRow("bun", "bun /Users/ashot/src/codecast/apps/cli/dist/daemon.js")).toBeNull();
+    expect(
+      agentBinaryFromPsRow(
+        "bun",
+        "bun /Users/ashot/src/codecast/apps/cli/dist/daemon.js",
+      ),
+    ).toBeNull();
     expect(agentBinaryFromPsRow("node", "node")).toBeNull();
   });
 });
@@ -624,27 +944,65 @@ describe("registrySupersedesCachedPid", () => {
   const earlier = fillMs / 1000 - 60;
 
   test("a newer hook registration naming a different pid supersedes", () => {
-    expect(registrySupersedesCachedPid({ pid: 96988, ts: later, term: "tmux" }, 16959, fillMs)).toBe(true);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: 96988, ts: later, term: "tmux" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(true);
   });
 
   test("the same pid never supersedes, however fresh", () => {
-    expect(registrySupersedesCachedPid({ pid: 16959, ts: later, term: "tmux" }, 16959, fillMs)).toBe(false);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: 16959, ts: later, term: "tmux" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(false);
   });
 
   test("a registration older than the fill lost to discovery", () => {
-    expect(registrySupersedesCachedPid({ pid: 96988, ts: earlier, term: "iTerm.app" }, 16959, fillMs)).toBe(false);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: 96988, ts: earlier, term: "iTerm.app" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(false);
   });
 
   test("only the hook speaks: daemon writes and term-less records never supersede", () => {
-    expect(registrySupersedesCachedPid({ pid: 96988, ts: later, term: "tmux", src: "daemon" }, 16959, fillMs)).toBe(false);
-    expect(registrySupersedesCachedPid({ pid: 96988, ts: later }, 16959, fillMs)).toBe(false);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: 96988, ts: later, term: "tmux", src: "daemon" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(false);
+    expect(
+      registrySupersedesCachedPid({ pid: 96988, ts: later }, 16959, fillMs),
+    ).toBe(false);
   });
 
   test("missing or malformed registration keeps the cache", () => {
     expect(registrySupersedesCachedPid(null, 16959, fillMs)).toBe(false);
     expect(registrySupersedesCachedPid(undefined, 16959, fillMs)).toBe(false);
-    expect(registrySupersedesCachedPid({ pid: "96988", ts: later, term: "tmux" }, 16959, fillMs)).toBe(false);
-    expect(registrySupersedesCachedPid({ pid: 96988, ts: "later", term: "tmux" }, 16959, fillMs)).toBe(false);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: "96988", ts: later, term: "tmux" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(false);
+    expect(
+      registrySupersedesCachedPid(
+        { pid: 96988, ts: "later", term: "tmux" },
+        16959,
+        fillMs,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -654,18 +1012,48 @@ describe("registrySupersedesCachedPid", () => {
 // session running in a herdr pane was held for hours).
 describe("registeredTerminalFor", () => {
   test("the session's own claim names the terminal of the same pid", () => {
-    expect(registeredTerminalFor({ pid: 51234, tty: "ttys004", ts: 1790000000, term: "herdr", launch_token: "" }, 51234)).toBe("herdr");
+    expect(
+      registeredTerminalFor(
+        {
+          pid: 51234,
+          tty: "ttys004",
+          ts: 1790000000,
+          term: "herdr",
+          launch_token: "",
+        },
+        51234,
+      ),
+    ).toBe("herdr");
   });
 
   test("a claim for a different pid says nothing about this one", () => {
-    expect(registeredTerminalFor({ pid: 51299, ts: 1790000000, term: "herdr" }, 51234)).toBeUndefined();
+    expect(
+      registeredTerminalFor(
+        { pid: 51299, ts: 1790000000, term: "herdr" },
+        51234,
+      ),
+    ).toBeUndefined();
   });
 
   test("an unknown terminal, a daemon write and a malformed claim name none", () => {
-    expect(registeredTerminalFor({ pid: 51234, ts: 1790000000, term: "unknown" }, 51234)).toBeUndefined();
-    expect(registeredTerminalFor({ pid: 51234, ts: 1790000000, term: "herdr", src: "daemon" }, 51234)).toBeUndefined();
-    expect(registeredTerminalFor({ pid: 51234, ts: 1790000000, term: "" }, 51234)).toBeUndefined();
-    expect(registeredTerminalFor({ pid: "51234", term: "herdr" }, 51234)).toBeUndefined();
+    expect(
+      registeredTerminalFor(
+        { pid: 51234, ts: 1790000000, term: "unknown" },
+        51234,
+      ),
+    ).toBeUndefined();
+    expect(
+      registeredTerminalFor(
+        { pid: 51234, ts: 1790000000, term: "herdr", src: "daemon" },
+        51234,
+      ),
+    ).toBeUndefined();
+    expect(
+      registeredTerminalFor({ pid: 51234, ts: 1790000000, term: "" }, 51234),
+    ).toBeUndefined();
+    expect(
+      registeredTerminalFor({ pid: "51234", term: "herdr" }, 51234),
+    ).toBeUndefined();
     expect(registeredTerminalFor(null, 51234)).toBeUndefined();
   });
 });
@@ -684,11 +1072,15 @@ describe("registrationPredatesProcess", () => {
   });
 
   test("a process that started before the registration is the one registered", () => {
-    expect(registrationPredatesProcess(registeredAt, registeredAt - 120)).toBe(false);
+    expect(registrationPredatesProcess(registeredAt, registeredAt - 120)).toBe(
+      false,
+    );
   });
 
   test("clock rounding between the write and ps is not a reuse", () => {
-    expect(registrationPredatesProcess(registeredAt, registeredAt + 3)).toBe(false);
+    expect(registrationPredatesProcess(registeredAt, registeredAt + 3)).toBe(
+      false,
+    );
   });
 
   test("an unknown start time or a stampless binding proves nothing", () => {
@@ -700,7 +1092,9 @@ describe("registrationPredatesProcess", () => {
 
 describe("processStartSecFromEtime", () => {
   test("subtracts the elapsed count from the clock read when ps answered", () => {
-    expect(processStartSecFromEtime("16:40", 1_789_491_314_000)).toBe(1_789_491_314 - 1000);
+    expect(processStartSecFromEtime("16:40", 1_789_491_314_000)).toBe(
+      1_789_491_314 - 1000,
+    );
     expect(processStartSecFromEtime("garbage", 1_789_491_314_000)).toBeNull();
   });
 
@@ -713,9 +1107,16 @@ describe("processStartSecFromEtime", () => {
     const scanFinishedMs = psAnsweredMs + 20_000;
     const startFromPs = processStartSecFromEtime("16:40", psAnsweredMs);
     expect(startFromPs).toBe(startSec);
-    expect(registrationPredatesProcess(registeredAtSec, startFromPs)).toBe(false);
+    expect(registrationPredatesProcess(registeredAtSec, startFromPs)).toBe(
+      false,
+    );
     // The clock read after the scan is the wrong one: it dates the process
     // after its own claim and convicts it as a reused pid.
-    expect(registrationPredatesProcess(registeredAtSec, processStartSecFromEtime("16:40", scanFinishedMs))).toBe(true);
+    expect(
+      registrationPredatesProcess(
+        registeredAtSec,
+        processStartSecFromEtime("16:40", scanFinishedMs),
+      ),
+    ).toBe(true);
   });
 });

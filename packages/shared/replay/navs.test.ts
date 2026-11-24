@@ -4,7 +4,11 @@ import type { ReplayEvent } from "../contracts/replay";
 
 describe("page visits", () => {
   // PostHog takes a full snapshot of an idle tab every couple of seconds; each writes a navigation to the same address.
-  const snapshots: ReplayEvent[] = Array.from({ length: 14 }, (_, i) => ({ type: "nav", t: i * 1900, url: "https://x.test/book/54333ea0" }));
+  const snapshots: ReplayEvent[] = Array.from({ length: 14 }, (_, i) => ({
+    type: "nav",
+    t: i * 1900,
+    url: "https://x.test/book/54333ea0",
+  }));
 
   test("repeat snapshots of one page fold into its visit", () => {
     expect(foldRepeatNavs(snapshots)).toHaveLength(1);
@@ -24,7 +28,9 @@ describe("page visits", () => {
   });
 
   test("a stream with nothing to fold comes back as it was", () => {
-    const events: ReplayEvent[] = [{ type: "nav", t: 0, url: "https://x.test/a" }];
+    const events: ReplayEvent[] = [
+      { type: "nav", t: 0, url: "https://x.test/a" },
+    ];
     expect(foldRepeatNavs(events)).toBe(events);
   });
 });

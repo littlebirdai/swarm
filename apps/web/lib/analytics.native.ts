@@ -7,19 +7,33 @@
 // with the same event catalog as web; calls before init are queued there.
 // Init, identity and crash reporting stay with the mobile app.
 import { track as trackNative } from "@platform/analytics/native";
-import type { CodecastEventName, CodecastEventProps } from "@codecast/shared/analytics";
+import type {
+  CodecastEventName,
+  CodecastEventProps,
+} from "@codecast/shared/analytics";
 
 export function initAnalytics() {}
-export function identifyUser(_userId: string, _traits?: Record<string, unknown>) {}
+export function identifyUser(
+  _userId: string,
+  _traits?: Record<string, unknown>,
+) {}
 export function resetUser() {}
 export function keepReplay(_reason: string) {}
 // Same signature as the web twin so a shared hook typechecks in both programs.
-export function track<N extends CodecastEventName>(event: N, properties: CodecastEventProps<N>) {
+export function track<N extends CodecastEventName>(
+  event: N,
+  properties: CodecastEventProps<N>,
+) {
   trackNative(event, properties as Record<string, string | number | boolean>);
 }
 export type AnalyticsPlatform = "desktop" | "web" | "mobile";
-export function getPlatform(): AnalyticsPlatform { return "mobile"; }
-export function captureError(_error: Error, _context?: Record<string, unknown>) {}
+export function getPlatform(): AnalyticsPlatform {
+  return "mobile";
+}
+export function captureError(
+  _error: Error,
+  _context?: Record<string, unknown>,
+) {}
 export function setupErrorToasts() {}
 export const Sentry = undefined as any;
 export const posthog = undefined as any;

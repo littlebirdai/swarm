@@ -31,7 +31,9 @@ export function TypingIndicator({ members }: { members: ChatMember[] }) {
           <CommentAvatar
             key={String(m._id)}
             name={memberName(m)}
-            image={isAgentMember(m) ? undefined : m.image || m.github_avatar_url}
+            image={
+              isAgentMember(m) ? undefined : m.image || m.github_avatar_url
+            }
             isAgent={isAgentMember(m)}
             size={14}
             letters={1}
@@ -40,7 +42,9 @@ export function TypingIndicator({ members }: { members: ChatMember[] }) {
       </span>
       <span className="ch-typing-text">{phrase(members)}</span>
       <span className="ch-typing-dots" aria-hidden="true">
-        <span /><span /><span />
+        <span />
+        <span />
+        <span />
       </span>
     </span>
   );

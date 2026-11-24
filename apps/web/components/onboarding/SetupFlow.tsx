@@ -27,8 +27,14 @@ import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { TEAM_ICONS, TEAM_COLORS } from "../TeamIcon";
 import { TeamFlowShell, type TeamFlowStep } from "../team/TeamFlowShell";
 import { TeamCrest } from "../team/TeamCrest";
-import { TeamIdentityPicker, type TeamIdentity } from "../team/TeamIdentityPicker";
-import { VisibilityPicker, type TeamVisibility } from "../team/VisibilityPicker";
+import {
+  TeamIdentityPicker,
+  type TeamIdentity,
+} from "../team/TeamIdentityPicker";
+import {
+  VisibilityPicker,
+  type TeamVisibility,
+} from "../team/VisibilityPicker";
 import { WorkspaceSharePicker } from "../team/WorkspaceSharePicker";
 import { InvitePanel } from "../team/InvitePanel";
 import { useWorkspaceSelection } from "../../hooks/useWorkspaceSelection";
@@ -73,8 +79,13 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
   const welcome = mode === "welcome";
 
   const [solo, setSolo] = useState(false);
-  const keys: StepKey[] = solo ? ["team", "agents"] : ["team", "features", "agents", "sharing", "invite"];
-  const steps: TeamFlowStep[] = keys.map((k) => ({ key: k, label: STEP_LABELS[k] }));
+  const keys: StepKey[] = solo
+    ? ["team", "agents"]
+    : ["team", "features", "agents", "sharing", "invite"];
+  const steps: TeamFlowStep[] = keys.map((k) => ({
+    key: k,
+    label: STEP_LABELS[k],
+  }));
 
   const [step, setStep] = useState(0);
   // Highest step reached. The rail marks every step up to it as done, so a
@@ -100,7 +111,9 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
   const teamIdPromise = useRef<Promise<string> | null>(null);
   // What the server holds after create. A revisit to step 1 diffs against
   // this and patches instead of creating a second team.
-  const applied = useRef<{ name: string; icon: string; color: string } | null>(null);
+  const applied = useRef<{ name: string; icon: string; color: string } | null>(
+    null,
+  );
   // Where a revisit to step 1 came from. Back and save both return there,
   // so a trip back to fix the name never re-walks the middle steps.
   const returnTo = useRef(1);
@@ -110,7 +123,9 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
   // not reinitialize.
   useMountEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; };
+    return () => {
+      alive.current = false;
+    };
   });
 
   useWatchEffect(() => {
@@ -121,7 +136,14 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
   const updateTeamIcon = useInboxStore((s) => s.updateTeamIcon);
 
   const data = useTeamWorkspaceSuggestions(teamId);
-  const { selectedPaths, toggle, selectedCount, selectedList, since, setSince } = useWorkspaceSelection(data, teamId);
+  const {
+    selectedPaths,
+    toggle,
+    selectedCount,
+    selectedList,
+    since,
+    setSince,
+  } = useWorkspaceSelection(data, teamId);
   const impact = useShareImpact(selectedList, data.allProjects, since);
   const save = useSaveTeamSetup();
 
@@ -145,7 +167,14 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
     router.push(welcome ? "/inbox" : "/team/activity");
     const teamName = applied.current?.name || trimmed;
     toast(`${teamName} is ready`, {
-      icon: <TeamCrest icon={identity.icon} color={identity.color} size="md" tone="strong" />,
+      icon: (
+        <TeamCrest
+          icon={identity.icon}
+          color={identity.color}
+          size="md"
+          tone="strong"
+        />
+      ),
       description: "Sessions from shared repos land in the team feed.",
     });
   };
@@ -175,7 +204,13 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
     const prev = applied.current;
     const next = { name: trimmed, icon: identity.icon, color: identity.color };
     applied.current = next;
-    if (!prev || (prev.name === next.name && prev.icon === next.icon && prev.color === next.color)) return;
+    if (
+      !prev ||
+      (prev.name === next.name &&
+        prev.icon === next.icon &&
+        prev.color === next.color)
+    )
+      return;
     teamIdPromise.current
       ?.then(async (id) => {
         if (prev.name !== next.name) await renameTeam(id, next.name);
@@ -188,7 +223,9 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
       })
       .catch((err) => {
         console.error("Team identity update failed:", err);
-        toast.error("Could not update the team identity", { description: "You can change it in Settings." });
+        toast.error("Could not update the team identity", {
+          description: "You can change it in Settings.",
+        });
       });
   }, [trimmed, identity, renameTeam, updateTeamIcon]);
 
@@ -204,7 +241,11 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
       return;
     }
 
-    applied.current = { name: trimmed, icon: identity.icon, color: identity.color };
+    applied.current = {
+      name: trimmed,
+      icon: identity.icon,
+      color: identity.color,
+    };
     const p = useInboxStore.getState().createTeam({
       name: trimmed,
       icon: identity.icon,
@@ -214,11 +255,16 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
     teamIdPromise.current = p;
     setStep(1);
     p.then(
-      (id) => { if (alive.current) setTeamId(id as Id<"teams">); },
+      (id) => {
+        if (alive.current) setTeamId(id as Id<"teams">);
+      },
       (err: unknown) => {
         teamIdPromise.current = null;
         applied.current = null;
-        const message = humanizeConvexError(err, "Could not create the team. Try again.");
+        const message = humanizeConvexError(
+          err,
+          "Could not create the team. Try again.",
+        );
         if (!alive.current) {
           toast.error(`Could not create ${trimmed}`, { description: message });
           return;
@@ -236,11 +282,19 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
     const p = teamIdPromise.current;
     if (!p) return;
     p.then((id) =>
-      save({ teamId: id as Id<"teams">, visibility, selectedPaths: paths, allProjects: data.allProjects, shareSince: since }),
+      save({
+        teamId: id as Id<"teams">,
+        visibility,
+        selectedPaths: paths,
+        allProjects: data.allProjects,
+        shareSince: since,
+      }),
     ).catch((err) => {
       if (!teamIdPromise.current) return;
       console.error("Team setup save failed:", err);
-      toast.error("Could not save the team settings", { description: "You can change them in Settings." });
+      toast.error("Could not save the team settings", {
+        description: "You can change them in Settings.",
+      });
     });
   };
 
@@ -267,7 +321,11 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
     go(i);
   };
 
-  const crest = { icon: identity.icon, color: identity.color, name: solo ? "Just me" : trimmed };
+  const crest = {
+    icon: identity.icon,
+    color: identity.color,
+    name: solo ? "Just me" : trimmed,
+  };
   const eyebrow = solo ? "Personal" : created ? "Team created" : "New team";
   const shell = {
     eyebrow,
@@ -285,10 +343,21 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
         {...shell}
         onStepSelect={created && nameValid ? selectStep : undefined}
         heading={welcome && !created ? "Start your team" : "Name your team"}
-        description={welcome && !created ? "Chat, calls, tasks and your agents, shared with the people you build with." : "Pick a name, an icon and a color. You can change them later."}
+        description={
+          welcome && !created
+            ? "Chat, calls, tasks and your agents, shared with the people you build with."
+            : "Pick a name, an icon and a color. You can change them later."
+        }
         onBack={canLeave ? goBack : undefined}
         backLabel={created ? "Back" : "Cancel"}
-        onSkip={welcome && !created ? () => { setSolo(true); setStep(1); } : undefined}
+        onSkip={
+          welcome && !created
+            ? () => {
+                setSolo(true);
+                setStep(1);
+              }
+            : undefined
+        }
         skipLabel="Just me for now"
         formId={NAME_FORM_ID}
         continueLabel={created ? "Save and continue" : "Create team"}
@@ -298,12 +367,16 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
           {welcome && !created && <DomainTeams />}
           <div>
             <div className="flex items-baseline justify-between">
-              <Label htmlFor="teamName" className="text-sol-text">Team name</Label>
+              <Label htmlFor="teamName" className="text-sol-text">
+                Team name
+              </Label>
               <span
                 className={cn(
                   "text-xs tabular-nums transition-opacity",
                   nearNameLimit ? "opacity-100" : "opacity-0",
-                  trimmed.length > NAME_MAX ? "text-sol-red" : "text-sol-text-dim",
+                  trimmed.length > NAME_MAX
+                    ? "text-sol-red"
+                    : "text-sol-text-dim",
                 )}
                 aria-live={nearNameLimit ? "polite" : undefined}
                 aria-hidden={nearNameLimit ? undefined : true}
@@ -314,7 +387,10 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
             <Input
               id="teamName"
               value={name}
-              onChange={(e) => { setName(e.target.value); if (createError) setCreateError(""); }}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (createError) setCreateError("");
+              }}
               placeholder="Acme Robotics"
               maxLength={NAME_MAX + 20}
               autoFocus
@@ -323,7 +399,9 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
               className="mt-1.5 h-11 text-base bg-sol-bg-alt border-sol-border text-sol-text focus-visible:ring-[var(--team-flow-accent)]"
             />
             {trimmed.length > NAME_MAX && (
-              <p className="mt-1.5 text-xs text-sol-red">Use {NAME_MAX} characters or fewer.</p>
+              <p className="mt-1.5 text-xs text-sol-red">
+                Use {NAME_MAX} characters or fewer.
+              </p>
             )}
           </div>
 
@@ -331,13 +409,22 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
 
           {!created && workDomain?.domain && workDomain.proven && (
             <label className="flex items-center justify-between gap-4 rounded-lg border border-sol-border bg-sol-bg-alt/40 px-4 py-3">
-              <span className="text-sm text-sol-text">Let @{workDomain.domain} coworkers find this team</span>
-              <Switch checked={findable} onCheckedChange={setFindable} aria-label={`Let @${workDomain.domain} coworkers find this team`} />
+              <span className="text-sm text-sol-text">
+                Let @{workDomain.domain} coworkers find this team
+              </span>
+              <Switch
+                checked={findable}
+                onCheckedChange={setFindable}
+                aria-label={`Let @${workDomain.domain} coworkers find this team`}
+              />
             </label>
           )}
 
           {createError && (
-            <div role="alert" className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg">
+            <div
+              role="alert"
+              className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg"
+            >
               <p className="text-sm text-sol-red">{createError}</p>
             </div>
           )}
@@ -355,8 +442,13 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
         description="Each one works for people and agents alike."
         onSkip={features.allOn ? undefined : () => go(indexOf("agents"))}
         skipLabel={`Continue with ${features.onCount} ${features.onCount === 1 ? "feature" : "features"}`}
-        onContinue={() => { features.turnAllOn(); go(indexOf("agents")); }}
-        continueLabel={features.allOn ? "Continue" : `Turn on all ${features.total}`}
+        onContinue={() => {
+          features.turnAllOn();
+          go(indexOf("agents"));
+        }}
+        continueLabel={
+          features.allOn ? "Continue" : `Turn on all ${features.total}`
+        }
         enterAdvances
       >
         <FeatureStep teamId={teamId} />
@@ -370,11 +462,21 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
         {...shell}
         onStepSelect={selectStep}
         heading="Connect your agents"
-        description={solo ? "Sessions from this computer sync, and your agents learn to use Codecast." : "Sessions from this computer sync, and agents learn to use everything you just turned on."}
+        description={
+          solo
+            ? "Sessions from this computer sync, and your agents learn to use Codecast."
+            : "Sessions from this computer sync, and agents learn to use everything you just turned on."
+        }
         onSkip={agents.allChosen ? undefined : () => leaveAgents()}
         skipLabel={`Continue with ${agents.chosen.size} agent ${agents.chosen.size === 1 ? "feature" : "features"}`}
         onContinue={() => leaveAgents(true)}
-        continueLabel={agents.allChosen ? (solo ? "Finish" : "Continue") : `Turn on all ${agents.total}`}
+        continueLabel={
+          agents.allChosen
+            ? solo
+              ? "Finish"
+              : "Continue"
+            : `Turn on all ${agents.total}`
+        }
         enterAdvances
       >
         <ConnectStep choice={agents} />
@@ -396,7 +498,11 @@ export function SetupFlow({ mode }: { mode: SetupFlowMode }) {
         enterAdvances
       >
         <div className="space-y-6">
-          <VisibilityPicker value={visibility} onChange={setVisibility} compact />
+          <VisibilityPicker
+            value={visibility}
+            onChange={setVisibility}
+            compact
+          />
           <WorkspaceSharePicker
             data={data}
             teamId={teamId}

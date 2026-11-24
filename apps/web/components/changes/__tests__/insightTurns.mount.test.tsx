@@ -27,5 +27,7 @@ test("a session's turns render as asked/did pairs, capped and clipped", () => {
 });
 
 test("no turns, no list", () => {
-  expect(renderToStaticMarkup(<InsightTurns turns={[{ ask: "", did: [] }]} />)).toBe("");
+  expect(
+    renderToStaticMarkup(<InsightTurns turns={[{ ask: "", did: [] }]} />),
+  ).toBe("");
 });

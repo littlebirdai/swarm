@@ -14,21 +14,23 @@ export const recordTeamActivity = internalMutation({
       v.literal("member_joined"),
       v.literal("member_left"),
       v.literal("pr_created"),
-      v.literal("pr_merged")
+      v.literal("pr_merged"),
     ),
     title: v.string(),
     description: v.optional(v.string()),
     related_conversation_id: v.optional(v.id("conversations")),
     related_commit_sha: v.optional(v.string()),
     related_pr_id: v.optional(v.id("pull_requests")),
-    metadata: v.optional(v.object({
-      duration_ms: v.optional(v.number()),
-      message_count: v.optional(v.number()),
-      git_branch: v.optional(v.string()),
-      files_changed: v.optional(v.number()),
-      insertions: v.optional(v.number()),
-      deletions: v.optional(v.number()),
-    })),
+    metadata: v.optional(
+      v.object({
+        duration_ms: v.optional(v.number()),
+        message_count: v.optional(v.number()),
+        git_branch: v.optional(v.string()),
+        files_changed: v.optional(v.number()),
+        insertions: v.optional(v.number()),
+        deletions: v.optional(v.number()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const activityId = await ctx.db.insert("team_activity_events", {
@@ -51,15 +53,17 @@ export const recordTeamActivity = internalMutation({
 export const getTeamActivityFeed = query({
   args: {
     team_id: v.id("teams"),
-    event_type_filter: v.optional(v.union(
-      v.literal("session_started"),
-      v.literal("session_completed"),
-      v.literal("commit_pushed"),
-      v.literal("member_joined"),
-      v.literal("member_left"),
-      v.literal("pr_created"),
-      v.literal("pr_merged")
-    )),
+    event_type_filter: v.optional(
+      v.union(
+        v.literal("session_started"),
+        v.literal("session_completed"),
+        v.literal("commit_pushed"),
+        v.literal("member_joined"),
+        v.literal("member_left"),
+        v.literal("pr_created"),
+        v.literal("pr_merged"),
+      ),
+    ),
     actor_filter: v.optional(v.id("users")),
     limit: v.optional(v.number()),
     cursor: v.optional(v.number()),
@@ -83,13 +87,17 @@ export const getTeamActivityFeed = query({
     let scanCursor = args.cursor;
     let exhausted = false;
 
-    for (let i = 0; i < maxScans && events.length < targetSize && !exhausted; i++) {
+    for (
+      let i = 0;
+      i < maxScans && events.length < targetSize && !exhausted;
+      i++
+    ) {
       const batch = await ctx.db
         .query("team_activity_events")
         .withIndex("by_team_timestamp", (q) =>
           scanCursor !== undefined
             ? q.eq("team_id", args.team_id).lt("timestamp", scanCursor)
-            : q.eq("team_id", args.team_id)
+            : q.eq("team_id", args.team_id),
         )
         .order("desc")
         .take(batchSize);
@@ -100,8 +108,16 @@ export const getTeamActivityFeed = query({
       }
 
       for (const event of batch) {
-        if (args.event_type_filter && event.event_type !== args.event_type_filter) continue;
-        if (args.actor_filter && event.actor_user_id.toString() !== args.actor_filter.toString()) continue;
+        if (
+          args.event_type_filter &&
+          event.event_type !== args.event_type_filter
+        )
+          continue;
+        if (
+          args.actor_filter &&
+          event.actor_user_id.toString() !== args.actor_filter.toString()
+        )
+          continue;
         events.push(event);
         if (events.length >= targetSize) break;
       }
@@ -120,21 +136,24 @@ export const getTeamActivityFeed = query({
         const actor = (await ctx.db.get(event.actor_user_id)) as any;
         return {
           ...event,
-          actor: actor ? {
-            _id: actor._id,
-            name: actor.name,
-            email: actor.email,
-          } : null,
+          actor: actor
+            ? {
+                _id: actor._id,
+                name: actor.name,
+                email: actor.email,
+              }
+            : null,
         };
-      })
+      }),
     );
 
     return {
       events: eventsWithActors,
       hasMore,
-      nextCursor: hasMore && paginatedEvents.length > 0
-        ? paginatedEvents[paginatedEvents.length - 1].timestamp
-        : undefined,
+      nextCursor:
+        hasMore && paginatedEvents.length > 0
+          ? paginatedEvents[paginatedEvents.length - 1].timestamp
+          : undefined,
     };
   },
 });

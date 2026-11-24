@@ -19,8 +19,22 @@ import {
 } from "./r2";
 import { CALL_RECORDING_URL_WINDOW_MS as W } from "@codecast/shared/contracts";
 
-const bucket = { endpoint: "https://acct.r2.cloudflarestorage.com", accessKeyId: "k", secretAccessKey: "s", bucket: "codecast-call-recordings" };
-const ENV = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "MEDIA_PUBLIC_BASE", "CALL_REC_R2_BUCKET", "CALL_REC_R2_ACCESS_KEY_ID", "CALL_REC_R2_SECRET_ACCESS_KEY"];
+const bucket = {
+  endpoint: "https://acct.r2.cloudflarestorage.com",
+  accessKeyId: "k",
+  secretAccessKey: "s",
+  bucket: "codecast-call-recordings",
+};
+const ENV = [
+  "R2_ENDPOINT",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+  "MEDIA_PUBLIC_BASE",
+  "CALL_REC_R2_BUCKET",
+  "CALL_REC_R2_ACCESS_KEY_ID",
+  "CALL_REC_R2_SECRET_ACCESS_KEY",
+];
 const saved = Object.fromEntries(ENV.map((k) => [k, process.env[k]]));
 afterEach(() => {
   for (const k of ENV) {
@@ -39,15 +53,36 @@ describe("buckets from env", () => {
     process.env.CALL_REC_R2_BUCKET = "codecast-call-recordings";
     process.env.CALL_REC_R2_ACCESS_KEY_ID = "rec-key";
     process.env.CALL_REC_R2_SECRET_ACCESS_KEY = "rec-secret";
-    expect(callRecordingsBucketFromEnv()).toEqual({ endpoint: bucket.endpoint, accessKeyId: "rec-key", secretAccessKey: "rec-secret", bucket: "codecast-call-recordings" });
-    expect(mediaBucketFromEnv()).toEqual({ endpoint: bucket.endpoint, accessKeyId: "media-key", secretAccessKey: "media-secret", bucket: "codecast-media", publicBase: "https://media.codecast.sh" });
+    expect(callRecordingsBucketFromEnv()).toEqual({
+      endpoint: bucket.endpoint,
+      accessKeyId: "rec-key",
+      secretAccessKey: "rec-secret",
+      bucket: "codecast-call-recordings",
+    });
+    expect(mediaBucketFromEnv()).toEqual({
+      endpoint: bucket.endpoint,
+      accessKeyId: "media-key",
+      secretAccessKey: "media-secret",
+      bucket: "codecast-media",
+      publicBase: "https://media.codecast.sh",
+    });
   });
 });
 
 describe("presigned URLs", () => {
   test("address the object inside its bucket", async () => {
-    const url = await r2Presign(bucket, "GET", "/calls/t1/c1.mp4", 60, new Date("2026-10-02T00:00:00Z"));
-    expect(url.startsWith("https://acct.r2.cloudflarestorage.com/codecast-call-recordings/calls/t1/c1.mp4?")).toBe(true);
+    const url = await r2Presign(
+      bucket,
+      "GET",
+      "/calls/t1/c1.mp4",
+      60,
+      new Date("2026-10-02T00:00:00Z"),
+    );
+    expect(
+      url.startsWith(
+        "https://acct.r2.cloudflarestorage.com/codecast-call-recordings/calls/t1/c1.mp4?",
+      ),
+    ).toBe(true);
     expect(url).toContain("X-Amz-Expires=60");
   });
 
@@ -68,16 +103,30 @@ describe("presigned URLs", () => {
     process.env.CALL_REC_R2_ACCESS_KEY_ID = bucket.accessKeyId;
     process.env.CALL_REC_R2_SECRET_ACCESS_KEY = bucket.secretAccessKey;
     const t0 = Date.parse("2026-10-02T10:00:00Z");
-    const a = (await callRecordingGetUrl("calls/t1/c1.mp4", { stable: { at: t0 + 1_000, windowMs: W } }))!;
-    const b = (await callRecordingGetUrl("calls/t1/c1.mp4", { stable: { at: t0 + W - 1, windowMs: W } }))!;
+    const a = (await callRecordingGetUrl("calls/t1/c1.mp4", {
+      stable: { at: t0 + 1_000, windowMs: W },
+    }))!;
+    const b = (await callRecordingGetUrl("calls/t1/c1.mp4", {
+      stable: { at: t0 + W - 1, windowMs: W },
+    }))!;
     expect(a).toEqual(b);
     const u = new URL(a.url);
-    expect(u.searchParams.get("response-cache-control")).toBe("private, no-store");
+    expect(u.searchParams.get("response-cache-control")).toBe(
+      "private, no-store",
+    );
     // Part of the signature: the same URL without it is a different signature.
-    const plain = new URL((await r2StableGetUrl(bucket, "calls/t1/c1.mp4", t0 + 1_000, W)).url);
-    expect(u.searchParams.get("X-Amz-Signature")).not.toBe(plain.searchParams.get("X-Amz-Signature"));
-    const fresh = new URL((await callRecordingGetUrl("calls/t1/c1.mp4", "fresh"))!.url);
-    expect(fresh.searchParams.get("response-cache-control")).toBe("private, no-store");
+    const plain = new URL(
+      (await r2StableGetUrl(bucket, "calls/t1/c1.mp4", t0 + 1_000, W)).url,
+    );
+    expect(u.searchParams.get("X-Amz-Signature")).not.toBe(
+      plain.searchParams.get("X-Amz-Signature"),
+    );
+    const fresh = new URL(
+      (await callRecordingGetUrl("calls/t1/c1.mp4", "fresh"))!.url,
+    );
+    expect(fresh.searchParams.get("response-cache-control")).toBe(
+      "private, no-store",
+    );
   });
 
   test("a URL handed out at the end of its window still lives a full window", () => {
@@ -91,8 +140,21 @@ describe("presigned URLs", () => {
 
 describe("callRecordingKey", () => {
   test("a call's files sit under it, named by the press that started their run, all MP4", () => {
-    expect(callRecordingKey({ transcriptId: "t1", kind: "composite", requestedAt: 1727000000000 })).toBe("calls/t1/1727000000000-composite.mp4");
-    expect(callRecordingKey({ transcriptId: "t1", kind: "screen", requestedAt: 1727000000000, trackSid: "TR_ab/../c" })).toBe("calls/t1/1727000000000-screen-TR_abc.mp4");
+    expect(
+      callRecordingKey({
+        transcriptId: "t1",
+        kind: "composite",
+        requestedAt: 1727000000000,
+      }),
+    ).toBe("calls/t1/1727000000000-composite.mp4");
+    expect(
+      callRecordingKey({
+        transcriptId: "t1",
+        kind: "screen",
+        requestedAt: 1727000000000,
+        trackSid: "TR_ab/../c",
+      }),
+    ).toBe("calls/t1/1727000000000-screen-TR_abc.mp4");
   });
 });
 
@@ -101,11 +163,29 @@ describe("a run's prefix", () => {
     const run = { transcriptId: "t1", requestedAt: 1727000000000 };
     const prefix = callRecordingRunPrefix(run);
     expect(prefix).toBe("calls/t1/1727000000000-");
-    expect(callRecordingKey({ ...run, kind: "composite" }).startsWith(prefix)).toBe(true);
-    expect(liveFrameKey(callRecordingLiveFramePrefix({ ...run, kind: "screen", trackSid: "TR_x" }))).toBe("calls/t1/1727000000000-screen-TR_x-live.jpeg");
+    expect(
+      callRecordingKey({ ...run, kind: "composite" }).startsWith(prefix),
+    ).toBe(true);
+    expect(
+      liveFrameKey(
+        callRecordingLiveFramePrefix({
+          ...run,
+          kind: "screen",
+          trackSid: "TR_x",
+        }),
+      ),
+    ).toBe("calls/t1/1727000000000-screen-TR_x-live.jpeg");
     // A press a millisecond later has a longer number at the same place.
-    expect(callRecordingKey({ transcriptId: "t1", requestedAt: 17270000000001, kind: "composite" }).startsWith(prefix)).toBe(false);
-    expect(callRecordingRunPrefixOfKey("calls/t1/1727000000000-screen-TR_x.mp4")).toBe(prefix);
+    expect(
+      callRecordingKey({
+        transcriptId: "t1",
+        requestedAt: 17270000000001,
+        kind: "composite",
+      }).startsWith(prefix),
+    ).toBe(false);
+    expect(
+      callRecordingRunPrefixOfKey("calls/t1/1727000000000-screen-TR_x.mp4"),
+    ).toBe(prefix);
     // Never guessed for a key outside the layout.
     expect(callRecordingRunPrefixOfKey("calls/t1/composite.mp4")).toBeNull();
     expect(callRecordingRunPrefixOfKey("elsewhere/t1/1-x.mp4")).toBeNull();
@@ -120,9 +200,17 @@ describe("fresh URLs and listing", () => {
 
   test("a fresh URL is signed now, for ten minutes", async () => {
     const now = Date.parse("2026-10-02T10:07:13Z");
-    const { url, expiresAt } = await r2FreshGetUrl(bucket, "calls/t1/c.mp4", now);
-    expect(new URL(url).searchParams.get("X-Amz-Date")).toBe("20261002T100713Z");
-    expect(new URL(url).searchParams.get("X-Amz-Expires")).toBe(String(FRESH_URL_SECONDS));
+    const { url, expiresAt } = await r2FreshGetUrl(
+      bucket,
+      "calls/t1/c.mp4",
+      now,
+    );
+    expect(new URL(url).searchParams.get("X-Amz-Date")).toBe(
+      "20261002T100713Z",
+    );
+    expect(new URL(url).searchParams.get("X-Amz-Expires")).toBe(
+      String(FRESH_URL_SECONDS),
+    );
     expect(expiresAt).toBe(now + FRESH_URL_SECONDS * 1000);
   });
 
@@ -137,32 +225,53 @@ describe("fresh URLs and listing", () => {
         : "<ListBucketResult><IsTruncated>true</IsTruncated><Contents><Key>calls/t1/1-composite.mp4</Key></Contents><Contents><Key>calls/t1/1-a&amp;b.mp4</Key></Contents><NextContinuationToken>tok&amp;2</NextContinuationToken></ListBucketResult>";
       return new Response(xml, { status: 200 });
     }) as any;
-    expect(await r2ListKeys(bucket, "calls/t1/1-")).toEqual(["calls/t1/1-composite.mp4", "calls/t1/1-a&b.mp4", "calls/t1/1-live.jpeg"]);
+    expect(await r2ListKeys(bucket, "calls/t1/1-")).toEqual([
+      "calls/t1/1-composite.mp4",
+      "calls/t1/1-a&b.mp4",
+      "calls/t1/1-live.jpeg",
+    ]);
     expect(seen).toHaveLength(2);
     expect(seen[0].pathname).toBe("/codecast-call-recordings");
     expect(seen[0].searchParams.get("list-type")).toBe("2");
     expect(seen[0].searchParams.get("prefix")).toBe("calls/t1/1-");
-    expect(seen[0].searchParams.get("X-Amz-Signature")).toMatch(/^[0-9a-f]{64}$/);
+    expect(seen[0].searchParams.get("X-Amz-Signature")).toMatch(
+      /^[0-9a-f]{64}$/,
+    );
   });
 
   test("a refused list throws: a delete by prefix must know it saw everything", async () => {
-    globalThis.fetch = (async () => new Response("denied", { status: 403 })) as any;
+    globalThis.fetch = (async () =>
+      new Response("denied", { status: 403 })) as any;
     await expect(r2ListKeys(bucket, "calls/t1/1-")).rejects.toThrow(/403/);
   });
 });
 
 describe("callRecordingManifestKey", () => {
   test("names LiveKit's manifest in the file's folder, and nothing for an unknown shape", () => {
-    expect(callRecordingManifestKey("calls/t1/1727000000000-composite.mp4", "EG_abc123")).toBe("calls/t1/EG_abc123.json");
-    expect(callRecordingManifestKey("calls/t1/1727000000000-composite.mp4", null)).toBeNull();
-    expect(callRecordingManifestKey("calls/t1/1727000000000-composite.mp4", "../x")).toBeNull();
+    expect(
+      callRecordingManifestKey(
+        "calls/t1/1727000000000-composite.mp4",
+        "EG_abc123",
+      ),
+    ).toBe("calls/t1/EG_abc123.json");
+    expect(
+      callRecordingManifestKey("calls/t1/1727000000000-composite.mp4", null),
+    ).toBeNull();
+    expect(
+      callRecordingManifestKey("calls/t1/1727000000000-composite.mp4", "../x"),
+    ).toBeNull();
     expect(callRecordingManifestKey("elsewhere/f.mp4", "EG_abc")).toBeNull();
   });
 });
 
 describe("recordingGetParams", () => {
   test("a video is served as mp4 whatever it was uploaded as; a live frame keeps its type", () => {
-    expect(recordingGetParams("calls/t/1-screen-track.mp4")).toEqual({ "response-cache-control": "private, no-store", "response-content-type": "video/mp4" });
-    expect(recordingGetParams("calls/t/1-live.jpg")).toEqual({ "response-cache-control": "private, no-store" });
+    expect(recordingGetParams("calls/t/1-screen-track.mp4")).toEqual({
+      "response-cache-control": "private, no-store",
+      "response-content-type": "video/mp4",
+    });
+    expect(recordingGetParams("calls/t/1-live.jpg")).toEqual({
+      "response-cache-control": "private, no-store",
+    });
   });
 });

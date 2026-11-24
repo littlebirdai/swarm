@@ -4,24 +4,83 @@ import { detectPermissionPrompt } from "../permissionDetector.js";
 import { generateTitleFromMessage } from "./ingestMetadata.js";
 import { withoutDeliveryId } from "@codecast/shared/contracts";
 import { handoffParentSessionId } from "../planHandoff.js";
-import fs from 'node:fs';
-import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { readCompleteLines, cursorPassBoundary, readCodexSessionMetaHeadAsync } from '../transcriptWindow.js';
-import { readCodexModelBeforeOffset } from '../codexTranscriptModel.js';
-import { isCursorRoleHeaderLine, parseCursorTranscriptFile, parseMirrorTranscriptFile, parseTranscriptFor, parseCodexSessionFile, parseSessionFile, extractSlug, extractParentUuid, extractSidechain, extractCwd, extractSummaryTitle, extractTeamInfo, detectCliFlags, extractPiCwd, extractGrokCwd, isGrokInternalSession, extractMuseCwd } from '../parser.js';
-import { extractCodexCwd, extractCodexSessionMetadata, extractCodexForkRoot, isCompletedStandaloneCodexReview, isCompletedNativeCodexReviewChild } from '../codexSessionMeta.js';
-import { recoverImagesFromBackup, classifyOpencodeTranscriptTail, classifyPiTranscriptTail, classifyGrokTranscriptTail, classifyMuseTranscriptTail, classifyCursorTranscriptTail } from './ingestMetadata.js';
-import { classifyAntigravityTranscriptTail } from '../antigravityTranscript.js';
-import { antigravityDataDirFromTranscript } from '../antigravityPaths.js';
-import { INGEST_WINDOW_ROWS, INGEST_MAX_BYTES, hasClockFreeReceipts, isWindowedIngest, type IngestJob, type IngestIdentity, type IngestResult } from './ingestTypes.js';
-import { validateIngestResult } from './ingestValidation.js';
-import { findCursorCliChat } from './cursorObservation.js';
-import { classifyMirrorTranscriptTail, mirrorHistoryId, mirrorMessageUuid, readMetaJson } from '../cloudAgents/transcript.js';
-import { MetadataWindowExhausted, readCompleteMetadataHead, readCompleteMetadataTail } from './ingestMetadataWindow.js';
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import {
+  readCompleteLines,
+  cursorPassBoundary,
+  readCodexSessionMetaHeadAsync,
+} from "../transcriptWindow.js";
+import { readCodexModelBeforeOffset } from "../codexTranscriptModel.js";
+import {
+  isCursorRoleHeaderLine,
+  parseCursorTranscriptFile,
+  parseMirrorTranscriptFile,
+  parseTranscriptFor,
+  parseCodexSessionFile,
+  parseSessionFile,
+  extractSlug,
+  extractParentUuid,
+  extractSidechain,
+  extractCwd,
+  extractSummaryTitle,
+  extractTeamInfo,
+  detectCliFlags,
+  extractPiCwd,
+  extractGrokCwd,
+  isGrokInternalSession,
+  extractMuseCwd,
+} from "../parser.js";
+import {
+  extractCodexCwd,
+  extractCodexSessionMetadata,
+  extractCodexForkRoot,
+  isCompletedStandaloneCodexReview,
+  isCompletedNativeCodexReviewChild,
+} from "../codexSessionMeta.js";
+import {
+  recoverImagesFromBackup,
+  classifyOpencodeTranscriptTail,
+  classifyPiTranscriptTail,
+  classifyGrokTranscriptTail,
+  classifyMuseTranscriptTail,
+  classifyCursorTranscriptTail,
+} from "./ingestMetadata.js";
+import { classifyAntigravityTranscriptTail } from "../antigravityTranscript.js";
+import { antigravityDataDirFromTranscript } from "../antigravityPaths.js";
+import {
+  INGEST_WINDOW_ROWS,
+  INGEST_MAX_BYTES,
+  hasClockFreeReceipts,
+  isWindowedIngest,
+  type IngestJob,
+  type IngestIdentity,
+  type IngestResult,
+} from "./ingestTypes.js";
+import { validateIngestResult } from "./ingestValidation.js";
+import { findCursorCliChat } from "./cursorObservation.js";
+import {
+  classifyMirrorTranscriptTail,
+  mirrorHistoryId,
+  mirrorMessageUuid,
+  readMetaJson,
+} from "../cloudAgents/transcript.js";
+import {
+  MetadataWindowExhausted,
+  readCompleteMetadataHead,
+  readCompleteMetadataTail,
+} from "./ingestMetadataWindow.js";
 const METADATA_MAX_BYTES = 64 * 1024;
 export function ingestIdentity(s: fs.Stats): IngestIdentity {
-  return {dev:s.dev,ino:s.ino,birthtimeMs:s.birthtimeMs,ctimeMs:s.ctimeMs,mtimeMs:s.mtimeMs,size:s.size};
+  return {
+    dev: s.dev,
+    ino: s.ino,
+    birthtimeMs: s.birthtimeMs,
+    ctimeMs: s.ctimeMs,
+    mtimeMs: s.mtimeMs,
+    size: s.size,
+  };
 }
 export function sameIngestFile(a: IngestIdentity, b: IngestIdentity): boolean {
   return a.dev === b.dev && a.ino === b.ino && a.birthtimeMs === b.birthtimeMs;
@@ -35,34 +94,76 @@ export function sameIngestFile(a: IngestIdentity, b: IngestIdentity): boolean {
  * decide whether the file at that path is the one recorded. Within one boot,
  * sameIngestFile stays the stricter check.
  */
-export function samePersistedFile(a: {ino: number; birthtimeMs: number}, b: {ino: number; birthtimeMs: number}): boolean {
+export function samePersistedFile(
+  a: { ino: number; birthtimeMs: number },
+  b: { ino: number; birthtimeMs: number },
+): boolean {
   return a.ino === b.ino && a.birthtimeMs === b.birthtimeMs;
 }
-export function sameIngestSnapshot(a: IngestIdentity, b: IngestIdentity): boolean {
-  return sameIngestFile(a,b) && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
+export function sameIngestSnapshot(
+  a: IngestIdentity,
+  b: IngestIdentity,
+): boolean {
+  return (
+    sameIngestFile(a, b) &&
+    a.size === b.size &&
+    a.mtimeMs === b.mtimeMs &&
+    a.ctimeMs === b.ctimeMs
+  );
 }
-export async function ingestWalIdentity(file: string): Promise<IngestIdentity | null> {
-  try { return ingestIdentity(await fs.promises.stat(file+'-wal')); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return null; }
+export async function ingestWalIdentity(
+  file: string,
+): Promise<IngestIdentity | null> {
+  try {
+    return ingestIdentity(await fs.promises.stat(file + "-wal"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return null;
+  }
 }
-export function sameIngestWal(a: IngestIdentity | null, b: IngestIdentity | null): boolean {
-  return a === null || b === null ? a === b : sameIngestSnapshot(a,b);
+export function sameIngestWal(
+  a: IngestIdentity | null,
+  b: IngestIdentity | null,
+): boolean {
+  return a === null || b === null ? a === b : sameIngestSnapshot(a, b);
 }
-async function readPart(file: string, length: number, tail = false): Promise<string> {
-  const fd = await fs.promises.open(file,'r');
+async function readPart(
+  file: string,
+  length: number,
+  tail = false,
+): Promise<string> {
+  const fd = await fs.promises.open(file, "r");
   try {
     const size = (await fd.stat()).size;
-    const buf = Buffer.alloc(Math.min(size,length));
-    const {bytesRead} = await fd.read(buf,0,buf.length,tail ? Math.max(0,size-length) : 0);
-    return buf.toString('utf8',0,bytesRead);
-  } finally { await fd.close(); }
+    const buf = Buffer.alloc(Math.min(size, length));
+    const { bytesRead } = await fd.read(
+      buf,
+      0,
+      buf.length,
+      tail ? Math.max(0, size - length) : 0,
+    );
+    return buf.toString("utf8", 0, bytesRead);
+  } finally {
+    await fd.close();
+  }
 }
-async function withMetadataSource<T>(job: IngestJob, before: IngestIdentity, checkpoint: () => void, read: (fd: fs.promises.FileHandle) => Promise<T>, cleanupFailed?: () => void): Promise<T> {
+async function withMetadataSource<T>(
+  job: IngestJob,
+  before: IngestIdentity,
+  checkpoint: () => void,
+  read: (fd: fs.promises.FileHandle) => Promise<T>,
+  cleanupFailed?: () => void,
+): Promise<T> {
   const checkIdentity = (identity: IngestIdentity) => {
-    if (!sameIngestFile(before,identity) || identity.size < before.size || identity.size === before.size && !sameIngestSnapshot(before,identity)) throw new Error('ingest metadata handle changed');
+    if (
+      !sameIngestFile(before, identity) ||
+      identity.size < before.size ||
+      (identity.size === before.size && !sameIngestSnapshot(before, identity))
+    )
+      throw new Error("ingest metadata handle changed");
   };
   checkpoint();
-  const fd = await fs.promises.open(job.file,'r');
+  const fd = await fs.promises.open(job.file, "r");
   let result!: T;
   let failed = false;
   let failure: unknown;
@@ -76,19 +177,33 @@ async function withMetadataSource<T>(job: IngestJob, before: IngestIdentity, che
     const after = await fd.stat();
     checkpoint();
     checkIdentity(ingestIdentity(after));
-  } catch (error) { failed = true; failure = error; }
-  try { await fd.close(); }
-  catch (error) {
+  } catch (error) {
+    failed = true;
+    failure = error;
+  }
+  try {
+    await fd.close();
+  } catch (error) {
     cleanupFailed?.();
     if (!failed) throw error;
-    try { process.stderr.write(`ingest metadata cleanup: ${String(error).slice(0,256)}; primary: ${String(failure).slice(0,256)}\n`); }
-    finally { throw failure; }
+    try {
+      process.stderr.write(
+        `ingest metadata cleanup: ${String(error).slice(0, 256)}; primary: ${String(failure).slice(0, 256)}\n`,
+      );
+    } finally {
+      throw failure;
+    }
   }
   if (failed) throw failure;
   checkpoint();
   return result;
 }
-async function readMetadataTitle(job: IngestJob, before: IngestIdentity, checkpoint: () => void, warnings: string[]): Promise<string | undefined> {
+async function readMetadataTitle(
+  job: IngestJob,
+  before: IngestIdentity,
+  checkpoint: () => void,
+  warnings: string[],
+): Promise<string | undefined> {
   let checkpointFailed = false;
   let cleanupFailed = false;
   const check = () => {
@@ -96,94 +211,171 @@ async function readMetadataTitle(job: IngestJob, before: IngestIdentity, checkpo
     checkpoint();
     checkpointFailed = false;
   };
-  return optional(() => withMetadataSource(job,before,check,async fd => {
-    try {
-      for await (const records of readCompleteMetadataTail(fd,before.size,4096,METADATA_MAX_BYTES,check,() => warnings.push('title: incomplete final record'))) {
-        check();
-        const title = extractSummaryTitle(records);
-        check();
-        if (title) return title;
-      }
-    } catch (error) {
-      if (checkpointFailed || !(error instanceof MetadataWindowExhausted)) throw error;
-      warnings.push(`title: ${error.message}`);
-    }
-    return undefined;
-  },() => { cleanupFailed = true; }),warnings,'title',() => checkpointFailed || cleanupFailed);
+  return optional(
+    () =>
+      withMetadataSource(
+        job,
+        before,
+        check,
+        async (fd) => {
+          try {
+            for await (const records of readCompleteMetadataTail(
+              fd,
+              before.size,
+              4096,
+              METADATA_MAX_BYTES,
+              check,
+              () => warnings.push("title: incomplete final record"),
+            )) {
+              check();
+              const title = extractSummaryTitle(records);
+              check();
+              if (title) return title;
+            }
+          } catch (error) {
+            if (checkpointFailed || !(error instanceof MetadataWindowExhausted))
+              throw error;
+            warnings.push(`title: ${error.message}`);
+          }
+          return undefined;
+        },
+        () => {
+          cleanupFailed = true;
+        },
+      ),
+    warnings,
+    "title",
+    () => checkpointFailed || cleanupFailed,
+  );
 }
 async function whole(file: string): Promise<string> {
-  const fd = await fs.promises.open(file,'r');
+  const fd = await fs.promises.open(file, "r");
   try {
     const size = (await fd.stat()).size;
-    if (size > INGEST_MAX_BYTES) throw new Error('ingest source resource limit');
+    if (size > INGEST_MAX_BYTES)
+      throw new Error("ingest source resource limit");
     const buffer = Buffer.alloc(size);
     let offset = 0;
     while (offset < size) {
-      const {bytesRead} = await fd.read(buffer,offset,Math.min(1024*1024,size-offset),offset);
-      if (!bytesRead) throw new Error('ingest source shortened');
+      const { bytesRead } = await fd.read(
+        buffer,
+        offset,
+        Math.min(1024 * 1024, size - offset),
+        offset,
+      );
+      if (!bytesRead) throw new Error("ingest source shortened");
       offset += bytesRead;
     }
-    return buffer.toString('utf8');
-  } finally { await fd.close(); }
+    return buffer.toString("utf8");
+  } finally {
+    await fd.close();
+  }
 }
 async function windowFor(job: IngestJob, before: IngestIdentity) {
-  const fd = await fs.promises.open(job.file,'r');
+  const fd = await fs.promises.open(job.file, "r");
   try {
-    if (!sameIngestSnapshot(before,ingestIdentity(await fd.stat()))) throw new Error('ingest handle changed');
-    const available = Math.max(0,before.size-job.offset), limited = Math.min(available,INGEST_MAX_BYTES);
-    const result = await readCompleteLines(fd,job.offset,limited,{boundary:(buf,len,eof,from) => {
-      const cut = job.client === 'cursor' ? cursorPassBoundary(buf,len,eof && limited === available,from) : buf.lastIndexOf(0x0a,len-1);
-      if (cut < 0) return cut;
-      let records = 0;
-      for (let start=0;start<=cut;) {
-        const end=buf.indexOf(0x0a,start);
-        if (end<0 || end>cut) break;
-        if (job.client === 'cursor') {
-          if (isCursorRoleHeaderLine(buf.toString('utf8',start,end)) && ++records > INGEST_WINDOW_ROWS) return start-1;
-        } else if (++records >= INGEST_WINDOW_ROWS) return end;
-        start=end+1;
-      }
-      return cut;
-    }});
-    if (!result.bytesConsumed && limited < available) throw new Error('ingest line resource limit');
+    if (!sameIngestSnapshot(before, ingestIdentity(await fd.stat())))
+      throw new Error("ingest handle changed");
+    const available = Math.max(0, before.size - job.offset),
+      limited = Math.min(available, INGEST_MAX_BYTES);
+    const result = await readCompleteLines(fd, job.offset, limited, {
+      boundary: (buf, len, eof, from) => {
+        const cut =
+          job.client === "cursor"
+            ? cursorPassBoundary(buf, len, eof && limited === available, from)
+            : buf.lastIndexOf(0x0a, len - 1);
+        if (cut < 0) return cut;
+        let records = 0;
+        for (let start = 0; start <= cut;) {
+          const end = buf.indexOf(0x0a, start);
+          if (end < 0 || end > cut) break;
+          if (job.client === "cursor") {
+            if (
+              isCursorRoleHeaderLine(buf.toString("utf8", start, end)) &&
+              ++records > INGEST_WINDOW_ROWS
+            )
+              return start - 1;
+          } else if (++records >= INGEST_WINDOW_ROWS) return end;
+          start = end + 1;
+        }
+        return cut;
+      },
+    });
+    if (!result.bytesConsumed && limited < available)
+      throw new Error("ingest line resource limit");
     const after = ingestIdentity(await fd.stat());
-    if (!sameIngestFile(before,after) || after.size < before.size || after.size === before.size && !sameIngestSnapshot(before,after)) throw new Error('ingest handle changed during read');
+    if (
+      !sameIngestFile(before, after) ||
+      after.size < before.size ||
+      (after.size === before.size && !sameIngestSnapshot(before, after))
+    )
+      throw new Error("ingest handle changed during read");
     return result;
-  } finally { await fd.close(); }
+  } finally {
+    await fd.close();
+  }
 }
-async function optional<T>(read: () => Promise<T>, warnings: string[], label: string, requiredFailure?: () => boolean): Promise<T | undefined> {
-  try { return await read(); }
-  catch (error) {
+async function optional<T>(
+  read: () => Promise<T>,
+  warnings: string[],
+  label: string,
+  requiredFailure?: () => boolean,
+): Promise<T | undefined> {
+  try {
+    return await read();
+  } catch (error) {
     if (requiredFailure?.()) throw error;
     const code = (error as NodeJS.ErrnoException).code;
-    if (!['ENOENT','EACCES','EPERM','EIO'].includes(code ?? '')) throw error;
+    if (!["ENOENT", "EACCES", "EPERM", "EIO"].includes(code ?? "")) throw error;
     warnings.push(`${label}: ${code}`);
     return undefined;
   }
 }
 function strictLines(content: string) {
-  for (const line of content.split('\n')) if (line.trim()) JSON.parse(line);
+  for (const line of content.split("\n")) if (line.trim()) JSON.parse(line);
 }
-export async function readIngestJob(job: IngestJob, checkpoint: () => void = () => {}): Promise<IngestResult> {
+export async function readIngestJob(
+  job: IngestJob,
+  checkpoint: () => void = () => {},
+): Promise<IngestResult> {
   checkpoint();
   const before = ingestIdentity(await fs.promises.stat(job.file));
-  if (job.walIdentity !== undefined && !sameIngestWal(job.walIdentity,await ingestWalIdentity(job.file))) throw new Error('ingest WAL changed before read');
-  if (!sameIngestSnapshot(before,job.identity)) throw new Error('ingest source changed before read');
-  const result: IngestResult = {messages:[],bytesConsumed:0,fileSize:before.size,totalCount:0,maxRowId:0,metadata:{warnings:[]}};
+  if (
+    job.walIdentity !== undefined &&
+    !sameIngestWal(job.walIdentity, await ingestWalIdentity(job.file))
+  )
+    throw new Error("ingest WAL changed before read");
+  if (!sameIngestSnapshot(before, job.identity))
+    throw new Error("ingest source changed before read");
+  const result: IngestResult = {
+    messages: [],
+    bytesConsumed: 0,
+    fileSize: before.size,
+    totalCount: 0,
+    maxRowId: 0,
+    metadata: { warnings: [] },
+  };
   const meta = result.metadata;
   const emissions = new WeakMap<ParsedMessage, TranscriptEmission>();
-  let content = '';
-  if (job.client === 'cursorDb') {
-    const {readCursorIngest} = await import('./ingestDatabase.js');
-    Object.assign(result,await readCursorIngest(job.file,job.offset,(message,source)=>emissions.set(message,source)));
-  } else if (job.client === 'opencode') {
-    const {readOpencodeIngest} = await import('./ingestDatabase.js');
-    const snapshot = await readOpencodeIngest(job.file,job.sessionId);
+  let content = "";
+  if (job.client === "cursorDb") {
+    const { readCursorIngest } = await import("./ingestDatabase.js");
+    Object.assign(
+      result,
+      await readCursorIngest(job.file, job.offset, (message, source) =>
+        emissions.set(message, source),
+      ),
+    );
+  } else if (job.client === "opencode") {
+    const { readOpencodeIngest } = await import("./ingestDatabase.js");
+    const snapshot = await readOpencodeIngest(job.file, job.sessionId);
     content = snapshot.content;
     meta.sessionExists = snapshot.sessionExists;
     if (content) {
-      result.messages = parseTranscriptFor('opencode',content);
-      meta.cwd = snapshot.cwd; meta.parentSessionId = snapshot.parentSessionId; meta.agentName = snapshot.agentName;
+      result.messages = parseTranscriptFor("opencode", content);
+      meta.cwd = snapshot.cwd;
+      meta.parentSessionId = snapshot.parentSessionId;
+      meta.agentName = snapshot.agentName;
       meta.title = JSON.parse(content).info?.title;
       meta.turn = classifyOpencodeTranscriptTail(content);
     }
@@ -192,12 +384,25 @@ export async function readIngestJob(job: IngestJob, checkpoint: () => void = () 
     // agent type its session runs under, placed by the meta.json beside it,
     // settled by turn_ended (the format's own tail rule).
     content = await whole(job.file);
-    content = content.slice(0,content.lastIndexOf('\n')+1);
-    const mirror = await optional(() => readMetaJson(path.dirname(job.file)),meta.warnings,'mirror meta');
+    content = content.slice(0, content.lastIndexOf("\n") + 1);
+    const mirror = await optional(
+      () => readMetaJson(path.dirname(job.file)),
+      meta.warnings,
+      "mirror meta",
+    );
     // A branch reads under its root line's id: the history they share is the same messages.
     const branchOf = mirror?.forkAt ? mirror.parentAgentId : undefined;
-    const historyId = mirror && branchOf ? await mirrorHistoryId(mirror,job.sessionId) : job.sessionId;
-    if (content) result.messages = parseMirrorTranscriptFile(job.client,content,historyId,job.identity.birthtimeMs);
+    const historyId =
+      mirror && branchOf
+        ? await mirrorHistoryId(mirror, job.sessionId)
+        : job.sessionId;
+    if (content)
+      result.messages = parseMirrorTranscriptFile(
+        job.client,
+        content,
+        historyId,
+        job.identity.birthtimeMs,
+      );
     meta.turn = classifyMirrorTranscriptTail(content);
     if (mirror?.cwd) meta.cwd = mirror.cwd;
     // The provider's own title for the agent (a Codex Cloud task's, a Cursor agent's name).
@@ -205,92 +410,228 @@ export async function readIngestJob(job: IngestJob, checkpoint: () => void = () 
     if (mirror?.formerTitles?.length) meta.formerTitles = mirror.formerTitles;
     if (mirror?.archived !== undefined) meta.cloudArchived = mirror.archived;
     // A branch forks its parent's session at a message; a worker a parent agent forked nests under it (the watcher writes either link).
-    if (branchOf && mirror?.forkAt) { meta.forkOf = branchOf; meta.forkAtUuid = mirrorMessageUuid(historyId, mirror.forkAt); }
-    else if (mirror?.parentAgentId) { meta.parentSessionId = mirror.parentAgentId; meta.agentName = mirror.description ?? mirror.title; }
+    if (branchOf && mirror?.forkAt) {
+      meta.forkOf = branchOf;
+      meta.forkAtUuid = mirrorMessageUuid(historyId, mirror.forkAt);
+    } else if (mirror?.parentAgentId) {
+      meta.parentSessionId = mirror.parentAgentId;
+      meta.agentName = mirror.description ?? mirror.title;
+    }
   } else {
-    const cursorJsonl = job.client === 'cursor' && !isWindowedIngest(job);
+    const cursorJsonl = job.client === "cursor" && !isWindowedIngest(job);
     if (isWindowedIngest(job)) {
-      const window = await windowFor(job,before);
-      content = window.content; result.bytesConsumed = window.bytesConsumed;
+      const window = await windowFor(job, before);
+      content = window.content;
+      result.bytesConsumed = window.bytesConsumed;
     } else {
       content = await whole(job.file);
-      if (job.client !== 'gemini') content = content.slice(0,content.lastIndexOf('\n')+1);
+      if (job.client !== "gemini")
+        content = content.slice(0, content.lastIndexOf("\n") + 1);
     }
     if (content) {
-      if (job.client === 'gemini') JSON.parse(content);
-      else if (job.client !== 'cursor') strictLines(content);
-      if (job.client === 'codex') {
-        const state = {model:job.modelKnown ? job.model : await readCodexModelBeforeOffset(job.file,job.offset,INGEST_MAX_BYTES)};
-        result.messages = parseCodexSessionFile(content,state); result.model = state.model;
-      } else if (cursorJsonl) result.messages = parseCursorTranscriptFile(content,job.sessionId,job.identity.birthtimeMs);
-      else result.messages = parseTranscriptFor(job.client,content,["claude","gemini"].includes(job.client) ? (message, source) => emissions.set(message,source) : undefined);
+      if (job.client === "gemini") JSON.parse(content);
+      else if (job.client !== "cursor") strictLines(content);
+      if (job.client === "codex") {
+        const state = {
+          model: job.modelKnown
+            ? job.model
+            : await readCodexModelBeforeOffset(
+                job.file,
+                job.offset,
+                INGEST_MAX_BYTES,
+              ),
+        };
+        result.messages = parseCodexSessionFile(content, state);
+        result.model = state.model;
+      } else if (cursorJsonl)
+        result.messages = parseCursorTranscriptFile(
+          content,
+          job.sessionId,
+          job.identity.birthtimeMs,
+        );
+      else
+        result.messages = parseTranscriptFor(
+          job.client,
+          content,
+          ["claude", "gemini"].includes(job.client)
+            ? (message, source) => emissions.set(message, source)
+            : undefined,
+        );
     }
     if (cursorJsonl) {
       meta.turn = classifyCursorTranscriptTail(content);
-      const chat = await optional(() => findCursorCliChat(process.env.HOME || '',job.sessionId),meta.warnings,'cursor chat');
+      const chat = await optional(
+        () => findCursorCliChat(process.env.HOME || "", job.sessionId),
+        meta.warnings,
+        "cursor chat",
+      );
       if (chat?.cwd) meta.cwd = chat.cwd;
     }
-    if (job.client === 'claude') {
-      if (job.recoverBackup && fs.existsSync(job.file+'.bak')) {
-        result.messages = recoverImagesFromBackup(result.messages,job.file+'.bak',message => meta.warnings.push(message));
+    if (job.client === "claude") {
+      if (job.recoverBackup && fs.existsSync(job.file + ".bak")) {
+        result.messages = recoverImagesFromBackup(
+          result.messages,
+          job.file + ".bak",
+          (message) => meta.warnings.push(message),
+        );
         meta.backupAttempted = true;
       }
-      const headWindow = await withMetadataSource(job,before,checkpoint,async fd => {
-        const initial = await readCompleteMetadataHead(fd,before.size,16384,METADATA_MAX_BYTES,checkpoint);
-        return !initial.content.trim() && initial.exhausted
-          ? readCompleteMetadataHead(fd,before.size,METADATA_MAX_BYTES,INGEST_MAX_BYTES,checkpoint)
-          : initial;
-      });
+      const headWindow = await withMetadataSource(
+        job,
+        before,
+        checkpoint,
+        async (fd) => {
+          const initial = await readCompleteMetadataHead(
+            fd,
+            before.size,
+            16384,
+            METADATA_MAX_BYTES,
+            checkpoint,
+          );
+          return !initial.content.trim() && initial.exhausted
+            ? readCompleteMetadataHead(
+                fd,
+                before.size,
+                METADATA_MAX_BYTES,
+                INGEST_MAX_BYTES,
+                checkpoint,
+              )
+            : initial;
+        },
+      );
       const head = headWindow.content;
-      if (before.size > 0 && !head.trim()) throw new Error(headWindow.exhausted ? 'ingest head resource limit: no complete native prefix' : 'ingest head incomplete: no complete native prefix');
-      if (headWindow.exhausted) meta.warnings.push(`head: metadata read allowance exhausted (${METADATA_MAX_BYTES} bytes)`);
-      if (headWindow.incomplete) meta.warnings.push('head: incomplete final record');
+      if (before.size > 0 && !head.trim())
+        throw new Error(
+          headWindow.exhausted
+            ? "ingest head resource limit: no complete native prefix"
+            : "ingest head incomplete: no complete native prefix",
+        );
+      if (headWindow.exhausted)
+        meta.warnings.push(
+          `head: metadata read allowance exhausted (${METADATA_MAX_BYTES} bytes)`,
+        );
+      if (headWindow.incomplete)
+        meta.warnings.push("head: incomplete final record");
       checkpoint();
-      meta.slug = extractSlug(head); meta.parentUuid = extractParentUuid(head); meta.cwd = extractCwd(head);
+      meta.slug = extractSlug(head);
+      meta.parentUuid = extractParentUuid(head);
+      meta.cwd = extractCwd(head);
       meta.sidechain = extractSidechain(head);
-      meta.headMessages = parseSessionFile(head).filter(m => m.role === 'user').slice(0,3);
+      meta.headMessages = parseSessionFile(head)
+        .filter((m) => m.role === "user")
+        .slice(0, 3);
       checkpoint();
-      meta.cliFlags = detectCliFlags(head+'\n'+content);
+      meta.cliFlags = detectCliFlags(head + "\n" + content);
       meta.teamInfo = extractTeamInfo(content);
       meta.planTools = [];
-      for (const [lineIndex,line] of content.split('\n').entries()) {
-        if (!line.includes('ExitPlanMode') && !line.includes('TaskCreate') && !line.includes('TaskUpdate')) continue;
-        const entry = JSON.parse(line), message = entry.message ?? entry;
-        if (Array.isArray(message.content)) for (const [blockIndex,block] of message.content.entries()) {
-          if (block.type === 'tool_use' && ['ExitPlanMode','TaskCreate','TaskUpdate'].includes(block.name)) {
-            const nativeIds = [job.sessionId,entry.uuid,block.id];
-            const native = nativeIds.every(id => typeof id === 'string' && id.length > 0 && id.length <= 256 && !/[\s\x00-\x1f]/.test(id));
-            const occurrence = createHash('sha256').update(JSON.stringify(native
-              ? ['native',job.client,...nativeIds]
-              : ['physical-fallback',job.client,job.sessionId,job.file,job.identity.dev,job.identity.ino,job.identity.birthtimeMs,entry.uuid ?? [job.offset,lineIndex],blockIndex,block.id ?? null])).digest('hex');
-            meta.planTools.push({name:block.name,input:block.input,occurrence});
+      for (const [lineIndex, line] of content.split("\n").entries()) {
+        if (
+          !line.includes("ExitPlanMode") &&
+          !line.includes("TaskCreate") &&
+          !line.includes("TaskUpdate")
+        )
+          continue;
+        const entry = JSON.parse(line),
+          message = entry.message ?? entry;
+        if (Array.isArray(message.content))
+          for (const [blockIndex, block] of message.content.entries()) {
+            if (
+              block.type === "tool_use" &&
+              ["ExitPlanMode", "TaskCreate", "TaskUpdate"].includes(block.name)
+            ) {
+              const nativeIds = [job.sessionId, entry.uuid, block.id];
+              const native = nativeIds.every(
+                (id) =>
+                  typeof id === "string" &&
+                  id.length > 0 &&
+                  id.length <= 256 &&
+                  !/[\s\x00-\x1f]/.test(id),
+              );
+              const occurrence = createHash("sha256")
+                .update(
+                  JSON.stringify(
+                    native
+                      ? ["native", job.client, ...nativeIds]
+                      : [
+                          "physical-fallback",
+                          job.client,
+                          job.sessionId,
+                          job.file,
+                          job.identity.dev,
+                          job.identity.ino,
+                          job.identity.birthtimeMs,
+                          entry.uuid ?? [job.offset, lineIndex],
+                          blockIndex,
+                          block.id ?? null,
+                        ],
+                  ),
+                )
+                .digest("hex");
+              meta.planTools.push({
+                name: block.name,
+                input: block.input,
+                occurrence,
+              });
+            }
           }
+      }
+      if (job.file.split(path.sep).includes("subagents")) {
+        const raw = await optional(
+          () => whole(job.file.replace(/\.jsonl$/, ".meta.json")),
+          meta.warnings,
+          "subagent metadata",
+        );
+        if (raw !== undefined) {
+          const info = JSON.parse(raw);
+          meta.subagent = {
+            description: info.description,
+            agentType: info.agentType,
+          };
         }
       }
-      if (job.file.split(path.sep).includes('subagents')) {
-        const raw = await optional(() => whole(job.file.replace(/\.jsonl$/,'.meta.json')),meta.warnings,'subagent metadata');
-        if (raw !== undefined) { const info = JSON.parse(raw); meta.subagent = {description:info.description,agentType:info.agentType}; }
-      }
     }
-    if (job.client === 'codex') {
-      meta.appServerHead = await readPart(job.file,4096);
+    if (job.client === "codex") {
+      meta.appServerHead = await readPart(job.file, 4096);
       const head = await readCodexSessionMetaHeadAsync(job.file);
       meta.cwd = extractCodexCwd(head);
-      meta.codex = extractCodexSessionMetadata(head); meta.forkRoot = extractCodexForkRoot(head);
-      if (meta.codex?.originator === 'codex_exec' && content.includes('"task_complete"')) {
-        const full = await optional(() => whole(job.file),meta.warnings,'review metadata') ?? content;
-        meta.completedReview = isCompletedStandaloneCodexReview(meta.codex,full) || isCompletedNativeCodexReviewChild(meta.codex,full);
+      meta.codex = extractCodexSessionMetadata(head);
+      meta.forkRoot = extractCodexForkRoot(head);
+      if (
+        meta.codex?.originator === "codex_exec" &&
+        content.includes('"task_complete"')
+      ) {
+        const full =
+          (await optional(
+            () => whole(job.file),
+            meta.warnings,
+            "review metadata",
+          )) ?? content;
+        meta.completedReview =
+          isCompletedStandaloneCodexReview(meta.codex, full) ||
+          isCompletedNativeCodexReviewChild(meta.codex, full);
       }
     }
-    if (job.client === 'claude' || job.client === 'codex') {
+    if (job.client === "claude" || job.client === "codex") {
       checkpoint();
       meta.summaryTitle = extractSummaryTitle(content);
       checkpoint();
-      if (!meta.summaryTitle) meta.summaryTitle = await readMetadataTitle(job,before,checkpoint,meta.warnings);
+      if (!meta.summaryTitle)
+        meta.summaryTitle = await readMetadataTitle(
+          job,
+          before,
+          checkpoint,
+          meta.warnings,
+        );
     }
-    if (job.client === 'pi') { meta.cwd = extractPiCwd(content); meta.turn = classifyPiTranscriptTail(content); }
-    if (job.client === 'muse') { meta.cwd = extractMuseCwd(content); meta.turn = classifyMuseTranscriptTail(content); }
-    if (job.client === 'antigravity') {
+    if (job.client === "pi") {
+      meta.cwd = extractPiCwd(content);
+      meta.turn = classifyPiTranscriptTail(content);
+    }
+    if (job.client === "muse") {
+      meta.cwd = extractMuseCwd(content);
+      meta.turn = classifyMuseTranscriptTail(content);
+    }
+    if (job.client === "antigravity") {
       // The working directory is not in agy's transcript; it is the
       // conversation's row in conversation_summaries.db beside brain/. A
       // conversation another one started (a subagent) carries its parent's id
@@ -298,44 +639,94 @@ export async function readIngestJob(job: IngestJob, checkpoint: () => void = () 
       // Any failure to read it (agy mid-write, a schema it changed) costs the
       // cwd, never the transcript.
       const dataDir = antigravityDataDirFromTranscript(job.file);
-      let summary: Awaited<ReturnType<typeof import('./ingestDatabase.js').readAntigravitySummary>>;
+      let summary: Awaited<
+        ReturnType<typeof import("./ingestDatabase.js").readAntigravitySummary>
+      >;
       if (dataDir) {
         try {
-          const {readAntigravitySummary} = await import('./ingestDatabase.js');
-          summary = await readAntigravitySummary(path.join(dataDir,'conversation_summaries.db'),job.sessionId);
-        } catch (error) { meta.warnings.push(`antigravity summary: ${error instanceof Error ? error.message : String(error)}`); }
+          const { readAntigravitySummary } =
+            await import("./ingestDatabase.js");
+          summary = await readAntigravitySummary(
+            path.join(dataDir, "conversation_summaries.db"),
+            job.sessionId,
+          );
+        } catch (error) {
+          meta.warnings.push(
+            `antigravity summary: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
       if (summary?.cwd) meta.cwd = summary.cwd;
-      if (summary?.parentConversationId || (summary?.nestingDepth ?? 0) > 0) meta.internal = true;
+      if (summary?.parentConversationId || (summary?.nestingDepth ?? 0) > 0)
+        meta.internal = true;
       meta.turn = classifyAntigravityTranscriptTail(content);
     }
-    if (job.client === 'grok') {
-      const summary = await optional(() => whole(path.join(path.dirname(job.file),'summary.json')),meta.warnings,'grok summary');
-      if (summary !== undefined) { meta.cwd = extractGrokCwd(summary); meta.internal = isGrokInternalSession(summary); }
+    if (job.client === "grok") {
+      const summary = await optional(
+        () => whole(path.join(path.dirname(job.file), "summary.json")),
+        meta.warnings,
+        "grok summary",
+      );
+      if (summary !== undefined) {
+        meta.cwd = extractGrokCwd(summary);
+        meta.internal = isGrokInternalSession(summary);
+      }
       meta.turn = classifyGrokTranscriptTail(content);
     }
   }
-  if (job.client !== 'cursorDb') result.totalCount = result.messages.length;
-  if (job.client === 'claude') {
-    const lastAssistant = result.messages.filter(m => m.role === 'assistant').at(-1);
-    meta.permissionPrompt = lastAssistant ? detectPermissionPrompt(lastAssistant.content) : null;
+  if (job.client !== "cursorDb") result.totalCount = result.messages.length;
+  if (job.client === "claude") {
+    const lastAssistant = result.messages
+      .filter((m) => m.role === "assistant")
+      .at(-1);
+    meta.permissionPrompt = lastAssistant
+      ? detectPermissionPrompt(lastAssistant.content)
+      : null;
   }
-  result.handoffParents = result.messages.map(m => m.role === 'user' ? handoffParentSessionId(m.content, job.sessionId) : null);
-  result.messageTitles = result.messages.map(m => m.role === "user" ? generateTitleFromMessage(withoutDeliveryId(m.content)) : null);
-  result.signatures = result.messages.map(m => createHash('sha256').update(JSON.stringify(m)).digest('hex'));
-  if (hasClockFreeReceipts(job)) result.receiptSignatures = result.messages.map(m => createHash('sha256').update(JSON.stringify({...m,timestamp:0})).digest('hex')); 
-  if (job.client === 'claude' || job.client === 'gemini' || job.client === 'cursorDb') {
+  result.handoffParents = result.messages.map((m) =>
+    m.role === "user" ? handoffParentSessionId(m.content, job.sessionId) : null,
+  );
+  result.messageTitles = result.messages.map((m) =>
+    m.role === "user"
+      ? generateTitleFromMessage(withoutDeliveryId(m.content))
+      : null,
+  );
+  result.signatures = result.messages.map((m) =>
+    createHash("sha256").update(JSON.stringify(m)).digest("hex"),
+  );
+  if (hasClockFreeReceipts(job))
+    result.receiptSignatures = result.messages.map((m) =>
+      createHash("sha256")
+        .update(JSON.stringify({ ...m, timestamp: 0 }))
+        .digest("hex"),
+    );
+  if (
+    job.client === "claude" ||
+    job.client === "gemini" ||
+    job.client === "cursorDb"
+  ) {
     result.receiptSignatures = [];
     result.receiptOccurrences = [];
     for (const message of result.messages) {
       const source = emissions.get(message);
-      if (!source) throw new Error('missing transcript emission provenance');
-      result.receiptSignatures.push(ingestReceiptSignature(message,source));
-      result.receiptOccurrences.push(source.occurrence + (job.client === 'claude' ? job.offset : 0));
+      if (!source) throw new Error("missing transcript emission provenance");
+      result.receiptSignatures.push(ingestReceiptSignature(message, source));
+      result.receiptOccurrences.push(
+        source.occurrence + (job.client === "claude" ? job.offset : 0),
+      );
     }
   }
   const after = ingestIdentity(await fs.promises.stat(job.file));
-  if (!sameIngestFile(before,after) || after.size < before.size || after.size === before.size && !sameIngestSnapshot(before,after)) throw new Error('ingest source changed during read');
-  if (job.walIdentity !== undefined && !sameIngestWal(job.walIdentity,await ingestWalIdentity(job.file))) throw new Error('ingest WAL changed during read');
-  return validateIngestResult(result,job,checkpoint);
+  if (
+    !sameIngestFile(before, after) ||
+    after.size < before.size ||
+    (after.size === before.size && !sameIngestSnapshot(before, after))
+  )
+    throw new Error("ingest source changed during read");
+  if (
+    job.walIdentity !== undefined &&
+    !sameIngestWal(job.walIdentity, await ingestWalIdentity(job.file))
+  )
+    throw new Error("ingest WAL changed during read");
+  return validateIngestResult(result, job, checkpoint);
 }

@@ -8,13 +8,23 @@ import s from "./StuckNote.module.css";
 
 const STUCK_MS = 5000;
 
-export function StuckNote({ onRetry, className }: { onRetry: () => void; className?: string }) {
+export function StuckNote({
+  onRetry,
+  className,
+}: {
+  onRetry: () => void;
+  className?: string;
+}) {
   const stuck = useAfter(STUCK_MS);
   if (!stuck) return null;
   return (
     <div className={`${s.stuck} ${className ?? ""}`} role="status">
-      <p>Can't reach Clayground. Trying again <Dots /></p>
-      <Button size="sm" variant="quiet" onClick={onRetry}>Try again</Button>
+      <p>
+        Can't reach Clayground. Trying again <Dots />
+      </p>
+      <Button size="sm" variant="quiet" onClick={onRetry}>
+        Try again
+      </Button>
     </div>
   );
 }

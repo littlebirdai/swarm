@@ -19,27 +19,58 @@ declare module "codecast-mod" {
 
   export interface On {
     (event: "mod.start", hook: Hook<{ context: Context }, void>): void;
-    (event: "ui.render", matcher: { pane: string } | { fence: string } | { sidebar: string } | { object: string }, hook: Hook<RenderEvent, Node>): void;
+    (
+      event: "ui.render",
+      matcher:
+        | { pane: string }
+        | { fence: string }
+        | { sidebar: string }
+        | { object: string },
+      hook: Hook<RenderEvent, Node>,
+    ): void;
     (event: "ui.render", hook: Hook<RenderEvent, Node>): void;
     /**
      * An external kind's row, live: answer with what its pill, hover card and page show. Return
      * undefined while it loads (read it through $.local.get or $.data and the pill redraws when it
      * lands), null when the id names nothing.
      */
-    (event: "object.resolve", matcher: { object: string }, hook: Hook<ResolveEvent, ResolvedObject | null | undefined>): void;
-    (event: "object.resolve", hook: Hook<ResolveEvent, ResolvedObject | null | undefined>): void;
-    (event: "command.run", matcher: { command: string }, hook: Hook<{ command: string }, void>): void;
+    (
+      event: "object.resolve",
+      matcher: { object: string },
+      hook: Hook<ResolveEvent, ResolvedObject | null | undefined>,
+    ): void;
+    (
+      event: "object.resolve",
+      hook: Hook<ResolveEvent, ResolvedObject | null | undefined>,
+    ): void;
+    (
+      event: "command.run",
+      matcher: { command: string },
+      hook: Hook<{ command: string }, void>,
+    ): void;
     (event: "command.run", hook: Hook<{ command: string }, void>): void;
     (event: "session.state", hook: Hook<SessionStateEvent, void>): void;
-    (event: "session.state", matcher: Partial<SessionStateEvent>, hook: Hook<SessionStateEvent, void>): void;
+    (
+      event: "session.state",
+      matcher: Partial<SessionStateEvent>,
+      hook: Hook<SessionStateEvent, void>,
+    ): void;
     (event: "data.change", hook: Hook<{ collection: Collection }, void>): void;
-    (event: "data.change", matcher: { collection: Collection }, hook: Hook<{ collection: Collection }, void>): void;
+    (
+      event: "data.change",
+      matcher: { collection: Collection },
+      hook: Hook<{ collection: Collection }, void>,
+    ): void;
     /**
      * Draw a theme's live scene: the manifest theme with this id has a `backdrop`. It runs in a frame of
      * its own, full-window behind the app, while that theme is on. The frame reaches no network and `$`
      * answers nothing there: draw from the code and data the module carries. Use e.loop for motion.
      */
-    (event: "theme.backdrop", matcher: { theme: string }, hook: Hook<BackdropEvent, void>): void;
+    (
+      event: "theme.backdrop",
+      matcher: { theme: string },
+      hook: Hook<BackdropEvent, void>,
+    ): void;
   }
 
   export type BackdropEvent = {
@@ -57,7 +88,9 @@ declare module "codecast-mod" {
     /** Calls fn every frame with ms since the start and since the last frame; returns a stop. */
     loop(fn: (t: number, dt: number) => void): () => void;
     /** The window resized: the canvas is already resized, in CSS pixels times dpr. */
-    onResize(fn: (width: number, height: number, dpr: number) => void): () => void;
+    onResize(
+      fn: (width: number, height: number, dpr: number) => void,
+    ): () => void;
   };
 
   /**
@@ -67,12 +100,21 @@ declare module "codecast-mod" {
    * a changed event to rewrite what the rest see, or return without calling it
    * to answer the event yourself.
    */
-  export type Hook<E, R> = ($: Api, e: Readonly<E>, next: (e?: E) => Promise<R>) => R | Promise<R>;
+  export type Hook<E, R> = (
+    $: Api,
+    e: Readonly<E>,
+    next: (e?: E) => Promise<R>,
+  ) => R | Promise<R>;
 
   /** Which external object to resolve: `object` is the kind's prefix, `id` the other system's id as written after it (8 hex or a whole uuid). */
   export type ResolveEvent = { object: string; id: string; context: Context };
   /** An external object's row. Fields are the kind's declared fields; the page's own drawing still comes from ui.render { object }, with this row as props.object. */
-  export type ResolvedObject = { title: string; status?: string; fields?: Record<string, unknown>; body?: string };
+  export type ResolvedObject = {
+    title: string;
+    status?: string;
+    fields?: Record<string, unknown>;
+    body?: string;
+  };
 
   export type RenderEvent = {
     surface: "pane" | "fence" | "sidebar" | "object";
@@ -94,7 +136,13 @@ declare module "codecast-mod" {
     context: Context;
   };
 
-  export type SessionStateEvent = { id: string; title?: string; from: string | null; to: string; project?: string };
+  export type SessionStateEvent = {
+    id: string;
+    title?: string;
+    from: string | null;
+    to: string;
+    project?: string;
+  };
 
   export type Context = {
     user: { id: string; name?: string; email?: string } | null;
@@ -107,8 +155,22 @@ declare module "codecast-mod" {
 
   /** What `$.data` reads, by name. A mod reads only the collections its manifest lists under permissions.read. */
   export type Collection =
-    | "sessions" | "tasks" | "plans" | "docs" | "projects" | "initiatives" | "commits" | "prs"
-    | "triggers" | "decisions" | "pages" | "workflows" | "comments" | "chat" | "labels" | "objects";
+    | "sessions"
+    | "tasks"
+    | "plans"
+    | "docs"
+    | "projects"
+    | "initiatives"
+    | "commits"
+    | "prs"
+    | "triggers"
+    | "decisions"
+    | "pages"
+    | "workflows"
+    | "comments"
+    | "chat"
+    | "labels"
+    | "objects";
 
   /**
    * A row as the store holds it. The fields most views need, per collection
@@ -139,7 +201,16 @@ declare module "codecast-mod" {
    */
   export type Query = {
     /** A key may be a dotted path into the row: { "fields.severity": "p0" }. */
-    where?: Record<string, unknown | { in: unknown[] } | { ne: unknown } | { gt: number } | { lt: number } | { contains: string } | { exists: boolean }>;
+    where?: Record<
+      string,
+      | unknown
+      | { in: unknown[] }
+      | { ne: unknown }
+      | { gt: number }
+      | { lt: number }
+      | { contains: string }
+      | { exists: boolean }
+    >;
     /** A field to sort by. */
     sort?: string;
     order?: "asc" | "desc";
@@ -158,7 +229,10 @@ declare module "codecast-mod" {
       count(collection: Collection, query?: Query): Promise<number>;
     };
     ui: {
-      toast(text: string, opts?: { kind?: "info" | "success" | "error" }): Promise<void>;
+      toast(
+        text: string,
+        opts?: { kind?: "info" | "success" | "error" },
+      ): Promise<void>;
       /** Go to an in-app path, e.g. "/tasks" or "/conversation/<id>". */
       navigate(path: string): Promise<void>;
       /** Open one of this mod's panes; `props` reach its render as e.props. */
@@ -174,8 +248,22 @@ declare module "codecast-mod" {
     };
     /** Needs permissions.write "tasks". */
     tasks: {
-      create(task: { title: string; description?: string; priority?: "low" | "medium" | "high" | "urgent"; status?: "backlog" | "open" | "in_progress" | "in_review" | "done"; labels?: string[] }): Promise<{ id: string }>;
-      update(id: string, patch: { title?: string; description?: string; priority?: string; status?: string }): Promise<void>;
+      create(task: {
+        title: string;
+        description?: string;
+        priority?: "low" | "medium" | "high" | "urgent";
+        status?: "backlog" | "open" | "in_progress" | "in_review" | "done";
+        labels?: string[];
+      }): Promise<{ id: string }>;
+      update(
+        id: string,
+        patch: {
+          title?: string;
+          description?: string;
+          priority?: string;
+          status?: string;
+        },
+      ): Promise<void>;
     };
     /** Needs permissions.write "sessions". */
     sessions: {
@@ -192,9 +280,23 @@ declare module "codecast-mod" {
        * The object appears at once (an optimistic row); the server numbers it a moment later.
        * The answer's client_key finds it: $.data.list("objects", { where: { client_key } }).
        */
-      create(obj: { prefix: string; title: string; status?: string; fields?: Record<string, unknown>; body?: string }): Promise<{ client_key: string }>;
+      create(obj: {
+        prefix: string;
+        title: string;
+        status?: string;
+        fields?: Record<string, unknown>;
+        body?: string;
+      }): Promise<{ client_key: string }>;
       /** By short id ("bug-14") or _id. `fields` merges into the object's fields. */
-      update(id: string, patch: { title?: string; status?: string; fields?: Record<string, unknown>; body?: string }): Promise<void>;
+      update(
+        id: string,
+        patch: {
+          title?: string;
+          status?: string;
+          fields?: Record<string, unknown>;
+          body?: string;
+        },
+      ): Promise<void>;
       archive(id: string): Promise<void>;
     };
     /**
@@ -203,7 +305,15 @@ declare module "codecast-mod" {
      * button's onPress, a command), never from a render or an event hook.
      */
     theme: {
-      list(): Promise<{ key: string; title: string; mod: string | null; backdrop: boolean; current: boolean }[]>;
+      list(): Promise<
+        {
+          key: string;
+          title: string;
+          mod: string | null;
+          backdrop: boolean;
+          current: boolean;
+        }[]
+      >;
       /** The key of the theme the person chose. */
       current(): Promise<string>;
       /** Make it the person's theme (null: codecast's default). */
@@ -223,7 +333,9 @@ declare module "codecast-mod" {
     local: {
       get<T = unknown>(key: string): Promise<T | null>;
       /** Which machine published the value, and when. */
-      meta(key: string): Promise<{ value: unknown; device: string | null; at: number } | null>;
+      meta(
+        key: string,
+      ): Promise<{ value: unknown; device: string | null; at: number } | null>;
       call<T = unknown>(method: string, args?: unknown): Promise<T>;
     };
     /**
@@ -232,7 +344,21 @@ declare module "codecast-mod" {
      * attached; it goes only to the secret's origins, and no browser or code of yours ever sees the key.
      */
     http: {
-      fetch(url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; secret?: string }): Promise<{ ok: boolean; status: number; headers: Record<string, string>; text: string; json: any }>;
+      fetch(
+        url: string,
+        init?: {
+          method?: string;
+          headers?: Record<string, string>;
+          body?: string;
+          secret?: string;
+        },
+      ): Promise<{
+        ok: boolean;
+        status: number;
+        headers: Record<string, string>;
+        text: string;
+        json: any;
+      }>;
     };
     /**
      * A connected product's readers (`cast connector readers <source>` lists them), called as the
@@ -240,7 +366,11 @@ declare module "codecast-mod" {
      * so there is no key to hold. Resolves with the reader's answer and throws when it fails.
      */
     connector: {
-      read<T = any>(source: string, reader: string, args?: Record<string, unknown>): Promise<T>;
+      read<T = any>(
+        source: string,
+        reader: string,
+        args?: Record<string, unknown>,
+      ): Promise<T>;
     };
     me(): Promise<{ id: string; name?: string; email?: string } | null>;
     readonly manifest: Manifest;
@@ -249,15 +379,38 @@ declare module "codecast-mod" {
     readonly key?: string;
   }
 
-  export type ThemePalette = Partial<Record<
-    | "bg" | "bg-alt" | "card" | "border" | "text" | "text-muted" | "text-dim" | "link"
-    | "red" | "orange" | "amber" | "yellow" | "green" | "cyan" | "blue" | "violet" | "magenta"
-    | "font-ui" | "font-mono",
-    string
-  >>;
+  export type ThemePalette = Partial<
+    Record<
+      | "bg"
+      | "bg-alt"
+      | "card"
+      | "border"
+      | "text"
+      | "text-muted"
+      | "text-dim"
+      | "link"
+      | "red"
+      | "orange"
+      | "amber"
+      | "yellow"
+      | "green"
+      | "cyan"
+      | "blue"
+      | "violet"
+      | "magenta"
+      | "font-ui"
+      | "font-mono",
+      string
+    >
+  >;
 
   export type Manifest = {
-    name: string; title?: string; description?: string; version?: string; icon?: string; main?: string;
+    name: string;
+    title?: string;
+    description?: string;
+    version?: string;
+    icon?: string;
+    main?: string;
     permissions?: {
       read?: Collection[] | "*";
       write?: ("tasks" | "sessions" | "docs" | "clipboard" | "objects")[] | "*";
@@ -270,9 +423,24 @@ declare module "codecast-mod" {
      * stores it encrypted and attaches it to a $.http.fetch naming it, only toward `origins` (which
      * permissions.fetch must list). Sent as `Authorization: Bearer <value>`, or raw in `header` when named.
      */
-    secrets?: { name: string; description?: string; origins: string[]; header?: string }[];
-    panes?: { id: string; title: string; icon?: string; description?: string }[];
-    commands?: { id: string; title: string; keywords?: string; icon?: string }[];
+    secrets?: {
+      name: string;
+      description?: string;
+      origins: string[];
+      header?: string;
+    }[];
+    panes?: {
+      id: string;
+      title: string;
+      icon?: string;
+      description?: string;
+    }[];
+    commands?: {
+      id: string;
+      title: string;
+      keywords?: string;
+      icon?: string;
+    }[];
     fences?: { lang: string; description?: string }[];
     sidebar?: { id: string; title: string }[];
     /** What agents should know to use this mod well: its objects, its fences, when to reach for them. Write it in AGENTS.md beside the manifest; every session the mod applies to starts with it, and `cast mod guide` prints it. */
@@ -288,7 +456,13 @@ declare module "codecast-mod" {
      * opaque and readable against each other, and give `bg-alt` and `card` an alpha (#rrggbbaa) so the
      * scene shows through panels.
      */
-    themes?: { id: string; title: string; light?: ThemePalette; dark?: ThemePalette; backdrop?: { tint?: number; glass?: number } }[];
+    themes?: {
+      id: string;
+      title: string;
+      light?: ThemePalette;
+      dark?: ThemePalette;
+      backdrop?: { tint?: number; glass?: number };
+    }[];
     /** The local half: a module the daemon runs on each of your machines (cast mod revoke stops it on one). */
     local?: { main: string; description?: string };
     /**
@@ -304,7 +478,23 @@ declare module "codecast-mod" {
       icon?: string;
       /** In order: the first is where a new object starts, the last means done. */
       statuses?: string[];
-      fields?: Record<string, { type: "text" | "markdown" | "number" | "enum" | "person" | "ref" | "date" | "bool" | "url"; label?: string; options?: string[] }>;
+      fields?: Record<
+        string,
+        {
+          type:
+            | "text"
+            | "markdown"
+            | "number"
+            | "enum"
+            | "person"
+            | "ref"
+            | "date"
+            | "bool"
+            | "url";
+          label?: string;
+          options?: string[];
+        }
+      >;
       /**
        * The rows live in another system: ids are `<prefix>-<first 8 hex of its uuid>` (or the whole
        * uuid), nothing is stored, and any id written anywhere draws live from your
@@ -317,12 +507,30 @@ declare module "codecast-mod" {
   // ---------------------------------------------------------------- elements
 
   /** What a render returns. Codecast draws it with its own components, themed. */
-  export type Node = Element | string | number | null | undefined | false | Node[];
+  export type Node =
+    | Element
+    | string
+    | number
+    | null
+    | undefined
+    | false
+    | Node[];
   export type Element = { t: string; p?: Record<string, unknown>; c?: Node[] };
 
   type Children = { children?: any };
   /** Theme tokens: an accent name maps to codecast's palette. */
-  export type Tone = "default" | "muted" | "dim" | "blue" | "green" | "yellow" | "red" | "magenta" | "cyan" | "orange" | "violet";
+  export type Tone =
+    | "default"
+    | "muted"
+    | "dim"
+    | "blue"
+    | "green"
+    | "yellow"
+    | "red"
+    | "magenta"
+    | "cyan"
+    | "orange"
+    | "violet";
   type Space = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12;
   /**
    * Your own styling, for what the props do not cover: one edge's border, a radius, letter spacing, uppercase,
@@ -332,44 +540,129 @@ declare module "codecast-mod" {
    */
   type Style = Record<string, string | number>;
   type Layout = Children & {
-    gap?: Space; pad?: Space; padX?: Space; padY?: Space; align?: "start" | "center" | "end" | "stretch" | "baseline";
-    justify?: "start" | "center" | "end" | "between" | "around"; wrap?: boolean; grow?: boolean; width?: number | string;
-    height?: number | string; maxWidth?: number | string; scroll?: boolean; border?: boolean; rounded?: boolean;
-    bg?: "card" | "alt" | "none" | Tone; tone?: Tone; onPress?: () => unknown; tip?: string; style?: Style;
+    gap?: Space;
+    pad?: Space;
+    padX?: Space;
+    padY?: Space;
+    align?: "start" | "center" | "end" | "stretch" | "baseline";
+    justify?: "start" | "center" | "end" | "between" | "around";
+    wrap?: boolean;
+    grow?: boolean;
+    width?: number | string;
+    height?: number | string;
+    maxWidth?: number | string;
+    scroll?: boolean;
+    border?: boolean;
+    rounded?: boolean;
+    bg?: "card" | "alt" | "none" | Tone;
+    tone?: Tone;
+    onPress?: () => unknown;
+    tip?: string;
+    style?: Style;
   };
 
   export const Box: (p: Layout & { direction?: "row" | "column" }) => Element;
   export const Row: (p: Layout) => Element;
   export const Column: (p: Layout) => Element;
   /** Without `columns`, as many columns of at least `min` px (180) as fit, stretched to fill the row. */
-  export const Grid: (p: Layout & { columns?: number | string; min?: number }) => Element;
+  export const Grid: (
+    p: Layout & { columns?: number | string; min?: number },
+  ) => Element;
   /**
    * A quiet panel (the alternate surface and a hairline, like a cast-canvas block); `bg` and `tone` change it.
    * Returned as the whole of a fence, it is the block itself: its title and actions sit in the block's header.
    */
-  export const Card: (p: Layout & { title?: string; subtitle?: string; actions?: Node }) => Element;
+  export const Card: (
+    p: Layout & { title?: string; subtitle?: string; actions?: Node },
+  ) => Element;
   /** `grow` takes the free space in a Row (as on layouts). */
-  export const Text: (p: Children & { tone?: Tone; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl"; weight?: "normal" | "medium" | "semibold" | "bold"; mono?: boolean; italic?: boolean; truncate?: boolean; lines?: number; align?: "left" | "center" | "right"; grow?: boolean; tip?: string; style?: Style }) => Element;
-  export const Heading: (p: Children & { level?: 1 | 2 | 3; tone?: Tone; style?: Style }) => Element;
+  export const Text: (
+    p: Children & {
+      tone?: Tone;
+      size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
+      weight?: "normal" | "medium" | "semibold" | "bold";
+      mono?: boolean;
+      italic?: boolean;
+      truncate?: boolean;
+      lines?: number;
+      align?: "left" | "center" | "right";
+      grow?: boolean;
+      tip?: string;
+      style?: Style;
+    },
+  ) => Element;
+  export const Heading: (
+    p: Children & { level?: 1 | 2 | 3; tone?: Tone; style?: Style },
+  ) => Element;
   /** Quiet (a hairline) by default; "ghost" drops the hairline; only "primary" and "danger" fill. */
-  export const Button: (p: Children & { label?: string; onPress?: () => unknown; variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm" | "md"; icon?: string; disabled?: boolean; tip?: string }) => Element;
-  export const Input: (p: { value?: string; placeholder?: string; onChange?: (value: string) => unknown; onSubmit?: (value: string) => unknown; autoFocus?: boolean; mono?: boolean; width?: number | string }) => Element;
-  export const TextArea: (p: { value?: string; placeholder?: string; rows?: number; onChange?: (value: string) => unknown; onSubmit?: (value: string) => unknown }) => Element;
-  export const Select: (p: { value?: string; options: (string | { value: string; label: string })[]; onChange?: (value: string) => unknown; placeholder?: string }) => Element;
-  export const Toggle: (p: { value?: boolean; label?: string; onChange?: (value: boolean) => unknown }) => Element;
+  export const Button: (
+    p: Children & {
+      label?: string;
+      onPress?: () => unknown;
+      variant?: "primary" | "secondary" | "ghost" | "danger";
+      size?: "sm" | "md";
+      icon?: string;
+      disabled?: boolean;
+      tip?: string;
+    },
+  ) => Element;
+  export const Input: (p: {
+    value?: string;
+    placeholder?: string;
+    onChange?: (value: string) => unknown;
+    onSubmit?: (value: string) => unknown;
+    autoFocus?: boolean;
+    mono?: boolean;
+    width?: number | string;
+  }) => Element;
+  export const TextArea: (p: {
+    value?: string;
+    placeholder?: string;
+    rows?: number;
+    onChange?: (value: string) => unknown;
+    onSubmit?: (value: string) => unknown;
+  }) => Element;
+  export const Select: (p: {
+    value?: string;
+    options: (string | { value: string; label: string })[];
+    onChange?: (value: string) => unknown;
+    placeholder?: string;
+  }) => Element;
+  export const Toggle: (p: {
+    value?: boolean;
+    label?: string;
+    onChange?: (value: boolean) => unknown;
+  }) => Element;
   /** Columns name fields of each row; a column's `render` key names how to draw the cell. */
   export const Table: (p: {
     rows: Record<string, unknown>[];
-    columns: { key: string; label?: string; width?: number | string; align?: "left" | "right" | "center"; as?: "text" | "ref" | "time" | "badge" | "number" | "mono" | "markdown" }[];
-    onRowPress?: (row: Record<string, unknown>) => unknown; empty?: string; dense?: boolean; sortable?: boolean; maxHeight?: number;
+    columns: {
+      key: string;
+      label?: string;
+      width?: number | string;
+      align?: "left" | "right" | "center";
+      as?: "text" | "ref" | "time" | "badge" | "number" | "mono" | "markdown";
+    }[];
+    onRowPress?: (row: Record<string, unknown>) => unknown;
+    empty?: string;
+    dense?: boolean;
+    sortable?: boolean;
+    maxHeight?: number;
   }) => Element;
-  export const Tabs: (p: Children & { value?: string; onChange?: (value: string) => unknown }) => Element;
-  export const Tab: (p: Children & { id: string; label: string; count?: number }) => Element;
+  export const Tabs: (
+    p: Children & { value?: string; onChange?: (value: string) => unknown },
+  ) => Element;
+  export const Tab: (
+    p: Children & { id: string; label: string; count?: number },
+  ) => Element;
   export const Badge: (p: Children & { tone?: Tone; dot?: boolean }) => Element;
   /** A live codecast reference: "ct-123", "pl-8", "tr-4", "bug-14", a session id, "owner/repo#12". Draws as the same pill messages use, titled with the object's own title; `label` shows only until the object resolves. */
   export const Ref: (p: { id: string; label?: string }) => Element;
   /** An Observable Plot spec, as cast-canvas charts take: { marks: [{ type: "barY", data, x, y }], y: { grid: true } }. */
-  export const Chart: (p: { spec: Record<string, unknown>; height?: number }) => Element;
+  export const Chart: (p: {
+    spec: Record<string, unknown>;
+    height?: number;
+  }) => Element;
   /** Markdown drawn the way messages are: short ids become live pills. */
   export const Markdown: (p: { text: string; size?: "sm" | "md" }) => Element;
   /**
@@ -377,24 +670,81 @@ declare module "codecast-mod" {
    * variables). Interactive through names: an element with data-press="save" calls on.save with its other
    * data-* values; an input or select with data-change="pick" calls on.pick with { value, ...data }.
    */
-  export const Canvas: (p: { html: string; height?: number; on?: Record<string, (data: Record<string, string>) => unknown> }) => Element;
-  export const Code: (p: { code: string; lang?: string; wrap?: boolean; maxHeight?: number }) => Element;
-  export const Progress: (p: { value: number; max?: number; tone?: Tone; label?: string }) => Element;
+  export const Canvas: (p: {
+    html: string;
+    height?: number;
+    on?: Record<string, (data: Record<string, string>) => unknown>;
+  }) => Element;
+  export const Code: (p: {
+    code: string;
+    lang?: string;
+    wrap?: boolean;
+    maxHeight?: number;
+  }) => Element;
+  export const Progress: (p: {
+    value: number;
+    max?: number;
+    tone?: Tone;
+    label?: string;
+  }) => Element;
   export const Divider: (p: { label?: string }) => Element;
   export const Spacer: (p: { size?: Space }) => Element;
   /** A lucide icon by name, e.g. "bug", "git-pull-request", "sparkles". */
-  export const Icon: (p: { name: string; size?: number; tone?: Tone }) => Element;
+  export const Icon: (p: {
+    name: string;
+    size?: number;
+    tone?: Tone;
+  }) => Element;
   export const Link: (p: Children & { href: string; tone?: Tone }) => Element;
-  export const Image: (p: { src: string; alt?: string; width?: number | string; height?: number | string; rounded?: boolean }) => Element;
+  export const Image: (p: {
+    src: string;
+    alt?: string;
+    width?: number | string;
+    height?: number | string;
+    rounded?: boolean;
+  }) => Element;
   export const Kbd: (p: { keys: string }) => Element;
-  export const Stat: (p: { label: string; value: string | number; delta?: string; tone?: Tone; hint?: string }) => Element;
-  export const Empty: (p: { title: string; hint?: string; icon?: string }) => Element;
-  export const List: (p: Children & { dense?: boolean; divided?: boolean }) => Element;
-  export const Item: (p: Children & { title?: string; subtitle?: string; icon?: string; trailing?: Node; onPress?: () => unknown; tone?: Tone }) => Element;
+  export const Stat: (p: {
+    label: string;
+    value: string | number;
+    delta?: string;
+    tone?: Tone;
+    hint?: string;
+  }) => Element;
+  export const Empty: (p: {
+    title: string;
+    hint?: string;
+    icon?: string;
+  }) => Element;
+  export const List: (
+    p: Children & { dense?: boolean; divided?: boolean },
+  ) => Element;
+  export const Item: (
+    p: Children & {
+      title?: string;
+      subtitle?: string;
+      icon?: string;
+      trailing?: Node;
+      onPress?: () => unknown;
+      tone?: Tone;
+    },
+  ) => Element;
   /** A time, relative ("3m ago") by default. Takes ms since the epoch or an ISO string. */
-  export const Time: (p: { at: number | string; format?: "relative" | "time" | "date" | "datetime" }) => Element;
-  export const Avatar: (p: { name?: string; src?: string; size?: number }) => Element;
-  export const Sparkline: (p: { values: number[]; tone?: Tone; height?: number; width?: number }) => Element;
+  export const Time: (p: {
+    at: number | string;
+    format?: "relative" | "time" | "date" | "datetime";
+  }) => Element;
+  export const Avatar: (p: {
+    name?: string;
+    src?: string;
+    size?: number;
+  }) => Element;
+  export const Sparkline: (p: {
+    values: number[];
+    tone?: Tone;
+    height?: number;
+    width?: number;
+  }) => Element;
 
   /** What `<>...</>` compiles to: its children, with no element of its own. */
   export const Fragment: (p: Children) => Element;
@@ -410,13 +760,33 @@ declare module "codecast-mod/local" {
     /** Publish a value the mod's UI reads with $.local.get(key) and redraws on. Coalesced to one write a second per key. */
     publish(key: string, value: unknown): void;
     objects: {
-      create(obj: { prefix: string; title: string; status?: string; fields?: Record<string, unknown>; body?: string }): Promise<{ short_id: string }>;
-      update(shortId: string, patch: { title?: string; status?: string; fields?: Record<string, unknown>; body?: string }): Promise<void>;
+      create(obj: {
+        prefix: string;
+        title: string;
+        status?: string;
+        fields?: Record<string, unknown>;
+        body?: string;
+      }): Promise<{ short_id: string }>;
+      update(
+        shortId: string,
+        patch: {
+          title?: string;
+          status?: string;
+          fields?: Record<string, unknown>;
+          body?: string;
+        },
+      ): Promise<void>;
     };
     /** Run a cast command, e.g. $.cast(["task", "ls", "--json"]). */
-    cast(argv: string[], opts?: { cwd?: string; timeoutMs?: number }): Promise<RunResult>;
+    cast(
+      argv: string[],
+      opts?: { cwd?: string; timeoutMs?: number },
+    ): Promise<RunResult>;
     /** Run a command line in a login shell. */
-    sh(command: string, opts?: { cwd?: string; timeoutMs?: number }): Promise<RunResult>;
+    sh(
+      command: string,
+      opts?: { cwd?: string; timeoutMs?: number },
+    ): Promise<RunResult>;
     every(ms: number, fn: () => unknown): () => void;
     after(ms: number, fn: () => unknown): () => void;
     readonly device: string;
@@ -439,21 +809,48 @@ declare module "codecast-mod/local" {
      * made it: once the mod is shared, any member of its team can call, and the hook runs on your machine,
      * so check `caller.is_author` (or the caller's id) before doing anything only you should be able to ask for.
      */
-    (event: "local.call", matcher: { method: string }, hook: LocalHook<{ method: string; args: any; caller?: LocalCaller }>): void;
+    (
+      event: "local.call",
+      matcher: { method: string },
+      hook: LocalHook<{ method: string; args: any; caller?: LocalCaller }>,
+    ): void;
     /**
      * Any of your sessions, on any agent and machine, changing who acts next: "working", "needs_input",
      * "done", "dormant", "idle". Runs always, with no window open. Match on to/from to narrow it.
      */
-    (event: "session.state", hook: LocalHook<{ id: string; from: string | null; to: string; title?: string }>): void;
-    (event: "session.state", matcher: { to?: string; from?: string }, hook: LocalHook<{ id: string; from: string | null; to: string; title?: string }>): void;
+    (
+      event: "session.state",
+      hook: LocalHook<{
+        id: string;
+        from: string | null;
+        to: string;
+        title?: string;
+      }>,
+    ): void;
+    (
+      event: "session.state",
+      matcher: { to?: string; from?: string },
+      hook: LocalHook<{
+        id: string;
+        from: string | null;
+        to: string;
+        title?: string;
+      }>,
+    ): void;
   }
   export type LocalRegister = (on: LocalOn) => void | Promise<void>;
 }
 
 declare namespace JSX {
   type Element = any;
-  interface IntrinsicElements { [name: string]: any }
-  interface ElementChildrenAttribute { children: {} }
+  interface IntrinsicElements {
+    [name: string]: any;
+  }
+  interface ElementChildrenAttribute {
+    children: {};
+  }
   /** `key` keeps a list's rows apart across redraws, as in React. */
-  interface IntrinsicAttributes { key?: string | number }
+  interface IntrinsicAttributes {
+    key?: string | number;
+  }
 }

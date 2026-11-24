@@ -1,5 +1,12 @@
 "use client";
-import { memo, Suspense, useCallback, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import {
   useInboxStore,
   useTrackedStore,
@@ -24,7 +31,15 @@ import { PaneControls } from "./stage/PaneControls";
 import { cleanTitle } from "../lib/conversationProcessor";
 import { animatedHideSession } from "../store/undoActions";
 import { getSessionRenderKey, teamInboxIdsOf } from "../store/inboxStore";
-import { splitFleetBands, fleetTileMeta, fleetTileContext, fleetTileSummary, fleetProgress, type FleetBand, type FleetBands } from "./fleetBands";
+import {
+  splitFleetBands,
+  fleetTileMeta,
+  fleetTileContext,
+  fleetTileSummary,
+  fleetProgress,
+  type FleetBand,
+  type FleetBands,
+} from "./fleetBands";
 import { useTitlebarHead } from "../hooks/useTitlebarHead";
 import { overlayConversationId } from "../store/workspace";
 import { useContextMenu, ContextMenu } from "./ui/context-menu";
@@ -48,7 +63,10 @@ import { lazyNamed } from "../lib/lazyNamed";
 // panel, a role's page for a standing session), with the overlay's own expand
 // and close in its header, as the stage pane does. Lazy: that module renders
 // this board, so a static import would be a cycle.
-const SessionPage = lazyNamed(() => import("../app/inbox/QueuePageClient"), "SessionPage");
+const SessionPage = lazyNamed(
+  () => import("../app/inbox/QueuePageClient"),
+  "SessionPage",
+);
 // The fleet board: the inbox home surface when clientState.ui.inbox_home is
 // "board" (the default). Every visible session as a dense two-line tile,
 // grouped into NEEDS YOU / RUNNING / FINISHED bands — supervision by scanning,
@@ -81,7 +99,10 @@ const TONE: Record<string, { text: string; rail: string }> = {
   dim: { text: "text-sol-text-dim", rail: "bg-sol-border" },
 };
 
-const BAND_META: Record<FleetBand, { label: string; accent: string; box: string; count: string }> = {
+const BAND_META: Record<
+  FleetBand,
+  { label: string; accent: string; box: string; count: string }
+> = {
   needsYou: {
     label: "NEEDS YOU",
     accent: "text-sol-yellow",
@@ -108,9 +129,17 @@ export function InboxHomeToggle() {
   return (
     <SegmentedToggle
       value={value}
-      onChange={(k) => useInboxStore.getState().updateClientUI({ inbox_home: k as "board" | "feed" })}
+      onChange={(k) =>
+        useInboxStore
+          .getState()
+          .updateClientUI({ inbox_home: k as "board" | "feed" })
+      }
       items={[
-        { key: "board", label: "Board", title: "Fleet board — every session, grouped by state" },
+        {
+          key: "board",
+          label: "Board",
+          title: "Fleet board — every session, grouped by state",
+        },
         { key: "feed", label: "Feed", title: "Chronological activity feed" },
       ]}
     />
@@ -148,38 +177,58 @@ const FleetTile = memo(function FleetTile({
   return (
     <button
       onClick={() => onOpen(session._id)}
-      onContextMenu={onContextMenu ? (e) => onContextMenu(e, session) : undefined}
+      onContextMenu={
+        onContextMenu ? (e) => onContextMenu(e, session) : undefined
+      }
       title={`${title}\n${context}\n${meta.text}${summary ? `\n${summary}` : ""}`}
       className={`group relative flex min-w-0 flex-col items-stretch overflow-hidden rounded-md border text-left transition-colors ${
         band === "needsYou"
           ? "border-sol-yellow/50 bg-sol-card shadow-sm hover:border-sol-yellow hover:shadow"
           : band === "running"
-          ? "border-sol-green/35 bg-[color-mix(in_srgb,var(--sol-green)_6%,var(--sol-card))] shadow-sm hover:border-sol-green/70 hover:shadow"
-          : "border-sol-border/30 bg-transparent hover:bg-sol-card hover:border-sol-border/60"
+            ? "border-sol-green/35 bg-[color-mix(in_srgb,var(--sol-green)_6%,var(--sol-card))] shadow-sm hover:border-sol-green/70 hover:shadow"
+            : "border-sol-border/30 bg-transparent hover:bg-sol-card hover:border-sol-border/60"
       } pl-3 pr-2.5 pt-2 pb-2.5`}
     >
       {/* State rail: the band's color, at the edge, before any text. */}
-      <span className={`absolute inset-y-0 left-0 ${finished ? "w-[2px] opacity-30" : "w-[4px] opacity-100"} ${tone.rail}`} />
+      <span
+        className={`absolute inset-y-0 left-0 ${finished ? "w-[2px] opacity-30" : "w-[4px] opacity-100"} ${tone.rail}`}
+      />
 
       {/* 1. Title — the anchor. */}
       <span className="flex items-start gap-1.5 min-w-0">
         {/* Who the session is (session-characters.md S3), then its liveness. */}
-        <SessionGlyph row={identityRowOf(session as any)} size={18} className="mt-[1px] flex-shrink-0" />
-        <LivenessDot state={sessionLivenessState(session)} size="xs" className="mt-[5px] flex-shrink-0" />
-        <span className={`line-clamp-2 text-[13px] leading-[1.2] tracking-tight ${finished ? "font-medium text-sol-text-muted" : "font-bold text-sol-text"}`}>
+        <SessionGlyph
+          row={identityRowOf(session as any)}
+          size={18}
+          className="mt-[1px] flex-shrink-0"
+        />
+        <LivenessDot
+          state={sessionLivenessState(session)}
+          size="xs"
+          className="mt-[5px] flex-shrink-0"
+        />
+        <span
+          className={`line-clamp-2 text-[13px] leading-[1.2] tracking-tight ${finished ? "font-medium text-sol-text-muted" : "font-bold text-sol-text"}`}
+        >
           {title}
         </span>
       </span>
 
       {/* 2. State — bold and colored; the scan target. line-clamp sets
           display:-webkit-box, so no `block` here or the clamp stops working. */}
-      <span className={`mt-1.5 leading-4 ${tone.text} ${finished ? "text-meta font-medium" : "text-meta font-bold"} ${band === "needsYou" ? "line-clamp-2" : "truncate"}`}>
+      <span
+        className={`mt-1.5 leading-4 ${tone.text} ${finished ? "text-meta font-medium" : "text-meta font-bold"} ${band === "needsYou" ? "line-clamp-2" : "truncate"}`}
+      >
         {meta.text}
       </span>
 
       {/* 3. Body — the summary, readable but clearly subordinate. */}
       {summary && (
-        <span className={`mt-0.5 line-clamp-2 text-meta leading-[1.35] ${finished ? "text-sol-text-dim" : "text-sol-text-muted"}`}>{summary}</span>
+        <span
+          className={`mt-0.5 line-clamp-2 text-meta leading-[1.35] ${finished ? "text-sol-text-dim" : "text-sol-text-muted"}`}
+        >
+          {summary}
+        </span>
       )}
 
       {/* 4. Footer — metadata, deliberately the quietest thing on the tile. */}
@@ -220,20 +269,32 @@ function BandSection({
   const m = BAND_META[band];
   const [showAll, setShowAll] = useState(false);
   if (rows.length === 0 && band !== "needsYou") return null;
-  const capped = band === "finished" && !showAll && rows.length > FINISHED_TILE_CAP;
+  const capped =
+    band === "finished" && !showAll && rows.length > FINISHED_TILE_CAP;
   const shown = capped ? rows.slice(0, FINISHED_TILE_CAP) : rows;
   return (
     <section className={`rounded-lg border px-2.5 pb-2.5 pt-2 ${m.box}`}>
-      <h3 className={`mb-2 flex items-center gap-2 px-0.5 text-meta font-bold tracking-[0.18em] ${m.accent}`}>
+      <h3
+        className={`mb-2 flex items-center gap-2 px-0.5 text-meta font-bold tracking-[0.18em] ${m.accent}`}
+      >
         {m.label}
-        <span className={`rounded-full px-1.5 py-px text-meta font-bold tabular-nums tracking-normal ${m.count}`}>
+        <span
+          className={`rounded-full px-1.5 py-px text-meta font-bold tabular-nums tracking-normal ${m.count}`}
+        >
           {rows.length}
         </span>
       </h3>
       {rows.length === 0 ? (
-        <div className="px-1 pb-1 text-meta text-sol-text-dim">nothing needs you right now</div>
+        <div className="px-1 pb-1 text-meta text-sol-text-dim">
+          nothing needs you right now
+        </div>
       ) : (
-        <div className="grid items-stretch gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))" }}>
+        <div
+          className="grid items-stretch gap-2"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+          }}
+        >
           {shown.map((s) => {
             const meta = fleetTileMeta(s, band, now);
             return (
@@ -246,7 +307,11 @@ function BandSection({
                 // The blocker line already carries the substance on a needs-you
                 // tile; the summary only earns its rows where the state line is generic.
                 summary={band === "needsYou" ? "" : fleetTileSummary(s, now)}
-                progress={band === "running" ? Math.round(fleetProgress(s, now) * 100) : 0}
+                progress={
+                  band === "running"
+                    ? Math.round(fleetProgress(s, now) * 100)
+                    : 0
+                }
                 onOpen={onOpen}
                 onContextMenu={onTileContextMenu}
               />
@@ -274,7 +339,13 @@ function BandSection({
  * not a home. Esc / ✕ / backdrop click all return to the board.
  */
 // The row fields a heartbeat moves and the drill-in never reads.
-const DRILL_IN_LIVENESS_FIELDS = new Set(["updated_at", "last_heartbeat", "last_metrics_at", "last_active_at", "last_message_at"]);
+const DRILL_IN_LIVENESS_FIELDS = new Set([
+  "updated_at",
+  "last_heartbeat",
+  "last_metrics_at",
+  "last_active_at",
+  "last_message_at",
+]);
 
 function FleetDrillIn() {
   const s = useTrackedStore([
@@ -284,7 +355,9 @@ function FleetDrillIn() {
     // whole row on every beat of this one (same rule as the stage's SessionPane).
     (st) => {
       const id = overlayConversationId(st.workspace);
-      return id ? rowSigExcluding(st.sessions[id], DRILL_IN_LIVENESS_FIELDS) : null;
+      return id
+        ? rowSigExcluding(st.sessions[id], DRILL_IN_LIVENESS_FIELDS)
+        : null;
     },
   ]);
   const id = overlayConversationId(s.workspace);
@@ -306,7 +379,10 @@ function FleetDrillIn() {
   }, [id]);
 
   // Stable, so the memoized session page holds across the overlay's renders.
-  const headerEnd = useMemo(() => <PaneControls onExpand={handleExpand} onClose={handleClose} />, [handleExpand, handleClose]);
+  const headerEnd = useMemo(
+    () => <PaneControls onExpand={handleExpand} onClose={handleClose} />,
+    [handleExpand, handleClose],
+  );
 
   const handleSendAndDismiss = useCallback(() => {
     if (!id) return;
@@ -322,7 +398,13 @@ function FleetDrillIn() {
       if (e.key !== "Escape") return;
       const t = e.target;
       // Escape inside an input means "leave the field", not "leave the visit".
-      if (t instanceof HTMLElement && t.closest("input, textarea, [contenteditable='true'], [contenteditable=true]")) return;
+      if (
+        t instanceof HTMLElement &&
+        t.closest(
+          "input, textarea, [contenteditable='true'], [contenteditable=true]",
+        )
+      )
+        return;
       // Capture phase + stopPropagation: the key must not also drive whatever
       // sits under the overlay. The global shortcut registry (also capture,
       // registered at boot, so it runs first) keeps its one Escape claim —
@@ -344,7 +426,10 @@ function FleetDrillIn() {
   useMountEffect(() => {
     return () => {
       const st = useInboxStore.getState();
-      if (st.workspace.secondary.presentation === "overlay" && st.workspace.secondary.pane?.kind === "conversation") {
+      if (
+        st.workspace.secondary.presentation === "overlay" &&
+        st.workspace.secondary.pane?.kind === "conversation"
+      ) {
         st.wsHide("secondary", { remember: false });
       }
     };
@@ -361,9 +446,18 @@ function FleetDrillIn() {
     // handlers and composer autofocus. The drill-in is the conversation
     // surface itself, presented as an overlay — not a dialog that owns the
     // keyboard against it. Escape/backdrop dismissal is handled above.
-    <div className="absolute inset-0 z-30 flex" role="dialog" aria-modal="false">
-      <div className={`absolute inset-0 bg-sol-bg/80 ${modernScrim}`} onClick={handleClose} />
-      <div className={`relative m-auto flex h-[94%] w-[min(1100px,96%)] flex-col overflow-hidden rounded-lg border border-sol-border bg-sol-bg shadow-2xl ${modernDialog({ scroll: false })}`}>
+    <div
+      className="absolute inset-0 z-30 flex"
+      role="dialog"
+      aria-modal="false"
+    >
+      <div
+        className={`absolute inset-0 bg-sol-bg/80 ${modernScrim}`}
+        onClick={handleClose}
+      />
+      <div
+        className={`relative m-auto flex h-[94%] w-[min(1100px,96%)] flex-col overflow-hidden rounded-lg border border-sol-border bg-sol-bg shadow-2xl ${modernDialog({ scroll: false })}`}
+      >
         <ErrorBoundary name="FleetDrillIn" level="panel">
           <Suspense fallback={<ConversationPlaceholder id={id} />}>
             <SessionPage
@@ -410,14 +504,23 @@ export function FleetBoard() {
   // THE placement chokepoint (placeInboxRows, sync-convergence C5): scope →
   // shared working-set selection → fold → placed sections — the same set the
   // panel renders, one call for the whole board.
+  // oxfmt-ignore
   const categorized = useMemo(
     () => placeInboxRows(s, { focusedId, now: coarseNow }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionsWakeSig(s.sessions), inboxScope, meId, teamInboxIdsOf(s), showOld, focusedId, s.sessionsWithQueuedMessages, pendingSendWakeSig(s.pendingMessages), s.pendingSessionCreates, s.blockedReviveRequestedAt, coarseNow],
   );
-  const pendingSendIds = useMemo(() => sessionsWithPendingSend(s.pendingMessages, coarseNow), [s.pendingMessages, coarseNow]);
+  const pendingSendIds = useMemo(
+    () => sessionsWithPendingSend(s.pendingMessages, coarseNow),
+    [s.pendingMessages, coarseNow],
+  );
   const bands: FleetBands = useMemo(
-    () => splitFleetBands(categorized, { queued: s.sessionsWithQueuedMessages, pendingSendIds, now: coarseNow }),
+    () =>
+      splitFleetBands(categorized, {
+        queued: s.sessionsWithQueuedMessages,
+        pendingSendIds,
+        now: coarseNow,
+      }),
     [categorized, s.sessionsWithQueuedMessages, pendingSendIds, coarseNow],
   );
 
@@ -433,18 +536,28 @@ export function FleetBoard() {
       if (store.showMySessions) store.setShowMySessions(false);
       return;
     }
-    store.wsShow("secondary", { kind: "conversation", ref: id }, { presentation: "overlay" });
+    store.wsShow(
+      "secondary",
+      { kind: "conversation", ref: id },
+      { presentation: "overlay" },
+    );
   }, []);
 
   // Right-click triage on a tile: the same shared session menu every list row
   // renders (pin/label/stash/defer/dormant/kill), so the board is a first-class
   // triage surface, not just a launcher.
-  const tileMenu = useContextMenu<{ session: InboxSession; isForeign: boolean }>();
+  const tileMenu = useContextMenu<{
+    session: InboxSession;
+    isForeign: boolean;
+  }>();
   const openTileMenu = tileMenu.open;
   const handleTileContextMenu = useCallback(
     (e: ReactMouseEvent, session: InboxSession) => {
       const meId = useInboxStore.getState().currentUser?._id?.toString?.();
-      openTileMenu(e, { session, isForeign: isForeignSession(session, undefined, meId) });
+      openTileMenu(e, {
+        session,
+        isForeign: isForeignSession(session, undefined, meId),
+      });
     },
     [openTileMenu],
   );
@@ -452,43 +565,84 @@ export function FleetBoard() {
   // Modern bands the rail's own sections in the status vocabulary
   // (fleet/ModernFleetBoard); Classic and Minimal keep the bands above.
   const modern = useIsModernStyle();
-  const modernOpts = useMemo(() => ({
-    queued: s.sessionsWithQueuedMessages,
-    pendingSendIds,
-    reviveAt: s.blockedReviveRequestedAt,
-    now: coarseNow,
-    stopped: (row: InboxSession) => (isHostedAgentType(row.agent_type) ? hostedStopOf(row, useInboxStore.getState().messages[row._id]) : null),
-  }), [s.sessionsWithQueuedMessages, pendingSendIds, s.blockedReviveRequestedAt, coarseNow]);
+  const modernOpts = useMemo(
+    () => ({
+      queued: s.sessionsWithQueuedMessages,
+      pendingSendIds,
+      reviveAt: s.blockedReviveRequestedAt,
+      now: coarseNow,
+      stopped: (row: InboxSession) =>
+        isHostedAgentType(row.agent_type)
+          ? hostedStopOf(row, useInboxStore.getState().messages[row._id])
+          : null,
+    }),
+    [
+      s.sessionsWithQueuedMessages,
+      pendingSendIds,
+      s.blockedReviveRequestedAt,
+      coarseNow,
+    ],
+  );
 
-  const total = bands.needsYou.length + bands.running.length + bands.finished.length;
+  const total =
+    bands.needsYou.length + bands.running.length + bands.finished.length;
 
   return (
     <div className="relative h-full">
       <div className="h-full overflow-y-auto" data-main-scroll>
         <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-6">
-          <div ref={titlebarRef} className="mb-3 flex items-center justify-between gap-3">
+          <div
+            ref={titlebarRef}
+            className="mb-3 flex items-center justify-between gap-3"
+          >
             <div className="flex min-w-0 items-baseline gap-3">
               <h2 className="flex items-center gap-1.5 text-meta font-semibold tracking-[0.2em] text-sol-text">
                 <LivePulseDot still className="h-1.5 w-1.5" />
                 FLEET
               </h2>
-              {!modern && <span className="truncate text-meta tracking-[0.1em] text-sol-text-dim">
-                {bands.running.length} RUNNING · {bands.needsYou.length} NEED YOU · {bands.finished.length} FINISHED
-              </span>}
+              {!modern && (
+                <span className="truncate text-meta tracking-[0.1em] text-sol-text-dim">
+                  {bands.running.length} RUNNING · {bands.needsYou.length} NEED
+                  YOU · {bands.finished.length} FINISHED
+                </span>
+              )}
             </div>
             <InboxHomeToggle />
           </div>
           {modern ? (
-            <ModernFleetBody placed={categorized} opts={modernOpts} onOpen={handleOpen} onTileContextMenu={handleTileContextMenu} />
+            <ModernFleetBody
+              placed={categorized}
+              opts={modernOpts}
+              onOpen={handleOpen}
+              onTileContextMenu={handleTileContextMenu}
+            />
           ) : total === 0 ? (
             <div className="rounded-lg border border-sol-border/30 px-4 py-10 text-center text-sm text-sol-text-dim">
               No sessions yet — start one from the CLI or the composer.
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <BandSection band="needsYou" rows={bands.needsYou} now={coarseNow} onOpen={handleOpen} onTileContextMenu={handleTileContextMenu} />
-              <BandSection band="running" rows={bands.running} now={coarseNow} onOpen={handleOpen} onTileContextMenu={handleTileContextMenu} />
-              <BandSection band="finished" rows={bands.finished} now={coarseNow} onOpen={handleOpen} onTileContextMenu={handleTileContextMenu} />
+              <BandSection
+                band="needsYou"
+                rows={bands.needsYou}
+                now={coarseNow}
+                onOpen={handleOpen}
+                onTileContextMenu={handleTileContextMenu}
+              />
+              <BandSection
+                band="running"
+                rows={bands.running}
+                now={coarseNow}
+                onOpen={handleOpen}
+                onTileContextMenu={handleTileContextMenu}
+              />
+              <BandSection
+                band="finished"
+                rows={bands.finished}
+                now={coarseNow}
+                onOpen={handleOpen}
+                onTileContextMenu={handleTileContextMenu}
+              />
             </div>
           )}
         </div>

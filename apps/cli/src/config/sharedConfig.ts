@@ -27,7 +27,9 @@ export function sharedConfigFile(configDir: string): string {
 export function readConfigFile(file: string): Config | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf-8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Config) : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Config)
+      : null;
   } catch {
     return null;
   }
@@ -42,5 +44,8 @@ export function readSharedConfig(configDir: string): Config {
 // concurrent read intact.
 export function writeSharedConfig(configDir: string, config: Config): void {
   fs.mkdirSync(configDir, { recursive: true });
-  atomicWriteFile(sharedConfigFile(configDir), JSON.stringify(config, null, 2) + "\n");
+  atomicWriteFile(
+    sharedConfigFile(configDir),
+    JSON.stringify(config, null, 2) + "\n",
+  );
 }

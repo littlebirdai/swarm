@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore, type InboxSession } from "../inboxStore";
-import { _resetViewNavForTests, declareViewNav, getNavLog, hasViewNavigated } from "../viewNav";
+import {
+  _resetViewNavForTests,
+  declareViewNav,
+  getNavLog,
+  hasViewNavigated,
+} from "../viewNav";
 
 // The view-motion guard (viewNav.ts + mutativeMiddleware): "which conversation
 // is the user looking at" may only change through a write that declares a
@@ -53,7 +58,10 @@ describe("raw setState writes", () => {
   });
 
   it("drops an undeclared pendingNavigateId and keeps sibling keys", () => {
-    useInboxStore.setState({ pendingNavigateId: "convB", showMySessions: true } as any);
+    useInboxStore.setState({
+      pendingNavigateId: "convB",
+      showMySessions: true,
+    } as any);
     const s = useInboxStore.getState();
     expect(s.pendingNavigateId).toBeNull();
     expect(s.showMySessions).toBe(true);
@@ -89,7 +97,9 @@ describe("store actions", () => {
   });
 
   it("requestNavigate sets target + scroll target atomically", () => {
-    useInboxStore.getState().requestNavigate("convZ", { scrollToMessageId: "m1" });
+    useInboxStore
+      .getState()
+      .requestNavigate("convZ", { scrollToMessageId: "m1" });
     const s = useInboxStore.getState();
     expect(s.pendingNavigateId).toBe("convZ");
     expect(s.pendingScrollToMessageId).toBe("m1");
@@ -104,7 +114,10 @@ describe("adopt is boot-only", () => {
   });
 
   it("is rejected before hydration", () => {
-    useInboxStore.setState({ currentSessionId: null, clientStateInitialized: false });
+    useInboxStore.setState({
+      currentSessionId: null,
+      clientStateInitialized: false,
+    });
     useInboxStore.getState().setCurrentSession("convB", "adopt");
     expect(useInboxStore.getState().currentSessionId).toBeNull();
   });

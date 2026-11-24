@@ -21,7 +21,9 @@ function captureExpo(): any[] {
   const sent: any[] = [];
   globalThis.fetch = (async (url: any, init: any) => {
     if (String(url).includes("exp.host")) sent.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ data: { status: "ok", id: `ticket-${sent.length}` } }));
+    return new Response(
+      JSON.stringify({ data: { status: "ok", id: `ticket-${sent.length}` } }),
+    );
   }) as any;
   return sent;
 }
@@ -29,14 +31,23 @@ function captureExpo(): any[] {
 async function setup(regulated: boolean) {
   const t = convexTest(schema, allModules);
   const ids = await t.run(async (ctx) => {
-    const user = await ctx.db.insert("users", { name: "Mo", email: "mo@clinic.dev", push_token: "ExponentPushToken[x]" } as any);
+    const user = await ctx.db.insert("users", {
+      name: "Mo",
+      email: "mo@clinic.dev",
+      push_token: "ExponentPushToken[x]",
+    } as any);
     const team = await ctx.db.insert("teams", {
       name: "Clinic",
       invite_code: "CLINIC12",
       created_at: 1,
       policy: regulated ? { regulated_data: true } : {},
     } as any);
-    await ctx.db.insert("team_memberships", { user_id: user, team_id: team, role: "member", joined_at: 1 } as any);
+    await ctx.db.insert("team_memberships", {
+      user_id: user,
+      team_id: team,
+      role: "member",
+      joined_at: 1,
+    } as any);
     const conv = await ctx.db.insert("conversations", {
       user_id: user,
       agent_type: "claude_code",
@@ -58,7 +69,12 @@ const sessionPush = (user: any, conv: any) => ({
   title: "Patient Jane Doe intake summary",
   subtitle: "#clinic",
   body: "Should I add the MRN 448812 to the record?",
-  data: { type: "session_idle", conversationId: String(conv), preview: "MRN 448812", notificationKey: "e.1" },
+  data: {
+    type: "session_idle",
+    conversationId: String(conv),
+    preview: "MRN 448812",
+    notificationKey: "e.1",
+  },
   user_id: user,
 });
 
@@ -66,15 +82,23 @@ describe("push payloads leaving for Expo", () => {
   test("a regulated team member's push names the event and project only", async () => {
     const sent = captureExpo();
     const { t, user, conv } = await setup(true);
-    await t.action(internal.notifications.sendPushNotification, sessionPush(user, conv));
+    await t.action(
+      internal.notifications.sendPushNotification,
+      sessionPush(user, conv),
+    );
     expect(sent).toHaveLength(1);
     const msg = sent[0];
     expect(msg.title).toBe("Session waiting for input");
     expect(msg.body).toBe("In intake-service");
     expect(msg.subtitle).toBeUndefined();
-    expect(msg.data).toEqual({ type: "session_idle", conversationId: String(conv), notificationKey: "e.1" });
+    expect(msg.data).toEqual({
+      type: "session_idle",
+      conversationId: String(conv),
+      notificationKey: "e.1",
+    });
     const wire = JSON.stringify(msg);
-    for (const secret of ["Jane", "MRN", "448812", "#clinic"]) expect(wire).not.toContain(secret);
+    for (const secret of ["Jane", "MRN", "448812", "#clinic"])
+      expect(wire).not.toContain(secret);
   });
 
   test("a push to someone in no regulated team goes out unchanged", async () => {
@@ -97,20 +121,52 @@ describe("stripPushContent", () => {
         title: "Ada",
         subtitle: "thread · #ward-3",
         body: "Bed 4 labs are back: potassium 6.1",
-        data: { type: "chat_reply", channelId: "c1", messageId: "m1", threadRootId: "r1", link: "/chat/c1?q=potassium" },
+        data: {
+          type: "chat_reply",
+          channelId: "c1",
+          messageId: "m1",
+          threadRootId: "r1",
+          link: "/chat/c1?q=potassium",
+        },
       },
       null,
     );
     expect(chat).toEqual({
       title: "Thread reply",
       body: "Open Codecast to see it",
-      data: { type: "chat_reply", channelId: "c1", messageId: "m1", threadRootId: "r1" },
+      data: {
+        type: "chat_reply",
+        channelId: "c1",
+        messageId: "m1",
+        threadRootId: "r1",
+      },
     });
-    expect(stripPushContent({ title: "Ada wants to huddle", body: "Jane Doe follow-up", data: { type: "huddle_ring", room_key: "k" } }, null).title)
-      .toBe("Huddle invite");
-    expect(stripPushContent({ title: "3 notifications", body: "x", data: { type: "aggregate", count: 3 } }, null).title)
-      .toBe("3 notifications");
-    expect(stripPushContent({ title: "t", body: "b", data: { type: "something_new" } }, null).title).toBe("New notification");
+    expect(
+      stripPushContent(
+        {
+          title: "Ada wants to huddle",
+          body: "Jane Doe follow-up",
+          data: { type: "huddle_ring", room_key: "k" },
+        },
+        null,
+      ).title,
+    ).toBe("Huddle invite");
+    expect(
+      stripPushContent(
+        {
+          title: "3 notifications",
+          body: "x",
+          data: { type: "aggregate", count: 3 },
+        },
+        null,
+      ).title,
+    ).toBe("3 notifications");
+    expect(
+      stripPushContent(
+        { title: "t", body: "b", data: { type: "something_new" } },
+        null,
+      ).title,
+    ).toBe("New notification");
   });
 });
 
@@ -126,8 +182,17 @@ describe("Live Activity rows", () => {
       startedAt: 1,
       updatedAt: 2,
     };
-    expect(stripLiveActivitySession(row)).toEqual({ ...row, title: "intake-service", detail: "Waiting for your input" });
-    expect(stripLiveActivitySession({ ...row, status: "working", project: null }).title).toBe("Session");
-    expect(stripLiveActivitySession({ ...row, status: "working" }).detail).toBeNull();
+    expect(stripLiveActivitySession(row)).toEqual({
+      ...row,
+      title: "intake-service",
+      detail: "Waiting for your input",
+    });
+    expect(
+      stripLiveActivitySession({ ...row, status: "working", project: null })
+        .title,
+    ).toBe("Session");
+    expect(
+      stripLiveActivitySession({ ...row, status: "working" }).detail,
+    ).toBeNull();
   });
 });

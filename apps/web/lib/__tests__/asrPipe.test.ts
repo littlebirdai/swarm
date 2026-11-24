@@ -33,7 +33,11 @@ class FakeAudioContext {
     return { connect() {}, disconnect() {} };
   }
   createScriptProcessor() {
-    const proc = { onaudioprocess: null as ((e: any) => void) | null, connect() {}, disconnect() {} };
+    const proc = {
+      onaudioprocess: null as ((e: any) => void) | null,
+      connect() {},
+      disconnect() {},
+    };
     this.processors.push(proc);
     return proc;
   }
@@ -109,7 +113,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const [name, value] of Object.entries(originals)) (globalThis as any)[name] = value;
+  for (const [name, value] of Object.entries(originals))
+    (globalThis as any)[name] = value;
 });
 
 const TRACK = { readyState: "live" } as unknown as MediaStreamTrack;
@@ -137,8 +142,13 @@ function open(
   return {
     pipe,
     /** Let the mint answer and the socket be constructed. */
-    async connect(secret: string | null = "sk-test", extra: Record<string, unknown> = {}) {
-      settleMint(secret ? { client_secret: secret, ...extra } : { error: "refused" });
+    async connect(
+      secret: string | null = "sk-test",
+      extra: Record<string, unknown> = {},
+    ) {
+      settleMint(
+        secret ? { client_secret: secret, ...extra } : { error: "refused" },
+      );
       await Promise.resolve();
       await Promise.resolve();
       return FakeWebSocket.live[0];
@@ -210,7 +220,9 @@ describe("asrPipe: a pipe that cannot work lets go", () => {
   test("a socket the browser refuses to construct fails the pipe instead of throwing (ct-73198)", async () => {
     (globalThis as any).WebSocket = class {
       constructor() {
-        throw new SyntaxError("Failed to construct 'WebSocket': the provided URL is invalid.");
+        throw new SyntaxError(
+          "Failed to construct 'WebSocket': the provided URL is invalid.",
+        );
       }
     };
     const failed: string[] = [];
@@ -279,7 +291,10 @@ describe("asrPipe: the last sentence", () => {
     const finishing = h.pipe.finish();
     // A processor callback that was already in flight when the hand came off.
     h.audio().speak(frame(999));
-    ws.deliver({ type: "conversation.item.input_audio_transcription.completed", transcript: "hi" });
+    ws.deliver({
+      type: "conversation.item.input_audio_transcription.completed",
+      transcript: "hi",
+    });
     await finishing;
     expect(ws.appends()).toEqual([100]);
   });
@@ -303,10 +318,15 @@ describe("asrPipe: the last sentence", () => {
     ws.open();
     const a = h.pipe.finish();
     const b = h.pipe.finish();
-    ws.deliver({ type: "conversation.item.input_audio_transcription.completed", transcript: "ok" });
+    ws.deliver({
+      type: "conversation.item.input_audio_transcription.completed",
+      transcript: "ok",
+    });
     await Promise.all([a, b]);
     h.pipe.close();
-    expect(ws.types().filter((t) => t === "input_audio_buffer.commit").length).toBe(1);
+    expect(
+      ws.types().filter((t) => t === "input_audio_buffer.commit").length,
+    ).toBe(1);
   });
 
   test("close is still the abandon path: nothing is committed and nothing waited for", async () => {
@@ -324,12 +344,19 @@ describe("asrPipe: words while they are still being said", () => {
   test("deltas rebuild the sentence in progress and the completed one replaces it", async () => {
     const partials: string[] = [];
     const heard: string[] = [];
-    const h = open({ onPartial: (t) => partials.push(t), onUtterance: (u) => heard.push(u.text) });
+    const h = open({
+      onPartial: (t) => partials.push(t),
+      onUtterance: (u) => heard.push(u.text),
+    });
     const ws = await h.connect();
     ws.open();
 
     const delta = (item: string, d: string) =>
-      ws.deliver({ type: "conversation.item.input_audio_transcription.delta", item_id: item, delta: d });
+      ws.deliver({
+        type: "conversation.item.input_audio_transcription.delta",
+        item_id: item,
+        delta: d,
+      });
     delta("item_1", "back");
     delta("item_1", " in");
     delta("item_1", " five");
@@ -354,7 +381,10 @@ describe("asrPipe: words while they are still being said", () => {
   test("a line in a script the allowlist did not name is not shown", async () => {
     const partials: string[] = [];
     const heard: string[] = [];
-    const h = open({ onPartial: (t) => partials.push(t), onUtterance: (u) => heard.push(u.text) });
+    const h = open({
+      onPartial: (t) => partials.push(t),
+      onUtterance: (u) => heard.push(u.text),
+    });
     const ws = await h.connect();
     ws.open();
 
@@ -458,11 +488,18 @@ describe("asrPipe: a language mint that OpenAI refuses still transcribes", () =>
     let n = 0;
     const pipe = openAsrPipe({
       convex: {
-        action: async (_fn: unknown, args: { room_key: string; languages?: string[] }) => {
+        action: async (
+          _fn: unknown,
+          args: { room_key: string; languages?: string[] },
+        ) => {
           calls.push(args);
           n += 1;
           if (n === 1) return { error: "ASR session mint failed (400)" };
-          return { client_secret: "sk-test", model: "gpt-live-transcribe", languages: [] };
+          return {
+            client_secret: "sk-test",
+            model: "gpt-live-transcribe",
+            languages: [],
+          };
         },
       } as any,
       roomKey: "dm:a:b",

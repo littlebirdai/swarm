@@ -29,6 +29,9 @@ export function setContext(c: HarnessContext): void {
 }
 
 export function ctx(): HarnessContext {
-  if (!current) throw new Error("prompt-dry-run: the harness context was read before it was set");
+  if (!current)
+    throw new Error(
+      "prompt-dry-run: the harness context was read before it was set",
+    );
   return current;
 }

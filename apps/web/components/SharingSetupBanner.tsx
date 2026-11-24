@@ -16,27 +16,40 @@ import { shouldShowSharingSetup } from "../lib/sharingSetup";
 export function SharingSetupBanner() {
   const visible = useInboxStore(shouldShowSharingSetup);
   const [mounted, setMounted] = useState(false);
-  useMountEffect(() => { setMounted(true); });
+  useMountEffect(() => {
+    setMounted(true);
+  });
 
   if (!mounted || !visible) return null;
 
-  const take = () => useInboxStore.getState().updateClientDismissed("sharing_setup", Date.now());
+  const take = () =>
+    useInboxStore.getState().updateClientDismissed("sharing_setup", Date.now());
 
   return (
-    <div data-cc-banner data-nudge className="bg-gradient-to-r from-sol-cyan/10 via-sol-cyan/5 to-sol-cyan/10 border-b border-sol-cyan/30">
+    <div
+      data-cc-banner
+      data-nudge
+      className="bg-gradient-to-r from-sol-cyan/10 via-sol-cyan/5 to-sol-cyan/10 border-b border-sol-cyan/30"
+    >
       <div className="px-4 py-2 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Sparkles className="w-4 h-4 text-sol-cyan flex-shrink-0" />
           <span className="text-sm text-sol-text truncate">
             Your sessions are syncing.{" "}
-            <span className="text-sol-text-muted">Next, choose which folders sync and what your team sees. An agent can walk you through it.</span>
+            <span className="text-sol-text-muted">
+              Next, choose which folders sync and what your team sees. An agent
+              can walk you through it.
+            </span>
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button
             variant="cyan"
             size="xs"
-            onClick={() => { take(); launchSharingAgent(); }}
+            onClick={() => {
+              take();
+              launchSharingAgent();
+            }}
           >
             Set up with an agent
           </Button>

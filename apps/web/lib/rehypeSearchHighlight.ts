@@ -1,4 +1,10 @@
-import type { Root, Element, Text, RootContent, ElementContent } from "./hastTypes";
+import type {
+  Root,
+  Element,
+  Text,
+  RootContent,
+  ElementContent,
+} from "./hastTypes";
 
 type Options = {
   terms: string[];
@@ -17,18 +23,25 @@ export const SEARCH_MARK_ATTR = "data-search-highlight";
  * highlights survive re-renders — unlike DOM-level surgery via MutationObserver.
  */
 export function rehypeSearchHighlight(options: Options) {
-  const terms = (options.terms ?? []).filter(t => t.length > 0);
+  const terms = (options.terms ?? []).filter((t) => t.length > 0);
   if (terms.length === 0) return () => undefined;
 
   const pattern = terms
-    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
   const regex = new RegExp(`(${pattern})`, "gi");
   const className = options.className ?? SEARCH_MARK_CLASS;
 
   const shouldSkip = (node: Element): boolean => {
     const tag = node.tagName;
-    if (tag === "code" || tag === "pre" || tag === "script" || tag === "style" || tag === "mark") return true;
+    if (
+      tag === "code" ||
+      tag === "pre" ||
+      tag === "script" ||
+      tag === "style" ||
+      tag === "mark"
+    )
+      return true;
     return false;
   };
 

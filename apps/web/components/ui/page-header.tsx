@@ -32,7 +32,10 @@ import "./page-header.css";
 // crumbs (Section › Parent), then the title. A person always knows where they
 // are and how to get back to where they were.
 
-export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title" | "children"> {
+export interface PageHeaderProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  "title" | "children"
+> {
   /** The page's own header, drawn instead of the bar in Classic and Minimal. */
   legacy: ReactNode;
   /** The page's name as the sidebar spells it (lib/navRegistry). */
@@ -80,33 +83,90 @@ function AutoCrumbs({ title }: { title: string }) {
   return <PlaceCrumbs crumbs={crumbsForTitle(usePlaceCrumbs(), title)} />;
 }
 
-function PageHeaderBar({ title, icon: Icon, count, crumbs, tabs, actions, share, children, className, back, backFallback, glyph, status, onRename, renameLabel, titleNode, ...rest }: Omit<PageHeaderProps, "legacy">) {
+function PageHeaderBar({
+  title,
+  icon: Icon,
+  count,
+  crumbs,
+  tabs,
+  actions,
+  share,
+  children,
+  className,
+  back,
+  backFallback,
+  glyph,
+  status,
+  onRename,
+  renameLabel,
+  titleNode,
+  ...rest
+}: Omit<PageHeaderProps, "legacy">) {
   // The first row is the titlebar, not the whole header: it holds the side
   // padding the zen inset replaces, and it sits on the header's own surface.
   const titlebarRef = useTitlebarHead<HTMLDivElement>();
   // The list beside an open item leaves the way back to the item's header.
   const besideItem = useIsListBesideItem();
   return (
-    <header data-cc-page-head className={cn("border-b border-sol-border bg-sol-bg", className)} {...rest}>
+    <header
+      data-cc-page-head
+      className={cn("border-b border-sol-border bg-sol-bg", className)}
+      {...rest}
+    >
       <div ref={titlebarRef} className="cc-page-head__row">
         <div className="flex min-w-0 items-center gap-2">
-          {back === undefined ? (besideItem ? null : <BackControl fallback={backFallback} divider />) : back || null}
+          {back === undefined ? (
+            besideItem ? null : (
+              <BackControl fallback={backFallback} divider />
+            )
+          ) : (
+            back || null
+          )}
           {crumbs === undefined ? (
             <AutoCrumbs title={title} />
           ) : crumbs ? (
             <>
-              <div className="flex shrink-0 items-center gap-1 text-ui text-sol-text-dim">{crumbs}</div>
-              <ChevronRight className="size-3.5 shrink-0 text-sol-text-dim" aria-hidden />
+              <div className="flex shrink-0 items-center gap-1 text-ui text-sol-text-dim">
+                {crumbs}
+              </div>
+              <ChevronRight
+                className="size-3.5 shrink-0 text-sol-text-dim"
+                aria-hidden
+              />
             </>
           ) : null}
-          {glyph ? <span className="inline-flex shrink-0 items-center">{glyph}</span> : Icon ? <Icon className="size-4 shrink-0 text-sol-text-muted" aria-hidden /> : null}
-          {titleNode ?? <PageHeaderTitle title={title} onRename={onRename} renameLabel={renameLabel} />}
-          {status ? <div data-cc-page-status className="flex shrink-0 items-center gap-1.5">{status}</div> : null}
+          {glyph ? (
+            <span className="inline-flex shrink-0 items-center">{glyph}</span>
+          ) : Icon ? (
+            <Icon className="size-4 shrink-0 text-sol-text-muted" aria-hidden />
+          ) : null}
+          {titleNode ?? (
+            <PageHeaderTitle
+              title={title}
+              onRename={onRename}
+              renameLabel={renameLabel}
+            />
+          )}
+          {status ? (
+            <div
+              data-cc-page-status
+              className="flex shrink-0 items-center gap-1.5"
+            >
+              {status}
+            </div>
+          ) : null}
           {count != null && count !== "" ? (
-            <span data-cc-page-count className="shrink-0 text-meta tabular-nums text-sol-text-dim">{count}</span>
+            <span
+              data-cc-page-count
+              className="shrink-0 text-meta tabular-nums text-sol-text-dim"
+            >
+              {count}
+            </span>
           ) : null}
         </div>
-        {tabs ? <div className="flex min-w-0 items-center gap-2">{tabs}</div> : null}
+        {tabs ? (
+          <div className="flex min-w-0 items-center gap-2">{tabs}</div>
+        ) : null}
         {actions || share ? (
           <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
             {actions}
@@ -128,7 +188,16 @@ type DataProps = { [key: `data-${string}`]: unknown };
  * opens with the header. In Modern the header is pinned above a scroller
  * that spans the pane, and the column (`column`) scrolls under it.
  */
-export function PageFrame({ header, legacyScroll, legacyScrollProps, legacyColumn, legacyColumnProps, column, rootProps, children }: {
+export function PageFrame({
+  header,
+  legacyScroll,
+  legacyScrollProps,
+  legacyColumn,
+  legacyColumnProps,
+  column,
+  rootProps,
+  children,
+}: {
   /** A PageHeader: the page's own header in Classic, the bar in Modern. */
   header: ReactNode;
   legacyScroll?: string;
@@ -157,5 +226,11 @@ export function PageFrame({ header, legacyScroll, legacyScrollProps, legacyColum
       {children}
     </div>
   );
-  return legacyScroll === undefined ? page : <div className={legacyScroll} {...legacyScrollProps}>{page}</div>;
+  return legacyScroll === undefined ? (
+    page
+  ) : (
+    <div className={legacyScroll} {...legacyScrollProps}>
+      {page}
+    </div>
+  );
 }

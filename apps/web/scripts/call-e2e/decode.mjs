@@ -30,53 +30,128 @@ import { execFileSync } from "node:child_process";
 import { decodeStrips } from "./frames.mjs";
 import { die, parseArgs } from "./livekit.mjs";
 
-const { flags, positionals } = parseArgs(process.argv.slice(2), { booleans: ["json", "scan"] });
+const { flags, positionals } = parseArgs(process.argv.slice(2), {
+  booleans: ["json", "scan"],
+});
 const input = positionals[0];
-if (!input) die("usage: node decode.mjs <image | video | url> [--at <seconds>] [--expect <time>] [--scan [--file-start <time>]] [--json]", 64);
+if (!input)
+  die(
+    "usage: node decode.mjs <image | video | url> [--at <seconds>] [--expect <time>] [--scan [--file-start <time>]] [--json]",
+    64,
+  );
 
 function run(cmd, args, opts = {}) {
   try {
-    return execFileSync(cmd, args, { maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "pipe"], ...opts });
+    return execFileSync(cmd, args, {
+      maxBuffer: 1 << 30,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...opts,
+    });
   } catch (err) {
-    if (err.code === "ENOENT") die(`${cmd} is not installed. Install it with: brew install ffmpeg`);
-    die(`${cmd} failed: ${String(err.stderr || err.message).trim().split("\n").slice(-3).join(" ")}`);
+    if (err.code === "ENOENT")
+      die(`${cmd} is not installed. Install it with: brew install ffmpeg`);
+    die(
+      `${cmd} failed: ${String(err.stderr || err.message)
+        .trim()
+        .split("\n")
+        .slice(-3)
+        .join(" ")}`,
+    );
   }
 }
 const probe = (entries, extra = []) =>
-  String(run("ffprobe", ["-v", "error", "-select_streams", "v:0", ...extra, "-show_entries", entries, "-of", "csv=p=0", input], { encoding: "utf8" })).trim();
+  String(
+    run(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        ...extra,
+        "-show_entries",
+        entries,
+        "-of",
+        "csv=p=0",
+        input,
+      ],
+      { encoding: "utf8" },
+    ),
+  ).trim();
 
 const parseTime = (key) => {
   if (flags[key] === undefined) return undefined;
   const v = String(flags[key]);
   // Epoch ms, or LiveKit's epoch nanoseconds, or an ISO time.
   const n = /^\d+$/.test(v) ? Number(v) : Date.parse(v);
-  if (Number.isNaN(n)) die(`--${key} ${v} is neither an ISO time nor an epoch number`, 64);
+  if (Number.isNaN(n))
+    die(`--${key} ${v} is neither an ISO time nor an epoch number`, 64);
   return n > 1e15 ? Math.round(n / 1e6) : n;
 };
 
-const [width, height] = probe("stream=width,height").split("\n")[0].split(",").map(Number);
+const [width, height] = probe("stream=width,height")
+  .split("\n")[0]
+  .split(",")
+  .map(Number);
 if (!width || !height) die(`${input} has no video stream`);
 const frameBytes = width * height;
 const iso = (ms) => new Date(ms).toISOString();
-const local = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour12: false }) + `.${String(ms % 1000).padStart(3, "0")}`;
+const local = (ms) =>
+  new Date(ms).toLocaleTimeString("en-GB", { hour12: false }) +
+  `.${String(ms % 1000).padStart(3, "0")}`;
 
 if (flags.scan) {
   const fileStart = parseTime("file-start");
   const limit = Number(flags.limit ?? 600);
   const startTime = Number(probe("stream=start_time").split("\n")[0]) || 0;
-  const pts = probe("frame=pts_time", ["-read_intervals", `%+#${limit}`]).split("\n").filter(Boolean).map(Number);
+  const pts = probe("frame=pts_time", ["-read_intervals", `%+#${limit}`])
+    .split("\n")
+    .filter(Boolean)
+    .map(Number);
   // passthrough keeps one output frame per decoded frame, so the raw frames
   // line up with the pts list.
-  const raw = run("ffmpeg", ["-v", "error", "-i", input, "-frames:v", String(limit), "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "gray", "-"]);
+  const raw = run("ffmpeg", [
+    "-v",
+    "error",
+    "-i",
+    input,
+    "-frames:v",
+    String(limit),
+    "-fps_mode",
+    "passthrough",
+    "-f",
+    "rawvideo",
+    "-pix_fmt",
+    "gray",
+    "-",
+  ]);
   const frames = [];
-  for (let i = 0; i * frameBytes + frameBytes <= raw.length && i < pts.length; i++) {
-    const strips = decodeStrips(raw.subarray(i * frameBytes, (i + 1) * frameBytes), width, height);
-    const errorMs = fileStart !== undefined && strips[0] ? strips[0].capturedAtMs - Math.round(fileStart + pts[i] * 1000) : undefined;
-    frames.push({ pts: pts[i], strips, ...(errorMs !== undefined ? { errorMs } : {}) });
+  for (
+    let i = 0;
+    i * frameBytes + frameBytes <= raw.length && i < pts.length;
+    i++
+  ) {
+    const strips = decodeStrips(
+      raw.subarray(i * frameBytes, (i + 1) * frameBytes),
+      width,
+      height,
+    );
+    const errorMs =
+      fileStart !== undefined && strips[0]
+        ? strips[0].capturedAtMs - Math.round(fileStart + pts[i] * 1000)
+        : undefined;
+    frames.push({
+      pts: pts[i],
+      strips,
+      ...(errorMs !== undefined ? { errorMs } : {}),
+    });
   }
-  if (flags.json) process.stdout.write(`${JSON.stringify({ startTime, frames }, null, 2)}\n`);
+  if (flags.json)
+    process.stdout.write(`${JSON.stringify({ startTime, frames }, null, 2)}\n`);
   else {
-    process.stdout.write(`${input}: ${frames.length} frames, ${width}x${height}, container start_time ${startTime}s\n`);
+    process.stdout.write(
+      `${input}: ${frames.length} frames, ${width}x${height}, container start_time ${startTime}s\n`,
+    );
     for (const f of frames) {
       const s = f.strips[0];
       process.stdout.write(
@@ -88,7 +163,20 @@ if (flags.scan) {
 }
 
 const seek = flags.at !== undefined ? ["-ss", String(flags.at)] : [];
-const gray = run("ffmpeg", ["-v", "error", ...seek, "-i", input, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"]);
+const gray = run("ffmpeg", [
+  "-v",
+  "error",
+  ...seek,
+  "-i",
+  input,
+  "-frames:v",
+  "1",
+  "-f",
+  "rawvideo",
+  "-pix_fmt",
+  "gray",
+  "-",
+]);
 if (gray.length < frameBytes) die(`${input}: no frame at ${flags.at ?? 0}s`);
 
 const expectMs = parseTime("expect");
@@ -99,10 +187,16 @@ const strips = decodeStrips(gray, width, height).map((s) => ({
 }));
 
 if (flags.json) process.stdout.write(`${JSON.stringify(strips, null, 2)}\n`);
-else if (!strips.length) process.stderr.write(`No timecode strip found in ${input} (${width}x${height}).\n`);
+else if (!strips.length)
+  process.stderr.write(
+    `No timecode strip found in ${input} (${width}x${height}).\n`,
+  );
 else {
   for (const s of strips) {
-    const delta = s.deltaMs === undefined ? "" : `  delta ${s.deltaMs >= 0 ? "+" : ""}${s.deltaMs} ms`;
+    const delta =
+      s.deltaMs === undefined
+        ? ""
+        : `  delta ${s.deltaMs >= 0 ? "+" : ""}${s.deltaMs} ms`;
     process.stdout.write(
       `${s.source.padEnd(6)}  frame ${String(s.frame).padStart(6)}  captured ${s.capturedAt} (local ${local(s.capturedAtMs)})${delta}  at ${s.x},${s.y} cell ${s.cellPx}px\n`,
     );

@@ -6,7 +6,7 @@ Any session can reach any other by name: one running now, one that finished last
 
 ## Turn it on
 
-Open **Settings**, pick **Agent Features** under *Machines*, choose the computer your agents run on, and switch on **Messaging** under *Working together*. Sessions that start after that can send and receive messages.
+Open **Settings**, pick **Agent Features** under _Machines_, choose the computer your agents run on, and switch on **Messaging** under _Working together_. Sessions that start after that can send and receive messages.
 
 ## Ask for it
 
@@ -26,7 +26,7 @@ Messages show inside the conversation as cards, so you can tell what came from y
 ![Two conversations side by side, each showing a Message to card it sent and a Message from card it received from the other](/documentation/shots/session-messages.webp "Two sessions on different agents trading messages.")
 
 - **Message to** is a message this session sent, with the session it went to.
-- **Message from** is a message this session received. Click the sender to open that session, or the arrow beside it (*Open the sending message*) to jump to the exact turn that sent it.
+- **Message from** is a message this session received. Click the sender to open that session, or the arrow beside it (_Open the sending message_) to jump to the exact turn that sent it.
 - A message from a teammate's session carries their name, so the receiving agent and you know who is asking.
 
 A message lands even when the other computer is asleep or offline: it waits and is delivered when that computer comes back. If a message to a teammate's session still hasn't landed after a few minutes, the sending session is told.
@@ -41,12 +41,12 @@ When an agent fans work out to several sessions, those sessions would pile up in
 
 You find these controls in a session's right-click menu, and on the inbox card when you hover. On the iPhone, press and hold a session for **Stash** and **Kill session**.
 
-| Control | Keys | What it does |
-|---------|------|--------------|
-| **Stash** | `Ctrl` `Backspace` | Takes the session out of the inbox. The agent keeps running, and the session comes back when it needs you or a scheduled wake fires |
-| **Stash and hide** | `Ctrl` `Alt` `Backspace` | Like Stash, but a scheduled wake doesn't bring it back. Only a real need for you does |
-| **Kill session** | `Ctrl` `Shift` `Backspace` | You're done with it. The agent stops and its schedules are cancelled. The transcript stays |
-| **Restore session to inbox** | | Takes the place of Stash on a session that is already out of the inbox, and brings it back. A killed agent restarts only when you send it a message |
+| Control                      | Keys                       | What it does                                                                                                                                        |
+| ---------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stash**                    | `Ctrl` `Backspace`         | Takes the session out of the inbox. The agent keeps running, and the session comes back when it needs you or a scheduled wake fires                 |
+| **Stash and hide**           | `Ctrl` `Alt` `Backspace`   | Like Stash, but a scheduled wake doesn't bring it back. Only a real need for you does                                                               |
+| **Kill session**             | `Ctrl` `Shift` `Backspace` | You're done with it. The agent stops and its schedules are cancelled. The transcript stays                                                          |
+| **Restore session to inbox** |                            | Takes the place of Stash on a session that is already out of the inbox, and brings it back. A killed agent restarts only when you send it a message |
 
 ```figure
 InboxGesturesFigure
@@ -57,9 +57,9 @@ Stashed and killed sessions sit in the **Stashed** and **Killed** sections at th
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The agent says it can't message another session | Check that **Messaging** is on for its computer in **Agent Features**, then start a new session |
-| The agent declined to wake an old session | Waking a session that has sat idle for a long time costs it a full reload. Tell the agent to send anyway if the work is worth it |
-| A message to a teammate's session hasn't landed | Their computer is probably offline. It is delivered when they come back |
-| A session you expected is missing from the inbox | Look in **Stashed** at the bottom of the inbox, and pick **Restore session to inbox** |
+| What you notice                                  | What to do                                                                                                                       |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| The agent says it can't message another session  | Check that **Messaging** is on for its computer in **Agent Features**, then start a new session                                  |
+| The agent declined to wake an old session        | Waking a session that has sat idle for a long time costs it a full reload. Tell the agent to send anyway if the work is worth it |
+| A message to a teammate's session hasn't landed  | Their computer is probably offline. It is delivered when they come back                                                          |
+| A session you expected is missing from the inbox | Look in **Stashed** at the bottom of the inbox, and pick **Restore session to inbox**                                            |

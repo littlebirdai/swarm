@@ -10,7 +10,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { auditLanding, auditPath, readAudit, recordVisit, type AuditRecord } from "./audit.js";
+import {
+  auditLanding,
+  auditPath,
+  readAudit,
+  recordVisit,
+  type AuditRecord,
+} from "./audit.js";
 import type { SitePolicy } from "./policy.js";
 
 let dir: string;
@@ -43,7 +49,9 @@ describe("recordVisit", () => {
   test("skips a repeat of the tab's latest origin, but records a return visit", () => {
     recordVisit(rec());
     expect(recordVisit(rec({ t: 2_000 }))).toBe(false); // still there
-    expect(recordVisit(rec({ t: 3_000, origin: "https://other.io" }))).toBe(true);
+    expect(recordVisit(rec({ t: 3_000, origin: "https://other.io" }))).toBe(
+      true,
+    );
     expect(recordVisit(rec({ t: 4_000 }))).toBe(true); // came BACK — a real move
     expect(readAudit()).toHaveLength(3);
   });
@@ -62,7 +70,9 @@ describe("recordVisit", () => {
     // Seed the file at the cap directly — looping recordVisit 4000 times would
     // re-read the whole file per call and turn this into a minute-long test.
     fs.mkdirSync(path.dirname(auditPath()), { recursive: true });
-    const seeded = Array.from({ length: 4000 }, (_, i) => JSON.stringify(rec({ t: i, origin: `https://site${i}.com` })));
+    const seeded = Array.from({ length: 4000 }, (_, i) =>
+      JSON.stringify(rec({ t: i, origin: `https://site${i}.com` })),
+    );
     fs.writeFileSync(auditPath(), seeded.join("\n") + "\n");
     recordVisit(rec({ t: 5_000, origin: "https://fresh.io" }));
     const rows = readAudit();
@@ -81,12 +91,24 @@ describe("recordVisit", () => {
 
 describe("auditLanding", () => {
   const lockdown: SitePolicy = {
-    sources: [{ file: "/proj/workspace.toml", key: "[browser] allow", patterns: ["github.com"] }],
+    sources: [
+      {
+        file: "/proj/workspace.toml",
+        key: "[browser] allow",
+        patterns: ["github.com"],
+      },
+    ],
     errors: [],
   };
 
   test("in-policy landing records silently", () => {
-    const warn = auditLanding({ url: "https://github.com/x", tab: "T", session: "s", via: "open", policy: lockdown });
+    const warn = auditLanding({
+      url: "https://github.com/x",
+      tab: "T",
+      session: "s",
+      via: "open",
+      policy: lockdown,
+    });
     expect(warn).toBeNull();
     const row = readAudit()[0];
     expect(row.origin).toBe("https://github.com");
@@ -94,20 +116,38 @@ describe("auditLanding", () => {
   });
 
   test("off-policy landing records as blocked and warns loudly", () => {
-    const warn = auditLanding({ url: "https://evil.example/p", tab: "T", session: "s", via: "action", policy: lockdown });
+    const warn = auditLanding({
+      url: "https://evil.example/p",
+      tab: "T",
+      session: "s",
+      via: "action",
+      policy: lockdown,
+    });
     expect(warn).toContain("OUTSIDE the site allowlist");
     expect(warn).toContain("cast browser audit");
     expect(readAudit()[0].blocked).toBe(true);
   });
 
   test("no policy: the landing is still recorded — the trail is always on", () => {
-    const warn = auditLanding({ url: "https://anywhere.io", tab: "T", session: "s", via: "batch", policy: null });
+    const warn = auditLanding({
+      url: "https://anywhere.io",
+      tab: "T",
+      session: "s",
+      via: "batch",
+      policy: null,
+    });
     expect(warn).toBeNull();
     expect(readAudit()).toHaveLength(1);
   });
 
   test("browser furniture is not a visit", () => {
-    auditLanding({ url: "about:blank", tab: "T", session: "s", via: "open", policy: null });
+    auditLanding({
+      url: "about:blank",
+      tab: "T",
+      session: "s",
+      via: "open",
+      policy: null,
+    });
     expect(readAudit()).toHaveLength(0);
   });
 });

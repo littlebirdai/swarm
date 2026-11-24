@@ -449,4 +449,5 @@ const DEFINE_CAST_MOTION = String.raw`function (posterTime) {
 }`;
 
 /** The motion player as a script, for pages the server marks as compositions. */
-export const CAST_MOTION_JS = "(" + DEFINE_CAST_MOTION + ")(" + MOTION_POSTER_TIME_JS + ");\n";
+export const CAST_MOTION_JS =
+  "(" + DEFINE_CAST_MOTION + ")(" + MOTION_POSTER_TIME_JS + ");\n";

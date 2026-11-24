@@ -18,7 +18,11 @@ export type DraftImageRow = {
   uploading?: boolean;
 };
 
-import { awaitUpload, pendingImageUploads, releaseUpload } from "./pendingUploads";
+import {
+  awaitUpload,
+  pendingImageUploads,
+  releaseUpload,
+} from "./pendingUploads";
 
 export { pendingImageUploads };
 
@@ -51,12 +55,14 @@ export async function settleComposerAttachments(
   );
   for (const img of list) if (!img.storageId) releaseUpload(img.previewUrl);
   return settled
-    .filter((img): img is { storageId: string; mime: string } => !!img.storageId)
+    .filter(
+      (img): img is { storageId: string; mime: string } => !!img.storageId,
+    )
     .map((img) => ({ storage_id: img.storageId, mime: img.mime }));
 }
 
 export function serializeDraftImages(images: PastedImage[]): DraftImageRow[] {
-  return images.map(i => ({
+  return images.map((i) => ({
     storageId: i.storageId,
     previewUrl: i.previewUrl,
     name: i.file.name,
@@ -69,7 +75,11 @@ export function serializeDraftImages(images: PastedImage[]): DraftImageRow[] {
 // paste time (uploading rows included, with their blob preview), not after the
 // upload finishes. The draft is what survives a composer remount — it is
 // rekeyed along with the conversation (rekeyId) and local-wins against sync.
-export function persistDraftImages(conversationId: string, text: string, images: PastedImage[]) {
+export function persistDraftImages(
+  conversationId: string,
+  text: string,
+  images: PastedImage[],
+) {
   const store = useInboxStore.getState();
   const rows = serializeDraftImages(images);
   if (!text && rows.length === 0) {
@@ -87,18 +97,31 @@ export function persistDraftImages(conversationId: string, text: string, images:
 // since paste time. Runs from the upload promise itself, so the result lands
 // even when no composer instance is mounted. null (failed upload) removes the
 // row.
-export function settleDraftImageUpload(previewUrl: string, storageId: string | null) {
+export function settleDraftImageUpload(
+  previewUrl: string,
+  storageId: string | null,
+) {
   const store = useInboxStore.getState();
   for (const [id, draft] of Object.entries(store.drafts)) {
-    const rows = draft?.draft_image_storage_ids as DraftImageRow[] | null | undefined;
-    if (!rows?.some(r => r.previewUrl === previewUrl)) continue;
+    const rows = draft?.draft_image_storage_ids as
+      | DraftImageRow[]
+      | null
+      | undefined;
+    if (!rows?.some((r) => r.previewUrl === previewUrl)) continue;
     const next = storageId
-      ? rows.map(r => (r.previewUrl === previewUrl ? { ...r, storageId, uploading: undefined } : r))
-      : rows.filter(r => r.previewUrl !== previewUrl);
+      ? rows.map((r) =>
+          r.previewUrl === previewUrl
+            ? { ...r, storageId, uploading: undefined }
+            : r,
+        )
+      : rows.filter((r) => r.previewUrl !== previewUrl);
     if (!draft.draft_message && next.length === 0) {
       store.clearDraft(id);
     } else {
-      store.setDraft(id, { ...draft, draft_image_storage_ids: next.length > 0 ? next : null });
+      store.setDraft(id, {
+        ...draft,
+        draft_image_storage_ids: next.length > 0 ? next : null,
+      });
     }
     return;
   }
@@ -108,22 +131,30 @@ export function settleDraftImageUpload(previewUrl: string, storageId: string | n
 // ready; rows still uploading come back uploading:true so the composer can
 // re-attach to their pending upload (or drop them if it's gone, e.g. a reload
 // killed it). Falls back to the legacy single-image draft fields.
-export function restoreDraftImages(draft: Record<string, any> | undefined): PastedImage[] {
+export function restoreDraftImages(
+  draft: Record<string, any> | undefined,
+): PastedImage[] {
   if (draft?.draft_image_storage_ids) {
-    return (draft.draft_image_storage_ids as DraftImageRow[]).map(img => ({
-      file: new File([], img.name || "image", img.type ? { type: img.type } : undefined),
+    return (draft.draft_image_storage_ids as DraftImageRow[]).map((img) => ({
+      file: new File(
+        [],
+        img.name || "image",
+        img.type ? { type: img.type } : undefined,
+      ),
       previewUrl: img.previewUrl || "",
       storageId: img.storageId,
       uploading: !!img.uploading && !img.storageId,
     }));
   }
   if (draft?.draft_image_storage_id) {
-    return [{
-      file: new File([], draft.draft_image_name || "image"),
-      previewUrl: draft.draft_image_preview || "",
-      storageId: draft.draft_image_storage_id,
-      uploading: false,
-    }];
+    return [
+      {
+        file: new File([], draft.draft_image_name || "image"),
+        previewUrl: draft.draft_image_preview || "",
+        storageId: draft.draft_image_storage_id,
+        uploading: false,
+      },
+    ];
   }
   return [];
 }

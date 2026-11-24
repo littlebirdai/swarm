@@ -41,7 +41,12 @@ import {
   type ComputerSink,
   type ComputerVerb,
 } from "./run.js";
-import { printStepResults, readStepPlan, runSteps, type StepResult } from "../stepBatch.js";
+import {
+  printStepResults,
+  readStepPlan,
+  runSteps,
+  type StepResult,
+} from "../stepBatch.js";
 import { inlineImageMarker } from "../inlineImage.js";
 import { asComputerError, grantSetupLines } from "./errors.js";
 import { failedActionVerdict, verdictLine } from "./verdict.js";
@@ -71,19 +76,45 @@ const ALIASES: Record<string, ComputerVerb> = {
 
 /** Flags that take a value; every other `--flag` is a switch. */
 const VALUE_FLAGS = new Set([
-  "app", "window-id", "window-index", "element-index", "element", "nth", "x", "y", "click-count",
-  "mouse-button", "modifiers", "action", "direction", "pages", "text", "key", "value", "find", "under", "timeout",
-  "to-x", "to-y", "to-element", "to-element-index", "crop",
+  "app",
+  "window-id",
+  "window-index",
+  "element-index",
+  "element",
+  "nth",
+  "x",
+  "y",
+  "click-count",
+  "mouse-button",
+  "modifiers",
+  "action",
+  "direction",
+  "pages",
+  "text",
+  "key",
+  "value",
+  "find",
+  "under",
+  "timeout",
+  "to-x",
+  "to-y",
+  "to-element",
+  "to-element-index",
+  "crop",
 ]);
 
-const camel = (flag: string) => flag.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+const camel = (flag: string) =>
+  flag.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
 function invalid(message: string): ComputerError {
   return new ComputerError("invalid_argument", message);
 }
 
 /** A step's `--flags` as the options commander would have produced, and its positionals. */
-export function parseStepFlags(args: string[]): { options: ComputerOptions; positional: string[] } {
+export function parseStepFlags(args: string[]): {
+  options: ComputerOptions;
+  positional: string[];
+} {
   const options: Record<string, unknown> = {};
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
@@ -121,18 +152,26 @@ export interface ComputerBatchContext {
 }
 
 /** A step to the verb and options the single command would have run. */
-export function planStep(ctx: ComputerBatchContext, args: string[]): { verb: ComputerVerb | "shot" | "sleep"; options: ComputerOptions } {
+export function planStep(
+  ctx: ComputerBatchContext,
+  args: string[],
+): { verb: ComputerVerb | "shot" | "sleep"; options: ComputerOptions } {
   const [word, ...rest] = args;
   const { options: flags, positional } = parseStepFlags(rest);
   const o: ComputerOptions = { ...ctx.defaults, ...flags };
   if (word === "sleep") {
     const ms = Number(positional[0]);
-    if (!Number.isFinite(ms) || ms < 0 || ms > 60_000) throw invalid("sleep takes milliseconds, 0 to 60000");
+    if (!Number.isFinite(ms) || ms < 0 || ms > 60_000)
+      throw invalid("sleep takes milliseconds, 0 to 60000");
     return { verb: "sleep", options: { ...o, timeout: String(ms) } };
   }
-  if (word === "shot" || word === "screenshot") return { verb: "shot", options: { ...o, screenshot: true } };
+  if (word === "shot" || word === "screenshot")
+    return { verb: "shot", options: { ...o, screenshot: true } };
   const verb = ALIASES[word];
-  if (!verb) throw invalid(`unknown step '${word}'. Steps: ${[...Object.keys(ALIASES).filter((k) => !k.includes("-")), "shot", "sleep"].join(", ")}`);
+  if (!verb)
+    throw invalid(
+      `unknown step '${word}'. Steps: ${[...Object.keys(ALIASES).filter((k) => !k.includes("-")), "shot", "sleep"].join(", ")}`,
+    );
   const [first, second] = positional;
   // A step that takes free text takes the rest of the line: `paste Draft 2`
   // means "Draft 2", never "Draft" with the 2 dropped.
@@ -167,7 +206,10 @@ export function planStep(ctx: ComputerBatchContext, args: string[]): { verb: Com
       break;
     case "drag":
       // Each end is a name, #index, or x,y in window points.
-      for (const [end, value] of [["from", first], ["to", second]] as const) {
+      for (const [end, value] of [
+        ["from", first],
+        ["to", second],
+      ] as const) {
         if (value === undefined) continue;
         const point = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(value);
         if (end === "from") {
@@ -187,7 +229,13 @@ export function planStep(ctx: ComputerBatchContext, args: string[]): { verb: Com
       break;
   }
   const actsOnElement = verb === "click" || verb === "perform-secondary-action";
-  if (actsOnElement && o.element === undefined && o.elementIndex === undefined && o.x === undefined && ctx.lastFound) {
+  if (
+    actsOnElement &&
+    o.element === undefined &&
+    o.elementIndex === undefined &&
+    o.x === undefined &&
+    ctx.lastFound
+  ) {
     o.element = ctx.lastFound;
   }
   return { verb, options: o };
@@ -210,8 +258,17 @@ export async function runComputerBatch(
         runStep(args).catch((err: unknown) => {
           // A step failure reads like the single command's: message, then its recovery.
           const error = asComputerError(err);
-          const unknown = error.outcomeUnknown ? [verdictLine(failedActionVerdict(error))] : [];
-          throw new Error([error.message, ...unknown, ...error.toJSON().recovery, ...grantSetupLines(error)].join("\n"));
+          const unknown = error.outcomeUnknown
+            ? [verdictLine(failedActionVerdict(error))]
+            : [];
+          throw new Error(
+            [
+              error.message,
+              ...unknown,
+              ...error.toJSON().recovery,
+              ...grantSetupLines(error),
+            ].join("\n"),
+          );
         }),
       { keepGoing: opts.keepGoing },
     );
@@ -227,14 +284,23 @@ export async function runComputerBatch(
       return `slept ${options.timeout}ms`;
     }
     const lines: string[] = [];
-    const sink: ComputerSink = { log: (l) => lines.push(l), image: (abs) => images.push(abs), quietShots: true };
+    const sink: ComputerSink = {
+      log: (l) => lines.push(l),
+      image: (abs) => images.push(abs),
+      quietShots: true,
+    };
     if (verb === "shot") {
       const shotOptions = { ...options, screenshot: true };
       validateVerb("get-app-state", shotOptions, deps);
       const before = images.length;
       // The tree is not printed for a shot; the picture is the point.
-      await execute("get-app-state", shotOptions, client, deps, { ...sink, log: () => {} });
-      return images.length > before ? "screenshot below" : "no screenshot captured (Screen Recording may be missing)";
+      await execute("get-app-state", shotOptions, client, deps, {
+        ...sink,
+        log: () => {},
+      });
+      return images.length > before
+        ? "screenshot below"
+        : "no screenshot captured (Screen Recording may be missing)";
     }
     validateVerb(verb, options, deps);
     await execute(verb, options, client, deps, sink);
@@ -250,13 +316,21 @@ export async function runComputerDo(
 ): Promise<void> {
   const plan = await readStepPlan(steps);
   if (!plan.length) {
-    console.error('✗ no steps given. Try: cast computer do --app com.apple.Preview "click Sign" "wait Created"');
+    console.error(
+      '✗ no steps given. Try: cast computer do --app com.apple.Preview "click Sign" "wait Created"',
+    );
     return (deps.exit ?? process.exit)(1) as never;
   }
   const started = Date.now();
-  const defaults: ComputerOptions = { app: o.app, windowId: o.windowId, windowIndex: o.windowIndex };
+  const defaults: ComputerOptions = {
+    app: o.app,
+    windowId: o.windowId,
+    windowIndex: o.windowIndex,
+  };
   try {
-    const { results, images } = await runComputerBatch(plan, defaults, deps, { keepGoing: o.keepGoing });
+    const { results, images } = await runComputerBatch(plan, defaults, deps, {
+      keepGoing: o.keepGoing,
+    });
     const failed = printStepResults(results, plan.length, started);
     for (const abs of images) console.log(inlineImageMarker(abs));
     if (failed) process.exitCode = 1;

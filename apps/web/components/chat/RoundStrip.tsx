@@ -1,8 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Check, CircleSlash, Clock, Minus, Pause, SkipForward } from "lucide-react";
-import { roundStrip, type ChatRound, type RoundMember, type RoundMemberState } from "@codecast/shared/chat";
+import {
+  Check,
+  CircleSlash,
+  Clock,
+  Minus,
+  Pause,
+  SkipForward,
+} from "lucide-react";
+import {
+  roundStrip,
+  type ChatRound,
+  type RoundMember,
+  type RoundMemberState,
+} from "@codecast/shared/chat";
 import { useInboxStore } from "../../store/inboxStore";
 import { objectHref } from "../../lib/entityLinks";
 import "./chat.css";
@@ -27,21 +39,38 @@ const STATE: Record<RoundMemberState, { word: string; tone: string }> = {
 function StateMark({ state }: { state: RoundMemberState }) {
   const cls = "w-3 h-3 shrink-0";
   switch (state) {
-    case "floor": return <span className="ch-round-dot" aria-hidden="true" />;
-    case "spoke": return <Check className={cls} aria-hidden="true" />;
-    case "busy": return <Pause className={cls} aria-hidden="true" />;
-    case "no_answer": return <Clock className={cls} aria-hidden="true" />;
-    case "skipped": return <SkipForward className={cls} aria-hidden="true" />;
-    case "unreachable": return <CircleSlash className={cls} aria-hidden="true" />;
-    case "passed": return <Minus className={cls} aria-hidden="true" />;
-    default: return <span className="ch-round-ring" aria-hidden="true" />;
+    case "floor":
+      return <span className="ch-round-dot" aria-hidden="true" />;
+    case "spoke":
+      return <Check className={cls} aria-hidden="true" />;
+    case "busy":
+      return <Pause className={cls} aria-hidden="true" />;
+    case "no_answer":
+      return <Clock className={cls} aria-hidden="true" />;
+    case "skipped":
+      return <SkipForward className={cls} aria-hidden="true" />;
+    case "unreachable":
+      return <CircleSlash className={cls} aria-hidden="true" />;
+    case "passed":
+      return <Minus className={cls} aria-hidden="true" />;
+    default:
+      return <span className="ch-round-ring" aria-hidden="true" />;
   }
 }
 
-const memberHref = (m: RoundMember) => (m.kind === "role" ? objectHref("role", m.short_id) : `/conversation/${m.key}`);
+const memberHref = (m: RoundMember) =>
+  m.kind === "role" ? objectHref("role", m.short_id) : `/conversation/${m.key}`;
 
 /** `openOnly` hides a finished round (the channel view); the thread shows its record. */
-export function RoundStrip({ rootId, round, openOnly = false }: { rootId: string; round: ChatRound | undefined; openOnly?: boolean }) {
+export function RoundStrip({
+  rootId,
+  round,
+  openOnly = false,
+}: {
+  rootId: string;
+  round: ChatRound | undefined;
+  openOnly?: boolean;
+}) {
   const skip = useInboxStore((st) => st.skipChatRoundFloor);
   const end = useInboxStore((st) => st.endChatRound);
   if (!round || (openOnly && round.status !== "open")) return null;
@@ -51,14 +80,26 @@ export function RoundStrip({ rootId, round, openOnly = false }: { rootId: string
   // Two sessions started from one brief often share a title: the short id tells them apart.
   const seen = new Map<string, number>();
   for (const m of members) seen.set(m.name, (seen.get(m.name) ?? 0) + 1);
-  const shown = (m: RoundMember) => ((seen.get(m.name) ?? 0) > 1 && m.name !== m.short_id ? `${m.name} · ${m.short_id}` : m.name);
+  const shown = (m: RoundMember) =>
+    (seen.get(m.name) ?? 0) > 1 && m.name !== m.short_id
+      ? `${m.name} · ${m.short_id}`
+      : m.name;
 
   return (
-    <div className={`ch-round ${open ? "" : "ch-round-closed"}`} role="group" aria-label="Agents taking turns">
+    <div
+      className={`ch-round ${open ? "" : "ch-round-closed"}`}
+      role="group"
+      aria-label="Agents taking turns"
+    >
       {members.map((m) => {
         const st = STATE[m.state];
         return (
-          <Link key={m.key} href={memberHref(m)} className={`ch-round-chip ${st.tone}`} title={`${shown(m)}: ${st.word}`}>
+          <Link
+            key={m.key}
+            href={memberHref(m)}
+            className={`ch-round-chip ${st.tone}`}
+            title={`${shown(m)}: ${st.word}`}
+          >
             <StateMark state={m.state} />
             <span className="ch-round-name">{shown(m)}</span>
           </Link>
@@ -67,9 +108,21 @@ export function RoundStrip({ rootId, round, openOnly = false }: { rootId: string
       {open && (
         <span className="ch-round-actions">
           {round.floor_key && (
-            <button type="button" className="ch-round-btn" onClick={() => skip(rootId)}>Skip</button>
+            <button
+              type="button"
+              className="ch-round-btn"
+              onClick={() => skip(rootId)}
+            >
+              Skip
+            </button>
           )}
-          <button type="button" className="ch-round-btn" onClick={() => end(rootId)}>End</button>
+          <button
+            type="button"
+            className="ch-round-btn"
+            onClick={() => end(rootId)}
+          >
+            End
+          </button>
         </span>
       )}
     </div>

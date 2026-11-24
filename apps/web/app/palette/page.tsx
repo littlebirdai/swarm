@@ -66,17 +66,23 @@ function ReadyPaletteRoot() {
   // command-palette shortcut → palette-show.
   useWatchEffect(() => {
     if (!isElectron()) return;
-    const offCompose = window.__CODECAST_ELECTRON__?.onComposeShow?.(() => enterCompose(""));
+    const offCompose = window.__CODECAST_ELECTRON__?.onComposeShow?.(() =>
+      enterCompose(""),
+    );
     const offPalette = window.__CODECAST_ELECTRON__?.onPaletteShow?.(() => {
       setMode("search");
       setSearchNonce((n) => n + 1);
     });
-    return () => { offCompose?.(); offPalette?.(); };
+    return () => {
+      offCompose?.();
+      offPalette?.();
+    };
   }, [enterCompose]);
 
   // In-page handoff from the command palette's "New session: <query>" item.
   useWatchEffect(() => {
-    const handler = (e: Event) => enterCompose((e as CustomEvent<string>).detail || "");
+    const handler = (e: Event) =>
+      enterCompose((e as CustomEvent<string>).detail || "");
     window.addEventListener("codecast-compose", handler);
     return () => window.removeEventListener("codecast-compose", handler);
   }, [enterCompose]);

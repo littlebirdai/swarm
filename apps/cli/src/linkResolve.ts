@@ -18,7 +18,8 @@ export async function resolveCurrentConversationId(
 ): Promise<string | null> {
   const attempts = deps.attempts ?? 3;
   const delayMs = deps.delayMs ?? 1500;
-  const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const sleep =
+    deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (attempt > 0) await sleep(delayMs);
     const local = deps.readLocalMap()[sessionId];

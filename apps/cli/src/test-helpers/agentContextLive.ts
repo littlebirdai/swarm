@@ -23,25 +23,34 @@ export function liveAgentContext(): AgentContext {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "cast-agent-context-"));
   fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
   try {
-    const result = spawnSync(process.execPath, [path.join(import.meta.dir, "..", "main.ts"), "agent-context", "--json"], {
-      env: {
-        ...process.env,
-        ...PINNED_ENV,
-        HOME: home,
-        CODECAST_DIR: path.join(home, ".codecast"),
-        NO_COLOR: "1",
-        CODECAST_NO_AUTO_UPDATE: "1",
+    const result = spawnSync(
+      process.execPath,
+      [path.join(import.meta.dir, "..", "main.ts"), "agent-context", "--json"],
+      {
+        env: {
+          ...process.env,
+          ...PINNED_ENV,
+          HOME: home,
+          CODECAST_DIR: path.join(home, ".codecast"),
+          NO_COLOR: "1",
+          CODECAST_NO_AUTO_UPDATE: "1",
+        },
+        encoding: "utf-8",
+        maxBuffer: 64 * 1024 * 1024,
+        // Generous, because this run loads every command group and a busy machine
+        // transpiles the whole CLI first. It bounds a hang, not the normal run.
+        timeout: 300_000,
       },
-      encoding: "utf-8",
-      maxBuffer: 64 * 1024 * 1024,
-      // Generous, because this run loads every command group and a busy machine
-      // transpiles the whole CLI first. It bounds a hang, not the normal run.
-      timeout: 300_000,
-    });
+    );
     if (result.status !== 0) {
-      throw new Error(`cast agent-context --json exited ${result.status}: ${result.stderr || result.stdout}`);
+      throw new Error(
+        `cast agent-context --json exited ${result.status}: ${result.stderr || result.stdout}`,
+      );
     }
-    if (result.stderr) throw new Error(`cast agent-context --json wrote to stderr: ${result.stderr}`);
+    if (result.stderr)
+      throw new Error(
+        `cast agent-context --json wrote to stderr: ${result.stderr}`,
+      );
     return JSON.parse(result.stdout) as AgentContext;
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
@@ -56,11 +65,17 @@ export function liveAgentContext(): AgentContext {
  * something (`runsBare` false). A word under a leaf or a runsBare group is an
  * argument, and so is anything that is not a plain lowercase word.
  */
-export function unknownCommandWords(context: AgentContext, words: readonly string[]): string | null {
-  const byPath = new Map<string, AgentContextCommand>(context.commands.map((cmd) => [cmd.command, cmd]));
+export function unknownCommandWords(
+  context: AgentContext,
+  words: readonly string[],
+): string | null {
+  const byPath = new Map<string, AgentContextCommand>(
+    context.commands.map((cmd) => [cmd.command, cmd]),
+  );
   const byAlias = new Map<string, string>();
   for (const cmd of context.commands) {
-    for (const alias of cmd.aliases) byAlias.set([...cmd.path.slice(0, -1), alias].join(" "), cmd.command);
+    for (const alias of cmd.aliases)
+      byAlias.set([...cmd.path.slice(0, -1), alias].join(" "), cmd.command);
   }
   let at = "";
   for (const word of words) {

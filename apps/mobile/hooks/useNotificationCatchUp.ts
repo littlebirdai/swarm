@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import { AppState } from 'react-native';
-import { useConvex } from 'convex/react';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { CONVEX_URL } from '@/lib/convex';
-import { useAuth } from '@/lib/auth';
+import { useCallback, useEffect, useRef } from "react";
+import * as Notifications from "expo-notifications";
+import { AppState } from "react-native";
+import { useConvex } from "convex/react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { CONVEX_URL } from "@/lib/convex";
+import { useAuth } from "@/lib/auth";
 import {
   type CatchUpStorage,
   type CatchUpWatermark,
@@ -15,7 +15,7 @@ import {
   readPushStamp,
   recordDelivered,
   saveWatermark,
-} from '@/lib/notificationCatchUp';
+} from "@/lib/notificationCatchUp";
 
 // Recovers the pushes that arrived while this phone was unreachable (ct-49553).
 // A push is not a message queue: the server ships it once and forgets it, so a
@@ -37,14 +37,16 @@ import {
 let storage: CatchUpStorage | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  storage = require('expo-sqlite/kv-store').default as CatchUpStorage;
+  storage = require("expo-sqlite/kv-store").default as CatchUpStorage;
 } catch {
-  storage = ((globalThis as any).__CODECAST_TEST_KV_STORAGE__ as CatchUpStorage) ?? null;
+  storage =
+    ((globalThis as any).__CODECAST_TEST_KV_STORAGE__ as CatchUpStorage) ??
+    null;
 }
 
 function backendHost(url: string): string {
-  const withoutScheme = url.replace(/^https?:\/\//, '');
-  return withoutScheme.replace(/\/+$/, '');
+  const withoutScheme = url.replace(/^https?:\/\//, "");
+  return withoutScheme.replace(/\/+$/, "");
 }
 
 const HOST = backendHost(CONVEX_URL);
@@ -52,9 +54,10 @@ const HOST = backendHost(CONVEX_URL);
 // iOS wants camelCase where the push payload (an Expo field) is hyphenated.
 function localInterruptionLevel(
   level: string | undefined,
-): 'passive' | 'active' | 'timeSensitive' | 'critical' | undefined {
-  if (level === 'time-sensitive') return 'timeSensitive';
-  if (level === 'passive' || level === 'active' || level === 'critical') return level;
+): "passive" | "active" | "timeSensitive" | "critical" | undefined {
+  if (level === "time-sensitive") return "timeSensitive";
+  if (level === "passive" || level === "active" || level === "critical")
+    return level;
   return undefined;
 }
 
@@ -177,14 +180,16 @@ export function useNotificationCatchUp(): {
     const stamp = readPushStamp(data);
     const userId = userRef.current;
     if (!stamp || !userId || !storage) return;
-    void updateWatermark(userId, (current) => recordDelivered(HOST, current, stamp));
+    void updateWatermark(userId, (current) =>
+      recordDelivered(HOST, current, stamp),
+    );
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !currentUserId) return;
     void run();
-    const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void run();
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") void run();
     });
     // The socket coming back is its own wake: a phone can regain signal without
     // anyone foregrounding the app. Only the down→up edge runs a pass.

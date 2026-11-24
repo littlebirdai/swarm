@@ -12,14 +12,32 @@ export function useLiveSessionMeta(conversationId: string | undefined) {
 }
 
 /** The same read outside React (a key handler, a timer). */
-export function liveSessionMetaOf(s: ReturnType<typeof useInboxStore.getState>, conversationId: string | undefined) {
+export function liveSessionMetaOf(
+  s: ReturnType<typeof useInboxStore.getState>,
+  conversationId: string | undefined,
+) {
   if (!conversationId) return undefined;
   const id = s.resolveLiveSessionId(conversationId);
   const sess = s.sessions[id] as
-    | { model?: string | null; effort?: string | null; agent_type?: string; session_id?: string; owner_device_id?: string | null; agent_definition?: string | null }
+    | {
+        model?: string | null;
+        effort?: string | null;
+        agent_type?: string;
+        session_id?: string;
+        owner_device_id?: string | null;
+        agent_definition?: string | null;
+      }
     | undefined;
   const conv = s.conversations[id] as
-    | { model?: string | null; effort?: string | null; agent_type?: string; session_id?: string; owner_device_id?: string | null; agent_definition?: string | null; cloud_agent_archived?: boolean }
+    | {
+        model?: string | null;
+        effort?: string | null;
+        agent_type?: string;
+        session_id?: string;
+        owner_device_id?: string | null;
+        agent_definition?: string | null;
+        cloud_agent_archived?: boolean;
+      }
     | undefined;
   if (!sess && !conv) return undefined;
   return {
@@ -28,7 +46,8 @@ export function liveSessionMetaOf(s: ReturnType<typeof useInboxStore.getState>, 
     agentType: conv?.agent_type ?? sess?.agent_type,
     sessionId: conv?.session_id ?? sess?.session_id,
     ownerDeviceId: conv?.owner_device_id ?? sess?.owner_device_id,
-    agentDefinition: conv?.agent_definition ?? sess?.agent_definition ?? undefined,
+    agentDefinition:
+      conv?.agent_definition ?? sess?.agent_definition ?? undefined,
     /** A cloud agent session's agent archived on the provider's site. */
     cloudAgentArchived: conv?.cloud_agent_archived === true,
   };

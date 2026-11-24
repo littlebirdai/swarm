@@ -30,12 +30,18 @@ import {
   navigateFromHere,
   onCallPanelHandback,
   onVoiceMirror,
-  onShellProcessGone } from "../lib/desktop";
+  onShellProcessGone,
+} from "../lib/desktop";
 import { track } from "../lib/analytics";
 import { runPlaced } from "../lib/desktopApps";
 import { deepLinkSessionId } from "../lib/pathLabel";
 import { cleanNotificationBody } from "../lib/notificationText";
-import { notificationActor, notificationRoute, notificationTypeLabel, sessionLabel } from "../lib/notificationTypes";
+import {
+  notificationActor,
+  notificationRoute,
+  notificationTypeLabel,
+  sessionLabel,
+} from "../lib/notificationTypes";
 import { recordNotificationMiss } from "../lib/notificationNudge";
 import { isChatContextOnScreen } from "../lib/chatFocus";
 import { useOsPermission } from "../hooks/useOsPermissions";
@@ -64,12 +70,20 @@ const BANNER_FRESH_MS = 3 * 60_000;
 // page, and the walkie pulls the media stack in with it.
 let walkie: typeof import("../lib/calls/walkie") | null = null;
 
-const SESSION_BANNER_TYPES = new Set(["session_idle", "permission_request", "session_error"]);
+const SESSION_BANNER_TYPES = new Set([
+  "session_idle",
+  "permission_request",
+  "session_error",
+]);
 
 /** A session row's banner names the session, from the row's conversation or the
  *  local store, so rows written before the server titled them read right too.
  *  A ready session needs no event word; the rest say what happened. */
-function sessionBannerTitle(n: { type?: unknown; conversation_id?: unknown; conversation?: any }): string | null {
+function sessionBannerTitle(n: {
+  type?: unknown;
+  conversation_id?: unknown;
+  conversation?: any;
+}): string | null {
   const type = typeof n.type === "string" ? n.type : "";
   if (!n.conversation_id || !SESSION_BANNER_TYPES.has(type)) return null;
   const st = useInboxStore.getState() as any;
@@ -77,7 +91,9 @@ function sessionBannerTitle(n: { type?: unknown; conversation_id?: unknown; conv
   const conv = n.conversation ?? st.conversations?.[id] ?? st.sessions?.[id];
   const name = sessionLabel(conv);
   if (!name) return null;
-  return type === "session_idle" ? name : `${name} · ${notificationTypeLabel(type, conv?.agent_type)}`;
+  return type === "session_idle"
+    ? name
+    : `${name} · ${notificationTypeLabel(type, conv?.agent_type)}`;
 }
 
 /** Exported for the call seam tests: a LiveKit reconnect must read as still
@@ -85,14 +101,21 @@ function sessionBannerTitle(n: { type?: unknown; conversation_id?: unknown; conv
 export function DesktopProvider() {
   const router = useRouter();
   const initRef = useRef(false);
-  const [update, setUpdate] = useState<{ current: string; latest: string } | null>(null);
+  const [update, setUpdate] = useState<{
+    current: string;
+    latest: string;
+  } | null>(null);
   const [updating, setUpdating] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [stalled, setStalled] = useState(false);
   // Real download progress from Electron's own auto-updater (works when
   // Squirrel is alive). The daemon-driven "Update now" path can't report a
   // percentage, so it falls back to the indeterminate bar below.
-  const [ipc, setIpc] = useState<{ status: string; version?: string; percent?: number } | null>(null);
+  const [ipc, setIpc] = useState<{
+    status: string;
+    version?: string;
+    percent?: number;
+  } | null>(null);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
   const requestDesktopUpdate = useMutation(api.users.requestDesktopUpdate);
@@ -107,7 +130,11 @@ export function DesktopProvider() {
   // command is forced, and forced runs skip the dev-mode gate.
   const shellVersion = useRef(desktopShellVersion()).current;
   const { isAuthenticated } = useConvexAuth();
-  const floor = useQueryNoThrow(api.systemConfig.getMinDesktopVersion, shellVersion ? {} : "skip").data ?? null;
+  const floor =
+    useQueryNoThrow(
+      api.systemConfig.getMinDesktopVersion,
+      shellVersion ? {} : "skip",
+    ).data ?? null;
   const belowFloor = isBelowFloor(shellVersion, floor);
 
   const startUpdate = () => {
@@ -137,7 +164,9 @@ export function DesktopProvider() {
   usePresenceReporter();
 
   const notifications = useQueryNoThrow(api.notifications.list, {}).data;
-  useNotificationDelivery(canDeliverNotifications && isAuthenticated && notifications !== undefined);
+  useNotificationDelivery(
+    canDeliverNotifications && isAuthenticated && notifications !== undefined,
+  );
   // The latest rows, for a banner asking at show time whether its row still stands.
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
@@ -150,7 +179,8 @@ export function DesktopProvider() {
   const chatRowsHeld = useInboxStore((s) => {
     let out = "";
     for (const n of notifications ?? []) {
-      if (n.read || n.entity_type !== "chat_channel" || !n.chat_message_id) continue;
+      if (n.read || n.entity_type !== "chat_channel" || !n.chat_message_id)
+        continue;
       out += s.chatMessages[String(n.chat_message_id)] ? "1" : "0";
     }
     return out;
@@ -202,7 +232,10 @@ export function DesktopProvider() {
         // message, a task banner on the task — not just "the app, focused".
         // A notification's own in-app link wins, as it does in the bell (notificationHref); an absolute
         // link (an artifact page, a trigger on the web) is not a route the desktop router can take.
-        const route = (n.link?.startsWith("/") ? n.link : undefined) ?? notificationRoute(n.entity_type, n.entity_id, n.chat_message_id) ?? undefined;
+        const route =
+          (n.link?.startsWith("/") ? n.link : undefined) ??
+          notificationRoute(n.entity_type, n.entity_id, n.chat_message_id) ??
+          undefined;
         // Chat's "already on screen" rule is channel + thread, not path. The
         // shell only sees `/chat/<id>`, so a thread reply while you sit on the
         // channel floor used to look like you were already reading it and the
@@ -222,8 +255,16 @@ export function DesktopProvider() {
             continue;
           }
           const threadRootId = msg?.thread_root_id;
-          const onScreen = isChatContextOnScreen(String(n.entity_id), threadRootId ? String(threadRootId) : undefined);
-          if (typeof document !== "undefined" && document.hasFocus() && onScreen) continue;
+          const onScreen = isChatContextOnScreen(
+            String(n.entity_id),
+            threadRootId ? String(threadRootId) : undefined,
+          );
+          if (
+            typeof document !== "undefined" &&
+            document.hasFocus() &&
+            onScreen
+          )
+            continue;
           force = !onScreen;
         }
         // `key` lets the desktop shell collapse the same row reported by every
@@ -235,45 +276,71 @@ export function DesktopProvider() {
         // does a permission answered in the session meanwhile. A finished
         // turn has no such answer to watch: a late message from the agent
         // sets it "working" too, so only the read counts there.
-        const sessionId = n.conversation_id ? String(n.conversation_id) : undefined;
-        const stillUnread = () => !notificationsRef.current?.find((row) => row._id === n._id)?.read;
-        const due = n.type === "permission_request" && sessionId
-          ? () => stillUnread() && !requestAnsweredSince(sessionId, n.created_at)
-          : n.type === "session_idle" ? stillUnread : undefined;
-        notifyNative(title, body, {
-          conversationId: n.conversation_id,
-          route,
-          key: String(n._id),
-          kind: typeof n.type === "string" ? n.type : undefined,
-          force,
-        }, { due });
+        const sessionId = n.conversation_id
+          ? String(n.conversation_id)
+          : undefined;
+        const stillUnread = () =>
+          !notificationsRef.current?.find((row) => row._id === n._id)?.read;
+        const due =
+          n.type === "permission_request" && sessionId
+            ? () =>
+                stillUnread() && !requestAnsweredSince(sessionId, n.created_at)
+            : n.type === "session_idle"
+              ? stillUnread
+              : undefined;
+        notifyNative(
+          title,
+          body,
+          {
+            conversationId: n.conversation_id,
+            route,
+            key: String(n._id),
+            kind: typeof n.type === "string" ? n.type : undefined,
+            force,
+          },
+          { due },
+        );
         // A banner this row deserved could not be shown: the app is unfocused
         // (a focused app is announced by the toast/bell — nothing missed) and
         // the OS-level permission is not granted, so the notifyNative above
         // silently vanished. Feed the nudge banner — a miss overrides its
         // snooze (lib/notificationNudge.ts).
-        if (!agentAlertsSuppressed() && readinessRef.current !== "granted" && !document.hasFocus()) {
+        if (
+          !agentAlertsSuppressed() &&
+          readinessRef.current !== "granted" &&
+          !document.hasFocus()
+        ) {
           recordNotificationMiss({
             actor,
-            fromPerson: typeof n.type === "string" && (n.type.startsWith("chat_") || n.type === "mention"),
+            fromPerson:
+              typeof n.type === "string" &&
+              (n.type.startsWith("chat_") || n.type === "mention"),
           });
         }
         // Browser/Electron OS banners are silent by default; the page supplies
         // the same marimba the focused toast plays, so a chat message sounds
         // identical whether the window has focus or not. notifyNative already
         // no-ops when focused (the toast layer owns that case).
-        if (typeof n.type === "string" && n.type.startsWith("chat_") && !document.hasFocus()) {
+        if (
+          typeof n.type === "string" &&
+          n.type.startsWith("chat_") &&
+          !document.hasFocus()
+        ) {
           // Keyed by the chat message, not by this notification row: the
           // in-page toast layer watches the same arrival through the chat rail
           // and sounds it too. One arrival, one sound.
-          soundChatMessage(n.chat_message_id ? String(n.chat_message_id) : undefined);
+          soundChatMessage(
+            n.chat_message_id ? String(n.chat_message_id) : undefined,
+          );
         }
       }
     }
-    seenIdsRef.current = new Set(notifications.map((n) => n._id).filter((id) => !waiting.has(id)));
+    seenIdsRef.current = new Set(
+      notifications.map((n) => n._id).filter((id) => !waiting.has(id)),
+    );
   }, [canDeliverNotifications, notifications, chatRowsHeld]);
 
-  const updateDismissed = useInboxStore(s => s.updateClientDismissed);
+  const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
 
   useWatchEffect(() => {
     if (!isDesktop() || initRef.current) return;
@@ -293,9 +360,11 @@ export function DesktopProvider() {
     });
     // The shell offers to record a meeting it noticed starting. It picked this
     // window; the answer, and the microphone, are ours.
-    void import("../lib/calls/meetingOffers").then(({ installMeetingOfferListener }) => {
-      installMeetingOfferListener();
-    });
+    void import("../lib/calls/meetingOffers").then(
+      ({ installMeetingOfferListener }) => {
+        installMeetingOfferListener();
+      },
+    );
 
     // A dead window or GPU process leaves no other trace off the machine.
     onShellProcessGone((report) => track("desktop_process_gone", report));
@@ -335,7 +404,8 @@ export function DesktopProvider() {
       if (!path) return;
       // The voice and people windows draw no dashboard: a path landing in one
       // goes to the main window, or the float becomes a page with no way out.
-      if (isSatelliteWindow()) return navigateFromHere(path, (p) => router.push(p));
+      if (isSatelliteWindow())
+        return navigateFromHere(path, (p) => router.push(p));
       if (tabId) useInboxStore.getState().switchTab(tabId);
 
       // Both spellings of "this session": the universal /conversation/<id>,
@@ -350,7 +420,11 @@ export function DesktopProvider() {
 
         const cur = window.location.pathname;
         if (cur.startsWith("/inbox") || cur.startsWith("/conversation/")) {
-          window.history.pushState(withInboxView({ inboxId: convId }), "", path);
+          window.history.pushState(
+            withInboxView({ inboxId: convId }),
+            "",
+            path,
+          );
           return;
         }
       }
@@ -366,9 +440,13 @@ export function DesktopProvider() {
     // the front and nothing happened.
     onDeepLink((urls) => {
       for (const url of urls) {
-        const arrival = planDeepLinkArrival(url, useInboxStore.getState().currentSessionId);
+        const arrival = planDeepLinkArrival(
+          url,
+          useInboxStore.getState().currentSessionId,
+        );
         if (arrival.kind === "navigate") goTo(arrival.path);
-        else if (arrival.kind === "offer") showBrowserHandoffToast(arrival.path, goTo);
+        else if (arrival.kind === "offer")
+          showBrowserHandoffToast(arrival.path, goTo);
       }
     });
 
@@ -387,7 +465,6 @@ export function DesktopProvider() {
     // signal over IPC. Surface it directly when it fires (it's dead on macOS
     // 26, where the daemon path takes over instead).
     onUpdateStatus((s) => setIpc(s));
-
   }, [router]);
 
   // Tell the desktop shell what this window shows, so a banner click can land
@@ -407,14 +484,28 @@ export function DesktopProvider() {
     if (!canReportWindowState) return;
     const st = useInboxStore.getState();
     const live = `${location.pathname}${location.search}`;
-    const inboxFamily = (p: string) => p === "/inbox" || p.startsWith("/inbox?") || p.startsWith("/conversation/");
+    const inboxFamily = (p: string) =>
+      p === "/inbox" ||
+      p.startsWith("/inbox?") ||
+      p.startsWith("/conversation/");
     const withSession = (p: string) =>
-      inboxFamily(p) && st.currentSessionId ? `/conversation/${st.currentSessionId}` : p;
+      inboxFamily(p) && st.currentSessionId
+        ? `/conversation/${st.currentSessionId}`
+        : p;
     // A satellite shows its own URL only. It hydrates the shared tabs too, and
     // reporting them told the shell the float was showing the main window's
     // channel, so a banner for that channel landed in the float.
-    if (isDetachedTabWindow() || isSatelliteWindow() || st.tabs.length === 0 || !st.activeTabId) {
-      reportDesktopWindowState({ active: withSession(live), open: [], inCall: inHuddle(st, walkie) });
+    if (
+      isDetachedTabWindow() ||
+      isSatelliteWindow() ||
+      st.tabs.length === 0 ||
+      !st.activeTabId
+    ) {
+      reportDesktopWindowState({
+        active: withSession(live),
+        open: [],
+        inCall: inHuddle(st, walkie),
+      });
       return;
     }
     const open = st.tabs.map((t) => ({
@@ -456,7 +547,10 @@ export function DesktopProvider() {
   const ready = ipc?.status === "ready";
   const downloading = ipc?.status === "downloading";
   const errored = ipc?.status === "error";
-  const latest = ipc?.version ?? update?.latest ?? (belowFloor ? floor ?? undefined : undefined);
+  const latest =
+    ipc?.version ??
+    update?.latest ??
+    (belowFloor ? (floor ?? undefined) : undefined);
   const current = update?.current ?? shellVersion;
   const inProgress = updating || downloading;
 
@@ -523,7 +617,14 @@ export function DesktopProvider() {
 
   // Nothing to surface: no known update (and not mid-update or failed), or
   // this version was dismissed while idle.
-  if (!belowFloor && !ready && !inProgress && !showStalled && (!update || update.latest === dismissedVersion)) return null;
+  if (
+    !belowFloor &&
+    !ready &&
+    !inProgress &&
+    !showStalled &&
+    (!update || update.latest === dismissedVersion)
+  )
+    return null;
   if (!latest) return null;
 
   if (minimized) {
@@ -579,15 +680,26 @@ export function DesktopProvider() {
           />
           <div className="flex-1 min-w-0">
             {ready ? (
-              <p className="text-xs text-sol-text">Codecast v{latest} is ready to install</p>
+              <p className="text-xs text-sol-text">
+                Codecast v{latest} is ready to install
+              </p>
             ) : showStalled && belowFloor ? (
               <>
-                <p className="text-xs text-sol-text">Codecast could not update on its own</p>
+                <p className="text-xs text-sol-text">
+                  Codecast could not update on its own
+                </p>
                 <p className="mt-0.5 text-meta text-sol-text-dim">
                   v{current} no longer works with this version of Codecast. Run{" "}
-                  <code className="rounded bg-sol-bg px-1 text-sol-text">cast desktop-update --force</code> in a
-                  terminal, or{" "}
-                  <a href="/download/mac" target="_blank" rel="noopener" className="text-sol-cyan hover:underline">
+                  <code className="rounded bg-sol-bg px-1 text-sol-text">
+                    cast desktop-update --force
+                  </code>{" "}
+                  in a terminal, or{" "}
+                  <a
+                    href="/download/mac"
+                    target="_blank"
+                    rel="noopener"
+                    className="text-sol-cyan hover:underline"
+                  >
                     download v{latest}
                   </a>
                   .
@@ -596,7 +708,9 @@ export function DesktopProvider() {
             ) : showStalled ? (
               <>
                 <p className="text-xs text-sol-text">
-                  {errored ? "Update failed" : "Update is taking longer than usual"}
+                  {errored
+                    ? "Update failed"
+                    : "Update is taking longer than usual"}
                 </p>
                 <p className="mt-0.5 text-meta text-sol-text-dim">
                   {errored
@@ -607,8 +721,12 @@ export function DesktopProvider() {
             ) : inProgress ? (
               <>
                 <p className="text-xs text-sol-text">
-                  {downloading ? `Downloading v${latest}` : `Updating to v${latest}`}
-                  {downloading && ipc?.percent != null ? ` — ${ipc.percent}%` : "…"}
+                  {downloading
+                    ? `Downloading v${latest}`
+                    : `Updating to v${latest}`}
+                  {downloading && ipc?.percent != null
+                    ? ` — ${ipc.percent}%`
+                    : "…"}
                 </p>
                 <p className="mt-0.5 text-meta text-sol-text-dim">
                   {downloading
@@ -618,16 +736,25 @@ export function DesktopProvider() {
               </>
             ) : (
               <p className="text-xs text-sol-text">
-                {belowFloor ? `Codecast v${latest} is required` : `Codecast v${latest} is available`}
+                {belowFloor
+                  ? `Codecast v${latest} is required`
+                  : `Codecast v${latest} is available`}
                 {current && (
-                  <span className="text-sol-text-dim"> · you&rsquo;re on v{current}</span>
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    · you&rsquo;re on v{current}
+                  </span>
                 )}
               </p>
             )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
             {ready && (
-              <Button variant="cyan" size="xs" onClick={() => restartForUpdate()}>
+              <Button
+                variant="cyan"
+                size="xs"
+                onClick={() => restartForUpdate()}
+              >
                 Restart now
               </Button>
             )}
@@ -658,7 +785,15 @@ export function DesktopProvider() {
                 title="Minimize"
                 className="-mr-1 flex h-5 w-5 items-center justify-center rounded text-sol-text-dim transition-colors hover:bg-sol-bg hover:text-sol-text"
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                >
                   <path d="M2 5h6" />
                 </svg>
               </button>

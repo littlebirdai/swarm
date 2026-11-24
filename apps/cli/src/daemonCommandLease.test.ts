@@ -59,7 +59,9 @@ describe("batch claims", () => {
 
   test("a command nobody primed still claims on its own", async () => {
     const calls = stubFetch(() => ({ claimed: true }));
-    expect(await takePrimedClaim("solo", SITE, TOKEN)).toEqual({ claimed: true });
+    expect(await takePrimedClaim("solo", SITE, TOKEN)).toEqual({
+      claimed: true,
+    });
     expect(calls.length).toBe(1);
   });
 
@@ -73,7 +75,10 @@ describe("batch claims", () => {
   });
 
   test("a refused claim is not released", async () => {
-    const calls = stubFetch(() => ({ claimed: false, reason: "held_by_other" }));
+    const calls = stubFetch(() => ({
+      claimed: false,
+      reason: "held_by_other",
+    }));
     primeCommandClaims(["taken"], SITE, TOKEN);
     discardPrimedClaim("taken", SITE, TOKEN);
     await new Promise((r) => setTimeout(r, 10));
@@ -89,10 +94,16 @@ describe("batch claims", () => {
 });
 
 describe("leases stranded by the previous daemon", () => {
-  const config = { auth_token: TOKEN, convex_url: "https://example.convex.cloud" } as any;
+  const config = {
+    auth_token: TOKEN,
+    convex_url: "https://example.convex.cloud",
+  } as any;
   const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "claims-"));
   const write = (dir: string, bootId: string, ids: unknown) =>
-    fs.writeFileSync(path.join(dir, `daemon.claims.${bootId}.json`), JSON.stringify({ boot_id: bootId, ids }));
+    fs.writeFileSync(
+      path.join(dir, `daemon.claims.${bootId}.json`),
+      JSON.stringify({ boot_id: bootId, ids }),
+    );
 
   test("the next daemon releases them under the boot id that took them", async () => {
     const calls = stubFetch(() => ({ released: true }));
@@ -133,19 +144,30 @@ describe("leases stranded by the previous daemon", () => {
 
   test("no file, an empty list, unreadable json and unrelated files are quiet no-ops", async () => {
     const calls = stubFetch(() => ({ released: true }));
-    expect(await releaseStrandedCommandClaims(config, tmpDir(), "0ff1ce")).toBe(0);
+    expect(await releaseStrandedCommandClaims(config, tmpDir(), "0ff1ce")).toBe(
+      0,
+    );
 
     const empty = tmpDir();
     write(empty, "deadbeef", []);
     expect(await releaseStrandedCommandClaims(config, empty, "0ff1ce")).toBe(0);
 
     const junk = tmpDir();
-    fs.writeFileSync(path.join(junk, "daemon.claims.deadbeef.json"), "not json");
+    fs.writeFileSync(
+      path.join(junk, "daemon.claims.deadbeef.json"),
+      "not json",
+    );
     fs.writeFileSync(path.join(junk, "daemon.log"), "unrelated");
     expect(await releaseStrandedCommandClaims(config, junk, "0ff1ce")).toBe(0);
     expect(fs.readdirSync(junk)).toEqual(["daemon.log"]);
 
-    expect(await releaseStrandedCommandClaims(config, "/nope/does/not/exist", "0ff1ce")).toBe(0);
+    expect(
+      await releaseStrandedCommandClaims(
+        config,
+        "/nope/does/not/exist",
+        "0ff1ce",
+      ),
+    ).toBe(0);
     expect(calls.length).toBe(0);
   });
 });

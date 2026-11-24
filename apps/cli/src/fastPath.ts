@@ -28,12 +28,19 @@
  * is reading that output as a protocol.
  */
 export function isCredentialHelperFastPath(argv: string[]): boolean {
-  return argv[2] === "git-credential" && argv.length === 4 && ["get", "store", "erase"].includes(argv[3]!);
+  return (
+    argv[2] === "git-credential" &&
+    argv.length === 4 &&
+    ["get", "store", "erase"].includes(argv[3]!)
+  );
 }
 
 /** A SessionStart hook verb, bare or with `--client <client>`. */
 function isSessionStartVerb(argv: string[], verb: string): boolean {
-  return argv[2] === verb && (argv.length === 3 || (argv.length === 5 && argv[3] === "--client"));
+  return (
+    argv[2] === verb &&
+    (argv.length === 3 || (argv.length === 5 && argv[3] === "--client"))
+  );
 }
 
 /** The stable-context hook's detached half: `cast _stable-context-after <job file>`. */
@@ -57,7 +64,9 @@ export function runFastPath(argv: string[]): boolean {
     process.exit(127);
   };
   if (argv[2] === "_agent-prompt") {
-    import("./agentPrompt.js").then(({ runAgentPrompt }) => runAgentPrompt(argv.slice(3))).catch(fail);
+    import("./agentPrompt.js")
+      .then(({ runAgentPrompt }) => runAgentPrompt(argv.slice(3)))
+      .catch(fail);
     return true;
   }
   if (argv[2] === "_disclaimed") {
@@ -71,10 +80,15 @@ export function runFastPath(argv: string[]): boolean {
   if (argv[2] === "_claude-sdk-host") {
     // One Claude SDK session's long lived host (claudeSdk/host.ts), started by
     // the daemon as its own launchd job.
-    import("./claudeSdk/host.js").then(({ claudeSdkHostMain }) => claudeSdkHostMain(argv.slice(3))).catch(fail);
+    import("./claudeSdk/host.js")
+      .then(({ claudeSdkHostMain }) => claudeSdkHostMain(argv.slice(3)))
+      .catch(fail);
     return true;
   }
-  if (argv[2] === "_build-id" || (argv[2] === "--" && argv[3] === "_build-id")) {
+  if (
+    argv[2] === "_build-id" ||
+    (argv[2] === "--" && argv[3] === "_build-id")
+  ) {
     // Prints the build id of the daemon code this executable carries. The
     // update paths run it on the FRESHLY INSTALLED executable to decide whether
     // the daemon needs bouncing, so it has to be cheap and side effect free:
@@ -96,7 +110,9 @@ export function runFastPath(argv: string[]): boolean {
     // the release check refuses. Nothing outside a compiled artifact can
     // observe this: the chunking exists only in one.
     Promise.all([import("node:fs"), import("node:url")])
-      .then(([fs, url]) => console.log(fs.statSync(url.fileURLToPath(import.meta.url)).size))
+      .then(([fs, url]) =>
+        console.log(fs.statSync(url.fileURLToPath(import.meta.url)).size),
+      )
       .catch(fail);
     return true;
   }
@@ -109,7 +125,11 @@ export function runFastPath(argv: string[]): boolean {
     // build carries no helper; writes the bytes to argv[3] when given. Lives
     // beside `_build-id` for the same reason: no commander, no daemon, two
     // tiny modules.
-    Promise.all([import("./computer/helperPayload.js"), import("node:crypto"), import("node:fs")])
+    Promise.all([
+      import("./computer/helperPayload.js"),
+      import("node:crypto"),
+      import("node:fs"),
+    ])
       .then(([{ computerHelperTar }, crypto, fs]) => {
         const tar = computerHelperTar();
         if (!tar) return console.log("none");
@@ -125,7 +145,9 @@ export function runFastPath(argv: string[]): boolean {
     // module evaluation plus a token decrypt (an ioreg spawn and a scrypt) for
     // the per-command server log. computer/entry.ts parses the one group the
     // way index.ts would, policy guard included, and loads nothing else.
-    import("./computer/entry.js").then(({ runComputerEntry }) => runComputerEntry(argv)).catch(fail);
+    import("./computer/entry.js")
+      .then(({ runComputerEntry }) => runComputerEntry(argv))
+      .catch(fail);
     return true;
   }
   if (argv[2] === "_session-trailer") {
@@ -155,7 +177,10 @@ export function runFastPath(argv: string[]): boolean {
     // check, no config migration write. The agent waits for this process to
     // exit, so it exits as soon as the block is written, leaving any read it
     // no longer needs behind.
-    Promise.all([import("./stableContext.js"), import("./config/readAuthConfig.js")])
+    Promise.all([
+      import("./stableContext.js"),
+      import("./config/readAuthConfig.js"),
+    ])
       .then(([hook, cfg]) =>
         hook.runStableContextHook(
           cfg.readAuthConfig(cfg.defaultConfigDir()),
@@ -167,16 +192,33 @@ export function runFastPath(argv: string[]): boolean {
     return true;
   }
   if (argv[2] === STABLE_CONTEXT_SERVED_VERB && argv.length === 5) {
-    Promise.all([import("./stableContext.js"), import("./config/readAuthConfig.js")])
-      .then(([hook, cfg]) => hook.runStableContextServed(cfg.readAuthConfig(cfg.defaultConfigDir()), argv[3], argv[4]))
+    Promise.all([
+      import("./stableContext.js"),
+      import("./config/readAuthConfig.js"),
+    ])
+      .then(([hook, cfg]) =>
+        hook.runStableContextServed(
+          cfg.readAuthConfig(cfg.defaultConfigDir()),
+          argv[3],
+          argv[4],
+        ),
+      )
       .catch(() => {})
       .finally(() => process.exit(0));
     return true;
   }
   if (argv[2] === STABLE_CONTEXT_AFTER_VERB && argv.length === 4) {
     // The hook's detached half (stableContext.ts startStableContextAfter).
-    Promise.all([import("./stableContext.js"), import("./config/readAuthConfig.js")])
-      .then(([hook, cfg]) => hook.runStableContextAfter(cfg.readAuthConfig(cfg.defaultConfigDir()), argv[3]))
+    Promise.all([
+      import("./stableContext.js"),
+      import("./config/readAuthConfig.js"),
+    ])
+      .then(([hook, cfg]) =>
+        hook.runStableContextAfter(
+          cfg.readAuthConfig(cfg.defaultConfigDir()),
+          argv[3],
+        ),
+      )
       .catch(() => {})
       .finally(() => process.exit(0));
     return true;
@@ -184,19 +226,38 @@ export function runFastPath(argv: string[]): boolean {
   if (isTaskContextFastPath(argv)) {
     // SessionStart hook after compaction or a resume (taskContextHook.ts).
     // Same contract as stable-context: stdout is the block or nothing.
-    Promise.all([import("./taskContextHook.js"), import("./stableContext.js"), import("./config/readAuthConfig.js")])
+    Promise.all([
+      import("./taskContextHook.js"),
+      import("./stableContext.js"),
+      import("./config/readAuthConfig.js"),
+    ])
       .then(([hook, stable, cfg]) => {
         let unreadable: string | undefined;
-        const config = cfg.readAuthConfig(cfg.defaultConfigDir(), { onUnreadable: (message) => { unreadable = message; } });
-        return hook.runTaskContextHook(config, stable.parseStableHookClient(argv[4]), unreadable);
+        const config = cfg.readAuthConfig(cfg.defaultConfigDir(), {
+          onUnreadable: (message) => {
+            unreadable = message;
+          },
+        });
+        return hook.runTaskContextHook(
+          config,
+          stable.parseStableHookClient(argv[4]),
+          unreadable,
+        );
       })
       // A throw outside the read still leaves its line in task-context.log.
       // When the hook module itself cannot load, the exit code makes the
       // hook script write that line instead. Stdout stays empty either way.
       .catch((err) =>
         import("./taskContextHook.js")
-          .then((hook) => hook.logFailure(undefined, `_task-context failed: ${err instanceof Error ? err.message : String(err)}`))
-          .catch(() => { process.exitCode = 1; }),
+          .then((hook) =>
+            hook.logFailure(
+              undefined,
+              `_task-context failed: ${err instanceof Error ? err.message : String(err)}`,
+            ),
+          )
+          .catch(() => {
+            process.exitCode = 1;
+          }),
       );
     return true;
   }

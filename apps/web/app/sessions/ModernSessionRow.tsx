@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { railRowPlacement, type InboxSession } from "../../store/inboxStore";
-import { sessionStatusOf, SESSION_STATUS, type SessionStatus } from "../../lib/sessionStatus";
+import {
+  sessionStatusOf,
+  SESSION_STATUS,
+  type SessionStatus,
+} from "../../lib/sessionStatus";
 import { sessionCardLine } from "../../lib/sessionCardLine";
-import { SessionStatusMark, SessionStatusWord } from "../../components/inbox/SessionStatusMark";
+import {
+  SessionStatusMark,
+  SessionStatusWord,
+} from "../../components/inbox/SessionStatusMark";
 import { HibernatedMarker } from "../../components/HibernatedMarker";
 import { Button } from "../../components/ui/button";
 
@@ -60,14 +67,41 @@ function duration(ms: number): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-const PROCESS_WORDS: Record<ModernSessionsRowData["bucket"], { word: string; title: string }> = {
-  active: { word: "process up", title: "Its process is alive and recently active" },
-  idle: { word: "process idle", title: "Its process is alive but has been idle while awake (sleep excluded)" },
+const PROCESS_WORDS: Record<
+  ModernSessionsRowData["bucket"],
+  { word: string; title: string }
+> = {
+  active: {
+    word: "process up",
+    title: "Its process is alive and recently active",
+  },
+  idle: {
+    word: "process idle",
+    title:
+      "Its process is alive but has been idle while awake (sleep excluded)",
+  },
   dead: { word: "no process", title: "No live process: the row is stale" },
-  hibernated: { word: "hibernated", title: "Its process was stopped to free the machine; it resumes on the next send" },
+  hibernated: {
+    word: "hibernated",
+    title:
+      "Its process was stopped to free the machine; it resumes on the next send",
+  },
 };
 
-export function ModernSessionsRow({ row, inbox, now, busy, expanded, parking, onToggleExpand, onPin, onStash, onKill, onPrune, children }: {
+export function ModernSessionsRow({
+  row,
+  inbox,
+  now,
+  busy,
+  expanded,
+  parking,
+  onToggleExpand,
+  onPin,
+  onStash,
+  onKill,
+  onPrune,
+  children,
+}: {
   row: ModernSessionsRowData;
   /** The inbox's own row for the conversation, when the store holds it. */
   inbox?: InboxSession;
@@ -84,13 +118,30 @@ export function ModernSessionsRow({ row, inbox, now, busy, expanded, parking, on
   /** The expanded metrics chart. */
   children?: ReactNode;
 }) {
-  const status: SessionStatus = row.killed ? "killed" : row.dismissed ? "stashed" : inbox
-    ? sessionStatusOf({ row: inbox, placement: railRowPlacement(inbox, now), now })
-    // No inbox row (a tmux-only process): what its live status says.
-    : sessionStatusOf({ row: { agent_status: row.agent_status, message_count: row.message_count ?? 1, updated_at: row.lastActiveAt, last_heartbeat: row.last_heartbeat }, now });
+  const status: SessionStatus = row.killed
+    ? "killed"
+    : row.dismissed
+      ? "stashed"
+      : inbox
+        ? sessionStatusOf({
+            row: inbox,
+            placement: railRowPlacement(inbox, now),
+            now,
+          })
+        : // No inbox row (a tmux-only process): what its live status says.
+          sessionStatusOf({
+            row: {
+              agent_status: row.agent_status,
+              message_count: row.message_count ?? 1,
+              updated_at: row.lastActiveAt,
+              last_heartbeat: row.last_heartbeat,
+            },
+            now,
+          });
   const line = inbox ? sessionCardLine({ row: inbox, status, now }) : null;
   const meta = SESSION_STATUS[status];
-  const title = row.conversation_title || row.tmux_session || row.session_id.slice(0, 12);
+  const title =
+    row.conversation_title || row.tmux_session || row.session_id.slice(0, 12);
   const about = row.headline || row.last_message_preview || line?.text || "";
   const facts = [
     row.project_path ? row.project_path.split("/").filter(Boolean).pop() : null,
@@ -101,9 +152,15 @@ export function ModernSessionsRow({ row, inbox, now, busy, expanded, parking, on
     row.message_count != null ? `${row.message_count} msgs` : null,
     `up ${duration(row.uptime)}`,
     row.is_subagent ? "subagent" : null,
-    row.isAlive && row.current_memory ? `${(row.current_memory / (1024 * 1024)).toFixed(0)}MB` : null,
-    row.isAlive && row.current_cpu ? `${row.current_cpu.toFixed(1)}% cpu` : null,
-    row.isAlive && row.current_pid_count ? `${row.current_pid_count} procs` : null,
+    row.isAlive && row.current_memory
+      ? `${(row.current_memory / (1024 * 1024)).toFixed(0)}MB`
+      : null,
+    row.isAlive && row.current_cpu
+      ? `${row.current_cpu.toFixed(1)}% cpu`
+      : null,
+    row.isAlive && row.current_pid_count
+      ? `${row.current_pid_count} procs`
+      : null,
   ].filter(Boolean);
   const process = PROCESS_WORDS[row.bucket];
   // A row with no live process, or one stashed from the inbox, recedes by
@@ -125,41 +182,130 @@ export function ModernSessionsRow({ row, inbox, now, busy, expanded, parking, on
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <span className="flex min-w-0 flex-1 basis-[16rem] items-center gap-2">
-            <span className="flex w-4 shrink-0 justify-center"><SessionStatusMark status={status} /></span>
+            <span className="flex w-4 shrink-0 justify-center">
+              <SessionStatusMark status={status} />
+            </span>
             {row.conversation_id ? (
-              <Link href={`/conversation/${row.conversation_id}`} className={`min-w-0 truncate text-body hover:underline underline-offset-2 ${quiet ? "text-sol-text-muted" : "font-medium text-sol-text"}`}>{title}</Link>
+              <Link
+                href={`/conversation/${row.conversation_id}`}
+                className={`min-w-0 truncate text-body hover:underline underline-offset-2 ${quiet ? "text-sol-text-muted" : "font-medium text-sol-text"}`}
+              >
+                {title}
+              </Link>
             ) : (
-              <span className="min-w-0 truncate text-body text-sol-text-muted">{title}</span>
+              <span className="min-w-0 truncate text-body text-sol-text-muted">
+                {title}
+              </span>
             )}
           </span>
-          <span className="shrink-0 text-meta tabular-nums text-sol-text-dim" title={`Last active ${new Date(row.lastActiveAt).toLocaleString()}`}>
+          <span
+            className="shrink-0 text-meta tabular-nums text-sol-text-dim"
+            title={`Last active ${new Date(row.lastActiveAt).toLocaleString()}`}
+          >
             {duration(row.lastActiveMs)} ago
           </span>
-          <span className="shrink-0 font-mono text-meta text-sol-text-dim" title={process.title}>
-            {row.bucket === "idle" ? `${process.word} ${duration(row.awakeIdleMs)}` : process.word}
+          <span
+            className="shrink-0 font-mono text-meta text-sol-text-dim"
+            title={process.title}
+          >
+            {row.bucket === "idle"
+              ? `${process.word} ${duration(row.awakeIdleMs)}`
+              : process.word}
           </span>
           <HibernatedMarker status={row.agent_status} compact />
-          {parking && <span className="shrink-0 text-meta text-sol-text-dim">parking requested</span>}
+          {parking && (
+            <span className="shrink-0 text-meta text-sol-text-dim">
+              parking requested
+            </span>
+          )}
           <span className="flex shrink-0 items-center gap-1">
             {busy ? (
               <span className="text-meta text-sol-text-dim">Working…</span>
             ) : (
               <>
-                {row.conversation_id && <Button variant="ghost" size="xs" onClick={onPin} title={row.pinned ? "Unpin" : "Pin to the top of the inbox"}>{row.pinned ? "Unpin" : "Pin"}</Button>}
-                {row.conversation_id && <Button variant="ghost" size="xs" onClick={onStash} title={row.dismissed ? "Restore to the inbox" : "Stash from the inbox; the agent keeps running"}>{row.dismissed ? "Restore" : "Stash"}</Button>}
-                {row.bucket === "dead"
-                  ? <Button variant="ghost" size="xs" onClick={onPrune} title="Remove this stale row (no live process to kill)">Prune</Button>
-                  : row.conversation_id && <Button variant="ghost" size="xs" onClick={onKill} className="hover:text-sol-red" title="Kill this session">Kill</Button>}
+                {row.conversation_id && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={onPin}
+                    title={row.pinned ? "Unpin" : "Pin to the top of the inbox"}
+                  >
+                    {row.pinned ? "Unpin" : "Pin"}
+                  </Button>
+                )}
+                {row.conversation_id && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={onStash}
+                    title={
+                      row.dismissed
+                        ? "Restore to the inbox"
+                        : "Stash from the inbox; the agent keeps running"
+                    }
+                  >
+                    {row.dismissed ? "Restore" : "Stash"}
+                  </Button>
+                )}
+                {row.bucket === "dead" ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={onPrune}
+                    title="Remove this stale row (no live process to kill)"
+                  >
+                    Prune
+                  </Button>
+                ) : (
+                  row.conversation_id && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={onKill}
+                      className="hover:text-sol-red"
+                      title="Kill this session"
+                    >
+                      Kill
+                    </Button>
+                  )
+                )}
               </>
             )}
           </span>
         </div>
-        <p className="mt-1 truncate pl-6 text-ui" title={[line?.reasonTitle, about].filter(Boolean).join("\n") || meta.meaning}>
+        <p
+          className="mt-1 truncate pl-6 text-ui"
+          title={
+            [line?.reasonTitle, about].filter(Boolean).join("\n") ||
+            meta.meaning
+          }
+        >
           <SessionStatusWord status={status} className="font-medium" />
-          {line?.reason && <span className={meta.text}><span aria-hidden className="text-sol-text-dim"> · </span>{line.reason}</span>}
-          {about && <span className="text-sol-text-muted"><span aria-hidden className="text-sol-text-dim"> · </span>{!row.headline && row.last_message_role ? `${row.last_message_role}: ` : ""}{about}</span>}
+          {line?.reason && (
+            <span className={meta.text}>
+              <span aria-hidden className="text-sol-text-dim">
+                {" "}
+                ·{" "}
+              </span>
+              {line.reason}
+            </span>
+          )}
+          {about && (
+            <span className="text-sol-text-muted">
+              <span aria-hidden className="text-sol-text-dim">
+                {" "}
+                ·{" "}
+              </span>
+              {!row.headline && row.last_message_role
+                ? `${row.last_message_role}: `
+                : ""}
+              {about}
+            </span>
+          )}
         </p>
-        <div className="mt-1 truncate pl-6 font-mono text-meta text-sol-text-dim">{facts.join(" · ")}</div>
+        <div className="mt-1 truncate pl-6 font-mono text-meta text-sol-text-dim">
+          {facts.join(" · ")}
+        </div>
       </div>
       {expanded && children}
     </div>

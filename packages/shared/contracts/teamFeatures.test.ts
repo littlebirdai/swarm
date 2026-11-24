@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { DEFAULT_TEAM_FEATURES, TEAM_FEATURES, teamFeatureEnabled, undecidedSetupFeatures, workspaceFeatureEnabled, workspaceFeatureState } from "./teamFeatures";
+import {
+  DEFAULT_TEAM_FEATURES,
+  TEAM_FEATURES,
+  teamFeatureEnabled,
+  undecidedSetupFeatures,
+  workspaceFeatureEnabled,
+  workspaceFeatureState,
+} from "./teamFeatures";
 
 // The org feature is seated per team AND per person, and the personal
 // workspace has no flag row. The rule that decides whose personal org exists
@@ -32,8 +39,12 @@ describe("workspaceFeatureState", () => {
   const undecided = { _id: "c", features: { chat: true } };
   it("a team reads its own flag: on, never decided (offer), or turned off", () => {
     expect(workspaceFeatureState([on, off, undecided], "a", "line")).toBe("on");
-    expect(workspaceFeatureState([on, off, undecided], "b", "line")).toBe("off");
-    expect(workspaceFeatureState([on, off, undecided], "c", "line")).toBe("offer");
+    expect(workspaceFeatureState([on, off, undecided], "b", "line")).toBe(
+      "off",
+    );
+    expect(workspaceFeatureState([on, off, undecided], "c", "line")).toBe(
+      "offer",
+    );
     expect(workspaceFeatureState([undecided], "missing", "org")).toBe("off");
   });
   it("personal borrows: on when a team has it on, offered while one never decided, else off", () => {
@@ -47,10 +58,17 @@ describe("workspaceFeatureState", () => {
 
 describe("undecidedSetupFeatures", () => {
   it("names only the setup features a team never set", () => {
-    const keys = (f: Parameters<typeof undecidedSetupFeatures>[0]) => undecidedSetupFeatures(f).map((d) => d.key);
-    expect(keys({ features: {} })).toEqual(TEAM_FEATURES.filter((f) => f.onByDefault).map((f) => f.key));
-    expect(keys({ features: { chat: false, calls: true } })).not.toContain("chat");
-    expect(keys({ features: { chat: false, calls: true } })).not.toContain("calls");
+    const keys = (f: Parameters<typeof undecidedSetupFeatures>[0]) =>
+      undecidedSetupFeatures(f).map((d) => d.key);
+    expect(keys({ features: {} })).toEqual(
+      TEAM_FEATURES.filter((f) => f.onByDefault).map((f) => f.key),
+    );
+    expect(keys({ features: { chat: false, calls: true } })).not.toContain(
+      "chat",
+    );
+    expect(keys({ features: { chat: false, calls: true } })).not.toContain(
+      "calls",
+    );
     expect(keys({ features: { ...DEFAULT_TEAM_FEATURES } })).toEqual([]);
     expect(keys(null)).toEqual([]);
   });

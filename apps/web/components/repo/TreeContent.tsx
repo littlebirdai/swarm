@@ -49,7 +49,9 @@ export function Breadcrumb({
     <div className="flex items-center gap-1 px-4 pb-2 modern:font-mono text-[12px] flex-wrap">
       <Link
         href={repoTreeHref(repository, refName, undefined, family)}
-        className={path ? "text-sol-text-muted hover:text-sol-text" : "text-sol-text"}
+        className={
+          path ? "text-sol-text-muted hover:text-sol-text" : "text-sol-text"
+        }
       >
         {repository.split("/")[1]}
       </Link>
@@ -87,7 +89,12 @@ export function TreeContent({
 }) {
   const router = useRouter();
   const tree = useRepoTree(repository, refName, path);
-  const lastCommits = useRepoLastCommits(tree.data?.sha ? repository : undefined, refName, path, tree.data?.sha);
+  const lastCommits = useRepoLastCommits(
+    tree.data?.sha ? repository : undefined,
+    refName,
+    path,
+    tree.data?.sha,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -111,11 +118,19 @@ export function TreeContent({
   };
 
   useEventListener("keydown", (e: KeyboardEvent) => {
-    if (!repoShortcutAllowed(rootRef.current, e) && e.target !== filterRef.current) return;
+    if (
+      !repoShortcutAllowed(rootRef.current, e) &&
+      e.target !== filterRef.current
+    )
+      return;
     if (!rootRef.current?.getClientRects().length) return;
     const el = e.target as HTMLElement | null;
     if (keysOwnedElsewhere(el)) return;
-    const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    const typing =
+      !!el &&
+      (el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable);
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     if (e.key === "/" && !typing) {
@@ -171,7 +186,8 @@ export function TreeContent({
         )}
         {tree.notFound && (
           <p className="px-4 py-3 text-[12px] text-sol-text-muted">
-            There is no directory at <code className="font-mono">{path}</code> on this ref.
+            There is no directory at <code className="font-mono">{path}</code>{" "}
+            on this ref.
           </p>
         )}
         {!tree.ready && !tree.error && !tree.notFound && <LoadingSkeleton />}
@@ -194,17 +210,45 @@ export function TreeContent({
                   i === cursor ? "bg-sol-bg-alt/60" : "hover:bg-sol-bg-alt/40"
                 }`}
               >
-                <Link href={hrefFor(entry)} className="flex items-center gap-2 min-w-0 w-1/3 shrink-0">
-                {isDir ? (
-                  <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--repo-accent)" }} />
-                ) : (
-                  <File className="w-3.5 h-3.5 shrink-0 text-sol-text-dim" />
-                )}
-                <span className={`truncate modern:font-mono ${isDir ? "text-sol-text" : "text-sol-text-muted"}`}>{name}</span>
+                <Link
+                  href={hrefFor(entry)}
+                  className="flex items-center gap-2 min-w-0 w-1/3 shrink-0"
+                >
+                  {isDir ? (
+                    <Folder
+                      className="w-3.5 h-3.5 shrink-0"
+                      style={{ color: "var(--repo-accent)" }}
+                    />
+                  ) : (
+                    <File className="w-3.5 h-3.5 shrink-0 text-sol-text-dim" />
+                  )}
+                  <span
+                    className={`truncate modern:font-mono ${isDir ? "text-sol-text" : "text-sol-text-muted"}`}
+                  >
+                    {name}
+                  </span>
                 </Link>
-                {last ? <><Link href={commitPageHref(repository, last.sha, family)} className="truncate text-sol-text-muted hover:text-sol-blue flex-1" title={last.subject}>{last.subject}</Link>
-                  <time title={new Date(last.committed_at).toLocaleString()} className="shrink-0 text-meta text-sol-text-dim">{relTimeShort(last.committed_at)}</time></>
-                  : <span className="ml-auto text-meta text-sol-text-dim">{!isDir ? formatSize(entry.size) : ""}</span>}
+                {last ? (
+                  <>
+                    <Link
+                      href={commitPageHref(repository, last.sha, family)}
+                      className="truncate text-sol-text-muted hover:text-sol-blue flex-1"
+                      title={last.subject}
+                    >
+                      {last.subject}
+                    </Link>
+                    <time
+                      title={new Date(last.committed_at).toLocaleString()}
+                      className="shrink-0 text-meta text-sol-text-dim"
+                    >
+                      {relTimeShort(last.committed_at)}
+                    </time>
+                  </>
+                ) : (
+                  <span className="ml-auto text-meta text-sol-text-dim">
+                    {!isDir ? formatSize(entry.size) : ""}
+                  </span>
+                )}
               </div>
             );
           })}

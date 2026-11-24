@@ -15,7 +15,10 @@
 type Ctx = { db: any };
 
 async function markersFor(ctx: Ctx, key: string) {
-  return await ctx.db.query("drain_markers").withIndex("by_key", (q: any) => q.eq("key", key)).collect();
+  return await ctx.db
+    .query("drain_markers")
+    .withIndex("by_key", (q: any) => q.eq("key", key))
+    .collect();
 }
 
 /**
@@ -23,21 +26,40 @@ async function markersFor(ctx: Ctx, key: string) {
  * or (with `staleMs`) the one on its way was scheduled so long ago that it was
  * lost.
  */
-export async function claimDrain(ctx: Ctx, key: string, opts: { staleMs?: number } = {}): Promise<boolean> {
+export async function claimDrain(
+  ctx: Ctx,
+  key: string,
+  opts: { staleMs?: number } = {},
+): Promise<boolean> {
   const marker = (await markersFor(ctx, key))[0];
   const now = Date.now();
-  if (marker?.scheduled && (opts.staleMs === undefined || now - marker.scheduled_at < opts.staleMs)) return false;
-  if (marker) await ctx.db.patch(marker._id, { scheduled: true, scheduled_at: now });
-  else await ctx.db.insert("drain_markers", { key, scheduled: true, scheduled_at: now });
+  if (
+    marker?.scheduled &&
+    (opts.staleMs === undefined || now - marker.scheduled_at < opts.staleMs)
+  )
+    return false;
+  if (marker)
+    await ctx.db.patch(marker._id, { scheduled: true, scheduled_at: now });
+  else
+    await ctx.db.insert("drain_markers", {
+      key,
+      scheduled: true,
+      scheduled_at: now,
+    });
   return true;
 }
 
 /** A drain that scheduled its own next pass keeps the claim fresh. */
 export async function renewDrain(ctx: Ctx, key: string): Promise<void> {
-  for (const marker of await markersFor(ctx, key)) await ctx.db.patch(marker._id, { scheduled: true, scheduled_at: Date.now() });
+  for (const marker of await markersFor(ctx, key))
+    await ctx.db.patch(marker._id, {
+      scheduled: true,
+      scheduled_at: Date.now(),
+    });
 }
 
 /** A drain that found nothing left hands the key back to the next writer. */
 export async function releaseDrain(ctx: Ctx, key: string): Promise<void> {
-  for (const marker of await markersFor(ctx, key)) if (marker.scheduled) await ctx.db.patch(marker._id, { scheduled: false });
+  for (const marker of await markersFor(ctx, key))
+    if (marker.scheduled) await ctx.db.patch(marker._id, { scheduled: false });
 }

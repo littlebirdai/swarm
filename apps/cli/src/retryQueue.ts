@@ -39,13 +39,21 @@ import { AsyncResource } from "node:async_hooks";
 export { parseRateLimitDelay };
 export type { LogLevel };
 
-export type RetryOperationType = "createConversation" | "addMessage" | "addMessages" | "updateSessionId";
+export type RetryOperationType =
+  | "createConversation"
+  | "addMessage"
+  | "addMessages"
+  | "updateSessionId";
 
-export interface RetryOperation extends GenericRetryOperation<Record<string, unknown>> {
+export interface RetryOperation extends GenericRetryOperation<
+  Record<string, unknown>
+> {
   type: RetryOperationType;
 }
 
-export interface DroppedOperation extends GenericDroppedOperation<Record<string, unknown>> {
+export interface DroppedOperation extends GenericDroppedOperation<
+  Record<string, unknown>
+> {
   type: RetryOperationType;
   sessionId?: string;
   conversationId?: string;
@@ -87,7 +95,10 @@ function chunkRetryMessages<T>(
   let currentBytes = 0;
   for (const msg of messages) {
     const bytes = Buffer.byteLength(JSON.stringify(msg));
-    if (current.length > 0 && (current.length >= maxCount || currentBytes + bytes > maxBytes)) {
+    if (
+      current.length > 0 &&
+      (current.length >= maxCount || currentBytes + bytes > maxBytes)
+    ) {
       batches.push(current);
       current = [];
       currentBytes = 0;
@@ -101,16 +112,27 @@ function chunkRetryMessages<T>(
 
 /** Drop keys whose value is undefined, so they don't overwrite a default. */
 function definedOnly<T extends object>(value: T): Partial<T> {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
 }
 
 const messageUuidOf = (msg: unknown): string | undefined =>
-  msg && typeof msg === "object" ? (msg as { messageUuid?: string }).messageUuid : undefined;
+  msg && typeof msg === "object"
+    ? (msg as { messageUuid?: string }).messageUuid
+    : undefined;
 
-const conversationIdOf = (op: { params: Record<string, unknown> }): string | null =>
-  typeof op.params.conversationId === "string" ? op.params.conversationId : null;
+const conversationIdOf = (op: {
+  params: Record<string, unknown>;
+}): string | null =>
+  typeof op.params.conversationId === "string"
+    ? op.params.conversationId
+    : null;
 
-const isAddMessagesFor = (op: RetryOperation, conversationId: string): boolean =>
+const isAddMessagesFor = (
+  op: RetryOperation,
+  conversationId: string,
+): boolean =>
   op.type === "addMessages" && op.params.conversationId === conversationId;
 
 // Errors that mean the cached conversation_id is permanently invalid against the
@@ -119,8 +141,12 @@ const isAddMessagesFor = (op: RetryOperation, conversationId: string): boolean =
 // next processSessionFile pass once the local conversation cache is dropped).
 /** The server no longer has (or no longer lets this account write) the conversation. */
 export function isStaleConversationError(error: string): boolean {
-  return error.includes("Conversation not found") ||
-    error.includes("Unauthorized: can only add messages to your own conversations");
+  return (
+    error.includes("Conversation not found") ||
+    error.includes(
+      "Unauthorized: can only add messages to your own conversations",
+    )
+  );
 }
 
 // Answers that mean "not now", never "not this op": the daemon's own transcript
@@ -141,13 +167,19 @@ const LOAD_REFUSALS = [
 export function classifyRetryError(error: string): ErrorClass {
   const cls = defaultClassifyError(error);
   if (cls !== "retry") return cls;
-  return LOAD_REFUSALS.some((refusal) => error.includes(refusal)) ? "overload" : "retry";
+  return LOAD_REFUSALS.some((refusal) => error.includes(refusal))
+    ? "overload"
+    : "retry";
 }
 
 // createConversation refusals that hold for good: the session moved to another
 // account, or its owner deleted it. No retry of the same session can succeed.
 export function isSessionRefusal(error: string): boolean {
-  return error.includes("Session moved to another account") || error.includes("Session deleted by its owner") || error.includes(POLICY_EXCLUDED_SESSION);
+  return (
+    error.includes("Session moved to another account") ||
+    error.includes("Session deleted by its owner") ||
+    error.includes(POLICY_EXCLUDED_SESSION)
+  );
 }
 
 /**
@@ -221,7 +253,10 @@ function healRestoredOperations(
       const convId = conversationIdOf(op);
       if (convId) {
         let seen = seenByConv.get(convId);
-        if (!seen) { seen = new Set(); seenByConv.set(convId, seen); }
+        if (!seen) {
+          seen = new Set();
+          seenByConv.set(convId, seen);
+        }
         const before = op.params.messages.length;
         const survivors = (op.params.messages as unknown[]).filter((m) => {
           const uuid = messageUuidOf(m);
@@ -264,7 +299,10 @@ function healRestoredOperations(
     const compacted = compactConversation(matching, convId, RETRY_BATCH_CHUNK);
     if (!compacted) continue;
     const removed = new Set(compacted.removeIds);
-    healed = [...healed.filter((op) => !removed.has(op.id)), ...compacted.replacements];
+    healed = [
+      ...healed.filter((op) => !removed.has(op.id)),
+      ...compacted.replacements,
+    ];
   }
   const compactedOps = preCompact - healed.length;
 
@@ -272,24 +310,37 @@ function healRestoredOperations(
     splitFrom > 0 ? `split ${splitFrom} oversized` : "",
     dedupedMsgs > 0 ? `deduped ${dedupedMsgs} duplicate msgs` : "",
     compactedOps > 0 ? `compacted ${compactedOps} ops` : "",
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
   if (heals) log(`Healed the persisted queue: ${heals}`);
   return { ops: healed, changed: heals.length > 0 };
 }
 
-
 type GenericQueue = GenericRetryQueue<Record<string, unknown>>;
 
-const chunkLimitFor = (limits: Map<string, number>, conversationId: string | null): number =>
-  (conversationId ? limits.get(conversationId) : undefined) ?? RETRY_BATCH_CHUNK;
+const chunkLimitFor = (
+  limits: Map<string, number>,
+  conversationId: string | null,
+): number =>
+  (conversationId ? limits.get(conversationId) : undefined) ??
+  RETRY_BATCH_CHUNK;
 
 /** Merge a conversation's queued backlog, leaving any in-flight op alone: that
  *  op is being executed right now, so rewriting it would race the executor. */
-function compactQueuedConversation(queue: GenericQueue, conversationId: string, limits: Map<string, number>): void {
+function compactQueuedConversation(
+  queue: GenericQueue,
+  conversationId: string,
+  limits: Map<string, number>,
+): void {
   const matching = (queue.getPendingOperations() as RetryOperation[]).filter(
     (op) => isAddMessagesFor(op, conversationId) && !queue.isActive(op.id),
   );
-  const compacted = compactConversation(matching, conversationId, chunkLimitFor(limits, conversationId));
+  const compacted = compactConversation(
+    matching,
+    conversationId,
+    chunkLimitFor(limits, conversationId),
+  );
   if (compacted) queue.replace(compacted.removeIds, compacted.replacements);
 }
 
@@ -311,9 +362,12 @@ function splitTimedOutAddMessages(
 
   const mid = Math.ceil(msgs.length / 2);
   const nextLimit = Math.max(1, mid);
-  if (nextLimit < chunkLimitFor(limits, conversationId)) limits.set(conversationId, nextLimit);
+  if (nextLimit < chunkLimitFor(limits, conversationId))
+    limits.set(conversationId, nextLimit);
 
-  const halves = [msgs.slice(0, mid), msgs.slice(mid)].filter((chunk) => chunk.length > 0);
+  const halves = [msgs.slice(0, mid), msgs.slice(mid)].filter(
+    (chunk) => chunk.length > 0,
+  );
   queue.replace(
     [op.id],
     halves.map((half, i) => ({
@@ -379,7 +433,10 @@ export class RetryQueue {
       },
       classifyError: classifyRetryError,
       onFailure: (op, error, queue) => {
-        if (error.includes("timed out after") && splitTimedOutAddMessages(queue, op as RetryOperation, limits, log)) {
+        if (
+          error.includes("timed out after") &&
+          splitTimedOutAddMessages(queue, op as RetryOperation, limits, log)
+        ) {
           return true;
         }
         if (isStaleConversationError(error)) {
@@ -391,7 +448,11 @@ export class RetryQueue {
           return true;
         }
         if (isSessionRefusal(error)) {
-          queue.drop(op, `DROPPED ${op.type}: the server refuses session ${op.params.sessionId || "unknown"} (${error})`, "warn");
+          queue.drop(
+            op,
+            `DROPPED ${op.type}: the server refuses session ${op.params.sessionId || "unknown"} (${error})`,
+            "warn",
+          );
           return true;
         }
         return false;
@@ -422,11 +483,16 @@ export class RetryQueue {
     return uuids;
   }
 
-  add(type: RetryOperationType, params: Record<string, unknown>, error?: string): string {
+  add(
+    type: RetryOperationType,
+    params: Record<string, unknown>,
+    error?: string,
+  ): string {
     if (type !== "addMessages") return this.queue.add(type, params, error);
 
     let msgs = (params as { messages?: unknown[] }).messages;
-    const conversationId = (params as { conversationId?: string }).conversationId;
+    const conversationId = (params as { conversationId?: string })
+      .conversationId;
 
     // Coalesce: drop messages already waiting in the queue for this conversation.
     // The live sync path re-reads and re-enqueues the same backlog every poll
@@ -439,11 +505,15 @@ export class RetryQueue {
         const before = msgs.length;
         msgs = msgs.filter((m) => !pending.has(messageUuidOf(m) ?? ""));
         if (msgs.length === 0) {
-          this.log(`Coalesced addMessages: all ${before} msgs already queued for ${conversationId}, skipping`);
+          this.log(
+            `Coalesced addMessages: all ${before} msgs already queued for ${conversationId}, skipping`,
+          );
           return "";
         }
         if (msgs.length < before) {
-          this.log(`Coalesced addMessages: dropped ${before - msgs.length}/${before} already-queued msgs for ${conversationId}`);
+          this.log(
+            `Coalesced addMessages: dropped ${before - msgs.length}/${before} already-queued msgs for ${conversationId}`,
+          );
         }
         params = { ...params, messages: msgs };
       }
@@ -451,29 +521,48 @@ export class RetryQueue {
 
     const msgArr: unknown[] = Array.isArray(msgs) ? msgs : [];
     const chunks = Array.isArray(msgs)
-      ? chunkRetryMessages(msgArr, chunkLimitFor(this.conversationChunkLimits, conversationId ?? null))
+      ? chunkRetryMessages(
+          msgArr,
+          chunkLimitFor(this.conversationChunkLimits, conversationId ?? null),
+        )
       : [];
 
     if (chunks.length > 1) {
-      const ids = chunks.map((chunk) => this.queue.add(type, { ...params, messages: chunk }, error));
+      const ids = chunks.map((chunk) =>
+        this.queue.add(type, { ...params, messages: chunk }, error),
+      );
       if (typeof conversationId === "string") {
-        compactQueuedConversation(this.queue, conversationId, this.conversationChunkLimits);
+        compactQueuedConversation(
+          this.queue,
+          conversationId,
+          this.conversationChunkLimits,
+        );
         this.queue.persistNow();
       }
-      this.log(`Split oversized addMessages (${msgArr.length} msgs) into ${ids.length} retry chunks`);
+      this.log(
+        `Split oversized addMessages (${msgArr.length} msgs) into ${ids.length} retry chunks`,
+      );
       return ids[0] ?? "";
     }
 
     const id = this.queue.add(type, params, error);
     if (typeof conversationId === "string") {
-      compactQueuedConversation(this.queue, conversationId, this.conversationChunkLimits);
+      compactQueuedConversation(
+        this.queue,
+        conversationId,
+        this.conversationChunkLimits,
+      );
       this.queue.persistNow();
     }
     return id;
   }
 
   setExecutor(executor: (op: RetryOperation) => Promise<boolean>): void {
-    this.queue.setExecutor(AsyncResource.bind(executor) as (op: GenericRetryOperation<Record<string, unknown>>) => Promise<boolean>);
+    this.queue.setExecutor(
+      AsyncResource.bind(executor) as (
+        op: GenericRetryOperation<Record<string, unknown>>,
+      ) => Promise<boolean>,
+    );
   }
 
   start(): void {
@@ -524,14 +613,19 @@ export class RetryQueue {
   }
 
   hasPendingConversation(conversationId: string): boolean {
-    return this.queue.hasPending((op) => op.params.conversationId === conversationId);
+    return this.queue.hasPending(
+      (op) => op.params.conversationId === conversationId,
+    );
   }
 
   getLogicalQueueSize(): number {
     let count = 0;
     const pendingAddMessagesConversations = new Set<string>();
     for (const op of this.getPendingOperations()) {
-      if (op.type === "addMessages" && typeof op.params.conversationId === "string") {
+      if (
+        op.type === "addMessages" &&
+        typeof op.params.conversationId === "string"
+      ) {
         pendingAddMessagesConversations.add(op.params.conversationId);
         continue;
       }
@@ -559,7 +653,14 @@ export class RetryQueue {
   //                    the queue is doing.
   // One pass over the queued ops (not the messages on disk), so it stays cheap
   // enough to call on every heartbeat across 100+ sessions.
-  getHealth(stalled: readonly { conversationId?: string; sessionId: string; pendingSince: number; lastSyncedAt?: number }[] = []): {
+  getHealth(
+    stalled: readonly {
+      conversationId?: string;
+      sessionId: string;
+      pendingSince: number;
+      lastSyncedAt?: number;
+    }[] = [],
+  ): {
     ops: number;
     pending: number;
     messages: number;
@@ -594,7 +695,10 @@ export class RetryQueue {
       if (!conversations.has(key)) nonAddMessagesOps++;
       conversations.add(key);
       oldestPendingMs = Math.max(oldestPendingMs, now - file.pendingSince);
-      noProgressMs = Math.max(noProgressMs, now - (file.lastSyncedAt ?? file.pendingSince));
+      noProgressMs = Math.max(
+        noProgressMs,
+        now - (file.lastSyncedAt ?? file.pendingSince),
+      );
     }
     return {
       ops: ops.length,
@@ -634,7 +738,8 @@ export interface ShutdownFlushable {
 export async function flushRetryQueueForShutdown(
   queue: ShutdownFlushable,
   timeoutMs = SHUTDOWN_FLUSH_MS,
-  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  sleep: (ms: number) => Promise<void> = (ms) =>
+    new Promise((r) => setTimeout(r, ms)),
 ): Promise<number> {
   if (queue.getQueueSize() === 0) return 0;
   // Pulls every nextRetryAt to now and schedules the check that runs them.

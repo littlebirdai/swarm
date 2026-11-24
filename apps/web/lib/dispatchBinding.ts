@@ -12,7 +12,10 @@ import { isChatRoomRefusal, useInboxStore } from "../store/inboxStore";
 import { isPermanentDispatchError } from "../store/mutativeMiddleware";
 import { dropRejectedOrgIntent } from "../store/orgSlice";
 import { offerRollbackToHost } from "../store/syncReplication";
-import { recordSessionCommandDispatchError, SESSION_COMMAND_ACTIONS } from "./sessionCommands";
+import {
+  recordSessionCommandDispatchError,
+  SESSION_COMMAND_ACTIONS,
+} from "./sessionCommands";
 import { deadRecordingPress } from "./calls/recordingPress";
 import { storableActionArgs } from "./tabSafePath";
 import { getWriteLog, recordWrite } from "../store/writeLog";
@@ -50,7 +53,9 @@ export function makeDispatchBinding(
 ): DispatchFn {
   return (action, raw, patches, result, _commandId, meta) => {
     // The lock ids the send planted: its acknowledgement is stamped on exactly those.
-    const lockIds = meta?.locks ? new Set(meta.locks.map((l) => l.lock)) : undefined;
+    const lockIds = meta?.locks
+      ? new Set(meta.locks.map((l) => l.lock))
+      : undefined;
     // A tab address leaves the browser in its storable form, as the outbox row keeps it (lib/tabSafePath).
     const args = storableActionArgs(action, raw);
     // A Record or Stop press that is no longer a moment never leaves the
@@ -60,12 +65,24 @@ export function makeDispatchBinding(
     if (dead) return Promise.reject(dead);
     const settle = recordWrite(action, args, patches);
     return send(action, args, patches, result, lockIds).then(
-      (res) => { settle({ ok: true }); return res; },
-      (err) => { settle({ err }); throw err; },
+      (res) => {
+        settle({ ok: true });
+        return res;
+      },
+      (err) => {
+        settle({ err });
+        throw err;
+      },
     );
   };
 
-  function send(action: string, args: any, patches: any, result: any, lockIds?: ReadonlySet<string>): Promise<any> {
+  function send(
+    action: string,
+    args: any,
+    patches: any,
+    result: any,
+    lockIds?: ReadonlySet<string>,
+  ): Promise<any> {
     // Sync-log write acks (docs/architecture/sync-log-migration.md D8).
     // The flag is a binding concern added at call time, so outbox rows
     // persisted by older bundles get it on redrive too. The envelope is
@@ -75,7 +92,13 @@ export function makeDispatchBinding(
     const unwrap = (res: any) => {
       if (res && typeof res === "object" && "__syncAckV1" in res) {
         if (Array.isArray(res.__syncAckV2)) {
-          stampDeliveryReceipts(useInboxStore.getState(), patches, res.__syncAckV2, sentAt, lockIds);
+          stampDeliveryReceipts(
+            useInboxStore.getState(),
+            patches,
+            res.__syncAckV2,
+            sentAt,
+            lockIds,
+          );
         }
         const ack = res.__syncAckV1;
         // Every window stamps its own locks, the host and a follower alike:
@@ -83,7 +106,9 @@ export function makeDispatchBinding(
         // host, docs/architecture/sync-host.md), and the replicated cursor
         // advancing is what retires its acked locks (syncReplication).
         if (Array.isArray(ack) && ack.length && patches) {
-          useInboxStore.getState().stampSyncAck(patches, ack, sentAt, { lockIds });
+          useInboxStore
+            .getState()
+            .stampSyncAck(patches, ack, sentAt, { lockIds });
         }
         return res.result;
       }
@@ -108,7 +133,9 @@ export function makeDispatchBinding(
         const msg = String(error?.message ?? error);
         if (/ArgumentValidationError/i.test(msg) && /ack_positions/.test(msg)) {
           state.ackFlagSupported = false;
-          console.warn("[sync] server lacks ack_positions; falling back to unflagged dispatch");
+          console.warn(
+            "[sync] server lacks ack_positions; falling back to unflagged dispatch",
+          );
           return call({ action, args, patches, result });
         }
         throw error;
@@ -154,7 +181,9 @@ const reportedFailures = new WeakSet<object>();
 
 /** Whether the person already heard about this dispatch error from the failure toast. */
 export function wasDispatchFailureReported(error: unknown): boolean {
-  return typeof error === "object" && error !== null && reportedFailures.has(error);
+  return (
+    typeof error === "object" && error !== null && reportedFailures.has(error)
+  );
 }
 
 import { dispatchRefusalReason } from "./dispatchRefusal";
@@ -167,12 +196,19 @@ export { dispatchRefusalReason };
  */
 export function toastWriteError(error: unknown, fallback: string): void {
   if (wasDispatchFailureReported(error)) return;
-  const reason = dispatchRefusalReason(humanizeConvexError(error, ""), fallback);
+  const reason = dispatchRefusalReason(
+    humanizeConvexError(error, ""),
+    fallback,
+  );
   toast.error(reason.charAt(0).toUpperCase() + reason.slice(1));
 }
 
 /** The handler `_setDispatchError` takes: a dispatch gave up after its retries. */
-export function applyDispatchFailure(action: string, error: unknown, args?: unknown): void {
+export function applyDispatchFailure(
+  action: string,
+  error: unknown,
+  args?: unknown,
+): void {
   if (QUIET_ACTIONS.has(action)) {
     console.warn(`[sync] ${action} not recorded`, error);
     return;
@@ -183,7 +219,11 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
   // is retired locally; a marker that is gone or in another room just leaves
   // the old mark standing. "Mark channel read didn't go through" names no
   // action the user took.
-  if (action === "markChannelRead" && Array.isArray(args) && typeof args[0] === "string") {
+  if (
+    action === "markChannelRead" &&
+    Array.isArray(args) &&
+    typeof args[0] === "string"
+  ) {
     if (isChatRoomRefusal(error)) {
       console.warn(`[sync] ${action} refused: room gone`, error);
       useInboxStore.getState().retireChatChannel(args[0]);
@@ -197,8 +237,12 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
   // A DM open in a team whose chat is off asked for a room the server will
   // never make. The surface that asked should not have drawn (an off feature
   // has no UI), so the stub it painted goes and nothing is reported.
-  if (action === "dispatchOpenDm" && Array.isArray(args) && typeof args[0] === "string"
-    && humanizeConvexError(error, "") === CHAT_OFF) {
+  if (
+    action === "dispatchOpenDm" &&
+    Array.isArray(args) &&
+    typeof args[0] === "string" &&
+    humanizeConvexError(error, "") === CHAT_OFF
+  ) {
     console.warn(`[sync] ${action} refused: chat off`, error);
     useInboxStore.getState().retireChatChannel(args[0]);
     return;
@@ -209,19 +253,28 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
   captureError(error instanceof Error ? error : new Error(String(error)), {
     source: "dispatch",
     action,
-    target: Array.isArray(args) && typeof args[0] === "string" ? args[0] : undefined,
+    target:
+      Array.isArray(args) && typeof args[0] === "string" ? args[0] : undefined,
     permanent: isPermanentDispatchError(error),
-    recentWrites: getWriteLog().slice(-15).map((e) => `${new Date(e.ts).toISOString()} ${e.action} ${e.source}${e.key ? `(${e.key})` : ""} ${e.ids.join(",")}${e.err ? ` ERR ${e.err}` : ""}`),
+    recentWrites: getWriteLog()
+      .slice(-15)
+      .map(
+        (e) =>
+          `${new Date(e.ts).toISOString()} ${e.action} ${e.source}${e.key ? `(${e.key})` : ""} ${e.ids.join(",")}${e.err ? ` ERR ${e.err}` : ""}`,
+      ),
   });
   // COMMAND_ID_REUSED on a send means the server already holds a receipt
   // for this client id: the message was delivered; only a redrive that
   // rebuilt the payload with different bytes (e.g. a pending row persisted
   // before mention expansion was recorded) got refused. Surfacing it would
   // toast "didn't go through" and mark a delivered bubble as failed.
-  if (action === "sendMessage" && /COMMAND_ID_REUSED/.test(String((error as Error)?.message ?? error))) {
+  if (
+    action === "sendMessage" &&
+    /COMMAND_ID_REUSED/.test(String((error as Error)?.message ?? error))
+  ) {
     return;
   }
-  useInboxStore.setState(s => ({ dispatchErrors: s.dispatchErrors + 1 }));
+  useInboxStore.setState((s) => ({ dispatchErrors: s.dispatchErrors + 1 }));
   // A permanent rejection is dropped from the outbox (no re-drive will
   // land it), so it's the user's only chance to hear their action didn't
   // take: record it for the platform's feedback surface to render.
@@ -231,33 +284,63 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
     // transient exhaustion (a backend timeout) leaves the parked outbox
     // row to re-drive, so its intent stays open and the echo settles it;
     // reverting it would put a ghost back while the accept still lands.
-    for (const text of dropRejectedOrgIntent(useInboxStore.getState(), action, args, error)) toast.error(text);
+    for (const text of dropRejectedOrgIntent(
+      useInboxStore.getState(),
+      action,
+      args,
+      error,
+    ))
+      toast.error(text);
     // A refused wait has no echo coming and no lock to roll back. A follower
     // teed the painted wait to the host, so the rollback goes there too.
-    if (action === "addWait" && Array.isArray(args) && typeof args[0] === "string" && typeof args[1]?.id === "string") {
+    if (
+      action === "addWait" &&
+      Array.isArray(args) &&
+      typeof args[0] === "string" &&
+      typeof args[1]?.id === "string"
+    ) {
       const before = useInboxStore.getState().tasks;
       useInboxStore.getState().rollbackWait(args[0], args[1].id);
       offerRollbackToHost(action, "tasks", "waits", before);
     }
     // A refused "Send now" has no lock to roll back either: the rows it let
     // go return to the line, here and on the host.
-    if (action === "releaseQueued" && Array.isArray(args) && typeof args[0] === "string") {
+    if (
+      action === "releaseQueued" &&
+      Array.isArray(args) &&
+      typeof args[0] === "string"
+    ) {
       const before = useInboxStore.getState().pendingMessageStatus;
       useInboxStore.getState().rollbackRelease(args[0]);
       offerRollbackToHost(action, "pendingMessageStatus", "inflight", before);
     }
     // A refused daemon command has no echo coming: its painted row ends failed.
-    if (SESSION_COMMAND_ACTIONS.has(action) && Array.isArray(args) && typeof args[0] === "string") {
+    if (
+      SESSION_COMMAND_ACTIONS.has(action) &&
+      Array.isArray(args) &&
+      typeof args[0] === "string"
+    ) {
       recordSessionCommandDispatchError(args[0], error);
     }
-    if (typeof error === "object" && error !== null) reportedFailures.add(error);
+    if (typeof error === "object" && error !== null)
+      reportedFailures.add(error);
     useInboxStore.setState({
-      lastDispatchFailure: { action, args, message: String((error as Error)?.message ?? error), at: Date.now() },
+      lastDispatchFailure: {
+        action,
+        args,
+        message: String((error as Error)?.message ?? error),
+        at: Date.now(),
+      },
     });
   }
   if (action === "sendMessage" && Array.isArray(args)) {
     // Args mirror dispatch.sendMessage: [conversation_id, content, image_ids, client_id].
-    const [convId, , , clientId] = args as [string?, unknown?, unknown?, string?];
+    const [convId, , , clientId] = args as [
+      string?,
+      unknown?,
+      unknown?,
+      string?,
+    ];
     // The optimistic bubble is the only copy of the user's text once the
     // server rejects the send (nothing was written). Mark it failed so the
     // reconcile prune keeps it and the thread shows "Failed to send"
@@ -267,7 +350,10 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
     }
     // A send into a conversation whose server row was deleted (cached ghost).
     // Flag it so the view can offer "restore" instead of failing silently.
-    if (typeof convId === "string" && /conversation_deleted/.test(String(error))) {
+    if (
+      typeof convId === "string" &&
+      /conversation_deleted/.test(String(error))
+    ) {
       useInboxStore.getState().markServerDeleted(convId);
     }
   }
@@ -282,7 +368,9 @@ export function applyDispatchFailure(action: string, error: unknown, args?: unkn
   if (action === "dispatchChatSend" && Array.isArray(args)) {
     const clientId = args[2];
     if (typeof clientId === "string") {
-      useInboxStore.getState().markChatSendFailed(clientId, humanizeConvexError(error, ""));
+      useInboxStore
+        .getState()
+        .markChatSendFailed(clientId, humanizeConvexError(error, ""));
     }
   }
 }

@@ -26,7 +26,13 @@
 // Idempotent: a file holding the current sentinel is skipped. A file holding
 // an earlier revision of this patch is rewritten to the current one.
 
-import { existsSync, readFileSync, writeFileSync, globSync, realpathSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  globSync,
+  realpathSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const CLIENT_SENTINEL = "codecastRefreshKeep:v3";
@@ -50,7 +56,10 @@ const CLIENT_V1 = `                    setIsRefreshingToken(true);
                         setIsRefreshingToken(false);
                     }`;
 
-const retryLoop = (marker, isTransient) => `                    setIsRefreshingToken(true);
+const retryLoop = (
+  marker,
+  isTransient,
+) => `                    setIsRefreshingToken(true);
                     // ${marker}: keep the refresh token until Convex answers (ct-91563).
                     const isTransient = (error) => ${isTransient};
                     try {
@@ -76,11 +85,17 @@ const retryLoop = (marker, isTransient) => `                    setIsRefreshingT
                         setIsRefreshingToken(false);
                     }`;
 
-const CLIENT_V2 = retryLoop("codecastRefreshKeep", `error instanceof TypeError ||
-                        /ExpiredInQueue|Overloaded/.test(String(error?.message ?? error))`);
+const CLIENT_V2 = retryLoop(
+  "codecastRefreshKeep",
+  `error instanceof TypeError ||
+                        /ExpiredInQueue|Overloaded/.test(String(error?.message ?? error))`,
+);
 
-const CLIENT_CURRENT = retryLoop(CLIENT_SENTINEL, `error instanceof TypeError || error?.codecastInTransit === true ||
-                        /ExpiredInQueue|Overloaded/.test(String(error?.message ?? error))`);
+const CLIENT_CURRENT = retryLoop(
+  CLIENT_SENTINEL,
+  `error instanceof TypeError || error?.codecastInTransit === true ||
+                        /ExpiredInQueue|Overloaded/.test(String(error?.message ?? error))`,
+);
 
 const INDEX_SENTINEL = "codecastInTransit:v3";
 
@@ -106,17 +121,33 @@ const INDEX_CURRENT = `        unauthenticatedCall(action, args) {
         },`;
 
 const EDITS = [
-  { rel: "dist/react/client.js", sentinel: CLIENT_SENTINEL, from: [CLIENT_UPSTREAM, CLIENT_V2, CLIENT_V1], to: CLIENT_CURRENT },
-  { rel: "dist/react/index.js", sentinel: INDEX_SENTINEL, from: [INDEX_UPSTREAM], to: INDEX_CURRENT },
+  {
+    rel: "dist/react/client.js",
+    sentinel: CLIENT_SENTINEL,
+    from: [CLIENT_UPSTREAM, CLIENT_V2, CLIENT_V1],
+    to: CLIENT_CURRENT,
+  },
+  {
+    rel: "dist/react/index.js",
+    sentinel: INDEX_SENTINEL,
+    from: [INDEX_UPSTREAM],
+    to: INDEX_CURRENT,
+  },
 ];
 
 const roots = [
   "node_modules/@convex-dev/auth",
-  ...globSync("node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
+  ...globSync(
+    "node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+  ),
   ...globSync("apps/*/node_modules/@convex-dev/auth"),
   ...globSync("packages/*/node_modules/@convex-dev/auth"),
-  ...globSync("apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
-  ...globSync("packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
+  ...globSync(
+    "apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+  ),
+  ...globSync(
+    "packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+  ),
 ];
 const seen = new Set();
 for (const root of roots) {
@@ -130,7 +161,9 @@ for (const root of roots) {
     if (src.includes(sentinel)) continue;
     const before = from.find((hunk) => src.includes(hunk));
     if (!before) {
-      console.error(`[convex-auth-refresh-keep] ${file}: refresh code not found; @convex-dev/auth changed, re-check ct-91563`);
+      console.error(
+        `[convex-auth-refresh-keep] ${file}: refresh code not found; @convex-dev/auth changed, re-check ct-91563`,
+      );
       process.exitCode = 1;
       continue;
     }

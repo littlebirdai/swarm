@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { flatViewSessions, useInboxStore, type InboxSession } from "../inboxStore";
+import {
+  flatViewSessions,
+  useInboxStore,
+  type InboxSession,
+} from "../inboxStore";
 
 // The "recent" view sorts by updated_at, which working sessions bump every
 // heartbeat. Without a freeze the list re-sorts under the cursor and Ctrl+J/K
 // steps through a moving target ("same row, different session"). These lock the
 // fix: a keyboard-nav snapshot holds render+nav order until a short idle thaws it.
 
-const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
+const session = (
+  id: string,
+  extra: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: id,
   session_id: `session-${id}`,
   updated_at: 1,
@@ -23,7 +30,11 @@ describe("recent view freeze", () => {
   // Leave no frozen order or recent mode behind for sibling suites.
   afterEach(() => {
     useInboxStore.getState().thawRecentOrder();
-    useInboxStore.setState({ sessions: {}, clientState: {}, recentFreezeOrder: null });
+    useInboxStore.setState({
+      sessions: {},
+      clientState: {},
+      recentFreezeOrder: null,
+    });
   });
 
   it("keyboard nav freezes the order so a heartbeat can't reshuffle it until thaw", () => {
@@ -44,14 +55,27 @@ describe("recent view freeze", () => {
     expect(useInboxStore.getState().recentFreezeOrder).toEqual(["c", "b", "a"]);
     // A heartbeat makes "a" the most recently active — live sort would lead with it…
     useInboxStore.setState({
-      sessions: { ...useInboxStore.getState().sessions, a: session("a", { started_at: 1, updated_at: 999 }) },
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        a: session("a", { started_at: 1, updated_at: 999 }),
+      },
     });
     // …but the frozen order holds while the user is navigating.
-    expect(useInboxStore.getState().visualOrder().map((s) => s._id)).toEqual(["c", "b", "a"]);
+    expect(
+      useInboxStore
+        .getState()
+        .visualOrder()
+        .map((s) => s._id),
+    ).toEqual(["c", "b", "a"]);
     // Thaw (idle) resumes the live sort; "a" now leads.
     useInboxStore.getState().thawRecentOrder();
     expect(useInboxStore.getState().recentFreezeOrder).toBeNull();
-    expect(useInboxStore.getState().visualOrder().map((s) => s._id)).toEqual(["a", "c", "b"]);
+    expect(
+      useInboxStore
+        .getState()
+        .visualOrder()
+        .map((s) => s._id),
+    ).toEqual(["a", "c", "b"]);
   });
 
   it("a session arriving mid-navigation falls to the end, not under the cursor", () => {
@@ -66,10 +90,18 @@ describe("recent view freeze", () => {
     useInboxStore.getState().freezeRecentForNav();
     // A brand-new, most-recent session appears after the snapshot.
     useInboxStore.setState({
-      sessions: { ...useInboxStore.getState().sessions, z: session("z", { started_at: 3, updated_at: 999 }) },
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        z: session("z", { started_at: 3, updated_at: 999 }),
+      },
     });
     // It's appended, not slotted at the top where it would shove the frozen rows.
-    expect(useInboxStore.getState().visualOrder().map((s) => s._id)).toEqual(["b", "a", "z"]);
+    expect(
+      useInboxStore
+        .getState()
+        .visualOrder()
+        .map((s) => s._id),
+    ).toEqual(["b", "a", "z"]);
   });
 
   it("reconstructs a large frozen order with linear id access", () => {

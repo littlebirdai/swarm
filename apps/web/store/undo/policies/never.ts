@@ -7,19 +7,45 @@ import type { UndoPolicy } from "../policy";
 
 const never = (reason: string) => ({ never: reason }) as const;
 
-const NAVIGATION = never("navigation: moving the view is not an edit, and Back owns the way back");
-const LAYOUT = never("layout: panes, tabs and sizes change in place and are put back the same way");
-const VIEW_STATE = never("view state: filters, selection and paging are how the window looks, not data");
-const SEND = never("send: it reached other people or an agent, and a sent message cannot be recalled");
-const CREATE = never("create: mints a server row; undoing it needs a delete-by-client-key verb (follow-up)");
-const DELETE = never("delete: the server keeps no soft-deleted copy to bring back (follow-up)");
-const READ_STATE = never("read state: marking seen or unread is not an edit to anyone's work");
-const SETTINGS = never("settings: a preference the person sets and resets in the same control");
-const MACHINE = never("machine control: it acts on a running agent or host, which an undo cannot rewind");
-const SHARING = never("sharing: links and membership visibility change who can see something; set them back explicitly");
-const INTERNAL = never("internal: engine or sync plumbing, never a user gesture");
-const DRAFT = never("draft: unsent text or a pick on an unsent session, changed back in the same field");
-const LOCAL_ECHO = never("local echo: the store's copy of a send or an answer, which the server's reply settles");
+const NAVIGATION = never(
+  "navigation: moving the view is not an edit, and Back owns the way back",
+);
+const LAYOUT = never(
+  "layout: panes, tabs and sizes change in place and are put back the same way",
+);
+const VIEW_STATE = never(
+  "view state: filters, selection and paging are how the window looks, not data",
+);
+const SEND = never(
+  "send: it reached other people or an agent, and a sent message cannot be recalled",
+);
+const CREATE = never(
+  "create: mints a server row; undoing it needs a delete-by-client-key verb (follow-up)",
+);
+const DELETE = never(
+  "delete: the server keeps no soft-deleted copy to bring back (follow-up)",
+);
+const READ_STATE = never(
+  "read state: marking seen or unread is not an edit to anyone's work",
+);
+const SETTINGS = never(
+  "settings: a preference the person sets and resets in the same control",
+);
+const MACHINE = never(
+  "machine control: it acts on a running agent or host, which an undo cannot rewind",
+);
+const SHARING = never(
+  "sharing: links and membership visibility change who can see something; set them back explicitly",
+);
+const INTERNAL = never(
+  "internal: engine or sync plumbing, never a user gesture",
+);
+const DRAFT = never(
+  "draft: unsent text or a pick on an unsent session, changed back in the same field",
+);
+const LOCAL_ECHO = never(
+  "local echo: the store's copy of a send or an answer, which the server's reply settles",
+);
 
 export const NEVER_UNDO_POLICY: UndoPolicy = {
   // Navigation
@@ -61,8 +87,12 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   toggleCollapsedSection: LAYOUT,
   updateClientLayout: LAYOUT,
   dismissBrowserPaneOffer: LAYOUT,
-  cancelPeerTransfer: never("transfer: a cancelled fetch is not resumed by undo; Try again starts it again"),
-  dismissPeerTransfer: never("transfer: the row of a finished fetch; the next fetch draws its own"),
+  cancelPeerTransfer: never(
+    "transfer: a cancelled fetch is not resumed by undo; Try again starts it again",
+  ),
+  dismissPeerTransfer: never(
+    "transfer: the row of a finished fetch; the next fetch draws its own",
+  ),
 
   // View state
   setActiveBucketFilter: VIEW_STATE,
@@ -86,33 +116,73 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   postInitiativeUpdate: SEND,
   shareChatMessageToSlack: SEND,
   retryPendingMessage: SEND,
-  cancelPendingMessage: never("send: withdrawing a queued message is itself the way back from sending it"),
-  queueMessage: never("send: a queued message is taken back with its own remove button in the shared queue"),
-  releaseQueued: never("send: what was released goes into the session, like any send"),
-  reorderQueued: never("shared: the queue belongs to everyone in the session; moving it back is another move"),
-  mergeQueued: never("shared: a merged message is one turn others may already have seen; remove it from the queue instead"),
+  cancelPendingMessage: never(
+    "send: withdrawing a queued message is itself the way back from sending it",
+  ),
+  queueMessage: never(
+    "send: a queued message is taken back with its own remove button in the shared queue",
+  ),
+  releaseQueued: never(
+    "send: what was released goes into the session, like any send",
+  ),
+  reorderQueued: never(
+    "shared: the queue belongs to everyone in the session; moving it back is another move",
+  ),
+  mergeQueued: never(
+    "shared: a merged message is one turn others may already have seen; remove it from the queue instead",
+  ),
   clearDraftFinal: DRAFT,
-  answerDecision: never("send: an answered decision has already been read by the agent that asked"),
+  answerDecision: never(
+    "send: an answered decision has already been read by the agent that asked",
+  ),
   adoptDecision: LOCAL_ECHO,
   commentOnDecision: SEND,
   dropDecisionComment: LOCAL_ECHO,
   askDecisionSession: SEND,
-  askSideQuestion: never("send: the question goes to the model at once; its answer is private to the asker"),
+  askSideQuestion: never(
+    "send: the question goes to the model at once; its answer is private to the asker",
+  ),
   dropSideAnswer: LOCAL_ECHO,
   deleteDecisionComment: DELETE,
-  trialAnswer: never("send: an answered trial card resumes its paused run, which acts on it at once"),
-  trialRerun: never("machine control: it starts a new run; cancelling the run is the way back"),
-  trialRaiseLimits: never("machine control: the trial's dispatcher starts runs under the new limits; lowering them is the CLI's"),
-  trialReask: never("machine control: it stops the run's runner and asks its card again; the new decision is the way on"),
-  startShip: never("send: Ship starts a session that commits, pushes and opens a pull request; stopping it is the way back"),
-  resolvePermission: never("send: the agent acts on an approved or denied tool call the moment it lands"),
-  sendGuestSuggestion: never("send: the message is in the session the moment it lands"),
-  dismissGuestSuggestion: never("decision: the guest sees it dismissed at once; they can suggest it again"),
-  sendTeamSuggestionNow: never("send: the message is in the session the moment it lands"),
-  withdrawTeamSuggestion: never("decision: the owner's card leaves at once; suggest it again to bring it back"),
-  proposeAnswer: never("send: the owner sees the proposal at once; a new pick replaces it"),
-  proposePermission: never("send: the owner sees the proposal at once; a new pick replaces it"),
-  respondToGate: never("send: a gate answer resumes the run and posts into its session"),
+  trialAnswer: never(
+    "send: an answered trial card resumes its paused run, which acts on it at once",
+  ),
+  trialRerun: never(
+    "machine control: it starts a new run; cancelling the run is the way back",
+  ),
+  trialRaiseLimits: never(
+    "machine control: the trial's dispatcher starts runs under the new limits; lowering them is the CLI's",
+  ),
+  trialReask: never(
+    "machine control: it stops the run's runner and asks its card again; the new decision is the way on",
+  ),
+  startShip: never(
+    "send: Ship starts a session that commits, pushes and opens a pull request; stopping it is the way back",
+  ),
+  resolvePermission: never(
+    "send: the agent acts on an approved or denied tool call the moment it lands",
+  ),
+  sendGuestSuggestion: never(
+    "send: the message is in the session the moment it lands",
+  ),
+  dismissGuestSuggestion: never(
+    "decision: the guest sees it dismissed at once; they can suggest it again",
+  ),
+  sendTeamSuggestionNow: never(
+    "send: the message is in the session the moment it lands",
+  ),
+  withdrawTeamSuggestion: never(
+    "decision: the owner's card leaves at once; suggest it again to bring it back",
+  ),
+  proposeAnswer: never(
+    "send: the owner sees the proposal at once; a new pick replaces it",
+  ),
+  proposePermission: never(
+    "send: the owner sees the proposal at once; a new pick replaces it",
+  ),
+  respondToGate: never(
+    "send: a gate answer resumes the run and posts into its session",
+  ),
 
   // Local echoes of sends (sync creators a component calls)
   addOptimisticMessage: LOCAL_ECHO,
@@ -164,20 +234,32 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   addPermissionRule: CREATE,
   createOpsSource: CREATE,
   createOpsWatch: CREATE,
-  rotateOpsSourceKey: never("key rotation: the new key is shown once and the old one cannot be made current again"),
-  endOpsSourceOldKey: never("ending the old key: it cannot be made valid again"),
+  rotateOpsSourceKey: never(
+    "key rotation: the new key is shown once and the old one cannot be made current again",
+  ),
+  endOpsSourceOldKey: never(
+    "ending the old key: it cannot be made valid again",
+  ),
   upsertAgentDefinition: CREATE,
   upsertAgentChain: CREATE,
-  stageSecret: never("create: paints a Vault create whose value went straight to the server; delete the secret to take it back"),
-  settleSecretStub: never("create: settles that painted row onto the server's answer"),
+  stageSecret: never(
+    "create: paints a Vault create whose value went straight to the server; delete the secret to take it back",
+  ),
+  settleSecretStub: never(
+    "create: settles that painted row onto the server's answer",
+  ),
 
   // Deletes
   removePermissionRule: DELETE,
   deleteCallRecording: DELETE,
   deleteCall: DELETE,
-  admitGuestKnock: never("door: letting a stranger into a call is not taken back by an undo; remove them"),
+  admitGuestKnock: never(
+    "door: letting a stranger into a call is not taken back by an undo; remove them",
+  ),
   denyGuestKnock: never("door: the guest was told no; they can ask again"),
-  removeCallGuest: never("door: the guest was put out of the call; they can be let in again"),
+  removeCallGuest: never(
+    "door: the guest was put out of the call; they can be let in again",
+  ),
   deleteCodeComment: DELETE,
   postProjectUpdate: SEND,
   commentProjectUpdate: SEND,
@@ -192,8 +274,12 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   removeAgentChain: DELETE,
   removeAgentDefinition: DELETE,
   removeSecret: DELETE,
-  setSecretAskFirst: never("access guard: turning Ask first off goes through a confirm, so an undo must not flip it without one"),
-  removeFromStack: never("delete: re-adding to a stack needs an addToStack server verb (follow-up)"),
+  setSecretAskFirst: never(
+    "access guard: turning Ask first off goes through a confirm, so an undo must not flip it without one",
+  ),
+  removeFromStack: never(
+    "delete: re-adding to a stack needs an addToStack server verb (follow-up)",
+  ),
   removeIssueSyncSource: DELETE,
   removeOpsSource: DELETE,
   removeOpsWatch: DELETE,
@@ -216,28 +302,48 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   updateClientDismissed: READ_STATE,
   markSessionSeen: READ_STATE,
   clearAssignedPing: READ_STATE,
-  markBlockedAcknowledged: never("banner: \"never restart this\" answers the blocked banner; the row's restart control asks again"),
-  toggleChatReaction: never("reaction: the same click takes it back, and it notifies the author"),
-  skipChatRoundFloor: never("round: the next agent is already woken; the skipped one can still answer in the thread"),
-  endChatRound: never("round: stops waking agents; a new line in the thread starts another"),
+  markBlockedAcknowledged: never(
+    'banner: "never restart this" answers the blocked banner; the row\'s restart control asks again',
+  ),
+  toggleChatReaction: never(
+    "reaction: the same click takes it back, and it notifies the author",
+  ),
+  skipChatRoundFloor: never(
+    "round: the next agent is already woken; the skipped one can still answer in the thread",
+  ),
+  endChatRound: never(
+    "round: stops waking agents; a new line in the thread starts another",
+  ),
 
   // Settings
   setAgentDefaultParams: SETTINGS,
   setAgentPermissionModes: SETTINGS,
   setClaudeBackend: SETTINGS,
   setCapabilityBinding: SETTINGS,
-  shareToKit: never("share: it publishes to the team; Remove from kit takes it back"),
-  removeKitItem: never("remove: it uninstalls on every machine; share it again to restore"),
-  adoptKitItem: never("adopt: it moves your own copy aside on that machine; the copy is kept beside it"),
-  grantKitConsent: never("consent: it lets code run on a machine; the item can be turned off"),
+  shareToKit: never(
+    "share: it publishes to the team; Remove from kit takes it back",
+  ),
+  removeKitItem: never(
+    "remove: it uninstalls on every machine; share it again to restore",
+  ),
+  adoptKitItem: never(
+    "adopt: it moves your own copy aside on that machine; the copy is kept beside it",
+  ),
+  grantKitConsent: never(
+    "consent: it lets code run on a machine; the item can be turned off",
+  ),
   setChannelNotifyLevel: SETTINGS,
   setChatThreadMuted: SETTINGS,
   setChatSlackMember: SETTINGS,
   setCloudSessionMode: SETTINGS,
   setCloudSessionSync: SETTINGS,
   syncFolder: SETTINGS,
-  adoptTimezone: never("internal: fills an unset timezone from the browser once, never a gesture"),
-  adoptSession: never("internal: stamps a nested session the person talked to so it stands alone in their inbox; a side effect of sending, never a gesture"),
+  adoptTimezone: never(
+    "internal: fills an unset timezone from the browser once, never a gesture",
+  ),
+  adoptSession: never(
+    "internal: stamps a nested session the person talked to so it stands alone in their inbox; a side effect of sending, never a gesture",
+  ),
   setCloudSharedCheckout: SETTINGS,
   setDefaultModel: SETTINGS,
   setDeviceShares: SETTINGS,
@@ -246,13 +352,23 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   setDeviceAppearance: SETTINGS,
   setAccountShares: SETTINGS,
   setAccountDevices: SETTINGS,
-  joinTeamMachine: never("machine: a join creates a Linux user on a shared box; leaving is its own explicit control"),
-  removeTeamMachineMember: never("machine: a removal stops someone's daemon on a shared box; they join again to come back"),
+  joinTeamMachine: never(
+    "machine: a join creates a Linux user on a shared box; leaving is its own explicit control",
+  ),
+  removeTeamMachineMember: never(
+    "machine: a removal stops someone's daemon on a shared box; they join again to come back",
+  ),
   renameTeamMachine: SETTINGS,
-  unregisterTeamMachine: never("machine: removing a team machine is undone by registering it again on the box"),
+  unregisterTeamMachine: never(
+    "machine: removing a team machine is undone by registering it again on the box",
+  ),
   setDeviceSnippet: SETTINGS,
-  setProviderKey: never("credential: a key sent to a machine is not taken back by undo; remove it explicitly"),
-  requestDeviceUpdate: never("machine: an installed release is not taken back by undo"),
+  setProviderKey: never(
+    "credential: a key sent to a machine is not taken back by undo; remove it explicitly",
+  ),
+  requestDeviceUpdate: never(
+    "machine: an installed release is not taken back by undo",
+  ),
   setIsolatedWorktreeMode: SETTINGS,
   setLocalMirror: SETTINGS,
   setMyStatus: SETTINGS,
@@ -261,7 +377,9 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   setRoomLocked: SETTINGS,
   pinToStage: SETTINGS,
   unpinFromStage: SETTINGS,
-  pinCallBoard: never("call: the board it makes stays the call's; take it off the stage with unpin"),
+  pinCallBoard: never(
+    "call: the board it makes stays the call's; take it off the stage with unpin",
+  ),
   setRoomRecording: SETTINGS,
   setRoomTranscribeOff: SETTINGS,
   setTeamFeature: SETTINGS,
@@ -281,25 +399,47 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   loadOpsWatchHistory: MACHINE,
   readOpsWatchesNow: MACHINE,
   // Live artifacts keep their own undo: the page's stack of inverse ops (useLiveArtifact) and version History.
-  applyLiveOps: never("artifact edit: the board, sheet or dashboard's own undo (its inverse ops) and History take it back"),
-  liveSendOps: never("artifact edit: the board, sheet or dashboard's own undo (its inverse ops) and History take it back"),
-  liveDraft: never("draft: Save and Discard are the draft's own end; History holds the state before a save"),
+  applyLiveOps: never(
+    "artifact edit: the board, sheet or dashboard's own undo (its inverse ops) and History take it back",
+  ),
+  liveSendOps: never(
+    "artifact edit: the board, sheet or dashboard's own undo (its inverse ops) and History take it back",
+  ),
+  liveDraft: never(
+    "draft: Save and Discard are the draft's own end; History holds the state before a save",
+  ),
   liveCheckpoint: never("checkpoint: saving a version changes no content"),
-  liveAskToEdit: never("a request to the owner: the notification it sends cannot be taken back"),
-  liveSetEditAccess: never("access setting: the owner sets it back with the same control, and an undo would silently re-open or re-lock editing for others"),
+  liveAskToEdit: never(
+    "a request to the owner: the notification it sends cannot be taken back",
+  ),
+  liveSetEditAccess: never(
+    "access setting: the owner sets it back with the same control, and an undo would silently re-open or re-lock editing for others",
+  ),
   settleLiveRows: INTERNAL,
   livePaintHeld: INTERNAL,
   liveDropStub: INTERNAL,
-  setOpsGroupStatus: never("triage: resolve, ignore and reopen sit on the same status control"),
-  setOpsGroupTask: never("link: re-pointing or unlinking a problem task is done again by hand on the same Fix card"),
-  setOpsGroupFix: never("record: the fix session it names is already running; undoing the record would not stop it"),
-  grantOpsAction: never("permission: a grant changes what agents may do; revoke it explicitly"),
-  revokeOpsAction: never("permission: a revoke changes what agents may do; grant it again explicitly"),
+  setOpsGroupStatus: never(
+    "triage: resolve, ignore and reopen sit on the same status control",
+  ),
+  setOpsGroupTask: never(
+    "link: re-pointing or unlinking a problem task is done again by hand on the same Fix card",
+  ),
+  setOpsGroupFix: never(
+    "record: the fix session it names is already running; undoing the record would not stop it",
+  ),
+  grantOpsAction: never(
+    "permission: a grant changes what agents may do; revoke it explicitly",
+  ),
+  revokeOpsAction: never(
+    "permission: a revoke changes what agents may do; grant it again explicitly",
+  ),
   setOpsAppWatchPaused: SETTINGS,
   pollOpsAppWatch: MACHINE,
   updateChatSlackLink: SETTINGS,
   persistClientTips: SETTINGS,
-  setActiveTeamPointer: never("navigation: switching workspace moves the view, it changes no work"),
+  setActiveTeamPointer: never(
+    "navigation: switching workspace moves the view, it changes no work",
+  ),
 
   // Machine and agent control
   convCommand: MACHINE,
@@ -308,7 +448,9 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   restartSession: MACHINE,
   hibernateSession: MACHINE,
   switchClaudeBackend: MACHINE,
-  rewindFiles: never("machine control: it rewrites files on the session's machine; its own Put back is the way back"),
+  rewindFiles: never(
+    "machine control: it rewrites files on the session's machine; its own Put back is the way back",
+  ),
   moveSessionToDevice: MACHINE,
   markKilling: MACHINE,
   startResourceOffload: MACHINE,
@@ -318,7 +460,9 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   setSessionBackground: MACHINE,
   markBlockedReviveRequested: MACHINE,
   clearBlockedReviveRequested: MACHINE,
-  setSessionGoal: never("machine control: the agent starts working toward the goal at once; clear it to stop"),
+  setSessionGoal: never(
+    "machine control: the agent starts working toward the goal at once; clear it to stop",
+  ),
   pauseSessionGoal: MACHINE,
   resumeSessionGoal: MACHINE,
   clearSessionGoal: MACHINE,
@@ -333,55 +477,127 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   setTeamMembershipVisibility: SHARING,
 
   // The project's line.toml, written on the checkout's machine by the daemon
-  editLineProfile: never("machine control: the daemon rewrites the project's line.toml on its host, and the field is set back in the same settings control"),
+  editLineProfile: never(
+    "machine control: the daemon rewrites the project's line.toml on its host, and the field is set back in the same settings control",
+  ),
   fileLineCause: CREATE,
-  startLineCause: never("machine control: it starts a run on a machine; cancelling the run is the way back"),
-  askCheckout: never("sends: it messages the session that wrote a stuck checkout's files, or files a finding; a sent ask cannot be unsent"),
-  stopLineRun: never("machine control: it ends a run on its machine; a new run is the way back"),
-  landLineRun: never("machine control: it picks a run up at Rebase on its machine and lands the fix; a revert is the way back"),
-  resumeLineRun: never("machine control: it restarts a run's runner on its machine; the run itself is the way back"),
-  deployTarget: never("ships code: it deploys, redeploys or rolls back a target; a new deploy of the previous sha is the way back"),
-  removeTaskStub: never("internal: takes back a create the server refused, which never landed"),
-  askLineAgent: never("machine control: it files the cause and starts its run in one write; cancelling the run is the way back"),
-  tryLineStep: never("machine control: the graph's machine runs each chosen case at once; the try's rows are its record"),
-  editLineGraph: never("machine control: the daemon rewrites the graph on its host, and the step is set back in the same editor"),
-  setLiveFlowOn: never("machine control: the switch starts or stops the team's flow runs; the same switch is the way back"),
+  startLineCause: never(
+    "machine control: it starts a run on a machine; cancelling the run is the way back",
+  ),
+  askCheckout: never(
+    "sends: it messages the session that wrote a stuck checkout's files, or files a finding; a sent ask cannot be unsent",
+  ),
+  stopLineRun: never(
+    "machine control: it ends a run on its machine; a new run is the way back",
+  ),
+  landLineRun: never(
+    "machine control: it picks a run up at Rebase on its machine and lands the fix; a revert is the way back",
+  ),
+  resumeLineRun: never(
+    "machine control: it restarts a run's runner on its machine; the run itself is the way back",
+  ),
+  deployTarget: never(
+    "ships code: it deploys, redeploys or rolls back a target; a new deploy of the previous sha is the way back",
+  ),
+  removeTaskStub: never(
+    "internal: takes back a create the server refused, which never landed",
+  ),
+  askLineAgent: never(
+    "machine control: it files the cause and starts its run in one write; cancelling the run is the way back",
+  ),
+  tryLineStep: never(
+    "machine control: the graph's machine runs each chosen case at once; the try's rows are its record",
+  ),
+  editLineGraph: never(
+    "machine control: the daemon rewrites the graph on its host, and the step is set back in the same editor",
+  ),
+  setLiveFlowOn: never(
+    "machine control: the switch starts or stops the team's flow runs; the same switch is the way back",
+  ),
   startLiveFlow: CREATE,
   sendMeetingBot: CREATE,
   addProjectSource: CREATE,
-  setCalendarMeetingChoice: never("machine control: switching a meeting on schedules a paid bot; the same switch takes it back"),
-  setMeetingBotJoinAll: never("machine control: join-all schedules paid bots for every meeting; the same switch takes them back"),
-  cancelMeetingBot: never("machine control: the bot leaves the meeting at once; sending a new bot is the way back"),
-  disconnectAgent: never("sharing: it ends an outside agent's access; connecting it again from the agent is the way back"),
-  discardMeetingBotStub: never("internal: takes back a send the server refused, which never landed"),
-  moveLiveFlow: never("machine control: it decides which graph every new run of the team's flow takes; moving it back is the way back"),
-  clearLiveFlowHold: never("machine control: lifting the hold lets queued runs start at once; a new hold is the way back"),
-  saveSessionFlow: never("create: saving writes a new library version, and the library keeps the earlier one to switch back to"),
-  labelDecision: never("settings: the viewer's own label on a decision, taken back in the same control (a null verdict)"),
+  setCalendarMeetingChoice: never(
+    "machine control: switching a meeting on schedules a paid bot; the same switch takes it back",
+  ),
+  setMeetingBotJoinAll: never(
+    "machine control: join-all schedules paid bots for every meeting; the same switch takes them back",
+  ),
+  cancelMeetingBot: never(
+    "machine control: the bot leaves the meeting at once; sending a new bot is the way back",
+  ),
+  disconnectAgent: never(
+    "sharing: it ends an outside agent's access; connecting it again from the agent is the way back",
+  ),
+  discardMeetingBotStub: never(
+    "internal: takes back a send the server refused, which never landed",
+  ),
+  moveLiveFlow: never(
+    "machine control: it decides which graph every new run of the team's flow takes; moving it back is the way back",
+  ),
+  clearLiveFlowHold: never(
+    "machine control: lifting the hold lets queued runs start at once; a new hold is the way back",
+  ),
+  saveSessionFlow: never(
+    "create: saving writes a new library version, and the library keeps the earlier one to switch back to",
+  ),
+  labelDecision: never(
+    "settings: the viewer's own label on a decision, taken back in the same control (a null verdict)",
+  ),
   makeProblemOfFinding: CREATE,
-  moveFindingOut: never("create: the server files the findings under a new problem it mints; merging it back is the way back"),
-  mergeProblem: never("machine control: the server moves the twin's findings and drops it; reopening the twin is the way back"),
-  trialClose: never("send: the problem leaves Stopped for everyone watching the trial; reopening its task is the way back"),
-  passDecision: never("send: the decision reaches the person or role it was passed to, who is told at once"),
-  escalateDecision: never("send: the decision reaches the owner's manager or the admins, who are told at once with the note"),
-  unassignDecision: never("send: the decision leaves the assignee's queue and is routed again; assigning it is the way back"),
-  applyDecisionAreas: never("settings: new decisions route by the new areas at once; applying the earlier map is the way back"),
-  shareOutDecisions: never("send: each decision reaches its new owner, who is told at once; passing it on is the way back"),
+  moveFindingOut: never(
+    "create: the server files the findings under a new problem it mints; merging it back is the way back",
+  ),
+  mergeProblem: never(
+    "machine control: the server moves the twin's findings and drops it; reopening the twin is the way back",
+  ),
+  trialClose: never(
+    "send: the problem leaves Stopped for everyone watching the trial; reopening its task is the way back",
+  ),
+  passDecision: never(
+    "send: the decision reaches the person or role it was passed to, who is told at once",
+  ),
+  escalateDecision: never(
+    "send: the decision reaches the owner's manager or the admins, who are told at once with the note",
+  ),
+  unassignDecision: never(
+    "send: the decision leaves the assignee's queue and is routed again; assigning it is the way back",
+  ),
+  applyDecisionAreas: never(
+    "settings: new decisions route by the new areas at once; applying the earlier map is the way back",
+  ),
+  shareOutDecisions: never(
+    "send: each decision reaches its new owner, who is told at once; passing it on is the way back",
+  ),
   setModLocalDevice: SETTINGS,
   setTeamBudget: SETTINGS,
   setTeamPolicy: SETTINGS,
-  revokeEnrollmentToken: never("sharing: a revoked enrollment token stays revoked; minting a new one is the way back"),
-  revokeTeamReadKey: never("sharing: a revoked read key stays revoked; minting a new one is the way back"),
-  revokeDeviceEnrollment: never("machine control: the device is signed out at once; enrolling it again is the way back"),
-  restoreDeviceEnrollment: never("machine control: lets a removed device enroll again; removing it again is the way back"),
+  revokeEnrollmentToken: never(
+    "sharing: a revoked enrollment token stays revoked; minting a new one is the way back",
+  ),
+  revokeTeamReadKey: never(
+    "sharing: a revoked read key stays revoked; minting a new one is the way back",
+  ),
+  revokeDeviceEnrollment: never(
+    "machine control: the device is signed out at once; enrolling it again is the way back",
+  ),
+  restoreDeviceEnrollment: never(
+    "machine control: lets a removed device enroll again; removing it again is the way back",
+  ),
 
   // A project's expectations (LM5): every change is a version judges grade against
-  editExpectations: never("send: a line or a retirement becomes a proposal a person reads, and an applied one is a version judges grade against; a later retirement takes a line back"),
-  resolveExpectationProposal: never("send: it answers the proposal's card, and an applied version is what judges grade against from then on"),
+  editExpectations: never(
+    "send: a line or a retirement becomes a proposal a person reads, and an applied one is a version judges grade against; a later retirement takes a line back",
+  ),
+  resolveExpectationProposal: never(
+    "send: it answers the proposal's card, and an applied version is what judges grade against from then on",
+  ),
 
   // Internal
   applyUndoPatches: never("internal: the undo replay itself"),
-  restoreArchivedDoc: never("internal: the server half of undoing a doc archive"),
+  restoreArchivedDoc: never(
+    "internal: the server half of undoing a doc archive",
+  ),
   flushResolvedSessionFields: INTERNAL,
   recordSyncMeta: INTERNAL,
   seedSession: INTERNAL,

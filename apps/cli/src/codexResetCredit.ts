@@ -32,7 +32,11 @@ import * as path from "path";
 import { createHash, randomUUID } from "crypto";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { acquireFileLock } from "./lockFile.js";
-import { CODEX_BACKEND_BASE, codexBackendAuthHeaders, codexBackendRequest } from "./codexBackendUsage.js";
+import {
+  CODEX_BACKEND_BASE,
+  codexBackendAuthHeaders,
+  codexBackendRequest,
+} from "./codexBackendUsage.js";
 import type { CodexUsageWindow } from "./codexUsage.js";
 import { defaultConfigDir } from "./config/configDir.js";
 
@@ -49,9 +53,18 @@ const REDEEM_TIMEOUT_MS = 30_000;
 
 /** What the provider says a redeem did. `reset` is the only one that spent a
  *  credit; the other three are all "nothing happened, and here is why". */
-export type ResetCreditOutcome = "reset" | "nothing_to_reset" | "no_credit" | "already_redeemed";
+export type ResetCreditOutcome =
+  | "reset"
+  | "nothing_to_reset"
+  | "no_credit"
+  | "already_redeemed";
 
-const OUTCOMES: readonly string[] = ["reset", "nothing_to_reset", "no_credit", "already_redeemed"];
+const OUTCOMES: readonly string[] = [
+  "reset",
+  "nothing_to_reset",
+  "no_credit",
+  "already_redeemed",
+];
 
 export interface ResetCreditRow {
   status: string; // "available", "redeemed", "expired", …
@@ -92,7 +105,10 @@ export function parseResetCreditsResponse(body: any): ResetCreditOffer | null {
   if (!body || typeof body !== "object") return null;
   const credits: ResetCreditRow[] = Array.isArray(body.credits)
     ? body.credits.map((row: any) => ({
-        status: typeof row?.status === "string" ? row.status.toLowerCase() : "unknown",
+        status:
+          typeof row?.status === "string"
+            ? row.status.toLowerCase()
+            : "unknown",
         expires_at: creditTimestamp(row?.expires_at),
         granted_at: creditTimestamp(row?.granted_at),
       }))
@@ -103,7 +119,8 @@ export function parseResetCreditsResponse(body: any): ResetCreditOffer | null {
     ? credits.filter((row) => row.status === "available").length
     : null;
   const available =
-    typeof body.available_count === "number" && Number.isFinite(body.available_count)
+    typeof body.available_count === "number" &&
+    Number.isFinite(body.available_count)
       ? Math.max(0, Math.floor(body.available_count))
       : counted;
   if (available === null) return null;
@@ -113,7 +130,8 @@ export function parseResetCreditsResponse(body: any): ResetCreditOffer | null {
     .sort((a, b) => a - b);
   return {
     available,
-    ...(typeof body.total_earned_count === "number" && Number.isFinite(body.total_earned_count)
+    ...(typeof body.total_earned_count === "number" &&
+    Number.isFinite(body.total_earned_count)
       ? { total_earned: Math.max(0, Math.floor(body.total_earned_count)) }
       : {}),
     next_expires_at: expiries[0] ?? null,
@@ -137,7 +155,10 @@ export async function fetchCodexResetCredits(
   const headers = codexBackendAuthHeaders(codexHomeDir);
   if (!headers) return null;
   return parseResetCreditsResponse(
-    await codexBackendRequest(headers, "GET", RESET_CREDITS_PATH, { fetchImpl: opts.fetchImpl, timeoutMs: FETCH_TIMEOUT_MS }),
+    await codexBackendRequest(headers, "GET", RESET_CREDITS_PATH, {
+      fetchImpl: opts.fetchImpl,
+      timeoutMs: FETCH_TIMEOUT_MS,
+    }),
   );
 }
 
@@ -164,7 +185,10 @@ function windowRevision(window: CodexUsageWindow | undefined): unknown {
  * Hashed rather than stored raw so the ledger stays small and fixed-width no
  * matter how many credit rows an account accumulates.
  */
-export function offerRevision(offer: ResetCreditOffer, windows: OfferWindows = {}): string {
+export function offerRevision(
+  offer: ResetCreditOffer,
+  windows: OfferWindows = {},
+): string {
   const rows = offer.credits
     .map((row) => [row.status, row.expires_at, row.granted_at] as const)
     .map((row) => JSON.stringify(row))
@@ -227,7 +251,9 @@ export function readResetCreditLedger(): ResetCreditLedger {
   // empty ledger would remint keys for attempts whose outcome is unknown and
   // spend a second credit (ct-49529).
   if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.attempts)) {
-    throw new Error(`Codex reset-credit ledger is corrupt: ${resetCreditLedgerPath()}`);
+    throw new Error(
+      `Codex reset-credit ledger is corrupt: ${resetCreditLedgerPath()}`,
+    );
   }
   const attempts: ResetCreditAttempt[] = parsed.attempts.filter(
     (a: any) =>
@@ -239,16 +265,22 @@ export function readResetCreditLedger(): ResetCreditLedger {
       (a.outcome === undefined || OUTCOMES.includes(a.outcome)),
   );
   if (attempts.length !== parsed.attempts.length) {
-    throw new Error(`Codex reset-credit ledger is corrupt: ${resetCreditLedgerPath()}`);
+    throw new Error(
+      `Codex reset-credit ledger is corrupt: ${resetCreditLedgerPath()}`,
+    );
   }
   return { version: 1, attempts };
 }
 
 export function writeResetCreditLedger(ledger: ResetCreditLedger): void {
   const attempts = ledger.attempts.slice(-MAX_ATTEMPTS);
-  atomicWriteFile(resetCreditLedgerPath(), JSON.stringify({ version: 1, attempts }, null, 2), {
-    mode: 0o600,
-  });
+  atomicWriteFile(
+    resetCreditLedgerPath(),
+    JSON.stringify({ version: 1, attempts }, null, 2),
+    {
+      mode: 0o600,
+    },
+  );
 }
 
 /** The attempt whose outcome this account never learned. It may only be
@@ -257,7 +289,9 @@ export function pendingAttempt(
   ledger: ResetCreditLedger,
   account: string,
 ): ResetCreditAttempt | undefined {
-  return ledger.attempts.find((a) => a.account === account && a.state === "pending");
+  return ledger.attempts.find(
+    (a) => a.account === account && a.state === "pending",
+  );
 }
 
 /** A settled attempt against this exact offer — proof the offer was already
@@ -268,11 +302,17 @@ export function settledAttempt(
   revision: string,
 ): ResetCreditAttempt | undefined {
   return ledger.attempts.find(
-    (a) => a.account === account && a.offer_revision === revision && a.state === "settled",
+    (a) =>
+      a.account === account &&
+      a.offer_revision === revision &&
+      a.state === "settled",
   );
 }
 
-function upsert(ledger: ResetCreditLedger, attempt: ResetCreditAttempt): ResetCreditLedger {
+function upsert(
+  ledger: ResetCreditLedger,
+  attempt: ResetCreditAttempt,
+): ResetCreditLedger {
   const attempts = [...ledger.attempts];
   const index = attempts.findIndex((a) => a.key === attempt.key);
   if (index === -1) attempts.push(attempt);
@@ -297,11 +337,16 @@ export async function consumeCodexResetCredit(
   if (!redeemRequestId.trim()) throw new Error("redeem_request_id is required");
   const headers = codexBackendAuthHeaders(codexHomeDir);
   if (!headers) throw new Error("Codex is not signed in on this home");
-  const body = await codexBackendRequest<{ code?: unknown } | undefined>(headers, "POST", CONSUME_PATH, {
-    body: { redeem_request_id: redeemRequestId },
-    fetchImpl: opts.fetchImpl,
-    timeoutMs: REDEEM_TIMEOUT_MS,
-  });
+  const body = await codexBackendRequest<{ code?: unknown } | undefined>(
+    headers,
+    "POST",
+    CONSUME_PATH,
+    {
+      body: { redeem_request_id: redeemRequestId },
+      fetchImpl: opts.fetchImpl,
+      timeoutMs: REDEEM_TIMEOUT_MS,
+    },
+  );
   const code = body?.code;
   if (typeof code !== "string" || !OUTCOMES.includes(code)) {
     throw new Error(`Unknown Codex reset outcome: ${code ?? "missing"}`);
@@ -309,7 +354,11 @@ export async function consumeCodexResetCredit(
   return code as ResetCreditOutcome;
 }
 
-export type RedeemRefusal = "signed_out" | "no_offer" | "stale_offer" | "offer_spent";
+export type RedeemRefusal =
+  | "signed_out"
+  | "no_offer"
+  | "stale_offer"
+  | "offer_spent";
 
 export type RedeemResult =
   | {
@@ -321,7 +370,12 @@ export type RedeemResult =
       /** The attempt replayed a pending key rather than minting one. */
       replayed: boolean;
     }
-  | { status: "refused"; reason: RedeemRefusal; message: string; offer?: ResetCreditOffer };
+  | {
+      status: "refused";
+      reason: RedeemRefusal;
+      message: string;
+      offer?: ResetCreditOffer;
+    };
 
 const REFUSALS: Record<RedeemRefusal, string> = {
   signed_out: "that Codex home holds no usable login",
@@ -413,14 +467,19 @@ async function redeemOnce(opts: {
   now?: number;
   newKey?: () => string;
 }): Promise<RedeemResult> {
-  const refuse = (reason: RedeemRefusal, offer?: ResetCreditOffer): RedeemResult => ({
+  const refuse = (
+    reason: RedeemRefusal,
+    offer?: ResetCreditOffer,
+  ): RedeemResult => ({
     status: "refused",
     reason,
     message: REFUSALS[reason],
     ...(offer ? { offer } : {}),
   });
 
-  const offer = await fetchCodexResetCredits(opts.codexHomeDir, { fetchImpl: opts.fetchImpl });
+  const offer = await fetchCodexResetCredits(opts.codexHomeDir, {
+    fetchImpl: opts.fetchImpl,
+  });
   if (!offer) return refuse("signed_out");
   const revision = offerRevision(offer, opts.readWindows?.());
   if (opts.expectedRevision && opts.expectedRevision !== revision) {
@@ -431,7 +490,8 @@ async function redeemOnce(opts: {
   const pending = pendingAttempt(ledger, opts.account);
   if (!pending) {
     if (offer.available <= 0) return refuse("no_offer", offer);
-    if (settledAttempt(ledger, opts.account, revision)) return refuse("offer_spent", offer);
+    if (settledAttempt(ledger, opts.account, revision))
+      return refuse("offer_spent", offer);
   }
 
   const now = opts.now ?? Date.now();
@@ -444,11 +504,20 @@ async function redeemOnce(opts: {
   };
   if (!pending) writeResetCreditLedger(upsert(ledger, attempt));
 
-  const outcome = await consumeCodexResetCredit(opts.codexHomeDir, attempt.key, {
-    fetchImpl: opts.fetchImpl,
-  });
+  const outcome = await consumeCodexResetCredit(
+    opts.codexHomeDir,
+    attempt.key,
+    {
+      fetchImpl: opts.fetchImpl,
+    },
+  );
   writeResetCreditLedger(
-    upsert(readResetCreditLedger(), { ...attempt, state: "settled", outcome, at: now }),
+    upsert(readResetCreditLedger(), {
+      ...attempt,
+      state: "settled",
+      outcome,
+      at: now,
+    }),
   );
   return {
     status: "redeemed",

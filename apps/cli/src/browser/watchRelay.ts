@@ -26,7 +26,11 @@ import {
   SIM_RELAY_KEY_PREFIX,
   type StreamBrowserArgs,
 } from "@codecast/shared/contracts";
-import type { WatchSessionHandle, WatchSessionOptions, WatchSink } from "./watchServer.js";
+import type {
+  WatchSessionHandle,
+  WatchSessionOptions,
+  WatchSink,
+} from "./watchServer.js";
 
 /** A relay row streams the simulator when its key names one (`sim:<session>`),
  *  else the session's browser tab: the key already separates the two rows, so
@@ -67,7 +71,10 @@ const MAX_PUSH_FAILURES = 6;
 /** How often the loop wakes to look for something to push. */
 const TICK_MS = 100;
 
-export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDeps): Promise<void> {
+export async function runWatchRelay(
+  args: StreamBrowserArgs,
+  deps: WatchRelayDeps,
+): Promise<void> {
   // What the session produced since the last push. One object, because the
   // sink's callbacks write it and TypeScript does not see closure writes.
   const st: {
@@ -77,7 +84,14 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
     actions: Record<string, unknown>[];
     actionsDirty: boolean;
     end: BrowserRelayEnd | null;
-  } = { frame: null, tab: null, control: null, actions: [], actionsDirty: false, end: null };
+  } = {
+    frame: null,
+    tab: null,
+    control: null,
+    actions: [],
+    actionsDirty: false,
+    end: null,
+  };
 
   const session = deps.startSession(
     {
@@ -94,7 +108,11 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
       send(msg) {
         switch (msg.type) {
           case "ready":
-            st.tab = { id: String(msg.targetId ?? ""), title: String(msg.title ?? ""), url: String(msg.url ?? "") };
+            st.tab = {
+              id: String(msg.targetId ?? ""),
+              title: String(msg.title ?? ""),
+              url: String(msg.url ?? ""),
+            };
             st.control = msg.control === true;
             // A new tab's cursor memory starts over; the replay that follows
             // ready refills it.
@@ -102,21 +120,32 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
             st.actionsDirty = true;
             break;
           case "frame":
-            st.frame = { data: String(msg.data ?? ""), w: Number(msg.w) || 0, h: Number(msg.h) || 0 };
+            st.frame = {
+              data: String(msg.data ?? ""),
+              w: Number(msg.w) || 0,
+              h: Number(msg.h) || 0,
+            };
             break;
           case "tab":
-            st.tab = { id: String(msg.targetId ?? ""), title: String(msg.title ?? ""), url: String(msg.url ?? "") };
+            st.tab = {
+              id: String(msg.targetId ?? ""),
+              title: String(msg.title ?? ""),
+              url: String(msg.url ?? ""),
+            };
             break;
           case "action":
-            st.actions = [...st.actions, msg].slice(-BROWSER_RELAY_RECENT_ACTIONS);
+            st.actions = [...st.actions, msg].slice(
+              -BROWSER_RELAY_RECENT_ACTIONS,
+            );
             st.actionsDirty = true;
             break;
         }
       },
       finish(msg) {
-        st.end = msg.type === "error"
-          ? { kind: "error", code: msg.code, message: msg.message }
-          : { kind: "exit", code: msg.reason };
+        st.end =
+          msg.type === "error"
+            ? { kind: "error", code: msg.code, message: msg.message }
+            : { kind: "exit", code: msg.reason };
       },
       backlogged: () => false,
     },
@@ -132,23 +161,40 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
   try {
     for (;;) {
       if (deps.now() > hardDeadline) {
-        deps.log(`[BROWSER-RELAY] ${args.key}: hard deadline reached, stopping`);
+        deps.log(
+          `[BROWSER-RELAY] ${args.key}: hard deadline reached, stopping`,
+        );
         return;
       }
       const since = deps.now() - lastPushAt;
-      const changed = st.frame !== null || st.tab !== null || st.control !== null || st.actionsDirty;
+      const changed =
+        st.frame !== null ||
+        st.tab !== null ||
+        st.control !== null ||
+        st.actionsDirty;
       const due =
         st.end !== null ||
         (changed && since >= BROWSER_RELAY_FRAME_INTERVAL_MS) ||
-        since >= (fast ? BROWSER_RELAY_INPUT_POLL_MS : BROWSER_RELAY_HEARTBEAT_MS);
+        since >=
+          (fast ? BROWSER_RELAY_INPUT_POLL_MS : BROWSER_RELAY_HEARTBEAT_MS);
       if (!due) {
         await deps.sleep(TICK_MS);
         continue;
       }
 
       const msg: RelayPush = { key: args.key };
-      const sent = { frame: st.frame, tab: st.tab, control: st.control, actionsDirty: st.actionsDirty };
-      if (sent.frame) Object.assign(msg, { frame: sent.frame.data, frame_w: sent.frame.w, frame_h: sent.frame.h });
+      const sent = {
+        frame: st.frame,
+        tab: st.tab,
+        control: st.control,
+        actionsDirty: st.actionsDirty,
+      };
+      if (sent.frame)
+        Object.assign(msg, {
+          frame: sent.frame.data,
+          frame_w: sent.frame.w,
+          frame_h: sent.frame.h,
+        });
       if (sent.tab) msg.tab = sent.tab;
       if (sent.control !== null) msg.control = sent.control;
       if (sent.actionsDirty) msg.actions = JSON.stringify(st.actions);
@@ -158,7 +204,9 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
       const answer = await deps.push(msg);
       if (!answer) {
         if (++failures >= MAX_PUSH_FAILURES) {
-          deps.log(`[BROWSER-RELAY] ${args.key}: ${failures} failed pushes, stopping`);
+          deps.log(
+            `[BROWSER-RELAY] ${args.key}: ${failures} failed pushes, stopping`,
+          );
           return;
         }
         await deps.sleep(Math.min(2_000, 250 * failures));
@@ -174,7 +222,9 @@ export async function runWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDep
       if (st.control === sent.control) st.control = null;
       if (sent.actionsDirty) st.actionsDirty = false;
       if (ending) {
-        deps.log(`[BROWSER-RELAY] ${args.key}: stream ended (${ending.kind} ${ending.code})`);
+        deps.log(
+          `[BROWSER-RELAY] ${args.key}: stream ended (${ending.kind} ${ending.code})`,
+        );
         return;
       }
       if (answer.stop) {
@@ -196,10 +246,17 @@ export function isBrowserRelayRunning(key: string): boolean {
 }
 
 /** Start the relay loop for `args.key` unless it is already running. */
-export function startWatchRelay(args: StreamBrowserArgs, deps: WatchRelayDeps): boolean {
+export function startWatchRelay(
+  args: StreamBrowserArgs,
+  deps: WatchRelayDeps,
+): boolean {
   if (active.has(args.key)) return false;
   const run = runWatchRelay(args, deps)
-    .catch((err) => deps.log(`[BROWSER-RELAY] ${args.key}: ${err instanceof Error ? err.message : String(err)}`))
+    .catch((err) =>
+      deps.log(
+        `[BROWSER-RELAY] ${args.key}: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    )
     .finally(() => active.delete(args.key));
   active.set(args.key, run);
   return true;

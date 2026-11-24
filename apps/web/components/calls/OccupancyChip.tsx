@@ -7,7 +7,11 @@ import { Headphones, Link2 } from "lucide-react";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { joinCall } from "../../lib/calls/actions";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
-import { guestDisplayName, parseRoomKey, sessionRoomKey } from "@codecast/shared/contracts";
+import {
+  guestDisplayName,
+  parseRoomKey,
+  sessionRoomKey,
+} from "@codecast/shared/contracts";
 import { useGuestsWaiting } from "../../hooks/useLiveRooms";
 import { AvatarImg } from "../../lib/avatarCache";
 
@@ -54,7 +58,11 @@ export function Facepile({
       {extra > 0 && (
         <span
           className="inline-flex items-center justify-center rounded-full border border-sol-bg bg-sol-bg-highlight text-sol-text-muted"
-          style={{ height: size, width: size, fontSize: Math.max(8, Math.round(size / 2)) }}
+          style={{
+            height: size,
+            width: size,
+            fontSize: Math.max(8, Math.round(size / 2)),
+          }}
         >
           +{extra}
         </span>
@@ -88,7 +96,9 @@ export function OccupancyChip({
   // one that knows what is happening (lib/faces/faceRow roomHeldAsBurst), so
   // this stands down while the room is held as a burst and comes back the
   // moment the row's links say it became a call.
-  const burst = useFaceRowSelect(useCallback((row: FaceRow) => roomHeldAsBurst(roomKey, row), [roomKey]));
+  const burst = useFaceRowSelect(
+    useCallback((row: FaceRow) => roomHeldAsBurst(roomKey, row), [roomKey]),
+  );
   const roster: any[] = s.callOccupancy[roomKey] || [];
   const inThisRoom = s.call.roomKey === roomKey;
   if (roster.length === 0) return null;
@@ -149,10 +159,19 @@ export function HuddleButton({
   compact?: boolean;
 }) {
   const enabled = useCallsAvailable();
-  const occupied = useInboxStore((st) => (st.callOccupancy[roomKey]?.length ?? 0) > 0);
+  const occupied = useInboxStore(
+    (st) => (st.callOccupancy[roomKey]?.length ?? 0) > 0,
+  );
   const isChannel = parseRoomKey(roomKey)?.kind === "channel";
   if (!enabled) return null;
-  if (occupied) return <OccupancyChip roomKey={roomKey} className={className} compact={compact} />;
+  if (occupied)
+    return (
+      <OccupancyChip
+        roomKey={roomKey}
+        className={className}
+        compact={compact}
+      />
+    );
   const label =
     hint ??
     (isChannel
@@ -167,7 +186,14 @@ export function HuddleButton({
       disabled={isChannel && channelMemberCount === undefined}
       onClick={(e) => {
         e.stopPropagation();
-        requestHuddleStart({ roomKey, toUserIds: ring, anchorTitle, ringChannel: isChannel, channelMemberCount, hint });
+        requestHuddleStart({
+          roomKey,
+          toUserIds: ring,
+          anchorTitle,
+          ringChannel: isChannel,
+          channelMemberCount,
+          hint,
+        });
       }}
       className={`flex items-center gap-1 rounded-full border text-sol-text-dim transition-colors hover:border-sol-violet/40 hover:text-sol-violet disabled:opacity-50 ${compact ? "border-sol-border/40 px-1.5 py-1 text-meta font-medium" : "border-sol-border px-2 py-0.5 text-xs"} ${className} modern:h-6 modern:rounded-control modern:py-0`}
       title={label}
@@ -187,7 +213,10 @@ const NO_NAMES: string[] = [];
 // opens the same start dialog. Making a guest link lives in that dialog too;
 // the header at rest shows the huddle button alone, and nothing moves under
 // the pointer.
-export function HuddleWithGuest({ className = "", ...huddle }: Parameters<typeof HuddleButton>[0]) {
+export function HuddleWithGuest({
+  className = "",
+  ...huddle
+}: Parameters<typeof HuddleButton>[0]) {
   const enabled = useCallsAvailable();
   if (!enabled) return null;
   return (
@@ -201,12 +230,22 @@ export function HuddleWithGuest({ className = "", ...huddle }: Parameters<typeof
 // Mounted only while somebody is at some door (a scalar read), so a header
 // button at rest never subscribes to the face row.
 function GuestsWaitingChip(props: Parameters<typeof HuddleButton>[0]) {
-  const anyWaiting = useInboxStore((st: any) => (st.guestsWaiting?.length ?? 0) > 0);
+  const anyWaiting = useInboxStore(
+    (st: any) => (st.guestsWaiting?.length ?? 0) > 0,
+  );
   return anyWaiting ? <GuestsWaitingAtDoor {...props} /> : null;
 }
 
-function GuestsWaitingAtDoor({ roomKey, ring, anchorTitle, channelMemberCount, hint, compact }: Parameters<typeof HuddleButton>[0]) {
-  const waiting = useGuestsWaiting().find((r) => r.roomKey === roomKey)?.names ?? NO_NAMES;
+function GuestsWaitingAtDoor({
+  roomKey,
+  ring,
+  anchorTitle,
+  channelMemberCount,
+  hint,
+  compact,
+}: Parameters<typeof HuddleButton>[0]) {
+  const waiting =
+    useGuestsWaiting().find((r) => r.roomKey === roomKey)?.names ?? NO_NAMES;
   if (waiting.length === 0) return null;
   const line = `${guestDisplayName(waiting[0])}${waiting.length > 1 ? ` and ${waiting.length - 1} more` : ""} ${waiting.length > 1 ? "are" : "is"} waiting to join. Start the huddle to let them in`;
   return (
@@ -214,7 +253,14 @@ function GuestsWaitingAtDoor({ roomKey, ring, anchorTitle, channelMemberCount, h
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        requestHuddleStart({ roomKey, toUserIds: ring, anchorTitle, ringChannel: parseRoomKey(roomKey)?.kind === "channel", channelMemberCount, hint });
+        requestHuddleStart({
+          roomKey,
+          toUserIds: ring,
+          anchorTitle,
+          ringChannel: parseRoomKey(roomKey)?.kind === "channel",
+          channelMemberCount,
+          hint,
+        });
       }}
       className={`relative flex items-center gap-1 rounded-full border border-sol-yellow/40 text-sol-yellow transition-colors hover:bg-sol-yellow/10 ${compact ? "px-1.5 py-1 text-meta font-medium" : "px-2 py-0.5 text-xs"} modern:h-6 modern:rounded-control modern:py-0`}
       title={line}
@@ -222,7 +268,10 @@ function GuestsWaitingAtDoor({ roomKey, ring, anchorTitle, channelMemberCount, h
     >
       <Link2 className="h-3 w-3" />
       {compact ? (
-        <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-sol-yellow motion-reduce:animate-none" aria-hidden />
+        <span
+          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-sol-yellow motion-reduce:animate-none"
+          aria-hidden
+        />
       ) : (
         <span>{waiting.length} waiting</span>
       )}
@@ -233,7 +282,11 @@ function GuestsWaitingAtDoor({ roomKey, ring, anchorTitle, channelMemberCount, h
 // Session headers: the room of one conversation, and the one room where the
 // agent is listening — a session huddle transcribes into its own session live
 // (transcripts.start seeds the route), so the tooltip says so.
-export function SessionHuddleButton({ conversationId }: { conversationId: string }) {
+export function SessionHuddleButton({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
   return (
     <HuddleWithGuest
       roomKey={sessionRoomKey(conversationId)}

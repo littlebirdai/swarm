@@ -162,7 +162,9 @@ export const SECRET_SHAPES: SecretShape[] = [
  * token transcript redaction knows is one they refuse to carry. Not global.
  */
 export const VENDOR_TOKEN_RE = new RegExp(
-  SECRET_SHAPES.filter((s) => s.id !== "private-key" && s.id !== "jwt").map((s) => `(?:${s.re.source})`).join("|"),
+  SECRET_SHAPES.filter((s) => s.id !== "private-key" && s.id !== "jwt")
+    .map((s) => `(?:${s.re.source})`)
+    .join("|"),
 );
 
 /** A secret that follows a label. Group 1 (the variable name and its
@@ -173,7 +175,8 @@ export type LabeledSecretShape = Omit<SecretShape, "label" | "name" | "env"> & {
   env?: (prefix: string) => string | undefined;
 };
 
-const assignedVar = (prefix: string) => /^[A-Za-z0-9_-]+/.exec(prefix)?.[0] ?? "";
+const assignedVar = (prefix: string) =>
+  /^[A-Za-z0-9_-]+/.exec(prefix)?.[0] ?? "";
 
 export const LABELED_SECRET_SHAPES: LabeledSecretShape[] = [
   // Opaque secret assigned to a strongly secret-named variable: the .env-dump
@@ -187,8 +190,17 @@ export const LABELED_SECRET_SHAPES: LabeledSecretShape[] = [
     id: "secret-assignment",
     re: /\b([A-Za-z0-9_-]{0,40}(?:SECRET|PASSWORD|PASSWD|CREDENTIALS?|TOKEN|ACCESS[_-]?KEY|API[_-]?KEY|PRIVATE[_-]?KEY)\s*[=:]\s*["'`]?)(?=[^\s"'`]{0,200}\d)[A-Za-z0-9][^\s"'`]{15,}/gi,
     label: (p) => assignedVar(p),
-    name: (p) => assignedVar(p).toLowerCase().replace(/[_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 63).replace(/-+$/, ""),
-    env: (p) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(assignedVar(p)) ? assignedVar(p) : undefined),
+    name: (p) =>
+      assignedVar(p)
+        .toLowerCase()
+        .replace(/[_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63)
+        .replace(/-+$/, ""),
+    env: (p) =>
+      /^[A-Za-z_][A-Za-z0-9_]*$/.test(assignedVar(p))
+        ? assignedVar(p)
+        : undefined,
   },
   // `Bearer <token>` in a header/curl, in RFC 6750's token alphabet with its
   // trailing `=` padding. Digit-guarded so `Bearer someVariable` in a code
@@ -235,13 +247,22 @@ export type FoundSecret = {
  */
 export function findSecrets(text: string): FoundSecret[] {
   const found: FoundSecret[] = [];
-  const overlaps = (s: number, e: number) => found.find((f) => s < f.end && f.start < e);
+  const overlaps = (s: number, e: number) =>
+    found.find((f) => s < f.end && f.start < e);
   for (const shape of SECRET_SHAPES) {
     for (const m of text.matchAll(shape.re)) {
       const start = m.index!;
       const end = start + m[0].length;
       if (overlaps(start, end)) continue;
-      found.push({ id: shape.id, label: shape.label, value: m[0], start, end, name: shape.name(m[0]), env: shape.env });
+      found.push({
+        id: shape.id,
+        label: shape.label,
+        value: m[0],
+        start,
+        end,
+        name: shape.name(m[0]),
+        env: shape.env,
+      });
     }
   }
   for (const shape of LABELED_SECRET_SHAPES) {
@@ -255,7 +276,15 @@ export function findSecrets(text: string): FoundSecret[] {
         if (env && inner.start === start) inner.env = env;
         continue;
       }
-      found.push({ id: shape.id, label: shape.label(prefix), value: m[0].slice(prefix.length), start, end, name: shape.name(prefix), env });
+      found.push({
+        id: shape.id,
+        label: shape.label(prefix),
+        value: m[0].slice(prefix.length),
+        start,
+        end,
+        name: shape.name(prefix),
+        env,
+      });
     }
   }
   return found.sort((a, b) => a.start - b.start);
@@ -267,13 +296,24 @@ export function vaultReference(name: string, vars: string[]): string {
 }
 
 /** `text` with each found value replaced by its reference, back to front so offsets hold. */
-export function replaceSecrets(text: string, swaps: { start: number; end: number; with: string }[]): string {
+export function replaceSecrets(
+  text: string,
+  swaps: { start: number; end: number; with: string }[],
+): string {
   let out = text;
-  for (const s of [...swaps].sort((a, b) => b.start - a.start)) out = out.slice(0, s.start) + s.with + out.slice(s.end);
+  for (const s of [...swaps].sort((a, b) => b.start - a.start))
+    out = out.slice(0, s.start) + s.with + out.slice(s.end);
   return out;
 }
 
 /** `text` with every credential replaced by the redaction marker transcripts use, `[redacted:<id>]`. */
 export function withoutSecrets(text: string): string {
-  return replaceSecrets(text, findSecrets(text).map((f) => ({ start: f.start, end: f.end, with: `[redacted:${f.id}]` })));
+  return replaceSecrets(
+    text,
+    findSecrets(text).map((f) => ({
+      start: f.start,
+      end: f.end,
+      with: `[redacted:${f.id}]`,
+    })),
+  );
 }

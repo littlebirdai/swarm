@@ -38,7 +38,9 @@ describe("findOwnedSections", () => {
   test("finds a well-formed block, taking its trailing separator", () => {
     const text = `# Top\n\n## Tasks & Plans\nbody\n${END}\n\n## After\nkeep me\n`;
     const [block] = findOwnedSections(text, WORK);
-    expect(text.slice(block.start, block.end)).toBe(`## Tasks & Plans\nbody\n${END}\n\n`);
+    expect(text.slice(block.start, block.end)).toBe(
+      `## Tasks & Plans\nbody\n${END}\n\n`,
+    );
     // What remains still separates the heading above from the section below.
     expect(cutOwnedSections(text, WORK)).toBe("# Top\n\n## After\nkeep me\n");
   });
@@ -227,7 +229,9 @@ describe("regression: repeated updates do not grow the file", () => {
   test("blank lines are preserved and the block does not move", () => {
     const start = `# Mine\n\n## Tasks & Plans\nold\n${END}\n\n## Later\nkeep\n`;
     const out = applySnippet(start, WORK, FRESH, true).text;
-    expect(out).toBe(`# Mine\n\n## Tasks & Plans\n\nfresh body\n${END}\n\n## Later\nkeep\n`);
+    expect(out).toBe(
+      `# Mine\n\n## Tasks & Plans\n\nfresh body\n${END}\n\n## Later\nkeep\n`,
+    );
     expect(out).not.toMatch(/\n{3,}/);
   });
 });
@@ -273,9 +277,14 @@ describe("regression: an update does not reorder the user's file", () => {
 
   test("its neighbours keep their order across ten updates", () => {
     let out = start;
-    for (let i = 0; i < 10; i++) out = applySnippet(out, WORK, FRESH, true).text;
-    expect(out.indexOf("## Above")).toBeLessThan(out.indexOf("## Tasks & Plans"));
-    expect(out.indexOf("## Tasks & Plans")).toBeLessThan(out.indexOf("## Below"));
+    for (let i = 0; i < 10; i++)
+      out = applySnippet(out, WORK, FRESH, true).text;
+    expect(out.indexOf("## Above")).toBeLessThan(
+      out.indexOf("## Tasks & Plans"),
+    );
+    expect(out.indexOf("## Tasks & Plans")).toBeLessThan(
+      out.indexOf("## Below"),
+    );
     expect(out).toBe(applySnippet(out, WORK, FRESH, true).text);
   });
 
@@ -297,7 +306,9 @@ describe("regression: an update does not reorder the user's file", () => {
     ].join("\n");
     const out = applySnippet(dup, WORK, FRESH, true).text;
     expect(out.match(/## Tasks & Plans/g)).toHaveLength(1);
-    expect(out.indexOf("## Tasks & Plans")).toBeLessThan(out.indexOf("## Mine"));
+    expect(out.indexOf("## Tasks & Plans")).toBeLessThan(
+      out.indexOf("## Mine"),
+    );
     expect(out).toContain("keep me here");
   });
 
@@ -307,7 +318,9 @@ describe("regression: an update does not reorder the user's file", () => {
   test("collapsing a duplicate that ends the file leaves no orphan blank line", () => {
     const dup = `# Top\n\n## Tasks & Plans\nfirst\n${END}\n\n## Mine\nkeep me here\n\n## Tasks & Plans\nsecond\n${END}\n`;
     const out = applySnippet(dup, WORK, FRESH, true).text;
-    expect(out).toBe(`# Top\n\n## Tasks & Plans\n\nfresh body\n${END}\n\n## Mine\nkeep me here\n`);
+    expect(out).toBe(
+      `# Top\n\n## Tasks & Plans\n\nfresh body\n${END}\n\n## Mine\nkeep me here\n`,
+    );
   });
 
   // Two specs, one file. Refreshing A used to move A below B and refreshing B
@@ -315,7 +328,10 @@ describe("regression: an update does not reorder the user's file", () => {
   // a caller comparing against the previous run always saw a change.
   test("two owned blocks in one file keep their order across alternating updates", () => {
     const OTHER_END = "<!-- /codecast-state -->";
-    const OTHER: SectionSpec = { headings: ["## Thread state"], endMarker: OTHER_END };
+    const OTHER: SectionSpec = {
+      headings: ["## Thread state"],
+      endMarker: OTHER_END,
+    };
     const OTHER_BODY = `\n## Thread state\n\nstate body\n${OTHER_END}\n`;
     const start = [
       "# My CLAUDE.md",
@@ -338,8 +354,12 @@ describe("regression: an update does not reorder the user's file", () => {
     const pass3 = applySnippet(pass2, WORK, FRESH, true).text;
     expect(pass3).toBe(pass2);
     // …and the user's section is still sandwiched between ours, as they wrote it.
-    expect(pass3.indexOf("## Tasks & Plans")).toBeLessThan(pass3.indexOf("## House rules"));
-    expect(pass3.indexOf("## House rules")).toBeLessThan(pass3.indexOf("## Thread state"));
+    expect(pass3.indexOf("## Tasks & Plans")).toBeLessThan(
+      pass3.indexOf("## House rules"),
+    );
+    expect(pass3.indexOf("## House rules")).toBeLessThan(
+      pass3.indexOf("## Thread state"),
+    );
     expect(pass3).not.toMatch(/\n{3,}/);
   });
 });
@@ -356,13 +376,22 @@ describe("a run that changes nothing reports unchanged", () => {
     const once = applySnippet("# Mine\n", WORK, FRESH, true);
     expect(once.unchanged).toBe(false);
     const twice = applySnippet(once.text, WORK, FRESH, true);
-    expect(twice).toMatchObject({ installed: true, updated: true, unchanged: true });
+    expect(twice).toMatchObject({
+      installed: true,
+      updated: true,
+      unchanged: true,
+    });
     expect(twice.text).toBe(once.text);
   });
 
   test("a changed body is not unchanged", () => {
     const once = applySnippet("# Mine\n", WORK, FRESH, true).text;
-    const next = applySnippet(once, WORK, `\n## Tasks & Plans\n\nNEW body\n${END}\n`, true);
+    const next = applySnippet(
+      once,
+      WORK,
+      `\n## Tasks & Plans\n\nNEW body\n${END}\n`,
+      true,
+    );
     expect(next.unchanged).toBe(false);
     expect(next.text).toContain("NEW body");
   });
@@ -413,7 +442,10 @@ describe("the shipped snippet bodies are recognized as our own", () => {
   // above is what keeps it that way — and the fix would be to make the boundary
   // scan fence-aware.
   test("a `## ` inside a fenced code block breaks recognition, and stacks copies", () => {
-    const spec: SectionSpec = { headings: ["## Tasks & Plans"], endMarker: END };
+    const spec: SectionSpec = {
+      headings: ["## Tasks & Plans"],
+      endMarker: END,
+    };
     const body = `\n## Tasks & Plans\n\n\`\`\`md\n## Goal\nwhat we are doing\n\`\`\`\n${END}\n`;
     const once = applySnippet("# Mine\n", spec, body, true).text;
     expect(findOwnedSections(once, spec)).toEqual([]);
@@ -429,7 +461,11 @@ describe("the shipped snippet bodies are recognized as our own", () => {
 describe("uninstall: removing every owned section at once", () => {
   const MEM = "<!-- /codecast-memory -->";
   const MSG = "<!-- /codecast-messaging -->";
-  const MEMORY: SectionSpec = { headings: ["## Memory"], endMarker: MEM, contentProbes: ["cast search"] };
+  const MEMORY: SectionSpec = {
+    headings: ["## Memory"],
+    endMarker: MEM,
+    contentProbes: ["cast search"],
+  };
   const MESSAGING: SectionSpec = { headings: ["## Messaging"], endMarker: MSG };
 
   const file = [
@@ -455,7 +491,10 @@ describe("uninstall: removing every owned section at once", () => {
   ].join("\n");
 
   const cutAll = (text: string) =>
-    [MEMORY, MESSAGING].reduce((acc, spec) => cutOwnedSections(acc, spec), text);
+    [MEMORY, MESSAGING].reduce(
+      (acc, spec) => cutOwnedSections(acc, spec),
+      text,
+    );
 
   test("removes our sections and keeps everything between them", () => {
     const out = cutAll(file);
@@ -502,7 +541,9 @@ describe("uninstall: removing every owned section at once", () => {
   // the user's text above.
   test("removing the last section in the file leaves one trailing newline", () => {
     const file = `# Mine\n\n## Notes\njust me\n\n## Messaging\ncast send things\n${MSG}\n`;
-    expect(cutOwnedSections(file, MESSAGING)).toBe("# Mine\n\n## Notes\njust me\n");
+    expect(cutOwnedSections(file, MESSAGING)).toBe(
+      "# Mine\n\n## Notes\njust me\n",
+    );
   });
 });
 
@@ -517,7 +558,12 @@ describe("disable removes the section from disk", () => {
 
   test("removes only the disabled section", () => {
     const withBoth = applySnippet(
-      applySnippet("# Mine\n\n## My Notes\nKEEP THIS\n", MESSAGING, MSG_BODY, false).text,
+      applySnippet(
+        "# Mine\n\n## My Notes\nKEEP THIS\n",
+        MESSAGING,
+        MSG_BODY,
+        false,
+      ).text,
       WORK,
       FRESH,
       false,
@@ -529,7 +575,10 @@ describe("disable removes the section from disk", () => {
   });
 
   test("disabling twice is harmless", () => {
-    const once = cutOwnedSections(applySnippet("# Mine\n", MESSAGING, MSG_BODY, false).text, MESSAGING);
+    const once = cutOwnedSections(
+      applySnippet("# Mine\n", MESSAGING, MSG_BODY, false).text,
+      MESSAGING,
+    );
     expect(cutOwnedSections(once, MESSAGING)).toBe(once);
   });
 
@@ -541,7 +590,12 @@ describe("disable removes the section from disk", () => {
     const installed = applySnippet("# Mine\n", MESSAGING, MSG_BODY, false).text;
     let text = installed;
     for (let i = 0; i < 3; i++) {
-      text = applySnippet(cutOwnedSections(text, MESSAGING), MESSAGING, MSG_BODY, false).text;
+      text = applySnippet(
+        cutOwnedSections(text, MESSAGING),
+        MESSAGING,
+        MSG_BODY,
+        false,
+      ).text;
     }
     expect(text).toBe(installed);
     expect(text.match(/## Messaging/g)).toHaveLength(1);
@@ -584,19 +638,30 @@ describe("installSectionToFile: no write when nothing changed", () => {
   test("re-installing the same section leaves the mtime alone", () => {
     const { dir, file, mtime } = seeded();
     const r = installSectionToFile(file, dir, WORK, FRESH, true);
-    expect(r).toMatchObject({ installed: true, updated: true, unchanged: true });
+    expect(r).toMatchObject({
+      installed: true,
+      updated: true,
+      unchanged: true,
+    });
     expect(fs.statSync(file).mtimeMs).toBe(mtime);
   });
 
   test("ten reconcile passes still leave the mtime alone", () => {
     const { dir, file, mtime } = seeded();
-    for (let i = 0; i < 10; i++) installSectionToFile(file, dir, WORK, FRESH, true);
+    for (let i = 0; i < 10; i++)
+      installSectionToFile(file, dir, WORK, FRESH, true);
     expect(fs.statSync(file).mtimeMs).toBe(mtime);
   });
 
   test("a genuinely new body does write", () => {
     const { dir, file, mtime } = seeded();
-    const r = installSectionToFile(file, dir, WORK, `\n## Tasks & Plans\n\nNEW body\n${END}\n`, true);
+    const r = installSectionToFile(
+      file,
+      dir,
+      WORK,
+      `\n## Tasks & Plans\n\nNEW body\n${END}\n`,
+      true,
+    );
     expect(r.unchanged).toBe(false);
     expect(fs.statSync(file).mtimeMs).toBeGreaterThan(mtime);
     expect(fs.readFileSync(file, "utf-8")).toContain("NEW body");
@@ -613,14 +678,17 @@ describe("installSectionToFile: no write when nothing changed", () => {
     const dir = path.join(tmpRoot, "surround");
     const file = path.join(dir, "CLAUDE.md");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(file, `# Mine\n\n## Above\nkeep\n\n## Tasks & Plans\nold\n${END}\n\n## Below\nkeep too\n`);
+    fs.writeFileSync(
+      file,
+      `# Mine\n\n## Above\nkeep\n\n## Tasks & Plans\nold\n${END}\n\n## Below\nkeep too\n`,
+    );
     installSectionToFile(file, dir, WORK, FRESH, true);
     const out = fs.readFileSync(file, "utf-8");
     // The writer stamps the running cast above the end marker (ct-49544), so
     // the bytes are pinned around that line rather than without it.
     expect(out).toBe(
       `# Mine\n\n## Above\nkeep\n\n## Tasks & Plans\n\nfresh body\n` +
-      `${snippetStamp(getVersion())}\n${END}\n\n## Below\nkeep too\n`,
+        `${snippetStamp(getVersion())}\n${END}\n\n## Below\nkeep too\n`,
     );
   });
 
@@ -653,7 +721,12 @@ describe("installSectionToTargets: the fold across several files", () => {
    * a ~/.claude and a ~/.codex target. `body` gets `install(update)` and the two
    * file paths, and returns whatever it wants read back.
    */
-  function inScratchHome<T>(body: string): { home: string; claude: string; codex: string; value: T } {
+  function inScratchHome<T>(body: string): {
+    home: string;
+    claude: string;
+    codex: string;
+    value: T;
+  } {
     const home = path.join(tmpRoot, `home-${n++}`);
     fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
     fs.mkdirSync(path.join(home, ".codex"), { recursive: true });
@@ -678,9 +751,15 @@ describe("installSectionToTargets: the fold across several files", () => {
       encoding: "utf8",
       timeout: 60_000,
     });
-    if (proc.status !== 0) throw new Error(`scratch-HOME run failed (${proc.status}): ${proc.stderr}`);
+    if (proc.status !== 0)
+      throw new Error(
+        `scratch-HOME run failed (${proc.status}): ${proc.stderr}`,
+      );
     const line = proc.stdout.split("\n").find((l) => l.startsWith("@@"));
-    if (!line) throw new Error(`scratch-HOME run printed no result: ${proc.stdout}${proc.stderr}`);
+    if (!line)
+      throw new Error(
+        `scratch-HOME run printed no result: ${proc.stdout}${proc.stderr}`,
+      );
     return {
       home,
       claude: path.join(home, ".claude", "CLAUDE.md"),
@@ -690,9 +769,9 @@ describe("installSectionToTargets: the fold across several files", () => {
   }
 
   test("a first install writes every target", () => {
-    const { claude, codex, value } = inScratchHome<{ r: Record<string, boolean> }>(
-      `return { r: install(true) };`,
-    );
+    const { claude, codex, value } = inScratchHome<{
+      r: Record<string, boolean>;
+    }>(`return { r: install(true) };`);
     expect(value.r).toMatchObject({ installed: true, unchanged: false });
     expect(fs.readFileSync(claude, "utf-8")).toContain("fresh body");
     expect(fs.readFileSync(codex, "utf-8")).toContain("fresh body");
@@ -702,11 +781,18 @@ describe("installSectionToTargets: the fold across several files", () => {
     const { value } = inScratchHome<{ second: Record<string, boolean> }>(
       `install(true); return { second: install(true) };`,
     );
-    expect(value.second).toMatchObject({ installed: true, updated: true, unchanged: true });
+    expect(value.second).toMatchObject({
+      installed: true,
+      updated: true,
+      unchanged: true,
+    });
   });
 
   test("one stale target out of two is still a change", () => {
-    const { codex, value } = inScratchHome<{ r: Record<string, boolean>; moved: boolean }>(`
+    const { codex, value } = inScratchHome<{
+      r: Record<string, boolean>;
+      moved: boolean;
+    }>(`
       install(true);
       // Only the codex file drifts — the claude one is already byte-perfect.
       fs.writeFileSync(codex, "## Tasks & Plans\\nSTALE body\\n" + END + "\\n");
@@ -733,7 +819,12 @@ import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
 
 const REAL_SECTIONS: Array<[string, SectionSpec, string]> = [
   ...SNIPPET_CATALOG.filter((s) => s.section).map(
-    (s) => [s.slug, s.section!.spec, s.section!.body] as [string, SectionSpec, string],
+    (s) =>
+      [s.slug, s.section!.spec, s.section!.body] as [
+        string,
+        SectionSpec,
+        string,
+      ],
   ),
   ["references", REFERENCES_SECTION, REFERENCES_SNIPPET],
 ];
@@ -780,8 +871,12 @@ describe("the shared table itself", () => {
     // snippetStale returning false for an unknown slug would mean a misspelled
     // gate never refreshes its snippet again; a misspelled stamp would never
     // record what was installed, so its gate reinstalls on every pass.
-    expect(() => snippetStale({}, "memroy")).toThrow(/unknown snippet slug "memroy"/);
-    expect(() => stampSnippet({}, "memroy", "1")).toThrow(/unknown snippet slug "memroy"/);
+    expect(() => snippetStale({}, "memroy")).toThrow(
+      /unknown snippet slug "memroy"/,
+    );
+    expect(() => stampSnippet({}, "memroy", "1")).toThrow(
+      /unknown snippet slug "memroy"/,
+    );
     // Not-stale is reserved for a real entry that installs no markdown.
     expect(snippetStale({}, "orchestration")).toBe(false);
   });
@@ -803,9 +898,13 @@ describe("every real section in one document", () => {
 
   test("install all, then cut all — the user's file comes back byte-identical", () => {
     let doc = userDoc;
-    for (const [, spec, body] of REAL_SECTIONS) doc = applySnippet(doc, spec, body, true).text;
+    for (const [, spec, body] of REAL_SECTIONS)
+      doc = applySnippet(doc, spec, body, true).text;
     for (const [slug, spec] of REAL_SECTIONS) {
-      expect(findOwnedSections(doc, spec), `${slug} not found after install-all`).toHaveLength(1);
+      expect(
+        findOwnedSections(doc, spec),
+        `${slug} not found after install-all`,
+      ).toHaveLength(1);
     }
     for (const [, spec] of REAL_SECTIONS) doc = cutOwnedSections(doc, spec);
     expect(doc).toBe(userDoc);
@@ -821,7 +920,10 @@ describe("every real section in one document", () => {
 // Asserted against the source text because index.ts runs `program.parse()` at
 // module scope and cannot be imported (same technique as snippets.wiring.test.ts).
 describe("the refresh gates in index.ts", () => {
-  const indexSource = fs.readFileSync(path.join(import.meta.dir, "index.ts"), "utf-8");
+  const indexSource = fs.readFileSync(
+    path.join(import.meta.dir, "index.ts"),
+    "utf-8",
+  );
 
   // Snippets kept current WITHOUT a per-snippet staleness gate in index.ts:
   //   - forks relies on the blanket refreshEnabledSnippets() pass alone and
@@ -837,30 +939,47 @@ describe("the refresh gates in index.ts", () => {
   // toContain prints the whole 700KB "received" source, burying the finding.
   // The section snippets share one gate: the SECTION_SNIPPET_VERSIONS loop
   // calls snippetStale and stampSnippet for every slug the table lists.
-  const sectionTable = indexSource.match(/const SECTION_SNIPPET_VERSIONS[^\n]*= \{([\s\S]*?)\};/)?.[1] ?? "";
-  const sharedLoop = /snippetStale\(config, slug\)/.test(indexSource) && /stampSnippet\(config, slug, getVersion\(\)\)/.test(indexSource);
-  const inSectionTable = (slug: string) => sharedLoop && new RegExp(`^\\s*${slug}:`, "m").test(sectionTable);
-  const gateIn = (slug: string) => indexSource.includes(`snippetStale(config, "${slug}")`) || inSectionTable(slug);
+  const sectionTable =
+    indexSource.match(
+      /const SECTION_SNIPPET_VERSIONS[^\n]*= \{([\s\S]*?)\};/,
+    )?.[1] ?? "";
+  const sharedLoop =
+    /snippetStale\(config, slug\)/.test(indexSource) &&
+    /stampSnippet\(config, slug, getVersion\(\)\)/.test(indexSource);
+  const inSectionTable = (slug: string) =>
+    sharedLoop && new RegExp(`^\\s*${slug}:`, "m").test(sectionTable);
+  const gateIn = (slug: string) =>
+    indexSource.includes(`snippetStale(config, "${slug}")`) ||
+    inSectionTable(slug);
 
   test.each(
-    SNIPPET_CATALOG.filter((s) => !UNGATED.has(s.slug)).map((s) => [s.slug] as const),
-  )("%s decides its rewrite with snippetStale and stamps what it wrote", (slug) => {
-    expect(
-      gateIn(slug),
-      `index.ts has no snippetStale(config, "${slug}") gate — wire one (or list the slug as UNGATED here with a reason)`,
-    ).toBe(true);
-    expect(
-      indexSource.includes(`stampSnippet(config, "${slug}"`) || inSectionTable(slug),
-      `index.ts never stamps "${slug}" after installing it, so its gate would reinstall on every pass`,
-    ).toBe(true);
-  });
+    SNIPPET_CATALOG.filter((s) => !UNGATED.has(s.slug)).map(
+      (s) => [s.slug] as const,
+    ),
+  )(
+    "%s decides its rewrite with snippetStale and stamps what it wrote",
+    (slug) => {
+      expect(
+        gateIn(slug),
+        `index.ts has no snippetStale(config, "${slug}") gate — wire one (or list the slug as UNGATED here with a reason)`,
+      ).toBe(true);
+      expect(
+        indexSource.includes(`stampSnippet(config, "${slug}"`) ||
+          inSectionTable(slug),
+        `index.ts never stamps "${slug}" after installing it, so its gate would reinstall on every pass`,
+      ).toBe(true);
+    },
+  );
 
   test("the ungated list stays honest", () => {
     // A gate added for one of these belongs in the gated set above — delete
     // the exception rather than leaving the list describing a machine that
     // no longer exists.
     for (const slug of UNGATED) {
-      expect(gateIn(slug), `"${slug}" now has a gate in index.ts — remove it from UNGATED`).toBe(false);
+      expect(
+        gateIn(slug),
+        `"${slug}" now has a gate in index.ts — remove it from UNGATED`,
+      ).toBe(false);
     }
   });
 
@@ -876,74 +995,79 @@ describe("the refresh gates in index.ts", () => {
   });
 });
 
-describe.each(REAL_SECTIONS)("regression matrix over real specs: %s", (_slug, spec, body) => {
-  const userDoc = [
-    "# My CLAUDE.md",
-    "",
-    "## My Personal Notes",
-    "DO NOT LOSE THIS",
-    "",
-    "## My Deploy Runbook",
-    "step 1: ssh bastion",
-    "",
-  ].join("\n");
-
-  test("installed into a real file, found again, and byte-identical under repeated updates", () => {
-    const once = applySnippet(userDoc, spec, body, true).text;
-    expect(findOwnedSections(once, spec)).toHaveLength(1);
-    expect(once).toContain("DO NOT LOSE THIS");
-    expect(once).toContain("ssh bastion");
-    expect(once).not.toMatch(/\n{3,}/);
-    const twice = applySnippet(once, spec, body, true);
-    expect(twice.unchanged).toBe(true);
-    expect(twice.text).toBe(once);
-    const thrice = applySnippet(twice.text, spec, body, true).text;
-    expect(thrice).toBe(once);
-  });
-
-  test("an end marker stranded ABOVE the heading does not eat the rest of the file", () => {
-    // The original data-loss shape: detection saw the marker anywhere in the
-    // file, the cut searched only below the heading, found nothing, and ran to
-    // end of file — deleting every later section, user content included.
-    const stranded = [
+describe.each(REAL_SECTIONS)(
+  "regression matrix over real specs: %s",
+  (_slug, spec, body) => {
+    const userDoc = [
       "# My CLAUDE.md",
-      "",
-      "## Notes",
-      "I pasted a fragment here once:",
-      spec.endMarker,
-      "",
-      spec.headings[0],
-      "never terminated",
       "",
       "## My Personal Notes",
       "DO NOT LOSE THIS",
       "",
+      "## My Deploy Runbook",
+      "step 1: ssh bastion",
+      "",
     ].join("\n");
-    const out = applySnippet(stranded, spec, body, true).text;
-    expect(out).toContain("## My Personal Notes");
-    expect(out).toContain("DO NOT LOSE THIS");
-    // The ambiguous unterminated block survives too — no probe matches it.
-    expect(out).toContain("never terminated");
-  });
 
-  test("a user section sharing our heading survives an update", () => {
-    const doc = [
-      "# My CLAUDE.md",
-      "",
-      spec.headings[0],
-      "MY OWN notes under a heading codecast also uses.",
-      "",
-      "## Architecture",
-      "The billing service owns invoices.",
-      "",
-    ].join("\n");
-    // The real block lands below the user's; the update then refreshes ours
-    // and only ours, and a second pass reproduces the bytes exactly.
-    const withReal = applySnippet(doc, spec, body, true).text;
-    const updated = applySnippet(withReal, spec, body, true);
-    expect(updated.text).toBe(withReal);
-    expect(updated.text).toContain("MY OWN notes under a heading codecast also uses.");
-    expect(updated.text).toContain("The billing service owns invoices.");
-    expect(findOwnedSections(updated.text, spec)).toHaveLength(1);
-  });
-});
+    test("installed into a real file, found again, and byte-identical under repeated updates", () => {
+      const once = applySnippet(userDoc, spec, body, true).text;
+      expect(findOwnedSections(once, spec)).toHaveLength(1);
+      expect(once).toContain("DO NOT LOSE THIS");
+      expect(once).toContain("ssh bastion");
+      expect(once).not.toMatch(/\n{3,}/);
+      const twice = applySnippet(once, spec, body, true);
+      expect(twice.unchanged).toBe(true);
+      expect(twice.text).toBe(once);
+      const thrice = applySnippet(twice.text, spec, body, true).text;
+      expect(thrice).toBe(once);
+    });
+
+    test("an end marker stranded ABOVE the heading does not eat the rest of the file", () => {
+      // The original data-loss shape: detection saw the marker anywhere in the
+      // file, the cut searched only below the heading, found nothing, and ran to
+      // end of file — deleting every later section, user content included.
+      const stranded = [
+        "# My CLAUDE.md",
+        "",
+        "## Notes",
+        "I pasted a fragment here once:",
+        spec.endMarker,
+        "",
+        spec.headings[0],
+        "never terminated",
+        "",
+        "## My Personal Notes",
+        "DO NOT LOSE THIS",
+        "",
+      ].join("\n");
+      const out = applySnippet(stranded, spec, body, true).text;
+      expect(out).toContain("## My Personal Notes");
+      expect(out).toContain("DO NOT LOSE THIS");
+      // The ambiguous unterminated block survives too — no probe matches it.
+      expect(out).toContain("never terminated");
+    });
+
+    test("a user section sharing our heading survives an update", () => {
+      const doc = [
+        "# My CLAUDE.md",
+        "",
+        spec.headings[0],
+        "MY OWN notes under a heading codecast also uses.",
+        "",
+        "## Architecture",
+        "The billing service owns invoices.",
+        "",
+      ].join("\n");
+      // The real block lands below the user's; the update then refreshes ours
+      // and only ours, and a second pass reproduces the bytes exactly.
+      const withReal = applySnippet(doc, spec, body, true).text;
+      const updated = applySnippet(withReal, spec, body, true);
+      expect(updated.text).toBe(withReal);
+      expect(updated.text).toContain(
+        "MY OWN notes under a heading codecast also uses.",
+      );
+      expect(updated.text).toContain("The billing service owns invoices.");
+      expect(findOwnedSections(updated.text, spec)).toHaveLength(1);
+    });
+  },
+);

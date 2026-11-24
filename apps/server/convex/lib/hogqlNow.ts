@@ -3,15 +3,29 @@
 // other way cannot be moved, and a comparison against now() names the window.
 
 /** Clock reads other than now(): a query using one cannot be moved to a past instant. */
-const OTHER_CLOCKS = /\b(today|yesterday|now64|nowInBlock|current_timestamp|current_date|currentDate|currentTimestamp|localtimestamp|utc_timestamp|unix_timestamp)\b/i;
-const UNIT_MS: Record<string, number> = { second: 1e3, minute: 6e4, hour: 36e5, day: 864e5, week: 7 * 864e5, month: 30 * 864e5, quarter: 91 * 864e5, year: 365 * 864e5 };
+const OTHER_CLOCKS =
+  /\b(today|yesterday|now64|nowInBlock|current_timestamp|current_date|currentDate|currentTimestamp|localtimestamp|utc_timestamp|unix_timestamp)\b/i;
+const UNIT_MS: Record<string, number> = {
+  second: 1e3,
+  minute: 6e4,
+  hour: 36e5,
+  day: 864e5,
+  week: 7 * 864e5,
+  month: 30 * 864e5,
+  quarter: 91 * 864e5,
+  year: 365 * 864e5,
+};
 const UNITS = "second|minute|hour|day|week|month|quarter|year";
 /** `<column> <op> ` right before a now(). */
 const BEFORE_NOW = /([A-Za-z_][\w.]*)\s*(>=|<=|>|<)\s*$/;
 /** What may come before a column compared against now(): the start, a paren, a comma, or a clause or boolean word. */
-const COMPARISON_OPENS = /(^|[(,]|\b(?:and|or|not|where|prewhere|having|on|when|then|else))\s*$/i;
+const COMPARISON_OPENS =
+  /(^|[(,]|\b(?:and|or|not|where|prewhere|having|on|when|then|else))\s*$/i;
 /** An optional ` - interval N unit` (or toIntervalUnit(N)) right after a now(). */
-const AFTER_NOW = new RegExp(`^\\s*-\\s*(?:interval\\s+(\\d+)\\s+(${UNITS})s?\\b|toInterval(${UNITS})\\s*\\(\\s*(\\d+)\\s*\\))`, "i");
+const AFTER_NOW = new RegExp(
+  `^\\s*-\\s*(?:interval\\s+(\\d+)\\s+(${UNITS})s?\\b|toInterval(${UNITS})\\s*\\(\\s*(\\d+)\\s*\\))`,
+  "i",
+);
 
 /**
  * The query with string literals, quoted names and comments blanked to
@@ -58,7 +72,9 @@ export function hogqlInstant(at: number): string {
   return `toDateTime('${new Date(Math.floor(at / 1000) * 1000).toISOString().replace(".000Z", "Z")}')`;
 }
 
-export type BoundQuery = { ok: true; query: string; window_ms: number | null } | { ok: false; error: string };
+export type BoundQuery =
+  | { ok: true; query: string; window_ms: number | null }
+  | { ok: false; error: string };
 
 /**
  * A HogQL watch query as it would have read at `at`: every now() becomes a
@@ -72,9 +88,14 @@ export type BoundQuery = { ok: true; query: string; window_ms: number | null } |
  */
 export function bindHogqlNow(query: string, at: number): BoundQuery {
   const code = hogqlCodeOnly(query);
-  if (code === null) return { ok: false, error: "The query has an unclosed quote or comment" };
+  if (code === null)
+    return { ok: false, error: "The query has an unclosed quote or comment" };
   const clock = OTHER_CLOCKS.exec(code);
-  if (clock) return { ok: false, error: `The query reads the clock through ${clock[1]}(), which cannot be moved to a past instant; use now()` };
+  if (clock)
+    return {
+      ok: false,
+      error: `The query reads the clock through ${clock[1]}(), which cannot be moved to a past instant; use now()`,
+    };
   const instant = hogqlInstant(at);
   const edits: { start: number; end: number; text: string }[] = [];
   let window: number | null = null;
@@ -82,7 +103,11 @@ export function bindHogqlNow(query: string, at: number): BoundQuery {
   for (let m = calls.exec(code); m; m = calls.exec(code)) {
     // The original text, not the blanked one: now('UTC') blanks to now(     ).
     const close = /^\s*\)/.exec(query.slice(m.index + m[0].length));
-    if (!close) return { ok: false, error: "now() with an argument cannot be bound to a past instant" };
+    if (!close)
+      return {
+        ok: false,
+        error: "now() with an argument cannot be bound to a past instant",
+      };
     const nowEnd = m.index + m[0].length + close[0].length;
     const before = BEFORE_NOW.exec(code.slice(0, m.index));
     const after = AFTER_NOW.exec(code.slice(nowEnd));
@@ -91,8 +116,16 @@ export function bindHogqlNow(query: string, at: number): BoundQuery {
     // The comparison must stand alone: anything but a clause or a boolean
     // before the column, or arithmetic after the bound, makes it another one.
     const next = code.slice(end).trimStart()[0];
-    if (!before || !COMPARISON_OPENS.test(code.slice(0, start)) || (next && "+-*/%(".includes(next))) {
-      return { ok: false, error: "Only a now() compared straight against a column (timestamp > now() - interval 1 day) can be bound to a past instant" };
+    if (
+      !before ||
+      !COMPARISON_OPENS.test(code.slice(0, start)) ||
+      (next && "+-*/%(".includes(next))
+    ) {
+      return {
+        ok: false,
+        error:
+          "Only a now() compared straight against a column (timestamp > now() - interval 1 day) can be bound to a past instant",
+      };
     }
     const [, column, op] = before;
     const shift = query.slice(nowEnd, end);
@@ -100,13 +133,23 @@ export function bindHogqlNow(query: string, at: number): BoundQuery {
       const n = after ? Number(after[1] ?? after[4]) : 0;
       const unit = (after?.[2] ?? after?.[3] ?? "").toLowerCase();
       if (after) window = Math.max(window ?? 0, n * UNIT_MS[unit]);
-      edits.push({ start, end, text: `(${column} ${op} ${instant}${shift} AND ${column} <= ${instant})` });
+      edits.push({
+        start,
+        end,
+        text: `(${column} ${op} ${instant}${shift} AND ${column} <= ${instant})`,
+      });
     } else {
       edits.push({ start: m.index, end: nowEnd, text: instant });
     }
   }
-  if (!edits.length) return { ok: false, error: "The query has no now() to bind, so every past instant would read the same" };
+  if (!edits.length)
+    return {
+      ok: false,
+      error:
+        "The query has no now() to bind, so every past instant would read the same",
+    };
   let out = query;
-  for (const e of edits.sort((a, b) => b.start - a.start)) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  for (const e of edits.sort((a, b) => b.start - a.start))
+    out = out.slice(0, e.start) + e.text + out.slice(e.end);
   return { ok: true, query: out, window_ms: window };
 }

@@ -40,10 +40,15 @@ export type MoveRehearsal = {
 export const MAX_BRING_PATHS = 20;
 
 /** Why a list of paths to bring is refused, or null: absolute, no `..`, a bounded number. */
-export function invalidBringPaths(paths: readonly string[] | undefined): string | null {
+export function invalidBringPaths(
+  paths: readonly string[] | undefined,
+): string | null {
   if (!paths?.length) return null;
-  if (paths.length > MAX_BRING_PATHS) return `At most ${MAX_BRING_PATHS} paths to bring`;
-  const bad = paths.find((p) => !p.startsWith("/") || p.length > 500 || p.split("/").includes(".."));
+  if (paths.length > MAX_BRING_PATHS)
+    return `At most ${MAX_BRING_PATHS} paths to bring`;
+  const bad = paths.find(
+    (p) => !p.startsWith("/") || p.length > 500 || p.split("/").includes(".."),
+  );
   return bad ? `Paths to bring must be absolute: ${bad.slice(0, 80)}` : null;
 }
 
@@ -59,10 +64,15 @@ export function bringsByDefault(p: MoveRehearsalPath): boolean {
  * shows them on the session and the server requires them confirmed
  * (resourceOffload.start), so both build them here.
  */
-export function rehearsalPending(r: MoveRehearsal, bring: readonly string[] = []): string[] {
+export function rehearsalPending(
+  r: MoveRehearsal,
+  bring: readonly string[] = [],
+): string[] {
   const out: string[] = [];
-  for (const m of r.missing) if (!bring.includes(m.path)) out.push(`Leaves behind ${m.path}`);
-  for (const s of r.services) if (s.running) out.push(`Keeps running here: ${s.label}`);
+  for (const m of r.missing)
+    if (!bring.includes(m.path)) out.push(`Leaves behind ${m.path}`);
+  for (const s of r.services)
+    if (s.running) out.push(`Keeps running here: ${s.label}`);
   const absent = r.tools.missing.filter((t) => !r.tools.installs.includes(t));
   if (absent.length) out.push(`Host lacks ${absent.join(", ")}`);
   out.push(...r.machine);

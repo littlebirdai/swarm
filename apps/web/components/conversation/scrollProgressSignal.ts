@@ -13,12 +13,16 @@ export type ScrollProgressSignal = {
   subscribe: (listener: () => void) => () => void;
 };
 
-export function createScrollProgressSignal(initial: number): ScrollProgressSignal {
+export function createScrollProgressSignal(
+  initial: number,
+): ScrollProgressSignal {
   let value = initial;
   const listeners = new Set<() => void>();
   return {
     get: () => value,
-    seed: (next) => { value = next; },
+    seed: (next) => {
+      value = next;
+    },
     set: (next) => {
       if (next === value) return;
       value = next;
@@ -26,7 +30,9 @@ export function createScrollProgressSignal(initial: number): ScrollProgressSigna
     },
     subscribe: (listener) => {
       listeners.add(listener);
-      return () => { listeners.delete(listener); };
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 }

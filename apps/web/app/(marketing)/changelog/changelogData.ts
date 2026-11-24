@@ -231,8 +231,14 @@ export const RELEASES: Release[] = [
           "Paired with the stable feed, which injects recent team sessions into every new session at start, sessions have ambient awareness of each other: each one boots knowing which sessions exist, what state they are in, and how to reach them.",
         ],
         docs: [
-          { href: "/documentation/messaging", label: "Messaging between sessions" },
-          { href: "/documentation/ambient-awareness", label: "Ambient awareness" },
+          {
+            href: "/documentation/messaging",
+            label: "Messaging between sessions",
+          },
+          {
+            href: "/documentation/ambient-awareness",
+            label: "Ambient awareness",
+          },
         ],
       },
       {
@@ -519,7 +525,12 @@ export const RELEASES: Release[] = [
           "A tree panel and branch selector let you navigate between forks.",
           "Resume a branch as a fresh agent run, carrying the history up to the fork point.",
         ],
-        docs: [{ href: "/documentation/forks-and-spawn", label: "Forks and spawned sessions" }],
+        docs: [
+          {
+            href: "/documentation/forks-and-spawn",
+            label: "Forks and spawned sessions",
+          },
+        ],
       },
       {
         title: "The stable feed: sessions that know their neighbors",
@@ -531,7 +542,12 @@ export const RELEASES: Release[] = [
           "Each feed entry carries the session's short id, so the agent can read any of them for detail with `cast read`.",
           "Injection is a session-start hook with a timeout. If the fetch fails, the session simply starts without the feed.",
         ],
-        docs: [{ href: "/documentation/ambient-awareness", label: "Ambient awareness" }],
+        docs: [
+          {
+            href: "/documentation/ambient-awareness",
+            label: "Ambient awareness",
+          },
+        ],
       },
       {
         title: "Desktop debut and more agents",
@@ -565,7 +581,10 @@ export const RELEASES: Release[] = [
         ],
         docs: [
           { href: "/documentation/memory", label: "Agent memory" },
-          { href: "/documentation/agent-snippets", label: "How agent snippets work" },
+          {
+            href: "/documentation/agent-snippets",
+            label: "How agent snippets work",
+          },
         ],
       },
       {

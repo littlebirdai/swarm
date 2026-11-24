@@ -11,7 +11,8 @@ import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates";
 import { parseWorkflowSource } from "./parser";
 import { graphToPushPayload } from "./runner";
 
-export const SHIPPED_LINE_SNAPSHOT_PATH = "apps/web/lib/line/shippedLine.generated.ts";
+export const SHIPPED_LINE_SNAPSHOT_PATH =
+  "apps/web/lib/line/shippedLine.generated.ts";
 
 /** The snapshot's data: the push payload of the builtin, the raw source (its
  *  graph attributes, the stack among them, which a pushed row reads back from
@@ -26,9 +27,21 @@ export function shippedLineSnapshot() {
     const ref = (v?: string) => (v?.startsWith("@") ? v.slice(1) : undefined);
     const prompt = ref(n.prompt);
     const script = ref(n.script);
-    if (prompt || script) files[n.id] = { ...(prompt ? { prompt } : {}), ...(script ? { script } : {}) };
+    if (prompt || script)
+      files[n.id] = {
+        ...(prompt ? { prompt } : {}),
+        ...(script ? { script } : {}),
+      };
   }
-  return { name: graph.name, goal: graph.goal, stack, source: lineCast, nodes, edges, files };
+  return {
+    name: graph.name,
+    goal: graph.goal,
+    stack,
+    source: lineCast,
+    nodes,
+    edges,
+    files,
+  };
 }
 
 /** The snapshot file's whole text. */

@@ -8,12 +8,23 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FEATURE_EXPLAINERS, type SnippetDescriptor } from "@codecast/shared/contracts";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
+import {
+  FEATURE_EXPLAINERS,
+  type SnippetDescriptor,
+} from "@codecast/shared/contracts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../ui/dialog";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { hooksOfFeature } from "../../lib/harnessHooksView";
 import { isRecentlyShipped } from "../../lib/newSnippets";
-import { deepDiveForSnippet, featureHref } from "../../app/(marketing)/features/catalog";
+import {
+  deepDiveForSnippet,
+  featureHref,
+} from "../../app/(marketing)/features/catalog";
 import { FeatureVignette } from "./FeatureVignette";
 import { featureIcon, featureTone } from "./featureLook";
 import { modernPill } from "../ui/modernLook";
@@ -48,7 +59,9 @@ export function FeatureDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex max-h-[90dvh] max-w-3xl flex-col gap-0 overflow-hidden border-sol-border bg-sol-bg p-0">
         <div className="flex items-start gap-4 border-b border-sol-border px-6 pb-5 pt-6 pr-12">
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${tone.tile}`}>
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${tone.tile}`}
+          >
             <Icon className="h-5 w-5" strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
@@ -56,24 +69,43 @@ export function FeatureDialog({
               {name}
               {feature && isRecentlyShipped(feature) && <NewPill />}
             </DialogTitle>
-            <DialogDescription className="mt-1 text-[13.5px] leading-snug text-sol-text-secondary">{e.pitch}</DialogDescription>
+            <DialogDescription className="mt-1 text-[13.5px] leading-snug text-sol-text-secondary">
+              {e.pitch}
+            </DialogDescription>
           </div>
           {control}
         </div>
 
         <div className="scrollbar-auto min-h-0 flex-1 overflow-y-auto">
-          <FeatureVignette slug={slug} className="h-[210px] rounded-none border-0 border-b border-sol-border/50 text-meta" />
+          <FeatureVignette
+            slug={slug}
+            className="h-[210px] rounded-none border-0 border-b border-sol-border/50 text-meta"
+          />
 
-          {setup && <div className="border-b border-sol-border/50 px-6 py-5">{setup}</div>}
+          {setup && (
+            <div className="border-b border-sol-border/50 px-6 py-5">
+              {setup}
+            </div>
+          )}
 
           <div className="grid gap-x-8 gap-y-6 px-6 py-6 sm:grid-cols-2">
-            <ExplainList title="What you'll see" items={e.youSee} dot={tone.dot} />
-            <ExplainList title="When agents use it" items={e.agentsUse} dot={tone.dot} />
+            <ExplainList
+              title="What you'll see"
+              items={e.youSee}
+              dot={tone.dot}
+            />
+            <ExplainList
+              title="When agents use it"
+              items={e.agentsUse}
+              dot={tone.dot}
+            />
           </div>
 
           <div className="mx-6 rounded-lg border border-sol-border/70 bg-sol-bg-alt/50 px-4 py-3">
             <div className="text-meta text-sol-text-dim">Try asking</div>
-            <p className="mt-1 text-[13.5px] text-sol-text">&ldquo;{e.tryIt}&rdquo;</p>
+            <p className="mt-1 text-[13.5px] text-sol-text">
+              &ldquo;{e.tryIt}&rdquo;
+            </p>
           </div>
 
           {(e.surface || deep) && (
@@ -92,7 +124,12 @@ export function FeatureDialog({
                 </button>
               )}
               {deep && (
-                <a href={featureHref(deep.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sol-text-muted hover:text-sol-text">
+                <a
+                  href={featureHref(deep.slug)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sol-text-muted hover:text-sol-text"
+                >
                   The full tour of {deep.name}
                   <ArrowUpRight className="h-3 w-3" />
                 </a>
@@ -101,10 +138,16 @@ export function FeatureDialog({
           )}
 
           <dl className="mx-6 mt-6 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2 border-t border-sol-border/60 pt-5 text-[12px]">
-            {feature && <DetailRow label="Writes to">{feature.writesTo}</DetailRow>}
+            {feature && (
+              <DetailRow label="Writes to">{feature.writesTo}</DetailRow>
+            )}
             {hooks.map((h) => (
               <DetailRow key={h.file} label="Hook">
-                {h.name} (<span className="modern:font-mono">~/.claude/hooks/{h.file}</span>), added and removed with the switch
+                {h.name} (
+                <span className="modern:font-mono">
+                  ~/.claude/hooks/{h.file}
+                </span>
+                ), added and removed with the switch
               </DetailRow>
             ))}
             {feature && <DetailRow label="Since">{feature.shipped}</DetailRow>}
@@ -113,10 +156,17 @@ export function FeatureDialog({
           {feature?.section && (
             <details className="group/read mx-6 mb-6 mt-6">
               <summary className="cursor-pointer list-none text-xs font-medium text-sol-text-muted hover:text-sol-text">
-                <span className="inline-block transition-transform group-open/read:rotate-90">›</span> Read exactly what your agent reads
+                <span className="inline-block transition-transform group-open/read:rotate-90">
+                  ›
+                </span>{" "}
+                Read exactly what your agent reads
               </summary>
               <div className="mt-3 rounded-lg border border-sol-border/70 bg-sol-bg-alt/40 px-5 py-4 text-[13px]">
-                <MarkdownRenderer content={feature.section.body.trim().replace(/\n<!-- \/codecast-[^>]+-->\s*$/, "")} />
+                <MarkdownRenderer
+                  content={feature.section.body
+                    .trim()
+                    .replace(/\n<!-- \/codecast-[^>]+-->\s*$/, "")}
+                />
               </div>
             </details>
           )}
@@ -127,14 +177,29 @@ export function FeatureDialog({
   );
 }
 
-function ExplainList({ title, items, dot }: { title: string; items: string[]; dot: string }) {
+function ExplainList({
+  title,
+  items,
+  dot,
+}: {
+  title: string;
+  items: string[];
+  dot: string;
+}) {
   return (
     <div>
-      <h3 className="mb-2.5 text-[13px] font-semibold text-sol-text">{title}</h3>
+      <h3 className="mb-2.5 text-[13px] font-semibold text-sol-text">
+        {title}
+      </h3>
       <ul className="space-y-2">
         {items.map((it) => (
-          <li key={it} className="flex gap-2.5 text-[13px] leading-relaxed text-sol-text-secondary">
-            <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+          <li
+            key={it}
+            className="flex gap-2.5 text-[13px] leading-relaxed text-sol-text-secondary"
+          >
+            <span
+              className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${dot}`}
+            />
             <span>{it}</span>
           </li>
         ))}
@@ -143,17 +208,31 @@ function ExplainList({ title, items, dot }: { title: string; items: string[]; do
   );
 }
 
-function DetailRow({ label, mono, children }: { label: string; mono?: boolean; children: React.ReactNode }) {
+function DetailRow({
+  label,
+  mono,
+  children,
+}: {
+  label: string;
+  mono?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <>
       <dt className="text-sol-text-dim">{label}</dt>
-      <dd className={`text-sol-text-secondary ${mono ? "font-mono" : ""}`}>{children}</dd>
+      <dd className={`text-sol-text-secondary ${mono ? "font-mono" : ""}`}>
+        {children}
+      </dd>
     </>
   );
 }
 
 export function NewPill() {
   return (
-    <span className={`rounded-full border border-sol-cyan/30 bg-sol-cyan/10 px-1.5 py-px text-meta text-sol-cyan ${modernPill({ tone: "cyan" })}`}>New</span>
+    <span
+      className={`rounded-full border border-sol-cyan/30 bg-sol-cyan/10 px-1.5 py-px text-meta text-sol-cyan ${modernPill({ tone: "cyan" })}`}
+    >
+      New
+    </span>
   );
 }

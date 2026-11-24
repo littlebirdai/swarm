@@ -27,14 +27,52 @@ import {
   type ModernTone,
 } from "../modernLook";
 
-const VARIANTS: ModernButtonVariant[] = ["primary", "outline", "secondary", "ghost", "danger", "soft", "link"];
-const SIZES: (ModernButtonSize | null)[] = ["xs", "sm", "md", "lg", "icon-xs", "icon-sm", "icon", null];
-const TONES: ModernTone[] = ["neutral", "cyan", "green", "amber", "yellow", "orange", "red", "blue", "violet", "magenta"];
+const VARIANTS: ModernButtonVariant[] = [
+  "primary",
+  "outline",
+  "secondary",
+  "ghost",
+  "danger",
+  "soft",
+  "link",
+];
+const SIZES: (ModernButtonSize | null)[] = [
+  "xs",
+  "sm",
+  "md",
+  "lg",
+  "icon-xs",
+  "icon-sm",
+  "icon",
+  null,
+];
+const TONES: ModernTone[] = [
+  "neutral",
+  "cyan",
+  "green",
+  "amber",
+  "yellow",
+  "orange",
+  "red",
+  "blue",
+  "violet",
+  "magenta",
+];
 
 const every = (): [string, string][] => [
-  ...VARIANTS.flatMap((variant) => SIZES.flatMap((size) => TONES.map((tone): [string, string] => [`button ${variant} ${size} ${tone}`, modernButton({ variant, size, tone })]))),
+  ...VARIANTS.flatMap((variant) =>
+    SIZES.flatMap((size) =>
+      TONES.map((tone): [string, string] => [
+        `button ${variant} ${size} ${tone}`,
+        modernButton({ variant, size, tone }),
+      ]),
+    ),
+  ),
   ["button default", modernButton()],
-  ...TONES.map((tone): [string, string] => [`pill ${tone}`, modernPill({ tone })]),
+  ...TONES.map((tone): [string, string] => [
+    `pill ${tone}`,
+    modernPill({ tone }),
+  ]),
   ["pill default", modernPill()],
   ["pill block", modernPill({ tone: "cyan", block: true })],
   ["pill shape", modernPillShape()],
@@ -68,12 +106,15 @@ describe("modernLook", () => {
 
   test("no look sets a size under the 12px floor or names a raw palette colour", () => {
     for (const [name, look] of every()) {
-      expect(`${name}: ${look}`).not.toMatch(/text-\[(\d|1[01])(\.\d+)?px\]|text-mark|(?:bg|text|border)-(?:gray|zinc|slate|neutral|amber|sky)-\d|#[0-9a-f]{3,6}/i);
+      expect(`${name}: ${look}`).not.toMatch(
+        /text-\[(\d|1[01])(\.\d+)?px\]|text-mark|(?:bg|text|border)-(?:gray|zinc|slate|neutral|amber|sky)-\d|#[0-9a-f]{3,6}/i,
+      );
     }
   });
 
   test("beside a call site's own classes, cn() keeps every Classic class", () => {
-    const classic = "inline-flex items-center gap-1 rounded-md border border-sol-border/50 bg-sol-bg-alt px-2 py-0.5 text-[11px] text-sol-text-dim hover:bg-sol-bg-highlight focus:ring-1";
+    const classic =
+      "inline-flex items-center gap-1 rounded-md border border-sol-border/50 bg-sol-bg-alt px-2 py-0.5 text-[11px] text-sol-text-dim hover:bg-sol-bg-highlight focus:ring-1";
     for (const [name, look] of every()) {
       const merged = cn(classic, look).split(" ");
       for (const c of classic.split(" ")) {
@@ -86,10 +127,18 @@ describe("modernLook", () => {
     expect(modernPill({ tone: "green" })).toContain("modern:bg-sol-green/10");
     expect(modernPill({ tone: "green" })).toContain("modern:text-sol-green");
     expect(modernPill()).toContain("modern:text-sol-text-muted");
-    expect(modernButton({ variant: "soft", tone: "amber" })).toContain("modern:bg-sol-amber/10");
-    expect(modernButton({ variant: "outline", size: "sm" })).toContain("modern:h-control-sm");
-    expect(modernButton({ variant: "outline", size: "icon-xs" })).toContain("modern:size-6");
-    expect(modernButton({ variant: "outline", size: null })).not.toMatch(/modern:h-|modern:size-/);
+    expect(modernButton({ variant: "soft", tone: "amber" })).toContain(
+      "modern:bg-sol-amber/10",
+    );
+    expect(modernButton({ variant: "outline", size: "sm" })).toContain(
+      "modern:h-control-sm",
+    );
+    expect(modernButton({ variant: "outline", size: "icon-xs" })).toContain(
+      "modern:size-6",
+    );
+    expect(modernButton({ variant: "outline", size: null })).not.toMatch(
+      /modern:h-|modern:size-/,
+    );
     expect(modernTab({ active: true })).toContain("modern:bg-sol-card");
     expect(modernTab({ active: false })).not.toContain("modern:bg-sol-card");
     expect(modernChip({ active: true })).toContain("modern:text-sol-cyan");
@@ -98,7 +147,9 @@ describe("modernLook", () => {
 
   test("a runtime colour class picks its tone", () => {
     expect(modernToneOf("text-sol-yellow")).toBe("yellow");
-    expect(modernToneOf("bg-sol-green/10 text-sol-green border-sol-green/30")).toBe("green");
+    expect(
+      modernToneOf("bg-sol-green/10 text-sol-green border-sol-green/30"),
+    ).toBe("green");
     expect(modernToneOf("text-sol-text-dim")).toBe("neutral");
     expect(modernToneOf("text-gray-500")).toBe("neutral");
     expect(modernToneOf(undefined)).toBe("neutral");
@@ -114,7 +165,15 @@ describe("modernLook", () => {
   });
 
   test("two looks merge, the later one winning", () => {
-    expect(cn(modernButton({ variant: "outline", size: "sm" }), "modern:h-6").split(" ")).not.toContain("modern:h-control-sm");
-    expect(cn(modernPill({ tone: "neutral" }), modernPill({ tone: "red" })).split(" ")).not.toContain("modern:bg-sol-text/[0.07]");
+    expect(
+      cn(modernButton({ variant: "outline", size: "sm" }), "modern:h-6").split(
+        " ",
+      ),
+    ).not.toContain("modern:h-control-sm");
+    expect(
+      cn(modernPill({ tone: "neutral" }), modernPill({ tone: "red" })).split(
+        " ",
+      ),
+    ).not.toContain("modern:bg-sol-text/[0.07]");
   });
 });

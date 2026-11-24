@@ -31,9 +31,26 @@ import { offerShotFile } from "../browser/shotFile.js";
 import { agentSetupLines } from "@codecast/shared/contracts/agentToolSetup";
 import { asComputerError, ComputerError, grantSetupLines } from "./errors.js";
 import { actionVerdict, failedActionVerdict, verdictLine } from "./verdict.js";
-import { formatAction, formatApps, formatCapabilities, formatSnapshot, formatWindows, jsonChanges } from "./format.js";
-import { diffTrees, filterTree, formatDiff, resolveElement, type TreeFilter } from "./tree.js";
-import { rewriteScreenshotForJson, screenshotDir, sweepScreenshots } from "./screenshotFile.js";
+import {
+  formatAction,
+  formatApps,
+  formatCapabilities,
+  formatSnapshot,
+  formatWindows,
+  jsonChanges,
+} from "./format.js";
+import {
+  diffTrees,
+  filterTree,
+  formatDiff,
+  resolveElement,
+  type TreeFilter,
+} from "./tree.js";
+import {
+  rewriteScreenshotForJson,
+  screenshotDir,
+  sweepScreenshots,
+} from "./screenshotFile.js";
 import type { ComputerSetupDeps } from "./setup.js";
 import type {
   ComputerActionMethod,
@@ -141,7 +158,10 @@ export interface ComputerClientLike {
   listApps(): Promise<ComputerListAppsResult>;
   listWindows(params: unknown): Promise<ComputerListWindowsResult>;
   getAppState(params: unknown): Promise<ComputerSnapshotResult>;
-  action(method: ComputerActionMethod, params: unknown): Promise<ComputerActionResult>;
+  action(
+    method: ComputerActionMethod,
+    params: unknown,
+  ): Promise<ComputerActionResult>;
   shutdown(): void;
 }
 
@@ -171,7 +191,18 @@ export interface ComputerRunDeps {
 // ── flag parsing ───────────────────────────────────────────────────────────
 
 const MODIFIERS = new Set([
-  "alt", "cmd", "cmdorctrl", "command", "commandorcontrol", "control", "ctrl", "meta", "option", "shift", "super", "win",
+  "alt",
+  "cmd",
+  "cmdorctrl",
+  "command",
+  "commandorcontrol",
+  "control",
+  "ctrl",
+  "meta",
+  "option",
+  "shift",
+  "super",
+  "win",
 ]);
 
 function invalid(message: string): ComputerError {
@@ -203,12 +234,15 @@ export function splitChord(spec: string): string[] {
   return parts;
 }
 
-const isModifier = (part: string): boolean => MODIFIERS.has(part.trim().toLowerCase());
+const isModifier = (part: string): boolean =>
+  MODIFIERS.has(part.trim().toLowerCase());
 
 /** One key, no chord — except the literal `+`, which IS one key. */
 export function validatePressKey(key: string): string {
   if (splitChord(key).length !== 1) {
-    throw invalid("press-key accepts one key only, for example Return, Escape, Tab, or +. Use hotkey for modifier combinations.");
+    throw invalid(
+      "press-key accepts one key only, for example Return, Escape, Tab, or +. Use hotkey for modifier combinations.",
+    );
   }
   return key;
 }
@@ -218,7 +252,9 @@ export function validateHotkey(key: string): string {
   const parts = splitChord(key);
   const keys = parts.filter((part) => !isModifier(part));
   if (parts.length < 2 || keys.length !== 1) {
-    throw invalid("hotkey requires a modifier and one key, for example CmdOrCtrl+A. Use press-key for a single key.");
+    throw invalid(
+      "hotkey requires a modifier and one key, for example CmdOrCtrl+A. Use press-key for a single key.",
+    );
   }
   return key;
 }
@@ -232,17 +268,29 @@ export function validateHotkey(key: string): string {
  */
 export function validateModifiers(spec: string): string {
   const parts = splitChord(spec);
-  if (!parts.length || parts.length > 4 || parts.some((part) => !isModifier(part))) {
-    throw invalid("click modifiers accept modifier keys only, for example CmdOrCtrl or CmdOrCtrl+Shift.");
+  if (
+    !parts.length ||
+    parts.length > 4 ||
+    parts.some((part) => !isModifier(part))
+  ) {
+    throw invalid(
+      "click modifiers accept modifier keys only, for example CmdOrCtrl or CmdOrCtrl+Shift.",
+    );
   }
   return spec;
 }
 
 /** An integer flag, bounded before any conversion so `1e300` fails as a flag
  *  rather than trapping downstream. */
-function intFlag(flag: string, raw: string | undefined, min: number, max: number): number | undefined {
+function intFlag(
+  flag: string,
+  raw: string | undefined,
+  min: number,
+  max: number,
+): number | undefined {
   if (raw === undefined) return undefined;
-  if (!/^-?\d+$/.test(raw.trim())) throw invalid(`${flag} must be an integer between ${min} and ${max}`);
+  if (!/^-?\d+$/.test(raw.trim()))
+    throw invalid(`${flag} must be an integer between ${min} and ${max}`);
   const value = Number(raw.trim());
   if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw invalid(`${flag} must be an integer between ${min} and ${max}`);
@@ -250,40 +298,63 @@ function intFlag(flag: string, raw: string | undefined, min: number, max: number
   return value;
 }
 
-function numberFlag(flag: string, raw: string | undefined, min: number, max: number): number | undefined {
+function numberFlag(
+  flag: string,
+  raw: string | undefined,
+  min: number,
+  max: number,
+): number | undefined {
   if (raw === undefined) return undefined;
-  if (!/^-?\d+(\.\d+)?$/.test(raw.trim())) throw invalid(`${flag} must be a number between ${min} and ${max}`);
+  if (!/^-?\d+(\.\d+)?$/.test(raw.trim()))
+    throw invalid(`${flag} must be a number between ${min} and ${max}`);
   const value = Number(raw.trim());
-  if (!Number.isFinite(value) || value < min || value > max) throw invalid(`${flag} must be a number between ${min} and ${max}`);
+  if (!Number.isFinite(value) || value < min || value > max)
+    throw invalid(`${flag} must be a number between ${min} and ${max}`);
   return value;
 }
 
 /** `--crop x,y,w,h` in window points. */
 function cropFlag(raw: string): ComputerRect {
   const parts = raw.split(",").map((p) => p.trim());
-  const usage = "--crop takes x,y,width,height in window points, e.g. --crop 0,0,400,300";
+  const usage =
+    "--crop takes x,y,width,height in window points, e.g. --crop 0,0,400,300";
   if (parts.length !== 4) throw invalid(usage);
-  const [x, y, width, height] = parts.map((p) => numberFlag("--crop", p, -1_000_000, 1_000_000)!);
+  const [x, y, width, height] = parts.map((p) =>
+    numberFlag("--crop", p, -1_000_000, 1_000_000)!,
+  );
   if (!(width > 0 && height > 0)) throw invalid(usage);
   return { x, y, width, height };
 }
 
-function oneOf(flag: string, raw: string | undefined, allowed: string[]): string | undefined {
+function oneOf(
+  flag: string,
+  raw: string | undefined,
+  allowed: string[],
+): string | undefined {
   if (raw === undefined) return undefined;
   const value = raw.trim().toLowerCase();
-  if (!allowed.includes(value)) throw invalid(`${flag} must be one of ${allowed.join(", ")}`);
+  if (!allowed.includes(value))
+    throw invalid(`${flag} must be one of ${allowed.join(", ")}`);
   return value;
 }
 
 /** The app and window selector every targeted verb shares. */
 function targetParams(o: ComputerOptions): Record<string, unknown> {
   const app = (o.app ?? "").trim();
-  if (!app) throw invalid("--app is required: a bundle id (com.apple.TextEdit), an app name (TextEdit), or pid:1234");
+  if (!app)
+    throw invalid(
+      "--app is required: a bundle id (com.apple.TextEdit), an app name (TextEdit), or pid:1234",
+    );
   if (o.windowId !== undefined && o.windowIndex !== undefined) {
     throw invalid("use either --window-id or --window-index, not both");
   }
   const params: Record<string, unknown> = { app };
-  const windowId = intFlag("--window-id", o.windowId, 0, Number.MAX_SAFE_INTEGER);
+  const windowId = intFlag(
+    "--window-id",
+    o.windowId,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
   const windowIndex = intFlag("--window-index", o.windowIndex, 0, 4096);
   if (windowId !== undefined) params.windowId = windowId;
   if (windowIndex !== undefined) params.windowIndex = windowIndex;
@@ -297,10 +368,19 @@ function targetParams(o: ComputerOptions): Record<string, unknown> {
  * says what it changed, and a window capture is hundreds of kilobytes an agent
  * rarely needs after every click. `--screenshot` asks for one.
  */
-function observeParams(verb: ComputerVerb, o: ComputerOptions): Record<string, unknown> {
+function observeParams(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+): Record<string, unknown> {
   const params: Record<string, unknown> = {};
-  const wantShot = verb in ACTION_METHOD ? o.screenshot === true : o.screenshot !== false && verb === "get-app-state";
-  if (o.crop !== undefined && !wantShot) throw invalid("--crop shapes the screenshot, so it needs one (drop --no-screenshot)");
+  const wantShot =
+    verb in ACTION_METHOD
+      ? o.screenshot === true
+      : o.screenshot !== false && verb === "get-app-state";
+  if (o.crop !== undefined && !wantShot)
+    throw invalid(
+      "--crop shapes the screenshot, so it needs one (drop --no-screenshot)",
+    );
   if (!wantShot) params.noScreenshot = true;
   else {
     // The helper writes the picture here; the CLI owns the directory's sweep.
@@ -328,15 +408,29 @@ function treeFilter(o: ComputerOptions): TreeFilter {
 /** An element index or a coordinate pair, and never both — they name different
  *  things, and guessing which one the agent meant is how a click lands
  *  somewhere nobody asked for. */
-function pointParams(verb: string, o: ComputerOptions): Record<string, unknown> {
+function pointParams(
+  verb: string,
+  o: ComputerOptions,
+): Record<string, unknown> {
   const hasIndex = o.elementIndex !== undefined;
   const hasCoords = o.x !== undefined || o.y !== undefined;
-  if (hasIndex && hasCoords) throw invalid(`use either --element-index or --x and --y for ${verb}, not both`);
-  if (hasIndex) return { elementIndex: intFlag("--element-index", o.elementIndex, 0, 100_000) };
+  if (hasIndex && hasCoords)
+    throw invalid(
+      `use either --element-index or --x and --y for ${verb}, not both`,
+    );
+  if (hasIndex)
+    return {
+      elementIndex: intFlag("--element-index", o.elementIndex, 0, 100_000),
+    };
   if (o.x === undefined || o.y === undefined) {
-    throw invalid(`${verb} requires --element-index, or --x and --y together (window-local coordinates)`);
+    throw invalid(
+      `${verb} requires --element-index, or --x and --y together (window-local coordinates)`,
+    );
   }
-  return { x: numberFlag("--x", o.x, -1_000_000, 1_000_000), y: numberFlag("--y", o.y, -1_000_000, 1_000_000) };
+  return {
+    x: numberFlag("--x", o.x, -1_000_000, 1_000_000),
+    y: numberFlag("--y", o.y, -1_000_000, 1_000_000),
+  };
 }
 
 /**
@@ -345,22 +439,38 @@ function pointParams(verb: string, o: ComputerOptions): Record<string, unknown> 
  * Empty stdin is refused for text and accepted for a value, because typing
  * nothing is a mistake while clearing a field is a real action.
  */
-function payload(kind: "text" | "value", verb: string, o: ComputerOptions, deps: ComputerRunDeps): string {
+function payload(
+  kind: "text" | "value",
+  verb: string,
+  o: ComputerOptions,
+  deps: ComputerRunDeps,
+): string {
   const literal = kind === "text" ? o.text : o.value;
   const fromStdin = kind === "text" ? o.textStdin : o.valueStdin;
-  if (literal !== undefined && fromStdin) throw invalid(`use either --${kind} or --${kind}-stdin, not both`);
+  if (literal !== undefined && fromStdin)
+    throw invalid(`use either --${kind} or --${kind}-stdin, not both`);
   if (literal !== undefined) return literal;
-  if (!fromStdin) throw invalid(`${verb} requires --${kind} or --${kind}-stdin (stdin keeps secrets out of argv)`);
+  if (!fromStdin)
+    throw invalid(
+      `${verb} requires --${kind} or --${kind}-stdin (stdin keeps secrets out of argv)`,
+    );
   const isTty = deps.stdinIsTty ?? (() => !!process.stdin.isTTY);
   if (isTty()) throw invalid("stdin payload requested but stdin is a terminal");
   const body = (deps.readStdin ?? readStdinBody)();
-  if (kind === "text" && body === "") throw invalid(`--text-stdin received no input; ${verb} has nothing to send`);
+  if (kind === "text" && body === "")
+    throw invalid(
+      `--text-stdin received no input; ${verb} has nothing to send`,
+    );
   return body;
 }
 
 /** Flags to the helper's params, mechanically. Exported so a test can assert
  *  the mapping without a helper. */
-export function buildParams(verb: ComputerVerb, o: ComputerOptions, deps: ComputerRunDeps = {}): Record<string, unknown> {
+export function buildParams(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+  deps: ComputerRunDeps = {},
+): Record<string, unknown> {
   const base = { ...targetParams(o), ...observeParams(verb, o) };
   switch (verb) {
     case "list-windows":
@@ -371,35 +481,85 @@ export function buildParams(verb: ComputerVerb, o: ComputerOptions, deps: Comput
     case "wait":
       return base;
     case "click": {
-      const params: Record<string, unknown> = { ...base, ...pointParams("click", o) };
+      const params: Record<string, unknown> = {
+        ...base,
+        ...pointParams("click", o),
+      };
       if (o.mouse) {
-        if (params.elementIndex === undefined) throw invalid("--mouse clicks an element's center; pass --element or --element-index (a coordinate click is already a mouse click)");
+        if (params.elementIndex === undefined)
+          throw invalid(
+            "--mouse clicks an element's center; pass --element or --element-index (a coordinate click is already a mouse click)",
+          );
         params.mouse = true;
       }
       const clickCount = intFlag("--click-count", o.clickCount, 1, 3);
       if (clickCount !== undefined) params.clickCount = clickCount;
-      const mouseButton = oneOf("--mouse-button", o.mouseButton, ["left", "right", "middle"]);
+      const mouseButton = oneOf("--mouse-button", o.mouseButton, [
+        "left",
+        "right",
+        "middle",
+      ]);
       if (mouseButton) params.mouseButton = mouseButton;
-      if (o.modifiers !== undefined) params.modifiers = validateModifiers(o.modifiers);
+      if (o.modifiers !== undefined)
+        params.modifiers = validateModifiers(o.modifiers);
       return params;
     }
     case "perform-secondary-action": {
       const action = (o.action ?? "").trim();
-      if (!action) throw invalid("perform-secondary-action requires --action, named exactly as the element's Secondary Actions list it");
-      return { ...base, elementIndex: intFlag("--element-index", require1(o.elementIndex, "--element-index"), 0, 100_000), action };
+      if (!action)
+        throw invalid(
+          "perform-secondary-action requires --action, named exactly as the element's Secondary Actions list it",
+        );
+      return {
+        ...base,
+        elementIndex: intFlag(
+          "--element-index",
+          require1(o.elementIndex, "--element-index"),
+          0,
+          100_000,
+        ),
+        action,
+      };
     }
     case "drag": {
-      const params: Record<string, unknown> = { ...base, ...pointParams("drag", o) };
+      const params: Record<string, unknown> = {
+        ...base,
+        ...pointParams("drag", o),
+      };
       const hasToIndex = o.toElementIndex !== undefined;
-      if (hasToIndex && (o.toX !== undefined || o.toY !== undefined)) throw invalid("use either --to-element-index or --to-x and --to-y for drag, not both");
-      if (hasToIndex) params.toElementIndex = intFlag("--to-element-index", o.toElementIndex, 0, 100_000);
-      else if (o.toX === undefined || o.toY === undefined) throw invalid("drag requires where to drop: --to-element, --to-element-index, or --to-x and --to-y together");
-      else Object.assign(params, { toX: numberFlag("--to-x", o.toX, -1_000_000, 1_000_000), toY: numberFlag("--to-y", o.toY, -1_000_000, 1_000_000) });
+      if (hasToIndex && (o.toX !== undefined || o.toY !== undefined))
+        throw invalid(
+          "use either --to-element-index or --to-x and --to-y for drag, not both",
+        );
+      if (hasToIndex)
+        params.toElementIndex = intFlag(
+          "--to-element-index",
+          o.toElementIndex,
+          0,
+          100_000,
+        );
+      else if (o.toX === undefined || o.toY === undefined)
+        throw invalid(
+          "drag requires where to drop: --to-element, --to-element-index, or --to-x and --to-y together",
+        );
+      else
+        Object.assign(params, {
+          toX: numberFlag("--to-x", o.toX, -1_000_000, 1_000_000),
+          toY: numberFlag("--to-y", o.toY, -1_000_000, 1_000_000),
+        });
       return params;
     }
     case "scroll": {
-      const direction = oneOf("--direction", require1(o.direction, "--direction"), ["up", "down", "left", "right"]);
-      const params: Record<string, unknown> = { ...base, ...pointParams("scroll", o), direction };
+      const direction = oneOf(
+        "--direction",
+        require1(o.direction, "--direction"),
+        ["up", "down", "left", "right"],
+      );
+      const params: Record<string, unknown> = {
+        ...base,
+        ...pointParams("scroll", o),
+        direction,
+      };
       const pages = numberFlag("--pages", o.pages, 0.1, 100);
       if (pages !== undefined) params.pages = pages;
       return params;
@@ -415,7 +575,12 @@ export function buildParams(verb: ComputerVerb, o: ComputerOptions, deps: Comput
     case "set-value":
       return {
         ...base,
-        elementIndex: intFlag("--element-index", require1(o.elementIndex, "--element-index"), 0, 100_000),
+        elementIndex: intFlag(
+          "--element-index",
+          require1(o.elementIndex, "--element-index"),
+          0,
+          100_000,
+        ),
         value: payload("value", "set-value", o, deps),
       };
     default:
@@ -424,7 +589,8 @@ export function buildParams(verb: ComputerVerb, o: ComputerOptions, deps: Comput
 }
 
 function require1(value: string | undefined, flag: string): string {
-  if (value === undefined || value.trim() === "") throw invalid(`${flag} is required`);
+  if (value === undefined || value.trim() === "")
+    throw invalid(`${flag} is required`);
   return value;
 }
 
@@ -459,37 +625,68 @@ function printJson(sink: ComputerSink, body: Record<string, unknown>): void {
  * and prints the report line, and the marker is emitted only for that file,
  * which this command just produced, at an absolute path.
  */
-function emitScreenshot(result: ComputerSnapshotResult, o: ComputerOptions, sink: ComputerSink): void {
+function emitScreenshot(
+  result: ComputerSnapshotResult,
+  o: ComputerOptions,
+  sink: ComputerSink,
+): void {
   const file = result.screenshot?.path;
   if (!file) return;
   sweepScreenshots();
   try {
-    const abs = offerShotFile(file, { inline: o.inline, quiet: sink.quietShots });
+    const abs = offerShotFile(file, {
+      inline: o.inline,
+      quiet: sink.quietShots,
+    });
     if (abs) sink.image(abs);
   } catch (err) {
     // The tree is the answer; a picture that cannot be read is a note, not a failure.
-    console.error(fmt.muted(`  screenshot not shown: ${err instanceof Error ? err.message : String(err)}`));
+    console.error(
+      fmt.muted(
+        `  screenshot not shown: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   }
 }
 
 /** The `--json` body: the screenshot as a path, and what changed in place of
  *  the raw tree it was compared against. */
-function jsonBody(result: ComputerSnapshotResult | ComputerActionResult, action = false): Record<string, unknown> {
-  const { baselineTreeText: _baseline, pixelChange: _pixels, ...rest } = rewriteScreenshotForJson(result) as ComputerActionResult;
+function jsonBody(
+  result: ComputerSnapshotResult | ComputerActionResult,
+  action = false,
+): Record<string, unknown> {
+  const {
+    baselineTreeText: _baseline,
+    pixelChange: _pixels,
+    ...rest
+  } = rewriteScreenshotForJson(result) as ComputerActionResult;
   const changes = jsonChanges(result);
   const verdict = action ? { verdict: actionVerdict(result) } : {};
-  return (changes ? { ...rest, changes, ...verdict } : { ...rest, ...verdict }) as unknown as Record<string, unknown>;
+  return (changes
+    ? { ...rest, changes, ...verdict }
+    : { ...rest, ...verdict }) as unknown as Record<string, unknown>;
 }
 
-function emitSnapshot(result: ComputerSnapshotResult, o: ComputerOptions, sink: ComputerSink): void {
+function emitSnapshot(
+  result: ComputerSnapshotResult,
+  o: ComputerOptions,
+  sink: ComputerSink,
+): void {
   if (o.json) return printJson(sink, jsonBody(result));
   sink.log(formatSnapshot(result, treeFilter(o), !!o.diff));
   emitScreenshot(result, o, sink);
 }
 
-function emitAction(verb: ComputerVerb, result: ComputerActionResult, o: ComputerOptions, sink: ComputerSink): void {
+function emitAction(
+  verb: ComputerVerb,
+  result: ComputerActionResult,
+  o: ComputerOptions,
+  sink: ComputerSink,
+): void {
   if (o.json) return printJson(sink, jsonBody(result, true));
-  sink.log(formatAction(ACTION_METHOD[verb], o.app ?? "", result, treeFilter(o)));
+  sink.log(
+    formatAction(ACTION_METHOD[verb], o.app ?? "", result, treeFilter(o)),
+  );
   emitScreenshot(result, o, sink);
 }
 
@@ -501,14 +698,28 @@ function emitAction(verb: ComputerVerb, result: ComputerActionResult, o: Compute
  * recovery text, not the exit status — sixteen exit codes would be a second
  * vocabulary saying less than the first.
  */
-function fail(err: unknown, o: ComputerOptions, deps: ComputerRunDeps, verb?: ComputerVerb): never {
+function fail(
+  err: unknown,
+  o: ComputerOptions,
+  deps: ComputerRunDeps,
+  verb?: ComputerVerb,
+): never {
   const error = asComputerError(err);
-  const verdict = verb && verb in ACTION_METHOD ? failedActionVerdict(error) : undefined;
-  if (o.json) console.log(JSON.stringify({ ...error.toJSON(), ...(verdict ? { verdict } : {}) }, null, 2));
+  const verdict =
+    verb && verb in ACTION_METHOD ? failedActionVerdict(error) : undefined;
+  if (o.json)
+    console.log(
+      JSON.stringify(
+        { ...error.toJSON(), ...(verdict ? { verdict } : {}) },
+        null,
+        2,
+      ),
+    );
   else {
     console.error(`${fmt.error(icons.cross)} ${error.message}`);
     if (verdict) console.error(`  ${verdictLine(verdict)}`);
-    for (const line of error.toJSON().recovery) console.error(`  ${fmt.muted(line)}`);
+    for (const line of error.toJSON().recovery)
+      console.error(`  ${fmt.muted(line)}`);
   }
   // On stderr either way, so a --json reader's stdout stays one document.
   for (const line of grantSetupLines(error)) console.error(line);
@@ -528,26 +739,41 @@ async function defaultClient(): Promise<ComputerClientLike> {
   // and relaunch the very same bundle, which reports the very same version — a
   // refusal loop rather than a mismatch (ct-49672). The protocol check is the
   // real compatibility gate, and it stays unconditional.
-  const [{ ComputerClient }, { getVersion }, { helperIsEmbedded }] = await Promise.all([
-    import("./client.js"),
-    import("../cliVersion.js"),
-    import("./helperPayload.js"),
-  ]);
-  return new ComputerClient({ version: helperIsEmbedded() ? getVersion() : undefined });
+  const [{ ComputerClient }, { getVersion }, { helperIsEmbedded }] =
+    await Promise.all([
+      import("./client.js"),
+      import("../cliVersion.js"),
+      import("./helperPayload.js"),
+    ]);
+  return new ComputerClient({
+    version: helperIsEmbedded() ? getVersion() : undefined,
+  });
 }
 
 /** Where a verb runs: `--on`, else CAST_COMPUTER_ON, else this machine (undefined). */
-export function computerTarget(o: Pick<ComputerOptions, "on">, env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function computerTarget(
+  o: Pick<ComputerOptions, "on">,
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   return (o.on ?? env.CAST_COMPUTER_ON)?.trim() || undefined;
 }
 
-export async function createComputerClient(deps: ComputerRunDeps, on?: string): Promise<ComputerClientLike> {
+export async function createComputerClient(
+  deps: ComputerRunDeps,
+  on?: string,
+): Promise<ComputerClientLike> {
   if (deps.createClient) return deps.createClient();
   if (!on) return await defaultClient();
-  const [{ isRemoteDevice }, { RemoteComputerClient }, { sessionIdFromEnv }] = await Promise.all([
-    import("../remote/device.js"), import("./remoteClient.js"), import("../sessionIdentity.js"),
-  ]);
-  if (!isRemoteDevice()) throw invalid(`--on ${on} is for a session on a cloud host reaching its person's laptop; this machine is not a cloud host, so drop --on`);
+  const [{ isRemoteDevice }, { RemoteComputerClient }, { sessionIdFromEnv }] =
+    await Promise.all([
+      import("../remote/device.js"),
+      import("./remoteClient.js"),
+      import("../sessionIdentity.js"),
+    ]);
+  if (!isRemoteDevice())
+    throw invalid(
+      `--on ${on} is for a session on a cloud host reaching its person's laptop; this machine is not a cloud host, so drop --on`,
+    );
   return new RemoteComputerClient({ on, session: sessionIdFromEnv() });
 }
 
@@ -556,7 +782,13 @@ async function defaultPermissions(): Promise<ComputerPermissionApi> {
 }
 
 /** Verbs that act on one element, and so accept `--element <query>`. */
-const ELEMENT_VERBS = new Set<ComputerVerb>(["click", "perform-secondary-action", "scroll", "set-value", "drag"]);
+const ELEMENT_VERBS = new Set<ComputerVerb>([
+  "click",
+  "perform-secondary-action",
+  "scroll",
+  "set-value",
+  "drag",
+]);
 
 /**
  * `--element <query>` to `--element-index`, against a tree read just now.
@@ -564,20 +796,37 @@ const ELEMENT_VERBS = new Set<ComputerVerb>(["click", "perform-secondary-action"
  * The read is also what the helper validates the index against, so a name
  * resolves and acts inside one command with no stale-index window between.
  */
-async function resolveElementOption(verb: ComputerVerb, o: ComputerOptions, client: ComputerClientLike): Promise<ComputerOptions> {
+async function resolveElementOption(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+  client: ComputerClientLike,
+): Promise<ComputerOptions> {
   if (o.element === undefined && o.toElement === undefined) return o;
-  if (!ELEMENT_VERBS.has(verb)) throw invalid(`--element does not apply to ${verb}`);
-  if (o.element !== undefined && o.elementIndex !== undefined) throw invalid("use either --element or --element-index, not both");
-  if (o.toElement !== undefined && o.toElementIndex !== undefined) throw invalid("use either --to-element or --to-element-index, not both");
+  if (!ELEMENT_VERBS.has(verb))
+    throw invalid(`--element does not apply to ${verb}`);
+  if (o.element !== undefined && o.elementIndex !== undefined)
+    throw invalid("use either --element or --element-index, not both");
+  if (o.toElement !== undefined && o.toElementIndex !== undefined)
+    throw invalid("use either --to-element or --to-element-index, not both");
   const nth = intFlag("--nth", o.nth, 1, 1000);
   // One read serves both ends of a drag.
   let tree: string | undefined;
   const lookup = async (query: string, pick?: number): Promise<string> => {
     if (/^#?\d+$/.test(query.trim())) return String(resolveElement("", query));
-    tree ??= (await client.getAppState({ ...targetParams(o), noScreenshot: true })).snapshot.treeText;
-    return String(resolveElement(tree, query, pick, { action: verb === "perform-secondary-action" ? o.action : undefined }));
+    tree ??= (
+      await client.getAppState({ ...targetParams(o), noScreenshot: true })
+    ).snapshot.treeText;
+    return String(
+      resolveElement(tree, query, pick, {
+        action: verb === "perform-secondary-action" ? o.action : undefined,
+      }),
+    );
   };
-  const out: ComputerOptions = { ...o, element: undefined, toElement: undefined };
+  const out: ComputerOptions = {
+    ...o,
+    element: undefined,
+    toElement: undefined,
+  };
   if (o.element !== undefined) out.elementIndex = await lookup(o.element, nth);
   if (o.toElement !== undefined) out.toElementIndex = await lookup(o.toElement);
   return out;
@@ -585,13 +834,21 @@ async function resolveElementOption(verb: ComputerVerb, o: ComputerOptions, clie
 
 /** Validate every flag before anything talks to the helper, with an element
  *  query standing in as an index so a bad chord still costs no launch. */
-export function validateVerb(verb: ComputerVerb, o: ComputerOptions, deps: ComputerRunDeps): void {
+export function validateVerb(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+  deps: ComputerRunDeps,
+): void {
   if (verb === "capabilities" || verb === "list-apps") return;
   treeFilter(o);
   if (verb === "wait") waitSpec(o);
   buildParams(
     verb,
-    { ...o, ...(o.element !== undefined ? { elementIndex: "0" } : {}), ...(o.toElement !== undefined ? { toElementIndex: "0" } : {}) },
+    {
+      ...o,
+      ...(o.element !== undefined ? { elementIndex: "0" } : {}),
+      ...(o.toElement !== undefined ? { toElementIndex: "0" } : {}),
+    },
     deps,
   );
 }
@@ -614,18 +871,24 @@ export async function execute(
     }
     case "list-apps": {
       const result = await client.listApps();
-      if (raw.json) printJson(sink, result as unknown as Record<string, unknown>);
+      if (raw.json)
+        printJson(sink, result as unknown as Record<string, unknown>);
       else sink.log(formatApps(result));
       return;
     }
     case "list-windows": {
       const result = await client.listWindows(buildParams(verb, raw, deps));
-      if (raw.json) printJson(sink, result as unknown as Record<string, unknown>);
+      if (raw.json)
+        printJson(sink, result as unknown as Record<string, unknown>);
       else sink.log(formatWindows(result));
       return;
     }
     case "get-app-state":
-      return emitSnapshot(await client.getAppState(buildParams(verb, raw, deps)), raw, sink);
+      return emitSnapshot(
+        await client.getAppState(buildParams(verb, raw, deps)),
+        raw,
+        sink,
+      );
     case "find":
       return runFind(raw, client, deps, sink);
     case "wait":
@@ -634,22 +897,37 @@ export async function execute(
       const method = ACTION_METHOD[verb];
       if (!method) throw invalid(`unknown verb '${verb}'`);
       const o = await resolveElementOption(verb, raw, client);
-      emitAction(verb, await client.action(method, buildParams(verb, o, deps)), o, sink);
+      emitAction(
+        verb,
+        await client.action(method, buildParams(verb, o, deps)),
+        o,
+        sink,
+      );
     }
   }
 }
 
 /** One entry point for every verb, so validation, error shape and exit code
  *  are decided in exactly one place. */
-export async function runComputerVerb(verb: ComputerVerb, o: ComputerOptions, rawDeps: ComputerRunDeps = {}): Promise<void> {
+export async function runComputerVerb(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+  rawDeps: ComputerRunDeps = {},
+): Promise<void> {
   // Flags are built twice, to validate and then to send, and stdin can be read
   // only once: the second read of a pipe comes back empty.
   let body: string | undefined;
   const read = rawDeps.readStdin ?? readStdinBody;
-  const deps: ComputerRunDeps = { ...rawDeps, readStdin: () => (body ??= read()) };
+  const deps: ComputerRunDeps = {
+    ...rawDeps,
+    readStdin: () => (body ??= read()),
+  };
   try {
     const on = computerTarget(o);
-    if (on && (verb === "permissions" || verb === "setup")) throw invalid(`${verb} is the laptop person's, on the laptop: from here, \`cast devices setup <laptop> computer --start\` puts it on their screen`);
+    if (on && (verb === "permissions" || verb === "setup"))
+      throw invalid(
+        `${verb} is the laptop person's, on the laptop: from here, \`cast devices setup <laptop> computer --start\` puts it on their screen`,
+      );
     if (verb === "permissions") return await runPermissions(o, deps);
     if (verb === "setup") return await runSetup(o, deps);
     // Flags are validated first, so a bad chord or an out-of-range number costs
@@ -667,7 +945,12 @@ export async function runComputerVerb(verb: ComputerVerb, o: ComputerOptions, ra
 }
 
 /** `find <text>`: the matching elements and their ancestors, no screenshot. */
-async function runFind(o: ComputerOptions, client: ComputerClientLike, deps: ComputerRunDeps, sink: ComputerSink): Promise<void> {
+async function runFind(
+  o: ComputerOptions,
+  client: ComputerClientLike,
+  deps: ComputerRunDeps,
+  sink: ComputerSink,
+): Promise<void> {
   const result = await client.getAppState(buildParams("find", o, deps));
   if (o.json) return printJson(sink, jsonBody(result));
   const win = result.snapshot.window;
@@ -685,10 +968,19 @@ interface WaitSpec {
 
 function waitSpec(o: ComputerOptions): WaitSpec {
   const text = o.text?.trim() || undefined;
-  if (!text && !o.change) throw invalid("wait needs --text <text> (add --gone to wait for it to disappear) or --change");
-  if (text && o.change) throw invalid("use either --text or --change, not both");
+  if (!text && !o.change)
+    throw invalid(
+      "wait needs --text <text> (add --gone to wait for it to disappear) or --change",
+    );
+  if (text && o.change)
+    throw invalid("use either --text or --change, not both");
   const seconds = numberFlag("--timeout", o.timeout, 0.1, 120) ?? 10;
-  return { text, gone: !!o.gone, change: !!o.change, timeoutMs: seconds * 1000 };
+  return {
+    text,
+    gone: !!o.gone,
+    change: !!o.change,
+    timeoutMs: seconds * 1000,
+  };
 }
 
 const WAIT_POLL_MS = 250;
@@ -701,7 +993,12 @@ const WAIT_LINES = 12;
  * fills a list. Without this an agent sleeps a guessed number of seconds and
  * snapshots, and either waits too long or reads the old state.
  */
-async function runWait(o: ComputerOptions, client: ComputerClientLike, deps: ComputerRunDeps, sink: ComputerSink): Promise<void> {
+async function runWait(
+  o: ComputerOptions,
+  client: ComputerClientLike,
+  deps: ComputerRunDeps,
+  sink: ComputerSink,
+): Promise<void> {
   const spec = waitSpec(o);
   const params = buildParams("wait", o, deps);
   const started = Date.now();
@@ -711,23 +1008,47 @@ async function runWait(o: ComputerOptions, client: ComputerClientLike, deps: Com
     const tree = result.snapshot.treeText;
     const hits = spec.text ? filterTree(tree, { find: spec.text }) : null;
     first ??= tree;
-    const met = spec.text ? (spec.gone ? hits === null : hits !== null) : tree !== first;
+    const met = spec.text
+      ? spec.gone
+        ? hits === null
+        : hits !== null
+      : tree !== first;
     const waited = ((Date.now() - started) / 1000).toFixed(1);
     if (met) {
-      if (o.json) return printJson(sink, { waitedMs: Date.now() - started, ...jsonBody(result) });
-      if (spec.change) sink.log(`Changed after ${waited}s.\n${formatDiff(diffTrees(first, tree)) ?? tree}`);
+      if (o.json)
+        return printJson(sink, {
+          waitedMs: Date.now() - started,
+          ...jsonBody(result),
+        });
+      if (spec.change)
+        sink.log(
+          `Changed after ${waited}s.\n${formatDiff(diffTrees(first, tree)) ?? tree}`,
+        );
       else if (spec.gone) sink.log(`'${spec.text}' is gone after ${waited}s.`);
       else {
         // The matches and where they sit, not every line under them.
         const lines = (hits ?? "").split("\n");
-        const shown = lines.length > WAIT_LINES ? [...lines.slice(0, WAIT_LINES), `… ${lines.length - WAIT_LINES} more (find prints them all)`] : lines;
-        sink.log(`'${spec.text}' appeared after ${waited}s:\n${shown.join("\n")}`);
+        const shown =
+          lines.length > WAIT_LINES
+            ? [
+                ...lines.slice(0, WAIT_LINES),
+                `… ${lines.length - WAIT_LINES} more (find prints them all)`,
+              ]
+            : lines;
+        sink.log(
+          `'${spec.text}' appeared after ${waited}s:\n${shown.join("\n")}`,
+        );
       }
       return;
     }
     if (Date.now() - started >= spec.timeoutMs) {
-      const what = spec.text ? `'${spec.text}' did not ${spec.gone ? "disappear" : "appear"}` : "the window's tree did not change";
-      throw new ComputerError("action_timeout", `${what} within ${spec.timeoutMs / 1000}s`);
+      const what = spec.text
+        ? `'${spec.text}' did not ${spec.gone ? "disappear" : "appear"}`
+        : "the window's tree did not change";
+      throw new ComputerError(
+        "action_timeout",
+        `${what} within ${spec.timeoutMs / 1000}s`,
+      );
     }
     await new Promise((r) => setTimeout(r, WAIT_POLL_MS));
   }
@@ -738,14 +1059,23 @@ async function runWait(o: ComputerOptions, client: ComputerClientLike, deps: Com
  * a window on screen, so the raise lives behind its confirm and nowhere else
  * (design 11.2, 13; `focusRaise.guard.test.ts` holds the split).
  */
-async function runSetup(o: ComputerOptions, deps: ComputerRunDeps): Promise<void> {
+async function runSetup(
+  o: ComputerOptions,
+  deps: ComputerRunDeps,
+): Promise<void> {
   const api = await (deps.permissions ?? defaultPermissions)();
   const { defaultSetupDeps, runComputerSetup } = await import("./setup.js");
   const isTty = deps.stdinIsTty ?? (() => !!process.stdin.isTTY);
-  await runComputerSetup({ yes: !!o.yes }, { ...defaultSetupDeps(api, isTty), ...deps.setup });
+  await runComputerSetup(
+    { yes: !!o.yes },
+    { ...defaultSetupDeps(api, isTty), ...deps.setup },
+  );
 }
 
-async function runPermissions(o: ComputerOptions, deps: ComputerRunDeps): Promise<void> {
+async function runPermissions(
+  o: ComputerOptions,
+  deps: ComputerRunDeps,
+): Promise<void> {
   const api = await (deps.permissions ?? defaultPermissions)();
   const id = o.id?.trim().toLowerCase();
   if (id !== undefined && id !== "accessibility" && id !== "screenshots") {
@@ -760,10 +1090,16 @@ async function runPermissions(o: ComputerOptions, deps: ComputerRunDeps): Promis
     : o.openSettings
       ? await api.openPermissionSettings(permissionId)
       : await api.readPermissionStatus(permissionId);
-  if (o.json) printJson(consoleSink, result as unknown as Record<string, unknown>);
-  else for (const line of api.formatPermissionsReport(result)) console.log(line);
+  if (o.json)
+    printJson(consoleSink, result as unknown as Record<string, unknown>);
+  else
+    for (const line of api.formatPermissionsReport(result)) console.log(line);
   // A Mac missing a grant only a person can give: the transcript shows the setup card.
-  if (result.platform === "darwin" && !result.helperUnavailableReason && result.permissions.some((p) => p.status === "not-granted")) {
+  if (
+    result.platform === "darwin" &&
+    !result.helperUnavailableReason &&
+    result.permissions.some((p) => p.status === "not-granted")
+  ) {
     for (const line of agentSetupLines("computer")) console.error(line);
   }
 }

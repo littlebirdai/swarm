@@ -20,8 +20,17 @@ export { useRoomRecordingMark } from "@codecast/web/lib/calls/recordingPress";
 /** One recording field of the room's row, as a scalar the store compares
  *  (a whole row changes ref with every flag on it). Absent on a server that
  *  predates recording, which then offers no button. */
-export function useRecordingField<K extends keyof RoomRecordingFields>(roomKey: string | null, key: K): RoomRecordingFields[K] | undefined {
-  return useInboxStore((s) => (roomKey ? ((s.callRooms as any)[roomKey] as RoomRecordingFields | undefined)?.[key] : undefined));
+export function useRecordingField<K extends keyof RoomRecordingFields>(
+  roomKey: string | null,
+  key: K,
+): RoomRecordingFields[K] | undefined {
+  return useInboxStore((s) =>
+    roomKey
+      ? ((s.callRooms as any)[roomKey] as RoomRecordingFields | undefined)?.[
+          key
+        ]
+      : undefined,
+  );
 }
 
 /** Stop for everyone, asked once more first: one tap must not end the room's
@@ -36,7 +45,9 @@ export function useConfirmStopRecording(roomKey: string | null): () => void {
         onPress: () => {
           if (!roomKey) return;
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          void pressRoomRecording(roomKey, false, (message) => appAlert("Couldn't stop the recording", message));
+          void pressRoomRecording(roomKey, false, (message) =>
+            appAlert("Couldn't stop the recording", message),
+          );
         },
       },
     ]);

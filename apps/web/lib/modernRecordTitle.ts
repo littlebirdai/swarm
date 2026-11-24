@@ -10,12 +10,16 @@ import { lookup } from "./liveEntities";
 type Rows = Record<string, any> | undefined;
 
 /** The name of the object a path shows, or null when the store does not hold it. */
-export function modernRecordTitle(path: string, s: { [key: string]: unknown } | undefined): string | null {
+export function modernRecordTitle(
+  path: string,
+  s: { [key: string]: unknown } | undefined,
+): string | null {
   if (!s) return null;
   const [, kind, ref, sub] = path.split("#")[0].split("?")[0].split("/");
   if (!ref) return null;
   const rows = (key: string) => s[key] as Rows;
-  const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.replace(/\s+/g, " ").trim() : null);
+  const text = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.replace(/\s+/g, " ").trim() : null;
   switch (kind) {
     case "tasks":
       return text(lookup(rows("tasks"), ref)?.title);

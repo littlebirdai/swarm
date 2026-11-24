@@ -15,8 +15,14 @@ import { describe, expect, test } from "bun:test";
 import { DEVICES, type DeviceProfile } from "./devices.js";
 import type { PageSession } from "./instance.js";
 import {
-  captureAtViewports, eachViewport, pageViewportCapture, parseViewport, parseViewportList, runViewportRow,
-  viewportLabel, type ViewportCapture,
+  captureAtViewports,
+  eachViewport,
+  pageViewportCapture,
+  parseViewport,
+  parseViewportList,
+  runViewportRow,
+  viewportLabel,
+  type ViewportCapture,
 } from "./viewports.js";
 import * as os from "node:os";
 import * as fs from "node:fs";
@@ -27,13 +33,23 @@ function fakeCapture(opts: { failOn?: string } = {}) {
   const log: string[] = [];
   const evals: string[] = [];
   const cap: ViewportCapture = {
-    setViewport: async (d: DeviceProfile) => { log.push(`set:${d.width}`); },
-    clearViewport: async () => { log.push("clear"); },
-    settle: async () => { log.push("settle"); },
-    evaluate: async (js: string) => { evals.push(js); return undefined; },
+    setViewport: async (d: DeviceProfile) => {
+      log.push(`set:${d.width}`);
+    },
+    clearViewport: async () => {
+      log.push("clear");
+    },
+    settle: async () => {
+      log.push("settle");
+    },
+    evaluate: async (js: string) => {
+      evals.push(js);
+      return undefined;
+    },
     screenshot: async () => {
       const last = log.filter((l) => l.startsWith("set:")).pop();
-      if (opts.failOn && last === `set:${opts.failOn}`) throw new Error("capture failed");
+      if (opts.failOn && last === `set:${opts.failOn}`)
+        throw new Error("capture failed");
       log.push("shot");
       return Buffer.from(last ?? "");
     },
@@ -50,7 +66,12 @@ describe("parseViewport", () => {
 
   test("resolves an explicit WxH as a plain desktop screen", () => {
     const vp = parseViewport("1024x768");
-    expect(vp?.device).toEqual({ width: 1024, height: 768, scale: 1, mobile: false });
+    expect(vp?.device).toEqual({
+      width: 1024,
+      height: 768,
+      scale: 1,
+      mobile: false,
+    });
   });
 
   test("rejects anything else", () => {
@@ -62,12 +83,16 @@ describe("parseViewport", () => {
 
 describe("parseViewportList", () => {
   test("keeps order, trims whitespace, drops duplicates", () => {
-    const names = parseViewportList("desktop, mobile,desktop,1024x768").map((v) => v.name);
+    const names = parseViewportList("desktop, mobile,desktop,1024x768").map(
+      (v) => v.name,
+    );
     expect(names).toEqual(["desktop", "mobile", "1024x768"]);
   });
 
   test("names the offending entry", () => {
-    expect(() => parseViewportList("desktop,phablet")).toThrow("unknown viewport 'phablet'");
+    expect(() => parseViewportList("desktop,phablet")).toThrow(
+      "unknown viewport 'phablet'",
+    );
   });
 
   test("rejects an empty list", () => {
@@ -88,9 +113,14 @@ describe("eachViewport", () => {
   test("applies each viewport in order and captures at it", async () => {
     const { cap, log } = fakeCapture();
     const seen: string[] = [];
-    await eachViewport(cap, list, undefined, async (vp) => { seen.push(vp.name); });
+    await eachViewport(cap, list, undefined, async (vp) => {
+      seen.push(vp.name);
+    });
     expect(seen).toEqual(["desktop", "mobile"]);
-    expect(log.filter((l) => l.startsWith("set:"))).toEqual([`set:${DEVICES.desktop.width}`, `set:${DEVICES.mobile.width}`]);
+    expect(log.filter((l) => l.startsWith("set:"))).toEqual([
+      `set:${DEVICES.desktop.width}`,
+      `set:${DEVICES.mobile.width}`,
+    ]);
   });
 
   test("clears emulation afterwards when the tab had none", async () => {
@@ -121,12 +151,28 @@ describe("captureAtViewports", () => {
 
   test("returns one labelled shot per viewport, in order, taken after settling", async () => {
     const { cap, log } = fakeCapture();
-    const shots = await captureAtViewports(cap, list, undefined, { format: "png" });
+    const shots = await captureAtViewports(cap, list, undefined, {
+      format: "png",
+    });
     expect(shots.map((s) => s.vp.name)).toEqual(["desktop", "mobile"]);
-    expect(shots.map((s) => s.label)).toEqual(["desktop 1440×900", "mobile 390×844"]);
-    expect(shots.map((s) => s.bytes.toString())).toEqual([`set:${DEVICES.desktop.width}`, `set:${DEVICES.mobile.width}`]);
+    expect(shots.map((s) => s.label)).toEqual([
+      "desktop 1440×900",
+      "mobile 390×844",
+    ]);
+    expect(shots.map((s) => s.bytes.toString())).toEqual([
+      `set:${DEVICES.desktop.width}`,
+      `set:${DEVICES.mobile.width}`,
+    ]);
     // set → settle → shot, per viewport, then the restore.
-    expect(log).toEqual(["set:1440", "settle", "shot", "set:390", "settle", "shot", "clear"]);
+    expect(log).toEqual([
+      "set:1440",
+      "settle",
+      "shot",
+      "set:390",
+      "settle",
+      "shot",
+      "clear",
+    ]);
   });
 
   test("stamps the label into the page for the capture and removes it after", async () => {
@@ -142,8 +188,12 @@ describe("captureAtViewports", () => {
   });
 
   test("removes the label and restores the viewport when the screenshot throws", async () => {
-    const { cap, log, evals } = fakeCapture({ failOn: String(DEVICES.mobile.width) });
-    await expect(captureAtViewports(cap, list, DEVICES.tablet, { format: "png" })).rejects.toThrow("capture failed");
+    const { cap, log, evals } = fakeCapture({
+      failOn: String(DEVICES.mobile.width),
+    });
+    await expect(
+      captureAtViewports(cap, list, DEVICES.tablet, { format: "png" }),
+    ).rejects.toThrow("capture failed");
     expect(evals[evals.length - 1]).toContain("const label = null");
     expect(log[log.length - 1]).toBe(`set:${DEVICES.tablet.width}`);
   });
@@ -158,23 +208,46 @@ describe("runViewportRow format", () => {
       clearViewport: async () => {},
       settle: async () => {},
       evaluate: async () => undefined,
-      screenshot: async (opts) => { formats.push(opts.format ?? "png"); return Buffer.from("x"); },
+      screenshot: async (opts) => {
+        formats.push(opts.format ?? "png");
+        return Buffer.from("x");
+      },
     };
     return { cap, formats };
   };
 
   test("a .jpg --out means JPEG capture even without --jpeg", async () => {
     const { cap, formats } = shotFormats();
-    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "vp-")), "row.jpg");
-    await runViewportRow(cap, "desktop", undefined, { out, inline: false }, {} as any);
+    const out = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "vp-")),
+      "row.jpg",
+    );
+    await runViewportRow(
+      cap,
+      "desktop",
+      undefined,
+      { out, inline: false },
+      {} as any,
+    );
     expect(formats).toEqual(["jpeg"]);
-    expect(fs.existsSync(path.join(path.dirname(out), "row-desktop.jpg"))).toBe(true);
+    expect(fs.existsSync(path.join(path.dirname(out), "row-desktop.jpg"))).toBe(
+      true,
+    );
   });
 
   test("no hint at all means PNG", async () => {
     const { cap, formats } = shotFormats();
-    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "vp-")), "row.png");
-    await runViewportRow(cap, "desktop", undefined, { out, inline: false }, {} as any);
+    const out = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "vp-")),
+      "row.png",
+    );
+    await runViewportRow(
+      cap,
+      "desktop",
+      undefined,
+      { out, inline: false },
+      {} as any,
+    );
     expect(formats).toEqual(["png"]);
   });
 });
@@ -188,8 +261,10 @@ describe("pageViewportCapture (built-in driver adapter)", () => {
       conn: {
         send: async (method: string) => {
           calls.push(method);
-          if (method === "Runtime.evaluate") return { result: { value: 10000 } };
-          if (method === "Page.captureScreenshot") return { data: Buffer.from("png").toString("base64") };
+          if (method === "Runtime.evaluate")
+            return { result: { value: 10000 } };
+          if (method === "Page.captureScreenshot")
+            return { data: Buffer.from("png").toString("base64") };
           return {};
         },
       },

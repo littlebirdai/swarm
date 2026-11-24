@@ -45,8 +45,14 @@ export function isTccDeniedError(err: unknown): boolean {
  *  already granted). Async on purpose: the syscall BLOCKS until the user
  *  answers the dialog, and the daemon's event loop (heartbeats, watchdog
  *  liveness) must keep running underneath it. */
-export async function probeCursorAccess(cursorPath?: string): Promise<"ok" | "denied" | "missing"> {
-  const storagePath = path.join(cursorPath || defaultCursorPath(), "User", "workspaceStorage");
+export async function probeCursorAccess(
+  cursorPath?: string,
+): Promise<"ok" | "denied" | "missing"> {
+  const storagePath = path.join(
+    cursorPath || defaultCursorPath(),
+    "User",
+    "workspaceStorage",
+  );
   try {
     await fs.promises.readdir(storagePath);
     return "ok";
@@ -76,7 +82,7 @@ export function cursorWatcherDecision(input: {
 export declare interface CursorWatcher {
   on<K extends keyof CursorWatcherEvents>(
     event: K,
-    listener: CursorWatcherEvents[K]
+    listener: CursorWatcherEvents[K],
   ): this;
   emit<K extends keyof CursorWatcherEvents>(
     event: K,
@@ -120,7 +126,7 @@ export class CursorWatcher extends EventEmitter {
     const workspaceStoragePath = path.join(
       this.cursorPath,
       "User",
-      "workspaceStorage"
+      "workspaceStorage",
     );
 
     if (!fs.existsSync(workspaceStoragePath)) {
@@ -134,7 +140,9 @@ export class CursorWatcher extends EventEmitter {
       void this.pollWorkspaces(workspaceStoragePath);
     }, this.pollFrequencyMs);
 
-    setImmediate(() => { void this.pollWorkspaces(workspaceStoragePath); });
+    setImmediate(() => {
+      void this.pollWorkspaces(workspaceStoragePath);
+    });
   }
 
   stop(): void {
@@ -161,7 +169,9 @@ export class CursorWatcher extends EventEmitter {
     }
   }
 
-  private async pollWorkspacesOnce(workspaceStoragePath: string): Promise<void> {
+  private async pollWorkspacesOnce(
+    workspaceStoragePath: string,
+  ): Promise<void> {
     if (this.pollRoot !== workspaceStoragePath) {
       this.pollRoot = workspaceStoragePath;
       this.generation++;
@@ -170,31 +180,69 @@ export class CursorWatcher extends EventEmitter {
       this.workspaceErrorCounts.clear();
       this.isFirstPoll = true;
     }
-    const generation = this.generation, home = process.env.HOME;
-    const current = () => generation === this.generation && home === process.env.HOME && this.pollRoot === workspaceStoragePath;
+    const generation = this.generation,
+      home = process.env.HOME;
+    const current = () =>
+      generation === this.generation &&
+      home === process.env.HOME &&
+      this.pollRoot === workspaceStoragePath;
     try {
-      const rows = await this.readCursorRows({ name: "cursorWorkspaces", root: workspaceStoragePath });
+      const rows = await this.readCursorRows({
+        name: "cursorWorkspaces",
+        root: workspaceStoragePath,
+      });
       if (!current()) return;
-      const rootError = rows.find(row => row.type === "cursorError" && row.path === workspaceStoragePath);
-      if (rootError?.type === "cursorError") throw Object.assign(new Error(rootError.message), { code: rootError.code });
-      const workspaces = rows.filter((row): row is Extract<ScanRow, {type:"cursorWorkspaceDb"}> => row.type === "cursorWorkspaceDb");
-      const present = new Set(workspaces.map(row => row.path));
-      for (const key of this.dbMtimes.keys()) if (!present.has(key)) this.dbMtimes.delete(key);
+      const rootError = rows.find(
+        (row) =>
+          row.type === "cursorError" && row.path === workspaceStoragePath,
+      );
+      if (rootError?.type === "cursorError")
+        throw Object.assign(new Error(rootError.message), {
+          code: rootError.code,
+        });
+      const workspaces = rows.filter(
+        (row): row is Extract<ScanRow, { type: "cursorWorkspaceDb" }> =>
+          row.type === "cursorWorkspaceDb",
+      );
+      const present = new Set(workspaces.map((row) => row.path));
+      for (const key of this.dbMtimes.keys())
+        if (!present.has(key)) this.dbMtimes.delete(key);
       if (this.isFirstPoll) {
         workspaces.sort((a, b) => b.mtimeMs - a.mtimeMs);
         this.isFirstPoll = false;
       }
-      for (const row of rows) if (row.type === "cursorError") this.workspaceReadError(path.basename(path.dirname(row.path)), new Error(row.message));
-      const changed = workspaces.filter(row => this.dbMtimes.get(row.path) !== row.identity);
+      for (const row of rows)
+        if (row.type === "cursorError")
+          this.workspaceReadError(
+            path.basename(path.dirname(row.path)),
+            new Error(row.message),
+          );
+      const changed = workspaces.filter(
+        (row) => this.dbMtimes.get(row.path) !== row.identity,
+      );
       for (let i = 0; i < changed.length; i += 128) {
         const batch = changed.slice(i, i + 128);
-        const observations = await this.readCursorRows({ name: "cursorDatabases", paths: batch.map(row => row.path) });
+        const observations = await this.readCursorRows({
+          name: "cursorDatabases",
+          paths: batch.map((row) => row.path),
+        });
         if (!current()) return;
         for (const workspace of batch) {
           const hash = path.basename(path.dirname(workspace.path));
-          const observation = observations.find(row => (row.type === "cursorDb" || row.type === "cursorError") && row.path === workspace.path);
+          const observation = observations.find(
+            (row) =>
+              (row.type === "cursorDb" || row.type === "cursorError") &&
+              row.path === workspace.path,
+          );
           if (observation?.type !== "cursorDb") {
-            this.workspaceReadError(hash, new Error(observation?.type === "cursorError" ? observation.message : "Cursor observation missing"));
+            this.workspaceReadError(
+              hash,
+              new Error(
+                observation?.type === "cursorError"
+                  ? observation.message
+                  : "Cursor observation missing",
+              ),
+            );
             continue;
           }
           this.checkWorkspaceForChanges(hash, observation);
@@ -220,10 +268,14 @@ export class CursorWatcher extends EventEmitter {
     // Both halves load on demand: the worker client only when a worker is
     // running, which is the daemon, and the in-process pages only when one is
     // not. Neither belongs on the graph of a CLI that never scans (ct-49758).
-    if (daemonWorkersEnabled()) return (await import("./workers/scanClient.js")).collectScan(job);
+    if (daemonWorkersEnabled())
+      return (await import("./workers/scanClient.js")).collectScan(job);
     const { scanPages } = await import("./workers/scanJobs.js");
     const rows: ScanRow[] = [];
-    for await (const page of scanPages(job)) { rows.push(...page); await yieldScanBatch(); }
+    for await (const page of scanPages(job)) {
+      rows.push(...page);
+      await yieldScanBatch();
+    }
     return rows;
   }
 
@@ -231,19 +283,33 @@ export class CursorWatcher extends EventEmitter {
     const count = (this.workspaceErrorCounts.get(hash) || 0) + 1;
     this.workspaceErrorCounts.set(hash, count);
     if (count <= CursorWatcher.ERROR_SUPPRESS_THRESHOLD) {
-      const suffix = count === CursorWatcher.ERROR_SUPPRESS_THRESHOLD ? " (suppressing further errors for this workspace)" : "";
-      this.emit("error", new Error(`Failed to check workspace ${hash}: ${error.message}${suffix}`));
+      const suffix =
+        count === CursorWatcher.ERROR_SUPPRESS_THRESHOLD
+          ? " (suppressing further errors for this workspace)"
+          : "";
+      this.emit(
+        "error",
+        new Error(
+          `Failed to check workspace ${hash}: ${error.message}${suffix}`,
+        ),
+      );
     }
   }
 
-  private checkWorkspaceForChanges(workspaceHash: string, observation: Extract<ScanRow, {type:"cursorDb"}>): void {
-    const {maxRowId, path: dbPath} = observation;
+  private checkWorkspaceForChanges(
+    workspaceHash: string,
+    observation: Extract<ScanRow, { type: "cursorDb" }>,
+  ): void {
+    const { maxRowId, path: dbPath } = observation;
     if (maxRowId === null) return;
 
     const state = this.workspaceStates.get(workspaceHash);
     const emitting = !state ? maxRowId > 0 : maxRowId > state.lastRowId;
     if (!state) {
-      this.workspaceStates.set(workspaceHash, { lastRowId: maxRowId, lastCheck: Date.now() });
+      this.workspaceStates.set(workspaceHash, {
+        lastRowId: maxRowId,
+        lastCheck: Date.now(),
+      });
     } else if (emitting) {
       state.lastRowId = maxRowId;
       state.lastCheck = Date.now();
@@ -252,7 +318,9 @@ export class CursorWatcher extends EventEmitter {
 
     const actualPath = observation.workspacePath || workspaceHash;
     if (!state) {
-      console.log(`[CursorWatcher] Emitting session for ${workspaceHash} (${actualPath}), maxRowId=${maxRowId}`);
+      console.log(
+        `[CursorWatcher] Emitting session for ${workspaceHash} (${actualPath}), maxRowId=${maxRowId}`,
+      );
     }
     this.emit("session", {
       sessionId: workspaceHash,

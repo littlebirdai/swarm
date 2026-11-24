@@ -37,16 +37,64 @@ const EXAMPLES = [
 /** Ideas to start from. One whose kind of app the gallery already shows is
  *  left out, so a newcomer joins that one rather than make a copy. */
 const STARTERS = [
-  { label: "Frog choir", like: /frog|choir/i, prompt: "a frog choir: each person who visits gets a frog that sings one note when tapped" },
-  { label: "Snack vote", like: /vote|poll|snack/i, prompt: "a snack vote with big buttons and a live bar chart of the results" },
-  { label: "Paper plane contest", like: /plane/i, prompt: "a paper plane contest: everyone throws a plane with one swipe, and the longest flight today wins" },
-  { label: "Haiku wall", like: /haiku|poem/i, prompt: "a wall where each visitor adds one line, and every three lines become a haiku card" },
-  { label: "Tiny planets guestbook", like: /guestbook|planet/i, prompt: "a guestbook where every visitor plants a tiny planet that orbits a sun" },
-  { label: "Lunch spinner", like: /lunch|spinner|wheel/i, prompt: "a lunch spinner: everyone adds a place, and one big spin picks today's lunch for the group" },
-  { label: "Word chain", like: /word|chain/i, prompt: "a word chain: each person adds a word that starts with the last letter of the word before, and the chain grows across the screen" },
-  { label: "Desert island picks", like: /island|desert/i, prompt: "desert island picks: everyone names the three things they would bring, and the most picked things rise to the top" },
-  { label: "Cloud spotting", like: /cloud|sky/i, prompt: "a slow sky where each visitor names a cloud shape they see, and the clouds drift by carrying their names" },
-  { label: "Pixel wall", like: /pixel/i, prompt: "a 24 by 24 pixel canvas everyone paints together, one color each" },
+  {
+    label: "Frog choir",
+    like: /frog|choir/i,
+    prompt:
+      "a frog choir: each person who visits gets a frog that sings one note when tapped",
+  },
+  {
+    label: "Snack vote",
+    like: /vote|poll|snack/i,
+    prompt: "a snack vote with big buttons and a live bar chart of the results",
+  },
+  {
+    label: "Paper plane contest",
+    like: /plane/i,
+    prompt:
+      "a paper plane contest: everyone throws a plane with one swipe, and the longest flight today wins",
+  },
+  {
+    label: "Haiku wall",
+    like: /haiku|poem/i,
+    prompt:
+      "a wall where each visitor adds one line, and every three lines become a haiku card",
+  },
+  {
+    label: "Tiny planets guestbook",
+    like: /guestbook|planet/i,
+    prompt:
+      "a guestbook where every visitor plants a tiny planet that orbits a sun",
+  },
+  {
+    label: "Lunch spinner",
+    like: /lunch|spinner|wheel/i,
+    prompt:
+      "a lunch spinner: everyone adds a place, and one big spin picks today's lunch for the group",
+  },
+  {
+    label: "Word chain",
+    like: /word|chain/i,
+    prompt:
+      "a word chain: each person adds a word that starts with the last letter of the word before, and the chain grows across the screen",
+  },
+  {
+    label: "Desert island picks",
+    like: /island|desert/i,
+    prompt:
+      "desert island picks: everyone names the three things they would bring, and the most picked things rise to the top",
+  },
+  {
+    label: "Cloud spotting",
+    like: /cloud|sky/i,
+    prompt:
+      "a slow sky where each visitor names a cloud shape they see, and the clouds drift by carrying their names",
+  },
+  {
+    label: "Pixel wall",
+    like: /pixel/i,
+    prompt: "a 24 by 24 pixel canvas everyone paints together, one color each",
+  },
 ];
 const STARTERS_SHOWN = 4;
 
@@ -66,9 +114,13 @@ export function Home() {
   }, []);
 
   const names = gallery?.apps.map((a) => a.name).join("\n") ?? "";
-  const starters = STARTERS.filter((st) => !st.like.test(names)).slice(0, STARTERS_SHOWN);
+  const starters = STARTERS.filter((st) => !st.like.test(names)).slice(
+    0,
+    STARTERS_SHOWN,
+  );
   // The busiest app takes a double-height tile only when four others can fill the cells beside it.
-  const busy = (gallery?.apps[0]?.here_count ?? 0) > 0 && (gallery?.apps.length ?? 0) >= 5;
+  const busy =
+    (gallery?.apps[0]?.here_count ?? 0) > 0 && (gallery?.apps.length ?? 0) >= 5;
 
   return (
     <div className={s.page}>
@@ -78,14 +130,18 @@ export function Home() {
           <div className={s.make}>
             <h1 className={s.headline}>Make a thing. Pass it around.</h1>
             <p className={s.lede}>
-              Describe an app and Clay builds it in seconds. Anyone with the link can change it by chatting, and everyone sees it change.
+              Describe an app and Clay builds it in seconds. Anyone with the
+              link can change it by chatting, and everyone sees it change.
             </p>
             <MakerBar handle={maker} autoFocus />
             <div className={s.starters}>
               <span>Or start with</span>
               <div className={s.starterChips}>
                 {starters.map((st) => (
-                  <Chip key={st.label} onClick={() => maker.current?.make(st.prompt)}>
+                  <Chip
+                    key={st.label}
+                    onClick={() => maker.current?.make(st.prompt)}
+                  >
                     {st.label}
                   </Chip>
                 ))}
@@ -100,12 +156,16 @@ export function Home() {
             {gallery && gallery.here_total > 0 && (
               <p>
                 <LiveDot />
-                {plural(gallery.here_total, "person", "people")} building in {plural(gallery.active_apps, "app")}
+                {plural(gallery.here_total, "person", "people")} building in{" "}
+                {plural(gallery.active_apps, "app")}
               </p>
             )}
           </div>
           {gallery && gallery.apps.length === 0 ? (
-            <button className={s.emptyTile} onClick={() => maker.current?.focus()}>
+            <button
+              className={s.emptyTile}
+              onClick={() => maker.current?.focus()}
+            >
               Nothing's busy yet. Make the first thing.
             </button>
           ) : (
@@ -132,7 +192,11 @@ function TopBar() {
         Clayground
       </a>
       {me ? (
-        <button className={s.you} onClick={() => openPicker()} aria-label="Change your character">
+        <button
+          className={s.you}
+          onClick={() => openPicker()}
+          aria-label="Change your character"
+        >
           <Face person={me} size={28} />
           <span className={s.youName}>{me.name}</span>
           <span className={s.youSub}>that's you</span>
@@ -159,7 +223,12 @@ function RightNow() {
       </h2>
       <ol className={s.feedRows}>
         {(events ?? []).map((e) => (
-          <FeedRow key={e.id} e={e} now={now} fresh={!seen.current?.has(e.id)} />
+          <FeedRow
+            key={e.id}
+            e={e}
+            now={now}
+            fresh={!seen.current?.has(e.id)}
+          />
         ))}
       </ol>
     </section>
@@ -167,12 +236,24 @@ function RightNow() {
 }
 
 /** "Tango turns the scoreboard gold" over "Tiny platformer · 2m". */
-function FeedRow({ e, now, fresh }: { e: ActivityEvent; now: number; fresh: boolean }) {
+function FeedRow({
+  e,
+  now,
+  fresh,
+}: {
+  e: ActivityEvent;
+  now: number;
+  fresh: boolean;
+}) {
   const justLive = e.live && now - e.at < JUST_LIVE_MS;
   return (
     <li className={fresh ? s.fresh : ""}>
       <Link to={appUrl(e.slug)} title={`${e.who?.name ?? "Clay"} ${e.said}`}>
-        {e.who ? <Face person={e.who} size={24} decorative /> : <Blob size={24} />}
+        {e.who ? (
+          <Face person={e.who} size={24} decorative />
+        ) : (
+          <Blob size={24} />
+        )}
         <span className={s.feedText}>
           <span className={s.feedSaid}>
             <b>{e.who?.name ?? "Clay"}</b> {e.said}
@@ -180,7 +261,11 @@ function FeedRow({ e, now, fresh }: { e: ActivityEvent; now: number; fresh: bool
           <span className={s.feedMeta}>
             <span className={s.feedApp}>{e.app_name}</span>
             {" · "}
-            {justLive ? <span className={s.feedLive}>live now</span> : <time>{ago(e.at, now)}</time>}
+            {justLive ? (
+              <span className={s.feedLive}>live now</span>
+            ) : (
+              <time>{ago(e.at, now)}</time>
+            )}
           </span>
         </span>
       </Link>
@@ -193,7 +278,13 @@ type MakerHandle = { make: (prompt: string) => void; focus: () => void };
 /** The "Make something" bar. Exported for the 404 page. `autoFocus`: ready
  *  to type into on arrival where there is a keyboard and a pointer; a
  *  phone's keyboard would cover the page, so there it waits for a tap. */
-export function MakerBar({ handle, autoFocus = false }: { handle?: React.RefObject<MakerHandle | null>; autoFocus?: boolean }) {
+export function MakerBar({
+  handle,
+  autoFocus = false,
+}: {
+  handle?: React.RefObject<MakerHandle | null>;
+  autoFocus?: boolean;
+}) {
   const identity = useMaybeIdentity();
   const create = useMutation(api.apps.create);
   const toast = useToast();
@@ -212,7 +303,10 @@ export function MakerBar({ handle, autoFocus = false }: { handle?: React.RefObje
     if (autoFocus && typeFirst) input.current?.focus({ preventScroll: true });
   }, [autoFocus, typeFirst]);
 
-  const send = async (prompt: string, creds: NonNullable<typeof identity>["creds"]) => {
+  const send = async (
+    prompt: string,
+    creds: NonNullable<typeof identity>["creds"],
+  ) => {
     try {
       const { slug } = await create({ ...creds, prompt });
       navigate(roomUrl(slug));
@@ -238,11 +332,14 @@ export function MakerBar({ handle, autoFocus = false }: { handle?: React.RefObje
   if (handle) handle.current = { make, focus: () => input.current?.focus() };
 
   return (
-    <form className={s.maker} onSubmit={(e) => {
-      e.preventDefault();
-      // An empty field showing an example makes that example.
-      make(text || (EXAMPLES.includes(example) ? example : ""));
-    }}>
+    <form
+      className={s.maker}
+      onSubmit={(e) => {
+        e.preventDefault();
+        // An empty field showing an example makes that example.
+        make(text || (EXAMPLES.includes(example) ? example : ""));
+      }}
+    >
       <label className={s.makerField}>
         <span className="sr-only">Make something</span>
         <input
@@ -261,9 +358,17 @@ export function MakerBar({ handle, autoFocus = false }: { handle?: React.RefObje
           </span>
         )}
       </label>
-      <Button type="submit" variant="accent" size="lg" busy={busy} className={`${s.makeIt} on-dark`}>
+      <Button
+        type="submit"
+        variant="accent"
+        size="lg"
+        busy={busy}
+        className={`${s.makeIt} on-dark`}
+      >
         Make it
-        <span className={s.makeKey}><Keys keys={["↵"]} hidden /></span>
+        <span className={s.makeKey}>
+          <Keys keys={["↵"]} hidden />
+        </span>
       </Button>
     </form>
   );
@@ -274,7 +379,10 @@ const EXAMPLE_MS = 3_200;
 
 /** "Make something", then after a moment idle, a whole example at a time:
  *  only one that fits the field whole at its width now, never one cut off. */
-function useRotatingExample(active: boolean, input: React.RefObject<HTMLInputElement | null>): string {
+function useRotatingExample(
+  active: boolean,
+  input: React.RefObject<HTMLInputElement | null>,
+): string {
   const [example, setExample] = useState(PLACEHOLDER);
   useEffect(() => {
     if (!active) return setExample(PLACEHOLDER);
@@ -290,7 +398,10 @@ function useRotatingExample(active: boolean, input: React.RefObject<HTMLInputEle
 }
 
 const PLACEHOLDER = "Make something";
-const pen = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+const pen =
+  typeof document === "undefined"
+    ? null
+    : document.createElement("canvas").getContext("2d");
 
 /** Whether a text fits `field` whole, in the field's own font. */
 const fits = (field: HTMLInputElement) => (text: string) => {
@@ -313,7 +424,15 @@ function AppTile({ card, big }: { card: GalleryCard; big: boolean }) {
       onBlur={() => setHovered(false)}
     >
       <div className={s.thumb}>
-        <Thumbnail appId={card.id} slug={card.slug} name={card.name} version={card.live_version} still={card.still_url} busy={card.here_count > 0} hovered={hovered} />
+        <Thumbnail
+          appId={card.id}
+          slug={card.slug}
+          name={card.name}
+          version={card.live_version}
+          still={card.still_url}
+          busy={card.here_count > 0}
+          hovered={hovered}
+        />
         {card.here_count > 0 && (
           <span className={s.hereBadge}>
             <LiveDot />

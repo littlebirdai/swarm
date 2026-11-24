@@ -38,14 +38,23 @@ function formatRelativeTime(ts: number): string {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(ts).toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function PRIcon() {
   return (
     <div className="w-5 h-5 rounded bg-sol-bg-alt border border-sol-border flex items-center justify-center shrink-0">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-sol-text-muted">
-        <path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="text-sol-text-muted"
+      >
+        <path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z" />
       </svg>
     </div>
   );
@@ -54,21 +63,39 @@ function PRIcon() {
 function StateIcon({ state }: { state: "open" | "closed" | "merged" }) {
   if (state === "merged") {
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-sol-violet">
-        <path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"/>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="text-sol-violet"
+      >
+        <path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z" />
       </svg>
     );
   }
   if (state === "closed") {
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-sol-red">
-        <path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.28a.75.75 0 0 1 1.06 0l2.5 2.5a.75.75 0 0 1-1.06 1.06L12 3.56 10.78 4.78a.75.75 0 0 1-1.06-1.06l2.5-2.5ZM3.25 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"/>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="text-sol-red"
+      >
+        <path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.28a.75.75 0 0 1 1.06 0l2.5 2.5a.75.75 0 0 1-1.06 1.06L12 3.56 10.78 4.78a.75.75 0 0 1-1.06-1.06l2.5-2.5ZM3.25 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z" />
       </svg>
     );
   }
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-sol-green">
-      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="text-sol-green"
+    >
+      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
     </svg>
   );
 }
@@ -77,8 +104,18 @@ export function PRCard(props: PRCardProps) {
   const [expanded, setExpanded] = useState(false);
   const githubUrl = `https://github.com/${props.repository}/pull/${props.number}`;
 
-  const stateLabel = props.state === "merged" ? "Merged" : props.state === "closed" ? "Closed" : "Open";
-  const stateColor = props.state === "merged" ? "text-sol-violet" : props.state === "closed" ? "text-sol-red" : "text-sol-green";
+  const stateLabel =
+    props.state === "merged"
+      ? "Merged"
+      : props.state === "closed"
+        ? "Closed"
+        : "Open";
+  const stateColor =
+    props.state === "merged"
+      ? "text-sol-violet"
+      : props.state === "closed"
+        ? "text-sol-red"
+        : "text-sol-green";
 
   return (
     <div className="my-2 rounded-lg bg-sol-bg-alt/40 border border-sol-border/50 overflow-hidden">
@@ -108,11 +145,15 @@ export function PRCard(props: PRCardProps) {
             {props.head_ref && (
               <>
                 <span>•</span>
-                <span className="modern:font-mono text-sol-green">{props.head_ref}</span>
+                <span className="modern:font-mono text-sol-green">
+                  {props.head_ref}
+                </span>
                 {props.base_ref && (
                   <>
                     <span className="text-sol-text-dim">→</span>
-                    <span className="modern:font-mono text-sol-blue">{props.base_ref}</span>
+                    <span className="modern:font-mono text-sol-blue">
+                      {props.base_ref}
+                    </span>
                   </>
                 )}
               </>
@@ -124,7 +165,7 @@ export function PRCard(props: PRCardProps) {
         <div className="flex items-center gap-2 text-meta font-mono flex-shrink-0">
           {props.changed_files !== undefined && (
             <span className="text-sol-text-dim">
-              {props.changed_files} file{props.changed_files !== 1 ? 's' : ''}
+              {props.changed_files} file{props.changed_files !== 1 ? "s" : ""}
             </span>
           )}
           {(props.additions !== undefined || props.deletions !== undefined) && (
@@ -139,12 +180,17 @@ export function PRCard(props: PRCardProps) {
           )}
         </div>
         <svg
-          className={`w-4 h-4 text-sol-text-dim transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-sol-text-dim transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </div>
 
@@ -158,7 +204,11 @@ export function PRCard(props: PRCardProps) {
             </div>
           )}
 
-          <PullRequestFiles id={props._id} files={props.files} emptyText="No file changes synced yet" />
+          <PullRequestFiles
+            id={props._id}
+            files={props.files}
+            emptyText="No file changes synced yet"
+          />
 
           <div className="px-3 py-2 bg-sol-bg/20 flex items-center justify-between">
             <a
@@ -168,14 +218,20 @@ export function PRCard(props: PRCardProps) {
               className="text-meta text-sol-cyan hover:underline flex items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
               </svg>
               View on GitHub
             </a>
             {props.commits_count !== undefined && (
               <span className="text-meta text-sol-text-dim">
-                {props.commits_count} commit{props.commits_count !== 1 ? 's' : ''}
+                {props.commits_count} commit
+                {props.commits_count !== 1 ? "s" : ""}
               </span>
             )}
           </div>

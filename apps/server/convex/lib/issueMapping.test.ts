@@ -37,7 +37,10 @@ function linearIssue(overrides: Record<string, any> = {}) {
     team: { id: "team_abc", key: "LIN" },
     project: { id: "project_xyz" },
     assignee: { id: "user_1", name: "Ada Lovelace", email: "ada@acme.dev" },
-    labels: [{ id: "l1", name: "bug" }, { id: "l2", name: "agent" }],
+    labels: [
+      { id: "l1", name: "bug" },
+      { id: "l2", name: "agent" },
+    ],
     createdAt: new Date(T0 - 86_400_000).toISOString(),
     updatedAt: new Date(T0).toISOString(),
     ...overrides,
@@ -61,7 +64,10 @@ function githubIssue(overrides: Record<string, any> = {}) {
     state: "open",
     state_reason: null,
     assignees: [{ login: "ada", id: 7 }],
-    labels: [{ id: 1, name: "bug" }, { id: 2, name: "agent" }],
+    labels: [
+      { id: 1, name: "bug" },
+      { id: 2, name: "agent" },
+    ],
     created_at: new Date(T0 - 86_400_000).toISOString(),
     updated_at: new Date(T0).toISOString(),
     ...overrides,
@@ -90,8 +96,16 @@ describe("linearStatusFor", () => {
 
 describe("priority", () => {
   test("linear 0..4 maps to our words and back", () => {
-    for (const [n, word] of [[0, "none"], [1, "urgent"], [2, "high"], [3, "medium"], [4, "low"]] as const) {
-      expect(normalizeLinearIssue(linearIssue({ priority: n })).priority).toBe(word);
+    for (const [n, word] of [
+      [0, "none"],
+      [1, "urgent"],
+      [2, "high"],
+      [3, "medium"],
+      [4, "low"],
+    ] as const) {
+      expect(normalizeLinearIssue(linearIssue({ priority: n })).priority).toBe(
+        word,
+      );
       expect(linearPriorityFor(word)).toBe(n);
     }
   });
@@ -111,10 +125,22 @@ describe("githubStatusFor / githubStateFor", () => {
   });
 
   test("the reverse write carries the reason that survives a round trip", () => {
-    expect(githubStateFor("done")).toEqual({ state: "closed", state_reason: "completed" });
-    expect(githubStateFor("dropped")).toEqual({ state: "closed", state_reason: "not_planned" });
+    expect(githubStateFor("done")).toEqual({
+      state: "closed",
+      state_reason: "completed",
+    });
+    expect(githubStateFor("dropped")).toEqual({
+      state: "closed",
+      state_reason: "not_planned",
+    });
     expect(githubStateFor("in_progress").state).toBe("open");
-    for (const category of ["open", "in_progress", "in_review", "done", "dropped"]) {
+    for (const category of [
+      "open",
+      "in_progress",
+      "in_review",
+      "done",
+      "dropped",
+    ]) {
       const write = githubStateFor(category);
       expect(githubStatusFor(write.state, write.state_reason ?? null)).toBe(
         category === "done" || category === "dropped" ? category : "open",
@@ -155,7 +181,10 @@ describe("normalizeLinearIssue", () => {
 
   test("assignee and delegate ids come from a GraphQL node", () => {
     const issue = normalizeLinearIssue(
-      linearIssueNode({ assignee: { id: "user_1", name: "Ada", email: "ada@acme.dev" }, delegate: { id: "app_1", name: "Codecast" } }),
+      linearIssueNode({
+        assignee: { id: "user_1", name: "Ada", email: "ada@acme.dev" },
+        delegate: { id: "app_1", name: "Codecast" },
+      }),
       { now: T0 },
     );
     expect(issue.assignee_id).toBe("user_1");
@@ -164,7 +193,12 @@ describe("normalizeLinearIssue", () => {
 
   test("assignee and delegate ids come from webhook ids alone", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ assignee: undefined, assigneeId: "user_2", delegate: undefined, delegateId: "app_2" }),
+      linearIssue({
+        assignee: undefined,
+        assigneeId: "user_2",
+        delegate: undefined,
+        delegateId: "app_2",
+      }),
       { now: T0 },
     );
     expect(issue.assignee_id).toBe("user_2");
@@ -172,14 +206,21 @@ describe("normalizeLinearIssue", () => {
   });
 
   test("no assignee and no delegate leave both ids undefined", () => {
-    const issue = normalizeLinearIssue(linearIssue({ assignee: null }), { now: T0 });
+    const issue = normalizeLinearIssue(linearIssue({ assignee: null }), {
+      now: T0,
+    });
     expect(issue.assignee_id).toBeUndefined();
     expect(issue.delegate_id).toBeUndefined();
   });
 
   test("null assignee and delegate ids leave both ids undefined", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ assignee: null, assigneeId: null, delegate: null, delegateId: null }),
+      linearIssue({
+        assignee: null,
+        assigneeId: null,
+        delegate: null,
+        delegateId: null,
+      }),
       { now: T0 },
     );
     expect(issue.assignee_id).toBeUndefined();
@@ -187,18 +228,25 @@ describe("normalizeLinearIssue", () => {
   });
 
   test("identifier falls back to team key and number when absent", () => {
-    const issue = normalizeLinearIssue(linearIssue({ identifier: undefined }), { now: T0 });
+    const issue = normalizeLinearIssue(linearIssue({ identifier: undefined }), {
+      now: T0,
+    });
     expect(issue.identifier).toBe("LIN-482");
   });
 
   test("a cleared description is an empty string, not undefined", () => {
-    expect(normalizeLinearIssue(linearIssue({ description: null }), { now: T0 }).description).toBe("");
+    expect(
+      normalizeLinearIssue(linearIssue({ description: null }), { now: T0 })
+        .description,
+    ).toBe("");
   });
 });
 
 describe("normalizeGithubIssue", () => {
   test("identifier is owner/repo#N and the id is the node id", () => {
-    const issue = normalizeGithubIssue(githubIssue(), "acme/widgets", { now: T0 });
+    const issue = normalizeGithubIssue(githubIssue(), "acme/widgets", {
+      now: T0,
+    });
     expect(issue).toMatchObject({
       provider: "github",
       id: "I_kwDOABCD1234",
@@ -287,20 +335,30 @@ describe("diffAgainstTask", () => {
 
   test("labels compare as sets, so order and duplicates are not changes", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ labels: [{ name: "agent" }, { name: "bug" }, { name: "bug" }] }),
+      linearIssue({
+        labels: [{ name: "agent" }, { name: "bug" }, { name: "bug" }],
+      }),
       { now: T0 },
     );
     expect(diffAgainstTask(task, issue, { assignee: "users_ada" })).toEqual({});
   });
 
   test("a real label change lands as the provider's full set", () => {
-    const issue = normalizeLinearIssue(linearIssue({ labels: [{ name: "bug" }] }), { now: T0 });
-    expect(diffAgainstTask(task, issue, { assignee: "users_ada" })).toEqual({ labels: ["bug"] });
+    const issue = normalizeLinearIssue(
+      linearIssue({ labels: [{ name: "bug" }] }),
+      { now: T0 },
+    );
+    expect(diffAgainstTask(task, issue, { assignee: "users_ada" })).toEqual({
+      labels: ["bug"],
+    });
   });
 
   test("only the fields that actually moved are in the diff", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ title: "Fix the sync properly", state: { name: "Done", type: "completed" } }),
+      linearIssue({
+        title: "Fix the sync properly",
+        state: { name: "Done", type: "completed" },
+      }),
       { now: T0 },
     );
     expect(diffAgainstTask(task, issue, { assignee: "users_ada" })).toEqual({
@@ -311,23 +369,38 @@ describe("diffAgainstTask", () => {
 
   test("a stale event loses to a newer local push of that field, field by field", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ title: "Stale title", state: { name: "Done", type: "completed" } }),
+      linearIssue({
+        title: "Stale title",
+        state: { name: "Done", type: "completed" },
+      }),
       { now: T0 },
     );
     // We pushed the title AFTER this event was minted, but not the status.
     const pushed = { ...task, external: { field_ts: { title: T0 + 5_000 } } };
-    expect(diffAgainstTask(pushed, issue, { assignee: "users_ada" })).toEqual({ status: "done" });
+    expect(diffAgainstTask(pushed, issue, { assignee: "users_ada" })).toEqual({
+      status: "done",
+    });
   });
 
   test("a tie goes to the provider: its value is what everyone else sees", () => {
-    const issue = normalizeLinearIssue(linearIssue({ title: "Their title" }), { now: T0 });
+    const issue = normalizeLinearIssue(linearIssue({ title: "Their title" }), {
+      now: T0,
+    });
     const pushed = { ...task, external: { field_ts: { title: T0 } } };
-    expect(diffAgainstTask(pushed, issue, { assignee: "users_ada" })).toEqual({ title: "Their title" });
+    expect(diffAgainstTask(pushed, issue, { assignee: "users_ada" })).toEqual({
+      title: "Their title",
+    });
   });
 
   test("an unmapped provider assignee never clears ours", () => {
     const issue = normalizeLinearIssue(
-      linearIssue({ assignee: { id: "user_9", name: "Someone Else", email: "nobody@elsewhere.dev" } }),
+      linearIssue({
+        assignee: {
+          id: "user_9",
+          name: "Someone Else",
+          email: "nobody@elsewhere.dev",
+        },
+      }),
       { now: T0 },
     );
     expect(diffAgainstTask(task, issue, {})).toEqual({});
@@ -335,15 +408,36 @@ describe("diffAgainstTask", () => {
   });
 
   test("github never touches priority, having none", () => {
-    const issue = normalizeGithubIssue(githubIssue({ title: "Fix the sync" }), "acme/widgets", { now: T0 });
-    const ghTask = { ...task, description: "Repro: hold the queue open.", status: "open" };
-    expect(diffAgainstTask(ghTask, issue, { assignee: "users_ada" })).toEqual({});
+    const issue = normalizeGithubIssue(
+      githubIssue({ title: "Fix the sync" }),
+      "acme/widgets",
+      { now: T0 },
+    );
+    const ghTask = {
+      ...task,
+      description: "Repro: hold the queue open.",
+      status: "open",
+    };
+    expect(diffAgainstTask(ghTask, issue, { assignee: "users_ada" })).toEqual(
+      {},
+    );
   });
 
   test("a cleared body syncs as an empty description", () => {
-    const issue = normalizeGithubIssue(githubIssue({ body: null }), "acme/widgets", { now: T0 });
-    const ghTask = { ...task, description: "Repro: hold the queue open.", status: "open", title: "Sync drops events" };
-    expect(diffAgainstTask(ghTask, issue, { assignee: "users_ada" })).toEqual({ description: "" });
+    const issue = normalizeGithubIssue(
+      githubIssue({ body: null }),
+      "acme/widgets",
+      { now: T0 },
+    );
+    const ghTask = {
+      ...task,
+      description: "Repro: hold the queue open.",
+      status: "open",
+      title: "Sync drops events",
+    };
+    expect(diffAgainstTask(ghTask, issue, { assignee: "users_ada" })).toEqual({
+      description: "",
+    });
   });
 });
 
@@ -370,7 +464,9 @@ describe("linearStateFor", () => {
   });
 
   test("a team custom status name wins over position", () => {
-    expect(linearStateFor("in_progress", states, "In Review")?.id).toBe("s_review");
+    expect(linearStateFor("in_progress", states, "In Review")?.id).toBe(
+      "s_review",
+    );
   });
 
   test("in_review falls back to any started state when the team has no review column", () => {
@@ -379,7 +475,9 @@ describe("linearStateFor", () => {
   });
 
   test("no plausible state is undefined, not a wrong guess", () => {
-    expect(linearStateFor("done", [{ id: "s", name: "Todo", type: "unstarted" }])).toBeUndefined();
+    expect(
+      linearStateFor("done", [{ id: "s", name: "Todo", type: "unstarted" }]),
+    ).toBeUndefined();
   });
 });
 
@@ -407,25 +505,50 @@ describe("diffAgainstTask: unassign (S2)", () => {
   });
 
   test("the provider going from someone to nobody clears ours", () => {
-    const task = { title: "Fix", status: "open", assignee: "user_ada", external: { assignee_label: "Ada" } };
+    const task = {
+      title: "Fix",
+      status: "open",
+      assignee: "user_ada",
+      external: { assignee_label: "Ada" },
+    };
     expect(diffAgainstTask(task, issue())).toEqual({ assignee: null });
   });
 
   test("nobody on the provider and nobody recorded before is not an unassign", () => {
     // A codecast-only assignment (a user with no Linear account, an assignee
     // set locally) must survive every provider event that shows no assignee.
-    const task = { title: "Fix", status: "open", assignee: "user_ada", external: {} };
+    const task = {
+      title: "Fix",
+      status: "open",
+      assignee: "user_ada",
+      external: {},
+    };
     expect(diffAgainstTask(task, issue())).toEqual({});
   });
 
   test("an agent seat is never cleared by the provider", () => {
-    const task = { title: "Fix", status: "open", assignee: "agent:claude", external: { assignee_label: "Ada" } };
+    const task = {
+      title: "Fix",
+      status: "open",
+      assignee: "agent:claude",
+      external: { assignee_label: "Ada" },
+    };
     expect(diffAgainstTask(task, issue())).toEqual({});
   });
 
   test("an unmapped provider assignee still leaves ours alone", () => {
-    const task = { title: "Fix", status: "open", assignee: "user_ada", external: { assignee_label: "Ada" } };
-    expect(diffAgainstTask(task, issue({ assignee_email: "bob@x.dev", assignee_label: "Bob" }))).toEqual({});
+    const task = {
+      title: "Fix",
+      status: "open",
+      assignee: "user_ada",
+      external: { assignee_label: "Ada" },
+    };
+    expect(
+      diffAgainstTask(
+        task,
+        issue({ assignee_email: "bob@x.dev", assignee_label: "Bob" }),
+      ),
+    ).toEqual({});
   });
 
   test("a local reassignment newer than the event wins", () => {
@@ -446,10 +569,20 @@ describe("kindFromDiff (S8 for pulls)", () => {
   });
 
   test("status leads, then assignee, then labels, else edited", () => {
-    expect(kindFromDiff({ status: "done", title: "x" }, false, "done")).toBe("issue_closed");
-    expect(kindFromDiff({ status: "in_progress" }, false, "in_progress")).toBe("issue_status");
-    expect(kindFromDiff({ assignee: null }, false, "open")).toBe("issue_assigned");
-    expect(kindFromDiff({ labels: ["bug"] }, false, "open")).toBe("issue_labeled");
-    expect(kindFromDiff({ title: "x", description: "y" }, false, "open")).toBe("issue_edited");
+    expect(kindFromDiff({ status: "done", title: "x" }, false, "done")).toBe(
+      "issue_closed",
+    );
+    expect(kindFromDiff({ status: "in_progress" }, false, "in_progress")).toBe(
+      "issue_status",
+    );
+    expect(kindFromDiff({ assignee: null }, false, "open")).toBe(
+      "issue_assigned",
+    );
+    expect(kindFromDiff({ labels: ["bug"] }, false, "open")).toBe(
+      "issue_labeled",
+    );
+    expect(kindFromDiff({ title: "x", description: "y" }, false, "open")).toBe(
+      "issue_edited",
+    );
   });
 });

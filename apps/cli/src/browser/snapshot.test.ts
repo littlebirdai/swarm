@@ -8,7 +8,16 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  matchRefs, nearMatches, ordinal, ordinalsFor, pickOrdinal, refLabel, snapshotJson, engineSnapshotJson, snapshotPage, splitOrdinalQuery,
+  matchRefs,
+  nearMatches,
+  ordinal,
+  ordinalsFor,
+  pickOrdinal,
+  refLabel,
+  snapshotJson,
+  engineSnapshotJson,
+  snapshotPage,
+  splitOrdinalQuery,
   type Snapshot,
 } from "./snapshot.js";
 import type { PageSession } from "./instance.js";
@@ -37,7 +46,10 @@ function toAXNodes(root: FakeNode): unknown[] {
       name: n.name === undefined ? undefined : { value: n.name },
       value: n.value === undefined ? undefined : { value: n.value },
       backendDOMNodeId: n.backendId,
-      properties: (n.props ?? []).map((p) => ({ name: p.name, value: { value: p.value } })),
+      properties: (n.props ?? []).map((p) => ({
+        name: p.name,
+        value: { value: p.value },
+      })),
     });
     for (const c of n.children ?? []) walk(c, n.id);
   };
@@ -72,17 +84,27 @@ function fakePage(tree: FakeNode, opts: FakeOpts = {}): PageSession {
         const expr = String(params.expression ?? "");
         // The scan's first call: does the DOM work, parks its matches.
         if (expr.includes("contenteditable")) {
-          return { result: { value: JSON.stringify(clickables.map((c) => ({ name: c.name, edit: !!c.edit }))) } };
+          return {
+            result: {
+              value: JSON.stringify(
+                clickables.map((c) => ({ name: c.name, edit: !!c.edit })),
+              ),
+            },
+          };
         }
         // The scan's second call: hand back the parked array by reference.
-        if (expr === "window.__castClickable") return { result: { objectId: "arr" } };
+        if (expr === "window.__castClickable")
+          return { result: { objectId: "arr" } };
         if (expr.startsWith("delete ")) return {};
         return { result: { value: JSON.stringify([meta.url, meta.title]) } };
       }
       if (method === "Runtime.getProperties") {
         return {
           result: [
-            ...clickables.map((_, i) => ({ name: String(i), value: { objectId: `el${i}` } })),
+            ...clickables.map((_, i) => ({
+              name: String(i),
+              value: { objectId: `el${i}` },
+            })),
             { name: "length", value: { value: clickables.length } },
           ],
         };
@@ -92,7 +114,8 @@ function fakePage(tree: FakeNode, opts: FakeOpts = {}): PageSession {
         return { node: { backendNodeId: clickables[i]?.backendId } };
       }
       if (method === "Runtime.releaseObjectGroup") return {};
-      if (method === "Page.getFrameTree") return { frameTree: { frame: { id: "main" }, childFrames: [] } };
+      if (method === "Page.getFrameTree")
+        return { frameTree: { frame: { id: "main" }, childFrames: [] } };
       if (method === "Accessibility.getFullAXTree") return { nodes };
       throw new Error(`unexpected ${method}`);
     },
@@ -100,13 +123,18 @@ function fakePage(tree: FakeNode, opts: FakeOpts = {}): PageSession {
   return { conn: conn as any, sessionId: "s1", targetId: "t1" };
 }
 
-const snap = (tree: FakeNode, opts: Record<string, unknown> = {}, fake: FakeOpts = {}): Promise<Snapshot> =>
-  snapshotPage(fakePage(tree, fake), opts);
+const snap = (
+  tree: FakeNode,
+  opts: Record<string, unknown> = {},
+  fake: FakeOpts = {},
+): Promise<Snapshot> => snapshotPage(fakePage(tree, fake), opts);
 
 describe("snapshot rendering", () => {
   test("gives every interactive element a ref taken from its backend node id", async () => {
     const s = await snap({
-      id: "1", role: "RootWebArea", name: "Example",
+      id: "1",
+      role: "RootWebArea",
+      name: "Example",
       children: [
         { id: "2", role: "button", name: "Save", backendId: 4242 },
         { id: "3", role: "link", name: "Home", backendId: 77 },
@@ -124,10 +152,16 @@ describe("snapshot rendering", () => {
     // A link's accessible name comes from its own text, so printing both says
     // the same thing twice and doubles the cost of every list of links.
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "link", name: "Documentation", backendId: 10,
-          children: [{ id: "3", role: "StaticText", name: "Documentation" }] },
+        {
+          id: "2",
+          role: "link",
+          name: "Documentation",
+          backendId: 10,
+          children: [{ id: "3", role: "StaticText", name: "Documentation" }],
+        },
       ],
     });
     expect(s.text).toBe('link "Documentation" #e10');
@@ -139,10 +173,15 @@ describe("snapshot rendering", () => {
     // against the direct parent — rather than the nearest PRINTED ancestor —
     // deleted the content entirely.
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "generic", name: "458 points",
-          children: [{ id: "3", role: "StaticText", name: "458 points" }] },
+        {
+          id: "2",
+          role: "generic",
+          name: "458 points",
+          children: [{ id: "3", role: "StaticText", name: "458 points" }],
+        },
       ],
     });
     expect(s.text).toContain("458 points");
@@ -150,10 +189,15 @@ describe("snapshot rendering", () => {
 
   test("nests children under the elements that were printed", async () => {
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "navigation", name: "Main",
-          children: [{ id: "3", role: "link", name: "Docs", backendId: 5 }] },
+        {
+          id: "2",
+          role: "navigation",
+          name: "Main",
+          children: [{ id: "3", role: "link", name: "Docs", backendId: 5 }],
+        },
       ],
     });
     expect(s.text).toBe('navigation "Main"\n  link "Docs" #e5');
@@ -162,11 +206,20 @@ describe("snapshot rendering", () => {
   test("does not indent for wrappers that print nothing", async () => {
     // Otherwise a deeply wrapped page walks off the right edge saying nothing.
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "generic",
-          children: [{ id: "3", role: "generic",
-            children: [{ id: "4", role: "button", name: "Go", backendId: 9 }] }] },
+        {
+          id: "2",
+          role: "generic",
+          children: [
+            {
+              id: "3",
+              role: "generic",
+              children: [{ id: "4", role: "button", name: "Go", backendId: 9 }],
+            },
+          ],
+        },
       ],
     });
     expect(s.text).toBe('button "Go" #e9');
@@ -174,10 +227,19 @@ describe("snapshot rendering", () => {
 
   test("reports state flags but omits the ones that are false", async () => {
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "checkbox", name: "Ship it", backendId: 3,
-          props: [{ name: "checked", value: true }, { name: "disabled", value: false }] },
+        {
+          id: "2",
+          role: "checkbox",
+          name: "Ship it",
+          backendId: 3,
+          props: [
+            { name: "checked", value: true },
+            { name: "disabled", value: false },
+          ],
+        },
       ],
     });
     expect(s.text).toBe('checkbox "Ship it" [checked] #e3');
@@ -185,8 +247,17 @@ describe("snapshot rendering", () => {
 
   test("shows an input's value alongside its label", async () => {
     const s = await snap({
-      id: "1", role: "RootWebArea",
-      children: [{ id: "2", role: "textbox", name: "Email", value: "a@b.c", backendId: 8 }],
+      id: "1",
+      role: "RootWebArea",
+      children: [
+        {
+          id: "2",
+          role: "textbox",
+          name: "Email",
+          value: "a@b.c",
+          backendId: 8,
+        },
+      ],
     });
     expect(s.text).toBe('textbox "Email" value="a@b.c" #e8');
   });
@@ -194,10 +265,15 @@ describe("snapshot rendering", () => {
   test("skips ignored nodes but keeps walking through them", async () => {
     // An ignored wrapper is invisible to assistive tech, not a dead end.
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
-        { id: "2", role: "generic", ignored: true,
-          children: [{ id: "3", role: "button", name: "Deep", backendId: 6 }] },
+        {
+          id: "2",
+          role: "generic",
+          ignored: true,
+          children: [{ id: "3", role: "button", name: "Deep", backendId: 6 }],
+        },
       ],
     });
     expect(s.text).toBe('button "Deep" #e6');
@@ -206,7 +282,8 @@ describe("snapshot rendering", () => {
   test("interactiveOnly leaves out prose", async () => {
     const s = await snap(
       {
-        id: "1", role: "RootWebArea",
+        id: "1",
+        role: "RootWebArea",
         children: [
           { id: "2", role: "StaticText", name: "Some explanatory copy" },
           { id: "3", role: "button", name: "Act", backendId: 2 },
@@ -219,9 +296,15 @@ describe("snapshot rendering", () => {
 
   test("truncates at the character budget and says so", async () => {
     const many: FakeNode[] = Array.from({ length: 200 }, (_, i) => ({
-      id: `n${i}`, role: "link", name: `Item number ${i}`, backendId: 1000 + i,
+      id: `n${i}`,
+      role: "link",
+      name: `Item number ${i}`,
+      backendId: 1000 + i,
     }));
-    const s = await snap({ id: "1", role: "RootWebArea", children: many }, { maxChars: 200 });
+    const s = await snap(
+      { id: "1", role: "RootWebArea", children: many },
+      { maxChars: 200 },
+    );
     expect(s.truncated).toBe(true);
     expect(s.text.length).toBeLessThanOrEqual(200);
   });
@@ -235,34 +318,60 @@ describe("snapshot rendering", () => {
 
 describe("role-less controls", () => {
   const tree: FakeNode = {
-    id: "1", role: "RootWebArea", name: "Example",
+    id: "1",
+    role: "RootWebArea",
+    name: "Example",
     children: [{ id: "2", role: "button", name: "Real", backendId: 9 }],
   };
 
   test("appends a div styled as a button with a ref of the same shape", async () => {
-    const s = await snap(tree, {}, { clickables: [{ name: "Publish", backendId: 4242 }] });
+    const s = await snap(
+      tree,
+      {},
+      { clickables: [{ name: "Publish", backendId: 4242 }] },
+    );
     expect(s.text).toContain('button "Real" #e9');
     expect(s.text).toContain('clickable "Publish" #e4242');
-    expect(s.refs).toContainEqual({ ref: 4242, role: "clickable", name: "Publish", editable: false });
+    expect(s.refs).toContainEqual({
+      ref: 4242,
+      role: "clickable",
+      name: "Publish",
+      editable: false,
+    });
   });
 
   test("marks a contenteditable so an agent knows to type into it", async () => {
-    const s = await snap(tree, {}, { clickables: [{ name: "", edit: true, backendId: 77 }] });
+    const s = await snap(
+      tree,
+      {},
+      { clickables: [{ name: "", edit: true, backendId: 77 }] },
+    );
     expect(s.text).toContain("clickable [editable] #e77");
   });
 
   test("kept in interactiveOnly — a styled button is a control, not prose", async () => {
-    const s = await snap(tree, { interactiveOnly: true }, { clickables: [{ name: "Publish", backendId: 5 }] });
+    const s = await snap(
+      tree,
+      { interactiveOnly: true },
+      { clickables: [{ name: "Publish", backendId: 5 }] },
+    );
     expect(s.text).toContain('clickable "Publish" #e5');
   });
 
   test("never repeats a node the accessibility walk already gave a ref", async () => {
-    const s = await snap(tree, {}, { clickables: [{ name: "Real", backendId: 9 }] });
+    const s = await snap(
+      tree,
+      {},
+      { clickables: [{ name: "Real", backendId: 9 }] },
+    );
     expect(s.refs).toEqual([{ ref: 9, role: "button", name: "Real" }]);
   });
 
   test("stops at the character budget instead of overflowing it", async () => {
-    const many = Array.from({ length: 40 }, (_, i) => ({ name: `Control number ${i}`, backendId: 100 + i }));
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      name: `Control number ${i}`,
+      backendId: 100 + i,
+    }));
     const s = await snap(tree, { maxChars: 120 }, { clickables: many });
     expect(s.truncated).toBe(true);
     expect(s.text.length).toBeLessThanOrEqual(120);
@@ -272,13 +381,21 @@ describe("role-less controls", () => {
     // `find` and `open` snapshot with maxChars 1 for the page line. Paying for
     // a DOM sweep there would slow down every navigation.
     const calls: string[] = [];
-    await snap(tree, { maxChars: 1 }, { calls, clickables: [{ name: "Publish", backendId: 5 }] });
+    await snap(
+      tree,
+      { maxChars: 1 },
+      { calls, clickables: [{ name: "Publish", backendId: 5 }] },
+    );
     expect(calls.filter((c) => c === "DOM.describeNode")).toHaveLength(0);
   });
 
   test("releases the remote objects and clears the window stash", async () => {
     const calls: string[] = [];
-    await snap(tree, {}, { calls, clickables: [{ name: "Publish", backendId: 5 }] });
+    await snap(
+      tree,
+      {},
+      { calls, clickables: [{ name: "Publish", backendId: 5 }] },
+    );
     expect(calls).toContain("Runtime.releaseObjectGroup");
   });
 
@@ -286,7 +403,10 @@ describe("role-less controls", () => {
     const page = fakePage(tree);
     const original = page.conn.send;
     page.conn.send = (async (method: string, params: any) => {
-      if (method === "Runtime.evaluate" && String(params?.expression).includes("contenteditable")) {
+      if (
+        method === "Runtime.evaluate" &&
+        String(params?.expression).includes("contenteditable")
+      ) {
         throw new Error("Blocked by CSP");
       }
       return original.call(page.conn, method, params);
@@ -305,7 +425,9 @@ describe("matchRefs", () => {
 
   test("prefers an exact name over anything it is a prefix of", async () => {
     // "Save" must not be ambiguous just because "Save draft" also contains it.
-    expect(matchRefs(refs, "Save")).toEqual([{ ref: 1, role: "button", name: "Save" }]);
+    expect(matchRefs(refs, "Save")).toEqual([
+      { ref: 1, role: "button", name: "Save" },
+    ]);
   });
 
   test("falls back to substring matching", () => {
@@ -338,7 +460,9 @@ describe("matchRefs", () => {
     ];
     expect(matchRefs(hn, "173 comments").map((r) => r.ref)).toEqual([10]);
     const mac = [{ ref: 12, role: "button", name: "Download for Mac" }];
-    expect(matchRefs(mac, "mac download button").map((r) => r.ref)).toEqual([12]);
+    expect(matchRefs(mac, "mac download button").map((r) => r.ref)).toEqual([
+      12,
+    ]);
   });
 
   test("near matches surface what almost hit, and only on a miss", () => {
@@ -362,16 +486,32 @@ describe("matchRefs against real pages", () => {
   const github = [
     { ref: 9, role: "link", name: "All issues" },
     { ref: 10, role: "link", name: "All pull requests" },
-    { ref: 12, role: "link", name: "You have no unread notifications ( g then n )" },
-    { ref: 16, role: "button", name: "Open quick search dialog, type / to search" },
+    {
+      ref: 12,
+      role: "link",
+      name: "You have no unread notifications ( g then n )",
+    },
+    {
+      ref: 16,
+      role: "button",
+      name: "Open quick search dialog, type / to search",
+    },
     { ref: 19, role: "button", name: "Open user navigation menu" },
     { ref: 33, role: "button", name: "Code" },
     { ref: 56, role: "button", name: "main branch" },
-    { ref: 161, role: "button", name: "Watch: Participating in anthropics/claude-code. Click to change subscription settings." },
+    {
+      ref: 161,
+      role: "button",
+      name: "Watch: Participating in anthropics/claude-code. Click to change subscription settings.",
+    },
     { ref: 200, role: "button", name: "Star anthropics/claude-code" },
     { ref: 201, role: "button", name: "Star lists" },
     { ref: 249, role: "button", name: "Copy code to clipboard" },
-    { ref: 101, role: "cell", name: "Fix lock-closed-issues workflow: use search API instead of offset pag…" },
+    {
+      ref: 101,
+      role: "cell",
+      name: "Fix lock-closed-issues workflow: use search API instead of offset pag…",
+    },
     { ref: 124, role: "cell", name: "CHANGELOG.md, (File)" },
   ];
   const codecast = [
@@ -408,7 +548,11 @@ describe("matchRefs against real pages", () => {
   test("ranks the intended element at or near the top for role-suffixed queries", () => {
     // "star button" is genuinely ambiguous between "Star …" and "Star lists";
     // both belong on the short list the caller reads.
-    expect(matchRefs(github, "star button").slice(0, 2).map((r) => r.ref)).toContain(200);
+    expect(
+      matchRefs(github, "star button")
+        .slice(0, 2)
+        .map((r) => r.ref),
+    ).toContain(200);
     expect(matchRefs(github, "main branch button")[0].ref).toBe(56);
     expect(matchRefs(codecast, "Sign in button")[0].ref).toBe(48);
   });
@@ -447,7 +591,16 @@ describe("matchRefs against real pages", () => {
 describe("ordinals", () => {
   test("English ordinals, including the teens", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal)).toEqual([
-      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st",
+      "1st",
+      "2nd",
+      "3rd",
+      "4th",
+      "11th",
+      "12th",
+      "13th",
+      "21st",
+      "22nd",
+      "101st",
     ]);
   });
 
@@ -475,7 +628,10 @@ describe("ordinals", () => {
   });
 
   test("a trailing ordinal is a selector, not part of the name", () => {
-    expect(splitOrdinalQuery("Delete (2nd)")).toEqual({ text: "Delete", nth: 2 });
+    expect(splitOrdinalQuery("Delete (2nd)")).toEqual({
+      text: "Delete",
+      nth: 2,
+    });
     expect(splitOrdinalQuery("Delete 3rd")).toEqual({ text: "Delete", nth: 3 });
     expect(splitOrdinalQuery("Delete")).toEqual({ text: "Delete", nth: null });
     // A bare ordinal is a name, not a selector — there is nothing left to find.
@@ -496,7 +652,8 @@ describe("ordinals", () => {
 
   test("the snapshot prints the ordinal and keeps the raw name on the ref", async () => {
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
         { id: "2", role: "button", name: "Delete", backendId: 11 },
         { id: "3", role: "button", name: "Delete", backendId: 12 },
@@ -512,7 +669,10 @@ describe("ordinals", () => {
     ]);
     // The ref keeps the raw name, so `find "Delete"` still matches all three.
     expect(s.refs.map((r) => [r.name, r.nth])).toEqual([
-      ["Delete", 1], ["Delete", 2], ["Delete", 3], ["Save", undefined],
+      ["Delete", 1],
+      ["Delete", 2],
+      ["Delete", 3],
+      ["Save", undefined],
     ]);
     expect(matchRefs(s.refs, "Delete")).toHaveLength(3);
   });
@@ -520,13 +680,17 @@ describe("ordinals", () => {
   test("a name with a dollar sign keeps it when the ordinal is added", async () => {
     // `$&` and `$1` in a replacement string are patterns; the label is text.
     const s = await snap({
-      id: "1", role: "RootWebArea",
+      id: "1",
+      role: "RootWebArea",
       children: [
         { id: "2", role: "button", name: "Pay $& now $1", backendId: 11 },
         { id: "3", role: "button", name: "Pay $& now $1", backendId: 12 },
       ],
     });
-    expect(s.text.split("\n")).toEqual(['button "Pay $& now $1" #e11', 'button "Pay $& now $1 (2nd)" #e12']);
+    expect(s.text.split("\n")).toEqual([
+      'button "Pay $& now $1" #e11',
+      'button "Pay $& now $1 (2nd)" #e12',
+    ]);
   });
 });
 
@@ -572,17 +736,34 @@ describe("snapshot --json", () => {
   });
 
   test("an empty page is refs-none plus the engine's own words, not a crash", () => {
-    expect(engineSnapshotJson({ origin: "about:blank", refs: {}, snapshot: "(empty page)" })).toEqual({
+    expect(
+      engineSnapshotJson({
+        origin: "about:blank",
+        refs: {},
+        snapshot: "(empty page)",
+      }),
+    ).toEqual({
       url: "about:blank",
       refs: [],
       text: "(empty page)",
       truncated: false,
     });
-    expect(engineSnapshotJson({})).toEqual({ url: "", refs: [], text: "", truncated: false });
+    expect(engineSnapshotJson({})).toEqual({
+      url: "",
+      refs: [],
+      text: "",
+      truncated: false,
+    });
   });
 
   test("no field can carry image bytes", () => {
-    const json = JSON.stringify(engineSnapshotJson({ origin: "https://x/", refs: { e1: { role: "link", name: "a" } }, snapshot: "- link" }));
+    const json = JSON.stringify(
+      engineSnapshotJson({
+        origin: "https://x/",
+        refs: { e1: { role: "link", name: "a" } },
+        snapshot: "- link",
+      }),
+    );
     expect(json).not.toContain("base64");
     expect(json).not.toContain("data:image");
   });

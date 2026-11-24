@@ -10,7 +10,11 @@
 // Browser and desktop control are device-only restrictions: the daemon applies
 // them from the heartbeat's team_policy, and nothing on the server gates them.
 import type { Id } from "../_generated/dataModel";
-import { accessError, findTokenDoc, splitPresentedToken } from "@platform/auth/convex";
+import {
+  accessError,
+  findTokenDoc,
+  splitPresentedToken,
+} from "@platform/auth/convex";
 import {
   parseTeamPolicy,
   policyBlockedMessage,
@@ -28,11 +32,19 @@ type DbCtx = { db: any };
 export async function teamPolicyOf(
   ctx: DbCtx,
   teamId: Id<"teams"> | null | undefined,
-): Promise<{ team_id: Id<"teams">; team_name: string; policy: TeamPolicy } | null> {
+): Promise<{
+  team_id: Id<"teams">;
+  team_name: string;
+  policy: TeamPolicy;
+} | null> {
   if (!teamId) return null;
   const team = await ctx.db.get(teamId);
   if (!team || team.deleted_at) return null;
-  return { team_id: team._id, team_name: team.name, policy: parseTeamPolicy(team.policy) };
+  return {
+    team_id: team._id,
+    team_name: team.name,
+    policy: parseTeamPolicy(team.policy),
+  };
 }
 
 /** What the heartbeat sends a device enrolled in `teamId`. */
@@ -41,7 +53,14 @@ export async function heartbeatTeamPolicy(
   teamId: Id<"teams"> | null | undefined,
 ): Promise<HeartbeatTeamPolicy | null> {
   const p = await teamPolicyOf(ctx, teamId);
-  return p ? { team_id: String(p.team_id), team_name: p.team_name, policy: p.policy, enrolled: true } : null;
+  return p
+    ? {
+        team_id: String(p.team_id),
+        team_name: p.team_name,
+        policy: p.policy,
+        enrolled: true,
+      }
+    : null;
 }
 
 /**
@@ -49,7 +68,10 @@ export async function heartbeatTeamPolicy(
  * token is bound to; an unbound (older) token falls back to the device the
  * client presented beside it.
  */
-export async function enrolledTeamForToken(ctx: DbCtx, apiToken: string | null | undefined): Promise<Id<"teams"> | null> {
+export async function enrolledTeamForToken(
+  ctx: DbCtx,
+  apiToken: string | null | undefined,
+): Promise<Id<"teams"> | null> {
   if (!apiToken) return null;
   const doc = await findTokenDoc(ctx, apiToken);
   if (!doc) return null;
@@ -57,14 +79,20 @@ export async function enrolledTeamForToken(ctx: DbCtx, apiToken: string | null |
   if (!deviceId) return null;
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", doc.user_id).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", doc.user_id).eq("device_id", deviceId),
+    )
     .first();
   return device?.enrolled_team_id ?? null;
 }
 
 /** The team a device's first heartbeat records (its row did not exist when
  *  the enrollment completed): its active enrollment for this person. */
-export async function activeEnrollmentTeam(ctx: { db: any }, userId: Id<"users">, deviceId: string): Promise<Id<"teams"> | undefined> {
+export async function activeEnrollmentTeam(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceId: string,
+): Promise<Id<"teams"> | undefined> {
   const rows = await ctx.db
     .query("device_enrollments")
     .withIndex("by_device", (q: any) => q.eq("device_id", deviceId))
@@ -77,7 +105,12 @@ export async function activeEnrollmentTeam(ctx: { db: any }, userId: Id<"users">
 
 /** What a person's device shows about its management: enrolled in a team,
  *  or taken out by that team's admins (its sign-in was revoked with it). */
-export type DeviceManagement = { team_id: string; team_name: string; state: "managed" | "removed"; at: number };
+export type DeviceManagement = {
+  team_id: string;
+  team_name: string;
+  state: "managed" | "removed";
+  at: number;
+};
 
 /** The management of each of a person's devices that has any, by device id. */
 export async function deviceManagementFor(
@@ -88,12 +121,17 @@ export async function deviceManagementFor(
   const out = new Map<string, DeviceManagement>();
   const teamNames = new Map<string, string | null>();
   for (const deviceId of deviceIds) {
-    const rows = (await ctx.db
-      .query("device_enrollments")
-      .withIndex("by_device", (q: any) => q.eq("device_id", deviceId))
-      .collect()).filter((r: any) => r.user_id === userId && r.status !== "pending");
-    const row = rows.find((r: any) => r.status === "active")
-      ?? rows.sort((a: any, b: any) => (b.revoked_at ?? 0) - (a.revoked_at ?? 0))[0];
+    const rows = (
+      await ctx.db
+        .query("device_enrollments")
+        .withIndex("by_device", (q: any) => q.eq("device_id", deviceId))
+        .collect()
+    ).filter((r: any) => r.user_id === userId && r.status !== "pending");
+    const row =
+      rows.find((r: any) => r.status === "active") ??
+      rows.sort(
+        (a: any, b: any) => (b.revoked_at ?? 0) - (a.revoked_at ?? 0),
+      )[0];
     if (!row) continue;
     const key = String(row.team_id);
     if (!teamNames.has(key)) {
@@ -106,7 +144,9 @@ export async function deviceManagementFor(
       team_id: key,
       team_name: teamName,
       state: row.status === "active" ? "managed" : "removed",
-      at: (row.status === "active" ? row.enrolled_at : row.revoked_at) ?? row.created_at,
+      at:
+        (row.status === "active" ? row.enrolled_at : row.revoked_at) ??
+        row.created_at,
     });
   }
   return out;
@@ -119,7 +159,10 @@ export function policyWorkspaceOf(table: string, row: any): string | null {
 }
 
 /** Where a request stands: the workspace of the row it touches and the token it came with. */
-export type PolicyScope = { workspace?: string | null; apiToken?: string | null };
+export type PolicyScope = {
+  workspace?: string | null;
+  apiToken?: string | null;
+};
 
 /** The team whose policy turns `key` off for this request, if any. */
 export async function teamPolicyBlocker(
@@ -134,7 +177,8 @@ export async function teamPolicyBlocker(
   if (enrolled && !teamIds.includes(enrolled)) teamIds.push(enrolled);
   for (const teamId of teamIds) {
     const p = await teamPolicyOf(ctx, teamId);
-    if (p && policyBlocks(p.policy, key)) return { team_id: p.team_id, team_name: p.team_name };
+    if (p && policyBlocks(p.policy, key))
+      return { team_id: p.team_id, team_name: p.team_name };
   }
   return null;
 }
@@ -144,14 +188,27 @@ export async function teamPolicyBlocker(
  * or null. Every chokepoint that sends transcript content out (analytics, LLM
  * providers, publishing, Slack, calls) asks here, so the rule has one home.
  */
-export function regulatedTeamFor(ctx: DbCtx, scope: PolicyScope): Promise<{ team_id: Id<"teams">; team_name: string } | null> {
+export function regulatedTeamFor(
+  ctx: DbCtx,
+  scope: PolicyScope,
+): Promise<{ team_id: Id<"teams">; team_name: string } | null> {
   return teamPolicyBlocker(ctx, scope, "regulated_data");
 }
 
 /** The refusal for `key` under this scope, or null when the request may proceed. */
-export async function teamPolicyRefusal(ctx: DbCtx, scope: PolicyScope, key: RestrictionKey): Promise<string | null> {
+export async function teamPolicyRefusal(
+  ctx: DbCtx,
+  scope: PolicyScope,
+  key: RestrictionKey,
+): Promise<string | null> {
   const blocker = await teamPolicyBlocker(ctx, scope, key);
-  return blocker ? policyBlockedMessage(key, { kind: "team", team_id: String(blocker.team_id), team_name: blocker.team_name }) : null;
+  return blocker
+    ? policyBlockedMessage(key, {
+        kind: "team",
+        team_id: String(blocker.team_id),
+        team_name: blocker.team_name,
+      })
+    : null;
 }
 
 /** The policy guard: throws the shared message when a team's policy turns `key` off here.
@@ -161,7 +218,9 @@ export async function requireTeamPolicyAllows(
   ctx: DbCtx,
   scope: PolicyScope,
   key: RestrictionKey,
-  fail: (message: string) => never = (m) => { throw accessError("FORBIDDEN", m); },
+  fail: (message: string) => never = (m) => {
+    throw accessError("FORBIDDEN", m);
+  },
 ): Promise<void> {
   const refusal = await teamPolicyRefusal(ctx, scope, key);
   if (refusal) fail(refusal);

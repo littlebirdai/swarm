@@ -132,7 +132,12 @@ const meta = {
   gated: { password: false, email: false },
   versions: [
     { version: 2, title: PAGE.title, size: report.length, published_at: AT },
-    { version: 1, title: PAGE.title, size: report.length, published_at: AT - 26 * 60_000 },
+    {
+      version: 1,
+      title: PAGE.title,
+      size: report.length,
+      published_at: AT - 26 * 60_000,
+    },
   ],
 };
 
@@ -182,11 +187,20 @@ const branded = brandArtifactHtml(report, {
   hasThumb: false,
 });
 
-const html = branded.replace(/<head([^>]*)>/i, (m) => `${m}${CSP}${stub}${READ_ONLY}`);
+const html = branded.replace(
+  /<head([^>]*)>/i,
+  (m) => `${m}${CSP}${stub}${READ_ONLY}`,
+);
 // The hero copy must never offer a way into the real app: every static link opens out (where the sandbox refuses the popup), and the CSP and the click guard are in.
-const bare = [...html.matchAll(/<a\b[^>]*>/g)].map((m) => m[0]).filter((a) => !/\btarget="_blank"/.test(a));
-if (bare.length) throw new Error(`hero page: links that would navigate the frame: ${bare.join(" ")}`);
-if (!html.includes(CSP) || !html.includes(READ_ONLY)) throw new Error("hero page: the read-only guards are missing");
+const bare = [...html.matchAll(/<a\b[^>]*>/g)]
+  .map((m) => m[0])
+  .filter((a) => !/\btarget="_blank"/.test(a));
+if (bare.length)
+  throw new Error(
+    `hero page: links that would navigate the frame: ${bare.join(" ")}`,
+  );
+if (!html.includes(CSP) || !html.includes(READ_ONLY))
+  throw new Error("hero page: the read-only guards are missing");
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, html);
 console.log(`wrote ${OUT} (${html.length} bytes)`);

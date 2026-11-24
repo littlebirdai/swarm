@@ -5,7 +5,11 @@
 
 /** Every case-insensitive occurrence of `query` in the text under `root`.
  *  `accept` narrows which text nodes count (skip labels, clocks, previews). */
-export function findTextRanges(root: Node, query: string, accept?: (node: Text) => boolean): Range[] {
+export function findTextRanges(
+  root: Node,
+  query: string,
+  accept?: (node: Text) => boolean,
+): Range[] {
   if (!query) return [];
   const ranges: Range[] = [];
   const needle = query.toLowerCase();
@@ -27,7 +31,9 @@ export function findTextRanges(root: Node, query: string, accept?: (node: Text) 
 }
 
 function registry(): Map<string, unknown> | null {
-  return typeof CSS !== "undefined" && "highlights" in CSS ? ((CSS as any).highlights as Map<string, unknown>) : null;
+  return typeof CSS !== "undefined" && "highlights" in CSS
+    ? ((CSS as any).highlights as Map<string, unknown>)
+    : null;
 }
 
 /** Paint `ranges` under the highlight `name`; none clears it. A browser

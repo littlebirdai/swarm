@@ -11,9 +11,25 @@ let usePressOutside: typeof import("./usePressOutside").usePressOutside;
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "KeyboardEvent"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+    "KeyboardEvent",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -28,11 +44,16 @@ let behind = 0;
 function Popover({ active, escape }: { active: boolean; escape?: boolean }) {
   const ref = React.useRef<HTMLDivElement>(null);
   usePressOutside(ref, active, () => closes++, { escape });
-  return React.createElement("div", { id: "inside", ref }, React.createElement("button", { id: "child" }, "Keep"));
+  return React.createElement(
+    "div",
+    { id: "inside", ref },
+    React.createElement("button", { id: "child" }, "Keep"),
+  );
 }
 
 function mount(active: boolean, escape?: boolean) {
-  document.body.innerHTML = "<div id='root'></div><button id='outside'>elsewhere</button>";
+  document.body.innerHTML =
+    "<div id='root'></div><button id='outside'>elsewhere</button>";
   const root = createRoot(document.getElementById("root")!);
   act(() => root.render(React.createElement(Popover, { active, escape })));
   return root;
@@ -41,8 +62,16 @@ function mount(active: boolean, escape?: boolean) {
 // A real pointerdown, which jsdom lacks as a constructor: a plain Event of
 // that type is what the listener hears.
 const press = (id: string) =>
-  document.getElementById(id)!.dispatchEvent(new (window as any).Event("pointerdown", { bubbles: true }));
-const esc = () => document.body.dispatchEvent(new (window as any).KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  document
+    .getElementById(id)!
+    .dispatchEvent(new (window as any).Event("pointerdown", { bubbles: true }));
+const esc = () =>
+  document.body.dispatchEvent(
+    new (window as any).KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+    }),
+  );
 
 beforeEach(() => {
   closes = 0;

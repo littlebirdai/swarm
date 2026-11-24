@@ -26,12 +26,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { atomicWriteFile } from "../../atomicWrite.js";
 
-export type PoolSlotState =
-  | "empty"
-  | "warming"
-  | "ready"
-  | "claimed"
-  | "stale";
+export type PoolSlotState = "empty" | "warming" | "ready" | "claimed" | "stale";
 
 export interface PoolSlot {
   /** Stable slot id, e.g., "pool-0". */
@@ -106,7 +101,10 @@ const TRANSITIONS: Record<PoolSlotState, PoolSlotState[]> = {
 };
 
 export class PoolTransitionError extends Error {
-  constructor(public readonly from: PoolSlotState, public readonly to: PoolSlotState) {
+  constructor(
+    public readonly from: PoolSlotState,
+    public readonly to: PoolSlotState,
+  ) {
     super(`pool slot transition not allowed: ${from} → ${to}`);
     this.name = "PoolTransitionError";
   }
@@ -199,7 +197,11 @@ export function resizePool(state: PoolState, size: number): PoolState {
 
   // Newest slots go first, so a burst that grows then shrinks keeps the slots
   // most likely to still be warm.
-  for (let i = state.slots.length - 1; i >= 0 && countKeepable(state) > size; i--) {
+  for (
+    let i = state.slots.length - 1;
+    i >= 0 && countKeepable(state) > size;
+    i--
+  ) {
     const slot = state.slots[i]!;
     if (slot.state === "empty") {
       state.slots.splice(i, 1);

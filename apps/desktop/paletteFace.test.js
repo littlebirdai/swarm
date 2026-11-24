@@ -26,7 +26,9 @@ function rig(t) {
     },
     isVisible: () => page.visible,
   });
-  page.startReload = () => { page.mounted = false; };
+  page.startReload = () => {
+    page.mounted = false;
+  };
   page.commit = () => face.newDocument();
   page.mount = () => {
     page.mounted = true;

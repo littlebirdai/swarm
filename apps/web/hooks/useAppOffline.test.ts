@@ -36,10 +36,14 @@ describe("connectionChipCopy", () => {
   });
 
   it("names a dropped socket on a live network Server unreachable", () => {
-    expect(connectionChipCopy({ offline: true, online: true })?.label).toBe("Server unreachable");
+    expect(connectionChipCopy({ offline: true, online: true })?.label).toBe(
+      "Server unreachable",
+    );
   });
 
   it("names a dead network Offline", () => {
-    expect(connectionChipCopy({ offline: true, online: false })?.label).toBe("Offline");
+    expect(connectionChipCopy({ offline: true, online: false })?.label).toBe(
+      "Offline",
+    );
   });
 });

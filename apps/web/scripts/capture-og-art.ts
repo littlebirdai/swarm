@@ -32,7 +32,10 @@ const slugs = args.length > 0 ? args : FEATURE_DEEP_DIVES.map((f) => f.slug);
 
 function run(cmd: string[]): string {
   const p = Bun.spawnSync(cmd, { stdout: "pipe", stderr: "pipe" });
-  if (p.exitCode !== 0) throw new Error(`${cmd.slice(0, 3).join(" ")} failed: ${p.stderr.toString().trim() || p.stdout.toString().trim()}`);
+  if (p.exitCode !== 0)
+    throw new Error(
+      `${cmd.slice(0, 3).join(" ")} failed: ${p.stderr.toString().trim() || p.stdout.toString().trim()}`,
+    );
   return p.stdout.toString().trim();
 }
 
@@ -62,13 +65,34 @@ async function mark(): Promise<string> {
 }
 
 if (args[0] === "--webp") {
-  const copies = new Set(SEO_ROUTES.map((e) => e.card?.art).filter((a): a is string => !!a?.startsWith("scripts/og-art/webp/")));
+  const copies = new Set(
+    SEO_ROUTES.map((e) => e.card?.art).filter(
+      (a): a is string => !!a?.startsWith("scripts/og-art/webp/"),
+    ),
+  );
   for (const copy of copies) {
-    const source = join(WEB, "public", copy.slice("scripts/og-art/webp/".length).replace(/\.jpg$/, ".webp"));
+    const source = join(
+      WEB,
+      "public",
+      copy.slice("scripts/og-art/webp/".length).replace(/\.jpg$/, ".webp"),
+    );
     const out = join(WEB, copy);
     if (existsSync(out)) continue;
     mkdirSync(dirname(out), { recursive: true });
-    run(["sips", "-Z", String(MAX_EDGE), "-s", "format", "jpeg", "-s", "formatOptions", "86", source, "--out", out]);
+    run([
+      "sips",
+      "-Z",
+      String(MAX_EDGE),
+      "-s",
+      "format",
+      "jpeg",
+      "-s",
+      "formatOptions",
+      "86",
+      source,
+      "--out",
+      out,
+    ]);
     console.log(`${copy} <- ${source}`);
   }
   process.exit(0);
@@ -78,12 +102,41 @@ mkdirSync(OUT, { recursive: true });
 let failed = 0;
 for (const slug of slugs) {
   try {
-    run(["cast", "browser", "open", "--deadline", "240", `${base}/features/${slug}?static`]);
+    run([
+      "cast",
+      "browser",
+      "open",
+      "--deadline",
+      "240",
+      `${base}/features/${slug}?static`,
+    ]);
     const size = await mark();
     const png = join(OUT, `${slug}.png`);
-    run(["cast", "browser", "shot", "-s", "[data-og-capture]", "--no-inline", "-o", png]);
+    run([
+      "cast",
+      "browser",
+      "shot",
+      "-s",
+      "[data-og-capture]",
+      "--no-inline",
+      "-o",
+      png,
+    ]);
     const jpg = join(OUT, `${slug}.jpg`);
-    run(["sips", "-Z", String(MAX_EDGE), "-s", "format", "jpeg", "-s", "formatOptions", "86", png, "--out", jpg]);
+    run([
+      "sips",
+      "-Z",
+      String(MAX_EDGE),
+      "-s",
+      "format",
+      "jpeg",
+      "-s",
+      "formatOptions",
+      "86",
+      png,
+      "--out",
+      jpg,
+    ]);
     rmSync(png);
     console.log(`${slug}: ${size} -> ${jpg}`);
   } catch (err) {

@@ -21,15 +21,26 @@ const user = (content: string) =>
   JSON.stringify({ type: "user", message: { role: "user", content } });
 
 const asst = (model: string) =>
-  JSON.stringify({ type: "assistant", message: { role: "assistant", model, content: [{ type: "text", text: "hi" }] } });
+  JSON.stringify({
+    type: "assistant",
+    message: {
+      role: "assistant",
+      model,
+      content: [{ type: "text", text: "hi" }],
+    },
+  });
 
 // Real ESC chars: JSON.stringify renders them as `\u001b` text, byte-for-byte
 // what Claude Code writes to the transcript.
 const effortCmd = (level: string) =>
-  user(`<local-command-stdout>Set effort level to ${level} (saved as your default for new sessions): Some description</local-command-stdout>`);
+  user(
+    `<local-command-stdout>Set effort level to ${level} (saved as your default for new sessions): Some description</local-command-stdout>`,
+  );
 
 const pickerCommit = (name: string, level: string) =>
-  user(`<local-command-stdout>Set model to \u001b[1m${name}\u001b[22m for this session only with \u001b[1m${level}\u001b[22m effort</local-command-stdout>`);
+  user(
+    `<local-command-stdout>Set model to \u001b[1m${name}\u001b[22m for this session only with \u001b[1m${level}\u001b[22m effort</local-command-stdout>`,
+  );
 
 describe("claudeEffortLevel", () => {
   test("reads the /effort command echo", () => {
@@ -44,14 +55,22 @@ describe("claudeEffortLevel", () => {
   });
 
   test("a model-only switch carries no effort signal", () => {
-    const modelOnly = user("<local-command-stdout>Set model to \u001b[1mOpus 4.8\u001b[22m and saved as your default for new sessions</local-command-stdout>");
+    const modelOnly = user(
+      "<local-command-stdout>Set model to \u001b[1mOpus 4.8\u001b[22m and saved as your default for new sessions</local-command-stdout>",
+    );
     expect(claudeEffortLevel(modelOnly)).toBeNull();
-    const sessionOnly = user("<local-command-stdout>Set model to \u001b[1mSonnet 4.6\u001b[22m for this session only</local-command-stdout>");
+    const sessionOnly = user(
+      "<local-command-stdout>Set model to \u001b[1mSonnet 4.6\u001b[22m for this session only</local-command-stdout>",
+    );
     expect(claudeEffortLevel(sessionOnly)).toBeNull();
   });
 
   test("the LAST effort signal wins", () => {
-    const transcript = [effortCmd("low"), asst("claude-opus-4-8"), pickerCommit("Opus 4.8", "max")].join("\n");
+    const transcript = [
+      effortCmd("low"),
+      asst("claude-opus-4-8"),
+      pickerCommit("Opus 4.8", "max"),
+    ].join("\n");
     expect(claudeEffortLevel(transcript)).toBe("max");
   });
 
@@ -61,8 +80,12 @@ describe("claudeEffortLevel", () => {
   });
 
   test("ignores prose merely mentioning effort", () => {
-    expect(claudeEffortLevel(user("please work with max effort on this"))).toBeNull();
-    expect(claudeEffortLevel(user("the log said: Set effort level to high"))).toBeNull();
+    expect(
+      claudeEffortLevel(user("please work with max effort on this")),
+    ).toBeNull();
+    expect(
+      claudeEffortLevel(user("the log said: Set effort level to high")),
+    ).toBeNull();
   });
 
   test("returns null on empty/effortless transcripts", () => {
@@ -78,7 +101,12 @@ describe("resumeEffortFlag", () => {
 
   test("an explicit --effort flag always wins", () => {
     expect(resumeEffortFlag(effortCmd("max"), "--effort low")).toBe("");
-    expect(resumeEffortFlag(effortCmd("max"), "--dangerously-skip-permissions --effort=high")).toBe("");
+    expect(
+      resumeEffortFlag(
+        effortCmd("max"),
+        "--dangerously-skip-permissions --effort=high",
+      ),
+    ).toBe("");
   });
 
   test("no flag when the transcript has no effort signal", () => {
@@ -88,13 +116,20 @@ describe("resumeEffortFlag", () => {
 
 describe("resumeEffortFlagFromFile", () => {
   const writeTmpJsonl = (lines: string[]): string => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "effort-")), "session.jsonl");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "effort-")),
+      "session.jsonl",
+    );
     fs.writeFileSync(file, lines.join("\n") + "\n");
     return file;
   };
 
   test("a mid-session effort switch survives resume", () => {
-    const file = writeTmpJsonl([asst("claude-opus-4-8"), pickerCommit("Opus 4.8", "max"), asst("claude-opus-4-8")]);
+    const file = writeTmpJsonl([
+      asst("claude-opus-4-8"),
+      pickerCommit("Opus 4.8", "max"),
+      asst("claude-opus-4-8"),
+    ]);
     expect(resumeEffortFlagFromFile(file, "")).toBe(" --effort max");
   });
 
@@ -104,6 +139,8 @@ describe("resumeEffortFlagFromFile", () => {
   });
 
   test("missing file yields no flag", () => {
-    expect(resumeEffortFlagFromFile("/nonexistent/path/session.jsonl", "")).toBe("");
+    expect(
+      resumeEffortFlagFromFile("/nonexistent/path/session.jsonl", ""),
+    ).toBe("");
   });
 });

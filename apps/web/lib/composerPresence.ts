@@ -14,14 +14,21 @@ import { parseSideQuestion } from "./builtinCommands";
  * writes nothing until someone else appears, so a solo session costs one
  * silent subscription and no rows.
  */
-export function composerPresenceEnabled(conversation: { _id: unknown } | null | undefined): boolean {
+export function composerPresenceEnabled(
+  conversation: { _id: unknown } | null | undefined,
+): boolean {
   return !!conversation && isConvexId(String(conversation._id));
 }
 
 /** The rows in a presence list that are forming words right now. A side
  *  question being typed (`/btw`) is its author's own: never shown, sent or joined. */
 export function typingRows(present: readonly PresenceRow[]): PresenceRow[] {
-  return present.filter((p) => !!p.draft_text && p.draft_text.trim().length > 0 && parseSideQuestion(p.draft_text) === null);
+  return present.filter(
+    (p) =>
+      !!p.draft_text &&
+      p.draft_text.trim().length > 0 &&
+      parseSideQuestion(p.draft_text) === null,
+  );
 }
 
 /**
@@ -29,8 +36,17 @@ export function typingRows(present: readonly PresenceRow[]): PresenceRow[] {
  * person is a teammate (their real face), else the name the row carries (a
  * share link guest, who is not on the roster).
  */
-export function presenceMember(row: PresenceRow, roster: readonly ChatMember[]): ChatMember {
-  return roster.find((m) => String(m._id) === row.user_id) ?? { _id: row.user_id, name: row.user_name, image: row.user_image };
+export function presenceMember(
+  row: PresenceRow,
+  roster: readonly ChatMember[],
+): ChatMember {
+  return (
+    roster.find((m) => String(m._id) === row.user_id) ?? {
+      _id: row.user_id,
+      name: row.user_name,
+      image: row.user_image,
+    }
+  );
 }
 
 /** The presence id of a session's shared composer. */
@@ -44,7 +60,11 @@ export function composeDocId(conversationId: string): string {
  * set names others). An owner's box waits for someone else to appear before
  * it announces itself, so two owners would each wait forever.
  */
-export function hasCoOwner(ownerIds: Iterable<string>, runnerId: string | null | undefined, me: string | null | undefined): boolean {
+export function hasCoOwner(
+  ownerIds: Iterable<string>,
+  runnerId: string | null | undefined,
+  me: string | null | undefined,
+): boolean {
   if (!me) return false;
   if (runnerId && runnerId !== me) return true;
   for (const id of ownerIds) if (id !== me) return true;

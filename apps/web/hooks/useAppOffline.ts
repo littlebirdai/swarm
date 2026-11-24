@@ -29,16 +29,23 @@ export type ConnectionChipCopy = { label: string; detail: string };
  * header LED carries the reconnecting state. The card is only for a true OS
  * offline, after the grace period.
  */
-export function connectionNotice({ offline, online }: AppOffline): ConnectionNotice | null {
+export function connectionNotice({
+  offline,
+  online,
+}: AppOffline): ConnectionNotice | null {
   if (!offline || online) return null;
   return {
     title: "Offline",
-    detail: "showing locally cached data; changes will sync when the connection returns.",
+    detail:
+      "showing locally cached data; changes will sync when the connection returns.",
   };
 }
 
 /** Header LED copy while we cannot sync. Null when the socket is up. */
-export function connectionChipCopy({ offline, online }: AppOffline): ConnectionChipCopy | null {
+export function connectionChipCopy({
+  offline,
+  online,
+}: AppOffline): ConnectionChipCopy | null {
   if (!offline) return null;
   return online
     ? {
@@ -47,11 +54,13 @@ export function connectionChipCopy({ offline, online }: AppOffline): ConnectionC
         // every waiting message for 27 minutes under "Queued — delivering",
         // with only this LED, wordless and hidden below md, saying anything.
         label: "Server unreachable",
-        detail: "This app can't reach the codecast server. This view is from the cache, and it syncs when the server is back.",
+        detail:
+          "This app can't reach the codecast server. This view is from the cache, and it syncs when the server is back.",
       }
     : {
         label: "Offline",
-        detail: "This device has no network. This view is from the cache, and it will sync when the connection returns.",
+        detail:
+          "This device has no network. This view is from the cache, and it will sync when the connection returns.",
       };
 }
 
@@ -89,7 +98,9 @@ export function useAppOffline(): AppOffline {
     }
     if (wsDown) return;
     const t = setTimeout(() => {
-      console.warn(`[useAppOffline] navigator.onLine has said offline for ${STALE_OS_OFFLINE_MS}ms while the Convex socket stayed up; treating the OS flag as stale`);
+      console.warn(
+        `[useAppOffline] navigator.onLine has said offline for ${STALE_OS_OFFLINE_MS}ms while the Convex socket stayed up; treating the OS flag as stale`,
+      );
       setOsFlagStale(true);
     }, STALE_OS_OFFLINE_MS);
     return () => clearTimeout(t);

@@ -5,7 +5,9 @@ import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../test-helpers/domGlobals";
 // The walker is DOM-driven: replies are `.cc-msg-review` regions under
 // `#msg-<id>` rows (keyed by their `data-review-message`), chunks are the top-level blocks of their `.cc-content`.
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -18,15 +20,12 @@ afterAll(() => {
   restoreGlobals();
 });
 
-
-
-
-
 // jsdom has no layout; focusComposer scrolls the input into view.
 dom.window.HTMLElement.prototype.scrollIntoView = () => {};
 
 const { useInboxStore } = await import("../store/inboxStore");
-const { enterReviewFromComposer, stepReviewBlock, reviewBlockCount } = await import("./reviewNav");
+const { enterReviewFromComposer, stepReviewBlock, reviewBlockCount } =
+  await import("./reviewNav");
 
 function mount(replies: Record<string, number>) {
   document.body.innerHTML =
@@ -44,7 +43,11 @@ const review = () => {
 };
 
 beforeEach(() => {
-  useInboxStore.setState({ reviewMessageId: null, reviewActiveBlock: 0, reviewEditingId: null } as any);
+  useInboxStore.setState({
+    reviewMessageId: null,
+    reviewActiveBlock: 0,
+    reviewEditingId: null,
+  } as any);
 });
 
 describe("enterReviewFromComposer", () => {
@@ -94,7 +97,9 @@ describe("stepReviewBlock", () => {
     enterReviewFromComposer(); // b:1
     stepReviewBlock("b", 1);
     expect(review()).toEqual({ id: null, block: 0 });
-    expect(document.activeElement).toBe(document.querySelector("[data-chat-input]"));
+    expect(document.activeElement).toBe(
+      document.querySelector("[data-chat-input]"),
+    );
   });
 
   test("an unmounted target is not handled", () => {

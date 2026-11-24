@@ -1,20 +1,38 @@
-import { memo, useCallback } from 'react';
-import { router } from 'expo-router';
-import { StyleSheet, TouchableOpacity, View as RNView, Image, Keyboard, Linking, useWindowDimensions } from 'react-native';
-import { useStorageImageUrl } from '@codecast/web/hooks/useStorageImageUrl';
-import { attachmentKind, type ChatAttachmentKind, type ChatMessageView } from '@codecast/web/components/chat/chatTypes';
-import type { ChatMessageRow } from '@codecast/web/store/inboxStore';
-import { Text as RNText } from '@/components/Themed';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { TYPE_SCALE } from '@codecast/shared/render/typeScale';
-import { MarkdownContent } from '@/components/MarkdownRenderer';
-import { MessageLongPressContext, useMessageLongPress } from '@/components/MessageLongPress';
-import { formatRelativeTime } from '@/components/SessionItem';
-import { openLink } from '@/lib/links';
-import { SlackLogo } from '@/components/SlackLogo';
-import { MobileIdentityFace, MobileSessionIdentityLine } from '@/components/identity';
-import type { IdentityRow } from '@codecast/web/lib/sessionIdentity';
+import { memo, useCallback } from "react";
+import { router } from "expo-router";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View as RNView,
+  Image,
+  Keyboard,
+  Linking,
+  useWindowDimensions,
+} from "react-native";
+import { useStorageImageUrl } from "@codecast/web/hooks/useStorageImageUrl";
+import {
+  attachmentKind,
+  type ChatAttachmentKind,
+  type ChatMessageView,
+} from "@codecast/web/components/chat/chatTypes";
+import type { ChatMessageRow } from "@codecast/web/store/inboxStore";
+import { Text as RNText } from "@/components/Themed";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { TYPE_SCALE } from "@codecast/shared/render/typeScale";
+import { MarkdownContent } from "@/components/MarkdownRenderer";
+import {
+  MessageLongPressContext,
+  useMessageLongPress,
+} from "@/components/MessageLongPress";
+import { formatRelativeTime } from "@/components/SessionItem";
+import { openLink } from "@/lib/links";
+import { SlackLogo } from "@/components/SlackLogo";
+import {
+  MobileIdentityFace,
+  MobileSessionIdentityLine,
+} from "@/components/identity";
+import type { IdentityRow } from "@codecast/web/lib/sessionIdentity";
 
 // One chat message on mobile. The same rules as the web row, in RN idiom:
 // a fixed avatar gutter that keeps its width when a message is grouped under
@@ -27,7 +45,11 @@ import type { IdentityRow } from '@codecast/web/lib/sessionIdentity';
  *  batched query, cached across mounts and warmed when a page of chat lands),
  *  so a revisited tile paints at once; a tile keeps a fixed footprint while
  *  it resolves so the transcript doesn't jump when the bytes land. */
-function AttachmentImage({ storageId, previewUrl, onOpen }: {
+function AttachmentImage({
+  storageId,
+  previewUrl,
+  onOpen,
+}: {
   storageId: string;
   /** The local file of an image still uploading: paints until the stored one resolves. */
   previewUrl?: string;
@@ -47,7 +69,11 @@ function AttachmentImage({ storageId, previewUrl, onOpen }: {
       style={[styles.attachment, { width: side, height: side * 0.75 }]}
     >
       {url ? (
-        <Image source={{ uri: url }} style={styles.attachmentImg} resizeMode="cover" />
+        <Image
+          source={{ uri: url }}
+          style={styles.attachmentImg}
+          resizeMode="cover"
+        />
       ) : null}
     </TouchableOpacity>
   );
@@ -66,7 +92,11 @@ function AttachmentVideo({ storageId }: { storageId: string }) {
       disabled={!url}
       onPress={() => url && void openLink(url)}
       onLongPress={messageLongPress ? () => messageLongPress() : undefined}
-      style={[styles.attachment, styles.attachmentVideo, { width: side, height: side * 0.5625 }]}
+      style={[
+        styles.attachment,
+        styles.attachmentVideo,
+        { width: side, height: side * 0.5625 },
+      ]}
       accessibilityRole="button"
       accessibilityLabel="Play video"
     >
@@ -94,7 +124,10 @@ export type ChatAuthorLite = {
   };
   /** The author is a Slack person or app the bridge relayed (the row carries
    *  `external_author`). An app with no face gets the Slack mark as its tile. */
-  slack?: { isBot: boolean; /** Their Slack user id — the grouping identity (shared authorGroupKey). */ userId?: string };
+  slack?: {
+    isBot: boolean;
+    /** Their Slack user id — the grouping identity (shared authorGroupKey). */ userId?: string;
+  };
 };
 
 export type MobileChatMessage = {
@@ -102,7 +135,7 @@ export type MobileChatMessage = {
   author: ChatAuthorLite;
   /** The line exists in a mirrored Slack channel too: "From Slack" for one
    *  the bridge pulled in, "Also in Slack" for one it posted out. */
-  slack?: { direction: 'inbound' | 'outbound'; permalink?: string };
+  slack?: { direction: "inbound" | "outbound"; permalink?: string };
   content: string;
   /** The session the sender had open when they wrote it; its title when the
    *  viewer's store holds that session. */
@@ -115,18 +148,23 @@ export type MobileChatMessage = {
   threadRootId?: string;
   /** That thread's root, as a line of plain text, when the store holds it. */
   threadRootPreview?: string;
-  agentStatus?: 'thinking' | 'streaming' | 'done' | 'error';
+  agentStatus?: "thinking" | "streaming" | "done" | "error";
   agentDeadlineAt?: number;
   pending?: boolean;
   failed?: boolean;
   reactions?: { emoji: string; count: number; mine: boolean }[];
   /** Uploaded images, shown as tappable tiles under the text. */
-  attachments?: { storage_id: string; name?: string; preview_url?: string; kind: ChatAttachmentKind }[];
+  attachments?: {
+    storage_id: string;
+    name?: string;
+    preview_url?: string;
+    kind: ChatAttachmentKind;
+  }[];
   thread?: {
     replyCount: number;
     replyCapped: boolean;
     lastReplyAt: number;
-    agentStatus?: 'thinking' | 'streaming' | 'error';
+    agentStatus?: "thinking" | "streaming" | "error";
   };
 };
 
@@ -140,10 +178,18 @@ export function fromChatView(
   identityFor: (sessionId: string) => IdentityRow | null | undefined,
 ): MobileChatMessage {
   const a = view.author;
-  const status = view.agentStatus === 'listening' || view.agentStatus === 'passed' ? undefined : view.agentStatus;
+  const status =
+    view.agentStatus === "listening" || view.agentStatus === "passed"
+      ? undefined
+      : view.agentStatus;
   const attachments = view.attachments
     ?.filter((x) => x.storage_id || x.preview_url)
-    .map((x) => ({ storage_id: x.storage_id, name: x.name, preview_url: x.preview_url, kind: attachmentKind(x) }));
+    .map((x) => ({
+      storage_id: x.storage_id,
+      name: x.name,
+      preview_url: x.preview_url,
+      kind: attachmentKind(x),
+    }));
   return {
     id: view.id,
     slack: view.slack,
@@ -152,12 +198,26 @@ export function fromChatView(
           id: a.id,
           name: a.name,
           isAgent: true,
-          session: { id: a.session.id, agentType: a.session.agentType, via: a.session.via, identity: identityFor(a.session.id) ?? null },
+          session: {
+            id: a.session.id,
+            agentType: a.session.agentType,
+            via: a.session.via,
+            identity: identityFor(a.session.id) ?? null,
+          },
         }
-      : { id: a.id, name: a.name, avatarUrl: a.avatarUrl, isAgent: a.isAgent, slack: a.slack as ChatAuthorLite['slack'] },
+      : {
+          id: a.id,
+          name: a.name,
+          avatarUrl: a.avatarUrl,
+          isAgent: a.isAgent,
+          slack: a.slack as ChatAuthorLite["slack"],
+        },
     content: view.content,
     contextSession: view.contextSessionId
-      ? { id: view.contextSessionId, title: identityFor(view.contextSessionId)?.title ?? undefined }
+      ? {
+          id: view.contextSessionId,
+          title: identityFor(view.contextSessionId)?.title ?? undefined,
+        }
       : undefined,
     createdAt: view.createdAt,
     editedAt: view.editedAt,
@@ -168,7 +228,11 @@ export function fromChatView(
     agentDeadlineAt: (row as any)?.agent_deadline_at,
     pending: view.pending && !view.failed,
     failed: view.failed,
-    reactions: view.reactions?.map((r) => ({ emoji: r.emoji, count: r.count, mine: r.mine })),
+    reactions: view.reactions?.map((r) => ({
+      emoji: r.emoji,
+      count: r.count,
+      mine: r.mine,
+    })),
     attachments: attachments?.length ? attachments : undefined,
     thread: view.replyCount
       ? {
@@ -184,7 +248,14 @@ export function fromChatView(
 /** The face beside a message's first line; the gutter is this plus its gap. */
 const AVATAR = 36;
 
-const AVATAR_HUES = [Theme.blue, Theme.cyan, Theme.green, Theme.violet, Theme.magenta, Theme.orange];
+const AVATAR_HUES = [
+  Theme.blue,
+  Theme.cyan,
+  Theme.green,
+  Theme.violet,
+  Theme.magenta,
+  Theme.orange,
+];
 function hueFor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -193,22 +264,34 @@ function hueFor(seed: string): string {
 
 function initials(name: string): string {
   // Letters only, asides dropped: "Tess Peer (test)" is TP, not T( or TT.
-  const parts = name.replace(/\([^)]*\)/g, ' ').trim().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean);
-  if (parts.length === 0) return '?';
+  const parts = name
+    .replace(/\([^)]*\)/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2);
   return parts[0][0] + parts[parts.length - 1][0];
 }
 
 function clock(ts: number): string {
-  return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 /** The Slack mark beside the time, labelled "From Slack" / "Also in Slack"
  *  for screen readers. Tapping opens the line in Slack when the bridge minted
  *  a permalink. */
-function SlackMark({ slack }: { slack: NonNullable<MobileChatMessage['slack']> }) {
-  const label = slack.direction === 'inbound' ? 'From Slack' : 'Also in Slack';
-  const logo = <SlackLogo size={11} muted={slack.direction === 'outbound'} />;
+function SlackMark({
+  slack,
+}: {
+  slack: NonNullable<MobileChatMessage["slack"]>;
+}) {
+  const label = slack.direction === "inbound" ? "From Slack" : "Also in Slack";
+  const logo = <SlackLogo size={11} muted={slack.direction === "outbound"} />;
   return slack.permalink ? (
     <TouchableOpacity
       style={styles.slackMark}
@@ -220,28 +303,61 @@ function SlackMark({ slack }: { slack: NonNullable<MobileChatMessage['slack']> }
       {logo}
     </TouchableOpacity>
   ) : (
-    <RNView style={styles.slackMark} accessibilityRole="image" accessibilityLabel={label}>{logo}</RNView>
+    <RNView
+      style={styles.slackMark}
+      accessibilityRole="image"
+      accessibilityLabel={label}
+    >
+      {logo}
+    </RNView>
   );
 }
 
-export function ChatAvatar({ author, size = 26 }: { author: ChatAuthorLite; size?: number }) {
+export function ChatAvatar({
+  author,
+  size = 26,
+}: {
+  author: ChatAuthorLite;
+  size?: number;
+}) {
   const Theme = useTheme();
   if (author.isAgent) {
     const chip = (
-      <RNView style={[styles.avatar, styles.avatarAgent, { width: size, height: size }]}>
+      <RNView
+        style={[
+          styles.avatar,
+          styles.avatarAgent,
+          { width: size, height: size },
+        ]}
+      >
         <FontAwesome name="microchip" size={size * 0.5} color={Theme.violet} />
       </RNView>
     );
     // A personified session wears its face; any other agent keeps the chip.
-    return <MobileIdentityFace row={author.session?.identity} size={size} fallback={chip} />;
+    return (
+      <MobileIdentityFace
+        row={author.session?.identity}
+        size={size}
+        fallback={chip}
+      />
+    );
   }
   if (author.avatarUrl) {
-    return <Image source={{ uri: author.avatarUrl }} style={[styles.avatar, { width: size, height: size }]} />;
+    return (
+      <Image
+        source={{ uri: author.avatarUrl }}
+        style={[styles.avatar, { width: size, height: size }]}
+      />
+    );
   }
   if (author.slack?.isBot) {
     return (
       <RNView
-        style={[styles.avatar, styles.avatarSlack, { width: size, height: size }]}
+        style={[
+          styles.avatar,
+          styles.avatarSlack,
+          { width: size, height: size },
+        ]}
         accessibilityRole="image"
         accessibilityLabel={`${author.name}, a Slack app`}
       >
@@ -250,8 +366,15 @@ export function ChatAvatar({ author, size = 26 }: { author: ChatAuthorLite; size
     );
   }
   return (
-    <RNView style={[styles.avatar, { width: size, height: size, backgroundColor: hueFor(author.name) }]}>
-      <RNText style={[styles.avatarInitials, { fontSize: Math.max(8, size * 0.38) }]}>
+    <RNView
+      style={[
+        styles.avatar,
+        { width: size, height: size, backgroundColor: hueFor(author.name) },
+      ]}
+    >
+      <RNText
+        style={[styles.avatarInitials, { fontSize: Math.max(8, size * 0.38) }]}
+      >
         {initials(author.name).toUpperCase()}
       </RNText>
     </RNView>
@@ -292,175 +415,239 @@ export const MessageRow = memo(function MessageRow({
 }) {
   const Theme = useTheme();
   const { author, agentStatus } = message;
-  const thinking = agentStatus === 'thinking' || agentStatus === 'streaming';
-  const errored = agentStatus === 'error';
-  const elapsed = thinking ? Math.max(0, Math.round((now - message.createdAt) / 1000)) : 0;
+  const thinking = agentStatus === "thinking" || agentStatus === "streaming";
+  const errored = agentStatus === "error";
+  const elapsed = thinking
+    ? Math.max(0, Math.round((now - message.createdAt) / 1000))
+    : 0;
   // Chat's sheet has its own actions; a link's Copy link is covered by Copy text.
-  const openMenu = useCallback(() => onLongPress?.(message), [onLongPress, message]);
+  const openMenu = useCallback(
+    () => onLongPress?.(message),
+    [onLongPress, message],
+  );
 
   return (
     <MessageLongPressContext.Provider value={onLongPress ? openMenu : null}>
-    <TouchableOpacity
-      activeOpacity={0.85}
-      // The row claims every tap (it holds the long-press menu), so the
-      // transcript's persistTaps="handled" never sees a tap on plain text: a
-      // tap with nothing to do puts the keyboard away here. Links, reactions
-      // and images inside are deeper touchables and take their own taps.
-      onPress={Keyboard.dismiss}
-      onLongPress={openMenu}
-      delayLongPress={350}
-      style={[
-        styles.row,
-        !grouped && styles.rowLead,
-        message.mentionsMe && styles.rowMentionsMe,
-        message.failed && styles.rowFailed,
-        message.pending && !message.failed && styles.rowPending,
-      ]}
-    >
-      <RNView style={styles.gutter}>
-        {!grouped && <ChatAvatar author={author} size={AVATAR} />}
-      </RNView>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        // The row claims every tap (it holds the long-press menu), so the
+        // transcript's persistTaps="handled" never sees a tap on plain text: a
+        // tap with nothing to do puts the keyboard away here. Links, reactions
+        // and images inside are deeper touchables and take their own taps.
+        onPress={Keyboard.dismiss}
+        onLongPress={openMenu}
+        delayLongPress={350}
+        style={[
+          styles.row,
+          !grouped && styles.rowLead,
+          message.mentionsMe && styles.rowMentionsMe,
+          message.failed && styles.rowFailed,
+          message.pending && !message.failed && styles.rowPending,
+        ]}
+      >
+        <RNView style={styles.gutter}>
+          {!grouped && <ChatAvatar author={author} size={AVATAR} />}
+        </RNView>
 
-      <RNView style={styles.body}>
-        {!grouped && (
-          <RNView style={styles.head}>
-            <MobileSessionIdentityLine row={author.session?.identity} title={author.name} style={styles.author} />
-            {author.isAgent && (
-              <RNView style={styles.agentChip}>
-                <RNText style={styles.agentChipText}>{author.session ? 'SESSION' : 'AGENT'}</RNText>
-              </RNView>
-            )}
-            {!!author.session?.via && (
-              <RNText style={[styles.time, styles.via]} numberOfLines={1}>via {author.session.via}</RNText>
-            )}
-            {author.slack?.isBot && (
-              <RNView style={styles.agentChip} accessibilityLabel={`${author.name} is a Slack app`}>
-                <RNText style={styles.agentChipText}>APP</RNText>
-              </RNView>
-            )}
-            {message.contextSession && (
-              <TouchableOpacity
-                onPress={() => router.push(`/session/${message.contextSession!.id}`)}
-                accessibilityRole="link"
-                accessibilityLabel="Open the session this was sent from"
-                style={styles.context}
-              >
-                <RNText style={styles.time} numberOfLines={1}>
-                  from <RNText style={styles.contextTitle}>{message.contextSession.title || message.contextSession.id.slice(0, 7)}</RNText>
+        <RNView style={styles.body}>
+          {!grouped && (
+            <RNView style={styles.head}>
+              <MobileSessionIdentityLine
+                row={author.session?.identity}
+                title={author.name}
+                style={styles.author}
+              />
+              {author.isAgent && (
+                <RNView style={styles.agentChip}>
+                  <RNText style={styles.agentChipText}>
+                    {author.session ? "SESSION" : "AGENT"}
+                  </RNText>
+                </RNView>
+              )}
+              {!!author.session?.via && (
+                <RNText style={[styles.time, styles.via]} numberOfLines={1}>
+                  via {author.session.via}
                 </RNText>
-              </TouchableOpacity>
-            )}
-            {message.slack && <SlackMark slack={message.slack} />}
-            <RNText style={styles.time}>{clock(message.createdAt)}</RNText>
-          </RNView>
-        )}
+              )}
+              {author.slack?.isBot && (
+                <RNView
+                  style={styles.agentChip}
+                  accessibilityLabel={`${author.name} is a Slack app`}
+                >
+                  <RNText style={styles.agentChipText}>APP</RNText>
+                </RNView>
+              )}
+              {message.contextSession && (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push(`/session/${message.contextSession!.id}`)
+                  }
+                  accessibilityRole="link"
+                  accessibilityLabel="Open the session this was sent from"
+                  style={styles.context}
+                >
+                  <RNText style={styles.time} numberOfLines={1}>
+                    from{" "}
+                    <RNText style={styles.contextTitle}>
+                      {message.contextSession.title ||
+                        message.contextSession.id.slice(0, 7)}
+                    </RNText>
+                  </RNText>
+                </TouchableOpacity>
+              )}
+              {message.slack && <SlackMark slack={message.slack} />}
+              <RNText style={styles.time}>{clock(message.createdAt)}</RNText>
+            </RNView>
+          )}
 
-        {!inThread && message.threadRootId && onOpenThread && (
-          <TouchableOpacity
-            style={styles.inThread}
-            onPressIn={() => onThreadPressIn?.(message.threadRootId!)}
-            onPress={() => onOpenThread(message.threadRootId!, message.id)}
-            hitSlop={{ top: 6, bottom: 6 }}
-            accessibilityRole="link"
-            accessibilityLabel="Replied in a thread. Open the thread"
-          >
-            <FontAwesome name="level-up" size={12} color={Theme.textMuted} style={styles.inThreadIcon} />
-            <RNText style={styles.inThreadText} numberOfLines={1}>
-              Replied to a thread{message.threadRootPreview ? <RNText style={styles.inThreadRoot}>: {message.threadRootPreview}</RNText> : null}
-            </RNText>
-          </TouchableOpacity>
-        )}
+          {!inThread && message.threadRootId && onOpenThread && (
+            <TouchableOpacity
+              style={styles.inThread}
+              onPressIn={() => onThreadPressIn?.(message.threadRootId!)}
+              onPress={() => onOpenThread(message.threadRootId!, message.id)}
+              hitSlop={{ top: 6, bottom: 6 }}
+              accessibilityRole="link"
+              accessibilityLabel="Replied in a thread. Open the thread"
+            >
+              <FontAwesome
+                name="level-up"
+                size={12}
+                color={Theme.textMuted}
+                style={styles.inThreadIcon}
+              />
+              <RNText style={styles.inThreadText} numberOfLines={1}>
+                Replied to a thread
+                {message.threadRootPreview ? (
+                  <RNText style={styles.inThreadRoot}>
+                    : {message.threadRootPreview}
+                  </RNText>
+                ) : null}
+              </RNText>
+            </TouchableOpacity>
+          )}
 
-        {message.deletedAt ? (
-          <RNText style={styles.deleted}>This message was deleted</RNText>
-        ) : thinking ? (
-          <RNView style={styles.thinkingRow}>
-            <RNText style={styles.thinking}>
-              {author.name} is thinking{elapsed >= 5 ? ` · ${elapsed}s` : ''}
-            </RNText>
-            {onStopAgent && (
-              <TouchableOpacity onPress={() => onStopAgent(message.id)} hitSlop={8}>
-                <RNText style={styles.stop}>Stop</RNText>
-              </TouchableOpacity>
-            )}
-          </RNView>
-        ) : errored ? (
-          <RNView style={styles.errorRow}>
-            <FontAwesome name="exclamation-triangle" size={11} color={Theme.red} />
-            <RNText style={styles.errorText}>
-              {message.content || `${author.name} could not answer`}
-            </RNText>
-          </RNView>
-        ) : (
-          <RNView>
-            <MarkdownContent
-              text={message.content}
-              baseStyle={styles.mdBase}
-              knownMentionHandles={knownMentionHandles}
-              // Long-press is the actions gesture in chat; the OS selection
-              // callout would float over the sheet. Copy lives in the sheet.
-              selectable={false}
-            />
-            {!!message.editedAt && <RNText style={styles.edited}>(edited)</RNText>}
-          </RNView>
-        )}
+          {message.deletedAt ? (
+            <RNText style={styles.deleted}>This message was deleted</RNText>
+          ) : thinking ? (
+            <RNView style={styles.thinkingRow}>
+              <RNText style={styles.thinking}>
+                {author.name} is thinking{elapsed >= 5 ? ` · ${elapsed}s` : ""}
+              </RNText>
+              {onStopAgent && (
+                <TouchableOpacity
+                  onPress={() => onStopAgent(message.id)}
+                  hitSlop={8}
+                >
+                  <RNText style={styles.stop}>Stop</RNText>
+                </TouchableOpacity>
+              )}
+            </RNView>
+          ) : errored ? (
+            <RNView style={styles.errorRow}>
+              <FontAwesome
+                name="exclamation-triangle"
+                size={11}
+                color={Theme.red}
+              />
+              <RNText style={styles.errorText}>
+                {message.content || `${author.name} could not answer`}
+              </RNText>
+            </RNView>
+          ) : (
+            <RNView>
+              <MarkdownContent
+                text={message.content}
+                baseStyle={styles.mdBase}
+                knownMentionHandles={knownMentionHandles}
+                // Long-press is the actions gesture in chat; the OS selection
+                // callout would float over the sheet. Copy lives in the sheet.
+                selectable={false}
+              />
+              {!!message.editedAt && (
+                <RNText style={styles.edited}>(edited)</RNText>
+              )}
+            </RNView>
+          )}
 
-        {!!message.attachments?.length && (
-          <RNView style={styles.attachments}>
-            {message.attachments.map((att) => att.kind === 'video'
-              ? <AttachmentVideo key={att.storage_id} storageId={att.storage_id} />
-              : <AttachmentImage key={att.storage_id || att.preview_url} storageId={att.storage_id} previewUrl={att.preview_url} onOpen={onOpenImage} />
-            )}
-          </RNView>
-        )}
+          {!!message.attachments?.length && (
+            <RNView style={styles.attachments}>
+              {message.attachments.map((att) =>
+                att.kind === "video" ? (
+                  <AttachmentVideo
+                    key={att.storage_id}
+                    storageId={att.storage_id}
+                  />
+                ) : (
+                  <AttachmentImage
+                    key={att.storage_id || att.preview_url}
+                    storageId={att.storage_id}
+                    previewUrl={att.preview_url}
+                    onOpen={onOpenImage}
+                  />
+                ),
+              )}
+            </RNView>
+          )}
 
-        {message.failed && (
-          <RNView style={styles.failedRow}>
-            <RNText style={styles.failedText}>Not sent</RNText>
-            {onRetrySend && (
-              <TouchableOpacity onPress={() => onRetrySend(message.id)} hitSlop={8}>
-                <RNText style={styles.retry}>Retry</RNText>
-              </TouchableOpacity>
-            )}
-          </RNView>
-        )}
+          {message.failed && (
+            <RNView style={styles.failedRow}>
+              <RNText style={styles.failedText}>Not sent</RNText>
+              {onRetrySend && (
+                <TouchableOpacity
+                  onPress={() => onRetrySend(message.id)}
+                  hitSlop={8}
+                >
+                  <RNText style={styles.retry}>Retry</RNText>
+                </TouchableOpacity>
+              )}
+            </RNView>
+          )}
 
-        {!!message.reactions?.length && (
-          <RNView style={styles.reactions}>
-            {message.reactions.map((r) => (
-              <TouchableOpacity
-                key={r.emoji}
-                style={[styles.reaction, r.mine && styles.reactionMine]}
-                onPress={() => onToggleReaction?.(message.id, r.emoji)}
-              >
-                <RNText style={styles.reactionText}>{r.emoji} {r.count}</RNText>
-              </TouchableOpacity>
-            ))}
-          </RNView>
-        )}
+          {!!message.reactions?.length && (
+            <RNView style={styles.reactions}>
+              {message.reactions.map((r) => (
+                <TouchableOpacity
+                  key={r.emoji}
+                  style={[styles.reaction, r.mine && styles.reactionMine]}
+                  onPress={() => onToggleReaction?.(message.id, r.emoji)}
+                >
+                  <RNText style={styles.reactionText}>
+                    {r.emoji} {r.count}
+                  </RNText>
+                </TouchableOpacity>
+              ))}
+            </RNView>
+          )}
 
-        {!inThread && message.thread && (
-          <TouchableOpacity
-            style={styles.threadLink}
-            activeOpacity={0.6}
-            onPressIn={() => onThreadPressIn?.(message.id)}
-            onPress={() => onOpenThread?.(message.id)}
-            hitSlop={{ top: 4, bottom: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={`${message.thread.replyCount} ${message.thread.replyCount === 1 ? 'reply' : 'replies'}. Open thread`}
-          >
-            <FontAwesome name="comment-o" size={14} color={Theme.accent} />
-            <RNText style={styles.threadText}>
-              {message.thread.agentStatus === 'thinking' || message.thread.agentStatus === 'streaming'
-                ? 'Thinking…'
-                : `${message.thread.replyCount}${message.thread.replyCapped ? '+' : ''} ${message.thread.replyCount === 1 ? 'reply' : 'replies'}`}
-            </RNText>
-            <RNText style={styles.threadWhen} numberOfLines={1}>{formatRelativeTime(message.thread.lastReplyAt)}</RNText>
-            <FontAwesome name="angle-right" size={16} color={Theme.textMuted0} />
-          </TouchableOpacity>
-        )}
-      </RNView>
-    </TouchableOpacity>
+          {!inThread && message.thread && (
+            <TouchableOpacity
+              style={styles.threadLink}
+              activeOpacity={0.6}
+              onPressIn={() => onThreadPressIn?.(message.id)}
+              onPress={() => onOpenThread?.(message.id)}
+              hitSlop={{ top: 4, bottom: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${message.thread.replyCount} ${message.thread.replyCount === 1 ? "reply" : "replies"}. Open thread`}
+            >
+              <FontAwesome name="comment-o" size={14} color={Theme.accent} />
+              <RNText style={styles.threadText}>
+                {message.thread.agentStatus === "thinking" ||
+                message.thread.agentStatus === "streaming"
+                  ? "Thinking…"
+                  : `${message.thread.replyCount}${message.thread.replyCapped ? "+" : ""} ${message.thread.replyCount === 1 ? "reply" : "replies"}`}
+              </RNText>
+              <RNText style={styles.threadWhen} numberOfLines={1}>
+                {formatRelativeTime(message.thread.lastReplyAt)}
+              </RNText>
+              <FontAwesome
+                name="angle-right"
+                size={16}
+                color={Theme.textMuted0}
+              />
+            </TouchableOpacity>
+          )}
+        </RNView>
+      </TouchableOpacity>
     </MessageLongPressContext.Provider>
   );
 });
@@ -486,134 +673,198 @@ export function NewDivider() {
   );
 }
 
-const styles = themedStyles((Theme, look) => StyleSheet.create({
-  avatar: {
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: Theme.bgAlt,
-  },
-  avatarAgent: {
-    backgroundColor: Theme.violet + '22',
-    borderWidth: 1,
-    borderColor: Theme.violet + '55',
-  },
-  avatarSlack: {
-    backgroundColor: Theme.bgAlt,
-    borderWidth: 1,
-    borderColor: Theme.border + '80',
-  },
-  avatarInitials: { fontWeight: '700', color: Theme.bg },
-  mdBase: look === 'modern'
-    ? { fontSize: 15, lineHeight: 21.5, color: Theme.text }
-    : { fontSize: 13.5, lineHeight: 20, color: Theme.textSecondary },
-  row: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 1,
-  },
-  rowLead: { marginTop: 14 },
-  rowMentionsMe: {
-    backgroundColor: Theme.orange + '12',
-    borderLeftWidth: 2,
-    borderLeftColor: Theme.orange,
-  },
-  rowFailed: {
-    backgroundColor: Theme.red + '12',
-    borderLeftWidth: 2,
-    borderLeftColor: Theme.red,
-  },
-  rowPending: { opacity: 0.55 },
-  gutter: { width: AVATAR + 10, alignItems: 'flex-start', paddingTop: 2 },
-  body: { flex: 1, minWidth: 0 },
-  // Wraps rather than truncates: a long session title keeps its words and the
-  // chip, via and time drop to a second line.
-  head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 6, rowGap: 1, marginBottom: 2 },
-  author: { fontSize: 14, fontWeight: '700', color: Theme.text, flexShrink: 1 },
-  agentChip: {
-    borderWidth: 1,
-    borderColor: Theme.violet + '70',
-    borderRadius: 3,
-    paddingHorizontal: 3,
-  },
-  agentChipText: { fontSize: 8, fontWeight: '700', color: Theme.violet, letterSpacing: 0.6 },
-  time: { fontSize: 11, color: Theme.textMuted0 },
-  // "via" gives way before the author's name does.
-  via: { flexShrink: 3 },
-  context: { flexShrink: 1, minWidth: 0 },
-  contextTitle: { color: Theme.textMuted },
-  // The head aligns on text baselines; a bare glyph has none, so it centers.
-  slackMark: { alignSelf: 'center' },
-  deleted: { fontSize: 13, fontStyle: 'italic', color: Theme.textMuted0 },
-  edited: { fontSize: 11, color: Theme.textMuted0, marginTop: -4, marginBottom: 2 },
-  thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  thinking: { fontSize: 13, color: Theme.textMuted },
-  stop: { fontSize: 13, fontWeight: '600', color: Theme.blue },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  errorText: { fontSize: 13, color: Theme.red, flexShrink: 1 },
-  failedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-  failedText: { fontSize: 12, color: Theme.red },
-  retry: { fontSize: 12, fontWeight: '700', color: Theme.blue },
-  inThread: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, minHeight: 24 },
-  inThreadIcon: { transform: [{ rotate: '90deg' }] },
-  inThreadText: { flexShrink: 1, fontSize: 12, fontWeight: '600', color: Theme.textMuted },
-  inThreadRoot: { fontWeight: '400' },
-  attachments: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
-  },
-  attachment: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    // Scheme-agnostic translucent well behind a loading image.
-    backgroundColor: '#00000014',
-  },
-  attachmentVideo: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000',
-  },
-  attachmentImg: {
-    width: '100%',
-    height: '100%',
-  },
-  reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  reaction: {
-    minHeight: 30,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Theme.border + '60',
-    borderRadius: 15,
-    paddingHorizontal: 10,
-    backgroundColor: Theme.bgAlt + '80',
-  },
-  reactionMine: {
-    borderColor: Theme.blue + '99',
-    backgroundColor: Theme.blue + '22',
-  },
-  reactionText: { fontSize: 12.5, color: Theme.textSecondary },
-  // The whole bar opens the thread: a thumb-sized target, not a word.
-  threadLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 40,
-    marginTop: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border + '80',
-    backgroundColor: Theme.bgAlt + 'B0',
-  },
-  threadText: { fontSize: 13, fontWeight: '700', color: Theme.accent },
-  threadWhen: { flex: 1, fontSize: 12, color: Theme.textMuted0 },
-  day: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, marginBottom: 4, paddingHorizontal: Spacing.md },
-  dayLine: { flex: 1, height: 1, backgroundColor: Theme.border },
-  dayLabel: { fontSize: 11, fontWeight: '700', color: Theme.textMuted, letterSpacing: 0.3 },
-  newRule: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8, paddingHorizontal: Spacing.md },
-  newLabel: { fontSize: 10, fontWeight: '700', color: Theme.orange, letterSpacing: 1 },
-  newLine: { flex: 1, height: 1, backgroundColor: Theme.orange + '66' },
-}));
+const styles = themedStyles((Theme, look) =>
+  StyleSheet.create({
+    avatar: {
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+      backgroundColor: Theme.bgAlt,
+    },
+    avatarAgent: {
+      backgroundColor: Theme.violet + "22",
+      borderWidth: 1,
+      borderColor: Theme.violet + "55",
+    },
+    avatarSlack: {
+      backgroundColor: Theme.bgAlt,
+      borderWidth: 1,
+      borderColor: Theme.border + "80",
+    },
+    avatarInitials: { fontWeight: "700", color: Theme.bg },
+    mdBase:
+      look === "modern"
+        ? { fontSize: 15, lineHeight: 21.5, color: Theme.text }
+        : { fontSize: 13.5, lineHeight: 20, color: Theme.textSecondary },
+    row: {
+      flexDirection: "row",
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 1,
+    },
+    rowLead: { marginTop: 14 },
+    rowMentionsMe: {
+      backgroundColor: Theme.orange + "12",
+      borderLeftWidth: 2,
+      borderLeftColor: Theme.orange,
+    },
+    rowFailed: {
+      backgroundColor: Theme.red + "12",
+      borderLeftWidth: 2,
+      borderLeftColor: Theme.red,
+    },
+    rowPending: { opacity: 0.55 },
+    gutter: { width: AVATAR + 10, alignItems: "flex-start", paddingTop: 2 },
+    body: { flex: 1, minWidth: 0 },
+    // Wraps rather than truncates: a long session title keeps its words and the
+    // chip, via and time drop to a second line.
+    head: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "baseline",
+      columnGap: 6,
+      rowGap: 1,
+      marginBottom: 2,
+    },
+    author: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: Theme.text,
+      flexShrink: 1,
+    },
+    agentChip: {
+      borderWidth: 1,
+      borderColor: Theme.violet + "70",
+      borderRadius: 3,
+      paddingHorizontal: 3,
+    },
+    agentChipText: {
+      fontSize: 8,
+      fontWeight: "700",
+      color: Theme.violet,
+      letterSpacing: 0.6,
+    },
+    time: { fontSize: 11, color: Theme.textMuted0 },
+    // "via" gives way before the author's name does.
+    via: { flexShrink: 3 },
+    context: { flexShrink: 1, minWidth: 0 },
+    contextTitle: { color: Theme.textMuted },
+    // The head aligns on text baselines; a bare glyph has none, so it centers.
+    slackMark: { alignSelf: "center" },
+    deleted: { fontSize: 13, fontStyle: "italic", color: Theme.textMuted0 },
+    edited: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      marginTop: -4,
+      marginBottom: 2,
+    },
+    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    thinking: { fontSize: 13, color: Theme.textMuted },
+    stop: { fontSize: 13, fontWeight: "600", color: Theme.blue },
+    errorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    errorText: { fontSize: 13, color: Theme.red, flexShrink: 1 },
+    failedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginTop: 4,
+    },
+    failedText: { fontSize: 12, color: Theme.red },
+    retry: { fontSize: 12, fontWeight: "700", color: Theme.blue },
+    inThread: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 3,
+      minHeight: 24,
+    },
+    inThreadIcon: { transform: [{ rotate: "90deg" }] },
+    inThreadText: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    inThreadRoot: { fontWeight: "400" },
+    attachments: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      marginTop: 6,
+    },
+    attachment: {
+      borderRadius: 10,
+      overflow: "hidden",
+      // Scheme-agnostic translucent well behind a loading image.
+      backgroundColor: "#00000014",
+    },
+    attachmentVideo: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#000",
+    },
+    attachmentImg: {
+      width: "100%",
+      height: "100%",
+    },
+    reactions: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+    reaction: {
+      minHeight: 30,
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: Theme.border + "60",
+      borderRadius: 15,
+      paddingHorizontal: 10,
+      backgroundColor: Theme.bgAlt + "80",
+    },
+    reactionMine: {
+      borderColor: Theme.blue + "99",
+      backgroundColor: Theme.blue + "22",
+    },
+    reactionText: { fontSize: 12.5, color: Theme.textSecondary },
+    // The whole bar opens the thread: a thumb-sized target, not a word.
+    threadLink: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minHeight: 40,
+      marginTop: 6,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border + "80",
+      backgroundColor: Theme.bgAlt + "B0",
+    },
+    threadText: { fontSize: 13, fontWeight: "700", color: Theme.accent },
+    threadWhen: { flex: 1, fontSize: 12, color: Theme.textMuted0 },
+    day: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 18,
+      marginBottom: 4,
+      paddingHorizontal: Spacing.md,
+    },
+    dayLine: { flex: 1, height: 1, backgroundColor: Theme.border },
+    dayLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: Theme.textMuted,
+      letterSpacing: 0.3,
+    },
+    newRule: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginVertical: 8,
+      paddingHorizontal: Spacing.md,
+    },
+    newLabel: {
+      fontSize: 10,
+      fontWeight: "700",
+      color: Theme.orange,
+      letterSpacing: 1,
+    },
+    newLine: { flex: 1, height: 1, backgroundColor: Theme.orange + "66" },
+  }),
+);

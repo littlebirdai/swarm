@@ -17,31 +17,59 @@ import { readAvailableSkills } from "./daemon.js";
 const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skills-invocable-"));
 const defaultSkill = `${path.basename(projectRoot)}-default`;
 
-function writeSkill(name: string, frontmatter: string, manifest = "SKILL.md"): void {
+function writeSkill(
+  name: string,
+  frontmatter: string,
+  manifest = "SKILL.md",
+): void {
   const dir = path.join(projectRoot, ".claude", "skills", name);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, manifest), `---\n${frontmatter}\n---\n\nbody\n`);
+  fs.writeFileSync(
+    path.join(dir, manifest),
+    `---\n${frontmatter}\n---\n\nbody\n`,
+  );
 }
 
 // Default: name + description only, no invocable flag (the mac-remote shape).
-writeSkill(defaultSkill, `name: ${defaultSkill}\ndescription: Connect to the remote Mac`);
+writeSkill(
+  defaultSkill,
+  `name: ${defaultSkill}\ndescription: Connect to the remote Mac`,
+);
 // Lowercase manifest filename — works on a case-insensitive FS but must also be
 // found case-sensitively (the user's mac-remote/skill.md was lowercase).
-writeSkill("lower-case", "name: lower-case\ndescription: Lowercase manifest", "skill.md");
+writeSkill(
+  "lower-case",
+  "name: lower-case\ndescription: Lowercase manifest",
+  "skill.md",
+);
 // Explicit opt-out via CC's real hyphenated field — must be hidden.
-writeSkill("bg-knowledge", "name: bg-knowledge\ndescription: Reference only\nuser-invocable: false");
+writeSkill(
+  "bg-knowledge",
+  "name: bg-knowledge\ndescription: Reference only\nuser-invocable: false",
+);
 // Legacy opt-in spelling still works (back-compat with the old flag).
-writeSkill("legacy-optin", "name: legacy-optin\ndescription: Old style\nuser_invocable: true");
+writeSkill(
+  "legacy-optin",
+  "name: legacy-optin\ndescription: Old style\nuser_invocable: true",
+);
 // A plain project command alongside the skills.
 const cmdDir = path.join(projectRoot, ".claude", "commands");
 fs.mkdirSync(cmdDir, { recursive: true });
-fs.writeFileSync(path.join(cmdDir, "deploy.md"), "---\ndescription: Deploy the app\n---\nrun it\n");
+fs.writeFileSync(
+  path.join(cmdDir, "deploy.md"),
+  "---\ndescription: Deploy the app\n---\nrun it\n",
+);
 
 afterAll(() => fs.rmSync(projectRoot, { recursive: true, force: true }));
 
 describe("readAvailableSkills user-invocable default", () => {
   const byName = async (projectPath?: string) =>
-    new Map((await readAvailableSkills(projectPath)).map((s) => [s.name, s.description]));
+    new Map(
+      (await readAvailableSkills(projectPath)).map((s) => [
+        s.name,
+        s.description,
+      ]),
+    );
 
   test("a skill with no invocable flag surfaces by default (matches Claude Code)", async () => {
     const skills = await byName(projectRoot);

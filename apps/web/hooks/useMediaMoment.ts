@@ -4,7 +4,10 @@ import { lineSeqAt, turnIndexAt } from "../lib/calls/callVideo";
 /** Where a call's media is (ms since the call started) and whether it plays. */
 export type MediaMoment = { ms: number; playing: boolean };
 
-type MomentTurns = ReadonlyArray<{ t0: number; segments: ReadonlyArray<{ seq: number; t0: number; t1?: number }> }>;
+type MomentTurns = ReadonlyArray<{
+  t0: number;
+  segments: ReadonlyArray<{ seq: number; t0: number; t1?: number }>;
+}>;
 
 /** The line a page lights at a moment, as one value: the turn (held through a
  *  silence while paused, as the page lights it) and the line inside it, since
@@ -35,7 +38,13 @@ export function useMediaMoment(turns: MomentTurns): {
   const onTime = useCallback((ms: number, playing: boolean) => {
     const prev = last.current;
     last.current = { ms, playing };
-    if (prev && prev.playing === playing && litLineSig(turnsRef.current, prev) === litLineSig(turnsRef.current, last.current)) return;
+    if (
+      prev &&
+      prev.playing === playing &&
+      litLineSig(turnsRef.current, prev) ===
+        litLineSig(turnsRef.current, last.current)
+    )
+      return;
     setAt(last.current);
   }, []);
   const set = useCallback((next: MediaMoment | null) => {

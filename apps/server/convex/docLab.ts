@@ -41,7 +41,10 @@ function flagLabel(flag: string): string {
   return LAB_FLAGS.find((f) => f.flag === flag)?.label ?? `Mark ${flag}`;
 }
 
-export function labPrompt(req: LabRequest, text: string): { prompt: string; max_tokens: number } {
+export function labPrompt(
+  req: LabRequest,
+  text: string,
+): { prompt: string; max_tokens: number } {
   if (req.tool === "alternatives") {
     return {
       max_tokens: 800,
@@ -102,16 +105,24 @@ Answer as {"fixes": [{"old": "exact stretch", "new": "corrected"}]}.`,
 }
 
 const strings = (x: unknown): string[] =>
-  Array.isArray(x) ? x.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : [];
+  Array.isArray(x)
+    ? x.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    : [];
 
 export function parseLabReply(req: LabRequest, raw: string): LabResult | null {
   const json = parseJsonBlock(raw) as any;
   if (!json || typeof json !== "object") return null;
   if (req.tool === "alternatives") {
     const target = req.target.trim();
-    return { tool: "alternatives", options: [...new Set(strings(json.options).map((s) => s.trim()))].filter((s) => s !== target).slice(0, 8) };
+    return {
+      tool: "alternatives",
+      options: [...new Set(strings(json.options).map((s) => s.trim()))]
+        .filter((s) => s !== target)
+        .slice(0, 8),
+    };
   }
-  if (req.tool === "trim") return { tool: "trim", level: req.level, cuts: strings(json.cuts) };
+  if (req.tool === "trim")
+    return { tool: "trim", level: req.level, cuts: strings(json.cuts) };
   if (req.tool === "flag") {
     const items = Array.isArray(json.items) ? json.items : [];
     return {
@@ -119,57 +130,108 @@ export function parseLabReply(req: LabRequest, raw: string): LabResult | null {
       flag: req.flag,
       items: items
         .filter((i: any) => typeof i?.text === "string" && i.text.trim())
-        .map((i: any) => ({ text: i.text, ...(typeof i.note === "string" && i.note.trim() ? { note: i.note.trim() } : {}) })),
+        .map((i: any) => ({
+          text: i.text,
+          ...(typeof i.note === "string" && i.note.trim()
+            ? { note: i.note.trim() }
+            : {}),
+        })),
     };
   }
   const fixes = Array.isArray(json.fixes) ? json.fixes : [];
   return {
     tool: "typos",
-    fixes: fixes.filter((f: any) => typeof f?.old === "string" && typeof f?.new === "string" && f.old && f.old !== f.new),
+    fixes: fixes.filter(
+      (f: any) =>
+        typeof f?.old === "string" &&
+        typeof f?.new === "string" &&
+        f.old &&
+        f.old !== f.new,
+    ),
   };
 }
 
 const requestArgs = {
-  tool: v.union(v.literal("alternatives"), v.literal("trim"), v.literal("flag"), v.literal("typos")),
+  tool: v.union(
+    v.literal("alternatives"),
+    v.literal("trim"),
+    v.literal("flag"),
+    v.literal("typos"),
+  ),
   target: v.optional(v.string()),
   context: v.optional(v.string()),
   level: v.optional(v.string()),
   flag: v.optional(v.string()),
 };
 
-function toRequest(args: { tool: string; target?: string; context?: string; level?: string; flag?: string }): LabRequest {
+function toRequest(args: {
+  tool: string;
+  target?: string;
+  context?: string;
+  level?: string;
+  flag?: string;
+}): LabRequest {
   if (args.tool === "alternatives") {
-    if (!args.target?.trim()) throw new Error("Alternatives need the text they are for");
-    return { tool: "alternatives", target: args.target, context: args.context ?? args.target };
+    if (!args.target?.trim())
+      throw new Error("Alternatives need the text they are for");
+    return {
+      tool: "alternatives",
+      target: args.target,
+      context: args.context ?? args.target,
+    };
   }
   if (args.tool === "trim") {
-    const level = (LAB_TRIMS.find((t) => t.level === args.level)?.level ?? "slight") as TrimLevel;
+    const level = (LAB_TRIMS.find((t) => t.level === args.level)?.level ??
+      "slight") as TrimLevel;
     return { tool: "trim", level };
   }
   if (args.tool === "flag") {
-    if (!LAB_FLAGS.some((f) => f.flag === args.flag)) throw new Error(`Unknown flag; use one of ${LAB_FLAGS.map((f) => f.flag).join(", ")}`);
+    if (!LAB_FLAGS.some((f) => f.flag === args.flag))
+      throw new Error(
+        `Unknown flag; use one of ${LAB_FLAGS.map((f) => f.flag).join(", ")}`,
+      );
     return { tool: "flag", flag: args.flag! };
   }
   return { tool: "typos" };
 }
 
 /** The built prompt, held to the same size cap as every other server model call. */
-export function labPromptWithinLimits(req: LabRequest, text: string): { prompt: string; max_tokens: number } {
+export function labPromptWithinLimits(
+  req: LabRequest,
+  text: string,
+): { prompt: string; max_tokens: number } {
   const built = labPrompt(req, text);
   if (built.prompt.length > MODEL_CALL_LIMITS.prompt_chars) {
-    throw new Error(`The Lab reads up to ${MODEL_CALL_LIMITS.prompt_chars.toLocaleString("en-US")} characters at a time; run it on a shorter stretch`);
+    throw new Error(
+      `The Lab reads up to ${MODEL_CALL_LIMITS.prompt_chars.toLocaleString("en-US")} characters at a time; run it on a shorter stretch`,
+    );
   }
   return built;
 }
 
-async function runLab(gate: VendorGate, req: LabRequest, text: string): Promise<LabResult> {
+async function runLab(
+  gate: VendorGate,
+  req: LabRequest,
+  text: string,
+): Promise<LabResult> {
   const { prompt, max_tokens } = labPromptWithinLimits(req, text);
   // A regulated team's doc is refused in words the editor can show (a FORBIDDEN ConvexError).
   await requireVendorAllowed(gate.ctx, gate.scope, "anthropic");
-  const reply = await callModel({ system: SYSTEM, prompt, max_tokens, model: LAB_MODEL, label: "Doc lab", timeout_ms: LAB_TIMEOUT_MS, gate });
+  const reply = await callModel({
+    system: SYSTEM,
+    prompt,
+    max_tokens,
+    model: LAB_MODEL,
+    label: "Doc lab",
+    timeout_ms: LAB_TIMEOUT_MS,
+    gate,
+  });
   if (!reply) throw new Error("The Lab could not reach its model; try again");
   const result = parseLabReply(req, reply.text);
-  if (!result) throw new Error("The Lab's model answered in a shape it could not read; try again");
+  if (!result)
+    throw new Error(
+      "The Lab's model answered in a shape it could not read; try again",
+    );
   return result;
 }
 
@@ -184,7 +246,8 @@ export const admitRun = internalMutation({
     if (!userId) throw new Error("Unauthorized");
     const docId = ctx.db.normalizeId("docs", args.doc_id);
     const doc = docId ? await ctx.db.get(docId) : null;
-    if (!doc || !(await canAccessDoc(ctx, userId, doc))) throw new Error("Doc not found");
+    if (!doc || !(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Doc not found");
     await checkRateLimit(ctx, userId, "docLab.run", LAB_RUNS_PER_MINUTE);
     return String(doc._id);
   },
@@ -212,9 +275,15 @@ export const run = action({
     // may be sent. The same step meters the model call per person.
     const req = toRequest(args);
     labPromptWithinLimits(req, args.text);
-    const docId: string = await ctx.runMutation(internal.docLab.admitRun, { doc_id: args.doc_id });
+    const docId: string = await ctx.runMutation(internal.docLab.admitRun, {
+      doc_id: args.doc_id,
+    });
     // The doc the editor's text comes from decides where it may be sent.
-    return runLab({ ctx, scope: { row: { table: "docs", id: docId } } }, req, args.text);
+    return runLab(
+      { ctx, scope: { row: { table: "docs", id: docId } } },
+      req,
+      args.text,
+    );
   },
 });
 
@@ -223,17 +292,49 @@ export const run = action({
  * through the same access checks and snapshot reset as `cast doc edit`.
  */
 export const runOnDoc = action({
-  args: { api_token: v.string(), id: v.id("docs"), session_id: v.optional(v.string()), occurrence: v.optional(v.number()), ...requestArgs },
-  handler: async (ctx, args): Promise<{ result: LabResult; applied: number; missed: string[]; words_before: number; words_after: number; conflict?: string }> => {
-    const doc: any = await ctx.runQuery(api.docs.get, { api_token: args.api_token, id: args.id });
+  args: {
+    api_token: v.string(),
+    id: v.id("docs"),
+    session_id: v.optional(v.string()),
+    occurrence: v.optional(v.number()),
+    ...requestArgs,
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    result: LabResult;
+    applied: number;
+    missed: string[];
+    words_before: number;
+    words_after: number;
+    conflict?: string;
+  }> => {
+    const doc: any = await ctx.runQuery(api.docs.get, {
+      api_token: args.api_token,
+      id: args.id,
+    });
     if (!doc) throw new Error("Doc not found");
     const req = toRequest(args);
-    await ctx.runMutation(internal.docLab.admitCliRun, { api_token: args.api_token });
+    await ctx.runMutation(internal.docLab.admitCliRun, {
+      api_token: args.api_token,
+    });
     const md: string = doc.content ?? "";
     const clean = stripDrafting(md);
-    const context = req.tool === "alternatives" ? surrounding(clean, req.target) : "";
-    const result = await runLab({ ctx, scope: { workspace: doc.workspace ?? null, apiToken: args.api_token } }, req.tool === "alternatives" ? { ...req, context } : req, clean);
-    const landed = applyLabResult(md, result, { target: req.tool === "alternatives" ? req.target : undefined, occurrence: args.occurrence });
+    const context =
+      req.tool === "alternatives" ? surrounding(clean, req.target) : "";
+    const result = await runLab(
+      {
+        ctx,
+        scope: { workspace: doc.workspace ?? null, apiToken: args.api_token },
+      },
+      req.tool === "alternatives" ? { ...req, context } : req,
+      clean,
+    );
+    const landed = applyLabResult(md, result, {
+      target: req.tool === "alternatives" ? req.target : undefined,
+      occurrence: args.occurrence,
+    });
     let conflict: string | undefined;
     if (landed.md !== md) {
       // The model ran for seconds on the text read above, so the write names
@@ -241,13 +342,27 @@ export const runOnDoc = action({
       // result is not replayed on the newer text (a pass first clears marks of
       // its own kind, which would take any added since); it comes back unapplied.
       try {
-        await ctx.runMutation(api.docs.update, { api_token: args.api_token, id: args.id, content: landed.md, session_id: args.session_id, base: doc.revision });
+        await ctx.runMutation(api.docs.update, {
+          api_token: args.api_token,
+          id: args.id,
+          content: landed.md,
+          session_id: args.session_id,
+          base: doc.revision,
+        });
       } catch (e: any) {
         if (e?.data?.code !== "CONFLICT") throw e;
         conflict = e.data.message;
       }
     }
-    if (conflict) return { result, applied: 0, missed: landed.missed, words_before: wordCount(clean), words_after: wordCount(clean), conflict };
+    if (conflict)
+      return {
+        result,
+        applied: 0,
+        missed: landed.missed,
+        words_before: wordCount(clean),
+        words_after: wordCount(clean),
+        conflict,
+      };
     return {
       result,
       applied: landed.applied,

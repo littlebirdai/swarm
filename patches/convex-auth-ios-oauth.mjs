@@ -16,7 +16,13 @@
 //
 // Idempotent: each rewrite is skipped when its sentinel is already present.
 
-import { existsSync, readFileSync, writeFileSync, globSync, realpathSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  globSync,
+  realpathSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const SENTINEL = "codecastIosOAuth";
@@ -29,11 +35,17 @@ function copies(rel) {
   // location collapses the symlinks, so a shared copy is patched once.
   const roots = [
     "node_modules/@convex-dev/auth",
-    ...globSync("node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
+    ...globSync(
+      "node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+    ),
     ...globSync("apps/*/node_modules/@convex-dev/auth"),
     ...globSync("packages/*/node_modules/@convex-dev/auth"),
-    ...globSync("apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
-    ...globSync("packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth"),
+    ...globSync(
+      "apps/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+    ),
+    ...globSync(
+      "packages/*/node_modules/.bun/@convex-dev+auth@*/node_modules/@convex-dev/auth",
+    ),
   ];
   const seen = new Set();
   const out = [];
@@ -396,7 +408,9 @@ function patchClient(src) {
 
 for (const f of copies("src/server/cookies.ts")) rewrite(f, stripPartitioned);
 for (const f of copies("dist/server/cookies.js")) rewrite(f, stripPartitioned);
-for (const f of copies("src/server/implementation/index.ts")) rewrite(f, patchIndexTs);
-for (const f of copies("dist/server/implementation/index.js")) rewrite(f, patchIndexJs);
+for (const f of copies("src/server/implementation/index.ts"))
+  rewrite(f, patchIndexTs);
+for (const f of copies("dist/server/implementation/index.js"))
+  rewrite(f, patchIndexJs);
 for (const f of copies("src/react/client.tsx")) rewrite(f, patchClient);
 for (const f of copies("dist/react/client.js")) rewrite(f, patchClient);

@@ -17,7 +17,9 @@ describe("rowScrollDelta", () => {
 
   test("a row below the fold scrolls up, never past the heading", () => {
     expect(rowScrollDelta(container, { top: 620, bottom: 653 }, 32)).toBe(53);
-    expect(rowScrollDelta({ top: 0, bottom: 100 }, { top: 40, bottom: 400 }, 32)).toBe(8);
+    expect(
+      rowScrollDelta({ top: 0, bottom: 100 }, { top: 40, bottom: 400 }, 32),
+    ).toBe(8);
   });
 
   test("without a margin it is the plain nearest-edge delta", () => {

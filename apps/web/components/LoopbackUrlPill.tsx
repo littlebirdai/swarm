@@ -30,7 +30,13 @@ const PILL =
   "py-px pl-1.5 pr-2 align-baseline text-meta font-mono leading-[1.4] text-sol-text-secondary no-underline " +
   "transition-colors hover:border-sol-cyan/50 hover:text-sol-text";
 
-export function LoopbackUrlPill({ url, label }: { url: string; label?: string }) {
+export function LoopbackUrlPill({
+  url,
+  label,
+}: {
+  url: string;
+  label?: string;
+}) {
   const menu = useContextMenu<string>();
   const text = label || pageAddressLabel(url);
 
@@ -47,7 +53,14 @@ export function LoopbackUrlPill({ url, label }: { url: string; label?: string })
           e.stopPropagation();
           // A modified click is the reader asking for their browser, not for
           // a pane — the same contract every other link in the app keeps.
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          if (
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            e.button !== 0
+          )
+            return;
           e.preventDefault();
           openBrowserPane({ kind: "url", url });
         }}
@@ -55,7 +68,9 @@ export function LoopbackUrlPill({ url, label }: { url: string; label?: string })
         <Globe className="h-3 w-3 flex-shrink-0 text-sol-text-dim transition-colors group-hover:text-sol-cyan" />
         <span className="truncate">{text}</span>
       </a>
-      <ContextMenu state={menu}>{(target) => browserPaneMenuItems(target)}</ContextMenu>
+      <ContextMenu state={menu}>
+        {(target) => browserPaneMenuItems(target)}
+      </ContextMenu>
     </>
   );
 }

@@ -10,9 +10,13 @@ import { browserPaneMenuItems } from "../browserPaneMenuItems";
 // this, the rows and their words.
 function rows(node: ReactNode): string[] {
   const fragment = node as ReactElement<{ children: ReactNode[] }>;
-  return fragment.props.children.filter(isValidElement).map((row) =>
-    row.type === CtxSeparator ? "---" : String((row.props as { children: ReactNode }).children),
-  );
+  return fragment.props.children
+    .filter(isValidElement)
+    .map((row) =>
+      row.type === CtxSeparator
+        ? "---"
+        : String((row.props as { children: ReactNode }).children),
+    );
 }
 
 describe("browserPaneMenuItems", () => {
@@ -28,7 +32,11 @@ describe("browserPaneMenuItems", () => {
 
   test("renames only the pane row, for the page an agent drove", () => {
     expect(
-      rows(browserPaneMenuItems("https://example.com/", { paneLabel: "Preview this page in a pane" })),
+      rows(
+        browserPaneMenuItems("https://example.com/", {
+          paneLabel: "Preview this page in a pane",
+        }),
+      ),
     ).toEqual([
       "Preview this page in a pane",
       "Open in a pane, full width",

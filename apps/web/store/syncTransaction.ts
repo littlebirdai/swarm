@@ -67,7 +67,11 @@ export function flushSyncPublishes(): void {
  * The notification gate. Called by the store's subscribe wrapper for every
  * committed write; `fanOut` visits the subscribers.
  */
-export function foldPublish(state: unknown, previous: unknown, fanOut: FanOut): void {
+export function foldPublish(
+  state: unknown,
+  previous: unknown,
+  fanOut: FanOut,
+): void {
   if (depth > 0) {
     deferredFanOut = fanOut;
     if (deferred) {

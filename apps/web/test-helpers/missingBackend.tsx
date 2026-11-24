@@ -32,7 +32,9 @@ import { replaceGlobals } from "./globals";
 import { closeDomWindow } from "./domGlobals";
 
 export function missingFunctionError(name: string): Error {
-  return new Error(`[Request ID: degrade000000000] Server Error\nCould not find public function for '${name}'.`);
+  return new Error(
+    `[Request ID: degrade000000000] Server Error\nCould not find public function for '${name}'.`,
+  );
 }
 
 const noop = () => {};
@@ -40,11 +42,16 @@ class InertObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
-  takeRecords() { return []; }
+  takeRecords() {
+    return [];
+  }
 }
 
 export function installDom(url: string) {
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url, pretendToBeVisual: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url, pretendToBeVisual: true },
+  );
   const w = dom.window as any;
   const restoreGlobals = replaceGlobals({
     window: w,
@@ -74,14 +81,49 @@ export function installDom(url: string) {
     FocusEvent: w.FocusEvent,
     PointerEvent: w.PointerEvent ?? w.MouseEvent,
     DOMParser: w.DOMParser,
-    DOMRect: w.DOMRect ?? class DOMRect { constructor(public x = 0, public y = 0, public width = 0, public height = 0) {} get top() { return this.y; } get left() { return this.x; } get right() { return this.x + this.width; } get bottom() { return this.y + this.height; } toJSON() { return this; } },
+    DOMRect:
+      w.DOMRect ??
+      class DOMRect {
+        constructor(
+          public x = 0,
+          public y = 0,
+          public width = 0,
+          public height = 0,
+        ) {}
+        get top() {
+          return this.y;
+        }
+        get left() {
+          return this.x;
+        }
+        get right() {
+          return this.x + this.width;
+        }
+        get bottom() {
+          return this.y + this.height;
+        }
+        toJSON() {
+          return this;
+        }
+      },
     MutationObserver: w.MutationObserver,
     getComputedStyle: w.getComputedStyle.bind(w),
-    requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0),
-    cancelAnimationFrame: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+    requestAnimationFrame: (cb: FrameRequestCallback) =>
+      setTimeout(() => cb(Date.now()), 0),
+    cancelAnimationFrame: (id: ReturnType<typeof setTimeout>) =>
+      clearTimeout(id),
     ResizeObserver: InertObserver,
     IntersectionObserver: InertObserver,
-    matchMedia: () => ({ matches: false, media: "", onchange: null, addEventListener: noop, removeEventListener: noop, addListener: noop, removeListener: noop, dispatchEvent: () => false }),
+    matchMedia: () => ({
+      matches: false,
+      media: "",
+      onchange: null,
+      addEventListener: noop,
+      removeEventListener: noop,
+      addListener: noop,
+      removeListener: noop,
+      dispatchEvent: () => false,
+    }),
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   w.matchMedia = (globalThis as any).matchMedia;
@@ -90,10 +132,28 @@ export function installDom(url: string) {
   // jsdom lays nothing out, and a virtualized list over a zero-height
   // viewport renders no rows at all. A fixed box per element is enough for
   // every list to render its first rows.
-  for (const [prop, value] of [["offsetHeight", 600], ["clientHeight", 600], ["offsetWidth", 800], ["clientWidth", 800]] as const) {
-    Object.defineProperty(w.HTMLElement.prototype, prop, { configurable: true, get: () => value });
+  for (const [prop, value] of [
+    ["offsetHeight", 600],
+    ["clientHeight", 600],
+    ["offsetWidth", 800],
+    ["clientWidth", 800],
+  ] as const) {
+    Object.defineProperty(w.HTMLElement.prototype, prop, {
+      configurable: true,
+      get: () => value,
+    });
   }
-  w.HTMLElement.prototype.getBoundingClientRect = () => ({ x: 0, y: 0, top: 0, left: 0, right: 800, bottom: 600, width: 800, height: 600, toJSON() {} });
+  w.HTMLElement.prototype.getBoundingClientRect = () => ({
+    x: 0,
+    y: 0,
+    top: 0,
+    left: 0,
+    right: 800,
+    bottom: 600,
+    width: 800,
+    height: 600,
+    toJSON() {},
+  });
   w.HTMLElement.prototype.scrollIntoView ??= noop;
   w.HTMLElement.prototype.scrollTo ??= noop;
   w.scrollTo = noop;
@@ -111,7 +171,9 @@ export type MissingBackend = {
 
 type Answers = Record<string, unknown>;
 
-export async function installMissingBackend(opts: { answers?: Answers } = {}): Promise<MissingBackend> {
+export async function installMissingBackend(
+  opts: { answers?: Answers } = {},
+): Promise<MissingBackend> {
   const answers = opts.answers ?? {};
   const refused = new Set<string>();
   const { getFunctionName } = await import("convex/server");
@@ -131,9 +193,14 @@ export async function installMissingBackend(opts: { answers?: Answers } = {}): P
   };
   const failing = (ref: unknown) => {
     const value = resolve(ref);
-    return value instanceof Error ? Promise.reject(value) : Promise.resolve(value);
+    return value instanceof Error
+      ? Promise.reject(value)
+      : Promise.resolve(value);
   };
-  const mutation = () => Object.assign(async () => undefined, { withOptimisticUpdate: () => mutation() });
+  const mutation = () =>
+    Object.assign(async () => undefined, {
+      withOptimisticUpdate: () => mutation(),
+    });
   const watch = (ref: unknown) => ({
     onUpdate: () => noop,
     localQueryResult: () => {
@@ -148,7 +215,16 @@ export async function installMissingBackend(opts: { answers?: Answers } = {}): P
     mutation: async () => undefined,
     action: async () => undefined,
     watchQuery: watch,
-    connectionState: () => ({ isWebSocketConnected: true, hasInflightRequests: false, hasEverConnected: true, connectionCount: 1, connectionRetries: 0, timeOfOldestInflightRequest: null, inflightMutations: 0, inflightActions: 0 }),
+    connectionState: () => ({
+      isWebSocketConnected: true,
+      hasInflightRequests: false,
+      hasEverConnected: true,
+      connectionCount: 1,
+      connectionRetries: 0,
+      timeOfOldestInflightRequest: null,
+      inflightMutations: 0,
+      inflightActions: 0,
+    }),
     subscribeToConnectionState: () => noop,
     setAuth: noop,
     clearAuth: noop,
@@ -170,12 +246,25 @@ export async function installMissingBackend(opts: { answers?: Answers } = {}): P
       return value;
     },
     useQueries: (queries: Record<string, { query: unknown; args: unknown }>) =>
-      Object.fromEntries(Object.entries(queries).map(([key, q]) => [key, resolve(q.query)])),
+      Object.fromEntries(
+        Object.entries(queries).map(([key, q]) => [key, resolve(q.query)]),
+      ),
     usePaginatedQuery: (ref: unknown, args?: unknown) => {
-      if (args === "skip") return { results: [], status: "LoadingFirstPage", isLoading: true, loadMore: noop };
+      if (args === "skip")
+        return {
+          results: [],
+          status: "LoadingFirstPage",
+          isLoading: true,
+          loadMore: noop,
+        };
       const value = resolve(ref);
       if (value instanceof Error) throw value;
-      return { results: value, status: "Exhausted", isLoading: false, loadMore: noop };
+      return {
+        results: value,
+        status: "Exhausted",
+        isLoading: false,
+        loadMore: noop,
+      };
     },
     useMutation: mutation,
     useAction: () => async () => undefined,
@@ -186,7 +275,10 @@ export async function installMissingBackend(opts: { answers?: Answers } = {}): P
   afterAll(() => mock.module("@convex-dev/auth/react", () => convexAuth));
   mock.module("@convex-dev/auth/react", () => ({
     ...convexAuth,
-    useAuthActions: () => ({ signIn: async () => ({ signingIn: false }), signOut: async () => {} }),
+    useAuthActions: () => ({
+      signIn: async () => ({ signingIn: false }),
+      signOut: async () => {},
+    }),
     useAuthToken: () => "degrade-token",
   }));
   return { refused };
@@ -222,8 +314,10 @@ async function mountSurface(node: React.ReactNode): Promise<MountedSurface> {
   const caught: Error[] = [];
   const uncaught: Error[] = [];
   const root = createRoot(container, {
-    onCaughtError: (error: unknown, info: { componentStack?: string }) => caught.push(withOwner(error, info)),
-    onUncaughtError: (error: unknown, info: { componentStack?: string }) => uncaught.push(withOwner(error, info)),
+    onCaughtError: (error: unknown, info: { componentStack?: string }) =>
+      caught.push(withOwner(error, info)),
+    onUncaughtError: (error: unknown, info: { componentStack?: string }) =>
+      uncaught.push(withOwner(error, info)),
   });
   await act(async () => {
     root.render(node);
@@ -255,7 +349,12 @@ async function mountSurface(node: React.ReactNode): Promise<MountedSurface> {
 
 // Convex-shaped ids: several surfaces skip their queries for a stub id, so a
 // fixture with a readable id would never reach the backend it is testing.
-export const fixtureId = (tag: string) => tag.toLowerCase().replace(/[^a-z0-9]/g, "").padEnd(32, "0").slice(0, 32);
+export const fixtureId = (tag: string) =>
+  tag
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .padEnd(32, "0")
+    .slice(0, 32);
 export const VIEWER_ID = fixtureId("degradeviewer");
 export const TEAM_ID = fixtureId("degradeteam");
 
@@ -265,55 +364,96 @@ export const TEAM_ID = fixtureId("degradeteam");
 export async function seedViewer(): Promise<void> {
   const { useInboxStore } = await import("../store/inboxStore");
   const { TEAM_FEATURE_KEYS } = await import("@codecast/shared/contracts");
-  const viewer = { _id: VIEWER_ID, name: "Dana Viewer", email: "dana@degrade.test", username: "dana" };
+  const viewer = {
+    _id: VIEWER_ID,
+    name: "Dana Viewer",
+    email: "dana@degrade.test",
+    username: "dana",
+  };
   const s = useInboxStore.getState();
   useInboxStore.setState({
     currentUser: viewer,
     clientStateInitialized: true,
-    clientState: { ...s.clientState, ui: { ...s.clientState.ui, active_team_id: TEAM_ID } },
+    clientState: {
+      ...s.clientState,
+      ui: { ...s.clientState.ui, active_team_id: TEAM_ID },
+    },
     callConfig: { enabled: true },
   } as any);
-  s.syncTable("teams", [{ _id: TEAM_ID, name: "Degrade Co", role: "admin", features: Object.fromEntries(TEAM_FEATURE_KEYS.map((k) => [k, true])) }] as any);
+  s.syncTable("teams", [
+    {
+      _id: TEAM_ID,
+      name: "Degrade Co",
+      role: "admin",
+      features: Object.fromEntries(TEAM_FEATURE_KEYS.map((k) => [k, true])),
+    },
+  ] as any);
   const { stampRoster } = await import("../lib/activeTeam");
-  s.syncTable("teamMembers", stampRoster([{ ...viewer, role: "admin", presence_state: "active" }], TEAM_ID) as any);
+  s.syncTable(
+    "teamMembers",
+    stampRoster(
+      [{ ...viewer, role: "admin", presence_state: "active" }],
+      TEAM_ID,
+    ) as any,
+  );
 }
 
 // A session this browser already holds: its inbox row, its conversation
 // meta and its messages, written the way the feeders write them.
-export async function seedCachedSession(id: string, title: string, messages: { role: "user" | "assistant"; content: string }[]): Promise<void> {
+export async function seedCachedSession(
+  id: string,
+  title: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+): Promise<void> {
   const { useInboxStore } = await import("../store/inboxStore");
   const now = Date.now();
   const store = useInboxStore.getState();
-  store.syncTable("sessions", [{
+  store.syncTable("sessions", [
+    {
+      _id: id,
+      session_id: `s-${id.slice(0, 8)}`,
+      user_id: VIEWER_ID,
+      owned_by_me: true,
+      title,
+      status: "active",
+      started_at: now - 3_600_000,
+      updated_at: now - 60_000,
+      message_count: messages.length,
+      is_idle: true,
+      agent_type: "claude_code",
+      project_path: "/src/app",
+    },
+  ] as any);
+  store.syncRecord("conversations", id, {
     _id: id,
-    session_id: `s-${id.slice(0, 8)}`,
-    user_id: VIEWER_ID,
-    owned_by_me: true,
     title,
-    status: "active",
-    started_at: now - 3_600_000,
-    updated_at: now - 60_000,
+    user_id: VIEWER_ID,
+    is_own: true,
     message_count: messages.length,
-    is_idle: true,
-    agent_type: "claude_code",
-    project_path: "/src/app",
-  }] as any);
-  store.syncRecord("conversations", id, { _id: id, title, user_id: VIEWER_ID, is_own: true, message_count: messages.length, updated_at: now - 60_000 } as any);
-  store.setMessages(id, messages.map((m, i) => ({
-    _id: fixtureId(`${id.slice(0, 12)}msg${i}`),
-    role: m.role,
-    content: m.content,
-    timestamp: now - (messages.length - i) * 60_000,
-  })) as any);
+    updated_at: now - 60_000,
+  } as any);
+  store.setMessages(
+    id,
+    messages.map((m, i) => ({
+      _id: fixtureId(`${id.slice(0, 12)}msg${i}`),
+      role: m.role,
+      content: m.content,
+      timestamp: now - (messages.length - i) * 60_000,
+    })) as any,
+  );
 }
 
 // Pages mounted where the app mounts them: inside the dashboard shell (the
 // sidebar, the top bar, the global feeders) at their real routes, entered at
 // `path`. Several routes let a page hand off to another (a deep link that
 // redirects into the inbox) and land somewhere real.
-export async function mountPage(path: string, routes: Record<string, React.ReactNode>): Promise<MountedSurface> {
+export async function mountPage(
+  path: string,
+  routes: Record<string, React.ReactNode>,
+): Promise<MountedSurface> {
   const { MemoryRouter, Routes, Route } = await import("react-router");
-  const { default: DashboardShell } = await import("../src/layouts/DashboardShell");
+  const { default: DashboardShell } =
+    await import("../src/layouts/DashboardShell");
   const { ErrorBoundary } = await import("../components/ErrorBoundary");
   // Each mount is a fresh page load: the tabs a previous mount opened are
   // shared store state and would otherwise render in place of this route.
@@ -324,7 +464,15 @@ export async function mountPage(path: string, routes: Record<string, React.React
       <Routes>
         <Route element={<DashboardShell />}>
           {Object.entries(routes).map(([route, page]) => (
-            <Route key={route} path={route} element={<ErrorBoundary name={`Page ${route}`} level="panel">{page}</ErrorBoundary>} />
+            <Route
+              key={route}
+              path={route}
+              element={
+                <ErrorBoundary name={`Page ${route}`} level="panel">
+                  {page}
+                </ErrorBoundary>
+              }
+            />
           ))}
         </Route>
       </Routes>
@@ -336,6 +484,9 @@ export async function mountPage(path: string, routes: Record<string, React.React
 // part of the surface down.
 export function describeFailures(surface: MountedSurface): string {
   return [...surface.caught, ...surface.uncaught]
-    .map((e: any) => `${e.owner ?? "?"}: ${(e?.message ?? String(e)).split("\n").slice(0, 2).join(" | ")}`)
+    .map(
+      (e: any) =>
+        `${e.owner ?? "?"}: ${(e?.message ?? String(e)).split("\n").slice(0, 2).join(" | ")}`,
+    )
     .join("\n");
 }

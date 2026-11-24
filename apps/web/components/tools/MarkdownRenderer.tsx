@@ -2,7 +2,10 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import { memo } from "react";
 import { tryRenderHtmlMessage } from "../HtmlSnippet";
 import { MD_COMPONENTS } from "../../lib/markdownComponents";
-import { MD_REHYPE_PLUGINS, MD_REMARK_PLUGINS } from "../../lib/markdownPlugins";
+import {
+  MD_REHYPE_PLUGINS,
+  MD_REMARK_PLUGINS,
+} from "../../lib/markdownPlugins";
 import { RevealHost } from "../ObjectReveal";
 
 interface MarkdownRendererProps {
@@ -44,7 +47,11 @@ export const MarkdownBlocks = memo(function MarkdownBlocks({
   );
 });
 
-export const MarkdownRenderer = memo(function MarkdownRenderer({ content, filePath = '', className = '' }: MarkdownRendererProps) {
+export const MarkdownRenderer = memo(function MarkdownRenderer({
+  content,
+  filePath = "",
+  className = "",
+}: MarkdownRendererProps) {
   return (
     <div className={`prose prose-invert prose-sm max-w-none ${className}`}>
       <RevealHost>

@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { ExamplePair } from "./decisions/ChangeCardView";
-import { readConversationFence, type ConversationMessage } from "../lib/conversationFence";
+import {
+  readConversationFence,
+  type ConversationMessage,
+} from "../lib/conversationFence";
 import "./conversationFence.css";
 
 /** How many of the thread's last messages show before "earlier" opens the rest. */
@@ -17,7 +20,12 @@ function Bubble({ m }: { m: ConversationMessage }) {
         {m.at && <span>{m.at}</span>}
       </div>
       {long ? (
-        <button type="button" className={`cv-bubble ${open ? "" : "is-clamped"}`} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <button
+          type="button"
+          className={`cv-bubble ${open ? "" : "is-clamped"}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
           {m.text}
         </button>
       ) : (
@@ -40,7 +48,11 @@ export default function ConversationFence({ code }: { code: string }) {
       {spec.thread.length > 0 && (
         <div className="cv-thread">
           {hidden > 0 && (
-            <button type="button" className="cv-earlier" onClick={() => setAll(true)}>
+            <button
+              type="button"
+              className="cv-earlier"
+              onClick={() => setAll(true)}
+            >
               {hidden} earlier
             </button>
           )}
@@ -50,7 +62,12 @@ export default function ConversationFence({ code }: { code: string }) {
         </div>
       )}
       <ExamplePair
-        ex={{ input: "", before: spec.before, after: spec.after, note: spec.note }}
+        ex={{
+          input: "",
+          before: spec.before,
+          after: spec.after,
+          note: spec.note,
+        }}
         beforeLabel="Before the change"
         afterLabel="With the change"
         marks={spec.mark}

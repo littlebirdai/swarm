@@ -21,22 +21,39 @@ export function canvasLeafId(tabId: string): string {
   return `sl_canvas_${tabId}`;
 }
 
-export function withCanvas(state: CanvasState | undefined, conversationId: string, pin: string | null, now = Date.now()): CanvasState {
-  const next: CanvasState = { ...(state ?? {}), [conversationId]: { pin, at: now } };
+export function withCanvas(
+  state: CanvasState | undefined,
+  conversationId: string,
+  pin: string | null,
+  now = Date.now(),
+): CanvasState {
+  const next: CanvasState = {
+    ...(state ?? {}),
+    [conversationId]: { pin, at: now },
+  };
   const keys = Object.keys(next);
   if (keys.length <= CANVAS_STATE_CAP) return next;
   keys.sort((a, b) => next[b].at - next[a].at);
-  return Object.fromEntries(keys.slice(0, CANVAS_STATE_CAP).map((k) => [k, next[k]]));
+  return Object.fromEntries(
+    keys.slice(0, CANVAS_STATE_CAP).map((k) => [k, next[k]]),
+  );
 }
 
-export function withoutCanvas(state: CanvasState | undefined, conversationId: string): CanvasState {
+export function withoutCanvas(
+  state: CanvasState | undefined,
+  conversationId: string,
+): CanvasState {
   const { [conversationId]: _off, ...rest } = state ?? {};
   return rest;
 }
 
 /** Off because one window's pane closed: a window opening the session later
  *  starts with it off, and a window that has it docked keeps its pane. */
-export function withClosedCanvas(state: CanvasState | undefined, conversationId: string, now = Date.now()): CanvasState {
+export function withClosedCanvas(
+  state: CanvasState | undefined,
+  conversationId: string,
+  now = Date.now(),
+): CanvasState {
   if (!state?.[conversationId]) return state ?? {};
   return { ...state, [conversationId]: { pin: null, at: now, closed: true } };
 }
@@ -49,17 +66,28 @@ export function canvasEntryOn(entry: CanvasState[string] | undefined): boolean {
 // Canvases this window keeps docked after another window closed its pane.
 // Window-local on purpose: the preference syncs, a pane belongs to its window.
 const keptHere = new Set<string>();
-export function keepCanvasHere(conversationId: string) { keptHere.add(conversationId); }
-export function dropCanvasKeep(conversationId: string) { keptHere.delete(conversationId); }
-export function canvasKeptHere(conversationId: string): boolean { return keptHere.has(conversationId); }
+export function keepCanvasHere(conversationId: string) {
+  keptHere.add(conversationId);
+}
+export function dropCanvasKeep(conversationId: string) {
+  keptHere.delete(conversationId);
+}
+export function canvasKeptHere(conversationId: string): boolean {
+  return keptHere.has(conversationId);
+}
 
 /** The page the canvas shows: the pinned one while it exists, else the newest
  *  page that still exists. Null until the pages are known. */
-export function canvasTarget(pages: CanvasPage[], pin: string | null, info: (slug: string) => CanvasPageInfo | undefined): string | null {
+export function canvasTarget(
+  pages: CanvasPage[],
+  pin: string | null,
+  info: (slug: string) => CanvasPageInfo | undefined,
+): string | null {
   const live = pages.filter((p) => !info(p.slug)?.missing);
   if (pin && live.some((p) => p.slug === pin)) return pin;
   let latest: CanvasPage | null = null;
-  for (const p of live) if (!latest || p.created_at >= latest.created_at) latest = p;
+  for (const p of live)
+    if (!latest || p.created_at >= latest.created_at) latest = p;
   return latest?.slug ?? null;
 }
 
@@ -68,7 +96,10 @@ export function canvasTarget(pages: CanvasPage[], pin: string | null, info: (slu
  *  remounts the frame on a republish. It carries no token of any kind (gate
  *  keys, identity): the pane shows, copies and opens this address, so a gated
  *  page asks for its gate in the pane as it does anywhere else. */
-export function canvasPageUrl(slug: string, version: number | undefined): string {
+export function canvasPageUrl(
+  slug: string,
+  version: number | undefined,
+): string {
   return `${pageFrameSrc(slug)}${version != null ? `?r=v${version}` : ""}`;
 }
 
@@ -80,7 +111,8 @@ export function canvasPanePath(url: string, conversationId: string): string {
  *  shows a published page (the person navigated it elsewhere). */
 export function canvasPathSession(path: string): string | null {
   const source = parseBrowserRoute(path);
-  if (source?.kind !== "url" || !source.url.startsWith(pageFrameSrc(""))) return null;
+  if (source?.kind !== "url" || !source.url.startsWith(pageFrameSrc("")))
+    return null;
   return source.session ?? null;
 }
 
@@ -89,7 +121,14 @@ export type CanvasStep = "insert" | "set" | "close" | "release" | "none";
 /** What the stage should do for the conversation that owns the canvas.
  *  `pending`: its page is known but the page's version has not arrived.
  *  `docked`: the canvas has shown its page in this pane since it last came on. */
-export function planCanvas({ on, conversationId, leafPath, wantPath, pending, docked }: {
+export function planCanvas({
+  on,
+  conversationId,
+  leafPath,
+  wantPath,
+  pending,
+  docked,
+}: {
   on: boolean;
   conversationId: string;
   leafPath: string | null;
@@ -106,7 +145,8 @@ export function planCanvas({ on, conversationId, leafPath, wantPath, pending, do
     return wantPath ? "set" : "none";
   }
   if (!on) return leafPath ? "close" : "none";
-  if (wantPath) return !leafPath ? "insert" : leafPath === wantPath ? "none" : "set";
+  if (wantPath)
+    return !leafPath ? "insert" : leafPath === wantPath ? "none" : "set";
   if (!leafPath) return "none";
   return pending && leafSession === conversationId ? "none" : "close";
 }
@@ -137,7 +177,9 @@ function activeTab(): AppTab | null {
   return st.tabs.find((t) => t.id === st.activeTabId) ?? null;
 }
 
-export function canvasLeafPath(tab: Pick<AppTab, "id" | "layout"> | null = activeTab()): string | null {
+export function canvasLeafPath(
+  tab: Pick<AppTab, "id" | "layout"> | null = activeTab(),
+): string | null {
   if (!tab?.layout) return null;
   return findLeaf(tab.layout, canvasLeafId(tab.id))?.path ?? null;
 }
@@ -148,23 +190,38 @@ function tabById(tabId: string): AppTab | null {
 
 /** Carry one step out on the owner's tab, which must be the tab on screen
  *  (every stage op acts on the active tab). False when there was no room. */
-export function applyCanvasStep(step: CanvasStep, path: string | null, owner: { tabId: string; conversationId: string; ownerLeafId?: string }): boolean {
+export function applyCanvasStep(
+  step: CanvasStep,
+  path: string | null,
+  owner: { tabId: string; conversationId: string; ownerLeafId?: string },
+): boolean {
   const st = useInboxStore.getState();
-  if (step === "none" || step === "release" || st.activeTabId !== owner.tabId) return true;
+  if (step === "none" || step === "release" || st.activeTabId !== owner.tabId)
+    return true;
   const id = canvasLeafId(owner.tabId);
   if (step === "close") {
     // A focused canvas leaves the tab's stored inbox address behind the view
     // (the inbox keeps `?s=` current only while it is focused), and the close
     // collapses the tab onto that address: point it at the session in view.
     const tab = tabById(owner.tabId);
-    const ownerLeaf = owner.ownerLeafId && tab?.layout ? findLeaf(tab.layout, owner.ownerLeafId) : null;
+    const ownerLeaf =
+      owner.ownerLeafId && tab?.layout
+        ? findLeaf(tab.layout, owner.ownerLeafId)
+        : null;
     const inView = `/inbox?s=${owner.conversationId}`;
-    if (ownerLeaf && ownerLeaf.path.split("?")[0] === "/inbox" && ownerLeaf.path !== inView) st.stageSetLeafPath(ownerLeaf.id, inView);
+    if (
+      ownerLeaf &&
+      ownerLeaf.path.split("?")[0] === "/inbox" &&
+      ownerLeaf.path !== inView
+    )
+      st.stageSetLeafPath(ownerLeaf.id, inView);
     st.stageCloseLeaf(id);
   } else if (step === "set" && path) st.stageSetLeafPath(id, path);
   else if (step === "insert" && path) {
     if (!stageHasRoom()) return false;
-    return st.stageInsertLeaf("root", "right", path, { id, focus: false }) !== null;
+    return (
+      st.stageInsertLeaf("root", "right", path, { id, focus: false }) !== null
+    );
   }
   return true;
 }
@@ -173,19 +230,37 @@ export function applyCanvasStep(step: CanvasStep, path: string | null, owner: { 
  *  false) turns it off in every window. A pane closing on its own (its X, the
  *  person pointing it elsewhere, no room) passes `pane`: other windows keep the
  *  pane they have docked. Either way this window stops keeping one. */
-export function setSessionCanvas(conversationId: string, on: boolean, pin: string | null = null, opts: { pane?: boolean } = {}) {
+export function setSessionCanvas(
+  conversationId: string,
+  on: boolean,
+  pin: string | null = null,
+  opts: { pane?: boolean } = {},
+) {
   keptHere.delete(conversationId);
   const st = useInboxStore.getState();
   const current = st.clientState.ui?.session_canvas;
-  const next = on ? withCanvas(current, conversationId, pin) : opts.pane ? withClosedCanvas(current, conversationId) : withoutCanvas(current, conversationId);
+  const next = on
+    ? withCanvas(current, conversationId, pin)
+    : opts.pane
+      ? withClosedCanvas(current, conversationId)
+      : withoutCanvas(current, conversationId);
   st.updateClientUI({ session_canvas: next });
 }
 
 /** True while the person is working inside the docked page (typing a comment,
  *  reading a panel): a frame holding focus. Re-pointing then would reload the
  *  page under them and drop what they typed, so the update waits. */
-export function canvasHasFocus(tabId: string | undefined, doc: Pick<Document, "activeElement"> | undefined = typeof document === "undefined" ? undefined : document): boolean {
-  const el = doc?.activeElement as (Element & { closest?: (s: string) => Element | null }) | null | undefined;
+export function canvasHasFocus(
+  tabId: string | undefined,
+  doc: Pick<Document, "activeElement"> | undefined = typeof document ===
+  "undefined"
+    ? undefined
+    : document,
+): boolean {
+  const el = doc?.activeElement as
+    | (Element & { closest?: (s: string) => Element | null })
+    | null
+    | undefined;
   if (!tabId || !el || el.tagName !== "IFRAME" || !el.closest) return false;
   return !!el.closest(`[data-stage-leaf="${canvasLeafId(tabId)}"]`);
 }

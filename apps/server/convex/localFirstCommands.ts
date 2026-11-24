@@ -71,13 +71,19 @@ export function canonicalCommandArguments(value: unknown): string {
     if (typeof input === "boolean") return input ? "true" : "false";
     if (typeof input === "number") {
       if (!Number.isFinite(input)) {
-        throw new ConvexError({ code: "INVALID_COMMAND_ARGUMENTS", message: "Command arguments must be finite" });
+        throw new ConvexError({
+          code: "INVALID_COMMAND_ARGUMENTS",
+          message: "Command arguments must be finite",
+        });
       }
       return Object.is(input, -0) ? "0" : String(input);
     }
     if (Array.isArray(input)) {
       if (seen.has(input)) {
-        throw new ConvexError({ code: "INVALID_COMMAND_ARGUMENTS", message: "Command arguments must not be cyclic" });
+        throw new ConvexError({
+          code: "INVALID_COMMAND_ARGUMENTS",
+          message: "Command arguments must not be cyclic",
+        });
       }
       seen.add(input);
       const encoded = `[${input.map(encode).join(",")}]`;
@@ -87,7 +93,10 @@ export function canonicalCommandArguments(value: unknown): string {
     if (typeof input === "object") {
       const object = input as Record<string, unknown>;
       if (seen.has(object)) {
-        throw new ConvexError({ code: "INVALID_COMMAND_ARGUMENTS", message: "Command arguments must not be cyclic" });
+        throw new ConvexError({
+          code: "INVALID_COMMAND_ARGUMENTS",
+          message: "Command arguments must not be cyclic",
+        });
       }
       seen.add(object);
       const entries = Object.keys(object)
@@ -107,14 +116,17 @@ export function canonicalCommandArguments(value: unknown): string {
 }
 
 /** Cryptographically bind a command id to intent without retaining its payload. */
-export async function commandArgumentsFingerprint(value: unknown): Promise<string> {
+export async function commandArgumentsFingerprint(
+  value: unknown,
+): Promise<string> {
   const canonical = canonicalCommandArguments(value);
   const digest = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(canonical),
   );
   const hex = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")).join("");
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
   return `sha256:${hex}`;
 }
 
@@ -132,22 +144,26 @@ function toPublicReceipt(receipt: any): PublicCommandReceipt {
           rejection: {
             code: receipt.rejection_code,
             message: receipt.rejection_message,
-            ...(receipt.correction !== undefined ? { correction: receipt.correction } : {}),
+            ...(receipt.correction !== undefined
+              ? { correction: receipt.correction }
+              : {}),
           },
         }
       : {}),
-    coverage: receipt.coverage.map((item: any) => item.kind === "command-id"
-      ? {
-          kind: "command-id" as const,
-          contractId: item.contract_id,
-          viewKey: item.view_key,
-          commandId: item.command_id,
-        }
-      : {
-          contractId: item.contract_id,
-          viewKey: item.view_key,
-          revision: item.revision,
-        }),
+    coverage: receipt.coverage.map((item: any) =>
+      item.kind === "command-id"
+        ? {
+            kind: "command-id" as const,
+            contractId: item.contract_id,
+            viewKey: item.view_key,
+            commandId: item.command_id,
+          }
+        : {
+            contractId: item.contract_id,
+            viewKey: item.view_key,
+            revision: item.revision,
+          },
+    ),
     // Initial protocol retains dedupe receipts indefinitely.
     retryUntil: null,
   };
@@ -161,7 +177,10 @@ export function validateCommandId(value: string): string {
     });
   }
   if (value.length > 160) {
-    throw new ConvexError({ code: "INVALID_COMMAND_ID", message: "commandId is too long" });
+    throw new ConvexError({
+      code: "INVALID_COMMAND_ID",
+      message: "commandId is too long",
+    });
   }
   return value;
 }
@@ -189,13 +208,16 @@ export async function echoedCommandIdsForView(
   const limit = options.limit ?? 64;
   const recent = await ctx.db
     .query("local_command_receipts")
-    .withIndex("by_principal_created", (q: any) => q.eq("principal_id", principalId))
+    .withIndex("by_principal_created", (q: any) =>
+      q.eq("principal_id", principalId),
+    )
     .order("desc")
     .take(scan);
   const ids: string[] = [];
   for (const receipt of recent) {
     if (receipt.status !== "acknowledged") continue;
-    if (!receipt.coverage.some((entry: any) => entry.view_key === viewKey)) continue;
+    if (!receipt.coverage.some((entry: any) => entry.view_key === viewKey))
+      continue;
     ids.push(receipt.command_id);
     if (ids.length >= limit) break;
   }
@@ -211,7 +233,8 @@ export const getReceipt = query({
     const receipt = await ctx.db
       .query("local_command_receipts")
       .withIndex("by_principal_command", (q) =>
-        q.eq("principal_id", principalId).eq("command_id", commandId))
+        q.eq("principal_id", principalId).eq("command_id", commandId),
+      )
       .unique();
     return receipt ? toPublicReceipt(receipt) : null;
   },
@@ -234,11 +257,14 @@ export async function runLocalCommand<Result>(
   execute: () => Promise<LocalCommandOutcome & { result?: Result }>,
 ): Promise<PublicCommandReceipt> {
   const commandId = validateCommandId(input.commandId);
-  const argumentFingerprint = await commandArgumentsFingerprint(input.arguments);
+  const argumentFingerprint = await commandArgumentsFingerprint(
+    input.arguments,
+  );
   const existing = await ctx.db
     .query("local_command_receipts")
     .withIndex("by_principal_command", (q: any) =>
-      q.eq("principal_id", input.principalId).eq("command_id", commandId))
+      q.eq("principal_id", input.principalId).eq("command_id", commandId),
+    )
     .unique();
 
   if (existing) {
@@ -257,28 +283,40 @@ export async function runLocalCommand<Result>(
   const outcome = await execute();
   let coverage: CommandReceiptCoverage[] = [];
   if (outcome.status === "acknowledged") {
-    const views = [...new Map(
-      outcome.coverageViews.map((target) => [
-        `${target.revisionPrincipalId ?? input.principalId}\0${target.contractId}\0${target.viewKey}`,
-        target,
-      ]),
-    ).values()].sort((a, b) =>
-      a.contractId.localeCompare(b.contractId) || a.viewKey.localeCompare(b.viewKey));
+    const views = [
+      ...new Map(
+        outcome.coverageViews.map((target) => [
+          `${target.revisionPrincipalId ?? input.principalId}\0${target.contractId}\0${target.viewKey}`,
+          target,
+        ]),
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.contractId.localeCompare(b.contractId) ||
+        a.viewKey.localeCompare(b.viewKey),
+    );
     for (const target of views) {
-      coverage.push(await advanceLocalViewRevision(
-        ctx,
-        target.revisionPrincipalId ?? input.principalId,
-        target.contractId,
-        target.viewKey,
-      ));
+      coverage.push(
+        await advanceLocalViewRevision(
+          ctx,
+          target.revisionPrincipalId ?? input.principalId,
+          target.contractId,
+          target.viewKey,
+        ),
+      );
     }
-    const commandIdTargets = [...new Map(
-      (outcome.coverageCommandIds ?? []).map((target) => [
-        `${target.contractId}\0${target.viewKey}`,
-        target,
-      ]),
-    ).values()].sort((a, b) =>
-      a.contractId.localeCompare(b.contractId) || a.viewKey.localeCompare(b.viewKey));
+    const commandIdTargets = [
+      ...new Map(
+        (outcome.coverageCommandIds ?? []).map((target) => [
+          `${target.contractId}\0${target.viewKey}`,
+          target,
+        ]),
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.contractId.localeCompare(b.contractId) ||
+        a.viewKey.localeCompare(b.viewKey),
+    );
     for (const target of commandIdTargets) {
       coverage.push({
         kind: "command-id",
@@ -303,21 +341,25 @@ export async function runLocalCommand<Result>(
       ? {
           rejection_code: outcome.code,
           rejection_message: outcome.message,
-          ...(outcome.correction !== undefined ? { correction: outcome.correction } : {}),
+          ...(outcome.correction !== undefined
+            ? { correction: outcome.correction }
+            : {}),
         }
       : {}),
-    coverage: coverage.map((item) => isCommandIdCoverage(item)
-      ? {
-          kind: "command-id" as const,
-          contract_id: item.contractId,
-          view_key: item.viewKey,
-          command_id: item.commandId,
-        }
-      : {
-          contract_id: item.contractId,
-          view_key: item.viewKey,
-          revision: item.revision,
-        }),
+    coverage: coverage.map((item) =>
+      isCommandIdCoverage(item)
+        ? {
+            kind: "command-id" as const,
+            contract_id: item.contractId,
+            view_key: item.viewKey,
+            command_id: item.commandId,
+          }
+        : {
+            contract_id: item.contractId,
+            view_key: item.viewKey,
+            revision: item.revision,
+          },
+    ),
     created_at: Date.now(),
   };
   await ctx.db.insert("local_command_receipts", stored);

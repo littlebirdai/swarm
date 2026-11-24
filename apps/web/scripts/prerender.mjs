@@ -26,7 +26,11 @@ const DIST = join(WEB_ROOT, "dist");
 const OUT = join(DIST, "prerender");
 
 function esc(s) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /**
@@ -49,10 +53,16 @@ function jsonLd(entry, siteUrl) {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       publisher: { "@type": "Organization", name: "codecast", url: siteUrl },
     };
-  } else if (entry.path.startsWith("/blog/") || entry.path.startsWith("/documentation/") || entry.path.startsWith("/compare/")) {
+  } else if (
+    entry.path.startsWith("/blog/") ||
+    entry.path.startsWith("/documentation/") ||
+    entry.path.startsWith("/compare/")
+  ) {
     data = {
       "@context": "https://schema.org",
-      "@type": entry.path.startsWith("/documentation/") ? "TechArticle" : "Article",
+      "@type": entry.path.startsWith("/documentation/")
+        ? "TechArticle"
+        : "Article",
       headline: entry.title,
       description: entry.description,
       url,
@@ -78,7 +88,11 @@ function buildHead(entry, siteUrl, card) {
     `<meta property="og:site_name" content="codecast" />`,
     `<meta property="og:type" content="${entry.path.startsWith("/blog/") ? "article" : "website"}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
-    ...(entry.published ? [`<meta property="article:published_time" content="${esc(entry.published)}" />`] : []),
+    ...(entry.published
+      ? [
+          `<meta property="article:published_time" content="${esc(entry.published)}" />`,
+        ]
+      : []),
     `<meta property="og:image" content="${esc(image)}" />`,
     ...(card
       ? [
@@ -111,18 +125,36 @@ async function main() {
   // 1. SSR build
   execFileSync(
     process.execPath,
-    [join(WEB_ROOT, "node_modules", "vite", "bin", "vite.js"), "build", "-c", "vite.prerender.config.ts"],
+    [
+      join(WEB_ROOT, "node_modules", "vite", "bin", "vite.js"),
+      "build",
+      "-c",
+      "vite.prerender.config.ts",
+    ],
     { cwd: WEB_ROOT, stdio: "inherit" },
   );
 
-  const entryMod = await import(pathToFileURL(join(WEB_ROOT, "dist-ssr", "prerender-entry.mjs")).href);
-  const { render, SEO_ROUTES, SITE_URL, buildBlogFeed, BLOG_FEED_PATH, cardHeading, cardImagePath, CODECAST_MONO_MARK } = entryMod;
+  const entryMod = await import(
+    pathToFileURL(join(WEB_ROOT, "dist-ssr", "prerender-entry.mjs")).href
+  );
+  const {
+    render,
+    SEO_ROUTES,
+    SITE_URL,
+    buildBlogFeed,
+    BLOG_FEED_PATH,
+    cardHeading,
+    cardImagePath,
+    CODECAST_MONO_MARK,
+  } = entryMod;
 
   const shellRaw = readFileSync(join(DIST, "index.html"), "utf-8");
   const ROOT_DIV = '<div id="root"></div>';
-  if (!shellRaw.includes(ROOT_DIV)) throw new Error("dist/index.html has no empty #root div to inject into");
+  if (!shellRaw.includes(ROOT_DIV))
+    throw new Error("dist/index.html has no empty #root div to inject into");
   const shell = stripShellMeta(shellRaw);
-  if (!shell.includes("<head>")) throw new Error("dist/index.html has no <head>");
+  if (!shell.includes("<head>"))
+    throw new Error("dist/index.html has no <head>");
 
   rmSync(OUT, { recursive: true, force: true });
   rmSync(join(DIST, "og"), { recursive: true, force: true });
@@ -132,7 +164,8 @@ async function main() {
   let carded = new Set();
   let cardSize = null;
   try {
-    const { renderCards, CARD_WIDTH, CARD_HEIGHT } = await import("./og-cards.mjs");
+    const { renderCards, CARD_WIDTH, CARD_HEIGHT } =
+      await import("./og-cards.mjs");
     cardSize = { width: CARD_WIDTH, height: CARD_HEIGHT };
     carded = await renderCards({
       entries: SEO_ROUTES,
@@ -142,7 +175,10 @@ async function main() {
       mark: CODECAST_MONO_MARK,
     });
   } catch (err) {
-    console.error("social cards FAILED entirely (every route keeps the default image):", err?.message ?? err);
+    console.error(
+      "social cards FAILED entirely (every route keeps the default image):",
+      err?.message ?? err,
+    );
   }
 
   const manifest = [];
@@ -150,17 +186,27 @@ async function main() {
   for (const entry of SEO_ROUTES) {
     try {
       const html = render(entry.path);
-      if (!html || html.length < 500) throw new Error(`suspiciously small render (${html.length} bytes)`);
+      if (!html || html.length < 500)
+        throw new Error(`suspiciously small render (${html.length} bytes)`);
       const doc = shell
-        .replace("<head>", `<head>\n    ${buildHead(entry, SITE_URL, carded.has(entry.path) ? { ...cardSize, path: cardImagePath(entry.path), alt: cardHeading(entry) } : null)}`)
+        .replace(
+          "<head>",
+          `<head>\n    ${buildHead(entry, SITE_URL, carded.has(entry.path) ? { ...cardSize, path: cardImagePath(entry.path), alt: cardHeading(entry) } : null)}`,
+        )
         .replace(ROOT_DIV, `<div id="root">${html}</div>`);
-      const dir = entry.path === "/" ? OUT : join(OUT, ...entry.path.split("/").filter(Boolean));
+      const dir =
+        entry.path === "/"
+          ? OUT
+          : join(OUT, ...entry.path.split("/").filter(Boolean));
       mkdirSync(dir, { recursive: true });
       writeFileSync(join(dir, "index.html"), doc);
       manifest.push(entry.path);
     } catch (err) {
       failed++;
-      console.error(`prerender FAILED for ${entry.path} (crawlers get the SPA shell for it):`, err?.message ?? err);
+      console.error(
+        `prerender FAILED for ${entry.path} (crawlers get the SPA shell for it):`,
+        err?.message ?? err,
+      );
     }
   }
   writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
@@ -186,7 +232,10 @@ async function main() {
   const home = SEO_ROUTES.find((e) => e.path === "/");
   const section = (title, filter) => {
     const rows = SEO_ROUTES.filter(filter)
-      .map((e) => `- [${e.title}](${SITE_URL}${e.path === "/" ? "" : e.path}): ${e.description}`)
+      .map(
+        (e) =>
+          `- [${e.title}](${SITE_URL}${e.path === "/" ? "" : e.path}): ${e.description}`,
+      )
       .join("\n");
     return rows ? `\n## ${title}\n\n${rows}\n` : "";
   };
@@ -207,17 +256,31 @@ If you are a coding agent (or assisting a developer) and want to set up Codecast
   writeFileSync(
     join(DIST, "llms.txt"),
     `# Codecast\n\n> ${home.description}\n` +
-      section("Product", (e) => !e.path.startsWith("/blog") && !e.path.startsWith("/documentation") && !["/privacy", "/terms"].includes(e.path)) +
+      section(
+        "Product",
+        (e) =>
+          !e.path.startsWith("/blog") &&
+          !e.path.startsWith("/documentation") &&
+          !["/privacy", "/terms"].includes(e.path),
+      ) +
       section("Documentation", (e) => e.path.startsWith("/documentation")) +
       section("Blog", (e) => e.path.startsWith("/blog")) +
       agentSection,
   );
 
-  console.log(`prerendered ${manifest.length}/${SEO_ROUTES.length} routes → dist/prerender, ${carded.size} social cards → dist/og, sitemap.xml + llms.txt + blog feed written`);
-  if (failed > 0) console.error(`WARNING: ${failed} route(s) failed to prerender — fix before the next deploy`);
+  console.log(
+    `prerendered ${manifest.length}/${SEO_ROUTES.length} routes → dist/prerender, ${carded.size} social cards → dist/og, sitemap.xml + llms.txt + blog feed written`,
+  );
+  if (failed > 0)
+    console.error(
+      `WARNING: ${failed} route(s) failed to prerender — fix before the next deploy`,
+    );
 }
 
 main().catch((err) => {
-  console.error("prerender step FAILED entirely (site still works; crawlers get the SPA shell):", err);
+  console.error(
+    "prerender step FAILED entirely (site still works; crawlers get the SPA shell):",
+    err,
+  );
   process.exitCode = 0;
 });

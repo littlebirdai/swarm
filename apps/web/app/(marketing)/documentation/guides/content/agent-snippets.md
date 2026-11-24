@@ -8,19 +8,19 @@ In the sidebar, open **More** and choose **Agent features**. In the Classic styl
 
 ![The top of Agent features: the machine picker set to this computer, Find a feature, All, On and Off, and the count of features on](/documentation/agent-snippets/agent-features-intro.webp "Agent features shows one computer at a time, with a count of what is on there.")
 
-The page shows one computer at a time. Pick it from the machine picker at the top; the one you are on is marked *this computer*. Each machine keeps its own setup, so a feature you turn on for your laptop is not on your cloud host until you turn it on there too. A machine that is offline is marked **Offline** and its switches are disabled until it reconnects.
+The page shows one computer at a time. Pick it from the machine picker at the top; the one you are on is marked _this computer_. Each machine keeps its own setup, so a feature you turn on for your laptop is not on your cloud host until you turn it on there too. A machine that is offline is marked **Offline** and its switches are disabled until it reconnects.
 
 ## The page
 
 Features are grouped by what you get from them:
 
-| Group | What's in it |
-|-------|--------------|
-| **Context** | What an agent knows before it starts: past sessions, and where each thread stands |
-| **Working together** | Sessions that delegate, message each other, and bring you a decision instead of an interruption |
+| Group                     | What's in it                                                                                              |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Context**               | What an agent knows before it starts: past sessions, and where each thread stands                         |
+| **Working together**      | Sessions that delegate, message each other, and bring you a decision instead of an interruption           |
 | **Tracking & automation** | Tasks and plans on your board, runs that fire later or on events, and pull requests seen through to merge |
-| **Showing the work** | Visuals in the conversation, pages you can share, and mods that extend the app |
-| **Hands on the machine** | Your browser, native apps and simulators, plus the shared typecheck and usage limit recovery |
+| **Showing the work**      | Visuals in the conversation, pages you can share, and mods that extend the app                            |
+| **Hands on the machine**  | Your browser, native apps and simulators, plus the shared typecheck and usage limit recovery              |
 
 ![The Context group: Stable context, Memory and Thread State cards, each with a picture, a switch and a one-line summary](/documentation/agent-snippets/feature-group.webp "Each card shows what the feature looks like in use, its switch, and what you get. Click a card for How it works.")
 
@@ -60,11 +60,11 @@ Each feature has its own guide: [memory](/documentation/memory), [messaging](/do
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The switches are greyed out | The machine is offline. Start codecast on it, or pick a machine that is online |
-| An agent doesn't use a feature you just turned on | Start a new session. Running sessions keep the instructions they started with |
-| A feature is on for one computer but agents on another don't know it | Pick the other machine at the top of the page and switch it on there too |
+| What you notice                                                      | What to do                                                                     |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| The switches are greyed out                                          | The machine is offline. Start codecast on it, or pick a machine that is online |
+| An agent doesn't use a feature you just turned on                    | Start a new session. Running sessions keep the instructions they started with  |
+| A feature is on for one computer but agents on another don't know it | Pick the other machine at the top of the page and switch it on there too       |
 
 ## For agents and scripts
 

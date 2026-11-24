@@ -6,15 +6,24 @@
 import { useMemo, type ReactNode } from "react";
 import { useAgentDrivenTab } from "../../lib/agentTabGuard";
 import { EntityFixtureContext } from "../../lib/entityDisplay";
-import { SAMPLE_ENTITIES, SampleVaultContext, createSampleVault } from "./sampleVault";
+import {
+  SAMPLE_ENTITIES,
+  SampleVaultContext,
+  createSampleVault,
+} from "./sampleVault";
 
 export function VaultSource({ children }: { children: ReactNode }) {
   const agentTab = useAgentDrivenTab();
-  const sample = useMemo(() => (agentTab ? createSampleVault() : null), [agentTab]);
+  const sample = useMemo(
+    () => (agentTab ? createSampleVault() : null),
+    [agentTab],
+  );
   if (!sample) return <>{children}</>;
   return (
     <SampleVaultContext.Provider value={sample}>
-      <EntityFixtureContext.Provider value={SAMPLE_ENTITIES}>{children}</EntityFixtureContext.Provider>
+      <EntityFixtureContext.Provider value={SAMPLE_ENTITIES}>
+        {children}
+      </EntityFixtureContext.Provider>
     </SampleVaultContext.Provider>
   );
 }

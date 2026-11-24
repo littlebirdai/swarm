@@ -12,7 +12,14 @@
 // attach" beats a tool block that silently shows nothing.
 
 import { memo, useCallback, useState } from "react";
-import { fileKind, formatFileSize, fileTypeLabel, isPreviewableKind, type FileKind, type SentFileData } from "@codecast/shared/files";
+import {
+  fileKind,
+  formatFileSize,
+  fileTypeLabel,
+  isPreviewableKind,
+  type FileKind,
+  type SentFileData,
+} from "@codecast/shared/files";
 import { useStorageImageUrl } from "../../hooks/useStorageImageUrl";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useImageGallery } from "../ImageGallery";
@@ -87,7 +94,15 @@ function DownloadButton({ url, name }: { url: string; name: string }) {
 }
 
 /** Text and markdown read in the thread; everything else the browser handles. */
-function TextPreview({ url, name, kind }: { url: string; name: string; kind: "markdown" | "code" }) {
+function TextPreview({
+  url,
+  name,
+  kind,
+}: {
+  url: string;
+  name: string;
+  kind: "markdown" | "code";
+}) {
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -102,11 +117,19 @@ function TextPreview({ url, name, kind }: { url: string; name: string; kind: "ma
         if (live) setFailed(true);
       }
     })();
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [url]);
 
-  if (failed) return <div className="px-3 py-2 text-xs text-sol-text-dim">Could not read this file.</div>;
-  if (text === null) return <div className="px-3 py-2 text-xs text-sol-text-dim">Loading…</div>;
+  if (failed)
+    return (
+      <div className="px-3 py-2 text-xs text-sol-text-dim">
+        Could not read this file.
+      </div>
+    );
+  if (text === null)
+    return <div className="px-3 py-2 text-xs text-sol-text-dim">Loading…</div>;
   if (kind === "markdown") {
     return (
       <div className="px-3 py-2 max-h-[32rem] overflow-auto">
@@ -121,7 +144,13 @@ function TextPreview({ url, name, kind }: { url: string; name: string; kind: "ma
   );
 }
 
-const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData; soloFile: boolean }) {
+const FileCard = memo(function FileCard({
+  file,
+  soloFile,
+}: {
+  file: SentFileData;
+  soloFile: boolean;
+}) {
   const kind = fileKind(file.media_type, file.name);
   const url = useStorageImageUrl(file.storage_id);
   const gallery = useImageGallery();
@@ -141,7 +170,9 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
   const undelivered = !!file.error || (!file.storage_id && !url);
 
   return (
-    <div className={`my-2 max-w-2xl rounded-lg border overflow-hidden ${undelivered ? "border-dashed border-sol-border/60 bg-transparent" : "border-sol-border bg-sol-card"}`}>
+    <div
+      className={`my-2 max-w-2xl rounded-lg border overflow-hidden ${undelivered ? "border-dashed border-sol-border/60 bg-transparent" : "border-sol-border bg-sol-card"}`}
+    >
       <div className="flex items-center gap-3 px-3 py-2.5">
         {kind === "image" && url ? (
           <button
@@ -149,7 +180,11 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
             className="w-11 h-11 rounded border border-sol-border overflow-hidden flex-shrink-0 hover:border-sol-magenta/50 transition-colors"
             title="Open image"
           >
-            <img src={url} alt={file.name} className="w-full h-full object-cover" />
+            <img
+              src={url}
+              alt={file.name}
+              className="w-full h-full object-cover"
+            />
           </button>
         ) : (
           <div
@@ -160,9 +195,16 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="text-sm modern:font-mono font-medium text-sol-text truncate" title={file.name}>{file.name}</div>
+          <div
+            className="text-sm modern:font-mono font-medium text-sol-text truncate"
+            title={file.name}
+          >
+            {file.name}
+          </div>
           <div className="text-meta text-sol-text-dim tabular-nums">
-            {undelivered ? `${meta} — ${ERROR_TEXT[file.error ?? ""] ?? "not attached"}` : meta}
+            {undelivered
+              ? `${meta} — ${ERROR_TEXT[file.error ?? ""] ?? "not attached"}`
+              : meta}
           </div>
         </div>
 
@@ -170,7 +212,7 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {previewable && kind !== "image" && (
               <button
-                onClick={() => setOpen(v => !v)}
+                onClick={() => setOpen((v) => !v)}
                 className="px-2 py-1 rounded text-meta font-medium text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt border border-sol-border transition-colors"
               >
                 {open ? "Hide" : "Preview"}
@@ -182,21 +224,37 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
       </div>
 
       {open && url && kind === "pdf" && (
-        <object data={url} type="application/pdf" className="w-full h-[32rem] border-t border-sol-border bg-sol-bg-alt">
+        <object
+          data={url}
+          type="application/pdf"
+          className="w-full h-[32rem] border-t border-sol-border bg-sol-bg-alt"
+        >
           <div className="px-3 py-2 text-xs text-sol-text-dim">
             This browser will not preview PDFs inline. Use Download.
           </div>
         </object>
       )}
       {open && url && kind === "video" && (
-        <video src={url} controls className="w-full max-h-[32rem] border-t border-sol-border bg-black" />
+        <video
+          src={url}
+          controls
+          className="w-full max-h-[32rem] border-t border-sol-border bg-black"
+        />
       )}
       {open && url && kind === "audio" && (
-        <audio src={url} controls className="w-full border-t border-sol-border px-3 py-2" />
+        <audio
+          src={url}
+          controls
+          className="w-full border-t border-sol-border px-3 py-2"
+        />
       )}
       {open && url && kind === "text" && (
         <div className="border-t border-sol-border bg-sol-bg-alt">
-          <TextPreview url={url} name={file.name} kind={isMarkdown ? "markdown" : "code"} />
+          <TextPreview
+            url={url}
+            name={file.name}
+            kind={isMarkdown ? "markdown" : "code"}
+          />
         </div>
       )}
     </div>
@@ -208,20 +266,44 @@ const FileCard = memo(function FileCard({ file, soloFile }: { file: SentFileData
  * with. The caption belongs to the call, not to each file, so it is written
  * once above the cards.
  */
-export const SentFileBlock = memo(function SentFileBlock({ files }: { files: SentFileData[] }) {
+export const SentFileBlock = memo(function SentFileBlock({
+  files,
+}: {
+  files: SentFileData[];
+}) {
   if (files.length === 0) return null;
-  const caption = files.find(f => f.caption)?.caption;
+  const caption = files.find((f) => f.caption)?.caption;
   return (
     <div className="my-2">
       <div className="flex items-center gap-1.5 text-meta text-sol-text-dim mb-1">
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+        <svg
+          className="w-3 h-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"
+          />
         </svg>
-        <span>{files.length === 1 ? "Sent you a file" : `Sent you ${files.length} files`}</span>
+        <span>
+          {files.length === 1
+            ? "Sent you a file"
+            : `Sent you ${files.length} files`}
+        </span>
       </div>
-      {caption && <div className="text-sm text-sol-text-muted mb-1.5">{caption}</div>}
+      {caption && (
+        <div className="text-sm text-sol-text-muted mb-1.5">{caption}</div>
+      )}
       {files.map((file, i) => (
-        <FileCard key={`${file.storage_id ?? file.name}-${i}`} file={file} soloFile={files.length === 1} />
+        <FileCard
+          key={`${file.storage_id ?? file.name}-${i}`}
+          file={file}
+          soloFile={files.length === 1}
+        />
       ))}
     </div>
   );

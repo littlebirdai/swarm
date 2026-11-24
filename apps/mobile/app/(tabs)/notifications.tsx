@@ -1,20 +1,31 @@
-import { StyleSheet, SectionList, RefreshControl, TouchableOpacity, View as RNView, Image, ScrollView } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as Haptics from 'expo-haptics';
-import { useQueryNoThrow } from '@codecast/web/hooks/useQueryNoThrow';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { useLayoutEffect, useMemo, useState } from 'react';
-import { useNavigation, useRouter } from 'expo-router';
-import type { Id } from '@codecast/convex/convex/_generated/dataModel';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { NotificationListSkeleton } from '@/components/SkeletonLoader';
-import { AgentLogoSvg } from '@/components/AgentLogo';
-import { MobileIdentityFace, useSessionIdentityRow } from '@/components/identity';
-import { openAppRoute } from '@/lib/links';
-import { mobileNotificationRoute } from '@/lib/linkRoutes';
-import { cleanNotificationBody } from '@codecast/web/lib/notificationText';
+import {
+  StyleSheet,
+  SectionList,
+  RefreshControl,
+  TouchableOpacity,
+  View as RNView,
+  Image,
+  ScrollView,
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
+import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { useLayoutEffect, useMemo, useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { NotificationListSkeleton } from "@/components/SkeletonLoader";
+import { AgentLogoSvg } from "@/components/AgentLogo";
+import {
+  MobileIdentityFace,
+  useSessionIdentityRow,
+} from "@/components/identity";
+import { openAppRoute } from "@/lib/links";
+import { mobileNotificationRoute } from "@/lib/linkRoutes";
+import { cleanNotificationBody } from "@codecast/web/lib/notificationText";
 import {
   notificationActor,
   notificationAgentName,
@@ -26,7 +37,7 @@ import {
   taskTypes,
   timeAgo,
   typeColors,
-} from '@codecast/web/lib/notificationTypes';
+} from "@codecast/web/lib/notificationTypes";
 
 type Notification = {
   _id: Id<"notifications">;
@@ -35,7 +46,19 @@ type Notification = {
   read: boolean;
   created_at: number;
   conversation_id?: Id<"conversations">;
-  entity_type?: "task" | "doc" | "plan" | "conversation" | "artifact" | "chat_channel" | "device" | "machine" | "passkey" | "weekly_card" | "metric_watch" | "deploy";
+  entity_type?:
+    | "task"
+    | "doc"
+    | "plan"
+    | "conversation"
+    | "artifact"
+    | "chat_channel"
+    | "device"
+    | "machine"
+    | "passkey"
+    | "weekly_card"
+    | "metric_watch"
+    | "deploy";
   entity_id?: string;
   chat_message_id?: string;
   link?: string;
@@ -73,74 +96,129 @@ function typeColorNative(type: string): string {
   return classToTheme[typeColors[type] ?? ""] ?? Theme.textMuted;
 }
 
-function notificationIcon(type: string): { name: React.ComponentProps<typeof FontAwesome>['name']; color: string } {
+function notificationIcon(type: string): {
+  name: React.ComponentProps<typeof FontAwesome>["name"];
+  color: string;
+} {
   switch (type) {
-    case "mention": return { name: "at", color: Theme.blue };
-    case "comment_reply": return { name: "reply", color: Theme.violet };
-    case "conversation_comment": return { name: "comment", color: Theme.accent };
-    case "team_invite": return { name: "users", color: Theme.greenBright };
-    case "session_idle": return { name: "check", color: Theme.green };
-    case "sessions_need_input": return { name: "bell", color: Theme.green };
-    case "permission_request": return { name: "shield", color: Theme.orange };
-    case "session_error": return { name: "exclamation-triangle", color: Theme.red };
-    case "team_session_start": return { name: "play-circle", color: Theme.blue };
-    case "task_completed": return { name: "exclamation-circle", color: Theme.orange };
-    case "task_failed": return { name: "exclamation-circle", color: Theme.red };
-    case "task_unblocked": return { name: "unlock", color: Theme.green };
-    case "task_assigned": return { name: "user-plus", color: Theme.accent };
+    case "mention":
+      return { name: "at", color: Theme.blue };
+    case "comment_reply":
+      return { name: "reply", color: Theme.violet };
+    case "conversation_comment":
+      return { name: "comment", color: Theme.accent };
+    case "team_invite":
+      return { name: "users", color: Theme.greenBright };
+    case "session_idle":
+      return { name: "check", color: Theme.green };
+    case "sessions_need_input":
+      return { name: "bell", color: Theme.green };
+    case "permission_request":
+      return { name: "shield", color: Theme.orange };
+    case "session_error":
+      return { name: "exclamation-triangle", color: Theme.red };
+    case "team_session_start":
+      return { name: "play-circle", color: Theme.blue };
+    case "task_completed":
+      return { name: "exclamation-circle", color: Theme.orange };
+    case "task_failed":
+      return { name: "exclamation-circle", color: Theme.red };
+    case "task_unblocked":
+      return { name: "unlock", color: Theme.green };
+    case "task_assigned":
+      return { name: "user-plus", color: Theme.accent };
     case "task_commented":
-    case "doc_commented": return { name: "comment-o", color: Theme.cyan };
-    case "doc_updated": return { name: "file-text-o", color: Theme.violet };
+    case "doc_commented":
+      return { name: "comment-o", color: Theme.cyan };
+    case "doc_updated":
+      return { name: "file-text-o", color: Theme.violet };
     case "plan_status_changed":
-    case "plan_task_completed": return { name: "list-ol", color: Theme.green };
-    case "artifact_commented": return { name: "globe", color: Theme.cyan };
-    case "chat_mention": return { name: "at", color: Theme.blue };
-    case "chat_reply": return { name: "comments", color: Theme.accent };
-    case "chat_here": return { name: "bullhorn", color: Theme.orange };
-    case "chat_post": return { name: "hashtag", color: Theme.cyan };
-    case "daemon_overloaded": return { name: "hourglass-half", color: Theme.orange };
-    case "machine_overloaded": return { name: "tachometer", color: Theme.red };
-    case "card_waiting": return { name: "question-circle", color: Theme.orange };
-    case "change_shipped": return { name: "rocket", color: Theme.green };
-    case "cause_reopened": return { name: "undo", color: Theme.red };
-    case "deploy_dropped_work": return { name: "unlink", color: Theme.orange };
-    case "decision_answered_for_you": return { name: "question-circle", color: Theme.yellow };
-    case "decision_passed": return { name: "share", color: Theme.yellow };
-    case "decision_escalated": return { name: "level-up", color: Theme.orange };
-    case "decision_assigned": return { name: "inbox", color: Theme.yellow };
-    case "decision_waiting": return { name: "question-circle", color: Theme.orange };
-    case "decision_comment": return { name: "comment", color: Theme.accent };
-    case "passkey_changed": return { name: "key", color: Theme.red };
-    case "weekly_card": return { name: "bar-chart", color: Theme.accent };
-    case "metric_alert": return { name: "line-chart", color: Theme.red };
-    case "role_moved": return { name: "exchange", color: Theme.orange };
-    default: return { name: "bell", color: Theme.textMuted };
+    case "plan_task_completed":
+      return { name: "list-ol", color: Theme.green };
+    case "artifact_commented":
+      return { name: "globe", color: Theme.cyan };
+    case "chat_mention":
+      return { name: "at", color: Theme.blue };
+    case "chat_reply":
+      return { name: "comments", color: Theme.accent };
+    case "chat_here":
+      return { name: "bullhorn", color: Theme.orange };
+    case "chat_post":
+      return { name: "hashtag", color: Theme.cyan };
+    case "daemon_overloaded":
+      return { name: "hourglass-half", color: Theme.orange };
+    case "machine_overloaded":
+      return { name: "tachometer", color: Theme.red };
+    case "card_waiting":
+      return { name: "question-circle", color: Theme.orange };
+    case "change_shipped":
+      return { name: "rocket", color: Theme.green };
+    case "cause_reopened":
+      return { name: "undo", color: Theme.red };
+    case "deploy_dropped_work":
+      return { name: "unlink", color: Theme.orange };
+    case "decision_answered_for_you":
+      return { name: "question-circle", color: Theme.yellow };
+    case "decision_passed":
+      return { name: "share", color: Theme.yellow };
+    case "decision_escalated":
+      return { name: "level-up", color: Theme.orange };
+    case "decision_assigned":
+      return { name: "inbox", color: Theme.yellow };
+    case "decision_waiting":
+      return { name: "question-circle", color: Theme.orange };
+    case "decision_comment":
+      return { name: "comment", color: Theme.accent };
+    case "passkey_changed":
+      return { name: "key", color: Theme.red };
+    case "weekly_card":
+      return { name: "bar-chart", color: Theme.accent };
+    case "metric_alert":
+      return { name: "line-chart", color: Theme.red };
+    case "role_moved":
+      return { name: "exchange", color: Theme.orange };
+    default:
+      return { name: "bell", color: Theme.textMuted };
   }
 }
 
-
-function NotificationItem({ notification, onPress, onMarkRead }: {
+function NotificationItem({
+  notification,
+  onPress,
+  onMarkRead,
+}: {
   notification: Notification;
   onPress: () => void;
   onMarkRead: () => void;
 }) {
   const Theme = useTheme();
   const icon = notificationIcon(notification.type);
-  const { name: actorName, avatar: avatarUrl, session: actorSession } = notificationActor(notification);
+  const {
+    name: actorName,
+    avatar: avatarUrl,
+    session: actorSession,
+  } = notificationActor(notification);
   const agentType = notification.conversation?.agent_type || "claude_code";
-  const identityRow = useSessionIdentityRow(notification.conversation_id ? String(notification.conversation_id) : null);
+  const identityRow = useSessionIdentityRow(
+    notification.conversation_id ? String(notification.conversation_id) : null,
+  );
   // Same rule as the web bell: a row wears an agent face only when it names a
   // conversation. The daemon's machine alert is a session type with no
   // conversation, so it would otherwise show the Claude Code logo next to a
   // report about a frozen machine.
-  const isSessionNotif = showsAgentIcon(notification) || notification.type === "team_session_start";
+  const isSessionNotif =
+    showsAgentIcon(notification) || notification.type === "team_session_start";
   const label = sessionLabel(notification.conversation);
 
   // The title is what the notification is about — the session, else the person.
   // The event itself is a small colored word, never the headline.
-  const typeLbl = notificationTypeLabel(notification.type, notification.conversation?.agent_type);
+  const typeLbl = notificationTypeLabel(
+    notification.type,
+    notification.conversation?.agent_type,
+  );
   const title = label || actorName || typeLbl;
-  const who = actorName || (isSessionNotif ? notificationAgentName(agentType) : null);
+  const who =
+    actorName || (isSessionNotif ? notificationAgentName(agentType) : null);
   const showWho = !!who && who !== title;
   // Don't echo the type when it already IS the title (a bare task/plan row with
   // no session or actor to name).
@@ -153,7 +231,10 @@ function NotificationItem({ notification, onPress, onMarkRead }: {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onMarkRead();
       }}
-      style={[styles.notificationCard, !notification.read && styles.notificationUnread]}
+      style={[
+        styles.notificationCard,
+        !notification.read && styles.notificationUnread,
+      ]}
       activeOpacity={0.7}
     >
       {!notification.read && <RNView style={styles.unreadBar} />}
@@ -163,7 +244,11 @@ function NotificationItem({ notification, onPress, onMarkRead }: {
         ) : avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         ) : isSessionNotif ? (
-          <MobileIdentityFace row={identityRow} size={38} fallback={<AgentLogoSvg agentType={agentType} size={38} />} />
+          <MobileIdentityFace
+            row={identityRow}
+            size={38}
+            fallback={<AgentLogoSvg agentType={agentType} size={38} />}
+          />
         ) : (
           <RNView style={styles.avatarFallback}>
             <FontAwesome name={icon.name} size={16} color={icon.color} />
@@ -178,7 +263,10 @@ function NotificationItem({ notification, onPress, onMarkRead }: {
       <RNView style={styles.notificationContent}>
         <RNView style={styles.notificationHeader}>
           <RNText
-            style={[styles.notificationTitle, notification.read && styles.notificationTitleRead]}
+            style={[
+              styles.notificationTitle,
+              notification.read && styles.notificationTitleRead,
+            ]}
             numberOfLines={1}
           >
             {title}
@@ -191,10 +279,18 @@ function NotificationItem({ notification, onPress, onMarkRead }: {
         {(showWho || showType) && (
           <RNView style={styles.metaRow}>
             {showWho && (
-              <RNText style={styles.metaWho} numberOfLines={1}>{who}</RNText>
+              <RNText style={styles.metaWho} numberOfLines={1}>
+                {who}
+              </RNText>
             )}
             {showType && (
-              <RNText style={[styles.metaType, { color: typeColorNative(notification.type) }]} numberOfLines={1}>
+              <RNText
+                style={[
+                  styles.metaType,
+                  { color: typeColorNative(notification.type) },
+                ]}
+                numberOfLines={1}
+              >
                 {typeLbl}
               </RNText>
             )}
@@ -212,7 +308,8 @@ type FilterTab = "all" | "unread" | "sessions" | "tasks" | "social";
 
 function matchesTab(n: Notification, tab: FilterTab): boolean {
   if (tab === "unread") return !n.read;
-  if (tab === "sessions") return sessionTypes.has(n.type) || n.type === "team_session_start";
+  if (tab === "sessions")
+    return sessionTypes.has(n.type) || n.type === "team_session_start";
   if (tab === "tasks") return taskTypes.has(n.type);
   if (tab === "social") return socialTypes.has(n.type);
   return true;
@@ -237,10 +334,14 @@ export default function NotificationsScreen() {
   // Convex shares the feeder's subscription, so it costs nothing.
   const notificationsMap = useInboxStore((s) => s.notifications);
   const notifications = useMemo(
-    () => (Object.values(notificationsMap) as Notification[]).sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0)),
+    () =>
+      (Object.values(notificationsMap) as Notification[]).sort(
+        (a, b) => (b.created_at ?? 0) - (a.created_at ?? 0),
+      ),
     [notificationsMap],
   );
-  const answered = useQueryNoThrow(api.notifications.list, {}).data !== undefined;
+  const answered =
+    useQueryNoThrow(api.notifications.list, {}).data !== undefined;
   // Store actions: the `read` flip is optimistic and field-protected, so the
   // bold state and the badge clear in the same tick as the tap.
   const markAsRead = useInboxStore((s) => s.markNotificationRead);
@@ -248,7 +349,7 @@ export default function NotificationsScreen() {
 
   const unreadCount = useMemo(
     () => (notifications ?? []).filter((n) => !n.read).length,
-    [notifications]
+    [notifications],
   );
 
   // "Read all" lives in the nav header, so the filter row is free for tabs.
@@ -256,7 +357,11 @@ export default function NotificationsScreen() {
     navigation.setOptions({
       headerRight: () =>
         unreadCount > 0 ? (
-          <TouchableOpacity onPress={() => markAllAsRead()} activeOpacity={0.7} style={styles.headerAction}>
+          <TouchableOpacity
+            onPress={() => markAllAsRead()}
+            activeOpacity={0.7}
+            style={styles.headerAction}
+          >
             <RNText style={styles.headerActionText}>Read all</RNText>
           </TouchableOpacity>
         ) : null,
@@ -264,9 +369,15 @@ export default function NotificationsScreen() {
   }, [navigation, unreadCount, markAllAsRead]);
 
   const sections = useMemo(() => {
-    const filtered = (notifications ?? []).filter((n) => matchesTab(n, activeTab));
+    const filtered = (notifications ?? []).filter((n) =>
+      matchesTab(n, activeTab),
+    );
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime();
     const out: { title: string; data: Notification[] }[] = [];
     for (const n of filtered) {
       const title = sectionTitle(n.created_at, startOfToday);
@@ -294,7 +405,10 @@ export default function NotificationsScreen() {
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "unread", label: unreadCount > 0 ? `Unread (${unreadCount})` : "Unread" },
+    {
+      key: "unread",
+      label: unreadCount > 0 ? `Unread (${unreadCount})` : "Unread",
+    },
     { key: "sessions", label: "Sessions" },
     { key: "tasks", label: "Tasks" },
     { key: "social", label: "Social" },
@@ -306,10 +420,13 @@ export default function NotificationsScreen() {
         <FontAwesome name="bell-o" size={28} color={Theme.textMuted0} />
       </RNView>
       <RNText style={styles.emptyTitle}>
-        {activeTab === "all" ? "No notifications" : `No ${activeTab === "unread" ? "unread" : activeTab} notifications`}
+        {activeTab === "all"
+          ? "No notifications"
+          : `No ${activeTab === "unread" ? "unread" : activeTab} notifications`}
       </RNText>
       <RNText style={styles.emptyText}>
-        Session updates, mentions, comments,{'\n'}and task activity will appear here.
+        Session updates, mentions, comments,{"\n"}and task activity will appear
+        here.
       </RNText>
     </RNView>
   );
@@ -329,7 +446,12 @@ export default function NotificationsScreen() {
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}
             activeOpacity={0.7}
           >
-            <RNText style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+            <RNText
+              style={[
+                styles.tabText,
+                activeTab === tab.key && styles.tabTextActive,
+              ]}
+            >
               {tab.label}
             </RNText>
           </TouchableOpacity>
@@ -358,203 +480,209 @@ export default function NotificationsScreen() {
             tintColor={Theme.textMuted}
           />
         }
-        ListEmptyComponent={!answered ? <NotificationListSkeleton /> : renderEmpty()}
-        contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.listContent}
+        ListEmptyComponent={
+          !answered ? <NotificationListSkeleton /> : renderEmpty()
+        }
+        contentContainerStyle={
+          sections.length === 0 ? styles.emptyList : styles.listContent
+        }
         showsVerticalScrollIndicator={false}
       />
     </RNView>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.bg,
-  },
-  filterBar: {
-    flexGrow: 0,
-    flexShrink: 0,
-    backgroundColor: Theme.bg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.borderLight,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  tab: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  tabActive: {
-    backgroundColor: Theme.bgHighlight,
-  },
-  tabText: {
-    fontSize: 13,
-    color: Theme.textMuted,
-  },
-  tabTextActive: {
-    color: Theme.text,
-    fontWeight: '600',
-  },
-  headerAction: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-  },
-  headerActionText: {
-    fontSize: 14,
-    color: Theme.accent,
-    fontWeight: '600',
-  },
-  sectionHeader: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xs,
-    backgroundColor: Theme.bg,
-  },
-  sectionHeaderText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Theme.textMuted0,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  listContent: {
-    paddingBottom: Spacing.xl,
-  },
-  notificationCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.bgHighlight,
-    backgroundColor: Theme.bg,
-  },
-  notificationUnread: {
-    backgroundColor: `${Theme.accent}0d`,
-  },
-  unreadBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: Theme.accent,
-  },
-  avatarContainer: {
-    width: 38,
-    height: 38,
-    marginRight: Spacing.md,
-    marginTop: 2,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-  },
-  avatarFallback: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Theme.bgAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Theme.bg,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 1,
-  },
-  notificationTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Theme.text,
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  notificationTitleRead: {
-    fontWeight: '500',
-    color: Theme.textMuted,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: Theme.textMuted0,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Theme.accent,
-    marginLeft: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  metaWho: {
-    fontSize: 12,
-    color: Theme.textMuted,
-    fontWeight: '600',
-    marginRight: 6,
-  },
-  metaType: {
-    fontSize: 12,
-    flexShrink: 1,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: Theme.textMuted,
-    lineHeight: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xxxl,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Theme.bgAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Theme.text,
-    marginBottom: Spacing.sm,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: Theme.textMuted,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  emptyList: {
-    flex: 1,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Theme.bg,
+    },
+    filterBar: {
+      flexGrow: 0,
+      flexShrink: 0,
+      backgroundColor: Theme.bg,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.borderLight,
+    },
+    tabsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+    },
+    tab: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 6,
+      borderRadius: 14,
+    },
+    tabActive: {
+      backgroundColor: Theme.bgHighlight,
+    },
+    tabText: {
+      fontSize: 13,
+      color: Theme.textMuted,
+    },
+    tabTextActive: {
+      color: Theme.text,
+      fontWeight: "600",
+    },
+    headerAction: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 6,
+    },
+    headerActionText: {
+      fontSize: 14,
+      color: Theme.accent,
+      fontWeight: "600",
+    },
+    sectionHeader: {
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.lg,
+      paddingBottom: Spacing.xs,
+      backgroundColor: Theme.bg,
+    },
+    sectionHeaderText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.textMuted0,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    listContent: {
+      paddingBottom: Spacing.xl,
+    },
+    notificationCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.bgHighlight,
+      backgroundColor: Theme.bg,
+    },
+    notificationUnread: {
+      backgroundColor: `${Theme.accent}0d`,
+    },
+    unreadBar: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 3,
+      backgroundColor: Theme.accent,
+    },
+    avatarContainer: {
+      width: 38,
+      height: 38,
+      marginRight: Spacing.md,
+      marginTop: 2,
+    },
+    avatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+    },
+    avatarFallback: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: Theme.bgAlt,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconBadge: {
+      position: "absolute",
+      bottom: -2,
+      right: -2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: Theme.bg,
+    },
+    notificationContent: {
+      flex: 1,
+    },
+    notificationHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 1,
+    },
+    notificationTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: Theme.text,
+      flex: 1,
+      marginRight: Spacing.sm,
+    },
+    notificationTitleRead: {
+      fontWeight: "500",
+      color: Theme.textMuted,
+    },
+    notificationTime: {
+      fontSize: 12,
+      color: Theme.textMuted0,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: Theme.accent,
+      marginLeft: 6,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 3,
+    },
+    metaWho: {
+      fontSize: 12,
+      color: Theme.textMuted,
+      fontWeight: "600",
+      marginRight: 6,
+    },
+    metaType: {
+      fontSize: 12,
+      flexShrink: 1,
+    },
+    notificationMessage: {
+      fontSize: 14,
+      color: Theme.textMuted,
+      lineHeight: 20,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: Spacing.xxxl,
+    },
+    emptyIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: Theme.bgAlt,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: Spacing.lg,
+    },
+    emptyTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: Theme.text,
+      marginBottom: Spacing.sm,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: Theme.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+    emptyList: {
+      flex: 1,
+    },
+  }),
+);

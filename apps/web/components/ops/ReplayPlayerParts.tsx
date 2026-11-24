@@ -1,10 +1,33 @@
 // The replay player's smaller parts: the rest-of-recording status, the
 // semantic stage, Share, and the events rail with its rows and details.
 import Link from "next/link";
-import { type CSSProperties, Fragment, memo, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  Fragment,
+  memo,
+  type ReactNode,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReplayEvent } from "@codecast/shared/contracts/replay";
-import { ChevronDown, Copy, EyeOff, Link2, Search, Share2, X } from "lucide-react";
-import { formatReplayTime, isFailedRequest, isFailure, rageBursts, routeOf } from "@codecast/shared/replay";
+import {
+  ChevronDown,
+  Copy,
+  EyeOff,
+  Link2,
+  Search,
+  Share2,
+  X,
+} from "lucide-react";
+import {
+  formatReplayTime,
+  isFailedRequest,
+  isFailure,
+  rageBursts,
+  routeOf,
+} from "@codecast/shared/replay";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { copyText } from "../../lib/copyText";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -12,7 +35,16 @@ import { opsHref } from "./opsPaths";
 import { pressable } from "./parts";
 import type { OpsReplay } from "./opsTypes";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { momentRef, pathOf, plural, railRowAt, type RestHold, restLine, type RestQueued, type RestState } from "./replayModel";
+import {
+  momentRef,
+  pathOf,
+  plural,
+  railRowAt,
+  type RestHold,
+  restLine,
+  type RestQueued,
+  type RestState,
+} from "./replayModel";
 import {
   actionDetail,
   ALL_KIND_LABEL,
@@ -33,36 +65,96 @@ import {
   type RailTab,
   runText,
 } from "./replayRail";
-import { ALL_HIDDEN_KEY, inBlocks, inkOf, MUTED_KEY, RAIL_BLOCK, wordOf } from "./replayPlayerModel";
+import {
+  ALL_HIDDEN_KEY,
+  inBlocks,
+  inkOf,
+  MUTED_KEY,
+  RAIL_BLOCK,
+  wordOf,
+} from "./replayPlayerModel";
 
 /**
  * Where reading the rest of a cut copy stands (restLine: the same words as the
  * list row), with a meter while it reads and the press that reads it again,
  * offered only when the server will act on it (restDue) and nothing holds it.
  */
-export function RestStatus({ rest, starting, readRest, hold, vendorName, queued }: { rest: RestState | null; starting: boolean; readRest?: () => void; hold: RestHold | null; vendorName: string | null; queued?: RestQueued }) {
+export function RestStatus({
+  rest,
+  starting,
+  readRest,
+  hold,
+  vendorName,
+  queued,
+}: {
+  rest: RestState | null;
+  starting: boolean;
+  readRest?: () => void;
+  hold: RestHold | null;
+  vendorName: string | null;
+  queued?: RestQueued;
+}) {
   const now = useCoarseNow(30_000);
-  const line = restLine(rest, hold, starting, vendorName ?? "the vendor", now, queued);
-  const press = readRest && !starting && !hold && (!rest || rest.state === "stopped");
+  const line = restLine(
+    rest,
+    hold,
+    starting,
+    vendorName ?? "the vendor",
+    now,
+    queued,
+  );
+  const press =
+    readRest && !starting && !hold && (!rest || rest.state === "stopped");
   return (
-    <span className="rp-rest ops-num" data-state={line.tone} role="status" title={line.title}>
-      {line.tone === "busy" && line.share !== null && <span className="rp-rest-track" aria-hidden><span style={{ width: `${Math.round(line.share * 100)}%` }} /></span>}
+    <span
+      className="rp-rest ops-num"
+      data-state={line.tone}
+      role="status"
+      title={line.title}
+    >
+      {line.tone === "busy" && line.share !== null && (
+        <span className="rp-rest-track" aria-hidden>
+          <span style={{ width: `${Math.round(line.share * 100)}%` }} />
+        </span>
+      )}
       {!press || rest ? <span>{line.text}</span> : null}
-      {press && <button type="button" className="ops-btn rp-rest-btn" onClick={readRest}>{rest ? "Read again" : "Import the rest"}</button>}
+      {press && (
+        <button
+          type="button"
+          className="ops-btn rp-rest-btn"
+          onClick={readRest}
+        >
+          {rest ? "Read again" : "Import the rest"}
+        </button>
+      )}
     </span>
   );
 }
 
 /** Without a page capture: where the person was and what just happened, large, on the same clock. */
-export function SemanticStage({ events, idx, url, outline }: { events: ReplayEvent[]; idx: number; url: string | null; outline: string | null }) {
+export function SemanticStage({
+  events,
+  idx,
+  url,
+  outline,
+}: {
+  events: ReplayEvent[];
+  idx: number;
+  url: string | null;
+  outline: string | null;
+}) {
   const cur = idx >= 0 ? events[idx] : undefined;
   return (
     <div className="rp-semantic">
-      <div className="rp-semantic-url ops-mono" title={url ?? undefined}>{url ? routeOf(pathOf(url)) : "No page yet"}</div>
+      <div className="rp-semantic-url ops-mono" title={url ?? undefined}>
+        {url ? routeOf(pathOf(url)) : "No page yet"}
+      </div>
       {cur && (
         <div className="rp-semantic-ev" style={{ borderColor: inkOf(cur) }}>
           <span className="ops-mono ops-dim">{formatReplayTime(cur.t)}</span>
-          <span className="ops-mono" style={{ color: inkOf(cur) }}>{wordOf(cur)}</span>
+          <span className="ops-mono" style={{ color: inkOf(cur) }}>
+            {wordOf(cur)}
+          </span>
           <span className="rp-semantic-text">{describeEvent(cur)}</span>
         </div>
       )}
@@ -77,8 +169,14 @@ export function ShareMoment({ replay, t }: { replay: OpsReplay; t: number }) {
   const ref = replay.short_id || replay._id;
   const at = Math.floor(t / 1000) * 1000;
   const copyLink = () => {
-    const href = new URL(opsHref.replay(ref, at), window.location.origin).toString();
-    void copyText(href, `Link at ${formatReplayTime(at).replace(/\.\d$/, "")} copied`);
+    const href = new URL(
+      opsHref.replay(ref, at),
+      window.location.origin,
+    ).toString();
+    void copyText(
+      href,
+      `Link at ${formatReplayTime(at).replace(/\.\d$/, "")} copied`,
+    );
     setOpen(false);
   };
   const copyMoment = () => {
@@ -88,15 +186,24 @@ export function ShareMoment({ replay, t }: { replay: OpsReplay; t: number }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className="ops-btn rp-share" aria-label="Share this moment">
-          <Share2 className="w-3.5 h-3.5" /> <span className="ops-num">{formatReplayTime(at).replace(/\.\d$/, "")}</span>
+        <button
+          type="button"
+          className="ops-btn rp-share"
+          aria-label="Share this moment"
+        >
+          <Share2 className="w-3.5 h-3.5" />{" "}
+          <span className="ops-num">
+            {formatReplayTime(at).replace(/\.\d$/, "")}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="rp-share-pop">
         <button type="button" onClick={copyLink}>
           <Link2 className="w-3.5 h-3.5" aria-hidden />
           <span>Copy link</span>
-          <span className="ops-dim ops-num">at {formatReplayTime(at).replace(/\.\d$/, "")}</span>
+          <span className="ops-dim ops-num">
+            at {formatReplayTime(at).replace(/\.\d$/, "")}
+          </span>
         </button>
         <button type="button" onClick={copyMoment}>
           <Copy className="w-3.5 h-3.5" aria-hidden />
@@ -109,7 +216,14 @@ export function ShareMoment({ replay, t }: { replay: OpsReplay; t: number }) {
 }
 
 /** The events beside the page: a tab per kind with its count, a filter, and requests that open to their detail. */
-export function EventRail({ events, t, hasOutlines, outline, onSeek, children }: {
+export function EventRail({
+  events,
+  t,
+  hasOutlines,
+  outline,
+  onSeek,
+  children,
+}: {
   /** The rail's resize grip. */
   children?: ReactNode;
   events: ReplayEvent[];
@@ -126,7 +240,9 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
   // Endpoints a person hid (a long-poll, a beacon): their requests that answered leave the rail; a failure always stays.
   const [muted, setMuted] = useState<ReadonlySet<string>>(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem(MUTED_KEY) ?? "[]") as string[]);
+      return new Set(
+        JSON.parse(localStorage.getItem(MUTED_KEY) ?? "[]") as string[],
+      );
     } catch {
       return new Set();
     }
@@ -143,46 +259,76 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
     try {
       const stored = localStorage.getItem(ALL_HIDDEN_KEY);
       // Only scrolls can be hidden from All (the one toggle beside its filter); every other kind always shows.
-      if (stored !== null) return new Set((JSON.parse(stored) as string[]).filter((k): k is AllKind => (ALL_KINDS_HIDDEN_BY_DEFAULT as readonly string[]).includes(k)));
+      if (stored !== null)
+        return new Set(
+          (JSON.parse(stored) as string[]).filter((k): k is AllKind =>
+            (ALL_KINDS_HIDDEN_BY_DEFAULT as readonly string[]).includes(k),
+          ),
+        );
     } catch {}
     return new Set(ALL_KINDS_HIDDEN_BY_DEFAULT);
   });
-  const toggleKind = (k: AllKind) => setHiddenKinds((cur) => {
-    const next = new Set(cur);
-    if (next.has(k)) next.delete(k);
-    else next.add(k);
-    try {
-      localStorage.setItem(ALL_HIDDEN_KEY, JSON.stringify([...next]));
-    } catch {}
-    return next;
-  });
-  const isMuted = (e: ReplayEvent) => e.type === "network" && muted.size > 0 && !isFailure(e) && muted.has(endpointOf(e));
+  const toggleKind = (k: AllKind) =>
+    setHiddenKinds((cur) => {
+      const next = new Set(cur);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      try {
+        localStorage.setItem(ALL_HIDDEN_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  const isMuted = (e: ReplayEvent) =>
+    e.type === "network" &&
+    muted.size > 0 &&
+    !isFailure(e) &&
+    muted.has(endpointOf(e));
+  // oxfmt-ignore
   const hiddenHere = useMemo(() => (muted.size ? events.filter(isMuted).length : 0), [events, muted]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
+  // oxfmt-ignore
   const counts = useMemo(() => railCounts(muted.size ? events.filter((e) => !isMuted(e)) : events, hiddenKinds), [events, muted, hiddenKinds]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
   const kindCounts = useMemo(() => allKindCounts(events), [events]);
-  const failedCount = useMemo(() => events.filter(isFailedRequest).length, [events]);
+  const failedCount = useMemo(
+    () => events.filter(isFailedRequest).length,
+    [events],
+  );
+  // oxfmt-ignore
   const rows = useMemo(() => (tab === "page" ? [] : events.map((e, i) => [e, i] as const).filter(([e]) => railAdmits(tab, e, hiddenKinds) && !(tab === "network" && failedOnly && !isFailedRequest(e)) && !isMuted(e) && eventHas(e, q.trim()))), [events, tab, q, muted, hiddenKinds, failedOnly]); // eslint-disable-line react-hooks/exhaustive-deps -- isMuted reads muted
   // Repeats of one request or console line fold into one row with a count, so a burst of failures does not bury the clicks around it.
   const runs = useMemo(() => foldRail(rows), [rows]);
-  const [openRuns, setOpenRuns] = useState<ReadonlySet<number>>(() => new Set());
+  const [openRuns, setOpenRuns] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
   const leadOf = useMemo(() => {
     const m = new Map<number, number>();
-    for (const r of runs) if (!openRuns.has(r.lead[1])) for (const [, j] of r.members) m.set(j, r.lead[1]);
+    for (const r of runs)
+      if (!openRuns.has(r.lead[1]))
+        for (const [, j] of r.members) m.set(j, r.lead[1]);
     return m;
   }, [runs, openRuns]);
-  const toggleRun = (lead: number) => setOpenRuns((cur) => {
-    const next = new Set(cur);
-    if (next.has(lead)) next.delete(lead);
-    else next.add(lead);
-    return next;
-  });
+  const toggleRun = (lead: number) =>
+    setOpenRuns((cur) => {
+      const next = new Set(cur);
+      if (next.has(lead)) next.delete(lead);
+      else next.add(lead);
+      return next;
+    });
   // The rows take handlers that never change (RailRow is memoized), so a clock tick re-renders only the rows whose past or current mark flips.
   const acts = useRef({ onSeek, mute, toggleRun });
   acts.current = { onSeek, mute, toggleRun };
   const seekTo = useCallback((at: number) => acts.current.onSeek(at), []);
-  const muteEndpoint = useCallback((endpoint: string) => acts.current.mute(endpoint), []);
-  const flipRun = useCallback((lead: number) => acts.current.toggleRun(lead), []);
-  const flipOpen = useCallback((i: number) => setOpenIdx((o) => (o === i ? null : i)), []);
+  const muteEndpoint = useCallback(
+    (endpoint: string) => acts.current.mute(endpoint),
+    [],
+  );
+  const flipRun = useCallback(
+    (lead: number) => acts.current.toggleRun(lead),
+    [],
+  );
+  const flipOpen = useCallback(
+    (i: number) => setOpenIdx((o) => (o === i ? null : i)),
+    [],
+  );
   const listRef = useRef<HTMLDivElement>(null);
   // The row the clock is at: the last one this tab and filter show at or before it (inside a folded run, its lead). The
   // clock's own event may be one the tab hides (a scroll in All, a click in Network), so it is never looked up directly.
@@ -191,38 +337,87 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
   // rail's own list scrolls: scrollIntoView would also scroll the page and clip its heading.
   useWatchEffect(() => {
     const list = listRef.current;
-    const el = cur >= 0 ? list?.querySelector<HTMLElement>(`[data-ev="${cur}"]`) : null;
+    const el =
+      cur >= 0 ? list?.querySelector<HTMLElement>(`[data-ev="${cur}"]`) : null;
     if (!list || !el) return;
-    const top = el.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    const top =
+      el.getBoundingClientRect().top -
+      list.getBoundingClientRect().top +
+      list.scrollTop;
     if (top < list.scrollTop) list.scrollTop = top;
-    else if (top + el.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top + el.offsetHeight - list.clientHeight;
+    else if (top + el.offsetHeight > list.scrollTop + list.clientHeight)
+      list.scrollTop = top + el.offsetHeight - list.clientHeight;
   }, [cur, tab]);
 
   return (
-    <aside className="rp-rail" aria-label="Events" style={{ "--rp-time-w": `${Math.ceil(formatReplayTime(events[events.length - 1]?.t ?? 0).length * 6.7) + 2}px` } as CSSProperties}>
+    <aside
+      className="rp-rail"
+      aria-label="Events"
+      style={
+        {
+          "--rp-time-w": `${Math.ceil(formatReplayTime(events[events.length - 1]?.t ?? 0).length * 6.7) + 2}px`,
+        } as CSSProperties
+      }
+    >
       {children}
       <label className="rp-rail-pick">
-        <select value={tab} aria-label="Events to show" onChange={(e) => setTab(e.target.value as RailTab | "page")}>
+        <select
+          value={tab}
+          aria-label="Events to show"
+          onChange={(e) => setTab(e.target.value as RailTab | "page")}
+        >
           {RAIL_TABS.map((k) => (
-            <option key={k} value={k} disabled={k !== "all" && counts[k] === 0}>{RAIL_LABEL[k]} · {counts[k].toLocaleString()}</option>
+            <option key={k} value={k} disabled={k !== "all" && counts[k] === 0}>
+              {RAIL_LABEL[k]} · {counts[k].toLocaleString()}
+            </option>
           ))}
           {hasOutlines && <option value="page">Text</option>}
         </select>
-        {tab !== "errors" && counts.errors > 0 && <button type="button" className="ops-num" onClick={() => setTab("errors")} title="Show the errors">{plural(counts.errors, "error")}</button>}
+        {tab !== "errors" && counts.errors > 0 && (
+          <button
+            type="button"
+            className="ops-num"
+            onClick={() => setTab("errors")}
+            title="Show the errors"
+          >
+            {plural(counts.errors, "error")}
+          </button>
+        )}
       </label>
       <div className="rp-rail-tabs" role="tablist">
         {RAIL_TABS.map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} data-on={tab === k ? "true" : undefined} data-tab={k} disabled={k !== "all" && counts[k] === 0} onClick={() => setTab(k)}>
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            data-on={tab === k ? "true" : undefined}
+            data-tab={k}
+            disabled={k !== "all" && counts[k] === 0}
+            onClick={() => setTab(k)}
+          >
             {RAIL_LABEL[k]} <span className="ops-num">{counts[k]}</span>
           </button>
         ))}
         {hasOutlines && (
-          <button type="button" role="tab" aria-selected={tab === "page"} data-on={tab === "page" ? "true" : undefined} onClick={() => setTab("page")}>Text</button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "page"}
+            data-on={tab === "page" ? "true" : undefined}
+            onClick={() => setTab("page")}
+          >
+            Text
+          </button>
         )}
       </div>
       {tab === "page" ? (
         <div className="rp-rail-list">
-          <div className="rp-outline-at ops-dim ops-num">{outline ? `As of ${formatReplayTime(outline.t)}` : "Before the first outline"}</div>
+          <div className="rp-outline-at ops-dim ops-num">
+            {outline
+              ? `As of ${formatReplayTime(outline.t)}`
+              : "Before the first outline"}
+          </div>
           <pre className="rp-outline">{outline?.outline ?? ""}</pre>
         </div>
       ) : (
@@ -231,16 +426,47 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
           <div className="rp-rail-tools">
             <label className="rp-rail-filter">
               <Search className="w-3 h-3 ops-dim" aria-hidden />
-              <input type="search" value={q} placeholder={`Filter ${RAIL_LABEL[tab].toLowerCase()}`} aria-label="Filter events" onChange={(e) => setQ(e.target.value)} />
-              {q && <button type="button" aria-label="Clear filter" onClick={() => setQ("")}><X className="w-3 h-3" /></button>}
+              <input
+                type="search"
+                value={q}
+                placeholder={`Filter ${RAIL_LABEL[tab].toLowerCase()}`}
+                aria-label="Filter events"
+                onChange={(e) => setQ(e.target.value)}
+              />
+              {q && (
+                <button
+                  type="button"
+                  aria-label="Clear filter"
+                  onClick={() => setQ("")}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </label>
-            {tab === "all" && kindCounts.scrolls > 0 && ALL_KINDS_HIDDEN_BY_DEFAULT.map((k) => (
-              <button key={k} type="button" className="rp-kind" data-kind={k} aria-pressed={!hiddenKinds.has(k)} onClick={() => toggleKind(k)}>
-                {ALL_KIND_LABEL[k]} <span className="ops-num">{kindCounts[k]}</span>
-              </button>
-            ))}
+            {tab === "all" &&
+              kindCounts.scrolls > 0 &&
+              ALL_KINDS_HIDDEN_BY_DEFAULT.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className="rp-kind"
+                  data-kind={k}
+                  aria-pressed={!hiddenKinds.has(k)}
+                  onClick={() => toggleKind(k)}
+                >
+                  {ALL_KIND_LABEL[k]}{" "}
+                  <span className="ops-num">{kindCounts[k]}</span>
+                </button>
+              ))}
             {tab === "network" && failedCount > 0 && (
-              <button type="button" className="rp-kind" data-kind="requests" data-filter="true" aria-pressed={failedOnly} onClick={() => setFailedOnly((v) => !v)}>
+              <button
+                type="button"
+                className="rp-kind"
+                data-kind="requests"
+                data-filter="true"
+                aria-pressed={failedOnly}
+                onClick={() => setFailedOnly((v) => !v)}
+              >
                 Failed only <span className="ops-num">{failedCount}</span>
               </button>
             )}
@@ -248,13 +474,24 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
           {hiddenHere > 0 && (
             <div className="rp-muted ops-dim">
               <EyeOff className="w-3 h-3" aria-hidden />
-              <span className="ops-num">{plural(hiddenHere, "request")} hidden</span>
-              <span className="truncate ops-mono" title={[...muted].join("\n")}>{[...muted].slice(0, 2).join(", ")}{muted.size > 2 ? ` +${muted.size - 2}` : ""}</span>
-              <button type="button" onClick={() => saveMuted(new Set())}>Show</button>
+              <span className="ops-num">
+                {plural(hiddenHere, "request")} hidden
+              </span>
+              <span className="truncate ops-mono" title={[...muted].join("\n")}>
+                {[...muted].slice(0, 2).join(", ")}
+                {muted.size > 2 ? ` +${muted.size - 2}` : ""}
+              </span>
+              <button type="button" onClick={() => saveMuted(new Set())}>
+                Show
+              </button>
             </div>
           )}
           <div className="rp-rail-list ops-events" ref={listRef}>
-            {rows.length === 0 && <div className="rp-card-empty ops-dim">{q ? "Nothing matches" : "None"}</div>}
+            {rows.length === 0 && (
+              <div className="rp-card-empty ops-dim">
+                {q ? "Nothing matches" : "None"}
+              </div>
+            )}
             {/* Rows in blocks of RAIL_BLOCK: React walks siblings recursively (Fast Refresh), and a long recording's thousands of rows in one chain overflow the stack. */}
             {inBlocks(runs, RAIL_BLOCK).map((block, b) => (
               <Fragment key={`b${b}`}>
@@ -263,10 +500,53 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
                   const expanded = many && openRuns.has(i);
                   return (
                     <Fragment key={i}>
-                      <RailRow e={e} i={i} past={e.t <= t} current={i === cur} open={openIdx === i} onSeek={seekTo} onToggle={flipOpen} onMute={e.type === "network" && !isFailure(e) ? muteEndpoint : undefined} run={many ? { count: members.length, open: expanded, until: members[members.length - 1][0].t, typed: runText(e, members[members.length - 1][0]) ?? undefined, rage: e.type === "click" && rageBursts(members.map(([m]) => m)).length > 0 } : undefined} onRun={many ? flipRun : undefined} />
-                      {expanded && members.slice(1).map(([m, j]) => (
-                        <RailRow key={j} e={m} i={j} nested past={m.t <= t} current={j === cur} open={openIdx === j} onSeek={seekTo} onToggle={flipOpen} />
-                      ))}
+                      <RailRow
+                        e={e}
+                        i={i}
+                        past={e.t <= t}
+                        current={i === cur}
+                        open={openIdx === i}
+                        onSeek={seekTo}
+                        onToggle={flipOpen}
+                        onMute={
+                          e.type === "network" && !isFailure(e)
+                            ? muteEndpoint
+                            : undefined
+                        }
+                        run={
+                          many
+                            ? {
+                                count: members.length,
+                                open: expanded,
+                                until: members[members.length - 1][0].t,
+                                typed:
+                                  runText(e, members[members.length - 1][0]) ??
+                                  undefined,
+                                rage:
+                                  e.type === "click" &&
+                                  rageBursts(members.map(([m]) => m)).length >
+                                    0,
+                              }
+                            : undefined
+                        }
+                        onRun={many ? flipRun : undefined}
+                      />
+                      {expanded &&
+                        members
+                          .slice(1)
+                          .map(([m, j]) => (
+                            <RailRow
+                              key={j}
+                              e={m}
+                              i={j}
+                              nested
+                              past={m.t <= t}
+                              current={j === cur}
+                              open={openIdx === j}
+                              onSeek={seekTo}
+                              onToggle={flipOpen}
+                            />
+                          ))}
                     </Fragment>
                   );
                 })}
@@ -279,52 +559,173 @@ export function EventRail({ events, t, hasOutlines, outline, onSeek, children }:
   );
 }
 
-type RailRun = { count: number; open: boolean; until: number; rage?: boolean; typed?: string };
-type RailRowProps = { e: ReplayEvent; i: number; past: boolean; current: boolean; open: boolean; onSeek: (t: number) => void; onToggle: (i: number) => void; onMute?: (endpoint: string) => void; run?: RailRun; onRun?: (i: number) => void; nested?: boolean };
-const sameRun = (a?: RailRun, b?: RailRun) => a === b || (!!a && !!b && a.count === b.count && a.open === b.open && a.until === b.until && a.rage === b.rage && a.typed === b.typed);
+type RailRun = {
+  count: number;
+  open: boolean;
+  until: number;
+  rage?: boolean;
+  typed?: string;
+};
+type RailRowProps = {
+  e: ReplayEvent;
+  i: number;
+  past: boolean;
+  current: boolean;
+  open: boolean;
+  onSeek: (t: number) => void;
+  onToggle: (i: number) => void;
+  onMute?: (endpoint: string) => void;
+  run?: RailRun;
+  onRun?: (i: number) => void;
+  nested?: boolean;
+};
+const sameRun = (a?: RailRun, b?: RailRun) =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.count === b.count &&
+    a.open === b.open &&
+    a.until === b.until &&
+    a.rage === b.rage &&
+    a.typed === b.typed);
 /** A run's facts are a fresh object each render: compared by value, so only a row whose own facts changed draws again. */
-const RailRow = memo(RailRowView, (a, b) => a.e === b.e && a.i === b.i && a.past === b.past && a.current === b.current && a.open === b.open && a.nested === b.nested
-  && a.onSeek === b.onSeek && a.onToggle === b.onToggle && a.onMute === b.onMute && a.onRun === b.onRun && sameRun(a.run, b.run));
+const RailRow = memo(
+  RailRowView,
+  (a, b) =>
+    a.e === b.e &&
+    a.i === b.i &&
+    a.past === b.past &&
+    a.current === b.current &&
+    a.open === b.open &&
+    a.nested === b.nested &&
+    a.onSeek === b.onSeek &&
+    a.onToggle === b.onToggle &&
+    a.onMute === b.onMute &&
+    a.onRun === b.onRun &&
+    sameRun(a.run, b.run),
+);
 
-function RailRowView({ e, i, past, current, open, onSeek, onToggle, onMute, run, onRun, nested }: RailRowProps) {
+function RailRowView({
+  e,
+  i,
+  past,
+  current,
+  open,
+  onSeek,
+  onToggle,
+  onMute,
+  run,
+  onRun,
+  nested,
+}: RailRowProps) {
   const grade = e.type === "network" ? netGrade(e) : null;
   const text = run?.typed ?? describeEvent(e);
-  const expandable = e.type === "network" || e.type === "click" || e.type === "input" || e.type === "submit" || (e.type === "error" && !!e.stack) || (e.type === "console" && e.message.length > 120);
+  const expandable =
+    e.type === "network" ||
+    e.type === "click" ||
+    e.type === "input" ||
+    e.type === "submit" ||
+    (e.type === "error" && !!e.stack) ||
+    (e.type === "console" && e.message.length > 120);
   const word = wordOf(e);
   const label = `${formatReplayTime(e.t)} ${word}: ${text}${run ? `, ${run.count} times` : ""}`;
   return (
-    <div className="rp-ev-wrap" data-open={open ? "true" : undefined} data-nested={nested ? "true" : undefined}>
-      <div className="ops-ev rp-ev" data-ev={i} data-past={past ? "true" : "false"} data-current={current ? "true" : undefined} data-grade={grade ?? undefined} aria-label={label} {...pressable(() => onSeek(e.t))}>
-        <span className="ops-mono ops-num ops-dim text-meta">{formatReplayTime(e.t)}</span>
-        <span className="ops-mono text-meta" style={{ color: inkOf(e) }}>{word}</span>
+    <div
+      className="rp-ev-wrap"
+      data-open={open ? "true" : undefined}
+      data-nested={nested ? "true" : undefined}
+    >
+      <div
+        className="ops-ev rp-ev"
+        data-ev={i}
+        data-past={past ? "true" : "false"}
+        data-current={current ? "true" : undefined}
+        data-grade={grade ?? undefined}
+        aria-label={label}
+        {...pressable(() => onSeek(e.t))}
+      >
+        <span className="ops-mono ops-num ops-dim text-meta">
+          {formatReplayTime(e.t)}
+        </span>
+        <span className="ops-mono text-meta" style={{ color: inkOf(e) }}>
+          {word}
+        </span>
         <span className="rp-ev-text">
           {e.type === "network" ? (
             <NetText method={e.method} url={e.url} failed={isFailure(e)} />
           ) : (
-            <span className="truncate" title={e.type === "nav" ? e.url : text} style={{ color: isFailure(e) ? "var(--sol-red)" : undefined }}>{text}</span>
+            <span
+              className="truncate"
+              title={e.type === "nav" ? e.url : text}
+              style={{ color: isFailure(e) ? "var(--sol-red)" : undefined }}
+            >
+              {text}
+            </span>
           )}
           {run && (
-            <button type="button" className="rp-run" data-rage={run.rage ? "true" : undefined} aria-expanded={run.open} title={`${run.count} in a row, to ${formatReplayTime(run.until)}${run.rage ? " · rage click" : ""}`} onClick={(ev) => { ev.stopPropagation(); onRun?.(i); }}>
+            <button
+              type="button"
+              className="rp-run"
+              data-rage={run.rage ? "true" : undefined}
+              aria-expanded={run.open}
+              title={`${run.count} in a row, to ${formatReplayTime(run.until)}${run.rage ? " · rage click" : ""}`}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onRun?.(i);
+              }}
+            >
               ×{run.count}
             </button>
           )}
           {onMute && e.type === "network" && (
-            <button type="button" className="rp-mute" aria-label={`Hide ${endpointOf(e)}`} title={`Hide ${endpointOf(e)} on every recording (its failures stay)`} onClick={(ev) => { ev.stopPropagation(); onMute(endpointOf(e)); }}>
+            <button
+              type="button"
+              className="rp-mute"
+              aria-label={`Hide ${endpointOf(e)}`}
+              title={`Hide ${endpointOf(e)} on every recording (its failures stay)`}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onMute(endpointOf(e));
+              }}
+            >
               <EyeOff className="w-3 h-3" />
             </button>
           )}
         </span>
         {e.type === "network" ? (
           <span className="rp-net ops-num ops-mono">
-            <span data-grade={grade} title={e.status ? undefined : "No response (blocked, offline or CORS)"}>{e.status || "ERR"}</span>
-            <span className="ops-dim rp-net-ms">{e.ms >= 1000 ? `${(e.ms / 1000).toFixed(1)}s` : `${Math.round(e.ms)}ms`}</span>
+            <span
+              data-grade={grade}
+              title={
+                e.status ? undefined : "No response (blocked, offline or CORS)"
+              }
+            >
+              {e.status || "ERR"}
+            </span>
+            <span className="ops-dim rp-net-ms">
+              {e.ms >= 1000
+                ? `${(e.ms / 1000).toFixed(1)}s`
+                : `${Math.round(e.ms)}ms`}
+            </span>
           </span>
         ) : (
           <span />
         )}
         {expandable ? (
-          <button type="button" className="rp-ev-more" aria-label={open ? "Hide detail" : "Show detail"} aria-expanded={open} onClick={(ev) => { ev.stopPropagation(); onToggle(i); }}>
-            <ChevronDown className="w-3 h-3" style={{ transform: open ? "rotate(180deg)" : undefined }} />
+          <button
+            type="button"
+            className="rp-ev-more"
+            aria-label={open ? "Hide detail" : "Show detail"}
+            aria-expanded={open}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onToggle(i);
+            }}
+          >
+            <ChevronDown
+              className="w-3 h-3"
+              style={{ transform: open ? "rotate(180deg)" : undefined }}
+            />
           </button>
         ) : (
           <span />
@@ -336,10 +737,22 @@ function RailRowView({ e, i, past, current, open, onSeek, onToggle, onMute, run,
 }
 
 /** A request in the rail: its path's start gives way, its last segment always shows. */
-function NetText({ method, url, failed }: { method: string; url: string; failed: boolean }) {
+function NetText({
+  method,
+  url,
+  failed,
+}: {
+  method: string;
+  url: string;
+  failed: boolean;
+}) {
   const { head, tail } = netParts(method, url);
   return (
-    <span className="rp-net-path modern:font-mono" title={`${method} ${url}`} style={{ color: failed ? "var(--sol-red)" : undefined }}>
+    <span
+      className="rp-net-path modern:font-mono"
+      title={`${method} ${url}`}
+      style={{ color: failed ? "var(--sol-red)" : undefined }}
+    >
       <span className="rp-net-method">{method}</span>
       {head && <span className="rp-net-head">{head}</span>}
       <span className="rp-net-tail">{tail}</span>
@@ -361,10 +774,21 @@ function EventDetail({ e }: { e: ReplayEvent }) {
     const grade = netGrade(e);
     return (
       <dl className="rp-ev-detail">
-        <dt>Request</dt><dd className="ops-mono" title={e.url}>{e.method} <span className="rp-break">{fullNetUrl(e.url)}</span></dd>
-        <dt>Status</dt><dd className="ops-mono" data-grade={grade}>{e.status ? e.status : "no response (blocked, offline or CORS)"}</dd>
-        <dt>Time</dt><dd className="ops-num">{Math.round(e.ms).toLocaleString()} ms{grade === "slow" ? " · slow" : ""}</dd>
-        <dt>At</dt><dd className="ops-num">{formatReplayTime(e.t)}</dd>
+        <dt>Request</dt>
+        <dd className="ops-mono" title={e.url}>
+          {e.method} <span className="rp-break">{fullNetUrl(e.url)}</span>
+        </dd>
+        <dt>Status</dt>
+        <dd className="ops-mono" data-grade={grade}>
+          {e.status ? e.status : "no response (blocked, offline or CORS)"}
+        </dd>
+        <dt>Time</dt>
+        <dd className="ops-num">
+          {Math.round(e.ms).toLocaleString()} ms
+          {grade === "slow" ? " · slow" : ""}
+        </dd>
+        <dt>At</dt>
+        <dd className="ops-num">{formatReplayTime(e.t)}</dd>
       </dl>
     );
   }
@@ -375,12 +799,19 @@ function EventDetail({ e }: { e: ReplayEvent }) {
         {facts.map((f) => (
           <Fragment key={f.term}>
             <dt>{f.term}</dt>
-            <dd className={f.mono ? "ops-mono rp-break" : "rp-break"}>{f.value}</dd>
+            <dd className={f.mono ? "ops-mono rp-break" : "rp-break"}>
+              {f.value}
+            </dd>
           </Fragment>
         ))}
       </dl>
     );
   }
-  const body = e.type === "error" ? `${e.message}${e.stack ? `\n${e.stack}` : ""}` : e.type === "console" ? e.message : describeEvent(e);
+  const body =
+    e.type === "error"
+      ? `${e.message}${e.stack ? `\n${e.stack}` : ""}`
+      : e.type === "console"
+        ? e.message
+        : describeEvent(e);
   return <pre className="rp-ev-detail rp-ev-pre">{body}</pre>;
 }

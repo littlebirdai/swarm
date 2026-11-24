@@ -19,12 +19,14 @@ describe("backend switch hold in the daemon", () => {
     const hold = fn.indexOf("backendSwitchHeld(sessionId, conversationId)");
     expect(hold).toBeGreaterThan(-1);
     expect(fn.slice(hold - 60, hold)).toContain("!opts?.duringBackendSwitch");
-    expect(hold).toBeLessThan(fn.indexOf("claudeSdkBackend.ensure("));
+    expect(hold).toBeLessThan(fn.search(/claudeSdkBackend\s*\.ensure\(/));
     expect(hold).toBeLessThan(fn.indexOf("resumeInFlight.get(sessionId)"));
   });
 
   test("the SDK backend's own resume asks the hold", () => {
-    expect(src).toMatch(/mayResume: async \(convId, sessionId, userInitiated\) => !backendSwitchHeld\(convId, sessionId\) && resumeAllowed/);
+    expect(src).toMatch(
+      /mayResume: async \(convId, sessionId, userInitiated\) =>\s*!backendSwitchHeld\(convId, sessionId\) &&\s*resumeAllowed/,
+    );
   });
 
   test("the switch holds both the conversation and the session, and resumes tmux past its own hold", () => {
@@ -34,39 +36,73 @@ describe("backend switch hold in the daemon", () => {
     // Messages go back to pending through the requeue step, never from stop.
     const stop = fn.slice(fn.indexOf("stop: async"), fn.indexOf("startSdk:"));
     expect(stop).not.toContain("clearConversationDeliveryAndResumeState");
-    expect(fn).toContain('requeue: () => clearConversationDeliveryAndResumeState(conversationId, sessionId, "BACKEND-SWITCH")');
+    expect(fn).toContain(
+      'requeue: () =>\n        clearConversationDeliveryAndResumeState(\n          conversationId,\n          sessionId,\n          "BACKEND-SWITCH",\n        )',
+    );
   });
 
   test("delivery defers and repair stands down while a switch holds the conversation", () => {
-    expect(block("async function deliverMessageIntoSession(")).toContain("if (backendSwitchHeld(conversationId)) throw new BackendSwitchHoldError();");
+    expect(block("async function deliverMessageIntoSession(")).toContain(
+      "if (backendSwitchHeld(conversationId)) throw new BackendSwitchHoldError();",
+    );
     // Held, not failed: retried at its own pace without spending the retry budget.
-    expect(src).toMatch(/err instanceof TerminalHoldError \|\| err instanceof BackendSwitchHoldError\) \{/);
+    expect(src).toMatch(
+      /err instanceof TerminalHoldError \|\|\s*err instanceof BackendSwitchHoldError\s*\) \{/,
+    );
     const repair = block("async function repairAndResumeSession(");
-    expect(repair.indexOf("backendSwitchHeld(sessionId, conversationId)")).toBeLessThan(repair.indexOf("repairInFlight.get(sessionId)"));
+    expect(
+      repair.indexOf("backendSwitchHeld(sessionId, conversationId)"),
+    ).toBeLessThan(repair.indexOf("repairInFlight.get(sessionId)"));
   });
 
   test("delivery on a cloud host near its run limit is held, not failed, ahead of every fallback", () => {
     const fn = block("async function deliverMessageIntoSession(");
-    const hold = fn.indexOf('if (isRemoteDevice()) {\n    const runLimitHold = (await import("./cloud/hostReadiness.js")).runLimitHold(Date.now(), undefined, logDelivery);\n    if (runLimitHold) throw runLimitHold;');
-    expect(hold).toBeGreaterThan(fn.indexOf("if (backendSwitchHeld(conversationId)) throw"));
-    expect(hold).toBeLessThan(fn.indexOf("planHandoffTarget(planHandoffChildren, conversationId)"));
-    expect(src).toMatch(/err instanceof SwapHeldError \|\| err instanceof RunLimitHoldError \|\| err instanceof ForeignWriterHoldError/);
+    const hold = fn.search(
+      /if \(isRemoteDevice\(\)\) \{\s*const runLimitHold = \(\s*await import\("\.\/cloud\/hostReadiness\.js"\)\s*\)\.runLimitHold\(Date\.now\(\), undefined, logDelivery\);\s*if \(runLimitHold\) throw runLimitHold;/,
+    );
+    expect(hold).toBeGreaterThan(
+      fn.indexOf("if (backendSwitchHeld(conversationId)) throw"),
+    );
+    expect(hold).toBeLessThan(
+      fn.indexOf("planHandoffTarget(planHandoffChildren, conversationId)"),
+    );
+    expect(src).toMatch(
+      /err instanceof SwapHeldError \|\|\s*err instanceof RunLimitHoldError \|\|\s*err instanceof ForeignWriterHoldError/,
+    );
   });
 
   test("a kill cancels a switch in progress and waits for it to let go; a park is refused during one", () => {
-    const kill = src.slice(src.indexOf('case "kill_session": {'), src.indexOf('case "hibernate_session": {'));
-    expect(kill).toContain("await cancelBackendSwitch(conversationId, sessionIdHint)");
-    const park = src.slice(src.indexOf('case "hibernate_session": {'), src.indexOf("hibernateSessionNow(sessionId, conversationId)"));
-    expect(park).toContain("if (backendSwitchHeld(sessionId, conversationId)) {");
+    const kill = src.slice(
+      src.indexOf('case "kill_session": {'),
+      src.indexOf('case "hibernate_session": {'),
+    );
+    expect(kill).toContain(
+      "await cancelBackendSwitch(conversationId, sessionIdHint)",
+    );
+    const park = src.slice(
+      src.indexOf('case "hibernate_session": {'),
+      src.indexOf("hibernateSessionNow(sessionId, conversationId)"),
+    );
+    expect(park).toContain(
+      "if (backendSwitchHeld(sessionId, conversationId)) {",
+    );
     expect(park).not.toContain("cancelBackendSwitch");
   });
 
   test("a Restart or agent switch is refused while a switch holds the session, and the switch runs off the command queue", () => {
     const resume = src.slice(src.indexOf('case "resume_session": {'));
-    const hold = resume.indexOf("if (backendSwitchHeld(sessionId, conversationId)) {");
+    const hold = resume.indexOf(
+      "if (backendSwitchHeld(sessionId, conversationId)) {",
+    );
     expect(hold).toBeGreaterThan(-1);
-    expect(hold).toBeLessThan(resume.indexOf("claudeSdkBackend?.owns(conversationId) && !parsed.fork"));
+    expect(hold).toBeLessThan(
+      resume.search(
+        /claudeSdkBackend\?\.owns\(conversationId\) &&\s*!parsed\.fork/,
+      ),
+    );
     expect(hold).toBeLessThan(resume.indexOf("force_reconstitute"));
-    expect(src).toMatch(/DETACHED_COMMANDS: ReadonlySet<string> = new Set\(\[[^\]]*"switch_claude_backend"/);
+    expect(src).toMatch(
+      /DETACHED_COMMANDS: ReadonlySet<string> = new Set\(\[[^\]]*"switch_claude_backend"/,
+    );
   });
 });

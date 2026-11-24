@@ -16,9 +16,15 @@ import { scenario } from "../dsl";
 scenario({ name: "personalAnchorOwnedByTeammate" }, async (w) => {
   w.team("acme");
   w.user("ada", ["acme"]).user("bo", ["acme"]);
-  const s = w.session("ada", "anchor", { private: true, row: { persistent: true } });
+  const s = w.session("ada", "anchor", {
+    private: true,
+    row: { persistent: true },
+  });
   await w.start();
-  await w.clientAs("ada").mutation("sessionOwnership:addSessionOwner", { session_id: w.idOf(s), owner: w.idOf("bo") });
+  await w.clientAs("ada").mutation("sessionOwnership:addSessionOwner", {
+    session_id: w.idOf(s),
+    owner: w.idOf("bo"),
+  });
   await w.device("ada");
   const b = await w.device("bo");
   await w.expect(b.host).shows(s);

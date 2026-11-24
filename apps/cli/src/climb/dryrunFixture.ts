@@ -79,10 +79,21 @@ tolerance = 0.02
 `;
 
 export const CARD = {
-  goal: "in-1", metric: "yes_rate", production_lift: 0.04, target: "matched to opted in, furthest behind its trajectory",
-  levels: [{ env: "fake/noisy", plausible_effect: 0.05 }, { env: "fake/replay", plausible_effect: 0.04 }],
-  budget: { usd: 1000, runs: 500 }, candidates: 6, hypotheses: ["lead with the need", "shorter pitch"],
+  goal: "in-1",
+  metric: "yes_rate",
+  production_lift: 0.04,
+  target: "matched to opted in, furthest behind its trajectory",
+  levels: [
+    { env: "fake/noisy", plausible_effect: 0.05 },
+    { env: "fake/replay", plausible_effect: 0.04 },
+  ],
+  budget: { usd: 1000, runs: 500 },
+  candidates: 6,
+  hypotheses: ["lead with the need", "shorter pitch"],
 };
 
 // The fake runner's version: a hash of the base's grader.
-export const VERSION = new Bun.CryptoHasher("sha256").update("grade strictly\n").digest("hex").slice(0, 12);
+export const VERSION = new Bun.CryptoHasher("sha256")
+  .update("grade strictly\n")
+  .digest("hex")
+  .slice(0, 12);

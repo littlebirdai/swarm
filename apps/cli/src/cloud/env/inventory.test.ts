@@ -4,17 +4,38 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { ParityLedger } from "./parity";
-import { classifyFolder, envNames, readLaptopEnvironment, recordMirrorSkips, recentSessionFolders } from "./inventory";
+import {
+  classifyFolder,
+  envNames,
+  readLaptopEnvironment,
+  recordMirrorSkips,
+  recentSessionFolders,
+} from "./inventory";
 
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cast-cloud-inv-")));
+const tmp = fs.realpathSync(
+  fs.mkdtempSync(path.join(os.tmpdir(), "cast-cloud-inv-")),
+);
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@t",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@t",
+    },
+  }).trim();
 
 function repo(dir: string, files: Record<string, string>): string {
   fs.mkdirSync(dir, { recursive: true });
   git(dir, "init", "-q", "-b", "main");
-  for (const [rel, body] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), body); }
+  for (const [rel, body] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), body);
+  }
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "init");
   return dir;
@@ -41,10 +62,23 @@ describe("classifyFolder", () => {
     git(unborn, "init", "-q");
     const plain = path.join(home, "notes");
     fs.mkdirSync(plain, { recursive: true });
-    expect(classifyFolder(path.join(main), home)).toEqual({ kind: "repo", root: main });
-    expect(classifyFolder(wt, home)).toEqual({ kind: "worktree", root: wt, main });
-    expect(classifyFolder(unborn, home)).toEqual({ kind: "folder", path: unborn });
-    expect(classifyFolder(plain, home)).toEqual({ kind: "folder", path: plain });
+    expect(classifyFolder(path.join(main), home)).toEqual({
+      kind: "repo",
+      root: main,
+    });
+    expect(classifyFolder(wt, home)).toEqual({
+      kind: "worktree",
+      root: wt,
+      main,
+    });
+    expect(classifyFolder(unborn, home)).toEqual({
+      kind: "folder",
+      path: unborn,
+    });
+    expect(classifyFolder(plain, home)).toEqual({
+      kind: "folder",
+      path: plain,
+    });
     expect(classifyFolder("/tmp/x", home).kind).toBe("skip");
     expect(classifyFolder(home, home).kind).toBe("skip");
   });
@@ -68,41 +102,85 @@ describe("recentSessionFolders", () => {
 describe("recordMirrorSkips", () => {
   test("groups by folder and reason, keeps every path, and counts what leaves nothing behind", () => {
     const home = path.join(tmp, "home-m");
-    fs.mkdirSync(path.join(home, ".claude", "skills", "x"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".claude", "skills", "x", "real.bin"), "x");
-    for (const f of ["a/1.jsonl", "b/2.jsonl"]) { fs.mkdirSync(path.dirname(path.join(home, ".claude", "projects", f)), { recursive: true }); fs.writeFileSync(path.join(home, ".claude", "projects", f), "{}"); }
+    fs.mkdirSync(path.join(home, ".claude", "skills", "x"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(home, ".claude", "skills", "x", "real.bin"),
+      "x",
+    );
+    for (const f of ["a/1.jsonl", "b/2.jsonl"]) {
+      fs.mkdirSync(path.dirname(path.join(home, ".claude", "projects", f)), {
+        recursive: true,
+      });
+      fs.writeFileSync(path.join(home, ".claude", "projects", f), "{}");
+    }
     fs.mkdirSync(path.join(home, ".aws"), { recursive: true });
     fs.writeFileSync(path.join(home, ".aws", "credentials"), "[default]");
     const l = new ParityLedger();
-    recordMirrorSkips(l, [
-      { path: ".claude/projects/a/1.jsonl", reason: "denied" },
-      { path: ".claude/projects/b/2.jsonl", reason: "denied" },
-      { path: ".claude/skills/x/real.bin", reason: "referenced path absent or excluded" },
-      { path: ".claude/skills/x/nothing.md", reason: "referenced path absent or excluded" },
-      { path: "src/app/README.md", reason: "excluded" },
-      { path: ".aws/credentials", reason: "denied" },
-      { path: ".claude/projects/gone.jsonl", reason: "denied" },
-    ], home, [path.join(home, "src", "app")], [path.join(home, ".aws", "credentials")]);
+    recordMirrorSkips(
+      l,
+      [
+        { path: ".claude/projects/a/1.jsonl", reason: "denied" },
+        { path: ".claude/projects/b/2.jsonl", reason: "denied" },
+        {
+          path: ".claude/skills/x/real.bin",
+          reason: "referenced path absent or excluded",
+        },
+        {
+          path: ".claude/skills/x/nothing.md",
+          reason: "referenced path absent or excluded",
+        },
+        { path: "src/app/README.md", reason: "excluded" },
+        { path: ".aws/credentials", reason: "denied" },
+        { path: ".claude/projects/gone.jsonl", reason: "denied" },
+      ],
+      home,
+      [path.join(home, "src", "app")],
+      [path.join(home, ".aws", "credentials")],
+    );
     const items = l.all();
     // Two reasons under one folder: each group names its reason, so neither stands in for the other.
-    expect(items.find((i) => i.name === "~/.claude: machine data")).toMatchObject({ status: "skipped", paths: ["~/.claude/projects/a/1.jsonl", "~/.claude/projects/b/2.jsonl"] });
-    expect(items.find((i) => i.name === "~/.claude: excluded")).toMatchObject({ status: "skipped", paths: ["~/.claude/skills/x/real.bin"] });
+    expect(
+      items.find((i) => i.name === "~/.claude: machine data"),
+    ).toMatchObject({
+      status: "skipped",
+      paths: ["~/.claude/projects/a/1.jsonl", "~/.claude/projects/b/2.jsonl"],
+    });
+    expect(items.find((i) => i.name === "~/.claude: excluded")).toMatchObject({
+      status: "skipped",
+      paths: ["~/.claude/skills/x/real.bin"],
+    });
     expect(items).toHaveLength(2);
-    expect(l.scope.join("\n")).toContain("2 paths named in agent instruction files do not exist");
-    expect(l.scope.join("\n")).toContain("1 paths the config mirror leaves out are logins");
-    expect(l.scope.join("\n")).toContain("1 paths named in agent instruction files sit inside repositories");
+    expect(l.scope.join("\n")).toContain(
+      "2 paths named in agent instruction files do not exist",
+    );
+    expect(l.scope.join("\n")).toContain(
+      "1 paths the config mirror leaves out are logins",
+    );
+    expect(l.scope.join("\n")).toContain(
+      "1 paths named in agent instruction files sit inside repositories",
+    );
   });
 });
 
 test("envNames keeps names only", () => {
-  expect(envNames("A=1\0B_2=x=y\0bad line\0\nC=3\0")).toEqual(["A", "B_2", "C"]);
+  expect(envNames("A=1\0B_2=x=y\0bad line\0\nC=3\0")).toEqual([
+    "A",
+    "B_2",
+    "C",
+  ]);
 });
 
 describe("readLaptopEnvironment", () => {
   setDefaultTimeout(60_000);
   test("every finding is planned or skipped with a reason, and the snapshot rules decide repo files", async () => {
     const home = path.join(tmp, "home-full");
-    const app = repo(path.join(home, "src", "app"), { "package.json": "{}", "src/index.ts": "x", ".gitignore": "node_modules\n.env\nlocal.db\n" });
+    const app = repo(path.join(home, "src", "app"), {
+      "package.json": "{}",
+      "src/index.ts": "x",
+      ".gitignore": "node_modules\n.env\nlocal.db\n",
+    });
     fs.writeFileSync(path.join(app, "src", "index.ts"), "changed");
     fs.writeFileSync(path.join(app, ".env"), "SECRET=1");
     fs.mkdirSync(path.join(app, "node_modules", "dep"), { recursive: true });
@@ -131,14 +209,80 @@ describe("readLaptopEnvironment", () => {
 
     const ledger = new ParityLedger();
     const plan = await readLaptopEnvironment(ledger, {
-      home, now: Date.now(), days: 14, config: null, dryRun: false,
-      footprint: () => ({ root: "", areas: [], services: [{ label: "com.me.worker", plist: path.join(home, "Library/LaunchAgents/com.me.worker.plist"), running: true }], tools: [{ tool: "ffmpeg", path: "/opt/homebrew/bin/ffmpeg", count: 4, install: { brew: "ffmpeg" } }, { tool: "mytool", path: path.join(home, "bin/mytool"), count: 5 }] }),
-      mirror: async () => ({ entries: [{ path: ".claude/CLAUDE.md", kind: "verbatim", mode: "0600", bytes: Buffer.from("x"), root: ".claude" }], skipped: [{ path: ".claude/projects/x.jsonl", reason: "denied" }], excludesApplied: [], warnings: [], gitIdentity: {} }),
-      required: () => ({ node: { minMajor: 22, install: "22.12.0", source: "laptop" }, clients: { claude: "2.1.0" }, tools: [{ tool: "gh", version: "2.86.0" }], unsupported: [{ tool: "helper", referenced_by: "~/.claude/hooks/x", reason: "a Mach-O binary" }], mcp: [], cli: {} }),
-      loginShellEnv: () => ["OPENAI_API_KEY", "HOMEBREW_PREFIX", "PATH", "TERM"],
-      listening: () => [{ command: "postgres", port: "5432", pid: "1" }, { command: "postgres", port: "5433", pid: "1" }, { command: "Slack", port: "1", pid: "2" },
-        { command: "CommCenter", port: "5060", pid: "3" }, { command: "tmphelper", port: "51432", pid: "4" }],
-      exePath: (pid) => ({ "1": "/opt/homebrew/bin/postgres", "2": "/Applications/Slack.app/Contents/MacOS/Slack", "3": "/System/Library/PrivateFrameworks/CommCenter", "4": "/Users/me/bin/tmphelper" })[pid] ?? "",
+      home,
+      now: Date.now(),
+      days: 14,
+      config: null,
+      dryRun: false,
+      footprint: () => ({
+        root: "",
+        areas: [],
+        services: [
+          {
+            label: "com.me.worker",
+            plist: path.join(home, "Library/LaunchAgents/com.me.worker.plist"),
+            running: true,
+          },
+        ],
+        tools: [
+          {
+            tool: "ffmpeg",
+            path: "/opt/homebrew/bin/ffmpeg",
+            count: 4,
+            install: { brew: "ffmpeg" },
+          },
+          { tool: "mytool", path: path.join(home, "bin/mytool"), count: 5 },
+        ],
+      }),
+      mirror: async () => ({
+        entries: [
+          {
+            path: ".claude/CLAUDE.md",
+            kind: "verbatim",
+            mode: "0600",
+            bytes: Buffer.from("x"),
+            root: ".claude",
+          },
+        ],
+        skipped: [{ path: ".claude/projects/x.jsonl", reason: "denied" }],
+        excludesApplied: [],
+        warnings: [],
+        gitIdentity: {},
+      }),
+      required: () => ({
+        node: { minMajor: 22, install: "22.12.0", source: "laptop" },
+        clients: { claude: "2.1.0" },
+        tools: [{ tool: "gh", version: "2.86.0" }],
+        unsupported: [
+          {
+            tool: "helper",
+            referenced_by: "~/.claude/hooks/x",
+            reason: "a Mach-O binary",
+          },
+        ],
+        mcp: [],
+        cli: {},
+      }),
+      loginShellEnv: () => [
+        "OPENAI_API_KEY",
+        "HOMEBREW_PREFIX",
+        "PATH",
+        "TERM",
+      ],
+      listening: () => [
+        { command: "postgres", port: "5432", pid: "1" },
+        { command: "postgres", port: "5433", pid: "1" },
+        { command: "Slack", port: "1", pid: "2" },
+        { command: "CommCenter", port: "5060", pid: "3" },
+        { command: "tmphelper", port: "51432", pid: "4" },
+      ],
+      exePath: (pid) =>
+        ({
+          "1": "/opt/homebrew/bin/postgres",
+          "2": "/Applications/Slack.app/Contents/MacOS/Slack",
+          "3": "/System/Library/PrivateFrameworks/CommCenter",
+          "4": "/Users/me/bin/tmphelper",
+        })[pid] ?? "",
       containers: () => ["redis (redis:7)"],
       folderBytes: (d) => (d.endsWith("/big") ? 5 * 1024 ** 3 : 10),
     });
@@ -148,29 +292,53 @@ describe("readLaptopEnvironment", () => {
       if (i.status === "skipped") expect(i.reason?.length).toBeGreaterThan(5);
     }
     const byName = (n: string) => items.find((i) => i.name === n);
-    expect(plan.repos.map((r) => r.name)).toEqual(["~/src/app", "~/src/app-wt"]);
+    expect(plan.repos.map((r) => r.name)).toEqual([
+      "~/src/app",
+      "~/src/app-wt",
+    ]);
     expect(plan.repos[1]!.worktreeOf).toBe(app);
     expect(byName("~/src/app: branches")?.paths).toEqual(["~/src/app-clean"]);
     // .env (gitignored) travels; node_modules and the venv are rebuilt; the video stays.
     const snap = plan.repos[0]!.snapshot;
-    expect(execFileSync("git", ["-C", app, "ls-tree", "-r", "--name-only", snap.sha!], { encoding: "utf-8" })).toContain(".env");
-    expect(byName("~/src/app: rebuilt on each machine")?.paths).toEqual(expect.arrayContaining(["node_modules/", "py/env/"]));
-    expect(byName("~/src/app: audio or video, fetched when needed")?.paths).toEqual(["demo.mp4"]);
-    expect(byName(path.join(tmp, "scratchpad"))?.reason).toContain("outside your home folder");
+    expect(
+      execFileSync(
+        "git",
+        ["-C", app, "ls-tree", "-r", "--name-only", snap.sha!],
+        { encoding: "utf-8" },
+      ),
+    ).toContain(".env");
+    expect(byName("~/src/app: rebuilt on each machine")?.paths).toEqual(
+      expect.arrayContaining(["node_modules/", "py/env/"]),
+    );
+    expect(
+      byName("~/src/app: audio or video, fetched when needed")?.paths,
+    ).toEqual(["demo.mp4"]);
+    expect(byName(path.join(tmp, "scratchpad"))?.reason).toContain(
+      "outside your home folder",
+    );
     expect(byName("mytool")?.reason).toContain("not installed by Homebrew");
     expect(plan.extraTools.map((t) => t.tool)).toEqual(["ffmpeg"]);
     expect(byName("helper")?.status).toBe("skipped");
     expect(byName("OPENAI_API_KEY")?.status).toBe("planned");
     expect(byName("HOMEBREW_PREFIX")?.status).toBe("skipped");
     expect(byName("PATH")).toBeUndefined();
-    expect(byName("postgres")).toMatchObject({ status: "skipped", detail: "ports 5432, 5433" });
+    expect(byName("postgres")).toMatchObject({
+      status: "skipped",
+      detail: "ports 5432, 5433",
+    });
     expect(byName("Slack")).toBeUndefined();
     expect(byName("CommCenter")).toBeUndefined();
     expect(byName("tmphelper")).toBeUndefined();
     expect(ledger.scope.join("\n")).toContain("3 listening sockets left out");
     expect(byName("container redis (redis:7)")?.status).toBe("skipped");
-    expect(byName("~/src")).toMatchObject({ status: "skipped", paths: expect.arrayContaining(["~/src/app", "~/src/app-wt"]) });
-    expect(byName("~/big")).toMatchObject({ status: "skipped", detail: "5.0 GB" });
+    expect(byName("~/src")).toMatchObject({
+      status: "skipped",
+      paths: expect.arrayContaining(["~/src/app", "~/src/app-wt"]),
+    });
+    expect(byName("~/big")).toMatchObject({
+      status: "skipped",
+      detail: "5.0 GB",
+    });
     expect(plan.folders).toEqual([]);
     expect(byName("com.me.worker")?.status).toBe("skipped");
     expect(byName("~/.ssh/id_ed25519")?.status).toBe("skipped");

@@ -20,7 +20,10 @@ export function autonomyOn(trust: string | null | undefined): boolean {
  *  a line starts nothing until a person turns it on. It only holds while the
  *  role's own switch is on: a role that starts no work on its own starts no
  *  line either. The sweep, the queue and every line surface read this. */
-export function lineStartsOn(role: { trust?: string | null; caps?: { line_on?: boolean } | null }): boolean {
+export function lineStartsOn(role: {
+  trust?: string | null;
+  caps?: { line_on?: boolean } | null;
+}): boolean {
   return autonomyOn(role.trust) && role.caps?.line_on === true;
 }
 
@@ -39,7 +42,8 @@ export function defaultTrustFor(_role?: { handle?: string }): StoredTrust {
 /** A legacy stage word, as the switch it means; null for a word that is neither. */
 export function switchFromStageWord(word: string): boolean | null {
   const w = word.trim().toLowerCase();
-  if (w === "on" || w === "direct" || w === "decide" || w === "true") return true;
+  if (w === "on" || w === "direct" || w === "decide" || w === "true")
+    return true;
   if (w === "off" || w === "understand" || w === "false") return false;
   return null;
 }

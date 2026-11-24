@@ -1,6 +1,10 @@
 import { useInboxStore, type ClientUI } from "../store/inboxStore";
 import { isNotificationLeader, isVoiceHost } from "./desktop";
-import { agentAlertsSuppressed, deliverAlert, reportAlertError } from "./notificationDelivery";
+import {
+  agentAlertsSuppressed,
+  deliverAlert,
+  reportAlertError,
+} from "./notificationDelivery";
 import type { CueSpec } from "./cueSpec";
 import { afterCommit } from "@platform/engine";
 import { loadSample, scheduleCue } from "./cuePlay";
@@ -54,13 +58,25 @@ function announce(
   options: { ttl: number; preferDesktop?: boolean; due?: () => boolean },
 ) {
   if (!isSupported()) return;
-  const deliver = () => { void deliverAlert(key, () => isEnabled(category) ? play() : false, options).catch(reportAlertError); };
+  const deliver = () => {
+    void deliverAlert(
+      key,
+      () => (isEnabled(category) ? play() : false),
+      options,
+    ).catch(reportAlertError);
+  };
   try {
     const ac = getCtx(false);
     if (ac.state === "running") deliver();
-    else void Promise.race([ac.resume(), new Promise((resolve) => setTimeout(resolve, 250))])
-      .then(() => { if (ac.state === "running" && isEnabled(category)) deliver(); })
-      .catch(reportAlertError);
+    else
+      void Promise.race([
+        ac.resume(),
+        new Promise((resolve) => setTimeout(resolve, 250)),
+      ])
+        .then(() => {
+          if (ac.state === "running" && isEnabled(category)) deliver();
+        })
+        .catch(reportAlertError);
   } catch (error) {
     reportAlertError(error as Error);
   }
@@ -96,9 +112,11 @@ function getCtx(resume = true): AudioContext {
   if (!ctx) {
     ctx = new AudioContext();
     // Fetch and decode the recordings now, so a first ring is not late.
-    for (const spec of [CHAT_MARIMBA, DOOR_KNOCK, CALL_RING, WALKIE_KEY_UP]) void loadSample(ctx, spec.sample!.src);
+    for (const spec of [CHAT_MARIMBA, DOOR_KNOCK, CALL_RING, WALKIE_KEY_UP])
+      void loadSample(ctx, spec.sample!.src);
   }
-  if (resume && ctx.state === "suspended") void Promise.resolve(ctx.resume()).catch(reportAlertError);
+  if (resume && ctx.state === "suspended")
+    void Promise.resolve(ctx.resume()).catch(reportAlertError);
   return ctx;
 }
 
@@ -116,10 +134,19 @@ export function resetAudioContext() {
 }
 
 function play(
-  notes: Array<{ freq: number; start: number; dur: number; gain?: number; type?: OscillatorType }>,
+  notes: Array<{
+    freq: number;
+    start: number;
+    dur: number;
+    gain?: number;
+    type?: OscillatorType;
+  }>,
   masterGain = 0.12,
 ) {
-  playCue({ master: masterGain, tones: notes.map((n) => ({ ...n, gain: n.gain ?? 1 })) });
+  playCue({
+    master: masterGain,
+    tones: notes.map((n) => ({ ...n, gain: n.gain ?? 1 })),
+  });
 }
 
 // A cue asked for inside an action body plays when that action commits, and
@@ -135,24 +162,33 @@ function playCue(spec: CueSpec) {
 
 export function soundNewSession() {
   if (!isEnabled("sessions")) return;
-  play([
-    { freq: 392, start: 0, dur: 0.2, gain: 0.5, type: "sine" },
-    { freq: 523.25, start: 0.12, dur: 0.25, gain: 0.35, type: "sine" },
-  ], 0.05);
+  play(
+    [
+      { freq: 392, start: 0, dur: 0.2, gain: 0.5, type: "sine" },
+      { freq: 523.25, start: 0.12, dur: 0.25, gain: 0.35, type: "sine" },
+    ],
+    0.05,
+  );
 }
 
 function playIdleMotif() {
-  play([
-    { freq: 392, start: 0, dur: 0.25, gain: 0.4, type: "sine" },
-    { freq: 494, start: 0.15, dur: 0.3, gain: 0.3, type: "sine" },
-  ], 0.05);
+  play(
+    [
+      { freq: 392, start: 0, dur: 0.25, gain: 0.4, type: "sine" },
+      { freq: 494, start: 0.15, dur: 0.3, gain: 0.3, type: "sine" },
+    ],
+    0.05,
+  );
 }
 
 /** A session started waiting on the person. `due` is asked again when the
  *  chime would sound, so a wait answered in the meantime stays silent. */
 export function soundIdle(key?: string, due?: () => boolean) {
   if (!isEnabled("sessions") || !isAnnouncer()) return;
-  announce("sessions", `sound:idle:${key ?? "arrival"}`, playIdleMotif, { ttl: key ? 60_000 : 1_000, due });
+  announce("sessions", `sound:idle:${key ?? "arrival"}`, playIdleMotif, {
+    ttl: key ? 60_000 : 1_000,
+    due,
+  });
 }
 
 export function soundDismiss() {
@@ -190,7 +226,12 @@ export function soundDormant() {
 export function soundChatMessage(messageId?: string) {
   if (!isEnabled("chat") || !isSupported() || !isAnnouncer()) return;
   if (soundedRecently(messageId)) return;
-  announce("chat", `sound:chat:${messageId ?? "arrival"}`, () => playCue(CHAT_MARIMBA), { ttl: messageId ? 60_000 : 1_000 });
+  announce(
+    "chat",
+    `sound:chat:${messageId ?? "arrival"}`,
+    () => playCue(CHAT_MARIMBA),
+    { ttl: messageId ? 60_000 : 1_000 },
+  );
 }
 
 // Long enough to cover the two feeds answering the same push (measured 15 ms
@@ -202,7 +243,8 @@ const soundedAt = new Map<string, number>();
 function soundedRecently(key: string | undefined): boolean {
   if (!key) return false;
   const now = Date.now();
-  for (const [k, t] of soundedAt) if (now - t > ARRIVAL_COLLAPSE_MS) soundedAt.delete(k);
+  for (const [k, t] of soundedAt)
+    if (now - t > ARRIVAL_COLLAPSE_MS) soundedAt.delete(k);
   const seen = soundedAt.has(key);
   soundedAt.set(key, now);
   return seen;
@@ -213,9 +255,13 @@ function soundedRecently(key: string | undefined): boolean {
 // ring, and it is gated as a call event: muting chat must not mute the door.
 export function soundRoomKnock(key?: string) {
   if (!isEnabled("calls") || !isSupported() || !isAnnouncer()) return;
-  announce("calls", `sound:knock:${key ?? "arrival"}`, () => playCue(DOOR_KNOCK), { ttl: key ? 60_000 : 1_000, preferDesktop: false });
+  announce(
+    "calls",
+    `sound:knock:${key ?? "arrival"}`,
+    () => playCue(DOOR_KNOCK),
+    { ttl: key ? 60_000 : 1_000, preferDesktop: false },
+  );
 }
-
 
 // One ring cycle for an incoming huddle: a held vibraphone chord (CALL_RING),
 // unmistakably a "someone wants you", distinct from every notification chirp
@@ -236,10 +282,25 @@ export const RING_GAIN_BY_CYCLE = [1, 1.36, 1.73];
 
 export function soundCallRing(cycle = 0, key?: string) {
   if (!isEnabled("calls") || !isAnnouncer()) return;
-  announce("calls", `sound:ring:${key ?? "incoming"}`, () => {
-    if (key && !useInboxStore.getState().myCalls?.incoming.some((invite) => String(invite._id) === key)) return false;
-    playRingCycle(RING_GAIN_BY_CYCLE[Math.min(Math.max(0, cycle | 0), RING_GAIN_BY_CYCLE.length - 1)]);
-  }, { ttl: 2_500 });
+  announce(
+    "calls",
+    `sound:ring:${key ?? "incoming"}`,
+    () => {
+      if (
+        key &&
+        !useInboxStore
+          .getState()
+          .myCalls?.incoming.some((invite) => String(invite._id) === key)
+      )
+        return false;
+      playRingCycle(
+        RING_GAIN_BY_CYCLE[
+          Math.min(Math.max(0, cycle | 0), RING_GAIN_BY_CYCLE.length - 1)
+        ],
+      );
+    },
+    { ttl: 2_500 },
+  );
 }
 
 function playRingCycle(gain = 1) {
@@ -253,10 +314,13 @@ function playRingCycle(gain = 1) {
 // a call event; only the offer window plays it, so no leader election.
 export function soundMeetingDetected() {
   if (!isEnabled("calls")) return;
-  play([
-    { freq: 587.33, start: 0, dur: 0.2, gain: 0.2, type: "sine" },
-    { freq: 783.99, start: 0.1, dur: 0.26, gain: 0.15, type: "sine" },
-  ], 0.05);
+  play(
+    [
+      { freq: 587.33, start: 0, dur: 0.2, gain: 0.2, type: "sine" },
+      { freq: 783.99, start: 0.1, dur: 0.26, gain: 0.15, type: "sine" },
+    ],
+    0.05,
+  );
 }
 
 // Someone joined the room you're in (or you connected): a soft rising triad.
@@ -278,13 +342,16 @@ export function soundAgentReply(rowId: string) {
     () =>
       // A rising C-E-G over the room's voices: brighter and louder than the
       // chat knock, so an agent's answer is heard mid-conversation.
-      play([
-        { freq: 1046.5, start: 0, dur: 0.16, gain: 0.32, type: "sine" },
-        { freq: 2093, start: 0, dur: 0.1, gain: 0.06, type: "sine" },
-        { freq: 1318.51, start: 0.09, dur: 0.18, gain: 0.3, type: "sine" },
-        { freq: 1567.98, start: 0.18, dur: 0.4, gain: 0.32, type: "sine" },
-        { freq: 3135.96, start: 0.18, dur: 0.22, gain: 0.05, type: "sine" },
-      ], 0.09),
+      play(
+        [
+          { freq: 1046.5, start: 0, dur: 0.16, gain: 0.32, type: "sine" },
+          { freq: 2093, start: 0, dur: 0.1, gain: 0.06, type: "sine" },
+          { freq: 1318.51, start: 0.09, dur: 0.18, gain: 0.3, type: "sine" },
+          { freq: 1567.98, start: 0.18, dur: 0.4, gain: 0.32, type: "sine" },
+          { freq: 3135.96, start: 0.18, dur: 0.22, gain: 0.05, type: "sine" },
+        ],
+        0.09,
+      ),
     { ttl: 60_000, preferDesktop: false },
   );
 }
@@ -292,11 +359,14 @@ export function soundAgentReply(rowId: string) {
 // A participant left / the call ended: the join triad, descending.
 export function soundCallLeave() {
   if (!isEnabled("calls")) return;
-  play([
-    { freq: 783.99, start: 0, dur: 0.15, gain: 0.35, type: "sine" },
-    { freq: 659.25, start: 0.08, dur: 0.18, gain: 0.3, type: "sine" },
-    { freq: 523.25, start: 0.16, dur: 0.25, gain: 0.25, type: "sine" },
-  ], 0.045);
+  play(
+    [
+      { freq: 783.99, start: 0, dur: 0.15, gain: 0.35, type: "sine" },
+      { freq: 659.25, start: 0.08, dur: 0.18, gain: 0.3, type: "sine" },
+      { freq: 523.25, start: 0.16, dur: 0.25, gain: 0.25, type: "sine" },
+    ],
+    0.045,
+  );
 }
 
 // The room you are in began to be recorded, or stopped: the two beeps a
@@ -312,10 +382,13 @@ export function soundRecordingOn(runId: string) {
     "calls",
     `sound:record-on:${runId}`,
     () =>
-      play([
-        { freq: 880, start: 0, dur: 0.12, gain: 0.4, type: "sine" },
-        { freq: 880, start: 0.2, dur: 0.12, gain: 0.4, type: "sine" },
-      ], 0.05),
+      play(
+        [
+          { freq: 880, start: 0, dur: 0.12, gain: 0.4, type: "sine" },
+          { freq: 880, start: 0.2, dur: 0.12, gain: 0.4, type: "sine" },
+        ],
+        0.05,
+      ),
     { ttl: 60_000, preferDesktop: false },
   );
 }
@@ -325,7 +398,11 @@ export function soundRecordingOff(runId: string) {
   announce(
     "calls",
     `sound:record-off:${runId}`,
-    () => play([{ freq: 587.33, start: 0, dur: 0.22, gain: 0.4, type: "sine" }], 0.05),
+    () =>
+      play(
+        [{ freq: 587.33, start: 0, dur: 0.22, gain: 0.4, type: "sine" }],
+        0.05,
+      ),
     { ttl: 60_000, preferDesktop: false },
   );
 }
@@ -456,7 +533,11 @@ export function soundWalkieSquelch() {
 // Settings is the only place a person can hear a cue without a teammate on
 // the other end, so the list lives beside the cues rather than in the page:
 // a cue added above and forgotten below would be a cue nobody can check.
-export const WALKIE_PREVIEWS: ReadonlyArray<{ id: string; label: string; spec: CueSpec }> = [
+export const WALKIE_PREVIEWS: ReadonlyArray<{
+  id: string;
+  label: string;
+  spec: CueSpec;
+}> = [
   { id: "keyUp", label: "Live", spec: WALKIE_KEY_UP },
   { id: "roger", label: "Roger", spec: WALKIE_ROGER },
   { id: "open", label: "Incoming", spec: WALKIE_OPEN },
@@ -491,11 +572,36 @@ export const SOUND_CATEGORIES: ReadonlyArray<{
   label: string;
   desc: string;
 }> = [
-  { id: "sessions", key: "session_sounds_enabled", label: "Sessions", desc: "A session needs you or a new one arrives" },
-  { id: "chat", key: "chat_sounds_enabled", label: "Team chat", desc: "A chat message raises a toast" },
-  { id: "calls", key: "call_sounds_enabled", label: "Calls", desc: "Rings, joins and leaves, a knock at a locked huddle" },
-  { id: "walkie", key: "walkie_sounds_enabled", label: "Walkie", desc: "The push-to-talk cues: your key, their bursts" },
-  { id: "ui", key: "ui_sounds_enabled", label: "Your actions", desc: "Feedback for your own gestures: send, dismiss, kill" },
+  {
+    id: "sessions",
+    key: "session_sounds_enabled",
+    label: "Sessions",
+    desc: "A session needs you or a new one arrives",
+  },
+  {
+    id: "chat",
+    key: "chat_sounds_enabled",
+    label: "Team chat",
+    desc: "A chat message raises a toast",
+  },
+  {
+    id: "calls",
+    key: "call_sounds_enabled",
+    label: "Calls",
+    desc: "Rings, joins and leaves, a knock at a locked huddle",
+  },
+  {
+    id: "walkie",
+    key: "walkie_sounds_enabled",
+    label: "Walkie",
+    desc: "The push-to-talk cues: your key, their bursts",
+  },
+  {
+    id: "ui",
+    key: "ui_sounds_enabled",
+    label: "Your actions",
+    desc: "Feedback for your own gestures: send, dismiss, kill",
+  },
 ];
 
 /** Audition a category: its most representative cue, ungated like
@@ -503,21 +609,35 @@ export const SOUND_CATEGORIES: ReadonlyArray<{
 export function previewSoundCategory(id: SoundCategory) {
   if (agentAlertsSuppressed()) return;
   switch (id) {
-    case "sessions": return playIdleMotif();
-    case "chat": return playCue(CHAT_MARIMBA);
-    case "calls": return playRingCycle();
-    case "walkie": return playCue(WALKIE_KEY_UP);
-    case "ui": return playSendMotif();
+    case "sessions":
+      return playIdleMotif();
+    case "chat":
+      return playCue(CHAT_MARIMBA);
+    case "calls":
+      return playRingCycle();
+    case "walkie":
+      return playCue(WALKIE_KEY_UP);
+    case "ui":
+      return playSendMotif();
   }
 }
 
 // Your ring was declined or timed out — one low, brief, apologetic note.
 export function soundCallDeclined(key?: string) {
   if (!isEnabled("calls") || !isAnnouncer()) return;
-  announce("calls", `sound:declined:${key ?? "arrival"}`, () => play([
-    { freq: 329.63, start: 0, dur: 0.25, gain: 0.4, type: "sine" },
-    { freq: 261.63, start: 0.18, dur: 0.3, gain: 0.3, type: "sine" },
-  ], 0.045), { ttl: key ? 60_000 : 1_000 });
+  announce(
+    "calls",
+    `sound:declined:${key ?? "arrival"}`,
+    () =>
+      play(
+        [
+          { freq: 329.63, start: 0, dur: 0.25, gain: 0.4, type: "sine" },
+          { freq: 261.63, start: 0.18, dur: 0.3, gain: 0.3, type: "sine" },
+        ],
+        0.045,
+      ),
+    { ttl: key ? 60_000 : 1_000 },
+  );
 }
 
 export function soundSend() {

@@ -1,8 +1,15 @@
-import { useContext, useEffect, useRef, type ReactNode } from 'react';
-import { NavigationContext } from '@react-navigation/native';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { themedStyles } from '@/constants/Theme';
+import { useContext, useEffect, useRef, type ReactNode } from "react";
+import { NavigationContext } from "@react-navigation/native";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { themedStyles } from "@/constants/Theme";
 
 // The slide-up sheet shell: dimmed backdrop that closes on tap, a rounded card
 // with a grabber, safe-area padding, and keyboard avoidance so a sheet holding
@@ -26,7 +33,13 @@ export function BottomSheet({
   const nav = useContext(NavigationContext);
   const close = useRef(onClose);
   close.current = onClose;
-  useEffect(() => (nav && visible ? nav.addListener('blur', () => close.current()) : undefined), [nav, visible]);
+  useEffect(
+    () =>
+      nav && visible
+        ? nav.addListener("blur", () => close.current())
+        : undefined,
+    [nav, visible],
+  );
   return (
     <Modal
       visible={visible}
@@ -34,11 +47,22 @@ export function BottomSheet({
       animationType="slide"
       onRequestClose={onClose}
       onDismiss={onDismiss}
-      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right']}
+      supportedOrientations={[
+        "portrait",
+        "portrait-upside-down",
+        "landscape-left",
+        "landscape-right",
+      ]}
     >
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <Pressable style={styles.backdrop} onPress={onClose}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
+            onPress={() => {}}
+          >
             <View style={styles.grabber} />
             {children}
           </Pressable>
@@ -55,9 +79,9 @@ export function BottomSheet({
 export function useRunAfterDismiss(onClose: () => void) {
   const pending = useRef<(() => void) | null>(null);
   const run = (fn: () => void) => {
-    if (Platform.OS === 'ios') pending.current = fn;
+    if (Platform.OS === "ios") pending.current = fn;
     onClose();
-    if (Platform.OS !== 'ios') fn();
+    if (Platform.OS !== "ios") fn();
   };
   const onDismiss = () => {
     const fn = pending.current;
@@ -67,27 +91,29 @@ export function useRunAfterDismiss(onClose: () => void) {
   return { run, onDismiss };
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  fill: { flex: 1 },
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  sheet: {
-    backgroundColor: Theme.cardBg,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.border,
-    opacity: 0.5,
-    marginBottom: 10,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    fill: { flex: 1 },
+    backdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+    },
+    sheet: {
+      backgroundColor: Theme.cardBg,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+    },
+    grabber: {
+      alignSelf: "center",
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Theme.border,
+      opacity: 0.5,
+      marginBottom: 10,
+    },
+  }),
+);

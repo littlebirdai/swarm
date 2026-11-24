@@ -36,6 +36,10 @@ describe("threadInboxSig", () => {
     expect(threadInboxSig({ r: row({ unread: 0 }) })).not.toBe(a);
     expect(threadInboxSig({ r: row({ last_read_at: 10 }) })).not.toBe(a);
     expect(threadInboxSig({ r: row({ team_id: undefined }) })).not.toBe(a);
-    expect(threadInboxSig({ r: row({ last_reply: { _id: "m2", created_at: 11, preview: "yo" } }) })).not.toBe(a);
+    expect(
+      threadInboxSig({
+        r: row({ last_reply: { _id: "m2", created_at: 11, preview: "yo" } }),
+      }),
+    ).not.toBe(a);
   });
 });

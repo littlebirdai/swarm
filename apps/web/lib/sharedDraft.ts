@@ -12,16 +12,27 @@
 import { Schema, type Node as PMNode } from "@tiptap/pm/model";
 import { EditorState, type Transaction } from "@tiptap/pm/state";
 import { Step } from "@tiptap/pm/transform";
-import { collab, getVersion, receiveTransaction, sendableSteps } from "prosemirror-collab";
+import {
+  collab,
+  getVersion,
+  receiveTransaction,
+  sendableSteps,
+} from "prosemirror-collab";
 
-export const sharedDraftSchema = new Schema({ nodes: { doc: { content: "text*" }, text: {} } });
+export const sharedDraftSchema = new Schema({
+  nodes: { doc: { content: "text*" }, text: {} },
+});
 
 export function docText(doc: PMNode): string {
   return doc.textContent;
 }
 
 export function docFromText(text: string): PMNode {
-  return sharedDraftSchema.node("doc", null, text ? [sharedDraftSchema.text(text)] : []);
+  return sharedDraftSchema.node(
+    "doc",
+    null,
+    text ? [sharedDraftSchema.text(text)] : [],
+  );
 }
 
 export function docFromJSON(json: unknown): PMNode {
@@ -32,8 +43,16 @@ export function docFromJSON(json: unknown): PMNode {
   }
 }
 
-export function createSharedDraftState(doc: PMNode, version: number, clientID: string): EditorState {
-  return EditorState.create({ schema: sharedDraftSchema, doc, plugins: [collab({ version, clientID })] });
+export function createSharedDraftState(
+  doc: PMNode,
+  version: number,
+  clientID: string,
+): EditorState {
+  return EditorState.create({
+    schema: sharedDraftSchema,
+    doc,
+    plugins: [collab({ version, clientID })],
+  });
 }
 
 /**
@@ -43,26 +62,46 @@ export function createSharedDraftState(doc: PMNode, version: number, clientID: s
  * "aa" is recorded where the caret is, which is what another person's caret
  * maps through.
  */
-export function textEdit(before: string, after: string, caret?: number): { from: number; to: number; insert: string } | null {
+export function textEdit(
+  before: string,
+  after: string,
+  caret?: number,
+): { from: number; to: number; insert: string } | null {
   if (before === after) return null;
   let prefix = 0;
   const max = Math.min(before.length, after.length);
-  while (prefix < max && before.charCodeAt(prefix) === after.charCodeAt(prefix)) prefix++;
-  if (caret != null) prefix = Math.max(0, Math.min(prefix, caret - Math.max(0, after.length - before.length)));
+  while (prefix < max && before.charCodeAt(prefix) === after.charCodeAt(prefix))
+    prefix++;
+  if (caret != null)
+    prefix = Math.max(
+      0,
+      Math.min(prefix, caret - Math.max(0, after.length - before.length)),
+    );
   let suffix = 0;
   while (
     suffix < max - prefix &&
-    before.charCodeAt(before.length - 1 - suffix) === after.charCodeAt(after.length - 1 - suffix)
-  ) suffix++;
-  return { from: prefix, to: before.length - suffix, insert: after.slice(prefix, after.length - suffix) };
+    before.charCodeAt(before.length - 1 - suffix) ===
+      after.charCodeAt(after.length - 1 - suffix)
+  )
+    suffix++;
+  return {
+    from: prefix,
+    to: before.length - suffix,
+    insert: after.slice(prefix, after.length - suffix),
+  };
 }
 
 /** Apply a textarea change to the shared doc, or null when the text already matches. */
-export function editTransaction(state: EditorState, after: string, caret?: number): Transaction | null {
+export function editTransaction(
+  state: EditorState,
+  after: string,
+  caret?: number,
+): Transaction | null {
   const edit = textEdit(docText(state.doc), after, caret);
   if (!edit) return null;
   const tr = state.tr;
-  if (edit.insert) tr.replaceWith(edit.from, edit.to, sharedDraftSchema.text(edit.insert));
+  if (edit.insert)
+    tr.replaceWith(edit.from, edit.to, sharedDraftSchema.text(edit.insert));
   else tr.delete(edit.from, edit.to);
   return tr;
 }
@@ -80,7 +119,11 @@ export type JoinPlan = "keep" | "adopt" | "replace" | "append";
  * or I am not the owner, so my words go under theirs; nothing anyone typed
  * is dropped.
  */
-export function joinPlan(shared: string, local: string, opts: { seed: boolean; othersLive: boolean }): JoinPlan {
+export function joinPlan(
+  shared: string,
+  local: string,
+  opts: { seed: boolean; othersLive: boolean },
+): JoinPlan {
   if (shared === local) return "keep";
   if (!local.trim() || shared.includes(local.trim())) return "adopt";
   if (!shared.trim()) return "replace";
@@ -88,7 +131,11 @@ export function joinPlan(shared: string, local: string, opts: { seed: boolean; o
   return "append";
 }
 
-export function joinedText(shared: string, local: string, plan: JoinPlan): string {
+export function joinedText(
+  shared: string,
+  local: string,
+  plan: JoinPlan,
+): string {
   switch (plan) {
     case "keep":
     case "adopt":
@@ -119,8 +166,19 @@ type ClientIds = (string | number)[];
 /** The step log, as docSync serves it. */
 export type SharedDraftServer = {
   snapshot(id: string): Promise<{ content: string | null; version?: number }>;
-  steps(id: string, version: number): Promise<{ steps: string[]; clientIds: ClientIds; version: number }>;
-  submit(id: string, version: number, clientId: string, steps: string[]): Promise<{ status: "synced" } | { status: "needs-rebase"; steps: string[]; clientIds: ClientIds }>;
+  steps(
+    id: string,
+    version: number,
+  ): Promise<{ steps: string[]; clientIds: ClientIds; version: number }>;
+  submit(
+    id: string,
+    version: number,
+    clientId: string,
+    steps: string[],
+  ): Promise<
+    | { status: "synced" }
+    | { status: "needs-rebase"; steps: string[]; clientIds: ClientIds }
+  >;
   saveSnapshot(id: string, version: number, content: string): Promise<unknown>;
 };
 
@@ -136,7 +194,8 @@ export type SharedDraftEvents = {
   local?(): { text: string; caret?: number } | null;
 };
 
-const parseSteps = (steps: string[]) => steps.map((s) => Step.fromJSON(sharedDraftSchema, JSON.parse(s)));
+const parseSteps = (steps: string[]) =>
+  steps.map((s) => Step.fromJSON(sharedDraftSchema, JSON.parse(s)));
 
 /**
  * One box's connection to a shared draft: load it, fold this box's words in
@@ -167,11 +226,14 @@ export class SharedDraftSession {
   }
 
   /** Load the draft and fold `local()` in. Resolves with what the box now holds, or null when closed first. */
-  async join(local: () => string, opts: { seed: boolean; othersLive: () => boolean }): Promise<string | null> {
+  async join(
+    local: () => string,
+    opts: { seed: boolean; othersLive: () => boolean },
+  ): Promise<string | null> {
     const snap = await this.server.snapshot(this.id);
     let state = createSharedDraftState(
       snap.content ? docFromJSON(JSON.parse(snap.content)) : docFromText(""),
-      snap.content ? snap.version ?? 0 : 0,
+      snap.content ? (snap.version ?? 0) : 0,
       this.clientId,
     );
     this.snapshotAt = getVersion(state);
@@ -179,12 +241,21 @@ export class SharedDraftSession {
       const r = await this.server.steps(this.id, getVersion(state));
       if (this.closed) return null;
       if (r.steps.length === 0) break;
-      state = state.apply(receiveTransaction(state, parseSteps(r.steps), r.clientIds));
+      state = state.apply(
+        receiveTransaction(state, parseSteps(r.steps), r.clientIds),
+      );
     }
     if (this.closed) return null;
     const shared = docText(state.doc);
     const mine = local();
-    const target = joinedText(shared, mine, joinPlan(shared, mine, { seed: opts.seed, othersLive: opts.othersLive() }));
+    const target = joinedText(
+      shared,
+      mine,
+      joinPlan(shared, mine, {
+        seed: opts.seed,
+        othersLive: opts.othersLive(),
+      }),
+    );
     const tr = editTransaction(state, target);
     this.state = tr ? state.apply(tr) : state;
     this.on.version(getVersion(this.state));
@@ -216,12 +287,19 @@ export class SharedDraftSession {
     const skip = getVersion(state) - from;
     if (skip < 0 || skip >= steps.length) return;
     const ids = clientIds.slice(skip);
-    const tr = receiveTransaction(state, parseSteps(steps.slice(skip)), ids, { mapSelectionBackward: true });
+    const tr = receiveTransaction(state, parseSteps(steps.slice(skip)), ids, {
+      mapSelectionBackward: true,
+    });
     this.state = state.apply(tr);
     const before = docText(state.doc);
     const after = docText(this.state.doc);
-    if (before !== after) this.on.text(after, (pos) => tr.mapping.map(Math.min(pos, before.length), -1));
-    for (const id of ids) if (String(id) !== this.clientId) this.on.remoteEdit(authorOfClientId(id));
+    if (before !== after)
+      this.on.text(after, (pos) =>
+        tr.mapping.map(Math.min(pos, before.length), -1),
+      );
+    for (const id of ids)
+      if (String(id) !== this.clientId)
+        this.on.remoteEdit(authorOfClientId(id));
     this.on.version(getVersion(this.state));
   }
 
@@ -232,7 +310,12 @@ export class SharedDraftSession {
     this.inflight = true;
     let retryIn = 0;
     try {
-      const res = await this.server.submit(this.id, send.version, String(send.clientID), send.steps.map((s) => JSON.stringify(s.toJSON())));
+      const res = await this.server.submit(
+        this.id,
+        send.version,
+        String(send.clientID),
+        send.steps.map((s) => JSON.stringify(s.toJSON())),
+      );
       if (res.status === "needs-rebase") {
         this.receive(send.version, res.steps, res.clientIds);
       } else if (this.state) {
@@ -258,7 +341,9 @@ export class SharedDraftSession {
     const v = getVersion(state);
     if (v - this.snapshotAt < SHARED_DRAFT_SNAPSHOT_EVERY) return;
     this.snapshotAt = v;
-    void this.server.saveSnapshot(this.id, v, JSON.stringify(state.doc.toJSON())).catch(() => {});
+    void this.server
+      .saveSnapshot(this.id, v, JSON.stringify(state.doc.toJSON()))
+      .catch(() => {});
   }
 
   close(): void {

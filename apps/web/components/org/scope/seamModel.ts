@@ -15,7 +15,9 @@ export const EVEN_SPLIT: Split = { conversation: 50, company: 50 };
 /** A stored split counts only when both sides had room: a value written by
  *  an older build, or half a write, falls back to even. */
 export function splitOf(stored: Split | undefined): Split {
-  return stored && stored.conversation >= 5 && stored.company >= 5 ? stored : EVEN_SPLIT;
+  return stored && stored.conversation >= 5 && stored.company >= 5
+    ? stored
+    : EVEN_SPLIT;
 }
 
 /** The Group's layout for a split with one side folded, or none. */
@@ -24,4 +26,3 @@ export function seamLayout(hidden: SeamSide | null, split: Split): Layout {
   if (hidden === "conversation") return { [SEAM_LEFT]: 0, [SEAM_RIGHT]: 100 };
   return { [SEAM_LEFT]: split.conversation, [SEAM_RIGHT]: split.company };
 }
-

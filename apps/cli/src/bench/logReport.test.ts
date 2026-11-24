@@ -22,27 +22,39 @@ const FREEZE_SWEEP =
   "[2026-08-28T19:57:02.928Z] [LOOP-FREEZE] event loop blocked 25s (14637ms CPU during the freeze); last log before it: 2026-08-28T19:56:23.740Z [SLOW-SYNC-SPAWN] spawnSync blocked the event loop 2181ms: lsappinfo front; hot stacks: (anonymous) 100%, processTicksAndRejections 100%, sweepGitPlaneFleet@daemon.ts:13717 100%";
 
 test("longest loop hold uses the run window independently of historical log selection", () => {
-  const slow = "[2026-09-01T23:20:04.000Z] [SLOW-SYNC-FS] statSync blocked the event loop 460ms: fixture";
+  const slow =
+    "[2026-09-01T23:20:04.000Z] [SLOW-SYNC-FS] statSync blocked the event loop 460ms: fixture";
   const startMs = Date.parse("2026-09-01T23:20:03Z");
   const endMs = Date.parse("2026-09-01T23:20:15Z");
-  const report = buildLogReport([FREEZE_SWEEP, slow, FREEZE_25S, FREEZE_8S_NESTED], {
-    sinceMs: endMs,
-    run: { startMs, endMs },
-    sleepWindows: [],
-  });
+  const report = buildLogReport(
+    [FREEZE_SWEEP, slow, FREEZE_25S, FREEZE_8S_NESTED],
+    {
+      sinceMs: endMs,
+      run: { startMs, endMs },
+      sleepWindows: [],
+    },
+  );
   expect(report.longestLoopHoldMs).toBe(8000);
   expect(report.freezes.freezeCount).toBe(0);
-  expect(buildLogReport([slow], { sinceMs: 0, run: { startMs, endMs }, sleepWindows: [] }).longestLoopHoldMs).toBe(460);
-  expect(buildLogReport([FREEZE_SLEEP_1048S], {
-    sinceMs: 0,
-    run: { startMs: Date.parse("2026-08-31T06:40:00Z"), endMs },
-    sleepWindows: [],
-  }).longestLoopHoldMs).toBeNull();
+  expect(
+    buildLogReport([slow], {
+      sinceMs: 0,
+      run: { startMs, endMs },
+      sleepWindows: [],
+    }).longestLoopHoldMs,
+  ).toBe(460);
+  expect(
+    buildLogReport([FREEZE_SLEEP_1048S], {
+      sinceMs: 0,
+      run: { startMs: Date.parse("2026-08-31T06:40:00Z"), endMs },
+      sleepWindows: [],
+    }).longestLoopHoldMs,
+  ).toBeNull();
 });
 
 const PMSET = [
   "2026-08-27 08:50:32 -0400 Sleep               \tEntering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using AC (Charge:100%) 202 secs  ",
-  "2026-08-27 08:50:34 -0400 Wake Requests       \t[*process=dasd request=SleepService deltaSecs=1019 wakeAt=2026-08-27 09:07:33 info=\"x\"]",
+  '2026-08-27 08:50:34 -0400 Wake Requests       \t[*process=dasd request=SleepService deltaSecs=1019 wakeAt=2026-08-27 09:07:33 info="x"]',
   "2026-08-27 08:53:54 -0400 DarkWake            \tDarkWake from Deep Idle [CDNPB] : due to smc.sysState.Wake(0x70070000) Using AC (Charge:100%) 8 secs    ",
   "2026-08-27 08:54:05 -0400 Sleep               \tEntering DarkWake state due to 'Notification Wake Back to Sleep':TCPKeepAlive=active Using AC (Charge:100%) 226 secs  ",
   "2026-08-27 08:57:51 -0400 Wake                \tDarkWake to FullWake from Deep Idle [CDNVAPB] : due to Notification Using AC (Charge:100%) 30 secs   ",
@@ -51,11 +63,17 @@ const PMSET = [
 
 describe("parseDaemonLogLine", () => {
   test("handles the optional [WARN] tag", () => {
-    const warn = parseDaemonLogLine("[2026-08-28T10:49:51.061Z] [WARN] Health: 10 pending files, 666 dropped ops, 0 in retry queue");
+    const warn = parseDaemonLogLine(
+      "[2026-08-28T10:49:51.061Z] [WARN] Health: 10 pending files, 666 dropped ops, 0 in retry queue",
+    );
     expect(warn?.level).toBe("WARN");
-    expect(warn?.message).toBe("Health: 10 pending files, 666 dropped ops, 0 in retry queue");
+    expect(warn?.message).toBe(
+      "Health: 10 pending files, 666 dropped ops, 0 in retry queue",
+    );
     expect(warn?.ts).toBe(Date.parse("2026-08-28T10:49:51.061Z"));
-    const info = parseDaemonLogLine("[2026-08-28T13:16:46.256Z] Hook server listening on 127.0.0.1:50397");
+    const info = parseDaemonLogLine(
+      "[2026-08-28T13:16:46.256Z] Hook server listening on 127.0.0.1:50397",
+    );
     expect(info?.level).toBeNull();
     expect(info?.message).toBe("Hook server listening on 127.0.0.1:50397");
     expect(parseDaemonLogLine("garbage")).toBeNull();
@@ -69,7 +87,9 @@ describe("parseLoopFreeze", () => {
     expect(ev.lateMs).toBe(25000);
     expect(ev.cpuMs).toBe(416);
     expect(ev.hotStacks[0]).toBe("(anonymous)@recursiveWatcher.ts:118 96%");
-    expect(primaryStack(ev.hotStacks)).toBe("(anonymous)@recursiveWatcher.ts:118");
+    expect(primaryStack(ev.hotStacks)).toBe(
+      "(anonymous)@recursiveWatcher.ts:118",
+    );
     expect(lastLogTag(ev.lastLog)).toBe("Synced");
   });
 
@@ -77,7 +97,9 @@ describe("parseLoopFreeze", () => {
     const p = parseDaemonLogLine(FREEZE_8S_NESTED)!;
     const ev = parseLoopFreeze(p.ts, p.message)!;
     expect(ev.lateMs).toBe(8000);
-    expect(primaryStack(ev.hotStacks)).toBe("processSessionFile@daemon.ts:6349");
+    expect(primaryStack(ev.hotStacks)).toBe(
+      "processSessionFile@daemon.ts:6349",
+    );
     expect(lastLogTag(ev.lastLog)).toBe("[LOOP-FREEZE]");
   });
 
@@ -86,7 +108,8 @@ describe("parseLoopFreeze", () => {
   // must not look like a freeze to the report: the count of freezes is what the
   // SLO is read from.
   test("the clocks line beside a freeze is not itself a freeze", () => {
-    const line = "[2026-09-03T10:00:00.000Z] [LOOP-FREEZE-CLOCKS] wall 42000ms, loop 41800ms, cpu 928ms";
+    const line =
+      "[2026-09-03T10:00:00.000Z] [LOOP-FREEZE-CLOCKS] wall 42000ms, loop 41800ms, cpu 928ms";
     const p = parseDaemonLogLine(line)!;
     expect(p.message.startsWith("[LOOP-FREEZE]")).toBe(false);
     expect(parseLoopFreeze(p.ts, p.message)).toBeNull();
@@ -95,7 +118,9 @@ describe("parseLoopFreeze", () => {
   test("the primary stack skips bare anonymous frames", () => {
     const p = parseDaemonLogLine(FREEZE_SWEEP)!;
     const ev = parseLoopFreeze(p.ts, p.message)!;
-    expect(primaryStack(ev.hotStacks)).toBe("sweepGitPlaneFleet@daemon.ts:13717");
+    expect(primaryStack(ev.hotStacks)).toBe(
+      "sweepGitPlaneFleet@daemon.ts:13717",
+    );
     expect(lastLogTag(ev.lastLog)).toBe("[SLOW-SYNC-SPAWN]");
   });
 });
@@ -114,25 +139,44 @@ describe("parsePmsetSleepWindows", () => {
 
 describe("classifyFreeze", () => {
   const ev = (iso: string, lateS: number, cpuMs: number): LoopFreezeEvent => ({
-    ts: Date.parse(iso), lateMs: lateS * 1000, cpuMs, lastLog: "", hotStacks: [],
+    ts: Date.parse(iso),
+    lateMs: lateS * 1000,
+    cpuMs,
+    lastLog: "",
+    hotStacks: [],
   });
 
   test("a freeze overlapping a pmset window is sleep", () => {
     const windows = parsePmsetSleepWindows(PMSET);
     // Reported at 08:53:55 after 200s: covers 08:50:35 to 08:53:55, inside the first window.
-    expect(classifyFreeze(ev("2026-08-27T12:53:55Z", 200, 30), windows)).toBe("sleep");
+    expect(classifyFreeze(ev("2026-08-27T12:53:55Z", 200, 30), windows)).toBe(
+      "sleep",
+    );
   });
 
   test("the 25s recursiveWatcher freeze beside a 'Sleep detected' line stays a freeze", () => {
     // pmset covers the day but has no window near 23:20 UTC.
-    const windows = [{ start: Date.parse("2026-09-01T20:00:00Z"), end: Date.parse("2026-09-01T20:05:00Z") }];
-    expect(classifyFreeze(ev("2026-09-01T23:20:05.639Z", 25, 416), windows)).toBe("freeze");
+    const windows = [
+      {
+        start: Date.parse("2026-09-01T20:00:00Z"),
+        end: Date.parse("2026-09-01T20:05:00Z"),
+      },
+    ];
+    expect(
+      classifyFreeze(ev("2026-09-01T23:20:05.639Z", 25, 416), windows),
+    ).toBe("freeze");
   });
 
   test("without pmset windows a long gap with near zero cpu is sleep, with real cpu a freeze", () => {
-    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 1200, 2000), [])).toBe("sleep");
-    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 1200, 300000), [])).toBe("freeze");
-    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 25, 10), [])).toBe("freeze");
+    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 1200, 2000), [])).toBe(
+      "sleep",
+    );
+    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 1200, 300000), [])).toBe(
+      "freeze",
+    );
+    expect(classifyFreeze(ev("2026-08-31T06:58:38Z", 25, 10), [])).toBe(
+      "freeze",
+    );
   });
 });
 
@@ -157,7 +201,10 @@ describe("buildLogReport", () => {
   ];
 
   test("totals per hour, sleep excluded, histograms, spawn groups and boot pairing", () => {
-    const report = buildLogReport(lines, { sinceMs: Date.parse("2026-08-28T00:00:00Z"), sleepWindows: [] });
+    const report = buildLogReport(lines, {
+      sinceMs: Date.parse("2026-08-28T00:00:00Z"),
+      sleepWindows: [],
+    });
     expect(report.linesRead).toBe(15);
     expect(report.freezes.rawCount).toBe(4);
     expect(report.freezes.sleepCount).toBe(1);
@@ -181,18 +228,47 @@ describe("buildLogReport", () => {
 
     expect(report.psSnapshot.n).toBe(2);
     expect(report.psSnapshot.maxMs).toBe(8606);
-    expect(report.psSnapshot.buckets.map((b) => b.count)).toEqual([0, 1, 1, 0, 0]);
+    expect(report.psSnapshot.buckets.map((b) => b.count)).toEqual([
+      0, 1, 1, 0, 0,
+    ]);
 
     expect(report.slowSpawn.n).toBe(3);
-    expect(report.slowSpawn.groups[0]).toEqual({ command: "lsappinfo", count: 2, meanMs: 1036, maxMs: 1037 });
+    expect(report.slowSpawn.groups[0]).toEqual({
+      command: "lsappinfo",
+      count: 2,
+      meanMs: 1036,
+      maxMs: 1037,
+    });
     expect(report.slowSpawn.groups[1].command).toBe("git");
     expect(report.slowFs.n).toBe(3);
-    expect(report.slowFs.groups[0]).toEqual({ command: "walkDirsSync", count: 2, meanMs: 300, maxMs: 310 });
-    expect(report.slowFs.groups[1]).toEqual({ command: "cursorWatcher.pollWorkspaces", count: 1, meanMs: 1200, maxMs: 1200 });
+    expect(report.slowFs.groups[0]).toEqual({
+      command: "walkDirsSync",
+      count: 2,
+      meanMs: 300,
+      maxMs: 310,
+    });
+    expect(report.slowFs.groups[1]).toEqual({
+      command: "cursorWatcher.pollWorkspaces",
+      count: 1,
+      meanMs: 1200,
+      maxMs: 1200,
+    });
 
     expect(report.boots).toEqual([
-      { startedAt: "2026-08-28T13:16:37.952Z", version: "1.1.113", pid: 22124, listeningAt: "2026-08-28T13:16:46.256Z", blackoutMs: 8304 },
-      { startedAt: "2026-09-01T23:30:00.000Z", version: "1.1.114", pid: 99999, listeningAt: null, blackoutMs: null },
+      {
+        startedAt: "2026-08-28T13:16:37.952Z",
+        version: "1.1.113",
+        pid: 22124,
+        listeningAt: "2026-08-28T13:16:46.256Z",
+        blackoutMs: 8304,
+      },
+      {
+        startedAt: "2026-09-01T23:30:00.000Z",
+        version: "1.1.114",
+        pid: 99999,
+        listeningAt: null,
+        blackoutMs: null,
+      },
     ]);
   });
 });

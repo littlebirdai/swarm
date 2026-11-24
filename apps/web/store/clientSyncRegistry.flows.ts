@@ -14,7 +14,19 @@ export const FLOW_SYNC_COLLECTIONS = {
     localFirst: true,
     indexes: "_id, team_id",
     // altKey: a flow started on the web paints as a row keyed by its client key, which the server row carries.
-    sync: { isDelta: true, altKey: "client_key", deepFields: ["queue", "running", "sources", "caps", "load", "flow", "watcher"] },
+    sync: {
+      isDelta: true,
+      altKey: "client_key",
+      deepFields: [
+        "queue",
+        "running",
+        "sources",
+        "caps",
+        "load",
+        "flow",
+        "watcher",
+      ],
+    },
     feeds: ["liveFlows.forTeam"],
   },
   // The flows a team's sessions ran or defined (convex flowLibrary.sessionFlows):
@@ -38,7 +50,10 @@ export const FLOW_SYNC_COLLECTIONS = {
     persistence: { kind: "collection", key: "flowMaps" },
     hydration: { phase: "deferred" },
     indexes: "_id",
-    sync: { isDelta: true, deepFields: ["liveFlow", "lanes", "off", "sources", "header"] },
+    sync: {
+      isDelta: true,
+      deepFields: ["liveFlow", "lanes", "off", "sources", "header"],
+    },
     feeds: ["flowMap.forTeam"],
   },
   // The viewer's checkouts' own flows (convex repoFlows.forCheckout), one row

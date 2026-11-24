@@ -51,14 +51,21 @@ import {
   performSessionSend,
   updatePendingMessageStatusForDaemon,
 } from "../../../apps/server/convex/pendingMessages";
-import { findEchoedPendingMessage, pendingRowsForEcho, settleEchoedPending } from "../../../apps/server/convex/messages";
+import {
+  findEchoedPendingMessage,
+  pendingRowsForEcho,
+  settleEchoedPending,
+} from "../../../apps/server/convex/messages";
 import { redactSecrets } from "../../../apps/server/convex/redact";
 import { isolateCodecastDir } from "./test-helpers/codecastDir.js";
 
 // The delivery echo ledger these deliveries record into lives in CODECAST_DIR.
 const codecastDir = isolateCodecastDir();
 
-const CAN_RUN = process.env.CODECAST_PASTE_E2E === "1" && hasBinary("tmux") && hasBinary("claude");
+const CAN_RUN =
+  process.env.CODECAST_PASTE_E2E === "1" &&
+  hasBinary("tmux") &&
+  hasBinary("claude");
 const WRAPPED = machinePasteWrapperOn();
 const TEST_TIMEOUT_MS = loadScaledMs(300_000, 3);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -67,20 +74,41 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function world(sessionId: string) {
   const now = Date.now();
   const db = makeFakeDb({
-    users: [{ _id: "uAda", name: "Ada" }, { _id: "uBo", name: "Bo" }],
+    users: [
+      { _id: "uAda", name: "Ada" },
+      { _id: "uBo", name: "Bo" },
+    ],
     teams: [{ _id: "tA" }],
     team_memberships: [
       { _id: "mAda", user_id: "uAda", team_id: "tA", visibility: "full" },
       { _id: "mBo", user_id: "uBo", team_id: "tA", visibility: "full" },
     ],
-    conversations: [{
-      _id: "convAda", user_id: "uAda", team_id: "tA", short_id: "jxada01", session_id: sessionId,
-      is_private: false, status: "active", owner_device_id: "devAda", updated_at: now,
-    }],
-    managed_sessions: [{
-      _id: "msAda", user_id: "uAda", conversation_id: "convAda", session_id: sessionId, last_heartbeat: now, agent_status: "idle",
-    }],
-    devices: [{ _id: "dAda", user_id: "uAda", device_id: "devAda", last_seen: now }],
+    conversations: [
+      {
+        _id: "convAda",
+        user_id: "uAda",
+        team_id: "tA",
+        short_id: "jxada01",
+        session_id: sessionId,
+        is_private: false,
+        status: "active",
+        owner_device_id: "devAda",
+        updated_at: now,
+      },
+    ],
+    managed_sessions: [
+      {
+        _id: "msAda",
+        user_id: "uAda",
+        conversation_id: "convAda",
+        session_id: sessionId,
+        last_heartbeat: now,
+        agent_status: "idle",
+      },
+    ],
+    devices: [
+      { _id: "dAda", user_id: "uAda", device_id: "devAda", last_seen: now },
+    ],
     pending_messages: [],
   });
   return { db, ctx: { db } as any };
@@ -89,133 +117,228 @@ function world(sessionId: string) {
 // A teammate's review notes: many lines, well past 2KB, one marker on the
 // first line so a split or doubled submit is countable.
 function teammateNotes(marker: string): string {
-  const lines = [`${marker}: notes from the release review, please work through them in order.`];
+  const lines = [
+    `${marker}: notes from the release review, please work through them in order.`,
+  ];
   for (let i = 1; lines.join("\n").length < 3_000; i++) {
-    lines.push(`${i}. Check the migration step ${i} against the staging snapshot, compare row counts, and write down any table whose count moved.`);
+    lines.push(
+      `${i}. Check the migration step ${i} against the staging snapshot, compare row counts, and write down any table whose count moved.`,
+    );
   }
   return lines.join("\n");
 }
 
 // The content-matched ack in addMessages, one transcript turn at a time, on
 // the same redacted text and through the same steps.
-async function ackEcho(ctx: any, content: string, echoId: string): Promise<string | null> {
+async function ackEcho(
+  ctx: any,
+  content: string,
+  echoId: string,
+): Promise<string | null> {
   const rows = await pendingRowsForEcho(ctx, "convAda" as any);
-  const row = findEchoedPendingMessage(rows, redactSecrets(content), Date.now());
+  const row = findEchoedPendingMessage(
+    rows,
+    redactSecrets(content),
+    Date.now(),
+  );
   if (!row) return null;
   await settleEchoedPending(ctx, row, echoId as any);
   return row._id;
 }
 
-const RETRYABLE = /^(AGENT_STDIN_NOT_READY|INJECT_UNVERIFIED|AGENT_NOT_READY|AGENT_UNKNOWN_STATE)/;
+const RETRYABLE =
+  /^(AGENT_STDIN_NOT_READY|INJECT_UNVERIFIED|AGENT_NOT_READY|AGENT_UNKNOWN_STATE)/;
 
-describe.skipIf(!CAN_RUN)("a teammate's long paste into a live claude pane under load", () => {
-  afterAll(() => {
-    setSyncServiceForTests(null);
-    sweepStaleSessions(MATRIX_TMUX_PREFIX);
-    killIsolatedTmuxServer();
-  });
-
-  test.each([
-    ["idle", "classic"], ["busy", "classic"], ["idle", "fullscreen"], ["busy", "fullscreen"],
-  ] as const)("lands once, acks once, leaves a verified receipt (%s pane, %s renderer)", async (mode, renderer) => {
-    const endpoint = await startFakeModelEndpoint();
-    if (mode === "idle") endpoint.reject();
-    const pane = spawnClientPane("claude", {
-      endpointUrl: endpoint.url, machineFeatures: true, tui: renderer === "fullscreen" ? "fullscreen" : undefined,
-    });
-    const scratch = mkdtempSync(join(os.tmpdir(), "codecast-xuser-paste-"));
-    const journal = new TmuxDeliveryJournal(join(scratch, "delivery.sqlite"));
-    const load = cpuLoad();
-    const marker = `xuser-${randomUUID().slice(0, 8)}`;
-    const body = teammateNotes(marker);
-    const chips = new Set<string>();
-    try {
-      await waitFor(() => pane.capture().includes("shift+tab"), { timeoutMs: loadScaledMs(90_000, 3), label: "claude prompt" });
-      if (mode === "busy") {
-        await injectViaTmux(pane.target, "Start the release checklist.", "claude");
-        await waitFor(() => endpoint.inFlight() > 0, { timeoutMs: loadScaledMs(30_000, 3), label: "turn in flight" });
-      }
-
-      // Bo's send, then Ada's daemon claims it and marks it injected.
-      const { db, ctx } = world(pane.sessionId()!);
-      const sent = await performSessionSend(ctx, "uBo" as any, { to: "jxada01", body, direct: true });
-      expect(sent.cross_user).toBe(true);
-      const row = db._tables.pending_messages[0];
-      expect(row.content.length).toBeGreaterThan(2_048);
-      expect({ from: row.from_user_id, owner: row.owner_user_id }).toEqual({ from: "uBo", owner: "uAda" });
-      expect((await claimPendingMessageForDaemon(ctx, row._id, "uAda" as any, "devAda"))?._id).toBe(row._id);
-      await updatePendingMessageStatusForDaemon(ctx, row._id, "uAda" as any, "devAda", { status: "injected" });
-      setSyncServiceForTests({
-        getPendingMessageStatus: async (id: string) => (await db.get(id))?.status ?? "missing",
-      } as unknown as SyncService);
-
-      // Every chip the composer ever draws while the paste is in flight. Read
-      // from the pane's output stream rather than sampled: on a busy classic
-      // pane the chip lives only between the paste and its Enter (~300ms on
-      // 2.1.302), shorter than a capture interval under load.
-      const drawn = pane.recordOutput();
-
-      load.on(os.cpus().length);
-      const delivery = { messageId: row._id, conversationId: "convAda" };
-      const errors: string[] = [];
-      const started = Date.now();
-      for (;;) {
-        try {
-          await injectViaTmux(pane.target, row.content, "claude", { delivery, journal });
-          break;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          errors.push(msg.split(":")[0]!);
-          if (!RETRYABLE.test(msg) || Date.now() - started > loadScaledMs(90_000, 3)) throw new Error(`delivery failed after ${errors.length} attempts: ${msg}\npane:\n${pane.capture()}`);
-          await sleep(2_000);
-        }
-      }
-      if (mode === "busy") endpoint.reject();
-
-      const withMarker = () => pane.userMessages().filter((m) => m.includes(marker));
-      await waitFor(() => withMarker().length > 0, { timeoutMs: loadScaledMs(60_000, 3), label: "teammate paste in the transcript" });
-      await sleep(3_000);
-      load.off();
-
-      const turns = pane.userMessages();
-      let acks = 0;
-      for (const [i, turn] of turns.entries()) if (await ackEcho(ctx, turn, `echo-${i}`) === row._id) acks++;
-      const receipt = journal.get(row._id);
-      const wrappers = (withMarker()[0]?.match(/<pasted_content/g) ?? []).length;
-      for (const m of drawn.read().matchAll(/\[Pasted text #(\d+)/g)) chips.add(m[1]!);
-      console.log(`[xuser-paste] mode=${mode} renderer=${renderer} attempts=${errors.length + 1} errors=${JSON.stringify(errors)} chips=${JSON.stringify([...chips])} turns=${turns.length} withMarker=${withMarker().length} wrappers=${wrappers} acks=${acks} receipt=${receipt?.phase}`);
-
-      expect(withMarker()).toHaveLength(1);
-      // An idle composer is typed into, so its turn carries no wrapper. Mid-turn
-      // the message is pasted: one wrapper when this machine's flags turn it on
-      // (a split paste shows as more than one in the turn, a lost wrapper as
-      // none), none otherwise.
-      if (!WRAPPED) console.log("[xuser-paste] this machine's cached flags leave the paste wrapper off; expecting no <pasted_content>");
-      expect(wrappers).toBe(WRAPPED && mode === "busy" ? 1 : 0);
-      expect(acks).toBe(1);
-      expect((await db.get(row._id)).status).toBe("delivered");
-      expect(receipt?.phase).toBe("verified");
-
-      // A retry of the same delivery (the 120s cron re-pending, a timeout the
-      // daemon read as a failure) finds the receipt and the ack and writes
-      // nothing; the server refuses a second claim. A second paste would show
-      // as a second chip, a second submit as a second transcript turn.
-      await injectViaTmux(pane.target, row.content, "claude", { delivery, journal, receiptSettleMs: 0 });
-      expect(await claimPendingMessageForDaemon(ctx, row._id, "uAda" as any, "devAda")).toBeNull();
-      await sleep(3_000);
-      drawn.stop();
-      for (const m of drawn.read().matchAll(/\[Pasted text #(\d+)/g)) chips.add(m[1]!);
-      expect(withMarker()).toHaveLength(1);
-      // A paste over 2KB always shows a chip; exactly one means it neither
-      // split nor went unseen. Typed text never collapses into one.
-      expect(chips.size).toBe(mode === "busy" ? 1 : 0);
-    } finally {
-      load.off();
+describe.skipIf(!CAN_RUN)(
+  "a teammate's long paste into a live claude pane under load",
+  () => {
+    afterAll(() => {
       setSyncServiceForTests(null);
-      journal.close();
-      try { pane.tearDown(); } catch {}
-      endpoint.close();
-      rmSync(scratch, { recursive: true, force: true });
-    }
-  }, TEST_TIMEOUT_MS);
-});
+      sweepStaleSessions(MATRIX_TMUX_PREFIX);
+      killIsolatedTmuxServer();
+    });
+
+    test.each([
+      ["idle", "classic"],
+      ["busy", "classic"],
+      ["idle", "fullscreen"],
+      ["busy", "fullscreen"],
+    ] as const)(
+      "lands once, acks once, leaves a verified receipt (%s pane, %s renderer)",
+      async (mode, renderer) => {
+        const endpoint = await startFakeModelEndpoint();
+        if (mode === "idle") endpoint.reject();
+        const pane = spawnClientPane("claude", {
+          endpointUrl: endpoint.url,
+          machineFeatures: true,
+          tui: renderer === "fullscreen" ? "fullscreen" : undefined,
+        });
+        const scratch = mkdtempSync(join(os.tmpdir(), "codecast-xuser-paste-"));
+        const journal = new TmuxDeliveryJournal(
+          join(scratch, "delivery.sqlite"),
+        );
+        const load = cpuLoad();
+        const marker = `xuser-${randomUUID().slice(0, 8)}`;
+        const body = teammateNotes(marker);
+        const chips = new Set<string>();
+        try {
+          await waitFor(() => pane.capture().includes("shift+tab"), {
+            timeoutMs: loadScaledMs(90_000, 3),
+            label: "claude prompt",
+          });
+          if (mode === "busy") {
+            await injectViaTmux(
+              pane.target,
+              "Start the release checklist.",
+              "claude",
+            );
+            await waitFor(() => endpoint.inFlight() > 0, {
+              timeoutMs: loadScaledMs(30_000, 3),
+              label: "turn in flight",
+            });
+          }
+
+          // Bo's send, then Ada's daemon claims it and marks it injected.
+          const { db, ctx } = world(pane.sessionId()!);
+          const sent = await performSessionSend(ctx, "uBo" as any, {
+            to: "jxada01",
+            body,
+            direct: true,
+          });
+          expect(sent.cross_user).toBe(true);
+          const row = db._tables.pending_messages[0];
+          expect(row.content.length).toBeGreaterThan(2_048);
+          expect({ from: row.from_user_id, owner: row.owner_user_id }).toEqual({
+            from: "uBo",
+            owner: "uAda",
+          });
+          expect(
+            (
+              await claimPendingMessageForDaemon(
+                ctx,
+                row._id,
+                "uAda" as any,
+                "devAda",
+              )
+            )?._id,
+          ).toBe(row._id);
+          await updatePendingMessageStatusForDaemon(
+            ctx,
+            row._id,
+            "uAda" as any,
+            "devAda",
+            { status: "injected" },
+          );
+          setSyncServiceForTests({
+            getPendingMessageStatus: async (id: string) =>
+              (await db.get(id))?.status ?? "missing",
+          } as unknown as SyncService);
+
+          // Every chip the composer ever draws while the paste is in flight. Read
+          // from the pane's output stream rather than sampled: on a busy classic
+          // pane the chip lives only between the paste and its Enter (~300ms on
+          // 2.1.302), shorter than a capture interval under load.
+          const drawn = pane.recordOutput();
+
+          load.on(os.cpus().length);
+          const delivery = { messageId: row._id, conversationId: "convAda" };
+          const errors: string[] = [];
+          const started = Date.now();
+          for (;;) {
+            try {
+              await injectViaTmux(pane.target, row.content, "claude", {
+                delivery,
+                journal,
+              });
+              break;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              errors.push(msg.split(":")[0]!);
+              if (
+                !RETRYABLE.test(msg) ||
+                Date.now() - started > loadScaledMs(90_000, 3)
+              )
+                throw new Error(
+                  `delivery failed after ${errors.length} attempts: ${msg}\npane:\n${pane.capture()}`,
+                );
+              await sleep(2_000);
+            }
+          }
+          if (mode === "busy") endpoint.reject();
+
+          const withMarker = () =>
+            pane.userMessages().filter((m) => m.includes(marker));
+          await waitFor(() => withMarker().length > 0, {
+            timeoutMs: loadScaledMs(60_000, 3),
+            label: "teammate paste in the transcript",
+          });
+          await sleep(3_000);
+          load.off();
+
+          const turns = pane.userMessages();
+          let acks = 0;
+          for (const [i, turn] of turns.entries())
+            if ((await ackEcho(ctx, turn, `echo-${i}`)) === row._id) acks++;
+          const receipt = journal.get(row._id);
+          const wrappers = (withMarker()[0]?.match(/<pasted_content/g) ?? [])
+            .length;
+          for (const m of drawn.read().matchAll(/\[Pasted text #(\d+)/g))
+            chips.add(m[1]!);
+          console.log(
+            `[xuser-paste] mode=${mode} renderer=${renderer} attempts=${errors.length + 1} errors=${JSON.stringify(errors)} chips=${JSON.stringify([...chips])} turns=${turns.length} withMarker=${withMarker().length} wrappers=${wrappers} acks=${acks} receipt=${receipt?.phase}`,
+          );
+
+          expect(withMarker()).toHaveLength(1);
+          // An idle composer is typed into, so its turn carries no wrapper. Mid-turn
+          // the message is pasted: one wrapper when this machine's flags turn it on
+          // (a split paste shows as more than one in the turn, a lost wrapper as
+          // none), none otherwise.
+          if (!WRAPPED)
+            console.log(
+              "[xuser-paste] this machine's cached flags leave the paste wrapper off; expecting no <pasted_content>",
+            );
+          expect(wrappers).toBe(WRAPPED && mode === "busy" ? 1 : 0);
+          expect(acks).toBe(1);
+          expect((await db.get(row._id)).status).toBe("delivered");
+          expect(receipt?.phase).toBe("verified");
+
+          // A retry of the same delivery (the 120s cron re-pending, a timeout the
+          // daemon read as a failure) finds the receipt and the ack and writes
+          // nothing; the server refuses a second claim. A second paste would show
+          // as a second chip, a second submit as a second transcript turn.
+          await injectViaTmux(pane.target, row.content, "claude", {
+            delivery,
+            journal,
+            receiptSettleMs: 0,
+          });
+          expect(
+            await claimPendingMessageForDaemon(
+              ctx,
+              row._id,
+              "uAda" as any,
+              "devAda",
+            ),
+          ).toBeNull();
+          await sleep(3_000);
+          drawn.stop();
+          for (const m of drawn.read().matchAll(/\[Pasted text #(\d+)/g))
+            chips.add(m[1]!);
+          expect(withMarker()).toHaveLength(1);
+          // A paste over 2KB always shows a chip; exactly one means it neither
+          // split nor went unseen. Typed text never collapses into one.
+          expect(chips.size).toBe(mode === "busy" ? 1 : 0);
+        } finally {
+          load.off();
+          setSyncServiceForTests(null);
+          journal.close();
+          try {
+            pane.tearDown();
+          } catch {}
+          endpoint.close();
+          rmSync(scratch, { recursive: true, force: true });
+        }
+      },
+      TEST_TIMEOUT_MS,
+    );
+  },
+);

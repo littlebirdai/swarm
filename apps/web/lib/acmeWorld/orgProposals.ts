@@ -10,7 +10,13 @@ import { MIN, TEAM_ID, cid } from "./world";
 
 export const PROPOSAL = { _id: cid("propwebhooks"), short_id: "op-41" };
 
-const AUTHOR = { kind: "role" as const, id: cid("rolepeople"), name: "Head of People", handle: "head-of-people", short_id: "rl-people" };
+const AUTHOR = {
+  kind: "role" as const,
+  id: cid("rolepeople"),
+  name: "Head of People",
+  handle: "head-of-people",
+  short_id: "rl-people",
+};
 
 const row = (now: number) => ({
   _id: PROPOSAL._id,
@@ -18,13 +24,18 @@ const row = (now: number) => ({
   team_id: TEAM_ID,
   author: AUTHOR,
   title: "Give webhooks one owner",
-  summary_md: "Webhook work is spread across three sessions and nobody owns the retry queue between them. One lead under Sarah would hold it, with a weekly check on the dead letters.",
+  summary_md:
+    "Webhook work is spread across three sessions and nobody owns the retry queue between them. One lead under Sarah would hold it, with a weekly check on the dead letters.",
   mode: "review",
   status: "open",
   created_at: now - 20 * MIN,
 });
 
-const change = (seq: number, c: Record<string, unknown>, rationale: string) => ({
+const change = (
+  seq: number,
+  c: Record<string, unknown>,
+  rationale: string,
+) => ({
   _id: cid(`propwebhooksc${seq}`),
   proposal_id: PROPOSAL._id,
   seq,
@@ -35,15 +46,43 @@ const change = (seq: number, c: Record<string, unknown>, rationale: string) => (
 });
 
 const CHANGES = [
-  change(1, { kind: "role", name: "Webhooks lead", handle: "webhooks", reports_to: "Sarah Chen", scope: { projects: ["Webhooks"] } }, "Three sessions touched the retry queue this week and none of them owned it."),
-  change(2, { kind: "scope", handle: "webhooks", add: ["Dashboard"] }, "The retry history in the dashboard ships with the queue; one owner keeps them in step."),
-  change(3, { kind: "routine", handle: "webhooks", title: "Weekly dead-letter check", prompt: "Read the webhook dead-letter queue, name the endpoints that landed there and why, and retry the 5xx ones.", every: "1w" }, "Dead letters are where a dropped event hides; someone should read them every week."),
+  change(
+    1,
+    {
+      kind: "role",
+      name: "Webhooks lead",
+      handle: "webhooks",
+      reports_to: "Sarah Chen",
+      scope: { projects: ["Webhooks"] },
+    },
+    "Three sessions touched the retry queue this week and none of them owned it.",
+  ),
+  change(
+    2,
+    { kind: "scope", handle: "webhooks", add: ["Dashboard"] },
+    "The retry history in the dashboard ships with the queue; one owner keeps them in step.",
+  ),
+  change(
+    3,
+    {
+      kind: "routine",
+      handle: "webhooks",
+      title: "Weekly dead-letter check",
+      prompt:
+        "Read the webhook dead-letter queue, name the endpoints that landed there and why, and retry the 5xx ones.",
+      every: "1w",
+    },
+    "Dead letters are where a dropped event hides; someone should read them every week.",
+  ),
 ];
 
 export const ORG_PROPOSALS_PART: AcmePart = {
   name: "orgProposals",
   answers: {
     "orgProposals:list": () => ({ proposals: [row(Date.now())] }),
-    "orgProposals:get": (a) => (a?.proposal === PROPOSAL.short_id || a?.proposal === PROPOSAL._id ? { ...row(Date.now()), changes: CHANGES } : null),
+    "orgProposals:get": (a) =>
+      a?.proposal === PROPOSAL.short_id || a?.proposal === PROPOSAL._id
+        ? { ...row(Date.now()), changes: CHANGES }
+        : null,
   },
 };

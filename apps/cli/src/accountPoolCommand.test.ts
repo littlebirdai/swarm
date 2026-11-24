@@ -16,7 +16,9 @@ describe("cast accounts devices", () => {
   test("reach reads as the pool listing names it", () => {
     expect(accountReach({ device_ids: null })).toBe("all your machines");
     expect(accountReach({ device_ids: [] })).toBe("holder only");
-    expect(accountReach({ device_ids: ["a", "b"] })).toBe("narrowed to 2 machine(s)");
+    expect(accountReach({ device_ids: ["a", "b"] })).toBe(
+      "narrowed to 2 machine(s)",
+    );
     expect(accountReach({ team_id: "t1", device_ids: null })).toBe("");
   });
 });

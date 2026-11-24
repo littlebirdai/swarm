@@ -10,7 +10,16 @@ import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
 import { MarkdownBlocks } from "../../../../components/tools/MarkdownRenderer";
 import { MD_COMPONENTS } from "../../../../lib/markdownComponents";
 import { useWatchEffect } from "../../../../hooks/useWatchEffect";
-import { Pill, Section, Rows, Row, ShareHead, SharedObjectPage, TONE, type Tone } from "../../SharedObjectPage";
+import {
+  Pill,
+  Section,
+  Rows,
+  Row,
+  ShareHead,
+  SharedObjectPage,
+  TONE,
+  type Tone,
+} from "../../SharedObjectPage";
 import { docTypeStyle } from "../../../../lib/docTypeStyle";
 import { isArtifactDocType } from "@codecast/shared/artifacts";
 import { SharedLiveArtifact } from "../../../../components/live/SharedLiveArtifact";
@@ -24,7 +33,10 @@ function textOf(node: ReactNode): string {
 }
 
 const slug = (text: string) =>
-  text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "") || "section";
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "") || "section";
 
 const heading = (Tag: "h1" | "h2" | "h3") =>
   function ShareHeading({ children }: { children?: ReactNode }) {
@@ -36,7 +48,12 @@ const heading = (Tag: "h1" | "h2" | "h3") =>
   };
 
 // Module level, so MarkdownBlocks' memo holds.
-const READING: Components = { ...MD_COMPONENTS, h1: heading("h1"), h2: heading("h2"), h3: heading("h3") };
+const READING: Components = {
+  ...MD_COMPONENTS,
+  h1: heading("h1"),
+  h2: heading("h2"),
+  h3: heading("h3"),
+};
 
 type OutlineEntry = { depth: number; text: string; id: string };
 
@@ -63,7 +80,9 @@ function outlineOf(markdown: string): OutlineEntry[] {
 function Outline({ entries }: { entries: OutlineEntry[] }) {
   const [active, setActive] = useState<string | null>(null);
   useWatchEffect(() => {
-    const els = entries.map((e) => document.getElementById(e.id)).filter(Boolean) as HTMLElement[];
+    const els = entries
+      .map((e) => document.getElementById(e.id))
+      .filter(Boolean) as HTMLElement[];
     if (els.length === 0) return;
     const visible = new Map<string, boolean>();
     const io = new IntersectionObserver(
@@ -82,7 +101,13 @@ function Outline({ entries }: { entries: OutlineEntry[] }) {
     <nav className="share-outline" aria-label="Outline">
       <span>On this page</span>
       {entries.map((e, i) => (
-        <a key={i} href={`#${e.id}`} title={e.text} data-depth={e.depth - top + 2} data-active={active === e.id ? "" : undefined}>
+        <a
+          key={i}
+          href={`#${e.id}`}
+          title={e.text}
+          data-depth={e.depth - top + 2}
+          data-active={active === e.id ? "" : undefined}
+        >
           {e.text}
         </a>
       ))}
@@ -109,54 +134,71 @@ export default function SharedDocClient() {
         return entries.length >= 3 ? <Outline entries={entries} /> : null;
       }}
     >
-      {(doc) => isArtifactDocType(doc.doc_type) && hasLiveSharedView(doc.doc_type) ? (
-        <SharedLiveArtifact docType={doc.doc_type} />
-      ) : (
-        <>
-          <ShareHead
-            badges={
-              <>
-                <Pill tone={typeTone(doc.doc_type)}>{docTypeLabel(doc.doc_type)}</Pill>
-                {doc.labels?.map((l: string) => (
-                  <Pill key={l} quiet>
-                    {l}
+      {(doc) =>
+        isArtifactDocType(doc.doc_type) && hasLiveSharedView(doc.doc_type) ? (
+          <SharedLiveArtifact docType={doc.doc_type} />
+        ) : (
+          <>
+            <ShareHead
+              badges={
+                <>
+                  <Pill tone={typeTone(doc.doc_type)}>
+                    {docTypeLabel(doc.doc_type)}
                   </Pill>
-                ))}
-              </>
-            }
-            title={doc.title}
-            user={doc.user}
-            at={doc.created_at}
-            meta={
-              doc.updated_at && doc.updated_at - doc.created_at > 60_000 ? (
-                <span title={formatDateFull(doc.updated_at)}>updated {formatDateSmart(doc.updated_at)}</span>
-              ) : null
-            }
-          />
-          {isArtifactDocType(doc.doc_type) ? (
-            <SharedLiveArtifact docType={doc.doc_type} />
-          ) : (
-            <div className="share-prose">
-              <div className="prose max-w-none">
-                <MarkdownBlocks content={stripTitleHeading(doc.content)} components={READING} />
-              </div>
-            </div>
-          )}
-          {doc.entries?.length > 0 && (
-            <div style={{ marginTop: 56 }}>
-              <Section title="Timeline" count={doc.entries.length}>
-                <Rows>
-                  {doc.entries.map((e: any, i: number) => (
-                    <Row key={i} trail={<span title={formatDateFull(e.timestamp)}>{formatDateSmart(e.timestamp)}</span>} note={e.type}>
-                      {e.content}
-                    </Row>
+                  {doc.labels?.map((l: string) => (
+                    <Pill key={l} quiet>
+                      {l}
+                    </Pill>
                   ))}
-                </Rows>
-              </Section>
-            </div>
-          )}
-        </>
-      )}
+                </>
+              }
+              title={doc.title}
+              user={doc.user}
+              at={doc.created_at}
+              meta={
+                doc.updated_at && doc.updated_at - doc.created_at > 60_000 ? (
+                  <span title={formatDateFull(doc.updated_at)}>
+                    updated {formatDateSmart(doc.updated_at)}
+                  </span>
+                ) : null
+              }
+            />
+            {isArtifactDocType(doc.doc_type) ? (
+              <SharedLiveArtifact docType={doc.doc_type} />
+            ) : (
+              <div className="share-prose">
+                <div className="prose max-w-none">
+                  <MarkdownBlocks
+                    content={stripTitleHeading(doc.content)}
+                    components={READING}
+                  />
+                </div>
+              </div>
+            )}
+            {doc.entries?.length > 0 && (
+              <div style={{ marginTop: 56 }}>
+                <Section title="Timeline" count={doc.entries.length}>
+                  <Rows>
+                    {doc.entries.map((e: any, i: number) => (
+                      <Row
+                        key={i}
+                        trail={
+                          <span title={formatDateFull(e.timestamp)}>
+                            {formatDateSmart(e.timestamp)}
+                          </span>
+                        }
+                        note={e.type}
+                      >
+                        {e.content}
+                      </Row>
+                    ))}
+                  </Rows>
+                </Section>
+              </div>
+            )}
+          </>
+        )
+      }
     </SharedObjectPage>
   );
 }

@@ -6,12 +6,28 @@ import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useMutation, useConvexAuth } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { Send, GitFork, Loader2, Check, ShieldQuestion, Lock, Lightbulb, X, Clock } from "lucide-react";
+import {
+  Send,
+  GitFork,
+  Loader2,
+  Check,
+  ShieldQuestion,
+  Lock,
+  Lightbulb,
+  X,
+  Clock,
+} from "lucide-react";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useDocPresence, type PresenceRow } from "../hooks/useDocPresence";
-import { composerPresenceEnabled, hasCoOwner, typingRows, presenceMember, setCoPresent } from "../lib/composerPresence";
+import {
+  composerPresenceEnabled,
+  hasCoOwner,
+  typingRows,
+  presenceMember,
+  setCoPresent,
+} from "../lib/composerPresence";
 import { useOwnersFromStore } from "./OwnersBadge";
 import { useInboxStore } from "../store/inboxStore";
 import { isConvexId } from "../lib/entityLinks";
@@ -30,13 +46,21 @@ import type { ChatMember } from "../lib/chatViews";
 import { AvatarImg } from "../lib/avatarCache";
 import type { ConversationData } from "./conversation/types";
 import type { ReactNode } from "react";
-import { useSharedDraft, useSharedDraftStatus, typingEditors } from "../hooks/useSharedDraft";
+import {
+  useSharedDraft,
+  useSharedDraftStatus,
+  typingEditors,
+} from "../hooks/useSharedDraft";
 import { SharedCarets } from "./SharedCarets";
 import { ConversationChat } from "./conversation/ConversationChat";
 import { useConversationChatPeople } from "../hooks/useConversationChatPeople";
 import { roleAuthorOf } from "../lib/sessionIdentity";
 import { useLiveIdentityRow } from "../hooks/useLiveIdentityRow";
-import { useGuestSuggestions, useSessionSuggestions, useSyncMyTeamSuggestions } from "../hooks/useGuestSuggestions";
+import {
+  useGuestSuggestions,
+  useSessionSuggestions,
+  useSyncMyTeamSuggestions,
+} from "../hooks/useGuestSuggestions";
 import { attendingOwnerId } from "../lib/steering";
 import { compactDuration, memberDisplayName } from "./presence/memberPresence";
 import { useCoarseNow } from "../hooks/useCoarseNow";
@@ -58,23 +82,30 @@ import { teamMembersOf } from "../lib/activeTeam";
 function useComposerPresence(
   conversationId: string,
   draftText: string,
-  opts: { enabled: boolean; forceBroadcast: boolean }
+  opts: { enabled: boolean; forceBroadcast: boolean },
 ): PresenceRow[] {
   // In a shared draft everyone's box holds the same words, so the row carries
   // my caret instead of a draft of my own.
   const shared = useSharedDraftStatus(conversationId);
   // Where I am reading this transcript rides the same row, so the others can
   // draw my face in their scroll gutter (ReadingMarks).
-  const anchor = useInboxStore((s) => (s.viewAnchor?.conversationId === conversationId ? s.viewAnchor : null));
+  const anchor = useInboxStore((s) =>
+    s.viewAnchor?.conversationId === conversationId ? s.viewAnchor : null,
+  );
   // The preview is the one copy of my words that leaves this box before send;
   // a credential in it shows as its marker, the way the stored draft does.
-  const previewText = useMemo(() => (shared.active ? "" : withoutSecrets(draftText)), [shared.active, draftText]);
+  const previewText = useMemo(
+    () => (shared.active ? "" : withoutSecrets(draftText)),
+    [shared.active, draftText],
+  );
   const present = useDocPresence({
     docId: `compose:${conversationId}`,
     draftText: previewText,
     cursor: shared.active ? shared.caret : null,
     inDraft: shared.active,
-    anchor: anchor ? { message_id: anchor.messageId, offset: anchor.offset } : null,
+    anchor: anchor
+      ? { message_id: anchor.messageId, offset: anchor.offset }
+      : null,
     enabled: opts.enabled,
     forceBroadcast: opts.forceBroadcast,
   });
@@ -97,11 +128,23 @@ function useComposerPresence(
 // The container keeps its place in the layout and animates its height, so a
 // line arriving never shoves the composer and a line leaving never snaps it.
 // The one action that folds my draft and theirs into one turn.
-function SendTogether({ candidates, mineEmpty, onSend }: { candidates: JointCandidate[]; mineEmpty: boolean; onSend: () => void }) {
+function SendTogether({
+  candidates,
+  mineEmpty,
+  onSend,
+}: {
+  candidates: JointCandidate[];
+  mineEmpty: boolean;
+  onSend: () => void;
+}) {
   const first = candidates[0]?.from.split(/[\s@]/)[0] || "their";
   const label = mineEmpty
-    ? candidates.length > 1 ? "Send their drafts" : `Send ${first}'s draft`
-    : candidates.length > 1 ? "Send all together" : `Send with ${first}'s`;
+    ? candidates.length > 1
+      ? "Send their drafts"
+      : `Send ${first}'s draft`
+    : candidates.length > 1
+      ? "Send all together"
+      : `Send with ${first}'s`;
   return (
     <button
       type="button"
@@ -113,30 +156,60 @@ function SendTogether({ candidates, mineEmpty, onSend }: { candidates: JointCand
     >
       {label}
       <span className="inline-flex items-center gap-0.5">
-        {isMac ? <><KeyCap size="xs">⌘</KeyCap><KeyCap size="xs">⌥</KeyCap></> : <><KeyCap size="xs">Ctrl</KeyCap><KeyCap size="xs">Shift</KeyCap><KeyCap size="xs">Alt</KeyCap></>}
+        {isMac ? (
+          <>
+            <KeyCap size="xs">⌘</KeyCap>
+            <KeyCap size="xs">⌥</KeyCap>
+          </>
+        ) : (
+          <>
+            <KeyCap size="xs">Ctrl</KeyCap>
+            <KeyCap size="xs">Shift</KeyCap>
+            <KeyCap size="xs">Alt</KeyCap>
+          </>
+        )}
         <KeyCap size="xs">↵</KeyCap>
       </span>
     </button>
   );
 }
 
-export function CollabPresenceBar({ present, showHere, boxed = false, joint, shared, chat }: {
+export function CollabPresenceBar({
+  present,
+  showHere,
+  boxed = false,
+  joint,
+  shared,
+  chat,
+}: {
   present: PresenceRow[];
   showHere: boolean;
   boxed?: boolean;
-  joint?: { candidates: JointCandidate[]; mineEmpty: boolean; onSend: () => void };
+  joint?: {
+    candidates: JointCandidate[];
+    mineEmpty: boolean;
+    onSend: () => void;
+  };
   /** My box is in the shared draft: who else is in it and who is typing now. */
   shared?: { editors: Record<string, number> } | null;
   /** The chat with the people on this conversation (ConversationChat), at the row's end. */
   chat?: ReactNode;
 }) {
-  const roster = useInboxStore((s) => rosterIdentity(teamMembersOf(s))) as ChatMember[];
+  const roster = useInboxStore((s) =>
+    rosterIdentity(teamMembersOf(s)),
+  ) as ChatMember[];
   const typing = shared ? [] : typingRows(present);
   const writer = typing[0];
-  const typists = shared ? present.filter((p) => typingEditors(shared.editors).includes(p.user_id)) : [];
+  const typists = shared
+    ? present.filter((p) => typingEditors(shared.editors).includes(p.user_id))
+    : [];
   // A shared draft nobody is typing in is just people with the page open: their
   // faces are already on the header, so the strip waits for someone to type.
-  const open = !!writer || typists.length > 0 || !!chat || (showHere && present.length > 0);
+  const open =
+    !!writer ||
+    typists.length > 0 ||
+    !!chat ||
+    (showHere && present.length > 0);
   const names = present.map((p) => p.user_name).join(", ");
   return (
     <div
@@ -146,26 +219,47 @@ export function CollabPresenceBar({ present, showHere, boxed = false, joint, sha
     >
       <div className="min-h-0 overflow-hidden">
         {open && (
-          <div className={`flex items-center gap-2 px-4 py-1 text-meta text-sol-text-muted min-w-0 ${!writer || typists.length > 0 ? "mb-0.5" : boxed ? "mb-1 rounded-xl border border-sol-cyan/25 bg-sol-cyan/5" : "border-t border-sol-border/20 bg-sol-bg-alt/30"}`}>
+          <div
+            className={`flex items-center gap-2 px-4 py-1 text-meta text-sol-text-muted min-w-0 ${!writer || typists.length > 0 ? "mb-0.5" : boxed ? "mb-1 rounded-xl border border-sol-cyan/25 bg-sol-cyan/5" : "border-t border-sol-border/20 bg-sol-bg-alt/30"}`}
+          >
             {typists.length > 0 ? (
               // One draft, several hands: who is typing into it now.
-              <span data-sv-shared-draft className="inline-flex items-center gap-2 min-w-0">
+              <span
+                data-sv-shared-draft
+                className="inline-flex items-center gap-2 min-w-0"
+              >
                 <PresenceFacepile present={typists} size={18} />
-                <TypingIndicator members={typists.map((p) => presenceMember(p, roster))} />
+                <TypingIndicator
+                  members={typists.map((p) => presenceMember(p, roster))}
+                />
               </span>
             ) : writer ? (
               <>
-                <TypingIndicator members={typing.map((p) => presenceMember(p, roster))} />
-                <span className="italic truncate text-sol-text-dim min-w-0" title={writer.draft_text}>{writer.draft_text}</span>
-                {joint && joint.candidates.length > 0 && <SendTogether {...joint} />}
+                <TypingIndicator
+                  members={typing.map((p) => presenceMember(p, roster))}
+                />
+                <span
+                  className="italic truncate text-sol-text-dim min-w-0"
+                  title={writer.draft_text}
+                >
+                  {writer.draft_text}
+                </span>
+                {joint && joint.candidates.length > 0 && (
+                  <SendTogether {...joint} />
+                )}
               </>
             ) : showHere && present.length > 0 ? (
               // Presence alone is faces, not a sentence: nothing to act on yet.
-              <span className={chat ? "" : "ml-auto"} title={`${names} ${present.length > 1 ? "are" : "is"} here`}>
+              <span
+                className={chat ? "" : "ml-auto"}
+                title={`${names} ${present.length > 1 ? "are" : "is"} here`}
+              >
                 <PresenceFacepile present={present} size={18} />
               </span>
             ) : null}
-            {chat && <span className="ml-auto shrink-0 inline-flex">{chat}</span>}
+            {chat && (
+              <span className="ml-auto shrink-0 inline-flex">{chat}</span>
+            )}
           </div>
         )}
       </div>
@@ -188,7 +282,9 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
   /** Replace the owner's composer text (a claim took words out of it). */
   onPopulate?: (text: string) => void;
 }) {
-  const stored = useInboxStore((s) => s.drafts[conversationId]?.draft_message ?? "") as string;
+  const stored = useInboxStore(
+    (s) => s.drafts[conversationId]?.draft_message ?? "",
+  ) as string;
   // A side question being typed (`/btw`) is the asker's own: the strip never shows it to the others,
   // and Send together waits until the box holds a turn (that send would only ask the question).
   const ownSideQuestion = parseSideQuestion(stored) !== null;
@@ -197,18 +293,32 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
   // Another owner opens this same box, and waits for someone to appear just as
   // I do: on a co-owned session neither would ever announce itself first.
   const owners = useOwnersFromStore(conversationId);
-  const runner = useInboxStore((s) => (s.conversations[conversationId]?.user_id ?? null) as string | null);
+  const runner = useInboxStore(
+    (s) => (s.conversations[conversationId]?.user_id ?? null) as string | null,
+  );
   const myId = owners.currentUser?._id ? String(owners.currentUser._id) : null;
   const coOwned = hasCoOwner(owners.ownerIds, runner, myId);
-  const present = useComposerPresence(conversationId, draft, { enabled: true, forceBroadcast: coOwned });
+  const present = useComposerPresence(conversationId, draft, {
+    enabled: true,
+    forceBroadcast: coOwned,
+  });
   const shared = useSharedDraftStatus(conversationId);
   const people = useConversationChatPeople(conversationId, present);
   const rootRef = useRef<HTMLDivElement>(null);
-  const { candidates } = useJointComposer({ conversationId, present, me, draft, applyDraft: (rest) => onPopulate?.(rest) });
+  const { candidates } = useJointComposer({
+    conversationId,
+    present,
+    me,
+    draft,
+    applyDraft: (rest) => onPopulate?.(rest),
+  });
   // The composer's own submit sends it (lib/jointSend): arm, then submit the form.
   const sendTogether = () => {
     if (!armJointSend(conversationId)) return;
-    rootRef.current?.closest("[data-sv-composer]")?.querySelector("form")?.requestSubmit();
+    rootRef.current
+      ?.closest("[data-sv-composer]")
+      ?.querySelector("form")
+      ?.requestSubmit();
   };
   return (
     <div ref={rootRef} className="mx-auto conv-col px-2 sm:px-4">
@@ -216,9 +326,17 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
         present={present}
         showHere={showHere}
         boxed
-        joint={ownSideQuestion ? undefined : { candidates, mineEmpty: !draft.trim(), onSend: sendTogether }}
+        joint={
+          ownSideQuestion
+            ? undefined
+            : { candidates, mineEmpty: !draft.trim(), onSend: sendTogether }
+        }
         shared={shared.active ? shared : null}
-        chat={people.length > 0 ? <ConversationChat conversationId={conversationId} people={people} /> : null}
+        chat={
+          people.length > 0 ? (
+            <ConversationChat conversationId={conversationId} people={people} />
+          ) : null
+        }
       />
     </div>
   );
@@ -226,7 +344,12 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
 
 /** How a person's name reads on a joint turn: the same rule the server's direct send uses. */
 function personName(user: any): string {
-  return user?.name || user?.github_username || user?.email?.split("@")[0] || "Someone";
+  return (
+    user?.name ||
+    user?.github_username ||
+    user?.email?.split("@")[0] ||
+    "Someone"
+  );
 }
 
 // ── Collaboration composer ───────────────────────────────────────────────────
@@ -237,7 +360,15 @@ function personName(user: any): string {
 // "fork instead" (the pre-existing path that copies the session as your own).
 
 type SendLevel =
-  | "owner" | "team" | "granted" | "requested" | "denied" | "revoked" | "shared" | "anonymous" | "denied_access";
+  | "owner"
+  | "team"
+  | "granted"
+  | "requested"
+  | "denied"
+  | "revoked"
+  | "shared"
+  | "anonymous"
+  | "denied_access";
 
 function ownerLabel(conversation: ConversationData): string {
   return (
@@ -257,7 +388,9 @@ export const CollabComposer = memo(function CollabComposer({
   onForkReply?: (content: string) => void;
   autoFocusInput?: boolean;
   /** The view's composer bridge: quotes and "Edit in input" from the thread land here. */
-  onPopulateInput?: React.MutableRefObject<((text: string, opts?: { append?: boolean }) => void) | null>;
+  onPopulateInput?: React.MutableRefObject<
+    ((text: string, opts?: { append?: boolean }) => void) | null
+  >;
 }) {
   const { isAuthenticated } = useConvexAuth();
   const convId = conversation._id as Id<"conversations">;
@@ -266,7 +399,9 @@ export const CollabComposer = memo(function CollabComposer({
   // validator rejects (crashing the page). A stub has no grants to read anyway.
   const access = useQueryNoThrow(
     api.collab.mySendAccess,
-    isConvexId(conversation._id.toString()) ? { conversation_id: convId } : "skip"
+    isConvexId(conversation._id.toString())
+      ? { conversation_id: convId }
+      : "skip",
   ).data;
   const requestAccess = useMutation(api.collab.requestSendAccess);
   const sendToSession = useMutation(api.pendingMessages.sendSessionMessage);
@@ -277,7 +412,9 @@ export const CollabComposer = memo(function CollabComposer({
   const [hintFailed, setHintFailed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useMountEffect(() => { if (autoFocusInput) textareaRef.current?.focus(); });
+  useMountEffect(() => {
+    if (autoFocusInput) textareaRef.current?.focus();
+  });
   // Quotes and margin replies from the thread reach this box the way they
   // reach the owner's composer (MessageInput): appended, or replacing it.
   useWatchEffect(() => {
@@ -286,45 +423,73 @@ export const CollabComposer = memo(function CollabComposer({
       setMessage((cur) => (opts?.append ? appendToDraft(cur, text) : text));
       setTimeout(() => {
         const el = textareaRef.current;
-        if (el) { el.focus(); const end = el.value.length; el.setSelectionRange(end, end); }
+        if (el) {
+          el.focus();
+          const end = el.value.length;
+          el.setSelectionRange(end, end);
+        }
       }, 0);
     };
-    return () => { onPopulateInput.current = null; };
+    return () => {
+      onPopulateInput.current = null;
+    };
   }, [onPopulateInput]);
   // Margin replies wait in the review batch; the next send carries them.
   const convKey = conversation._id.toString();
-  const hasBatch = useInboxStore((s) => (s.reviewComments[convKey]?.length ?? 0) > 0);
+  const hasBatch = useInboxStore(
+    (s) => (s.reviewComments[convKey]?.length ?? 0) > 0,
+  );
   useWatchEffect(() => {
     const el = textareaRef.current;
-    if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
   }, [message]);
 
   const level: SendLevel = !isAuthenticated
     ? "anonymous"
-    : (access?.level as SendLevel) ?? "shared";
+    : ((access?.level as SendLevel) ?? "shared");
   const canSend = level === "granted" || level === "team" || level === "owner";
   const owner = ownerLabel(conversation);
   // A role's standing session is addressed as the role ("Message Hazel…");
   // the access lines keep naming the person who owns it, who grants sending.
   const c = conversation as any;
   const identityBase = useMemo(
-    () => ({ _id: String(conversation._id), standing_role_id: c.standing_role_id ?? null, acting_user_id: c.acting_user_id ?? null }),
+    () => ({
+      _id: String(conversation._id),
+      standing_role_id: c.standing_role_id ?? null,
+      acting_user_id: c.acting_user_id ?? null,
+    }),
     [conversation._id, c.standing_role_id, c.acting_user_id], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const roleName = roleAuthorOf(useLiveIdentityRow(identityBase), useIdentityPrefs())?.name ?? null;
+  const roleName =
+    roleAuthorOf(useLiveIdentityRow(identityBase), useIdentityPrefs())?.name ??
+    null;
   const target = roleName ?? `${owner}'s session`;
   // A session whose machine stopped beating is not live: what is sent waits
   // in the queue until that machine is back, so the strip says where it waits.
-  const runnerSilence = useRunnerSilence(conversation._id.toString(), canSend && isConvexId(conversation._id.toString()));
+  const runnerSilence = useRunnerSilence(
+    conversation._id.toString(),
+    canSend && isConvexId(conversation._id.toString()),
+  );
   // An owner in the session now: what I send waits for them as a suggestion
   // (convex teamSuggestions.ts). The roster says so before the press; the
   // server decides at send time.
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   // An assigned owner steers with owner rights: their words go straight in.
-  const steeringOwnerId = useInboxStore((s) => (level === "team" ? attendingOwnerId(teamMembersOf(s), conversation as any, meId) : null));
+  const steeringOwnerId = useInboxStore((s) =>
+    level === "team"
+      ? attendingOwnerId(teamMembersOf(s), conversation as any, meId)
+      : null,
+  );
   const steeringName = useInboxStore((s) => {
     if (!steeringOwnerId) return null;
-    const m = teamMembersOf(s).find((x: any) => String(x?._id) === steeringOwnerId);
+    const m = teamMembersOf(s).find(
+      (x: any) => String(x?._id) === steeringOwnerId,
+    );
     return m ? memberDisplayName(m) : owner;
   });
   const steering = !!steeringOwnerId;
@@ -338,15 +503,34 @@ export const CollabComposer = memo(function CollabComposer({
     forceBroadcast: true,
   });
   const me = useInboxStore((s) => personName(s.currentUser));
-  const { candidates, claimSent } = useJointComposer({ conversationId: conversation._id.toString(), present, me, draft: message, applyDraft: setMessage });
-  const shared = useSharedDraft({ conversationId: conversation._id.toString(), enabled: isAuthenticated, seed: false, text: message, setText: setMessage, inputRef: textareaRef });
-  const people = useConversationChatPeople(conversation._id.toString(), present);
+  const { candidates, claimSent } = useJointComposer({
+    conversationId: conversation._id.toString(),
+    present,
+    me,
+    draft: message,
+    applyDraft: setMessage,
+  });
+  const shared = useSharedDraft({
+    conversationId: conversation._id.toString(),
+    enabled: isAuthenticated,
+    seed: false,
+    text: message,
+    setText: setMessage,
+    inputRef: textareaRef,
+  });
+  const people = useConversationChatPeople(
+    conversation._id.toString(),
+    present,
+  );
 
   async function handleRequest() {
     if (busy) return;
     setBusy(true);
-    try { await requestAccess({ conversation_id: convId }); }
-    finally { setBusy(false); }
+    try {
+      await requestAccess({ conversation_id: convId });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleSend(together = false, queue = false) {
@@ -360,21 +544,40 @@ export const CollabComposer = memo(function CollabComposer({
     try {
       // direct: a person typed this, not a session — the agent sees
       // <user-message from="Name">, never an unknown-session relay.
-      const res = await sendToSession({ to: convId, body, direct: true, ...(queue ? { queue: true } : {}) });
+      const res = await sendToSession({
+        to: convId,
+        body,
+        direct: true,
+        ...(queue ? { queue: true } : {}),
+      });
       if (together) claimSent(candidates);
       setMessage("");
       setHintFailed(false);
-      setSentHint(res?.suggestion_id ? `Suggested to ${steeringName ?? owner}` : queue ? "Queued for when this turn ends" : res?.target_live === false
-        ? "Sent — their session looks offline, they'll get it when back"
-        : "Sent into the live session");
+      setSentHint(
+        res?.suggestion_id
+          ? `Suggested to ${steeringName ?? owner}`
+          : queue
+            ? "Queued for when this turn ends"
+            : res?.target_live === false
+              ? "Sent — their session looks offline, they'll get it when back"
+              : "Sent into the live session",
+      );
       setTimeout(() => setSentHint(null), 4000);
     } catch (e: any) {
       // The batch was already taken out of the tray; keep it as text in the box.
       setMessage(mine);
       setHintFailed(true);
-      setSentHint(e?.message?.includes("granted") ? "Access was revoked" : /waiting|together|characters/.test(e?.message ?? "") ? serverErrorText(e) : "Couldn't send");
+      setSentHint(
+        e?.message?.includes("granted")
+          ? "Access was revoked"
+          : /waiting|together|characters/.test(e?.message ?? "")
+            ? serverErrorText(e)
+            : "Couldn't send",
+      );
       setTimeout(() => setSentHint(null), 4000);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   // The owner left with my suggestion still waiting: take it back and send it
@@ -387,12 +590,17 @@ export const CollabComposer = memo(function CollabComposer({
 
   // A proposal ledger in the thread presses this composer's send (reviewContext).
   const reviewComposer = useReviewComposer();
-  const attachSend = canSend && reviewComposer?.conversationId === convKey ? reviewComposer.attachSend : undefined;
+  const attachSend =
+    canSend && reviewComposer?.conversationId === convKey
+      ? reviewComposer.attachSend
+      : undefined;
   const sendRef = useRef(handleSend);
   sendRef.current = handleSend;
   useWatchEffect(() => {
     if (!attachSend) return;
-    attachSend(() => { void sendRef.current(); });
+    attachSend(() => {
+      void sendRef.current();
+    });
     return () => attachSend(null);
   }, [attachSend]);
 
@@ -413,13 +621,26 @@ export const CollabComposer = memo(function CollabComposer({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && e.altKey && (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) && canSend && !steering && candidates.length > 0) {
+    if (
+      e.key === "Enter" &&
+      e.altKey &&
+      (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) &&
+      canSend &&
+      !steering &&
+      candidates.length > 0
+    ) {
       e.preventDefault();
       handleSend(true);
       return;
     }
     // ⌘↵ queues for the end of the agent's turn, in the shared queue.
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && canSend) {
+    if (
+      e.key === "Enter" &&
+      (e.metaKey || e.ctrlKey) &&
+      !e.shiftKey &&
+      !e.altKey &&
+      canSend
+    ) {
       e.preventDefault();
       handleSend(false, true);
       return;
@@ -437,36 +658,98 @@ export const CollabComposer = memo(function CollabComposer({
     switch (level) {
       case "granted":
       case "team":
-        if (steering) return { tone: "violet", icon: <Lightbulb className="w-3 h-3" />, text: <>Suggesting to <b>{steeringName}</b>{runnerSilence ? <span className="text-sol-text-dim"> · their machine: {runnerSilence}</span> : null}</> };
-        return runnerSilence ? { tone: "muted", icon: <Send className="w-3 h-3" />, text: <>What you send waits for <b>{owner}</b>'s machine: {runnerSilence}.</> } : null;
+        if (steering)
+          return {
+            tone: "violet",
+            icon: <Lightbulb className="w-3 h-3" />,
+            text: (
+              <>
+                Suggesting to <b>{steeringName}</b>
+                {runnerSilence ? (
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    · their machine: {runnerSilence}
+                  </span>
+                ) : null}
+              </>
+            ),
+          };
+        return runnerSilence
+          ? {
+              tone: "muted",
+              icon: <Send className="w-3 h-3" />,
+              text: (
+                <>
+                  What you send waits for <b>{owner}</b>'s machine:{" "}
+                  {runnerSilence}.
+                </>
+              ),
+            }
+          : null;
       case "requested":
-        return { tone: "amber", icon: <Loader2 className="w-3 h-3 animate-spin" />, text: <>Waiting for <b>{owner}</b> to allow you to send…</> };
+        return {
+          tone: "amber",
+          icon: <Loader2 className="w-3 h-3 animate-spin" />,
+          text: (
+            <>
+              Waiting for <b>{owner}</b> to allow you to send…
+            </>
+          ),
+        };
       case "denied":
       case "revoked":
-        return { tone: "muted", icon: <Lock className="w-3 h-3" />, text: <><b>{owner}</b> hasn't granted you send access.</> };
+        return {
+          tone: "muted",
+          icon: <Lock className="w-3 h-3" />,
+          text: (
+            <>
+              <b>{owner}</b> hasn't granted you send access.
+            </>
+          ),
+        };
       case "anonymous":
-        return { tone: "muted", icon: <Lock className="w-3 h-3" />, text: <>Sign in to co-write and send.</> };
+        return {
+          tone: "muted",
+          icon: <Lock className="w-3 h-3" />,
+          text: <>Sign in to co-write and send.</>,
+        };
       default: // shared
-        return { tone: "cyan", icon: <ShieldQuestion className="w-3 h-3" />, text: <>Co-writing <b>{owner}</b>'s draft. Sending into their live session needs their OK.</> };
+        return {
+          tone: "cyan",
+          icon: <ShieldQuestion className="w-3 h-3" />,
+          text: (
+            <>
+              Co-writing <b>{owner}</b>'s draft. Sending into their live session
+              needs their OK.
+            </>
+          ),
+        };
     }
   })();
 
   const toneClass = !strip
     ? "border-transparent"
     : strip.tone === "cyan"
-    ? "text-sol-cyan border-sol-cyan/15 bg-sol-cyan/5"
-    : strip.tone === "amber"
-    ? "text-amber-400 border-amber-500/15 bg-amber-500/5"
-    : strip.tone === "violet"
-    ? "text-sol-violet border-sol-violet/15 bg-sol-violet/5"
-    : "text-sol-text-dim border-sol-border/30 bg-sol-bg-alt/40";
+      ? "text-sol-cyan border-sol-cyan/15 bg-sol-cyan/5"
+      : strip.tone === "amber"
+        ? "text-amber-400 border-amber-500/15 bg-amber-500/5"
+        : strip.tone === "violet"
+          ? "text-sol-violet border-sol-violet/15 bg-sol-violet/5"
+          : "text-sol-text-dim border-sol-border/30 bg-sol-bg-alt/40";
 
   if (level === "anonymous") {
     return (
       <div className="bg-sol-bg border-t border-sol-border/30">
         <div className="mx-auto conv-col px-2 sm:px-4 py-3 flex items-center justify-between gap-4">
-          <span className="text-sol-text-dim text-xs">Sign in to co-write and send into this session.</span>
-          <a href="/login" className="text-xs font-medium px-4 py-1.5 rounded-full bg-sol-cyan/15 text-sol-cyan border border-sol-cyan/30 hover:bg-sol-cyan/25 transition-colors whitespace-nowrap">Sign in</a>
+          <span className="text-sol-text-dim text-xs">
+            Sign in to co-write and send into this session.
+          </span>
+          <a
+            href="/login"
+            className="text-xs font-medium px-4 py-1.5 rounded-full bg-sol-cyan/15 text-sol-cyan border border-sol-cyan/30 hover:bg-sol-cyan/25 transition-colors whitespace-nowrap"
+          >
+            Sign in
+          </a>
         </div>
       </div>
     );
@@ -474,87 +757,162 @@ export const CollabComposer = memo(function CollabComposer({
 
   return (
     <div className="bg-sol-bg">
-      {isConvexId(conversation._id.toString()) && <SharedQueue conversationId={conversation._id.toString()} canSteerQueue={canSend} />}
-      {canSend && <MySuggestions rows={mySuggestions} ownerName={steeringName ?? owner} ownerHere={steering} onSendNow={sendNow} />}
+      {isConvexId(conversation._id.toString()) && (
+        <SharedQueue
+          conversationId={conversation._id.toString()}
+          canSteerQueue={canSend}
+        />
+      )}
+      {canSend && (
+        <MySuggestions
+          rows={mySuggestions}
+          ownerName={steeringName ?? owner}
+          ownerHere={steering}
+          onSendNow={sendNow}
+        />
+      )}
       <CollabPresenceBar
         present={present}
         showHere={!!conversation.share_token}
-        joint={canSend && !steering ? { candidates, mineEmpty: !message.trim(), onSend: () => handleSend(true) } : undefined}
+        joint={
+          canSend && !steering
+            ? {
+                candidates,
+                mineEmpty: !message.trim(),
+                onSend: () => handleSend(true),
+              }
+            : undefined
+        }
         shared={shared.active ? { editors: shared.editors } : null}
-        chat={people.length > 0 ? <ConversationChat conversationId={conversation._id.toString()} people={people} /> : null}
-      />
-      {(strip || sentHint) && <div className={`flex items-center gap-2 px-4 py-1.5 text-meta border-t ${toneClass}`}>
-        {strip && <span className="shrink-0">{strip.icon}</span>}
-        {strip && <span className="truncate">{strip.text}</span>}
-        {sentHint && (
-          <span className={`ml-auto inline-flex items-center gap-1 text-meta font-medium shrink-0 ${hintFailed ? "text-sol-red" : "text-sol-green"}`}>
-            {hintFailed ? <X className="w-3 h-3" /> : <Check className="w-3 h-3" />}{sentHint}
-          </span>
-        )}
-      </div>}
-      <form
-        onSubmit={(e) => { e.preventDefault(); if (canSend) handleSend(); else forkWithBatch(); }}
-        className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5"
-      >
-        <div className={`border px-4 py-2 rounded-2xl bg-sol-bg-alt shadow-lg ${canSend ? "border-sol-cyan/30" : "border-sol-border/50"}`}>
-        <ReviewBar conversationId={convKey} />
-        <div className="flex items-end gap-2">
-          <div className="grid flex-1 min-w-0">
-            <textarea
-              ref={textareaRef}
-              data-chat-input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={busy}
-              placeholder={canSend ? (steering ? `Suggest to ${steeringName}…` : `Message ${target}…`) : "Write together…"}
-              rows={1}
-              className="[grid-area:1/1] w-full bg-transparent text-sm placeholder:text-sol-text-dim focus:outline-none disabled:opacity-50 resize-none overflow-hidden leading-relaxed py-1 text-sol-text"
+        chat={
+          people.length > 0 ? (
+            <ConversationChat
+              conversationId={conversation._id.toString()}
+              people={people}
             />
-            {shared.active && <SharedCarets inputRef={textareaRef} text={message} rows={shared.others} editors={shared.editors} />}
-          </div>
-
-          {/* Fork: copy the session and continue as your own (owner or team access). */}
-          {onForkReply && (message.trim() || hasBatch) && (
-            <button
-              type="button"
-              onClick={forkWithBatch}
-              title="Fork this session and reply as your own"
-              className="shrink-0 h-8 px-2.5 rounded-full transition-colors flex items-center gap-1 text-xs font-medium border border-sol-violet/40 text-sol-violet hover:bg-sol-violet/15"
+          ) : null
+        }
+      />
+      {(strip || sentHint) && (
+        <div
+          className={`flex items-center gap-2 px-4 py-1.5 text-meta border-t ${toneClass}`}
+        >
+          {strip && <span className="shrink-0">{strip.icon}</span>}
+          {strip && <span className="truncate">{strip.text}</span>}
+          {sentHint && (
+            <span
+              className={`ml-auto inline-flex items-center gap-1 text-meta font-medium shrink-0 ${hintFailed ? "text-sol-red" : "text-sol-green"}`}
             >
-              <GitFork className="w-3.5 h-3.5" />Fork
-            </button>
-          )}
-
-          {canSend ? (
-            <button
-              type="submit"
-              disabled={(!message.trim() && !hasBatch) || busy}
-              className={`shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border ${
-                (!message.trim() && !hasBatch) || busy
-                  ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
-                  : "border-sol-cyan/50 bg-sol-cyan/20 text-sol-cyan hover:bg-sol-cyan/30 hover:border-sol-cyan"
-              }`}
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : steering ? <Lightbulb className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-              {steering ? "Suggest" : "Send"}
-            </button>
-          ) : level === "requested" ? (
-            <button type="button" disabled className="shrink-0 h-8 px-3 rounded-full flex items-center gap-1.5 text-xs font-medium border border-amber-500/40 text-amber-400/80 cursor-default">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />Requested
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleRequest}
-              disabled={busy}
-              className="shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border border-sol-cyan/50 bg-sol-cyan/15 text-sol-cyan hover:bg-sol-cyan/25 disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldQuestion className="w-3.5 h-3.5" />}
-              {level === "denied" || level === "revoked" ? "Request again" : "Request to send"}
-            </button>
+              {hintFailed ? (
+                <X className="w-3 h-3" />
+              ) : (
+                <Check className="w-3 h-3" />
+              )}
+              {sentHint}
+            </span>
           )}
         </div>
+      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSend) handleSend();
+          else forkWithBatch();
+        }}
+        className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5"
+      >
+        <div
+          className={`border px-4 py-2 rounded-2xl bg-sol-bg-alt shadow-lg ${canSend ? "border-sol-cyan/30" : "border-sol-border/50"}`}
+        >
+          <ReviewBar conversationId={convKey} />
+          <div className="flex items-end gap-2">
+            <div className="grid flex-1 min-w-0">
+              <textarea
+                ref={textareaRef}
+                data-chat-input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={busy}
+                placeholder={
+                  canSend
+                    ? steering
+                      ? `Suggest to ${steeringName}…`
+                      : `Message ${target}…`
+                    : "Write together…"
+                }
+                rows={1}
+                className="[grid-area:1/1] w-full bg-transparent text-sm placeholder:text-sol-text-dim focus:outline-none disabled:opacity-50 resize-none overflow-hidden leading-relaxed py-1 text-sol-text"
+              />
+              {shared.active && (
+                <SharedCarets
+                  inputRef={textareaRef}
+                  text={message}
+                  rows={shared.others}
+                  editors={shared.editors}
+                />
+              )}
+            </div>
+
+            {/* Fork: copy the session and continue as your own (owner or team access). */}
+            {onForkReply && (message.trim() || hasBatch) && (
+              <button
+                type="button"
+                onClick={forkWithBatch}
+                title="Fork this session and reply as your own"
+                className="shrink-0 h-8 px-2.5 rounded-full transition-colors flex items-center gap-1 text-xs font-medium border border-sol-violet/40 text-sol-violet hover:bg-sol-violet/15"
+              >
+                <GitFork className="w-3.5 h-3.5" />
+                Fork
+              </button>
+            )}
+
+            {canSend ? (
+              <button
+                type="submit"
+                disabled={(!message.trim() && !hasBatch) || busy}
+                className={`shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border ${
+                  (!message.trim() && !hasBatch) || busy
+                    ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
+                    : "border-sol-cyan/50 bg-sol-cyan/20 text-sol-cyan hover:bg-sol-cyan/30 hover:border-sol-cyan"
+                }`}
+              >
+                {busy ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : steering ? (
+                  <Lightbulb className="w-3.5 h-3.5" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                {steering ? "Suggest" : "Send"}
+              </button>
+            ) : level === "requested" ? (
+              <button
+                type="button"
+                disabled
+                className="shrink-0 h-8 px-3 rounded-full flex items-center gap-1.5 text-xs font-medium border border-amber-500/40 text-amber-400/80 cursor-default"
+              >
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Requested
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRequest}
+                disabled={busy}
+                className="shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border border-sol-cyan/50 bg-sol-cyan/15 text-sol-cyan hover:bg-sol-cyan/25 disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ShieldQuestion className="w-3.5 h-3.5" />
+                )}
+                {level === "denied" || level === "revoked"
+                  ? "Request again"
+                  : "Request to send"}
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </div>
@@ -575,7 +933,7 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
   // (session-UUID id) — its v.id("conversations") validator would otherwise throw.
   const requests = useQueryNoThrow(
     api.collab.collabRequests,
-    isConvexId(conversationId) ? { conversation_id: convId } : "skip"
+    isConvexId(conversationId) ? { conversation_id: convId } : "skip",
   ).data;
   const decide = useMutation(api.collab.decideSendAccess);
   const revoke = useMutation(api.collab.revokeSendAccess);
@@ -583,48 +941,85 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
 
   const pending = (requests ?? []).filter((r) => r.status === "requested");
   const granted = (requests ?? []).filter((r) => r.status === "granted");
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
-  const suggestions = useGuestSuggestions(conversationId, true, meId).filter((r) => !r.kind && String(r.author_user_id) !== meId);
-  if (pending.length === 0 && granted.length === 0 && suggestions.length === 0) return null;
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
+  const suggestions = useGuestSuggestions(conversationId, true, meId).filter(
+    (r) => !r.kind && String(r.author_user_id) !== meId,
+  );
+  if (pending.length === 0 && granted.length === 0 && suggestions.length === 0)
+    return null;
 
   async function act(fn: () => Promise<unknown>, id: string) {
     setBusyId(id);
-    try { await fn(); } finally { setBusyId(null); }
+    try {
+      await fn();
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
     <div className="bg-sol-bg pt-1.5">
       <div className="mx-auto conv-col px-2 sm:px-4 pb-1.5 space-y-1.5">
-        {suggestions.map((r) => <GuestSuggestionCard key={r._id} suggestion={r} />)}
+        {suggestions.map((r) => (
+          <GuestSuggestionCard key={r._id} suggestion={r} />
+        ))}
         {pending.map((r) => (
-          <div key={r.grant_id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-sol-cyan/30 bg-sol-cyan/10 shadow-lg">
+          <div
+            key={r.grant_id}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-sol-cyan/30 bg-sol-cyan/10 shadow-lg"
+          >
             <Avatar name={r.grantee_name} image={r.grantee_image} />
             <span className="text-xs text-sol-text flex-1 min-w-0 truncate">
-              <b className="text-sol-cyan">{r.grantee_name || "A teammate"}</b> wants to send messages and run commands here
+              <b className="text-sol-cyan">{r.grantee_name || "A teammate"}</b>{" "}
+              wants to send messages and run commands here
             </span>
             <button
-              onClick={() => act(() => decide({ grant_id: r.grant_id, allow: true }), r.grant_id)}
+              onClick={() =>
+                act(
+                  () => decide({ grant_id: r.grant_id, allow: true }),
+                  r.grant_id,
+                )
+              }
               disabled={busyId === r.grant_id}
               className="shrink-0 h-7 px-3 rounded-full text-xs font-medium border border-sol-green/50 bg-sol-green/20 text-sol-green hover:bg-sol-green/30 disabled:opacity-50 transition-colors"
-            >Allow</button>
+            >
+              Allow
+            </button>
             <button
-              onClick={() => act(() => decide({ grant_id: r.grant_id, allow: false }), r.grant_id)}
+              onClick={() =>
+                act(
+                  () => decide({ grant_id: r.grant_id, allow: false }),
+                  r.grant_id,
+                )
+              }
               disabled={busyId === r.grant_id}
               className="shrink-0 h-7 px-3 rounded-full text-xs font-medium border border-sol-border text-sol-text-muted hover:bg-sol-bg-alt disabled:opacity-50 transition-colors"
-            >Deny</button>
+            >
+              Deny
+            </button>
           </div>
         ))}
         {granted.map((r) => (
-          <div key={r.grant_id} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-sol-border/40 bg-sol-bg-alt/50">
+          <div
+            key={r.grant_id}
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-sol-border/40 bg-sol-bg-alt/50"
+          >
             <Avatar name={r.grantee_name} image={r.grantee_image} />
             <span className="text-meta text-sol-text-muted flex-1 min-w-0 truncate">
-              <b className="text-sol-text">{r.grantee_name || "A teammate"}</b> can send into this session
+              <b className="text-sol-text">{r.grantee_name || "A teammate"}</b>{" "}
+              can send into this session
             </span>
             <button
-              onClick={() => act(() => revoke({ grant_id: r.grant_id }), r.grant_id)}
+              onClick={() =>
+                act(() => revoke({ grant_id: r.grant_id }), r.grant_id)
+              }
               disabled={busyId === r.grant_id}
               className="shrink-0 h-6 px-2.5 rounded-full text-meta font-medium border border-sol-border text-sol-text-dim hover:text-sol-red hover:border-sol-red/40 disabled:opacity-50 transition-colors"
-            >Revoke</button>
+            >
+              Revoke
+            </button>
           </div>
         ))}
       </div>
@@ -635,13 +1030,28 @@ export const CollabRequestBanner = memo(function CollabRequestBanner({
 // One message a guest suggested for this session (convex guestSuggestions.ts).
 // Nothing reaches the session until Send; Edit lets the owner fix it first.
 // The card leaves at once on either press (store send/dismissGuestSuggestion).
-function GuestSuggestionCard({ suggestion }: { suggestion: { _id: string; guest_name: string; body: string; author_user_id?: string | null; created_at?: number } }) {
+function GuestSuggestionCard({
+  suggestion,
+}: {
+  suggestion: {
+    _id: string;
+    guest_name: string;
+    body: string;
+    author_user_id?: string | null;
+    created_at?: number;
+  };
+}) {
   // A held message can sit while its owner is away; its age says how stale it may be.
   const now = useCoarseNow(60_000);
-  const age = suggestion.created_at && now - suggestion.created_at >= 5 * 60_000 ? compactDuration(now - suggestion.created_at) : null;
+  const age =
+    suggestion.created_at && now - suggestion.created_at >= 5 * 60_000
+      ? compactDuration(now - suggestion.created_at)
+      : null;
   const authorImage = useInboxStore((s) => {
     if (!suggestion.author_user_id) return undefined;
-    const m = teamMembersOf(s).find((x: any) => String(x?._id) === String(suggestion.author_user_id));
+    const m = teamMembersOf(s).find(
+      (x: any) => String(x?._id) === String(suggestion.author_user_id),
+    );
     return m?.image || m?.github_avatar_url || undefined;
   });
   const send = useInboxStore((s) => s.sendGuestSuggestion);
@@ -652,15 +1062,25 @@ function GuestSuggestionCard({ suggestion }: { suggestion: { _id: string; guest_
     const body = editing ? draft.trim() : suggestion.body;
     if (!body) return;
     void send(suggestion._id, body !== suggestion.body ? body : undefined)
-      .then((res: any) => { if (res?.status === "closed") toast(`Not sent: ${suggestion.guest_name} can no longer send here`); })
+      .then((res: any) => {
+        if (res?.status === "closed")
+          toast(`Not sent: ${suggestion.guest_name} can no longer send here`);
+      })
       .catch(() => {});
   };
   return (
-    <div data-guest-suggestion className="flex items-start gap-2.5 px-3 py-2 rounded-xl border border-sol-violet/30 bg-sol-violet/10 shadow-lg">
+    <div
+      data-guest-suggestion
+      className="flex items-start gap-2.5 px-3 py-2 rounded-xl border border-sol-violet/30 bg-sol-violet/10 shadow-lg"
+    >
       <Avatar name={suggestion.guest_name} image={authorImage} />
       <div className="flex-1 min-w-0">
         <div className="text-meta text-sol-text-muted">
-          <b className="text-sol-violet">{suggestion.guest_name}</b> <span className="text-sol-text-dim">{suggestion.author_user_id ? "suggests" : "guest"}{age ? ` · ${age} ago` : ""}</span>
+          <b className="text-sol-violet">{suggestion.guest_name}</b>{" "}
+          <span className="text-sol-text-dim">
+            {suggestion.author_user_id ? "suggests" : "guest"}
+            {age ? ` · ${age} ago` : ""}
+          </span>
         </div>
         {editing ? (
           <textarea
@@ -669,31 +1089,46 @@ function GuestSuggestionCard({ suggestion }: { suggestion: { _id: string; guest_
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-              if (e.key === "Escape") { e.preventDefault(); setDraft(null); }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setDraft(null);
+              }
             }}
             rows={Math.min(8, draft.split("\n").length + 1)}
             className="mt-1 w-full bg-sol-bg rounded-lg border border-sol-border/60 px-2 py-1 text-xs text-sol-text leading-relaxed resize-none focus:outline-none focus:border-sol-violet/50"
           />
         ) : (
-          <div className="mt-0.5 text-xs text-sol-text whitespace-pre-wrap break-words max-h-40 overflow-y-auto leading-relaxed">{suggestion.body}</div>
+          <div className="mt-0.5 text-xs text-sol-text whitespace-pre-wrap break-words max-h-40 overflow-y-auto leading-relaxed">
+            {suggestion.body}
+          </div>
         )}
       </div>
       <div className="shrink-0 flex items-center gap-1.5">
         <button
           onClick={submit}
           className="h-7 px-3 rounded-full text-xs font-medium border border-sol-green/50 bg-sol-green/20 text-sol-green hover:bg-sol-green/30 transition-colors inline-flex items-center gap-1"
-        ><Send className="w-3 h-3" />Send</button>
+        >
+          <Send className="w-3 h-3" />
+          Send
+        </button>
         {!editing && (
           <button
             onClick={() => setDraft(suggestion.body)}
             className="h-7 px-3 rounded-full text-xs font-medium border border-sol-border text-sol-text-muted hover:bg-sol-bg-alt transition-colors"
-          >Edit</button>
+          >
+            Edit
+          </button>
         )}
         <button
           onClick={() => (editing ? setDraft(null) : dismiss(suggestion._id))}
           className="h-7 px-3 rounded-full text-xs font-medium border border-sol-border text-sol-text-muted hover:bg-sol-bg-alt transition-colors"
-        >{editing ? "Cancel" : "Dismiss"}</button>
+        >
+          {editing ? "Cancel" : "Dismiss"}
+        </button>
       </div>
     </div>
   );
@@ -720,7 +1155,12 @@ function Avatar({ name, image }: { name?: string; image?: string }) {
 // the ordinary way once the owner has left; decided ones stay a while so the
 // author sees the outcome.
 const DECIDED_SHOWN_MS = 10 * 60_000;
-function MySuggestions({ rows, ownerName, ownerHere, onSendNow }: {
+function MySuggestions({
+  rows,
+  ownerName,
+  ownerHere,
+  onSendNow,
+}: {
   rows: any[];
   ownerName: string;
   ownerHere: boolean;
@@ -729,35 +1169,85 @@ function MySuggestions({ rows, ownerName, ownerHere, onSendNow }: {
   const now = useCoarseNow(30_000);
   const withdraw = useInboxStore((s) => s.withdrawTeamSuggestion);
   // Every waiting one (so each can be taken back), and the last few decided.
-  const decided = rows.filter((r) => !r.kind && r.status !== "pending" && now - (r.decided_at ?? r.created_at ?? 0) < DECIDED_SHOWN_MS).slice(-3);
-  const shown = [...decided, ...rows.filter((r) => !r.kind && r.status === "pending")];
+  const decided = rows
+    .filter(
+      (r) =>
+        !r.kind &&
+        r.status !== "pending" &&
+        now - (r.decided_at ?? r.created_at ?? 0) < DECIDED_SHOWN_MS,
+    )
+    .slice(-3);
+  const shown = [
+    ...decided,
+    ...rows.filter((r) => !r.kind && r.status === "pending"),
+  ];
   if (shown.length === 0) return null;
   const first = ownerName.split(/\s+/)[0] || ownerName;
   return (
-    <div className="mx-auto conv-col px-2 sm:px-4 pt-1.5 space-y-1" data-my-suggestions>
+    <div
+      className="mx-auto conv-col px-2 sm:px-4 pt-1.5 space-y-1"
+      data-my-suggestions
+    >
       {shown.map((r) => {
-        const state = r.status === "pending"
-          ? { icon: <Clock className="w-3 h-3" />, tone: "text-sol-violet", label: `Waiting for ${first}` }
-          : r.status === "sent"
-          ? { icon: <Check className="w-3 h-3" />, tone: "text-sol-green", label: r.edited ? `${first} sent an edit` : `${first} sent it` }
-          : r.status === "closed"
-          ? { icon: <X className="w-3 h-3" />, tone: "text-sol-text-dim", label: "Not sent" }
-          : { icon: <X className="w-3 h-3" />, tone: "text-sol-text-dim", label: `${first} passed` };
+        const state =
+          r.status === "pending"
+            ? {
+                icon: <Clock className="w-3 h-3" />,
+                tone: "text-sol-violet",
+                label: `Waiting for ${first}`,
+              }
+            : r.status === "sent"
+              ? {
+                  icon: <Check className="w-3 h-3" />,
+                  tone: "text-sol-green",
+                  label: r.edited
+                    ? `${first} sent an edit`
+                    : `${first} sent it`,
+                }
+              : r.status === "closed"
+                ? {
+                    icon: <X className="w-3 h-3" />,
+                    tone: "text-sol-text-dim",
+                    label: "Not sent",
+                  }
+                : {
+                    icon: <X className="w-3 h-3" />,
+                    tone: "text-sol-text-dim",
+                    label: `${first} passed`,
+                  };
         return (
-          <div key={r._id} data-suggestion-status={r.status} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-sol-border/40 bg-sol-bg-alt/50 text-meta">
-            <span className={`shrink-0 inline-flex items-center gap-1 font-medium ${state.tone}`}>{state.icon}{state.label}</span>
-            <span className="flex-1 min-w-0 truncate text-sol-text-muted" title={r.body}>{r.body}</span>
+          <div
+            key={r._id}
+            data-suggestion-status={r.status}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-sol-border/40 bg-sol-bg-alt/50 text-meta"
+          >
+            <span
+              className={`shrink-0 inline-flex items-center gap-1 font-medium ${state.tone}`}
+            >
+              {state.icon}
+              {state.label}
+            </span>
+            <span
+              className="flex-1 min-w-0 truncate text-sol-text-muted"
+              title={r.body}
+            >
+              {r.body}
+            </span>
             {r.status === "pending" && !ownerHere && (
               <button
                 onClick={() => onSendNow(r)}
                 className="shrink-0 h-6 px-2.5 rounded-full font-medium border border-sol-cyan/40 text-sol-cyan hover:bg-sol-cyan/15 transition-colors"
-              >Send now</button>
+              >
+                Send now
+              </button>
             )}
             {r.status === "pending" && (
               <button
                 onClick={() => withdraw(r._id, r.conversation_id)}
                 className="shrink-0 h-6 px-2.5 rounded-full font-medium border border-sol-border text-sol-text-dim hover:text-sol-text transition-colors"
-              >Withdraw</button>
+              >
+                Withdraw
+              </button>
             )}
           </div>
         );

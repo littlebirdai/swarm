@@ -1,10 +1,25 @@
-import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
-import { join } from 'node:path';
+import { spawnSync } from "node:child_process";
+import {
+  appendFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { hostname } from "node:os";
+import { join } from "node:path";
 
-import { assertLabelsPushable, gitIn, labelsRemoteProblem, pushLabels } from './labels';
-import { evalsHome } from './paths';
+import {
+  assertLabelsPushable,
+  gitIn,
+  labelsRemoteProblem,
+  pushLabels,
+} from "./labels";
+import { evalsHome } from "./paths";
 
 // EVALS_HOME/freezes and EVALS_HOME/snapshots are plain folders, and codecast
 // keeps them the same on every machine of yours (`cast datasync`; the repo's
@@ -14,9 +29,9 @@ import { evalsHome } from './paths';
 // so the labels repo goes back to holding labels only. A machine with nothing
 // to undo pays two lstat calls and one exists check.
 
-const DIRS = ['freezes', 'snapshots'] as const;
+const DIRS = ["freezes", "snapshots"] as const;
 /** Written into the labels clone's .git once its copy of freezes and snapshots is untracked and pushed. */
-const DONE = 'evals-data-dirs-restored';
+const DONE = "evals-data-dirs-restored";
 
 const isLink = (p: string): boolean => {
   try {
@@ -32,7 +47,8 @@ function mergeInto(from: string, to: string): void {
     const src = join(from, name);
     const dest = join(to, name);
     if (!existsSync(dest)) renameSync(src, dest);
-    else if (lstatSync(src).isDirectory() && lstatSync(dest).isDirectory()) mergeInto(src, dest);
+    else if (lstatSync(src).isDirectory() && lstatSync(dest).isDirectory())
+      mergeInto(src, dest);
   }
 }
 
@@ -47,8 +63,9 @@ export interface RestoreOptions {
 /** Puts freezes and snapshots back as plain folders and takes them out of the labels repo. Never throws. */
 export function restoreDataDirs(o: RestoreOptions = {}): void {
   const root = o.root ?? evalsHome();
-  const labels = join(root, 'labels');
-  const warn = o.warn ?? ((line: string) => process.stderr.write(`evals: ${line}\n`));
+  const labels = join(root, "labels");
+  const warn =
+    o.warn ?? ((line: string) => process.stderr.write(`evals: ${line}\n`));
   try {
     for (const name of DIRS) {
       const local = join(root, name);
@@ -67,24 +84,44 @@ export function restoreDataDirs(o: RestoreOptions = {}): void {
         rmSync(inRepo, { recursive: true, force: true });
       }
     }
-    if (!existsSync(join(labels, '.git')) || existsSync(join(labels, '.git', DONE))) return;
+    if (
+      !existsSync(join(labels, ".git")) ||
+      existsSync(join(labels, ".git", DONE))
+    )
+      return;
     const git = gitIn(labels);
-    const exclude = join(labels, '.git', 'info', 'exclude');
-    const excluded = existsSync(exclude) ? readFileSync(exclude, 'utf8') : '';
-    for (const name of DIRS) if (!excluded.split('\n').includes(`/${name}/`)) appendFileSync(exclude, `/${name}/\n`);
-    if (git('ls-files', '--', ...DIRS).trim()) {
+    const exclude = join(labels, ".git", "info", "exclude");
+    const excluded = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
+    for (const name of DIRS)
+      if (!excluded.split("\n").includes(`/${name}/`))
+        appendFileSync(exclude, `/${name}/\n`);
+    if (git("ls-files", "--", ...DIRS).trim()) {
       const remoteProblem = o.remoteProblem ?? labelsRemoteProblem;
       assertLabelsPushable(labels, o.visibility, remoteProblem);
-      git('rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', ...DIRS);
-      const host = hostname().split('.')[0];
+      git("rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ...DIRS);
+      const host = hostname().split(".")[0];
       // A fresh cloud host or a CI runner may have no git identity; the commit then carries the host's name.
-      const who = spawnSync('git', ['config', 'user.email'], { cwd: labels, encoding: 'utf8' }).stdout.trim() ? [] : ['-c', `user.name=${host}`, '-c', `user.email=evals@${host}`];
-      git(...who, 'commit', '-qm', `${host}: freezes and snapshots leave the labels repo (cast datasync carries them)`, '--', ...DIRS);
+      const who = spawnSync("git", ["config", "user.email"], {
+        cwd: labels,
+        encoding: "utf8",
+      }).stdout.trim()
+        ? []
+        : ["-c", `user.name=${host}`, "-c", `user.email=evals@${host}`];
+      git(
+        ...who,
+        "commit",
+        "-qm",
+        `${host}: freezes and snapshots leave the labels repo (cast datasync carries them)`,
+        "--",
+        ...DIRS,
+      );
       pushLabels(labels);
       // The replay may have brought another machine's copies in under the old paths; they join the plain folders next run.
     }
-    writeFileSync(join(labels, '.git', DONE), `${new Date().toISOString()}\n`);
+    writeFileSync(join(labels, ".git", DONE), `${new Date().toISOString()}\n`);
   } catch (e) {
-    warn(`freezes and snapshots are not out of the labels repo yet (${(e as Error).message.split('\n')[0]}); the next ./evals retries`);
+    warn(
+      `freezes and snapshots are not out of the labels repo yet (${(e as Error).message.split("\n")[0]}); the next ./evals retries`,
+    );
   }
 }

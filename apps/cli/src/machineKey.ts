@@ -61,7 +61,10 @@ export function getMachineKey(): MachineKeyResult {
  * Full key lifecycle against an explicit directory (testable with temp dirs):
  * create on first run, adopt unbound keys, detect+rotate cloned keys.
  */
-export function resolveMachineKey(dir: string, getHardwareId: () => string): MachineKeyResult {
+export function resolveMachineKey(
+  dir: string,
+  getHardwareId: () => string,
+): MachineKeyResult {
   const keyFile = path.join(dir, KEY_BASENAME);
   const hostidFile = path.join(dir, HOSTID_BASENAME);
   const prevFile = path.join(dir, PREV_BASENAME);
@@ -86,7 +89,8 @@ export function resolveMachineKey(dir: string, getHardwareId: () => string): Mac
   }
 
   // No hardware id on this platform/environment → binding disabled, key as-is.
-  if (!hostid) return { secret: key, previousSecret: readPrev(prevFile), rotated: false };
+  if (!hostid)
+    return { secret: key, previousSecret: readPrev(prevFile), rotated: false };
 
   let recorded = "";
   try {
@@ -132,7 +136,10 @@ function rotateKey(key: Buffer, hostid: string): Buffer {
 
 function hostidHash(raw: string): string {
   if (!raw) return "";
-  return crypto.createHash("sha256").update(`codecast-hostid-v1:${raw}`).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(`codecast-hostid-v1:${raw}`)
+    .digest("hex");
 }
 
 function readPrev(prevFile: string): Buffer | null {
@@ -169,11 +176,15 @@ export function hardwareId(): string {
 function detectHardwareId(platform: NodeJS.Platform): string {
   try {
     if (platform === "darwin") {
-      const out = execFileSync("/usr/sbin/ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"], {
-        encoding: "utf8",
-        timeout: 3000,
-        stdio: ["ignore", "pipe", "ignore"],
-      });
+      const out = execFileSync(
+        "/usr/sbin/ioreg",
+        ["-rd1", "-c", "IOPlatformExpertDevice"],
+        {
+          encoding: "utf8",
+          timeout: 3000,
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      );
       const m = out.match(/"IOPlatformUUID"\s*=\s*"([0-9A-Fa-f-]+)"/);
       return m ? m[1].toUpperCase() : "";
     }
@@ -187,11 +198,20 @@ function detectHardwareId(platform: NodeJS.Platform): string {
       return "";
     }
     if (platform === "win32") {
-      const out = execFileSync("reg", ["query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid"], {
-        encoding: "utf8",
-        timeout: 3000,
-        stdio: ["ignore", "pipe", "ignore"],
-      });
+      const out = execFileSync(
+        "reg",
+        [
+          "query",
+          "HKLM\\SOFTWARE\\Microsoft\\Cryptography",
+          "/v",
+          "MachineGuid",
+        ],
+        {
+          encoding: "utf8",
+          timeout: 3000,
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      );
       const m = out.match(/MachineGuid\s+REG_SZ\s+(\S+)/);
       return m ? m[1] : "";
     }

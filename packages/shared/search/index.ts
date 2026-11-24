@@ -30,6 +30,10 @@ export function countMatches(content: string, terms: string[]): number {
   return count;
 }
 
-export { tokenizeQuery, normalizeQueryQuotes, type QueryToken } from "./tokenize";
+export {
+  tokenizeQuery,
+  normalizeQueryQuotes,
+  type QueryToken,
+} from "./tokenize";
 export * from "./sessionQuery";
 export * from "./terms";

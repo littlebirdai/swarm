@@ -45,10 +45,16 @@ import { useWatchEffect } from "./useWatchEffect";
 export function useFeederError(feeder: string, error: Error | undefined): void {
   const lastRef = useRef<string | null>(null);
   useWatchEffect(() => {
-    if (!error) { lastRef.current = null; return; }
+    if (!error) {
+      lastRef.current = null;
+      return;
+    }
     if (lastRef.current === error.message) return;
     lastRef.current = error.message;
-    console.warn(`[feeder:${feeder}] query failed; serving the cached rows`, error);
+    console.warn(
+      `[feeder:${feeder}] query failed; serving the cached rows`,
+      error,
+    );
     captureError(error, { feeder });
   }, [feeder, error]);
 }
@@ -63,7 +69,10 @@ export function useFeederError(feeder: string, error: Error | undefined): void {
  * pull requests until it exists. The store's altKey rekey turns the stub into
  * the real id, and the feeder subscribes then.
  */
-export function entityIdArgs<K extends string>(field: K, id: string | undefined): Record<K, string> | "skip" {
+export function entityIdArgs<K extends string>(
+  field: K,
+  id: string | undefined,
+): Record<K, string> | "skip" {
   return id && isConvexId(id) ? ({ [field]: id } as Record<K, string>) : "skip";
 }
 
@@ -117,10 +126,16 @@ export function applyCollectionFeed(
   if (dropAbsent) {
     const sent = new Set((rows as any[]).map((r) => String(r._id)));
     const cached = ((store as any)[key] ?? {}) as Record<string, any>;
-    const gone = Object.keys(cached).filter((id) => !sent.has(id) && dropAbsent(cached[id]));
+    const gone = Object.keys(cached).filter(
+      (id) => !sent.has(id) && dropAbsent(cached[id]),
+    );
     if (gone.length) store.dropRows(key, gone);
   }
-  store.syncTable(key, rows, typeof syncOpts === "function" ? syncOpts(data) : syncOpts);
+  store.syncTable(
+    key,
+    rows,
+    typeof syncOpts === "function" ? syncOpts(data) : syncOpts,
+  );
 }
 
 export function useSyncCollection<Query extends FunctionReference<"query">>(
@@ -134,7 +149,11 @@ export function useSyncCollection<Query extends FunctionReference<"query">>(
   // yet, so nothing downstream needs to know why this one is waiting.
   const authSettled = useServerAuthSettled();
   const gatedArgs = authSettled ? args : "skip";
-  const { data, error, retry } = useQueryNoThrow(query, gatedArgs, opts?.breakAfterMs ? { breakAfterMs: opts.breakAfterMs } : undefined);
+  const { data, error, retry } = useQueryNoThrow(
+    query,
+    gatedArgs,
+    opts?.breakAfterMs ? { breakAfterMs: opts.breakAfterMs } : undefined,
+  );
   useFeederError(getFunctionName(query), error);
   const select = opts?.select;
   const syncOpts = opts?.syncOpts;
@@ -142,7 +161,8 @@ export function useSyncCollection<Query extends FunctionReference<"query">>(
   useConvexSync(
     data,
     useCallback(
-      (payload: any) => applyCollectionFeed(key, payload, select, syncOpts, dropAbsent),
+      (payload: any) =>
+        applyCollectionFeed(key, payload, select, syncOpts, dropAbsent),
       [key, select, syncOpts, dropAbsent],
     ),
     opts?.coalesceMs ? { coalesceMs: opts.coalesceMs } : undefined,
@@ -154,7 +174,10 @@ export function useSyncCollection<Query extends FunctionReference<"query">>(
  * Rows without a server `_id` (artifacts keyed by slug, devices by device_id):
  * stamp one so the collection machinery keys them. Use inside `select`.
  */
-export function keyRowsBy<T extends Record<string, any>>(rows: T[] | undefined | null, field: keyof T): Array<T & { _id: string }> {
+export function keyRowsBy<T extends Record<string, any>>(
+  rows: T[] | undefined | null,
+  field: keyof T,
+): Array<T & { _id: string }> {
   if (!Array.isArray(rows)) return [];
   return rows.map((r) => ({ ...r, _id: String(r[field]) }));
 }

@@ -48,10 +48,15 @@ export function countingCtx(fake: any) {
   fake.query = (table: string) => {
     const b = origQuery(table);
     const origWithIndex = b.withIndex.bind(b);
-    b.withIndex = (name: string, fn?: any) => { ops.push(`${table}.${name}`); return origWithIndex(name, fn); };
+    b.withIndex = (name: string, fn?: any) => {
+      ops.push(`${table}.${name}`);
+      return origWithIndex(name, fn);
+    };
     return b;
   };
-  fake.get = (id: any) => { ops.push("get"); return origGet(id); };
+  fake.get = (id: any) => {
+    ops.push("get");
+    return origGet(id);
+  };
   return { ctx: { db: fake }, ops };
 }
-

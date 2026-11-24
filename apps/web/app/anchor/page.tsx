@@ -8,6 +8,8 @@ import { useMountEffect } from "../../hooks/useMountEffect";
 
 export default function AnchorPage() {
   const router = useRouter();
-  useMountEffect(() => { router.replace(`/org/workspace${window.location.search}`); });
+  useMountEffect(() => {
+    router.replace(`/org/workspace${window.location.search}`);
+  });
   return null;
 }

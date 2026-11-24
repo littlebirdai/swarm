@@ -24,7 +24,12 @@ function child(overrides: Record<string, any>) {
   };
 }
 
-function maps(overrides: Partial<{ liveConvIds: Set<string>; agentStatusMap: Map<string, any> }> = {}) {
+function maps(
+  overrides: Partial<{
+    liveConvIds: Set<string>;
+    agentStatusMap: Map<string, any>;
+  }> = {},
+) {
   return {
     liveConvIds: overrides.liveConvIds ?? new Set<string>(),
     agentStatusMap: overrides.agentStatusMap ?? new Map(),
@@ -71,18 +76,33 @@ describe("deriveProducingParents", () => {
   });
 
   test("recent non-subagent child (plain fork) does not", () => {
-    const parents = deriveProducingParents([child({ is_subagent: false })], maps(), NOW);
+    const parents = deriveProducingParents(
+      [child({ is_subagent: false })],
+      maps(),
+      NOW,
+    );
     expect(parents.size).toBe(0);
   });
 
   test("completed child does not", () => {
-    const parents = deriveProducingParents([child({ status: "completed" })], maps(), NOW);
+    const parents = deriveProducingParents(
+      [child({ status: "completed" })],
+      maps(),
+      NOW,
+    );
     expect(parents.size).toBe(0);
   });
 
   test("rows without a parent are ignored", () => {
     const parents = deriveProducingParents(
-      [{ _id: "conv_top", is_subagent: false, status: "active", updated_at: NOW }],
+      [
+        {
+          _id: "conv_top",
+          is_subagent: false,
+          status: "active",
+          updated_at: NOW,
+        },
+      ],
       maps(),
       NOW,
     );

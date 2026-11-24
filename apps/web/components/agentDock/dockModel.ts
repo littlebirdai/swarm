@@ -8,7 +8,11 @@ import type { QueueItem } from "../../lib/decisionQueue";
  *  it takes the gesture back; the agent never sees it. */
 export const HOLD_MS = 2000;
 
-export type DockDot = { id: string; state: "needs" | "working" | "done"; title: string };
+export type DockDot = {
+  id: string;
+  state: "needs" | "working" | "done";
+  title: string;
+};
 
 /** ask: a poll, permission prompt or `cast decide` (the decision queue).
  *  waiting: parked on you with no structured ask. done: finished a turn.
@@ -23,7 +27,10 @@ export type DockEntry = {
 /** The entry the card shows once `id` is settled: the one after it, or the
  *  one before when it was last, or nothing when it was the only one. Read
  *  BEFORE the commit, since the commit is what takes `id` out of the list. */
-export function nextEntryId(entries: ReadonlyArray<{ id: string }>, id: string): string | null {
+export function nextEntryId(
+  entries: ReadonlyArray<{ id: string }>,
+  id: string,
+): string | null {
   const at = entries.findIndex((e) => e.id === id);
   if (at < 0) return entries[0]?.id ?? null;
   return entries[at + 1]?.id ?? entries[at - 1]?.id ?? null;

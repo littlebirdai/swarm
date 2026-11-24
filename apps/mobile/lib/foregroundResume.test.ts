@@ -25,9 +25,14 @@ mock.module("convex/browser", () => ({
     setAuth() {}
   },
 }));
-mock.module("@/lib/convex", () => ({ convex: {}, CONVEX_URL: "https://example.test" }));
+mock.module("@/lib/convex", () => ({
+  convex: {},
+  CONVEX_URL: "https://example.test",
+}));
 mock.module("@/lib/socketStats", () => ({ socketStats: { lastConnectAt: 0 } }));
-mock.module("@/modules/codecast-push-prefetch", () => ({ pushPrefetchNative: null }));
+mock.module("@/modules/codecast-push-prefetch", () => ({
+  pushPrefetchNative: null,
+}));
 mock.module("@codecast/web/hooks/inboxWarm", () => ({
   readForward: async (_http: unknown, convId: string, after: number) => {
     reads.push({ convId, after });
@@ -37,7 +42,8 @@ mock.module("@codecast/web/hooks/inboxWarm", () => ({
 mock.module("@codecast/web/store/inboxStore", () => ({
   isConvexId: (id: string) => /^[a-z0-9]{32}$/.test(id),
   ensureHydrated: async (convId: string) => {
-    if (!state.messages[convId]?.length && disk[convId]) state.messages[convId] = disk[convId];
+    if (!state.messages[convId]?.length && disk[convId])
+      state.messages[convId] = disk[convId];
     return true;
   },
   useInboxStore: {

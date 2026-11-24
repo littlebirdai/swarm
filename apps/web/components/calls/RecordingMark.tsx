@@ -1,4 +1,11 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Button } from "../ui/button";
 import { Loader2 } from "lucide-react";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
@@ -8,7 +15,10 @@ import { usePressOutside } from "../../hooks/usePressOutside";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { formatCallTime } from "@codecast/shared/entities";
 import { KeyCap } from "../KeyCap";
-import { RECORDING_SHARED_WORDS, STOP_RECORDING_ASK } from "../../lib/calls/roomRecordingEnd";
+import {
+  RECORDING_SHARED_WORDS,
+  STOP_RECORDING_ASK,
+} from "../../lib/calls/roomRecordingEnd";
 import "./recorder.css";
 import { modernButton, modernPill } from "../ui/modernLook";
 
@@ -35,7 +45,11 @@ export type RecordingMarkStatus = "starting" | "recording" | "stopping";
 
 /** The words for a mark's tooltip and screen readers: what is happening, who
  *  started it, and that anyone in the room may end it. */
-function recordingMarkTitle(status: RecordingMarkStatus, by?: string | null, shared = false): string {
+function recordingMarkTitle(
+  status: RecordingMarkStatus,
+  by?: string | null,
+  shared = false,
+): string {
   if (status === "stopping") return "Recording stopped. Saving the video";
   const who = by ? ` ${by} started it.` : "";
   const where = shared ? ` ${RECORDING_SHARED_WORDS}` : "";
@@ -73,7 +87,12 @@ export function RecordingMark({
 }) {
   const title = recordingMarkTitle(status, by, shared);
   const saving = status === "stopping";
-  const dot = <span className={saving ? SAVING_DOT : "rec-pill-dot rec-pill-dot--sm"} aria-hidden="true" />;
+  const dot = (
+    <span
+      className={saving ? SAVING_DOT : "rec-pill-dot rec-pill-dot--sm"}
+      aria-hidden="true"
+    />
+  );
   if (size === "dot") {
     return (
       <span
@@ -112,7 +131,11 @@ export function RecordingMark({
       {dot}
       <span className="font-semibold tracking-wide">REC</span>
       {size === "regular" &&
-        (status === "starting" || !startedAt ? <span className="text-sol-red/80">starting</span> : <RecordingClock startedAt={startedAt} />)}
+        (status === "starting" || !startedAt ? (
+          <span className="text-sol-red/80">starting</span>
+        ) : (
+          <RecordingClock startedAt={startedAt} />
+        ))}
     </span>
   );
 }
@@ -121,7 +144,11 @@ export function RecordingMark({
  *  shared with every other one in the app, so only this span re-renders. */
 function RecordingClock({ startedAt }: { startedAt: number }) {
   const now = useCoarseNow(1000);
-  return <span className="tabular-nums">{formatCallTime(Math.max(0, now - startedAt))}</span>;
+  return (
+    <span className="tabular-nums">
+      {formatCallTime(Math.max(0, now - startedAt))}
+    </span>
+  );
 }
 
 // ── Stopping, asked once more ────────────────────────────────────────────
@@ -157,7 +184,14 @@ export function StopRecordingQuestion({
   escKeeps?: boolean;
 }) {
   const stop = (
-    <Button type="button" variant="red" size="xs" onClick={onStop} disabled={busy} className="shrink-0 font-mono">
+    <Button
+      type="button"
+      variant="red"
+      size="xs"
+      onClick={onStop}
+      disabled={busy}
+      className="shrink-0 font-mono"
+    >
       {busy && <Loader2 className="animate-spin motion-reduce:animate-none" />}
       {dense ? "Stop" : STOP_RECORDING_ASK.stop}
     </Button>
@@ -176,8 +210,15 @@ export function StopRecordingQuestion({
   );
   if (dense) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 font-mono text-meta text-sol-text-secondary" role="group" aria-label={STOP_RECORDING_ASK.title}>
-        <span className="whitespace-nowrap" title={`${STOP_RECORDING_ASK.title} ${STOP_RECORDING_ASK.body}`}>
+      <span
+        className="inline-flex shrink-0 items-center gap-1 font-mono text-meta text-sol-text-secondary"
+        role="group"
+        aria-label={STOP_RECORDING_ASK.title}
+      >
+        <span
+          className="whitespace-nowrap"
+          title={`${STOP_RECORDING_ASK.title} ${STOP_RECORDING_ASK.body}`}
+        >
           Stop for everyone?
         </span>
         {stop}
@@ -188,11 +229,18 @@ export function StopRecordingQuestion({
   return (
     <>
       <div className={`flex items-center gap-2 ${QUESTION_TITLE}`}>
-        <span className="h-2 w-2 shrink-0 rounded-full bg-sol-red" aria-hidden="true" />
+        <span
+          className="h-2 w-2 shrink-0 rounded-full bg-sol-red"
+          aria-hidden="true"
+        />
         {STOP_RECORDING_ASK.title}
       </div>
-      <p className={`mt-2 ${QUESTION_BODY} text-sol-text-muted`}>Anyone in the call can stop it. {STOP_RECORDING_ASK.body}</p>
-      {error && <p className={`mt-1.5 ${QUESTION_BODY} text-sol-orange`}>{error}</p>}
+      <p className={`mt-2 ${QUESTION_BODY} text-sol-text-muted`}>
+        Anyone in the call can stop it. {STOP_RECORDING_ASK.body}
+      </p>
+      {error && (
+        <p className={`mt-1.5 ${QUESTION_BODY} text-sol-orange`}>{error}</p>
+      )}
       <div className="mt-3.5 flex items-center justify-end gap-2">
         {keep}
         {stop}
@@ -211,7 +259,8 @@ export function StopRecordingQuestion({
 // bars; a question opened from a control measures where that control sits
 // (usePhonePin) and lands just past it, since the member's stage header and
 // the strip under the app's header put theirs at other heights.
-const PHONE_BELOW = "max-sm:fixed max-sm:inset-x-3 max-sm:top-[calc(env(safe-area-inset-top)+56px)] max-sm:mt-0 max-sm:w-auto";
+const PHONE_BELOW =
+  "max-sm:fixed max-sm:inset-x-3 max-sm:top-[calc(env(safe-area-inset-top)+56px)] max-sm:mt-0 max-sm:w-auto";
 const PHONE_ABOVE =
   "max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[calc(76px+env(safe-area-inset-bottom))] max-sm:top-auto max-sm:mb-0 max-sm:w-auto max-sm:translate-x-0";
 
@@ -234,7 +283,11 @@ export const PLACE = {
  * at one height that covered some of them. Nothing above `sm`, where the box
  * hangs from its control.
  */
-function usePhonePin(anchorRef: RefObject<HTMLElement | null>, place: keyof typeof PLACE, open: boolean): CSSProperties | undefined {
+function usePhonePin(
+  anchorRef: RefObject<HTMLElement | null>,
+  place: keyof typeof PLACE,
+  open: boolean,
+): CSSProperties | undefined {
   const phone = useMediaQuery(BELOW_SM);
   const [edge, setEdge] = useState<number | null>(null);
   const above = place === "above";
@@ -291,7 +344,12 @@ export function RecordingQuestionBox({
       aria-label={label}
       tabIndex={-1}
       onKeyDown={(e) => {
-        if (onEnter && e.key === "Enter" && !e.repeat && e.target === e.currentTarget) {
+        if (
+          onEnter &&
+          e.key === "Enter" &&
+          !e.repeat &&
+          e.target === e.currentTarget
+        ) {
           e.preventDefault();
           e.stopPropagation();
           onEnter();
@@ -334,7 +392,10 @@ export function RecordingStopControl({
   disabled = false,
   buttonClassName = "flex items-center rounded-md transition-opacity hover:opacity-80",
   className = "",
-  describe = (err) => (err instanceof Error && err.message ? err.message : "Could not stop the recording"),
+  describe = (err) =>
+    err instanceof Error && err.message
+      ? err.message
+      : "Could not stop the recording",
 }: {
   onStop: () => Promise<unknown> | void;
   children: ReactNode;
@@ -384,8 +445,19 @@ export function RecordingStopControl({
       {asking && (
         // On the question, not on Stop, and no onEnter: ending the room's
         // recording is a deliberate press, never a stray Enter or Space.
-        <RecordingQuestionBox label={STOP_RECORDING_ASK.title} place={place} insideRef={rootRef} onClose={() => setAsking(false)}>
-          <StopRecordingQuestion onStop={stop} onKeep={() => setAsking(false)} busy={busy} error={error} escKeeps />
+        <RecordingQuestionBox
+          label={STOP_RECORDING_ASK.title}
+          place={place}
+          insideRef={rootRef}
+          onClose={() => setAsking(false)}
+        >
+          <StopRecordingQuestion
+            onStop={stop}
+            onKeep={() => setAsking(false)}
+            busy={busy}
+            error={error}
+            escKeeps
+          />
         </RecordingQuestionBox>
       )}
     </span>

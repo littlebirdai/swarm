@@ -4,7 +4,9 @@
 // and opens on that session's brief alone.
 // It says only what is true of all of them. What one kind of run may do (its
 // branch, its ending command) belongs to that run's own brief.
-export function unattendedOpening(startedBy = "an automated codecast run"): string {
+export function unattendedOpening(
+  startedBy = "an automated codecast run",
+): string {
   return [
     `You are running unattended: ${startedBy} started this session, and no person is watching it.`,
     "It reads only how your turn ends, so end with the command your brief names. If it names none, pin the outcome with `cast state --status done`, or `--status blocked` if you could not finish.",
@@ -29,14 +31,28 @@ export function applyUnattended(prompt: string, startedBy?: string): string {
  * that runs the workflow (workflow_runs.ts stamps the host), and throttling it
  * starved a live conversation for 80 minutes (2026-10-26).
  */
-export function isUnattendedConversation(conv: {
-  unattended?: boolean;
-  is_subagent?: boolean;
-  is_workflow_sub?: boolean;
-  agent_task_id?: unknown;
-  anchor_id?: unknown;
-} | null | undefined): boolean {
-  return !!conv && !!(conv.unattended || conv.is_subagent || conv.is_workflow_sub || conv.agent_task_id || conv.anchor_id);
+export function isUnattendedConversation(
+  conv:
+    | {
+        unattended?: boolean;
+        is_subagent?: boolean;
+        is_workflow_sub?: boolean;
+        agent_task_id?: unknown;
+        anchor_id?: unknown;
+      }
+    | null
+    | undefined,
+): boolean {
+  return (
+    !!conv &&
+    !!(
+      conv.unattended ||
+      conv.is_subagent ||
+      conv.is_workflow_sub ||
+      conv.agent_task_id ||
+      conv.anchor_id
+    )
+  );
 }
 
 /**

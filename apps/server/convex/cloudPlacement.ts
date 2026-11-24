@@ -21,7 +21,10 @@ import { DAEMON_COMMAND_TTL_MS } from "@codecast/shared/contracts";
 import { Id } from "./_generated/dataModel";
 import { DEVICE_ONLINE_MS, pathUnderRoot } from "./deviceRouting";
 import { releasePreviousOwner } from "./sessionRelease";
-import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";
+import {
+  policyWorkspaceOf,
+  requireTeamPolicyAllows,
+} from "./lib/teamPolicyGuard";
 import {
   CLOUD_START_RUN_MS,
   cloudHostManaged,
@@ -50,10 +53,16 @@ export const CLOUD_SPAWN_RUN_MS = CLOUD_START_RUN_MS;
 type Ctx = { db: any };
 
 /** The wire form of CloudWorkspaceMode (@codecast/shared). Absent = isolated. */
-export const cloudWorkspaceValidator = v.union(v.literal("isolated"), v.literal("shared"));
+export const cloudWorkspaceValidator = v.union(
+  v.literal("isolated"),
+  v.literal("shared"),
+);
 
 /** The wire form of CloudStartFrom (@codecast/shared). Absent = checkout. */
-export const cloudStartFromArg = v.union(v.literal("checkout"), v.literal("origin_main"));
+export const cloudStartFromArg = v.union(
+  v.literal("checkout"),
+  v.literal("origin_main"),
+);
 
 /** conversations.cloud_seed minus `at` (the server stamps the time). */
 export const cloudSeedArg = v.object({
@@ -74,7 +83,11 @@ export const cloudSeedArg = v.object({
  * the host's main checkout is moved to origin/main — so shared forces
  * origin_main whatever was asked.
  */
-export function effectiveStartFrom(workspace: CloudWorkspaceMode | undefined, requested: unknown, rowValue: unknown): CloudStartFrom {
+export function effectiveStartFrom(
+  workspace: CloudWorkspaceMode | undefined,
+  requested: unknown,
+  rowValue: unknown,
+): CloudStartFrom {
   if (workspace === "shared") return "origin_main";
   return normalizeCloudStartFrom(requested ?? rowValue);
 }
@@ -96,13 +109,20 @@ export async function findSharedCheckoutOccupant(
   // the host runs, and lost write races to their transcript syncs.
   const owned = match.merging
     ? await ctx.db
-      .query("conversations")
-      .withIndex("by_owner_device_workspace", (q: any) => q.eq("user_id", userId).eq("owner_device_id", deviceId).eq("cloud_workspace", "shared"))
-      .collect()
+        .query("conversations")
+        .withIndex("by_owner_device_workspace", (q: any) =>
+          q
+            .eq("user_id", userId)
+            .eq("owner_device_id", deviceId)
+            .eq("cloud_workspace", "shared"),
+        )
+        .collect()
     : await ctx.db
-      .query("conversations")
-      .withIndex("by_owner_device", (q: any) => q.eq("user_id", userId).eq("owner_device_id", deviceId))
-      .collect();
+        .query("conversations")
+        .withIndex("by_owner_device", (q: any) =>
+          q.eq("user_id", userId).eq("owner_device_id", deviceId),
+        )
+        .collect();
   const rows: CheckoutOccupantRow[] = owned.map((c: any) => ({
     conversation_id: c._id.toString(),
     short_id: c.short_id ?? null,
@@ -118,16 +138,21 @@ export async function findSharedCheckoutOccupant(
   return sharedCheckoutOccupant(rows, match);
 }
 
-
 /**
  * The caller's own wake-on-use device, or a throw. Validated under the OWNER
  * (the account that runs the session): a team agent box is another user's
  * device and a bot cannot own a cloud park.
  */
-export async function resolveCloudDevice(ctx: Ctx, ownerUserId: Id<"users">, deviceId: string): Promise<any> {
+export async function resolveCloudDevice(
+  ctx: Ctx,
+  ownerUserId: Id<"users">,
+  deviceId: string,
+): Promise<any> {
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", ownerUserId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", ownerUserId).eq("device_id", deviceId),
+    )
     .first();
   const owner = await ctx.db.get(ownerUserId);
   if (!device || !deviceWakesOnUse(device) || owner?.is_bot) {
@@ -137,7 +162,11 @@ export async function resolveCloudDevice(ctx: Ctx, ownerUserId: Id<"users">, dev
 }
 
 function parseArgs(c: any): any {
-  try { return c.args ? JSON.parse(c.args) : {}; } catch { return {}; }
+  try {
+    return c.args ? JSON.parse(c.args) : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -154,7 +183,10 @@ export function cloudSpawnLive(c: any, now: number): boolean {
     if (c.executed_at !== undefined && c.error !== "expired_ttl") return false;
     return now - c.claimed_at < CLOUD_SPAWN_RUN_MS;
   }
-  return c.executed_at === undefined && now - (c.created_at ?? c._creationTime ?? 0) < COMMAND_TTL_MS;
+  return (
+    c.executed_at === undefined &&
+    now - (c.created_at ?? c._creationTime ?? 0) < COMMAND_TTL_MS
+  );
 }
 
 /**
@@ -162,30 +194,53 @@ export function cloudSpawnLive(c: any, now: number): boolean {
  * pending commands (small) and the ones executed inside the run window, which
  * is where a claimed child past the poll TTL sits. No new index needed.
  */
-export async function liveCloudSpawnFor(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">): Promise<any | null> {
+export async function liveCloudSpawnFor(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<any | null> {
   const now = Date.now();
   const pending = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
     .collect();
   const recent = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).gte("executed_at", now - CLOUD_SPAWN_RUN_MS))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).gte("executed_at", now - CLOUD_SPAWN_RUN_MS),
+    )
     .collect();
-  return [...pending, ...recent].find((c: any) =>
-    cloudSpawnLive(c, now) && parseArgs(c).conversation_id === conversationId) ?? null;
+  return (
+    [...pending, ...recent].find(
+      (c: any) =>
+        cloudSpawnLive(c, now) &&
+        parseArgs(c).conversation_id === conversationId,
+    ) ?? null
+  );
 }
 
 /** Retire every live cloud_spawn for a row (an un-park, a re-park). */
-export async function supersedeCloudSpawns(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">): Promise<number> {
+export async function supersedeCloudSpawns(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<number> {
   const now = Date.now();
   const pending = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
     .collect();
   let n = 0;
   for (const c of pending) {
-    if (c.command !== "cloud_spawn" || parseArgs(c).conversation_id !== conversationId) continue;
+    if (
+      c.command !== "cloud_spawn" ||
+      parseArgs(c).conversation_id !== conversationId
+    )
+      continue;
     await ctx.db.patch(c._id, { executed_at: now, error: "superseded" });
     n++;
   }
@@ -207,8 +262,13 @@ export const CLOUD_UNPARK_PATCH = {
  * ever delivers its messages (canDaemonSeePendingMessage). Every device move
  * goes through here; a move onto the host itself leaves the park alone.
  */
-export async function unparkForMove(ctx: Ctx, conv: any, target: any): Promise<Partial<typeof CLOUD_UNPARK_PATCH>> {
-  if (conv.cloud_placement !== "pending" || !target || deviceWakesOnUse(target)) return {};
+export async function unparkForMove(
+  ctx: Ctx,
+  conv: any,
+  target: any,
+): Promise<Partial<typeof CLOUD_UNPARK_PATCH>> {
+  if (conv.cloud_placement !== "pending" || !target || deviceWakesOnUse(target))
+    return {};
   await supersedeCloudSpawns(ctx, conv.user_id, conv._id);
   return { ...CLOUD_UNPARK_PATCH };
 }
@@ -250,7 +310,11 @@ export async function enqueueCloudSpawn(
     /** Home-relative paths the laptop adds to cloud_mirror_exclude first; rides the args JSON to `cast cloud start --leave-out`. */
     leaveOut?: string[];
   },
-): Promise<{ commandId: Id<"daemon_commands">; preparerOnline: boolean; preparer: any }> {
+): Promise<{
+  commandId: Id<"daemon_commands">;
+  preparerOnline: boolean;
+  preparer: any;
+}> {
   const now = Date.now();
   const devices = await ctx.db
     .query("devices")
@@ -258,15 +322,26 @@ export async function enqueueCloudSpawn(
     .collect();
   const locals = devices.filter((d: any) => !d.is_remote);
   if (locals.length === 0) {
-    throw new Error("No laptop can prepare the cloud host — run the codecast daemon on a machine that has the repo");
+    throw new Error(
+      "No laptop can prepare the cloud host — run the codecast daemon on a machine that has the repo",
+    );
   }
-  const online = locals.filter((d: any) => now - d.last_seen < DEVICE_ONLINE_MS).sort(byRecency);
-  const paths = [opts.gitRoot, opts.projectPath].filter((p): p is string => !!p);
-  const holdsCheckout = (d: any) => (d.local_project_roots ?? []).some((r: string) => paths.some((p) => pathUnderRoot(p, r)));
-  const preparer = online.find(holdsCheckout)
-    || (opts.preparerDeviceId && online.find((d: any) => d.device_id === opts.preparerDeviceId))
-    || online[0]
-    || [...locals].sort(byRecency)[0];
+  const online = locals
+    .filter((d: any) => now - d.last_seen < DEVICE_ONLINE_MS)
+    .sort(byRecency);
+  const paths = [opts.gitRoot, opts.projectPath].filter(
+    (p): p is string => !!p,
+  );
+  const holdsCheckout = (d: any) =>
+    (d.local_project_roots ?? []).some((r: string) =>
+      paths.some((p) => pathUnderRoot(p, r)),
+    );
+  const preparer =
+    online.find(holdsCheckout) ||
+    (opts.preparerDeviceId &&
+      online.find((d: any) => d.device_id === opts.preparerDeviceId)) ||
+    online[0] ||
+    [...locals].sort(byRecency)[0];
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "cloud_spawn" as const,
@@ -281,11 +356,25 @@ export async function enqueueCloudSpawn(
     created_at: now,
     target_device_id: preparer.device_id,
   });
-  return { commandId, preparerOnline: now - preparer.last_seen < DEVICE_ONLINE_MS, preparer };
+  return {
+    commandId,
+    preparerOnline: now - preparer.last_seen < DEVICE_ONLINE_MS,
+    preparer,
+  };
 }
 
-export function waitingForPreparerError(preparer: { label?: string; platform?: string; is_remote?: boolean }): string {
-  const name = preparer.label ? deviceDisplayName({ label: preparer.label, platform: preparer.platform ?? "", is_remote: preparer.is_remote }) : "your laptop";
+export function waitingForPreparerError(preparer: {
+  label?: string;
+  platform?: string;
+  is_remote?: boolean;
+}): string {
+  const name = preparer.label
+    ? deviceDisplayName({
+        label: preparer.label,
+        platform: preparer.platform ?? "",
+        is_remote: preparer.is_remote,
+      })
+    : "your laptop";
   return `Waiting for ${name} to come online to prepare the cloud host`;
 }
 
@@ -311,18 +400,39 @@ export async function parkOnCloudHost(
   userId: Id<"users">,
   conv: any,
   cloudDeviceId: string,
-  opts: { projectPath?: string | null; gitRoot?: string | null; force?: boolean; workspace?: CloudWorkspaceMode; startFrom?: CloudStartFrom; leaveOut?: string[] } = {},
+  opts: {
+    projectPath?: string | null;
+    gitRoot?: string | null;
+    force?: boolean;
+    workspace?: CloudWorkspaceMode;
+    startFrom?: CloudStartFrom;
+    leaveOut?: string[];
+  } = {},
 ): Promise<Id<"daemon_commands"> | null> {
   // Every cloud park passes here (web creates, dispatch, moves, re-parks).
-  await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf("conversations", conv) }, "cloud_hosts_disabled");
+  await requireTeamPolicyAllows(
+    ctx,
+    { workspace: policyWorkspaceOf("conversations", conv) },
+    "cloud_hosts_disabled",
+  );
   const projectPath = opts.projectPath ?? conv.project_path ?? null;
   const gitRoot = opts.gitRoot ?? conv.git_root ?? null;
   // The mode the row was created with rides every re-park (a folder re-pick,
   // a retry) unless the caller changes it; the child reads it from the args.
-  const workspace: CloudWorkspaceMode | undefined = opts.workspace ?? (conv.cloud_workspace === "shared" ? "shared" : conv.cloud_workspace === "isolated" ? "isolated" : undefined);
+  const workspace: CloudWorkspaceMode | undefined =
+    opts.workspace ??
+    (conv.cloud_workspace === "shared"
+      ? "shared"
+      : conv.cloud_workspace === "isolated"
+        ? "isolated"
+        : undefined);
   // Likewise the seed choice: the caller's, else the row's, else checkout;
   // a shared row is always origin_main.
-  const startFrom = effectiveStartFrom(workspace, opts.startFrom, conv.cloud_start_from);
+  const startFrom = effectiveStartFrom(
+    workspace,
+    opts.startFrom,
+    conv.cloud_start_from,
+  );
   // Read before the patch: the row handed in may be the live document.
   const priorOwner: string | undefined = conv.owner_device_id;
   const releasePrior = async () => {
@@ -355,24 +465,42 @@ export async function parkOnCloudHost(
   // A workspace or seed change is a re-park like a folder change: the child
   // in flight read its mode and start_from from the args JSON, so it must
   // be superseded.
-  const modeChanged = !!workspace && workspace !== normalizeCloudWorkspace(conv.cloud_workspace);
-  const seedChanged = startFrom !== effectiveStartFrom(normalizeCloudWorkspace(conv.cloud_workspace), undefined, conv.cloud_start_from);
-  if (!opts.force && !modeChanged && !seedChanged && conv.cloud_placement === "pending" && conv.owner_device_id === cloudDeviceId && conv.cloud_placement_token
-    && await liveCloudSpawnFor(ctx, userId, conv._id)) {
+  const modeChanged =
+    !!workspace && workspace !== normalizeCloudWorkspace(conv.cloud_workspace);
+  const seedChanged =
+    startFrom !==
+    effectiveStartFrom(
+      normalizeCloudWorkspace(conv.cloud_workspace),
+      undefined,
+      conv.cloud_start_from,
+    );
+  if (
+    !opts.force &&
+    !modeChanged &&
+    !seedChanged &&
+    conv.cloud_placement === "pending" &&
+    conv.owner_device_id === cloudDeviceId &&
+    conv.cloud_placement_token &&
+    (await liveCloudSpawnFor(ctx, userId, conv._id))
+  ) {
     return null;
   }
   await supersedeCloudSpawns(ctx, userId, conv._id);
   const token = crypto.randomUUID();
-  const { commandId, preparerOnline, preparer } = await enqueueCloudSpawn(ctx, userId, {
-    conversationId: conv._id,
-    cloudDeviceId,
-    projectPath,
-    gitRoot,
-    token,
-    workspace,
-    startFrom,
-    leaveOut: opts.leaveOut,
-  });
+  const { commandId, preparerOnline, preparer } = await enqueueCloudSpawn(
+    ctx,
+    userId,
+    {
+      conversationId: conv._id,
+      cloudDeviceId,
+      projectPath,
+      gitRoot,
+      token,
+      workspace,
+      startFrom,
+      leaveOut: opts.leaveOut,
+    },
+  );
   await ctx.db.patch(conv._id, {
     owner_device_id: cloudDeviceId,
     cloud_placement: "pending" as const,
@@ -386,7 +514,9 @@ export async function parkOnCloudHost(
     // An isolated park never holds the root: drop a claim a failed shared
     // attempt left behind, so `cast hosts ls` does not attribute it by path.
     ...(workspace === "isolated" ? { cloud_checkout_path: undefined } : {}),
-    session_error: preparerOnline ? undefined : waitingForPreparerError(preparer),
+    session_error: preparerOnline
+      ? undefined
+      : waitingForPreparerError(preparer),
     updated_at: Date.now(),
   });
   await releasePrior();
@@ -417,7 +547,8 @@ export async function cloudPlacementNeeded(
     paths: Array<string | null | undefined>;
   },
 ): Promise<any | null> {
-  if (!opts.callerUserId || opts.callerUserId !== opts.runnerUserId) return null;
+  if (!opts.callerUserId || opts.callerUserId !== opts.runnerUserId)
+    return null;
   if (!opts.targetDeviceId || !opts.conv) return null;
   if (opts.conv.cloud_placement || opts.conv.worktree_path) return null;
   const devices = await ctx.db
@@ -434,7 +565,9 @@ export async function cloudPlacementNeeded(
   if (runner?.is_bot) return null;
   const locals = devices.filter((d: any) => !d.is_remote);
   if (locals.length === 0) return null;
-  return cloudPlacementFor({ target, locals, paths: opts.paths }) === "park" ? target : null;
+  return cloudPlacementFor({ target, locals, paths: opts.paths }) === "park"
+    ? target
+    : null;
 }
 
 /**
@@ -450,7 +583,11 @@ export async function cloudPlacementNeeded(
  * clears the error the human is reading and fails the same way, on every
  * laptop that comes online. It waits for a re-pick too.
  */
-export async function reissueStrandedCloudSpawns(ctx: Ctx, userId: Id<"users">, localDeviceId: string): Promise<number> {
+export async function reissueStrandedCloudSpawns(
+  ctx: Ctx,
+  userId: Id<"users">,
+  localDeviceId: string,
+): Promise<number> {
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
@@ -459,13 +596,23 @@ export async function reissueStrandedCloudSpawns(ctx: Ctx, userId: Id<"users">, 
   for (const host of devices.filter((d: any) => deviceWakesOnUse(d))) {
     const rows = await ctx.db
       .query("conversations")
-      .withIndex("by_user_cloud_placement", (q: any) => q.eq("user_id", userId).eq("cloud_placement", "pending").eq("owner_device_id", host.device_id))
+      .withIndex("by_user_cloud_placement", (q: any) =>
+        q
+          .eq("user_id", userId)
+          .eq("cloud_placement", "pending")
+          .eq("owner_device_id", host.device_id),
+      )
       .collect();
     for (const conv of rows) {
       if (!conv.cloud_placement_token) continue;
       if (conv.cloud_placement_failed_at) continue;
       if (!conv.project_path && !conv.git_root) continue;
-      if (conv.inbox_killed_at || isClosedSession(conv) || conv.status === "completed") continue;
+      if (
+        conv.inbox_killed_at ||
+        isClosedSession(conv) ||
+        conv.status === "completed"
+      )
+        continue;
       if (await liveCloudSpawnFor(ctx, userId, conv._id)) continue;
       await enqueueCloudSpawn(ctx, userId, {
         conversationId: conv._id,
@@ -477,9 +624,21 @@ export async function reissueStrandedCloudSpawns(ctx: Ctx, userId: Id<"users">, 
         workspace: conv.cloud_workspace === "shared" ? "shared" : undefined,
         // Only a row stamped with a choice carries one; an older row's
         // re-issue is byte-identical to before (absent = checkout).
-        ...(conv.cloud_start_from ? { startFrom: effectiveStartFrom(normalizeCloudWorkspace(conv.cloud_workspace), undefined, conv.cloud_start_from) } : {}),
+        ...(conv.cloud_start_from
+          ? {
+              startFrom: effectiveStartFrom(
+                normalizeCloudWorkspace(conv.cloud_workspace),
+                undefined,
+                conv.cloud_start_from,
+              ),
+            }
+          : {}),
       });
-      if (conv.session_error) await ctx.db.patch(conv._id, { session_error: undefined, updated_at: Date.now() });
+      if (conv.session_error)
+        await ctx.db.patch(conv._id, {
+          session_error: undefined,
+          updated_at: Date.now(),
+        });
       reissued++;
     }
   }

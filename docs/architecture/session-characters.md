@@ -74,8 +74,8 @@ tabindex and the name field.
 
 **Many at once.** With several sessions ticked, the selection bar and the
 bulk context menu offer "Character for N sessions". The same picker opens
-with a footer switch: *one face for all* (a squad reads as a squad) or
-*a different face each* (the picker assigns distinct faces and default
+with a footer switch: _one face for all_ (a squad reads as a squad) or
+_a different face each_ (the picker assigns distinct faces and default
 names). The bulk write is one store action over all ids, one dispatch.
 
 Names are the person's: the title generator never touches `character_name`,
@@ -103,18 +103,18 @@ One component family under `components/identity/`:
 
 Surfaces, and the size the face takes:
 
-| surface | size |
-|---|---|
-| inbox card, threads card, fleet tile | 18 |
-| inbox subagent and trigger child rows, sidebar rows, tab strip, window taskbar | 14 |
-| conversation header | 22 |
-| session reference pill (`jx7abcd`) | 1em, replacing the type icon fallback |
-| command palette rows, global search, search page, task linked sessions, decision cards, feed cards | 16 |
-| org chart session card | 20 |
-| notification rows | 20 on the session chip |
-| mobile session row | 20 |
-| huddle chat: an agent's line, the "is working" row | 20 |
-| huddle feed chip | 14 |
+| surface                                                                                            | size                                  |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| inbox card, threads card, fleet tile                                                               | 18                                    |
+| inbox subagent and trigger child rows, sidebar rows, tab strip, window taskbar                     | 14                                    |
+| conversation header                                                                                | 22                                    |
+| session reference pill (`jx7abcd`)                                                                 | 1em, replacing the type icon fallback |
+| command palette rows, global search, search page, task linked sessions, decision cards, feed cards | 16                                    |
+| org chart session card                                                                             | 20                                    |
+| notification rows                                                                                  | 20 on the session chip                |
+| mobile session row                                                                                 | 20                                    |
+| huddle chat: an agent's line, the "is working" row                                                 | 20                                    |
+| huddle feed chip                                                                                   | 14                                    |
 
 **A huddle addresses an agent by its character.** Every session a live
 huddle feeds is personified in the room whether or not anyone opted in

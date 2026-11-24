@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { loopHoldBoundMs, measureLoopHold } from "./test-helpers/loopHold.js";
-import { getSystemMetrics, parseFootprintMb, type SystemMetricsIO } from "./daemon.js";
+import {
+  getSystemMetrics,
+  parseFootprintMb,
+  type SystemMetricsIO,
+} from "./daemon.js";
 
 describe("parseFootprintMb", () => {
   test("reads the phys_footprint line in any unit, rounded to MB", () => {
@@ -15,7 +19,9 @@ describe("getSystemMetrics", () => {
   test("counts /dev/fd entries when the directory reads", async () => {
     const io: SystemMetricsIO = {
       readdir: async () => ["0", "1", "2", "3"],
-      execFile: async () => { throw new Error("must not run lsof"); },
+      execFile: async () => {
+        throw new Error("must not run lsof");
+      },
     };
     const m = await getSystemMetrics(io);
     expect(m.fds).toBe(4);
@@ -28,14 +34,23 @@ describe("getSystemMetrics", () => {
     let lsofArgs: string[] = [];
     let lsofOpts: { timeout: number; maxBuffer: number } | null = null;
     const io: SystemMetricsIO = {
-      readdir: async () => { throw new Error("ENOENT"); },
+      readdir: async () => {
+        throw new Error("ENOENT");
+      },
       execFile: (_cmd, args, opts) => {
         lsofArgs = args;
         lsofOpts = opts;
-        return new Promise((resolve) => setTimeout(() => resolve({ stdout: "COMMAND PID\nbun 1 cwd\nbun 1 txt\n" }), 30));
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve({ stdout: "COMMAND PID\nbun 1 cwd\nbun 1 txt\n" }),
+            30,
+          ),
+        );
       },
     };
-    const { result, ticks, maxGapMs } = await measureLoopHold(() => getSystemMetrics(io));
+    const { result, ticks, maxGapMs } = await measureLoopHold(() =>
+      getSystemMetrics(io),
+    );
     expect(result.fds).toBe(3);
     expect(lsofArgs).toEqual(["-p", String(process.pid)]);
     expect(lsofOpts!.maxBuffer).toBeGreaterThanOrEqual(16 * 1024 * 1024);
@@ -45,8 +60,12 @@ describe("getSystemMetrics", () => {
 
   test("answers 0 fds when both primitives fail, never throws", async () => {
     const io: SystemMetricsIO = {
-      readdir: async () => { throw new Error("ENOENT"); },
-      execFile: async () => { throw new Error("maxBuffer exceeded"); },
+      readdir: async () => {
+        throw new Error("ENOENT");
+      },
+      execFile: async () => {
+        throw new Error("maxBuffer exceeded");
+      },
     };
     expect((await getSystemMetrics(io)).fds).toBe(0);
   });

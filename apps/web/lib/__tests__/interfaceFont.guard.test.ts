@@ -14,7 +14,10 @@ import { join } from "node:path";
 
 const WEB = join(import.meta.dir, "..", "..");
 const html = readFileSync(join(WEB, "index.html"), "utf8");
-const css = readFileSync(join(WEB, "app", "globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const css = readFileSync(join(WEB, "app", "globals.css"), "utf8").replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
 
 const MONO_FAMILY = /mono|monospace|courier|menlo|consolas/i;
 
@@ -22,11 +25,18 @@ const MONO_FAMILY = /mono|monospace|courier|menlo|consolas/i;
 function rules(selector: string): Array<{ at: number; body: string }> {
   const out: Array<{ at: number; body: string }> = [];
   for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (rule[1].split(",").map((s) => s.trim()).includes(selector)) out.push({ at: rule.index!, body: rule[2] });
+    if (
+      rule[1]
+        .split(",")
+        .map((s) => s.trim())
+        .includes(selector)
+    )
+      out.push({ at: rule.index!, body: rule[2] });
   }
   return out;
 }
-const fontUi = (body: string) => body.match(/--font-ui\s*:\s*([^;]+);/)?.[1]?.trim();
+const fontUi = (body: string) =>
+  body.match(/--font-ui\s*:\s*([^;]+);/)?.[1]?.trim();
 
 describe("interface font", () => {
   test("Classic: <body> wears font-mono", () => {
@@ -54,6 +64,10 @@ describe("interface font", () => {
     const root = rules(":root").filter((r) => fontUi(r.body));
     expect(modern[0].at).toBeGreaterThan(root.at(-1)!.at);
     // <body> wears font-mono for Classic; Modern's body rule (0,1,1) outranks it.
-    expect(rules(".modern-style body").some((r) => /font-family\s*:\s*var\(--font-ui\)/.test(r.body))).toBe(true);
+    expect(
+      rules(".modern-style body").some((r) =>
+        /font-family\s*:\s*var\(--font-ui\)/.test(r.body),
+      ),
+    ).toBe(true);
   });
 });

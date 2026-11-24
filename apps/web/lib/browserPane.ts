@@ -38,7 +38,8 @@ export const BROWSER_ROUTE = "/browser";
 /** Hosts that mean "the machine this window runs on". */
 function isLoopbackHost(host: string): boolean {
   const h = host.toLowerCase();
-  if (h === "localhost" || h === "0.0.0.0" || h === "[::1]" || h === "::1") return true;
+  if (h === "localhost" || h === "0.0.0.0" || h === "[::1]" || h === "::1")
+    return true;
   if (h.endsWith(".localhost")) return true;
   // 127.0.0.0/8 — the whole loopback block, not just 127.0.0.1.
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
@@ -50,7 +51,8 @@ function isLoopbackHost(host: string): boolean {
 function isPrivateHost(host: string): boolean {
   const h = host.toLowerCase();
   if (isLoopbackHost(h)) return true;
-  if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".test")) return true;
+  if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".test"))
+    return true;
   if (!h.includes(".")) return true;
   // RFC1918 and the link-local block: a LAN address, not a public site.
   return (
@@ -75,7 +77,9 @@ export function normalizeUrl(input: string): string | null {
   if (/\s/.test(raw)) return null;
   const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw)
     ? raw
-    : (isPrivateHost(raw.split("/")[0].split(":")[0]) ? "http://" : "https://") + raw;
+    : (isPrivateHost(raw.split("/")[0].split(":")[0])
+        ? "http://"
+        : "https://") + raw;
   let u: URL;
   try {
     u = new URL(withScheme);
@@ -102,7 +106,10 @@ export function isLoopbackUrl(url: string): boolean {
  * the same path on `localhost:<local>`. Null when the address has no port to
  * forward (http on 80 is never a dev server's).
  */
-export function forwardedLoopbackUrl(url: string, localPort: number): string | null {
+export function forwardedLoopbackUrl(
+  url: string,
+  localPort: number,
+): string | null {
   try {
     const u = new URL(url);
     if (!isLoopbackHost(u.hostname) || !u.port) return null;
@@ -115,7 +122,11 @@ export function forwardedLoopbackUrl(url: string, localPort: number): string | n
 }
 
 /** The address a forwarded page reports, said in the serving machine's terms. */
-export function unforwardedUrl(live: string, forwarded: string, original: string): string {
+export function unforwardedUrl(
+  live: string,
+  forwarded: string,
+  original: string,
+): string {
   try {
     const from = new URL(forwarded).origin;
     if (!live.startsWith(from)) return live;
@@ -174,7 +185,9 @@ export function pageAddress(url: string): string {
 export function addressParts(url: string): { host: string; rest: string } {
   const full = pageAddress(url);
   const host = displayHost(url);
-  return full.startsWith(host) ? { host, rest: full.slice(host.length) } : { host: full, rest: "" };
+  return full.startsWith(host)
+    ? { host, rest: full.slice(host.length) }
+    : { host: full, rest: "" };
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +218,11 @@ export function isAppOrigin(url: string): boolean {
   } catch {
     return false;
   }
-  if (typeof window !== "undefined" && window.location && u.origin === window.location.origin) {
+  if (
+    typeof window !== "undefined" &&
+    window.location &&
+    u.origin === window.location.origin
+  ) {
     return true;
   }
   return APP_HOSTS.has(u.hostname.toLowerCase());
@@ -225,7 +242,10 @@ const RELATIVE_BASE = "https://pane.invalid";
 /** Edit a URL's query without touching anything else about it, and without
  *  rewriting the string at all when the edit changes nothing — a re-serialized
  *  address differs from the one a person typed even when it means the same. */
-function rewriteQuery(url: string, edit: (params: URLSearchParams) => boolean): string {
+function rewriteQuery(
+  url: string,
+  edit: (params: URLSearchParams) => boolean,
+): string {
   const absolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
   let u: URL;
   try {
@@ -272,14 +292,25 @@ export function paneSrc(url: string): string {
  * chrome back mid-session on the first navigation. Cached on globalThis so a
  * hot reload cannot answer differently from the boot that built the tree.
  */
-export const PANE_EMBED: boolean = ((globalThis as Record<string, unknown>).__codecastPaneEmbed ??=
+export const PANE_EMBED: boolean = ((
+  globalThis as Record<string, unknown>
+).__codecastPaneEmbed ??=
   typeof window !== "undefined" &&
   !!window.location &&
-  new URLSearchParams(window.location.search).get(EMBED_PARAM) === "1") as boolean;
+  new URLSearchParams(window.location.search).get(EMBED_PARAM) ===
+    "1") as boolean;
 
 type HistoryLike = {
-  pushState: (state: unknown, unused: string, url?: string | URL | null) => void;
-  replaceState: (state: unknown, unused: string, url?: string | URL | null) => void;
+  pushState: (
+    state: unknown,
+    unused: string,
+    url?: string | URL | null,
+  ) => void;
+  replaceState: (
+    state: unknown,
+    unused: string,
+    url?: string | URL | null,
+  ) => void;
   __embedFlagKept?: boolean;
 };
 
@@ -294,7 +325,9 @@ type HistoryLike = {
  * later, and it runs only in a document that was loaded as a pane's page.
  */
 export function keepEmbedFlagOnUrl(history?: HistoryLike): void {
-  const h = history ?? (typeof window !== "undefined" ? (window.history as HistoryLike) : null);
+  const h =
+    history ??
+    (typeof window !== "undefined" ? (window.history as HistoryLike) : null);
   if (!h || h.__embedFlagKept) return;
   h.__embedFlagKept = true;
   for (const verb of ["pushState", "replaceState"] as const) {
@@ -313,9 +346,15 @@ if (PANE_EMBED) keepEmbedFlagOnUrl();
  *  title, so it names what the window shows. A pane's page gives the bare
  *  thing: the pane strip reads it, and the strip already says which app it is
  *  in. */
-export function appDocumentTitle(surface: string, thing: string | null, embedded: boolean = PANE_EMBED): string {
+export function appDocumentTitle(
+  surface: string,
+  thing: string | null,
+  embedded: boolean = PANE_EMBED,
+): string {
   if (embedded) return thing || surface;
-  return thing && thing !== surface ? `Codecast ${surface} | ${thing}` : `Codecast ${surface}`;
+  return thing && thing !== surface
+    ? `Codecast ${surface} | ${thing}`
+    : `Codecast ${surface}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -332,16 +371,22 @@ export type PaneMessage =
   | { type: "codecast:open-beside"; path: string };
 
 type PaneWindow = {
-  parent: { postMessage: (message: unknown, targetOrigin: string) => void } | unknown;
+  parent:
+    | { postMessage: (message: unknown, targetOrigin: string) => void }
+    | unknown;
   location: { origin: string; ancestorOrigins?: ArrayLike<string> };
 };
 
 const thisPaneWindow = (): PaneWindow | null =>
-  PANE_EMBED && typeof window !== "undefined" ? (window as unknown as PaneWindow) : null;
+  PANE_EMBED && typeof window !== "undefined"
+    ? (window as unknown as PaneWindow)
+    : null;
 
 /** True when this document is a pane's page with a window framing it, so pane
  *  gestures belong to that window's stage. */
-export function hasPaneHost(win: PaneWindow | null = thisPaneWindow()): boolean {
+export function hasPaneHost(
+  win: PaneWindow | null = thisPaneWindow(),
+): boolean {
   return !!win && win.parent !== win;
 }
 
@@ -354,10 +399,14 @@ export function hasPaneHost(win: PaneWindow | null = thisPaneWindow()): boolean 
  * document's own origin. A foreign site that frames a codecast page hears
  * nothing.
  */
-export function postToPaneHost(message: PaneMessage, win: PaneWindow | null = thisPaneWindow()): boolean {
+export function postToPaneHost(
+  message: PaneMessage,
+  win: PaneWindow | null = thisPaneWindow(),
+): boolean {
   if (!win || !hasPaneHost(win)) return false;
   const framing = win.location.ancestorOrigins?.[0];
-  const target = framing && isAppOrigin(framing) ? framing : win.location.origin;
+  const target =
+    framing && isAppOrigin(framing) ? framing : win.location.origin;
   (win.parent as Window).postMessage(message, target);
   return true;
 }
@@ -369,30 +418,58 @@ export function readPaneMessage(
   event: { origin: string; data: unknown; source: unknown },
   frame: unknown,
 ): PaneMessage | null {
-  if (!frame || event.source !== frame || !isAppOrigin(event.origin)) return null;
+  if (!frame || event.source !== frame || !isAppOrigin(event.origin))
+    return null;
   const data = event.data as Record<string, unknown> | null;
   if (!data || typeof data !== "object") return null;
   if (data.type === "codecast:open-beside") {
     const path = data.path;
-    return typeof path === "string" && path.startsWith("/") && !path.startsWith("//")
+    return typeof path === "string" &&
+      path.startsWith("/") &&
+      !path.startsWith("//")
       ? { type: "codecast:open-beside", path }
       : null;
   }
   if (data.type === "codecast:open-pane") {
     const source = data.source as Record<string, unknown> | null;
-    if (source?.kind === "watch" && typeof source.sessionUuid === "string" && source.sessionUuid) {
-      return { type: "codecast:open-pane", source: { kind: "watch", sessionUuid: source.sessionUuid } };
+    if (
+      source?.kind === "watch" &&
+      typeof source.sessionUuid === "string" &&
+      source.sessionUuid
+    ) {
+      return {
+        type: "codecast:open-pane",
+        source: { kind: "watch", sessionUuid: source.sessionUuid },
+      };
     }
-    if (source?.kind === "screen" && typeof source.deviceId === "string" && DEVICE_ID.test(source.deviceId)) {
-      return { type: "codecast:open-pane", source: { kind: "screen", deviceId: source.deviceId } };
+    if (
+      source?.kind === "screen" &&
+      typeof source.deviceId === "string" &&
+      DEVICE_ID.test(source.deviceId)
+    ) {
+      return {
+        type: "codecast:open-pane",
+        source: { kind: "screen", deviceId: source.deviceId },
+      };
     }
     // Passed on as sent, not normalized: the host builds the same path the
     // gesture would have built unframed, so a pane already showing it is
     // focused rather than doubled.
     const url = source?.kind === "url" ? source.url : null;
-    if (typeof url !== "string" || !/^https?:\/\//i.test(url) || !normalizeUrl(url)) return null;
-    const session = typeof source?.session === "string" && source.session ? source.session : undefined;
-    return { type: "codecast:open-pane", source: session ? { kind: "url", url, session } : { kind: "url", url } };
+    if (
+      typeof url !== "string" ||
+      !/^https?:\/\//i.test(url) ||
+      !normalizeUrl(url)
+    )
+      return null;
+    const session =
+      typeof source?.session === "string" && source.session
+        ? source.session
+        : undefined;
+    return {
+      type: "codecast:open-pane",
+      source: session ? { kind: "url", url, session } : { kind: "url", url },
+    };
   }
   return null;
 }
@@ -410,11 +487,18 @@ export function readPaneMessage(
  * the app's own origin is always framable. "unknown" never blocks a page.
  * Answers are kept for the life of the window.
  */
-const framingAnswers = new Map<string, Promise<"allows" | "refuses" | "unknown">>();
-export function askFraming(url: string): Promise<"allows" | "refuses" | "unknown"> {
-  if (typeof window === "undefined" || isPrivateNetworkUrl(url)) return Promise.resolve("unknown");
+const framingAnswers = new Map<
+  string,
+  Promise<"allows" | "refuses" | "unknown">
+>();
+export function askFraming(
+  url: string,
+): Promise<"allows" | "refuses" | "unknown"> {
+  if (typeof window === "undefined" || isPrivateNetworkUrl(url))
+    return Promise.resolve("unknown");
   try {
-    if (new URL(url).origin === window.location.origin) return Promise.resolve("allows");
+    if (new URL(url).origin === window.location.origin)
+      return Promise.resolve("allows");
   } catch {
     return Promise.resolve("unknown");
   }
@@ -423,7 +507,11 @@ export function askFraming(url: string): Promise<"allows" | "refuses" | "unknown
     const q = new URLSearchParams({ u: url, o: window.location.origin });
     answer = fetch(`/api/frame-check?${q}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((body) => (body?.verdict === "allows" || body?.verdict === "refuses" ? body.verdict : "unknown"))
+      .then((body) =>
+        body?.verdict === "allows" || body?.verdict === "refuses"
+          ? body.verdict
+          : "unknown",
+      )
       .catch(() => "unknown" as const);
     framingAnswers.set(url, answer);
   }
@@ -450,7 +538,10 @@ type ProbeIo = {
  * "denied" counts: "prompt" is also what a page on a local origin reads, where
  * no permission applies and the port really is closed.
  */
-export async function probeAddress(url: string, io?: ProbeIo): Promise<ProbeVerdict> {
+export async function probeAddress(
+  url: string,
+  io?: ProbeIo,
+): Promise<ProbeVerdict> {
   const { fetch: send, permissions } = io ?? {
     fetch: (u: string, init: RequestInit) => globalThis.fetch(u, init),
     permissions: globalThis.navigator?.permissions as ProbeIo["permissions"],
@@ -477,7 +568,8 @@ export async function probeAddress(url: string, io?: ProbeIo): Promise<ProbeVerd
     : ["local-network", "local-network-access"];
   for (const name of names) {
     try {
-      if ((await permissions.query({ name })).state === "denied") return "local-network-blocked";
+      if ((await permissions.query({ name })).state === "denied")
+        return "local-network-blocked";
     } catch {
       // Unknown permission name in this browser.
     }
@@ -504,7 +596,8 @@ export function parseBrowserRoute(path: string): BrowserSource | null {
   const watch = params.get("watch");
   if (watch) return { kind: "watch", sessionUuid: watch };
   const screen = params.get("screen");
-  if (screen && DEVICE_ID.test(screen)) return { kind: "screen", deviceId: screen };
+  if (screen && DEVICE_ID.test(screen))
+    return { kind: "screen", deviceId: screen };
   const u = params.get("u");
   if (!u) return null;
   const url = normalizeUrl(u);
@@ -521,7 +614,10 @@ export function prefersNativeRoute(path: string): boolean {
 
 /** The path that shows this source. `native` rides the path too, so the choice
  *  survives a reload and a drag exactly like the URL does. */
-export function browserRoutePath(source: BrowserSource, opts?: { native?: boolean }): string {
+export function browserRoutePath(
+  source: BrowserSource,
+  opts?: { native?: boolean },
+): string {
   const params = new URLSearchParams();
   if (source.kind === "watch") params.set("watch", source.sessionUuid);
   else if (source.kind === "screen") params.set("screen", source.deviceId);
@@ -565,10 +661,14 @@ export type BrowserEnv = {
  * meaning the user picked it, or the frame was refused and native is the only
  * way to show the page at all.
  */
-export function selectBackend(source: BrowserSource, env: BrowserEnv): BrowserBackendKind {
+export function selectBackend(
+  source: BrowserSource,
+  env: BrowserEnv,
+): BrowserBackendKind {
   if (source.kind === "watch") return "stream";
   if (source.kind === "screen") return "screen";
-  if (env.desktop && env.nativeAvailable && (env.preferNative || env.refused)) return "native";
+  if (env.desktop && env.nativeAvailable && (env.preferNative || env.refused))
+    return "native";
   return "frame";
 }
 

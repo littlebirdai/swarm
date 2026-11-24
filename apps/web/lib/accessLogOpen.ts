@@ -18,11 +18,19 @@ export type AppClient = "web" | "desktop";
 export const appClient = (): AppClient => (isDesktop() ? "desktop" : "web");
 
 /** Report one open of a conversation per mount and conversation, for a regulated team's conversation. */
-export function useRecordConversationOpen(conversationId: string | null | undefined, teamId: string | null | undefined): void {
+export function useRecordConversationOpen(
+  conversationId: string | null | undefined,
+  teamId: string | null | undefined,
+): void {
   const note = useMutation(api.accessLog.noteConversationAccess);
   const sent = useRef<string | null>(null);
   useWatchEffect(() => {
-    if (!conversationId || conversationId.startsWith("optimistic") || sent.current === conversationId) return;
+    if (
+      !conversationId ||
+      conversationId.startsWith("optimistic") ||
+      sent.current === conversationId
+    )
+      return;
     const shareToken = getShareTokenScope(conversationId);
     if (!shareToken && !viewerTeamIsRegulated(teamId)) return;
     sent.current = conversationId;
@@ -36,22 +44,47 @@ export function useRecordConversationOpen(conversationId: string | null | undefi
 }
 
 /** Report one open of a call's recording per mount and call, for a regulated team's call. */
-export function useRecordCallRecordingOpen(callRef: string | null | undefined, teamId: string | null | undefined, hasVideo: boolean): void {
+export function useRecordCallRecordingOpen(
+  callRef: string | null | undefined,
+  teamId: string | null | undefined,
+  hasVideo: boolean,
+): void {
   const note = useMutation(api.accessLog.noteCallRecordingOpen);
   const sent = useRef<string | null>(null);
   useWatchEffect(() => {
-    if (!callRef || !hasVideo || sent.current === callRef || !viewerTeamIsRegulated(teamId)) return;
+    if (
+      !callRef ||
+      !hasVideo ||
+      sent.current === callRef ||
+      !viewerTeamIsRegulated(teamId)
+    )
+      return;
     sent.current = callRef;
     void note({ call: callRef, client: appClient() }).catch(() => {});
   }, [callRef, teamId, hasVideo, note]);
 }
 
 /** Report a file saved out of a conversation; the caller fires it on the press. */
-export function useRecordConversationDownload(): (conversationId: string | null | undefined, fileName: string) => void {
+export function useRecordConversationDownload(): (
+  conversationId: string | null | undefined,
+  fileName: string,
+) => void {
   const note = useMutation(api.accessLog.noteConversationAccess);
   return (conversationId, fileName) => {
-    const conv = conversationId ? (useInboxStore.getState().conversations as Record<string, { team_id?: string } | undefined>)[conversationId] : null;
+    const conv = conversationId
+      ? (
+          useInboxStore.getState().conversations as Record<
+            string,
+            { team_id?: string } | undefined
+          >
+        )[conversationId]
+      : null;
     if (!conversationId || !viewerTeamIsRegulated(conv?.team_id)) return;
-    void note({ conversation_id: conversationId as Id<"conversations">, action: "download", client: appClient(), detail: fileName }).catch(() => {});
+    void note({
+      conversation_id: conversationId as Id<"conversations">,
+      action: "download",
+      client: appClient(),
+      detail: fileName,
+    }).catch(() => {});
   };
 }

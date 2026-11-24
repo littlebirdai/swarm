@@ -8,7 +8,12 @@ import type { AcmePart } from "./parts";
 import { ORG_TREE } from "./extras";
 import { DAY, HOUR, MIN, PEOPLE, SESSIONS, cid, session } from "./world";
 
-export const WEBHOOKS_SEAT = { _id: cid("sseatwebhooks"), short_id: "jx7s3wl", title: "Webhooks lead", agent_type: "claude_code" } as const;
+export const WEBHOOKS_SEAT = {
+  _id: cid("sseatwebhooks"),
+  short_id: "jx7s3wl",
+  title: "Webhooks lead",
+  agent_type: "claude_code",
+} as const;
 
 const CHARTER = `Own Acme's webhook delivery: every event a customer is sent arrives, or lands in the dead-letter queue with a reason.
 
@@ -19,7 +24,13 @@ const CHARTER = `Own Acme's webhook delivery: every event a customer is sent arr
 const SEAT_TRANSCRIPT = (now: number) => {
   const t = (mins: number) => now - mins * MIN;
   return [
-    { _id: "hero-seat-m1", role: "user", content: "Where are we on webhook retries? Support wants to know if last night's 502s were caught.", timestamp: t(42) },
+    {
+      _id: "hero-seat-m1",
+      role: "user",
+      content:
+        "Where are we on webhook retries? Support wants to know if last night's 502s were caught.",
+      timestamp: t(42),
+    },
     {
       _id: "hero-seat-m2",
       role: "assistant",
@@ -27,11 +38,17 @@ const SEAT_TRANSCRIPT = (now: number) => {
         "All 14 deliveries that hit the ledger's 502s overnight were retried and landed, 12 on the second attempt and 2 on the third. Nothing reached the dead-letter queue.\n\nOpen now: the queue worker (ct-4182) is in progress in the lead session, and Maya's dashboard history (ct-4188) is wiring its Retry button. PR #482 is approved and green.",
       timestamp: t(40),
     },
-    { _id: "hero-seat-m3", role: "user", content: "Good. Should a 410 Gone count as a failure?", timestamp: t(12) },
+    {
+      _id: "hero-seat-m3",
+      role: "user",
+      content: "Good. Should a 410 Gone count as a failure?",
+      timestamp: t(12),
+    },
     {
       _id: "hero-seat-m4",
       role: "assistant",
-      content: "No. A 410 means the endpoint is gone, so a retry can never land. I logged it as final in the plan and asked the API session to stop retrying it; the change is in review on #482.",
+      content:
+        "No. A 410 means the endpoint is gone, so a retry can never land. I logged it as final in the plan and asked the API session to stop retrying it; the change is in review on #482.",
       timestamp: t(10),
     },
   ];
@@ -48,8 +65,23 @@ const withSeat = (tree: ReturnType<typeof ORG_TREE>, now: number) => ({
           reports_to: { kind: "user" as const, user_id: PEOPLE.sarah._id },
           host_user_id: PEOPLE.me._id,
           trust: "decide",
-          scope_names: { projects: [{ id: cid("projwebhooks"), title: "Webhooks", short_id: "pj-12" }], plans: [{ id: cid("planwebhooks"), title: "Webhook retries", short_id: "pl-312" }] },
-          standing: { ...r.standing, conversation_id: WEBHOOKS_SEAT._id, short_id: WEBHOOKS_SEAT.short_id },
+          scope_names: {
+            projects: [
+              { id: cid("projwebhooks"), title: "Webhooks", short_id: "pj-12" },
+            ],
+            plans: [
+              {
+                id: cid("planwebhooks"),
+                title: "Webhook retries",
+                short_id: "pl-312",
+              },
+            ],
+          },
+          standing: {
+            ...r.standing,
+            conversation_id: WEBHOOKS_SEAT._id,
+            short_id: WEBHOOKS_SEAT.short_id,
+          },
           created_at: now - 12 * DAY,
         },
   ),
@@ -60,10 +92,45 @@ const SCOPE_FEED = (now: number) => {
   const alex = { name: PEOPLE.me.name, image: PEOPLE.me.image };
   const maya = { name: PEOPLE.maya.name, image: PEOPLE.maya.image };
   return [
-    { kind: "session", id: SESSIONS.lead._id, short_id: SESSIONS.lead.short_id, title: SESSIONS.lead.title, state: "working", actor: alex, updated_at: now - 20_000, href: `/conversation/${SESSIONS.lead._id}`, preview: "Retry queue is in, workers on the API and the dashboard" },
-    { kind: "decision", id: cid("feed410"), title: "A 410 Gone is final and never retries", actor: alex, updated_at: now - 40 * MIN, href: "/plans/pl-312" },
-    { kind: "task", id: "hero-t9", short_id: "ct-4188", title: "Retry button and attempt history", state: "in_progress", actor: maya, updated_at: now - 60 * MIN, href: "/tasks/ct-4188" },
-    { kind: "task", id: "hero-t13", short_id: "ct-4181", title: "Add exponential backoff to webhook retries", state: "done", actor: alex, updated_at: now - 5 * HOUR, href: "/tasks/ct-4181" },
+    {
+      kind: "session",
+      id: SESSIONS.lead._id,
+      short_id: SESSIONS.lead.short_id,
+      title: SESSIONS.lead.title,
+      state: "working",
+      actor: alex,
+      updated_at: now - 20_000,
+      href: `/conversation/${SESSIONS.lead._id}`,
+      preview: "Retry queue is in, workers on the API and the dashboard",
+    },
+    {
+      kind: "decision",
+      id: cid("feed410"),
+      title: "A 410 Gone is final and never retries",
+      actor: alex,
+      updated_at: now - 40 * MIN,
+      href: "/plans/pl-312",
+    },
+    {
+      kind: "task",
+      id: "hero-t9",
+      short_id: "ct-4188",
+      title: "Retry button and attempt history",
+      state: "in_progress",
+      actor: maya,
+      updated_at: now - 60 * MIN,
+      href: "/tasks/ct-4188",
+    },
+    {
+      kind: "task",
+      id: "hero-t13",
+      short_id: "ct-4181",
+      title: "Add exponential backoff to webhook retries",
+      state: "done",
+      actor: alex,
+      updated_at: now - 5 * HOUR,
+      href: "/tasks/ct-4181",
+    },
   ];
 };
 
@@ -75,11 +142,21 @@ export const ORG_ROLES_PART: AcmePart = {
       waiting: "done",
       project: "~/src/billing",
       messages: 4,
-      state: "Overnight 502s all retried and landed\nStatus: 410s are final, change in review",
-      extra: { standing_role_id: cid("rolewebhooks"), inbox_dismissed_at: now - 5 * MIN },
+      state:
+        "Overnight 502s all retried and landed\nStatus: 410s are final, change in review",
+      extra: {
+        standing_role_id: cid("rolewebhooks"),
+        inbox_dismissed_at: now - 5 * MIN,
+      },
     }),
   ],
-  seed: (s, now) => s.applyTailMessages(WEBHOOKS_SEAT._id, 0, SEAT_TRANSCRIPT(now) as any, null),
+  seed: (s, now) =>
+    s.applyTailMessages(
+      WEBHOOKS_SEAT._id,
+      0,
+      SEAT_TRANSCRIPT(now) as any,
+      null,
+    ),
   answers: {
     "org:tree": () => withSeat(ORG_TREE(Date.now()), Date.now()),
     // The lighter feed the conversation page and the task page mount: the same tree.

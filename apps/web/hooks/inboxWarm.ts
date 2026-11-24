@@ -1,6 +1,16 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { useInboxStore, isConvexId, ensureHydrated, visualOrderViewSig, inboxMemberRows, placeInboxRows, sessionRowFromConversation, sessionStructuralSig, type InboxSession } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  ensureHydrated,
+  visualOrderViewSig,
+  inboxMemberRows,
+  placeInboxRows,
+  sessionRowFromConversation,
+  sessionStructuralSig,
+  type InboxSession,
+} from "../store/inboxStore";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
@@ -94,17 +104,32 @@ export function planWarm(rows: WarmRow[]): WarmAction[] {
     if (row.storedCount === 0) {
       if (cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
-      actions.push({ kind: "cold", id: row.id, rows: depth, serverCount: row.serverCount });
+      actions.push({
+        kind: "cold",
+        id: row.id,
+        rows: depth,
+        serverCount: row.serverCount,
+      });
       return;
     }
     if (row.storedCount < depth && row.hasMoreAbove) {
       if (deepens >= MAX_DEEPEN_PER_PASS) return;
       deepens++;
-      actions.push({ kind: "deepen", id: row.id, rows: depth - row.storedCount });
+      actions.push({
+        kind: "deepen",
+        id: row.id,
+        rows: depth - row.storedCount,
+      });
       return;
     }
-    if (row.serverCount <= (row.syncedCount ?? 0) || row.newestTs === null) return;
-    actions.push({ kind: "delta", id: row.id, after: row.rereadFrom ?? row.newestTs - 1, serverCount: row.serverCount });
+    if (row.serverCount <= (row.syncedCount ?? 0) || row.newestTs === null)
+      return;
+    actions.push({
+      kind: "delta",
+      id: row.id,
+      after: row.rereadFrom ?? row.newestTs - 1,
+      serverCount: row.serverCount,
+    });
   });
   return actions;
 }
@@ -118,7 +143,10 @@ type ConvexClient = { query: (fn: any, args: any) => Promise<any> };
  * anywhere in the window: a hosted conversation (short by nature) re-reads
  * its whole cached window, and mergeMessages replaces every changed copy.
  */
-export function rereadAnchor(msgs: readonly { timestamp: number }[] | undefined, agentType: string | null | undefined): number | null {
+export function rereadAnchor(
+  msgs: readonly { timestamp: number }[] | undefined,
+  agentType: string | null | undefined,
+): number | null {
   if (!msgs?.length) return null;
   const from = isHostedAgentType(agentType) ? msgs[0] : msgs[msgs.length - 1];
   return from.timestamp - 1;
@@ -130,7 +158,12 @@ export function rereadAnchor(msgs: readonly { timestamp: number }[] | undefined,
  * share. Returns how many rows arrived, or null when the server refused
  * (no access yet, auth still loading).
  */
-export async function readForward(convex: ConvexClient, conversationId: string, after: number, maxPages = 40): Promise<number | null> {
+export async function readForward(
+  convex: ConvexClient,
+  conversationId: string,
+  after: number,
+  maxPages = 40,
+): Promise<number | null> {
   let cursor = after;
   let fetched = 0;
   for (let i = 0; i < maxPages; i++) {
@@ -140,7 +173,11 @@ export async function readForward(convex: ConvexClient, conversationId: string, 
     });
     if (result === null) return fetched > 0 ? fetched : null;
     if (!result.messages?.length) break;
-    useInboxStore.getState().mergeMessages(conversationId, result.messages, "append", { initialized: true });
+    useInboxStore
+      .getState()
+      .mergeMessages(conversationId, result.messages, "append", {
+        initialized: true,
+      });
     fetched += result.messages.length;
     if (!result.has_more || result.last_timestamp == null) break;
     cursor = result.last_timestamp;
@@ -203,25 +240,46 @@ export async function fetchMessagesAround(
  *  history fetch behind scroll-up (useConversationMessages.loadOlder), the
  *  deepen tier and the open-path backfill. Resolves false when there was
  *  nothing local to page back from. */
-export async function fetchOlderPage(convex: ConvexClient, conversationId: string, limit: number): Promise<boolean> {
-  const oldest = useInboxStore.getState().messages[conversationId]?.[0]?.timestamp;
+export async function fetchOlderPage(
+  convex: ConvexClient,
+  conversationId: string,
+  limit: number,
+): Promise<boolean> {
+  const oldest =
+    useInboxStore.getState().messages[conversationId]?.[0]?.timestamp;
   if (oldest === undefined) return false;
-  const res: any = await fetchOlderMessages(convex, conversationId, oldest, limit);
+  const res: any = await fetchOlderMessages(
+    convex,
+    conversationId,
+    oldest,
+    limit,
+  );
   if (!res?.messages) return false;
-  useInboxStore.getState().mergeMessages(conversationId, res.messages, "prepend", {
-    hasMoreAbove: res.has_more_above ?? false,
-    initialized: true,
-  });
+  useInboxStore
+    .getState()
+    .mergeMessages(conversationId, res.messages, "prepend", {
+      hasMoreAbove: res.has_more_above ?? false,
+      initialized: true,
+    });
   return true;
 }
 
 /** Bring one conversation's cached window up to `rows` if older rows exist —
  *  the open path calls this after anchoring on a short cached tail so the first
  *  scroll-up is already local. Shares the in-flight set with the warm loop. */
-export function deepenConversation(convex: ConvexClient, conversationId: string, rows = WARM_DEEP_ROWS): Promise<void> {
+export function deepenConversation(
+  convex: ConvexClient,
+  conversationId: string,
+  rows = WARM_DEEP_ROWS,
+): Promise<void> {
   const st = useInboxStore.getState();
   const stored = st.messages[conversationId]?.length ?? 0;
-  if (stored === 0 || stored >= rows || !st.pagination[conversationId]?.hasMoreAbove) return Promise.resolve();
+  if (
+    stored === 0 ||
+    stored >= rows ||
+    !st.pagination[conversationId]?.hasMoreAbove
+  )
+    return Promise.resolve();
   if (inFlight.has(conversationId)) return Promise.resolve();
   inFlight.add(conversationId);
   return fetchOlderPage(convex, conversationId, rows - stored)
@@ -230,7 +288,10 @@ export function deepenConversation(convex: ConvexClient, conversationId: string,
     .finally(() => inFlight.delete(conversationId));
 }
 
-function runCold(convex: ConvexClient, action: Extract<WarmAction, { kind: "cold" }>) {
+function runCold(
+  convex: ConvexClient,
+  action: Extract<WarmAction, { kind: "cold" }>,
+) {
   const { id, rows, serverCount } = action;
   inFlight.add(id);
   // A previously-opened session usually still sits in IDB — restore it for
@@ -253,7 +314,11 @@ function runCold(convex: ConvexClient, action: Extract<WarmAction, { kind: "cold
       const page = res?.page;
       // Don't clobber a window the user opened (or IDB restored) meanwhile —
       // the live tail owns it from that point on.
-      if (Array.isArray(page) && page.length > 0 && (useInboxStore.getState().messages[id]?.length ?? 0) === 0) {
+      if (
+        Array.isArray(page) &&
+        page.length > 0 &&
+        (useInboxStore.getState().messages[id]?.length ?? 0) === 0
+      ) {
         // listMessages is DESC (newest-first); the store holds ASC.
         useInboxStore.getState().setMessages(id, [...page].reverse(), {
           hasMoreAbove: !res.isDone,
@@ -262,34 +327,55 @@ function runCold(convex: ConvexClient, action: Extract<WarmAction, { kind: "cold
         syncedCount.set(id, serverCount);
       }
     })
-    .catch((err: unknown) => { console.warn("[inboxWarm] cold warm failed", { id, err }); })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] cold warm failed", { id, err });
+    })
     .finally(() => inFlight.delete(id));
 }
 
 function runRow(convex: ConvexClient, id: string) {
   inFlight.add(id);
   rowTried.add(id);
-  convex.query(api.conversations.getConversation, { conversation_id: id as Id<"conversations">, limit: 1 })
-    .then((data: any) => {
-      if (data) useInboxStore.getState().seedSession(sessionRowFromConversation(id, data));
+  convex
+    .query(api.conversations.getConversation, {
+      conversation_id: id as Id<"conversations">,
+      limit: 1,
     })
-    .catch((err: unknown) => { console.warn("[inboxWarm] row warm failed", { id, err }); })
+    .then((data: any) => {
+      if (data)
+        useInboxStore
+          .getState()
+          .seedSession(sessionRowFromConversation(id, data));
+    })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] row warm failed", { id, err });
+    })
     .finally(() => inFlight.delete(id));
 }
 
-function runDelta(convex: ConvexClient, action: Extract<WarmAction, { kind: "delta" }>) {
+function runDelta(
+  convex: ConvexClient,
+  action: Extract<WarmAction, { kind: "delta" }>,
+) {
   const { id, serverCount } = action;
   inFlight.add(id);
   readForward(convex, id, action.after)
     .then(() => syncedCount.set(id, serverCount))
-    .catch((err: unknown) => { console.warn("[inboxWarm] delta warm failed", { id, err }); })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] delta warm failed", { id, err });
+    })
     .finally(() => inFlight.delete(id));
 }
 
-function runDeepen(convex: ConvexClient, action: Extract<WarmAction, { kind: "deepen" }>) {
+function runDeepen(
+  convex: ConvexClient,
+  action: Extract<WarmAction, { kind: "deepen" }>,
+) {
   inFlight.add(action.id);
   fetchOlderPage(convex, action.id, action.rows)
-    .catch((err: unknown) => { console.warn("[inboxWarm] deepen failed", { id: action.id, err }); })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] deepen failed", { id: action.id, err });
+    })
     .finally(() => inFlight.delete(action.id));
 }
 
@@ -302,8 +388,11 @@ function runDeepen(convex: ConvexClient, action: Extract<WarmAction, { kind: "de
  * org page; opening any of them must find a warm row. Rows behind the show-old
  * fold stay out: they outnumber the in-memory cap.
  */
-export function warmOrder(st: ReturnType<typeof useInboxStore.getState>): { id: string; session?: InboxSession; needsRow?: boolean }[] {
-  const order: { id: string; session?: InboxSession; needsRow?: boolean }[] = [];
+export function warmOrder(
+  st: ReturnType<typeof useInboxStore.getState>,
+): { id: string; session?: InboxSession; needsRow?: boolean }[] {
+  const order: { id: string; session?: InboxSession; needsRow?: boolean }[] =
+    [];
   const byId = new Map<string, (typeof order)[number]>();
   const add = (id: string, session?: InboxSession, needsRow?: boolean) => {
     const held = byId.get(id);
@@ -324,10 +413,12 @@ export function warmOrder(st: ReturnType<typeof useInboxStore.getState>): { id: 
   // placement files a standing session hidden by it, so a copy seeded without
   // it (before seeds carried it) shows as an active card until refetched.
   for (const role of windowOrgTree(st)?.roles ?? []) {
-    const id = role.standing?.conversation_id && String(role.standing.conversation_id);
+    const id =
+      role.standing?.conversation_id && String(role.standing.conversation_id);
     if (id) add(id, st.sessions[id], !st.sessions[id]?.is_anchor);
   }
-  for (const s of Object.values(st.sessions)) if (s.standing_role_id) add(String(s._id), s, !s.is_anchor);
+  for (const s of Object.values(st.sessions))
+    if (s.standing_role_id) add(String(s._id), s, !s.is_anchor);
   return order;
 }
 
@@ -336,20 +427,47 @@ export function warmOrder(st: ReturnType<typeof useInboxStore.getState>): { id: 
 // and the view's own inputs. It only sets warm priority, so an order that
 // shifted inside a bucket waits for the next structural change; the rows
 // themselves are read from the store on every pass.
-let renderedMemo: { placements: unknown; view: string; deps: unknown[]; order: InboxSession[] } | null = null;
-function renderedOrder(st: ReturnType<typeof useInboxStore.getState>): InboxSession[] {
-  const { placements } = placeInboxRows(st, { focusedId: st.currentSessionId ?? null });
+let renderedMemo: {
+  placements: unknown;
+  view: string;
+  deps: unknown[];
+  order: InboxSession[];
+} | null = null;
+function renderedOrder(
+  st: ReturnType<typeof useInboxStore.getState>,
+): InboxSession[] {
+  const { placements } = placeInboxRows(st, {
+    focusedId: st.currentSessionId ?? null,
+  });
   const view = visualOrderViewSig(st);
-  const deps: unknown[] = [st.bucketAssignments, st.buckets, st.collapsedSections, st.favorites, st.plans, st.scheduleNavSets, st.recentFreezeOrder, st.orgTree, st.clientState.ui];
+  const deps: unknown[] = [
+    st.bucketAssignments,
+    st.buckets,
+    st.collapsedSections,
+    st.favorites,
+    st.plans,
+    st.scheduleNavSets,
+    st.recentFreezeOrder,
+    st.orgTree,
+    st.clientState.ui,
+  ];
   const m = renderedMemo;
-  if (m && m.placements === placements && m.view === view && deps.every((d, i) => d === m.deps[i])) return m.order;
+  if (
+    m &&
+    m.placements === placements &&
+    m.view === view &&
+    deps.every((d, i) => d === m.deps[i])
+  )
+    return m.order;
   const order = st.visualOrder();
   renderedMemo = { placements, view, deps, order };
   return order;
 }
 
 /** Snapshot the inbox into planner rows, in warm priority. */
-export function warmRowsFromState(st: ReturnType<typeof useInboxStore.getState>): WarmRow[] {
+export function warmRowsFromState(
+  st: ReturnType<typeof useInboxStore.getState>,
+): WarmRow[] {
   const rows: WarmRow[] = [];
   for (const { id, session, needsRow } of warmOrder(st)) {
     if (!isConvexId(id)) continue;
@@ -361,11 +479,17 @@ export function warmRowsFromState(st: ReturnType<typeof useInboxStore.getState>)
       // row is where the overlay has merged the exact value.
       // A row fetch is tried once (rowTried), then the row's own count rules,
       // whatever came back.
-      serverCount: needsRow && !rowTried.has(id) ? null : st.sessions[id]?.message_count ?? session?.message_count ?? 0,
+      serverCount:
+        needsRow && !rowTried.has(id)
+          ? null
+          : (st.sessions[id]?.message_count ?? session?.message_count ?? 0),
       storedCount,
       hasMoreAbove: st.pagination[id]?.hasMoreAbove ?? false,
       newestTs: storedCount > 0 ? msgs[storedCount - 1].timestamp : null,
-      rereadFrom: rereadAnchor(msgs, st.sessions[id]?.agent_type ?? (session as any)?.agent_type),
+      rereadFrom: rereadAnchor(
+        msgs,
+        st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
+      ),
       syncedCount: syncedCount.get(id),
       inFlight: inFlight.has(id),
     });
@@ -376,7 +500,10 @@ export function warmRowsFromState(st: ReturnType<typeof useInboxStore.getState>)
 // The on-screen set is what message eviction protects (evictInactiveMessages).
 // Change-guarded so an identical pass allocates nothing and wakes no subscriber;
 // ephemeral state, so a raw set is the right write.
-function publishProtectedIds(st: ReturnType<typeof useInboxStore.getState>, rows: WarmRow[]) {
+function publishProtectedIds(
+  st: ReturnType<typeof useInboxStore.getState>,
+  rows: WarmRow[],
+) {
   const prev = st.warmProtectedIds;
   if (prev.size === rows.length && rows.every((r) => prev.has(r.id))) return;
   useInboxStore.setState({ warmProtectedIds: new Set(rows.map((r) => r.id)) });
@@ -390,7 +517,11 @@ export function warmVisibleSessions(convex: ConvexClient): void {
   const rows = warmRowsFromState(st);
   publishProtectedIds(st, rows);
   const plan = planWarm(rows);
-  lastPass = { at: Date.now(), planned: plan.length, kinds: plan.map((a) => a.kind) };
+  lastPass = {
+    at: Date.now(),
+    planned: plan.length,
+    kinds: plan.map((a) => a.kind),
+  };
   for (const action of plan) {
     if (action.kind === "row") runRow(convex, action.id);
     else if (action.kind === "cold") runCold(convex, action);
@@ -409,16 +540,36 @@ const WARM_MAX_DEFER_MS = 3_000;
 // conversation's cached tail; whether older pages remain. A heartbeat or a
 // streamed token in some other field changes none of them and schedules
 // nothing.
-const warmSessionsSig = makeCollectionSig<InboxSession>((s) => `${sessionStructuralSig(s)}|${s.message_count ?? ""}|${s.is_anchor ? 1 : 0}|${s.agent_type ?? ""}`);
-const warmMessagesSig = makeCollectionSig<{ timestamp?: number }[] | undefined>((m) => (m ? `${m.length}|${m[m.length - 1]?.timestamp ?? ""}` : null));
-const warmPaginationSig = makeCollectionSig<{ hasMoreAbove?: boolean } | undefined>((p) => (p?.hasMoreAbove ? "1" : "0"));
+const warmSessionsSig = makeCollectionSig<InboxSession>(
+  (s) =>
+    `${sessionStructuralSig(s)}|${s.message_count ?? ""}|${s.is_anchor ? 1 : 0}|${s.agent_type ?? ""}`,
+);
+const warmMessagesSig = makeCollectionSig<{ timestamp?: number }[] | undefined>(
+  (m) => (m ? `${m.length}|${m[m.length - 1]?.timestamp ?? ""}` : null),
+);
+const warmPaginationSig = makeCollectionSig<
+  { hasMoreAbove?: boolean } | undefined
+>((p) => (p?.hasMoreAbove ? "1" : "0"));
 
-type WarmInputs = Pick<ReturnType<typeof useInboxStore.getState>, "sessions" | "messages" | "pagination" | "liveInboxIds" | "teamInboxIds" | "orgTree">;
+type WarmInputs = Pick<
+  ReturnType<typeof useInboxStore.getState>,
+  | "sessions"
+  | "messages"
+  | "pagination"
+  | "liveInboxIds"
+  | "teamInboxIds"
+  | "orgTree"
+>;
 const warmInputsChanged = (a: WarmInputs, b: WarmInputs) =>
-  (a.sessions !== b.sessions && warmSessionsSig(a.sessions) !== warmSessionsSig(b.sessions))
-  || (a.messages !== b.messages && warmMessagesSig(a.messages) !== warmMessagesSig(b.messages))
-  || (a.pagination !== b.pagination && warmPaginationSig(a.pagination) !== warmPaginationSig(b.pagination))
-  || a.liveInboxIds !== b.liveInboxIds || a.teamInboxIds !== b.teamInboxIds || a.orgTree !== b.orgTree;
+  (a.sessions !== b.sessions &&
+    warmSessionsSig(a.sessions) !== warmSessionsSig(b.sessions)) ||
+  (a.messages !== b.messages &&
+    warmMessagesSig(a.messages) !== warmMessagesSig(b.messages)) ||
+  (a.pagination !== b.pagination &&
+    warmPaginationSig(a.pagination) !== warmPaginationSig(b.pagination)) ||
+  a.liveInboxIds !== b.liveInboxIds ||
+  a.teamInboxIds !== b.teamInboxIds ||
+  a.orgTree !== b.orgTree;
 
 /**
  * Keep the rendered rows warm in THIS window for as long as it lives. The pass
@@ -459,10 +610,14 @@ function runWarmLoop(convex: ConvexClient): () => void {
   let pending = false;
   // A window nobody can see (minimized, behind another desktop, the desktop's
   // warm spare) warms nothing; showing it runs the pass it missed.
-  const hidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
+  const hidden = () =>
+    typeof document !== "undefined" && document.visibilityState === "hidden";
   let missed = false;
   const schedule = () => {
-    if (hidden()) { missed = true; return; }
+    if (hidden()) {
+      missed = true;
+      return;
+    }
     if (pending) return;
     pending = true;
     timer = setTimeout(() => {
@@ -471,7 +626,10 @@ function runWarmLoop(convex: ConvexClient): () => void {
       // `pending` (not the returned cancel) is what says a pass is queued.
       cancelQuiet = whenInputQuiet(() => {
         pending = false;
-        if (hidden()) { missed = true; return; }
+        if (hidden()) {
+          missed = true;
+          return;
+        }
         warmVisibleSessions(convex);
       }, WARM_MAX_DEFER_MS);
     }, WARM_COALESCE_MS);
@@ -481,15 +639,21 @@ function runWarmLoop(convex: ConvexClient): () => void {
     missed = false;
     schedule();
   };
-  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+  if (typeof document !== "undefined")
+    document.addEventListener("visibilitychange", onVisibility);
   const unsubscribe = useInboxStore.subscribe((st, prev) => {
-    if (warmInputsChanged(st, prev) || visualOrderViewSig(st) !== visualOrderViewSig(prev)) schedule();
+    if (
+      warmInputsChanged(st, prev) ||
+      visualOrderViewSig(st) !== visualOrderViewSig(prev)
+    )
+      schedule();
   });
   if (hidden()) missed = true;
   else warmVisibleSessions(convex);
   return () => {
     unsubscribe();
-    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    if (typeof document !== "undefined")
+      document.removeEventListener("visibilitychange", onVisibility);
     if (timer !== null) clearTimeout(timer);
     cancelQuiet?.();
     timer = null;
@@ -506,5 +670,11 @@ function runWarmLoop(convex: ConvexClient): () => void {
 declare const process: { env: { NODE_ENV?: string } };
 let lastPass: { at: number; planned: number; kinds: string[] } | null = null;
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-  (window as any).__inboxWarm = { get lastPass() { return lastPass; }, inFlight, syncedCount };
+  (window as any).__inboxWarm = {
+    get lastPass() {
+      return lastPass;
+    },
+    inFlight,
+    syncedCount,
+  };
 }

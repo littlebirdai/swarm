@@ -48,8 +48,7 @@ export const modernPopMotion =
 
 /** A text field's face (Input, Textarea, SelectBox): white on the hairline,
  *  the border darkening on hover, the ring on focus, no shadow. */
-export const modernField =
-  `modern:rounded-control modern:border-sol-border modern:bg-sol-card modern:text-sol-text modern:shadow-none modern:placeholder:text-sol-text-dim modern:hover:border-sol-text-dim/50 modern:aria-[invalid=true]:border-sol-red/70 modern:transition-[border-color,background-color] modern:duration-press modern:ease-ui ${modernFocusRing}`;
+export const modernField = `modern:rounded-control modern:border-sol-border modern:bg-sol-card modern:text-sol-text modern:shadow-none modern:placeholder:text-sol-text-dim modern:hover:border-sol-text-dim/50 modern:aria-[invalid=true]:border-sol-red/70 modern:transition-[border-color,background-color] modern:duration-press modern:ease-ui ${modernFocusRing}`;
 
 // ── Menus: the dropdown (dropdown-menu.tsx) and the right-click menu
 // (context-menu.tsx) are one style in Modern, built from these. ──────────────
@@ -65,7 +64,8 @@ export const modernMenuLabel =
   "modern:px-2 modern:pb-1 modern:pt-2 modern:text-meta modern:font-medium modern:normal-case modern:tracking-normal modern:text-sol-text-dim";
 
 /** The rule between groups, edge to edge inside the panel. */
-export const modernMenuSeparator = "modern:-mx-1 modern:my-1 modern:bg-sol-border/70";
+export const modernMenuSeparator =
+  "modern:-mx-1 modern:my-1 modern:bg-sol-border/70";
 
 /** The right-aligned slot for a shortcut or a live value. */
 export const modernMenuTrailing =

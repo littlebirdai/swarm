@@ -6,7 +6,11 @@ import { useCallback, useMemo, useState } from "react";
 // (SessionDecisionCard, mounted by ConversationView), and the queue only adds
 // the stepper through DecisionStepperContext.
 import { InboxConversation } from "../app/inbox/QueuePageClient";
-import { useDecisionQueue, DecisionStepperContext, type DecisionStepper } from "../hooks/useDecisionQueue";
+import {
+  useDecisionQueue,
+  DecisionStepperContext,
+  type DecisionStepper,
+} from "../hooks/useDecisionQueue";
 import { useInboxStore } from "../store/inboxStore";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { PreloadPublishedPage } from "./PublishedPageEmbed";
@@ -25,7 +29,15 @@ import { setDecisionQueueCursor } from "../lib/decisionQueueCursor";
 // by key, never by index: a live re-sort (a session's tier flipping, a new
 // ask arriving) can reorder the array under you, and an index would silently
 // swap the question mid-read.
-export function DecisionQueue({ onExit, initialConversationId, initialKey }: { onExit?: () => void; initialConversationId?: string | null; initialKey?: string | null }) {
+export function DecisionQueue({
+  onExit,
+  initialConversationId,
+  initialKey,
+}: {
+  onExit?: () => void;
+  initialConversationId?: string | null;
+  initialKey?: string | null;
+}) {
   const queue = useDecisionQueue();
   const [anchorKey, setAnchorKey] = useState<string | null>(null);
   // How many were resolved in this visit — only for the empty screen's copy.
@@ -40,19 +52,23 @@ export function DecisionQueue({ onExit, initialConversationId, initialKey }: { o
     : initialKey && queue.some((i) => i.key === initialKey)
       ? queue.findIndex((i) => i.key === initialKey)
       : initialConversationId
-      ? queue.findIndex((i) => i.conversationId === initialConversationId)
-      : -1;
+        ? queue.findIndex((i) => i.conversationId === initialConversationId)
+        : -1;
   const position = anchorIdx >= 0 ? anchorIdx : 0;
   const current = queue[position];
 
   // Called with the key of an item that is LEAVING (answered/dismissed/evicted):
   // re-anchor on whatever follows it, before the store removal re-renders us.
-  const advance = useCallback((leavingKey: string) => {
-    setResolvedCount((n) => n + 1);
-    const i = queue.findIndex((it) => it.key === leavingKey);
-    const next = queue.find((it, j) => j > i && it.key !== leavingKey) ?? null;
-    setAnchorKey(next?.key ?? null);
-  }, [queue]);
+  const advance = useCallback(
+    (leavingKey: string) => {
+      setResolvedCount((n) => n + 1);
+      const i = queue.findIndex((it) => it.key === leavingKey);
+      const next =
+        queue.find((it, j) => j > i && it.key !== leavingKey) ?? null;
+      setAnchorKey(next?.key ?? null);
+    },
+    [queue],
+  );
 
   const onSkip = useCallback(() => {
     if (queue.length === 0) return;
@@ -61,18 +77,26 @@ export function DecisionQueue({ onExit, initialConversationId, initialKey }: { o
 
   const onPrev = useCallback(() => {
     if (queue.length === 0) return;
-    setAnchorKey(queue[(position - 1 + queue.length) % queue.length]?.key ?? null);
+    setAnchorKey(
+      queue[(position - 1 + queue.length) % queue.length]?.key ?? null,
+    );
   }, [queue, position]);
 
-  const stepper = useMemo<DecisionStepper | null>(() => current ? {
-    position: position + 1,
-    total: queue.length,
-    onDone: () => advance(current.key),
-    onSkip,
-    onPrev,
-    onExit,
-    item: current,
-  } : null, [current, position, queue.length, advance, onSkip, onPrev, onExit]);
+  const stepper = useMemo<DecisionStepper | null>(
+    () =>
+      current
+        ? {
+            position: position + 1,
+            total: queue.length,
+            onDone: () => advance(current.key),
+            onSkip,
+            onPrev,
+            onExit,
+            item: current,
+          }
+        : null,
+    [current, position, queue.length, advance, onSkip, onPrev, onExit],
+  );
 
   // Keep the rail's highlight on the question you are reading. Off the inbox
   // the rail highlights sidePanelSessionId (sessionFocusKind → "panel"), and
@@ -94,16 +118,23 @@ export function DecisionQueue({ onExit, initialConversationId, initialKey }: { o
     const store = useInboxStore.getState();
     // selectPanelSession toggles the pointer off when handed the id it already
     // holds (the panel's click-to-exit gesture), so only write on a change.
-    if (store.sidePanelSessionId !== currentId) store.selectPanelSession(currentId);
+    if (store.sidePanelSessionId !== currentId)
+      store.selectPanelSession(currentId);
   }, [currentId]);
 
-  if (!current || !stepper) return <QueueEmpty resolved={resolvedCount} onExit={onExit} />;
+  if (!current || !stepper)
+    return <QueueEmpty resolved={resolvedCount} onExit={onExit} />;
   // The decision answering or skipping lands on: its page loads ahead, so it shows at once.
   const next = queue.length > 1 ? queue[(position + 1) % queue.length] : null;
 
   return (
     <DecisionStepperContext.Provider value={stepper}>
-      {next?.reportSlug && next.source === "decide" && <PreloadPublishedPage slug={next.reportSlug} decision={next.key.replace(/^decide:/, "")} />}
+      {next?.reportSlug && next.source === "decide" && (
+        <PreloadPublishedPage
+          slug={next.reportSlug}
+          decision={next.key.replace(/^decide:/, "")}
+        />
+      )}
       <div className="h-full">
         <InboxConversation
           key={current.conversationId}
@@ -116,7 +147,13 @@ export function DecisionQueue({ onExit, initialConversationId, initialKey }: { o
   );
 }
 
-function QueueEmpty({ resolved, onExit }: { resolved: number; onExit?: () => void }) {
+function QueueEmpty({
+  resolved,
+  onExit,
+}: {
+  resolved: number;
+  onExit?: () => void;
+}) {
   // Nothing to render means nothing to claim keys for, except the way out.
   useWatchEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -135,8 +172,12 @@ function QueueEmpty({ resolved, onExit }: { resolved: number; onExit?: () => voi
           : "Your agents are working. You will be interrupted when that changes."}
       </div>
       {onExit && (
-        <button onClick={onExit} className="mt-2 text-xs text-sol-text-dim hover:text-sol-text transition-colors">
-          <KeyCap size="xs">esc</KeyCap> <span className="ml-1">back to the inbox</span>
+        <button
+          onClick={onExit}
+          className="mt-2 text-xs text-sol-text-dim hover:text-sol-text transition-colors"
+        >
+          <KeyCap size="xs">esc</KeyCap>{" "}
+          <span className="ml-1">back to the inbox</span>
         </button>
       )}
     </div>

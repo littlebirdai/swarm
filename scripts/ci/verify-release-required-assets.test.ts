@@ -11,10 +11,20 @@ import {
 
 const REQUIRED = getRequiredReleaseAssetNames();
 
-const release = (assets: ReleaseSummary["assets"], extra: Partial<ReleaseSummary> = {}) =>
-  ({ tag_name: "v1.2.4", draft: true, prerelease: false, assets, ...extra }) as ReleaseSummary;
+const release = (
+  assets: ReleaseSummary["assets"],
+  extra: Partial<ReleaseSummary> = {},
+) =>
+  ({
+    tag_name: "v1.2.4",
+    draft: true,
+    prerelease: false,
+    assets,
+    ...extra,
+  }) as ReleaseSummary;
 
-const complete = () => REQUIRED.map((name) => ({ name, state: "uploaded", size: 42_000_000 }));
+const complete = () =>
+  REQUIRED.map((name) => ({ name, state: "uploaded", size: 42_000_000 }));
 
 const jsonResponse = (body: unknown, init: { status?: number } = {}) =>
   new Response(JSON.stringify(body), {
@@ -41,12 +51,16 @@ describe("findAssetShortfall", () => {
       notUploaded: [],
       empty: [],
     });
-    expect(() => assertRequiredAssets("v1.2.4", release(complete()))).not.toThrow();
+    expect(() =>
+      assertRequiredAssets("v1.2.4", release(complete())),
+    ).not.toThrow();
   });
 
   test("names a platform that never uploaded", () => {
     const assets = complete().filter((a) => a.name !== "codecast-linux-arm64");
-    expect(findAssetShortfall(release(assets)).missing).toEqual(["codecast-linux-arm64"]);
+    expect(findAssetShortfall(release(assets)).missing).toEqual([
+      "codecast-linux-arm64",
+    ]);
     expect(() => assertRequiredAssets("v1.2.4", release(assets))).toThrow(
       /Missing: codecast-linux-arm64/,
     );
@@ -65,21 +79,28 @@ describe("findAssetShortfall", () => {
     const assets = complete().map((a) =>
       a.name === "codecast-darwin-x64" ? { ...a, size: 0 } : a,
     );
-    expect(findAssetShortfall(release(assets)).empty).toEqual(["codecast-darwin-x64"]);
+    expect(findAssetShortfall(release(assets)).empty).toEqual([
+      "codecast-darwin-x64",
+    ]);
   });
 
   test("reports every kind of shortfall in one message", () => {
     const assets = complete()
       .filter((a) => a.name !== "codecast-linux-x64")
       .map((a) => (a.name === "codecast-darwin-x64" ? { ...a, size: 0 } : a))
-      .map((a) => (a.name === "codecast-windows-x64.exe" ? { ...a, state: "starter" } : a));
+      .map((a) =>
+        a.name === "codecast-windows-x64.exe" ? { ...a, state: "starter" } : a,
+      );
     expect(() => assertRequiredAssets("v1.2.4", release(assets))).toThrow(
       /Missing: codecast-linux-x64\nNot uploaded: codecast-windows-x64.exe:starter\nEmpty: codecast-darwin-x64/,
     );
   });
 
   test("ignores assets nobody asked for", () => {
-    const assets = [...complete(), { name: "main.js.map", state: "uploaded", size: 10 }];
+    const assets = [
+      ...complete(),
+      { name: "main.js.map", state: "uploaded", size: 10 },
+    ];
     expect(findAssetShortfall(release(assets)).missing).toEqual([]);
   });
 });
@@ -90,14 +111,26 @@ describe("fetchDraftAwareRelease", () => {
 
   test("reads the list endpoint, which is the only one that sees drafts", async () => {
     let requested = "";
-    const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+    const fetchImpl = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
       requested = String(url);
-      expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer t");
+      expect((init?.headers as Record<string, string>).Authorization).toBe(
+        "Bearer t",
+      );
       return jsonResponse([release(complete(), { tag_name: "v1.2.4" })]);
     }) as unknown as typeof fetch;
 
-    const found = await fetchDraftAwareRelease({ repo, tag: "v1.2.4", token, fetchImpl });
-    expect(requested).toBe(`https://api.github.com/repos/${repo}/releases?per_page=100`);
+    const found = await fetchDraftAwareRelease({
+      repo,
+      tag: "v1.2.4",
+      token,
+      fetchImpl,
+    });
+    expect(requested).toBe(
+      `https://api.github.com/repos/${repo}/releases?per_page=100`,
+    );
     expect(found.draft).toBe(true);
   });
 
@@ -106,7 +139,12 @@ describe("fetchDraftAwareRelease", () => {
       (async () => jsonResponse(body)) as unknown as typeof fetch;
 
     await expect(
-      fetchDraftAwareRelease({ repo, tag: "v1.2.4", token, fetchImpl: withReleases([]) }),
+      fetchDraftAwareRelease({
+        repo,
+        tag: "v1.2.4",
+        token,
+        fetchImpl: withReleases([]),
+      }),
     ).rejects.toThrow(/appears 0 times/);
 
     await expect(
@@ -121,7 +159,9 @@ describe("fetchDraftAwareRelease", () => {
 
   test("surfaces an API failure instead of passing", async () => {
     const fetchImpl = (async () =>
-      new Response("bad credentials", { status: 401 })) as unknown as typeof fetch;
+      new Response("bad credentials", {
+        status: 401,
+      })) as unknown as typeof fetch;
     await expect(
       fetchDraftAwareRelease({ repo, tag: "v1.2.4", token, fetchImpl }),
     ).rejects.toThrow(/failed 401/);

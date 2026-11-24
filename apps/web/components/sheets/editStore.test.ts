@@ -9,7 +9,9 @@ describe("formula typing helpers", () => {
     expect(finishInput('=CONCAT("a""(",B1')).toBe('=CONCAT("a""(",B1)');
     expect(finishInput("plain (text")).toBe("plain (text");
     expect(finishInput("='Costs (draft'!A1")).toBe("='Costs (draft'!A1");
-    expect(finishInput("=SUM('Q4 (plan)'!A1:A3")).toBe("=SUM('Q4 (plan)'!A1:A3)");
+    expect(finishInput("=SUM('Q4 (plan)'!A1:A3")).toBe(
+      "=SUM('Q4 (plan)'!A1:A3)",
+    );
   });
   test("point mode and autocomplete triggers", () => {
     expect(wantsReference("=SUM(", 5)).toBe(true);

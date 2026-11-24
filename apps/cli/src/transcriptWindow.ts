@@ -9,7 +9,12 @@ const SYNC_BYTES_PER_PASS = 1024 * 1024;
  * earlier step of the same window did not already search (bytes before it
  * hold no boundary, so a step costs only the tail it read).
  */
-export type PassBoundary = (buf: Buffer, len: number, atEof: boolean, from?: number) => number;
+export type PassBoundary = (
+  buf: Buffer,
+  len: number,
+  atEof: boolean,
+  from?: number,
+) => number;
 
 // A newline is one byte and never part of a multibyte sequence, so a byte cut
 // at it is charset safe and the byte count needs no re-encode.
@@ -18,9 +23,19 @@ const newlineBoundary: PassBoundary = (buf, len, _atEof, from = 0) => {
   return i < 0 ? -1 : from + i;
 };
 
-type ReadRequest = { buf: Buffer; offset: number; length: number; position: number };
+type ReadRequest = {
+  buf: Buffer;
+  offset: number;
+  length: number;
+  position: number;
+};
 
-export type ReadWindowOpts = { step?: number; boundary?: PassBoundary; buffer?: Buffer; checkpoint?: () => void };
+export type ReadWindowOpts = {
+  step?: number;
+  boundary?: PassBoundary;
+  buffer?: Buffer;
+  checkpoint?: () => void;
+};
 
 // The window algorithm both readers share: fill one window, look for a
 // boundary, and when there is none and bytes remain, grow the window and
@@ -34,7 +49,11 @@ function* completeLinesPlan(
   available: number,
   opts: ReadWindowOpts,
   checkpoint?: () => void,
-): Generator<ReadRequest, { content: string; bytesConsumed: number; steps: number }, number> {
+): Generator<
+  ReadRequest,
+  { content: string; bytesConsumed: number; steps: number },
+  number
+> {
   const step = opts.step ?? SYNC_BYTES_PER_PASS;
   const boundary = opts.boundary ?? newlineBoundary;
   checkpoint?.();
@@ -46,7 +65,10 @@ function* completeLinesPlan(
     checkpoint?.();
     const from = len;
     const want = Math.min(buf.length, available) - len;
-    const n = want > 0 ? yield { buf, offset: len, length: want, position: position + len } : 0;
+    const n =
+      want > 0
+        ? yield { buf, offset: len, length: want, position: position + len }
+        : 0;
     checkpoint?.();
     steps++;
     if (n <= 0) available = len; // the file shrank under us: what we hold is all there is
@@ -64,7 +86,9 @@ function* completeLinesPlan(
     if (atEof) return { content: "", bytesConsumed: 0, steps };
     if (len < Math.min(buf.length, available)) continue;
     checkpoint?.();
-    const grown = Buffer.allocUnsafe(Math.min(Math.max(buf.length * 2, step), available));
+    const grown = Buffer.allocUnsafe(
+      Math.min(Math.max(buf.length * 2, step), available),
+    );
     buf.copy(grown, 0, 0, len);
     buf = grown;
   }
@@ -87,7 +111,12 @@ export async function readCompleteLines(
   let r = plan.next(0);
   while (!r.done) {
     checkpoint?.();
-    const { bytesRead } = await fd.read(r.value.buf, r.value.offset, r.value.length, r.value.position);
+    const { bytesRead } = await fd.read(
+      r.value.buf,
+      r.value.offset,
+      r.value.length,
+      r.value.position,
+    );
     checkpoint?.();
     r = plan.next(bytesRead);
   }
@@ -107,7 +136,13 @@ export function readCompleteLinesSync(
   let r = plan.next(0);
   while (!r.done) {
     checkpoint?.();
-    const bytesRead = fs.readSync(fd, r.value.buf, r.value.offset, r.value.length, r.value.position);
+    const bytesRead = fs.readSync(
+      fd,
+      r.value.buf,
+      r.value.offset,
+      r.value.length,
+      r.value.position,
+    );
     checkpoint?.();
     r = plan.next(bytesRead);
   }
@@ -164,7 +199,6 @@ export const cursorPassBoundary: PassBoundary = (buf, len, atEof, from = 0) => {
   return headerAt < 0 ? -1 : headerAt - 1;
 };
 
-
 const CODEX_META_HEAD_CHUNK = 256 * 1024;
 const CODEX_META_HEAD_MAX = 16 * 1024 * 1024;
 export function sessionMetaHeadCut(acc: string): number {
@@ -178,13 +212,20 @@ export function sessionMetaHeadCut(acc: string): number {
   }
   return -1;
 }
-export async function readCodexSessionMetaHeadAsync(filePath: string): Promise<string> {
+export async function readCodexSessionMetaHeadAsync(
+  filePath: string,
+): Promise<string> {
   const size = (await fs.promises.stat(filePath)).size;
   const limit = Math.min(size, CODEX_META_HEAD_MAX);
   let acc = "";
   let offset = 0;
   while (offset < limit) {
-    const { content, bytesConsumed } = await readIngestWindow(filePath, offset, limit - offset, { step: CODEX_META_HEAD_CHUNK });
+    const { content, bytesConsumed } = await readIngestWindow(
+      filePath,
+      offset,
+      limit - offset,
+      { step: CODEX_META_HEAD_CHUNK },
+    );
     if (bytesConsumed === 0) break;
     acc += content;
     offset += bytesConsumed;

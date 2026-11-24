@@ -19,7 +19,8 @@ export async function accessiblePlanIdForShortId(
     .withIndex("by_short_id", (q: any) => q.eq("short_id", shortId))
     .first();
   if (!plan) return undefined;
-  if (!(await canAccessPlan(ctx, userId, plan))) throw new Error("Plan not found");
+  if (!(await canAccessPlan(ctx, userId, plan)))
+    throw new Error("Plan not found");
   return plan._id;
 }
 
@@ -36,7 +37,11 @@ export const emit = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
 
-    const plan_id = await accessiblePlanIdForShortId(ctx, auth.userId, args.plan_short_id);
+    const plan_id = await accessiblePlanIdForShortId(
+      ctx,
+      auth.userId,
+      args.plan_short_id,
+    );
     // A short id that names no plan is refused: stored as given, the event
     // would wait under that id for whoever later creates the plan.
     if (args.plan_short_id && !plan_id) throw new Error("Plan not found");
@@ -64,7 +69,11 @@ export const listByPlan = query({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     // Enumerable key: prove plan access before returning its event stream.
-    const planId = await accessiblePlanIdForShortId(ctx, auth.userId, args.plan_short_id);
+    const planId = await accessiblePlanIdForShortId(
+      ctx,
+      auth.userId,
+      args.plan_short_id,
+    );
     if (!planId) return [];
 
     // Read by the resolved plan, never by the caller-typed short id: rows

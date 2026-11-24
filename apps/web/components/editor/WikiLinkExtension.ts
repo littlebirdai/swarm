@@ -34,7 +34,7 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
     parseHTML() {
       return [
         {
-          tag: 'a[data-wiki-link]',
+          tag: "a[data-wiki-link]",
           getAttrs: (el: HTMLElement) => ({
             id: el.getAttribute("data-wiki-link-id"),
             label: el.textContent?.replace(/^\[\[|\]\]$/g, "") || "",
@@ -75,7 +75,8 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
               const { from } = tr.selection;
               const text = tr.doc.textBetween(prev.from, from, "");
               // If user deleted back past the [[ trigger, deactivate
-              if (from <= prev.from) return { active: false, query: "", from: 0 };
+              if (from <= prev.from)
+                return { active: false, query: "", from: 0 };
               return { ...prev, query: text };
             },
           },
@@ -86,7 +87,11 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
 
               // Check if the previous char was [ and current is [
               if (text === "[") {
-                const before = view.state.doc.textBetween(Math.max(from - 1, 0), from, "");
+                const before = view.state.doc.textBetween(
+                  Math.max(from - 1, 0),
+                  from,
+                  "",
+                );
                 if (before === "[") {
                   // Activate wiki link mode
                   view.dispatch(
@@ -94,7 +99,7 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
                       active: true,
                       query: "",
                       from: from + 1, // after the second [
-                    })
+                    }),
                   );
                 }
               }
@@ -110,7 +115,7 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
                     active: false,
                     query: "",
                     from: 0,
-                  })
+                  }),
                 );
                 return true;
               }
@@ -118,14 +123,18 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
               // Check for ]] to close
               if (event.key === "]") {
                 const { from } = view.state.selection;
-                const before = view.state.doc.textBetween(Math.max(from - 1, 0), from, "");
+                const before = view.state.doc.textBetween(
+                  Math.max(from - 1, 0),
+                  from,
+                  "",
+                );
                 if (before === "]") {
                   view.dispatch(
                     view.state.tr.setMeta(WIKI_LINK_PLUGIN_KEY, {
                       active: false,
                       query: "",
                       from: 0,
-                    })
+                    }),
                   );
                   return false;
                 }
@@ -158,7 +167,9 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
                   props: {
                     items,
                     command: (item: MentionItem) => {
-                      const state = WIKI_LINK_PLUGIN_KEY.getState(editorView.state);
+                      const state = WIKI_LINK_PLUGIN_KEY.getState(
+                        editorView.state,
+                      );
                       if (!state?.active) return;
 
                       // Delete the [[ trigger text and the query
@@ -186,7 +197,7 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
                           active: false,
                           query: "",
                           from: 0,
-                        })
+                        }),
                       );
 
                       hide();
@@ -195,9 +206,12 @@ export function createWikiLinkExtension(queryFn: WikiLinkQueryFn) {
                   editor,
                 });
 
-                const coords = editorView.coordsAtPos(editorView.state.selection.from);
+                const coords = editorView.coordsAtPos(
+                  editorView.state.selection.from,
+                );
                 popup = tippy("body", {
-                  getReferenceClientRect: () => new DOMRect(coords.left, coords.top, 0, 20),
+                  getReferenceClientRect: () =>
+                    new DOMRect(coords.left, coords.top, 0, 20),
                   appendTo: () => document.body,
                   content: component.element,
                   showOnCreate: true,

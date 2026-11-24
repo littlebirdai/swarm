@@ -19,8 +19,13 @@ export function seatPlace(
 
 /** The person who runs a role now: its standing session's runner, else who
  *  seated it. The sessions a role takes in are this person's. */
-export async function roleRunner(ctx: { db: any }, role: { host_user_id: any; anchor_id?: any }): Promise<any> {
+export async function roleRunner(
+  ctx: { db: any },
+  role: { host_user_id: any; anchor_id?: any },
+): Promise<any> {
   const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-  const standing = anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+  const standing = anchor?.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
   return seatPlace(role, standing).runner_user_id;
 }

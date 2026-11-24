@@ -1,10 +1,30 @@
 import { describe, expect, test } from "bun:test";
-import { CI_LOG_LINES, logTail, readAnnotations, readJobs, readRun } from "./ciRunRead";
+import {
+  CI_LOG_LINES,
+  logTail,
+  readAnnotations,
+  readJobs,
+  readRun,
+} from "./ciRunRead";
 
 describe("readRun", () => {
   test("title, actor, attempt and duration", () => {
-    const r = readRun({ display_title: "fix: tests", event: "push", run_attempt: 2, triggering_actor: { login: "ada" }, run_started_at: "2026-11-03T10:00:00Z", updated_at: "2026-11-03T10:07:30Z" });
-    expect(r).toEqual({ title: "fix: tests", event: "push", actor: "ada", attempt: 2, started_at: Date.parse("2026-11-03T10:00:00Z"), duration_ms: 450_000 });
+    const r = readRun({
+      display_title: "fix: tests",
+      event: "push",
+      run_attempt: 2,
+      triggering_actor: { login: "ada" },
+      run_started_at: "2026-11-03T10:00:00Z",
+      updated_at: "2026-11-03T10:07:30Z",
+    });
+    expect(r).toEqual({
+      title: "fix: tests",
+      event: "push",
+      actor: "ada",
+      attempt: 2,
+      started_at: Date.parse("2026-11-03T10:00:00Z"),
+      duration_ms: 450_000,
+    });
   });
 });
 
@@ -13,12 +33,26 @@ describe("readJobs", () => {
     const jobs = readJobs({
       jobs: [
         { id: 1, name: "lint", conclusion: "success", steps: [] },
-        { id: 2, name: "e2e", conclusion: "failure", started_at: "2026-11-03T10:00:00Z", completed_at: "2026-11-03T10:01:00Z", steps: [{ number: 1, name: "checkout", conclusion: "success" }, { number: 4, name: "run tests", conclusion: "failure" }] },
+        {
+          id: 2,
+          name: "e2e",
+          conclusion: "failure",
+          started_at: "2026-11-03T10:00:00Z",
+          completed_at: "2026-11-03T10:01:00Z",
+          steps: [
+            { number: 1, name: "checkout", conclusion: "success" },
+            { number: 4, name: "run tests", conclusion: "failure" },
+          ],
+        },
       ],
     });
     expect(jobs.map((j) => j.name)).toEqual(["e2e", "lint"]);
     expect(jobs[0].duration_ms).toBe(60_000);
-    expect(jobs[0].steps[1]).toEqual({ number: 4, name: "run tests", conclusion: "failure" });
+    expect(jobs[0].steps[1]).toEqual({
+      number: 4,
+      name: "run tests",
+      conclusion: "failure",
+    });
   });
 });
 
@@ -26,9 +60,24 @@ describe("readAnnotations", () => {
   test("drops notices", () => {
     const a = readAnnotations("e2e", [
       { annotation_level: "notice", message: "cache hit" },
-      { annotation_level: "failure", message: "expected 2 got 3", path: "a.test.ts", start_line: 12, title: "a > b" },
+      {
+        annotation_level: "failure",
+        message: "expected 2 got 3",
+        path: "a.test.ts",
+        start_line: 12,
+        title: "a > b",
+      },
     ]);
-    expect(a).toEqual([{ job: "e2e", level: "failure", message: "expected 2 got 3", path: "a.test.ts", line: 12, title: "a > b" }]);
+    expect(a).toEqual([
+      {
+        job: "e2e",
+        level: "failure",
+        message: "expected 2 got 3",
+        path: "a.test.ts",
+        line: 12,
+        title: "a > b",
+      },
+    ]);
   });
 });
 
@@ -45,7 +94,11 @@ describe("logTail", () => {
       "2026-11-03T10:00:07.0000000Z Post job cleanup.",
       "2026-11-03T10:00:08.0000000Z more cleanup",
     ];
-    expect(logTail(lines.join("\n"))).toBe(["FAIL a.test.ts", "##[error]Process completed with exit code 1."].join("\n"));
+    expect(logTail(lines.join("\n"))).toBe(
+      ["FAIL a.test.ts", "##[error]Process completed with exit code 1."].join(
+        "\n",
+      ),
+    );
   });
 
   test("a log with no error keeps its last lines", () => {

@@ -26,23 +26,51 @@ import { MOBILE_ROOT, WEB_ROOT, offendersUnder } from "./sourceWalk";
 // C3: `isSessionWaitingForInput` / `sessionRestState` / `isSessionHardWaiting`
 // were deleted, not wrapped — classifySession is a thin adapter over the
 // shared work state).
-const BANNED = /\b(categorizeSessions|categorizeMineSessions|partitionOldSessions|liftQuestions|isSessionWaitingForInput|sessionRestState|isSessionHardWaiting)\b/;
+const BANNED =
+  /\b(categorizeSessions|categorizeMineSessions|partitionOldSessions|liftQuestions|isSessionWaitingForInput|sessionRestState|isSessionHardWaiting)\b/;
 
-const offendersIn = (root: string, dirs: string[]) => offendersUnder(root, dirs, BANNED);
+const offendersIn = (root: string, dirs: string[]) =>
+  offendersUnder(root, dirs, BANNED);
 
 describe("the deleted classifiers stay deleted (placeInboxRows is the chokepoint)", () => {
   test("web: no source file references a deleted classifier", () => {
-    expect(offendersIn(WEB_ROOT, ["app", "components", "hooks", "lib", "store", "src", "shortcuts", "tips"])).toEqual([]);
+    expect(
+      offendersIn(WEB_ROOT, [
+        "app",
+        "components",
+        "hooks",
+        "lib",
+        "store",
+        "src",
+        "shortcuts",
+        "tips",
+      ]),
+    ).toEqual([]);
   }, 120_000);
 
   test("mobile: no source file references a deleted classifier", () => {
-    expect(offendersIn(MOBILE_ROOT, ["app", "components", "lib", "hooks"])).toEqual([]);
+    expect(
+      offendersIn(MOBILE_ROOT, ["app", "components", "lib", "hooks"]),
+    ).toEqual([]);
   }, 120_000);
 
   test("the chokepoint itself exists and exports the placed sections", () => {
-    const store = readFileSync(join(WEB_ROOT, "store", "inboxStore.ts"), "utf8");
+    const store = readFileSync(
+      join(WEB_ROOT, "store", "inboxStore.ts"),
+      "utf8",
+    );
     expect(store).toContain("export function placeInboxRows(");
-    for (const section of ["questions", "pinned", "newSessions", "needsInput", "done", "dormant", "working", "stashed", "dismissed"]) {
+    for (const section of [
+      "questions",
+      "pinned",
+      "newSessions",
+      "needsInput",
+      "done",
+      "dormant",
+      "working",
+      "stashed",
+      "dismissed",
+    ]) {
       expect(store.includes(`${section}:`)).toBe(true);
     }
   });

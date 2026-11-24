@@ -19,13 +19,46 @@ import {
 } from "@codecast/shared/contracts/causeHistory";
 import type { LineCauseTask } from "../lineFlow";
 import type { MapDecision, MapRun, MapSignal } from "./lineMap";
-import { runOutcome, type ReportRun, type ReportTask, type RunOutcome } from "./runReport";
+import {
+  runOutcome,
+  type ReportRun,
+  type ReportTask,
+  type RunOutcome,
+} from "./runReport";
 
 export {
-  backTimes, carryingDeploys, coverageOf, historyBrief, earlierFixes, closesSummary, closesArgument, closedAtStep, unshippedGuard,
-  type OccurrenceRow, type DeployRow, type RunMergeRow, type Occurrence, type AttemptCard, type AttemptMerge, type CarriedHow,
-  type HistoryDeploy, type FixBasis, type HistoryShip, type WatchState, type HistoryWatch, type HistoryRegression, type DeployCoverage,
-  type EarlierFix, type HandMerge, type HistoryClose, type CloseFold, foldTarget, type HistoryRecurrence, type CloseKind, type CloseArgument, type RunSaid,
+  backTimes,
+  carryingDeploys,
+  coverageOf,
+  historyBrief,
+  earlierFixes,
+  closesSummary,
+  closesArgument,
+  closedAtStep,
+  unshippedGuard,
+  type OccurrenceRow,
+  type DeployRow,
+  type RunMergeRow,
+  type Occurrence,
+  type AttemptCard,
+  type AttemptMerge,
+  type CarriedHow,
+  type HistoryDeploy,
+  type FixBasis,
+  type HistoryShip,
+  type WatchState,
+  type HistoryWatch,
+  type HistoryRegression,
+  type DeployCoverage,
+  type EarlierFix,
+  type HandMerge,
+  type HistoryClose,
+  type CloseFold,
+  foldTarget,
+  type HistoryRecurrence,
+  type CloseKind,
+  type CloseArgument,
+  type RunSaid,
 } from "@codecast/shared/contracts/causeHistory";
 
 export type HistoryAttempt = SharedHistoryAttempt<RunOutcome>;
@@ -57,17 +90,22 @@ export function causeHistory(input: HistoryInput): CauseHistory {
   // An occurrence's own words, for the signals the store holds (the recent two weeks).
   let quotes: Map<number, string> | null = null;
   const quoteAt = (at: number) => {
-    quotes ??= new Map(input.signals.flatMap((s) => {
-      const q = signalQuotes(s.detail_md)[0];
-      return q ? [[s.observed_at ?? s.created_at, q] as const] : [];
-    }));
+    quotes ??= new Map(
+      input.signals.flatMap((s) => {
+        const q = signalQuotes(s.detail_md)[0];
+        return q ? [[s.observed_at ?? s.created_at, q] as const] : [];
+      }),
+    );
     return quotes.get(at) ?? null;
   };
   return sharedCauseHistory({
     quoteAt,
     ...input,
     runs: input.runs as ReadonlyArray<MapRun & ReportRun>,
-    decisions: input.decisions as ReadonlyArray<MapDecision & HistoryDecisionRow>,
-    outcome: (run) => runOutcome(run, input.task as ReportTask | undefined, input.now, true),
+    decisions: input.decisions as ReadonlyArray<
+      MapDecision & HistoryDecisionRow
+    >,
+    outcome: (run) =>
+      runOutcome(run, input.task as ReportTask | undefined, input.now, true),
   });
 }

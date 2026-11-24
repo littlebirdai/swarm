@@ -8,7 +8,10 @@ import { defaultConfigDir } from "../config/configDir.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
-export function sdkHostDir(root: string = process.env.CODECAST_CLAUDE_SDK_DIR || path.join(defaultConfigDir(), "claude-sdk")): string {
+export function sdkHostDir(
+  root: string = process.env.CODECAST_CLAUDE_SDK_DIR ||
+    path.join(defaultConfigDir(), "claude-sdk"),
+): string {
   return root;
 }
 
@@ -21,8 +24,12 @@ export interface SdkHostPaths {
   label: string;
 }
 
-export function sdkHostPaths(sessionId: string, dir: string = sdkHostDir()): SdkHostPaths {
-  if (!SESSION_ID_RE.test(sessionId)) throw new Error(`not a Claude session id: ${sessionId}`);
+export function sdkHostPaths(
+  sessionId: string,
+  dir: string = sdkHostDir(),
+): SdkHostPaths {
+  if (!SESSION_ID_RE.test(sessionId))
+    throw new Error(`not a Claude session id: ${sessionId}`);
   return {
     socket: path.join(dir, `${sessionId}.sock`),
     state: path.join(dir, `${sessionId}.json`),

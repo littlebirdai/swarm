@@ -12,7 +12,9 @@ import {
 } from "./gitPlane.js";
 
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
+  return execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+  }).trim();
 }
 
 let dir: string;
@@ -21,11 +23,24 @@ function makeRepo(name: string): string {
   const repo = path.join(dir, name);
   fs.mkdirSync(repo, { recursive: true });
   git(repo, "init", "-q", "-b", "main");
-  git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-q", "-m", "root");
+  git(
+    repo,
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit",
+    "--allow-empty",
+    "-q",
+    "-m",
+    "root",
+  );
   return repo;
 }
 
-function deps(overrides: Partial<GitPlaneDeps> = {}): GitPlaneDeps & { usable: string[] } {
+function deps(
+  overrides: Partial<GitPlaneDeps> = {},
+): GitPlaneDeps & { usable: string[] } {
   const usable: string[] = [];
   return {
     usable,
@@ -62,11 +77,19 @@ describe("sweepGitPlane repair", () => {
   test("repairs a dead-bundle origin from the conversation's recorded URL", async () => {
     const repo = makeRepo("poisoned");
     git(repo, "remote", "add", "origin", "/tmp/codecast-bundle-999.bundle");
-    const d = deps({ resolveCanonical: async () => "https://example.com/org/repo.git" });
+    const d = deps({
+      resolveCanonical: async () => "https://example.com/org/repo.git",
+    });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, 0);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      0,
+    );
 
-    expect(git(repo, "remote", "get-url", "origin")).toBe("https://example.com/org/repo.git");
+    expect(git(repo, "remote", "get-url", "origin")).toBe(
+      "https://example.com/org/repo.git",
+    );
     expect(state.repaired_from).toBe("/tmp/codecast-bundle-999.bundle");
     expect(state.origin_ok).toBe(true);
     // The resurrect signal fired so retired wip pushes come back.
@@ -75,11 +98,19 @@ describe("sweepGitPlane repair", () => {
 
   test("adds origin to a repo that has none when a conversation knows the URL", async () => {
     const repo = makeRepo("orphan");
-    const d = deps({ resolveCanonical: async () => "git@example.com:org/repo.git" });
+    const d = deps({
+      resolveCanonical: async () => "git@example.com:org/repo.git",
+    });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, 0);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      0,
+    );
 
-    expect(git(repo, "remote", "get-url", "origin")).toBe("git@example.com:org/repo.git");
+    expect(git(repo, "remote", "get-url", "origin")).toBe(
+      "git@example.com:org/repo.git",
+    );
     expect(state.repaired_from).toBe("(none)");
   });
 
@@ -93,21 +124,35 @@ describe("sweepGitPlane repair", () => {
     };
     const d = deps({ resolveCanonical: async (id) => answers[id] });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1", "c2", "c3"] }], d, 0);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1", "c2", "c3"] }],
+      d,
+      0,
+    );
 
-    expect(git(repo, "remote", "get-url", "origin")).toBe("https://example.com/real.git");
+    expect(git(repo, "remote", "get-url", "origin")).toBe(
+      "https://example.com/real.git",
+    );
     expect(state.origin_ok).toBe(true);
   });
 
   test("leaves a real origin alone even when conversations name a different form", async () => {
     const repo = makeRepo("healthy");
     git(repo, "remote", "add", "origin", "git@github.com:org/repo.git");
-    const d = deps({ resolveCanonical: async () => "https://github.com/org/repo.git" });
+    const d = deps({
+      resolveCanonical: async () => "https://github.com/org/repo.git",
+    });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, 0);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      0,
+    );
 
     // A machine may hold its own credential-appropriate form (SSH vs HTTPS).
-    expect(git(repo, "remote", "get-url", "origin")).toBe("git@github.com:org/repo.git");
+    expect(git(repo, "remote", "get-url", "origin")).toBe(
+      "git@github.com:org/repo.git",
+    );
     expect(state.repaired_from).toBeUndefined();
     expect(state.origin_ok).toBe(true);
   });
@@ -117,7 +162,11 @@ describe("sweepGitPlane repair", () => {
     git(repo, "remote", "add", "origin", "/tmp/gone.bundle");
     const d = deps();
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, 0);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      0,
+    );
 
     expect(state.origin_ok).toBe(false);
     expect(git(repo, "remote", "get-url", "origin")).toBe("/tmp/gone.bundle");
@@ -129,16 +178,37 @@ describe("sweepGitPlane measurement", () => {
   test("captures a failing fetch honestly and still measures ahead/behind", async () => {
     const repo = makeRepo("measured");
     // A rendezvous-shaped URL that cannot resolve: fetch fails, state records it.
-    git(repo, "remote", "add", "origin", "https://invalid.invalid/org/repo.git");
+    git(
+      repo,
+      "remote",
+      "add",
+      "origin",
+      "https://invalid.invalid/org/repo.git",
+    );
     // Hand-build the remote-tracking state a real fetch would have created:
     // origin/main two commits back, HEAD one ahead of a shared base.
     const base = git(repo, "rev-parse", "HEAD");
     git(repo, "update-ref", "refs/remotes/origin/main", base);
     git(repo, "config", "branch.main.remote", "origin");
     git(repo, "config", "branch.main.merge", "refs/heads/main");
-    git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-q", "-m", "local work");
+    git(
+      repo,
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "--allow-empty",
+      "-q",
+      "-m",
+      "local work",
+    );
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], deps(), Date.now());
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      deps(),
+      Date.now(),
+    );
 
     expect(state.origin_ok).toBe(true);
     expect(state.fetch_ok).toBe(false);
@@ -151,18 +221,38 @@ describe("sweepGitPlane measurement", () => {
   test("fires the recovery signal when a failing fetch starts succeeding", async () => {
     const repo = makeRepo("recovering");
     // First pass: unreachable origin -> fetch fails.
-    git(repo, "remote", "add", "origin", "https://invalid.invalid/org/repo.git");
+    git(
+      repo,
+      "remote",
+      "add",
+      "origin",
+      "https://invalid.invalid/org/repo.git",
+    );
     const d = deps();
-    await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, Date.now());
+    await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      Date.now(),
+    );
     expect(d.usable).toEqual([]);
 
     // Origin becomes fetchable (fixed out of band). ext:: URLs pass the
     // rendezvous check while resolving to a local command, so the fetch is real.
     const upstream = makeRepo("upstream.git");
-    git(repo, "remote", "set-url", "origin", `ext::git --namespace=x %s ${upstream}`);
+    git(
+      repo,
+      "remote",
+      "set-url",
+      "origin",
+      `ext::git --namespace=x %s ${upstream}`,
+    );
     git(repo, "config", "protocol.ext.allow", "always");
     const later = Date.now() + 11 * 60_000; // past the fetch cadence gate
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, later);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      later,
+    );
 
     expect(state.fetch_ok).toBe(true);
     expect(d.usable).toEqual([repo]);
@@ -178,7 +268,11 @@ describe("sweepGitPlane access grants", () => {
   // as an auth failure.
   function denyOrigin(repo: string): void {
     const script = path.join(repo, "deny.sh");
-    fs.writeFileSync(script, '#!/bin/sh\necho "ERROR: Repository not found." >&2\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(
+      script,
+      '#!/bin/sh\necho "ERROR: Repository not found." >&2\nexit 1\n',
+      { mode: 0o755 },
+    );
     git(repo, "remote", "add", "origin", `ext::${script}`);
     git(repo, "config", "protocol.ext.allow", "always");
   }
@@ -187,9 +281,18 @@ describe("sweepGitPlane access grants", () => {
     const repo = makeRepo("denied");
     denyOrigin(repo);
     let minted = 0;
-    const d = deps({ mintDeviceKey: async () => { minted++; return "ssh-ed25519 AAAA test"; } });
+    const d = deps({
+      mintDeviceKey: async () => {
+        minted++;
+        return "ssh-ed25519 AAAA test";
+      },
+    });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, Date.now());
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      Date.now(),
+    );
 
     expect(state.fetch_ok).toBe(false);
     expect(state.needs_access).toBe(true);
@@ -205,18 +308,37 @@ describe("sweepGitPlane access grants", () => {
     const now = Date.now();
     await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, now);
     // Second pass inside the fetch interval: no fetch happens, flag must survive.
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, now + 60_000);
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      now + 60_000,
+    );
     expect(state.fetch_ok).toBe(false);
     expect(state.needs_access).toBe(true);
   });
 
   test("a network failure does not mint a key or claim needs_access", async () => {
     const repo = makeRepo("net-down");
-    git(repo, "remote", "add", "origin", "https://invalid.invalid/org/repo.git");
+    git(
+      repo,
+      "remote",
+      "add",
+      "origin",
+      "https://invalid.invalid/org/repo.git",
+    );
     let minted = 0;
-    const d = deps({ mintDeviceKey: async () => { minted++; return "ssh-ed25519 AAAA test"; } });
+    const d = deps({
+      mintDeviceKey: async () => {
+        minted++;
+        return "ssh-ed25519 AAAA test";
+      },
+    });
 
-    const [state] = await sweepGitPlane([{ root: repo, conversationIds: ["c1"] }], d, Date.now());
+    const [state] = await sweepGitPlane(
+      [{ root: repo, conversationIds: ["c1"] }],
+      d,
+      Date.now(),
+    );
 
     expect(state.fetch_ok).toBe(false);
     expect(state.needs_access).toBeUndefined();

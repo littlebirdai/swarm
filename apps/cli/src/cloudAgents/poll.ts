@@ -18,7 +18,12 @@ export const CLOUD_MAX_LIST_PAGES = 5;
  * A provider's paged list: `fetchPage` reads one page from a cursor and says
  * where the next starts (undefined at the end), for up to `maxPages`.
  */
-export async function collectPages<T>(fetchPage: (cursor: string | undefined) => Promise<{ items: T[]; next?: string }>, maxPages = CLOUD_MAX_LIST_PAGES): Promise<T[]> {
+export async function collectPages<T>(
+  fetchPage: (
+    cursor: string | undefined,
+  ) => Promise<{ items: T[]; next?: string }>,
+  maxPages = CLOUD_MAX_LIST_PAGES,
+): Promise<T[]> {
   const out: T[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < maxPages; page++) {
@@ -31,13 +36,19 @@ export async function collectPages<T>(fetchPage: (cursor: string | undefined) =>
 }
 
 /** A wait that doubles with each try (`tries` before this one) from `baseMs`, up to `maxMs`. */
-export function doublingDelay(baseMs: number, maxMs: number, tries: number): number {
+export function doublingDelay(
+  baseMs: number,
+  maxMs: number,
+  tries: number,
+): number {
   return Math.min(baseMs * 2 ** Math.max(0, tries), maxMs);
 }
 
 /** A provider's time in seconds (Codex Cloud, the Agents API) as ms; undefined when it names none. */
 export function secondsToMs(s: number | null | undefined): number | undefined {
-  return typeof s === "number" && Number.isFinite(s) && s > 0 ? Math.round(s * 1000) : undefined;
+  return typeof s === "number" && Number.isFinite(s) && s > 0
+    ? Math.round(s * 1000)
+    : undefined;
 }
 
 /** The folder a cloud session is placed under when this machine has no checkout of its repo. */
@@ -53,7 +64,10 @@ function cloudMirrorPlaceholderRoot(dirName: string): string {
 export async function cloudMirrorPlacement(
   dirName: string,
   repo: { owner: string; name: string } | null | undefined,
-  resolveRepoDir: (repo: { owner: string; name: string }) => Promise<string | null>,
+  resolveRepoDir: (repo: {
+    owner: string;
+    name: string;
+  }) => Promise<string | null>,
 ): Promise<string> {
   const local = repo ? await resolveRepoDir(repo).catch(() => null) : null;
   if (local) return local;
@@ -62,8 +76,13 @@ export async function cloudMirrorPlacement(
 }
 
 /** Whether a session's folder is a placeholder cloudMirrorPlacement made (no checkout of its repo on that machine). */
-export function isCloudMirrorPlaceholder(cwd: string, dirNames: readonly string[]): boolean {
-  return dirNames.map(cloudMirrorPlaceholderRoot).some((root) => cwd === root || cwd.startsWith(`${root}/`));
+export function isCloudMirrorPlaceholder(
+  cwd: string,
+  dirNames: readonly string[],
+): boolean {
+  return dirNames
+    .map(cloudMirrorPlaceholderRoot)
+    .some((root) => cwd === root || cwd.startsWith(`${root}/`));
 }
 
 /**
@@ -72,10 +91,16 @@ export function isCloudMirrorPlaceholder(cwd: string, dirNames: readonly string[
  * branch, HEAD or changes. Those are this machine's work, not the agent's;
  * the agent's own branch comes from its provider (the watcher's git event).
  */
-export function cloudMirrorRepoFacts(info: GitInfo | undefined): GitInfo | undefined {
+export function cloudMirrorRepoFacts(
+  info: GitInfo | undefined,
+): GitInfo | undefined {
   if (!info) return undefined;
   const { root, repoRoot, remoteUrl } = info;
-  return { ...(root ? { root } : {}), ...(repoRoot ? { repoRoot } : {}), ...(remoteUrl ? { remoteUrl } : {}) };
+  return {
+    ...(root ? { root } : {}),
+    ...(repoRoot ? { repoRoot } : {}),
+    ...(remoteUrl ? { remoteUrl } : {}),
+  };
 }
 
 /**
@@ -83,13 +108,22 @@ export function cloudMirrorRepoFacts(info: GitInfo | undefined): GitInfo | undef
  * whenever its provider reports the agent's branch (git_branch too, when it
  * pushed none): what cloudMirrorRepoFacts leaves out.
  */
-export const CLOUD_MIRROR_LOCAL_GIT_FIELDS = ["git_commit_hash", "git_ahead", "git_behind", "git_dirty"] as const;
+export const CLOUD_MIRROR_LOCAL_GIT_FIELDS = [
+  "git_commit_hash",
+  "git_ahead",
+  "git_behind",
+  "git_dirty",
+] as const;
 
 /** `owner/name` as the placement takes it; undefined unless both halves are GitHub names (isGitHubName). */
-export function repoOwnerName(repo: string | undefined): { owner: string; name: string } | undefined {
+export function repoOwnerName(
+  repo: string | undefined,
+): { owner: string; name: string } | undefined {
   const parts = repo?.split("/") ?? [];
   const [owner, name] = parts;
-  return parts.length === 2 && isGitHubName(owner) && isGitHubName(name) ? { owner, name } : undefined;
+  return parts.length === 2 && isGitHubName(owner) && isGitHubName(name)
+    ? { owner, name }
+    : undefined;
 }
 
 export interface PollCadenceOptions {
@@ -114,7 +148,10 @@ export class PollCadence {
   busy = false;
   private readonly now: () => number;
 
-  constructor(private readonly pass: () => Promise<void>, private readonly opts: PollCadenceOptions) {
+  constructor(
+    private readonly pass: () => Promise<void>,
+    private readonly opts: PollCadenceOptions,
+  ) {
     this.now = opts.now ?? Date.now;
   }
 
@@ -140,7 +177,11 @@ export class PollCadence {
     this.fastUntil = Math.max(this.fastUntil, this.now() + ms);
     // A pass in flight schedules the next one fast when it ends; a pass
     // already due sooner keeps its time.
-    if (this.dueAt !== undefined && this.dueAt - this.now() > this.opts.fastPollMs) this.schedule(this.opts.fastPollMs);
+    if (
+      this.dueAt !== undefined &&
+      this.dueAt - this.now() > this.opts.fastPollMs
+    )
+      this.schedule(this.opts.fastPollMs);
   }
 
   private schedule(delayMs: number): void {
@@ -153,7 +194,11 @@ export class PollCadence {
       try {
         await this.pass();
       } finally {
-        this.schedule(this.busy || this.now() < this.fastUntil ? this.opts.fastPollMs : this.opts.pollMs);
+        this.schedule(
+          this.busy || this.now() < this.fastUntil
+            ? this.opts.fastPollMs
+            : this.opts.pollMs,
+        );
       }
     }, delayMs);
   }

@@ -44,12 +44,14 @@ function previewPosition(anchor: DOMRect): { left: number; top: number } {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   let left = anchor.left;
-  if (left + CARD_W + EDGE_PAD > vw) left = Math.max(EDGE_PAD, vw - CARD_W - EDGE_PAD);
+  if (left + CARD_W + EDGE_PAD > vw)
+    left = Math.max(EDGE_PAD, vw - CARD_W - EDGE_PAD);
   let top = anchor.bottom + 6;
   if (top + CARD_MAX_H + EDGE_PAD > vh) {
     // Flip above when there's more room there.
     const above = anchor.top - 6 - CARD_MAX_H;
-    if (above > EDGE_PAD || anchor.top > vh - anchor.bottom) top = Math.max(EDGE_PAD, above);
+    if (above > EDGE_PAD || anchor.top > vh - anchor.bottom)
+      top = Math.max(EDGE_PAD, above);
   }
   return { left, top };
 }
@@ -68,7 +70,10 @@ function PreviewCard({
   onNavigate: (path: string) => void;
 }) {
   const body = useVaultStore((s) => s.bodies[path]);
-  const [, markdown] = useMemo(() => splitFrontmatter(body?.content ?? ""), [body?.content]);
+  const [, markdown] = useMemo(
+    () => splitFrontmatter(body?.content ?? ""),
+    [body?.content],
+  );
   const depth = useContext(PreviewDepthContext);
   // The card gets its own full link context — without it every wiki link, tag
   // pill, and vault image inside a preview was dead (review finding, R5).
@@ -77,19 +82,29 @@ function PreviewCard({
   return createPortal(
     <div
       className="fixed z-[80] rounded-md border border-sol-border/50 bg-sol-card shadow-xl overflow-hidden"
-      style={{ left: pos.left, top: pos.top, width: CARD_W, maxHeight: CARD_MAX_H }}
+      style={{
+        left: pos.left,
+        top: pos.top,
+        width: CARD_W,
+        maxHeight: CARD_MAX_H,
+      }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       data-vault-hover-preview
     >
       <div className="flex items-center gap-1.5 px-3 py-1.5 text-meta font-medium text-sol-text-muted bg-sol-bg-alt/60 border-b border-sol-border/30">
         <FileText className="w-3 h-3" />
-        <span className="truncate">{noteDisplayName(path.split("/").pop()!)}</span>
+        <span className="truncate">
+          {noteDisplayName(path.split("/").pop()!)}
+        </span>
         <span className="ml-auto text-meta text-sol-text-dim truncate max-w-[45%]">
           {path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""}
         </span>
       </div>
-      <div className="overflow-y-auto px-3 py-2" style={{ maxHeight: CARD_MAX_H - 34 }}>
+      <div
+        className="overflow-y-auto px-3 py-2"
+        style={{ maxHeight: CARD_MAX_H - 34 }}
+      >
         {body ? (
           <PreviewDepthContext.Provider value={depth + 1}>
             <VaultLinkContext.Provider value={linkCtx}>
@@ -115,7 +130,10 @@ export const HoverPreviewProvider = memo(function HoverPreviewProvider({
   /** Navigating from inside a preview drives the main view. */
   onNavigate: (path: string) => void;
 }) {
-  const [active, setActive] = useState<{ path: string; pos: { left: number; top: number } } | null>(null);
+  const [active, setActive] = useState<{
+    path: string;
+    pos: { left: number; top: number };
+  } | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const depth = useContext(PreviewDepthContext);

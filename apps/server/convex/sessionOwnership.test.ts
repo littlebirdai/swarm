@@ -129,14 +129,20 @@ describe("performSetSessionOwner", () => {
   test("non-teammate cannot set an owner", async () => {
     const db = fixtures();
     await expect(
-      performSetSessionOwner({ db }, OUTSIDER as any, { session_id: "jx1abcd", owner: "me" })
+      performSetSessionOwner({ db }, OUTSIDER as any, {
+        session_id: "jx1abcd",
+        owner: "me",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("teamless session rejects a named owner but allows 'me' for a human runner", async () => {
     const db = fixtures();
     await expect(
-      performSetSessionOwner({ db }, BOT as any, { session_id: "jx2abcd", owner: "jason@union.ai" })
+      performSetSessionOwner({ db }, BOT as any, {
+        session_id: "jx2abcd",
+        owner: "jason@union.ai",
+      }),
     ).rejects.toThrow(/has no team/);
     // A human runner claims their own teamless session fine.
     db._tables.conversations.push({
@@ -159,11 +165,17 @@ describe("performSetSessionOwner", () => {
     const db = fixtures();
     // Mr Bot claiming its own session with "me" is rejected.
     await expect(
-      performSetSessionOwner({ db }, BOT as any, { session_id: "jx2abcd", owner: "me" })
+      performSetSessionOwner({ db }, BOT as any, {
+        session_id: "jx2abcd",
+        owner: "me",
+      }),
     ).rejects.toThrow(/agent account/);
     // A human assigning the bot as owner is rejected too.
     await expect(
-      performSetSessionOwner({ db }, JASON as any, { session_id: "jx1abcd", owner: "bot@union.ai" })
+      performSetSessionOwner({ db }, JASON as any, {
+        session_id: "jx1abcd",
+        owner: "bot@union.ai",
+      }),
     ).rejects.toThrow(/agent account/);
     expect(db._tables.conversations[0].owner_user_id).toBeUndefined();
     // The Aivery flow survives: the bot CALLS setSessionOwner to park on a human.
@@ -178,14 +190,20 @@ describe("performSetSessionOwner", () => {
     const db = fixtures();
     // "union.ai" appears in every member email → ambiguous.
     await expect(
-      performSetSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "union.ai" })
+      performSetSessionOwner({ db }, BOT as any, {
+        session_id: "jx1abcd",
+        owner: "union.ai",
+      }),
     ).rejects.toThrow(/matches multiple team members/);
   });
 
   test("unknown member errors clearly", async () => {
     const db = fixtures();
     await expect(
-      performSetSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "nobody@nowhere.com" })
+      performSetSessionOwner({ db }, BOT as any, {
+        session_id: "jx1abcd",
+        owner: "nobody@nowhere.com",
+      }),
     ).rejects.toThrow(/No team member found matching/);
   });
 
@@ -207,7 +225,8 @@ describe("performSetSessionOwner", () => {
 const ownerIds = (db: any) =>
   (db._tables.session_owners ?? []).map((r: any) => r.user_id);
 const primaryCache = (db: any) =>
-  db._tables.conversations.find((c: any) => c._id === "jx1abcd_convex_id").owner_user_id;
+  db._tables.conversations.find((c: any) => c._id === "jx1abcd_convex_id")
+    .owner_user_id;
 
 describe("multi-owner session ownership", () => {
   test("addSessionOwner accumulates owners instead of replacing them", async () => {
@@ -222,7 +241,9 @@ describe("multi-owner session ownership", () => {
     });
 
     expect(ownerIds(db).sort()).toEqual([ASHOT, JASON].sort());
-    expect(result.owners.map((o) => o.user_id).sort()).toEqual([ASHOT, JASON].sort());
+    expect(result.owners.map((o) => o.user_id).sort()).toEqual(
+      [ASHOT, JASON].sort(),
+    );
     // Only the newly-added owner is notified — Jason isn't re-pinged.
     expect(result.added.map(String)).toEqual([ASHOT]);
     // Adding an owner hands the session to them (org-staffing.md S11): the
@@ -232,8 +253,14 @@ describe("multi-owner session ownership", () => {
 
   test("adding an existing owner is idempotent and notifies nobody", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
-    const result = await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
+    const result = await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
 
     expect(ownerIds(db)).toEqual([JASON]);
     expect(result.added.map(String)).toEqual([]);
@@ -241,12 +268,20 @@ describe("multi-owner session ownership", () => {
 
   test("a noted handoff to an existing co-owner re-stamps the row and notifies again", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, ASHOT as any, { session_id: "jx1abcd", owner: "jason@union.ai", note: "first look" });
+    await performAddSessionOwner({ db }, ASHOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+      note: "first look",
+    });
     const before = db._tables.session_owners[0];
     expect(before.note).toBe("first look");
     await db.patch(before._id, { seen_at: 1 }); // Jason acknowledged the first handoff
 
-    const result = await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai", note: "please finish this" });
+    const result = await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+      note: "please finish this",
+    });
 
     expect(ownerIds(db)).toEqual([JASON]);
     expect(result.added.map(String)).toEqual([JASON]);
@@ -256,15 +291,24 @@ describe("multi-owner session ownership", () => {
     expect(after.seen_at).toBeUndefined();
 
     // Without a note nothing changes and nobody is notified.
-    const quiet = await performAddSessionOwner({ db }, ASHOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    const quiet = await performAddSessionOwner({ db }, ASHOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
     expect(quiet.added).toEqual([]);
     expect(db._tables.session_owners[0].note).toBe("please finish this");
   });
 
   test("removeSessionOwner drops one owner and leaves the rest", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "ashot@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "ashot@union.ai",
+    });
 
     const result = await performRemoveSessionOwner({ db }, BOT as any, {
       session_id: "jx1abcd",
@@ -279,8 +323,14 @@ describe("multi-owner session ownership", () => {
 
   test("removing the last owner clears the primary cache", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
-    await performRemoveSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
+    await performRemoveSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
 
     expect(ownerIds(db)).toEqual([]);
     expect(primaryCache(db)).toBeUndefined();
@@ -288,7 +338,10 @@ describe("multi-owner session ownership", () => {
 
   test("setSessionOwners replaces the whole set, reporting added and removed", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
 
     const result = await performSetSessionOwners({ db }, BOT as any, {
       session_id: "jx1abcd",
@@ -303,8 +356,14 @@ describe("multi-owner session ownership", () => {
 
   test("setSessionOwners with an empty list disowns everyone", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "ashot@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "ashot@union.ai",
+    });
 
     const result = await performSetSessionOwners({ db }, BOT as any, {
       session_id: "jx1abcd",
@@ -318,22 +377,30 @@ describe("multi-owner session ownership", () => {
 
   test("assigning a session moves its pending questions onto the new owner's stack", async () => {
     const db = fixtures();
-    db._tables.session_decisions = [{
-      _id: "sd1",
-      conversation_id: "jx1abcd_convex_id",
-      session_id: "sess-uuid-1",
-      user_id: BOT,
-      question: "Ship it?",
-      options: [{ label: "yes" }, { label: "no" }],
-      blocking: true,
-      status: "pending",
-      asked_user_ids: [BOT],
-      holder: { kind: "user", id: BOT },
-      holder_key: `user:${BOT}`,
-      created_at: 1,
-    }];
+    db._tables.session_decisions = [
+      {
+        _id: "sd1",
+        conversation_id: "jx1abcd_convex_id",
+        session_id: "sess-uuid-1",
+        user_id: BOT,
+        question: "Ship it?",
+        options: [{ label: "yes" }, { label: "no" }],
+        blocking: true,
+        status: "pending",
+        asked_user_ids: [BOT],
+        holder: { kind: "user", id: BOT },
+        holder_key: `user:${BOT}`,
+        created_at: 1,
+      },
+    ];
     db._tables.decision_inbox = [
-      { _id: "di1", decision_id: "sd1", user_id: BOT, status: "pending", created_at: 1 },
+      {
+        _id: "di1",
+        decision_id: "sd1",
+        user_id: BOT,
+        status: "pending",
+        created_at: 1,
+      },
     ];
 
     await performSetSessionOwners({ db }, BOT as any, {
@@ -342,8 +409,13 @@ describe("multi-owner session ownership", () => {
     });
 
     expect(db._tables.session_decisions[0].asked_user_ids).toEqual([JASON]);
-    expect(db._tables.session_decisions[0].holder).toEqual({ kind: "user", id: JASON });
-    expect(db._tables.decision_inbox.map((i: any) => i.user_id)).toEqual([JASON]);
+    expect(db._tables.session_decisions[0].holder).toEqual({
+      kind: "user",
+      id: JASON,
+    });
+    expect(db._tables.decision_inbox.map((i: any) => i.user_id)).toEqual([
+      JASON,
+    ]);
   });
 
   // A handoff un-hides the row: dismiss, stash and snooze are the previous
@@ -351,14 +423,19 @@ describe("multi-owner session ownership", () => {
   // them set hands someone a session they cannot see.
   test("a handoff clears the previous holder's dismiss, stash and snooze", async () => {
     const db = fixtures();
-    const conv = db._tables.conversations.find((c: any) => c._id === "jx1abcd_convex_id");
+    const conv = db._tables.conversations.find(
+      (c: any) => c._id === "jx1abcd_convex_id",
+    );
     conv.inbox_dismissed_at = 111;
     conv.inbox_stashed_at = 222;
     conv.inbox_stash_hidden = true;
     conv.inbox_snoozed_until = 333;
     conv.inbox_killed_at = 444;
 
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
 
     expect(conv.inbox_dismissed_at).toBeUndefined();
     expect(conv.inbox_stashed_at).toBeUndefined();
@@ -370,24 +447,38 @@ describe("multi-owner session ownership", () => {
 
   test("removing an owner leaves the hide stamps alone", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
-    const conv = db._tables.conversations.find((c: any) => c._id === "jx1abcd_convex_id");
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
+    const conv = db._tables.conversations.find(
+      (c: any) => c._id === "jx1abcd_convex_id",
+    );
     conv.inbox_stashed_at = 222;
-    await performRemoveSessionOwner({ db }, JASON as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performRemoveSessionOwner({ db }, JASON as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
     expect(conv.inbox_stashed_at).toBe(222);
   });
 
   test("a bot may assign owners but may never BE one", async () => {
     const db = fixtures();
     await expect(
-      performAddSessionOwner({ db }, JASON as any, { session_id: "jx1abcd", owner: "bot@union.ai" }),
+      performAddSessionOwner({ db }, JASON as any, {
+        session_id: "jx1abcd",
+        owner: "bot@union.ai",
+      }),
     ).rejects.toThrow(/agent account/);
     expect(ownerIds(db)).toEqual([]);
   });
 
   test("the back-compat single-owner form still REPLACES the set", async () => {
     const db = fixtures();
-    await performAddSessionOwner({ db }, BOT as any, { session_id: "jx1abcd", owner: "jason@union.ai" });
+    await performAddSessionOwner({ db }, BOT as any, {
+      session_id: "jx1abcd",
+      owner: "jason@union.ai",
+    });
 
     const result = await performSetSessionOwner({ db }, BOT as any, {
       session_id: "jx1abcd",
@@ -420,23 +511,46 @@ describe("owner ref resolution by user id", () => {
         { _id: "mx2", user_id: MATE, team_id: XTEAM, visibility: "full" },
       ],
       conversations: [
-        { _id: "conv_team", short_id: "team1", session_id: "s-team", user_id: RUNNER, team_id: XTEAM, is_private: false, status: "active" },
-        { _id: "conv_solo", short_id: "solo1", session_id: "s-solo", user_id: RUNNER, team_id: undefined, is_private: true, status: "active" },
+        {
+          _id: "conv_team",
+          short_id: "team1",
+          session_id: "s-team",
+          user_id: RUNNER,
+          team_id: XTEAM,
+          is_private: false,
+          status: "active",
+        },
+        {
+          _id: "conv_solo",
+          short_id: "solo1",
+          session_id: "s-solo",
+          user_id: RUNNER,
+          team_id: undefined,
+          is_private: true,
+          status: "active",
+        },
       ],
       session_owners: [],
     });
-  const owners = (db: any) => (db._tables.session_owners ?? []).map((r: any) => r.user_id);
+  const owners = (db: any) =>
+    (db._tables.session_owners ?? []).map((r: any) => r.user_id);
 
   test("adds a team member passed by user id", async () => {
     const db = idDb();
-    const result = await performAddSessionOwner({ db }, RUNNER as any, { session_id: "team1", owner: MATE });
+    const result = await performAddSessionOwner({ db }, RUNNER as any, {
+      session_id: "team1",
+      owner: MATE,
+    });
     expect(result.added.map(String)).toEqual([MATE]);
     expect(owners(db)).toEqual([MATE]);
   });
 
   test("self-claim by user id works even on a teamless private session", async () => {
     const db = idDb();
-    const result = await performAddSessionOwner({ db }, RUNNER as any, { session_id: "solo1", owner: RUNNER });
+    const result = await performAddSessionOwner({ db }, RUNNER as any, {
+      session_id: "solo1",
+      owner: RUNNER,
+    });
     expect(result.added.map(String)).toEqual([RUNNER]);
     expect(owners(db)).toEqual([RUNNER]);
   });
@@ -444,7 +558,10 @@ describe("owner ref resolution by user id", () => {
   test("adding a teammate to a teamless session is refused", async () => {
     const db = idDb();
     await expect(
-      performAddSessionOwner({ db }, RUNNER as any, { session_id: "solo1", owner: MATE }),
+      performAddSessionOwner({ db }, RUNNER as any, {
+        session_id: "solo1",
+        owner: MATE,
+      }),
     ).rejects.toThrow(/no team/);
     expect(owners(db)).toEqual([]);
   });
@@ -452,7 +569,10 @@ describe("owner ref resolution by user id", () => {
   test("adding a non-member by user id is refused", async () => {
     const db = idDb();
     await expect(
-      performAddSessionOwner({ db }, RUNNER as any, { session_id: "team1", owner: OUTSIDER }),
+      performAddSessionOwner({ db }, RUNNER as any, {
+        session_id: "team1",
+        owner: OUTSIDER,
+      }),
     ).rejects.toThrow(/isn't a member/);
     expect(owners(db)).toEqual([]);
   });
@@ -512,7 +632,11 @@ describe("performListOwners", () => {
     for (let i = 0; i < 30; i++) {
       const id = `users_extra_${i}`;
       extraIds.push(id);
-      db._tables.users.push({ _id: id, name: `Extra ${i}`, email: `e${i}@x.com` });
+      db._tables.users.push({
+        _id: id,
+        name: `Extra ${i}`,
+        email: `e${i}@x.com`,
+      });
       db._tables.team_memberships.push({
         _id: `tm_x_${i}`,
         user_id: id,
@@ -539,17 +663,31 @@ describe("performListOwnerCandidates", () => {
   // candidates are team 2's members — never Jason or the bot.
   test("team_members is the session team's roster, not the caller's", async () => {
     const db = fixtures();
-    const result = await performListOwnerCandidates({ db }, ASHOT as any, "jx3abcd");
-    expect(result?.team_members.map((m) => m._id).sort()).toEqual([ASHOT, SAMVIT].sort());
+    const result = await performListOwnerCandidates(
+      { db },
+      ASHOT as any,
+      "jx3abcd",
+    );
+    expect(result?.team_members.map((m) => m._id).sort()).toEqual(
+      [ASHOT, SAMVIT].sort(),
+    );
   });
 
   test("team session roster carries display fields and the bot flag", async () => {
     const db = fixtures();
-    const result = await performListOwnerCandidates({ db }, ASHOT as any, "jx1abcd");
+    const result = await performListOwnerCandidates(
+      { db },
+      ASHOT as any,
+      "jx1abcd",
+    );
     const bot = result?.team_members.find((m) => m._id === BOT);
     expect(bot?.is_bot).toBe(true);
     const jason = result?.team_members.find((m) => m._id === JASON);
-    expect(jason).toMatchObject({ name: "Jason Benn", email: "jason@union.ai", is_bot: false });
+    expect(jason).toMatchObject({
+      name: "Jason Benn",
+      email: "jason@union.ai",
+      is_bot: false,
+    });
   });
 
   // A teamless session accepts only a self-claim, so the roster is exactly
@@ -557,7 +695,11 @@ describe("performListOwnerCandidates", () => {
   test("teamless session offers only the caller", async () => {
     const db = fixtures();
     db._tables.conversations[1].owner_user_id = JASON;
-    const result = await performListOwnerCandidates({ db }, JASON as any, "jx2abcd");
+    const result = await performListOwnerCandidates(
+      { db },
+      JASON as any,
+      "jx2abcd",
+    );
     expect(result?.team_members.map((m) => m._id)).toEqual([JASON]);
   });
 
@@ -573,10 +715,16 @@ describe("performListOwnerCandidates", () => {
         visibility: "full",
       });
     }
-    const result = await performListOwnerCandidates({ db }, ASHOT as any, "jx1abcd");
+    const result = await performListOwnerCandidates(
+      { db },
+      ASHOT as any,
+      "jx1abcd",
+    );
     // Fixtures already have 3 members on TEAM (bot, jason, ashot). The cap
     // is on the index take, so we never return more than that.
-    expect(result?.team_members.length).toBeLessThanOrEqual(OWNER_CANDIDATE_CAP);
+    expect(result?.team_members.length).toBeLessThanOrEqual(
+      OWNER_CANDIDATE_CAP,
+    );
   });
 });
 
@@ -586,7 +734,11 @@ describe("the sender a move names (from_session)", () => {
   test("a session the caller cannot see is never quoted or stamped as the sender", async () => {
     const db = fixtures();
     // jx2abcd is Mr Bot's private session: Ashot cannot see it.
-    await performSetSessionOwners({ db }, ASHOT as any, { session_id: "jx1abcd", owners: ["jason@union.ai"], from_session: "jx2abcd" });
+    await performSetSessionOwners({ db }, ASHOT as any, {
+      session_id: "jx1abcd",
+      owners: ["jason@union.ai"],
+      from_session: "jx2abcd",
+    });
     expect(lines(db).length).toBeGreaterThan(0);
     for (const row of lines(db)) {
       expect(String(row.content)).not.toContain("jx2abcd");
@@ -596,7 +748,13 @@ describe("the sender a move names (from_session)", () => {
 
   test("the caller's own session is still named as the sender", async () => {
     const db = fixtures();
-    await performSetSessionOwners({ db }, ASHOT as any, { session_id: "jx1abcd", owners: ["jason@union.ai"], from_session: "jx3abcd" });
-    expect(lines(db).some((row) => String(row.content).includes("jx3abcd"))).toBe(true);
+    await performSetSessionOwners({ db }, ASHOT as any, {
+      session_id: "jx1abcd",
+      owners: ["jason@union.ai"],
+      from_session: "jx3abcd",
+    });
+    expect(
+      lines(db).some((row) => String(row.content).includes("jx3abcd")),
+    ).toBe(true);
   });
 });

@@ -1,13 +1,13 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as Font from 'expo-font';
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Font from "expo-font";
 
 /** The faces the first frame draws with: Regular (body), SemiBold (the Inbox
  *  title) and the icon font the list uses. Medium, Bold and Italic load after
  *  the splash hides. A binary that embeds the files (expo-font in app.json)
  *  reports all of them loaded at once, so nothing waits. */
 export const BOOT_FONTS = {
-  'JetBrainsMono-Regular': require('../assets/fonts/JetBrainsMono-Regular.ttf'),
-  'JetBrainsMono-SemiBold': require('../assets/fonts/JetBrainsMono-SemiBold.ttf'),
+  "JetBrainsMono-Regular": require("../assets/fonts/JetBrainsMono-Regular.ttf"),
+  "JetBrainsMono-SemiBold": require("../assets/fonts/JetBrainsMono-SemiBold.ttf"),
   ...FontAwesome.font,
 };
 

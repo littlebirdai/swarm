@@ -54,7 +54,9 @@ export async function startRinging(): Promise<void> {
       return;
     }
     if (!player) {
-      player = a.createAudioPlayer(RING_ASSET, { keepAudioSessionActive: true });
+      player = a.createAudioPlayer(RING_ASSET, {
+        keepAudioSessionActive: true,
+      });
       player.loop = true;
     }
     player.seekTo(0);

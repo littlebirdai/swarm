@@ -51,7 +51,7 @@ memory_gb = 12
 # their own runners, and the fix-forward trigger answers a red run.
 [ship]
 mode = "direct"
-check = "cast check --changed-since $CAST_SHIP_BASE"   # only the projects this ship touches
+check = "cast check --changed-since $CAST_SHIP_BASE" # only the projects this ship touches
 tests = false
 level = true
 

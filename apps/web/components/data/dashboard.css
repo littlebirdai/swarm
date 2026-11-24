@@ -1,94 +1,239 @@
 /* Data dashboards: the responsive grid, drop markers, the edit flash and the
    story entrances. Colors are the --sol-* tokens; spacing follows the grid. */
 
-.data-wrap { container-type: inline-size; }
+.data-wrap {
+  container-type: inline-size;
+}
 
 .data-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px;
 }
-.data-cell { grid-column: span 12; }
+.data-cell {
+  grid-column: span 12;
+}
 /* Spans are set per block from its packed row (packSpans), so they follow the grid's own width. */
 @container (max-width: 480px) {
-  .data-grid { gap: 12px; }
+  .data-grid {
+    gap: 12px;
+  }
 }
 
-.data-drop { position: absolute; background: var(--sol-blue); border-radius: 2px; pointer-events: none; z-index: 5; }
-.data-drop-before { left: -10px; top: 8px; bottom: 8px; width: 3px; }
-.data-drop-after { right: -10px; top: 8px; bottom: 8px; width: 3px; }
-.data-drop-above { top: -10px; left: 8px; right: 8px; height: 3px; }
-.data-drop-below { bottom: -10px; left: 8px; right: 8px; height: 3px; }
+.data-drop {
+  position: absolute;
+  background: var(--sol-blue);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 5;
+}
+.data-drop-before {
+  left: -10px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+}
+.data-drop-after {
+  right: -10px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+}
+.data-drop-above {
+  top: -10px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+}
+.data-drop-below {
+  bottom: -10px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+}
 
 /* A block someone else just wrote: one soft pulse of the writer's attention color. */
 .data-flash {
-  position: absolute; inset: -1px; border-radius: 12px; pointer-events: none;
+  position: absolute;
+  inset: -1px;
+  border-radius: 12px;
+  pointer-events: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sol-violet) 70%, transparent);
   animation: data-flash 1.6s ease-out forwards;
 }
 @keyframes data-flash {
-  0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; }
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
-.data-story-in { animation: data-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-.data-beat-in { animation: data-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.data-story-in {
+  animation: data-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.data-beat-in {
+  animation: data-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
 @keyframes data-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .data-flash, .data-story-in, .data-beat-in { animation: none; }
+  .data-flash,
+  .data-story-in,
+  .data-beat-in {
+    animation: none;
+  }
 }
 
 /* The Visual short's stage sizes its type to itself (cqw/cqh), so a beat fits a pane as well as a full screen. */
-.data-stage { container-type: size; }
+.data-stage {
+  container-type: size;
+}
 
 /* Stories lay out by the pane they're in, not the window: words beside the chart only when there's room. */
-.story-pad { padding-inline: 20px; }
-.story-step { gap: 28px; }
-.story-numbers { grid-template-columns: 1fr; }
+.story-pad {
+  padding-inline: 20px;
+}
+.story-step {
+  gap: 28px;
+}
+.story-numbers {
+  grid-template-columns: 1fr;
+}
 @container (min-width: 560px) {
-  .story-pad { padding-inline: 40px; }
-  .story-numbers[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .story-numbers[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .story-pad {
+    padding-inline: 40px;
+  }
+  .story-numbers[data-count="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .story-numbers[data-count="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 @container (min-width: 900px) {
-  .story-step { grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: 56px; }
-  .story-words { position: sticky; top: 22vh; }
+  .story-step {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 8fr);
+    gap: 56px;
+  }
+  .story-words {
+    position: sticky;
+    top: 22vh;
+  }
 }
 /* Scrollyteller: words scroll past a pinned stage that swaps to the step being read. */
-.scrolly-group { position: relative; display: grid; grid-template-columns: 1fr; }
+.scrolly-group {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+}
 /* One column: the stage pins on top and covers the cards behind it, so words appear only below the chart and never over it. */
-.scrolly-stage { position: sticky; top: 0; z-index: 3; height: 54vh; padding: 12px 0; background: var(--sol-bg); }
-.scrolly-stage-inner { position: relative; height: 100%; }
+.scrolly-stage {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 54vh;
+  padding: 12px 0;
+  background: var(--sol-bg);
+}
+.scrolly-stage-inner {
+  position: relative;
+  height: 100%;
+}
 .scrolly-visual {
-  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
-  opacity: 0; transform: translateY(12px) scale(0.985); pointer-events: none;
-  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+  pointer-events: none;
+  transition:
+    opacity 0.5s ease,
+    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-.scrolly-visual.is-on { opacity: 1; transform: none; pointer-events: auto; }
-.scrolly-steps { position: relative; z-index: 1; }
-.scrolly-step { min-height: 70vh; display: flex; align-items: flex-end; padding-bottom: 4vh; }
+.scrolly-visual.is-on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.scrolly-steps {
+  position: relative;
+  z-index: 1;
+}
+.scrolly-step {
+  min-height: 70vh;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4vh;
+}
 .scrolly-card {
-  max-width: 520px; padding: 18px 20px; border-radius: 14px;
-  background: color-mix(in srgb, var(--sol-card) 94%, transparent); border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
-  opacity: 0.45; transition: opacity 0.4s ease;
+  max-width: 520px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sol-card) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
 }
-.scrolly-card.is-on { opacity: 1; }
+.scrolly-card.is-on {
+  opacity: 1;
+}
 @container (min-width: 900px) {
-  .scrolly-group { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; }
-  .scrolly-stage { grid-column: 2; grid-row: 1; top: 4vh; height: 76vh; padding: 0; background: none; }
-  .scrolly-steps { grid-column: 1; grid-row: 1; }
-  .scrolly-step { min-height: 70vh; align-items: center; padding-bottom: 0; }
-  .scrolly-step:first-child { margin-top: 0; }
-  .scrolly-card { background: none; border-color: transparent; padding: 0; }
+  .scrolly-group {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 56px;
+  }
+  .scrolly-stage {
+    grid-column: 2;
+    grid-row: 1;
+    top: 4vh;
+    height: 76vh;
+    padding: 0;
+    background: none;
+  }
+  .scrolly-steps {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .scrolly-step {
+    min-height: 70vh;
+    align-items: center;
+    padding-bottom: 0;
+  }
+  .scrolly-step:first-child {
+    margin-top: 0;
+  }
+  .scrolly-card {
+    background: none;
+    border-color: transparent;
+    padding: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scrolly-visual, .scrolly-card { transition: none; }
+  .scrolly-visual,
+  .scrolly-card {
+    transition: none;
+  }
 }
 
 /* A narrow pane gets a portrait stage so a beat's headline, number and line all fit. */
 @container (max-width: 640px) {
-  .data-stage { aspect-ratio: 4 / 5; }
+  .data-stage {
+    aspect-ratio: 4 / 5;
+  }
 }

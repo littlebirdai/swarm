@@ -2,8 +2,15 @@ import { useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleToolbar } from "./BubbleToolbar";
 import { useMountEffect } from "../../hooks/useMountEffect";
-import { createBaseExtensions, createMentionExtension, type MentionQueryFn } from "./editorExtensions";
-import { createWikiLinkExtension, type WikiLinkQueryFn } from "./WikiLinkExtension";
+import {
+  createBaseExtensions,
+  createMentionExtension,
+  type MentionQueryFn,
+} from "./editorExtensions";
+import {
+  createWikiLinkExtension,
+  type WikiLinkQueryFn,
+} from "./WikiLinkExtension";
 import { uploadImageWithPlaceholder } from "./ImageUploadPlugin";
 import "./editor.css";
 
@@ -43,7 +50,7 @@ export function DocEditor({
         }
       }, 500);
     },
-    [onUpdate]
+    [onUpdate],
   );
 
   const extensions = [
@@ -68,7 +75,12 @@ export function DocEditor({
             const file = item.getAsFile();
             if (!file) continue;
             event.preventDefault();
-            uploadImageWithPlaceholder(view, file, view.state.selection.from, onImageUploadRef.current);
+            uploadImageWithPlaceholder(
+              view,
+              file,
+              view.state.selection.from,
+              onImageUploadRef.current,
+            );
             return true;
           }
         }
@@ -77,10 +89,14 @@ export function DocEditor({
       handleDrop: (view, event) => {
         const files = event.dataTransfer?.files;
         if (!files?.length || !onImageUploadRef.current) return false;
-        const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+        const imageFiles = Array.from(files).filter((f) =>
+          f.type.startsWith("image/"),
+        );
         if (!imageFiles.length) return false;
         event.preventDefault();
-        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from;
+        const pos =
+          view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ??
+          view.state.selection.from;
         for (const file of imageFiles) {
           uploadImageWithPlaceholder(view, file, pos, onImageUploadRef.current);
         }

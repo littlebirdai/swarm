@@ -3,11 +3,23 @@
 // manifest and signature every other call to the product takes (sources/app).
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { parseReaderQuery, readMetricAnswer } from "@codecast/shared/contracts/ingest";
-import { buildAppRequest, formatActorHeader, validateJson } from "@codecast/shared/contracts/appConnector";
+import {
+  parseReaderQuery,
+  readMetricAnswer,
+} from "@codecast/shared/contracts/ingest";
+import {
+  buildAppRequest,
+  formatActorHeader,
+  validateJson,
+} from "@codecast/shared/contracts/appConnector";
 import { isTokenRefusal } from "../lib/sourceHealth";
 import type { FetchLike } from "../tokenConnectors";
-import { appCredential, auditOutsideCall, freshManifest, type RunCtx } from "./app";
+import {
+  appCredential,
+  auditOutsideCall,
+  freshManifest,
+  type RunCtx,
+} from "./app";
 import { appHttp, signerOf } from "../lib/appHttp";
 
 /**
@@ -23,28 +35,78 @@ export async function readAppMetric(
   query: string,
   fetchImpl: FetchLike,
   opts: { days?: number } = {},
-): Promise<{ ok: true; value: number | null; unit: string | null; points: Array<{ at: number; value: number }>; version: string | null } | { ok: false; error: string; lost?: boolean }> {
+): Promise<
+  | {
+      ok: true;
+      value: number | null;
+      unit: string | null;
+      points: Array<{ at: number; value: number }>;
+      version: string | null;
+    }
+  | { ok: false; error: string; lost?: boolean }
+> {
   const parsed = parseReaderQuery(query);
   if ("error" in parsed) return { ok: false, error: parsed.error };
-  const found = await ctx.runQuery(internal.sources.app.sourceForPoll, { source_id: sourceId });
-  if (!found || found.source.status !== "active") return { ok: false, error: "the source is not active" };
+  const found = await ctx.runQuery(internal.sources.app.sourceForPoll, {
+    source_id: sourceId,
+  });
+  if (!found || found.source.status !== "active")
+    return { ok: false, error: "the source is not active" };
   const source: Doc<"event_sources"> = found.source;
   const cred = await appCredential(ctx, found.connection_id);
   if (!cred.ok) return { ok: false, error: cred.error, lost: true };
-  const m = await freshManifest(ctx, source, found.connection_id, fetchImpl, Date.now());
+  const m = await freshManifest(
+    ctx,
+    source,
+    found.connection_id,
+    fetchImpl,
+    Date.now(),
+  );
   if (!m.ok) return { ok: false, error: m.error };
   const reader = m.manifest.readers.find((r) => r.name === parsed.reader);
-  if (!reader) return { ok: false, error: `${source.name} declares no reader ${parsed.reader}` };
+  if (!reader)
+    return {
+      ok: false,
+      error: `${source.name} declares no reader ${parsed.reader}`,
+    };
   const takesDays = !!(reader.input as any)?.properties?.days;
-  const args = { ...parsed.args, ...(opts.days && takesDays ? { days: Math.round(opts.days) } : {}) };
+  const args = {
+    ...parsed.args,
+    ...(opts.days && takesDays ? { days: Math.round(opts.days) } : {}),
+  };
   const invalid = validateJson(reader.input, args);
-  if (invalid.length) return { ok: false, error: `invalid args: ${invalid.join("; ")}` };
+  if (invalid.length)
+    return { ok: false, error: `invalid args: ${invalid.join("; ")}` };
   const req = buildAppRequest(cred.base_url, reader, args);
   if (!req.ok) return { ok: false, error: req.error };
-  const res = await appHttp(fetchImpl, req, { token: cred.token, actor: formatActorHeader({ watch: parsed.reader }), sign: signerOf(source) });
+  const res = await appHttp(fetchImpl, req, {
+    token: cred.token,
+    actor: formatActorHeader({ watch: parsed.reader }),
+    sign: signerOf(source),
+  });
   if (!res.ok) {
-    await auditOutsideCall(ctx, { source_id: source._id, user_id: source.owner_user_id, kind: "read", name: parsed.reader, args }, "error", { error: `metric ${parsed.reader}: ${res.error ?? "failed"}`, ms: res.ms, bytes: res.bytes, http_status: res.status });
-    return { ok: false, error: res.error ?? "failed", ...(isTokenRefusal(res.status) ? { lost: true } : {}) };
+    await auditOutsideCall(
+      ctx,
+      {
+        source_id: source._id,
+        user_id: source.owner_user_id,
+        kind: "read",
+        name: parsed.reader,
+        args,
+      },
+      "error",
+      {
+        error: `metric ${parsed.reader}: ${res.error ?? "failed"}`,
+        ms: res.ms,
+        bytes: res.bytes,
+        http_status: res.status,
+      },
+    );
+    return {
+      ok: false,
+      error: res.error ?? "failed",
+      ...(isTokenRefusal(res.status) ? { lost: true } : {}),
+    };
   }
   let body: unknown;
   try {

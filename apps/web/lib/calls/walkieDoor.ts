@@ -76,7 +76,8 @@ export function walkieDoorOpen(input: {
   pref?: string | null;
   status?: string | null;
 }): boolean {
-  if (!input.callsOn || !input.atMachine || !input.leader || input.snoozed) return false;
+  if (!input.callsOn || !input.atMachine || !input.leader || input.snoozed)
+    return false;
   if (input.pref === "off") return false;
   return input.status !== "busy";
 }
@@ -143,10 +144,17 @@ export function machineInputAt(windows: DoorWindow[], now: number): number {
  * The desktop does not use this: it has a voice host, or failing that the
  * shell's own leader election across real OS windows (`ownsTheDesktop`).
  */
-export function chooseDoorWindow(windows: DoorWindow[], now: number): string | null {
+export function chooseDoorWindow(
+  windows: DoorWindow[],
+  now: number,
+): string | null {
   let best: DoorWindow | null = null;
   for (const w of alive(windows, now)) {
-    if (!best || w.focusedAt > best.focusedAt || (w.focusedAt === best.focusedAt && w.id < best.id)) {
+    if (
+      !best ||
+      w.focusedAt > best.focusedAt ||
+      (w.focusedAt === best.focusedAt && w.id < best.id)
+    ) {
       best = w;
     }
   }
@@ -180,9 +188,21 @@ export function readWindows(now = Date.now()): DoorWindow[] {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key || !key.startsWith(WINDOW_KEY)) continue;
-      let row: { aliveAt?: unknown; inputAt?: unknown; focusedAt?: unknown } | null = null;
-      try { row = JSON.parse(localStorage.getItem(key) || "null"); } catch { /* unreadable: pruned below */ }
-      if (!row || typeof row.aliveAt !== "number" || now - row.aliveAt > PRUNE_MS) {
+      let row: {
+        aliveAt?: unknown;
+        inputAt?: unknown;
+        focusedAt?: unknown;
+      } | null = null;
+      try {
+        row = JSON.parse(localStorage.getItem(key) || "null");
+      } catch {
+        /* unreadable: pruned below */
+      }
+      if (
+        !row ||
+        typeof row.aliveAt !== "number" ||
+        now - row.aliveAt > PRUNE_MS
+      ) {
         dead.push(key);
       } else {
         out.push({
@@ -207,7 +227,11 @@ function writeSelf(now: number): void {
   try {
     localStorage.setItem(
       `${WINDOW_KEY}${selfId}`,
-      JSON.stringify({ inputAt: getLastDesktopActivityAt(), focusedAt, aliveAt: now }),
+      JSON.stringify({
+        inputAt: getLastDesktopActivityAt(),
+        focusedAt,
+        aliveAt: now,
+      }),
     );
   } catch {
     /* see readWindows */
@@ -261,7 +285,8 @@ function refresh(): void {
   const now = Date.now();
   if (now - lastWrite >= TICK_MS / 4) writeSelf(now);
   const next = compute(now);
-  if (next.atMachine === snapshot.atMachine && next.leader === snapshot.leader) return;
+  if (next.atMachine === snapshot.atMachine && next.leader === snapshot.leader)
+    return;
   snapshot = Object.freeze(next);
   for (const cb of watchers) cb();
 }
@@ -291,7 +316,10 @@ function install(): void {
   // next poll: coming back to the machine and hearing the next word is the
   // whole promise.
   for (const ev of ["pointerdown", "keydown"]) {
-    window.addEventListener(ev, () => refresh(), { capture: true, passive: true });
+    window.addEventListener(ev, () => refresh(), {
+      capture: true,
+      passive: true,
+    });
   }
   // A sibling window writing its record. This is how one window's keystroke
   // holds another window's door open.

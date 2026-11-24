@@ -18,11 +18,18 @@ export { modelFitsAgent, modelOptionKey };
 
 export function effortGlyph(effort: string | undefined | null): string {
   switch (effort) {
-    case "low": return "○";
-    case "medium": return "◐";
-    case "high": return "●";
-    case "ultra": case "max": case "xhigh": return "◈";
-    default: return "";
+    case "low":
+      return "○";
+    case "medium":
+      return "◐";
+    case "high":
+      return "●";
+    case "ultra":
+    case "max":
+    case "xhigh":
+      return "◈";
+    default:
+      return "";
   }
 }
 
@@ -32,8 +39,15 @@ export function effortGlyph(effort: string | undefined | null): string {
  * `/model` message would reach it as a prompt). Every surface that offers the
  * model picker asks this.
  */
-export function canControlModel(agentType: string | undefined, sessionId: string | null | undefined, model: string | null | undefined): boolean {
-  return !!AGENT_MODEL_CONFIG[modelAgentKey(agentType)] && !cloudAgentProviderOfConversation(agentType, sessionId, model);
+export function canControlModel(
+  agentType: string | undefined,
+  sessionId: string | null | undefined,
+  model: string | null | undefined,
+): boolean {
+  return (
+    !!AGENT_MODEL_CONFIG[modelAgentKey(agentType)] &&
+    !cloudAgentProviderOfConversation(agentType, sessionId, model)
+  );
 }
 
 /**
@@ -48,7 +62,10 @@ export function modelSwitchMessages(
   if (!AGENT_MODEL_CONFIG[modelAgentKey(agentType)]?.midSession) return [];
   const out: string[] = [];
   if (sel.model !== undefined) {
-    const alias = sel.model === "default" ? "default" : findModelOption(agentType, sel.model)?.cliAlias;
+    const alias =
+      sel.model === "default"
+        ? "default"
+        : findModelOption(agentType, sel.model)?.cliAlias;
     if (alias) out.push(`/model ${alias}`);
   }
   if (sel.effort !== undefined) out.push(`/effort ${sel.effort}`);
@@ -74,9 +91,18 @@ export async function commitModelChange(opts: {
   // including a not-yet-created stub.
   store.setConversationModel(conversationId, {
     ...(sel.model !== undefined
-      ? { model: sel.model === "default" ? null : (agentKey === "claude" ? `claude-${sel.model}` : sel.model) }
+      ? {
+          model:
+            sel.model === "default"
+              ? null
+              : agentKey === "claude"
+                ? `claude-${sel.model}`
+                : sel.model,
+        }
       : {}),
-    ...(sel.effort !== undefined ? { effort: sel.effort === "default" ? null : sel.effort } : {}),
+    ...(sel.effort !== undefined
+      ? { effort: sel.effort === "default" ? null : sel.effort }
+      : {}),
   });
 
   if (!blank && AGENT_MODEL_CONFIG[agentKey]?.midSession) {
@@ -107,7 +133,11 @@ export async function commitModelChange(opts: {
   if (!isConvexId(conversationId)) return;
 
   try {
-    await store.convCommand(conversationId, blank ? "reconfigureSession" : "switchSessionAgent", sel);
+    await store.convCommand(
+      conversationId,
+      blank ? "reconfigureSession" : "switchSessionAgent",
+      sel,
+    );
   } catch (err) {
     // Parked-unwired means the write is queued and WILL apply on the next
     // outbox drain — reverting the local stamp here would make the UI disagree

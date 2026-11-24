@@ -5,13 +5,19 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ChangesResponse } from "@codecast/shared/contracts/evalsApi";
-import { useEvalsChanges, useEvalsClient, useEvalsResource } from "../../../lib/evals/hooks";
+import {
+  useEvalsChanges,
+  useEvalsClient,
+  useEvalsResource,
+} from "../../../lib/evals/hooks";
 import type { EvalsView } from "@platform/evals/client";
 import { useEvalsHost } from "@platform/evals/react";
 import { SimCatalogView, type SweepState } from "../SimCatalogView";
 import { jobLive, jobState, shownJobState } from "../simJobState";
 
-export function SimCatalogPage(_props: { view: Extract<EvalsView, { view: "sim" }> }) {
+export function SimCatalogPage(_props: {
+  view: Extract<EvalsView, { view: "sim" }>;
+}) {
   const { EmptyState } = useEvalsHost().ui;
   const { call } = useEvalsClient();
   const catalog = useEvalsResource("GET /sim/catalog", {});
@@ -24,7 +30,9 @@ export function SimCatalogPage(_props: { view: Extract<EvalsView, { view: "sim" 
 
   const onChanges = useCallback(
     (changes: ChangesResponse) => {
-      const job = changes.jobs.find((j) => j.id === jobId.current) ?? changes.jobs.find((j) => j.kind === "sweep");
+      const job =
+        changes.jobs.find((j) => j.id === jobId.current) ??
+        changes.jobs.find((j) => j.kind === "sweep");
       if (!job) return;
       setSweep(jobState(job));
       if (job.status === "running") return;
@@ -35,19 +43,33 @@ export function SimCatalogPage(_props: { view: Extract<EvalsView, { view: "sim" 
   );
   useEvalsChanges(jobLive(shown), onChanges);
 
-  const onSweep = useCallback(async (filter: string, seeds: number) => {
-    setSweep({ state: "starting" });
-    try {
-      const { job } = await call("POST /sim/sweep", { body: { ...(filter ? { filter } : {}), seeds } });
-      jobId.current = job;
-      setSweep({ state: "running", job: null });
-    } catch (e) {
-      setSweep({ state: "failed", error: e instanceof Error ? e.message : String(e) });
-    }
-  }, [call]);
+  const onSweep = useCallback(
+    async (filter: string, seeds: number) => {
+      setSweep({ state: "starting" });
+      try {
+        const { job } = await call("POST /sim/sweep", {
+          body: { ...(filter ? { filter } : {}), seeds },
+        });
+        jobId.current = job;
+        setSweep({ state: "running", job: null });
+      } catch (e) {
+        setSweep({
+          state: "failed",
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    [call],
+  );
 
   const error = catalog.error ?? sessions.error;
-  if (error && !catalog.data) return <EmptyState title="The Multiplayer sim history did not load" description={error} />;
+  if (error && !catalog.data)
+    return (
+      <EmptyState
+        title="The Multiplayer sim history did not load"
+        description={error}
+      />
+    );
   if (!catalog.data || !sessions.data) {
     return (
       <div className="ev-page ev-note" data-evals-page="sim" data-evals-loading>
@@ -55,5 +77,12 @@ export function SimCatalogPage(_props: { view: Extract<EvalsView, { view: "sim" 
       </div>
     );
   }
-  return <SimCatalogView catalog={catalog.data} sessions={sessions.data.sessions} sweep={shown} onSweep={onSweep} />;
+  return (
+    <SimCatalogView
+      catalog={catalog.data}
+      sessions={sessions.data.sessions}
+      sweep={shown}
+      onSweep={onSweep}
+    />
+  );
 }

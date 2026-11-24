@@ -24,7 +24,11 @@ import * as path from "node:path";
  * one URL when it launches the human's Chrome or wakes the extension. This
  * opens that URL as a tab in the rig Chrome instead, and logs the call.
  */
-export function writeForwarder(cdpPort: number, forwardPath: string, logPath: string): void {
+export function writeForwarder(
+  cdpPort: number,
+  forwardPath: string,
+  logPath: string,
+): void {
   const script = `#!/bin/sh
 # browser-rig: stands in for the human's Chrome (CODECAST_CHROMIUM). Opens the
 # URL argument in the rig Chrome over its CDP port; switches are ignored.
@@ -38,17 +42,29 @@ exec /usr/bin/curl -s -o /dev/null -X PUT "http://127.0.0.1:${cdpPort}/json/new?
 }
 
 /** `serve-fixtures <portA> <portB>`: the detached fixture server `up --fixtures` starts. */
-export function serveFixtures(portA: number, portB: number, fixturesDir: string): void {
+export function serveFixtures(
+  portA: number,
+  portB: number,
+  fixturesDir: string,
+): void {
   const origin = (p: number) => `http://127.0.0.1:${p}`;
-  for (const [port, other] of [[portA, portB], [portB, portA]]) {
+  for (const [port, other] of [
+    [portA, portB],
+    [portB, portA],
+  ]) {
     Bun.serve({
       port,
       hostname: "127.0.0.1",
       async fetch(req) {
         const url = new URL(req.url);
         const fill = (html: string, extra: Record<string, string> = {}) =>
-          Object.entries({ ORIGIN: origin(port), OTHER_ORIGIN: origin(other), ...extra }).reduce((h, [k, v]) => h.replaceAll(`{{${k}}}`, v), html);
-        const page = (name: string) => fs.readFileSync(path.join(fixturesDir, name), "utf-8");
+          Object.entries({
+            ORIGIN: origin(port),
+            OTHER_ORIGIN: origin(other),
+            ...extra,
+          }).reduce((h, [k, v]) => h.replaceAll(`{{${k}}}`, v), html);
+        const page = (name: string) =>
+          fs.readFileSync(path.join(fixturesDir, name), "utf-8");
         const html = (body: string, init: ResponseInit = {}) => {
           const headers = new Headers(init.headers);
           headers.set("content-type", "text/html; charset=utf-8");
@@ -57,27 +73,54 @@ export function serveFixtures(portA: number, portB: number, fixturesDir: string)
         if (url.pathname === "/login" && req.method === "POST") {
           const form = await req.formData();
           const user = String(form.get("email") ?? "");
-          const headers = new Headers({ location: `/welcome.html?user=${encodeURIComponent(user)}` });
-          headers.append("set-cookie", `rig_auth=${encodeURIComponent(user)}; Path=/; HttpOnly; SameSite=Lax`);
+          const headers = new Headers({
+            location: `/welcome.html?user=${encodeURIComponent(user)}`,
+          });
+          headers.append(
+            "set-cookie",
+            `rig_auth=${encodeURIComponent(user)}; Path=/; HttpOnly; SameSite=Lax`,
+          );
           return new Response(null, { status: 303, headers });
         }
         if (url.pathname === "/welcome.html") {
-          const user = url.searchParams.get("user") ?? /rig_auth=([^;]+)/.exec(req.headers.get("cookie") ?? "")?.[1] ?? "nobody";
-          return html(fill(page("welcome.html"), { USER: Bun.escapeHTML(decodeURIComponent(user)) }));
+          const user =
+            url.searchParams.get("user") ??
+            /rig_auth=([^;]+)/.exec(req.headers.get("cookie") ?? "")?.[1] ??
+            "nobody";
+          return html(
+            fill(page("welcome.html"), {
+              USER: Bun.escapeHTML(decodeURIComponent(user)),
+            }),
+          );
         }
         if (url.pathname === "/challenge.html") {
-          return html(fill(page("challenge.html")), { status: 403, headers: { "cf-mitigated": "challenge", server: "cloudflare", "cf-ray": "8f0000000000rig0-SJC" } });
+          return html(fill(page("challenge.html")), {
+            status: 403,
+            headers: {
+              "cf-mitigated": "challenge",
+              server: "cloudflare",
+              "cf-ray": "8f0000000000rig0-SJC",
+            },
+          });
         }
         if (url.pathname === "/cookies.html") {
           const headers = new Headers();
           headers.append("set-cookie", "rig_session=s3cr3t; Path=/; HttpOnly");
-          headers.append("set-cookie", "rig_pref=dark; Path=/; Max-Age=86400; SameSite=Lax");
+          headers.append(
+            "set-cookie",
+            "rig_pref=dark; Path=/; Max-Age=86400; SameSite=Lax",
+          );
           headers.append("set-cookie", "rig_strict=1; Path=/; SameSite=Strict");
           return html(fill(page("cookies.html")), { headers });
         }
         if (url.pathname === "/healthz") return new Response("ok");
-        const name = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-        if (!/^[a-z0-9-]+\.html$/.test(name) || !fs.existsSync(path.join(fixturesDir, name))) return new Response("not found", { status: 404 });
+        const name =
+          url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+        if (
+          !/^[a-z0-9-]+\.html$/.test(name) ||
+          !fs.existsSync(path.join(fixturesDir, name))
+        )
+          return new Response("not found", { status: 404 });
         return html(fill(page(name)));
       },
     });

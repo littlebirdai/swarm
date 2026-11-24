@@ -11,7 +11,12 @@
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useMemo, useState } from "react";
 import type { ConvexReactClient } from "convex/react";
-import { getTerminalEndpoint, isOverrideEndpoint, termHttpBase, type TerminalEndpoint } from "./terminal/endpoint";
+import {
+  getTerminalEndpoint,
+  isOverrideEndpoint,
+  termHttpBase,
+  type TerminalEndpoint,
+} from "./terminal/endpoint";
 import { splitDirQuery, type DiskListing } from "./utils";
 
 const REQUEST_TIMEOUT_MS = 2_500;
@@ -29,16 +34,24 @@ let endpointMissAt = 0;
 // failed request pays for discovery. Revalidating first cost a /term/sessions
 // round trip per listing (a second or more on a busy daemon), long enough that
 // the picker settled on its fallback row before the folders arrived.
-async function endpointFor(convex: ConvexReactClient, deviceId: string | null | undefined, force: boolean): Promise<TerminalEndpoint | null> {
+async function endpointFor(
+  convex: ConvexReactClient,
+  deviceId: string | null | undefined,
+  force: boolean,
+): Promise<TerminalEndpoint | null> {
   if (Date.now() - endpointMissAt < ENDPOINT_MISS_TTL_MS) return null;
-  const ep = await getTerminalEndpoint(convex, force ? { force: true } : { trustCache: true }).catch(() => null);
+  const ep = await getTerminalEndpoint(
+    convex,
+    force ? { force: true } : { trustCache: true },
+  ).catch(() => null);
   if (!ep) {
     endpointMissAt = Date.now();
     return null;
   }
   // The picker may be routing the session at another machine; that machine's
   // disk is not this one's.
-  if (deviceId && ep.deviceId !== deviceId && !isOverrideEndpoint(ep)) return null;
+  if (deviceId && ep.deviceId !== deviceId && !isOverrideEndpoint(ep))
+    return null;
   return ep;
 }
 
@@ -47,7 +60,11 @@ async function endpointFor(convex: ConvexReactClient, deviceId: string | null | 
 async function daemonFetch(
   convex: ConvexReactClient,
   pathAndQuery: string,
-  opts: { deviceId?: string | null; timeoutMs?: number; init?: RequestInit } = {},
+  opts: {
+    deviceId?: string | null;
+    timeoutMs?: number;
+    init?: RequestInit;
+  } = {},
 ): Promise<Response | null> {
   for (const force of [false, true]) {
     const ep = await endpointFor(convex, opts.deviceId, force);
@@ -55,7 +72,10 @@ async function daemonFetch(
     try {
       const res = await fetch(`${termHttpBase(ep)}${pathAndQuery}`, {
         ...opts.init,
-        headers: { Authorization: `Bearer ${ep.token}`, ...(opts.init?.headers ?? {}) },
+        headers: {
+          Authorization: `Bearer ${ep.token}`,
+          ...(opts.init?.headers ?? {}),
+        },
         signal: AbortSignal.timeout(opts.timeoutMs ?? REQUEST_TIMEOUT_MS),
       });
       // A refused token or a port another process now holds means the cached
@@ -68,7 +88,11 @@ async function daemonFetch(
   return null;
 }
 
-async function daemonJson<T>(convex: ConvexReactClient, pathAndQuery: string, opts?: Parameters<typeof daemonFetch>[2]): Promise<T | null> {
+async function daemonJson<T>(
+  convex: ConvexReactClient,
+  pathAndQuery: string,
+  opts?: Parameters<typeof daemonFetch>[2],
+): Promise<T | null> {
   const res = await daemonFetch(convex, pathAndQuery, opts);
   if (!res?.ok) return null;
   return (await res.json().catch(() => null)) as T | null;
@@ -94,7 +118,11 @@ export async function fetchDirListing(
 ): Promise<DiskListing | null> {
   const cached = peekDirListing(dir, hidden);
   if (cached) return cached;
-  const listing = await daemonJson<DiskListing>(convex, `/fs/dirs?path=${encodeURIComponent(dir)}${hidden ? "&hidden=1" : ""}`, { deviceId });
+  const listing = await daemonJson<DiskListing>(
+    convex,
+    `/fs/dirs?path=${encodeURIComponent(dir)}${hidden ? "&hidden=1" : ""}`,
+    { deviceId },
+  );
   if (listing) listings.set(cacheKey(dir, hidden), { at: Date.now(), listing });
   return listing;
 }
@@ -121,8 +149,14 @@ export type LocalFolder = {
  * down, an older daemon without the route). Stays on the loopback: the list of
  * folders that did not sync never reaches the server.
  */
-export async function fetchLocalSessions(convex: ConvexReactClient): Promise<LocalFolder[] | null> {
-  const body = await daemonJson<{ folders: LocalFolder[] }>(convex, "/fs/sessions", { timeoutMs: 30_000 });
+export async function fetchLocalSessions(
+  convex: ConvexReactClient,
+): Promise<LocalFolder[] | null> {
+  const body = await daemonJson<{ folders: LocalFolder[] }>(
+    convex,
+    "/fs/sessions",
+    { timeoutMs: 30_000 },
+  );
   return body?.folders ?? null;
 }
 
@@ -130,10 +164,18 @@ export async function fetchLocalSessions(convex: ConvexReactClient): Promise<Loc
  * Which of `paths` are directories on the machine the browser runs on, with
  * that machine's home. Null when its daemon can't be asked.
  */
-export async function fetchPathsExist(convex: ConvexReactClient, paths: string[]): Promise<{ home: string; exists: Record<string, boolean> } | null> {
+export async function fetchPathsExist(
+  convex: ConvexReactClient,
+  paths: string[],
+): Promise<{ home: string; exists: Record<string, boolean> } | null> {
   if (paths.length === 0) return null;
-  const q = paths.slice(0, 300).map((p) => `p=${encodeURIComponent(p)}`).join("&");
-  return daemonJson(convex, `/fs/exists?${q}`, { timeoutMs: REQUEST_TIMEOUT_MS * 2 });
+  const q = paths
+    .slice(0, 300)
+    .map((p) => `p=${encodeURIComponent(p)}`)
+    .join("&");
+  return daemonJson(convex, `/fs/exists?${q}`, {
+    timeoutMs: REQUEST_TIMEOUT_MS * 2,
+  });
 }
 
 /** Create a project folder (the daemon also `git init`s it). Resolves to the
@@ -146,14 +188,22 @@ export async function createProjectFolder(
   const res = await daemonFetch(convex, "/fs/mkdir", {
     deviceId,
     timeoutMs: 10_000,
-    init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }) },
+    init: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    },
   });
-  if (!res) throw new Error("This machine's daemon isn't reachable, so the folder can't be created here");
+  if (!res)
+    throw new Error(
+      "This machine's daemon isn't reachable, so the folder can't be created here",
+    );
   if (!res.ok) throw new Error(`Couldn't create ${path}`);
   const made = (await res.json()) as { path: string };
   // The parent's cached listing no longer knows about the new folder.
   for (const key of [...listings.keys()]) {
-    if (made.path.startsWith(key.replace(/^\./, "") + "/")) listings.delete(key);
+    if (made.path.startsWith(key.replace(/^\./, "") + "/"))
+      listings.delete(key);
   }
   return made.path;
 }
@@ -171,10 +221,17 @@ export function useDirListing(
   base: string | undefined,
   opts: { enabled: boolean; deviceId?: string | null },
 ): { listing: DiskListing | null; home: string | undefined } {
-  const split = useMemo(() => (opts.enabled ? splitDirQuery(query, home, base) : undefined), [opts.enabled, query, home, base]);
+  const split = useMemo(
+    () => (opts.enabled ? splitDirQuery(query, home, base) : undefined),
+    [opts.enabled, query, home, base],
+  );
   const dir = split?.dir;
   const hidden = split?.hidden ?? false;
-  const [state, setState] = useState<{ listing: DiskListing | null; home: string | undefined; failed?: string }>({
+  const [state, setState] = useState<{
+    listing: DiskListing | null;
+    home: string | undefined;
+    failed?: string;
+  }>({
     listing: null,
     home: undefined,
   });
@@ -191,15 +248,23 @@ export function useDirListing(
     // Already known → paint now; the debounce only guards the network.
     const cached = peekDirListing(dir, hidden);
     if (cached) {
-      setState((s) => (s.listing === cached ? s : { listing: cached, home: cached.home }));
+      setState((s) =>
+        s.listing === cached ? s : { listing: cached, home: cached.home },
+      );
       return;
     }
     let live = true;
     const timer = setTimeout(() => {
-      void fetchDirListing(convex, dir, hidden, opts.deviceId).then((listing) => {
-        if (!live) return;
-        setState((s) => ({ listing, home: listing?.home ?? s.home, failed: listing ? undefined : dir }));
-      });
+      void fetchDirListing(convex, dir, hidden, opts.deviceId).then(
+        (listing) => {
+          if (!live) return;
+          setState((s) => ({
+            listing,
+            home: listing?.home ?? s.home,
+            failed: listing ? undefined : dir,
+          }));
+        },
+      );
     }, DEBOUNCE_MS);
     return () => {
       live = false;

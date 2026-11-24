@@ -18,15 +18,19 @@ describe("Daemon retry integration", () => {
       onLog: (msg) => logs.push(msg),
     });
 
-    const pendingMessages: Record<string, Array<{
-      role: "human" | "assistant";
-      content: string;
-      timestamp: number;
-    }>> = {};
+    const pendingMessages: Record<
+      string,
+      Array<{
+        role: "human" | "assistant";
+        content: string;
+        timestamp: number;
+      }>
+    > = {};
 
     const conversationCache: Record<string, string> = {};
     const createdConversations: string[] = [];
-    const addedMessages: Array<{ conversationId: string; content: string }> = [];
+    const addedMessages: Array<{ conversationId: string; content: string }> =
+      [];
     let createCallCount = 0;
 
     queue.setExecutor(async (op: RetryOperation): Promise<boolean> => {
@@ -72,12 +76,16 @@ describe("Daemon retry integration", () => {
       { role: "assistant", content: "Hi there!", timestamp: Date.now() },
     ];
 
-    queue.add("createConversation", {
-      userId: "user-1",
-      sessionId,
-      agentType: "claude_code",
-      projectPath: "/test/project",
-    }, "Initial failure");
+    queue.add(
+      "createConversation",
+      {
+        userId: "user-1",
+        sessionId,
+        agentType: "claude_code",
+        projectPath: "/test/project",
+      },
+      "Initial failure",
+    );
 
     await new Promise((r) => setTimeout(r, 100));
     expect(createCallCount).toBe(1);
@@ -92,8 +100,12 @@ describe("Daemon retry integration", () => {
     expect(addedMessages[0].content).toBe("Hello");
     expect(addedMessages[1].content).toBe("Hi there!");
 
-    expect(logs.some((l) => l.includes("Queued createConversation"))).toBe(true);
-    expect(logs.some((l) => l.includes("Retrying createConversation"))).toBe(true);
+    expect(logs.some((l) => l.includes("Queued createConversation"))).toBe(
+      true,
+    );
+    expect(logs.some((l) => l.includes("Retrying createConversation"))).toBe(
+      true,
+    );
     expect(logs.some((l) => l.includes("Retry succeeded"))).toBe(true);
 
     queue.stop();
@@ -125,12 +137,16 @@ describe("Daemon retry integration", () => {
       return false;
     });
 
-    queue.add("addMessage", {
-      conversationId: "conv-1",
-      role: "human",
-      content: "Test message",
-      timestamp: Date.now(),
-    }, "Initial network error");
+    queue.add(
+      "addMessage",
+      {
+        conversationId: "conv-1",
+        role: "human",
+        content: "Test message",
+        timestamp: Date.now(),
+      },
+      "Initial network error",
+    );
 
     await new Promise((r) => setTimeout(r, 500));
 

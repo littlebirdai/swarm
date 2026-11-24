@@ -8,31 +8,62 @@ import { sha256Hex } from "./lib/awsSigV4";
 import { BRAND } from "./emails/render";
 import { auth } from "./auth";
 import { internal, api } from "./_generated/api";
-import { callback as googleOAuthCallback, GOOGLE_CALLBACK_PATH } from "./googleOAuth";
-import { callback as connectorCallback, CONNECTOR_CALLBACK_PATH } from "./oauthConnectors";
+import {
+  callback as googleOAuthCallback,
+  GOOGLE_CALLBACK_PATH,
+} from "./googleOAuth";
+import {
+  callback as connectorCallback,
+  CONNECTOR_CALLBACK_PATH,
+} from "./oauthConnectors";
 import { installCallbackHandler } from "./lib/githubInstallCallback";
 import { verifyLinearSignature, linearDeliveryId } from "./linearWebhooks";
 import { readConversationRange } from "./lib/conversationRead";
 import { intentVerifyRoute, originatorRoute } from "./lib/intentHttp";
 import { SHARED_CALL_VIDEO_PATH, signForCli } from "./callRecordings";
-import { SHARED_CALL_AUDIO_PATH, sharedCallAudio, sharedCallVideo } from "./lib/sharedCallMedia";
-import { VAULT_BODY_UPLOAD_PATH, uploadBody as vaultUploadBody } from "./vaultMirror";
+import {
+  SHARED_CALL_AUDIO_PATH,
+  sharedCallAudio,
+  sharedCallVideo,
+} from "./lib/sharedCallMedia";
+import {
+  VAULT_BODY_UPLOAD_PATH,
+  uploadBody as vaultUploadBody,
+} from "./vaultMirror";
 import { ipRateLimited } from "./lib/httpRateLimit";
 import { cliAuthRequest } from "./cliAuthHttp";
-import { registerCliPreflight, registerCliRoute, type CliRouteOptions } from "./lib/cliRoute";
+import {
+  registerCliPreflight,
+  registerCliRoute,
+  type CliRouteOptions,
+} from "./lib/cliRoute";
 import { INGEST_PREFIXES, ingestPreflight, ingestServe } from "./ingestHttp";
 import { publishedKeys } from "./lib/codecastSigning";
 import { CODECAST_KEYS_PATH } from "@codecast/shared/contracts/codecastSignature";
 import { ENROLL_PATH, enrollHttp } from "./lib/enrollHttp";
 import { TEAM_SESSIONS_PATH, teamSessionsHttp } from "./lib/teamReadKeyHttp";
-import { REPLAY_CHUNK_PATH, REPLAY_FRAME_ADMIT_PATH, REPLAY_PLAYER_MANIFEST_PATH, REPLAY_SIGN_PREFIXES, replayChunk, replayChunkPreflight, replayFrameAdmit, replayPlayerManifest, replayPlayerManifestPreflight, replaySign } from "./replaysHttp";
+import {
+  REPLAY_CHUNK_PATH,
+  REPLAY_FRAME_ADMIT_PATH,
+  REPLAY_PLAYER_MANIFEST_PATH,
+  REPLAY_SIGN_PREFIXES,
+  replayChunk,
+  replayChunkPreflight,
+  replayFrameAdmit,
+  replayPlayerManifest,
+  replayPlayerManifestPreflight,
+  replaySign,
+} from "./replaysHttp";
 import { signReplayChunks } from "./lib/replayChunks";
 import { hmacSha256Hex, timingSafeEqualHex } from "./lib/hmac";
 import { handleFaceRequest } from "./callFace";
 import { sentryWebhook, setEventGroupStatus } from "./lib/sentryHttp";
 import { slackWebhook } from "./lib/slackHttp";
 import { STRIPE_WEBHOOK_PATH, stripeWebhook } from "./billing";
-import { realtimeWebhook as recallRealtimeWebhook, statusWebhook as recallStatusWebhook } from "./meetingBotsHttp";
+import {
+  realtimeWebhook as recallRealtimeWebhook,
+  statusWebhook as recallStatusWebhook,
+} from "./meetingBotsHttp";
 import { RECALL_REALTIME_PATH, RECALL_STATUS_PATH } from "./lib/recall";
 import { claimFrontier } from "./lib/claimFrontier";
 import { vendorRefusalFor } from "./lib/vendorGuard";
@@ -47,8 +78,16 @@ import {
 const http = httpRouter();
 // A `cast` route on this router: POST + OPTIONS, the device-binding gate and the CLI error shape (lib/cliRoute.ts).
 // A decision's 1-5 weight from `cast decide --impact`, on ask and on edit.
-const decisionImpactOf = (body: any) => ({ impact: typeof body.impact === "number" ? body.impact : undefined, impact_reason: typeof body.impact_reason === "string" ? body.impact_reason : undefined });
-const cliRoute = (path: string, handler: (ctx: any, body: any) => Promise<any>, opts?: CliRouteOptions) => registerCliRoute(http, path, handler, opts);
+const decisionImpactOf = (body: any) => ({
+  impact: typeof body.impact === "number" ? body.impact : undefined,
+  impact_reason:
+    typeof body.impact_reason === "string" ? body.impact_reason : undefined,
+});
+const cliRoute = (
+  path: string,
+  handler: (ctx: any, body: any) => Promise<any>,
+  opts?: CliRouteOptions,
+) => registerCliRoute(http, path, handler, opts);
 
 auth.addHttpRoutes(http);
 
@@ -57,7 +96,6 @@ auth.addHttpRoutes(http);
 // Fail-open: a limiter error never blocks the route (availability > strictness).
 // The body moved to lib/httpRateLimit so the public repository route can use the
 // same limiter instead of carrying a second copy of it.
-
 
 // Google OAuth callback (Gmail connector). GET because Google redirects the
 // browser here; the handler validates state and closes the popup.
@@ -87,7 +125,13 @@ http.route({
     try {
       // Brute-force guard: a setup token is one-shot + TTL-bound, so 20 exchange
       // attempts/min per IP is far above any legitimate use and caps guessing.
-      const limited = await ipRateLimited(ctx, request, "exchange-token", 20, 60_000);
+      const limited = await ipRateLimited(
+        ctx,
+        request,
+        "exchange-token",
+        20,
+        60_000,
+      );
       if (limited) return limited;
 
       const body = await request.json();
@@ -102,22 +146,32 @@ http.route({
 
       // The redeeming machine's device id binds the long lived token it gets
       // back. An older CLI sends none and gets an unbound token, as before.
-      const result = await ctx.runMutation(internal.apiTokens.exchangeSetupToken, {
-        setupToken,
-        device_id: typeof body.device_id === "string" ? body.device_id : undefined,
-      });
+      const result = await ctx.runMutation(
+        internal.apiTokens.exchangeSetupToken,
+        {
+          setupToken,
+          device_id:
+            typeof body.device_id === "string" ? body.device_id : undefined,
+        },
+      );
 
       if (!result) {
-        return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Invalid or expired token" }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       // A cast machine's first boot redeems the voucher its launch minted:
       // that names the machine's device (castMachines.bindDevice).
       if (typeof body.device_id === "string") {
-        await ctx.runMutation(internal.castMachines.bindDevice, { voucher_hash: await sha256Hex(setupToken), device_id: body.device_id });
+        await ctx.runMutation(internal.castMachines.bindDevice, {
+          voucher_hash: await sha256Hex(setupToken),
+          device_id: body.device_id,
+        });
       }
 
       return new Response(JSON.stringify(result), {
@@ -136,11 +190,19 @@ http.route({
 registerCliPreflight(http, "/cli/exchange-token");
 
 // pi on a cast machine reaches the model through here, with its machine's key.
-http.route({ pathPrefix: CAST_MODEL_PROXY_PATH + "/", method: "POST", handler: castModelProxy });
+http.route({
+  pathPrefix: CAST_MODEL_PROXY_PATH + "/",
+  method: "POST",
+  handler: castModelProxy,
+});
 http.route({ path: CAST_ENV_PATH, method: "POST", handler: envMachineRoute });
 
 // `cast auth` registers its sign-in request (cliAuthHttp.cliAuthRequest).
-http.route({ path: "/cli/auth-request", method: "POST", handler: cliAuthRequest });
+http.route({
+  path: "/cli/auth-request",
+  method: "POST",
+  handler: cliAuthRequest,
+});
 
 // Polled by `cast auth` while it waits on its localhost listener, so auth
 // also completes for CLIs the browser can't reach (SSH / remote machines).
@@ -167,8 +229,12 @@ http.route({
       }
 
       // A current CLI sends the verifier it registered (cliAuth.claimWithVerifier).
-      const verifier = typeof body.verifier === "string" ? body.verifier : undefined;
-      const result = await ctx.runMutation(internal.cliAuth.claim, { nonce, ...(verifier ? { verifier } : {}) });
+      const verifier =
+        typeof body.verifier === "string" ? body.verifier : undefined;
+      const result = await ctx.runMutation(internal.cliAuth.claim, {
+        nonce,
+        ...(verifier ? { verifier } : {}),
+      });
 
       // "Not deposited yet" is the normal polling answer, not an error.
       if (!result) {
@@ -196,7 +262,11 @@ registerCliPreflight(http, "/cli/claim-auth");
 // A managed device presents its MDM profile's enrollment token
 // (lib/enrollHttp.enrollHttp).
 http.route({ path: ENROLL_PATH, method: "POST", handler: enrollHttp });
-http.route({ path: TEAM_SESSIONS_PATH, method: "GET", handler: teamSessionsHttp });
+http.route({
+  path: TEAM_SESSIONS_PATH,
+  method: "GET",
+  handler: teamSessionsHttp,
+});
 
 // The install callback is a plain function (lib/githubInstallCallback.ts) so
 // a test can drive the real handler.
@@ -215,10 +285,13 @@ http.route({
     const eventType = request.headers.get("X-GitHub-Event");
 
     if (!deliveryId || !eventType) {
-      return new Response(JSON.stringify({ error: "Missing required headers" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing required headers" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     const body = await request.text();
@@ -228,7 +301,9 @@ http.route({
     // entirely when the secret was unconfigured or the signature header absent —
     // i.e. it processed unsigned payloads. A missing secret or signature must reject.
     if (!webhookSecret) {
-      console.error("[github-app webhook] GITHUB_APP_WEBHOOK_SECRET not configured; refusing webhook");
+      console.error(
+        "[github-app webhook] GITHUB_APP_WEBHOOK_SECRET not configured; refusing webhook",
+      );
       return new Response(JSON.stringify({ error: "Webhook not configured" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
@@ -241,7 +316,8 @@ http.route({
       });
     }
 
-    const expectedSignature = "sha256=" + (await hmacSha256Hex(webhookSecret, body));
+    const expectedSignature =
+      "sha256=" + (await hmacSha256Hex(webhookSecret, body));
 
     if (!timingSafeEqualHex(signature, expectedSignature)) {
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
@@ -280,18 +356,29 @@ http.route({
     if (eventType === "installation_repositories") {
       const installationId = payload.installation?.id;
       if (installationId) {
-        const repo = (r: any) => ({ id: r.id, name: r.name, full_name: r.full_name });
-        const applied = await ctx.runMutation(internal.githubApp.applyInstallationRepositoriesEvent, {
-          installation_id: installationId,
-          repository_selection: payload.repository_selection,
-          added: (payload.repositories_added ?? []).map(repo),
-          removed: (payload.repositories_removed ?? []).map(repo),
+        const repo = (r: any) => ({
+          id: r.id,
+          name: r.name,
+          full_name: r.full_name,
         });
-        if (applied.team_id && applied.added.length > 0) {
-          await ctx.scheduler.runAfter(0, internal.githubApp.backfillInstallationPulls, {
+        const applied = await ctx.runMutation(
+          internal.githubApp.applyInstallationRepositoriesEvent,
+          {
             installation_id: installationId,
-            repositories: applied.added,
-          });
+            repository_selection: payload.repository_selection,
+            added: (payload.repositories_added ?? []).map(repo),
+            removed: (payload.repositories_removed ?? []).map(repo),
+          },
+        );
+        if (applied.team_id && applied.added.length > 0) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.githubApp.backfillInstallationPulls,
+            {
+              installation_id: installationId,
+              repositories: applied.added,
+            },
+          );
         }
       }
 
@@ -304,26 +391,31 @@ http.route({
     // Every kind a processor in githubWebhooks.ts consumes. The check events
     // need the App's "checks" permission; until it is granted GitHub simply
     // never sends them, and nothing here changes.
-    if ([
-      "pull_request",
-      "push",
-      "issues",
-      "issue_comment",
-      "pull_request_review",
-      "pull_request_review_comment",
-      "pull_request_review_thread",
-      "check_run",
-      "check_suite",
-      "status",
-      "workflow_run",
-    ].includes(eventType)) {
+    if (
+      [
+        "pull_request",
+        "push",
+        "issues",
+        "issue_comment",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "pull_request_review_thread",
+        "check_run",
+        "check_suite",
+        "status",
+        "workflow_run",
+      ].includes(eventType)
+    ) {
       const action = payload.action;
-      const result = await ctx.runMutation(internal.githubWebhooks.storeWebhookEvent, {
-        delivery_id: deliveryId,
-        event_type: eventType,
-        action,
-        payload: body,
-      });
+      const result = await ctx.runMutation(
+        internal.githubWebhooks.storeWebhookEvent,
+        {
+          delivery_id: deliveryId,
+          event_type: eventType,
+          action,
+          payload: body,
+        },
+      );
 
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -341,13 +433,29 @@ http.route({
 // Sentry issue and alert hooks (external-data.md X2, X7): verified, deduped by
 // Request-ID and scheduled in sources/sentry.ts, so a test drives the real
 // handler.
-http.route({ path: "/api/webhooks/sentry", method: "POST", handler: sentryWebhook });
+http.route({
+  path: "/api/webhooks/sentry",
+  method: "POST",
+  handler: sentryWebhook,
+});
 // Stripe: plans, top-ups and renewals onto the wallet (billing.ts).
-http.route({ path: STRIPE_WEBHOOK_PATH, method: "POST", handler: stripeWebhook });
+http.route({
+  path: STRIPE_WEBHOOK_PATH,
+  method: "POST",
+  handler: stripeWebhook,
+});
 // Recall.ai meeting bots: status changes on the account webhook, transcript
 // lines on each bot's real-time endpoint. Both verified in meetingBots.ts.
-http.route({ path: RECALL_STATUS_PATH, method: "POST", handler: recallStatusWebhook });
-http.route({ path: RECALL_REALTIME_PATH, method: "POST", handler: recallRealtimeWebhook });
+http.route({
+  path: RECALL_STATUS_PATH,
+  method: "POST",
+  handler: recallStatusWebhook,
+});
+http.route({
+  path: RECALL_REALTIME_PATH,
+  method: "POST",
+  handler: recallRealtimeWebhook,
+});
 
 // Linear webhooks (issue sync, docs/architecture/issue-sync.md S6). Same shape
 // as the GitHub App route above: verify the raw body, refuse anything we cannot
@@ -373,13 +481,21 @@ http.route({
     // Missing secret is OUR misconfiguration, not a bad caller: 500 asks Linear
     // to retry once it is set, where a 401 would tell it to give up for good.
     if (!secret) {
-      console.error("[linear webhook] LINEAR_WEBHOOK_SECRET not configured; refusing webhook");
+      console.error(
+        "[linear webhook] LINEAR_WEBHOOK_SECRET not configured; refusing webhook",
+      );
       return new Response(JSON.stringify({ error: "Webhook not configured" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (!(await verifyLinearSignature(rawBody, request.headers.get("linear-signature"), secret))) {
+    if (
+      !(await verifyLinearSignature(
+        rawBody,
+        request.headers.get("linear-signature"),
+        secret,
+      ))
+    ) {
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -408,12 +524,15 @@ http.route({
     }
 
     const deliveryId = linearDeliveryId(payload);
-    const result = await ctx.runMutation(internal.linearWebhooks.storeWebhookEvent, {
-      delivery_id: deliveryId,
-      event_type: String(payload.type ?? "unknown"),
-      action: typeof payload.action === "string" ? payload.action : undefined,
-      payload: rawBody,
-    });
+    const result = await ctx.runMutation(
+      internal.linearWebhooks.storeWebhookEvent,
+      {
+        delivery_id: deliveryId,
+        event_type: String(payload.type ?? "unknown"),
+        action: typeof payload.action === "string" ? payload.action : undefined,
+        payload: rawBody,
+      },
+    );
 
     return new Response(JSON.stringify(result), {
       status: 200,
@@ -432,10 +551,13 @@ http.route({
       const eventType = request.headers.get("X-GitHub-Event");
 
       if (!signature || !deliveryId || !eventType) {
-        return new Response(JSON.stringify({ error: "Missing required headers" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing required headers" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
 
       const body = await request.text();
@@ -443,13 +565,17 @@ http.route({
 
       if (!webhookSecret) {
         console.error("GITHUB_WEBHOOK_SECRET not configured");
-        return new Response(JSON.stringify({ error: "Server configuration error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Server configuration error" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
 
-      const expectedSignature = "sha256=" + (await hmacSha256Hex(webhookSecret, body));
+      const expectedSignature =
+        "sha256=" + (await hmacSha256Hex(webhookSecret, body));
 
       if (!signature || !timingSafeEqualHex(signature, expectedSignature)) {
         return new Response(JSON.stringify({ error: "Invalid signature" }), {
@@ -461,12 +587,15 @@ http.route({
       const payload = JSON.parse(body);
       const action = payload.action;
 
-      const result = await ctx.runMutation(internal.githubWebhooks.storeWebhookEvent, {
-        delivery_id: deliveryId,
-        event_type: eventType,
-        action,
-        payload: body,
-      });
+      const result = await ctx.runMutation(
+        internal.githubWebhooks.storeWebhookEvent,
+        {
+          delivery_id: deliveryId,
+          event_type: eventType,
+          action,
+          payload: body,
+        },
+      );
 
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -497,10 +626,13 @@ http.route({
       const { session_id, api_token } = body;
 
       if (!session_id || !api_token) {
-        return new Response(JSON.stringify({ error: "Missing session_id or api_token" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing session_id or api_token" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.conversations.getSessionLinks, {
@@ -515,18 +647,21 @@ http.route({
         });
       }
 
-      return new Response(JSON.stringify({
-        conversation_id: result.conversation_id,
-        dashboard_url: `https://codecast.sh/conversation/${result.conversation_id}`,
-        share_url: `https://codecast.sh/conversation/${result.conversation_id}`,
-        title: result.title,
-        slug: result.slug,
-        started_at: result.started_at,
-        team_visible: result.team_visible,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          conversation_id: result.conversation_id,
+          dashboard_url: `https://codecast.sh/conversation/${result.conversation_id}`,
+          share_url: `https://codecast.sh/conversation/${result.conversation_id}`,
+          title: result.title,
+          slug: result.slug,
+          started_at: result.started_at,
+          team_visible: result.team_visible,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
@@ -563,21 +698,43 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, query, limit, offset, start_time, end_time, context_before, context_after, project_path, user_only, member_name, mine_only, label, titles_only, self_conversation_id, self_session_id, include_self } = body;
+      const {
+        api_token,
+        query,
+        limit,
+        offset,
+        start_time,
+        end_time,
+        context_before,
+        context_after,
+        project_path,
+        user_only,
+        member_name,
+        mine_only,
+        label,
+        titles_only,
+        self_conversation_id,
+        self_session_id,
+        include_self,
+      } = body;
 
       if (!api_token || !query) {
-        return new Response(JSON.stringify({ error: "Missing api_token or query" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or query" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       let team_id = undefined;
       if (project_path) {
-        team_id = await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
-          api_token,
-          project_path,
-        }) ?? undefined;
+        team_id =
+          (await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
+            api_token,
+            project_path,
+          })) ?? undefined;
       }
 
       const result = await ctx.runQuery(api.conversations.searchForCLI, {
@@ -596,8 +753,12 @@ http.route({
         mine_only,
         label,
         titles_only,
-        self_conversation_id: typeof self_conversation_id === "string" ? self_conversation_id : undefined,
-        self_session_id: typeof self_session_id === "string" ? self_session_id : undefined,
+        self_conversation_id:
+          typeof self_conversation_id === "string"
+            ? self_conversation_id
+            : undefined,
+        self_session_id:
+          typeof self_session_id === "string" ? self_session_id : undefined,
         include_self: include_self === true ? true : undefined,
       });
 
@@ -614,10 +775,16 @@ http.route({
       });
     } catch (error) {
       console.error("Search error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -636,50 +803,115 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, conversation_id, start_line, end_line, full_content, around_message_id, context, include_file_changes, tail, grep } = body;
+      const {
+        api_token,
+        conversation_id,
+        start_line,
+        end_line,
+        full_content,
+        around_message_id,
+        context,
+        include_file_changes,
+        tail,
+        grep,
+      } = body;
 
       if (!api_token || !conversation_id) {
-        return new Response(JSON.stringify({ error: "Missing api_token or conversation_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or conversation_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await readConversationRange(
         {
-          scan: (stepArgs) => ctx.runQuery(internal.conversations.scanConversationLines, stepArgs),
-          fetch: (stepArgs) => ctx.runQuery(internal.conversations.readConversationLines, stepArgs),
+          scan: (stepArgs) =>
+            ctx.runQuery(
+              internal.conversations.scanConversationLines,
+              stepArgs,
+            ),
+          fetch: (stepArgs) =>
+            ctx.runQuery(
+              internal.conversations.readConversationLines,
+              stepArgs,
+            ),
         },
-        { api_token, conversation_id, start_line, end_line, full_content, around_message_id, context, include_file_changes, tail: typeof tail === "number" ? tail : undefined, grep: typeof grep === "string" && grep.trim() ? grep : undefined },
+        {
+          api_token,
+          conversation_id,
+          start_line,
+          end_line,
+          full_content,
+          around_message_id,
+          context,
+          include_file_changes,
+          tail: typeof tail === "number" ? tail : undefined,
+          grep: typeof grep === "string" && grep.trim() ? grep : undefined,
+        },
       );
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Conversation not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Conversation not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
       // `cast read` and `cast diff`: one audit entry per read of a regulated team's conversation (repeats collapse).
-      await ctx.runMutation(internal.accessLog.recordCliConversation, { api_token, conversation_id: String(conversation_id), action: "open" });
+      await ctx.runMutation(internal.accessLog.recordCliConversation, {
+        api_token,
+        conversation_id: String(conversation_id),
+        action: "open",
+      });
       // A caller that will send this text to a model asks the vendor guard first: the refusal, or null when it may go.
       // Without the conversation's full id the guard cannot place it, so the answer is a refusal, never a pass.
       // A page read with `after` carries no conversation block; the request's own id serves when it is a full id.
-      const fullId = (result as { conversation?: { id?: string } }).conversation?.id ?? (String(conversation_id).length >= 32 ? String(conversation_id) : undefined);
-      const vendorRefusal = body.vendor === "anthropic"
-        ? (fullId ? await vendorRefusalFor(ctx, { conversationId: fullId, apiToken: api_token }, "anthropic") : "The conversation could not be placed, so its text is not sent to a model.")
-        : undefined;
+      const fullId =
+        (result as { conversation?: { id?: string } }).conversation?.id ??
+        (String(conversation_id).length >= 32
+          ? String(conversation_id)
+          : undefined);
+      const vendorRefusal =
+        body.vendor === "anthropic"
+          ? fullId
+            ? await vendorRefusalFor(
+                ctx,
+                { conversationId: fullId, apiToken: api_token },
+                "anthropic",
+              )
+            : "The conversation could not be placed, so its text is not sent to a model."
+          : undefined;
 
-      return new Response(JSON.stringify(vendorRefusal === undefined ? result : { ...result, vendor_refusal: vendorRefusal }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify(
+          vendorRefusal === undefined
+            ? result
+            : { ...result, vendor_refusal: vendorRefusal },
+        ),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       console.error("Read error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -699,27 +931,41 @@ http.route({
       const body = await request.json();
       const { api_token, conversation_id, cursor, limit } = body;
       if (!api_token || !conversation_id) {
-        return new Response(JSON.stringify({ error: "Missing api_token or conversation_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or conversation_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
-      const result = await ctx.runQuery(api.conversations.exportConversationMessagesPage, {
-        api_token,
-        conversation_id,
-        cursor: typeof cursor === "string" ? cursor : undefined,
-        limit: typeof limit === "number" ? limit : undefined,
-      });
+      const result = await ctx.runQuery(
+        api.conversations.exportConversationMessagesPage,
+        {
+          api_token,
+          conversation_id,
+          cursor: typeof cursor === "string" ? cursor : undefined,
+          limit: typeof limit === "number" ? limit : undefined,
+        },
+      );
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Conversation not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Conversation not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
       // An export is recorded once, at its first page.
       if (typeof cursor !== "string") {
-        await ctx.runMutation(internal.accessLog.recordCliConversation, { api_token, conversation_id: String(conversation_id), action: "export" });
+        await ctx.runMutation(internal.accessLog.recordCliConversation, {
+          api_token,
+          conversation_id: String(conversation_id),
+          action: "export",
+        });
       }
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -727,10 +973,16 @@ http.route({
       });
     } catch (error) {
       console.error("Export error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -750,24 +1002,36 @@ http.route({
       const body = await request.json();
       const { api_token, git_remote_url } = body;
       if (!api_token || !git_remote_url) {
-        return new Response(JSON.stringify({ error: "Missing api_token or git_remote_url" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or git_remote_url" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
-      const checkouts = await ctx.runQuery(api.conversations.findUserLocalCheckouts, {
-        git_remote_url,
-        api_token,
-      });
+      const checkouts = await ctx.runQuery(
+        api.conversations.findUserLocalCheckouts,
+        {
+          git_remote_url,
+          api_token,
+        },
+      );
       return new Response(JSON.stringify({ checkouts }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -786,7 +1050,21 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, limit, offset, start_time, end_time, query, project_path, member_name, mine_only, live_only, state, label, all_teams } = body;
+      const {
+        api_token,
+        limit,
+        offset,
+        start_time,
+        end_time,
+        query,
+        project_path,
+        member_name,
+        mine_only,
+        live_only,
+        state,
+        label,
+        all_teams,
+      } = body;
 
       if (!api_token) {
         return new Response(JSON.stringify({ error: "Missing api_token" }), {
@@ -797,10 +1075,11 @@ http.route({
 
       let team_id = undefined;
       if (project_path) {
-        team_id = await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
-          api_token,
-          project_path,
-        }) ?? undefined;
+        team_id =
+          (await ctx.runQuery(api.conversations.resolveTeamFromDirectory, {
+            api_token,
+            project_path,
+          })) ?? undefined;
       }
 
       const result = await ctx.runQuery(api.conversations.feedForCLI, {
@@ -833,10 +1112,16 @@ http.route({
       });
     } catch (error) {
       console.error("Feed error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -859,26 +1144,37 @@ http.route({
       const body = await request.json();
       const { api_token, conversation_id, session_id, data } = body;
       if (!api_token || typeof data !== "string") {
-        return new Response(JSON.stringify({ error: "Missing api_token or data" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or data" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
-      const result = await ctx.runMutation(api.conversations.recordStableContext, {
-        api_token,
-        conversation_id,
-        session_id,
-        data,
-      });
+      const result = await ctx.runMutation(
+        api.conversations.recordStableContext,
+        {
+          api_token,
+          conversation_id,
+          session_id,
+          data,
+        },
+      );
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Internal error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: error instanceof Error ? error.message : "Internal error",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -897,7 +1193,16 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, show_all, state, limit, label, project_path, session_ids, include_killed } = body;
+      const {
+        api_token,
+        show_all,
+        state,
+        limit,
+        label,
+        project_path,
+        session_ids,
+        include_killed,
+      } = body;
 
       if (!api_token) {
         return new Response(JSON.stringify({ error: "Missing api_token" }), {
@@ -930,10 +1235,16 @@ http.route({
       });
     } catch (error) {
       console.error("Inbox error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -953,25 +1264,37 @@ http.route({
       const body = await request.json();
       const { api_token, session_ids } = body;
       if (!api_token || !session_ids) {
-        return new Response(JSON.stringify({ error: "Missing api_token or session_ids" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or session_ids" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
-      const result = await ctx.runQuery(api.conversations.getConversationsBySessionIds, {
-        api_token,
-        session_ids,
-      });
+      const result = await ctx.runQuery(
+        api.conversations.getConversationsBySessionIds,
+        {
+          api_token,
+          session_ids,
+        },
+      );
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (error) {
       console.error("Sessions endpoint error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -993,10 +1316,15 @@ http.route({
       const { api_token, session_id, message_index, name, note } = body;
 
       if (!api_token || !session_id || message_index === undefined) {
-        return new Response(JSON.stringify({ error: "Missing api_token, session_id, or message_index" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Missing api_token, session_id, or message_index",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.bookmarks.createFromCLI, {
@@ -1020,10 +1348,16 @@ http.route({
       });
     } catch (error) {
       console.error("Bookmark create error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1070,10 +1404,16 @@ http.route({
       });
     } catch (error) {
       console.error("Bookmark list error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1102,10 +1442,13 @@ http.route({
       }
 
       if (!name && !bookmark_id) {
-        return new Response(JSON.stringify({ error: "Must provide name or bookmark_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Must provide name or bookmark_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.bookmarks.deleteFromCLI, {
@@ -1116,8 +1459,12 @@ http.route({
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Bookmark not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Bookmark not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -1128,10 +1475,16 @@ http.route({
       });
     } catch (error) {
       console.error("Bookmark delete error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1150,7 +1503,8 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, project_path, tags, search, limit, offset, touching } = body;
+      const { api_token, project_path, tags, search, limit, offset, touching } =
+        body;
 
       if (!api_token) {
         return new Response(JSON.stringify({ error: "Missing api_token" }), {
@@ -1182,10 +1536,16 @@ http.route({
       });
     } catch (error) {
       console.error("Decisions list error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1204,13 +1564,30 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, title, rationale, alternatives, session_id, message_index, tags, project_path, git_remote, files, supersedes } = body;
+      const {
+        api_token,
+        title,
+        rationale,
+        alternatives,
+        session_id,
+        message_index,
+        tags,
+        project_path,
+        git_remote,
+        files,
+        supersedes,
+      } = body;
 
       if (!api_token || !title || !rationale) {
-        return new Response(JSON.stringify({ error: "Missing required fields: api_token, title, rationale" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Missing required fields: api_token, title, rationale",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.decisions.create, {
@@ -1240,10 +1617,16 @@ http.route({
       });
     } catch (error) {
       console.error("Decisions add error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1265,10 +1648,15 @@ http.route({
       const { api_token, decision_id } = body;
 
       if (!api_token || !decision_id) {
-        return new Response(JSON.stringify({ error: "Missing required fields: api_token, decision_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Missing required fields: api_token, decision_id",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.decisions.remove, {
@@ -1278,8 +1666,12 @@ http.route({
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Decision not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Decision not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -1290,10 +1682,16 @@ http.route({
       });
     } catch (error) {
       console.error("Decisions delete error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1315,7 +1713,16 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, session_id, question, options, context_md, report_slug, blocking, default_option } = body;
+      const {
+        api_token,
+        session_id,
+        question,
+        options,
+        context_md,
+        report_slug,
+        blocking,
+        default_option,
+      } = body;
       // One route, four verbs: ask (default), edit, cancel, ls. The CLI's
       // `cast decide` subcommands map onto these one to one.
       const action: string = body.action || "ask";
@@ -1331,23 +1738,48 @@ http.route({
       if (action === "ls") {
         // A task, stack or --mine list needs no session: `cast task show`
         // reads a task's decisions from a plain shell (the-line.md L10).
-        if (!session_id && !body.task && !body.stack && !body.mine && body.answered_since === undefined) {
+        if (
+          !session_id &&
+          !body.task &&
+          !body.stack &&
+          !body.mine &&
+          body.answered_since === undefined
+        ) {
           return new Response(JSON.stringify({ error: "Missing session_id" }), {
             status: 400,
             headers: { "Content-Type": "application/json", ...corsHeaders },
           });
         }
-        result = await ctx.runMutation(api.sessionDecisions.listForSession, { api_token, session_id: session_id || undefined, stack: body.stack, task: body.task, mine: body.mine, answered_since: typeof body.answered_since === "number" ? body.answered_since : undefined, team_id: typeof body.team_id === "string" ? body.team_id : undefined, limit: typeof body.limit === "number" ? body.limit : undefined });
+        result = await ctx.runMutation(api.sessionDecisions.listForSession, {
+          api_token,
+          session_id: session_id || undefined,
+          stack: body.stack,
+          task: body.task,
+          mine: body.mine,
+          answered_since:
+            typeof body.answered_since === "number"
+              ? body.answered_since
+              : undefined,
+          team_id: typeof body.team_id === "string" ? body.team_id : undefined,
+          limit: typeof body.limit === "number" ? body.limit : undefined,
+        });
       } else if (action === "edit" || action === "cancel") {
         if (!body.decision_id) {
-          return new Response(JSON.stringify({ error: "Missing decision_id" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          });
+          return new Response(
+            JSON.stringify({ error: "Missing decision_id" }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
         }
         result =
           action === "cancel"
-            ? await ctx.runMutation(api.sessionDecisions.withdraw, { api_token, decision_id: body.decision_id, session_id })
+            ? await ctx.runMutation(api.sessionDecisions.withdraw, {
+                api_token,
+                decision_id: body.decision_id,
+                session_id,
+              })
             : await ctx.runMutation(api.sessionDecisions.edit, {
                 api_token,
                 decision_id: body.decision_id,
@@ -1367,13 +1799,20 @@ http.route({
                 station: body.station,
                 stack: body.stack,
                 category: body.category,
-                card: body.card, ...decisionImpactOf(body),
+                card: body.card,
+                ...decisionImpactOf(body),
               });
       } else {
         if (!session_id || !question || !Array.isArray(options)) {
           return new Response(
-            JSON.stringify({ error: "Missing required fields: api_token, session_id, question, options" }),
-            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            JSON.stringify({
+              error:
+                "Missing required fields: api_token, session_id, question, options",
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
           );
         }
         result = await ctx.runMutation(api.sessionDecisions.ask, {
@@ -1403,7 +1842,8 @@ http.route({
           // `cast decide --run`: a cast command for a person to run (commandRun.ts).
           run: typeof body.run === "string" ? body.run : undefined,
           // LM5: the expectations proposal the decision settles.
-          proposal: body.proposal, ...decisionImpactOf(body),
+          proposal: body.proposal,
+          ...decisionImpactOf(body),
         });
       }
 
@@ -1423,8 +1863,14 @@ http.route({
     } catch (error) {
       console.error("Decide error:", error);
       return new Response(
-        JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
       );
     }
   }),
@@ -1461,20 +1907,44 @@ cliRoute("/cli/decide/answer", (ctx, body) =>
 );
 // A person hands a decision on (decisionHandoff.ts): to a named teammate, or up to the owner's manager.
 cliRoute("/cli/decide/pass-to", (ctx, body) =>
-  ctx.runMutation(api.decisionHandoff.passForCli, { api_token: body.api_token, decision_id: body.decision_id, to: body.to, note: body.note }),
+  ctx.runMutation(api.decisionHandoff.passForCli, {
+    api_token: body.api_token,
+    decision_id: body.decision_id,
+    to: body.to,
+    note: body.note,
+  }),
 );
 cliRoute("/cli/decide/escalate", (ctx, body) =>
-  ctx.runMutation(api.decisionHandoff.escalateForCli, { api_token: body.api_token, decision_id: body.decision_id, note: body.note }),
+  ctx.runMutation(api.decisionHandoff.escalateForCli, {
+    api_token: body.api_token,
+    decision_id: body.decision_id,
+    note: body.note,
+  }),
 );
 cliRoute("/cli/team/focus", (ctx, body) =>
-  ctx.runAction(api.decisionAreas.focusForCli, { api_token: body.api_token, team_id: body.team_id, words: body.words, dry_run: body.dry_run }),
+  ctx.runAction(api.decisionAreas.focusForCli, {
+    api_token: body.api_token,
+    team_id: body.team_id,
+    words: body.words,
+    dry_run: body.dry_run,
+  }),
 );
 // A comment in a decision's team thread (decisionThread.ts); from the session the thread talks to, the agent's.
 cliRoute("/cli/decide/comment", (ctx, body) =>
-  ctx.runMutation(api.decisionThread.commentForCli, { api_token: body.api_token, decision_id: body.decision_id, text: body.text, client_id: body.client_id, parent_id: body.parent_id, session_id: body.session_id }),
+  ctx.runMutation(api.decisionThread.commentForCli, {
+    api_token: body.api_token,
+    decision_id: body.decision_id,
+    text: body.text,
+    client_id: body.client_id,
+    parent_id: body.parent_id,
+    session_id: body.session_id,
+  }),
 );
 cliRoute("/cli/decide/show", (ctx, body) =>
-  ctx.runQuery(api.sessionDecisions.showForCli, { api_token: body.api_token, decision_id: body.decision_id }),
+  ctx.runQuery(api.sessionDecisions.showForCli, {
+    api_token: body.api_token,
+    decision_id: body.decision_id,
+  }),
 );
 // Stacks (D5): create | ls | show | add | remove | reorder | policy. Delegation
 // rides create and policy (`delegate: "@handle"`).
@@ -1489,19 +1959,37 @@ cliRoute("/cli/stack/create", (ctx, body) =>
   }),
 );
 cliRoute("/cli/stack/ls", (ctx, body) =>
-  ctx.runMutation(api.decisionStacks.listStacksForCli, { api_token: body.api_token, include_done: body.include_done }),
+  ctx.runMutation(api.decisionStacks.listStacksForCli, {
+    api_token: body.api_token,
+    include_done: body.include_done,
+  }),
 );
 cliRoute("/cli/stack/show", (ctx, body) =>
-  ctx.runMutation(api.decisionStacks.getStackForCli, { api_token: body.api_token, stack: body.stack }),
+  ctx.runMutation(api.decisionStacks.getStackForCli, {
+    api_token: body.api_token,
+    stack: body.stack,
+  }),
 );
 cliRoute("/cli/stack/add", (ctx, body) =>
-  ctx.runMutation(api.decisionStacks.addToStack, { api_token: body.api_token, stack: body.stack, decision: body.decision }),
+  ctx.runMutation(api.decisionStacks.addToStack, {
+    api_token: body.api_token,
+    stack: body.stack,
+    decision: body.decision,
+  }),
 );
 cliRoute("/cli/stack/remove", (ctx, body) =>
-  ctx.runMutation(api.decisionStacks.removeFromStack, { api_token: body.api_token, stack: body.stack, decision: body.decision }),
+  ctx.runMutation(api.decisionStacks.removeFromStack, {
+    api_token: body.api_token,
+    stack: body.stack,
+    decision: body.decision,
+  }),
 );
 cliRoute("/cli/stack/reorder", (ctx, body) =>
-  ctx.runMutation(api.decisionStacks.reorderStack, { api_token: body.api_token, stack: body.stack, decision_ids: body.decision_ids }),
+  ctx.runMutation(api.decisionStacks.reorderStack, {
+    api_token: body.api_token,
+    stack: body.stack,
+    decision_ids: body.decision_ids,
+  }),
 );
 cliRoute("/cli/stack/policy", (ctx, body) =>
   ctx.runMutation(api.decisionStacks.setStackPolicy, {
@@ -1579,13 +2067,24 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, name, description, content, source_session_id, source_range, tags } = body;
+      const {
+        api_token,
+        name,
+        description,
+        content,
+        source_session_id,
+        source_range,
+        tags,
+      } = body;
 
       if (!api_token || !name || !description || !content) {
-        return new Response(JSON.stringify({ error: "Missing required fields" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.patterns.create, {
@@ -1636,10 +2135,13 @@ http.route({
       const { api_token, name } = body;
 
       if (!api_token || !name) {
-        return new Response(JSON.stringify({ error: "Missing api_token or name" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or name" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.patterns.get, {
@@ -1649,8 +2151,12 @@ http.route({
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Pattern not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Pattern not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -1686,10 +2192,13 @@ http.route({
       const { api_token, name } = body;
 
       if (!api_token || !name) {
-        return new Response(JSON.stringify({ error: "Missing api_token or name" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or name" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.patterns.remove, {
@@ -1699,8 +2208,12 @@ http.route({
 
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {
-          status: result.error === "Unauthorized" ? 401 :
-                 result.error === "Pattern not found" ? 404 : 400,
+          status:
+            result.error === "Unauthorized"
+              ? 401
+              : result.error === "Pattern not found"
+                ? 404
+                : 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -1733,7 +2246,15 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, file_path, session_id, limit, self_conversation_id, self_session_id, include_self } = body;
+      const {
+        api_token,
+        file_path,
+        session_id,
+        limit,
+        self_conversation_id,
+        self_session_id,
+        include_self,
+      } = body;
 
       if (!api_token) {
         return new Response(JSON.stringify({ error: "Missing api_token" }), {
@@ -1743,10 +2264,13 @@ http.route({
       }
 
       if (!file_path && !session_id) {
-        return new Response(JSON.stringify({ error: "Must provide file_path or session_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Must provide file_path or session_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.fileTouches.findSimilar, {
@@ -1754,8 +2278,12 @@ http.route({
         file_path,
         session_id,
         limit,
-        self_conversation_id: typeof self_conversation_id === "string" ? self_conversation_id : undefined,
-        self_session_id: typeof self_session_id === "string" ? self_session_id : undefined,
+        self_conversation_id:
+          typeof self_conversation_id === "string"
+            ? self_conversation_id
+            : undefined,
+        self_session_id:
+          typeof self_session_id === "string" ? self_session_id : undefined,
         include_self: include_self === true ? true : undefined,
       });
 
@@ -1772,10 +2300,16 @@ http.route({
       });
     } catch (error) {
       console.error("Similar search error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1797,10 +2331,13 @@ http.route({
       const { api_token, file_path, limit } = body;
 
       if (!api_token || !file_path) {
-        return new Response(JSON.stringify({ error: "Missing api_token or file_path" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or file_path" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.fileTouches.findByFile, {
@@ -1822,10 +2359,16 @@ http.route({
       });
     } catch (error) {
       console.error("Blame error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1847,13 +2390,23 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, shas, commits, file_path, uncommitted_lines, content_lines } = body;
+      const {
+        api_token,
+        shas,
+        commits,
+        file_path,
+        uncommitted_lines,
+        content_lines,
+      } = body;
 
       if (!api_token || (!Array.isArray(shas) && !Array.isArray(commits))) {
-        return new Response(JSON.stringify({ error: "Missing api_token or shas/commits" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or shas/commits" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runQuery(api.blame.resolveBlame, {
@@ -1878,10 +2431,16 @@ http.route({
       });
     } catch (error) {
       console.error("Blame resolve error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -1998,25 +2557,31 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, level, message, metadata, cli_version, platform } = body;
+      const { api_token, level, message, metadata, cli_version, platform } =
+        body;
 
       if (!api_token || !message) {
-        return new Response(JSON.stringify({ error: "Missing api_token or message" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or message" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       await ctx.runMutation(api.daemonLogs.insertBatch, {
         api_token,
-        logs: [{
-          level: level || "error",
-          message,
-          metadata,
-          daemon_version: cli_version,
-          platform,
-          timestamp: Date.now(),
-        }],
+        logs: [
+          {
+            level: level || "error",
+            message,
+            metadata,
+            daemon_version: cli_version,
+            platform,
+            timestamp: Date.now(),
+          },
+        ],
       });
 
       return new Response(JSON.stringify({ success: true }), {
@@ -2025,10 +2590,16 @@ http.route({
       });
     } catch (error) {
       console.error("CLI log error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -2050,38 +2621,60 @@ http.route({
       const { api_token, logs } = body;
 
       if (!api_token || !Array.isArray(logs) || logs.length === 0) {
-        return new Response(JSON.stringify({ error: "Missing api_token or logs array" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or logs array" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const validLevels = ["debug", "info", "warn", "error"] as const;
-      type LogLevel = typeof validLevels[number];
-      const toLevel = (s?: string): LogLevel => validLevels.includes(s as LogLevel) ? s as LogLevel : "error";
+      type LogLevel = (typeof validLevels)[number];
+      const toLevel = (s?: string): LogLevel =>
+        validLevels.includes(s as LogLevel) ? (s as LogLevel) : "error";
 
       await ctx.runMutation(api.daemonLogs.insertBatch, {
         api_token,
-        logs: logs.map((log: { level?: string; message: string; metadata?: Record<string, string>; daemon_version?: string; platform?: string; timestamp?: number }) => ({
-          level: toLevel(log.level),
-          message: log.message,
-          metadata: log.metadata,
-          daemon_version: log.daemon_version,
-          platform: log.platform,
-          timestamp: log.timestamp || Date.now(),
-        })),
+        logs: logs.map(
+          (log: {
+            level?: string;
+            message: string;
+            metadata?: Record<string, string>;
+            daemon_version?: string;
+            platform?: string;
+            timestamp?: number;
+          }) => ({
+            level: toLevel(log.level),
+            message: log.message,
+            metadata: log.metadata,
+            daemon_version: log.daemon_version,
+            platform: log.platform,
+            timestamp: log.timestamp || Date.now(),
+          }),
+        ),
       });
 
-      return new Response(JSON.stringify({ success: true, inserted: logs.length }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({ success: true, inserted: logs.length }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       console.error("CLI log-batch error:", error);
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -2196,24 +2789,32 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, path_prefix, team_id, auto_share, include_past } = body;
+      const { api_token, path_prefix, team_id, auto_share, include_past } =
+        body;
       const lock = body.private === true;
 
       if (!api_token || !path_prefix) {
-        return new Response(JSON.stringify({ error: "Missing api_token or path_prefix" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or path_prefix" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
-      const result = await ctx.runMutation(api.users.updateDirectoryMappingForCLI, {
-        api_token,
-        path_prefix,
-        team_id,
-        private: lock || undefined,
-        auto_share,
-        include_past: typeof include_past === "boolean" ? include_past : undefined,
-      });
+      const result = await ctx.runMutation(
+        api.users.updateDirectoryMappingForCLI,
+        {
+          api_token,
+          path_prefix,
+          team_id,
+          private: lock || undefined,
+          auto_share,
+          include_past:
+            typeof include_past === "boolean" ? include_past : undefined,
+        },
+      );
 
       if ("error" in result) {
         return new Response(JSON.stringify({ error: result.error }), {
@@ -2253,16 +2854,22 @@ http.route({
       const { api_token, path_prefix } = body;
 
       if (!api_token || !path_prefix) {
-        return new Response(JSON.stringify({ error: "Missing api_token or path_prefix" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or path_prefix" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
-      const result = await ctx.runQuery(api.users.countConversationsForPathCLI, {
-        api_token,
-        path_prefix,
-      });
+      const result = await ctx.runQuery(
+        api.users.countConversationsForPathCLI,
+        {
+          api_token,
+          path_prefix,
+        },
+      );
 
       if ((result as any).error) {
         return new Response(JSON.stringify({ error: (result as any).error }), {
@@ -2302,10 +2909,13 @@ http.route({
       const { api_token, path_prefix } = body;
 
       if (!api_token || !path_prefix) {
-        return new Response(JSON.stringify({ error: "Missing api_token or path_prefix" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or path_prefix" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       // Each mutation call deletes at most one message batch or one
@@ -2316,26 +2926,35 @@ http.route({
       let messagesDeleted = 0;
       let hasMore = true;
       for (let i = 0; i < 400 && hasMore; i++) {
-        const result = await ctx.runMutation(api.users.deleteConversationsForPathCLI, {
-          api_token,
-          path_prefix,
-        });
+        const result = await ctx.runMutation(
+          api.users.deleteConversationsForPathCLI,
+          {
+            api_token,
+            path_prefix,
+          },
+        );
 
         if ((result as any).error) {
-          return new Response(JSON.stringify({ error: (result as any).error }), {
-            status: (result as any).error === "Unauthorized" ? 401 : 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          });
+          return new Response(
+            JSON.stringify({ error: (result as any).error }),
+            {
+              status: (result as any).error === "Unauthorized" ? 401 : 400,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
         }
         conversationsDeleted += (result as any).conversationsDeleted ?? 0;
         messagesDeleted += (result as any).messagesDeleted ?? 0;
         hasMore = !!(result as any).hasMore;
       }
 
-      return new Response(JSON.stringify({ conversationsDeleted, messagesDeleted, hasMore }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({ conversationsDeleted, messagesDeleted, hasMore }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       console.error("Delete conversations error:", error);
       return new Response(JSON.stringify({ error: "Internal error" }), {
@@ -2409,13 +3028,58 @@ http.route({
 
     try {
       const body = await request.json();
-      const { api_token, version, platform, pid, autostart_enabled, has_tmux, boot_id, local_project_roots, git_plane, line_slots, git_pubkey, pending_sync_count, oldest_pending_ms, pending_sync_messages, pending_sync_conversations, sync_no_progress_ms, daemon_started_at, loop_freeze_ms, loop_freeze_1h_ms, loop_freeze_max_ms, loop_freeze_top, device_id, device_label, device_hostname, wsl_distro, is_remote_device, input_idle_ms, cc_accounts, codex_usage, codex_accounts, provider_key_pubkey, managed_provider_ids, cloud_agent_blocks, settings, model_inventory, update_available, can_self_update, distribution, update_status, team_host, tailnet } = body;
+      const {
+        api_token,
+        version,
+        platform,
+        pid,
+        autostart_enabled,
+        has_tmux,
+        boot_id,
+        local_project_roots,
+        git_plane,
+        line_slots,
+        git_pubkey,
+        pending_sync_count,
+        oldest_pending_ms,
+        pending_sync_messages,
+        pending_sync_conversations,
+        sync_no_progress_ms,
+        daemon_started_at,
+        loop_freeze_ms,
+        loop_freeze_1h_ms,
+        loop_freeze_max_ms,
+        loop_freeze_top,
+        device_id,
+        device_label,
+        device_hostname,
+        wsl_distro,
+        is_remote_device,
+        input_idle_ms,
+        cc_accounts,
+        codex_usage,
+        codex_accounts,
+        provider_key_pubkey,
+        managed_provider_ids,
+        cloud_agent_blocks,
+        settings,
+        model_inventory,
+        update_available,
+        can_self_update,
+        distribution,
+        update_status,
+        team_host,
+        tailnet,
+      } = body;
 
       if (!api_token || !version || !platform) {
-        return new Response(JSON.stringify({ error: "Missing required fields" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const result = await ctx.runMutation(api.users.daemonHeartbeat, {
@@ -2451,22 +3115,42 @@ http.route({
         codex_accounts,
         provider_key_pubkey,
         managed_provider_ids,
-        cloud_agent_blocks: Array.isArray(cloud_agent_blocks) ? cloud_agent_blocks : undefined,
+        cloud_agent_blocks: Array.isArray(cloud_agent_blocks)
+          ? cloud_agent_blocks
+          : undefined,
         settings,
         model_inventory,
-        update_available: typeof update_available === "string" ? update_available : undefined,
-        can_self_update: typeof can_self_update === "boolean" ? can_self_update : undefined,
-        distribution: ["installer", "brew", "npm", "source"].includes(distribution) ? distribution : undefined,
-        update_status: update_status && (update_status.state === "installing" || update_status.state === "failed")
-          ? {
-              state: update_status.state,
-              error: typeof update_status.error === "string" ? update_status.error.slice(-500) : undefined,
-              at: typeof update_status.at === "number" ? update_status.at : undefined,
-            }
+        update_available:
+          typeof update_available === "string" ? update_available : undefined,
+        can_self_update:
+          typeof can_self_update === "boolean" ? can_self_update : undefined,
+        distribution: ["installer", "brew", "npm", "source"].includes(
+          distribution,
+        )
+          ? distribution
           : undefined,
-        team_host: team_host && typeof team_host.key === "string" && typeof team_host.linux_user === "string"
-          ? { key: team_host.key, linux_user: team_host.linux_user }
-          : undefined,
+        update_status:
+          update_status &&
+          (update_status.state === "installing" ||
+            update_status.state === "failed")
+            ? {
+                state: update_status.state,
+                error:
+                  typeof update_status.error === "string"
+                    ? update_status.error.slice(-500)
+                    : undefined,
+                at:
+                  typeof update_status.at === "number"
+                    ? update_status.at
+                    : undefined,
+              }
+            : undefined,
+        team_host:
+          team_host &&
+          typeof team_host.key === "string" &&
+          typeof team_host.linux_user === "string"
+            ? { key: team_host.key, linux_user: team_host.linux_user }
+            : undefined,
         tailnet: heartbeatTailnetArg(tailnet),
       });
 
@@ -2479,11 +3163,21 @@ http.route({
 
       // A cloud host's readiness (Settings > Machines), in its own call so a
       // shape this server does not know never fails the heartbeat.
-      if (body.host_readiness && typeof body.host_readiness === "object" && typeof device_id === "string") {
+      if (
+        body.host_readiness &&
+        typeof body.host_readiness === "object" &&
+        typeof device_id === "string"
+      ) {
         try {
-          await ctx.runMutation(api.cloud.reportHostReadiness, { api_token, device_id, readiness: body.host_readiness });
+          await ctx.runMutation(api.cloud.reportHostReadiness, {
+            api_token,
+            device_id,
+            readiness: body.host_readiness,
+          });
         } catch (err) {
-          console.warn(`[heartbeat] host readiness from ${device_id.slice(0, 8)} refused: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`);
+          console.warn(
+            `[heartbeat] host readiness from ${device_id.slice(0, 8)} refused: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`,
+          );
         }
       }
 
@@ -2512,7 +3206,11 @@ http.route({
       // What codecast changed in this machine's agent harness since the last
       // accepted beat (harnessChanges.ts). Same fire-and-log rule: a failure
       // here must not fail presence, and the daemon resends what was not taken.
-      if (Array.isArray(body.harness_changes) && body.harness_changes.length > 0 && body.device_id) {
+      if (
+        Array.isArray(body.harness_changes) &&
+        body.harness_changes.length > 0 &&
+        body.device_id
+      ) {
         try {
           await ctx.runMutation(api.harnessChanges.report, {
             api_token,
@@ -2527,7 +3225,10 @@ http.route({
       // Skill/command bodies, batched independently of the inventory so a
       // 5MB skills tree cannot blow the fleet row. Same fire-and-log rule:
       // a failure here must not fail presence.
-      if (Array.isArray(body.capability_contents) && body.capability_contents.length > 0) {
+      if (
+        Array.isArray(body.capability_contents) &&
+        body.capability_contents.length > 0
+      ) {
         try {
           await ctx.runMutation(api.capabilities.reportCapabilityContents, {
             api_token,
@@ -2577,10 +3278,13 @@ http.route({
       const { api_token, command_id, result, error } = body;
 
       if (!api_token || !command_id) {
-        return new Response(JSON.stringify({ error: "Missing required fields" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
 
       const res = await ctx.runMutation(api.users.reportCommandResult, {
@@ -2606,7 +3310,6 @@ http.route({
 
 registerCliPreflight(http, "/cli/command-result");
 
-
 http.route({
   path: "/cli/fork",
   method: "POST",
@@ -2622,12 +3325,22 @@ http.route({
       // the existing row when it's seen before, so a retried/redelivered fork
       // can't mint a duplicate "Fork:" conversation. Dropping it here silently
       // disabled that guard for every CLI fork. direction titles the branch.
-      const { api_token, conversation_id, message_uuid, session_id, direction, target_agent_type } = body;
+      const {
+        api_token,
+        conversation_id,
+        message_uuid,
+        session_id,
+        direction,
+        target_agent_type,
+      } = body;
       if (!api_token || !conversation_id) {
-        return new Response(JSON.stringify({ error: "Missing api_token or conversation_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or conversation_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
       const result = await ctx.runMutation(api.conversations.forkFromMessage, {
         conversation_id,
@@ -2647,9 +3360,13 @@ http.route({
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const status = message.includes("Unauthorized") ? 401 :
-                     message.includes("not found") ? 404 :
-                     message.includes("Access denied") ? 403 : 500;
+      const status = message.includes("Unauthorized")
+        ? 401
+        : message.includes("not found")
+          ? 404
+          : message.includes("Access denied")
+            ? 403
+            : 500;
       return new Response(JSON.stringify({ error: message }), {
         status,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -2673,19 +3390,27 @@ http.route({
       const body = await request.json();
       const { api_token, conversation_id } = body;
       if (!api_token || !conversation_id) {
-        return new Response(JSON.stringify({ error: "Missing api_token or conversation_id" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: "Missing api_token or conversation_id" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
       }
       const result = await ctx.runQuery(api.conversations.getConversationTree, {
         conversation_id,
         api_token,
       });
       if (result && "error" in result) {
-        const status = result.error === "Unauthorized" ? 401 :
-                       result.error === "Conversation not found" ? 404 :
-                       result.error === "Access denied" ? 403 : 400;
+        const status =
+          result.error === "Unauthorized"
+            ? 401
+            : result.error === "Conversation not found"
+              ? 404
+              : result.error === "Access denied"
+                ? 403
+                : 400;
         return new Response(JSON.stringify({ error: result.error }), {
           status,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -2696,10 +3421,16 @@ http.route({
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: "Internal error", details: error instanceof Error ? error.message : String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
   }),
 });
@@ -2719,14 +3450,23 @@ http.route({
     };
     try {
       const body = await request.json();
-      const result: any = await ctx.runMutation(api.agentTasks.createTask, body);
+      const result: any = await ctx.runMutation(
+        api.agentTasks.createTask,
+        body,
+      );
       // `task_id` stays a bare string on the wire — older CLIs read it directly.
       // `short_id` ("tr-42") is additive: the handle newer CLIs print and the
       // agent quotes.
-      return new Response(JSON.stringify({ task_id: result?.id ?? result, short_id: result?.short_id }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          task_id: result?.id ?? result,
+          short_id: result?.short_id,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const status = msg.includes("Unauthorized") ? 401 : 500;
@@ -2914,15 +3654,27 @@ http.route({
         summary: body.summary,
         conversation_id: body.conversation_id,
         run_session_uuid: body.run_session_uuid,
-        ...(body.needs_attention !== undefined ? { needs_attention: !!body.needs_attention } : {}),
-        ...(typeof body.rearm_at === "number" ? { rearm_at: body.rearm_at } : {}),
+        ...(body.needs_attention !== undefined
+          ? { needs_attention: !!body.needs_attention }
+          : {}),
+        ...(typeof body.rearm_at === "number"
+          ? { rearm_at: body.rearm_at }
+          : {}),
       });
       // Echoed so the CLI can tell a backend that books the recheck from one
       // that predates it and dropped the field.
-      return new Response(JSON.stringify({ success: result, ...(result && typeof body.rearm_at === "number" ? { rearm_at: body.rearm_at } : {}) }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({
+          success: result,
+          ...(result && typeof body.rearm_at === "number"
+            ? { rearm_at: body.rearm_at }
+            : {}),
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       return new Response(JSON.stringify({ error: msg }), {
@@ -3129,10 +3881,13 @@ http.route({
         target_session_ref: body.target_session_ref,
         created_by_session_ref: body.created_by_session_ref,
       });
-      return new Response(JSON.stringify({ success: result.ok, changed: result.changed }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(
+        JSON.stringify({ success: result.ok, changed: result.changed }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       return new Response(JSON.stringify({ error: msg }), {
@@ -3181,7 +3936,11 @@ registerCliPreflight(http, "/cli/tasks/history");
 
 // ── Slack webhook (Anchor inbound) ───────────────────────────────────────────
 // Verified, deduped and routed in lib/slackHttp.ts.
-http.route({ path: "/api/webhooks/slack", method: "POST", handler: slackWebhook });
+http.route({
+  path: "/api/webhooks/slack",
+  method: "POST",
+  handler: slackWebhook,
+});
 
 // Projects
 // ── Capability library (cast cap …) ──
@@ -3222,22 +3981,45 @@ cliRoute("/cli/sharing/overview", async (ctx, body) => {
   const [settings, teams, folders, rules] = await Promise.all([
     ctx.runQuery(api.users.getSyncSettings, auth),
     ctx.runQuery(api.teams.getUserTeams, auth),
-    ctx.runQuery(api.users.getRecentProjectsWithGitInfo, { ...auth, limit: body.limit ?? 200 }),
+    ctx.runQuery(api.users.getRecentProjectsWithGitInfo, {
+      ...auth,
+      limit: body.limit ?? 200,
+    }),
     ctx.runQuery(api.users.getDirectoryTeamMappings, auth),
   ]);
   if (!settings) throw new Error("Unauthorized");
   return { settings, teams, folders, rules };
 });
-cliRoute("/cli/sharing/impact", async (ctx, body) => ctx.runQuery(api.users.shareImpactForPaths, body));
-cliRoute("/cli/sharing/stats", async (ctx, body) => ctx.runMutation(api.pathStats.refreshPathStats, body));
-cliRoute("/cli/sharing/sessions", async (ctx, body) => ctx.runQuery(api.users.listConversationsForPath, body));
-cliRoute("/cli/sharing/sync", async (ctx, body) => ctx.runMutation(api.users.updateSyncSettings, body));
-cliRoute("/cli/sharing/rule", async (ctx, body) => ctx.runMutation(api.users.updateDirectoryTeamMapping, body));
-cliRoute("/cli/sharing/rule/remove", async (ctx, body) => ctx.runMutation(api.users.removeDirectoryTeamMapping, body));
-cliRoute("/cli/sharing/delete", async (ctx, body) => ctx.runMutation(api.users.deleteConversationsForPath, body));
-cliRoute("/cli/sharing/session", async (ctx, body) => ctx.runMutation(api.conversations.setPrivacy, body));
-cliRoute("/cli/sharing/session/level", async (ctx, body) => ctx.runMutation(api.conversations.setTeamVisibility, body));
-cliRoute("/cli/sharing/team", async (ctx, body) => ctx.runMutation(api.teams.setTeamVisibility, body));
+cliRoute("/cli/sharing/impact", async (ctx, body) =>
+  ctx.runQuery(api.users.shareImpactForPaths, body),
+);
+cliRoute("/cli/sharing/stats", async (ctx, body) =>
+  ctx.runMutation(api.pathStats.refreshPathStats, body),
+);
+cliRoute("/cli/sharing/sessions", async (ctx, body) =>
+  ctx.runQuery(api.users.listConversationsForPath, body),
+);
+cliRoute("/cli/sharing/sync", async (ctx, body) =>
+  ctx.runMutation(api.users.updateSyncSettings, body),
+);
+cliRoute("/cli/sharing/rule", async (ctx, body) =>
+  ctx.runMutation(api.users.updateDirectoryTeamMapping, body),
+);
+cliRoute("/cli/sharing/rule/remove", async (ctx, body) =>
+  ctx.runMutation(api.users.removeDirectoryTeamMapping, body),
+);
+cliRoute("/cli/sharing/delete", async (ctx, body) =>
+  ctx.runMutation(api.users.deleteConversationsForPath, body),
+);
+cliRoute("/cli/sharing/session", async (ctx, body) =>
+  ctx.runMutation(api.conversations.setPrivacy, body),
+);
+cliRoute("/cli/sharing/session/level", async (ctx, body) =>
+  ctx.runMutation(api.conversations.setTeamVisibility, body),
+);
+cliRoute("/cli/sharing/team", async (ctx, body) =>
+  ctx.runMutation(api.teams.setTeamVisibility, body),
+);
 
 cliRoute("/cli/whoami", async (ctx, body) => {
   return await ctx.runQuery(api.capabilities.whoamiForToken, body);
@@ -3253,14 +4035,38 @@ cliRoute("/cli/cap/bindings", async (ctx, body) => {
 });
 // The kit (docs/architecture/team-kit.md): publish an item's archive, fetch a
 // version to install, list a workspace's items, report what a machine applied.
-cliRoute("/cli/cap/kit/upload-url", async (ctx, body) => ctx.runMutation(api.teamKit.kitUploadUrl, body));
-cliRoute("/cli/cap/kit/publish", async (ctx, body) => ctx.runMutation(api.teamKit.publishKitItem, body), { forwardDeviceId: true });
-cliRoute("/cli/cap/kit/version", async (ctx, body) => ctx.runQuery(api.teamKit.getKitVersion, body));
-cliRoute("/cli/cap/kit/list", async (ctx, body) => ctx.runQuery(api.teamKit.listKitItems, body));
-cliRoute("/cli/cap/kit/remove", async (ctx, body) => ctx.runMutation(api.teamKit.removeKitItemForToken, body));
-cliRoute("/cli/cap/kit/applied", async (ctx, body) => ctx.runMutation(api.teamKit.reportKitApplied, body), { forwardDeviceId: true });
-cliRoute("/cli/cap/consents", async (ctx, body) => ctx.runQuery(api.capabilityBindings.listConsents, body), { forwardDeviceId: true });
-cliRoute("/cli/cap/kit/adoptions", async (ctx, body) => ctx.runQuery(api.capabilityBindings.listAdoptions, body), { forwardDeviceId: true });
+cliRoute("/cli/cap/kit/upload-url", async (ctx, body) =>
+  ctx.runMutation(api.teamKit.kitUploadUrl, body),
+);
+cliRoute(
+  "/cli/cap/kit/publish",
+  async (ctx, body) => ctx.runMutation(api.teamKit.publishKitItem, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/cap/kit/version", async (ctx, body) =>
+  ctx.runQuery(api.teamKit.getKitVersion, body),
+);
+cliRoute("/cli/cap/kit/list", async (ctx, body) =>
+  ctx.runQuery(api.teamKit.listKitItems, body),
+);
+cliRoute("/cli/cap/kit/remove", async (ctx, body) =>
+  ctx.runMutation(api.teamKit.removeKitItemForToken, body),
+);
+cliRoute(
+  "/cli/cap/kit/applied",
+  async (ctx, body) => ctx.runMutation(api.teamKit.reportKitApplied, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/cap/consents",
+  async (ctx, body) => ctx.runQuery(api.capabilityBindings.listConsents, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/cap/kit/adoptions",
+  async (ctx, body) => ctx.runQuery(api.capabilityBindings.listAdoptions, body),
+  { forwardDeviceId: true },
+);
 for (const verb of ["resolve", "why"]) {
   cliRoute(`/cli/cap/${verb}`, async () => {
     throw new ConvexError({
@@ -3274,7 +4080,9 @@ cliRoute("/cli/projects/create", async (ctx, body) => {
   return await ctx.runMutation(api.projects.create, body);
 });
 // Which table a bare id belongs to, for `cast link <id>` with no prefix.
-cliRoute("/cli/entities/type", async (ctx, body) => ctx.runQuery(api.entities.resolveIdType, body));
+cliRoute("/cli/entities/type", async (ctx, body) =>
+  ctx.runQuery(api.entities.resolveIdType, body),
+);
 cliRoute("/cli/projects/list", async (ctx, body) => {
   return await ctx.runQuery(api.projects.list, body);
 });
@@ -3297,13 +4105,20 @@ cliRoute("/cli/projects/timeline", async (ctx, body) => {
   return await ctx.runQuery(api.projectUpdates.timeline, body);
 });
 // A session's project as it reads it (session-projects.md SP6): its charter, instructions and memory.
-cliRoute("/cli/projects/context", async (ctx, body) => ctx.runQuery((api as any).projectContext.forSession, body));
+cliRoute("/cli/projects/context", async (ctx, body) =>
+  ctx.runQuery((api as any).projectContext.forSession, body),
+);
 // A session in a project (session-projects.md): `cast project join`.
 cliRoute("/cli/projects/set-session", async (ctx, body) => {
   return await ctx.runMutation(api.sessionProjects.setSessionProject, body);
 });
 // What a project produced (ct-94262): `cast project outputs`.
-cliRoute("/cli/projects/outputs", async (ctx, body) => ctx.runQuery((api as any).projectOutputs.get, { api_token: body.api_token, project_id: body.id }));
+cliRoute("/cli/projects/outputs", async (ctx, body) =>
+  ctx.runQuery((api as any).projectOutputs.get, {
+    api_token: body.api_token,
+    project_id: body.id,
+  }),
+);
 
 // Initiatives (initiatives-projects-role-page.md I1): `cast initiative`.
 for (const [verb, fn] of [
@@ -3315,23 +4130,54 @@ for (const [verb, fn] of [
   ["report", "report"],
   ["record", "record"],
 ] as const) {
-  cliRoute(`/cli/initiatives/${verb}`, async (ctx, body) => ctx.runMutation(api.initiatives[fn], body));
+  cliRoute(`/cli/initiatives/${verb}`, async (ctx, body) =>
+    ctx.runMutation(api.initiatives[fn], body),
+  );
 }
-cliRoute("/cli/initiatives/list", async (ctx, body) => ctx.runQuery(api.initiatives.list, body));
-cliRoute("/cli/initiatives/get", async (ctx, body) => ctx.runQuery(api.initiatives.get, body));
+cliRoute("/cli/initiatives/list", async (ctx, body) =>
+  ctx.runQuery(api.initiatives.list, body),
+);
+cliRoute("/cli/initiatives/get", async (ctx, body) =>
+  ctx.runQuery(api.initiatives.get, body),
+);
 
 // Environments and attempts (contracts/envs.ts): `cast env`, `cast goal envs`.
 // Environments and attempts (envs.ts).
-for (const [path, fn, write] of [["record", api.envs.record, true], ["record-cases", api.envs.recordCases, true], ["link", api.envs.link, true], ["list", api.envs.list, false], ["standings", api.envs.standings, false], ["get", api.envs.get, false], ["goal-levels", api.envs.goalLevels, false]] as const) cliRoute(`/cli/envs/${path}`, async (ctx, body) => write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body));
+for (const [path, fn, write] of [
+  ["record", api.envs.record, true],
+  ["record-cases", api.envs.recordCases, true],
+  ["link", api.envs.link, true],
+  ["list", api.envs.list, false],
+  ["standings", api.envs.standings, false],
+  ["get", api.envs.get, false],
+  ["goal-levels", api.envs.goalLevels, false],
+] as const)
+  cliRoute(`/cli/envs/${path}`, async (ctx, body) =>
+    write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body),
+  );
 // Case sets (envCases.ts): put from a runner, open + page from `cast env run`; /cli/envs/held/* is the CLI's first name for them.
-for (const base of ["/cli/envs/cases", "/cli/envs/held"]) for (const [verb, fn, write] of [["put", api.envCases.put, true], ["open", api.envCases.open, true], ["page", api.envCases.page, false], ["log", api.envCases.log, false]] as const) cliRoute(`${base}/${verb}`, async (ctx, body) => write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body));
+for (const base of ["/cli/envs/cases", "/cli/envs/held"])
+  for (const [verb, fn, write] of [
+    ["put", api.envCases.put, true],
+    ["open", api.envCases.open, true],
+    ["page", api.envCases.page, false],
+    ["log", api.envCases.log, false],
+  ] as const)
+    cliRoute(`${base}/${verb}`, async (ctx, body) =>
+      write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body),
+    );
 
 // The workspace's standing agent. Creating one is seating the root role
 // (org-staffing.md S22): the route an older CLI posts to runs the same staff
 // mutation `cast org staff` does, so no workspace is born with a bare anchor.
 cliRoute("/cli/anchor/create", async (ctx, body) => {
   const { scope_type, team_id, project_path, api_token } = body ?? {};
-  return await ctx.runMutation(api.orgRoles.staff, { api_token, scope_type, team_id, project_path });
+  return await ctx.runMutation(api.orgRoles.staff, {
+    api_token,
+    scope_type,
+    team_id,
+    project_path,
+  });
 });
 cliRoute("/cli/anchor/list", async (ctx, body) => {
   return await ctx.runQuery(api.anchors.listAnchors, body);
@@ -3370,28 +4216,56 @@ cliRoute("/cli/anchor/say-chat", async (ctx, body) => {
 // Agent definitions and chains (cast agent): the named client+model+effort+
 // prompt objects every launch surface resolves with --as. body carries
 // api_token plus the function's own args.
-cliRoute("/cli/agents/list", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.list, body));
-cliRoute("/cli/agents/get", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.get, body));
-cliRoute("/cli/agents/resolve", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.resolve, body));
-cliRoute("/cli/agents/upsert", async (ctx, body) => ctx.runMutation((api as any).agentDefinitions.upsert, body));
-cliRoute("/cli/agents/remove", async (ctx, body) => ctx.runMutation((api as any).agentDefinitions.remove, body));
-cliRoute("/cli/chains/list", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.listChains, body));
-cliRoute("/cli/chains/get", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.getChain, body));
-cliRoute("/cli/chains/resolve", async (ctx, body) => ctx.runQuery((api as any).agentDefinitions.resolveChain, body));
-cliRoute("/cli/chains/upsert", async (ctx, body) => ctx.runMutation((api as any).agentDefinitions.upsertChain, body));
-cliRoute("/cli/chains/remove", async (ctx, body) => ctx.runMutation((api as any).agentDefinitions.removeChain, body));
+cliRoute("/cli/agents/list", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.list, body),
+);
+cliRoute("/cli/agents/get", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.get, body),
+);
+cliRoute("/cli/agents/resolve", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.resolve, body),
+);
+cliRoute("/cli/agents/upsert", async (ctx, body) =>
+  ctx.runMutation((api as any).agentDefinitions.upsert, body),
+);
+cliRoute("/cli/agents/remove", async (ctx, body) =>
+  ctx.runMutation((api as any).agentDefinitions.remove, body),
+);
+cliRoute("/cli/chains/list", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.listChains, body),
+);
+cliRoute("/cli/chains/get", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.getChain, body),
+);
+cliRoute("/cli/chains/resolve", async (ctx, body) =>
+  ctx.runQuery((api as any).agentDefinitions.resolveChain, body),
+);
+cliRoute("/cli/chains/upsert", async (ctx, body) =>
+  ctx.runMutation((api as any).agentDefinitions.upsertChain, body),
+);
+cliRoute("/cli/chains/remove", async (ctx, body) =>
+  ctx.runMutation((api as any).agentDefinitions.removeChain, body),
+);
 
-cliRoute("/cli/org/reset", async (ctx, body) => ctx.runMutation(api.orgRoles.reset, body));
+cliRoute("/cli/org/reset", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.reset, body),
+);
 // Where a request lands (org-staffing.md S35): `cast route`, and the one door
 // for scripts and systems outside codecast to hand codecast a request.
-cliRoute("/cli/route", async (ctx, body) => ctx.runAction(api.orgRoute.route, body));
+cliRoute("/cli/route", async (ctx, body) =>
+  ctx.runAction(api.orgRoute.route, body),
+);
 cliRoute("/cli/org/tree", async (ctx, body) => {
   return await ctx.runQuery(api.org.tree, body);
 });
 // The roles and seats without the session scan: what naming a role needs.
-cliRoute("/cli/org/roles", async (ctx, body) => ctx.runQuery(api.org.roles, body));
+cliRoute("/cli/org/roles", async (ctx, body) =>
+  ctx.runQuery(api.org.roles, body),
+);
 // Where the calling session sits (`cast org where`, the session-start org context).
-cliRoute("/cli/org/where", async (ctx, body) => ctx.runQuery((api as any).orgWhere.where, body));
+cliRoute("/cli/org/where", async (ctx, body) =>
+  ctx.runQuery((api as any).orgWhere.where, body),
+);
 cliRoute("/cli/org/sessions-under", async (ctx, body) => {
   return await ctx.runQuery(api.org.sessionsUnder, body);
 });
@@ -3414,91 +4288,237 @@ cliRoute("/cli/org/reparent-session", async (ctx, body) => {
 // Standing roles (docs/architecture/org-roles-standing.md T5): the role as a
 // live agent. Create + provision, the lifecycle verbs, the wake log, the
 // brief. `/cli/role/follow` and `/unfollow` (agent channels) sit with chat.
-cliRoute("/cli/role/create", async (ctx, body) => ctx.runMutation(api.orgRoles.create, body));
-cliRoute("/cli/role/update", async (ctx, body) => ctx.runMutation(api.orgRoles.update, body));
-cliRoute("/cli/role/provision", async (ctx, body) => ctx.runMutation(api.orgRoles.provision, body));
-cliRoute("/cli/role/wake", async (ctx, body) => ctx.runMutation(api.orgRoles.wake, body));
+cliRoute("/cli/role/create", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.create, body),
+);
+cliRoute("/cli/role/update", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.update, body),
+);
+cliRoute("/cli/role/provision", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.provision, body),
+);
+cliRoute("/cli/role/wake", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.wake, body),
+);
 // A role tunes its own check (org-staffing.md S38): no trigger id, the role names the routine.
-cliRoute("/cli/role/tune", async (ctx, body) => ctx.runMutation((api as any).orgRoles.tuneRoutine, body));
-cliRoute("/cli/role/pause", async (ctx, body) => ctx.runMutation(api.orgRoles.pause, body));
-cliRoute("/cli/role/resume", async (ctx, body) => ctx.runMutation(api.orgRoles.resume, body));
-cliRoute("/cli/role/retire", async (ctx, body) => ctx.runMutation(api.orgRoles.retire, body));
-cliRoute("/cli/role/restart", async (ctx, body) => ctx.runMutation(api.orgRoles.restart, body));
+cliRoute("/cli/role/tune", async (ctx, body) =>
+  ctx.runMutation((api as any).orgRoles.tuneRoutine, body),
+);
+cliRoute("/cli/role/pause", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.pause, body),
+);
+cliRoute("/cli/role/resume", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.resume, body),
+);
+cliRoute("/cli/role/retire", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.retire, body),
+);
+cliRoute("/cli/role/restart", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.restart, body),
+);
 // device_id is the destination, as for /cli/sessions/reparent.
-cliRoute("/cli/role/move", async (ctx, body) => ctx.runMutation(api.orgRoles.move, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/role/move",
+  async (ctx, body) => ctx.runMutation(api.orgRoles.move, body),
+  { forwardDeviceId: true },
+);
 // The switch (org-staffing.md S23.1) and the limits. /trust and /caps stay one
 // release for older CLIs; both pairs run the same mutation.
-cliRoute("/cli/role/autonomy", async (ctx, body) => ctx.runMutation(api.orgRoles.setTrust, body));
-cliRoute("/cli/role/trust", async (ctx, body) => ctx.runMutation(api.orgRoles.setTrust, body));
-cliRoute("/cli/role/limits", async (ctx, body) => ctx.runMutation(api.orgRoles.setCaps, body));
-cliRoute("/cli/role/caps", async (ctx, body) => ctx.runMutation(api.orgRoles.setCaps, body));
-cliRoute("/cli/role/authority", async (ctx, body) => ctx.runMutation((api as any).orgRoles.setAuthority, body));
-cliRoute("/cli/role/reports", async (ctx, body) => ctx.runMutation(api.orgRoles.setReports, body));
-cliRoute("/cli/role/self", async (ctx, body) => ctx.runQuery(api.orgRoles.selfForSession, body));
+cliRoute("/cli/role/autonomy", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setTrust, body),
+);
+cliRoute("/cli/role/trust", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setTrust, body),
+);
+cliRoute("/cli/role/limits", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setCaps, body),
+);
+cliRoute("/cli/role/caps", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setCaps, body),
+);
+cliRoute("/cli/role/authority", async (ctx, body) =>
+  ctx.runMutation((api as any).orgRoles.setAuthority, body),
+);
+cliRoute("/cli/role/reports", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setReports, body),
+);
+cliRoute("/cli/role/self", async (ctx, body) =>
+  ctx.runQuery(api.orgRoles.selfForSession, body),
+);
 // The role's drawn icon (org-staffing.md S13): read it with the brief a hand
 // drawer works from, set a hand-drawn one, or have the generator draw it.
-cliRoute("/cli/role/icon", async (ctx, body) => ctx.runQuery(api.roleIcons.brief, body));
-cliRoute("/cli/role/icon/set", async (ctx, body) => ctx.runMutation(api.roleIcons.setIcon, body));
-cliRoute("/cli/role/icon/generate", async (ctx, body) => ctx.runAction(api.roleIcons.generate, body));
+cliRoute("/cli/role/icon", async (ctx, body) =>
+  ctx.runQuery(api.roleIcons.brief, body),
+);
+cliRoute("/cli/role/icon/set", async (ctx, body) =>
+  ctx.runMutation(api.roleIcons.setIcon, body),
+);
+cliRoute("/cli/role/icon/generate", async (ctx, body) =>
+  ctx.runAction(api.roleIcons.generate, body),
+);
 // The scope's line (the-line.md L2): `cast role line <handle> [--set <slug>]`.
-cliRoute("/cli/role/line", async (ctx, body) => ctx.runQuery(api.orgRoles.line, body));
-cliRoute("/cli/role/line/set", async (ctx, body) => ctx.runMutation(api.orgRoles.setLine, body));
+cliRoute("/cli/role/line", async (ctx, body) =>
+  ctx.runQuery(api.orgRoles.line, body),
+);
+cliRoute("/cli/role/line/set", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.setLine, body),
+);
 // The line's merge step (the-line.md L12): the switch, and the runner's two
 // calls around the merge itself.
-cliRoute("/cli/role/line/merge", async (ctx, body) => ctx.runMutation(api.orgLineMerge.setLineMerge, body));
-cliRoute("/cli/line/merge/check", async (ctx, body) => ctx.runQuery(api.orgLineMerge.check, body));
-cliRoute("/cli/line/merge/record", async (ctx, body) => ctx.runMutation(api.orgLineMerge.record, body));
+cliRoute("/cli/role/line/merge", async (ctx, body) =>
+  ctx.runMutation(api.orgLineMerge.setLineMerge, body),
+);
+cliRoute("/cli/line/merge/check", async (ctx, body) =>
+  ctx.runQuery(api.orgLineMerge.check, body),
+);
+cliRoute("/cli/line/merge/record", async (ctx, body) =>
+  ctx.runMutation(api.orgLineMerge.record, body),
+);
 // The Merge station: the run's own graph cleared it to land with no card, on the proof the server recorded.
-cliRoute("/cli/workflow-runs/clear", async (ctx, body) => ctx.runMutation(api.orgLineMerge.clearForMerge, body));
-for (const [route, fn, write] of [["workflow-runs/ci-verdict", api.orgLineMerge.recordCiVerdict, true], ["workflow-runs/review-verdict", api.orgLineMerge.recordReviewVerdict, true], ["workflow-runs/rebase", api.orgLineMerge.recordStationRebase, true], ["workflow-runs/merge-proof", api.orgLineMerge.mergeProof, false], ["repo-lease", api.repoLeases.lease, true], ["main-red/open", api.mainRed.open, false]] as const) cliRoute(`/cli/${route}`, async (ctx, body) => write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body));
-cliRoute("/cli/line/requeue", async (ctx, body) => ctx.runMutation(api.orgLine.requeueFromCli, body));
+cliRoute("/cli/workflow-runs/clear", async (ctx, body) =>
+  ctx.runMutation(api.orgLineMerge.clearForMerge, body),
+);
+for (const [route, fn, write] of [
+  ["workflow-runs/ci-verdict", api.orgLineMerge.recordCiVerdict, true],
+  ["workflow-runs/review-verdict", api.orgLineMerge.recordReviewVerdict, true],
+  ["workflow-runs/rebase", api.orgLineMerge.recordStationRebase, true],
+  ["workflow-runs/merge-proof", api.orgLineMerge.mergeProof, false],
+  ["repo-lease", api.repoLeases.lease, true],
+  ["main-red/open", api.mainRed.open, false],
+] as const)
+  cliRoute(`/cli/${route}`, async (ctx, body) =>
+    write ? ctx.runMutation(fn as any, body) : ctx.runQuery(fn as any, body),
+  );
+cliRoute("/cli/line/requeue", async (ctx, body) =>
+  ctx.runMutation(api.orgLine.requeueFromCli, body),
+);
 // `cast flow show|on|off` on a team's live flow (liveFlows.ts). on and off are a person's, on the web: the CLI's are refused with that reason.
-cliRoute("/cli/flow/live/show", async (ctx, body) => ctx.runQuery(api.liveFlows.showFromCli, body));
-cliRoute("/cli/flow/live/on", async (ctx, body) => ctx.runMutation(api.liveFlows.setOnFromCli, { ...body, on: true }));
-cliRoute("/cli/flow/live/off", async (ctx, body) => ctx.runMutation(api.liveFlows.setOnFromCli, { ...body, on: false }));
+cliRoute("/cli/flow/live/show", async (ctx, body) =>
+  ctx.runQuery(api.liveFlows.showFromCli, body),
+);
+cliRoute("/cli/flow/live/on", async (ctx, body) =>
+  ctx.runMutation(api.liveFlows.setOnFromCli, { ...body, on: true }),
+);
+cliRoute("/cli/flow/live/off", async (ctx, body) =>
+  ctx.runMutation(api.liveFlows.setOnFromCli, { ...body, on: false }),
+);
 // `cast flow hold`: a hand or the watcher holds the flow for a timed wait; a person clears it in the browser.
-cliRoute("/cli/flow/live/hold", async (ctx, body) => ctx.runMutation(api.liveFlows.holdFromCli, body));
-cliRoute("/cli/flow/live/unhold", async (ctx, body) => ctx.runMutation(api.liveFlows.clearHoldFromCli, body));
-cliRoute("/cli/flow/live/bar", async (ctx, body) => ctx.runMutation(api.liveFlows.barFromCli, body));
+cliRoute("/cli/flow/live/hold", async (ctx, body) =>
+  ctx.runMutation(api.liveFlows.holdFromCli, body),
+);
+cliRoute("/cli/flow/live/unhold", async (ctx, body) =>
+  ctx.runMutation(api.liveFlows.clearHoldFromCli, body),
+);
+cliRoute("/cli/flow/live/bar", async (ctx, body) =>
+  ctx.runMutation(api.liveFlows.barFromCli, body),
+);
 // The line's deploy stage (deploys.md DP2): what waits to go out, one deploy that sends it, and the deploy path's reports.
-cliRoute("/cli/line/deploy/stage", async (ctx, body) => ctx.runQuery(api.deploys.stage, body));
-cliRoute("/cli/line/deploy/request", async (ctx, body) => ctx.runMutation(api.deploys.request, body));
-cliRoute("/cli/line/deploy/report", async (ctx, body) => ctx.runMutation(api.deploys.report, body));
-cliRoute("/cli/line/fixloop/record", async (ctx, body) => ctx.runMutation((api as any).landedChanges.record, body));
-cliRoute("/cli/line/fixloop/cursor", async (ctx, body) => ctx.runQuery((api as any).landedChanges.cursor, body));
-cliRoute("/cli/line/fixloop/summary", async (ctx, body) => ctx.runQuery((api as any).landedChanges.summary, body));
-cliRoute("/cli/deploys/get", async (ctx, body) => ctx.runQuery(api.deploys.get, body));
+cliRoute("/cli/line/deploy/stage", async (ctx, body) =>
+  ctx.runQuery(api.deploys.stage, body),
+);
+cliRoute("/cli/line/deploy/request", async (ctx, body) =>
+  ctx.runMutation(api.deploys.request, body),
+);
+cliRoute("/cli/line/deploy/report", async (ctx, body) =>
+  ctx.runMutation(api.deploys.report, body),
+);
+cliRoute("/cli/line/fixloop/record", async (ctx, body) =>
+  ctx.runMutation((api as any).landedChanges.record, body),
+);
+cliRoute("/cli/line/fixloop/cursor", async (ctx, body) =>
+  ctx.runQuery((api as any).landedChanges.cursor, body),
+);
+cliRoute("/cli/line/fixloop/summary", async (ctx, body) =>
+  ctx.runQuery((api as any).landedChanges.summary, body),
+);
+cliRoute("/cli/deploys/get", async (ctx, body) =>
+  ctx.runQuery(api.deploys.get, body),
+);
 // Deploy targets (deploys.md DP10 to DP14): the checkout's declared targets, each one's live sha and waiting queue, a deploy of one from codecast, a ship pass.
-cliRoute("/cli/deploys/targets/publish", async (ctx, body) => ctx.runMutation(api.deployTargets.publish, body), { forwardDeviceId: true });
-cliRoute("/cli/deploys/targets", async (ctx, body) => ctx.runQuery(api.deployTargets.view, body));
-cliRoute("/cli/deploys/targets/poll", async (ctx, body) => ctx.runAction(api.deployTargets.pollNow, body));
+cliRoute(
+  "/cli/deploys/targets/publish",
+  async (ctx, body) => ctx.runMutation(api.deployTargets.publish, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/deploys/targets", async (ctx, body) =>
+  ctx.runQuery(api.deployTargets.view, body),
+);
+cliRoute("/cli/deploys/targets/poll", async (ctx, body) =>
+  ctx.runAction(api.deployTargets.pollNow, body),
+);
 // A repository's pipeline (pipeline.md PL6), published beside its deploy targets, and read back per team.
-cliRoute("/cli/pipelines/publish", async (ctx, body) => ctx.runMutation(api.pipelines.publish, body), { forwardDeviceId: true });
-cliRoute("/cli/pipelines", async (ctx, body) => ctx.runQuery(api.pipelines.forTeam, body));
+cliRoute(
+  "/cli/pipelines/publish",
+  async (ctx, body) => ctx.runMutation(api.pipelines.publish, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/pipelines", async (ctx, body) =>
+  ctx.runQuery(api.pipelines.forTeam, body),
+);
 // Every device's checkouts of a repository (ct-98780): a daemon's report on change, and a team's read back.
-cliRoute("/cli/checkouts/report", async (ctx, body) => ctx.runMutation(api.checkouts.report, body), { forwardDeviceId: true });
-cliRoute("/cli/checkouts", async (ctx, body) => ctx.runQuery(api.checkouts.forTeam, body));
-cliRoute("/cli/deploys/target/request", async (ctx, body) => ctx.runMutation(api.deployTargets.request, body));
-cliRoute("/cli/deploys/target/for-deploy", async (ctx, body) => ctx.runQuery(api.deployTargets.forDeploy, body));
-cliRoute("/cli/deploys/main-commits", async (ctx, body) => ctx.runMutation(api.deployTargets.reportMainCommits, body));
-cliRoute("/cli/deploys/ship-pass", async (ctx, body) => ctx.runMutation(api.deployTargets.recordShipPass, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/checkouts/report",
+  async (ctx, body) => ctx.runMutation(api.checkouts.report, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/checkouts", async (ctx, body) =>
+  ctx.runQuery(api.checkouts.forTeam, body),
+);
+cliRoute("/cli/deploys/target/request", async (ctx, body) =>
+  ctx.runMutation(api.deployTargets.request, body),
+);
+cliRoute("/cli/deploys/target/for-deploy", async (ctx, body) =>
+  ctx.runQuery(api.deployTargets.forDeploy, body),
+);
+cliRoute("/cli/deploys/main-commits", async (ctx, body) =>
+  ctx.runMutation(api.deployTargets.reportMainCommits, body),
+);
+cliRoute(
+  "/cli/deploys/ship-pass",
+  async (ctx, body) => ctx.runMutation(api.deployTargets.recordShipPass, body),
+  { forwardDeviceId: true },
+);
 // Knowledge handoff (org-staffing.md S32) and the split (S34).
-cliRoute("/cli/role/handoff", async (ctx, body) => ctx.runMutation(api.orgHandoff.write, body));
-cliRoute("/cli/role/handoff/settle", async (ctx, body) => ctx.runMutation(api.orgHandoff.settle, body));
-cliRoute("/cli/role/split", async (ctx, body) => ctx.runMutation(api.orgSplit.split, body));
+cliRoute("/cli/role/handoff", async (ctx, body) =>
+  ctx.runMutation(api.orgHandoff.write, body),
+);
+cliRoute("/cli/role/handoff/settle", async (ctx, body) =>
+  ctx.runMutation(api.orgHandoff.settle, body),
+);
+cliRoute("/cli/role/split", async (ctx, body) =>
+  ctx.runMutation(api.orgSplit.split, body),
+);
 cliRoute("/cli/brief/get", async (ctx, { from_session, ...body }) => {
   const brief: any = await ctx.runQuery(api.org.brief, body);
   // A whole workspace role places what reaches no goal (ct-95900): the read
   // runs in its own query budget beside the brief's.
   if (brief?.facts?.scope?.whole_workspace) {
-    brief.facts.unplaced = await ctx.runQuery((api as any).orgUnplaced.part, { api_token: body.api_token, ...(brief.role.team_id ? { team_id: brief.role.team_id } : {}) }).catch((e: unknown) => { brief.facts.unplaced_unread = String(e instanceof Error ? e.message : e).split("\n")[0].slice(0, 200); return undefined; });
+    brief.facts.unplaced = await ctx
+      .runQuery((api as any).orgUnplaced.part, {
+        api_token: body.api_token,
+        ...(brief.role.team_id ? { team_id: brief.role.team_id } : {}),
+      })
+      .catch((e: unknown) => {
+        brief.facts.unplaced_unread = String(e instanceof Error ? e.message : e)
+          .split("\n")[0]
+          .slice(0, 200);
+        return undefined;
+      });
   }
   // Read from the role's own session, the brief's "changed since" clock moves
   // to now (org-staffing.md S25); a person reading it moves nothing.
-  if (brief && from_session) await ctx.runMutation(internal.orgRoles.markBriefRead, { role_id: brief.role._id, session: from_session });
+  if (brief && from_session)
+    await ctx.runMutation(internal.orgRoles.markBriefRead, {
+      role_id: brief.role._id,
+      session: from_session,
+    });
   return brief;
 });
-cliRoute("/cli/brief/edit", async (ctx, body) => waitingOutLiveEdits(body, (args) => ctx.runMutation(api.orgRoles.briefEdit, args)));
+cliRoute("/cli/brief/edit", async (ctx, body) =>
+  waitingOutLiveEdits(body, (args) =>
+    ctx.runMutation(api.orgRoles.briefEdit, args),
+  ),
+);
 // Scopes and the scope feed (docs/architecture/scopes-and-feed.md F1, F2).
 cliRoute("/cli/org/scope", async (ctx, body) => {
   return await ctx.runMutation(api.orgRoles.setScope, body);
@@ -3513,59 +4533,137 @@ cliRoute("/cli/org/scope-summary", async (ctx, body) => {
 // and the apply path for an answered proposal.
 // An action: three bounded queries merged, so a large workspace's inputs
 // never cross one query's execution limit.
-cliRoute("/cli/org/analysis-inputs", async (ctx, body) => ctx.runAction((api as any).orgInit.analysisInputs, body));
+cliRoute("/cli/org/analysis-inputs", async (ctx, body) =>
+  ctx.runAction((api as any).orgInit.analysisInputs, body),
+);
 // The head of people (docs/architecture/org-staffing.md S6): `cast org staff
 // [--adopt] [--every 7d]` and the "Hire a Head of People" button.
-cliRoute("/cli/org/staff", async (ctx, body) => ctx.runMutation(api.orgRoles.staff, body));
-cliRoute("/cli/org/assistant", async (ctx, body) => ctx.runMutation(api.orgRoles.hireAssistant, body));
-cliRoute("/cli/org/apply-decision", async (ctx, body) => ctx.runMutation((api as any).orgInit.applyDecision, body));
+cliRoute("/cli/org/staff", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.staff, body),
+);
+cliRoute("/cli/org/assistant", async (ctx, body) =>
+  ctx.runMutation(api.orgRoles.hireAssistant, body),
+);
+cliRoute("/cli/org/apply-decision", async (ctx, body) =>
+  ctx.runMutation((api as any).orgInit.applyDecision, body),
+);
 // Staffing (docs/architecture/org-staffing.md S3, S4): the health signals and
 // the proposal lifecycle. Decide, accept-all and withdraw refuse a session
 // caller on the server; the CLI passes from_session as on every org verb.
 // The fanned action (org-staffing.md S3): the decision ladder in its own
 // execution budget, so `cast org health` answers on a large workspace.
-cliRoute("/cli/org/health", async (ctx, body) => ctx.runAction((api as any).orgHealth.healthReport, body));
-cliRoute("/cli/org/loose", async (ctx, body) => ctx.runQuery((api as any).orgInbox.loose, body));
-cliRoute("/cli/org/propose", async (ctx, body) => ctx.runMutation((api as any).orgProposals.create, body));
-cliRoute("/cli/org/proposals", async (ctx, body) => ctx.runQuery((api as any).orgProposals.list, body));
-cliRoute("/cli/org/proposal", async (ctx, body) => ctx.runQuery((api as any).orgProposals.get, body));
-cliRoute("/cli/org/proposal/decide", async (ctx, body) => ctx.runMutation((api as any).orgProposals.decide, body));
-cliRoute("/cli/org/proposal/accept-all", async (ctx, body) => ctx.runMutation((api as any).orgProposals.acceptAll, body));
-cliRoute("/cli/org/proposal/decide-ask", async (ctx, body) => ctx.runMutation((api as any).orgProposals.decideAsk, body));
-cliRoute("/cli/org/proposal/withdraw", async (ctx, body) => ctx.runMutation((api as any).orgProposals.withdraw, body));
-cliRoute("/cli/org/proposal/revise", async (ctx, body) => ctx.runMutation((api as any).orgProposals.revise, body));
-cliRoute("/cli/org/proposal/hire", async (ctx, body) => ctx.runMutation((api as any).orgProposals.decideHire, body));
+cliRoute("/cli/org/health", async (ctx, body) =>
+  ctx.runAction((api as any).orgHealth.healthReport, body),
+);
+cliRoute("/cli/org/loose", async (ctx, body) =>
+  ctx.runQuery((api as any).orgInbox.loose, body),
+);
+cliRoute("/cli/org/propose", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.create, body),
+);
+cliRoute("/cli/org/proposals", async (ctx, body) =>
+  ctx.runQuery((api as any).orgProposals.list, body),
+);
+cliRoute("/cli/org/proposal", async (ctx, body) =>
+  ctx.runQuery((api as any).orgProposals.get, body),
+);
+cliRoute("/cli/org/proposal/decide", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.decide, body),
+);
+cliRoute("/cli/org/proposal/accept-all", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.acceptAll, body),
+);
+cliRoute("/cli/org/proposal/decide-ask", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.decideAsk, body),
+);
+cliRoute("/cli/org/proposal/withdraw", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.withdraw, body),
+);
+cliRoute("/cli/org/proposal/revise", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.revise, body),
+);
+cliRoute("/cli/org/proposal/hire", async (ctx, body) =>
+  ctx.runMutation((api as any).orgProposals.decideHire, body),
+);
 // Roles hired from a template (docs/architecture/org-hire.md W8): the template
 // as a server object, the instance row and its record, lessons back to the
 // publisher. Reads are one equality against the caller's workspace key or the
 // value "codecast"; writes carry the rules the CLI applies locally.
-cliRoute("/cli/org/template/publish", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.publish, body));
-cliRoute("/cli/org/template/yank", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.yank, body));
-cliRoute("/cli/org/template/retire", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.retire, body));
-cliRoute("/cli/org/template/catalog", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.catalog, body));
-cliRoute("/cli/org/template/get", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.get, body));
-cliRoute("/cli/org/template/release", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.release, body));
-cliRoute("/cli/org/template/instance", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.upsertInstance, body));
-cliRoute("/cli/org/template/charter", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.writeLoaderCharter, body));
-cliRoute("/cli/org/template/instance-status", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.instanceStatus, body));
-cliRoute("/cli/org/template/instances", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.listInstances, body));
-cliRoute("/cli/org/template/evidence", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.recordEvidenceCheck, body));
-cliRoute("/cli/org/template/report", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.report, body));
-cliRoute("/cli/org/template/setup", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.setup, body));
-cliRoute("/cli/org/template/lesson", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.fileLesson, body));
-cliRoute("/cli/org/template/lessons", async (ctx, body) => ctx.runQuery((api as any).orgTemplates.listLessons, body));
-cliRoute("/cli/org/template/lesson-status", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.setLessonStatus, body));
-cliRoute("/cli/org/template/activate", async (ctx, body) => ctx.runMutation((api as any).orgTemplates.activateRoutine, body));
+cliRoute("/cli/org/template/publish", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.publish, body),
+);
+cliRoute("/cli/org/template/yank", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.yank, body),
+);
+cliRoute("/cli/org/template/retire", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.retire, body),
+);
+cliRoute("/cli/org/template/catalog", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.catalog, body),
+);
+cliRoute("/cli/org/template/get", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.get, body),
+);
+cliRoute("/cli/org/template/release", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.release, body),
+);
+cliRoute("/cli/org/template/instance", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.upsertInstance, body),
+);
+cliRoute("/cli/org/template/charter", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.writeLoaderCharter, body),
+);
+cliRoute("/cli/org/template/instance-status", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.instanceStatus, body),
+);
+cliRoute("/cli/org/template/instances", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.listInstances, body),
+);
+cliRoute("/cli/org/template/evidence", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.recordEvidenceCheck, body),
+);
+cliRoute("/cli/org/template/report", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.report, body),
+);
+cliRoute("/cli/org/template/setup", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.setup, body),
+);
+cliRoute("/cli/org/template/lesson", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.fileLesson, body),
+);
+cliRoute("/cli/org/template/lessons", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplates.listLessons, body),
+);
+cliRoute("/cli/org/template/lesson-status", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.setLessonStatus, body),
+);
+cliRoute("/cli/org/template/activate", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplates.activateRoutine, body),
+);
 // The learning loop (org-hire.md H12). The opt-in is a person's (an agent
 // session is refused); the pass, its status and the canary rollout are the
 // Codecast publishers'. The pass is an action: it asks a model per instance.
-cliRoute("/cli/org/template/learning", async (ctx, body) => ctx.runQuery((api as any).orgTemplateLearning.learning, body));
-cliRoute("/cli/org/template/learning/set", async (ctx, body) => ctx.runMutation((api as any).orgTemplateLearning.setLearning, body));
-cliRoute("/cli/org/template/learn/pass", async (ctx, body) => ctx.runAction((api as any).orgTemplateLearning.learnPass, body));
-cliRoute("/cli/org/template/learn/status", async (ctx, body) => ctx.runQuery((api as any).orgTemplateLearning.learnStatusOf, body));
-cliRoute("/cli/org/template/learn/due", async (ctx, body) => ctx.runQuery((api as any).orgTemplateLearning.learnDue, body));
-cliRoute("/cli/org/template/learn/rollout", async (ctx, body) => ctx.runMutation((api as any).orgTemplateLearning.rollout, body));
-cliRoute("/cli/org/template/learn/promote", async (ctx, body) => ctx.runMutation((api as any).orgTemplateLearning.promote, body));
+cliRoute("/cli/org/template/learning", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplateLearning.learning, body),
+);
+cliRoute("/cli/org/template/learning/set", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplateLearning.setLearning, body),
+);
+cliRoute("/cli/org/template/learn/pass", async (ctx, body) =>
+  ctx.runAction((api as any).orgTemplateLearning.learnPass, body),
+);
+cliRoute("/cli/org/template/learn/status", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplateLearning.learnStatusOf, body),
+);
+cliRoute("/cli/org/template/learn/due", async (ctx, body) =>
+  ctx.runQuery((api as any).orgTemplateLearning.learnDue, body),
+);
+cliRoute("/cli/org/template/learn/rollout", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplateLearning.rollout, body),
+);
+cliRoute("/cli/org/template/learn/promote", async (ctx, body) =>
+  ctx.runMutation((api as any).orgTemplateLearning.promote, body),
+);
 
 // Session read marks: `cast read <id> --ack` and `cast unread <id>`. Both
 // resolve the ref (id or short id) and check conversation access inside the
@@ -3588,7 +4686,8 @@ async function withChatMessageIds(ctx: any, body: any, ...fields: string[]) {
   for (const field of fields) {
     if (typeof body?.[field] !== "string") continue;
     const { id, error } = await ctx.runQuery(internal.chat.resolveMessageRef, {
-      api_token: body.api_token, ref: body[field],
+      api_token: body.api_token,
+      ref: body[field],
     });
     if (!id) throw new ConvexError({ code: "NOT_FOUND", message: error });
     body[field] = id;
@@ -3605,16 +4704,25 @@ cliRoute("/cli/chat/read", async (ctx, body) => {
   return await ctx.runQuery(api.chat.listMessages, body);
 });
 cliRoute("/cli/chat/thread", async (ctx, body) => {
-  return await ctx.runQuery(api.chat.getThread, await withChatMessageIds(ctx, body, "root_id"));
+  return await ctx.runQuery(
+    api.chat.getThread,
+    await withChatMessageIds(ctx, body, "root_id"),
+  );
 });
 cliRoute("/cli/chat/message", async (ctx, body) => {
-  return await ctx.runQuery(api.chat.getMessage, await withChatMessageIds(ctx, body, "message_id"));
+  return await ctx.runQuery(
+    api.chat.getMessage,
+    await withChatMessageIds(ctx, body, "message_id"),
+  );
 });
 cliRoute("/cli/chat/search", async (ctx, body) => {
   return await ctx.runQuery(api.chat.searchMessages, body);
 });
 cliRoute("/cli/chat/send", async (ctx, body) => {
-  return await ctx.runMutation(api.chat.sendMessage, await withChatMessageIds(ctx, body, "thread_root_id"));
+  return await ctx.runMutation(
+    api.chat.sendMessage,
+    await withChatMessageIds(ctx, body, "thread_root_id"),
+  );
 });
 // A direct message room with these people (`cast chat dm`), found or made.
 // body: { api_token, team_id?, handles }.
@@ -3630,20 +4738,32 @@ cliRoute("/cli/chat/mark-read", async (ctx, body) => {
 });
 // What the anchor runs to fill the placeholder already showing in the thread.
 cliRoute("/cli/chat/reply", async (ctx, body) => {
-  return await ctx.runMutation(api.chat.replyAsAnchor, await withChatMessageIds(ctx, body, "message_id"));
+  return await ctx.runMutation(
+    api.chat.replyAsAnchor,
+    await withChatMessageIds(ctx, body, "message_id"),
+  );
 });
 // Stop the anchor answering plain replies in one thread, or hand it a thread it
 // has not spoken in. body: { api_token, root_id, follow }.
 cliRoute("/cli/chat/anchor-follow", async (ctx, body) => {
-  return await ctx.runMutation(api.chat.setAnchorFollow, await withChatMessageIds(ctx, body, "root_id"));
+  return await ctx.runMutation(
+    api.chat.setAnchorFollow,
+    await withChatMessageIds(ctx, body, "root_id"),
+  );
 });
 cliRoute("/cli/chat/react", async (ctx, body) => {
-  return await ctx.runMutation(api.chat.toggleReaction, await withChatMessageIds(ctx, body, "message_id"));
+  return await ctx.runMutation(
+    api.chat.toggleReaction,
+    await withChatMessageIds(ctx, body, "message_id"),
+  );
 });
 // Stop one in-flight anchor turn now, instead of waiting out the deadline.
 // body: { api_token, message_id } — the thinking placeholder's id.
 cliRoute("/cli/chat/stop", async (ctx, body) => {
-  return await ctx.runMutation(api.chat.stopAnchorReply, await withChatMessageIds(ctx, body, "message_id"));
+  return await ctx.runMutation(
+    api.chat.stopAnchorReply,
+    await withChatMessageIds(ctx, body, "message_id"),
+  );
 });
 // The roles and sessions inside a room (`cast chat add` / `cast chat remove`).
 // body: { api_token, channel_id, refs } / { api_token, channel_id, ref }.
@@ -3691,8 +4811,16 @@ cliRoute("/cli/chat/slack/dms", async (ctx, body) => {
 });
 // The caller's own addresses: read, or add/remove one.
 cliRoute("/cli/me/emails", async (ctx, body) => {
-  if (body.add) await ctx.runMutation(api.users.addAlternateEmail, { api_token: body.api_token, email: body.add });
-  if (body.remove) await ctx.runMutation(api.users.removeAlternateEmail, { api_token: body.api_token, email: body.remove });
+  if (body.add)
+    await ctx.runMutation(api.users.addAlternateEmail, {
+      api_token: body.api_token,
+      email: body.add,
+    });
+  if (body.remove)
+    await ctx.runMutation(api.users.removeAlternateEmail, {
+      api_token: body.api_token,
+      email: body.remove,
+    });
   return await ctx.runQuery(api.users.myEmails, { api_token: body.api_token });
 });
 
@@ -3742,26 +4870,46 @@ cliRoute("/cli/signal/diagnosis", async (ctx, body) => {
 });
 // A repo's resolved line profile onto its projects (line-profile.md LP3).
 // device_id is the publisher's machine, where an edit of the file is routed.
-cliRoute("/cli/line/profile/publish", async (ctx, body) => {
-  return await ctx.runMutation(api.signals.publishProfile, body);
-}, { forwardDeviceId: true });
+cliRoute(
+  "/cli/line/profile/publish",
+  async (ctx, body) => {
+    return await ctx.runMutation(api.signals.publishProfile, body);
+  },
+  { forwardDeviceId: true },
+);
 // Bringing moments (learning-loop.md LL7, LL8): a checkout publishes its
 // extractors and judges, its machine claims due moments, runs each extractor
 // and hands the moment back, where it is kept and judged.
-cliRoute("/cli/moments/publish", async (ctx, body) => {
-  return await ctx.runMutation(api.moments.publish, body);
-}, { forwardDeviceId: true });
-cliRoute("/cli/moments/claim", async (ctx, body) => {
-  return await ctx.runMutation(api.moments.claim, body);
-}, { forwardDeviceId: true });
-cliRoute("/cli/moments/complete", async (ctx, body) => {
-  return await ctx.runAction(api.moments.complete, body);
-}, { forwardDeviceId: true });
+cliRoute(
+  "/cli/moments/publish",
+  async (ctx, body) => {
+    return await ctx.runMutation(api.moments.publish, body);
+  },
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/moments/claim",
+  async (ctx, body) => {
+    return await ctx.runMutation(api.moments.claim, body);
+  },
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/moments/complete",
+  async (ctx, body) => {
+    return await ctx.runAction(api.moments.complete, body);
+  },
+  { forwardDeviceId: true },
+);
 // A source that judges on subscription hands its judging to the machine that
 // handed the moment in; the replies come back here (moments.judgedForCli).
-cliRoute("/cli/moments/judged", async (ctx, body) => {
-  return await ctx.runAction(api.moments.judgedForCli, body);
-}, { forwardDeviceId: true });
+cliRoute(
+  "/cli/moments/judged",
+  async (ctx, body) => {
+    return await ctx.runAction(api.moments.judgedForCli, body);
+  },
+  { forwardDeviceId: true },
+);
 cliRoute("/cli/moments/ls", async (ctx, body) => {
   return await ctx.runQuery(api.moments.listForCli, body);
 });
@@ -3786,33 +4934,89 @@ cliRoute("/cli/moments/rulings", async (ctx, body) => {
 // Agent reviews (agentReviews.ts): a machine running reviews claims queued
 // ones, renews them while their sessions run, and hands each back; a person
 // starts, stops, retries and reads them.
-cliRoute("/cli/reviews/claim", async (ctx, body) => ctx.runAction(api.agentReviews.claimForCli, body), { forwardDeviceId: true });
-cliRoute("/cli/reviews/renew", async (ctx, body) => ctx.runMutation(api.agentReviews.renewForCli, body), { forwardDeviceId: true });
-cliRoute("/cli/reviews/done", async (ctx, body) => ctx.runAction(api.agentReviews.doneForCli, body), { forwardDeviceId: true });
-cliRoute("/cli/reviews/start", async (ctx, body) => ctx.runMutation(api.agentReviews.startForCli, body));
-cliRoute("/cli/reviews/status", async (ctx, body) => ctx.runQuery(api.agentReviews.statusForCli, body));
-cliRoute("/cli/reviews/cancel", async (ctx, body) => ctx.runMutation(api.agentReviews.cancelForCli, body));
-cliRoute("/cli/reviews/retry", async (ctx, body) => ctx.runMutation(api.agentReviews.retryForCli, body));
-cliRoute("/cli/reviews/transcript", async (ctx, body) => ctx.runAction(api.agentReviews.transcriptForCli, body));
+cliRoute(
+  "/cli/reviews/claim",
+  async (ctx, body) => ctx.runAction(api.agentReviews.claimForCli, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/reviews/renew",
+  async (ctx, body) => ctx.runMutation(api.agentReviews.renewForCli, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/reviews/done",
+  async (ctx, body) => ctx.runAction(api.agentReviews.doneForCli, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/reviews/start", async (ctx, body) =>
+  ctx.runMutation(api.agentReviews.startForCli, body),
+);
+cliRoute("/cli/reviews/status", async (ctx, body) =>
+  ctx.runQuery(api.agentReviews.statusForCli, body),
+);
+cliRoute("/cli/reviews/cancel", async (ctx, body) =>
+  ctx.runMutation(api.agentReviews.cancelForCli, body),
+);
+cliRoute("/cli/reviews/retry", async (ctx, body) =>
+  ctx.runMutation(api.agentReviews.retryForCli, body),
+);
+cliRoute("/cli/reviews/transcript", async (ctx, body) =>
+  ctx.runAction(api.agentReviews.transcriptForCli, body),
+);
 // Trial projects (lineTrial.ts): their cards, their spend, the switch, and a
 // card's answer from a terminal.
-cliRoute("/cli/line/trial/cards", async (ctx, body) => ctx.runQuery(api.lineTrial.cards, body));
-cliRoute("/cli/line/trial/spend", async (ctx, body) => ctx.runQuery(api.lineTrial.spend, body));
-cliRoute("/cli/line/problem-cost", async (ctx, body) => ctx.runQuery(api.lineTrial.cost, body));
-cliRoute("/cli/line/trial/projects", async (ctx, body) => ctx.runQuery(api.lineTrial.projects, body));
-cliRoute("/cli/line/trial/set", async (ctx, body) => ctx.runMutation(api.lineTrial.setTrial, body));
-cliRoute("/cli/line/trial/run-target", async (ctx, body) => ctx.runQuery(api.lineTrial.runTarget, body));
-cliRoute("/cli/line/trial/dispatch-set", async (ctx, body) => ctx.runMutation(api.lineTrial.setDispatch, body));
-cliRoute("/cli/line/trial/dispatch", async (ctx, body) => ctx.runMutation(api.lineTrial.dispatchNow, body));
-cliRoute("/cli/line/trial/spend-add", async (ctx, body) => ctx.runMutation(api.lineTrial.addOutsideSpend, body));
-cliRoute("/cli/line/trial/spend-rm", async (ctx, body) => ctx.runMutation(api.lineTrial.removeOutsideSpend, body));
-cliRoute("/cli/line/trial/rerun", async (ctx, body) => ctx.runMutation(api.lineTrial.rerunForCli, body));
-cliRoute("/cli/line/trial/runs", async (ctx, body) => ctx.runQuery(api.lineTrial.runsForCli, body));
-cliRoute("/cli/line/trial/answer",async (ctx, body) => ctx.runMutation(api.lineTrial.answerForCli, body));
-cliRoute("/cli/line/trial/recard", async (ctx, body) => ctx.runMutation(api.lineTrial.recardForCli, body));
-cliRoute("/cli/line/trial/rebuild", async (ctx, body) => ctx.runMutation(api.lineTrial.rebuildForCli, body));
-cliRoute("/cli/line/trial/drop", async (ctx, body) => ctx.runMutation(api.lineTrial.dropAtCardForCli, body));
-cliRoute("/cli/line/trial/sweep", async (ctx, body) => ctx.runMutation(api.lineTrial.sweepForCli, body));
+cliRoute("/cli/line/trial/cards", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.cards, body),
+);
+cliRoute("/cli/line/trial/spend", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.spend, body),
+);
+cliRoute("/cli/line/problem-cost", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.cost, body),
+);
+cliRoute("/cli/line/trial/projects", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.projects, body),
+);
+cliRoute("/cli/line/trial/set", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.setTrial, body),
+);
+cliRoute("/cli/line/trial/run-target", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.runTarget, body),
+);
+cliRoute("/cli/line/trial/dispatch-set", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.setDispatch, body),
+);
+cliRoute("/cli/line/trial/dispatch", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.dispatchNow, body),
+);
+cliRoute("/cli/line/trial/spend-add", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.addOutsideSpend, body),
+);
+cliRoute("/cli/line/trial/spend-rm", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.removeOutsideSpend, body),
+);
+cliRoute("/cli/line/trial/rerun", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.rerunForCli, body),
+);
+cliRoute("/cli/line/trial/runs", async (ctx, body) =>
+  ctx.runQuery(api.lineTrial.runsForCli, body),
+);
+cliRoute("/cli/line/trial/answer", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.answerForCli, body),
+);
+cliRoute("/cli/line/trial/recard", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.recardForCli, body),
+);
+cliRoute("/cli/line/trial/rebuild", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.rebuildForCli, body),
+);
+cliRoute("/cli/line/trial/drop", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.dropAtCardForCli, body),
+);
+cliRoute("/cli/line/trial/sweep", async (ctx, body) =>
+  ctx.runMutation(api.lineTrial.sweepForCli, body),
+);
 // A graph's call node (LL1): one prompt, one answer, on the team's model budget (LL10).
 cliRoute("/cli/model/call", async (ctx, body) => {
   return await ctx.runAction(api.modelCalls.callForCli, body);
@@ -3859,9 +5063,15 @@ cliRoute("/cli/calls/get", async (ctx, body) => {
 // result can never hand it one signed in a window that has lapsed. Files
 // still recording carry their live frame instead (callRecordings.signForCli).
 cliRoute("/cli/calls/recordings", async (ctx, body) => {
-  const res = await ctx.runQuery(internal.callRecordings.cliCallRecordings, { api_token: body.api_token, call: body.call });
+  const res = await ctx.runQuery(internal.callRecordings.cliCallRecordings, {
+    api_token: body.api_token,
+    call: body.call,
+  });
   if (!res) return null;
-  await ctx.runMutation(internal.accessLog.recordCliCallRecording, { api_token: body.api_token, call: String(body.call ?? "") });
+  await ctx.runMutation(internal.accessLog.recordCliCallRecording, {
+    api_token: body.api_token,
+    call: String(body.call ?? ""),
+  });
   return await signForCli(res);
 });
 // A screen recording sent from this machine (`cast send --recording`): a
@@ -3883,7 +5093,9 @@ cliRoute("/cli/calls/frame-share", async (ctx, body) => {
     api_token: body.api_token,
     recording_id: String(body.recording_id ?? ""),
     image_base64: String(body.image_base64 ?? ""),
-    ...(typeof body.at_ms === "number" && Number.isFinite(body.at_ms) ? { at_ms: body.at_ms } : {}),
+    ...(typeof body.at_ms === "number" && Number.isFinite(body.at_ms)
+      ? { at_ms: body.at_ms }
+      : {}),
   });
 });
 // `cast call hold <duration>|off`: a fed agent asks its huddle for time.
@@ -4045,8 +5257,15 @@ cliRoute("/cli/plans/list", async (ctx, body) => {
   return await ctx.runQuery(api.plans.list, body);
 });
 cliRoute("/cli/plans/get", (ctx, body) => ctx.runQuery(api.plans.get, body));
-cliRoute("/cli/plans/telemetry", (ctx, body) => ctx.runQuery(api.planLog.telemetry, { api_token: body.api_token, short_id: body.short_id }));
-cliRoute("/cli/plans/update", async (ctx, body) => waitingOutLiveEdits(body, (args) => ctx.runMutation(api.plans.update, args)));
+cliRoute("/cli/plans/telemetry", (ctx, body) =>
+  ctx.runQuery(api.planLog.telemetry, {
+    api_token: body.api_token,
+    short_id: body.short_id,
+  }),
+);
+cliRoute("/cli/plans/update", async (ctx, body) =>
+  waitingOutLiveEdits(body, (args) => ctx.runMutation(api.plans.update, args)),
+);
 cliRoute("/cli/plans/bind", async (ctx, body) => {
   return await ctx.runMutation(api.plans.bindSession, body);
 });
@@ -4058,33 +5277,47 @@ cliRoute("/cli/plans/unbind", async (ctx, body) => {
 cliRoute("/cli/plans/comment", async (ctx, body) => {
   return await ctx.runMutation(api.plans.addComment, body);
 });
-cliRoute("/cli/plans/log/unread", (ctx, body) => ctx.runMutation(api.planLog.unread, { api_token: body.api_token, session_id: body.session_id }));
+cliRoute("/cli/plans/log/unread", (ctx, body) =>
+  ctx.runMutation(api.planLog.unread, {
+    api_token: body.api_token,
+    session_id: body.session_id,
+  }),
+);
 // Legacy routes — translate to addComment (only pass known args)
 cliRoute("/cli/plans/log", async (ctx, body) => {
   return await ctx.runMutation(api.plans.addComment, {
-    api_token: body.api_token, short_id: body.short_id,
-    content: body.entry || body.content, type: "progress",
+    api_token: body.api_token,
+    short_id: body.short_id,
+    content: body.entry || body.content,
+    type: "progress",
     session_id: body.session_id,
   });
 });
 cliRoute("/cli/plans/decide", async (ctx, body) => {
   return await ctx.runMutation(api.plans.addComment, {
-    api_token: body.api_token, short_id: body.short_id,
-    content: body.decision || body.content, type: "decision",
-    rationale: body.rationale, session_id: body.session_id,
+    api_token: body.api_token,
+    short_id: body.short_id,
+    content: body.decision || body.content,
+    type: "decision",
+    rationale: body.rationale,
+    session_id: body.session_id,
   });
 });
 cliRoute("/cli/plans/discover", async (ctx, body) => {
   return await ctx.runMutation(api.plans.addComment, {
-    api_token: body.api_token, short_id: body.short_id,
-    content: body.finding || body.content, type: "discovery",
+    api_token: body.api_token,
+    short_id: body.short_id,
+    content: body.finding || body.content,
+    type: "discovery",
     session_id: body.session_id,
   });
 });
 cliRoute("/cli/plans/pointer", async (ctx, body) => {
   return await ctx.runMutation(api.plans.addComment, {
-    api_token: body.api_token, short_id: body.short_id,
-    content: body.label || body.content, type: "reference",
+    api_token: body.api_token,
+    short_id: body.short_id,
+    content: body.label || body.content,
+    type: "reference",
     path_or_url: body.path_or_url,
   });
 });
@@ -4145,36 +5378,99 @@ cliRoute("/cli/progress/latest", async (ctx, body) => {
 });
 
 // Docs
-cliRoute("/cli/docs/create", async (ctx, body) => await ctx.runMutation(api.docs.create, body));
-cliRoute("/cli/docs/list", async (ctx, body) => await ctx.runQuery(api.docs.list, body));
-cliRoute("/cli/docs/get", async (ctx, body) => await ctx.runQuery(api.docs.get, body));
+cliRoute(
+  "/cli/docs/create",
+  async (ctx, body) => await ctx.runMutation(api.docs.create, body),
+);
+cliRoute(
+  "/cli/docs/list",
+  async (ctx, body) => await ctx.runQuery(api.docs.list, body),
+);
+cliRoute(
+  "/cli/docs/get",
+  async (ctx, body) => await ctx.runQuery(api.docs.get, body),
+);
 // Both write the collab snapshot themselves, in the same transaction.
-cliRoute("/cli/docs/update", async (ctx, body) => waitingOutLiveEdits(body, (args) => ctx.runMutation(api.docs.update, args)));
+cliRoute("/cli/docs/update", async (ctx, body) =>
+  waitingOutLiveEdits(body, (args) => ctx.runMutation(api.docs.update, args)),
+);
 // Live artifacts: `cast board|sheet|data` (liveArtifacts.ts). Each acts as
 // the session named by session_id, so its cursor shows on the open page.
-cliRoute("/cli/live/elements", async (ctx, body) => await ctx.runQuery(api.liveArtifacts.elementsSince, body));
-cliRoute("/cli/live/apply", async (ctx, body) => await ctx.runMutation(api.liveArtifacts.apply, body));
-cliRoute("/cli/live/presence", async (ctx, body) => await ctx.runMutation(api.livePresence.setPresence, body));
-cliRoute("/cli/live/leave", async (ctx, body) => await ctx.runMutation(api.livePresence.leave, body));
+cliRoute(
+  "/cli/live/elements",
+  async (ctx, body) =>
+    await ctx.runQuery(api.liveArtifacts.elementsSince, body),
+);
+cliRoute(
+  "/cli/live/apply",
+  async (ctx, body) => await ctx.runMutation(api.liveArtifacts.apply, body),
+);
+cliRoute(
+  "/cli/live/presence",
+  async (ctx, body) =>
+    await ctx.runMutation(api.livePresence.setPresence, body),
+);
+cliRoute(
+  "/cli/live/leave",
+  async (ctx, body) => await ctx.runMutation(api.livePresence.leave, body),
+);
 cliRoute("/cli/live/draft", async (ctx, body) => {
   const { op, ...rest } = body;
-  if (op === "start") return await ctx.runMutation(api.liveArtifacts.draftStart, rest);
-  if (op === "save") return await ctx.runMutation(api.liveArtifacts.draftSave, rest);
-  if (op === "discard") return await ctx.runMutation(api.liveArtifacts.draftDiscard, rest);
+  if (op === "start")
+    return await ctx.runMutation(api.liveArtifacts.draftStart, rest);
+  if (op === "save")
+    return await ctx.runMutation(api.liveArtifacts.draftSave, rest);
+  if (op === "discard")
+    return await ctx.runMutation(api.liveArtifacts.draftDiscard, rest);
   throw new Error("draft op must be start, save or discard");
 });
-cliRoute("/cli/live/versions", async (ctx, body) => await ctx.runQuery(api.liveArtifacts.versions, body));
-cliRoute("/cli/live/checkpoint", async (ctx, body) => await ctx.runMutation(api.liveArtifacts.checkpoint, body));
-cliRoute("/cli/live/state-at", async (ctx, body) => await ctx.runAction(api.liveArtifacts.stateAt, body));
-cliRoute("/cli/live/restore", async (ctx, body) => await ctx.runAction(api.liveArtifacts.restore, body));
-cliRoute("/cli/live/remote", async (ctx, body) => await ctx.runAction(api.liveArtifacts.runRemote, body));
+cliRoute(
+  "/cli/live/versions",
+  async (ctx, body) => await ctx.runQuery(api.liveArtifacts.versions, body),
+);
+cliRoute(
+  "/cli/live/checkpoint",
+  async (ctx, body) =>
+    await ctx.runMutation(api.liveArtifacts.checkpoint, body),
+);
+cliRoute(
+  "/cli/live/state-at",
+  async (ctx, body) => await ctx.runAction(api.liveArtifacts.stateAt, body),
+);
+cliRoute(
+  "/cli/live/restore",
+  async (ctx, body) => await ctx.runAction(api.liveArtifacts.restore, body),
+);
+cliRoute(
+  "/cli/live/remote",
+  async (ctx, body) => await ctx.runAction(api.liveArtifacts.runRemote, body),
+);
 // Who may edit a team artifact (`cast <cli> access`): set it, or read who could be named.
-cliRoute("/cli/live/access", async (ctx, { op, ...rest }) => op === "set" ? await ctx.runMutation(api.liveArtifacts.setEditAccess, rest) : await ctx.runQuery(api.liveArtifacts.editorCandidates, { doc_id: rest.doc_id, api_token: rest.api_token, session_id: rest.session_id }));
-cliRoute("/cli/docs/comment", async (ctx, body) => await ctx.runMutation(api.docs.addComment, body));
-cliRoute("/cli/docs/search", async (ctx, body) => await ctx.runQuery(api.docs.search, body));
+cliRoute("/cli/live/access", async (ctx, { op, ...rest }) =>
+  op === "set"
+    ? await ctx.runMutation(api.liveArtifacts.setEditAccess, rest)
+    : await ctx.runQuery(api.liveArtifacts.editorCandidates, {
+        doc_id: rest.doc_id,
+        api_token: rest.api_token,
+        session_id: rest.session_id,
+      }),
+);
+cliRoute(
+  "/cli/docs/comment",
+  async (ctx, body) => await ctx.runMutation(api.docs.addComment, body),
+);
+cliRoute(
+  "/cli/docs/search",
+  async (ctx, body) => await ctx.runQuery(api.docs.search, body),
+);
 // A session's share link, and the pin that makes it public (cast share).
 cliRoute("/cli/sessions/share", async (ctx, body) => {
-  return { share_token: await ctx.runMutation(api.conversations.generateShareLink, body) };
+  return {
+    share_token: await ctx.runMutation(
+      api.conversations.generateShareLink,
+      body,
+    ),
+  };
 });
 cliRoute("/cli/sessions/pin", async (ctx, body) => {
   return await ctx.runMutation(api.conversations.pinToProfile, body);
@@ -4185,126 +5481,287 @@ cliRoute("/cli/sessions/unpin", async (ctx, body) => {
 cliRoute("/cli/sessions/originator", originatorRoute);
 cliRoute("/cli/intent/verify", intentVerifyRoute);
 
-cliRoute("/cli/docs/share", async (ctx, body) => await ctx.runMutation(api.docs.generateShareLink, body));
-cliRoute("/cli/docs/unshare", async (ctx, body) => await ctx.runMutation(api.docs.unshare, body));
-cliRoute("/cli/docs/delete", async (ctx, body) => await ctx.runMutation(api.docs.remove, body));
+cliRoute(
+  "/cli/docs/share",
+  async (ctx, body) => await ctx.runMutation(api.docs.generateShareLink, body),
+);
+cliRoute(
+  "/cli/docs/unshare",
+  async (ctx, body) => await ctx.runMutation(api.docs.unshare, body),
+);
+cliRoute(
+  "/cli/docs/delete",
+  async (ctx, body) => await ctx.runMutation(api.docs.remove, body),
+);
 // `cast doc lab`: a Lab tool (alternatives, trim, flag, typos) run on the
 // stored doc, its result written in as drafting markup (docLab.runOnDoc).
-cliRoute("/cli/docs/lab", async (ctx, body) => ctx.runAction((api as any).docLab.runOnDoc, body));
-cliRoute("/cli/docs/patch", async (ctx, body) => waitingOutLiveEdits(body, (args) => ctx.runMutation(api.docs.patch, args)));
+cliRoute("/cli/docs/lab", async (ctx, body) =>
+  ctx.runAction((api as any).docLab.runOnDoc, body),
+);
+cliRoute("/cli/docs/patch", async (ctx, body) =>
+  waitingOutLiveEdits(body, (args) => ctx.runMutation(api.docs.patch, args)),
+);
 
 // Workflows
-cliRoute("/cli/workflows/upsert", async (ctx, body) => ctx.runMutation(api.workflows.upsert, body));
+cliRoute("/cli/workflows/upsert", async (ctx, body) =>
+  ctx.runMutation(api.workflows.upsert, body),
+);
 // `cast flow versions|restore|pin` (flowVersions.ts, ct-70169).
-cliRoute("/cli/flows/versions", async (ctx, body) => ctx.runMutation((api as any).flowVersions.fromCli, body));
-cliRoute("/cli/workflows/line-version", async (ctx, body) => ctx.runQuery(api.workflows.lineVersionForCli, body));
+cliRoute("/cli/flows/versions", async (ctx, body) =>
+  ctx.runMutation((api as any).flowVersions.fromCli, body),
+);
+cliRoute("/cli/workflows/line-version", async (ctx, body) =>
+  ctx.runQuery(api.workflows.lineVersionForCli, body),
+);
 cliRoute("/cli/workflows/list", async (ctx, body) => {
   return await ctx.runMutation(api.workflows.list, body);
 });
 // The team's published flows (flows.md FL2), for `cast flow ls/show/run`.
-cliRoute("/cli/workflows/pool", async (ctx, body) => ctx.runQuery(api.workflows.poolForCli, body));
+cliRoute("/cli/workflows/pool", async (ctx, body) =>
+  ctx.runQuery(api.workflows.poolForCli, body),
+);
 // A checkout's own flows (repoFlows.ts), so the Ship picker shows what `cast flow run` runs in that repository.
-cliRoute("/cli/repo-flows/report", async (ctx, body) => ctx.runMutation((api as any).repoFlows.report, body));
+cliRoute("/cli/repo-flows/report", async (ctx, body) =>
+  ctx.runMutation((api as any).repoFlows.report, body),
+);
 // A Try's case settling on the graph's machine (line-workspace.md LW4, cli lineTry.ts).
-cliRoute("/cli/line-tries/report", async (ctx, body) => ctx.runMutation((api as any).lineActions.reportTry, body));
+cliRoute("/cli/line-tries/report", async (ctx, body) =>
+  ctx.runMutation((api as any).lineActions.reportTry, body),
+);
 
 // Mods (shared/contracts/mods.ts): cast mod dev|publish|ls|logs|versions|pull|rollback|enable|disable|rm
-cliRoute("/cli/mods/push", async (ctx, body) => ctx.runMutation((api as any).mods.cliPush, body));
-cliRoute("/cli/mods/list", async (ctx, body) => ctx.runQuery((api as any).mods.cliList, body));
-cliRoute("/cli/mods/logs", async (ctx, body) => ctx.runQuery((api as any).mods.cliLogs, body));
-cliRoute("/cli/mods/versions", async (ctx, body) => ctx.runQuery((api as any).mods.cliVersions, body));
-cliRoute("/cli/mods/get-version", async (ctx, body) => ctx.runQuery((api as any).mods.cliGetVersion, body));
-cliRoute("/cli/mods/rollback", async (ctx, body) => ctx.runMutation((api as any).mods.cliRollback, body));
-cliRoute("/cli/mods/set-enabled", async (ctx, body) => ctx.runMutation((api as any).mods.cliSetEnabled, body));
-cliRoute("/cli/mods/remove", async (ctx, body) => ctx.runMutation((api as any).mods.cliRemove, body));
-cliRoute("/cli/mods/guide", async (ctx, body) => ctx.runQuery((api as any).mods.cliGuide, body));
+cliRoute("/cli/mods/push", async (ctx, body) =>
+  ctx.runMutation((api as any).mods.cliPush, body),
+);
+cliRoute("/cli/mods/list", async (ctx, body) =>
+  ctx.runQuery((api as any).mods.cliList, body),
+);
+cliRoute("/cli/mods/logs", async (ctx, body) =>
+  ctx.runQuery((api as any).mods.cliLogs, body),
+);
+cliRoute("/cli/mods/versions", async (ctx, body) =>
+  ctx.runQuery((api as any).mods.cliVersions, body),
+);
+cliRoute("/cli/mods/get-version", async (ctx, body) =>
+  ctx.runQuery((api as any).mods.cliGetVersion, body),
+);
+cliRoute("/cli/mods/rollback", async (ctx, body) =>
+  ctx.runMutation((api as any).mods.cliRollback, body),
+);
+cliRoute("/cli/mods/set-enabled", async (ctx, body) =>
+  ctx.runMutation((api as any).mods.cliSetEnabled, body),
+);
+cliRoute("/cli/mods/remove", async (ctx, body) =>
+  ctx.runMutation((api as any).mods.cliRemove, body),
+);
+cliRoute("/cli/mods/guide", async (ctx, body) =>
+  ctx.runQuery((api as any).mods.cliGuide, body),
+);
 
 // Mod objects (shared/contracts/mods.ts objects): cast obj <prefix> create|ls|show|set|done
-cliRoute("/cli/objects/create", async (ctx, body) => ctx.runMutation((api as any).modObjects.cliCreate, body));
-cliRoute("/cli/objects/update", async (ctx, body) => ctx.runMutation((api as any).modObjects.cliUpdate, body));
-cliRoute("/cli/objects/get", async (ctx, body) => ctx.runQuery((api as any).modObjects.cliGet, body));
-cliRoute("/cli/objects/list", async (ctx, body) => ctx.runQuery((api as any).modObjects.cliList, body));
-cliRoute("/cli/objects/kinds", async (ctx, body) => ctx.runQuery((api as any).modObjects.cliKinds, body));
+cliRoute("/cli/objects/create", async (ctx, body) =>
+  ctx.runMutation((api as any).modObjects.cliCreate, body),
+);
+cliRoute("/cli/objects/update", async (ctx, body) =>
+  ctx.runMutation((api as any).modObjects.cliUpdate, body),
+);
+cliRoute("/cli/objects/get", async (ctx, body) =>
+  ctx.runQuery((api as any).modObjects.cliGet, body),
+);
+cliRoute("/cli/objects/list", async (ctx, body) =>
+  ctx.runQuery((api as any).modObjects.cliList, body),
+);
+cliRoute("/cli/objects/kinds", async (ctx, body) =>
+  ctx.runQuery((api as any).modObjects.cliKinds, body),
+);
 
 // Mods' local halves (convex/modLocal.ts): the daemon's side of the bridge
-cliRoute("/cli/mods/local", async (ctx, body) => ctx.runQuery((api as any).modLocal.cliLocalMods, body));
-cliRoute("/cli/mods/local-report", async (ctx, body) => ctx.runMutation((api as any).modLocal.cliReportLocal, body));
-cliRoute("/cli/mods/local-device", async (ctx, body) => ctx.runMutation((api as any).modLocal.cliSetLocalDevice, body));
-cliRoute("/cli/mods/secret-set", async (ctx, body) => ctx.runAction((api as any).modSecrets.cliSet, body));
-cliRoute("/cli/mods/secrets", async (ctx, body) => ctx.runQuery((api as any).modSecrets.cliList, body));
+cliRoute("/cli/mods/local", async (ctx, body) =>
+  ctx.runQuery((api as any).modLocal.cliLocalMods, body),
+);
+cliRoute("/cli/mods/local-report", async (ctx, body) =>
+  ctx.runMutation((api as any).modLocal.cliReportLocal, body),
+);
+cliRoute("/cli/mods/local-device", async (ctx, body) =>
+  ctx.runMutation((api as any).modLocal.cliSetLocalDevice, body),
+);
+cliRoute("/cli/mods/secret-set", async (ctx, body) =>
+  ctx.runAction((api as any).modSecrets.cliSet, body),
+);
+cliRoute("/cli/mods/secrets", async (ctx, body) =>
+  ctx.runQuery((api as any).modSecrets.cliList, body),
+);
 // Vault (docs/architecture/vault.md, convex/secrets.ts): `cast vault`. Only
 // read and redaction-values answer with values; the rest with metadata.
-cliRoute("/cli/vault/list", async (ctx, body) => ctx.runQuery((api as any).secrets.list, body));
-cliRoute("/cli/vault/show", async (ctx, body) => ctx.runQuery((api as any).secrets.show, body));
-cliRoute("/cli/vault/events", async (ctx, body) => ctx.runQuery((api as any).secrets.events, body));
-cliRoute("/cli/vault/create", async (ctx, body) => ctx.runAction((api as any).secrets.create, body));
-cliRoute("/cli/vault/rotate", async (ctx, body) => ctx.runAction((api as any).secrets.rotate, body));
-cliRoute("/cli/vault/refresh", async (ctx, body) => ctx.runAction((api as any).secrets.refresh, body));
-cliRoute("/cli/vault/update", async (ctx, body) => ctx.runMutation((api as any).secrets.updateMeta, body));
-cliRoute("/cli/vault/read", async (ctx, body) => ctx.runAction((api as any).secrets.cliRead, body));
-cliRoute("/cli/vault/request", async (ctx, body) => ctx.runMutation((api as any).secrets.request, body));
-cliRoute("/cli/vault/fulfill", async (ctx, body) => ctx.runAction((api as any).secrets.fulfill, body));
-cliRoute("/cli/vault/rm", async (ctx, body) => ctx.runMutation((api as any).secrets.remove, body));
-cliRoute("/cli/vault/ask-first", async (ctx, body) => ctx.runMutation((api as any).secrets.setAskFirst, body));
-cliRoute("/cli/vault/versions", async (ctx, body) => ctx.runQuery((api as any).secrets.versions, body));
-cliRoute("/cli/vault/restore", async (ctx, body) => ctx.runAction((api as any).secrets.restore, body));
-cliRoute("/cli/vault/redaction-values", async (ctx, body) => ctx.runAction((api as any).secrets.redactionValues, body));
-cliRoute("/cli/vault/redaction-version", async (ctx, body) => ctx.runQuery((api as any).secrets.redactionVersion, body));
-cliRoute("/cli/mods/publish-state", async (ctx, body) => ctx.runMutation((api as any).modLocal.cliPublish, body));
-cliRoute("/cli/mods/claim-calls", async (ctx, body) => ctx.runMutation((api as any).modLocal.cliClaimCalls, body));
-cliRoute("/cli/mods/finish-call", async (ctx, body) => ctx.runMutation((api as any).modLocal.cliFinishCall, body));
-cliRoute("/cli/mods/log", async (ctx, body) => ctx.runMutation((api as any).modLogs.cliLog, body));
-cliRoute("/cli/mods/call", async (ctx, body) => ctx.runMutation((api as any).modCalls.cliCall, body));
-cliRoute("/cli/mods/get-call", async (ctx, body) => ctx.runQuery((api as any).modCalls.cliGetCall, body));
+cliRoute("/cli/vault/list", async (ctx, body) =>
+  ctx.runQuery((api as any).secrets.list, body),
+);
+cliRoute("/cli/vault/show", async (ctx, body) =>
+  ctx.runQuery((api as any).secrets.show, body),
+);
+cliRoute("/cli/vault/events", async (ctx, body) =>
+  ctx.runQuery((api as any).secrets.events, body),
+);
+cliRoute("/cli/vault/create", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.create, body),
+);
+cliRoute("/cli/vault/rotate", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.rotate, body),
+);
+cliRoute("/cli/vault/refresh", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.refresh, body),
+);
+cliRoute("/cli/vault/update", async (ctx, body) =>
+  ctx.runMutation((api as any).secrets.updateMeta, body),
+);
+cliRoute("/cli/vault/read", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.cliRead, body),
+);
+cliRoute("/cli/vault/request", async (ctx, body) =>
+  ctx.runMutation((api as any).secrets.request, body),
+);
+cliRoute("/cli/vault/fulfill", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.fulfill, body),
+);
+cliRoute("/cli/vault/rm", async (ctx, body) =>
+  ctx.runMutation((api as any).secrets.remove, body),
+);
+cliRoute("/cli/vault/ask-first", async (ctx, body) =>
+  ctx.runMutation((api as any).secrets.setAskFirst, body),
+);
+cliRoute("/cli/vault/versions", async (ctx, body) =>
+  ctx.runQuery((api as any).secrets.versions, body),
+);
+cliRoute("/cli/vault/restore", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.restore, body),
+);
+cliRoute("/cli/vault/redaction-values", async (ctx, body) =>
+  ctx.runAction((api as any).secrets.redactionValues, body),
+);
+cliRoute("/cli/vault/redaction-version", async (ctx, body) =>
+  ctx.runQuery((api as any).secrets.redactionVersion, body),
+);
+cliRoute("/cli/mods/publish-state", async (ctx, body) =>
+  ctx.runMutation((api as any).modLocal.cliPublish, body),
+);
+cliRoute("/cli/mods/claim-calls", async (ctx, body) =>
+  ctx.runMutation((api as any).modLocal.cliClaimCalls, body),
+);
+cliRoute("/cli/mods/finish-call", async (ctx, body) =>
+  ctx.runMutation((api as any).modLocal.cliFinishCall, body),
+);
+cliRoute("/cli/mods/log", async (ctx, body) =>
+  ctx.runMutation((api as any).modLogs.cliLog, body),
+);
+cliRoute("/cli/mods/call", async (ctx, body) =>
+  ctx.runMutation((api as any).modCalls.cliCall, body),
+);
+cliRoute("/cli/mods/get-call", async (ctx, body) =>
+  ctx.runQuery((api as any).modCalls.cliGetCall, body),
+);
 
 // Workflow Runs
-cliRoute("/cli/workflow-runs/create", async (ctx, body) => ctx.runMutation(api.workflow_runs.createFromCli, body));
-cliRoute("/cli/workflow-runs/get", async (ctx, body) => ctx.runMutation(api.workflow_runs.getForDaemon, body));
-cliRoute("/cli/workflow-runs/progress", async (ctx, body) => ctx.runMutation(api.workflow_runs.updateProgress, body));
-cliRoute("/cli/workflow-runs/admit", async (ctx, body) => ctx.runMutation(api.workflow_runs.admitToStation, body));
-cliRoute("/cli/workflow-runs/gate", async (ctx, body) => ctx.runMutation(api.workflow_runs.pauseAtGate, body));
-cliRoute("/cli/workflow-runs/poll-gate", async (ctx, body) => ctx.runMutation(api.workflow_runs.pollGateResponse, body));
-cliRoute("/cli/workflow-runs/live-on-device", async (ctx, body) => ctx.runMutation(api.workflow_runs.liveRunsForDevice, body));
-cliRoute("/cli/workflow-runs/set-primary", async (ctx, body) => ctx.runMutation(api.workflow_runs.setPrimarySession, body));
-cliRoute("/cli/workflow-runs/respond-gate", async (ctx, body) => ctx.runMutation(api.workflow_runs.respondToGateFromCli, body));
+cliRoute("/cli/workflow-runs/create", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.createFromCli, body),
+);
+cliRoute("/cli/workflow-runs/get", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.getForDaemon, body),
+);
+cliRoute("/cli/workflow-runs/progress", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.updateProgress, body),
+);
+cliRoute("/cli/workflow-runs/admit", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.admitToStation, body),
+);
+cliRoute("/cli/workflow-runs/gate", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.pauseAtGate, body),
+);
+cliRoute("/cli/workflow-runs/poll-gate", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.pollGateResponse, body),
+);
+cliRoute("/cli/workflow-runs/live-on-device", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.liveRunsForDevice, body),
+);
+cliRoute("/cli/workflow-runs/set-primary", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.setPrimarySession, body),
+);
+cliRoute("/cli/workflow-runs/respond-gate", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.respondToGateFromCli, body),
+);
 // `cast workflow reask`: a run's decision asked again by the stations as they are now.
-cliRoute("/cli/workflow-runs/reask", async (ctx, body) => ctx.runMutation(api.workflow_runs.reaskFromCli, body));
-cliRoute("/cli/workflow-runs/resume", async (ctx, body) => ctx.runMutation(api.failedRunResume.resumeFromCli, body));
-cliRoute("/cli/workflow-runs/ingest", async (ctx, body) => ctx.runMutation(api.workflow_runs.ingestSnapshot, body));
-cliRoute("/cli/workflow-runs/graph", async (ctx, body) => ctx.runMutation(api.flowLibrary.attachRunGraph, body));
-cliRoute("/cli/workflow-runs/by-external", async (ctx, body) => ctx.runQuery(api.workflow_runs.getByExternalRun, body));
+cliRoute("/cli/workflow-runs/reask", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.reaskFromCli, body),
+);
+cliRoute("/cli/workflow-runs/resume", async (ctx, body) =>
+  ctx.runMutation(api.failedRunResume.resumeFromCli, body),
+);
+cliRoute("/cli/workflow-runs/ingest", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.ingestSnapshot, body),
+);
+cliRoute("/cli/workflow-runs/graph", async (ctx, body) =>
+  ctx.runMutation(api.flowLibrary.attachRunGraph, body),
+);
+cliRoute("/cli/workflow-runs/by-external", async (ctx, body) =>
+  ctx.runQuery(api.workflow_runs.getByExternalRun, body),
+);
 // the-line.md L8: `cast workflow runs [--task|--plan]`, one list across workflows.
-cliRoute("/cli/workflow-runs/list", async (ctx, body) => ctx.runQuery(api.workflow_runs.listRunsFromCli, body));
-cliRoute("/cli/workflow-runs/cancel", async (ctx, body) => ctx.runMutation(api.workflow_runs.cancelFromCli, body));
+cliRoute("/cli/workflow-runs/list", async (ctx, body) =>
+  ctx.runQuery(api.workflow_runs.listRunsFromCli, body),
+);
+cliRoute("/cli/workflow-runs/cancel", async (ctx, body) =>
+  ctx.runMutation(api.workflow_runs.cancelFromCli, body),
+);
 
 // Session-to-session messaging
-cliRoute("/cli/messages/send", async (ctx, body) => ctx.runMutation(api.pendingMessages.sendSessionMessage, body));
-cliRoute("/cli/messages/status", async (ctx, body) => ctx.runQuery(api.pendingMessages.sendStatus, body));
+cliRoute("/cli/messages/send", async (ctx, body) =>
+  ctx.runMutation(api.pendingMessages.sendSessionMessage, body),
+);
+cliRoute("/cli/messages/status", async (ctx, body) =>
+  ctx.runQuery(api.pendingMessages.sendStatus, body),
+);
 
 // Session labels (personal filing). List the catalog, file/unfile a session,
 // and manage the label catalog itself.
-cliRoute("/cli/labels/list", async (ctx, body) => ctx.runQuery(api.buckets.cliListLabels, body));
-cliRoute("/cli/labels/set", async (ctx, body) => ctx.runMutation(api.buckets.cliSetLabel, body));
-cliRoute("/cli/labels/clear", async (ctx, body) => ctx.runMutation(api.buckets.cliClearLabel, body));
-cliRoute("/cli/labels/create", async (ctx, body) => ctx.runMutation(api.buckets.cliCreateLabel, body));
-cliRoute("/cli/labels/rename", async (ctx, body) => ctx.runMutation(api.buckets.cliRenameLabel, body));
-cliRoute("/cli/labels/remove", async (ctx, body) => ctx.runMutation(api.buckets.cliArchiveLabel, body));
+cliRoute("/cli/labels/list", async (ctx, body) =>
+  ctx.runQuery(api.buckets.cliListLabels, body),
+);
+cliRoute("/cli/labels/set", async (ctx, body) =>
+  ctx.runMutation(api.buckets.cliSetLabel, body),
+);
+cliRoute("/cli/labels/clear", async (ctx, body) =>
+  ctx.runMutation(api.buckets.cliClearLabel, body),
+);
+cliRoute("/cli/labels/create", async (ctx, body) =>
+  ctx.runMutation(api.buckets.cliCreateLabel, body),
+);
+cliRoute("/cli/labels/rename", async (ctx, body) =>
+  ctx.runMutation(api.buckets.cliRenameLabel, body),
+);
+cliRoute("/cli/labels/remove", async (ctx, body) =>
+  ctx.runMutation(api.buckets.cliArchiveLabel, body),
+);
 
 // Spawn a fresh, inbox-visible session (cast spawn). `api.spawn` is filled in by
 // codegen on deploy; cast to any so the committed _generated typecheck stays green
 // until then.
-cliRoute("/cli/spawn", async (ctx, body) => ctx.runMutation((api as any).spawn.createSessionFromCli, body));
+cliRoute("/cli/spawn", async (ctx, body) =>
+  ctx.runMutation((api as any).spawn.createSessionFromCli, body),
+);
 // `cast handoff --to <agent>`: brief + compose + spawn + link, one action
 // (handoff.start), the same one the web calls signed in.
-cliRoute("/cli/handoff", async (ctx, body) => ctx.runAction((api as any).handoff.start, body));
+cliRoute("/cli/handoff", async (ctx, body) =>
+  ctx.runAction((api as any).handoff.start, body),
+);
 
 // `cast read <id> --ask "<question>"`: answer from one session, with line
 // citations, on the server's model key. body: { api_token, conversation_id, question }.
-cliRoute("/cli/read/ask", async (ctx, body) => ctx.runAction(internal.sessionAsk.ask, {
-  api_token: body.api_token,
-  conversation_id: body.conversation_id,
-  question: body.question,
-}));
+cliRoute("/cli/read/ask", async (ctx, body) =>
+  ctx.runAction(internal.sessionAsk.ask, {
+    api_token: body.api_token,
+    conversation_id: body.conversation_id,
+    question: body.question,
+  }),
+);
 
 // Session OWNERS (cast own / disown / owners, or scripts routing an agent-run
 // session into a human's inbox). A session has a SET of owners — it can sit in
@@ -4316,65 +5773,120 @@ cliRoute("/cli/read/ask", async (ctx, body) => ctx.runAction(internal.sessionAsk
 // user's inbox (agent keeps running), restore it, or retire it (teardown +
 // Killed bucket). One mutation, action pinned per route so the URLs stay
 // self-documenting. body: { api_token, session }.
-cliRoute("/cli/sessions/dismiss", async (ctx, body) => ctx.runMutation(api.conversations.cliSetSessionVisibility, { ...body, action: "dismiss" }));
-cliRoute("/cli/sessions/undismiss", async (ctx, body) => ctx.runMutation(api.conversations.cliSetSessionVisibility, { ...body, action: "undismiss" }));
-cliRoute("/cli/sessions/kill", async (ctx, body) => ctx.runMutation(api.conversations.cliSetSessionVisibility, { ...body, action: "kill" }));
+cliRoute("/cli/sessions/dismiss", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+    ...body,
+    action: "dismiss",
+  }),
+);
+cliRoute("/cli/sessions/undismiss", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+    ...body,
+    action: "undismiss",
+  }),
+);
+cliRoute("/cli/sessions/kill", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliSetSessionVisibility, {
+    ...body,
+    action: "kill",
+  }),
+);
 // Retire (a flow run's subject once its change is live, flows.md FL4): a kill that refuses when anything would be
 // lost. body: { api_token, session, expected_message_count }.
-cliRoute("/cli/sessions/retire", async (ctx, body) => ctx.runMutation(api.conversations.cliRetireSession, body));
+cliRoute("/cli/sessions/retire", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliRetireSession, body),
+);
 
 // Resume (cast resume <session> --tmux): bring the agent up in its managed pane
 // without killing a live one. body: { api_token, session }.
-cliRoute("/cli/sessions/resume", async (ctx, body) => ctx.runMutation(api.conversations.cliResumeSession, body));
+cliRoute("/cli/sessions/resume", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliResumeSession, body),
+);
 
 // Hibernate (cast hibernate <session>): park the pane now, keep the transcript,
 // wake on the next message. `cast wake` posts to /cli/sessions/resume above.
 // body: { api_token, session }.
-cliRoute("/cli/sessions/hibernate", async (ctx, body) => ctx.runMutation(api.conversations.cliHibernateSession, body));
-cliRoute("/cli/sessions/command-results", async (ctx, body) => ctx.runQuery((api as any).sessionCommands.results, body));
+cliRoute("/cli/sessions/hibernate", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliHibernateSession, body),
+);
+cliRoute("/cli/sessions/command-results", async (ctx, body) =>
+  ctx.runQuery((api as any).sessionCommands.results, body),
+);
 
 // Restart (cast restart <session>): kill the agent and resume it through the
 // daemon's resume ladder — the web header's "Restart session", from a shell.
 // body: { api_token, session, repair? }.
-cliRoute("/cli/sessions/restart", async (ctx, body) => ctx.runMutation(api.conversations.cliRestartSession, body));
+cliRoute("/cli/sessions/restart", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliRestartSession, body),
+);
 
 // In-place agent/model switch (cast switch): stay on this conversation, drop a
 // divider, reconstitute as the new agent. body: { api_token, session, agent_type?, model?, effort? }.
-cliRoute("/cli/sessions/switch", async (ctx, body) => ctx.runMutation(api.conversations.switchSessionAgent, body));
+cliRoute("/cli/sessions/switch", async (ctx, body) =>
+  ctx.runMutation(api.conversations.switchSessionAgent, body),
+);
 
 // Rename (cast rename): set a session's title with the custom flag so the
 // auto-titler never overwrites it. body: { api_token, session, title }.
-cliRoute("/cli/sessions/rename", async (ctx, body) => ctx.runMutation(api.conversations.cliRenameSession, body));
+cliRoute("/cli/sessions/rename", async (ctx, body) =>
+  ctx.runMutation(api.conversations.cliRenameSession, body),
+);
 
 // Pinned thread state (cast state): the agent's standing "where this stands"
 // line, shown pinned above the composer and on the inbox card. Empty text
 // clears it. body: { api_token, session, text? }.
-cliRoute("/cli/sessions/state/set", async (ctx, body) => ctx.runMutation(api.conversations.setThreadState, body));
+cliRoute("/cli/sessions/state/set", async (ctx, body) =>
+  ctx.runMutation(api.conversations.setThreadState, body),
+);
 // A session's goal loop (`cast loop`, sessionGoals.ts).
-cliRoute("/cli/goals/set", async (ctx, body) => ctx.runMutation(api.sessionGoals.cliSet, body));
-cliRoute("/cli/goals/control", async (ctx, body) => ctx.runMutation(api.sessionGoals.cliControl, body));
-cliRoute("/cli/goals/show", async (ctx, body) => ctx.runQuery(api.sessionGoals.cliShow, body));
+cliRoute("/cli/goals/set", async (ctx, body) =>
+  ctx.runMutation(api.sessionGoals.cliSet, body),
+);
+cliRoute("/cli/goals/control", async (ctx, body) =>
+  ctx.runMutation(api.sessionGoals.cliControl, body),
+);
+cliRoute("/cli/goals/show", async (ctx, body) =>
+  ctx.runQuery(api.sessionGoals.cliShow, body),
+);
 // `cast browser pane <url>` / `cast preview <url>`: the agent offers a page,
 // the reader opens it beside the conversation.
-cliRoute("/cli/browser/pane-offer", async (ctx, body) => ctx.runMutation(api.conversations.offerBrowserPane, body));
-cliRoute("/cli/sessions/state/get", async (ctx, body) => ctx.runQuery(api.conversations.getThreadState, body));
+cliRoute("/cli/browser/pane-offer", async (ctx, body) =>
+  ctx.runMutation(api.conversations.offerBrowserPane, body),
+);
+cliRoute("/cli/sessions/state/get", async (ctx, body) =>
+  ctx.runQuery(api.conversations.getThreadState, body),
+);
 // `cast read <session> --queued`: the messages waiting to go into a session, whole.
-cliRoute("/cli/sessions/queue", async (ctx, body) => ctx.runQuery(api.pendingMessages.cliQueue, body));
+cliRoute("/cli/sessions/queue", async (ctx, body) =>
+  ctx.runQuery(api.pendingMessages.cliQueue, body),
+);
 
 // Pull requests (cast pr): list, read, follow and steer a PR from a shell. Each
 // route takes the same locator: a reference the caller typed plus the
 // repository, branch and session the CLI already knew. prCli.resolve
 // decides which pull request that names. body: { api_token, ref?, repository?,
 // number?, session?, branch?, ... }.
-cliRoute("/cli/pr/ls", async (ctx, body) => ctx.runQuery((api as any).prCli.ls, body));
-cliRoute("/cli/pr/show", async (ctx, body) => ctx.runQuery((api as any).prCli.show, body));
-cliRoute("/cli/pr/events", async (ctx, body) => ctx.runQuery((api as any).prCli.events, body));
-cliRoute("/cli/pr/resolve", async (ctx, body) => ctx.runQuery((api as any).prCli.resolve, body));
-cliRoute("/cli/pr/shepherd", async (ctx, body) => ctx.runMutation((api as any).prCli.shepherd, body));
+cliRoute("/cli/pr/ls", async (ctx, body) =>
+  ctx.runQuery((api as any).prCli.ls, body),
+);
+cliRoute("/cli/pr/show", async (ctx, body) =>
+  ctx.runQuery((api as any).prCli.show, body),
+);
+cliRoute("/cli/pr/events", async (ctx, body) =>
+  ctx.runQuery((api as any).prCli.events, body),
+);
+cliRoute("/cli/pr/resolve", async (ctx, body) =>
+  ctx.runQuery((api as any).prCli.resolve, body),
+);
+cliRoute("/cli/pr/shepherd", async (ctx, body) =>
+  ctx.runMutation((api as any).prCli.shepherd, body),
+);
 // Commenting reuses codeComments.create wholesale: it records the comment
 // against the session, writes the timeline event and mirrors it to GitHub. The
 // only thing prCli adds is turning the caller's reference into a pull request.
-cliRoute("/cli/pr/threads", async (ctx, body) => ctx.runQuery((api as any).prCli.threads, body));
+cliRoute("/cli/pr/threads", async (ctx, body) =>
+  ctx.runQuery((api as any).prCli.threads, body),
+);
 
 // Resolving reuses codeComments the same way commenting does: prCli turns the
 // caller's words ("src/auth.ts:12", a short id) into one comment, and
@@ -4384,55 +5896,128 @@ cliRoute("/cli/pr/threads", async (ctx, body) => ctx.runQuery((api as any).prCli
 for (const verb of ["resolve", "unresolve"] as const) {
   cliRoute(`/cli/pr/threads/${verb}`, async (ctx, body) => {
     const { selector, ...locator } = body;
-    const found = await ctx.runQuery((api as any).prCli.findComment, { ...locator, selector });
-    if (!found?.pull_request) return { error: "No pull request matched that reference" };
+    const found = await ctx.runQuery((api as any).prCli.findComment, {
+      ...locator,
+      selector,
+    });
+    if (!found?.pull_request)
+      return { error: "No pull request matched that reference" };
     if (!found.comment_id) {
-      if (!found.matches?.length) return { error: `Nothing on this pull request matches "${selector}"` };
+      if (!found.matches?.length)
+        return { error: `Nothing on this pull request matches "${selector}"` };
       const where = found.matches
-        .map((m: any) => `${m.short_id} ${m.file_path ?? ""}${m.line_number ? `:${m.line_number}` : ""}`)
+        .map(
+          (m: any) =>
+            `${m.short_id} ${m.file_path ?? ""}${m.line_number ? `:${m.line_number}` : ""}`,
+        )
         .join(", ");
-      return { error: `"${selector}" matches several threads. Name one: ${where}` };
+      return {
+        error: `"${selector}" matches several threads. Name one: ${where}`,
+      };
     }
     await ctx.runMutation((api as any).codeComments[verb], {
       api_token: body.api_token,
       comment_id: found.comment_id,
     });
     const thread = found.matches?.[0] ?? null;
-    return { repository: found.pull_request.repository, number: found.pull_request.number, thread, resolved: verb === "resolve" };
+    return {
+      repository: found.pull_request.repository,
+      number: found.pull_request.number,
+      thread,
+      resolved: verb === "resolve",
+    };
   });
 }
 
 // Reviewing, merging and closing reach GitHub, so each is an action and each
 // answers with GitHub's own words when GitHub refuses.
-cliRoute("/cli/pr/review", async (ctx, body) => ctx.runAction((api as any).prCli.review, body));
+cliRoute("/cli/pr/review", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.review, body),
+);
 // One Ship control (ship.ts): `cast ship run`. A --pr ref resolves the way
 // every cast pr verb resolves one, then the same action the web dispatches runs.
 cliRoute("/cli/ship/run", async (ctx, body) => {
-  const { pr_locator, dry_run, task, session, requester_session, api_token, branch } = body;
+  const {
+    pr_locator,
+    dry_run,
+    task,
+    session,
+    requester_session,
+    api_token,
+    branch,
+  } = body;
   let pull_request_id: string | undefined;
   if (pr_locator) {
-    const resolved = await ctx.runQuery((api as any).prCli.resolve, { api_token, ...pr_locator });
-    if (!resolved?.pull_request) return { error: "No pull request matched that reference" };
+    const resolved = await ctx.runQuery((api as any).prCli.resolve, {
+      api_token,
+      ...pr_locator,
+    });
+    if (!resolved?.pull_request)
+      return { error: "No pull request matched that reference" };
     pull_request_id = resolved.pull_request.id;
   }
-  const args = { api_token, task, session, pull_request_id, requester_session, ...(branch ? { branch } : {}) };
+  const args = {
+    api_token,
+    task,
+    session,
+    pull_request_id,
+    requester_session,
+    ...(branch ? { branch } : {}),
+  };
   try {
-    return await ctx.runMutation(dry_run ? (api as any).ship.previewFromCli : (api as any).ship.startFromCli, args);
+    return await ctx.runMutation(
+      dry_run
+        ? (api as any).ship.previewFromCli
+        : (api as any).ship.startFromCli,
+      args,
+    );
   } catch (err) {
-    return { error: err instanceof Error ? (err.message.split("Uncaught Error: ").pop() ?? err.message).split("\n")[0] : String(err) };
+    return {
+      error:
+        err instanceof Error
+          ? (err.message.split("Uncaught Error: ").pop() ?? err.message).split(
+              "\n",
+            )[0]
+          : String(err),
+    };
   }
 });
-cliRoute("/cli/pr/merge", async (ctx, body) => ctx.runAction((api as any).prCli.merge, body));
-cliRoute("/cli/pr/auto-merge", async (ctx, body) => ctx.runAction((api as any).prCli.autoMerge, body));
-cliRoute("/cli/pr/update-branch", async (ctx, body) => ctx.runAction((api as any).prCli.updateBranch, body));
-cliRoute("/cli/pr/close", async (ctx, body) => ctx.runAction((api as any).prCli.close, body));
-cliRoute("/cli/pr/reopen", async (ctx, body) => ctx.runAction((api as any).prCli.reopen, body));
-cliRoute("/cli/pr/draft", async (ctx, body) => ctx.runAction((api as any).prCli.draft, body));
-cliRoute("/cli/pr/reviewers", async (ctx, body) => ctx.runAction((api as any).prCli.reviewers, body));
-cliRoute("/cli/pr/edit", async (ctx, body) => ctx.runAction((api as any).prCli.edit, body));
+cliRoute("/cli/pr/merge", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.merge, body),
+);
+cliRoute("/cli/pr/auto-merge", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.autoMerge, body),
+);
+cliRoute("/cli/pr/update-branch", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.updateBranch, body),
+);
+cliRoute("/cli/pr/close", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.close, body),
+);
+cliRoute("/cli/pr/reopen", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.reopen, body),
+);
+cliRoute("/cli/pr/draft", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.draft, body),
+);
+cliRoute("/cli/pr/reviewers", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.reviewers, body),
+);
+cliRoute("/cli/pr/edit", async (ctx, body) =>
+  ctx.runAction((api as any).prCli.edit, body),
+);
 
 cliRoute("/cli/pr/comment", async (ctx, body) => {
-  const { content, file_path, line_number, anchor_lines, session, hold, reply_to, ...locator } = body;
+  const {
+    content,
+    file_path,
+    line_number,
+    anchor_lines,
+    session,
+    hold,
+    reply_to,
+    ...locator
+  } = body;
   const resolved = await ctx.runQuery((api as any).prCli.resolve, locator);
   const pr = resolved?.pull_request;
   if (!pr) return { error: "No pull request matched that reference" };
@@ -4441,11 +6026,24 @@ cliRoute("/cli/pr/comment", async (ctx, body) => {
   // short id or file:line, and takes that thread's place in the diff.
   let parent: any = null;
   if (reply_to) {
-    const found = await ctx.runQuery((api as any).prCli.findComment, { ...locator, selector: reply_to });
-    if (!found?.pull_request) return { error: "No pull request matched that reference" };
+    const found = await ctx.runQuery((api as any).prCli.findComment, {
+      ...locator,
+      selector: reply_to,
+    });
+    if (!found?.pull_request)
+      return { error: "No pull request matched that reference" };
     if (!found.comment_id) {
-      const where = (found.matches ?? []).map((m: any) => `${m.short_id} ${m.file_path ?? "conversation"}:${m.line_number ?? ""}`).join(", ");
-      return { error: found.matches?.length ? `"${reply_to}" matches several threads. Name one: ${where}` : `No thread matches "${reply_to}"` };
+      const where = (found.matches ?? [])
+        .map(
+          (m: any) =>
+            `${m.short_id} ${m.file_path ?? "conversation"}:${m.line_number ?? ""}`,
+        )
+        .join(", ");
+      return {
+        error: found.matches?.length
+          ? `"${reply_to}" matches several threads. Name one: ${where}`
+          : `No thread matches "${reply_to}"`,
+      };
     }
     parent = { id: found.comment_id };
   }
@@ -4467,7 +6065,14 @@ cliRoute("/cli/pr/comment", async (ctx, body) => {
     pending: !!hold,
     mirror: !hold,
   });
-  return { repository: pr.repository, number: pr.number, url: pr.url, comment_id: created?.comment_id, held: !!hold, reply: !!parent };
+  return {
+    repository: pr.repository,
+    number: pr.number,
+    url: pr.url,
+    comment_id: created?.comment_id,
+    held: !!hold,
+    reply: !!parent,
+  };
 });
 
 cliRoute("/cli/pr/notes", async (ctx, body) => {
@@ -4478,28 +6083,56 @@ cliRoute("/cli/pr/notes", async (ctx, body) => {
   // `--discard` throws the caller's held notes away: the way back from a note
   // written on the wrong line, before anything has been submitted.
   if (discard) {
-    const result = await ctx.runMutation((api as any).codeComments.discardPendingReview, { api_token: body.api_token, pull_request_id: pr.id });
-    return { repository: pr.repository, number: pr.number, notes: [], ...result };
+    const result = await ctx.runMutation(
+      (api as any).codeComments.discardPendingReview,
+      { api_token: body.api_token, pull_request_id: pr.id },
+    );
+    return {
+      repository: pr.repository,
+      number: pr.number,
+      notes: [],
+      ...result,
+    };
   }
-  const notes = await ctx.runQuery((api as any).codeComments.pendingReview, { api_token: body.api_token, pull_request_id: pr.id });
+  const notes = await ctx.runQuery((api as any).codeComments.pendingReview, {
+    api_token: body.api_token,
+    pull_request_id: pr.id,
+  });
   return { repository: pr.repository, number: pr.number, notes };
 });
 
 // `cast ship mark`: a deploy marker for the Changes page (changesDeploy.ts).
-cliRoute("/cli/changes/mark-deploy", async (ctx, body) => ctx.runMutation((api as any).changesDeploy.markDeploy, body));
+cliRoute("/cli/changes/mark-deploy", async (ctx, body) =>
+  ctx.runMutation((api as any).changesDeploy.markDeploy, body),
+);
 // Which deploy put each name (a function, route, index or table) on a surface: who to ask before dropping it.
-cliRoute("/cli/deploys/added-by", async (ctx, body) => ctx.runQuery((api as any).changesDeploy.addedBy, body));
+cliRoute("/cli/deploys/added-by", async (ctx, body) =>
+  ctx.runQuery((api as any).changesDeploy.addedBy, body),
+);
 
-cliRoute("/cli/sessions/own", async (ctx, body) => ctx.runMutation(api.sessionOwnership.addSessionOwner, body));
-cliRoute("/cli/sessions/disown", async (ctx, body) => ctx.runMutation(api.sessionOwnership.removeSessionOwner, body));
-cliRoute("/cli/sessions/owners/set", async (ctx, body) => ctx.runMutation(api.sessionOwnership.setSessionOwners, body));
-cliRoute("/cli/sessions/owners", async (ctx, body) => ctx.runQuery(api.sessionOwnership.listOwners, body));
+cliRoute("/cli/sessions/own", async (ctx, body) =>
+  ctx.runMutation(api.sessionOwnership.addSessionOwner, body),
+);
+cliRoute("/cli/sessions/disown", async (ctx, body) =>
+  ctx.runMutation(api.sessionOwnership.removeSessionOwner, body),
+);
+cliRoute("/cli/sessions/owners/set", async (ctx, body) =>
+  ctx.runMutation(api.sessionOwnership.setSessionOwners, body),
+);
+cliRoute("/cli/sessions/owners", async (ctx, body) =>
+  ctx.runQuery(api.sessionOwnership.listOwners, body),
+);
 
 // Cross-user device reparent (cast pull): pull a session you run or own — or a
 // team-visible one (see findPullableConversation) — onto the
 // caller's OWN device. Account follows device — user_id becomes the caller, the
 // author is pinned. body: { api_token, session_id, device_id }.
-cliRoute("/cli/sessions/reparent", async (ctx, body) => ctx.runMutation(api.devices.reparentSessionToDevice, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/sessions/reparent",
+  async (ctx, body) =>
+    ctx.runMutation(api.devices.reparentSessionToDevice, body),
+  { forwardDeviceId: true },
+);
 // This machine signed into a different account. Sessions it still owns under
 // the previous account follow it, without starting the agent again.
 // NOT REACHABLE, on purpose for now: the route is registered without
@@ -4507,29 +6140,58 @@ cliRoute("/cli/sessions/reparent", async (ctx, body) => ctx.runMutation(api.devi
 // every call fails validation. The daemon calls devices:claimDeviceAccount
 // directly. Do not add forwardDeviceId before the claim has real proof that
 // the caller holds the machine (see claimDeviceAccount).
-cliRoute("/cli/devices/claim-account", async (ctx, body) => ctx.runMutation(api.devices.claimDeviceAccount, body));
+cliRoute("/cli/devices/claim-account", async (ctx, body) =>
+  ctx.runMutation(api.devices.claimDeviceAccount, body),
+);
 
 // CC account switching: route the swap + blocked-session revive through the
 // daemon fleet / nudge limit-parked sessions after a window reset.
-cliRoute("/cli/accounts/switch", async (ctx, body) => ctx.runMutation(api.accountSwitch.requestAccountSwitch, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/accounts/switch",
+  async (ctx, body) =>
+    ctx.runMutation(api.accountSwitch.requestAccountSwitch, body),
+  { forwardDeviceId: true },
+);
 // The lease that stops two daemons on one machine from both executing the same
 // command. forwardDeviceId because the mutation takes the device as a real
 // argument: the hold is scoped to a device, so an untargeted command stays
 // visible to every other machine on the account. The daemon reads any non-200
 // as "carry on", so the binding rejection and an internal error both fail open.
-cliRoute("/cli/command-claim", async (ctx, body) => ctx.runMutation(api.users.claimDaemonCommand, {
-  api_token: body.api_token,
-  command_id: body.command_id,
-  boot_id: body.boot_id,
-  device_id: typeof body.device_id === "string" ? body.device_id : undefined,
-  release: body.release === true ? true : undefined,
-}), { forwardDeviceId: true });
+cliRoute(
+  "/cli/command-claim",
+  async (ctx, body) =>
+    ctx.runMutation(api.users.claimDaemonCommand, {
+      api_token: body.api_token,
+      command_id: body.command_id,
+      boot_id: body.boot_id,
+      device_id:
+        typeof body.device_id === "string" ? body.device_id : undefined,
+      release: body.release === true ? true : undefined,
+    }),
+  { forwardDeviceId: true },
+);
 
-cliRoute("/cli/accounts/restamp-park", async (ctx, body) => ctx.runMutation(api.accountSwitch.restampStationPark, body));
-cliRoute("/cli/accounts/continue-blocked", async (ctx, body) => ctx.runMutation(api.accountSwitch.continueAllBlocked, body));
-cliRoute("/cli/accounts/save", async (ctx, body) => ctx.runMutation(api.accountSwitch.saveAccountProfile, body), { forwardDeviceId: true });
-cliRoute("/cli/accounts/publish", async (ctx, body) => ctx.runMutation(api.accountSwitch.publishDeviceAccounts, body), { forwardDeviceId: true });
-cliRoute("/cli/accounts/recovery-status", async (ctx, body) => ctx.runQuery(api.accountSwitch.recoveryStatus, body));
+cliRoute("/cli/accounts/restamp-park", async (ctx, body) =>
+  ctx.runMutation(api.accountSwitch.restampStationPark, body),
+);
+cliRoute("/cli/accounts/continue-blocked", async (ctx, body) =>
+  ctx.runMutation(api.accountSwitch.continueAllBlocked, body),
+);
+cliRoute(
+  "/cli/accounts/save",
+  async (ctx, body) =>
+    ctx.runMutation(api.accountSwitch.saveAccountProfile, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/accounts/publish",
+  async (ctx, body) =>
+    ctx.runMutation(api.accountSwitch.publishDeviceAccounts, body),
+  { forwardDeviceId: true },
+);
+cliRoute("/cli/accounts/recovery-status", async (ctx, body) =>
+  ctx.runQuery(api.accountSwitch.recoveryStatus, body),
+);
 
 // --- Published HTML artifacts (cast publish → codecast.sh/a/<slug>) ---
 // All handlers live in artifactsHttp.ts (they need Web Crypto + storage.store,
@@ -4574,15 +6236,27 @@ artifactPost("/cli/artifacts/view", artifactView);
 // Video and audio for published pages: presigned R2 uploads, and the player
 // script every page using <cast-player> loads (see lib/castPlayer.ts).
 artifactPost("/cli/media/sign", artifactMediaSign);
-http.route({ path: "/cli/player.js", method: "GET", handler: artifactPlayerJs });
+http.route({
+  path: "/cli/player.js",
+  method: "GET",
+  handler: artifactPlayerJs,
+});
 // Live data on published pages: the runtime pages with <cast-chart>/<cast-stat>
 // load (lib/castData.ts), and the owner's view behind `cast publish data`.
 // The data itself is served under the page (/cli/a/<slug>/_data), past its gates.
 http.route({ path: "/cli/data.js", method: "GET", handler: artifactDataJs });
-cliRoute("/cli/artifacts/data", async (ctx, body) => ctx.runAction(api.pageData.forCli, body));
-cliRoute("/cli/artifacts/state", async (ctx, body) => ctx.runAction(api.pageState.forCli, body));
+cliRoute("/cli/artifacts/data", async (ctx, body) =>
+  ctx.runAction(api.pageData.forCli, body),
+);
+cliRoute("/cli/artifacts/state", async (ctx, body) =>
+  ctx.runAction(api.pageState.forCli, body),
+);
 // The motion player HyperFrames composition pages load (see lib/castMotion.ts).
-http.route({ path: "/cli/motion.js", method: "GET", handler: artifactMotionJs });
+http.route({
+  path: "/cli/motion.js",
+  method: "GET",
+  handler: artifactMotionJs,
+});
 
 // Vault remote mirror — the daemon's push channel (apps/cli/src/vault/
 // vaultMirror.ts). Mirroring is opt-in per vault; a vault nobody turned on
@@ -4590,93 +6264,221 @@ http.route({ path: "/cli/motion.js", method: "GET", handler: artifactMotionJs })
 // images.generateUploadUrl: it is the generic "give this authenticated user a
 // storage upload URL" mutation, and a vault-specific twin of it would be the
 // same function under a second name.
-cliRoute("/cli/vault/register", async (ctx, body) => ctx.runMutation(api.vaultMirror.cliRegisterMirror, body), { forwardDeviceId: true });
-cliRoute("/cli/vault/upsert", async (ctx, body) => ctx.runMutation(api.vaultMirror.cliUpsertNotes, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/vault/register",
+  async (ctx, body) => ctx.runMutation(api.vaultMirror.cliRegisterMirror, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/vault/upsert",
+  async (ctx, body) => ctx.runMutation(api.vaultMirror.cliUpsertNotes, body),
+  { forwardDeviceId: true },
+);
 // The body upload URL points at our own route, which records who uploaded the
 // blob (vaultMirror.uploadBody); cliUpsertNotes refuses a body without that.
-cliRoute("/cli/vault/upload-url", async (ctx, body) => ctx.runMutation(api.vaultMirror.cliBodyUploadUrl, body));
-http.route({ path: VAULT_BODY_UPLOAD_PATH, method: "POST", handler: vaultUploadBody });
+cliRoute("/cli/vault/upload-url", async (ctx, body) =>
+  ctx.runMutation(api.vaultMirror.cliBodyUploadUrl, body),
+);
+http.route({
+  path: VAULT_BODY_UPLOAD_PATH,
+  method: "POST",
+  handler: vaultUploadBody,
+});
 
 // Remote pane watching — the daemon's frame push (apps/cli/src/terminal/
 // paneStream.ts). Only reached while a viewer holds a lease on the pane; the
 // reply carries that lease, so the capture loop learns when to stop from the
 // request it was already making.
-cliRoute("/cli/terminal/frame", async (ctx, body) => ctx.runMutation(api.terminalStream.cliPushFrame, body), { forwardDeviceId: true });
-cliRoute("/cli/terminal/clipboard", async (ctx, body) => ctx.runMutation(api.terminalStream.cliPushClipboard, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/terminal/frame",
+  async (ctx, body) => ctx.runMutation(api.terminalStream.cliPushFrame, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/terminal/clipboard",
+  async (ctx, body) =>
+    ctx.runMutation(api.terminalStream.cliPushClipboard, body),
+  { forwardDeviceId: true },
+);
 // The viewer half, for callers with a token instead of a browser session.
-cliRoute("/cli/terminal/watch", async (ctx, body) => ctx.runMutation(api.terminalStream.watchPane, body), { forwardDeviceId: true });
-cliRoute("/cli/terminal/pane", async (ctx, body) => ctx.runQuery(api.terminalStream.getPane, body), { forwardDeviceId: true });
-cliRoute("/cli/terminal/input", async (ctx, body) => ctx.runMutation(api.terminalStream.sendPaneInput, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/terminal/watch",
+  async (ctx, body) => ctx.runMutation(api.terminalStream.watchPane, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/terminal/pane",
+  async (ctx, body) => ctx.runQuery(api.terminalStream.getPane, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
+  "/cli/terminal/input",
+  async (ctx, body) => ctx.runMutation(api.terminalStream.sendPaneInput, body),
+  { forwardDeviceId: true },
+);
 // Remote browser watching: the daemon's frame push (apps/cli/src/browser/
 // watchRelay.ts), same lease-in-the-reply shape as the terminal's.
-cliRoute("/cli/browser/frame", async (ctx, body) => ctx.runMutation(api.browserStream.cliPushBrowserFrame, body), { forwardDeviceId: true });
+cliRoute(
+  "/cli/browser/frame",
+  async (ctx, body) =>
+    ctx.runMutation(api.browserStream.cliPushBrowserFrame, body),
+  { forwardDeviceId: true },
+);
 
 // Image sharing (cast image): upload a screenshot/image to storage, then
 // resolve its stable public /api/storage/<uuid> URL for inline embedding in
 // message markdown and cast-canvas blocks. Same generic mutations as above.
-cliRoute("/cli/images/upload-url", async (ctx, body) => ctx.runMutation(api.images.generateUploadUrl, body));
-cliRoute("/cli/images/url", async (ctx, body) => ({ url: await ctx.runQuery(api.images.getImageUrl, body) }));
+cliRoute("/cli/images/upload-url", async (ctx, body) =>
+  ctx.runMutation(api.images.generateUploadUrl, body),
+);
+cliRoute("/cli/images/url", async (ctx, body) => ({
+  url: await ctx.runQuery(api.images.getImageUrl, body),
+}));
 
 // `cast replay ls|show|repro` (external-data.md X5). Show carries chunk URLs
 // signed at request time, never keys, the way /cli/calls/recordings does.
-cliRoute("/cli/replays/list", async (ctx, body) => ({ replays: await ctx.runQuery(api.replays.list, body) }));
-cliRoute("/cli/replays/search", async (ctx, body) => ctx.runQuery(api.replaysSearch.search, body));
-cliRoute("/cli/replays/import-status", async (ctx, body) => ctx.runQuery(api.replaysSearch.importStatus, body));
-cliRoute("/cli/replays/resolve", async (ctx, body) => ctx.runAction(api.sources.replayResolve.resolve, body));
-cliRoute("/cli/replays/get", async (ctx, body) => signReplayChunks(await ctx.runQuery(internal.replays.cliGet, body)));
-cliRoute("/cli/replays/recordings", async (ctx, body) => ctx.runAction(api.sources.posthog.listRecordings, body));
-cliRoute("/cli/replays/import", async (ctx, body) => ctx.runAction(api.sources.posthog.importRecording, body));
+cliRoute("/cli/replays/list", async (ctx, body) => ({
+  replays: await ctx.runQuery(api.replays.list, body),
+}));
+cliRoute("/cli/replays/search", async (ctx, body) =>
+  ctx.runQuery(api.replaysSearch.search, body),
+);
+cliRoute("/cli/replays/import-status", async (ctx, body) =>
+  ctx.runQuery(api.replaysSearch.importStatus, body),
+);
+cliRoute("/cli/replays/resolve", async (ctx, body) =>
+  ctx.runAction(api.sources.replayResolve.resolve, body),
+);
+cliRoute("/cli/replays/get", async (ctx, body) =>
+  signReplayChunks(await ctx.runQuery(internal.replays.cliGet, body)),
+);
+cliRoute("/cli/replays/recordings", async (ctx, body) =>
+  ctx.runAction(api.sources.posthog.listRecordings, body),
+);
+cliRoute("/cli/replays/import", async (ctx, body) =>
+  ctx.runAction(api.sources.posthog.importRecording, body),
+);
 // A replay row that mirrors a vendor recording (a Sentry replay linked to an
 // issue, a listed PostHog one), imported the first time it is read.
-cliRoute("/cli/replays/import-linked", async (ctx, body) => ctx.runAction(api.sources.vendorReplay.importLinked, body));
+cliRoute("/cli/replays/import-linked", async (ctx, body) =>
+  ctx.runAction(api.sources.vendorReplay.importLinked, body),
+);
 // A capability for the replay player (contracts/replayPlayer.ts): `cast replay snap` posts it to the frame renderer.
-cliRoute("/cli/replays/player-link", async (ctx, body) => ctx.runAction(api.replays.playerLink, body));
-cliRoute("/cli/replays/backfill", async (ctx, body) => ctx.runMutation(api.sources.replayBackfill.start, body));
-cliRoute("/cli/replays/backfill-stop", async (ctx, body) => ctx.runMutation(api.sources.replayBackfill.stop, body));
+cliRoute("/cli/replays/player-link", async (ctx, body) =>
+  ctx.runAction(api.replays.playerLink, body),
+);
+cliRoute("/cli/replays/backfill", async (ctx, body) =>
+  ctx.runMutation(api.sources.replayBackfill.start, body),
+);
+cliRoute("/cli/replays/backfill-stop", async (ctx, body) =>
+  ctx.runMutation(api.sources.replayBackfill.stop, body),
+);
 
 // `cast sources`, `cast events`, `cast metrics` and `cast connector`
 // (external-data.md X10): thin doors onto the functions the web reads, each of
 // which authenticates the api_token and holds rows to the workspace key itself.
-cliRoute("/cli/sources/list", async (ctx, body) => ctx.runQuery(api.ingest.listSources, body));
-cliRoute("/cli/sources/get", async (ctx, body) => ctx.runQuery(api.ingest.getSource, body));
-cliRoute("/cli/sources/create", async (ctx, body) => ctx.runMutation(api.ingest.createSource, body));
-cliRoute("/cli/sources/update", async (ctx, body) => ctx.runMutation(api.ingest.updateSource, body));
-cliRoute("/cli/sources/rotate-key", async (ctx, body) => ctx.runMutation(api.ingest.rotateKey, body));
-cliRoute("/cli/sources/remove", async (ctx, body) => ctx.runMutation(api.ingest.removeSource, body));
+cliRoute("/cli/sources/list", async (ctx, body) =>
+  ctx.runQuery(api.ingest.listSources, body),
+);
+cliRoute("/cli/sources/get", async (ctx, body) =>
+  ctx.runQuery(api.ingest.getSource, body),
+);
+cliRoute("/cli/sources/create", async (ctx, body) =>
+  ctx.runMutation(api.ingest.createSource, body),
+);
+cliRoute("/cli/sources/update", async (ctx, body) =>
+  ctx.runMutation(api.ingest.updateSource, body),
+);
+cliRoute("/cli/sources/rotate-key", async (ctx, body) =>
+  ctx.runMutation(api.ingest.rotateKey, body),
+);
+cliRoute("/cli/sources/remove", async (ctx, body) =>
+  ctx.runMutation(api.ingest.removeSource, body),
+);
 // A workspace's work as major events since a cursor (workTimeline.ts): `cast timeline`.
-cliRoute("/cli/timeline", async (ctx, body) => ctx.runQuery(api.workTimeline.since, body));
+cliRoute("/cli/timeline", async (ctx, body) =>
+  ctx.runQuery(api.workTimeline.since, body),
+);
 // When the token's person typed, from the per-send log (userSends.typedSince): `cast typed`.
-cliRoute("/cli/typed", async (ctx, body) => ctx.runQuery(api.userSends.typedSince, body));
-cliRoute("/cli/events/list", async (ctx, body) => ctx.runQuery(api.ingest.listEvents, body));
-cliRoute("/cli/events/groups", async (ctx, body) => ctx.runQuery(api.ingest.listGroups, body));
-cliRoute("/cli/events/group", async (ctx, body) => ctx.runQuery(api.ingest.getGroup, body));
-cliRoute("/cli/events/issue", async (ctx, body) => ctx.runAction(api.sources.sentry.issueDetail, body));
+cliRoute("/cli/typed", async (ctx, body) =>
+  ctx.runQuery(api.userSends.typedSince, body),
+);
+cliRoute("/cli/events/list", async (ctx, body) =>
+  ctx.runQuery(api.ingest.listEvents, body),
+);
+cliRoute("/cli/events/groups", async (ctx, body) =>
+  ctx.runQuery(api.ingest.listGroups, body),
+);
+cliRoute("/cli/events/group", async (ctx, body) =>
+  ctx.runQuery(api.ingest.getGroup, body),
+);
+cliRoute("/cli/events/issue", async (ctx, body) =>
+  ctx.runAction(api.sources.sentry.issueDetail, body),
+);
 // A group mirrored from Sentry is resolved or ignored in Sentry, and the
 // mirror follows what Sentry answers; any other group changes here.
-cliRoute("/cli/events/set-status", async (ctx, body) => setEventGroupStatus(ctx, body));
-cliRoute("/cli/metrics/list", async (ctx, body) => ctx.runQuery(api.metrics.listWatches, body));
-cliRoute("/cli/metrics/get", async (ctx, body) => ctx.runQuery(api.metrics.getWatch, body));
-cliRoute("/cli/metrics/create", async (ctx, body) => ctx.runMutation(api.metrics.createWatch, body));
-cliRoute("/cli/metrics/update", async (ctx, body) => ctx.runMutation(api.metrics.updateWatch, body));
-cliRoute("/cli/metrics/remove", async (ctx, body) => ctx.runMutation(api.metrics.removeWatch, body));
-for (const [path, fn] of [["/cli/metrics/points-rm", api.metrics.removePoints], ["/cli/metrics/redefine", api.metrics.redefine]] as const) cliRoute(path, async (ctx, body) => ctx.runMutation(fn, body));
-cliRoute("/cli/metrics/backfill", async (ctx, body) => ctx.runMutation(api.metrics.loadHistory, body));
-cliRoute("/cli/metrics/query", async (ctx, body) => ctx.runAction(api.sources.posthog.query, body));
-cliRoute("/cli/connector/capabilities", async (ctx, body) => ctx.runQuery(api.sources.app.capabilities, body));
-cliRoute("/cli/connector/read", async (ctx, body) => ctx.runAction(api.sources.app.read, body));
-cliRoute("/cli/connector/do", async (ctx, body) => ctx.runAction(api.sources.app.doAction, body));
-cliRoute("/cli/connector/refresh", async (ctx, body) => ctx.runAction(api.sources.app.refresh, body));
-cliRoute("/cli/connector/calls", async (ctx, body) => ctx.runQuery(api.sources.app.listCalls, body));
+cliRoute("/cli/events/set-status", async (ctx, body) =>
+  setEventGroupStatus(ctx, body),
+);
+cliRoute("/cli/metrics/list", async (ctx, body) =>
+  ctx.runQuery(api.metrics.listWatches, body),
+);
+cliRoute("/cli/metrics/get", async (ctx, body) =>
+  ctx.runQuery(api.metrics.getWatch, body),
+);
+cliRoute("/cli/metrics/create", async (ctx, body) =>
+  ctx.runMutation(api.metrics.createWatch, body),
+);
+cliRoute("/cli/metrics/update", async (ctx, body) =>
+  ctx.runMutation(api.metrics.updateWatch, body),
+);
+cliRoute("/cli/metrics/remove", async (ctx, body) =>
+  ctx.runMutation(api.metrics.removeWatch, body),
+);
+for (const [path, fn] of [
+  ["/cli/metrics/points-rm", api.metrics.removePoints],
+  ["/cli/metrics/redefine", api.metrics.redefine],
+] as const)
+  cliRoute(path, async (ctx, body) => ctx.runMutation(fn, body));
+cliRoute("/cli/metrics/backfill", async (ctx, body) =>
+  ctx.runMutation(api.metrics.loadHistory, body),
+);
+cliRoute("/cli/metrics/query", async (ctx, body) =>
+  ctx.runAction(api.sources.posthog.query, body),
+);
+cliRoute("/cli/connector/capabilities", async (ctx, body) =>
+  ctx.runQuery(api.sources.app.capabilities, body),
+);
+cliRoute("/cli/connector/read", async (ctx, body) =>
+  ctx.runAction(api.sources.app.read, body),
+);
+cliRoute("/cli/connector/do", async (ctx, body) =>
+  ctx.runAction(api.sources.app.doAction, body),
+);
+cliRoute("/cli/connector/refresh", async (ctx, body) =>
+  ctx.runAction(api.sources.app.refresh, body),
+);
+cliRoute("/cli/connector/calls", async (ctx, body) =>
+  ctx.runQuery(api.sources.app.listCalls, body),
+);
 // No grant or revoke door: grants are a person's, made in the browser
 // (sources/app.ts grant refuses an api token), never from an agent's CLI.
 
-cliRoute("/cli/artifacts/list", async (ctx, body) => ctx.runQuery(api.artifacts.listFromCLI, body));
-cliRoute("/cli/artifacts/delete", async (ctx, body) => ctx.runMutation(api.artifacts.deleteFromCLI, body));
+cliRoute("/cli/artifacts/list", async (ctx, body) =>
+  ctx.runQuery(api.artifacts.listFromCLI, body),
+);
+cliRoute("/cli/artifacts/delete", async (ctx, body) =>
+  ctx.runMutation(api.artifacts.deleteFromCLI, body),
+);
 // Evidence (docs/architecture/the-line.md L6): `cast task handoff --page`
 // attaches an existing page to a task; `cast task show` and the task page
 // read one evidence object.
-cliRoute("/cli/artifacts/attach", async (ctx, body) => ctx.runMutation(api.artifacts.attachFromCLI, body));
-cliRoute("/cli/work/evidence", async (ctx, body) => ctx.runQuery(api.taskEvidence.get, body));
+cliRoute("/cli/artifacts/attach", async (ctx, body) =>
+  ctx.runMutation(api.artifacts.attachFromCLI, body),
+);
+cliRoute("/cli/work/evidence", async (ctx, body) =>
+  ctx.runQuery(api.taskEvidence.get, body),
+);
 
 // Raw artifact HTML + assets. Lives under /cli/ because the Caddy proxy in
 // front of the self-hosted backend forwards only that prefix (plus
@@ -4687,10 +6489,18 @@ cliRoute("/cli/work/evidence", async (ctx, body) => ctx.runQuery(api.taskEvidenc
 // scripts run, but the page can never touch convex.codecast.sh state.
 http.route({ pathPrefix: "/cli/a/", method: "GET", handler: artifactServe });
 
-http.route({ path: SHARED_CALL_VIDEO_PATH, method: "GET", handler: sharedCallVideo });
+http.route({
+  path: SHARED_CALL_VIDEO_PATH,
+  method: "GET",
+  handler: sharedCallVideo,
+});
 // A shared call's audio, re-checked against the link on every request the
 // same way (lib/sharedCallMedia.sharedCallAudio).
-http.route({ path: SHARED_CALL_AUDIO_PATH, method: "GET", handler: sharedCallAudio });
+http.route({
+  path: SHARED_CALL_AUDIO_PATH,
+  method: "GET",
+  handler: sharedCallAudio,
+});
 
 // Reading a public repository with no account at all — the standalone /r/ shell
 // runs on this. The handler is repoPublicHttp.ts; see the file header for why a
@@ -4703,14 +6513,22 @@ http.route({ path: SHARED_CALL_AUDIO_PATH, method: "GET", handler: sharedCallAud
 // as soon as the proxy carries that prefix too.
 for (const prefix of repoPublicPrefixes) {
   http.route({ pathPrefix: prefix, method: "GET", handler: repoPublicServe });
-  http.route({ pathPrefix: prefix, method: "OPTIONS", handler: repoPublicPreflight });
+  http.route({
+    pathPrefix: prefix,
+    method: "OPTIONS",
+    handler: repoPublicPreflight,
+  });
 }
 
 // The ingest door (external-data.md X2), on both prefixes for the same reason
 // as the public repo routes above. The handler is ingestHttp.ts.
 for (const prefix of INGEST_PREFIXES) {
   http.route({ pathPrefix: prefix, method: "POST", handler: ingestServe });
-  http.route({ pathPrefix: prefix, method: "OPTIONS", handler: ingestPreflight });
+  http.route({
+    pathPrefix: prefix,
+    method: "OPTIONS",
+    handler: ingestPreflight,
+  });
 }
 
 // Codecast's public signing keys (external-data.md X8, signed requests): an
@@ -4720,11 +6538,16 @@ for (const prefix of INGEST_PREFIXES) {
 http.route({
   path: CODECAST_KEYS_PATH,
   method: "GET",
-  handler: httpAction(async () =>
-    new Response(JSON.stringify(publishedKeys()), {
-      status: 200,
-      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" },
-    }),
+  handler: httpAction(
+    async () =>
+      new Response(JSON.stringify(publishedKeys()), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "public, max-age=3600",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }),
   ),
 });
 
@@ -4734,16 +6557,36 @@ http.route({
 // door's, so the SDK sees one CORS answer. Handlers are replaysHttp.ts.
 for (const prefix of REPLAY_SIGN_PREFIXES) {
   http.route({ pathPrefix: prefix, method: "POST", handler: replaySign });
-  http.route({ pathPrefix: prefix, method: "OPTIONS", handler: ingestPreflight });
+  http.route({
+    pathPrefix: prefix,
+    method: "OPTIONS",
+    handler: ingestPreflight,
+  });
 }
 // One chunk of a replay the reader may see: a 302 to a URL signed now.
 http.route({ path: REPLAY_CHUNK_PATH, method: "GET", handler: replayChunk });
-http.route({ path: REPLAY_CHUNK_PATH, method: "OPTIONS", handler: replayChunkPreflight });
+http.route({
+  path: REPLAY_CHUNK_PATH,
+  method: "OPTIONS",
+  handler: replayChunkPreflight,
+});
 // The player page (replay.codecast.sh) trades its capability for the DOM capture's signed URLs.
-http.route({ path: REPLAY_PLAYER_MANIFEST_PATH, method: "GET", handler: replayPlayerManifest });
-http.route({ path: REPLAY_PLAYER_MANIFEST_PATH, method: "OPTIONS", handler: replayPlayerManifestPreflight });
+http.route({
+  path: REPLAY_PLAYER_MANIFEST_PATH,
+  method: "GET",
+  handler: replayPlayerManifest,
+});
+http.route({
+  path: REPLAY_PLAYER_MANIFEST_PATH,
+  method: "OPTIONS",
+  handler: replayPlayerManifestPreflight,
+});
 // The player worker asks before each frame request starts a browser: the capability opens and its budget has room.
-http.route({ path: REPLAY_FRAME_ADMIT_PATH, method: "POST", handler: replayFrameAdmit });
+http.route({
+  path: REPLAY_FRAME_ADMIT_PATH,
+  method: "POST",
+  handler: replayFrameAdmit,
+});
 
 // One-click unsubscribe for the notification digest (emails/digest.ts). Lives
 // under /cli/ because Caddy forwards only that prefix to HTTP actions. GET
@@ -4762,14 +6605,24 @@ const emailUnsubscribe = httpAction(async (ctx, request) => {
     settingsUrl: `${BRAND.url}/settings/notifications`,
   });
 });
-http.route({ path: "/cli/email/unsubscribe", method: "GET", handler: emailUnsubscribe });
-http.route({ path: "/cli/email/unsubscribe", method: "POST", handler: emailUnsubscribe });
+http.route({
+  path: "/cli/email/unsubscribe",
+  method: "GET",
+  handler: emailUnsubscribe,
+});
+http.route({
+  path: "/cli/email/unsubscribe",
+  method: "POST",
+  handler: emailUnsubscribe,
+});
 
 // The caller's own suggestion profile, read by the suggest eval (apps/evals).
 // Only api_token is forwarded: the token decides whose profile it is, and any
 // other field in the body, a user id included, never reaches the query.
 cliRoute("/cli/suggestion-profile", async (ctx, body) =>
-  ctx.runQuery(internal.composerSuggestions.getOwnSuggestionProfile, { api_token: String(body?.api_token ?? "") }),
+  ctx.runQuery(internal.composerSuggestions.getOwnSuggestionProfile, {
+    api_token: String(body?.api_token ?? ""),
+  }),
 );
 
 // --- Codecast for outside agents: the MCP server and its OAuth (mcpHttp.ts,
@@ -4783,12 +6636,29 @@ import {
   token as mcpToken,
 } from "./mcpHttp";
 import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";
-for (const method of ["POST", "GET", "OPTIONS"] as const) http.route({ path: MCP_ROUTES["/mcp"], method, handler: mcpServer });
-http.route({ path: MCP_ROUTES["/.well-known/oauth-protected-resource"], method: "GET", handler: mcpResourceMetadata });
-http.route({ path: MCP_ROUTES["/.well-known/oauth-protected-resource/mcp"], method: "GET", handler: mcpResourceMetadata });
-http.route({ path: MCP_ROUTES["/.well-known/oauth-authorization-server"], method: "GET", handler: mcpAuthServerMetadata });
+for (const method of ["POST", "GET", "OPTIONS"] as const)
+  http.route({ path: MCP_ROUTES["/mcp"], method, handler: mcpServer });
+http.route({
+  path: MCP_ROUTES["/.well-known/oauth-protected-resource"],
+  method: "GET",
+  handler: mcpResourceMetadata,
+});
+http.route({
+  path: MCP_ROUTES["/.well-known/oauth-protected-resource/mcp"],
+  method: "GET",
+  handler: mcpResourceMetadata,
+});
+http.route({
+  path: MCP_ROUTES["/.well-known/oauth-authorization-server"],
+  method: "GET",
+  handler: mcpAuthServerMetadata,
+});
 for (const method of ["POST", "OPTIONS"] as const) {
-  http.route({ path: MCP_ROUTES["/oauth/register"], method, handler: mcpRegister });
+  http.route({
+    path: MCP_ROUTES["/oauth/register"],
+    method,
+    handler: mcpRegister,
+  });
   http.route({ path: MCP_ROUTES["/oauth/token"], method, handler: mcpToken });
 }
 

@@ -8,7 +8,9 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/ops/issues" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/ops/issues",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -38,8 +40,20 @@ async function mount(props: Props) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<MemoryRouter><IssuesEmpty {...props} /></MemoryRouter>));
-  return { container, done: () => { root.unmount(); container.remove(); } };
+  await act(async () =>
+    root.render(
+      <MemoryRouter>
+        <IssuesEmpty {...props} />
+      </MemoryRouter>,
+    ),
+  );
+  return {
+    container,
+    done: () => {
+      root.unmount();
+      container.remove();
+    },
+  };
 }
 
 const ready = { ready: true } as unknown as Props["feed"];
@@ -47,14 +61,29 @@ const ready = { ready: true } as unknown as Props["feed"];
 test("no sources: every provider is one press away", async () => {
   const m = await mount({ feed: ready, sources: [] });
   expect(m.container.textContent).toContain("No sources connected");
-  const providers = [...m.container.querySelectorAll(".iss-provider")].map((a) => a.getAttribute("data-provider"));
+  const providers = [...m.container.querySelectorAll(".iss-provider")].map(
+    (a) => a.getAttribute("data-provider"),
+  );
   expect(providers).toEqual(["sentry", "posthog", "app", "github", "sdk"]);
-  for (const a of m.container.querySelectorAll<HTMLAnchorElement>(".iss-provider")) expect(a.getAttribute("href")).toBeTruthy();
+  for (const a of m.container.querySelectorAll<HTMLAnchorElement>(
+    ".iss-provider",
+  ))
+    expect(a.getAttribute("href")).toBeTruthy();
   m.done();
 });
 
 test("sources that sent nothing yet are listed, never an all-clear", async () => {
-  const source = { _id: "s1", short_id: "src-1", workspace: "team:t", owner_user_id: "u", provider: "sentry", name: "web-errors", keyed: false, promote: [], status: "active" } as unknown as Props["sources"][number];
+  const source = {
+    _id: "s1",
+    short_id: "src-1",
+    workspace: "team:t",
+    owner_user_id: "u",
+    provider: "sentry",
+    name: "web-errors",
+    keyed: false,
+    promote: [],
+    status: "active",
+  } as unknown as Props["sources"][number];
   const m = await mount({ feed: ready, sources: [source] });
   expect(m.container.textContent).toContain("No issues yet");
   expect(m.container.textContent).toContain("web-errors");
@@ -62,7 +91,10 @@ test("sources that sent nothing yet are listed, never an all-clear", async () =>
 });
 
 test("a feed still reading is not called empty", async () => {
-  const m = await mount({ feed: { ready: false } as unknown as Props["feed"], sources: [] });
+  const m = await mount({
+    feed: { ready: false } as unknown as Props["feed"],
+    sources: [],
+  });
   expect(m.container.textContent).not.toContain("No sources connected");
   m.done();
 });

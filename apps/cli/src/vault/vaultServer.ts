@@ -26,7 +26,10 @@ import {
   tokenMatches,
   type TerminalServerOptions,
 } from "../terminal/terminalServer.js";
-import { isVaultMarkdownPath, VAULT_MAX_SERVE_BYTES } from "@codecast/shared/contracts";
+import {
+  isVaultMarkdownPath,
+  VAULT_MAX_SERVE_BYTES,
+} from "@codecast/shared/contracts";
 import type {
   VaultFileEntry,
   VaultInfo,
@@ -38,7 +41,12 @@ import type {
   VaultWsHello,
 } from "@codecast/shared/contracts";
 import { moveToTrash, writeVaultFile } from "./vaultFs.js";
-import { findVault, listVaults, locateVault, setVaultNoteCount } from "./vaultRegistry.js";
+import {
+  findVault,
+  listVaults,
+  locateVault,
+  setVaultNoteCount,
+} from "./vaultRegistry.js";
 import {
   isRepoVaultRoot,
   isVaultDocumentPath,
@@ -50,7 +58,11 @@ import {
   vaultContentType,
   vaultResponseSecurityHeaders,
 } from "./vaultScope.js";
-import { mintVaultCapability, redactVaultUrl, vaultCapabilityAllows } from "./vaultCapability.js";
+import {
+  mintVaultCapability,
+  redactVaultUrl,
+  vaultCapabilityAllows,
+} from "./vaultCapability.js";
 import { VaultWatchHub, type VaultWatchHubOptions } from "./vaultWatcher.js";
 
 const VAULT_WS_PATH = "/vault/ws";
@@ -73,12 +85,20 @@ let hub: VaultWatchHub | null = null;
 // handleVaultHttp).
 let legacyBearerUrlLogged = false;
 
-export function sendJson(res: http.ServerResponse, status: number, headers: Record<string, string>, body: unknown): void {
+export function sendJson(
+  res: http.ServerResponse,
+  status: number,
+  headers: Record<string, string>,
+  body: unknown,
+): void {
   res.writeHead(status, { "Content-Type": "application/json", ...headers });
   res.end(JSON.stringify(body));
 }
 
-export async function readBody(req: http.IncomingMessage, limit: number): Promise<Buffer | null> {
+export async function readBody(
+  req: http.IncomingMessage,
+  limit: number,
+): Promise<Buffer | null> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
@@ -101,7 +121,9 @@ function scoped(
   const rel = normalizeVaultPath(rawPath ?? "");
   if (rel === null || rel === "") return null;
   if (opts.writableOnly && !isVaultDocumentPath(rel)) return null;
-  const abs = resolveVaultPath(vault.root, rel, { allowIgnored: opts.allowIgnored });
+  const abs = resolveVaultPath(vault.root, rel, {
+    allowIgnored: opts.allowIgnored,
+  });
   if (!abs) return null;
   return { rel, abs };
 }
@@ -124,7 +146,9 @@ async function handleScan(
   // next to a vault has to mean notes — counting every file in a repo would
   // turn the picker's one number into noise. Ignored markdown (a worktree's
   // copy of the docs, a generated bundle) is not a note either.
-  const noteCount = files.filter((f) => !f.dir && !f.ignored && isVaultMarkdownPath(f.path)).length;
+  const noteCount = files.filter(
+    (f) => !f.dir && !f.ignored && isVaultMarkdownPath(f.path),
+  ).length;
   try {
     setVaultNoteCount(configDir, vault.id, noteCount);
   } catch {}
@@ -155,7 +179,8 @@ async function handleGetFile(
   } catch {
     return sendJson(res, 404, headers, { error: "not found" });
   }
-  if (!stat.isFile()) return sendJson(res, 404, headers, { error: "not found" });
+  if (!stat.isFile())
+    return sendJson(res, 404, headers, { error: "not found" });
   // Every non-ignored file is readable now, so a repo can point this at a
   // multi-gigabyte database or a core dump. readFile on one would take the
   // daemon down; the cap sits well above any real attachment.
@@ -188,7 +213,9 @@ async function handlePutFile(
   const body = await readBody(req, MAX_WRITE_BYTES);
   if (!body) return sendJson(res, 413, headers, { error: "too large" });
 
-  const ifMatch = (req.headers["if-match"] as string | undefined)?.replace(/"/g, "").trim();
+  const ifMatch = (req.headers["if-match"] as string | undefined)
+    ?.replace(/"/g, "")
+    .trim();
   const baseMtimeRaw = req.headers["x-vault-base-mtime"] as string | undefined;
   const baseMtime = baseMtimeRaw ? Number(baseMtimeRaw) : NaN;
   const hasGuard = !!ifMatch || Number.isFinite(baseMtime);
@@ -211,7 +238,9 @@ async function handlePutFile(
       res.writeHead(409, {
         ...headers,
         ...vaultResponseSecurityHeaders(target.rel),
-        "Content-Type": current ? vaultContentType(target.rel) : "application/json",
+        "Content-Type": current
+          ? vaultContentType(target.rel)
+          : "application/json",
         ETag: currentEtag ?? "",
         "X-Vault-Mtime": String(currentMtime ?? 0),
         "X-Vault-Size": String(current?.stat.size ?? 0),
@@ -268,7 +297,11 @@ async function handleOp(
     // path is already confined to the vault by scoped(); argv is passed as an
     // ARRAY with no shell, so a filename can never be read as a command.
     if (!targetStat) return sendJson(res, 404, headers, { error: "not found" });
-    const { cmd, args } = revealCommand(process.platform, target.abs, op.mode ?? "reveal");
+    const { cmd, args } = revealCommand(
+      process.platform,
+      target.abs,
+      op.mode ?? "reveal",
+    );
     try {
       const child = spawn(cmd, args, { stdio: "ignore", detached: true });
       child.unref();
@@ -285,12 +318,16 @@ async function handleOp(
   }
 
   if (op.op === "create") {
-    if (!isVaultDocumentPath(target.rel)) return sendJson(res, 400, headers, { error: "bad path" });
+    if (!isVaultDocumentPath(target.rel))
+      return sendJson(res, 400, headers, { error: "bad path" });
     if (targetStat) return sendJson(res, 409, headers, { error: "exists" });
     await fsp.mkdir(path.dirname(target.abs), { recursive: true });
     await fsp.writeFile(target.abs, op.content ?? "");
     const stat = await fsp.stat(target.abs);
-    return sendJson(res, 200, headers, { ok: true, file: entryFor(target.rel, stat) });
+    return sendJson(res, 200, headers, {
+      ok: true,
+      file: entryFor(target.rel, stat),
+    });
   }
 
   if (op.op === "rename") {
@@ -302,13 +339,18 @@ async function handleOp(
     // because dest IS the source. Same-inode means same entry — let it through.
     const destStat = await statOrNull(dest.abs);
     if (destStat) {
-      const same = targetStat.ino === destStat.ino && target.abs.toLowerCase() === dest.abs.toLowerCase();
+      const same =
+        targetStat.ino === destStat.ino &&
+        target.abs.toLowerCase() === dest.abs.toLowerCase();
       if (!same) return sendJson(res, 409, headers, { error: "exists" });
     }
     await fsp.mkdir(path.dirname(dest.abs), { recursive: true });
     await fsp.rename(target.abs, dest.abs);
     const stat = await fsp.stat(dest.abs);
-    return sendJson(res, 200, headers, { ok: true, file: entryFor(dest.rel, stat) });
+    return sendJson(res, 200, headers, {
+      ok: true,
+      file: entryFor(dest.rel, stat),
+    });
   }
 
   if (op.op === "delete") {
@@ -360,7 +402,11 @@ export function handleVaultHttp(
   const capInUrl =
     req.method === "GET" &&
     parsed.pathname === "/vault/file" &&
-    vaultCapabilityAllows(params.get("cap"), opts.token, params.get("vault") ?? "");
+    vaultCapabilityAllows(
+      params.get("cap"),
+      opts.token,
+      params.get("vault") ?? "",
+    );
 
   // COMPATIBILITY: a web build from before the capability still puts the
   // bearer in the URL. Accepted on reads only, for one release; the client
@@ -374,7 +420,9 @@ export function handleVaultHttp(
     tokenMatches(params.get("token"), opts);
   if (legacyTokenInUrl && !legacyBearerUrlLogged) {
     legacyBearerUrlLogged = true;
-    opts.log("[VAULT] a client read an attachment with the loopback bearer in the URL; update the web build");
+    opts.log(
+      "[VAULT] a client read an attachment with the loopback bearer in the URL; update the web build",
+    );
   }
 
   if (!capInUrl && !legacyTokenInUrl && !authorizeLocalRequest(req, opts)) {
@@ -388,16 +436,28 @@ export function handleVaultHttp(
     // cannot ask for one.
     if (req.method === "GET" && parsed.pathname === "/vault/cap") {
       const vaultId = params.get("vault") ?? "";
-      if (!findVault(opts.configDir, vaultId)) return sendJson(res, 404, headers, { error: "unknown vault" });
-      return sendJson(res, 200, headers, mintVaultCapability(opts.token, vaultId));
+      if (!findVault(opts.configDir, vaultId))
+        return sendJson(res, 404, headers, { error: "unknown vault" });
+      return sendJson(
+        res,
+        200,
+        headers,
+        mintVaultCapability(opts.token, vaultId),
+      );
     }
     if (req.method === "GET" && parsed.pathname === "/vault/roots") {
-      return sendJson(res, 200, headers, { vaults: listVaults(opts.configDir) });
+      return sendJson(res, 200, headers, {
+        vaults: listVaults(opts.configDir),
+      });
     }
     if (req.method === "GET" && parsed.pathname === "/vault/locate") {
       const localPath = params.get("path") ?? "";
-      const located = localPath && path.isAbsolute(localPath) ? locateVault(opts.configDir, localPath) : null;
-      if (!located) return sendJson(res, 404, headers, { error: "no such path" });
+      const located =
+        localPath && path.isAbsolute(localPath)
+          ? locateVault(opts.configDir, localPath)
+          : null;
+      if (!located)
+        return sendJson(res, 404, headers, { error: "no such path" });
       const body: VaultLocateResponse = located;
       return sendJson(res, 200, headers, body);
     }
@@ -406,7 +466,13 @@ export function handleVaultHttp(
     if (!vault) return sendJson(res, 404, headers, { error: "unknown vault" });
 
     if (req.method === "GET" && parsed.pathname === "/vault/scan") {
-      return handleScan(res, headers, vault, opts.configDir, params.get("ignored") === "1");
+      return handleScan(
+        res,
+        headers,
+        vault,
+        opts.configDir,
+        params.get("ignored") === "1",
+      );
     }
     if (req.method === "GET" && parsed.pathname === "/vault/file") {
       return handleGetFile(res, headers, vault, params.get("path"));
@@ -421,8 +487,11 @@ export function handleVaultHttp(
   };
 
   void dispatch().catch((err) => {
-    opts.log(`[VAULT] ${req.method} ${redactVaultUrl(url)} failed: ${(err as Error)?.message ?? err}`);
-    if (!res.headersSent) sendJson(res, 500, headers, { error: "server error" });
+    opts.log(
+      `[VAULT] ${req.method} ${redactVaultUrl(url)} failed: ${(err as Error)?.message ?? err}`,
+    );
+    if (!res.headersSent)
+      sendJson(res, 500, headers, { error: "server error" });
     else res.end();
   });
   return true;
@@ -437,13 +506,18 @@ export function vaultWatchHub(): VaultWatchHub | null {
 }
 
 /** Wire WS /vault/ws onto the shared loopback server and own the watch hub. */
-export function attachVaultServer(server: http.Server, opts: VaultServerOptions): { close(): void } {
+export function attachVaultServer(
+  server: http.Server,
+  opts: VaultServerOptions,
+): { close(): void } {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   hub = new VaultWatchHub({ log: opts.log, ...opts.watch });
 
   const detach = onWsUpgrade(server, VAULT_WS_PATH, (req, socket, head) => {
     if (!originAllowed(req.headers.origin, opts)) {
-      opts.log(`[VAULT] Rejected WS from origin ${req.headers.origin ?? "(none)"}`);
+      opts.log(
+        `[VAULT] Rejected WS from origin ${req.headers.origin ?? "(none)"}`,
+      );
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;

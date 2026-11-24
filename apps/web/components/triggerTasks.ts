@@ -17,7 +17,11 @@
 // Convex across the badge, the strip, and /schedules) — never the store.
 
 import type { InboxSession } from "../store/inboxStore";
-import { classifySession, isSessionHardBlocked, isSessionHidden } from "../store/inboxStore";
+import {
+  classifySession,
+  isSessionHardBlocked,
+  isSessionHidden,
+} from "../store/inboxStore";
 import { isMachineDeliveredMessage } from "./sessionMessage";
 import { readableTimes } from "./triggerCadence";
 import type { WallCadence } from "@platform/assistant/cadence";
@@ -40,10 +44,17 @@ export function triggerEndVerb(status: string): "cancel" | "delete" | null {
 /** The words for ending a trigger, given the noun for one ("Trigger"): the
  *  button, the question it asks, and the short answer that confirms it beside
  *  that question. */
-export function triggerEndWords(verb: "cancel" | "delete", noun: string): { label: string; ask: string; confirm: string } {
+export function triggerEndWords(
+  verb: "cancel" | "delete",
+  noun: string,
+): { label: string; ask: string; confirm: string } {
   const thing = noun.toLowerCase();
   return verb === "cancel"
-    ? { label: `Cancel ${thing}`, ask: `Cancel this ${thing}?`, confirm: "Cancel it" }
+    ? {
+        label: `Cancel ${thing}`,
+        ask: `Cancel this ${thing}?`,
+        confirm: "Cancel it",
+      }
     : { label: "Delete", ask: `Delete this ${thing}?`, confirm: "Delete it" };
 }
 
@@ -112,17 +123,27 @@ export type TaskRow = {
 // Armed inject schedules bound to one conversation — exactly the set the
 // server cancels when that conversation is killed. Every kill surface
 // (sidebar button, palette, keyboard chord) consults this for its notice.
-export function armedInjectTasksFor(tasks: TaskRow[] | undefined, convId: string): TaskRow[] {
+export function armedInjectTasksFor(
+  tasks: TaskRow[] | undefined,
+  convId: string,
+): TaskRow[] {
   return (tasks ?? []).filter(
-    (t) => ARMED_STATUSES.has(t.status) && t.originating_conversation_id === convId,
+    (t) =>
+      ARMED_STATUSES.has(t.status) && t.originating_conversation_id === convId,
   );
 }
 
 // Schedules a kill of this conversation took down (stamped canceled_on_kill_at)
 // — the set the server re-arms when the session is restored.
-export function killCanceledTasksFor(tasks: TaskRow[] | undefined, convId: string): TaskRow[] {
+export function killCanceledTasksFor(
+  tasks: TaskRow[] | undefined,
+  convId: string,
+): TaskRow[] {
   return (tasks ?? []).filter(
-    (t) => t.status === "completed" && !!t.canceled_on_kill_at && t.originating_conversation_id === convId,
+    (t) =>
+      t.status === "completed" &&
+      !!t.canceled_on_kill_at &&
+      t.originating_conversation_id === convId,
   );
 }
 
@@ -155,7 +176,9 @@ export function cleanPromptSliceTitle(title: string): string {
 }
 
 // The readable name for a schedule, shared by every row surface.
-export function taskDisplayTitle(t: Pick<TaskRow, "display_title" | "title">): string {
+export function taskDisplayTitle(
+  t: Pick<TaskRow, "display_title" | "title">,
+): string {
   return t.display_title?.trim() || cleanPromptSliceTitle(t.title);
 }
 
@@ -174,10 +197,16 @@ function cutLine(text: string, max: number): string {
 function promptOpening(prompt: string): string {
   // The first paragraph that says something: a heading-only opener ("# Goal")
   // names nothing, so it yields to the paragraph under it.
-  const paras = prompt.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const paras = prompt
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const para = paras.find((p) => !/^#+\s/.test(p)) ?? paras[0] ?? "";
   return cutLine(
-    para.replace(/^#+\s*/gm, "").replace(/^[-*>]\s+/gm, "").replace(/[`*_]/g, ""),
+    para
+      .replace(/^#+\s*/gm, "")
+      .replace(/^[-*>]\s+/gm, "")
+      .replace(/[`*_]/g, ""),
     160,
   );
 }
@@ -185,7 +214,9 @@ function promptOpening(prompt: string): string {
 // What each run does, in one sentence — the SECOND line of every trigger
 // row, on every surface. Always the standing description, never an outcome:
 // the outcome has its own line (lastRunHeadline).
-export function taskGist(t: Pick<TaskRow, "display_summary" | "prompt">): string {
+export function taskGist(
+  t: Pick<TaskRow, "display_summary" | "prompt">,
+): string {
   const s = t.display_summary?.trim();
   return s ? cutLine(s, 200) : promptOpening(t.prompt || "");
 }
@@ -193,20 +224,33 @@ export function taskGist(t: Pick<TaskRow, "display_summary" | "prompt">): string
 // An agent's run summary is a paragraph; split it at the first clause
 // boundary (";", sentence end, or an em-dash) into a headline and the rest,
 // so the verdict reads first and the evidence second.
-export function splitResultSummary(text: string): { headline: string; detail: string | null } {
-  const m = text.match(/^([\s\S]{12,180}?[^;.\s])(?:;\s+|\.\s+|\s+—\s+)([\s\S]+)$/);
-  return m ? { headline: m[1], detail: m[2] } : { headline: text, detail: null };
+export function splitResultSummary(text: string): {
+  headline: string;
+  detail: string | null;
+} {
+  const m = text.match(
+    /^([\s\S]{12,180}?[^;.\s])(?:;\s+|\.\s+|\s+—\s+)([\s\S]+)$/,
+  );
+  return m
+    ? { headline: m[1], detail: m[2] }
+    : { headline: text, detail: null };
 }
 
 // The last run's verdict in one line — the THIRD line of a trigger row. The
 // "Failed:" prefix the daemon stamps is dropped: the row's glyph and color
 // already say it.
-export function lastRunHeadline(t: Pick<TaskRow, "last_run_summary">, now?: number): string | undefined {
-  const raw = t.last_run_summary && readableTimes(t.last_run_summary, now).trim();
+export function lastRunHeadline(
+  t: Pick<TaskRow, "last_run_summary">,
+  now?: number,
+): string | undefined {
+  const raw =
+    t.last_run_summary && readableTimes(t.last_run_summary, now).trim();
   if (!raw) return undefined;
-  return cutLine(splitResultSummary(raw.replace(/^Failed:?\s*/i, "")).headline, 200);
+  return cutLine(
+    splitResultSummary(raw.replace(/^Failed:?\s*/i, "")).headline,
+    200,
+  );
 }
-
 
 // The most recent firing of a schedule that's already in the local message
 // cache — the synchronous fast path for "click the trigger row → land on its
@@ -216,7 +260,14 @@ export function lastRunHeadline(t: Pick<TaskRow, "last_run_summary">, now?: numb
 // loaded, or the runs fell outside it) — callers fall back to the run-list
 // query rather than guessing.
 export function latestLoadedTriggerMessage(
-  messages: readonly { _id: string; role: string; content?: string; timestamp: number }[] | undefined,
+  messages:
+    | readonly {
+        _id: string;
+        role: string;
+        content?: string;
+        timestamp: number;
+      }[]
+    | undefined,
   taskId: string,
 ): { messageId: string; timestamp: number } | undefined {
   if (!messages?.length) return undefined;
@@ -261,7 +312,8 @@ export function foreignTriggerConvIds(
   const ids: string[] = [];
   for (const id in sessions) {
     const s = sessions[id];
-    if (!s || !ARMED_TRIGGER_KINDS.has(s.armed_trigger_kind ?? "none")) continue;
+    if (!s || !ARMED_TRIGGER_KINDS.has(s.armed_trigger_kind ?? "none"))
+      continue;
     if (explained.has(s._id)) continue;
     ids.push(s._id);
   }
@@ -316,7 +368,11 @@ export interface TriggerRow {
 // Freshness lives in shared/contracts/loopState — the server classifier and
 // this roster must agree on when a loop stops being a live standing intent.
 import { isLoopFresh } from "@codecast/shared/contracts";
-export { LOOP_OVERDUE_GRACE_MS, LOOP_WAKING_TTL_MS, isLoopFresh } from "@codecast/shared/contracts";
+export {
+  LOOP_OVERDUE_GRACE_MS,
+  LOOP_WAKING_TTL_MS,
+  isLoopFresh,
+} from "@codecast/shared/contracts";
 
 export type LoopStateLike = NonNullable<InboxSession["loop_state"]>;
 
@@ -368,11 +424,13 @@ const EMPTY: TriggerInboxPartition = {
 // what's happening next → what's idle". Live runs first, then scheduled by
 // soonest fire, then paused / event / no-run_at (newest-created first).
 export function compareTriggerRoster(a: TaskRow, b: TaskRow): number {
-  const tier = (t: TaskRow) => (t.status === "running" ? 0 : t.status === "scheduled" ? 1 : 2);
-  const ta = tier(a), tb = tier(b);
+  const tier = (t: TaskRow) =>
+    t.status === "running" ? 0 : t.status === "scheduled" ? 1 : 2;
+  const ta = tier(a),
+    tb = tier(b);
   if (ta !== tb) return ta - tb;
-  const ar = a.status === "scheduled" ? a.run_at ?? Infinity : Infinity;
-  const br = b.status === "scheduled" ? b.run_at ?? Infinity : Infinity;
+  const ar = a.status === "scheduled" ? (a.run_at ?? Infinity) : Infinity;
+  const br = b.status === "scheduled" ? (b.run_at ?? Infinity) : Infinity;
   if (ar !== br) return ar - br;
   return b.created_at - a.created_at;
 }
@@ -405,7 +463,8 @@ export function partitionTriggerInbox(
   // Index visible runs once: agent_task_id → top-level, non-hidden sessions.
   const runsByTask = new Map<string, InboxSession[]>();
   for (const s of sessList) {
-    if (!s.agent_task_id || isSessionHidden(s) || s.parent_conversation_id) continue;
+    if (!s.agent_task_id || isSessionHidden(s) || s.parent_conversation_id)
+      continue;
     let arr = runsByTask.get(s.agent_task_id);
     if (!arr) runsByTask.set(s.agent_task_id, (arr = []));
     arr.push(s);
@@ -426,7 +485,8 @@ export function partitionTriggerInbox(
     const unread = !!task.last_run_at && task.last_run_at > seenAt;
     if (unread) unreadCount++;
     if (task.status === "scheduled" && task.run_at !== undefined) {
-      if (nextRunAt === undefined || task.run_at < nextRunAt) nextRunAt = task.run_at;
+      if (nextRunAt === undefined || task.run_at < nextRunAt)
+        nextRunAt = task.run_at;
     }
 
     if (task.originating_conversation_id) {
@@ -448,11 +508,15 @@ export function partitionTriggerInbox(
       {
         const home = sessions[convId];
         const parks =
-          task.status !== "paused" && (task.schedule_type === "recurring" ||
-          task.schedule_type === "event" ||
-          (!!home && classifySession(home).waiting && classifySession(home).rest === "done"));
+          task.status !== "paused" &&
+          (task.schedule_type === "recurring" ||
+            task.schedule_type === "event" ||
+            (!!home &&
+              classifySession(home).waiting &&
+              classifySession(home).rest === "done"));
         if (
-          home && parks &&
+          home &&
+          parks &&
           convId !== opts.focusedId &&
           !home.is_pinned &&
           home.message_count > 0 &&
@@ -460,7 +524,8 @@ export function partitionTriggerInbox(
           !isSessionHardBlocked(home, opts.sessionsWithQueuedMessages) &&
           !task.last_run_failed &&
           !task.last_run_needs_attention &&
-          (!home.last_user_message || isMachineDeliveredMessage(home.last_user_message))
+          (!home.last_user_message ||
+            isMachineDeliveredMessage(home.last_user_message))
         ) {
           absorbedIds.add(convId);
         }
@@ -477,10 +542,12 @@ export function partitionTriggerInbox(
     for (const run of runs) {
       const isLatest =
         run._id === task.last_run_conversation_id ||
-        (!!task.last_run_session_uuid && run.session_id === task.last_run_session_uuid);
+        (!!task.last_run_session_uuid &&
+          run.session_id === task.last_run_session_uuid);
       const escalated =
         isSessionHardBlocked(run, opts.sessionsWithQueuedMessages) ||
-        (isLatest && (!!task.last_run_failed || !!task.last_run_needs_attention));
+        (isLatest &&
+          (!!task.last_run_failed || !!task.last_run_needs_attention));
       if (escalated || run._id === opts.focusedId) continue;
       absorbedIds.add(run._id);
       if (!newestAbsorbed) newestAbsorbed = run;
@@ -489,7 +556,10 @@ export function partitionTriggerInbox(
     // the only conversation that can explain the trigger before a run exists.
     rows.push({
       task,
-      openId: newestAbsorbed?._id ?? task.last_run_conversation_id ?? task.created_by_conversation_id,
+      openId:
+        newestAbsorbed?._id ??
+        task.last_run_conversation_id ??
+        task.created_by_conversation_id,
       unread,
     });
   }
@@ -506,8 +576,16 @@ export function partitionTriggerInbox(
     // inbox_dismissed_at, so a session killed that way kept a loop row for a
     // harness that no longer exists.
     if (sess.inbox_dismissed_at || sess.inbox_killed_at) continue;
-    rows.push({ task: loopTaskRow(sess, loop), openId: sess._id, unread: false, kind: "loop" });
-    if (loop.status === "armed" && (nextRunAt === undefined || loop.wakeup_at < nextRunAt)) {
+    rows.push({
+      task: loopTaskRow(sess, loop),
+      openId: sess._id,
+      unread: false,
+      kind: "loop",
+    });
+    if (
+      loop.status === "armed" &&
+      (nextRunAt === undefined || loop.wakeup_at < nextRunAt)
+    ) {
       nextRunAt = loop.wakeup_at;
     }
     // Same resting rule as inject-trigger homes: the machine is driving, so the
@@ -613,7 +691,9 @@ export function groupTriggerRowsByHome(rows: TriggerRow[]): TriggerHomeGroup[] {
     const key = homeId ?? `spawn:${row.task.project_path ?? ""}`;
     let g = byKey.get(key);
     if (!g) {
-      g = homeId ? { key, homeId, rows: [] } : { key, projectPath: row.task.project_path, rows: [] };
+      g = homeId
+        ? { key, homeId, rows: [] }
+        : { key, projectPath: row.task.project_path, rows: [] };
       byKey.set(key, g);
       groups.push(g);
     }

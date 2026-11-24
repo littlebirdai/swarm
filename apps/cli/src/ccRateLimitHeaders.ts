@@ -19,12 +19,26 @@ export interface RateLimitFingerprint {
   seven_day_utilization: number | null;
 }
 
-export function parseRateLimitFingerprint(headers: Headers): RateLimitFingerprint {
+export function parseRateLimitFingerprint(
+  headers: Headers,
+): RateLimitFingerprint {
   return {
-    five_hour_reset: headerNumber(headers, "anthropic-ratelimit-unified-5h-reset"),
-    seven_day_reset: headerNumber(headers, "anthropic-ratelimit-unified-7d-reset"),
-    five_hour_utilization: headerNumber(headers, "anthropic-ratelimit-unified-5h-utilization"),
-    seven_day_utilization: headerNumber(headers, "anthropic-ratelimit-unified-7d-utilization"),
+    five_hour_reset: headerNumber(
+      headers,
+      "anthropic-ratelimit-unified-5h-reset",
+    ),
+    seven_day_reset: headerNumber(
+      headers,
+      "anthropic-ratelimit-unified-7d-reset",
+    ),
+    five_hour_utilization: headerNumber(
+      headers,
+      "anthropic-ratelimit-unified-5h-utilization",
+    ),
+    seven_day_utilization: headerNumber(
+      headers,
+      "anthropic-ratelimit-unified-7d-utilization",
+    ),
   };
 }
 
@@ -34,11 +48,20 @@ export function parseRateLimitFingerprint(headers: Headers): RateLimitFingerprin
  * that window beside the unified ones (measured 2026-11-17 on Fable 5.2:
  * `…-7d_oi-utilization: 0.31`, `…-7d_oi-status: allowed`, `…-7d_oi-reset`).
  */
-export function parseScopedRateLimitWindow(headers: Headers): CcUsageWindow | null {
-  const util = headerNumber(headers, "anthropic-ratelimit-unified-7d_oi-utilization");
+export function parseScopedRateLimitWindow(
+  headers: Headers,
+): CcUsageWindow | null {
+  const util = headerNumber(
+    headers,
+    "anthropic-ratelimit-unified-7d_oi-utilization",
+  );
   const status = headers.get("anthropic-ratelimit-unified-7d_oi-status");
   if (util == null && !status) return null;
-  const reset = headerNumber(headers, "anthropic-ratelimit-unified-7d_oi-reset");
-  const percent = status === "rejected" ? 100 : Math.min(100, Math.round((util ?? 0) * 100));
+  const reset = headerNumber(
+    headers,
+    "anthropic-ratelimit-unified-7d_oi-reset",
+  );
+  const percent =
+    status === "rejected" ? 100 : Math.min(100, Math.round((util ?? 0) * 100));
   return { percent, ...(reset != null && { resets_at: reset * 1000 }) };
 }

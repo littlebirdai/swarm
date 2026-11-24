@@ -8,8 +8,8 @@ What makes them worth having is that they reach past one session. A skill can re
 
 Skills work with Claude Code.
 
-1. Open **Settings** and choose **Agent Features** under *Machines*, then pick the computer your agents run on.
-2. Find **Skills** under *Tracking & automation*, switch it on, and confirm with **Turn on Skills**.
+1. Open **Settings** and choose **Agent Features** under _Machines_, then pick the computer your agents run on.
+2. Find **Skills** under _Tracking & automation_, switch it on, and confirm with **Turn on Skills**.
 3. Start a new session. The commands are there.
 
 ![The Skills feature's detail in Agent features](/documentation/skills/skills-feature.webp "The Skills detail. Its switch turns it on for the selected computer.")
@@ -28,60 +28,60 @@ You don't have to remember the names. Ask in plain words and the agent picks the
 
 Start, stop and hand over:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-pickup` | Reads the task, the session's pinned state, what the team did recently and the state of the code, then names the work and the next three steps |
-| `/cast-handoff` | Writes down the decisions, what's verified, open questions and next steps as a shared doc, so the next session or a teammate can continue without reading the thread |
-| `/cast-pass` | Hands this session to a teammate: it lands in their inbox with where things stand and what's next |
-| `/cast-ask-team` | Posts a question to team chat with enough context to answer it cold, pauses the session, and picks up again when someone replies |
-| `/cast-worktree` | Moves the work into its own isolated copy of the repository, so it can't collide with other sessions |
+| Command          | What it does                                                                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/cast-pickup`   | Reads the task, the session's pinned state, what the team did recently and the state of the code, then names the work and the next three steps                       |
+| `/cast-handoff`  | Writes down the decisions, what's verified, open questions and next steps as a shared doc, so the next session or a teammate can continue without reading the thread |
+| `/cast-pass`     | Hands this session to a teammate: it lands in their inbox with where things stand and what's next                                                                    |
+| `/cast-ask-team` | Posts a question to team chat with enough context to answer it cold, pauses the session, and picks up again when someone replies                                     |
+| `/cast-worktree` | Moves the work into its own isolated copy of the repository, so it can't collide with other sessions                                                                 |
 
 Plan and reconsider:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-plan` | Explores the code, looks for earlier attempts in past sessions, asks you the open questions, then writes a plan with tasks for the team to review |
-| `/cast-research` | Turns the goal into questions about how the code works today, then has a fresh session that never sees the goal answer them with file and line references |
-| `/cast-rethink` | Steps back and rebuilds the history of a piece of work from earlier sessions and decisions before touching code |
-| `/cast-bakeoff` | Tries several approaches in parallel, one branch of the conversation each, then compares them side by side with a verdict |
-| `/cast-conflicts` | Finds other live sessions changing the same files, shows what they changed, and warns them |
+| Command           | What it does                                                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/cast-plan`      | Explores the code, looks for earlier attempts in past sessions, asks you the open questions, then writes a plan with tasks for the team to review         |
+| `/cast-research`  | Turns the goal into questions about how the code works today, then has a fresh session that never sees the goal answer them with file and line references |
+| `/cast-rethink`   | Steps back and rebuilds the history of a piece of work from earlier sessions and decisions before touching code                                           |
+| `/cast-bakeoff`   | Tries several approaches in parallel, one branch of the conversation each, then compares them side by side with a verdict                                 |
+| `/cast-conflicts` | Finds other live sessions changing the same files, shows what they changed, and warns them                                                                |
 
 Prove and ship:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-verify` | Runs the checks, tries the change in your browser or on the command line, and attaches screenshots and output to the task |
-| `/cast-ship` | Commits in sensible pieces, opens the pull request, and stays with it so reviews and failing checks wake the session until it merges |
-| `/cast-review` | Reviews another session's work from its conversation and changes, and sends it the findings with file and line |
-| `/cast-second-opinion` | Has a different model review the change in a fresh context, then checks each finding before acting on it |
-| `/cast-why` | Explains why a line of code is the way it is, from the session that wrote it and the message where it was decided |
+| Command                | What it does                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/cast-verify`         | Runs the checks, tries the change in your browser or on the command line, and attaches screenshots and output to the task            |
+| `/cast-ship`           | Commits in sensible pieces, opens the pull request, and stays with it so reviews and failing checks wake the session until it merges |
+| `/cast-review`         | Reviews another session's work from its conversation and changes, and sends it the findings with file and line                       |
+| `/cast-second-opinion` | Has a different model review the change in a fresh context, then checks each finding before acting on it                             |
+| `/cast-why`            | Explains why a line of code is the way it is, from the session that wrote it and the message where it was decided                    |
 
 Run the day:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-morning` | What waits on you: sessions that need input, pull requests, ready tasks, what ran overnight, unread chat and mail |
-| `/cast-eod` | Closes the day: makes sure each live session says where it stands, writes handoffs, sets up overnight follow-ups, tidies the inbox |
-| `/cast-standup` | A digest for a time window from the team's sessions, commits, tasks, pull requests, calls and chat |
-| `/cast-triage` | Tidies a crowded inbox: clears finished and stalled sessions and surfaces the few that need you, with a one-line ask each |
-| `/cast-loop` | Works through a queue of ready tasks unattended, one fresh session per task, each verified and opened as a pull request for you to merge |
+| Command         | What it does                                                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/cast-morning` | What waits on you: sessions that need input, pull requests, ready tasks, what ran overnight, unread chat and mail                        |
+| `/cast-eod`     | Closes the day: makes sure each live session says where it stands, writes handoffs, sets up overnight follow-ups, tidies the inbox       |
+| `/cast-standup` | A digest for a time window from the team's sessions, commits, tasks, pull requests, calls and chat                                       |
+| `/cast-triage`  | Tidies a crowded inbox: clears finished and stalled sessions and surfaces the few that need you, with a one-line ask each                |
+| `/cast-loop`    | Works through a queue of ready tasks unattended, one fresh session per task, each verified and opened as a pull request for you to merge |
 
 Learn and keep records true:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-learn` | Turns what this session learned (your corrections, decisions, gotchas) into guidance the next session will read |
-| `/cast-lessons` | Collects the corrections people made across the team's sessions and proposes the guidance that would have prevented each |
-| `/cast-from-call` | Turns a call's action items into tasks, each linked to the moment in the transcript where it was agreed |
-| `/cast-org` | Talks through who works on what, for agents and people, and posts each agreed change for you to approve |
+| Command           | What it does                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `/cast-learn`     | Turns what this session learned (your corrections, decisions, gotchas) into guidance the next session will read          |
+| `/cast-lessons`   | Collects the corrections people made across the team's sessions and proposes the guidance that would have prevented each |
+| `/cast-from-call` | Turns a call's action items into tasks, each linked to the moment in the transcript where it was agreed                  |
+| `/cast-org`       | Talks through who works on what, for agents and people, and posts each agreed change for you to approve                  |
 
 Build things in codecast:
 
-| Command | What it does |
-|---------|--------------|
-| `/cast-mod` | Builds a mod (a pane, a command or a new kind of block in the app) with you watching each change live |
+| Command           | What it does                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/cast-mod`       | Builds a mod (a pane, a command or a new kind of block in the app) with you watching each change live                                |
 | `/cast-dashboard` | Builds a live dashboard as a published page over your team's work and product data; every chart shows its query and refreshes itself |
-| `/cast-motion` | Makes an animated explainer, published as a page that plays, scrubs and takes comments pinned to moments |
+| `/cast-motion`    | Makes an animated explainer, published as a page that plays, scrubs and takes comments pinned to moments                             |
 
 ## What you see
 
@@ -96,10 +96,10 @@ The skill shows as a pill on your message, so you can tell at a glance which con
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| Typing `/` shows no cast- commands | Check Skills is on for the computer the session runs on, then start a new session |
-| The session isn't Claude Code | Skills are Claude Code commands. Ask a Claude Code session, or describe the job in plain words |
+| What you notice                    | What to do                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Typing `/` shows no cast- commands | Check Skills is on for the computer the session runs on, then start a new session                             |
+| The session isn't Claude Code      | Skills are Claude Code commands. Ask a Claude Code session, or describe the job in plain words                |
 | A skill stops to ask you something | Some skills (`/cast-plan`, `/cast-org`) interview you on purpose. Answer in the conversation and it continues |
 
 Orchestrating a whole plan across several agents is its own feature; see [orchestration](/documentation/orchestration).

@@ -9,8 +9,28 @@
 // Convex, Node/Bun and the browser.
 
 import { isPublicSuffix, siteOf } from "./productView";
-import { ENV_NAME_RE, envNameProblem, SECRET_REDACTION_MAX, SECRET_REDACTION_MIN, isCredentialName, parseDotenv, parseDotenvLine } from "./secretRules";
-export { SECRET_NAME_RE, ENV_NAME_RE, secretNameProblem, envNameIssue, envNameProblem, type EnvNameIssue, SECRET_REDACTION_MAX, SECRET_REDACTION_MIN, isCredentialName, parseDotenv, parseDotenvLine } from "./secretRules";
+import {
+  ENV_NAME_RE,
+  envNameProblem,
+  SECRET_REDACTION_MAX,
+  SECRET_REDACTION_MIN,
+  isCredentialName,
+  parseDotenv,
+  parseDotenvLine,
+} from "./secretRules";
+export {
+  SECRET_NAME_RE,
+  ENV_NAME_RE,
+  secretNameProblem,
+  envNameIssue,
+  envNameProblem,
+  type EnvNameIssue,
+  SECRET_REDACTION_MAX,
+  SECRET_REDACTION_MIN,
+  isCredentialName,
+  parseDotenv,
+  parseDotenvLine,
+} from "./secretRules";
 
 export const SECRET_KINDS = ["key", "login", "signin", "file"] as const;
 export type SecretKind = (typeof SECRET_KINDS)[number];
@@ -19,7 +39,13 @@ export const SECRET_STATUSES = ["ready", "requested"] as const;
 export type SecretStatus = (typeof SECRET_STATUSES)[number];
 
 /** What `cast vault get|run|env|otp` and the browser read a secret for; each read records one. */
-export const SECRET_READ_PURPOSES = ["get", "run", "env", "otp", "signin"] as const;
+export const SECRET_READ_PURPOSES = [
+  "get",
+  "run",
+  "env",
+  "otp",
+  "signin",
+] as const;
 export type SecretReadPurpose = (typeof SECRET_READ_PURPOSES)[number];
 
 export const SECRET_EVENT_KINDS = [
@@ -46,11 +72,9 @@ export const SECRET_EVENT_KINDS = [
 ] as const;
 export type SecretEventKind = (typeof SECRET_EVENT_KINDS)[number];
 
-
 /** The whole payload as JSON, in UTF-8 bytes. A signin's cookie jar is the large case. */
 export const SECRET_PAYLOAD_MAX = 512_000;
 const SECRET_REDACTION_CHUNK = 64;
-
 
 /** A cookie in the shape CDP `Network.setCookies` / `Storage.setCookies`
  *  take (cli browser/credentials.ts Cookie). */
@@ -66,7 +90,12 @@ export type SigninCookie = {
 };
 
 export type KeyPayload = { value: string };
-export type LoginPayload = { username?: string; password?: string; totp_seed?: string; url?: string };
+export type LoginPayload = {
+  username?: string;
+  password?: string;
+  totp_seed?: string;
+  url?: string;
+};
 export type FilePayload = { content: string; filename?: string };
 
 /** A file secret's filename as its temp file is named: the last path segment, or null when that is empty, `.` or `..`. */
@@ -82,11 +111,18 @@ export type SigninPayload = {
   account_hint?: string;
 };
 
-export type SecretPayloadOf = { key: KeyPayload; login: LoginPayload; file: FilePayload; signin: SigninPayload };
+export type SecretPayloadOf = {
+  key: KeyPayload;
+  login: LoginPayload;
+  file: FilePayload;
+  signin: SigninPayload;
+};
 export type SecretPayload = SecretPayloadOf[SecretKind];
 
-const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
-const optStr = (x: unknown) => x === undefined || x === null || typeof x === "string";
+const isObj = (x: unknown): x is Record<string, unknown> =>
+  !!x && typeof x === "object" && !Array.isArray(x);
+const optStr = (x: unknown) =>
+  x === undefined || x === null || typeof x === "string";
 const SAME_SITE = new Set(["Strict", "Lax", "None"]);
 
 function cookieProblem(c: unknown, i: number): string | null {
@@ -94,9 +130,12 @@ function cookieProblem(c: unknown, i: number): string | null {
   for (const k of ["name", "value", "domain", "path"] as const) {
     if (typeof c[k] !== "string") return `cookie ${i + 1} has no ${k}`;
   }
-  if (typeof c.secure !== "boolean" || typeof c.httpOnly !== "boolean") return `cookie ${i + 1} needs secure and httpOnly as true or false`;
-  if (c.expires !== undefined && typeof c.expires !== "number") return `cookie ${i + 1} has a non-numeric expires`;
-  if (c.sameSite !== undefined && !SAME_SITE.has(c.sameSite as string)) return `cookie ${i + 1} has sameSite "${String(c.sameSite)}" (Strict, Lax or None)`;
+  if (typeof c.secure !== "boolean" || typeof c.httpOnly !== "boolean")
+    return `cookie ${i + 1} needs secure and httpOnly as true or false`;
+  if (c.expires !== undefined && typeof c.expires !== "number")
+    return `cookie ${i + 1} has a non-numeric expires`;
+  if (c.sameSite !== undefined && !SAME_SITE.has(c.sameSite as string))
+    return `cookie ${i + 1} has sameSite "${String(c.sameSite)}" (Strict, Lax or None)`;
   return null;
 }
 
@@ -119,14 +158,24 @@ export function signinCookie(c: SigninCookie): SigninCookie {
  * a 2FA seed without spaces), or the one sentence that says what to fix.
  * Never quotes a value back.
  */
-export function validatePayload<K extends SecretKind>(kind: K, raw: unknown): { payload: SecretPayloadOf[K] } | { error: string } {
-  if (!(SECRET_KINDS as readonly string[]).includes(kind)) return { error: `"${kind}" is not a secret kind: use key, login, signin or file` };
-  if (!isObj(raw)) return { error: `a ${kind} secret's value must be an object` };
+export function validatePayload<K extends SecretKind>(
+  kind: K,
+  raw: unknown,
+): { payload: SecretPayloadOf[K] } | { error: string } {
+  if (!(SECRET_KINDS as readonly string[]).includes(kind))
+    return {
+      error: `"${kind}" is not a secret kind: use key, login, signin or file`,
+    };
+  if (!isObj(raw))
+    return { error: `a ${kind} secret's value must be an object` };
   let payload: SecretPayload;
   if (kind === "key") {
-    if (typeof raw.value !== "string" || !raw.value.trim()) return { error: "a key needs a value: paste it, or pipe it on stdin" };
+    if (typeof raw.value !== "string" || !raw.value.trim())
+      return { error: "a key needs a value: paste it, or pipe it on stdin" };
     if (raw.value.trim().length < SECRET_REDACTION_MIN) {
-      return { error: `a key needs at least ${SECRET_REDACTION_MIN} characters: a shorter one cannot be redacted from transcripts without blanking ordinary text` };
+      return {
+        error: `a key needs at least ${SECRET_REDACTION_MIN} characters: a shorter one cannot be redacted from transcripts without blanking ordinary text`,
+      };
     }
     payload = { value: raw.value.trim() };
   } else if (kind === "login") {
@@ -134,49 +183,111 @@ export function validatePayload<K extends SecretKind>(kind: K, raw: unknown): { 
       if (!optStr(raw[k])) return { error: `a login's ${k} must be text` };
     }
     const login: LoginPayload = {};
-    if (typeof raw.username === "string" && raw.username.trim()) login.username = raw.username.trim();
-    if (typeof raw.password === "string" && raw.password) login.password = raw.password;
-    if (typeof raw.url === "string" && raw.url.trim()) login.url = raw.url.trim();
+    if (typeof raw.username === "string" && raw.username.trim())
+      login.username = raw.username.trim();
+    if (typeof raw.password === "string" && raw.password)
+      login.password = raw.password;
+    if (typeof raw.url === "string" && raw.url.trim())
+      login.url = raw.url.trim();
     if (typeof raw.totp_seed === "string" && raw.totp_seed.trim()) {
       const seed = normalizeTotpSeed(raw.totp_seed);
-      if (!seed) return { error: "the 2FA seed is neither a base32 secret nor an otpauth:// link: copy the setup key the site shows under \"can't scan the code\"" };
+      if (!seed)
+        return {
+          error:
+            'the 2FA seed is neither a base32 secret nor an otpauth:// link: copy the setup key the site shows under "can\'t scan the code"',
+        };
       login.totp_seed = seed;
     }
-    if (!login.username && !login.password && !login.totp_seed) return { error: "a login needs at least a username, a password or a 2FA seed" };
+    if (!login.username && !login.password && !login.totp_seed)
+      return {
+        error: "a login needs at least a username, a password or a 2FA seed",
+      };
     payload = login;
   } else if (kind === "file") {
-    if (typeof raw.content !== "string" || !raw.content) return { error: "a file secret needs its content: pass --file <path> or pipe it on stdin" };
-    if (!optStr(raw.filename)) return { error: "a file secret's filename must be text" };
-    if (typeof raw.filename === "string" && raw.filename.trim() && !fileBasename(raw.filename)) return { error: "a file secret's filename must name a file, not . or .. or a directory" };
-    payload = { content: raw.content, ...(typeof raw.filename === "string" && raw.filename.trim() ? { filename: raw.filename.trim() } : {}) };
+    if (typeof raw.content !== "string" || !raw.content)
+      return {
+        error:
+          "a file secret needs its content: pass --file <path> or pipe it on stdin",
+      };
+    if (!optStr(raw.filename))
+      return { error: "a file secret's filename must be text" };
+    if (
+      typeof raw.filename === "string" &&
+      raw.filename.trim() &&
+      !fileBasename(raw.filename)
+    )
+      return {
+        error:
+          "a file secret's filename must name a file, not . or .. or a directory",
+      };
+    payload = {
+      content: raw.content,
+      ...(typeof raw.filename === "string" && raw.filename.trim()
+        ? { filename: raw.filename.trim() }
+        : {}),
+    };
   } else {
-    if (!Array.isArray(raw.cookies) || raw.cookies.length === 0) return { error: "a sign-in needs the site's cookies: sign in to the site first, then save the sign-in" };
+    if (!Array.isArray(raw.cookies) || raw.cookies.length === 0)
+      return {
+        error:
+          "a sign-in needs the site's cookies: sign in to the site first, then save the sign-in",
+      };
     for (let i = 0; i < raw.cookies.length; i++) {
       const p = cookieProblem(raw.cookies[i], i);
       if (p) return { error: p };
     }
-    if (raw.captured_from !== "chrome" && raw.captured_from !== "agent-browser") return { error: "a sign-in says where it was captured: chrome or agent-browser" };
+    if (raw.captured_from !== "chrome" && raw.captured_from !== "agent-browser")
+      return {
+        error: "a sign-in says where it was captured: chrome or agent-browser",
+      };
     if (raw.local_storage !== undefined) {
-      if (!isObj(raw.local_storage) || !Object.values(raw.local_storage).every((m) => isObj(m) && Object.values(m).every((v) => typeof v === "string"))) {
-        return { error: "a sign-in's local_storage maps each origin to string keys and string values" };
+      if (
+        !isObj(raw.local_storage) ||
+        !Object.values(raw.local_storage).every(
+          (m) =>
+            isObj(m) && Object.values(m).every((v) => typeof v === "string"),
+        )
+      ) {
+        return {
+          error:
+            "a sign-in's local_storage maps each origin to string keys and string values",
+        };
       }
     }
-    if (!optStr(raw.account_hint)) return { error: "a sign-in's account_hint must be text" };
+    if (!optStr(raw.account_hint))
+      return { error: "a sign-in's account_hint must be text" };
     payload = {
       cookies: (raw.cookies as SigninCookie[]).map(signinCookie),
       captured_from: raw.captured_from,
-      ...(raw.local_storage ? { local_storage: raw.local_storage as Record<string, Record<string, string>> } : {}),
-      ...(typeof raw.account_hint === "string" && raw.account_hint ? { account_hint: raw.account_hint } : {}),
+      ...(raw.local_storage
+        ? {
+            local_storage: raw.local_storage as Record<
+              string,
+              Record<string, string>
+            >,
+          }
+        : {}),
+      ...(typeof raw.account_hint === "string" && raw.account_hint
+        ? { account_hint: raw.account_hint }
+        : {}),
     };
   }
   // Bytes, not characters: a page of CJK text is three bytes a character, and the ciphertext has to fit a Convex document.
-  if (new TextEncoder().encode(JSON.stringify(payload)).length > SECRET_PAYLOAD_MAX) return { error: `a secret holds at most ${SECRET_PAYLOAD_MAX / 1000} KB: store the file somewhere else and keep its key here` };
+  if (
+    new TextEncoder().encode(JSON.stringify(payload)).length >
+    SECRET_PAYLOAD_MAX
+  )
+    return {
+      error: `a secret holds at most ${SECRET_PAYLOAD_MAX / 1000} KB: store the file somewhere else and keep its key here`,
+    };
   return { payload: payload as SecretPayloadOf[K] };
 }
 
 /** First 4 and last 4 of a value long enough that 8 characters give away
  *  little (20+); nothing for anything shorter. */
-export function fingerprint(value: string | undefined | null): string | undefined {
+export function fingerprint(
+  value: string | undefined | null,
+): string | undefined {
   const v = (value ?? "").trim();
   if (v.length < 20) return undefined;
   return `${v.slice(0, 4)}…${v.slice(-4)}`;
@@ -191,10 +302,23 @@ export function cleanSecretList(xs?: string[]): string[] | undefined {
 
 /** Sites as stored: bare lowercase hostnames, whatever URL was pasted. */
 export function cleanSecretSites(xs?: string[]): string[] | undefined {
-  return cleanSecretList(xs?.map((s) => s.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "")));
+  return cleanSecretList(
+    xs?.map((s) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/.*$/, ""),
+    ),
+  );
 }
 
-export type SecretMetaEdit = { name?: string; note?: string; env?: string[]; sites?: string[] };
+export type SecretMetaEdit = {
+  name?: string;
+  note?: string;
+  env?: string[];
+  sites?: string[];
+};
 
 /** An edit of a secret's metadata as stored: only the fields it names, each
  *  cleaned, and one emptied unset. `secrets.updateMeta` writes it and the web's
@@ -204,8 +328,10 @@ export function cleanSecretEdit(fields: SecretMetaEdit): SecretMetaEdit {
   const patch: SecretMetaEdit = {};
   if (fields.name !== undefined) patch.name = fields.name.trim();
   if (fields.note !== undefined) patch.note = fields.note.trim() || undefined;
-  if (fields.env !== undefined) patch.env = nonEmpty(cleanSecretList(fields.env));
-  if (fields.sites !== undefined) patch.sites = nonEmpty(cleanSecretSites(fields.sites));
+  if (fields.env !== undefined)
+    patch.env = nonEmpty(cleanSecretList(fields.env));
+  if (fields.sites !== undefined)
+    patch.sites = nonEmpty(cleanSecretSites(fields.sites));
   return patch;
 }
 
@@ -215,8 +341,10 @@ export function cleanSecretEdit(fields: SecretMetaEdit): SecretMetaEdit {
  * saved sign-in on it would be put into the agent browser on all of them.
  */
 export function siteProblem(site: string): string | null {
-  if (!site.trim() || /\s/.test(site.trim())) return "Sites are hostnames like dashboard.stripe.com, one per entry";
-  if (isPublicSuffix(site.replace(/^\.+/, ""))) return `"${site}" names every site under it: name the site itself, like dashboard.stripe.com`;
+  if (!site.trim() || /\s/.test(site.trim()))
+    return "Sites are hostnames like dashboard.stripe.com, one per entry";
+  if (isPublicSuffix(site.replace(/^\.+/, "")))
+    return `"${site}" names every site under it: name the site itself, like dashboard.stripe.com`;
   return null;
 }
 
@@ -225,12 +353,21 @@ export function siteProblem(site: string): string | null {
  * website account and a browser fill types it only on its sites, so one
  * stored without a site could never be used to sign in.
  */
-export function loginSitesProblem(kind: SecretKind | undefined, sites: string[] | undefined): string | null {
-  return kind === "login" && !sites?.length ? "A login names the site it signs in to, like facebook.com (--site, or Site on the Vault page): browser fill types it only there" : null;
+export function loginSitesProblem(
+  kind: SecretKind | undefined,
+  sites: string[] | undefined,
+): string | null {
+  return kind === "login" && !sites?.length
+    ? "A login names the site it signs in to, like facebook.com (--site, or Site on the Vault page): browser fill types it only there"
+    : null;
 }
 
 /** A site as a sign-in compares it: lowercase, no leading dots or `www.`. */
-export const bareSite = (site: string) => site.toLowerCase().replace(/^\.+/, "").replace(/^www\./, "");
+export const bareSite = (site: string) =>
+  site
+    .toLowerCase()
+    .replace(/^\.+/, "")
+    .replace(/^www\./, "");
 
 /** The host a typed site names: a bare host or any http(s) URL, lowercased, without port or userinfo. Null when there is none. */
 export function signinSite(raw: string): string | null {
@@ -261,26 +398,41 @@ export function keepsOwnLogin(host: string): boolean {
 }
 
 /** The sites that scope a sign-in, bare. A public suffix the backend no longer accepts ("com") scopes nothing, on a row saved before it refused them. */
-export const signinScopeSites = (sites: readonly string[]) => sites.map(bareSite).filter((b) => !siteProblem(b));
+export const signinScopeSites = (sites: readonly string[]) =>
+  sites.map(bareSite).filter((b) => !siteProblem(b));
 
 /**
  * Is a cookie on `domain` part of the sign-in for `sites`? Every host key a
  * browser would send to the site (the site and its parents of two labels or
  * more, as the cli's cookieHostKeys walks them) and the site's own subdomains.
  */
-export function inSigninScope(domain: string, sites: readonly string[]): boolean {
+export function inSigninScope(
+  domain: string,
+  sites: readonly string[],
+): boolean {
   const d = domain.toLowerCase().replace(/^\.+/, "");
   return signinScopeSites(sites).some((s) => {
-    const parent = d.includes(".") && !/^[\d.]+$/.test(s) && !s.includes(":") && s.endsWith(`.${d}`);
+    const parent =
+      d.includes(".") &&
+      !/^[\d.]+$/.test(s) &&
+      !s.includes(":") &&
+      s.endsWith(`.${d}`);
     return d === s || parent || d.endsWith(`.${s}`);
   });
 }
 
 /** Is a localStorage key of a sign-in an origin in its scope? */
-export function originInSigninScope(origin: string, sites: readonly string[]): boolean {
+export function originInSigninScope(
+  origin: string,
+  sites: readonly string[],
+): boolean {
   try {
     const u = new URL(origin);
-    return (u.protocol === "https:" || u.protocol === "http:") && u.origin === origin && inSigninScope(u.hostname, sites);
+    return (
+      (u.protocol === "https:" || u.protocol === "http:") &&
+      u.origin === origin &&
+      inSigninScope(u.hostname, sites)
+    );
   } catch {
     return false;
   }
@@ -292,13 +444,21 @@ export function originInSigninScope(origin: string, sites: readonly string[]): b
  * write, so a jar captured for one site never carries another's cookies into
  * the Vault. Names no cookie value, only a domain.
  */
-export function signinScopeProblem(payload: Pick<SigninPayload, "cookies" | "local_storage">, sites: readonly string[] | undefined): string | null {
-  if (!signinScopeSites(sites ?? []).length) return "a sign-in needs the site it is for: add it under Sites first";
+export function signinScopeProblem(
+  payload: Pick<SigninPayload, "cookies" | "local_storage">,
+  sites: readonly string[] | undefined,
+): string | null {
+  if (!signinScopeSites(sites ?? []).length)
+    return "a sign-in needs the site it is for: add it under Sites first";
   const named = (sites ?? []).join(", ");
   const cookie = payload.cookies.find((c) => !inSigninScope(c.domain, sites!));
-  if (cookie) return `a cookie for ${cookie.domain} is not part of the sign-in for ${named}: save only that site's cookies`;
-  const origin = Object.keys(payload.local_storage ?? {}).find((o) => !originInSigninScope(o, sites!));
-  if (origin !== undefined) return `storage for ${origin} is not part of the sign-in for ${named}: save only that site's storage`;
+  if (cookie)
+    return `a cookie for ${cookie.domain} is not part of the sign-in for ${named}: save only that site's cookies`;
+  const origin = Object.keys(payload.local_storage ?? {}).find(
+    (o) => !originInSigninScope(o, sites!),
+  );
+  if (origin !== undefined)
+    return `storage for ${origin} is not part of the sign-in for ${named}: save only that site's storage`;
   return null;
 }
 
@@ -322,19 +482,27 @@ const SIGNIN_SUFFIX = "-signin";
 /** The name a saved sign-in for a site gets unless one is given (`github.com` -> `github-signin`, a site with no name of its own `site-signin`); "" for no site. The web suggests it and `cast vault save-signin` picks it. */
 export function signinName(site: string): string {
   if (!site.trim()) return "";
-  const base = siteName(site).slice(0, 63 - SIGNIN_SUFFIX.length).replace(/-+$/, "");
+  const base = siteName(site)
+    .slice(0, 63 - SIGNIN_SUFFIX.length)
+    .replace(/-+$/, "");
   return `${base || "site"}${SIGNIN_SUFFIX}`;
 }
 
 /** The fingerprint a row shows for its payload: a key's value; nothing else has one. */
-export function payloadFingerprint(kind: SecretKind, payload: SecretPayload): string | undefined {
-  return kind === "key" ? fingerprint((payload as KeyPayload).value) : undefined;
+export function payloadFingerprint(
+  kind: SecretKind,
+  payload: SecretPayload,
+): string | undefined {
+  return kind === "key"
+    ? fingerprint((payload as KeyPayload).value)
+    : undefined;
 }
 
 /** Cookies that ride beside a sign-in without holding it: analytics and ads,
  *  CSRF guards, bot and load-balancer stamps, consent and locale. They outlive
  *  a sign-in or die before it, so they never date one. */
-const NOT_SESSION_COOKIE_RE = /^(?:_ga|_gid|_gat|_gcl|__utm|_fbp|_fbc|_hj|_pk_|ajs_|amplitude|mp_|_clck|_clsk|_uetsid|_uetvid|optimizely|intercom-|__hs|hubspot|_tt_|_ttp|_rdt_|_scid|_pin_|__cf|cf_|_cfuvid|awsalb)|csrf|xsrf|consent|locale/i;
+const NOT_SESSION_COOKIE_RE =
+  /^(?:_ga|_gid|_gat|_gcl|__utm|_fbp|_fbc|_hj|_pk_|ajs_|amplitude|mp_|_clck|_clsk|_uetsid|_uetvid|optimizely|intercom-|__hs|hubspot|_tt_|_ttp|_rdt_|_scid|_pin_|__cf|cf_|_cfuvid|awsalb)|csrf|xsrf|consent|locale/i;
 
 /**
  * When a sign-in runs out (ms): the latest expiry among the cookies that hold
@@ -345,9 +513,13 @@ const NOT_SESSION_COOKIE_RE = /^(?:_ga|_gid|_gat|_gcl|__utm|_fbp|_fbc|_hj|_pk_|a
  * session held only by them has no known expiry.
  */
 export function signinExpiresAt(payload: SigninPayload): number | undefined {
-  const held = payload.cookies.filter((c) => !NOT_SESSION_COOKIE_RE.test(c.name));
+  const held = payload.cookies.filter(
+    (c) => !NOT_SESSION_COOKIE_RE.test(c.name),
+  );
   const httpOnly = held.filter((c) => c.httpOnly);
-  const times = (httpOnly.length ? httpOnly : held).map((c) => c.expires).filter((e): e is number => typeof e === "number" && e > 0);
+  const times = (httpOnly.length ? httpOnly : held)
+    .map((c) => c.expires)
+    .filter((e): e is number => typeof e === "number" && e > 0);
   return times.length ? Math.max(...times) * 1000 : undefined;
 }
 
@@ -371,16 +543,30 @@ export type EnvBinding = { var: string; field: EnvField };
  * password. A file is written to disk and its path fills `<NAME>_FILE` or the
  * given name. A sign-in injects nothing.
  */
-export function envFor(secret: { name: string; kind: SecretKind; env?: string[] | null }): EnvBinding[] {
+export function envFor(secret: {
+  name: string;
+  kind: SecretKind;
+  env?: string[] | null;
+}): EnvBinding[] {
   const env = (secret.env ?? []).filter(Boolean);
   const base = envBase(secret.name);
   switch (secret.kind) {
     case "key":
-      return (env.length ? env : [base]).map((v) => ({ var: v, field: "value" as const }));
+      return (env.length ? env : [base]).map((v) => ({
+        var: v,
+        field: "value" as const,
+      }));
     case "login":
       if (env.length === 1) return [{ var: env[0], field: "password" }];
-      if (env.length >= 2) return [{ var: env[0], field: "username" }, { var: env[1], field: "password" }];
-      return [{ var: `${base}_USERNAME`, field: "username" }, { var: `${base}_PASSWORD`, field: "password" }];
+      if (env.length >= 2)
+        return [
+          { var: env[0], field: "username" },
+          { var: env[1], field: "password" },
+        ];
+      return [
+        { var: `${base}_USERNAME`, field: "username" },
+        { var: `${base}_PASSWORD`, field: "password" },
+      ];
     case "file":
       return [{ var: env[0] ?? `${base}_FILE`, field: "path" }];
     default:
@@ -389,15 +575,25 @@ export function envFor(secret: { name: string; kind: SecretKind; env?: string[] 
 }
 
 /** How many env names a kind uses (envFor); a key fills every name it is given. */
-const ENV_NAMES_USED: Partial<Record<SecretKind, { max: number; problem: string }>> = {
-  login: { max: 2, problem: "a login takes at most two env vars: username then password" },
+const ENV_NAMES_USED: Partial<
+  Record<SecretKind, { max: number; problem: string }>
+> = {
+  login: {
+    max: 2,
+    problem: "a login takes at most two env vars: username then password",
+  },
   file: { max: 1, problem: "a file takes one env var, for its path" },
 };
 
 /** Why a secret cannot fill the vars it would inject (one named by its env, or derived from its name), or null. */
-export function secretEnvProblem(secret: { name: string; kind: SecretKind; env?: string[] | null }): string | null {
+export function secretEnvProblem(secret: {
+  name: string;
+  kind: SecretKind;
+  env?: string[] | null;
+}): string | null {
   const used = ENV_NAMES_USED[secret.kind];
-  if (used && (secret.env ?? []).filter(Boolean).length > used.max) return used.problem;
+  if (used && (secret.env ?? []).filter(Boolean).length > used.max)
+    return used.problem;
   for (const b of envFor(secret)) {
     const p = envNameProblem(b.var);
     if (p) return p;
@@ -416,13 +612,16 @@ export function envValues(
   filePath?: string,
 ): Record<string, string> {
   const problem = secretEnvProblem(secret);
-  if (problem) throw new Error(`${secret.name}: ${problem}. Change it on the Vault page`);
+  if (problem)
+    throw new Error(`${secret.name}: ${problem}. Change it on the Vault page`);
   const out: Record<string, string> = {};
   for (const b of envFor(secret)) {
     const value =
-      b.field === "path" ? filePath
-      : b.field === "value" ? (payload as KeyPayload).value
-      : (payload as LoginPayload)[b.field];
+      b.field === "path"
+        ? filePath
+        : b.field === "value"
+          ? (payload as KeyPayload).value
+          : (payload as LoginPayload)[b.field];
     if (typeof value === "string") out[b.var] = value;
   }
   return out;
@@ -452,7 +651,8 @@ function storagePieces(storage: SigninPayload["local_storage"]): string[] {
   };
   const walk = (x: unknown): void => {
     if (typeof x === "string") keep(x);
-    else if (x && typeof x === "object") for (const y of Object.values(x)) walk(y);
+    else if (x && typeof x === "object")
+      for (const y of Object.values(x)) walk(y);
   };
   for (const items of Object.values(storage ?? {})) {
     for (const value of Object.values(items)) {
@@ -470,7 +670,12 @@ function storagePieces(storage: SigninPayload["local_storage"]): string[] {
 /** A value past SECRET_REDACTION_MAX as consecutive pieces from its start (the last one ending at its end), so printed whole it is redacted piece by piece, and a part of it from any piece boundary on. */
 function redactionChunks(v: string): string[] {
   const out: string[] = [];
-  for (let i = 0; i + SECRET_REDACTION_CHUNK < v.length; i += SECRET_REDACTION_CHUNK) out.push(v.slice(i, i + SECRET_REDACTION_CHUNK));
+  for (
+    let i = 0;
+    i + SECRET_REDACTION_CHUNK < v.length;
+    i += SECRET_REDACTION_CHUNK
+  )
+    out.push(v.slice(i, i + SECRET_REDACTION_CHUNK));
   out.push(v.slice(-SECRET_REDACTION_CHUNK));
   return out;
 }
@@ -481,7 +686,10 @@ function redactionChunks(v: string): string[] {
  *  pieces too, a sign-in's session cookies (holdsSession) and the storage
  *  that may hold its token (storagePieces). A key or a file piece too long to
  *  match whole goes in as redactionChunks. Usernames and urls are not secret. */
-export function redactionValuesOf(kind: SecretKind, payload: SecretPayload): string[] {
+export function redactionValuesOf(
+  kind: SecretKind,
+  payload: SecretPayload,
+): string[] {
   const out: string[] = [];
   const push = (v: string | undefined) => {
     if (v && v.length <= SECRET_REDACTION_MAX) out.push(v);
@@ -493,7 +701,8 @@ export function redactionValuesOf(kind: SecretKind, payload: SecretPayload): str
   if (kind === "key") {
     const value = (payload as KeyPayload).value;
     pushLong(value);
-    if (value.includes("\n")) for (const piece of filePieces(value)) pushLong(piece);
+    if (value.includes("\n"))
+      for (const piece of filePieces(value)) pushLong(piece);
   } else if (kind === "login") {
     const p = payload as LoginPayload;
     push(p.password);
@@ -516,7 +725,6 @@ export function redactionValuesOf(kind: SecretKind, payload: SecretPayload): str
 // ---------------------------------------------------------------------------
 // .env files
 // ---------------------------------------------------------------------------
-
 
 /** The env vars .env text sets: only names an env var can have, a later line winning, as a shell would. The Vault's import and `run --env-file` both read a file this way. */
 export function dotenvVars(text: string): Map<string, string> {
@@ -547,14 +755,20 @@ function filePieces(content: string): string[] {
   const out: string[] = [];
   const keep = (raw: string, min = FILE_PIECE_MIN) => {
     const v = raw.trim();
-    if (v.length >= min && !/^-----(?:BEGIN|END) [A-Z0-9 ]+-----$/.test(v) && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v);
+    if (
+      v.length >= min &&
+      !/^-----(?:BEGIN|END) [A-Z0-9 ]+-----$/.test(v) &&
+      !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)
+    )
+      out.push(v);
   };
   const texts = [content];
   const walk = (x: unknown): void => {
     if (typeof x === "string") {
       keep(x);
       if (x.includes("\n")) texts.push(x);
-    } else if (x && typeof x === "object") for (const y of Object.values(x)) walk(y);
+    } else if (x && typeof x === "object")
+      for (const y of Object.values(x)) walk(y);
   };
   if (/^\s*[{[]/.test(content)) {
     try {
@@ -565,7 +779,10 @@ function filePieces(content: string): string[] {
     for (const line of text.split(/\r?\n/)) {
       const env = parseDotenvLine(line);
       if (env) {
-        keep(env[1], isCredentialName(env[0]) ? SECRET_REDACTION_MIN : DOTENV_VALUE_MIN);
+        keep(
+          env[1],
+          isCredentialName(env[0]) ? SECRET_REDACTION_MIN : DOTENV_VALUE_MIN,
+        );
         continue;
       }
       const yaml = YAML_PAIR_RE.exec(line);
@@ -575,7 +792,8 @@ function filePieces(content: string): string[] {
         else if (!/\s/.test(value)) keep(value);
         continue;
       }
-      for (const m of line.matchAll(NETRC_SECRET_RE)) keep(m[1]!, SECRET_REDACTION_MIN);
+      for (const m of line.matchAll(NETRC_SECRET_RE))
+        keep(m[1]!, SECRET_REDACTION_MIN);
       if (!/\s/.test(line.trim())) keep(line);
     }
   }
@@ -626,9 +844,20 @@ export function base32Encode(bytes: Uint8Array): string {
 }
 
 export type TotpAlgorithm = "SHA-1" | "SHA-256" | "SHA-512";
-export type TotpParams = { secret: string; digits: number; period: number; algorithm: TotpAlgorithm; issuer?: string; account?: string };
+export type TotpParams = {
+  secret: string;
+  digits: number;
+  period: number;
+  algorithm: TotpAlgorithm;
+  issuer?: string;
+  account?: string;
+};
 
-const ALGORITHMS: Record<string, TotpAlgorithm> = { SHA1: "SHA-1", SHA256: "SHA-256", SHA512: "SHA-512" };
+const ALGORITHMS: Record<string, TotpAlgorithm> = {
+  SHA1: "SHA-1",
+  SHA256: "SHA-256",
+  SHA512: "SHA-512",
+};
 
 /** A link's label, percent-decoded; a malformed escape leaves it as typed (it only names the account). */
 function decodeLabel(raw: string): string {
@@ -647,17 +876,30 @@ export function parseOtpauth(uri: string): TotpParams | null {
   } catch {
     return null;
   }
-  if (u.protocol !== "otpauth:" || u.hostname.toLowerCase() !== "totp") return null;
-  const secret = (u.searchParams.get("secret") ?? "").toUpperCase().replace(/[\s=-]/g, "");
+  if (u.protocol !== "otpauth:" || u.hostname.toLowerCase() !== "totp")
+    return null;
+  const secret = (u.searchParams.get("secret") ?? "")
+    .toUpperCase()
+    .replace(/[\s=-]/g, "");
   if (!secret || !base32Decode(secret)) return null;
   const label = decodeLabel(u.pathname.replace(/^\//, ""));
-  const [labelIssuer, account] = label.includes(":") ? label.split(/:([\s\S]*)/, 2).map((s) => s.trim()) : [undefined, label.trim()];
+  const [labelIssuer, account] = label.includes(":")
+    ? label.split(/:([\s\S]*)/, 2).map((s) => s.trim())
+    : [undefined, label.trim()];
   const digits = Number(u.searchParams.get("digits") ?? 6);
   const period = Number(u.searchParams.get("period") ?? 30);
-  const algorithm = ALGORITHMS[(u.searchParams.get("algorithm") ?? "SHA1").toUpperCase()];
+  const algorithm =
+    ALGORITHMS[(u.searchParams.get("algorithm") ?? "SHA1").toUpperCase()];
   if (!algorithm || !(digits >= 6 && digits <= 8) || !(period > 0)) return null;
   const issuer = u.searchParams.get("issuer") || labelIssuer || undefined;
-  return { secret, digits, period, algorithm, ...(issuer ? { issuer } : {}), ...(account ? { account } : {}) };
+  return {
+    secret,
+    digits,
+    period,
+    algorithm,
+    ...(issuer ? { issuer } : {}),
+    ...(account ? { account } : {}),
+  };
 }
 
 /** A stored seed's parameters: an otpauth link's own, or a bare base32 secret at the defaults (SHA-1, 6 digits, 30 s). */
@@ -665,7 +907,9 @@ export function totpParams(seed: string): TotpParams | null {
   const s = seed.trim();
   if (/^otpauth:/i.test(s)) return parseOtpauth(s);
   const secret = s.toUpperCase().replace(/[\s=-]/g, "");
-  return base32Decode(secret) ? { secret, digits: 6, period: 30, algorithm: "SHA-1" } : null;
+  return base32Decode(secret)
+    ? { secret, digits: 6, period: 30, algorithm: "SHA-1" }
+    : null;
 }
 
 /** A seed as stored: an otpauth link kept whole (it carries digits and period), a bare secret compacted. */
@@ -675,28 +919,53 @@ export function normalizeTotpSeed(seed: string): string | null {
   return /^otpauth:/i.test(seed.trim()) ? seed.trim() : p.secret;
 }
 
-async function hotp(key: Uint8Array<ArrayBuffer>, counter: number, digits: number, algorithm: TotpAlgorithm): Promise<string> {
+async function hotp(
+  key: Uint8Array<ArrayBuffer>,
+  counter: number,
+  digits: number,
+  algorithm: TotpAlgorithm,
+): Promise<string> {
   const msg = new Uint8Array(8);
   let c = counter;
   for (let i = 7; i >= 0; i--) {
     msg[i] = c & 0xff;
     c = Math.floor(c / 256);
   }
-  const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: algorithm }, false, ["sign"]);
+  const k = await crypto.subtle.importKey(
+    "raw",
+    key,
+    { name: "HMAC", hash: algorithm },
+    false,
+    ["sign"],
+  );
   const mac = new Uint8Array(await crypto.subtle.sign("HMAC", k, msg));
   const off = mac[mac.length - 1] & 0x0f;
-  const bin = ((mac[off] & 0x7f) << 24) | (mac[off + 1] << 16) | (mac[off + 2] << 8) | mac[off + 3];
+  const bin =
+    ((mac[off] & 0x7f) << 24) |
+    (mac[off + 1] << 16) |
+    (mac[off + 2] << 8) |
+    mac[off + 3];
   return String(bin % 10 ** digits).padStart(digits, "0");
 }
 
 /** The code for a seed at `atMs`, and how many seconds it stays valid. */
-export async function totp(seed: string, atMs: number = Date.now()): Promise<{ code: string; remaining: number; period: number }> {
+export async function totp(
+  seed: string,
+  atMs: number = Date.now(),
+): Promise<{ code: string; remaining: number; period: number }> {
   const p = totpParams(seed);
-  if (!p) throw new Error("this 2FA seed is not a base32 secret or otpauth:// link: store the site's setup key again");
+  if (!p)
+    throw new Error(
+      "this 2FA seed is not a base32 secret or otpauth:// link: store the site's setup key again",
+    );
   const key = base32Decode(p.secret)!;
   const step = Math.floor(atMs / 1000 / p.period);
   const code = await hotp(key, step, p.digits, p.algorithm);
-  return { code, remaining: p.period - (Math.floor(atMs / 1000) % p.period), period: p.period };
+  return {
+    code,
+    remaining: p.period - (Math.floor(atMs / 1000) % p.period),
+    period: p.period,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -760,8 +1029,14 @@ export const APPROVE_FOR_SESSION = "Approve for this session";
 export const DENY = "Deny";
 
 /** Whether answering `decision` with option `index` lets its session read an Ask first secret. */
-export function approvesSecretRead(decision: { category?: string; options: readonly { label: string }[] }, index: number): boolean {
-  return decision.category === "access" && decision.options[index]?.label === APPROVE_FOR_SESSION;
+export function approvesSecretRead(
+  decision: { category?: string; options: readonly { label: string }[] },
+  index: number,
+): boolean {
+  return (
+    decision.category === "access" &&
+    decision.options[index]?.label === APPROVE_FOR_SESSION
+  );
 }
 
 /**
@@ -770,7 +1045,13 @@ export function approvesSecretRead(decision: { category?: string; options: reado
  * the decision id for approve, the passkey id for remove_passkey, and the
  * user's own id for add_passkey.
  */
-export const PRESENCE_ACTIONS = ["reveal", "approve", "ask_first_off", "add_passkey", "remove_passkey"] as const;
+export const PRESENCE_ACTIONS = [
+  "reveal",
+  "approve",
+  "ask_first_off",
+  "add_passkey",
+  "remove_passkey",
+] as const;
 export type PresenceAction = (typeof PRESENCE_ACTIONS)[number];
 
 /** How long a presence challenge waits for its assertion, and then how long the grant it earns stays usable. */
@@ -804,7 +1085,14 @@ export function presenceRequiredMessage(action: PresenceAction): string {
 
 /** Whether an error (thrown, or a returned `{ error }`) is a presence gate's refusal. */
 export function isPresenceRequired(err: unknown): boolean {
-  const text = typeof err === "string" ? err : err instanceof Error ? err.message : typeof (err as any)?.error === "string" ? (err as any).error : "";
+  const text =
+    typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? err.message
+        : typeof (err as any)?.error === "string"
+          ? (err as any).error
+          : "";
   return text.includes(`${PRESENCE_REQUIRED}:`);
 }
 
@@ -843,15 +1131,24 @@ export type SecretNeedsApproval = {
  * when `status` is given, else the only row. A name in more than one
  * workspace with nothing to settle it is ambiguous, never a silent pick.
  */
-export function pickSecretByName<T extends Pick<SecretMeta, "name" | "workspace" | "status">>(
+export function pickSecretByName<
+  T extends Pick<SecretMeta, "name" | "workspace" | "status">,
+>(
   rows: readonly T[],
   name: string,
   opts: { prefer?: string; status?: SecretStatus } = {},
 ): T | { ambiguous: T[] } | null {
   let found = rows.filter((r) => r.name === name);
-  const preferred = opts.prefer ? found.find((r) => r.workspace === opts.prefer) : undefined;
+  const preferred = opts.prefer
+    ? found.find((r) => r.workspace === opts.prefer)
+    : undefined;
   if (preferred) return preferred;
-  if (opts.status && found.length > 1 && found.some((r) => r.status === opts.status)) found = found.filter((r) => r.status === opts.status);
+  if (
+    opts.status &&
+    found.length > 1 &&
+    found.some((r) => r.status === opts.status)
+  )
+    found = found.filter((r) => r.status === opts.status);
   if (found.length > 1) return { ambiguous: found };
   return found[0] ?? null;
 }
@@ -862,9 +1159,20 @@ export function pickSecretByName<T extends Pick<SecretMeta, "name" | "workspace"
  * reference name a secret only by name (`byNameOnly`), so there the fix is a
  * rename.
  */
-export function ambiguousSecretName(name: string, rows: readonly Pick<SecretMeta, "short_id" | "workspace">[], opts: { byNameOnly?: boolean } = {}): string {
-  const each = rows.map((r) => `${r.short_id} ${r.workspace.startsWith("team:") ? "team" : "personal"}`).join(", ");
-  const fix = opts.byNameOnly ? "rename one of them (cast vault ls shows both), since this names a secret only by name" : `name the one you mean by its short id, like ${rows[0].short_id}`;
+export function ambiguousSecretName(
+  name: string,
+  rows: readonly Pick<SecretMeta, "short_id" | "workspace">[],
+  opts: { byNameOnly?: boolean } = {},
+): string {
+  const each = rows
+    .map(
+      (r) =>
+        `${r.short_id} ${r.workspace.startsWith("team:") ? "team" : "personal"}`,
+    )
+    .join(", ");
+  const fix = opts.byNameOnly
+    ? "rename one of them (cast vault ls shows both), since this names a secret only by name"
+    : `name the one you mean by its short id, like ${rows[0].short_id}`;
   return `${name} is in ${rows.length} workspaces (${each}): ${fix}`;
 }
 
@@ -879,14 +1187,26 @@ export type SecretHealth = "expired" | "expiring" | "stale" | "unused";
 export const DAY_MS = 86_400_000;
 
 /** secretHealth's thresholds in days: a sign-in this close to its expiry, a secret unread this long after its value arrived, and one last read longer ago than this. */
-export const SECRET_HEALTH_DAYS = { expiring: 3, unused: 1, stale: 90 } as const;
+export const SECRET_HEALTH_DAYS = {
+  expiring: 3,
+  unused: 1,
+  stale: 90,
+} as const;
 
 /** A sign-in that has not expired yet but will within SECRET_HEALTH_DAYS.expiring. */
-export const isExpiring = (exp: number, now: number) => exp > now && exp - now < SECRET_HEALTH_DAYS.expiring * DAY_MS;
+export const isExpiring = (exp: number, now: number) =>
+  exp > now && exp - now < SECRET_HEALTH_DAYS.expiring * DAY_MS;
 
 /** The order every Vault list shows: open requests first, then by name. */
-export const compareSecrets = (a: Pick<SecretMeta, "status" | "name">, b: Pick<SecretMeta, "status" | "name">) =>
-  a.status === b.status ? a.name.localeCompare(b.name) : a.status === "requested" ? -1 : 1;
+export const compareSecrets = (
+  a: Pick<SecretMeta, "status" | "name">,
+  b: Pick<SecretMeta, "status" | "name">,
+) =>
+  a.status === b.status
+    ? a.name.localeCompare(b.name)
+    : a.status === "requested"
+      ? -1
+      : 1;
 
 /**
  * A ready secret's health from its metadata alone: a sign-in past or within
@@ -899,14 +1219,33 @@ export const compareSecrets = (a: Pick<SecretMeta, "status" | "name">, b: Pick<S
  * and detail and `cast vault ls|show` all say it this way.
  */
 export function secretHealth(
-  row: Pick<SecretMeta, "kind" | "status" | "signin_expires_at" | "use_count" | "created_at" | "value_updated_at" | "last_used_at">,
+  row: Pick<
+    SecretMeta,
+    | "kind"
+    | "status"
+    | "signin_expires_at"
+    | "use_count"
+    | "created_at"
+    | "value_updated_at"
+    | "last_used_at"
+  >,
   now: number,
 ): SecretHealth | null {
   if (row.status !== "ready") return null;
   const exp = row.signin_expires_at;
   if (exp !== undefined && exp <= now) return "expired";
   if (exp !== undefined && isExpiring(exp, now)) return "expiring";
-  if (!row.use_count && now - (row.value_updated_at ?? row.created_at) > SECRET_HEALTH_DAYS.unused * DAY_MS) return "unused";
-  if (row.kind !== "signin" && row.last_used_at !== undefined && now - row.last_used_at > SECRET_HEALTH_DAYS.stale * DAY_MS) return "stale";
+  if (
+    !row.use_count &&
+    now - (row.value_updated_at ?? row.created_at) >
+      SECRET_HEALTH_DAYS.unused * DAY_MS
+  )
+    return "unused";
+  if (
+    row.kind !== "signin" &&
+    row.last_used_at !== undefined &&
+    now - row.last_used_at > SECRET_HEALTH_DAYS.stale * DAY_MS
+  )
+    return "stale";
   return null;
 }

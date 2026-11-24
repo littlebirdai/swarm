@@ -2,11 +2,26 @@
 // loopback socket with its resume and reconnect, the relay transport, the
 // seat (controller/observer) protocol, and tab teardown.
 
-import { killTerminalSession, termWsUrl, type TerminalEndpoint } from "./endpoint";
+import {
+  killTerminalSession,
+  termWsUrl,
+  type TerminalEndpoint,
+} from "./endpoint";
 import { openWebSocket } from "../openWebSocket";
-import { connectRemotePane, frameToBytes, type RemotePaneSource } from "./remotePane";
+import {
+  connectRemotePane,
+  frameToBytes,
+  type RemotePaneSource,
+} from "./remotePane";
 import { PaneStreamFilter } from "./paneStreamFilter";
-import { bump, fitInstance, instances, reg, type OpenTerminalOptions, type TermInstance } from "./termRegistry";
+import {
+  bump,
+  fitInstance,
+  instances,
+  reg,
+  type OpenTerminalOptions,
+  type TermInstance,
+} from "./termRegistry";
 
 // A dropped socket (a laptop lid, a network change, a phone asleep) comes
 // back on its own and resumes. Backoff between tries, and a limit after which
@@ -29,15 +44,23 @@ export function connect(inst: TermInstance, opts: OpenTerminalOptions): void {
   connectLocal(inst);
 }
 
-
 function socketOpen(inst: TermInstance): WebSocket | null {
-  return inst.ws?.readyState === WebSocket.OPEN && inst.state.status === "open" && !inst.state.reconnecting ? inst.ws : null;
+  return inst.ws?.readyState === WebSocket.OPEN &&
+    inst.state.status === "open" &&
+    !inst.state.reconnecting
+    ? inst.ws
+    : null;
 }
 
 /** Tell the server this view's size, unless it is the size the server gave
  *  us (see the echo note in wireLocalInput). Queued while no socket is up. */
 function sendResize(inst: TermInstance, cols: number, rows: number): void {
-  if (inst.adoptedSize && inst.adoptedSize.cols === cols && inst.adoptedSize.rows === rows) return;
+  if (
+    inst.adoptedSize &&
+    inst.adoptedSize.cols === cols &&
+    inst.adoptedSize.rows === rows
+  )
+    return;
   const ws = socketOpen(inst);
   if (ws) ws.send(JSON.stringify({ type: "resize", cols, rows }));
   else inst.pendingResize = { cols, rows };
@@ -55,7 +78,8 @@ function wireLocalInput(inst: TermInstance): void {
     const ws = socketOpen(inst);
     if (ws && !inst.state.readOnly) {
       const bytes = new Uint8Array(data.length);
-      for (let i = 0; i < data.length; i++) bytes[i] = data.charCodeAt(i) & 0xff;
+      for (let i = 0; i < data.length; i++)
+        bytes[i] = data.charCodeAt(i) & 0xff;
       ws.send(bytes);
     }
   });
@@ -80,7 +104,8 @@ function applyRole(inst: TermInstance, msg: Record<string, unknown>): void {
   inst.state.takeoverPending = false;
   inst.state.canControl = !!msg.canControl;
   inst.state.controlledElsewhere = !!msg.controlledElsewhere;
-  inst.state.viewers = typeof msg.viewers === "number" ? msg.viewers : undefined;
+  inst.state.viewers =
+    typeof msg.viewers === "number" ? msg.viewers : undefined;
   if (msg.role === "controller") inst.state.controlTaken = false;
   else if (msg.reason === "taken") inst.state.controlTaken = true;
   inst.state.readOnly = msg.role === "observer";
@@ -91,7 +116,16 @@ function applyRole(inst: TermInstance, msg: Record<string, unknown>): void {
   if (ownsSize && !wasController) {
     // tmux holds one set of colours per terminal: the controller's.
     const ws = socketOpen(inst);
-    if (ws) ws.send(JSON.stringify({ type: "colors", colors: { foreground: reg.currentTheme.foreground, background: reg.currentTheme.background } }));
+    if (ws)
+      ws.send(
+        JSON.stringify({
+          type: "colors",
+          colors: {
+            foreground: reg.currentTheme.foreground,
+            background: reg.currentTheme.background,
+          },
+        }),
+      );
   }
   if (ownsSize && !wasController && inst.container) {
     // The server ignored every size this view had while it watched: hand it
@@ -99,7 +133,8 @@ function applyRole(inst: TermInstance, msg: Record<string, unknown>): void {
     const before = `${inst.term.cols}x${inst.term.rows}`;
     fitInstance(inst);
     // A fit that changed the size already sent it (onResize).
-    if (`${inst.term.cols}x${inst.term.rows}` === before && socketOpen(inst)) sendResize(inst, inst.term.cols, inst.term.rows);
+    if (`${inst.term.cols}x${inst.term.rows}` === before && socketOpen(inst))
+      sendResize(inst, inst.term.cols, inst.term.rows);
   }
 }
 
@@ -136,7 +171,10 @@ function connectLocal(inst: TermInstance): void {
       interactive: opts.interactive,
       cols: inst.term.cols,
       rows: inst.term.rows,
-      colors: { foreground: reg.currentTheme.foreground, background: reg.currentTheme.background },
+      colors: {
+        foreground: reg.currentTheme.foreground,
+        background: reg.currentTheme.background,
+      },
       viewId: inst.viewId,
       resume: inst.cursor ?? undefined,
     };
@@ -160,7 +198,10 @@ function connectLocal(inst: TermInstance): void {
           inst.state.readOnly = !!msg.readOnly;
           if (msg.readOnly) inst.state.paneSized = true;
           // A daemon without resume sends no stream: nothing to resume from.
-          const at = typeof msg.stream === "string" && typeof msg.offset === "number" ? { stream: msg.stream, offset: msg.offset } : null;
+          const at =
+            typeof msg.stream === "string" && typeof msg.offset === "number"
+              ? { stream: msg.stream, offset: msg.offset }
+              : null;
           holdCursorForSeed(inst, at, msg.seedBytes);
           // An observer is sized by the pane, whatever this view was before
           // (it may have been demoted while away): adopt it below.
@@ -192,7 +233,11 @@ function connectLocal(inst: TermInstance): void {
           // sizes the pane to the panel like any real terminal client — but
           // only from a laid-out container (fitInstance), never from a guess,
           // because the size we impose sticks to the agent's pane.
-          if (msg.cols && msg.rows && (!inst.pendingResize || inst.state.paneSized)) {
+          if (
+            msg.cols &&
+            msg.rows &&
+            (!inst.pendingResize || inst.state.paneSized)
+          ) {
             inst.adoptedSize = { cols: msg.cols, rows: msg.rows };
             inst.term.resize(msg.cols, msg.rows);
           }
@@ -223,7 +268,13 @@ function connectLocal(inst: TermInstance): void {
           // before it and before anything queued after (the seed), so the
           // old repaint completes, gets wiped, and the seed lands clean.
           const at = inst.cursor ?? inst.afterSeed;
-          holdCursorForSeed(inst, at && typeof msg.offset === "number" ? { stream: at.stream, offset: msg.offset } : at, msg.seedBytes);
+          holdCursorForSeed(
+            inst,
+            at && typeof msg.offset === "number"
+              ? { stream: at.stream, offset: msg.offset }
+              : at,
+            msg.seedBytes,
+          );
           inst.filter = new PaneStreamFilter({ syncFrames: true });
           inst.term.write("", () => {
             inst.term.reset();
@@ -238,7 +289,8 @@ function connectLocal(inst: TermInstance): void {
           bump();
         } else if (msg.type === "replay_complete" || msg.type === "offset") {
           // "offset": a repaint other views got that this one does not need.
-          if (inst.cursor && typeof msg.offset === "number") inst.cursor.offset = msg.offset;
+          if (inst.cursor && typeof msg.offset === "number")
+            inst.cursor.offset = msg.offset;
         } else if (msg.type === "exit") {
           ended = true;
           inst.state.status = "exited";
@@ -281,7 +333,11 @@ function connectLocal(inst: TermInstance): void {
       closeTab(inst.state.id);
       return;
     }
-    if (!ended && inst.painted && (inst.state.status === "open" || inst.state.reconnecting)) {
+    if (
+      !ended &&
+      inst.painted &&
+      (inst.state.status === "open" || inst.state.reconnecting)
+    ) {
       // Dropped, not ended: keep the screen and get the socket back.
       scheduleReconnect(inst);
       return;
@@ -302,7 +358,11 @@ function connectLocal(inst: TermInstance): void {
 
 /** Take the cursor a ready/reseed names, but only once its seed (if any)
  *  has been drawn. */
-function holdCursorForSeed(inst: TermInstance, at: { stream: string; offset: number } | null, seedBytes: unknown): void {
+function holdCursorForSeed(
+  inst: TermInstance,
+  at: { stream: string; offset: number } | null,
+  seedBytes: unknown,
+): void {
   inst.seedLeft = typeof seedBytes === "number" ? seedBytes : 0;
   if (inst.seedLeft > 0) {
     inst.cursor = null;
@@ -326,7 +386,10 @@ function scheduleReconnect(inst: TermInstance): void {
     return;
   }
   inst.state.reconnecting = true;
-  const delay = RECONNECT_BACKOFF_MS[Math.min(inst.retry.attempt, RECONNECT_BACKOFF_MS.length - 1)]!;
+  const delay =
+    RECONNECT_BACKOFF_MS[
+      Math.min(inst.retry.attempt, RECONNECT_BACKOFF_MS.length - 1)
+    ]!;
   inst.retry.attempt++;
   if (inst.retry.timer) clearTimeout(inst.retry.timer);
   inst.retry.timer = setTimeout(() => {
@@ -352,7 +415,9 @@ export function reconnectTab(id: string, endpoint?: TerminalEndpoint): boolean {
   inst.ws = null;
   // Not a clean close: the server keeps this view's seat for the socket
   // that replaces this one.
-  try { old?.close(3000, "reconnect"); } catch {}
+  try {
+    old?.close(3000, "reconnect");
+  } catch {}
   // A painted view keeps its screen up while the socket comes back.
   inst.state.status = inst.painted ? "open" : "connecting";
   inst.state.reconnecting = inst.painted;
@@ -366,7 +431,13 @@ export function reconnectTab(id: string, endpoint?: TerminalEndpoint): boolean {
 export function takeControl(id: string): void {
   const inst = instances.get(id);
   const ws = inst ? socketOpen(inst) : null;
-  if (!inst || !ws || !inst.state.canControl || inst.state.role === "controller") return;
+  if (
+    !inst ||
+    !ws ||
+    !inst.state.canControl ||
+    inst.state.role === "controller"
+  )
+    return;
   ws.send(JSON.stringify({ type: "takeover" }));
   inst.state.takeoverPending = true;
   bump();
@@ -430,13 +501,19 @@ function connectRemote(inst: TermInstance, src: RemotePaneSource): void {
         return;
       }
       lastSeq = f.seq;
-      if (f.cols && f.rows && (inst.term.cols !== f.cols || inst.term.rows !== f.rows)) {
+      if (
+        f.cols &&
+        f.rows &&
+        (inst.term.cols !== f.cols || inst.term.rows !== f.rows)
+      ) {
         inst.term.resize(f.cols, f.rows);
       }
       inst.term.write(
         frameToBytes(
           f.frame,
-          f.cursor_x !== null && f.cursor_y !== null ? { x: f.cursor_x, y: f.cursor_y } : null,
+          f.cursor_x !== null && f.cursor_y !== null
+            ? { x: f.cursor_x, y: f.cursor_y }
+            : null,
         ),
       );
       inst.state.status = "open";
@@ -480,7 +557,10 @@ function connectRemote(inst: TermInstance, src: RemotePaneSource): void {
   };
 }
 
-function shortTitle(sessionName: string | undefined, cwd: string | undefined): string {
+function shortTitle(
+  sessionName: string | undefined,
+  cwd: string | undefined,
+): string {
   if (cwd) {
     const seg = cwd.split("/").filter(Boolean).pop();
     if (seg) return seg;
@@ -494,7 +574,14 @@ export function closeTab(id: string, opts?: { killSession?: boolean }): void {
   if (!inst) return;
   // Between sockets (or on one that has not said ready yet) there is nobody
   // to send `kill` to in band: end the session over HTTP instead.
-  if (opts?.killSession && inst.painted && (inst.state.reconnecting || !inst.ws) && inst.opts.endpoint && inst.state.sessionName && inst.state.kind === "shell") {
+  if (
+    opts?.killSession &&
+    inst.painted &&
+    (inst.state.reconnecting || !inst.ws) &&
+    inst.opts.endpoint &&
+    inst.state.sessionName &&
+    inst.state.kind === "shell"
+  ) {
     void killTerminalSession(inst.opts.endpoint, inst.state.sessionName);
     opts = { ...opts, killSession: false };
   }
@@ -502,7 +589,10 @@ export function closeTab(id: string, opts?: { killSession?: boolean }): void {
   inst.retry = null;
 
   if (opts?.killSession && inst.ws) {
-    if (inst.ws.readyState === WebSocket.CONNECTING || inst.state.status === "connecting") {
+    if (
+      inst.ws.readyState === WebSocket.CONNECTING ||
+      inst.state.status === "connecting"
+    ) {
       // Session may not exist server-side yet; defer the kill to the ready
       // handler so it can't be skipped. The tab stays until the server
       // confirms (its close event lands back here without killSession).
@@ -541,7 +631,8 @@ export function closeTab(id: string, opts?: { killSession?: boolean }): void {
   inst.term.dispose();
   instances.delete(id);
   reg.order = reg.order.filter((x) => x !== id);
-  if (reg.activeId === id) reg.activeId = reg.order[reg.order.length - 1] ?? null;
+  if (reg.activeId === id)
+    reg.activeId = reg.order[reg.order.length - 1] ?? null;
   bump();
 }
 

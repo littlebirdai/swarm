@@ -5,9 +5,20 @@ import { whileWindowVisible } from "../lib/windowVisibleWork";
 import { pageMetaUrl } from "../lib/publishedPageUrls";
 
 /** The publishing session as ?meta=1 names it; null when its owner hides it. */
-export type PageSession = { short_id: string; conversation_id: string | null; title: string | null; short_title: string | null };
+export type PageSession = {
+  short_id: string;
+  conversation_id: string | null;
+  title: string | null;
+  short_title: string | null;
+};
 
-export type PageAgent = { state: string; since: number; awaiting_since: number | null; chip: PageAgentChip; session: PageSession | null };
+export type PageAgent = {
+  state: string;
+  since: number;
+  awaiting_since: number | null;
+  chip: PageAgentChip;
+  session: PageSession | null;
+};
 
 const IDLE_POLL_MS = 30_000;
 const ACTIVE_POLL_MS = 5_000;
@@ -16,7 +27,8 @@ const ACTIVE_POLL_MS = 5_000;
 // the frame pool, a second embed of it) paints the chip at once and waits out
 // the poll interval instead of asking the origin again.
 const lastRead = new Map<string, { agent: PageAgent | null; at: number }>();
-const pollMs = (agent: PageAgent | null) => (agent && agent.chip !== "idle" ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+const pollMs = (agent: PageAgent | null) =>
+  agent && agent.chip !== "idle" ? ACTIVE_POLL_MS : IDLE_POLL_MS;
 
 /** The publishing session of a published page, as the page's own bar shows
  *  it: read from the page's ?meta=1. Polled over HTTP while the embed is
@@ -31,7 +43,9 @@ export function sessionName(agent: PageAgent): string | null {
 }
 
 export function usePageAgent(slug: string, enabled: boolean): PageAgent | null {
-  const [agent, setAgent] = useState<PageAgent | null>(() => lastRead.get(slug)?.agent ?? null);
+  const [agent, setAgent] = useState<PageAgent | null>(
+    () => lastRead.get(slug)?.agent ?? null,
+  );
   useWatchEffect(() => {
     if (!enabled) return;
     return whileWindowVisible((resumed) => {
@@ -40,12 +54,30 @@ export function usePageAgent(slug: string, enabled: boolean): PageAgent | null {
       const tick = async () => {
         let next = lastRead.get(slug)?.agent ?? null;
         try {
-          const res = await fetch(pageMetaUrl(slug), { cache: "no-store", signal: controller.signal });
-          const meta = res.ok ? ((await res.json()) as { agent?: Omit<PageAgent, "session"> | null; session?: PageSession | null }) : null;
+          const res = await fetch(pageMetaUrl(slug), {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const meta = res.ok
+            ? ((await res.json()) as {
+                agent?: Omit<PageAgent, "session"> | null;
+                session?: PageSession | null;
+              })
+            : null;
           if (controller.signal.aborted) return;
-          next = meta?.agent ? { ...meta.agent, session: meta.session ?? null } : null;
+          next = meta?.agent
+            ? { ...meta.agent, session: meta.session ?? null }
+            : null;
           lastRead.set(slug, { agent: next, at: Date.now() });
-          setAgent((prev) => (prev && next && prev.chip === next.chip && prev.since === next.since && sessionName(prev) === sessionName(next) ? prev : next));
+          setAgent((prev) =>
+            prev &&
+            next &&
+            prev.chip === next.chip &&
+            prev.since === next.since &&
+            sessionName(prev) === sessionName(next)
+              ? prev
+              : next,
+          );
         } catch {
           /* enrichment only: keep the last state */
         }
@@ -53,7 +85,8 @@ export function usePageAgent(slug: string, enabled: boolean): PageAgent | null {
       };
       // A recent answer stands on mount. A window that returns refreshes now.
       const cached = lastRead.get(slug);
-      const wait = !resumed && cached ? cached.at + pollMs(cached.agent) - Date.now() : 0;
+      const wait =
+        !resumed && cached ? cached.at + pollMs(cached.agent) - Date.now() : 0;
       if (wait > 0) timer = setTimeout(tick, wait);
       else void tick();
       return () => {

@@ -64,18 +64,31 @@ export const watchBrowser = mutation({
   },
   handler: async (ctx, args) => {
     const viewerId = await requireUserOrToken(ctx, args.api_token);
-    if (!isValidBrowserStreamKey(args.key)) throw new Error("Invalid session key");
-    if (args.session_uuid !== undefined && !isValidBrowserStreamKey(args.session_uuid)) throw new Error("Invalid session");
-    if (args.tmux_session !== undefined && !isValidBrowserStreamKey(args.tmux_session)) throw new Error("Invalid session");
+    if (!isValidBrowserStreamKey(args.key))
+      throw new Error("Invalid session key");
+    if (
+      args.session_uuid !== undefined &&
+      !isValidBrowserStreamKey(args.session_uuid)
+    )
+      throw new Error("Invalid session");
+    if (
+      args.tmux_session !== undefined &&
+      !isValidBrowserStreamKey(args.tmux_session)
+    )
+      throw new Error("Invalid session");
 
     const userId = await resolveQueueUser(ctx, viewerId, args);
-    if (!userId) return { ok: false as const, reason: "unknown-device" as const };
+    if (!userId)
+      return { ok: false as const, reason: "unknown-device" as const };
 
     const now = Date.now();
     const row = await findRow(ctx, userId, args.device_id, args.key);
     const watch_until = now + BROWSER_RELAY_LEASE_MS;
-    const streamerCold = !row || now - (row.streamer_seen_at ?? 0) > BROWSER_RELAY_STREAMER_STALE_MS;
-    const commandCold = !row || now - (row.requested_at ?? 0) > BROWSER_RELAY_COMMAND_DEBOUNCE_MS;
+    const streamerCold =
+      !row ||
+      now - (row.streamer_seen_at ?? 0) > BROWSER_RELAY_STREAMER_STALE_MS;
+    const commandCold =
+      !row || now - (row.requested_at ?? 0) > BROWSER_RELAY_COMMAND_DEBOUNCE_MS;
     const dispatch = streamerCold && commandCold;
 
     if (dispatch) {
@@ -96,7 +109,10 @@ export const watchBrowser = mutation({
     // Only pushed forward, so two viewers cannot switch each other's fast
     // poll off.
     const interactive_until = args.interactive
-      ? Math.max(row?.interactive_until ?? 0, now + BROWSER_RELAY_INTERACTIVE_TTL_MS)
+      ? Math.max(
+          row?.interactive_until ?? 0,
+          now + BROWSER_RELAY_INTERACTIVE_TTL_MS,
+        )
       : row?.interactive_until;
 
     if (row) {
@@ -155,10 +171,18 @@ export const getBrowser = query({
       frame_w: row.frame_w ?? 0,
       frame_h: row.frame_h ?? 0,
       seq: row.seq,
-      tab: row.tab_id ? { id: row.tab_id, title: row.tab_title ?? "", url: row.tab_url ?? "" } : null,
+      tab: row.tab_id
+        ? { id: row.tab_id, title: row.tab_title ?? "", url: row.tab_url ?? "" }
+        : null,
       control: row.control === true,
       actions: parseJsonArray(row.actions),
-      end: row.end ? (JSON.parse(row.end) as { kind: "error" | "exit"; code: string; message?: string }) : null,
+      end: row.end
+        ? (JSON.parse(row.end) as {
+            kind: "error" | "exit";
+            code: string;
+            message?: string;
+          })
+        : null,
       streamer_seen_at: row.streamer_seen_at ?? null,
       requested_at: row.requested_at ?? null,
     };
@@ -178,7 +202,9 @@ export const cliPushBrowserFrame = mutation({
     frame: v.optional(v.string()),
     frame_w: v.optional(v.number()),
     frame_h: v.optional(v.number()),
-    tab: v.optional(v.object({ id: v.string(), title: v.string(), url: v.string() })),
+    tab: v.optional(
+      v.object({ id: v.string(), title: v.string(), url: v.string() }),
+    ),
     control: v.optional(v.boolean()),
     /** The daemon's recent actions for the tab, JSON array, newest last. */
     actions: v.optional(v.string()),
@@ -187,13 +213,20 @@ export const cliPushBrowserFrame = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    if (!isValidBrowserStreamKey(args.key)) throw new Error("Invalid session key");
+    if (!isValidBrowserStreamKey(args.key))
+      throw new Error("Invalid session key");
     const now = Date.now();
     const row = await findRow(ctx, userId, args.device_id, args.key);
     if (!row) return { stop: true, fast: false };
 
-    const patch: Record<string, unknown> = { streamer_seen_at: now, updated_at: now };
-    if (args.frame !== undefined && args.frame.length <= BROWSER_RELAY_MAX_FRAME_CHARS) {
+    const patch: Record<string, unknown> = {
+      streamer_seen_at: now,
+      updated_at: now,
+    };
+    if (
+      args.frame !== undefined &&
+      args.frame.length <= BROWSER_RELAY_MAX_FRAME_CHARS
+    ) {
       patch.frame = args.frame;
       patch.frame_w = args.frame_w;
       patch.frame_h = args.frame_h;
@@ -205,7 +238,8 @@ export const cliPushBrowserFrame = mutation({
       patch.tab_url = args.tab.url.slice(0, 4000);
     }
     if (args.control !== undefined) patch.control = args.control;
-    if (args.actions !== undefined && args.actions.length <= 8_000) patch.actions = args.actions;
+    if (args.actions !== undefined && args.actions.length <= 8_000)
+      patch.actions = args.actions;
     if (args.end !== undefined) {
       patch.end = args.end.slice(0, 2_000);
       // The streamer is gone: the next renewal (a retry, a resume) must queue
@@ -239,7 +273,8 @@ export const sendBrowserInput = mutation({
   },
   handler: async (ctx, args) => {
     const viewerId = await requireUserOrToken(ctx, args.api_token);
-    if (args.events.length === 0 || args.events.length > 64) throw new Error("Invalid input batch");
+    if (args.events.length === 0 || args.events.length > 64)
+      throw new Error("Invalid input batch");
     const userId = await resolveQueueUser(ctx, viewerId, args);
     if (!userId) return { ok: false as const, reason: "not-watching" as const };
     const row = await findRow(ctx, userId, args.device_id, args.key);

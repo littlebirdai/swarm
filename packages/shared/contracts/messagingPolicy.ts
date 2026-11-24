@@ -41,16 +41,28 @@ An entry is one of three kinds. A fact is a finding that a teammate can use, wit
 
 Share an entry when someone on the team may need it. Leave out progress, plans and findings that matter only to you. Keep messages for what must change the next action of one agent now.`;
 
-export const MESSAGING_POLICIES: Record<MessagingPolicyName, MessagingPolicy> = {
-  lead: { name: "lead", guidance: LEAD_GUIDANCE, delivery: "lead-feed" },
-  "shared-log": { name: "shared-log", guidance: SHARED_LOG_GUIDANCE, delivery: "plan-log" },
-};
+export const MESSAGING_POLICIES: Record<MessagingPolicyName, MessagingPolicy> =
+  {
+    lead: { name: "lead", guidance: LEAD_GUIDANCE, delivery: "lead-feed" },
+    "shared-log": {
+      name: "shared-log",
+      guidance: SHARED_LOG_GUIDANCE,
+      delivery: "plan-log",
+    },
+  };
 
-export function isMessagingPolicyName(name: unknown): name is MessagingPolicyName {
-  return typeof name === "string" && (MESSAGING_POLICY_NAMES as readonly string[]).includes(name);
+export function isMessagingPolicyName(
+  name: unknown,
+): name is MessagingPolicyName {
+  return (
+    typeof name === "string" &&
+    (MESSAGING_POLICY_NAMES as readonly string[]).includes(name)
+  );
 }
 
 /** The policy a plan names; anything unset or unknown is `lead`. */
 export function resolveMessagingPolicy(name?: string | null): MessagingPolicy {
-  return MESSAGING_POLICIES[isMessagingPolicyName(name) ? name : DEFAULT_MESSAGING_POLICY];
+  return MESSAGING_POLICIES[
+    isMessagingPolicyName(name) ? name : DEFAULT_MESSAGING_POLICY
+  ];
 }

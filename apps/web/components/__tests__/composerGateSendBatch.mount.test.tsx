@@ -3,7 +3,19 @@ import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 
 mock.module("sonner", () => {
   const noop = () => 1;
-  return { toast: Object.assign(noop, { error: noop, info: noop, success: noop, warning: noop, dismiss: () => {}, loading: noop, custom: noop, promise: (p: any) => p }), Toaster: () => null };
+  return {
+    toast: Object.assign(noop, {
+      error: noop,
+      info: noop,
+      success: noop,
+      warning: noop,
+      dismiss: () => {},
+      loading: noop,
+      custom: noop,
+      promise: (p: any) => p,
+    }),
+    Toaster: () => null,
+  };
 });
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -39,16 +51,32 @@ function fakeConvex() {
   const client = offlineConvexClient("https://example.convex.cloud");
   (client as any).mutation = async () => null;
   (client as any).query = async () => null;
-  (client as any).watchQuery = () => ({ onUpdate: () => () => {}, localQueryResult: () => undefined, localQueryLogs: () => undefined, journal: () => undefined });
+  (client as any).watchQuery = () => ({
+    onUpdate: () => () => {},
+    localQueryResult: () => undefined,
+    localQueryLogs: () => undefined,
+    journal: () => undefined,
+  });
   return client;
 }
 
 beforeEach(() => {
   (useInboxStore.getState() as any)._setDispatch(async () => undefined);
-  useInboxStore.setState({ sessions: {}, conversations: {}, pendingMessages: {}, drafts: {}, reviewComments: {}, currentSessionId: null, currentUser: { _id: "user_gate_test", name: "Tester" } as any } as any);
+  useInboxStore.setState({
+    sessions: {},
+    conversations: {},
+    pendingMessages: {},
+    drafts: {},
+    reviewComments: {},
+    currentSessionId: null,
+    currentUser: { _id: "user_gate_test", name: "Tester" } as any,
+  } as any);
 });
 
-async function submitGated(agentType?: string, gated = true): Promise<string[]> {
+async function submitGated(
+  agentType?: string,
+  gated = true,
+): Promise<string[]> {
   const sent: string[] = [];
   const { MessageInput } = await import("../MessageInput");
   const container = w.document.createElement("div");
@@ -57,20 +85,46 @@ async function submitGated(agentType?: string, gated = true): Promise<string[]> 
   await act(async () => {
     root.render(
       <ConvexProvider client={fakeConvex()}>
-        <MessageInput conversationId={CONV_ID} status="active" agentType={agentType} onGateSend={gated ? (content) => { sent.push(content); } : undefined} />
+        <MessageInput
+          conversationId={CONV_ID}
+          status="active"
+          agentType={agentType}
+          onGateSend={
+            gated
+              ? (content) => {
+                  sent.push(content);
+                }
+              : undefined
+          }
+        />
       </ConvexProvider>,
     );
   });
   const form = container.querySelector("form")!;
-  await act(async () => { form.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true })); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    form.dispatchEvent(
+      new w.Event("submit", { bubbles: true, cancelable: true }),
+    );
+  });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   return sent;
 }
 
 test("a bare submit over a waiting quote sends the quote through the gate and clears the batch", async () => {
-  const quote = { id: "q1", messageId: "m1", blockIndex: 0, quote: "the line under review", body: "tighten this", createdAt: 1 };
+  const quote = {
+    id: "q1",
+    messageId: "m1",
+    blockIndex: 0,
+    quote: "the line under review",
+    body: "tighten this",
+    createdAt: 1,
+  };
   useInboxStore.getState().addReviewComment(CONV_ID, quote);
   const sent = await submitGated();
   expect(sent).toEqual([formatPendingComments([quote])]);
@@ -86,23 +140,50 @@ test("a bare submit with nothing waiting sends nothing", async () => {
 // the image and can describe it instead. Before this, an image-only gate send
 // emptied the composer and the image was gone with nothing sent.
 test("a hosted gate send with an image sends nothing and keeps the draft's image", async () => {
-  const image = { storageId: "st_img_1", name: "shot.png", type: "image/png", previewUrl: "blob:x" };
-  useInboxStore.setState({ drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } } } as any);
+  const image = {
+    storageId: "st_img_1",
+    name: "shot.png",
+    type: "image/png",
+    previewUrl: "blob:x",
+  };
+  useInboxStore.setState({
+    drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } },
+  } as any);
   expect(await submitGated("codecast")).toEqual([]);
-  expect((useInboxStore.getState().drafts[CONV_ID] as any)?.draft_image_storage_ids?.[0]?.storageId).toBe("st_img_1");
+  expect(
+    (useInboxStore.getState().drafts[CONV_ID] as any)
+      ?.draft_image_storage_ids?.[0]?.storageId,
+  ).toBe("st_img_1");
 });
 
 test("a hosted main-path send with a restored image adds no message and keeps the image", async () => {
-  const image = { storageId: "st_img_3", name: "shot.png", type: "image/png", previewUrl: "blob:z" };
-  useInboxStore.setState({ drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } } } as any);
+  const image = {
+    storageId: "st_img_3",
+    name: "shot.png",
+    type: "image/png",
+    previewUrl: "blob:z",
+  };
+  useInboxStore.setState({
+    drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } },
+  } as any);
   await submitGated("codecast", false);
   expect(useInboxStore.getState().pendingMessages[CONV_ID] ?? []).toEqual([]);
-  expect((useInboxStore.getState().drafts[CONV_ID] as any)?.draft_image_storage_ids?.[0]?.storageId).toBe("st_img_3");
+  expect(
+    (useInboxStore.getState().drafts[CONV_ID] as any)
+      ?.draft_image_storage_ids?.[0]?.storageId,
+  ).toBe("st_img_3");
 });
 
 test("for a local agent the same image rides the gate send", async () => {
-  const image = { storageId: "st_img_2", name: "shot.png", type: "image/png", previewUrl: "blob:y" };
-  useInboxStore.setState({ drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } } } as any);
+  const image = {
+    storageId: "st_img_2",
+    name: "shot.png",
+    type: "image/png",
+    previewUrl: "blob:y",
+  };
+  useInboxStore.setState({
+    drafts: { [CONV_ID]: { draft_image_storage_ids: [image] } },
+  } as any);
   expect(await submitGated("claude_code")).toEqual([""]);
 });
 
@@ -124,17 +205,39 @@ async function submitLimited(text: string, maxLength: number) {
   await act(async () => {
     root.render(
       <ConvexProvider client={fakeConvex()}>
-        <MessageInput conversationId={draftKey} bareComposer initialDraft={text} maxLength={maxLength} onGateSend={(content) => { sent.push(content); }} />
+        <MessageInput
+          conversationId={draftKey}
+          bareComposer
+          initialDraft={text}
+          maxLength={maxLength}
+          onGateSend={(content) => {
+            sent.push(content);
+          }}
+        />
       </ConvexProvider>,
     );
   });
-  const count = container.querySelector("[data-cc-over-limit]")?.textContent ?? null;
-  const sendDisabled = (container.querySelector('button[type="submit"]') as HTMLButtonElement | null)?.disabled ?? null;
+  const count =
+    container.querySelector("[data-cc-over-limit]")?.textContent ?? null;
+  const sendDisabled =
+    (
+      container.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement | null
+    )?.disabled ?? null;
   const form = container.querySelector("form")!;
-  await act(async () => { form.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true })); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+  await act(async () => {
+    form.dispatchEvent(
+      new w.Event("submit", { bubbles: true, cancelable: true }),
+    );
+  });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
   const left = container.querySelector("textarea")?.value ?? null;
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   return { sent, count, sendDisabled, left };
 }

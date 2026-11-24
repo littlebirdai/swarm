@@ -17,13 +17,35 @@ import { PERSON_ONLY, useAgentDrivenTab } from "../../lib/agentTabGuard";
 import { finishPresence, finishRegistration } from "../../lib/passkeyPresence";
 import { Button } from "../../components/ui/button";
 
-function Frame({ icon, title, sub, children }: { icon: React.ReactNode; title: string; sub?: string; children?: React.ReactNode }) {
+function Frame({
+  icon,
+  title,
+  sub,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  sub?: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <main className="min-h-screen bg-sol-bg flex items-center justify-center px-4" data-confirm-page>
+    <main
+      className="min-h-screen bg-sol-bg flex items-center justify-center px-4"
+      data-confirm-page
+    >
       <div className="w-full max-w-sm rounded-xl border border-sol-border bg-sol-bg-alt/50 p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sol-bg text-sol-text-muted">{icon}</div>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sol-bg text-sol-text-muted">
+          {icon}
+        </div>
         <h1 className="text-lg font-semibold text-sol-text">{title}</h1>
-        {sub && <p className="mt-1 break-words text-sm text-sol-text-muted" data-confirm-sub>{sub}</p>}
+        {sub && (
+          <p
+            className="mt-1 break-words text-sm text-sol-text-muted"
+            data-confirm-sub
+          >
+            {sub}
+          </p>
+        )}
         {children}
       </div>
     </main>
@@ -34,18 +56,30 @@ export default function ConfirmPage() {
   const id = useSearchParams()?.get("c") ?? "";
   const client = useConvex();
   // A failed read degrades to "Nothing to confirm" rather than an error screen.
-  const { data: state, error } = useQueryNoThrow(api.passkeys.challenge, id ? { challenge_id: id } : "skip");
+  const { data: state, error } = useQueryNoThrow(
+    api.passkeys.challenge,
+    id ? { challenge_id: id } : "skip",
+  );
   const agentTab = useAgentDrivenTab();
   const [busy, setBusy] = useState(false);
 
-  const pending = state?.status === "pending" && "options" in state ? state : null;
+  const pending =
+    state?.status === "pending" && "options" in state ? state : null;
   const register = state?.purpose === "register";
-  const held = agentTab ? (register ? PERSON_ONLY.enroll : PERSON_ONLY.confirm) : undefined;
+  const held = agentTab
+    ? register
+      ? PERSON_ONLY.enroll
+      : PERSON_ONLY.confirm
+    : undefined;
   const run = async () => {
     if (!pending || busy || held) return;
     setBusy(true);
     try {
-      await (register ? finishRegistration : finishPresence)(client, id, pending.options);
+      await (register ? finishRegistration : finishPresence)(
+        client,
+        id,
+        pending.options,
+      );
     } finally {
       setBusy(false);
     }
@@ -54,16 +88,50 @@ export default function ConfirmPage() {
     if (e.key === "Enter") void run();
   });
 
-  if (id && state === undefined && !error) return <Frame icon={<Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />} title="Loading" />;
-  if (!state) return <Frame icon={<Fingerprint className="h-5 w-5" />} title="Nothing to confirm" sub="Start again from Codecast" />;
+  if (id && state === undefined && !error)
+    return (
+      <Frame
+        icon={
+          <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+        }
+        title="Loading"
+      />
+    );
+  if (!state)
+    return (
+      <Frame
+        icon={<Fingerprint className="h-5 w-5" />}
+        title="Nothing to confirm"
+        sub="Start again from Codecast"
+      />
+    );
   if (state.status === "granted" || state.status === "used") {
-    return <Frame icon={<Check className="h-5 w-5 text-sol-green" />} title={register ? "Touch ID is set up" : "Confirmed"} sub="Back to Codecast: it carries on by itself" />;
+    return (
+      <Frame
+        icon={<Check className="h-5 w-5 text-sol-green" />}
+        title={register ? "Touch ID is set up" : "Confirmed"}
+        sub="Back to Codecast: it carries on by itself"
+      />
+    );
   }
-  if (!pending) return <Frame icon={<Clock className="h-5 w-5" />} title="This confirmation expired" sub="Start again from Codecast" />;
+  if (!pending)
+    return (
+      <Frame
+        icon={<Clock className="h-5 w-5" />}
+        title="This confirmation expired"
+        sub="Start again from Codecast"
+      />
+    );
 
-  const title = register ? "Set up Touch ID" : `Confirm to ${PRESENCE_PHRASE[pending.action!]}`;
+  const title = register
+    ? "Set up Touch ID"
+    : `Confirm to ${PRESENCE_PHRASE[pending.action!]}`;
   return (
-    <Frame icon={<Fingerprint className="h-5 w-5 text-sol-cyan" />} title={title} sub={pending.label}>
+    <Frame
+      icon={<Fingerprint className="h-5 w-5 text-sol-cyan" />}
+      title={title}
+      sub={pending.label}
+    >
       <Button
         type="button"
         variant="yellow"
@@ -74,9 +142,19 @@ export default function ConfirmPage() {
         className="mt-6 w-full px-4"
         data-confirm-run
       >
-        {held ? <Lock className="h-4 w-4" /> : busy ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Fingerprint className="h-4 w-4" />}
+        {held ? (
+          <Lock className="h-4 w-4" />
+        ) : busy ? (
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+        ) : (
+          <Fingerprint className="h-4 w-4" />
+        )}
         {held ?? (register ? "Set up Touch ID" : "Confirm with Touch ID")}
-        {!held && !busy && <KeyCap size="xs" tone="onAccent">return</KeyCap>}
+        {!held && !busy && (
+          <KeyCap size="xs" tone="onAccent">
+            return
+          </KeyCap>
+        )}
       </Button>
     </Frame>
   );

@@ -8,10 +8,21 @@
 // widget and the attempt's card all draw this one piece.
 import { useMemo, useState } from "react";
 import { Copy } from "lucide-react";
-import { closesArgument, closesSummary, earlierFixes, historyBrief, type CauseHistory } from "../../../lib/line/causeHistory";
+import {
+  closesArgument,
+  closesSummary,
+  earlierFixes,
+  historyBrief,
+  type CauseHistory,
+} from "../../../lib/line/causeHistory";
 import "../workspace/views/timeline/timeline.css";
 
-export function AlreadyTried({ h, brief: showBrief = false, exceptRunId, bare = false }: {
+export function AlreadyTried({
+  h,
+  brief: showBrief = false,
+  exceptRunId,
+  bare = false,
+}: {
   h: CauseHistory;
   /** Show the history the next attempt reads, to read and copy. */
   brief?: boolean;
@@ -29,9 +40,16 @@ export function AlreadyTried({ h, brief: showBrief = false, exceptRunId, bare = 
   const body = (
     <>
       {closed && (
-        <div className="lwt-tried-closed" data-back={h.recurrences.some((r) => r.count > 0) ? "" : undefined}>
+        <div
+          className="lwt-tried-closed"
+          data-back={h.recurrences.some((r) => r.count > 0) ? "" : undefined}
+        >
           <p>{closed}</p>
-          {argued && <p className="lwt-tried-argued" data-line-argument>{argued}</p>}
+          {argued && (
+            <p className="lwt-tried-argued" data-line-argument>
+              {argued}
+            </p>
+          )}
         </div>
       )}
       {fixes.length ? (
@@ -41,24 +59,44 @@ export function AlreadyTried({ h, brief: showBrief = false, exceptRunId, bare = 
               <span className="lwt-tried-n">#{f.attempt}</span>
               <div>
                 <p>{f.change}</p>
-                <small>{f.live}.{f.back ? ` ${f.back}` : f.held ? ` ${f.held}` : ""}</small>
+                <small>
+                  {f.live}.{f.back ? ` ${f.back}` : f.held ? ` ${f.held}` : ""}
+                </small>
               </div>
             </li>
           ))}
         </ol>
-      ) : !closed ? <p className="lwt-quiet">Nothing shipped yet; earlier attempts stopped before a fix.</p> : null}
+      ) : !closed ? (
+        <p className="lwt-quiet">
+          Nothing shipped yet; earlier attempts stopped before a fix.
+        </p>
+      ) : null}
       {showBrief && (
         <details className="lwt-brief">
           <summary>The history the next attempt reads</summary>
           <pre>{brief}</pre>
-          <button type="button" className="lw-act" onClick={() => { void navigator.clipboard?.writeText(brief); setCopied(true); setTimeout(() => setCopied(false), 1400); }}>
-            <Copy className="w-3.5 h-3.5" />{copied ? "Copied" : "Copy"}
+          <button
+            type="button"
+            className="lw-act"
+            onClick={() => {
+              void navigator.clipboard?.writeText(brief);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1400);
+            }}
+          >
+            <Copy className="w-3.5 h-3.5" />
+            {copied ? "Copied" : "Copy"}
           </button>
         </details>
       )}
     </>
   );
-  if (bare) return <div className="lwt-vars" data-line-memory>{body}</div>;
+  if (bare)
+    return (
+      <div className="lwt-vars" data-line-memory>
+        {body}
+      </div>
+    );
   return (
     <section className="lwt-side-box lwt-vars" data-line-memory>
       <h3 className="lwt-sec-h">Already tried</h3>

@@ -17,9 +17,24 @@ describe("groupComments", () => {
     const grouped = groupComments([
       comment({ _id: "g1", content: "global", created_at: 3 }),
       comment({ _id: "m1", message_id: "msg-1", created_at: 1 }),
-      comment({ _id: "f1", file_path: "codecast/foo.ts", line_number: 42, created_at: 2 }),
-      comment({ _id: "f2", file_path: "codecast/foo.ts", line_number: 42, created_at: 5 }),
-      comment({ _id: "f3", file_path: "codecast/foo.ts", line_number: 7, created_at: 4 }),
+      comment({
+        _id: "f1",
+        file_path: "codecast/foo.ts",
+        line_number: 42,
+        created_at: 2,
+      }),
+      comment({
+        _id: "f2",
+        file_path: "codecast/foo.ts",
+        line_number: 42,
+        created_at: 5,
+      }),
+      comment({
+        _id: "f3",
+        file_path: "codecast/foo.ts",
+        line_number: 7,
+        created_at: 4,
+      }),
     ]);
 
     expect(grouped.global.comments.map((c) => c._id)).toEqual(["g1"]);
@@ -39,7 +54,12 @@ describe("groupComments", () => {
     // GitHub PR sync can stamp file_path onto message-anchored rows; the message
     // thread stays the identity so the rail keeps one thread, not two.
     const grouped = groupComments([
-      comment({ _id: "m1", message_id: "msg-1", file_path: "codecast/foo.ts", line_number: 3 }),
+      comment({
+        _id: "m1",
+        message_id: "msg-1",
+        file_path: "codecast/foo.ts",
+        line_number: 3,
+      }),
     ]);
     expect(grouped.anchored).toHaveLength(1);
     expect(grouped.files).toHaveLength(0);
@@ -47,13 +67,28 @@ describe("groupComments", () => {
 
   test("a thread is resolved only when every comment carries the stamp", () => {
     const resolved = groupComments([
-      comment({ _id: "f1", file_path: "codecast/foo.ts", line_number: 1, resolved_at: 10 }),
-      comment({ _id: "f2", file_path: "codecast/foo.ts", line_number: 1, resolved_at: 10 }),
+      comment({
+        _id: "f1",
+        file_path: "codecast/foo.ts",
+        line_number: 1,
+        resolved_at: 10,
+      }),
+      comment({
+        _id: "f2",
+        file_path: "codecast/foo.ts",
+        line_number: 1,
+        resolved_at: 10,
+      }),
     ]);
     expect(resolved.files[0].resolved).toBe(true);
 
     const reopened = groupComments([
-      comment({ _id: "f1", file_path: "codecast/foo.ts", line_number: 1, resolved_at: 10 }),
+      comment({
+        _id: "f1",
+        file_path: "codecast/foo.ts",
+        line_number: 1,
+        resolved_at: 10,
+      }),
       comment({ _id: "f3", file_path: "codecast/foo.ts", line_number: 1 }),
     ]);
     expect(reopened.files[0].resolved).toBe(false);
@@ -65,6 +100,8 @@ describe("groupComments", () => {
     ]);
     expect(grouped.files).toHaveLength(1);
     expect(grouped.files[0].lineNumber).toBeUndefined();
-    expect(grouped.files[0].key).toBe(fileThreadKey("codecast/foo.ts", undefined));
+    expect(grouped.files[0].key).toBe(
+      fileThreadKey("codecast/foo.ts", undefined),
+    );
   });
 });

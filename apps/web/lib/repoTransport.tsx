@@ -29,7 +29,11 @@ export function RepoTransportProvider({
   mode: RepoTransportMode;
   children: ReactNode;
 }) {
-  return <TransportContext.Provider value={mode}>{children}</TransportContext.Provider>;
+  return (
+    <TransportContext.Provider value={mode}>
+      {children}
+    </TransportContext.Provider>
+  );
 }
 
 export function useRepoTransport(): RepoTransportMode {
@@ -51,8 +55,17 @@ export function publicRepoUrl(
 
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key === "repository" || value === undefined || value === null || value === "") continue;
-    query.set(key, typeof value === "boolean" ? (value ? "1" : "0") : String(value));
+    if (
+      key === "repository" ||
+      value === undefined ||
+      value === null ||
+      value === ""
+    )
+      continue;
+    query.set(
+      key,
+      typeof value === "boolean" ? (value ? "1" : "0") : String(value),
+    );
   }
   const suffix = query.toString();
   return `${getConvexUrl()}${PUBLIC_REPO_BASE}${repository}/${kind}${suffix ? `?${suffix}` : ""}`;
@@ -71,13 +84,20 @@ type PublicResult = { data?: unknown; missing: boolean; error?: Error };
 const cache = new Map<string, { at: number; request: Promise<PublicResult> }>();
 
 async function fetchPublic(url: string): Promise<PublicResult> {
-  const response = await fetch(url, { cache: "no-store", credentials: "omit", headers: { Accept: "application/json" } });
+  const response = await fetch(url, {
+    cache: "no-store",
+    credentials: "omit",
+    headers: { Accept: "application/json" },
+  });
   // The route answers 404 for a private repository, one it has never heard of,
   // and a ref or path that does not exist. None of those is a failure to show
   // as an error: the surface has nothing to render and says so.
   if (response.status === 404) return { missing: true };
   if (!response.ok) {
-    return { missing: false, error: new Error(`Repository read failed (${response.status})`) };
+    return {
+      missing: false,
+      error: new Error(`Repository read failed (${response.status})`),
+    };
   }
   return { data: await response.json(), missing: false };
 }
@@ -86,11 +106,16 @@ export function readPublic(url: string): Promise<PublicResult> {
   const hit = cache.get(url);
   if (hit) return hit.request;
 
-  const request = fetchPublic(url).catch((error: unknown) => {
-    // A failed request must not be remembered as this minute's answer.
-    cache.delete(url);
-    return { missing: false, error: error instanceof Error ? error : new Error(String(error)) };
-  }).finally(() => cache.delete(url));
+  const request = fetchPublic(url)
+    .catch((error: unknown) => {
+      // A failed request must not be remembered as this minute's answer.
+      cache.delete(url);
+      return {
+        missing: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    })
+    .finally(() => cache.delete(url));
   cache.set(url, { at: Date.now(), request });
   return request;
 }
@@ -112,7 +137,10 @@ export type PublicRead<T> = {
 /** The public half of a read. `url === null` reads nothing at all. */
 export function usePublicRepoRead<T>(url: string | null): PublicRead<T> {
   const cycle = useCoarseNow(60_000);
-  const [state, setState] = useState<{ url: string | null; result?: PublicResult }>({ url: null });
+  const [state, setState] = useState<{
+    url: string | null;
+    result?: PublicResult;
+  }>({ url: null });
 
   useWatchEffect(() => {
     if (!url) return;

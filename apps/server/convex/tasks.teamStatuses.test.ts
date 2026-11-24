@@ -35,13 +35,17 @@ function ctx(statuses?: any[]) {
 
 describe("resolveStatusWrite — category only", () => {
   test("a category change clears the stale refinement", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", { status: "open" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", {
+      status: "open",
+    });
     expect(r.status).toBe("open");
     expect(r.statusId).toEqual({ set: true, value: undefined });
   });
 
   test("a same-category write keeps the refinement (cast task start on a refined task)", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", { status: "in_progress" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", {
+      status: "in_progress",
+    });
     expect(r.statusId.set).toBe(false);
   });
 
@@ -53,26 +57,51 @@ describe("resolveStatusWrite — category only", () => {
 
   test("an unknown status is refused with the team's vocabulary", async () => {
     await expect(
-      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "shipping_soon" }),
-    ).rejects.toThrow(/Invalid task status 'shipping_soon'.*backlog.*working_on.*shipped/);
+      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+        status: "shipping_soon",
+      }),
+    ).rejects.toThrow(
+      /Invalid task status 'shipping_soon'.*backlog.*working_on.*shipped/,
+    );
   });
 });
 
 describe("resolveStatusWrite — near-miss words", () => {
   test("cancelled, wontfix and review mean their category, clearing the refinement", async () => {
-    for (const [word, category] of [["cancelled", "dropped"], ["canceled", "dropped"], ["won't fix", "dropped"], ["review", "in_review"], ["completed", "done"]]) {
-      const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", { status: word });
-      expect(r).toEqual({ status: category as any, statusId: { set: true, value: undefined } });
+    for (const [word, category] of [
+      ["cancelled", "dropped"],
+      ["canceled", "dropped"],
+      ["won't fix", "dropped"],
+      ["review", "in_review"],
+      ["completed", "done"],
+    ]) {
+      const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", {
+        status: word,
+      });
+      expect(r).toEqual({
+        status: category as any,
+        statusId: { set: true, value: undefined },
+      });
     }
   });
 
   test("a team status of the same name wins over the alias", async () => {
-    const r = await resolveStatusWrite(ctx([...CUSTOM, { id: "st_cx", name: "Cancelled", category: "done" }]), TEAM, "open", { status: "cancelled" });
-    expect(r).toEqual({ status: "done", statusId: { set: true, value: "st_cx" } });
+    const r = await resolveStatusWrite(
+      ctx([...CUSTOM, { id: "st_cx", name: "Cancelled", category: "done" }]),
+      TEAM,
+      "open",
+      { status: "cancelled" },
+    );
+    expect(r).toEqual({
+      status: "done",
+      statusId: { set: true, value: "st_cx" },
+    });
   });
 
   test("blocked points at task dependencies", async () => {
-    await expect(resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "blocked" })).rejects.toThrow(/cast task dep <id> --blocked-by/);
+    await expect(
+      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "blocked" }),
+    ).rejects.toThrow(/cast task dep <id> --blocked-by/);
   });
 });
 
@@ -81,21 +110,28 @@ describe("resolveStatusWrite — near-miss words", () => {
 describe("resolveStatusWrite — team status named in status", () => {
   test("a name, in any case or separator, sets the category and the id", async () => {
     for (const ref of ["Working on", "working_on", "WORKING-ON", "st_wip"]) {
-      const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: ref });
+      const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+        status: ref,
+      });
       expect(r.status).toBe("in_progress");
       expect(r.statusId).toEqual({ set: true, value: "st_wip" });
     }
   });
 
   test("a renamed category default resolves with no refinement", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", { status: "todo" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", {
+      status: "todo",
+    });
     expect(r.status).toBe("open");
     expect(r.statusId).toEqual({ set: true, value: undefined });
   });
 
   test("a name that disagrees with status_id is refused", async () => {
     await expect(
-      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "shipped", status_id: "st_wip" }),
+      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+        status: "shipped",
+        status_id: "st_wip",
+      }),
     ).rejects.toThrow(/does not match/);
   });
 
@@ -108,19 +144,25 @@ describe("resolveStatusWrite — team status named in status", () => {
 
 describe("resolveStatusWrite — status_id", () => {
   test("a custom status sets its category and stores the id", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status_id: "st_wip" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+      status_id: "st_wip",
+    });
     expect(r.status).toBe("in_progress");
     expect(r.statusId).toEqual({ set: true, value: "st_wip" });
   });
 
   test("picking a category default stores no refinement", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status_id: "in_progress" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+      status_id: "in_progress",
+    });
     expect(r.status).toBe("in_progress");
     expect(r.statusId).toEqual({ set: true, value: undefined });
   });
 
   test("empty string clears back to the category default", async () => {
-    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", { status_id: "" });
+    const r = await resolveStatusWrite(ctx(CUSTOM), TEAM, "in_progress", {
+      status_id: "",
+    });
     expect(r.statusId).toEqual({ set: true, value: undefined });
   });
 
@@ -132,15 +174,23 @@ describe("resolveStatusWrite — status_id", () => {
 
   test("a status sent alongside must agree with the id's category", async () => {
     await expect(
-      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "open", status_id: "st_wip" }),
+      resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+        status: "open",
+        status_id: "st_wip",
+      }),
     ).rejects.toThrow(/category/);
-    const ok = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", { status: "done", status_id: "st_ship" });
+    const ok = await resolveStatusWrite(ctx(CUSTOM), TEAM, "open", {
+      status: "done",
+      status_id: "st_ship",
+    });
     expect(ok.status).toBe("done");
     expect(ok.statusId).toEqual({ set: true, value: "st_ship" });
   });
 
   test("a personal task (no team) resolves against the defaults", async () => {
-    const ok = await resolveStatusWrite(ctx(), undefined, "open", { status_id: "in_review" });
+    const ok = await resolveStatusWrite(ctx(), undefined, "open", {
+      status_id: "in_review",
+    });
     expect(ok.status).toBe("in_review");
     expect(ok.statusId).toEqual({ set: true, value: undefined });
     await expect(
@@ -149,7 +199,9 @@ describe("resolveStatusWrite — status_id", () => {
   });
 
   test("a team with no config resolves against the defaults too", async () => {
-    const ok = await resolveStatusWrite(ctx(), TEAM, "open", { status_id: "done" });
+    const ok = await resolveStatusWrite(ctx(), TEAM, "open", {
+      status_id: "done",
+    });
     expect(ok.status).toBe("done");
     expect(ok.statusId).toEqual({ set: true, value: undefined });
   });

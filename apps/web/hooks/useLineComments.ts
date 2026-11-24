@@ -20,7 +20,11 @@ import type { CodeAnchorText } from "@codecast/shared/comments";
 
 const api = _api as any;
 
-export type ComposingLine = { file: string; anchor: DiffLineAnchor; anchorLines?: CodeAnchorText };
+export type ComposingLine = {
+  file: string;
+  anchor: DiffLineAnchor;
+  anchorLines?: CodeAnchorText;
+};
 
 export type LineComments = {
   /** file to anchor key (`diffLineKey`: side and line) to the thread there, with
@@ -30,7 +34,11 @@ export type LineComments = {
   composing: ComposingLine | null;
   /** `anchorLines`: the text under the anchor, stored with a new thread so it
    *  can be found again after the code moves (shared/comments/codeAnchor.ts). */
-  openComposer: (file: string, anchor: DiffLineAnchor, anchorLines?: CodeAnchorText) => void;
+  openComposer: (
+    file: string,
+    anchor: DiffLineAnchor,
+    anchorLines?: CodeAnchorText,
+  ) => void;
   closeComposer: () => void;
   post: (fields: Record<string, unknown>) => Promise<void>;
   setThreadResolved: (thread: CodeCommentRow[], resolved: boolean) => void;
@@ -77,10 +85,13 @@ export function useLineComments({
     async (rawFields: Record<string, unknown>) => {
       // A new thread on the line the composer opened on keeps that line's
       // text; a reply inherits its root's on the server.
-      const fields = !rawFields.parent_id && composing?.anchorLines && rawFields.file_path === composing.file
-        && rawFields.line_number === composing.anchor.lineNumber
-        ? { anchor_lines: composing.anchorLines, ...rawFields }
-        : rawFields;
+      const fields =
+        !rawFields.parent_id &&
+        composing?.anchorLines &&
+        rawFields.file_path === composing.file &&
+        rawFields.line_number === composing.anchor.lineNumber
+          ? { anchor_lines: composing.anchorLines, ...rawFields }
+          : rawFields;
       const clientId = newCommentClientId();
       // Render it now; the server row carrying this client_id supersedes the
       // stub when the feed echoes it back (the collection's altKey).
@@ -108,14 +119,23 @@ export function useLineComments({
         ...fields,
       });
     },
-    [createComment, repository, ref, conversationId, mirror, user?._id, composing],
+    [
+      createComment,
+      repository,
+      ref,
+      conversationId,
+      mirror,
+      user?._id,
+      composing,
+    ],
   );
 
   return {
     threadsByFile,
     composing,
     openComposer: useCallback(
-      (file: string, anchor: DiffLineAnchor, anchorLines?: CodeAnchorText) => setComposing({ file, anchor, anchorLines }),
+      (file: string, anchor: DiffLineAnchor, anchorLines?: CodeAnchorText) =>
+        setComposing({ file, anchor, anchorLines }),
       [],
     ),
     closeComposer: useCallback(() => setComposing(null), []),
@@ -129,14 +149,22 @@ export function useLineComments({
  * Resolve or reopen a code review thread: one undoable gesture through the
  * store, painted at once. An optimistic stub has no server row to settle yet.
  */
-export function setCodeThreadResolved(thread: CodeCommentRow[], resolved: boolean): void {
+export function setCodeThreadResolved(
+  thread: CodeCommentRow[],
+  resolved: boolean,
+): void {
   const ids = thread.flatMap((comment) => serverCommentId(comment._id) ?? []);
-  if (ids.length > 0) useInboxStore.getState().resolveCodeCommentThread(ids, resolved);
+  if (ids.length > 0)
+    useInboxStore.getState().resolveCodeCommentThread(ids, resolved);
 }
 
 /** The session a code page should attribute its comments to: the one named in
  *  the URL, else the one the reader has open beside it. */
-export function useAttributedSession(fromUrl: string | null | undefined): string | undefined {
-  const fromRail = useInboxStore((s) => s.currentSessionId ?? s.sidePanelSessionId ?? null);
+export function useAttributedSession(
+  fromUrl: string | null | undefined,
+): string | undefined {
+  const fromRail = useInboxStore(
+    (s) => s.currentSessionId ?? s.sidePanelSessionId ?? null,
+  );
   return fromUrl || fromRail || undefined;
 }

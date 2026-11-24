@@ -37,7 +37,15 @@ function tables() {
   return {
     users: [{ _id: VICTIM }, { _id: ATTACKER }],
     teams: [{ _id: VICTIM_TEAM, name: "Victim Team" }],
-    team_memberships: [{ _id: "tm_v", user_id: VICTIM, team_id: VICTIM_TEAM, role: "admin", joined_at: 1 }],
+    team_memberships: [
+      {
+        _id: "tm_v",
+        user_id: VICTIM,
+        team_id: VICTIM_TEAM,
+        role: "admin",
+        joined_at: 1,
+      },
+    ],
     github_app_install_intents: [] as any[],
     github_app_installations: [] as any[],
     github_installation_tokens: [] as any[],
@@ -68,7 +76,8 @@ function actionCtx(t: Record<string, any[]>) {
   const scheduled: any[] = [];
   const run = async (ref: any, args: any) => {
     const name = getFunctionName(ref);
-    if (name === "githubApp:fetchInstallationDetails") return INSTALLATION_DETAILS;
+    if (name === "githubApp:fetchInstallationDetails")
+      return INSTALLATION_DETAILS;
     const fn = registry[name];
     if (!fn) throw new Error(`no test handler for ${name}`);
     return (fn as any)._handler({ db }, args);
@@ -78,7 +87,11 @@ function actionCtx(t: Record<string, any[]>) {
     runMutation: run,
     runQuery: run,
     runAction: run,
-    scheduler: { runAfter: async (_ms: number, ref: any, args: any) => { scheduled.push({ ref, args }); } },
+    scheduler: {
+      runAfter: async (_ms: number, ref: any, args: any) => {
+        scheduled.push({ ref, args });
+      },
+    },
     _scheduled: scheduled,
   } as any;
 }
@@ -93,23 +106,42 @@ function stubGitHub(opts: { controls?: number[]; codeValid?: boolean } = {}) {
   globalThis.fetch = (async (input: any) => {
     const url = typeof input === "string" ? input : input.url;
     if (url.startsWith("https://github.com/login/oauth/access_token")) {
-      return Response.json(opts.codeValid === false ? { error: "bad_verification_code" } : { access_token: "ghu_user" });
+      return Response.json(
+        opts.codeValid === false
+          ? { error: "bad_verification_code" }
+          : { access_token: "ghu_user" },
+      );
     }
     if (url.startsWith("https://api.github.com/user/installations")) {
-      return Response.json({ installations: controls.map((id) => ({ id, account: { login: "victim-org" } })) });
+      return Response.json({
+        installations: controls.map((id) => ({
+          id,
+          account: { login: "victim-org" },
+        })),
+      });
     }
     throw new Error(`unexpected fetch ${url}`);
   }) as any;
 }
 
 const callback = (ctx: any, params: Record<string, string>) =>
-  installCallbackHandler(ctx, new Request(`https://site.convex.site/api/github-app/callback?${new URLSearchParams(params)}`));
+  installCallbackHandler(
+    ctx,
+    new Request(
+      `https://site.convex.site/api/github-app/callback?${new URLSearchParams(params)}`,
+    ),
+  );
 
-const errorOf = (res: Response) => new URL(res.headers.get("Location")!).searchParams.get("error");
-const successOf = (res: Response) => new URL(res.headers.get("Location")!).searchParams.get("success");
+const errorOf = (res: Response) =>
+  new URL(res.headers.get("Location")!).searchParams.get("error");
+const successOf = (res: Response) =>
+  new URL(res.headers.get("Location")!).searchParams.get("success");
 
 /** A real intent, minted the way getInstallUrl mints it. */
-async function mintIntent(ctx: any, over: Record<string, any> = {}): Promise<string> {
+async function mintIntent(
+  ctx: any,
+  over: Record<string, any> = {},
+): Promise<string> {
   const nonce = newGithubAppInstallNonce();
   const res = await (createInstallIntent as any)._handler(ctx, {
     nonce_hash: await sha256Hex(nonce),
@@ -123,7 +155,10 @@ async function mintIntent(ctx: any, over: Record<string, any> = {}): Promise<str
 }
 
 const realFetch = globalThis.fetch;
-const savedEnv = { id: process.env.GITHUB_APP_CLIENT_ID, secret: process.env.GITHUB_APP_CLIENT_SECRET };
+const savedEnv = {
+  id: process.env.GITHUB_APP_CLIENT_ID,
+  secret: process.env.GITHUB_APP_CLIENT_SECRET,
+};
 beforeEach(() => {
   process.env.GITHUB_APP_CLIENT_ID = "Iv1.test";
   process.env.GITHUB_APP_CLIENT_SECRET = "client-secret";
@@ -140,8 +175,15 @@ describe("install callback: the state names no principal", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     // Exactly the state the old flow accepted: someone else's user and team.
-    const forged = btoa(JSON.stringify({ user_id: VICTIM, scope: "team", team_id: VICTIM_TEAM }));
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: forged, code: "c" });
+    const forged = btoa(
+      JSON.stringify({ user_id: VICTIM, scope: "team", team_id: VICTIM_TEAM }),
+    );
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: forged,
+      code: "c",
+    });
     expect(errorOf(res)).toBe("missing_intent");
     expect(t.github_app_installations).toHaveLength(0);
   });
@@ -151,7 +193,10 @@ describe("install callback: the state names no principal", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const res = await callback(ctx, {
-      installation_id: String(INSTALLATION_ID), setup_action: "install", state: newGithubAppInstallNonce(), code: "c",
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: newGithubAppInstallNonce(),
+      code: "c",
     });
     expect(errorOf(res)).toBe("unknown_intent");
     expect(t.github_app_installations).toHaveLength(0);
@@ -163,9 +208,13 @@ describe("install callback: the state names no principal", () => {
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
     const res = await callback(ctx, {
-      installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c",
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
       // Ignored: nothing in the query names a principal any more.
-      user_id: ATTACKER, team_id: "t_attacker",
+      user_id: ATTACKER,
+      team_id: "t_attacker",
     });
     expect(successOf(res)).toBe("true");
     expect(t.github_app_installations).toHaveLength(1);
@@ -185,8 +234,17 @@ describe("install callback: the caller must control the installation", () => {
     const ctx = actionCtx(t);
     // The attacker's own intent — authentic — and someone else's installation.
     stubGitHub({ controls: [OTHER_INSTALLATION_ID] });
-    const nonce = await mintIntent(ctx, { user_id: ATTACKER, scope: "personal", team_id: undefined });
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    const nonce = await mintIntent(ctx, {
+      user_id: ATTACKER,
+      scope: "personal",
+      team_id: undefined,
+    });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(errorOf(res)).toBe("installer_does_not_control_installation");
     expect(t.github_app_installations).toHaveLength(0);
     // The intent survives a refusal it did not cause, so an honest retry works.
@@ -198,7 +256,11 @@ describe("install callback: the caller must control the installation", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+    });
     expect(errorOf(res)).toBe("install_not_authorized");
     expect(t.github_app_installations).toHaveLength(0);
   });
@@ -208,11 +270,15 @@ describe("install callback: the caller must control the installation", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID], codeValid: false });
     const nonce = await mintIntent(ctx);
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "stolen" });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "stolen",
+    });
     expect(errorOf(res)).toBe("install_not_authorized");
     expect(t.github_app_installations).toHaveLength(0);
   });
-
 });
 
 // With no client pair configured there is no user token to ask GitHub with, so
@@ -226,25 +292,42 @@ describe("with no client pair configured, the intent alone binds a fresh install
     delete process.env.GITHUB_APP_CLIENT_SECRET;
     stubGitHub({ controls: [] });
   });
-  afterEach(() => { INSTALLATION_DETAILS.created_at = undefined; });
+  afterEach(() => {
+    INSTALLATION_DETAILS.created_at = undefined;
+  });
 
   test("an installation created after the intent binds to the intent's owner", async () => {
     const t = tables();
     const ctx = actionCtx(t);
     const nonce = await mintIntent(ctx);
     INSTALLATION_DETAILS.created_at = Date.now() + 1_000;
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+    });
     expect(successOf(res)).toBe("true");
-    expect(t.github_app_installations[0]).toMatchObject({ team_id: VICTIM_TEAM, installed_by_user_id: VICTIM });
+    expect(t.github_app_installations[0]).toMatchObject({
+      team_id: VICTIM_TEAM,
+      installed_by_user_id: VICTIM,
+    });
   });
 
   test("an older unlinked installation is refused, and writes nothing", async () => {
     const t = tables();
     const ctx = actionCtx(t);
     // The attacker's own intent, and an installation that predates it.
-    const nonce = await mintIntent(ctx, { user_id: ATTACKER, scope: "personal", team_id: undefined });
+    const nonce = await mintIntent(ctx, {
+      user_id: ATTACKER,
+      scope: "personal",
+      team_id: undefined,
+    });
     INSTALLATION_DETAILS.created_at = Date.now() - 24 * 3600_000;
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+    });
     expect(errorOf(res)).toBe("install_not_fresh");
     expect(t.github_app_installations).toHaveLength(0);
   });
@@ -253,7 +336,11 @@ describe("with no client pair configured, the intent alone binds a fresh install
     const t = tables();
     const ctx = actionCtx(t);
     const nonce = await mintIntent(ctx);
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+    });
     expect(errorOf(res)).toBe("install_not_fresh");
     expect(t.github_app_installations).toHaveLength(0);
   });
@@ -263,10 +350,22 @@ describe("with no client pair configured, the intent alone binds a fresh install
     const ctx = actionCtx(t);
     const first = await mintIntent(ctx);
     INSTALLATION_DETAILS.created_at = Date.now() + 1_000;
-    expect(successOf(await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: first }))).toBe("true");
+    expect(
+      successOf(
+        await callback(ctx, {
+          installation_id: String(INSTALLATION_ID),
+          setup_action: "install",
+          state: first,
+        }),
+      ),
+    ).toBe("true");
     const second = await mintIntent(ctx);
     INSTALLATION_DETAILS.created_at = Date.now() - 24 * 3600_000;
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "update", state: second });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "update",
+      state: second,
+    });
     expect(successOf(res)).toBe("true");
     expect(t.github_app_installations).toHaveLength(1);
   });
@@ -276,12 +375,30 @@ describe("with no client pair configured, the intent alone binds a fresh install
     const ctx = actionCtx(t);
     const victim = await mintIntent(ctx);
     INSTALLATION_DETAILS.created_at = Date.now() + 1_000;
-    expect(successOf(await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: victim }))).toBe("true");
-    const attacker = await mintIntent(ctx, { user_id: ATTACKER, scope: "personal", team_id: undefined });
+    expect(
+      successOf(
+        await callback(ctx, {
+          installation_id: String(INSTALLATION_ID),
+          setup_action: "install",
+          state: victim,
+        }),
+      ),
+    ).toBe("true");
+    const attacker = await mintIntent(ctx, {
+      user_id: ATTACKER,
+      scope: "personal",
+      team_id: undefined,
+    });
     INSTALLATION_DETAILS.created_at = Date.now() - 24 * 3600_000;
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "update", state: attacker });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "update",
+      state: attacker,
+    });
     expect(errorOf(res)).toBe("install_not_fresh");
-    expect(t.github_app_installations[0]).toMatchObject({ team_id: VICTIM_TEAM });
+    expect(t.github_app_installations[0]).toMatchObject({
+      team_id: VICTIM_TEAM,
+    });
   });
 });
 
@@ -291,9 +408,19 @@ describe("install intents are single use, fresh, and still authorised", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
-    const first = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    const first = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(successOf(first)).toBe("true");
-    const replay = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    const replay = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(errorOf(replay)).toBe("intent_already_used");
     expect(t.github_app_installations).toHaveLength(1);
   });
@@ -303,8 +430,16 @@ describe("install intents are single use, fresh, and still authorised", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
-    const params = { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" };
-    const [a, b] = await Promise.all([callback(ctx, params), callback(ctx, params)]);
+    const params = {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    };
+    const [a, b] = await Promise.all([
+      callback(ctx, params),
+      callback(ctx, params),
+    ]);
     const outcomes = [a, b].map((r) => successOf(r) ?? errorOf(r)).sort();
     expect(outcomes).toEqual(["intent_already_used", "true"]);
     expect(t.github_app_installations).toHaveLength(1);
@@ -316,7 +451,12 @@ describe("install intents are single use, fresh, and still authorised", () => {
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
     t.github_app_install_intents[0].expires_at = Date.now() - 1;
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(errorOf(res)).toBe("intent_expired");
     expect(t.github_app_installations).toHaveLength(0);
     expect(t.github_app_install_intents).toHaveLength(0);
@@ -327,8 +467,13 @@ describe("install intents are single use, fresh, and still authorised", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const nonce = await mintIntent(ctx);
-    t.team_memberships.length = 0;          // removed from the team meanwhile
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    t.team_memberships.length = 0; // removed from the team meanwhile
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(errorOf(res)).toBe("not_a_team_member");
     expect(t.github_app_installations).toHaveLength(0);
   });
@@ -337,7 +482,10 @@ describe("install intents are single use, fresh, and still authorised", () => {
     const t = tables();
     const ctx = actionCtx(t);
     const res = await (createInstallIntent as any)._handler(ctx, {
-      nonce_hash: "h", user_id: ATTACKER, scope: "team", team_id: VICTIM_TEAM,
+      nonce_hash: "h",
+      user_id: ATTACKER,
+      scope: "team",
+      team_id: VICTIM_TEAM,
     });
     expect(res.ok).toBe(false);
     expect(t.github_app_install_intents).toHaveLength(0);
@@ -347,8 +495,12 @@ describe("install intents are single use, fresh, and still authorised", () => {
     const t = tables();
     const ctx = actionCtx(t);
     const nonce = await mintIntent(ctx);
-    expect(t.github_app_install_intents[0].nonce_hash).toBe(await sha256Hex(nonce));
-    expect(JSON.stringify(t.github_app_install_intents[0])).not.toContain(nonce);
+    expect(t.github_app_install_intents[0].nonce_hash).toBe(
+      await sha256Hex(nonce),
+    );
+    expect(JSON.stringify(t.github_app_install_intents[0])).not.toContain(
+      nonce,
+    );
   });
 });
 
@@ -357,10 +509,22 @@ describe("a personal install stays the installer's own", () => {
     const t = tables();
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
-    const nonce = await mintIntent(ctx, { user_id: ATTACKER, scope: "personal", team_id: undefined });
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: nonce, code: "c" });
+    const nonce = await mintIntent(ctx, {
+      user_id: ATTACKER,
+      scope: "personal",
+      team_id: undefined,
+    });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: nonce,
+      code: "c",
+    });
     expect(successOf(res)).toBe("true");
-    expect(t.github_app_installations[0]).toMatchObject({ scope_user_id: ATTACKER, installed_by_user_id: ATTACKER });
+    expect(t.github_app_installations[0]).toMatchObject({
+      scope_user_id: ATTACKER,
+      installed_by_user_id: ATTACKER,
+    });
     expect(t.github_app_installations[0].team_id).toBeUndefined();
   });
 
@@ -369,9 +533,23 @@ describe("a personal install stays the installer's own", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const theirs = await mintIntent(ctx);
-    await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: theirs, code: "c" });
-    const mine = await mintIntent(ctx, { user_id: ATTACKER, scope: "personal", team_id: undefined });
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: mine, code: "c" });
+    await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: theirs,
+      code: "c",
+    });
+    const mine = await mintIntent(ctx, {
+      user_id: ATTACKER,
+      scope: "personal",
+      team_id: undefined,
+    });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: mine,
+      code: "c",
+    });
     expect(errorOf(res)).toBe("installation_failed");
     expect(t.github_app_installations).toHaveLength(1);
     expect(t.github_app_installations[0].team_id).toBe(VICTIM_TEAM);
@@ -382,9 +560,19 @@ describe("a personal install stays the installer's own", () => {
     const ctx = actionCtx(t);
     stubGitHub({ controls: [INSTALLATION_ID] });
     const first = await mintIntent(ctx);
-    await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "install", state: first, code: "c" });
+    await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "install",
+      state: first,
+      code: "c",
+    });
     const again = await mintIntent(ctx);
-    const res = await callback(ctx, { installation_id: String(INSTALLATION_ID), setup_action: "update", state: again, code: "c" });
+    const res = await callback(ctx, {
+      installation_id: String(INSTALLATION_ID),
+      setup_action: "update",
+      state: again,
+      code: "c",
+    });
     expect(successOf(res)).toBe("true");
     expect(t.github_app_installations).toHaveLength(1);
   });
@@ -408,20 +596,31 @@ describe("getInstallUrl", () => {
     const state = new URL(res.url).searchParams.get("state")!;
     expect(state).toMatch(/^[0-9a-f]{48}$/);
     expect(t.github_app_install_intents).toHaveLength(1);
-    expect(t.github_app_install_intents[0]).toMatchObject({ user_id: VICTIM, team_id: VICTIM_TEAM, scope: "team" });
-    expect(t.github_app_install_intents[0].nonce_hash).toBe(await sha256Hex(state));
+    expect(t.github_app_install_intents[0]).toMatchObject({
+      user_id: VICTIM,
+      team_id: VICTIM_TEAM,
+      scope: "team",
+    });
+    expect(t.github_app_install_intents[0].nonce_hash).toBe(
+      await sha256Hex(state),
+    );
   });
 
   test("an anonymous caller gets no URL and mints no intent", async () => {
     const t = tables();
-    const res = await (getInstallUrl as any)._handler(urlCtx(t, null), { scope: "team" });
+    const res = await (getInstallUrl as any)._handler(urlCtx(t, null), {
+      scope: "team",
+    });
     expect(res.ok).toBe(false);
     expect(t.github_app_install_intents).toHaveLength(0);
   });
 
   test("a team install with no team points at the personal path", async () => {
     const t = tables();
-    const res = await (getInstallUrl as any)._handler(urlCtx(t, { user_id: VICTIM, team_id: null }), { scope: "team" });
+    const res = await (getInstallUrl as any)._handler(
+      urlCtx(t, { user_id: VICTIM, team_id: null }),
+      { scope: "team" },
+    );
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/yourself/);
     expect(t.github_app_install_intents).toHaveLength(0);

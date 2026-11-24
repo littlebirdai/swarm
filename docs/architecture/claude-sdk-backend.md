@@ -66,16 +66,16 @@ daemon ──unix socket──▶ host process (`cast _claude-sdk-host <spec>`, 
 daemon's transcript watcher ◀── reads the same JSONL as for a tmux session
 ```
 
-| Piece | File | Job |
-|---|---|---|
-| Launch options | `claudeSdk/options.ts` | Turns the exact argv the tmux path builds (`buildLaunchArgs`) into SDK options, plus the launch env. |
-| Session | `claudeSdk/session.ts` | One SDK query with streaming input: sends, steer, interrupt drain, permission prompts, status. |
-| Host | `claudeSdk/host.ts` | The long lived process: owns the query, serves the socket, keeps state on disk. |
-| Protocol | `claudeSdk/protocol.ts` | JSON lines between daemon and host. |
-| Client | `claudeSdk/client.ts` | Daemon side of one host: launch, connect, reconnect, requests. |
-| Backend | `claudeSdk/backend.ts` | Which conversations run on the SDK, and start / deliver / interrupt / stop / reattach. |
-| Poll answers | `claudeSdk/pollAnswer.ts` | The web's AskUserQuestion and plan-card answers, read as SDK answers. |
-| Daemon wiring | `daemon.ts` | Search `claudeSdkBackend`. |
+| Piece          | File                      | Job                                                                                                  |
+| -------------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Launch options | `claudeSdk/options.ts`    | Turns the exact argv the tmux path builds (`buildLaunchArgs`) into SDK options, plus the launch env. |
+| Session        | `claudeSdk/session.ts`    | One SDK query with streaming input: sends, steer, interrupt drain, permission prompts, status.       |
+| Host           | `claudeSdk/host.ts`       | The long lived process: owns the query, serves the socket, keeps state on disk.                      |
+| Protocol       | `claudeSdk/protocol.ts`   | JSON lines between daemon and host.                                                                  |
+| Client         | `claudeSdk/client.ts`     | Daemon side of one host: launch, connect, reconnect, requests.                                       |
+| Backend        | `claudeSdk/backend.ts`    | Which conversations run on the SDK, and start / deliver / interrupt / stop / reattach.               |
+| Poll answers   | `claudeSdk/pollAnswer.ts` | The web's AskUserQuestion and plan-card answers, read as SDK answers.                                |
+| Daemon wiring  | `daemon.ts`               | Search `claudeSdkBackend`.                                                                           |
 
 ### What the session keeps from Claude Code
 
@@ -104,13 +104,13 @@ replaces it; via `launchdJob.ts`), or as a detached
 child where launchd cannot take a job. Its files live in
 `~/.codecast/claude-sdk/`:
 
-| File | Holds |
-|---|---|
-| `<id>.sock` | The socket, 0600. |
-| `<id>.json` | The host's state, rewritten on every change: pid, status, pending prompts, last activity, last error. Removed when the host exits cleanly; a killed host's is cleaned up by the next resume or forget. |
-| `<id>.spec.json` | The launch spec. No secrets. Removed with the state file. |
-| `<id>.log` | The host's log and Claude's stderr. Removed when the conversation is forgotten. |
-| `conversations.json` | The daemon's bindings: conversation → current Claude session, host id, spec, account. The one home of "this conversation runs on the SDK". |
+| File                 | Holds                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<id>.sock`          | The socket, 0600.                                                                                                                                                                                      |
+| `<id>.json`          | The host's state, rewritten on every change: pid, status, pending prompts, last activity, last error. Removed when the host exits cleanly; a killed host's is cleaned up by the next resume or forget. |
+| `<id>.spec.json`     | The launch spec. No secrets. Removed with the state file.                                                                                                                                              |
+| `<id>.log`           | The host's log and Claude's stderr. Removed when the conversation is forgotten.                                                                                                                        |
+| `conversations.json` | The daemon's bindings: conversation → current Claude session, host id, spec, account. The one home of "this conversation runs on the SDK".                                                             |
 
 The launchd plist is deleted as soon as the job is loaded: it carries the
 daemon's environment, and launchd keeps the job without it. The host unloads
@@ -124,15 +124,15 @@ update and reconnects.
 
 One JSON object per line. Daemon to host (`ClientFrame`):
 
-| op | Does |
-|---|---|
-| `hello` | Replies with the full state. Sent on every connect. |
+| op                                    | Does                                                                                                                                                                                                            |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hello`                               | Replies with the full state. Sent on every connect.                                                                                                                                                             |
 | `send {id, messageId, text, images?}` | Queues a user message. `messageId` is the codecast message id; a repeat of the same messageId is acknowledged as a duplicate and not sent again. While a turn runs the message goes in with `priority: "next"`. |
-| `interrupt` | Interrupts the running turn and replies once its result is written. |
-| `answer {requestId, answer}` | Answers a pending prompt. Refused when it is no longer pending. |
-| `annotate {requestId, cardId}` | Records the web card opened for a prompt, so a reattached daemon binds to it instead of opening another. |
-| `set_model`, `set_permission_mode` | The SDK's live controls. |
-| `stop` | Interrupts, closes the input, lets Claude flush and exit. |
+| `interrupt`                           | Interrupts the running turn and replies once its result is written.                                                                                                                                             |
+| `answer {requestId, answer}`          | Answers a pending prompt. Refused when it is no longer pending.                                                                                                                                                 |
+| `annotate {requestId, cardId}`        | Records the web card opened for a prompt, so a reattached daemon binds to it instead of opening another.                                                                                                        |
+| `set_model`, `set_permission_mode`    | The SDK's live controls.                                                                                                                                                                                        |
+| `stop`                                | Interrupts, closes the input, lets Claude flush and exit.                                                                                                                                                       |
 
 Host to daemon (`HostFrame`): `state` (full snapshot), `reply`, `permission`
 (a prompt Claude is blocked on), `permission_settled` (answered, or aborted by
@@ -226,15 +226,15 @@ post takes (`hookStatusGate.deliver` → `handleStatusData`), launch token
 included, so the settle classifier, needs-input pushes, unread, compaction
 handling and heartbeat all read it as they read a tmux session:
 
-| Hook event | SDK source | Status |
-|---|---|---|
-| SessionStart (startup, resume) | initialize reply | `idle`, session boundary |
-| UserPromptSubmit | a send that starts a turn | `thinking` |
-| PreToolUse | an assistant message with a tool call | `working` |
-| PermissionRequest | `canUseTool` | `permission_blocked`, dialog, with the tool and preview |
-| PreCompact | `system/status` compacting | `compacting` |
-| Stop | the turn's `result` | `idle` with the turn stamp and transcript path |
-| SessionStart (clear) | a result after Claude moved session | `idle`, session boundary |
+| Hook event                     | SDK source                            | Status                                                  |
+| ------------------------------ | ------------------------------------- | ------------------------------------------------------- |
+| SessionStart (startup, resume) | initialize reply                      | `idle`, session boundary                                |
+| UserPromptSubmit               | a send that starts a turn             | `thinking`                                              |
+| PreToolUse                     | an assistant message with a tool call | `working`                                               |
+| PermissionRequest              | `canUseTool`                          | `permission_blocked`, dialog, with the tool and preview |
+| PreCompact                     | `system/status` compacting            | `compacting`                                            |
+| Stop                           | the turn's `result`                   | `idle` with the turn stamp and transcript path          |
+| SessionStart (clear)           | a result after Claude moved session   | `idle`, session boundary                                |
 
 Whether a turn runs comes from Claude's own `session_state_changed`
 (running, idle) as well as from our sends, so a turn Claude starts itself (a
@@ -278,51 +278,51 @@ new id), and the daemon rebinds the conversation to the new session
 Checked against Claude Code 2.1.319 through the SDK (streamed messages are not
 sent with `verbatimPrompts`, so Claude dispatches commands):
 
-| Command | Through the SDK |
-|---|---|
-| Custom commands (`.claude/commands`) | Work (checked). |
-| Skills (`/<skill>`) | Work (checked). |
-| `/model <name>` | Works (checked); the next turn runs on the new model. `set_model` is also on the protocol. |
-| `/compact` | Works (checked); emits the compacting status and a compact boundary. |
-| `/context` | Works (checked); the answer is the turn's reply. |
-| `/clear` | Works (checked); moves the session (above). |
+| Command                                                                                      | Through the SDK                                                                              |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Custom commands (`.claude/commands`)                                                         | Work (checked).                                                                              |
+| Skills (`/<skill>`)                                                                          | Work (checked).                                                                              |
+| `/model <name>`                                                                              | Works (checked); the next turn runs on the new model. `set_model` is also on the protocol.   |
+| `/compact`                                                                                   | Works (checked); emits the compacting status and a compact boundary.                         |
+| `/context`                                                                                   | Works (checked); the answer is the turn's reply.                                             |
+| `/clear`                                                                                     | Works (checked); moves the session (above).                                                  |
 | `/exit`, `/cost`, `/usage`, terminal UI commands (`/config`, `/login`, the `/resume` picker) | Not checked. `/exit` would end Claude and so the host; the next message resumes the session. |
 
 ## Parity matrix
 
-| tmux-path feature | SDK status |
-|---|---|
-| Start in a project, worktree (`isolated`), folder remap | Works: same code before the branch. |
-| Model, effort, permission mode, configured args, default params | Works: parsed from the same argv on a start; a resume takes model and effort from the transcript as the tmux resume does, so a mid-session `/model` survives a host restart. |
-| Agent definitions (tool policy, prompt) | Works: tool flags as argv, prompt appended to the preset. |
-| Per-session account (`cc_account`), fleet store, provider keys | Works: same shell prefix wraps the host. |
-| OAuth refresh gate (`ccLiveGate`) | Handled differently: the SDK's Claude is counted as an unstamped holder (`unstampedClaudeHolders`), attributed to the keychain login even when pinned. |
-| Stable context SessionStart hook | Works: hooks load. |
-| User and project hooks, CLAUDE.md, skills, MCP servers | Works (e2e: CLAUDE.md and project hooks). |
-| Launch prompt carried on the command line | Handled differently: the waiting message is delivered as the first streamed user message, never as third-party pasted text. |
-| Message delivery, retries, dedupe | Works: streaming input; the host dedupes by message id; the transcript is checked before a resend after host death. |
-| Mid-turn messages | Better: `priority: "next"`, read at the next tool boundary. |
-| Escape / interrupt, stop-and-send | Works: a real interrupt. The Escape command answers at once and the drain runs off the command queue; a stop-and-send message is released once the turn has drained. A message queued behind the turn still runs, per Claude's interrupt receipt. |
-| Images | Works: image blocks plus the usual tag text. |
-| Permission cards, remember, deny with reason | Works: same card and waiter. |
-| AskUserQuestion, ExitPlanMode cards | Works: rendered from the transcript, answered by poll payload. "Clear context" on the plan menu keeps context. |
-| Terminal dialogs scraped from the pane (trust, limit menu, `/model` picker) | Not needed: no pane; headless Claude raises none of them. |
-| Status reporting, settle, needs-input | Works: hook-equivalent activity through the same sink. |
-| Limits and billing errors | Works: Claude writes the same limit message to the JSONL, which the daemon's limit detection reads; the host also records the error kind. |
-| set_permission_mode | Works: through the host (`setPermissionMode`), cycling as Shift+Tab does when no target is given. |
-| Kill, Restart, account recycle | Works: the host stops, the binding survives (unless the kill released the session's worktree; then a Restart finds its folder as a tmux resume does), a Restart marks the conversation active again, a Restart resumes on the SDK in its own host or fails with the reason on the session (it never falls into the tmux repair, reconstitution or blank-pane paths); the resume gate keeps a killed session down. A Restart's model or effort choice is not applied to Claude, on either backend. |
-| Agent switch, a new start, any other teardown | Works: every teardown except a kill drops the binding, so the next agent never shares the conversation with the old host. |
-| move_to_device | Works: teardown stops the host. |
-| Daemon restart | Works: hosts survive and are reattached. |
-| Host or Claude crash | Works: mid-turn, continued at once with a capped number of attempts (turn claims); between turns, resumed on the next message. |
-| /clear | Works: rebinds to the new session. |
-| Subagent permission cards | Handled differently: the card says the call comes from a subagent and links its conversation, but names no subagent type (the SDK's prompt carries the subagent's id, not its type). |
-| fork_session | Gap: a fork of an SDK conversation starts in tmux; the Fork row says so for an SDK session. |
-| Command queue during a slow SDK start | Gap: start_session waits for the host and Claude's initialize (seconds normally; up to about five minutes when Claude hangs at startup), and commands in the same batch wait behind it. |
-| Hibernation (`max_live_sessions`) | Gap: SDK hosts are not counted toward the cap or parked; an idle host lives until stopped. The "Runs in" SDK row says it is never parked. |
-| Turn snapshots | Works: requested from `turn_completed_at` in the status sink, which SDK activity carries. |
-| Bash edit capture and other codecast hooks besides the status hook | Works: they load with the user's settings. |
-| Terminal attach (watching the pane) | Gap by design: there is no pane. The header's SDK pill offers the switch to a terminal instead. |
+| tmux-path feature                                                           | SDK status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start in a project, worktree (`isolated`), folder remap                     | Works: same code before the branch.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Model, effort, permission mode, configured args, default params             | Works: parsed from the same argv on a start; a resume takes model and effort from the transcript as the tmux resume does, so a mid-session `/model` survives a host restart.                                                                                                                                                                                                                                                                                                                      |
+| Agent definitions (tool policy, prompt)                                     | Works: tool flags as argv, prompt appended to the preset.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Per-session account (`cc_account`), fleet store, provider keys              | Works: same shell prefix wraps the host.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| OAuth refresh gate (`ccLiveGate`)                                           | Handled differently: the SDK's Claude is counted as an unstamped holder (`unstampedClaudeHolders`), attributed to the keychain login even when pinned.                                                                                                                                                                                                                                                                                                                                            |
+| Stable context SessionStart hook                                            | Works: hooks load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| User and project hooks, CLAUDE.md, skills, MCP servers                      | Works (e2e: CLAUDE.md and project hooks).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Launch prompt carried on the command line                                   | Handled differently: the waiting message is delivered as the first streamed user message, never as third-party pasted text.                                                                                                                                                                                                                                                                                                                                                                       |
+| Message delivery, retries, dedupe                                           | Works: streaming input; the host dedupes by message id; the transcript is checked before a resend after host death.                                                                                                                                                                                                                                                                                                                                                                               |
+| Mid-turn messages                                                           | Better: `priority: "next"`, read at the next tool boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Escape / interrupt, stop-and-send                                           | Works: a real interrupt. The Escape command answers at once and the drain runs off the command queue; a stop-and-send message is released once the turn has drained. A message queued behind the turn still runs, per Claude's interrupt receipt.                                                                                                                                                                                                                                                 |
+| Images                                                                      | Works: image blocks plus the usual tag text.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Permission cards, remember, deny with reason                                | Works: same card and waiter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| AskUserQuestion, ExitPlanMode cards                                         | Works: rendered from the transcript, answered by poll payload. "Clear context" on the plan menu keeps context.                                                                                                                                                                                                                                                                                                                                                                                    |
+| Terminal dialogs scraped from the pane (trust, limit menu, `/model` picker) | Not needed: no pane; headless Claude raises none of them.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Status reporting, settle, needs-input                                       | Works: hook-equivalent activity through the same sink.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Limits and billing errors                                                   | Works: Claude writes the same limit message to the JSONL, which the daemon's limit detection reads; the host also records the error kind.                                                                                                                                                                                                                                                                                                                                                         |
+| set_permission_mode                                                         | Works: through the host (`setPermissionMode`), cycling as Shift+Tab does when no target is given.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Kill, Restart, account recycle                                              | Works: the host stops, the binding survives (unless the kill released the session's worktree; then a Restart finds its folder as a tmux resume does), a Restart marks the conversation active again, a Restart resumes on the SDK in its own host or fails with the reason on the session (it never falls into the tmux repair, reconstitution or blank-pane paths); the resume gate keeps a killed session down. A Restart's model or effort choice is not applied to Claude, on either backend. |
+| Agent switch, a new start, any other teardown                               | Works: every teardown except a kill drops the binding, so the next agent never shares the conversation with the old host.                                                                                                                                                                                                                                                                                                                                                                         |
+| move_to_device                                                              | Works: teardown stops the host.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Daemon restart                                                              | Works: hosts survive and are reattached.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Host or Claude crash                                                        | Works: mid-turn, continued at once with a capped number of attempts (turn claims); between turns, resumed on the next message.                                                                                                                                                                                                                                                                                                                                                                    |
+| /clear                                                                      | Works: rebinds to the new session.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Subagent permission cards                                                   | Handled differently: the card says the call comes from a subagent and links its conversation, but names no subagent type (the SDK's prompt carries the subagent's id, not its type).                                                                                                                                                                                                                                                                                                              |
+| fork_session                                                                | Gap: a fork of an SDK conversation starts in tmux; the Fork row says so for an SDK session.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Command queue during a slow SDK start                                       | Gap: start_session waits for the host and Claude's initialize (seconds normally; up to about five minutes when Claude hangs at startup), and commands in the same batch wait behind it.                                                                                                                                                                                                                                                                                                           |
+| Hibernation (`max_live_sessions`)                                           | Gap: SDK hosts are not counted toward the cap or parked; an idle host lives until stopped. The "Runs in" SDK row says it is never parked.                                                                                                                                                                                                                                                                                                                                                         |
+| Turn snapshots                                                              | Works: requested from `turn_completed_at` in the status sink, which SDK activity carries.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Bash edit capture and other codecast hooks besides the status hook          | Works: they load with the user's settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Terminal attach (watching the pane)                                         | Gap by design: there is no pane. The header's SDK pill offers the switch to a terminal instead.                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Grok on the direct backend
 
@@ -334,17 +334,17 @@ daemon's delivery and status wiring are the ones above. It is offered in the
 "Runs in" control once `GROK_DIRECT_BACKEND` (`shared/contracts/claudeBackend.ts`)
 is on; the same predicate gates Convex's `switchBackend`.
 
-| | Claude | Grok |
-|---|---|---|
-| Process | SDK `query()` over the user's `claude` | `grok agent [-m model] stdio` (`GrokAcpClient`, `grokAcp.ts`) |
-| Moving a terminal session | resume by id | `session/load`, with `_meta.yoloMode` for bypassPermissions |
-| Context feed | stable-context hook | the `rules` the session was created with; grok keeps them across loads, and agent mode takes no `--rules` flag |
-| Mid-turn message | `priority: "next"` | grok runs it as the next turn; both end with one idle report |
-| Interrupt | SDK interrupt | `session/cancel`; the running prompt ends `cancelled` |
-| Permissions | `canUseTool` | `session/request_permission`, answered with grok's `allow_once` / `allow_always` / `reject_once`; an aborted card cancels the call |
-| Echo of a delivered message | the uuid it was sent under | the words, as from its pane (grok records no client id) |
-| Status hook | silenced by `CODECAST_SDK_SESSION` | the same: grok runs Claude's hooks and the marker silences them |
-| Shell prefix | account pin and provider keys | grok's provider keys only |
+|                             | Claude                                 | Grok                                                                                                                               |
+| --------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Process                     | SDK `query()` over the user's `claude` | `grok agent [-m model] stdio` (`GrokAcpClient`, `grokAcp.ts`)                                                                      |
+| Moving a terminal session   | resume by id                           | `session/load`, with `_meta.yoloMode` for bypassPermissions                                                                        |
+| Context feed                | stable-context hook                    | the `rules` the session was created with; grok keeps them across loads, and agent mode takes no `--rules` flag                     |
+| Mid-turn message            | `priority: "next"`                     | grok runs it as the next turn; both end with one idle report                                                                       |
+| Interrupt                   | SDK interrupt                          | `session/cancel`; the running prompt ends `cancelled`                                                                              |
+| Permissions                 | `canUseTool`                           | `session/request_permission`, answered with grok's `allow_once` / `allow_always` / `reject_once`; an aborted card cancels the call |
+| Echo of a delivered message | the uuid it was sent under             | the words, as from its pane (grok records no client id)                                                                            |
+| Status hook                 | silenced by `CODECAST_SDK_SESSION`     | the same: grok runs Claude's hooks and the marker silences them                                                                    |
+| Shell prefix                | account pin and provider keys          | grok's provider keys only                                                                                                          |
 
 A fresh Grok start still opens a pane; the direct backend takes over an
 existing session through the switch. `apps/cli/scripts/grok-direct-e2e.ts`

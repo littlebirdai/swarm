@@ -12,8 +12,13 @@ import { bumpReleasePrompt } from "@platform/update-prompt/build";
 
 const message = process.argv.slice(2).join(" ").trim();
 if (!message) {
-  console.error('usage: bun apps/web/scripts/release-prompt.ts "<one line the card shows>"');
+  console.error(
+    'usage: bun apps/web/scripts/release-prompt.ts "<one line the card shows>"',
+  );
   process.exit(1);
 }
-const next = bumpReleasePrompt(path.resolve(import.meta.dir, "../release-prompt.json"), message);
+const next = bumpReleasePrompt(
+  path.resolve(import.meta.dir, "../release-prompt.json"),
+  message,
+);
 console.log(`release prompt generation ${next.generation}: ${next.message}`);

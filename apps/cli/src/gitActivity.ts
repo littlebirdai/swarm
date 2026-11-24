@@ -18,7 +18,12 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { describeCommit, runGit, type GitRunner, type MirrorCommit } from "./repoMirror.js";
+import {
+  describeCommit,
+  runGit,
+  type GitRunner,
+  type MirrorCommit,
+} from "./repoMirror.js";
 
 export interface ReflogEntry {
   old_sha: string;
@@ -65,7 +70,10 @@ const NULL_SHA = "0".repeat(40);
 
 /** `<old> <new> <name> <email> <unix> <tz>\t<action>: <message>` */
 export function parseReflogLine(line: string): ReflogEntry | null {
-  const m = /^([0-9a-f]{40}) ([0-9a-f]{40}) (.*?) <([^>]*)> (\d+) [+-]\d{4}\t(.*)$/.exec(line);
+  const m =
+    /^([0-9a-f]{40}) ([0-9a-f]{40}) (.*?) <([^>]*)> (\d+) [+-]\d{4}\t(.*)$/.exec(
+      line,
+    );
   if (!m) return null;
   const tail = m[6];
   const colon = tail.indexOf(": ");
@@ -84,37 +92,90 @@ type Classified = Omit<GitActivityEvent, "commit"> | null;
 
 /** What a HEAD reflog line means, or null for the housekeeping lines a reader never wants (fetch, clone, rebase steps). */
 export function classifyHeadEntry(entry: ReflogEntry): Classified {
-  const base = { old_sha: entry.old_sha, new_sha: entry.new_sha, at: entry.at, actor_name: entry.actor_name, actor_email: entry.actor_email, message: entry.message };
+  const base = {
+    old_sha: entry.old_sha,
+    new_sha: entry.new_sha,
+    at: entry.at,
+    actor_name: entry.actor_name,
+    actor_email: entry.actor_email,
+    message: entry.message,
+  };
   const action = entry.action;
   if (action.startsWith("commit (amend)")) return { ...base, kind: "amend" };
   if (action.startsWith("commit")) return { ...base, kind: "commit" };
   if (action === "checkout") {
     const moving = /^moving from (\S+) to (\S+)$/.exec(entry.message);
-    return { ...base, kind: "checkout", from_ref: moving?.[1], to_ref: moving?.[2], ref: moving?.[2] };
+    return {
+      ...base,
+      kind: "checkout",
+      from_ref: moving?.[1],
+      to_ref: moving?.[2],
+      ref: moving?.[2],
+    };
   }
-  if (action.startsWith("merge ")) return { ...base, kind: "merge", ref: action.slice("merge ".length).trim() };
-  if (action === "pull" || action.startsWith("pull ")) return { ...base, kind: "pull" };
-  if (/^rebase( -i)? \(finish\)$/.test(action) || action === "rebase finished") return { ...base, kind: "rebase" };
-  if (action === "reset") return { ...base, kind: "reset", ref: /^moving to (\S+)$/.exec(entry.message)?.[1] };
+  if (action.startsWith("merge "))
+    return {
+      ...base,
+      kind: "merge",
+      ref: action.slice("merge ".length).trim(),
+    };
+  if (action === "pull" || action.startsWith("pull "))
+    return { ...base, kind: "pull" };
+  if (/^rebase( -i)? \(finish\)$/.test(action) || action === "rebase finished")
+    return { ...base, kind: "rebase" };
+  if (action === "reset")
+    return {
+      ...base,
+      kind: "reset",
+      ref: /^moving to (\S+)$/.exec(entry.message)?.[1],
+    };
   if (action === "cherry-pick") return { ...base, kind: "cherry_pick" };
   if (action === "revert") return { ...base, kind: "revert" };
   return null;
 }
 
 /** What a remote-tracking log line means: only a push counts, a fetch is not activity. */
-export function classifyRemoteEntry(entry: ReflogEntry, branch: string): Classified {
+export function classifyRemoteEntry(
+  entry: ReflogEntry,
+  branch: string,
+): Classified {
   if (entry.action !== "update by push") return null;
-  return { kind: "push", old_sha: entry.old_sha, new_sha: entry.new_sha, at: entry.at, actor_name: entry.actor_name, actor_email: entry.actor_email, ref: branch, message: entry.message };
+  return {
+    kind: "push",
+    old_sha: entry.old_sha,
+    new_sha: entry.new_sha,
+    at: entry.at,
+    actor_name: entry.actor_name,
+    actor_email: entry.actor_email,
+    ref: branch,
+    message: entry.message,
+  };
 }
 
 /** Kinds whose new sha is a commit worth a row of its own. */
 export function producesCommit(kind: GitActivityKind): boolean {
-  return kind === "commit" || kind === "amend" || kind === "cherry_pick" || kind === "revert";
+  return (
+    kind === "commit" ||
+    kind === "amend" ||
+    kind === "cherry_pick" ||
+    kind === "revert"
+  );
 }
 
-async function gitPath(run: GitRunner, root: string, name: string): Promise<string | null> {
+async function gitPath(
+  run: GitRunner,
+  root: string,
+  name: string,
+): Promise<string | null> {
   try {
-    const out = (await run(root, ["rev-parse", "--path-format=absolute", "--git-path", name])).trim();
+    const out = (
+      await run(root, [
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-path",
+        name,
+      ])
+    ).trim();
     return out ? path.resolve(root, out) : null;
   } catch {
     return null;
@@ -144,7 +205,11 @@ export class GitActivityTailer {
 
   async init(): Promise<boolean> {
     this.headLog = await gitPath(this.run, this.root, "logs/HEAD");
-    this.remoteDir = await gitPath(this.run, this.root, "logs/refs/remotes/origin");
+    this.remoteDir = await gitPath(
+      this.run,
+      this.root,
+      "logs/refs/remotes/origin",
+    );
     if (!this.headLog) return false;
     for (const file of this.files()) this.offsets.set(file, sizeOf(file));
     return true;
@@ -193,13 +258,20 @@ export class GitActivityTailer {
       const lines = this.readNew(file);
       if (!lines.length) continue;
       const isHead = file === this.headLog;
-      const branch = isHead ? "" : path.relative(this.remoteDir!, file).split(path.sep).join("/");
+      const branch = isHead
+        ? ""
+        : path.relative(this.remoteDir!, file).split(path.sep).join("/");
       for (const line of lines) {
         const entry = parseReflogLine(line);
         if (!entry || entry.new_sha === NULL_SHA) continue;
-        const classified = isHead ? classifyHeadEntry(entry) : classifyRemoteEntry(entry, branch);
+        const classified = isHead
+          ? classifyHeadEntry(entry)
+          : classifyRemoteEntry(entry, branch);
         if (!classified) continue;
-        const commit = producesCommit(classified.kind) ? (await describeCommit(this.run, this.root, classified.new_sha)) ?? undefined : undefined;
+        const commit = producesCommit(classified.kind)
+          ? ((await describeCommit(this.run, this.root, classified.new_sha)) ??
+            undefined)
+          : undefined;
         events.push({ ...classified, ...(commit ? { commit } : {}) });
       }
     }

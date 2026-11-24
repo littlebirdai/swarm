@@ -24,7 +24,10 @@ import { api } from "./_generated/api";
 import { allModules } from "./testModules.testkit";
 import { makeChangeTrackedDb } from "./changeLog";
 import { makeSyncAckCollector, teamScopeKey, userScopeKey } from "./syncLog";
-import { CLIENT_SYNC_REGISTRY, WORKSPACE_SCOPED_KEYS } from "../../../apps/web/store/clientSyncRegistry";
+import {
+  CLIENT_SYNC_REGISTRY,
+  WORKSPACE_SCOPED_KEYS,
+} from "../../../apps/web/store/clientSyncRegistry";
 import { routerRoster } from "./orgRoute";
 import { gatherShipFacts } from "./ship";
 
@@ -43,16 +46,38 @@ const HOOK_FEEDS: Record<(typeof MATRIX_KEYS)[number], string[]> = {
 // Registered feeds of workspace-scoped keys this matrix does not seed yet.
 // Shrink it by adding a case; never grow it to get a new feed past the test.
 const NOT_YET_COVERED = new Set([
-  "expectations.overview", "lineTrial.cards", "lineTrial.projects", "lineTrial.runs",
-  "modObjects.webList", "initiatives.webList", "agentDefinitions.list", "secrets.list",
-  "agentDefinitions.listChains", "issueSync.listSources", "workflows.webList", "workflows.webGet",
-  "workflows.webGetBySlug", "workflows.webPool", "workflow_runs.graphOfRun", "signals.webList",
-  "signals.forTask", "lineWorkspace.labels", "lineWorkspace.deploys", "lineTimeline.page",
-  "ingest.listSources", "replays.get", "metrics.listWatches", "orgChanges.list",
+  "expectations.overview",
+  "lineTrial.cards",
+  "lineTrial.projects",
+  "lineTrial.runs",
+  "modObjects.webList",
+  "initiatives.webList",
+  "agentDefinitions.list",
+  "secrets.list",
+  "agentDefinitions.listChains",
+  "issueSync.listSources",
+  "workflows.webList",
+  "workflows.webGet",
+  "workflows.webGetBySlug",
+  "workflows.webPool",
+  "workflow_runs.graphOfRun",
+  "signals.webList",
+  "signals.forTask",
+  "lineWorkspace.labels",
+  "lineWorkspace.deploys",
+  "lineTimeline.page",
+  "ingest.listSources",
+  "replays.get",
+  "metrics.listWatches",
+  "orgChanges.list",
   // Classed workspace-scoped with the store scope declaration (DATA_SCOPE); their
   // rows need seeds this world lacks (dynamic runs, session flow runs, proposals).
   // listForWorkflow answers only the workflow's owner: stricter than the matrix's workspace rule.
-  "workflow_runs.listForWorkflow", "workflow_runs.listDynamicRuns", "sessionFlowRuns.forConversation", "sessionFlowRuns.forTeam", "orgProposals.list",
+  "workflow_runs.listForWorkflow",
+  "workflow_runs.listDynamicRuns",
+  "sessionFlowRuns.forConversation",
+  "sessionFlowRuns.forTeam",
+  "orgProposals.list",
   // Derived from the workspace goals (initiatives), which this world does not seed either
   // (initiatives.webList above); covered together with them.
   "envs.workspaceStandings",
@@ -72,23 +97,45 @@ const listArgs = (ids: Ids) => [
   { team_id: ids.T },
   { workspace: "all" },
 ];
-const paginated = (variants: Record<string, unknown>[]) => variants.map((a) => ({ ...a, paginationOpts: { numItems: 200, cursor: null } }));
-const byIdsArgs = (ids: Ids) => [{ ids: Object.values(ids.rows).flatMap((r) => Object.values(r)).map(String) }];
+const paginated = (variants: Record<string, unknown>[]) =>
+  variants.map((a) => ({
+    ...a,
+    paginationOpts: { numItems: 200, cursor: null },
+  }));
+const byIdsArgs = (ids: Ids) => [
+  {
+    ids: Object.values(ids.rows)
+      .flatMap((r) => Object.values(r))
+      .map(String),
+  },
+];
 
 const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
   "tasks.webList": listArgs,
   "tasks.webListPaginated": (ids) => paginated(listArgs(ids)),
-  "docs.webListPaginated": (ids) => paginated(listArgs(ids).filter((a) => a.workspace !== "all")),
+  "docs.webListPaginated": (ids) =>
+    paginated(listArgs(ids).filter((a) => a.workspace !== "all")),
   "plans.webList": listArgs,
-  "projects.webList": (ids) => listArgs(ids).filter((a) => a.workspace !== "all"),
+  "projects.webList": (ids) =>
+    listArgs(ids).filter((a) => a.workspace !== "all"),
   "tasks.webGetByIds": byIdsArgs,
   "docs.webGetByIds": byIdsArgs,
   "plans.webGetByIds": byIdsArgs,
   "projects.webGetByIds": byIdsArgs,
   "liveFlows.forTeam": (ids) => [{ team_id: ids.T }, { team_id: ids.O }],
-  "flowLibrary.sessionFlows": (ids) => [{}, { team_id: ids.T }, { team_id: ids.O }],
+  "flowLibrary.sessionFlows": (ids) => [
+    {},
+    { team_id: ids.T },
+    { team_id: ids.O },
+  ],
   // Every workspace a placement names, the owner's personal one and the viewer's own.
-  "flowMap.forTeam": (ids) => [...new Set([...Object.values(ids.rows.flowMaps), ...WHO.map((w) => `user:${ids[w]}`)])].map((workspace) => ({ workspace })),
+  "flowMap.forTeam": (ids) =>
+    [
+      ...new Set([
+        ...Object.values(ids.rows.flowMaps),
+        ...WHO.map((w) => `user:${ids[w]}`),
+      ]),
+    ].map((workspace) => ({ workspace })),
   // Every workspace the viewer holds a key for, in one answer.
   "teamKit.webListTeamKitItems": () => [{}],
   // One team's deploy targets; a target is always a team's, so only the team placements exist.
@@ -99,19 +146,34 @@ const FEED_CASES: Record<string, (ids: Ids) => Record<string, unknown>[]> = {
   "checkouts.forTeam": (ids) => [{ team_id: ids.T }, { team_id: ids.O }],
   // One team's newest deploys across its targets, asked of both teams.
   "deployRefs.recentForTeam": (ids) => [{ team_id: ids.T }, { team_id: ids.O }],
-  "ingest.searchGroups": (ids) => listArgs(ids).map((a) => ({ ...a, q: "boom" })),
+  "ingest.searchGroups": (ids) =>
+    listArgs(ids).map((a) => ({ ...a, q: "boom" })),
   // One group's transitions, asked of every group in the world.
-  "ingest.groupTransitions": (ids) => Object.values(ids.groupRefs).map((group) => ({ group })),
+  "ingest.groupTransitions": (ids) =>
+    Object.values(ids.groupRefs).map((group) => ({ group })),
   "replays.browse": listArgs,
   "ingest.listGroups": listArgs,
-  "ingest.getGroup": (ids) => Object.values(ids.groupRefs).map((group) => ({ group })),
+  "ingest.getGroup": (ids) =>
+    Object.values(ids.groupRefs).map((group) => ({ group })),
   "ingest.listEvents": listArgs,
   "replays.list": listArgs,
   // The feed reads one workspace: the active team (named or the pointer), else personal.
-  "workflow_runs.get": (ids) => Object.values(ids.rows.workflowRuns).map((id) => ({ id })),
-  "workflow_runs.byIds": (ids) => [{ ids: Object.values(ids.rows.workflowRuns).map(String) }],
-  "workflow_runs.listRuns": (ids) => [{}, { team_id: ids.T }, { team_id: ids.O }],
-  "conversations.getMessageFeed": (ids) => [{ filter: "team" }, { filter: "team", activeTeamId: ids.T }, { filter: "team", activeTeamId: ids.O }, { filter: "my" }],
+  "workflow_runs.get": (ids) =>
+    Object.values(ids.rows.workflowRuns).map((id) => ({ id })),
+  "workflow_runs.byIds": (ids) => [
+    { ids: Object.values(ids.rows.workflowRuns).map(String) },
+  ],
+  "workflow_runs.listRuns": (ids) => [
+    {},
+    { team_id: ids.T },
+    { team_id: ids.O },
+  ],
+  "conversations.getMessageFeed": (ids) => [
+    { filter: "team" },
+    { filter: "team", activeTeamId: ids.T },
+    { filter: "team", activeTeamId: ids.O },
+    { filter: "my" },
+  ],
   // Mention indexes (useSyncMentionTasks/Docs/Plans): rows land in store.mentionIndex,
   // not a registry key, so FEED_TABLE names their table.
   "tasks.webMentionList": listArgs,
@@ -140,15 +202,22 @@ const SELECT: Record<string, (res: any) => unknown> = {
   // useSyncDeployTargets: every deploy a target names goes to teamDeploys.
   // useSyncOps: the opened group lands in opsGroups.
   "ingest.getGroup": (r) => (r?.group ? [r.group] : []),
-  "deployTargets.view": (r) => (r?.targets ?? []).flatMap((t: any) => [t.live, t.open, ...(t.history ?? [])]).filter((d: any) => d?._id),
+  "deployTargets.view": (r) =>
+    (r?.targets ?? [])
+      .flatMap((t: any) => [t.live, t.open, ...(t.history ?? [])])
+      .filter((d: any) => d?._id),
 };
 
 function registeredFeeds(): Map<string, string> {
   const out = new Map<string, string>();
-  for (const [key, entry] of Object.entries(CLIENT_SYNC_REGISTRY) as [string, any][]) {
+  for (const [key, entry] of Object.entries(CLIENT_SYNC_REGISTRY) as [
+    string,
+    any,
+  ][]) {
     if (!(WORKSPACE_SCOPED_KEYS as readonly string[]).includes(key)) continue;
     for (const feed of entry.feeds ?? []) out.set(feed, key);
-    for (const feed of HOOK_FEEDS[key as keyof typeof HOOK_FEEDS] ?? []) out.set(feed, key);
+    for (const feed of HOOK_FEEDS[key as keyof typeof HOOK_FEEDS] ?? [])
+      out.set(feed, key);
   }
   return out;
 }
@@ -163,9 +232,18 @@ async function seed(t: ReturnType<typeof convexTest>) {
     const stranger = await user("Stranger");
     const removed = await user("Removed");
     const outsider = await user("Outsider");
-    const T = await db.insert("teams", { name: "T", created_at: now, invite_code: "t" });
-    const O = await db.insert("teams", { name: "O", created_at: now, invite_code: "o" });
-    const join = (user_id: any, team_id: any, role = "member") => db.insert("team_memberships", { user_id, team_id, role, joined_at: now });
+    const T = await db.insert("teams", {
+      name: "T",
+      created_at: now,
+      invite_code: "t",
+    });
+    const O = await db.insert("teams", {
+      name: "O",
+      created_at: now,
+      invite_code: "o",
+    });
+    const join = (user_id: any, team_id: any, role = "member") =>
+      db.insert("team_memberships", { user_id, team_id, role, joined_at: now });
     await join(owner, T, "admin");
     await join(teammate, T);
     await join(stranger, O, "admin");
@@ -179,57 +257,287 @@ async function seed(t: ReturnType<typeof convexTest>) {
       other: { user_id: stranger, team_id: O, workspace: `team:${O}` },
     };
     let n = 0;
-    const base = (place: string) => ({ title: `${place} row`, created_at: now, updated_at: now });
-    const rows: Record<string, Record<string, string>> = { tasks: {}, docs: {}, plans: {}, projects: {}, liveFlows: {}, sessionFlows: {}, flowMaps: {}, teamKitItems: {}, opsGroups: {}, opsEvents: {}, opsReplays: {}, teamDeploys: {}, pipelines: {}, checkouts: {}, messageFeed: {}, workflowRuns: {}, envStandings: {} };
+    const base = (place: string) => ({
+      title: `${place} row`,
+      created_at: now,
+      updated_at: now,
+    });
+    const rows: Record<string, Record<string, string>> = {
+      tasks: {},
+      docs: {},
+      plans: {},
+      projects: {},
+      liveFlows: {},
+      sessionFlows: {},
+      flowMaps: {},
+      teamKitItems: {},
+      opsGroups: {},
+      opsEvents: {},
+      opsReplays: {},
+      teamDeploys: {},
+      pipelines: {},
+      checkouts: {},
+      messageFeed: {},
+      workflowRuns: {},
+      envStandings: {},
+    };
     const groupRefs: Record<string, string> = {};
     for (const [place, p] of Object.entries(placements)) {
-      rows.tasks[place] = await db.insert("tasks", { ...p, ...base(place), short_id: `ct-${++n}`, task_type: "task", priority: "medium", source: "human", status: "open" });
-      rows.docs[place] = await db.insert("docs", { ...p, ...base(place), content: "body", doc_type: "note", source: "human" });
-      rows.plans[place] = await db.insert("plans", { ...p, ...base(place), short_id: `pl-${++n}`, status: "active", source: "human" });
-      rows.projects[place] = await db.insert("projects", { ...p, ...base(place), status: "active" });
-      const workflow_id = await db.insert("workflows", { ...p, name: `${place} flow`, slug: `${place}-flow`, nodes: [], edges: [], created_at: now, updated_at: now } as any);
-      const run = await db.insert("workflow_runs", { ...p, workflow_id, workflow_name: `${place} flow`, status: "completed", node_statuses: [], created_at: now, updated_at: now } as any);
+      rows.tasks[place] = await db.insert("tasks", {
+        ...p,
+        ...base(place),
+        short_id: `ct-${++n}`,
+        task_type: "task",
+        priority: "medium",
+        source: "human",
+        status: "open",
+      });
+      rows.docs[place] = await db.insert("docs", {
+        ...p,
+        ...base(place),
+        content: "body",
+        doc_type: "note",
+        source: "human",
+      });
+      rows.plans[place] = await db.insert("plans", {
+        ...p,
+        ...base(place),
+        short_id: `pl-${++n}`,
+        status: "active",
+        source: "human",
+      });
+      rows.projects[place] = await db.insert("projects", {
+        ...p,
+        ...base(place),
+        status: "active",
+      });
+      const workflow_id = await db.insert("workflows", {
+        ...p,
+        name: `${place} flow`,
+        slug: `${place}-flow`,
+        nodes: [],
+        edges: [],
+        created_at: now,
+        updated_at: now,
+      } as any);
+      const run = await db.insert("workflow_runs", {
+        ...p,
+        workflow_id,
+        workflow_name: `${place} flow`,
+        status: "completed",
+        node_statuses: [],
+        created_at: now,
+        updated_at: now,
+      } as any);
       rows.workflowRuns[place] = run;
-      rows.sessionFlows[place] = await db.insert("session_flows", { ...p, graph_hash: `g-${place}`, from: "graph", name: `${place} flow`, source: "", nodes: [], edges: [], file: "flow.cast", files: [], graph_nodes: [], first_run_id: run, last_run_at: now, created_at: now });
+      rows.sessionFlows[place] = await db.insert("session_flows", {
+        ...p,
+        graph_hash: `g-${place}`,
+        from: "graph",
+        name: `${place} flow`,
+        source: "",
+        nodes: [],
+        edges: [],
+        file: "flow.cast",
+        files: [],
+        graph_nodes: [],
+        first_run_id: run,
+        last_run_at: now,
+        created_at: now,
+      });
       // A live flow is a team's (createLiveFlowCore); the private one is the row its access rule must refuse.
-      if (place !== "personal") rows.liveFlows[place] = await db.insert("live_flows", { ...p, workflow_id, on: false, changed_by: p.user_id, changed_at: now, created_at: now });
+      if (place !== "personal")
+        rows.liveFlows[place] = await db.insert("live_flows", {
+          ...p,
+          workflow_id,
+          on: false,
+          changed_by: p.user_id,
+          changed_at: now,
+          created_at: now,
+        });
       // A flow map is one per workspace, so the private and personal placements share one.
       if (place !== "private") rows.flowMaps[place] = p.workspace;
       // A goal naming one env: its standing's id is the goal's workspace and the env.
       const env = `acme/${place}`;
-      await db.insert("initiatives", { ...p, ...base(place), short_id: `in-${++n}`, status: "active", project_ids: [], health: "none", envs: [{ env, level: "L0" }] } as any);
+      await db.insert("initiatives", {
+        ...p,
+        ...base(place),
+        short_id: `in-${++n}`,
+        status: "active",
+        project_ids: [],
+        health: "none",
+        envs: [{ env, level: "L0" }],
+      } as any);
       rows.envStandings[place] = `${p.workspace}|${env}`;
-      rows.teamKitItems[place] = await db.insert("team_kit_items", { slug: `authored/${p.user_id}/skill/${place}-kit`, ...(p.team_id ? { team_id: p.team_id } : {}), workspace: p.workspace, kind: "skill", name: `${place}-kit`, author_user_id: p.user_id, current_version: 1, current_hash: `h-${place}`, surfaces: [], created_at: now, updated_at: now } as any);
+      rows.teamKitItems[place] = await db.insert("team_kit_items", {
+        slug: `authored/${p.user_id}/skill/${place}-kit`,
+        ...(p.team_id ? { team_id: p.team_id } : {}),
+        workspace: p.workspace,
+        kind: "skill",
+        name: `${place}-kit`,
+        author_user_id: p.user_id,
+        current_version: 1,
+        current_hash: `h-${place}`,
+        surfaces: [],
+        created_at: now,
+        updated_at: now,
+      } as any);
     }
     // A session per placement, each with one typed prompt: the message feed's rows.
     // Sessions keep their own visibility axis, so private is a team-routed, unshared one.
     for (const [place, p] of Object.entries(placements)) {
       const conversation_id = await db.insert("conversations", {
-        user_id: p.user_id, ...(p.team_id ? { team_id: p.team_id } : {}), is_private: place === "private" || place === "personal",
-        agent_type: "claude_code", session_id: `s-${place}`, started_at: now, updated_at: now, message_count: 1, status: "active",
+        user_id: p.user_id,
+        ...(p.team_id ? { team_id: p.team_id } : {}),
+        is_private: place === "private" || place === "personal",
+        agent_type: "claude_code",
+        session_id: `s-${place}`,
+        started_at: now,
+        updated_at: now,
+        message_count: 1,
+        status: "active",
       } as any);
-      rows.messageFeed[place] = await db.insert("messages", { conversation_id, message_uuid: `m-${place}`, role: "user", content: `${place} prompt`, timestamp: now } as any);
+      rows.messageFeed[place] = await db.insert("messages", {
+        conversation_id,
+        message_uuid: `m-${place}`,
+        role: "user",
+        content: `${place} prompt`,
+        timestamp: now,
+      } as any);
     }
     // Ops rows carry only a workspace key, so the private placement is a second personal row.
     for (const [place, p] of Object.entries(placements)) {
       const ws = { workspace: p.workspace };
-      const source_id = await db.insert("event_sources", { ...ws, owner_user_id: p.user_id, short_id: `src-${++n}`, provider: "sdk", name: `${place}-src`, promote: [], status: "active", created_at: now, updated_at: now } as any);
+      const source_id = await db.insert("event_sources", {
+        ...ws,
+        owner_user_id: p.user_id,
+        short_id: `src-${++n}`,
+        provider: "sdk",
+        name: `${place}-src`,
+        promote: [],
+        status: "active",
+        created_at: now,
+        updated_at: now,
+      } as any);
       const short_id = `eg-${++n}`;
-      const group = await db.insert("event_groups", { ...ws, source_id, short_id, kind: "error", fingerprint: `fp-${place}`, title: `boom ${place}`, status: "open", first_seen: now - 60_000, last_seen: now, count: 1, buckets: [], updated_at: now } as any);
+      const group = await db.insert("event_groups", {
+        ...ws,
+        source_id,
+        short_id,
+        kind: "error",
+        fingerprint: `fp-${place}`,
+        title: `boom ${place}`,
+        status: "open",
+        first_seen: now - 60_000,
+        last_seen: now,
+        count: 1,
+        buckets: [],
+        updated_at: now,
+      } as any);
       rows.opsGroups[place] = group;
       groupRefs[place] = short_id;
-      rows.opsEvents[place] = await db.insert("external_events", { ...ws, ...(p.team_id ? { team_id: p.team_id } : {}), source: "codecast", kind: "new", title: `boom ${place}`, source_id, group_id: group, dedupe_key: `ev-${place}`, created_at: now - 1_000 } as any);
-      rows.opsReplays[place] = await db.insert("replays", { ...ws, source_id, short_id: `rp-${++n}`, provider: "sdk", external_id: `ext-${place}`, started_at: now - 5_000, counts: { clicks: 0, errors: 0, failed_requests: 0 }, group_ids: [], chunk_keys: [], created_at: now, updated_at: now } as any);
+      rows.opsEvents[place] = await db.insert("external_events", {
+        ...ws,
+        ...(p.team_id ? { team_id: p.team_id } : {}),
+        source: "codecast",
+        kind: "new",
+        title: `boom ${place}`,
+        source_id,
+        group_id: group,
+        dedupe_key: `ev-${place}`,
+        created_at: now - 1_000,
+      } as any);
+      rows.opsReplays[place] = await db.insert("replays", {
+        ...ws,
+        source_id,
+        short_id: `rp-${++n}`,
+        provider: "sdk",
+        external_id: `ext-${place}`,
+        started_at: now - 5_000,
+        counts: { clicks: 0, errors: 0, failed_requests: 0 },
+        group_ids: [],
+        chunk_keys: [],
+        created_at: now,
+        updated_at: now,
+      } as any);
       if (place === "team" || place === "other") {
-        await db.insert("deploy_targets", { workspace: p.workspace, repository: "acme/app", name: "web", runs: "push", live: { kind: "marker" }, policy: "press", paths: [], publisher_user_id: p.user_id, published_at: now, updated_at: now } as any);
+        await db.insert("deploy_targets", {
+          workspace: p.workspace,
+          repository: "acme/app",
+          name: "web",
+          runs: "push",
+          live: { kind: "marker" },
+          policy: "press",
+          paths: [],
+          publisher_user_id: p.user_id,
+          published_at: now,
+          updated_at: now,
+        } as any);
         const repository = `acme/${place}-app`;
-        const lane = { slug: "change", label: "Change", base: "change", file: null, removed: [], graph: { nodes: [], edges: [] }, stations: [] };
-        rows.pipelines[place] = await db.insert("pipelines", { workspace: p.workspace, repository, change: lane, release: { ...lane, slug: "line-deploy", targets: [] }, hash: place, publisher_user_id: p.user_id, published_at: now, updated_at: now } as any);
-        rows.checkouts[place] = await db.insert("checkouts", { workspace: p.workspace, repository, device_id: `dev-${place}`, path: `/work/${place}`, report: { level: { state: "off", reason: "test" }, uncommitted: { total: 0, sessions: [], unattributed: [], unattributed_more: 0 } }, hash: place, reporter_user_id: p.user_id, reported_at: now, updated_at: now } as any);
-        rows.teamDeploys[place] = await db.insert("deploys", { short_id: `dp-${++n}`, workspace: p.workspace, target: "web", repository: "acme/app", status: "live", trigger: "person", source: "test", event_ids: [], carries: [], created_at: now, updated_at: now } as any);
+        const lane = {
+          slug: "change",
+          label: "Change",
+          base: "change",
+          file: null,
+          removed: [],
+          graph: { nodes: [], edges: [] },
+          stations: [],
+        };
+        rows.pipelines[place] = await db.insert("pipelines", {
+          workspace: p.workspace,
+          repository,
+          change: lane,
+          release: { ...lane, slug: "line-deploy", targets: [] },
+          hash: place,
+          publisher_user_id: p.user_id,
+          published_at: now,
+          updated_at: now,
+        } as any);
+        rows.checkouts[place] = await db.insert("checkouts", {
+          workspace: p.workspace,
+          repository,
+          device_id: `dev-${place}`,
+          path: `/work/${place}`,
+          report: {
+            level: { state: "off", reason: "test" },
+            uncommitted: {
+              total: 0,
+              sessions: [],
+              unattributed: [],
+              unattributed_more: 0,
+            },
+          },
+          hash: place,
+          reporter_user_id: p.user_id,
+          reported_at: now,
+          updated_at: now,
+        } as any);
+        rows.teamDeploys[place] = await db.insert("deploys", {
+          short_id: `dp-${++n}`,
+          workspace: p.workspace,
+          target: "web",
+          repository: "acme/app",
+          status: "live",
+          trigger: "person",
+          source: "test",
+          event_ids: [],
+          carries: [],
+          created_at: now,
+          updated_at: now,
+        } as any);
       }
     }
-    return { owner, teammate, stranger, removed, outsider, T, O, rows, groupRefs };
+    return {
+      owner,
+      teammate,
+      stranger,
+      removed,
+      outsider,
+      T,
+      O,
+      rows,
+      groupRefs,
+    };
   });
 }
 
@@ -254,25 +562,43 @@ const EXPECTED_FOR: Record<string, Record<Who, string[]>> = {
 function rowIdsOf(result: unknown): string[] {
   const ids: string[] = [];
   const take = (v: unknown) => {
-    if (Array.isArray(v)) for (const r of v) if (r && typeof r === "object" && "_id" in r) ids.push(String((r as any)._id));
+    if (Array.isArray(v))
+      for (const r of v)
+        if (r && typeof r === "object" && "_id" in r)
+          ids.push(String((r as any)._id));
   };
   take(result);
-  if (result && typeof result === "object" && !Array.isArray(result)) for (const v of Object.values(result)) take(v);
+  if (result && typeof result === "object" && !Array.isArray(result))
+    for (const v of Object.values(result)) take(v);
   return ids;
 }
 
-function placementsOf(ids: Ids, table: string, seen: Iterable<string>): string[] {
-  const byId = new Map(Object.entries(ids.rows[table]).map(([place, id]) => [String(id), place]));
-  return [...new Set([...seen].map((id) => byId.get(id)).filter((p): p is string => !!p))].sort();
+function placementsOf(
+  ids: Ids,
+  table: string,
+  seen: Iterable<string>,
+): string[] {
+  const byId = new Map(
+    Object.entries(ids.rows[table]).map(([place, id]) => [String(id), place]),
+  );
+  return [
+    ...new Set(
+      [...seen].map((id) => byId.get(id)).filter((p): p is string => !!p),
+    ),
+  ].sort();
 }
 
-const fnRef = (feed: string) => feed.split(".").reduce((o: any, k) => o?.[k], api);
+const fnRef = (feed: string) =>
+  feed.split(".").reduce((o: any, k) => o?.[k], api);
 
 describe("access matrix", () => {
   test("every registered feed of a workspace-scoped key is covered or listed as not yet covered", () => {
     const feeds = registeredFeeds();
-    const missing = [...feeds.keys()].filter((f) => !FEED_CASES[f] && !NOT_YET_COVERED.has(f));
-    for (const f of Object.keys(FEED_CASES)) expect(FEED_TABLE[f] ?? feeds.get(f)).toBeDefined();
+    const missing = [...feeds.keys()].filter(
+      (f) => !FEED_CASES[f] && !NOT_YET_COVERED.has(f),
+    );
+    for (const f of Object.keys(FEED_CASES))
+      expect(FEED_TABLE[f] ?? feeds.get(f)).toBeDefined();
     expect(missing).toEqual([]);
     // A stale entry would hide a later regression behind a name nobody registers.
     expect([...NOT_YET_COVERED].filter((f) => !feeds.has(f))).toEqual([]);
@@ -288,7 +614,10 @@ describe("access matrix", () => {
       for (const who of WHO) {
         const seen: string[] = [];
         for (const args of argsFor(ids)) {
-          const res = await t.withIdentity({ subject: ids[who] }).query(fnRef(feed), args).catch(() => null);
+          const res = await t
+            .withIdentity({ subject: ids[who] })
+            .query(fnRef(feed), args)
+            .catch(() => null);
           seen.push(...rowIdsOf(SELECT[feed] ? SELECT[feed](res) : res));
         }
         got[who] = placementsOf(ids, table, seen);
@@ -299,17 +628,37 @@ describe("access matrix", () => {
   }
 
   // The @-mention search answers { id, type }, one type per call.
-  for (const [type, table] of [["task", "tasks"], ["doc", "docs"], ["plan", "plans"]] as const) {
+  for (const [type, table] of [
+    ["task", "tasks"],
+    ["doc", "docs"],
+    ["plan", "plans"],
+  ] as const) {
     test(`docs.mentionSearch (${type}): each identity receives exactly its rows`, async () => {
       const t = convexTest(schema, allModules);
       const ids = await seed(t);
-      const variants = [{}, { workspace: "personal" }, { teamId: ids.T }, { teamId: ids.O }, { workspace: "team", teamId: ids.T }, { teamId: ids.T, query: "row" }];
+      const variants = [
+        {},
+        { workspace: "personal" },
+        { teamId: ids.T },
+        { teamId: ids.O },
+        { workspace: "team", teamId: ids.T },
+        { teamId: ids.T, query: "row" },
+      ];
       const got: Record<string, string[]> = {};
       for (const who of WHO) {
         const seen: string[] = [];
         for (const args of variants) {
-          const res: any[] | null = await t.withIdentity({ subject: ids[who] }).query(api.docs.mentionSearch, { query: "", types: [type], ...args } as any).catch(() => null);
-          seen.push(...(res ?? []).filter((r) => r.type === type).map((r) => r.id));
+          const res: any[] | null = await t
+            .withIdentity({ subject: ids[who] })
+            .query(api.docs.mentionSearch, {
+              query: "",
+              types: [type],
+              ...args,
+            } as any)
+            .catch(() => null);
+          seen.push(
+            ...(res ?? []).filter((r) => r.type === type).map((r) => r.id),
+          );
         }
         got[who] = placementsOf(ids, table, seen);
       }
@@ -323,17 +672,29 @@ describe("access matrix", () => {
     const ids = await seed(t);
     // Every plan under the team's project, so the plan gate decides on its own.
     await t.run(async (ctx) => {
-      for (const plan of Object.values(ids.rows.plans)) await ctx.db.patch(plan as any, { project_id: ids.rows.projects.team as any });
+      for (const plan of Object.values(ids.rows.plans))
+        await ctx.db.patch(plan as any, {
+          project_id: ids.rows.projects.team as any,
+        });
     });
     const placeOf = (title: string) => title.replace(/ row$/, "");
     const got: Record<string, { projects: string[]; plans: string[] }> = {};
     for (const who of WHO) {
-      const roster = await t.run((ctx) => routerRoster(ctx, ids[who] as any, { team_id: ids.T as any }, []));
-      const of = (kind: string) => (roster.unled ?? []).filter((u: any) => u.kind === kind).map((u: any) => placeOf(u.title)).sort();
+      const roster = await t.run((ctx) =>
+        routerRoster(ctx, ids[who] as any, { team_id: ids.T as any }, []),
+      );
+      const of = (kind: string) =>
+        (roster.unled ?? [])
+          .filter((u: any) => u.kind === kind)
+          .map((u: any) => placeOf(u.title))
+          .sort();
       got[who] = { projects: of("project"), plans: of("plan") };
     }
     expect(got).toEqual({
-      owner: { projects: ["private", "team"], plans: ["personal", "private", "team"] },
+      owner: {
+        projects: ["private", "team"],
+        plans: ["personal", "private", "team"],
+      },
       teammate: { projects: ["team"], plans: ["team"] },
       stranger: { projects: [], plans: [] },
       removed: { projects: [], plans: [] },
@@ -346,16 +707,42 @@ describe("access matrix", () => {
     const t = convexTest(schema, allModules);
     const ids = await seed(t);
     const conversations = await t.run(async (ctx) => {
-      const profile = (check: string) => ({ commands: { check, prove: null, eval: null, ship: null }, finders: [], root: "/repo", default: true, changed_at: Date.now() });
-      await ctx.db.patch(ids.rows.projects.private as any, { line_profile: profile("private-check") } as any);
-      const session = (user_id: any) => ctx.db.insert("conversations", {
-        user_id, team_id: ids.T, is_private: false, git_root: "/repo", agent_type: "claude_code", session_id: `ship-${user_id}`,
-        started_at: Date.now(), updated_at: Date.now(), message_count: 1, status: "active",
-      } as any);
-      return { owner: await session(ids.owner), teammate: await session(ids.teammate) };
+      const profile = (check: string) => ({
+        commands: { check, prove: null, eval: null, ship: null },
+        finders: [],
+        root: "/repo",
+        default: true,
+        changed_at: Date.now(),
+      });
+      await ctx.db.patch(
+        ids.rows.projects.private as any,
+        { line_profile: profile("private-check") } as any,
+      );
+      const session = (user_id: any) =>
+        ctx.db.insert("conversations", {
+          user_id,
+          team_id: ids.T,
+          is_private: false,
+          git_root: "/repo",
+          agent_type: "claude_code",
+          session_id: `ship-${user_id}`,
+          started_at: Date.now(),
+          updated_at: Date.now(),
+          message_count: 1,
+          status: "active",
+        } as any);
+      return {
+        owner: await session(ids.owner),
+        teammate: await session(ids.teammate),
+      };
     });
     const checkFor = async (who: "owner" | "teammate") => {
-      const got: any = await t.run((ctx) => gatherShipFacts(ctx, ids[who] as any, { kind: "conversation", id: String(conversations[who]) }));
+      const got: any = await t.run((ctx) =>
+        gatherShipFacts(ctx, ids[who] as any, {
+          kind: "conversation",
+          id: String(conversations[who]),
+        }),
+      );
       return got.facts?.profile?.check ?? null;
     };
     expect(await checkFor("owner")).toBe("private-check");
@@ -365,14 +752,27 @@ describe("access matrix", () => {
   test("syncLog.getRange: each identity receives cargo for exactly its rows, across every scope", async () => {
     const t = convexTest(schema, allModules);
     const ids = await seed(t);
-    const scopes = [teamScopeKey(ids.T), teamScopeKey(ids.O), ...WHO.map((w) => userScopeKey(ids[w]))];
+    const scopes = [
+      teamScopeKey(ids.T),
+      teamScopeKey(ids.O),
+      ...WHO.map((w) => userScopeKey(ids[w])),
+    ];
     for (const table of MATRIX_KEYS) {
       const got: Record<string, string[]> = {};
       for (const who of WHO) {
         const seen: string[] = [];
         for (const scope_key of scopes) {
-          const page: any = await t.withIdentity({ subject: ids[who] }).query(api.syncLog.getRange, { scope_key, from: 0, limit: 1000, cargo: true });
-          for (const a of page.actions) if (a.entity_type === table && a.op === "upsert" && a.patch) seen.push(a.entity_id);
+          const page: any = await t
+            .withIdentity({ subject: ids[who] })
+            .query(api.syncLog.getRange, {
+              scope_key,
+              from: 0,
+              limit: 1000,
+              cargo: true,
+            });
+          for (const a of page.actions)
+            if (a.entity_type === table && a.op === "upsert" && a.patch)
+              seen.push(a.entity_id);
         }
         got[who] = placementsOf(ids, table, seen);
       }

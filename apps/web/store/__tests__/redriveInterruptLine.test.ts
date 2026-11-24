@@ -14,12 +14,33 @@ describe("redrive of pending sends", () => {
   it("resends real messages and skips the interruption line", () => {
     const sent: string[] = [];
     useInboxStore.setState({
-      sendMessage: ((_conv: string, content: string) => { sent.push(content); }) as any,
+      sendMessage: ((_conv: string, content: string) => {
+        sent.push(content);
+      }) as any,
       pendingMessages: {
         [CONV]: [
-          { _id: "optimistic_1", role: "user", content: "[Request interrupted by user]", timestamp: 1, _isOptimistic: true },
-          { _id: "optimistic_2", role: "user", content: "<turn_aborted>", timestamp: 2, _isOptimistic: true },
-          { _id: "optimistic_3", role: "user", content: "name the top-level folders", timestamp: 3, _isOptimistic: true, _clientId: "optimistic_3" },
+          {
+            _id: "optimistic_1",
+            role: "user",
+            content: "[Request interrupted by user]",
+            timestamp: 1,
+            _isOptimistic: true,
+          },
+          {
+            _id: "optimistic_2",
+            role: "user",
+            content: "<turn_aborted>",
+            timestamp: 2,
+            _isOptimistic: true,
+          },
+          {
+            _id: "optimistic_3",
+            role: "user",
+            content: "name the top-level folders",
+            timestamp: 3,
+            _isOptimistic: true,
+            _clientId: "optimistic_3",
+          },
         ] as any,
       },
     });

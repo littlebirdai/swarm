@@ -35,7 +35,12 @@ export function CodeMenuItem({
       className={cn(ITEM, tone === "danger" && "text-sol-red")}
       onSelect={() => onSelect()}
     >
-      <Icon className={cn("w-3.5 h-3.5", tone === "danger" ? "" : "text-sol-text-dim")} />
+      <Icon
+        className={cn(
+          "w-3.5 h-3.5",
+          tone === "danger" ? "" : "text-sol-text-dim",
+        )}
+      />
       {children}
     </DropdownMenuItem>
   );
@@ -66,7 +71,12 @@ export function CodeShareItems({
   return (
     <>
       <CodeMenuLabel>Share</CodeMenuLabel>
-      <CodeMenuItem icon={Link2} onSelect={() => { void copyText(url, "Link copied"); }}>
+      <CodeMenuItem
+        icon={Link2}
+        onSelect={() => {
+          void copyText(url, "Link copied");
+        }}
+      >
         Copy link
       </CodeMenuItem>
       {chatOn && (
@@ -80,7 +90,9 @@ export function CodeShareItems({
       {githubUrl && (
         <CodeMenuItem
           icon={ExternalLink}
-          onSelect={() => window.open(githubUrl, "_blank", "noopener,noreferrer")}
+          onSelect={() =>
+            window.open(githubUrl, "_blank", "noopener,noreferrer")
+          }
         >
           Open on GitHub
         </CodeMenuItem>
@@ -115,8 +127,16 @@ export function CodeShareMenu({
           <MoreHorizontal className="w-3.5 h-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 bg-sol-bg border-sol-border">
-        <CodeShareItems url={url} label={label} previewTitle={previewTitle} githubUrl={githubUrl} />
+      <DropdownMenuContent
+        align="end"
+        className="w-56 bg-sol-bg border-sol-border"
+      >
+        <CodeShareItems
+          url={url}
+          label={label}
+          previewTitle={previewTitle}
+          githubUrl={githubUrl}
+        />
         {children && (
           <>
             <DropdownMenuSeparator className="bg-sol-border" />

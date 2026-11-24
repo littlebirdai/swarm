@@ -1,15 +1,44 @@
 import { test, expect, describe } from "bun:test";
-import { stripCdPrefix, stripEnvPrefix, stripTimeoutPrefix, splitShellSegments, unwrapShellCommand, parseCastCommandString, extractSendBody, extractCommentBody, extractMessageFlag, extractFlagValue, extractCastBodyParts, normalizeCastCategory, extractBrowserPageUrl, buildBrowserRowMap, browserTabOf, extractBrowserDoSteps, splitBrowserDoOutput, extractChatSendArgs, extractStateArgs, extractDecideArgs, isDecideCastCommand, extractVaultArgs, vaultShortIdIn, isVaultRequestCastCommand, isFlowObjectCastCommand, sayTextOf } from "./castCommand";
+import {
+  stripCdPrefix,
+  stripEnvPrefix,
+  stripTimeoutPrefix,
+  splitShellSegments,
+  unwrapShellCommand,
+  parseCastCommandString,
+  extractSendBody,
+  extractCommentBody,
+  extractMessageFlag,
+  extractFlagValue,
+  extractCastBodyParts,
+  normalizeCastCategory,
+  extractBrowserPageUrl,
+  buildBrowserRowMap,
+  browserTabOf,
+  extractBrowserDoSteps,
+  splitBrowserDoOutput,
+  extractChatSendArgs,
+  extractStateArgs,
+  extractDecideArgs,
+  isDecideCastCommand,
+  extractVaultArgs,
+  vaultShortIdIn,
+  isVaultRequestCastCommand,
+  isFlowObjectCastCommand,
+  sayTextOf,
+} from "./castCommand";
 
 describe("stripEnvPrefix", () => {
   test("strips a leading assignment", () => {
-    expect(stripEnvPrefix('CAST_BROWSER_LEGACY=1 cast browser open example.com')).toBe(
-      "cast browser open example.com",
-    );
+    expect(
+      stripEnvPrefix("CAST_BROWSER_LEGACY=1 cast browser open example.com"),
+    ).toBe("cast browser open example.com");
   });
 
   test("strips several assignments, including quoted values", () => {
-    expect(stripEnvPrefix('FOO=1 BAR="a b" cast task ready')).toBe("cast task ready");
+    expect(stripEnvPrefix('FOO=1 BAR="a b" cast task ready')).toBe(
+      "cast task ready",
+    );
   });
 
   test("strips an `env` prefix with -u flags and assignments", () => {
@@ -19,7 +48,9 @@ describe("stripEnvPrefix", () => {
   });
 
   test("leaves a command with no env words untouched", () => {
-    expect(stripEnvPrefix('cast send jx7a6xc "hi"')).toBe('cast send jx7a6xc "hi"');
+    expect(stripEnvPrefix('cast send jx7a6xc "hi"')).toBe(
+      'cast send jx7a6xc "hi"',
+    );
   });
 
   test("does not eat an assignment-looking word past the command start", () => {
@@ -43,13 +74,17 @@ describe("stripEnvPrefix", () => {
 
   test("still strips a quoted list assignment that has a command after it", () => {
     const list = Array.from({ length: 40 }, (_, i) => `'event_${i}'`).join(",");
-    expect(stripEnvPrefix(`T="${list}" cast task ready`)).toBe("cast task ready");
+    expect(stripEnvPrefix(`T="${list}" cast task ready`)).toBe(
+      "cast task ready",
+    );
   });
 });
 
 describe("parseCastCommandString with env prefixes", () => {
   test("an env-prefixed cast browser command still parses as a cast row", () => {
-    const parsed = parseCastCommandString("CAST_BROWSER_LEGACY=1 cast browser open example.com");
+    const parsed = parseCastCommandString(
+      "CAST_BROWSER_LEGACY=1 cast browser open example.com",
+    );
     expect(parsed?.category).toBe("browser");
     expect(parsed?.subcommand).toBe("open");
   });
@@ -66,28 +101,36 @@ describe("parseCastCommandString with env prefixes", () => {
 
 describe("stripCdPrefix", () => {
   test("strips a leading `cd <dir>;` prefix", () => {
-    expect(stripCdPrefix("cd /Users/ashot/src/codecast; cast send jx7a6xc \"hi\"")).toBe(
-      "cast send jx7a6xc \"hi\"",
-    );
+    expect(
+      stripCdPrefix('cd /Users/ashot/src/codecast; cast send jx7a6xc "hi"'),
+    ).toBe('cast send jx7a6xc "hi"');
   });
 
   test("strips a leading `cd <dir> &&` prefix", () => {
-    expect(stripCdPrefix("cd /repo && cast task ready")).toBe("cast task ready");
+    expect(stripCdPrefix("cd /repo && cast task ready")).toBe(
+      "cast task ready",
+    );
   });
 
   test("leaves a command with no cd prefix untouched", () => {
-    expect(stripCdPrefix("cast send jx7a6xc \"hi\"")).toBe("cast send jx7a6xc \"hi\"");
+    expect(stripCdPrefix('cast send jx7a6xc "hi"')).toBe(
+      'cast send jx7a6xc "hi"',
+    );
   });
 
   test("does not strip a `cd` that isn't a leading prefixed command", () => {
     // No `;`/`&&` separator — not a prefix, so leave it alone.
-    expect(stripCdPrefix("cast doc create \"cd into the dir\"")).toBe('cast doc create "cd into the dir"');
+    expect(stripCdPrefix('cast doc create "cd into the dir"')).toBe(
+      'cast doc create "cd into the dir"',
+    );
   });
 });
 
 describe("parseCastCommandString", () => {
   test("parses a bare `cast send`", () => {
-    expect(parseCastCommandString('cast send jx7a6xc "coordinating on the header"')).toEqual({
+    expect(
+      parseCastCommandString('cast send jx7a6xc "coordinating on the header"'),
+    ).toEqual({
       category: "send",
       subcommand: "jx7a6xc",
       args: '"coordinating on the header"',
@@ -98,7 +141,8 @@ describe("parseCastCommandString", () => {
 
   test("parses through a leading `cd <dir>;` prefix (the outbound-card regression)", () => {
     // Agents prefix `cast send` with a cd into the repo; the card must still render.
-    const raw = 'cd /Users/ashot/src/codecast; cast send jx7a6xc "Coordinating on the header"';
+    const raw =
+      'cd /Users/ashot/src/codecast; cast send jx7a6xc "Coordinating on the header"';
     expect(parseCastCommandString(raw)).toEqual({
       category: "send",
       subcommand: "jx7a6xc",
@@ -109,18 +153,38 @@ describe("parseCastCommandString", () => {
   });
 
   test("parses through a leading `cd <dir> &&` prefix", () => {
-    const r = parseCastCommandString('cd /repo && cast read jx70ntf 12:20');
-    expect(r).toEqual({ category: "read", subcommand: "jx70ntf", args: "12:20", fullCmd: "cast read jx70ntf 12:20", raw: "cd /repo && cast read jx70ntf 12:20" });
+    const r = parseCastCommandString("cd /repo && cast read jx70ntf 12:20");
+    expect(r).toEqual({
+      category: "read",
+      subcommand: "jx70ntf",
+      args: "12:20",
+      fullCmd: "cast read jx70ntf 12:20",
+      raw: "cd /repo && cast read jx70ntf 12:20",
+    });
   });
 
   test("parses through a `bash -c` wrapper", () => {
     const r = parseCastCommandString(`bash -c 'cast task done ct-123'`);
-    expect(r).toEqual({ category: "task", subcommand: "done", args: "ct-123", fullCmd: "cast task done ct-123", raw: `bash -c 'cast task done ct-123'` });
+    expect(r).toEqual({
+      category: "task",
+      subcommand: "done",
+      args: "ct-123",
+      fullCmd: "cast task done ct-123",
+      raw: `bash -c 'cast task done ct-123'`,
+    });
   });
 
   test("parses through a `bash -c` wrapper with an inner cd prefix", () => {
-    const r = parseCastCommandString(`bash -c "cd /repo; cast plan show pl-77"`);
-    expect(r).toEqual({ category: "plan", subcommand: "show", args: "pl-77", fullCmd: "cast plan show pl-77", raw: `bash -c "cd /repo; cast plan show pl-77"` });
+    const r = parseCastCommandString(
+      `bash -c "cd /repo; cast plan show pl-77"`,
+    );
+    expect(r).toEqual({
+      category: "plan",
+      subcommand: "show",
+      args: "pl-77",
+      fullCmd: "cast plan show pl-77",
+      raw: `bash -c "cd /repo; cast plan show pl-77"`,
+    });
   });
 
   test("returns null for a non-cast command", () => {
@@ -136,30 +200,31 @@ describe("parseCastCommandString", () => {
 
 describe("splitShellSegments", () => {
   test("splits on pipes, semicolons and newlines", () => {
-    expect(splitShellSegments("cast browser shot | tail -1; sleep 2\ncast browser read")).toEqual([
-      "cast browser shot",
-      "tail -1",
-      "sleep 2",
-      "cast browser read",
-    ]);
+    expect(
+      splitShellSegments(
+        "cast browser shot | tail -1; sleep 2\ncast browser read",
+      ),
+    ).toEqual(["cast browser shot", "tail -1", "sleep 2", "cast browser read"]);
   });
 
   test("drops redirects and their targets, file descriptor included", () => {
-    expect(splitShellSegments('cast browser do "click e13" 2>&1 | tail -1')).toEqual([
-      'cast browser do "click e13"',
-      "tail -1",
+    expect(
+      splitShellSegments('cast browser do "click e13" 2>&1 | tail -1'),
+    ).toEqual(['cast browser do "click e13"', "tail -1"]);
+    expect(splitShellSegments("cast read jx7a6xc > /tmp/out.txt")).toEqual([
+      "cast read jx7a6xc",
     ]);
-    expect(splitShellSegments("cast read jx7a6xc > /tmp/out.txt")).toEqual(["cast read jx7a6xc"]);
   });
 
   test("an operator inside a quoted message body never splits the command", () => {
-    expect(splitShellSegments(`cast send jx7a6xc "ship it; then tell me | ok"`)).toEqual([
-      `cast send jx7a6xc "ship it; then tell me | ok"`,
-    ]);
+    expect(
+      splitShellSegments(`cast send jx7a6xc "ship it; then tell me | ok"`),
+    ).toEqual([`cast send jx7a6xc "ship it; then tell me | ok"`]);
   });
 
   test("keeps a heredoc body with the command that opened it", () => {
-    const raw = "cast send jx7a6xc - <<'EOF'\nfirst | line\nsecond; line\nEOF\necho done";
+    const raw =
+      "cast send jx7a6xc - <<'EOF'\nfirst | line\nsecond; line\nEOF\necho done";
     expect(splitShellSegments(raw)).toEqual([
       "cast send jx7a6xc - <<'EOF'\nfirst | line\nsecond; line\nEOF",
       "echo done",
@@ -167,21 +232,29 @@ describe("splitShellSegments", () => {
   });
 
   test("command substitution stays inside its word", () => {
-    expect(splitShellSegments('cast doc create "$(basename /a/b; echo x)"')).toEqual([
-      'cast doc create "$(basename /a/b; echo x)"',
-    ]);
+    expect(
+      splitShellSegments('cast doc create "$(basename /a/b; echo x)"'),
+    ).toEqual(['cast doc create "$(basename /a/b; echo x)"']);
   });
 });
 
 describe("stripTimeoutPrefix", () => {
   test("strips the guard and its flags", () => {
-    expect(stripTimeoutPrefix("timeout 90 cast browser shot")).toBe("cast browser shot");
-    expect(stripTimeoutPrefix("gtimeout 2.5s cast browser read")).toBe("cast browser read");
-    expect(stripTimeoutPrefix("timeout -k 5 30 cast browser click #e1")).toBe("cast browser click #e1");
+    expect(stripTimeoutPrefix("timeout 90 cast browser shot")).toBe(
+      "cast browser shot",
+    );
+    expect(stripTimeoutPrefix("gtimeout 2.5s cast browser read")).toBe(
+      "cast browser read",
+    );
+    expect(stripTimeoutPrefix("timeout -k 5 30 cast browser click #e1")).toBe(
+      "cast browser click #e1",
+    );
   });
 
   test("leaves a command that only mentions a timeout alone", () => {
-    expect(stripTimeoutPrefix("cast browser click --timeout 30")).toBe("cast browser click --timeout 30");
+    expect(stripTimeoutPrefix("cast browser click --timeout 30")).toBe(
+      "cast browser click --timeout 30",
+    );
   });
 });
 
@@ -189,7 +262,11 @@ describe("parseCastCommandString through shell furniture", () => {
   // The transcript rows that rendered as raw shell instead of browser cards:
   // every one of them wraps `cast browser` in a timeout guard and a pipe.
   test("timeout guard plus a trimming pipe still reads as a browser row", () => {
-    expect(parseCastCommandString('timeout 90 cast browser do "click e13" "wait 3000" 2>&1 | tail -1')).toEqual({
+    expect(
+      parseCastCommandString(
+        'timeout 90 cast browser do "click e13" "wait 3000" 2>&1 | tail -1',
+      ),
+    ).toEqual({
       category: "browser",
       subcommand: "do",
       args: '"click e13" "wait 3000"',
@@ -200,7 +277,8 @@ describe("parseCastCommandString through shell furniture", () => {
   });
 
   test("a trailing chained command does not hide the cast command", () => {
-    const raw = 'timeout 60 cast browser click "button[aria-label^=Remove]" 2>&1 | tail -1; sleep 2';
+    const raw =
+      'timeout 60 cast browser click "button[aria-label^=Remove]" 2>&1 | tail -1; sleep 2';
     expect(parseCastCommandString(raw)).toEqual({
       category: "browser",
       subcommand: "click",
@@ -211,14 +289,22 @@ describe("parseCastCommandString through shell furniture", () => {
   });
 
   test("the first cast command in the line wins", () => {
-    const r = parseCastCommandString("timeout 90 cast browser open example.com\ntimeout 40 cast browser shot");
+    const r = parseCastCommandString(
+      "timeout 90 cast browser open example.com\ntimeout 40 cast browser shot",
+    );
     expect(r?.subcommand).toBe("open");
     expect(r?.args).toBe("example.com");
   });
 
   test("a cast command downstream of a pipe is still found", () => {
     const r = parseCastCommandString("echo hi | cast send jx7a6xc -");
-    expect(r).toEqual({ category: "send", subcommand: "jx7a6xc", args: "-", fullCmd: "cast send jx7a6xc -", raw: "echo hi | cast send jx7a6xc -" });
+    expect(r).toEqual({
+      category: "send",
+      subcommand: "jx7a6xc",
+      args: "-",
+      fullCmd: "cast send jx7a6xc -",
+      raw: "echo hi | cast send jx7a6xc -",
+    });
   });
 
   test("a target flag before the verb keeps the verb readable", () => {
@@ -234,22 +320,33 @@ describe("parseCastCommandString through shell furniture", () => {
   });
 
   test("a mention of cast inside another command's argument is not a cast row", () => {
-    expect(parseCastCommandString('grep -n "cast browser open" src/x.ts')).toBeNull();
+    expect(
+      parseCastCommandString('grep -n "cast browser open" src/x.ts'),
+    ).toBeNull();
     expect(parseCastCommandString("timeout 30 npm run build")).toBeNull();
   });
 });
 
 describe("extractSendBody", () => {
   test("double-quoted literal", () => {
-    expect(extractSendBody('"take the auth half"')).toEqual({ body: "take the auth half", kind: "literal" });
+    expect(extractSendBody('"take the auth half"')).toEqual({
+      body: "take the auth half",
+      kind: "literal",
+    });
   });
 
   test("double-quoted literal with escaped quotes and trailing flag", () => {
-    expect(extractSendBody('"say \\"done\\"" --from jx7abcd')).toEqual({ body: 'say "done"', kind: "literal" });
+    expect(extractSendBody('"say \\"done\\"" --from jx7abcd')).toEqual({
+      body: 'say "done"',
+      kind: "literal",
+    });
   });
 
   test("single-quoted body is always literal, even with $ inside", () => {
-    expect(extractSendBody("'costs $(a lot)'")).toEqual({ body: "costs $(a lot)", kind: "literal" });
+    expect(extractSendBody("'costs $(a lot)'")).toEqual({
+      body: "costs $(a lot)",
+      kind: "literal",
+    });
   });
 
   test("decodes adjacent shell segments instead of truncating the delivered word", () => {
@@ -281,7 +378,10 @@ describe("extractSendBody", () => {
   });
 
   test("escaped dollar in double quotes stays literal", () => {
-    expect(extractSendBody('"costs \\$5"')).toEqual({ body: "costs $5", kind: "literal" });
+    expect(extractSendBody('"costs \\$5"')).toEqual({
+      body: "costs $5",
+      kind: "literal",
+    });
   });
 
   test("double-quote backslash parity matches shell expansion", () => {
@@ -315,17 +415,26 @@ describe("extractSendBody", () => {
 
   test("heredoc body is extracted verbatim", () => {
     const args = "- <<'EOF'\n# Briefing\n\n- item one\n- item two\nEOF";
-    expect(extractSendBody(args)).toEqual({ body: "# Briefing\n\n- item one\n- item two", kind: "heredoc" });
+    expect(extractSendBody(args)).toEqual({
+      body: "# Briefing\n\n- item one\n- item two",
+      kind: "heredoc",
+    });
   });
 
   test("unquoted tag with nothing the shell would expand is still a literal delivery", () => {
     const args = "- --from jx7abcd <<EOF\nhello\nthere\nEOF";
-    expect(extractSendBody(args)).toEqual({ body: "hello\nthere", kind: "heredoc" });
+    expect(extractSendBody(args)).toEqual({
+      body: "hello\nthere",
+      kind: "heredoc",
+    });
   });
 
   test("<<- heredoc strips leading tabs", () => {
     const args = "- <<-'EOF'\n\tindented\n\tlines\n\tEOF";
-    expect(extractSendBody(args)).toEqual({ body: "indented\nlines", kind: "heredoc" });
+    expect(extractSendBody(args)).toEqual({
+      body: "indented\nlines",
+      kind: "heredoc",
+    });
   });
 
   test("quoted heredoc preserves leading indentation and trailing blank lines", () => {
@@ -353,7 +462,9 @@ describe("extractSendBody", () => {
 
   test("unquoted heredocs with variables or substitutions never claim literal delivery", () => {
     expect(extractSendBody("- <<EOF\n$HOME\nEOF").kind).toBe("dynamic");
-    expect(extractSendBody("- <<EOF\n$(cat reply.md)\nEOF").kind).toBe("dynamic");
+    expect(extractSendBody("- <<EOF\n$(cat reply.md)\nEOF").kind).toBe(
+      "dynamic",
+    );
     expect(extractSendBody("- <<EOF\nran `date`\nEOF").kind).toBe("dynamic");
     // Backslashes are also rewritten by unquoted-heredoc expansion (\$ → $,
     // \<newline> joins lines), so their presence forfeits the literal claim.
@@ -373,7 +484,10 @@ describe("extractSendBody", () => {
 
   test("a quoted message that merely mentions <<EOF is not a heredoc", () => {
     const args = '"see the heredoc form: <<EOF\nfoo"';
-    expect(extractSendBody(args)).toEqual({ body: "see the heredoc form: <<EOF\nfoo", kind: "literal" });
+    expect(extractSendBody(args)).toEqual({
+      body: "see the heredoc form: <<EOF\nfoo",
+      kind: "literal",
+    });
   });
 
   test("bare - (piped/redirected stdin) is dynamic", () => {
@@ -382,22 +496,40 @@ describe("extractSendBody", () => {
   });
 
   test("unquoted body drops trailing flags", () => {
-    expect(extractSendBody("done --from jx7abcd")).toEqual({ body: "done", kind: "literal" });
+    expect(extractSendBody("done --from jx7abcd")).toEqual({
+      body: "done",
+      kind: "literal",
+    });
   });
 
   test("a chained command after the closing quote does not poison a literal send", () => {
     // Real-world shape: `cast send <id> "…"; cast disown <id> 2>/dev/null | tail -1`
-    expect(extractSendBody('"Nothing from me blocks it."; cast disown jx7av85 2>/dev/null | tail -1')).toEqual({
+    expect(
+      extractSendBody(
+        '"Nothing from me blocks it."; cast disown jx7av85 2>/dev/null | tail -1',
+      ),
+    ).toEqual({
       body: "Nothing from me blocks it.",
       kind: "literal",
     });
-    expect(extractSendBody('"ship it"|tail -1')).toEqual({ body: "ship it", kind: "literal" });
-    expect(extractSendBody('"ship it">/dev/null')).toEqual({ body: "ship it", kind: "literal" });
-    expect(extractSendBody("done;echo ok")).toEqual({ body: "done", kind: "literal" });
+    expect(extractSendBody('"ship it"|tail -1')).toEqual({
+      body: "ship it",
+      kind: "literal",
+    });
+    expect(extractSendBody('"ship it">/dev/null')).toEqual({
+      body: "ship it",
+      kind: "literal",
+    });
+    expect(extractSendBody("done;echo ok")).toEqual({
+      body: "done",
+      kind: "literal",
+    });
   });
 
   test("expansion inside the word stays dynamic even with a trailing chain", () => {
-    expect(extractSendBody('"$(cat reply.md)"; echo sent').kind).toBe("dynamic");
+    expect(extractSendBody('"$(cat reply.md)"; echo sent').kind).toBe(
+      "dynamic",
+    );
   });
 
   test("an operator with no word before it never claims literal delivery", () => {
@@ -409,34 +541,47 @@ describe("extractSendBody", () => {
     const parsed = parseCastCommandString(raw)!;
     expect(parsed.category).toBe("send");
     expect(parsed.subcommand).toBe("jx7c6zk");
-    expect(extractSendBody(parsed.args)).toEqual({ body: "line one\nline two", kind: "heredoc" });
+    expect(extractSendBody(parsed.args)).toEqual({
+      body: "line one\nline two",
+      kind: "heredoc",
+    });
   });
 });
 
 describe("unwrapShellCommand", () => {
   test("unwraps single- and double-quoted bash -c", () => {
     expect(unwrapShellCommand(`bash -c 'cast feed'`)).toBe("cast feed");
-    expect(unwrapShellCommand(`/bin/sh -c "cast sessions"`)).toBe("cast sessions");
+    expect(unwrapShellCommand(`/bin/sh -c "cast sessions"`)).toBe(
+      "cast sessions",
+    );
   });
 
   test("returns the command unchanged when not wrapped", () => {
-    expect(unwrapShellCommand("cast send jx7a6xc hi")).toBe("cast send jx7a6xc hi");
+    expect(unwrapShellCommand("cast send jx7a6xc hi")).toBe(
+      "cast send jx7a6xc hi",
+    );
   });
 });
 
 describe("extractCommentBody", () => {
   test("quoted body after a task short id", () => {
-    expect(extractCommentBody('ct-40882 "wired the parser, deploying next" -t progress')).toBe(
-      "wired the parser, deploying next",
-    );
+    expect(
+      extractCommentBody(
+        'ct-40882 "wired the parser, deploying next" -t progress',
+      ),
+    ).toBe("wired the parser, deploying next");
   });
 
   test("heredoc body after a plan short id", () => {
-    expect(extractCommentBody("pl-88 - <<'EOF'\nline one\nline two\nEOF")).toBe("line one\nline two");
+    expect(extractCommentBody("pl-88 - <<'EOF'\nline one\nline two\nEOF")).toBe(
+      "line one\nline two",
+    );
   });
 
   test("bare Convex id (doc comment) followed by a quoted body", () => {
-    expect(extractCommentBody('k57d2v8m1q9x3z6b4n8c0f5g7h2j4l6p "looks good"')).toBe("looks good");
+    expect(
+      extractCommentBody('k57d2v8m1q9x3z6b4n8c0f5g7h2j4l6p "looks good"'),
+    ).toBe("looks good");
   });
 
   test("null when there is no leading entity id", () => {
@@ -450,11 +595,15 @@ describe("extractCommentBody", () => {
 
 describe("extractMessageFlag", () => {
   test("extracts a double-quoted -m value", () => {
-    expect(extractMessageFlag('ct-40882 -m "verified in prod"')).toBe("verified in prod");
+    expect(extractMessageFlag('ct-40882 -m "verified in prod"')).toBe(
+      "verified in prod",
+    );
   });
 
   test("extracts a single-quoted --message value", () => {
-    expect(extractMessageFlag("ct-40882 --message 'all tests green'")).toBe("all tests green");
+    expect(extractMessageFlag("ct-40882 --message 'all tests green'")).toBe(
+      "all tests green",
+    );
   });
 
   test("null when the flag is absent", () => {
@@ -468,9 +617,12 @@ describe("extractMessageFlag", () => {
 
 describe("extractFlagValue", () => {
   test("reads a flag value from argv", () => {
-    expect(extractFlagValue('pl-88 -g "ship the parser" -b "details"', ["-g", "--goal"])).toBe(
-      "ship the parser",
-    );
+    expect(
+      extractFlagValue('pl-88 -g "ship the parser" -b "details"', [
+        "-g",
+        "--goal",
+      ]),
+    ).toBe("ship the parser");
   });
 
   test("ignores a flag spelled inside a heredoc body", () => {
@@ -479,7 +631,12 @@ describe("extractFlagValue", () => {
   });
 
   test("ignores a flag spelled inside a quoted body", () => {
-    expect(extractFlagValue('ct-1 "pass -m to the runner" -t progress', ["-m", "--message"])).toBeNull();
+    expect(
+      extractFlagValue('ct-1 "pass -m to the runner" -t progress', [
+        "-m",
+        "--message",
+      ]),
+    ).toBeNull();
   });
 
   test("null when the value is expanded", () => {
@@ -489,9 +646,9 @@ describe("extractFlagValue", () => {
 
 describe("normalizeCastCategory", () => {
   test("resolves short and pre-rename spellings", () => {
-    expect(["t", "p", "d", "sched", "schedule", "task"].map(normalizeCastCategory)).toEqual([
-      "task", "plan", "doc", "trigger", "trigger", "task",
-    ]);
+    expect(
+      ["t", "p", "d", "sched", "schedule", "task"].map(normalizeCastCategory),
+    ).toEqual(["task", "plan", "doc", "trigger", "trigger", "task"]);
   });
 });
 
@@ -501,14 +658,22 @@ describe("extractVaultArgs", () => {
   });
 
   test("value verbs hide their output and name their secrets past flags", () => {
-    expect(extractVaultArgs("get", "github-bot --field password")).toEqual({ names: ["github-bot"], hidesOutput: true });
-    expect(extractVaultArgs("env", "stripe-test prod-db")).toEqual({ names: ["stripe-test", "prod-db"], hidesOutput: true });
+    expect(extractVaultArgs("get", "github-bot --field password")).toEqual({
+      names: ["github-bot"],
+      hidesOutput: true,
+    });
+    expect(extractVaultArgs("env", "stripe-test prod-db")).toEqual({
+      names: ["stripe-test", "prod-db"],
+      hidesOutput: true,
+    });
     expect(extractVaultArgs("otp", "github-bot").hidesOutput).toBe(true);
     expect(extractVaultArgs("ls", "").hidesOutput).toBe(false);
   });
 
   test("run splits the names from the command it runs", () => {
-    expect(extractVaultArgs("run", "stripe-test prod-db -- npm test -- --watch")).toEqual({
+    expect(
+      extractVaultArgs("run", "stripe-test prod-db -- npm test -- --watch"),
+    ).toEqual({
       names: ["stripe-test", "prod-db"],
       command: "npm test -- --watch",
       hidesOutput: false,
@@ -516,7 +681,12 @@ describe("extractVaultArgs", () => {
   });
 
   test("request reads its kind and why, and a -- inside the why stays in it", () => {
-    expect(extractVaultArgs("request", 'figma --kind signin --why "export -- the logos" --site figma.com')).toEqual({
+    expect(
+      extractVaultArgs(
+        "request",
+        'figma --kind signin --why "export -- the logos" --site figma.com',
+      ),
+    ).toEqual({
       names: ["figma"],
       kind: "signin",
       why: "export -- the logos",
@@ -525,76 +695,131 @@ describe("extractVaultArgs", () => {
   });
 
   test("a request stays out of the folded receipt; other verbs fold", () => {
-    expect(isVaultRequestCastCommand(parseCastCommandString('cast secrets request figma --kind signin'))).toBe(true);
-    expect(isVaultRequestCastCommand(parseCastCommandString("cast vault get figma"))).toBe(false);
+    expect(
+      isVaultRequestCastCommand(
+        parseCastCommandString("cast secrets request figma --kind signin"),
+      ),
+    ).toBe(true);
+    expect(
+      isVaultRequestCastCommand(parseCastCommandString("cast vault get figma")),
+    ).toBe(false);
   });
 
   test("finds the short id the CLI printed", () => {
-    expect(vaultShortIdIn("requested sec-12 stripe-test in Acme\nEnd your turn dormant")).toBe("sec-12");
+    expect(
+      vaultShortIdIn(
+        "requested sec-12 stripe-test in Acme\nEnd your turn dormant",
+      ),
+    ).toBe("sec-12");
     expect(vaultShortIdIn("nothing here")).toBeNull();
   });
 });
 
 describe("extractCastBodyParts", () => {
   test("comment body", () => {
-    expect(extractCastBodyParts("task", "comment", 'ct-40882 "wired the parser" -t progress')).toEqual([
-      { text: "wired the parser", label: undefined },
-    ]);
+    expect(
+      extractCastBodyParts(
+        "task",
+        "comment",
+        'ct-40882 "wired the parser" -t progress',
+      ),
+    ).toEqual([{ text: "wired the parser", label: undefined }]);
   });
 
   test("heredoc comment body keeps its line breaks", () => {
-    expect(extractCastBodyParts("t", "comment", "pl-88 - <<'EOF'\n# Report\n\n- one\n- two\nEOF")).toEqual([
-      { text: "# Report\n\n- one\n- two", label: undefined },
-    ]);
+    expect(
+      extractCastBodyParts(
+        "t",
+        "comment",
+        "pl-88 - <<'EOF'\n# Report\n\n- one\n- two\nEOF",
+      ),
+    ).toEqual([{ text: "# Report\n\n- one\n- two", label: undefined }]);
   });
 
   test("plan comment carries its rationale as a second part", () => {
-    expect(extractCastBodyParts("plan", "comment", 'pl-88 "use postgres" -d -r "convex has no joins"')).toEqual([
+    expect(
+      extractCastBodyParts(
+        "plan",
+        "comment",
+        'pl-88 "use postgres" -d -r "convex has no joins"',
+      ),
+    ).toEqual([
       { text: "use postgres", label: undefined },
       { text: "convex has no joins", label: "why" },
     ]);
   });
 
   test("done note", () => {
-    expect(extractCastBodyParts("task", "done", 'ct-1 -m "verified in prod"')).toEqual([
-      { text: "verified in prod", label: undefined },
-    ]);
+    expect(
+      extractCastBodyParts("task", "done", 'ct-1 -m "verified in prod"'),
+    ).toEqual([{ text: "verified in prod", label: undefined }]);
   });
 
   test("plan create carries goal then body", () => {
-    expect(extractCastBodyParts("plan", "create", '"Rewrite sync" -g "one path" -b "## Steps"')).toEqual([
+    expect(
+      extractCastBodyParts(
+        "plan",
+        "create",
+        '"Rewrite sync" -g "one path" -b "## Steps"',
+      ),
+    ).toEqual([
       { text: "one path", label: "goal" },
       { text: "## Steps", label: undefined },
     ]);
   });
 
   test("trigger add carries its prompt", () => {
-    expect(extractCastBodyParts("trigger", "add", '"Check if CI is green on main" --in 30m')).toEqual([
-      { text: "Check if CI is green on main", label: "prompt" },
-    ]);
+    expect(
+      extractCastBodyParts(
+        "trigger",
+        "add",
+        '"Check if CI is green on main" --in 30m',
+      ),
+    ).toEqual([{ text: "Check if CI is green on main", label: "prompt" }]);
   });
 
   test("spawn and fork carry their prompts, not their flag values", () => {
-    expect(extractCastBodyParts("spawn", "", '--subagent --agent codex -- "Retry endpoint, 5 attempts max"')).toEqual([
-      { text: "Retry endpoint, 5 attempts max", label: "prompt" },
-    ]);
-    expect(extractCastBodyParts("spawn", "", '--label "rollout" "First task" "Second task"')).toEqual([
+    expect(
+      extractCastBodyParts(
+        "spawn",
+        "",
+        '--subagent --agent codex -- "Retry endpoint, 5 attempts max"',
+      ),
+    ).toEqual([{ text: "Retry endpoint, 5 attempts max", label: "prompt" }]);
+    expect(
+      extractCastBodyParts(
+        "spawn",
+        "",
+        '--label "rollout" "First task" "Second task"',
+      ),
+    ).toEqual([
       { text: "First task", label: "prompt" },
       { text: "Second task", label: "prompt" },
     ]);
-    expect(extractCastBodyParts("fork", "", '--tip "Try fixed backoff"')).toEqual([{ text: "Try fixed backoff", label: "prompt" }]);
-    expect(extractCastBodyParts("spawn", "", "--subagent -- - <<'EOF'\nA heredoc brief\nEOF")).toEqual([]);
+    expect(
+      extractCastBodyParts("fork", "", '--tip "Try fixed backoff"'),
+    ).toEqual([{ text: "Try fixed backoff", label: "prompt" }]);
+    expect(
+      extractCastBodyParts(
+        "spawn",
+        "",
+        "--subagent -- - <<'EOF'\nA heredoc brief\nEOF",
+      ),
+    ).toEqual([]);
   });
 
   test("trigger add reads a heredoc prompt", () => {
-    const args = "- --every 4h --title \"Growth audit\" <<'EOF'\nAudit budget allocation.\nEOF";
+    const args =
+      "- --every 4h --title \"Growth audit\" <<'EOF'\nAudit budget allocation.\nEOF";
     expect(extractCastBodyParts("sched", "add", args)).toEqual([
       { text: "Audit budget allocation.", label: "prompt" },
     ]);
   });
 
   test("cast state renders as its own row, never a body block", () => {
-    expect(extractCastBodyParts("state", "", '--status done "Shipped and verified"')).toEqual([]);
+    expect(
+      extractCastBodyParts("state", "", '--status done "Shipped and verified"'),
+    ).toEqual([]);
     expect(extractCastBodyParts("state", "clear", "")).toEqual([]);
     expect(extractCastBodyParts("state", "show", "jx7c6zk")).toEqual([]);
   });
@@ -605,20 +830,25 @@ describe("extractCastBodyParts", () => {
   });
 
   test("a shell-expanded body yields nothing to quote", () => {
-    expect(extractCastBodyParts("task", "comment", 'ct-1 "$(cat notes.md)"')).toEqual([]);
+    expect(
+      extractCastBodyParts("task", "comment", 'ct-1 "$(cat notes.md)"'),
+    ).toEqual([]);
   });
 });
 
 describe("extractStateArgs", () => {
   test("status flag plus quoted body", () => {
-    expect(extractStateArgs('--status done "Shipped — all four fixes verified"')).toEqual({
+    expect(
+      extractStateArgs('--status done "Shipped — all four fixes verified"'),
+    ).toEqual({
       status: "done",
       headline: "Shipped — all four fixes verified",
     });
   });
 
   test("heredoc body yields only the first line", () => {
-    const args = "--status dormant - <<'EOF'\nOps audit of Convex on Railway\nStatus: both pinned at the cap\nNext: read memory.stat\nEOF";
+    const args =
+      "--status dormant - <<'EOF'\nOps audit of Convex on Railway\nStatus: both pinned at the cap\nNext: read memory.stat\nEOF";
     expect(extractStateArgs(args)).toEqual({
       status: "dormant",
       headline: "Ops audit of Convex on Railway",
@@ -633,7 +863,9 @@ describe("extractStateArgs", () => {
   });
 
   test("status flag after the body", () => {
-    expect(extractStateArgs('"Rewrite done, tests green" --status blocked')).toEqual({
+    expect(
+      extractStateArgs('"Rewrite done, tests green" --status blocked'),
+    ).toEqual({
       status: "blocked",
       headline: "Rewrite done, tests green",
     });
@@ -653,49 +885,90 @@ describe("extractStateArgs", () => {
 
 describe("extractBrowserPageUrl", () => {
   test("takes the freshest standalone URL line from output, ignoring ANSI", () => {
-    const output = "\x1b[1mPage title\x1b[0m\n\x1b[2mhttps://example.com/one\x1b[0m\nsome text\n  https://example.com/two  \n  3 refs";
-    expect(extractBrowserPageUrl("snapshot", "", output)).toBe("https://example.com/two");
+    const output =
+      "\x1b[1mPage title\x1b[0m\n\x1b[2mhttps://example.com/one\x1b[0m\nsome text\n  https://example.com/two  \n  3 refs";
+    expect(extractBrowserPageUrl("snapshot", "", output)).toBe(
+      "https://example.com/two",
+    );
   });
 
   test("click that navigated reports the indented destination URL", () => {
-    const output = "  → navigated to Dashboard\n    https://app.example.com/dash";
-    expect(extractBrowserPageUrl("click", "#e42", output)).toBe("https://app.example.com/dash");
+    const output =
+      "  → navigated to Dashboard\n    https://app.example.com/dash";
+    expect(extractBrowserPageUrl("click", "#e42", output)).toBe(
+      "https://app.example.com/dash",
+    );
   });
 
   test("falls back to the open argument, normalizing a bare domain", () => {
-    expect(extractBrowserPageUrl("open", "example.com/x", "")).toBe("https://example.com/x");
-    expect(extractBrowserPageUrl("open", '"https://a.dev"', "")).toBe("https://a.dev");
+    expect(extractBrowserPageUrl("open", "example.com/x", "")).toBe(
+      "https://example.com/x",
+    );
+    expect(extractBrowserPageUrl("open", '"https://a.dev"', "")).toBe(
+      "https://a.dev",
+    );
     expect(extractBrowserPageUrl("open", "-", "")).toBeNull();
   });
 
   test("skips open's flags to find the page (the --clone regression)", () => {
-    expect(extractBrowserPageUrl("open", '--clone "https://www.example.com/apply"', "")).toBe(
-      "https://www.example.com/apply",
+    expect(
+      extractBrowserPageUrl(
+        "open",
+        '--clone "https://www.example.com/apply"',
+        "",
+      ),
+    ).toBe("https://www.example.com/apply");
+    expect(extractBrowserPageUrl("open", "--new-tab example.com/x", "")).toBe(
+      "https://example.com/x",
     );
-    expect(extractBrowserPageUrl("open", "--new-tab example.com/x", "")).toBe("https://example.com/x");
   });
 
   test("a batch reports the page its last open step named", () => {
-    expect(extractBrowserPageUrl("do", '"open example.com/one" "click #e1" "open example.com/two"', "")).toBe(
-      "https://example.com/two",
-    );
-    expect(extractBrowserPageUrl("do", '"click #e13" "wait 3000"', "")).toBeNull();
+    expect(
+      extractBrowserPageUrl(
+        "do",
+        '"open example.com/one" "click #e1" "open example.com/two"',
+        "",
+      ),
+    ).toBe("https://example.com/two");
+    expect(
+      extractBrowserPageUrl("do", '"click #e13" "wait 3000"', ""),
+    ).toBeNull();
   });
 
   test("actions with no URL in output yield null", () => {
-    expect(extractBrowserPageUrl("find", '"Sign in"', '  link "Sign in" #e12')).toBeNull();
-    expect(extractBrowserPageUrl("shot", "", "  /var/folders/x/shot.png (149K)")).toBeNull();
+    expect(
+      extractBrowserPageUrl("find", '"Sign in"', '  link "Sign in" #e12'),
+    ).toBeNull();
+    expect(
+      extractBrowserPageUrl("shot", "", "  /var/folders/x/shot.png (149K)"),
+    ).toBeNull();
   });
 });
 
 describe("buildBrowserRowMap", () => {
-  const row = (toolCallId: string, subcommand: string, args: string, output: string) => ({ toolCallId, subcommand, args, output });
+  const row = (
+    toolCallId: string,
+    subcommand: string,
+    args: string,
+    output: string,
+  ) => ({ toolCallId, subcommand, args, output });
 
   test("carries the last known URL and tab into rows that state none", () => {
     const map = buildBrowserRowMap([
-      row("t1", "open", "example.com", "Title\nhttps://example.com/\n  tab 4A2CDC7E"),
+      row(
+        "t1",
+        "open",
+        "example.com",
+        "Title\nhttps://example.com/\n  tab 4A2CDC7E",
+      ),
       row("t2", "find", '"Sign in"', '  link "Sign in" #e12'),
-      row("t3", "click", "#e12", "  → navigated to Login\n    https://example.com/login\n  tab 4A2CDC7E"),
+      row(
+        "t3",
+        "click",
+        "#e12",
+        "  → navigated to Login\n    https://example.com/login\n  tab 4A2CDC7E",
+      ),
       row("t4", "shot", "", "  /tmp/x.png (10K)"),
       row("t5", "open", "b.dev", "B\nhttps://b.dev/\n  tab 9F00AB12"),
     ]);
@@ -727,10 +1000,18 @@ describe("buildBrowserRowMap", () => {
   // (http, not https, and the port kept) and carry into the silent rows after.
   test("keeps a local dev server's address exactly as the agent drove it", () => {
     const map = buildBrowserRowMap([
-      row("t1", "open", "http://localhost:3000/inbox", "codecast\n  http://localhost:3000/inbox\n  tab 11AA22BB"),
+      row(
+        "t1",
+        "open",
+        "http://localhost:3000/inbox",
+        "codecast\n  http://localhost:3000/inbox\n  tab 11AA22BB",
+      ),
       row("t2", "shot", "", "  /tmp/x.png (10K)"),
     ]);
-    expect(map.t1).toEqual({ url: "http://localhost:3000/inbox", tabId: "11AA22BB" });
+    expect(map.t1).toEqual({
+      url: "http://localhost:3000/inbox",
+      tabId: "11AA22BB",
+    });
     expect(map.t2.url).toBe("http://localhost:3000/inbox");
   });
 
@@ -762,7 +1043,11 @@ describe("buildBrowserRowMap", () => {
 
 describe("cast browser do steps", () => {
   test("splits quoted and bare steps and drops the do flags", () => {
-    expect(extractBrowserDoSteps('"open example.com" "find Sign in" click --keep-going --tab 4A2C shot')).toEqual([
+    expect(
+      extractBrowserDoSteps(
+        '"open example.com" "find Sign in" click --keep-going --tab 4A2C shot',
+      ),
+    ).toEqual([
       { verb: "open", args: "example.com" },
       { verb: "find", args: "Sign in" },
       { verb: "click", args: "" },
@@ -771,7 +1056,8 @@ describe("cast browser do steps", () => {
   });
 
   test("reads one step per heredoc line", () => {
-    const args = "- <<'EOF'\nopen https://example.com\nfind \"Sign in\"\nclick\nEOF";
+    const args =
+      "- <<'EOF'\nopen https://example.com\nfind \"Sign in\"\nclick\nEOF";
     expect(extractBrowserDoSteps(args)).toEqual([
       { verb: "open", args: "https://example.com" },
       { verb: "find", args: '"Sign in"' },
@@ -784,7 +1070,7 @@ describe("cast browser do steps", () => {
       "* open example.com",
       "    Example Domain — https://example.com/",
       "* find Sign in",
-      "    #e12 button \"Sign in\"",
+      '    #e12 button "Sign in"',
       "x click",
       "    element is covered by another element",
       "",
@@ -804,21 +1090,26 @@ describe("cast browser do steps", () => {
       "✓ Example Domain",
       "  https://example.com/",
       "› find More information",
-      "x no element matching \"More information\" (2 refs on the page); closest: - link \"Learn more\" [ref=e2]",
+      'x no element matching "More information" (2 refs on the page); closest: - link "Learn more" [ref=e2]',
       "  https://example.com/",
       "  tab 023260EE",
       "  4 steps in 23.1s, 1 failed",
     ].join("\n");
     expect(splitBrowserDoOutput(out, 4)).toEqual([
       { output: "Example Domain\nhttps://example.com/", ok: true },
-      { output: 'no element matching "More information" (2 refs on the page); closest: - link "Learn more" [ref=e2]', ok: false },
+      {
+        output:
+          'no element matching "More information" (2 refs on the page); closest: - link "Learn more" [ref=e2]',
+        ok: false,
+      },
       { output: "" },
       { output: "" },
     ]);
   });
 
   test("understands the colour glyphs and ANSI from a TTY run", () => {
-    const out = "\x1b[32m●\x1b[0m \x1b[1mclick\x1b[0m\n    clicked\n\x1b[31m○\x1b[0m \x1b[1mshot\x1b[0m\n    no page\n";
+    const out =
+      "\x1b[32m●\x1b[0m \x1b[1mclick\x1b[0m\n    clicked\n\x1b[31m○\x1b[0m \x1b[1mshot\x1b[0m\n    no page\n";
     expect(splitBrowserDoOutput(out, 2)).toEqual([
       { output: "clicked", ok: true },
       { output: "no page", ok: false },
@@ -831,24 +1122,40 @@ describe("extractChatSendArgs", () => {
 
   test("reply: placeholder id, literal text, default status", () => {
     const r = extractChatSendArgs("reply", `${ID} "Hey Ashot — Anchor here."`);
-    expect(r).toEqual({ messageId: ID, channelId: undefined, threadRootId: undefined, status: undefined, body: "Hey Ashot — Anchor here.", kind: "literal" });
+    expect(r).toEqual({
+      messageId: ID,
+      channelId: undefined,
+      threadRootId: undefined,
+      status: undefined,
+      body: "Hey Ashot — Anchor here.",
+      kind: "literal",
+    });
   });
 
   test("reply: --status error after the text", () => {
-    const r = extractChatSendArgs("reply", `${ID} "can't reach the repo" --status error`);
+    const r = extractChatSendArgs(
+      "reply",
+      `${ID} "can't reach the repo" --status error`,
+    );
     expect(r?.status).toBe("error");
     expect(r?.body).toBe("can't reach the repo");
   });
 
   test("reply: heredoc body", () => {
-    const r = extractChatSendArgs("reply", `${ID} - <<'EOF'\nline one\nline two\nEOF`);
+    const r = extractChatSendArgs(
+      "reply",
+      `${ID} - <<'EOF'\nline one\nline two\nEOF`,
+    );
     expect(r?.messageId).toBe(ID);
     expect(r?.body).toBe("line one\nline two");
     expect(r?.kind).toBe("heredoc");
   });
 
   test("send: text before or after the flags", () => {
-    const a = extractChatSendArgs("send", `--channel hx7p8 --thread j17kq "ship it"`);
+    const a = extractChatSendArgs(
+      "send",
+      `--channel hx7p8 --thread j17kq "ship it"`,
+    );
     expect(a?.channelId).toBe("hx7p8");
     expect(a?.threadRootId).toBe("j17kq");
     expect(a?.body).toBe("ship it");
@@ -859,7 +1166,9 @@ describe("extractChatSendArgs", () => {
   });
 
   test("send: an expanded body is a recipe", () => {
-    expect(extractChatSendArgs("send", `--channel hx7p8 "$(cat msg.txt)"`)?.kind).toBe("dynamic");
+    expect(
+      extractChatSendArgs("send", `--channel hx7p8 "$(cat msg.txt)"`)?.kind,
+    ).toBe("dynamic");
   });
 
   test("other chat subcommands are not sends", () => {
@@ -880,14 +1189,21 @@ describe("extractDecideArgs", () => {
     );
     expect(out.verb).toBe("ask");
     expect(out.question).toBe("Which schema wins?");
-    expect(out.options).toEqual([{ label: "Frontmatter wins", description: "stable ids" }, { label: "Path wins" }]);
-    expect(out.context).toBe("The daemon writes ids from the path.\n\nEither side can be authoritative.");
+    expect(out.options).toEqual([
+      { label: "Frontmatter wins", description: "stable ids" },
+      { label: "Path wins" },
+    ]);
+    expect(out.context).toBe(
+      "The daemon writes ids from the path.\n\nEither side can be authoritative.",
+    );
     expect(out.advisory).toBe(false);
     expect(out.defaultOption).toBeUndefined();
   });
 
   test("an advisory ask carries a 0-based default and an inline context", () => {
-    const out = parse(`cast decide "Back off or switch keys?" -o "Back off" -o "Switch keys" --advisory --default 2 --context "429s for 4m."`);
+    const out = parse(
+      `cast decide "Back off or switch keys?" -o "Back off" -o "Switch keys" --advisory --default 2 --context "429s for 4m."`,
+    );
     expect(out.advisory).toBe(true);
     expect(out.defaultOption).toBe(1);
     expect(out.context).toBe("429s for 4m.");
@@ -900,11 +1216,16 @@ describe("extractDecideArgs", () => {
   });
 
   test("a report path is kept", () => {
-    expect(parse(`cast decide "Drop it?" -o Yes -o No --report drop-analysis.html`).report).toBe("drop-analysis.html");
+    expect(
+      parse(`cast decide "Drop it?" -o Yes -o No --report drop-analysis.html`)
+        .report,
+    ).toBe("drop-analysis.html");
   });
 
   test("edit with an id and a new context", () => {
-    const out = parse(`cast decide edit k57abcdefghijklmnopqrstuv --context - <<'EOF'\nNew facts.\nEOF`);
+    const out = parse(
+      `cast decide edit k57abcdefghijklmnopqrstuv --context - <<'EOF'\nNew facts.\nEOF`,
+    );
     expect(out.verb).toBe("edit");
     expect(out.decisionId).toBe("k57abcdefghijklmnopqrstuv");
     expect(out.context).toBe("New facts.");
@@ -912,7 +1233,9 @@ describe("extractDecideArgs", () => {
   });
 
   test("edit without an id: --question and --blocking", () => {
-    const out = parse(`cast decide edit --question "Merge or rebase?" --blocking`);
+    const out = parse(
+      `cast decide edit --question "Merge or rebase?" --blocking`,
+    );
     expect(out.decisionId).toBeUndefined();
     expect(out.question).toBe("Merge or rebase?");
     expect(out.blocking).toBe(true);
@@ -920,7 +1243,10 @@ describe("extractDecideArgs", () => {
 
   test("cancel and its aliases", () => {
     expect(parse("cast decide cancel").verb).toBe("cancel");
-    expect(parse("cast decide rm k57abcdefghijklmnopqrstuv")).toMatchObject({ verb: "cancel", decisionId: "k57abcdefghijklmnopqrstuv" });
+    expect(parse("cast decide rm k57abcdefghijklmnopqrstuv")).toMatchObject({
+      verb: "cancel",
+      decisionId: "k57abcdefghijklmnopqrstuv",
+    });
   });
 
   test("ls parses to the list verb with nothing else", () => {
@@ -928,21 +1254,62 @@ describe("extractDecideArgs", () => {
   });
 
   test("show, answer and recommend name one decision and the choice, never a question", () => {
-    expect(parse("cast decide show sd-494")).toMatchObject({ verb: "show", ref: "sd-494", question: null });
-    expect(parse("cast decide show sd-494 --json")).toMatchObject({ verb: "show", ref: "sd-494" });
-    expect(parse("cast decide answer sd-494 1")).toMatchObject({ verb: "answer", ref: "sd-494", choice: "1" });
-    expect(parse(`cast decide answer sd-12 "2>1>3"`)).toMatchObject({ verb: "answer", ref: "sd-12", choice: "2>1>3" });
-    expect(parse("cast decide answer sd-12 --form k=v")).toMatchObject({ verb: "answer", ref: "sd-12", choice: "form" });
-    expect(parse("cast decide recommend sd-7 2 --note -")).toMatchObject({ verb: "recommend", ref: "sd-7", choice: "2" });
-    expect(isDecideCastCommand(parseCastCommandString("cast decide show sd-494"))).toBe(false);
-    expect(isDecideCastCommand(parseCastCommandString("cast decide answer sd-494 1"))).toBe(true);
+    expect(parse("cast decide show sd-494")).toMatchObject({
+      verb: "show",
+      ref: "sd-494",
+      question: null,
+    });
+    expect(parse("cast decide show sd-494 --json")).toMatchObject({
+      verb: "show",
+      ref: "sd-494",
+    });
+    expect(parse("cast decide answer sd-494 1")).toMatchObject({
+      verb: "answer",
+      ref: "sd-494",
+      choice: "1",
+    });
+    expect(parse(`cast decide answer sd-12 "2>1>3"`)).toMatchObject({
+      verb: "answer",
+      ref: "sd-12",
+      choice: "2>1>3",
+    });
+    expect(parse("cast decide answer sd-12 --form k=v")).toMatchObject({
+      verb: "answer",
+      ref: "sd-12",
+      choice: "form",
+    });
+    expect(parse("cast decide recommend sd-7 2 --note -")).toMatchObject({
+      verb: "recommend",
+      ref: "sd-7",
+      choice: "2",
+    });
+    expect(
+      isDecideCastCommand(parseCastCommandString("cast decide show sd-494")),
+    ).toBe(false);
+    expect(
+      isDecideCastCommand(
+        parseCastCommandString("cast decide answer sd-494 1"),
+      ),
+    ).toBe(true);
   });
 
   test("an ask or edit is a decide cast; ls is not", () => {
-    expect(isDecideCastCommand(parseCastCommandString(`cast decide "Q?" -o A -o B --context why`))).toBe(true);
-    expect(isDecideCastCommand(parseCastCommandString("cast decide edit --question Q"))).toBe(true);
-    expect(isDecideCastCommand(parseCastCommandString("cast decide ls"))).toBe(false);
-    expect(isDecideCastCommand(parseCastCommandString("cast send jx7abcd hi"))).toBe(false);
+    expect(
+      isDecideCastCommand(
+        parseCastCommandString(`cast decide "Q?" -o A -o B --context why`),
+      ),
+    ).toBe(true);
+    expect(
+      isDecideCastCommand(
+        parseCastCommandString("cast decide edit --question Q"),
+      ),
+    ).toBe(true);
+    expect(isDecideCastCommand(parseCastCommandString("cast decide ls"))).toBe(
+      false,
+    );
+    expect(
+      isDecideCastCommand(parseCastCommandString("cast send jx7abcd hi")),
+    ).toBe(false);
     expect(isDecideCastCommand(null)).toBe(false);
   });
 
@@ -955,37 +1322,95 @@ describe("extractDecideArgs", () => {
 });
 
 describe("browserTabOf", () => {
-  const bash = (id: string, command: string) => ({ id, name: "Bash", input: JSON.stringify({ command }) });
+  const bash = (id: string, command: string) => ({
+    id,
+    name: "Bash",
+    input: JSON.stringify({ command }),
+  });
   const cast = (command: string) => parseCastCommandString(command);
 
   test("names the tab a cast browser row printed, with the page it was on", () => {
     const tool = bash("t1", "cast browser open https://example.com/x");
-    const output = "✓ Example\n  https://example.com/x\n  tab 4A2CDC7E (real Chrome, via the extension)";
-    expect(browserTabOf(tool, cast("cast browser open https://example.com/x"), output, {})).toEqual({ kind: "cast", tabId: "4A2CDC7E", url: "https://example.com/x" });
+    const output =
+      "✓ Example\n  https://example.com/x\n  tab 4A2CDC7E (real Chrome, via the extension)";
+    expect(
+      browserTabOf(
+        tool,
+        cast("cast browser open https://example.com/x"),
+        output,
+        {},
+      ),
+    ).toEqual({
+      kind: "cast",
+      tabId: "4A2CDC7E",
+      url: "https://example.com/x",
+    });
   });
 
   test("inherits the tab and page from the carry-forward map when the row is silent", () => {
     const tool = bash("t2", "cast browser find 'Sign in'");
     const carried = { t2: { tabId: "4A2CDC7E", url: "https://example.com/x" } };
-    expect(browserTabOf(tool, cast("cast browser find 'Sign in'"), "found #e3", carried)).toEqual({ kind: "cast", tabId: "4A2CDC7E", url: "https://example.com/x" });
-    expect(browserTabOf(tool, cast("cast browser find 'Sign in'"), "found #e3", {})).toEqual({ kind: "cast", tabId: null, url: null });
+    expect(
+      browserTabOf(
+        tool,
+        cast("cast browser find 'Sign in'"),
+        "found #e3",
+        carried,
+      ),
+    ).toEqual({
+      kind: "cast",
+      tabId: "4A2CDC7E",
+      url: "https://example.com/x",
+    });
+    expect(
+      browserTabOf(tool, cast("cast browser find 'Sign in'"), "found #e3", {}),
+    ).toEqual({ kind: "cast", tabId: null, url: null });
   });
 
   test("a piped row that lost its tab footer still offers the session's tab, with the page it opened", () => {
     const command = `cd ~/src/family && timeout 110 cast browser open "https://www.amazon.com/dp/0399167900" 2>&1 | grep -oE "error: [^(]*" | head -1`;
-    expect(browserTabOf(bash("t5", command), cast(command), "", {})).toEqual({ kind: "cast", tabId: null, url: "https://www.amazon.com/dp/0399167900" });
+    expect(browserTabOf(bash("t5", command), cast(command), "", {})).toEqual({
+      kind: "cast",
+      tabId: null,
+      url: "https://www.amazon.com/dp/0399167900",
+    });
   });
 
   test("ignores cast rows outside the browser, and plain shell", () => {
-    expect(browserTabOf(bash("t3", "cast task ready"), cast("cast task ready"), "tab 4A2CDC7E", {})).toBeNull();
+    expect(
+      browserTabOf(
+        bash("t3", "cast task ready"),
+        cast("cast task ready"),
+        "tab 4A2CDC7E",
+        {},
+      ),
+    ).toBeNull();
     expect(browserTabOf(bash("t4", "ls"), null, "tab 4A2CDC7E", {})).toBeNull();
   });
 
   test("reads a Claude-in-Chrome tab from the input, else from the result", () => {
-    const byInput = { id: "e1", name: "mcp__claude-in-chrome__navigate", input: JSON.stringify({ tabId: 1234, url: "https://x.y" }) };
-    expect(browserTabOf(byInput, null, undefined, {})).toEqual({ kind: "extension", tabId: "1234" });
-    const byResult = { id: "e2", name: "mcp__claude-in-chrome__computer", input: JSON.stringify({ action: "screenshot" }) };
-    expect(browserTabOf(byResult, null, "Screenshot taken\n\nExecuted on tabId: 987", {})).toEqual({ kind: "extension", tabId: "987" });
+    const byInput = {
+      id: "e1",
+      name: "mcp__claude-in-chrome__navigate",
+      input: JSON.stringify({ tabId: 1234, url: "https://x.y" }),
+    };
+    expect(browserTabOf(byInput, null, undefined, {})).toEqual({
+      kind: "extension",
+      tabId: "1234",
+    });
+    const byResult = {
+      id: "e2",
+      name: "mcp__claude-in-chrome__computer",
+      input: JSON.stringify({ action: "screenshot" }),
+    };
+    expect(
+      browserTabOf(
+        byResult,
+        null,
+        "Screenshot taken\n\nExecuted on tabId: 987",
+        {},
+      ),
+    ).toEqual({ kind: "extension", tabId: "987" });
     expect(browserTabOf(byResult, null, "Screenshot taken", {})).toBeNull();
   });
 });
@@ -1001,8 +1426,12 @@ describe("sayTextOf", () => {
     expect(say("cast say hello world")).toBe("hello world");
   });
   test("a heredoc body, past a cd and before the next command", () => {
-    expect(say("cd /x && cast say - <<'EOF'\n| a | b |\n|---|---|\nEOF\necho done")).toBe("| a | b |\n|---|---|");
-    expect(say("cast say - <<'EOF' 2>&1\nFair point.\n\n**Bold**\nEOF")).toBe("Fair point.\n\n**Bold**");
+    expect(
+      say("cd /x && cast say - <<'EOF'\n| a | b |\n|---|---|\nEOF\necho done"),
+    ).toBe("| a | b |\n|---|---|");
+    expect(say("cast say - <<'EOF' 2>&1\nFair point.\n\n**Bold**\nEOF")).toBe(
+      "Fair point.\n\n**Bold**",
+    );
   });
   test("nothing for an empty say or another command", () => {
     expect(say("cast say")).toBeNull();
@@ -1013,8 +1442,13 @@ describe("sayTextOf", () => {
 
 describe("isFlowObjectCastCommand", () => {
   test("an edit and a pipeline draw their objects, so they stay out of a folded receipt; a library flow by name is a receipt", () => {
-    const is = (cmd: string) => isFlowObjectCastCommand(parseCastCommandString(cmd));
-    expect(is(`cd /tmp/app && cast flow edit change add lint --after check --run "bun run lint"`)).toBe(true);
+    const is = (cmd: string) =>
+      isFlowObjectCastCommand(parseCastCommandString(cmd));
+    expect(
+      is(
+        `cd /tmp/app && cast flow edit change add lint --after check --run "bun run lint"`,
+      ),
+    ).toBe(true);
     expect(is("cast flow pipeline")).toBe(true);
     expect(is("cast flow run change")).toBe(true);
     expect(is("cast flow show change")).toBe(false);

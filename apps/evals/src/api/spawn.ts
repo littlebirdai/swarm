@@ -1,8 +1,8 @@
-import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, openSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { spawn, spawnSync } from "node:child_process";
+import { closeSync, mkdirSync, openSync } from "node:fs";
+import { dirname, join } from "node:path";
 
-import { REPO_ROOT } from '../paths';
+import { REPO_ROOT } from "../paths";
 
 // How the api child starts long work (a bisect, a shrink, a sweep): in a
 // detached tmux session the founder can attach to, or, with no tmux, as a
@@ -16,17 +16,21 @@ import { REPO_ROOT } from '../paths';
  * name may not resolve). CODECAST_EVALS_API_TOOL names another entry, for
  * tests.
  */
-export const evalsTool = (): string[] => [process.execPath, process.env.CODECAST_EVALS_API_TOOL || join(REPO_ROOT, 'apps', 'evals', 'src', 'index.ts')];
+export const evalsTool = (): string[] => [
+  process.execPath,
+  process.env.CODECAST_EVALS_API_TOOL ||
+    join(REPO_ROOT, "apps", "evals", "src", "index.ts"),
+];
 
 /** The multiplayer sim runner (`bun run sim` in apps/web), and the dir it runs from. */
 export const simRunner = (): { argv: string[]; cwd: string } => {
-  const web = join(REPO_ROOT, 'apps', 'web');
-  return { argv: [process.execPath, join(web, 'scripts', 'sim.ts')], cwd: web };
+  const web = join(REPO_ROOT, "apps", "web");
+  return { argv: [process.execPath, join(web, "scripts", "sim.ts")], cwd: web };
 };
 
 let tmuxKnown: boolean | null = null;
 export function hasTmux(): boolean {
-  tmuxKnown ??= spawnSync('tmux', ['-V'], { stdio: 'ignore' }).status === 0;
+  tmuxKnown ??= spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0;
   return tmuxKnown;
 }
 
@@ -46,24 +50,57 @@ const shellWord = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
  * without a shell), so not even a crash in the first millisecond is lost.
  * With no tmux the process writes the log itself.
  */
-export function launch(name: string, argv: string[], o: { cwd: string; log: string }): Launched {
+export function launch(
+  name: string,
+  argv: string[],
+  o: { cwd: string; log: string },
+): Launched {
   mkdirSync(dirname(o.log), { recursive: true });
   if (hasTmux()) {
     const target = `=${name}:`;
-    const run = (args: string[]) => spawnSync('tmux', args, { encoding: 'utf8' });
-    const opened = run(['new-session', '-d', '-s', name, '-c', o.cwd, '--', 'sleep', '600']);
-    if (opened.status !== 0) throw new Error(`tmux could not start ${name}: ${(opened.stderr || '').trim()}`);
-    const piped = run(['pipe-pane', '-t', target, '-o', `cat >> ${shellWord(o.log)}`]);
-    const started = piped.status === 0 ? run(['respawn-pane', '-k', '-t', target, '-c', o.cwd, '--', ...argv]) : piped;
+    const run = (args: string[]) =>
+      spawnSync("tmux", args, { encoding: "utf8" });
+    const opened = run([
+      "new-session",
+      "-d",
+      "-s",
+      name,
+      "-c",
+      o.cwd,
+      "--",
+      "sleep",
+      "600",
+    ]);
+    if (opened.status !== 0)
+      throw new Error(
+        `tmux could not start ${name}: ${(opened.stderr || "").trim()}`,
+      );
+    const piped = run([
+      "pipe-pane",
+      "-t",
+      target,
+      "-o",
+      `cat >> ${shellWord(o.log)}`,
+    ]);
+    const started =
+      piped.status === 0
+        ? run(["respawn-pane", "-k", "-t", target, "-c", o.cwd, "--", ...argv])
+        : piped;
     if (started.status !== 0) {
-      run(['kill-session', '-t', `=${name}`]);
-      throw new Error(`tmux could not start ${name}: ${(started.stderr || '').trim()}`);
+      run(["kill-session", "-t", `=${name}`]);
+      throw new Error(
+        `tmux could not start ${name}: ${(started.stderr || "").trim()}`,
+      );
     }
     return { tmux: name, pid: null };
   }
-  const fd = openSync(o.log, 'a');
+  const fd = openSync(o.log, "a");
   try {
-    const child = spawn(argv[0]!, argv.slice(1), { cwd: o.cwd, detached: true, stdio: ['ignore', fd, fd] });
+    const child = spawn(argv[0]!, argv.slice(1), {
+      cwd: o.cwd,
+      detached: true,
+      stdio: ["ignore", fd, fd],
+    });
     child.unref();
     return { tmux: null, pid: child.pid ?? null };
   } finally {
@@ -73,7 +110,12 @@ export function launch(name: string, argv: string[], o: { cwd: string; log: stri
 
 /** Whether a launched job is still running: its tmux session exists, or its process answers signal 0. */
 export function stillRunning(l: Launched): boolean {
-  if (l.tmux) return spawnSync('tmux', ['has-session', '-t', `=${l.tmux}`], { stdio: 'ignore' }).status === 0;
+  if (l.tmux)
+    return (
+      spawnSync("tmux", ["has-session", "-t", `=${l.tmux}`], {
+        stdio: "ignore",
+      }).status === 0
+    );
   if (!l.pid) return false;
   try {
     process.kill(l.pid, 0);
@@ -84,11 +126,26 @@ export function stillRunning(l: Launched): boolean {
 }
 
 /** Runs the eval tool to its end and returns its stdout; throws with its stderr's tail on a nonzero exit. */
-export async function runTool(args: string[], timeoutMs = 110_000): Promise<string> {
-  const proc = Bun.spawn([...evalsTool(), ...args], { cwd: REPO_ROOT, stdout: 'pipe', stderr: 'pipe', stdin: 'ignore' });
+export async function runTool(
+  args: string[],
+  timeoutMs = 110_000,
+): Promise<string> {
+  const proc = Bun.spawn([...evalsTool(), ...args], {
+    cwd: REPO_ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: "ignore",
+  });
   const timer = setTimeout(() => proc.kill(), timeoutMs);
-  const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   clearTimeout(timer);
-  if (code !== 0) throw new Error(`./evals ${args.slice(0, 2).join(' ')} exited ${code}: ${err.trim().split('\n').slice(-6).join(' | ') || 'no output'}`);
+  if (code !== 0)
+    throw new Error(
+      `./evals ${args.slice(0, 2).join(" ")} exited ${code}: ${err.trim().split("\n").slice(-6).join(" | ") || "no output"}`,
+    );
   return out;
 }

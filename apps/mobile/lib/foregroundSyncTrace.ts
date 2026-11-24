@@ -10,16 +10,30 @@
 // reconnect, when did the first server message land, how far behind was the
 // conversation, when did the store catch up, when did a frame follow, and how
 // long the JS thread was stalled in between.
-import { AppState, type AppStateStatus } from 'react-native';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { socketStats } from '@/lib/socketStats';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { convex } from '@/lib/convex';
-import { track } from '@/lib/analytics';
-import { currentRoute, lastCatchUp, lastPrefetch, socketState, newestLocalTimestamp as lastTimestamp, sessionIdFromRoute } from '@/lib/foregroundResume';
+import { AppState, type AppStateStatus } from "react-native";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { socketStats } from "@/lib/socketStats";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { convex } from "@/lib/convex";
+import { track } from "@/lib/analytics";
+import {
+  currentRoute,
+  lastCatchUp,
+  lastPrefetch,
+  socketState,
+  newestLocalTimestamp as lastTimestamp,
+  sessionIdFromRoute,
+} from "@/lib/foregroundResume";
 
 const TICK_MS = 200;
-const WS_STATES = ['ready', 'connecting', 'disconnected', 'stopped', 'terminated', 'unknown'] as const;
+const WS_STATES = [
+  "ready",
+  "connecting",
+  "disconnected",
+  "stopped",
+  "terminated",
+  "unknown",
+] as const;
 const TIMEOUT_MS = 5 * 60_000;
 // A return with nothing new still waits this long for the reconnect to show,
 // so a fast "up to date" carries its socket numbers too.
@@ -27,7 +41,7 @@ const UP_TO_DATE_HOLD_MS = 3_000;
 
 let started = false;
 
-type Trace = { finish: (outcome: 'backgrounded') => void };
+type Trace = { finish: (outcome: "backgrounded") => void };
 
 function beginTrace(awayMs: number): Trace {
   const t0 = Date.now();
@@ -37,7 +51,9 @@ function beginTrace(awayMs: number): Trace {
   const wsState0 = socketState();
   const opens0 = socketStats.opens;
   const msgs0 = socketStats.messagesIn;
-  const socketIdleMs = socketStats.lastMessageAt ? t0 - socketStats.lastMessageAt : -1;
+  const socketIdleMs = socketStats.lastMessageAt
+    ? t0 - socketStats.lastMessageAt
+    : -1;
 
   const local0 = convId ? lastTimestamp(convId) : 0;
   let firstRowsAt = 0;
@@ -55,18 +71,29 @@ function beginTrace(awayMs: number): Trace {
   let done = false;
   let prevTick = t0;
 
-  const finish = (outcome: 'caught_up' | 'up_to_date' | 'backgrounded' | 'timeout') => {
+  const finish = (
+    outcome: "caught_up" | "up_to_date" | "backgrounded" | "timeout",
+  ) => {
     if (done) return;
     done = true;
     clearInterval(timer);
-    const http = convId && lastCatchUp.convId === convId && lastCatchUp.at >= t0 ? lastCatchUp : null;
-    const pending = convId ? (useInboxStore.getState().pendingMessages[convId]?.length ?? 0) : 0;
+    const http =
+      convId && lastCatchUp.convId === convId && lastCatchUp.at >= t0
+        ? lastCatchUp
+        : null;
+    const pending = convId
+      ? (useInboxStore.getState().pendingMessages[convId]?.length ?? 0)
+      : 0;
     const props = {
       outcome,
       on_session: !!convId,
       away_ms: awayMs,
       ws_up_at_start: state0.isWebSocketConnected,
-      ws_state_at_start: WS_STATES.includes(wsState0 as (typeof WS_STATES)[number]) ? wsState0 : 'unknown',
+      ws_state_at_start: WS_STATES.includes(
+        wsState0 as (typeof WS_STATES)[number],
+      )
+        ? wsState0
+        : "unknown",
       socket_idle_ms: socketIdleMs,
       reconnect_ms: since(reconnectAt),
       first_msg_ms: since(firstMsgAt),
@@ -86,8 +113,8 @@ function beginTrace(awayMs: number): Trace {
       active_mutations_max: activeMax,
       pending_sends: pending,
     };
-    if (__DEV__) console.log('[foreground-sync]', JSON.stringify(props));
-    track('mobile_foreground_sync', props);
+    if (__DEV__) console.log("[foreground-sync]", JSON.stringify(props));
+    track("mobile_foreground_sync", props);
   };
 
   const timer = setInterval(() => {
@@ -102,19 +129,28 @@ function beginTrace(awayMs: number): Trace {
     }
     heldMax = Math.max(heldMax, socketStats.heldMutations);
     activeMax = Math.max(activeMax, socketStats.activeMutations);
-    if (!reconnectAt && socketStats.opens > opens0) reconnectAt = socketStats.lastOpenAt;
-    if (!firstMsgAt && socketStats.lastMessageAt > t0) firstMsgAt = socketStats.lastMessageAt;
-    if (convId && !firstRowsAt && lastTimestamp(convId) > local0) firstRowsAt = now;
-    if (convId && behindRows > 0 && !storeAt && lastTimestamp(convId) >= serverNewest) {
+    if (!reconnectAt && socketStats.opens > opens0)
+      reconnectAt = socketStats.lastOpenAt;
+    if (!firstMsgAt && socketStats.lastMessageAt > t0)
+      firstMsgAt = socketStats.lastMessageAt;
+    if (convId && !firstRowsAt && lastTimestamp(convId) > local0)
+      firstRowsAt = now;
+    if (
+      convId &&
+      behindRows > 0 &&
+      !storeAt &&
+      lastTimestamp(convId) >= serverNewest
+    ) {
       storeAt = now;
       requestAnimationFrame(() => {
         paintAt = Date.now();
-        finish('caught_up');
+        finish("caught_up");
       });
     }
-    if (probeAt && behindRows === 0 && now - t0 >= UP_TO_DATE_HOLD_MS) finish('up_to_date');
-    if (!convId && now - t0 >= UP_TO_DATE_HOLD_MS) finish('up_to_date');
-    if (now - t0 >= TIMEOUT_MS) finish('timeout');
+    if (probeAt && behindRows === 0 && now - t0 >= UP_TO_DATE_HOLD_MS)
+      finish("up_to_date");
+    if (!convId && now - t0 >= UP_TO_DATE_HOLD_MS) finish("up_to_date");
+    if (now - t0 >= TIMEOUT_MS) finish("timeout");
   }, TICK_MS);
 
   // What the server has that this phone does not: the rows after the newest
@@ -122,7 +158,10 @@ function beginTrace(awayMs: number): Trace {
   // whatever socket the client is on.
   if (convId) {
     convex
-      .query(api.conversations.listMessagesTail, { conversation_id: convId, after_timestamp: lastTimestamp(convId) })
+      .query(api.conversations.listMessagesTail, {
+        conversation_id: convId,
+        after_timestamp: lastTimestamp(convId),
+      })
       .then((res: any) => {
         if (done) return;
         probeAt = Date.now();
@@ -142,12 +181,12 @@ export function startForegroundSyncTrace() {
   started = true;
   let backgroundAt = 0;
   let trace: Trace | null = null;
-  AppState.addEventListener('change', (next: AppStateStatus) => {
-    if (next === 'background') {
+  AppState.addEventListener("change", (next: AppStateStatus) => {
+    if (next === "background") {
       backgroundAt = Date.now();
-      trace?.finish('backgrounded');
+      trace?.finish("backgrounded");
       trace = null;
-    } else if (next === 'active' && backgroundAt) {
+    } else if (next === "active" && backgroundAt) {
       trace = beginTrace(Date.now() - backgroundAt);
       backgroundAt = 0;
     }

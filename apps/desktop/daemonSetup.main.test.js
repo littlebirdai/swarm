@@ -13,18 +13,33 @@ afterEach(harness.teardown);
 test("the shell reports this machine's CLI and sign-in state", async () => {
   const rig = harness.loadShell();
   const state = await rig.handlers.get("get-daemon-setup")(rig.event());
-  assert.deepEqual(Object.keys(state).sort(), ["authFailed", "installed", "linked", "running", "supported"]);
+  assert.deepEqual(Object.keys(state).sort(), [
+    "authFailed",
+    "installed",
+    "linked",
+    "running",
+    "supported",
+  ]);
   assert.equal(state.running, false);
 });
 
 test("a setup run with a non-token is refused without running anything", async () => {
   const rig = harness.loadShell();
-  const result = await rig.handlers.get("run-daemon-setup")(rig.event(), "x; rm -rf ~");
+  const result = await rig.handlers.get("run-daemon-setup")(
+    rig.event(),
+    "x; rm -rf ~",
+  );
   assert.deepEqual(result, { ok: false, error: "invalid_token" });
 });
 
 test("the preload exposes both channels to the page", () => {
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
-  assert.match(preload, /getDaemonSetup: \(\) => ipcRenderer\.invoke\("get-daemon-setup"\)/);
-  assert.match(preload, /runDaemonSetup: \(token\) => ipcRenderer\.invoke\("run-daemon-setup", token\)/);
+  assert.match(
+    preload,
+    /getDaemonSetup: \(\) => ipcRenderer\.invoke\("get-daemon-setup"\)/,
+  );
+  assert.match(
+    preload,
+    /runDaemonSetup: \(token\) => ipcRenderer\.invoke\("run-daemon-setup", token\)/,
+  );
 });

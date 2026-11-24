@@ -5,12 +5,24 @@ import { checksPassWords } from "@codecast/shared/contracts/changeCard";
 import { scriptChecks } from "./scriptReport";
 import { jsonObject } from "./visitOutput";
 
-export type VerifyFigure = { text: string; bad: boolean; pass: number; of: number };
+export type VerifyFigure = {
+  text: string;
+  bad: boolean;
+  pass: number;
+  of: number;
+};
 
 /** The newest verify step's checks in one glance; null when the run has no verify report with checks. */
-export function runVerifyFigure(nodes: ReadonlyArray<{ node_id: string; result_preview?: string | null }> | null | undefined): VerifyFigure | null {
+export function runVerifyFigure(
+  nodes:
+    | ReadonlyArray<{ node_id: string; result_preview?: string | null }>
+    | null
+    | undefined,
+): VerifyFigure | null {
   const node = [...(nodes ?? [])].reverse().find((n) => n.node_id === "verify");
-  const checks = node ? scriptChecks(jsonObject(node.result_preview), node.result_preview) : null;
+  const checks = node
+    ? scriptChecks(jsonObject(node.result_preview), node.result_preview)
+    : null;
   if (!checks) return null;
   const pass = checks.rows.filter((r) => r.ok).length;
   return { ...checksPassWords(checks.rows), pass, of: checks.rows.length };

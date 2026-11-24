@@ -31,7 +31,15 @@ export const search = query({
   },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    const { cursor, api_token: _t, workspace: _w, team_id: _team, project_path: _p, conversation_id: _c, ...filter } = args;
+    const {
+      cursor,
+      api_token: _t,
+      workspace: _w,
+      team_id: _team,
+      project_path: _p,
+      conversation_id: _c,
+      ...filter
+    } = args;
     return await searchCore(ctx, userId, workspaceKey, filter, cursor ?? null);
   },
 });
@@ -42,7 +50,10 @@ export const importStatus = query({
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const source = await sourceByRef(ctx, userId, workspaceKey, args.source);
-    return { source: await sourceViewOf(ctx, source), stored: await storedCore(ctx, workspaceKey, source._id) };
+    return {
+      source: await sourceViewOf(ctx, source),
+      stored: await storedCore(ctx, workspaceKey, source._id),
+    };
   },
 });
 
@@ -53,16 +64,40 @@ export const importStatus = query({
  */
 export const byExternalId = internalQuery({
   args: { ...scopeArgs, external_id: v.string() },
-  handler: async (ctx, args): Promise<{ short_id: string | null; sources: { source_id: Id<"event_sources">; name: string; provider: string }[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    short_id: string | null;
+    sources: {
+      source_id: Id<"event_sources">;
+      name: string;
+      provider: string;
+    }[];
+  }> => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     // A replay's own Convex id reads as itself.
-    const own = await readableReplay(ctx, userId, args.external_id.trim()).catch(() => null);
-    if (own && own.workspace === workspaceKey) return { short_id: own.short_id, sources: [] };
-    const sources: Doc<"event_sources">[] = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey)).collect();
+    const own = await readableReplay(
+      ctx,
+      userId,
+      args.external_id.trim(),
+    ).catch(() => null);
+    if (own && own.workspace === workspaceKey)
+      return { short_id: own.short_id, sources: [] };
+    const sources: Doc<"event_sources">[] = await ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey))
+      .collect();
     for (const s of sources) {
       const row = await findReplay(ctx, s._id, args.external_id.trim());
-      if (row && row.workspace === workspaceKey) return { short_id: row.short_id, sources: [] };
+      if (row && row.workspace === workspaceKey)
+        return { short_id: row.short_id, sources: [] };
     }
-    return { short_id: null, sources: sources.filter((s) => s.provider === "posthog" || s.provider === "sentry").map((s) => ({ source_id: s._id, name: s.name, provider: s.provider })) };
+    return {
+      short_id: null,
+      sources: sources
+        .filter((s) => s.provider === "posthog" || s.provider === "sentry")
+        .map((s) => ({ source_id: s._id, name: s.name, provider: s.provider })),
+    };
   },
 });

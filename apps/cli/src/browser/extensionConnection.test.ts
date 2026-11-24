@@ -1,10 +1,10 @@
-import { describe, expect, test } from 'bun:test';
-import vm from 'node:vm';
-import { createHmac } from 'node:crypto';
-import { chromeStub, loadWorker } from './extensionStub.testutil';
+import { describe, expect, test } from "bun:test";
+import vm from "node:vm";
+import { createHmac } from "node:crypto";
+import { chromeStub, loadWorker } from "./extensionStub.testutil";
 
 function worker(opts: { delayInitialRead?: boolean } = {}) {
-  let config = { token: 'paired-token', port: 41729 };
+  let config = { token: "paired-token", port: 41729 };
   let reads = 0;
   let stalled = false;
   let finishInitialRead = () => {};
@@ -14,42 +14,76 @@ function worker(opts: { delayInitialRead?: boolean } = {}) {
     static OPEN = 1;
     static CONNECTING = 0;
     readyState = 0;
-    sent: Array<{ nonce?: string; id?: number; ok?: boolean; tabs?: unknown[] }> = [];
+    sent: Array<{
+      nonce?: string;
+      id?: number;
+      ok?: boolean;
+      tabs?: unknown[];
+    }> = [];
     onopen!: () => Promise<void>;
     onmessage!: (event: { data: string }) => Promise<void>;
     onclose!: (event: { code: number; reason: string }) => void;
-    constructor(readonly url: string) { sockets.push(this); }
-    send(data: string) { this.sent.push(JSON.parse(data)); }
-    close() { this.readyState = 3; }
+    constructor(readonly url: string) {
+      sockets.push(this);
+    }
+    send(data: string) {
+      this.sent.push(JSON.parse(data));
+    }
+    close() {
+      this.readyState = 3;
+    }
   }
   const chrome = chromeStub({
     storage: {
-      local: { get: async (key: string) => {
-        if (key !== 'bridge') return {};
-        reads++;
-        if (stalled) return new Promise(() => {});
-        if (opts.delayInitialRead && reads === 1) {
-          const initial = config;
-          return new Promise((resolve) => { finishInitialRead = () => resolve({ bridge: initial }); });
-        }
-        return { bridge: config };
-      } },
+      local: {
+        get: async (key: string) => {
+          if (key !== "bridge") return {};
+          reads++;
+          if (stalled) return new Promise(() => {});
+          if (opts.delayInitialRead && reads === 1) {
+            const initial = config;
+            return new Promise((resolve) => {
+              finishInitialRead = () => resolve({ bridge: initial });
+            });
+          }
+          return { bridge: config };
+        },
+      },
     },
-    runtime: { onMessage: { addListener(fn: typeof message) { message = fn; } } },
+    runtime: {
+      onMessage: {
+        addListener(fn: typeof message) {
+          message = fn;
+        },
+      },
+    },
   });
   const context = loadWorker({ chrome, globals: { WebSocket: Socket } });
   return {
-    context, sockets, reads: () => reads,
+    context,
+    sockets,
+    reads: () => reads,
     finishInitialRead: () => finishInitialRead(),
-    stall: () => { stalled = true; },
-    changeConfig: () => { config = { token: 'new-pairing', port: 41730 }; },
+    stall: () => {
+      stalled = true;
+    },
+    changeConfig: () => {
+      config = { token: "new-pairing", port: 41730 };
+    },
     message: (op: string) => message({ op }, {}, () => {}),
     async prove(duringProof?: () => Promise<void>, valid = true) {
       const sock = sockets.at(-1)!;
       sock.readyState = Socket.OPEN;
       await sock.onopen();
-      const proof = createHmac('sha256', config.token).update(sock.sent[0]!.nonce!).digest('hex');
-      const welcome = sock.onmessage({ data: JSON.stringify({ op: 'welcome', proof: valid ? proof : 'invalid' }) });
+      const proof = createHmac("sha256", config.token)
+        .update(sock.sent[0]!.nonce!)
+        .digest("hex");
+      const welcome = sock.onmessage({
+        data: JSON.stringify({
+          op: "welcome",
+          proof: valid ? proof : "invalid",
+        }),
+      });
       const pending = duringProof?.();
       await welcome;
       await pending;
@@ -60,94 +94,105 @@ function worker(opts: { delayInitialRead?: boolean } = {}) {
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-describe('extension connection recovery', () => {
-  test('a command arriving during host verification runs after the proof succeeds', async () => {
+describe("extension connection recovery", () => {
+  test("a command arriving during host verification runs after the proof succeeds", async () => {
     const w = worker();
     await settle();
     const sock = w.sockets[0]!;
-    await w.prove(() => sock.onmessage({ data: JSON.stringify({ id: 12, op: 'tabs.list' }) }));
+    await w.prove(() =>
+      sock.onmessage({ data: JSON.stringify({ id: 12, op: "tabs.list" }) }),
+    );
     expect(sock.sent).toContainEqual({ id: 12, ok: true, tabs: [] });
   });
 
-  test('a command arriving during an invalid host proof is never executed', async () => {
+  test("a command arriving during an invalid host proof is never executed", async () => {
     const w = worker();
     await settle();
     const sock = w.sockets[0]!;
-    await w.prove(() => sock.onmessage({ data: JSON.stringify({ id: 12, op: 'tabs.list' }) }), false);
+    await w.prove(
+      () =>
+        sock.onmessage({ data: JSON.stringify({ id: 12, op: "tabs.list" }) }),
+      false,
+    );
     expect(sock.sent).toHaveLength(1);
     expect(sock.readyState).toBe(3);
   });
 
-  test('a late reply from an old connection cannot answer a new hosts request', async () => {
+  test("a late reply from an old connection cannot answer a new hosts request", async () => {
     const w = worker();
     await settle();
     const old = await w.prove();
     let finish = () => {};
-    w.context.chrome.tabs.query = () => new Promise(resolve => { finish = () => resolve([]); });
-    const pending = old.onmessage({ data: JSON.stringify({ id: 12, op: 'tabs.list' }) });
+    w.context.chrome.tabs.query = () =>
+      new Promise((resolve) => {
+        finish = () => resolve([]);
+      });
+    const pending = old.onmessage({
+      data: JSON.stringify({ id: 12, op: "tabs.list" }),
+    });
     await settle();
-    w.message('reconnect');
+    w.message("reconnect");
     await settle();
     const current = await w.prove();
     finish();
     await pending;
-    expect(current.sent.some(message => message.id === 12)).toBe(false);
+    expect(current.sent.some((message) => message.id === 12)).toBe(false);
   });
 
-  test('a delayed wake preserves the connection the worker already proved', async () => {
+  test("a delayed wake preserves the connection the worker already proved", async () => {
     const w = worker();
     await settle();
     const sock = await w.prove();
-    w.message('wake');
+    w.message("wake");
     await settle();
     expect(sock.readyState).toBe(1);
     expect(w.sockets).toHaveLength(1);
   });
 
-  test('retries use the saved pairing when Chrome storage stops answering', async () => {
+  test("retries use the saved pairing when Chrome storage stops answering", async () => {
     const w = worker();
     await settle();
     const sock = await w.prove();
     w.stall();
     sock.close();
-    sock.onclose({ code: 1006, reason: '' });
-    await w.context.connect('retry');
+    sock.onclose({ code: 1006, reason: "" });
+    await w.context.connect("retry");
     expect(w.sockets).toHaveLength(2);
     expect(w.reads()).toBe(1);
   }, 1000);
 
-  test('an alarm on a connected worker does not read storage again', async () => {
+  test("an alarm on a connected worker does not read storage again", async () => {
     const w = worker();
     await settle();
     await w.prove();
-    await w.context.connect('alarm');
+    await w.context.connect("alarm");
     expect(w.reads()).toBe(1);
   });
 
-  test('the settings reconnect refreshes pairing before opening a new socket', async () => {
+  test("the settings reconnect refreshes pairing before opening a new socket", async () => {
     const w = worker();
     await settle();
     await w.prove();
     w.changeConfig();
-    w.message('reconnect');
+    w.message("reconnect");
     await settle();
-    expect(w.sockets.at(-1)?.url).toBe('ws://127.0.0.1:41730/ext');
+    expect(w.sockets.at(-1)?.url).toBe("ws://127.0.0.1:41730/ext");
     expect(w.reads()).toBe(2);
     await w.prove();
-    expect(vm.runInContext('hostProven', w.context)).toBe(true);
+    expect(vm.runInContext("hostProven", w.context)).toBe(true);
   });
 
-  test('a late read from before a settings change cannot replace the new cached pairing', async () => {
+  test("a late read from before a settings change cannot replace the new cached pairing", async () => {
     const w = worker({ delayInitialRead: true });
     w.changeConfig();
-    w.message('reconnect');
+    w.message("reconnect");
     await settle();
     const sock = await w.prove();
     w.finishInitialRead();
     await settle();
     sock.close();
-    sock.onclose({ code: 1006, reason: '' });
-    await w.context.connect('retry');
-    expect(w.sockets.at(-1)?.url).toBe('ws://127.0.0.1:41730/ext');
+    sock.onclose({ code: 1006, reason: "" });
+    await w.context.connect("retry");
+    expect(w.sockets.at(-1)?.url).toBe("ws://127.0.0.1:41730/ext");
   });
 });

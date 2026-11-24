@@ -2,7 +2,10 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { sendingExcerpt } from "../../hooks/useJumpToSendingMessage";
 
-const source = readFileSync(new URL("../conversation/blocks/systemBlocks.tsx", import.meta.url), "utf8");
+const source = readFileSync(
+  new URL("../conversation/blocks/systemBlocks.tsx", import.meta.url),
+  "utf8",
+);
 
 function block(startMarker: string, endMarker: string) {
   const start = source.indexOf(startMarker);
@@ -24,10 +27,12 @@ test("the card offers the sending message as a visible link", () => {
 // Both shapes of sender resolve: a teammate id or subagent name arrives already
 // resolved to a conversation, a `cast send` names its sender by short id.
 test("the link is offered for every sender the server can resolve", () => {
-  expect(card()).toContain(
+  expect(card().replace(/\s+/g, " ")).toContain(
     'const senderRef = linkToConversationId ?? (!namedSender && from && from !== "unknown" ? from : undefined);',
   );
-  expect(card()).toContain("useJumpToSendingMessage(senderRef, timestamp, body)");
+  expect(card()).toMatch(
+    /useJumpToSendingMessage\(\s*senderRef,\s*timestamp,\s*body,?\s*\)/,
+  );
 });
 
 test("the sender badge jumps to the same place as the link", () => {
@@ -37,7 +42,9 @@ test("the sender badge jumps to the same place as the link", () => {
 });
 
 test("the excerpt is the head of the body, whitespace and all", () => {
-  expect(sendingExcerpt("  Review task ct-49576\n\nfor plan pl-552  ")).toBe("Review task ct-49576\n\nfor plan pl-552");
+  expect(sendingExcerpt("  Review task ct-49576\n\nfor plan pl-552  ")).toBe(
+    "Review task ct-49576\n\nfor plan pl-552",
+  );
   expect(sendingExcerpt("x".repeat(500)).length).toBe(240);
   expect(sendingExcerpt("")).toBe("");
 });

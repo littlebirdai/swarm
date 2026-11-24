@@ -9,13 +9,24 @@ import type { ArtifactType } from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { usePressOutside } from "../../hooks/usePressOutside";
-import { createLiveArtifact, type WorkspaceStamp } from "../../lib/createLiveArtifact";
+import {
+  createLiveArtifact,
+  type WorkspaceStamp,
+} from "../../lib/createLiveArtifact";
 import { DocTypeMark } from "../docs/DocTypeMark";
 import type { StagePinRow } from "../../hooks/useStagePins";
 
-type DocItem = { _id: string; title?: string; display_title?: string; doc_type?: string; updated_at?: number; archived_at?: number };
+type DocItem = {
+  _id: string;
+  title?: string;
+  display_title?: string;
+  doc_type?: string;
+  updated_at?: number;
+  archived_at?: number;
+};
 
-const docSig = (d: DocItem) => `${d.title ?? ""}|${d.doc_type ?? ""}|${d.updated_at ?? 0}|${d.archived_at ?? 0}`;
+const docSig = (d: DocItem) =>
+  `${d.title ?? ""}|${d.doc_type ?? ""}|${d.updated_at ?? 0}|${d.archived_at ?? 0}`;
 const MAX_ROWS = 7;
 // A role's charter and brief and a decision's body are records, not things a
 // room works on together: the list leaves them out (a pasted link still pins them).
@@ -25,11 +36,22 @@ const NOT_FOR_THE_STAGE = new Set(["charter", "brief", "decision"]);
 function pastedRef(q: string) {
   const t = q.trim();
   if (!t) return null;
-  const looksLikeRef = /^(https?:\/\/|\/|doc:|a\/|#\d)/i.test(t) || /^[a-z]{1,4}-\d+$/i.test(t) || /^jx[a-z0-9]{5,}$/i.test(t);
+  const looksLikeRef =
+    /^(https?:\/\/|\/|doc:|a\/|#\d)/i.test(t) ||
+    /^[a-z]{1,4}-\d+$/i.test(t) ||
+    /^jx[a-z0-9]{5,}$/i.test(t);
   return looksLikeRef ? parseStagePinRef(t) : null;
 }
 
-export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pins: StagePinRow[]; onClose: () => void }) {
+export function StagePinPicker({
+  roomKey,
+  pins,
+  onClose,
+}: {
+  roomKey: string;
+  pins: StagePinRow[];
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
@@ -45,7 +67,14 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
       ref
         ? []
         : docs
-            .filter((d) => !d.archived_at && !NOT_FOR_THE_STAGE.has(d.doc_type ?? "") && !onStage.has(`doc:${d._id}`) && (!q || (d.display_title ?? d.title ?? "").toLowerCase().includes(q)))
+            .filter(
+              (d) =>
+                !d.archived_at &&
+                !NOT_FOR_THE_STAGE.has(d.doc_type ?? "") &&
+                !onStage.has(`doc:${d._id}`) &&
+                (!q ||
+                  (d.display_title ?? d.title ?? "").toLowerCase().includes(q)),
+            )
             .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
             .slice(0, MAX_ROWS),
     [docs, q, ref, onStage],
@@ -61,14 +90,21 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
       await useInboxStore.getState().pinCallBoard(roomKey);
       onClose();
     } catch (e: any) {
-      toast.error(typeof e?.data === "string" ? e.data : e?.message ?? "Could not put the board up");
+      toast.error(
+        typeof e?.data === "string"
+          ? e.data
+          : (e?.message ?? "Could not put the board up"),
+      );
       setBusy(null);
     }
   };
   const createAndPin = async (type: ArtifactType) => {
     setBusy(`${type}-new`);
-    const team = (useInboxStore.getState() as any).clientState?.ui?.active_team_id as string | undefined;
-    const stamp: WorkspaceStamp = team ? { workspace: "team", team_id: team } : { workspace: "personal" };
+    const team = (useInboxStore.getState() as any).clientState?.ui
+      ?.active_team_id as string | undefined;
+    const stamp: WorkspaceStamp = team
+      ? { workspace: "team", team_id: team }
+      : { workspace: "personal" };
     const id = await createLiveArtifact(type, stamp, () => {});
     setBusy(null);
     if (id) pin(`doc:${id}`);
@@ -88,9 +124,24 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
       aria-label="Pin to the stage"
     >
       <div className="grid grid-cols-3 gap-1 border-b border-white/[0.06] p-1.5">
-        <QuickButton icon={<SquareKanban className="h-4 w-4 text-sol-cyan" />} label="Call board" busy={busy === "board"} onClick={pinBoard} />
-        <QuickButton icon={<Plus className="h-4 w-4 text-sol-text-muted" />} label="New board" busy={busy === "board-new"} onClick={() => void createAndPin("board")} />
-        <QuickButton icon={<Sheet className="h-4 w-4 text-sol-green" />} label="New sheet" busy={busy === "sheet-new"} onClick={() => void createAndPin("sheet")} />
+        <QuickButton
+          icon={<SquareKanban className="h-4 w-4 text-sol-cyan" />}
+          label="Call board"
+          busy={busy === "board"}
+          onClick={pinBoard}
+        />
+        <QuickButton
+          icon={<Plus className="h-4 w-4 text-sol-text-muted" />}
+          label="New board"
+          busy={busy === "board-new"}
+          onClick={() => void createAndPin("board")}
+        />
+        <QuickButton
+          icon={<Sheet className="h-4 w-4 text-sol-green" />}
+          label="New sheet"
+          busy={busy === "sheet-new"}
+          onClick={() => void createAndPin("sheet")}
+        />
       </div>
       <div className="p-1.5">
         <input
@@ -103,7 +154,9 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
-              setCursor((c) => Math.min(c + 1, Math.max(matches.length - 1, 0)));
+              setCursor((c) =>
+                Math.min(c + 1, Math.max(matches.length - 1, 0)),
+              );
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               setCursor((c) => Math.max(c - 1, 0));
@@ -124,11 +177,21 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
               className="flex w-full items-center gap-2 rounded-md bg-sol-cyan/10 px-2 py-1.5 text-left"
             >
               <Pin className="h-3.5 w-3.5 shrink-0 text-sol-cyan" />
-              <span className="min-w-0 flex-1 truncate font-mono text-meta text-sol-text">{ref.ref}</span>
-              <span className="shrink-0 text-meta text-sol-text-muted">{ref.kind === "page" ? "page" : ref.kind === "doc" ? "doc" : "object"}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-meta text-sol-text">
+                {ref.ref}
+              </span>
+              <span className="shrink-0 text-meta text-sol-text-muted">
+                {ref.kind === "page"
+                  ? "page"
+                  : ref.kind === "doc"
+                    ? "doc"
+                    : "object"}
+              </span>
             </button>
           ) : matches.length === 0 ? (
-            <div className="px-2 py-3 text-center text-meta text-sol-text-dim">{q ? `No doc matches "${query.trim()}"` : "No docs yet"}</div>
+            <div className="px-2 py-3 text-center text-meta text-sol-text-dim">
+              {q ? `No doc matches "${query.trim()}"` : "No docs yet"}
+            </div>
           ) : (
             matches.map((d, i) => (
               <button
@@ -139,7 +202,9 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
                 className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${i === cursor ? "bg-white/[0.07]" : ""}`}
               >
                 <DocTypeMark type={d.doc_type ?? "note"} size={14} />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-sol-text">{d.display_title ?? d.title ?? "Untitled"}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-sol-text">
+                  {d.display_title ?? d.title ?? "Untitled"}
+                </span>
               </button>
             ))
           )}
@@ -149,7 +214,17 @@ export function StagePinPicker({ roomKey, pins, onClose }: { roomKey: string; pi
   );
 }
 
-function QuickButton({ icon, label, busy, onClick }: { icon: React.ReactNode; label: string; busy?: boolean; onClick: () => void }) {
+function QuickButton({
+  icon,
+  label,
+  busy,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  busy?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -164,7 +239,15 @@ function QuickButton({ icon, label, busy, onClick }: { icon: React.ReactNode; la
 }
 
 /** The stage's header control: what is pinned, and the way to pin more. */
-export function StagePinButton({ roomKey, pins, className }: { roomKey: string; pins: StagePinRow[]; className: string }) {
+export function StagePinButton({
+  roomKey,
+  pins,
+  className,
+}: {
+  roomKey: string;
+  pins: StagePinRow[];
+  className: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative shrink-0">
@@ -177,9 +260,19 @@ export function StagePinButton({ roomKey, pins, className }: { roomKey: string; 
       >
         <Pin className="h-3.5 w-3.5" />
         <span className="stage-word">pin</span>
-        {pins.length > 0 && <span className="font-mono text-meta text-sol-text-dim">{pins.length}</span>}
+        {pins.length > 0 && (
+          <span className="font-mono text-meta text-sol-text-dim">
+            {pins.length}
+          </span>
+        )}
       </button>
-      {open && <StagePinPicker roomKey={roomKey} pins={pins} onClose={() => setOpen(false)} />}
+      {open && (
+        <StagePinPicker
+          roomKey={roomKey}
+          pins={pins}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </span>
   );
 }

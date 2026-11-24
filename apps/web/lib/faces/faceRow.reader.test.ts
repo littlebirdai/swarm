@@ -3,8 +3,23 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
 import { dmUnreadOf } from "./faceDmUnread";
-import { faceRowInputSig, isInCall, readFaceRow, resetFaceRow } from "./faceRow";
-import { NOW, ME, ANN, BOB, DM_ANN, member, burstRoom, order, entry } from "./faceRowFixtures";
+import {
+  faceRowInputSig,
+  isInCall,
+  readFaceRow,
+  resetFaceRow,
+} from "./faceRow";
+import {
+  NOW,
+  ME,
+  ANN,
+  BOB,
+  DM_ANN,
+  member,
+  burstRoom,
+  order,
+  entry,
+} from "./faceRowFixtures";
 import { FIXTURE_TEAM, withTeamRoster } from "../../test-helpers/teamRoster";
 import { stampRoster } from "../activeTeam";
 
@@ -13,7 +28,10 @@ describe("the shared reader", () => {
     resetFaceRow();
     useInboxStore.setState({
       currentUser: { _id: ME, name: "Me" },
-      ...withTeamRoster([member(ME, "Me"), member(ANN, "Ann"), member(BOB, "Bob")], { clientState: useInboxStore.getState().clientState }),
+      ...withTeamRoster(
+        [member(ME, "Me"), member(ANN, "Ann"), member(BOB, "Bob")],
+        { clientState: useInboxStore.getState().clientState },
+      ),
       callOccupancy: {},
       liveRooms: [],
       myCalls: { incoming: [], outgoing: [], membership: null },
@@ -25,7 +43,14 @@ describe("the shared reader", () => {
     const first = readFaceRow();
     expect(order(first)).toEqual([ANN, BOB]);
     useInboxStore.setState({
-      teamMembers: stampRoster([member(ME, "Me"), member(ANN, "Ann", { presence_input_at: NOW } as any), member(BOB, "Bob")], FIXTURE_TEAM),
+      teamMembers: stampRoster(
+        [
+          member(ME, "Me"),
+          member(ANN, "Ann", { presence_input_at: NOW } as any),
+          member(BOB, "Bob"),
+        ],
+        FIXTURE_TEAM,
+      ),
     } as any);
     expect(readFaceRow()).toBe(first);
   });
@@ -41,12 +66,52 @@ describe("the shared reader", () => {
 
   test("the input signature moves on the walkie, and holds through fields no face draws", () => {
     const st = useInboxStore.getState();
-    const idle = { sending: null, incoming: null, liveRoom: null, unavailable: null, canReply: false, asr: "live", error: null } as const;
+    const idle = {
+      sending: null,
+      incoming: null,
+      liveRoom: null,
+      unavailable: null,
+      canReply: false,
+      asr: "live",
+      error: null,
+    } as const;
     const a = faceRowInputSig(st, idle, null, [], NOW);
-    expect(faceRowInputSig(st, { ...idle, asr: "unavailable", error: "x" }, null, [], NOW + 1_000)).toBe(a);
-    expect(faceRowInputSig(st, { ...idle, liveRoom: burstRoom(DM_ANN) }, null, [], NOW)).not.toBe(a);
-    expect(faceRowInputSig(st, idle, { roomKey: DM_ANN, text: "Ann joined", at: NOW }, [], NOW)).not.toBe(a);
-    expect(faceRowInputSig(st, idle, null, [{ identity: ANN, isLocal: false, kind: "camera" }], NOW)).not.toBe(a);
+    expect(
+      faceRowInputSig(
+        st,
+        { ...idle, asr: "unavailable", error: "x" },
+        null,
+        [],
+        NOW + 1_000,
+      ),
+    ).toBe(a);
+    expect(
+      faceRowInputSig(
+        st,
+        { ...idle, liveRoom: burstRoom(DM_ANN) },
+        null,
+        [],
+        NOW,
+      ),
+    ).not.toBe(a);
+    expect(
+      faceRowInputSig(
+        st,
+        idle,
+        { roomKey: DM_ANN, text: "Ann joined", at: NOW },
+        [],
+        NOW,
+      ),
+    ).not.toBe(a);
+    expect(
+      faceRowInputSig(
+        st,
+        idle,
+        null,
+        [{ identity: ANN, isLocal: false, kind: "camera" }],
+        NOW,
+      ),
+    ).not.toBe(a);
   });
 });
 
@@ -54,20 +119,40 @@ describe("dmUnreadOf", () => {
   const st = (last: any, unread = 2) => ({
     currentUser: { _id: "me" },
     chatChannels: { c1: { kind: "dm" } },
-    chatRail: [{ channel_id: "c1", member_ids: ["me", "cam"], unread, last_message: last }],
+    chatRail: [
+      {
+        channel_id: "c1",
+        member_ids: ["me", "cam"],
+        unread,
+        last_message: last,
+      },
+    ],
   });
 
   test("their newest line rides with the count", () => {
-    const d = dmUnreadOf(st({ user_id: "cam", preview: "can you look at this", created_at: 5 }), "cam");
-    expect(d).toEqual({ channelId: "c1", unread: 2, preview: "can you look at this", at: 5 });
+    const d = dmUnreadOf(
+      st({ user_id: "cam", preview: "can you look at this", created_at: 5 }),
+      "cam",
+    );
+    expect(d).toEqual({
+      channelId: "c1",
+      unread: 2,
+      preview: "can you look at this",
+      at: 5,
+    });
   });
 
   test("my own last line is not shown as theirs", () => {
-    expect(dmUnreadOf(st({ user_id: "me", preview: "mine", created_at: 5 }), "cam")?.preview).toBe(null);
+    expect(
+      dmUnreadOf(st({ user_id: "me", preview: "mine", created_at: 5 }), "cam")
+        ?.preview,
+    ).toBe(null);
   });
 
   test("nothing unread, nothing to say", () => {
-    expect(dmUnreadOf(st({ user_id: "cam", preview: "x", created_at: 5 }, 0), "cam")).toBe(null);
+    expect(
+      dmUnreadOf(st({ user_id: "cam", preview: "x", created_at: 5 }, 0), "cam"),
+    ).toBe(null);
     expect(dmUnreadOf(st(null), "someone-else")).toBe(null);
   });
 });

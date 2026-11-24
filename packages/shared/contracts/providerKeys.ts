@@ -31,17 +31,70 @@ export interface ProviderKeySpec {
 // single key that fronts every model, the usual answer to "the model won't run".
 export const PROVIDER_KEYS: ProviderKeySpec[] = [
   // Drives Cursor Cloud Agents (api.cursor.com) from the daemon; a User API Key.
-  { id: "cursor", label: "Cursor", envVars: ["CURSOR_API_KEY"], keyPrefix: "crsr_", consoleUrl: "https://cursor.com/dashboard/api" },
-  { id: "openrouter", label: "OpenRouter", envVars: ["OPENROUTER_API_KEY"], keyPrefix: "sk-or-", consoleUrl: "https://openrouter.ai/keys" },
-  { id: "anthropic", label: "Anthropic", envVars: ["ANTHROPIC_API_KEY"], keyPrefix: "sk-ant-", consoleUrl: "https://console.anthropic.com/settings/keys" },
-  { id: "openai", label: "OpenAI", envVars: ["OPENAI_API_KEY"], keyPrefix: "sk-", consoleUrl: "https://platform.openai.com/api-keys" },
+  {
+    id: "cursor",
+    label: "Cursor",
+    envVars: ["CURSOR_API_KEY"],
+    keyPrefix: "crsr_",
+    consoleUrl: "https://cursor.com/dashboard/api",
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    envVars: ["OPENROUTER_API_KEY"],
+    keyPrefix: "sk-or-",
+    consoleUrl: "https://openrouter.ai/keys",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    envVars: ["ANTHROPIC_API_KEY"],
+    keyPrefix: "sk-ant-",
+    consoleUrl: "https://console.anthropic.com/settings/keys",
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    envVars: ["OPENAI_API_KEY"],
+    keyPrefix: "sk-",
+    consoleUrl: "https://platform.openai.com/api-keys",
+  },
   // opencode/pi read Gemini from GEMINI_API_KEY; the AI SDK also honors
   // GOOGLE_GENERATIVE_AI_API_KEY — set both so either resolves.
-  { id: "google", label: "Google Gemini", envVars: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"], keyPrefix: "AIza", consoleUrl: "https://aistudio.google.com/apikey" },
-  { id: "groq", label: "Groq", envVars: ["GROQ_API_KEY"], keyPrefix: "gsk_", consoleUrl: "https://console.groq.com/keys" },
-  { id: "xai", label: "xAI", envVars: ["XAI_API_KEY"], keyPrefix: "xai-", consoleUrl: "https://console.x.ai" },
-  { id: "deepseek", label: "DeepSeek", envVars: ["DEEPSEEK_API_KEY"], keyPrefix: "sk-", consoleUrl: "https://platform.deepseek.com/api_keys" },
-  { id: "mistral", label: "Mistral", envVars: ["MISTRAL_API_KEY"], consoleUrl: "https://console.mistral.ai/api-keys" },
+  {
+    id: "google",
+    label: "Google Gemini",
+    envVars: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"],
+    keyPrefix: "AIza",
+    consoleUrl: "https://aistudio.google.com/apikey",
+  },
+  {
+    id: "groq",
+    label: "Groq",
+    envVars: ["GROQ_API_KEY"],
+    keyPrefix: "gsk_",
+    consoleUrl: "https://console.groq.com/keys",
+  },
+  {
+    id: "xai",
+    label: "xAI",
+    envVars: ["XAI_API_KEY"],
+    keyPrefix: "xai-",
+    consoleUrl: "https://console.x.ai",
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    envVars: ["DEEPSEEK_API_KEY"],
+    keyPrefix: "sk-",
+    consoleUrl: "https://platform.deepseek.com/api_keys",
+  },
+  {
+    id: "mistral",
+    label: "Mistral",
+    envVars: ["MISTRAL_API_KEY"],
+    consoleUrl: "https://console.mistral.ai/api-keys",
+  },
 ];
 
 const BY_ID = new Map(PROVIDER_KEYS.map((p) => [p.id, p]));
@@ -57,7 +110,9 @@ export type ProviderKeyStore = Record<string, string>;
  *  mapped to its key. The daemon prepends these to the launch command; an empty
  *  store yields `{}`, so the default "don't manage" path injects nothing. Unknown
  *  provider ids (a newer store read by an older binary) are skipped, not crashed. */
-export function providerKeyEnv(store: ProviderKeyStore | undefined | null): Record<string, string> {
+export function providerKeyEnv(
+  store: ProviderKeyStore | undefined | null,
+): Record<string, string> {
   const env: Record<string, string> = {};
   if (!store) return env;
   for (const [id, key] of Object.entries(store)) {

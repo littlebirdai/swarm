@@ -20,20 +20,49 @@ import { TeamSwitcherButton } from "@/components/TeamSwitcher";
 import { TopbarButton } from "@/components/TopbarButton";
 import { InboxViewPickerStill } from "@/components/InboxViewPicker";
 import { SectionHeader } from "@/components/inbox/SectionHeader";
-import { SessionCardView, type SessionCardChrome } from "@/components/inbox/SessionCardView";
-import { ChatNavSectionView, FeedNavRowView, QuestionsNavRowView, SidebarNavView, ThreadsNavRowView } from "@/components/sidebar/SidebarNav";
+import {
+  SessionCardView,
+  type SessionCardChrome,
+} from "@/components/inbox/SessionCardView";
+import {
+  ChatNavSectionView,
+  FeedNavRowView,
+  QuestionsNavRowView,
+  SidebarNavView,
+  ThreadsNavRowView,
+} from "@/components/sidebar/SidebarNav";
 import { FilmGrow } from "../film";
 import { fly, useFilmTime } from "../filmClock";
 import { clamp, fade, SEAM_GHOST } from "../timeline";
-import { apiWorkerPhase, holdIndex, inboxRows, leadMessages, leadRow, workerRow, DESK, INBOX_SECTIONS, WORKER_HOST } from "../fixtures/desk";
+import {
+  apiWorkerPhase,
+  holdIndex,
+  inboxRows,
+  leadMessages,
+  leadRow,
+  workerRow,
+  DESK,
+  INBOX_SECTIONS,
+  WORKER_HOST,
+} from "../fixtures/desk";
 import { CUES, PEOPLE, SESSIONS } from "../fixtures/story";
 import { RAIL, RAIL_ACTIVE, TEAM_CHIP, TEAMMATES } from "../fixtures/inbox";
 import { PREV } from "../fixtures/conversation";
 import type { PartProps } from "./contract";
 import { DEFAULT_IDENTITY_PREFS } from "@/lib/sessionIdentity";
 
-const CHROME: SessionCardChrome = { showModelBadge: false, showAgentIcon: true, showBranchPill: true, prefs: DEFAULT_IDENTITY_PREFS };
-const IDLE = { isLive: false, pendingSend: false, restarting: false, draft: "" };
+const CHROME: SessionCardChrome = {
+  showModelBadge: false,
+  showAgentIcon: true,
+  showBranchPill: true,
+  prefs: DEFAULT_IDENTITY_PREFS,
+};
+const IDLE = {
+  isLive: false,
+  pendingSend: false,
+  restarting: false,
+  draft: "",
+};
 const LIVE = { ...IDLE, isLive: true };
 const noop = () => {};
 /** How long before a spawned worker's row lands its room starts to open (s): the room is open by the time the row drops into it, so it never draws over the row under it. */
@@ -47,15 +76,23 @@ export function DeskTopBar(_: PartProps) {
   return (
     <div className="flex h-full items-center gap-3 border-b border-black/10 bg-sol-bg px-3">
       <div className="flex items-center gap-2">
-        <TopbarButton aria-label="Toggle sidebar"><PanelLeft /></TopbarButton>
-        <TeamSwitcherButton team={TEAM_CHIP} label={TEAM_CHIP.name} tabIndex={-1} />
+        <TopbarButton aria-label="Toggle sidebar">
+          <PanelLeft />
+        </TopbarButton>
+        <TeamSwitcherButton
+          team={TEAM_CHIP}
+          label={TEAM_CHIP.name}
+          tabIndex={-1}
+        />
         <ViewerFaces members={TEAMMATES} size={20} />
       </div>
       <div className="flex min-w-0 flex-1 justify-center">
         <SearchField value="" expanded={false} onChange={noop} />
       </div>
       <div className="flex items-center gap-0.5">
-        <TopbarButton aria-label="New session"><Plus /></TopbarButton>
+        <TopbarButton aria-label="New session">
+          <Plus />
+        </TopbarButton>
         <NotificationBellButton active={false} unreadCount={unread} />
       </div>
     </div>
@@ -66,20 +103,48 @@ export function DeskTopBar(_: PartProps) {
 export function DeskRail(_: PartProps) {
   const shut = { items: [], expanded: false, onToggle: noop };
   return (
-    <nav data-sv-nav className="h-full w-full flex flex-col bg-sol-bg-alt select-none text-sol-text">
+    <nav
+      data-sv-nav
+      className="h-full w-full flex flex-col bg-sol-bg-alt select-none text-sol-text"
+    >
       {/* Inert: the rows are links and buttons, which the sandbox keeps from navigating. */}
       <div data-sidebar-scroll className="flex-1 overflow-hidden pt-4">
         <SidebarNavView
           isNarrow={false}
-          threads={<ThreadsNavRowView isActive={false} isNarrow={false} unread={0} />}
-          feed={<FeedNavRowView team={TEAM_CHIP} isActive={false} isNarrow={false} />}
+          threads={
+            <ThreadsNavRowView isActive={false} isNarrow={false} unread={0} />
+          }
+          feed={
+            <FeedNavRowView
+              team={TEAM_CHIP}
+              isActive={false}
+              isNarrow={false}
+            />
+          }
           // The decision's queue entry opens its own room in the rail and closes it once answered, so the rows under it glide.
           questions={
-            <FilmGrow at={CUES.decisionAsked} until={CUES.decisionAnswered} dur={0.45}>
-              <QuestionsNavRowView isActive={false} isNarrow={false} pending={1} />
+            <FilmGrow
+              at={CUES.decisionAsked}
+              until={CUES.decisionAnswered}
+              dur={0.45}
+            >
+              <QuestionsNavRowView
+                isActive={false}
+                isNarrow={false}
+                pending={1}
+              />
             </FilmGrow>
           }
-          chat={<ChatNavSectionView isActive={false} isNarrow={false} channels={RAIL.chatUnread} mentions={0} expanded={false} onToggle={noop} />}
+          chat={
+            <ChatNavSectionView
+              isActive={false}
+              isNarrow={false}
+              channels={RAIL.chatUnread}
+              mentions={0}
+              expanded={false}
+              onToggle={noop}
+            />
+          }
           active={RAIL_ACTIVE}
           tasks={shut}
           docs={shut}
@@ -134,7 +199,13 @@ function selectedness(id: string, t: number): number {
  * text lines up from the left and its chips from the right, and nothing
  * shows doubled.
  */
-function FilmSelected({ id, render }: { id: string; render: (active: boolean) => ReactNode }) {
+function FilmSelected({
+  id,
+  render,
+}: {
+  id: string;
+  render: (active: boolean) => ReactNode;
+}) {
   const w = useFilmTime((t) => Math.round(selectedness(id, t) * 30) / 30);
   const mid = w > 0 && w < 1;
   const wrap = useRef<HTMLDivElement>(null);
@@ -142,19 +213,36 @@ function FilmSelected({ id, render }: { id: string; render: (active: boolean) =>
   useLayoutEffect(() => {
     const el = wrap.current;
     if (!mid || !el) return;
-    const text = (n: Element | undefined) => (n ? [...n.querySelectorAll("*")].find((c) => c.children.length === 0 && c.textContent?.trim()) : undefined);
+    const text = (n: Element | undefined) =>
+      n
+        ? [...n.querySelectorAll("*")].find(
+            (c) => c.children.length === 0 && c.textContent?.trim(),
+          )
+        : undefined;
     const [a, b] = [text(el.children[0]), text(el.children[1])];
     const box = el.getBoundingClientRect();
     if (!a || !b || box.width === 0) return;
     // Measured with the copies' left edges already apart by the offset rendered now, so that is added back.
-    const d = ((b.getBoundingClientRect().left - a.getBoundingClientRect().left) * el.offsetWidth) / box.width + dx;
+    const d =
+      ((b.getBoundingClientRect().left - a.getBoundingClientRect().left) *
+        el.offsetWidth) /
+        box.width +
+      dx;
     setDx((v) => (Math.abs(v - d) > 0.1 ? d : v));
   }, [mid]);
   return (
     <div ref={wrap} className="relative">
-      <div style={mid ? { paddingLeft: `${(dx * w).toFixed(2)}px` } : undefined}>{render(w >= 1)}</div>
+      <div
+        style={mid ? { paddingLeft: `${(dx * w).toFixed(2)}px` } : undefined}
+      >
+        {render(w >= 1)}
+      </div>
       {mid && (
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0" style={{ opacity: w, left: `${(-dx * (1 - w)).toFixed(2)}px` }}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0"
+          style={{ opacity: w, left: `${(-dx * (1 - w)).toFixed(2)}px` }}
+        >
           {render(true)}
         </div>
       )}
@@ -172,13 +260,25 @@ function InboxListAt({ now }: PartProps) {
   const rows = inboxRows(now);
 
   // Until a visitor picks a row, the film's selection moves between rows (FilmSelected); a pick is the app's own, at once.
-  const card = (session: ReturnType<typeof leadRow>, live: boolean, extra?: { isUnread?: boolean; runHost?: (typeof rows)[number]["runHost"] }) =>
+  const card = (
+    session: ReturnType<typeof leadRow>,
+    live: boolean,
+    extra?: { isUnread?: boolean; runHost?: (typeof rows)[number]["runHost"] },
+  ) =>
     picked === null && SELECTIONS.some((s) => s.id === session._id) ? (
-      <FilmSelected id={session._id} render={(active) => cardView(session, live, active, extra)} />
+      <FilmSelected
+        id={session._id}
+        render={(active) => cardView(session, live, active, extra)}
+      />
     ) : (
       cardView(session, live, picked === session._id, extra)
     );
-  const cardView = (session: ReturnType<typeof leadRow>, live: boolean, active: boolean, extra?: { isUnread?: boolean; runHost?: (typeof rows)[number]["runHost"] }) => (
+  const cardView = (
+    session: ReturnType<typeof leadRow>,
+    live: boolean,
+    active: boolean,
+    extra?: { isUnread?: boolean; runHost?: (typeof rows)[number]["runHost"] },
+  ) => (
     <SessionCardView
       session={session}
       isActive={active}
@@ -206,7 +306,10 @@ function InboxListAt({ now }: PartProps) {
   );
 
   return (
-    <div data-sv-rail className="h-full w-full flex flex-col bg-sol-bg-alt overflow-hidden border-x border-sol-border/30">
+    <div
+      data-sv-rail
+      className="h-full w-full flex flex-col bg-sol-bg-alt overflow-hidden border-x border-sol-border/30"
+    >
       <div className="cc-panel__head min-w-0">
         <InboxViewPickerStill value="grouped" />
       </div>
@@ -215,12 +318,56 @@ function InboxListAt({ now }: PartProps) {
           const working = sec.key === "working";
           return (
             <div key={sec.key}>
-              <SectionHeader label={sec.label} count={sec.rows.length + (working && leadIn ? 1 : 0)} color={sec.color} sectionKey={sec.key} collapsed={false} />
+              <SectionHeader
+                label={sec.label}
+                count={sec.rows.length + (working && leadIn ? 1 : 0)}
+                color={sec.color}
+                sectionKey={sec.key}
+                collapsed={false}
+              />
               {/* Each newcomer opens its own room (FilmGrow), so the rows under it glide down rather than jump. */}
-              {working && <FilmGrow at={CUES.leadLands - ROW_ROOM} until={HOME} dur={0.42}><div {...fly("desk/inbox.row:lead")}>{card(leadRow(now, messages, steered), true)}</div></FilmGrow>}
-              {working && <FilmGrow at={CUES.workerRowA - ROW_ROOM} until={HOME} dur={0.42}><div {...fly("desk/inbox.row:api")}>{card(workerRow(now, "api", apiPhase), apiPhase !== "asking", { runHost: WORKER_HOST.api })}</div></FilmGrow>}
-              {working && <FilmGrow at={CUES.workerRowB - ROW_ROOM} until={HOME} dur={0.42}><div {...fly("desk/inbox.row:ui")}>{card(workerRow(now, "ui", "working"), true)}</div></FilmGrow>}
-              {working ? <div {...fly("desk/inbox.rows")}>{sec.rows.map(row)}</div> : sec.rows.map(row)}
+              {working && (
+                <FilmGrow
+                  at={CUES.leadLands - ROW_ROOM}
+                  until={HOME}
+                  dur={0.42}
+                >
+                  <div {...fly("desk/inbox.row:lead")}>
+                    {card(leadRow(now, messages, steered), true)}
+                  </div>
+                </FilmGrow>
+              )}
+              {working && (
+                <FilmGrow
+                  at={CUES.workerRowA - ROW_ROOM}
+                  until={HOME}
+                  dur={0.42}
+                >
+                  <div {...fly("desk/inbox.row:api")}>
+                    {card(
+                      workerRow(now, "api", apiPhase),
+                      apiPhase !== "asking",
+                      { runHost: WORKER_HOST.api },
+                    )}
+                  </div>
+                </FilmGrow>
+              )}
+              {working && (
+                <FilmGrow
+                  at={CUES.workerRowB - ROW_ROOM}
+                  until={HOME}
+                  dur={0.42}
+                >
+                  <div {...fly("desk/inbox.row:ui")}>
+                    {card(workerRow(now, "ui", "working"), true)}
+                  </div>
+                </FilmGrow>
+              )}
+              {working ? (
+                <div {...fly("desk/inbox.rows")}>{sec.rows.map(row)}</div>
+              ) : (
+                sec.rows.map(row)
+              )}
             </div>
           );
         })}

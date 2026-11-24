@@ -24,7 +24,9 @@ const EPOCH = inboxEpoch(NOW);
 
 const cid = (n: number) => `j${String(n).padStart(31, "0")}`;
 
-function sess(overrides: Partial<InboxSession> & { _id: string }): InboxSession {
+function sess(
+  overrides: Partial<InboxSession> & { _id: string },
+): InboxSession {
   return {
     _id: overrides._id,
     session_id: `sess-${overrides._id.slice(0, 4)}`,
@@ -70,7 +72,11 @@ describe("computeInboxMembership — the shared selection over the replica", () 
     const m = computeInboxMembership(
       {
         "local-stub-123": sess({ _id: "local-stub-123" }),
-        [AGED]: sess({ _id: AGED, parent_conversation_id: RECENT, is_subagent: true }),
+        [AGED]: sess({
+          _id: AGED,
+          parent_conversation_id: RECENT,
+          is_subagent: true,
+        }),
         [cid(9)]: sess({ _id: cid(9), parent_conversation_id: RECENT }), // orphan: parent pointer, no parent message
       },
       EPOCH,
@@ -86,7 +92,13 @@ describe("computeInboxMembership — the shared selection over the replica", () 
     // the compare reports it missing at every epoch.
     const handoff = cid(5);
     const m = computeInboxMembership(
-      { [handoff]: sess({ _id: handoff, parent_conversation_id: RECENT, parent_message_uuid: "plan-handoff" }) },
+      {
+        [handoff]: sess({
+          _id: handoff,
+          parent_conversation_id: RECENT,
+          parent_message_uuid: "plan-handoff",
+        }),
+      },
       EPOCH,
     );
     expect(m.members.has(handoff)).toBe(true);
@@ -98,7 +110,12 @@ describe("computeInboxMembership — the shared selection over the replica", () 
     const m = computeInboxMembership(
       {
         [killed]: sess({ _id: killed, inbox_killed_at: NOW }),
-        [killedPinned]: sess({ _id: killedPinned, inbox_killed_at: NOW, is_pinned: true, inbox_pinned_at: NOW }),
+        [killedPinned]: sess({
+          _id: killedPinned,
+          inbox_killed_at: NOW,
+          is_pinned: true,
+          inbox_pinned_at: NOW,
+        }),
       },
       EPOCH,
     );
@@ -114,10 +131,25 @@ describe("computeInboxMembership — the shared selection over the replica", () 
       {
         // Ancient activity, fresh gesture: still a member (the dismissed window
         // keys on inbox_dismissed_at, not updated_at).
-        [dismissed]: sess({ _id: dismissed, updated_at: NOW - 40 * DAY, status: "completed", inbox_dismissed_at: NOW - DAY }),
-        [stashed]: sess({ _id: stashed, updated_at: NOW - 40 * DAY, status: "completed", inbox_stashed_at: NOW - DAY }),
+        [dismissed]: sess({
+          _id: dismissed,
+          updated_at: NOW - 40 * DAY,
+          status: "completed",
+          inbox_dismissed_at: NOW - DAY,
+        }),
+        [stashed]: sess({
+          _id: stashed,
+          updated_at: NOW - 40 * DAY,
+          status: "completed",
+          inbox_stashed_at: NOW - DAY,
+        }),
         // Gesture older than the window: out.
-        [staleDismiss]: sess({ _id: staleDismiss, updated_at: NOW - 40 * DAY, status: "completed", inbox_dismissed_at: NOW - 40 * DAY }),
+        [staleDismiss]: sess({
+          _id: staleDismiss,
+          updated_at: NOW - 40 * DAY,
+          status: "completed",
+          inbox_dismissed_at: NOW - 40 * DAY,
+        }),
       },
       EPOCH,
     );
@@ -129,7 +161,14 @@ describe("computeInboxMembership — the shared selection over the replica", () 
   it("a pinned row holds its seat at any age", () => {
     const pinnedOld = cid(8);
     const m = computeInboxMembership(
-      { [pinnedOld]: sess({ _id: pinnedOld, updated_at: NOW - 90 * DAY, inbox_pinned_at: NOW - 90 * DAY, is_pinned: true }) },
+      {
+        [pinnedOld]: sess({
+          _id: pinnedOld,
+          updated_at: NOW - 90 * DAY,
+          inbox_pinned_at: NOW - 90 * DAY,
+          is_pinned: true,
+        }),
+      },
       EPOCH,
     );
     expect(m.members.has(pinnedOld)).toBe(true);
@@ -157,7 +196,12 @@ describe("computeInboxMembership — the shared selection over the replica", () 
         [edge]: sess({ _id: edge, updated_at: NOW - 13 * HOUR }),
         [folded]: sess({ _id: folded, updated_at: NOW - 14 * HOUR }),
         // Same age as the folded row, but pinned — a deliberate window, exempt.
-        [oldPin]: sess({ _id: oldPin, updated_at: NOW - 14 * HOUR, is_pinned: true, inbox_pinned_at: NOW - 14 * HOUR }),
+        [oldPin]: sess({
+          _id: oldPin,
+          updated_at: NOW - 14 * HOUR,
+          is_pinned: true,
+          inbox_pinned_at: NOW - 14 * HOUR,
+        }),
       },
       EPOCH,
     );
@@ -169,7 +213,8 @@ describe("computeInboxMembership — the shared selection over the replica", () 
 });
 
 describe("partitionWorkingSet — show-old inside the computation, overlays as pass-throughs", () => {
-  const membershipOf = (rows: Record<string, InboxSession>) => computeInboxMembership(rows, EPOCH);
+  const membershipOf = (rows: Record<string, InboxSession>) =>
+    computeInboxMembership(rows, EPOCH);
 
   it("GATE INVERSION: a nonmember is dropped even with show-old ON (the toggle is not a bypass)", () => {
     const rows = {
@@ -190,11 +235,15 @@ describe("partitionWorkingSet — show-old inside the computation, overlays as p
       [edge]: sess({ _id: edge, updated_at: NOW - 13 * HOUR }),
       [folded]: sess({ _id: folded, updated_at: NOW - 14 * HOUR }),
     };
-    const off = partitionWorkingSet(rows, membershipOf(rows), { showOld: false });
+    const off = partitionWorkingSet(rows, membershipOf(rows), {
+      showOld: false,
+    });
     expect(Object.keys(off.visibleSessions)).toEqual([fresh]);
     expect(off.oldCount).toBe(2);
     const on = partitionWorkingSet(rows, membershipOf(rows), { showOld: true });
-    expect(Object.keys(on.visibleSessions).sort()).toEqual([fresh, edge, folded].sort());
+    expect(Object.keys(on.visibleSessions).sort()).toEqual(
+      [fresh, edge, folded].sort(),
+    );
     expect(on.oldCount).toBe(2);
   });
 
@@ -204,12 +253,23 @@ describe("partitionWorkingSet — show-old inside the computation, overlays as p
     const child = cid(42);
     const rows = {
       [RECENT]: sess({ _id: RECENT }),
-      "local-stub-9": sess({ _id: "local-stub-9" }),                       // create_stub
-      [child]: sess({ _id: child, parent_conversation_id: RECENT, parent_message_uuid: "u" }), // rides its parent
+      "local-stub-9": sess({ _id: "local-stub-9" }), // create_stub
+      [child]: sess({
+        _id: child,
+        parent_conversation_id: RECENT,
+        parent_message_uuid: "u",
+      }), // rides its parent
       [focusedOld]: sess({ _id: focusedOld, updated_at: NOW - 40 * DAY }), // focused
-      [draftOld]: sess({ _id: draftOld, updated_at: NOW - 40 * DAY, _hasDraft: true }), // draft_blank
+      [draftOld]: sess({
+        _id: draftOld,
+        updated_at: NOW - 40 * DAY,
+        _hasDraft: true,
+      }), // draft_blank
     };
-    const r = partitionWorkingSet(rows, membershipOf(rows), { showOld: false, focusedId: focusedOld });
+    const r = partitionWorkingSet(rows, membershipOf(rows), {
+      showOld: false,
+      focusedId: focusedOld,
+    });
     expect(Object.keys(r.visibleSessions).sort()).toEqual(
       [RECENT, "local-stub-9", child, focusedOld, draftOld].sort(),
     );
@@ -228,10 +288,14 @@ describe("renderInboxEpoch — the replica's clock (C2)", () => {
   it("the latest payload epoch advanced by the local minute; whichever is ahead wins", () => {
     const localEpoch = inboxEpoch(NOW);
     // Payload behind the device clock: the local minute rules.
-    expect(renderInboxEpoch({ mine: { epoch: localEpoch - 5 * 60_000 } }, NOW)).toBe(localEpoch);
+    expect(
+      renderInboxEpoch({ mine: { epoch: localEpoch - 5 * 60_000 } }, NOW),
+    ).toBe(localEpoch);
     // Payload ahead (device clock skewed back): the payload rules — the view
     // never rolls backwards to a slow local clock.
-    expect(renderInboxEpoch({ mine: { epoch: localEpoch + 5 * 60_000 } }, NOW)).toBe(localEpoch + 5 * 60_000);
+    expect(
+      renderInboxEpoch({ mine: { epoch: localEpoch + 5 * 60_000 } }, NOW),
+    ).toBe(localEpoch + 5 * 60_000);
     // No payload yet: the local minute.
     expect(renderInboxEpoch(undefined, NOW)).toBe(localEpoch);
     expect(renderInboxEpoch({}, NOW)).toBe(localEpoch);

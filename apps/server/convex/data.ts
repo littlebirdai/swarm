@@ -1,5 +1,10 @@
 import { Id } from "./_generated/dataModel";
-import { resolveTeamForPath, DirectoryMapping, isTeamMember, teamVisibleConvTeam } from "./privacy";
+import {
+  resolveTeamForPath,
+  DirectoryMapping,
+  isTeamMember,
+  teamVisibleConvTeam,
+} from "./privacy";
 import { invalidScope, forbidden } from "./lib/auth";
 import {
   accessStampFromDoc,
@@ -31,7 +36,13 @@ type DataContextOpts = {
 };
 
 const SCOPED_TABLES = new Set([
-  "tasks", "plans", "docs", "projects", "initiatives", "decisions", "patterns",
+  "tasks",
+  "plans",
+  "docs",
+  "projects",
+  "initiatives",
+  "decisions",
+  "patterns",
   // A published flow is the team's (flows.md FL2); the rest are their owner's.
   "workflows",
 ]);
@@ -46,7 +57,8 @@ export function explicitWorkspace(
   derived: { workspace?: "team"; team_id?: Id<"teams"> },
 ): { workspace?: "personal" | "team"; team_id?: Id<"teams"> } {
   if (args.workspace === "personal") return { workspace: "personal" };
-  if (args.workspace === "team" && args.team_id) return { workspace: "team", team_id: args.team_id };
+  if (args.workspace === "team" && args.team_id)
+    return { workspace: "team", team_id: args.team_id };
   return derived;
 }
 
@@ -74,8 +86,12 @@ type ScopedFetchOpts = {
 // write-time compute against a pre-fetched conversation map (legacy rows
 // minted before the backfill). Every list filter and the shipped-row stamp
 // key on this ONE value — never on the raw team tag.
-export function resolveWorkspaceKeyBatch(record: any, convMap: Map<string, any>): WorkspaceKey {
-  if (typeof record.workspace === "string" && record.workspace) return record.workspace;
+export function resolveWorkspaceKeyBatch(
+  record: any,
+  convMap: Map<string, any>,
+): WorkspaceKey {
+  if (typeof record.workspace === "string" && record.workspace)
+    return record.workspace;
   const cid = linkedConversationId(record);
   const conv = cid ? convMap.get(cid) : undefined;
   return computeWorkspaceKey(record, conv ?? null);
@@ -84,7 +100,10 @@ export function resolveWorkspaceKeyBatch(record: any, convMap: Map<string, any>)
 // The team a row's ACCESS key names, or undefined for personal / unknown
 // variants. Kept for callers that still think in "effective team" terms; new
 // code should compare workspace keys directly.
-export function resolveEffectiveTeam(record: any, convMap: Map<string, any>): Id<"teams"> | undefined {
+export function resolveEffectiveTeam(
+  record: any,
+  convMap: Map<string, any>,
+): Id<"teams"> | undefined {
   const ws = parseWorkspaceKey(resolveWorkspaceKeyBatch(record, convMap));
   return ws?.type === "team" ? ws.teamId : undefined;
 }
@@ -92,7 +111,7 @@ export function resolveEffectiveTeam(record: any, convMap: Map<string, any>): Id
 export async function scopedFetch(
   ctx: { db: any },
   table: string,
-  opts: ScopedFetchOpts
+  opts: ScopedFetchOpts,
 ): Promise<{ records: any[]; convMap: Map<string, any> }> {
   const { userId, workspace } = opts;
   // teamId is client-supplied. Only honor it if the caller actually belongs to
@@ -121,14 +140,31 @@ export async function scopedFetch(
   // and a status index for one slice of the plans table (plans have no
   // updated_at index), so a reader of the open plans is not bounded by how
   // many newer plans of any status exist.
-  const slice = (table === "tasks" && (opts.status !== undefined || opts.updatedSince !== undefined)) || (table === "plans" && opts.status !== undefined)
-    ? { status: opts.status, since: opts.updatedSince }
-    : null;
+  const slice =
+    (table === "tasks" &&
+      (opts.status !== undefined || opts.updatedSince !== undefined)) ||
+    (table === "plans" && opts.status !== undefined)
+      ? { status: opts.status, since: opts.updatedSince }
+      : null;
   const byOwner = (field: "user_id" | "team_id", id: any) => {
     const q = ctx.db.query(table);
-    if (!slice) return q.withIndex(`by_${field}`, (x: any) => x.eq(field, id)).order("desc");
-    if (slice.status !== undefined) return q.withIndex(`by_${field === "user_id" ? "user" : "team"}_status`, (x: any) => x.eq(field, id).eq("status", slice.status)).order("desc");
-    return q.withIndex(`by_${field === "user_id" ? "user" : "team"}_updated`, (x: any) => x.eq(field, id).gte("updated_at", slice.since)).order("desc");
+    if (!slice)
+      return q
+        .withIndex(`by_${field}`, (x: any) => x.eq(field, id))
+        .order("desc");
+    if (slice.status !== undefined)
+      return q
+        .withIndex(
+          `by_${field === "user_id" ? "user" : "team"}_status`,
+          (x: any) => x.eq(field, id).eq("status", slice.status),
+        )
+        .order("desc");
+    return q
+      .withIndex(
+        `by_${field === "user_id" ? "user" : "team"}_updated`,
+        (x: any) => x.eq(field, id).gte("updated_at", slice.since),
+      )
+      .order("desc");
   };
   const runQuery = async (q: any): Promise<any[]> => {
     if (stripSet) {
@@ -175,7 +211,10 @@ export async function scopedFetch(
   // Merge + dedupe (user first, then team additions)
   const seen = new Set<string>();
   const all: any[] = [];
-  for (const r of userRecords) { seen.add(String(r._id)); all.push(r); }
+  for (const r of userRecords) {
+    seen.add(String(r._id));
+    all.push(r);
+  }
   for (const r of teamRecords) {
     if (!seen.has(String(r._id))) {
       seen.add(String(r._id));
@@ -194,15 +233,16 @@ export async function scopedFetch(
   const convMap = new Map<string, any>();
   for (const cid of convIds) {
     const conv = await ctx.db.get(cid as any);
-    if (conv) convMap.set(cid, {
-      team_id: conv.team_id,
-      is_private: conv.is_private,
-      auto_shared: conv.auto_shared,
-      team_visibility: conv.team_visibility,
-      git_root: conv.git_root,
-      started_at: conv.started_at,
-      project_path: conv.project_path,
-    });
+    if (conv)
+      convMap.set(cid, {
+        team_id: conv.team_id,
+        is_private: conv.is_private,
+        auto_shared: conv.auto_shared,
+        team_visibility: conv.team_visibility,
+        git_root: conv.git_root,
+        started_at: conv.started_at,
+        project_path: conv.project_path,
+      });
   }
 
   // Filter by effective team. Workspace boundaries are strict: a team view
@@ -217,17 +257,22 @@ export async function scopedFetch(
   // team space, and one team's rows never appear in another's.
   let records: any[];
   if (workspace === "all") {
-    records = all.filter(r => authorizedFor(
-      accessStampFromDoc(table, { ...r, workspace: resolveWorkspaceKeyBatch(r, convMap) }),
-      String(userId),
-      heldKeys,
-    ));
+    records = all.filter((r) =>
+      authorizedFor(
+        accessStampFromDoc(table, {
+          ...r,
+          workspace: resolveWorkspaceKeyBatch(r, convMap),
+        }),
+        String(userId),
+        heldKeys,
+      ),
+    );
   } else if ((workspace === "team" || !workspace) && teamId) {
     const key = workspaceKey({ type: "team", teamId });
-    records = all.filter(r => resolveWorkspaceKeyBatch(r, convMap) === key);
+    records = all.filter((r) => resolveWorkspaceKeyBatch(r, convMap) === key);
   } else if (workspace === "personal") {
     const key = workspaceKey({ type: "personal", userId });
-    records = all.filter(r => resolveWorkspaceKeyBatch(r, convMap) === key);
+    records = all.filter((r) => resolveWorkspaceKeyBatch(r, convMap) === key);
   } else {
     records = all;
   }
@@ -242,7 +287,10 @@ export async function scopedFetch(
 // key on these, so shipping the resolved values keeps every layer — server
 // filter, client filter, prune scope — agreeing on one value. Mutates in
 // place (rows are per-request copies, same as enrichTasks).
-export function stampEffectiveTeam(records: any[], convMap: Map<string, any>): void {
+export function stampEffectiveTeam(
+  records: any[],
+  convMap: Map<string, any>,
+): void {
   for (const r of records) {
     const key = resolveWorkspaceKeyBatch(r, convMap);
     r.workspace = key;
@@ -253,10 +301,15 @@ export function stampEffectiveTeam(records: any[], convMap: Map<string, any>): v
 
 export function scopeByProject<T extends Record<string, any>>(
   items: T[],
-  projectPath?: string | null
+  projectPath?: string | null,
 ): T[] {
   if (!projectPath) return items;
-  return items.filter(item => !item.project_path || pathIsWithin(item.project_path, projectPath) || (item.git_root && pathIsWithin(item.git_root, projectPath)));
+  return items.filter(
+    (item) =>
+      !item.project_path ||
+      pathIsWithin(item.project_path, projectPath) ||
+      (item.git_root && pathIsWithin(item.git_root, projectPath)),
+  );
 }
 
 /**
@@ -266,7 +319,10 @@ export function scopeByProject<T extends Record<string, any>>(
 export function pathIsWithin(candidate: string, root: string): boolean {
   const base = root.length > 1 ? root.replace(/\/+$/, "") : root;
   if (!base) return true;
-  return candidate === base || candidate.startsWith(base.endsWith("/") ? base : base + "/");
+  return (
+    candidate === base ||
+    candidate.startsWith(base.endsWith("/") ? base : base + "/")
+  );
 }
 
 /**
@@ -284,16 +340,24 @@ export async function createWorkContext(
   const conversation = opts.conversation_id
     ? await resolveSessionConversation(ctx, opts.userId, opts.conversation_id)
     : null;
-  const convTeamId = conversation ? teamVisibleConvTeam(conversation) : undefined;
+  const convTeamId = conversation
+    ? teamVisibleConvTeam(conversation)
+    : undefined;
   const db = await createDataContext(ctx, {
     userId: opts.userId,
     project_path: opts.project_path,
-    ...explicitWorkspace(opts, convTeamId ? { workspace: "team" as const, team_id: convTeamId } : {}),
+    ...explicitWorkspace(
+      opts,
+      convTeamId ? { workspace: "team" as const, team_id: convTeamId } : {},
+    ),
   });
   return { db, conversation };
 }
 
-export async function createDataContext(ctx: { db: any }, opts: DataContextOpts) {
+export async function createDataContext(
+  ctx: { db: any },
+  opts: DataContextOpts,
+) {
   const workspace = await resolveWorkspace(ctx, opts);
   const key = workspaceKey(workspace);
   const projectPath = opts.project_path;
@@ -301,7 +365,10 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
   // Both axes for a row written in this workspace: team_id (routing) and
   // workspace (access). A table outside SCOPED_TABLES that is still
   // workspace-owned (signals) stamps these itself.
-  const axes = { team_id: workspace.type === "team" ? workspace.teamId : undefined, workspace: key };
+  const axes = {
+    team_id: workspace.type === "team" ? workspace.teamId : undefined,
+    workspace: key,
+  };
 
   const self = {
     workspace,
@@ -326,7 +393,10 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
       };
       if (SCOPED_TABLES.has(table)) {
         doc.team_id = axes.team_id;
-        doc.workspace = typeof fields.workspace === "string" && fields.workspace ? fields.workspace : axes.workspace;
+        doc.workspace =
+          typeof fields.workspace === "string" && fields.workspace
+            ? fields.workspace
+            : axes.workspace;
         if (projectPath && !doc.project_path) {
           doc.project_path = projectPath;
         }
@@ -335,7 +405,10 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
     },
 
     query(table: string) {
-      const applyProjectScope = SCOPED_TABLES.has(table) && projectPath && opts.narrowToProject !== false;
+      const applyProjectScope =
+        SCOPED_TABLES.has(table) &&
+        projectPath &&
+        opts.narrowToProject !== false;
       if (!SCOPED_TABLES.has(table)) return ctx.db.query(table);
       // by_workspace is the chokepoint index. Legacy rows (no stored key yet)
       // ride the old routing index for the team space / owner index for the
@@ -348,7 +421,8 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
     async get(id: any) {
       const doc = await ctx.db.get(id);
       if (!doc) return null;
-      if (!(await canAccess(ctx, doc, opts.userId, workspace, key))) return null;
+      if (!(await canAccess(ctx, doc, opts.userId, workspace, key)))
+        return null;
       return doc;
     },
 
@@ -357,11 +431,23 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
     // reader that knows its ids (a plan's tasks) reads them without walking
     // the workspace.
     async getScoped(table: string, id: any) {
-      if (!SCOPED_TABLES.has(table)) throw new Error(`getScoped reads a workspace-scoped table; ${table} is not one`);
+      if (!SCOPED_TABLES.has(table))
+        throw new Error(
+          `getScoped reads a workspace-scoped table; ${table} is not one`,
+        );
       const docId = ctx.db.normalizeId(table, String(id));
       const doc = docId ? await ctx.db.get(docId) : null;
-      if (!doc || !(await inWorkspaceKey(ctx, doc, workspace, key, opts.userId))) return null;
-      if (projectPath && opts.narrowToProject !== false && !matchesProjectPath(doc, projectPath)) return null;
+      if (
+        !doc ||
+        !(await inWorkspaceKey(ctx, doc, workspace, key, opts.userId))
+      )
+        return null;
+      if (
+        projectPath &&
+        opts.narrowToProject !== false &&
+        !matchesProjectPath(doc, projectPath)
+      )
+        return null;
       return doc;
     },
 
@@ -380,7 +466,6 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
       }
       return ctx.db.delete(id);
     },
-
   };
 
   return self;
@@ -389,12 +474,18 @@ export async function createDataContext(ctx: { db: any }, opts: DataContextOpts)
 // Deleting a team has no cascade for everything stamped with its id, so a
 // team reference must be checked against the row before it is treated as an
 // access boundary. Missing team = the reference is debris, not a denial.
-async function teamExists(ctx: { db: any }, teamId: Id<"teams">): Promise<boolean> {
+async function teamExists(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+): Promise<boolean> {
   const team = await ctx.db.get(teamId);
   return !!team && !team.deleted_at;
 }
 
-async function resolveWorkspace(ctx: { db: any }, opts: DataContextOpts): Promise<Workspace> {
+async function resolveWorkspace(
+  ctx: { db: any },
+  opts: DataContextOpts,
+): Promise<Workspace> {
   if (opts.workspace === "personal") {
     return { type: "personal", userId: opts.userId };
   }
@@ -433,7 +524,9 @@ async function resolveWorkspace(ctx: { db: any }, opts: DataContextOpts): Promis
         return { type: "personal", userId: opts.userId };
       }
       if (!(await isTeamMember(ctx, opts.userId, result.teamId))) {
-        forbidden("Forbidden: directory mapping points to a team the user cannot access");
+        forbidden(
+          "Forbidden: directory mapping points to a team the user cannot access",
+        );
       }
       return { type: "team", teamId: result.teamId };
     }
@@ -459,9 +552,19 @@ async function canAccess(
 // A row is in the workspace when its ACCESS key equals the context's key. A
 // stored key decides alone; a row from before the backfill must also be this
 // team's (or, personal, this owner's) by routing, then its computed key decides.
-async function inWorkspaceKey(ctx: { db: any }, d: any, workspace: Workspace, key: WorkspaceKey, userId: Id<"users">): Promise<boolean> {
-  if (typeof d.workspace === "string" && d.workspace) return d.workspace === key;
-  const mine = workspace.type === "team" ? String(d.team_id) === String(workspace.teamId) : String(d.user_id) === String(userId);
+async function inWorkspaceKey(
+  ctx: { db: any },
+  d: any,
+  workspace: Workspace,
+  key: WorkspaceKey,
+  userId: Id<"users">,
+): Promise<boolean> {
+  if (typeof d.workspace === "string" && d.workspace)
+    return d.workspace === key;
+  const mine =
+    workspace.type === "team"
+      ? String(d.team_id) === String(workspace.teamId)
+      : String(d.user_id) === String(userId);
   return mine && (await resolveWorkspaceKey(ctx, d)) === key;
 }
 
@@ -482,27 +585,47 @@ function wrapWorkspaceQuery(
   // key and "" are both index values), then keeps this team's or this owner's.
   // Reading them through by_team_id with a filter read every keyed row in the
   // team as well: 22k rows and 48 MB for one `cast task ls` on a large team.
-  const mine = (q: any) => workspace.type === "team"
-    ? q.eq(q.field("team_id"), workspace.teamId)
-    : q.eq(q.field("user_id"), userId);
-  const legacyBases = () => [undefined, ""].map((empty) =>
-    ctx.db.query(table).withIndex("by_workspace", (q: any) => q.eq("workspace", empty)).filter(mine));
+  const mine = (q: any) =>
+    workspace.type === "team"
+      ? q.eq(q.field("team_id"), workspace.teamId)
+      : q.eq(q.field("user_id"), userId);
+  const legacyBases = () =>
+    [undefined, ""].map((empty) =>
+      ctx.db
+        .query(table)
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", empty))
+        .filter(mine),
+    );
 
   const build = (mods: Array<(q: any) => any>, index?: [string, any]) => {
     let a = index
       ? ctx.db.query(table).withIndex(index[0], index[1])
-      : ctx.db.query(table).withIndex("by_workspace", (q: any) => q.eq("workspace", key));
+      : ctx.db
+          .query(table)
+          .withIndex("by_workspace", (q: any) => q.eq("workspace", key));
     let legacy = legacyBases();
-    for (const m of mods) { a = m(a); legacy = legacy.map(m); }
+    for (const m of mods) {
+      a = m(a);
+      legacy = legacy.map(m);
+    }
     return [a, legacy] as const;
   };
-  const merge = async (mods: Array<(q: any) => any>, index?: [string, any]): Promise<any[]> => {
+  const merge = async (
+    mods: Array<(q: any) => any>,
+    index?: [string, any],
+  ): Promise<any[]> => {
     const [a, legacy] = build(mods, index);
     const out: any[] = [];
     const seen = new Set<string>();
-    for (const d of [...await a.collect(), ...(await Promise.all(legacy.map((q: any) => q.collect()))).flat()]) {
+    for (const d of [
+      ...(await a.collect()),
+      ...(await Promise.all(legacy.map((q: any) => q.collect()))).flat(),
+    ]) {
       if (seen.has(String(d._id))) continue;
-      if (await inWorkspaceKey(ctx, d, workspace, key, userId)) { seen.add(String(d._id)); out.push(d); }
+      if (await inWorkspaceKey(ctx, d, workspace, key, userId)) {
+        seen.add(String(d._id));
+        out.push(d);
+      }
     }
     return out;
   };
@@ -512,10 +635,17 @@ function wrapWorkspaceQuery(
     order: (dir: any) => wrap([...mods, (q) => q.order(dir)], index),
     // Only a workspace-led index narrows the keyed side; any other is ignored,
     // because the scope index is fixed.
-    withIndex: (name: string, fn: any) => wrap(mods, name.startsWith("by_workspace") ? [name, fn] : index),
-    async collect() { return merge(mods, index); },
-    async first() { return (await merge(mods, index))[0] ?? null; },
-    async take(n: number) { return (await merge(mods, index)).slice(0, n); },
+    withIndex: (name: string, fn: any) =>
+      wrap(mods, name.startsWith("by_workspace") ? [name, fn] : index),
+    async collect() {
+      return merge(mods, index);
+    },
+    async first() {
+      return (await merge(mods, index))[0] ?? null;
+    },
+    async take(n: number) {
+      return (await merge(mods, index)).slice(0, n);
+    },
     async paginate(opts: any) {
       // Pagination rides the keyed index; legacy rows (no stored key) join
       // only after the backfill. Every page is still filtered by the key so
@@ -533,7 +663,11 @@ function wrapWorkspaceQuery(
 }
 
 function matchesProjectPath(d: any, projectPath: string): boolean {
-  return !d.project_path || pathIsWithin(d.project_path, projectPath) || !!(d.git_root && pathIsWithin(d.git_root, projectPath));
+  return (
+    !d.project_path ||
+    pathIsWithin(d.project_path, projectPath) ||
+    !!(d.git_root && pathIsWithin(d.git_root, projectPath))
+  );
 }
 
 function wrapProjectQuery(inner: any, projectPath: string): any {

@@ -8,7 +8,14 @@
 
 import type { FlowEdgeIn, FlowNodeIn } from "./flowPool";
 
-export type FlowEditOp = "add" | "guide" | "prompt" | "run" | "skip" | "when" | "undo";
+export type FlowEditOp =
+  | "add"
+  | "guide"
+  | "prompt"
+  | "run"
+  | "skip"
+  | "when"
+  | "undo";
 
 export type FlowEditChange = {
   op: FlowEditOp;
@@ -68,7 +75,11 @@ export function whenPaths(spec: string): string[] {
   for (const ch of spec) {
     if (ch === "{") depth++;
     if (ch === "}") depth = Math.max(0, depth - 1);
-    if (!depth && (ch === "," || /\s/.test(ch))) { if (cur) out.push(cur); cur = ""; continue; }
+    if (!depth && (ch === "," || /\s/.test(ch))) {
+      if (cur) out.push(cur);
+      cur = "";
+      continue;
+    }
     cur += ch;
   }
   if (cur) out.push(cur);
@@ -76,15 +87,27 @@ export function whenPaths(spec: string): string[] {
 }
 
 /** One edit as words: "+ Lint after Check", "~ Review: guidance added", "Decide skipped", "Lint runs when landing/**". */
-export function flowEditWords(c: FlowEditChange, labelOf: (id: string) => string = (id) => id): string {
+export function flowEditWords(
+  c: FlowEditChange,
+  labelOf: (id: string) => string = (id) => id,
+): string {
   const name = c.label ?? labelOf(c.station);
   switch (c.op) {
-    case "add": return `+ ${name} ${c.before ? `before ${labelOf(c.before)}` : `after ${labelOf(c.after ?? "")}`}${c.fix ? `; a failure goes to ${labelOf(c.fix)}` : c.ends_on_failure ? "; a failure ends the run" : ""}`;
-    case "guide": return `~ ${name}: guidance added`;
-    case "prompt": return `~ ${name}: prompt replaced`;
-    case "run": return `~ ${name}: runs a new command${c.replaces ? `, replacing ${c.replaces}` : ""}`;
-    case "skip": return `${name} skipped`;
-    case "when": return c.paths?.length ? `${name} runs when ${c.paths.join(", ")}` : `${name} always runs`;
-    case "undo": return c.added ? `- ${name}` : `${name}: back to the base`;
+    case "add":
+      return `+ ${name} ${c.before ? `before ${labelOf(c.before)}` : `after ${labelOf(c.after ?? "")}`}${c.fix ? `; a failure goes to ${labelOf(c.fix)}` : c.ends_on_failure ? "; a failure ends the run" : ""}`;
+    case "guide":
+      return `~ ${name}: guidance added`;
+    case "prompt":
+      return `~ ${name}: prompt replaced`;
+    case "run":
+      return `~ ${name}: runs a new command${c.replaces ? `, replacing ${c.replaces}` : ""}`;
+    case "skip":
+      return `${name} skipped`;
+    case "when":
+      return c.paths?.length
+        ? `${name} runs when ${c.paths.join(", ")}`
+        : `${name} always runs`;
+    case "undo":
+      return c.added ? `- ${name}` : `${name}: back to the base`;
   }
 }

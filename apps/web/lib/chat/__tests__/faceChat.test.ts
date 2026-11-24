@@ -28,7 +28,8 @@ const line = (text: string, over: Partial<FaceArrival> = {}): FaceArrival => ({
   count: 1,
   ...over,
 });
-const unseen = (id: string) => (getFaceChat().unseen[id] ?? []).map((a) => a.preview);
+const unseen = (id: string) =>
+  (getFaceChat().unseen[id] ?? []).map((a) => a.preview);
 /** The header found the face: the bubble starts its clock. */
 const show = () => {
   const b = getFaceChat().bubble;
@@ -47,7 +48,9 @@ describe("chat from the face", () => {
   });
 
   test("a line drops from the face, then folds back into a count on it", () => {
-    expect(deliverChatToFace("sam", line("gimme a bit longer"), () => {})).toBe(true);
+    expect(deliverChatToFace("sam", line("gimme a bit longer"), () => {})).toBe(
+      true,
+    );
     expect(getFaceChat().bubble?.phase).toBe("wait");
     show();
     expect(getFaceChat().bubble?.phase).toBe("in");
@@ -80,7 +83,11 @@ describe("chat from the face", () => {
   });
 
   test("a line whose stamp is ahead of this clock still clears when the channel is read", () => {
-    deliverChatToFace("sam", line("ahead", { at: Date.now() + 60_000 }), () => {});
+    deliverChatToFace(
+      "sam",
+      line("ahead", { at: Date.now() + 60_000 }),
+      () => {},
+    );
     show();
     jest.advanceTimersByTime(getFaceChat().bubble!.dwellMs + 1_000);
     expect(unseen("sam")).toEqual(["ahead"]);
@@ -89,7 +96,11 @@ describe("chat from the face", () => {
   });
 
   test("reading the channel leaves a thread reply counted until that thread is on screen", () => {
-    deliverChatToFace("sam", line("in the thread", { inThread: true, threadRootId: "root-1" }), () => {});
+    deliverChatToFace(
+      "sam",
+      line("in the thread", { inThread: true, threadRootId: "root-1" }),
+      () => {},
+    );
     show();
     jest.advanceTimersByTime(10_000);
     noteFaceContextRead("c-team");
@@ -99,7 +110,15 @@ describe("chat from the face", () => {
   });
 
   test("a reply also sent to the channel clears with the channel", () => {
-    deliverChatToFace("sam", line("also in the channel", { inThread: true, threadRootId: "root-1", broadcast: true }), () => {});
+    deliverChatToFace(
+      "sam",
+      line("also in the channel", {
+        inThread: true,
+        threadRootId: "root-1",
+        broadcast: true,
+      }),
+      () => {},
+    );
     show();
     jest.advanceTimersByTime(10_000);
     noteFaceContextRead("c-team");
@@ -110,7 +129,11 @@ describe("chat from the face", () => {
     deliverChatToFace("sam", line("in team"), () => {});
     show();
     jest.advanceTimersByTime(10_000);
-    deliverChatToFace("cam", line("other room", { channelId: "c-other" }), () => {});
+    deliverChatToFace(
+      "cam",
+      line("other room", { channelId: "c-other" }),
+      () => {},
+    );
     show();
     jest.advanceTimersByTime(10_000);
     noteFaceContextRead("c-team");
@@ -151,7 +174,9 @@ describe("chat from the face", () => {
   });
 
   test("a face the header cannot show is refused, so the caller toasts", () => {
-    expect(deliverChatToFace("agent", line("deploy done"), () => {})).toBe(false);
+    expect(deliverChatToFace("agent", line("deploy done"), () => {})).toBe(
+      false,
+    );
     expect(getFaceChat().bubble).toBeNull();
   });
 
@@ -159,14 +184,21 @@ describe("chat from the face", () => {
     deliverChatToFace("sam", line("ok found it"), () => {});
     show();
     deliverChatToFace("sam", line("it was the gain"), () => {});
-    expect(getFaceChat().bubble?.items.map((a) => a.preview)).toEqual(["ok found it", "it was the gain"]);
+    expect(getFaceChat().bubble?.items.map((a) => a.preview)).toEqual([
+      "ok found it",
+      "it was the gain",
+    ]);
   });
 
   test("a burst shows one bubble, a mention wins the next, everyone else is badged", () => {
     deliverChatToFace("sam", line("first"), () => {});
     show();
     deliverChatToFace("cam", line("room chatter"), () => {});
-    deliverChatToFace("maya", line("@you look at this", { loud: true }), () => {});
+    deliverChatToFace(
+      "maya",
+      line("@you look at this", { loud: true }),
+      () => {},
+    );
     deliverChatToFace("jules", line("lunch?"), () => {});
     // The first bubble gets its fair minimum, not its full dwell.
     jest.advanceTimersByTime(1_700);
@@ -197,7 +229,11 @@ describe("chat from the face", () => {
     const [{ messageId }] = getFaceChat().unseen.sam!;
     openFacePanel("sam");
     expect(unseen("sam")).toEqual([]);
-    expect(getFaceChat().panel).toEqual({ authorId: "sam", unreadIds: [messageId], focus: true });
+    expect(getFaceChat().panel).toEqual({
+      authorId: "sam",
+      unreadIds: [messageId],
+      focus: true,
+    });
     // While their panel is open, their next line lands there as unread, not in a bubble.
     deliverChatToFace("sam", line("two"), () => {});
     expect(getFaceChat().bubble).toBeNull();
@@ -218,16 +254,26 @@ describe("chat from the face", () => {
   });
 
   test("a zen-hidden or translated-offscreen header refuses face bubbles so the caller toasts", () => {
-    const rect = (top: number, bottom: number) => ({ top, bottom, height: bottom - top, left: 0, right: 200, width: 200 });
+    const rect = (top: number, bottom: number) => ({
+      top,
+      bottom,
+      height: bottom - top,
+      left: 0,
+      right: 200,
+      width: 200,
+    });
     const bar = (opts: { zenHidden?: boolean; top: number; bottom: number }) =>
       ({
         getClientRects: () => [rect(opts.top, opts.bottom)],
         getBoundingClientRect: () => rect(opts.top, opts.bottom),
-        closest: (sel: string) => (sel === "[data-zen-bar-hidden]" && opts.zenHidden ? {} : null),
+        closest: (sel: string) =>
+          sel === "[data-zen-bar-hidden]" && opts.zenHidden ? {} : null,
       }) as unknown as HTMLElement;
 
     expect(faceBarOnScreen(null)).toBe(false);
-    expect(faceBarOnScreen(bar({ zenHidden: true, top: 0, bottom: 40 }))).toBe(false);
+    expect(faceBarOnScreen(bar({ zenHidden: true, top: 0, bottom: 40 }))).toBe(
+      false,
+    );
     expect(faceBarOnScreen(bar({ top: -44, bottom: 0 }))).toBe(false);
     expect(faceBarOnScreen(bar({ top: 0, bottom: 40 }))).toBe(true);
   });

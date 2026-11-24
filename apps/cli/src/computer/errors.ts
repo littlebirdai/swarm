@@ -18,14 +18,24 @@ export class ComputerError extends Error {
   readonly code: ComputerErrorCode;
   /** An action was sent and never answered, so it may have landed. */
   readonly outcomeUnknown: boolean;
-  constructor(code: ComputerErrorCode, message: string, opts: { outcomeUnknown?: boolean } = {}) {
+  constructor(
+    code: ComputerErrorCode,
+    message: string,
+    opts: { outcomeUnknown?: boolean } = {},
+  ) {
     super(message);
     this.name = "ComputerError";
     this.code = code;
     this.outcomeUnknown = opts.outcomeUnknown === true;
   }
   /** The flat `--json` envelope, `ok` first, matching the `cast app` convention. */
-  toJSON(): { ok: false; code: ComputerErrorCode; message: string; recovery: string[]; outcomeUnknown?: true } {
+  toJSON(): {
+    ok: false;
+    code: ComputerErrorCode;
+    message: string;
+    recovery: string[];
+    outcomeUnknown?: true;
+  } {
     return {
       ok: false,
       code: this.code,
@@ -42,7 +52,10 @@ const RECOVERY: Record<ComputerErrorCode, string[]> = {
     "A web app such as Gmail is not an app selector: target the desktop browser that contains it.",
     "If the browser is not listed, open or focus it first.",
   ],
-  app_blocked: ["Stop. Do not drive this app.", "Choose another target or ask the human to do it."],
+  app_blocked: [
+    "Stop. Do not drive this app.",
+    "Choose another target or ask the human to do it.",
+  ],
   window_not_found: [
     "Run `cast computer list-windows --app <app>` and target a listed window.",
     "If the app is listed with no visible window, retry observation once with `--restore-window`.",
@@ -87,7 +100,10 @@ const RECOVERY: Record<ComputerErrorCode, string[]> = {
     "Choose a settable element from a fresh snapshot.",
     "If none accepts a write, focus it and use keyboard input, then inspect the returned state.",
   ],
-  invalid_argument: ["Fix the flags exactly as the message says.", "Do not retry unchanged."],
+  invalid_argument: [
+    "Fix the flags exactly as the message says.",
+    "Do not retry unchanged.",
+  ],
   action_timeout: [
     "Run `get-app-state` first so you know whether the UI changed.",
     "Then retry with a simpler semantic action, or with `--no-screenshot` if observation is slow.",
@@ -121,8 +137,16 @@ const RECOVERY: Record<ComputerErrorCode, string[]> = {
  * names neither, and a rerun fixes that one.
  */
 export function grantSetupLines(error: ComputerError): string[] {
-  const grantCodes: ComputerErrorCode[] = ["permission_denied", "screenshot_failed", "accessibility_error"];
-  if (!grantCodes.includes(error.code) || !/Accessibility|Screen Recording/.test(error.message)) return [];
+  const grantCodes: ComputerErrorCode[] = [
+    "permission_denied",
+    "screenshot_failed",
+    "accessibility_error",
+  ];
+  if (
+    !grantCodes.includes(error.code) ||
+    !/Accessibility|Screen Recording/.test(error.message)
+  )
+    return [];
   return agentSetupLines("computer");
 }
 
@@ -132,7 +156,9 @@ export function recoveryFor(code: ComputerErrorCode): string[] {
   return RECOVERY[code] ?? RECOVERY.accessibility_error;
 }
 
-export function isComputerErrorCode(value: unknown): value is ComputerErrorCode {
+export function isComputerErrorCode(
+  value: unknown,
+): value is ComputerErrorCode {
   return typeof value === "string" && CODES.has(value as ComputerErrorCode);
 }
 
@@ -145,17 +171,35 @@ export function isComputerErrorCode(value: unknown): value is ComputerErrorCode 
  * what we expect", which is exactly what it is.
  */
 export function computerErrorFromWire(error: unknown): ComputerError {
-  const raw = (error ?? {}) as { code?: unknown; message?: unknown; outcomeUnknown?: unknown };
-  const message = typeof raw.message === "string" && raw.message ? raw.message : "the computer helper failed without a message";
+  const raw = (error ?? {}) as {
+    code?: unknown;
+    message?: unknown;
+    outcomeUnknown?: unknown;
+  };
+  const message =
+    typeof raw.message === "string" && raw.message
+      ? raw.message
+      : "the computer helper failed without a message";
   if (!isComputerErrorCode(raw.code)) {
-    const named = typeof raw.code === "string" && raw.code ? ` (helper reported an unknown code '${raw.code}')` : "";
+    const named =
+      typeof raw.code === "string" && raw.code
+        ? ` (helper reported an unknown code '${raw.code}')`
+        : "";
     return new ComputerError("accessibility_error", `${message}${named}`);
   }
-  return new ComputerError(raw.code, message, { outcomeUnknown: raw.outcomeUnknown === true });
+  return new ComputerError(raw.code, message, {
+    outcomeUnknown: raw.outcomeUnknown === true,
+  });
 }
 
 /** Anything thrown on the client side, as a ComputerError. */
-export function asComputerError(err: unknown, fallback: ComputerErrorCode = "accessibility_error"): ComputerError {
+export function asComputerError(
+  err: unknown,
+  fallback: ComputerErrorCode = "accessibility_error",
+): ComputerError {
   if (err instanceof ComputerError) return err;
-  return new ComputerError(fallback, err instanceof Error ? err.message : String(err));
+  return new ComputerError(
+    fallback,
+    err instanceof Error ? err.message : String(err),
+  );
 }

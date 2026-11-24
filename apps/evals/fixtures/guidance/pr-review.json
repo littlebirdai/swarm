@@ -2,9 +2,7 @@
   "asOf": "2026-10-06T12:00:00.000Z",
   "notes": "Line notes held and sent as one review through cast pr.",
   "label": {
-    "want": [
-      "cast\\s+pr\\s+(comment|review|notes|show|threads)\\b"
-    ],
+    "want": ["cast\\s+pr\\s+(comment|review|notes|show|threads)\\b"],
     "avoid": [
       "gh pr review",
       "gh api[^\\n]*(comments|reviews)",

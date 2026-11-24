@@ -23,23 +23,33 @@ describe("agentSpawnPath", () => {
     process.env.HOME = "/Users/someone";
     process.env.PATH = "/usr/bin";
     const parts = agentSpawnPath().split(":");
-    expect(parts.indexOf("/Users/someone/.local/bin")).toBeLessThan(parts.indexOf("/usr/bin"));
+    expect(parts.indexOf("/Users/someone/.local/bin")).toBeLessThan(
+      parts.indexOf("/usr/bin"),
+    );
   });
 
   test("extra prefixes lead (opencode's private bin)", () => {
     process.env.HOME = "/Users/someone";
-    expect(agentSpawnPath("/Users/someone/.opencode/bin").split(":")[0]).toBe("/Users/someone/.opencode/bin");
+    expect(agentSpawnPath("/Users/someone/.opencode/bin").split(":")[0]).toBe(
+      "/Users/someone/.opencode/bin",
+    );
   });
 
   test("no HOME leaves the system entries intact rather than emitting empties", () => {
     delete process.env.HOME;
     process.env.PATH = "/usr/bin";
-    expect(agentSpawnPath().split(":").every((p) => p.length > 0)).toBe(true);
+    expect(
+      agentSpawnPath()
+        .split(":")
+        .every((p) => p.length > 0),
+    ).toBe(true);
   });
 
   test("omits an unavailable optional prefix", () => {
     delete process.env.HOME;
     process.env.PATH = "/usr/bin";
-    expect(agentSpawnPath(process.env.HOME && `${process.env.HOME}/.opencode/bin`)).not.toContain("undefined/.opencode/bin");
+    expect(
+      agentSpawnPath(process.env.HOME && `${process.env.HOME}/.opencode/bin`),
+    ).not.toContain("undefined/.opencode/bin");
   });
 });

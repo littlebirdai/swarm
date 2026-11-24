@@ -45,7 +45,9 @@ function extractDeliverMessageBody(): string {
   // deliverMessage ends where the next top-level helper begins.
   const endIdx = daemonSource.indexOf("\nfunction isSyncPaused", startIdx);
   if (endIdx < 0) {
-    throw new Error("Could not locate end of deliverMessage (isSyncPaused anchor missing)");
+    throw new Error(
+      "Could not locate end of deliverMessage (isSyncPaused anchor missing)",
+    );
   }
   return daemonSource.slice(startIdx, endIdx);
 }
@@ -84,7 +86,10 @@ describe("deliverMessage: mark-injected-before-send invariant", () => {
     }
     if (matches.length > 0) {
       const summary = matches
-        .map((m) => `  - line ${m.line} (in deliverMessage): ${m.snippet.replace(/\s+/g, " ")}`)
+        .map(
+          (m) =>
+            `  - line ${m.line} (in deliverMessage): ${m.snippet.replace(/\s+/g, " ")}`,
+        )
         .join("\n");
       throw new Error(
         `Found ${matches.length} mark-after-inject site(s) -- this reintroduces the doubled-message race:\n${summary}`,
@@ -110,7 +115,10 @@ describe("deliverMessage: mark-injected-before-send invariant", () => {
     }
     if (matches.length > 0) {
       const summary = matches
-        .map((m) => `  - line ${m.line} (in deliverMessage): ${m.snippet.replace(/\s+/g, " ")}`)
+        .map(
+          (m) =>
+            `  - line ${m.line} (in deliverMessage): ${m.snippet.replace(/\s+/g, " ")}`,
+        )
         .join("\n");
       throw new Error(
         `Found ${matches.length} mark-after-resume site(s) -- this reintroduces the doubled-message race:\n${summary}`,
@@ -154,7 +162,10 @@ describe("deliverMessage: mark-injected-before-send invariant", () => {
         // Look backwards ~600 chars for the best-effort mark. It sits on the line(s) just above
         // the inject in each delivery branch.
         const window = deliverBody.slice(Math.max(0, idx - 600), idx);
-        const hasPrecedingMark = /markInjectedBestEffort\(\s*syncService\s*,\s*messageId\b/.test(window);
+        const hasPrecedingMark =
+          /markInjectedBestEffort\(\s*syncService\s*,\s*messageId\b/.test(
+            window,
+          );
         if (!hasPrecedingMark) {
           const lineNo = lineNumberOf(deliverBody, idx);
           throw new Error(
@@ -168,9 +179,13 @@ describe("deliverMessage: mark-injected-before-send invariant", () => {
   });
 
   test("auto-resume delivery marks injected before launching the resume path", () => {
-    const resumeIdx = deliverBody.search(/(?:await\s+|=>\s*)autoResumeSession\(\s*sessionId\s*,\s*content\s*,/);
+    const resumeIdx = deliverBody.search(
+      /(?:await\s+|=>\s*)autoResumeSession\(\s*sessionId\s*,\s*content\s*,/,
+    );
     expect(resumeIdx).toBeGreaterThanOrEqual(0);
     const window = deliverBody.slice(Math.max(0, resumeIdx - 700), resumeIdx);
-    expect(window).toMatch(/markInjectedBestEffort\(\s*syncService\s*,\s*messageId\b/);
+    expect(window).toMatch(
+      /markInjectedBestEffort\(\s*syncService\s*,\s*messageId\b/,
+    );
   });
 });

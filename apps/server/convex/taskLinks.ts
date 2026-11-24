@@ -12,25 +12,77 @@ import { v } from "convex/values";
 import { internalMutation, mutation, type MutationCtx } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
-import { canAccessTask, isSameWorkspace, requireSameWorkspace, workspaceForResource, type AuthorizedWorkspace } from "./lib/access";
-import { assertDependencyEdges, dependentRefs, GRAPH_LINK_CAP, openUpstream, requireTaskByRef, taskByRef, taskLookups, writeEdges } from "./lib/taskGraph";
-import { bySystem, byUser, recordTaskChange, type TaskChangeBy } from "./lib/taskHistory";
+import {
+  canAccessTask,
+  isSameWorkspace,
+  requireSameWorkspace,
+  workspaceForResource,
+  type AuthorizedWorkspace,
+} from "./lib/access";
+import {
+  assertDependencyEdges,
+  dependentRefs,
+  GRAPH_LINK_CAP,
+  openUpstream,
+  requireTaskByRef,
+  taskByRef,
+  taskLookups,
+  writeEdges,
+} from "./lib/taskGraph";
+import {
+  bySystem,
+  byUser,
+  recordTaskChange,
+  type TaskChangeBy,
+} from "./lib/taskHistory";
 import { patchTask } from "./lib/taskWrite";
-import { insertTaskComment, moveTaskStatus, openDirectSubtasks, reconcilePlanMembership, releaseBoundSessions, taskAncestorIds } from "./tasks";
-import { cliCaller, isTaskUnblocked, onBlockedAgain, onUnblocked, pendingReleases, releaseDependents, SENDER, tellReleased, unblockBy } from "./taskWaits";
-import { isTerminalTaskStatus, parseStoredList, taskBlockerEntries, type StatusOf, type TitledTaskBlocker } from "@codecast/shared/tasks";
+import {
+  insertTaskComment,
+  moveTaskStatus,
+  openDirectSubtasks,
+  reconcilePlanMembership,
+  releaseBoundSessions,
+  taskAncestorIds,
+} from "./tasks";
+import {
+  cliCaller,
+  isTaskUnblocked,
+  onBlockedAgain,
+  onUnblocked,
+  pendingReleases,
+  releaseDependents,
+  SENDER,
+  tellReleased,
+  unblockBy,
+} from "./taskWaits";
+import {
+  isTerminalTaskStatus,
+  parseStoredList,
+  taskBlockerEntries,
+  type StatusOf,
+  type TitledTaskBlocker,
+} from "@codecast/shared/tasks";
 
 /** A linked task as every surface prints it. */
 export type LinkRef = { short_id: string; title: string; status: string };
 
-const linkRef = (t: Doc<"tasks">): LinkRef => ({ short_id: t.short_id, title: t.title, status: t.status });
+const linkRef = (t: Doc<"tasks">): LinkRef => ({
+  short_id: t.short_id,
+  title: t.title,
+  status: t.status,
+});
 
 /** Every ref that names `t` in an edge: its short id, or the `_id` a plan's older rows used. */
 const refsOf = (t: Doc<"tasks">) => new Set([t.short_id, String(t._id)]);
 
 /** Who a status move is by: a session's agent when it carries a conversation. */
-const actorBy = (userId: Id<"users">, conversationId?: Id<"conversations">): TaskChangeBy =>
-  conversationId ? { user_id: userId, actor_type: "agent", conversation_id: conversationId } : byUser(userId);
+const actorBy = (
+  userId: Id<"users">,
+  conversationId?: Id<"conversations">,
+): TaskChangeBy =>
+  conversationId
+    ? { user_id: userId, actor_type: "agent", conversation_id: conversationId }
+    : byUser(userId);
 
 /** How many tasks "found here" lists. */
 const FOUND_HERE_LIMIT = 50;
@@ -45,17 +97,37 @@ async function authorName(ctx: ReadCtx, userId: Id<"users">): Promise<string> {
 
 /** Leave a note on a task as `userId`, from `by`'s session, signed by `by`'s
  *  person (codecast's for a system write). */
-async function noteOn(ctx: Ctx, userId: Id<"users">, by: TaskChangeBy, taskId: Id<"tasks">, text: string): Promise<void> {
+async function noteOn(
+  ctx: Ctx,
+  userId: Id<"users">,
+  by: TaskChangeBy,
+  taskId: Id<"tasks">,
+  text: string,
+): Promise<void> {
   const author = by.user_id ? await authorName(ctx, by.user_id) : SENDER;
-  await insertTaskComment(ctx, taskId, { author, text, comment_type: "note", conversation_id: by.conversation_id }, userId);
+  await insertTaskComment(
+    ctx,
+    taskId,
+    { author, text, comment_type: "note", conversation_id: by.conversation_id },
+    userId,
+  );
 }
 
 /** The task `ref` names when it is readable and in `task`'s workspace. A link
  *  out of the workspace is never followed, same as readiness (graphOutside). */
-async function readableLink(ctx: ReadCtx, userId: Id<"users">, task: Doc<"tasks">, ref: string | undefined): Promise<Doc<"tasks"> | null> {
+async function readableLink(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  task: Doc<"tasks">,
+  ref: string | undefined,
+): Promise<Doc<"tasks"> | null> {
   if (!ref) return null;
   const t = await taskByRef(ctx, ref);
-  return t && isSameWorkspace(t, workspaceForResource(task)) && (await canAccessTask(ctx, userId, t)) ? t : null;
+  return t &&
+    isSameWorkspace(t, workspaceForResource(task)) &&
+    (await canAccessTask(ctx, userId, t))
+    ? t
+    : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,21 +162,42 @@ export async function foundDuringForCreate(
   if (!bound) return undefined;
   const source = await ctx.db.get(bound);
   // A dropped task is no longer worked on, even while a session is still bound to it.
-  if (!source || source.status === "dropped" || !isSameWorkspace(source, o.workspace) || !(await canAccessTask(ctx, userId, source))) return undefined;
+  if (
+    !source ||
+    source.status === "dropped" ||
+    !isSameWorkspace(source, o.workspace) ||
+    !(await canAccessTask(ctx, userId, source))
+  )
+    return undefined;
   if (o.plan_id && source.plan_id === o.plan_id) return undefined;
-  if (o.parent_id && (o.parent_id === source._id || (await taskAncestorIds(ctx, { parent_id: o.parent_id })).includes(String(source._id)))) return undefined;
+  if (
+    o.parent_id &&
+    (o.parent_id === source._id ||
+      (await taskAncestorIds(ctx, { parent_id: o.parent_id })).includes(
+        String(source._id),
+      ))
+  )
+    return undefined;
   return source.short_id;
 }
 
 /** What was found while working on `task`, readable by `userId`. */
-export async function foundHere(ctx: ReadCtx, userId: Id<"users">, task: Doc<"tasks">): Promise<LinkRef[]> {
+export async function foundHere(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  task: Doc<"tasks">,
+): Promise<LinkRef[]> {
   const rows = await ctx.db
     .query("tasks")
     .withIndex("by_found_during", (q) => q.eq("found_during", task.short_id))
     .take(FOUND_HERE_LIMIT);
   const out: LinkRef[] = [];
   for (const t of rows) {
-    if (isSameWorkspace(t, workspaceForResource(task)) && (await canAccessTask(ctx, userId, t))) out.push(linkRef(t));
+    if (
+      isSameWorkspace(t, workspaceForResource(task)) &&
+      (await canAccessTask(ctx, userId, t))
+    )
+      out.push(linkRef(t));
   }
   return out;
 }
@@ -112,19 +205,30 @@ export async function foundHere(ctx: ReadCtx, userId: Id<"users">, task: Doc<"ta
 /** Each task in `blocked_by` as readiness reads it (taskBlockerEntries, under
  *  graphOutside's rule): missing when it is gone, status unknown when it sits
  *  outside the task's workspace, else with its title. Done ones are listed too. */
-async function blockerLinks(ctx: ReadCtx, task: Doc<"tasks">): Promise<TitledTaskBlocker[]> {
+async function blockerLinks(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+): Promise<TitledTaskBlocker[]> {
   const { statusOf } = await taskLookups(ctx, task);
-  return taskBlockerEntries(task, statusOf).map(({ blocker: b }): TitledTaskBlocker => {
-    const row = "missing" in b ? null : statusOf(b.ref);
-    return row && "title" in row ? { ...b, title: (row as Doc<"tasks">).title } : b;
-  });
+  return taskBlockerEntries(task, statusOf).map(
+    ({ blocker: b }): TitledTaskBlocker => {
+      const row = "missing" in b ? null : statusOf(b.ref);
+      return row && "title" in row
+        ? { ...b, title: (row as Doc<"tasks">).title }
+        : b;
+    },
+  );
 }
 
 /** Every link of `task`, resolved for `userId`, for `cast task show`,
  *  `cast task context` and the web. A link the reader cannot follow is left
  *  out; the raw ids stay on the row. Blocks and related stop at the task
  *  page's cap (GRAPH_LINK_CAP), so both readers list the same tasks. */
-export async function taskLinksOf(ctx: ReadCtx, userId: Id<"users">, task: Doc<"tasks">) {
+export async function taskLinksOf(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  task: Doc<"tasks">,
+) {
   const one = async (ref: string | undefined) => {
     const t = await readableLink(ctx, userId, task, ref);
     return t ? linkRef(t) : null;
@@ -133,10 +237,16 @@ export async function taskLinksOf(ctx: ReadCtx, userId: Id<"users">, task: Doc<"
   const self = refsOf(task);
   const dependent = async (ref: string) => {
     const t = await readableLink(ctx, userId, task, ref);
-    return t && (t.blocked_by ?? []).some((r) => self.has(r)) ? linkRef(t) : null;
+    return t && (t.blocked_by ?? []).some((r) => self.has(r))
+      ? linkRef(t)
+      : null;
   };
-  const related = await Promise.all((task.related ?? []).slice(0, GRAPH_LINK_CAP).map(one));
-  const blocks = await Promise.all((task.blocks ?? []).slice(0, GRAPH_LINK_CAP).map(dependent));
+  const related = await Promise.all(
+    (task.related ?? []).slice(0, GRAPH_LINK_CAP).map(one),
+  );
+  const blocks = await Promise.all(
+    (task.blocks ?? []).slice(0, GRAPH_LINK_CAP).map(dependent),
+  );
   return {
     blocked_by: await blockerLinks(ctx, task),
     blocks: blocks.filter((r): r is LinkRef => !!r),
@@ -152,9 +262,19 @@ export async function taskLinksOf(ctx: ReadCtx, userId: Id<"users">, task: Doc<"
 // ---------------------------------------------------------------------------
 
 /** `ref`'s task when it is an open dependent `userId` may move in `workspace`. */
-async function movableDependent(ctx: ReadCtx, userId: Id<"users">, ref: string, workspace: AuthorizedWorkspace): Promise<Doc<"tasks"> | null> {
+async function movableDependent(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  ref: string,
+  workspace: AuthorizedWorkspace,
+): Promise<Doc<"tasks"> | null> {
   const d = await taskByRef(ctx, ref);
-  return d && isSameWorkspace(d, workspace) && (await canAccessTask(ctx, userId, d)) && !isTerminalTaskStatus(d.status) ? d : null;
+  return d &&
+    isSameWorkspace(d, workspace) &&
+    (await canAccessTask(ctx, userId, d)) &&
+    !isTerminalTaskStatus(d.status)
+    ? d
+    : null;
 }
 
 /** A task dependents are moved onto, with what it waits on (openUpstream). */
@@ -174,7 +294,12 @@ async function rewire(
   before?: StatusOf,
 ): Promise<boolean> {
   if (onto?.upstream.has(d.short_id)) {
-    await assertDependencyEdges(ctx, { short_id: d.short_id, _id: String(d._id), blocked_by: next }, workspace, { blocked_by: [onto.ref] });
+    await assertDependencyEdges(
+      ctx,
+      { short_id: d.short_id, _id: String(d._id), blocked_by: next },
+      workspace,
+      { blocked_by: [onto.ref] },
+    );
   }
   const wasFree = await isTaskUnblocked(ctx, d, before);
   await writeEdges(ctx, d, "blocked_by", next, by);
@@ -183,14 +308,21 @@ async function rewire(
 
 /** Tell each rewired dependent whose state the move flipped: released, or
  *  behind open work again (it may have started meanwhile). */
-async function tellFlipped(ctx: Ctx, by: TaskChangeBy, rewired: [Id<"tasks">, boolean][], cause: string, waitsOn: string): Promise<void> {
+async function tellFlipped(
+  ctx: Ctx,
+  by: TaskChangeBy,
+  rewired: [Id<"tasks">, boolean][],
+  cause: string,
+  waitsOn: string,
+): Promise<void> {
   const who = unblockBy(by, `moved:${cause}@${Date.now()}`);
   for (const [id, wasFree] of rewired) {
     const d = await ctx.db.get(id);
     if (!d) continue;
     const free = await isTaskUnblocked(ctx, d);
     if (free && !wasFree) await onUnblocked(ctx, d, cause, who);
-    else if (!free && wasFree) await onBlockedAgain(ctx, d, `${cause}, so it waits on ${waitsOn}`, who);
+    else if (!free && wasFree)
+      await onBlockedAgain(ctx, d, `${cause}, so it waits on ${waitsOn}`, who);
   }
 }
 
@@ -198,14 +330,20 @@ async function tellFlipped(ctx: Ctx, by: TaskChangeBy, rewired: [Id<"tasks">, bo
  *  names them in either form: TG4) or remove refs from it, from the row as it
  *  stands now; nothing is written when nothing changes. A system write, so
  *  no access check (patchDepMirror's is for a caller's own edge). */
-async function editBlocks(ctx: Ctx, by: TaskChangeBy, taskId: Id<"tasks">, edit: { add: Doc<"tasks">[] } | { remove: Iterable<string> }): Promise<void> {
+async function editBlocks(
+  ctx: Ctx,
+  by: TaskChangeBy,
+  taskId: Id<"tasks">,
+  edit: { add: Doc<"tasks">[] } | { remove: Iterable<string> },
+): Promise<void> {
   const row = await ctx.db.get(taskId);
   if (!row) return;
   const prior = row.blocks ?? [];
   let next: string[];
   if ("add" in edit) {
     next = [...prior];
-    for (const t of edit.add) if (!next.some((r) => refsOf(t).has(r))) next.push(t.short_id);
+    for (const t of edit.add)
+      if (!next.some((r) => refsOf(t).has(r))) next.push(t.short_id);
   } else {
     const named = new Set(edit.remove);
     next = prior.filter((r) => !named.has(r));
@@ -227,9 +365,13 @@ function replacementProblem(t: Doc<"tasks">, verb: string): string | null {
   // superseded_by only stands on a dropped task (a reopen clears it), but a
   // reopen keeps duplicate_of: open work under a mark still accepts what
   // moves onto it, and hands it on when it is dropped (dropDuplicate).
-  const next = t.superseded_by ?? (isTerminalTaskStatus(t.status) ? t.duplicate_of : undefined);
-  if (next) return `${t.short_id} was itself ${t.superseded_by ? "superseded by" : "marked a duplicate of"} ${next}; ${verb} that task instead`;
-  if (t.status === "dropped") return `${t.short_id} is dropped; ${verb} work that is still going to happen`;
+  const next =
+    t.superseded_by ??
+    (isTerminalTaskStatus(t.status) ? t.duplicate_of : undefined);
+  if (next)
+    return `${t.short_id} was itself ${t.superseded_by ? "superseded by" : "marked a duplicate of"} ${next}; ${verb} that task instead`;
+  if (t.status === "dropped")
+    return `${t.short_id} is dropped; ${verb} work that is still going to happen`;
   return null;
 }
 
@@ -261,7 +403,12 @@ export async function redirectDependents(
   const workspace = workspaceForResource(from);
   const [fromRefs, toRefs] = [refsOf(from), refsOf(to)];
   const { fromWas } = o;
-  const asItStood: StatusOf | undefined = fromWas ? (r) => (fromRefs.has(r) ? { short_id: from.short_id, status: fromWas } : undefined) : undefined;
+  const asItStood: StatusOf | undefined = fromWas
+    ? (r) =>
+        fromRefs.has(r)
+          ? { short_id: from.short_id, status: fromWas }
+          : undefined
+    : undefined;
   const moved: Doc<"tasks">[] = [];
   const rewired: [Id<"tasks">, boolean][] = [];
   const settled = new Set<string>();
@@ -278,13 +425,34 @@ export async function redirectDependents(
     const self = d._id === to._id;
     const gains = !self && !rest.some((r) => toRefs.has(r));
     try {
-      if (gains) onto ??= { ref: to.short_id, upstream: await openUpstream(ctx, to, workspace) };
-      rewired.push([d._id, await rewire(ctx, by, d, gains ? [...rest, to.short_id] : rest, workspace, gains ? onto : undefined, asItStood)]);
+      if (gains)
+        onto ??= {
+          ref: to.short_id,
+          upstream: await openUpstream(ctx, to, workspace),
+        };
+      rewired.push([
+        d._id,
+        await rewire(
+          ctx,
+          by,
+          d,
+          gains ? [...rest, to.short_id] : rest,
+          workspace,
+          gains ? onto : undefined,
+          asItStood,
+        ),
+      ]);
     } catch (e) {
       // Refused before any write (a loop, or too much upstream to check one);
       // its mirror entry stays, so the drop releases it.
       if (o.onLoop !== "leave") throw e;
-      await noteOn(ctx, userId, by, d._id, `Released from ${from.short_id} rather than moved to ${to.short_id} (${cause}): ${(e as Error).message}`);
+      await noteOn(
+        ctx,
+        userId,
+        by,
+        d._id,
+        `Released from ${from.short_id} rather than moved to ${to.short_id} (${cause}): ${(e as Error).message}`,
+      );
       continue;
     }
     settled.add(ref);
@@ -317,8 +485,16 @@ async function blockersBeforeMove(
   let newest = true;
   for (const h of rows) {
     if (h.field !== "blocked_by") continue;
-    const [old, next] = [parseStoredList(h.old_value), parseStoredList(h.new_value)];
-    if (old.some((r) => fromRefs.has(r)) && !next.some((r) => fromRefs.has(r)) && next.some((r) => toRefs.has(r))) return { old, newest };
+    const [old, next] = [
+      parseStoredList(h.old_value),
+      parseStoredList(h.new_value),
+    ];
+    if (
+      old.some((r) => fromRefs.has(r)) &&
+      !next.some((r) => fromRefs.has(r)) &&
+      next.some((r) => toRefs.has(r))
+    )
+      return { old, newest };
     newest = false;
   }
   return null;
@@ -352,18 +528,31 @@ export async function restoreDependents(
     const d = await movableDependent(ctx, userId, ref, workspace);
     if (!d || d._id === from._id) continue;
     const now = d.blocked_by ?? [];
-    if (!now.some((r) => toRefs.has(r)) || now.some((r) => fromRefs.has(r))) continue;
+    if (!now.some((r) => toRefs.has(r)) || now.some((r) => fromRefs.has(r)))
+      continue;
     const before = await blockersBeforeMove(ctx, d._id, fromRefs, toRefs);
     if (!before) continue;
     const keepTo = !before.newest || before.old.some((r) => toRefs.has(r));
-    const next = [...(keepTo ? now : now.filter((r) => !toRefs.has(r))), from.short_id];
+    const next = [
+      ...(keepTo ? now : now.filter((r) => !toRefs.has(r))),
+      from.short_id,
+    ];
     let wasFree: boolean;
     try {
-      onto ??= { ref: from.short_id, upstream: await openUpstream(ctx, from, workspace) };
+      onto ??= {
+        ref: from.short_id,
+        upstream: await openUpstream(ctx, from, workspace),
+      };
       wasFree = await rewire(ctx, by, d, next, workspace, onto);
     } catch (e) {
       // Refused before any write: a reopen never fails on a dependent's loop.
-      await noteOn(ctx, userId, by, d._id, `Still waits on ${to.short_id}: ${cause}, but waiting on ${from.short_id} again was refused. ${(e as Error).message}`);
+      await noteOn(
+        ctx,
+        userId,
+        by,
+        d._id,
+        `Still waits on ${to.short_id}: ${cause}, but waiting on ${from.short_id} again was refused. ${(e as Error).message}`,
+      );
       continue;
     }
     rewired.push([d._id, wasFree]);
@@ -377,11 +566,23 @@ export async function restoreDependents(
 }
 
 /** Move back what `task`'s `link` moved to the task it names (restoreDependents). */
-async function restoreFromLink(ctx: Ctx, userId: Id<"users">, by: TaskChangeBy, task: Doc<"tasks">, link: "superseded_by" | "duplicate_of", cause: string) {
+async function restoreFromLink(
+  ctx: Ctx,
+  userId: Id<"users">,
+  by: TaskChangeBy,
+  task: Doc<"tasks">,
+  link: "superseded_by" | "duplicate_of",
+  cause: string,
+) {
   const ref = task[link];
   const replacement = ref ? await taskByRef(ctx, ref) : null;
   const current = await ctx.db.get(task._id);
-  if (!replacement || !current || !(await canAccessTask(ctx, userId, replacement))) return;
+  if (
+    !replacement ||
+    !current ||
+    !(await canAccessTask(ctx, userId, replacement))
+  )
+    return;
   await restoreDependents(ctx, userId, by, current, replacement, cause);
 }
 
@@ -390,14 +591,39 @@ async function restoreFromLink(ctx: Ctx, userId: Id<"users">, by: TaskChangeBy, 
  * is the row before it). Its dependents wait on it again, and superseded_by
  * goes, since it would keep the task off every frontier.
  */
-async function reopenLinkedTask(ctx: Ctx, task: Doc<"tasks">, userId: Id<"users">, by: TaskChangeBy): Promise<void> {
+async function reopenLinkedTask(
+  ctx: Ctx,
+  task: Doc<"tasks">,
+  userId: Id<"users">,
+  by: TaskChangeBy,
+): Promise<void> {
   if (!task.superseded_by && !task.duplicate_of) return;
   if (task.superseded_by) {
-    await ctx.db.patch(task._id, { superseded_by: undefined, updated_at: Date.now() });
-    await recordTaskChange(ctx, task._id, by, [["superseded_by", task.superseded_by, ""]]);
-    await restoreFromLink(ctx, userId, by, task, "superseded_by", `${task.short_id} was reopened`);
+    await ctx.db.patch(task._id, {
+      superseded_by: undefined,
+      updated_at: Date.now(),
+    });
+    await recordTaskChange(ctx, task._id, by, [
+      ["superseded_by", task.superseded_by, ""],
+    ]);
+    await restoreFromLink(
+      ctx,
+      userId,
+      by,
+      task,
+      "superseded_by",
+      `${task.short_id} was reopened`,
+    );
   }
-  if (task.duplicate_of) await restoreFromLink(ctx, userId, by, task, "duplicate_of", `${task.short_id} was reopened`);
+  if (task.duplicate_of)
+    await restoreFromLink(
+      ctx,
+      userId,
+      by,
+      task,
+      "duplicate_of",
+      `${task.short_id} was reopened`,
+    );
 }
 
 /**
@@ -408,14 +634,33 @@ async function reopenLinkedTask(ctx: Ctx, task: Doc<"tasks">, userId: Id<"users"
  * canonical that is gone, unreadable, dropped or replaced itself leaves the
  * release to happen, and so does a dependent the move would loop.
  */
-async function dropDuplicate(ctx: Ctx, task: Doc<"tasks">, next: string | undefined, userId: Id<"users">, by: TaskChangeBy): Promise<void> {
+async function dropDuplicate(
+  ctx: Ctx,
+  task: Doc<"tasks">,
+  next: string | undefined,
+  userId: Id<"users">,
+  by: TaskChangeBy,
+): Promise<void> {
   if (next !== "dropped" || isTerminalTaskStatus(task.status)) return;
   const current = await ctx.db.get(task._id);
   if (!current?.duplicate_of) return;
-  const canonical = await readableLink(ctx, userId, current, current.duplicate_of);
-  if (!canonical || canonical._id === current._id || replacementProblem(canonical, "move its dependents to")) return;
+  const canonical = await readableLink(
+    ctx,
+    userId,
+    current,
+    current.duplicate_of,
+  );
+  if (
+    !canonical ||
+    canonical._id === current._id ||
+    replacementProblem(canonical, "move its dependents to")
+  )
+    return;
   const cause = `${current.short_id} duplicate of ${canonical.short_id}`;
-  await redirectDependents(ctx, userId, by, current, canonical, cause, { fromWas: task.status, onLoop: "leave" });
+  await redirectDependents(ctx, userId, by, current, canonical, cause, {
+    fromWas: task.status,
+    onLoop: "leave",
+  });
 }
 
 /**
@@ -427,23 +672,46 @@ async function dropDuplicate(ctx: Ctx, task: Doc<"tasks">, next: string | undefi
  * (TG5). `task` is the row before the move. A move with nobody behind it (an
  * issue sync) follows the task owner's access and records as the system.
  */
-export async function afterStatusEdges(ctx: Ctx, task: Doc<"tasks">, next: string | undefined, release: Parameters<typeof releaseDependents>[3] = {}): Promise<void> {
+export async function afterStatusEdges(
+  ctx: Ctx,
+  task: Doc<"tasks">,
+  next: string | undefined,
+  release: Parameters<typeof releaseDependents>[3] = {},
+): Promise<void> {
   if (!next || next === task.status) return;
   const { actorUserId, conversationId } = release;
   const userId = actorUserId ?? task.user_id;
   const by = actorUserId ? actorBy(actorUserId, conversationId) : bySystem;
   await dropDuplicate(ctx, task, next, userId, by);
   await releaseDependents(ctx, task, next, release);
-  if (isTerminalTaskStatus(task.status) && !isTerminalTaskStatus(next)) await reopenLinkedTask(ctx, task, userId, by);
+  if (isTerminalTaskStatus(task.status) && !isTerminalTaskStatus(next))
+    await reopenLinkedTask(ctx, task, userId, by);
 }
 
 /** A duplicate mark cleared on a task that stays open takes its dependents
  *  back; one that stays closed leaves them on the canonical, which is still
  *  open work, rather than release them. A reopen in the same write is
  *  reopenLinkedTask's. */
-export async function afterDuplicateCleared(ctx: Ctx, userId: Id<"users">, task: Doc<"tasks">, finalStatus: string): Promise<void> {
-  if (!task.duplicate_of || isTerminalTaskStatus(task.status) || isTerminalTaskStatus(finalStatus)) return;
-  await restoreFromLink(ctx, userId, byUser(userId), task, "duplicate_of", `${task.short_id} is no longer a duplicate of ${task.duplicate_of}`);
+export async function afterDuplicateCleared(
+  ctx: Ctx,
+  userId: Id<"users">,
+  task: Doc<"tasks">,
+  finalStatus: string,
+): Promise<void> {
+  if (
+    !task.duplicate_of ||
+    isTerminalTaskStatus(task.status) ||
+    isTerminalTaskStatus(finalStatus)
+  )
+    return;
+  await restoreFromLink(
+    ctx,
+    userId,
+    byUser(userId),
+    task,
+    "duplicate_of",
+    `${task.short_id} is no longer a duplicate of ${task.duplicate_of}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -470,27 +738,56 @@ export async function supersedeCore(
 ): Promise<{ short_id: string; superseded_by: string; moved: string[] }> {
   const old = await requireTaskByRef(ctx, userId, oldRef);
   const replacement = await requireTaskByRef(ctx, userId, newRef);
-  requireSameWorkspace(replacement, workspaceForResource(old), "replacement task");
-  if (old._id === replacement._id) throw new Error("A task can't supersede itself");
-  if (old.status === "done") throw new Error(`${old.short_id} is done; supersede replaces work that is still open`);
+  requireSameWorkspace(
+    replacement,
+    workspaceForResource(old),
+    "replacement task",
+  );
+  if (old._id === replacement._id)
+    throw new Error("A task can't supersede itself");
+  if (old.status === "done")
+    throw new Error(
+      `${old.short_id} is done; supersede replaces work that is still open`,
+    );
   requireLiveReplacement(replacement, "supersede with");
-  if (old.superseded_by === replacement.short_id) return { short_id: old.short_id, superseded_by: replacement.short_id, moved: [] };
+  if (old.superseded_by === replacement.short_id)
+    return {
+      short_id: old.short_id,
+      superseded_by: replacement.short_id,
+      moved: [],
+    };
   // Its dependents already wait on the first replacement, and a reopen
   // gives back only what the newest superseded_by moved.
-  if (old.superseded_by) throw new Error(`${old.short_id} is already superseded by ${old.superseded_by}; reopen it first, or supersede ${old.superseded_by}`);
+  if (old.superseded_by)
+    throw new Error(
+      `${old.short_id} is already superseded by ${old.superseded_by}; reopen it first, or supersede ${old.superseded_by}`,
+    );
   // Dropping a parent never strands its subtasks (guardParentClose's rule).
   const subtasks = await openDirectSubtasks(ctx, old._id);
   if (subtasks.some((c) => c._id === replacement._id)) {
-    throw new Error(`${replacement.short_id} is a subtask of ${old.short_id}, the task it would replace; move it to the top level first`);
+    throw new Error(
+      `${replacement.short_id} is a subtask of ${old.short_id}, the task it would replace; move it to the top level first`,
+    );
   }
   if (subtasks.length) {
-    throw new Error(`${old.short_id} has open subtasks (${subtasks.map((c) => c.short_id).join(", ")}); move them under ${replacement.short_id} or close them first`);
+    throw new Error(
+      `${old.short_id} has open subtasks (${subtasks.map((c) => c.short_id).join(", ")}); move them under ${replacement.short_id} or close them first`,
+    );
   }
 
-  const moved = await redirectDependents(ctx, userId, by, old, replacement, `${old.short_id} superseded by ${replacement.short_id}`);
+  const moved = await redirectDependents(
+    ctx,
+    userId,
+    by,
+    old,
+    replacement,
+    `${old.short_id} superseded by ${replacement.short_id}`,
+  );
   // Redirect first: the drop below then releases nobody (afterStatusMove).
   const current = (await ctx.db.get(old._id)) ?? old;
-  await recordTaskChange(ctx, old._id, by, [["superseded_by", old.superseded_by, replacement.short_id]]);
+  await recordTaskChange(ctx, old._id, by, [
+    ["superseded_by", old.superseded_by, replacement.short_id],
+  ]);
   await moveTaskStatus(ctx, current, "dropped", {
     actorUserId: userId,
     actorType: by.actor_type,
@@ -499,8 +796,16 @@ export async function supersedeCore(
   });
   // A session bound to the old task moves on with it, as a close does.
   await releaseBoundSessions(ctx, old, by.conversation_id);
-  const tail = moved.length ? ` Its dependents now wait on it: ${moved.join(", ")}.` : "";
-  await noteOn(ctx, userId, by, old._id, `Superseded by ${replacement.short_id}.${note?.trim() ? ` ${note.trim()}` : ""}${tail}`);
+  const tail = moved.length
+    ? ` Its dependents now wait on it: ${moved.join(", ")}.`
+    : "";
+  await noteOn(
+    ctx,
+    userId,
+    by,
+    old._id,
+    `Superseded by ${replacement.short_id}.${note?.trim() ? ` ${note.trim()}` : ""}${tail}`,
+  );
   return { short_id: old.short_id, superseded_by: replacement.short_id, moved };
 }
 
@@ -521,22 +826,40 @@ export async function relateCore(
   by: TaskChangeBy = byUser(userId),
 ): Promise<{ success: true }> {
   const a = await requireTaskByRef(ctx, userId, aRef);
-  const b = op === "add" ? await requireTaskByRef(ctx, userId, bRef) : await taskByRef(ctx, bRef.trim());
+  const b =
+    op === "add"
+      ? await requireTaskByRef(ctx, userId, bRef)
+      : await taskByRef(ctx, bRef.trim());
   const bId = b?.short_id ?? bRef.trim();
-  if (op === "remove" && !(a.related ?? []).includes(bId) && !(b?.related ?? []).includes(a.short_id)) {
+  if (
+    op === "remove" &&
+    !(a.related ?? []).includes(bId) &&
+    !(b?.related ?? []).includes(a.short_id)
+  ) {
     throw new Error(`${a.short_id} is not related to ${bRef.trim()}`);
   }
   if (op === "add") {
     requireSameWorkspace(b!, workspaceForResource(a), "related task");
     if (a._id === b!._id) throw new Error("A task can't relate to itself");
-    for (const [t, other] of [[a, b!.short_id], [b!, a.short_id]] as const) {
+    for (const [t, other] of [
+      [a, b!.short_id],
+      [b!, a.short_id],
+    ] as const) {
       const prior = t.related ?? [];
-      if (!prior.includes(other) && prior.length >= GRAPH_LINK_CAP) throw new Error(`${t.short_id} already has ${GRAPH_LINK_CAP} related tasks; unrelate one first`);
+      if (!prior.includes(other) && prior.length >= GRAPH_LINK_CAP)
+        throw new Error(
+          `${t.short_id} already has ${GRAPH_LINK_CAP} related tasks; unrelate one first`,
+        );
     }
   }
   const write = async (t: Doc<"tasks">, other: string) => {
     const prior = t.related ?? [];
-    const next = op === "add" ? (prior.includes(other) ? prior : [...prior, other]) : prior.filter((r) => r !== other);
+    const next =
+      op === "add"
+        ? prior.includes(other)
+          ? prior
+          : [...prior, other]
+        : prior.filter((r) => r !== other);
     if (next.length === prior.length) return;
     await ctx.db.patch(t._id, { related: next, updated_at: Date.now() });
     await recordTaskChange(ctx, t._id, by, [["related", prior, next]]);
@@ -568,26 +891,44 @@ export const cutCrossedEdges = internalMutation({
       const workspace = workspaceForResource(task);
       for (const ref of task.blocked_by ?? []) {
         const blocker = await taskByRef(ctx, ref);
-        if (blocker && !isSameWorkspace(blocker, workspace)) await cutEdge(ctx, task._id, blocker._id);
+        if (blocker && !isSameWorkspace(blocker, workspace))
+          await cutEdge(ctx, task._id, blocker._id);
       }
       for (const ref of await dependentRefs(ctx, task)) {
         const dependent = await taskByRef(ctx, ref);
-        if (dependent && !isSameWorkspace(dependent, workspace)) await cutEdge(ctx, dependent._id, task._id);
+        if (dependent && !isSameWorkspace(dependent, workspace))
+          await cutEdge(ctx, dependent._id, task._id);
       }
       const parent = task.parent_id ? await ctx.db.get(task.parent_id) : null;
-      if (parent && !isSameWorkspace(parent, workspace)) await cutParent(ctx, task, parent);
-      const children = await ctx.db.query("tasks").withIndex("by_parent_id", (q) => q.eq("parent_id", task._id)).collect();
-      for (const child of children) if (!isSameWorkspace(child, workspace)) await cutParent(ctx, child, task);
+      if (parent && !isSameWorkspace(parent, workspace))
+        await cutParent(ctx, task, parent);
+      const children = await ctx.db
+        .query("tasks")
+        .withIndex("by_parent_id", (q) => q.eq("parent_id", task._id))
+        .collect();
+      for (const child of children)
+        if (!isSameWorkspace(child, workspace))
+          await cutParent(ctx, child, task);
     }
   },
 });
 
 /** Return a subtask to the top level, with its history and a note saying
  *  why, and keep its plan's task list in step (reconcilePlanMembership). */
-async function cutParent(ctx: Ctx, child: Doc<"tasks">, parent: Doc<"tasks">): Promise<void> {
+async function cutParent(
+  ctx: Ctx,
+  child: Doc<"tasks">,
+  parent: Doc<"tasks">,
+): Promise<void> {
   const now = Date.now();
   await patchTask(ctx, child, { parent_id: undefined, updated_at: now });
-  await recordTaskChange(ctx, child._id, bySystem, [["parent", child.parent_id, ""]], now);
+  await recordTaskChange(
+    ctx,
+    child._id,
+    bySystem,
+    [["parent", child.parent_id, ""]],
+    now,
+  );
   await reconcilePlanMembership(ctx, child._id, child.plan_id, false);
   if (!isTerminalTaskStatus(child.status)) {
     await insertTaskComment(ctx, child._id, {
@@ -600,8 +941,15 @@ async function cutParent(ctx: Ctx, child: Doc<"tasks">, parent: Doc<"tasks">): P
 
 /** Remove the edge from both rows, with the dependent's history, a note
  *  saying why, and the release a removeDep would tell. */
-async function cutEdge(ctx: Ctx, dependentId: Id<"tasks">, blockerId: Id<"tasks">): Promise<void> {
-  const [dependent, blocker] = await Promise.all([ctx.db.get(dependentId), ctx.db.get(blockerId)]);
+async function cutEdge(
+  ctx: Ctx,
+  dependentId: Id<"tasks">,
+  blockerId: Id<"tasks">,
+): Promise<void> {
+  const [dependent, blocker] = await Promise.all([
+    ctx.db.get(dependentId),
+    ctx.db.get(blockerId),
+  ]);
   if (!dependent || !blocker) return;
   const before = dependent.blocked_by ?? [];
   const next = before.filter((r) => !refsOf(blocker).has(r));
@@ -635,13 +983,25 @@ export const supersede = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, by } = await cliCaller(ctx, args);
-    return await supersedeCore(ctx, userId, args.short_id, args.by, args.note, by);
+    return await supersedeCore(
+      ctx,
+      userId,
+      args.short_id,
+      args.by,
+      args.note,
+      by,
+    );
   },
 });
 
 /** `cast task relate <a> <b>`. */
 export const relate = mutation({
-  args: { api_token: v.string(), short_id: v.string(), other: v.string(), conversation_id: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    other: v.string(),
+    conversation_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const { userId, by } = await cliCaller(ctx, args);
     return await relateCore(ctx, userId, args.short_id, args.other, "add", by);
@@ -650,9 +1010,21 @@ export const relate = mutation({
 
 /** `cast task unrelate <a> <b>`. */
 export const unrelate = mutation({
-  args: { api_token: v.string(), short_id: v.string(), other: v.string(), conversation_id: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    other: v.string(),
+    conversation_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const { userId, by } = await cliCaller(ctx, args);
-    return await relateCore(ctx, userId, args.short_id, args.other, "remove", by);
+    return await relateCore(
+      ctx,
+      userId,
+      args.short_id,
+      args.other,
+      "remove",
+      by,
+    );
   },
 });

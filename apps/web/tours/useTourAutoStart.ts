@@ -17,7 +17,11 @@ import { isTourSeen } from "./seen";
 
 const BEAT_MS = 1200;
 
-export function useTourAutoStart(id: string, ready: boolean, opts: { insideModal?: boolean } = {}): void {
+export function useTourAutoStart(
+  id: string,
+  ready: boolean,
+  opts: { insideModal?: boolean } = {},
+): void {
   const def = tourById(id);
   const s = useTrackedStore([
     (st) => st.tour?.id ?? null,
@@ -36,7 +40,17 @@ export function useTourAutoStart(id: string, ready: boolean, opts: { insideModal
   const inSetupFlow = isSetupFlowPath(useLocation().pathname);
 
   useWatchEffect(() => {
-    if (!def || !ready || runningId || blocked || !initialized || seen || off || inSetupFlow) return;
+    if (
+      !def ||
+      !ready ||
+      runningId ||
+      blocked ||
+      !initialized ||
+      seen ||
+      off ||
+      inSetupFlow
+    )
+      return;
     let t: ReturnType<typeof setTimeout>;
     const arm = () => {
       t = setTimeout(() => {
@@ -48,5 +62,17 @@ export function useTourAutoStart(id: string, ready: boolean, opts: { insideModal
     };
     arm();
     return () => clearTimeout(t);
-  }, [def, id, ready, runningId, blocked, initialized, seen, off, insideModal, claim, inSetupFlow]);
+  }, [
+    def,
+    id,
+    ready,
+    runningId,
+    blocked,
+    initialized,
+    seen,
+    off,
+    insideModal,
+    claim,
+    inSetupFlow,
+  ]);
 }

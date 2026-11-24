@@ -16,7 +16,9 @@ export const ASK_FIRST = askFirst("send an email or change your calendar");
  *  both together are ASK_FIRST, one of them names only that one, and with
  *  neither (nothing connected, or a deployment that cannot connect mail) it
  *  promises only what holds for everyone. */
-export function askFirstFor(can: { send_mail?: boolean; calendar?: boolean } | null | undefined): string {
+export function askFirstFor(
+  can: { send_mail?: boolean; calendar?: boolean } | null | undefined,
+): string {
   const send = !!can?.send_mail;
   const calendar = !!can?.calendar;
   if (send && calendar) return ASK_FIRST;

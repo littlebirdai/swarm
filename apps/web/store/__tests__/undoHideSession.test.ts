@@ -13,7 +13,16 @@ const PIN_AT = 1700000000000;
 const SNOOZE_UNTIL = 1800000000000;
 
 function row(extra: Record<string, unknown> = {}): InboxSession {
-  return { _id: ID, session_id: "sess-c", updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false, ...extra } as InboxSession;
+  return {
+    _id: ID,
+    session_id: "sess-c",
+    updated_at: 1,
+    agent_type: "claude_code",
+    message_count: 1,
+    is_idle: true,
+    has_pending: false,
+    ...extra,
+  } as InboxSession;
 }
 
 function seed(extra: Record<string, unknown> = {}) {
@@ -30,7 +39,10 @@ const session = () => useInboxStore.getState().sessions[ID] as any;
 const conversation = () => useInboxStore.getState().conversations[ID] as any;
 
 describe("undoing a stash holds the restored row until the server echoes it", () => {
-  beforeEach(() => { _resetUndoStacks(); seed(); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
 
   test("a push that still carries the stash does not re-hide the row", () => {
     useInboxStore.getState().stashSession(ID);
@@ -41,15 +53,25 @@ describe("undoing a stash holds the restored row until the server echoes it", ()
     expect(session().inbox_stashed_at ?? null).toBe(null);
 
     // The stash reached the server before the undo did.
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_stashed_at: stashedAt })]);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, inbox_stashed_at: stashedAt }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [row({ inbox_stashed_at: stashedAt })]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [{ _id: ID, inbox_stashed_at: stashedAt }]);
     expect(session().inbox_stashed_at ?? null).toBe(null);
     expect(conversation().inbox_stashed_at ?? null).toBe(null);
 
     // The undo lands; its echo retires the locks.
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_stashed_at: null })]);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, inbox_stashed_at: null }]);
-    const locks = Object.keys(useInboxStore.getState().pending).filter((k) => k.includes(ID));
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [row({ inbox_stashed_at: null })]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [{ _id: ID, inbox_stashed_at: null }]);
+    const locks = Object.keys(useInboxStore.getState().pending).filter((k) =>
+      k.includes(ID),
+    );
     expect(locks).toEqual([]);
   });
 
@@ -61,19 +83,34 @@ describe("undoing a stash holds the restored row until the server echoes it", ()
 
     performUndo();
     // Any push before the undo lands, e.g. a live session's next update.
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_stashed_at: stashedAt, updated_at: 2 })]);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, inbox_stashed_at: stashedAt }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        row({ inbox_stashed_at: stashedAt, updated_at: 2 }),
+      ]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [{ _id: ID, inbox_stashed_at: stashedAt }]);
     expect(session().inbox_stashed_at ?? null).toBe(null);
     expect(conversation().inbox_stashed_at ?? null).toBe(null);
   });
 
   test("the pin and snooze the stash cleared come back and stay", () => {
-    seed({ is_pinned: true, inbox_pinned_at: PIN_AT, inbox_snoozed_until: SNOOZE_UNTIL });
+    seed({
+      is_pinned: true,
+      inbox_pinned_at: PIN_AT,
+      inbox_snoozed_until: SNOOZE_UNTIL,
+    });
     useInboxStore.getState().stashSession(ID);
     expect(session().is_pinned).toBe(false);
 
     performUndo();
-    const stashedEcho = { inbox_stashed_at: 5, is_pinned: false, inbox_pinned_at: null, inbox_snoozed_until: null };
+    const stashedEcho = {
+      inbox_stashed_at: 5,
+      is_pinned: false,
+      inbox_pinned_at: null,
+      inbox_snoozed_until: null,
+    };
     useInboxStore.getState().syncTable("sessions", [row(stashedEcho)]);
     expect(session().is_pinned).toBe(true);
     expect(session().inbox_pinned_at).toBe(PIN_AT);
@@ -97,16 +134,30 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
     _resetUndoStacks();
     sent = [];
     useInboxStore.setState({
-      sessions: { [ID]: row({ inbox_stashed_at: STASHED_AT }), [CHILD]: { ...row(), _id: CHILD, session_id: "sess-d", parent_conversation_id: ID } },
-      conversations: { [ID]: { _id: ID, inbox_stashed_at: STASHED_AT }, [CHILD]: { _id: CHILD } },
+      sessions: {
+        [ID]: row({ inbox_stashed_at: STASHED_AT }),
+        [CHILD]: {
+          ...row(),
+          _id: CHILD,
+          session_id: "sess-d",
+          parent_conversation_id: ID,
+        },
+      },
+      conversations: {
+        [ID]: { _id: ID, inbox_stashed_at: STASHED_AT },
+        [CHILD]: { _id: CHILD },
+      },
       pending: {},
       currentSessionId: null,
       clientState: {},
     } as any);
-    useInboxStore.getState()._setDispatch(async (action, args, patches) => {
-      sent.push({ action, args, patches });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args, patches) => {
+        sent.push({ action, args, patches });
+        return null;
+      },
+      { owner },
+    );
   });
   afterEach(() => useInboxStore.getState()._clearDispatch(owner));
 
@@ -122,8 +173,16 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
     expect(conversation().inbox_stashed_at).toBe(STASHED_AT);
 
     // The kill reached the server first: its push does not re-hide the row.
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_dismissed_at: killedAt, inbox_stashed_at: null })]);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, inbox_dismissed_at: killedAt, inbox_stashed_at: null }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        row({ inbox_dismissed_at: killedAt, inbox_stashed_at: null }),
+      ]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [
+        { _id: ID, inbox_dismissed_at: killedAt, inbox_stashed_at: null },
+      ]);
     expect(session().inbox_dismissed_at ?? null).toBe(null);
     expect(session().inbox_stashed_at).toBe(STASHED_AT);
   });
@@ -136,8 +195,14 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
     const restores = sent.filter((s) => s.action === "restoreSession");
     expect(restores.map((s) => s.args[0]).sort()).toEqual([ID, CHILD].sort());
     expect(sent.some((s) => s.action === "applyUndoPatches")).toBe(false);
-    const patched = Object.assign({}, ...restores.map((s) => s.patches?.conversations ?? {}));
-    expect(patched[ID]).toMatchObject({ inbox_dismissed_at: null, inbox_stashed_at: STASHED_AT });
+    const patched = Object.assign(
+      {},
+      ...restores.map((s) => s.patches?.conversations ?? {}),
+    );
+    expect(patched[ID]).toMatchObject({
+      inbox_dismissed_at: null,
+      inbox_stashed_at: STASHED_AT,
+    });
     expect(patched[CHILD]).toMatchObject({ inbox_dismissed_at: null });
   });
 
@@ -151,21 +216,42 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
   const killConfirmed = () => {
     useInboxStore.getState().killSession(ID);
     const kid = useInboxStore.getState().sessions[CHILD] as any;
-    const echo = { inbox_dismissed_at: session().inbox_dismissed_at, inbox_killed_at: KILLED_AT };
-    const kidEcho = { inbox_dismissed_at: kid.inbox_dismissed_at, inbox_killed_at: KILLED_AT };
-    useInboxStore.getState().syncTable("sessions", [row(echo), { ...kid, ...kidEcho }]);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, ...echo }, { _id: CHILD, ...kidEcho }]);
+    const echo = {
+      inbox_dismissed_at: session().inbox_dismissed_at,
+      inbox_killed_at: KILLED_AT,
+    };
+    const kidEcho = {
+      inbox_dismissed_at: kid.inbox_dismissed_at,
+      inbox_killed_at: KILLED_AT,
+    };
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [row(echo), { ...kid, ...kidEcho }]);
+    useInboxStore.getState().syncTable("conversations", [
+      { _id: ID, ...echo },
+      { _id: CHILD, ...kidEcho },
+    ]);
     useInboxStore.setState({ pending: {} } as any);
   };
-  const killedLocks = () => Object.keys(useInboxStore.getState().pending).filter((k) => k.endsWith(`${ID}:inbox_killed_at`));
+  const killedLocks = () =>
+    Object.keys(useInboxStore.getState().pending).filter((k) =>
+      k.endsWith(`${ID}:inbox_killed_at`),
+    );
   // The server acknowledges what it applied. Its dispatch guard drops a clear
   // of inbox_killed_at that is not shaped like an un-kill (dispatch.ts), and a
   // send that writes nothing is acknowledged at no position.
   const applied = (patches: any) => {
     const out: Record<string, Record<string, unknown>> = {};
-    for (const [id, fields] of Object.entries<any>(patches?.conversations ?? {})) {
+    for (const [id, fields] of Object.entries<any>(
+      patches?.conversations ?? {},
+    )) {
       const kept = { ...fields };
-      if ("inbox_killed_at" in kept && !kept.inbox_killed_at && !("inbox_dismissed_at" in kept && !kept.inbox_dismissed_at)) delete kept.inbox_killed_at;
+      if (
+        "inbox_killed_at" in kept &&
+        !kept.inbox_killed_at &&
+        !("inbox_dismissed_at" in kept && !kept.inbox_dismissed_at)
+      )
+        delete kept.inbox_killed_at;
       if (Object.keys(kept).length > 0) out[id] = kept;
     }
     return Object.keys(out).length > 0 ? { conversations: out } : null;
@@ -173,7 +259,15 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
   const ackAll = (scope: string, position: number) => {
     for (const s of sent) {
       const patches = applied(s.patches);
-      if (patches) useInboxStore.getState().stampSyncAck(patches, [{ scope_key: scope, position }], Date.now() + 1, { local: true });
+      if (patches)
+        useInboxStore
+          .getState()
+          .stampSyncAck(
+            patches,
+            [{ scope_key: scope, position }],
+            Date.now() + 1,
+            { local: true },
+          );
     }
     useInboxStore.getState().retireAckedPending(scope, position);
   };
@@ -183,9 +277,20 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
     sent = [];
     expect(performUndo()).toBe(true);
     expect(sent.some((s) => s.action === "patchConversation")).toBe(false);
-    const patched = Object.assign({}, ...sent.filter((s) => s.action === "restoreSession").map((s) => s.patches?.conversations ?? {}));
-    expect(patched[ID]).toMatchObject({ inbox_dismissed_at: null, inbox_killed_at: null });
-    expect(patched[CHILD]).toMatchObject({ inbox_dismissed_at: null, inbox_killed_at: null });
+    const patched = Object.assign(
+      {},
+      ...sent
+        .filter((s) => s.action === "restoreSession")
+        .map((s) => s.patches?.conversations ?? {}),
+    );
+    expect(patched[ID]).toMatchObject({
+      inbox_dismissed_at: null,
+      inbox_killed_at: null,
+    });
+    expect(patched[CHILD]).toMatchObject({
+      inbox_dismissed_at: null,
+      inbox_killed_at: null,
+    });
     expect(session().inbox_killed_at ?? null).toBe(null);
   });
 
@@ -207,7 +312,10 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
     ackAll("user:ada", 10);
     // The redo's kill lands on the server, which stamps the marker again.
     const REKILLED_AT = KILLED_AT + 5000;
-    const echo = { inbox_dismissed_at: session().inbox_dismissed_at, inbox_killed_at: REKILLED_AT };
+    const echo = {
+      inbox_dismissed_at: session().inbox_dismissed_at,
+      inbox_killed_at: REKILLED_AT,
+    };
     useInboxStore.getState().syncTable("sessions", [row(echo)]);
     useInboxStore.getState().syncTable("conversations", [{ _id: ID, ...echo }]);
     expect(session().inbox_killed_at).toBe(REKILLED_AT);
@@ -229,7 +337,12 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
       expect(typeof session().inbox_dismissed_at).toBe("number");
       expect(killedLocks()).toEqual([]);
       const REKILLED_AT = KILLED_AT + 7000;
-      useInboxStore.getState().syncTable("sessions", [row({ inbox_dismissed_at: session().inbox_dismissed_at, inbox_killed_at: REKILLED_AT })]);
+      useInboxStore.getState().syncTable("sessions", [
+        row({
+          inbox_dismissed_at: session().inbox_dismissed_at,
+          inbox_killed_at: REKILLED_AT,
+        }),
+      ]);
       expect(session().inbox_killed_at).toBe(REKILLED_AT);
     });
   }
@@ -245,8 +358,16 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
 
     expect(performUndo()).toBe(true);
     expect(session()?._id).toBe(ID);
-    expect(Object.keys(useInboxStore.getState().pending).filter((k) => k.includes(ID) && (useInboxStore.getState().pending as any)[k].type === "exclude")).toEqual([]);
-    expect(sent.filter((s) => s.action === "restoreSession").map((s) => s.args[0])).toEqual([ID]);
+    expect(
+      Object.keys(useInboxStore.getState().pending).filter(
+        (k) =>
+          k.includes(ID) &&
+          (useInboxStore.getState().pending as any)[k].type === "exclude",
+      ),
+    ).toEqual([]);
+    expect(
+      sent.filter((s) => s.action === "restoreSession").map((s) => s.args[0]),
+    ).toEqual([ID]);
   });
 });
 
@@ -255,12 +376,18 @@ describe("undoing a kill lands each row where it was, on the server too", () => 
 // the restored row hidden until the server's un-kill comes back.
 describe("undoing a confirmed kill shows the row at once", () => {
   const KILLED_AT = 1700000005000;
-  beforeEach(() => { _resetUndoStacks(); seed(); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
 
   test("a kill echoed with inbox_killed_at is visible right after the undo", () => {
     useInboxStore.getState().killSession(ID);
     const dismissedAt = session().inbox_dismissed_at;
-    const echo = { inbox_dismissed_at: dismissedAt, inbox_killed_at: KILLED_AT };
+    const echo = {
+      inbox_dismissed_at: dismissedAt,
+      inbox_killed_at: KILLED_AT,
+    };
     useInboxStore.getState().syncTable("sessions", [row(echo)]);
     useInboxStore.getState().syncTable("conversations", [{ _id: ID, ...echo }]);
     expect(session().inbox_killed_at).toBe(KILLED_AT);
@@ -271,7 +398,9 @@ describe("undoing a confirmed kill shows the row at once", () => {
     expect(shouldShowInInbox(session())).toBe(true);
 
     // The server has not seen the undo yet: its next push still says killed.
-    useInboxStore.getState().syncTable("sessions", [row({ ...echo, updated_at: 2 })]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [row({ ...echo, updated_at: 2 })]);
     useInboxStore.getState().syncTable("conversations", [{ _id: ID, ...echo }]);
     expect(shouldShowInInbox(session())).toBe(true);
     expect(conversation().inbox_killed_at ?? null).toBe(null);
@@ -279,14 +408,22 @@ describe("undoing a confirmed kill shows the row at once", () => {
     // The undo lands: the server's un-kill clears both stamps and the locks retire.
     useInboxStore.getState().syncTable("sessions", [row({ updated_at: 3 })]);
     useInboxStore.getState().syncTable("conversations", [{ _id: ID }]);
-    const locks = Object.keys(useInboxStore.getState().pending).filter((k) => k.includes(ID));
+    const locks = Object.keys(useInboxStore.getState().pending).filter((k) =>
+      k.includes(ID),
+    );
     expect(locks).toEqual([]);
   });
 
   test("a row with no conversations twin is visible right after the undo", () => {
-    useInboxStore.setState({ sessions: { [ID]: row() }, conversations: {} } as any);
+    useInboxStore.setState({
+      sessions: { [ID]: row() },
+      conversations: {},
+    } as any);
     useInboxStore.getState().killSession(ID);
-    const echo = { inbox_dismissed_at: session().inbox_dismissed_at, inbox_killed_at: KILLED_AT };
+    const echo = {
+      inbox_dismissed_at: session().inbox_dismissed_at,
+      inbox_killed_at: KILLED_AT,
+    };
     useInboxStore.getState().syncTable("sessions", [row(echo)]);
 
     expect(performUndo()).toBe(true);
@@ -296,13 +433,31 @@ describe("undoing a confirmed kill shows the row at once", () => {
 
   test("a parent's kill cascaded over a twinless child: the child is un-killed by the undo", () => {
     const CHILD = "e".repeat(32);
-    const child = (extra: Record<string, unknown> = {}) => ({ ...row(), _id: CHILD, session_id: "sess-e", parent_conversation_id: ID, ...extra });
-    useInboxStore.setState({ sessions: { [ID]: row(), [CHILD]: child() }, conversations: { [ID]: { _id: ID } } } as any);
+    const child = (extra: Record<string, unknown> = {}) => ({
+      ...row(),
+      _id: CHILD,
+      session_id: "sess-e",
+      parent_conversation_id: ID,
+      ...extra,
+    });
+    useInboxStore.setState({
+      sessions: { [ID]: row(), [CHILD]: child() },
+      conversations: { [ID]: { _id: ID } },
+    } as any);
     useInboxStore.getState().killSession(ID);
     const kid = () => useInboxStore.getState().sessions[CHILD] as any;
     expect(typeof kid().inbox_dismissed_at).toBe("number");
-    const echo = { inbox_dismissed_at: session().inbox_dismissed_at, inbox_killed_at: KILLED_AT };
-    useInboxStore.getState().syncTable("sessions", [row(echo), child({ inbox_dismissed_at: kid().inbox_dismissed_at, inbox_killed_at: KILLED_AT })]);
+    const echo = {
+      inbox_dismissed_at: session().inbox_dismissed_at,
+      inbox_killed_at: KILLED_AT,
+    };
+    useInboxStore.getState().syncTable("sessions", [
+      row(echo),
+      child({
+        inbox_dismissed_at: kid().inbox_dismissed_at,
+        inbox_killed_at: KILLED_AT,
+      }),
+    ]);
     useInboxStore.getState().syncTable("conversations", [{ _id: ID, ...echo }]);
 
     expect(performUndo()).toBe(true);
@@ -314,7 +469,11 @@ describe("undoing a confirmed kill shows the row at once", () => {
   });
 
   test("a row that was already killed keeps its marker through a re-kill's undo", () => {
-    seed({ inbox_killed_at: KILLED_AT, is_pinned: true, inbox_pinned_at: PIN_AT });
+    seed({
+      inbox_killed_at: KILLED_AT,
+      is_pinned: true,
+      inbox_pinned_at: PIN_AT,
+    });
     useInboxStore.getState().killSession(ID);
     performUndo();
     expect(session().inbox_killed_at).toBe(KILLED_AT);
@@ -329,7 +488,11 @@ describe("undoing a confirmed kill shows the row at once", () => {
 // as "changed since" once its echo landed, and the undo did nothing.
 describe("undo after the echo of a clear that the meta leaves out", () => {
   const STASHED_AT = 1750000000000;
-  const meta = (extra: Record<string, unknown> = {}) => ({ _id: ID, _creationTime: 1, ...extra });
+  const meta = (extra: Record<string, unknown> = {}) => ({
+    _id: ID,
+    _creationTime: 1,
+    ...extra,
+  });
   const seedLoaded = (extra: Record<string, unknown>) => {
     useInboxStore.setState({
       sessions: { [ID]: row(extra) },
@@ -344,8 +507,16 @@ describe("undo after the echo of a clear that the meta leaves out", () => {
   test("stashing a pinned row, then undo, brings the pin back", () => {
     seedLoaded({ is_pinned: true, inbox_pinned_at: PIN_AT });
     useInboxStore.getState().stashSession(ID);
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_stashed_at: STASHED_AT, is_pinned: false, inbox_pinned_at: null })]);
-    useInboxStore.getState().syncTable("conversations", [meta({ inbox_stashed_at: STASHED_AT })]);
+    useInboxStore.getState().syncTable("sessions", [
+      row({
+        inbox_stashed_at: STASHED_AT,
+        is_pinned: false,
+        inbox_pinned_at: null,
+      }),
+    ]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [meta({ inbox_stashed_at: STASHED_AT })]);
     expect("inbox_pinned_at" in conversation()).toBe(false);
 
     expect(performUndo()).toBe(true);
@@ -358,7 +529,11 @@ describe("undo after the echo of a clear that the meta leaves out", () => {
   test("unpinning, then undo, pins again", () => {
     seedLoaded({ is_pinned: true, inbox_pinned_at: PIN_AT });
     useInboxStore.getState().pinSession(ID);
-    useInboxStore.getState().syncTable("sessions", [row({ is_pinned: false, inbox_pinned_at: null })]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        row({ is_pinned: false, inbox_pinned_at: null }),
+      ]);
     useInboxStore.getState().syncTable("conversations", [meta()]);
 
     expect(performUndo()).toBe(true);
@@ -370,8 +545,14 @@ describe("undo after the echo of a clear that the meta leaves out", () => {
     seedLoaded({ inbox_snoozed_until: SNOOZE_UNTIL });
     useInboxStore.getState().deferSession(ID);
     const deferredAt = session().inbox_deferred_at;
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_snoozed_until: null, inbox_deferred_at: deferredAt })]);
-    useInboxStore.getState().syncTable("conversations", [meta({ inbox_deferred_at: deferredAt })]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        row({ inbox_snoozed_until: null, inbox_deferred_at: deferredAt }),
+      ]);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [meta({ inbox_deferred_at: deferredAt })]);
 
     expect(performUndo()).toBe(true);
     expect(session().inbox_snoozed_until).toBe(SNOOZE_UNTIL);

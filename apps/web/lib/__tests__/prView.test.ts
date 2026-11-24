@@ -56,9 +56,20 @@ describe("checks", () => {
       check({ name: "c", conclusion: "failure" }),
       check({ name: "d", conclusion: "skipped" }),
     ];
-    expect(foldChecks(checks)).toEqual({ passed: 1, failed: 1, pending: 1, skipped: 1, total: 4 });
+    expect(foldChecks(checks)).toEqual({
+      passed: 1,
+      failed: 1,
+      pending: 1,
+      skipped: 1,
+      total: 4,
+    });
     expect(foldChecks(undefined).total).toBe(0);
-    expect([...checks].sort(compareChecks).map((c) => c.name)).toEqual(["c", "b", "a", "d"]);
+    expect([...checks].sort(compareChecks).map((c) => c.name)).toEqual([
+      "c",
+      "b",
+      "a",
+      "d",
+    ]);
   });
 });
 
@@ -71,19 +82,44 @@ describe("PR state", () => {
   });
 
   it("says the one thing blocking the merge, and nothing once it landed", () => {
-    expect(mergeStateMeta({ state: "open", mergeable_state: "dirty" })?.label).toBe("Conflicts");
-    expect(mergeStateMeta({ state: "open", behind_by: 3 })?.label).toBe("Behind by 3");
-    expect(mergeStateMeta({ state: "open", mergeable_state: "clean" })?.label).toBe("Ready to merge");
-    expect(mergeStateMeta({ state: "open", mergeable_state: "unknown" })).toBeNull();
-    expect(mergeStateMeta({ state: "merged", mergeable_state: "clean" })).toBeNull();
+    expect(
+      mergeStateMeta({ state: "open", mergeable_state: "dirty" })?.label,
+    ).toBe("Conflicts");
+    expect(mergeStateMeta({ state: "open", behind_by: 3 })?.label).toBe(
+      "Behind by 3",
+    );
+    expect(
+      mergeStateMeta({ state: "open", mergeable_state: "clean" })?.label,
+    ).toBe("Ready to merge");
+    expect(
+      mergeStateMeta({ state: "open", mergeable_state: "unknown" }),
+    ).toBeNull();
+    expect(
+      mergeStateMeta({ state: "merged", mergeable_state: "clean" }),
+    ).toBeNull();
   });
 });
 
 describe("code comments", () => {
   const rows = [
-    comment({ _id: "a", file_path: "src/x.ts", line_number: 10, created_at: 2 }),
-    comment({ _id: "b", file_path: "src/x.ts", line_number: 10, created_at: 1 }),
-    comment({ _id: "c", file_path: "src/y.ts", line_number: 4, resolved: true }),
+    comment({
+      _id: "a",
+      file_path: "src/x.ts",
+      line_number: 10,
+      created_at: 2,
+    }),
+    comment({
+      _id: "b",
+      file_path: "src/x.ts",
+      line_number: 10,
+      created_at: 1,
+    }),
+    comment({
+      _id: "c",
+      file_path: "src/y.ts",
+      line_number: 4,
+      resolved: true,
+    }),
     comment({ _id: "d", created_at: 5 }),
     comment({ _id: "e", parent_id: "d", created_at: 6 }),
     comment({ _id: "f", file_path: "src/z.ts" }),
@@ -92,43 +128,104 @@ describe("code comments", () => {
   it("groups by file and anchor, oldest first, and drops unanchored rows", () => {
     const grouped = groupCommentsByFileLine(rows);
     expect([...grouped.keys()]).toEqual(["src/x.ts", "src/y.ts"]);
-    expect(grouped.get("src/x.ts")!.get("RIGHT:10")!.map((c) => c._id)).toEqual(["b", "a"]);
+    expect(
+      grouped
+        .get("src/x.ts")!
+        .get("RIGHT:10")!
+        .map((c) => c._id),
+    ).toEqual(["b", "a"]);
   });
 
   it("keeps the two sides of one line apart", () => {
     // A comment on code the change deleted, and one on the line that replaced
     // it, share a number and nothing else.
     const sided = [
-      comment({ _id: "left", file_path: "src/x.ts", line_number: 40, side: "LEFT", created_at: 1 }),
-      comment({ _id: "right", file_path: "src/x.ts", line_number: 40, side: "RIGHT", created_at: 2 }),
-      comment({ _id: "bare", file_path: "src/x.ts", line_number: 40, created_at: 3 }),
+      comment({
+        _id: "left",
+        file_path: "src/x.ts",
+        line_number: 40,
+        side: "LEFT",
+        created_at: 1,
+      }),
+      comment({
+        _id: "right",
+        file_path: "src/x.ts",
+        line_number: 40,
+        side: "RIGHT",
+        created_at: 2,
+      }),
+      comment({
+        _id: "bare",
+        file_path: "src/x.ts",
+        line_number: 40,
+        created_at: 3,
+      }),
     ];
     const byLine = groupCommentsByFileLine(sided).get("src/x.ts")!;
     expect([...byLine.keys()].sort()).toEqual(["LEFT:40", "RIGHT:40"]);
     expect(byLine.get("LEFT:40")!.map((c) => c._id)).toEqual(["left"]);
     // A comment with no side is a comment on the file as it stands now.
-    expect(byLine.get("RIGHT:40")!.map((c) => c._id)).toEqual(["right", "bare"]);
+    expect(byLine.get("RIGHT:40")!.map((c) => c._id)).toEqual([
+      "right",
+      "bare",
+    ]);
     expect(unresolvedThreadCount(sided)).toBe(2);
   });
 
   it("gives a comment over a run of lines its own thread", () => {
     const rows = [
-      comment({ _id: "range", file_path: "a.ts", line_number: 10, line_end: 13, created_at: 1 }),
-      comment({ _id: "single", file_path: "a.ts", line_number: 13, created_at: 2 }),
+      comment({
+        _id: "range",
+        file_path: "a.ts",
+        line_number: 10,
+        line_end: 13,
+        created_at: 1,
+      }),
+      comment({
+        _id: "single",
+        file_path: "a.ts",
+        line_number: 13,
+        created_at: 2,
+      }),
       // A line_end equal to the start is one line, not a run.
-      comment({ _id: "degenerate", file_path: "a.ts", line_number: 13, line_end: 13, created_at: 3 }),
-      comment({ _id: "left", file_path: "a.ts", line_number: 10, line_end: 13, side: "LEFT", created_at: 4 }),
+      comment({
+        _id: "degenerate",
+        file_path: "a.ts",
+        line_number: 13,
+        line_end: 13,
+        created_at: 3,
+      }),
+      comment({
+        _id: "left",
+        file_path: "a.ts",
+        line_number: 10,
+        line_end: 13,
+        side: "LEFT",
+        created_at: 4,
+      }),
     ];
     const byLine = groupCommentsByFileLine(rows).get("a.ts")!;
-    expect([...byLine.keys()].sort()).toEqual(["LEFT:10-13", "RIGHT:10-13", "RIGHT:13"]);
+    expect([...byLine.keys()].sort()).toEqual([
+      "LEFT:10-13",
+      "RIGHT:10-13",
+      "RIGHT:13",
+    ]);
     expect(byLine.get("RIGHT:10-13")!.map((c) => c._id)).toEqual(["range"]);
     // The run and the single line are separate threads, so both stay open.
-    expect(byLine.get("RIGHT:13")!.map((c) => c._id)).toEqual(["single", "degenerate"]);
+    expect(byLine.get("RIGHT:13")!.map((c) => c._id)).toEqual([
+      "single",
+      "degenerate",
+    ]);
     expect(unresolvedThreadCount(rows)).toBe(3);
   });
 
   it("gives a reply the side of the thread it answers", () => {
-    expect(threadSide([comment({ _id: "l", side: "LEFT" }), comment({ _id: "r", side: "RIGHT" })])).toBe("LEFT");
+    expect(
+      threadSide([
+        comment({ _id: "l", side: "LEFT" }),
+        comment({ _id: "r", side: "RIGHT" }),
+      ]),
+    ).toBe("LEFT");
     expect(threadSide([comment({ _id: "bare" })])).toBe("RIGHT");
     expect(threadSide([])).toBe("RIGHT");
     expect(commentSide(comment({ side: "left" }))).toBe("LEFT");
@@ -138,7 +235,9 @@ describe("code comments", () => {
   it("counts only threads with something still open", () => {
     expect(unresolvedThreadCount(rows)).toBe(1);
     expect(threadResolved([comment({ resolved_at: 7 })])).toBe(true);
-    expect(threadResolved([comment({ resolved: true }), comment({ _id: "x" })])).toBe(false);
+    expect(
+      threadResolved([comment({ resolved: true }), comment({ _id: "x" })]),
+    ).toBe(false);
     expect(threadResolved([])).toBe(false);
   });
 
@@ -159,7 +258,9 @@ describe("timeline", () => {
     });
     expect(timeline.map((i) => i.key)).toEqual(["c:d", "r:r1", "e:e1"]);
     const first = timeline[0];
-    expect(first.kind === "comment" && first.replies.map((r) => r._id)).toEqual(["e"]);
+    expect(first.kind === "comment" && first.replies.map((r) => r._id)).toEqual(
+      ["e"],
+    );
   });
 
   it("leaves out the kinds the header already answers", () => {
@@ -187,7 +288,12 @@ describe("timeline", () => {
       reviews: [],
       comments: [],
     });
-    expect(timeline.map((i) => i.key)).toEqual(["e:c3", "e:ok", "e:c4", "e:push"]);
+    expect(timeline.map((i) => i.key)).toEqual([
+      "e:c3",
+      "e:ok",
+      "e:c4",
+      "e:push",
+    ]);
   });
 });
 
@@ -208,7 +314,9 @@ describe("optimistic ids", () => {
     expect(serverCommentId(stub)).toBeUndefined();
     // A real Convex id carries no hyphen, so it survives both checks.
     expect(isOptimisticComment("p17c9x2gcfj98pytq18rvc5h0d8bt7d4")).toBe(false);
-    expect(serverCommentId("p17c9x2gcfj98pytq18rvc5h0d8bt7d4")).toBe("p17c9x2gcfj98pytq18rvc5h0d8bt7d4");
+    expect(serverCommentId("p17c9x2gcfj98pytq18rvc5h0d8bt7d4")).toBe(
+      "p17c9x2gcfj98pytq18rvc5h0d8bt7d4",
+    );
     expect(isOptimisticComment(undefined)).toBe(false);
     expect(newCommentClientId()).not.toBe(stub);
   });
@@ -216,8 +324,15 @@ describe("optimistic ids", () => {
 
 describe("a review is said once", () => {
   it("drops GitHub's review event once the review rows are in hand", () => {
-    const events = [{ _id: "e1", created_at: 10, kind: "pr_review" }, { _id: "e2", created_at: 11, kind: "pr_synchronize" }];
-    const withRows = buildPrTimeline({ events, reviews: [{ _id: "r1", state: "approved", submitted_at: 10 }], comments: [] });
+    const events = [
+      { _id: "e1", created_at: 10, kind: "pr_review" },
+      { _id: "e2", created_at: 11, kind: "pr_synchronize" },
+    ];
+    const withRows = buildPrTimeline({
+      events,
+      reviews: [{ _id: "r1", state: "approved", submitted_at: 10 }],
+      comments: [],
+    });
     expect(withRows.map((i) => i.key)).toEqual(["r:r1", "e:e2"]);
     const withoutRows = buildPrTimeline({ events, reviews: [], comments: [] });
     expect(withoutRows.map((i) => i.key)).toEqual(["e:e1", "e:e2"]);
@@ -227,14 +342,34 @@ describe("a review is said once", () => {
 describe("formatFailingChecksPrompt", () => {
   it("names each failing check with the command that fetches its log", () => {
     const text = formatFailingChecksPrompt(
-      { repository: "codecast-sh/codecast", number: 12, head_ref: "fix-ci", head_sha: "abcdef1234" },
+      {
+        repository: "codecast-sh/codecast",
+        number: 12,
+        head_ref: "fix-ci",
+        head_sha: "abcdef1234",
+      },
       [
-        { name: "test", status: "completed", conclusion: "failure", url: "https://github.com/codecast-sh/codecast/actions/runs/991/job/7", updated_at: 1 },
-        { name: "vercel", status: "failure", url: "https://vercel.com/x", updated_at: 1 },
+        {
+          name: "test",
+          status: "completed",
+          conclusion: "failure",
+          url: "https://github.com/codecast-sh/codecast/actions/runs/991/job/7",
+          updated_at: 1,
+        },
+        {
+          name: "vercel",
+          status: "failure",
+          url: "https://vercel.com/x",
+          updated_at: 1,
+        },
       ],
     );
-    expect(text).toContain("2 checks are failing on codecast-sh/codecast#12 (fix-ci at abcdef1)");
-    expect(text).toContain("gh run view 991 --repo codecast-sh/codecast --log-failed");
+    expect(text).toContain(
+      "2 checks are failing on codecast-sh/codecast#12 (fix-ci at abcdef1)",
+    );
+    expect(text).toContain(
+      "gh run view 991 --repo codecast-sh/codecast --log-failed",
+    );
     expect(text).toContain("details: https://vercel.com/x");
     expect(text).toContain("gh pr checks 12 --repo codecast-sh/codecast");
   });

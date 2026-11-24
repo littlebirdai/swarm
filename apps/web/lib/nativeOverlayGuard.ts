@@ -27,7 +27,11 @@
 
 export type Rect = { left: number; top: number; right: number; bottom: number };
 
-export type OverlayHit = { kind: "modal" | "floating"; selector: string; rect: Rect };
+export type OverlayHit = {
+  kind: "modal" | "floating";
+  selector: string;
+  rect: Rect;
+};
 
 /** Overlays that own the whole app while they are up. */
 export const MODAL_SELECTORS = [
@@ -92,11 +96,16 @@ export function collectOverlays(
 }
 
 function intersects(a: Rect, b: Rect): boolean {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  return (
+    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+  );
 }
 
 /** Must this pane's view go away right now? */
-export function overlayHidesPane(paneRect: Rect, overlays: OverlayHit[]): boolean {
+export function overlayHidesPane(
+  paneRect: Rect,
+  overlays: OverlayHit[],
+): boolean {
   for (const overlay of overlays) {
     if (overlay.kind === "modal") return true;
     if (intersects(paneRect, overlay.rect)) return true;
@@ -106,7 +115,8 @@ export function overlayHidesPane(paneRect: Rect, overlays: OverlayHit[]): boolea
 
 /** The whole question in one call, for a pane that just measured itself. */
 export function paneIsCovered(paneRect: Rect, root?: ParentNode): boolean {
-  const target = root ?? (typeof document !== "undefined" ? document.body : null);
+  const target =
+    root ?? (typeof document !== "undefined" ? document.body : null);
   if (!target) return false;
   return overlayHidesPane(paneRect, collectOverlays(target));
 }
@@ -137,7 +147,11 @@ function notify() {
 /** Call `cb` whenever the set of overlays may have changed. */
 export function watchOverlays(cb: () => void): () => void {
   watchers.add(cb);
-  if (!observer && typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
+  if (
+    !observer &&
+    typeof MutationObserver !== "undefined" &&
+    typeof document !== "undefined"
+  ) {
     observer = new MutationObserver(notify);
     observer.observe(document.body, {
       childList: true,

@@ -5,7 +5,11 @@ import type http from "http";
 import type { Duplex } from "stream";
 import { WebSocketServer, WebSocket } from "ws";
 import { shellSafe, type ControlClientMode } from "./controlClient.js";
-import { TerminalHub, type HubOptions, type JoinRequest } from "./terminalHub.js";
+import {
+  TerminalHub,
+  type HubOptions,
+  type JoinRequest,
+} from "./terminalHub.js";
 import { tmuxRunAsync, hasTmux } from "../tmux.js";
 import { isManagedTmuxName } from "../resumeCommand.js";
 
@@ -15,7 +19,8 @@ const WS_PATH = "/term/ws";
 // Origins allowed to open terminal sockets. The WS handshake is NOT subject to
 // CORS, so this server-side check is the only thing standing between an
 // arbitrary web page and a shell on the user's machine. Keep it tight.
-const ALLOWED_ORIGIN = /^https:\/\/(local\.(\d+\.)?)?codecast\.sh$|^https?:\/\/localhost:\d+$|^https?:\/\/127\.0\.0\.1:\d+$/;
+const ALLOWED_ORIGIN =
+  /^https:\/\/(local\.(\d+\.)?)?codecast\.sh$|^https?:\/\/localhost:\d+$|^https?:\/\/127\.0\.0\.1:\d+$/;
 
 export interface TerminalServerOptions {
   token: string;
@@ -71,11 +76,14 @@ export interface TerminalSessionInfo {
 // goes LAST and is re-joined, since it is the one field that may itself
 // contain the separator. pane_current_command expands through the session's
 // active pane, so one list call carries it and no per session query is needed.
-const SESSION_LIST_FORMAT = "#{session_name}|#{session_created}|#{session_attached}|#{pane_current_command}|#{session_path}";
+const SESSION_LIST_FORMAT =
+  "#{session_name}|#{session_created}|#{session_attached}|#{pane_current_command}|#{session_path}";
 
 /** Parse `tmux list-sessions -F SESSION_LIST_FORMAT` output: the panel's own
  *  sessions (cast-term-*), oldest first. */
-export function parseTerminalSessionRows(stdout: string): TerminalSessionInfo[] {
+export function parseTerminalSessionRows(
+  stdout: string,
+): TerminalSessionInfo[] {
   const out: TerminalSessionInfo[] = [];
   for (const line of stdout.split("\n")) {
     if (!line.trim()) continue;
@@ -101,9 +109,14 @@ export async function listTerminalSessions(): Promise<TerminalSessionInfo[]> {
 
 export const terminalSessionSnapshot = new ReadSnapshot(async () => {
   const r = await tmuxRunAsync(["list-sessions", "-F", SESSION_LIST_FORMAT]);
-  if (r.status === 0) return { sessions: parseTerminalSessionRows(r.stdout), tmux: true };
+  if (r.status === 0)
+    return { sessions: parseTerminalSessionRows(r.stdout), tmux: true };
   if (r.code === "ENOENT") return { sessions: [], tmux: false };
-  if (r.status === 1 && /no server running|error connecting to .*No such file/.test(r.stderr)) return { sessions: [], tmux: true };
+  if (
+    r.status === 1 &&
+    /no server running|error connecting to .*No such file/.test(r.stderr)
+  )
+    return { sessions: [], tmux: true };
   throw new Error("terminal sessions temporarily unavailable");
 });
 
@@ -125,11 +138,15 @@ export async function killTerminalSession(name: string): Promise<boolean> {
 // to once they have been idle past the TTL; an attached client or recent
 // activity always keeps a session alive. Callers: daemon boot + periodic.
 const REAP_IDLE_MS = 3 * 24 * 60 * 60 * 1000;
-const REAP_LIST_FORMAT = "#{session_name}|#{session_attached}|#{session_activity}";
+const REAP_LIST_FORMAT =
+  "#{session_name}|#{session_attached}|#{session_activity}";
 
 /** The panel sessions `tmux list-sessions -F REAP_LIST_FORMAT` output says are
  *  detached and idle past the TTL, with their idle time. */
-export function staleTerminalSessions(stdout: string, now: number): Array<{ name: string; idleMs: number }> {
+export function staleTerminalSessions(
+  stdout: string,
+  now: number,
+): Array<{ name: string; idleMs: number }> {
   const out: Array<{ name: string; idleMs: number }> = [];
   for (const line of stdout.split("\n")) {
     const [name, attached, activity] = line.split("|");
@@ -142,14 +159,18 @@ export function staleTerminalSessions(stdout: string, now: number): Array<{ name
   return out;
 }
 
-export async function reapStaleTerminalSessions(log?: (msg: string) => void): Promise<number> {
+export async function reapStaleTerminalSessions(
+  log?: (msg: string) => void,
+): Promise<number> {
   const r = await tmuxRunAsync(["list-sessions", "-F", REAP_LIST_FORMAT]);
   if (r.status !== 0) return 0;
   let reaped = 0;
   for (const { name, idleMs } of staleTerminalSessions(r.stdout, Date.now())) {
     if (await killTerminalSession(name)) {
       reaped++;
-      log?.(`[TERM] Reaped idle terminal session ${name} (idle ${Math.round(idleMs / 3_600_000)}h)`);
+      log?.(
+        `[TERM] Reaped idle terminal session ${name} (idle ${Math.round(idleMs / 3_600_000)}h)`,
+      );
     }
   }
   return reaped;
@@ -162,7 +183,10 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ab, bb);
 }
 
-export function originAllowed(origin: string | undefined, opts: TerminalServerOptions): boolean {
+export function originAllowed(
+  origin: string | undefined,
+  opts: TerminalServerOptions,
+): boolean {
   if (!origin) return false;
   if (ALLOWED_ORIGIN.test(origin)) return true;
   return opts.allowOrigin?.(origin) ?? false;
@@ -172,12 +196,18 @@ export function originAllowed(origin: string | undefined, opts: TerminalServerOp
 // unconfigured server would accept a caller presenting no token at all. The
 // daemon's token is state now (it loads from disk early in boot), so "not yet
 // loaded" is a state a caller can reach; make it authenticate nobody.
-function presentedTokenMatches(presented: string, opts: TerminalServerOptions): boolean {
+function presentedTokenMatches(
+  presented: string,
+  opts: TerminalServerOptions,
+): boolean {
   return opts.token.length > 0 && timingSafeEqual(presented, opts.token);
 }
 
 /** Constant-time check of a token presented on a WS hello frame. */
-export function tokenMatches(token: unknown, opts: TerminalServerOptions): boolean {
+export function tokenMatches(
+  token: unknown,
+  opts: TerminalServerOptions,
+): boolean {
   return typeof token === "string" && presentedTokenMatches(token, opts);
 }
 
@@ -186,19 +216,29 @@ export function tokenMatches(token: unknown, opts: TerminalServerOptions): boole
  *  `cast daemon rotate-token`). Every feature mounted on this server (terminal,
  *  vault) goes through this one check — a route that authenticated differently
  *  would be the hole in a server that can read the user's disk. */
-export function authorizeLocalRequest(req: http.IncomingMessage, opts: TerminalServerOptions): boolean {
+export function authorizeLocalRequest(
+  req: http.IncomingMessage,
+  opts: TerminalServerOptions,
+): boolean {
   const auth = req.headers.authorization ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  return originAllowed(req.headers.origin, opts) && presentedTokenMatches(token, opts);
+  return (
+    originAllowed(req.headers.origin, opts) &&
+    presentedTokenMatches(token, opts)
+  );
 }
 
-export function corsHeaders(origin: string | undefined, opts: TerminalServerOptions): Record<string, string> {
+export function corsHeaders(
+  origin: string | undefined,
+  opts: TerminalServerOptions,
+): Record<string, string> {
   if (!originAllowed(origin, opts)) return {};
   return {
     "Access-Control-Allow-Origin": origin!,
     // If-Match / X-Vault-Base-Mtime are the vault write guards: a preflight that
     // doesn't list them makes every conflict-checked PUT fail in the browser.
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, If-Match, X-Vault-Base-Mtime",
+    "Access-Control-Allow-Headers":
+      "Authorization, Content-Type, If-Match, X-Vault-Base-Mtime",
     "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
     // The browser can only read these off a cross-origin response if they're
     // exposed; the vault's write guard depends on the client seeing the ETag.
@@ -206,11 +246,15 @@ export function corsHeaders(origin: string | undefined, opts: TerminalServerOpti
     // Chrome Private Network Access: a public https page fetching loopback
     // must see this on the preflight or the request is blocked.
     "Access-Control-Allow-Private-Network": "true",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 
-type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
+type UpgradeHandler = (
+  req: http.IncomingMessage,
+  socket: Duplex,
+  head: Buffer,
+) => void;
 
 // One 'upgrade' listener per HTTP server, routing by path prefix. Node hands an
 // upgrade to EVERY listener, so two features each installing their own listener
@@ -219,7 +263,11 @@ type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) 
 // decision rather than a race between listeners.
 const upgradeRouters = new WeakMap<http.Server, Map<string, UpgradeHandler>>();
 
-export function onWsUpgrade(server: http.Server, prefix: string, handler: UpgradeHandler): () => void {
+export function onWsUpgrade(
+  server: http.Server,
+  prefix: string,
+  handler: UpgradeHandler,
+): () => void {
   let routes = upgradeRouters.get(server);
   if (!routes) {
     routes = new Map();
@@ -248,7 +296,10 @@ export function handleTerminalHttp(
   const url = req.url ?? "";
   if (!url.startsWith("/term/")) return false;
   const origin = req.headers.origin;
-  const headers = { "Content-Type": "application/json", ...corsHeaders(origin, opts) };
+  const headers = {
+    "Content-Type": "application/json",
+    ...corsHeaders(origin, opts),
+  };
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, headers);
@@ -267,7 +318,9 @@ export function handleTerminalHttp(
   // that throws before its headers went out answers 500 instead of hanging.
   const dispatch = (route: () => Promise<void>): void => {
     void route().catch((err) => {
-      opts.log(`[TERM] ${req.method} ${url} failed: ${(err as Error)?.message ?? err}`);
+      opts.log(
+        `[TERM] ${req.method} ${url} failed: ${(err as Error)?.message ?? err}`,
+      );
       if (!res.headersSent) {
         res.writeHead(500, headers);
         res.end(JSON.stringify({ error: "server error" }));
@@ -279,7 +332,16 @@ export function handleTerminalHttp(
     if (daemonWorkersEnabled()) {
       const snapshot = terminalSessionSnapshot.get();
       res.writeHead(snapshot ? 200 : 503, headers);
-      res.end(JSON.stringify(snapshot ? { ...snapshot.data, sampled_at: snapshot.at } : { error: "terminal sessions temporarily unavailable", unavailable: true }));
+      res.end(
+        JSON.stringify(
+          snapshot
+            ? { ...snapshot.data, sampled_at: snapshot.at }
+            : {
+                error: "terminal sessions temporarily unavailable",
+                unavailable: true,
+              },
+        ),
+      );
       return true;
     }
     dispatch(async () => {
@@ -291,7 +353,8 @@ export function handleTerminalHttp(
   }
 
   if (req.method === "POST" && url.startsWith("/term/kill")) {
-    const name = new URL(url, "http://localhost").searchParams.get("name") ?? "";
+    const name =
+      new URL(url, "http://localhost").searchParams.get("name") ?? "";
     dispatch(async () => {
       const ok = await killTerminalSession(name);
       res.writeHead(ok ? 200 : 400, headers);
@@ -306,7 +369,8 @@ export function handleTerminalHttp(
     const device = q.get("device") ?? "";
     const port = Number(q.get("port"));
     dispatch(async () => {
-      const { forwardToHost, managesHost, HostForwardError } = await import("../cloud/hostForward.js");
+      const { forwardToHost, managesHost, HostForwardError } =
+        await import("../cloud/hostForward.js");
       // No port: only "is this a host of mine?", answered from the registry
       // before the web spends a discovery round asking the host for its port.
       if (!q.has("port")) {
@@ -334,19 +398,26 @@ export function handleTerminalHttp(
 }
 
 /** Wire the terminal WebSocket endpoint onto an existing HTTP server. */
-export function attachTerminalServer(server: http.Server, opts: TerminalServerOptions): { close(): void } {
+export function attachTerminalServer(
+  server: http.Server,
+  opts: TerminalServerOptions,
+): { close(): void } {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   // One hub per terminal, shared by every socket viewing it (terminalHub.ts).
   const hubs = new Map<string, TerminalHub>();
 
   const detach = onWsUpgrade(server, WS_PATH, (req, socket, head) => {
     if (!originAllowed(req.headers.origin, opts)) {
-      opts.log(`[TERM] Rejected WS from origin ${req.headers.origin ?? "(none)"}`);
+      opts.log(
+        `[TERM] Rejected WS from origin ${req.headers.origin ?? "(none)"}`,
+      );
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;
     }
-    wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, opts, hubs));
+    wss.handleUpgrade(req, socket, head, (ws) =>
+      handleConnection(ws, opts, hubs),
+    );
   });
 
   return {
@@ -368,12 +439,18 @@ const VIEW_ID = /^[A-Za-z0-9_-]{8,64}$/;
 export function parseResume(raw: unknown): JoinRequest["resume"] {
   if (!raw || typeof raw !== "object") return null;
   const { stream, offset } = raw as { stream?: unknown; offset?: unknown };
-  if (typeof stream !== "string" || !/^[0-9a-f]{1,32}$/.test(stream)) return null;
-  if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0) return null;
+  if (typeof stream !== "string" || !/^[0-9a-f]{1,32}$/.test(stream))
+    return null;
+  if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0)
+    return null;
   return { stream, offset };
 }
 
-function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<string, TerminalHub>): void {
+function handleConnection(
+  ws: WebSocket,
+  opts: TerminalServerOptions,
+  hubs: Map<string, TerminalHub>,
+): void {
   let hub: TerminalHub | null = null;
   let closed = false;
 
@@ -384,8 +461,12 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
     sendJson({ type: "error", message });
     ws.close(4000, message.slice(0, 100));
   };
-  ws.on("close", () => { closed = true; });
-  ws.on("error", () => { closed = true; });
+  ws.on("close", () => {
+    closed = true;
+  });
+  ws.on("error", () => {
+    closed = true;
+  });
 
   // The first message must be the hello; nothing is spawned until the token
   // inside it checks out.
@@ -411,18 +492,25 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
     let key: string;
     let makeMode: () => Promise<ControlClientMode | null>;
     if (hello.mode === "create") {
-      let name = hello.name ?? `${TERM_SESSION_PREFIX}${crypto.randomBytes(3).toString("hex")}`;
+      let name =
+        hello.name ??
+        `${TERM_SESSION_PREFIX}${crypto.randomBytes(3).toString("hex")}`;
       try {
         name = shellSafe(name);
       } catch {
         return fail("bad session name");
       }
-      if (!name.startsWith(TERM_SESSION_PREFIX)) return fail("bad session name");
-      const cwd = typeof hello.cwd === "string" && hello.cwd.startsWith("/") ? hello.cwd : undefined;
+      if (!name.startsWith(TERM_SESSION_PREFIX))
+        return fail("bad session name");
+      const cwd =
+        typeof hello.cwd === "string" && hello.cwd.startsWith("/")
+          ? hello.cwd
+          : undefined;
       key = `create:${name}`;
       makeMode = async () => {
         // Fresh vs reattach decides how the first viewer gets its screen.
-        const fresh = (await tmuxRunAsync(["has-session", "-t", name])).status !== 0;
+        const fresh =
+          (await tmuxRunAsync(["has-session", "-t", name])).status !== 0;
         // A view coming back to a shell that ended while it was away (killed
         // from another device, `exit`) is told so; it is not handed a new
         // shell under the old name. Starting one again is a deliberate act.
@@ -434,10 +522,12 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
       // Attach only to sessions this product owns: agent sessions the daemon
       // manages, or the panel's own terminals. Never arbitrary tmux sessions.
       if (!/^[a-zA-Z0-9_.:-]+$/.test(target)) return fail("bad target");
-      if (!isManagedTmuxName(target) && !target.startsWith(TERM_SESSION_PREFIX)) return fail("target not allowed");
+      if (!isManagedTmuxName(target) && !target.startsWith(TERM_SESSION_PREFIX))
+        return fail("target not allowed");
       key = `attach:${target}`;
       makeMode = async () => {
-        const exists = (await tmuxRunAsync(["has-session", "-t", target])).status === 0;
+        const exists =
+          (await tmuxRunAsync(["has-session", "-t", target])).status === 0;
         return exists ? { kind: "attach", target } : null;
       };
     } else {
@@ -475,7 +565,10 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
     try {
       await h.start(cols, rows, hello.colors);
     } catch (err) {
-      const message = err instanceof Error && err.message ? err.message : "failed to start terminal";
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "failed to start terminal";
       opts.log(`[TERM] start failed: ${message}`);
       // Reap the control client now — a hung tmux child would otherwise
       // linger until every socket's close event wanders in.
@@ -493,10 +586,18 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
 
     ws.on("message", (data, isBinary) => {
       if (isBinary) {
-        h.input(ws, Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer));
+        h.input(
+          ws,
+          Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer),
+        );
         return;
       }
-      let msg: { type?: unknown; cols?: unknown; rows?: unknown; colors?: unknown };
+      let msg: {
+        type?: unknown;
+        cols?: unknown;
+        rows?: unknown;
+        colors?: unknown;
+      };
       try {
         msg = JSON.parse(data.toString("utf8"));
       } catch {
@@ -516,7 +617,10 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
         );
       } else if (msg.type === "colors") {
         void h.setColors(ws, msg.colors).catch((err) => {
-          const message = err instanceof Error ? err.message : "failed to update terminal colors";
+          const message =
+            err instanceof Error
+              ? err.message
+              : "failed to update terminal colors";
           opts.log(`[TERM] color update failed: ${message}`);
           fail(message);
         });
@@ -527,12 +631,17 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, hubs: Map<
       }
     });
 
-    const viewId = typeof hello.viewId === "string" && VIEW_ID.test(hello.viewId) ? hello.viewId : null;
+    const viewId =
+      typeof hello.viewId === "string" && VIEW_ID.test(hello.viewId)
+        ? hello.viewId
+        : null;
     const resume = parseResume(hello.resume);
     // A created shell is always writable; an attach only when asked.
     const canControl = hello.mode === "create" || !!hello.interactive;
     await h.join(ws, { viewId, canControl, resume });
-    opts.log(`[TERM] ${hello.mode} ${hello.mode === "create" ? key.slice(7) : hello.target} (${h.viewerCount} viewer${h.viewerCount === 1 ? "" : "s"}${resume ? ", resume" : ""})`);
+    opts.log(
+      `[TERM] ${hello.mode} ${hello.mode === "create" ? key.slice(7) : hello.target} (${h.viewerCount} viewer${h.viewerCount === 1 ? "" : "s"}${resume ? ", resume" : ""})`,
+    );
   });
 }
 

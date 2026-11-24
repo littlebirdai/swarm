@@ -253,13 +253,13 @@ that pass `shouldShowInInbox` (lifted into the shared module: drops subagent and
 rows, killed rows unless pinned, noise titles, completed rows with zero messages) and
 are top level:
 
-| Window | Eligibility | Sort key | Cap |
-|---|---|---|---|
-| recent | not filed (no pin, dismiss, stash or snooze stamp: `isFiled`), status active or completed, `updated_at` within 30 days of the epoch | `updated_at` desc | 200 |
-| pinned | `inbox_pinned_at` set | `inbox_pinned_at` desc | 100 |
-| dismissed | `inbox_dismissed_at` within 30 days, not killed | `inbox_dismissed_at` desc | 200 |
-| stashed | `inbox_stashed_at` within 30 days, not killed | `inbox_stashed_at` desc | 200 |
-| owned | `owned_by_me`: the owner row alone, no status or recency gate | server side only | 200 |
+| Window    | Eligibility                                                                                                                         | Sort key                  | Cap |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | --- |
+| recent    | not filed (no pin, dismiss, stash or snooze stamp: `isFiled`), status active or completed, `updated_at` within 30 days of the epoch | `updated_at` desc         | 200 |
+| pinned    | `inbox_pinned_at` set                                                                                                               | `inbox_pinned_at` desc    | 100 |
+| dismissed | `inbox_dismissed_at` within 30 days, not killed                                                                                     | `inbox_dismissed_at` desc | 200 |
+| stashed   | `inbox_stashed_at` within 30 days, not killed                                                                                       | `inbox_stashed_at` desc   | 200 |
+| owned     | `owned_by_me`: the owner row alone, no status or recency gate                                                                       | server side only          | 200 |
 
 The caps and sort keys are shared constants; the server scan and the client selection
 must agree, pinned by a test that runs both over one fixture set. A filed row is never
@@ -347,14 +347,14 @@ the sidebar, and Hermes pays it several times over. So:
 **Declared overlays** are the only local adjustments, enumerated in one module, each
 named, bounded, and excluded from the compare:
 
-| Overlay | Effect | Bound |
-|---|---|---|
-| optimistic create stub | appears in Working | until the server row supersedes (altKey) |
-| optimistic triage gesture | moves or removes the row | until ack or HIDDEN_OVERRIDE_SETTLE_MS |
-| focused session | stays visible while open | while focused; never counted outside the working set |
-| queued or pending send in the open view | Needs You to Working | while the queue holds |
-| revive request | Needs You to Working | 120s |
-| draft or blank engagement | renders a `new` row locally | rendering only, never counts |
+| Overlay                                 | Effect                      | Bound                                                |
+| --------------------------------------- | --------------------------- | ---------------------------------------------------- |
+| optimistic create stub                  | appears in Working          | until the server row supersedes (altKey)             |
+| optimistic triage gesture               | moves or removes the row    | until ack or HIDDEN_OVERRIDE_SETTLE_MS               |
+| focused session                         | stays visible while open    | while focused; never counted outside the working set |
+| queued or pending send in the open view | Needs You to Working        | while the queue holds                                |
+| revive request                          | Needs You to Working        | 120s                                                 |
+| draft or blank engagement               | renders a `new` row locally | rendering only, never counts                         |
 
 Chip filters, label lenses, and schedule grouping are presentation over placed rows and
 cannot change headline tallies. Trigger absorption stops being a pass: the
@@ -499,10 +499,10 @@ of synchronized refetch storms.
 **Telemetry.**
 
 - `inbox_drift { missing, extra, bucket_deltas, fold_deltas, payload_age_ms, scope,
-  platform }`: counts only, never ids, deduped to one event per changed digest value.
+platform }`: counts only, never ids, deduped to one event per changed digest value.
 - `inbox_digest_heartbeat`, hourly: `{ checks, mismatches, heals, max_payload_age_ms,
-  skips: { stale_payload, version_skew, not_quiescent, cold_replica, truncated_windows,
-  scope_uncovered } }`. Zeros included, so "no drift" is distinguishable from "the
+skips: { stale_payload, version_skew, not_quiescent, cold_replica, truncated_windows,
+scope_uncovered } }`. Zeros included, so "no drift" is distinguishable from "the
   check never ran", and every skip names its cause.
 
 The acceptance bar is two weeks of heartbeats with zero mismatches across web, desktop,

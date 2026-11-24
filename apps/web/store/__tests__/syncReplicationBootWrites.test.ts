@@ -10,14 +10,20 @@ import type { SyncReplicationStatus } from "../syncReplication";
 
 const dom = new JSDOM("", { url: "https://example.test/" });
 const globals = globalThis as Record<string, unknown>;
-const savedGlobals = { window: globals.window, document: globals.document, navigator: globals.navigator };
+const savedGlobals = {
+  window: globals.window,
+  document: globals.document,
+  navigator: globals.navigator,
+};
 globals.window = dom.window;
 globals.document = dom.window.document;
 
-const { _reopenForTests, COLLECTION_TABLES, db } = await import("../persistence/db");
+const { _reopenForTests, COLLECTION_TABLES, db } =
+  await import("../persistence/db");
 const { writeOwnerStamp } = await import("../persistence/ownership");
 const hydration = await import("../persistence/hydration");
-const { resetCollectionWrites } = await import("../persistence/collectionWriter");
+const { resetCollectionWrites } =
+  await import("../persistence/collectionWriter");
 const { conversations, sessions, docs } = COLLECTION_TABLES;
 
 type Mutation = { table: string; type: string; keys: unknown[] };
@@ -35,11 +41,17 @@ db.use({
         return {
           ...table,
           mutate(request) {
-            const keys = request.type === "put" || request.type === "add"
-              ? request.values.map((value) => table.schema.primaryKey.extractKey(value))
-              : request.type === "delete" ? request.keys : [];
+            const keys =
+              request.type === "put" || request.type === "add"
+                ? request.values.map((value) =>
+                    table.schema.primaryKey.extractKey(value),
+                  )
+                : request.type === "delete"
+                  ? request.keys
+                  : [];
             // An outbox entry journals a dispatch separately from the state cache.
-            if (name !== "dispatchOutbox") mutations?.push({ table: name, type: request.type, keys });
+            if (name !== "dispatchOutbox")
+              mutations?.push({ table: name, type: request.type, keys });
             return table.mutate(request);
           },
         };
@@ -63,16 +75,23 @@ async function openCache() {
 
 await openCache();
 const { rebootPersistence, useInboxStore } = await import("../inboxStore");
-const { replicationChannelName, replicationLockName, replicationTransport, startSyncReplication, stopSyncReplication } = await import("../syncReplication");
+const {
+  replicationChannelName,
+  replicationLockName,
+  replicationTransport,
+  startSyncReplication,
+  stopSyncReplication,
+} = await import("../syncReplication");
 await waitFor(() => !hydration._hydrating);
 
 const state = () => useInboxStore.getState();
 const sessionId = (n: number) => `k${String(n).padStart(31, "0")}`;
-const cachedSessions = () => Array.from({ length: 10 }, (_, i) => ({
-  _id: sessionId(i),
-  title: `Cached session ${i}`,
-  updated_at: Date.now(),
-}));
+const cachedSessions = () =>
+  Array.from({ length: 10 }, (_, i) => ({
+    _id: sessionId(i),
+    title: `Cached session ${i}`,
+    updated_at: Date.now(),
+  }));
 
 async function bootCache() {
   rebootPersistence();
@@ -89,10 +108,16 @@ async function drainWrites() {
 function holdHostLock() {
   const name = replicationLockName(TEST_PRINCIPAL);
   let release!: () => void;
-  const held = new Promise<void>((resolve) => { release = resolve; });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   globals.navigator = {
     locks: {
-      async request(requestedName: string, { signal }: { signal: AbortSignal }, grant: () => Promise<void>) {
+      async request(
+        requestedName: string,
+        { signal }: { signal: AbortSignal },
+        grant: () => Promise<void>,
+      ) {
         expect(requestedName).toBe(name);
         await held;
         if (!signal.aborted) await grant();
@@ -127,16 +152,24 @@ afterAll(() => {
 });
 
 function connectHost(hostRows: ReturnType<typeof cachedSessions>) {
-  const transport = replicationTransport(replicationChannelName(TEST_PRINCIPAL), "previous-host");
+  const transport = replicationTransport(
+    replicationChannelName(TEST_PRINCIPAL),
+    "previous-host",
+  );
   const host = createReplicationHost({
     hostId: "previous-host",
     channel: transport.channel,
-    getState: () => ({ sessions: Object.fromEntries(hostRows.map((row) => [row._id, row])) }),
+    getState: () => ({
+      sessions: Object.fromEntries(hostRows.map((row) => [row._id, row])),
+    }),
     replicatedKeys: ["sessions"],
     isCollectionKey: () => true,
     applyUpdates: () => {},
   });
-  cleanups.push(() => { host.stop(); transport.close(); });
+  cleanups.push(() => {
+    host.stop();
+    transport.close();
+  });
 }
 
 test("a joining follower applies the host snapshot without writing to IndexedDB", async () => {
@@ -150,10 +183,16 @@ test("a joining follower applies the host snapshot without writing to IndexedDB"
   mutations = [];
   startSyncReplication({ eligible: true, principalId: TEST_PRINCIPAL });
   // Feeders can still answer while the new window is waiting for its role.
-  state().syncTable("sessions", [{ ...rows[0], title: "Early feeder result" }], { isDelta: true });
+  state().syncTable(
+    "sessions",
+    [{ ...rows[0], title: "Early feeder result" }],
+    { isDelta: true },
+  );
   await waitFor(() => state().syncRole === "follower");
   expect(state().sessions[rows[0]._id]?.title).toBe("From the host");
-  state().syncTable("sessions", [{ ...rows[1], title: "Late feeder result" }], { isDelta: true });
+  state().syncTable("sessions", [{ ...rows[1], title: "Late feeder result" }], {
+    isDelta: true,
+  });
   expect(state().sessions[rows[1]._id]?.title).toBe("Late feeder result");
   await drainWrites();
 
@@ -169,14 +208,24 @@ test("a follower caches the transcript and navigator for a conversation only it 
   await waitFor(() => state().syncRole === "follower");
 
   const id = "follower-conversation";
-  const message = { _id: "follower-message", role: "user" as const, timestamp: Date.now(), content: "Only in this window" };
+  const message = {
+    _id: "follower-message",
+    role: "user" as const,
+    timestamp: Date.now(),
+    content: "Only in this window",
+  };
   state().setMessages(id, [message]);
   state().setUserMessages(id, [message]);
   await drainWrites();
 
   expect(state().syncRole).toBe("follower");
-  expect((await db.conversationMessageRows.where("convId").equals(id).first())?.message).toEqual(message);
-  expect((await db.conversationUserMessages.get(id))?.userMessages).toEqual([message]);
+  expect(
+    (await db.conversationMessageRows.where("convId").equals(id).first())
+      ?.message,
+  ).toEqual(message);
+  expect((await db.conversationUserMessages.get(id))?.userMessages).toEqual([
+    message,
+  ]);
 });
 
 test("a window elected when the previous host closes persists only changed rows", async () => {
@@ -196,11 +245,15 @@ test("a window elected when the previous host closes persists only changed rows"
 
   // The lock holder leaves before it can answer the joining window's hello.
   closePreviousHost();
-  const getStatus = (dom.window as Window & { __syncReplication?: () => SyncReplicationStatus }).__syncReplication;
+  const getStatus = (
+    dom.window as Window & { __syncReplication?: () => SyncReplicationStatus }
+  ).__syncReplication;
   await waitFor(() => getStatus?.().holdsLock === true);
   await drainWrites();
 
-  expect(mutations).toEqual([{ table: "sessions", type: "put", keys: [changed._id] }]);
+  expect(mutations).toEqual([
+    { table: "sessions", type: "put", keys: [changed._id] },
+  ]);
   expect(await conversations.toArray()).toEqual(rows);
   expect(await sessions.toArray()).toEqual([changed, ...rows.slice(1)]);
 
@@ -209,16 +262,24 @@ test("a window elected when the previous host closes persists only changed rows"
   const later = { ...rows[1], title: "Written by the new host" };
   state().syncTable("sessions", [later], { isDelta: true });
   await drainWrites();
-  expect(mutations).toEqual([{ table: "sessions", type: "put", keys: [later._id] }]);
+  expect(mutations).toEqual([
+    { table: "sessions", type: "put", keys: [later._id] },
+  ]);
 });
 
 test("boot hydration writes only documented row trims and retention drops", async () => {
   const [fresh] = cachedSessions();
-  const expired = { _id: sessionId(1), updated_at: Date.now() - 365 * 86_400_000 };
+  const expired = {
+    _id: sessionId(1),
+    updated_at: Date.now() - 365 * 86_400_000,
+  };
   const thinDoc = { _id: "doc-1", title: "Cached document" };
   await sessions.bulkPut([fresh, expired]);
   await docs.put({ ...thinDoc, content: "Legacy inline body" });
-  await db.meta.put({ key: "clientState", value: { ui: { sidebar_collapsed: true } } });
+  await db.meta.put({
+    key: "clientState",
+    value: { ui: { sidebar_collapsed: true } },
+  });
   // If the live user settings arrive first, hydration fills missing settings
   // through the normal update action, which would ordinarily persist.
   useInboxStore.setState({ clientStateInitialized: true });

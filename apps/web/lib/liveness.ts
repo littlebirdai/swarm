@@ -1,4 +1,10 @@
-import { deriveLiveAt, isHibernated, rowHeartbeatAliveAt, trustedStatusAt, type LiveFactsRow } from "@codecast/shared/contracts";
+import {
+  deriveLiveAt,
+  isHibernated,
+  rowHeartbeatAliveAt,
+  trustedStatusAt,
+  type LiveFactsRow,
+} from "@codecast/shared/contracts";
 
 // A session row as the shared live derivation reads it (deriveLiveAt): the
 // replicated facts plus the base fields the rules branch on. ONE adapter for
@@ -56,21 +62,33 @@ export function liveFactsOf(s: {
 // stays mounted re-derives it on a clock (useNowWhen / useCoarseNow), since the
 // verdict moves with time while the row does not.
 export function agentStatusAt(
-  s: { agent_status?: string | null; updated_at?: number; last_heartbeat?: number | null; open_tasks?: unknown[] | null; open_tasks_at?: number | null },
+  s: {
+    agent_status?: string | null;
+    updated_at?: number;
+    last_heartbeat?: number | null;
+    open_tasks?: unknown[] | null;
+    open_tasks_at?: number | null;
+  },
   now: number,
 ): string | undefined {
-  return trustedStatusAt({
-    agent_status: s.agent_status ?? null,
-    updated_at: s.updated_at ?? 0,
-    last_heartbeat: s.last_heartbeat ?? null,
-    open_tasks: s.open_tasks ?? null,
-    open_tasks_at: s.open_tasks_at ?? null,
-  }, now);
+  return trustedStatusAt(
+    {
+      agent_status: s.agent_status ?? null,
+      updated_at: s.updated_at ?? 0,
+      last_heartbeat: s.last_heartbeat ?? null,
+      open_tasks: s.open_tasks ?? null,
+      open_tasks_at: s.open_tasks_at ?? null,
+    },
+    now,
+  );
 }
 
 // Settled at instant `now` by the shared rule — or retired: a killed row's
 // live-looking fields are never believable, whatever they still carry.
-export function sessionIdleAt(s: Parameters<typeof liveFactsOf>[0] & { inbox_killed_at?: number | null }, now: number): boolean {
+export function sessionIdleAt(
+  s: Parameters<typeof liveFactsOf>[0] & { inbox_killed_at?: number | null },
+  now: number,
+): boolean {
   if (s.inbox_killed_at) return true;
   return deriveLiveAt(liveFactsOf(s), now).is_idle;
 }
@@ -79,15 +97,23 @@ export function sessionIdleAt(s: Parameters<typeof liveFactsOf>[0] & { inbox_kil
 // THE test every reader of a row's live-looking fields applies — the inbox
 // bucket, the pulsing dot, the status pill — so they cannot disagree (a
 // needs-input card with a green "working" dot is the historical failure).
-export function sessionLiveAt(s: Parameters<typeof sessionIdleAt>[0], now: number): boolean {
+export function sessionLiveAt(
+  s: Parameters<typeof sessionIdleAt>[0],
+  now: number,
+): boolean {
   return (s.message_count ?? 0) > 0 && !sessionIdleAt(s, now);
 }
 
 // Has a process behind it at `now`: producing, or a daemon heartbeat inside the
 // liveness window on a row that is not hibernated. Working rows are awake too.
-export function sessionAwakeAt(s: Parameters<typeof sessionIdleAt>[0], now: number): boolean {
+export function sessionAwakeAt(
+  s: Parameters<typeof sessionIdleAt>[0],
+  now: number,
+): boolean {
   if (s.inbox_killed_at) return false;
-  return sessionLiveAt(s, now) || (rowHeartbeatAliveAt(s, now) && !isHibernated(s));
+  return (
+    sessionLiveAt(s, now) || (rowHeartbeatAliveAt(s, now) && !isHibernated(s))
+  );
 }
 
 // The fleet at `now`, split into top-level sessions and subagents (whatever
@@ -97,7 +123,10 @@ export function agentFleetCounts<T extends Parameters<typeof sessionIdleAt>[0]>(
   isSub: (s: T) => boolean,
   now: number,
 ) {
-  const counts = { sessions: { working: 0, awake: 0 }, subagents: { working: 0, awake: 0 } };
+  const counts = {
+    sessions: { working: 0, awake: 0 },
+    subagents: { working: 0, awake: 0 },
+  };
   for (const s of rows) {
     if (!sessionAwakeAt(s, now)) continue;
     const c = isSub(s) ? counts.subagents : counts.sessions;

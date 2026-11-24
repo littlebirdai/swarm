@@ -27,15 +27,26 @@ export function openForwardToChat(payload: ForwardToChatPayload) {
   const ref = parseEntityUrl(payload.url);
   const entity = ref ? findEntityInStore(state, ref.type, ref.id) : undefined;
   const messageRef = parseMessageRefUrl(payload.url);
-  const messages = ref?.type === "session" ? state.messages[entity?._id ?? ref.id] : undefined;
-  const message = messageRef?.kind === "message" ? messages?.find((row) => row._id === messageRef.id) : undefined;
+  const messages =
+    ref?.type === "session" ? state.messages[entity?._id ?? ref.id] : undefined;
+  const message =
+    messageRef?.kind === "message"
+      ? messages?.find((row) => row._id === messageRef.id)
+      : undefined;
   const previewText = payload.previewText ?? message?.content;
   state.openPalette({
     pick: {
       title: `Send ${payload.label ?? "link"} to…`,
       kinds: ["channel"],
       preview: {
-        title: cleanNotificationBody(payload.previewTitle || entity?.display_title || entity?.title || entity?.name || `Shared ${payload.label ?? "link"}`, 160),
+        title: cleanNotificationBody(
+          payload.previewTitle ||
+            entity?.display_title ||
+            entity?.title ||
+            entity?.name ||
+            `Shared ${payload.label ?? "link"}`,
+          160,
+        ),
         text: previewText ? cleanNotificationBody(previewText, 240) : undefined,
         url: payload.url,
       },
@@ -45,9 +56,11 @@ export function openForwardToChat(payload: ForwardToChatPayload) {
         if (target.kind === "extra") return;
         const store = useInboxStore.getState();
         const channelId =
-          target.kind === "person" ? store.openDmChannel([target.id])
-          : target.kind === "channel" ? target.id
-          : null;
+          target.kind === "person"
+            ? store.openDmChannel([target.id])
+            : target.kind === "channel"
+              ? target.id
+              : null;
         if (!channelId) return;
         // A blank line between them: the note is its own paragraph and the
         // link stands alone on its line, which is what promotes it to a
@@ -57,7 +70,9 @@ export function openForwardToChat(payload: ForwardToChatPayload) {
         store.sendChatMessage(
           channelId,
           content,
-          result.attachments?.length ? { attachments: result.attachments } : undefined,
+          result.attachments?.length
+            ? { attachments: result.attachments }
+            : undefined,
         );
         toast.success(`Sent to ${target.label}`);
       },

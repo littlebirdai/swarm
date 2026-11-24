@@ -5,8 +5,15 @@
 //
 // The stamp and mark files it reads are written by `cast state` — see
 // stateCommand.ts (writeThreadStatePulse / clearThreadStatePulse).
-import { THREAD_STATE_NUDGE_MSGS, THREAD_STATE_RECRUIT_MSGS } from "@codecast/shared/contracts";
-import { HOOK_FEATURE_ON, HOOK_FIELDS_READ, HOOK_STATE_DIR } from "./hookJson.js";
+import {
+  THREAD_STATE_NUDGE_MSGS,
+  THREAD_STATE_RECRUIT_MSGS,
+} from "@codecast/shared/contracts";
+import {
+  HOOK_FEATURE_ON,
+  HOOK_FIELDS_READ,
+  HOOK_STATE_DIR,
+} from "./hookJson.js";
 
 /** Assumes SESSION_ID, EVENT, TRANSCRIPT, STOP_ACTIVE, CC_DIR and feature_on
  *  (HOOK_STATE_DIR and HOOK_FEATURE_ON). Returns instead of exiting. */

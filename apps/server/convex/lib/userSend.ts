@@ -12,7 +12,10 @@ import {
   parseUserMessage,
   stripMentionContext,
 } from "@codecast/shared/contracts";
-import { isStickyEligible, stickyPromptContent } from "../../../../apps/web/lib/stickyPrompt";
+import {
+  isStickyEligible,
+  stickyPromptContent,
+} from "../../../../apps/web/lib/stickyPrompt";
 import { commandExpansionName } from "../../../../apps/web/lib/conversationProcessor";
 import { isFlowPressMessage } from "../../../../apps/web/lib/line/flowMessages";
 
@@ -34,7 +37,8 @@ const NOISE_PREFIXES = [
   // The CLI's injected session-move notice (sessionMoveNotice.ts).
   "[codecast]",
 ];
-const COMMAND_RE = /^(<command-name>|<command-message>|<local-command-stdout>|<local-command-stderr>|Caveat:|\/[a-z][\w-]*)/i;
+const COMMAND_RE =
+  /^(<command-name>|<command-message>|<local-command-stdout>|<local-command-stderr>|Caveat:|\/[a-z][\w-]*)/i;
 const SKILL_RE = /Base directory for this skill:\s/;
 
 export function stripMessageTags(s: string): string {
@@ -65,7 +69,12 @@ export function isUserMessageNoise(content: string): boolean {
   if (COMMAND_RE.test(t)) return true;
   if (SKILL_RE.test(t)) return true;
   if (t.startsWith("{") && t.includes("__cc_poll")) return true;
-  if (t.includes("Your task is to create a detailed summary of the conversation so far")) return true;
+  if (
+    t.includes(
+      "Your task is to create a detailed summary of the conversation so far",
+    )
+  )
+    return true;
   const stripped = stripMessageTags(t);
   if (!stripped) return true;
   if (NOISE_PREFIXES.some((p) => stripped.startsWith(p))) return true;
@@ -73,14 +82,21 @@ export function isUserMessageNoise(content: string): boolean {
 }
 
 // A pasted block is in the message but was not typed.
-const PASTED_BLOCK_RE = /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
+const PASTED_BLOCK_RE =
+  /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
 
 // Text the web sends in a person's name when they press a button (attach an
 // agent to a huddle, run a change through a flow, continue after a setup
 // card). The press is theirs; the words are the product's.
-const SETUP_CONTINUE_LINES = new Set(Object.values(AGENT_SETUP_CONTINUE_MESSAGE));
+const SETUP_CONTINUE_LINES = new Set(
+  Object.values(AGENT_SETUP_CONTINUE_MESSAGE),
+);
 export function isPressedMessage(content: string): boolean {
-  return isHuddleFeedNotice(content) || isFlowPressMessage(content) || SETUP_CONTINUE_LINES.has(content.trim());
+  return (
+    isHuddleFeedNotice(content) ||
+    isFlowPressMessage(content) ||
+    SETUP_CONTINUE_LINES.has(content.trim())
+  );
 }
 
 // The part of a send its person wrote: the text of a decision answer, the
@@ -101,12 +117,17 @@ const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
 // A tagged decision answer counts here by its text; whether the person typed
 // it or picked an option is on the decision row (decisionOf).
 export function typedWords(content: string | undefined): number | null {
-  if (!content || isUserMessageNoise(content) || isPressedMessage(content)) return null;
-  if (parseDecisionAnswer(content)?.id) return wordCount(ownText(content).replace(PASTED_BLOCK_RE, ""));
+  if (!content || isUserMessageNoise(content) || isPressedMessage(content))
+    return null;
+  if (parseDecisionAnswer(content)?.id)
+    return wordCount(ownText(content).replace(PASTED_BLOCK_RE, ""));
   const note = huddleExcerptNote(content);
-  if (note !== null) return note ? wordCount(note.replace(PASTED_BLOCK_RE, "")) : null;
+  if (note !== null)
+    return note ? wordCount(note.replace(PASTED_BLOCK_RE, "")) : null;
   if (!isStickyEligible(content)) return null;
-  const typed = stickyPromptContent(stripMentionContext(content.replace(PASTED_BLOCK_RE, "")));
+  const typed = stickyPromptContent(
+    stripMentionContext(content.replace(PASTED_BLOCK_RE, "")),
+  );
   return typed ? wordCount(typed) : 0;
 }
 
@@ -132,9 +153,15 @@ type SendMessage = {
 };
 type Send = { user_id: Id<"users">; team_id?: Id<"teams">; words: number };
 // Which message a counted send is, for the per-send log (user_sends).
-type SendAt = { conversation_id: Id<"conversations">; message_id: Id<"messages">; timestamp: number };
+type SendAt = {
+  conversation_id: Id<"conversations">;
+  message_id: Id<"messages">;
+  timestamp: number;
+};
 
-export function queuedBy(pending: { human?: boolean } | null | undefined): SendMessage["queued"] {
+export function queuedBy(
+  pending: { human?: boolean } | null | undefined,
+): SendMessage["queued"] {
   return pending ? (pending.human ? "person" : "program") : undefined;
 }
 
@@ -161,11 +188,16 @@ export function isProgramLaunched(conversation: Doc<"conversations">): boolean {
 // conversation owner. This half reads the message alone; whether the session
 // itself was launched by a program is isProgramLaunched, checked separately
 // because those links are stamped seconds after the first message arrives.
-export function classifyUserSend(conversation: Doc<"conversations">, msg: SendMessage): Omit<Send, "team_id"> | null {
+export function classifyUserSend(
+  conversation: Doc<"conversations">,
+  msg: SendMessage,
+): Omit<Send, "team_id"> | null {
   if (msg.role !== "user" || msg.queued === "program") return null;
   if (msg.tool_results && msg.tool_results.length > 0) return null;
   const words = typedWords(msg.content);
-  return words === null ? null : { user_id: msg.from_user_id ?? conversation.user_id, words };
+  return words === null
+    ? null
+    : { user_id: msg.from_user_id ?? conversation.user_id, words };
 }
 
 // Who started the turn a user-role message opens (conversations.last_turn_origin
@@ -173,23 +205,35 @@ export function classifyUserSend(conversation: Doc<"conversations">, msg: SendMe
 // a machine-delivered message (a wake, a session message, a scheduled task) is
 // "machine" with nobody. Null for what opens no turn of its own (tool results,
 // noise): the stamp keeps its previous value.
-export type TurnOpener = { origin: "person"; by: Id<"users"> } | { origin: "machine" };
+export type TurnOpener =
+  | { origin: "person"; by: Id<"users"> }
+  | { origin: "machine" };
 
-export function turnOpener(conversation: Doc<"conversations">, msg: SendMessage): TurnOpener | null {
-  if (msg.role !== "user" || (msg.tool_results && msg.tool_results.length > 0)) return null;
+export function turnOpener(
+  conversation: Doc<"conversations">,
+  msg: SendMessage,
+): TurnOpener | null {
+  if (msg.role !== "user" || (msg.tool_results && msg.tool_results.length > 0))
+    return null;
   const send = classifyUserSend(conversation, msg);
   if (send) return { origin: "person", by: send.user_id };
-  if (msg.queued === "program" || isMachineDeliveredMessage(msg.content)) return { origin: "machine" };
+  if (msg.queued === "program" || isMachineDeliveredMessage(msg.content))
+    return { origin: "machine" };
   return null;
 }
 
 // The conversation fields a turn opener changes; empty when it changes none.
-export function turnOpenerPatch(conversation: Doc<"conversations">, opener: TurnOpener | null): Partial<Doc<"conversations">> {
+export function turnOpenerPatch(
+  conversation: Doc<"conversations">,
+  opener: TurnOpener | null,
+): Partial<Doc<"conversations">> {
   if (!opener) return {};
   const by = opener.origin === "person" ? opener.by : undefined;
   const patch: Partial<Doc<"conversations">> = {};
-  if (opener.origin !== conversation.last_turn_origin) patch.last_turn_origin = opener.origin;
-  if (String(by ?? "") !== String(conversation.last_turn_by ?? "")) patch.last_turn_by = by;
+  if (opener.origin !== conversation.last_turn_origin)
+    patch.last_turn_origin = opener.origin;
+  if (String(by ?? "") !== String(conversation.last_turn_by ?? ""))
+    patch.last_turn_by = by;
   return patch;
 }
 
@@ -198,8 +242,17 @@ export function turnOpenerPatch(conversation: Doc<"conversations">, opener: Turn
 // it is working on, else the account it runs under. A session on a teammate's
 // shared machine runs under that teammate's account, so without this every
 // brief it writes for the person typing to it would read as the teammate's.
-export function actingPersonOf(conversation: Pick<Doc<"conversations">, "last_turn_origin" | "last_turn_by"> | null | undefined, fallback: Id<"users">): Id<"users"> {
-  return conversation?.last_turn_origin === "person" && conversation.last_turn_by ? conversation.last_turn_by : fallback;
+export function actingPersonOf(
+  conversation:
+    | Pick<Doc<"conversations">, "last_turn_origin" | "last_turn_by">
+    | null
+    | undefined,
+  fallback: Id<"users">,
+): Id<"users"> {
+  return conversation?.last_turn_origin === "person" &&
+    conversation.last_turn_by
+    ? conversation.last_turn_by
+    : fallback;
 }
 
 // Team attribution for the per-day counters (sends here, tokens in
@@ -212,10 +265,14 @@ export async function resolveCounterTeam(
 ): Promise<Id<"teams"> | undefined> {
   if (conversation.team_id) return conversation.team_id;
   const owner = await ctx.db.get(conversation.user_id);
-  const teamId = (owner?.active_team_id ?? owner?.team_id) as Id<"teams"> | undefined;
+  const teamId = (owner?.active_team_id ?? owner?.team_id) as
+    | Id<"teams">
+    | undefined;
   // The pointer outlives a lapsed membership; a team the owner left gets no
   // share of their counters.
-  return teamId && (await isTeamMember(ctx, conversation.user_id, teamId)) ? teamId : undefined;
+  return teamId && (await isTeamMember(ctx, conversation.user_id, teamId))
+    ? teamId
+    : undefined;
 }
 
 // Launch links (parent, spawned-by) land up to a minute after a session's
@@ -225,16 +282,26 @@ const LAUNCH_LINK_GRACE_MS = 60_000;
 // A slash command's body, which Claude Code writes as its own user turn right
 // after the command. The body has no marker of its own: it is recognized by
 // following the command (commandExpansionName, the rule the thread folds by).
-async function isCommandBody(ctx: { db: any }, conversationId: Id<"conversations">, msg: SendMessage, timestamp: number): Promise<boolean> {
+async function isCommandBody(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+  msg: SendMessage,
+  timestamp: number,
+): Promise<boolean> {
   if (!msg.content || msg.content.trim().length <= 200) return false;
   const recent = await ctx.db
     .query("messages")
     .withIndex("by_conversation_role_timestamp", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("role", "user").lte("timestamp", timestamp),
+      q
+        .eq("conversation_id", conversationId)
+        .eq("role", "user")
+        .lte("timestamp", timestamp),
     )
     .order("desc")
     .take(3);
-  const prev = recent.find((m: any) => m._id !== msg._id && m.content !== msg.content);
+  const prev = recent.find(
+    (m: any) => m._id !== msg._id && m.content !== msg.content,
+  );
   return !!commandExpansionName(prev, { content: msg.content, timestamp });
 }
 
@@ -243,12 +310,18 @@ async function isCommandBody(ctx: { db: any }, conversationId: Id<"conversations
 // not counted as typing) or wrote the answer. The row keeps answer_text only
 // when the person wrote it.
 export type SendDecision = { question: string; picked: boolean };
-async function decisionOf(ctx: { db: any }, content: string | undefined): Promise<SendDecision | undefined> {
+async function decisionOf(
+  ctx: { db: any },
+  content: string | undefined,
+): Promise<SendDecision | undefined> {
   const parsed = parseDecisionAnswer(content);
   if (!parsed?.id) return undefined;
   const rowId = ctx.db.normalizeId("session_decisions", parsed.id);
   const row = rowId ? await ctx.db.get(rowId) : null;
-  return { question: (parsed.question ?? row?.question ?? "").slice(0, SEND_TEXT_CAP), picked: !row?.answer_text };
+  return {
+    question: (parsed.question ?? row?.question ?? "").slice(0, SEND_TEXT_CAP),
+    picked: !row?.answer_text,
+  };
 }
 
 export async function scheduleUserSend(
@@ -258,7 +331,8 @@ export async function scheduleUserSend(
   timestamp: number,
 ): Promise<boolean> {
   const send = classifyUserSend(conversation, msg);
-  if (!send || (await isCommandBody(ctx, conversation._id, msg, timestamp))) return false;
+  if (!send || (await isCommandBody(ctx, conversation._id, msg, timestamp)))
+    return false;
   // A message a person queued counts whatever launched the session, so it
   // needs no wait for the launch links and reaches the feed at once.
   const delay = msg.queued === "person" ? 0 : LAUNCH_LINK_GRACE_MS;
@@ -288,10 +362,20 @@ export async function recordSendFor(
   if (!byPerson && isProgramLaunched(conversation)) return false;
   const message = messageId ? await ctx.db.get(messageId) : null;
   const decision = await decisionOf(ctx, message?.content);
-  const counted = { ...send, team_id: await resolveCounterTeam(ctx, conversation) };
+  const counted = {
+    ...send,
+    team_id: await resolveCounterTeam(ctx, conversation),
+  };
   if (decision?.picked) counted.words = 0;
   else if (!opts.logOnly) await recordUserSend(ctx, counted, timestamp);
-  if (message) await logUserSend(ctx, counted, { conversation_id: conversation._id, message_id: message._id, timestamp }, message, decision);
+  if (message)
+    await logUserSend(
+      ctx,
+      counted,
+      { conversation_id: conversation._id, message_id: message._id, timestamp },
+      message,
+      decision,
+    );
   return !decision?.picked;
 }
 
@@ -302,12 +386,21 @@ export const SEND_TEXT_CAP = 8000;
 // tags and mention context out, pasted blocks kept, clipped to SEND_TEXT_CAP.
 export function sendText(content: string): { text: string; clipped: boolean } {
   const full = stripMessageTags(stripMentionContext(ownText(content)));
-  return { text: full.slice(0, SEND_TEXT_CAP), clipped: full.length > SEND_TEXT_CAP };
+  return {
+    text: full.slice(0, SEND_TEXT_CAP),
+    clipped: full.length > SEND_TEXT_CAP,
+  };
 }
 
 // One user_sends row per message: a message the insert path sees twice is
 // still one send on the Prompts page.
-async function logUserSend(ctx: { db: any }, send: Send, at: SendAt, message: Doc<"messages">, decision: SendDecision | undefined): Promise<void> {
+async function logUserSend(
+  ctx: { db: any },
+  send: Send,
+  at: SendAt,
+  message: Doc<"messages">,
+  decision: SendDecision | undefined,
+): Promise<void> {
   if (!message.content || message.is_encrypted) return;
   const existing = await ctx.db
     .query("user_sends")
@@ -332,18 +425,34 @@ export async function maybeRecordUserSend(
   opts: { logOnly?: boolean } = {},
 ): Promise<boolean> {
   const send = classifyUserSend(conversation, msg);
-  if (!send || (await isCommandBody(ctx, conversation._id, msg, timestamp))) return false;
-  return recordSendFor(ctx, conversation, send, msg.queued === "person", timestamp, msg._id, opts);
+  if (!send || (await isCommandBody(ctx, conversation._id, msg, timestamp)))
+    return false;
+  return recordSendFor(
+    ctx,
+    conversation,
+    send,
+    msg.queued === "person",
+    timestamp,
+    msg._id,
+    opts,
+  );
 }
 
 // Bump the (user, team, UTC day) counter row.
-export async function recordUserSend(ctx: { db: any }, send: Send, timestamp: number): Promise<void> {
+export async function recordUserSend(
+  ctx: { db: any },
+  send: Send,
+  timestamp: number,
+): Promise<void> {
   const day = dayStartUtc(timestamp);
   const hour = Math.min(23, Math.max(0, Math.floor((timestamp - day) / HOUR)));
   const existing = await ctx.db
     .query("user_send_daily")
     .withIndex("by_user_team_day", (q: any) =>
-      q.eq("user_id", send.user_id).eq("team_id", send.team_id).eq("day_start", day),
+      q
+        .eq("user_id", send.user_id)
+        .eq("team_id", send.team_id)
+        .eq("day_start", day),
     )
     .first();
   if (existing) {
@@ -376,7 +485,13 @@ export async function recordUserSend(ctx: { db: any }, send: Send, timestamp: nu
   }
 }
 
-export type SendDayRow = { day_start: number; total: number; hours: number[]; words?: number; word_hours?: number[] };
+export type SendDayRow = {
+  day_start: number;
+  total: number;
+  hours: number[];
+  words?: number;
+  word_hours?: number[];
+};
 
 // Read a user's send counters over a trailing window, optionally scoped to one
 // team. Unscoped reads sum every team row (a user's sends can span teams and
@@ -398,12 +513,23 @@ export async function fetchUserSendDays(
   }
   const rows: SendDayRow[] = await ctx.db
     .query("user_send_daily")
-    .withIndex("by_user_day", (q: any) => q.eq("user_id", userId).gte("day_start", cutoff))
+    .withIndex("by_user_day", (q: any) =>
+      q.eq("user_id", userId).gte("day_start", cutoff),
+    )
     .collect();
   // Merge team + personal rows that share a day.
-  const byDay = new Map<number, SendDayRow & { words: number; word_hours: number[] }>();
+  const byDay = new Map<
+    number,
+    SendDayRow & { words: number; word_hours: number[] }
+  >();
   for (const r of rows) {
-    const acc = byDay.get(r.day_start) ?? { day_start: r.day_start, total: 0, hours: new Array(24).fill(0), words: 0, word_hours: new Array(24).fill(0) };
+    const acc = byDay.get(r.day_start) ?? {
+      day_start: r.day_start,
+      total: 0,
+      hours: new Array(24).fill(0),
+      words: 0,
+      word_hours: new Array(24).fill(0),
+    };
     byDay.set(r.day_start, acc);
     acc.total += r.total;
     acc.words += r.words ?? 0;

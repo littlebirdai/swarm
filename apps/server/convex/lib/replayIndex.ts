@@ -20,17 +20,26 @@ type IndexInput = {
 };
 
 /** The stored index fields for a row: absent rather than false, so the cut index holds only cut rows. */
-export function replayIndexFields(r: IndexInput): { person_key: string | undefined; rest_cut: true | undefined } {
+export function replayIndexFields(r: IndexInput): {
+  person_key: string | undefined;
+  rest_cut: true | undefined;
+} {
   return {
     person_key: personKey(r.user ?? null) ?? undefined,
-    rest_cut: replayCutAt(r.captured_ms, r.duration_ms) !== null ? true : undefined,
+    rest_cut:
+      replayCutAt(r.captured_ms, r.duration_ms) !== null ? true : undefined,
   };
 }
 
 /** Whether a row's stored index fields differ from what it says. */
-export function replayIndexStale(r: IndexInput & { person_key?: string; rest_cut?: boolean }): boolean {
+export function replayIndexStale(
+  r: IndexInput & { person_key?: string; rest_cut?: boolean },
+): boolean {
   const want = replayIndexFields(r);
-  return want.person_key !== r.person_key || want.rest_cut !== (r.rest_cut || undefined);
+  return (
+    want.person_key !== r.person_key ||
+    want.rest_cut !== (r.rest_cut || undefined)
+  );
 }
 
 /**
@@ -38,21 +47,39 @@ export function replayIndexStale(r: IndexInput & { person_key?: string; rest_cut
  * the row says before and after (replayCutAt), not on the stored flag, so a
  * row the backfill has not reached yet counts right too.
  */
-export async function patchReplay(ctx: { db: any }, row: IndexInput & { _id: any; source_id: any; person_key?: string; rest_cut?: boolean }, patch: Record<string, unknown>): Promise<void> {
+export async function patchReplay(
+  ctx: { db: any },
+  row: IndexInput & {
+    _id: any;
+    source_id: any;
+    person_key?: string;
+    rest_cut?: boolean;
+  },
+  patch: Record<string, unknown>,
+): Promise<void> {
   const was = replayCutAt(row.captured_ms, row.duration_ms) !== null;
   const merged = { ...row, ...patch } as IndexInput;
   const want = replayIndexFields(merged);
   const out: Record<string, unknown> = { ...patch };
   if (want.person_key !== row.person_key) out.person_key = want.person_key;
-  if (want.rest_cut !== (row.rest_cut || undefined)) out.rest_cut = want.rest_cut;
+  if (want.rest_cut !== (row.rest_cut || undefined))
+    out.rest_cut = want.rest_cut;
   // The person's tally (lib/replayTallies.ts): length, failures and the active-time floor can all move on one patch. Read from the row before it is patched.
   const full = row as Partial<TallyInput> & { workspace?: string };
-  if (full.workspace && full.external_id !== undefined && full.counts) await moveTally(ctx, { workspace: full.workspace, source_id: row.source_id }, { ...full } as TallyInput, { ...full, ...patch } as TallyInput);
+  if (full.workspace && full.external_id !== undefined && full.counts)
+    await moveTally(
+      ctx,
+      { workspace: full.workspace, source_id: row.source_id },
+      { ...full } as TallyInput,
+      { ...full, ...patch } as TallyInput,
+    );
   await ctx.db.patch(row._id, out);
   const now = want.rest_cut === true;
   if (was === now) return;
   const source = await ctx.db.get(row.source_id);
   const tally = source?.replay_rest;
   if (!tally) return;
-  await ctx.db.patch(row.source_id, { replay_rest: { ...tally, cut: Math.max(0, tally.cut + (now ? 1 : -1)) } });
+  await ctx.db.patch(row.source_id, {
+    replay_rest: { ...tally, cut: Math.max(0, tally.cut + (now ? 1 : -1)) },
+  });
 }

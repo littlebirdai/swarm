@@ -1,17 +1,32 @@
 import { memo, useCallback, type RefObject } from "react";
-import { useWindowManager, TASKBAR_HEIGHT_PX, type ArrangeMode } from "../store/windowManagerStore";
-import { useTrackedStore, useInboxStore, isSessionEffectivelyIdle } from "../store/inboxStore";
+import {
+  useWindowManager,
+  TASKBAR_HEIGHT_PX,
+  type ArrangeMode,
+} from "../store/windowManagerStore";
+import {
+  useTrackedStore,
+  useInboxStore,
+  isSessionEffectivelyIdle,
+} from "../store/inboxStore";
 import { sessionCardTitle } from "../lib/sessionCard";
 import { LayoutGrid, Layers, Columns, Rows, X, Plus } from "lucide-react";
 
-const arrangeOptions: { mode: ArrangeMode; icon: typeof LayoutGrid; label: string }[] = [
+const arrangeOptions: {
+  mode: ArrangeMode;
+  icon: typeof LayoutGrid;
+  label: string;
+}[] = [
   { mode: "tile", icon: LayoutGrid, label: "Tile" },
   { mode: "cascade", icon: Layers, label: "Cascade" },
   { mode: "horizontal", icon: Columns, label: "Side by side" },
   { mode: "vertical", icon: Rows, label: "Stack" },
 ];
 
-function getContainerViewport(el: HTMLDivElement | null): { width: number; height: number } {
+function getContainerViewport(el: HTMLDivElement | null): {
+  width: number;
+  height: number;
+} {
   if (el) {
     const rect = el.getBoundingClientRect();
     return { width: rect.width, height: rect.height };
@@ -19,23 +34,35 @@ function getContainerViewport(el: HTMLDivElement | null): { width: number; heigh
   return { width: window.innerWidth, height: window.innerHeight };
 }
 
-export const WindowTaskbar = memo(function WindowTaskbar({ containerRef }: { containerRef: RefObject<HTMLDivElement | null> }) {
+export const WindowTaskbar = memo(function WindowTaskbar({
+  containerRef,
+}: {
+  containerRef: RefObject<HTMLDivElement | null>;
+}) {
   const { windows, autoArrange, closeAll, openWindow } = useWindowManager();
-  const minimized = Object.values(windows).filter(w => w.visualState === "minimized");
+  const minimized = Object.values(windows).filter(
+    (w) => w.visualState === "minimized",
+  );
   const windowCount = Object.keys(windows).length;
 
-  const handleArrange = useCallback((mode: ArrangeMode) => {
-    autoArrange(mode, getContainerViewport(containerRef.current));
-  }, [autoArrange, containerRef]);
+  const handleArrange = useCallback(
+    (mode: ArrangeMode) => {
+      autoArrange(mode, getContainerViewport(containerRef.current));
+    },
+    [autoArrange, containerRef],
+  );
 
-  const handleAddSession = useCallback((sessionId: string) => {
-    // openWindow brings an already-open session's window to the front instead
-    // of duplicating it, so the picker needs no exclusion list.
-    openWindow(sessionId);
-    setTimeout(() => {
-      autoArrange("tile", getContainerViewport(containerRef.current));
-    }, 0);
-  }, [openWindow, autoArrange, containerRef]);
+  const handleAddSession = useCallback(
+    (sessionId: string) => {
+      // openWindow brings an already-open session's window to the front instead
+      // of duplicating it, so the picker needs no exclusion list.
+      openWindow(sessionId);
+      setTimeout(() => {
+        autoArrange("tile", getContainerViewport(containerRef.current));
+      }, 0);
+    },
+    [openWindow, autoArrange, containerRef],
+  );
 
   // Choosing the session is the command palette in pick mode.
   const pickSession = useCallback(() => {
@@ -43,7 +70,9 @@ export const WindowTaskbar = memo(function WindowTaskbar({ containerRef }: { con
       pick: {
         title: "Open session in a window…",
         kinds: ["session"],
-        onPick: (t) => { if (t.kind === "session") handleAddSession(t.id); },
+        onPick: (t) => {
+          if (t.kind === "session") handleAddSession(t.id);
+        },
       },
     });
   }, [handleAddSession]);
@@ -53,7 +82,8 @@ export const WindowTaskbar = memo(function WindowTaskbar({ containerRef }: { con
       className="flex items-center gap-2 px-3 flex-shrink-0 border-t border-sol-border/30 relative"
       style={{
         height: TASKBAR_HEIGHT_PX,
-        background: "color-mix(in srgb, var(--sol-bg-alt) 90%, var(--sol-bg) 10%)",
+        background:
+          "color-mix(in srgb, var(--sol-bg-alt) 90%, var(--sol-bg) 10%)",
         zIndex: 10000,
       }}
     >
@@ -82,8 +112,12 @@ export const WindowTaskbar = memo(function WindowTaskbar({ containerRef }: { con
 
       {/* Minimized windows */}
       <div className="flex-1 flex items-center gap-1 min-w-0 overflow-x-auto">
-        {minimized.map(win => (
-          <MinimizedPill key={win.id} windowId={win.id} sessionId={win.sessionId} />
+        {minimized.map((win) => (
+          <MinimizedPill
+            key={win.id}
+            windowId={win.id}
+            sessionId={win.sessionId}
+          />
         ))}
       </div>
 
@@ -102,16 +136,19 @@ export const WindowTaskbar = memo(function WindowTaskbar({ containerRef }: { con
           </button>
         </div>
       )}
-
     </div>
   );
 });
 
-const MinimizedPill = memo(function MinimizedPill({ windowId, sessionId }: { windowId: string; sessionId: string }) {
+const MinimizedPill = memo(function MinimizedPill({
+  windowId,
+  sessionId,
+}: {
+  windowId: string;
+  sessionId: string;
+}) {
   const { restoreWindow, bringToFront, closeWindow } = useWindowManager();
-  const s = useTrackedStore([
-    s => s.sessions[sessionId],
-  ]);
+  const s = useTrackedStore([(s) => s.sessions[sessionId]]);
   const session = s.sessions[sessionId];
   const isIdle = session ? isSessionEffectivelyIdle(session) : true;
   const title = session ? sessionCardTitle(session) : "New Session";
@@ -131,17 +168,27 @@ const MinimizedPill = memo(function MinimizedPill({ windowId, sessionId }: { win
         {!isIdle && (
           <span
             className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
-            style={{ backgroundColor: "var(--sol-green)", animationDuration: "1.5s" }}
+            style={{
+              backgroundColor: "var(--sol-green)",
+              animationDuration: "1.5s",
+            }}
           />
         )}
         <span
           className="relative inline-flex rounded-full h-2 w-2"
-          style={{ backgroundColor: isIdle ? "var(--sol-text-dim)" : "var(--sol-green)" }}
+          style={{
+            backgroundColor: isIdle
+              ? "var(--sol-text-dim)"
+              : "var(--sol-green)",
+          }}
         />
       </span>
       <span className="text-meta text-sol-text-muted truncate">{title}</span>
       <button
-        onClick={(e) => { e.stopPropagation(); closeWindow(windowId); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeWindow(windowId);
+        }}
         className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/20 text-sol-text-dim/40 hover:text-red-400 transition-all"
       >
         <X className="w-2.5 h-2.5" />

@@ -21,7 +21,7 @@ export interface ContextPathStoreSlice {
 export function resolveContextRow(
   store: ContextPathStoreSlice,
   contextType: string,
-  linkedObjectId: string
+  linkedObjectId: string,
 ): Row {
   switch (contextType) {
     case "task":
@@ -39,12 +39,14 @@ export function resolveContextRow(
 
 export function resolveContextProjectPath(
   store: ContextPathStoreSlice,
-  row: Row
+  row: Row,
 ): string | undefined {
   if (!row) return undefined;
   return (
     row.project_path ||
-    (row.project_id ? store.projects[row.project_id]?.project_path : undefined) ||
+    (row.project_id
+      ? store.projects[row.project_id]?.project_path
+      : undefined) ||
     row.conversation?.project_path ||
     (row.conversation_id
       ? store.conversations[row.conversation_id]?.project_path

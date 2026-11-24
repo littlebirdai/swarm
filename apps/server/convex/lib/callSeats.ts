@@ -8,7 +8,9 @@ import { bucketTs } from "../presenceState";
 import { normalizeTranscribeLanguages } from "@codecast/shared/contracts";
 
 /** Seat languages the transcriber unions. Undefined means "this client did not say". */
-export function stampedLanguages(raw: string[] | undefined): string[] | undefined {
+export function stampedLanguages(
+  raw: string[] | undefined,
+): string[] | undefined {
   if (raw === undefined) return undefined;
   const langs = normalizeTranscribeLanguages(raw);
   return langs.length ? langs : undefined;
@@ -33,7 +35,9 @@ export function projectMember(m: Doc<"call_members">) {
     sharing: m.sharing,
     // The one bit that turns a burst into a call, for everyone in the room.
     // Bucketed like joined_at and set once, so it never re-pushes the roster.
-    walkie_joined_at: m.walkie_joined_at ? bucketTs(m.walkie_joined_at) : undefined,
+    walkie_joined_at: m.walkie_joined_at
+      ? bucketTs(m.walkie_joined_at)
+      : undefined,
   };
 }
 

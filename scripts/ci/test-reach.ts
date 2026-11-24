@@ -22,7 +22,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { AREAS, JOB_AREAS, areaOf, type Area } from "./changed-path-scope";
 
-export const TREE_WIDE_TEST = /\.(guard|ratchet)\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
+export const TREE_WIDE_TEST =
+  /\.(guard|ratchet)\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -44,10 +45,20 @@ export const JOB_TEST_EXCLUDES: Record<string, string[]> = {
   "test-cli": ["apps/cli/src/computer/"],
 };
 
-const SKIP_DIRS = new Set(["node_modules", "dist", ".vite", ".next", "build", ".turbo", "coverage", "out"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  ".vite",
+  ".next",
+  "build",
+  ".turbo",
+  "coverage",
+  "out",
+]);
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
 const TEST_FILE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/;
-const READS_DISK = /\b(readFileSync|readdirSync|readFile|readdir|existsSync|statSync|Bun\.file|Bun\.Glob|new Glob|globSync|scanSync)\b/;
+const READS_DISK =
+  /\b(readFileSync|readdirSync|readFile|readdir|existsSync|statSync|Bun\.file|Bun\.Glob|new Glob|globSync|scanSync)\b/;
 
 export function testFiles(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out;
@@ -65,11 +76,13 @@ export function testFiles(dir: string, out: string[] = []): string[] {
 
 const WORKSPACE_ROOTS = ["apps", "packages", "tests"];
 // Include directories without a manifest, such as the browser extension.
-const WORKSPACE_DIRS = new Map(WORKSPACE_ROOTS.flatMap((root) =>
-  readdirSync(join(ROOT, root), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => [entry.name, `${root}/${entry.name}`] as const),
-));
+const WORKSPACE_DIRS = new Map(
+  WORKSPACE_ROOTS.flatMap((root) =>
+    readdirSync(join(ROOT, root), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => [entry.name, `${root}/${entry.name}`] as const),
+  ),
+);
 
 type Workspace = { dir: string; exports: Record<string, string> };
 
@@ -84,7 +97,10 @@ for (const workspace of WORKSPACE_DIRS.values()) {
   if (typeof pkg.exports === "string") exports["."] = pkg.exports;
   else if (pkg.exports && typeof pkg.exports === "object") {
     for (const [key, value] of Object.entries(pkg.exports)) {
-      const target = typeof value === "string" ? value : (value as any)?.import ?? (value as any)?.default;
+      const target =
+        typeof value === "string"
+          ? value
+          : ((value as any)?.import ?? (value as any)?.default);
       if (typeof target === "string") exports[key] = target;
     }
   }
@@ -101,13 +117,20 @@ const PLATFORM_MARKER = join(ROOT, "platform", "packages");
  */
 const ROOT_ALIAS_PACKAGES = [...WORKSPACE_DIRS.values()].filter((dir) => {
   const tsconfig = join(ROOT, dir, "tsconfig.json");
-  return existsSync(tsconfig) && /"@\/\*"\s*:\s*\[\s*"\.\/\*"/.test(readFileSync(tsconfig, "utf8"));
+  return (
+    existsSync(tsconfig) &&
+    /"@\/\*"\s*:\s*\[\s*"\.\/\*"/.test(readFileSync(tsconfig, "utf8"))
+  );
 });
 
 function resolveFile(spec: string, fromDir: string): string | null {
   try {
     const resolved = Bun.resolveSync(spec, fromDir);
-    return resolved.startsWith("/") && existsSync(resolved) && statSync(resolved).isFile() ? resolved : null;
+    return resolved.startsWith("/") &&
+      existsSync(resolved) &&
+      statSync(resolved).isFile()
+      ? resolved
+      : null;
   } catch {
     return null;
   }
@@ -117,7 +140,9 @@ function resolveFile(spec: string, fromDir: string): string | null {
 export function resolveImport(spec: string, fromFile: string): string | null {
   if (spec.startsWith("node:") || spec.startsWith("bun:")) return null;
   if (spec.startsWith("@platform/")) return PLATFORM_MARKER;
-  const workspaceName = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+  const workspaceName = spec.startsWith("@")
+    ? spec.split("/").slice(0, 2).join("/")
+    : spec.split("/")[0];
   const workspace = WORKSPACES.get(workspaceName);
   if (workspace) {
     const sub = spec.slice(workspaceName.length);
@@ -125,7 +150,10 @@ export function resolveImport(spec: string, fromFile: string): string | null {
     const target = workspace.exports[key] ?? (sub ? `.${sub}` : "./index");
     // A subpath bun cannot resolve to a file (a .d.ts, a generated file not
     // checked in) still lands in that package's area.
-    return resolveFile(join(workspace.dir, target), workspace.dir) ?? join(workspace.dir, "package.json");
+    return (
+      resolveFile(join(workspace.dir, target), workspace.dir) ??
+      join(workspace.dir, "package.json")
+    );
   }
   if (spec.startsWith("@/")) {
     const workspace = relative(ROOT, fromFile).split("/").slice(0, 2).join("/");
@@ -141,7 +169,13 @@ export function resolveImport(spec: string, fromFile: string): string | null {
 
 const transpilers = new Map<string, Bun.Transpiler>();
 function transpilerFor(file: string): Bun.Transpiler {
-  const loader = file.endsWith(".tsx") ? "tsx" : file.endsWith(".jsx") ? "jsx" : /\.[mc]?js$/.test(file) ? "js" : "ts";
+  const loader = file.endsWith(".tsx")
+    ? "tsx"
+    : file.endsWith(".jsx")
+      ? "jsx"
+      : /\.[mc]?js$/.test(file)
+        ? "js"
+        : "ts";
   let transpiler = transpilers.get(loader);
   if (!transpiler) {
     transpiler = new Bun.Transpiler({ loader: loader as "ts" });
@@ -152,28 +186,45 @@ function transpilerFor(file: string): Bun.Transpiler {
 
 function importsOf(file: string, text: string): string[] {
   try {
-    return transpilerFor(file).scanImports(text).map((entry) => entry.path);
+    return transpilerFor(file)
+      .scanImports(text)
+      .map((entry) => entry.path);
   } catch {
     return [];
   }
 }
 
-const PACKAGE_NAMES = [...WORKSPACE_DIRS.keys()].map((name) => name.replace(/-/g, "\\-")).join("|");
+const PACKAGE_NAMES = [...WORKSPACE_DIRS.keys()]
+  .map((name) => name.replace(/-/g, "\\-"))
+  .join("|");
 const ROOT_NAMES = WORKSPACE_ROOTS.join("|");
 // `../../apps/server/`, `../../web/` or `../../../apps/browser-extension/`: a path
 // relative to the file, so it can only mean this repository, from any file.
-const RELATIVE_REACH = new RegExp(`["'\`/]\\.\\./(?:(?:${ROOT_NAMES})/)?(${PACKAGE_NAMES})(?=["'\`/])`, "g");
+const RELATIVE_REACH = new RegExp(
+  `["'\`/]\\.\\./(?:(?:${ROOT_NAMES})/)?(${PACKAGE_NAMES})(?=["'\`/])`,
+  "g",
+);
 // The same reach spelled as path segments: join(dir, "..", "..", "..", "apps", "cli", "src")
 // or join(dir, "..", "..", "apps", "playground").
-const SEGMENT_REACH = new RegExp(`["'\`]\\.\\.["'\`]\\s*,\\s*(?:["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*)?["'\`](${PACKAGE_NAMES})["'\`]`, "g");
+const SEGMENT_REACH = new RegExp(
+  `["'\`]\\.\\.["'\`]\\s*,\\s*(?:["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*)?["'\`](${PACKAGE_NAMES})["'\`]`,
+  "g",
+);
 // The same as segments from the repo root: join(ROOT, "apps", "cli", "src").
-const ROOTED_SEGMENT_REACH = new RegExp(`["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`, "g");
+const ROOTED_SEGMENT_REACH = new RegExp(
+  `["'\`](?:${ROOT_NAMES})["'\`]\\s*,\\s*["'\`](${PACKAGE_NAMES})["'\`]`,
+  "g",
+);
 // `apps/web/`: from test code it means this repository; from product code
 // it is usually a path in someone else's checkout (a worktree, a workspace),
 // so it counts only in test files and test helpers.
-const ROOTED_REACH = new RegExp(`["'\`/](?:${ROOT_NAMES})/(${PACKAGE_NAMES})(?=["'\`/])`, "g");
+const ROOTED_REACH = new RegExp(
+  `["'\`/](?:${ROOT_NAMES})/(${PACKAGE_NAMES})(?=["'\`/])`,
+  "g",
+);
 const DOCS_REACH = /["'`/]docs\//;
-const TEST_CODE = /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtures)\/)/;
+const TEST_CODE =
+  /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtures)\/)/;
 
 /**
  * Files that read the disk and name another package or docs/ in a string that
@@ -181,10 +232,14 @@ const TEST_CODE = /(\.test\.[a-z]+$|\/(test-helpers|__tests__|__fixtures__|fixtu
  * scan skips these files; their imports are still followed.
  */
 export const LITERAL_FALSE_POSITIVES: Record<string, string> = {
-  "apps/server/convex/signals.test.ts": "docs/line/principles.md is a principles value in a fixture",
-  "apps/web/server/staticAssets.test.ts": "/docs/guide.js is a URL path passed to isBuildArtifactPath",
-  "apps/cli/src/cloudAgents/codex.test.ts": "packages/web is a directory it makes inside a temporary git repo",
-  "apps/web/lib/__tests__/tabLocation.test.ts": "/docs/test and docs/why?#.md are tab URLs it parses",
+  "apps/server/convex/signals.test.ts":
+    "docs/line/principles.md is a principles value in a fixture",
+  "apps/web/server/staticAssets.test.ts":
+    "/docs/guide.js is a URL path passed to isBuildArtifactPath",
+  "apps/cli/src/cloudAgents/codex.test.ts":
+    "packages/web is a directory it makes inside a temporary git repo",
+  "apps/web/lib/__tests__/tabLocation.test.ts":
+    "/docs/test and docs/why?#.md are tab URLs it parses",
 };
 
 /** Code with comments removed, so a path named in prose is not counted. */
@@ -197,13 +252,23 @@ function withoutComments(file: string, text: string): string {
 }
 
 /** The areas, and the directories behind them, a disk-reading file names outside its own package. */
-export function literalReach(file: string, text: string, ownPackage: string): Array<[Area, string]> {
+export function literalReach(
+  file: string,
+  text: string,
+  ownPackage: string,
+): Array<[Area, string]> {
   if (!READS_DISK.test(text)) return [];
   const code = withoutComments(file, text);
   if (!READS_DISK.test(code)) return [];
   const hits: Array<[Area, string]> = [];
   const testCode = TEST_CODE.test(file);
-  const matches = [...code.matchAll(RELATIVE_REACH), ...code.matchAll(SEGMENT_REACH), ...(testCode ? [...code.matchAll(ROOTED_REACH), ...code.matchAll(ROOTED_SEGMENT_REACH)] : [])];
+  const matches = [
+    ...code.matchAll(RELATIVE_REACH),
+    ...code.matchAll(SEGMENT_REACH),
+    ...(testCode
+      ? [...code.matchAll(ROOTED_REACH), ...code.matchAll(ROOTED_SEGMENT_REACH)]
+      : []),
+  ];
   for (const match of matches) {
     if (match[1] === ownPackage) continue;
     const dir = WORKSPACE_DIRS.get(match[1])!;
@@ -216,7 +281,11 @@ export function literalReach(file: string, text: string, ownPackage: string): Ar
 
 export type Reach = Map<Area | "unmapped", string[]>;
 
-type Node = { area: Area | "unmapped" | null; deps: string[]; reads: Array<[Area, string]> };
+type Node = {
+  area: Area | "unmapped" | null;
+  deps: string[];
+  reads: Array<[Area, string]>;
+};
 
 const nodes = new Map<string, Node>();
 
@@ -234,10 +303,19 @@ function nodeOf(file: string): Node {
   if (rel.startsWith("..")) return node;
   node.area = areaOf(rel) ?? "unmapped";
   // The mirror's own imports are npm packages.
-  if (node.area === "platform" || !CODE_EXT.test(file) || !existsSync(file) || !statSync(file).isFile()) return node;
+  if (
+    node.area === "platform" ||
+    !CODE_EXT.test(file) ||
+    !existsSync(file) ||
+    !statSync(file).isFile()
+  )
+    return node;
   const text = readFileSync(file, "utf8");
-  const ownPackage = WORKSPACE_ROOTS.includes(rel.split("/")[0]) ? rel.split("/")[1] : "";
-  node.reads = rel in LITERAL_FALSE_POSITIVES ? [] : literalReach(file, text, ownPackage);
+  const ownPackage = WORKSPACE_ROOTS.includes(rel.split("/")[0])
+    ? rel.split("/")[1]
+    : "";
+  node.reads =
+    rel in LITERAL_FALSE_POSITIVES ? [] : literalReach(file, text, ownPackage);
   for (const spec of importsOf(file, text)) {
     const target = resolveImport(spec, file);
     if (target) node.deps.push(target);
@@ -252,7 +330,9 @@ export function reachOfFile(test: string): Reach {
   const chainTo = (file: string) => {
     const chain: string[] = [];
     for (let at: string | null = file; at; at = parent.get(at) ?? null) {
-      chain.unshift(at === PLATFORM_MARKER ? "@platform/*" : relative(ROOT, at));
+      chain.unshift(
+        at === PLATFORM_MARKER ? "@platform/*" : relative(ROOT, at),
+      );
     }
     return chain;
   };
@@ -262,7 +342,8 @@ export function reachOfFile(test: string): Reach {
     const node = nodeOf(file);
     if (node.area && !reach.has(node.area)) reach.set(node.area, chainTo(file));
     for (const [area, dir] of node.reads) {
-      if (!reach.has(area)) reach.set(area, [...chainTo(file), `(reads ${dir} from disk)`]);
+      if (!reach.has(area))
+        reach.set(area, [...chainTo(file), `(reads ${dir} from disk)`]);
     }
     for (const dep of node.deps) {
       if (!parent.has(dep)) {
@@ -291,7 +372,8 @@ export function jobTests(job: string): string[] {
 export function reachOf(job: string): Reach {
   const reach: Reach = new Map();
   for (const test of jobTests(job)) {
-    for (const [area, chain] of reachOfFile(test)) if (!reach.has(area)) reach.set(area, chain);
+    for (const [area, chain] of reachOfFile(test))
+      if (!reach.has(area)) reach.set(area, chain);
   }
   return reach;
 }
@@ -302,11 +384,15 @@ export function reachOf(job: string): Reach {
  * always-run job runs them on every change. A file outside every area counts
  * as no crossing: any change to one runs every job.
  */
-export function crossingTests(job: string): Array<{ file: string; areas: Array<[Area, string[]]> }> {
+export function crossingTests(
+  job: string,
+): Array<{ file: string; areas: Array<[Area, string[]]> }> {
   const gate = new Set<string>(JOB_AREAS[job]);
   const out: Array<{ file: string; areas: Array<[Area, string[]]> }> = [];
   for (const test of jobTests(job)) {
-    const areas = [...reachOfFile(test)].filter(([area]) => area !== "unmapped" && !gate.has(area)) as Array<[Area, string[]]>;
+    const areas = [...reachOfFile(test)].filter(
+      ([area]) => area !== "unmapped" && !gate.has(area),
+    ) as Array<[Area, string[]]>;
     if (areas.length > 0) out.push({ file: relative(ROOT, test), areas });
   }
   return out;
@@ -317,11 +403,16 @@ if (import.meta.main) {
     const started = performance.now();
     const reach = reachOf(job);
     const crossing = crossingTests(job);
-    console.log(`${job} (${Math.round(performance.now() - started)}ms): gates on ${JOB_AREAS[job].join(", ")}; ${crossing.length} test files reach further`);
+    console.log(
+      `${job} (${Math.round(performance.now() - started)}ms): gates on ${JOB_AREAS[job].join(", ")}; ${crossing.length} test files reach further`,
+    );
     for (const area of [...AREAS, "unmapped" as const]) {
       const chain = reach.get(area);
       if (chain) console.log(`  ${area}: ${chain.join(" -> ")}`);
     }
-    for (const { file, areas } of crossing) console.log(`  always run ${file} (${areas.map(([area]) => area).join(", ")})`);
+    for (const { file, areas } of crossing)
+      console.log(
+        `  always run ${file} (${areas.map(([area]) => area).join(", ")})`,
+      );
   }
 }

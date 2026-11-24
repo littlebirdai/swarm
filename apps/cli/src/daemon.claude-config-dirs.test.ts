@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { findSessionFile, findStaleSessionFiles, primeSessionFileIndexAtBoot, refreshRecentSessionFileForTests, resetSessionFileIndexForTests } from "./daemon.js";
+import {
+  findSessionFile,
+  findStaleSessionFiles,
+  primeSessionFileIndexAtBoot,
+  refreshRecentSessionFileForTests,
+  resetSessionFileIndexForTests,
+} from "./daemon.js";
 import { resetClaudeConfigDirsCache } from "./claudeConfigDirs.js";
 
 // Alexander Green runs each Claude subscription under its own
@@ -14,7 +20,13 @@ import { resetClaudeConfigDirsCache } from "./claudeConfigDirs.js";
 
 const OLD = "7829f4de-5f42-4cd8-ae5b-56fe1464228a";
 const FRESH = "0b6c1f2e-1d3a-4c55-9a77-2f0e8c4d9b10";
-const transcript = (id: string) => JSON.stringify({ type: "user", sessionId: id, cwd: "/Users/alexandergreen", message: { role: "user", content: "hi" } }) + "\n";
+const transcript = (id: string) =>
+  JSON.stringify({
+    type: "user",
+    sessionId: id,
+    cwd: "/Users/alexandergreen",
+    message: { role: "user", content: "hi" },
+  }) + "\n";
 
 async function withHome(run: (home: string) => Promise<void>): Promise<void> {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "daemon-config-dirs-"));
@@ -48,7 +60,10 @@ describe("sessions under another CLAUDE_CONFIG_DIR", () => {
       fs.writeFileSync(oldFile, transcript(OLD));
 
       await primeSessionFileIndexAtBoot();
-      expect(findSessionFile(OLD, { staleOk: true })).toEqual({ path: oldFile, agentType: "claude" });
+      expect(findSessionFile(OLD, { staleOk: true })).toEqual({
+        path: oldFile,
+        agentType: "claude",
+      });
 
       // Born after the index walk: only the recent probe can find it.
       await new Promise((resolve) => setTimeout(resolve, 5));
@@ -58,17 +73,35 @@ describe("sessions under another CLAUDE_CONFIG_DIR", () => {
       expect(findSessionFile(FRESH, { staleOk: true })?.path).toBe(freshFile);
 
       // Never synced, so the watchdog's catch-up sweep owes both.
-      expect((await findStaleSessionFiles()).sort()).toEqual([freshFile, oldFile].sort());
+      expect((await findStaleSessionFiles()).sort()).toEqual(
+        [freshFile, oldFile].sort(),
+      );
     });
   });
 
   test("a copy in ~/.claude wins over the same session in another config dir", async () => {
     await withHome(async (home) => {
       const account3 = path.join(home, ".claude-account-3");
-      fs.mkdirSync(path.join(account3, "projects", "-Users-alexandergreen"), { recursive: true });
+      fs.mkdirSync(path.join(account3, "projects", "-Users-alexandergreen"), {
+        recursive: true,
+      });
       fs.writeFileSync(path.join(account3, ".claude.json"), "{}");
-      fs.writeFileSync(path.join(account3, "projects", "-Users-alexandergreen", `${OLD}.jsonl`), transcript(OLD));
-      const mine = path.join(home, ".claude", "projects", "-Users-alexandergreen", `${OLD}.jsonl`);
+      fs.writeFileSync(
+        path.join(
+          account3,
+          "projects",
+          "-Users-alexandergreen",
+          `${OLD}.jsonl`,
+        ),
+        transcript(OLD),
+      );
+      const mine = path.join(
+        home,
+        ".claude",
+        "projects",
+        "-Users-alexandergreen",
+        `${OLD}.jsonl`,
+      );
       fs.mkdirSync(path.dirname(mine), { recursive: true });
       fs.writeFileSync(mine, transcript(OLD));
 

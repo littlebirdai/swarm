@@ -18,8 +18,20 @@ import fs from "fs";
 import type { Command } from "commander";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { readLocalGitContext } from "./prCommand.js";
-import { buildReviewBatchPrompt, describeSendOutcome, placementLabel, reviewNoteLocation, type AnchorPlacement, type CodeAnchorText, type SendOutcome } from "@codecast/shared/comments";
-import { captureLocalAnchor, placeComments, readFileLines } from "./codeAnchorLocal.js";
+import {
+  buildReviewBatchPrompt,
+  describeSendOutcome,
+  placementLabel,
+  reviewNoteLocation,
+  type AnchorPlacement,
+  type CodeAnchorText,
+  type SendOutcome,
+} from "@codecast/shared/comments";
+import {
+  captureLocalAnchor,
+  placeComments,
+  readFileLines,
+} from "./codeAnchorLocal.js";
 
 export type ReviewNoteRow = {
   _id: string;
@@ -61,7 +73,11 @@ export function parseReviewTarget(input: string): ReviewTarget {
   if (range) {
     const start = Number(range[1]);
     const end = Number(range[2]);
-    return { filePath: head, lineNumber: Math.min(start, end), lineEnd: Math.max(start, end) };
+    return {
+      filePath: head,
+      lineNumber: Math.min(start, end),
+      lineEnd: Math.max(start, end),
+    };
   }
   return { filePath: input };
 }
@@ -73,17 +89,26 @@ export function parseReviewTarget(input: string): ReviewTarget {
  * cannot hash) is never called stale: an unprovable claim of staleness would
  * train the reader to ignore the flag.
  */
-export function isStale(stored: string | undefined, current: string | undefined): boolean {
+export function isStale(
+  stored: string | undefined,
+  current: string | undefined,
+): boolean {
   return !!stored && !!current && stored !== current;
 }
 
 /** `1`-based position in the listing, a full id, or an unambiguous id prefix. */
-export function resolveNoteRef(notes: ReviewNoteRow[], ref: string): ReviewNoteRow {
+export function resolveNoteRef(
+  notes: ReviewNoteRow[],
+  ref: string,
+): ReviewNoteRow {
   const index = /^\d+$/.test(ref) ? Number(ref) : 0;
   if (index >= 1 && index <= notes.length) return notes[index - 1];
   const matches = notes.filter((n) => n._id === ref || n._id.startsWith(ref));
   if (matches.length === 1) return matches[0];
-  if (matches.length > 1) throw new Error(`${ref} matches ${matches.length} notes. Use the number from cast review ls.`);
+  if (matches.length > 1)
+    throw new Error(
+      `${ref} matches ${matches.length} notes. Use the number from cast review ls.`,
+    );
   throw new Error(`No review note matches ${ref}`);
 }
 
@@ -107,13 +132,17 @@ export function formatReviewList(
       staleIds.has(note._id) && !placement ? "stale" : "",
       note.sent_at ? "sent" : "",
     ].filter(Boolean);
-    const shown = placement?.state === "moved" ? { ...note, line_number: placement.line, line_end: placement.lineEnd } : note;
+    const shown =
+      placement?.state === "moved"
+        ? { ...note, line_number: placement.line, line_end: placement.lineEnd }
+        : note;
     out.push(
       `${String(i + 1).padStart(2)}. ${note.file_path ?? "?"} · ${reviewNoteLocation({ ...shown, file_path: note.file_path ?? "" })}` +
         (flags.length ? `  [${flags.join(", ")}]` : ""),
     );
     if (placement?.state === "outdated") {
-      for (const line of note.anchor_lines?.lines ?? []) out.push(`    was: ${line}`);
+      for (const line of note.anchor_lines?.lines ?? [])
+        out.push(`    was: ${line}`);
     }
     for (const line of note.content.split("\n")) out.push(`    ${line}`);
   });
@@ -124,7 +153,11 @@ export function formatReviewList(
 
 function git(args: string[], cwd: string): string | null {
   try {
-    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     return null;
   }
@@ -140,13 +173,20 @@ export function repoRootOf(cwd: string): string | null {
  * the lines a note points at could have moved — and, unlike hashing the diff
  * text, committing the very same content does not fake a change.
  */
-export function fileDiffIdentity(repoRoot: string, relPath: string): string | undefined {
+export function fileDiffIdentity(
+  repoRoot: string,
+  relPath: string,
+): string | undefined {
   const blob = git(["hash-object", "--", relPath], repoRoot);
   return blob ? `blob:${blob.slice(0, 12)}` : undefined;
 }
 
 /** The path as the repository names it: relative to the root, posix separators. */
-export function repoRelativePath(repoRoot: string, cwd: string, input: string): string {
+export function repoRelativePath(
+  repoRoot: string,
+  cwd: string,
+  input: string,
+): string {
   const abs = path.resolve(cwd, input);
   const rel = path.relative(repoRoot, abs);
   return rel.split(path.sep).join("/");
@@ -161,7 +201,9 @@ function realCwd(): string {
 function requireRepoRoot(cwd: string): string {
   const root = repoRootOf(cwd);
   if (!root) {
-    console.error("cast review works inside a git checkout, and there is no repository here.");
+    console.error(
+      "cast review works inside a git checkout, and there is no repository here.",
+    );
     process.exit(1);
   }
   return root;
@@ -172,27 +214,42 @@ async function loadBatch(
   repoRoot: string,
   includeSent: boolean,
 ): Promise<ReviewNoteRow[]> {
-  const rows = await apiPost(deps, "/cli/review/list", { git_root: repoRoot, include_sent: includeSent }, { read: true });
+  const rows = await apiPost(
+    deps,
+    "/cli/review/list",
+    { git_root: repoRoot, include_sent: includeSent },
+    { read: true },
+  );
   return Array.isArray(rows) ? rows : [];
 }
 
 /** Which of these notes no longer match the file on disk. */
-export function staleIdsOf(repoRoot: string, notes: ReviewNoteRow[]): Set<string> {
+export function staleIdsOf(
+  repoRoot: string,
+  notes: ReviewNoteRow[],
+): Set<string> {
   const current = new Map<string, string | undefined>();
   const stale = new Set<string>();
   for (const note of notes) {
     if (!note.file_path) continue;
-    if (!current.has(note.file_path)) current.set(note.file_path, fileDiffIdentity(repoRoot, note.file_path));
-    if (isStale(note.diff_identity, current.get(note.file_path))) stale.add(note._id);
+    if (!current.has(note.file_path))
+      current.set(note.file_path, fileDiffIdentity(repoRoot, note.file_path));
+    if (isStale(note.diff_identity, current.get(note.file_path)))
+      stale.add(note._id);
   }
   return stale;
 }
 
-export function registerReviewCommand(program: Command, deps: PublishDeps): void {
+export function registerReviewCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   const review = program
     .command("review")
     .description(commandGroup("review").description)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
   cast review add src/api.ts:42 "this leaks on the error path"
   cast review add src/api.ts:10-20 "extract this"
   cast review add src/api.ts:file "the whole module needs a test"
@@ -205,49 +262,66 @@ export function registerReviewCommand(program: Command, deps: PublishDeps): void
 Notes live with the repository's other comments, so the web diff view shows the
 same ones. The batch belongs to this worktree; sending stamps the notes sent,
 and editing one puts it back in the batch.
-`);
+`,
+    );
 
   review
     .command("add")
     .description("Write a note on a file, a line, or a range")
-    .argument("<target>", "<path>:<line> | <path>:<start>-<end> | <path>:file | <path>")
+    .argument(
+      "<target>",
+      "<path>:<line> | <path>:<start>-<end> | <path>:file | <path>",
+    )
     .argument("<note>", "what you want done there")
     .option("--json", "as JSON")
-    .action(async (target: string, note: string, options: { json?: boolean }) => {
-      const cwd = realCwd();
-      const repoRoot = requireRepoRoot(cwd);
-      const parsed = parseReviewTarget(target);
-      const filePath = repoRelativePath(repoRoot, cwd, parsed.filePath);
-      // A suffix that is not a line, a range or `file` stays in the path; when
-      // no such file exists it was a mistyped place, not a path with a colon.
-      const colon = target.lastIndexOf(":");
-      if (parsed.filePath === target && colon > 0 && !fs.existsSync(path.join(repoRoot, filePath))) {
-        const head = target.slice(0, colon);
-        console.error(`"${target.slice(colon + 1)}" is not a line. Write ${head}:42, a range ${head}:10-20, or ${head}:file for the whole file.`);
-        process.exit(1);
-      }
-      const noteRow = {
-        file_path: filePath,
-        line_number: parsed.lineNumber,
-        line_end: parsed.lineEnd,
-        content: note,
-      };
-      const anchorLines = captureLocalAnchor(repoRoot, filePath, parsed.lineNumber, parsed.lineEnd);
-      const gitContext = readLocalGitContext(repoRoot);
-      const result = await apiPost(deps, "/cli/review/add", {
-        git_root: repoRoot,
-        repository: gitContext.repository ?? undefined,
-        ref: git(["rev-parse", "HEAD"], repoRoot) ?? undefined,
-        ...noteRow,
-        anchor_lines: anchorLines,
-        diff_identity: fileDiffIdentity(repoRoot, filePath),
-      });
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
-      console.log(`ok note on ${filePath} · ${reviewNoteLocation(noteRow)}`);
-    });
+    .action(
+      async (target: string, note: string, options: { json?: boolean }) => {
+        const cwd = realCwd();
+        const repoRoot = requireRepoRoot(cwd);
+        const parsed = parseReviewTarget(target);
+        const filePath = repoRelativePath(repoRoot, cwd, parsed.filePath);
+        // A suffix that is not a line, a range or `file` stays in the path; when
+        // no such file exists it was a mistyped place, not a path with a colon.
+        const colon = target.lastIndexOf(":");
+        if (
+          parsed.filePath === target &&
+          colon > 0 &&
+          !fs.existsSync(path.join(repoRoot, filePath))
+        ) {
+          const head = target.slice(0, colon);
+          console.error(
+            `"${target.slice(colon + 1)}" is not a line. Write ${head}:42, a range ${head}:10-20, or ${head}:file for the whole file.`,
+          );
+          process.exit(1);
+        }
+        const noteRow = {
+          file_path: filePath,
+          line_number: parsed.lineNumber,
+          line_end: parsed.lineEnd,
+          content: note,
+        };
+        const anchorLines = captureLocalAnchor(
+          repoRoot,
+          filePath,
+          parsed.lineNumber,
+          parsed.lineEnd,
+        );
+        const gitContext = readLocalGitContext(repoRoot);
+        const result = await apiPost(deps, "/cli/review/add", {
+          git_root: repoRoot,
+          repository: gitContext.repository ?? undefined,
+          ref: git(["rev-parse", "HEAD"], repoRoot) ?? undefined,
+          ...noteRow,
+          anchor_lines: anchorLines,
+          diff_identity: fileDiffIdentity(repoRoot, filePath),
+        });
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        console.log(`ok note on ${filePath} · ${reviewNoteLocation(noteRow)}`);
+      },
+    );
 
   review
     .command("ls")
@@ -258,9 +332,21 @@ and editing one puts it back in the batch.
       const repoRoot = requireRepoRoot(realCwd());
       const notes = await loadBatch(deps, repoRoot, !!options.all);
       const stale = staleIdsOf(repoRoot, notes);
-      const placements = placeComments(notes, (file) => readFileLines(repoRoot, file));
+      const placements = placeComments(notes, (file) =>
+        readFileLines(repoRoot, file),
+      );
       if (options.json) {
-        console.log(JSON.stringify(notes.map((n) => ({ ...n, stale: stale.has(n._id), placement: placements.get(n) ?? null })), null, 2));
+        console.log(
+          JSON.stringify(
+            notes.map((n) => ({
+              ...n,
+              stale: stale.has(n._id),
+              placement: placements.get(n) ?? null,
+            })),
+            null,
+            2,
+          ),
+        );
         return;
       }
       console.log(formatReviewList(notes, stale, placements));
@@ -269,63 +355,81 @@ and editing one puts it back in the batch.
   review
     .command("send")
     .description("Hand the batch to a session, in one message")
-    .argument("[session]", "session short id, uuid or conversation id (default: this session)")
+    .argument(
+      "[session]",
+      "session short id, uuid or conversation id (default: this session)",
+    )
     .option("--dry-run", "print the message instead of sending it")
     .option("--resolve", "resolve the notes once the session has them")
     .option("--json", "as JSON")
-    .action(async (session: string | undefined, options: { dryRun?: boolean; resolve?: boolean; json?: boolean }) => {
-      const repoRoot = requireRepoRoot(realCwd());
-      const notes = await loadBatch(deps, repoRoot, false);
-      if (notes.length === 0) {
-        console.error("No unsent review notes in this worktree.");
-        process.exit(1);
-      }
-      const stale = staleIdsOf(repoRoot, notes);
+    .action(
+      async (
+        session: string | undefined,
+        options: { dryRun?: boolean; resolve?: boolean; json?: boolean },
+      ) => {
+        const repoRoot = requireRepoRoot(realCwd());
+        const notes = await loadBatch(deps, repoRoot, false);
+        if (notes.length === 0) {
+          console.error("No unsent review notes in this worktree.");
+          process.exit(1);
+        }
+        const stale = staleIdsOf(repoRoot, notes);
 
-      if (options.dryRun) {
-        // Built from the same shared formatter the server uses, so the preview
-        // is the message and not an approximation of it.
-        console.log(buildReviewBatchPrompt({
-          actorName: "You",
-          notes: notes.map((n) => ({
-            file_path: n.file_path ?? "",
-            line_number: n.line_number,
-            line_end: n.line_end,
-            content: n.content,
-            stale: stale.has(n._id),
-          })),
-        }));
-        return;
-      }
+        if (options.dryRun) {
+          // Built from the same shared formatter the server uses, so the preview
+          // is the message and not an approximation of it.
+          console.log(
+            buildReviewBatchPrompt({
+              actorName: "You",
+              notes: notes.map((n) => ({
+                file_path: n.file_path ?? "",
+                line_number: n.line_number,
+                line_end: n.line_end,
+                content: n.content,
+                stale: stale.has(n._id),
+              })),
+            }),
+          );
+          return;
+        }
 
-      const target = session ?? deps.detectCurrentSessionId();
-      if (!target) {
-        console.error("Name the session to send to: cast review send <session>");
-        process.exit(1);
-      }
-      const result = await apiPost(deps, "/cli/review/send", {
-        git_root: repoRoot,
-        conversation_ref: target,
-        stale_ids: [...stale],
-        // Sent only when asked, so a plain send still reaches an older backend.
-        ...(options.resolve ? { resolve: true } : {}),
-      });
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
-      const outcome: SendOutcome | undefined = result.outcome;
-      if (!outcome) {
-        console.log(`ok sent ${result.sent} ${result.sent === 1 ? "note" : "notes"} to ${target}`);
-        return;
-      }
-      const line = describeSendOutcome(outcome, { to: result.short_id ?? target });
-      if (outcome.kind === "resolve_failed") {
-        console.error(`partial ${line}\nStill open: ${outcome.open_ids.join(", ")}`);
-        process.exit(1);
-      }
-      console.log(`ok ${line.charAt(0).toLowerCase()}${line.slice(1)}`);
-    });
+        const target = session ?? deps.detectCurrentSessionId();
+        if (!target) {
+          console.error(
+            "Name the session to send to: cast review send <session>",
+          );
+          process.exit(1);
+        }
+        const result = await apiPost(deps, "/cli/review/send", {
+          git_root: repoRoot,
+          conversation_ref: target,
+          stale_ids: [...stale],
+          // Sent only when asked, so a plain send still reaches an older backend.
+          ...(options.resolve ? { resolve: true } : {}),
+        });
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        const outcome: SendOutcome | undefined = result.outcome;
+        if (!outcome) {
+          console.log(
+            `ok sent ${result.sent} ${result.sent === 1 ? "note" : "notes"} to ${target}`,
+          );
+          return;
+        }
+        const line = describeSendOutcome(outcome, {
+          to: result.short_id ?? target,
+        });
+        if (outcome.kind === "resolve_failed") {
+          console.error(
+            `partial ${line}\nStill open: ${outcome.open_ids.join(", ")}`,
+          );
+          process.exit(1);
+        }
+        console.log(`ok ${line.charAt(0).toLowerCase()}${line.slice(1)}`);
+      },
+    );
 
   review
     .command("edit")
@@ -335,40 +439,82 @@ and editing one puts it back in the batch.
     .action(async (ref: string, note: string) => {
       const repoRoot = requireRepoRoot(realCwd());
       const target = resolveNoteRef(await loadBatch(deps, repoRoot, true), ref);
-      await apiPost(deps, "/cli/review/edit", { comment_id: target._id, content: note });
+      await apiPost(deps, "/cli/review/edit", {
+        comment_id: target._id,
+        content: note,
+      });
       console.log(`ok note on ${target.file_path ?? "?"} rewritten`);
     });
 
   review
     .command("disposition")
-    .description("Set a finding's disposition: fixed, rejected, or deferred as a promise with an owner and a due date")
-    .argument("<ref>", "the number from cast review ls, or the review comment id")
+    .description(
+      "Set a finding's disposition: fixed, rejected, or deferred as a promise with an owner and a due date",
+    )
+    .argument(
+      "<ref>",
+      "the number from cast review ls, or the review comment id",
+    )
     .argument("<disposition>", "fixed | deferred | rejected")
-    .option("--owner <who>", "who keeps a deferred promise: @role handle or a user (name, handle or email)")
-    .option("--due <when>", "when a deferred promise is due: an ISO day, or 7d / 2w from now")
+    .option(
+      "--owner <who>",
+      "who keeps a deferred promise: @role handle or a user (name, handle or email)",
+    )
+    .option(
+      "--due <when>",
+      "when a deferred promise is due: an ISO day, or 7d / 2w from now",
+    )
     .option("--task <ct-N>", "the task that will carry the promise")
     .option("--json", "as JSON")
-    .action(async (ref: string, disposition: string, options: { owner?: string; due?: string; task?: string; json?: boolean }) => {
-      if (!["fixed", "deferred", "rejected"].includes(disposition)) {
-        console.error("disposition is fixed, deferred or rejected");
-        process.exit(1);
-      }
-      const { parseDue } = await import("./reviewFindings.js");
-      const due_at = options.due ? parseDue(options.due) : undefined;
-      if (options.due && due_at === undefined) {
-        console.error(`cannot read a date from ${options.due}: use an ISO day or 7d / 2w`);
-        process.exit(1);
-      }
-      if (disposition === "deferred" && (!options.owner || !due_at)) {
-        console.error("A deferred finding is a promise: name who keeps it (--owner <@role or user>) and when (--due <date>)");
-        process.exit(1);
-      }
-      const isId = /^[a-z0-9]{20,}$/.test(ref);
-      const target = isId ? { _id: ref } : resolveNoteRef(await loadBatch(deps, requireRepoRoot(realCwd()), true), ref);
-      const result = await apiPost(deps, "/cli/review/disposition", { comment_id: target._id, disposition, owner: options.owner, due_at });
-      if (options.json) console.log(JSON.stringify(result, null, 2));
-      else console.log(`ok finding ${disposition}${disposition === "deferred" ? ` · ${options.owner} by ${new Date(due_at!).toISOString().slice(0, 10)}` : ""}`);
-    });
+    .action(
+      async (
+        ref: string,
+        disposition: string,
+        options: {
+          owner?: string;
+          due?: string;
+          task?: string;
+          json?: boolean;
+        },
+      ) => {
+        if (!["fixed", "deferred", "rejected"].includes(disposition)) {
+          console.error("disposition is fixed, deferred or rejected");
+          process.exit(1);
+        }
+        const { parseDue } = await import("./reviewFindings.js");
+        const due_at = options.due ? parseDue(options.due) : undefined;
+        if (options.due && due_at === undefined) {
+          console.error(
+            `cannot read a date from ${options.due}: use an ISO day or 7d / 2w`,
+          );
+          process.exit(1);
+        }
+        if (disposition === "deferred" && (!options.owner || !due_at)) {
+          console.error(
+            "A deferred finding is a promise: name who keeps it (--owner <@role or user>) and when (--due <date>)",
+          );
+          process.exit(1);
+        }
+        const isId = /^[a-z0-9]{20,}$/.test(ref);
+        const target = isId
+          ? { _id: ref }
+          : resolveNoteRef(
+              await loadBatch(deps, requireRepoRoot(realCwd()), true),
+              ref,
+            );
+        const result = await apiPost(deps, "/cli/review/disposition", {
+          comment_id: target._id,
+          disposition,
+          owner: options.owner,
+          due_at,
+        });
+        if (options.json) console.log(JSON.stringify(result, null, 2));
+        else
+          console.log(
+            `ok finding ${disposition}${disposition === "deferred" ? ` · ${options.owner} by ${new Date(due_at!).toISOString().slice(0, 10)}` : ""}`,
+          );
+      },
+    );
 
   review
     .command("rm")
@@ -384,6 +530,8 @@ and editing one puts it back in the batch.
       for (const target of targets) {
         await apiPost(deps, "/cli/review/rm", { comment_id: target._id });
       }
-      console.log(`ok dropped ${targets.length} ${targets.length === 1 ? "note" : "notes"}`);
+      console.log(
+        `ok dropped ${targets.length} ${targets.length === 1 ? "note" : "notes"}`,
+      );
     });
 }

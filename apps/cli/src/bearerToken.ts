@@ -26,11 +26,20 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { isDeviceBoundToken, presentToken, splitPresentedToken } from "@platform/auth/tokenFormat";
+import {
+  isDeviceBoundToken,
+  presentToken,
+  splitPresentedToken,
+} from "@platform/auth/tokenFormat";
 export { isDeviceBoundToken } from "@platform/auth/tokenFormat";
 import { defaultConfigDir } from "./config/configDir.js";
 import { deviceId, previousDeviceId } from "./remote/device.js";
-import { TokenDecryptError, decryptToken, encryptToken, isEncryptedToken } from "./tokenEncryption.js";
+import {
+  TokenDecryptError,
+  decryptToken,
+  encryptToken,
+  isEncryptedToken,
+} from "./tokenEncryption.js";
 
 /**
  * Whether a mint (`cast auth`, `cast login`) asks the server to bind the new
@@ -58,8 +67,13 @@ export function secretFromStored(stored: string): string {
  * the pending mint would keep a process alive that should exit at once, and
  * the minted device it presents meanwhile is still accepted.
  */
-export function bearerFromStored(stored: string, opts: { heal?: boolean } = {}): string {
-  const { secret, deviceId: stamped } = splitPresentedToken(plainFromStored(stored));
+export function bearerFromStored(
+  stored: string,
+  opts: { heal?: boolean } = {},
+): string {
+  const { secret, deviceId: stamped } = splitPresentedToken(
+    plainFromStored(stored),
+  );
   if (!isDeviceBoundToken(secret)) return secret;
   const record = readHealRecord();
   if (record?.from === fingerprint(secret)) {
@@ -68,13 +82,15 @@ export function bearerFromStored(stored: string, opts: { heal?: boolean } = {}):
         "This machine's Codecast sign-in is bound to another machine and could not be moved here. Run `cast auth` to sign this machine in.",
       );
     }
-    if (record.to && secretFromStored(record.to) !== secret) return bearerFromStored(record.to, opts);
+    if (record.to && secretFromStored(record.to) !== secret)
+      return bearerFromStored(record.to, opts);
   }
   const current = deviceId();
   // A token stored before devices were kept beside it: after a key rotation,
   // the device it was minted for is the one the old key gave.
   const minted = stamped ?? previousDeviceId() ?? current;
-  if (minted !== current && opts.heal) startDeviceTokenHeal(secret, minted, current);
+  if (minted !== current && opts.heal)
+    startDeviceTokenHeal(secret, minted, current);
   return presentToken(secret, minted);
 }
 
@@ -128,12 +144,19 @@ const HEAL_RETRY_MS = 10 * 60_000;
  * move tries again without looping. The lock in deviceTokenHeal.ts keeps
  * separate processes from minting twice.
  */
-function startDeviceTokenHeal(secret: string, minted: string, current: string): void {
+function startDeviceTokenHeal(
+  secret: string,
+  minted: string,
+  current: string,
+): void {
   if (heal || Date.now() - lastHealAt < HEAL_RETRY_MS) return;
   lastHealAt = Date.now();
   heal = import("./deviceTokenHeal.js")
     .then((m) => m.healDeviceToken({ secret, minted, current }))
-    .then(() => {}, () => {})
+    .then(
+      () => {},
+      () => {},
+    )
     .finally(() => {
       heal = null;
     });

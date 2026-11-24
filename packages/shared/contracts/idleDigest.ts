@@ -17,7 +17,10 @@ export const IDLE_TYPE = "session_idle";
 const NAMED = 2;
 
 /** The fold-up's title and body, from the waiting sessions' titles. */
-export function summarizeIdleDigest(titles: string[]): { title: string; message: string } {
+export function summarizeIdleDigest(titles: string[]): {
+  title: string;
+  message: string;
+} {
   const n = titles.length;
   const verb = n === 1 ? "needs" : "need";
   const named = titles.slice(0, NAMED);
@@ -33,11 +36,22 @@ export function summarizeIdleDigest(titles: string[]): { title: string; message:
 }
 
 /** The shape the grouping needs off a notification row. */
-export type IdleGroupRow = { type?: string; created_at?: number; read?: boolean };
+export type IdleGroupRow = {
+  type?: string;
+  created_at?: number;
+  read?: boolean;
+};
 
 export type IdleGrouped<T> =
   | { kind: "single"; row: T; key: string }
-  | { kind: "group"; digest: T | null; rows: T[]; unread: number; newestAt: number; key: string };
+  | {
+      kind: "group";
+      digest: T | null;
+      rows: T[];
+      unread: number;
+      newestAt: number;
+      key: string;
+    };
 
 /**
  * Collapse each waiting burst into one entry, newest first.

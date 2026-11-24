@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { computeLocalProjectRoots, invalidateLocalProjectRoots, refreshLocalProjectRoots } from "./daemon.js";
+import {
+  computeLocalProjectRoots,
+  invalidateLocalProjectRoots,
+  refreshLocalProjectRoots,
+} from "./daemon.js";
 
 // The heartbeat reads project roots every 30s from a snapshot that a
 // background walk refreshes. The read itself never touches the filesystem:

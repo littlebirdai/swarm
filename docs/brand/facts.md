@@ -44,22 +44,22 @@ Source: `apps/web/app/(marketing)/pricing/page.tsx`.
 
 Each has a page at codecast.sh/features/<slug> (`apps/web/app/(marketing)/features/catalog.ts`).
 
-| Feature | What you can say | Page |
-|---|---|---|
-| Inbox | Every session on every machine in one list, sorted by who acts next: needs input, working, idle | / |
-| Memory | Search and ask across every past session; `cast blame` traces a line of code to the conversation that wrote it | /features/memory |
-| Spawn and fork | Delegate to a new session, branch a conversation, switch agent or model mid-session | /features/agents |
-| Triggers | Work that runs later: on a schedule, on a PR comment, on an event | /features/triggers |
-| Flows | Every change takes the same path: check, review, decide, land, deploy | /features/flows |
-| Decisions | One queue for the calls only a person can make, answerable from the phone | /features/decisions |
-| Pull requests | A PR is owned by the session that opened it; review comments and red checks wake it | /features/pull-requests |
-| Browser | Agents drive your own Chrome in a background tab | /features/browser |
-| Computer | Agents use native Mac apps through the accessibility tree | /features/computer |
-| Publish | A URL for anything an agent makes: report, dashboard, mockup | /features/publish |
-| Calls | Team calls transcribed by speaker; agents read them and file what was agreed | /features/calls |
-| Cloud hosts | Run sessions on your own server, started from your laptop checkout | /features/cloud |
-| Org | Roles your agents work inside, with daily caps on work and tokens | /features/org |
-| Mods | Small modules that add panes, commands and live object cards to the app | /features/mods |
+| Feature        | What you can say                                                                                               | Page                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Inbox          | Every session on every machine in one list, sorted by who acts next: needs input, working, idle                | /                       |
+| Memory         | Search and ask across every past session; `cast blame` traces a line of code to the conversation that wrote it | /features/memory        |
+| Spawn and fork | Delegate to a new session, branch a conversation, switch agent or model mid-session                            | /features/agents        |
+| Triggers       | Work that runs later: on a schedule, on a PR comment, on an event                                              | /features/triggers      |
+| Flows          | Every change takes the same path: check, review, decide, land, deploy                                          | /features/flows         |
+| Decisions      | One queue for the calls only a person can make, answerable from the phone                                      | /features/decisions     |
+| Pull requests  | A PR is owned by the session that opened it; review comments and red checks wake it                            | /features/pull-requests |
+| Browser        | Agents drive your own Chrome in a background tab                                                               | /features/browser       |
+| Computer       | Agents use native Mac apps through the accessibility tree                                                      | /features/computer      |
+| Publish        | A URL for anything an agent makes: report, dashboard, mockup                                                   | /features/publish       |
+| Calls          | Team calls transcribed by speaker; agents read them and file what was agreed                                   | /features/calls         |
+| Cloud hosts    | Run sessions on your own server, started from your laptop checkout                                             | /features/cloud         |
+| Org            | Roles your agents work inside, with daily caps on work and tokens                                              | /features/org           |
+| Mods           | Small modules that add panes, commands and live object cards to the app                                        | /features/mods          |
 
 ## Numbers you may use
 

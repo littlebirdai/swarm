@@ -32,7 +32,8 @@ export function codeLines(src: string): Array<{ line: string; n: number }> {
 
 function lineOf(src: string, idx: number): number {
   let n = 1;
-  for (let i = 0; i < idx && i < src.length; i++) if (src.charCodeAt(i) === 10) n++;
+  for (let i = 0; i < idx && i < src.length; i++)
+    if (src.charCodeAt(i) === 10) n++;
   return n;
 }
 
@@ -58,18 +59,34 @@ export function blockAt(src: string, startIdx: number): SourceBlock {
     // `} else {`, `} catch (e) {` and `} finally {` continue the same block.
     const rest = line.slice(indent.length + 1);
     if (rest.includes("{") || /^\s*(else|catch|finally)\b/.test(rest)) continue;
-    return { text: lines.slice(startLine - 1, i + 1).join("\n"), startLine, endLine: i + 1 };
+    return {
+      text: lines.slice(startLine - 1, i + 1).join("\n"),
+      startLine,
+      endLine: i + 1,
+    };
   }
-  throw new Error(`blockAt: no closing line at indent ${JSON.stringify(indent)} after line ${startLine}`);
+  throw new Error(
+    `blockAt: no closing line at indent ${JSON.stringify(indent)} after line ${startLine}`,
+  );
 }
 
 /** The block of `function NAME(` (any of: `function`, `async function`,
  *  `export [async] function`, or an indented method `NAME(...) {` when
  *  `method` is set), searched from `from`. */
-export function functionBlock(src: string, name: string, opts: { from?: number; method?: boolean } = {}): SourceBlock {
+export function functionBlock(
+  src: string,
+  name: string,
+  opts: { from?: number; method?: boolean } = {},
+): SourceBlock {
   const re = opts.method
-    ? new RegExp(`^[ \\t]+(?:private\\s+|public\\s+|protected\\s+)?(?:static\\s+)?(?:async\\s+)?${name}\\s*\\(`, "m")
-    : new RegExp(`^[ \\t]*(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\s*[(<]`, "m");
+    ? new RegExp(
+        `^[ \\t]+(?:private\\s+|public\\s+|protected\\s+)?(?:static\\s+)?(?:async\\s+)?${name}\\s*\\(`,
+        "m",
+      )
+    : new RegExp(
+        `^[ \\t]*(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\s*[(<]`,
+        "m",
+      );
   const tail = src.slice(opts.from ?? 0);
   const m = re.exec(tail);
   if (!m) throw new Error(`functionBlock: ${name} not found`);
@@ -77,7 +94,11 @@ export function functionBlock(src: string, name: string, opts: { from?: number; 
 }
 
 /** Every `setInterval(` call block between `from` and `to`. */
-export function intervalBlocks(src: string, from: number, to: number): SourceBlock[] {
+export function intervalBlocks(
+  src: string,
+  from: number,
+  to: number,
+): SourceBlock[] {
   const out: SourceBlock[] = [];
   let idx = from;
   for (;;) {
@@ -91,12 +112,27 @@ export function intervalBlocks(src: string, from: number, to: number): SourceBlo
 }
 
 /** The text between two anchors, as a block with file line numbers. */
-export function sliceBetween(src: string, startAnchor: string, endAnchor: string, from = 0): SourceBlock {
+export function sliceBetween(
+  src: string,
+  startAnchor: string,
+  endAnchor: string,
+  from = 0,
+): SourceBlock {
   const s = src.indexOf(startAnchor, from);
   if (s < 0) throw new Error(`sliceBetween: ${startAnchor} not found`);
   const e = src.indexOf(endAnchor, s);
-  if (e < 0) throw new Error(`sliceBetween: ${endAnchor} not found after ${startAnchor}`);
+  if (e < 0)
+    throw new Error(
+      `sliceBetween: ${endAnchor} not found after ${startAnchor}`,
+    );
   const startLine = lineOf(src, s);
   const endLine = lineOf(src, e);
-  return { text: src.split("\n").slice(startLine - 1, endLine).join("\n"), startLine, endLine };
+  return {
+    text: src
+      .split("\n")
+      .slice(startLine - 1, endLine)
+      .join("\n"),
+    startLine,
+    endLine,
+  };
 }

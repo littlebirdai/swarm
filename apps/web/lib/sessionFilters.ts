@@ -22,8 +22,10 @@ export function isSubagent(c: FilterableSession): boolean {
 
 export function isTrivialSubagent(c: FilterableSession): boolean {
   if (!isSubagent(c)) return false;
-  const userMsgCount = c.message_alternates?.filter((m) => m.role === "user").length ?? 0;
-  const aiMsgCount = c.message_alternates?.filter((m) => m.role === "assistant").length ?? 0;
+  const userMsgCount =
+    c.message_alternates?.filter((m) => m.role === "user").length ?? 0;
+  const aiMsgCount =
+    c.message_alternates?.filter((m) => m.role === "assistant").length ?? 0;
   if (c.ai_message_count !== undefined) {
     return c.ai_message_count <= 1 && userMsgCount === 0;
   }
@@ -46,17 +48,23 @@ export const SYSTEM_MESSAGE_PREFIXES = [
 
 export function isSystemMessageSession(c: FilterableSession): boolean {
   const title = c.title?.trim() || "";
-  return SYSTEM_MESSAGE_PREFIXES.some(prefix => title.startsWith(prefix));
+  return SYSTEM_MESSAGE_PREFIXES.some((prefix) => title.startsWith(prefix));
 }
 
 export function isWarmupSession(c: FilterableSession): boolean {
   if (c.title?.toLowerCase() === "warmup") return true;
   if ((c.message_count ?? 0) > 3) return false;
 
-  const firstUserMsg = c.message_alternates?.find((m) => m.role === "user")?.content?.toLowerCase().trim() || "";
+  const firstUserMsg =
+    c.message_alternates
+      ?.find((m) => m.role === "user")
+      ?.content?.toLowerCase()
+      .trim() || "";
   const firstAssistantMsg =
     c.first_assistant_message?.toLowerCase() ||
-    c.message_alternates?.find((m) => m.role === "assistant")?.content?.toLowerCase() ||
+    c.message_alternates
+      ?.find((m) => m.role === "assistant")
+      ?.content?.toLowerCase() ||
     "";
 
   // Filter out conversations with only warmup user message and one AI response
@@ -74,8 +82,12 @@ export function isWarmupSession(c: FilterableSession): boolean {
   return warmupPatterns.some((p) => firstAssistantMsg.includes(p));
 }
 
-export function shouldShowSession(c: FilterableSession, options?: { excludeDefaultTitles?: boolean; showWorkflowSubs?: boolean }): boolean {
-  if (isTrivialSubagent(c) || isWarmupSession(c) || isSystemMessageSession(c)) return false;
+export function shouldShowSession(
+  c: FilterableSession,
+  options?: { excludeDefaultTitles?: boolean; showWorkflowSubs?: boolean },
+): boolean {
+  if (isTrivialSubagent(c) || isWarmupSession(c) || isSystemMessageSession(c))
+    return false;
   if (options?.excludeDefaultTitles && isDefaultTitleSession(c)) return false;
   if (c.is_workflow_sub && !options?.showWorkflowSubs) return false;
   if (isRunLog(c)) return false;

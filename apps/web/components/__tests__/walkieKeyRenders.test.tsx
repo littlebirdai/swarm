@@ -11,7 +11,14 @@
 // The key subscribes to a signature of its OWN room now. This file is the
 // promise in both directions: it holds still through the churn, and it still
 // wakes the moment this key's own answer changes.
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { dmRoomKey } from "@codecast/shared/contracts";
@@ -26,7 +33,23 @@ beforeAll(async () => {
     url: "https://local.codecast.sh/",
   });
   const g = globalThis as any;
-  for (const k of ["window", "document", "navigator", "location", "localStorage", "sessionStorage", "matchMedia", "Element", "HTMLElement", "Node", "MutationObserver", "getComputedStyle", "AudioContext", "requestAnimationFrame", "IS_REACT_ACT_ENVIRONMENT"]) {
+  for (const k of [
+    "window",
+    "document",
+    "navigator",
+    "location",
+    "localStorage",
+    "sessionStorage",
+    "matchMedia",
+    "Element",
+    "HTMLElement",
+    "Node",
+    "MutationObserver",
+    "getComputedStyle",
+    "AudioContext",
+    "requestAnimationFrame",
+    "IS_REACT_ACT_ENVIRONMENT",
+  ]) {
     hadGlobals.set(k, { had: k in g, was: g[k] });
   }
   g.window = dom.window;
@@ -37,7 +60,13 @@ beforeAll(async () => {
   g.location = dom.window.location;
   g.localStorage = dom.window.localStorage;
   g.sessionStorage = dom.window.sessionStorage;
-  g.matchMedia = dom.window.matchMedia ?? (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  g.matchMedia =
+    dom.window.matchMedia ??
+    (() => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
   g.Element = dom.window.Element;
   g.HTMLElement = dom.window.HTMLElement;
   g.Node = dom.window.Node;
@@ -51,11 +80,42 @@ beforeAll(async () => {
     currentTime = 0;
     destination = {};
     resume = () => Promise.resolve();
-    createGain = () => ({ gain: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, connect() {}, disconnect() {} });
-    createOscillator = () => ({ frequency: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, type: "sine", connect() {}, start() {}, stop() {}, disconnect() {} });
-    createAnalyser = () => ({ fftSize: 256, smoothingTimeConstant: 0, getByteTimeDomainData: () => {} });
+    createGain = () => ({
+      gain: {
+        value: 1,
+        setValueAtTime() {},
+        exponentialRampToValueAtTime() {},
+        linearRampToValueAtTime() {},
+      },
+      connect() {},
+      disconnect() {},
+    });
+    createOscillator = () => ({
+      frequency: {
+        value: 1,
+        setValueAtTime() {},
+        exponentialRampToValueAtTime() {},
+        linearRampToValueAtTime() {},
+      },
+      type: "sine",
+      connect() {},
+      start() {},
+      stop() {},
+      disconnect() {},
+    });
+    createAnalyser = () => ({
+      fftSize: 256,
+      smoothingTimeConstant: 0,
+      getByteTimeDomainData: () => {},
+    });
     createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
-    createBiquadFilter = () => ({ type: "lowpass", frequency: { value: 1, setValueAtTime() {} }, Q: { value: 1 }, connect() {}, disconnect() {} });
+    createBiquadFilter = () => ({
+      type: "lowpass",
+      frequency: { value: 1, setValueAtTime() {} },
+      Q: { value: 1 },
+      connect() {},
+      disconnect() {},
+    });
     close = () => Promise.resolve();
   };
   // Load the engine and the store graph here, once, with the page in place:
@@ -114,7 +174,13 @@ async function mountFaces() {
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(React.createElement("div", null, MEMBERS.map((m) => React.createElement(Face, { key: m, memberId: m }))));
+    root.render(
+      React.createElement(
+        "div",
+        null,
+        MEMBERS.map((m) => React.createElement(Face, { key: m, memberId: m })),
+      ),
+    );
   });
   return { renders, root, act, host };
 }
@@ -124,7 +190,10 @@ describe("walkie: the key's subscription", () => {
     // The render counts below are only about the shipped key if the shipped key
     // subscribes this way. Read from the source because the hook cannot be
     // asked at runtime: the suite next door replaces it wholesale.
-    const source = readFileSync(new URL("../../hooks/useWalkie.ts", import.meta.url), "utf8");
+    const source = readFileSync(
+      new URL("../../hooks/useWalkie.ts", import.meta.url),
+      "utf8",
+    );
     const body = source.slice(source.indexOf("export function usePushToTalk"));
     const hook = body.slice(0, body.indexOf("\n}"));
     expect(hook).toContain("useWalkieKeySig(roomKey)");
@@ -144,7 +213,10 @@ describe("walkie: a bar of faces through somebody else's burst", () => {
    *  What is exercised is the recompute and the status push. */
   async function bindEngine() {
     const walkie = await import("../../lib/calls/walkie");
-    walkie.bindWalkie({ mutation: async () => null, action: async () => null } as any);
+    walkie.bindWalkie({
+      mutation: async () => null,
+      action: async () => null,
+    } as any);
     // A clean slate. The engine's status is module state, so a walkie left
     // mid-report by an earlier test file in this process would give one of the
     // six faces a key that moves under the churn below — and this test counts
@@ -192,7 +264,9 @@ describe("walkie: a bar of faces through somebody else's burst", () => {
     const { useInboxStore } = await import("../../store/inboxStore");
     // From a known idle call plane, whatever the file before this one left
     // behind: the engine is a module singleton and these tests share it.
-    useInboxStore.getState().setCallState({ roomKey: null, phase: "idle", muted: true });
+    useInboxStore
+      .getState()
+      .setCallState({ roomKey: null, phase: "idle", muted: true });
     walkie.refreshWalkie();
     expect(walkie.getWalkieStatus().unavailable).toBeNull();
 
@@ -200,7 +274,9 @@ describe("walkie: a bar of faces through somebody else's burst", () => {
     const before = { ...renders };
 
     await act(async () => {
-      useInboxStore.getState().setCallState({ roomKey: "dm:somewhere:else", phase: "connected" });
+      useInboxStore
+        .getState()
+        .setCallState({ roomKey: "dm:somewhere:else", phase: "connected" });
       walkie.refreshWalkie();
     });
 

@@ -10,11 +10,24 @@
 
 import { useMemo, useState } from "react";
 import { ThreadStatePanelView } from "@/components/ThreadStatePanel";
-import { TriggerRowItem, type TriggerVerbAction } from "@/components/TriggerRow";
+import {
+  TriggerRowItem,
+  type TriggerVerbAction,
+} from "@/components/TriggerRow";
 import { WorkflowGraphView } from "@/components/WorkflowGraphView";
 import { WorkflowRunPanel } from "@/components/WorkflowContextPanel";
 import type { TaskRow } from "@/components/triggerTasks";
-import { GRAPH_CROP, nodeStatuses, pinnedState, triggerRows, triggerRuns, WORKFLOW, workflowRun, type RunPhase, type TriggerEdits } from "../fixtures/automation";
+import {
+  GRAPH_CROP,
+  nodeStatuses,
+  pinnedState,
+  triggerRows,
+  triggerRuns,
+  WORKFLOW,
+  workflowRun,
+  type RunPhase,
+  type TriggerEdits,
+} from "../fixtures/automation";
 import { SESSIONS } from "../fixtures/story";
 import { fly, useFilmTime } from "../filmClock";
 import { AUTO_AT, PHASE_CUES, PHASES, phaseAt } from "./automation.motion";
@@ -25,13 +38,14 @@ import type { PartProps } from "./contract";
 const noop = () => {};
 
 /** What each verb does to a fixture row: the status the store's action would write. */
-const VERB_STATUS: Record<Parameters<TriggerVerbAction>[1], TaskRow["status"]> = {
-  pause: "paused",
-  resume: "scheduled",
-  runNow: "running",
-  cancel: "completed",
-  reactivate: "scheduled",
-};
+const VERB_STATUS: Record<Parameters<TriggerVerbAction>[1], TaskRow["status"]> =
+  {
+    pause: "paused",
+    resume: "scheduled",
+    runNow: "running",
+    cancel: "completed",
+    reactivate: "scheduled",
+  };
 
 /**
  * The graph is React Flow: a fixed box its measurements can trust, and no
@@ -48,7 +62,16 @@ function PhaseGraph({ now, phase }: { now: number; phase: RunPhase }) {
   const statuses = useMemo(() => nodeStatuses(phase), [phase]);
   const current = workflowRun(now, phase).current_node_id;
   return useMemo(
-    () => <WorkflowGraphView nodes={GRAPH_CROP.nodes} edges={GRAPH_CROP.edges} nodeStatuses={statuses} currentNodeId={current} chrome={false} fitPadding={0.03} />,
+    () => (
+      <WorkflowGraphView
+        nodes={GRAPH_CROP.nodes}
+        edges={GRAPH_CROP.edges}
+        nodeStatuses={statuses}
+        currentNodeId={current}
+        chrome={false}
+        fitPadding={0.03}
+      />
+    ),
     [statuses, current],
   );
 }
@@ -77,7 +100,11 @@ function GraphCrossfade({ now }: { now: number }) {
       <div className="absolute inset-0">
         <PhaseGraph now={now} phase={PHASES[base]} />
       </div>
-      <div className="absolute inset-0 bg-sol-bg" style={{ opacity: k }} aria-hidden>
+      <div
+        className="absolute inset-0 bg-sol-bg"
+        style={{ opacity: k }}
+        aria-hidden
+      >
         <PhaseGraph now={now} phase={PHASES[next]} />
       </div>
     </div>
@@ -87,7 +114,9 @@ function GraphCrossfade({ now }: { now: number }) {
 export function AutomationSurface({ now }: PartProps) {
   // The countdown's seconds, then the run's phase: each a discrete step of the film.
   // Ten minutes out until the surface comes into view, then the last seconds.
-  const fireIn = useFilmTime((t) => (t < AUTO_AT.fires - 4 ? 600 : Math.max(0, Math.ceil(AUTO_AT.fires - t))));
+  const fireIn = useFilmTime((t) =>
+    t < AUTO_AT.fires - 4 ? 600 : Math.max(0, Math.ceil(AUTO_AT.fires - t)),
+  );
   const phase = useFilmTime(phaseAt);
   const before = useFilmTime((t) => t < AUTO_AT.fires - 6);
   const [edits, setEdits] = useState<TriggerEdits>({});
@@ -100,15 +129,27 @@ export function AutomationSurface({ now }: PartProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const wall = useMemo(() => Date.now(), [step]);
 
-  const act: TriggerVerbAction = (id, verb) => setEdits((e) => ({ ...e, [id]: { ...e[id], status: VERB_STATUS[verb] } }));
+  const act: TriggerVerbAction = (id, verb) =>
+    setEdits((e) => ({ ...e, [id]: { ...e[id], status: VERB_STATUS[verb] } }));
 
   // The rows, the pinned state and the run panel each cross a change of phase as a dissolve with their height eased (FilmSwap), so a run landing in the trigger's history or a step turning green never reflows them in one frame. The countdown still ticks inside the settled rows.
-  const rowsAt = (step: number) => triggerRows(now, wall, PHASES[step], fireIn, edits);
+  const rowsAt = (step: number) =>
+    triggerRows(now, wall, PHASES[step], fireIn, edits);
   const trigger = (i: number, step: number) => {
     const p = PHASES[step];
     const row = rowsAt(step)[i];
     const runs = triggerRuns(now, wall, p);
-    return <TriggerRowItem key={i === 0 ? `${step}:${fireIn}@${wall}` : undefined} row={row} variant="page" isNext={i === 0 && p === "armed"} onOpen={noop} actions={act} history={{ runs: runs[row.task._id] ?? [], open: noop }} />;
+    return (
+      <TriggerRowItem
+        key={i === 0 ? `${step}:${fireIn}@${wall}` : undefined}
+        row={row}
+        variant="page"
+        isNext={i === 0 && p === "armed"}
+        onOpen={noop}
+        actions={act}
+        history={{ runs: runs[row.task._id] ?? [], open: noop }}
+      />
+    );
   };
   const pinnedView = (step: number) => {
     const p = PHASES[step];
@@ -143,7 +184,11 @@ export function AutomationSurface({ now }: PartProps) {
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_420px] items-start gap-4 px-5 pt-3">
         <div className="min-w-0">
           {rowsAt(PHASES.indexOf(phase)).map((row, i) => (
-            <div key={row.task._id} data-hero-live="" {...fly(`auto/automation.row:${i}`)}>
+            <div
+              key={row.task._id}
+              data-hero-live=""
+              {...fly(`auto/automation.row:${i}`)}
+            >
               <FilmSwap cues={PHASE_CUES} render={(step) => trigger(i, step)} />
             </div>
           ))}
@@ -152,8 +197,20 @@ export function AutomationSurface({ now }: PartProps) {
             <FilmSwap cues={PHASE_CUES} through render={pinnedView} />
           </div>
         </div>
-        <div className="min-w-0 overflow-hidden rounded-lg border border-sol-border/40" {...fly("auto/automation.run")}>
-          <FilmSwap cues={PHASE_CUES} render={(step) => <WorkflowRunPanel run={workflowRun(now, PHASES[step])} workflow={WORKFLOW} defaultExpanded />} />
+        <div
+          className="min-w-0 overflow-hidden rounded-lg border border-sol-border/40"
+          {...fly("auto/automation.run")}
+        >
+          <FilmSwap
+            cues={PHASE_CUES}
+            render={(step) => (
+              <WorkflowRunPanel
+                run={workflowRun(now, PHASES[step])}
+                workflow={WORKFLOW}
+                defaultExpanded
+              />
+            )}
+          />
         </div>
       </div>
     </div>

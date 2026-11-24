@@ -30,11 +30,20 @@ test("the built addon answers from inside an app bundle and never throws outside
   } catch {
     return;
   }
-  assert.deepEqual(Object.keys(addon).sort(), ["authorizationStatus", "onActivate", "post", "requestAuthorization", "windowFrame"]);
+  assert.deepEqual(Object.keys(addon).sort(), [
+    "authorizationStatus",
+    "onActivate",
+    "post",
+    "requestAuthorization",
+    "windowFrame",
+  ]);
   assert.equal(addon.authorizationStatus(), -1);
   assert.equal(addon.requestAuthorization(), undefined);
   assert.equal(addon.post("title", "body"), null);
-  assert.equal(addon.onActivate(() => {}), undefined);
+  assert.equal(
+    addon.onActivate(() => {}),
+    undefined,
+  );
   // A window that does not exist, or no id at all, is null rather than a throw.
   assert.equal(addon.windowFrame(0), null);
   assert.equal(addon.windowFrame(2 ** 31 - 2), null);
@@ -50,109 +59,225 @@ test("the built addon answers from inside an app bundle and never throws outside
 // the test after them pins what every other platform gets.
 const NOT_MAC = process.platform !== "darwin";
 
-test("notify posts through the addon and routes a click to its own handler", { skip: NOT_MAC }, () => {
-  const posted = [];
-  let activate = null;
-  let asked = 0;
-  const addon = {
-    authorizationStatus: () => 2,
-    requestAuthorization: () => { asked++; },
-    post: (title, body) => { posted.push({ title, body }); return `id-${posted.length}`; },
-    onActivate: (cb) => { activate = cb; },
-  };
-  const p = createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: addon });
-  const clicks = [];
-  assert.equal(p.notify("A", "first", () => clicks.push("a")), true);
-  assert.equal(p.notify("B", "second", () => clicks.push("b")), true);
-  assert.equal(p.notify("C", "no handler"), true);
-  assert.deepEqual(posted.map((x) => x.title), ["A", "B", "C"]);
-  assert.equal(asked, 0, "already authorized: no prompt");
-  activate("id-2");
-  activate("id-2");
-  activate("id-3");
-  assert.deepEqual(clicks, ["b"]);
-});
+test(
+  "notify posts through the addon and routes a click to its own handler",
+  { skip: NOT_MAC },
+  () => {
+    const posted = [];
+    let activate = null;
+    let asked = 0;
+    const addon = {
+      authorizationStatus: () => 2,
+      requestAuthorization: () => {
+        asked++;
+      },
+      post: (title, body) => {
+        posted.push({ title, body });
+        return `id-${posted.length}`;
+      },
+      onActivate: (cb) => {
+        activate = cb;
+      },
+    };
+    const p = createOsPermissions({
+      electron: stubElectron(),
+      bundleId: APP,
+      notifications: addon,
+    });
+    const clicks = [];
+    assert.equal(
+      p.notify("A", "first", () => clicks.push("a")),
+      true,
+    );
+    assert.equal(
+      p.notify("B", "second", () => clicks.push("b")),
+      true,
+    );
+    assert.equal(p.notify("C", "no handler"), true);
+    assert.deepEqual(
+      posted.map((x) => x.title),
+      ["A", "B", "C"],
+    );
+    assert.equal(asked, 0, "already authorized: no prompt");
+    activate("id-2");
+    activate("id-2");
+    activate("id-3");
+    assert.deepEqual(clicks, ["b"]);
+  },
+);
 
 // A banner carries its click target, so a click still lands once the
 // in-memory handler is gone: the app relaunched (an update) while the banner
 // sat in Notification Center. The listener is wired at boot, before any post.
-test("a click with no live handler goes to the boot listener with the banner's payload", { skip: NOT_MAC }, () => {
-  const posted = [];
-  let activate = null;
-  let wired = 0;
-  const addon = {
-    authorizationStatus: () => 2,
-    requestAuthorization: () => {},
-    post: (title, body, payload) => { posted.push(payload); return `id-${posted.length}`; },
-    onActivate: (cb) => { activate = cb; wired++; },
-  };
-  const p = createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: addon });
-  const routed = [];
-  assert.equal(p.listenForClicks((payload) => routed.push(payload)), true);
-  assert.equal(wired, 1, "wired at boot, before any banner");
-  // A banner from an earlier run: no handler here, only its payload.
-  activate("id-old", '{"route":"/conversation/x"}');
-  assert.deepEqual(routed, ['{"route":"/conversation/x"}']);
+test(
+  "a click with no live handler goes to the boot listener with the banner's payload",
+  { skip: NOT_MAC },
+  () => {
+    const posted = [];
+    let activate = null;
+    let wired = 0;
+    const addon = {
+      authorizationStatus: () => 2,
+      requestAuthorization: () => {},
+      post: (title, body, payload) => {
+        posted.push(payload);
+        return `id-${posted.length}`;
+      },
+      onActivate: (cb) => {
+        activate = cb;
+        wired++;
+      },
+    };
+    const p = createOsPermissions({
+      electron: stubElectron(),
+      bundleId: APP,
+      notifications: addon,
+    });
+    const routed = [];
+    assert.equal(
+      p.listenForClicks((payload) => routed.push(payload)),
+      true,
+    );
+    assert.equal(wired, 1, "wired at boot, before any banner");
+    // A banner from an earlier run: no handler here, only its payload.
+    activate("id-old", '{"route":"/conversation/x"}');
+    assert.deepEqual(routed, ['{"route":"/conversation/x"}']);
 
-  // This run's banner: its own handler wins over the payload.
-  const clicks = [];
-  assert.equal(p.notify("A", "a", () => clicks.push("a"), '{"route":"/conversation/a"}'), true);
-  assert.deepEqual(posted, ['{"route":"/conversation/a"}']);
-  activate("id-1", '{"route":"/conversation/a"}');
-  assert.deepEqual(clicks, ["a"]);
-  assert.equal(routed.length, 1);
-  // A banner with no payload and no handler does nothing.
-  activate("id-none");
-  assert.equal(routed.length, 1);
-  // Wiring again re-claims the delegate and keeps the listener.
-  p.listenForClicks();
-  activate("id-old2", '{"route":"/conversation/y"}');
-  assert.equal(routed.length, 2);
-});
+    // This run's banner: its own handler wins over the payload.
+    const clicks = [];
+    assert.equal(
+      p.notify("A", "a", () => clicks.push("a"), '{"route":"/conversation/a"}'),
+      true,
+    );
+    assert.deepEqual(posted, ['{"route":"/conversation/a"}']);
+    activate("id-1", '{"route":"/conversation/a"}');
+    assert.deepEqual(clicks, ["a"]);
+    assert.equal(routed.length, 1);
+    // A banner with no payload and no handler does nothing.
+    activate("id-none");
+    assert.equal(routed.length, 1);
+    // Wiring again re-claims the delegate and keeps the listener.
+    p.listenForClicks();
+    activate("id-old2", '{"route":"/conversation/y"}');
+    assert.equal(routed.length, 2);
+  },
+);
 
-test("notify prompts first when never asked, and reports false when nothing can post", { skip: NOT_MAC }, () => {
-  let asked = 0;
-  const addon = {
-    authorizationStatus: () => 0,
-    requestAuthorization: () => { asked++; },
-    post: () => "id",
-    onActivate: () => {},
-  };
-  const p = createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: addon });
-  assert.equal(p.notify("t", "b"), true);
-  assert.equal(asked, 1);
-  // No addon, or an addon built before `post` existed: the caller falls back.
-  assert.equal(createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: null }).notify("t", "b"), false);
-  const old = { authorizationStatus: () => 2, requestAuthorization: () => {} };
-  assert.equal(createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: old }).notify("t", "b"), false);
-  // A post that returns nothing (outside a bundle) is not a delivery.
-  const mute = { ...addon, post: () => null };
-  assert.equal(createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: mute }).notify("t", "b"), false);
-});
+test(
+  "notify prompts first when never asked, and reports false when nothing can post",
+  { skip: NOT_MAC },
+  () => {
+    let asked = 0;
+    const addon = {
+      authorizationStatus: () => 0,
+      requestAuthorization: () => {
+        asked++;
+      },
+      post: () => "id",
+      onActivate: () => {},
+    };
+    const p = createOsPermissions({
+      electron: stubElectron(),
+      bundleId: APP,
+      notifications: addon,
+    });
+    assert.equal(p.notify("t", "b"), true);
+    assert.equal(asked, 1);
+    // No addon, or an addon built before `post` existed: the caller falls back.
+    assert.equal(
+      createOsPermissions({
+        electron: stubElectron(),
+        bundleId: APP,
+        notifications: null,
+      }).notify("t", "b"),
+      false,
+    );
+    const old = {
+      authorizationStatus: () => 2,
+      requestAuthorization: () => {},
+    };
+    assert.equal(
+      createOsPermissions({
+        electron: stubElectron(),
+        bundleId: APP,
+        notifications: old,
+      }).notify("t", "b"),
+      false,
+    );
+    // A post that returns nothing (outside a bundle) is not a delivery.
+    const mute = { ...addon, post: () => null };
+    assert.equal(
+      createOsPermissions({
+        electron: stubElectron(),
+        bundleId: APP,
+        notifications: mute,
+      }).notify("t", "b"),
+      false,
+    );
+  },
+);
 
 // A run from source is the ad-hoc signed Electron.app, which macOS refuses to
 // let ask for notifications: no prompt, no error the app can see. It must not
 // read as "ask", or the setup list offers a Turn on that does nothing.
-test("a build that cannot hold the notification grant reads n/a and never asks", { skip: NOT_MAC }, async () => {
-  let asked = 0;
-  const addon = { authorizationStatus: () => 0, requestAuthorization: () => { asked++; }, post: () => "id", onActivate: () => {} };
-  const p = createOsPermissions({ electron: stubElectron(), bundleId: "com.github.Electron", notifications: addon, notificationsGrantable: false });
-  assert.equal((await p.getAll()).notifications, "n/a");
-  assert.equal(await p.request("notifications"), "n/a");
-  p.notify("t", "b");
-  assert.equal(asked, 0);
-});
+test(
+  "a build that cannot hold the notification grant reads n/a and never asks",
+  { skip: NOT_MAC },
+  async () => {
+    let asked = 0;
+    const addon = {
+      authorizationStatus: () => 0,
+      requestAuthorization: () => {
+        asked++;
+      },
+      post: () => "id",
+      onActivate: () => {},
+    };
+    const p = createOsPermissions({
+      electron: stubElectron(),
+      bundleId: "com.github.Electron",
+      notifications: addon,
+      notificationsGrantable: false,
+    });
+    assert.equal((await p.getAll()).notifications, "n/a");
+    assert.equal(await p.request("notifications"), "n/a");
+    p.notify("t", "b");
+    assert.equal(asked, 0);
+  },
+);
 
-test("notify never posts off macOS, even with a working addon, so the caller falls back", { skip: !NOT_MAC }, () => {
-  let posts = 0;
-  const addon = { authorizationStatus: () => 2, requestAuthorization: () => {}, post: () => { posts++; return "id"; }, onActivate: () => {} };
-  assert.equal(createOsPermissions({ electron: stubElectron(), bundleId: APP, notifications: addon }).notify("t", "b"), false);
-  assert.equal(posts, 0);
-});
+test(
+  "notify never posts off macOS, even with a working addon, so the caller falls back",
+  { skip: !NOT_MAC },
+  () => {
+    let posts = 0;
+    const addon = {
+      authorizationStatus: () => 2,
+      requestAuthorization: () => {},
+      post: () => {
+        posts++;
+        return "id";
+      },
+      onActivate: () => {},
+    };
+    assert.equal(
+      createOsPermissions({
+        electron: stubElectron(),
+        bundleId: APP,
+        notifications: addon,
+      }).notify("t", "b"),
+      false,
+    );
+    assert.equal(posts, 0);
+  },
+);
 
 function stubElectron() {
   return {
-    systemPreferences: { getMediaAccessStatus: () => "granted", askForMediaAccess: async () => true },
+    systemPreferences: {
+      getMediaAccessStatus: () => "granted",
+      askForMediaAccess: async () => true,
+    },
     desktopCapturer: { getSources: async () => [] },
     shell: { openExternal: () => {} },
   };
@@ -186,9 +311,17 @@ function fakeElectron(status) {
     electron: {
       systemPreferences: {
         getMediaAccessStatus: (k) => status[k],
-        askForMediaAccess: async (k) => { log.push(`ask:${k}`); return status[k] === "not-determined"; },
+        askForMediaAccess: async (k) => {
+          log.push(`ask:${k}`);
+          return status[k] === "not-determined";
+        },
       },
-      desktopCapturer: { getSources: async () => { log.push("capture"); return []; } },
+      desktopCapturer: {
+        getSources: async () => {
+          log.push("capture");
+          return [];
+        },
+      },
       shell: { openExternal: (u) => log.push(`open:${u}`) },
     },
     notifications: {
@@ -199,12 +332,21 @@ function fakeElectron(status) {
 }
 
 function permissions(f) {
-  return createOsPermissions({ electron: f.electron, bundleId: APP, notifications: f.notifications });
+  return createOsPermissions({
+    electron: f.electron,
+    bundleId: APP,
+    notifications: f.notifications,
+  });
 }
 
 test("getAll: notifications come from the addon, media from systemPreferences", async () => {
   if (process.platform !== "darwin") return;
-  const f = fakeElectron({ notifications: 2, microphone: "granted", camera: "not-determined", screen: "denied" });
+  const f = fakeElectron({
+    notifications: 2,
+    microphone: "granted",
+    camera: "not-determined",
+    screen: "denied",
+  });
   assert.deepEqual(await permissions(f).getAll(), {
     notifications: "granted",
     microphone: "granted",
@@ -216,14 +358,20 @@ test("getAll: notifications come from the addon, media from systemPreferences", 
 test("getAll: no addon (unbuilt, non-mac build) → notifications unknown, never a nag", async () => {
   if (process.platform !== "darwin") return;
   const f = fakeElectron({ microphone: "granted" });
-  const p = createOsPermissions({ electron: f.electron, bundleId: APP, notifications: null });
+  const p = createOsPermissions({
+    electron: f.electron,
+    bundleId: APP,
+    notifications: null,
+  });
   assert.equal((await p.getAll()).notifications, "unknown");
 });
 
 test("getAll: an addon that throws reads as unknown", async () => {
   if (process.platform !== "darwin") return;
   const f = fakeElectron({});
-  f.notifications.authorizationStatus = () => { throw new Error("boom"); };
+  f.notifications.authorizationStatus = () => {
+    throw new Error("boom");
+  };
   assert.equal((await permissions(f).getAll()).notifications, "unknown");
 });
 
@@ -242,7 +390,11 @@ test("request: notifications raise the OS prompt; screen captures once then open
   const p = permissions(f);
   assert.equal(await p.request("notifications"), "ask");
   assert.equal(await p.request("screen"), "ask");
-  assert.deepEqual(f.log, ["request:notifications", "capture", `open:${settingsUrl("screen", APP)}`]);
+  assert.deepEqual(f.log, [
+    "request:notifications",
+    "capture",
+    `open:${settingsUrl("screen", APP)}`,
+  ]);
 });
 
 test("openSettings goes to the kind's pane", () => {

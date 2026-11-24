@@ -27,9 +27,11 @@ const BIDI_CONTROL_RE = /[\u202A-\u202E\u2066-\u2069]/g;
 function sanitizeInvisibleUnicode(value: string): string {
   if (!value) return value;
   return value
-    .replace(INVISIBLE_STRIP_RE, '')
-    .replace(BIDI_CONTROL_RE, (ch) =>
-      `[U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}]`,
+    .replace(INVISIBLE_STRIP_RE, "")
+    .replace(
+      BIDI_CONTROL_RE,
+      (ch) =>
+        `[U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}]`,
     );
 }
 
@@ -42,7 +44,7 @@ export function remarkSanitizeInvisibleUnicode() {
   return (tree: any) => {
     const walk = (node: any) => {
       if (!node) return;
-      if (node.type === 'text' && typeof node.value === 'string') {
+      if (node.type === "text" && typeof node.value === "string") {
         node.value = sanitizeInvisibleUnicode(node.value);
       }
       if (Array.isArray(node.children)) node.children.forEach(walk);
@@ -66,4 +68,8 @@ export const MD_REHYPE_PLUGINS = [rehypeHighlight];
 // security control, and a surface that assembles its own list silently drops it.
 // remarkDrafting turns a doc's drafting spans (alternatives, ghosts, Lab
 // flags) into what a reader sees instead of literal tags.
-export const MD_REMARK_PLUGINS = [remarkDrafting, ...entityRemarkPlugins, remarkSanitizeInvisibleUnicode];
+export const MD_REMARK_PLUGINS = [
+  remarkDrafting,
+  ...entityRemarkPlugins,
+  remarkSanitizeInvisibleUnicode,
+];

@@ -19,16 +19,26 @@ let lazyRendered = false;
 export function loadComposeView(): Promise<typeof ComposeViewType> {
   // A failed warm-up must not become the open's answer: forget it, so the key
   // press imports again.
-  loading ??= namedExport(() => import("../components/ComposeView"), "ComposeView").then(
+  loading ??= namedExport(
+    () => import("../components/ComposeView"),
+    "ComposeView",
+  ).then(
     (ComposeView) => (loaded = ComposeView),
-    (error) => { loading = null; throw error; },
+    (error) => {
+      loading = null;
+      throw error;
+    },
   );
   return loading;
 }
 
-const LazyComposeView = lazy(() => loadComposeView().then((ComposeView) => ({ default: ComposeView })));
+const LazyComposeView = lazy(() =>
+  loadComposeView().then((ComposeView) => ({ default: ComposeView })),
+);
 
-export function composeViewComponent(): typeof ComposeViewType | typeof LazyComposeView {
+export function composeViewComponent():
+  | typeof ComposeViewType
+  | typeof LazyComposeView {
   if (loaded && !lazyRendered) return loaded;
   lazyRendered = true;
   return LazyComposeView;

@@ -12,7 +12,8 @@ function home(): string {
   return h;
 }
 afterEach(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 const empty: DriverLedger = { files: {} };
@@ -24,7 +25,13 @@ describe("plan", () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, "---\nname: deploy\n---\nbody\n");
     const ops = plan(
-      [{ slug: "builtin/deploy", relPath: ".claude/skills/deploy/SKILL.md", content: "---\nname: deploy\n---\nbody\n" }],
+      [
+        {
+          slug: "builtin/deploy",
+          relPath: ".claude/skills/deploy/SKILL.md",
+          content: "---\nname: deploy\n---\nbody\n",
+        },
+      ],
       { files: { "builtin/deploy": [file] } },
       { home: h },
     );
@@ -37,13 +44,25 @@ describe("plan", () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, "line one   \nline two\n\n\n");
     const same = plan(
-      [{ slug: "s", relPath: ".claude/skills/d/SKILL.md", content: "line one\nline two\n" }],
+      [
+        {
+          slug: "s",
+          relPath: ".claude/skills/d/SKILL.md",
+          content: "line one\nline two\n",
+        },
+      ],
       empty,
       { home: h },
     );
     expect(same).toEqual([]);
     const changed = plan(
-      [{ slug: "s", relPath: ".claude/skills/d/SKILL.md", content: "line one\nline THREE\n" }],
+      [
+        {
+          slug: "s",
+          relPath: ".claude/skills/d/SKILL.md",
+          content: "line one\nline THREE\n",
+        },
+      ],
       empty,
       { home: h },
     );
@@ -59,14 +78,20 @@ describe("plan", () => {
           slug: "mkt/evil/x",
           relPath: ".claude/skills/x/SKILL.md",
           content: "innocent",
-          declaredWrites: [".claude/skills/x/SKILL.md", "~/.claude/settings.json"],
+          declaredWrites: [
+            ".claude/skills/x/SKILL.md",
+            "~/.claude/settings.json",
+          ],
         },
       ],
       empty,
       { home: h },
     );
     expect(ops).toHaveLength(1);
-    expect(ops[0]).toMatchObject({ op: "conflict", reason: "declared_writes_mismatch" });
+    expect(ops[0]).toMatchObject({
+      op: "conflict",
+      reason: "declared_writes_mismatch",
+    });
     // The whole entry is refused — no write op rides along with the conflict.
   });
 
@@ -82,7 +107,10 @@ describe("plan", () => {
       { home: h },
     );
     expect(ops).toHaveLength(1);
-    expect(ops[0]).toMatchObject({ op: "conflict", reason: "path_outside_roots" });
+    expect(ops[0]).toMatchObject({
+      op: "conflict",
+      reason: "path_outside_roots",
+    });
   });
 
   test("a plain path outside the roots is refused without needing a symlink", () => {
@@ -92,7 +120,10 @@ describe("plan", () => {
       empty,
       { home: h },
     );
-    expect(ops[0]).toMatchObject({ op: "conflict", reason: "path_outside_roots" });
+    expect(ops[0]).toMatchObject({
+      op: "conflict",
+      reason: "path_outside_roots",
+    });
   });
 
   test("removal comes from the ledger, and a tampered ledger is refused", () => {
@@ -110,7 +141,9 @@ describe("plan", () => {
     const removes = ops.filter((o) => o.op === "remove");
     const conflicts = ops.filter((o) => o.op === "conflict");
     expect(removes).toHaveLength(1);
-    expect((removes[0] as any).path).toBe(fs.realpathSync(path.dirname(owned)) + path.sep + "SKILL.md");
+    expect((removes[0] as any).path).toBe(
+      fs.realpathSync(path.dirname(owned)) + path.sep + "SKILL.md",
+    );
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0]).toMatchObject({ reason: "ledger_path_outside_roots" });
   });
@@ -138,11 +171,20 @@ describe("apply", () => {
   test("writes are recorded in the ledger and repeated applies stay idempotent", () => {
     const h = home();
     const file = path.join(h, ".claude", "skills", "d", "SKILL.md");
-    const desired = [{ slug: "builtin/d", relPath: ".claude/skills/d/SKILL.md", content: "body\n" }];
+    const desired = [
+      {
+        slug: "builtin/d",
+        relPath: ".claude/skills/d/SKILL.md",
+        content: "body\n",
+      },
+    ];
     const ops = plan(desired, empty, { home: h });
     const outcome = apply(ops, empty);
     expect(outcome.wrote).toHaveLength(1);
-    expect(outcome.ledger.files["builtin/d"]).toEqual([fs.realpathSync(path.dirname(path.dirname(file))) + `${path.sep}d${path.sep}SKILL.md`]);
+    expect(outcome.ledger.files["builtin/d"]).toEqual([
+      fs.realpathSync(path.dirname(path.dirname(file))) +
+        `${path.sep}d${path.sep}SKILL.md`,
+    ]);
     // Second pass: plan sees the steady state, applies nothing.
     const again = plan(desired, outcome.ledger, { home: h });
     expect(again).toEqual([]);
@@ -169,7 +211,10 @@ describe("apply", () => {
       empty,
     );
     expect(outcome.conflicts).toHaveLength(1);
-    expect(outcome.conflicts[0]).toMatchObject({ slug: "kit/d", reason: "write_failed" });
+    expect(outcome.conflicts[0]).toMatchObject({
+      slug: "kit/d",
+      reason: "write_failed",
+    });
     // The file that landed is recorded, so the next plan knows it is ours.
     expect(outcome.ledger.files["kit/d"]).toEqual([good]);
     // The failed slug stops; an unrelated slug still installs.
@@ -186,11 +231,15 @@ describe("apply", () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(file, "x");
     fs.writeFileSync(keeper, "the user's own notes");
-    const real = (p: string) => path.join(fs.realpathSync(path.dirname(p)), path.basename(p));
+    const real = (p: string) =>
+      path.join(fs.realpathSync(path.dirname(p)), path.basename(p));
 
-    const outcome = apply([{ op: "remove", path: real(file), slug: "builtin/gone" }], {
-      files: { "builtin/gone": [real(file)] },
-    });
+    const outcome = apply(
+      [{ op: "remove", path: real(file), slug: "builtin/gone" }],
+      {
+        files: { "builtin/gone": [real(file)] },
+      },
+    );
     expect(outcome.removed).toHaveLength(1);
     // The user's file survived, and BECAUSE it did, so did the directory.
     expect(fs.existsSync(keeper)).toBe(true);
@@ -200,9 +249,12 @@ describe("apply", () => {
     // Now the directory is emptied by removing the last listed file: it goes.
     fs.unlinkSync(keeper);
     fs.writeFileSync(file, "x");
-    const second = apply([{ op: "remove", path: real(file), slug: "builtin/gone" }], {
-      files: { "builtin/gone": [real(file)] },
-    });
+    const second = apply(
+      [{ op: "remove", path: real(file), slug: "builtin/gone" }],
+      {
+        files: { "builtin/gone": [real(file)] },
+      },
+    );
     expect(second.removed).toHaveLength(1);
     expect(fs.existsSync(dir)).toBe(false);
   });

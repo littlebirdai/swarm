@@ -21,5 +21,7 @@ export function causeHeading(labels: ReadonlyArray<string>): string {
   // Only whole leading words shared ("Implement blocked: …" + "Implement ended without a report"): the step stopped.
   const space = common.lastIndexOf(" ");
   const words = space > 0 ? common.slice(0, space).trim() : "";
-  return words ? `${words} stopped${at}` : `${heads[0].split(/[:,]/)[0].trim()}${at}`;
+  return words
+    ? `${words} stopped${at}`
+    : `${heads[0].split(/[:,]/)[0].trim()}${at}`;
 }

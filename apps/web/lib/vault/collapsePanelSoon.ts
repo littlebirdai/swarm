@@ -18,7 +18,9 @@ export function collapsePanelSoon(
     ref.collapse();
   } catch {
     if (frames > 0) {
-      requestAnimationFrame(() => collapsePanelSoon(panelRef, stillWanted, frames - 1));
+      requestAnimationFrame(() =>
+        collapsePanelSoon(panelRef, stillWanted, frames - 1),
+      );
     }
   }
 }

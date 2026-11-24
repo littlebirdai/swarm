@@ -25,7 +25,9 @@ export function isRestricted(channel: Doc<"chat_channels">): boolean {
 
 /** The product's public rooms: every visitor reads, every signed-in user
  *  writes. The routing team is where they are managed, not who may enter. */
-export function isCommunity(channel: Doc<"chat_channels"> | null | undefined): boolean {
+export function isCommunity(
+  channel: Doc<"chat_channels"> | null | undefined,
+): boolean {
   return channel?.kind === "community";
 }
 
@@ -35,7 +37,9 @@ export function isCommunity(channel: Doc<"chat_channels"> | null | undefined): b
  * rail. The one place chat answers a question for an anonymous caller;
  * every write still needs a signed-in user.
  */
-export function canReadChannelAnonymously(channel: Doc<"chat_channels"> | null): boolean {
+export function canReadChannelAnonymously(
+  channel: Doc<"chat_channels"> | null,
+): boolean {
   return !!channel && isCommunity(channel) && !channel.archived_at;
 }
 
@@ -47,7 +51,8 @@ export async function isChannelMember(
   const row = await ctx.db
     .query("chat_channel_members")
     .withIndex("by_channel_user", (q: any) =>
-      q.eq("channel_id", channelId).eq("user_id", userId))
+      q.eq("channel_id", channelId).eq("user_id", userId),
+    )
     .first();
   return !!row;
 }
@@ -90,7 +95,8 @@ export async function canAccessChannel(
   if (!(await isTeamMember(ctx as any, userId, channel.team_id))) return false;
   // Chat is a per-team opt-in: a team that turned it off (or never turned it
   // on) has no readable channels, member or not.
-  if (!(await teamHasFeature(ctx as any, channel.team_id, "chat"))) return false;
+  if (!(await teamHasFeature(ctx as any, channel.team_id, "chat")))
+    return false;
   if (isRestricted(channel)) {
     if (await isChannelMember(ctx, channel._id, userId)) return true;
     // The anchor's host stands in for the anchor. An anchor is a MEMBER of the
@@ -99,7 +105,11 @@ export async function canAccessChannel(
     // may enter those rooms too. Their machine runs the anchor and holds the
     // transcript, so this widens nothing they could not already see. Only DM
     // rooms: a private channel never has a bot member.
-    if (channel.kind === "dm" && await hostsAnchorIn(ctx, channel._id, userId)) return true;
+    if (
+      channel.kind === "dm" &&
+      (await hostsAnchorIn(ctx, channel._id, userId))
+    )
+      return true;
     // A role or session in a room (a member put it in a private room, or a
     // session's own DM with people) reads and answers there as the person who
     // runs it, the same stand-in an anchor's host is for its DM rooms: the
@@ -119,7 +129,11 @@ async function runsAgentIn(
   for (const row of await channelAgentRows(ctx, channelId)) {
     if (row.conversation_id) {
       const conversation = await ctx.db.get(row.conversation_id);
-      if (conversation && (await isConversationOwner(ctx as any, userId, conversation as any))) return true;
+      if (
+        conversation &&
+        (await isConversationOwner(ctx as any, userId, conversation as any))
+      )
+        return true;
     } else if (row.role_id) {
       const role = await ctx.db.get(row.role_id);
       if (role && isRunner(role, userId)) return true;
@@ -130,9 +144,14 @@ async function runsAgentIn(
 
 // The host or personal owner of an anchor, or of a role (whose standing
 // session runs on its host's machine): both rows carry the same two fields.
-function isRunner(row: Pick<Doc<"anchors">, "host_user_id" | "scope_user_id">, userId: Id<"users">): boolean {
-  return row.host_user_id.toString() === userId.toString()
-    || (!!row.scope_user_id && row.scope_user_id.toString() === userId.toString());
+function isRunner(
+  row: Pick<Doc<"anchors">, "host_user_id" | "scope_user_id">,
+  userId: Id<"users">,
+): boolean {
+  return (
+    row.host_user_id.toString() === userId.toString() ||
+    (!!row.scope_user_id && row.scope_user_id.toString() === userId.toString())
+  );
 }
 
 // Is `userId` the host (or personal owner) of an anchor whose bot identity is a
@@ -215,13 +234,22 @@ export async function sessionChatScope(
   if (origin.origin !== "agent") return null;
   const ref = (origin.origin_session_id ?? "").trim();
   const conversation: Doc<"conversations"> | null = ref
-    ? await findConversationByAnyRefWhere(ctx, ref, (c) => isConversationOwner(ctx as any, userId, c))
+    ? await findConversationByAnyRefWhere(ctx, ref, (c) =>
+        isConversationOwner(ctx as any, userId, c),
+      )
     : null;
   // Who speaks as the role in its bot's DMs (chat.ts sessionVoice: the
   // standing session, a hand, a station of the role's run) reads them too.
   // Grants and room rows written for the role open only to its seat.
-  const role = conversation ? await roleWorkedFor(ctx as any, conversation) : null;
-  const seatRole = role && conversation?.standing_role_id && String(conversation.standing_role_id) === String(role._id) ? role : null;
+  const role = conversation
+    ? await roleWorkedFor(ctx as any, conversation)
+    : null;
+  const seatRole =
+    role &&
+    conversation?.standing_role_id &&
+    String(conversation.standing_role_id) === String(role._id)
+      ? role
+      : null;
   // A role's hand speaks as the role in the DMs its bot is in (chat.ts
   // sessionVoice), so it reads them too. The anchor's own session and a
   // role's standing session count only while the anchor still points at
@@ -231,12 +259,20 @@ export async function sessionChatScope(
   for (const anchorId of [conversation?.anchor_id, role?.anchor_id]) {
     const anchor = anchorId ? await ctx.db.get(anchorId) : null;
     if (!anchor?.bot_user_id || anchor.status === "decommissioned") continue;
-    const seatOnly = anchorId === conversation?.anchor_id || !!conversation?.standing_role_id;
-    if (seatOnly && anchor.conversation_id && String(anchor.conversation_id) !== String(conversation!._id)) continue;
+    const seatOnly =
+      anchorId === conversation?.anchor_id || !!conversation?.standing_role_id;
+    if (
+      seatOnly &&
+      anchor.conversation_id &&
+      String(anchor.conversation_id) !== String(conversation!._id)
+    )
+      continue;
     botIds.push(String(anchor.bot_user_id));
   }
   return {
-    label: conversation ? conversation.short_id ?? String(conversation._id).slice(0, 7) : "",
+    label: conversation
+      ? (conversation.short_id ?? String(conversation._id).slice(0, 7))
+      : "",
     conversation,
     role: seatRole,
     botIds,
@@ -245,11 +281,21 @@ export async function sessionChatScope(
 }
 
 /** A person's line, not a session's or an agent's: only such a mention lets a session in. */
-const personAuthored = (row: Doc<"chat_messages">) => row.origin !== "agent" && row.author_kind !== "agent";
+const personAuthored = (row: Doc<"chat_messages">) =>
+  row.origin !== "agent" && row.author_kind !== "agent";
 
-const mentionsScope = (row: Doc<"chat_messages">, conversationId: string, roleId: string | null) =>
-  (row.mentions ?? []).some((m: any) => typeof m === "object"
-    && ((m?.kind === "session" && String(m.conversation_id) === conversationId) || (!!roleId && m?.kind === "role" && String(m.role_id) === roleId)));
+const mentionsScope = (
+  row: Doc<"chat_messages">,
+  conversationId: string,
+  roleId: string | null,
+) =>
+  (row.mentions ?? []).some(
+    (m: any) =>
+      typeof m === "object" &&
+      ((m?.kind === "session" &&
+        String(m.conversation_id) === conversationId) ||
+        (!!roleId && m?.kind === "role" && String(m.role_id) === roleId)),
+  );
 
 /**
  * May the session behind `scope` read this room? Always, when it is not a DM.
@@ -271,52 +317,115 @@ export async function sessionMayReadChannel(
   }
   if (scope.verdicts.get(key)) return true;
   // A thread read also passes on that thread's own grant.
-  return !!opts.thread && await threadGranted(ctx, scope, channel, opts.thread);
+  return (
+    !!opts.thread && (await threadGranted(ctx, scope, channel, opts.thread))
+  );
 }
 
-async function threadGranted(ctx: ReadCtx, scope: SessionChatScope, channel: Doc<"chat_channels">, thread: Id<"chat_messages">): Promise<boolean> {
+async function threadGranted(
+  ctx: ReadCtx,
+  scope: SessionChatScope,
+  channel: Doc<"chat_channels">,
+  thread: Id<"chat_messages">,
+): Promise<boolean> {
   if (!scope.conversation) return false;
-  const byConversation = await ctx.db.query("chat_session_rooms")
-    .withIndex("by_conversation_channel", (q: any) => q.eq("conversation_id", scope.conversation!._id).eq("channel_id", channel._id).eq("thread_root_id", thread))
+  const byConversation = await ctx.db
+    .query("chat_session_rooms")
+    .withIndex("by_conversation_channel", (q: any) =>
+      q
+        .eq("conversation_id", scope.conversation!._id)
+        .eq("channel_id", channel._id)
+        .eq("thread_root_id", thread),
+    )
     .first();
   if (byConversation) return true;
-  return !!scope.role && !!(await ctx.db.query("chat_session_rooms")
-    .withIndex("by_role_channel", (q: any) => q.eq("role_id", scope.role!._id).eq("channel_id", channel._id).eq("thread_root_id", thread))
-    .first());
+  return (
+    !!scope.role &&
+    !!(await ctx.db
+      .query("chat_session_rooms")
+      .withIndex("by_role_channel", (q: any) =>
+        q
+          .eq("role_id", scope.role!._id)
+          .eq("channel_id", channel._id)
+          .eq("thread_root_id", thread),
+      )
+      .first())
+  );
 }
 
-async function decide(ctx: ReadCtx, scope: SessionChatScope, channel: Doc<"chat_channels">, deep: boolean): Promise<boolean> {
+async function decide(
+  ctx: ReadCtx,
+  scope: SessionChatScope,
+  channel: Doc<"chat_channels">,
+  deep: boolean,
+): Promise<boolean> {
   const conversation = scope.conversation;
   if (!conversation) return false;
-  if (scope.listed) return scope.listed.has(String(channel._id)) || (deep && await roomScan(ctx, scope, channel));
+  if (scope.listed)
+    return (
+      scope.listed.has(String(channel._id)) ||
+      (deep && (await roomScan(ctx, scope, channel)))
+    );
   for (const botId of scope.botIds) {
-    if (await isChannelMember(ctx, channel._id, botId as Id<"users">)) return true;
+    if (await isChannelMember(ctx, channel._id, botId as Id<"users">))
+      return true;
   }
   for (const row of await channelAgentRows(ctx, channel._id)) {
-    if (row.conversation_id && String(row.conversation_id) === String(conversation._id)) return true;
-    if (row.role_id && scope.role && String(row.role_id) === String(scope.role._id)) return true;
+    if (
+      row.conversation_id &&
+      String(row.conversation_id) === String(conversation._id)
+    )
+      return true;
+    if (
+      row.role_id &&
+      scope.role &&
+      String(row.role_id) === String(scope.role._id)
+    )
+      return true;
   }
   // Room grants only: a thread's grant opens that thread (threadGranted).
-  const granted = await ctx.db.query("chat_session_rooms")
-    .withIndex("by_conversation_channel", (q: any) => q.eq("conversation_id", conversation._id).eq("channel_id", channel._id).eq("thread_root_id", undefined))
+  const granted = await ctx.db
+    .query("chat_session_rooms")
+    .withIndex("by_conversation_channel", (q: any) =>
+      q
+        .eq("conversation_id", conversation._id)
+        .eq("channel_id", channel._id)
+        .eq("thread_root_id", undefined),
+    )
     .first();
   if (granted) return true;
   if (scope.role) {
-    const roleGrant = await ctx.db.query("chat_session_rooms")
-      .withIndex("by_role_channel", (q: any) => q.eq("role_id", scope.role!._id).eq("channel_id", channel._id).eq("thread_root_id", undefined))
+    const roleGrant = await ctx.db
+      .query("chat_session_rooms")
+      .withIndex("by_role_channel", (q: any) =>
+        q
+          .eq("role_id", scope.role!._id)
+          .eq("channel_id", channel._id)
+          .eq("thread_root_id", undefined),
+      )
       .first();
     if (roleGrant) return true;
   }
-  return deep && await roomScan(ctx, scope, channel);
+  return deep && (await roomScan(ctx, scope, channel));
 }
 
-async function roomScan(ctx: ReadCtx, scope: SessionChatScope, channel: Doc<"chat_channels">): Promise<boolean> {
+async function roomScan(
+  ctx: ReadCtx,
+  scope: SessionChatScope,
+  channel: Doc<"chat_channels">,
+): Promise<boolean> {
   const conversationId = String(scope.conversation!._id);
   const roleId = scope.role ? String(scope.role._id) : null;
-  const rows = await ctx.db.query("chat_messages")
-    .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
-    .order("desc").take(SCOPE_ROOM_SCAN);
-  return rows.some((row) => personAuthored(row) && mentionsScope(row, conversationId, roleId));
+  const rows = await ctx.db
+    .query("chat_messages")
+    .withIndex("by_channel_created", (q: any) =>
+      q.eq("channel_id", channel._id),
+    )
+    .order("desc")
+    .take(SCOPE_ROOM_SCAN);
+  return rows.some(
+    (row) => personAuthored(row) && mentionsScope(row, conversationId, roleId),
+  );
 }
 
 /**
@@ -325,24 +434,52 @@ async function roomScan(ctx: ReadCtx, scope: SessionChatScope, channel: Doc<"cha
  * only through the room scan are left out of listings; a single-room read
  * still finds them.
  */
-export async function primeSessionListing(ctx: ReadCtx, scope: SessionChatScope | null, dmIds: Id<"chat_channels">[]): Promise<void> {
+export async function primeSessionListing(
+  ctx: ReadCtx,
+  scope: SessionChatScope | null,
+  dmIds: Id<"chat_channels">[],
+): Promise<void> {
   if (!scope?.conversation || scope.listed || dmIds.length === 0) return;
   const listed = new Set<string>();
-  const take = async (index: "by_conversation_channel" | "by_role_channel", field: "conversation_id" | "role_id", value: any) => {
-    for (const row of await ctx.db.query("chat_session_rooms").withIndex(index, (q: any) => q.eq(field, value)).take(SCOPE_LIST_CAP)) {
+  const take = async (
+    index: "by_conversation_channel" | "by_role_channel",
+    field: "conversation_id" | "role_id",
+    value: any,
+  ) => {
+    for (const row of await ctx.db
+      .query("chat_session_rooms")
+      .withIndex(index, (q: any) => q.eq(field, value))
+      .take(SCOPE_LIST_CAP)) {
       if (!row.thread_root_id) listed.add(String(row.channel_id));
     }
   };
-  await take("by_conversation_channel", "conversation_id", scope.conversation._id);
-  for (const row of await ctx.db.query("chat_channel_agents").withIndex("by_conversation", (q: any) => q.eq("conversation_id", scope.conversation!._id)).take(SCOPE_LIST_AGENT_ROWS)) listed.add(String(row.channel_id));
+  await take(
+    "by_conversation_channel",
+    "conversation_id",
+    scope.conversation._id,
+  );
+  for (const row of await ctx.db
+    .query("chat_channel_agents")
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", scope.conversation!._id),
+    )
+    .take(SCOPE_LIST_AGENT_ROWS))
+    listed.add(String(row.channel_id));
   if (scope.role) {
     await take("by_role_channel", "role_id", scope.role._id);
-    for (const row of await ctx.db.query("chat_channel_agents").withIndex("by_role", (q: any) => q.eq("role_id", scope.role!._id)).take(SCOPE_LIST_AGENT_ROWS)) listed.add(String(row.channel_id));
+    for (const row of await ctx.db
+      .query("chat_channel_agents")
+      .withIndex("by_role", (q: any) => q.eq("role_id", scope.role!._id))
+      .take(SCOPE_LIST_AGENT_ROWS))
+      listed.add(String(row.channel_id));
   }
   for (const id of dmIds) {
     if (listed.has(String(id))) continue;
     for (const botId of scope.botIds) {
-      if (await isChannelMember(ctx, id, botId as Id<"users">)) { listed.add(String(id)); break; }
+      if (await isChannelMember(ctx, id, botId as Id<"users">)) {
+        listed.add(String(id));
+        break;
+      }
     }
   }
   scope.listed = listed;
@@ -361,15 +498,29 @@ export async function grantSessionRoom(
   via: "wake" | "mention" | "relay" | "backfill",
   thread?: Id<"chat_messages">,
 ): Promise<boolean> {
-  if (channel.kind !== "dm" || (!who.conversation_id && !who.role_id)) return false;
-  const at = (q: any) => q.eq("channel_id", channel._id).eq("thread_root_id", thread);
+  if (channel.kind !== "dm" || (!who.conversation_id && !who.role_id))
+    return false;
+  const at = (q: any) =>
+    q.eq("channel_id", channel._id).eq("thread_root_id", thread);
   const existing = who.role_id
-    ? await ctx.db.query("chat_session_rooms").withIndex("by_role_channel", (q: any) => at(q.eq("role_id", who.role_id))).first()
-    : await ctx.db.query("chat_session_rooms").withIndex("by_conversation_channel", (q: any) => at(q.eq("conversation_id", who.conversation_id))).first();
+    ? await ctx.db
+        .query("chat_session_rooms")
+        .withIndex("by_role_channel", (q: any) =>
+          at(q.eq("role_id", who.role_id)),
+        )
+        .first()
+    : await ctx.db
+        .query("chat_session_rooms")
+        .withIndex("by_conversation_channel", (q: any) =>
+          at(q.eq("conversation_id", who.conversation_id)),
+        )
+        .first();
   if (existing) return false;
   await ctx.db.insert("chat_session_rooms", {
     channel_id: channel._id,
-    ...(who.role_id ? { role_id: who.role_id } : { conversation_id: who.conversation_id }),
+    ...(who.role_id
+      ? { role_id: who.role_id }
+      : { conversation_id: who.conversation_id }),
     ...(thread ? { thread_root_id: thread } : {}),
     via,
     created_at: Date.now(),
@@ -379,12 +530,17 @@ export async function grantSessionRoom(
 
 /** Whom a wake into `conversation` grants: a role's standing session stands
  *  for its role, so the role's next seat and its hands keep the room. */
-export function grantTargetOf(conversation: Pick<Doc<"conversations">, "_id" | "standing_role_id">): { conversation_id?: Id<"conversations">; role_id?: Id<"org_roles"> } {
-  return conversation.standing_role_id ? { role_id: conversation.standing_role_id } : { conversation_id: conversation._id };
+export function grantTargetOf(
+  conversation: Pick<Doc<"conversations">, "_id" | "standing_role_id">,
+): { conversation_id?: Id<"conversations">; role_id?: Id<"org_roles"> } {
+  return conversation.standing_role_id
+    ? { role_id: conversation.standing_role_id }
+    : { conversation_id: conversation._id };
 }
 
 /** Keep a name safe inside a double-quoted shell argument the agent copies. */
-const quotedName = (name: string) => name.replace(/[$`"\\!]/g, "").trim() || "someone";
+const quotedName = (name: string) =>
+  name.replace(/[$`"\\!]/g, "").trim() || "someone";
 
 /** What a session hears when it asks for a DM it is not part of: why, and
  *  the two ways its person lets it in (a mention there, or a Yes on a card
@@ -393,8 +549,12 @@ export function sessionDmRefusal(
   scope: SessionChatScope,
   opts: { withNames: string[]; readCommand: string; personInRoom: boolean },
 ): string {
-  const people = opts.withNames.length ? opts.withNames.map(quotedName).join(", ") : "someone";
-  const room = opts.personInRoom ? `your person's direct message with ${people}` : `a direct message with ${people}`;
+  const people = opts.withNames.length
+    ? opts.withNames.map(quotedName).join(", ")
+    : "someone";
+  const room = opts.personInRoom
+    ? `your person's direct message with ${people}`
+    : `a direct message with ${people}`;
   const ask = `cast decide "<why you need it>. Let this session read ${opts.personInRoom ? "your" : "the"} direct message with ${people}? The lines go into its transcript." --run "${opts.readCommand}"`;
   const how = `To read it, ask: ${ask} (Yes runs that one read as your person and its output comes back to you).`;
   if (!scope.conversation) {

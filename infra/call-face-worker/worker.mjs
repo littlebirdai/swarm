@@ -26,9 +26,21 @@
 // OPENAI_API_KEY, CONVEX_SITE_URL, FACE_WORKER_SECRET. FACE_AGENT_NAME
 // registers a test instance under another name, out of prod's dispatches.
 import { fileURLToPath } from "node:url";
-import { AutoSubscribe, cli, defineAgent, llm, voice, WorkerOptions } from "@livekit/agents";
+import {
+  AutoSubscribe,
+  cli,
+  defineAgent,
+  llm,
+  voice,
+  WorkerOptions,
+} from "@livekit/agents";
 import * as openai from "@livekit/agents-plugin-openai";
-import { AudioMixer, AudioStream, RoomEvent, TrackKind } from "@livekit/rtc-node";
+import {
+  AudioMixer,
+  AudioStream,
+  RoomEvent,
+  TrackKind,
+} from "@livekit/rtc-node";
 import { AccessToken } from "livekit-server-sdk";
 import { nameMatchers, turnIsForVoice, turnVerdict } from "./turns.mjs";
 import { eachTrack, isPerson, people, watchVideo } from "./vision.mjs";
@@ -49,34 +61,58 @@ const SAMPLE_RATE = 24_000;
 async function tavus(method, path, body) {
   const res = await fetch(`https://tavusapi.com/v2/${path}`, {
     method,
-    headers: { "x-api-key": process.env.TAVUS_API_KEY, "content-type": "application/json" },
+    headers: {
+      "x-api-key": process.env.TAVUS_API_KEY,
+      "content-type": "application/json",
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Tavus ${method} ${path}: ${res.status} ${text.slice(0, 300)}`);
+  if (!res.ok)
+    throw new Error(
+      `Tavus ${method} ${path}: ${res.status} ${text.slice(0, 300)}`,
+    );
   return text ? JSON.parse(text) : null;
 }
 
 /** Seat the face: a Tavus conversation that joins this room as `identity`,
  *  publishing on this job's behalf. Ends with the job. */
 async function seatFace(ctx, meta, identity) {
-  const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
-    identity,
-    name: meta.name,
-    ttl: MAX_CALL_SECONDS,
-    metadata: JSON.stringify({ agent_conversation_id: meta.conversation_id }),
-  });
+  const at = new AccessToken(
+    process.env.LIVEKIT_API_KEY,
+    process.env.LIVEKIT_API_SECRET,
+    {
+      identity,
+      name: meta.name,
+      ttl: MAX_CALL_SECONDS,
+      metadata: JSON.stringify({ agent_conversation_id: meta.conversation_id }),
+    },
+  );
   at.kind = "agent";
-  at.addGrant({ roomJoin: true, room: ctx.room.name, canPublish: true, canSubscribe: true, canPublishData: true });
-  at.attributes = { "lk.publish_on_behalf": ctx.room.localParticipant.identity };
+  at.addGrant({
+    roomJoin: true,
+    room: ctx.room.name,
+    canPublish: true,
+    canSubscribe: true,
+    canPublishData: true,
+  });
+  at.attributes = {
+    "lk.publish_on_behalf": ctx.room.localParticipant.identity,
+  };
   const created = await tavus("POST", "conversations", {
     pal_id: process.env.TAVUS_PAL_ID,
     face_id: meta.face,
     conversation_name: `${meta.name} in ${ctx.room.name}`.slice(0, 120),
-    properties: { livekit_ws_url: process.env.LIVEKIT_URL, livekit_room_token: await at.toJwt(), max_call_duration: MAX_CALL_SECONDS },
+    properties: {
+      livekit_ws_url: process.env.LIVEKIT_URL,
+      livekit_room_token: await at.toJwt(),
+      max_call_duration: MAX_CALL_SECONDS,
+    },
   });
   ctx.addShutdownCallback(async () => {
-    await tavus("POST", `conversations/${created.conversation_id}/end`).catch(() => {});
+    await tavus("POST", `conversations/${created.conversation_id}/end`).catch(
+      () => {},
+    );
   });
   return created.conversation_id;
 }
@@ -85,8 +121,14 @@ async function seatFace(ctx, meta, identity) {
 function speakable(text) {
   if (text.length <= SPOKEN_MAX) return text;
   const head = text.slice(0, SPOKEN_MAX);
-  const end = Math.max(head.lastIndexOf(". "), head.lastIndexOf("? "), head.lastIndexOf("! "));
-  return end > SPOKEN_MAX / 3 ? head.slice(0, end + 1) : `${head.slice(0, head.lastIndexOf(" "))}…`;
+  const end = Math.max(
+    head.lastIndexOf(". "),
+    head.lastIndexOf("? "),
+    head.lastIndexOf("! "),
+  );
+  return end > SPOKEN_MAX / 3
+    ? head.slice(0, end + 1)
+    : `${head.slice(0, head.lastIndexOf(" "))}…`;
 }
 
 /** What Convex sends this agent on the room's data channel: "reply" (a reply
@@ -96,7 +138,8 @@ function onFaceMessage(room, conversationId, kind, fn) {
     if (topic !== FACE_TOPIC) return;
     try {
       const msg = JSON.parse(new TextDecoder().decode(data));
-      if (msg.conversation_id === conversationId && msg.kind === kind) fn(msg.text ?? "");
+      if (msg.conversation_id === conversationId && msg.kind === kind)
+        fn(msg.text ?? "");
     } catch {}
   });
 }
@@ -112,7 +155,11 @@ function runFace(room, meta, identity, tavusId) {
       properties: { modality: "text", text: speakable(text), done: true },
     };
     room.localParticipant
-      .publishData(new TextEncoder().encode(JSON.stringify(echo)), { reliable: true, topic: TAVUS_TOPIC, destination_identities: [identity] })
+      .publishData(new TextEncoder().encode(JSON.stringify(echo)), {
+        reliable: true,
+        topic: TAVUS_TOPIC,
+        destination_identities: [identity],
+      })
       .catch((e) => console.error("echo failed", e));
   });
 }
@@ -120,10 +167,21 @@ function runFace(room, meta, identity, tavusId) {
 async function convex(op, meta, room, extra = {}) {
   const res = await fetch(`${process.env.CONVEX_SITE_URL}/calls/face`, {
     method: "POST",
-    headers: { authorization: `Bearer ${process.env.FACE_WORKER_SECRET}`, "content-type": "application/json" },
-    body: JSON.stringify({ op, conversation_id: meta.conversation_id, room_key: room.name, ...extra }),
+    headers: {
+      authorization: `Bearer ${process.env.FACE_WORKER_SECRET}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      op,
+      conversation_id: meta.conversation_id,
+      room_key: room.name,
+      ...extra,
+    }),
   });
-  if (!res.ok) throw new Error(`convex ${op}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(
+      `convex ${op}: ${res.status} ${(await res.text()).slice(0, 200)}`,
+    );
   return res.json();
 }
 
@@ -131,13 +189,19 @@ async function convex(op, meta, room, extra = {}) {
 class RoomMix extends voice.AudioInput {
   constructor() {
     super();
-    this.mixer = new AudioMixer(SAMPLE_RATE, 1, { blocksize: SAMPLE_RATE / 20, streamTimeoutMs: 50 });
+    this.mixer = new AudioMixer(SAMPLE_RATE, 1, {
+      blocksize: SAMPLE_RATE / 20,
+      streamTimeoutMs: 50,
+    });
     this.streams = new Map();
     this.multiStream.addInputStream(ReadableStream.from(this.mixer));
   }
   add(sid, track) {
     if (this.streams.has(sid)) return;
-    const stream = new AudioStream(track, { sampleRate: SAMPLE_RATE, numChannels: 1 });
+    const stream = new AudioStream(track, {
+      sampleRate: SAMPLE_RATE,
+      numChannels: 1,
+    });
     this.streams.set(sid, stream);
     this.mixer.addStream(stream);
   }
@@ -154,12 +218,16 @@ class RoomMix extends voice.AudioInput {
 async function runRealtime(ctx, meta, face) {
   const room = ctx.room;
   const brief = await convex("brief", meta, room);
-  if (!brief) throw new Error("no brief: the feed ended or real-time is off for this team");
+  if (!brief)
+    throw new Error(
+      "no brief: the feed ended or real-time is off for this team",
+    );
   const named = nameMatchers(brief.spoken_names);
 
   const mix = new RoomMix();
   eachTrack(room, (track, pub, p) => {
-    if (track.kind === TrackKind.KIND_AUDIO && isPerson(p)) mix.add(pub.sid, track);
+    if (track.kind === TrackKind.KIND_AUDIO && isPerson(p))
+      mix.add(pub.sid, track);
   });
   room.on(RoomEvent.TrackUnsubscribed, (_t, pub) => mix.remove(pub.sid));
   const look = watchVideo(room);
@@ -175,7 +243,14 @@ async function runRealtime(ctx, meta, face) {
       // Silence ends a turn: semantic turn detection waited 2.5s past the
       // last word where 600ms of silence answers in about 1s, and a person
       // who keeps talking cuts the voice off.
-      turnDetection: { type: "server_vad", threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 600, create_response: false, interrupt_response: true },
+      turnDetection: {
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 600,
+        create_response: false,
+        interrupt_response: true,
+      },
     }),
   });
   session.input.audio = mix;
@@ -195,7 +270,8 @@ async function runRealtime(ctx, meta, face) {
     instructions: brief.instructions,
     tools: {
       go_quiet: llm.tool({
-        description: "Stay silent until someone says your name again. Call it instead of speaking when you are asked to be quiet, stop, or hold off, or when what was just said was not for you.",
+        description:
+          "Stay silent until someone says your name again. Call it instead of speaking when you are asked to be quiet, stop, or hold off, or when what was just said was not for you.",
         parameters: { type: "object", properties: {} },
         // No output, so no reply follows the call.
         execute: async () => {
@@ -203,10 +279,23 @@ async function runRealtime(ctx, meta, face) {
         },
       }),
       ask_agent: llm.tool({
-        description: "Hand your working session something that needs real work: a lookup in code or data, a change, anything you are not sure of. Returns at once; its answer comes back to you later.",
-        parameters: { type: "object", properties: { request: { type: "string", description: "What to do or find out, with the context it needs." } }, required: ["request"] },
+        description:
+          "Hand your working session something that needs real work: a lookup in code or data, a change, anything you are not sure of. Returns at once; its answer comes back to you later.",
+        parameters: {
+          type: "object",
+          properties: {
+            request: {
+              type: "string",
+              description: "What to do or find out, with the context it needs.",
+            },
+          },
+          required: ["request"],
+        },
         execute: async ({ request }) => {
-          await convex("ask", meta, room, { text: request, speaker: speaker?.name || "" });
+          await convex("ask", meta, room, {
+            text: request,
+            speaker: speaker?.name || "",
+          });
           return "Handed to your session. Tell the room briefly that you are on it.";
         },
       }),
@@ -215,23 +304,40 @@ async function runRealtime(ctx, meta, face) {
   // The session hears the whole room through the mix, so no one person
   // leaving may close it (RoomIO links the first person and, by default,
   // ends the session when they go).
-  await session.start({ agent, room, inputOptions: { textEnabled: false, closeOnDisconnect: false }, outputOptions: { transcriptionEnabled: false } });
+  await session.start({
+    agent,
+    room,
+    inputOptions: { textEnabled: false, closeOnDisconnect: false },
+    outputOptions: { transcriptionEnabled: false },
+  });
 
   let shownImage = null;
   const answer = async (opts = {}) => {
     const views = look(speaker);
     const ctxCopy = agent.chatCtx.copy();
-    if (shownImage) ctxCopy.items = ctxCopy.items.filter((i) => i.id !== shownImage);
+    if (shownImage)
+      ctxCopy.items = ctxCopy.items.filter((i) => i.id !== shownImage);
     shownImage = ctxCopy.addMessage({
       role: "user",
       content: views.length
         ? [
             "(What you can see right now. Earlier frames are gone; only these are current.)",
-            ...views.flatMap((v) => [`${v.what}:`, llm.createImageContent({ image: v.frame, inferenceWidth: v.size, inferenceHeight: v.size })]),
+            ...views.flatMap((v) => [
+              `${v.what}:`,
+              llm.createImageContent({
+                image: v.frame,
+                inferenceWidth: v.size,
+                inferenceHeight: v.size,
+              }),
+            ]),
           ]
-        : ["(You see nothing right now: nobody is sharing a screen and no camera is on.)"],
+        : [
+            "(You see nothing right now: nobody is sharing a screen and no camera is on.)",
+          ],
     }).id;
-    await agent.updateChatCtx(ctxCopy).catch((e) => console.error("vision update failed", e));
+    await agent
+      .updateChatCtx(ctxCopy)
+      .catch((e) => console.error("vision update failed", e));
     session.generateReply(opts);
   };
 
@@ -246,18 +352,31 @@ async function runRealtime(ctx, meta, face) {
   };
   session.on(voice.AgentSessionEventTypes.UserStateChanged, (ev) => {
     if (ev.newState === "speaking") answered = false;
-    else if (ev.oldState === "speaking" && !answered && turnIsForVoice({ quiet, alone: alone() })) answerTurn();
+    else if (
+      ev.oldState === "speaking" &&
+      !answered &&
+      turnIsForVoice({ quiet, alone: alone() })
+    )
+      answerTurn();
   });
   session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (ev) => {
     if (!ev.isFinal || answered || !ev.transcript.trim()) return;
-    const verdict = turnVerdict({ transcript: ev.transcript, named, quiet, alone: alone() });
+    const verdict = turnVerdict({
+      transcript: ev.transcript,
+      named,
+      quiet,
+      alone: alone(),
+    });
     quiet = verdict.quiet;
     if (verdict.answer) answerTurn();
   });
   session.on(voice.AgentSessionEventTypes.ConversationItemAdded, (ev) => {
     if (ev.item.type !== "message" || ev.item.role !== "assistant") return;
     const text = ev.item.textContent?.trim();
-    if (text) convex("said", meta, room, { text }).catch((e) => console.error("said failed", e));
+    if (text)
+      convex("said", meta, room, { text }).catch((e) =>
+        console.error("said failed", e),
+      );
   });
   onFaceMessage(room, meta.conversation_id, "reply", (text) => {
     if (!text || quiet) return;
@@ -272,12 +391,18 @@ export default defineAgent({
     const meta = JSON.parse(ctx.job.metadata || "{}");
     if (!meta.conversation_id) return ctx.shutdown("no session named");
     const identity = `agent:${meta.conversation_id}`;
-    await ctx.connect(undefined, meta.realtime ? AutoSubscribe.SUBSCRIBE_ALL : AutoSubscribe.SUBSCRIBE_NONE);
+    await ctx.connect(
+      undefined,
+      meta.realtime
+        ? AutoSubscribe.SUBSCRIBE_ALL
+        : AutoSubscribe.SUBSCRIBE_NONE,
+    );
     const room = ctx.room;
     // One face per agent: a second job for the same session (two callers
     // asked at once) would seat a second face under the same identity, and
     // LiveKit would evict the first.
-    if (room.remoteParticipants.has(identity)) return ctx.shutdown("face already in the room");
+    if (room.remoteParticipants.has(identity))
+      return ctx.shutdown("face already in the room");
     let tavusId = null;
     try {
       tavusId = await seatFace(ctx, meta, identity);
@@ -288,19 +413,35 @@ export default defineAgent({
     const face = tavusId ? identity : null;
     // A live model that cannot start (no brief, the model's API down) must
     // not cost the room its face: it says the session's replies instead.
-    const live = meta.realtime && (await runRealtime(ctx, meta, face).then(() => true, (e) => (console.error(`[${room.name}] real-time failed:`, e.message), false)));
+    const live =
+      meta.realtime &&
+      (await runRealtime(ctx, meta, face).then(
+        () => true,
+        (e) => (
+          console.error(`[${room.name}] real-time failed:`, e.message),
+          false
+        ),
+      ));
     if (!live && !tavusId) return ctx.shutdown("no face and no voice");
     if (!live) runFace(room, meta, identity, tavusId);
 
     const reason = await new Promise((resolve) => {
-      if (face) setTimeout(() => !room.remoteParticipants.has(face) && resolve("face never arrived"), FACE_ARRIVE_MS);
+      if (face)
+        setTimeout(
+          () =>
+            !room.remoteParticipants.has(face) && resolve("face never arrived"),
+          FACE_ARRIVE_MS,
+        );
       let alone = null;
       const checkPeople = () => {
         if (people(room).length > 0) {
           clearTimeout(alone);
           alone = null;
         } else if (!alone) {
-          alone = setTimeout(() => resolve("nobody left in the call"), ALONE_GRACE_MS);
+          alone = setTimeout(
+            () => resolve("nobody left in the call"),
+            ALONE_GRACE_MS,
+          );
         }
       };
       room.on(RoomEvent.ParticipantConnected, checkPeople);
@@ -311,12 +452,21 @@ export default defineAgent({
       room.on(RoomEvent.Disconnected, () => resolve("room closed"));
       // Removed from the call: the voice-only agent has no face for Convex to
       // put out, so it is told and goes.
-      onFaceMessage(room, meta.conversation_id, "leave", () => resolve("removed from the call"));
+      onFaceMessage(room, meta.conversation_id, "leave", () =>
+        resolve("removed from the call"),
+      );
       checkPeople();
     });
-    console.log(`[${room.name}] ${identity}${face ? "" : " (voice only)"}: ${reason}`);
+    console.log(
+      `[${room.name}] ${identity}${face ? "" : " (voice only)"}: ${reason}`,
+    );
     ctx.shutdown(reason);
   },
 });
 
-cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url), agentName: AGENT_NAME }));
+cli.runApp(
+  new WorkerOptions({
+    agent: fileURLToPath(import.meta.url),
+    agentName: AGENT_NAME,
+  }),
+);

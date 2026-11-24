@@ -2,7 +2,14 @@
 // author's spacing and casing. Used by fill and paste (relative shift), by
 // insert/delete rows and columns (structural shift, #REF! for deleted cells),
 // and by tab rename.
-import { MAX_COL, MAX_ROW, isFormula, tokenize, type RefPart, type RefToken } from "./formula";
+import {
+  MAX_COL,
+  MAX_ROW,
+  isFormula,
+  tokenize,
+  type RefPart,
+  type RefToken,
+} from "./formula";
 import { colLetters, quoteTabName } from "./refs";
 
 function partText(p: RefPart, shape: RefToken["shape"], end = false): string {
@@ -14,15 +21,22 @@ function partText(p: RefPart, shape: RefToken["shape"], end = false): string {
 }
 
 /** Render a reference token back to text. */
-export function refText(t: Pick<RefToken, "tab" | "shape" | "a" | "b">): string {
+export function refText(
+  t: Pick<RefToken, "tab" | "shape" | "a" | "b">,
+): string {
   const prefix = t.tab !== undefined ? `${quoteTabName(t.tab)}!` : "";
   const a = partText(t.a, t.shape);
   if (t.shape === "spill") return `${prefix}${a}#`;
-  return t.shape === "cell" ? prefix + a : `${prefix}${a}:${partText(t.b!, t.shape, true)}`;
+  return t.shape === "cell"
+    ? prefix + a
+    : `${prefix}${a}:${partText(t.b!, t.shape, true)}`;
 }
 
 /** Map every reference in a formula; return null from fn to keep it, a string to replace it. */
-export function mapFormulaRefs(input: string, fn: (t: RefToken) => string | null): string {
+export function mapFormulaRefs(
+  input: string,
+  fn: (t: RefToken) => string | null,
+): string {
   if (!isFormula(input)) return input;
   const src = input.slice(1);
   let toks;
@@ -45,13 +59,20 @@ export function mapFormulaRefs(input: string, fn: (t: RefToken) => string | null
 }
 
 /** Copy/fill: move relative parts by (dCol, dRow); a part pushed off the sheet becomes #REF!. */
-export function shiftFormula(input: string, dCol: number, dRow: number): string {
+export function shiftFormula(
+  input: string,
+  dCol: number,
+  dRow: number,
+): string {
   if (dCol === 0 && dRow === 0) return input;
   return mapFormulaRefs(input, (t) => {
     const move = (p: RefPart): RefPart | null => {
       const col = p.absCol || t.shape === "rows" ? p.col : p.col + dCol;
       // An open-ended column range keeps its end on the last row.
-      const row = p.absRow || t.shape === "cols" || (t.shape === "colsFrom" && p === t.b) ? p.row : p.row + dRow;
+      const row =
+        p.absRow || t.shape === "cols" || (t.shape === "colsFrom" && p === t.b)
+          ? p.row
+          : p.row + dRow;
       if (col < 1 || row < 1 || col > MAX_COL || row > MAX_ROW) return null;
       return { ...p, col, row };
     };
@@ -77,7 +98,11 @@ export type Structural = {
  * `formulaTab` is the name of the tab the formula lives in (a reference with
  * no tab prefix points there).
  */
-export function adjustFormula(input: string, formulaTab: string, s: Structural): string {
+export function adjustFormula(
+  input: string,
+  formulaTab: string,
+  s: Structural,
+): string {
   return mapFormulaRefs(input, (t) => {
     const target = t.tab ?? formulaTab;
     if (target.toLowerCase() !== s.tabName.toLowerCase()) return null;
@@ -85,17 +110,24 @@ export function adjustFormula(input: string, formulaTab: string, s: Structural):
     // An open-ended column range: its start moves with rows; its end stays at the bottom.
     if (s.axis === "row" && t.shape === "colsFrom") {
       const r = t.a.row;
-      if (s.count > 0) return r >= s.at ? refText({ ...t, a: { ...t.a, row: r + s.count } }) : null;
+      if (s.count > 0)
+        return r >= s.at
+          ? refText({ ...t, a: { ...t.a, row: r + s.count } })
+          : null;
       const hi = s.at - s.count - 1;
       if (r < s.at) return null;
-      return refText({ ...t, a: { ...t.a, row: r <= hi ? s.at : r + s.count } });
+      return refText({
+        ...t,
+        a: { ...t.a, row: r <= hi ? s.at : r + s.count },
+      });
     }
     if (s.axis === "col" && t.shape === "rows") return null;
     const key = s.axis === "row" ? "row" : "col";
     const get = (p: RefPart) => p[key];
     const with_ = (p: RefPart, v: number): RefPart => ({ ...p, [key]: v });
     if (s.count > 0) {
-      const shift = (p: RefPart) => (get(p) >= s.at ? with_(p, get(p) + s.count) : p);
+      const shift = (p: RefPart) =>
+        get(p) >= s.at ? with_(p, get(p) + s.count) : p;
       const a = shift(t.a);
       // A range that spans the insertion point grows; its end shifts with it.
       const b = t.b ? shift(t.b) : undefined;
@@ -103,14 +135,16 @@ export function adjustFormula(input: string, formulaTab: string, s: Structural):
       return refText({ ...t, a, b });
     }
     const n = -s.count;
-    const lo = s.at, hi = s.at + n - 1;
+    const lo = s.at,
+      hi = s.at + n - 1;
     if (t.shape === "cell" || t.shape === "spill") {
       const v = get(t.a);
       if (v < lo) return null;
       if (v <= hi) return "#REF!";
       return refText({ ...t, a: with_(t.a, v - n) });
     }
-    let v0 = get(t.a), v1 = get(t.b!);
+    let v0 = get(t.a),
+      v1 = get(t.b!);
     const swap = v0 > v1;
     if (swap) [v0, v1] = [v1, v0];
     if (v1 < lo) return null;
@@ -124,12 +158,23 @@ export function adjustFormula(input: string, formulaTab: string, s: Structural):
 }
 
 /** A tab was renamed: rewrite references that name it. */
-export function renameTabInFormula(input: string, oldName: string, newName: string): string {
-  return mapFormulaRefs(input, (t) => (t.tab !== undefined && t.tab.toLowerCase() === oldName.toLowerCase() ? refText({ ...t, tab: newName }) : null));
+export function renameTabInFormula(
+  input: string,
+  oldName: string,
+  newName: string,
+): string {
+  return mapFormulaRefs(input, (t) =>
+    t.tab !== undefined && t.tab.toLowerCase() === oldName.toLowerCase()
+      ? refText({ ...t, tab: newName })
+      : null,
+  );
 }
 
 /** Shift a range written in A1 ("B2:G6") structurally; null when it was deleted whole. */
-export function adjustRangeText(range: string, s: Omit<Structural, "tabName">): string | null {
+export function adjustRangeText(
+  range: string,
+  s: Omit<Structural, "tabName">,
+): string | null {
   const out = adjustFormula(`=${range}`, "_", { ...s, tabName: "_" });
   if (out.includes("#REF!")) return null;
   return out.slice(1);

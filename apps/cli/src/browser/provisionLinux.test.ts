@@ -1,16 +1,49 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { REACH_MIN_WATCHDOG } from "../cloud/reach.js";
 import { BROWSER_LINK_MIN_WATCHDOG } from "../cloud/browserLink.js";
-import { A11Y_ANNOUNCE_PATH, baseProvisionScript, idleConfigScript, buildLinuxCast, uploadLinuxCast, installLinuxCast, restartHostDaemon, pushCodecastConfig, DAEMON_CGROUP_TMUX_SCRIPT, DAEMON_KEEP_SESSIONS_SCRIPT, daemonUnitScript, IDLE_WATCHDOG_VERSION, RTSP_PORT, HLS_PORT, SCREEN_DISPLAY, SCREEN_SIZE, type ProvisionReport, type PushCodecastConfigDeps, idleWatchdogScript } from "./provisionLinux.js";
+import {
+  A11Y_ANNOUNCE_PATH,
+  baseProvisionScript,
+  idleConfigScript,
+  buildLinuxCast,
+  uploadLinuxCast,
+  installLinuxCast,
+  restartHostDaemon,
+  pushCodecastConfig,
+  DAEMON_CGROUP_TMUX_SCRIPT,
+  DAEMON_KEEP_SESSIONS_SCRIPT,
+  daemonUnitScript,
+  IDLE_WATCHDOG_VERSION,
+  RTSP_PORT,
+  HLS_PORT,
+  SCREEN_DISPLAY,
+  SCREEN_SIZE,
+  type ProvisionReport,
+  type PushCodecastConfigDeps,
+  idleWatchdogScript,
+} from "./provisionLinux.js";
 import { encryptToken } from "../tokenEncryption.js";
 import { DEVICE_BOUND_TOKEN_PREFIX } from "@platform/auth/cli";
 import * as remote from "./remote.js";
 import { AGENT_BRIDGE_MIN_WATCHDOG } from "../cloud/agentBridge.js";
-import { reachableRemoteHosts, toRemoteHost, writeHosts, type CloudHost } from "./cloudHost.js";
+import {
+  reachableRemoteHosts,
+  toRemoteHost,
+  writeHosts,
+  type CloudHost,
+} from "./cloudHost.js";
 import { remoteHome, type RemoteHost } from "../remote/session-move.js";
 import { needsMacHelper } from "../../scripts/build-with-native.js";
 
@@ -26,7 +59,9 @@ describe("baseProvisionScript", () => {
   const script = baseProvisionScript(20);
 
   test("display, stream and idle constants are interpolated", () => {
-    expect(script).toContain(`Xvfb ${SCREEN_DISPLAY} -screen 0 ${SCREEN_SIZE.width}x${SCREEN_SIZE.height}x24`);
+    expect(script).toContain(
+      `Xvfb ${SCREEN_DISPLAY} -screen 0 ${SCREEN_SIZE.width}x${SCREEN_SIZE.height}x24`,
+    );
     expect(script).toContain(`rtspAddress: 127.0.0.1:${RTSP_PORT}`);
     expect(script).toContain(`hlsAddress: 127.0.0.1:${HLS_PORT}`);
     expect(script).toContain(`echo "20" | sudo tee /etc/cast-idle-minutes`);
@@ -59,52 +94,94 @@ describe("baseProvisionScript", () => {
   test("the display announces the accessibility bus as it starts, before any app can launch on it", () => {
     // An app started on a fresh host with nothing but DISPLAY finds the bus only
     // through the root window; before this, the first e2e run on a new host failed 23 of 29.
-    const announcer = fs.readFileSync(path.join(import.meta.dir, "../computer/linux/announce-a11y-bus.py"), "utf-8");
-    expect(script).toContain(`sudo tee ${A11Y_ANNOUNCE_PATH} >/dev/null <<'A11Y'\n${announcer}\nA11Y`);
-    const unit = script.slice(script.indexOf("cast-display.service >/dev/null"), script.indexOf("UNIT", script.indexOf("cast-display.service >/dev/null") + 60));
-    expect(unit).toContain(`ExecStartPost=-/usr/bin/python3 ${A11Y_ANNOUNCE_PATH} ${SCREEN_DISPLAY}`);
+    const announcer = fs.readFileSync(
+      path.join(import.meta.dir, "../computer/linux/announce-a11y-bus.py"),
+      "utf-8",
+    );
+    expect(script).toContain(
+      `sudo tee ${A11Y_ANNOUNCE_PATH} >/dev/null <<'A11Y'\n${announcer}\nA11Y`,
+    );
+    const unit = script.slice(
+      script.indexOf("cast-display.service >/dev/null"),
+      script.indexOf(
+        "UNIT",
+        script.indexOf("cast-display.service >/dev/null") + 60,
+      ),
+    );
+    expect(unit).toContain(
+      `ExecStartPost=-/usr/bin/python3 ${A11Y_ANNOUNCE_PATH} ${SCREEN_DISPLAY}`,
+    );
     // Xvfb resets when its last client leaves, and a reset wipes the root window's properties.
     expect(unit).toMatch(/ExecStart=\/usr\/bin\/Xvfb .* -noreset$/m);
-    expect(script.indexOf(A11Y_ANNOUNCE_PATH)).toBeLessThan(script.indexOf("cast-display.service >/dev/null"));
+    expect(script.indexOf(A11Y_ANNOUNCE_PATH)).toBeLessThan(
+      script.indexOf("cast-display.service >/dev/null"),
+    );
     // A display that was already running never runs the hook, and restarting it would close its apps.
-    const enable = script.indexOf("systemctl enable --now cast-display.service");
-    expect(script.indexOf(`/usr/bin/python3 ${A11Y_ANNOUNCE_PATH} ${SCREEN_DISPLAY} || true`)).toBeGreaterThan(enable);
+    const enable = script.indexOf(
+      "systemctl enable --now cast-display.service",
+    );
+    expect(
+      script.indexOf(
+        `/usr/bin/python3 ${A11Y_ANNOUNCE_PATH} ${SCREEN_DISPLAY} || true`,
+      ),
+    ).toBeGreaterThan(enable);
   });
 
   test("no xdotool: the computer helper types through XTEST itself", () => {
     expect(script).not.toContain("xdotool");
   });
 
-  test.skipIf(spawnSyncSafe("python3", ["--version"]) !== 0)("the announcer gives up quietly when no display or bus appears", () => {
-    const file = path.join(import.meta.dir, "../computer/linux/announce-a11y-bus.py");
-    const started = Date.now();
-    const run = childProcess.spawnSync("python3", [file, ":4789", "0.3"], {
-      encoding: "utf8",
-      env: { PATH: process.env.PATH ?? "/usr/bin:/bin", XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "cc-a11y-")) },
-    });
-    expect(run.status).toBe(0);
-    expect(run.stdout).toContain("cast computer announces the bus on first use");
-    expect(Date.now() - started).toBeLessThan(5000);
-  });
+  test.skipIf(spawnSyncSafe("python3", ["--version"]) !== 0)(
+    "the announcer gives up quietly when no display or bus appears",
+    () => {
+      const file = path.join(
+        import.meta.dir,
+        "../computer/linux/announce-a11y-bus.py",
+      );
+      const started = Date.now();
+      const run = childProcess.spawnSync("python3", [file, ":4789", "0.3"], {
+        encoding: "utf8",
+        env: {
+          PATH: process.env.PATH ?? "/usr/bin:/bin",
+          XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "cc-a11y-")),
+        },
+      });
+      expect(run.status).toBe(0);
+      expect(run.stdout).toContain(
+        "cast computer announces the bus on first use",
+      );
+      expect(Date.now() - started).toBeLessThan(5000);
+    },
+  );
 
   test("daemon unit marks the box as a remote device, in the unit's environment and on disk", () => {
     const s = daemonUnitScript();
     expect(s).toContain("CODECAST_REMOTE_DEVICE=1");
     // The marker precedes the unit so a daemon any other launcher starts there is remote too.
     expect(s).toContain(": > /home/ubuntu/.codecast/remote-device");
-    expect(s.indexOf("remote-device")).toBeLessThan(s.indexOf("sudo tee /etc/systemd/system/codecast-daemon.service"));
+    expect(s.indexOf("remote-device")).toBeLessThan(
+      s.indexOf("sudo tee /etc/systemd/system/codecast-daemon.service"),
+    );
   });
 });
 
 test("Linux provisioning ships the current CLI build entry, not stale index.js", () => {
-  const source = fs.readFileSync(new URL("./provisionLinux.ts", import.meta.url), "utf8");
+  const source = fs.readFileSync(
+    new URL("./provisionLinux.ts", import.meta.url),
+    "utf8",
+  );
   expect(source).toContain('indexJs: path.join(distDir, "main.js")');
 });
 
 describe("Linux split bundle transfer", () => {
   let dir: string;
   const buildDirs: string[] = [];
-  const host: RemoteHost = { address: "unused", user: "ubuntu", keyPath: "/unused", remoteBaseDir: "/home/ubuntu/work" };
+  const host: RemoteHost = {
+    address: "unused",
+    user: "ubuntu",
+    keyPath: "/unused",
+    remoteBaseDir: "/home/ubuntu/work",
+  };
   const execFileSync = childProcess.execFileSync;
 
   beforeEach(() => {
@@ -113,7 +190,8 @@ describe("Linux split bundle transfer", () => {
 
   afterEach(() => {
     mock.restore();
-    for (const buildDir of buildDirs.splice(0)) fs.rmSync(buildDir, { recursive: true, force: true });
+    for (const buildDir of buildDirs.splice(0))
+      fs.rmSync(buildDir, { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -121,30 +199,67 @@ describe("Linux split bundle transfer", () => {
     const output = fs.mkdtempSync(path.join(dir, "child-"));
     const out = path.join(output, "stdout");
     const err = path.join(output, "stderr");
-    return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-      childProcess.execFile("bash", ["-c", 'exec "$@" > "$TEST_OUT" 2> "$TEST_ERR"', "child", command, ...args], {
-        cwd: dir, env: { ...process.env, TEST_OUT: out, TEST_ERR: err }, timeout: 20_000,
-      }, (error) => {
-        const stdout = fs.existsSync(out) ? fs.readFileSync(out, "utf8") : "";
-        const stderr = fs.existsSync(err) ? fs.readFileSync(err, "utf8") : "";
-        if (error) {
-          error.message += `\n${stderr}`;
-          reject(error);
-        } else resolve({ stdout, stderr });
-      });
-    });
+    return new Promise<{ stdout: string; stderr: string }>(
+      (resolve, reject) => {
+        childProcess.execFile(
+          "bash",
+          [
+            "-c",
+            'exec "$@" > "$TEST_OUT" 2> "$TEST_ERR"',
+            "child",
+            command,
+            ...args,
+          ],
+          {
+            cwd: dir,
+            env: { ...process.env, TEST_OUT: out, TEST_ERR: err },
+            timeout: 20_000,
+          },
+          (error) => {
+            const stdout = fs.existsSync(out)
+              ? fs.readFileSync(out, "utf8")
+              : "";
+            const stderr = fs.existsSync(err)
+              ? fs.readFileSync(err, "utf8")
+              : "";
+            if (error) {
+              error.message += `\n${stderr}`;
+              reject(error);
+            } else resolve({ stdout, stderr });
+          },
+        );
+      },
+    );
   }
 
   function splitDist(): string {
     const dist = path.join(dir, "dist");
     fs.mkdirSync(path.join(dist, "nested/assets"), { recursive: true });
-    fs.writeFileSync(path.join(dist, "main.js"), 'import { value } from "./main-chunk.js"; console.log("cli:" + value, JSON.stringify(process.argv.slice(2)));');
-    fs.writeFileSync(path.join(dist, "daemon.js"), 'const { value } = await import("./main-chunk.js"); console.log("daemon:" + value);');
-    fs.writeFileSync(path.join(dist, "main-chunk.js"), 'export { value } from "./nested/dependency.js";');
-    fs.writeFileSync(path.join(dist, "nested/dependency.js"), 'import { readFileSync } from "node:fs"; export const value = readFileSync(new URL("./assets/value.txt", import.meta.url), "utf8");');
-    fs.writeFileSync(path.join(dist, "nested/assets/value.txt"), "split-tree-ok");
+    fs.writeFileSync(
+      path.join(dist, "main.js"),
+      'import { value } from "./main-chunk.js"; console.log("cli:" + value, JSON.stringify(process.argv.slice(2)));',
+    );
+    fs.writeFileSync(
+      path.join(dist, "daemon.js"),
+      'const { value } = await import("./main-chunk.js"); console.log("daemon:" + value);',
+    );
+    fs.writeFileSync(
+      path.join(dist, "main-chunk.js"),
+      'export { value } from "./nested/dependency.js";',
+    );
+    fs.writeFileSync(
+      path.join(dist, "nested/dependency.js"),
+      'import { readFileSync } from "node:fs"; export const value = readFileSync(new URL("./assets/value.txt", import.meta.url), "utf8");',
+    );
+    fs.writeFileSync(
+      path.join(dist, "nested/assets/value.txt"),
+      "split-tree-ok",
+    );
     fs.writeFileSync(path.join(dist, ".build-marker"), "hidden asset");
-    fs.writeFileSync(path.join(dist, "index.js"), 'throw new Error("stale index.js");');
+    fs.writeFileSync(
+      path.join(dist, "index.js"),
+      'throw new Error("stale index.js");',
+    );
     return dist;
   }
 
@@ -162,26 +277,45 @@ describe("Linux split bundle transfer", () => {
     fs.writeFileSync(path.join(install, "unrelated.txt"), "preserve unrelated");
     const stages: string[] = [];
     const uploads: string[] = [];
-    const commands = spyOn(remote, "remoteExec").mockImplementation((_host, command) => {
-      if (version !== undefined && command === "/usr/local/bin/cast --version") {
-        if (version instanceof Error) throw version;
-        return version;
-      }
-      if (command.startsWith("mktemp -d ")) {
-        const stage = fs.mkdtempSync(path.join(dir, "remote-stage-"));
-        stages.push(stage);
-        return stage;
-      }
-      return execFileSync("bash", ["-c", command
-        .replaceAll("sudo ", "")
-        .replaceAll("/usr/local/lib/codecast", install)
-        .replaceAll("/usr/local/bin/cast", launcher)
-        .replaceAll("/home/ubuntu/.bun/bin/bun", process.execPath)], { cwd: dir, encoding: "utf8", timeout: 20_000, env: { ...process.env, HOME: path.join(dir, "home") } }).trim();
-    });
-    const copy = spyOn(remote, "scpTo").mockImplementation((_host, local, destination) => {
-      uploads.push(local);
-      fs.copyFileSync(local, destination);
-    });
+    const commands = spyOn(remote, "remoteExec").mockImplementation(
+      (_host, command) => {
+        if (
+          version !== undefined &&
+          command === "/usr/local/bin/cast --version"
+        ) {
+          if (version instanceof Error) throw version;
+          return version;
+        }
+        if (command.startsWith("mktemp -d ")) {
+          const stage = fs.mkdtempSync(path.join(dir, "remote-stage-"));
+          stages.push(stage);
+          return stage;
+        }
+        return execFileSync(
+          "bash",
+          [
+            "-c",
+            command
+              .replaceAll("sudo ", "")
+              .replaceAll("/usr/local/lib/codecast", install)
+              .replaceAll("/usr/local/bin/cast", launcher)
+              .replaceAll("/home/ubuntu/.bun/bin/bun", process.execPath),
+          ],
+          {
+            cwd: dir,
+            encoding: "utf8",
+            timeout: 20_000,
+            env: { ...process.env, HOME: path.join(dir, "home") },
+          },
+        ).trim();
+      },
+    );
+    const copy = spyOn(remote, "scpTo").mockImplementation(
+      (_host, local, destination) => {
+        uploads.push(local);
+        fs.copyFileSync(local, destination);
+      },
+    );
     return { install, launcher, stages, uploads, commands, copy };
   }
 
@@ -190,103 +324,194 @@ describe("Linux split bundle transfer", () => {
     const legacy = path.join(dir, "legacy");
     fs.mkdirSync(legacy);
     fs.copyFileSync(path.join(dist, "main.js"), path.join(legacy, "index.js"));
-    fs.copyFileSync(path.join(dist, "daemon.js"), path.join(legacy, "daemon.js"));
+    fs.copyFileSync(
+      path.join(dist, "daemon.js"),
+      path.join(legacy, "daemon.js"),
+    );
     for (const entry of ["index.js", "daemon.js"]) {
-      await expect(runLocal(process.execPath, [path.join(legacy, entry)])).rejects.toThrow("Cannot find module './main-chunk.js'");
+      await expect(
+        runLocal(process.execPath, [path.join(legacy, entry)]),
+      ).rejects.toThrow("Cannot find module './main-chunk.js'");
     }
 
     const target = localRemote();
     uploadLinuxCast(host, dist);
-    expect(await runLocal(target.launcher, ["argument with spaces"])).toEqual({ stdout: 'cli:split-tree-ok ["argument with spaces"]\n', stderr: "" });
-    expect(await runLocal(process.execPath, [path.join(target.install, "daemon.js")])).toEqual({ stdout: "daemon:split-tree-ok\n", stderr: "" });
-    expect(fs.readFileSync(path.join(target.install, ".build-marker"), "utf8")).toBe("hidden asset");
-    expect(fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8")).toBe("preserve probe");
-    expect(fs.readFileSync(path.join(target.install, "unrelated.txt"), "utf8")).toBe("preserve unrelated");
+    expect(await runLocal(target.launcher, ["argument with spaces"])).toEqual({
+      stdout: 'cli:split-tree-ok ["argument with spaces"]\n',
+      stderr: "",
+    });
+    expect(
+      await runLocal(process.execPath, [
+        path.join(target.install, "daemon.js"),
+      ]),
+    ).toEqual({ stdout: "daemon:split-tree-ok\n", stderr: "" });
+    expect(
+      fs.readFileSync(path.join(target.install, ".build-marker"), "utf8"),
+    ).toBe("hidden asset");
+    expect(
+      fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8"),
+    ).toBe("preserve probe");
+    expect(
+      fs.readFileSync(path.join(target.install, "unrelated.txt"), "utf8"),
+    ).toBe("preserve unrelated");
     expect(fs.statSync(target.install).mode & 0o555).toBe(0o555);
     // ~/.local/bin/cast, first on every agent's PATH, is this install and not a stale release binary.
-    expect(fs.readlinkSync(path.join(dir, "home/.local/bin/cast"))).toBe(target.launcher);
-    expect(fs.readlinkSync(path.join(dir, "home/.local/bin/codecast"))).toBe("cast");
+    expect(fs.readlinkSync(path.join(dir, "home/.local/bin/cast"))).toBe(
+      target.launcher,
+    );
+    expect(fs.readlinkSync(path.join(dir, "home/.local/bin/codecast"))).toBe(
+      "cast",
+    );
     uploadLinuxCast(host, dist);
     expect(new Set(target.stages).size).toBe(2);
     expect(new Set(target.uploads).size).toBe(2);
     for (const stage of target.stages) expect(fs.existsSync(stage)).toBe(false);
-    for (const archive of target.uploads) expect(fs.existsSync(path.dirname(archive))).toBe(false);
+    for (const archive of target.uploads)
+      expect(fs.existsSync(path.dirname(archive))).toBe(false);
   }, 30_000);
 
-  test.each(["upload", "extract"])("cleans staging after %s failure without changing the installed bundle", (failure) => {
-    const dist = splitDist();
-    const target = localRemote();
-    fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
-    target.copy.mockImplementation((_host, archive, destination) => {
-      target.uploads.push(archive);
-      fs.writeFileSync(destination, "partial transfer");
-      if (failure === "upload") throw new Error("upload interrupted");
-    });
-    expect(() => uploadLinuxCast(host, dist)).toThrow();
-    expect(fs.readFileSync(path.join(target.install, "index.js"), "utf8")).toBe("existing entry");
-    expect(fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8")).toBe("preserve probe");
-    for (const stage of target.stages) expect(fs.existsSync(stage)).toBe(false);
-    for (const archive of target.uploads) expect(fs.existsSync(path.dirname(archive))).toBe(false);
-  });
+  test.each(["upload", "extract"])(
+    "cleans staging after %s failure without changing the installed bundle",
+    (failure) => {
+      const dist = splitDist();
+      const target = localRemote();
+      fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
+      target.copy.mockImplementation((_host, archive, destination) => {
+        target.uploads.push(archive);
+        fs.writeFileSync(destination, "partial transfer");
+        if (failure === "upload") throw new Error("upload interrupted");
+      });
+      expect(() => uploadLinuxCast(host, dist)).toThrow();
+      expect(
+        fs.readFileSync(path.join(target.install, "index.js"), "utf8"),
+      ).toBe("existing entry");
+      expect(
+        fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8"),
+      ).toBe("preserve probe");
+      for (const stage of target.stages)
+        expect(fs.existsSync(stage)).toBe(false);
+      for (const archive of target.uploads)
+        expect(fs.existsSync(path.dirname(archive))).toBe(false);
+    },
+  );
 
   test("build overrides the shared outdir with a fresh, complete build on every run", async () => {
     fs.mkdirSync(path.join(dir, "src"));
     fs.mkdirSync(path.join(dir, "dist"));
     fs.writeFileSync(path.join(dir, "dist/stale-chunk.js"), "stale");
-    fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: {
-      build: "bun build src/main.ts src/daemon.ts --outdir dist --target=node --splitting",
-    } }));
-    fs.writeFileSync(path.join(dir, "src/main.ts"), 'console.log((await import("./shared.ts")).value);');
-    fs.writeFileSync(path.join(dir, "src/daemon.ts"), 'console.log((await import("./shared.ts")).value);');
-    fs.writeFileSync(path.join(dir, "src/shared.ts"), 'export const value = "fresh-split-build";');
-    const build = spyOn(childProcess, "execFileSync").mockImplementation(((command, args, options) => {
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({
+        scripts: {
+          build:
+            "bun build src/main.ts src/daemon.ts --outdir dist --target=node --splitting",
+        },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(dir, "src/main.ts"),
+      'console.log((await import("./shared.ts")).value);',
+    );
+    fs.writeFileSync(
+      path.join(dir, "src/daemon.ts"),
+      'console.log((await import("./shared.ts")).value);',
+    );
+    fs.writeFileSync(
+      path.join(dir, "src/shared.ts"),
+      'export const value = "fresh-split-build";',
+    );
+    const build = spyOn(childProcess, "execFileSync").mockImplementation(((
+      command,
+      args,
+      options,
+    ) => {
       // The build runs through run-interactive.ts (Interactive priority); what follows its `--` is the build itself.
       expect(command).toBe("bun");
       expect(String(args?.[0])).toEndWith("scripts/run-interactive.ts");
       const real = args!.slice(args!.indexOf("--") + 1);
       expect(real.slice(0, 4)).toEqual(["bun", "run", "build", "--outdir"]);
-      expect((options as childProcess.ExecFileSyncOptions).env?.CODECAST_BUNDLE_PLATFORM).toBe("linux");
+      expect(
+        (options as childProcess.ExecFileSyncOptions).env
+          ?.CODECAST_BUNDLE_PLATFORM,
+      ).toBe("linux");
       buildDirs.push(String(real[4]));
-      return execFileSync(process.execPath, real.slice(1), { ...options, cwd: dir, timeout: 20_000 });
+      return execFileSync(process.execPath, real.slice(1), {
+        ...options,
+        cwd: dir,
+        timeout: 20_000,
+      });
     }) as typeof childProcess.execFileSync);
     const first = buildLinuxCast(() => {});
     const second = buildLinuxCast(() => {});
     build.mockRestore();
     expect(first.distDir).not.toBe(second.distDir);
     for (const result of [first, second]) {
-      expect(fs.existsSync(path.join(result.distDir, "stale-chunk.js"))).toBe(false);
-      expect(fs.readdirSync(result.distDir).some(name => name !== "main.js" && name !== "daemon.js")).toBe(true);
+      expect(fs.existsSync(path.join(result.distDir, "stale-chunk.js"))).toBe(
+        false,
+      );
+      expect(
+        fs
+          .readdirSync(result.distDir)
+          .some((name) => name !== "main.js" && name !== "daemon.js"),
+      ).toBe(true);
       for (const entry of [result.indexJs, result.daemonJs]) {
-        expect(await runLocal(process.execPath, [entry])).toEqual({ stdout: "fresh-split-build\n", stderr: "" });
+        expect(await runLocal(process.execPath, [entry])).toEqual({
+          stdout: "fresh-split-build\n",
+          stderr: "",
+        });
       }
     }
   }, 30_000);
 
-  test.each(["failed", "missing entry"])("cleans an incomplete build when %s", (failure) => {
-    spyOn(childProcess, "execFileSync").mockImplementation(((_command: string, args: readonly string[]) => {
-      const output = String(args[args.indexOf("--outdir") + 1]);
-      buildDirs.push(output);
-      fs.writeFileSync(path.join(output, "main.js"), "partial entry");
-      if (failure === "failed") throw new Error("build failed");
-      return Buffer.alloc(0);
-    }) as typeof childProcess.execFileSync);
-    expect(() => buildLinuxCast(() => {})).toThrow(failure === "failed" ? "build failed" : "daemon.js");
-    expect(fs.existsSync(buildDirs.at(-1)!)).toBe(false);
-  });
+  test.each(["failed", "missing entry"])(
+    "cleans an incomplete build when %s",
+    (failure) => {
+      spyOn(childProcess, "execFileSync").mockImplementation(((
+        _command: string,
+        args: readonly string[],
+      ) => {
+        const output = String(args[args.indexOf("--outdir") + 1]);
+        buildDirs.push(output);
+        fs.writeFileSync(path.join(output, "main.js"), "partial entry");
+        if (failure === "failed") throw new Error("build failed");
+        return Buffer.alloc(0);
+      }) as typeof childProcess.execFileSync);
+      expect(() => buildLinuxCast(() => {})).toThrow(
+        failure === "failed" ? "build failed" : "daemon.js",
+      );
+      expect(fs.existsSync(buildDirs.at(-1)!)).toBe(false);
+    },
+  );
 
   // The version the real build would report: installLinuxCast reads it from the
   // same package.json, so the fixture bundle prints it back when it is healthy.
-  const sourceVersion = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")).version as string;
+  const sourceVersion = JSON.parse(
+    fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8"),
+  ).version as string;
 
   /** A split build the way `bun run build` emits one: a tiny entry that imports its chunk. */
   function fakeBuild() {
-    return spyOn(childProcess, "execFileSync").mockImplementation(((command: string, args: readonly string[], options: childProcess.ExecFileSyncOptions) => {
-      if (command !== "bun" || !args?.includes("build")) return execFileSync(command, args, options);
+    return spyOn(childProcess, "execFileSync").mockImplementation(((
+      command: string,
+      args: readonly string[],
+      options: childProcess.ExecFileSyncOptions,
+    ) => {
+      if (command !== "bun" || !args?.includes("build"))
+        return execFileSync(command, args, options);
       const out = String(args[args.indexOf("--outdir") + 1]);
       buildDirs.push(out);
-      fs.writeFileSync(path.join(out, "main.js"), 'import { v } from "./main-chunk.js"; console.log(v);');
-      fs.writeFileSync(path.join(out, "daemon.js"), 'import { v } from "./main-chunk.js"; console.log(v);');
-      fs.writeFileSync(path.join(out, "main-chunk.js"), `export const v = ${JSON.stringify(sourceVersion)};`);
+      fs.writeFileSync(
+        path.join(out, "main.js"),
+        'import { v } from "./main-chunk.js"; console.log(v);',
+      );
+      fs.writeFileSync(
+        path.join(out, "daemon.js"),
+        'import { v } from "./main-chunk.js"; console.log(v);',
+      );
+      fs.writeFileSync(
+        path.join(out, "main-chunk.js"),
+        `export const v = ${JSON.stringify(sourceVersion)};`,
+      );
       return Buffer.alloc(0);
     }) as typeof childProcess.execFileSync);
   }
@@ -295,36 +520,70 @@ describe("Linux split bundle transfer", () => {
     const target = localRemote(sourceVersion);
     fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
     fakeBuild();
-    expect(installLinuxCast(host, () => {}, "checkout")).toEqual({ version: sourceVersion });
-    expect(fs.readFileSync(path.join(target.install, "main-chunk.js"), "utf8")).toContain(sourceVersion);
-    expect(fs.readFileSync(path.join(`${target.install}.previous`, "index.js"), "utf8")).toBe("existing entry");
-    expect(fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8")).toBe("preserve probe");
+    expect(installLinuxCast(host, () => {}, "checkout")).toEqual({
+      version: sourceVersion,
+    });
+    expect(
+      fs.readFileSync(path.join(target.install, "main-chunk.js"), "utf8"),
+    ).toContain(sourceVersion);
+    expect(
+      fs.readFileSync(
+        path.join(`${target.install}.previous`, "index.js"),
+        "utf8",
+      ),
+    ).toBe("existing entry");
+    expect(
+      fs.readFileSync(path.join(target.install, "idle-probe.py"), "utf8"),
+    ).toBe("preserve probe");
     expect(fs.existsSync(buildDirs.at(-1)!)).toBe(false);
   }, 60_000);
 
   test.each([
-    ["a missing chunk", new Error("error: Cannot find module './main-chunk.js' from '/usr/local/lib/codecast/index.js'")],
+    [
+      "a missing chunk",
+      new Error(
+        "error: Cannot find module './main-chunk.js' from '/usr/local/lib/codecast/index.js'",
+      ),
+    ],
     ["a different version", "0.0.0"],
-  ] as const)("puts the previous bundle back when the new one fails its check (%s)", (_label, answer) => {
-    const target = localRemote(answer);
-    fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
-    fakeBuild();
-    expect(() => installLinuxCast(host, () => {}, "checkout")).toThrow("previous bundle is back in place");
-    // The host is exactly as it was: the old entry, the adjacent files, and no
-    // leftover copy, so nothing about the failed attempt survives it.
-    expect(fs.readFileSync(path.join(target.install, "index.js"), "utf8")).toBe("existing entry");
-    expect(fs.readFileSync(path.join(target.install, "unrelated.txt"), "utf8")).toBe("preserve unrelated");
-    expect(fs.existsSync(path.join(target.install, "main-chunk.js"))).toBe(false);
-    expect(fs.existsSync(`${target.install}.previous`)).toBe(false);
-  }, 60_000);
+  ] as const)(
+    "puts the previous bundle back when the new one fails its check (%s)",
+    (_label, answer) => {
+      const target = localRemote(answer);
+      fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
+      fakeBuild();
+      expect(() => installLinuxCast(host, () => {}, "checkout")).toThrow(
+        "previous bundle is back in place",
+      );
+      // The host is exactly as it was: the old entry, the adjacent files, and no
+      // leftover copy, so nothing about the failed attempt survives it.
+      expect(
+        fs.readFileSync(path.join(target.install, "index.js"), "utf8"),
+      ).toBe("existing entry");
+      expect(
+        fs.readFileSync(path.join(target.install, "unrelated.txt"), "utf8"),
+      ).toBe("preserve unrelated");
+      expect(fs.existsSync(path.join(target.install, "main-chunk.js"))).toBe(
+        false,
+      );
+      expect(fs.existsSync(`${target.install}.previous`)).toBe(false);
+    },
+    60_000,
+  );
 
   test("puts the previous bundle back when the upload itself fails", () => {
     const target = localRemote(sourceVersion);
     fs.writeFileSync(path.join(target.install, "index.js"), "existing entry");
-    target.copy.mockImplementation(() => { throw new Error("upload interrupted"); });
+    target.copy.mockImplementation(() => {
+      throw new Error("upload interrupted");
+    });
     fakeBuild();
-    expect(() => installLinuxCast(host, () => {}, "checkout")).toThrow("upload interrupted");
-    expect(fs.readFileSync(path.join(target.install, "index.js"), "utf8")).toBe("existing entry");
+    expect(() => installLinuxCast(host, () => {}, "checkout")).toThrow(
+      "upload interrupted",
+    );
+    expect(fs.readFileSync(path.join(target.install, "index.js"), "utf8")).toBe(
+      "existing entry",
+    );
   }, 60_000);
 
   test("the daemon's control group check names tmux servers and nothing else", async () => {
@@ -334,15 +593,24 @@ describe("Linux split bundle transfer", () => {
     fs.writeFileSync(path.join(dir, "proc", "10", "comm"), "bun\n");
     fs.writeFileSync(path.join(dir, "proc", "11", "comm"), "tmux: server\n");
     fs.writeFileSync(path.join(dir, "procs"), "10\n11\n");
-    const script = DAEMON_CGROUP_TMUX_SCRIPT
-      .replace("/sys/fs/cgroup/system.slice/codecast-daemon.service/cgroup.procs", path.join(dir, "procs"))
-      .replace("/proc/$p/comm", `${dir}/proc/$p/comm`);
-    expect(await runLocal("bash", ["-c", script])).toEqual({ stdout: "11\n", stderr: "" });
+    const script = DAEMON_CGROUP_TMUX_SCRIPT.replace(
+      "/sys/fs/cgroup/system.slice/codecast-daemon.service/cgroup.procs",
+      path.join(dir, "procs"),
+    ).replace("/proc/$p/comm", `${dir}/proc/$p/comm`);
+    expect(await runLocal("bash", ["-c", script])).toEqual({
+      stdout: "11\n",
+      stderr: "",
+    });
   }, 30_000);
 });
 
 describe("restartHostDaemon", () => {
-  const host: RemoteHost = { address: "unused", user: "ubuntu", keyPath: "/unused", remoteBaseDir: "/home/ubuntu/work" };
+  const host: RemoteHost = {
+    address: "unused",
+    user: "ubuntu",
+    keyPath: "/unused",
+    remoteBaseDir: "/home/ubuntu/work",
+  };
   afterEach(() => mock.restore());
 
   function scripted(tmuxPids: string, killMode = "control-group") {
@@ -377,7 +645,6 @@ describe("restartHostDaemon", () => {
     scripted("91");
     expect(restartHostDaemon(host, { force: true })).toEqual({ pid: "4242" });
   });
-
 });
 
 describe("idle watchdog and the daemon's activity stamp", () => {
@@ -388,11 +655,17 @@ describe("idle watchdog and the daemon's activity stamp", () => {
     expect(script).toMatch(/stat -c %Y "\$STAMP".*-lt 180/);
   });
   test("process rules survive only as the fallback for a daemon that never stamped", () => {
-    const fallback = script.slice(script.indexOf("else"), script.indexOf("fi", script.indexOf("else")));
+    const fallback = script.slice(
+      script.indexOf("else"),
+      script.indexOf("fi", script.indexOf("else")),
+    );
     expect(fallback).toContain("pgrep -x claude");
     expect(fallback).toContain("pgrep -f 'chrome'");
     // The stamp branch must not count processes: that is the whole point.
-    const stampBranch = script.slice(script.indexOf('if [ -f "$STAMP" ]'), script.indexOf("else"));
+    const stampBranch = script.slice(
+      script.indexOf('if [ -f "$STAMP" ]'),
+      script.indexOf("else"),
+    );
     expect(stampBranch).not.toContain("pgrep");
   });
   test("a watcher or a stream viewer still counts as activity", () => {
@@ -406,42 +679,69 @@ describe("idle watchdog and the daemon's activity stamp", () => {
     // the `bash -c '<remote command>'` wrapper whose cmdline also holds the
     // literal — counting that would subtract two per bridge and let a real
     // inbound session read as idle.
-    expect(script).toContain("conns=$(ss -Htn state established '( sport = :22 )' | wc -l)");
-    expect(script).toContain("bridges=$(pgrep -c -f '^cast-agent-bridge$' 2>/dev/null)");
+    expect(script).toContain(
+      "conns=$(ss -Htn state established '( sport = :22 )' | wc -l)",
+    );
+    expect(script).toContain(
+      "bridges=$(pgrep -c -f '^cast-agent-bridge$' 2>/dev/null)",
+    );
     expect(script).toContain('[ -n "$bridges" ] || bridges=0');
-    expect(script).toContain("reaches=$(pgrep -c -f '^cast-reach :' 2>/dev/null)");
-    expect(script).toContain("links=$(pgrep -c -f '^cast-browser-link$' 2>/dev/null)");
-    expect(script).toContain("[ $(( conns - bridges - reaches - links )) -gt 0 ] && active=1");
+    expect(script).toContain(
+      "reaches=$(pgrep -c -f '^cast-reach :' 2>/dev/null)",
+    );
+    expect(script).toContain(
+      "links=$(pgrep -c -f '^cast-browser-link$' 2>/dev/null)",
+    );
+    expect(script).toContain(
+      "[ $(( conns - bridges - reaches - links )) -gt 0 ] && active=1",
+    );
     expect(script).not.toContain('[ "$(ss -Htn state established');
     expect(script).not.toContain("${");
   });
 
   test("the watchdog versions the bridge and reach need are ones provisioning installs", () => {
     expect(IDLE_WATCHDOG_VERSION).toBe(5);
-    expect(AGENT_BRIDGE_MIN_WATCHDOG).toBeLessThanOrEqual(IDLE_WATCHDOG_VERSION);
+    expect(AGENT_BRIDGE_MIN_WATCHDOG).toBeLessThanOrEqual(
+      IDLE_WATCHDOG_VERSION,
+    );
     expect(REACH_MIN_WATCHDOG).toBeLessThanOrEqual(IDLE_WATCHDOG_VERSION);
-    expect(BROWSER_LINK_MIN_WATCHDOG).toBeLessThanOrEqual(IDLE_WATCHDOG_VERSION);
+    expect(BROWSER_LINK_MIN_WATCHDOG).toBeLessThanOrEqual(
+      IDLE_WATCHDOG_VERSION,
+    );
   });
 });
 
 describe.skipIf(process.platform !== "linux")("idle watchdog actions", () => {
   const roots: string[] = [];
-  afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
+  afterEach(() => {
+    for (const root of roots.splice(0))
+      fs.rmSync(root, { recursive: true, force: true });
+  });
 
-  function watchdog(data: { minutes?: string; action?: string; home?: string } = {}) {
+  function watchdog(
+    data: { minutes?: string; action?: string; home?: string } = {},
+  ) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "idle-actions-"));
     roots.push(root);
     const bin = path.join(root, "bin");
     fs.mkdirSync(bin);
-    const fake = (name: string, body: string) => fs.writeFileSync(path.join(bin, name), `#!/bin/bash\n${body}\n`, { mode: 0o755 });
+    const fake = (name: string, body: string) =>
+      fs.writeFileSync(path.join(bin, name), `#!/bin/bash\n${body}\n`, {
+        mode: 0o755,
+      });
     fake("ss", "exit 0");
     fake("pgrep", "exit 1");
     fake("logger", "exit 0");
     fake("timeout", 'shift; exec "$@"');
     fake("systemctl", `printf '%s\\n' "$*" >> '${root}/systemctl'`);
-    fake("python3", `printf '%s' "$*" > '${root}/probe-args'; exit $(cat '${root}/probe-code')`);
+    fake(
+      "python3",
+      `printf '%s' "$*" > '${root}/probe-args'; exit $(cat '${root}/probe-code')`,
+    );
     const at = (name: string) => path.join(root, name);
-    const put = (name: string, value: string | undefined) => { if (value !== undefined) fs.writeFileSync(at(name), value); };
+    const put = (name: string, value: string | undefined) => {
+      if (value !== undefined) fs.writeFileSync(at(name), value);
+    };
     put("minutes", data.minutes ?? "5");
     put("action", data.action);
     put("home", data.home);
@@ -463,10 +763,24 @@ describe.skipIf(process.platform !== "linux")("idle watchdog actions", () => {
       put,
       nowSec,
       busy: () => put("probe-code", "1"),
-      idleSince: (secondsAgo: number) => put("state", String(nowSec() - secondsAgo)),
-      markerMtime: (secondsAgo: number) => { fs.writeFileSync(at("marker"), ""); fs.utimesSync(at("marker"), nowSec() - secondsAgo, nowSec() - secondsAgo); },
-      run: () => childProcess.execFileSync("bash", [at("check.sh")], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, timeout: 20_000 }),
-      poweredOff: () => fs.existsSync(at("systemctl")) && fs.readFileSync(at("systemctl"), "utf8").trim().split("\n"),
+      idleSince: (secondsAgo: number) =>
+        put("state", String(nowSec() - secondsAgo)),
+      markerMtime: (secondsAgo: number) => {
+        fs.writeFileSync(at("marker"), "");
+        fs.utimesSync(
+          at("marker"),
+          nowSec() - secondsAgo,
+          nowSec() - secondsAgo,
+        );
+      },
+      run: () =>
+        childProcess.execFileSync("bash", [at("check.sh")], {
+          env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+          timeout: 20_000,
+        }),
+      poweredOff: () =>
+        fs.existsSync(at("systemctl")) &&
+        fs.readFileSync(at("systemctl"), "utf8").trim().split("\n"),
       marker: () => fs.existsSync(at("marker")),
     };
   }
@@ -530,7 +844,9 @@ describe.skipIf(process.platform !== "linux")("idle watchdog actions", () => {
     w.busy();
     w.run();
     expect(w.marker()).toBe(true);
-    expect(fs.statSync(w.at("marker")).mtimeMs / 1000).toBeGreaterThan(w.nowSec() - 50);
+    expect(fs.statSync(w.at("marker")).mtimeMs / 1000).toBeGreaterThan(
+      w.nowSec() - 50,
+    );
   }, 30_000);
 
   test("minutes 0 disables the watchdog and holds no marker", () => {
@@ -549,25 +865,35 @@ describe.skipIf(process.platform !== "linux")("idle watchdog actions", () => {
     fs.writeFileSync(path.join(home, ".codecast/host-active"), "");
     w.put("home", `${home}\n`);
     w.run();
-    expect(fs.readFileSync(w.at("probe-args"), "utf8")).toBe(`${w.at("probe.py")} ${home}`);
+    expect(fs.readFileSync(w.at("probe-args"), "utf8")).toBe(
+      `${w.at("probe.py")} ${home}`,
+    );
     expect(w.marker()).toBe(true);
   }, 30_000);
 
   test("with no home file the probe gets /home/ubuntu", () => {
     const w = watchdog();
     w.run();
-    expect(fs.readFileSync(w.at("probe-args"), "utf8")).toBe(`${w.at("probe.py")} /home/ubuntu`);
+    expect(fs.readFileSync(w.at("probe-args"), "utf8")).toBe(
+      `${w.at("probe.py")} /home/ubuntu`,
+    );
   }, 30_000);
 });
 
 describe("idleConfigScript", () => {
   test("the minutes alone are the line the AWS provisioning always wrote", () => {
-    expect(idleConfigScript(20)).toBe('echo "20" | sudo tee /etc/cast-idle-minutes >/dev/null');
+    expect(idleConfigScript(20)).toBe(
+      'echo "20" | sudo tee /etc/cast-idle-minutes >/dev/null',
+    );
     expect(baseProvisionScript(20)).toContain(`${idleConfigScript(20)}\n`);
   });
 
   test("the action and home follow when given", () => {
-    expect(idleConfigScript(15, { action: "marker", home: "/home/devbox" }).split("\n")).toEqual([
+    expect(
+      idleConfigScript(15, { action: "marker", home: "/home/devbox" }).split(
+        "\n",
+      ),
+    ).toEqual([
       'echo "15" | sudo tee /etc/cast-idle-minutes >/dev/null',
       'echo "marker" | sudo tee /etc/cast-idle-action >/dev/null',
       'echo "/home/devbox" | sudo tee /etc/cast-idle-home >/dev/null',
@@ -576,20 +902,38 @@ describe("idleConfigScript", () => {
 });
 
 describe("remoteHome", () => {
-  const base = { address: "1.2.3.4", user: "m1", keyPath: "/k", remoteBaseDir: "/Users/m1/work" };
+  const base = {
+    address: "1.2.3.4",
+    user: "m1",
+    keyPath: "/k",
+    remoteBaseDir: "/Users/m1/work",
+  };
 
   test("defaults to the macOS layout for legacy Scaleway hosts", () => {
     expect(remoteHome(base as RemoteHost)).toBe("/Users/m1");
   });
 
   test("honors an explicit Linux home", () => {
-    expect(remoteHome({ ...base, user: "ubuntu", homeDir: "/home/ubuntu" } as RemoteHost)).toBe("/home/ubuntu");
+    expect(
+      remoteHome({
+        ...base,
+        user: "ubuntu",
+        homeDir: "/home/ubuntu",
+      } as RemoteHost),
+    ).toBe("/home/ubuntu");
   });
 });
 
 describe("cloud host registry", () => {
   test("toRemoteHost carries the Linux home", () => {
-    const h: CloudHost = { id: "i-1", provider: "aws", region: "us-west-2", user: "ubuntu", keyPath: "/k", address: "1.2.3.4" };
+    const h: CloudHost = {
+      id: "i-1",
+      provider: "aws",
+      region: "us-west-2",
+      user: "ubuntu",
+      keyPath: "/k",
+      address: "1.2.3.4",
+    };
     const r = toRemoteHost(h);
     expect(r.homeDir).toBe("/home/ubuntu");
     expect(r.remoteBaseDir).toBe("/home/ubuntu/work");
@@ -601,15 +945,37 @@ describe("cloud host registry", () => {
     process.env.CODECAST_DIR = dir;
     try {
       writeHosts([
-        { id: "i-a", provider: "aws", region: "us-west-2", user: "ubuntu", keyPath: "/k", address: "1.2.3.4" },
-        { id: "i-b", provider: "aws", region: "us-west-2", user: "ubuntu", keyPath: "/k" },
+        {
+          id: "i-a",
+          provider: "aws",
+          region: "us-west-2",
+          user: "ubuntu",
+          keyPath: "/k",
+          address: "1.2.3.4",
+        },
+        {
+          id: "i-b",
+          provider: "aws",
+          region: "us-west-2",
+          user: "ubuntu",
+          keyPath: "/k",
+        },
       ]);
-      const extra = { address: "5.6.7.8", user: "m1", keyPath: "/k", remoteBaseDir: "/Users/m1/work" };
+      const extra = {
+        address: "5.6.7.8",
+        user: "m1",
+        keyPath: "/k",
+        remoteBaseDir: "/Users/m1/work",
+      };
       const down = { ...extra, address: "9.9.9.9" };
-      const hosts = await reachableRemoteHosts([extra, down], async (h) => h.address !== "9.9.9.9");
+      const hosts = await reachableRemoteHosts(
+        [extra, down],
+        async (h) => h.address !== "9.9.9.9",
+      );
       expect(hosts.map((h) => h.address)).toEqual(["1.2.3.4", "5.6.7.8"]);
     } finally {
-      if (prev === undefined) delete process.env.CODECAST_DIR; else process.env.CODECAST_DIR = prev;
+      if (prev === undefined) delete process.env.CODECAST_DIR;
+      else process.env.CODECAST_DIR = prev;
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
@@ -618,11 +984,28 @@ describe("cloud host registry", () => {
 describe("ProvisionReport", () => {
   test("carries the agent CLI versions and the tools summary beside the mirror and git lines (type-level)", () => {
     const report: ProvisionReport = {
-      chrome: "c", cast: "c", claude: "c", services: "cast-novnc=active", device: "active", mirror: "m", git: "ssh-ed25519 …",
-      agents: "claude=2.1.263 (Claude Code)  codex=codex-cli 0.153.4  gemini=missing  grok=missing  node=v22.12.0",
+      chrome: "c",
+      cast: "c",
+      claude: "c",
+      services: "cast-novnc=active",
+      device: "active",
+      mirror: "m",
+      git: "ssh-ed25519 …",
+      agents:
+        "claude=2.1.263 (Claude Code)  codex=codex-cli 0.153.4  gemini=missing  grok=missing  node=v22.12.0",
       tools: "5 ok, 1 installed, 0 missing, 0 unsupported",
     };
-    expect(Object.keys(report).sort()).toEqual(["agents", "cast", "chrome", "claude", "device", "git", "mirror", "services", "tools"]);
+    expect(Object.keys(report).sort()).toEqual([
+      "agents",
+      "cast",
+      "chrome",
+      "claude",
+      "device",
+      "git",
+      "mirror",
+      "services",
+      "tools",
+    ]);
   });
 });
 
@@ -644,37 +1027,78 @@ describe("which builds embed the macOS helpers", () => {
 // provisionMacHost, the Linux agent box via provisionLinuxHost) go through this
 // one function, so both are driven here with their own host shape.
 describe("pushCodecastConfig", () => {
-  const macHost: RemoteHost = { address: "10.0.0.7", user: "m1", keyPath: "/k", remoteBaseDir: "/Users/m1/work" };
-  const linuxHost: RemoteHost = { address: "10.0.0.9", user: "ubuntu", keyPath: "/k", remoteBaseDir: "/home/ubuntu/work", homeDir: "/home/ubuntu" };
+  const macHost: RemoteHost = {
+    address: "10.0.0.7",
+    user: "m1",
+    keyPath: "/k",
+    remoteBaseDir: "/Users/m1/work",
+  };
+  const linuxHost: RemoteHost = {
+    address: "10.0.0.9",
+    user: "ubuntu",
+    keyPath: "/k",
+    remoteBaseDir: "/home/ubuntu/work",
+    homeDir: "/home/ubuntu",
+  };
   const UNBOUND = "0123abcd";
   const BOUND = `${DEVICE_BOUND_TOKEN_PREFIX}0123abcd`;
   const HOST_TOKEN = `${DEVICE_BOUND_TOKEN_PREFIX}forthehost`;
 
   function harness(storedToken: string, hostDevice: string | undefined) {
-    const shipped: Array<{ host: RemoteHost; cfg: Record<string, unknown> }> = [];
+    const shipped: Array<{ host: RemoteHost; cfg: Record<string, unknown> }> =
+      [];
     const minted: Array<{ deviceId: string; label: string }> = [];
     const deps: PushCodecastConfigDeps = {
-      localConfig: () => ({ user_id: "u1", auth_token: storedToken, convex_url: "https://x.convex.cloud", web_url: "https://w", team_id: "t1", created_at: "c" }),
+      localConfig: () => ({
+        user_id: "u1",
+        auth_token: storedToken,
+        convex_url: "https://x.convex.cloud",
+        web_url: "https://w",
+        team_id: "t1",
+        created_at: "c",
+      }),
       hostDeviceId: () => hostDevice,
-      mintForHost: async (deviceId, label) => { minted.push({ deviceId, label }); return HOST_TOKEN; },
-      ship: (host, cfg) => { shipped.push({ host, cfg }); },
+      mintForHost: async (deviceId, label) => {
+        minted.push({ deviceId, label });
+        return HOST_TOKEN;
+      },
+      ship: (host, cfg) => {
+        shipped.push({ host, cfg });
+      },
     };
     return { deps, shipped, minted };
   }
 
-  for (const [kind, host] of [["mac", macHost], ["linux", linuxHost]] as const) {
+  for (const [kind, host] of [
+    ["mac", macHost],
+    ["linux", linuxHost],
+  ] as const) {
     test(`${kind}: an unbound laptop token is copied decrypted, the way it always was`, async () => {
-      const { deps, shipped, minted } = harness(encryptToken(UNBOUND), "hostdevice1234");
+      const { deps, shipped, minted } = harness(
+        encryptToken(UNBOUND),
+        "hostdevice1234",
+      );
       await pushCodecastConfig(host, deps);
       expect(minted).toEqual([]);
       expect(shipped[0].host).toBe(host);
-      expect(shipped[0].cfg).toMatchObject({ user_id: "u1", auth_token: UNBOUND, convex_url: "https://x.convex.cloud", team_id: "t1", sync_mode: "all" });
+      expect(shipped[0].cfg).toMatchObject({
+        user_id: "u1",
+        auth_token: UNBOUND,
+        convex_url: "https://x.convex.cloud",
+        team_id: "t1",
+        sync_mode: "all",
+      });
     });
 
     test(`${kind}: a bound laptop token is never copied; the host gets a token minted for its device`, async () => {
-      const { deps, shipped, minted } = harness(encryptToken(BOUND), "hostdevice1234");
+      const { deps, shipped, minted } = harness(
+        encryptToken(BOUND),
+        "hostdevice1234",
+      );
       await pushCodecastConfig(host, deps);
-      expect(minted).toEqual([{ deviceId: "hostdevice1234", label: `${host.user}@${host.address}` }]);
+      expect(minted).toEqual([
+        { deviceId: "hostdevice1234", label: `${host.user}@${host.address}` },
+      ]);
       // Shipped with the device it was minted for, so the host never has to
       // guess it (a host whose key rotated before would guess the old one).
       expect(shipped[0].cfg.auth_token).toBe(`${HOST_TOKEN}.hostdevice1234`);
@@ -684,15 +1108,21 @@ describe("pushCodecastConfig", () => {
 
   test("a bound laptop token with no host device id to mint for refuses and ships nothing", async () => {
     const { deps, shipped, minted } = harness(BOUND, undefined);
-    await expect(pushCodecastConfig(linuxHost, deps)).rejects.toThrow("cast auth");
+    await expect(pushCodecastConfig(linuxHost, deps)).rejects.toThrow(
+      "cast auth",
+    );
     expect(minted).toEqual([]);
     expect(shipped).toEqual([]);
   });
 
   test("a mint failure ships nothing", async () => {
     const { deps, shipped } = harness(BOUND, "hostdevice1234");
-    deps.mintForHost = async () => { throw new Error("Unauthorized"); };
-    await expect(pushCodecastConfig(macHost, deps)).rejects.toThrow("Unauthorized");
+    deps.mintForHost = async () => {
+      throw new Error("Unauthorized");
+    };
+    await expect(pushCodecastConfig(macHost, deps)).rejects.toThrow(
+      "Unauthorized",
+    );
     expect(shipped).toEqual([]);
   });
 });

@@ -1,6 +1,11 @@
 import { expect, test } from "bun:test";
 import { contentHash } from "@codecast/shared/diff";
-import { hasReviewBase, isSeen, reviewBaseId, toggleSeen } from "../diffSeenMarks";
+import {
+  hasReviewBase,
+  isSeen,
+  reviewBaseId,
+  toggleSeen,
+} from "../diffSeenMarks";
 
 test("a mark holds while the file's text is the one it was made on", () => {
   const v1 = contentHash("const a = 1;\n");
@@ -30,7 +35,8 @@ test("toggling a live mark clears it and leaves the others", () => {
 });
 
 test("a mark records the change it was made on and keeps the one before", () => {
-  const v1 = contentHash("1"), v2 = contentHash("2");
+  const v1 = contentHash("1"),
+    v2 = contentHash("2");
   const first = toggleSeen(undefined, "a", v1, "c1");
   expect(first.a).toEqual({ h: v1, at: "c1" });
   const second = toggleSeen(first, "a", v2, "c4");
@@ -40,9 +46,14 @@ test("a mark records the change it was made on and keeps the one before", () => 
 });
 
 test("an old bare-string mark still reads as seen and becomes the previous version", () => {
-  const v1 = contentHash("1"), v2 = contentHash("2");
+  const v1 = contentHash("1"),
+    v2 = contentHash("2");
   expect(isSeen({ a: v1 }, "a", v1)).toBe(true);
-  expect(toggleSeen({ a: v1 }, "a", v2, "c3").a).toEqual({ h: v2, at: "c3", prev: { h: v1 } });
+  expect(toggleSeen({ a: v1 }, "a", v2, "c3").a).toEqual({
+    h: v2,
+    at: "c3",
+    prev: { h: v1 },
+  });
   expect(hasReviewBase({ a: v1 })).toBe(false);
 });
 

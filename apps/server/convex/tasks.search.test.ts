@@ -13,16 +13,32 @@ const OTHER = id("teamother");
 const TOKEN = "task-search-token";
 
 const task = (n: number, extra: Record<string, any> = {}) => ({
-  _id: `tasks_${n}`, short_id: `ct-${n}`, title: `Task ${n}`, user_id: OWNER, team_id: TEAM, workspace: `team:${TEAM}`,
-  status: "open", source: "human", updated_at: n, created_at: n, ...extra,
+  _id: `tasks_${n}`,
+  short_id: `ct-${n}`,
+  title: `Task ${n}`,
+  user_id: OWNER,
+  team_id: TEAM,
+  workspace: `team:${TEAM}`,
+  status: "open",
+  source: "human",
+  updated_at: n,
+  created_at: n,
+  ...extra,
 });
 
 async function makeCtx(tasks: any[]) {
   const db = makeFakeDb({
     users: [{ _id: OWNER, name: "Ashot", active_team_id: TEAM, team_id: TEAM }],
-    teams: [{ _id: TEAM, name: "Union" }, { _id: OTHER, name: "Other" }],
-    team_memberships: [{ _id: "tm_1", user_id: OWNER, team_id: TEAM, role: "admin" }],
-    api_tokens: [{ _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
+    teams: [
+      { _id: TEAM, name: "Union" },
+      { _id: OTHER, name: "Other" },
+    ],
+    team_memberships: [
+      { _id: "tm_1", user_id: OWNER, team_id: TEAM, role: "admin" },
+    ],
+    api_tokens: [
+      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
     tasks,
   });
   const indexes: string[] = [];
@@ -31,22 +47,47 @@ async function makeCtx(tasks: any[]) {
     const q = query(table);
     if (table !== "tasks") return q;
     const withIndex = q.withIndex.bind(q);
-    q.withIndex = (name: string, fn?: any) => { indexes.push(name); return withIndex(name, fn); };
+    q.withIndex = (name: string, fn?: any) => {
+      indexes.push(name);
+      return withIndex(name, fn);
+    };
     return q;
   };
-  return { ctx: { db, auth: { async getUserIdentity() { return null; } } } as any, indexes };
+  return {
+    ctx: {
+      db,
+      auth: {
+        async getUserIdentity() {
+          return null;
+        },
+      },
+    } as any,
+    indexes,
+  };
 }
 
 const ls = (ctx: any, args: Record<string, any>) =>
-  (list as any)._handler(ctx, { api_token: TOKEN, workspace: "team", team_id: TEAM, ...args });
+  (list as any)._handler(ctx, {
+    api_token: TOKEN,
+    workspace: "team",
+    team_id: TEAM,
+    ...args,
+  });
 
 describe("task search", () => {
   test("finds by title, short id and description, open work only by default", async () => {
     const { ctx, indexes } = await makeCtx([
       task(1, { title: "Deploy the convex backend" }),
-      task(2, { title: "Unrelated", description: "mentions deploy in passing" }),
+      task(2, {
+        title: "Unrelated",
+        description: "mentions deploy in passing",
+      }),
       task(3, { title: "Deploy finished long ago", status: "done" }),
-      task(4, { title: "Another team's deploy", team_id: OTHER, workspace: `team:${OTHER}` }),
+      task(4, {
+        title: "Another team's deploy",
+        team_id: OTHER,
+        workspace: `team:${OTHER}`,
+      }),
       task(5, { title: "Nothing here" }),
     ]);
     const rows = await ls(ctx, { query: "deploy" });
@@ -54,7 +95,11 @@ describe("task search", () => {
     expect(indexes).not.toContain("by_workspace_status");
 
     const all = await ls(ctx, { query: "deploy", include_done: true });
-    expect(all.map((r: any) => r.short_id).sort()).toEqual(["ct-1", "ct-2", "ct-3"]);
+    expect(all.map((r: any) => r.short_id).sort()).toEqual([
+      "ct-1",
+      "ct-2",
+      "ct-3",
+    ]);
 
     const byId = await ls(ctx, { query: "ct-5" });
     expect(byId.map((r: any) => r.short_id)).toEqual(["ct-5"]);

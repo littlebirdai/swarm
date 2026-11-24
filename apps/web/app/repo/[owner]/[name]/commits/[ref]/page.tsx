@@ -9,17 +9,28 @@
 import { Fragment, useCallback, useMemo, type RefCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { FileCode2, GitCommitHorizontal, History as HistoryIcon } from "lucide-react";
+import {
+  FileCode2,
+  GitCommitHorizontal,
+  History as HistoryIcon,
+} from "lucide-react";
 import { CommentAvatar } from "../../../../../../components/comments/CommentAvatar";
 import { ExternalEventRow } from "../../../../../../components/feed/ExternalEventRow";
 import { LoadingSkeleton } from "../../../../../../components/LoadingSkeleton";
 import { CommitLinks } from "../../../../../../components/repo/CommitLinks";
-import { BranchPicker, RepoHeader } from "../../../../../../components/repo/RepoChrome";
+import {
+  BranchPicker,
+  RepoHeader,
+} from "../../../../../../components/repo/RepoChrome";
 import { RepoPageShell } from "../../../../../../components/repo/RepoPageShell";
 import { useRepoFamily } from "../../../../../../components/repo/useRepoFamily";
 import { Button } from "../../../../../../components/ui/button";
 import { useCoarseNow } from "../../../../../../hooks/useCoarseNow";
-import { useRepoBranches, useRepoCommitSessions, useRepoLog } from "../../../../../../hooks/useRepoBrowse";
+import {
+  useRepoBranches,
+  useRepoCommitSessions,
+  useRepoLog,
+} from "../../../../../../hooks/useRepoBrowse";
 import {
   useExternalEvents,
   useSyncRepositoryExternalEvents,
@@ -39,8 +50,16 @@ import { relTimeShort } from "../../../../../../lib/utils";
 import { useRepoTransport } from "../../../../../../lib/repoTransport";
 import "../../../../../../components/repo/repo.css";
 
-function HistoryRail({ repository, branch }: { repository: string; branch: string }) {
-  useSyncRepositoryExternalEvents(repository ? { repository, limit: 60 } : "skip");
+function HistoryRail({
+  repository,
+  branch,
+}: {
+  repository: string;
+  branch: string;
+}) {
+  useSyncRepositoryExternalEvents(
+    repository ? { repository, limit: 60 } : "skip",
+  );
   const events = useExternalEvents(
     useCallback((e: any) => e.repository === repository, [repository]),
   );
@@ -50,8 +69,12 @@ function HistoryRail({ repository, branch }: { repository: string; branch: strin
   return (
     <aside className="repo-rail w-[320px] shrink-0 self-stretch border-l border-sol-border/50 bg-sol-bg-alt/20">
       <div className="px-4 py-3 border-b border-sol-border/30">
-        <h2 className="text-mark uppercase tracking-wider text-sol-text-dim">Recent activity</h2>
-        <p className="mt-0.5 modern:font-mono text-meta text-sol-text-dim">{branch}</p>
+        <h2 className="text-mark uppercase tracking-wider text-sol-text-dim">
+          Recent activity
+        </h2>
+        <p className="mt-0.5 modern:font-mono text-meta text-sol-text-dim">
+          {branch}
+        </p>
       </div>
       <div className="px-2 py-2 space-y-0.5">
         {events.map((event: any) => (
@@ -91,14 +114,35 @@ function CommitsContent({
   const mode = useRepoTransport();
   // The signed in history joins its sessions itself. The public page asks
   // separately, and learns each session only as far as its owner allowed.
-  const shas = useMemo(() => log.commits.slice(0, 100).map((commit) => commit.sha), [log.commits]);
-  const publicSessions = useRepoCommitSessions(repository, mode === "public" ? shas : null);
+  const shas = useMemo(
+    () => log.commits.slice(0, 100).map((commit) => commit.sha),
+    [log.commits],
+  );
+  const publicSessions = useRepoCommitSessions(
+    repository,
+    mode === "public" ? shas : null,
+  );
 
-  const rows = useMemo(() => log.commits.map((commit) => ({ ...commit, ...splitCommitMessage(commit.message),
-    date: new Date(commit.timestamp).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) })), [log.commits]);
+  const rows = useMemo(
+    () =>
+      log.commits.map((commit) => ({
+        ...commit,
+        ...splitCommitMessage(commit.message),
+        date: new Date(commit.timestamp).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      })),
+    [log.commits],
+  );
 
   return (
-    <div className="repo-page h-full overflow-y-auto" data-main-scroll style={{ ["--repo-accent" as string]: "var(--sol-cyan)" }}>
+    <div
+      className="repo-page h-full overflow-y-auto"
+      data-main-scroll
+      style={{ ["--repo-accent" as string]: "var(--sol-cyan)" }}
+    >
       <RepoHeader
         headRef={headRef}
         repository={repository}
@@ -111,18 +155,49 @@ function CommitsContent({
               branches={branches.data.branches}
               value={branch}
               defaultBranch={branches.data.default_branch}
-              onPick={(next) => router.push(repoCommitsHref(repository, next, { path: filePath, author, family }))}
+              onPick={(next) =>
+                router.push(
+                  repoCommitsHref(repository, next, {
+                    path: filePath,
+                    author,
+                    family,
+                  }),
+                )
+              }
             />
           ) : null
         }
       />
 
-      <form key={`${filePath}:${author}`} className="flex gap-2 px-4 py-2 border-b border-sol-border/30" onSubmit={(event) => {
-        event.preventDefault(); const fields = new FormData(event.currentTarget);
-        router.push(repoCommitsHref(repository, branch || "HEAD", { path: String(fields.get("path") || "") || undefined, author: String(fields.get("author") || "") || undefined, family }));
-      }}>
-        <input name="author" aria-label="Filter commits by author" placeholder="Author username or email" defaultValue={author} className="bg-transparent border border-sol-border/50 rounded px-2 py-1 text-xs min-w-0" />
-        <input name="path" aria-label="Filter commits by path" placeholder="Path in repository" defaultValue={filePath} className="bg-transparent border border-sol-border/50 rounded px-2 py-1 text-xs min-w-0 flex-1" />
+      <form
+        key={`${filePath}:${author}`}
+        className="flex gap-2 px-4 py-2 border-b border-sol-border/30"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const fields = new FormData(event.currentTarget);
+          router.push(
+            repoCommitsHref(repository, branch || "HEAD", {
+              path: String(fields.get("path") || "") || undefined,
+              author: String(fields.get("author") || "") || undefined,
+              family,
+            }),
+          );
+        }}
+      >
+        <input
+          name="author"
+          aria-label="Filter commits by author"
+          placeholder="Author username or email"
+          defaultValue={author}
+          className="bg-transparent border border-sol-border/50 rounded px-2 py-1 text-xs min-w-0"
+        />
+        <input
+          name="path"
+          aria-label="Filter commits by path"
+          placeholder="Path in repository"
+          defaultValue={filePath}
+          className="bg-transparent border border-sol-border/50 rounded px-2 py-1 text-xs min-w-0 flex-1"
+        />
         <button className="text-xs text-sol-blue">Filter</button>
       </form>
       {(filePath || author) && (
@@ -130,14 +205,16 @@ function CommitsContent({
           <span>
             {filePath ? (
               <>
-                History of <code className="font-mono text-sol-text">{filePath}</code>
+                History of{" "}
+                <code className="font-mono text-sol-text">{filePath}</code>
               </>
             ) : (
               "Every commit"
             )}
             {author ? (
               <>
-                {" "}by <span className="text-sol-text">{author}</span>
+                {" "}
+                by <span className="text-sol-text">{author}</span>
               </>
             ) : null}
           </span>
@@ -179,89 +256,129 @@ function CommitsContent({
           <div className="divide-y divide-sol-border/25">
             {rows.map((commit, i) => (
               <Fragment key={commit.sha}>
-              {(i === 0 || rows[i - 1].date !== commit.date) && <h2 className="px-4 py-3 text-xs text-sol-text-muted bg-sol-bg-alt/30">{commit.date}</h2>}
-              <div
-                key={commit.sha}
-                className="repo-row repo-rise group flex items-start gap-3 px-4 py-2.5 hover:bg-sol-bg-alt/40 transition-colors"
-                style={{ ["--d" as string]: `${Math.min(i, 14) * 25}ms` }}
-              >
-                <CommentAvatar
-                  name={commit.author_login || commit.author_name || "?"}
-                  image={commit.author_avatar_url}
-                  size={22}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <Link
-                      href={commitPageHref(repository, commit.sha, family)}
-                      className="text-[13px] text-sol-text hover:underline truncate"
-                    >
-                      {commit.subject || commit.sha.slice(0, 7)}
-                    </Link>
+                {(i === 0 || rows[i - 1].date !== commit.date) && (
+                  <h2 className="px-4 py-3 text-xs text-sol-text-muted bg-sol-bg-alt/30">
+                    {commit.date}
+                  </h2>
+                )}
+                <div
+                  key={commit.sha}
+                  className="repo-row repo-rise group flex items-start gap-3 px-4 py-2.5 hover:bg-sol-bg-alt/40 transition-colors"
+                  style={{ ["--d" as string]: `${Math.min(i, 14) * 25}ms` }}
+                >
+                  <CommentAvatar
+                    name={commit.author_login || commit.author_name || "?"}
+                    image={commit.author_avatar_url}
+                    size={22}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <Link
+                        href={commitPageHref(repository, commit.sha, family)}
+                        className="text-[13px] text-sol-text hover:underline truncate"
+                      >
+                        {commit.subject || commit.sha.slice(0, 7)}
+                      </Link>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap text-meta text-sol-text-dim">
+                      <Link
+                        href={commitPageHref(repository, commit.sha, family)}
+                        className="font-mono hover:text-sol-text transition-colors"
+                        style={{ color: "var(--repo-accent)" }}
+                      >
+                        {commit.sha.slice(0, 7)}
+                      </Link>
+                      <Link
+                        href={repoCommitsHref(repository, branch || "HEAD", {
+                          path: filePath,
+                          author:
+                            commit.author_login ||
+                            commit.author_name ||
+                            undefined,
+                          family,
+                        })}
+                        className="hover:text-sol-text transition-colors"
+                      >
+                        {commit.author_login || commit.author_name}
+                      </Link>
+                      <span title={new Date(commit.timestamp).toLocaleString()}>
+                        {relTimeShort(commit.timestamp, now)}
+                      </span>
+                      {mode === "convex" ? (
+                        <CommitLinks repository={repository} joins={commit} />
+                      ) : (
+                        publicSessions.data?.by_sha[commit.sha] && (
+                          <CommitLinks
+                            repository={repository}
+                            joins={{
+                              session: {
+                                _id: publicSessions.data.by_sha[commit.sha]
+                                  .conversation_id,
+                                title:
+                                  publicSessions.data.by_sha[commit.sha].title,
+                                href: sessionHref(
+                                  publicSessions.data.by_sha[commit.sha],
+                                ),
+                              },
+                            }}
+                          />
+                        )
+                      )}
+                      {commit.additions !== undefined && (
+                        <span className="text-sol-green">
+                          +{commit.additions}
+                        </span>
+                      )}
+                      {commit.deletions !== undefined && (
+                        <span className="text-sol-red">
+                          −{commit.deletions}
+                        </span>
+                      )}
+                      {commit.changed_files != null && (
+                        <span>{commit.changed_files} files</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap text-meta text-sol-text-dim">
-                    <Link
-                      href={commitPageHref(repository, commit.sha, family)}
-                      className="font-mono hover:text-sol-text transition-colors"
-                      style={{ color: "var(--repo-accent)" }}
-                    >
-                      {commit.sha.slice(0, 7)}
-                    </Link>
-                    <Link
-                      href={repoCommitsHref(repository, branch || "HEAD", {
-                        path: filePath,
-                        author: commit.author_login || commit.author_name || undefined,
-                        family,
-                      })}
-                      className="hover:text-sol-text transition-colors"
-                    >
-                      {commit.author_login || commit.author_name}
-                    </Link>
-                    <span title={new Date(commit.timestamp).toLocaleString()}>
-                      {relTimeShort(commit.timestamp, now)}
-                    </span>
-                    {mode === "convex" ? (
-                      <CommitLinks repository={repository} joins={commit} />
-                    ) : (
-                      publicSessions.data?.by_sha[commit.sha] && (
-                        <CommitLinks
-                          repository={repository}
-                          joins={{ session: { _id: publicSessions.data.by_sha[commit.sha].conversation_id, title: publicSessions.data.by_sha[commit.sha].title, href: sessionHref(publicSessions.data.by_sha[commit.sha]) } }}
-                        />
-                      )
-                    )}
-                    {commit.additions !== undefined && <span className="text-sol-green">+{commit.additions}</span>}
-                    {commit.deletions !== undefined && <span className="text-sol-red">−{commit.deletions}</span>}
-                    {commit.changed_files != null && <span>{commit.changed_files} files</span>}
-                  </div>
-                </div>
 
-                <div className="repo-row-actions flex items-center gap-1 shrink-0">
-                  <Link
-                    href={commitPageHref(repository, commit.sha, family)}
-                    className="flex items-center gap-1 h-6 rounded border border-sol-border/50 px-1.5 text-meta text-sol-text-muted hover:text-sol-text"
-                  >
-                    <GitCommitHorizontal className="w-3 h-3" />
-                    Open commit
-                  </Link>
-                  <Link
-                    href={repoTreeHref(repository, commit.sha, undefined, family)}
-                    className="flex items-center gap-1 h-6 rounded border border-sol-border/50 px-1.5 text-meta text-sol-text-muted hover:text-sol-text"
-                  >
-                    <FileCode2 className="w-3 h-3" />
-                    Browse tree
-                  </Link>
+                  <div className="repo-row-actions flex items-center gap-1 shrink-0">
+                    <Link
+                      href={commitPageHref(repository, commit.sha, family)}
+                      className="flex items-center gap-1 h-6 rounded border border-sol-border/50 px-1.5 text-meta text-sol-text-muted hover:text-sol-text"
+                    >
+                      <GitCommitHorizontal className="w-3 h-3" />
+                      Open commit
+                    </Link>
+                    <Link
+                      href={repoTreeHref(
+                        repository,
+                        commit.sha,
+                        undefined,
+                        family,
+                      )}
+                      className="flex items-center gap-1 h-6 rounded border border-sol-border/50 px-1.5 text-meta text-sol-text-muted hover:text-sol-text"
+                    >
+                      <FileCode2 className="w-3 h-3" />
+                      Browse tree
+                    </Link>
+                  </div>
                 </div>
-              </div></Fragment>
+              </Fragment>
             ))}
           </div>
 
           {log.commits.length > 0 && (
             <div className="flex justify-center py-6">
               {log.exhausted ? (
-                <span className="text-meta text-sol-text-dim">That is the whole history we can read.</span>
+                <span className="text-meta text-sol-text-dim">
+                  That is the whole history we can read.
+                </span>
               ) : (
-                <Button variant="outline" size="sm" onClick={log.loadOlder} disabled={log.loadingMore}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={log.loadOlder}
+                  disabled={log.loadingMore}
+                >
                   {log.loadingMore ? "Reading" : "Load older"}
                 </Button>
               )}
@@ -269,7 +386,12 @@ function CommitsContent({
           )}
         </div>
 
-        {mode === "convex" && <HistoryRail repository={repository} branch={branch || "all branches"} />}
+        {mode === "convex" && (
+          <HistoryRail
+            repository={repository}
+            branch={branch || "all branches"}
+          />
+        )}
       </div>
     </div>
   );
@@ -284,7 +406,12 @@ export default function RepoCommitsPage() {
 
   return (
     <RepoPageShell repository={repository}>
-      <CommitsContent repository={repository} refName={refName} family={family} headRef={titlebarRef} />
+      <CommitsContent
+        repository={repository}
+        refName={refName}
+        family={family}
+        headRef={titlebarRef}
+      />
     </RepoPageShell>
   );
 }

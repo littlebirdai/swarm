@@ -25,7 +25,10 @@ import { findDecision, peopleFor, userMayRead } from "./sessionDecisions";
 import { projectLeadRole } from "./lib/orgAccess";
 import { reachableRole } from "./pendingMessages";
 import { workspaceAnchorFor } from "./anchors";
-import { isToolResultCarrier, parseDecisionDiscussion } from "@codecast/shared/contracts";
+import {
+  isToolResultCarrier,
+  parseDecisionDiscussion,
+} from "@codecast/shared/contracts";
 
 type Ctx = { db: any };
 type DecisionRow = Doc<"session_decisions">;
@@ -34,7 +37,10 @@ type DecisionRow = Doc<"session_decisions">;
  *  work's project, or it is the workspace's own agent. */
 export type DecisionOwnerVia = "asker" | "run" | "lead" | "workspace";
 
-export type DecisionOwner = { conversation: Doc<"conversations">; via: DecisionOwnerVia };
+export type DecisionOwner = {
+  conversation: Doc<"conversations">;
+  via: DecisionOwnerVia;
+};
 
 /** The most asks a row keeps: a conversation about one question, not a log. */
 export const DISCUSSION_MAX_ASKS = 50;
@@ -55,34 +61,68 @@ async function answersForItself(ctx: Ctx, conv: any): Promise<boolean> {
   return (await peopleFor(ctx, conv)).length > 0;
 }
 
-export async function decisionOwner(ctx: Ctx, row: Pick<DecisionRow, "conversation_id" | "workflow_run_id" | "task_id" | "user_id" | "asked_user_ids"> & { status?: DecisionRow["status"] }): Promise<DecisionOwner | null> {
+export async function decisionOwner(
+  ctx: Ctx,
+  row: Pick<
+    DecisionRow,
+    | "conversation_id"
+    | "workflow_run_id"
+    | "task_id"
+    | "user_id"
+    | "asked_user_ids"
+  > & { status?: DecisionRow["status"] },
+): Promise<DecisionOwner | null> {
   const asker = await ctx.db.get(row.conversation_id);
   // A run's station that posted its own decision is the one to talk to (it wrote the page and stays to revise),
   // though no person owns it; only the run's log, which no agent reads, never answers. While its decision waits, a
   // station the run ended still owns it: a person's message resurrects a killed session (enqueuePendingMessage), so
   // the words reach the session that wrote the proposal rather than whoever started the run.
-  const stationAsked = !!row.workflow_run_id && !!asker && !asker.is_workflow_primary && (!asker.inbox_killed_at || row.status === "pending");
-  if (stationAsked || (await answersForItself(ctx, asker))) return { conversation: asker!, via: "asker" };
-  const run = row.workflow_run_id ? await ctx.db.get(row.workflow_run_id) : null;
-  const starter = run?.spawner_conversation_id && String(run.spawner_conversation_id) !== String(row.conversation_id)
-    ? await ctx.db.get(run.spawner_conversation_id)
+  const stationAsked =
+    !!row.workflow_run_id &&
+    !!asker &&
+    !asker.is_workflow_primary &&
+    (!asker.inbox_killed_at || row.status === "pending");
+  if (stationAsked || (await answersForItself(ctx, asker)))
+    return { conversation: asker!, via: "asker" };
+  const run = row.workflow_run_id
+    ? await ctx.db.get(row.workflow_run_id)
     : null;
-  if (await answersForItself(ctx, starter)) return { conversation: starter, via: "run" };
+  const starter =
+    run?.spawner_conversation_id &&
+    String(run.spawner_conversation_id) !== String(row.conversation_id)
+      ? await ctx.db.get(run.spawner_conversation_id)
+      : null;
+  if (await answersForItself(ctx, starter))
+    return { conversation: starter, via: "run" };
   const taskId = row.task_id ?? run?.task_id;
   const task = taskId ? await ctx.db.get(taskId) : null;
   const lead = await projectLeadRole(ctx, task);
-  const leadSession = lead ? (await reachableRole(ctx, lead._id))?.standing : null;
-  if (leadSession && !leadSession.inbox_killed_at) return { conversation: leadSession, via: "lead" };
+  const leadSession = lead
+    ? (await reachableRole(ctx, lead._id))?.standing
+    : null;
+  if (leadSession && !leadSession.inbox_killed_at)
+    return { conversation: leadSession, via: "lead" };
   const teamId = asker?.team_id ?? run?.team_id ?? task?.team_id;
-  const anchor = await workspaceAnchorFor(ctx, teamId ? { team_id: teamId } : { scope_user_id: row.asked_user_ids?.[0] ?? row.user_id });
-  const agent = anchor?.conversation_id && anchor.status !== "decommissioned" ? await ctx.db.get(anchor.conversation_id) : null;
-  if (agent && !agent.inbox_killed_at) return { conversation: agent, via: "workspace" };
+  const anchor = await workspaceAnchorFor(
+    ctx,
+    teamId
+      ? { team_id: teamId }
+      : { scope_user_id: row.asked_user_ids?.[0] ?? row.user_id },
+  );
+  const agent =
+    anchor?.conversation_id && anchor.status !== "decommissioned"
+      ? await ctx.db.get(anchor.conversation_id)
+      : null;
+  if (agent && !agent.inbox_killed_at)
+    return { conversation: agent, via: "workspace" };
   return null;
 }
 
 /** What a person calls the owner: a role by its name, a session by its title. */
 export async function ownerName(ctx: Ctx, conv: any): Promise<string> {
-  const role = conv.standing_role_id ? await ctx.db.get(conv.standing_role_id) : null;
+  const role = conv.standing_role_id
+    ? await ctx.db.get(conv.standing_role_id)
+    : null;
   return role?.name ?? (conv.title || conv.short_id || "the session");
 }
 
@@ -122,8 +162,16 @@ export type DiscussionTurn = AskTurn;
  * placed. Every surface that talks to a session through the pending message
  * rail reads its replies here.
  */
-export async function placeReplies<T extends AskRecord>(ctx: Ctx, asks: ReadonlyArray<T>, askBody: (content: string) => string | null): Promise<AskTurn<T>[]> {
-  const turns: AskTurn<T>[] = asks.map((a) => ({ ...a, delivered: false, reply: null }));
+export async function placeReplies<T extends AskRecord>(
+  ctx: Ctx,
+  asks: ReadonlyArray<T>,
+  askBody: (content: string) => string | null,
+): Promise<AskTurn<T>[]> {
+  const turns: AskTurn<T>[] = asks.map((a) => ({
+    ...a,
+    delivered: false,
+    reply: null,
+  }));
   const byConversation = new Map<string, AskTurn<T>[]>();
   for (const t of turns) {
     const key = String(t.conversation_id);
@@ -135,8 +183,17 @@ export async function placeReplies<T extends AskRecord>(ctx: Ctx, asks: Readonly
     // out of budget leaves the next one to start from the ask it missed.
     const byTime = [...list].sort((a, b) => a.at - b.at);
     let from = 0;
-    for (let reads = 0; reads < DISCUSSION_READS_PER_SESSION && from < byTime.length; reads++) {
-      const exhausted = await placeAsks(ctx, list, askBody, byTime[from].at - 60_000);
+    for (
+      let reads = 0;
+      reads < DISCUSSION_READS_PER_SESSION && from < byTime.length;
+      reads++
+    ) {
+      const exhausted = await placeAsks(
+        ctx,
+        list,
+        askBody,
+        byTime[from].at - 60_000,
+      );
       if (!exhausted) break;
       const next = byTime.findIndex((t, i) => i > from && !t.delivered);
       if (next < 0) break;
@@ -147,7 +204,10 @@ export async function placeReplies<T extends AskRecord>(ctx: Ctx, asks: Readonly
 }
 
 /** A decision's asks with their replies (placeReplies over its discussion). */
-export async function discussionTurns(ctx: Ctx, row: Pick<DecisionRow, "short_id" | "_id" | "discussion">): Promise<DiscussionTurn[]> {
+export async function discussionTurns(
+  ctx: Ctx,
+  row: Pick<DecisionRow, "short_id" | "_id" | "discussion">,
+): Promise<DiscussionTurn[]> {
   const ref = row.short_id ?? String(row._id);
   return placeReplies(ctx, row.discussion ?? [], (content) => {
     const said = parseDecisionDiscussion(content);
@@ -158,12 +218,19 @@ export async function discussionTurns(ctx: Ctx, row: Pick<DecisionRow, "short_id
 /** One bounded read of an owner's transcript from `since`, marking the asks
  *  it meets as delivered with their replies. True when the read ran out of
  *  budget before the transcript ended. */
-async function placeAsks(ctx: Ctx, list: AskTurn<AskRecord>[], askBody: (content: string) => string | null, since: number): Promise<boolean> {
+async function placeAsks(
+  ctx: Ctx,
+  list: AskTurn<AskRecord>[],
+  askBody: (content: string) => string | null,
+  since: number,
+): Promise<boolean> {
   let open: AskTurn<AskRecord> | null = null;
   let read = 0;
   const q = ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (ix: any) => ix.eq("conversation_id", list[0].conversation_id).gte("timestamp", since))
+    .withIndex("by_conversation_timestamp", (ix: any) =>
+      ix.eq("conversation_id", list[0].conversation_id).gte("timestamp", since),
+    )
     .order("asc");
   for await (const m of q) {
     if (++read > DISCUSSION_READ_BUDGET) return true;
@@ -171,7 +238,12 @@ async function placeAsks(ctx: Ctx, list: AskTurn<AskRecord>[], askBody: (content
       const body = typeof m.content === "string" ? askBody(m.content) : null;
       // A tmux injection can collapse the newlines, leaving the header on
       // the body's line, so the ask is matched as the body's ending.
-      const match = body != null ? list.find((t) => !t.delivered && squash(body).endsWith(squash(t.text))) : undefined;
+      const match =
+        body != null
+          ? list.find(
+              (t) => !t.delivered && squash(body).endsWith(squash(t.text)),
+            )
+          : undefined;
       if (match) match.delivered = true;
       // Anything a person or a machine says next starts a new turn: what
       // the owner says after it answers that, not the ask.
@@ -217,7 +289,10 @@ export const discussion = query({
             via: owner.via,
           }
         : null,
-      turns: turns.map((t) => ({ ...t, by: people.get(String(t.user_id)) ?? "Someone" })),
+      turns: turns.map((t) => ({
+        ...t,
+        by: people.get(String(t.user_id)) ?? "Someone",
+      })),
     };
   },
 });

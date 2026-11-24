@@ -1,11 +1,23 @@
 // The Ask agent logic behind AskAgentControl: per-surface drafts, the start
 // confirm's state, sending an ask, picking its target, and the page's Ask claim.
-import { createContext, useCallback, useContext, useRef, useState, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 // Ids that only name writes and threads, never secrets: the non-secure
 // generator needs no crypto, which the phone's Hermes runtime lacks.
 import { nanoid } from "nanoid/non-secure";
 import { toast } from "sonner";
-import { askAgentBrief, type ArtifactElement, type ArtifactOp, type ArtifactType } from "@codecast/shared/artifacts";
+import {
+  askAgentBrief,
+  type ArtifactElement,
+  type ArtifactOp,
+  type ArtifactType,
+} from "@codecast/shared/artifacts";
 import { sendLiveOps } from "./useLiveArtifact";
 import { useInboxStore } from "../../store/inboxStore";
 import { spawnSessionWithPrompt } from "../../lib/spawnSession";
@@ -13,7 +25,13 @@ import { cleanTitle } from "../../lib/conversationProcessor";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 
-export type AskDoc = { _id: string; title: string; doc_type: ArtifactType; project_path?: string; git_root?: string };
+export type AskDoc = {
+  _id: string;
+  title: string;
+  doc_type: ArtifactType;
+  project_path?: string;
+  git_root?: string;
+};
 
 export type AskRequest = {
   /** The Ask surface the words came from (useAskDraft): its draft clears once the ask goes out, and survives a cancel. */
@@ -24,7 +42,9 @@ export type AskRequest = {
   draft?: boolean;
 };
 
-export type AskTarget = { kind: "new" } | { kind: "session"; id: string; title?: string };
+export type AskTarget =
+  | { kind: "new" }
+  | { kind: "session"; id: string; title?: string };
 
 // What a person has typed into an Ask surface, per artifact and surface, held
 // outside the component: a surface may close while the start confirm is open
@@ -46,14 +66,27 @@ function writeDraft(key: string, next: AskDraft) {
  * An Ask surface's text, kept across closing and a cancelled start.
  * `onReopen` runs when a start from this surface was cancelled: open it again.
  */
-export function useAskDraft(docId: string, slot: string, onReopen?: () => void): { text: string; setText: (t: string) => void } {
+export function useAskDraft(
+  docId: string,
+  slot: string,
+  onReopen?: () => void,
+): { text: string; setText: (t: string) => void } {
   const key = draftKey(docId, slot);
   const draft = useSyncExternalStore(
-    useCallback((fn: () => void) => { draftListeners.add(fn); return () => { draftListeners.delete(fn); }; }, []),
+    useCallback((fn: () => void) => {
+      draftListeners.add(fn);
+      return () => {
+        draftListeners.delete(fn);
+      };
+    }, []),
     () => askDrafts.get(key) ?? EMPTY_DRAFT,
     () => EMPTY_DRAFT,
   );
-  const setText = useCallback((text: string) => writeDraft(key, { ...(askDrafts.get(key) ?? EMPTY_DRAFT), text }), [key]);
+  const setText = useCallback(
+    (text: string) =>
+      writeDraft(key, { ...(askDrafts.get(key) ?? EMPTY_DRAFT), text }),
+    [key],
+  );
   // Only a cancel after this surface mounted reopens it.
   const seen = useRef(draft.reopen);
   const reopenRef = useRef(onReopen);
@@ -70,7 +103,12 @@ function settleDraft(doc: AskDoc, slot: string | undefined, sent: boolean) {
   if (!slot) return;
   const key = draftKey(doc._id, slot);
   const cur = askDrafts.get(key) ?? EMPTY_DRAFT;
-  writeDraft(key, sent ? { text: "", reopen: cur.reopen } : { ...cur, reopen: cur.reopen + 1 });
+  writeDraft(
+    key,
+    sent
+      ? { text: "", reopen: cur.reopen }
+      : { ...cur, reopen: cur.reopen + 1 },
+  );
 }
 
 // Starting an agent goes through the shared confirm (components/consequential):
@@ -89,21 +127,36 @@ function confirmStart(ledger: SwitchLedger): Promise<boolean> {
 }
 
 /** The confirm review's state, read by AskConfirmHost. */
-export function useAskConfirm(): { pending: PendingConfirm | null; done: (ok: boolean) => void } {
+export function useAskConfirm(): {
+  pending: PendingConfirm | null;
+  done: (ok: boolean) => void;
+} {
   const pending = useSyncExternalStore(
-    useCallback((fn: () => void) => { confirmListeners.add(fn); return () => { confirmListeners.delete(fn); }; }, []),
+    useCallback((fn: () => void) => {
+      confirmListeners.add(fn);
+      return () => {
+        confirmListeners.delete(fn);
+      };
+    }, []),
     () => pendingConfirm,
     () => null,
   );
-  const done = useCallback((ok: boolean) => {
-    if (!pending) return;
-    setPendingConfirm(null);
-    pending.resolve(ok);
-  }, [pending]);
+  const done = useCallback(
+    (ok: boolean) => {
+      if (!pending) return;
+      setPendingConfirm(null);
+      pending.resolve(ok);
+    },
+    [pending],
+  );
   return { pending, done };
 }
 
-function startLedger(doc: AskDoc, req: AskRequest, projectPath: string): SwitchLedger {
+function startLedger(
+  doc: AskDoc,
+  req: AskRequest,
+  projectPath: string,
+): SwitchLedger {
   const words = req.prompt.trim().replace(/\s+/g, " ");
   return {
     name: "Start an agent",
@@ -113,8 +166,12 @@ function startLedger(doc: AskDoc, req: AskRequest, projectPath: string): SwitchL
     rows: [
       { k: "Asked", v: words.length > 90 ? `${words.slice(0, 89)}…` : words },
       { k: "Edits", v: doc.title },
-      ...(req.selected?.length ? [{ k: "Selected", v: String(req.selected.length) }] : []),
-      ...(req.draft ? [{ k: "Writes to", v: "a draft you save or discard" }] : []),
+      ...(req.selected?.length
+        ? [{ k: "Selected", v: String(req.selected.length) }]
+        : []),
+      ...(req.draft
+        ? [{ k: "Writes to", v: "a draft you save or discard" }]
+        : []),
     ],
     stop: "Stop it from its session",
     confirm: "Start agent",
@@ -127,18 +184,40 @@ function startLedger(doc: AskDoc, req: AskRequest, projectPath: string): SwitchL
  * confirm). Resolves to the session's id, or null when the person cancelled or
  * the new-session composer took over (no project known).
  */
-export async function sendAsk(doc: AskDoc, req: AskRequest, target: AskTarget): Promise<string | null> {
+export async function sendAsk(
+  doc: AskDoc,
+  req: AskRequest,
+  target: AskTarget,
+): Promise<string | null> {
   const url = `${window.location.origin}/docs/${doc._id}`;
   // Every ask is a comment thread: the agent replies there when done, which
   // notifies the asker and marks the thread answered. A comment sent to an
   // agent is its own thread already.
   const thread = req.comment_key ?? `cm_${nanoid(10)}`;
-  const brief = askAgentBrief({ prompt: req.prompt, doc, url, selected: req.selected, comment_key: thread, draft: req.draft });
+  const brief = askAgentBrief({
+    prompt: req.prompt,
+    doc,
+    url,
+    selected: req.selected,
+    comment_key: thread,
+    draft: req.draft,
+  });
   const store = useInboxStore.getState() as any;
   const record = (sentTo: string) => {
     const ops: ArtifactOp[] = req.comment_key
       ? [{ k: thread, set: { sent_to: sentTo } }]
-      : [{ k: thread, put: { kind: "comment", text: req.prompt.trim(), created_at: Date.now(), sent_to: sentTo, ...(req.selected?.[0] ? { anchor: req.selected[0].key } : {}) } }];
+      : [
+          {
+            k: thread,
+            put: {
+              kind: "comment",
+              text: req.prompt.trim(),
+              created_at: Date.now(),
+              sent_to: sentTo,
+              ...(req.selected?.[0] ? { anchor: req.selected[0].key } : {}),
+            },
+          },
+        ];
     sendLiveOps(doc._id, "comments", ops);
   };
   if (target.kind === "session") {
@@ -161,12 +240,22 @@ export async function sendAsk(doc: AskDoc, req: AskRequest, target: AskTarget): 
     settleDraft(doc, req.slot, false);
     return null;
   }
-  const { stubId } = spawnSessionWithPrompt({ prompt: brief, projectPath, failureLabel: "Failed to start the agent" });
+  const { stubId } = spawnSessionWithPrompt({
+    prompt: brief,
+    projectPath,
+    failureLabel: "Failed to start the agent",
+  });
   record(stubId);
   // The stub becomes a real session: the thread points at that one, so its link opens it.
-  void store.awaitConvexId(stubId).then((real: string) => {
-    if (real && real !== stubId) sendLiveOps(doc._id, "comments", [{ k: thread, set: { sent_to: real } }]);
-  }).catch(() => {});
+  void store
+    .awaitConvexId(stubId)
+    .then((real: string) => {
+      if (real && real !== stubId)
+        sendLiveOps(doc._id, "comments", [
+          { k: thread, set: { sent_to: real } },
+        ]);
+    })
+    .catch(() => {});
   toast.success("Agent started");
   settleDraft(doc, req.slot, true);
   return stubId;
@@ -178,15 +267,28 @@ export function reopenAsk(doc: AskDoc, slot: string) {
 }
 
 /** Open the session picker for an ask. `onCancel` runs when the palette closes without a pick. */
-export function pickAskTarget(title: string, onPick: (t: AskTarget) => void, onCancel?: () => void) {
+export function pickAskTarget(
+  title: string,
+  onPick: (t: AskTarget) => void,
+  onCancel?: () => void,
+) {
   let settled = false;
   const pick = {
     title,
     kinds: ["session"],
-    extras: [{ key: "new", label: "New agent", description: "Start a session in this project", icon: "sparkles" as const, primary: true }],
+    extras: [
+      {
+        key: "new",
+        label: "New agent",
+        description: "Start a session in this project",
+        icon: "sparkles" as const,
+        primary: true,
+      },
+    ],
     onPick: (t: any) => {
       settled = true;
-      if (t.kind === "session") onPick({ kind: "session", id: t.id, title: t.label });
+      if (t.kind === "session")
+        onPick({ kind: "session", id: t.id, title: t.label });
       else onPick({ kind: "new" });
     },
   };
@@ -231,4 +333,3 @@ export function useClaimAsk() {
   const ctx = useContext(AskClaimContext);
   useWatchEffect(() => ctx?.claim(), [ctx]);
 }
-

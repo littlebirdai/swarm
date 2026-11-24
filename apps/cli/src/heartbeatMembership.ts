@@ -19,10 +19,14 @@ export interface TranscriptBeatFacts {
 }
 
 /** The transcript-added sessions with nothing left behind them. */
-export function deadTranscriptBeats(transcriptAdded: Iterable<string>, facts: TranscriptBeatFacts): string[] {
+export function deadTranscriptBeats(
+  transcriptAdded: Iterable<string>,
+  facts: TranscriptBeatFacts,
+): string[] {
   const dead: string[] = [];
   for (const id of transcriptAdded) {
-    if (facts.hasPane(id) || facts.parked(id) || facts.processAlive(id)) continue;
+    if (facts.hasPane(id) || facts.parked(id) || facts.processAlive(id))
+      continue;
     dead.push(id);
   }
   return dead;
@@ -38,14 +42,24 @@ export const UNKNOWN_BEAT_STRIKES = 3;
  * one: a session's first beat can land before its registration does.
  * `strikes` is the caller's memory between flushes; a known id is forgotten.
  */
-export function strikeUnknownBeats(strikes: Map<string, number>, sent: readonly string[], unknown: readonly string[] | undefined, limit = UNKNOWN_BEAT_STRIKES): string[] {
+export function strikeUnknownBeats(
+  strikes: Map<string, number>,
+  sent: readonly string[],
+  unknown: readonly string[] | undefined,
+  limit = UNKNOWN_BEAT_STRIKES,
+): string[] {
   const disowned = new Set(unknown ?? []);
   const drop: string[] = [];
   for (const id of sent) {
-    if (!disowned.has(id)) { strikes.delete(id); continue; }
+    if (!disowned.has(id)) {
+      strikes.delete(id);
+      continue;
+    }
     const count = (strikes.get(id) ?? 0) + 1;
-    if (count >= limit) { strikes.delete(id); drop.push(id); }
-    else strikes.set(id, count);
+    if (count >= limit) {
+      strikes.delete(id);
+      drop.push(id);
+    } else strikes.set(id, count);
   }
   return drop;
 }

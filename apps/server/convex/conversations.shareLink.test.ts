@@ -10,17 +10,32 @@ function ctxFor(rows: Record<string, unknown>[]) {
     byId,
     db: {
       normalizeId: (_table: string, id: string) => (byId.has(id) ? id : null),
-      async get(id: string) { return byId.get(id) ?? null; },
-      async patch(id: string, patch: Record<string, unknown>) { byId.set(id, { ...byId.get(id), ...patch }); },
+      async get(id: string) {
+        return byId.get(id) ?? null;
+      },
+      async patch(id: string, patch: Record<string, unknown>) {
+        byId.set(id, { ...byId.get(id), ...patch });
+      },
       // The audit row every share link change writes (lib/authorityEvents.ts).
-      async insert(table: string, row: Record<string, unknown>) { const id = `${table}_${byId.size}`; byId.set(id, { _id: id, ...row }); return id; },
+      async insert(table: string, row: Record<string, unknown>) {
+        const id = `${table}_${byId.size}`;
+        byId.set(id, { _id: id, ...row });
+        return id;
+      },
       query(_table: string) {
         let token: unknown;
         const q = { eq: (_f: string, v: unknown) => ((token = v), q) };
         return {
           withIndex(_i: string, fn: (q: unknown) => unknown) {
             fn(q);
-            return { async first() { return [...byId.values()].find((r) => r.share_token === token) ?? null; } };
+            return {
+              async first() {
+                return (
+                  [...byId.values()].find((r) => r.share_token === token) ??
+                  null
+                );
+              },
+            };
           },
         };
       },
@@ -30,8 +45,15 @@ function ctxFor(rows: Record<string, unknown>[]) {
 
 const OLD = "11111111-1111-4111-8111-111111111111";
 const NEW = "22222222-2222-4222-9222-222222222222";
-const conv = () => ({ _id: "c1", user_id: "owner", is_private: true, share_token: OLD, profile_pinned_at: 5 });
-const access = (ctx: any, token: string) => checkConversationAccess(ctx, null, ctx.byId.get("c1"), token);
+const conv = () => ({
+  _id: "c1",
+  user_id: "owner",
+  is_private: true,
+  share_token: OLD,
+  profile_pinned_at: 5,
+});
+const access = (ctx: any, token: string) =>
+  checkConversationAccess(ctx, null, ctx.byId.get("c1"), token);
 
 describe("writeShareLink", () => {
   test("off clears the token and the profile pin, so the old link stops working", async () => {
@@ -52,15 +74,24 @@ describe("writeShareLink", () => {
   });
 
   test("refuses a weak token and one another conversation holds", async () => {
-    const ctx = ctxFor([{ ...conv(), share_token: undefined }, { _id: "c2", user_id: "other", share_token: NEW }]);
-    await expect(writeShareLink(ctx as any, "owner" as any, "c1", "abc")).rejects.toThrow("Invalid share token");
-    await expect(writeShareLink(ctx as any, "owner" as any, "c1", NEW)).rejects.toThrow("Invalid share token");
+    const ctx = ctxFor([
+      { ...conv(), share_token: undefined },
+      { _id: "c2", user_id: "other", share_token: NEW },
+    ]);
+    await expect(
+      writeShareLink(ctx as any, "owner" as any, "c1", "abc"),
+    ).rejects.toThrow("Invalid share token");
+    await expect(
+      writeShareLink(ctx as any, "owner" as any, "c1", NEW),
+    ).rejects.toThrow("Invalid share token");
     expect(ctx.byId.get("c1")!.share_token).toBeUndefined();
   });
 
   test("only the owner can change it", async () => {
     const ctx = ctxFor([conv()]);
-    await expect(writeShareLink(ctx as any, "someone_else" as any, "c1", null)).rejects.toThrow("Unauthorized");
+    await expect(
+      writeShareLink(ctx as any, "someone_else" as any, "c1", null),
+    ).rejects.toThrow("Unauthorized");
     expect(ctx.byId.get("c1")!.share_token).toBe(OLD);
   });
 });

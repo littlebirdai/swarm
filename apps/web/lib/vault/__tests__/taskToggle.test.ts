@@ -30,7 +30,9 @@ describe("toggleTaskInContent", () => {
   });
 
   test("unchecks a done task", () => {
-    expect(toggleTaskInContent(NOTE, 7, false)!.split("\n")[6]).toBe("- [ ] done one");
+    expect(toggleTaskInContent(NOTE, 7, false)!.split("\n")[6]).toBe(
+      "- [ ] done one",
+    );
   });
 
   test("flips when no target state is given", () => {
@@ -39,8 +41,12 @@ describe("toggleTaskInContent", () => {
   });
 
   test("keeps indentation and the list marker", () => {
-    expect(toggleTaskInContent(NOTE, 8, true)!.split("\n")[7]).toBe("  * [x] nested");
-    expect(toggleTaskInContent(NOTE, 9, true)!.split("\n")[8]).toBe("1. [x] ordered");
+    expect(toggleTaskInContent(NOTE, 8, true)!.split("\n")[7]).toBe(
+      "  * [x] nested",
+    );
+    expect(toggleTaskInContent(NOTE, 9, true)!.split("\n")[8]).toBe(
+      "1. [x] ordered",
+    );
   });
 
   test("preserves CRLF line endings", () => {

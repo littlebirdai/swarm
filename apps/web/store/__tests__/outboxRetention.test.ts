@@ -42,7 +42,9 @@ function makeHarness(retryDelays: number[] = []) {
     commandId: string;
   }> = [];
   let state: any;
-  const set = (next: any) => { state = next; };
+  const set = (next: any) => {
+    state = next;
+  };
   const get = () => state;
   const wrapped = mutativeMiddleware(
     () => ({
@@ -127,7 +129,9 @@ describe("outboxFailureDisposition", () => {
   });
 
   it("gives up once the boot-attempt cap is reached", () => {
-    const d = outboxFailureDisposition(seedEntry({ attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1 }));
+    const d = outboxFailureDisposition(
+      seedEntry({ attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1 }),
+    );
     expect(d.keep).toBe(false);
   });
 });
@@ -147,10 +151,13 @@ describe("drainOutbox retention", () => {
 
   it("parks an unknown operation schema without dispatching or deleting it", async () => {
     const { wrapped, outbox } = makeHarness();
-    outbox.set("future", seedEntry({
-      id: "future",
-      operationSchemaVersion: 99,
-    }));
+    outbox.set(
+      "future",
+      seedEntry({
+        id: "future",
+        operationSchemaVersion: 99,
+      }),
+    );
     let calls = 0;
     wrapped._setDispatch(async () => {
       calls++;
@@ -235,7 +242,10 @@ describe("drainOutbox retention", () => {
 describe("must-deliver retention (user sends never drop)", () => {
   it("never gives up on a sendMessage entry, even past the boot cap", () => {
     const d = outboxFailureDisposition(
-      seedEntry({ action: "sendMessage", attempts: MAX_OUTBOX_BOOT_ATTEMPTS + 3 }),
+      seedEntry({
+        action: "sendMessage",
+        attempts: MAX_OUTBOX_BOOT_ATTEMPTS + 3,
+      }),
     );
     expect(d.keep).toBe(true);
     expect(d.entry.attempts).toBe(MAX_OUTBOX_BOOT_ATTEMPTS + 4);
@@ -261,7 +271,11 @@ describe("must-deliver retention (user sends never drop)", () => {
     const d = outboxFailureDisposition(
       seedEntry({
         action: "convCommand",
-        args: ["jx7parent", "forkFromMessage", { message_uuid: "u1", session_id: "s1" }],
+        args: [
+          "jx7parent",
+          "forkFromMessage",
+          { message_uuid: "u1", session_id: "s1" },
+        ],
         attempts: MAX_OUTBOX_BOOT_ATTEMPTS + 3,
       }),
     );
@@ -269,7 +283,12 @@ describe("must-deliver retention (user sends never drop)", () => {
   });
 
   it("never gives up on user-authored comment writes", () => {
-    for (const actionName of ["addComment", "editComment", "deleteComment", "askAgentInThread"]) {
+    for (const actionName of [
+      "addComment",
+      "editComment",
+      "deleteComment",
+      "askAgentInThread",
+    ]) {
       const d = outboxFailureDisposition(
         seedEntry({
           action: actionName,
@@ -282,7 +301,11 @@ describe("must-deliver retention (user sends never drop)", () => {
 
   it("still gives up on other convCommands at the boot cap", () => {
     const d = outboxFailureDisposition(
-      seedEntry({ action: "convCommand", args: ["jx7c", "setTitle", {}], attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1 }),
+      seedEntry({
+        action: "convCommand",
+        args: ["jx7c", "setTitle", {}],
+        attempts: MAX_OUTBOX_BOOT_ATTEMPTS - 1,
+      }),
     );
     expect(d.keep).toBe(false);
   });
@@ -302,7 +325,9 @@ describe("unwired asyncAction", () => {
     // Typed + parked: callers distinguish "pending, will deliver" from real
     // failure (the fork flow keeps its stub on parked; analytics ignores it).
     const err = await p.then(
-      () => { throw new Error("expected rejection"); },
+      () => {
+        throw new Error("expected rejection");
+      },
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(DispatchNotWiredError);
@@ -328,7 +353,9 @@ describe("unwired asyncAction", () => {
       async () => [...outbox.values()],
     );
 
-    const error = await (wrapped.pokeAsync("not-durable") as Promise<unknown>).then(
+    const error = await (
+      wrapped.pokeAsync("not-durable") as Promise<unknown>
+    ).then(
       () => null,
       (caught) => caught,
     );
@@ -355,8 +382,11 @@ describe("receipt-aware asyncAction", () => {
     const { wrapped, outbox } = makeHarness();
 
     let settled = false;
-    const pending = (wrapped.pokeReceipt("created") as Promise<unknown>)
-      .finally(() => { settled = true; });
+    const pending = (
+      wrapped.pokeReceipt("created") as Promise<unknown>
+    ).finally(() => {
+      settled = true;
+    });
     await settle();
 
     expect(settled).toBe(false);
@@ -368,8 +398,12 @@ describe("receipt-aware asyncAction", () => {
       commandId: entry.id,
     });
 
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve(acknowledged(result.commandId, { id: "server-created" })));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve(
+          acknowledged(result.commandId, { id: "server-created" }),
+        ),
+    );
 
     await expect(pending).resolves.toEqual({ id: "server-created" });
     expect(outbox.size).toBe(0);
@@ -391,18 +425,28 @@ describe("receipt-aware asyncAction", () => {
     );
 
     const pending = wrapped.pokeReceipt("created") as Promise<unknown>;
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve(acknowledged(result.commandId, { id: "server-created" })));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve(
+          acknowledged(result.commandId, { id: "server-created" }),
+        ),
+    );
     await settle();
     // The boot drain ran before the delayed enqueue became visible.
     expect(outbox.size).toBe(0);
 
     releaseEnqueue();
-    await expect(Promise.race([
-      pending,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("receipt drain did not refire")), 250)),
-    ])).resolves.toEqual({ id: "server-created" });
+    await expect(
+      Promise.race([
+        pending,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("receipt drain did not refire")),
+            250,
+          ),
+        ),
+      ]),
+    ).resolves.toEqual({ id: "server-created" });
     expect(outbox.size).toBe(0);
   });
 
@@ -412,16 +456,23 @@ describe("receipt-aware asyncAction", () => {
     await settle();
 
     let settled = false;
-    const pending = (wrapped.pokeReceipt("created") as Promise<unknown>)
-      .finally(() => { settled = true; });
+    const pending = (
+      wrapped.pokeReceipt("created") as Promise<unknown>
+    ).finally(() => {
+      settled = true;
+    });
     await settle();
 
     expect(settled).toBe(false);
     expect(outbox.size).toBe(1);
     const [entry] = [...outbox.values()];
 
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve(acknowledged(result.commandId, { id: "server-created" })));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve(
+          acknowledged(result.commandId, { id: "server-created" }),
+        ),
+    );
 
     await expect(pending).resolves.toEqual({ id: "server-created" });
     expect(entry.result.commandId).toBe(entry.id);
@@ -429,30 +480,34 @@ describe("receipt-aware asyncAction", () => {
   });
 
   it("retains receipt-backed work across a thrown permanent error until a receipt arrives", async () => {
-    const {
-      wrapped,
-      outbox,
-      receiptRejections,
-    } = makeHarness();
+    const { wrapped, outbox, receiptRejections } = makeHarness();
     wrapped._setDispatch(() =>
       Promise.reject(
         new Error(
           "[CONVEX M(dispatch:dispatch)] Uncaught Error: Not authenticated",
         ),
-      ));
+      ),
+    );
     await settle();
 
     let settled = false;
-    const pending = (wrapped.pokeReceipt("created") as Promise<unknown>)
-      .finally(() => { settled = true; });
+    const pending = (
+      wrapped.pokeReceipt("created") as Promise<unknown>
+    ).finally(() => {
+      settled = true;
+    });
     await settle();
 
     expect(settled).toBe(false);
     expect(receiptRejections).toEqual([]);
     expect(outbox.size).toBe(1);
 
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve(acknowledged(result.commandId, { id: "server-created" })));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve(
+          acknowledged(result.commandId, { id: "server-created" }),
+        ),
+    );
 
     await expect(pending).resolves.toEqual({ id: "server-created" });
     expect(outbox.size).toBe(0);
@@ -472,8 +527,11 @@ describe("receipt-aware asyncAction", () => {
     await settle();
 
     let settled = false;
-    const pending = (wrapped.pokeReceipt("created") as Promise<unknown>)
-      .finally(() => { settled = true; });
+    const pending = (
+      wrapped.pokeReceipt("created") as Promise<unknown>
+    ).finally(() => {
+      settled = true;
+    });
     const [entry] = [...outbox.values()];
     while (firstCalls === 0) await Promise.resolve();
     let releaseSuccessor!: () => void;
@@ -487,13 +545,13 @@ describe("receipt-aware asyncAction", () => {
       wrapped._setDispatch(
         (_action: string, _args: unknown, _patches: unknown, result: any) =>
           successorGate.then(() =>
-            acknowledged(result.commandId, { id: "server-created" })),
+            acknowledged(result.commandId, { id: "server-created" }),
+          ),
       );
     });
-    resolveFirst(acknowledged(
-      entry.result.commandId,
-      { id: "server-created" },
-    ));
+    resolveFirst(
+      acknowledged(entry.result.commandId, { id: "server-created" }),
+    );
     await settle();
 
     expect(settled).toBe(false);
@@ -509,16 +567,18 @@ describe("receipt-aware asyncAction", () => {
     const pending = wrapped.pokeReceipt("invalid") as Promise<unknown>;
     const [entry] = [...outbox.values()];
 
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve({
-        receiptVersion: 1,
-        commandId: result.commandId,
-        commandName: "test.create/v2",
-        status: "rejected",
-        rejection: { code: "INVALID_ARGUMENT", message: "Nope" },
-        coverage: [],
-        retryUntil: null,
-      }));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve({
+          receiptVersion: 1,
+          commandId: result.commandId,
+          commandName: "test.create/v2",
+          status: "rejected",
+          rejection: { code: "INVALID_ARGUMENT", message: "Nope" },
+          coverage: [],
+          retryUntil: null,
+        }),
+    );
 
     await expect(pending).rejects.toMatchObject({
       name: "CommandReceiptRejectedError",
@@ -551,16 +611,18 @@ describe("receipt-aware asyncAction", () => {
       },
     });
     outbox.set(entry.id, entry);
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve({
-        receiptVersion: 1,
-        commandId: result.commandId,
-        commandName: "test.create/v2",
-        status: "rejected",
-        rejection: { code: "FORBIDDEN", message: "Nope" },
-        coverage: [],
-        retryUntil: null,
-      }));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve({
+          receiptVersion: 1,
+          commandId: result.commandId,
+          commandName: "test.create/v2",
+          status: "rejected",
+          rejection: { code: "FORBIDDEN", message: "Nope" },
+          coverage: [],
+          retryUntil: null,
+        }),
+    );
 
     await settle();
     expect(persistenceCalls).toBe(1);
@@ -585,16 +647,18 @@ describe("receipt-aware asyncAction", () => {
     });
     outbox.set(entry.id, entry);
     wrapped._handleReceiptRejection = undefined;
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve({
-        receiptVersion: 1,
-        commandId: result.commandId,
-        commandName: "test.create/v2",
-        status: "rejected",
-        rejection: { code: "FORBIDDEN", message: "Nope" },
-        coverage: [],
-        retryUntil: null,
-      }));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve({
+          receiptVersion: 1,
+          commandId: result.commandId,
+          commandName: "test.create/v2",
+          status: "rejected",
+          rejection: { code: "FORBIDDEN", message: "Nope" },
+          coverage: [],
+          retryUntil: null,
+        }),
+    );
 
     await settle();
     expect(receiptRejections).toEqual([]);
@@ -603,10 +667,12 @@ describe("receipt-aware asyncAction", () => {
     wrapped._handleReceiptRejection = rollback;
     wrapped._drainOutbox();
     await settle();
-    expect(receiptRejections).toEqual([{
-      action: "pokeReceipt",
-      localResult: { clientId: "optimistic-row" },
-    }]);
+    expect(receiptRejections).toEqual([
+      {
+        action: "pokeReceipt",
+        localResult: { clientId: "optimistic-row" },
+      },
+    ]);
     expect(outbox.size).toBe(0);
   });
 
@@ -626,16 +692,18 @@ describe("receipt-aware asyncAction", () => {
     wrapped._handleReceiptRejection = () => {
       throw new Error("rollback unavailable");
     };
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve({
-        receiptVersion: 1,
-        commandId: result.commandId,
-        commandName: "test.create/v2",
-        status: "rejected",
-        rejection: { code: "FORBIDDEN", message: "Nope" },
-        coverage: [],
-        retryUntil: null,
-      }));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve({
+          receiptVersion: 1,
+          commandId: result.commandId,
+          commandName: "test.create/v2",
+          status: "rejected",
+          rejection: { code: "FORBIDDEN", message: "Nope" },
+          coverage: [],
+          retryUntil: null,
+        }),
+    );
 
     await settle();
     expect(receiptRejections).toEqual([]);
@@ -651,8 +719,11 @@ describe("receipt-aware asyncAction", () => {
   it("survives a principal runtime rebind but cannot resolve from another outbox namespace", async () => {
     const { wrapped, outbox: accountAOutbox } = makeHarness();
     let settled = false;
-    const pending = (wrapped.pokeReceipt("account-a") as Promise<unknown>)
-      .finally(() => { settled = true; });
+    const pending = (
+      wrapped.pokeReceipt("account-a") as Promise<unknown>
+    ).finally(() => {
+      settled = true;
+    });
     await settle();
     const [accountAEntry] = [...accountAOutbox.values()];
 
@@ -663,7 +734,9 @@ describe("receipt-aware asyncAction", () => {
       (id: string) => accountBOutbox.delete(id),
       async () => [...accountBOutbox.values()],
     );
-    wrapped._setDispatch(() => Promise.reject(new Error("B must not see A's command")));
+    wrapped._setDispatch(() =>
+      Promise.reject(new Error("B must not see A's command")),
+    );
     await settle();
     expect(settled).toBe(false);
     expect(accountBOutbox.size).toBe(0);
@@ -673,8 +746,12 @@ describe("receipt-aware asyncAction", () => {
       (id: string) => accountAOutbox.delete(id),
       async () => [...accountAOutbox.values()],
     );
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-      Promise.resolve(acknowledged(result.commandId, { id: "account-a-result" })));
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, result: any) =>
+        Promise.resolve(
+          acknowledged(result.commandId, { id: "account-a-result" }),
+        ),
+    );
 
     await expect(pending).resolves.toEqual({ id: "account-a-result" });
     expect(accountAEntry.result.commandId).toBe(accountAEntry.id);
@@ -700,27 +777,34 @@ describe("receipt-aware asyncAction", () => {
       content: "optimistic",
       clientId: "commentstub-old",
     };
-    outbox.set("legacy-comment", seedEntry({
-      id: "legacy-comment",
-      action: "addComment",
-      result: localResult,
-    }));
+    outbox.set(
+      "legacy-comment",
+      seedEntry({
+        id: "legacy-comment",
+        action: "addComment",
+        result: localResult,
+      }),
+    );
 
-    wrapped._setDispatch(() => Promise.resolve({
-      receiptVersion: 1,
-      commandId: "legacy-comments-create:commentstub-old",
-      commandName: "comments.create/v2",
-      status: "rejected",
-      rejection: { code: "FORBIDDEN", message: "Access revoked" },
-      coverage: [],
-      retryUntil: null,
-    }));
+    wrapped._setDispatch(() =>
+      Promise.resolve({
+        receiptVersion: 1,
+        commandId: "legacy-comments-create:commentstub-old",
+        commandName: "comments.create/v2",
+        status: "rejected",
+        rejection: { code: "FORBIDDEN", message: "Access revoked" },
+        coverage: [],
+        retryUntil: null,
+      }),
+    );
     await settle();
 
-    expect(receiptRejections).toEqual([{
-      action: "addComment",
-      localResult,
-    }]);
+    expect(receiptRejections).toEqual([
+      {
+        action: "addComment",
+        localResult,
+      },
+    ]);
     expect(outbox.size).toBe(0);
   });
 
@@ -731,7 +815,9 @@ describe("receipt-aware asyncAction", () => {
     const location = {
       pathname: "/docs",
       assign(href: string) {
-        throw new Error(`full navigation to ${href} — creates must navigate in-app`);
+        throw new Error(
+          `full navigation to ${href} — creates must navigate in-app`,
+        );
       },
     };
     const popped: string[] = [];
@@ -749,20 +835,27 @@ describe("receipt-aware asyncAction", () => {
       },
     };
     try {
-      outbox.set("create-doc", seedEntry({
-        id: "create-doc",
-        action: "createDoc",
-        args: [{ title: "Durable" }, { version: 1, kind: "navigate" }],
-        result: {
-          receiptActionVersion: 1,
-          commandId: "create-doc",
-          localResult: {
-            continuation: { version: 1, kind: "navigate" },
+      outbox.set(
+        "create-doc",
+        seedEntry({
+          id: "create-doc",
+          action: "createDoc",
+          args: [{ title: "Durable" }, { version: 1, kind: "navigate" }],
+          result: {
+            receiptActionVersion: 1,
+            commandId: "create-doc",
+            localResult: {
+              continuation: { version: 1, kind: "navigate" },
+            },
           },
-        },
-      }));
-      wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, result: any) =>
-        Promise.resolve(acknowledged(result.commandId, { id: "doc-server-id" })));
+        }),
+      );
+      wrapped._setDispatch(
+        (_action: string, _args: unknown, _patches: unknown, result: any) =>
+          Promise.resolve(
+            acknowledged(result.commandId, { id: "doc-server-id" }),
+          ),
+      );
       await settle();
 
       expect(assigned).toEqual(["/docs/doc-server-id"]);
@@ -783,11 +876,7 @@ describe("receipt-aware asyncAction", () => {
   });
 
   it("applies a persisted create-label continuation before cleanup and retains a malformed acknowledgement", async () => {
-    const {
-      wrapped,
-      outbox,
-      receiptAcknowledgements,
-    } = makeHarness();
+    const { wrapped, outbox, receiptAcknowledgements } = makeHarness();
     let acknowledgementsAtRemove = -1;
     wrapped._setOutbox(
       (entry: Entry) => outbox.set(entry.id, entry),
@@ -808,31 +897,45 @@ describe("receipt-aware asyncAction", () => {
         },
       },
     };
-    outbox.set("create-label", seedEntry({
-      id: "create-label",
-      action: "createBucket",
-      result,
-    }));
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, envelope: any) =>
-      Promise.resolve(acknowledged(envelope.commandId, { bucketId: "bucket-server-id" })));
+    outbox.set(
+      "create-label",
+      seedEntry({
+        id: "create-label",
+        action: "createBucket",
+        result,
+      }),
+    );
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, envelope: any) =>
+        Promise.resolve(
+          acknowledged(envelope.commandId, { bucketId: "bucket-server-id" }),
+        ),
+    );
     await settle();
 
-    expect(receiptAcknowledgements).toEqual([{
-      action: "createBucket",
-      continuation: result.localResult.continuation,
-      serverResult: { bucketId: "bucket-server-id" },
-      commandId: "create-label",
-    }]);
+    expect(receiptAcknowledgements).toEqual([
+      {
+        action: "createBucket",
+        continuation: result.localResult.continuation,
+        serverResult: { bucketId: "bucket-server-id" },
+        commandId: "create-label",
+      },
+    ]);
     expect(acknowledgementsAtRemove).toBe(1);
     expect(outbox.size).toBe(0);
 
-    outbox.set("create-label", seedEntry({
-      id: "create-label",
-      action: "createBucket",
-      result,
-    }));
-    wrapped._setDispatch((_action: string, _args: unknown, _patches: unknown, envelope: any) =>
-      Promise.resolve(acknowledged(envelope.commandId, {})));
+    outbox.set(
+      "create-label",
+      seedEntry({
+        id: "create-label",
+        action: "createBucket",
+        result,
+      }),
+    );
+    wrapped._setDispatch(
+      (_action: string, _args: unknown, _patches: unknown, envelope: any) =>
+        Promise.resolve(acknowledged(envelope.commandId, {})),
+    );
     await settle();
 
     expect(receiptAcknowledgements).toHaveLength(1);
@@ -851,14 +954,40 @@ describe("permanent rejections", () => {
   // Real shape per convex-js createHybridErrorStacktrace: server errorMessage
   // prefixed with the udf path, "Called by client" appended.
   const refusal = () =>
-    Promise.reject(new Error("[CONVEX M(dispatch:dispatch)] Uncaught Error: Not authorized\n  Called by client"));
+    Promise.reject(
+      new Error(
+        "[CONVEX M(dispatch:dispatch)] Uncaught Error: Not authorized\n  Called by client",
+      ),
+    );
 
   it("classifies server refusals as permanent and overload as transient", () => {
-    expect(isPermanentDispatchError(new Error("[CONVEX M(x)] Uncaught Error: Not authorized"))).toBe(true);
-    expect(isPermanentDispatchError(new Error("[CONVEX M(x)] Uncaught ConvexError: nope"))).toBe(true);
-    expect(isPermanentDispatchError(new Error("ArgumentValidationError: Value does not match validator"))).toBe(true);
-    expect(isPermanentDispatchError(new Error("Your request timed out performing too many system operations."))).toBe(false);
-    expect(isPermanentDispatchError(new Error("Your request couldn't be completed. Try again later."))).toBe(false);
+    expect(
+      isPermanentDispatchError(
+        new Error("[CONVEX M(x)] Uncaught Error: Not authorized"),
+      ),
+    ).toBe(true);
+    expect(
+      isPermanentDispatchError(
+        new Error("[CONVEX M(x)] Uncaught ConvexError: nope"),
+      ),
+    ).toBe(true);
+    expect(
+      isPermanentDispatchError(
+        new Error("ArgumentValidationError: Value does not match validator"),
+      ),
+    ).toBe(true);
+    expect(
+      isPermanentDispatchError(
+        new Error(
+          "Your request timed out performing too many system operations.",
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      isPermanentDispatchError(
+        new Error("Your request couldn't be completed. Try again later."),
+      ),
+    ).toBe(false);
     expect(isPermanentDispatchError(new Error("offline"))).toBe(false);
   });
 
@@ -1028,7 +1157,9 @@ describe("boot outbox drain signal (_hasBootOutboxDrained)", () => {
     const { wrapped, outbox } = makeHarness();
     outbox.set("e1", seedEntry());
 
-    wrapped._setDispatch(async () => { throw new Error("offline"); });
+    wrapped._setDispatch(async () => {
+      throw new Error("offline");
+    });
     await settle();
 
     expect(outbox.has("e1")).toBe(true);
@@ -1039,13 +1170,16 @@ describe("boot outbox drain signal (_hasBootOutboxDrained)", () => {
     const { wrapped, outbox } = makeHarness();
     let commit: (() => void) | null = null;
     wrapped._setOutbox(
-      (entry: Entry) => new Promise<void>((resolve) => {
-        commit = () => {
-          outbox.set(entry.id, entry);
-          resolve();
-        };
-      }),
-      (id: string) => { outbox.delete(id); },
+      (entry: Entry) =>
+        new Promise<void>((resolve) => {
+          commit = () => {
+            outbox.set(entry.id, entry);
+            resolve();
+          };
+        }),
+      (id: string) => {
+        outbox.delete(id);
+      },
       async () => [...outbox.values()],
     );
     wrapped._setDispatch(async () => "ok");
@@ -1068,16 +1202,23 @@ describe("dispatch binding ownership", () => {
     const ownerA = {};
     let releaseAccountA!: () => void;
     let markAccountAStarted!: () => void;
-    const accountAStarted = new Promise<void>((resolve) => { markAccountAStarted = resolve; });
+    const accountAStarted = new Promise<void>((resolve) => {
+      markAccountAStarted = resolve;
+    });
     const accountAResponse = new Promise<string>((resolve) => {
       releaseAccountA = () => resolve("account-a-response");
     });
-    wrapped._setDispatch(async () => {
-      markAccountAStarted();
-      return await accountAResponse;
-    }, { owner: ownerA });
+    wrapped._setDispatch(
+      async () => {
+        markAccountAStarted();
+        return await accountAResponse;
+      },
+      { owner: ownerA },
+    );
 
-    const actionPromise = wrapped.pokeAsync("account-a-item") as Promise<unknown>;
+    const actionPromise = wrapped.pokeAsync(
+      "account-a-item",
+    ) as Promise<unknown>;
     await accountAStarted;
     expect(accountAOutbox.size).toBe(1);
 
@@ -1091,13 +1232,18 @@ describe("dispatch binding ownership", () => {
     );
     const ownerB = {};
     const deliveredByB: string[] = [];
-    wrapped._setDispatch(async (actionName: string) => {
-      deliveredByB.push(actionName);
-      return "account-b-response";
-    }, { owner: ownerB });
+    wrapped._setDispatch(
+      async (actionName: string) => {
+        deliveredByB.push(actionName);
+        return "account-b-response";
+      },
+      { owner: ownerB },
+    );
 
     releaseAccountA();
-    await expect(actionPromise).rejects.toBeInstanceOf(StaleDispatchBindingError);
+    await expect(actionPromise).rejects.toBeInstanceOf(
+      StaleDispatchBindingError,
+    );
     // A's response cannot remove A's durable recovery entry, and it is never
     // visible in B's separately bound outbox.
     expect(accountAOutbox.size).toBe(1);
@@ -1107,7 +1253,9 @@ describe("dispatch binding ownership", () => {
     // A delayed React cleanup owns only A's binding and cannot erase the newer
     // B binding installed by another mount.
     wrapped._clearDispatch(ownerA);
-    await expect(wrapped._dispatch("probe-b", [])).resolves.toBe("account-b-response");
+    await expect(wrapped._dispatch("probe-b", [])).resolves.toBe(
+      "account-b-response",
+    );
     expect(deliveredByB).toEqual(["probe-b"]);
 
     wrapped._clearDispatch(ownerB);
@@ -1121,25 +1269,43 @@ describe("dispatch binding ownership", () => {
     // "Unhandled rejection" toast. A superseded drain is expected lifecycle —
     // the successor binding runs its own drain — so it must end silently.
     const unhandled: unknown[] = [];
-    const onUnhandled = (e: unknown) => { unhandled.push(e); };
+    const onUnhandled = (e: unknown) => {
+      unhandled.push(e);
+    };
     process.on("unhandledRejection", onUnhandled);
     try {
       const { wrapped } = makeHarness();
       const outbox = new Map<string, Entry>([["e1", seedEntry()]]);
       let releaseLoad!: () => void;
-      const loadGate = new Promise<void>((r) => { releaseLoad = r; });
+      const loadGate = new Promise<void>((r) => {
+        releaseLoad = r;
+      });
       wrapped._setOutbox(
         (e: Entry) => outbox.set(e.id, e),
         (id: string) => outbox.delete(id),
-        async () => { await loadGate; return [...outbox.values()]; },
+        async () => {
+          await loadGate;
+          return [...outbox.values()];
+        },
       );
 
       const delivered: string[] = [];
       const ownerA = {};
-      wrapped._setDispatch(async () => { throw new Error("stale binding must never dispatch"); }, { owner: ownerA });
+      wrapped._setDispatch(
+        async () => {
+          throw new Error("stale binding must never dispatch");
+        },
+        { owner: ownerA },
+      );
       // Rebind while the first drain is parked on the outbox load.
       const ownerB = {};
-      wrapped._setDispatch(async (actionName: string) => { delivered.push(actionName); return "ok"; }, { owner: ownerB });
+      wrapped._setDispatch(
+        async (actionName: string) => {
+          delivered.push(actionName);
+          return "ok";
+        },
+        { owner: ownerB },
+      );
 
       releaseLoad();
       await settle();
@@ -1187,10 +1353,13 @@ describe("unwired/stale-binding sends are parked, never lost", () => {
     const { wrapped, outbox } = makeHarness();
     const owner = {};
     const delivered: string[] = [];
-    wrapped._setDispatch(async (actionName: string) => {
-      delivered.push(actionName);
-      return "ok";
-    }, { owner });
+    wrapped._setDispatch(
+      async (actionName: string) => {
+        delivered.push(actionName);
+        return "ok";
+      },
+      { owner },
+    );
 
     wrapped.poke("kept-live");
     await settle();
@@ -1252,13 +1421,17 @@ describe("parallel dispatch (storage is never a delivery gate)", () => {
     const { wrapped } = makeHarness();
     const outbox = new Map<string, Entry>();
     let commitEnqueue!: () => void;
-    const gate = new Promise<void>((resolve) => { commitEnqueue = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      commitEnqueue = resolve;
+    });
     wrapped._setOutbox(
       async (entry: Entry) => {
         await gate;
         outbox.set(entry.id, entry);
       },
-      async (id: string) => { outbox.delete(id); },
+      async (id: string) => {
+        outbox.delete(id);
+      },
       async () => [...outbox.values()],
     );
     // Dispatch acks immediately — before the enqueue has committed.
@@ -1279,12 +1452,18 @@ describe("outbox coalescing (repeated writes keep one row per key)", () => {
   const makeCoalesceHarness = () => {
     const outbox = new Map<string, Entry>();
     let state: any;
-    const set = (next: any) => { state = next; };
+    const set = (next: any) => {
+      state = next;
+    };
     const get = () => state;
     const wrapped = mutativeMiddleware(
       () => ({
         layouts: {} as Record<string, any>,
-        updateClientLayout: action(function (this: any, key: string, value: any) {
+        updateClientLayout: action(function (
+          this: any,
+          key: string,
+          value: any,
+        ) {
           this.layouts[key] = value;
         }),
       }),
@@ -1303,7 +1482,10 @@ describe("outbox coalescing (repeated writes keep one row per key)", () => {
     const { wrapped, outbox } = makeCoalesceHarness();
     // No dispatch binding — everything parks.
     for (let i = 0; i < 50; i++) {
-      wrapped.updateClientLayout("dashboard", { sidebar: 10 + i, main: 90 - i });
+      wrapped.updateClientLayout("dashboard", {
+        sidebar: 10 + i,
+        main: 90 - i,
+      });
     }
     await settle();
     const rows = [...outbox.values()];
@@ -1349,11 +1531,14 @@ describe("outbox coalescing (repeated writes keep one row per key)", () => {
 describe("stale replay age gate", () => {
   it("drops a parked row older than the replay ceiling instead of redelivering it", async () => {
     const { wrapped, outbox } = makeHarness();
-    outbox.set("ancient", seedEntry({
-      id: "ancient",
-      action: "sendMessage",
-      ts: Date.now() - 8 * 24 * 60 * 60 * 1000,
-    }));
+    outbox.set(
+      "ancient",
+      seedEntry({
+        id: "ancient",
+        action: "sendMessage",
+        ts: Date.now() - 8 * 24 * 60 * 60 * 1000,
+      }),
+    );
     const delivered: string[] = [];
     wrapped._setDispatch(async (actionName: string) => {
       delivered.push(actionName);
@@ -1368,10 +1553,28 @@ describe("stale replay age gate", () => {
 describe("outbox coalesce keys", () => {
   it("collapses queued permission-mode presses per conversation, and nothing else that rides convCommand", async () => {
     const { outboxCoalesceKeyFor } = await import("../mutativeMiddleware");
-    expect(outboxCoalesceKeyFor("convCommand", ["conv1", "setPermissionMode", {}])).toBe("setPermissionMode:conv1");
-    expect(outboxCoalesceKeyFor("convCommand", ["conv1", "setPermissionMode", { target: "bypassPermissions" }])).toBe("setPermissionMode:conv1");
-    expect(outboxCoalesceKeyFor("convCommand", ["conv2", "setPermissionMode", {}])).toBe("setPermissionMode:conv2");
-    expect(outboxCoalesceKeyFor("convCommand", ["conv1", "sendKeysToSession", { keys: "Escape" }])).toBeNull();
-    expect(outboxCoalesceKeyFor("convCommand", ["conv1", "killSession"])).toBeNull();
+    expect(
+      outboxCoalesceKeyFor("convCommand", ["conv1", "setPermissionMode", {}]),
+    ).toBe("setPermissionMode:conv1");
+    expect(
+      outboxCoalesceKeyFor("convCommand", [
+        "conv1",
+        "setPermissionMode",
+        { target: "bypassPermissions" },
+      ]),
+    ).toBe("setPermissionMode:conv1");
+    expect(
+      outboxCoalesceKeyFor("convCommand", ["conv2", "setPermissionMode", {}]),
+    ).toBe("setPermissionMode:conv2");
+    expect(
+      outboxCoalesceKeyFor("convCommand", [
+        "conv1",
+        "sendKeysToSession",
+        { keys: "Escape" },
+      ]),
+    ).toBeNull();
+    expect(
+      outboxCoalesceKeyFor("convCommand", ["conv1", "killSession"]),
+    ).toBeNull();
   });
 });

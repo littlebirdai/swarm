@@ -29,7 +29,14 @@ export interface TailnetRecord {
   checkedAt: number;
 }
 
-export interface TailnetNode { DNSName?: string; TailscaleIPs?: string[]; Online?: boolean; UserID?: number; ShareeNode?: boolean; Tags?: string[] }
+export interface TailnetNode {
+  DNSName?: string;
+  TailscaleIPs?: string[];
+  Online?: boolean;
+  UserID?: number;
+  ShareeNode?: boolean;
+  Tags?: string[];
+}
 export interface TailnetStatus {
   BackendState?: string;
   Self?: TailnetNode;
@@ -41,13 +48,17 @@ export interface TailnetStatus {
 const MAC_APP_BIN = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 const STATUS_TIMEOUT_MS = 2_000;
 const CACHE_MS = 15_000;
-let cache: { key: string; at: number; status: TailnetStatus | null } | undefined;
+let cache:
+  | { key: string; at: number; status: TailnetStatus | null }
+  | undefined;
 
 /** The binary to ask: CODECAST_TAILSCALE_BIN, else `tailscale` on PATH, else the macOS app's. */
 function candidates(): string[] {
   const pinned = process.env.CODECAST_TAILSCALE_BIN;
   if (pinned !== undefined) return pinned ? [pinned] : [];
-  return process.platform === "darwin" && fs.existsSync(MAC_APP_BIN) ? ["tailscale", MAC_APP_BIN] : ["tailscale"];
+  return process.platform === "darwin" && fs.existsSync(MAC_APP_BIN)
+    ? ["tailscale", MAC_APP_BIN]
+    : ["tailscale"];
 }
 
 /** `tailscale status --json` parsed, or null when there is no usable answer. */
@@ -66,13 +77,20 @@ export function parseTailnetStatus(stdout: string): TailnetStatus | null {
  */
 export function localTailnet(): TailnetStatus | null {
   const key = `${process.env.CODECAST_TAILSCALE_BIN ?? ""}|${process.env.PATH ?? ""}`;
-  if (cache && cache.key === key && Date.now() - cache.at < CACHE_MS) return cache.status;
+  if (cache && cache.key === key && Date.now() - cache.at < CACHE_MS)
+    return cache.status;
   let status: TailnetStatus | null = null;
   for (const bin of candidates()) {
     // env passed explicitly: bun otherwise resolves the binary against the
     // PATH it snapshotted at startup, not the one the process holds now.
-    const r = spawnSync(bin, ["status", "--json"], { encoding: "utf-8", timeout: STATUS_TIMEOUT_MS, stdio: ["ignore", "pipe", "ignore"], env: process.env });
-    if ((r.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") continue;
+    const r = spawnSync(bin, ["status", "--json"], {
+      encoding: "utf-8",
+      timeout: STATUS_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "ignore"],
+      env: process.env,
+    });
+    if ((r.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT")
+      continue;
     if (r.status === 0) status = parseTailnetStatus(r.stdout);
     break;
   }
@@ -86,12 +104,17 @@ export function localTailnet(): TailnetStatus | null {
  * (a grant decision, a pull) must never spawnSync. Shares the same cache, and
  * concurrent callers share one spawn.
  */
-let inflight: { key: string; promise: Promise<TailnetStatus | null> } | undefined;
+let inflight:
+  | { key: string; promise: Promise<TailnetStatus | null> }
+  | undefined;
 export function localTailnetAsync(): Promise<TailnetStatus | null> {
   const key = `${process.env.CODECAST_TAILSCALE_BIN ?? ""}|${process.env.PATH ?? ""}`;
-  if (cache && cache.key === key && Date.now() - cache.at < CACHE_MS) return Promise.resolve(cache.status);
+  if (cache && cache.key === key && Date.now() - cache.at < CACHE_MS)
+    return Promise.resolve(cache.status);
   if (inflight?.key === key) return inflight.promise;
-  const promise = readTailnetAsync(key).finally(() => { if (inflight?.promise === promise) inflight = undefined; });
+  const promise = readTailnetAsync(key).finally(() => {
+    if (inflight?.promise === promise) inflight = undefined;
+  });
   inflight = { key, promise };
   return promise;
 }
@@ -99,10 +122,26 @@ export function localTailnetAsync(): Promise<TailnetStatus | null> {
 async function readTailnetAsync(key: string): Promise<TailnetStatus | null> {
   let status: TailnetStatus | null = null;
   for (const bin of candidates()) {
-    const r = await new Promise<{ code: string | number | null; stdout: string }>((resolve) => {
-      execFile(bin, ["status", "--json"], { encoding: "utf-8", timeout: STATUS_TIMEOUT_MS, env: process.env, maxBuffer: 64 * 1024 * 1024 }, (err: any, stdout: any) => {
-        resolve({ code: err ? (err.code ?? 1) : 0, stdout: String(stdout ?? "") });
-      });
+    const r = await new Promise<{
+      code: string | number | null;
+      stdout: string;
+    }>((resolve) => {
+      execFile(
+        bin,
+        ["status", "--json"],
+        {
+          encoding: "utf-8",
+          timeout: STATUS_TIMEOUT_MS,
+          env: process.env,
+          maxBuffer: 64 * 1024 * 1024,
+        },
+        (err: any, stdout: any) => {
+          resolve({
+            code: err ? (err.code ?? 1) : 0,
+            stdout: String(stdout ?? ""),
+          });
+        },
+      );
     });
     if (r.code === "ENOENT") continue;
     if (r.code === 0) status = parseTailnetStatus(r.stdout);
@@ -114,26 +153,46 @@ async function readTailnetAsync(key: string): Promise<TailnetStatus | null> {
 }
 
 /** This machine's own tailnet identity, or null when it is not on a running tailnet. */
-export function selfTailnet(status: TailnetStatus | null): { ip: string; name: string; tailnet: string | null } | null {
+export function selfTailnet(
+  status: TailnetStatus | null,
+): { ip: string; name: string; tailnet: string | null } | null {
   if (status?.BackendState !== "Running") return null;
-  const ip = status.Self?.TailscaleIPs?.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
+  const ip = status.Self?.TailscaleIPs?.find((a) =>
+    /^\d+\.\d+\.\d+\.\d+$/.test(a),
+  );
   const name = status.Self?.DNSName;
   if (!ip || !name) return null;
-  return { ip, name, tailnet: status.CurrentTailnet?.MagicDNSSuffix || status.MagicDNSSuffix || null };
+  return {
+    ip,
+    name,
+    tailnet:
+      status.CurrentTailnet?.MagicDNSSuffix || status.MagicDNSSuffix || null,
+  };
 }
 
 /** The recorded IP, if this tailnet shows that exact node online there; else null. */
-export function tailnetDialAddress(record: TailnetRecord | undefined, status: TailnetStatus | null = record ? localTailnet() : null): string | null {
+export function tailnetDialAddress(
+  record: TailnetRecord | undefined,
+  status: TailnetStatus | null = record ? localTailnet() : null,
+): string | null {
   if (!record || !status) return null;
-  const node = Object.values(status.Peer ?? {}).find((p) => p.TailscaleIPs?.includes(record.ip));
-  return node?.Online === true && node.DNSName === record.name ? record.ip : null;
+  const node = Object.values(status.Peer ?? {}).find((p) =>
+    p.TailscaleIPs?.includes(record.ip),
+  );
+  return node?.Online === true && node.DNSName === record.name
+    ? record.ip
+    : null;
 }
 
 /** Run on the host: its own status, or nothing when it has no tailscale. */
-export const HOST_TAILNET_COMMAND = "tailscale status --json 2>/dev/null || true";
+export const HOST_TAILNET_COMMAND =
+  "tailscale status --json 2>/dev/null || true";
 
 /** The host's record from HOST_TAILNET_COMMAND's output; undefined when it is not on a running tailnet. */
-export function readHostTailnet(stdout: string, now = Date.now()): TailnetRecord | undefined {
+export function readHostTailnet(
+  stdout: string,
+  now = Date.now(),
+): TailnetRecord | undefined {
   const s = parseTailnetStatus(stdout);
   if (s?.BackendState !== "Running") return undefined;
   const ip = s.Self?.TailscaleIPs?.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));

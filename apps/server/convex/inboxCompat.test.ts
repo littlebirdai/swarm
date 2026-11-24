@@ -7,7 +7,13 @@ import {
   INBOX_LIVENESS_FIELDS,
   INBOX_FAST_FIELDS,
 } from "./conversations";
-import { INBOX_FACT_FIELDS, INBOX_WINDOW_CAPS, inboxEpoch, selectWorkingSet, WORKING_SET_RECENCY_MS } from "@codecast/shared/contracts";
+import {
+  INBOX_FACT_FIELDS,
+  INBOX_WINDOW_CAPS,
+  inboxEpoch,
+  selectWorkingSet,
+  WORKING_SET_RECENCY_MS,
+} from "@codecast/shared/contracts";
 import { makeFakeDb } from "./testDb";
 
 // FROZEN CONTRACTS for deployed binaries (sync-convergence C9). Mobile builds
@@ -42,55 +48,97 @@ function db(tables: Record<string, any[]> = {}) {
     users: [{ _id: ME, name: "Me", email: "me@example.com" }],
     session_owners: [],
     managed_sessions: [
-      { _id: "ms_a", user_id: ME, conversation_id: "conversations_a", last_heartbeat: EPOCH - 1000, agent_status: "working", agent_status_updated_at: EPOCH - MIN, tmux_session: "cc-1", permission_mode: "default" },
+      {
+        _id: "ms_a",
+        user_id: ME,
+        conversation_id: "conversations_a",
+        last_heartbeat: EPOCH - 1000,
+        agent_status: "working",
+        agent_status_updated_at: EPOCH - MIN,
+        tmux_session: "cc-1",
+        permission_mode: "default",
+      },
     ],
     messages: [],
     session_decisions: [],
-    conversations: [conv("a", { updated_at: EPOCH - MIN, has_pending_messages: false })],
+    conversations: [
+      conv("a", { updated_at: EPOCH - MIN, has_pending_messages: false }),
+    ],
     ...tables,
   });
 }
 
 let nowSpy: ReturnType<typeof spyOn>;
-beforeEach(() => { nowSpy = spyOn(Date, "now").mockReturnValue(NOW); });
-afterEach(() => { nowSpy.mockRestore(); });
+beforeEach(() => {
+  nowSpy = spyOn(Date, "now").mockReturnValue(NOW);
+});
+afterEach(() => {
+  nowSpy.mockRestore();
+});
 
 // The fields the OLD mobile/web classifiers read, per channel that carries
 // them today. `has_pending` rides the enriched row channels; the overlay
 // carries the fact set instead.
-const OLD_CLASSIFIER_ROW_FIELDS = ["agent_status", "is_idle", "awaiting_input", "has_pending", "message_count"] as const;
+const OLD_CLASSIFIER_ROW_FIELDS = [
+  "agent_status",
+  "is_idle",
+  "awaiting_input",
+  "has_pending",
+  "message_count",
+] as const;
 
 describe("frozen payload contracts (minimum supported mobile 1.3.0)", () => {
   test("listInboxSessions: include_liveness DEFAULTS TO TRUE — an un-flagged call still carries every classifier field", async () => {
-    const { sessions } = await computeInboxSessions({ db: db() }, ME as any, {});
+    const { sessions } = await computeInboxSessions(
+      { db: db() },
+      ME as any,
+      {},
+    );
     const row = sessions.find((s: any) => s._id === "conversations_a");
     expect(row).toBeDefined();
-    for (const f of OLD_CLASSIFIER_ROW_FIELDS) expect(row[f]).not.toBeUndefined();
+    for (const f of OLD_CLASSIFIER_ROW_FIELDS)
+      expect(row[f]).not.toBeUndefined();
     expect(row.agent_status).toBe("working");
     // …and the arg is declared optional on the public query.
     const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
     expect(src).toContain("include_liveness: v.optional(v.boolean())");
-    expect(src).toContain("const includeLiveness = opts.includeLiveness !== false;");
+    expect(src).toContain(
+      "const includeLiveness = opts.includeLiveness !== false;",
+    );
   });
 
   test("sessionsLiveness: the payload keeps its `liveness` key with the classifier facts on every row", async () => {
     const { liveness } = await computeSessionsLiveness({ db: db() }, ME as any);
     const row = (liveness as any).conversations_a;
     expect(row).toBeDefined();
-    for (const f of ["agent_status", "is_idle", "awaiting_input", "message_count", "updated_at", "is_connected"]) {
+    for (const f of [
+      "agent_status",
+      "is_idle",
+      "awaiting_input",
+      "message_count",
+      "updated_at",
+      "is_connected",
+    ]) {
       expect(row[f]).not.toBeUndefined();
     }
     // The no-auth arm of both liveness queries returns the same shape, never a bare {}.
     const src = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
-    for (const name of ["export const sessionsLiveness = query", "export const teamSessionsLiveness = query"]) {
+    for (const name of [
+      "export const sessionsLiveness = query",
+      "export const teamSessionsLiveness = query",
+    ]) {
       const idx = src.indexOf(name);
       expect(idx).toBeGreaterThanOrEqual(0);
-      expect(src.slice(idx, src.indexOf("\n});", idx))).toContain(": { liveness: {} }");
+      expect(src.slice(idx, src.indexOf("\n});", idx))).toContain(
+        ": { liveness: {} }",
+      );
     }
   });
 
   test("the enriched channels (crawl, byIds) keep has_pending and message_count on their rows", async () => {
-    const { sessions } = await computeInboxSessions({ db: db() }, ME as any, { includeLiveness: true });
+    const { sessions } = await computeInboxSessions({ db: db() }, ME as any, {
+      includeLiveness: true,
+    });
     for (const s of sessions) {
       expect(s.has_pending).not.toBeUndefined();
       expect(s.message_count).not.toBeUndefined();
@@ -107,32 +155,157 @@ describe("un-flagged listInboxSessions payload — golden shape", () => {
   // do not read — is_workflow_sub joined the row this way for the web chime
   // mirror); moving or dropping one is the change this list exists to catch.
   test("row key set is pinned", async () => {
-    const { sessions, hidden_count, truncated } = await computeInboxSessions({ db: db() }, ME as any, {});
+    const { sessions, hidden_count, truncated } = await computeInboxSessions(
+      { db: db() },
+      ME as any,
+      {},
+    );
     expect(hidden_count).toBe(0);
     expect(truncated).toEqual([]);
     const row = sessions.find((s: any) => s._id === "conversations_a");
     expect(Object.keys(row).sort()).toEqual([
-      "_id", "acting_user_id", "active_plan", "active_task", "activity", "agent_name", "agent_started_at",
-      "agent_status", "agent_status_boundary", "agent_status_updated_at", "agent_task_id", "agent_team_name", "agent_type",
-      "anchor_id", "armed_trigger_kind", "auq_open", "author_avatar", "author_name",
-      "awaiting_input", "browser_pane_offer", "cc_account", "character_avatar", "character_name", "claude_backend", "cloud_context_too_large", "cloud_placement", "cloud_placement_progress", "cloud_seed", "cloud_workspace", "codex_account", "context_tokens", "daemon_alive_until", "drawn_icon", "effort", "flow_name", "flow_run_id", "forked_from", "git_branch", "git_remote_url", "git_root",
-      "handed_off_from_conversation_id", "handed_off_from_details", "handed_off_to_conversation_id", "handed_off_to_details",
-      "has_pending", "hibernated_at", "hosted_stop", "icon", "icon_color", "idle_summary", "image_preview_url",
-      "implementation_session", "inbox_adopted_at", "inbox_closed_at", "inbox_deferred_at", "inbox_dismissed_at", "inbox_killed_at",
-      "inbox_pinned_at", "inbox_rest", "inbox_rest_at", "inbox_snoozed_until", "inbox_stash_hidden", "inbox_stashed_at", "is_anchor", "is_connected",
-      "is_deferred", "is_favorite", "is_idle", "is_pinned", "is_private",
-      "is_subagent", "is_unresponsive", "is_workflow_primary", "is_workflow_sub", "last_comment_at",
-      "last_comment_author", "last_comment_author_id", "last_comment_excerpt", "last_heartbeat", "last_model_call_at",
-      "last_role_is_user", "last_turn_origin", "last_user_message", "local_mirror", "loop_state", "merge_back", "message_count", "migration_batch_id", "model",
-      "open_comment_threads", "open_tasks", "open_tasks_at", "org_role_id", "owned_by_me", "owner_device_id",
-      "owner_user_id", "parent_conversation_id", "parent_message_uuid", "pending_api_error",
-      "pending_api_error_at", "pending_api_error_kind", "permission_mode", "pr_status", "producing_until",
-      "project_id", "project_path", "rewind_staged", "role", "session_error", "session_id", "settle_verdict", "spawned_by_conversation_id",
-      "standing_role_id", "started_at", "status", "subagent_caps", "subagent_slot", "subagent_slot_at", "subagent_slot_device", "subtitle", "team_id", "team_visibility", "thread_state", "thread_state_at",
-      "thread_state_msg_count", "thread_state_status", "title", "tmux_session",
-      "transcript_revision", "turn_completed_at", "updated_at", "user_id", "user_rest", "workflow_run_activity",
-      "workflow_run_agents_done", "workflow_run_agents_total", "workflow_run_id",
-      "workflow_run_kind", "workflow_run_name", "workflow_run_started_at", "workflow_run_status", "worktree_branch",
+      "_id",
+      "acting_user_id",
+      "active_plan",
+      "active_task",
+      "activity",
+      "agent_name",
+      "agent_started_at",
+      "agent_status",
+      "agent_status_boundary",
+      "agent_status_updated_at",
+      "agent_task_id",
+      "agent_team_name",
+      "agent_type",
+      "anchor_id",
+      "armed_trigger_kind",
+      "auq_open",
+      "author_avatar",
+      "author_name",
+      "awaiting_input",
+      "browser_pane_offer",
+      "cc_account",
+      "character_avatar",
+      "character_name",
+      "claude_backend",
+      "cloud_context_too_large",
+      "cloud_placement",
+      "cloud_placement_progress",
+      "cloud_seed",
+      "cloud_workspace",
+      "codex_account",
+      "context_tokens",
+      "daemon_alive_until",
+      "drawn_icon",
+      "effort",
+      "flow_name",
+      "flow_run_id",
+      "forked_from",
+      "git_branch",
+      "git_remote_url",
+      "git_root",
+      "handed_off_from_conversation_id",
+      "handed_off_from_details",
+      "handed_off_to_conversation_id",
+      "handed_off_to_details",
+      "has_pending",
+      "hibernated_at",
+      "hosted_stop",
+      "icon",
+      "icon_color",
+      "idle_summary",
+      "image_preview_url",
+      "implementation_session",
+      "inbox_adopted_at",
+      "inbox_closed_at",
+      "inbox_deferred_at",
+      "inbox_dismissed_at",
+      "inbox_killed_at",
+      "inbox_pinned_at",
+      "inbox_rest",
+      "inbox_rest_at",
+      "inbox_snoozed_until",
+      "inbox_stash_hidden",
+      "inbox_stashed_at",
+      "is_anchor",
+      "is_connected",
+      "is_deferred",
+      "is_favorite",
+      "is_idle",
+      "is_pinned",
+      "is_private",
+      "is_subagent",
+      "is_unresponsive",
+      "is_workflow_primary",
+      "is_workflow_sub",
+      "last_comment_at",
+      "last_comment_author",
+      "last_comment_author_id",
+      "last_comment_excerpt",
+      "last_heartbeat",
+      "last_model_call_at",
+      "last_role_is_user",
+      "last_turn_origin",
+      "last_user_message",
+      "local_mirror",
+      "loop_state",
+      "merge_back",
+      "message_count",
+      "migration_batch_id",
+      "model",
+      "open_comment_threads",
+      "open_tasks",
+      "open_tasks_at",
+      "org_role_id",
+      "owned_by_me",
+      "owner_device_id",
+      "owner_user_id",
+      "parent_conversation_id",
+      "parent_message_uuid",
+      "pending_api_error",
+      "pending_api_error_at",
+      "pending_api_error_kind",
+      "permission_mode",
+      "pr_status",
+      "producing_until",
+      "project_id",
+      "project_path",
+      "rewind_staged",
+      "role",
+      "session_error",
+      "session_id",
+      "settle_verdict",
+      "spawned_by_conversation_id",
+      "standing_role_id",
+      "started_at",
+      "status",
+      "subagent_caps",
+      "subagent_slot",
+      "subagent_slot_at",
+      "subagent_slot_device",
+      "subtitle",
+      "team_id",
+      "team_visibility",
+      "thread_state",
+      "thread_state_at",
+      "thread_state_msg_count",
+      "thread_state_status",
+      "title",
+      "tmux_session",
+      "transcript_revision",
+      "turn_completed_at",
+      "updated_at",
+      "user_id",
+      "user_rest",
+      "workflow_run_activity",
+      "workflow_run_agents_done",
+      "workflow_run_agents_total",
+      "workflow_run_id",
+      "workflow_run_kind",
+      "workflow_run_name",
+      "workflow_run_started_at",
+      "workflow_run_status",
+      "worktree_branch",
       "worktree_name",
     ]);
   });
@@ -148,23 +321,35 @@ describe("un-flagged listInboxSessions payload — golden shape", () => {
       ],
     };
     const dflt = await computeInboxSessions({ db: db(tables) }, ME as any, {});
-    expect(dflt.sessions.map((s: any) => s._id)).toContain("conversations_edge");
-    expect(dflt.sessions.map((s: any) => s._id)).not.toContain("conversations_older");
+    expect(dflt.sessions.map((s: any) => s._id)).toContain(
+      "conversations_edge",
+    );
+    expect(dflt.sessions.map((s: any) => s._id)).not.toContain(
+      "conversations_older",
+    );
     expect(dflt.hidden_count).toBe(1);
   });
 });
 
 describe("fact-field signature (sync-convergence C1)", () => {
   test("the server strip list derives exactly from the shared INBOX_FACT_FIELDS", () => {
-    expect([...INBOX_LIVENESS_FIELDS, ...INBOX_FAST_FIELDS].sort()).toEqual([...INBOX_FACT_FIELDS].sort());
+    expect([...INBOX_LIVENESS_FIELDS, ...INBOX_FAST_FIELDS].sort()).toEqual(
+      [...INBOX_FACT_FIELDS].sort(),
+    );
     // The fast split is pinned: the per-message and per-model-call churn fields.
-    expect([...INBOX_FAST_FIELDS]).toEqual(["message_count", "updated_at", "context_tokens", "last_model_call_at"]);
+    expect([...INBOX_FAST_FIELDS]).toEqual([
+      "message_count",
+      "updated_at",
+      "context_tokens",
+      "last_model_call_at",
+    ]);
   });
 
   test("an un-flagged (liveness-on) row and an overlay row cover every fact field between them", async () => {
     const { liveness } = await computeSessionsLiveness({ db: db() }, ME as any);
     const overlayRow = (liveness as any).conversations_a;
-    for (const f of INBOX_FACT_FIELDS) expect(overlayRow[f]).not.toBeUndefined();
+    for (const f of INBOX_FACT_FIELDS)
+      expect(overlayRow[f]).not.toBeUndefined();
   });
 });
 
@@ -172,10 +357,18 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
   test("inboxFilters re-exports the shared shouldShowInInbox — no local implementation survives", () => {
     const src = readFileSync(join(import.meta.dir, "inboxFilters.ts"), "utf8");
     expect(src).not.toContain("export function shouldShowInInbox");
-    expect(src).toMatch(/export \{[^}]*shouldShowInInbox[^}]*\} from "@codecast\/shared\/contracts"/);
-    const conversations = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
+    expect(src).toMatch(
+      /export \{[^}]*shouldShowInInbox[^}]*\} from "@codecast\/shared\/contracts"/,
+    );
+    const conversations = readFileSync(
+      join(import.meta.dir, "conversations.ts"),
+      "utf8",
+    );
     expect(conversations).toContain("INBOX_WINDOW_CAPS.recent");
-    const projection = readFileSync(join(import.meta.dir, "inboxProjection.ts"), "utf8");
+    const projection = readFileSync(
+      join(import.meta.dir, "inboxProjection.ts"),
+      "utf8",
+    );
     expect(projection).toContain("INBOX_WINDOW_CAPS.pinned");
   });
 
@@ -184,21 +377,40 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     const rows = [
       conv("recent1", { updated_at: EPOCH - MIN }),
       conv("recent2", { updated_at: EPOCH - 2 * H }),
-      conv("pin_old", { updated_at: EPOCH - 40 * 24 * H, inbox_pinned_at: EPOCH - H }),
+      conv("pin_old", {
+        updated_at: EPOCH - 40 * 24 * H,
+        inbox_pinned_at: EPOCH - H,
+      }),
       conv("dismissed1", { inbox_dismissed_at: EPOCH - H }),
       conv("stashed1", { inbox_stashed_at: EPOCH - H }),
       conv("too_old", { updated_at: EPOCH - 40 * 24 * H }),
-      conv("killed", { inbox_killed_at: EPOCH - H, inbox_dismissed_at: EPOCH - H }),
+      conv("killed", {
+        inbox_killed_at: EPOCH - H,
+        inbox_dismissed_at: EPOCH - H,
+      }),
       conv("sub", { is_subagent: true, updated_at: EPOCH - MIN }),
       conv("noise", { title: "[Using: claude]", updated_at: EPOCH - MIN }),
-      conv("blank_done", { status: "completed", message_count: 0, updated_at: EPOCH - MIN }),
+      conv("blank_done", {
+        status: "completed",
+        message_count: 0,
+        updated_at: EPOCH - MIN,
+      }),
       // History imports (decision sd-2537): a recent one lands, one older than
       // a week stays in search and history, and one resumed today lands again.
-      conv("hist_recent", { history_import: true, updated_at: EPOCH - 3 * 24 * H }),
-      conv("hist_old", { history_import: true, updated_at: EPOCH - 10 * 24 * H }),
+      conv("hist_recent", {
+        history_import: true,
+        updated_at: EPOCH - 3 * 24 * H,
+      }),
+      conv("hist_old", {
+        history_import: true,
+        updated_at: EPOCH - 10 * 24 * H,
+      }),
       conv("hist_resumed", { history_import: true, updated_at: EPOCH - H }),
     ];
-    const { liveness } = await computeSessionsLiveness({ db: db({ conversations: rows }) }, ME as any);
+    const { liveness } = await computeSessionsLiveness(
+      { db: db({ conversations: rows }) },
+      ME as any,
+    );
     const stamped = Object.entries(liveness)
       .filter(([, r]) => (r as any).bucket !== undefined)
       .map(([id]) => id)
@@ -209,8 +421,13 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     // see exactly the same members.
     expect(stamped).toEqual([...members.keys()].sort());
     expect(stamped).toEqual([
-      "conversations_dismissed1", "conversations_hist_recent", "conversations_hist_resumed",
-      "conversations_pin_old", "conversations_recent1", "conversations_recent2", "conversations_stashed1",
+      "conversations_dismissed1",
+      "conversations_hist_recent",
+      "conversations_hist_resumed",
+      "conversations_pin_old",
+      "conversations_recent1",
+      "conversations_recent2",
+      "conversations_stashed1",
     ]);
   });
 
@@ -223,19 +440,40 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     // The scan cutoffs (recent, dismissed/stashed) and the replica's
     // inWorkingSet must agree at the horizon; five agreeing literals only
     // agree until one is edited.
-    const conversations = readFileSync(join(import.meta.dir, "conversations.ts"), "utf8");
-    expect(conversations).toContain("const INBOX_SESSION_WINDOW_MS = WORKING_SET_RECENCY_MS;");
-    expect(conversations).toContain("const INBOX_DISMISSED_WINDOW_MS = WORKING_SET_RECENCY_MS;");
+    const conversations = readFileSync(
+      join(import.meta.dir, "conversations.ts"),
+      "utf8",
+    );
+    expect(conversations).toContain(
+      "const INBOX_SESSION_WINDOW_MS = WORKING_SET_RECENCY_MS;",
+    );
+    expect(conversations).toContain(
+      "const INBOX_DISMISSED_WINDOW_MS = WORKING_SET_RECENCY_MS;",
+    );
     // No inbox window constant carries its own literal any more.
-    expect(conversations).not.toMatch(/INBOX_(?:SESSION|DISMISSED)_WINDOW_MS = \d/);
+    expect(conversations).not.toMatch(
+      /INBOX_(?:SESSION|DISMISSED)_WINDOW_MS = \d/,
+    );
     expect(WORKING_SET_RECENCY_MS).toBe(30 * 24 * 60 * 60 * 1000);
   });
 });
 
 describe("session identity on the row (session-characters.md S1, S6)", () => {
   test("a plain session carries its chosen character parts and no role", async () => {
-    const tables = { conversations: [conv("a", { updated_at: EPOCH - MIN, character_avatar: "owl", character_name: "Minerva" })] };
-    const { sessions } = await computeInboxSessions({ db: db(tables) }, ME as any, {});
+    const tables = {
+      conversations: [
+        conv("a", {
+          updated_at: EPOCH - MIN,
+          character_avatar: "owl",
+          character_name: "Minerva",
+        }),
+      ],
+    };
+    const { sessions } = await computeInboxSessions(
+      { db: db(tables) },
+      ME as any,
+      {},
+    );
     const row = sessions.find((s: any) => s._id === "conversations_a");
     expect(row.character_avatar).toBe("owl");
     expect(row.character_name).toBe("Minerva");
@@ -246,16 +484,48 @@ describe("session identity on the row (session-characters.md S1, S6)", () => {
 
   test("a role's standing session carries a snapshot of the role it wears", async () => {
     const tables = {
-      org_roles: [{ _id: "org_roles_infra", short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "stag", given_name: "Rowan", status: "active", tenure: { kind: "program", ends: { date: 1 }, then: "review" } }],
+      org_roles: [
+        {
+          _id: "org_roles_infra",
+          short_id: "or-7",
+          name: "Infra lead",
+          handle: "infra",
+          avatar: "stag",
+          given_name: "Rowan",
+          status: "active",
+          tenure: { kind: "program", ends: { date: 1 }, then: "review" },
+        },
+      ],
       conversations: [
-        conv("a", { updated_at: EPOCH - MIN, standing_role_id: "org_roles_infra", character_avatar: "fox" }),
-        conv("hand", { updated_at: EPOCH - 2 * MIN, org_role_id: "org_roles_infra" }),
+        conv("a", {
+          updated_at: EPOCH - MIN,
+          standing_role_id: "org_roles_infra",
+          character_avatar: "fox",
+        }),
+        conv("hand", {
+          updated_at: EPOCH - 2 * MIN,
+          org_role_id: "org_roles_infra",
+        }),
       ],
     };
-    const { sessions } = await computeInboxSessions({ db: db(tables) }, ME as any, {});
+    const { sessions } = await computeInboxSessions(
+      { db: db(tables) },
+      ME as any,
+      {},
+    );
     const standing = sessions.find((s: any) => s._id === "conversations_a");
     expect(standing.standing_role_id).toBe("org_roles_infra");
-    expect(standing.role).toEqual({ _id: "org_roles_infra", short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "stag", status: "active", tenure_kind: "program", given_name: "Rowan", icon: null });
+    expect(standing.role).toEqual({
+      _id: "org_roles_infra",
+      short_id: "or-7",
+      name: "Infra lead",
+      handle: "infra",
+      avatar: "stag",
+      status: "active",
+      tenure_kind: "program",
+      given_name: "Rowan",
+      icon: null,
+    });
     // the character fields still travel; the web resolver decides the role wins
     expect(standing.character_avatar).toBe("fox");
     const hand = sessions.find((s: any) => s._id === "conversations_hand");
@@ -271,21 +541,61 @@ describe("session identity on the row (session-characters.md S1, S6)", () => {
   // lifts it.
   test("a role's sessions ride its standing session; the role's card files by its own facts", async () => {
     const tables = {
-      org_roles: [{ _id: "org_roles_infra", short_id: "or-7", name: "Infra lead", handle: "infra", avatar: "stag", status: "active" }],
+      org_roles: [
+        {
+          _id: "org_roles_infra",
+          short_id: "or-7",
+          name: "Infra lead",
+          handle: "infra",
+          avatar: "stag",
+          status: "active",
+        },
+      ],
       managed_sessions: [
-        { _id: "ms_standing", user_id: ME, conversation_id: "conversations_standing", last_heartbeat: EPOCH - 1000, agent_status: "idle", agent_status_updated_at: EPOCH - MIN, tmux_session: "cc-2", permission_mode: "default" },
+        {
+          _id: "ms_standing",
+          user_id: ME,
+          conversation_id: "conversations_standing",
+          last_heartbeat: EPOCH - 1000,
+          agent_status: "idle",
+          agent_status_updated_at: EPOCH - MIN,
+          tmux_session: "cc-2",
+          permission_mode: "default",
+        },
       ],
       conversations: [
         // The lead raised something in its own thread: it declared blocked.
-        conv("standing", { updated_at: EPOCH - MIN, anchor_id: "anchors_infra", standing_role_id: "org_roles_infra", thread_state_status: "blocked", thread_state: "Which price band for Texas?" }),
-        conv("waiting", { updated_at: EPOCH - 2 * MIN, org_role_id: "org_roles_infra" }),
-        conv("blocked_hand", { updated_at: EPOCH - 3 * MIN, org_role_id: "org_roles_infra", thread_state_status: "blocked", thread_state: "needs a key" }),
+        conv("standing", {
+          updated_at: EPOCH - MIN,
+          anchor_id: "anchors_infra",
+          standing_role_id: "org_roles_infra",
+          thread_state_status: "blocked",
+          thread_state: "Which price band for Texas?",
+        }),
+        conv("waiting", {
+          updated_at: EPOCH - 2 * MIN,
+          org_role_id: "org_roles_infra",
+        }),
+        conv("blocked_hand", {
+          updated_at: EPOCH - 3 * MIN,
+          org_role_id: "org_roles_infra",
+          thread_state_status: "blocked",
+          thread_state: "needs a key",
+        }),
         conv("mine", { updated_at: EPOCH - 4 * MIN }),
-        conv("quiet", { updated_at: EPOCH - MIN, anchor_id: "anchors_quiet", standing_role_id: "org_roles_quiet" }),
+        conv("quiet", {
+          updated_at: EPOCH - MIN,
+          anchor_id: "anchors_quiet",
+          standing_role_id: "org_roles_quiet",
+        }),
       ],
     };
-    const { liveness } = await computeSessionsLiveness({ db: db(tables) }, ME as any);
-    const bucketOf = (id: string) => (liveness as any)[`conversations_${id}`]?.bucket;
+    const { liveness } = await computeSessionsLiveness(
+      { db: db(tables) },
+      ME as any,
+    );
+    const bucketOf = (id: string) =>
+      (liveness as any)[`conversations_${id}`]?.bucket;
     expect(bucketOf("mine")).toBe("needs_input");
     // The lead's own declaration puts its card in needs input; everything
     // under it files there with it, and a blocked hand is still the role's.
@@ -295,11 +605,20 @@ describe("session identity on the row (session-characters.md S1, S6)", () => {
     // A standing session with nothing under it and nothing to raise stays out.
     expect(bucketOf("quiet")).toBe("hidden");
 
-    const { sessions } = await computeInboxSessions({ db: db(tables) }, ME as any, {});
-    const hand = sessions.find((s: any) => s._id === "conversations_blocked_hand");
+    const { sessions } = await computeInboxSessions(
+      { db: db(tables) },
+      ME as any,
+      {},
+    );
+    const hand = sessions.find(
+      (s: any) => s._id === "conversations_blocked_hand",
+    );
     expect(hand.role?.handle).toBe("infra");
     expect("escalated_by_role" in hand).toBe(false);
-    expect("escalations" in sessions.find((s: any) => s._id === "conversations_standing")).toBe(false);
+    expect(
+      "escalations" in
+        sessions.find((s: any) => s._id === "conversations_standing"),
+    ).toBe(false);
   });
 
   // A lead that delegates with `cast spawn --subagent` has no hand beside it:
@@ -307,23 +626,79 @@ describe("session identity on the row (session-characters.md S1, S6)", () => {
   // child_live fact is what files it by its own state.
   test("a standing session whose only live work is a nested subagent files by its own state", async () => {
     const managed = (id: string, agent_status: string) => ({
-      _id: `ms_${id}`, user_id: ME, conversation_id: `conversations_${id}`, last_heartbeat: EPOCH - 1000,
-      agent_status, agent_status_updated_at: EPOCH - MIN, tmux_session: `cc-${id}`, permission_mode: "default",
+      _id: `ms_${id}`,
+      user_id: ME,
+      conversation_id: `conversations_${id}`,
+      last_heartbeat: EPOCH - 1000,
+      agent_status,
+      agent_status_updated_at: EPOCH - MIN,
+      tmux_session: `cc-${id}`,
+      permission_mode: "default",
     });
     const tables = {
-      org_roles: [{ _id: "org_roles_alive", short_id: "or-9", name: "Aliveness lead", handle: "aliveness", avatar: "goat", status: "active" }],
-      managed_sessions: [managed("lead", "dormant"), managed("nested", "dormant"), managed("quiet", "dormant"), managed("finished", "dormant"), managed("finished_child", "done")],
+      org_roles: [
+        {
+          _id: "org_roles_alive",
+          short_id: "or-9",
+          name: "Aliveness lead",
+          handle: "aliveness",
+          avatar: "goat",
+          status: "active",
+        },
+      ],
+      managed_sessions: [
+        managed("lead", "dormant"),
+        managed("nested", "dormant"),
+        managed("quiet", "dormant"),
+        managed("finished", "dormant"),
+        managed("finished_child", "done"),
+      ],
       conversations: [
-        conv("lead", { updated_at: EPOCH - MIN, anchor_id: "anchors_alive", standing_role_id: "org_roles_alive", thread_state_status: "dormant", thread_state: "waiting on the review" }),
-        conv("nested", { updated_at: EPOCH - 2 * MIN, is_subagent: true, parent_conversation_id: "conversations_lead", org_role_id: "org_roles_alive", thread_state_status: "dormant", thread_state: "PR under review" }),
+        conv("lead", {
+          updated_at: EPOCH - MIN,
+          anchor_id: "anchors_alive",
+          standing_role_id: "org_roles_alive",
+          thread_state_status: "dormant",
+          thread_state: "waiting on the review",
+        }),
+        conv("nested", {
+          updated_at: EPOCH - 2 * MIN,
+          is_subagent: true,
+          parent_conversation_id: "conversations_lead",
+          org_role_id: "org_roles_alive",
+          thread_state_status: "dormant",
+          thread_state: "PR under review",
+        }),
         // A dormant lead with nothing under it stays out, as before.
-        conv("quiet", { updated_at: EPOCH - MIN, anchor_id: "anchors_quiet", standing_role_id: "org_roles_quiet", thread_state_status: "dormant", thread_state: "nothing running" }),
+        conv("quiet", {
+          updated_at: EPOCH - MIN,
+          anchor_id: "anchors_quiet",
+          standing_role_id: "org_roles_quiet",
+          thread_state_status: "dormant",
+          thread_state: "nothing running",
+        }),
         // A child that finished no longer lifts its lead.
-        conv("finished", { updated_at: EPOCH - MIN, anchor_id: "anchors_finished", standing_role_id: "org_roles_finished", thread_state_status: "dormant", thread_state: "worker reported" }),
-        conv("finished_child", { updated_at: EPOCH - 2 * MIN, is_subagent: true, parent_conversation_id: "conversations_finished", org_role_id: "org_roles_finished", thread_state_status: "done", thread_state: "report sent" }),
+        conv("finished", {
+          updated_at: EPOCH - MIN,
+          anchor_id: "anchors_finished",
+          standing_role_id: "org_roles_finished",
+          thread_state_status: "dormant",
+          thread_state: "worker reported",
+        }),
+        conv("finished_child", {
+          updated_at: EPOCH - 2 * MIN,
+          is_subagent: true,
+          parent_conversation_id: "conversations_finished",
+          org_role_id: "org_roles_finished",
+          thread_state_status: "done",
+          thread_state: "report sent",
+        }),
       ],
     };
-    const { liveness } = await computeSessionsLiveness({ db: db(tables) }, ME as any);
+    const { liveness } = await computeSessionsLiveness(
+      { db: db(tables) },
+      ME as any,
+    );
     expect((liveness as any).conversations_lead.child_live).toBe(true);
     expect((liveness as any).conversations_lead.bucket).toBe("dormant");
     expect((liveness as any).conversations_quiet.bucket).toBe("hidden");
@@ -331,10 +706,22 @@ describe("session identity on the row (session-characters.md S1, S6)", () => {
     expect((liveness as any).conversations_finished.bucket).toBe("hidden");
 
     // `cast sessions` files it the same way, with the child listed under it.
-    const { sessions } = await computeInboxSessions({ db: db(tables) }, ME as any, { projection: true });
-    expect(sessions.find((s: any) => s._id === "conversations_lead").bucket).toBe("dormant");
-    expect(sessions.find((s: any) => s._id === "conversations_quiet").bucket).toBe("hidden");
-    expect(sessions.find((s: any) => s._id === "conversations_finished").bucket).toBe("hidden");
-    expect(sessions.some((s: any) => s._id === "conversations_nested")).toBe(true);
+    const { sessions } = await computeInboxSessions(
+      { db: db(tables) },
+      ME as any,
+      { projection: true },
+    );
+    expect(
+      sessions.find((s: any) => s._id === "conversations_lead").bucket,
+    ).toBe("dormant");
+    expect(
+      sessions.find((s: any) => s._id === "conversations_quiet").bucket,
+    ).toBe("hidden");
+    expect(
+      sessions.find((s: any) => s._id === "conversations_finished").bucket,
+    ).toBe("hidden");
+    expect(sessions.some((s: any) => s._id === "conversations_nested")).toBe(
+      true,
+    );
   });
 });

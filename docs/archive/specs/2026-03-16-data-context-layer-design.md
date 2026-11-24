@@ -40,6 +40,7 @@ All other tables pass through to `ctx.db` unchanged.
 ### Writes
 
 `db.insert(table, fields)` auto-injects:
+
 - `user_id` from the data context
 - `team_id` from resolved workspace (for scoped tables)
 - `created_at` (if not already set)
@@ -48,6 +49,7 @@ All other tables pass through to `ctx.db` unchanged.
 ### Reads
 
 `db.query(table)` returns a scoped query builder:
+
 - **Team workspace**: uses `by_team_id` index
 - **Personal workspace**: uses `by_user_id` index + post-filter for `!team_id`
 - **Unscoped**: no workspace filter, returns raw `ctx.db.query(table)`
@@ -67,8 +69,9 @@ For non-scoped tables, `db.query(table)` returns the raw Convex query builder.
 `db.unscoped` returns a data context with workspace type "unscoped". Used for inbox (global session list), admin views, and cross-workspace reads.
 
 ```typescript
-const allSessions = await db.unscoped.query("conversations")
-  .withIndex("by_user_updated", q => q.eq("user_id", userId))
+const allSessions = await db.unscoped
+  .query("conversations")
+  .withIndex("by_user_updated", (q) => q.eq("user_id", userId))
   .collect();
 ```
 
@@ -81,6 +84,7 @@ const allSessions = await db.unscoped.query("conversations")
 ### Migration
 
 Big bang: rewrite all 40+ instances of `user?.active_team_id || user?.team_id` across:
+
 - `tasks.ts` (~10 instances)
 - `plans.ts` (~6 instances)
 - `docs.ts` (~3 instances)

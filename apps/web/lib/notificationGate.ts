@@ -30,7 +30,10 @@ export function bannerRank(kind?: string): number {
 // True when the page on screen already shows what the banner points at. The
 // paths must match and must name something: a list page (/inbox, /tasks) is not
 // the banner's target, and neither is a banner with no route.
-export function showsBannerEntity(active: string | null | undefined, route?: string): boolean {
+export function showsBannerEntity(
+  active: string | null | undefined,
+  route?: string,
+): boolean {
   const target = bannerEntity(route);
   return !!target && bannerEntity(active) === target;
 }
@@ -57,27 +60,39 @@ export type BannerView = { focused: boolean; active: string | null };
 
 export class BrowserBannerGate {
   private cooldown = new Map<string, number>();
-  private held = new Map<string, { timer: unknown; resolve: (v: BannerVerdict) => void }>();
+  private held = new Map<
+    string,
+    { timer: unknown; resolve: (v: BannerVerdict) => void }
+  >();
   private now: () => number;
   private graceMs: number;
   private setTimer: (fn: () => void, ms: number) => unknown;
   private clearTimer: (id: unknown) => void;
 
-  constructor(opts: {
-    now?: () => number;
-    graceMs?: number;
-    setTimer?: (fn: () => void, ms: number) => unknown;
-    clearTimer?: (id: unknown) => void;
-  } = {}) {
+  constructor(
+    opts: {
+      now?: () => number;
+      graceMs?: number;
+      setTimer?: (fn: () => void, ms: number) => unknown;
+      clearTimer?: (id: unknown) => void;
+    } = {},
+  ) {
     this.now = opts.now ?? (() => Date.now());
     this.graceMs = opts.graceMs ?? BANNER_GRACE_MS;
     this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
-    this.clearTimer = opts.clearTimer ?? ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
+    this.clearTimer =
+      opts.clearTimer ??
+      ((id) => clearTimeout(id as ReturnType<typeof setTimeout>));
   }
 
   /** A promise while a banner waits out the grace, an answer otherwise. */
-  admit(view: BannerView, req: BannerRequest): BannerVerdict | Promise<BannerVerdict> {
-    const route = req.route ?? (req.conversationId ? `/conversation/${req.conversationId}` : undefined);
+  admit(
+    view: BannerView,
+    req: BannerRequest,
+  ): BannerVerdict | Promise<BannerVerdict> {
+    const route =
+      req.route ??
+      (req.conversationId ? `/conversation/${req.conversationId}` : undefined);
     // A ring is for a person who is not looking, and "the tab is in front" does
     // not mean they are. It skips every rule here.
     if (!req.force && view.focused && showsBannerEntity(view.active, route)) {
@@ -85,7 +100,9 @@ export class BrowserBannerGate {
     }
     // The burst rules are per conversation. A chat, task or doc banner carries
     // no conversation and goes up as it always did.
-    const key = req.conversationId ? `conversation:${req.conversationId}` : null;
+    const key = req.conversationId
+      ? `conversation:${req.conversationId}`
+      : null;
     if (req.force || !key) return { shown: true };
 
     if (bannerRank(req.kind) > 0) {

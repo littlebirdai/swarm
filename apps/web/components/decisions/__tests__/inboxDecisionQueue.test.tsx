@@ -9,7 +9,10 @@ import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/decisions", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/decisions",
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -37,12 +40,23 @@ const item = (key: string, conversationId: string, sessionTitle: string) => ({
 });
 
 // Queue order interleaves the two sessions: A, B, A.
-const queue = [item("a1", CONV_A, "Alpha"), item("b1", CONV_B, "Beta"), item("a2", CONV_A, "Alpha")];
+const queue = [
+  item("a1", CONV_A, "Alpha"),
+  item("b1", CONV_B, "Beta"),
+  item("a2", CONV_A, "Alpha"),
+];
 
-const realQueueModule = { ...(await import("../../../hooks/useDecisionQueue")) };
-mock.module("../../../hooks/useDecisionQueue", () => ({ ...realQueueModule, useDecisionQueue: () => queue }));
+const realQueueModule = {
+  ...(await import("../../../hooks/useDecisionQueue")),
+};
+mock.module("../../../hooks/useDecisionQueue", () => ({
+  ...realQueueModule,
+  useDecisionQueue: () => queue,
+}));
 mock.module("../../../app/inbox/QueuePageClient", () => ({
-  InboxConversation: ({ sessionId }: { sessionId: string }) => <div data-conv={sessionId} />,
+  InboxConversation: ({ sessionId }: { sessionId: string }) => (
+    <div data-conv={sessionId} />
+  ),
 }));
 
 const { DecisionQueue } = await import("../../DecisionQueue");
@@ -52,8 +66,11 @@ const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const act: <T>(cb: () => T | Promise<T>) => Promise<T> = (React as any).act;
 
-const rows = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>("[data-decision-queue-row]")];
-const litRow = (c: HTMLElement) => rows(c).find((r) => r.getAttribute("data-here") === "true");
+const rows = (c: HTMLElement) => [
+  ...c.querySelectorAll<HTMLElement>("[data-decision-queue-row]"),
+];
+const litRow = (c: HTMLElement) =>
+  rows(c).find((r) => r.getAttribute("data-here") === "true");
 
 describe("the inbox panel's Decisions section is the stepper's queue", () => {
   let container: HTMLElement;
@@ -69,23 +86,58 @@ describe("the inbox panel's Decisions section is the stepper's queue", () => {
     container.remove();
   });
 
-  const panel = <InboxDecisionQueue collapsed={false} onToggle={() => {}} extraSessions={[]} onSelectSession={() => {}} />;
+  const panel = (
+    <InboxDecisionQueue
+      collapsed={false}
+      onToggle={() => {}}
+      extraSessions={[]}
+      onSelectSession={() => {}}
+    />
+  );
 
   test("the header counts the queue and rows carry queue positions under their session", async () => {
     await act(async () => root.render(<MemoryRouter>{panel}</MemoryRouter>));
-    expect(container.querySelector("[data-inbox-section=questions]")?.getAttribute("data-inbox-section-count")).toBe("3");
-    expect(rows(container).map((r) => r.getAttribute("data-decision-queue-row"))).toEqual(["1", "3", "2"]);
+    expect(
+      container
+        .querySelector("[data-inbox-section=questions]")
+        ?.getAttribute("data-inbox-section-count"),
+    ).toBe("3");
+    expect(
+      rows(container).map((r) => r.getAttribute("data-decision-queue-row")),
+    ).toEqual(["1", "3", "2"]);
     expect(container.textContent).toContain("Alpha");
     expect(container.textContent).toContain("Beta");
   });
 
   test("the row the stepper is on is lit, and it follows a jump to another item", async () => {
-    await act(async () => root.render(<MemoryRouter>{panel}<DecisionQueue key="b1" initialKey="b1" /></MemoryRouter>));
-    expect(litRow(container)?.getAttribute("data-decision-queue-row")).toBe("2");
-    expect(litRow(container)?.closest("[data-session-id]")?.getAttribute("data-active")).toBe("true");
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          {panel}
+          <DecisionQueue key="b1" initialKey="b1" />
+        </MemoryRouter>,
+      ),
+    );
+    expect(litRow(container)?.getAttribute("data-decision-queue-row")).toBe(
+      "2",
+    );
+    expect(
+      litRow(container)
+        ?.closest("[data-session-id]")
+        ?.getAttribute("data-active"),
+    ).toBe("true");
 
-    await act(async () => root.render(<MemoryRouter>{panel}<DecisionQueue key="a2" initialKey="a2" /></MemoryRouter>));
-    expect(litRow(container)?.getAttribute("data-decision-queue-row")).toBe("3");
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          {panel}
+          <DecisionQueue key="a2" initialKey="a2" />
+        </MemoryRouter>,
+      ),
+    );
+    expect(litRow(container)?.getAttribute("data-decision-queue-row")).toBe(
+      "3",
+    );
   });
 
   test("leaving the stepper clears the lit row", async () => {

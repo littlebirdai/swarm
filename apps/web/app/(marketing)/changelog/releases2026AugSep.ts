@@ -37,7 +37,12 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "Linear teams and GitHub repos import as projects, and their issues become tasks. The sync runs both ways: a task comment posts to the issue, and `cast task done` closes it.",
           "A Code page browses repository files, commits and pull requests, and git and issue events appear in project timelines.",
         ],
-        docs: [{ href: "/documentation/pull-requests", label: "Pull requests and issues" }],
+        docs: [
+          {
+            href: "/documentation/pull-requests",
+            label: "Pull requests and issues",
+          },
+        ],
       },
       {
         title: "Cloud sessions and a fleet that sleeps",
@@ -50,7 +55,12 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "Select several inbox cards to move sessions between your laptop and the cloud in bulk. The transcript marks the point where a session changed machine.",
           "A trigger bound to a cloud host wakes the host before it runs.",
         ],
-        docs: [{ href: "/documentation/remote-and-cloud-sessions", label: "Remote and cloud sessions" }],
+        docs: [
+          {
+            href: "/documentation/remote-and-cloud-sessions",
+            label: "Remote and cloud sessions",
+          },
+        ],
       },
       {
         title: "cast browser moves into your Chrome",
@@ -102,7 +112,9 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "The sync indicator in the header reads the real distance to the head of the sync log.",
           "The live transcript subscribes to the tail of a conversation, so a long thread streams new messages without loading its first page again.",
         ],
-        docs: [{ href: "/documentation/sync-engine", label: "How the client syncs" }],
+        docs: [
+          { href: "/documentation/sync-engine", label: "How the client syncs" },
+        ],
       },
       {
         title: "Limits pause a session; accounts and agents switch in place",
@@ -246,7 +258,9 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "A finished turn now settles as Done or Dormant as well as Needs Input. Done means delivered. Dormant means a trigger or a background task will wake it.",
           "A turn parked on background work shows as waiting, and the inbox has a view grouped by trigger.",
         ],
-        docs: [{ href: "/documentation/thread-state", label: "Pinned thread state" }],
+        docs: [
+          { href: "/documentation/thread-state", label: "Pinned thread state" },
+        ],
       },
       {
         title: "cast browser: a browser for agents",
@@ -271,7 +285,12 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "`cast resume --tmux` attaches to the pane a session runs in.",
           "Each device reports the git health of its repos, and a git key for each device lets you grant one machine access to a repo.",
         ],
-        docs: [{ href: "/documentation/remote-and-cloud-sessions", label: "Remote and cloud sessions" }],
+        docs: [
+          {
+            href: "/documentation/remote-and-cloud-sessions",
+            label: "Remote and cloud sessions",
+          },
+        ],
       },
       {
         title: "Team chat",
@@ -322,7 +341,9 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "`cast project` creates and lists projects, and the task list groups and filters by label.",
           "A project page charts its progress, and `cast task show` takes several ids and `--json`.",
         ],
-        docs: [{ href: "/documentation/tasks-and-plans", label: "Tasks and plans" }],
+        docs: [
+          { href: "/documentation/tasks-and-plans", label: "Tasks and plans" },
+        ],
       },
       {
         title: "The workbench",
@@ -388,7 +409,9 @@ export const RELEASES_2026_AUG_SEP: Release[] = [
           "Heartbeat fields moved off the session rows, so a heartbeat every second no longer pushes or renders the whole inbox again.",
           "We removed the session replay recorders, and tasks, triggers, workflows and devices now paint from the local store.",
         ],
-        docs: [{ href: "/documentation/sync-engine", label: "How the client syncs" }],
+        docs: [
+          { href: "/documentation/sync-engine", label: "How the client syncs" },
+        ],
       },
       {
         title: "Notifications and security",

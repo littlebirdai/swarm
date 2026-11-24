@@ -8,7 +8,13 @@
 // image came from, when the registrar knows it. `storageId` names the stored
 // bytes (so a quote can attach the picture itself) and `timestamp` when it
 // landed, both when known.
-export type GalleryImage = { src: string; href?: string; messageId?: string; storageId?: string; timestamp?: number };
+export type GalleryImage = {
+  src: string;
+  href?: string;
+  messageId?: string;
+  storageId?: string;
+  timestamp?: number;
+};
 
 // A published page the session produced, by slug, placed by when it was first
 // published. The lightbox shows the live page, not a picture of it.
@@ -28,13 +34,20 @@ export function galleryItemKey(item: GalleryItem): string {
 /** Images in transcript order with pages (oldest first) slotted in by time:
  *  each page lands before the first image that came after it. An image with
  *  no timestamp keeps its place and moves no page. */
-export function interleaveGalleryPages(images: GalleryImage[], pages: GalleryPage[]): GalleryItem[] {
+export function interleaveGalleryPages(
+  images: GalleryImage[],
+  pages: GalleryPage[],
+): GalleryItem[] {
   if (pages.length === 0) return images;
   const out: GalleryItem[] = [];
   let p = 0;
   for (const image of images) {
     if (image.timestamp != null) {
-      while (p < pages.length && (pages[p].timestamp ?? Infinity) < image.timestamp) out.push(pages[p++]);
+      while (
+        p < pages.length &&
+        (pages[p].timestamp ?? Infinity) < image.timestamp
+      )
+        out.push(pages[p++]);
     }
     out.push(image);
   }

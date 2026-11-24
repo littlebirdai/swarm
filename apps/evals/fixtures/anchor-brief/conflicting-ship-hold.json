@@ -15,35 +15,21 @@
     "world": "fernhill",
     "reads": [
       {
-        "argv": [
-          "brief"
-        ],
+        "argv": ["brief"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       },
       {
-        "argv": [
-          "brief",
-          "--json"
-        ],
+        "argv": ["brief", "--json"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       },
       {
-        "argv": [
-          "chat",
-          "thread",
-          "cm7v2root"
-        ],
+        "argv": ["chat", "thread", "cm7v2root"],
         "out": "#docs \u00b7 thread cm7v2root\nMara: @Fern publish the v2 API reference tonight and make v2 the default on the docs site.\nFern: On it. I'll publish after tonight's 6pm docs build.\nTheo: @Fern please hold that. The v2 schema changes again on Thursday, so the reference would be wrong by Friday. Let's publish after the change lands."
       },
       {
-        "argv": [
-          "chat",
-          "read",
-          "--channel",
-          "ch7docs"
-        ],
+        "argv": ["chat", "read", "--channel", "ch7docs"],
         "out": "#docs \u00b7 thread cm7v2root\nMara: @Fern publish the v2 API reference tonight and make v2 the default on the docs site.\nFern: On it. I'll publish after tonight's 6pm docs build.\nTheo: @Fern please hold that. The v2 schema changes again on Thursday, so the reference would be wrong by Friday. Let's publish after the change lands."
       }
     ],

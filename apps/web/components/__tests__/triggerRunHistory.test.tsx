@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { TriggerRunList, TriggerRunRail, type TriggerRun } from "../TriggerRunHistory";
+import {
+  TriggerRunList,
+  TriggerRunRail,
+  type TriggerRun,
+} from "../TriggerRunHistory";
 
 // The list's navigation shim (next/navigation → react-router) needs a router
 // in scope; the rail has none, so both render through the same wrapper.
@@ -53,7 +57,11 @@ describe("precheck skips in the run history", () => {
 
   test("the header rail counts sessions only — a skip has no node to open", () => {
     const html = render(
-      <TriggerRunRail runs={[skipped, spawned]} now={NOW} conversationId="conv1" />,
+      <TriggerRunRail
+        runs={[skipped, spawned]}
+        now={NOW}
+        conversationId="conv1"
+      />,
     );
     expect(html).toContain("1 run");
     expect(html).not.toContain("2 runs");
@@ -65,7 +73,9 @@ describe("precheck skips in the run history", () => {
       "precheck exited 1",
     );
     expect(
-      render(<TriggerRunRail runs={[skipped]} now={NOW} conversationId="conv1" />),
+      render(
+        <TriggerRunRail runs={[skipped]} now={NOW} conversationId="conv1" />,
+      ),
     ).toBe("");
   });
 });

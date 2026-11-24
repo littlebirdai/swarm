@@ -24,9 +24,19 @@ import {
 } from "@codecast/shared/contracts/orgProposal";
 import { formatRelative } from "@codecast/shared/time";
 import { metricLine } from "@codecast/shared/contracts/initiative";
-import { reachedBreakdown, reachedTotal } from "@codecast/shared/contracts/orgAreas";
+import {
+  reachedBreakdown,
+  reachedTotal,
+} from "@codecast/shared/contracts/orgAreas";
 import { formatDuration, parseDuration } from "./stackCommand.js";
-import { HEAD_OF_PEOPLE_HANDLE, isHeadOfPeopleRole, ORG_INIT_LABEL, type OrgInitDeps, type OrgInitMode, type OrgInitSummary } from "./orgInit.js";
+import {
+  HEAD_OF_PEOPLE_HANDLE,
+  isHeadOfPeopleRole,
+  ORG_INIT_LABEL,
+  type OrgInitDeps,
+  type OrgInitMode,
+  type OrgInitSummary,
+} from "./orgInit.js";
 
 // ── The prompt ───────────────────────────────────────────────────────────────
 //
@@ -40,20 +50,43 @@ export type PromptFacts = {
   teamFlag?: string;
   summary: OrgInitSummary;
   /** The analyzer's proposals still open, oldest first: the reference states them as facts. */
-  open?: ReadonlyArray<{ short_id: string; title: string; decided: number; total: number; created_at?: number }>;
+  open?: ReadonlyArray<{
+    short_id: string;
+    title: string;
+    decided: number;
+    total: number;
+    created_at?: number;
+  }>;
 };
 
 export function buildOrgAnalyzerPrompt(opts: PromptFacts): string {
-  return headOfPeoplePrompt({ workspace: opts.workspace, person: opts.summary.person ?? "the person who asked for this review", mode: opts.mode, team: opts.teamFlag, open: opts.open });
+  return headOfPeoplePrompt({
+    workspace: opts.workspace,
+    person: opts.summary.person ?? "the person who asked for this review",
+    mode: opts.mode,
+    team: opts.teamFlag,
+    open: opts.open,
+  });
 }
 
 /** Where coverage stands before the proposal (I2), as `cast org inputs` prints it. */
 export function coverageLine(c: OrgInitSummary["coverage"]): string {
   if (!c) return "";
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
-  const initiatives = c.initiatives_active ? `${plural(c.initiatives_active, "active goal")}${c.initiatives_without_owner ? `, ${c.initiatives_without_owner} with no owner` : ""}` : "no active goals";
-  const outside = [c.outside_plans ? plural(c.outside_plans, "plan") : "", c.outside_areas ? `${plural(c.outside_areas, "area")} of commits and sessions in ${c.outside_repositories} ${c.outside_repositories === 1 ? "repository" : "repositories"}` : ""].filter(Boolean).join(" and ");
-  const paused = c.with_lead_paused ? ` (${c.with_lead_paused} more ${c.with_lead_paused === 1 ? "has" : "have"} a paused one)` : "";
+  const initiatives = c.initiatives_active
+    ? `${plural(c.initiatives_active, "active goal")}${c.initiatives_without_owner ? `, ${c.initiatives_without_owner} with no owner` : ""}`
+    : "no active goals";
+  const outside = [
+    c.outside_plans ? plural(c.outside_plans, "plan") : "",
+    c.outside_areas
+      ? `${plural(c.outside_areas, "area")} of commits and sessions in ${c.outside_repositories} ${c.outside_repositories === 1 ? "repository" : "repositories"}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const paused = c.with_lead_paused
+    ? ` (${c.with_lead_paused} more ${c.with_lead_paused === 1 ? "has" : "have"} a paused one)`
+    : "";
   return `${initiatives}; ${c.with_lead} of ${plural(c.with_work, "project")} with work ${c.with_lead === 1 ? "has" : "have"} a lead${paused}${outside ? `; outside any project: ${outside}` : ""}`;
 }
 
@@ -66,29 +99,67 @@ export function coverageLine(c: OrgInitSummary["coverage"]): string {
  *  handle clash. A person's own request does not block. */
 export function findOpenOrgProposal(
   proposals: Parameters<typeof findOpenOrgProposals>[0],
-): { short_id: string; title: string; decided: number; total: number; created_at?: number } | null {
+): {
+  short_id: string;
+  title: string;
+  decided: number;
+  total: number;
+  created_at?: number;
+} | null {
   return findOpenOrgProposals(proposals)[0] ?? null;
 }
 
 /** Every open analyzer proposal, oldest first: what a review keeps current. */
 export function findOpenOrgProposals(
-  proposals: Array<{ short_id: string; title: string; mode?: OrgProposalMode; status?: string; created_at?: number; decided?: number; total?: number; changes?: any[]; counts?: { decided?: number; total?: number } }> | null | undefined,
-): Array<{ short_id: string; title: string; decided: number; total: number; created_at?: number }> {
+  proposals:
+    | Array<{
+        short_id: string;
+        title: string;
+        mode?: OrgProposalMode;
+        status?: string;
+        created_at?: number;
+        decided?: number;
+        total?: number;
+        changes?: any[];
+        counts?: { decided?: number; total?: number };
+      }>
+    | null
+    | undefined,
+): Array<{
+  short_id: string;
+  title: string;
+  decided: number;
+  total: number;
+  created_at?: number;
+}> {
   return (proposals ?? [])
-    .filter((p) => (p.status ?? "open") === "open" && (p.mode === "init" || p.mode === "review"))
+    .filter(
+      (p) =>
+        (p.status ?? "open") === "open" &&
+        (p.mode === "init" || p.mode === "review"),
+    )
     .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0))
-    .map((p) => ({ short_id: p.short_id, title: p.title, ...decidedCount(p), ...(p.created_at ? { created_at: p.created_at } : {}) }));
+    .map((p) => ({
+      short_id: p.short_id,
+      title: p.title,
+      ...decidedCount(p),
+      ...(p.created_at ? { created_at: p.created_at } : {}),
+    }));
 }
 
 /** Stacks (ds-N) keep the older apply order; one sort for both. */
-export function orderForApply<T extends { context_md?: string | null }>(decisions: T[]): T[] {
+export function orderForApply<T extends { context_md?: string | null }>(
+  decisions: T[],
+): T[] {
   return orderOrgChanges(decisions, (d) => extractOrgProposal(d.context_md));
 }
 
 /** The person the Head of People reports to, as the inputs name them. */
 function personOf(roles: any[]): string | undefined {
-  const to = roles.find((r) => (!!r && isHeadOfPeopleRole(r)))?.reports_to;
-  return typeof to === "string" && to.trim() && !to.startsWith("@") ? to : undefined;
+  const to = roles.find((r) => !!r && isHeadOfPeopleRole(r))?.reports_to;
+  return typeof to === "string" && to.trim() && !to.startsWith("@")
+    ? to
+    : undefined;
 }
 
 export function summarizeInputs(inputs: any): OrgInitSummary {
@@ -96,28 +167,46 @@ export function summarizeInputs(inputs: any): OrgInitSummary {
   return {
     projects: inputs?.projects?.length ?? 0,
     plans: inputs?.plans?.length ?? 0,
-    tasks_open: Object.entries(inputs?.tasks?.by_status ?? {}).filter(([k]) => k !== "done" && k !== "dropped").reduce((n, [, v]) => n + Number(v), 0),
+    tasks_open: Object.entries(inputs?.tasks?.by_status ?? {})
+      .filter(([k]) => k !== "done" && k !== "dropped")
+      .reduce((n, [, v]) => n + Number(v), 0),
     members: inputs?.members?.length ?? 0,
     sessions_30d: inputs?.sessions?.total ?? 0,
     roles: roles.length,
-    git_roots: (inputs?.git_roots ?? []).map((g: any) => g.git_root).filter(Boolean),
-    head_of_people: roles.some((r) => (!!r && isHeadOfPeopleRole(r))),
-    ...((personOf(roles) ?? inputs?.members?.find((m: any) => m?.is_me)?.name) ? { person: personOf(roles) ?? inputs.members.find((m: any) => m?.is_me).name } : {}),
+    git_roots: (inputs?.git_roots ?? [])
+      .map((g: any) => g.git_root)
+      .filter(Boolean),
+    head_of_people: roles.some((r) => !!r && isHeadOfPeopleRole(r)),
+    ...((personOf(roles) ?? inputs?.members?.find((m: any) => m?.is_me)?.name)
+      ? {
+          person:
+            personOf(roles) ?? inputs.members.find((m: any) => m?.is_me).name,
+        }
+      : {}),
     stale: {
       plans: inputs?.activity?.stale?.plans?.length ?? 0,
       tasks: inputs?.activity?.stale?.tasks?.length ?? 0,
       projects: inputs?.activity?.stale?.projects?.length ?? 0,
     },
-    ...(inputs?.coverage ? { coverage: {
-      initiatives_active: inputs.coverage.active_initiatives ?? 0,
-      initiatives_without_owner: inputs.coverage.active_without_owner ?? 0,
-      with_work: inputs.coverage.with_work ?? 0,
-      with_lead: inputs.coverage.with_lead ?? 0,
-      with_lead_paused: inputs.coverage.with_lead_paused ?? 0,
-      outside_plans: inputs.coverage.outside?.plans?.length ?? 0,
-      outside_areas: inputs.coverage.outside?.areas?.length ?? 0,
-      outside_repositories: new Set((inputs.coverage.outside?.areas ?? []).map((a: any) => a.repository)).size,
-    } } : {}),
+    ...(inputs?.coverage
+      ? {
+          coverage: {
+            initiatives_active: inputs.coverage.active_initiatives ?? 0,
+            initiatives_without_owner:
+              inputs.coverage.active_without_owner ?? 0,
+            with_work: inputs.coverage.with_work ?? 0,
+            with_lead: inputs.coverage.with_lead ?? 0,
+            with_lead_paused: inputs.coverage.with_lead_paused ?? 0,
+            outside_plans: inputs.coverage.outside?.plans?.length ?? 0,
+            outside_areas: inputs.coverage.outside?.areas?.length ?? 0,
+            outside_repositories: new Set(
+              (inputs.coverage.outside?.areas ?? []).map(
+                (a: any) => a.repository,
+              ),
+            ).size,
+          },
+        }
+      : {}),
   };
 }
 
@@ -129,13 +218,18 @@ export function proposalUrl(deps: OrgInitDeps, shortId: string): string {
 // the compiled binary (execPath alone takes subcommands).
 function selfCommand(): string[] {
   const script = process.argv[1];
-  return script && /\.(ts|js)$/.test(script) && fs.existsSync(script) ? [process.execPath, script] : [process.execPath];
+  return script && /\.(ts|js)$/.test(script) && fs.existsSync(script)
+    ? [process.execPath, script]
+    : [process.execPath];
 }
 
 function spawnAnalyzer(prompt: string, label: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const [bin, ...pre] = selfCommand();
-    const child = spawn(bin, [...pre, "spawn", "--label", label, "-"], { stdio: ["pipe", "inherit", "inherit"], env: process.env });
+    const child = spawn(bin, [...pre, "spawn", "--label", label, "-"], {
+      stdio: ["pipe", "inherit", "inherit"],
+      env: process.env,
+    });
     child.on("error", reject);
     child.on("exit", (code) => resolve(code ?? 1));
     child.stdin.write(prompt);
@@ -148,7 +242,10 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-async function membership(deps: OrgInitDeps, options: any): Promise<{ ws: any; args: { team_id?: string } }> {
+async function membership(
+  deps: OrgInitDeps,
+  options: any,
+): Promise<{ ws: any; args: { team_id?: string } }> {
   const ws = await deps.readWorkspace(options.team);
   return { ws, args: deps.workspaceArgs(ws) };
 }
@@ -159,49 +256,116 @@ async function membership(deps: OrgInitDeps, options: any): Promise<{ ws: any; a
  *  on the server: on Union they take 40 to 50 seconds, past the default wait. */
 const ANALYSIS_INPUTS_TIMEOUT_MS = 180_000;
 
-export async function showInputs(deps: OrgInitDeps, options: any): Promise<void> {
+export async function showInputs(
+  deps: OrgInitDeps,
+  options: any,
+): Promise<void> {
   const { ws, args } = await membership(deps, options);
-  const inputs = await deps.cliPost("/cli/org/analysis-inputs", args, { timeoutMs: ANALYSIS_INPUTS_TIMEOUT_MS });
+  const inputs = await deps.cliPost("/cli/org/analysis-inputs", args, {
+    timeoutMs: ANALYSIS_INPUTS_TIMEOUT_MS,
+  });
   if (!inputs) fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
-  if (options.json) { console.log(JSON.stringify(inputs, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify(inputs, null, 2));
+    return;
+  }
   const s = summarizeInputs(inputs);
-  console.log(`${fmt.highlight(inputs.workspace.name || deps.workspaceLabel(ws))} ${fmt.muted(`· ${inputs.window_days} days`)}`);
-  console.log(`  ${s.projects} projects · ${s.plans} plans · ${s.tasks_open} open tasks (${inputs.tasks.unfiled_open} unfiled) · ${s.members} members · ${s.sessions_30d} sessions${inputs.sessions.truncated ? " (truncated)" : ""} · ${s.roles} roles`);
-  for (const p of inputs.projects) console.log(`  ${fmt.muted("project")} ${p.short_id ?? ""} ${p.title} ${fmt.muted(`· ${p.tasks.open} open of ${p.tasks.total} tasks · ${p.plans} plans`)}`);
+  console.log(
+    `${fmt.highlight(inputs.workspace.name || deps.workspaceLabel(ws))} ${fmt.muted(`· ${inputs.window_days} days`)}`,
+  );
+  console.log(
+    `  ${s.projects} projects · ${s.plans} plans · ${s.tasks_open} open tasks (${inputs.tasks.unfiled_open} unfiled) · ${s.members} members · ${s.sessions_30d} sessions${inputs.sessions.truncated ? " (truncated)" : ""} · ${s.roles} roles`,
+  );
+  for (const p of inputs.projects)
+    console.log(
+      `  ${fmt.muted("project")} ${p.short_id ?? ""} ${p.title} ${fmt.muted(`· ${p.tasks.open} open of ${p.tasks.total} tasks · ${p.plans} plans`)}`,
+    );
   // Roots group by repo for the eye; the prompt still lists every path,
   // because a worktree is what the analyzer has to read.
   const byRepo = new Map<string, { sessions: number; roots: number }>();
-  for (const g of inputs.git_roots) { const k = g.repo ?? g.git_root; const cur = byRepo.get(k) ?? { sessions: 0, roots: 0 }; cur.sessions += g.sessions; cur.roots++; byRepo.set(k, cur); }
-  for (const [repo, v] of byRepo) console.log(`  ${fmt.muted("repo")} ${repo} ${fmt.muted(`· ${v.sessions} sessions${v.roots > 1 ? ` across ${v.roots} checkouts` : ""}`)}`);
-  for (const r of inputs.org.roles) console.log(`  ${fmt.muted("role")} @${r.handle} ${r.name} ${fmt.muted(`· ${r.idle ? "idle" : `${r.idle_days}d since a scope event`} · ${r.wakes_7d.total} wakes/7d${r.wakes_7d.days_at_cap ? ` (${r.wakes_7d.days_at_cap} days at cap)` : ""}${r.overlaps.length ? ` · overlaps ${r.overlaps.map((o: any) => `@${o.handle}`).join(", ")}` : ""}`)}`);
-  if (inputs.org.projects_without_role.length) console.log(`  ${fmt.muted("no role:")} ${inputs.org.projects_without_role.map((p: any) => p.title).join(", ")}`);
+  for (const g of inputs.git_roots) {
+    const k = g.repo ?? g.git_root;
+    const cur = byRepo.get(k) ?? { sessions: 0, roots: 0 };
+    cur.sessions += g.sessions;
+    cur.roots++;
+    byRepo.set(k, cur);
+  }
+  for (const [repo, v] of byRepo)
+    console.log(
+      `  ${fmt.muted("repo")} ${repo} ${fmt.muted(`· ${v.sessions} sessions${v.roots > 1 ? ` across ${v.roots} checkouts` : ""}`)}`,
+    );
+  for (const r of inputs.org.roles)
+    console.log(
+      `  ${fmt.muted("role")} @${r.handle} ${r.name} ${fmt.muted(`· ${r.idle ? "idle" : `${r.idle_days}d since a scope event`} · ${r.wakes_7d.total} wakes/7d${r.wakes_7d.days_at_cap ? ` (${r.wakes_7d.days_at_cap} days at cap)` : ""}${r.overlaps.length ? ` · overlaps ${r.overlaps.map((o: any) => `@${o.handle}`).join(", ")}` : ""}`)}`,
+    );
+  if (inputs.org.projects_without_role.length)
+    console.log(
+      `  ${fmt.muted("no role:")} ${inputs.org.projects_without_role.map((p: any) => p.title).join(", ")}`,
+    );
   // Who answers for the work (I1, I2): the initiatives, then the before count.
   for (const i of inputs.coverage?.initiatives ?? []) {
-    const chain = i.chain?.length ? ` · under ${i.chain.map((c: any) => c.short_id).join(", under ")}` : "";
-    const numbers = (i.metrics ?? []).map((m: any) => metricLine(m)).join(" · ");
-    console.log(`  ${fmt.muted("goal")} ${i.short_id} ${i.title} ${fmt.muted(`· ${i.status} · ${String(i.health).replace(/_/g, " ")} · ${i.owner ? (i.owner.handle ?? i.owner.name) : "no owner"}${chain}${i.projects_without_lead ? ` · ${i.projects_without_lead} of its projects with no lead` : ""}`)}`);
+    const chain = i.chain?.length
+      ? ` · under ${i.chain.map((c: any) => c.short_id).join(", under ")}`
+      : "";
+    const numbers = (i.metrics ?? [])
+      .map((m: any) => metricLine(m))
+      .join(" · ");
+    console.log(
+      `  ${fmt.muted("goal")} ${i.short_id} ${i.title} ${fmt.muted(`· ${i.status} · ${String(i.health).replace(/_/g, " ")} · ${i.owner ? (i.owner.handle ?? i.owner.name) : "no owner"}${chain}${i.projects_without_lead ? ` · ${i.projects_without_lead} of its projects with no lead` : ""}`)}`,
+    );
     if (numbers) console.log(`    ${fmt.muted(numbers)}`);
   }
-  if (s.coverage) console.log(`  ${fmt.muted("coverage:")} ${coverageLine(s.coverage)}`);
-  for (const line of unplacedLines(inputs.coverage?.unplaced, Date.now(), "  ", inputs.coverage?.unplaced_unread)) console.log(line);
+  if (s.coverage)
+    console.log(`  ${fmt.muted("coverage:")} ${coverageLine(s.coverage)}`);
+  for (const line of unplacedLines(
+    inputs.coverage?.unplaced,
+    Date.now(),
+    "  ",
+    inputs.coverage?.unplaced_unread,
+  ))
+    console.log(line);
   // Where the work is (S9): the busiest areas and the records behind them.
-  for (const a of (inputs.activity?.areas ?? []).slice(0, 8)) console.log(`  ${fmt.muted("area")} ${a.repository ? `${a.repository}${a.path_prefix ? "/" : ""}` : ""}${a.path_prefix || fmt.muted(" (commits with no file list: could not verify)")} ${fmt.muted(`· ${a.commits_30d} commits · ${a.sessions_30d} sessions${a.authors?.length ? ` · ${a.authors.slice(0, 3).map((x: any) => x.name).join(", ")}` : ""}`)}`);
-  if (s.stale.plans + s.stale.tasks + s.stale.projects) console.log(`  ${fmt.muted("stale:")} ${s.stale.plans} plans · ${s.stale.tasks} tasks · ${s.stale.projects} projects ${fmt.muted("(records behind the activity; a review proposes their status changes first)")}`);
+  for (const a of (inputs.activity?.areas ?? []).slice(0, 8))
+    console.log(
+      `  ${fmt.muted("area")} ${a.repository ? `${a.repository}${a.path_prefix ? "/" : ""}` : ""}${a.path_prefix || fmt.muted(" (commits with no file list: could not verify)")} ${fmt.muted(
+        `· ${a.commits_30d} commits · ${a.sessions_30d} sessions${
+          a.authors?.length
+            ? ` · ${a.authors
+                .slice(0, 3)
+                .map((x: any) => x.name)
+                .join(", ")}`
+            : ""
+        }`,
+      )}`,
+    );
+  if (s.stale.plans + s.stale.tasks + s.stale.projects)
+    console.log(
+      `  ${fmt.muted("stale:")} ${s.stale.plans} plans · ${s.stale.tasks} tasks · ${s.stale.projects} projects ${fmt.muted("(records behind the activity; a review proposes their status changes first)")}`,
+    );
   console.log(fmt.muted("  --json for the full payload"));
 }
 
 // ── init / update / review ───────────────────────────────────────────────────
 
-export async function runAnalyzer(deps: OrgInitDeps, mode: OrgInitMode, options: { team?: string; spawn?: boolean }): Promise<void> {
+export async function runAnalyzer(
+  deps: OrgInitDeps,
+  mode: OrgInitMode,
+  options: { team?: string; spawn?: boolean },
+): Promise<void> {
   const { ws, args } = await membership(deps, options);
-  const inputs = await deps.cliPost("/cli/org/analysis-inputs", args, { timeoutMs: ANALYSIS_INPUTS_TIMEOUT_MS });
+  const inputs = await deps.cliPost("/cli/org/analysis-inputs", args, {
+    timeoutMs: ANALYSIS_INPUTS_TIMEOUT_MS,
+  });
   if (!inputs) fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
   const workspace = inputs.workspace.name || deps.workspaceLabel(ws);
   // One proposal at a time per company. An analyzer parked on a usage limit
   // after posting looks dead from the queue; it is not, and a second run
   // would post a second set of ghosts. Printing the prompt is guarded the
   // same way, because the agent that reads it posts too.
-  const listed = await deps.cliPost("/cli/org/proposals", { ...args, status: "open" });
+  const listed = await deps.cliPost("/cli/org/proposals", {
+    ...args,
+    status: "open",
+  });
   const opens = findOpenOrgProposals(listed?.proposals);
   const open = opens[0] ?? null;
   // Init refuses: two first charts would post duplicate ghosts. A review
@@ -211,11 +375,20 @@ export async function runAnalyzer(deps: OrgInitDeps, mode: OrgInitMode, options:
   if (open && mode === "init") {
     fail(
       `${open.short_id} "${open.title}" is still open (${open.decided} of ${open.total} decided), so a second proposal is not started.\n` +
-      `Decide it on the org page (${proposalUrl(deps, open.short_id)}) before running this again.`,
+        `Decide it on the org page (${proposalUrl(deps, open.short_id)}) before running this again.`,
     );
   }
-  const prompt = buildOrgAnalyzerPrompt({ mode, workspace, teamFlag: options.team, summary: summarizeInputs(inputs), open: opens });
-  if (!options.spawn) { process.stdout.write(prompt); return; }
+  const prompt = buildOrgAnalyzerPrompt({
+    mode,
+    workspace,
+    teamFlag: options.team,
+    summary: summarizeInputs(inputs),
+    open: opens,
+  });
+  if (!options.spawn) {
+    process.stdout.write(prompt);
+    return;
+  }
   const code = await spawnAnalyzer(prompt, ORG_INIT_LABEL);
   if (code !== 0) process.exit(code);
 }
@@ -231,19 +404,55 @@ function readSpecText(spec: string): string {
 export async function propose(deps: OrgInitDeps, options: any): Promise<void> {
   const text = readSpecText(options.spec);
   let raw: unknown;
-  try { raw = JSON.parse(text); } catch (e: any) { fail(`The spec is not JSON: ${e?.message ?? e}`); }
+  try {
+    raw = JSON.parse(text);
+  } catch (e: any) {
+    fail(`The spec is not JSON: ${e?.message ?? e}`);
+  }
   const parsed = parseOrgProposalSpec(raw);
-  if (!parsed.spec) fail(`The spec has ${parsed.errors.length} fault${parsed.errors.length === 1 ? "" : "s"}:\n${parsed.errors.map((e) => `  - ${e}`).join("\n")}\nChange kinds: ${ORG_CHANGE_KINDS.join(", ")}.`);
-  for (const n of parsed.notes ?? []) console.log(`  ${fmt.muted(`folded ${n}`)}`);
-  if (options.supersedes && !/^op-\d+$/.test(options.supersedes)) fail(`--supersedes wants a proposal id like op-12 (got ${options.supersedes})`);
+  if (!parsed.spec)
+    fail(
+      `The spec has ${parsed.errors.length} fault${parsed.errors.length === 1 ? "" : "s"}:\n${parsed.errors.map((e) => `  - ${e}`).join("\n")}\nChange kinds: ${ORG_CHANGE_KINDS.join(", ")}.`,
+    );
+  for (const n of parsed.notes ?? [])
+    console.log(`  ${fmt.muted(`folded ${n}`)}`);
+  if (options.supersedes && !/^op-\d+$/.test(options.supersedes))
+    fail(
+      `--supersedes wants a proposal id like op-12 (got ${options.supersedes})`,
+    );
   const { ws, args } = await membership(deps, options);
-  const result = await deps.cliPost("/cli/org/propose", { ...args, ...parsed.spec, from_session: deps.callingSession(), ...(options.supersedes ? { supersedes: options.supersedes } : {}) });
-  if (!result || result.error) fail(result?.error ?? `You are not a member of ${deps.workspaceLabel(ws)}.`);
-  if (options.json) { console.log(JSON.stringify({ ...result, url: proposalUrl(deps, result.short_id) }, null, 2)); return; }
+  const result = await deps.cliPost("/cli/org/propose", {
+    ...args,
+    ...parsed.spec,
+    from_session: deps.callingSession(),
+    ...(options.supersedes ? { supersedes: options.supersedes } : {}),
+  });
+  if (!result || result.error)
+    fail(
+      result?.error ?? `You are not a member of ${deps.workspaceLabel(ws)}.`,
+    );
+  if (options.json) {
+    console.log(
+      JSON.stringify(
+        { ...result, url: proposalUrl(deps, result.short_id) },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   const n = result.changes?.length ?? parsed.spec.changes.length;
   // What happened goes on the first line: a reader that keeps one line must not take an applied proposal for one waiting on a person.
-  const posted = result.applied ? (result.status === "open" ? "applied in part as posted" : "applied as posted, nothing waits on a person") : result.routed_to ? `sent to @${result.routed_to}` : `${parsed.spec.mode}, waiting on a person`;
-  console.log(`${fmt.success("✓")} ${fmt.highlight(result.short_id)} ${parsed.spec.title} ${fmt.muted(`· ${n} change${n === 1 ? "" : "s"} · ${posted}`)}`);
+  const posted = result.applied
+    ? result.status === "open"
+      ? "applied in part as posted"
+      : "applied as posted, nothing waits on a person"
+    : result.routed_to
+      ? `sent to @${result.routed_to}`
+      : `${parsed.spec.mode}, waiting on a person`;
+  console.log(
+    `${fmt.success("✓")} ${fmt.highlight(result.short_id)} ${parsed.spec.title} ${fmt.muted(`· ${n} change${n === 1 ? "" : "s"} · ${posted}`)}`,
+  );
   // The numbers are the server's: the parser may fold two spec rows into one,
   // so a change's number is read here, never counted from the spec.
   for (const row of result.changes ?? []) console.log(`  ${changeRow(row)}`);
@@ -252,19 +461,37 @@ export async function propose(deps: OrgInitDeps, options: any): Promise<void> {
   // did, or the author reports it as waiting on the person.
   // Rows past one transaction's share stay proposed while a scheduled run
   // applies them (`remaining`): those are applying, not the person's.
-  const count = (...st: string[]) => (result.changes ?? []).filter((c: any) => st.includes(c.status)).length;
+  const count = (...st: string[]) =>
+    (result.changes ?? []).filter((c: any) => st.includes(c.status)).length;
   const applying = (result.remaining ?? 0) + count("accepted");
   const open = count("proposed", "failed") - (result.remaining ?? 0);
-  if (result.applied && result.status !== "open") console.log(`  ${fmt.success(`applied at once (${result.status}): nothing waits on a person`)}`);
-  else if (result.applied) console.log(`  ${fmt.accent([`applied ${count("applied")} at once`, applying ? `${applying} still applying` : "", open ? `${open} open for the person on the org page` : ""].filter(Boolean).join("; "))}`);
-  else if (result.routed_to) console.log(`  ${fmt.muted(`sent to @${result.routed_to} to decide; the person may decide it too`)}`);
-  else for (const a of parsed.spec.asks ?? []) console.log(`  ${fmt.muted(`ask: ${a.title} (${a.seqs.length} change${a.seqs.length === 1 ? "" : "s"})`)}`);
+  if (result.applied && result.status !== "open")
+    console.log(
+      `  ${fmt.success(`applied at once (${result.status}): nothing waits on a person`)}`,
+    );
+  else if (result.applied)
+    console.log(
+      `  ${fmt.accent([`applied ${count("applied")} at once`, applying ? `${applying} still applying` : "", open ? `${open} open for the person on the org page` : ""].filter(Boolean).join("; "))}`,
+    );
+  else if (result.routed_to)
+    console.log(
+      `  ${fmt.muted(`sent to @${result.routed_to} to decide; the person may decide it too`)}`,
+    );
+  else
+    for (const a of parsed.spec.asks ?? [])
+      console.log(
+        `  ${fmt.muted(`ask: ${a.title} (${a.seqs.length} change${a.seqs.length === 1 ? "" : "s"})`)}`,
+      );
   console.log(`  ${fmt.accent(proposalUrl(deps, result.short_id))}`);
 }
 
 /** One change as the shell names it: its number in the proposal (the n of
  *  `op-N#n` and of `cast org revise`), then what it does. */
-function changeRow(row: { seq: number; line?: string; change?: unknown }): string {
+function changeRow(row: {
+  seq: number;
+  line?: string;
+  change?: unknown;
+}): string {
   return `${fmt.muted(`#${row.seq}`)} ${row.line ?? describeOrgChange(row.change as OrgChange)}`;
 }
 
@@ -272,145 +499,322 @@ function changeRow(row: { seq: number; line?: string; change?: unknown }): strin
 
 /** JSON from a flag value: inline text when it parses, else a file ('-' is stdin). */
 function readJsonArg(value: string, flag: string): unknown {
-  const text = value === "-" || fs.existsSync(value) ? readSpecText(value) : value;
-  try { return JSON.parse(text); } catch (e: any) { fail(`${flag} is not JSON (inline text or a file): ${e?.message ?? e}`); }
+  const text =
+    value === "-" || fs.existsSync(value) ? readSpecText(value) : value;
+  try {
+    return JSON.parse(text);
+  } catch (e: any) {
+    fail(`${flag} is not JSON (inline text or a file): ${e?.message ?? e}`);
+  }
 }
 
 const seqOf = (raw: string, flag: string): number => {
   const n = Number(String(raw).replace(/^#/, ""));
-  if (!Number.isInteger(n) || n < 1) fail(`${flag} wants a change number like 3 (got ${raw})`);
+  if (!Number.isInteger(n) || n < 1)
+    fail(`${flag} wants a change number like 3 (got ${raw})`);
   return n;
 };
 
 /** The ops the flags describe, in the order remove, amend, add. Pure over
  *  `readJson`, so the test drives it; `--ops` hands the list over as is,
  *  with `--note` filled in where an op has none. */
-export function buildReviseOps(options: any, readJson: (value: string, flag: string) => unknown = readJsonArg): OrgReviseOp[] {
+export function buildReviseOps(
+  options: any,
+  readJson: (value: string, flag: string) => unknown = readJsonArg,
+): OrgReviseOp[] {
   const note = options.note ? { note: String(options.note) } : {};
   let ops: OrgReviseOp[] = [];
   if (options.ops) {
     const raw = readJson(options.ops, "--ops");
     if (!Array.isArray(raw)) fail("--ops wants a JSON list of ops");
-    ops = raw.map((o: any) => (o && typeof o === "object" && options.note && o.note === undefined ? { ...o, ...note } : o));
+    ops = raw.map((o: any) =>
+      o && typeof o === "object" && options.note && o.note === undefined
+        ? { ...o, ...note }
+        : o,
+    );
   } else {
-    for (const r of options.remove ?? []) ops.push({ op: "remove", seq: seqOf(r, "--remove"), ...note });
+    for (const r of options.remove ?? [])
+      ops.push({ op: "remove", seq: seqOf(r, "--remove"), ...note });
     if (options.amend !== undefined) {
-      if (options.edits === undefined && !options.rationale) fail("--amend wants --edits (a JSON patch over the change's keys), --rationale <text>, or both");
-      ops.push({ op: "amend", seq: seqOf(options.amend, "--amend"), ...(options.edits !== undefined ? { edits: readJson(options.edits, "--edits") as Record<string, unknown> } : {}), ...(options.rationale ? { rationale: String(options.rationale) } : {}), ...note });
-    } else if (options.edits !== undefined || options.rationale) fail("--edits and --rationale go with --amend <seq>");
+      if (options.edits === undefined && !options.rationale)
+        fail(
+          "--amend wants --edits (a JSON patch over the change's keys), --rationale <text>, or both",
+        );
+      ops.push({
+        op: "amend",
+        seq: seqOf(options.amend, "--amend"),
+        ...(options.edits !== undefined
+          ? {
+              edits: readJson(options.edits, "--edits") as Record<
+                string,
+                unknown
+              >,
+            }
+          : {}),
+        ...(options.rationale ? { rationale: String(options.rationale) } : {}),
+        ...note,
+      });
+    } else if (options.edits !== undefined || options.rationale)
+      fail("--edits and --rationale go with --amend <seq>");
     for (const file of options.add ?? []) {
       const raw = readJson(file, "--add");
-      for (const c of Array.isArray(raw) ? raw : [raw]) ops.push({ op: "add", change: c as OrgSpecChange, ...note });
+      for (const c of Array.isArray(raw) ? raw : [raw])
+        ops.push({ op: "add", change: c as OrgSpecChange, ...note });
     }
     if (options.answer !== undefined) {
-      if (!options.text) fail("--answer wants --text <words>: the answer the card shows");
-      ops.push({ op: "answer", seq: seqOf(options.answer, "--answer"), text: String(options.text) });
+      if (!options.text)
+        fail("--answer wants --text <words>: the answer the card shows");
+      ops.push({
+        op: "answer",
+        seq: seqOf(options.answer, "--answer"),
+        text: String(options.text),
+      });
     } else if (options.text) fail("--text goes with --answer <seq>");
   }
-  if (!ops.length) fail("Nothing to do: give --remove <seq>, --amend <seq> with --edits or --rationale, --add <file>, --answer <seq> with --text, or --ops <file>");
-  const faults = ops.map((o, i) => { const f = orgReviseOpError(o); return f ? `  - ops[${i}]: ${f}` : null; }).filter(Boolean);
+  if (!ops.length)
+    fail(
+      "Nothing to do: give --remove <seq>, --amend <seq> with --edits or --rationale, --add <file>, --answer <seq> with --text, or --ops <file>",
+    );
+  const faults = ops
+    .map((o, i) => {
+      const f = orgReviseOpError(o);
+      return f ? `  - ops[${i}]: ${f}` : null;
+    })
+    .filter(Boolean);
   if (faults.length) fail(`The revise is not valid:\n${faults.join("\n")}`);
   return ops;
 }
 
-export async function revise(deps: OrgInitDeps, ref: string, options: any): Promise<void> {
-  if (!/^op-\d+$/.test(ref)) fail(`Usage: cast org revise op-N [--remove <seq>] [--amend <seq> --edits <json> | --rationale <text>] [--add <file>] [--answer <seq> --text <words>] [--note <text>]; got ${ref}`);
+export async function revise(
+  deps: OrgInitDeps,
+  ref: string,
+  options: any,
+): Promise<void> {
+  if (!/^op-\d+$/.test(ref))
+    fail(
+      `Usage: cast org revise op-N [--remove <seq>] [--amend <seq> --edits <json> | --rationale <text>] [--add <file>] [--answer <seq> --text <words>] [--note <text>]; got ${ref}`,
+    );
   const ops = buildReviseOps(options);
   const from_session = deps.callingSession();
-  if (!from_session) fail("cast org revise runs inside the session that posted the proposal (or the standing session of the role that did); at a plain shell, decide it on the org page instead");
-  const r = await deps.cliPost("/cli/org/proposal/revise", { proposal: ref, ops, from_session });
+  if (!from_session)
+    fail(
+      "cast org revise runs inside the session that posted the proposal (or the standing session of the role that did); at a plain shell, decide it on the org page instead",
+    );
+  const r = await deps.cliPost("/cli/org/proposal/revise", {
+    proposal: ref,
+    ops,
+    from_session,
+  });
   if (!r || r.error) fail(r?.error ?? `Could not revise ${ref}.`);
-  if (options.json) { console.log(JSON.stringify({ ...r, url: proposalUrl(deps, ref) }, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify({ ...r, url: proposalUrl(deps, ref) }, null, 2));
+    return;
+  }
   const { decided, total } = decidedCount(r);
-  console.log(`${fmt.success("✓")} ${fmt.highlight(ref)} revised ${fmt.muted(`· ${decided} of ${total} decided`)}`);
+  console.log(
+    `${fmt.success("✓")} ${fmt.highlight(ref)} revised ${fmt.muted(`· ${decided} of ${total} decided`)}`,
+  );
   for (const j of r.revisions ?? []) console.log(`  ${revisionLine(j)}`);
-  for (const seq of r.answered ?? []) console.log(`  ${fmt.accent("answered")} #${seq} ${fmt.muted("(shown on the card under the person's words)")}`);
+  for (const seq of r.answered ?? [])
+    console.log(
+      `  ${fmt.accent("answered")} #${seq} ${fmt.muted("(shown on the card under the person's words)")}`,
+    );
   // A revise that leaves nothing to decide settles the proposal on the server.
-  if (r.status && r.status !== "open") console.log(`${fmt.success(`${ref} is ${r.status}: nothing waits on a person`)} ${fmt.accent(proposalUrl(deps, ref))}`);
-  else console.log(`${fmt.muted("The person decides what is left on the org page:")} ${fmt.accent(proposalUrl(deps, ref))}`);
+  if (r.status && r.status !== "open")
+    console.log(
+      `${fmt.success(`${ref} is ${r.status}: nothing waits on a person`)} ${fmt.accent(proposalUrl(deps, ref))}`,
+    );
+  else
+    console.log(
+      `${fmt.muted("The person decides what is left on the org page:")} ${fmt.accent(proposalUrl(deps, ref))}`,
+    );
 }
 
 /** One journal entry as a line: what happened to which change, and the note. */
 function revisionLine(j: any): string {
-  const what = j.op === "removed" ? fmt.error("removed") : j.op === "added" ? fmt.success("added") : fmt.accent("amended");
-  const detail = j.op === "amended" && j.was && j.was !== j.line ? `${j.line} ${fmt.muted(`(was: ${j.was})`)}` : j.line;
+  const what =
+    j.op === "removed"
+      ? fmt.error("removed")
+      : j.op === "added"
+        ? fmt.success("added")
+        : fmt.accent("amended");
+  const detail =
+    j.op === "amended" && j.was && j.was !== j.line
+      ? `${j.line} ${fmt.muted(`(was: ${j.was})`)}`
+      : j.line;
   return `${what} ${fmt.muted(`#${j.seq}`)} ${detail}${j.note ? ` ${fmt.muted(`· ${j.note}`)}` : ""}`;
 }
 
 /** The list carries `counts`, the get carries the change rows; one reading. */
 function decidedCount(p: any): { decided: number; total: number } {
-  if (p.counts && typeof p.counts.total === "number") return { decided: p.counts.decided ?? 0, total: p.counts.total };
+  if (p.counts && typeof p.counts.total === "number")
+    return { decided: p.counts.decided ?? 0, total: p.counts.total };
   const changes: any[] = p.changes ?? [];
-  return { decided: p.decided ?? changes.filter((c) => c.status && c.status !== "proposed").length, total: p.total ?? changes.length };
+  return {
+    decided:
+      p.decided ??
+      changes.filter((c) => c.status && c.status !== "proposed").length,
+    total: p.total ?? changes.length,
+  };
 }
 
-export async function listProposals(deps: OrgInitDeps, options: any): Promise<void> {
+export async function listProposals(
+  deps: OrgInitDeps,
+  options: any,
+): Promise<void> {
   const { ws, args } = await membership(deps, options);
   if (options.withdraw) {
-    if (!/^op-\d+$/.test(options.withdraw)) fail(`--withdraw wants a proposal id like op-12 (got ${options.withdraw})`);
-    const r = await deps.cliPost("/cli/org/proposal/withdraw", { proposal: options.withdraw, from_session: deps.callingSession() });
+    if (!/^op-\d+$/.test(options.withdraw))
+      fail(
+        `--withdraw wants a proposal id like op-12 (got ${options.withdraw})`,
+      );
+    const r = await deps.cliPost("/cli/org/proposal/withdraw", {
+      proposal: options.withdraw,
+      from_session: deps.callingSession(),
+    });
     if (r?.error) fail(r.error);
-    if (options.json) { console.log(JSON.stringify(r, null, 2)); return; }
+    if (options.json) {
+      console.log(JSON.stringify(r, null, 2));
+      return;
+    }
     console.log(`${fmt.success("✓")} withdrew ${options.withdraw}`);
     return;
   }
-  const listed = await deps.cliPost("/cli/org/proposals", options.all ? args : { ...args, status: "open" });
+  const listed = await deps.cliPost(
+    "/cli/org/proposals",
+    options.all ? args : { ...args, status: "open" },
+  );
   if (!listed) fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
-  if (options.json) { console.log(JSON.stringify(listed, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify(listed, null, 2));
+    return;
+  }
   const rows: any[] = listed.proposals ?? [];
-  if (!rows.length) { console.log(fmt.muted(options.all ? "No proposals." : "No open proposals. cast org review proposes one; --all lists resolved ones.")); return; }
+  if (!rows.length) {
+    console.log(
+      fmt.muted(
+        options.all
+          ? "No proposals."
+          : "No open proposals. cast org review proposes one; --all lists resolved ones.",
+      ),
+    );
+    return;
+  }
   const now = Date.now();
   for (const p of rows) {
     const { decided, total } = decidedCount(p);
     // Who posted it decides who may supersede or withdraw it, so the line
     // carries the author's short id and name, not just its kind.
     const a = p.author ?? {};
-    const who = a.kind === "user" ? "a person" : a.kind === "role" ? `@${a.handle ?? a.name ?? "role"}` : "session";
+    const who =
+      a.kind === "user"
+        ? "a person"
+        : a.kind === "role"
+          ? `@${a.handle ?? a.name ?? "role"}`
+          : "session";
     const author = `${who}${a.kind !== "user" && a.short_id ? ` ${a.short_id}` : ""}${a.kind === "session" && a.title ? ` "${a.title}"` : a.kind === "user" && a.name ? ` ${a.name}` : ""}`;
-    console.log(`  ${fmt.highlight(p.short_id)} ${p.title} ${fmt.muted(`· ${p.status ?? "open"} · ${p.mode ?? ""} · ${decided}/${total} decided · ${author} · ${formatRelative(p.created_at ?? now, now)}`)}`);
+    console.log(
+      `  ${fmt.highlight(p.short_id)} ${p.title} ${fmt.muted(`· ${p.status ?? "open"} · ${p.mode ?? ""} · ${decided}/${total} decided · ${author} · ${formatRelative(p.created_at ?? now, now)}`)}`,
+    );
   }
-  console.log(fmt.muted("\ncast org proposal op-N shows one with its changes and their numbers; cast org revise op-N changes one of yours."));
+  console.log(
+    fmt.muted(
+      "\ncast org proposal op-N shows one with its changes and their numbers; cast org revise op-N changes one of yours.",
+    ),
+  );
 }
 
-export async function decideHire(deps: OrgInitDeps, ref: string, options: any): Promise<void> {
-  if (!/^op-\d+$/.test(ref) || !!options.approve === !!options.reject) fail(`Usage: cast org hire op-N --approve|--reject [--note <text>]; got ${ref}`);
+export async function decideHire(
+  deps: OrgInitDeps,
+  ref: string,
+  options: any,
+): Promise<void> {
+  if (!/^op-\d+$/.test(ref) || !!options.approve === !!options.reject)
+    fail(
+      `Usage: cast org hire op-N --approve|--reject [--note <text>]; got ${ref}`,
+    );
   const from_session = deps.callingSession();
-  if (!from_session) fail("cast org hire runs inside a role's standing session; a person decides a hire on the proposal's card");
-  const r = await deps.cliPost("/cli/org/proposal/hire", { proposal: ref, verdict: options.approve ? "accept" : "skip", from_session, ...(options.note ? { text: options.note } : {}) });
+  if (!from_session)
+    fail(
+      "cast org hire runs inside a role's standing session; a person decides a hire on the proposal's card",
+    );
+  const r = await deps.cliPost("/cli/org/proposal/hire", {
+    proposal: ref,
+    verdict: options.approve ? "accept" : "skip",
+    from_session,
+    ...(options.note ? { text: options.note } : {}),
+  });
   if (!r || r.error) fail(r?.error ?? `Could not decide ${ref}.`);
-  if (options.json) { console.log(JSON.stringify(r, null, 2)); return; }
-  for (const row of r.results ?? []) console.log(`  ${statusTag(row.status)} ${row.line ?? ""}${row.note ? ` ${fmt.muted(row.note)}` : ""}`);
-  console.log(`${fmt.success("✓")} ${fmt.highlight(ref)} ${options.approve ? "approved" : "rejected"}${r.remaining ? fmt.muted(` · ${r.remaining} still applying`) : ""}`);
+  if (options.json) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
+  for (const row of r.results ?? [])
+    console.log(
+      `  ${statusTag(row.status)} ${row.line ?? ""}${row.note ? ` ${fmt.muted(row.note)}` : ""}`,
+    );
+  console.log(
+    `${fmt.success("✓")} ${fmt.highlight(ref)} ${options.approve ? "approved" : "rejected"}${r.remaining ? fmt.muted(` · ${r.remaining} still applying`) : ""}`,
+  );
 }
 
 // ── apply ────────────────────────────────────────────────────────────────────
 
-export async function apply(deps: OrgInitDeps, ref: string, options: any): Promise<void> {
+export async function apply(
+  deps: OrgInitDeps,
+  ref: string,
+  options: any,
+): Promise<void> {
   if (/^ds-\d+$/.test(ref)) return applyStack(deps, ref, options);
-  if (!/^op-\d+$/.test(ref)) fail(`Usage: cast org apply op-N (or ds-N for a template stack); got ${ref}`);
+  if (!/^op-\d+$/.test(ref))
+    fail(
+      `Usage: cast org apply op-N (or ds-N for a template stack); got ${ref}`,
+    );
   return showProposal(deps, ref, options);
 }
 
 /** A proposal is decided on the org page and nowhere else (S4): the server
  *  refuses a decide from any token or session. The shell prints what the page
  *  will show, the counts, and the link. */
-export async function showProposal(deps: OrgInitDeps, ref: string, options: any): Promise<void> {
+export async function showProposal(
+  deps: OrgInitDeps,
+  ref: string,
+  options: any,
+): Promise<void> {
   const shown = await deps.cliPost("/cli/org/proposal", { proposal: ref });
   if (!shown || shown.error) fail(shown?.error ?? `No proposal ${ref}.`);
   const p = shown.proposal ?? shown;
-  const changes: any[] = orderOrgChanges(shown.changes ?? p.changes ?? [], (c: any) => c.change as OrgChange);
+  const changes: any[] = orderOrgChanges(
+    shown.changes ?? p.changes ?? [],
+    (c: any) => c.change as OrgChange,
+  );
   const url = proposalUrl(deps, ref);
-  if (options.json) { console.log(JSON.stringify({ ...p, changes, url }, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify({ ...p, changes, url }, null, 2));
+    return;
+  }
   const { decided, total } = decidedCount({ changes });
-  console.log(`${fmt.highlight(p.short_id ?? ref)} ${p.title ?? ""} ${fmt.muted(`· ${p.status ?? "open"} · ${decided} of ${total} decided`)}`);
-  if (p.summary_md) for (const line of String(p.summary_md).split("\n")) console.log(`  ${fmt.muted(line)}`);
+  console.log(
+    `${fmt.highlight(p.short_id ?? ref)} ${p.title ?? ""} ${fmt.muted(`· ${p.status ?? "open"} · ${decided} of ${total} decided`)}`,
+  );
+  if (p.summary_md)
+    for (const line of String(p.summary_md).split("\n"))
+      console.log(`  ${fmt.muted(line)}`);
   // Rows print in APPLY order, not by seq: a role before its adopt, the adopt
   // before its routine, a record sync before a seat. A row that seats or needs
   // another says so on its own line.
-  const depends = orgChangeDependencies(changes.map((c: any) => ({ seq: c.seq, change: c.change as OrgChange })));
-  console.log(fmt.muted("  in apply order (a row that seats or depends on another says so):"));
+  const depends = orgChangeDependencies(
+    changes.map((c: any) => ({ seq: c.seq, change: c.change as OrgChange })),
+  );
+  console.log(
+    fmt.muted(
+      "  in apply order (a row that seats or depends on another says so):",
+    ),
+  );
   for (const row of changes) {
-    console.log(`  ${statusTag(row.status)} ${changeRow(row)}${row.applied_note ? ` ${fmt.muted(row.applied_note)}` : ""}`);
+    console.log(
+      `  ${statusTag(row.status)} ${changeRow(row)}${row.applied_note ? ` ${fmt.muted(row.applied_note)}` : ""}`,
+    );
     const dep = row.depends ?? depends[row.seq];
     if (dep) console.log(`      ${fmt.muted(dep)}`);
   }
@@ -422,30 +826,57 @@ export async function showProposal(deps: OrgInitDeps, ref: string, options: any)
 }
 
 function statusTag(status?: string): string {
-  return status === "applied" ? fmt.success("applied") : status === "failed" ? fmt.error("failed") : status === "accepted" ? fmt.success("accepted") : status === "skipped" ? fmt.muted("skipped") : status === "removed" ? fmt.muted("removed") : fmt.muted(status ?? "proposed");
+  return status === "applied"
+    ? fmt.success("applied")
+    : status === "failed"
+      ? fmt.error("failed")
+      : status === "accepted"
+        ? fmt.success("accepted")
+        : status === "skipped"
+          ? fmt.muted("skipped")
+          : status === "removed"
+            ? fmt.muted("removed")
+            : fmt.muted(status ?? "proposed");
 }
 
 /** Template stacks (ds-N) keep the decision stack path. */
-export async function applyStack(deps: OrgInitDeps, stackRef: string, options: any): Promise<void> {
+export async function applyStack(
+  deps: OrgInitDeps,
+  stackRef: string,
+  options: any,
+): Promise<void> {
   const shown = await deps.cliPost("/cli/stack/show", { stack: stackRef });
   if (shown?.error) fail(shown.error);
   const decisions: any[] = orderForApply(shown.decisions ?? []);
   const results: any[] = [];
   for (const d of decisions) {
     const ref = d.short_id ?? d._id;
-    const r = await deps.cliPost("/cli/org/apply-decision", { decision: ref, provision: options.provision !== false });
+    const r = await deps.cliPost("/cli/org/apply-decision", {
+      decision: ref,
+      provision: options.provision !== false,
+    });
     results.push({ ...r, question: d.question });
     if (options.json) continue;
-    const tag = r.status === "applied" ? fmt.success("applied") : r.status === "error" ? fmt.error("error") : fmt.muted(r.status);
+    const tag =
+      r.status === "applied"
+        ? fmt.success("applied")
+        : r.status === "error"
+          ? fmt.error("error")
+          : fmt.muted(r.status);
     console.log(`  ${tag} ${fmt.muted(ref)} ${d.question}`);
     if (r.note) console.log(`      ${fmt.muted(r.note)}`);
     if (r.error) console.log(`      ${fmt.error(r.error)}`);
   }
-  if (options.json) { console.log(JSON.stringify({ stack: shown.stack, results }, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify({ stack: shown.stack, results }, null, 2));
+    return;
+  }
   const applied = results.filter((r) => r.status === "applied").length;
   const pending = results.filter((r) => r.status === "unanswered").length;
   const errors = results.filter((r) => r.status === "error").length;
-  console.log(`${fmt.success(`${applied} applied`)}${pending ? `, ${pending} unanswered` : ""}${errors ? `, ${fmt.error(`${errors} failed`)}` : ""} of ${results.length} in ${shown.stack?.short_id ?? stackRef}${pending || errors ? fmt.muted(` — rerun cast org apply ${shown.stack?.short_id ?? stackRef} after ${pending ? "the rest are answered" : ""}${pending && errors ? " and " : ""}${errors ? "the failed ones are answered again with changes" : ""}`) : ""}`);
+  console.log(
+    `${fmt.success(`${applied} applied`)}${pending ? `, ${pending} unanswered` : ""}${errors ? `, ${fmt.error(`${errors} failed`)}` : ""} of ${results.length} in ${shown.stack?.short_id ?? stackRef}${pending || errors ? fmt.muted(` — rerun cast org apply ${shown.stack?.short_id ?? stackRef} after ${pending ? "the rest are answered" : ""}${pending && errors ? " and " : ""}${errors ? "the failed ones are answered again with changes" : ""}`) : ""}`,
+  );
 }
 
 // ── staff ────────────────────────────────────────────────────────────────────
@@ -453,22 +884,59 @@ export async function applyStack(deps: OrgInitDeps, stackRef: string, options: a
 export async function staff(deps: OrgInitDeps, options: any): Promise<void> {
   const { ws, args } = await membership(deps, options);
   const session = deps.callingSession();
-  if (options.adopt && !session) fail("--adopt makes THIS session the head of people's standing session, so it runs inside a session. At a shell, run it without --adopt to provision one.");
+  if (options.adopt && !session)
+    fail(
+      "--adopt makes THIS session the head of people's standing session, so it runs inside a session. At a shell, run it without --adopt to provision one.",
+    );
   let every_ms: number;
-  try { every_ms = parseDuration(String(options.every ?? "7d")); } catch (e: any) { fail(`--every: ${e?.message ?? e}`); }
+  try {
+    every_ms = parseDuration(String(options.every ?? "7d"));
+  } catch (e: any) {
+    fail(`--every: ${e?.message ?? e}`);
+  }
   // A provisioned standing session needs a project path, like every other
   // provisioning verb; an adopted session keeps its own.
-  const project_path = options.adopt ? undefined : options.dir ? path.resolve(String(options.dir).replace(/^~/, process.env.HOME || "~")) : deps.realCwd();
-  if (options.seat && options.seat !== "existing" && options.seat !== "fresh") fail("--seat takes existing or fresh");
-  const r = await deps.cliPost("/cli/org/staff", { ...args, every_ms, seat: options.seat, model: options.model, ...(options.adopt ? { adopt_conversation_id: session } : { project_path }), from_session: session });
-  if (!r || r.error) fail(r?.error ?? `You are not a member of ${deps.workspaceLabel(ws)}.`);
-  if (options.json) { console.log(JSON.stringify(r, null, 2)); return; }
+  const project_path = options.adopt
+    ? undefined
+    : options.dir
+      ? path.resolve(String(options.dir).replace(/^~/, process.env.HOME || "~"))
+      : deps.realCwd();
+  if (options.seat && options.seat !== "existing" && options.seat !== "fresh")
+    fail("--seat takes existing or fresh");
+  const r = await deps.cliPost("/cli/org/staff", {
+    ...args,
+    every_ms,
+    seat: options.seat,
+    model: options.model,
+    ...(options.adopt ? { adopt_conversation_id: session } : { project_path }),
+    from_session: session,
+  });
+  if (!r || r.error)
+    fail(r?.error ?? `You are not a member of ${deps.workspaceLabel(ws)}.`);
+  if (options.json) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
   const role = r.role ?? {};
-  console.log(`${fmt.success("✓")} ${r.already_existed ? "already staffed" : r.adopted ? "adopted" : "hired"} ${fmt.highlight(role.name ?? "Head of People")} ${fmt.muted(`@${role.handle ?? HEAD_OF_PEOPLE_HANDLE}${role.short_id ? ` · ${role.short_id}` : ""}`)}`);
-  if (r.standing?.short_id) console.log(`  ${fmt.muted("standing session:")} ${r.standing.short_id}${r.adopted ? fmt.muted(r.seated === "existing" && !options.adopt ? " (the workspace's standing agent, seated; nothing restarted)" : " (this session)") : ""}`);
-  if (r.previous_standing?.short_id) console.log(`  ${fmt.muted("previous standing agent retired; its thread is kept:")} ${r.previous_standing.short_id}`);
-  if (r.routine?.short_id) console.log(`  ${fmt.muted("company review:")} every ${formatDuration(every_ms)} ${fmt.muted(`(${r.routine.short_id})`)}`);
-  if (!r.already_existed) console.log(`  ${fmt.muted("first review: running now; cast org proposals lists it when posted")}`);
+  console.log(
+    `${fmt.success("✓")} ${r.already_existed ? "already staffed" : r.adopted ? "adopted" : "hired"} ${fmt.highlight(role.name ?? "Head of People")} ${fmt.muted(`@${role.handle ?? HEAD_OF_PEOPLE_HANDLE}${role.short_id ? ` · ${role.short_id}` : ""}`)}`,
+  );
+  if (r.standing?.short_id)
+    console.log(
+      `  ${fmt.muted("standing session:")} ${r.standing.short_id}${r.adopted ? fmt.muted(r.seated === "existing" && !options.adopt ? " (the workspace's standing agent, seated; nothing restarted)" : " (this session)") : ""}`,
+    );
+  if (r.previous_standing?.short_id)
+    console.log(
+      `  ${fmt.muted("previous standing agent retired; its thread is kept:")} ${r.previous_standing.short_id}`,
+    );
+  if (r.routine?.short_id)
+    console.log(
+      `  ${fmt.muted("company review:")} every ${formatDuration(every_ms)} ${fmt.muted(`(${r.routine.short_id})`)}`,
+    );
+  if (!r.already_existed)
+    console.log(
+      `  ${fmt.muted("first review: running now; cast org proposals lists it when posted")}`,
+    );
 }
 
 // ── assistant ────────────────────────────────────────────────────────────────
@@ -476,34 +944,80 @@ export async function staff(deps: OrgInitDeps, options: any): Promise<void> {
 // Global (every workspace, theirs alone) unless --team names one; --personal
 // keeps a team's assistant in the person's own boundary.
 
-export async function assistant(deps: OrgInitDeps, options: any): Promise<void> {
+export async function assistant(
+  deps: OrgInitDeps,
+  options: any,
+): Promise<void> {
   const session = deps.callingSession();
-  if (options.adopt && !session) fail("--adopt makes THIS session the assistant's standing session, so it runs inside a session. At a shell, run it without --adopt to provision one.");
+  if (options.adopt && !session)
+    fail(
+      "--adopt makes THIS session the assistant's standing session, so it runs inside a session. At a shell, run it without --adopt to provision one.",
+    );
   let reach: any = { reach: "global" };
   if (options.team) {
     const { ws, args } = await membership(deps, options);
-    if (!args.team_id) fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
+    if (!args.team_id)
+      fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
     reach = { reach: "team", team_id: args.team_id };
-  } else if (options.personal) fail("--personal goes with --team: a global Executive Assistant is always yours alone.");
-  const project_path = options.adopt ? undefined : options.dir ? path.resolve(String(options.dir).replace(/^~/, process.env.HOME || "~")) : deps.realCwd();
-  const r = await deps.cliPost("/cli/org/assistant", { reach, personal: !!options.personal, given_name: options.name, handle: options.handle, avatar: options.avatar, model: options.model, ...(options.adopt ? { adopt_conversation_id: session } : { project_path }), from_session: session });
+  } else if (options.personal)
+    fail(
+      "--personal goes with --team: a global Executive Assistant is always yours alone.",
+    );
+  const project_path = options.adopt
+    ? undefined
+    : options.dir
+      ? path.resolve(String(options.dir).replace(/^~/, process.env.HOME || "~"))
+      : deps.realCwd();
+  const r = await deps.cliPost("/cli/org/assistant", {
+    reach,
+    personal: !!options.personal,
+    given_name: options.name,
+    handle: options.handle,
+    avatar: options.avatar,
+    model: options.model,
+    ...(options.adopt ? { adopt_conversation_id: session } : { project_path }),
+    from_session: session,
+  });
   if (!r || r.error) fail(r?.error ?? "Could not hire an Executive Assistant.");
-  if (options.json) { console.log(JSON.stringify(r, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
   const role = r.role ?? {};
-  const where = reach.reach === "global" ? "across every workspace" : options.personal ? "for the team, yours alone" : "for the team";
-  console.log(`${fmt.success("✓")} ${r.already_existed ? "already standing" : r.adopted ? "adopted" : "hired"} ${fmt.highlight(role.given_name ?? "Executive Assistant")} ${fmt.muted(`· Executive Assistant, ${where} · @${role.handle}${role.short_id ? ` · ${role.short_id}` : ""}`)}`);
-  if (r.standing?.short_id) console.log(`  ${fmt.muted("standing session:")} ${r.standing.short_id}${r.adopted ? fmt.muted(" (this session)") : ""}`);
-  if (reach.reach === "global" && !r.already_existed) console.log(`  ${fmt.muted("it is pinned in the app header on every page; cast role update --given-name renames it")}`);
+  const where =
+    reach.reach === "global"
+      ? "across every workspace"
+      : options.personal
+        ? "for the team, yours alone"
+        : "for the team";
+  console.log(
+    `${fmt.success("✓")} ${r.already_existed ? "already standing" : r.adopted ? "adopted" : "hired"} ${fmt.highlight(role.given_name ?? "Executive Assistant")} ${fmt.muted(`· Executive Assistant, ${where} · @${role.handle}${role.short_id ? ` · ${role.short_id}` : ""}`)}`,
+  );
+  if (r.standing?.short_id)
+    console.log(
+      `  ${fmt.muted("standing session:")} ${r.standing.short_id}${r.adopted ? fmt.muted(" (this session)") : ""}`,
+    );
+  if (reach.reach === "global" && !r.already_existed)
+    console.log(
+      `  ${fmt.muted("it is pinned in the app header on every page; cast role update --given-name renames it")}`,
+    );
 }
 
 // ── health ───────────────────────────────────────────────────────────────────
 
-const SEVERITY_TAG: Record<string, (s: string) => string> = { blocker: fmt.error, warn: fmt.warning, info: fmt.muted };
+const SEVERITY_TAG: Record<string, (s: string) => string> = {
+  blocker: fmt.error,
+  warn: fmt.warning,
+  info: fmt.muted,
+};
 function flagLine(f: any, indent: string): string {
-  const tag = (SEVERITY_TAG[f.severity] ?? fmt.muted)(String(f.severity ?? "info").padEnd(7));
+  const tag = (SEVERITY_TAG[f.severity] ?? fmt.muted)(
+    String(f.severity ?? "info").padEnd(7),
+  );
   return `${indent}${tag} ${f.code}${f.detail ? ` ${fmt.muted(String(f.detail))}` : ""}`;
 }
-const k = (n?: number | null) => n == null ? "?" : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+const k = (n?: number | null) =>
+  n == null ? "?" : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
 
 export async function health(deps: OrgInitDeps, options: any): Promise<void> {
   const { ws, args } = await membership(deps, options);
@@ -513,21 +1027,37 @@ export async function health(deps: OrgInitDeps, options: any): Promise<void> {
   } catch (err) {
     // Under --json the answer goes to stdout, a failure included, so `> file` never leaves an empty file.
     const message = String((err as Error)?.message ?? err).split("\n")[0];
-    if (options.json) { console.log(JSON.stringify({ error: message })); process.exit(1); }
+    if (options.json) {
+      console.log(JSON.stringify({ error: message }));
+      process.exit(1);
+    }
     fail(`org health failed: ${message}`);
   }
   if (!h) {
-    if (options.json) { console.log(JSON.stringify({ error: `not a member of ${deps.workspaceLabel(ws)}` })); process.exit(1); }
+    if (options.json) {
+      console.log(
+        JSON.stringify({ error: `not a member of ${deps.workspaceLabel(ws)}` }),
+      );
+      process.exit(1);
+    }
     fail(`You are not a member of ${deps.workspaceLabel(ws)}.`);
   }
-  if (options.json) { console.log(JSON.stringify(h, null, 2)); return; }
+  if (options.json) {
+    console.log(JSON.stringify(h, null, 2));
+    return;
+  }
   const now = Date.now();
   const roles: any[] = h.roles ?? [];
   const people: any[] = h.people ?? [];
   const company = h.company ?? {};
   const flags = (xs: any[] | undefined) => xs ?? [];
-  const total = roles.reduce((n, r) => n + flags(r.flags).length, 0) + people.reduce((n, p) => n + flags(p.flags).length, 0) + flags(company.flags).length;
-  console.log(`${fmt.highlight(h.workspace?.name ?? deps.workspaceLabel(ws))} ${fmt.muted(`· ${roles.length} roles · ${people.length} people · ${total} flag${total === 1 ? "" : "s"}${h.generated_at ? ` · ${formatRelative(h.generated_at, now)}` : ""}`)}`);
+  const total =
+    roles.reduce((n, r) => n + flags(r.flags).length, 0) +
+    people.reduce((n, p) => n + flags(p.flags).length, 0) +
+    flags(company.flags).length;
+  console.log(
+    `${fmt.highlight(h.workspace?.name ?? deps.workspaceLabel(ws))} ${fmt.muted(`· ${roles.length} roles · ${people.length} people · ${total} flag${total === 1 ? "" : "s"}${h.generated_at ? ` · ${formatRelative(h.generated_at, now)}` : ""}`)}`,
+  );
   // Each role as its area reads (org-staffing.md S29): the status word, when
   // it last checked and checks next, its own latest line, the sessions
   // waiting under it and the signals that matter. The counts behind the
@@ -535,20 +1065,45 @@ export async function health(deps: OrgInitDeps, options: any): Promise<void> {
   for (const r of roles) {
     const a = r.area ?? {};
     const check = a.check ?? {};
-    const checked = a.checked_at ? `checked ${formatRelative(a.checked_at, now)}` : "never checked";
+    const checked = a.checked_at
+      ? `checked ${formatRelative(a.checked_at, now)}`
+      : "never checked";
     // A next run is only one while the check is armed; a stopped check's run_at is when it died.
-    const nextCheck = check.status === "paused" ? "check paused" : check.status === "scheduled" && check.run_at ? `next check ${formatRelative(check.run_at, now)}` : check.status ? `check ${check.status}` : "no check";
-    console.log(`  ${fmt.accent(`@${r.handle}`)}${r.short_id ? ` ${fmt.muted(r.short_id)}` : ""} ${fmt.highlight(String(a.status ?? "").replace(/_/g, " "))} ${fmt.muted(`· ${checked} · ${nextCheck}`)}`);
-    if (a.status_line && a.status !== "on_track") console.log(`    ${a.status_line}`);
-    if (a.reached && reachedTotal(a.reached) > 0) console.log(`    ${fmt.muted("reached")} ${reachedBreakdown(a.reached)}`);
-    if (a.standing) console.log(`    ${fmt.muted("says")}  ${a.standing.project}: ${a.standing.text}${a.standing.written_on ? fmt.muted(` (${a.standing.written_on})`) : ""}`);
-    for (const w of a.waiting ?? []) console.log(`    ${fmt.muted("waits")} ${w.short_id} ${w.title}${w.state ? fmt.muted(` · ${w.state}`) : ""} ${fmt.muted(`· ${w.why} ${formatRelative(w.since, now)}`)}`);
-    for (const sg of a.signals ?? []) console.log(`    ${(SEVERITY_TAG[sg.severity] ?? fmt.muted)(String(sg.severity).padEnd(7))} ${sg.text}`);
-    for (const fl of flags(r.flags).filter((f: any) => f.severity !== "info")) console.log(flagLine(fl, "    "));
+    const nextCheck =
+      check.status === "paused"
+        ? "check paused"
+        : check.status === "scheduled" && check.run_at
+          ? `next check ${formatRelative(check.run_at, now)}`
+          : check.status
+            ? `check ${check.status}`
+            : "no check";
+    console.log(
+      `  ${fmt.accent(`@${r.handle}`)}${r.short_id ? ` ${fmt.muted(r.short_id)}` : ""} ${fmt.highlight(String(a.status ?? "").replace(/_/g, " "))} ${fmt.muted(`· ${checked} · ${nextCheck}`)}`,
+    );
+    if (a.status_line && a.status !== "on_track")
+      console.log(`    ${a.status_line}`);
+    if (a.reached && reachedTotal(a.reached) > 0)
+      console.log(`    ${fmt.muted("reached")} ${reachedBreakdown(a.reached)}`);
+    if (a.standing)
+      console.log(
+        `    ${fmt.muted("says")}  ${a.standing.project}: ${a.standing.text}${a.standing.written_on ? fmt.muted(` (${a.standing.written_on})`) : ""}`,
+      );
+    for (const w of a.waiting ?? [])
+      console.log(
+        `    ${fmt.muted("waits")} ${w.short_id} ${w.title}${w.state ? fmt.muted(` · ${w.state}`) : ""} ${fmt.muted(`· ${w.why} ${formatRelative(w.since, now)}`)}`,
+      );
+    for (const sg of a.signals ?? [])
+      console.log(
+        `    ${(SEVERITY_TAG[sg.severity] ?? fmt.muted)(String(sg.severity).padEnd(7))} ${sg.text}`,
+      );
+    for (const fl of flags(r.flags).filter((f: any) => f.severity !== "info"))
+      console.log(flagLine(fl, "    "));
   }
   for (const p of people) {
     const dw = p.decisions_waiting ?? {};
-    console.log(`  ${fmt.accent(p.name ?? p.user_id)} ${fmt.muted(`· ${p.direct_roles ?? 0} direct roles · ${dw.n ?? 0} decisions waiting${dw.oldest_min ? ` (oldest ${dw.oldest_min}m)` : ""}`)}`);
+    console.log(
+      `  ${fmt.accent(p.name ?? p.user_id)} ${fmt.muted(`· ${p.direct_roles ?? 0} direct roles · ${dw.n ?? 0} decisions waiting${dw.oldest_min ? ` (oldest ${dw.oldest_min}m)` : ""}`)}`,
+    );
     for (const fl of flags(p.flags)) console.log(flagLine(fl, "    "));
   }
   const unowned: any[] = company.unowned_projects ?? [];
@@ -556,18 +1111,33 @@ export async function health(deps: OrgInitDeps, options: any): Promise<void> {
   const noGoal: any[] = company.plans_without_goal ?? [];
   const noCharter: any[] = company.projects_without_charter ?? [];
   const unfiledPlans: any[] = company.unfiled_plans ?? [];
-  console.log(`  ${fmt.accent("company")} ${fmt.muted(`· ${unowned.length} unowned project${unowned.length === 1 ? "" : "s"}${unowned.length ? ` (${unowned.map((x) => x.title ?? x.id).join(", ")})` : ""}${watched.length ? ` · ${watched.length} watched by two roles with no lead (${watched.map((x) => `${x.title ?? x.id}: ${(x.roles ?? []).map((h: string) => `@${h}`).join(", ")}`).join("; ")})` : ""} · ${company.unfiled_tasks ?? 0} unfiled tasks · ${unfiledPlans.length} unfiled plan${unfiledPlans.length === 1 ? "" : "s"} with open work · ${noCharter.length} without a charter · ${noGoal.length} plan${noGoal.length === 1 ? "" : "s"} without a goal`)}`);
+  console.log(
+    `  ${fmt.accent("company")} ${fmt.muted(`· ${unowned.length} unowned project${unowned.length === 1 ? "" : "s"}${unowned.length ? ` (${unowned.map((x) => x.title ?? x.id).join(", ")})` : ""}${watched.length ? ` · ${watched.length} watched by two roles with no lead (${watched.map((x) => `${x.title ?? x.id}: ${(x.roles ?? []).map((h: string) => `@${h}`).join(", ")}`).join("; ")})` : ""} · ${company.unfiled_tasks ?? 0} unfiled tasks · ${unfiledPlans.length} unfiled plan${unfiledPlans.length === 1 ? "" : "s"} with open work · ${noCharter.length} without a charter · ${noGoal.length} plan${noGoal.length === 1 ? "" : "s"} without a goal`)}`,
+  );
   // Warnings and blockers print one per line; info flags (a charter missing on
   // each of forty plans) collapse to one line per code with a few examples,
   // and --json keeps every row.
-  for (const line of unplacedLines(company.unplaced, now, "    ", company.unplaced_unread)) console.log(line);
+  for (const line of unplacedLines(
+    company.unplaced,
+    now,
+    "    ",
+    company.unplaced_unread,
+  ))
+    console.log(line);
   const info = flags(company.flags).filter((f) => f.severity === "info");
-  for (const fl of flags(company.flags).filter((f) => f.severity !== "info")) console.log(flagLine(fl, "    "));
+  for (const fl of flags(company.flags).filter((f) => f.severity !== "info"))
+    console.log(flagLine(fl, "    "));
   const byCode = new Map<string, any[]>();
-  for (const fl of info) byCode.set(fl.code, [...(byCode.get(fl.code) ?? []), fl]);
+  for (const fl of info)
+    byCode.set(fl.code, [...(byCode.get(fl.code) ?? []), fl]);
   for (const [code, rows] of byCode) {
-    const shown = rows.slice(0, 3).map((f) => String(f.detail ?? "")).filter(Boolean);
-    console.log(`    ${fmt.muted("info   ")} ${code} ${fmt.muted(`× ${rows.length}: ${shown.join("; ")}${rows.length > shown.length ? `; +${rows.length - shown.length} more (--json)` : ""}`)}`);
+    const shown = rows
+      .slice(0, 3)
+      .map((f) => String(f.detail ?? ""))
+      .filter(Boolean);
+    console.log(
+      `    ${fmt.muted("info   ")} ${code} ${fmt.muted(`× ${rows.length}: ${shown.join("; ")}${rows.length > shown.length ? `; +${rows.length - shown.length} more (--json)` : ""}`)}`,
+    );
   }
   if (!total) console.log(fmt.muted("  no flags"));
 }

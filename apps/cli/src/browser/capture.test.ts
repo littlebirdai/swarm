@@ -31,34 +31,60 @@ const emptyRecording = (over: Partial<Recording> = {}): Recording => ({
 
 describe("classifyFailure", () => {
   test("page-state failures are capturable", () => {
-    expect(classifyFailure(`"Loaded" never appeared within 15000ms`)).toBe("capturable");
-    expect(classifyFailure("#e42 never appeared within 15000ms")).toBe("capturable");
-    expect(classifyFailure("ReferenceError: foo is not defined")).toBe("capturable");
-    expect(classifyFailure("element #e7 is covered by another element")).toBe("capturable");
-    expect(classifyFailure("Runtime.evaluate did not answer within 30000ms")).toBe("capturable");
+    expect(classifyFailure(`"Loaded" never appeared within 15000ms`)).toBe(
+      "capturable",
+    );
+    expect(classifyFailure("#e42 never appeared within 15000ms")).toBe(
+      "capturable",
+    );
+    expect(classifyFailure("ReferenceError: foo is not defined")).toBe(
+      "capturable",
+    );
+    expect(classifyFailure("element #e7 is covered by another element")).toBe(
+      "capturable",
+    );
+    expect(
+      classifyFailure("Runtime.evaluate did not answer within 30000ms"),
+    ).toBe("capturable");
   });
 
   test("a wedged tab is recognised from TabUnresponsive's message", () => {
-    expect(classifyFailure("tab ab12cd34 did not respond (Page.enable did not answer within 15000ms).")).toBe(
-      "tab-wedged",
-    );
+    expect(
+      classifyFailure(
+        "tab ab12cd34 did not respond (Page.enable did not answer within 15000ms).",
+      ),
+    ).toBe("tab-wedged");
   });
 
   test("a dead browser or connection is not capturable", () => {
     expect(classifyFailure("CDP connection closed")).toBe("browser-gone");
-    expect(classifyFailure("CDP connection is not open (Runtime.evaluate)")).toBe("browser-gone");
-    expect(classifyFailure("no managed browser is running")).toBe("browser-gone");
     expect(
-      classifyFailure("the managed browser (pid 123) is not answering CDP right now"),
+      classifyFailure("CDP connection is not open (Runtime.evaluate)"),
     ).toBe("browser-gone");
-    expect(classifyFailure("CDP connection closed — the browser was stopped or restarted (usually by another agent) mid-command. Run the command again.")).toBe("browser-gone");
+    expect(classifyFailure("no managed browser is running")).toBe(
+      "browser-gone",
+    );
+    expect(
+      classifyFailure(
+        "the managed browser (pid 123) is not answering CDP right now",
+      ),
+    ).toBe("browser-gone");
+    expect(
+      classifyFailure(
+        "CDP connection closed — the browser was stopped or restarted (usually by another agent) mid-command. Run the command again.",
+      ),
+    ).toBe("browser-gone");
   });
 
   test("usage errors get no page context", () => {
-    expect(classifyFailure("'foo' is not a ref — refs look like #e1234 and come from `cast browser snapshot`")).toBe(
+    expect(
+      classifyFailure(
+        "'foo' is not a ref — refs look like #e1234 and come from `cast browser snapshot`",
+      ),
+    ).toBe("usage");
+    expect(classifyFailure("click needs a ref, or a `find` before it")).toBe(
       "usage",
     );
-    expect(classifyFailure("click needs a ref, or a `find` before it")).toBe("usage");
     expect(classifyFailure("open needs a url")).toBe("usage");
     expect(classifyFailure("unknown step 'frobnicate'")).toBe("usage");
   });
@@ -69,9 +95,15 @@ describe("classifyFailure", () => {
     expect(classifyFailure("Unknown command: frobnicate")).toBe("usage");
     expect(classifyFailure("Skill not found: bogus")).toBe("usage");
     expect(classifyFailure("Missing arguments for: get")).toBe("usage");
-    expect(classifyFailure("Usage: agent-browser click <selector> [--new-tab]")).toBe("usage");
-    expect(classifyFailure("Invalid read URL: invalid international domain name")).toBe("usage");
-    expect(classifyFailure("Unexpected read argument: [role=main]")).toBe("usage");
+    expect(
+      classifyFailure("Usage: agent-browser click <selector> [--new-tab]"),
+    ).toBe("usage");
+    expect(
+      classifyFailure("Invalid read URL: invalid international domain name"),
+    ).toBe("usage");
+    expect(classifyFailure("Unexpected read argument: [role=main]")).toBe(
+      "usage",
+    );
   });
 
   test("engine failures that asked the page keep their context", () => {
@@ -84,7 +116,9 @@ describe("formatFailureContext", () => {
   test("empty recording reports the absence rather than printing nothing", () => {
     const out = formatFailureContext(emptyRecording());
     expect(out.hasSignal).toBe(false);
-    expect(out.lines.join("\n")).toContain("no console errors or failed requests");
+    expect(out.lines.join("\n")).toContain(
+      "no console errors or failed requests",
+    );
   });
 
   test("an unarmed recorder is reported honestly", () => {
@@ -121,31 +155,57 @@ describe("formatFailureContext", () => {
     );
     const text = out.lines.join("\n");
     expect(text).toContain("UNCAUGHT TypeError: newest uncaught");
-    expect(text.indexOf("newest uncaught")).toBeLessThan(text.indexOf("older console error"));
+    expect(text.indexOf("newest uncaught")).toBeLessThan(
+      text.indexOf("older console error"),
+    );
   });
 
   test("console entries are capped with a count of what was dropped", () => {
     const out = formatFailureContext(
       emptyRecording({
-        console: Array.from({ length: 30 }, (_, i) => ({ t: i * 100, level: "error", text: `err ${i}` })),
+        console: Array.from({ length: 30 }, (_, i) => ({
+          t: i * 100,
+          level: "error",
+          text: `err ${i}`,
+        })),
       }),
     );
     const entryLines = out.lines.filter((l) => / ERR /.test(l));
     expect(entryLines.length).toBe(CAPTURE_MAX_CONSOLE);
     // Newest first: the highest-numbered error leads.
     expect(entryLines[0]).toContain("err 29");
-    expect(out.lines.join("\n")).toContain(`… ${30 - CAPTURE_MAX_CONSOLE} more`);
+    expect(out.lines.join("\n")).toContain(
+      `… ${30 - CAPTURE_MAX_CONSOLE} more`,
+    );
   });
 
   test("only failed requests appear, capped, newest first", () => {
     const network = [
       ...Array.from({ length: 20 }, (_, i) => ({
-        t: i * 100, ms: 5, method: "GET", url: `https://ok/${i}`, status: 200, kind: "fetch",
+        t: i * 100,
+        ms: 5,
+        method: "GET",
+        url: `https://ok/${i}`,
+        status: 200,
+        kind: "fetch",
       })),
       ...Array.from({ length: 10 }, (_, i) => ({
-        t: 10_000 + i * 100, ms: 5, method: "GET", url: `https://bad/${i}`, status: 500, kind: "fetch",
+        t: 10_000 + i * 100,
+        ms: 5,
+        method: "GET",
+        url: `https://bad/${i}`,
+        status: 500,
+        kind: "fetch",
       })),
-      { t: 99_000, ms: 5, method: "POST", url: "https://dead/api", status: 0, kind: "fetch", error: "net::ERR_FAILED" },
+      {
+        t: 99_000,
+        ms: 5,
+        method: "POST",
+        url: "https://dead/api",
+        status: 0,
+        kind: "fetch",
+        error: "net::ERR_FAILED",
+      },
     ];
     const out = formatFailureContext(emptyRecording({ network }));
     const rows = out.lines.filter((l) => /https:\/\//.test(l));
@@ -153,15 +213,32 @@ describe("formatFailureContext", () => {
     expect(rows[0]).toContain("https://dead/api");
     expect(rows[0]).toContain("net::ERR_FAILED");
     expect(out.lines.join("\n")).not.toContain("https://ok/");
-    expect(out.lines.join("\n")).toContain(`… ${11 - CAPTURE_MAX_NETWORK} more`);
+    expect(out.lines.join("\n")).toContain(
+      `… ${11 - CAPTURE_MAX_NETWORK} more`,
+    );
   });
 
   test("a 404 shows its status while a transport failure shows ERR", () => {
     const out = formatFailureContext(
       emptyRecording({
         network: [
-          { t: 1, ms: 3, method: "GET", url: "https://x/missing", status: 404, kind: "fetch" },
-          { t: 2, ms: 3, method: "GET", url: "https://x/refused", status: 0, kind: "fetch", error: "net::ERR_CONNECTION_REFUSED" },
+          {
+            t: 1,
+            ms: 3,
+            method: "GET",
+            url: "https://x/missing",
+            status: 404,
+            kind: "fetch",
+          },
+          {
+            t: 2,
+            ms: 3,
+            method: "GET",
+            url: "https://x/refused",
+            status: 0,
+            kind: "fetch",
+            error: "net::ERR_CONNECTION_REFUSED",
+          },
         ],
       }),
     );
@@ -173,10 +250,18 @@ describe("formatFailureContext", () => {
   test("a stack inside an entry collapses to one line", () => {
     const out = formatFailureContext(
       emptyRecording({
-        network: [{
-          t: 1, ms: 3, method: "GET", url: "https://x/dead", status: 0, kind: "fetch",
-          error: "TypeError: Failed to fetch\n    at window.fetch (<anonymous>:45:37)\n    at http://x/:9:3",
-        }],
+        network: [
+          {
+            t: 1,
+            ms: 3,
+            method: "GET",
+            url: "https://x/dead",
+            status: 0,
+            kind: "fetch",
+            error:
+              "TypeError: Failed to fetch\n    at window.fetch (<anonymous>:45:37)\n    at http://x/:9:3",
+          },
+        ],
       }),
     );
     const row = out.lines.find((l) => l.includes("https://x/dead"))!;
@@ -187,21 +272,31 @@ describe("formatFailureContext", () => {
 
   test("long lines are clipped so one giant log entry cannot flood the block", () => {
     const out = formatFailureContext(
-      emptyRecording({ console: [{ t: 1000, level: "error", text: "x".repeat(5000) }] }),
+      emptyRecording({
+        console: [{ t: 1000, level: "error", text: "x".repeat(5000) }],
+      }),
     );
-    for (const line of out.lines) expect(line.length).toBeLessThanOrEqual(CAPTURE_MAX_LINE + 10);
+    for (const line of out.lines)
+      expect(line.length).toBeLessThanOrEqual(CAPTURE_MAX_LINE + 10);
   });
 });
 
 describe("captureConfigOff", () => {
-  const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), "cast-capture-test-"));
+  const tmp = (): string =>
+    fs.mkdtempSync(path.join(os.tmpdir(), "cast-capture-test-"));
 
   test("off only when the config says off", () => {
     const dir = tmp();
     expect(captureConfigOff(dir)).toBe(false); // no config file
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ browser_capture: "on" }));
+    fs.writeFileSync(
+      path.join(dir, "config.json"),
+      JSON.stringify({ browser_capture: "on" }),
+    );
     expect(captureConfigOff(dir)).toBe(false);
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ browser_capture: "off" }));
+    fs.writeFileSync(
+      path.join(dir, "config.json"),
+      JSON.stringify({ browser_capture: "off" }),
+    );
     expect(captureConfigOff(dir)).toBe(true);
   });
 
@@ -215,8 +310,17 @@ describe("captureConfigOff", () => {
 describe("engine failure message", () => {
   test("strips the engine's cross glyph and takes the first non-empty line", async () => {
     const { engineFailureMessage } = await import("./cliEngine.js");
-    expect(engineFailureMessage("✗ Wait timed out after 800ms\n", "")).toBe("Wait timed out after 800ms");
-    expect(engineFailureMessage("", "\n✗ Evaluation error: TypeError: x\n    at <anonymous>")).toBe("Evaluation error: TypeError: x");
-    expect(engineFailureMessage("", "")).toBe("the browser engine reported a failure");
+    expect(engineFailureMessage("✗ Wait timed out after 800ms\n", "")).toBe(
+      "Wait timed out after 800ms",
+    );
+    expect(
+      engineFailureMessage(
+        "",
+        "\n✗ Evaluation error: TypeError: x\n    at <anonymous>",
+      ),
+    ).toBe("Evaluation error: TypeError: x");
+    expect(engineFailureMessage("", "")).toBe(
+      "the browser engine reported a failure",
+    );
   });
 });

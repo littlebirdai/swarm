@@ -10,11 +10,21 @@
 import { taskVisual } from "../TaskStatusBadge";
 import { useInboxStore } from "../../store/inboxStore";
 
-export function SessionTaskChip({ task, className = "" }: {
-  task: { _id: string; short_id?: string | null; title: string; status?: string | null };
+export function SessionTaskChip({
+  task,
+  className = "",
+}: {
+  task: {
+    _id: string;
+    short_id?: string | null;
+    title: string;
+    status?: string | null;
+  };
   className?: string;
 }) {
-  const status = useInboxStore((s) => (s.tasks as any)[task._id]?.status ?? task.status ?? null);
+  const status = useInboxStore(
+    (s) => (s.tasks as any)[task._id]?.status ?? task.status ?? null,
+  );
   const { icon: StatusIcon, color, label } = taskVisual(status);
   return (
     <span

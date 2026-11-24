@@ -4,7 +4,10 @@ import { GitBranch, Check, Search, Terminal, Users } from "lucide-react";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { Input } from "../ui/input";
 import { KeyCap } from "../KeyboardShortcutsHelp";
-import { formatDateRange, formatSessionCount } from "../../lib/team/shareImpact";
+import {
+  formatDateRange,
+  formatSessionCount,
+} from "../../lib/team/shareImpact";
 import { useShareImpact } from "../../hooks/useShareImpact";
 import { ShareImpactBand, type ShareImpactBandProps } from "./ShareImpactBand";
 import {
@@ -21,7 +24,10 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 
 /** What the picker needs to say what a share exposes; the band's own props
  *  minus the numbers, which the picker derives from its selection. */
-export type ShareImpactContext = Omit<ShareImpactBandProps, "selectedNames" | "impact" | "className">;
+export type ShareImpactContext = Omit<
+  ShareImpactBandProps,
+  "selectedNames" | "impact" | "className"
+>;
 
 /**
  * Hints for repos that share a short name (two checkouts of "outreach").
@@ -80,9 +86,22 @@ export function WorkspaceSharePicker({
   impact?: ShareImpactContext;
   className?: string;
 }) {
-  const { allProjects, matched, other, teamName, teamOnlyRepos, getSuggestion } = data;
-  const selectedList = Object.keys(selectedPaths).filter((p) => selectedPaths[p]).sort();
-  const totals = useShareImpact(selectedList, allProjects, impact?.since ?? null);
+  const {
+    allProjects,
+    matched,
+    other,
+    teamName,
+    teamOnlyRepos,
+    getSuggestion,
+  } = data;
+  const selectedList = Object.keys(selectedPaths)
+    .filter((p) => selectedPaths[p])
+    .sort();
+  const totals = useShareImpact(
+    selectedList,
+    allProjects,
+    impact?.since ?? null,
+  );
 
   // Duplicate short names are computed across both sections, so a matched
   // repo and an unmatched twin still tell each other apart.
@@ -107,7 +126,13 @@ export function WorkspaceSharePicker({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
       e.preventDefault();
       e.stopPropagation();
       filterRef.current?.focus();
@@ -125,7 +150,8 @@ export function WorkspaceSharePicker({
       return;
     }
     if (e.key === "ArrowDown") {
-      const first = rootRef.current?.querySelector<HTMLElement>('[role="checkbox"]');
+      const first =
+        rootRef.current?.querySelector<HTMLElement>('[role="checkbox"]');
       if (first) {
         e.preventDefault();
         first.focus();
@@ -133,10 +159,12 @@ export function WorkspaceSharePicker({
     }
   };
   const query = filter.trim().toLowerCase();
-  const fits = (ws: UserWorkspace) => !query || ws.path.toLowerCase().includes(query);
+  const fits = (ws: UserWorkspace) =>
+    !query || ws.path.toLowerCase().includes(query);
   const matchedShown = query ? matched.filter(fits) : matched;
   const otherShown = query ? other.filter(fits) : other;
-  const noneShown = query.length > 0 && matchedShown.length === 0 && otherShown.length === 0;
+  const noneShown =
+    query.length > 0 && matchedShown.length === 0 && otherShown.length === 0;
 
   // The last visible section takes the room the viewport can give (a CSS
   // clamp, no measurement); the sections above it keep the fixed clip. The
@@ -205,7 +233,11 @@ export function WorkspaceSharePicker({
           title={isNewTeam ? "Your repositories" : "Your other repositories"}
           // In the create flow the page description already says what to pick,
           // so a subtitle here would repeat the same sentence.
-          subtitle={isNewTeam ? undefined : "Select any other repositories you'd like to share."}
+          subtitle={
+            isNewTeam
+              ? undefined
+              : "Select any other repositories you'd like to share."
+          }
           workspaces={otherShown}
           grow={lastKey === "other"}
           {...common}
@@ -228,24 +260,33 @@ export function WorkspaceSharePicker({
           <div className="h-4 w-36 rounded bg-sol-bg-alt animate-pulse" />
           <div className="space-y-1.5">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-[74px] rounded-lg border border-sol-border/50 bg-sol-bg-alt/40 animate-pulse" />
+              <div
+                key={i}
+                className="h-[74px] rounded-lg border border-sol-border/50 bg-sol-bg-alt/40 animate-pulse"
+              />
             ))}
           </div>
-          <p className="text-sm text-sol-text-dim">Loading your repositories.</p>
+          <p className="text-sm text-sol-text-dim">
+            Loading your repositories.
+          </p>
         </div>
       )}
 
       {allProjects && allProjects.length === 0 && (
         <div className="rounded-lg border border-sol-border bg-sol-bg-alt/40 px-4 py-5 space-y-3">
           <div className="text-sm text-sol-text font-medium">
-            {connected ? "Waiting for your first sessions" : "Connect this machine first"}
+            {connected
+              ? "Waiting for your first sessions"
+              : "Connect this machine first"}
           </div>
           <p className="text-xs text-sol-text-muted leading-relaxed">
             {connected
               ? "Your repos appear here as soon as the daemon syncs your sessions. Run your agent in a repo, or come back to this step later from the team feed."
               : "Your repos come from your agent sessions, so the team can only see work on a machine running codecast. One step installs it and signs this account in."}
           </p>
-          {!connected && <SetupThisMachine onConnected={() => setConnected(true)} />}
+          {!connected && (
+            <SetupThisMachine onConnected={() => setConnected(true)} />
+          )}
         </div>
       )}
 
@@ -256,8 +297,8 @@ export function WorkspaceSharePicker({
               Team repos you don't have yet
             </h3>
             <p className="text-xs text-sol-text-dim mt-0.5">
-              These repos are shared by teammates but weren't found in
-              your recent sessions. Clone them and map via the CLI.
+              These repos are shared by teammates but weren't found in your
+              recent sessions. Clone them and map via the CLI.
             </p>
           </div>
 
@@ -273,7 +314,8 @@ export function WorkspaceSharePicker({
                     {repo.repo_key}
                   </span>
                   <span className="text-xs text-sol-text-dim">
-                    {repo.member_count} teammate{repo.member_count === 1 ? "" : "s"}
+                    {repo.member_count} teammate
+                    {repo.member_count === 1 ? "" : "s"}
                   </span>
                 </div>
               </div>
@@ -291,8 +333,7 @@ export function WorkspaceSharePicker({
               cast teams map /path/to/repo "{teamName}"
             </div>
             <p className="text-meta text-sol-text-dim leading-relaxed">
-              Clone the repo, then run the command above from anywhere.
-              Or use{" "}
+              Clone the repo, then run the command above from anywhere. Or use{" "}
               <span className="font-mono text-sol-text-muted">
                 cast sync-settings
               </span>{" "}
@@ -355,7 +396,9 @@ function WorkspaceSection({
             {workspaces.length}
           </span>
         </h3>
-        {subtitle && <p className="text-xs text-sol-text-dim mt-0.5">{subtitle}</p>}
+        {subtitle && (
+          <p className="text-xs text-sol-text-dim mt-0.5">{subtitle}</p>
+        )}
       </div>
       <div ref={wrapRef} className="tf-scroll-wrap">
         <div
@@ -368,80 +411,89 @@ function WorkspaceSection({
             grow ? "max-h-[clamp(320px,55dvh,40rem)]" : "max-h-[320px]"
           }`}
         >
-        {workspaces.map((ws) => {
-          const selected = !!selectedPaths[ws.path];
-          const suggestion = getSuggestion(ws.path);
-          const alreadyMapped = isMappedToTeam(ws, teamId);
-          // Same short name as another row: the differing ancestor joins
-          // the title as the tiebreaker.
-          const hint = dupHints.get(ws.path);
+          {workspaces.map((ws) => {
+            const selected = !!selectedPaths[ws.path];
+            const suggestion = getSuggestion(ws.path);
+            const alreadyMapped = isMappedToTeam(ws, teamId);
+            // Same short name as another row: the differing ancestor joins
+            // the title as the tiebreaker.
+            const hint = dupHints.get(ws.path);
 
-          return (
-            <button
-              key={ws.path}
-              type="button"
-              role="checkbox"
-              aria-checked={selected}
-              onClick={() => onToggle(ws.path)}
-              data-selected={selected}
-              className={`tf-option w-full rounded-lg border px-4 py-3 text-left outline-none motion-safe:active:scale-[0.99] ${
-                selected ? "" : "border-sol-border hover:border-sol-text-muted hover:bg-sol-bg-alt/40"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Visual only: aria-checked on the row carries the state. */}
-                <div
-                  aria-hidden="true"
-                  className={`tf-check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                    selected ? "" : "border-sol-border bg-sol-bg-alt"
-                  }`}
-                >
-                  {selected && <Check className="w-3 h-3" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="tf-accent-text w-4 h-4 shrink-0" />
-                    <span className="truncate text-sm font-medium text-sol-text">
-                      {workspaceName(ws.path)}
-                    </span>
-                    {hint && (
-                      <span className="truncate text-xs text-sol-text-dim">
-                        · {hint}
-                      </span>
-                    )}
-                    {suggestion?.match_type === "github" && (
-                      <span className="tf-accent-badge rounded border px-1.5 py-0.5 text-meta whitespace-nowrap">
-                        GitHub match
-                      </span>
-                    )}
-                    {alreadyMapped && (
-                      <span className="rounded border border-sol-green/30 bg-sol-green/10 px-1.5 py-0.5 text-meta text-sol-green whitespace-nowrap">
-                        Already shared
-                      </span>
-                    )}
+            return (
+              <button
+                key={ws.path}
+                type="button"
+                role="checkbox"
+                aria-checked={selected}
+                onClick={() => onToggle(ws.path)}
+                data-selected={selected}
+                className={`tf-option w-full rounded-lg border px-4 py-3 text-left outline-none motion-safe:active:scale-[0.99] ${
+                  selected
+                    ? ""
+                    : "border-sol-border hover:border-sol-text-muted hover:bg-sol-bg-alt/40"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Visual only: aria-checked on the row carries the state. */}
+                  <div
+                    aria-hidden="true"
+                    className={`tf-check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                      selected ? "" : "border-sol-border bg-sol-bg-alt"
+                    }`}
+                  >
+                    {selected && <Check className="w-3 h-3" />}
                   </div>
-                  <div className="mt-0.5 truncate modern:font-mono text-xs text-sol-text-dim">
-                    {ws.path}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-sol-text-dim">
-                    {suggestion && (
-                      <span className="tf-accent-text">
-                        <Users className="w-3 h-3 inline mr-1" />
-                        {suggestion.match_reason}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="tf-accent-text w-4 h-4 shrink-0" />
+                      <span className="truncate text-sm font-medium text-sol-text">
+                        {workspaceName(ws.path)}
                       </span>
-                    )}
-                    <span className="tabular-nums">
-                      {formatSessionCount(ws.session_count)}
-                      {ws.last_active > 0 && (
-                        <> · {formatDateRange(ws.first_active ?? ws.last_active, ws.last_active)}</>
+                      {hint && (
+                        <span className="truncate text-xs text-sol-text-dim">
+                          · {hint}
+                        </span>
                       )}
-                    </span>
+                      {suggestion?.match_type === "github" && (
+                        <span className="tf-accent-badge rounded border px-1.5 py-0.5 text-meta whitespace-nowrap">
+                          GitHub match
+                        </span>
+                      )}
+                      {alreadyMapped && (
+                        <span className="rounded border border-sol-green/30 bg-sol-green/10 px-1.5 py-0.5 text-meta text-sol-green whitespace-nowrap">
+                          Already shared
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 truncate modern:font-mono text-xs text-sol-text-dim">
+                      {ws.path}
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-sol-text-dim">
+                      {suggestion && (
+                        <span className="tf-accent-text">
+                          <Users className="w-3 h-3 inline mr-1" />
+                          {suggestion.match_reason}
+                        </span>
+                      )}
+                      <span className="tabular-nums">
+                        {formatSessionCount(ws.session_count)}
+                        {ws.last_active > 0 && (
+                          <>
+                            {" "}
+                            ·{" "}
+                            {formatDateRange(
+                              ws.first_active ?? ws.last_active,
+                              ws.last_active,
+                            )}
+                          </>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
         </div>
         <div className="tf-scroll-fade" aria-hidden="true" />
       </div>

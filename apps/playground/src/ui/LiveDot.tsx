@@ -6,5 +6,11 @@ import s from "./LiveDot.module.css";
 export function LiveDot({ ping = 0 }: { ping?: number }) {
   const [mountedAt] = useState(ping);
   const pinging = ping !== mountedAt;
-  return <span key={pinging ? ping : 0} className={`${s.dot} ${pinging ? s.ping : ""}`} aria-hidden />;
+  return (
+    <span
+      key={pinging ? ping : 0}
+      className={`${s.dot} ${pinging ? s.ping : ""}`}
+      aria-hidden
+    />
+  );
 }

@@ -13,7 +13,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Command } from "commander";
-import { renderGoalsBrief, type GoalsBrief } from "@codecast/shared/contracts/goalsBrief";
+import {
+  renderGoalsBrief,
+  type GoalsBrief,
+} from "@codecast/shared/contracts/goalsBrief";
 // The shared set ships inside the CLI, so every project reads the same one.
 import SHARED_PRINCIPLES from "../../../docs/principles.md" with { type: "text" };
 import { apiPost, type PublishDeps } from "./castApi.js";
@@ -27,42 +30,107 @@ import { CODECAST_PRINCIPLES, loadLineProfile } from "./lineProfile.js";
  * profile's principles files (paths relative to the repository root) that
  * exists and is not a copy of the shared set. `from` names each part read.
  */
-export function readPrinciples(root: string | null, paths: string[] = [], shared: string = SHARED_PRINCIPLES): { text: string; from: string[] } | null {
-  const parts = shared.trim() ? [{ from: CODECAST_PRINCIPLES, text: shared }] : [];
+export function readPrinciples(
+  root: string | null,
+  paths: string[] = [],
+  shared: string = SHARED_PRINCIPLES,
+): { text: string; from: string[] } | null {
+  const parts = shared.trim()
+    ? [{ from: CODECAST_PRINCIPLES, text: shared }]
+    : [];
   for (const rel of root ? [...new Set(paths)] : []) {
     try {
       const text = fs.readFileSync(path.join(root!, rel), "utf8");
       if (text !== shared) parts.push({ from: rel, text });
     } catch {}
   }
-  return parts.length ? { text: parts.map((p) => p.text).join("\n"), from: parts.map((p) => p.from) } : null;
+  return parts.length
+    ? {
+        text: parts.map((p) => p.text).join("\n"),
+        from: parts.map((p) => p.from),
+      }
+    : null;
 }
 
-export function registerGoalsCommand(program: Command, deps: PublishDeps): void {
+export function registerGoalsCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   program
     .command("goals")
     .description(commandGroup("goals").description)
     .option("--brief", "The compact shape a prompt reads: no descriptions")
     .option("--json", "The raw rows and the principles text")
-    .option("--project <ref>", "One project's charter and the initiatives carrying it: id, short id or title (default: the repo profile's [line] project, else the whole workspace)")
-    .option("--task <ct>", "The brief this problem is grounded against: its own project's, else its workspace's (replaces --project and --team)")
-    .option("--team <name|id|personal>", "Workspace to read (default: the repo profile's [line] team, else the session's team, else the directory's mapping)")
-    .action(async (options: { brief?: boolean; json?: boolean; project?: string; task?: string; team?: string }) => {
-      const cwd = process.env.CODECAST_CWD || process.cwd();
-      const task = options.task ? await apiPost(deps, "/cli/work/get", { short_id: options.task }, { read: true }) : null;
-      if (options.task && !task?.workspace) {
-        console.error(`Task not found: ${options.task}`);
-        process.exit(1);
-      }
-      const scope = task ? taskWorkspaceScope(task) : await scopeFor(deps, options.team, false, lineProjectFor(options.team, options.project));
-      const data: GoalsBrief = await apiPost(deps, "/cli/goals/brief", scope, { read: true });
-      const { repoRootOf } = await import("./reviewCommand.js");
-      const root = repoRootOf(cwd);
-      const principles = readPrinciples(root, root ? loadLineProfile(cwd).profile.principles : []);
-      if (options.json) {
-        console.log(JSON.stringify({ ...data, principles: principles?.text ?? null }, null, 2));
-        return;
-      }
-      process.stdout.write(renderGoalsBrief(data, { brief: options.brief, principles: principles?.text, principlesFrom: principles?.from }));
-    });
+    .option(
+      "--project <ref>",
+      "One project's charter and the initiatives carrying it: id, short id or title (default: the repo profile's [line] project, else the whole workspace)",
+    )
+    .option(
+      "--task <ct>",
+      "The brief this problem is grounded against: its own project's, else its workspace's (replaces --project and --team)",
+    )
+    .option(
+      "--team <name|id|personal>",
+      "Workspace to read (default: the repo profile's [line] team, else the session's team, else the directory's mapping)",
+    )
+    .action(
+      async (options: {
+        brief?: boolean;
+        json?: boolean;
+        project?: string;
+        task?: string;
+        team?: string;
+      }) => {
+        const cwd = process.env.CODECAST_CWD || process.cwd();
+        const task = options.task
+          ? await apiPost(
+              deps,
+              "/cli/work/get",
+              { short_id: options.task },
+              { read: true },
+            )
+          : null;
+        if (options.task && !task?.workspace) {
+          console.error(`Task not found: ${options.task}`);
+          process.exit(1);
+        }
+        const scope = task
+          ? taskWorkspaceScope(task)
+          : await scopeFor(
+              deps,
+              options.team,
+              false,
+              lineProjectFor(options.team, options.project),
+            );
+        const data: GoalsBrief = await apiPost(
+          deps,
+          "/cli/goals/brief",
+          scope,
+          { read: true },
+        );
+        const { repoRootOf } = await import("./reviewCommand.js");
+        const root = repoRootOf(cwd);
+        const principles = readPrinciples(
+          root,
+          root ? loadLineProfile(cwd).profile.principles : [],
+        );
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              { ...data, principles: principles?.text ?? null },
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+        process.stdout.write(
+          renderGoalsBrief(data, {
+            brief: options.brief,
+            principles: principles?.text,
+            principlesFrom: principles?.from,
+          }),
+        );
+      },
+    );
 }

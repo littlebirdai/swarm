@@ -18,7 +18,9 @@ export async function downloadAttachedFile(
   if (fs.existsSync(destPath)) return destPath;
   const url = await storageUrl(ref.storageId);
   if (!url) {
-    log(`downloadAttachedFile: no URL for storage id ${ref.storageId} (auth rejected or file missing)`);
+    log(
+      `downloadAttachedFile: no URL for storage id ${ref.storageId} (auth rejected or file missing)`,
+    );
     return null;
   }
   const resp = await fetch(url);

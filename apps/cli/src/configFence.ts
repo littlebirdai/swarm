@@ -23,10 +23,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { LINE_PROFILE_REL_PATH } from "./lineProfile.js";
-import { REPO_LINE_FILE_RE, REPO_LINE_REL_DIR } from "@codecast/shared/contracts/lineProfile";
+import {
+  REPO_LINE_FILE_RE,
+  REPO_LINE_REL_DIR,
+} from "@codecast/shared/contracts/lineProfile";
 
 export const AGENT_CONFIG_BASENAMES: ReadonlySet<string> = new Set([
-  "CLAUDE.md", "AGENTS.md", ".mcp.json", "settings.json", "settings.local.json", "config.toml",
+  "CLAUDE.md",
+  "AGENTS.md",
+  ".mcp.json",
+  "settings.json",
+  "settings.local.json",
+  "config.toml",
 ]);
 
 /**
@@ -36,10 +44,17 @@ export const AGENT_CONFIG_BASENAMES: ReadonlySet<string> = new Set([
  * `followFile` also follows a symlinked file to what it names (a config file
  * linked into a dotfiles repo keeps its own name; a line profile may not).
  */
-export function realTargetOf(p: string, opts: { followFile?: boolean } = {}): string | null {
+export function realTargetOf(
+  p: string,
+  opts: { followFile?: boolean } = {},
+): string | null {
   const resolved = path.resolve(p);
   if (opts.followFile) {
-    try { return fs.realpathSync(resolved); } catch { /* absent: resolve through the directory */ }
+    try {
+      return fs.realpathSync(resolved);
+    } catch {
+      /* absent: resolve through the directory */
+    }
   }
   const dirReal = (() => {
     try {
@@ -63,22 +78,35 @@ export function realTargetOf(p: string, opts: { followFile?: boolean } = {}): st
   return dirReal ? path.join(dirReal, path.basename(resolved)) : null;
 }
 
-const under = (target: string, root: string) => target.startsWith(root + path.sep);
+const under = (target: string, root: string) =>
+  target.startsWith(root + path.sep);
 
 /** Canonical roots: the tracked roots are realpathed so a symlinked checkout still matches its own files. */
 function canonicalRoots(roots: readonly string[]): string[] {
-  return roots.map((r) => { try { return fs.realpathSync(r); } catch { return path.resolve(r); } });
+  return roots.map((r) => {
+    try {
+      return fs.realpathSync(r);
+    } catch {
+      return path.resolve(r);
+    }
+  });
 }
 
 /** True when `realTarget` is a `.codecast/line.toml`, or a file of the repo's line in `.codecast/line/`, inside one of the tracked roots. */
-export function isTrackedLineProfile(realTarget: string, roots: readonly string[]): boolean {
+export function isTrackedLineProfile(
+  realTarget: string,
+  roots: readonly string[],
+): boolean {
   if (!isLineProfilePath(realTarget)) return false;
   return canonicalRoots(roots).some((root) => under(realTarget, root));
 }
 
 /** A file of the repo's own line: a plain name directly in `.codecast/line/`. */
 const isRepoLinePath = (resolved: string) =>
-  REPO_LINE_FILE_RE.test(path.basename(resolved)) && path.dirname(resolved).endsWith(path.sep + REPO_LINE_REL_DIR.split("/").join(path.sep));
+  REPO_LINE_FILE_RE.test(path.basename(resolved)) &&
+  path
+    .dirname(resolved)
+    .endsWith(path.sep + REPO_LINE_REL_DIR.split("/").join(path.sep));
 
 /**
  * What the caller does with the path:
@@ -95,15 +123,26 @@ export type FenceKind = "config" | "line_profile" | "line_graph" | "read";
 const GRAPH_FILE_RE = /\.(cast|md|txt|sh|prompt)$/;
 
 /** True when `realTarget` is a graph file (GRAPH_FILE_RE) inside a tracked root and outside its `.git`. */
-export function isTrackedGraphFile(realTarget: string, roots: readonly string[]): boolean {
+export function isTrackedGraphFile(
+  realTarget: string,
+  roots: readonly string[],
+): boolean {
   if (!GRAPH_FILE_RE.test(path.basename(realTarget))) return false;
-  return canonicalRoots(roots).some((root) => under(realTarget, root) && !path.relative(root, realTarget).split(path.sep).includes(".git"));
+  return canonicalRoots(roots).some(
+    (root) =>
+      under(realTarget, root) &&
+      !path.relative(root, realTarget).split(path.sep).includes(".git"),
+  );
 }
 
 /** Whether `p` names a line profile by its path, so the fence judges it by the file it resolves to. */
 export const isLineProfilePath = (p: string) => {
   const resolved = path.resolve(p);
-  return resolved.endsWith(path.sep + LINE_PROFILE_REL_PATH.split("/").join(path.sep)) || isRepoLinePath(resolved);
+  return (
+    resolved.endsWith(
+      path.sep + LINE_PROFILE_REL_PATH.split("/").join(path.sep),
+    ) || isRepoLinePath(resolved)
+  );
 };
 
 /**
@@ -111,24 +150,41 @@ export const isLineProfilePath = (p: string) => {
  * file it resolves to, whatever the kind: a committed symlink named line.toml
  * may not carry a read or a write out to the file it names.
  */
-export const fenceTargetOf = (p: string) => realTargetOf(p, { followFile: isLineProfilePath(p) });
+export const fenceTargetOf = (p: string) =>
+  realTargetOf(p, { followFile: isLineProfilePath(p) });
 
 /** Whether the fence admits `realTarget` (from realTargetOf) for `kind` (default "config"). */
-export function fenceAdmits(realTarget: string, opts: { home: string; roots: readonly string[]; kind?: FenceKind }): boolean {
+export function fenceAdmits(
+  realTarget: string,
+  opts: { home: string; roots: readonly string[]; kind?: FenceKind },
+): boolean {
   const kind = opts.kind ?? "config";
   if (isTrackedLineProfile(realTarget, opts.roots)) return kind !== "config";
   if (kind === "line_profile") return false;
   if (kind === "line_graph") return isTrackedGraphFile(realTarget, opts.roots);
   // Canonical too, so a ~/.claude linked into a dotfiles repo is still home.
-  const home = opts.home ? canonicalRoots([path.join(opts.home, ".claude"), path.join(opts.home, ".codex")]) : [];
+  const home = opts.home
+    ? canonicalRoots([
+        path.join(opts.home, ".claude"),
+        path.join(opts.home, ".codex"),
+      ])
+    : [];
   if (home.some((a) => realTarget === a || under(realTarget, a))) return true;
   if (!AGENT_CONFIG_BASENAMES.has(path.basename(realTarget))) return false;
-  return kind === "read" || canonicalRoots(opts.roots).some((root) => under(realTarget, root));
+  return (
+    kind === "read" ||
+    canonicalRoots(opts.roots).some((root) => under(realTarget, root))
+  );
 }
 
 /** The directories config_create and config_delete may add to or remove from, relative to home. */
 export const CONFIG_FILE_DIRS: readonly string[] = [
-  ".claude/agents", ".claude/commands", ".claude/skills", ".claude/prompts", ".codex/prompts", ".codex/skills",
+  ".claude/agents",
+  ".claude/commands",
+  ".claude/skills",
+  ".claude/prompts",
+  ".codex/prompts",
+  ".codex/skills",
 ];
 
 /**
@@ -136,9 +192,17 @@ export const CONFIG_FILE_DIRS: readonly string[] = [
  * per-file config directories, or inside one; `inside` refuses the directory
  * itself (a delete names a file in it). Null when the fence refuses it.
  */
-export function configDirTarget(p: string, home: string, opts: { inside?: boolean } = {}): string | null {
-  const real = realTargetOf(p.startsWith("~/") ? path.join(home, p.slice(2)) : p);
+export function configDirTarget(
+  p: string,
+  home: string,
+  opts: { inside?: boolean } = {},
+): string | null {
+  const real = realTargetOf(
+    p.startsWith("~/") ? path.join(home, p.slice(2)) : p,
+  );
   if (!real || !home) return null;
   const dirs = canonicalRoots(CONFIG_FILE_DIRS.map((d) => path.join(home, d)));
-  return dirs.some((d) => under(real, d) || (!opts.inside && real === d)) ? real : null;
+  return dirs.some((d) => under(real, d) || (!opts.inside && real === d))
+    ? real
+    : null;
 }

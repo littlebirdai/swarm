@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { conversationNamesRepo, noLocalCheckoutError, placeFreshDeliverySession } from "./resumePlacement.js";
+import {
+  conversationNamesRepo,
+  noLocalCheckoutError,
+  placeFreshDeliverySession,
+} from "./resumePlacement.js";
 import { resolveResumeCwd } from "./projectPathResolver.js";
 
 // 2026-09-22: a session that had run for three hours in /Users/ashot/src/codecast
@@ -20,8 +24,13 @@ const MAC = "/Users/ashot/src/codecast";
 const LINUX = "/home/ubuntu/work/codecast";
 const LINUX_HOME = "/home/ubuntu";
 const REMOTE = "git@github.com:codecast-sh/codecast.git";
-const conversation = { project_path: MAC, git_root: MAC, git_remote_url: REMOTE };
-const onLinux = (p: string) => p === LINUX || p === LINUX_HOME || p === `${LINUX}/apps/cli`;
+const conversation = {
+  project_path: MAC,
+  git_root: MAC,
+  git_remote_url: REMOTE,
+};
+const onLinux = (p: string) =>
+  p === LINUX || p === LINUX_HOME || p === `${LINUX}/apps/cli`;
 const noConvention = () => null;
 
 describe("delivery on a machine that lacks the recorded project path", () => {
@@ -34,8 +43,14 @@ describe("delivery on a machine that lacks the recorded project path", () => {
       exists: onLinux,
     });
     expect(cwd).toBe(LINUX);
-    expect(placeFreshDeliverySession({ resolvedCwd: cwd, conversation, isRemote: false, home: LINUX_HOME }))
-      .toEqual({ kind: "run", cwd: LINUX });
+    expect(
+      placeFreshDeliverySession({
+        resolvedCwd: cwd,
+        conversation,
+        isRemote: false,
+        home: LINUX_HOME,
+      }),
+    ).toEqual({ kind: "run", cwd: LINUX });
   });
 
   test("a foreign subpath is placed under the local checkout by the recorded root seed", async () => {
@@ -58,7 +73,12 @@ describe("delivery on a machine that lacks the recorded project path", () => {
       exists: (p) => p === LINUX_HOME,
     });
     expect(cwd).toBeNull();
-    const placement = placeFreshDeliverySession({ resolvedCwd: cwd, conversation, isRemote: false, home: LINUX_HOME });
+    const placement = placeFreshDeliverySession({
+      resolvedCwd: cwd,
+      conversation,
+      isRemote: false,
+      home: LINUX_HOME,
+    });
     expect(placement).toEqual({ kind: "refuse", reason: "no_local_checkout" });
     expect(noLocalCheckoutError(REMOTE, MAC)).toBe(
       `No local checkout for ${REMOTE} (recorded path ${MAC} doesn't exist here). Clone it first.`,
@@ -68,7 +88,11 @@ describe("delivery on a machine that lacks the recorded project path", () => {
   test("a conversation that names only a remote is still a repo, not a quick-create", () => {
     const placement = placeFreshDeliverySession({
       resolvedCwd: null,
-      conversation: { project_path: null, git_root: null, git_remote_url: REMOTE },
+      conversation: {
+        project_path: null,
+        git_root: null,
+        git_remote_url: REMOTE,
+      },
       isRemote: false,
       home: LINUX_HOME,
     });
@@ -76,15 +100,32 @@ describe("delivery on a machine that lacks the recorded project path", () => {
   });
 
   test("a conversation with no repo information gets $HOME on a local device", () => {
-    for (const blank of [null, undefined, {}, { project_path: null, git_root: null, git_remote_url: null }]) {
-      expect(placeFreshDeliverySession({ resolvedCwd: null, conversation: blank, isRemote: false, home: LINUX_HOME }))
-        .toEqual({ kind: "run", cwd: LINUX_HOME });
+    for (const blank of [
+      null,
+      undefined,
+      {},
+      { project_path: null, git_root: null, git_remote_url: null },
+    ]) {
+      expect(
+        placeFreshDeliverySession({
+          resolvedCwd: null,
+          conversation: blank,
+          isRemote: false,
+          home: LINUX_HOME,
+        }),
+      ).toEqual({ kind: "run", cwd: LINUX_HOME });
     }
   });
 
   test("a conversation with no repo information is refused on a remote device", () => {
-    expect(placeFreshDeliverySession({ resolvedCwd: null, conversation: {}, isRemote: true, home: "/Users/m1" }))
-      .toEqual({ kind: "refuse", reason: "remote_no_project" });
+    expect(
+      placeFreshDeliverySession({
+        resolvedCwd: null,
+        conversation: {},
+        isRemote: true,
+        home: "/Users/m1",
+      }),
+    ).toEqual({ kind: "refuse", reason: "remote_no_project" });
   });
 });
 
@@ -97,7 +138,13 @@ describe("conversationNamesRepo", () => {
 
   test("nothing, blanks, or a bare filesystem root name none", () => {
     expect(conversationNamesRepo(null)).toBe(false);
-    expect(conversationNamesRepo({ project_path: "", git_root: " ", git_remote_url: "" })).toBe(false);
+    expect(
+      conversationNamesRepo({
+        project_path: "",
+        git_root: " ",
+        git_remote_url: "",
+      }),
+    ).toBe(false);
     // A rollout regenerated under the daemon records cwd `/` (isResumableCwd).
     expect(conversationNamesRepo({ project_path: "/" })).toBe(false);
   });
@@ -112,14 +159,20 @@ const daemonSource = fs.readFileSync(
 
 describe("delivery cwd invariants", () => {
   test("startFreshSessionForDelivery places the session through the resolver, then the placement rule", () => {
-    const start = daemonSource.indexOf("async function startFreshSessionForDelivery");
+    const start = daemonSource.indexOf(
+      "async function startFreshSessionForDelivery",
+    );
     expect(start).toBeGreaterThan(-1);
     const body = daemonSource.slice(start, start + 8000);
     expect(body).toContain("projectPath = await regenerationCwd(exportData)");
-    expect(body).not.toContain("fs.existsSync(exportData.conversation.project_path)");
+    expect(body).not.toContain(
+      "fs.existsSync(exportData.conversation.project_path)",
+    );
     const placeIdx = body.indexOf("placeFreshDeliverySession(");
     expect(placeIdx).toBeGreaterThan(-1);
-    expect(body.indexOf("refuseResumeNoLocalCheckout(")).toBeGreaterThan(placeIdx);
+    expect(body.indexOf("refuseResumeNoLocalCheckout(")).toBeGreaterThan(
+      placeIdx,
+    );
     // The placement decision precedes the spawn.
     expect(placeIdx).toBeLessThan(body.indexOf("new-session"));
   });

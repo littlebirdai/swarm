@@ -20,7 +20,9 @@ export function workspaceSeenKey(teamId: string | null | undefined): string {
   return teamId ? String(teamId) : "personal";
 }
 
-export function useSwitchWorkspace(): (teamId: Id<"teams"> | string | null) => Promise<void> {
+export function useSwitchWorkspace(): (
+  teamId: Id<"teams"> | string | null,
+) => Promise<void> {
   const saveActiveTeam = useInboxStore((s) => s.setActiveTeamPointer);
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
 

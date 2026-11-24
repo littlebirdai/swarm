@@ -38,20 +38,30 @@ export const HIGHLIGHT_LINE_LIMIT = 5000;
  * range. A backwards range (`#L20-L12`) is the same range written the other
  * way round, which is what a shift click up the file produces.
  */
-export function parseLineHash(hash: string | undefined | null): LineRange | null {
+export function parseLineHash(
+  hash: string | undefined | null,
+): LineRange | null {
   if (!hash) return null;
   const match = hash.replace(/^#/, "").match(/^L(\d+)(?:-L?(\d+))?$/i);
   if (!match) return null;
   const first = Number(match[1]);
   const second = match[2] === undefined ? first : Number(match[2]);
-  if (!Number.isFinite(first) || !Number.isFinite(second) || first < 1 || second < 1) return null;
+  if (
+    !Number.isFinite(first) ||
+    !Number.isFinite(second) ||
+    first < 1 ||
+    second < 1
+  )
+    return null;
   return { start: Math.min(first, second), end: Math.max(first, second) };
 }
 
 /** The fragment for a selection, in the form parseLineHash reads back. */
 export function formatLineHash(range: LineRange | null): string {
   if (!range) return "";
-  return range.start === range.end ? `#L${range.start}` : `#L${range.start}-L${range.end}`;
+  return range.start === range.end
+    ? `#L${range.start}`
+    : `#L${range.start}-L${range.end}`;
 }
 
 /**
@@ -61,10 +71,12 @@ export function formatLineHash(range: LineRange | null): string {
  * nobody has touched in the window it walked), so the lookup binary searches
  * and answers undefined rather than guessing at a neighbour.
  */
-export function indexBlameRanges<T extends { start_line: number; end_line: number }>(
-  ranges: readonly T[] | undefined,
-): (line: number) => T | undefined {
-  const sorted = [...(ranges ?? [])].sort((a, b) => a.start_line - b.start_line);
+export function indexBlameRanges<
+  T extends { start_line: number; end_line: number },
+>(ranges: readonly T[] | undefined): (line: number) => T | undefined {
+  const sorted = [...(ranges ?? [])].sort(
+    (a, b) => a.start_line - b.start_line,
+  );
   return (line: number) => {
     let lo = 0;
     let hi = sorted.length - 1;
@@ -80,7 +92,10 @@ export function indexBlameRanges<T extends { start_line: number; end_line: numbe
 }
 
 /** True on the first line of a blame range, which is where its label goes. */
-export function startsBlameRange(range: RepoBlameRange | undefined, line: number): boolean {
+export function startsBlameRange(
+  range: RepoBlameRange | undefined,
+  line: number,
+): boolean {
   return !!range && range.start_line === line;
 }
 
@@ -92,7 +107,14 @@ export function startsBlameRange(range: RepoBlameRange | undefined, line: number
 // per sha and per line text; folding that back onto the file's lines is pure
 // and happens here.
 
-export type BlameVia = "trailer" | "commit" | "hash" | "subject" | "overlap" | "edit" | "nearby";
+export type BlameVia =
+  | "trailer"
+  | "commit"
+  | "hash"
+  | "subject"
+  | "overlap"
+  | "edit"
+  | "nearby";
 
 /**
  * A session as the reader may see it. Signed in, every session named here is
@@ -159,7 +181,8 @@ export function foldSessionBlame(
 ): SessionBlameRange[] {
   const gitAt = indexBlameRanges(gitRanges);
   const byLine = new Map<string, BlameSession>();
-  for (const match of resolution?.line_matches ?? []) byLine.set(match.line, match);
+  for (const match of resolution?.line_matches ?? [])
+    byLine.set(match.line, match);
   const bySha = resolution?.by_sha ?? {};
   const nearby = dominantWriterPerRange(gitRanges, lines, byLine);
 
@@ -177,7 +200,9 @@ export function foldSessionBlame(
       (git ? nearby.get(git) : undefined) ??
       (git ? bySha[git.sha] : undefined) ??
       null;
-    const runKey = session ? `s:${session.conversation_id}` : `g:${git?.sha ?? ""}`;
+    const runKey = session
+      ? `s:${session.conversation_id}`
+      : `g:${git?.sha ?? ""}`;
     const at = git?.committed_at ?? 0;
     const last = out[out.length - 1];
     if (last && runKey === key && last.end_line === number - 1) {
@@ -185,7 +210,13 @@ export function foldSessionBlame(
       last.newest_at = Math.max(last.newest_at, at);
       continue;
     }
-    out.push({ start_line: number, end_line: number, session, git, newest_at: at });
+    out.push({
+      start_line: number,
+      end_line: number,
+      session,
+      git,
+      newest_at: at,
+    });
     key = runKey;
   }
   return out;
@@ -205,7 +236,11 @@ function dominantWriterPerRange(
   for (const range of gitRanges ?? []) {
     const counts = new Map<string, { session: BlameSession; lines: number }>();
     let matched = 0;
-    for (let n = range.start_line; n <= Math.min(range.end_line, lines.length); n++) {
+    for (
+      let n = range.start_line;
+      n <= Math.min(range.end_line, lines.length);
+      n++
+    ) {
       const session = byLine.get(lines[n - 1].trim());
       if (!session) continue;
       matched++;
@@ -214,7 +249,8 @@ function dominantWriterPerRange(
       else counts.set(session.conversation_id, { session, lines: 1 });
     }
     const top = [...counts.values()].sort((a, b) => b.lines - a.lines)[0];
-    if (top && top.lines * 2 >= matched) out.set(range, { ...top.session, via: "nearby" });
+    if (top && top.lines * 2 >= matched)
+      out.set(range, { ...top.session, via: "nearby" });
   }
   return out;
 }
@@ -239,7 +275,9 @@ export type SessionBlameSummary = {
  * The order also assigns colours, so the session that shaped the file most
  * gets the first hue.
  */
-export function summarizeSessionBlame(ranges: readonly SessionBlameRange[]): SessionBlameSummary {
+export function summarizeSessionBlame(
+  ranges: readonly SessionBlameRange[],
+): SessionBlameSummary {
   const byId = new Map<string, SessionBlameEntry>();
   let attributed = 0;
   let total = 0;
@@ -264,7 +302,10 @@ export function summarizeSessionBlame(ranges: readonly SessionBlameRange[]): Ses
     }
   }
   const entries = [...byId.values()].sort(
-    (a, b) => b.lines - a.lines || b.newest_at - a.newest_at || a.first_line - b.first_line,
+    (a, b) =>
+      b.lines - a.lines ||
+      b.newest_at - a.newest_at ||
+      a.first_line - b.first_line,
   );
   return { entries, attributed, total };
 }
@@ -282,10 +323,15 @@ export const SESSION_BLAME_HUES = [
 ] as const;
 
 /** Session id to colour, by rank in the summary. */
-export function sessionBlameColors(summary: SessionBlameSummary): Map<string, string> {
+export function sessionBlameColors(
+  summary: SessionBlameSummary,
+): Map<string, string> {
   const colors = new Map<string, string>();
   summary.entries.forEach((entry, i) => {
-    colors.set(entry.session.conversation_id, SESSION_BLAME_HUES[i % SESSION_BLAME_HUES.length]);
+    colors.set(
+      entry.session.conversation_id,
+      SESSION_BLAME_HUES[i % SESSION_BLAME_HUES.length],
+    );
   });
   return colors;
 }
@@ -297,27 +343,38 @@ export function sessionBlameColors(summary: SessionBlameSummary): Map<string, st
  */
 export function sessionHref(session: BlameSessionRef): string | null {
   if (session.public === false) return null;
-  const base = session.public && session.share_token ? `/share/${session.share_token}` : `/conversation/${session.conversation_id}`;
+  const base =
+    session.public && session.share_token
+      ? `/share/${session.share_token}`
+      : `/conversation/${session.conversation_id}`;
   return session.message_id ? `${base}#msg-${session.message_id}` : base;
 }
-
-
 
 /** How the line reached its session, in words a reader can trust. */
 export function blameViaLabel(via: BlameVia): string {
   switch (via) {
-    case "edit": return "wrote this line";
-    case "trailer": return "made this commit (named in its Codecast-Session trailer)";
-    case "nearby": return "wrote the lines around this one";
-    case "commit": return "made this commit";
-    case "hash": return "ran this commit";
-    case "subject": return "matched by commit message and time";
-    case "overlap": return "wrote enough of this commit's lines to claim it";
+    case "edit":
+      return "wrote this line";
+    case "trailer":
+      return "made this commit (named in its Codecast-Session trailer)";
+    case "nearby":
+      return "wrote the lines around this one";
+    case "commit":
+      return "made this commit";
+    case "hash":
+      return "ran this commit";
+    case "subject":
+      return "matched by commit message and time";
+    case "overlap":
+      return "wrote enough of this commit's lines to claim it";
   }
 }
 
 /** The subject line and the rest of a commit message. */
-export function splitCommitMessage(message: string | undefined): { subject: string; body: string } {
+export function splitCommitMessage(message: string | undefined): {
+  subject: string;
+  body: string;
+} {
   const lines = (message ?? "").split("\n");
   return { subject: lines[0] ?? "", body: lines.slice(1).join("\n").trim() };
 }
@@ -335,7 +392,13 @@ export function unwrapCommitBody(body: string): string {
   let prev = "";
   for (const line of body.split("\n")) {
     const fence = line.trimStart().startsWith("```");
-    const joins = !fenced && !fence && prev.trim() !== "" && line.trim() !== "" && !own.test(line) && !/^(\s|```)/.test(prev);
+    const joins =
+      !fenced &&
+      !fence &&
+      prev.trim() !== "" &&
+      line.trim() !== "" &&
+      !own.test(line) &&
+      !/^(\s|```)/.test(prev);
     if (joins) out[out.length - 1] += " " + line.trim();
     else out.push(line);
     if (fence) fenced = !fenced;
@@ -345,7 +408,9 @@ export function unwrapCommitBody(body: string): string {
 }
 
 /** Folders before files, each group by name — the order every file browser uses. */
-export function sortTreeEntries(entries: readonly RepoTreeEntry[]): RepoTreeEntry[] {
+export function sortTreeEntries(
+  entries: readonly RepoTreeEntry[],
+): RepoTreeEntry[] {
   return [...entries].sort((a, b) => {
     const aDir = a.type === "tree";
     const bDir = b.type === "tree";
@@ -370,15 +435,21 @@ export function joinPath(...parts: (string | undefined)[]): string {
 }
 
 /** Every prefix of a path, for a breadcrumb: "a/b" gives a, then a/b. */
-export function breadcrumbTrail(path: string | undefined): { name: string; path: string }[] {
+export function breadcrumbTrail(
+  path: string | undefined,
+): { name: string; path: string }[] {
   const segments = pathSegments(path);
-  return segments.map((name, i) => ({ name, path: segments.slice(0, i + 1).join("/") }));
+  return segments.map((name, i) => ({
+    name,
+    path: segments.slice(0, i + 1).join("/"),
+  }));
 }
 
 export function formatSize(bytes: number | undefined): string {
   if (bytes === undefined || bytes === null) return "";
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
   if (bytes < 1024 ** 3) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
@@ -388,7 +459,10 @@ export function formatSize(bytes: number | undefined): string {
  * removes, yellow when it is a rewrite of about equal weight. A commit with no
  * counted change is quiet.
  */
-export function commitBalanceAccent(insertions: number, deletions: number): string {
+export function commitBalanceAccent(
+  insertions: number,
+  deletions: number,
+): string {
   const total = insertions + deletions;
   if (total === 0) return "var(--sol-text-dim)";
   const added = insertions / total;
@@ -404,11 +478,17 @@ export function filterTreeEntries(
 ): RepoTreeEntry[] {
   const needle = filter.trim().toLowerCase();
   if (!needle) return [...entries];
-  return entries.filter((e) => entryName(e.path).toLowerCase().includes(needle));
+  return entries.filter((e) =>
+    entryName(e.path).toLowerCase().includes(needle),
+  );
 }
 
 /** Which entry the j/k keys land on next, clamped to the list. */
-export function moveCursor(index: number, delta: number, length: number): number {
+export function moveCursor(
+  index: number,
+  delta: number,
+  length: number,
+): number {
   if (length === 0) return 0;
   return Math.min(length - 1, Math.max(0, index + delta));
 }
@@ -434,20 +514,26 @@ function repoBase(repository: string, family: RepoRouteFamily): string {
 }
 
 /** The family a live path belongs to. Anything outside /r is the app form. */
-export function repoFamilyOf(pathname: string | null | undefined): RepoRouteFamily {
+export function repoFamilyOf(
+  pathname: string | null | undefined,
+): RepoRouteFamily {
   const clean = (pathname ?? "").split("?")[0].split("#")[0];
   return clean === "/r" || clean.startsWith("/r/") ? "standalone" : "app";
 }
 
 function query(parts: Record<string, string | undefined>): string {
   const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(parts)) if (value) search.set(key, value);
+  for (const [key, value] of Object.entries(parts))
+    if (value) search.set(key, value);
   const text = search.toString();
   return text ? `?${text}` : "";
 }
 
 /** The repository itself: its default branch, its tree, its readme. */
-export function repoHomeHref(repository: string, family: RepoRouteFamily = "app"): string {
+export function repoHomeHref(
+  repository: string,
+  family: RepoRouteFamily = "app",
+): string {
   return repoBase(repository, family);
 }
 
@@ -512,14 +598,19 @@ export function repoCompareHref(
 }
 
 /** The two refs a compare range names, or null when it is not a range. */
-export function parseCompareRange(range: string | undefined | null): { base: string; head: string } | null {
+export function parseCompareRange(
+  range: string | undefined | null,
+): { base: string; head: string } | null {
   const decoded = decodeURIComponent(range ?? "");
   const at = decoded.indexOf("...");
   if (at <= 0 || at + 3 >= decoded.length) return null;
   return { base: decoded.slice(0, at), head: decoded.slice(at + 3) };
 }
 
-export function repoBranchesHref(repository: string, family: RepoRouteFamily = "app"): string {
+export function repoBranchesHref(
+  repository: string,
+  family: RepoRouteFamily = "app",
+): string {
   return `${repoBase(repository, family)}/branches`;
 }
 
@@ -532,16 +623,25 @@ export function repoWorktreesHref(repository: string, name?: string): string {
   return `${repoBase(repository, "app")}/worktrees${name ? `#${encodeURIComponent(name)}` : ""}`;
 }
 
-export function repoTagsHref(repository: string, family: RepoRouteFamily = "app"): string {
+export function repoTagsHref(
+  repository: string,
+  family: RepoRouteFamily = "app",
+): string {
   return `${repoBase(repository, family)}/tags`;
 }
 
-export function repoPullsHref(repository: string, family: RepoRouteFamily = "app"): string {
+export function repoPullsHref(
+  repository: string,
+  family: RepoRouteFamily = "app",
+): string {
   return `${repoBase(repository, family)}/pulls`;
 }
 
 /** The sessions that touched a repository. Both families: the public form lists the public ones. */
-export function repoSessionsHref(repository: string, family: RepoRouteFamily = "app"): string {
+export function repoSessionsHref(
+  repository: string,
+  family: RepoRouteFamily = "app",
+): string {
   return `${repoBase(repository, family)}/sessions`;
 }
 
@@ -564,7 +664,9 @@ export function commitPageHref(
   sha: string,
   family: RepoRouteFamily = "app",
 ): string {
-  return family === "standalone" ? `/r/${repository}/commit/${sha}` : `/commit/${repository}/${sha}`;
+  return family === "standalone"
+    ? `/r/${repository}/commit/${sha}`
+    : `/commit/${repository}/${sha}`;
 }
 
 export function prPageHref(
@@ -572,7 +674,9 @@ export function prPageHref(
   number: number | string,
   family: RepoRouteFamily = "app",
 ): string {
-  return family === "standalone" ? `/r/${repository}/pull/${number}` : `/pr/${repository}/${number}`;
+  return family === "standalone"
+    ? `/r/${repository}/pull/${number}`
+    : `/pr/${repository}/${number}`;
 }
 
 // ── Between the two families ──
@@ -615,17 +719,29 @@ export function toAppHref(standaloneHref: string): string {
  * Null when the link names only the object, or is not a codecast link: the
  * object's own route is then the destination.
  */
-export function repoObjectDeepHref(href: string | null | undefined): string | null {
+export function repoObjectDeepHref(
+  href: string | null | undefined,
+): string | null {
   if (!href) return null;
   let path = href;
   if (/^https?:\/\//i.test(href)) {
     let u: URL;
-    try { u = new URL(href); } catch { return null; }
-    if (!/(^|\.)codecast\.sh$/i.test(u.hostname) && !(typeof window !== "undefined" && u.origin === window.location.origin)) return null;
+    try {
+      u = new URL(href);
+    } catch {
+      return null;
+    }
+    if (
+      !/(^|\.)codecast\.sh$/i.test(u.hostname) &&
+      !(typeof window !== "undefined" && u.origin === window.location.origin)
+    )
+      return null;
     path = u.pathname + u.search + u.hash;
   }
   const [bare, rest] = splitHref(path);
-  const deep = bare.match(/^\/(?:r\/[^/]+\/[^/]+\/(?:pull|commit)|pr\/[^/]+\/[^/]+|commit\/[^/]+\/[^/]+)\/[^/]+(\/[a-z]+)?$/);
+  const deep = bare.match(
+    /^\/(?:r\/[^/]+\/[^/]+\/(?:pull|commit)|pr\/[^/]+\/[^/]+|commit\/[^/]+\/[^/]+)\/[^/]+(\/[a-z]+)?$/,
+  );
   if (!deep || (!deep[1] && !rest.includes("#"))) return null;
   return toAppHref(path);
 }

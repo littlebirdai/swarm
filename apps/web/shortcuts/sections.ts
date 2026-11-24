@@ -2,7 +2,11 @@
 // order. Every `when` a def in registry.ts carries must have a row here — the
 // panel shows only these sections, so a missing row silently hides that
 // context's shortcuts (registry.test.ts enforces the pairing).
-export const HELP_SECTIONS: { when: string | undefined; label: string; accent: string }[] = [
+export const HELP_SECTIONS: {
+  when: string | undefined;
+  label: string;
+  accent: string;
+}[] = [
   { when: undefined, label: "Global", accent: "bg-sol-cyan" },
   { when: "conversation", label: "Conversation", accent: "bg-sol-blue" },
   { when: "chat.dm", label: "Chat", accent: "bg-sol-magenta" },

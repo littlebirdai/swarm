@@ -22,9 +22,16 @@ export function useRepoLocation(): {
   const tab = useTabContext();
   const location = useLocation();
   const pathname = tab ? tab.pathname : location.pathname;
-  const query = tab ? tab.searchParams.toString() : location.search.replace(/^\?/, "");
-  const hash = tab ? tab.hash ?? "" : location.hash;
-  return { pathname, search: query ? `?${query}` : "", hash, family: repoFamilyOf(pathname) };
+  const query = tab
+    ? tab.searchParams.toString()
+    : location.search.replace(/^\?/, "");
+  const hash = tab ? (tab.hash ?? "") : location.hash;
+  return {
+    pathname,
+    search: query ? `?${query}` : "",
+    hash,
+    family: repoFamilyOf(pathname),
+  };
 }
 
 /** Every href builder takes this, so a link never leaves the family it is in. */

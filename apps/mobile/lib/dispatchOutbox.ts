@@ -101,22 +101,20 @@ export function createPrincipalDispatchOutbox(
   database: MobileDispatchDatabase,
   principalId: string,
 ): PrincipalDispatchOutbox {
-  if (!principalId.trim()) throw new Error("A verified principal is required for the mobile dispatch outbox");
+  if (!principalId.trim())
+    throw new Error(
+      "A verified principal is required for the mobile dispatch outbox",
+    );
 
   return {
     enqueue(entry) {
       const encoded = JSON.stringify(entry);
-      if (encoded === undefined) throw new Error("Dispatch entry could not be serialized");
+      if (encoded === undefined)
+        throw new Error("Dispatch entry could not be serialized");
       // The shared middleware reports `parked:true` immediately after this
       // callback returns. Keep this critical insert synchronous so that status
       // means the row is already on disk, not merely that an async write began.
-      database.runSync(
-        UPSERT_ENTRY,
-        principalId,
-        entry.id,
-        encoded,
-        entry.ts,
-      );
+      database.runSync(UPSERT_ENTRY, principalId, entry.id, encoded, entry.ts);
     },
 
     async remove(id) {
@@ -124,10 +122,10 @@ export function createPrincipalDispatchOutbox(
     },
 
     async load() {
-      const rows = await database.getAllAsync(
+      const rows = (await database.getAllAsync(
         LOAD_ENTRIES,
         principalId,
-      ) as StoredDispatchRow[];
+      )) as StoredDispatchRow[];
       const entries: MobileDispatchOutboxEntry[] = [];
       for (const row of rows) {
         const entry = parseEntry(row.entry_json);
@@ -161,9 +159,12 @@ async function openDatabase(): Promise<MobileDispatchDatabase> {
         await database.execAsync(CREATE_SCHEMA);
         return {
           execAsync: (source) => database.execAsync(source),
-          runSync: (source, ...params) => database.runSync(source, ...(params as any[])),
-          runAsync: (source, ...params) => database.runAsync(source, ...(params as any[])),
-          getAllAsync: (source, ...params) => database.getAllAsync(source, ...(params as any[])),
+          runSync: (source, ...params) =>
+            database.runSync(source, ...(params as any[])),
+          runAsync: (source, ...params) =>
+            database.runAsync(source, ...(params as any[])),
+          getAllAsync: (source, ...params) =>
+            database.getAllAsync(source, ...(params as any[])),
         } satisfies MobileDispatchDatabase;
       })
       .catch((error) => {

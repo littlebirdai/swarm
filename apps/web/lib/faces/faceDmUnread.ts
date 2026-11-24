@@ -27,7 +27,11 @@ function railUnreadOf(st: any): (r: any) => number {
     const ch = String(row?.channel_id);
     readAt.set(ch, Math.max(readAt.get(ch) ?? 0, row?.last_read_at ?? 0));
   }
-  return (r) => (r.unread && (readAt.get(String(r.channel_id)) ?? 0) >= (r.sort_at ?? Infinity) ? 0 : r.unread ?? 0);
+  return (r) =>
+    r.unread &&
+    (readAt.get(String(r.channel_id)) ?? 0) >= (r.sort_at ?? Infinity)
+      ? 0
+      : (r.unread ?? 0);
 }
 
 function dmBadgesOf(st: any) {
@@ -39,7 +43,9 @@ function dmBadgesOf(st: any) {
     return {
       id: r.channel_id,
       kind: ch?.kind,
-      dmMemberIds: (r.member_ids ?? []).filter((id: unknown) => idOf(id) !== me),
+      dmMemberIds: (r.member_ids ?? []).filter(
+        (id: unknown) => idOf(id) !== me,
+      ),
       unreadCount: unreadOf(r),
       mentionCount: r.unread_mentions ?? 0,
       muted: r.notify_level === "muted",
@@ -51,7 +57,12 @@ function dmBadgesOf(st: any) {
 /** What is waiting for the viewer in their DM with one teammate: the count
  *  the face wears, and their newest line when it is theirs. Null when
  *  nothing is unread, so the card only speaks when the face is badged. */
-export type DmUnread = { channelId: string; unread: number; preview: string | null; at: number | null };
+export type DmUnread = {
+  channelId: string;
+  unread: number;
+  preview: string | null;
+  at: number | null;
+};
 
 /** The viewer looked at this person (clicked their face or their count): the
  *  lines the header showed and their DM's unread both clear at once. */
@@ -59,19 +70,25 @@ export function markFaceRead(memberId: string): void {
   clearFaceUnseen(memberId);
   const st: any = useInboxStore.getState();
   const dm = dmUnreadOf(st, memberId);
-  if (dm) st.markChannelRead(dm.channelId, selectChannelReadMarker(st, dm.channelId)?._id);
+  if (dm)
+    st.markChannelRead(
+      dm.channelId,
+      selectChannelReadMarker(st, dm.channelId)?._id,
+    );
 }
 
 export function dmUnreadOf(st: any, memberId: string): DmUnread | null {
   const badge = dmBadgesOf(st).get(memberId);
   if (!badge || badge.unread <= 0) return null;
-  const last = (st.chatRail ?? []).find((r: any) => String(r.channel_id) === badge.channelId)?.last_message;
+  const last = (st.chatRail ?? []).find(
+    (r: any) => String(r.channel_id) === badge.channelId,
+  )?.last_message;
   const theirs = last && idOf(last.user_id) === memberId && !last.call;
   return {
     channelId: badge.channelId,
     unread: badge.unread,
     preview: theirs ? last.preview || null : null,
-    at: theirs ? last.created_at ?? null : null,
+    at: theirs ? (last.created_at ?? null) : null,
   };
 }
 

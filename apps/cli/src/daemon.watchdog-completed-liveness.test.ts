@@ -14,28 +14,52 @@ describe("shouldMarkSessionCompleted", () => {
     // This is the bug. A live, idle-waiting session must stay live no matter how
     // long the user has been away.
     expect(
-      shouldMarkSessionCompleted({ status: "idle", ageMs: 47 * 60 * 1000, hasLiveAgentProcess: true }),
+      shouldMarkSessionCompleted({
+        status: "idle",
+        ageMs: 47 * 60 * 1000,
+        hasLiveAgentProcess: true,
+      }),
     ).toBe(false);
     expect(
-      shouldMarkSessionCompleted({ status: "stopped", ageMs: 6 * 60 * 60 * 1000, hasLiveAgentProcess: true }),
+      shouldMarkSessionCompleted({
+        status: "stopped",
+        ageMs: 6 * 60 * 60 * 1000,
+        hasLiveAgentProcess: true,
+      }),
     ).toBe(false);
     expect(
-      shouldMarkSessionCompleted({ status: "working", ageMs: 6 * 60 * 60 * 1000, hasLiveAgentProcess: true }),
+      shouldMarkSessionCompleted({
+        status: "working",
+        ageMs: 6 * 60 * 60 * 1000,
+        hasLiveAgentProcess: true,
+      }),
     ).toBe(false);
   });
 
   test("reaps a dead idle/stopped session once past the 10min idle threshold", () => {
     expect(
-      shouldMarkSessionCompleted({ status: "idle", ageMs: IDLE + 1, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: "idle",
+        ageMs: IDLE + 1,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(true);
     expect(
-      shouldMarkSessionCompleted({ status: "stopped", ageMs: IDLE, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: "stopped",
+        ageMs: IDLE,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(true); // boundary is inclusive (>=)
   });
 
   test("does not reap a dead idle session that is still fresh", () => {
     expect(
-      shouldMarkSessionCompleted({ status: "idle", ageMs: IDLE - 1, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: "idle",
+        ageMs: IDLE - 1,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(false);
   });
 
@@ -43,10 +67,20 @@ describe("shouldMarkSessionCompleted", () => {
   // held ct-59998's dead Implement hand past its run (2026-10-16).
   test("a dead session whose status predates this boot has exited at any age", () => {
     expect(
-      shouldMarkSessionCompleted({ status: "working", ageMs: 2 * 60 * 1000, hasLiveAgentProcess: false, predatesBoot: true }),
+      shouldMarkSessionCompleted({
+        status: "working",
+        ageMs: 2 * 60 * 1000,
+        hasLiveAgentProcess: false,
+        predatesBoot: true,
+      }),
     ).toBe(true);
     expect(
-      shouldMarkSessionCompleted({ status: "working", ageMs: 2 * 60 * 1000, hasLiveAgentProcess: true, predatesBoot: true }),
+      shouldMarkSessionCompleted({
+        status: "working",
+        ageMs: 2 * 60 * 1000,
+        hasLiveAgentProcess: true,
+        predatesBoot: true,
+      }),
     ).toBe(false);
   });
 
@@ -54,20 +88,42 @@ describe("shouldMarkSessionCompleted", () => {
     // A working status that's been stale 11min is past the idle bar but not the
     // active one — don't reap yet.
     expect(
-      shouldMarkSessionCompleted({ status: "working", ageMs: IDLE + 1, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: "working",
+        ageMs: IDLE + 1,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(false);
     expect(
-      shouldMarkSessionCompleted({ status: "working", ageMs: ACTIVE + 1, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: "working",
+        ageMs: ACTIVE + 1,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(true);
     expect(
-      shouldMarkSessionCompleted({ status: undefined, ageMs: ACTIVE, hasLiveAgentProcess: false }),
+      shouldMarkSessionCompleted({
+        status: undefined,
+        ageMs: ACTIVE,
+        hasLiveAgentProcess: false,
+      }),
     ).toBe(true);
   });
 
   test("liveness wins over staleness regardless of status", () => {
-    for (const status of ["idle", "stopped", "working", "thinking", undefined]) {
+    for (const status of [
+      "idle",
+      "stopped",
+      "working",
+      "thinking",
+      undefined,
+    ]) {
       expect(
-        shouldMarkSessionCompleted({ status, ageMs: 24 * 60 * 60 * 1000, hasLiveAgentProcess: true }),
+        shouldMarkSessionCompleted({
+          status,
+          ageMs: 24 * 60 * 60 * 1000,
+          hasLiveAgentProcess: true,
+        }),
       ).toBe(false);
     }
   });

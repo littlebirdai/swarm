@@ -8,21 +8,34 @@ describe("parity ledger", () => {
     l.plan("tool", "uv");
     l.settle(parityKey("repo", "~/src/a"), "carried");
     const r = l.finish({ laptop: "mac", target: "i-1" });
-    expect(r.items.find((i) => i.name === "uv")).toMatchObject({ status: "failed", reason: "no step reported what happened to it" });
+    expect(r.items.find((i) => i.name === "uv")).toMatchObject({
+      status: "failed",
+      reason: "no step reported what happened to it",
+    });
     expect(r.counts).toMatchObject({ carried: 1, failed: 1, planned: 0 });
   });
 
   test("a run stopped partway names why the rest never happened", () => {
     const l = new ParityLedger();
     l.plan("repo", "~/src/a");
-    const r = l.finish({ laptop: "mac", target: "i-1", unsettled: "the run stopped (SIGINT) before reaching it" });
-    expect(r.items[0]).toMatchObject({ status: "failed", reason: "the run stopped (SIGINT) before reaching it" });
+    const r = l.finish({
+      laptop: "mac",
+      target: "i-1",
+      unsettled: "the run stopped (SIGINT) before reaching it",
+    });
+    expect(r.items[0]).toMatchObject({
+      status: "failed",
+      reason: "the run stopped (SIGINT) before reaching it",
+    });
   });
 
   test("a snapshot reports the run so far without changing the ledger", () => {
     const l = new ParityLedger();
     const k = l.plan("repo", "~/src/a");
-    expect(l.snapshot({ laptop: "mac", target: "i-1", unsettled: "not reached yet" }).items[0]).toMatchObject({ status: "failed", reason: "not reached yet" });
+    expect(
+      l.snapshot({ laptop: "mac", target: "i-1", unsettled: "not reached yet" })
+        .items[0],
+    ).toMatchObject({ status: "failed", reason: "not reached yet" });
     expect(l.get(k)?.status).toBe("planned");
     l.settle(k, "carried");
     expect(l.finish({ laptop: "mac", target: "i-1" }).counts.carried).toBe(1);
@@ -31,7 +44,10 @@ describe("parity ledger", () => {
   test("a dry run keeps planned items as planned", () => {
     const l = new ParityLedger();
     l.plan("repo", "~/src/a");
-    expect(l.finish({ laptop: "mac", target: "dry run", dryRun: true }).counts.planned).toBe(1);
+    expect(
+      l.finish({ laptop: "mac", target: "dry run", dryRun: true }).counts
+        .planned,
+    ).toBe(1);
   });
 
   test("skipped and failed items need a reason", () => {
@@ -44,7 +60,11 @@ describe("parity ledger", () => {
   test("an outcome for an item the inventory never planned is still recorded", () => {
     const l = new ParityLedger();
     l.settle(parityKey("tool", "jq"), "installed");
-    expect(l.get("tool:jq")).toMatchObject({ area: "tool", name: "jq", status: "installed" });
+    expect(l.get("tool:jq")).toMatchObject({
+      area: "tool",
+      name: "jq",
+      status: "installed",
+    });
   });
 
   test("a later success clears an earlier reason", () => {
@@ -57,7 +77,8 @@ describe("parity ledger", () => {
 
   test("the text report names every item that did not make it, with its reason and fix", () => {
     const l = new ParityLedger();
-    for (let i = 0; i < 30; i++) l.skip("service", `svc${i}`, `reason ${i}`, { fix: `fix ${i}` });
+    for (let i = 0; i < 30; i++)
+      l.skip("service", `svc${i}`, `reason ${i}`, { fix: `fix ${i}` });
     l.plan("repo", "~/src/a");
     const text = renderParityText(l.finish({ laptop: "mac", target: "i-1" }));
     for (let i = 0; i < 30; i++) {
@@ -69,7 +90,9 @@ describe("parity ledger", () => {
 
   test("grouped paths are capped in the terminal with a count, and all listed with --all", () => {
     const l = new ParityLedger();
-    l.skip("files", "~/src/a: media", "stays", { paths: Array.from({ length: 20 }, (_, i) => `p${i}.mp4`) });
+    l.skip("files", "~/src/a: media", "stays", {
+      paths: Array.from({ length: 20 }, (_, i) => `p${i}.mp4`),
+    });
     const r = l.finish({ laptop: "mac", target: "i-1" });
     expect(renderParityText(r)).toContain("and 12 more");
     const all = renderParityText(r, { all: true });

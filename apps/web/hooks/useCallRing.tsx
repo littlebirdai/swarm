@@ -11,7 +11,11 @@ import {
 import { acceptInvite, declineInvite } from "../lib/calls/callManager";
 import { requestAnswer } from "../lib/calls/huddleStart";
 import { personInOwnCall, voiceHostShowsRing } from "../lib/calls/walkie";
-import { CALL_INVITE_TTL_MS, CALL_KNOCK_TTL_MS, CALL_RING_PERIOD_MS } from "@codecast/shared/contracts";
+import {
+  CALL_INVITE_TTL_MS,
+  CALL_KNOCK_TTL_MS,
+  CALL_RING_PERIOD_MS,
+} from "@codecast/shared/contracts";
 
 import { useMountEffect } from "./useMountEffect";
 import { useWatchEffect } from "./useWatchEffect";
@@ -62,7 +66,8 @@ export function useCallRing(): void {
     // and the ring goes up over it (lib/calls/walkie inOwnCall).
     const inCall = personInOwnCall();
 
-    const knocked: Record<string, number> = useInboxStore.getState().callKnocked ?? {};
+    const knocked: Record<string, number> =
+      useInboxStore.getState().callKnocked ?? {};
     for (const invite of incoming) {
       if (seenInvites.current.has(String(invite._id))) continue;
       seenInvites.current.add(String(invite._id));
@@ -101,60 +106,71 @@ export function useCallRing(): void {
       // then only for a ring that arrives while the host is busy in a call,
       // where the ring shape would cover the stage. The same rule the host
       // draws by, asked from any window — this hook runs in the host too.
-      if (inWindow && !isCallRingWindow() && !voiceHostShowsRing()) void openCallRingWindow();
+      if (inWindow && !isCallRingWindow() && !voiceHostShowsRing())
+        void openCallRingWindow();
       if (!inWindow) {
         toast.custom(
-        () => (
-          // ONE layout, and stacked, at every width — because the width that
-          // matters is the CARD's, not the window's. Sonner caps a toast at
-          // 356px, so putting the buttons beside the sentence leaves it about
-          // 137px however wide the screen is: at 320px it broke "Jordan Lee
-          // wants to huddle" over five lines, and at 1200px over three. The
-          // buttons take a row of their own and the sentence gets the card.
-          //
-          // Equal halves, 128x34 each. The two answers to a ringing phone are
-          // the same weight, and this card's usual home is a 320px window you
-          // are reaching across the desk to hit.
-          <div className="flex flex-col gap-2.5 rounded-lg border border-sol-border bg-sol-bg-alt px-3 py-2.5 shadow-lg">
-            <div className="flex min-w-0 items-center gap-2.5">
-              {invite.from_image ? (
-                <img
-                  src={invite.from_image}
-                  alt=""
-                  className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-sol-cyan/60"
-                />
-              ) : (
-                // bg-sol-bg-highlight, matching MemberFace's fallback disc —
-                // the one initial-avatar treatment in the app, and a themed
-                // token. `sol-base02` is a Tailwind literal that never flips:
-                // in dark it is byte-identical to this card and the disc
-                // vanished, in light it was a black hole in a cream toast.
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sol-bg-highlight text-sm text-sol-text-muted">
-                  {(invite.from_name || "?").charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div className="min-w-0">
-                <div className="text-sm font-medium leading-snug text-sol-text">
-                  {invite.from_name} wants to huddle
-                </div>
-                {invite.anchor_title && (
-                  <div className="truncate text-xs text-sol-text-muted">
-                    {invite.anchor_title}
+          () => (
+            // ONE layout, and stacked, at every width — because the width that
+            // matters is the CARD's, not the window's. Sonner caps a toast at
+            // 356px, so putting the buttons beside the sentence leaves it about
+            // 137px however wide the screen is: at 320px it broke "Jordan Lee
+            // wants to huddle" over five lines, and at 1200px over three. The
+            // buttons take a row of their own and the sentence gets the card.
+            //
+            // Equal halves, 128x34 each. The two answers to a ringing phone are
+            // the same weight, and this card's usual home is a 320px window you
+            // are reaching across the desk to hit.
+            <div className="flex flex-col gap-2.5 rounded-lg border border-sol-border bg-sol-bg-alt px-3 py-2.5 shadow-lg">
+              <div className="flex min-w-0 items-center gap-2.5">
+                {invite.from_image ? (
+                  <img
+                    src={invite.from_image}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-sol-cyan/60"
+                  />
+                ) : (
+                  // bg-sol-bg-highlight, matching MemberFace's fallback disc —
+                  // the one initial-avatar treatment in the app, and a themed
+                  // token. `sol-base02` is a Tailwind literal that never flips:
+                  // in dark it is byte-identical to this card and the disc
+                  // vanished, in light it was a black hole in a cream toast.
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sol-bg-highlight text-sm text-sol-text-muted">
+                    {(invite.from_name || "?").charAt(0).toUpperCase()}
                   </div>
                 )}
+                <div className="min-w-0">
+                  <div className="text-sm font-medium leading-snug text-sol-text">
+                    {invite.from_name} wants to huddle
+                  </div>
+                  {invite.anchor_title && (
+                    <div className="truncate text-xs text-sol-text-muted">
+                      {invite.anchor_title}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {/* Join is the one filled thing on the card, so the eye goes there; decline is the outline beside it, the same size. */}
+                <Button
+                  variant="green"
+                  size="sm"
+                  onClick={answer}
+                  className="flex-1"
+                >
+                  Join
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={decline}
+                  className="flex-1"
+                >
+                  Decline
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2">
-              {/* Join is the one filled thing on the card, so the eye goes there; decline is the outline beside it, the same size. */}
-              <Button variant="green" size="sm" onClick={answer} className="flex-1">
-                Join
-              </Button>
-              <Button variant="outline" size="sm" onClick={decline} className="flex-1">
-                Decline
-              </Button>
-            </div>
-          </div>
-        ),
+          ),
           { id: `ring:${invite._id}`, duration: CALL_INVITE_TTL_MS },
         );
       }
@@ -189,8 +205,13 @@ export function useCallRing(): void {
     // ringing four times.
     const shouldRing =
       !canRingInWindow() &&
-      incoming.some((i: any) => !autoAccepted.current.has(String(i._id))) && !quiet && !inCall;
-    ringKey.current = String(incoming.find((i: any) => !autoAccepted.current.has(String(i._id)))?._id ?? "");
+      incoming.some((i: any) => !autoAccepted.current.has(String(i._id))) &&
+      !quiet &&
+      !inCall;
+    ringKey.current = String(
+      incoming.find((i: any) => !autoAccepted.current.has(String(i._id)))
+        ?._id ?? "",
+    );
     if (shouldRing && !ringTimer.current) {
       const ring = () => soundCallRing(0, ringKey.current);
       ring();
@@ -204,7 +225,10 @@ export function useCallRing(): void {
   // Outgoing ring settled as a decline → one soft note, once per invite.
   useWatchEffect(() => {
     for (const inv of outgoing) {
-      if (inv.status === "declined" && !seenDeclines.current.has(String(inv._id))) {
+      if (
+        inv.status === "declined" &&
+        !seenDeclines.current.has(String(inv._id))
+      ) {
         seenDeclines.current.add(String(inv._id));
         soundCallDeclined(String(inv._id));
       }

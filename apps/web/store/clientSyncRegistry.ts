@@ -8,7 +8,12 @@ import { ORG_SYNC_COLLECTIONS } from "./clientSyncRegistry.org";
 import { POOL_SYNC_COLLECTIONS } from "./clientSyncRegistry.pool";
 import { DATA_SCOPE } from "./clientSyncRegistry.scope";
 import { thinPullRequestRow, thinTaskRow } from "../lib/detailRows";
-export { DATA_SCOPE, EPHEMERAL_SLOT_SCOPE, SCOPED_READ_KEYS, type DataScope } from "./clientSyncRegistry.scope";
+export {
+  DATA_SCOPE,
+  EPHEMERAL_SLOT_SCOPE,
+  SCOPED_READ_KEYS,
+  type DataScope,
+} from "./clientSyncRegistry.scope";
 
 export type PersistenceKind = "collection" | "meta";
 export type DispatchTableKind = "collection" | "singleton";
@@ -134,10 +139,29 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "repoBrowse", perWindow: true },
     indexes: "_id, scope, repository",
     sync: { isDelta: true, deepFields: ["value"] },
-    feeds: ["repos.listRepositories", "repos.getBranches", "repos.getBranchDetails", "repos.getMeta", "repos.getTags", "repos.getReadme", "repos.getTree", "repos.getBlob", "repos.getBlame", "repos.getLastCommits", "repos.getCompare", "repos.getSearch", "repos.getLog", "repos.getPulls"],
+    feeds: [
+      "repos.listRepositories",
+      "repos.getBranches",
+      "repos.getBranchDetails",
+      "repos.getMeta",
+      "repos.getTags",
+      "repos.getReadme",
+      "repos.getTree",
+      "repos.getBlob",
+      "repos.getBlame",
+      "repos.getLastCommits",
+      "repos.getCompare",
+      "repos.getSearch",
+      "repos.getLog",
+      "repos.getPulls",
+    ],
   },
   repoBrowseAccess: {
-    persistence: { kind: "collection", key: "repoBrowseAccess", perWindow: true },
+    persistence: {
+      kind: "collection",
+      key: "repoBrowseAccess",
+      perWindow: true,
+    },
     indexes: "_id, scope, repository",
     sync: { isDelta: true },
     feeds: ["repos.canBrowse"],
@@ -145,7 +169,12 @@ export const CLIENT_SYNC_REGISTRY = {
   settingsData: {
     persistence: { kind: "collection", key: "settingsData" },
     sync: { isDelta: true, deepFields: ["value"] },
-    feeds: ["users.getRecentProjectsWithGitInfo", "githubApp.listInstallations", "devices.listAgentBoxes", "mcpAuth.oauthStatus"],
+    feeds: [
+      "users.getRecentProjectsWithGitInfo",
+      "githubApp.listInstallations",
+      "devices.listAgentBoxes",
+      "mcpAuth.oauthStatus",
+    ],
   },
   sessions: {
     writtenBy: ["conversations"],
@@ -157,8 +186,16 @@ export const CLIENT_SYNC_REGISTRY = {
       // whole 3.4 KB row, and the browser process spent a core compacting
       // the IndexedDB they landed in.
       liveFields: [
-        "updated_at", "message_count", "last_role_is_user", "context_tokens", "last_model_call_at",
-        "activity", "daemon_alive_until", "producing_until", "last_heartbeat", "last_turn_origin",
+        "updated_at",
+        "message_count",
+        "last_role_is_user",
+        "context_tokens",
+        "last_model_call_at",
+        "activity",
+        "daemon_alive_until",
+        "producing_until",
+        "last_heartbeat",
+        "last_turn_origin",
       ],
     },
     localFirst: true,
@@ -219,7 +256,8 @@ export const CLIENT_SYNC_REGISTRY = {
     // the whole field — crashed the Threads page); dropping it at hydration
     // lets the live sync re-fill the row clean.
     validRow: (row: any) =>
-      typeof row?.short_id === "string" && row.short_id.startsWith("ct-") &&
+      typeof row?.short_id === "string" &&
+      row.short_id.startsWith("ct-") &&
       (row.comments === undefined || Array.isArray(row.comments)),
     // `tasks` is the THIN list: a task's comments live in taskComments, held
     // only for the tasks a surface opened (lib/detailRows). Rows cached by a
@@ -251,7 +289,8 @@ export const CLIENT_SYNC_REGISTRY = {
     hydration: { phase: "deferred" },
     localFirst: true,
     validRow: (row: any) =>
-      typeof row?.capability_slug === "string" && typeof row?.scope_kind === "string",
+      typeof row?.capability_slug === "string" &&
+      typeof row?.scope_kind === "string",
     // An optimistic stub keyed by client_key is superseded by the server row
     // carrying the same client_key — the tasks convention.
     sync: { altKey: "client_key" },
@@ -278,7 +317,8 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "teamKitItems" },
     hydration: { phase: "deferred" },
     localFirst: true,
-    validRow: (row: any) => typeof row?.slug === "string" && typeof row?.workspace === "string",
+    validRow: (row: any) =>
+      typeof row?.slug === "string" && typeof row?.workspace === "string",
     sync: { isDelta: true, altKey: "slug" },
     feeds: ["teamKit.webListTeamKitItems"],
   },
@@ -292,7 +332,8 @@ export const CLIENT_SYNC_REGISTRY = {
     hydration: { phase: "deferred" },
     localFirst: false,
     feeds: ["harnessChanges.listForDevice"],
-    validRow: (row: any) => typeof row?.device_id === "string" && typeof row?.at === "number",
+    validRow: (row: any) =>
+      typeof row?.device_id === "string" && typeof row?.at === "number",
     sync: { isDelta: true },
   },
   docs: {
@@ -310,7 +351,12 @@ export const CLIENT_SYNC_REGISTRY = {
     // live webGet queries (embeds, pills). Drop a body a past channel cached —
     // unless it is an unsynced local edit still under a pending field lock.
     hydrateRow: (row: any, { pending }: { pending: Record<string, any> }) => {
-      if (row?.content === undefined && row?.entries === undefined && row?.embedding === undefined) return row;
+      if (
+        row?.content === undefined &&
+        row?.entries === undefined &&
+        row?.embedding === undefined
+      )
+        return row;
       if (pending[`docs:${row._id}:content`]) return row;
       const { content: _c, entries: _e, embedding: _m, ...rest } = row;
       return rest;
@@ -352,7 +398,11 @@ export const CLIENT_SYNC_REGISTRY = {
   // `in_queue` marks the viewer's own, which the queue surfaces read.
   sessionDecisions: {
     writtenBy: ["sessionDecisions"],
-    feeds: ["sessionDecisions.listForUser", "sessionDecisions.listOpenForLines", "decisionTeamList.listForTeam"],
+    feeds: [
+      "sessionDecisions.listForUser",
+      "sessionDecisions.listOpenForLines",
+      "decisionTeamList.listForTeam",
+    ],
     // The Team feed's stamp survives the queue feed's push of the same row, so the row stays in the Team view.
     sync: { preserveFields: ["team_workspace"] },
     persistence: { kind: "collection", key: "sessionDecisions" },
@@ -361,7 +411,13 @@ export const CLIENT_SYNC_REGISTRY = {
     dispatchTable: {
       table: "session_decisions",
       kind: "collection",
-      fields: ["status", "answer_index", "answer_text", "answer_json", "resolved_at"],
+      fields: [
+        "status",
+        "answer_index",
+        "answer_text",
+        "answer_json",
+        "resolved_at",
+      ],
     },
   },
   // A session's goal (convex sessionGoals.ts, shared/contracts/sessionGoal):
@@ -426,7 +482,21 @@ export const CLIENT_SYNC_REGISTRY = {
   decisionDetails: {
     persistence: { kind: "collection", key: "decisionDetails" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, deepFields: ["decision", "doc", "task", "stack", "ladder", "asked_users", "holder_role", "grant_offer", "grant", "superseded"] },
+    sync: {
+      isDelta: true,
+      deepFields: [
+        "decision",
+        "doc",
+        "task",
+        "stack",
+        "ladder",
+        "asked_users",
+        "holder_role",
+        "grant_offer",
+        "grant",
+        "superseded",
+      ],
+    },
     // getWithDocMany: the sync host keeps every open decision's context cached (useSyncOpenDecisionDetails).
     feeds: ["sessionDecisions.getWithDoc", "sessionDecisions.getWithDocMany"],
   },
@@ -446,7 +516,11 @@ export const CLIENT_SYNC_REGISTRY = {
   decisionComments: {
     persistence: { kind: "collection", key: "decisionComments" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, altKey: "client_id", deepFields: ["event_to_names"] },
+    sync: {
+      isDelta: true,
+      altKey: "client_id",
+      deepFields: ["event_to_names"],
+    },
     // Edit, delete and resolve paint here first and are held until the echo.
     localFirst: true,
     indexes: "_id, decision_id, created_at",
@@ -504,7 +578,18 @@ export const CLIENT_SYNC_REGISTRY = {
   projectExpectations: {
     persistence: { kind: "collection", key: "projectExpectations" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, deepFields: ["doc", "versions", "proposals", "usage", "sources", "routine", "project"] },
+    sync: {
+      isDelta: true,
+      deepFields: [
+        "doc",
+        "versions",
+        "proposals",
+        "usage",
+        "sources",
+        "routine",
+        "project",
+      ],
+    },
     feeds: ["expectations.forProject"],
   },
   // A project's outputs (ct-94262), two rows per project viewed: the members
@@ -515,7 +600,19 @@ export const CLIENT_SYNC_REGISTRY = {
   projectOutputs: {
     persistence: { kind: "collection", key: "projectOutputs" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, deepFields: ["project", "sessions", "tasks", "plan_ids", "prs", "pages", "docs", "images"] },
+    sync: {
+      isDelta: true,
+      deepFields: [
+        "project",
+        "sessions",
+        "tasks",
+        "plan_ids",
+        "prs",
+        "pages",
+        "docs",
+        "images",
+      ],
+    },
     feeds: ["projectOutputs.members", "projectOutputs.items"],
   },
   // Every project's expectations in a workspace, one summary row each
@@ -537,7 +634,23 @@ export const CLIENT_SYNC_REGISTRY = {
     localFirst: true,
     indexes: "_id, project_id",
     // evidence, cited, rule, coverage and overlaps are joined live (lineTrial.cardView) and change while the card row does not.
-    sync: { deepFields: ["options", "card", "proposal", "answer", "evidence", "cited", "rule", "evals_owed", "coverage", "overlaps", "rebuilding", "judge_fix", "superseded"] },
+    sync: {
+      deepFields: [
+        "options",
+        "card",
+        "proposal",
+        "answer",
+        "evidence",
+        "cited",
+        "rule",
+        "evals_owed",
+        "coverage",
+        "overlaps",
+        "rebuilding",
+        "judge_fix",
+        "superseded",
+      ],
+    },
     feeds: ["lineTrial.cards"],
   },
   // The workspace's trial projects (convex lineTrial.projects), and what each
@@ -573,7 +686,17 @@ export const CLIENT_SYNC_REGISTRY = {
   lineStages: {
     persistence: { kind: "collection", key: "lineStages" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, deepFields: ["sources", "window", "kinds", "judges", "retired", "grouping"] },
+    sync: {
+      isDelta: true,
+      deepFields: [
+        "sources",
+        "window",
+        "kinds",
+        "judges",
+        "retired",
+        "grouping",
+      ],
+    },
     feeds: ["lineStages.flow"],
   },
   // A trial's dispatcher as a dry pass sees it (lineStages.dispatch): its queue
@@ -589,7 +712,10 @@ export const CLIENT_SYNC_REGISTRY = {
   lineReviews: {
     persistence: { kind: "collection", key: "lineReviews" },
     hydration: { phase: "deferred" },
-    sync: { isDelta: true, deepFields: ["counts", "running", "recent", "failed", "averages"] },
+    sync: {
+      isDelta: true,
+      deepFields: ["counts", "running", "recent", "failed", "averages"],
+    },
     feeds: ["lineStages.reviews"],
   },
   // Saved views: the sidebar rail and its pinned rows. A pin lives in client
@@ -670,7 +796,17 @@ export const CLIENT_SYNC_REGISTRY = {
     // the echo, moments later.
     // The reported numbers (`scoreboard`, `score_history`) are the server's
     // to write; the web only paints where a metric edit carries them.
-    unprotectedFields: ["health_at", "latest_update_id", "updated_at", "milestones", "questions", "decisions", "sources", "scoreboard", "score_history"],
+    unprotectedFields: [
+      "health_at",
+      "latest_update_id",
+      "updated_at",
+      "milestones",
+      "questions",
+      "decisions",
+      "sources",
+      "scoreboard",
+      "score_history",
+    ],
     feeds: ["initiatives.webList"],
   },
   // Each environment a goal names, with its latest attempt and link (convex
@@ -912,7 +1048,13 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { isDelta: true, altKey: "slug" },
     // The server's clock; a client cannot predict it.
     unprotectedFields: ["created_at", "updated_at"],
-    feeds: ["workflows.webList", "workflows.webGet", "workflows.webGetBySlug", "workflows.webPool", "workflow_runs.graphOfRun"],
+    feeds: [
+      "workflows.webList",
+      "workflows.webGet",
+      "workflows.webGetBySlug",
+      "workflows.webPool",
+      "workflow_runs.graphOfRun",
+    ],
   },
   // The graph a run executes when it pinned a version of its workflows row
   // (convex lib/runGraph.ts, ct-98653), keyed by the version: runs of one
@@ -939,7 +1081,15 @@ export const CLIENT_SYNC_REGISTRY = {
     // A node's session is a join that moves no scalar on the row (a feed with
     // budget attaches it where another had none), so the nodes compare by content.
     sync: { isDelta: true, deepFields: ["node_statuses", "superseded"] },
-    feeds: ["workflow_runs.listDynamicRuns", "workflow_runs.listForWorkflow", "workflow_runs.get", "workflow_runs.byIds", "workflow_runs.listRuns", "sessionFlowRuns.forConversation", "sessionFlowRuns.forTeam"],
+    feeds: [
+      "workflow_runs.listDynamicRuns",
+      "workflow_runs.listForWorkflow",
+      "workflow_runs.get",
+      "workflow_runs.byIds",
+      "workflow_runs.listRuns",
+      "sessionFlowRuns.forConversation",
+      "sessionFlowRuns.forTeam",
+    ],
   },
   // Signals (the-line-end-to-end.md LE3, LE13): the active workspace's last
   // two weeks, bodies left out, and every finding of a problem opened in the
@@ -1004,7 +1154,11 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "lineDeploys" },
     hydration: { phase: "deferred" },
     indexes: "_id, project_id",
-    sync: { isDelta: true, altKey: "client_key", deepFields: ["carries", "after", "commits"] },
+    sync: {
+      isDelta: true,
+      altKey: "client_key",
+      deepFields: ["carries", "after", "commits"],
+    },
     feeds: ["lineWorkspace.deploys"],
   },
   // A team's deploy targets (deploys.md DP10 to DP12): one row per repository
@@ -1014,7 +1168,10 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "deployTargets" },
     hydration: { phase: "deferred" },
     indexes: "_id, workspace",
-    sync: { isDelta: true, deepFields: ["queue", "paths", "live_reader", "last_read"] },
+    sync: {
+      isDelta: true,
+      deepFields: ["queue", "paths", "live_reader", "last_read"],
+    },
     feeds: ["deployTargets.view"],
   },
   // Every deploy of a team's targets the Deploys page shows: live, going out,
@@ -1025,7 +1182,11 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "teamDeploys" },
     hydration: { phase: "deferred" },
     indexes: "_id, workspace",
-    sync: { isDelta: true, altKey: "client_key", deepFields: ["sessions", "steps", "tasks"] },
+    sync: {
+      isDelta: true,
+      altKey: "client_key",
+      deepFields: ["sessions", "steps", "tasks"],
+    },
     feeds: ["deployTargets.view", "deployRefs.recentForTeam"],
   },
   // Each repository's pipeline (pipeline.md PL6, contracts/pipeline.ts): its
@@ -1110,7 +1271,11 @@ export const CLIENT_SYNC_REGISTRY = {
     hydration: { phase: "deferred" },
     localFirst: true,
     indexes: "_id, project_id",
-    sync: { isDelta: true, altKey: "key", deepFields: ["old", "new", "refused", "pickup"] },
+    sync: {
+      isDelta: true,
+      altKey: "key",
+      deepFields: ["old", "new", "refused", "pickup"],
+    },
     feeds: ["lineActions.tries"],
   },
   // Every version of a pushed graph (each save is one), per drawn graph, and
@@ -1221,7 +1386,14 @@ export const CLIENT_SYNC_REGISTRY = {
   // org.roles (roles and seats, no session read) for the ones that only name
   // a role; ORG_SYNC_REGISTRY fills a roles-only push from the held tree.
   orgTree: {
-    writtenBy: ["orgRoles", "orgSplit", "orgHandoff", "orgLineMerge", "orgTemplates", "orgTemplateLearning"],
+    writtenBy: [
+      "orgRoles",
+      "orgSplit",
+      "orgHandoff",
+      "orgLineMerge",
+      "orgTemplates",
+      "orgTemplateLearning",
+    ],
     // Session tallies, the sessions' own clocks and states, presence, the
     // standing agents' pinned state and each role's day counters move with
     // every agent's turn (a roles-only push changed only `roles.counters`,
@@ -1233,10 +1405,24 @@ export const CLIENT_SYNC_REGISTRY = {
       key: "orgTree",
       rowKey: { people: "user_id", anchors: "anchor_id" },
       liveFields: [
-        "people.counts", "people.total", "people.presence", "people.sessions.updated_at", "people.sessions.state",
-        "roles.counts", "roles.total", "roles.counters", "roles.sessions.updated_at", "roles.sessions.state",
-        "roles.standing.state", "roles.standing.state_line", "roles.standing.state_status", "roles.standing.state_at",
-        "anchors.state", "anchors.state_line", "anchors.state_status", "anchors.state_at",
+        "people.counts",
+        "people.total",
+        "people.presence",
+        "people.sessions.updated_at",
+        "people.sessions.state",
+        "roles.counts",
+        "roles.total",
+        "roles.counters",
+        "roles.sessions.updated_at",
+        "roles.sessions.state",
+        "roles.standing.state",
+        "roles.standing.state_line",
+        "roles.standing.state_status",
+        "roles.standing.state_at",
+        "anchors.state",
+        "anchors.state_line",
+        "anchors.state_status",
+        "anchors.state_at",
       ],
     },
     hydration: { phase: "deferred", merge: "fill" },
@@ -1294,7 +1480,12 @@ export const CLIENT_SYNC_REGISTRY = {
     sync: { isDelta: true },
     // changesQueries.storyEvidence: a Changes story's commits, so its evidence
     // drawer paints from the same rows the /commit page reads.
-    feeds: ["commits.getCommitBySha", "commits.getCommitsForConversation", "commits.webGet", "changesQueries.storyEvidence"],
+    feeds: [
+      "commits.getCommitBySha",
+      "commits.getCommitsForConversation",
+      "commits.webGet",
+      "changesQueries.storyEvidence",
+    ],
   },
   // The PR page feeds one row into the same collection, so opening a PR paints
   // from whatever the timeline already cached and the single row refreshes it.
@@ -1309,7 +1500,13 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "pullRequests" },
     hydration: { phase: "deferred" },
     sync: { isDelta: true },
-    feeds: ["pull_requests.getPRsForTimeline", "pull_requests.getPRByNumber", "pull_requests.getPRsForConversation", "pull_requests.webGet", "pull_requests.sessionCardPRs"],
+    feeds: [
+      "pull_requests.getPRsForTimeline",
+      "pull_requests.getPRByNumber",
+      "pull_requests.getPRsForConversation",
+      "pull_requests.webGet",
+      "pull_requests.sessionCardPRs",
+    ],
     hydrateRow: thinPullRequestRow,
   },
   // A pull request's files, commits and checks, keyed by its id: what its
@@ -1321,7 +1518,11 @@ export const CLIENT_SYNC_REGISTRY = {
   // without moving a scalar this row carries. Bounded at hydration by
   // last-open recency (cacheRetention).
   pullRequestDetails: {
-    persistence: { kind: "collection", key: "pullRequestDetails", perWindow: true },
+    persistence: {
+      kind: "collection",
+      key: "pullRequestDetails",
+      perWindow: true,
+    },
     hydration: { phase: "deferred" },
     localFirst: false,
     sync: { isDelta: true, deepFields: ["files", "commits", "checks"] },
@@ -1355,7 +1556,11 @@ export const CLIENT_SYNC_REGISTRY = {
     // editCodeComment, deleteCodeComment) and are held until the echo.
     localFirst: true,
     indexes: "_id, pull_request_id, repository, file_path, created_at",
-    feeds: ["codeComments.listForPR", "codeComments.listForRef", "codeComments.listForFile"],
+    feeds: [
+      "codeComments.listForPR",
+      "codeComments.listForRef",
+      "codeComments.listForFile",
+    ],
   },
   // The server record of the viewer's composer quotes (convex quoteDrafts.ts),
   // fed per conversation on screen. Read-only here: the composer's batch
@@ -1379,7 +1584,13 @@ export const CLIENT_SYNC_REGISTRY = {
     hydration: { phase: "deferred" },
     sync: { isDelta: true, altKey: "client_key", deepFields: ["comments"] },
     localFirst: true,
-    unprotectedFields: ["comments", "edited_at", "updated_at", "created_at", "short_id"],
+    unprotectedFields: [
+      "comments",
+      "edited_at",
+      "updated_at",
+      "created_at",
+      "short_id",
+    ],
     indexes: "_id, project_id",
     feeds: ["projectUpdates.webList"],
   },
@@ -1393,7 +1604,8 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "externalEvents" },
     hydration: { phase: "deferred" },
     sync: { isDelta: true },
-    indexes: "_id, team_id, conversation_id, pr_id, task_id, repository, created_at",
+    indexes:
+      "_id, team_id, conversation_id, pr_id, task_id, repository, created_at",
     feeds: [
       "externalEvents.listForTeam",
       "externalEvents.listForConversation",
@@ -1477,8 +1689,31 @@ export const CLIENT_SYNC_REGISTRY = {
   // open conversation's pipeline. The action's intent (where a move goes,
   // which account a switch picks) is local, so the echo must not blank it.
   sessionCommands: {
-    persistence: { kind: "collection", key: "sessionCommands", perWindow: true },
-    sync: { isDelta: true, preserveFields: ["kind", "conversation_id", "to_device_id", "to_remote", "to_label", "profile", "email", "started_at", "confirmed_at", "project_id", "edits", "keys", "backend", "op", "message_ts"] },
+    persistence: {
+      kind: "collection",
+      key: "sessionCommands",
+      perWindow: true,
+    },
+    sync: {
+      isDelta: true,
+      preserveFields: [
+        "kind",
+        "conversation_id",
+        "to_device_id",
+        "to_remote",
+        "to_label",
+        "profile",
+        "email",
+        "started_at",
+        "confirmed_at",
+        "project_id",
+        "edits",
+        "keys",
+        "backend",
+        "op",
+        "message_ts",
+      ],
+    },
     feeds: ["sessionCommands.results", "sessionCommands.forConversation"],
   },
   managedSessions: {
@@ -1639,9 +1874,17 @@ export const CLIENT_SYNC_REGISTRY = {
       key: "machineRoster",
       rowKey: "device_id",
       liveFields: [
-        "last_seen", "online", "pending_sync_count", "oldest_pending_ms", "pending_sync_messages",
-        "pending_sync_conversations", "sync_no_progress_ms", "loop_freeze_ms", "loop_freeze_1h_ms",
-        "loop_freeze_max_ms", "loop_freeze_top",
+        "last_seen",
+        "online",
+        "pending_sync_count",
+        "oldest_pending_ms",
+        "pending_sync_messages",
+        "pending_sync_conversations",
+        "sync_no_progress_ms",
+        "loop_freeze_ms",
+        "loop_freeze_1h_ms",
+        "loop_freeze_max_ms",
+        "loop_freeze_top",
       ],
     },
     feeds: ["devices.listDevices"],
@@ -1717,7 +1960,14 @@ export const CLIENT_SYNC_REGISTRY = {
   callStagePins: {
     sync: {},
     localFirst: true,
-    unprotectedFields: ["title", "doc_type", "readable", "pinned_by_name", "pinned_by_agent", "pinned_by_session"],
+    unprotectedFields: [
+      "title",
+      "doc_type",
+      "readable",
+      "pinned_by_name",
+      "pinned_by_agent",
+      "pinned_by_session",
+    ],
     feeds: ["callStage.listPins"],
   },
   // Who is waiting at the door of the room I'm seated in (calls.getRoomKnocks,
@@ -1845,7 +2095,15 @@ export const CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "meetingCalendarEvents" },
     hydration: { phase: "deferred" },
     localFirst: true,
-    unprotectedFields: ["title", "starts_at", "ends_at", "meeting_url", "platform", "meet_id", "updated_at"],
+    unprotectedFields: [
+      "title",
+      "starts_at",
+      "ends_at",
+      "meeting_url",
+      "platform",
+      "meet_id",
+      "updated_at",
+    ],
     sync: {},
     feeds: ["meetingCalendar.listUpcoming"],
     writtenBy: ["meetingCalendar"],
@@ -1971,8 +2229,15 @@ export const CLIENT_SYNC_REGISTRY = {
       kind: "meta",
       key: "teamMembers",
       liveFields: [
-        "daemon_last_seen", "last_heartbeat", "last_seen", "presence_input_at", "presence_state",
-        "viewing_conversation_id", "viewing_since", "recent_session_updated", "recent_session_messages",
+        "daemon_last_seen",
+        "last_heartbeat",
+        "last_seen",
+        "presence_input_at",
+        "presence_state",
+        "viewing_conversation_id",
+        "viewing_since",
+        "recent_session_updated",
+        "recent_session_messages",
       ],
     },
     localFirst: true,
@@ -2043,10 +2308,18 @@ export const CLIENT_SYNC_REGISTRY = {
 
 export type ClientSyncStoreKey = keyof typeof CLIENT_SYNC_REGISTRY;
 export type ClientSyncCollectionStoreKey = {
-  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends { readonly persistence: { readonly kind: "collection" } } ? K : never
+  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends {
+    readonly persistence: { readonly kind: "collection" };
+  }
+    ? K
+    : never;
 }[ClientSyncStoreKey];
 export type ClientSyncMetaStoreKey = {
-  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends { readonly persistence: { readonly kind: "meta" } } ? K : never
+  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends {
+    readonly persistence: { readonly kind: "meta" };
+  }
+    ? K
+    : never;
 }[ClientSyncStoreKey];
 
 const registryEntries = Object.entries(CLIENT_SYNC_REGISTRY) as Array<
@@ -2062,33 +2335,63 @@ export const META_STORE_KEYS = registryEntries
   .map(([key]) => key) as ClientSyncMetaStoreKey[];
 
 /** Each persisted meta key's liveness fields and row key (`persistence.liveFields`, `persistence.rowKey`). */
-export const META_LIVE_FIELDS: Record<string, { fields: readonly string[]; rowKey: string | Readonly<Record<string, string>> }> = Object.fromEntries(
+export const META_LIVE_FIELDS: Record<
+  string,
+  {
+    fields: readonly string[];
+    rowKey: string | Readonly<Record<string, string>>;
+  }
+> = Object.fromEntries(
   registryEntries
-    .filter(([, entry]) => entry.persistence?.kind === "meta" && entry.persistence.liveFields?.length)
-    .map(([key, entry]) => [key, { fields: entry.persistence!.liveFields!, rowKey: entry.persistence!.rowKey ?? "_id" }])
+    .filter(
+      ([, entry]) =>
+        entry.persistence?.kind === "meta" &&
+        entry.persistence.liveFields?.length,
+    )
+    .map(([key, entry]) => [
+      key,
+      {
+        fields: entry.persistence!.liveFields!,
+        rowKey: entry.persistence!.rowKey ?? "_id",
+      },
+    ]),
 );
 
 /** Each persisted collection's liveness fields (`persistence.liveFields`). */
-export const COLLECTION_LIVE_FIELDS: Record<string, ReadonlySet<string>> = Object.fromEntries(
+export const COLLECTION_LIVE_FIELDS: Record<
+  string,
+  ReadonlySet<string>
+> = Object.fromEntries(
   registryEntries
-    .filter(([, entry]) => entry.persistence?.kind === "collection" && entry.persistence.liveFields?.length)
-    .map(([key, entry]) => [key, new Set(entry.persistence!.liveFields)])
+    .filter(
+      ([, entry]) =>
+        entry.persistence?.kind === "collection" &&
+        entry.persistence.liveFields?.length,
+    )
+    .map(([key, entry]) => [key, new Set(entry.persistence!.liveFields)]),
 );
-
 
 // Boot-hydration apply lists, derived so a persisted key can never silently
 // skip hydration (the bug class of ct-34920 and the buckets label pop-in):
 // every persisted key lands in exactly one of critical / deferred / manual.
 const hydratedEntries = registryEntries.filter(
-  ([, entry]) => entry.persistence && entry.hydration !== "manual"
+  ([, entry]) => entry.persistence && entry.hydration !== "manual",
 );
 
 export const HYDRATION_CRITICAL_KEYS = hydratedEntries
-  .filter(([, entry]) => (entry.hydration as { phase?: HydrationPhase } | undefined)?.phase !== "deferred")
+  .filter(
+    ([, entry]) =>
+      (entry.hydration as { phase?: HydrationPhase } | undefined)?.phase !==
+      "deferred",
+  )
   .map(([key]) => key);
 
 export const HYDRATION_DEFERRED_KEYS = hydratedEntries
-  .filter(([, entry]) => (entry.hydration as { phase?: HydrationPhase } | undefined)?.phase === "deferred")
+  .filter(
+    ([, entry]) =>
+      (entry.hydration as { phase?: HydrationPhase } | undefined)?.phase ===
+      "deferred",
+  )
   .map(([key]) => key);
 
 export const HYDRATION_MANUAL_KEYS = registryEntries
@@ -2114,9 +2417,12 @@ export const HYDRATION_PAINT_KEYS = [
 ] as const;
 
 export function hydrationMergeStrategy(key: string): HydrationMerge {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   const hydration = entry?.hydration;
-  if (hydration && hydration !== "manual" && hydration.merge) return hydration.merge;
+  if (hydration && hydration !== "manual" && hydration.merge)
+    return hydration.merge;
   return "shape";
 }
 
@@ -2124,9 +2430,12 @@ export function hydrationMergeStrategy(key: string): HydrationMerge {
 // hand-written line for in some other file. Register once; these follow.
 
 /** Sync-time defaults per key (inboxStore spreads these under SYNC_REGISTRY). */
-export const REGISTRY_SYNC_OPTS: Record<string, RegistrySyncOpts> = Object.fromEntries(
-  registryEntries.flatMap(([key, entry]) => (entry.sync ? [[key, entry.sync]] : [])),
-);
+export const REGISTRY_SYNC_OPTS: Record<string, RegistrySyncOpts> =
+  Object.fromEntries(
+    registryEntries.flatMap(([key, entry]) =>
+      entry.sync ? [[key, entry.sync]] : [],
+    ),
+  );
 
 /** Dexie `stores()` spec for every persisted collection: `{ key: indexes }`. */
 export const COLLECTION_INDEXES: Record<string, string> = Object.fromEntries(
@@ -2138,20 +2447,26 @@ export const COLLECTION_INDEXES: Record<string, string> = Object.fromEntries(
 
 export const WEB_COLLECTION_INDEXES: Record<string, string> = {
   ...COLLECTION_INDEXES,
-  ...Object.fromEntries(registryEntries
-    .filter(([, entry]) => entry.persistence?.webTable)
-    .map(([key, entry]) => [key, entry.indexes ?? "_id"])),
+  ...Object.fromEntries(
+    registryEntries
+      .filter(([, entry]) => entry.persistence?.webTable)
+      .map(([key, entry]) => [key, entry.indexes ?? "_id"]),
+  ),
 };
 
 /** Collections whose rows enumerate only through useWorkspaceCollection:
  *  every collection DATA_SCOPE (clientSyncRegistry.scope.ts) classes "workspace". */
 export type WorkspaceScopedStoreKey = {
-  [K in ClientSyncCollectionStoreKey]: (typeof DATA_SCOPE)[K] extends "workspace" ? K : never
+  [
+    K in ClientSyncCollectionStoreKey
+  ]: (typeof DATA_SCOPE)[K] extends "workspace" ? K : never;
 }[ClientSyncCollectionStoreKey];
 
 /** Every registered feed query → the store key it feeds. */
 export const REGISTERED_FEEDS: Record<string, string> = Object.fromEntries(
-  registryEntries.flatMap(([key, entry]) => (entry.feeds ?? []).map((f) => [f, key])),
+  registryEntries.flatMap(([key, entry]) =>
+    (entry.feeds ?? []).map((f) => [f, key]),
+  ),
 );
 
 /** Convex module → the store keys whose rows its public mutations write:
@@ -2159,7 +2474,10 @@ export const REGISTERED_FEEDS: Record<string, string> = Object.fromEntries(
 export const SYNCED_WRITER_MODULES: Record<string, readonly string[]> = (() => {
   const out: Record<string, string[]> = {};
   for (const [key, entry] of registryEntries) {
-    const mods = new Set([...(entry.feeds ?? []).map((f) => f.split(".").slice(0, -1).join(".")), ...(entry.writtenBy ?? [])]);
+    const mods = new Set([
+      ...(entry.feeds ?? []).map((f) => f.split(".").slice(0, -1).join(".")),
+      ...(entry.writtenBy ?? []),
+    ]);
     for (const mod of mods) (out[mod] ??= []).push(key);
   }
   return out;
@@ -2169,19 +2487,27 @@ export const SYNCED_WRITER_MODULES: Record<string, readonly string[]> = (() => {
  *  OR synced as one (`sync` with the default "collection" kind) without
  *  persistence — a transient collection still needs its `{}` at boot. */
 export type RegisteredCollectionKey = {
-  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends { readonly persistence: { readonly kind: "collection" } }
+  [K in ClientSyncStoreKey]: (typeof CLIENT_SYNC_REGISTRY)[K] extends {
+    readonly persistence: { readonly kind: "collection" };
+  }
     ? K
-    : (typeof CLIENT_SYNC_REGISTRY)[K] extends { readonly sync: { readonly kind: "singleton" | "list" | "scalar" } }
+    : (typeof CLIENT_SYNC_REGISTRY)[K] extends {
+          readonly sync: { readonly kind: "singleton" | "list" | "scalar" };
+        }
       ? never
       : (typeof CLIENT_SYNC_REGISTRY)[K] extends { readonly sync: object }
         ? K
-        : never
+        : never;
 }[ClientSyncStoreKey];
 
 export const REGISTERED_COLLECTION_KEYS = registryEntries
-  .filter(([, entry]) =>
-    entry.persistence?.kind === "collection" ||
-    (entry.sync && (entry.sync.kind ?? "collection") === "collection" && !entry.persistence))
+  .filter(
+    ([, entry]) =>
+      entry.persistence?.kind === "collection" ||
+      (entry.sync &&
+        (entry.sync.kind ?? "collection") === "collection" &&
+        !entry.persistence),
+  )
   .map(([key]) => key) as RegisteredCollectionKey[];
 
 /**
@@ -2189,8 +2515,13 @@ export const REGISTERED_COLLECTION_KEYS = registryEntries
  * at the base of the store config so a registered collection can never be
  * `undefined` at boot (Object.values(undefined) was the crash class).
  */
-export function collectionInitialState(): Record<RegisteredCollectionKey, Record<string, any>> {
-  return Object.fromEntries(REGISTERED_COLLECTION_KEYS.map((key) => [key, {}])) as any;
+export function collectionInitialState(): Record<
+  RegisteredCollectionKey,
+  Record<string, any>
+> {
+  return Object.fromEntries(
+    REGISTERED_COLLECTION_KEYS.map((key) => [key, {}]),
+  ) as any;
 }
 
 /** Typed slots for every registered collection, mixed into InboxStoreState so
@@ -2200,40 +2531,62 @@ export type RegisteredCollectionSlots = {
   [K in RegisteredCollectionKey]: Record<string, any>;
 };
 
-export const DISPATCH_TABLE_MAP: Record<string, { table: string; kind: DispatchTableKind; fields?: readonly string[] }> = Object.fromEntries(
+export const DISPATCH_TABLE_MAP: Record<
+  string,
+  { table: string; kind: DispatchTableKind; fields?: readonly string[] }
+> = Object.fromEntries(
   registryEntries.flatMap(([key, entry]) =>
-    entry.dispatchTable ? [[key, entry.dispatchTable]] : []
-  )
+    entry.dispatchTable ? [[key, entry.dispatchTable]] : [],
+  ),
 );
 
-export const DISPATCH_FIELD_TABLE_MAP: Record<string, { table: string }> = Object.fromEntries(
-  registryEntries.flatMap(([key, entry]) =>
-    entry.dispatchFieldTable ? [[key, { table: entry.dispatchFieldTable }]] : []
-  )
-);
+export const DISPATCH_FIELD_TABLE_MAP: Record<string, { table: string }> =
+  Object.fromEntries(
+    registryEntries.flatMap(([key, entry]) =>
+      entry.dispatchFieldTable
+        ? [[key, { table: entry.dispatchFieldTable }]]
+        : [],
+    ),
+  );
 
 export function isPersistedClientStoreKey(key: string): boolean {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   return !!entry?.persistence;
 }
 
 export function isProtectedSyncCollection(key: string): boolean {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   return !!entry?.localFirst;
 }
 
-export function collectionRowValidator(key: string): ((row: any) => boolean) | undefined {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+export function collectionRowValidator(
+  key: string,
+): ((row: any) => boolean) | undefined {
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   return entry?.validRow;
 }
 
-export function collectionRowListed(key: string): ((row: any) => boolean) | undefined {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+export function collectionRowListed(
+  key: string,
+): ((row: any) => boolean) | undefined {
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   return entry?.listed;
 }
 
-export function collectionRowHydrator(key: string): ClientSyncRegistryEntry["hydrateRow"] {
-  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as ClientSyncRegistryEntry | undefined;
+export function collectionRowHydrator(
+  key: string,
+): ClientSyncRegistryEntry["hydrateRow"] {
+  const entry = CLIENT_SYNC_REGISTRY[key as ClientSyncStoreKey] as
+    | ClientSyncRegistryEntry
+    | undefined;
   return entry?.hydrateRow;
 }
 
@@ -2248,7 +2601,10 @@ export function collectionRowHydrator(key: string): ClientSyncRegistryEntry["hyd
 //
 // Every registry key MUST be classified — the Record type makes an
 // unclassified new key a compile error, so the choice is always conscious.
-export const REPLICATION_CLASSIFICATION: Record<ClientSyncStoreKey, "shared" | "local"> = {
+export const REPLICATION_CLASSIFICATION: Record<
+  ClientSyncStoreKey,
+  "shared" | "local"
+> = {
   repoBrowse: "local",
   repoBrowseAccess: "local",
   settingsData: "shared",
@@ -2468,7 +2824,11 @@ export const REPLICATION_CLASSIFICATION: Record<ClientSyncStoreKey, "shared" | "
 
 /** Collections whose rows enumerate only through useWorkspaceCollection. */
 export const WORKSPACE_SCOPED_KEYS = registryEntries
-  .filter(([key, entry]) => DATA_SCOPE[key] === "workspace" && entry.persistence?.kind === "collection")
+  .filter(
+    ([key, entry]) =>
+      DATA_SCOPE[key] === "workspace" &&
+      entry.persistence?.kind === "collection",
+  )
   .map(([key]) => key) as WorkspaceScopedStoreKey[];
 
 // Ephemeral store slots — never persisted, so never registry keys — that must
@@ -2482,13 +2842,17 @@ export const REPLICATED_EPHEMERAL_KEYS = ["sessionsProjection"] as const;
 
 /** The slice the sync host replicates to follower windows. */
 export const REPLICATED_STORE_KEYS: readonly string[] = [
-  ...(Object.keys(REPLICATION_CLASSIFICATION) as ClientSyncStoreKey[])
-    .filter((key) => REPLICATION_CLASSIFICATION[key] === "shared"),
+  ...(Object.keys(REPLICATION_CLASSIFICATION) as ClientSyncStoreKey[]).filter(
+    (key) => REPLICATION_CLASSIFICATION[key] === "shared",
+  ),
   ...REPLICATED_EPHEMERAL_KEYS,
 ];
 
-const isShared = (key: string) => REPLICATION_CLASSIFICATION[key as ClientSyncStoreKey] === "shared";
-const REPLICATED_TABLE_SET = new Set<string>(REGISTERED_COLLECTION_KEYS.filter(isShared));
+const isShared = (key: string) =>
+  REPLICATION_CLASSIFICATION[key as ClientSyncStoreKey] === "shared";
+const REPLICATED_TABLE_SET = new Set<string>(
+  REGISTERED_COLLECTION_KEYS.filter(isShared),
+);
 
 // A row map ships per row: only the rows a write touched cross the channel.
 // That covers the registered collections and the keys whose rows dispatch per
@@ -2498,7 +2862,12 @@ const REPLICATED_TABLE_SET = new Set<string>(REGISTERED_COLLECTION_KEYS.filter(i
 // renderers after every launch.
 const REPLICATED_COLLECTION_SET = new Set<string>([
   ...REPLICATED_TABLE_SET,
-  ...registryEntries.filter(([key, entry]) => entry.dispatchTable?.kind === "collection" && isShared(key)).map(([key]) => key),
+  ...registryEntries
+    .filter(
+      ([key, entry]) =>
+        entry.dispatchTable?.kind === "collection" && isShared(key),
+    )
+    .map(([key]) => key),
 ]);
 
 /** Whether a replicated key holds an id-keyed row map (vs a whole value). */

@@ -30,12 +30,22 @@
  * that may skip a granted suite is a definite answer that the grant is missing.
  */
 
-import { getPermissionStatus, type PermissionProbeRoute } from "../computer/permissions.js";
+import {
+  getPermissionStatus,
+  type PermissionProbeRoute,
+} from "../computer/permissions.js";
 import { resolveCastInvocation } from "../castInvocation.js";
-import type { ComputerPermissionId, ComputerPermissionStatus, ComputerPermissionStatusResult } from "../computer/types.js";
+import type {
+  ComputerPermissionId,
+  ComputerPermissionStatus,
+  ComputerPermissionStatusResult,
+} from "../computer/types.js";
 
 export type ProbeRoute = PermissionProbeRoute;
-export type ProbeResult = Record<ComputerPermissionId, ComputerPermissionStatus>;
+export type ProbeResult = Record<
+  ComputerPermissionId,
+  ComputerPermissionStatus
+>;
 
 export interface PermissionProbeOptions {
   /** The probe itself. Injected by the tests to fake a wedged helper. */
@@ -60,7 +70,10 @@ export function castLaunch(args: string[]): { cmd: string; args: string[] } {
 }
 
 /** The disclaimed spawn, the way `defaultHelperLaunch` builds it. */
-export function disclaimedHelperLaunch(exe: string, helperArgs: string[]): { cmd: string; args: string[] } {
+export function disclaimedHelperLaunch(
+  exe: string,
+  helperArgs: string[],
+): { cmd: string; args: string[] } {
   return castLaunch(["_disclaimed", "--", exe, ...helperArgs]);
 }
 
@@ -82,17 +95,24 @@ async function attemptProbe(
   } catch (e) {
     return { couldNotAsk: e instanceof Error ? e.message : String(e) };
   }
-  if (answer.helperUnavailableReason) return { couldNotAsk: answer.helperUnavailableReason };
+  if (answer.helperUnavailableReason)
+    return { couldNotAsk: answer.helperUnavailableReason };
   const of = (id: ComputerPermissionId): ComputerPermissionStatus =>
     answer.permissions.find((p) => p.id === id)?.status ?? "not-granted";
-  return { result: { accessibility: of("accessibility"), screenshots: of("screenshots") } };
+  return {
+    result: {
+      accessibility: of("accessibility"),
+      screenshots: of("screenshots"),
+    },
+  };
 }
 
 export async function probeHelperPermissions(
   route: ProbeRoute = "disclaimed",
   opts: PermissionProbeOptions = {},
 ): Promise<ProbeResult> {
-  const status = opts.status ?? ((r: ProbeRoute) => getPermissionStatus({ route: r }));
+  const status =
+    opts.status ?? ((r: ProbeRoute) => getPermissionStatus({ route: r }));
   const attempts = opts.attempts ?? 2;
   const delayMs = opts.delayMs ?? 500;
   const sleep = opts.sleep ?? ((ms: number) => Bun.sleep(ms));
@@ -107,8 +127,8 @@ export async function probeHelperPermissions(
 
   throw new Error(
     `cannot tell what \`codecast computer\` is granted over the ${route} route: ` +
-    `every probe failed to answer (${failures.join("; ")}). Failing instead of ` +
-    `skipping — a suite that skips here reports 0 pass 0 fail and reads as ` +
-    `green on a machine that is granted (ct-49883).`,
+      `every probe failed to answer (${failures.join("; ")}). Failing instead of ` +
+      `skipping — a suite that skips here reports 0 pass 0 fail and reads as ` +
+      `green on a machine that is granted (ct-49883).`,
   );
 }

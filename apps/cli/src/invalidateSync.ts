@@ -6,7 +6,7 @@ export function exponentialBackoffDelay(
   currentFailureCount: number,
   minDelay: number,
   maxDelay: number,
-  maxFailureCount: number
+  maxFailureCount: number,
 ): number {
   const maxDelayRet =
     minDelay +
@@ -47,21 +47,23 @@ export function createBackoff(opts?: BackoffOptions): BackoffFunc {
         // Stop hammering a command that never recovers (a deleted transcript, or any
         // permanently-failing sync) — it used to loop ~2/sec forever. Callers re-arm
         // on the next event, so giving up here is a bounded backoff, not a dead end.
-        if (maxRetries !== undefined && failures >= maxRetries || opts?.retryable?.(e) === false) {
+        if (
+          (maxRetries !== undefined && failures >= maxRetries) ||
+          opts?.retryable?.(e) === false
+        ) {
           throw e;
         }
         const waitForRequest = exponentialBackoffDelay(
           Math.min(failures, maxFailureCount),
           minDelay,
           maxDelay,
-          maxFailureCount
+          maxFailureCount,
         );
         await delay(waitForRequest);
       }
     }
   };
 }
-
 
 export interface InvalidateSyncOptions {
   // Coalesce bursts of invalidations: wait this long after the last event before
@@ -101,7 +103,10 @@ export class InvalidateSync {
   private _backoff: BackoffFunc;
   private _onGiveUp?: (error: unknown) => void;
 
-  constructor(command: () => Promise<void>, options: InvalidateSyncOptions = {}) {
+  constructor(
+    command: () => Promise<void>,
+    options: InvalidateSyncOptions = {},
+  ) {
     this._command = command;
     this._debounceMs = options.debounceMs ?? 0;
     this._maxWaitMs = options.maxWaitMs ?? 0;
@@ -154,7 +159,10 @@ export class InvalidateSync {
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
     }
-    this._debounceTimer = setTimeout(() => this._fireDebounced(), this._debounceMs);
+    this._debounceTimer = setTimeout(
+      () => this._fireDebounced(),
+      this._debounceMs,
+    );
   }
 
   private _fireDebounced(): void {

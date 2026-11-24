@@ -5,10 +5,19 @@ import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
 import { projectTaskCounts } from "@codecast/shared/tasks";
 import type { BoardTask } from "../../../lib/initiatives";
 import { sessionsUnder, type GoalProject } from "../goalsLayout";
-import { countStates, type OrgRole, type OrgTree, type StateCounts } from "../orgTypes";
+import {
+  countStates,
+  type OrgRole,
+  type OrgTree,
+  type StateCounts,
+} from "../orgTypes";
 
 /** What a project line reads off a project row. */
-export type LineProjectRow = GoalProject & { color?: string; target_date?: number; risks?: string[] };
+export type LineProjectRow = GoalProject & {
+  color?: string;
+  target_date?: number;
+  risks?: string[];
+};
 
 export type LineProject = {
   id: string;
@@ -29,7 +38,10 @@ export type LineProject = {
 /** The lead a project names or whose scope lists it. A whole workspace role
  *  covers every project by the rule, which says nothing about this one, so it
  *  is no lead here (the map's Goals lens reads it the same way). */
-export function namedLead(project: GoalProject | undefined, roles: readonly OrgRole[]): OrgRole | null {
+export function namedLead(
+  project: GoalProject | undefined,
+  roles: readonly OrgRole[],
+): OrgRole | null {
   const lead = project ? projectLeadOf(project, roles) : null;
   return lead?.kind === "lead" && lead.by !== "workspace" ? lead.role : null;
 }
@@ -49,18 +61,27 @@ export type LineContext = {
 };
 
 /** A project row's line facts: the counts its own board shows, what is moving under it, and its lead. */
-export function lineProjectOf(row: LineProjectRow, ctx: LineContext): LineProject {
+export function lineProjectOf(
+  row: LineProjectRow,
+  ctx: LineContext,
+): LineProject {
   const n = projectTaskCounts(ctx.tasks, [row._id]);
   const own = ctx.projectSessions?.get(row._id);
   const sessions = own || !ctx.tree ? [] : sessionsUnder(ctx.tree, [row._id]);
   return {
-    id: row._id, title: row.title,
+    id: row._id,
+    title: row.title,
     ...(row.short_id ? { short_id: row.short_id } : {}),
     ...(row.status ? { status: row.status } : {}),
     ...(row.color ? { color: row.color } : {}),
     ...(row.target_date ? { target_date: row.target_date } : {}),
     ...(row.risks?.length ? { risks: row.risks } : {}),
-    counts: ctx.tasksCounted === false ? "counting" : n.total > 0 ? { open: n.total - n.done, done: n.done } : null,
+    counts:
+      ctx.tasksCounted === false
+        ? "counting"
+        : n.total > 0
+          ? { open: n.total - n.done, done: n.done }
+          : null,
     sessions: own ?? (sessions.length ? countStates([...sessions]) : null),
     lead: namedLead(row, ctx.roles),
   };
@@ -73,4 +94,5 @@ export const LINE_COMPACT = "ol-compact";
 
 /** Whether a project's status says something: "active" is the default every
  *  project starts in, so only paused, planning and done are worth a word. */
-export const projectStatusSays = (status: string | null | undefined): boolean => !!status && status !== "active";
+export const projectStatusSays = (status: string | null | undefined): boolean =>
+  !!status && status !== "active";

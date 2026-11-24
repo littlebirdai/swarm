@@ -269,7 +269,10 @@ const noDirectUseEffect = {
   create(context) {
     return {
       CallExpression(node) {
-        if (node.callee.type === "Identifier" && node.callee.name === "useEffect") {
+        if (
+          node.callee.type === "Identifier" &&
+          node.callee.name === "useEffect"
+        ) {
           context.report({
             node,
             message:

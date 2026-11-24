@@ -26,45 +26,77 @@ import * as path from "node:path";
 import { execFileSync, spawn } from "../proc.js";
 import { codecastPath } from "../codecastDir.js";
 import { isPidAlive } from "../workspace/chrome.js";
-import { bornBeforeCaptureSecond, killProcessTree, processGroupTree, snapshotProcessTable, snapshotProcessTableAsync, type ProcRow } from "../processTable.js";
+import {
+  bornBeforeCaptureSecond,
+  killProcessTree,
+  processGroupTree,
+  snapshotProcessTable,
+  snapshotProcessTableAsync,
+  type ProcRow,
+} from "../processTable.js";
 
 /** How long a station's processes have between TERM and KILL. */
 export const STATION_KILL_GRACE_MS = 10_000;
 
 const PS_TIMEOUT_MS = 15_000;
 const groupAlive = (group: number): boolean => {
-  try { process.kill(-group, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
+  try {
+    process.kill(-group, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
 };
-const uniqueRows = (rows: ProcRow[]): ProcRow[] => [...new Map(rows.map((r) => [r.pid, r])).values()];
+const uniqueRows = (rows: ProcRow[]): ProcRow[] => [
+  ...new Map(rows.map((r) => [r.pid, r])).values(),
+];
 
 // A start time read in the second it printed cannot tell a process from the
 // next one to take its pid, so killProcessTree never KILLs such a row
 // (bornBeforeCaptureSecond). A station cut off in its first second would keep
 // its TERM-ignoring processes, so the table is read again once that second is over.
-const msUntilProvable = (rows: ProcRow[]): number => (rows.every(bornBeforeCaptureSecond) ? 0 : 1_050 - (Date.now() % 1_000));
+const msUntilProvable = (rows: ProcRow[]): number =>
+  rows.every(bornBeforeCaptureSecond) ? 0 : 1_050 - (Date.now() % 1_000);
 
-async function readTree(pick: (procs: ProcRow[]) => ProcRow[]): Promise<ProcRow[]> {
-  const rows = pick(await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }));
+async function readTree(
+  pick: (procs: ProcRow[]) => ProcRow[],
+): Promise<ProcRow[]> {
+  const rows = pick(
+    await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }),
+  );
   const wait = msUntilProvable(rows);
   if (!wait) return rows;
   await new Promise((r) => setTimeout(r, wait));
   return pick(await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }));
 }
 
-async function endTree(group: number | null, pick: (procs: ProcRow[]) => ProcRow[], graceMs: number): Promise<void> {
+async function endTree(
+  group: number | null,
+  pick: (procs: ProcRow[]) => ProcRow[],
+  graceMs: number,
+): Promise<void> {
   const rows = await readTree(pick);
   // The group as a whole too: a member forked after the read takes the TERM.
-  if (group !== null) try { process.kill(-group, "SIGTERM"); } catch { /* gone */ }
+  if (group !== null)
+    try {
+      process.kill(-group, "SIGTERM");
+    } catch {
+      /* gone */
+    }
   await killProcessTree(rows, graceMs);
   // What forked into the group during the grace, read and checked the same way.
-  if (group !== null && groupAlive(group)) await killProcessTree(await readTree(pick), 0);
+  if (group !== null && groupAlive(group))
+    await killProcessTree(await readTree(pick), 0);
 }
 
 /**
  * End every process of the station in `group`: TERM, so a trap can clean up,
  * then KILL what is left after `graceMs`, including what the TERM orphaned.
  */
-export async function endStation(group: number, graceMs = STATION_KILL_GRACE_MS): Promise<void> {
+export async function endStation(
+  group: number,
+  graceMs = STATION_KILL_GRACE_MS,
+): Promise<void> {
   if (process.platform === "win32") return;
   await endTree(group, (procs) => processGroupTree(procs, group), graceMs);
 }
@@ -75,9 +107,16 @@ export async function endStation(group: number, graceMs = STATION_KILL_GRACE_MS)
  * the group is kept here: a script that ended cleanly started it to outlive
  * it (a check watcher, a daemon), unlike a station cut off mid-way.
  */
-export async function endGroupLeftovers(group: number, graceMs = STATION_KILL_GRACE_MS): Promise<void> {
+export async function endGroupLeftovers(
+  group: number,
+  graceMs = STATION_KILL_GRACE_MS,
+): Promise<void> {
   if (process.platform === "win32" || !groupAlive(group)) return;
-  await endTree(group, (procs) => procs.filter((p) => p.pgid === group), graceMs);
+  await endTree(
+    group,
+    (procs) => procs.filter((p) => p.pgid === group),
+    graceMs,
+  );
 }
 
 // The KILL a runner on its way out leaves behind: after the grace, each pid
@@ -98,7 +137,10 @@ export const KILL_IF_SAME = [
  * work): TERM now, and a detached shell sends the identity-checked KILL after
  * the grace, since this process will not be there to.
  */
-export function endStationsOnExit(groups: Iterable<number>, graceMs = STATION_KILL_GRACE_MS): void {
+export function endStationsOnExit(
+  groups: Iterable<number>,
+  graceMs = STATION_KILL_GRACE_MS,
+): void {
   if (process.platform === "win32") return;
   const list = [...groups];
   if (!list.length) return;
@@ -112,18 +154,46 @@ export function endStationsOnExit(groups: Iterable<number>, graceMs = STATION_KI
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
     rows = read();
   }
-  for (const r of rows) try { process.kill(r.pid, "SIGTERM"); } catch { /* gone */ }
-  for (const g of list) try { process.kill(-g, "SIGTERM"); } catch { /* gone */ }
-  const proven = rows.filter((r) => r.pid > 1 && r.pid !== process.pid && r.pgid !== undefined && bornBeforeCaptureSecond(r));
+  for (const r of rows)
+    try {
+      process.kill(r.pid, "SIGTERM");
+    } catch {
+      /* gone */
+    }
+  for (const g of list)
+    try {
+      process.kill(-g, "SIGTERM");
+    } catch {
+      /* gone */
+    }
+  const proven = rows.filter(
+    (r) =>
+      r.pid > 1 &&
+      r.pid !== process.pid &&
+      r.pgid !== undefined &&
+      bornBeforeCaptureSecond(r),
+  );
   if (!proven.length) return;
   try {
-    spawn("sh", ["-c", KILL_IF_SAME, "sh", String(graceMs / 1000), ...proven.flatMap((r) => [String(r.pid), `${r.pgid} ${r.startedAt}`])], {
-      detached: true,
-      stdio: "ignore",
-      // lstart is localized; the rows were read under C (processTable.ts).
-      env: { ...process.env, LANG: "C", LC_ALL: "C" },
-    }).unref();
-  } catch { /* nothing left to escalate with */ }
+    spawn(
+      "sh",
+      [
+        "-c",
+        KILL_IF_SAME,
+        "sh",
+        String(graceMs / 1000),
+        ...proven.flatMap((r) => [String(r.pid), `${r.pgid} ${r.startedAt}`]),
+      ],
+      {
+        detached: true,
+        stdio: "ignore",
+        // lstart is localized; the rows were read under C (processTable.ts).
+        env: { ...process.env, LANG: "C", LC_ALL: "C" },
+      },
+    ).unref();
+  } catch {
+    /* nothing left to escalate with */
+  }
 }
 
 // ─── The runner's record of its stations ──────────────────
@@ -141,39 +211,66 @@ export function endStationsOnExit(groups: Iterable<number>, graceMs = STATION_KI
 
 /** One station process as a record names it: its pid, its group and its `ps lstart`. */
 export type StationProc = { pid: number; pgid: number; start: string };
-type StationRecord = { runner: number; written: number; groups: Array<{ pgid: number; procs: StationProc[] }> };
+type StationRecord = {
+  runner: number;
+  written: number;
+  groups: Array<{ pgid: number; procs: StationProc[] }>;
+};
 
 /** A record older than this is dropped: no station runs this long without its runner writing again. */
 export const RECORD_MAX_AGE_MS = 2 * 24 * 3_600_000;
 
-export const stationRecordDir = (): string => codecastPath("workflow-runs", "stations");
-const recordFile = (pid = process.pid): string => path.join(stationRecordDir(), `${pid}.json`);
+export const stationRecordDir = (): string =>
+  codecastPath("workflow-runs", "stations");
+const recordFile = (pid = process.pid): string =>
+  path.join(stationRecordDir(), `${pid}.json`);
 
 /** Write this runner's running stations with their processes, or remove the record when none runs. */
-export function recordStations(groups: Array<{ pgid: number; procs: StationProc[] }>): void {
+export function recordStations(
+  groups: Array<{ pgid: number; procs: StationProc[] }>,
+): void {
   const file = recordFile();
   try {
-    if (!groups.length) { fs.rmSync(file, { force: true }); return; }
+    if (!groups.length) {
+      fs.rmSync(file, { force: true });
+      return;
+    }
     fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-    const body: StationRecord = { runner: process.pid, written: Date.now(), groups };
+    const body: StationRecord = {
+      runner: process.pid,
+      written: Date.now(),
+      groups,
+    };
     fs.writeFileSync(`${file}.tmp`, JSON.stringify(body), { mode: 0o600 });
     fs.renameSync(`${file}.tmp`, file);
-  } catch { /* the record is a backstop; the station runs without it */ }
+  } catch {
+    /* the record is a backstop; the station runs without it */
+  }
 }
 
 /** When this machine booted, in ms, or null when it cannot be read. */
 export function bootTimeMs(): number | null {
   try {
     if (process.platform === "linux") {
-      const btime = /^btime (\d+)$/m.exec(fs.readFileSync("/proc/stat", "utf-8"))?.[1];
+      const btime = /^btime (\d+)$/m.exec(
+        fs.readFileSync("/proc/stat", "utf-8"),
+      )?.[1];
       return btime ? Number(btime) * 1000 : null;
     }
-    const sec = /sec = (\d+)/.exec(execFileSync("sysctl", ["-n", "kern.boottime"], { encoding: "utf-8", timeout: 5_000 }))?.[1];
+    const sec = /sec = (\d+)/.exec(
+      execFileSync("sysctl", ["-n", "kern.boottime"], {
+        encoding: "utf-8",
+        timeout: 5_000,
+      }),
+    )?.[1];
     return sec ? Number(sec) * 1000 : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-const sameAs = (p: ProcRow, k: StationProc): boolean => p.pid === k.pid && p.pgid === k.pgid && p.startedAt === k.start;
+const sameAs = (p: ProcRow, k: StationProc): boolean =>
+  p.pid === k.pid && p.pgid === k.pgid && p.startedAt === k.start;
 
 /**
  * What `known` still proves in this read: each process that matches one by
@@ -181,24 +278,47 @@ const sameAs = (p: ProcRow, k: StationProc): boolean => p.pid === k.pid && p.pgi
  * group one of them leads (a group id is not reused while its leader lives).
  * Never `self`, its group, or init.
  */
-export function provenTree(procs: ProcRow[], known: StationProc[], self = process.pid): ProcRow[] {
+export function provenTree(
+  procs: ProcRow[],
+  known: StationProc[],
+  self = process.pid,
+): ProcRow[] {
   const selfGroup = procs.find((p) => p.pid === self)?.pgid;
   const found = new Map<number, ProcRow>();
   const queue = procs.filter((p) => known.some((k) => sameAs(p, k)));
   while (queue.length) {
     const p = queue.pop()!;
-    if (found.has(p.pid) || p.pid === self || p.pid <= 1 || p.pgid === selfGroup) continue;
+    if (
+      found.has(p.pid) ||
+      p.pid === self ||
+      p.pid <= 1 ||
+      p.pgid === selfGroup
+    )
+      continue;
     found.set(p.pid, p);
-    queue.push(...procs.filter((c) => c.ppid === p.pid || (p.pid === p.pgid && c.pgid === p.pid)));
+    queue.push(
+      ...procs.filter(
+        (c) => c.ppid === p.pid || (p.pid === p.pgid && c.pgid === p.pid),
+      ),
+    );
   }
   return [...found.values()];
 }
 
 /** The processes of the running station in `group` as its record names them: its group's tree, and what `known` still proves. */
-export async function readStationProcs(group: number, known: StationProc[]): Promise<StationProc[]> {
+export async function readStationProcs(
+  group: number,
+  known: StationProc[],
+): Promise<StationProc[]> {
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
-  return uniqueRows([...processGroupTree(procs, group), ...provenTree(procs, known)])
-    .filter((p): p is ProcRow & { pgid: number; startedAt: string } => p.pgid !== undefined && !!p.startedAt)
+  return uniqueRows([
+    ...processGroupTree(procs, group),
+    ...provenTree(procs, known),
+  ])
+    .filter(
+      (p): p is ProcRow & { pgid: number; startedAt: string } =>
+        p.pgid !== undefined && !!p.startedAt,
+    )
     .map((p) => ({ pid: p.pid, pgid: p.pgid, start: p.startedAt }));
 }
 
@@ -207,19 +327,35 @@ export async function readStationProcs(group: number, known: StationProc[]): Pro
  * below JS): the processes their records still prove (provenTree). Returns the
  * groups it ended processes of.
  */
-export async function reapDeadRunnerStations(dir = stationRecordDir(), graceMs = STATION_KILL_GRACE_MS): Promise<number[]> {
+export async function reapDeadRunnerStations(
+  dir = stationRecordDir(),
+  graceMs = STATION_KILL_GRACE_MS,
+): Promise<number[]> {
   if (process.platform === "win32") return [];
   let files: string[];
-  try { files = fs.readdirSync(dir).filter((f) => f.endsWith(".json")); } catch { return []; }
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
   if (!files.length) return [];
   const boot = bootTimeMs() ?? 0;
   const dead: StationRecord[] = [];
   for (const f of files) {
     const file = path.join(dir, f);
     let rec: StationRecord;
-    try { rec = JSON.parse(fs.readFileSync(file, "utf-8")); } catch { fs.rmSync(file, { force: true }); continue; }
-    const stale = !(rec.written > boot) || Date.now() - rec.written > RECORD_MAX_AGE_MS || !Array.isArray(rec.groups);
-    if (!stale && (rec.runner === process.pid || isPidAlive(rec.runner))) continue;
+    try {
+      rec = JSON.parse(fs.readFileSync(file, "utf-8"));
+    } catch {
+      fs.rmSync(file, { force: true });
+      continue;
+    }
+    const stale =
+      !(rec.written > boot) ||
+      Date.now() - rec.written > RECORD_MAX_AGE_MS ||
+      !Array.isArray(rec.groups);
+    if (!stale && (rec.runner === process.pid || isPidAlive(rec.runner)))
+      continue;
     fs.rmSync(file, { force: true });
     if (!stale) dead.push(rec);
   }
@@ -232,7 +368,13 @@ export async function reapDeadRunnerStations(dir = stationRecordDir(), graceMs =
     if (!rows.length) continue;
     ended.push(pgid);
     // The group as a whole takes the TERM only while its leader is proven, the group id with it.
-    ends.push(endTree(rows.some((r) => r.pid === pgid) ? pgid : null, (now) => provenTree(now, known), graceMs));
+    ends.push(
+      endTree(
+        rows.some((r) => r.pid === pgid) ? pgid : null,
+        (now) => provenTree(now, known),
+        graceMs,
+      ),
+    );
   }
   await Promise.all(ends);
   return ended;

@@ -149,15 +149,28 @@ export const PAGE_LIB = String.raw`
 `;
 
 /** Which states mean the face is engaged with the viewer (or in a call). */
-export const ENGAGED = new Set(["talking-to-me", "hearing-me", "live-with-me", "joining", "speaking", "ringing-them", "ringing-me", "in-call"]);
+export const ENGAGED = new Set([
+  "talking-to-me",
+  "hearing-me",
+  "live-with-me",
+  "joining",
+  "speaking",
+  "ringing-them",
+  "ringing-me",
+  "in-call",
+]);
 
 /**
  * The seam assertion: a face's states across a leg never read engaged, then
  * presence (or absent), then engaged again. Returns the offending triples.
  */
 export function offThenOn(log, id) {
-  const seq = log.filter((e) => e.id === id && e.to !== undefined).map((e) => e.to);
-  const init = log.find((e) => e.init)?.init?.entries.find((e) => e.id === id)?.state;
+  const seq = log
+    .filter((e) => e.id === id && e.to !== undefined)
+    .map((e) => e.to);
+  const init = log
+    .find((e) => e.init)
+    ?.init?.entries.find((e) => e.id === id)?.state;
   const states = init ? [init, ...seq] : seq;
   const bad = [];
   let seenEngaged = false;

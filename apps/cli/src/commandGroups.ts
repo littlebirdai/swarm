@@ -43,18 +43,24 @@ export const COMMAND_GROUPS: readonly CommandGroup[] = [
   // Live artifacts (liveArtifactCommand.ts): one module, three groups, verbs from the shared specs.
   {
     token: "board",
-    description: "Read and edit boards: canvases people and agent sessions work on together",
-    load: () => import("./liveArtifactCommand.js").then((m) => m.registerBoardCommand),
+    description:
+      "Read and edit boards: canvases people and agent sessions work on together",
+    load: () =>
+      import("./liveArtifactCommand.js").then((m) => m.registerBoardCommand),
   },
   {
     token: "sheet",
-    description: "Read and edit sheets: spreadsheets people and agent sessions work on together",
-    load: () => import("./liveArtifactCommand.js").then((m) => m.registerSheetCommand),
+    description:
+      "Read and edit sheets: spreadsheets people and agent sessions work on together",
+    load: () =>
+      import("./liveArtifactCommand.js").then((m) => m.registerSheetCommand),
   },
   {
     token: "data",
-    description: "Read and edit dashboards: data views people and agent sessions build together",
-    load: () => import("./liveArtifactCommand.js").then((m) => m.registerDataCommand),
+    description:
+      "Read and edit dashboards: data views people and agent sessions build together",
+    load: () =>
+      import("./liveArtifactCommand.js").then((m) => m.registerDataCommand),
   },
   {
     token: "datasync",
@@ -65,18 +71,23 @@ export const COMMAND_GROUPS: readonly CommandGroup[] = [
   cast datasync add <dir>   share a folder under $HOME without a repo declaring it
 
 A repo declares one in .codecast/workspace.toml: [host] data = ["~/.local/share/<tool>/<dir>"].`,
-    load: () => import("./dataSync/command.js").then((m) => m.registerDataSyncCommand),
+    load: () =>
+      import("./dataSync/command.js").then((m) => m.registerDataSyncCommand),
   },
   {
     token: "sharing",
     hasOptions: true,
-    description: "See and change what syncs to codecast and what each team sees of it",
-    load: () => import("./sharing/command.js").then((m) => m.registerSharingCommand),
+    description:
+      "See and change what syncs to codecast and what each team sees of it",
+    load: () =>
+      import("./sharing/command.js").then((m) => m.registerSharingCommand),
   },
   {
     token: "review",
-    description: "Collect review notes on files and lines, then hand the batch to a session",
-    load: () => import("./reviewCommand.js").then((m) => m.registerReviewCommand),
+    description:
+      "Collect review notes on files and lines, then hand the batch to a session",
+    load: () =>
+      import("./reviewCommand.js").then((m) => m.registerReviewCommand),
   },
   {
     token: "workspace",
@@ -87,7 +98,8 @@ A repo declares one in .codecast/workspace.toml: [host] data = ["~/.local/share/
   cd "$(cast ws path fix-auth)"   its absolute path
   cast ws ls                      every tracked workspace
   cast ws destroy fix-auth        run its teardown and remove the worktree`,
-    load: () => import("./workspace/cli.js").then((m) => m.registerWorkspaceCommand),
+    load: () =>
+      import("./workspace/cli.js").then((m) => m.registerWorkspaceCommand),
   },
   {
     token: "land",
@@ -99,7 +111,8 @@ A repo declares one in .codecast/workspace.toml: [host] data = ["~/.local/share/
     args: ["[service...]"],
     hasOptions: true,
     description: `Start (or reuse) this checkout's dev server on its own port and print the URL`,
-    load: () => import("./workspace/devCli.js").then((m) => m.registerDevCommand),
+    load: () =>
+      import("./workspace/devCli.js").then((m) => m.registerDevCommand),
   },
   {
     token: "remote",
@@ -134,21 +147,31 @@ A repo declares one in .codecast/workspace.toml: [host] data = ["~/.local/share/
     args: ["[operation]"],
     hasOptions: true,
     description: `Git credential helper: a GitHub App installation token for this cloud host`,
-    load: () => import("./cloud/gitCredential.js").then((m) => m.registerGitCredentialCommand),
+    load: () =>
+      import("./cloud/gitCredential.js").then(
+        (m) => m.registerGitCredentialCommand,
+      ),
   },
   {
     token: "flow",
-    description: "Flows: the team's library (ls, show, run, import, publish, validate), this repository's pipeline, its live flows (show, on, off), and a flow's profile, finders, steps, trials, deploys, judges and moments",
-    load: () => Promise.all([import("./flowCommand.js"), import("./lineCommand.js"), import("./flowVersionsCommand.js")]).then(([f, l, fv]) => (program: Command, deps: GroupDeps) => {
-      const flow = f.registerFlowCommands(program, deps.flow);
-      l.registerLineSubcommands(flow, deps);
-      fv.registerFlowVersionCommands(flow, deps.flow);
-    }),
+    description:
+      "Flows: the team's library (ls, show, run, import, publish, validate), this repository's pipeline, its live flows (show, on, off), and a flow's profile, finders, steps, trials, deploys, judges and moments",
+    load: () =>
+      Promise.all([
+        import("./flowCommand.js"),
+        import("./lineCommand.js"),
+        import("./flowVersionsCommand.js"),
+      ]).then(([f, l, fv]) => (program: Command, deps: GroupDeps) => {
+        const flow = f.registerFlowCommands(program, deps.flow);
+        l.registerLineSubcommands(flow, deps);
+        fv.registerFlowVersionCommands(flow, deps.flow);
+      }),
   },
   {
     token: "migrate",
     description: `Move many sessions between this machine and a cloud host at once`,
-    load: () => import("./migrate/cli.js").then((m) => m.registerMigrateCommand),
+    load: () =>
+      import("./migrate/cli.js").then((m) => m.registerMigrateCommand),
   },
   {
     token: "hosts",
@@ -174,11 +197,12 @@ A repo declares one in .codecast/workspace.toml: [host] data = ["~/.local/share/
   cast devices ssh-host <device> <host> how attach commands reach it
 
 A device is an id prefix or part of its name. Cloud instances themselves: cast hosts.`,
-    load: () => import("./devices/command.js").then((m) => m.registerDevicesCommand),
+    load: () =>
+      import("./devices/command.js").then((m) => m.registerDevicesCommand),
   },
   {
     token: "publish",
-    args: ["[target]","[args...]"],
+    args: ["[target]", "[args...]"],
     hasOptions: true,
     description: `Publish an HTML/markdown file or a directory bundle to a shareable codecast.sh/a/<slug> URL
 
@@ -195,16 +219,20 @@ Subcommands:
   cast publish links <slug|path>           share / manage / edit / source / live URLs
   cast publish set <slug|path> [flags]     Change gates or title WITHOUT republishing`,
     load: () => import("./publish.js").then((m) => m.registerPublishCommand),
-    policy: { key: "public_sharing_disabled", allow: ["ls", "rm", "comments", "viewers"] },
+    policy: {
+      key: "public_sharing_disabled",
+      allow: ["ls", "rm", "comments", "viewers"],
+    },
   },
   {
     token: "cap",
     description: `Capabilities across your machines: skills, plugins, MCP servers, hooks`,
-    load: () => import("./capabilities/cli.js").then((m) => m.registerCapabilityCommand),
+    load: () =>
+      import("./capabilities/cli.js").then((m) => m.registerCapabilityCommand),
   },
   {
     token: "decide",
-    args: ["[question]","[args...]"],
+    args: ["[question]", "[args...]"],
     hasOptions: true,
     description: `Hand your human one decision: question, options, and the context to choose
 
@@ -249,7 +277,8 @@ Examples:
   …
   EOF
   cast decide cancel                           # the question no longer applies`,
-    load: () => import("./decideCommand.js").then((m) => m.registerDecideCommand),
+    load: () =>
+      import("./decideCommand.js").then((m) => m.registerDecideCommand),
   },
   {
     token: "stack",
@@ -274,7 +303,8 @@ Examples:
   cast signal add --source <finder> --kind <kind> --title "<one line>" [--fingerprint <key>] [--detail -] [--url <url>] [--subject <ref>] [--goal-hint <metric>]
   cast signal ls [--task ct-N] [--source <finder>]
   cast signal show sg-N`,
-    load: () => import("./signalCommand.js").then((m) => m.registerSignalCommand),
+    load: () =>
+      import("./signalCommand.js").then((m) => m.registerSignalCommand),
   },
   {
     token: "deploy",
@@ -286,12 +316,14 @@ Examples:
   cast deploy cli mobile        just those targets, whatever their policy
   cast deploy --dry-run         what it would send, wait for and leave alone, and why
   cast deploy --files "<paths>" only the targets these files touch`,
-    load: () => import("./deployCommand.js").then((m) => m.registerDeployCommand),
+    load: () =>
+      import("./deployCommand.js").then((m) => m.registerDeployCommand),
   },
   {
     token: "line",
     hidden: true,
-    description: "The older name for cast flow's working commands: the same subcommands, the same output",
+    description:
+      "The older name for cast flow's working commands: the same subcommands, the same output",
     load: () => import("./lineCommand.js").then((m) => m.registerLineCommand),
   },
   {
@@ -343,7 +375,8 @@ An action is its id (session.next) or words from its name ("next session").
 Chords read the way people write them: ctrl+j, cmd+shift+k, alt+enter, ?.
 cmd means ⌘ on a Mac and Ctrl elsewhere. A chord another action holds is
 refused unless --steal (take it) or --keep-both (yours fires first).`,
-    load: () => import("./shortcutsCommand.js").then((m) => m.registerShortcutsCommand),
+    load: () =>
+      import("./shortcutsCommand.js").then((m) => m.registerShortcutsCommand),
   },
   {
     token: "goals",
@@ -388,7 +421,10 @@ is grounded against: its own project's, else its workspace's.`,
 --brief is what a judge reads: the active lines with ids under the version a
 finding cites. A proposal that only adds lines, each in a person's quoted,
 dated words, applies on its own; any other change waits for the project's person.`,
-    load: () => import("./expectationsCommand.js").then((m) => m.registerExpectationsCommand),
+    load: () =>
+      import("./expectationsCommand.js").then(
+        (m) => m.registerExpectationsCommand,
+      ),
   },
   {
     token: "card",
@@ -499,7 +535,8 @@ Examples:
     token: "integrations",
     aliases: ["integration"],
     description: `Connect Slack, GitHub, Linear, Gmail and Notion; sync issues into tasks`,
-    load: () => import("./integrations.js").then((m) => m.registerIntegrationsCommand),
+    load: () =>
+      import("./integrations.js").then((m) => m.registerIntegrationsCommand),
   },
   {
     token: "pr",
@@ -570,7 +607,8 @@ add and key rotate record the source in the checkout's codecast.json (--write
 An app source is called with codecast's signature, so it needs no secret.
 Sentry and PostHog read through the workspace's connection, which holds the
 host and token: cast integrations connect <provider>`,
-    load: () => import("./sourcesCommand.js").then((m) => m.registerSourcesCommand),
+    load: () =>
+      import("./sourcesCommand.js").then((m) => m.registerSourcesCommand),
   },
   {
     token: "events",
@@ -581,17 +619,21 @@ host and token: cast integrations connect <provider>`,
   cast events show eg-N
   cast events resolve eg-N [--in <release>]
   cast events ignore eg-N`,
-    load: () => import("./eventsCommand.js").then((m) => m.registerEventsCommand),
+    load: () =>
+      import("./eventsCommand.js").then((m) => m.registerEventsCommand),
   },
   {
     token: "timeline",
-    description: "A workspace's work as major events, oldest first: tasks opened and closed, changes landed",
+    description:
+      "A workspace's work as major events, oldest first: tasks opened and closed, changes landed",
     hasOptions: true,
-    load: () => import("./timelineCommand.js").then((m) => m.registerTimelineCommand),
+    load: () =>
+      import("./timelineCommand.js").then((m) => m.registerTimelineCommand),
   },
   {
     token: "typed",
-    description: "When you typed messages into codecast sessions, on every machine and workspace: time, session and length, no text",
+    description:
+      "When you typed messages into codecast sessions, on every machine and workspace: time, session and length, no text",
     hasOptions: true,
     load: () => import("./typedCommand.js").then((m) => m.registerTypedCommand),
   },
@@ -604,7 +646,8 @@ host and token: cast integrations connect <provider>`,
   cast replay snap rp-N@1:23 | rp-N@1:00-2:30 [--every 10s]
   cast replay repro rp-N [--base-url https://app] [--out file]
   cast replay import --source <posthog|sentry> [--since 30d|all] [--status|--stop]`,
-    load: () => import("./replayCommand.js").then((m) => m.registerReplayCommand),
+    load: () =>
+      import("./replayCommand.js").then((m) => m.registerReplayCommand),
   },
   {
     token: "metrics",
@@ -618,7 +661,8 @@ host and token: cast integrations connect <provider>`,
   cast metrics query "<hogql>" --source <source>
 
 --source is a posthog or app source's name as cast sources ls prints it, not the provider.`,
-    load: () => import("./metricsCommand.js").then((m) => m.registerMetricsCommand),
+    load: () =>
+      import("./metricsCommand.js").then((m) => m.registerMetricsCommand),
   },
   {
     token: "connector",
@@ -628,7 +672,8 @@ host and token: cast integrations connect <provider>`,
   cast connector read <source> <reader> [--arg k=v] [--args -]
   cast connector do <source> <action> [--arg k=v] [--yes] [--idempotency-key k]
   cast connector grant|revoke <source> <action>   (a person grants in the browser; this prints where)`,
-    load: () => import("./connectorCommand.js").then((m) => m.registerConnectorCommand),
+    load: () =>
+      import("./connectorCommand.js").then((m) => m.registerConnectorCommand),
   },
   {
     token: "vault",
@@ -654,7 +699,8 @@ host and token: cast integrations connect <provider>`,
 Exit 3 from get, run, env or otp: an Ask first secret waits on a person. Nothing was read; stderr names the decision.
 Missing a credential? Request it, never ask for it in chat. Prefer run over get.
 Local markdown folders moved to cast files.`,
-    load: () => import("./secrets/command.js").then((m) => m.registerVaultCommand),
+    load: () =>
+      import("./secrets/command.js").then((m) => m.registerVaultCommand),
   },
   {
     token: "switch",
@@ -669,14 +715,16 @@ Examples:
   cast switch --model opus
   cast switch --agent claude --model sonnet
   cast switch --agent codex --fork     # optional: a new session instead`,
-    load: () => import("./switchCommand.js").then((m) => m.registerSwitchCommand),
+    load: () =>
+      import("./switchCommand.js").then((m) => m.registerSwitchCommand),
   },
   {
     token: "browser",
     aliases: ["br"],
     hasOptions: true,
     description: `Drive a real Chrome: snapshot pages, click, type, screenshot, read console`,
-    load: () => import("./browser/cli.js").then((m) => m.registerBrowserCommand),
+    load: () =>
+      import("./browser/cli.js").then((m) => m.registerBrowserCommand),
     policy: { key: "browser_control_disabled" },
   },
   {
@@ -684,7 +732,8 @@ Examples:
     args: ["<url>"],
     hasOptions: true,
     description: `Offer a page to your human as a pane beside this session (alias of cast browser pane)`,
-    load: () => import("./browser/paneOffer.js").then((m) => m.registerPreviewCommand),
+    load: () =>
+      import("./browser/paneOffer.js").then((m) => m.registerPreviewCommand),
     policy: { key: "browser_control_disabled" },
   },
   {
@@ -696,7 +745,10 @@ Examples:
   {
     token: "computer",
     description: `Drive a native app (macOS, or Linux on X11) through its accessibility tree (cast browser is still the tool for web pages)`,
-    load: () => import("./computer/cli.js").then((m) => (program: Command) => m.registerComputerCommand(program)),
+    load: () =>
+      import("./computer/cli.js").then(
+        (m) => (program: Command) => m.registerComputerCommand(program),
+      ),
     policy: { key: "computer_control_disabled" },
   },
   {
@@ -787,7 +839,9 @@ for (const group of COMMAND_GROUPS) {
 }
 
 /** The group a first token names, by token or by alias. */
-export function groupForToken(token: string | undefined): CommandGroup | undefined {
+export function groupForToken(
+  token: string | undefined,
+): CommandGroup | undefined {
   return token === undefined ? undefined : BY_TOKEN.get(token);
 }
 

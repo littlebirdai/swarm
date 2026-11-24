@@ -5,7 +5,14 @@ import { expect, test } from "bun:test";
 import { ingestRunStatus } from "./workflow_runs";
 
 test("live and finished statuses pass through", () => {
-  for (const s of ["pending", "running", "paused", "completed", "failed"] as const) expect(ingestRunStatus(s)).toBe(s);
+  for (const s of [
+    "pending",
+    "running",
+    "paused",
+    "completed",
+    "failed",
+  ] as const)
+    expect(ingestRunStatus(s)).toBe(s);
 });
 
 test("a stopped or unknown status is over, never running", () => {

@@ -13,27 +13,40 @@ type Ctx = { db: any };
 // Long enough for any real chain; a corrupt one cannot spin.
 const MAX_PERSON_DEPTH = 64;
 
-async function membershipOf(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams">): Promise<any | null> {
+async function membershipOf(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+): Promise<any | null> {
   return await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .first();
 }
 
 /** The member ids of a team mapped to who each reports to, keeping only a
  *  manager who is still a member. A pointer to someone who left reads as no
  *  manager, so nothing has to chase membership deletes. */
-export function personReportsToMap(memberships: Array<{ user_id: any; reports_to_user_id?: any }>): Map<string, string> {
+export function personReportsToMap(
+  memberships: Array<{ user_id: any; reports_to_user_id?: any }>,
+): Map<string, string> {
   const members = new Set(memberships.map((m) => String(m.user_id)));
   const out = new Map<string, string>();
   for (const m of memberships) {
     const to = m.reports_to_user_id ? String(m.reports_to_user_id) : null;
-    if (to && to !== String(m.user_id) && members.has(to)) out.set(String(m.user_id), to);
+    if (to && to !== String(m.user_id) && members.has(to))
+      out.set(String(m.user_id), to);
   }
   return out;
 }
 
-export type ReparentPersonArgs = { team_id: Id<"teams">; user_id: Id<"users">; reports_to_user_id: Id<"users"> | null };
+export type ReparentPersonArgs = {
+  team_id: Id<"teams">;
+  user_id: Id<"users">;
+  reports_to_user_id: Id<"users"> | null;
+};
 
 /**
  * Set who `user_id` reports to (null: nobody). Who may: a team admin, the
@@ -41,29 +54,54 @@ export type ReparentPersonArgs = { team_id: Id<"teams">; user_id: Id<"users">; r
  * also let a report go (set null). Both must be members of the team, and the
  * move may not close a loop.
  */
-export async function performReparentPerson(ctx: Ctx, callerId: Id<"users">, args: ReparentPersonArgs): Promise<{ user_id: Id<"users">; reports_to_user_id: Id<"users"> | null; changed: boolean }> {
+export async function performReparentPerson(
+  ctx: Ctx,
+  callerId: Id<"users">,
+  args: ReparentPersonArgs,
+): Promise<{
+  user_id: Id<"users">;
+  reports_to_user_id: Id<"users"> | null;
+  changed: boolean;
+}> {
   const { team_id, user_id } = args;
   const to = args.reports_to_user_id;
-  const [caller, subject] = await Promise.all([membershipOf(ctx, callerId, team_id), membershipOf(ctx, user_id, team_id)]);
+  const [caller, subject] = await Promise.all([
+    membershipOf(ctx, callerId, team_id),
+    membershipOf(ctx, user_id, team_id),
+  ]);
   if (!caller) throw new Error("Not a member of this team");
   if (!subject) throw new Error("That person is not a member of this team");
   const current: Id<"users"> | null = subject.reports_to_user_id ?? null;
   const isAdmin = caller.role === "admin";
   const me = String(callerId);
-  const allowed = isAdmin || me === String(user_id) || (to !== null && me === String(to)) || (to === null && current !== null && me === String(current));
-  if (!allowed) throw new Error("Only a team admin, the person, or their new manager can change who someone reports to");
+  const allowed =
+    isAdmin ||
+    me === String(user_id) ||
+    (to !== null && me === String(to)) ||
+    (to === null && current !== null && me === String(current));
+  if (!allowed)
+    throw new Error(
+      "Only a team admin, the person, or their new manager can change who someone reports to",
+    );
   if (to !== null) {
-    if (String(to) === String(user_id)) throw new Error("A person cannot report to themself");
-    if (!(await membershipOf(ctx, to, team_id))) throw new Error("A person can only report to a member of the same team");
-    const all = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", team_id)).collect();
+    if (String(to) === String(user_id))
+      throw new Error("A person cannot report to themself");
+    if (!(await membershipOf(ctx, to, team_id)))
+      throw new Error("A person can only report to a member of the same team");
+    const all = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_team_id", (q: any) => q.eq("team_id", team_id))
+      .collect();
     const up = personReportsToMap(all);
     let cur: string | undefined = String(to);
     for (let depth = 0; cur && depth < MAX_PERSON_DEPTH; depth++) {
-      if (cur === String(user_id)) throw new Error("Cycle: that person already reports to them");
+      if (cur === String(user_id))
+        throw new Error("Cycle: that person already reports to them");
       cur = up.get(cur);
     }
   }
-  if (String(current ?? "") === String(to ?? "")) return { user_id, reports_to_user_id: to, changed: false };
+  if (String(current ?? "") === String(to ?? ""))
+    return { user_id, reports_to_user_id: to, changed: false };
   await ctx.db.patch(subject._id, { reports_to_user_id: to ?? undefined });
   return { user_id, reports_to_user_id: to, changed: true };
 }
@@ -78,8 +116,13 @@ export const reparentPerson = mutation({
   },
   handler: async (ctx, { api_token, ...args }) => {
     const userId = await getAuthenticatedUserId(ctx, api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
-    await requireWorkspaceFeature(ctx, { team_id: args.team_id, user_id: userId }, "org");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
+    await requireWorkspaceFeature(
+      ctx,
+      { team_id: args.team_id, user_id: userId },
+      "org",
+    );
     return performReparentPerson(ctx, userId, args);
   },
 });

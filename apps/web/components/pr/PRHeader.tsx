@@ -70,7 +70,10 @@ function EditableTitle({ pr, editNonce = 0 }: { pr: any; editNonce?: number }) {
           type="button"
           className="ml-2 inline-flex align-middle text-sol-text-dim opacity-0 group-hover/title:opacity-100 hover:text-sol-text transition-opacity"
           title="Edit the title"
-          onClick={() => { setDraft(pr.title); setEditing(true); }}
+          onClick={() => {
+            setDraft(pr.title);
+            setEditing(true);
+          }}
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -85,7 +88,11 @@ function EditableTitle({ pr, editNonce = 0 }: { pr: any; editNonce?: number }) {
         const title = draft.trim();
         setEditing(false);
         if (!title || title === pr.title) return;
-        const result = await edit({ repository: pr.repository, number: pr.number, title });
+        const result = await edit({
+          repository: pr.repository,
+          number: pr.number,
+          title,
+        });
         if (result?.error) toast.error(result.error);
         else toast.success("Title changed");
       }}
@@ -94,10 +101,14 @@ function EditableTitle({ pr, editNonce = 0 }: { pr: any; editNonce?: number }) {
         autoFocus
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Escape") setEditing(false); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setEditing(false);
+        }}
         className="pr-title-input w-full bg-transparent font-serif text-[26px] leading-tight text-sol-text border-b border-sol-cyan/60 focus:outline-none"
       />
-      <button type="submit" className="cc-comment-btn">Save</button>
+      <button type="submit" className="cc-comment-btn">
+        Save
+      </button>
     </form>
   );
 }
@@ -113,14 +124,26 @@ function MetaChips({ pr }: { pr: any }) {
         <span
           key={label.name}
           className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-meta"
-          style={label.color ? { borderColor: `#${label.color}80`, color: `#${label.color}`, background: `#${label.color}14` } : undefined}
+          style={
+            label.color
+              ? {
+                  borderColor: `#${label.color}80`,
+                  color: `#${label.color}`,
+                  background: `#${label.color}14`,
+                }
+              : undefined
+          }
         >
           <Tag className="w-3 h-3 opacity-70" />
           {label.name}
         </span>
       ))}
       {assignees.map((login) => (
-        <span key={login} className="inline-flex items-center gap-1 rounded-full border border-sol-border/50 px-2 py-0.5 text-meta text-sol-text-muted" title="Assigned">
+        <span
+          key={login}
+          className="inline-flex items-center gap-1 rounded-full border border-sol-border/50 px-2 py-0.5 text-meta text-sol-text-muted"
+          title="Assigned"
+        >
           <UserRound className="w-3 h-3 opacity-70" />
           {login}
         </span>
@@ -185,7 +208,13 @@ function CopyRef({ text }: { text: string }) {
 
 /** One status figure. With `href` or `onClick` it is the way into its detail
  *  (the checks view, the diff, the first open thread). */
-function Figure({ label, children, href, onClick, title }: {
+function Figure({
+  label,
+  children,
+  href,
+  onClick,
+  title,
+}: {
   label: string;
   children: React.ReactNode;
   href?: string;
@@ -194,32 +223,69 @@ function Figure({ label, children, href, onClick, title }: {
 }) {
   const body = (
     <>
-      <span className="text-mark uppercase tracking-wider text-sol-text-dim group-hover/fig:text-sol-text-muted transition-colors">{label}</span>
-      <span className="text-[12px] text-sol-text flex items-center gap-2">{children}</span>
+      <span className="text-mark uppercase tracking-wider text-sol-text-dim group-hover/fig:text-sol-text-muted transition-colors">
+        {label}
+      </span>
+      <span className="text-[12px] text-sol-text flex items-center gap-2">
+        {children}
+      </span>
     </>
   );
-  const cls = "group/fig flex flex-col gap-1 rounded-md -mx-1.5 -my-1 px-1.5 py-1 hover:bg-sol-bg-alt/60 transition-colors";
-  if (href) return <Link href={href} className={cls} title={title}>{body}</Link>;
-  if (onClick) return <button type="button" onClick={onClick} className={`${cls} text-left`} title={title}>{body}</button>;
+  const cls =
+    "group/fig flex flex-col gap-1 rounded-md -mx-1.5 -my-1 px-1.5 py-1 hover:bg-sol-bg-alt/60 transition-colors";
+  if (href)
+    return (
+      <Link href={href} className={cls} title={title}>
+        {body}
+      </Link>
+    );
+  if (onClick)
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${cls} text-left`}
+        title={title}
+      >
+        {body}
+      </button>
+    );
   return <div className="flex flex-col gap-1">{body}</div>;
 }
 
 /** The checks bar: one segment per outcome, widths animated in on load. */
 function ChecksBar({ checks }: { checks: any[] | undefined }) {
   const fold = foldChecks(checks);
-  if (fold.total === 0) return <span className="text-sol-text-dim">No checks</span>;
+  if (fold.total === 0)
+    return <span className="text-sol-text-dim">No checks</span>;
   const pct = (n: number) => `${(n / fold.total) * 100}%`;
   return (
     <span className="flex items-center gap-2 min-w-0">
       <span className="pr-seg-track w-24">
-        <span className="pr-seg" style={{ width: pct(fold.passed), background: accentVar("green") }} />
-        <span className="pr-seg" style={{ width: pct(fold.failed), background: accentVar("red") }} />
-        <span className="pr-seg" style={{ width: pct(fold.pending), background: accentVar("yellow") }} />
-        <span className="pr-seg" style={{ width: pct(fold.skipped), background: accentVar("muted") }} />
+        <span
+          className="pr-seg"
+          style={{ width: pct(fold.passed), background: accentVar("green") }}
+        />
+        <span
+          className="pr-seg"
+          style={{ width: pct(fold.failed), background: accentVar("red") }}
+        />
+        <span
+          className="pr-seg"
+          style={{ width: pct(fold.pending), background: accentVar("yellow") }}
+        />
+        <span
+          className="pr-seg"
+          style={{ width: pct(fold.skipped), background: accentVar("muted") }}
+        />
       </span>
       <span className="whitespace-nowrap">
-        {fold.failed > 0 && <span className="text-sol-red">{fold.failed} failed </span>}
-        {fold.pending > 0 && <span className="text-sol-yellow">{fold.pending} running </span>}
+        {fold.failed > 0 && (
+          <span className="text-sol-red">{fold.failed} failed </span>
+        )}
+        {fold.pending > 0 && (
+          <span className="text-sol-yellow">{fold.pending} running </span>
+        )}
         <span className="text-sol-text-muted">{fold.passed} passed</span>
       </span>
     </span>
@@ -264,7 +330,9 @@ function ShepherdControl({
         {picking && (
           <div className="flex items-center gap-1.5 flex-wrap">
             {sessionChoices.length === 0 ? (
-              <span className="text-meta text-sol-text-dim">No session has worked on this pull request yet</span>
+              <span className="text-meta text-sol-text-dim">
+                No session has worked on this pull request yet
+              </span>
             ) : (
               sessionChoices.map((session) => (
                 <button
@@ -289,18 +357,28 @@ function ShepherdControl({
   return (
     <div
       className="inline-flex items-center gap-2 max-w-full rounded-full border border-sol-border/50 bg-sol-bg-alt/40 pl-2.5 pr-1 py-0.5 text-meta flex-wrap"
-      title={pr.shepherd_last_wake_at
-        ? `${SHEPHERD_EXPLAINED}\n\nLast woke ${relTimeShort(pr.shepherd_last_wake_at)} ago${pr.shepherd_last_wake_reason ? `: ${pr.shepherd_last_wake_reason}` : ""} (${pr.shepherd_wake_count ?? 1} in all).`
-        : SHEPHERD_EXPLAINED}
+      title={
+        pr.shepherd_last_wake_at
+          ? `${SHEPHERD_EXPLAINED}\n\nLast woke ${relTimeShort(pr.shepherd_last_wake_at)} ago${pr.shepherd_last_wake_reason ? `: ${pr.shepherd_last_wake_reason}` : ""} (${pr.shepherd_wake_count ?? 1} in all).`
+          : SHEPHERD_EXPLAINED
+      }
     >
       <span className="inline-flex items-center gap-1.5 text-sol-text-dim">
         <Radio className="w-3 h-3" style={{ color: accentVar(style.accent) }} />
         Shepherd
       </span>
       <span className="min-w-0 max-w-[16rem] truncate">
-        <EntityIdPill type="session" id={bound} fallback={sessionChoices.find((c) => c.id === bound)?.title ?? "Agent session"} />
+        <EntityIdPill
+          type="session"
+          id={bound}
+          fallback={
+            sessionChoices.find((c) => c.id === bound)?.title ?? "Agent session"
+          }
+        />
       </span>
-      {open && <span style={{ color: accentVar(style.accent) }}>{style.phrase}</span>}
+      {open && (
+        <span style={{ color: accentVar(style.accent) }}>{style.phrase}</span>
+      )}
       {open && (
         <button
           type="button"
@@ -308,11 +386,19 @@ function ShepherdControl({
           aria-checked={awake}
           onClick={() => onSetShepherd(bound, !awake)}
           className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 transition-colors ${
-            awake ? "bg-sol-green/10 text-sol-green hover:bg-sol-green/20" : "bg-sol-bg-alt text-sol-text-dim hover:text-sol-text"
+            awake
+              ? "bg-sol-green/10 text-sol-green hover:bg-sol-green/20"
+              : "bg-sol-bg-alt text-sol-text-dim hover:text-sol-text"
           }`}
-          title={awake ? "Changes to this pull request wake the session. Click to pause." : "Paused: changes do not wake the session. Click to resume."}
+          title={
+            awake
+              ? "Changes to this pull request wake the session. Click to pause."
+              : "Paused: changes do not wake the session. Click to resume."
+          }
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${awake ? "bg-sol-green" : "bg-sol-text-dim"}`} />
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${awake ? "bg-sol-green" : "bg-sol-text-dim"}`}
+          />
           {awake ? "Wakes on changes" : "Paused"}
         </button>
       )}
@@ -361,12 +447,16 @@ export function PRHeader({
   const [owner, repo] = repository.split("/");
   const [editNonce, setEditNonce] = useState(0);
   const editTitle = () => setEditNonce((n) => n + 1);
-  const verbs = typeof actions === "function" ? actions({ editTitle }) : actions;
+  const verbs =
+    typeof actions === "function" ? actions({ editTitle }) : actions;
   const deploy = usePrDeploy(pr, repository, authed);
 
   return (
     <header className="pr-band border-b border-sol-border/60 px-5 pt-4 pb-3 shrink-0">
-      <div className="pr-rise pr-head text-meta text-sol-text-dim" style={{ ["--d" as string]: "0ms" }}>
+      <div
+        className="pr-rise pr-head text-meta text-sol-text-dim"
+        style={{ ["--d" as string]: "0ms" }}
+      >
         <span className="inline-flex items-center gap-2 min-w-0">
           <span className="font-mono">{owner}</span>
           <span className="opacity-40">/</span>
@@ -384,7 +474,9 @@ export function PRHeader({
           </a>
         </span>
         <div className="pr-head-actions">
-          {verbs && <span className="flex items-center gap-1.5 flex-wrap">{verbs}</span>}
+          {verbs && (
+            <span className="flex items-center gap-1.5 flex-wrap">{verbs}</span>
+          )}
           <RepoWindowControl />
         </div>
       </div>
@@ -393,7 +485,10 @@ export function PRHeader({
         <EditableTitle pr={pr} editNonce={editNonce} />
       </div>
 
-      <div className="pr-rise mt-2.5 flex items-center gap-3 flex-wrap" style={{ ["--d" as string]: "120ms" }}>
+      <div
+        className="pr-rise mt-2.5 flex items-center gap-3 flex-wrap"
+        style={{ ["--d" as string]: "120ms" }}
+      >
         {/* Where it stands, first: a status, read before who and where. */}
         <Chip accent={state.accent}>
           <StateIcon className="w-3.5 h-3.5" />
@@ -409,9 +504,15 @@ export function PRHeader({
           />
           {pr.author_github_username}
         </span>
-        {pr.head_ref && pr.base_ref && <CopyRef text={`${pr.head_ref} -> ${pr.base_ref}`} />}
+        {pr.head_ref && pr.base_ref && (
+          <CopyRef text={`${pr.head_ref} -> ${pr.base_ref}`} />
+        )}
         <MetaChips pr={pr} />
-        <ShepherdControl pr={pr} sessionChoices={sessionChoices} onSetShepherd={onSetShepherd} />
+        <ShepherdControl
+          pr={pr}
+          sessionChoices={sessionChoices}
+          onSetShepherd={onSetShepherd}
+        />
         <PRLinked pr={pr} sessionIds={linkedSessionIds} />
       </div>
 
@@ -423,16 +524,36 @@ export function PRHeader({
           <ChecksBar checks={pr.checks} />
         </Figure>
         <Figure label="Review">
-          {decision && <span style={{ color: accentVar(decision.accent) }}>{decision.label}</span>}
-          {PRReviewers({ pr, reviews }) ?? (!decision && <span className="text-sol-text-dim">Nobody has reviewed yet</span>)}
+          {decision && (
+            <span style={{ color: accentVar(decision.accent) }}>
+              {decision.label}
+            </span>
+          )}
+          {PRReviewers({ pr, reviews }) ??
+            (!decision && (
+              <span className="text-sol-text-dim">Nobody has reviewed yet</span>
+            ))}
         </Figure>
         <Figure label="Merge">
           {merge ? (
-            <span style={{ color: accentVar(merge.accent) }}>{merge.label}</span>
+            <span style={{ color: accentVar(merge.accent) }}>
+              {merge.label}
+            </span>
           ) : stateKey === "merged" || stateKey === "closed" ? (
-            <span style={{ color: accentVar(state.accent) }} title={pr.merged_at || pr.closed_at ? new Date(pr.merged_at ?? pr.closed_at).toLocaleString() : undefined}>
+            <span
+              style={{ color: accentVar(state.accent) }}
+              title={
+                pr.merged_at || pr.closed_at
+                  ? new Date(pr.merged_at ?? pr.closed_at).toLocaleString()
+                  : undefined
+              }
+            >
               {state.label}
-              {(pr.merged_at ?? pr.closed_at) ? <span className="ml-1.5 text-sol-text-dim">{relTimeShort(pr.merged_at ?? pr.closed_at)} ago</span> : null}
+              {(pr.merged_at ?? pr.closed_at) ? (
+                <span className="ml-1.5 text-sol-text-dim">
+                  {relTimeShort(pr.merged_at ?? pr.closed_at)} ago
+                </span>
+              ) : null}
             </span>
           ) : (
             <span className="text-sol-text-dim">GitHub has not said yet</span>
@@ -444,8 +565,16 @@ export function PRHeader({
             <PRShipsTo model={deploy} />
           </Figure>
         )}
-        <Figure label="Open comments" onClick={openComments > 0 ? onOpenComments : undefined} title={withShortcut("Go to the first open thread", "pr.nextThread")}>
-          <span className={openComments > 0 ? "text-sol-yellow" : "text-sol-text-muted"}>
+        <Figure
+          label="Open comments"
+          onClick={openComments > 0 ? onOpenComments : undefined}
+          title={withShortcut("Go to the first open thread", "pr.nextThread")}
+        >
+          <span
+            className={
+              openComments > 0 ? "text-sol-yellow" : "text-sol-text-muted"
+            }
+          >
             <CircleDot className="w-3 h-3 inline mr-1 -mt-px" />
             {openComments}
           </span>

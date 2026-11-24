@@ -14,28 +14,77 @@
     "line": "line"
   },
   "routines": [
-    { "id": "lessons-weekly", "title": "Weekly lessons for {{project.name}}", "every": "7d", "prompt": "org/prompts/lessons-weekly.md", "mode": "apply" },
-    { "id": "fix-loop-weekly", "title": "Weekly fix loop for {{project.name}}", "every": "7d", "prompt": "org/prompts/fix-loop-weekly.md", "mode": "apply" },
-    { "id": "finder-health", "title": "Finder health for {{project.name}}", "every": "1d", "prompt": "org/prompts/finder-health.md", "mode": "apply", "requires": { "evidence": ["profile"] } },
-    { "id": "expectations-daily", "title": "Expectations for {{project.name}}", "every": "1d", "prompt": "org/prompts/expectations-daily.md", "mode": "apply" }
+    {
+      "id": "lessons-weekly",
+      "title": "Weekly lessons for {{project.name}}",
+      "every": "7d",
+      "prompt": "org/prompts/lessons-weekly.md",
+      "mode": "apply"
+    },
+    {
+      "id": "fix-loop-weekly",
+      "title": "Weekly fix loop for {{project.name}}",
+      "every": "7d",
+      "prompt": "org/prompts/fix-loop-weekly.md",
+      "mode": "apply"
+    },
+    {
+      "id": "finder-health",
+      "title": "Finder health for {{project.name}}",
+      "every": "1d",
+      "prompt": "org/prompts/finder-health.md",
+      "mode": "apply",
+      "requires": { "evidence": ["profile"] }
+    },
+    {
+      "id": "expectations-daily",
+      "title": "Expectations for {{project.name}}",
+      "every": "1d",
+      "prompt": "org/prompts/expectations-daily.md",
+      "mode": "apply"
+    }
   ],
   "inputs": [
-    { "key": "finders.silent_days", "label": "Days without a signal before a declared finder counts as silent", "kind": "number", "default": 3, "help": "A finder that runs less often than this is judged by its own schedule instead." }
+    {
+      "key": "finders.silent_days",
+      "label": "Days without a signal before a declared finder counts as silent",
+      "kind": "number",
+      "default": 3,
+      "help": "A finder that runs less often than this is judged by its own schedule instead."
+    }
   ],
   "setup": [
-    { "id": "line-profile", "title": "Read the repository's flow profile, or offer a starter .codecast/line.toml when it has none", "who": "role", "unlocks": ["finder-health"], "how": "org/setup/line-profile.md", "price": "the flow reads this project's commands, cap and finders instead of guessing; a few minutes" }
+    {
+      "id": "line-profile",
+      "title": "Read the repository's flow profile, or offer a starter .codecast/line.toml when it has none",
+      "who": "role",
+      "unlocks": ["finder-health"],
+      "how": "org/setup/line-profile.md",
+      "price": "the flow reads this project's commands, cap and finders instead of guessing; a few minutes"
+    }
   ],
   "evidence": [
-    { "id": "profile", "title": "cast flow profile resolved in {{project.dir}} with this project, and its finders were published so /flows can show them", "max_age": "30d", "required_for": ["finder-health"] }
+    {
+      "id": "profile",
+      "title": "cast flow profile resolved in {{project.dir}} with this project, and its finders were published so /flows can show them",
+      "max_age": "30d",
+      "required_for": ["finder-health"]
+    }
   ],
   "ledgers": [
-    { "id": "line", "title": "Flow ledger: causes grounded, admissions held and finder health for {{project.name}}" }
+    {
+      "id": "line",
+      "title": "Flow ledger: causes grounded, admissions held and finder health for {{project.name}}"
+    }
   ],
   "scoreboard": [
     { "key": "causes_open", "label": "Open causes in the project" },
     { "key": "causes_needs_context", "label": "Causes waiting on context" },
     { "key": "cards_open", "label": "Change cards waiting on a person" },
-    { "key": "finders_silent", "label": "Declared finders silent past their window" },
+    {
+      "key": "finders_silent",
+      "label": "Declared finders silent past their window"
+    },
     { "key": "lessons_filed_7d", "label": "Lesson signals filed, last 7 days" }
   ],
   "learn": { "review": "codecast" }

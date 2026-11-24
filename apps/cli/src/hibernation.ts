@@ -12,7 +12,10 @@
 // lifecycle, process ownership) stay in the daemon, applied only to the handful
 // this module picks. Everything cheap enough to hold in memory lives here.
 
-import { MID_TURN_AGENT_STATUSES, type AgentStatus } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  type AgentStatus,
+} from "@codecast/shared/contracts";
 import { descendantRows, type ProcRow } from "./processTable.js";
 
 // Absent config = hibernation does nothing. 0 means "no cap" for the fleet size
@@ -108,7 +111,8 @@ export function hibernationBlockReason(c: HibernationCandidate): string | null {
   // prompt, and the human's answer would arrive at a pane that no longer runs.
   if (MID_TURN_AGENT_STATUSES.has(c.status ?? "")) return "status-working";
   // A resume in progress has no pane worth killing yet and would just retry.
-  if (c.status === "resuming" || c.status === "starting") return "status-resuming";
+  if (c.status === "resuming" || c.status === "starting")
+    return "status-resuming";
   // "waiting" is the daemon's verdict that the harness holds live background
   // work inside this pane's process tree: a run_in_background command, a
   // Monitor, a workflow that will re-invoke the agent. The teardown kills the
@@ -116,8 +120,10 @@ export function hibernationBlockReason(c: HibernationCandidate): string | null {
   // waiting on, and no completion, notification or wake ever arrives.
   if (c.status === "waiting") return "open-background-work";
   // A human has the pane open in a terminal.
-  if (!["idle", "dormant", "done"].includes(c.status ?? "")) return "status-unknown";
-  if (!Number.isInteger(c.attachedClients) || c.attachedClients < 0) return "attachment-unknown";
+  if (!["idle", "dormant", "done"].includes(c.status ?? ""))
+    return "status-unknown";
+  if (!Number.isInteger(c.attachedClients) || c.attachedClients < 0)
+    return "attachment-unknown";
   if (c.attachedClients > 0) return "attached";
   // The pane belongs to another session too (a parent running its subagent
   // inside its own process): killing it takes down a session we did not pick.
@@ -164,19 +170,24 @@ export function selectHibernationCandidates(
     else eligible.push(c);
   }
 
-  eligible.sort((a, b) =>
-    b.awakeIdleMs - a.awakeIdleMs ||
-    b.statusDwellMs - a.statusDwellMs ||
-    (a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0)
+  eligible.sort(
+    (a, b) =>
+      b.awakeIdleMs - a.awakeIdleMs ||
+      b.statusDwellMs - a.statusDwellMs ||
+      (a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0),
   );
 
-  const over = policy.maxLive > 0 ? Math.max(0, candidates.length - policy.maxLive) : 0;
+  const over =
+    policy.maxLive > 0 ? Math.max(0, candidates.length - policy.maxLive) : 0;
   const picked: HibernationCandidate[] = [];
   for (let i = 0; i < eligible.length; i++) {
     const c = eligible[i];
     const pastBar = policy.idleMs > 0 && c.awakeIdleMs >= policy.idleMs;
     if (i >= over && !pastBar) continue;
-    if (picked.length >= policy.maxPerPass) { skips.push("pass-cap"); continue; }
+    if (picked.length >= policy.maxPerPass) {
+      skips.push("pass-cap");
+      continue;
+    }
     picked.push(c);
   }
   return { picked, skips };
@@ -196,9 +207,14 @@ export function selectHibernationCandidates(
  *
  * Fails closed: a row without a group, from a table read without one, is work.
  */
-export function agentForeignDescendants(procs: ProcRow[], agentPid: number): ProcRow[] {
-  const group = procs.find(p => p.pid === agentPid)?.pgid;
-  return descendantRows(procs, agentPid).filter(p => group === undefined || p.pgid !== group);
+export function agentForeignDescendants(
+  procs: ProcRow[],
+  agentPid: number,
+): ProcRow[] {
+  const group = procs.find((p) => p.pid === agentPid)?.pgid;
+  return descendantRows(procs, agentPid).filter(
+    (p) => group === undefined || p.pgid !== group,
+  );
 }
 
 /**
@@ -219,23 +235,41 @@ export function agentForeignDescendants(procs: ProcRow[], agentPid: number): Pro
 export function parkTargetsBeyondAgent(
   targets: ProcRow[],
   procs: ProcRow[],
-  scope: { panePid: number; agentPid: number; server?: { pid: number; panes: number[] } },
+  scope: {
+    panePid: number;
+    agentPid: number;
+    server?: { pid: number; panes: number[] };
+  },
 ): ProcRow[] {
   const { panePid, agentPid, server } = scope;
-  const foreign = new Set(agentForeignDescendants(procs, agentPid).map(p => p.pid));
+  const foreign = new Set(
+    agentForeignDescendants(procs, agentPid).map((p) => p.pid),
+  );
   const allowed = new Map<number, ProcRow>();
   for (const p of procs) {
     if (p.pid === panePid || p.pid === agentPid) allowed.set(p.pid, p);
   }
-  for (const p of descendantRows(procs, agentPid)) if (!foreign.has(p.pid)) allowed.set(p.pid, p);
-  const serverGroup = server && procs.find(p => p.pid === server.pid)?.pgid;
+  for (const p of descendantRows(procs, agentPid))
+    if (!foreign.has(p.pid)) allowed.set(p.pid, p);
+  const serverGroup = server && procs.find((p) => p.pid === server.pid)?.pgid;
   if (server && serverGroup !== undefined) {
-    const underPanes = new Set(server.panes.flatMap(pane => [pane, ...descendantRows(procs, pane).map(p => p.pid)]));
-    for (const p of procs) if (p.pgid === serverGroup && !underPanes.has(p.pid)) allowed.set(p.pid, p);
+    const underPanes = new Set(
+      server.panes.flatMap((pane) => [
+        pane,
+        ...descendantRows(procs, pane).map((p) => p.pid),
+      ]),
+    );
+    for (const p of procs)
+      if (p.pgid === serverGroup && !underPanes.has(p.pid))
+        allowed.set(p.pid, p);
   }
-  return targets.filter(t => {
+  return targets.filter((t) => {
     const known = allowed.get(t.pid);
-    return !known || !t.startedAt || known.startedAt !== t.startedAt || known.pgid !== t.pgid;
+    return (
+      !known ||
+      !t.startedAt ||
+      known.startedAt !== t.startedAt ||
+      known.pgid !== t.pgid
+    );
   });
 }
-

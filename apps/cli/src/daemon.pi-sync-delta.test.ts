@@ -13,11 +13,18 @@
 import { test, expect, describe } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { parsePiSessionFile, parseGrokSessionFile, type ParsedMessage } from "./parser.js";
+import {
+  parsePiSessionFile,
+  parseGrokSessionFile,
+  type ParsedMessage,
+} from "./parser.js";
 import { computePiSyncDelta, messageSyncSig } from "./daemon.js";
 
 const fixture = (name: string) =>
-  fs.readFileSync(path.join(import.meta.dir, "__fixtures__", "pi", name), "utf8");
+  fs.readFileSync(
+    path.join(import.meta.dir, "__fixtures__", "pi", name),
+    "utf8",
+  );
 
 const sigsOf = (msgs: ParsedMessage[]): Map<string, string> =>
   new Map(msgs.map((m) => [m.uuid!, messageSyncSig(m)]));
@@ -30,7 +37,10 @@ function applyPass(
   active: ParsedMessage[],
   synced: Map<string, string>,
 ): Map<string, string> {
-  const { newMessages, orphanUuids, nextSynced } = computePiSyncDelta(active, synced);
+  const { newMessages, orphanUuids, nextSynced } = computePiSyncDelta(
+    active,
+    synced,
+  );
   for (const m of newMessages) conversation.set(m.uuid!, m.content);
   for (const uuid of orphanUuids) conversation.delete(uuid);
   return nextSynced;
@@ -39,8 +49,13 @@ function applyPass(
 // Reconstruct the conversation's content in the active branch's order — this is what
 // the web renders (messages ordered along the active branch). Asserting it equals
 // the active branch exactly proves there is no splice and no orphan left behind.
-function renderedInBranchOrder(conversation: Map<string, string>, active: ParsedMessage[]): string[] {
-  return active.map((m) => conversation.get(m.uuid!)!).filter((c) => c !== undefined);
+function renderedInBranchOrder(
+  conversation: Map<string, string>,
+  active: ParsedMessage[],
+): string[] {
+  return active
+    .map((m) => conversation.get(m.uuid!)!)
+    .filter((c) => c !== undefined);
 }
 
 const mk = (uuid: string, content: string): ParsedMessage => ({
@@ -53,7 +68,9 @@ const mk = (uuid: string, content: string): ParsedMessage => ({
 describe("computePiSyncDelta — same-length divergent /tree branch (branch.jsonl)", () => {
   // branch.jsonl's leaf is the ACTIVE branch (a2b00003). Slicing to the abandoned
   // leaf (a2a00003) reconstructs the file's earlier state, before the /tree switch.
-  const lines = fixture("branch.jsonl").split("\n").filter((l) => l.trim());
+  const lines = fixture("branch.jsonl")
+    .split("\n")
+    .filter((l) => l.trim());
   const branchAContent = lines.slice(0, 6).join("\n"); // session, model_change, u1, a1, u2a, a2a
   const branchA = parsePiSessionFile(branchAContent);
   const branchB = parsePiSessionFile(fixture("branch.jsonl"));
@@ -80,12 +97,20 @@ describe("computePiSyncDelta — same-length divergent /tree branch (branch.json
     const conversation = new Map<string, string>();
     let synced = applyPass(conversation, branchA, new Map());
     // Branch A fully synced.
-    expect([...synced.keys()].sort()).toEqual(["a1000003", "a2a00003", "u1000003", "u2a00003"]);
+    expect([...synced.keys()].sort()).toEqual([
+      "a1000003",
+      "a2a00003",
+      "u1000003",
+      "u2a00003",
+    ]);
 
     // /tree switch: the file now resolves to branch B.
     const delta = computePiSyncDelta(branchB, synced);
     // The new branch's turns are sent, NOT dropped despite the equal length.
-    expect(delta.newMessages.map((m) => m.content)).toEqual(["ACTIVE question", "ACTIVE answer"]);
+    expect(delta.newMessages.map((m) => m.content)).toEqual([
+      "ACTIVE question",
+      "ACTIVE answer",
+    ]);
     // The abandoned branch's turns are the orphans to delete.
     expect(delta.orphanUuids.sort()).toEqual(["a2a00003", "u2a00003"]);
   });
@@ -96,7 +121,9 @@ describe("computePiSyncDelta — same-length divergent /tree branch (branch.json
     synced = applyPass(conversation, branchB, synced);
 
     // The final synced set equals branch B's uuid set exactly.
-    expect([...synced.keys()].sort()).toEqual([...branchB.map((m) => m.uuid!)].sort());
+    expect([...synced.keys()].sort()).toEqual(
+      [...branchB.map((m) => m.uuid!)].sort(),
+    );
     // The rendered conversation is branch B verbatim — the abandoned turns are gone,
     // the shared prefix is intact, the new turns are appended (never a splice).
     expect(renderedInBranchOrder(conversation, branchB)).toEqual([
@@ -112,8 +139,14 @@ describe("computePiSyncDelta — same-length divergent /tree branch (branch.json
 
 describe("computePiSyncDelta — shrinking branch (20 turns -> switch to a 15-turn branch)", () => {
   const shared = [mk("s0", "0"), mk("s1", "1"), mk("s2", "2"), mk("s3", "3")];
-  const branchA = [...shared, ...Array.from({ length: 16 }, (_, i) => mk(`a${i + 4}`, `A${i + 4}`))]; // 20
-  const branchB = [...shared, ...Array.from({ length: 11 }, (_, i) => mk(`b${i + 4}`, `B${i + 4}`))]; // 15
+  const branchA = [
+    ...shared,
+    ...Array.from({ length: 16 }, (_, i) => mk(`a${i + 4}`, `A${i + 4}`)),
+  ]; // 20
+  const branchB = [
+    ...shared,
+    ...Array.from({ length: 11 }, (_, i) => mk(`b${i + 4}`, `B${i + 4}`)),
+  ]; // 15
 
   test("branch B syncs even though its count (15) is below the synced count (20)", () => {
     const synced = sigsOf(branchA); // branch A fully synced
@@ -132,10 +165,15 @@ describe("computePiSyncDelta — shrinking branch (20 turns -> switch to a 15-tu
     const conversation = new Map<string, string>();
     let synced = applyPass(conversation, branchA, new Map());
     synced = applyPass(conversation, branchB, synced);
-    expect([...synced.keys()].sort()).toEqual([...branchB.map((m) => m.uuid!)].sort());
-    expect(renderedInBranchOrder(conversation, branchB)).toEqual(branchB.map((m) => m.content));
+    expect([...synced.keys()].sort()).toEqual(
+      [...branchB.map((m) => m.uuid!)].sort(),
+    );
+    expect(renderedInBranchOrder(conversation, branchB)).toEqual(
+      branchB.map((m) => m.content),
+    );
     // No branch-A orphan survives.
-    for (const m of branchA.slice(4)) expect(conversation.has(m.uuid!)).toBe(false);
+    for (const m of branchA.slice(4))
+      expect(conversation.has(m.uuid!)).toBe(false);
   });
 });
 

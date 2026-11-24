@@ -17,7 +17,11 @@ const RETRY_SHORT_MS = 10 * 60_000;
 /** Runs this tab already asked GitHub for, so remounts and other cards do not ask twice. */
 const asked = new Set<string>();
 
-export type CiRunState = { run: OpsCiRun | undefined; reading: boolean; failed: string | null };
+export type CiRunState = {
+  run: OpsCiRun | undefined;
+  reading: boolean;
+  failed: string | null;
+};
 
 export function useCiRun(groupRef: string, runId: string | null): CiRunState {
   const feed = useSyncOpsCiRun(groupRef, runId);
@@ -25,7 +29,13 @@ export function useCiRun(groupRef: string, runId: string | null): CiRunState {
   const read = useAction(api.ciRuns.read);
   const [reading, setReading] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const stale = !!run && (!!run.error || (!run.log_tail && !run.log_error && run.jobs.some((j) => j.conclusion === "failure"))) && Date.now() - run.fetched_at > RETRY_SHORT_MS;
+  const stale =
+    !!run &&
+    (!!run.error ||
+      (!run.log_tail &&
+        !run.log_error &&
+        run.jobs.some((j) => j.conclusion === "failure"))) &&
+    Date.now() - run.fetched_at > RETRY_SHORT_MS;
   useWatchEffect(() => {
     if (!runId || !feed.ready || (run && !stale)) return;
     const key = `${groupRef}:${runId}`;
@@ -46,5 +56,9 @@ export function useCiRun(groupRef: string, runId: string | null): CiRunState {
     );
   }, [groupRef, runId, feed.ready, !!run, stale]);
   // Until the store's feeder answers, the run is still being read: never "not read" before anything was asked.
-  return { run, reading: !run && (reading || (!!runId && !feed.ready)), failed: run ? null : failed };
+  return {
+    run,
+    reading: !run && (reading || (!!runId && !feed.ready)),
+    failed: run ? null : failed,
+  };
 }

@@ -2,7 +2,11 @@ import { createContext, useContext } from "react";
 
 export function parseTabLocation(path: string) {
   const url = new URL(path, "https://codecast.local");
-  return { pathname: url.pathname, searchParams: url.searchParams, hash: url.hash };
+  return {
+    pathname: url.pathname,
+    searchParams: url.searchParams,
+    hash: url.hash,
+  };
 }
 
 // Tab params context: overrides next/navigation hooks when inside a tab. Lives

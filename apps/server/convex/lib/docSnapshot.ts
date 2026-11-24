@@ -9,7 +9,10 @@
 // codec is unit-tested directly.
 import { gzipSync, gunzipSync, strToU8, strFromU8 } from "fflate";
 
-export type SnapshotRow = { content?: string | null; content_gz?: ArrayBuffer | null };
+export type SnapshotRow = {
+  content?: string | null;
+  content_gz?: ArrayBuffer | null;
+};
 
 export function packSnapshotContent(json: string): ArrayBuffer {
   const u8 = gzipSync(strToU8(json), { level: 6 });
@@ -21,6 +24,7 @@ export function packSnapshotContent(json: string): ArrayBuffer {
 }
 
 export function readSnapshotContent(row: SnapshotRow): string {
-  if (row.content_gz) return strFromU8(gunzipSync(new Uint8Array(row.content_gz)));
+  if (row.content_gz)
+    return strFromU8(gunzipSync(new Uint8Array(row.content_gz)));
   return row.content ?? "";
 }

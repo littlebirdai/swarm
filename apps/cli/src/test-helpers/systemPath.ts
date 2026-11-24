@@ -20,15 +20,25 @@ const mirrors = new Map<string, string>();
 export function systemPathWithout(command: string): string {
   const cached = mirrors.get(command);
   if (cached && fs.existsSync(cached)) return cached;
-  const mirror = fs.mkdtempSync(path.join(os.tmpdir(), `sysbin-no-${command}-`));
+  const mirror = fs.mkdtempSync(
+    path.join(os.tmpdir(), `sysbin-no-${command}-`),
+  );
   for (const dir of ["/usr/bin", "/bin"]) {
     let entries: string[] = [];
-    try { entries = fs.readdirSync(dir); } catch { continue; }
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
     for (const name of entries) {
       if (name === command) continue;
       const link = path.join(mirror, name);
       if (fs.existsSync(link)) continue;
-      try { fs.symlinkSync(path.join(dir, name), link); } catch { /* racing or unreadable: skip */ }
+      try {
+        fs.symlinkSync(path.join(dir, name), link);
+      } catch {
+        /* racing or unreadable: skip */
+      }
     }
   }
   mirrors.set(command, mirror);

@@ -23,7 +23,9 @@ describe("agent switch notice", () => {
       toAgent: "codex",
       fromAgent: "claude_code",
     });
-    expect(body.startsWith(`${AGENT_SWITCH_NOTICE_PREFIX} Codex (was Claude).`)).toBe(true);
+    expect(
+      body.startsWith(`${AGENT_SWITCH_NOTICE_PREFIX} Codex (was Claude).`),
+    ).toBe(true);
     expect(isAgentSwitchNotice(body)).toBe(true);
     expect(parseAgentSwitchNotice(body)).toEqual({
       toLabel: "Codex",
@@ -51,7 +53,9 @@ describe("agent switch notice", () => {
       toModel: "gpt-5.4",
       fromModel: "gpt-5.4",
     });
-    expect(parseAgentSwitchNotice(body)).toEqual({ toLabel: "Codex · GPT-5.4" });
+    expect(parseAgentSwitchNotice(body)).toEqual({
+      toLabel: "Codex · GPT-5.4",
+    });
   });
 
   test("rejects ordinary user text", () => {
@@ -90,6 +94,8 @@ describe("slash-command model echoes", () => {
   });
 
   test("ignores a sentence that merely quotes the phrase", () => {
-    expect(isModelSwitchStdout("the log said: Set model to Opus 4.8")).toBe(false);
+    expect(isModelSwitchStdout("the log said: Set model to Opus 4.8")).toBe(
+      false,
+    );
   });
 });

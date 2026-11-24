@@ -25,15 +25,28 @@ describe("buildUsageReport", () => {
           weekly: { percent: 39, resets_at: now + 12 * H },
         },
       },
-      { name: "spare", email: "s@x.com", usage: { fetched_at: now - 60_000, session: { percent: 0 }, weekly: { percent: 20 } } },
+      {
+        name: "spare",
+        email: "s@x.com",
+        usage: {
+          fetched_at: now - 60_000,
+          session: { percent: 0 },
+          weekly: { percent: 20 },
+        },
+      },
     ];
-    const r = buildUsageReport(profiles, now, { auto_switch: false, auto_continue: true });
+    const r = buildUsageReport(profiles, now, {
+      auto_switch: false,
+      auto_continue: true,
+    });
     expect(r.active?.name).toBe("work");
     expect(r.worst).toBe(100);
     expect(r.exhausted).toBe(true);
     expect(r.next_reset).toBe(now + 1.5 * H);
     expect(r.fallbacks.map((f) => f.name)).toEqual(["spare"]);
-    expect(describeRecovery(r)).toContain("resume on their own when the window resets");
+    expect(describeRecovery(r)).toContain(
+      "resume on their own when the window resets",
+    );
     expect(describeRecovery(r)).toContain("next reset in 1h 30m");
     expect(describeRecovery(r)).toContain("(auto-switch off)");
   });
@@ -46,15 +59,32 @@ describe("buildUsageReport", () => {
       usage: { fetched_at: now, session: { percent: 90, resets_at: now + H } },
     };
     const withSpare = buildUsageReport(
-      [active, { name: "spare", email: "s@x.com", usage: { fetched_at: now, session: { percent: 5 } } }],
+      [
+        active,
+        {
+          name: "spare",
+          email: "s@x.com",
+          usage: { fetched_at: now, session: { percent: 5 } },
+        },
+      ],
       now,
       { auto_switch: true, auto_continue: true },
     );
-    expect(describeRecovery(withSpare)).toContain("auto-switch hops to the freshest of 1 saved account(s)");
-    const alone = buildUsageReport([active], now, { auto_switch: true, auto_continue: true });
+    expect(describeRecovery(withSpare)).toContain(
+      "auto-switch hops to the freshest of 1 saved account(s)",
+    );
+    const alone = buildUsageReport([active], now, {
+      auto_switch: true,
+      auto_continue: true,
+    });
     expect(describeRecovery(alone)).toContain("resume on their own");
-    expect(describeRecovery(alone)).toContain("no other saved account with headroom");
-    const nothing = buildUsageReport([active], now, { auto_switch: false, auto_continue: false });
+    expect(describeRecovery(alone)).toContain(
+      "no other saved account with headroom",
+    );
+    const nothing = buildUsageReport([active], now, {
+      auto_switch: false,
+      auto_continue: false,
+    });
     expect(describeRecovery(nothing)).toContain("park until you continue them");
     const unknown = buildUsageReport([active], now, null);
     expect(describeRecovery(unknown)).toContain("recovery flags unknown");
@@ -67,14 +97,29 @@ describe("buildUsageReport", () => {
           name: "work",
           email: "w@x.com",
           active: true,
-          usage: { fetched_at: now - 6 * H, session: { percent: 100, resets_at: now - H }, weekly: { percent: 30 } },
+          usage: {
+            fetched_at: now - 6 * H,
+            session: { percent: 100, resets_at: now - H },
+            weekly: { percent: 30 },
+          },
         },
-        { name: "pegged", email: "p@x.com", usage: { fetched_at: now, weekly: { percent: 100, resets_at: now + H } } },
+        {
+          name: "pegged",
+          email: "p@x.com",
+          usage: {
+            fetched_at: now,
+            weekly: { percent: 100, resets_at: now + H },
+          },
+        },
       ],
       now,
       null,
     );
-    expect(r.active?.windows[0]).toMatchObject({ label: "Session (5h)", percent: 0, rolled: true });
+    expect(r.active?.windows[0]).toMatchObject({
+      label: "Session (5h)",
+      percent: 0,
+      rolled: true,
+    });
     expect(r.exhausted).toBe(false);
     expect(r.next_reset).toBeUndefined();
     expect(r.fallbacks).toEqual([]);
@@ -84,7 +129,9 @@ describe("buildUsageReport", () => {
   test("no active account renders the waiting note", () => {
     const r = buildUsageReport([], now, null);
     expect(r.active).toBeNull();
-    expect(renderUsageReport(r, c)).toContain("No active Claude account with usage data yet");
+    expect(renderUsageReport(r, c)).toContain(
+      "No active Claude account with usage data yet",
+    );
     expect(USAGE_WARN_PERCENT).toBe(85);
   });
 });
@@ -94,7 +141,10 @@ describe("a stuck usage poll (ct-49527)", () => {
     name: "work",
     email: "w@x.com",
     active: true,
-    usage: { fetched_at: now - 40 * 60_000, session: { percent: 42, resets_at: now + H } },
+    usage: {
+      fetched_at: now - 40 * 60_000,
+      session: { percent: 42, resets_at: now + H },
+    },
   };
 
   test("says why the reading is old and when the poll tries again", () => {
@@ -106,7 +156,10 @@ describe("a stuck usage poll (ct-49527)", () => {
       status: 429,
       retry_after: true,
     };
-    const r = buildUsageReport([{ ...active, retry }], now, { auto_switch: true, auto_continue: true });
+    const r = buildUsageReport([{ ...active, retry }], now, {
+      auto_switch: true,
+      auto_continue: true,
+    });
     const out = renderUsageReport(r, c);
     expect(out).toContain("usage poll failing");
     expect(out).toContain("usage endpoint 429");
@@ -116,7 +169,10 @@ describe("a stuck usage poll (ct-49527)", () => {
   });
 
   test("stays silent while the poll is healthy", () => {
-    const r = buildUsageReport([active], now, { auto_switch: true, auto_continue: true });
+    const r = buildUsageReport([active], now, {
+      auto_switch: true,
+      auto_continue: true,
+    });
     expect(renderUsageReport(r, c)).not.toContain("usage poll failing");
   });
 });
@@ -154,7 +210,10 @@ describe("auto-switch ranking vs extra spend", () => {
         weekly_scoped: { percent: 69, resets_at: now + 48 * H, label: "Fable" },
       },
     };
-    const r = buildUsageReport([active, staleRolled, known], now, { auto_switch: true, auto_continue: true });
+    const r = buildUsageReport([active, staleRolled, known], now, {
+      auto_switch: true,
+      auto_continue: true,
+    });
     expect(r.fallbacks.map((f) => f.name)).toEqual(["known", "stale"]);
     // The account's own week, not its Fable week (limitWindows).
     expect(r.fallbacks[0].worst).toBe(37);
@@ -172,7 +231,13 @@ describe("auto-switch ranking vs extra spend", () => {
           usage: {
             fetched_at: now,
             weekly_scoped: { percent: 100, resets_at: now + H, label: "Fable" },
-            extra: { percent: 100, enabled: false, limit: 70000, used: 72740, spend_limit_reached: true },
+            extra: {
+              percent: 100,
+              enabled: false,
+              limit: 70000,
+              used: 72740,
+              spend_limit_reached: true,
+            },
           },
         },
       ],
@@ -188,15 +253,32 @@ describe("auto-switch ranking vs extra spend", () => {
 
 describe("cast usage --all", () => {
   test("one row per saved account with its windows, its status, and whether auto-switch could land there", () => {
-    const usage = (session: number, weekly: number) => ({ fetched_at: now - 60_000, session: { percent: session, resets_at: now + 2 * H }, weekly: { percent: weekly, resets_at: now + 30 * H } });
-    const rows = buildAccountUsage([
-      { name: "work", email: "w@x.com", active: true, usage: usage(70, 34) },
-      { name: "spare", email: "s@x.com", usage: usage(0, 20) },
-      { name: "pegged", email: "p@x.com", usage: usage(100, 31) },
-      { name: "dead", email: "d@x.com", usage: usage(0, 10), login_expired_at: now - H },
-      { name: "kept", email: "k@x.com", usage: usage(0, 5), reserved_for: "reviews" },
-      { name: "new", email: "n@x.com" },
-    ], now);
+    const usage = (session: number, weekly: number) => ({
+      fetched_at: now - 60_000,
+      session: { percent: session, resets_at: now + 2 * H },
+      weekly: { percent: weekly, resets_at: now + 30 * H },
+    });
+    const rows = buildAccountUsage(
+      [
+        { name: "work", email: "w@x.com", active: true, usage: usage(70, 34) },
+        { name: "spare", email: "s@x.com", usage: usage(0, 20) },
+        { name: "pegged", email: "p@x.com", usage: usage(100, 31) },
+        {
+          name: "dead",
+          email: "d@x.com",
+          usage: usage(0, 10),
+          login_expired_at: now - H,
+        },
+        {
+          name: "kept",
+          email: "k@x.com",
+          usage: usage(0, 5),
+          reserved_for: "reviews",
+        },
+        { name: "new", email: "n@x.com" },
+      ],
+      now,
+    );
     expect(rows.map((r) => [r.name, r.status, r.switch_target])).toEqual([
       ["work", "active", false],
       ["spare", "headroom", true],
@@ -205,7 +287,12 @@ describe("cast usage --all", () => {
       ["kept", "reserved", false],
       ["new", "no data", true],
     ]);
-    expect(rows[0]!.windows.map((w) => [w.label, Math.round(w.percent)])).toEqual([["Session (5h)", 70], ["Week (7d)", 34]]);
+    expect(
+      rows[0]!.windows.map((w) => [w.label, Math.round(w.percent)]),
+    ).toEqual([
+      ["Session (5h)", 70],
+      ["Week (7d)", 34],
+    ]);
     const text = renderAccountUsage(rows, now, c);
     expect(text.split("\n")[0]).toContain("Session (5h) 70% 2h");
     expect(text).toContain("2 of 6 accounts are auto-switch targets");
@@ -215,13 +302,22 @@ describe("cast usage --all", () => {
   });
 
   test("names another account only when the one in use is spent", () => {
-    const usage = (session: number) => ({ fetched_at: now - 60_000, session: { percent: session, resets_at: now + 2 * H }, weekly: { percent: 20, resets_at: now + 30 * H } });
-    const rows = buildAccountUsage([
-      { name: "work", email: "w@x.com", active: true, usage: usage(100) },
-      { name: "spare", email: "s@x.com", usage: usage(0) },
-    ], now);
+    const usage = (session: number) => ({
+      fetched_at: now - 60_000,
+      session: { percent: session, resets_at: now + 2 * H },
+      weekly: { percent: 20, resets_at: now + 30 * H },
+    });
+    const rows = buildAccountUsage(
+      [
+        { name: "work", email: "w@x.com", active: true, usage: usage(100) },
+        { name: "spare", email: "s@x.com", usage: usage(0) },
+      ],
+      now,
+    );
     const text = renderAccountUsage(rows, now, c);
     expect(text).toContain("work is spent");
-    expect(text).toContain("cast accounts use spare --continue --yes --include-subagents");
+    expect(text).toContain(
+      "cast accounts use spare --continue --yes --include-subagents",
+    );
   });
 });

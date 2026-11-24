@@ -4,14 +4,18 @@ import { buildBreadcrumbs, SECTION_LABELS } from "../breadcrumbs";
 
 const lookups = {
   project: (id) => ({ p1: { title: "Codecast: Product", color: "cyan" } })[id],
-  task: (id) => ({ t1: { short_id: "ct-4102", title: "Fix the auth race" } })[id],
+  task: (id) =>
+    ({ t1: { short_id: "ct-4102", title: "Fix the auth race" } })[id],
   doc: (id) => ({ d1: { title: "Sync design notes" } })[id],
-  plan: (id) => ({ pl1: { title: "Restore acquisition", short_id: "pl-306" } })[id],
+  plan: (id) =>
+    ({ pl1: { title: "Restore acquisition", short_id: "pl-306" } })[id],
   channel: (id) => ({ c1: { name: "general" } })[id],
 };
 
-const labels = (path, l = lookups) => buildBreadcrumbs(path, l).map((c) => c.label);
-const ids = (path, l = lookups) => buildBreadcrumbs(path, l).map((c) => c.shortId);
+const labels = (path, l = lookups) =>
+  buildBreadcrumbs(path, l).map((c) => c.label);
+const ids = (path, l = lookups) =>
+  buildBreadcrumbs(path, l).map((c) => c.shortId);
 
 describe("buildBreadcrumbs", () => {
   it("names a bare section", () => {
@@ -31,7 +35,10 @@ describe("buildBreadcrumbs", () => {
   });
 
   it("puts a task opened inside a project under THAT project, not under Tasks", () => {
-    expect(labels("/projects/p1/t1")).toEqual(["Codecast: Product", "Fix the auth race"]);
+    expect(labels("/projects/p1/t1")).toEqual([
+      "Codecast: Product",
+      "Fix the auth race",
+    ]);
   });
 
   it("gives a project's board one crumb, so the bar stays hidden under its own header", () => {
@@ -78,19 +85,25 @@ describe("buildBreadcrumbs", () => {
   });
 
   it("uses the short id as the label when there is no name yet", () => {
-    const [, leaf] = buildBreadcrumbs("/tasks/t9", { task: () => ({ short_id: "ct-9" }) });
+    const [, leaf] = buildBreadcrumbs("/tasks/t9", {
+      task: () => ({ short_id: "ct-9" }),
+    });
     expect(leaf.label).toBe("ct-9");
   });
 
   it("truncates a long title rather than letting it run the width", () => {
     const long = "x".repeat(200);
-    const [, leaf] = buildBreadcrumbs("/docs/d9", { doc: () => ({ title: long }) });
+    const [, leaf] = buildBreadcrumbs("/docs/d9", {
+      doc: () => ({ title: long }),
+    });
     expect(leaf.label.length).toBeLessThanOrEqual(70);
     expect(leaf.label.endsWith("…")).toBe(true);
   });
 
   it("collapses whitespace so a wrapped title stays one line", () => {
-    const [, leaf] = buildBreadcrumbs("/docs/d9", { doc: () => ({ title: "a\n  b   c" }) });
+    const [, leaf] = buildBreadcrumbs("/docs/d9", {
+      doc: () => ({ title: "a\n  b   c" }),
+    });
     expect(leaf.label).toBe("a b c");
   });
 

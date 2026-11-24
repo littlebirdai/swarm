@@ -12,8 +12,10 @@ export const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const ID_SHAPED_RE = /^(?:sec-\d+|[a-z0-9]{32})$/;
 
 export function secretNameProblem(name: string): string | null {
-  if (!SECRET_NAME_RE.test(name)) return `"${name}" is not a secret name: use 1 to 63 lowercase letters, digits and dashes, like stripe-test`;
-  if (ID_SHAPED_RE.test(name)) return `"${name}" reads as a secret's id, so it would never be found by name: pick a name that says what it is, like stripe-test`;
+  if (!SECRET_NAME_RE.test(name))
+    return `"${name}" is not a secret name: use 1 to 63 lowercase letters, digits and dashes, like stripe-test`;
+  if (ID_SHAPED_RE.test(name))
+    return `"${name}" reads as a secret's id, so it would never be found by name: pick a name that says what it is, like stripe-test`;
   return null;
 }
 
@@ -24,23 +26,109 @@ export function secretNameProblem(name: string): string | null {
 // blocklist of the known names and naming families: a tool's variable that
 // matches none of them gets through, so add it here when one turns up.
 const LOADER_ENV = new Set([
-  "PATH", "IFS", "ENV", "BASH_ENV", "SHELL", "PS4", "PROMPT_COMMAND", "CDPATH", "GLOBIGNORE",
-  "ZDOTDIR", "TMPDIR", "TMP", "TEMP", "TERMINFO", "MAKEFILES", "DENO_DIR", "NVM_DIR",
-  "NODE_PATH", "NODE_TLS_REJECT_UNAUTHORIZED", "RUBYOPT", "RUBYLIB", "GEM_PATH", "PERLLIB", "CLASSPATH",
-  "PHPRC", "PHP_INI_SCAN_DIR", "LUA_INIT", "LUA_PATH", "LUA_CPATH", "TCLLIBPATH",
-  "CPATH", "C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "LIBRARY_PATH", "CMAKE_PREFIX_PATH", "CMAKE_MODULE_PATH",
-  "GCONV_PATH", "HOSTALIASES", "RESOLV_HOST_CONF", "LOCALDOMAIN", "LOCPATH", "NLSPATH", "OPENSSL_CONF", "OPENSSL_ENGINES", "SSL_CERT_FILE", "SSL_CERT_DIR",
-  "EDITOR", "VISUAL", "PAGER", "MANPAGER", "LESSOPEN", "LESSCLOSE", "BROWSER", "SSH_ASKPASS", "SUDO_ASKPASS", "SSH_AUTH_SOCK",
-  "GIT_SSH", "GIT_SSH_COMMAND", "GIT_ASKPASS", "GIT_EXEC_PATH", "GIT_TEMPLATE_DIR", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR",
-  "GIT_PAGER", "GIT_EXTERNAL_DIFF", "GIT_PROXY_COMMAND", "GIT_DIR", "GIT_WORK_TREE", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_NO_VERIFY",
-  "CC", "CXX", "CPP", "LD", "AR", "AS", "NM", "RANLIB", "MAKE", "RUSTC", "RUSTDOC",
-  "GOPATH", "GOROOT", "GOBIN", "GOENV", "GOTOOLCHAIN", "GOPRIVATE", "GONOSUMDB", "GONOSUMCHECK", "GOINSECURE", "GOSUMDB", "GOEXPERIMENT",
-  "AWS_SHARED_CREDENTIALS_FILE", "WGETRC", "NETRC",
+  "PATH",
+  "IFS",
+  "ENV",
+  "BASH_ENV",
+  "SHELL",
+  "PS4",
+  "PROMPT_COMMAND",
+  "CDPATH",
+  "GLOBIGNORE",
+  "ZDOTDIR",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "TERMINFO",
+  "MAKEFILES",
+  "DENO_DIR",
+  "NVM_DIR",
+  "NODE_PATH",
+  "NODE_TLS_REJECT_UNAUTHORIZED",
+  "RUBYOPT",
+  "RUBYLIB",
+  "GEM_PATH",
+  "PERLLIB",
+  "CLASSPATH",
+  "PHPRC",
+  "PHP_INI_SCAN_DIR",
+  "LUA_INIT",
+  "LUA_PATH",
+  "LUA_CPATH",
+  "TCLLIBPATH",
+  "CPATH",
+  "C_INCLUDE_PATH",
+  "CPLUS_INCLUDE_PATH",
+  "LIBRARY_PATH",
+  "CMAKE_PREFIX_PATH",
+  "CMAKE_MODULE_PATH",
+  "GCONV_PATH",
+  "HOSTALIASES",
+  "RESOLV_HOST_CONF",
+  "LOCALDOMAIN",
+  "LOCPATH",
+  "NLSPATH",
+  "OPENSSL_CONF",
+  "OPENSSL_ENGINES",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "EDITOR",
+  "VISUAL",
+  "PAGER",
+  "MANPAGER",
+  "LESSOPEN",
+  "LESSCLOSE",
+  "BROWSER",
+  "SSH_ASKPASS",
+  "SUDO_ASKPASS",
+  "SSH_AUTH_SOCK",
+  "GIT_SSH",
+  "GIT_SSH_COMMAND",
+  "GIT_ASKPASS",
+  "GIT_EXEC_PATH",
+  "GIT_TEMPLATE_DIR",
+  "GIT_EDITOR",
+  "GIT_SEQUENCE_EDITOR",
+  "GIT_PAGER",
+  "GIT_EXTERNAL_DIFF",
+  "GIT_PROXY_COMMAND",
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_SSL_CAINFO",
+  "GIT_SSL_CAPATH",
+  "GIT_SSL_NO_VERIFY",
+  "CC",
+  "CXX",
+  "CPP",
+  "LD",
+  "AR",
+  "AS",
+  "NM",
+  "RANLIB",
+  "MAKE",
+  "RUSTC",
+  "RUSTDOC",
+  "GOPATH",
+  "GOROOT",
+  "GOBIN",
+  "GOENV",
+  "GOTOOLCHAIN",
+  "GOPRIVATE",
+  "GONOSUMDB",
+  "GONOSUMCHECK",
+  "GOINSECURE",
+  "GOSUMDB",
+  "GOEXPERIMENT",
+  "AWS_SHARED_CREDENTIALS_FILE",
+  "WGETRC",
+  "NETRC",
 ]);
-const LOADER_ENV_PREFIX = /^(?:LD_|DYLD_|PYTHON|PERL5|BASH_FUNC_|GIT_CONFIG|NPM_CONFIG_|LUA_INIT_|XDG_|AWS_ENDPOINT_URL|RUSTUP_|PIP_|UV_|DOCKER_HOST|DOCKER_TLS|DOCKER_CERT_PATH)/;
+const LOADER_ENV_PREFIX =
+  /^(?:LD_|DYLD_|PYTHON|PERL5|BASH_FUNC_|GIT_CONFIG|NPM_CONFIG_|LUA_INIT_|XDG_|AWS_ENDPOINT_URL|RUSTUP_|PIP_|UV_|DOCKER_HOST|DOCKER_TLS|DOCKER_CERT_PATH)/;
 // Any word of the name that points a tool at a proxy, a CA bundle, a wrapper, extra flags or options
 // (MAVEN_OPTS, BUN_OPTIONS), a config file, or a home or search directory it loads from.
-const LOADER_ENV_WORD = /(?:^|_)(?:[A-Z]*PROXY|CA|CAINFO|CAPATH|BUNDLE|[A-Z]*WRAPPER|[A-Z]*FLAGS|[A-Z]*OPTS|[A-Z]*OPTIONS|[A-Z]*CONFIG|[A-Z]*HOME|[A-Z]*DIRS)(?:_|$)/;
+const LOADER_ENV_WORD =
+  /(?:^|_)(?:[A-Z]*PROXY|CA|CAINFO|CAPATH|BUNDLE|[A-Z]*WRAPPER|[A-Z]*FLAGS|[A-Z]*OPTS|[A-Z]*OPTIONS|[A-Z]*CONFIG|[A-Z]*HOME|[A-Z]*DIRS)(?:_|$)/;
 // Cargo reads its whole config from CARGO_*; only a registry token is a credential.
 const CARGO_ENV = /^CARGO_(?!.*_TOKEN$)/;
 
@@ -48,9 +136,17 @@ const CARGO_ENV = /^CARGO_(?!.*_TOKEN$)/;
 export type EnvNameIssue = { problem: string; why?: string };
 
 export function envNameIssue(name: string): EnvNameIssue | null {
-  if (!ENV_NAME_RE.test(name)) return { problem: `"${name}" is not an env var name: use letters, digits and underscores, starting with a letter, like STRIPE_SECRET_KEY` };
+  if (!ENV_NAME_RE.test(name))
+    return {
+      problem: `"${name}" is not an env var name: use letters, digits and underscores, starting with a letter, like STRIPE_SECRET_KEY`,
+    };
   const upper = name.toUpperCase();
-  if (LOADER_ENV.has(upper) || LOADER_ENV_PREFIX.test(upper) || LOADER_ENV_WORD.test(upper) || CARGO_ENV.test(upper)) {
+  if (
+    LOADER_ENV.has(upper) ||
+    LOADER_ENV_PREFIX.test(upper) ||
+    LOADER_ENV_WORD.test(upper) ||
+    CARGO_ENV.test(upper)
+  ) {
     return {
       problem: `${name} is reserved; use your own name, like STRIPE_SECRET_KEY`,
       why: `${name} tells a shell, an interpreter or a tool what code to load, what to trust or where to connect, so a secret cannot set it`,
@@ -63,7 +159,9 @@ export function envNameIssue(name: string): EnvNameIssue | null {
 export function envNameProblem(name: string): string | null {
   const issue = envNameIssue(name);
   if (!issue) return null;
-  return issue.why ? `${issue.why}: give the secret a variable of its own, like STRIPE_SECRET_KEY` : issue.problem;
+  return issue.why
+    ? `${issue.why}: give the secret a variable of its own, like STRIPE_SECRET_KEY`
+    : issue.problem;
 }
 
 /** The daemon exact-matches values up to this length (knownValueRedaction);
@@ -73,13 +171,20 @@ export const SECRET_REDACTION_MAX = 8192;
 export const SECRET_REDACTION_MIN = 6;
 
 /** Variable and field names whose values are credentials. AUTH excludes AUTHOR (GIT_AUTHOR_NAME); a bare KEY is too common (PRIMARY_KEY) to count. */
-const CREDENTIAL_NAME_RE = /SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL|API[_-]?KEY|PRIVATE[_-]?KEY|AUTH(?!OR)/i;
+const CREDENTIAL_NAME_RE =
+  /SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL|API[_-]?KEY|PRIVATE[_-]?KEY|AUTH(?!OR)/i;
 export const isCredentialName = (name: string) => CREDENTIAL_NAME_RE.test(name);
 
 // .env files
 
 const DOTENV_LINE_RE = /^\s*(?:export\s+)?([A-Za-z_][\w.-]*)\s*=\s*(.*)$/;
-const DOTENV_ESCAPES: Record<string, string> = { n: "\n", r: "\r", t: "\t", '"': '"', "\\": "\\" };
+const DOTENV_ESCAPES: Record<string, string> = {
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  '"': '"',
+  "\\": "\\",
+};
 
 /**
  * One .env line's name and value, or null when it is not an assignment

@@ -6,7 +6,17 @@ import s from "./Modal.module.css";
 /** A modal over the scrim, at the body. Esc and a scrim click close it. It
  *  owns the keyboard while open: focus moves in, Tab cycles inside, the page
  *  behind is inert, and focus goes back to where it was on close. */
-export function Modal({ onClose, label, className = "", children }: { onClose: () => void; label: string; className?: string; children: ReactNode }) {
+export function Modal({
+  onClose,
+  label,
+  className = "",
+  children,
+}: {
+  onClose: () => void;
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
   const box = useRef<HTMLDivElement>(null);
   useInertPage();
   useReturnFocus(box);
@@ -21,8 +31,18 @@ export function Modal({ onClose, label, className = "", children }: { onClose: (
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
   return createPortal(
-    <div className={s.scrim} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={box} role="dialog" aria-modal aria-label={label} tabIndex={-1} className={`${s.modal} ${className}`}>
+    <div
+      className={s.scrim}
+      onPointerDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={box}
+        role="dialog"
+        aria-modal
+        aria-label={label}
+        tabIndex={-1}
+        className={`${s.modal} ${className}`}
+      >
         {children}
       </div>
     </div>,

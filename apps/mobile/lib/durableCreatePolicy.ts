@@ -17,8 +17,13 @@ export function mobileCreateFailureDisposition(
 
 /** The words for a create the server did not confirm: the person's choices
  *  are kept, and retrying is safe. */
-export function mobileCreateErrorMessage(subject: string, error: unknown): string {
-  const message = String((error as { message?: unknown })?.message ?? error ?? "");
+export function mobileCreateErrorMessage(
+  subject: string,
+  error: unknown,
+): string {
+  const message = String(
+    (error as { message?: unknown })?.message ?? error ?? "",
+  );
   if (/dispatch not wired|dropped|no outbox/i.test(message)) {
     return `The ${subject} request was not saved. Your choices are still here—retry when the connection is ready.`;
   }

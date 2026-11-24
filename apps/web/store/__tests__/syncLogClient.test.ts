@@ -22,43 +22,74 @@ describe("stampSyncAck", () => {
   test("stamps entries for every store key backed by the patched table", () => {
     useInboxStore.setState({
       pending: {
-        [`sessions:${CID}:inbox_dismissed_at`]: { type: "field", value: 5, ts: 100 },
-        [`conversations:${CID}:inbox_dismissed_at`]: { type: "field", value: 5, ts: 100 },
+        [`sessions:${CID}:inbox_dismissed_at`]: {
+          type: "field",
+          value: 5,
+          ts: 100,
+        },
+        [`conversations:${CID}:inbox_dismissed_at`]: {
+          type: "field",
+          value: 5,
+          ts: 100,
+        },
       },
     } as any);
-    useInboxStore.getState().stampSyncAck(
-      { conversations: { [CID]: { inbox_dismissed_at: 5 } } },
-      [{ scope_key: "user:u1", position: 7 }],
-      200,
-    );
+    useInboxStore
+      .getState()
+      .stampSyncAck(
+        { conversations: { [CID]: { inbox_dismissed_at: 5 } } },
+        [{ scope_key: "user:u1", position: 7 }],
+        200,
+      );
     const pending = useInboxStore.getState().pending as any;
-    expect(pending[`sessions:${CID}:inbox_dismissed_at`].ack).toEqual([{ s: "user:u1", p: 7 }]);
-    expect(pending[`conversations:${CID}:inbox_dismissed_at`].ack).toEqual([{ s: "user:u1", p: 7 }]);
+    expect(pending[`sessions:${CID}:inbox_dismissed_at`].ack).toEqual([
+      { s: "user:u1", p: 7 },
+    ]);
+    expect(pending[`conversations:${CID}:inbox_dismissed_at`].ack).toEqual([
+      { s: "user:u1", p: 7 },
+    ]);
   });
 
   test("never stamps an entry newer than the dispatch send (a later local write owns it)", () => {
     useInboxStore.setState({
-      pending: { [`conversations:${CID}:title`]: { type: "field", value: "newer", ts: 300 } },
+      pending: {
+        [`conversations:${CID}:title`]: {
+          type: "field",
+          value: "newer",
+          ts: 300,
+        },
+      },
     } as any);
-    useInboxStore.getState().stampSyncAck(
-      { conversations: { [CID]: { title: "older" } } },
-      [{ scope_key: "user:u1", position: 7 }],
-      200,
-    );
-    expect((useInboxStore.getState().pending as any)[`conversations:${CID}:title`].ack).toBeUndefined();
+    useInboxStore
+      .getState()
+      .stampSyncAck(
+        { conversations: { [CID]: { title: "older" } } },
+        [{ scope_key: "user:u1", position: 7 }],
+        200,
+      );
+    expect(
+      (useInboxStore.getState().pending as any)[`conversations:${CID}:title`]
+        .ack,
+    ).toBeUndefined();
   });
 
   test("retires immediately when the scope cursor already passed the position", () => {
     useInboxStore.setState({
-      pending: { [`conversations:${CID}:title`]: { type: "field", value: "x", ts: 100 } },
+      pending: {
+        [`conversations:${CID}:title`]: { type: "field", value: "x", ts: 100 },
+      },
       syncMeta: { "synclog:v1:user:u1": { cursor: 10 } },
     } as any);
-    useInboxStore.getState().stampSyncAck(
-      { conversations: { [CID]: { title: "x" } } },
-      [{ scope_key: "user:u1", position: 7 }],
-      200,
-    );
-    expect((useInboxStore.getState().pending as any)[`conversations:${CID}:title`]).toBeUndefined();
+    useInboxStore
+      .getState()
+      .stampSyncAck(
+        { conversations: { [CID]: { title: "x" } } },
+        [{ scope_key: "user:u1", position: 7 }],
+        200,
+      );
+    expect(
+      (useInboxStore.getState().pending as any)[`conversations:${CID}:title`],
+    ).toBeUndefined();
   });
 
   test("an older send of the same value never stamps a newer lock (true, false, true: tester seed 698)", () => {
@@ -66,34 +97,59 @@ describe("stampSyncAck", () => {
     // send's ack must not stamp it: the delivery past that position would
     // retire it while the third send is still in flight.
     useInboxStore.setState({
-      pending: { [`conversations:${CID}:title`]: { type: "field", value: "true", ts: 100, lock: "L3" } },
+      pending: {
+        [`conversations:${CID}:title`]: {
+          type: "field",
+          value: "true",
+          ts: 100,
+          lock: "L3",
+        },
+      },
     } as any);
-    useInboxStore.getState().stampSyncAck(
-      { conversations: { [CID]: { title: "true" } } },
-      [{ scope_key: "user:u1", position: 2 }],
-      200,
-      { local: true, lockIds: ["L1"] },
-    );
-    expect((useInboxStore.getState().pending as any)[`conversations:${CID}:title`].ack).toBeUndefined();
-    useInboxStore.getState().stampSyncAck(
-      { conversations: { [CID]: { title: "true" } } },
-      [{ scope_key: "user:u1", position: 4 }],
-      200,
-      { local: true, lockIds: ["L3"] },
-    );
-    expect((useInboxStore.getState().pending as any)[`conversations:${CID}:title`].ack).toEqual([{ s: "user:u1", p: 4 }]);
+    useInboxStore
+      .getState()
+      .stampSyncAck(
+        { conversations: { [CID]: { title: "true" } } },
+        [{ scope_key: "user:u1", position: 2 }],
+        200,
+        { local: true, lockIds: ["L1"] },
+      );
+    expect(
+      (useInboxStore.getState().pending as any)[`conversations:${CID}:title`]
+        .ack,
+    ).toBeUndefined();
+    useInboxStore
+      .getState()
+      .stampSyncAck(
+        { conversations: { [CID]: { title: "true" } } },
+        [{ scope_key: "user:u1", position: 4 }],
+        200,
+        { local: true, lockIds: ["L3"] },
+      );
+    expect(
+      (useInboxStore.getState().pending as any)[`conversations:${CID}:title`]
+        .ack,
+    ).toEqual([{ s: "user:u1", p: 4 }]);
   });
 
   test("ignores singleton buckets and unknown tables", () => {
     useInboxStore.setState({
-      pending: { [`conversations:${CID}:title`]: { type: "field", value: "x", ts: 100 } },
+      pending: {
+        [`conversations:${CID}:title`]: { type: "field", value: "x", ts: 100 },
+      },
     } as any);
     useInboxStore.getState().stampSyncAck(
-      { client_state: { _: { theme: "dark" } }, nonsense: { [CID]: { a: 1 } } },
+      {
+        client_state: { _: { theme: "dark" } },
+        nonsense: { [CID]: { a: 1 } },
+      },
       [{ scope_key: "user:u1", position: 7 }],
       200,
     );
-    expect((useInboxStore.getState().pending as any)[`conversations:${CID}:title`].ack).toBeUndefined();
+    expect(
+      (useInboxStore.getState().pending as any)[`conversations:${CID}:title`]
+        .ack,
+    ).toBeUndefined();
   });
 });
 
@@ -101,8 +157,18 @@ describe("retireAckedPending", () => {
   test("retires entries acked at or below the applied position, same scope only", () => {
     useInboxStore.setState({
       pending: {
-        "conversations:a:title": { type: "field", value: 1, ts: 1, ack: [{ s: "user:u1", p: 5 }] },
-        "conversations:b:title": { type: "field", value: 1, ts: 1, ack: [{ s: "user:u1", p: 9 }] },
+        "conversations:a:title": {
+          type: "field",
+          value: 1,
+          ts: 1,
+          ack: [{ s: "user:u1", p: 5 }],
+        },
+        "conversations:b:title": {
+          type: "field",
+          value: 1,
+          ts: 1,
+          ack: [{ s: "user:u1", p: 9 }],
+        },
         "tasks:c": { type: "exclude", ts: 1, ack: [{ s: "team:t1", p: 3 }] },
         "tasks:d:status": { type: "field", value: 1, ts: 1 },
       },
@@ -130,14 +196,23 @@ describe("purgeTeamScopeRows", () => {
     expect(s.tasks.t1).toBeUndefined();
     expect(s.tasks.t2).toBeDefined();
     expect(s.docs.d1).toBeUndefined();
-    expect(s.pending["tasks:t1"]).toMatchObject({ type: "exclude", scope: "team:T" });
-    expect(s.pending["docs:d1"]).toMatchObject({ type: "exclude", scope: "team:T" });
+    expect(s.pending["tasks:t1"]).toMatchObject({
+      type: "exclude",
+      scope: "team:T",
+    });
+    expect(s.pending["docs:d1"]).toMatchObject({
+      type: "exclude",
+      scope: "team:T",
+    });
     expect(s.pending["tasks:t2"]).toBeUndefined();
   });
 
   test("liftScopeExcludes lifts exactly the purge's excludes for that scope (rejoin)", () => {
     useInboxStore.setState({
-      tasks: { t1: { _id: "t1", workspace: "team:T" }, t3: { _id: "t3", workspace: "team:U" } },
+      tasks: {
+        t1: { _id: "t1", workspace: "team:T" },
+        t3: { _id: "t3", workspace: "team:U" },
+      },
       pending: { "docs:pruned": { type: "exclude", ts: 1 } },
     } as any);
     useInboxStore.getState().purgeTeamScopeRows("T");
@@ -145,21 +220,31 @@ describe("purgeTeamScopeRows", () => {
     useInboxStore.getState().liftScopeExcludes("team:T");
     const pending = useInboxStore.getState().pending as any;
     expect(pending["tasks:t1"]).toBeUndefined();
-    expect(pending["tasks:t3"]).toMatchObject({ type: "exclude", scope: "team:U" });
+    expect(pending["tasks:t3"]).toMatchObject({
+      type: "exclude",
+      scope: "team:U",
+    });
     expect(pending["docs:pruned"]).toMatchObject({ type: "exclude" }); // an authorized-absence prune is not a purge
   });
 });
 
 describe("clearSyncMeta", () => {
   test("drops the key outright (recordSyncMeta only advances)", () => {
-    useInboxStore.setState({ syncMeta: { "synclog:v1:team:T": { cursor: 9 } } } as any);
+    useInboxStore.setState({
+      syncMeta: { "synclog:v1:team:T": { cursor: 9 } },
+    } as any);
     useInboxStore.getState().clearSyncMeta("synclog:v1:team:T");
-    expect(useInboxStore.getState().syncMeta["synclog:v1:team:T"]).toBeUndefined();
+    expect(
+      useInboxStore.getState().syncMeta["synclog:v1:team:T"],
+    ).toBeUndefined();
   });
 });
 
 describe("catchUpScope (review C19)", () => {
-  const { catchUpScope, scopeMetaKey } = require("../../hooks/useSyncChangeFeed");
+  const {
+    catchUpScope,
+    scopeMetaKey,
+  } = require("../../hooks/useSyncChangeFeed");
 
   const scriptedConvex = (pages: any[]) => {
     const calls: any[] = [];
@@ -176,14 +261,22 @@ describe("catchUpScope (review C19)", () => {
 
   test("cold scope stamps at the handed head without fetching", async () => {
     const convex = scriptedConvex([]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 41, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 41, floor: 0 },
+      new Set(),
+    );
     expect(cursorOf("user:u1")).toBe(41);
     expect(convex.calls).toHaveLength(0);
   });
 
   test("newborn scope stamps cursor 0 (review C8) and later replays from it", async () => {
     const convex = scriptedConvex([]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 0, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 0, floor: 0 },
+      new Set(),
+    );
     expect(cursorOf("user:u1")).toBe(0); // persisted, not rejected by forward-only
   });
 
@@ -191,12 +284,19 @@ describe("catchUpScope (review C19)", () => {
     useInboxStore.setState({
       syncMeta: {
         [scopeMetaKey("team:T")]: { cursor: 5 },
-        ['tasks:v2:{"team_id":"T","workspace":"team"}']: { cursor: 99, backfilledAt: 1 },
+        ['tasks:v2:{"team_id":"T","workspace":"team"}']: {
+          cursor: 99,
+          backfilledAt: 1,
+        },
         ['docs:v2:{"workspace":"personal"}']: { cursor: 7, backfilledAt: 1 },
       },
     } as any);
     const convex = scriptedConvex([]);
-    await catchUpScope(convex, { scope_key: "team:T", position: 50, floor: 10 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "team:T", position: 50, floor: 10 },
+      new Set(),
+    );
     const meta = useInboxStore.getState().syncMeta as any;
     expect(meta[scopeMetaKey("team:T")].cursor).toBe(50);
     expect(meta['tasks:v2:{"team_id":"T","workspace":"team"}']).toBeUndefined(); // cleared (C6)
@@ -204,11 +304,17 @@ describe("catchUpScope (review C19)", () => {
   });
 
   test("empty page with advanced nextFrom moves the cursor (coalescing holes)", async () => {
-    useInboxStore.setState({ syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 3 } } } as any);
+    useInboxStore.setState({
+      syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 3 } },
+    } as any);
     const convex = scriptedConvex([
       { actions: [], nextFrom: 9, hasMore: false },
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 9, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 9, floor: 0 },
+      new Set(),
+    );
     expect(cursorOf("user:u1")).toBe(9);
   });
 
@@ -221,7 +327,11 @@ describe("catchUpScope (review C19)", () => {
       { actions: [], nextFrom: 3, hasMore: false, authorized: false },
     ]);
     const purged = new Set<string>();
-    await catchUpScope(convex, { scope_key: "team:T", position: 9, floor: 0 }, purged);
+    await catchUpScope(
+      convex,
+      { scope_key: "team:T", position: 9, floor: 0 },
+      purged,
+    );
     expect(cursorOf("team:T")).toBeUndefined();
     expect((useInboxStore.getState() as any).tasks.t1).toBeUndefined();
     expect(purged.has("T")).toBe(true);
@@ -234,18 +344,32 @@ describe("applyCargoFields (sync-log-cargo E6)", () => {
       tasks: { t1: { _id: "t1", title: "old", status: "open", closed_at: 1 } },
       pending: { "tasks:t1:status": { type: "field", value: "done", ts: 1 } },
     } as any);
-    const ok = useInboxStore.getState().applyCargoFields("tasks", "t1", { title: "new", status: "open" }, ["closed_at"]);
+    const ok = useInboxStore
+      .getState()
+      .applyCargoFields("tasks", "t1", { title: "new", status: "open" }, [
+        "closed_at",
+      ]);
     expect(ok).toBe(true);
     const row = (useInboxStore.getState() as any).tasks.t1;
     expect(row.title).toBe("new");
     expect(row.status).toBe("done"); // lock wins over the stale server value
     expect("closed_at" in row).toBe(false);
-    expect((useInboxStore.getState() as any).pending["tasks:t1:status"]).toBeDefined();
-    useInboxStore.getState().applyCargoFields("tasks", "t1", { status: "done" }, []);
-    expect((useInboxStore.getState() as any).pending["tasks:t1:status"]).toBeUndefined(); // echo retired it
+    expect(
+      (useInboxStore.getState() as any).pending["tasks:t1:status"],
+    ).toBeDefined();
+    useInboxStore
+      .getState()
+      .applyCargoFields("tasks", "t1", { status: "done" }, []);
+    expect(
+      (useInboxStore.getState() as any).pending["tasks:t1:status"],
+    ).toBeUndefined(); // echo retired it
   });
   test("returns false when there is no base row (caller falls back to byIds)", () => {
-    expect(useInboxStore.getState().applyCargoFields("docs", "nope", { title: "x" }, [])).toBe(false);
+    expect(
+      useInboxStore
+        .getState()
+        .applyCargoFields("docs", "nope", { title: "x" }, []),
+    ).toBe(false);
   });
   test("sessions: unset nulls; the conversations meta twin is left to its own feeders", () => {
     useInboxStore.setState({
@@ -253,7 +377,9 @@ describe("applyCargoFields (sync-log-cargo E6)", () => {
       conversations: { c1: { _id: "c1", title: "a", subtitle: "s" } },
       pending: {},
     } as any);
-    useInboxStore.getState().applyCargoFields("sessions", "c1", { title: "b" }, ["subtitle"]);
+    useInboxStore
+      .getState()
+      .applyCargoFields("sessions", "c1", { title: "b" }, ["subtitle"]);
     const s = useInboxStore.getState() as any;
     expect(s.sessions.c1.title).toBe("b");
     expect(s.sessions.c1.subtitle).toBeNull();
@@ -262,16 +388,34 @@ describe("applyCargoFields (sync-log-cargo E6)", () => {
   test("a lock on a field the patch OMITS survives (a local clear is a lock with value undefined)", () => {
     useInboxStore.setState({
       tasks: { t1: { _id: "t1", title: "old", status: "open" } },
-      pending: { "tasks:t1:assignee": { type: "field", value: undefined, ts: 1 } },
+      pending: {
+        "tasks:t1:assignee": { type: "field", value: undefined, ts: 1 },
+      },
     } as any);
-    useInboxStore.getState().applyCargoFields("tasks", "t1", { title: "new" }, []);
-    expect((useInboxStore.getState() as any).pending["tasks:t1:assignee"]).toBeDefined();
+    useInboxStore
+      .getState()
+      .applyCargoFields("tasks", "t1", { title: "new" }, []);
+    expect(
+      (useInboxStore.getState() as any).pending["tasks:t1:assignee"],
+    ).toBeDefined();
     useInboxStore.getState().applyCargoFields("tasks", "t1", {}, ["assignee"]);
-    expect((useInboxStore.getState() as any).pending["tasks:t1:assignee"]).toBeUndefined();
+    expect(
+      (useInboxStore.getState() as any).pending["tasks:t1:assignee"],
+    ).toBeUndefined();
   });
   test("sessions projection stamps are stripped from cargo like every other channel", () => {
-    useInboxStore.setState({ sessions: { c1: { _id: "c1", title: "a" } }, pending: {} } as any);
-    useInboxStore.getState().applyCargoFields("sessions", "c1", { title: "b", bucket: "needs_input" } as any, []);
+    useInboxStore.setState({
+      sessions: { c1: { _id: "c1", title: "a" } },
+      pending: {},
+    } as any);
+    useInboxStore
+      .getState()
+      .applyCargoFields(
+        "sessions",
+        "c1",
+        { title: "b", bucket: "needs_input" } as any,
+        [],
+      );
     const row = (useInboxStore.getState() as any).sessions.c1;
     expect(row.title).toBe("b");
     expect(row.bucket).toBeUndefined();
@@ -279,10 +423,19 @@ describe("applyCargoFields (sync-log-cargo E6)", () => {
 });
 
 describe("applyLogPage with cargo (through catchUpScope)", () => {
-  const { catchUpScope, scopeMetaKey } = require("../../hooks/useSyncChangeFeed");
+  const {
+    catchUpScope,
+    scopeMetaKey,
+  } = require("../../hooks/useSyncChangeFeed");
   const scripted = (pages: any[]) => {
     const calls: any[] = [];
-    return { calls, query: async (_fn: any, args: any) => { calls.push(args); return pages.shift(); } };
+    return {
+      calls,
+      query: async (_fn: any, args: any) => {
+        calls.push(args);
+        return pages.shift();
+      },
+    };
   };
   test("a patch with a base applies directly and issues NO byIds query", async () => {
     useInboxStore.setState({
@@ -291,13 +444,35 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
       syncLogApplyStats: { direct: 0, refetch: 0 },
     } as any);
     const convex = scripted([
-      { actions: [{ position: 4, entity_type: "tasks", entity_id: "t1", op: "upsert", patch: { title: "new" } }], nextFrom: 4, hasMore: false },
+      {
+        actions: [
+          {
+            position: 4,
+            entity_type: "tasks",
+            entity_id: "t1",
+            op: "upsert",
+            patch: { title: "new" },
+          },
+        ],
+        nextFrom: 4,
+        hasMore: false,
+      },
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 4, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 4, floor: 0 },
+      new Set(),
+    );
     expect((useInboxStore.getState() as any).tasks.t1.title).toBe("new");
     expect(convex.calls).toHaveLength(1); // the range only — no byIds
-    expect(useInboxStore.getState().syncLogApplyStats).toEqual({ direct: 1, refetch: 0 });
-    expect((useInboxStore.getState().syncMeta as any)[scopeMetaKey("user:u1")].cursor).toBe(4);
+    expect(useInboxStore.getState().syncLogApplyStats).toEqual({
+      direct: 1,
+      refetch: 0,
+    });
+    expect(
+      (useInboxStore.getState().syncMeta as any)[scopeMetaKey("user:u1")]
+        .cursor,
+    ).toBe(4);
   });
   test("no base, a delete, and partial cargo all route to byIds (authorized absence prunes)", async () => {
     useInboxStore.setState({
@@ -307,14 +482,36 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
       syncLogApplyStats: { direct: 0, refetch: 0 },
     } as any);
     const convex = scripted([
-      { actions: [
-        { position: 1, entity_type: "tasks", entity_id: "t9", op: "upsert", patch: { title: "unknown base" } },
-        { position: 2, entity_type: "tasks", entity_id: "t2", op: "delete" },
-        { position: 3, entity_type: "tasks", entity_id: "t3", op: "upsert", patch: { title: "p" }, full: true, partial: true },
-      ], nextFrom: 3, hasMore: false },
+      {
+        actions: [
+          {
+            position: 1,
+            entity_type: "tasks",
+            entity_id: "t9",
+            op: "upsert",
+            patch: { title: "unknown base" },
+          },
+          { position: 2, entity_type: "tasks", entity_id: "t2", op: "delete" },
+          {
+            position: 3,
+            entity_type: "tasks",
+            entity_id: "t3",
+            op: "upsert",
+            patch: { title: "p" },
+            full: true,
+            partial: true,
+          },
+        ],
+        nextFrom: 3,
+        hasMore: false,
+      },
       { items: [{ _id: "t3", title: "p", assignee_info: { name: "x" } }] }, // byIds: t9 gone, t2 gone, t3 enriched
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 3, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 3, floor: 0 },
+      new Set(),
+    );
     const s = useInboxStore.getState() as any;
     expect(convex.calls).toHaveLength(2);
     expect(convex.calls[0].cargo).toBe(true); // opt-in rides the range call
@@ -329,9 +526,22 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
     const actions: any[] = [];
     for (let i = 0; i < 200; i++) {
       tasks[`t${i}`] = { _id: `t${i}`, title: "old" };
-      actions.push({ position: i + 1, entity_type: "tasks", entity_id: `t${i}`, op: "upsert", patch: { title: `new ${i}` } });
+      actions.push({
+        position: i + 1,
+        entity_type: "tasks",
+        entity_id: `t${i}`,
+        op: "upsert",
+        patch: { title: `new ${i}` },
+      });
     }
-    actions.push({ position: 201, entity_type: "docs", entity_id: "d1", op: "upsert", patch: { title: "seeded" }, full: true });
+    actions.push({
+      position: 201,
+      entity_type: "docs",
+      entity_id: "d1",
+      op: "upsert",
+      patch: { title: "seeded" },
+      full: true,
+    });
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 0 } },
       tasks,
@@ -344,9 +554,15 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
       { docs: [{ _id: "d1", title: "seeded" }] },
     ]);
     let taskWrites = 0;
-    const unsub = useInboxStore.subscribe((s: any, prev: any) => { if (s.tasks !== prev.tasks) taskWrites++; });
+    const unsub = useInboxStore.subscribe((s: any, prev: any) => {
+      if (s.tasks !== prev.tasks) taskWrites++;
+    });
     try {
-      await catchUpScope(convex, { scope_key: "user:u1", position: 201, floor: 0 }, new Set());
+      await catchUpScope(
+        convex,
+        { scope_key: "user:u1", position: 201, floor: 0 },
+        new Set(),
+      );
     } finally {
       unsub();
     }
@@ -360,7 +576,10 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
 });
 
 describe("applyLogPage: a delete for an id the replica does not hold needs no byIds probe", () => {
-  const { catchUpScope, scopeMetaKey } = require("../../hooks/useSyncChangeFeed");
+  const {
+    catchUpScope,
+    scopeMetaKey,
+  } = require("../../hooks/useSyncChangeFeed");
   test("skips the probe", async () => {
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("team:T")]: { cursor: 0 } },
@@ -369,20 +588,52 @@ describe("applyLogPage: a delete for an id the replica does not hold needs no by
       syncLogApplyStats: { direct: 0, refetch: 0 },
     } as any);
     const calls: any[] = [];
-    const convex = { query: async (_f: any, args: any) => { calls.push(args); return { actions: [
-      { position: 1, entity_type: "tasks", entity_id: "private", op: "delete" },
-    ], nextFrom: 1, hasMore: false }; } };
-    await catchUpScope(convex, { scope_key: "team:T", position: 1, floor: 0 }, new Set());
+    const convex = {
+      query: async (_f: any, args: any) => {
+        calls.push(args);
+        return {
+          actions: [
+            {
+              position: 1,
+              entity_type: "tasks",
+              entity_id: "private",
+              op: "delete",
+            },
+          ],
+          nextFrom: 1,
+          hasMore: false,
+        };
+      },
+    };
+    await catchUpScope(
+      convex,
+      { scope_key: "team:T", position: 1, floor: 0 },
+      new Set(),
+    );
     expect(calls).toHaveLength(1);
-    expect((useInboxStore.getState().syncMeta as any)[scopeMetaKey("team:T")].cursor).toBe(1);
+    expect(
+      (useInboxStore.getState().syncMeta as any)[scopeMetaKey("team:T")].cursor,
+    ).toBe(1);
   });
 });
 
 describe("applyLogPage: review findings (sessions twins, seeds, projects)", () => {
-  const { catchUpScope, scopeMetaKey, catchUp } = require("../../hooks/useSyncChangeFeed");
+  const {
+    catchUpScope,
+    scopeMetaKey,
+    catchUp,
+  } = require("../../hooks/useSyncChangeFeed");
   const scripted = (pages: any[]) => {
     const calls: any[] = [];
-    return { calls, query: async (_fn: any, args: any) => { calls.push(args); const p = pages.shift(); if (p instanceof Error) throw p; return p; } };
+    return {
+      calls,
+      query: async (_fn: any, args: any) => {
+        calls.push(args);
+        const p = pages.shift();
+        if (p instanceof Error) throw p;
+        return p;
+      },
+    };
   };
   const base = (extra: any) => ({
     syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 0 } },
@@ -392,12 +643,33 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
   });
 
   test("a delete for a conversation held only as a per-view twin still gets the absence probe", async () => {
-    useInboxStore.setState(base({ sessions: {}, conversations: { c1: { _id: "c1", title: "open in a tab" } }, messages: { c1: [] } }) as any);
+    useInboxStore.setState(
+      base({
+        sessions: {},
+        conversations: { c1: { _id: "c1", title: "open in a tab" } },
+        messages: { c1: [] },
+      }) as any,
+    );
     const convex = scripted([
-      { actions: [{ position: 1, entity_type: "conversations", entity_id: "c1", op: "delete" }], nextFrom: 1, hasMore: false },
+      {
+        actions: [
+          {
+            position: 1,
+            entity_type: "conversations",
+            entity_id: "c1",
+            op: "delete",
+          },
+        ],
+        nextFrom: 1,
+        hasMore: false,
+      },
       { sessions: [] }, // authorized absence
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 1, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 1, floor: 0 },
+      new Set(),
+    );
     expect(convex.calls).toHaveLength(2);
     expect(convex.calls[1].ids).toEqual(["c1"]);
     const s = useInboxStore.getState() as any;
@@ -406,14 +678,40 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
   });
 
   test("a full sessions cargo with no base is never seeded (a card needs its stamps): byIds only", async () => {
-    useInboxStore.setState(base({ sessions: {}, conversations: {}, messages: {} }) as any);
+    useInboxStore.setState(
+      base({ sessions: {}, conversations: {}, messages: {} }) as any,
+    );
     const convex = scripted([
-      { actions: [{ position: 1, entity_type: "conversations", entity_id: "c2", op: "upsert", full: true, patch: { title: "new" } }], nextFrom: 1, hasMore: false },
-      { sessions: [{ _id: "c2", title: "new", bucket: "needs_input", status: "active" }] },
+      {
+        actions: [
+          {
+            position: 1,
+            entity_type: "conversations",
+            entity_id: "c2",
+            op: "upsert",
+            full: true,
+            patch: { title: "new" },
+          },
+        ],
+        nextFrom: 1,
+        hasMore: false,
+      },
+      {
+        sessions: [
+          { _id: "c2", title: "new", bucket: "needs_input", status: "active" },
+        ],
+      },
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 1, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 1, floor: 0 },
+      new Set(),
+    );
     expect(convex.calls).toHaveLength(2);
-    expect(useInboxStore.getState().syncLogApplyStats).toEqual({ direct: 0, refetch: 1 });
+    expect(useInboxStore.getState().syncLogApplyStats).toEqual({
+      direct: 0,
+      refetch: 1,
+    });
     expect((useInboxStore.getState() as any).sessions.c2.title).toBe("new");
   });
 
@@ -421,85 +719,202 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
   // costs its held project nothing: each refetch recounted every task, plan
   // and doc of the project, 40 MB on a large team, once per open tab.
   test("a task status change applies directly and refetches no project", async () => {
-    useInboxStore.setState(base({
-      tasks: { t1: { _id: "t1", title: "a", status: "open", project_id: "p1" } },
-      projects: { p1: { _id: "p1", name: "P" } },
-    }) as any);
+    useInboxStore.setState(
+      base({
+        tasks: {
+          t1: { _id: "t1", title: "a", status: "open", project_id: "p1" },
+        },
+        projects: { p1: { _id: "p1", name: "P" } },
+      }) as any,
+    );
     const convex = scripted([
-      { actions: [{ position: 1, entity_type: "tasks", entity_id: "t1", op: "upsert", patch: { status: "done" } }], nextFrom: 1, hasMore: false },
+      {
+        actions: [
+          {
+            position: 1,
+            entity_type: "tasks",
+            entity_id: "t1",
+            op: "upsert",
+            patch: { status: "done" },
+          },
+        ],
+        nextFrom: 1,
+        hasMore: false,
+      },
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 1, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 1, floor: 0 },
+      new Set(),
+    );
     expect(convex.calls).toHaveLength(1);
     expect((useInboxStore.getState() as any).tasks.t1.status).toBe("done");
   });
 
   test("a title edit refetches nothing, and an unheld project is never fetched", async () => {
-    useInboxStore.setState(base({
-      tasks: { t1: { _id: "t1", title: "a", status: "open", project_id: "p1" }, t2: { _id: "t2", status: "open", project_id: "p9" } },
-      projects: { p1: { _id: "p1", name: "P" } },
-    }) as any);
+    useInboxStore.setState(
+      base({
+        tasks: {
+          t1: { _id: "t1", title: "a", status: "open", project_id: "p1" },
+          t2: { _id: "t2", status: "open", project_id: "p9" },
+        },
+        projects: { p1: { _id: "p1", name: "P" } },
+      }) as any,
+    );
     const convex = scripted([
-      { actions: [
-        { position: 1, entity_type: "tasks", entity_id: "t1", op: "upsert", patch: { title: "b" } },
-        { position: 2, entity_type: "tasks", entity_id: "t2", op: "upsert", patch: { status: "done" } },
-      ], nextFrom: 2, hasMore: false },
+      {
+        actions: [
+          {
+            position: 1,
+            entity_type: "tasks",
+            entity_id: "t1",
+            op: "upsert",
+            patch: { title: "b" },
+          },
+          {
+            position: 2,
+            entity_type: "tasks",
+            entity_id: "t2",
+            op: "upsert",
+            patch: { status: "done" },
+          },
+        ],
+        nextFrom: 2,
+        hasMore: false,
+      },
     ]);
-    await catchUpScope(convex, { scope_key: "user:u1", position: 2, floor: 0 }, new Set());
+    await catchUpScope(
+      convex,
+      { scope_key: "user:u1", position: 2, floor: 0 },
+      new Set(),
+    );
     expect(convex.calls).toHaveLength(1);
   });
 
   test("catchUp stamps each scope after its turn, never on an empty heads list", async () => {
-    useInboxStore.setState({ syncMeta: {}, syncLogScopeStamps: {}, syncLogLag: {} } as any);
+    useInboxStore.setState({
+      syncMeta: {},
+      syncLogScopeStamps: {},
+      syncLogLag: {},
+    } as any);
     await catchUp(scripted([{ heads: [] }]));
     expect(useInboxStore.getState().syncLogScopeStamps).toEqual({});
-    await catchUp(scripted([{ heads: [{ scope_key: "user:u1", position: 7, floor: 0 }] }]));
-    expect(useInboxStore.getState().syncLogScopeStamps["user:u1"]).toBeDefined();
-    expect(useInboxStore.getState().syncLogScopeStamps["team:T"]).toBeUndefined();
-    expect((useInboxStore.getState().syncMeta as any)[scopeMetaKey("user:u1")].cursor).toBe(7);
+    await catchUp(
+      scripted([{ heads: [{ scope_key: "user:u1", position: 7, floor: 0 }] }]),
+    );
+    expect(
+      useInboxStore.getState().syncLogScopeStamps["user:u1"],
+    ).toBeDefined();
+    expect(
+      useInboxStore.getState().syncLogScopeStamps["team:T"],
+    ).toBeUndefined();
+    expect(
+      (useInboxStore.getState().syncMeta as any)[scopeMetaKey("user:u1")]
+        .cursor,
+    ).toBe(7);
   });
 
   test("one scope's failing replay blocks neither the other scopes nor the floors", async () => {
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("team:T")]: { cursor: 3 } },
-      syncLogScopeStamps: {}, syncLogLag: {}, syncLogFloorEpoch: 0,
+      syncLogScopeStamps: {},
+      syncLogLag: {},
+      syncLogFloorEpoch: 0,
     } as any);
-    await catchUp(scripted([
-      { heads: [{ scope_key: "team:T", position: 9, floor: 0 }, { scope_key: "user:u1", position: 7, floor: 0 }] },
-      new Error("too many system operations"), // team:T's getRange
-    ]));
+    await catchUp(
+      scripted([
+        {
+          heads: [
+            { scope_key: "team:T", position: 9, floor: 0 },
+            { scope_key: "user:u1", position: 7, floor: 0 },
+          ],
+        },
+        new Error("too many system operations"), // team:T's getRange
+      ]),
+    );
     const s = useInboxStore.getState() as any;
     expect(s.syncMeta[scopeMetaKey("team:T")].cursor).toBe(3); // the warm scope keeps its lower cursor
     expect(s.syncMeta[scopeMetaKey("user:u1")].cursor).toBe(7); // the cold scope still stamped
-    expect(Object.keys(s.syncLogScopeStamps).sort()).toEqual(["team:T", "user:u1"]);
+    expect(Object.keys(s.syncLogScopeStamps).sort()).toEqual([
+      "team:T",
+      "user:u1",
+    ]);
     expect(s.syncLogLag).toEqual({ "team:T": 0, "user:u1": 0 });
   });
 
   test("a revoked scope loses its stamp with its cursor; a resync and a rejoin recut the floors", async () => {
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("team:T")]: { cursor: 5 } },
-      syncLogScopeStamps: { "team:T": 1 }, syncLogFloorEpoch: 0, pending: {},
-      tasks: { t1: { _id: "t1", workspace: "team:T" } }, plans: { p1: { _id: "p1", workspace: "team:T" } },
+      syncLogScopeStamps: { "team:T": 1 },
+      syncLogFloorEpoch: 0,
+      pending: {},
+      tasks: { t1: { _id: "t1", workspace: "team:T" } },
+      plans: { p1: { _id: "p1", workspace: "team:T" } },
     } as any);
     // Retention passed the cursor: restamp at head and bump the floor epoch.
-    await catchUpScope(scripted([]), { scope_key: "team:T", position: 50, floor: 10 }, new Set());
+    await catchUpScope(
+      scripted([]),
+      { scope_key: "team:T", position: 50, floor: 10 },
+      new Set(),
+    );
     let s = useInboxStore.getState() as any;
     expect(s.syncMeta[scopeMetaKey("team:T")].cursor).toBe(50);
     expect(s.syncLogFloorEpoch).toBe(1);
     // scope_removed in the (warm) user scope: rows purged, cursor and stamp dropped.
-    useInboxStore.setState({ syncMeta: { ...useInboxStore.getState().syncMeta, [scopeMetaKey("user:u1")]: { cursor: 0 } } } as any);
-    await catchUpScope(scripted([
-      { actions: [{ position: 1, entity_type: "scope", entity_id: "T", op: "scope_removed" }], nextFrom: 1, hasMore: false },
-    ]), { scope_key: "user:u1", position: 1, floor: 0 }, new Set());
+    useInboxStore.setState({
+      syncMeta: {
+        ...useInboxStore.getState().syncMeta,
+        [scopeMetaKey("user:u1")]: { cursor: 0 },
+      },
+    } as any);
+    await catchUpScope(
+      scripted([
+        {
+          actions: [
+            {
+              position: 1,
+              entity_type: "scope",
+              entity_id: "T",
+              op: "scope_removed",
+            },
+          ],
+          nextFrom: 1,
+          hasMore: false,
+        },
+      ]),
+      { scope_key: "user:u1", position: 1, floor: 0 },
+      new Set(),
+    );
     s = useInboxStore.getState() as any;
     expect(s.syncMeta[scopeMetaKey("team:T")]).toBeUndefined();
     expect(s.syncLogScopeStamps["team:T"]).toBeUndefined();
     expect(s.plans.p1).toBeUndefined();
-    expect(s.pending["plans:p1"]).toMatchObject({ type: "exclude", scope: "team:T" });
+    expect(s.pending["plans:p1"]).toMatchObject({
+      type: "exclude",
+      scope: "team:T",
+    });
     // scope_added: the purge's excludes lift and the floors recut.
-    useInboxStore.setState({ syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 1 } } } as any);
-    await catchUpScope(scripted([
-      { actions: [{ position: 2, entity_type: "scope", entity_id: "T", op: "scope_added" }], nextFrom: 2, hasMore: false },
-    ]), { scope_key: "user:u1", position: 2, floor: 0 }, new Set());
+    useInboxStore.setState({
+      syncMeta: { [scopeMetaKey("user:u1")]: { cursor: 1 } },
+    } as any);
+    await catchUpScope(
+      scripted([
+        {
+          actions: [
+            {
+              position: 2,
+              entity_type: "scope",
+              entity_id: "T",
+              op: "scope_added",
+            },
+          ],
+          nextFrom: 2,
+          hasMore: false,
+        },
+      ]),
+      { scope_key: "user:u1", position: 2, floor: 0 },
+      new Set(),
+    );
     s = useInboxStore.getState() as any;
     expect(s.pending["plans:p1"]).toBeUndefined();
     expect(s.pending["tasks:t1"]).toBeUndefined();
@@ -520,7 +935,12 @@ describe("catchUp: the legacy upgrade bridge", () => {
       legacyCalls: () => calls.filter((a) => "since" in a),
       query: async (_fn: any, args: any) => {
         calls.push(args);
-        if ("since" in args) return { changes: [], nextSince: args.since + 148_000, hasMore: true };
+        if ("since" in args)
+          return {
+            changes: [],
+            nextSince: args.since + 148_000,
+            hasMore: true,
+          };
         if (args && "ids" in args) return [];
         return { heads };
       },
@@ -528,7 +948,11 @@ describe("catchUp: the legacy upgrade bridge", () => {
   };
   const seed = (legacyCursor: number, extra: Record<string, any> = {}) =>
     useInboxStore.setState({
-      syncMeta: { "changefeed:v1": { cursor: legacyCursor }, [TEAM_TASKS]: { cursor: 99, backfilledAt: 1 }, ...extra },
+      syncMeta: {
+        "changefeed:v1": { cursor: legacyCursor },
+        [TEAM_TASKS]: { cursor: 99, backfilledAt: 1 },
+        ...extra,
+      },
       syncLogScopeStamps: {},
       syncLogLag: {},
       syncLogFloorEpoch: 0,
@@ -553,8 +977,12 @@ describe("catchUp: the legacy upgrade bridge", () => {
   });
 
   test("a stale cursor beside a scope cursor an earlier partial run stamped still resyncs that scope", async () => {
-    seed(Date.now() - 3 * 24 * HOUR, { [scopeMetaKey("team:T")]: { cursor: 120000 } });
-    const convex = convexWith([{ scope_key: "team:T", position: 156024, floor: 25515 }]);
+    seed(Date.now() - 3 * 24 * HOUR, {
+      [scopeMetaKey("team:T")]: { cursor: 120000 },
+    });
+    const convex = convexWith([
+      { scope_key: "team:T", position: 156024, floor: 25515 },
+    ]);
     await catchUp(convex);
     expect(convex.calls.filter((a) => "scope_key" in a)).toHaveLength(0); // no range replay over an unproven gap
     const s = useInboxStore.getState() as any;
@@ -588,9 +1016,24 @@ describe("catchUp: the legacy upgrade bridge", () => {
 });
 
 describe("tasks: a cause write that leaves updated_at alone", () => {
-  const { catchUpScope, scopeMetaKey } = require("../../hooks/useSyncChangeFeed");
-  const cause = { signal_count: 3, first_seen: 1, last_seen: 2, fingerprints: ["f1"] };
-  const task = { _id: "t1", short_id: "ct-1", title: "a", status: "open", updated_at: 100, cause };
+  const {
+    catchUpScope,
+    scopeMetaKey,
+  } = require("../../hooks/useSyncChangeFeed");
+  const cause = {
+    signal_count: 3,
+    first_seen: 1,
+    last_seen: 2,
+    fingerprints: ["f1"],
+  };
+  const task = {
+    _id: "t1",
+    short_id: "ct-1",
+    title: "a",
+    status: "open",
+    updated_at: 100,
+    cause,
+  };
 
   test("a byIds refetch with a new cause.scored lands on the held row", async () => {
     useInboxStore.setState({
@@ -599,19 +1042,46 @@ describe("tasks: a cause write that leaves updated_at alone", () => {
       pending: {},
       syncLogApplyStats: { direct: 0, refetch: 0 },
     } as any);
-    const scored = { score: 7, harm: 3, reach: 2, fixability: 1, reason: "r", root_cause: "c", at: 5, version: "1" };
+    const scored = {
+      score: 7,
+      harm: 3,
+      reach: 2,
+      fixability: 1,
+      reason: "r",
+      root_cause: "c",
+      at: 5,
+      version: "1",
+    };
     const pages: any[] = [
-      { actions: [{ position: 1, entity_type: "tasks", entity_id: "t1", op: "upsert" }], nextFrom: 1, hasMore: false },
+      {
+        actions: [
+          { position: 1, entity_type: "tasks", entity_id: "t1", op: "upsert" },
+        ],
+        nextFrom: 1,
+        hasMore: false,
+      },
       { items: [{ ...task, cause: { ...cause, scored } }] },
     ];
-    await catchUpScope({ query: async () => pages.shift() }, { scope_key: "team:T", position: 1, floor: 0 }, new Set());
-    expect((useInboxStore.getState() as any).tasks.t1.cause.scored).toEqual(scored);
+    await catchUpScope(
+      { query: async () => pages.shift() },
+      { scope_key: "team:T", position: 1, floor: 0 },
+      new Set(),
+    );
+    expect((useInboxStore.getState() as any).tasks.t1.cause.scored).toEqual(
+      scored,
+    );
   });
 
   test("an unchanged row keeps its identity", () => {
     useInboxStore.setState({ tasks: { t1: task }, pending: {} } as any);
     const held = (useInboxStore.getState() as any).tasks.t1;
-    useInboxStore.getState().syncTable("tasks", [{ ...task, cause: { ...cause, fingerprints: ["f1"] } }] as any, { isDelta: true } as any);
+    useInboxStore
+      .getState()
+      .syncTable(
+        "tasks",
+        [{ ...task, cause: { ...cause, fingerprints: ["f1"] } }] as any,
+        { isDelta: true } as any,
+      );
     expect((useInboxStore.getState() as any).tasks.t1).toBe(held);
   });
 });

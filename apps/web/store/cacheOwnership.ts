@@ -31,7 +31,11 @@ import { recordCacheEvent } from "./cacheEvents";
 const OWNER_STAMP_KEY = "cacheOwner";
 type OwnerStamp = { principal: string | null; at: number; reason: string };
 
-type PurgeCache = (opts: { keepPendingInputFor: string | null; reason: string; detail: Record<string, unknown> }) => Promise<void>;
+type PurgeCache = (opts: {
+  keepPendingInputFor: string | null;
+  reason: string;
+  detail: Record<string, unknown>;
+}) => Promise<void>;
 
 export type CacheOwnershipDeps = {
   db: Dexie & { meta: Dexie.Table<{ key: string; value: any }, string> };
@@ -46,22 +50,42 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
 
   // The owner rows, read in one transaction. `stamp` is undefined when there is
   // no stamp row and null for a signed-out tombstone.
-  async function readOwnerEvidence(): Promise<{ stamp: string | null | undefined; user: string | null }> {
+  async function readOwnerEvidence(): Promise<{
+    stamp: string | null | undefined;
+    user: string | null;
+  }> {
     return deps.db.transaction("r", deps.db.meta, async () => {
-      const [stampRow, userRow] = await Promise.all([deps.db.meta.get(OWNER_STAMP_KEY), deps.db.meta.get("currentUser")]);
+      const [stampRow, userRow] = await Promise.all([
+        deps.db.meta.get(OWNER_STAMP_KEY),
+        deps.db.meta.get("currentUser"),
+      ]);
       const stampValue = stampRow?.value as OwnerStamp | undefined;
-      const stamp = stampValue === undefined ? undefined
-        : typeof stampValue?.principal === "string" ? stampValue.principal : null;
+      const stamp =
+        stampValue === undefined
+          ? undefined
+          : typeof stampValue?.principal === "string"
+            ? stampValue.principal
+            : null;
       const id = userRow?.value?._id;
       return { stamp, user: typeof id === "string" ? id : null };
     });
   }
 
-  async function writeOwnerStamp(principal: string | null, reason: string): Promise<void> {
+  async function writeOwnerStamp(
+    principal: string | null,
+    reason: string,
+  ): Promise<void> {
     try {
-      await deps.db.meta.put({ key: OWNER_STAMP_KEY, value: { principal, at: Date.now(), reason } satisfies OwnerStamp });
+      await deps.db.meta.put({
+        key: OWNER_STAMP_KEY,
+        value: { principal, at: Date.now(), reason } satisfies OwnerStamp,
+      });
     } catch (error) {
-      recordCacheEvent("ownership-unreadable", { step: "write-stamp", reason, error: String(error) });
+      recordCacheEvent("ownership-unreadable", {
+        step: "write-stamp",
+        reason,
+        error: String(error),
+      });
     }
   }
 
@@ -73,18 +97,34 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   // counted (as before stamps): a window's own first write can land before its
   // ownership resolves. One transaction for every count: separate reads could
   // straddle a write and count a row twice.
-  async function foreignRowCount(principal: string | null): Promise<number | null> {
+  async function foreignRowCount(
+    principal: string | null,
+  ): Promise<number | null> {
     try {
       const tables = deps.residueTables;
       // Index-only counts (no row values are read; meta holds large blobs), in
       // one read transaction so all of them see the same snapshot.
-      return await deps.db.transaction("r", [deps.db.meta, ...tables], async () => {
-        const meta = await deps.db.meta.count();
-        const own = principal ? await deps.db.meta.where("key").startsWith(`${deps.pendingInputPrefix}${principal}:`).count() : 0;
-        const stamp = await deps.db.meta.where("key").equals(OWNER_STAMP_KEY).count();
-        const rows = await Promise.all(tables.map((table) => table.count()));
-        return meta - own - stamp + rows.reduce((total, count) => total + count, 0);
-      });
+      return await deps.db.transaction(
+        "r",
+        [deps.db.meta, ...tables],
+        async () => {
+          const meta = await deps.db.meta.count();
+          const own = principal
+            ? await deps.db.meta
+                .where("key")
+                .startsWith(`${deps.pendingInputPrefix}${principal}:`)
+                .count()
+            : 0;
+          const stamp = await deps.db.meta
+            .where("key")
+            .equals(OWNER_STAMP_KEY)
+            .count();
+          const rows = await Promise.all(tables.map((table) => table.count()));
+          return (
+            meta - own - stamp + rows.reduce((total, count) => total + count, 0)
+          );
+        },
+      );
     } catch {
       return null;
     }
@@ -93,20 +133,29 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   // Disk ownership is decided by the disk alone. A caller's own idea of who is
   // signed in proves nothing about rows written by an earlier account, so it is
   // never consulted here.
-  async function resolveCacheOwnership(purge: PurgeCache): Promise<string | null> {
+  async function resolveCacheOwnership(
+    purge: PurgeCache,
+  ): Promise<string | null> {
     const principal = await authPrincipal.resolve();
     boundOwner = principal;
     let evidence: Awaited<ReturnType<typeof readOwnerEvidence>>;
     try {
       evidence = await readOwnerEvidence();
     } catch (error) {
-      recordCacheEvent("ownership-unreadable", { step: "read-owner", principal, error: String(error) });
+      recordCacheEvent("ownership-unreadable", {
+        step: "read-owner",
+        principal,
+        error: String(error),
+      });
       return null;
     }
-    const named = [evidence.stamp, evidence.user].filter((p): p is string => typeof p === "string");
+    const named = [evidence.stamp, evidence.user].filter(
+      (p): p is string => typeof p === "string",
+    );
     const others = named.filter((p) => p !== principal);
     if (principal !== null && named.length > 0 && others.length === 0) {
-      if (evidence.stamp !== principal) await writeOwnerStamp(principal, "confirmed");
+      if (evidence.stamp !== principal)
+        await writeOwnerStamp(principal, "confirmed");
       deps.onServed();
       return principal;
     }
@@ -117,12 +166,17 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
     // an explicit sign-out or by a change to another named account.
     const tokenState = authPrincipal.tokenState();
     if (tokenState === "unparsable" || tokenState === "unreadable") {
-      console.warn(`[cache] the stored token is ${tokenState}; keeping the cache as it is`);
+      console.warn(
+        `[cache] the stored token is ${tokenState}; keeping the cache as it is`,
+      );
       return null;
     }
     const foreign = await foreignRowCount(principal);
     if (foreign === null) {
-      recordCacheEvent("ownership-unreadable", { step: "count-rows", principal });
+      recordCacheEvent("ownership-unreadable", {
+        step: "count-rows",
+        principal,
+      });
       return null;
     }
     if (foreign === 0) {
@@ -130,11 +184,25 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
       if (principal !== null) await writeOwnerStamp(principal, "fresh");
       return null;
     }
-    const reason = others.length > 0 ? "another-owner"
-      : principal === null ? "signed-out"
-      : evidence.stamp === null ? "signed-out-residue"
-      : "no-owner-recorded";
-    const detail = { reason, principal, stamp: evidence.stamp === undefined ? "absent" : evidence.stamp ?? "signed-out", user: evidence.user, foreignRows: foreign, tokenState };
+    const reason =
+      others.length > 0
+        ? "another-owner"
+        : principal === null
+          ? "signed-out"
+          : evidence.stamp === null
+            ? "signed-out-residue"
+            : "no-owner-recorded";
+    const detail = {
+      reason,
+      principal,
+      stamp:
+        evidence.stamp === undefined
+          ? "absent"
+          : (evidence.stamp ?? "signed-out"),
+      user: evidence.user,
+      foreignRows: foreign,
+      tokenState,
+    };
     await purge({ keepPendingInputFor: principal, reason, detail });
     return null;
   }
@@ -142,7 +210,10 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
   /** The principal the disk cache may be served to, or null when it must not be
    *  read. Resolved per read (two cheap lookups); concurrent reads share one. */
   function ensureCacheOwnership(purge: PurgeCache): Promise<string | null> {
-    if (!ownership) ownership = resolveCacheOwnership(purge).finally(() => { ownership = null; });
+    if (!ownership)
+      ownership = resolveCacheOwnership(purge).finally(() => {
+        ownership = null;
+      });
     return ownership;
   }
 
@@ -150,12 +221,19 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
    *  resolved the cache's owner, only while that is still the same account. */
   function persistenceOwned(): boolean {
     const principal = authPrincipal.current();
-    return principal !== null && (boundOwner === null || boundOwner === principal);
+    return (
+      principal !== null && (boundOwner === null || boundOwner === principal)
+    );
   }
 
   // Test hook: the account a fresh process resolves for, without a full boot.
   function _cacheOwnerForTests(): string | null {
     return boundOwner;
   }
-  return { ensureCacheOwnership, persistenceOwned, writeOwnerStamp, _cacheOwnerForTests };
+  return {
+    ensureCacheOwnership,
+    persistenceOwned,
+    writeOwnerStamp,
+    _cacheOwnerForTests,
+  };
 }

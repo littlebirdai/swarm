@@ -28,8 +28,12 @@ export function voiceHostReloadPlan(
   prev: VoiceHostCrash | null,
   now: number,
 ): { delayMs: number; next: VoiceHostCrash } {
-  const count = prev && now - prev.at < VOICE_HOST_QUIET_MS ? prev.count + 1 : 0;
-  const delayMs = Math.min(VOICE_HOST_RELOAD_MAX_MS, VOICE_HOST_RELOAD_MIN_MS * 2 ** count);
+  const count =
+    prev && now - prev.at < VOICE_HOST_QUIET_MS ? prev.count + 1 : 0;
+  const delayMs = Math.min(
+    VOICE_HOST_RELOAD_MAX_MS,
+    VOICE_HOST_RELOAD_MIN_MS * 2 ** count,
+  );
   return { delayMs, next: { count, at: now } };
 }
 

@@ -5,18 +5,47 @@ import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { toast } from "sonner";
-import { Archive, ArrowRightLeft, ChevronRight, Cloud, MonitorSmartphone, Terminal } from "lucide-react";
+import {
+  Archive,
+  ArrowRightLeft,
+  ChevronRight,
+  Cloud,
+  MonitorSmartphone,
+  Terminal,
+} from "lucide-react";
 import { RemoteMachineSetup } from "../../../components/settings/RemoteMachineSetup";
 import { useInboxStore } from "../../../store/inboxStore";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { SettingsLinkRow, SettingsPanel, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsLinkRow,
+  SettingsPanel,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { DevicePanelHeader } from "../../../components/settings/DevicePanelHeader";
-import { useDevices, deviceDisplayName, deviceKindLabel, deviceWakesOnUse, relativeSeen, DeviceDot, DeviceIcon, type Device } from "../../../components/DeviceBadge";
-import { TEAM_COLORS, TEAM_ICONS, TeamIcon, colorBgClassMap, iconLabelMap } from "../../../components/TeamIcon";
+import {
+  useDevices,
+  deviceDisplayName,
+  deviceKindLabel,
+  deviceWakesOnUse,
+  relativeSeen,
+  DeviceDot,
+  DeviceIcon,
+  type Device,
+} from "../../../components/DeviceBadge";
+import {
+  TEAM_COLORS,
+  TEAM_ICONS,
+  TeamIcon,
+  colorBgClassMap,
+  iconLabelMap,
+} from "../../../components/TeamIcon";
 import { cn } from "../../../lib/utils";
 import { ConfirmButton } from "../../../components/integrations/parts";
-import { canRemoveMachine, splitStaleMachines } from "../../../lib/staleMachines";
+import {
+  canRemoveMachine,
+  splitStaleMachines,
+} from "../../../lib/staleMachines";
 import { describeDeviceFreeze } from "../../../lib/daemonHealthCopy";
 import { useSettingsData } from "../../../hooks/useSyncSettings";
 import { Bot, Users } from "lucide-react";
@@ -33,10 +62,29 @@ type RepoPlane = NonNullable<Device["git_plane"]>[number];
 
 // Every state carries a text label so health is never conveyed by the dot's
 // color alone.
-function repoTone(r: RepoPlane): { dot: string; label: string; labelClass: string } {
-  if (r.needs_access) return { dot: "bg-sol-yellow", label: "needs access", labelClass: "text-sol-yellow" };
-  if (!r.origin_ok) return { dot: "bg-sol-red", label: "no usable origin", labelClass: "text-sol-red" };
-  if (r.fetch_ok === false) return { dot: "bg-sol-red", label: "fetch failing", labelClass: "text-sol-red" };
+function repoTone(r: RepoPlane): {
+  dot: string;
+  label: string;
+  labelClass: string;
+} {
+  if (r.needs_access)
+    return {
+      dot: "bg-sol-yellow",
+      label: "needs access",
+      labelClass: "text-sol-yellow",
+    };
+  if (!r.origin_ok)
+    return {
+      dot: "bg-sol-red",
+      label: "no usable origin",
+      labelClass: "text-sol-red",
+    };
+  if (r.fetch_ok === false)
+    return {
+      dot: "bg-sol-red",
+      label: "fetch failing",
+      labelClass: "text-sol-red",
+    };
   return { dot: "bg-sol-green", label: "ok", labelClass: "text-sol-text-dim" };
 }
 
@@ -50,17 +98,34 @@ function RepoPlaneRow({ r }: { r: RepoPlane }) {
   return (
     <li className="flex items-center gap-2 text-meta min-w-0">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${tone.dot}`} />
-      <span className="font-mono text-sol-text-secondary truncate">{repoBase(r.root)}</span>
-      {r.branch && <span className="modern:font-mono text-sol-text-dim truncate">{r.branch}</span>}
-      {(r.ahead ?? 0) > 0 && <span className="text-sol-cyan shrink-0">↑{r.ahead}</span>}
-      {(r.behind ?? 0) > 0 && <span className="text-sol-orange shrink-0">↓{r.behind}</span>}
+      <span className="font-mono text-sol-text-secondary truncate">
+        {repoBase(r.root)}
+      </span>
+      {r.branch && (
+        <span className="modern:font-mono text-sol-text-dim truncate">
+          {r.branch}
+        </span>
+      )}
+      {(r.ahead ?? 0) > 0 && (
+        <span className="text-sol-cyan shrink-0">↑{r.ahead}</span>
+      )}
+      {(r.behind ?? 0) > 0 && (
+        <span className="text-sol-orange shrink-0">↓{r.behind}</span>
+      )}
       {r.identity === "device" && (
         <span className="px-1 py-px rounded bg-sol-violet/10 text-sol-violet shrink-0">
           device key
         </span>
       )}
       <span className={`${tone.labelClass} shrink-0`}>{tone.label}</span>
-      {r.repaired_from && <span className="text-sol-text-dim shrink-0" title={`origin was ${r.repaired_from}`}>origin repaired</span>}
+      {r.repaired_from && (
+        <span
+          className="text-sol-text-dim shrink-0"
+          title={`origin was ${r.repaired_from}`}
+        >
+          origin repaired
+        </span>
+      )}
     </li>
   );
 }
@@ -83,15 +148,21 @@ function GrantAccessCard({ d, blocked }: { d: Device; blocked: RepoPlane[] }) {
       {d.git_pubkey ? (
         <>
           <p className="text-meta text-sol-text-muted">
-            Recommended: add its key as the repo&apos;s <strong>deploy key with write access</strong>{" "}
-            (GitHub&apos;s default is read-only, which fetches but cannot push) — that grants just
-            that repo. The alternative is your account&apos;s{" "}
-            <a href="https://github.com/settings/ssh/new" target="_blank" rel="noreferrer" className="text-sol-blue hover:underline">
+            Recommended: add its key as the repo&apos;s{" "}
+            <strong>deploy key with write access</strong> (GitHub&apos;s default
+            is read-only, which fetches but cannot push) — that grants just that
+            repo. The alternative is your account&apos;s{" "}
+            <a
+              href="https://github.com/settings/ssh/new"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sol-blue hover:underline"
+            >
               SSH keys
             </a>{" "}
-            (broad access — every repo you can reach). A key already registered elsewhere on GitHub
-            must be removed there first: one key, one place. It starts working within minutes;
-            nothing else to run.
+            (broad access — every repo you can reach). A key already registered
+            elsewhere on GitHub must be removed there first: one key, one place.
+            It starts working within minutes; nothing else to run.
           </p>
           <div className="flex items-start gap-2">
             <code className="flex-1 text-meta font-mono text-sol-text-secondary bg-sol-bg-alt rounded px-2 py-1.5 break-all select-all">
@@ -114,9 +185,10 @@ function GrantAccessCard({ d, blocked }: { d: Device; blocked: RepoPlane[] }) {
         </>
       ) : (
         <p className="text-meta text-sol-text-muted">
-          Its remotes need credentials this machine doesn&apos;t have (an https remote wants a
-          token, or the machine can&apos;t mint an SSH key). Sign in to git on that machine, or
-          switch the repo&apos;s origin to an SSH URL so a device key can be granted here.
+          Its remotes need credentials this machine doesn&apos;t have (an https
+          remote wants a token, or the machine can&apos;t mint an SSH key). Sign
+          in to git on that machine, or switch the repo&apos;s origin to an SSH
+          URL so a device key can be granted here.
         </p>
       )}
     </div>
@@ -168,12 +240,19 @@ function DeviceAppearance({
 
   const saveIcon = (nextIcon: string, color?: string) => {
     if (readOnly) return;
-    setDeviceAppearance(d.device_id, { icon: nextIcon, ...(color !== undefined ? { icon_color: color } : {}) }, ownerUserId);
+    setDeviceAppearance(
+      d.device_id,
+      { icon: nextIcon, ...(color !== undefined ? { icon_color: color } : {}) },
+      ownerUserId,
+    );
   };
 
   return (
     <div className="mt-3">
-      <label className="block text-meta text-sol-text-muted" htmlFor={`name-${d.device_id}`}>
+      <label
+        className="block text-meta text-sol-text-muted"
+        htmlFor={`name-${d.device_id}`}
+      >
         Name
       </label>
       <div className="mt-1 flex items-center gap-2">
@@ -199,7 +278,11 @@ function DeviceAppearance({
           </Button>
         )}
       </div>
-      <div role="radiogroup" aria-label="Icon" className="mt-2 flex flex-wrap gap-1">
+      <div
+        role="radiogroup"
+        aria-label="Icon"
+        className="mt-2 flex flex-wrap gap-1"
+      >
         <button
           type="button"
           role="radio"
@@ -207,9 +290,18 @@ function DeviceAppearance({
           aria-label="Platform icon"
           disabled={readOnly}
           onClick={() => saveIcon("")}
-          className={cn("rounded-md p-1.5", !chosenIcon ? "bg-sol-bg-alt ring-1 ring-sol-border" : "hover:bg-sol-bg-alt", readOnly && "opacity-50")}
+          className={cn(
+            "rounded-md p-1.5",
+            !chosenIcon
+              ? "bg-sol-bg-alt ring-1 ring-sol-border"
+              : "hover:bg-sol-bg-alt",
+            readOnly && "opacity-50",
+          )}
         >
-          <DeviceIcon d={{ ...d, icon: null }} className="h-4 w-4 text-sol-text-muted" />
+          <DeviceIcon
+            d={{ ...d, icon: null }}
+            className="h-4 w-4 text-sol-text-muted"
+          />
         </button>
         {TEAM_ICONS.map((icon) => {
           const selected = chosenIcon === icon;
@@ -222,9 +314,19 @@ function DeviceAppearance({
               aria-label={iconLabelMap[icon]}
               disabled={readOnly}
               onClick={() => saveIcon(icon)}
-              className={cn("rounded-md p-1.5", selected ? "bg-sol-bg-alt ring-1 ring-sol-border" : "hover:bg-sol-bg-alt", readOnly && "opacity-50")}
+              className={cn(
+                "rounded-md p-1.5",
+                selected
+                  ? "bg-sol-bg-alt ring-1 ring-sol-border"
+                  : "hover:bg-sol-bg-alt",
+                readOnly && "opacity-50",
+              )}
             >
-              <TeamIcon icon={icon} color={selected ? chosenColor : undefined} className={cn("h-4 w-4", !selected && "text-sol-text-muted")} />
+              <TeamIcon
+                icon={icon}
+                color={selected ? chosenColor : undefined}
+                className={cn("h-4 w-4", !selected && "text-sol-text-muted")}
+              />
             </button>
           );
         })}
@@ -246,7 +348,8 @@ function DeviceAppearance({
                 className={cn(
                   "block h-3.5 w-3.5 rounded-full",
                   colorBgClassMap[color],
-                  chosenColor === color && "ring-2 ring-sol-text ring-offset-1 ring-offset-sol-card",
+                  chosenColor === color &&
+                    "ring-2 ring-sol-text ring-offset-1 ring-offset-sol-card",
                 )}
               />
             </button>
@@ -310,7 +413,10 @@ function SshHostField({
 
   return (
     <div className="mt-3">
-      <label className="block text-meta text-sol-text-muted" htmlFor={`ssh-${d.device_id}`}>
+      <label
+        className="block text-meta text-sol-text-muted"
+        htmlFor={`ssh-${d.device_id}`}
+      >
         SSH host
       </label>
       <div className="mt-1 flex items-center gap-2">
@@ -335,7 +441,8 @@ function SshHostField({
             size="sm"
             onClick={save}
             disabled={saving}
-            variant="cyan" className="h-7"
+            variant="cyan"
+            className="h-7"
           >
             {saving ? "Saving…" : "Save"}
           </Button>
@@ -345,10 +452,16 @@ function SshHostField({
         {committed ? (
           <>
             A session on this machine copies{" "}
-            <code className="font-mono text-sol-text-muted">ssh {committed} -t &quot;tmux attach …&quot;</code>
+            <code className="font-mono text-sol-text-muted">
+              ssh {committed} -t &quot;tmux attach …&quot;
+            </code>
           </>
         ) : (
-          <>Set this to get a ready-to-paste attach command for sessions running here. Leave blank if you only ever attach while sitting at this machine.</>
+          <>
+            Set this to get a ready-to-paste attach command for sessions running
+            here. Leave blank if you only ever attach while sitting at this
+            machine.
+          </>
         )}
       </p>
     </div>
@@ -362,7 +475,10 @@ function DeviceFreezeLine({ d }: { d: Device }) {
   const freeze = describeDeviceFreeze(d);
   if (!freeze) return null;
   return (
-    <div className="mt-1 text-meta font-mono truncate" style={{ color: `var(${freeze.colorVar})` }}>
+    <div
+      className="mt-1 text-meta font-mono truncate"
+      style={{ color: `var(${freeze.colorVar})` }}
+    >
       {freeze.text}
     </div>
   );
@@ -372,7 +488,11 @@ function DeviceFreezeLine({ d }: { d: Device }) {
  *  the machines at once, and the named dispatch effect deletes them. */
 function removeMachines(gone: Device[]) {
   useInboxStore.getState().removeMachines(gone.map((d) => d.device_id));
-  toast.success(gone.length === 1 ? `Removed ${deviceDisplayName(gone[0])}` : `Removed ${gone.length} machines`);
+  toast.success(
+    gone.length === 1
+      ? `Removed ${deviceDisplayName(gone[0])}`
+      : `Removed ${gone.length} machines`,
+  );
 }
 
 /**
@@ -419,11 +539,14 @@ function InactiveDeviceRow({ d }: { d: Device }) {
         >
           <div className="flex items-center gap-1.5 text-sm text-sol-text-muted group-hover:text-sol-text">
             <span className="truncate">{deviceDisplayName(d)}</span>
-            <ChevronRight className={`h-3 w-3 shrink-0 text-sol-text-dim transition-transform ${open ? "rotate-90" : ""}`} />
+            <ChevronRight
+              className={`h-3 w-3 shrink-0 text-sol-text-dim transition-transform ${open ? "rotate-90" : ""}`}
+            />
             <ManagedDevicePill d={d} />
           </div>
           <div className="truncate font-mono text-meta text-sol-text-dim">
-            {deviceKindLabel(d)} · last seen {relativeSeen(d.last_seen)}{sharedWith ? ` · ${sharedWith}` : ""} · {d.device_id.slice(0, 8)}
+            {deviceKindLabel(d)} · last seen {relativeSeen(d.last_seen)}
+            {sharedWith ? ` · ${sharedWith}` : ""} · {d.device_id.slice(0, 8)}
           </div>
         </button>
         <RemoveMachineButton d={d} />
@@ -446,12 +569,15 @@ const CHECKOUTS_SHOWN = 30;
 function DeviceDetails({ d }: { d: Device }) {
   return (
     <>
-      <div className="mt-1 text-meta text-sol-text-dim font-mono truncate">{d.label}</div>
+      <div className="mt-1 text-meta text-sol-text-dim font-mono truncate">
+        {d.label}
+      </div>
       <DeviceAppearance d={d} />
       <div className="mt-2 flex items-center gap-4 text-meta text-sol-text-dim">
         <span>{d.platform}</span>
         <span>
-          {d.local_project_roots.length} project root{d.local_project_roots.length === 1 ? "" : "s"}
+          {d.local_project_roots.length} project root
+          {d.local_project_roots.length === 1 ? "" : "s"}
         </span>
         <span className="font-mono opacity-60">{d.device_id.slice(0, 12)}</span>
       </div>
@@ -464,7 +590,10 @@ function DeviceDetails({ d }: { d: Device }) {
           ))}
         </ul>
       )}
-      <GrantAccessCard d={d} blocked={(d.git_plane ?? []).filter((r) => r.needs_access)} />
+      <GrantAccessCard
+        d={d}
+        blocked={(d.git_plane ?? []).filter((r) => r.needs_access)}
+      />
       {d.local_project_roots.length > 0 && (
         <details className="mt-2 group">
           <summary className="cursor-pointer text-meta text-sol-text-muted hover:text-sol-text select-none">
@@ -474,12 +603,18 @@ function DeviceDetails({ d }: { d: Device }) {
             {/* A checkout's path drops its beginning, not its end: the repo's
                 folder is what tells two apart. */}
             {d.local_project_roots.slice(0, CHECKOUTS_SHOWN).map((r) => (
-              <li key={r} className="truncate text-left font-mono text-meta text-sol-text-muted [direction:rtl]" title={r}>
+              <li
+                key={r}
+                className="truncate text-left font-mono text-meta text-sol-text-muted [direction:rtl]"
+                title={r}
+              >
                 <bdi dir="ltr">{r}</bdi>
               </li>
             ))}
             {d.local_project_roots.length > CHECKOUTS_SHOWN && (
-              <li className="text-meta text-sol-text-dim">+{d.local_project_roots.length - CHECKOUTS_SHOWN} more</li>
+              <li className="text-meta text-sol-text-dim">
+                +{d.local_project_roots.length - CHECKOUTS_SHOWN} more
+              </li>
             )}
           </ul>
         </details>
@@ -490,7 +625,11 @@ function DeviceDetails({ d }: { d: Device }) {
 }
 
 function DeviceRow({ d }: { d: Device }) {
-  const accent = d.is_remote ? "text-sol-violet" : /linux/i.test(d.platform) ? "text-sol-orange" : "text-sol-blue";
+  const accent = d.is_remote
+    ? "text-sol-violet"
+    : /linux/i.test(d.platform)
+      ? "text-sol-orange"
+      : "text-sol-blue";
   return (
     <div className="px-4 py-4 sm:px-5">
       <div className="flex items-start gap-4">
@@ -543,8 +682,14 @@ function TeamMachineRow({ box }: { box: TeamMachine }) {
   return (
     <div className="px-4 py-4 sm:px-5">
       <div className="flex items-start gap-4">
-        <div className={`mt-0.5 ${person ? "text-sol-cyan" : "text-sol-magenta"}`}>
-          {person || box.icon ? <DeviceIcon d={box} className="h-4 w-4" /> : <Bot className="w-4 h-4" />}
+        <div
+          className={`mt-0.5 ${person ? "text-sol-cyan" : "text-sol-magenta"}`}
+        >
+          {person || box.icon ? (
+            <DeviceIcon d={box} className="h-4 w-4" />
+          ) : (
+            <Bot className="w-4 h-4" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-sm text-sol-text">
@@ -559,14 +704,25 @@ function TeamMachineRow({ box }: { box: TeamMachine }) {
           {person ? (
             <p className="mt-2 text-meta text-sol-text-dim">
               Pick it in the composer&apos;s machine row, or{" "}
-              <code className="font-mono text-sol-text-muted">cast spawn --device &quot;{box.label}&quot;</code>.
+              <code className="font-mono text-sol-text-muted">
+                cast spawn --device &quot;{box.label}&quot;
+              </code>
+              .
             </p>
           ) : (
             <>
-              {box.can_edit && <DeviceAppearance d={box} ownerUserId={box.owner_user_id} />}
-              <SshHostField d={box} ownerUserId={box.owner_user_id} readOnly={!box.can_edit} />
+              {box.can_edit && (
+                <DeviceAppearance d={box} ownerUserId={box.owner_user_id} />
+              )}
+              <SshHostField
+                d={box}
+                ownerUserId={box.owner_user_id}
+                readOnly={!box.can_edit}
+              />
               {!box.can_edit && (
-                <p className="mt-1 text-meta text-sol-text-dim">Only an admin of the bot's team can change this.</p>
+                <p className="mt-1 text-meta text-sol-text-dim">
+                  Only an admin of the bot's team can change this.
+                </p>
               )}
             </>
           )}
@@ -587,7 +743,9 @@ function TeamMachinesSection() {
       icon={Users}
       description="Machines your teams run sessions on: shared boxes you join as yourself, teammates' computers they lent, and agent boxes."
     >
-      {machines.map((m) => <TeamMachineCard key={m._id} m={m} showTeam />)}
+      {machines.map((m) => (
+        <TeamMachineCard key={m._id} m={m} showTeam />
+      ))}
       {boxes.map((b) => (
         <TeamMachineRow key={`${b.owner_user_id}:${b.device_id}`} box={b} />
       ))}
@@ -603,13 +761,21 @@ export default function DevicesSettingsPage() {
   const sorted = useMemo(
     () =>
       [...devices].sort(
-        (a, b) => Number(b.online) - Number(a.online) || Number(a.is_remote) - Number(b.is_remote) || b.last_seen - a.last_seen,
+        (a, b) =>
+          Number(b.online) - Number(a.online) ||
+          Number(a.is_remote) - Number(b.is_remote) ||
+          b.last_seen - a.last_seen,
       ),
     [devices],
   );
   const onlineCount = sorted.filter((d) => d.online).length;
-  const sharedCount = sorted.filter((d) => (d.shared_team_ids?.length ?? 0) > 0).length;
-  const { current, stale } = useMemo(() => splitStaleMachines(sorted, Date.now()), [sorted]);
+  const sharedCount = sorted.filter(
+    (d) => (d.shared_team_ids?.length ?? 0) > 0,
+  ).length;
+  const { current, stale } = useMemo(
+    () => splitStaleMachines(sorted, Date.now()),
+    [sorted],
+  );
 
   return (
     <SettingsPanel>
@@ -618,19 +784,24 @@ export default function DevicesSettingsPage() {
         icon={MonitorSmartphone}
         description={
           <>
-            Machines running the codecast daemon. A session runs on exactly one device. New sessions and
-            messages from your phone route to your most-recently-active laptop or desktop — a{" "}
-            <span className="text-sol-violet">cloud box</span> only runs a session you explicitly move there,
-            and wakes from sleep when you do. Share a machine with a team and teammates can start sessions on
-            it too. A machine can be removed once it is offline; stop its daemon with{" "}
-            <code className="font-mono text-sol-text">cast stop</code> first, or it lists itself again.
+            Machines running the codecast daemon. A session runs on exactly one
+            device. New sessions and messages from your phone route to your
+            most-recently-active laptop or desktop — a{" "}
+            <span className="text-sol-violet">cloud box</span> only runs a
+            session you explicitly move there, and wakes from sleep when you do.
+            Share a machine with a team and teammates can start sessions on it
+            too. A machine can be removed once it is offline; stop its daemon
+            with <code className="font-mono text-sol-text">cast stop</code>{" "}
+            first, or it lists itself again.
           </>
         }
         actions={
           sorted.length > 0 ? (
             <span className="text-meta text-sol-text-muted">
               {onlineCount} of {sorted.length} online
-              {sharedCount > 0 && <span className="text-sol-cyan"> · {sharedCount} shared</span>}
+              {sharedCount > 0 && (
+                <span className="text-sol-cyan"> · {sharedCount} shared</span>
+              )}
             </span>
           ) : undefined
         }
@@ -638,10 +809,15 @@ export default function DevicesSettingsPage() {
         {sorted.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm text-sol-text-muted sm:px-5">
             No devices yet. Install the CLI on a machine to see it here —{" "}
-            <button type="button" onClick={openCliSection} className="text-sol-yellow hover:text-sol-yellow/80">
+            <button
+              type="button"
+              onClick={openCliSection}
+              className="text-sol-yellow hover:text-sol-yellow/80"
+            >
               get the install command
             </button>
-            . Already installed? Start it with <code className="font-mono text-sol-text">cast start</code>.
+            . Already installed? Start it with{" "}
+            <code className="font-mono text-sol-text">cast start</code>.
           </div>
         ) : (
           current.map((d) => <DeviceRow key={d.device_id} d={d} />)
@@ -687,7 +863,10 @@ export default function DevicesSettingsPage() {
         </SettingsSection>
       )}
       <TeamMachinesSection />
-      <RemoteMachineSetup open={remoteSetupOpen} onOpenChange={setRemoteSetupOpen} />
+      <RemoteMachineSetup
+        open={remoteSetupOpen}
+        onOpenChange={setRemoteSetupOpen}
+      />
     </SettingsPanel>
   );
 }

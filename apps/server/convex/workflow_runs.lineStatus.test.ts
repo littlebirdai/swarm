@@ -26,101 +26,213 @@ const modules = {
   "./issueSync.ts": () => import("./issueSync"),
 };
 
-const node = (node_id: string, at: number, status = "completed") => ({ node_id, status, outcome: "success", started_at: at - 1000, completed_at: at });
-const lineNodes = (...ends: string[]) => [node("start", T0), node("ground", T0 + 1), ...ends.map((id, i) => node(id, T0 + 10 + i))];
+const node = (node_id: string, at: number, status = "completed") => ({
+  node_id,
+  status,
+  outcome: "success",
+  started_at: at - 1000,
+  completed_at: at,
+});
+const lineNodes = (...ends: string[]) => [
+  node("start", T0),
+  node("ground", T0 + 1),
+  ...ends.map((id, i) => node(id, T0 + 10 + i)),
+];
 
 async function setup(task: Record<string, any>, run: Record<string, any> = {}) {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
-    const owner = await ctx.db.insert("users", { name: "Founder", notification_preferences: { task_status_changes: true } } as any);
+    const owner = await ctx.db.insert("users", {
+      name: "Founder",
+      notification_preferences: { task_status_changes: true },
+    } as any);
     const mate = await ctx.db.insert("users", { name: "Mate" } as any);
-    await ctx.db.insert("api_tokens", { user_id: owner, token_hash: await hashToken(TOKEN), name: "cli", created_at: T0, last_used_at: T0 } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: owner,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: T0,
+      last_used_at: T0,
+    } as any);
     const workspace = `user:${owner}`;
-    const conv = await ctx.db.insert("conversations", { user_id: owner, session_id: "sess-line", agent_type: "claude_code", status: "active", started_at: T0, updated_at: T0, message_count: 1 } as any);
+    const conv = await ctx.db.insert("conversations", {
+      user_id: owner,
+      session_id: "sess-line",
+      agent_type: "claude_code",
+      status: "active",
+      started_at: T0,
+      updated_at: T0,
+      message_count: 1,
+    } as any);
     const taskId = await ctx.db.insert("tasks", {
-      user_id: owner, workspace, short_id: "ct-1", title: "Checkout throws", status: "in_progress", task_type: "task", priority: "medium",
-      source: "signal", created_at: T0, updated_at: T0, ...task,
+      user_id: owner,
+      workspace,
+      short_id: "ct-1",
+      title: "Checkout throws",
+      status: "in_progress",
+      task_type: "task",
+      priority: "medium",
+      source: "signal",
+      created_at: T0,
+      updated_at: T0,
+      ...task,
     } as any);
     const runId = await ctx.db.insert("workflow_runs", {
-      user_id: owner, workspace, task_id: taskId, workflow_name: "line", status: "running", node_statuses: lineNodes(),
-      spawner_conversation_id: conv, created_at: T0, updated_at: T0, ...run,
+      user_id: owner,
+      workspace,
+      task_id: taskId,
+      workflow_name: "line",
+      status: "running",
+      node_statuses: lineNodes(),
+      spawner_conversation_id: conv,
+      created_at: T0,
+      updated_at: T0,
+      ...run,
     } as any);
     await ctx.db.patch(taskId, { workflow_run_id: runId } as any);
     return { owner, mate, taskId, runId, conv };
   });
-  const end = (node_statuses: any[]) => t.run(async (ctx) => { await ctx.db.patch(ids.runId, { node_statuses } as any); });
+  const end = (node_statuses: any[]) =>
+    t.run(async (ctx) => {
+      await ctx.db.patch(ids.runId, { node_statuses } as any);
+    });
   const finish = (run_status: "completed" | "failed" = "completed") =>
-    t.mutation(api.workflow_runs.updateProgress, { api_token: TOKEN, run_id: ids.runId, current_node_id: "exit", node_id: "exit", node_status: "completed", run_status });
-  const read = () => t.run(async (ctx) => ({
-    task: (await ctx.db.get(ids.taskId)) as any,
-    history: (await ctx.db.query("task_history").collect()).filter((h: any) => h.field === "status"),
-    notes: (await ctx.db.query("notifications").collect()) as any[],
-  }));
+    t.mutation(api.workflow_runs.updateProgress, {
+      api_token: TOKEN,
+      run_id: ids.runId,
+      current_node_id: "exit",
+      node_id: "exit",
+      node_status: "completed",
+      run_status,
+    });
+  const read = () =>
+    t.run(async (ctx) => ({
+      task: (await ctx.db.get(ids.taskId)) as any,
+      history: (await ctx.db.query("task_history").collect()).filter(
+        (h: any) => h.field === "status",
+      ),
+      notes: (await ctx.db.query("notifications").collect()) as any[],
+    }));
   return { t, ids, end, finish, read };
 }
 
 describe("a run's end (LE16)", () => {
   test("ship: the cause becomes done through the status path, and its people hear", async () => {
     const { t, ids, end, finish, read } = await setup({ status: "in_review" });
-    await t.run(async (ctx) => { await ctx.db.patch(ids.taskId, { assignee: String(ids.mate), watch_until: T0 + 7 * 86_400_000 } as any); });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ids.taskId, {
+        assignee: String(ids.mate),
+        watch_until: T0 + 7 * 86_400_000,
+      } as any);
+    });
     await end(lineNodes("decide", "ship", "watch"));
     await finish();
     const { task, history, notes } = await read();
     expect(task.status).toBe("done");
     expect(task.closed_at).toBeGreaterThan(T0);
     expect(task.watch_until).toBe(T0 + 7 * 86_400_000);
-    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([["in_review", "done"]]);
+    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([
+      ["in_review", "done"],
+    ]);
     const shipped = notes.filter((n) => n.type === "change_shipped");
-    expect(shipped.map((n) => String(n.recipient_user_id)).sort()).toEqual([String(ids.owner), String(ids.mate)].sort());
+    expect(shipped.map((n) => String(n.recipient_user_id)).sort()).toEqual(
+      [String(ids.owner), String(ids.mate)].sort(),
+    );
     expect(shipped[0].message).toContain("shipped the change for ct-1");
     // With no card, the notice opens the run's report.
     expect(shipped[0].link).toBe(`/workflows/runs/${ids.runId}`);
     // A second report of the same end changes nothing and says nothing again.
     await finish();
-    expect((await read()).notes.filter((n) => n.type === "change_shipped")).toHaveLength(2);
+    expect(
+      (await read()).notes.filter((n) => n.type === "change_shipped"),
+    ).toHaveLength(2);
   });
 
   test("the ship notice names the change by its card's headline and opens that card", async () => {
-    const { t, ids, end, finish, read } = await setup({ status: "in_progress" });
+    const { t, ids, end, finish, read } = await setup({
+      status: "in_progress",
+    });
     const out = await t.mutation(api.workflow_runs.pauseAtGate, {
-      api_token: TOKEN, run_id: ids.runId, node_id: "decide", prompt: "Ship this change?",
-      choices: [{ key: "S", label: "[S] Ship", target: "ship" }, { key: "D", label: "[D] Drop", target: "drop" }],
+      api_token: TOKEN,
+      run_id: ids.runId,
+      node_id: "decide",
+      prompt: "Ship this change?",
+      choices: [
+        { key: "S", label: "[S] Ship", target: "ship" },
+        { key: "D", label: "[D] Drop", target: "drop" },
+      ],
     });
     // A whole card passes its contract and is stored on the decision; stand one in by its headline.
     await t.run(async (ctx) => {
       const decision = (await ctx.db.query("session_decisions").first())!;
-      await ctx.db.patch(decision._id, { card: { headline: "Follow-ups lead with the question" } } as any);
+      await ctx.db.patch(decision._id, {
+        card: { headline: "Follow-ups lead with the question" },
+      } as any);
       await ctx.db.patch(ids.runId, { status: "running" } as any);
     });
     await end(lineNodes("decide", "ship", "watch"));
     await finish();
-    const shipped = (await read()).notes.filter((n) => n.type === "change_shipped");
+    const shipped = (await read()).notes.filter(
+      (n) => n.type === "change_shipped",
+    );
     expect(shipped).toHaveLength(1);
-    expect(shipped[0].message).toContain("shipped Follow-ups lead with the question (ct-1)");
+    expect(shipped[0].message).toContain(
+      "shipped Follow-ups lead with the question (ct-1)",
+    );
     expect(shipped[0].link).toBe(`/decisions/${out.decision_short_id}`);
   });
 
   test("a ship whose merge station left the merge to a person: the approved fix waits in review, with no watch and no ship notice", async () => {
-    const { t, ids, end, finish, read } = await setup({ status: "in_progress" });
-    await t.run(async (ctx) => { await ctx.db.patch(ids.taskId, { watch_until: T0 + 7 * 86_400_000, watch_from: T0 } as any); });
-    const left = { ...node("merge", T0 + 13), result_preview: "merge left to a person: merge is off for this flow; a person turns it on with cast role line --merge on" };
-    await end([...lineNodes("decide", "ship", "push"), left, node("watch", T0 + 14)]);
+    const { t, ids, end, finish, read } = await setup({
+      status: "in_progress",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ids.taskId, {
+        watch_until: T0 + 7 * 86_400_000,
+        watch_from: T0,
+      } as any);
+    });
+    const left = {
+      ...node("merge", T0 + 13),
+      result_preview:
+        "merge left to a person: merge is off for this flow; a person turns it on with cast role line --merge on",
+    };
+    await end([
+      ...lineNodes("decide", "ship", "push"),
+      left,
+      node("watch", T0 + 14),
+    ]);
     await finish();
     const { task, history, notes } = await read();
     expect(task.status).toBe("in_review");
     expect(task.watch_until).toBeUndefined();
     expect(task.watch_from).toBeUndefined();
-    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([["in_progress", "in_review"]]);
+    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([
+      ["in_progress", "in_review"],
+    ]);
     expect(notes.filter((n) => n.type === "change_shipped")).toHaveLength(0);
     // Resumed at its merge station once merging is on (a resume puts the run back to running), it lands: the problem is done.
-    await t.run(async (ctx) => { await ctx.db.patch(ids.runId, { status: "running" } as any); });
-    await end([...lineNodes("decide", "ship", "push"), { ...node("merge", T0 + 20), result_preview: "merged codecast/agentwatch-ct-1 into main at 0123456789 (1 of 25 today)" }, node("watch", T0 + 21)]);
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ids.runId, { status: "running" } as any);
+    });
+    await end([
+      ...lineNodes("decide", "ship", "push"),
+      {
+        ...node("merge", T0 + 20),
+        result_preview:
+          "merged codecast/agentwatch-ct-1 into main at 0123456789 (1 of 25 today)",
+      },
+      node("watch", T0 + 21),
+    ]);
     await finish();
     expect((await read()).task.status).toBe("done");
   });
 
   test("drop and dissolve: the status the station wrote stands", async () => {
-    for (const [station, status] of [["drop", "dropped"], ["dissolve", "done"]] as const) {
+    for (const [station, status] of [
+      ["drop", "dropped"],
+      ["dissolve", "done"],
+    ] as const) {
       const { end, finish, read } = await setup({ status, closed_at: T0 + 5 });
       await end(lineNodes(station));
       await finish();
@@ -141,14 +253,20 @@ describe("a run's end (LE16)", () => {
   });
 
   test("review reject: the open the verdict wrote stands", async () => {
-    const { end, finish, read } = await setup({ status: "open", review_verdict: { verdict: "reject", at: T0 } });
+    const { end, finish, read } = await setup({
+      status: "open",
+      review_verdict: { verdict: "reject", at: T0 },
+    });
     await end(lineNodes("review"));
     await finish();
     expect((await read()).task.status).toBe("open");
   });
 
   test("another workflow's completed run hands the work to review, with history", async () => {
-    const { end, finish, read } = await setup({ status: "in_progress", source: undefined });
+    const { end, finish, read } = await setup({
+      status: "in_progress",
+      source: undefined,
+    });
     await end([node("start", T0), node("implement", T0 + 1)]);
     await finish();
     const { task, history } = await read();
@@ -160,7 +278,10 @@ describe("a run's end (LE16)", () => {
     const { finish, read } = await setup({ status: "in_progress" });
     await finish("failed");
     const { task } = await read();
-    expect(task).toMatchObject({ status: "in_progress", execution_status: "blocked" });
+    expect(task).toMatchObject({
+      status: "in_progress",
+      execution_status: "blocked",
+    });
   });
 });
 
@@ -168,13 +289,21 @@ describe("the gate (LE11, LE16)", () => {
   test("a card waiting moves the cause to review with history and tells the person holding it", async () => {
     const { t, ids, read } = await setup({ status: "in_progress" });
     const out = await t.mutation(api.workflow_runs.pauseAtGate, {
-      api_token: TOKEN, run_id: ids.runId, node_id: "decide", prompt: "Ship this change?",
-      choices: [{ key: "S", label: "[S] Ship", target: "ship" }, { key: "D", label: "[D] Drop", target: "drop" }],
+      api_token: TOKEN,
+      run_id: ids.runId,
+      node_id: "decide",
+      prompt: "Ship this change?",
+      choices: [
+        { key: "S", label: "[S] Ship", target: "ship" },
+        { key: "D", label: "[D] Drop", target: "drop" },
+      ],
     });
     expect(out.decision_short_id).toBeTruthy();
     const { task, history, notes } = await read();
     expect(task.status).toBe("in_review");
-    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([["in_progress", "in_review"]]);
+    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([
+      ["in_progress", "in_review"],
+    ]);
     const waiting = notes.filter((n) => n.type === "card_waiting");
     expect(waiting).toHaveLength(1);
     expect(String(waiting[0].recipient_user_id)).toBe(String(ids.owner));
@@ -184,21 +313,36 @@ describe("the gate (LE11, LE16)", () => {
   test("the notice names the change by the card's headline, with the cause's id", async () => {
     const { t, ids, read } = await setup({ status: "in_progress" });
     await t.mutation(api.workflow_runs.pauseAtGate, {
-      api_token: TOKEN, run_id: ids.runId, node_id: "decide", prompt: "Ship this change?",
-      choices: [{ key: "S", label: "[S] Ship", target: "ship" }, { key: "D", label: "[D] Drop", target: "drop" }],
+      api_token: TOKEN,
+      run_id: ids.runId,
+      node_id: "decide",
+      prompt: "Ship this change?",
+      choices: [
+        { key: "S", label: "[S] Ship", target: "ship" },
+        { key: "D", label: "[D] Drop", target: "drop" },
+      ],
       // Not a whole card: the gate asks without it, and the headline still names the change.
       card: { headline: "Follow-ups lead with the question" },
     });
     const { notes } = await read();
     const waiting = notes.filter((n) => n.type === "card_waiting");
     expect(waiting).toHaveLength(1);
-    expect(waiting[0].message).toContain("Follow-ups lead with the question (ct-1)");
+    expect(waiting[0].message).toContain(
+      "Follow-ups lead with the question (ct-1)",
+    );
   });
 
-  const askCard = (t: any, runId: any) => t.mutation(api.workflow_runs.pauseAtGate, {
-    api_token: TOKEN, run_id: runId, node_id: "decide", prompt: "Ship this change?",
-    choices: [{ key: "S", label: "[S] Ship", target: "ship" }, { key: "D", label: "[D] Drop", target: "drop" }],
-  });
+  const askCard = (t: any, runId: any) =>
+    t.mutation(api.workflow_runs.pauseAtGate, {
+      api_token: TOKEN,
+      run_id: runId,
+      node_id: "decide",
+      prompt: "Ship this change?",
+      choices: [
+        { key: "S", label: "[S] Ship", target: "ship" },
+        { key: "D", label: "[D] Drop", target: "drop" },
+      ],
+    });
   const waitingUnread = async (read: () => Promise<{ notes: any[] }>) =>
     (await read()).notes.filter((n) => n.type === "card_waiting" && !n.read);
 
@@ -207,8 +351,14 @@ describe("the gate (LE11, LE16)", () => {
     await askCard(t, ids.runId);
     expect(await waitingUnread(read)).toHaveLength(1);
     // Dropping the cause cancels the run, which withdraws its open card.
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped" });
-    const decision = await t.run(async (ctx) => (await ctx.db.query("session_decisions").first()) as any);
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "dropped",
+    });
+    const decision = await t.run(
+      async (ctx) => (await ctx.db.query("session_decisions").first()) as any,
+    );
     expect(decision.status).toBe("withdrawn");
     expect(await waitingUnread(read)).toHaveLength(0);
   });
@@ -218,24 +368,45 @@ describe("the gate (LE11, LE16)", () => {
     await askCard(t, ids.runId);
     // What the runner sends on SIGINT/SIGTERM while it waits at the gate.
     await t.mutation(api.workflow_runs.updateProgress, {
-      api_token: TOKEN, run_id: ids.runId, current_node_id: "decide", node_id: "decide",
-      node_status: "failed", run_status: "failed", fail_reason: "the runner was stopped (SIGINT) at decide",
+      api_token: TOKEN,
+      run_id: ids.runId,
+      current_node_id: "decide",
+      node_id: "decide",
+      node_status: "failed",
+      run_status: "failed",
+      fail_reason: "the runner was stopped (SIGINT) at decide",
     });
-    const decision = await t.run(async (ctx) => (await ctx.db.query("session_decisions").first()) as any);
+    const decision = await t.run(
+      async (ctx) => (await ctx.db.query("session_decisions").first()) as any,
+    );
     expect(decision.status).toBe("withdrawn");
     expect(await waitingUnread(read)).toHaveLength(0);
-    const run = await t.run(async (ctx) => (await ctx.db.get(ids.runId)) as any);
+    const run = await t.run(
+      async (ctx) => (await ctx.db.get(ids.runId)) as any,
+    );
     expect(run.fail_reason).toBe("the runner was stopped (SIGINT) at decide");
   });
 
   test("a card answered somewhere other than the notice settles the notice too", async () => {
     const { t, ids, read } = await setup({ status: "in_progress" });
     await askCard(t, ids.runId);
-    const other = await t.run(async (ctx) => ctx.db.insert("notifications", {
-      recipient_user_id: ids.owner, type: "card_waiting", entity_type: "task", entity_id: String(ids.taskId),
-      link: "/decisions/someone-else", message: "another card", read: false, created_at: T0,
-    } as any));
-    await t.mutation(api.workflow_runs.respondToGateFromCli, { api_token: TOKEN, run_id: ids.runId, response: "S" });
+    const other = await t.run(async (ctx) =>
+      ctx.db.insert("notifications", {
+        recipient_user_id: ids.owner,
+        type: "card_waiting",
+        entity_type: "task",
+        entity_id: String(ids.taskId),
+        link: "/decisions/someone-else",
+        message: "another card",
+        read: false,
+        created_at: T0,
+      } as any),
+    );
+    await t.mutation(api.workflow_runs.respondToGateFromCli, {
+      api_token: TOKEN,
+      run_id: ids.runId,
+      response: "S",
+    });
     const unread = await waitingUnread(read);
     // Only this card's notice settles; another card's stays.
     expect(unread.map((n) => String(n._id))).toEqual([String(other)]);
@@ -243,95 +414,245 @@ describe("the gate (LE11, LE16)", () => {
 
   test("a review approve inside a live line run leaves the cause in review: the run decides done", async () => {
     const { t, ids, read } = await setup({ status: "in_progress" });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "done", review_verdict: "approve" });
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "done",
+      review_verdict: "approve",
+    });
     const { task } = await read();
     expect(task.status).toBe("in_review");
     expect(task.review_verdict?.verdict).toBe("approve");
     // Once the run is over, an approve closes as it always did.
-    await t.run(async (ctx) => { await ctx.db.patch(ids.runId, { status: "completed" } as any); });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "done", review_verdict: "approve" });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ids.runId, { status: "completed" } as any);
+    });
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "done",
+      review_verdict: "approve",
+    });
     expect((await read()).task.status).toBe("done");
   });
 });
 
 describe("a person's status wins (LM3)", () => {
   test("dropping a cause stops its live run and withdraws nothing it should keep", async () => {
-    const { t, ids, read } = await setup({ status: "in_progress" }, { current_node_id: "implement" });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped" });
-    const run = await t.run(async (ctx) => (await ctx.db.get(ids.runId)) as any);
-    expect(run).toMatchObject({ status: "failed", fail_reason: "Stopped: the problem was dropped by a person" });
+    const { t, ids, read } = await setup(
+      { status: "in_progress" },
+      { current_node_id: "implement" },
+    );
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "dropped",
+    });
+    const run = await t.run(
+      async (ctx) => (await ctx.db.get(ids.runId)) as any,
+    );
+    expect(run).toMatchObject({
+      status: "failed",
+      fail_reason: "Stopped: the problem was dropped by a person",
+    });
     expect((await read()).task.status).toBe("dropped");
   });
 
   test("the line's own drop station does not stop the run that is dropping", async () => {
-    const { t, ids } = await setup({ status: "in_review" }, { current_node_id: "drop" });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped" });
-    const run = await t.run(async (ctx) => (await ctx.db.get(ids.runId)) as any);
+    const { t, ids } = await setup(
+      { status: "in_review" },
+      { current_node_id: "drop" },
+    );
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "dropped",
+    });
+    const run = await t.run(
+      async (ctx) => (await ctx.db.get(ids.runId)) as any,
+    );
     expect(run.status).toBe("running");
   });
 
   test("a trial project's run is a line run whatever its graph: a drop stops one waiting at a gate, never one whose own script station is closing (ct-59242, ct-59534)", async () => {
     const trialNodes = [node("start", T0), node("bind", T0 + 1)];
     const onTrial = async (run: Record<string, any>) => {
-      const s = await setup({ status: "in_review" }, { workflow_name: "agentwatch_trial", node_statuses: trialNodes, ...run });
+      const s = await setup(
+        { status: "in_review" },
+        {
+          workflow_name: "agentwatch_trial",
+          node_statuses: trialNodes,
+          ...run,
+        },
+      );
       await s.t.run(async (ctx) => {
-        const project = await ctx.db.insert("projects", { title: "Trial", user_id: s.ids.owner, workspace: `user:${s.ids.owner}`, status: "active", line_trial: { since: T0, by: s.ids.owner }, created_at: T0, updated_at: T0 } as any);
-        const workflow = await ctx.db.insert("workflows", { user_id: s.ids.owner, name: "agentwatch_trial", slug: "agentwatch_trial", source: "", nodes: [{ id: "decide", label: "Decide", shape: "hexagon", type: "human" }, { id: "judge_wrong", label: "Judge wrong", shape: "parallelogram", type: "script", script: "cast line dissolve" }], edges: [], created_at: T0, updated_at: T0 } as any);
+        const project = await ctx.db.insert("projects", {
+          title: "Trial",
+          user_id: s.ids.owner,
+          workspace: `user:${s.ids.owner}`,
+          status: "active",
+          line_trial: { since: T0, by: s.ids.owner },
+          created_at: T0,
+          updated_at: T0,
+        } as any);
+        const workflow = await ctx.db.insert("workflows", {
+          user_id: s.ids.owner,
+          name: "agentwatch_trial",
+          slug: "agentwatch_trial",
+          source: "",
+          nodes: [
+            { id: "decide", label: "Decide", shape: "hexagon", type: "human" },
+            {
+              id: "judge_wrong",
+              label: "Judge wrong",
+              shape: "parallelogram",
+              type: "script",
+              script: "cast line dissolve",
+            },
+          ],
+          edges: [],
+          created_at: T0,
+          updated_at: T0,
+        } as any);
         await ctx.db.patch(s.ids.taskId, { project_id: project } as any);
         await ctx.db.patch(s.ids.runId, { workflow_id: workflow } as any);
       });
-      await s.t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped" });
+      await s.t.mutation(api.tasks.update, {
+        api_token: TOKEN,
+        short_id: "ct-1",
+        status: "dropped",
+      });
       return s.t.run(async (ctx) => (await ctx.db.get(s.ids.runId)) as any);
     };
-    expect(await onTrial({ status: "paused", current_node_id: "decide", gate_node_id: "decide" })).toMatchObject({ status: "failed", fail_reason: "Stopped: the problem was dropped by a person" });
-    expect((await onTrial({ status: "running", current_node_id: "judge_wrong" })).status).toBe("running");
+    expect(
+      await onTrial({
+        status: "paused",
+        current_node_id: "decide",
+        gate_node_id: "decide",
+      }),
+    ).toMatchObject({
+      status: "failed",
+      fail_reason: "Stopped: the problem was dropped by a person",
+    });
+    expect(
+      (await onTrial({ status: "running", current_node_id: "judge_wrong" }))
+        .status,
+    ).toBe("running");
   });
 
   test("a run its problem's close ended keeps that reason and leaves the closed problem alone when its runner reports the failure it saw", async () => {
-    const { t, ids, read } = await setup({ status: "in_review" }, { status: "paused", current_node_id: "decide", gate_node_id: "decide", node_statuses: lineNodes("decide") });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped" });
-    await t.mutation(api.workflow_runs.updateProgress, { api_token: TOKEN, run_id: ids.runId, current_node_id: "decide", node_id: "decide", node_status: "failed", run_status: "failed", fail_reason: "no outgoing edge from decide (outcome failure, review_verdict none)" });
-    const run = await t.run(async (ctx) => (await ctx.db.get(ids.runId)) as any);
-    expect(run).toMatchObject({ status: "failed", fail_reason: "Stopped: the problem was dropped by a person" });
+    const { t, ids, read } = await setup(
+      { status: "in_review" },
+      {
+        status: "paused",
+        current_node_id: "decide",
+        gate_node_id: "decide",
+        node_statuses: lineNodes("decide"),
+      },
+    );
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "dropped",
+    });
+    await t.mutation(api.workflow_runs.updateProgress, {
+      api_token: TOKEN,
+      run_id: ids.runId,
+      current_node_id: "decide",
+      node_id: "decide",
+      node_status: "failed",
+      run_status: "failed",
+      fail_reason:
+        "no outgoing edge from decide (outcome failure, review_verdict none)",
+    });
+    const run = await t.run(
+      async (ctx) => (await ctx.db.get(ids.runId)) as any,
+    );
+    expect(run).toMatchObject({
+      status: "failed",
+      fail_reason: "Stopped: the problem was dropped by a person",
+    });
     const { task } = await read();
     expect(task.status).toBe("dropped");
     expect(task.execution_status).toBeUndefined();
   });
 
   test("a session's close is not a person's: the run goes on", async () => {
-    const { t, ids } = await setup({ status: "in_progress" }, { current_node_id: "implement" });
-    await t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "dropped", conversation_id: "sess-line" });
-    const run = await t.run(async (ctx) => (await ctx.db.get(ids.runId)) as any);
+    const { t, ids } = await setup(
+      { status: "in_progress" },
+      { current_node_id: "implement" },
+    );
+    await t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "dropped",
+      conversation_id: "sess-line",
+    });
+    const run = await t.run(
+      async (ctx) => (await ctx.db.get(ids.runId)) as any,
+    );
     expect(run.status).toBe("running");
   });
 });
 
 describe("the repair (LE16)", () => {
   test("moves causes the old run end left in review, dry run first", async () => {
-    const { t, ids, end, read } = await setup({ status: "in_review", closed_at: T0 + 2 }, { status: "completed" });
+    const { t, ids, end, read } = await setup(
+      { status: "in_review", closed_at: T0 + 2 },
+      { status: "completed" },
+    );
     await end(lineNodes("decide", "ship", "watch"));
-    const dry = await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: true });
-    expect(dry.moved).toEqual([{ task: "ct-1", from: "in_review", to: "done" }]);
+    const dry = await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+      dry_run: true,
+    });
+    expect(dry.moved).toEqual([
+      { task: "ct-1", from: "in_review", to: "done" },
+    ]);
     expect((await read()).task.status).toBe("in_review");
-    const applied = await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: false });
+    const applied = await t.mutation(
+      internal.workflow_runs.repairLineCauseStatus,
+      { dry_run: false },
+    );
     expect(applied.moved).toHaveLength(1);
     const { task, history } = await read();
     expect(task.status).toBe("done");
     // Closed when the run shipped (watch completed at T0 + 12), not when the repair ran.
     expect(task.closed_at).toBe(T0 + 12);
-    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([["in_review", "done"]]);
+    expect(history.map((h: any) => [h.old_value, h.new_value])).toEqual([
+      ["in_review", "done"],
+    ]);
     // Run again: nothing left to move.
-    expect((await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: false })).moved).toEqual([]);
+    expect(
+      (
+        await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+          dry_run: false,
+        })
+      ).moved,
+    ).toEqual([]);
     void ids;
   });
 
   test("a status a person moved after the run ended stands", async () => {
-    const { t, ids, end } = await setup({ status: "in_review" }, { status: "completed", updated_at: T0 + 100 });
+    const { t, ids, end } = await setup(
+      { status: "in_review" },
+      { status: "completed", updated_at: T0 + 100 },
+    );
     await end(lineNodes("park"));
     await t.run(async (ctx) => {
-      await ctx.db.insert("task_history", { task_id: ids.taskId, user_id: ids.owner, actor_type: "user", action: "updated", field: "status", old_value: "open", new_value: "in_review", created_at: T0 + 200 } as any);
+      await ctx.db.insert("task_history", {
+        task_id: ids.taskId,
+        user_id: ids.owner,
+        actor_type: "user",
+        action: "updated",
+        field: "status",
+        old_value: "open",
+        new_value: "in_review",
+        created_at: T0 + 200,
+      } as any);
     });
-    const out = await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: true });
+    const out = await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+      dry_run: true,
+    });
     expect(out).toMatchObject({ moved: [], skipped: 1 });
   });
 });
@@ -339,34 +660,89 @@ describe("the repair (LE16)", () => {
 describe("the repair restamps its own close (LE16)", () => {
   test("a cause the first pass closed at repair time gets the ship's time", async () => {
     const repairAt = T0 + 50_000_000;
-    const { t, ids, end, read } = await setup({ status: "done", closed_at: repairAt }, { status: "completed", updated_at: T0 + 100 });
+    const { t, ids, end, read } = await setup(
+      { status: "done", closed_at: repairAt },
+      { status: "completed", updated_at: T0 + 100 },
+    );
     await end(lineNodes("decide", "ship", "watch"));
     await t.run(async (ctx) => {
-      await ctx.db.insert("task_history", { task_id: ids.taskId, user_id: ids.owner, actor_type: "system", action: "updated", field: "status", old_value: "in_review", new_value: "done", created_at: repairAt } as any);
+      await ctx.db.insert("task_history", {
+        task_id: ids.taskId,
+        user_id: ids.owner,
+        actor_type: "system",
+        action: "updated",
+        field: "status",
+        old_value: "in_review",
+        new_value: "done",
+        created_at: repairAt,
+      } as any);
     });
-    const dry = await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: true });
-    expect(dry.restamped).toEqual([{ task: "ct-1", from: repairAt, to: T0 + 12 }]);
-    await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: false });
+    const dry = await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+      dry_run: true,
+    });
+    expect(dry.restamped).toEqual([
+      { task: "ct-1", from: repairAt, to: T0 + 12 },
+    ]);
+    await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+      dry_run: false,
+    });
     expect((await read()).task.closed_at).toBe(T0 + 12);
-    expect((await t.mutation(internal.workflow_runs.repairLineCauseStatus, { dry_run: true })).restamped).toEqual([]);
+    expect(
+      (
+        await t.mutation(internal.workflow_runs.repairLineCauseStatus, {
+          dry_run: true,
+        })
+      ).restamped,
+    ).toEqual([]);
   });
 
   test("a person's close stands", () => {
-    const run = { status: "completed", updated_at: T0 + 100, node_statuses: lineNodes("watch") };
+    const run = {
+      status: "completed",
+      updated_at: T0 + 100,
+      node_statuses: lineNodes("watch"),
+    };
     const at = T0 + 50_000_000;
-    expect(repairedClosedAt({ status: "done", closed_at: at }, run, [{ created_at: at, new_value: "done", actor_type: "user" }])).toBeNull();
-    expect(repairedClosedAt({ status: "done", closed_at: at }, run, [{ created_at: at, new_value: "done", actor_type: "system" }])).toBe(T0 + 10);
-    expect(repairedClosedAt({ status: "done", closed_at: T0 + 20 }, run, [{ created_at: T0 + 20, new_value: "done" }])).toBeNull();
+    expect(
+      repairedClosedAt({ status: "done", closed_at: at }, run, [
+        { created_at: at, new_value: "done", actor_type: "user" },
+      ]),
+    ).toBeNull();
+    expect(
+      repairedClosedAt({ status: "done", closed_at: at }, run, [
+        { created_at: at, new_value: "done", actor_type: "system" },
+      ]),
+    ).toBe(T0 + 10);
+    expect(
+      repairedClosedAt({ status: "done", closed_at: T0 + 20 }, run, [
+        { created_at: T0 + 20, new_value: "done" },
+      ]),
+    ).toBeNull();
   });
 });
 
 // quick-change (ct-98836): Review approves, then Land fails and the run stops at Not shipped.
 describe("a review approve inside a run that is not a line run", () => {
-  const quickNodes = (...ids: string[]) => [node("start", T0), ...ids.map((id, i) => node(id, T0 + 10 + i))];
-  const approve = (t: any) => t.mutation(api.tasks.update, { api_token: TOKEN, short_id: "ct-1", status: "done", review_verdict: "approve" });
+  const quickNodes = (...ids: string[]) => [
+    node("start", T0),
+    ...ids.map((id, i) => node(id, T0 + 10 + i)),
+  ];
+  const approve = (t: any) =>
+    t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "done",
+      review_verdict: "approve",
+    });
 
   test("holds the task in review while the run goes on", async () => {
-    const { t, read } = await setup({ status: "in_review" }, { workflow_name: "quick-change", node_statuses: quickNodes("check", "review__review") });
+    const { t, read } = await setup(
+      { status: "in_review" },
+      {
+        workflow_name: "quick-change",
+        node_statuses: quickNodes("check", "review__review"),
+      },
+    );
     await approve(t);
     const { task } = await read();
     expect(task.status).toBe("in_review");
@@ -374,9 +750,23 @@ describe("a review approve inside a run that is not a line run", () => {
   });
 
   test("a run that stops at Not shipped leaves its task open, never done", async () => {
-    const { t, end, finish, read } = await setup({ status: "in_review" }, { workflow_name: "quick-change", node_statuses: quickNodes("check", "review__review") });
+    const { t, end, finish, read } = await setup(
+      { status: "in_review" },
+      {
+        workflow_name: "quick-change",
+        node_statuses: quickNodes("check", "review__review"),
+      },
+    );
     await approve(t);
-    await end(quickNodes("check", "review__review", "review__approved", "ship__ship", "ship__unshipped"));
+    await end(
+      quickNodes(
+        "check",
+        "review__review",
+        "review__approved",
+        "ship__ship",
+        "ship__unshipped",
+      ),
+    );
     await finish("failed");
     const { task, history } = await read();
     expect(task.status).not.toBe("done");
@@ -385,19 +775,54 @@ describe("a review approve inside a run that is not a line run", () => {
   });
 
   test("a run that lands and goes live makes its task done", async () => {
-    const { t, end, finish, read } = await setup({ status: "in_review" }, { workflow_name: "quick-change", node_statuses: quickNodes("check", "review__review") });
+    const { t, end, finish, read } = await setup(
+      { status: "in_review" },
+      {
+        workflow_name: "quick-change",
+        node_statuses: quickNodes("check", "review__review"),
+      },
+    );
     await approve(t);
-    await end(quickNodes("check", "review__review", "review__approved", "ship__ship", "ship__shipped", "deploy__wait"));
+    await end(
+      quickNodes(
+        "check",
+        "review__review",
+        "review__approved",
+        "ship__ship",
+        "ship__shipped",
+        "deploy__wait",
+      ),
+    );
     await finish("completed");
     expect((await read()).task.status).toBe("done");
   });
 
   test("an approve from an earlier run does not close the task at this run's end", () => {
     const run = { created_at: T0, node_statuses: quickNodes("check") };
-    expect(runEndStatus("in_review", "completed", run, { verdict: "approve", at: T0 + 1 })).toBe("done");
-    expect(runEndStatus("in_review", "completed", run, { verdict: "approve", at: T0 - 1 })).toBeNull();
-    expect(runEndStatus("in_review", "completed", run, { verdict: "changes", at: T0 + 1 })).toBeNull();
-    expect(runEndStatus("in_review", "failed", run, { verdict: "approve", at: T0 + 1 })).toBeNull();
+    expect(
+      runEndStatus("in_review", "completed", run, {
+        verdict: "approve",
+        at: T0 + 1,
+      }),
+    ).toBe("done");
+    expect(
+      runEndStatus("in_review", "completed", run, {
+        verdict: "approve",
+        at: T0 - 1,
+      }),
+    ).toBeNull();
+    expect(
+      runEndStatus("in_review", "completed", run, {
+        verdict: "changes",
+        at: T0 + 1,
+      }),
+    ).toBeNull();
+    expect(
+      runEndStatus("in_review", "failed", run, {
+        verdict: "approve",
+        at: T0 + 1,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -409,34 +834,119 @@ describe("runEndStatus and repairedLineStatus", () => {
   });
   test("ship is done, park is open, a still working run goes to review, anything else stands", () => {
     expect(runEndStatus("in_review", "completed", nodes("watch"))).toBe("done");
-    expect(runEndStatus("in_progress", "completed", nodes("park"))).toBe("open");
+    expect(runEndStatus("in_progress", "completed", nodes("park"))).toBe(
+      "open",
+    );
     expect(runEndStatus("in_progress", "completed", nodes())).toBe("in_review");
     expect(runEndStatus("open", "completed", nodes("review"))).toBeNull();
     expect(runEndStatus("in_progress", "failed", nodes("watch"))).toBeNull();
   });
   // An agentwatch-shaped spine starts at bind and has no ground station: its graph makes it a line run.
-  const spine = ["start", "bind", "investigate", "card", "decide", "ship", "watch", "drop", "dissolve", "exit"].map((id) => ({ id, h: id }));
-  const spineRun = (...visited: string[]) => ({ graph_nodes: spine, node_statuses: [node("start", T0), node("bind", T0 + 1), ...visited.map((id, i) => node(id, T0 + 10 + i))] });
+  const spine = [
+    "start",
+    "bind",
+    "investigate",
+    "card",
+    "decide",
+    "ship",
+    "watch",
+    "drop",
+    "dissolve",
+    "exit",
+  ].map((id) => ({ id, h: id }));
+  const spineRun = (...visited: string[]) => ({
+    graph_nodes: spine,
+    node_statuses: [
+      node("start", T0),
+      node("bind", T0 + 1),
+      ...visited.map((id, i) => node(id, T0 + 10 + i)),
+    ],
+  });
   test("a run of a spine that starts at bind is a line run: its ship makes the problem done, its drop and dissolve end it", () => {
-    expect(runEndStatus("open", "completed", spineRun("card", "decide", "ship", "watch"))).toBe("done");
-    expect(runEndStatus("in_review", "completed", spineRun("card", "decide", "ship", "watch"))).toBe("done");
-    expect(repairedLineStatus({ status: "in_review" }, { status: "completed", ...spineRun("card", "decide", "drop") })).toBe("dropped");
-    expect(repairedLineStatus({ status: "in_review" }, { status: "completed", ...spineRun("investigate", "dissolve") })).toBe("done");
+    expect(
+      runEndStatus(
+        "open",
+        "completed",
+        spineRun("card", "decide", "ship", "watch"),
+      ),
+    ).toBe("done");
+    expect(
+      runEndStatus(
+        "in_review",
+        "completed",
+        spineRun("card", "decide", "ship", "watch"),
+      ),
+    ).toBe("done");
+    expect(
+      repairedLineStatus(
+        { status: "in_review" },
+        { status: "completed", ...spineRun("card", "decide", "drop") },
+      ),
+    ).toBe("dropped");
+    expect(
+      repairedLineStatus(
+        { status: "in_review" },
+        { status: "completed", ...spineRun("investigate", "dissolve") },
+      ),
+    ).toBe("done");
   });
   test("a graph that does not ask a card and watch the change is not a line run, whatever its stations are named", () => {
-    const deploy = { graph_nodes: ["start", "ci", "live", "watch", "exit"].map((id) => ({ id, h: id })), node_statuses: [node("start", T0), node("ci", T0 + 1), node("watch", T0 + 2)] };
+    const deploy = {
+      graph_nodes: ["start", "ci", "live", "watch", "exit"].map((id) => ({
+        id,
+        h: id,
+      })),
+      node_statuses: [
+        node("start", T0),
+        node("ci", T0 + 1),
+        node("watch", T0 + 2),
+      ],
+    };
     expect(runEndStatus("open", "completed", deploy)).toBeNull();
-    const segment = { graph_nodes: ["start", "check", "decide", "drop", "exit"].map((id) => ({ id, h: id })), node_statuses: [node("start", T0), node("check", T0 + 1), node("drop", T0 + 2)] };
-    expect(repairedLineStatus({ status: "in_review" }, { status: "completed", ...segment })).toBeNull();
+    const segment = {
+      graph_nodes: ["start", "check", "decide", "drop", "exit"].map((id) => ({
+        id,
+        h: id,
+      })),
+      node_statuses: [
+        node("start", T0),
+        node("check", T0 + 1),
+        node("drop", T0 + 2),
+      ],
+    };
+    expect(
+      repairedLineStatus(
+        { status: "in_review" },
+        { status: "completed", ...segment },
+      ),
+    ).toBeNull();
   });
   test("the repair reads what the run decided", () => {
-    const run = (...ends: string[]) => ({ status: "completed", node_statuses: lineNodes(...ends) });
-    expect(repairedLineStatus({ status: "in_review" }, run("watch"))).toBe("done");
-    expect(repairedLineStatus({ status: "in_review" }, run("dissolve"))).toBe("done");
-    expect(repairedLineStatus({ status: "in_review" }, run("drop"))).toBe("dropped");
-    expect(repairedLineStatus({ status: "in_review" }, run("park"))).toBe("open");
-    expect(repairedLineStatus({ status: "in_review", review_verdict: { verdict: "reject" } }, run("review"))).toBe("open");
-    expect(repairedLineStatus({ status: "in_review" }, run("review"))).toBeNull();
+    const run = (...ends: string[]) => ({
+      status: "completed",
+      node_statuses: lineNodes(...ends),
+    });
+    expect(repairedLineStatus({ status: "in_review" }, run("watch"))).toBe(
+      "done",
+    );
+    expect(repairedLineStatus({ status: "in_review" }, run("dissolve"))).toBe(
+      "done",
+    );
+    expect(repairedLineStatus({ status: "in_review" }, run("drop"))).toBe(
+      "dropped",
+    );
+    expect(repairedLineStatus({ status: "in_review" }, run("park"))).toBe(
+      "open",
+    );
+    expect(
+      repairedLineStatus(
+        { status: "in_review", review_verdict: { verdict: "reject" } },
+        run("review"),
+      ),
+    ).toBe("open");
+    expect(
+      repairedLineStatus({ status: "in_review" }, run("review")),
+    ).toBeNull();
     expect(repairedLineStatus({ status: "open" }, run("watch"))).toBeNull();
   });
 });

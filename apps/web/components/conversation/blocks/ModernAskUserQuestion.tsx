@@ -3,7 +3,17 @@ import { Check } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { OptionPreview } from "../../tools/AskUserQuestionToolView";
-import { buildPollPayload, pollCardAnswers, pollClosedLabel, pollKeyForOption, POLL_TIMED_OUT, SYNTHETIC_POLL_OPTION, type PollQuestion, type PollSelection, type PollSelections } from "../../../lib/pollPayload";
+import {
+  buildPollPayload,
+  pollCardAnswers,
+  pollClosedLabel,
+  pollKeyForOption,
+  POLL_TIMED_OUT,
+  SYNTHETIC_POLL_OPTION,
+  type PollQuestion,
+  type PollSelection,
+  type PollSelections,
+} from "../../../lib/pollPayload";
 import { ModernAnsweredRow, ModernAskCard } from "../ModernAsk";
 import type { ToolCall, ToolResult } from "../types";
 import { sentByCall } from "../../../lib/modernAskSent";
@@ -16,25 +26,38 @@ import { sentByCall } from "../../../lib/modernAskSent";
 // with the choice at its right. The wire format is lib/pollPayload's, the
 // same one the Classic card and the decision queue send.
 
-
 const RECOMMENDED = " (Recommended)";
 const clean = (label: string) => label.replace(RECOMMENDED, "");
 
 type Deadline = { expired: boolean; left: string } | null | undefined;
-type AskInput = { questions?: Array<PollQuestion & { multi_select?: boolean }>; answers?: Record<string, string> };
+type AskInput = {
+  questions?: Array<PollQuestion & { multi_select?: boolean }>;
+  answers?: Record<string, string>;
+};
 
-export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput, deadline }: {
+export function ModernAskUserQuestion({
+  tool,
+  result,
+  onSendMessage,
+  parsedInput,
+  deadline,
+}: {
   tool: ToolCall;
   result?: ToolResult;
   onSendMessage?: (content: string) => void;
   parsedInput: AskInput;
   deadline?: Deadline;
 }) {
-  const [selections, setSelections] = useState<PollSelections>(() => sentByCall.get(tool.id) ?? {});
+  const [selections, setSelections] = useState<PollSelections>(
+    () => sentByCall.get(tool.id) ?? {},
+  );
   const [sent, setSent] = useState(() => sentByCall.has(tool.id));
   const [texts, setTexts] = useState<Record<number, string>>({});
 
-  const questions: PollQuestion[] = (parsedInput.questions ?? []).map((q) => ({ ...q, multiSelect: q.multiSelect ?? q.multi_select }));
+  const questions: PollQuestion[] = (parsedInput.questions ?? []).map((q) => ({
+    ...q,
+    multiSelect: q.multiSelect ?? q.multi_select,
+  }));
   if (questions.length === 0) return null;
   const multiQuestion = questions.length > 1;
   const needsSubmit = multiQuestion || questions.some((q) => q.multiSelect);
@@ -45,7 +68,10 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
   const open = !result && !sent && !expired;
   const interactive = open && !!onSendMessage;
 
-  const send = (sels: PollSelections, payload = buildPollPayload(questions, sels)) => {
+  const send = (
+    sels: PollSelections,
+    payload = buildPollPayload(questions, sels),
+  ) => {
     sentByCall.set(tool.id, sels);
     setSelections(sels);
     setSent(true);
@@ -57,15 +83,26 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
     return (
       <div data-cc-ask-settled>
         {questions.map((q, i) => {
-          const picked = answers[q.question] ?? selections[i]?.map((s) => s.label).join(", ");
+          const picked =
+            answers[q.question] ??
+            selections[i]?.map((s) => s.label).join(", ");
           return (
             <ModernAnsweredRow
               key={i}
               verb={closed && !picked ? "Asked" : "Answered"}
               question={q.question}
-              answer={picked ? picked.replace(RECOMMENDED, "") : closed ?? (sent ? "Sent" : undefined)}
+              answer={
+                picked
+                  ? picked.replace(RECOMMENDED, "")
+                  : (closed ?? (sent ? "Sent" : undefined))
+              }
               closed={!picked}
-              detail={<SettledQuestion question={q} picked={picked ? clean(picked) : undefined} />}
+              detail={
+                <SettledQuestion
+                  question={q}
+                  picked={picked ? clean(picked) : undefined}
+                />
+              }
             />
           );
         })}
@@ -79,24 +116,46 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
       setSelections((prev) => {
         const cur = prev[qi] ?? [];
         const has = cur.some((s) => s.text === undefined && s.key === sel.key);
-        return { ...prev, [qi]: has ? cur.filter((s) => s.text !== undefined || s.key !== sel.key) : [...cur, sel] };
+        return {
+          ...prev,
+          [qi]: has
+            ? cur.filter((s) => s.text !== undefined || s.key !== sel.key)
+            : [...cur, sel],
+        };
       });
     } else if (needsSubmit) {
       setSelections((prev) => ({ ...prev, [qi]: [sel] }));
     } else {
-      send({ 0: [sel] }, JSON.stringify({ __cc_poll: true, keys: [sel.key], display: sel.label }));
+      send(
+        { 0: [sel] },
+        JSON.stringify({
+          __cc_poll: true,
+          keys: [sel.key],
+          display: sel.label,
+        }),
+      );
     }
   };
   const typed = (qi: number) => {
     const text = texts[qi]?.trim();
     if (!text) return;
-    const sel = { key: String(questions[qi].options.length + 1), label: text, text };
+    const sel = {
+      key: String(questions[qi].options.length + 1),
+      label: text,
+      text,
+    };
     setTexts((prev) => ({ ...prev, [qi]: "" }));
-    if (questions[qi].multiSelect) setSelections((prev) => ({ ...prev, [qi]: [...(prev[qi] ?? []).filter((s) => s.text === undefined), sel] }));
+    if (questions[qi].multiSelect)
+      setSelections((prev) => ({
+        ...prev,
+        [qi]: [...(prev[qi] ?? []).filter((s) => s.text === undefined), sel],
+      }));
     else if (needsSubmit) setSelections((prev) => ({ ...prev, [qi]: [sel] }));
     else send({ 0: [sel] });
   };
-  const answered = questions.filter((_, qi) => (selections[qi]?.length ?? 0) > 0).length;
+  const answered = questions.filter(
+    (_, qi) => (selections[qi]?.length ?? 0) > 0,
+  ).length;
   const allAnswered = answered === questions.length;
 
   return (
@@ -109,21 +168,37 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
           <ModernAskCard
             key={qi}
             kicker={q.header}
-            aside={qi === 0 && deadline ? `Auto-denies in ${deadline.left}` : multiQuestion ? `${qi + 1} of ${questions.length}` : undefined}
+            aside={
+              qi === 0 && deadline
+                ? `Auto-denies in ${deadline.left}`
+                : multiQuestion
+                  ? `${qi + 1} of ${questions.length}`
+                  : undefined
+            }
             question={q.question}
             detail={q.detail}
           >
-            <div className={rich ? "flex flex-col items-start gap-2" : "flex flex-wrap gap-2"}>
+            <div
+              className={
+                rich
+                  ? "flex flex-col items-start gap-2"
+                  : "flex flex-wrap gap-2"
+              }
+            >
               {q.options.map((opt, j) => {
                 if (SYNTHETIC_POLL_OPTION.test(opt.label.trim())) return null;
                 const key = pollKeyForOption(j, q.isConfirmation);
-                const on = sels.some((s) => s.text === undefined && s.key === key);
+                const on = sels.some(
+                  (s) => s.text === undefined && s.key === key,
+                );
                 const recommended = opt.label.includes(RECOMMENDED);
                 const button = (
                   <Button
                     type="button"
                     size="md"
-                    variant={on ? "secondary" : recommended ? "primary" : "outline"}
+                    variant={
+                      on ? "secondary" : recommended ? "primary" : "outline"
+                    }
                     aria-pressed={needsSubmit ? on : undefined}
                     disabled={!interactive}
                     onClick={() => pick(qi, { key, label: clean(opt.label) })}
@@ -133,41 +208,80 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
                     <span className="truncate">{clean(opt.label)}</span>
                   </Button>
                 );
-                if (!rich) return <span key={j} className="contents">{button}</span>;
+                if (!rich)
+                  return (
+                    <span key={j} className="contents">
+                      {button}
+                    </span>
+                  );
                 return (
-                  <div key={j} className="flex min-w-0 max-w-full flex-col gap-1">
+                  <div
+                    key={j}
+                    className="flex min-w-0 max-w-full flex-col gap-1"
+                  >
                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                       {button}
-                      {opt.description && <span className="min-w-0 text-ui text-sol-text-muted">{opt.description}</span>}
+                      {opt.description && (
+                        <span className="min-w-0 text-ui text-sol-text-muted">
+                          {opt.description}
+                        </span>
+                      )}
                     </div>
                     {opt.preview && <OptionPreview preview={opt.preview} />}
                   </div>
                 );
               })}
             </div>
-            {interactive && <form
-              className="mt-3 flex min-w-0 items-center gap-2"
-              onSubmit={(e) => { e.preventDefault(); typed(qi); }}
-            >
-              <Input
-                value={texts[qi] ?? ""}
-                onChange={(e) => setTexts((prev) => ({ ...prev, [qi]: e.target.value }))}
-                placeholder={custom ? custom.label : "Answer in your own words"}
-                aria-label="Answer in your own words"
-                className="h-control-md min-w-0 flex-1 text-ui"
-              />
-              <Button type="submit" size="md" variant="outline" disabled={!texts[qi]?.trim()}>
-                {needsSubmit ? "Add" : "Send"}
-              </Button>
-            </form>}
-            {custom && needsSubmit && <div className="mt-2 text-meta text-sol-text-muted">Your answer: <span className="text-sol-text">{custom.label}</span></div>}
+            {interactive && (
+              <form
+                className="mt-3 flex min-w-0 items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  typed(qi);
+                }}
+              >
+                <Input
+                  value={texts[qi] ?? ""}
+                  onChange={(e) =>
+                    setTexts((prev) => ({ ...prev, [qi]: e.target.value }))
+                  }
+                  placeholder={
+                    custom ? custom.label : "Answer in your own words"
+                  }
+                  aria-label="Answer in your own words"
+                  className="h-control-md min-w-0 flex-1 text-ui"
+                />
+                <Button
+                  type="submit"
+                  size="md"
+                  variant="outline"
+                  disabled={!texts[qi]?.trim()}
+                >
+                  {needsSubmit ? "Add" : "Send"}
+                </Button>
+              </form>
+            )}
+            {custom && needsSubmit && (
+              <div className="mt-2 text-meta text-sol-text-muted">
+                Your answer:{" "}
+                <span className="text-sol-text">{custom.label}</span>
+              </div>
+            )}
           </ModernAskCard>
         );
       })}
       {needsSubmit && interactive && (
         <div className="-mt-0.5 mb-2 flex justify-end">
-          <Button type="button" size="md" variant="primary" disabled={!allAnswered} onClick={() => send(selections)}>
-            {multiQuestion ? `Submit answers ${answered}/${questions.length}` : `Submit ${selections[0]?.length ?? 0} selected`}
+          <Button
+            type="button"
+            size="md"
+            variant="primary"
+            disabled={!allAnswered}
+            onClick={() => send(selections)}
+          >
+            {multiQuestion
+              ? `Submit answers ${answered}/${questions.length}`
+              : `Submit ${selections[0]?.length ?? 0} selected`}
           </Button>
         </div>
       )}
@@ -177,26 +291,67 @@ export function ModernAskUserQuestion({ tool, result, onSendMessage, parsedInput
 
 /** A settled question opened under its row: the question whole, every option
  *  with the chosen ones checked, and an answer typed in the person's own words. */
-function SettledQuestion({ question: q, picked }: { question: PollQuestion; picked?: string }) {
-  const options = q.options.filter((o) => !SYNTHETIC_POLL_OPTION.test(o.label.trim()));
+function SettledQuestion({
+  question: q,
+  picked,
+}: {
+  question: PollQuestion;
+  picked?: string;
+}) {
+  const options = q.options.filter(
+    (o) => !SYNTHETIC_POLL_OPTION.test(o.label.trim()),
+  );
   const labels = options.map((o) => clean(o.label));
-  const chosen = new Set(picked == null ? [] : labels.includes(picked) ? [picked] : picked.split(", ").filter((p) => labels.includes(p)));
+  const chosen = new Set(
+    picked == null
+      ? []
+      : labels.includes(picked)
+        ? [picked]
+        : picked.split(", ").filter((p) => labels.includes(p)),
+  );
   const typed = picked && chosen.size === 0 ? picked : undefined;
   return (
-    <div data-cc-ask-settled-detail className="flex min-w-0 flex-col gap-2.5 text-ui leading-5 [overflow-wrap:anywhere]">
-      {q.header && <div className="text-meta text-sol-text-dim">{q.header}</div>}
-      <div className="font-medium text-sol-text whitespace-pre-line">{q.question}</div>
-      {q.detail && <div className="text-sol-text-muted whitespace-pre-line">{q.detail}</div>}
+    <div
+      data-cc-ask-settled-detail
+      className="flex min-w-0 flex-col gap-2.5 text-ui leading-5 [overflow-wrap:anywhere]"
+    >
+      {q.header && (
+        <div className="text-meta text-sol-text-dim">{q.header}</div>
+      )}
+      <div className="font-medium text-sol-text whitespace-pre-line">
+        {q.question}
+      </div>
+      {q.detail && (
+        <div className="text-sol-text-muted whitespace-pre-line">
+          {q.detail}
+        </div>
+      )}
       {options.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {options.map((o, i) => {
             const on = chosen.has(labels[i]);
             return (
-              <li key={i} data-chosen={on || undefined} className="flex min-w-0 gap-2">
-                <Check aria-hidden className={`mt-0.5 size-4 shrink-0 ${on ? "text-sol-green" : "invisible"}`} strokeWidth={1.75} />
+              <li
+                key={i}
+                data-chosen={on || undefined}
+                className="flex min-w-0 gap-2"
+              >
+                <Check
+                  aria-hidden
+                  className={`mt-0.5 size-4 shrink-0 ${on ? "text-sol-green" : "invisible"}`}
+                  strokeWidth={1.75}
+                />
                 <div className="min-w-0">
-                  <span className={on ? "font-medium text-sol-text" : "text-sol-text-muted"}>{labels[i]}</span>
-                  {o.description && <div className="text-sol-text-dim">{o.description}</div>}
+                  <span
+                    className={
+                      on ? "font-medium text-sol-text" : "text-sol-text-muted"
+                    }
+                  >
+                    {labels[i]}
+                  </span>
+                  {o.description && (
+                    <div className="text-sol-text-dim">{o.description}</div>
+                  )}
                 </div>
               </li>
             );
@@ -205,8 +360,14 @@ function SettledQuestion({ question: q, picked }: { question: PollQuestion; pick
       )}
       {typed && (
         <div className="flex min-w-0 gap-2">
-          <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-sol-green" strokeWidth={1.75} />
-          <div className="min-w-0 text-sol-text whitespace-pre-line">{typed}</div>
+          <Check
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-sol-green"
+            strokeWidth={1.75}
+          />
+          <div className="min-w-0 text-sol-text whitespace-pre-line">
+            {typed}
+          </div>
         </div>
       )}
     </div>

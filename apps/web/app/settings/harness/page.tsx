@@ -2,10 +2,19 @@
 
 import { useState, type ReactNode } from "react";
 import { FileClock, MessageSquareText, Unplug } from "lucide-react";
-import { MACHINE_SETTINGS, type HarnessHook, type MachineSetting } from "@codecast/shared/contracts";
+import {
+  MACHINE_SETTINGS,
+  type HarnessHook,
+  type MachineSetting,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useRouter } from "next/navigation";
-import { AGENT_HOOKS, FUNCTIONAL_HOOKS, deviceHookInstalled, hookFeatureName } from "../../../lib/harnessHooksView";
+import {
+  AGENT_HOOKS,
+  FUNCTIONAL_HOOKS,
+  deviceHookInstalled,
+  hookFeatureName,
+} from "../../../lib/harnessHooksView";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import {
@@ -18,8 +27,14 @@ import {
 import { DeviceSettingsFrame } from "../../../components/settings/DeviceSettingsFrame";
 import { useDeviceSettingsPanel } from "../../../components/settings/useDeviceSettingsPanel";
 import { relativeSeen, type Device } from "../../../components/DeviceBadge";
-import { useHarnessChanges, type HarnessChangeRow } from "../../../hooks/useHarnessChanges";
-import { setHooksReminderHidden, useHooksReminderHidden } from "../../../lib/hooksReminder";
+import {
+  useHarnessChanges,
+  type HarnessChangeRow,
+} from "../../../hooks/useHarnessChanges";
+import {
+  setHooksReminderHidden,
+  useHooksReminderHidden,
+} from "../../../lib/hooksReminder";
 
 /**
  * Harness: what codecast puts into a machine's agent setup, and a record of
@@ -44,7 +59,13 @@ export default function HarnessPage() {
   );
 }
 
-function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDeviceSettingsPanel> }) {
+function HooksSection({
+  d,
+  panel,
+}: {
+  d: Device;
+  panel: ReturnType<typeof useDeviceSettingsPanel>;
+}) {
   const { pending, run, setSnippet } = panel;
   const [confirming, setConfirming] = useState(false);
   const reminderHidden = useHooksReminderHidden(d.device_id);
@@ -54,7 +75,9 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
   const on = d.settings?.hooks_enabled !== false;
   const busy = pending.has("hooks");
   const apply = (enabled: boolean) =>
-    run("hooks", () => setSnippet({ device_id: d.device_id, snippet: "hooks", enabled })).then(() => setConfirming(false));
+    run("hooks", () =>
+      setSnippet({ device_id: d.device_id, snippet: "hooks", enabled }),
+    ).then(() => setConfirming(false));
 
   return (
     <SettingsSection
@@ -63,9 +86,12 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
       description={
         <>
           Scripts codecast registers in Claude Code&apos;s{" "}
-          <code className="font-mono text-sol-text-muted">~/.claude/settings.json</code>. They are how codecast
-          learns what your sessions are doing, and they print nothing the agent reads. Hooks you added
-          yourself are never touched.
+          <code className="font-mono text-sol-text-muted">
+            ~/.claude/settings.json
+          </code>
+          . They are how codecast learns what your sessions are doing, and they
+          print nothing the agent reads. Hooks you added yourself are never
+          touched.
         </>
       }
     >
@@ -82,7 +108,9 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
         <Switch
           checked={on}
           disabled={!known || !d.online || busy}
-          onCheckedChange={(next) => (next ? void apply(true) : setConfirming(true))}
+          onCheckedChange={(next) =>
+            next ? void apply(true) : setConfirming(true)
+          }
           aria-label="Install codecast hooks"
         />
       </SettingsRow>
@@ -90,21 +118,34 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
       {confirming && (
         <div className="px-4 pb-4 sm:px-5">
           <SettingsCallout tone="warning">
-            <p className="font-medium">Turning the hooks off on this machine changes these:</p>
+            <p className="font-medium">
+              Turning the hooks off on this machine changes these:
+            </p>
             <ul className="mt-1.5 list-disc space-y-1 pl-4">
               {FUNCTIONAL_HOOKS.map((h) => (
                 <li key={h.file}>{h.withoutIt}</li>
               ))}
             </ul>
             <p className="mt-1.5">
-              The thread state and task reminders go too. To stop only what the agent sees, turn those
-              features off in Agent Features instead and keep these on.
+              The thread state and task reminders go too. To stop only what the
+              agent sees, turn those features off in Agent Features instead and
+              keep these on.
             </p>
             <div className="mt-3 flex gap-2">
-              <Button size="sm" variant="destructive" disabled={busy} onClick={() => void apply(false)}>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={busy}
+                onClick={() => void apply(false)}
+              >
                 Turn off hooks
               </Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setConfirming(false)}
+              >
                 Keep them
               </Button>
             </div>
@@ -119,7 +160,9 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
         >
           <Switch
             checked={!reminderHidden}
-            onCheckedChange={(show) => setHooksReminderHidden(d.device_id, !show)}
+            onCheckedChange={(show) =>
+              setHooksReminderHidden(d.device_id, !show)
+            }
             aria-label="Remind me in sessions"
           />
         </SettingsRow>
@@ -130,7 +173,16 @@ function HooksSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDev
           key={h.file}
           hook={h}
           installed={deviceHookInstalled(d, h)}
-          control={h.setting && <HookSettingSwitch d={d} panel={panel} hook={h} setting={h.setting} />}
+          control={
+            h.setting && (
+              <HookSettingSwitch
+                d={d}
+                panel={panel}
+                hook={h}
+                setting={h.setting}
+              />
+            )
+          }
         />
       ))}
     </SettingsSection>
@@ -163,7 +215,12 @@ function AgentHooksSection({ d }: { d: Device }) {
       }
     >
       {AGENT_HOOKS.map((h) => (
-        <HookRow key={h.file} hook={h} installed={deviceHookInstalled(d, h)} owner={hookFeatureName(h)} />
+        <HookRow
+          key={h.file}
+          hook={h}
+          installed={deviceHookInstalled(d, h)}
+          owner={hookFeatureName(h)}
+        />
       ))}
     </SettingsSection>
   );
@@ -190,26 +247,57 @@ function HookSettingSwitch({
   const value = d.settings?.[MACHINE_SETTINGS[setting]];
   const busy = pending.has(setting);
   return (
-    <span title={value === undefined ? `This machine's CLI does not report this setting yet. Update it with cast update, or run cast config ${MACHINE_SETTINGS[setting]} false there.` : undefined}>
+    <span
+      title={
+        value === undefined
+          ? `This machine's CLI does not report this setting yet. Update it with cast update, or run cast config ${MACHINE_SETTINGS[setting]} false there.`
+          : undefined
+      }
+    >
       <Switch
         checked={value !== false}
-        disabled={value === undefined || !d.online || busy || !deviceHookInstalled(d, hook)}
-        onCheckedChange={(enabled) => void run(setting, () => setSnippet({ device_id: d.device_id, snippet: setting, enabled }))}
+        disabled={
+          value === undefined ||
+          !d.online ||
+          busy ||
+          !deviceHookInstalled(d, hook)
+        }
+        onCheckedChange={(enabled) =>
+          void run(setting, () =>
+            setSnippet({ device_id: d.device_id, snippet: setting, enabled }),
+          )
+        }
         aria-label={hook.name}
       />
     </span>
   );
 }
 
-function HookRow({ hook: h, installed, owner, control }: { hook: HarnessHook; installed: boolean; owner?: string | null; control?: ReactNode }) {
+function HookRow({
+  hook: h,
+  installed,
+  owner,
+  control,
+}: {
+  hook: HarnessHook;
+  installed: boolean;
+  owner?: string | null;
+  control?: ReactNode;
+}) {
   return (
     <SettingsRow
       alignTop
       label={
         <span className="flex flex-wrap items-center gap-2">
           {h.name}
-          <SettingsBadge tone={installed ? "green" : "muted"}>{installed ? "Installed" : "Off"}</SettingsBadge>
-          {owner && <span className="text-meta font-normal text-sol-text-muted">part of {owner}</span>}
+          <SettingsBadge tone={installed ? "green" : "muted"}>
+            {installed ? "Installed" : "Off"}
+          </SettingsBadge>
+          {owner && (
+            <span className="text-meta font-normal text-sol-text-muted">
+              part of {owner}
+            </span>
+          )}
         </span>
       }
       description={
@@ -221,7 +309,11 @@ function HookRow({ hook: h, installed, owner, control }: { hook: HarnessHook; in
           </span>
           <span className="mt-1.5 block font-mono text-meta text-sol-text-dim">
             ~/.claude/hooks/{h.file}
-            {h.events.length > 0 ? ` on ${h.events.join(", ")}` : h.kind === "statusLine" ? " as the statusLine command" : " (runs inside the prompt hook)"}
+            {h.events.length > 0
+              ? ` on ${h.events.join(", ")}`
+              : h.kind === "statusLine"
+                ? " as the statusLine command"
+                : " (runs inside the prompt hook)"}
           </span>
         </>
       }
@@ -288,15 +380,27 @@ function HistorySection({ d }: { d: Device }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-sol-text">
-                  {ACTION_VERB[c.action]} <code className="font-mono text-meta text-sol-text">{c.file}</code>
-                  <span className="text-sol-text-muted"> · {whatLabel(c.what)}</span>
+                  {ACTION_VERB[c.action]}{" "}
+                  <code className="font-mono text-meta text-sol-text">
+                    {c.file}
+                  </code>
+                  <span className="text-sol-text-muted">
+                    {" "}
+                    · {whatLabel(c.what)}
+                  </span>
                 </p>
                 <p className="mt-0.5 text-meta text-sol-text-muted">
                   {c.why}
-                  <span className="text-sol-text-dim"> · <span className="modern:font-mono">v{c.version}</span></span>
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    · <span className="modern:font-mono">v{c.version}</span>
+                  </span>
                 </p>
               </div>
-              <SettingsBadge tone={c.automatic ? "yellow" : "muted"} className="h-fit">
+              <SettingsBadge
+                tone={c.automatic ? "yellow" : "muted"}
+                className="h-fit"
+              >
                 {c.automatic ? "Automatic" : "Requested"}
               </SettingsBadge>
             </li>

@@ -29,7 +29,10 @@ import * as path from "node:path";
 import { getMachineKey, hardwareId } from "../machineKey.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
-const DEVICE_BINDING_FILE = path.join(defaultConfigDir(), ".device_binding.json");
+const DEVICE_BINDING_FILE = path.join(
+  defaultConfigDir(),
+  ".device_binding.json",
+);
 const CONFIG_FILE = path.join(defaultConfigDir(), "config.json");
 
 let cachedDeviceId: string | null = null;
@@ -105,7 +108,11 @@ export function deviceId(): string {
   return id;
 }
 
-function deriveDeviceId(seed: Buffer | string, domain: string, extra = ""): string {
+function deriveDeviceId(
+  seed: Buffer | string,
+  domain: string,
+  extra = "",
+): string {
   return crypto
     .createHash("sha256")
     .update(seed)
@@ -133,7 +140,12 @@ export function previousDeviceId(): string | undefined {
 function readDeviceBinding(): DeviceBinding | null {
   try {
     const b = JSON.parse(fs.readFileSync(DEVICE_BINDING_FILE, "utf8"));
-    if (typeof b?.hw === "string" && typeof b?.id === "string" && b.hw && b.id) {
+    if (
+      typeof b?.hw === "string" &&
+      typeof b?.id === "string" &&
+      b.hw &&
+      b.id
+    ) {
       return { hw: b.hw, id: b.id };
     }
   } catch {}
@@ -142,7 +154,9 @@ function readDeviceBinding(): DeviceBinding | null {
 
 function writeDeviceBinding(binding: DeviceBinding): void {
   try {
-    fs.writeFileSync(DEVICE_BINDING_FILE, JSON.stringify(binding), { mode: 0o600 });
+    fs.writeFileSync(DEVICE_BINDING_FILE, JSON.stringify(binding), {
+      mode: 0o600,
+    });
     fs.chmodSync(DEVICE_BINDING_FILE, 0o600); // mode option only applies at creation
   } catch {} // identity must never throw; worst case we re-adopt next start
 }
@@ -160,7 +174,10 @@ const REMOTE_DEVICE_MARKER = path.join(defaultConfigDir(), "remote-device");
 let cachedRemoteMarker: boolean | null = null;
 
 /** The remote verdict from its two sources: the launch environment, and the marker on disk. */
-export function resolveRemoteDevice(input: { env: string | undefined; marker: boolean }): boolean {
+export function resolveRemoteDevice(input: {
+  env: string | undefined;
+  marker: boolean;
+}): boolean {
   return input.env === "1" || input.marker;
 }
 
@@ -179,7 +196,10 @@ export function isRemoteDevice(): boolean {
       cachedRemoteMarker = false;
     }
   }
-  return resolveRemoteDevice({ env: process.env.CODECAST_REMOTE_DEVICE, marker: cachedRemoteMarker });
+  return resolveRemoteDevice({
+    env: process.env.CODECAST_REMOTE_DEVICE,
+    marker: cachedRemoteMarker,
+  });
 }
 
 /**
@@ -195,7 +215,10 @@ export function recordRemoteLaunch(): void {
   if (process.env.CODECAST_REMOTE_DEVICE !== "1") return;
   try {
     if (fs.existsSync(REMOTE_DEVICE_MARKER)) return;
-    fs.mkdirSync(path.dirname(REMOTE_DEVICE_MARKER), { recursive: true, mode: 0o700 });
+    fs.mkdirSync(path.dirname(REMOTE_DEVICE_MARKER), {
+      recursive: true,
+      mode: 0o700,
+    });
     fs.writeFileSync(REMOTE_DEVICE_MARKER, "");
     cachedRemoteMarker = true;
   } catch {}
@@ -230,12 +253,16 @@ export async function stableHostnameAsync(): Promise<string> {
   if (cachedHostname) return cachedHostname;
   if (process.platform === "darwin") {
     for (const key of ["HostName", "LocalHostName"]) {
-      const name = await execFileAsync("/usr/sbin/scutil", ["--get", key], { timeout: 2000 })
-        .then(({ stdout }) => stdout.trim(), () => "");
-      if (name) return cachedHostname = name;
+      const name = await execFileAsync("/usr/sbin/scutil", ["--get", key], {
+        timeout: 2000,
+      }).then(
+        ({ stdout }) => stdout.trim(),
+        () => "",
+      );
+      if (name) return (cachedHostname = name);
     }
   }
-  return cachedHostname = os.hostname();
+  return (cachedHostname = os.hostname());
 }
 
 /**
@@ -251,9 +278,7 @@ export function resolveStableHostname(deps: {
 }): string {
   if (deps.platform !== "darwin") return deps.osHostname();
   return (
-    deps.scutil("HostName") ||
-    deps.scutil("LocalHostName") ||
-    deps.osHostname()
+    deps.scutil("HostName") || deps.scutil("LocalHostName") || deps.osHostname()
   );
 }
 
@@ -321,7 +346,11 @@ export function resolveDeviceLabel(deps: {
   const override = sanitizeLabel(deps.override);
   if (override) return override;
   const name =
-    deps.platform === "darwin" ? "macOS" : deps.platform === "win32" ? "Windows" : "Linux";
+    deps.platform === "darwin"
+      ? "macOS"
+      : deps.platform === "win32"
+        ? "Windows"
+        : "Linux";
   return `${name} - ${deps.hostname()}`;
 }
 
@@ -352,5 +381,9 @@ export interface DeviceInfo {
 }
 
 export function deviceInfo(): DeviceInfo {
-  return { deviceId: deviceId(), label: deviceLabel(), platform: devicePlatform() };
+  return {
+    deviceId: deviceId(),
+    label: deviceLabel(),
+    platform: devicePlatform(),
+  };
 }

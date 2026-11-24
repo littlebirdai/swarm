@@ -70,7 +70,10 @@ function makeBundle(at: string, body: string): string {
 function stage(body: string): { stagingDir: string; stagedApp: string } {
   const stagingDir = path.join(computerHome(), `.staging-${body}`);
   fs.mkdirSync(stagingDir, { recursive: true, mode: 0o700 });
-  return { stagingDir, stagedApp: makeBundle(path.join(stagingDir, HELPER_APP_BASENAME), body) };
+  return {
+    stagingDir,
+    stagedApp: makeBundle(path.join(stagingDir, HELPER_APP_BASENAME), body),
+  };
 }
 
 function liveBody(): string | null {
@@ -84,10 +87,14 @@ function liveBody(): string | null {
 describe("the fixed helper path", () => {
   test("never carries a version, a hash or anything else that moves", () => {
     const home = isolatedHome();
-    expect(helperAppPath()).toBe(path.join(home, "computer", "codecast computer.app"));
+    expect(helperAppPath()).toBe(
+      path.join(home, "computer", "codecast computer.app"),
+    );
     // A path component that changes between releases is what makes macOS read
     // every update as a brand new app and re-prompt for both grants.
-    expect(path.relative(home, helperAppPath())).toBe(path.join("computer", HELPER_APP_BASENAME));
+    expect(path.relative(home, helperAppPath())).toBe(
+      path.join("computer", HELPER_APP_BASENAME),
+    );
   });
 });
 
@@ -108,7 +115,11 @@ function signedBundle(at: string): string {
 </dict></plist>
 `,
   );
-  const sign = spawnSync("/usr/bin/codesign", ["--force", "--sign", "-", "--identifier", "sh.codecast.computer", at], { encoding: "utf8" });
+  const sign = spawnSync(
+    "/usr/bin/codesign",
+    ["--force", "--sign", "-", "--identifier", "sh.codecast.computer", at],
+    { encoding: "utf8" },
+  );
   if (sign.status !== 0) throw new Error(`codesign failed: ${sign.stderr}`);
   return at;
 }
@@ -116,8 +127,15 @@ function signedBundle(at: string): string {
 /** Exactly the tar `scripts/build-with-native.ts` writes: the `.app` directory
  *  at the root, by its basename. */
 function tarOf(app: string): Buffer {
-  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "cast-helper-tar-")), "helper.tar");
-  const tar = spawnSync("/usr/bin/tar", ["-cf", output, "-C", path.dirname(app), path.basename(app)], { encoding: "utf8" });
+  const output = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "cast-helper-tar-")),
+    "helper.tar",
+  );
+  const tar = spawnSync(
+    "/usr/bin/tar",
+    ["-cf", output, "-C", path.dirname(app), path.basename(app)],
+    { encoding: "utf8" },
+  );
   if (tar.status !== 0) throw new Error(`tar failed: ${tar.stderr}`);
   const bytes = fs.readFileSync(output);
   fs.rmSync(path.dirname(output), { recursive: true, force: true });
@@ -147,25 +165,40 @@ describe("the embedded payload", () => {
     expect(readInstallStamp()).toBeNull();
   });
 
-  test.skipIf(process.platform !== "darwin")("a real tar extracts, verifies, swaps into the fixed path and stamps", () => {
-    isolatedHome();
-    const source = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "cast-helper-src-")), HELPER_APP_BASENAME);
-    const payload = tarOf(signedBundle(source));
-    cleanups.push(() => fs.rmSync(path.dirname(source), { recursive: true, force: true }));
+  test.skipIf(process.platform !== "darwin")(
+    "a real tar extracts, verifies, swaps into the fixed path and stamps",
+    () => {
+      isolatedHome();
+      const source = path.join(
+        fs.mkdtempSync(path.join(os.tmpdir(), "cast-helper-src-")),
+        HELPER_APP_BASENAME,
+      );
+      const payload = tarOf(signedBundle(source));
+      cleanups.push(() =>
+        fs.rmSync(path.dirname(source), { recursive: true, force: true }),
+      );
 
-    const first = materializeHelperApp({ version: "9.9.9", payload });
-    expect(first.installed).toBe(true);
-    expect(first.appPath).toBe(helperAppPath());
-    expect(fs.statSync(first.executablePath).isFile()).toBe(true);
-    expect(readInstallStamp()).toMatchObject({ sha256: createHash("sha256").update(payload).digest("hex"), version: "9.9.9" });
-    // Staging leaves nothing behind, and the extract lands the bundle itself
-    // rather than the tar it came in.
-    expect(fs.readdirSync(computerHome()).filter((e) => e.startsWith(".staging-"))).toEqual([]);
+      const first = materializeHelperApp({ version: "9.9.9", payload });
+      expect(first.installed).toBe(true);
+      expect(first.appPath).toBe(helperAppPath());
+      expect(fs.statSync(first.executablePath).isFile()).toBe(true);
+      expect(readInstallStamp()).toMatchObject({
+        sha256: createHash("sha256").update(payload).digest("hex"),
+        version: "9.9.9",
+      });
+      // Staging leaves nothing behind, and the extract lands the bundle itself
+      // rather than the tar it came in.
+      expect(
+        fs.readdirSync(computerHome()).filter((e) => e.startsWith(".staging-")),
+      ).toEqual([]);
 
-    // A matching stamp makes the next run one small read, so an unchanged CLI
-    // never re-swaps a bundle a live helper may be running from.
-    expect(materializeHelperApp({ version: "9.9.9", payload }).installed).toBe(false);
-  });
+      // A matching stamp makes the next run one small read, so an unchanged CLI
+      // never re-swaps a bundle a live helper may be running from.
+      expect(
+        materializeHelperApp({ version: "9.9.9", payload }).installed,
+      ).toBe(false);
+    },
+  );
 });
 
 describe("a CLI that carries no payload", () => {
@@ -180,7 +213,11 @@ describe("a CLI that carries no payload", () => {
     makeBundle(helperAppPath(), "installed-by-a-release");
     fs.writeFileSync(
       path.join(computerHome(), "installed.json"),
-      JSON.stringify({ sha256: "deadbeef", version: "1.2.3", installedAt: Date.now() }),
+      JSON.stringify({
+        sha256: "deadbeef",
+        version: "1.2.3",
+        installedAt: Date.now(),
+      }),
       { mode: 0o600 },
     );
 
@@ -191,7 +228,10 @@ describe("a CLI that carries no payload", () => {
     expect(liveBody()).toBe("installed-by-a-release");
     // Adopting installs nothing, so the stamp of whichever release put it there
     // is left exactly as it was.
-    expect(readInstallStamp()).toMatchObject({ sha256: "deadbeef", version: "1.2.3" });
+    expect(readInstallStamp()).toMatchObject({
+      sha256: "deadbeef",
+      version: "1.2.3",
+    });
   });
 
   darwin("refuses an unstamped bundle codesign rejects", () => {
@@ -200,7 +240,9 @@ describe("a CLI that carries no payload", () => {
     // is why the case above skips the two spawns.
     isolatedHome();
     makeBundle(helperAppPath(), "put-here-by-hand");
-    expect(() => materializeHelperApp()).toThrow("failed signature verification");
+    expect(() => materializeHelperApp()).toThrow(
+      "failed signature verification",
+    );
   });
 
   darwin("with nothing installed either, the error names both halves", () => {
@@ -216,16 +258,27 @@ describe("swapIntoPlace", () => {
     makeBundle(helperAppPath(), "old-release");
     const { stagingDir, stagedApp } = stage("new-release");
 
-    swapIntoPlace(stagedApp, stagingDir, { sha256: "abc123", version: "1.2.3" });
+    swapIntoPlace(stagedApp, stagingDir, {
+      sha256: "abc123",
+      version: "1.2.3",
+    });
 
     expect(liveBody()).toBe("new-release");
-    expect(readInstallStamp()).toMatchObject({ sha256: "abc123", version: "1.2.3" });
+    expect(readInstallStamp()).toMatchObject({
+      sha256: "abc123",
+      version: "1.2.3",
+    });
     expect(fs.existsSync(path.join(computerHome(), "swap.json"))).toBe(false);
     // The displaced bundle is kept, not deleted: a helper from the previous
     // release may still be running off those bytes.
     const kept = fs.readdirSync(path.join(computerHome(), "old"));
     expect(kept).toHaveLength(1);
-    expect(fs.readFileSync(helperExecutablePath(path.join(computerHome(), "old", kept[0])), "utf-8")).toBe("old-release");
+    expect(
+      fs.readFileSync(
+        helperExecutablePath(path.join(computerHome(), "old", kept[0])),
+        "utf-8",
+      ),
+    ).toBe("old-release");
   });
 });
 
@@ -241,7 +294,12 @@ describe("repairHalfSwap", () => {
     isolatedHome();
     makeBundle(helperAppPath(), "old-release");
     const { stagingDir, stagedApp } = stage("new-release");
-    expect(() => swapIntoPlace(stagedApp, stagingDir, { sha256: "abc", betweenRenames: killHere })).toThrow("killed");
+    expect(() =>
+      swapIntoPlace(stagedApp, stagingDir, {
+        sha256: "abc",
+        betweenRenames: killHere,
+      }),
+    ).toThrow("killed");
     // The state a crash actually leaves: nothing at the fixed path.
     expect(fs.existsSync(helperAppPath())).toBe(false);
 
@@ -279,7 +337,10 @@ describe("repairHalfSwap", () => {
     const { stagingDir, stagedApp } = stage("new-release");
     swapIntoPlace(stagedApp, stagingDir, { sha256: "abc" });
     // A kill after the rename but before the journal was removed.
-    fs.writeFileSync(path.join(computerHome(), "swap.json"), JSON.stringify({ stagingDir, stagedApp, oldApp: "/nowhere" }));
+    fs.writeFileSync(
+      path.join(computerHome(), "swap.json"),
+      JSON.stringify({ stagingDir, stagedApp, oldApp: "/nowhere" }),
+    );
 
     expect(repairHalfSwap()).toBe("completed");
     expect(liveBody()).toBe("new-release");
@@ -288,8 +349,18 @@ describe("repairHalfSwap", () => {
 
   test("clears the stamp when neither half is left, so the next run reinstalls", () => {
     isolatedHome();
-    fs.writeFileSync(path.join(computerHome(), "installed.json"), JSON.stringify({ sha256: "abc", version: "1", installedAt: 1 }));
-    fs.writeFileSync(path.join(computerHome(), "swap.json"), JSON.stringify({ stagingDir: "/nowhere", stagedApp: "/nowhere/a.app", oldApp: "/nowhere/b.app" }));
+    fs.writeFileSync(
+      path.join(computerHome(), "installed.json"),
+      JSON.stringify({ sha256: "abc", version: "1", installedAt: 1 }),
+    );
+    fs.writeFileSync(
+      path.join(computerHome(), "swap.json"),
+      JSON.stringify({
+        stagingDir: "/nowhere",
+        stagedApp: "/nowhere/a.app",
+        oldApp: "/nowhere/b.app",
+      }),
+    );
 
     expect(repairHalfSwap()).toBe("abandoned");
     // A stamp claiming an install that is not there would make the next
@@ -331,28 +402,44 @@ describe("sweepOldBundles", () => {
  * for codecast.
  */
 describe("gradeAssessment", () => {
-  const rejected = (origin: string) => `rejected\nsource=Unnotarized Developer ID\n${origin}\n`;
+  const rejected = (origin: string) =>
+    `rejected\nsource=Unnotarized Developer ID\n${origin}\n`;
 
   test("accepts codecast's own unnotarized Developer ID bundle", () => {
-    const graded = gradeAssessment(3, rejected(`origin=Developer ID Application: Ashot Petrosian (${HELPER_SIGNING_TEAM})`));
+    const graded = gradeAssessment(
+      3,
+      rejected(
+        `origin=Developer ID Application: Ashot Petrosian (${HELPER_SIGNING_TEAM})`,
+      ),
+    );
     expect(graded.ok).toBe(true);
     expect(graded.reason).toBe("Developer ID signed, not notarized");
   });
 
   test("refuses another developer's unnotarized Developer ID bundle", () => {
-    const graded = gradeAssessment(3, rejected("origin=Developer ID Application: Someone Else (ABCDE12345)"));
+    const graded = gradeAssessment(
+      3,
+      rejected("origin=Developer ID Application: Someone Else (ABCDE12345)"),
+    );
     expect(graded.ok).toBe(false);
   });
 
   test("refuses a signature that only mentions the team in its common name", () => {
     // The team has to be the identity's own trailing "(TEAM)", not a substring
     // an attacker chose when naming their certificate.
-    const graded = gradeAssessment(3, rejected(`origin=Developer ID Application: ${HELPER_SIGNING_TEAM} Impersonator (ABCDE12345)`));
+    const graded = gradeAssessment(
+      3,
+      rejected(
+        `origin=Developer ID Application: ${HELPER_SIGNING_TEAM} Impersonator (ABCDE12345)`,
+      ),
+    );
     expect(graded.ok).toBe(false);
   });
 
   test("refuses a rejection that names no origin at all", () => {
-    expect(gradeAssessment(3, "rejected\nsource=no usable signature\n").ok).toBe(false);
+    expect(
+      gradeAssessment(3, "rejected\nsource=no usable signature\n").ok,
+    ).toBe(false);
   });
 
   test("a status-0 acceptance is not by itself proof the bundle is ours", () => {
@@ -369,7 +456,10 @@ describe("gradeAssessment", () => {
     // workflow sets the same string. If that identity ever changes, this fails
     // here rather than at a user's first `cast computer` verb.
     expect(HELPER_SIGNING_TEAM).toBe("WRG9THCK9Q");
-    const script = fs.readFileSync(path.join(import.meta.dir, "..", "..", "scripts", "build-binaries.sh"), "utf8");
+    const script = fs.readFileSync(
+      path.join(import.meta.dir, "..", "..", "scripts", "build-binaries.sh"),
+      "utf8",
+    );
     expect(script).toContain(`(${HELPER_SIGNING_TEAM})`);
   });
 });

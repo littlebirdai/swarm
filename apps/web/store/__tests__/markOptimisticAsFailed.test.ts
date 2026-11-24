@@ -3,7 +3,11 @@ import { useInboxStore } from "../inboxStore";
 
 describe("marking a pending send failed", () => {
   beforeEach(() => {
-    useInboxStore.setState({ messages: {}, pendingMessages: {}, pagination: {} });
+    useInboxStore.setState({
+      messages: {},
+      pendingMessages: {},
+      pagination: {},
+    });
   });
 
   // The coverage poll re-marks a refused send every minute in every window;

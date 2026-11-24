@@ -25,7 +25,9 @@ export function reviewRegions(): ReviewRegion[] {
   if (typeof document === "undefined") return [];
   const out: ReviewRegion[] = [];
   document.querySelectorAll<HTMLElement>(".cc-msg-review").forEach((el) => {
-    const id = el.closest('[id^="msg-"]') ? el.dataset.reviewMessage : undefined;
+    const id = el.closest('[id^="msg-"]')
+      ? el.dataset.reviewMessage
+      : undefined;
     if (id) out.push({ id, el });
   });
   return out;
@@ -60,7 +62,9 @@ export function enterReviewFromComposer(): boolean {
   const regions = reviewRegions();
   const last = regions[regions.length - 1];
   if (!last) return false;
-  useInboxStore.getState().setReviewTarget(last.id, reviewBlockCount(last.el) - 1);
+  useInboxStore
+    .getState()
+    .setReviewTarget(last.id, reviewBlockCount(last.el) - 1);
   return true;
 }
 
@@ -82,7 +86,10 @@ export function stepReviewBlock(messageId: string, delta: -1 | 1): boolean {
   }
   const neighbour = regions[pos + delta];
   if (neighbour) {
-    s.setReviewTarget(neighbour.id, delta > 0 ? 0 : reviewBlockCount(neighbour.el) - 1);
+    s.setReviewTarget(
+      neighbour.id,
+      delta > 0 ? 0 : reviewBlockCount(neighbour.el) - 1,
+    );
     return true;
   }
   if (delta > 0) {

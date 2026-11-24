@@ -22,7 +22,10 @@ import Link from "next/link";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useSyncOrgTree } from "../../../hooks/useSyncOrgTree";
-import { useWorkflowBySlug, useWorkflows } from "../../../hooks/useSyncWorkflows";
+import {
+  useWorkflowBySlug,
+  useWorkflows,
+} from "../../../hooks/useSyncWorkflows";
 import { ConfirmButton } from "../../integrations/parts";
 import { WorkflowGraphView, type WFNode } from "../../WorkflowGraphView";
 import { KeyCap } from "../../KeyboardShortcutsHelp";
@@ -37,18 +40,48 @@ import { MarkdownRenderer } from "../../tools/MarkdownRenderer";
 import { readableTemplate } from "../../../lib/line/lineGraphs";
 import { SHIPPED_LINE } from "../../../lib/line/shippedLine.generated";
 import {
-  editStation, forkShippedLine, isEditableStation, lineForkSlug, resetAllStations, resetStation,
-  rolesOnProject, stationDiffs, stationText, type LineNode, type LineWorkflow, type ShippedLine, type StationPatch,
+  editStation,
+  forkShippedLine,
+  isEditableStation,
+  lineForkSlug,
+  resetAllStations,
+  resetStation,
+  rolesOnProject,
+  stationDiffs,
+  stationText,
+  type LineNode,
+  type LineWorkflow,
+  type ShippedLine,
+  type StationPatch,
 } from "../../../lib/line/lineStations";
 
-type ProjectLike = { _id: string; short_id?: string | null; title?: string | null };
-type RoleRow = { _id: string; name: string; handle: string; short_id?: string; host_user_id?: string; status?: string; scope: { project_ids: string[] }; line_workflow_slug?: string | null };
+type ProjectLike = {
+  _id: string;
+  short_id?: string | null;
+  title?: string | null;
+};
+type RoleRow = {
+  _id: string;
+  name: string;
+  handle: string;
+  short_id?: string;
+  host_user_id?: string;
+  status?: string;
+  scope: { project_ids: string[] };
+  line_workflow_slug?: string | null;
+};
 
 const asWorkflow = (row: any): LineWorkflow => ({
-  slug: row.slug, name: row.name, goal: row.goal, source: row.source, nodes: row.nodes ?? [], edges: row.edges ?? [],
+  slug: row.slug,
+  name: row.name,
+  goal: row.goal,
+  source: row.source,
+  nodes: row.nodes ?? [],
+  edges: row.edges ?? [],
 });
 
-const minutes = (seconds: number | undefined) => (seconds ? String(Math.round((seconds / 60) * 10) / 10) : "");
+const minutes = (seconds: number | undefined) =>
+  seconds ? String(Math.round((seconds / 60) * 10) / 10) : "";
 const roles = (n: number) => `${n} ${n === 1 ? "role" : "roles"}`;
 
 /** One project's stations and the way each is written: the repo's line once a
@@ -56,12 +89,19 @@ const roles = (n: number) => `${n} ${n === 1 ? "role" : "roles"}`;
  *  customized copy, else the shipped line read only. The settings section and
  *  a station's panel on the map (line-map.md LX3) read the same model. */
 export function useProjectStations(projectId: string) {
-  const project = useInboxStore((s) => (s.projects?.[projectId] ?? null) as ProjectLike | null);
-  const me = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const project = useInboxStore(
+    (s) => (s.projects?.[projectId] ?? null) as ProjectLike | null,
+  );
+  const me = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   const save = useInboxStore((s) => s.saveLineWorkflow);
   const removeFork = useInboxStore((s) => s.removeLineWorkflow);
   const setRoleLine = useInboxStore((s) => s.setRoleLine);
-  const slug = useMemo(() => lineForkSlug(project ?? { _id: projectId }), [project, projectId]);
+  const slug = useMemo(
+    () => lineForkSlug(project ?? { _id: projectId }),
+    [project, projectId],
+  );
   // The repo is the line's home once a machine has published its profile (LX5).
   const repo = useLineStationEdits(projectId);
   const inRepo = repo.inRepo;
@@ -73,41 +113,108 @@ export function useProjectStations(projectId: string) {
   // The sweep runs a role's slug from its host's own workflows (orgLine.ts),
   // so only roles the viewer hosts can run the viewer's copy.
   const { tree } = useSyncOrgTree();
-  const rows = useMemo(() => rolesOnProject((tree?.roles ?? []) as RoleRow[], projectId), [tree, projectId]);
+  const rows = useMemo(
+    () => rolesOnProject((tree?.roles ?? []) as RoleRow[], projectId),
+    [tree, projectId],
+  );
   const hostedHere = (r: RoleRow) => !!me && String(r.host_user_id) === me;
-  const onFork = customized ? rows.filter((r) => r.slug === slug && hostedHere(r.role)) : [];
+  const onFork = customized
+    ? rows.filter((r) => r.slug === slug && hostedHere(r.role))
+    : [];
 
-  const nodes = (inRepo ? repo.nodes : fork?.nodes ?? SHIPPED_LINE.nodes) as LineNode[];
-  const edges = inRepo ? repo.edges : fork?.edges ?? SHIPPED_LINE.edges;
-  const forkDiffs = useMemo(() => (fork ? stationDiffs(fork.nodes ?? [], SHIPPED_LINE) : {}), [fork]);
+  const nodes = (
+    inRepo ? repo.nodes : (fork?.nodes ?? SHIPPED_LINE.nodes)
+  ) as LineNode[];
+  const edges = inRepo ? repo.edges : (fork?.edges ?? SHIPPED_LINE.edges);
+  const forkDiffs = useMemo(
+    () => (fork ? stationDiffs(fork.nodes ?? [], SHIPPED_LINE) : {}),
+    [fork],
+  );
   const diffs = inRepo ? repo.diffs : forkDiffs;
 
-  const customize = () => save(forkShippedLine(SHIPPED_LINE, project ?? { _id: projectId }), { create: true });
-  const write = (next: Pick<LineWorkflow, "nodes"> & Partial<Pick<LineWorkflow, "edges">>) => {
+  const customize = () =>
+    save(forkShippedLine(SHIPPED_LINE, project ?? { _id: projectId }), {
+      create: true,
+    });
+  const write = (
+    next: Pick<LineWorkflow, "nodes"> & Partial<Pick<LineWorkflow, "edges">>,
+  ) => {
     if (fork) save({ ...asWorkflow(fork), ...next });
   };
-  const patchStation = (id: string, patch: StationPatch) => (inRepo ? repo.setStation(id, patch) : fork && write({ nodes: editStation(fork.nodes, id, patch) }));
-  const resetOne = (id: string) => (inRepo ? repo.resetStation(id) : fork && write({ nodes: resetStation(fork.nodes, id, SHIPPED_LINE) }));
-  const resetAll = () => (inRepo ? repo.resetAll() : write(resetAllStations(SHIPPED_LINE)));
+  const patchStation = (id: string, patch: StationPatch) =>
+    inRepo
+      ? repo.setStation(id, patch)
+      : fork && write({ nodes: editStation(fork.nodes, id, patch) });
+  const resetOne = (id: string) =>
+    inRepo
+      ? repo.resetStation(id)
+      : fork && write({ nodes: resetStation(fork.nodes, id, SHIPPED_LINE) });
+  const resetAll = () =>
+    inRepo ? repo.resetAll() : write(resetAllStations(SHIPPED_LINE));
   // Roles on the copy go back to the shipped line first, so none is left
   // naming a workflow that is gone.
   const stopCustomizing = () => {
     for (const { role } of onFork) setRoleLine(role._id, "line");
     removeFork(slug);
   };
-  return { slug, repo, inRepo, fork, customized, rows, hostedHere, onFork, nodes, edges, diffs, customize, patchStation, resetOne, resetAll, stopCustomizing, setRoleLine };
+  return {
+    slug,
+    repo,
+    inRepo,
+    fork,
+    customized,
+    rows,
+    hostedHere,
+    onFork,
+    nodes,
+    edges,
+    diffs,
+    customize,
+    patchStation,
+    resetOne,
+    resetAll,
+    stopCustomizing,
+    setRoleLine,
+  };
 }
-
 
 /** focusStation (a link in, ?station=) opens that station's panel, opens the
  *  graph around it, and scrolls the panel into view. */
-export function LineStations({ projectId, focusStation }: { projectId: string; focusStation?: string | null }) {
-  const { slug, repo, inRepo, fork, customized, rows, hostedHere, onFork, nodes, edges, diffs, customize, patchStation, resetOne, resetAll, stopCustomizing, setRoleLine } = useProjectStations(projectId);
+export function LineStations({
+  projectId,
+  focusStation,
+}: {
+  projectId: string;
+  focusStation?: string | null;
+}) {
+  const {
+    slug,
+    repo,
+    inRepo,
+    fork,
+    customized,
+    rows,
+    hostedHere,
+    onFork,
+    nodes,
+    edges,
+    diffs,
+    customize,
+    patchStation,
+    resetOne,
+    resetAll,
+    stopCustomizing,
+    setRoleLine,
+  } = useProjectStations(projectId);
   const marked = useMemo(() => new Set(Object.keys(diffs)), [diffs]);
   const changedCount = marked.size;
 
-  const [selectedId, setSelectedId] = useState<string | null>(focusStation ?? null);
-  useWatchEffect(() => { if (focusStation) setSelectedId(focusStation); }, [focusStation]);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    focusStation ?? null,
+  );
+  useWatchEffect(() => {
+    if (focusStation) setSelectedId(focusStation);
+  }, [focusStation]);
   const selected = nodes.find((n) => n.id === selectedId) ?? null;
   const panel = useRef<HTMLDivElement>(null);
   const arrived = !!focusStation && selected?.id === focusStation;
@@ -119,8 +226,15 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
   if (inRepo) {
     return (
       <div className="space-y-3" data-line-stations data-line-home="repo">
-        <RepoLineHeader repo={repo} changedCount={changedCount} onResetAll={resetAll} />
-        <div className="rounded-md overflow-hidden" style={{ height: 240, border: "1px solid var(--sol-border)" }}>
+        <RepoLineHeader
+          repo={repo}
+          changedCount={changedCount}
+          onResetAll={resetAll}
+        />
+        <div
+          className="rounded-md overflow-hidden"
+          style={{ height: 240, border: "1px solid var(--sol-border)" }}
+        >
           <WorkflowGraphView
             nodes={nodes as WFNode[]}
             edges={edges}
@@ -147,11 +261,24 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
             onPatch={(patch) => patchStation(selected.id, patch)}
             onReset={() => resetOne(selected.id)}
             onClose={() => setSelectedId(null)}
-            status={<EditStatus s={repo.stateOf(selected.id)} device={repo.gate.device ?? "the machine"} now={repo.now} onDismiss={() => repo.clear(selected.id)} />}
+            status={
+              <EditStatus
+                s={repo.stateOf(selected.id)}
+                device={repo.gate.device ?? "the machine"}
+                now={repo.now}
+                onDismiss={() => repo.clear(selected.id)}
+              />
+            }
             pending={isTravelling(repo.stateOf(selected.id))}
           />
         )}
-        <RunsThisLine rows={rows} forkSlug={null} hostedHere={hostedHere} setRoleLine={setRoleLine} repoLine />
+        <RunsThisLine
+          rows={rows}
+          forkSlug={null}
+          hostedHere={hostedHere}
+          setRoleLine={setRoleLine}
+          repoLine
+        />
       </div>
     );
   }
@@ -159,17 +286,31 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
     <div className="space-y-3" data-line-stations>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0 max-w-[64ch]">
-          <div className="text-[13px]" style={{ color: "var(--sol-text)" }} data-line-stations-headline>
-            {fork === undefined
-              ? <span style={{ color: "var(--sol-text-dim)" }}>Looking for this project's copy of the steps…</span>
-              : !customized
-                ? <>This project runs the Standard steps.</>
-                : onFork.length === 0
-                  ? <>Your customized copy, {copy}. No role runs it yet.</>
-                  : <>{roles(onFork.length)} {onFork.length === 1 ? "runs" : "run"} this project's customized copy, {copy}.</>}
+          <div
+            className="text-[13px]"
+            style={{ color: "var(--sol-text)" }}
+            data-line-stations-headline
+          >
+            {fork === undefined ? (
+              <span style={{ color: "var(--sol-text-dim)" }}>
+                Looking for this project's copy of the steps…
+              </span>
+            ) : !customized ? (
+              <>This project runs the Standard steps.</>
+            ) : onFork.length === 0 ? (
+              <>Your customized copy, {copy}. No role runs it yet.</>
+            ) : (
+              <>
+                {roles(onFork.length)} {onFork.length === 1 ? "runs" : "run"}{" "}
+                this project's customized copy, {copy}.
+              </>
+            )}
           </div>
           {fork !== undefined && (
-            <div className="text-meta mt-0.5" style={{ color: "var(--sol-text-dim)" }}>
+            <div
+              className="text-meta mt-0.5"
+              style={{ color: "var(--sol-text-dim)" }}
+            >
               {!customized
                 ? "Click a station to read its prompt or script. Customizing makes an editable copy for this project; roles keep the Standard steps until you switch them, and the copy no longer follows later updates to them."
                 : `${changedCount === 0 ? "Every station matches shipped." : `${changedCount} ${changedCount === 1 ? "station differs" : "stations differ"} from shipped.`} Click a station to edit${changedCount ? " or reset" : ""} it.${onFork.length === 0 ? " Switch a role to the copy below for its runs to use it." : ""}`}
@@ -177,8 +318,26 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          {fork === null && <button type="button" className="lset-primary" onClick={customize} data-customize-line>Customize steps</button>}
-          {customized && changedCount > 0 && <button type="button" className="lset-ghost" onClick={resetAll} data-reset-all>Reset all to shipped</button>}
+          {fork === null && (
+            <button
+              type="button"
+              className="lset-primary"
+              onClick={customize}
+              data-customize-line
+            >
+              Customize steps
+            </button>
+          )}
+          {customized && changedCount > 0 && (
+            <button
+              type="button"
+              className="lset-ghost"
+              onClick={resetAll}
+              data-reset-all
+            >
+              Reset all to shipped
+            </button>
+          )}
           {customized && (
             <ConfirmButton
               label="Stop customizing"
@@ -190,7 +349,10 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
         </div>
       </div>
 
-      <div className="rounded-md overflow-hidden" style={{ height: 240, border: "1px solid var(--sol-border)" }}>
+      <div
+        className="rounded-md overflow-hidden"
+        style={{ height: 240, border: "1px solid var(--sol-border)" }}
+      >
         <WorkflowGraphView
           nodes={nodes as WFNode[]}
           edges={edges}
@@ -220,7 +382,12 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
         />
       )}
 
-      <RunsThisLine rows={rows} forkSlug={customized ? slug : null} hostedHere={hostedHere} setRoleLine={setRoleLine} />
+      <RunsThisLine
+        rows={rows}
+        forkSlug={customized ? slug : null}
+        hostedHere={hostedHere}
+        setRoleLine={setRoleLine}
+      />
     </div>
   );
 }
@@ -229,21 +396,59 @@ export function LineStations({ projectId, focusStation }: { projectId: string; f
 
 // ---------------------------------------------------------------- the repo's line
 
-const isTravelling = (s: { state: string } | undefined) => s?.state === "sending" || s?.state === "waiting" || s?.state === "publishing";
+const isTravelling = (s: { state: string } | undefined) =>
+  s?.state === "sending" || s?.state === "waiting" || s?.state === "publishing";
 
 /** What the repo holds, in one sentence, and the way back to shipped. */
-function RepoLineHeader({ repo, changedCount, onResetAll }: { repo: ReturnType<typeof useLineStationEdits>; changedCount: number; onResetAll: () => void }) {
-  const dir = <code style={{ color: "var(--sol-violet)" }}>{REPO_LINE_REL_DIR}</code>;
+function RepoLineHeader({
+  repo,
+  changedCount,
+  onResetAll,
+}: {
+  repo: ReturnType<typeof useLineStationEdits>;
+  changedCount: number;
+  onResetAll: () => void;
+}) {
+  const dir = (
+    <code style={{ color: "var(--sol-violet)" }}>{REPO_LINE_REL_DIR}</code>
+  );
   const own = repo.source.kind === "repo";
   return (
     <div className="flex items-start justify-between gap-3 flex-wrap">
       <div className="min-w-0 max-w-[64ch]">
-        <div className="text-[13px]" style={{ color: "var(--sol-text)" }} data-line-stations-headline>
-          {own
-            ? <>This project's line lives in its repo, in <span className="modern:font-mono">{dir}</span>{repo.version ? <>, at version <code data-line-version style={{ color: "var(--sol-text-muted)" }}>{repo.version.slice(0, 8)}</code></> : null}.</>
-            : <>This project's repo has no steps of its own yet, so its runs use their owner's steps or the Standard ones.</>}
+        <div
+          className="text-[13px]"
+          style={{ color: "var(--sol-text)" }}
+          data-line-stations-headline
+        >
+          {own ? (
+            <>
+              This project's line lives in its repo, in{" "}
+              <span className="modern:font-mono">{dir}</span>
+              {repo.version ? (
+                <>
+                  , at version{" "}
+                  <code
+                    data-line-version
+                    style={{ color: "var(--sol-text-muted)" }}
+                  >
+                    {repo.version.slice(0, 8)}
+                  </code>
+                </>
+              ) : null}
+              .
+            </>
+          ) : (
+            <>
+              This project's repo has no steps of its own yet, so its runs use
+              their owner's steps or the Standard ones.
+            </>
+          )}
         </div>
-        <div className="text-meta mt-0.5" style={{ color: "var(--sol-text-dim)" }}>
+        <div
+          className="text-meta mt-0.5"
+          style={{ color: "var(--sol-text-dim)" }}
+        >
           {!repo.gate.writable
             ? repo.gate.reason
             : own
@@ -252,13 +457,34 @@ function RepoLineHeader({ repo, changedCount, onResetAll }: { repo: ReturnType<t
         </div>
       </div>
       {own && repo.writable && changedCount > 0 && (
-        <button type="button" className="lset-ghost shrink-0" onClick={onResetAll} data-reset-all>Reset all to shipped</button>
+        <button
+          type="button"
+          className="lset-ghost shrink-0"
+          onClick={onResetAll}
+          data-reset-all
+        >
+          Reset all to shipped
+        </button>
       )}
     </div>
   );
 }
 
-function StationPanel({ ref, arrived, node, projectId, line = SHIPPED_LINE, editable, runsIt, changed, onPatch, onReset, onClose, status, pending }: {
+function StationPanel({
+  ref,
+  arrived,
+  node,
+  projectId,
+  line = SHIPPED_LINE,
+  editable,
+  runsIt,
+  changed,
+  onPatch,
+  onReset,
+  onClose,
+  status,
+  pending,
+}: {
   ref?: Ref<HTMLDivElement>;
   /** The project whose line this is: a prompt draft can be sent through it (LX6). */
   projectId?: string;
@@ -288,53 +514,139 @@ function StationPanel({ ref, arrived, node, projectId, line = SHIPPED_LINE, edit
   // When this panel last saved something: "saved" is said only after a save.
   const [savedAt, setSavedAt] = useState<number | null>(null);
   // A save, a reset or another window's edit moves the stored text: follow it.
-  useWatchEffect(() => { setDraft(body.text); }, [body.text]);
-  useWatchEffect(() => { setTimeoutDraft(minutes(node.timeout)); }, [node.timeout]);
+  useWatchEffect(() => {
+    setDraft(body.text);
+  }, [body.text]);
+  useWatchEffect(() => {
+    setTimeoutDraft(minutes(node.timeout));
+  }, [node.timeout]);
   const dirty = draft !== body.text;
-  const patch = (p: StationPatch) => { onPatch(p); setSavedAt(Date.now()); };
-  const commitText = () => { if (field && dirty) patch({ [field]: draft }); };
+  const patch = (p: StationPatch) => {
+    onPatch(p);
+    setSavedAt(Date.now());
+  };
+  const commitText = () => {
+    if (field && dirty) patch({ [field]: draft });
+  };
   // A prompt change is a prompt change (line-map.md LX5): the editor offers to
   // send the draft through the line, where it is shown, scored and carded,
   // beside applying it now. So a prompt draft waits for one of the two
   // instead of saving when the field loses focus.
   const through = useSendThroughLine(projectId ?? null, node);
   const offerSend = field === "prompt" && !!through.send;
-  const sendDraft = () => { if (dirty && through.send?.(draft)) setDraft(body.text); };
+  const sendDraft = () => {
+    if (dirty && through.send?.(draft)) setDraft(body.text);
+  };
   const commitTimeout = () => {
     const m = Number(timeoutDraft);
-    const next = timeoutDraft.trim() === "" ? null : Number.isFinite(m) && m > 0 ? Math.round(m * 60) : undefined;
-    if (next === undefined) { setTimeoutError("Minutes, more than 0, or empty for none"); return; }
+    const next =
+      timeoutDraft.trim() === ""
+        ? null
+        : Number.isFinite(m) && m > 0
+          ? Math.round(m * 60)
+          : undefined;
+    if (next === undefined) {
+      setTimeoutError("Minutes, more than 0, or empty for none");
+      return;
+    }
     setTimeoutError(null);
     if ((next ?? undefined) !== node.timeout) patch({ timeout: next });
   };
-  const saveKeys = <><KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap><KeyCap size="xs">↵</KeyCap></>;
-  const editHint = offerSend
-    ? <>Edit the {field}, then send it through its flow or apply it now</>
-    : <>Edit the {field}; it saves when you leave the field, or on {saveKeys}</>;
+  const saveKeys = (
+    <>
+      <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
+      <KeyCap size="xs">↵</KeyCap>
+    </>
+  );
+  const editHint = offerSend ? (
+    <>Edit the {field}, then send it through its flow or apply it now</>
+  ) : (
+    <>
+      Edit the {field}; it saves when you leave the field, or on {saveKeys}
+    </>
+  );
 
   return (
-    <div ref={ref} className="rounded-md p-3 space-y-2 scroll-mt-4" style={{ background: "var(--sol-bg-alt)", border: "1px solid var(--sol-border)" }} data-station-panel={node.id} data-lset-target={arrived ? "true" : undefined}>
+    <div
+      ref={ref}
+      className="rounded-md p-3 space-y-2 scroll-mt-4"
+      style={{
+        background: "var(--sol-bg-alt)",
+        border: "1px solid var(--sol-border)",
+      }}
+      data-station-panel={node.id}
+      data-lset-target={arrived ? "true" : undefined}
+    >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[14px] font-semibold" style={{ color: "var(--sol-text)" }}>{node.label}</span>
-        <code className="text-meta" style={{ color: "var(--sol-text-dim)" }}>{node.id}</code>
-        {field && <LineChip>{field}{body.file ? ` from ${body.file}` : ""}</LineChip>}
-        {changed.length > 0 && <LineChip tone="magenta">edited: {changed.join(", ")}</LineChip>}
+        <span
+          className="text-[14px] font-semibold"
+          style={{ color: "var(--sol-text)" }}
+        >
+          {node.label}
+        </span>
+        <code className="text-meta" style={{ color: "var(--sol-text-dim)" }}>
+          {node.id}
+        </code>
+        {field && (
+          <LineChip>
+            {field}
+            {body.file ? ` from ${body.file}` : ""}
+          </LineChip>
+        )}
+        {changed.length > 0 && (
+          <LineChip tone="magenta">edited: {changed.join(", ")}</LineChip>
+        )}
         <span className="flex-1" />
         <span className="inline-flex items-center gap-4">
-          {editable && changed.length > 0 && <button type="button" className="lset-ghost" onClick={onReset} data-reset-station>Reset to shipped</button>}
-          {onClose && <button type="button" className="lset-ghost" onClick={onClose} aria-label="Close station">Close</button>}
+          {editable && changed.length > 0 && (
+            <button
+              type="button"
+              className="lset-ghost"
+              onClick={onReset}
+              data-reset-station
+            >
+              Reset to shipped
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              className="lset-ghost"
+              onClick={onClose}
+              aria-label="Close station"
+            >
+              Close
+            </button>
+          )}
         </span>
       </div>
 
-      {!field && <p className="lset-empty">This station routes the run and carries no prompt or script.</p>}
+      {!field && (
+        <p className="lset-empty">
+          This station routes the run and carries no prompt or script.
+        </p>
+      )}
 
       {field === "prompt" && !canEdit && (
         <div className="lset-instructions" data-station-prompt>
-          {body.text ? <MarkdownRenderer content={readableTemplate(body.text)} /> : <span style={{ color: "var(--sol-text-dim)" }}>No instructions written yet.</span>}
+          {body.text ? (
+            <MarkdownRenderer content={readableTemplate(body.text)} />
+          ) : (
+            <span style={{ color: "var(--sol-text-dim)" }}>
+              No instructions written yet.
+            </span>
+          )}
         </div>
       )}
       {field === "script" && !canEdit && (
-        <pre className="text-meta leading-[1.5] whitespace-pre-wrap max-h-[420px] overflow-auto m-0 p-2 rounded" style={{ fontFamily: "var(--font-mono)", color: "var(--sol-text)", background: "var(--sol-card)" }}>
+        <pre
+          className="text-meta leading-[1.5] whitespace-pre-wrap max-h-[420px] overflow-auto m-0 p-2 rounded"
+          style={{
+            fontFamily: "var(--font-mono)",
+            color: "var(--sol-text)",
+            background: "var(--sol-card)",
+          }}
+        >
           {body.text || "(empty)"}
         </pre>
       )}
@@ -346,79 +658,157 @@ function StationPanel({ ref, arrived, node, projectId, line = SHIPPED_LINE, edit
             onChange={(e) => setDraft(e.target.value)}
             onBlur={offerSend ? undefined : commitText}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (offerSend) sendDraft(); else commitText(); }
-              if (e.key === "Escape" && dirty) { e.preventDefault(); e.stopPropagation(); setDraft(body.text); }
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                if (offerSend) sendDraft();
+                else commitText();
+              }
+              if (e.key === "Escape" && dirty) {
+                e.preventDefault();
+                e.stopPropagation();
+                setDraft(body.text);
+              }
             }}
             spellCheck={false}
             rows={Math.min(24, Math.max(6, draft.split("\n").length + 1))}
             className="w-full text-meta leading-[1.5] p-2 rounded outline-none resize-y"
-            style={{ fontFamily: "var(--font-mono)", color: "var(--sol-text)", background: "var(--sol-card)", border: `1px solid ${dirty ? "var(--sol-yellow)" : "var(--sol-border)"}` }}
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: "var(--sol-text)",
+              background: "var(--sol-card)",
+              border: `1px solid ${dirty ? "var(--sol-yellow)" : "var(--sol-border)"}`,
+            }}
             aria-label={`${node.label} ${field}`}
             data-station-text
           />
-          <div className="flex items-center gap-1.5 text-meta flex-wrap" style={{ color: "var(--sol-text-dim)" }} data-station-save-state>
-            {dirty && offerSend
-              ? <>
-                  <span className="min-w-0">Send it through the line to have it proven and scored before it lands, or apply it to every run from now. <KeyCap size="xs">Esc</KeyCap> puts it back.</span>
-                  <span className="flex-1" />
-                  <button type="button" className="lset-ghost" onClick={commitText} data-station-apply>Apply now</button>
-                  <button type="button" className="lset-primary inline-flex items-center gap-1" onClick={sendDraft} data-station-send>Send through the line {saveKeys}</button>
-                </>
-            : dirty
-              ? <>Saves when you leave the field, or on {saveKeys}. <KeyCap size="xs">Esc</KeyCap> puts it back.</>
-              : status !== undefined
-                ? <>{status}{!pending && editHint}</>
-              : savedAt
-                ? <span key={savedAt} className="lset-status" data-state={runsIt ? "saved" : "warn"} role="status">
-                    {runsIt ? `Saved. A run of the customized steps started after this reads the new ${field}.` : "Saved to the copy. No role runs it yet, so no run reads it."}
-                  </span>
-                : editHint}
+          <div
+            className="flex items-center gap-1.5 text-meta flex-wrap"
+            style={{ color: "var(--sol-text-dim)" }}
+            data-station-save-state
+          >
+            {dirty && offerSend ? (
+              <>
+                <span className="min-w-0">
+                  Send it through the line to have it proven and scored before
+                  it lands, or apply it to every run from now.{" "}
+                  <KeyCap size="xs">Esc</KeyCap> puts it back.
+                </span>
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  className="lset-ghost"
+                  onClick={commitText}
+                  data-station-apply
+                >
+                  Apply now
+                </button>
+                <button
+                  type="button"
+                  className="lset-primary inline-flex items-center gap-1"
+                  onClick={sendDraft}
+                  data-station-send
+                >
+                  Send through the line {saveKeys}
+                </button>
+              </>
+            ) : dirty ? (
+              <>
+                Saves when you leave the field, or on {saveKeys}.{" "}
+                <KeyCap size="xs">Esc</KeyCap> puts it back.
+              </>
+            ) : status !== undefined ? (
+              <>
+                {status}
+                {!pending && editHint}
+              </>
+            ) : savedAt ? (
+              <span
+                key={savedAt}
+                className="lset-status"
+                data-state={runsIt ? "saved" : "warn"}
+                role="status"
+              >
+                {runsIt
+                  ? `Saved. A run of the customized steps started after this reads the new ${field}.`
+                  : "Saved to the copy. No role runs it yet, so no run reads it."}
+              </span>
+            ) : (
+              editHint
+            )}
           </div>
           {through.sent}
         </>
       )}
 
-      {isEditableStation(node) && (field === "script" || node.timeout !== undefined || canEdit) && (
-        <div className="lset-row" data-station-timeout-row>
-          <div className="lset-key">
-            <span className="lset-label">Timeout</span>
-            <span className="lset-what">How long the station may run before the line stops it.</span>
-          </div>
-          <div className="lset-val">
-            <div className="lset-val-line">
-              {canEdit ? (
-                <input
-                  value={timeoutDraft}
-                  onChange={(e) => { setTimeoutDraft(e.target.value); setTimeoutError(null); }}
-                  onBlur={commitTimeout}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitTimeout();
-                    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setTimeoutDraft(minutes(node.timeout)); setTimeoutError(null); }
-                  }}
-                  aria-invalid={timeoutError ? true : undefined}
-                  inputMode="decimal"
-                  placeholder="none"
-                  className="lset-input"
-                  style={{ width: 88, marginLeft: 0, boxShadow: "none", borderColor: "var(--sol-border)" }}
-                  aria-label="Timeout in minutes"
-                  data-station-timeout
-                />
-              ) : (
-                <span className="lset-value" aria-disabled="true">{node.timeout ? minutes(node.timeout) : "none"}</span>
-              )}
-              <span className="lset-unit">minutes</span>
+      {isEditableStation(node) &&
+        (field === "script" || node.timeout !== undefined || canEdit) && (
+          <div className="lset-row" data-station-timeout-row>
+            <div className="lset-key">
+              <span className="lset-label">Timeout</span>
+              <span className="lset-what">
+                How long the station may run before the line stops it.
+              </span>
             </div>
-            {timeoutError && <span className="lset-field-error" role="alert">{timeoutError}</span>}
+            <div className="lset-val">
+              <div className="lset-val-line">
+                {canEdit ? (
+                  <input
+                    value={timeoutDraft}
+                    onChange={(e) => {
+                      setTimeoutDraft(e.target.value);
+                      setTimeoutError(null);
+                    }}
+                    onBlur={commitTimeout}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitTimeout();
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTimeoutDraft(minutes(node.timeout));
+                        setTimeoutError(null);
+                      }
+                    }}
+                    aria-invalid={timeoutError ? true : undefined}
+                    inputMode="decimal"
+                    placeholder="none"
+                    className="lset-input"
+                    style={{
+                      width: 88,
+                      marginLeft: 0,
+                      boxShadow: "none",
+                      borderColor: "var(--sol-border)",
+                    }}
+                    aria-label="Timeout in minutes"
+                    data-station-timeout
+                  />
+                ) : (
+                  <span className="lset-value" aria-disabled="true">
+                    {node.timeout ? minutes(node.timeout) : "none"}
+                  </span>
+                )}
+                <span className="lset-unit">minutes</span>
+              </div>
+              {timeoutError && (
+                <span className="lset-field-error" role="alert">
+                  {timeoutError}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------- who runs it
 
-function RunsThisLine({ rows, forkSlug, hostedHere, setRoleLine, repoLine }: {
+function RunsThisLine({
+  rows,
+  forkSlug,
+  hostedHere,
+  setRoleLine,
+  repoLine,
+}: {
   rows: Array<{ role: RoleRow; slug: string }>;
   /** The project keeps its line in its repo: a task-bound run in its checkout runs that, whatever line the role names. */
   repoLine?: boolean;
@@ -427,17 +817,26 @@ function RunsThisLine({ rows, forkSlug, hostedHere, setRoleLine, repoLine }: {
   setRoleLine: (roleId: string, slug: string) => void;
 }) {
   const { workflows } = useWorkflows();
-  const labelOf = (slug: string) => lineOptions(workflows, slug).find((o) => o.slug === slug)?.label ?? slug;
+  const labelOf = (slug: string) =>
+    lineOptions(workflows, slug).find((o) => o.slug === slug)?.label ?? slug;
 
   return (
     <div data-runs-this-line>
       <div className="lset-label mb-1">Roles that run this project's flow</div>
       {repoLine && rows.length > 0 && (
-        <p className="lset-empty" data-runs-repo-line>A run for a task in this project's checkout uses the repo's steps when it has them, whichever steps the role names below.</p>
+        <p className="lset-empty" data-runs-repo-line>
+          A run for a task in this project's checkout uses the repo's steps when
+          it has them, whichever steps the role names below.
+        </p>
       )}
       {rows.length === 0 ? (
         <p className="lset-empty" data-runs-this-line-empty>
-          No role looks after this project yet, so nothing starts the line on its own. A role takes the project into its area on its page in <Link href="/org" className="underline underline-offset-2">the org</Link>.
+          No role looks after this project yet, so nothing starts the line on
+          its own. A role takes the project into its area on its page in{" "}
+          <Link href="/org" className="underline underline-offset-2">
+            the org
+          </Link>
+          .
         </p>
       ) : (
         <div className="lset-rows">
@@ -445,21 +844,65 @@ function RunsThisLine({ rows, forkSlug, hostedHere, setRoleLine, repoLine }: {
             const mine = hostedHere(role);
             const onFork = !!forkSlug && slug === forkSlug && mine;
             return (
-              <div key={role._id} className="lset-row" data-role-line={role._id}>
+              <div
+                key={role._id}
+                className="lset-row"
+                data-role-line={role._id}
+              >
                 <div className="lset-key">
                   <span className="lset-label">
-                    {role.short_id ? <Link href={`/org/${role.short_id}`} className="hover:underline">{role.name}</Link> : role.name}
-                    <span className="ml-1.5 font-normal" style={{ color: "var(--sol-violet)", fontFamily: "var(--font-mono)" }}>@{role.handle}</span>
+                    {role.short_id ? (
+                      <Link
+                        href={`/org/${role.short_id}`}
+                        className="hover:underline"
+                      >
+                        {role.name}
+                      </Link>
+                    ) : (
+                      role.name
+                    )}
+                    <span
+                      className="ml-1.5 font-normal"
+                      style={{
+                        color: "var(--sol-violet)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      @{role.handle}
+                    </span>
                   </span>
                 </div>
                 <div className="lset-val">
                   <div className="lset-val-line">
                     <span className="lset-dim text-[12px]">runs</span>
-                    <LineChip tone={onFork ? "magenta" : "muted"}>{onFork ? "this project's copy" : labelOf(slug)}</LineChip>
+                    <LineChip tone={onFork ? "magenta" : "muted"}>
+                      {onFork ? "this project's copy" : labelOf(slug)}
+                    </LineChip>
                     <span className="flex-1" />
-                    {forkSlug && !onFork && mine && <button type="button" className="lset-ghost" onClick={() => setRoleLine(role._id, forkSlug)}>Run the customized steps</button>}
-                    {forkSlug && !onFork && !mine && <span className="lset-dim text-meta">Runs on a teammate's machine, which has no copy of your customized steps</span>}
-                    {onFork && <button type="button" className="lset-ghost" onClick={() => setRoleLine(role._id, "line")}>Use Standard steps</button>}
+                    {forkSlug && !onFork && mine && (
+                      <button
+                        type="button"
+                        className="lset-ghost"
+                        onClick={() => setRoleLine(role._id, forkSlug)}
+                      >
+                        Run the customized steps
+                      </button>
+                    )}
+                    {forkSlug && !onFork && !mine && (
+                      <span className="lset-dim text-meta">
+                        Runs on a teammate's machine, which has no copy of your
+                        customized steps
+                      </span>
+                    )}
+                    {onFork && (
+                      <button
+                        type="button"
+                        className="lset-ghost"
+                        onClick={() => setRoleLine(role._id, "line")}
+                      >
+                        Use Standard steps
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

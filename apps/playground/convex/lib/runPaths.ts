@@ -43,15 +43,23 @@ export function runRoute(pathname: string): RunRoute | null {
     return /^[a-z0-9]{1,64}$/.test(hash) ? { kind: "sdk", hash } : null;
   }
   if (!pathname.startsWith(RUN_PREFIX)) return null;
-  const [slug, segment, number, ...rest] = pathname.slice(RUN_PREFIX.length).split("/");
+  const [slug, segment, number, ...rest] = pathname
+    .slice(RUN_PREFIX.length)
+    .split("/");
   if (!isSlug(slug)) return null;
-  if (segment === "live") return (number ?? "") === "" && rest.length === 0 ? { kind: "live", slug } : null;
+  if (segment === "live")
+    return (number ?? "") === "" && rest.length === 0
+      ? { kind: "live", slug }
+      : null;
   if (segment !== "v" || !number || !VERSION_NUMBER.test(number)) return null;
   const n = Number(number);
-  if (rest.length === 0) return { kind: "folder", location: versionPath(slug, n) };
+  if (rest.length === 0)
+    return { kind: "folder", location: versionPath(slug, n) };
   const raw = safeDecode(rest.join("/"));
   if (raw === "") return { kind: "file", slug, number: n, path: ENTRY_PATH };
-  return raw !== null && normalizeFilePath(raw) === raw ? { kind: "file", slug, number: n, path: raw } : null;
+  return raw !== null && normalizeFilePath(raw) === raw
+    ? { kind: "file", slug, number: n, path: raw }
+    : null;
 }
 
 function safeDecode(s: string): string | null {

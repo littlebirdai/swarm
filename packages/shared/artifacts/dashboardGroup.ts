@@ -5,11 +5,20 @@ import type { DataResult } from "./dashboardData";
 import type { Where } from "./dashboardWhere";
 
 /** The rows (by index) grouped by `by`: a new result whose rows are the groups, largest first by row count. */
-export function groupRows(result: DataResult, rows: readonly number[], by: string): { result: DataResult; groups: number[][] } | { problem: string } {
+export function groupRows(
+  result: DataResult,
+  rows: readonly number[],
+  by: string,
+): { result: DataResult; groups: number[][] } | { problem: string } {
   const gi = result.columns.indexOf(by);
-  if (gi < 0) return { problem: `the source has no column "${by}" to group by (it has ${result.columns.join(", ") || "none"})` };
+  if (gi < 0)
+    return {
+      problem: `the source has no column "${by}" to group by (it has ${result.columns.join(", ") || "none"})`,
+    };
   // Which columns hold numbers is a fact about the source, not about the rows a filter left: an empty group keeps its columns.
-  const numeric = result.columns.map((_, i) => i !== gi && result.rows.some((r) => typeof r[i] === "number"));
+  const numeric = result.columns.map(
+    (_, i) => i !== gi && result.rows.some((r) => typeof r[i] === "number"),
+  );
   const order: string[] = [];
   const members = new Map<string, number[]>();
   for (const r of rows) {
@@ -24,7 +33,22 @@ export function groupRows(result: DataResult, rows: readonly number[], by: strin
   const groups = order.map((k) => members.get(k)!);
   const out = groups.map((g, n) => [
     order[n],
-    ...result.columns.flatMap((_, i) => (numeric[i] ? [Math.round(g.reduce((a, r) => a + (typeof result.rows[r][i] === "number" ? (result.rows[r][i] as number) : 0), 0) * 1e6) / 1e6] : [])),
+    ...result.columns.flatMap((_, i) =>
+      numeric[i]
+        ? [
+            Math.round(
+              g.reduce(
+                (a, r) =>
+                  a +
+                  (typeof result.rows[r][i] === "number"
+                    ? (result.rows[r][i] as number)
+                    : 0),
+                0,
+              ) * 1e6,
+            ) / 1e6,
+          ]
+        : [],
+    ),
     g.length,
   ]);
   return { result: { ...result, columns, rows: out }, groups };
@@ -36,14 +60,27 @@ export function groupRows(result: DataResult, rows: readonly number[], by: strin
  * person reads it ("people whose spend is over 5000"); any other condition
  * picks the source rows that go into the groups.
  */
-export function splitGroupedWhere(result: DataResult, where: Where | undefined, by: string): { before?: Where; after?: Where } {
+export function splitGroupedWhere(
+  result: DataResult,
+  where: Where | undefined,
+  by: string,
+): { before?: Where; after?: Where } {
   if (!where) return {};
   // The group's row count ("rows") exists only after grouping.
-  const summed = (c: string) => c !== by && (!result.columns.includes(c) || result.rows.some((r) => typeof r[result.columns.indexOf(c)] === "number"));
+  const summed = (c: string) =>
+    c !== by &&
+    (!result.columns.includes(c) ||
+      result.rows.some(
+        (r) => typeof r[result.columns.indexOf(c)] === "number",
+      ));
   const before: Where = {};
   const after: Where = {};
-  for (const [c, cond] of Object.entries(where)) (summed(c) ? after : before)[c] = cond;
-  return { ...(Object.keys(before).length ? { before } : {}), ...(Object.keys(after).length ? { after } : {}) };
+  for (const [c, cond] of Object.entries(where))
+    (summed(c) ? after : before)[c] = cond;
+  return {
+    ...(Object.keys(before).length ? { before } : {}),
+    ...(Object.keys(after).length ? { after } : {}),
+  };
 }
 
 // ── sheets as a source ──
@@ -52,17 +89,31 @@ type Cell = number | string | boolean | null;
 // A sheet range's evaluated values come from the Sheets engine (readSheetRange in ./sheet).
 
 /** Values as a table: the first row names the columns, or columns are A, B, C. */
-export function sheetTable(values: Cell[][], header: boolean, firstCol = 1): { columns: string[]; rows: Cell[][] } {
+export function sheetTable(
+  values: Cell[][],
+  header: boolean,
+  firstCol = 1,
+): { columns: string[]; rows: Cell[][] } {
   const width = Math.max(0, ...values.map((r) => r.length));
   const letters = (i: number) => {
     let s = "";
-    for (let n = i; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+    for (let n = i; n > 0; n = Math.floor((n - 1) / 26))
+      s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
     return s;
   };
-  if (!header || !values.length) return { columns: Array.from({ length: width }, (_, i) => letters(firstCol + i)), rows: values };
+  if (!header || !values.length)
+    return {
+      columns: Array.from({ length: width }, (_, i) => letters(firstCol + i)),
+      rows: values,
+    };
   const taken = new Set<string>();
   const columns = Array.from({ length: width }, (_, i) => {
-    const base = String(values[0][i] ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || letters(firstCol + i).toLowerCase();
+    const base =
+      String(values[0][i] ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "") || letters(firstCol + i).toLowerCase();
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
     taken.add(name);

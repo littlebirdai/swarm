@@ -4,7 +4,11 @@
 
 // Lifted from convex/inboxFilters.ts so the server scan and every replica run
 // ONE implementation (design C4); convex re-exports these back.
-export const NOISE_TITLE_PREFIXES = ["[Using:", "[Request", "[SUGGESTION MODE:"] as const;
+export const NOISE_TITLE_PREFIXES = [
+  "[Using:",
+  "[Request",
+  "[SUGGESTION MODE:",
+] as const;
 
 export function isNoiseTitle(title: string | null | undefined): boolean {
   const t = title?.trim() || "";
@@ -89,7 +93,12 @@ export function rollupParentIdOf(row: RollupRow): string | null {
   if (row.parent_conversation_id) {
     return isOrphanOrSubagent(row) ? String(row.parent_conversation_id) : null;
   }
-  if (row.agent_team_name && row.agent_name !== "team-lead" && row.spawned_by_conversation_id) return String(row.spawned_by_conversation_id);
+  if (
+    row.agent_team_name &&
+    row.agent_name !== "team-lead" &&
+    row.spawned_by_conversation_id
+  )
+    return String(row.spawned_by_conversation_id);
   return null;
 }
 
@@ -128,5 +137,10 @@ export interface AdvisoryAnswerRow {
 }
 
 export function advisoryAnswerOpen(d: AdvisoryAnswerRow): boolean {
-  return d.status === "answered" && d.blocking === false && !d.workflow_run_id && d.answered_by?.kind !== "role";
+  return (
+    d.status === "answered" &&
+    d.blocking === false &&
+    !d.workflow_run_id &&
+    d.answered_by?.kind !== "role"
+  );
 }

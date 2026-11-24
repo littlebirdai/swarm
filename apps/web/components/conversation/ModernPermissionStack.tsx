@@ -3,7 +3,13 @@ import { formatToolName } from "@codecast/shared/render";
 import { MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { allowAllLedger } from "../consequential/ledgers";
-import { alwaysAllowLabels, PermissionContext, PermissionSourceTag, ToolName, type PermissionViewItem } from "../PermissionCard";
+import {
+  alwaysAllowLabels,
+  PermissionContext,
+  PermissionSourceTag,
+  ToolName,
+  type PermissionViewItem,
+} from "../PermissionCard";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ModernAskCard } from "./ModernAsk";
@@ -28,32 +34,64 @@ function Preview({ text }: { text?: string }) {
 }
 
 /** The reason a denial sends the agent, typed in place of the answers. Enter denies, Escape puts the answers back. */
-function DenyWithReason({ onDeny, onCancel }: { onDeny: (message?: string) => void; onCancel: () => void }) {
+function DenyWithReason({
+  onDeny,
+  onCancel,
+}: {
+  onDeny: (message?: string) => void;
+  onCancel: () => void;
+}) {
   const [reason, setReason] = useState("");
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onDeny(reason.trim() || undefined); }} className="mt-3 flex min-w-0 items-center gap-2">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onDeny(reason.trim() || undefined);
+      }}
+      className="mt-3 flex min-w-0 items-center gap-2"
+    >
       <Input
         autoFocus
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onCancel();
+          }
+        }}
         placeholder="Tell the agent why (optional)"
         aria-label="Reason for denying"
         className="h-control-md min-w-0 flex-1 text-ui"
       />
-      <Button type="submit" size="md" variant="danger">Deny</Button>
-      <Button type="button" size="md" variant="ghost" onClick={onCancel}>Cancel</Button>
+      <Button type="submit" size="md" variant="danger">
+        Deny
+      </Button>
+      <Button type="button" size="md" variant="ghost" onClick={onCancel}>
+        Cancel
+      </Button>
     </form>
   );
 }
 
 const keys = (
   <span className="hidden items-center gap-1 sm:flex">
-    <MenuKeyCaps action="permission.approve" className="contents" />/<MenuKeyCaps action="permission.deny" className="contents" />
+    <MenuKeyCaps action="permission.approve" className="contents" />/
+    <MenuKeyCaps action="permission.deny" className="contents" />
   </span>
 );
 
-export function ModernPermissionStack<PId extends string>({ pending, inflight, onApprove, onDeny, onAlwaysAllow, onApproveAll, onDenyAll, onAllowAll }: {
+export function ModernPermissionStack<PId extends string>({
+  pending,
+  inflight,
+  onApprove,
+  onDeny,
+  onAlwaysAllow,
+  onApproveAll,
+  onDenyAll,
+  onAllowAll,
+}: {
   pending: PermissionViewItem<PId>[];
   inflight: ReadonlySet<string>;
   onApprove: (id: PId) => void;
@@ -67,10 +105,25 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
   const [denying, setDenying] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const review = allowReview && onAllowAll && (
-    <SwitchReview ledger={allowAllLedger({ pending: pending.length })} onClose={() => setAllowReview(false)} onConfirm={() => { setAllowReview(false); onAllowAll(); }} />
+    <SwitchReview
+      ledger={allowAllLedger({ pending: pending.length })}
+      onClose={() => setAllowReview(false)}
+      onConfirm={() => {
+        setAllowReview(false);
+        onAllowAll();
+      }}
+    />
   );
   const allowAll = onAllowAll && (
-    <Button type="button" size="md" variant="outline" onClick={() => setAllowReview(true)} aria-haspopup="dialog" data-allow-all title="Approve and stop asking for permission in this session">
+    <Button
+      type="button"
+      size="md"
+      variant="outline"
+      onClick={() => setAllowReview(true)}
+      aria-haspopup="dialog"
+      data-allow-all
+      title="Approve and stop asking for permission in this session"
+    >
       Allow all
     </Button>
   );
@@ -81,7 +134,12 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
     const busy = inflight.has(p._id);
     return (
       <ModernAskCard
-        kicker={<><ToolName name={p.tool_name} className="font-mono" /><PermissionSourceTag permission={p} /></>}
+        kicker={
+          <>
+            <ToolName name={p.tool_name} className="font-mono" />
+            <PermissionSourceTag permission={p} />
+          </>
+        }
         aside={keys}
         question={`Allow ${formatToolName(p.tool_name) || p.tool_name}?`}
         data-permission-card="modern"
@@ -90,18 +148,47 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
         <PermissionContext permission={p} />
         <Preview text={p.arguments_preview} />
         {denying === p._id ? (
-          <DenyWithReason onDeny={(message) => onDeny(p._id, message)} onCancel={() => setDenying(null)} />
+          <DenyWithReason
+            onDeny={(message) => onDeny(p._id, message)}
+            onCancel={() => setDenying(null)}
+          />
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button type="button" size="md" variant="primary" disabled={busy} onClick={() => onApprove(p._id)}>Approve</Button>
+            <Button
+              type="button"
+              size="md"
+              variant="primary"
+              disabled={busy}
+              onClick={() => onApprove(p._id)}
+            >
+              Approve
+            </Button>
             {onAlwaysAllow && rules.length > 0 && (
-              <Button type="button" size="md" variant="outline" title={rules.join("\n")} data-always-allow onClick={() => onAlwaysAllow(p._id)} className="max-w-full min-w-0">
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                title={rules.join("\n")}
+                data-always-allow
+                onClick={() => onAlwaysAllow(p._id)}
+                className="max-w-full min-w-0"
+              >
                 <span className="shrink-0">Always allow</span>
-                <span className="min-w-0 truncate font-mono text-meta text-sol-text-muted">{rules.join(", ")}</span>
+                <span className="min-w-0 truncate font-mono text-meta text-sol-text-muted">
+                  {rules.join(", ")}
+                </span>
               </Button>
             )}
             {allowAll}
-            <Button type="button" size="md" variant="outline" disabled={busy} onClick={() => setDenying(p._id)}>Deny</Button>
+            <Button
+              type="button"
+              size="md"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setDenying(p._id)}
+            >
+              Deny
+            </Button>
           </div>
         )}
         {review}
@@ -112,7 +199,11 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
   const sameTool = pending.every((p) => p.tool_name === pending[0].tool_name);
   return (
     <ModernAskCard
-      kicker={sameTool ? <ToolName name={pending[0].tool_name} className="font-mono" /> : undefined}
+      kicker={
+        sameTool ? (
+          <ToolName name={pending[0].tool_name} className="font-mono" />
+        ) : undefined
+      }
       aside={keys}
       question={`Allow ${pending.length} calls?`}
       data-permission-card="modern"
@@ -122,7 +213,12 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
         {pending.map((p) => (
           <li key={p._id} className="px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
-              {!sameTool && <ToolName name={p.tool_name} className="text-meta font-medium" />}
+              {!sameTool && (
+                <ToolName
+                  name={p.tool_name}
+                  className="text-meta font-medium"
+                />
+              )}
               <PermissionSourceTag permission={p} />
               <button
                 type="button"
@@ -133,18 +229,46 @@ export function ModernPermissionStack<PId extends string>({ pending, inflight, o
               >
                 {p.arguments_preview || formatToolName(p.tool_name)}
               </button>
-              <Button type="button" size="sm" variant="outline" onClick={() => onApprove(p._id)}>Approve</Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setDenying(denying === p._id ? null : p._id)}>Deny</Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onApprove(p._id)}
+              >
+                Approve
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setDenying(denying === p._id ? null : p._id)}
+              >
+                Deny
+              </Button>
             </div>
             {openId === p._id && <Preview text={p.arguments_preview} />}
-            {denying === p._id && <DenyWithReason onDeny={(message) => onDeny(p._id, message)} onCancel={() => setDenying(null)} />}
+            {denying === p._id && (
+              <DenyWithReason
+                onDeny={(message) => onDeny(p._id, message)}
+                onCancel={() => setDenying(null)}
+              />
+            )}
           </li>
         ))}
       </ul>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button type="button" size="md" variant="primary" onClick={onApproveAll}>Approve all</Button>
+        <Button
+          type="button"
+          size="md"
+          variant="primary"
+          onClick={onApproveAll}
+        >
+          Approve all
+        </Button>
         {allowAll}
-        <Button type="button" size="md" variant="outline" onClick={onDenyAll}>Deny all</Button>
+        <Button type="button" size="md" variant="outline" onClick={onDenyAll}>
+          Deny all
+        </Button>
       </div>
       {review}
     </ModernAskCard>

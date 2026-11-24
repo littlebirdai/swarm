@@ -19,16 +19,34 @@ const A = "a".repeat(32);
 
 beforeEach(() => {
   __resetSyncActivityForTests();
-  useInboxStore.setState({ sessions: {}, sessionDecisions: {}, currentUser: null } as any);
+  useInboxStore.setState({
+    sessions: {},
+    sessionDecisions: {},
+    currentUser: null,
+  } as any);
 });
 
 describe("row applies stamp the activity clock", () => {
   it("syncTable on sessions and sessionDecisions bumps the apply sequence when a row changed", () => {
     expect(lastSyncApplyMono()).toBe(Number.NEGATIVE_INFINITY);
-    useInboxStore.getState().syncTable("sessions", [{ _id: A, session_id: "s", agent_type: "claude_code", updated_at: 1 } as InboxSession]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: A,
+        session_id: "s",
+        agent_type: "claude_code",
+        updated_at: 1,
+      } as InboxSession,
+    ]);
     expect(syncApplySeq()).toBe(1);
     expect(Number.isFinite(lastSyncApplyMono())).toBe(true);
-    useInboxStore.getState().syncTable("sessionDecisions", [{ _id: "d".repeat(32), conversation_id: A, status: "pending", created_at: 1 }]);
+    useInboxStore.getState().syncTable("sessionDecisions", [
+      {
+        _id: "d".repeat(32),
+        conversation_id: A,
+        status: "pending",
+        created_at: 1,
+      },
+    ]);
     expect(syncApplySeq()).toBe(2);
   });
 
@@ -37,7 +55,13 @@ describe("row applies stamp the activity clock", () => {
     // heartbeats re-run the query); the facts ride the overlay, so the base
     // channel's rows are byte-identical. Stamping those kept the compare gated
     // on not_quiescent forever.
-    const row = { _id: A, session_id: "s", agent_type: "claude_code", status: "active", title: "t" } as InboxSession;
+    const row = {
+      _id: A,
+      session_id: "s",
+      agent_type: "claude_code",
+      status: "active",
+      title: "t",
+    } as InboxSession;
     useInboxStore.getState().syncTable("sessions", [row]);
     expect(syncApplySeq()).toBe(1);
     useInboxStore.getState().syncTable("sessions", [{ ...row }]);
@@ -47,16 +71,37 @@ describe("row applies stamp the activity clock", () => {
     useInboxStore.getState().syncTable("sessionDecisions", []);
     expect(syncApplySeq()).toBe(1);
     // A real field change stamps again.
-    useInboxStore.getState().syncTable("sessions", [{ ...row, title: "renamed" }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [{ ...row, title: "renamed" }]);
     expect(syncApplySeq()).toBe(2);
   });
 
   it("a heartbeat re-push of the base channel (facts null, overlay owns them) leaves the clock alone", () => {
-    const row = { _id: A, session_id: "s", agent_type: "claude_code", status: "active", title: "t" } as InboxSession;
+    const row = {
+      _id: A,
+      session_id: "s",
+      agent_type: "claude_code",
+      status: "active",
+      title: "t",
+    } as InboxSession;
     useInboxStore.getState().syncTable("sessions", [row]);
     useInboxStore.getState().applyInboxLivenessPayload("mine", {
-      liveness: { [A]: { agent_status: "working", is_idle: false, updated_at: 5, message_count: 3 } },
-      projection: { v: 2, epoch: 60_000, tally: null, set_digest: null, truncated: [] },
+      liveness: {
+        [A]: {
+          agent_status: "working",
+          is_idle: false,
+          updated_at: 5,
+          message_count: 3,
+        },
+      },
+      projection: {
+        v: 2,
+        epoch: 60_000,
+        tally: null,
+        set_digest: null,
+        truncated: [],
+      },
     } as any);
     const seq = syncApplySeq();
     // The base channel re-emits with the facts blank (server strips them).
@@ -68,7 +113,9 @@ describe("row applies stamp the activity clock", () => {
   });
 
   it("the user doc and other churn channels do not count as catch-up", () => {
-    useInboxStore.getState().syncTable("currentUser", { _id: "u".repeat(32), name: "me" });
+    useInboxStore
+      .getState()
+      .syncTable("currentUser", { _id: "u".repeat(32), name: "me" });
     expect(syncApplySeq()).toBe(0);
   });
 });
@@ -91,7 +138,10 @@ describe("in-flight catch-up operations", () => {
       getLastSync: () => 0,
       staleMs: 1,
       now: () => 10_000,
-      fetchAndApply: () => new Promise<void>((r) => { resolveFetch = r; }),
+      fetchAndApply: () =>
+        new Promise<void>((r) => {
+          resolveFetch = r;
+        }),
     });
     const p = c.tick();
     expect(syncInflightCount()).toBe(1);

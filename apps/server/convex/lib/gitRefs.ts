@@ -10,13 +10,21 @@
 // this git activity mean" is here, so the processors stay thin.
 
 import { Doc, Id } from "../_generated/dataModel";
-import { inferEntityTypeFromShortId, shortIdSource } from "@codecast/shared/entities";
+import {
+  inferEntityTypeFromShortId,
+  shortIdSource,
+} from "@codecast/shared/entities";
 import { extractSessionTrailer } from "@codecast/shared/blame";
 import { isConversationOwner, isConversationTeamVisible } from "../privacy";
 import { normalizeRepository } from "@codecast/shared/contracts";
 // accessKeys, not ./access: access.ts pulls in function modules, and this file
 // loads inside webhook modules (an import cycle there breaks module init).
-import { accessStampFor, authorizedFor, heldKeysFor, resolveWorkspaceKey } from "./accessKeys";
+import {
+  accessStampFor,
+  authorizedFor,
+  heldKeysFor,
+  resolveWorkspaceKey,
+} from "./accessKeys";
 
 type Db = { db: any };
 
@@ -48,7 +56,10 @@ export function extractTaskShortIds(text: string | null | undefined): string[] {
 }
 
 /** Who is linking: the codecast user behind the git activity, and the team it routes to. */
-export type LinkScope = { userId?: Id<"users"> | null; teamId?: Id<"teams"> | null };
+export type LinkScope = {
+  userId?: Id<"users"> | null;
+  teamId?: Id<"teams"> | null;
+};
 
 export type TaskLinks = {
   task_ids: Id<"tasks">[];
@@ -62,10 +73,25 @@ export type TaskLinks = {
  * user behind the activity can read the task, or the task lives in the
  * workspace of the team the repository routes to.
  */
-export async function isTaskLinkable(ctx: Db, task: Doc<"tasks">, scope: LinkScope): Promise<boolean> {
+export async function isTaskLinkable(
+  ctx: Db,
+  task: Doc<"tasks">,
+  scope: LinkScope,
+): Promise<boolean> {
   // canAccessTask's rule: the task's stamp against the keys the user holds.
-  if (scope.userId && authorizedFor(await accessStampFor(ctx, "tasks", task), String(scope.userId), await heldKeysFor(ctx, scope.userId))) return true;
-  return !!scope.teamId && (await resolveWorkspaceKey(ctx, task)) === `team:${String(scope.teamId)}`;
+  if (
+    scope.userId &&
+    authorizedFor(
+      await accessStampFor(ctx, "tasks", task),
+      String(scope.userId),
+      await heldKeysFor(ctx, scope.userId),
+    )
+  )
+    return true;
+  return (
+    !!scope.teamId &&
+    (await resolveWorkspaceKey(ctx, task)) === `team:${String(scope.teamId)}`
+  );
 }
 
 /**
@@ -76,7 +102,11 @@ export async function isTaskLinkable(ctx: Db, task: Doc<"tasks">, scope: LinkSco
  * the task was deleted, and a push must never fail because a commit message
  * quoted a stale id. A task outside the scope is a miss.
  */
-export async function resolveTaskLinks(ctx: Db, shortIds: string[], scope: LinkScope): Promise<TaskLinks> {
+export async function resolveTaskLinks(
+  ctx: Db,
+  shortIds: string[],
+  scope: LinkScope,
+): Promise<TaskLinks> {
   const task_ids: Id<"tasks">[] = [];
   const planIds = new Set<string>();
   const projectIds = new Set<string>();
@@ -100,8 +130,16 @@ export async function resolveTaskLinks(ctx: Db, shortIds: string[], scope: LinkS
 }
 
 /** Read the task links `scope` may make straight out of git text. */
-export async function resolveTaskLinksFromText(ctx: Db, scope: LinkScope, ...texts: (string | null | undefined)[]): Promise<TaskLinks> {
-  return resolveTaskLinks(ctx, extractTaskShortIds(texts.filter(Boolean).join("\n")), scope);
+export async function resolveTaskLinksFromText(
+  ctx: Db,
+  scope: LinkScope,
+  ...texts: (string | null | undefined)[]
+): Promise<TaskLinks> {
+  return resolveTaskLinks(
+    ctx,
+    extractTaskShortIds(texts.filter(Boolean).join("\n")),
+    scope,
+  );
 }
 
 // ── Which sessions git activity may link ──
@@ -113,9 +151,18 @@ export async function resolveTaskLinksFromText(ctx: Db, scope: LinkScope, ...tex
  * user behind the activity owns the session, or it is routed to the team AND
  * team-visible under the conversation visibility rule.
  */
-export async function isConversationLinkable(ctx: Db, conv: Doc<"conversations">, scope: LinkScope): Promise<boolean> {
-  if (scope.userId && (await isConversationOwner(ctx, scope.userId, conv))) return true;
-  return !!scope.teamId && String(conv.team_id) === String(scope.teamId) && (await isConversationTeamVisible(ctx, conv));
+export async function isConversationLinkable(
+  ctx: Db,
+  conv: Doc<"conversations">,
+  scope: LinkScope,
+): Promise<boolean> {
+  if (scope.userId && (await isConversationOwner(ctx, scope.userId, conv)))
+    return true;
+  return (
+    !!scope.teamId &&
+    String(conv.team_id) === String(scope.teamId) &&
+    (await isConversationTeamVisible(ctx, conv))
+  );
 }
 
 /**
@@ -123,7 +170,12 @@ export async function isConversationLinkable(ctx: Db, conv: Doc<"conversations">
  * user, and branch names repeat everywhere (`main`), so the name alone never
  * links a session.
  */
-export async function linkableSessionsOnBranch(ctx: Db, branch: string, scope: LinkScope, limit: number): Promise<Doc<"conversations">[]> {
+export async function linkableSessionsOnBranch(
+  ctx: Db,
+  branch: string,
+  scope: LinkScope,
+  limit: number,
+): Promise<Doc<"conversations">[]> {
   const onBranch: Doc<"conversations">[] = await ctx.db
     .query("conversations")
     .withIndex("by_git_branch", (q: any) => q.eq("git_branch", branch))
@@ -138,13 +190,20 @@ export async function linkableSessionsOnBranch(ctx: Db, branch: string, scope: L
 // ── The session a commit names ──
 
 /** The session whose own edit row names this sha: the strong evidence. */
-export async function commitRecordedBy(ctx: Db, sha: string): Promise<Id<"conversations"> | undefined> {
+export async function commitRecordedBy(
+  ctx: Db,
+  sha: string,
+): Promise<Id<"conversations"> | undefined> {
   const prefix = sha.slice(0, 7);
   const candidates = await ctx.db
     .query("file_changes")
-    .withIndex("by_commit_hash", (q: any) => q.gte("commit_hash", prefix).lte("commit_hash", sha))
+    .withIndex("by_commit_hash", (q: any) =>
+      q.gte("commit_hash", prefix).lte("commit_hash", sha),
+    )
     .take(50);
-  return candidates.find((row: any) => row.commit_hash && sha.startsWith(row.commit_hash))?.conversation_id;
+  return candidates.find(
+    (row: any) => row.commit_hash && sha.startsWith(row.commit_hash),
+  )?.conversation_id;
 }
 
 export { extractSessionTrailer };
@@ -158,8 +217,15 @@ export { extractSessionTrailer };
  * snapshot, not the session's work, so it links to no session until it
  * reaches a real branch.
  */
-export function isHarnessScratch(where: { branch?: string | null; root?: string | null }): boolean {
-  if (where.root && /\/\.claude\/worktrees\/(agent-|wf_)[^/]*\/?$/.test(where.root)) return true;
+export function isHarnessScratch(where: {
+  branch?: string | null;
+  root?: string | null;
+}): boolean {
+  if (
+    where.root &&
+    /\/\.claude\/worktrees\/(agent-|wf_)[^/]*\/?$/.test(where.root)
+  )
+    return true;
   return !!where.branch && /^worktree-(agent-|wf_)/.test(where.branch);
 }
 
@@ -187,10 +253,12 @@ export async function conversationFromSessionTrailer(
   if (!named) return undefined;
   const id = ctx.db.normalizeId("conversations", named);
   const conv = id ? await ctx.db.get(id) : null;
-  if (!conv || !(await isConversationLinkable(ctx, conv, scope))) return undefined;
+  if (!conv || !(await isConversationLinkable(ctx, conv, scope)))
+    return undefined;
   if (scope.current && String(scope.current) !== String(conv._id)) {
     const current = await ctx.db.get(scope.current);
-    if (current && String(current.user_id) !== String(conv.user_id)) return undefined;
+    if (current && String(current.user_id) !== String(conv.user_id))
+      return undefined;
   }
   return conv._id;
 }
@@ -230,12 +298,20 @@ export const PASSING_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
  * A single failure decides the answer no matter what else is still running,
  * because that is the fact the shepherd must act on first.
  */
-export function foldChecksState(checks: CheckEntry[] | undefined | null): string {
+export function foldChecksState(
+  checks: CheckEntry[] | undefined | null,
+): string {
   if (!checks || checks.length === 0) return "none";
   let pending = false;
   for (const check of checks) {
-    if (check.status !== "completed") { pending = true; continue; }
-    if (!check.conclusion) { pending = true; continue; }
+    if (check.status !== "completed") {
+      pending = true;
+      continue;
+    }
+    if (!check.conclusion) {
+      pending = true;
+      continue;
+    }
     if (!PASSING_CONCLUSIONS.has(check.conclusion)) return "failure";
   }
   return pending ? "pending" : "success";
@@ -244,11 +320,17 @@ export function foldChecksState(checks: CheckEntry[] | undefined | null): string
 // One spelling for a repository. The rule lives beside the reference parser in
 // the shared contracts so the CLI, the web and this backend cannot drift; it is
 // re-exported here because every git module already imports from this file.
-export { normalizeRepository, repositoryOwner } from "@codecast/shared/contracts";
+export {
+  normalizeRepository,
+  repositoryOwner,
+} from "@codecast/shared/contracts";
 
 // The shepherd fold is pure and the web reads it too (the Changes page's In
 // review chips), so it lives beside the reference parser.
-export { foldShepherdState, type ShepherdPrState } from "@codecast/shared/contracts";
+export {
+  foldShepherdState,
+  type ShepherdPrState,
+} from "@codecast/shared/contracts";
 
 export function prUrl(repository: string, number: number): string {
   return `https://github.com/${repository}/pull/${number}`;
@@ -263,9 +345,15 @@ export function shortSha(sha: string | undefined | null): string {
 }
 
 /** The pull request row for `repository#number`, in any spelling of the repository. */
-export async function prByNumber(ctx: Db, repository: string, number: number): Promise<Doc<"pull_requests"> | null> {
+export async function prByNumber(
+  ctx: Db,
+  repository: string,
+  number: number,
+): Promise<Doc<"pull_requests"> | null> {
   return await ctx.db
     .query("pull_requests")
-    .withIndex("by_repository_number", (q: any) => q.eq("repository", normalizeRepository(repository)).eq("number", number))
+    .withIndex("by_repository_number", (q: any) =>
+      q.eq("repository", normalizeRepository(repository)).eq("number", number),
+    )
     .first();
 }

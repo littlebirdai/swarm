@@ -17,14 +17,19 @@ describe("capability slug namespace", () => {
       const parsed = parseCapabilitySlug(slug);
       expect(parsed?.source).toBe("builtin");
       expect(parsed?.segments).toEqual([entry.slug]);
-      expect(formatCapabilitySlug({ source: "builtin", segments: [entry.slug] })).toBe(slug);
+      expect(
+        formatCapabilitySlug({ source: "builtin", segments: [entry.slug] }),
+      ).toBe(slug);
     }
   });
 
   it("a marketplace literally named builtin cannot produce a builtin/ slug", () => {
     // The forgery attempt: a marketplace names itself "builtin" and publishes
     // "memory". Its slug still renders under mkt/, so the namespace holds.
-    const forged = formatCapabilitySlug({ source: "marketplace", segments: ["builtin", "memory"] });
+    const forged = formatCapabilitySlug({
+      source: "marketplace",
+      segments: ["builtin", "memory"],
+    });
     expect(forged).toBe("mkt/builtin/memory");
     expect(parseCapabilitySlug(forged)?.source).toBe("marketplace");
     expect(parseCapabilitySlug("builtin/memory")?.source).toBe("builtin");
@@ -35,7 +40,9 @@ describe("capability slug namespace", () => {
     expect(parseAnyCapabilitySlug("git/anthropics/skills")).toBeNull();
     expect(parseCapabilitySlug("git/anthropics/skills")).toBeNull();
     // Pinned, it parses — and carries the pin and subpath apart.
-    const pinned = parseCapabilitySlug("git/anthropics/skills@30287f5#skills/pdf");
+    const pinned = parseCapabilitySlug(
+      "git/anthropics/skills@30287f5#skills/pdf",
+    );
     expect(pinned?.pin).toBe("30287f5");
     expect(pinned?.subpath).toBe("skills/pdf");
   });

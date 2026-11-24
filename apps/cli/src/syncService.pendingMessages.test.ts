@@ -1,9 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { SyncService } from "./syncService.js";
 
-function createSyncWithCapturedMutations(results: Record<string, unknown> = {}) {
+function createSyncWithCapturedMutations(
+  results: Record<string, unknown> = {},
+) {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
-  const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "token" });
+  const sync = new SyncService({
+    convexUrl: "http://localhost:0",
+    userId: "u",
+    authToken: "token",
+  });
   (sync as any).client = {
     mutation: async (name: string, args: Record<string, unknown>) => {
       calls.push({ name, args });
@@ -47,9 +53,13 @@ describe("SyncService pending-message daemon ownership", () => {
       "pendingMessages:claimPendingMessageForDelivery": claimed,
     });
 
-    await expect(sync.claimPendingMessageForDelivery("m1")).resolves.toEqual(claimed);
+    await expect(sync.claimPendingMessageForDelivery("m1")).resolves.toEqual(
+      claimed,
+    );
     expect(calls).toHaveLength(1);
-    expect(calls[0].name).toBe("pendingMessages:claimPendingMessageForDelivery");
+    expect(calls[0].name).toBe(
+      "pendingMessages:claimPendingMessageForDelivery",
+    );
     expect(calls[0].args.message_id).toBe("m1");
     expect(typeof calls[0].args.device_id).toBe("string");
   });
@@ -61,10 +71,14 @@ describe("SyncService managed-session cleanup", () => {
       "managedSessions:unregisterManagedSession": { found: true },
     });
 
-    await expect(sync.unregisterManagedSession("session-old")).resolves.toEqual({ found: true });
-    expect(calls).toEqual([{
-      name: "managedSessions:unregisterManagedSession",
-      args: { session_id: "session-old", api_token: "token" },
-    }]);
+    await expect(sync.unregisterManagedSession("session-old")).resolves.toEqual(
+      { found: true },
+    );
+    expect(calls).toEqual([
+      {
+        name: "managedSessions:unregisterManagedSession",
+        args: { session_id: "session-old", api_token: "token" },
+      },
+    ]);
   });
 });

@@ -6,8 +6,17 @@ import { PUBLISH_VERB_HELP, registerPublishCommand } from "./publish";
 
 function helpFor(argv: string[]): string {
   let out = "";
-  const program = new Command("cast").exitOverride().configureOutput({ writeOut: (s) => (out += s), writeErr: (s) => (out += s) });
-  addVerbHelp(program.command("decide"), { edit: { usage: "cast decide edit [sd-N]", summary: "Rewrite the open decision", flags: ["--question", "--json"] } })
+  const program = new Command("cast").exitOverride().configureOutput({
+    writeOut: (s) => (out += s),
+    writeErr: (s) => (out += s),
+  });
+  addVerbHelp(program.command("decide"), {
+    edit: {
+      usage: "cast decide edit [sd-N]",
+      summary: "Rewrite the open decision",
+      flags: ["--question", "--json"],
+    },
+  })
     .argument("[question]")
     .argument("[args...]")
     .option("--question <text>", "edit: replace the question")
@@ -38,13 +47,25 @@ describe("--help after a positional verb", () => {
 
   test("every flag a verb names exists on its real command", () => {
     // Flags are matched to the options by long name; a renamed flag would drop out of its verb's help silently.
-    const deps = { getCliEndpoint: () => ({ siteUrl: "", apiToken: "" }), detectCurrentSessionId: () => null };
+    const deps = {
+      getCliEndpoint: () => ({ siteUrl: "", apiToken: "" }),
+      detectCurrentSessionId: () => null,
+    };
     const program = new Command("cast");
     registerDecideCommand(program, deps);
     registerPublishCommand(program, deps);
-    for (const [name, specs] of [["decide", DECIDE_VERB_HELP], ["publish", PUBLISH_VERB_HELP]] as const) {
-      const longs = new Set(program.commands.find((c) => c.name() === name)!.options.map((o) => o.long));
-      for (const spec of Object.values(specs)) for (const flag of spec.flags ?? []) expect([name, flag, longs.has(flag)]).toEqual([name, flag, true]);
+    for (const [name, specs] of [
+      ["decide", DECIDE_VERB_HELP],
+      ["publish", PUBLISH_VERB_HELP],
+    ] as const) {
+      const longs = new Set(
+        program.commands
+          .find((c) => c.name() === name)!
+          .options.map((o) => o.long),
+      );
+      for (const spec of Object.values(specs))
+        for (const flag of spec.flags ?? [])
+          expect([name, flag, longs.has(flag)]).toEqual([name, flag, true]);
     }
   });
 });

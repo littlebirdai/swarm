@@ -47,8 +47,14 @@ export function managedProfilePaths(): string[] {
   if (override) return [override];
   if (process.platform === "darwin") {
     let user = process.env.USER;
-    try { user = os.userInfo().username; } catch { /* keep $USER */ }
-    return user ? [MANAGED_PREFS_MAC_PATH, managedPrefsMacUserPath(user)] : [MANAGED_PREFS_MAC_PATH];
+    try {
+      user = os.userInfo().username;
+    } catch {
+      /* keep $USER */
+    }
+    return user
+      ? [MANAGED_PREFS_MAC_PATH, managedPrefsMacUserPath(user)]
+      : [MANAGED_PREFS_MAC_PATH];
   }
   // Linux, and WSL with it. Windows native has no managed store.
   return process.platform === "win32" ? [] : [MANAGED_PREFS_LINUX_PATH];
@@ -64,7 +70,12 @@ function stampOf(file: string): string | null {
 }
 
 function plutil(args: string[], input?: string): string {
-  return execFileSync("/usr/bin/plutil", args, { encoding: "utf-8", timeout: 5000, input, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "ignore"] });
+  return execFileSync("/usr/bin/plutil", args, {
+    encoding: "utf-8",
+    timeout: 5000,
+    input,
+    stdio: [input === undefined ? "ignore" : "pipe", "pipe", "ignore"],
+  });
 }
 
 function readProfileRaw(file: string): unknown {
@@ -74,7 +85,10 @@ function readProfileRaw(file: string): unknown {
   } catch {
     // plutil refuses the whole file when any value has no JSON form (a date or
     // data entry an MDM adds beside ours): drop those entries and convert again.
-    const xml = plutil(["-convert", "xml1", "-o", "-", file]).replace(/<key>[^<]*<\/key>\s*<(date|data)>[\s\S]*?<\/\1>/g, "");
+    const xml = plutil(["-convert", "xml1", "-o", "-", file]).replace(
+      /<key>[^<]*<\/key>\s*<(date|data)>[\s\S]*?<\/\1>/g,
+      "",
+    );
     return JSON.parse(plutil(["-convert", "json", "-o", "-", "-"], xml));
   }
 }
@@ -90,7 +104,11 @@ function readProfileFile(file: string): DevicePolicy | null {
   const hit = profileCache.get(file);
   if (hit?.stamp === stamp) return hit.policy;
   let raw: unknown = null;
-  try { raw = readProfileRaw(file); } catch { /* unreadable: an empty policy */ }
+  try {
+    raw = readProfileRaw(file);
+  } catch {
+    /* unreadable: an empty policy */
+  }
   const policy = parseManagedProfile(raw);
   profileCache.set(file, { stamp, policy });
   return policy;
@@ -120,7 +138,11 @@ function rawConfig(): Config {
   if (!stamp) return {};
   if (rawConfigCache?.stamp === stamp) return rawConfigCache.config;
   let config: Config = {};
-  try { config = JSON.parse(fs.readFileSync(file, "utf-8")) ?? {}; } catch { /* torn write: empty until the next stamp */ }
+  try {
+    config = JSON.parse(fs.readFileSync(file, "utf-8")) ?? {};
+  } catch {
+    /* torn write: empty until the next stamp */
+  }
   rawConfigCache = { stamp, config };
   return config;
 }
@@ -133,15 +155,27 @@ export function effectivePolicy(config?: Config | null): EffectivePolicy {
   const layers = profileLayers();
   const team = (config ?? rawConfig()).team_policy;
   if (team?.team_id) {
-    layers.push({ source: { kind: "team", team_id: team.team_id, team_name: team.team_name }, policy: parseTeamPolicy(team.policy) });
+    layers.push({
+      source: {
+        kind: "team",
+        team_id: team.team_id,
+        team_name: team.team_name,
+      },
+      policy: parseTeamPolicy(team.policy),
+    });
   }
   return mergePolicies(layers);
 }
 
 /** The refusal for a turned-off capability, or null when it is allowed. */
-export function policyRefusal(key: RestrictionKey, config?: Config | null): string | null {
+export function policyRefusal(
+  key: RestrictionKey,
+  config?: Config | null,
+): string | null {
   const eff = effectivePolicy(config);
-  return eff.values[key] === true ? policyBlockedMessage(key, eff.sources[key]) : null;
+  return eff.values[key] === true
+    ? policyBlockedMessage(key, eff.sources[key])
+    : null;
 }
 
 /** For a command line: print the refusal and exit 1 when the capability is off. */
@@ -154,7 +188,11 @@ export function exitIfPolicyBlocks(key: RestrictionKey): void {
 
 function expandHome(p: string): string {
   const home = process.env.HOME || os.homedir();
-  return p === "~" ? home : p.startsWith("~/") ? path.join(home, p.slice(2)) : p;
+  return p === "~"
+    ? home
+    : p.startsWith("~/")
+      ? path.join(home, p.slice(2))
+      : p;
 }
 
 /** Folders the policy keeps on this device, `~` expanded. */
@@ -163,7 +201,10 @@ export function managedExcludedPaths(config?: Config | null): string[] {
 }
 
 /** Whether a folder sits in (or is) one the policy keeps on the device. The sync scope adds worktrees (syncScope.ts). */
-export function isManagedExcludedPath(projectPath: string, config?: Config | null): boolean {
+export function isManagedExcludedPath(
+  projectPath: string,
+  config?: Config | null,
+): boolean {
   const managed = managedExcludedPaths(config);
   if (managed.length === 0) return false;
   const target = path.resolve(projectPath);
@@ -172,10 +213,14 @@ export function isManagedExcludedPath(projectPath: string, config?: Config | nul
 
 /** What a create refuses with for a session under a policy-excluded folder; the
  *  sync paths treat it as a refusal for good (retryQueue isSessionRefusal). */
-export const POLICY_EXCLUDED_SESSION = "Session folder is kept on this device by your organization's policy";
+export const POLICY_EXCLUDED_SESSION =
+  "Session folder is kept on this device by your organization's policy";
 
 function splitPaths(list: string | undefined): string[] {
-  return (list ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  return (list ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 // ── The config overlay ─────────────────────────────────────────────────────
@@ -187,10 +232,17 @@ function splitPaths(list: string | undefined): string[] {
 // value into config.json (where it would outlive the profile).
 
 const OVERLAY = Symbol("managedPolicyOverlay");
-type Overlay = { original: Record<string, unknown>; applied: Record<string, unknown>; policyPaths: string[] };
+type Overlay = {
+  original: Record<string, unknown>;
+  applied: Record<string, unknown>;
+  policyPaths: string[];
+};
 
 /** Which config key each managed key decides, and the value it stores. */
-function overlayValues(eff: EffectivePolicy, config: Config): Record<string, unknown> {
+function overlayValues(
+  eff: EffectivePolicy,
+  config: Config,
+): Record<string, unknown> {
   const v = eff.values;
   const out: Record<string, unknown> = {};
   if (v.convex_url) out.convex_url = v.convex_url;
@@ -203,13 +255,19 @@ function overlayValues(eff: EffectivePolicy, config: Config): Record<string, unk
   const policyPaths = (v.excluded_paths ?? []).map(expandHome);
   if (policyPaths.length > 0) {
     const own = splitPaths(config.excluded_paths);
-    out.excluded_paths = [...own, ...policyPaths.filter((p) => !own.includes(p))].join(",");
+    out.excluded_paths = [
+      ...own,
+      ...policyPaths.filter((p) => !own.includes(p)),
+    ].join(",");
   }
   return out;
 }
 
 /** The config with the effective policy laid over it, in place. */
-export function applyManagedPolicy<T extends Config>(config: T, eff: EffectivePolicy = effectivePolicy(config)): T {
+export function applyManagedPolicy<T extends Config>(
+  config: T,
+  eff: EffectivePolicy = effectivePolicy(config),
+): T {
   const applied = overlayValues(eff, config);
   if (Object.keys(applied).length === 0) return config;
   const bag = config as Record<string, unknown>;
@@ -218,20 +276,34 @@ export function applyManagedPolicy<T extends Config>(config: T, eff: EffectivePo
     original[k] = bag[k];
     bag[k] = value;
   }
-  const overlay: Overlay = { original, applied, policyPaths: (eff.values.excluded_paths ?? []).map(expandHome) };
-  Object.defineProperty(config, OVERLAY, { value: overlay, enumerable: false, configurable: true });
+  const overlay: Overlay = {
+    original,
+    applied,
+    policyPaths: (eff.values.excluded_paths ?? []).map(expandHome),
+  };
+  Object.defineProperty(config, OVERLAY, {
+    value: overlay,
+    enumerable: false,
+    configurable: true,
+  });
   return config;
 }
 
 /** A copy fit to write: overlaid values the caller left alone go back to what the file held. */
 export function stripManagedPolicy<T extends Config>(config: T): T {
-  const overlay = (config as unknown as Record<symbol, Overlay | undefined>)[OVERLAY];
+  const overlay = (config as unknown as Record<symbol, Overlay | undefined>)[
+    OVERLAY
+  ];
   if (!overlay) return config;
   const out = { ...config } as Record<string, unknown>;
   for (const [k, value] of Object.entries(overlay.applied)) {
     if (JSON.stringify(out[k]) !== JSON.stringify(value)) {
       // The caller changed it. Only the person's own excluded paths are theirs to write.
-      if (k === "excluded_paths") out[k] = splitPaths(out[k] as string).filter((p) => !overlay.policyPaths.includes(p)).join(",") || undefined;
+      if (k === "excluded_paths")
+        out[k] =
+          splitPaths(out[k] as string)
+            .filter((p) => !overlay.policyPaths.includes(p))
+            .join(",") || undefined;
       continue;
     }
     if (overlay.original[k] === undefined) delete out[k];
@@ -251,18 +323,31 @@ const LOCKED_CONFIG_KEYS: Record<string, ManagedPolicyKey> = {
 };
 
 /** Whether a config key is decided by policy right now, and by whom. */
-export function lockedConfigKey(configKey: string, eff: EffectivePolicy = effectivePolicy()): { key: ManagedPolicyKey; source: PolicySource | undefined; message: string } | null {
+export function lockedConfigKey(
+  configKey: string,
+  eff: EffectivePolicy = effectivePolicy(),
+): {
+  key: ManagedPolicyKey;
+  source: PolicySource | undefined;
+  message: string;
+} | null {
   const key = LOCKED_CONFIG_KEYS[configKey];
   if (!key) return null;
   const value = (eff.values as Record<string, unknown>)[key];
   if (value === undefined || value === false) return null;
-  return { key, source: eff.sources[key], message: policyBlockedMessage(key, eff.sources[key]) };
+  return {
+    key,
+    source: eff.sources[key],
+    message: policyBlockedMessage(key, eff.sources[key]),
+  };
 }
 
 /** "managed by your device's management profile" / "managed by Acme's admins". */
 export function managedByLabel(source: PolicySource | undefined): string {
   if (!source) return "managed";
-  return source.kind === "profile" ? "managed by device profile" : `managed by ${source.team_name}`;
+  return source.kind === "profile"
+    ? "managed by device profile"
+    : `managed by ${source.team_name}`;
 }
 
 // ── Snippets and the desktop app ───────────────────────────────────────────
@@ -278,7 +363,10 @@ const SNIPPET_RESTRICTIONS: Record<string, RestrictionKey> = {
  * team-gated reconcile takes: off while the restriction is on, back on once
  * it lifts (only for a snippet the policy itself turned off).
  */
-export function policySnippetAvailability(eff: EffectivePolicy, prev: Record<string, boolean> | undefined): Record<string, boolean> {
+export function policySnippetAvailability(
+  eff: EffectivePolicy,
+  prev: Record<string, boolean> | undefined,
+): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const [slug, key] of Object.entries(SNIPPET_RESTRICTIONS)) {
     if (eff.values[key] === true) out[slug] = false;
@@ -288,13 +376,18 @@ export function policySnippetAvailability(eff: EffectivePolicy, prev: Record<str
 }
 
 /** The slug's refusal when policy turns its capability off. */
-export function snippetPolicyRefusal(slug: string, config?: Config | null): string | null {
+export function snippetPolicyRefusal(
+  slug: string,
+  config?: Config | null,
+): string | null {
   const key = SNIPPET_RESTRICTIONS[slug];
   return key ? policyRefusal(key, config) : null;
 }
 
 /** Write ~/.codecast/managed-policy.json when it changed. Returns whether it wrote. */
-export function writeEffectivePolicyFile(eff: EffectivePolicy = effectivePolicy()): boolean {
+export function writeEffectivePolicyFile(
+  eff: EffectivePolicy = effectivePolicy(),
+): boolean {
   const file = path.join(defaultConfigDir(), EFFECTIVE_POLICY_FILE);
   // The enrollment token stays out: this file is world-readable and the app needs none of it.
   const { enrollment_token: _token, ...values } = eff.values;
@@ -303,7 +396,9 @@ export function writeEffectivePolicyFile(eff: EffectivePolicy = effectivePolicy(
   const body = JSON.stringify({ values, sources }, null, 2) + "\n";
   try {
     if (fs.readFileSync(file, "utf-8") === body) return false;
-  } catch { /* absent */ }
+  } catch {
+    /* absent */
+  }
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, body, { mode: 0o644 });

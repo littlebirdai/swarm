@@ -13,7 +13,10 @@ describe("resolveCurrentConversationId", () => {
     let serverCalls = 0;
     const result = await resolveCurrentConversationId("sess-1", {
       readLocalMap: () => ({ "sess-1": "conv-full-id" }),
-      resolveOnServer: async () => { serverCalls++; return null; },
+      resolveOnServer: async () => {
+        serverCalls++;
+        return null;
+      },
       sleep: noSleep,
     });
     expect(result).toBe("conv-full-id");
@@ -34,8 +37,12 @@ describe("resolveCurrentConversationId", () => {
     let serverCalls = 0;
     const result = await resolveCurrentConversationId("sess-1", {
       // The daemon discovers the JSONL between attempts 1 and 2.
-      readLocalMap: (): Record<string, string> => (++reads >= 2 ? { "sess-1": "conv-late" } : {}),
-      resolveOnServer: async () => { serverCalls++; return null; },
+      readLocalMap: (): Record<string, string> =>
+        ++reads >= 2 ? { "sess-1": "conv-late" } : {},
+      resolveOnServer: async () => {
+        serverCalls++;
+        return null;
+      },
       sleep: noSleep,
     });
     expect(result).toBe("conv-late");
@@ -46,7 +53,10 @@ describe("resolveCurrentConversationId", () => {
     let serverCalls = 0;
     const result = await resolveCurrentConversationId("sess-1", {
       readLocalMap: () => ({}),
-      resolveOnServer: async () => { serverCalls++; return null; },
+      resolveOnServer: async () => {
+        serverCalls++;
+        return null;
+      },
       sleep: noSleep,
       attempts: 3,
     });

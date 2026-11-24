@@ -23,7 +23,12 @@ import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { canonicalSlashCommand, deliveryIdsOf, stripPastedContent, withoutDeliveryFrames } from "@codecast/shared/contracts";
+import {
+  canonicalSlashCommand,
+  deliveryIdsOf,
+  stripPastedContent,
+  withoutDeliveryFrames,
+} from "@codecast/shared/contracts";
 import { defaultConfigDir } from "./config/configDir.js";
 import { redactSecrets } from "./redact.js";
 
@@ -46,7 +51,10 @@ export function isHarnessEmittedUserTurn(content: string | undefined): boolean {
 /** The words of a message as letters and digits, the form a delivery and its echo share whatever the terminal did. */
 export function echoSignature(text: string | undefined): string {
   // A delivery id is never words of the message, wherever its frame sits.
-  let t = stripPastedContent(redactSecrets(text ?? "")).replace(/(<(?:session-message|user-message)(?:\s+[a-z-]+="[^"]*")*?)\s+delivery="[A-Za-z0-9_-]{1,64}"/g, "$1");
+  let t = stripPastedContent(redactSecrets(text ?? "")).replace(
+    /(<(?:session-message|user-message)(?:\s+[a-z-]+="[^"]*")*?)\s+delivery="[A-Za-z0-9_-]{1,64}"/g,
+    "$1",
+  );
   t = canonicalSlashCommand(t.trim()) ?? t;
   // A `!cmd` send is recorded as the command alone, inside <bash-input>.
   t = t.replace(/<\/?bash-input>/g, "").replace(/^\s*!/, "");
@@ -69,8 +77,24 @@ export type EchoCandidate = {
 };
 
 /** Parsed transcript turns in the form the ledger pairs. */
-export function echoCandidatesOf(turns: ReadonlyArray<{ uuid?: string; sourceUuid?: string; role: string; content: string; timestamp: number; toolResults?: readonly unknown[] }>): EchoCandidate[] {
-  return turns.map((m) => ({ messageUuid: m.uuid, sourceUuid: m.sourceUuid, role: m.role, content: m.content, timestamp: m.timestamp, toolResults: m.toolResults }));
+export function echoCandidatesOf(
+  turns: ReadonlyArray<{
+    uuid?: string;
+    sourceUuid?: string;
+    role: string;
+    content: string;
+    timestamp: number;
+    toolResults?: readonly unknown[];
+  }>,
+): EchoCandidate[] {
+  return turns.map((m) => ({
+    messageUuid: m.uuid,
+    sourceUuid: m.sourceUuid,
+    role: m.role,
+    content: m.content,
+    timestamp: m.timestamp,
+    toolResults: m.toolResults,
+  }));
 }
 
 type DeliveryRow = {
@@ -91,8 +115,13 @@ const isUserRole = (role: string) => role === "user" || role === "human";
 // which of the batch's identical turns it is: a retried upload of the same
 // parse stamps the same way, and two identical turns stay two.
 function echoKeyOf(message: EchoCandidate, occurrence: number): string {
-  return message.messageUuid
-    ?? `unkeyed:${createHash("sha256").update(message.content ?? "").digest("hex").slice(0, 24)}:${message.timestamp}:${occurrence}`;
+  return (
+    message.messageUuid ??
+    `unkeyed:${createHash("sha256")
+      .update(message.content ?? "")
+      .digest("hex")
+      .slice(0, 24)}:${message.timestamp}:${occurrence}`
+  );
 }
 
 /**
@@ -103,12 +132,21 @@ function echoKeyOf(message: EchoCandidate, occurrence: number): string {
  * carry the same words, which take the newer ones. A turn that is several sends the agent
  * took together is their words joined, in the order they were handed over.
  */
-function pairTurn(open: DeliveryRow[], message: EchoCandidate, laterSameWords: number, known: ReadonlySet<string>): DeliveryRow[] {
+function pairTurn(
+  open: DeliveryRow[],
+  message: EchoCandidate,
+  laterSameWords: number,
+  known: ReadonlySet<string>,
+): DeliveryRow[] {
   // The record's own uuid, or the uuid it was sent under: a busy Claude
   // absorbs a send mid-turn into a queued_command record with a fresh uuid
   // and keeps ours as source_uuid.
-  const ids = [message.messageUuid, message.sourceUuid].filter((id): id is string => !!id);
-  const exact = ids.length ? open.find((d) => !!d.exactUuid && ids.includes(d.exactUuid)) : undefined;
+  const ids = [message.messageUuid, message.sourceUuid].filter(
+    (id): id is string => !!id,
+  );
+  const exact = ids.length
+    ? open.find((d) => !!d.exactUuid && ids.includes(d.exactUuid))
+    : undefined;
   if (exact) return [exact];
   // A frame naming a delivery this ledger holds is that delivery, open or already paired; one it never
   // handed over (a quote from elsewhere) is only words. An exact-uuid delivery is the record carrying its uuid.
@@ -120,20 +158,35 @@ function pairTurn(open: DeliveryRow[], message: EchoCandidate, laterSameWords: n
   if (!echoSignature(rest)) return byId;
   // A person's own words around a quoted frame are their send, quote included.
   if (!byId.length) return pairByWords(open, message, laterSameWords);
-  return [...byId, ...pairByWords(open.filter((d) => !byId.includes(d)), { ...message, content: rest }, laterSameWords)]
-    .sort((a, b) => a.submittedAt - b.submittedAt);
+  return [
+    ...byId,
+    ...pairByWords(
+      open.filter((d) => !byId.includes(d)),
+      { ...message, content: rest },
+      laterSameWords,
+    ),
+  ].sort((a, b) => a.submittedAt - b.submittedAt);
 }
 
-function pairByWords(open: DeliveryRow[], message: EchoCandidate, laterSameWords: number): DeliveryRow[] {
+function pairByWords(
+  open: DeliveryRow[],
+  message: EchoCandidate,
+  laterSameWords: number,
+): DeliveryRow[] {
   const echo = echoSignature(message.content).slice(0, SIGNATURE_CAP);
-  const candidates = open.filter((d) => !d.exactUuid
-    && d.submittedAt - ECHO_CLOCK_SKEW_MS <= message.timestamp
-    && message.timestamp - (d.lastSubmittedAt ?? d.submittedAt) <= ECHO_WAIT_MS);
+  const candidates = open.filter(
+    (d) =>
+      !d.exactUuid &&
+      d.submittedAt - ECHO_CLOCK_SKEW_MS <= message.timestamp &&
+      message.timestamp - (d.lastSubmittedAt ?? d.submittedAt) <= ECHO_WAIT_MS,
+  );
   // Turns later in the same upload with these words take the newer sends, so
   // a batch of identical turns pairs oldest with oldest.
   // An image-only send echoes as image tokens and nothing else.
   const imageOnlyTurn = !echo && /\[Image[:\s#]/i.test(message.content ?? "");
-  const same = candidates.filter((d) => d.signature === echo && (echo || imageOnlyTurn));
+  const same = candidates.filter(
+    (d) => d.signature === echo && (echo || imageOnlyTurn),
+  );
   const single = same[Math.max(0, same.length - 1 - laterSameWords)];
   if (single) return [single];
   for (let i = 0; i < candidates.length; i++) {
@@ -157,7 +210,8 @@ export class DeliveryEchoLedger {
   constructor(file: string) {
     mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new Database(file, { create: true, strict: true });
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+    this.db
+      .exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS deliveries (
         messageId TEXT PRIMARY KEY, conversationId TEXT NOT NULL,
         submittedAt INTEGER NOT NULL, signature TEXT NOT NULL,
@@ -165,8 +219,12 @@ export class DeliveryEchoLedger {
       );
       CREATE INDEX IF NOT EXISTS deliveries_open ON deliveries(conversationId, submittedAt) WHERE echoKey IS NULL;
       CREATE INDEX IF NOT EXISTS deliveries_echo ON deliveries(conversationId, echoKey);`);
-    const columns = this.db.query<{ name: string }, []>("PRAGMA table_info(deliveries)").all().map((c) => c.name);
-    if (!columns.includes("lastSubmittedAt")) this.db.exec("ALTER TABLE deliveries ADD COLUMN lastSubmittedAt INTEGER");
+    const columns = this.db
+      .query<{ name: string }, []>("PRAGMA table_info(deliveries)")
+      .all()
+      .map((c) => c.name);
+    if (!columns.includes("lastSubmittedAt"))
+      this.db.exec("ALTER TABLE deliveries ADD COLUMN lastSubmittedAt INTEGER");
     this.prune();
   }
 
@@ -177,13 +235,25 @@ export class DeliveryEchoLedger {
    * from any write since the first. The wait for that echo runs from the latest
    * hand-over, so a person's retry the next morning can still confirm.
    */
-  expect(delivery: { messageId: string; conversationId: string; payload: string; submittedAt?: number; exactUuid?: string }): void {
-    this.db.query(`INSERT INTO deliveries (messageId, conversationId, submittedAt, signature, exactUuid) VALUES (?, ?, ?, ?, ?)
+  expect(delivery: {
+    messageId: string;
+    conversationId: string;
+    payload: string;
+    submittedAt?: number;
+    exactUuid?: string;
+  }): void {
+    this.db
+      .query(`INSERT INTO deliveries (messageId, conversationId, submittedAt, signature, exactUuid) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(messageId) DO UPDATE SET
         exactUuid = COALESCE(deliveries.exactUuid, excluded.exactUuid),
         lastSubmittedAt = MAX(COALESCE(deliveries.lastSubmittedAt, deliveries.submittedAt), excluded.submittedAt)`)
-      .run(delivery.messageId, delivery.conversationId, delivery.submittedAt ?? Date.now(),
-        echoSignature(delivery.payload).slice(0, SIGNATURE_CAP), delivery.exactUuid ?? null);
+      .run(
+        delivery.messageId,
+        delivery.conversationId,
+        delivery.submittedAt ?? Date.now(),
+        echoSignature(delivery.payload).slice(0, SIGNATURE_CAP),
+        delivery.exactUuid ?? null,
+      );
     if (++this.writes % 200 === 0) this.prune();
   }
 
@@ -192,19 +262,33 @@ export class DeliveryEchoLedger {
    * with the parse time) holds a turn with this delivery's words. It cannot say
    * which turn, so it pairs nothing: the upload of the new turn does that.
    */
-  static unkeyedTranscriptHolds(turns: readonly EchoCandidate[], payload: string): boolean {
+  static unkeyedTranscriptHolds(
+    turns: readonly EchoCandidate[],
+    payload: string,
+  ): boolean {
     const words = echoSignature(payload).slice(0, SIGNATURE_CAP);
-    return turns.some((m) => isUserRole(m.role) && !m.toolResults?.length && echoSignature(m.content).slice(0, SIGNATURE_CAP) === words);
+    return turns.some(
+      (m) =>
+        isUserRole(m.role) &&
+        !m.toolResults?.length &&
+        echoSignature(m.content).slice(0, SIGNATURE_CAP) === words,
+    );
   }
 
   /** Whether the agent's record of this delivery has been seen. */
   echoed(messageId: string): boolean {
-    return !!this.db.query("SELECT 1 FROM deliveries WHERE messageId = ? AND echoKey IS NOT NULL").get(messageId);
+    return !!this.db
+      .query(
+        "SELECT 1 FROM deliveries WHERE messageId = ? AND echoKey IS NOT NULL",
+      )
+      .get(messageId);
   }
 
   /** A delivery that provably never reached the agent: nothing will echo it. */
   forget(messageId: string): void {
-    this.db.query("DELETE FROM deliveries WHERE messageId = ? AND echoKey IS NULL").run(messageId);
+    this.db
+      .query("DELETE FROM deliveries WHERE messageId = ? AND echoKey IS NULL")
+      .run(messageId);
   }
 
   /**
@@ -215,7 +299,11 @@ export class DeliveryEchoLedger {
    * erased the launch command's record of the brief, which then never paired.
    */
   withdraw(messageId: string): void {
-    this.db.query("DELETE FROM deliveries WHERE messageId = ? AND echoKey IS NULL AND lastSubmittedAt IS NULL").run(messageId);
+    this.db
+      .query(
+        "DELETE FROM deliveries WHERE messageId = ? AND echoKey IS NULL AND lastSubmittedAt IS NULL",
+      )
+      .run(messageId);
   }
 
   /**
@@ -223,53 +311,92 @@ export class DeliveryEchoLedger {
    * before keeps its pairing, a new user turn pairs with the open deliveries it
    * echoes. Returns new objects only for turns that carry ids.
    */
-  stamp<T extends EchoCandidate>(conversationId: string, messages: readonly T[]): Array<T & { deliveryIds?: string[] }> {
+  stamp<T extends EchoCandidate>(
+    conversationId: string,
+    messages: readonly T[],
+  ): Array<T & { deliveryIds?: string[] }> {
     if (!messages.some((m) => isUserRole(m.role))) return [...messages];
-    return this.db.transaction(() => {
-      // A turn that is only frames of known deliveries has no words left to pair, so it never counts as a later copy.
-      let open = this.db.query<DeliveryRow, [string]>(
-        "SELECT * FROM deliveries WHERE conversationId = ? AND echoKey IS NULL ORDER BY submittedAt").all(conversationId);
-      const known = new Set(this.db.query<{ messageId: string }, [string]>(
-        "SELECT messageId FROM deliveries WHERE conversationId = ?").all(conversationId).map((d) => d.messageId));
-      const userSigs = messages.map((m) => {
-        if (!isUserRole(m.role)) return null;
-        const named = deliveryIdsOf(m.content).filter((id) => known.has(id));
-        const sig = echoSignature(named.length ? withoutDeliveryFrames(m.content, named) : m.content).slice(0, SIGNATURE_CAP);
-        return named.length && !sig ? null : sig;
-      });
-      const seen = new Map<string, number>();
-      return messages.map((message, index) => {
-        if (!isUserRole(message.role)) return message;
-        const base = `${message.content}\0${message.timestamp}`;
-        const occurrence = seen.get(base) ?? 0;
-        seen.set(base, occurrence + 1);
-        const key = echoKeyOf(message, occurrence);
-        const bound = this.db.query<{ messageId: string }, [string, string]>(
-          "SELECT messageId FROM deliveries WHERE conversationId = ? AND echoKey = ? ORDER BY submittedAt").all(conversationId, key);
-        if (bound.length) return { ...message, deliveryIds: bound.map((b) => b.messageId) };
-        // A tool's result rides a user-role record and is nobody's send.
-        if (isHarnessEmittedUserTurn(message.content) || message.toolResults?.length) return message;
-        const laterSameWords = userSigs.slice(index + 1).filter((sig) => sig === userSigs[index]).length;
-        const paired = pairTurn(open, message, laterSameWords, known);
-        if (!paired.length) return message;
-        const now = Date.now();
-        for (const d of paired) this.db.query("UPDATE deliveries SET echoKey = ?, echoedAt = ? WHERE messageId = ?").run(key, now, d.messageId);
-        open = open.filter((d) => !paired.includes(d));
-        return { ...message, deliveryIds: paired.map((d) => d.messageId) };
-      });
-    }).immediate();
+    return this.db
+      .transaction(() => {
+        // A turn that is only frames of known deliveries has no words left to pair, so it never counts as a later copy.
+        let open = this.db
+          .query<DeliveryRow, [string]>(
+            "SELECT * FROM deliveries WHERE conversationId = ? AND echoKey IS NULL ORDER BY submittedAt",
+          )
+          .all(conversationId);
+        const known = new Set(
+          this.db
+            .query<{ messageId: string }, [string]>(
+              "SELECT messageId FROM deliveries WHERE conversationId = ?",
+            )
+            .all(conversationId)
+            .map((d) => d.messageId),
+        );
+        const userSigs = messages.map((m) => {
+          if (!isUserRole(m.role)) return null;
+          const named = deliveryIdsOf(m.content).filter((id) => known.has(id));
+          const sig = echoSignature(
+            named.length ? withoutDeliveryFrames(m.content, named) : m.content,
+          ).slice(0, SIGNATURE_CAP);
+          return named.length && !sig ? null : sig;
+        });
+        const seen = new Map<string, number>();
+        return messages.map((message, index) => {
+          if (!isUserRole(message.role)) return message;
+          const base = `${message.content}\0${message.timestamp}`;
+          const occurrence = seen.get(base) ?? 0;
+          seen.set(base, occurrence + 1);
+          const key = echoKeyOf(message, occurrence);
+          const bound = this.db
+            .query<{ messageId: string }, [string, string]>(
+              "SELECT messageId FROM deliveries WHERE conversationId = ? AND echoKey = ? ORDER BY submittedAt",
+            )
+            .all(conversationId, key);
+          if (bound.length)
+            return { ...message, deliveryIds: bound.map((b) => b.messageId) };
+          // A tool's result rides a user-role record and is nobody's send.
+          if (
+            isHarnessEmittedUserTurn(message.content) ||
+            message.toolResults?.length
+          )
+            return message;
+          const laterSameWords = userSigs
+            .slice(index + 1)
+            .filter((sig) => sig === userSigs[index]).length;
+          const paired = pairTurn(open, message, laterSameWords, known);
+          if (!paired.length) return message;
+          const now = Date.now();
+          for (const d of paired)
+            this.db
+              .query(
+                "UPDATE deliveries SET echoKey = ?, echoedAt = ? WHERE messageId = ?",
+              )
+              .run(key, now, d.messageId);
+          open = open.filter((d) => !paired.includes(d));
+          return { ...message, deliveryIds: paired.map((d) => d.messageId) };
+        });
+      })
+      .immediate();
   }
 
   prune(now = Date.now()): void {
-    this.db.query("DELETE FROM deliveries WHERE COALESCE(lastSubmittedAt, submittedAt) < ?").run(now - RETENTION_MS);
+    this.db
+      .query(
+        "DELETE FROM deliveries WHERE COALESCE(lastSubmittedAt, submittedAt) < ?",
+      )
+      .run(now - RETENTION_MS);
   }
 
-  close(): void { this.db.close(); }
+  close(): void {
+    this.db.close();
+  }
 }
 
 let ledger: DeliveryEchoLedger | undefined;
 export function deliveryEchoLedger(): DeliveryEchoLedger {
-  return ledger ??= new DeliveryEchoLedger(join(defaultConfigDir(), "delivery-echoes.sqlite"));
+  return (ledger ??= new DeliveryEchoLedger(
+    join(defaultConfigDir(), "delivery-echoes.sqlite"),
+  ));
 }
 
 /** Whether a transcript's text records the send made under `uuid`: as the
@@ -280,16 +407,32 @@ export function deliveryEchoLedger(): DeliveryEchoLedger {
 export function transcriptRecordsSend(text: string, uuid: string): boolean {
   for (const line of text.split("\n")) {
     if (!line.includes(uuid)) continue;
-    let record: { uuid?: unknown; attachment?: { type?: unknown; source_uuid?: unknown } };
-    try { record = JSON.parse(line); } catch { continue; }
+    let record: {
+      uuid?: unknown;
+      attachment?: { type?: unknown; source_uuid?: unknown };
+    };
+    try {
+      record = JSON.parse(line);
+    } catch {
+      continue;
+    }
     if (record.uuid === uuid) return true;
-    if (record.attachment?.type === "queued_command" && record.attachment.source_uuid === uuid) return true;
+    if (
+      record.attachment?.type === "queued_command" &&
+      record.attachment.source_uuid === uuid
+    )
+      return true;
   }
   return false;
 }
 
 /** A record id derived from the delivery id, for a backend that takes one (Claude cloud events). */
-export function deliveryRecordUuid(messageId: string, namespace = "codecast-cloud"): string {
-  const h = createHash("sha256").update(`${namespace}:${messageId}`).digest("hex");
+export function deliveryRecordUuid(
+  messageId: string,
+  namespace = "codecast-cloud",
+): string {
+  const h = createHash("sha256")
+    .update(`${namespace}:${messageId}`)
+    .digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }

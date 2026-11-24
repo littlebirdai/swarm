@@ -19,9 +19,32 @@ import {
   type Route,
   type SurfaceQuery,
 } from "@platform/evals/contract";
-import type { BisectPlan, BisectPlanRequest, BisectStartRequest, BisectStartResponse } from "./bisect";
+import type {
+  BisectPlan,
+  BisectPlanRequest,
+  BisectStartRequest,
+  BisectStartResponse,
+} from "./bisect";
 import type { RunRow } from "./core";
-import type { BisectStopResponse, ChangesResponse, OverviewResponse, PatchResponse, RunFileQuery, RunFileResponse, RunResponse, SearchQuery, SearchResponse, SimCatalogResponse, SimFailureMoved, SimJobResponse, SimRunResponse, SimSessionsResponse, SimShrinkRequest, SimSweepRequest, SurfaceResponse } from "./endpoints";
+import type {
+  BisectStopResponse,
+  ChangesResponse,
+  OverviewResponse,
+  PatchResponse,
+  RunFileQuery,
+  RunFileResponse,
+  RunResponse,
+  SearchQuery,
+  SearchResponse,
+  SimCatalogResponse,
+  SimFailureMoved,
+  SimJobResponse,
+  SimRunResponse,
+  SimSessionsResponse,
+  SimShrinkRequest,
+  SimSweepRequest,
+  SurfaceResponse,
+} from "./endpoints";
 
 // ── The route table ─────────────────────────────────────────────────────────
 
@@ -39,7 +62,11 @@ export interface EvalsRoutes extends EvalsViewRoutes<RunRow, SimFailureMoved> {
   "POST /bisect/:id/stop": Route<{ id: string }, None, BisectStopResponse>;
   "GET /sim/catalog": Route<None, None, SimCatalogResponse>;
   "GET /sim/sessions": Route<None, None, SimSessionsResponse>;
-  "GET /sim/run/:session/:run": Route<{ session: string; run: string }, None, SimRunResponse>;
+  "GET /sim/run/:session/:run": Route<
+    { session: string; run: string },
+    None,
+    SimRunResponse
+  >;
   "POST /sim/shrink": Route<None, None, SimJobResponse, SimShrinkRequest>;
   "POST /sim/sweep": Route<None, None, SimJobResponse, SimSweepRequest>;
 }
@@ -74,7 +101,10 @@ export const EVALS_ROUTE_KEYS = [
   "POST /sim/sweep",
 ] as const satisfies readonly EvalsRouteKey[];
 
-type _AllRoutesListed = Exclude<EvalsRouteKey, (typeof EVALS_ROUTE_KEYS)[number]> extends never ? true : never;
+type _AllRoutesListed =
+  Exclude<EvalsRouteKey, (typeof EVALS_ROUTE_KEYS)[number]> extends never
+    ? true
+    : never;
 const _allRoutesListed: _AllRoutesListed = true;
 void _allRoutesListed;
 
@@ -83,7 +113,11 @@ void _allRoutesListed;
  * child dispatches on it and the web fixture transport answers through it, so
  * both read one table. `path` is relative to /evals and carries no query.
  */
-export const matchEvalsRoute = (method: string, path: string): { key: EvalsRouteKey; params: Record<string, string> } | null => matchRoute(EVALS_ROUTE_KEYS, method, path);
+export const matchEvalsRoute = (
+  method: string,
+  path: string,
+): { key: EvalsRouteKey; params: Record<string, string> } | null =>
+  matchRoute(EVALS_ROUTE_KEYS, method, path);
 
 // ── The bridge (section 3.5) ────────────────────────────────────────────────
 

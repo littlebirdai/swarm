@@ -65,14 +65,20 @@ export class ChromeNotFoundError extends Error {
 }
 
 export class ChromeLaunchError extends Error {
-  constructor(message: string, public readonly pid?: number) {
+  constructor(
+    message: string,
+    public readonly pid?: number,
+  ) {
     super(message);
     this.name = "ChromeLaunchError";
   }
 }
 
 export class ChromeStopError extends Error {
-  constructor(public readonly pid: number, timeoutMs: number) {
+  constructor(
+    public readonly pid: number,
+    timeoutMs: number,
+  ) {
     super(`Chromium (pid ${pid}) is still alive ${timeoutMs}ms after SIGKILL`);
     this.name = "ChromeStopError";
   }
@@ -98,7 +104,8 @@ export function findChromeBinary(): string | null {
   return null;
 }
 
-const CFT_EXECUTABLE = "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+const CFT_EXECUTABLE =
+  "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const CFT_RETRY_MS = 6 * 60 * 60 * 1000;
 
 /** Where codecast keeps its own Chrome for Testing, one directory per version. */
@@ -111,8 +118,17 @@ function bundleMajor(binary: string): number {
   const app = binary.indexOf(".app/");
   if (app < 0) return 0;
   try {
-    const plist = fs.readFileSync(binary.slice(0, app + 5) + "Contents/Info.plist", "utf-8");
-    return Number(plist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>(\d+)/)?.[1]) || 0;
+    const plist = fs.readFileSync(
+      binary.slice(0, app + 5) + "Contents/Info.plist",
+      "utf-8",
+    );
+    return (
+      Number(
+        plist.match(
+          /<key>CFBundleShortVersionString<\/key>\s*<string>(\d+)/,
+        )?.[1],
+      ) || 0
+    );
   } catch {
     return 0;
   }
@@ -136,25 +152,41 @@ function bundleMajor(binary: string): number {
  * sealed with Google Chrome's keychain key, which Chrome for Testing cannot
  * open, and it empties the cookie store on its first start.
  */
-export function automationChromeBinary(opts: {
-  home?: string;
-  platform?: NodeJS.Platform;
-  install?: (dir: string, platformName: string) => void;
-} = {}): string | null {
-  if ((opts.platform ?? process.platform) !== "darwin" || process.env.CODECAST_CHROMIUM || process.env.CHROME_PATH) return findChromeBinary();
+export function automationChromeBinary(
+  opts: {
+    home?: string;
+    platform?: NodeJS.Platform;
+    install?: (dir: string, platformName: string) => void;
+  } = {},
+): string | null {
+  if (
+    (opts.platform ?? process.platform) !== "darwin" ||
+    process.env.CODECAST_CHROMIUM ||
+    process.env.CHROME_PATH
+  )
+    return findChromeBinary();
   const dir = chromeForTestingDir(opts.home);
   const platformName = process.arch === "arm64" ? "mac-arm64" : "mac-x64";
   let versions: string[] = [];
   try {
-    versions = fs.readdirSync(dir).filter((v) => /^\d/.test(v)).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    versions = fs
+      .readdirSync(dir)
+      .filter((v) => /^\d/.test(v))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
   } catch {}
   const installed = versions
-    .map((v) => ({ major: parseInt(v, 10), binary: path.join(dir, v, `chrome-${platformName}`, CFT_EXECUTABLE) }))
+    .map((v) => ({
+      major: parseInt(v, 10),
+      binary: path.join(dir, v, `chrome-${platformName}`, CFT_EXECUTABLE),
+    }))
     .find((c) => fs.existsSync(c.binary));
   const human = findChromeBinary();
-  if (!installed || (human && installed.major < bundleMajor(human))) (opts.install ?? installChromeForTesting)(dir, platformName);
+  if (!installed || (human && installed.major < bundleMajor(human)))
+    (opts.install ?? installChromeForTesting)(dir, platformName);
   if (installed) return installed.binary;
-  process.stderr.write(`Until Chrome for Testing is in ${dir}, this headless Chrome runs as Google Chrome and can catch links you open.\n`);
+  process.stderr.write(
+    `Until Chrome for Testing is in ${dir}, this headless Chrome runs as Google Chrome and can catch links you open.\n`,
+  );
   return human;
 }
 
@@ -165,7 +197,10 @@ export function automationChromeBinary(opts: {
  * for `npx @puppeteer/browsers`). The newest two versions are kept, so a
  * Chrome still running from the previous one keeps its files.
  */
-export function installChromeForTesting(dir: string, platformName: string): void {
+export function installChromeForTesting(
+  dir: string,
+  platformName: string,
+): void {
   const stamp = path.join(dir, ".attempted");
   try {
     if (Date.now() - fs.statSync(stamp).mtimeMs < CFT_RETRY_MS) return;
@@ -190,20 +225,29 @@ rm "$partial/cft.zip"
 [ -d "$v" ] || mv "$partial" "$v"
 ls | grep '^[0-9]' | sort -t. -k1,1nr -k2,2nr -k3,3nr -k4,4nr | tail -n +3 | while read -r old; do rm -rf "$old"; done`;
   try {
-    const child = spawn("/bin/sh", ["-c", script, "chrome-for-testing", dir, platformName], { stdio: "ignore", detached: true });
+    const child = spawn(
+      "/bin/sh",
+      ["-c", script, "chrome-for-testing", dir, platformName],
+      { stdio: "ignore", detached: true },
+    );
     child.on("error", () => {});
     child.unref();
-    process.stderr.write(`Downloading the current Chrome for Testing (about 150 MB) to ${dir} in the background.\n`);
+    process.stderr.write(
+      `Downloading the current Chrome for Testing (about 150 MB) to ${dir} in the background.\n`,
+    );
   } catch {}
 }
 
 /** Probe list (in priority order). Exported for error reporting. */
 export function chromeBinaryProbes(): string[] {
   const probes: string[] = [];
-  for (const env of [process.env.CODECAST_CHROMIUM, process.env.CHROME_PATH]) if (env) probes.push(env);
+  for (const env of [process.env.CODECAST_CHROMIUM, process.env.CHROME_PATH])
+    if (env) probes.push(env);
   // macOS app bundles
   probes.push("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
-  probes.push("/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary");
+  probes.push(
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+  );
   probes.push("/Applications/Chromium.app/Contents/MacOS/Chromium");
   // Linux package names
   probes.push("/usr/bin/google-chrome");
@@ -228,10 +272,18 @@ export function chromeBinaryProbes(): string[] {
  * there. A real home keeps the real keychain, so profiles that already hold
  * encrypted cookies stay readable.
  */
-export function keychainArgs(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string[] {
+export function keychainArgs(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
   if (platform !== "darwin") return [];
   const home = env.HOME || os.homedir();
-  const loginKeychain = path.join(home, "Library", "Keychains", "login.keychain-db");
+  const loginKeychain = path.join(
+    home,
+    "Library",
+    "Keychains",
+    "login.keychain-db",
+  );
   return fs.existsSync(loginKeychain) ? [] : ["--use-mock-keychain"];
 }
 
@@ -266,7 +318,9 @@ function defaultArgs(opts: LaunchChromeOptions): string[] {
 /**
  * Spawn Chromium and wait until its CDP endpoint is reachable.
  */
-export async function launchChrome(opts: LaunchChromeOptions): Promise<ChromeInstance> {
+export async function launchChrome(
+  opts: LaunchChromeOptions,
+): Promise<ChromeInstance> {
   const binaryPath = opts.binaryPath ?? automationChromeBinary();
   if (!binaryPath) {
     throw new ChromeNotFoundError(chromeBinaryProbes());
@@ -354,7 +408,10 @@ export async function stopChrome(
 ): Promise<void> {
   const timeoutMs = opts.timeoutMs ?? 3000;
   const killTimeoutMs = opts.killTimeoutMs ?? 3000;
-  const stages = [["SIGTERM", timeoutMs], ["SIGKILL", killTimeoutMs]] as const;
+  const stages = [
+    ["SIGTERM", timeoutMs],
+    ["SIGKILL", killTimeoutMs],
+  ] as const;
   for (const [signal, waitMs] of stages) {
     if (!isPidAlive(pid)) return;
     try {

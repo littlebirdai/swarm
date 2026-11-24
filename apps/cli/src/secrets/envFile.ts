@@ -4,8 +4,18 @@
 // from the one Vault read the command makes. A file of references names
 // secrets and holds no value, so it is safe to commit.
 import * as fs from "node:fs";
-import { dotenvVars, secretNameProblem, type SecretMeta } from "@codecast/shared/contracts/secrets";
-import { KIND_FIELDS, fieldValue, primaryValue, type GetField, type ReadSecret } from "./inject.js";
+import {
+  dotenvVars,
+  secretNameProblem,
+  type SecretMeta,
+} from "@codecast/shared/contracts/secrets";
+import {
+  KIND_FIELDS,
+  fieldValue,
+  primaryValue,
+  type GetField,
+  type ReadSecret,
+} from "./inject.js";
 import { gapLine, metaFor } from "./projectMap.js";
 
 export type RefField = Exclude<GetField, "totp">;
@@ -14,18 +24,29 @@ export type EnvEntry = { literal: string } | { ref: EnvRef };
 
 const PREFIX = "vault://";
 
-const REF_FIELDS: readonly string[] = ["value", "username", "password", "content"] satisfies RefField[];
+const REF_FIELDS: readonly string[] = [
+  "value",
+  "username",
+  "password",
+  "content",
+] satisfies RefField[];
 
 /** A value's reference, null for a literal, or the sentence saying what is wrong with it. */
-export function parseVaultRef(value: string): EnvRef | { error: string } | null {
+export function parseVaultRef(
+  value: string,
+): EnvRef | { error: string } | null {
   if (!value.startsWith(PREFIX)) return null;
   const [secret = "", field, ...extra] = value.slice(PREFIX.length).split("/");
   if (extra.length || field === "" || secretNameProblem(secret) !== null) {
-    return { error: `${value} is not a reference: write vault://<name> or vault://<name>/<field>, with the secret's name` };
+    return {
+      error: `${value} is not a reference: write vault://<name> or vault://<name>/<field>, with the secret's name`,
+    };
   }
   if (field === undefined) return { secret };
   if (!REF_FIELDS.includes(field)) {
-    return { error: `${value} names no field ${field}: use ${REF_FIELDS.join(", ")}` };
+    return {
+      error: `${value} names no field ${field}: use ${REF_FIELDS.join(", ")}`,
+    };
   }
   return { secret, field: field as RefField };
 }
@@ -37,7 +58,10 @@ export function parseVaultRef(value: string): EnvRef | { error: string } | null 
  * `warnings` each literal holding vault:// past its start, which passes
  * through unfilled (a reference is a whole value).
  */
-export function readEnvFiles(paths: readonly string[], readFile: (p: string) => string = (p) => fs.readFileSync(p, "utf-8")): { entries: Map<string, EnvEntry>; problems: string[]; warnings: string[] } {
+export function readEnvFiles(
+  paths: readonly string[],
+  readFile: (p: string) => string = (p) => fs.readFileSync(p, "utf-8"),
+): { entries: Map<string, EnvEntry>; problems: string[]; warnings: string[] } {
   const entries = new Map<string, EnvEntry>();
   const problems: string[] = [];
   const warnings: string[] = [];
@@ -53,14 +77,19 @@ export function readEnvFiles(paths: readonly string[], readFile: (p: string) => 
       const ref = parseVaultRef(value);
       if (ref && "error" in ref) problems.push(`${name}: ${ref.error}`);
       else entries.set(name, ref ? { ref } : { literal: value });
-      if (!ref && value.includes(PREFIX)) warnings.push(`${name}: ${PREFIX} inside a longer value is passed as written, not filled; a reference must be the whole value`);
+      if (!ref && value.includes(PREFIX))
+        warnings.push(
+          `${name}: ${PREFIX} inside a longer value is passed as written, not filled; a reference must be the whole value`,
+        );
     }
   }
   return { entries, problems, warnings };
 }
 
 const refs = (entries: Map<string, EnvEntry>): Array<[string, EnvRef]> =>
-  [...entries].flatMap(([v, e]) => ("ref" in e ? [[v, e.ref] as [string, EnvRef]] : []));
+  [...entries].flatMap(([v, e]) =>
+    "ref" in e ? [[v, e.ref] as [string, EnvRef]] : [],
+  );
 
 /** The secrets the references name, for the one read. */
 export function referencedSecrets(entries: Map<string, EnvEntry>): string[] {
@@ -72,14 +101,24 @@ export function referencedSecrets(entries: Map<string, EnvEntry>): string[] {
  * judged from list metadata before any read. A name resolves the way the
  * read will (metaFor, with the repo's `prefer`), so the two never disagree.
  */
-export function unresolvedRefs(entries: Map<string, EnvEntry>, metas: Pick<SecretMeta, "name" | "short_id" | "status" | "kind" | "workspace">[], prefer?: string): string[] {
+export function unresolvedRefs(
+  entries: Map<string, EnvEntry>,
+  metas: Pick<
+    SecretMeta,
+    "name" | "short_id" | "status" | "kind" | "workspace"
+  >[],
+  prefer?: string,
+): string[] {
   const out: string[] = [];
   for (const [envVar, { secret, field }] of refs(entries)) {
     const meta = metaFor(metas, secret, prefer);
     if (meta && "line" in meta) out.push(`${envVar}: ${meta.line}`);
-    else if (!meta || meta.status !== "ready" || meta.kind === "signin") out.push(gapLine(envVar, secret, meta));
+    else if (!meta || meta.status !== "ready" || meta.kind === "signin")
+      out.push(gapLine(envVar, secret, meta));
     else if (field && !KIND_FIELDS[meta.kind].includes(field)) {
-      out.push(`${envVar}: ${secret} is a ${meta.kind}, which has no ${field}. Use ${KIND_FIELDS[meta.kind].map((f) => `${PREFIX}${secret}/${f}`).join(" or ")}`);
+      out.push(
+        `${envVar}: ${secret} is a ${meta.kind}, which has no ${field}. Use ${KIND_FIELDS[meta.kind].map((f) => `${PREFIX}${secret}/${f}`).join(" or ")}`,
+      );
     }
   }
   return out;
@@ -91,7 +130,11 @@ export function unresolvedRefs(entries: Map<string, EnvEntry>, metas: Pick<Secre
  * file secret's temp path (from `paths`, by short id). `problems` names a reference whose
  * secret has no such value, with its fix.
  */
-export function envFromFiles(entries: Map<string, EnvEntry>, secrets: readonly ReadSecret[], paths: ReadonlyMap<string, string>): { env: Record<string, string>; problems: string[] } {
+export function envFromFiles(
+  entries: Map<string, EnvEntry>,
+  secrets: readonly ReadSecret[],
+  paths: ReadonlyMap<string, string>,
+): { env: Record<string, string>; problems: string[] } {
   const byName = new Map(secrets.map((s) => [s.name, s]));
   const env: Record<string, string> = {};
   const problems: string[] = [];
@@ -101,9 +144,11 @@ export function envFromFiles(entries: Map<string, EnvEntry>, secrets: readonly R
       continue;
     }
     const s = byName.get(e.ref.secret);
-    const got = !s ? { error: `${e.ref.secret} was not read` }
-      : e.ref.field ? fieldValue(s, e.ref.field)
-      : primaryValue(s, paths.get(s.short_id));
+    const got = !s
+      ? { error: `${e.ref.secret} was not read` }
+      : e.ref.field
+        ? fieldValue(s, e.ref.field)
+        : primaryValue(s, paths.get(s.short_id));
     if ("value" in got) env[envVar] = got.value;
     else problems.push(`${envVar}: ${got.error}`);
   }

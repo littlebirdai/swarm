@@ -16,24 +16,56 @@ export const PERSONAL_CONVERSATION = "conversation-personal" as any;
 export const TASK = "tasks_1" as any;
 export const TOKEN = "cast-token-alice";
 
-
 export function users() {
   return [
-    { _id: ALICE, name: "Alice", email: "alice@example.test", github_username: "alice" },
-    { _id: BOB, name: "Bob", email: "bob@example.test", github_username: "bob" },
-    { _id: CAROL, name: "Carol", email: "carol@example.test", github_username: "carol" },
+    {
+      _id: ALICE,
+      name: "Alice",
+      email: "alice@example.test",
+      github_username: "alice",
+    },
+    {
+      _id: BOB,
+      name: "Bob",
+      email: "bob@example.test",
+      github_username: "bob",
+    },
+    {
+      _id: CAROL,
+      name: "Carol",
+      email: "carol@example.test",
+      github_username: "carol",
+    },
     { _id: BOT, name: "Codecast", is_bot: true, bot_kind: "anchor" },
   ];
 }
 
 export function conversation(_id: string, extra: Record<string, unknown> = {}) {
-  return { _id, user_id: ALICE, is_private: false, team_id: TEAM, status: "active", ...extra };
+  return {
+    _id,
+    user_id: ALICE,
+    is_private: false,
+    team_id: TEAM,
+    status: "active",
+    ...extra,
+  };
 }
 
-export async function context(authenticatedUser: string | null, seed: Record<string, any[]> = {}) {
+export async function context(
+  authenticatedUser: string | null,
+  seed: Record<string, any[]> = {},
+) {
   const db = makeFakeDb({
     users: users(),
-    teams: [{ _id: TEAM, name: "Main", invite_code: "MAIN", created_at: 1, features: { chat: true } }],
+    teams: [
+      {
+        _id: TEAM,
+        name: "Main",
+        invite_code: "MAIN",
+        created_at: 1,
+        features: { chat: true },
+      },
+    ],
     team_memberships: [
       { _id: "m-alice", user_id: ALICE, team_id: TEAM, role: "member" },
       { _id: "m-bob", user_id: BOB, team_id: TEAM, role: "admin" },
@@ -41,10 +73,24 @@ export async function context(authenticatedUser: string | null, seed: Record<str
       { _id: "m-bot", user_id: BOT, team_id: TEAM, role: "member" },
     ],
     api_tokens: [
-      { _id: "tok-alice", user_id: ALICE, token_hash: await hashToken(TOKEN), name: "cli", created_at: 1, last_used_at: 1 },
+      {
+        _id: "tok-alice",
+        user_id: ALICE,
+        token_hash: await hashToken(TOKEN),
+        name: "cli",
+        created_at: 1,
+        last_used_at: 1,
+      },
     ],
     chat_channels: [
-      { _id: CHANNEL, team_id: TEAM, name: "general", created_by: ALICE, created_at: 1_000, updated_at: 1_000 },
+      {
+        _id: CHANNEL,
+        team_id: TEAM,
+        name: "general",
+        created_by: ALICE,
+        created_at: 1_000,
+        updated_at: 1_000,
+      },
     ],
     chat_messages: [],
     chat_reads: [],
@@ -58,7 +104,13 @@ export async function context(authenticatedUser: string | null, seed: Record<str
     anchors: [],
     anchor_channels: [],
     pending_messages: [],
-    conversations: [conversation(CONVERSATION), conversation(PERSONAL_CONVERSATION, { team_id: undefined, session_id: "sess-personal" })],
+    conversations: [
+      conversation(CONVERSATION),
+      conversation(PERSONAL_CONVERSATION, {
+        team_id: undefined,
+        session_id: "sess-personal",
+      }),
+    ],
     comments: [],
     messages: [],
     pull_requests: [],
@@ -66,18 +118,20 @@ export async function context(authenticatedUser: string | null, seed: Record<str
     local_command_receipts: [],
     conversation_execution_heads: [],
     execution_bindings: [],
-    tasks: [{
-      _id: TASK,
-      short_id: "ct-1",
-      title: "Ship threads",
-      status: "open",
-      user_id: ALICE,
-      assignee: BOB,
-      team_id: TEAM,
-      workspace: `team:${TEAM}`,
-      created_at: 1,
-      updated_at: 1,
-    }],
+    tasks: [
+      {
+        _id: TASK,
+        short_id: "ct-1",
+        title: "Ship threads",
+        status: "open",
+        user_id: ALICE,
+        assignee: BOB,
+        team_id: TEAM,
+        workspace: `team:${TEAM}`,
+        created_at: 1,
+        updated_at: 1,
+      },
+    ],
     task_comments: [],
     task_history: [],
     change_log: [],
@@ -89,7 +143,9 @@ export async function context(authenticatedUser: string | null, seed: Record<str
     db,
     auth: {
       async getUserIdentity() {
-        return authenticatedUser ? { subject: `${authenticatedUser}|session` } : null;
+        return authenticatedUser
+          ? { subject: `${authenticatedUser}|session` }
+          : null;
       },
     },
     async runMutation(reference: unknown, args: any) {
@@ -106,12 +162,18 @@ export async function context(authenticatedUser: string | null, seed: Record<str
   } as any;
 }
 
-export const call = (fn: any, ctx: any, args: any) => (fn as any)._handler(ctx, args);
+export const call = (fn: any, ctx: any, args: any) =>
+  (fn as any)._handler(ctx, args);
 export const as = (ctx: any, userId: string) => ({
   ...ctx,
-  auth: { async getUserIdentity() { return { subject: `${userId}|session` }; } },
+  auth: {
+    async getUserIdentity() {
+      return { subject: `${userId}|session` };
+    },
+  },
 });
 export const rows = (ctx: any) => ctx.db._tables.thread_reads as any[];
 export const rowOf = (ctx: any, userId: string, kind: string) =>
   rows(ctx).find((r) => r.user_id === userId && r.kind === kind);
-export const inbox = (ctx: any, args: any = { team_id: TEAM }) => call(listMine, ctx, args);
+export const inbox = (ctx: any, args: any = { team_id: TEAM }) =>
+  call(listMine, ctx, args);

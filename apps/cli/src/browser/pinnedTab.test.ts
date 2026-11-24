@@ -5,8 +5,16 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { CdpConnection } from "./cdp.js";
 import {
-  ensurePinnedTab, pickReclaimableTab, pinnedTabBrowser, readBoundTarget, recoverGoneTab, sessionDaemonPid,
-  tabHolderIsSelf, targetLiveness, writeBoundTarget, type CastTab,
+  ensurePinnedTab,
+  pickReclaimableTab,
+  pinnedTabBrowser,
+  readBoundTarget,
+  recoverGoneTab,
+  sessionDaemonPid,
+  tabHolderIsSelf,
+  targetLiveness,
+  writeBoundTarget,
+  type CastTab,
 } from "./pinnedTab.js";
 import { writeBridgeState } from "./bridge/host.js";
 import { CAST_TAB_GROUP } from "./bridge/protocol.js";
@@ -25,7 +33,9 @@ afterEach(() => {
 describe("writeBoundTarget", () => {
   test("writes the shape tab_binding.rs reads: targetId, url, pinned", () => {
     writeBoundTarget("env-abc", TARGET, dir);
-    const raw = JSON.parse(fs.readFileSync(path.join(dir, "env-abc.target"), "utf-8"));
+    const raw = JSON.parse(
+      fs.readFileSync(path.join(dir, "env-abc.target"), "utf-8"),
+    );
     expect(raw).toEqual({ targetId: TARGET, url: "about:blank", pinned: true });
   });
 
@@ -47,7 +57,10 @@ describe("readBoundTarget", () => {
     expect(readBoundTarget("nope", dir)).toBeNull();
     fs.writeFileSync(path.join(dir, "bad.target"), "not json");
     expect(readBoundTarget("bad", dir)).toBeNull();
-    fs.writeFileSync(path.join(dir, "empty.target"), JSON.stringify({ targetId: "" }));
+    fs.writeFileSync(
+      path.join(dir, "empty.target"),
+      JSON.stringify({ targetId: "" }),
+    );
     expect(readBoundTarget("empty", dir)).toBeNull();
   });
 });
@@ -83,8 +96,16 @@ describe("pinnedTabBrowser", () => {
     try {
       // The endpoint names the session so the host files the tab under it.
       expect(await pinnedTabBrowser("env-1234567890-real")).toEqual({
-        endpoint: { port: host.port, token: host.token, session: "env-1234567890-real" },
-        create: { url: "about:blank", background: true, castGroup: CAST_TAB_GROUP },
+        endpoint: {
+          port: host.port,
+          token: host.token,
+          session: "env-1234567890-real",
+        },
+        create: {
+          url: "about:blank",
+          background: true,
+          castGroup: CAST_TAB_GROUP,
+        },
       });
     } finally {
       await host.close();
@@ -107,15 +128,25 @@ describe("pinnedTabBrowser", () => {
 
 describe("targetLiveness", () => {
   /** A /json/list that answers after `delayMs` with the given tab ids. */
-  async function listServer(ids: string[], delayMs = 0): Promise<{ port: number; close: () => void }> {
+  async function listServer(
+    ids: string[],
+    delayMs = 0,
+  ): Promise<{ port: number; close: () => void }> {
     const srv = http.createServer((_req, res) => {
       setTimeout(() => {
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify(ids.map((id) => ({ id, type: "page", url: "about:blank" }))));
+        res.end(
+          JSON.stringify(
+            ids.map((id) => ({ id, type: "page", url: "about:blank" })),
+          ),
+        );
       }, delayMs);
     });
     await new Promise<void>((r) => srv.listen(0, "127.0.0.1", () => r()));
-    return { port: (srv.address() as { port: number }).port, close: () => srv.closeAllConnections?.() ?? srv.close() };
+    return {
+      port: (srv.address() as { port: number }).port,
+      close: () => srv.closeAllConnections?.() ?? srv.close(),
+    };
   }
 
   test("alive when the browser lists the tab, gone when it lists others", async () => {
@@ -144,7 +175,8 @@ describe("page creation", () => {
     process.env.AGENT_BROWSER_SOCKET_DIR = dir;
   });
   afterEach(() => {
-    if (previousSocketDir === undefined) delete process.env.AGENT_BROWSER_SOCKET_DIR;
+    if (previousSocketDir === undefined)
+      delete process.env.AGENT_BROWSER_SOCKET_DIR;
     else process.env.AGENT_BROWSER_SOCKET_DIR = previousSocketDir;
   });
 
@@ -152,8 +184,12 @@ describe("page creation", () => {
     const host = await testBridgeHost();
     const extension = await new FakeExtension([]).connect(host.port);
     try {
-      await expect(ensurePinnedTab("env-empty-real")).rejects.toThrow("No blank tab was created");
-      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(0);
+      await expect(ensurePinnedTab("env-empty-real")).rejects.toThrow(
+        "No blank tab was created",
+      );
+      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(
+        0,
+      );
       expect(extension.tabs).toHaveLength(0);
     } finally {
       extension.ws.close();
@@ -173,10 +209,15 @@ describe("page creation", () => {
       fs.rmSync(path.join(dir, `${session}.target`));
       expect(await ensurePinnedTab(session, url)).toBe(false);
       expect(readBoundTarget(session)).toBe(first);
-      expect(extension.seen.filter((m) => m.op === "tabs.create")).toMatchObject([{ url, background: true }]);
+      expect(
+        extension.seen.filter((m) => m.op === "tabs.create"),
+      ).toMatchObject([{ url, background: true }]);
       expect(extension.seen.filter((m) => m.op === "attach")).toHaveLength(0);
       expect(extension.tabs.map((tab) => tab.url)).toEqual([url]);
-      expect(JSON.parse(fs.readFileSync(path.join(dir, `${session}.target`), "utf8")).url).toBe(url);
+      expect(
+        JSON.parse(fs.readFileSync(path.join(dir, `${session}.target`), "utf8"))
+          .url,
+      ).toBe(url);
     } finally {
       extension.ws.close();
       await host.close();
@@ -189,22 +230,35 @@ describe("page creation", () => {
     const host = await testBridgeHost();
     const extension = await new FakeExtension([]).connect(host.port);
     const session = "env-twotabs-real";
-    const conn = await CdpConnection.fromPort({ port: host.port, token: host.token, session });
+    const conn = await CdpConnection.fromPort({
+      port: host.port,
+      token: host.token,
+      session,
+    });
     try {
-      expect(await ensurePinnedTab(session, "https://example.com/first")).toBe(true);
+      expect(await ensurePinnedTab(session, "https://example.com/first")).toBe(
+        true,
+      );
       const first = readBoundTarget(session)!;
-      const { targetId: second } = await conn.send<{ targetId: string }>("Target.createTarget", { url: "https://example.com/second", background: true });
+      const { targetId: second } = await conn.send<{ targetId: string }>(
+        "Target.createTarget",
+        { url: "https://example.com/second", background: true },
+      );
       writeBoundTarget(session, second, dir, "https://example.com/second");
       await conn.send("Target.closeTarget", { targetId: second });
       expect(await recoverGoneTab(session)).toBe(true);
       expect(readBoundTarget(session)).toBe(first);
-      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(2);
+      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(
+        2,
+      );
 
       // With no tab of its own left and no page asked for, nothing is created and the verb is not retried.
       await conn.send("Target.closeTarget", { targetId: first });
       expect(await recoverGoneTab(session)).toBe(false);
       expect(readBoundTarget(session)).toBeNull();
-      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(2);
+      expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(
+        2,
+      );
     } finally {
       conn.close();
       extension.ws.close();
@@ -216,32 +270,73 @@ describe("page creation", () => {
 describe("pickReclaimableTab", () => {
   const url = "http://localhost:3200/conversation/jx7abc";
   const session = "env-grok-real";
-  const tab = (targetId: string, sessions: string[], href = url): CastTab => ({ targetId, url: href, sessions });
+  const tab = (targetId: string, sessions: string[], href = url): CastTab => ({
+    targetId,
+    url: href,
+    sessions,
+  });
 
   test("a tab this session already holds, including an older pane identity, is reused", () => {
     const env = { TMUX_PANE: "%921" };
-    const tabs = [tab("AAAA", ["env-other-real"]), tab("BBBB", ["pane-921-real"])];
-    expect(pickReclaimableTab(tabs, url, session, () => false, env)?.targetId).toBe("BBBB");
+    const tabs = [
+      tab("AAAA", ["env-other-real"]),
+      tab("BBBB", ["pane-921-real"]),
+    ];
+    expect(
+      pickReclaimableTab(tabs, url, session, () => false, env)?.targetId,
+    ).toBe("BBBB");
   });
 
   test("a harness twin of this session is treated as ours", () => {
-    expect(tabHolderIsSelf("env-01a0abcd-real", "env-other-real", { GROK_SESSION_ID: "01a0abcd" })).toBe(true);
-    expect(tabHolderIsSelf("env-stranger-real", "env-other-real", { GROK_SESSION_ID: "01a0abcd" })).toBe(false);
+    expect(
+      tabHolderIsSelf("env-01a0abcd-real", "env-other-real", {
+        GROK_SESSION_ID: "01a0abcd",
+      }),
+    ).toBe(true);
+    expect(
+      tabHolderIsSelf("env-stranger-real", "env-other-real", {
+        GROK_SESSION_ID: "01a0abcd",
+      }),
+    ).toBe(false);
   });
 
   test("an unowned Cast tab on the same URL is claimed", () => {
-    expect(pickReclaimableTab([tab("FREE", [])], url, session, () => false)?.targetId).toBe("FREE");
+    expect(
+      pickReclaimableTab([tab("FREE", [])], url, session, () => false)
+        ?.targetId,
+    ).toBe("FREE");
   });
 
   test("a tab whose every holder has exited is claimed", () => {
-    expect(pickReclaimableTab([tab("DEAD", ["pane-66-real"])], url, session, (h) => h === "pane-66-real")?.targetId).toBe("DEAD");
+    expect(
+      pickReclaimableTab(
+        [tab("DEAD", ["pane-66-real"])],
+        url,
+        session,
+        (h) => h === "pane-66-real",
+      )?.targetId,
+    ).toBe("DEAD");
   });
 
   test("a live stranger's tab on the same URL is never taken", () => {
-    expect(pickReclaimableTab([tab("LIVE", ["env-other-real"])], url, session, () => false)).toBeNull();
+    expect(
+      pickReclaimableTab(
+        [tab("LIVE", ["env-other-real"])],
+        url,
+        session,
+        () => false,
+      ),
+    ).toBeNull();
   });
 
   test("a tab on a different URL is ignored even if unowned", () => {
-    expect(pickReclaimableTab([tab("X", [], "https://example.com/")], url, session, () => true)).toBeNull();
+    expect(
+      pickReclaimableTab(
+        [tab("X", [], "https://example.com/")],
+        url,
+        session,
+        () => true,
+      ),
+    ).toBeNull();
   });
 });

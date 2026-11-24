@@ -3,7 +3,12 @@
 // configuration (its Vite env values, its platform label) plus the error
 // reporting layered on top of it: cause chain reading (./errorCause) and the
 // one error toast (./errorToast). Every consumer keeps importing from here.
-import { describeError, errorChain, errorSummary, rootError } from "./errorCause";
+import {
+  describeError,
+  errorChain,
+  errorSummary,
+  rootError,
+} from "./errorCause";
 import { showErrorToast } from "./errorToast";
 import { dropStylePreloads } from "./stylePreloads";
 import { watchLongFrames } from "./freezeAttribution";
@@ -12,7 +17,12 @@ import {
   claimErrorKey,
   setupErrorToasts as setupPlatformErrorToasts,
 } from "@platform/analytics/errors";
-import { CODECAST_EVENTS, POSTHOG_REPLAY_SAMPLE_RATE, type CodecastEventName, type CodecastEventProps } from "@codecast/shared/analytics";
+import {
+  CODECAST_EVENTS,
+  POSTHOG_REPLAY_SAMPLE_RATE,
+  type CodecastEventName,
+  type CodecastEventProps,
+} from "@codecast/shared/analytics";
 import { CHUNK_LOAD_ERROR_PATTERNS } from "./chunkReloadGuard";
 import { DOC_REWRITTEN_ERROR } from "@codecast/shared/docs";
 import codecastJson from "../codecast.json";
@@ -54,7 +64,8 @@ export type AnalyticsPlatform = "desktop" | "web" | "mobile";
 // is the same shape isStandaloneSharePath reads, so a kind added later is
 // covered without a list to keep in step; a conversation token that starts
 // with letters backtracks to the bare form.
-const SECRET_PATH = /(^|[\s"'=(]|\/\/[^/\s"'?#]+)\/(share\/[a-z]+|share|meet|join|a)\/[^/?#\s"']+/g;
+const SECRET_PATH =
+  /(^|[\s"'=(]|\/\/[^/\s"'?#]+)\/(share\/[a-z]+|share|meet|join|a)\/[^/?#\s"']+/g;
 
 /** Rewrite every secret path in a string to its shape: "/meet/k3y" to "/meet/:token". */
 export function scrubSecretPaths(text: string): string {
@@ -65,7 +76,8 @@ export function scrubSecretPaths(text: string): string {
 // (the inbox digest compare) stamps the same value; the native twin answers
 // "mobile".
 export function getPlatform(): AnalyticsPlatform {
-  return typeof window !== "undefined" && !!(window as any).__CODECAST_ELECTRON__
+  return typeof window !== "undefined" &&
+    !!(window as any).__CODECAST_ELECTRON__
     ? "desktop"
     : "web";
 }
@@ -95,7 +107,8 @@ export function initAnalytics(): Promise<void> {
       // listeners and a dead-click detector that re-checks every DOM change of
       // a live transcript. Visitors without an account keep the project's own
       // setting.
-      heatmaps: getPlatform() === "desktop" || hasStoredAuthToken() ? false : undefined,
+      heatmaps:
+        getPlatform() === "desktop" || hasStoredAuthToken() ? false : undefined,
       // The catalog is enforced at the track boundary inside the package: an
       // event it does not describe is dropped, and a session stops sending
       // after 1000 events. A browser that sets Do Not Track loads no PostHog
@@ -116,7 +129,8 @@ export function initAnalytics(): Promise<void> {
       // publishes on window, so an error group knows which deploy it came from.
       codecastIngestKey: META_ENV.VITE_CODECAST_INGEST_KEY || undefined,
       codecastConfig: codecastJson,
-      release: (globalThis as { __CODECAST_BUILD?: { sha?: string } }).__CODECAST_BUILD?.sha,
+      release: (globalThis as { __CODECAST_BUILD?: { sha?: string } })
+        .__CODECAST_BUILD?.sha,
       // Codecast's links that are keys, named by their shape wherever a URL
       // leaves the page (pageviews, referrers, error reports, replays).
       scrubUrl: scrubSecretPaths,
@@ -149,14 +163,20 @@ function startReplayOnError(analytics: AnalyticsRuntime) {
       // stylesheet preload link forever, a listener and a timer at a time
       // (./stylePreloads).
       dropStylePreloads();
-      const recorder = startReplay({ sink, sampleRate: replay?.sampleRate ?? 0, replayDom: replay?.dom ?? "off" });
+      const recorder = startReplay({
+        sink,
+        sampleRate: replay?.sampleRate ?? 0,
+        replayDom: replay?.dom ?? "off",
+      });
       replayRecorder = recorder;
       if (regulated) recorder.stop();
       else {
         for (const reason of pendingKeeps.splice(0)) recorder.keep(reason);
         // What ran in each long frame, beside the recorder's own `freeze` mark
         // (./freezeAttribution). A stopped recorder drops the marks.
-        stopReplayFrames = watchLongFrames((name, data) => recorder.mark(name, data));
+        stopReplayFrames = watchLongFrames((name, data) =>
+          recorder.mark(name, data),
+        );
       }
     })
     .catch(() => {});
@@ -188,7 +208,10 @@ export function keepReplay(reason: string) {
 
 function readRegulatedMarker(): boolean {
   try {
-    return typeof localStorage !== "undefined" && localStorage.getItem(REGULATED_KEY) === "1";
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem(REGULATED_KEY) === "1"
+    );
   } catch {
     return false;
   }
@@ -210,8 +233,12 @@ export function setRegulatedData(on: boolean) {
   if (!runtime) return;
   const posthog = runtime.posthog;
   if (on) {
-    try { posthog.stopSessionRecording(); } catch {}
-    try { posthog.opt_out_capturing(); } catch {}
+    try {
+      posthog.stopSessionRecording();
+    } catch {}
+    try {
+      posthog.opt_out_capturing();
+    } catch {}
     replayRecorder?.stop();
     replayRecorder = undefined;
     stopReplayFrames?.();
@@ -229,7 +256,11 @@ export function setRegulatedData(on: boolean) {
 // ever writes is the one above, so a browser no longer regulated opts back in.
 function releaseRegulatedOptOut(analytics: AnalyticsRuntime) {
   try {
-    if (analytics.posthog.__loaded && analytics.posthog.has_opted_out_capturing()) analytics.posthog.opt_in_capturing();
+    if (
+      analytics.posthog.__loaded &&
+      analytics.posthog.has_opted_out_capturing()
+    )
+      analytics.posthog.opt_in_capturing();
   } catch {}
 }
 
@@ -244,7 +275,10 @@ export function resetUser() {
 // Only an event the catalog names, with the properties it declares. The runtime
 // check inside the package is the backstop; this signature is what stops a typo
 // or a renamed property from reaching a build at all.
-export function track<N extends CodecastEventName>(event: N, properties: CodecastEventProps<N>) {
+export function track<N extends CodecastEventName>(
+  event: N,
+  properties: CodecastEventProps<N>,
+) {
   withAnalytics((analytics) => analytics.track(event, properties));
 }
 
@@ -265,7 +299,8 @@ export function captureError(error: Error, context?: Record<string, unknown>) {
 //    throwOnMissing=true internally, so we can't fix it short of forking the
 //    library (4.11.2 still has it) — we just decline to report it.
 /** The regex that matches one string as written, for a list that mixes both. */
-const literalPattern = (text: string): RegExp => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+const literalPattern = (text: string): RegExp =>
+  new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
 
 const IGNORED_ERROR_PATTERNS: RegExp[] = [
   /Could not find data for Group with id/,
@@ -304,7 +339,7 @@ function isIgnoredError(message: string | undefined): boolean {
 // below, so one failure arriving on both paths still reports once per 30s.
 export function reportRecoverableRenderError(
   error: unknown,
-  info?: { componentStack?: string | null }
+  info?: { componentStack?: string | null },
 ) {
   const key = errorSummary(error);
   if (isIgnoredError(key)) return;

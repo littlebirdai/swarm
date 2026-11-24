@@ -22,7 +22,11 @@ import { commandGroup } from "./commandGroups.js";
 import { gitTry } from "./gitPlane.js";
 import { locate, readLocalGitContext } from "./prCommand.js";
 import type { ShipPlan } from "@codecast/shared/contracts/shipPlan";
-import { loadWorkspaceRoster, matchTeam, unknownTeamMessage } from "./resolveWorkspace.js";
+import {
+  loadWorkspaceRoster,
+  matchTeam,
+  unknownTeamMessage,
+} from "./resolveWorkspace.js";
 import { c } from "./colors.js";
 
 export type MarkOptions = {
@@ -42,97 +46,210 @@ export type MarkOptions = {
 
 /** What one push changed on the surface, by name (`fn:<module>:<export>`, `index:<table>.<index>`, ...), and when its
  *  diff read prod (prod-diff's `read_at`). */
-export type PushChanges = { adds?: string[]; drops?: string[]; changes_read_at?: number };
+export type PushChanges = {
+  adds?: string[];
+  drops?: string[];
+  changes_read_at?: number;
+};
 
 /** The pushes that put each name on the surface: `cast ship added-by`. A dev push (the dev watcher's) is no deploy, so it has no dp-N. */
-export type AddedBy = { name: string; deploy: string | null; dev_push: boolean; by: string | null; machine: string | null; via: string | null; at: number; dirty: number; committed_in?: string };
+export type AddedBy = {
+  name: string;
+  deploy: string | null;
+  dev_push: boolean;
+  by: string | null;
+  machine: string | null;
+  via: string | null;
+  at: number;
+  dirty: number;
+  committed_in?: string;
+};
 
 /** The checkout the command stands in: its GitHub repository and HEAD. */
 export type LocalCheckout = { repository: string | null; head: string | null };
 
-async function readCheckout(cwd: string = process.cwd()): Promise<LocalCheckout> {
-  return { repository: readLocalGitContext(cwd).repository, head: (await gitTry(cwd, ["rev-parse", "HEAD"])) ?? null };
+async function readCheckout(
+  cwd: string = process.cwd(),
+): Promise<LocalCheckout> {
+  return {
+    repository: readLocalGitContext(cwd).repository,
+    head: (await gitTry(cwd, ["rev-parse", "HEAD"])) ?? null,
+  };
 }
 
 /** The body `/cli/changes/mark-deploy` takes; flags win over the checkout. */
-export function markBody(options: MarkOptions, local: LocalCheckout, changes: PushChanges = {}, machine: string = hostname(), now: number = Date.now()): { repository: string; surface: string; sha: string; version?: string; dirty?: number; deploy?: string; via?: string; machine?: string; adds?: string[]; drops?: string[]; changes_read_age_ms?: number } {
+export function markBody(
+  options: MarkOptions,
+  local: LocalCheckout,
+  changes: PushChanges = {},
+  machine: string = hostname(),
+  now: number = Date.now(),
+): {
+  repository: string;
+  surface: string;
+  sha: string;
+  version?: string;
+  dirty?: number;
+  deploy?: string;
+  via?: string;
+  machine?: string;
+  adds?: string[];
+  drops?: string[];
+  changes_read_age_ms?: number;
+} {
   const repository = options.repo ?? local.repository;
-  if (!repository) throw new Error("No GitHub repository here: run inside a checkout with a GitHub origin, or pass --repo <owner/name>.");
+  if (!repository)
+    throw new Error(
+      "No GitHub repository here: run inside a checkout with a GitHub origin, or pass --repo <owner/name>.",
+    );
   const sha = options.sha ?? local.head;
-  if (!sha) throw new Error("No commit to mark: run inside a git checkout, or pass --sha <sha>.");
+  if (!sha)
+    throw new Error(
+      "No commit to mark: run inside a git checkout, or pass --sha <sha>.",
+    );
   const dirty = options.dirty ? parseInt(options.dirty, 10) : 0;
   return {
-    repository, surface: options.surface, sha,
+    repository,
+    surface: options.surface,
+    sha,
     ...(options.version ? { version: options.version } : {}),
     ...(dirty > 0 ? { dirty } : {}),
     ...(options.deploy ? { deploy: options.deploy } : {}),
     // A push's own record (deploy.sh, the dev watcher) names the machine it came from.
     ...(options.via ? { via: options.via } : {}),
-    ...(options.via || options.machine ? { machine: options.machine ?? machine } : {}),
+    ...(options.via || options.machine
+      ? { machine: options.machine ?? machine }
+      : {}),
     // Both lists go exactly when the diff ran, empty or not: the server reads their presence as "this push's changes are known".
     // How long ago the diff read prod, not when: the server dates it on its own clock, so a laptop's skew cannot.
-    ...(changes.adds && changes.drops ? { adds: changes.adds, drops: changes.drops, ...(changes.changes_read_at ? { changes_read_age_ms: readAge(changes.changes_read_at, now) } : {}) } : {}),
+    ...(changes.adds && changes.drops
+      ? {
+          adds: changes.adds,
+          drops: changes.drops,
+          ...(changes.changes_read_at
+            ? { changes_read_age_ms: readAge(changes.changes_read_at, now) }
+            : {}),
+        }
+      : {}),
   };
 }
 
 /** Milliseconds since a diff read prod, by this machine's clock (never negative). */
-export const readAge = (readAt: number, now: number = Date.now()): number => Math.max(0, Math.round(now - readAt));
+export const readAge = (readAt: number, now: number = Date.now()): number =>
+  Math.max(0, Math.round(now - readAt));
 
 /** `--changes <file>`: the JSON prod-diff writes, `{ adds, drops, read_at }`. */
 export function readChanges(path: string | undefined): PushChanges {
   if (!path) return {};
   // An unreadable file loses the lists, never the mark: the push went out and is still recorded.
   let raw: any;
-  try { raw = JSON.parse(readFileSync(path, "utf-8")); } catch { return {}; }
-  const names = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined);
-  const adds = names(raw?.adds), drops = names(raw?.drops);
-  const readAt = typeof raw?.read_at === "number" && Number.isFinite(raw.read_at) ? raw.read_at : undefined;
-  return adds && drops ? { adds, drops, ...(readAt ? { changes_read_at: readAt } : {}) } : {};
+  try {
+    raw = JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return {};
+  }
+  const names = (v: unknown) =>
+    Array.isArray(v)
+      ? v.filter((x): x is string => typeof x === "string")
+      : undefined;
+  const adds = names(raw?.adds),
+    drops = names(raw?.drops);
+  const readAt =
+    typeof raw?.read_at === "number" && Number.isFinite(raw.read_at)
+      ? raw.read_at
+      : undefined;
+  return adds && drops
+    ? { adds, drops, ...(readAt ? { changes_read_at: readAt } : {}) }
+    : {};
 }
 
 /** Each name with the push that put it there, a line each. */
 export function formatAddedBy(found: AddedBy[]): string {
-  return found.map((f) => {
-    const how = f.dev_push ? "dev watcher push" : f.dirty > 0 ? `push with ${f.dirty} uncommitted file${f.dirty === 1 ? "" : "s"}` : "push of a commit";
-    const who = [f.by, f.machine ? `on ${f.machine}` : null].filter(Boolean).join(" ");
-    const since = f.committed_in ? `; committed since (${f.committed_in} carried it)` : "";
-    return `${f.name}  ${f.deploy && !f.dev_push ? `${f.deploy} ` : ""}${how}${who ? ` by ${who}` : ""}, ${new Date(f.at).toLocaleString()}${since}`;
-  }).join("\n");
+  return found
+    .map((f) => {
+      const how = f.dev_push
+        ? "dev watcher push"
+        : f.dirty > 0
+          ? `push with ${f.dirty} uncommitted file${f.dirty === 1 ? "" : "s"}`
+          : "push of a commit";
+      const who = [f.by, f.machine ? `on ${f.machine}` : null]
+        .filter(Boolean)
+        .join(" ");
+      const since = f.committed_in
+        ? `; committed since (${f.committed_in} carried it)`
+        : "";
+      return `${f.name}  ${f.deploy && !f.dev_push ? `${f.deploy} ` : ""}${how}${who ? ` by ${who}` : ""}, ${new Date(f.at).toLocaleString()}${since}`;
+    })
+    .join("\n");
 }
 
 /** The plan as the popover says it: what, where, then each step. */
 export function formatShipPlan(plan: ShipPlan): string {
   const out = [`Ship ${plan.label}`];
-  if (plan.branch) out.push(`  ${plan.branch} -> ${plan.base}${plan.newBranch ? " (new branch)" : ""}`);
+  if (plan.branch)
+    out.push(
+      `  ${plan.branch} -> ${plan.base}${plan.newBranch ? " (new branch)" : ""}`,
+    );
   out.push(...plan.steps.map((step, i) => `  ${i + 1}. ${step}`));
   out.push(`  ${plan.merge.why}`);
   if (plan.blocked) out.push(`  blocked: ${plan.blocked}`);
   return out.join("\n");
 }
 
-export type RunOptions = { task?: string; session?: string; pr?: string | boolean; repo?: string; branch?: string; dryRun?: boolean; json?: boolean };
+export type RunOptions = {
+  task?: string;
+  session?: string;
+  pr?: string | boolean;
+  repo?: string;
+  branch?: string;
+  dryRun?: boolean;
+  json?: boolean;
+};
 
-export function registerShipCommand(program: Command, deps: PublishDeps & { checkout?: () => Promise<LocalCheckout> }): void {
-  const ship = program.command("ship").description(commandGroup("ship").description);
+export function registerShipCommand(
+  program: Command,
+  deps: PublishDeps & { checkout?: () => Promise<LocalCheckout> },
+): void {
+  const ship = program
+    .command("ship")
+    .description(commandGroup("ship").description);
 
-  ship.command("run")
-    .description("Ship a change: run the checks, open or shepherd its pull request, merge only from a PR or when the line profile says merge.auto")
+  ship
+    .command("run")
+    .description(
+      "Ship a change: run the checks, open or shepherd its pull request, merge only from a PR or when the line profile says merge.auto",
+    )
     .option("--task <ct-N>", "The task whose change ships")
     .option("--session <id>", "The session whose diff ships")
-    .option("--pr [ref]", "The pull request to ship (this checkout's branch when no ref); Ship on a PR merges once green")
+    .option(
+      "--pr [ref]",
+      "The pull request to ship (this checkout's branch when no ref); Ship on a PR merges once green",
+    )
     .option("--repo <owner/name>", "Repository to resolve --pr in")
-    .option("--branch <name>", "The branch that already holds the change as committed (a flow run's frozen change): it ships as it is")
+    .option(
+      "--branch <name>",
+      "The branch that already holds the change as committed (a flow run's frozen change): it ships as it is",
+    )
     .option("--dry-run", "Print the plan without starting it")
     .option("--json", "Machine-readable output")
     .action(async (options: RunOptions) => {
-      const named = [options.task, options.session, options.pr].filter((x) => x !== undefined);
+      const named = [options.task, options.session, options.pr].filter(
+        (x) => x !== undefined,
+      );
       if (named.length !== 1) {
-        console.error("Name one thing to ship: --task ct-N, --session <id>, or --pr [ref].");
+        console.error(
+          "Name one thing to ship: --task ct-N, --session <id>, or --pr [ref].",
+        );
         process.exit(1);
       }
-      const pr_locator = options.pr !== undefined
-        ? await locate(deps, typeof options.pr === "string" ? options.pr : undefined, { repo: options.repo })
-        : undefined;
+      const pr_locator =
+        options.pr !== undefined
+          ? await locate(
+              deps,
+              typeof options.pr === "string" ? options.pr : undefined,
+              { repo: options.repo },
+            )
+          : undefined;
       const result = await apiPost(deps, "/cli/ship/run", {
         task: options.task,
         session: options.session,
@@ -151,25 +268,51 @@ export function registerShipCommand(program: Command, deps: PublishDeps & { chec
       }
       console.log(formatShipPlan(result.plan));
       if (options.dryRun) return;
-      console.log(result.answered_card
-        ? `${c.green}✓${c.reset} Answered Ship on the change card; the line's ship station lands it`
-        : `${c.green}✓${c.reset} Ship session ${result.short_id} started (cast read ${result.short_id})`);
+      console.log(
+        result.answered_card
+          ? `${c.green}✓${c.reset} Answered Ship on the change card; the line's ship station lands it`
+          : `${c.green}✓${c.reset} Ship session ${result.short_id} started (cast read ${result.short_id})`,
+      );
     });
 
-  ship.command("checkout")
-    .description("Ship everything uncommitted in this shared checkout: commit by session, replay onto upstream in memory, level, check, deploy, push")
+  ship
+    .command("checkout")
+    .description(
+      "Ship everything uncommitted in this shared checkout: commit by session, replay onto upstream in memory, level, check, deploy, push",
+    )
     .option("--dry-run", "Freeze, attribute and write the plan; ship nothing")
-    .option("--plan [file]", "Run a plan written by --dry-run (default: the checkout's .git/codecast/ship-plan.json), as edited")
-    .option("--only <groups>", "Ship only these groups (comma-separated ids, like s:jx7abc1,unattributed); hold the rest")
-    .option("--hold <groups>", "Hold these groups: their files stay uncommitted for a later ship")
-    .option("--commits-only", "Hold every group: push only the checkout's own unpushed commits (after a rejected push)")
-    .option("--message <group=text>", "Set a group's commit message (repeatable)", (v: string, acc: string[] = []) => [...acc, v])
+    .option(
+      "--plan [file]",
+      "Run a plan written by --dry-run (default: the checkout's .git/codecast/ship-plan.json), as edited",
+    )
+    .option(
+      "--only <groups>",
+      "Ship only these groups (comma-separated ids, like s:jx7abc1,unattributed); hold the rest",
+    )
+    .option(
+      "--hold <groups>",
+      "Hold these groups: their files stay uncommitted for a later ship",
+    )
+    .option(
+      "--commits-only",
+      "Hold every group: push only the checkout's own unpushed commits (after a rejected push)",
+    )
+    .option(
+      "--message <group=text>",
+      "Set a group's commit message (repeatable)",
+      (v: string, acc: string[] = []) => [...acc, v],
+    )
     .option("--no-check", "Skip the check and tests (CI still runs)")
-    .option("--no-push", "Commit, replay and level, but push and deploy nothing")
+    .option(
+      "--no-push",
+      "Commit, replay and level, but push and deploy nothing",
+    )
     .option("--no-deploy", "Push without running [ship.deploy] steps")
     .option("--no-fetch", "Plan against the upstream ref already on disk")
     .option("--json", "Machine-readable output")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Configure it in .codecast/workspace.toml:
 
   [ship]
@@ -205,64 +348,162 @@ same object plus plan_file and ship) holds groups[], each with:
   paths     its files; move one to another group to split or regroup
   ship      false holds it
   note, stat, last_edit   why it is held, its size, its newest edit
-A push that upstream rejected because it moved is replayed and retried on its own.`)
-    .action(async (options: import("./land/shipCheckoutCli.js").CheckoutOptions) => {
-      const { runCheckoutCommand } = await import("./land/shipCheckoutCli.js");
-      try {
-        await runCheckoutCommand(options, (body) => apiPost(deps, "/cli/deploys/ship-pass", body, { exitOnError: false }), undefined, (path, body) => apiPost(deps, path, body, { exitOnError: false }));
-      } catch (err) {
-        console.error(String((err as Error)?.message ?? err));
-        process.exit(1);
-      }
-    });
+A push that upstream rejected because it moved is replayed and retried on its own.`,
+    )
+    .action(
+      async (options: import("./land/shipCheckoutCli.js").CheckoutOptions) => {
+        const { runCheckoutCommand } =
+          await import("./land/shipCheckoutCli.js");
+        try {
+          await runCheckoutCommand(
+            options,
+            (body) =>
+              apiPost(deps, "/cli/deploys/ship-pass", body, {
+                exitOnError: false,
+              }),
+            undefined,
+            (path, body) => apiPost(deps, path, body, { exitOnError: false }),
+          );
+        } catch (err) {
+          console.error(String((err as Error)?.message ?? err));
+          process.exit(1);
+        }
+      },
+    );
 
-  ship.command("mark")
-    .description("Record that a surface just shipped this commit (a deploy marker on the repository's team)")
-    .requiredOption("--surface <name>", "What shipped: backend, web, cli, desktop, or any name your team uses")
+  ship
+    .command("mark")
+    .description(
+      "Record that a surface just shipped this commit (a deploy marker on the repository's team)",
+    )
+    .requiredOption(
+      "--surface <name>",
+      "What shipped: backend, web, cli, desktop, or any name your team uses",
+    )
     .option("--sha <sha>", "The commit that shipped (default: HEAD)")
     .option("--version <version>", "The version it shipped as, when it has one")
-    .option("--repo <owner/name>", "The repository (default: this checkout's GitHub origin)")
-    .option("--team <name|id>", "The team, when more than one of yours works on the repository")
-    .option("--dirty <n>", "Files under the surface's sources that went out uncommitted with the sha")
-    .option("--deploy <dp-N>", "The deploy this finishes: one codecast asked for, whose path now says what went out")
-    .addOption(new Option("--via <path>", "What pushed it (records the machine too)").choices(["deploy.sh", "dev watcher"]))
-    .option("--machine <name>", "The machine it was pushed from (default: this one's hostname, with --via)")
-    .option("--changes <file>", "JSON { adds, drops, read_at }: what the push put on the surface and took off it, by name, and when that was read")
+    .option(
+      "--repo <owner/name>",
+      "The repository (default: this checkout's GitHub origin)",
+    )
+    .option(
+      "--team <name|id>",
+      "The team, when more than one of yours works on the repository",
+    )
+    .option(
+      "--dirty <n>",
+      "Files under the surface's sources that went out uncommitted with the sha",
+    )
+    .option(
+      "--deploy <dp-N>",
+      "The deploy this finishes: one codecast asked for, whose path now says what went out",
+    )
+    .addOption(
+      new Option(
+        "--via <path>",
+        "What pushed it (records the machine too)",
+      ).choices(["deploy.sh", "dev watcher"]),
+    )
+    .option(
+      "--machine <name>",
+      "The machine it was pushed from (default: this one's hostname, with --via)",
+    )
+    .option(
+      "--changes <file>",
+      "JSON { adds, drops, read_at }: what the push put on the surface and took off it, by name, and when that was read",
+    )
     .option("--dry-run", "Print the marker without recording it")
     .option("--json", "Machine-readable output")
     .action(async (options: MarkOptions) => {
-      const body = markBody(options, await (deps.checkout ?? readCheckout)(), readChanges(options.changes));
+      const body = markBody(
+        options,
+        await (deps.checkout ?? readCheckout)(),
+        readChanges(options.changes),
+      );
       const label = `${body.surface}${body.version ? ` ${body.version}` : ""} at ${body.sha.slice(0, 7)} on ${body.repository}`;
       if (options.dryRun) {
-        console.log(options.json ? JSON.stringify({ dry_run: true, ...body }, null, 2) : `Would mark ${label}`);
+        console.log(
+          options.json
+            ? JSON.stringify({ dry_run: true, ...body }, null, 2)
+            : `Would mark ${label}`,
+        );
         return;
       }
       let team_id: string | undefined;
       if (options.team) {
-        const roster = await loadWorkspaceRoster(() => apiPost(deps, "/cli/teams", {}, { read: true }));
+        const roster = await loadWorkspaceRoster(() =>
+          apiPost(deps, "/cli/teams", {}, { read: true }),
+        );
         const hit = matchTeam(roster, options.team);
         if (!hit) throw new Error(unknownTeamMessage(roster, options.team));
         team_id = hit._id;
       }
-      const result = await apiPost(deps, "/cli/changes/mark-deploy", { ...body, ...(team_id ? { team_id } : {}) });
-      console.log(options.json ? JSON.stringify(result, null, 2) : `${c.green}✓${c.reset} Marked ${label}`);
+      const result = await apiPost(deps, "/cli/changes/mark-deploy", {
+        ...body,
+        ...(team_id ? { team_id } : {}),
+      });
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : `${c.green}✓${c.reset} Marked ${label}`,
+      );
     });
 
-  ship.command("added-by")
-    .description("For each name a push would take off a surface, the recorded push that put it there")
+  ship
+    .command("added-by")
+    .description(
+      "For each name a push would take off a surface, the recorded push that put it there",
+    )
     .requiredOption("--surface <name>", "The surface: backend, web, ...")
-    .option("--names <file>", "JSON { drops } or a JSON array of names (default: the names given as arguments)")
-    .option("--repo <owner/name>", "The repository (default: this checkout's GitHub origin)")
+    .option(
+      "--names <file>",
+      "JSON { drops } or a JSON array of names (default: the names given as arguments)",
+    )
+    .option(
+      "--repo <owner/name>",
+      "The repository (default: this checkout's GitHub origin)",
+    )
     .option("--json", "Machine-readable output")
-    .argument("[names...]", "Names such as index:voiceprints.by_user or fn:apiTokens:createToken")
-    .action(async (names: string[], options: { surface: string; names?: string; repo?: string; json?: boolean }) => {
-      const fromFile = options.names ? JSON.parse(readFileSync(options.names, "utf-8")) : null;
-      const asked = [...names, ...(Array.isArray(fromFile) ? fromFile : fromFile?.drops ?? [])].filter((n): n is string => typeof n === "string");
-      const repository = options.repo ?? (await (deps.checkout ?? readCheckout)()).repository;
-      if (!repository) throw new Error("No GitHub repository here: run inside a checkout with a GitHub origin, or pass --repo <owner/name>.");
-      const result = asked.length
-        ? (await apiPost(deps, "/cli/deploys/added-by", { repository, surface: options.surface, names: asked }, { read: true })) as { found: AddedBy[] }
-        : { found: [] };
-      console.log(options.json ? JSON.stringify(result, null, 2) : formatAddedBy(result.found ?? []));
-    });
+    .argument(
+      "[names...]",
+      "Names such as index:voiceprints.by_user or fn:apiTokens:createToken",
+    )
+    .action(
+      async (
+        names: string[],
+        options: {
+          surface: string;
+          names?: string;
+          repo?: string;
+          json?: boolean;
+        },
+      ) => {
+        const fromFile = options.names
+          ? JSON.parse(readFileSync(options.names, "utf-8"))
+          : null;
+        const asked = [
+          ...names,
+          ...(Array.isArray(fromFile) ? fromFile : (fromFile?.drops ?? [])),
+        ].filter((n): n is string => typeof n === "string");
+        const repository =
+          options.repo ?? (await (deps.checkout ?? readCheckout)()).repository;
+        if (!repository)
+          throw new Error(
+            "No GitHub repository here: run inside a checkout with a GitHub origin, or pass --repo <owner/name>.",
+          );
+        const result = asked.length
+          ? ((await apiPost(
+              deps,
+              "/cli/deploys/added-by",
+              { repository, surface: options.surface, names: asked },
+              { read: true },
+            )) as { found: AddedBy[] })
+          : { found: [] };
+        console.log(
+          options.json
+            ? JSON.stringify(result, null, 2)
+            : formatAddedBy(result.found ?? []),
+        );
+      },
+    );
 }

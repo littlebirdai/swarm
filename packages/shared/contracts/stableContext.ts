@@ -71,10 +71,17 @@ export function resolveStableLaunch(
   let mode: StableFeedMode | null;
   if (envMode === "off") mode = null;
   else if (envMode === "team" || envMode === "solo") mode = envMode;
-  else mode = config.stable_mode === "team" || config.stable_mode === "solo" ? config.stable_mode : null;
+  else
+    mode =
+      config.stable_mode === "team" || config.stable_mode === "solo"
+        ? config.stable_mode
+        : null;
 
   const envGlobal = env[STABLE_ENV_GLOBAL];
-  const global = envGlobal != null ? envGlobal === "1" || envGlobal === "true" : !!config.stable_global;
+  const global =
+    envGlobal != null
+      ? envGlobal === "1" || envGlobal === "true"
+      : !!config.stable_global;
 
   const exclude = (env[STABLE_ENV_EXCLUDE] ?? "")
     .split(",")
@@ -87,7 +94,9 @@ export function resolveStableLaunch(
 
 /** Safe parse of conversations.stable_context. Returns null on anything that
  * isn't a well-formed record so renderers can just bail. */
-export function parseStableContext(json: string | null | undefined): StableContextData | null {
+export function parseStableContext(
+  json: string | null | undefined,
+): StableContextData | null {
   if (!json) return null;
   try {
     const parsed = JSON.parse(json);
@@ -96,9 +105,17 @@ export function parseStableContext(json: string | null | undefined): StableConte
     if (!Array.isArray(parsed.items)) return null;
     const items = parsed.items.filter(
       (it: unknown): it is StableContextItem =>
-        !!it && typeof it === "object" && typeof (it as any).id === "string" && typeof (it as any).title === "string",
+        !!it &&
+        typeof it === "object" &&
+        typeof (it as any).id === "string" &&
+        typeof (it as any).title === "string",
     );
-    return { mode: parsed.mode, global: !!parsed.global, injected_at: Number(parsed.injected_at) || 0, items };
+    return {
+      mode: parsed.mode,
+      global: !!parsed.global,
+      injected_at: Number(parsed.injected_at) || 0,
+      items,
+    };
   } catch {
     return null;
   }
@@ -111,6 +128,10 @@ export function isExcludedStableItem(id: string, exclude: string[]): boolean {
   const short = id.slice(0, 7).toLowerCase();
   return exclude.some((e) => {
     const norm = e.toLowerCase();
-    return norm === id.toLowerCase() || norm === short || id.toLowerCase().startsWith(norm);
+    return (
+      norm === id.toLowerCase() ||
+      norm === short ||
+      id.toLowerCase().startsWith(norm)
+    );
   });
 }

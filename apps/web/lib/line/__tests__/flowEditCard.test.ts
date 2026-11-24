@@ -3,19 +3,37 @@
 // example-org/example-app): add lint after PR when landing/**, guide review, skip decide, in that order, so the
 // later fences carry the earlier edits in their graph.
 import { describe, expect, test } from "bun:test";
-import { asGitDiff, editDrawing, editLines, editRun, liveDeploy } from "../flowEditCard";
+import {
+  asGitDiff,
+  editDrawing,
+  editLines,
+  editRun,
+  liveDeploy,
+} from "../flowEditCard";
 import { editFromOutput, readEdit } from "../flowEditFence";
 import { parseCastDiff } from "../../castDiff";
 import { readFlowFence } from "../flowFence";
 import { pipelineCommandRepo } from "../flowCommandOutput";
-import { EDIT_ADD, EDIT_GUIDE, EDIT_SKIP, PIPELINE_TEXT } from "../../renderGalleryPipeline.generated";
+import {
+  EDIT_ADD,
+  EDIT_GUIDE,
+  EDIT_SKIP,
+  PIPELINE_TEXT,
+} from "../../renderGalleryPipeline.generated";
 import type { DiagramStep } from "../flowDiagram";
 
-const allSteps = (steps: DiagramStep[]): DiagramStep[] => steps.flatMap((s) => [s, ...allSteps(s.inner)]);
-const OUT = { add: EDIT_ADD, guide: EDIT_GUIDE, skip: EDIT_SKIP, pipeline: PIPELINE_TEXT } as const;
+const allSteps = (steps: DiagramStep[]): DiagramStep[] =>
+  steps.flatMap((s) => [s, ...allSteps(s.inner)]);
+const OUT = {
+  add: EDIT_ADD,
+  guide: EDIT_GUIDE,
+  skip: EDIT_SKIP,
+  pipeline: PIPELINE_TEXT,
+} as const;
 const out = (name: keyof typeof OUT) => OUT[name].output;
 const made = (name: keyof typeof OUT) => editFromOutput(out(name))!;
-const pathOf = (name: keyof typeof OUT) => editDrawing(made(name).edit)!.diagram.steps.map((s) => s.label);
+const pathOf = (name: keyof typeof OUT) =>
+  editDrawing(made(name).edit)!.diagram.steps.map((s) => s.label);
 
 describe("the edit a `cast flow edit` printed", () => {
   test("reads the fence and the diff printed above it", () => {
@@ -29,7 +47,10 @@ describe("the edit a `cast flow edit` printed", () => {
 
   test("its diff opens as the transcript's diff card, one card per file", () => {
     const files = parseCastDiff(asGitDiff(made("guide").diff!));
-    expect(files.map((f) => f.path)).toEqual([".codecast/flows/change/review.guide.md", ".codecast/flows/change.cast"]);
+    expect(files.map((f) => f.path)).toEqual([
+      ".codecast/flows/change/review.guide.md",
+      ".codecast/flows/change.cast",
+    ]);
     expect(files.map((f) => f.status)).toEqual(["added", "modified"]);
     expect(files[1].additions).toBe(1);
     expect(parseCastDiff(asGitDiff(made("add").diff!))[0].status).toBe("added");
@@ -46,14 +67,18 @@ describe("the edit a `cast flow edit` printed", () => {
     const read = readFlowFence('{"pipeline":"Example-Org/example-app"}');
     expect(read.ok && read.spec.pipeline).toBe("example-org/example-app");
     expect(readFlowFence('{"pipeline":"not a repo"}').ok).toBe(false);
-    expect(pipelineCommandRepo(out("pipeline"), false)).toBe("example-org/example-app");
+    expect(pipelineCommandRepo(out("pipeline"), false)).toBe(
+      "example-org/example-app",
+    );
     expect(pipelineCommandRepo(out("pipeline"), true)).toBeNull();
   });
 });
 
 describe("the edit in words", () => {
   test("a station added with a when reads as one line", () => {
-    expect(editLines(made("add").edit)).toEqual(["+ Lint after PR; a failure goes to Fix findings · runs when landing/**"]);
+    expect(editLines(made("add").edit)).toEqual([
+      "+ Lint after PR; a failure goes to Fix findings · runs when landing/**",
+    ]);
   });
   test("guidance and a skip read by the station's name", () => {
     expect(editLines(made("guide").edit)).toEqual(["~ Review: guidance added"]);
@@ -64,7 +89,15 @@ describe("the edit in words", () => {
 describe("the flow the edit builds", () => {
   test("draws the graph as it validated, the new station marked added with its paths", () => {
     const d = editDrawing(made("add").edit)!;
-    expect(d.diagram.steps.map((s) => s.label)).toEqual(["PR", "Lint", "CI and review", "Verdicts", "Merge", "Merged", "Deploy"]);
+    expect(d.diagram.steps.map((s) => s.label)).toEqual([
+      "PR",
+      "Lint",
+      "CI and review",
+      "Verdicts",
+      "Merge",
+      "Merged",
+      "Deploy",
+    ]);
     expect(d.marks.lint).toMatchObject({ own: "added", when: "landing/**" });
     expect(Object.keys(d.marks)).toEqual(["lint"]);
   });
@@ -73,45 +106,79 @@ describe("the flow the edit builds", () => {
     const d = editDrawing(made("guide").edit)!;
     expect(d.diagram.steps.map((s) => s.label)).toContain("Lint");
     expect(Object.keys(d.marks)).toEqual(["review"]);
-    expect(d.marks.review).toMatchObject({ own: "changed", changed: ["guidance"] });
+    expect(d.marks.review).toMatchObject({
+      own: "changed",
+      changed: ["guidance"],
+    });
   });
 
   test("a skipped station comes back as a ghost where it stood, the person's step it was", () => {
     // Decide stood off the passing path, on the route out of Verdicts for a change that edits CI: its ghost stands there.
     const d = editDrawing(made("skip").edit)!;
-    expect(d.diagram.steps.map((s) => s.label)).toEqual(["PR", "Lint", "CI and review", "Verdicts", "Decide", "Merge", "Merged", "Deploy"]);
+    expect(d.diagram.steps.map((s) => s.label)).toEqual([
+      "PR",
+      "Lint",
+      "CI and review",
+      "Verdicts",
+      "Decide",
+      "Merge",
+      "Merged",
+      "Deploy",
+    ]);
     expect(d.diagram.steps.find((s) => s.id === "decide")?.kind).toBe("person");
-    expect(d.marks.decide).toEqual({ own: null, skipped: true, proposed: "proposed" });
+    expect(d.marks.decide).toEqual({
+      own: null,
+      skipped: true,
+      proposed: "proposed",
+    });
     // Once live, it is no longer a proposal.
-    expect(editDrawing(made("skip").edit, { live: true })!.marks.decide).toEqual({ own: null, skipped: true });
+    expect(
+      editDrawing(made("skip").edit, { live: true })!.marks.decide,
+    ).toEqual({ own: null, skipped: true });
   });
 
   test("an older fence with no graph draws over the backbone with the file's edits laid on", () => {
     const { graph: _g, ...old } = made("skip").edit;
     const base = editDrawing(made("add").edit)!; // any graph will do as a backbone; take the one before Lint
-    const backbone = { nodes: base.flow.nodes.filter((n) => n.id !== "lint"), edges: base.flow.edges.filter((e) => e.from !== "lint" && e.to !== "lint") };
+    const backbone = {
+      nodes: base.flow.nodes.filter((n) => n.id !== "lint"),
+      edges: base.flow.edges.filter(
+        (e) => e.from !== "lint" && e.to !== "lint",
+      ),
+    };
     expect(editDrawing(old)).toBeNull();
     const d = editDrawing(old, { base: backbone })!;
     const labels = d.diagram.steps.map((s) => s.label);
     expect(labels.indexOf("Lint")).toBe(labels.indexOf("PR") + 1);
     expect(d.marks.decide?.skipped).toBe(true);
-    expect(allSteps(d.diagram.steps).filter((s) => s.id === "decide")).toHaveLength(1);
+    expect(
+      allSteps(d.diagram.steps).filter((s) => s.id === "decide"),
+    ).toHaveLength(1);
   });
 
   test("the path the CLI printed is the path drawn, less the ghost", () => {
-    const printed = out("skip").match(/· (PR → .*)$/m)![1].split(" → ");
+    const printed = out("skip")
+      .match(/· (PR → .*)$/m)![1]
+      .split(" → ");
     expect(pathOf("skip").filter((l) => l !== "Decide")).toEqual(printed);
   });
 });
 
 describe("which run carries the edit", () => {
   const edit = made("skip").edit;
-  const run = (id: string, created_at: number, graph_hash?: string) => ({ _id: id, created_at, graph_hash });
+  const run = (id: string, created_at: number, graph_hash?: string) => ({
+    _id: id,
+    created_at,
+    graph_hash,
+  });
   test("none before the session runs its change", () => {
     expect(editRun(edit, [run("old", 100)], 500)).toBeNull();
   });
   test("a run of the graph it built, or one started after it, the newest", () => {
-    expect(editRun(edit, [run("old", 100), run("same", 200, edit.graph_hash)], 500)?._id).toBe("same");
+    expect(
+      editRun(edit, [run("old", 100), run("same", 200, edit.graph_hash)], 500)
+        ?._id,
+    ).toBe("same");
     expect(editRun(edit, [run("a", 600), run("b", 900)], 500)?._id).toBe("b");
     expect(editRun(edit, [run("a", 600)], null)).toBeNull();
   });
@@ -130,8 +197,14 @@ describe("the fence readers stay leaves", () => {
     const path = await import("node:path");
     for (const file of ["../flowFence.ts", "../flowEditFence.ts"]) {
       const src = fs.readFileSync(path.join(import.meta.dir, file), "utf8");
-      const imports = [...src.matchAll(/^import[^;]*from "([^"]+)"/gm)].map((m) => m[1]);
-      expect(imports.filter((i) => /flowEditCard|flowDiagram|pipelineModel|lineModel/.test(i))).toEqual([]);
+      const imports = [...src.matchAll(/^import[^;]*from "([^"]+)"/gm)].map(
+        (m) => m[1],
+      );
+      expect(
+        imports.filter((i) =>
+          /flowEditCard|flowDiagram|pipelineModel|lineModel/.test(i),
+        ),
+      ).toEqual([]);
     }
   });
 });

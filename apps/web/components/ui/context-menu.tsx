@@ -48,30 +48,51 @@ export type ContextMenuState<T> = {
 
 export function useContextMenu<T = void>(): ContextMenuState<T> {
   const [menu, setMenu] = React.useState<MenuAt<T> | null>(null);
-  const open = React.useCallback((e: React.MouseEvent, payload: T, opts?: { force?: boolean }) => {
-    if (e.shiftKey) return;
-    // Stand down where the native menu is the right answer: links (open in
-    // new tab), editable fields (spellcheck, paste), and live text selections
-    // (copy). The app menu takes everything else.
-    const target = e.target as HTMLElement | null;
-    if (!opts?.force) {
-      if (target?.closest?.('a[href], input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return;
-      const sel = typeof window !== "undefined" ? window.getSelection() : null;
-      if (sel && !sel.isCollapsed && target && sel.containsNode?.(target, true)) return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    setMenu({ x: e.clientX, y: e.clientY, payload });
-  }, []);
+  const open = React.useCallback(
+    (e: React.MouseEvent, payload: T, opts?: { force?: boolean }) => {
+      if (e.shiftKey) return;
+      // Stand down where the native menu is the right answer: links (open in
+      // new tab), editable fields (spellcheck, paste), and live text selections
+      // (copy). The app menu takes everything else.
+      const target = e.target as HTMLElement | null;
+      if (!opts?.force) {
+        if (
+          target?.closest?.(
+            'a[href], input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]',
+          )
+        )
+          return;
+        const sel =
+          typeof window !== "undefined" ? window.getSelection() : null;
+        if (
+          sel &&
+          !sel.isCollapsed &&
+          target &&
+          sel.containsNode?.(target, true)
+        )
+          return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu({ x: e.clientX, y: e.clientY, payload });
+    },
+    [],
+  );
   // Hand off from one floating panel to another at the same point: a menu item
   // that opens a picker closes the menu and reopens here, under the cursor
   // where the user's attention already is.
-  const openAt = React.useCallback((x: number, y: number, payload: T) => setMenu({ x, y, payload }), []);
+  const openAt = React.useCallback(
+    (x: number, y: number, payload: T) => setMenu({ x, y, payload }),
+    [],
+  );
   const close = React.useCallback(() => setMenu(null), []);
   // Stable identity while the menu is closed. Callers pass this object (or a
   // callback depending on it) down to every row of a list; a fresh object per
   // render would defeat the rows' memo on every parent render.
-  return React.useMemo(() => ({ menu, open, openAt, close }), [menu, open, openAt, close]);
+  return React.useMemo(
+    () => ({ menu, open, openAt, close }),
+    [menu, open, openAt, close],
+  );
 }
 
 const SURFACE = cn(
@@ -101,10 +122,22 @@ export function ContextMenu<T>({
       <DropdownMenuTrigger asChild>
         <span
           aria-hidden
-          style={{ position: "fixed", left: menu.x, top: menu.y, width: 1, height: 1, pointerEvents: "none" }}
+          style={{
+            position: "fixed",
+            left: menu.x,
+            top: menu.y,
+            width: 1,
+            height: 1,
+            pointerEvents: "none",
+          }}
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" sideOffset={2} collisionPadding={8} className={SURFACE}>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={2}
+        collisionPadding={8}
+        className={SURFACE}
+      >
         {children(menu.payload)}
       </DropdownMenuContent>
     </DropdownMenu>,
@@ -136,7 +169,14 @@ export function CursorPopover<T>({
       <PopoverAnchor asChild>
         <span
           aria-hidden
-          style={{ position: "fixed", left: menu.x, top: menu.y, width: 1, height: 1, pointerEvents: "none" }}
+          style={{
+            position: "fixed",
+            left: menu.x,
+            top: menu.y,
+            width: 1,
+            height: 1,
+            pointerEvents: "none",
+          }}
         />
       </PopoverAnchor>
       <PopoverContent
@@ -163,7 +203,9 @@ const ITEM = cn(
   "text-sol-text-secondary focus:bg-sol-cyan/10 focus:text-sol-text",
 );
 
-const DANGER = cn("text-sol-red/90 focus:bg-sol-red/10 focus:text-sol-red modern:focus:bg-sol-red/10 modern:data-[highlighted]:bg-sol-red/10");
+const DANGER = cn(
+  "text-sol-red/90 focus:bg-sol-red/10 focus:text-sol-red modern:focus:bg-sol-red/10 modern:data-[highlighted]:bg-sol-red/10",
+);
 
 function ShortcutHint({ action }: { action: ShortcutAction }) {
   const parts = useShortcutParts(action);
@@ -171,7 +213,9 @@ function ShortcutHint({ action }: { action: ShortcutAction }) {
   return (
     <span className="ml-auto pl-4 flex items-center gap-[3px]">
       {parts.map((part, i) => (
-        <KeyCap key={i} size="xs">{part}</KeyCap>
+        <KeyCap key={i} size="xs">
+          {part}
+        </KeyCap>
       ))}
     </span>
   );
@@ -204,12 +248,18 @@ export function CtxItem({
 }) {
   const iconHasColor = !!iconClassName && iconClassName.includes("text-");
   return (
-    <DropdownMenuItem className={cn(ITEM, danger && DANGER, className)} {...props}>
+    <DropdownMenuItem
+      className={cn(ITEM, danger && DANGER, className)}
+      {...props}
+    >
       {Icon && (
         <Icon
           className={cn(
             "size-3.5 shrink-0",
-            !iconHasColor && (danger ? "text-sol-red/70 group-focus:text-sol-red" : "text-sol-text-dim group-focus:text-sol-cyan"),
+            !iconHasColor &&
+              (danger
+                ? "text-sol-red/70 group-focus:text-sol-red"
+                : "text-sol-text-dim group-focus:text-sol-cyan"),
             iconClassName,
           )}
         />
@@ -217,7 +267,9 @@ export function CtxItem({
       {leading}
       <span className="truncate">{children}</span>
       {shortcut ? <ShortcutHint action={shortcut} /> : null}
-      {trailing ? <span className="ml-auto pl-4 flex items-center">{trailing}</span> : null}
+      {trailing ? (
+        <span className="ml-auto pl-4 flex items-center">{trailing}</span>
+      ) : null}
     </DropdownMenuItem>
   );
 }
@@ -247,10 +299,18 @@ export function CtxLabel({ children }: { children: React.ReactNode }) {
 }
 
 /** Identity header for menus that name their object (title + mono short id). */
-export function CtxHeader({ title, id }: { title: React.ReactNode; id?: string }) {
+export function CtxHeader({
+  title,
+  id,
+}: {
+  title: React.ReactNode;
+  id?: string;
+}) {
   return (
     <div className="px-2.5 pt-2 pb-1.5 flex items-baseline gap-2 select-none border-b border-[color-mix(in_srgb,var(--sol-border)_28%,transparent)] mb-1 modern:-mx-1 modern:px-3 modern:border-sol-border/70">
-      <span className="text-[12px] font-medium text-sol-text truncate modern:text-ui">{title}</span>
+      <span className="text-[12px] font-medium text-sol-text truncate modern:text-ui">
+        {title}
+      </span>
       <ShortId id={id} className="ml-auto text-meta text-sol-text-dim" />
     </div>
   );
@@ -274,7 +334,11 @@ export function CtxSubTrigger({
 }) {
   return (
     <DropdownMenuSubTrigger
-      className={cn(ITEM, "data-[state=open]:bg-sol-cyan/10 data-[state=open]:text-sol-text", className)}
+      className={cn(
+        ITEM,
+        "data-[state=open]:bg-sol-cyan/10 data-[state=open]:text-sol-text",
+        className,
+      )}
       {...props}
     >
       {Icon && (
@@ -300,7 +364,11 @@ export function CtxSubContent({
       <DropdownMenuSubContent
         sideOffset={4}
         collisionPadding={8}
-        className={cn(SURFACE, "max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto", className)}
+        className={cn(
+          SURFACE,
+          "max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto",
+          className,
+        )}
         {...props}
       />
     </DropdownMenuPortal>

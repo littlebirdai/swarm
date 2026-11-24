@@ -29,7 +29,11 @@ function statusFile(sessionId: unknown): string {
 function runHookRaw(payload: Record<string, unknown>): void {
   execFileSync("bash", [hookFile], {
     input: JSON.stringify(payload),
-    env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+    env: {
+      ...process.env,
+      HOME: home,
+      CODECAST_DIR: path.join(home, ".codecast"),
+    },
   });
 }
 
@@ -83,16 +87,36 @@ describe("codecast-status hook event mapping", () => {
   // agent_id. A background workflow's workers kept flipping a lead that had
   // ended its turn from waiting back to working, for hours.
   test("a subagent's tool use reports nothing; its permission prompt still blocks", () => {
-    const sub = { session_id: "sub-1", agent_id: "a23ece06753e47e16", agent_type: "general-purpose" };
-    expect(reported({ ...sub, hook_event_name: "PreToolUse", tool_name: "Bash" })).toBe(false);
-    expect(reported({ ...sub, hook_event_name: "SessionStart", source: "compact" })).toBe(false);
+    const sub = {
+      session_id: "sub-1",
+      agent_id: "a23ece06753e47e16",
+      agent_type: "general-purpose",
+    };
+    expect(
+      reported({ ...sub, hook_event_name: "PreToolUse", tool_name: "Bash" }),
+    ).toBe(false);
+    expect(
+      reported({ ...sub, hook_event_name: "SessionStart", source: "compact" }),
+    ).toBe(false);
     expect(reported({ ...sub, hook_event_name: "PreCompact" })).toBe(false);
-    expect(runHook({ ...sub, hook_event_name: "PermissionRequest", tool_name: "Edit", file_path: "/tmp/x" }).status).toBe("permission_blocked");
+    expect(
+      runHook({
+        ...sub,
+        hook_event_name: "PermissionRequest",
+        tool_name: "Edit",
+        file_path: "/tmp/x",
+      }).status,
+    ).toBe("permission_blocked");
   });
 
   test("Stop -> idle and UserPromptSubmit -> thinking are unchanged", () => {
-    expect(runHook({ session_id: "stop-1", hook_event_name: "Stop" }).status).toBe("idle");
-    expect(runHook({ session_id: "ups-1", hook_event_name: "UserPromptSubmit" }).status).toBe("thinking");
+    expect(
+      runHook({ session_id: "stop-1", hook_event_name: "Stop" }).status,
+    ).toBe("idle");
+    expect(
+      runHook({ session_id: "ups-1", hook_event_name: "UserPromptSubmit" })
+        .status,
+    ).toBe("thinking");
   });
 
   // ct-49533. A Stop is the one event that names the end of a lead turn. The
@@ -111,19 +135,37 @@ describe("codecast-status hook event mapping", () => {
     // A date that answers a later second on every call: two reads would differ.
     const bin = path.join(home, "ticking-bin");
     fs.mkdirSync(bin, { recursive: true });
-    fs.writeFileSync(path.join(bin, "date"), `#!/bin/bash\nn=$(cat "${bin}/n" 2>/dev/null || echo 1000)\necho $((n + 1)) > "${bin}/n"\necho "$n"\n`, { mode: 0o755 });
+    fs.writeFileSync(
+      path.join(bin, "date"),
+      `#!/bin/bash\nn=$(cat "${bin}/n" 2>/dev/null || echo 1000)\necho $((n + 1)) > "${bin}/n"\necho "$n"\n`,
+      { mode: 0o755 },
+    );
     execFileSync("bash", [hookFile], {
-      input: JSON.stringify({ session_id: "stop-tick", hook_event_name: "Stop" }),
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+      input: JSON.stringify({
+        session_id: "stop-tick",
+        hook_event_name: "Stop",
+      }),
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+      },
     });
-    const out: HookRecord = JSON.parse(fs.readFileSync(statusFile("stop-tick"), "utf-8"));
+    const out: HookRecord = JSON.parse(
+      fs.readFileSync(statusFile("stop-tick"), "utf-8"),
+    );
     expect(Number(out.turn_completed_at)).toBe(out.ts);
   });
 
   // ct-59925. The settle reads the transcript the Stop hook was handed for open
   // background work, never the daemon's index, which can miss a fresh session.
   test("Stop forwards transcript_path", () => {
-    const out = runHook({ session_id: "stop-path", hook_event_name: "Stop", transcript_path: "/tmp/stop-path.jsonl" });
+    const out = runHook({
+      session_id: "stop-path",
+      hook_event_name: "Stop",
+      transcript_path: "/tmp/stop-path.jsonl",
+    });
     expect(out.status).toBe("idle");
     expect(out.transcript_path).toBe("/tmp/stop-path.jsonl");
   });
@@ -133,7 +175,11 @@ describe("codecast-status hook event mapping", () => {
   // the vacuum with a verdict for a turn that never happened.
   for (const source of ["startup", "resume", "clear"]) {
     test(`SessionStart source=${source} settles the row as a session boundary`, () => {
-      const out = runHook({ session_id: `start-${source}`, hook_event_name: "SessionStart", source });
+      const out = runHook({
+        session_id: `start-${source}`,
+        hook_event_name: "SessionStart",
+        source,
+      });
       expect(out.status).toBe("idle");
       expect(out.session_boundary).toBe("1");
       // No turn ended, so there is nothing to stamp.
@@ -143,23 +189,43 @@ describe("codecast-status hook event mapping", () => {
 
   test("SessionStart source=compact still reports working", () => {
     // An auto-compact runs INSIDE a turn that then resumes.
-    const out = runHook({ session_id: "start-compact", hook_event_name: "SessionStart", source: "compact" });
+    const out = runHook({
+      session_id: "start-compact",
+      hook_event_name: "SessionStart",
+      source: "compact",
+    });
     expect(out.status).toBe("working");
     expect(out.session_boundary).toBeUndefined();
   });
 
   test("SessionStart with an unknown source reports nothing", () => {
-    expect(reported({ session_id: "start-unknown", hook_event_name: "SessionStart", source: "vscode" })).toBe(false);
+    expect(
+      reported({
+        session_id: "start-unknown",
+        hook_event_name: "SessionStart",
+        source: "vscode",
+      }),
+    ).toBe(false);
   });
 
   // A manual /compact ends at an idle prompt and emits no Stop, so PostCompact
   // is the pane's only clearing signal. An auto compact resumes its turn and
   // emits its own Stop, so it must claim nothing.
   test("PostCompact trigger=manual is a boundary; auto reports nothing", () => {
-    const out = runHook({ session_id: "postcompact-manual", hook_event_name: "PostCompact", trigger: "manual" });
+    const out = runHook({
+      session_id: "postcompact-manual",
+      hook_event_name: "PostCompact",
+      trigger: "manual",
+    });
     expect(out.status).toBe("idle");
     expect(out.session_boundary).toBe("1");
-    expect(reported({ session_id: "postcompact-auto", hook_event_name: "PostCompact", trigger: "auto" })).toBe(false);
+    expect(
+      reported({
+        session_id: "postcompact-auto",
+        hook_event_name: "PostCompact",
+        trigger: "auto",
+      }),
+    ).toBe(false);
   });
 
   // CC >= 2.1.x fires a first-class PermissionRequest event with the real tool
@@ -170,7 +236,11 @@ describe("codecast-status hook event mapping", () => {
       session_id: "perm-edit",
       hook_event_name: "PermissionRequest",
       tool_name: "Edit",
-      tool_input: { file_path: "/tmp/notes.txt", old_string: "a", new_string: "b" },
+      tool_input: {
+        file_path: "/tmp/notes.txt",
+        old_string: "a",
+        new_string: "b",
+      },
       permission_mode: "default",
     });
     expect(out.status).toBe("permission_blocked");
@@ -200,8 +270,17 @@ describe("codecast-status hook event mapping", () => {
       tool_input: { command: "python3 - <<'EOF'\nprint(1)\nEOF" },
       permission_mode: "bypassPermissions",
     };
-    const out = execFileSync("bash", [hookFile], { input: JSON.stringify(payload), env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast") } }).toString();
-    expect(JSON.parse(out).hookSpecificOutput.decision).toEqual({ behavior: "allow" });
+    const out = execFileSync("bash", [hookFile], {
+      input: JSON.stringify(payload),
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+      },
+    }).toString();
+    expect(JSON.parse(out).hookSpecificOutput.decision).toEqual({
+      behavior: "allow",
+    });
     expect(fs.existsSync(statusFile("perm-bypass"))).toBe(false);
   });
 
@@ -269,19 +348,23 @@ describe("codecast-status hook AskUserQuestion sidecar", () => {
     return JSON.parse(fs.readFileSync(p, "utf-8"));
   }
   function sidecarExists(sessionId: string): boolean {
-    return fs.existsSync(path.join(home, ".codecast", "ask-input", `${sessionId}.json`));
+    return fs.existsSync(
+      path.join(home, ".codecast", "ask-input", `${sessionId}.json`),
+    );
   }
 
   test("PreToolUse AskUserQuestion writes the full tool_input questions", () => {
-    const questions = [{
-      question: "Where should the button live?",
-      header: "Scope",
-      options: [
-        { label: "Global", description: "every route" },
-        { label: "Sessions page", description: "all filters" },
-      ],
-      multiSelect: false,
-    }];
+    const questions = [
+      {
+        question: "Where should the button live?",
+        header: "Scope",
+        options: [
+          { label: "Global", description: "every route" },
+          { label: "Sessions page", description: "all filters" },
+        ],
+        multiSelect: false,
+      },
+    ];
     runHook({
       session_id: "sidecar-auq",
       hook_event_name: "PreToolUse",
@@ -290,7 +373,7 @@ describe("codecast-status hook AskUserQuestion sidecar", () => {
       permission_mode: "bypassPermissions",
     });
     const sc = readSidecar("sidecar-auq");
-    expect(sc.questions).toEqual(questions);          // descriptions + header + multiSelect intact
+    expect(sc.questions).toEqual(questions); // descriptions + header + multiSelect intact
     expect(typeof sc.ts).toBe("number");
   }, 15_000);
 
@@ -299,13 +382,20 @@ describe("codecast-status hook AskUserQuestion sidecar", () => {
       session_id: "sidecar-perm",
       hook_event_name: "PermissionRequest",
       tool_name: "AskUserQuestion",
-      tool_input: { questions: [{ question: "Which?", options: [{ label: "A" }] }] },
+      tool_input: {
+        questions: [{ question: "Which?", options: [{ label: "A" }] }],
+      },
     });
     expect(readSidecar("sidecar-perm").questions[0].question).toBe("Which?");
   }, 15_000);
 
   test("ordinary tools never write a sidecar", () => {
-    runHook({ session_id: "sidecar-bash", hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" } });
+    runHook({
+      session_id: "sidecar-bash",
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_input: { command: "ls" },
+    });
     expect(sidecarExists("sidecar-bash")).toBe(false);
   });
 });
@@ -320,25 +410,37 @@ describe("codecast-status hook rejects a traversing session id", () => {
   function run(sessionId: string): number {
     const res = Bun.spawnSync({
       cmd: ["bash", script],
-      stdin: Buffer.from(JSON.stringify({
-        session_id: sessionId,
-        hook_event_name: "PreToolUse",
-        tool_name: "AskUserQuestion",
-        tool_input: { questions: [{ question: "Which?", options: [{ label: "A" }] }] },
-      })),
-      env: { ...process.env, HOME: scratch, CODECAST_DIR: path.join(scratch, ".codecast") },
+      stdin: Buffer.from(
+        JSON.stringify({
+          session_id: sessionId,
+          hook_event_name: "PreToolUse",
+          tool_name: "AskUserQuestion",
+          tool_input: {
+            questions: [{ question: "Which?", options: [{ label: "A" }] }],
+          },
+        }),
+      ),
+      env: {
+        ...process.env,
+        HOME: scratch,
+        CODECAST_DIR: path.join(scratch, ".codecast"),
+      },
     });
     return res.exitCode ?? -1;
   }
 
   beforeAll(() => {
-    scratch = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-hook-traversal-"));
+    scratch = fs.mkdtempSync(
+      path.join(os.tmpdir(), "codecast-hook-traversal-"),
+    );
     script = path.join(scratch, "codecast-status.sh");
     fs.writeFileSync(script, CODECAST_STATUS_HOOK, { mode: 0o755 });
     // An EXISTING directory outside ~/.codecast — os.replace onto a missing
     // directory would fail on its own, which would hide the hole.
     fs.mkdirSync(path.join(scratch, "target"), { recursive: true });
-    fs.mkdirSync(path.join(scratch, ".codecast", "ask-input"), { recursive: true });
+    fs.mkdirSync(path.join(scratch, ".codecast", "ask-input"), {
+      recursive: true,
+    });
   });
 
   afterAll(() => {
@@ -349,20 +451,29 @@ describe("codecast-status hook rejects a traversing session id", () => {
     // Claude Code discards a hook that fails, so the exit status must stay 0.
     expect(run("../../target/evil")).toBe(0);
     expect(fs.readdirSync(path.join(scratch, "target"))).toEqual([]);
-    expect(fs.readdirSync(path.join(scratch, ".codecast", "ask-input"))).toEqual([]);
+    expect(
+      fs.readdirSync(path.join(scratch, ".codecast", "ask-input")),
+    ).toEqual([]);
   });
 
   test("a leading dot, a separator and an over-long id are all refused", () => {
     for (const id of [".hidden", "a/b", "..", "x".repeat(129)]) {
       expect(run(id), id).toBe(0);
     }
-    expect(fs.readdirSync(path.join(scratch, ".codecast", "ask-input"))).toEqual([]);
+    expect(
+      fs.readdirSync(path.join(scratch, ".codecast", "ask-input")),
+    ).toEqual([]);
   });
 
   test("a uuid-shaped id still gets its sidecar", () => {
     const id = "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9";
     expect(run(id)).toBe(0);
-    const sc = JSON.parse(fs.readFileSync(path.join(scratch, ".codecast", "ask-input", `${id}.json`), "utf-8"));
+    const sc = JSON.parse(
+      fs.readFileSync(
+        path.join(scratch, ".codecast", "ask-input", `${id}.json`),
+        "utf-8",
+      ),
+    );
     expect(sc.questions[0].question).toBe("Which?");
   });
 
@@ -383,14 +494,22 @@ describe("codecast-status hook rejects a traversing session id", () => {
   // graph.
   test("shell and daemon spell the id rule the same way", () => {
     const CLASS = "[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}";
-    expect(CODECAST_STATUS_HOOK).toContain('""|[!A-Za-z0-9_-]*|*[!A-Za-z0-9._-]*) exit 0 ;;');
-    expect(CODECAST_STATUS_HOOK).toContain("[ ${#SESSION_ID} -le 128 ] || exit 0");
+    expect(CODECAST_STATUS_HOOK).toContain(
+      '""|[!A-Za-z0-9_-]*|*[!A-Za-z0-9._-]*) exit 0 ;;',
+    );
+    expect(CODECAST_STATUS_HOOK).toContain(
+      "[ ${#SESSION_ID} -le 128 ] || exit 0",
+    );
     // ct-49531 moves the const from daemon.ts into statusSpool.ts; accept either home.
     const homes = ["daemon.ts", "statusSpool.ts"]
-      .map(f => path.join(import.meta.dir, f))
-      .filter(p => fs.existsSync(p))
-      .map(p => fs.readFileSync(p, "utf-8"));
-    expect(homes.some(src => src.includes(`SAFE_STATUS_SESSION_ID = /^${CLASS}$/`))).toBe(true);
+      .map((f) => path.join(import.meta.dir, f))
+      .filter((p) => fs.existsSync(p))
+      .map((p) => fs.readFileSync(p, "utf-8"));
+    expect(
+      homes.some((src) =>
+        src.includes(`SAFE_STATUS_SESSION_ID = /^${CLASS}$/`),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -398,7 +517,11 @@ describe("UserPromptSubmit stays off python3", () => {
   test("a poisoned PATH python3 still reports thinking, and a fat prompt does not stall", () => {
     const bin = path.join(home, "bin");
     fs.mkdirSync(bin, { recursive: true });
-    fs.writeFileSync(path.join(bin, "python3"), "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n", { mode: 0o755 });
+    fs.writeFileSync(
+      path.join(bin, "python3"),
+      "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n",
+      { mode: 0o755 },
+    );
     const t0 = Date.now();
     execFileSync("bash", [hookFile], {
       input: JSON.stringify({
@@ -406,10 +529,18 @@ describe("UserPromptSubmit stays off python3", () => {
         hook_event_name: "UserPromptSubmit",
         prompt: "x".repeat(80_000),
       }),
-      env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast"), PATH: `${bin}:${process.env.PATH}` },
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+        PATH: `${bin}:${process.env.PATH}`,
+      },
     });
     expect(Date.now() - t0).toBeLessThan(3000);
-    expect(runHook({ session_id: "ups-nopy2", hook_event_name: "UserPromptSubmit" }).status).toBe("thinking");
+    expect(
+      runHook({ session_id: "ups-nopy2", hook_event_name: "UserPromptSubmit" })
+        .status,
+    ).toBe("thinking");
     const out = JSON.parse(fs.readFileSync(statusFile("ups-nopy"), "utf-8"));
     expect(out.status).toBe("thinking");
   });
@@ -431,7 +562,15 @@ describe("a Claude SDK session", () => {
   // Its host reports status and answers permission prompts itself (claudeSdk/backend.ts).
   test("the hook stands down and records nothing", () => {
     const payload = { hook_event_name: "Stop", session_id: "sdk-session-0001" };
-    execFileSync("bash", [hookFile], { input: JSON.stringify(payload), env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast"), CODECAST_SDK_SESSION: "1" } });
+    execFileSync("bash", [hookFile], {
+      input: JSON.stringify(payload),
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+        CODECAST_SDK_SESSION: "1",
+      },
+    });
     expect(fs.existsSync(statusFile(payload.session_id))).toBe(false);
     expect(reported(payload)).toBe(true);
   });

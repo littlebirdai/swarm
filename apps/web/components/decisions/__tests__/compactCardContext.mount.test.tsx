@@ -9,24 +9,52 @@ import { replaceGlobals } from "../../../test-helpers/globals";
 // asker's context inline, clipped, with the way to open it. Collapsed it is
 // stripped text rather than parsed markdown, so a queue of ten cards parses
 // nothing nobody opened.
-mock.module("next/link", () => ({ default: ({ children, href, ...rest }: any) => <a href={typeof href === "string" ? href : "#"} {...rest}>{children}</a> }));
-mock.module("../../../lib/convexUrl", () => ({ CONVEX_URL: "https://convex.test", getConvexUrl: () => "https://convex.test" }));
-mock.module("../../../hooks/useQueryNoThrow", () => ({ useQueryNoThrow: () => ({ data: undefined, error: null }) }));
+mock.module("next/link", () => ({
+  default: ({ children, href, ...rest }: any) => (
+    <a href={typeof href === "string" ? href : "#"} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+mock.module("../../../lib/convexUrl", () => ({
+  CONVEX_URL: "https://convex.test",
+  getConvexUrl: () => "https://convex.test",
+}));
+mock.module("../../../hooks/useQueryNoThrow", () => ({
+  useQueryNoThrow: () => ({ data: undefined, error: null }),
+}));
 // Spread the real module: bun shares this mock with every later file in a run.
 const realWorkflows = await import("../../../hooks/useSyncWorkflows");
-mock.module("../../../hooks/useSyncWorkflows", () => ({ ...realWorkflows, useSyncWorkflowRun: () => ({ ready: true }) }));
-mock.module("../../../hooks/useJumpToDecisionAsk", () => ({ useJumpToDecisionAsk: () => async () => true, locateDecisionAsk: async () => null }));
+mock.module("../../../hooks/useSyncWorkflows", () => ({
+  ...realWorkflows,
+  useSyncWorkflowRun: () => ({ ready: true }),
+}));
+mock.module("../../../hooks/useJumpToDecisionAsk", () => ({
+  useJumpToDecisionAsk: () => async () => true,
+  locateDecisionAsk: async () => null,
+}));
 const markdownRenders: string[] = [];
 // Wraps the real renderer rather than replacing it: bun shares this mock with every later file in a run, and those read real markdown.
-const RealMarkdown = (await import("../../tools/MarkdownRenderer")).MarkdownRenderer;
+const RealMarkdown = (await import("../../tools/MarkdownRenderer"))
+  .MarkdownRenderer;
 mock.module("../../tools/MarkdownRenderer", () => ({
-  MarkdownRenderer: (props: any) => { markdownRenders.push(props.content); return <div data-md><RealMarkdown {...props} /></div>; },
+  MarkdownRenderer: (props: any) => {
+    markdownRenders.push(props.content);
+    return (
+      <div data-md>
+        <RealMarkdown {...props} />
+      </div>
+    );
+  },
 }));
 
 import { DecisionCompactCard } from "../DecisionCompactCard";
 
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/questions" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/questions",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -34,17 +62,25 @@ const restoreGlobals = replaceGlobals({
   HTMLElement: dom.window.HTMLElement,
   localStorage: dom.window.localStorage,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0) as unknown as number,
   cancelAnimationFrame: (id: number) => clearTimeout(id),
   // The real canvas fence measures itself.
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const decision: any = {
   _id: "d1",
@@ -52,10 +88,17 @@ const decision: any = {
   conversation_id: "c1",
   session_id: "s1",
   question: "Ship the address keyed bounce guard and run the backfill?",
-  context_md: "## What happened\n\nA contact gave us a **new** address on a call.\n\nThe bounce on the old one still blocks them.",
+  context_md:
+    "## What happened\n\nA contact gave us a **new** address on a call.\n\nThe bounce on the old one still blocks them.",
   options: [
-    { label: "Ship it and run the backfill", description: "clears the stale flag on 110 contacts" },
-    { label: "Ship it, hold the backfill", description: "the code path is fixed from now on" },
+    {
+      label: "Ship it and run the backfill",
+      description: "clears the stale flag on 110 contacts",
+    },
+    {
+      label: "Ship it, hold the backfill",
+      description: "the code path is fixed from now on",
+    },
   ],
   blocking: true,
   status: "pending",
@@ -74,11 +117,15 @@ async function mount(ui: React.ReactNode) {
 
 test("the context renders inline, as stripped text while collapsed", async () => {
   markdownRenders.length = 0;
-  const { container, unmount } = await mount(<DecisionCompactCard decision={decision} />);
+  const { container, unmount } = await mount(
+    <DecisionCompactCard decision={decision} />,
+  );
   const body = container.querySelector("[data-decision-context]")!;
   expect(body).not.toBeNull();
   // The reasoning is on the card, not only on the document page.
-  expect(body.textContent).toContain("A contact gave us a new address on a call");
+  expect(body.textContent).toContain(
+    "A contact gave us a new address on a call",
+  );
   // Collapsed: the heading marks and the bold marks are gone, and the
   // markdown renderer never ran.
   expect(body.textContent).not.toContain("##");
@@ -89,24 +136,35 @@ test("the context renders inline, as stripped text while collapsed", async () =>
 
 test("a context holding a canvas renders it while collapsed, never its raw HTML as text", async () => {
   markdownRenders.length = 0;
-  const context_md = "```cast-canvas\n<div data-canvas-title=\"Options\"><b>A</b> vs <b>B</b></div>\n```\n\nWhy it matters.";
-  const { container, unmount } = await mount(<DecisionCompactCard decision={{ ...decision, context_md }} />);
+  const context_md =
+    '```cast-canvas\n<div data-canvas-title="Options"><b>A</b> vs <b>B</b></div>\n```\n\nWhy it matters.';
+  const { container, unmount } = await mount(
+    <DecisionCompactCard decision={{ ...decision, context_md }} />,
+  );
   expect(markdownRenders).toEqual([context_md]);
-  expect(container.querySelector("[data-decision-context] [data-md]")).not.toBeNull();
+  expect(
+    container.querySelector("[data-decision-context] [data-md]"),
+  ).not.toBeNull();
   unmount();
 });
 
 test("the question is set in the document page's serif, and a blocking card is the call to action", async () => {
-  const { container, unmount } = await mount(<DecisionCompactCard decision={decision} cta />);
+  const { container, unmount } = await mount(
+    <DecisionCompactCard decision={decision} cta />,
+  );
   const card = container.querySelector("[data-decision-card]")!;
   expect(card.classList.contains("decision-card")).toBe(true);
   expect(card.getAttribute("data-cta")).toBe("true");
-  expect(container.querySelector(".decision-question")!.textContent).toContain("bounce guard");
+  expect(container.querySelector(".decision-question")!.textContent).toContain(
+    "bounce guard",
+  );
   unmount();
 });
 
 test("a card with no context renders no body at all", async () => {
-  const { container, unmount } = await mount(<DecisionCompactCard decision={{ ...decision, context_md: undefined }} />);
+  const { container, unmount } = await mount(
+    <DecisionCompactCard decision={{ ...decision, context_md: undefined }} />,
+  );
   expect(container.querySelector("[data-decision-context]")).toBeNull();
   unmount();
 });
@@ -118,12 +176,33 @@ test("a decision asked of somebody else names them, and an answer here lands on 
   useInboxStore.setState({
     currentUser: { _id: "me" } as any,
     sessionDecisions: {},
-    decisionDetails: { "d-other": { _id: "d-other", decision: other, doc: null, task: null, stack: null, ladder: [], asked_users: [{ _id: "cam", name: "Cam" }], holder_role: null, grant_offer: null, grant: null } } as any,
+    decisionDetails: {
+      "d-other": {
+        _id: "d-other",
+        decision: other,
+        doc: null,
+        task: null,
+        stack: null,
+        ladder: [],
+        asked_users: [{ _id: "cam", name: "Cam" }],
+        holder_role: null,
+        grant_offer: null,
+        grant: null,
+      },
+    } as any,
   });
-  const { container, unmount } = await mount(<DecisionCompactCard decision={other} askedOf="Cam" />);
-  expect(container.querySelector("[data-decision-asked-of]")!.textContent).toBe("for Cam");
-  const first = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Ship it and run the backfill"))!;
-  await act(() => first.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+  const { container, unmount } = await mount(
+    <DecisionCompactCard decision={other} askedOf="Cam" />,
+  );
+  expect(container.querySelector("[data-decision-asked-of]")!.textContent).toBe(
+    "for Cam",
+  );
+  const first = Array.from(container.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Ship it and run the backfill"),
+  )!;
+  await act(() =>
+    first.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+  );
   const row = useInboxStore.getState().sessionDecisions["d-other"];
   expect(row?.status).toBe("answered");
   expect(row?.answer_index).toBe(0);
@@ -131,7 +210,12 @@ test("a decision asked of somebody else names them, and an answer here lands on 
 });
 
 test("the card's serif question and the call to action tint are defined in the stylesheet", () => {
-  const css = readFileSync(join(import.meta.dir, "..", "decisions.css"), "utf8");
-  expect(css).toMatch(/\.decision-card \.decision-question\s*\{[^}]*font-family:\s*var\(--font-serif\)/);
+  const css = readFileSync(
+    join(import.meta.dir, "..", "decisions.css"),
+    "utf8",
+  );
+  expect(css).toMatch(
+    /\.decision-card \.decision-question\s*\{[^}]*font-family:\s*var\(--font-serif\)/,
+  );
   expect(css).toMatch(/\.decision-card\[data-cta="true"\]/);
 });

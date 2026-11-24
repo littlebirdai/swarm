@@ -10,7 +10,13 @@ import { indexHookClaims } from "./daemon.js";
 // longer than the pass's own TTL, so deliveries waited on it (2026-09-15).
 const DAY = 24 * 60 * 60 * 1000;
 
-function write(dir: string, name: string, body: unknown, ageMs: number, now: number): string {
+function write(
+  dir: string,
+  name: string,
+  body: unknown,
+  ageMs: number,
+  now: number,
+): string {
   const full = path.join(dir, name);
   fs.writeFileSync(full, JSON.stringify(body));
   const t = new Date(now - ageMs);
@@ -22,17 +28,31 @@ describe("indexHookClaims", () => {
   test("prunes week-old files, skips stale and daemon-written ones, indexes hook claims by pid", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-registry-"));
     const now = Date.now();
-    const dead = write(dir, "dead.json", { pid: 1, term: "iTerm", ts: 1 }, 8 * DAY, now);
+    const dead = write(
+      dir,
+      "dead.json",
+      { pid: 1, term: "iTerm", ts: 1 },
+      8 * DAY,
+      now,
+    );
     write(dir, "stale.json", { pid: 2, term: "iTerm", ts: 2 }, 3 * DAY, now);
     write(dir, "daemon.json", { pid: 3, ts: 3, src: "daemon" }, 0, now);
-    write(dir, "live.json", { pid: 4, term: "iTerm", ts: 4, launch_token: "tok" }, 0, now);
+    write(
+      dir,
+      "live.json",
+      { pid: 4, term: "iTerm", ts: 4, launch_token: "tok" },
+      0,
+      now,
+    );
     write(dir, "notes.txt", "x", 0, now);
 
     const { files, byPid, pruned } = await indexHookClaims(dir, new Map(), now);
     expect(pruned).toBe(1);
     expect(fs.existsSync(dead)).toBe(false);
     expect([...files.keys()].sort()).toEqual(["daemon.json", "live.json"]);
-    expect(byPid.get(4)).toEqual([{ sessionId: "live", ts: 4, launchToken: "tok" }]);
+    expect(byPid.get(4)).toEqual([
+      { sessionId: "live", ts: 4, launchToken: "tok" },
+    ]);
     expect(byPid.has(3)).toBe(false);
     expect(byPid.has(2)).toBe(false);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -41,7 +61,13 @@ describe("indexHookClaims", () => {
   test("reuses an entry whose mtime did not move instead of re-reading the file", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-registry-"));
     const now = Date.now();
-    const live = write(dir, "live.json", { pid: 4, term: "iTerm", ts: 4 }, 60_000, now);
+    const live = write(
+      dir,
+      "live.json",
+      { pid: 4, term: "iTerm", ts: 4 },
+      60_000,
+      now,
+    );
     const first = await indexHookClaims(dir, new Map(), now);
     // Rewrite the body but keep the mtime: an unchanged mtime means no read.
     fs.writeFileSync(live, JSON.stringify({ pid: 9, term: "iTerm", ts: 9 }));

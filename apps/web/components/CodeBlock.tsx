@@ -6,7 +6,10 @@ import { Copy, Check, MoveHorizontal, WrapText } from "lucide-react";
 import { highlightCode } from "../lib/codeLanguage";
 import { HighlightContext } from "./HighlightContext";
 import { markMatchesInHtml } from "../lib/domMarks";
-import { SEARCH_MARK_ATTR, SEARCH_MARK_CLASS } from "../lib/rehypeSearchHighlight";
+import {
+  SEARCH_MARK_ATTR,
+  SEARCH_MARK_CLASS,
+} from "../lib/rehypeSearchHighlight";
 import { parseSearchTerms } from "@codecast/shared/search";
 
 interface CodeBlockProps {
@@ -22,12 +25,19 @@ function escapeHtml(s: string): string {
 
 function codeKey(code: string): string {
   let h = 0;
-  for (let i = 0; i < code.length; i++) h = ((h << 5) - h + code.charCodeAt(i)) | 0;
+  for (let i = 0; i < code.length; i++)
+    h = ((h << 5) - h + code.charCodeAt(i)) | 0;
   return String(h);
 }
 
-export const CodeBlock = memo(function CodeBlock({ code, language }: CodeBlockProps) {
-  const highlighted = useMemo(() => highlightCode(code, language), [code, language]);
+export const CodeBlock = memo(function CodeBlock({
+  code,
+  language,
+}: CodeBlockProps) {
+  const highlighted = useMemo(
+    () => highlightCode(code, language),
+    [code, language],
+  );
   // The in-conversation search marks hits here too: the markdown pass cannot
   // reach inside a fenced block (its text is flattened before Prism sees it),
   // so the hit is wrapped in the finished HTML instead. Plain (unhighlighted)
@@ -37,11 +47,19 @@ export const CodeBlock = memo(function CodeBlock({ code, language }: CodeBlockPr
   const searched = useMemo(() => {
     const terms = query ? parseSearchTerms(query) : [];
     if (terms.length === 0) return null;
-    return markMatchesInHtml(highlighted ?? escapeHtml(code), terms, { className: SEARCH_MARK_CLASS, attrs: { [SEARCH_MARK_ATTR]: "true" } });
+    return markMatchesInHtml(highlighted ?? escapeHtml(code), terms, {
+      className: SEARCH_MARK_CLASS,
+      attrs: { [SEARCH_MARK_ATTR]: "true" },
+    });
   }, [query, highlighted, code]);
   const html = searched ?? highlighted;
   const key = useMemo(() => codeKey(code), [code]);
-  const { expanded, toggle: toggleExpand, containerRef, style: expandStyle } = useFullWidthExpand(key);
+  const {
+    expanded,
+    toggle: toggleExpand,
+    containerRef,
+    style: expandStyle,
+  } = useFullWidthExpand(key);
   const [wrapped, setWrapped] = useState(wrappedBlocks.has(key));
   const [copied, setCopied] = useState(false);
 
@@ -69,7 +87,10 @@ export const CodeBlock = memo(function CodeBlock({ code, language }: CodeBlockPr
       className="code-block-resizable relative group my-2 transition-all duration-200"
       style={expandStyle}
     >
-      <div data-cc-code-tools className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-20 flex items-center gap-1.5 pl-8 pr-2 pt-1.5 pb-1.5 bg-gradient-to-r from-transparent to-[var(--sol-bg)] via-[var(--sol-bg)]">
+      <div
+        data-cc-code-tools
+        className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-20 flex items-center gap-1.5 pl-8 pr-2 pt-1.5 pb-1.5 bg-gradient-to-r from-transparent to-[var(--sol-bg)] via-[var(--sol-bg)]"
+      >
         <button
           onClick={toggleWrap}
           className={`p-1 rounded select-none ${wrapped ? "text-sol-cyan" : "text-sol-text-dim/60 hover:text-sol-text-secondary"}`}
@@ -98,10 +119,17 @@ export const CodeBlock = memo(function CodeBlock({ code, language }: CodeBlockPr
       </div>
       <pre
         className={`!m-0 !py-2 !pl-4 !pr-8 !border-0 text-sm code-block-accent ${wrapped ? "" : "cb-hscroll"}`}
-        style={wrapped ? { whiteSpace: "pre-wrap", wordBreak: "break-word" } : undefined}
+        style={
+          wrapped
+            ? { whiteSpace: "pre-wrap", wordBreak: "break-word" }
+            : undefined
+        }
       >
         {html ? (
-          <code className="font-mono text-sol-text-secondary" dangerouslySetInnerHTML={{ __html: html }} />
+          <code
+            className="font-mono text-sol-text-secondary"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         ) : (
           <code className="font-mono text-sol-text-secondary">{code}</code>
         )}

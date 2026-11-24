@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { clearMessageDeliveryStateForConversation, injectedMarkSettled, markInjectedBestEffort } from "./daemon.js";
+import {
+  clearMessageDeliveryStateForConversation,
+  injectedMarkSettled,
+  markInjectedBestEffort,
+} from "./daemon.js";
 
 // Regression test for the "web message reaches 'Delivering to session' then never pastes" bug
 // (session fdc3bd59 / jx7174z, 2026-05-25). deliverMessage marked the pending message
@@ -29,7 +33,9 @@ describe("markInjectedBestEffort", () => {
   test("marks the message injected when Convex responds promptly", async () => {
     const calls: StatusArg[] = [];
     const sync = {
-      updateMessageStatus: async (arg: StatusArg) => { calls.push(arg); },
+      updateMessageStatus: async (arg: StatusArg) => {
+        calls.push(arg);
+      },
     };
     await markInjectedBestEffort(sync, "msg_ok", 5000);
     expect(calls).toEqual([{ messageId: "msg_ok", status: "injected" }]);
@@ -37,10 +43,14 @@ describe("markInjectedBestEffort", () => {
 
   test("swallows a rejected status update without throwing", async () => {
     const sync = {
-      updateMessageStatus: async (_: StatusArg) => { throw new Error("auth expired"); },
+      updateMessageStatus: async (_: StatusArg) => {
+        throw new Error("auth expired");
+      },
     };
     // Resolves (does not reject) — a failed bookkeeping write must not fail delivery.
-    await expect(markInjectedBestEffort(sync, "msg_err", 5000)).resolves.toBeUndefined();
+    await expect(
+      markInjectedBestEffort(sync, "msg_err", 5000),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -62,9 +72,12 @@ describe("mark-injected confirmation and dedup persistence", () => {
         return Promise.resolve();
       },
     };
-    await markInjectedBestEffort(sync, "m_retry", 20, { conversationId: "conv_retry", retryDelaysMs: [30] });
+    await markInjectedBestEffort(sync, "m_retry", 20, {
+      conversationId: "conv_retry",
+      retryDelaysMs: [30],
+    });
     expect(calls.length).toBe(1); // initial attempt timed out
-    await new Promise(r => setTimeout(r, 120)); // let the background retry fire
+    await new Promise((r) => setTimeout(r, 120)); // let the background retry fire
     expect(calls.length).toBe(2);
     // Confirmed on retry → a pane-death clear drops it (normal redelivery contract).
     const cleared = clearMessageDeliveryStateForConversation("conv_retry");
@@ -75,32 +88,58 @@ describe("mark-injected confirmation and dedup persistence", () => {
     const sync = {
       updateMessageStatus: (_: StatusArg) => new Promise<void>(() => {}), // never lands
     };
-    await markInjectedBestEffort(sync, "m_unconfirmed", 10, { conversationId: "conv_storm", retryDelaysMs: [] });
+    await markInjectedBestEffort(sync, "m_unconfirmed", 10, {
+      conversationId: "conv_storm",
+      retryDelaysMs: [],
+    });
     // The brownout clear ([HEARTBEAT-HEALTH] etc.) must NOT hand the pending scanner a duplicate.
-    expect(clearMessageDeliveryStateForConversation("conv_storm")).toEqual({ inFlight: 0, dedup: 0, preserved: 1 });
+    expect(clearMessageDeliveryStateForConversation("conv_storm")).toEqual({
+      inFlight: 0,
+      dedup: 0,
+      preserved: 1,
+    });
     // Idempotent: repeated clears keep preserving it.
-    expect(clearMessageDeliveryStateForConversation("conv_storm")).toEqual({ inFlight: 0, dedup: 0, preserved: 1 });
+    expect(clearMessageDeliveryStateForConversation("conv_storm")).toEqual({
+      inFlight: 0,
+      dedup: 0,
+      preserved: 1,
+    });
   });
 
   test("background retries are bounded by the delay schedule", async () => {
     const calls: StatusArg[] = [];
     const sync = {
-      updateMessageStatus: (arg: StatusArg) => { calls.push(arg); return new Promise<void>(() => {}); },
+      updateMessageStatus: (arg: StatusArg) => {
+        calls.push(arg);
+        return new Promise<void>(() => {});
+      },
     };
-    await markInjectedBestEffort(sync, "m_bounded", 10, { conversationId: "conv_bounded", retryDelaysMs: [20, 20] });
-    await new Promise(r => setTimeout(r, 200));
+    await markInjectedBestEffort(sync, "m_bounded", 10, {
+      conversationId: "conv_bounded",
+      retryDelaysMs: [20, 20],
+    });
+    await new Promise((r) => setTimeout(r, 200));
     expect(calls.length).toBe(3); // initial + exactly the two scheduled retries
   });
 
   test("a confirmed first attempt needs no retries and clears normally", async () => {
     const calls: StatusArg[] = [];
     const sync = {
-      updateMessageStatus: async (arg: StatusArg) => { calls.push(arg); },
+      updateMessageStatus: async (arg: StatusArg) => {
+        calls.push(arg);
+      },
     };
-    await markInjectedBestEffort(sync, "m_ok", 5000, { conversationId: "conv_ok", retryDelaysMs: [10] });
-    await new Promise(r => setTimeout(r, 50));
+    await markInjectedBestEffort(sync, "m_ok", 5000, {
+      conversationId: "conv_ok",
+      retryDelaysMs: [10],
+    });
+    await new Promise((r) => setTimeout(r, 50));
     expect(calls.length).toBe(1);
-    expect(clearMessageDeliveryStateForConversation("conv_ok")).toEqual({ inFlight: 0, dedup: 1, preserved: 0 });
+    expect(clearMessageDeliveryStateForConversation("conv_ok")).toEqual({
+      inFlight: 0,
+      dedup: 1,
+      preserved: 0,
+    });
   });
 });
 
@@ -112,7 +151,13 @@ describe("injectedMarkSettled", () => {
   test("waits for the write itself, past the mark's own timeout", async () => {
     let landed = false;
     const sync = {
-      updateMessageStatus: (_: StatusArg) => new Promise<void>((resolve) => setTimeout(() => { landed = true; resolve(); }, 80)),
+      updateMessageStatus: (_: StatusArg) =>
+        new Promise<void>((resolve) =>
+          setTimeout(() => {
+            landed = true;
+            resolve();
+          }, 80),
+        ),
     };
     await markInjectedBestEffort(sync, "msg_slow", 10);
     expect(landed).toBe(false);
@@ -124,7 +169,9 @@ describe("injectedMarkSettled", () => {
     const start = Date.now();
     await injectedMarkSettled("msg_none");
     expect(Date.now() - start).toBeLessThan(20);
-    const sync = { updateMessageStatus: (_: StatusArg) => new Promise<void>(() => {}) };
+    const sync = {
+      updateMessageStatus: (_: StatusArg) => new Promise<void>(() => {}),
+    };
     await markInjectedBestEffort(sync, "msg_hung", 10);
     const capped = Date.now();
     await injectedMarkSettled("msg_hung", 40);

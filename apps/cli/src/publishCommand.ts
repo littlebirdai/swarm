@@ -28,10 +28,16 @@ export function extractHtmlTitle(html: string): string | null {
 }
 
 /** Explicit override, else the <title> tag, else the filename without extension. */
-export function resolveArtifactTitle(html: string, filePath: string, override?: string): string {
+export function resolveArtifactTitle(
+  html: string,
+  filePath: string,
+  override?: string,
+): string {
   const fromFlag = override?.trim();
   if (fromFlag) return fromFlag.slice(0, 200);
-  return extractHtmlTitle(html) ?? path.basename(filePath).replace(/\.html?$/i, "");
+  return (
+    extractHtmlTitle(html) ?? path.basename(filePath).replace(/\.html?$/i, "")
+  );
 }
 
 /** Video and audio travel to media hosting (R2), not inside the bundle. Keep in
@@ -55,7 +61,11 @@ export function isMarkdownPath(filePath: string): boolean {
 }
 
 /** Explicit override, else the first ATX heading, else the filename without extension. */
-export function resolveMarkdownTitle(md: string, filePath: string, override?: string): string {
+export function resolveMarkdownTitle(
+  md: string,
+  filePath: string,
+  override?: string,
+): string {
   const fromFlag = override?.trim();
   if (fromFlag) return fromFlag.slice(0, 200);
   const heading = md.match(/^#{1,3}\s+(.+?)\s*#*\s*$/m);
@@ -85,15 +95,24 @@ export function pageSlugFromRef(ref: string): string | null {
 // ── --expires parsing ────────────────────────────────────────────────────────
 
 /** "7d" | "24h" | "30m" | "2w" → ms; "never" → null (clear). Invalid → {error}. */
-export function parseExpires(input: string): { ms: number | null } | { error: string } {
+export function parseExpires(
+  input: string,
+): { ms: number | null } | { error: string } {
   const t = input.trim().toLowerCase();
   if (t === "never") return { ms: null };
   const m = t.match(/^(\d+)\s*(m|min|h|hr|d|w)$/);
   const n = m ? parseInt(m[1], 10) : 0;
   if (!m || n <= 0) {
-    return { error: `Invalid --expires "${input}" — use a duration like 30m, 24h, 7d, or "never"` };
+    return {
+      error: `Invalid --expires "${input}" — use a duration like 30m, 24h, 7d, or "never"`,
+    };
   }
-  const per: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 7 * 86_400_000 };
+  const per: Record<string, number> = {
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+    w: 7 * 86_400_000,
+  };
   return { ms: n * per[m[2][0]] };
 }
 
@@ -120,16 +139,20 @@ export interface AccessFlagValues {
  * fields the user explicitly set, so untouched gates keep their server state.
  * Returns undefined when no access flag was passed at all.
  */
-export function buildAccessPayload(
-  flags: AccessFlagValues,
-): { payload?: Record<string, unknown>; error?: string } {
+export function buildAccessPayload(flags: AccessFlagValues): {
+  payload?: Record<string, unknown>;
+  error?: string;
+} {
   const access: Record<string, unknown> = {};
-  if (flags.password !== undefined) access.password = flags.password === false ? null : flags.password;
+  if (flags.password !== undefined)
+    access.password = flags.password === false ? null : flags.password;
   if (flags.emailGate !== undefined) access.email_gate = flags.emailGate;
   if (flags.expiresMs !== undefined) access.expires_in_ms = flags.expiresMs;
   if (flags.editMode !== undefined) {
     if (!(EDIT_MODES as readonly string[]).includes(flags.editMode)) {
-      return { error: `Invalid --edit-mode "${flags.editMode}" — use owner, link, or team` };
+      return {
+        error: `Invalid --edit-mode "${flags.editMode}" — use owner, link, or team`,
+      };
     }
     access.edit_mode = flags.editMode;
   }
@@ -141,14 +164,24 @@ export function buildAccessPayload(
 /** One-line summary of the gates a publish just set, for the human output. */
 export function describeAccess(access: Record<string, unknown>): string {
   const parts: string[] = [];
-  if ("password" in access) parts.push(access.password === null ? "password cleared" : "password");
-  if ("email_gate" in access) parts.push(access.email_gate ? "email gate" : "email gate off");
+  if ("password" in access)
+    parts.push(access.password === null ? "password cleared" : "password");
+  if ("email_gate" in access)
+    parts.push(access.email_gate ? "email gate" : "email gate off");
   if ("expires_in_ms" in access) {
-    parts.push(access.expires_in_ms === null ? "never expires" : `expires in ${formatDuration(access.expires_in_ms as number)}`);
+    parts.push(
+      access.expires_in_ms === null
+        ? "never expires"
+        : `expires in ${formatDuration(access.expires_in_ms as number)}`,
+    );
   }
   if ("edit_mode" in access) parts.push(`edit: ${access.edit_mode}`);
-  if ("show_session" in access) parts.push(access.show_session ? "session link shown" : "session link hidden");
-  if ("comments" in access) parts.push(access.comments ? "comments on" : "comments off");
+  if ("show_session" in access)
+    parts.push(
+      access.show_session ? "session link shown" : "session link hidden",
+    );
+  if ("comments" in access)
+    parts.push(access.comments ? "comments on" : "comments off");
   return parts.join(" · ");
 }
 
@@ -176,11 +209,18 @@ export function filterBundlePaths(relPaths: string[]): string[] {
 }
 
 /** index.html wins; else exactly one .html; else a legible error. */
-export function pickBundleEntry(relPaths: string[]): { entry?: string; error?: string } {
+export function pickBundleEntry(relPaths: string[]): {
+  entry?: string;
+  error?: string;
+} {
   const htmls = relPaths.filter((p) => /\.html?$/i.test(p));
   if (htmls.includes("index.html")) return { entry: "index.html" };
   if (htmls.length === 1) return { entry: htmls[0] };
-  if (htmls.length === 0) return { error: "Directory has no .html file — a bundle needs an index.html (or exactly one .html) entry page" };
+  if (htmls.length === 0)
+    return {
+      error:
+        "Directory has no .html file — a bundle needs an index.html (or exactly one .html) entry page",
+    };
   return {
     error: `Directory has ${htmls.length} .html files and no index.html — add an index.html entry page (found: ${htmls.slice(0, 5).join(", ")})`,
   };
@@ -194,7 +234,9 @@ export function bundleSizeError(
   const total = files.reduce((sum, f) => sum + f.size, 0);
   if (total <= maxBytes) return null;
   const biggest = [...files].sort((a, b) => b.size - a.size).slice(0, 5);
-  const listing = biggest.map((f) => `  ${formatBytes(f.size).padStart(8)}  ${f.path}`).join("\n");
+  const listing = biggest
+    .map((f) => `  ${formatBytes(f.size).padStart(8)}  ${f.path}`)
+    .join("\n");
   return `Bundle is ${formatBytes(total)} — the limit is ${formatBytes(maxBytes)} total. Biggest files:\n${listing}`;
 }
 
@@ -240,8 +282,12 @@ function truncate(text: string, max: number): string {
 }
 
 /** Plain-text table for `cast publish ls` (no ANSI — callers may colorize). */
-export function formatArtifactTable(rows: ArtifactLsRow[], now: number = Date.now()): string[] {
-  if (!rows.length) return ["No published pages. Publish one with: cast publish <file.html>"];
+export function formatArtifactTable(
+  rows: ArtifactLsRow[],
+  now: number = Date.now(),
+): string[] {
+  if (!rows.length)
+    return ["No published pages. Publish one with: cast publish <file.html>"];
   const cells = rows.map((r) => [
     r.slug,
     truncate(r.title, 32),
@@ -254,9 +300,24 @@ export function formatArtifactTable(rows: ArtifactLsRow[], now: number = Date.no
     formatAgeShort(Math.max(0, now - r.updated_at)),
     r.url,
   ]);
-  const header = ["SLUG", "TITLE", "VER", "KIND", "VIEWS", "CMTS", "GATES", "SESSION", "AGE", "URL"];
-  const widths = header.map((h, i) => Math.max(h.length, ...cells.map((row) => row[i].length)));
+  const header = [
+    "SLUG",
+    "TITLE",
+    "VER",
+    "KIND",
+    "VIEWS",
+    "CMTS",
+    "GATES",
+    "SESSION",
+    "AGE",
+    "URL",
+  ];
+  const widths = header.map((h, i) =>
+    Math.max(h.length, ...cells.map((row) => row[i].length)),
+  );
   const render = (row: string[]) =>
-    row.map((cell, i) => (i === row.length - 1 ? cell : cell.padEnd(widths[i]))).join("  ");
+    row
+      .map((cell, i) => (i === row.length - 1 ? cell : cell.padEnd(widths[i])))
+      .join("  ");
   return [render(header), ...cells.map(render)];
 }

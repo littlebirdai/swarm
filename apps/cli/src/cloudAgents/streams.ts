@@ -12,7 +12,12 @@
  * open its stream and what an event means.
  */
 import { doublingDelay } from "./poll.js";
-import { errorText, logTag, type AnyCloudAgentAdapter, type CloudAgentHandle } from "./types.js";
+import {
+  errorText,
+  logTag,
+  type AnyCloudAgentAdapter,
+  type CloudAgentHandle,
+} from "./types.js";
 
 /** A stream that ended without delivering anything waits this long before the next opens, doubling up to STREAM_RETRY_MAX_MS. */
 const STREAM_RETRY_MS = 2_000;
@@ -55,9 +60,14 @@ export class CloudStream<E, D> {
   private handle?: CloudAgentHandle<D>;
   private readonly buffer: Array<{ e: E; at: number }> = [];
 
-  constructor(readonly spec: CloudStreamSpec<E, D>, private readonly now: () => number) {
+  constructor(
+    readonly spec: CloudStreamSpec<E, D>,
+    private readonly now: () => number,
+  ) {
     this.openedAt = this.lastEventAt = now();
-    this.opened = new Promise((resolve) => { this.markOpened = resolve; });
+    this.opened = new Promise((resolve) => {
+      this.markOpened = resolve;
+    });
   }
 
   get attached(): boolean {
@@ -74,7 +84,8 @@ export class CloudStream<E, D> {
     if (this.handle) return false;
     this.handle = handle;
     let ended = false;
-    for (const { e, at } of this.buffer.splice(0)) if (this.spec.apply(e, handle.data(), at) === "end") ended = true;
+    for (const { e, at } of this.buffer.splice(0))
+      if (this.spec.apply(e, handle.data(), at) === "end") ended = true;
     if (ended) this.abort();
     return true;
   }
@@ -83,7 +94,10 @@ export class CloudStream<E, D> {
   push(e: E): "end" | void {
     this.lastEventAt = this.now();
     this.delivered++;
-    if (!this.handle) { this.buffer.push({ e, at: this.lastEventAt }); return; }
+    if (!this.handle) {
+      this.buffer.push({ e, at: this.lastEventAt });
+      return;
+    }
     const verdict = this.spec.apply(e, this.handle.data(), this.lastEventAt);
     this.handle.scheduleRender();
     return verdict;
@@ -121,10 +135,16 @@ export class CloudAgentStreams<E, D> {
   /** Follows started before their key was known (start), until an event names it. */
   private readonly starting = new Set<CloudStream<E, D>>();
   /** Keys whose stream keeps ending without a word: when the next may open, and the wait after that. */
-  private readonly retry = new Map<string, { at: number; waitMs: number; tries: number }>();
+  private readonly retry = new Map<
+    string,
+    { at: number; waitMs: number; tries: number }
+  >();
   private readonly now: () => number;
 
-  constructor(private readonly adapter: Pick<AnyCloudAgentAdapter, "spec">, opts: { now?: () => number } = {}) {
+  constructor(
+    private readonly adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    opts: { now?: () => number } = {},
+  ) {
     this.now = opts.now ?? Date.now;
   }
 
@@ -141,7 +161,11 @@ export class CloudAgentStreams<E, D> {
    * kept ending without a word (undefined then). `handle`: the mirror's, when
    * the agent has one; else events wait for attach.
    */
-  follow(key: string, spec: CloudStreamSpec<E, D>, opts: { handle?: CloudAgentHandle<D> } = {}): CloudStream<E, D> | undefined {
+  follow(
+    key: string,
+    spec: CloudStreamSpec<E, D>,
+    opts: { handle?: CloudAgentHandle<D> } = {},
+  ): CloudStream<E, D> | undefined {
     if (this.live.has(key)) return undefined;
     const backoff = this.retry.get(key);
     if (backoff && this.now() < backoff.at) return undefined;
@@ -161,9 +185,16 @@ export class CloudAgentStreams<E, D> {
    * stream failed with, or when it ends or names nothing within the spec's
    * openMs.
    */
-  start(spec: CloudStreamSpec<E, D>, keyOf: (e: E) => string | undefined): Promise<string> {
+  start(
+    spec: CloudStreamSpec<E, D>,
+    keyOf: (e: E) => string | undefined,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
-      void this.run(new CloudStream(spec, this.now), undefined, { keyOf, resolve, reject });
+      void this.run(new CloudStream(spec, this.now), undefined, {
+        keyOf,
+        resolve,
+        reject,
+      });
     });
   }
 
@@ -172,7 +203,10 @@ export class CloudAgentStreams<E, D> {
    * attach landed what the stream kept before it. `live`: the follow, while it
    * still runs (one that ended before the mirror came is let go here).
    */
-  attach(key: string, handle: CloudAgentHandle<D>): { first: boolean; live?: CloudStream<E, D> } {
+  attach(
+    key: string,
+    handle: CloudAgentHandle<D>,
+  ): { first: boolean; live?: CloudStream<E, D> } {
     const s = this.live.get(key);
     if (!s) return { first: false };
     const first = s.attach(handle);
@@ -196,7 +230,11 @@ export class CloudAgentStreams<E, D> {
   }
 
   /** `key`: undefined for a follow `naming` names (start). */
-  private async run(stream: CloudStream<E, D>, key: string | undefined, naming?: Naming<E>): Promise<void> {
+  private async run(
+    stream: CloudStream<E, D>,
+    key: string | undefined,
+    naming?: Naming<E>,
+  ): Promise<void> {
     const { spec } = stream;
     const openSeconds = Math.round((spec.openMs ?? STREAM_OPEN_MS) / 1000);
     let quiet: NodeJS.Timeout | undefined;
@@ -214,8 +252,12 @@ export class CloudAgentStreams<E, D> {
       let done = false;
       // Until the stream opens, and for one its events name, until an event does.
       const slow = setTimeout(() => {
-        failure = new Error(`${this.adapter.spec.label} did not ${key ? "open the stream" : "start the agent"} within ${openSeconds}s`);
-        stream.log(`${logTag(this.adapter)} ${key} stream did not open within ${openSeconds}s`);
+        failure = new Error(
+          `${this.adapter.spec.label} did not ${key ? "open the stream" : "start the agent"} within ${openSeconds}s`,
+        );
+        stream.log(
+          `${logTag(this.adapter)} ${key} stream did not open within ${openSeconds}s`,
+        );
         stream.abort();
       }, spec.openMs ?? STREAM_OPEN_MS);
       try {
@@ -231,7 +273,10 @@ export class CloudAgentStreams<E, D> {
             this.live.set(key, stream);
             naming!.resolve(key);
           }
-          if (stream.push(e) === "end") { done = true; break; }
+          if (stream.push(e) === "end") {
+            done = true;
+            break;
+          }
         }
         if (spec.finished?.()) done = true;
       } catch (err) {
@@ -239,7 +284,10 @@ export class CloudAgentStreams<E, D> {
         failure ??= err;
         if (signal.aborted) break;
         if (spec.gone?.(err)) done = true;
-        else if (key) stream.log(`${logTag(this.adapter)} ${key} stream dropped: ${errorText(err)}`);
+        else if (key)
+          stream.log(
+            `${logTag(this.adapter)} ${key} stream dropped: ${errorText(err)}`,
+          );
       } finally {
         clearTimeout(slow);
       }
@@ -249,11 +297,18 @@ export class CloudAgentStreams<E, D> {
       if (said) this.retry.delete(key);
       else {
         const tries = (this.retry.get(key)?.tries ?? -1) + 1;
-        const waitMs = doublingDelay(STREAM_RETRY_MS, STREAM_RETRY_MAX_MS, tries);
+        const waitMs = doublingDelay(
+          STREAM_RETRY_MS,
+          STREAM_RETRY_MAX_MS,
+          tries,
+        );
         this.retry.set(key, { at: this.now() + waitMs, waitMs, tries });
       }
       if (done || signal.aborted || attempt >= (spec.reconnects ?? 0)) break;
-      await abortableSleep(this.retry.get(key)?.waitMs ?? STREAM_RETRY_MS, signal);
+      await abortableSleep(
+        this.retry.get(key)?.waitMs ?? STREAM_RETRY_MS,
+        signal,
+      );
     }
     if (quiet) clearTimeout(quiet);
     stream.opening();
@@ -261,7 +316,9 @@ export class CloudAgentStreams<E, D> {
     stream.ended = true;
     if (!key) {
       this.starting.delete(stream);
-      naming?.reject(failure ?? new Error(`${this.adapter.spec.label} created no agent`));
+      naming?.reject(
+        failure ?? new Error(`${this.adapter.spec.label} created no agent`),
+      );
       return;
     }
     // Stopped, dropped or replaced: nothing more for this follow to do.
@@ -277,7 +334,11 @@ function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     if (signal.aborted) return resolve();
     const t = setTimeout(done, ms);
-    function done() { clearTimeout(t); signal.removeEventListener("abort", done); resolve(); }
+    function done() {
+      clearTimeout(t);
+      signal.removeEventListener("abort", done);
+      resolve();
+    }
     signal.addEventListener("abort", done, { once: true });
   });
 }

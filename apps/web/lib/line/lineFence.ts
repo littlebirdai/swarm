@@ -10,11 +10,21 @@
 
 // The widgets and what each needs live in the shared contract, which also
 // writes them into the brief of the session that answers the line's chat.
-import { LINE_FENCE_LANG, LINE_WIDGETS, LINE_WIDGET_NEEDS, type LineWidgetKind } from "@codecast/shared/contracts/lineChat";
+import {
+  LINE_FENCE_LANG,
+  LINE_WIDGETS,
+  LINE_WIDGET_NEEDS,
+  type LineWidgetKind,
+} from "@codecast/shared/contracts/lineChat";
 export { LINE_FENCE_LANG, LINE_WIDGETS, type LineWidgetKind };
 
 /** One row of a before/after table an agent writes out: a case, what the step said, what it says now. */
-export type BeforeAfterSpecRow = { case: string; before: string; after: string; ref?: string | null };
+export type BeforeAfterSpecRow = {
+  case: string;
+  before: string;
+  after: string;
+  ref?: string | null;
+};
 
 export type LineFenceSpec = {
   widget: LineWidgetKind;
@@ -37,9 +47,12 @@ export type LineFenceSpec = {
   case: string | null;
 };
 
-export type LineFenceRead = { ok: true; spec: LineFenceSpec } | { ok: false; why: string };
+export type LineFenceRead =
+  | { ok: true; spec: LineFenceSpec }
+  | { ok: false; why: string };
 
-const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+const str = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
 const text = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
 function rowsOf(v: unknown): BeforeAfterSpecRow[] | null {
@@ -49,7 +62,14 @@ function rowsOf(v: unknown): BeforeAfterSpecRow[] | null {
     const o = r as Record<string, unknown>;
     const c = str(o.case);
     if (!c) return [];
-    return [{ case: c, before: text(o.before) ?? "", after: text(o.after) ?? "", ref: str(o.ref) }];
+    return [
+      {
+        case: c,
+        before: text(o.before) ?? "",
+        after: text(o.after) ?? "",
+        ref: str(o.ref),
+      },
+    ];
   });
   return rows.length ? rows : null;
 }
@@ -62,13 +82,21 @@ export function readLineFence(code: string): LineFenceRead {
   } catch {
     return { ok: false, why: "The block is not JSON." };
   }
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, why: "The block is not a JSON object." };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return { ok: false, why: "The block is not a JSON object." };
   const o = raw as Record<string, unknown>;
   const widget = str(o.widget) as LineWidgetKind | null;
-  if (!widget || !LINE_WIDGETS.includes(widget)) return { ok: false, why: `Unknown widget ${widget ? `"${widget}"` : "(none named)"}.` };
+  if (!widget || !LINE_WIDGETS.includes(widget))
+    return {
+      ok: false,
+      why: `Unknown widget ${widget ? `"${widget}"` : "(none named)"}.`,
+    };
   const project = str(o.project);
   if (!project) return { ok: false, why: "No project named." };
-  const limit = typeof o.limit === "number" && Number.isFinite(o.limit) ? Math.max(1, Math.min(50, Math.round(o.limit))) : null;
+  const limit =
+    typeof o.limit === "number" && Number.isFinite(o.limit)
+      ? Math.max(1, Math.min(50, Math.round(o.limit)))
+      : null;
   const spec: LineFenceSpec = {
     widget,
     project,
@@ -84,6 +112,7 @@ export function readLineFence(code: string): LineFenceRead {
     case: str(o.case),
   };
   const missing = LINE_WIDGET_NEEDS[widget].find((k) => spec[k] == null);
-  if (missing) return { ok: false, why: `A ${widget} widget needs "${missing}".` };
+  if (missing)
+    return { ok: false, why: `A ${widget} widget needs "${missing}".` };
   return { ok: true, spec };
 }

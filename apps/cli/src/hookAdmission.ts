@@ -19,11 +19,18 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { HOOK_TOKEN_MARKER, hookBearerToken, hookTokenMatches } from "./hookIdentity.js";
+import {
+  HOOK_TOKEN_MARKER,
+  hookBearerToken,
+  hookTokenMatches,
+} from "./hookIdentity.js";
 import { withHarnessCause, writeHarnessFile } from "./harness.js";
 import { CODECAST_STATUS_HOOK } from "./statusHook.js";
 import { USER_PROMPT_HOOK } from "./userPromptHook.js";
-import { CODECAST_STATUSLINE_HOOK, STATUSLINE_HOOK_FILE } from "./statuslineHook.js";
+import {
+  CODECAST_STATUSLINE_HOOK,
+  STATUSLINE_HOOK_FILE,
+} from "./statuslineHook.js";
 
 /** The codecast-owned scripts that post to a hook route. Keys are file names
  *  under ~/.claude/hooks; values are what this build would install. */
@@ -71,8 +78,17 @@ export function refreshInstalledHookScripts(home: string): string[] {
       const current = fs.readFileSync(file, "utf-8");
       if (current === script) continue;
       if (!current.includes("codecast")) continue;
-      withHarnessCause({ why: "hook script upgraded to send the daemon's hook token", automatic: true }, () =>
-        writeHarnessFile(file, script, "hooks", { mode: 0o755, executable: true }));
+      withHarnessCause(
+        {
+          why: "hook script upgraded to send the daemon's hook token",
+          automatic: true,
+        },
+        () =>
+          writeHarnessFile(file, script, "hooks", {
+            mode: 0o755,
+            executable: true,
+          }),
+      );
       rewritten.push(name);
     } catch {}
   }
@@ -100,9 +116,12 @@ export function admitHookRequest(
 ): HookAdmission {
   const presented = hookBearerToken(headers);
   if (!presented) {
-    return opts.legacyAllowed() ? { ok: true, legacy: true } : { ok: false, reason: "no-token" };
+    return opts.legacyAllowed()
+      ? { ok: true, legacy: true }
+      : { ok: false, reason: "no-token" };
   }
-  if (!hookTokenMatches(presented, opts.token)) return { ok: false, reason: "bad-token" };
+  if (!hookTokenMatches(presented, opts.token))
+    return { ok: false, reason: "bad-token" };
   return { ok: true, legacy: false };
 }
 

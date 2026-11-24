@@ -4,10 +4,7 @@ import {
   advanceLocalViewRevision,
   type ViewCoverageTarget,
 } from "./localViewRevisions";
-import {
-  runViewTransition,
-  type RevisionMode,
-} from "./lib/viewWriters";
+import { runViewTransition, type RevisionMode } from "./lib/viewWriters";
 import { commentRowById } from "./commentStore";
 import {
   isConversationComment,
@@ -118,55 +115,69 @@ export async function runCommentViewTransition<Result>(
   if (!authoritative) {
     throw new Error("Cannot write comments for a missing conversation");
   }
-  const inConversation = (conversationId: unknown) => String(conversationId) === String(authoritative._id);
+  const inConversation = (conversationId: unknown) =>
+    String(conversationId) === String(authoritative._id);
   const rowOf = async (id: CommentId): Promise<Id<"review_comments">> => {
     const row = await commentRowById(ctx, String(id));
     if (!row) throw new Error("Cannot write a missing comment");
     return row._id;
   };
-  return await runViewTransition(ctx, {
-    table: "review_comments",
-    label: "comment",
-    guardInsert(value) {
-      if (!inConversation(value.conversation_id)) {
-        throw new Error("Comment insert crossed its bound conversation view");
-      }
+  return await runViewTransition(
+    ctx,
+    {
+      table: "review_comments",
+      label: "comment",
+      guardInsert(value) {
+        if (!inConversation(value.conversation_id)) {
+          throw new Error("Comment insert crossed its bound conversation view");
+        }
+      },
+      guardRow(row) {
+        if (
+          !isConversationComment(row) ||
+          !inConversation(row.conversation_id)
+        ) {
+          throw new Error("Comment write crossed its bound conversation view");
+        }
+      },
+      coverageTarget: commentsCoverageTarget(authoritative),
     },
-    guardRow(row) {
-      if (!isConversationComment(row) || !inConversation(row.conversation_id)) {
-        throw new Error("Comment write crossed its bound conversation view");
-      }
-    },
-    coverageTarget: commentsCoverageTarget(authoritative),
-  }, revisionMode, (writer) => transition({
-    async insert(value) {
-      const parentRowId = value.parent_comment_id ? await rowOf(value.parent_comment_id) : undefined;
-      return await writer.insert(rowFromComment(value, parentRowId));
-    },
-    async patch(id, value) {
-      await writer.patch(await rowOf(id), rowPatchFromComment(value));
-    },
-    async delete(id) {
-      const rowId = await rowOf(id);
-      // A reply whose parent is gone has no parent, as before.
-      const replies: Doc<"review_comments">[] = await ctx.db
-        .query("review_comments")
-        .withIndex("by_parent", (q: any) => q.eq("parent_id", rowId))
-        .collect();
-      for (const reply of replies) {
-        if (isConversationComment(reply)) await writer.patch(reply._id, { parent_id: undefined });
-      }
-      await writer.delete(rowId);
-    },
-  }));
+    revisionMode,
+    (writer) =>
+      transition({
+        async insert(value) {
+          const parentRowId = value.parent_comment_id
+            ? await rowOf(value.parent_comment_id)
+            : undefined;
+          return await writer.insert(rowFromComment(value, parentRowId));
+        },
+        async patch(id, value) {
+          await writer.patch(await rowOf(id), rowPatchFromComment(value));
+        },
+        async delete(id) {
+          const rowId = await rowOf(id);
+          // A reply whose parent is gone has no parent, as before.
+          const replies: Doc<"review_comments">[] = await ctx.db
+            .query("review_comments")
+            .withIndex("by_parent", (q: any) => q.eq("parent_id", rowId))
+            .collect();
+          for (const reply of replies) {
+            if (isConversationComment(reply))
+              await writer.patch(reply._id, { parent_id: undefined });
+          }
+          await writer.delete(rowId);
+        },
+      }),
+  );
 }
 
 export function commentPatchChanges(
   comment: ConversationComment,
   patch: Partial<ConversationCommentValue>,
 ): boolean {
-  return Object.entries(patch).some(([field, value]) =>
-    (comment as Record<string, unknown>)[field] !== value);
+  return Object.entries(patch).some(
+    ([field, value]) => (comment as Record<string, unknown>)[field] !== value,
+  );
 }
 
 /** Advance a comment view for one non-command projection patch. */
@@ -177,11 +188,17 @@ export async function patchCommentWithRevision(
   knownConversation?: Doc<"conversations">,
 ): Promise<boolean> {
   if (!commentPatchChanges(comment, patch)) return false;
-  const conversation = knownConversation ?? await ctx.db.get(comment.conversation_id);
+  const conversation =
+    knownConversation ?? (await ctx.db.get(comment.conversation_id));
   if (!conversation) return false;
-  await runCommentViewTransition(ctx, conversation, "advance", async (writer) => {
-    await writer.patch(comment._id, patch);
-  });
+  await runCommentViewTransition(
+    ctx,
+    conversation,
+    "advance",
+    async (writer) => {
+      await writer.patch(comment._id, patch);
+    },
+  );
   return true;
 }
 
@@ -191,10 +208,16 @@ export async function deleteCommentWithRevision(
   comment: ConversationComment,
   knownConversation?: Doc<"conversations">,
 ): Promise<boolean> {
-  const conversation = knownConversation ?? await ctx.db.get(comment.conversation_id);
+  const conversation =
+    knownConversation ?? (await ctx.db.get(comment.conversation_id));
   if (!conversation) return false;
-  await runCommentViewTransition(ctx, conversation, "advance", async (writer) => {
-    await writer.delete(comment._id);
-  });
+  await runCommentViewTransition(
+    ctx,
+    conversation,
+    "advance",
+    async (writer) => {
+      await writer.delete(comment._id);
+    },
+  );
   return true;
 }

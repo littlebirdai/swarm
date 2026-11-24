@@ -10,18 +10,38 @@ import { repoObjectId, type EntityType } from "@codecast/shared/entities";
  * is in hand, whichever id the reference arrived with. `shaLength` is 12 for
  * display; routes pass 40 because the commit page matches the sha exactly.
  */
-export function repoObjectRefOf(type: EntityType, entity: any, shaLength = 12): string | null {
+export function repoObjectRefOf(
+  type: EntityType,
+  entity: any,
+  shaLength = 12,
+): string | null {
   if (!entity?.repository) return null;
-  if (type === "pr" && typeof entity.number === "number") return repoObjectId({ type: "pr", repository: entity.repository, number: entity.number });
-  if (type === "commit" && typeof entity.sha === "string") return repoObjectId({ type: "commit", repository: entity.repository, sha: entity.sha.slice(0, shaLength) });
+  if (type === "pr" && typeof entity.number === "number")
+    return repoObjectId({
+      type: "pr",
+      repository: entity.repository,
+      number: entity.number,
+    });
+  if (type === "commit" && typeof entity.sha === "string")
+    return repoObjectId({
+      type: "commit",
+      repository: entity.repository,
+      sha: entity.sha.slice(0, shaLength),
+    });
   return null;
 }
 
 /** The one-line name a pull request or commit reads as: its number or short sha, then its title. */
-export function repoObjectTitle(type: EntityType, entity: any): string | undefined {
-  if (type === "pr" && entity?.number != null) return `#${entity.number}${entity.title ? ` ${entity.title}` : ""}`;
+export function repoObjectTitle(
+  type: EntityType,
+  entity: any,
+): string | undefined {
+  if (type === "pr" && entity?.number != null)
+    return `#${entity.number}${entity.title ? ` ${entity.title}` : ""}`;
   if (type === "commit" && entity?.sha) {
-    const subject = String(entity.message ?? "").split("\n")[0].trim();
+    const subject = String(entity.message ?? "")
+      .split("\n")[0]
+      .trim();
     return `${entity.sha.slice(0, 7)}${subject ? ` ${subject}` : ""}`;
   }
   return undefined;

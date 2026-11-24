@@ -38,7 +38,9 @@ import { setCallOutlivesWindow } from "./callManager";
  * we just asked to keep. `setCallOutlivesWindow` is what beforeunload and a
  * mislabeled SFU eviction both read, so popping out cannot kill the call.
  */
-export async function popOutCall(opts: { size?: CallWindowSize } = {}): Promise<void> {
+export async function popOutCall(
+  opts: { size?: CallWindowSize } = {},
+): Promise<void> {
   const state = callHandoffState();
   if (!state) return;
   if (!canPopOutCall()) return;
@@ -54,7 +56,9 @@ export async function popOutCall(opts: { size?: CallWindowSize } = {}): Promise<
 
   try {
     const outcome = await popOutVia(callPanelRoute(room, payload), {
-      shellOpen: shellOpen ? () => openCallPanel(room, payload).then(() => undefined) : undefined,
+      shellOpen: shellOpen
+        ? () => openCallPanel(room, payload).then(() => undefined)
+        : undefined,
       detach: bridge("detachTab"),
       desktop: isDesktop(),
       // Never reached: `desktop` is true on every path that gets here, and it

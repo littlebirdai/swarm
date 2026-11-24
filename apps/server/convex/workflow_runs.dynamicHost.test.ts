@@ -17,22 +17,39 @@ async function seed(extra: Record<string, any[]> = {}) {
     users: [{ _id: HOST, name: "Host" }],
     teams: [],
     team_memberships: [],
-    api_tokens: [{ _id: "token_host", user_id: HOST, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "token_host", user_id: HOST, token_hash: await hashToken(TOKEN) },
+    ],
     directory_team_mappings: [],
     conversations: [
       // A person's own session, mid-conversation, that called the Workflow tool.
-      { _id: "conversations_host", session_id: "sess-host", user_id: HOST, message_count: 40 },
+      {
+        _id: "conversations_host",
+        session_id: "sess-host",
+        user_id: HOST,
+        message_count: 40,
+      },
     ],
     workflow_runs: [],
     messages: [],
     ...extra,
   };
   const db = makeFakeDb(tables);
-  const ctx = { db, scheduler: { runAfter: async () => null }, async runMutation() { return null; } } as any;
+  const ctx = {
+    db,
+    scheduler: { runAfter: async () => null },
+    async runMutation() {
+      return null;
+    },
+  } as any;
   return { ctx, tables };
 }
 
-const snapshot = (ctx: any, status: string, external_run_id = "wf_c6c86999-01a") =>
+const snapshot = (
+  ctx: any,
+  status: string,
+  external_run_id = "wf_c6c86999-01a",
+) =>
   (ingestSnapshot as any)._handler(ctx, {
     api_token: TOKEN,
     external_run_id,
@@ -48,7 +65,9 @@ describe("a dynamic run's host session is not the run's log", () => {
     const { ctx, tables } = await seed();
     const r = await snapshot(ctx, "running");
     expect(r.ok).toBe(true);
-    const conv = tables.conversations.find((c) => c._id === "conversations_host")!;
+    const conv = tables.conversations.find(
+      (c) => c._id === "conversations_host",
+    )!;
     expect(conv.workflow_run_id).toBe(r.run_id);
     expect(conv.is_workflow_primary).toBeFalsy();
   });
@@ -57,7 +76,9 @@ describe("a dynamic run's host session is not the run's log", () => {
     const { ctx, tables } = await seed();
     await snapshot(ctx, "running");
     await snapshot(ctx, "completed");
-    const conv = tables.conversations.find((c) => c._id === "conversations_host")!;
+    const conv = tables.conversations.find(
+      (c) => c._id === "conversations_host",
+    )!;
     expect(conv.is_workflow_primary).toBeFalsy();
   });
 });
@@ -71,7 +92,8 @@ describe("concurrent runs in one session", () => {
     const older = await snapshot(ctx, "running", "wf_older");
     await ctx.db.patch(older.run_id, { created_at: Date.now() - 60_000 });
     const newer = await snapshot(ctx, "running", "wf_newer");
-    const conv = () => tables.conversations.find((c) => c._id === "conversations_host")!;
+    const conv = () =>
+      tables.conversations.find((c) => c._id === "conversations_host")!;
     expect(conv().workflow_run_id).toBe(newer.run_id);
     await snapshot(ctx, "running", "wf_older");
     await snapshot(ctx, "running", "wf_older");
@@ -85,7 +107,10 @@ describe("concurrent runs in one session", () => {
     const newer = await snapshot(ctx, "running", "wf_newer");
     await snapshot(ctx, "completed", "wf_newer");
     await snapshot(ctx, "running", "wf_older");
-    expect(tables.conversations.find((c) => c._id === "conversations_host")!.workflow_run_id).toBe(older.run_id);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_host")!
+        .workflow_run_id,
+    ).toBe(older.run_id);
     expect(newer.run_id).toBeTruthy();
   });
 });
@@ -99,10 +124,16 @@ describe("unmarkRunHosts repairs the sessions already stamped", () => {
 
     const dry = await (unmarkRunHosts as any)._handler(ctx, { dry_run: true });
     expect(dry.cleared).toEqual(["sess-host"]);
-    expect(tables.conversations.find((c) => c._id === "conversations_host")!.is_workflow_primary).toBe(true);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_host")!
+        .is_workflow_primary,
+    ).toBe(true);
 
     await (unmarkRunHosts as any)._handler(ctx, { dry_run: false });
-    expect(tables.conversations.find((c) => c._id === "conversations_host")!.is_workflow_primary).toBe(false);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_host")!
+        .is_workflow_primary,
+    ).toBe(false);
     expect(r.run_id).toBeTruthy();
   });
 
@@ -110,47 +141,101 @@ describe("unmarkRunHosts repairs the sessions already stamped", () => {
     const RUN = "workflow_runs_takeover";
     const { ctx, tables } = await seed({
       conversations: [
-        { _id: "conversations_mine", session_id: "sess-mine", user_id: HOST, message_count: 30, workflow_run_id: RUN, is_workflow_primary: true, started_at: NOW - 60_000 },
+        {
+          _id: "conversations_mine",
+          session_id: "sess-mine",
+          user_id: HOST,
+          message_count: 30,
+          workflow_run_id: RUN,
+          is_workflow_primary: true,
+          started_at: NOW - 60_000,
+        },
       ],
-      workflow_runs: [{
-        _id: RUN, user_id: HOST, status: "completed", node_statuses: [],
-        primary_conversation_id: "conversations_mine", created_at: NOW, updated_at: NOW,
-      }],
+      workflow_runs: [
+        {
+          _id: RUN,
+          user_id: HOST,
+          status: "completed",
+          node_statuses: [],
+          primary_conversation_id: "conversations_mine",
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
     });
     const out = await (unmarkRunHosts as any)._handler(ctx, { dry_run: false });
     expect(out.cleared).toEqual(["sess-mine"]);
-    expect(tables.conversations.find((c) => c._id === "conversations_mine")!.is_workflow_primary).toBe(false);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_mine")!
+        .is_workflow_primary,
+    ).toBe(false);
   });
 
   test("leaves a log the daemon rebound to a real session id alone (born with its run)", async () => {
     const RUN = "workflow_runs_rebound";
     const { ctx, tables } = await seed({
       conversations: [
-        { _id: "conversations_rebound", session_id: "7222ec51-real", user_id: HOST, message_count: 9, workflow_run_id: RUN, is_workflow_primary: true, started_at: NOW },
+        {
+          _id: "conversations_rebound",
+          session_id: "7222ec51-real",
+          user_id: HOST,
+          message_count: 9,
+          workflow_run_id: RUN,
+          is_workflow_primary: true,
+          started_at: NOW,
+        },
       ],
-      workflow_runs: [{
-        _id: RUN, user_id: HOST, status: "completed", node_statuses: [],
-        primary_conversation_id: "conversations_rebound", created_at: NOW, updated_at: NOW,
-      }],
+      workflow_runs: [
+        {
+          _id: RUN,
+          user_id: HOST,
+          status: "completed",
+          node_statuses: [],
+          primary_conversation_id: "conversations_rebound",
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
     });
     const out = await (unmarkRunHosts as any)._handler(ctx, { dry_run: false });
     expect(out.cleared).toEqual([]);
-    expect(tables.conversations.find((c) => c._id === "conversations_rebound")!.is_workflow_primary).toBe(true);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_rebound")!
+        .is_workflow_primary,
+    ).toBe(true);
   });
 
   test("leaves a log the line opened for its run alone", async () => {
     const RUN = "workflow_runs_line";
     const { ctx, tables } = await seed({
       conversations: [
-        { _id: "conversations_log", session_id: `wf-${RUN}`, user_id: HOST, message_count: 1, workflow_run_id: RUN, is_workflow_primary: true },
+        {
+          _id: "conversations_log",
+          session_id: `wf-${RUN}`,
+          user_id: HOST,
+          message_count: 1,
+          workflow_run_id: RUN,
+          is_workflow_primary: true,
+        },
       ],
-      workflow_runs: [{
-        _id: RUN, user_id: HOST, status: "completed", node_statuses: [], external_run_id: "wf_line-01",
-        primary_conversation_id: "conversations_log", created_at: NOW, updated_at: NOW,
-      }],
+      workflow_runs: [
+        {
+          _id: RUN,
+          user_id: HOST,
+          status: "completed",
+          node_statuses: [],
+          external_run_id: "wf_line-01",
+          primary_conversation_id: "conversations_log",
+          created_at: NOW,
+          updated_at: NOW,
+        },
+      ],
     });
     const out = await (unmarkRunHosts as any)._handler(ctx, { dry_run: false });
     expect(out.cleared).toEqual([]);
-    expect(tables.conversations.find((c) => c._id === "conversations_log")!.is_workflow_primary).toBe(true);
+    expect(
+      tables.conversations.find((c) => c._id === "conversations_log")!
+        .is_workflow_primary,
+    ).toBe(true);
   });
 });

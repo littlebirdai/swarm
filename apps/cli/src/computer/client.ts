@@ -35,10 +35,22 @@ import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { resolveCastInvocation } from "../castInvocation.js";
 import { isPidAlive } from "../workspace/chrome.js";
-import { asComputerError, ComputerError, computerErrorFromWire } from "./errors.js";
-import { helperAppPath, materializeHelperApp, withPrepareLock } from "./helperApp.js";
+import {
+  asComputerError,
+  ComputerError,
+  computerErrorFromWire,
+} from "./errors.js";
+import {
+  helperAppPath,
+  materializeHelperApp,
+  withPrepareLock,
+} from "./helperApp.js";
 import { spawnObserved, type ObservedLaunch } from "./launchObserver.js";
-import { launchesThroughOpen, requireDesktopSession, runOpen } from "./desktopSession.js";
+import {
+  launchesThroughOpen,
+  requireDesktopSession,
+  runOpen,
+} from "./desktopSession.js";
 import {
   acquireStartLock,
   clearInstance,
@@ -104,7 +116,11 @@ export interface ComputerClientOptions {
  * desktop session (an SSH login, see desktopSession.ts) and when disclaiming
  * is switched off with CODECAST_NO_DISCLAIM=1.
  */
-export function defaultHelperLaunch(socketPath: string, tokenPath: string, version?: string): HelperLaunch {
+export function defaultHelperLaunch(
+  socketPath: string,
+  tokenPath: string,
+  version?: string,
+): HelperLaunch {
   requireDesktopSession();
   const { appPath, executablePath } = materializeHelperApp({ version });
   const helperArgs = ["--agent", socketPath, "--token-file", tokenPath];
@@ -112,17 +128,45 @@ export function defaultHelperLaunch(socketPath: string, tokenPath: string, versi
   // to disclaim. It reports the version it was launched with, which is what
   // lets a helper left from the previous release be told apart.
   if (process.platform === "linux") {
-    return { cmd: "python3", args: [executablePath, ...helperArgs, ...(version ? ["--provider-version", version] : [])] };
+    return {
+      cmd: "python3",
+      args: [
+        executablePath,
+        ...helperArgs,
+        ...(version ? ["--provider-version", version] : []),
+      ],
+    };
   }
-  if (process.platform !== "darwin") return { cmd: executablePath, args: helperArgs };
-  if (launchesThroughOpen()) return { cmd: "/usr/bin/open", args: ["-n", appPath, "--args", ...helperArgs], viaOpen: true };
+  if (process.platform !== "darwin")
+    return { cmd: executablePath, args: helperArgs };
+  if (launchesThroughOpen())
+    return {
+      cmd: "/usr/bin/open",
+      args: ["-n", appPath, "--args", ...helperArgs],
+      viaOpen: true,
+    };
   const cast = resolveCastInvocation();
-  return { cmd: cast.cmd, args: [...cast.prefixArgs, "_disclaimed", "--", executablePath, ...helperArgs] };
+  return {
+    cmd: cast.cmd,
+    args: [
+      ...cast.prefixArgs,
+      "_disclaimed",
+      "--",
+      executablePath,
+      ...helperArgs,
+    ],
+  };
 }
 
 /** Fill a missing verification from the action path, so an older helper can
  *  never look verified (design 14.3). */
-const READ_METHODS: ReadonlySet<ComputerMethod> = new Set(["handshake", "listApps", "listWindows", "getAppState", "terminate"]);
+const READ_METHODS: ReadonlySet<ComputerMethod> = new Set([
+  "handshake",
+  "listApps",
+  "listWindows",
+  "getAppState",
+  "terminate",
+]);
 
 /** A mutation that timed out may still have landed, and is never retried. */
 function timeoutMessage(method: ComputerMethod): string {
@@ -131,7 +175,9 @@ function timeoutMessage(method: ComputerMethod): string {
     : `computer helper ${method} timed out, so whether it took effect is unknown; it was not retried. Read the window before acting again`;
 }
 
-export function normalizeActionResult(result: ComputerActionResult): ComputerActionResult {
+export function normalizeActionResult(
+  result: ComputerActionResult,
+): ComputerActionResult {
   const action = result?.action;
   if (!action || action.verification) return result;
   const reason =
@@ -143,10 +189,17 @@ export function normalizeActionResult(result: ComputerActionResult): ComputerAct
           ? ("accessibility_action_unasserted" as const)
           : null;
   if (!reason) return result;
-  return { ...result, action: { ...action, verification: { state: "unverified", reason } } };
+  return {
+    ...result,
+    action: { ...action, verification: { state: "unverified", reason } },
+  };
 }
 
-type Pending = { resolve: (value: unknown) => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> };
+type Pending = {
+  resolve: (value: unknown) => void;
+  reject: (err: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
 
 export class ComputerClient {
   private socket: net.Socket | null = null;
@@ -190,8 +243,13 @@ export class ComputerClient {
     return this.request<ComputerSnapshotResult>("getAppState", params);
   }
 
-  async action(method: ComputerActionMethod, params: unknown): Promise<ComputerActionResult> {
-    return normalizeActionResult(await this.request<ComputerActionResult>(method, params));
+  async action(
+    method: ComputerActionMethod,
+    params: unknown,
+  ): Promise<ComputerActionResult> {
+    return normalizeActionResult(
+      await this.request<ComputerActionResult>(method, params),
+    );
   }
 
   /** Stop the helper this client is talking to, and forget it. Never launches
@@ -219,7 +277,10 @@ export class ComputerClient {
     this.detach?.();
     this.detach = null;
     if (socket && !socket.destroyed) socket.end();
-    const err = new ComputerError("accessibility_error", "the computer helper connection was closed");
+    const err = new ComputerError(
+      "accessibility_error",
+      "the computer helper connection was closed",
+    );
     for (const [id, p] of this.pending) {
       clearTimeout(p.timer);
       this.pending.delete(id);
@@ -233,11 +294,16 @@ export class ComputerClient {
     const generation = this.queueGeneration;
     const run = () => {
       if (generation !== this.queueGeneration) {
-        throw new ComputerError("accessibility_error", "the computer helper queue was invalidated; retry the request");
+        throw new ComputerError(
+          "accessibility_error",
+          "the computer helper queue was invalidated; retry the request",
+        );
       }
       return fn();
     };
-    const result: Promise<T> = this.chain ? this.chain.then(run, run) : Promise.resolve().then(run);
+    const result: Promise<T> = this.chain
+      ? this.chain.then(run, run)
+      : Promise.resolve().then(run);
     const tail = result.then(
       () => undefined,
       () => undefined,
@@ -254,9 +320,13 @@ export class ComputerClient {
    * target app and answers each by id, so a request on one app never waits
    * for another app that has stopped answering.
    */
-  private async request<T>(method: ComputerMethod, params: unknown): Promise<T> {
+  private async request<T>(
+    method: ComputerMethod,
+    params: unknown,
+  ): Promise<T> {
     await this.enqueue(() => this.ensureCompatible());
-    if (isRestoreWindow(params)) await (this.opts.stampRaise ?? stampComputerRaise)();
+    if (isRestoreWindow(params))
+      await (this.opts.stampRaise ?? stampComputerRaise)();
     return (await this.send(method, params)) as T;
   }
 
@@ -310,7 +380,10 @@ export class ComputerClient {
 
   private compatible(caps: ComputerProviderCapabilities): boolean {
     const want = this.opts.version;
-    return caps.protocolVersion === COMPUTER_PROTOCOL_VERSION && !(want && caps.providerVersion && caps.providerVersion !== want);
+    return (
+      caps.protocolVersion === COMPUTER_PROTOCOL_VERSION &&
+      !(want && caps.providerVersion && caps.providerVersion !== want)
+    );
   }
 
   private async handshake(): Promise<ComputerProviderCapabilities> {
@@ -326,7 +399,12 @@ export class ComputerClient {
   private async stopHelper(state: ComputerInstanceState): Promise<void> {
     if (this.socket && !this.socket.destroyed) {
       try {
-        this.write({ id: this.nextId++, method: "terminate", params: {}, token: state.token });
+        this.write({
+          id: this.nextId++,
+          method: "terminate",
+          params: {},
+          token: state.token,
+        });
       } catch {
         /* it is going away either way */
       }
@@ -340,7 +418,10 @@ export class ComputerClient {
 
   // ── transport ────────────────────────────────────────────────────────────
 
-  private async send(method: ComputerMethod, params: unknown): Promise<unknown> {
+  private async send(
+    method: ComputerMethod,
+    params: unknown,
+  ): Promise<unknown> {
     await this.ensureConnected();
     const token = this.state?.token ?? "";
     const id = this.nextId++;
@@ -352,7 +433,11 @@ export class ComputerClient {
         // only when nothing else is waiting on it: another app's request in
         // flight on it is still being answered.
         if (this.pending.size === 0) this.shutdown();
-        reject(new ComputerError("action_timeout", timeoutMessage(method), { outcomeUnknown: !READ_METHODS.has(method) }));
+        reject(
+          new ComputerError("action_timeout", timeoutMessage(method), {
+            outcomeUnknown: !READ_METHODS.has(method),
+          }),
+        );
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
     });
@@ -370,9 +455,18 @@ export class ComputerClient {
     return await result;
   }
 
-  private write(request: { id: number; method: ComputerMethod; params: unknown; token: string }): void {
+  private write(request: {
+    id: number;
+    method: ComputerMethod;
+    params: unknown;
+    token: string;
+  }): void {
     const socket = this.socket;
-    if (!socket || socket.destroyed) throw new ComputerError("accessibility_error", "the computer helper connection is closed");
+    if (!socket || socket.destroyed)
+      throw new ComputerError(
+        "accessibility_error",
+        "the computer helper connection is closed",
+      );
     socket.write(`${JSON.stringify(request)}\n`);
   }
 
@@ -439,12 +533,17 @@ export class ComputerClient {
 
   private async spawnHelper(): Promise<net.Socket> {
     const generation = ++this.startGeneration;
-    const socketDir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-computer-"));
+    const socketDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "codecast-computer-"),
+    );
     fs.chmodSync(socketDir, 0o700);
     const socketPath = path.join(socketDir, "helper.sock");
     if (Buffer.byteLength(socketPath) > MAX_SOCKET_PATH) {
       fs.rmSync(socketDir, { recursive: true, force: true });
-      throw new ComputerError("invalid_argument", "computer socket path is too long");
+      throw new ComputerError(
+        "invalid_argument",
+        "computer socket path is too long",
+      );
     }
     const tokenPath = path.join(socketDir, "helper.token");
     const token = randomBytes(32).toString("hex");
@@ -464,18 +563,29 @@ export class ComputerClient {
       // missing dylib or a refused signature says so in the error instead of
       // arriving as a bare exit code (ct-49674).
       if (launch.viaOpen) runOpen(launch.args, "start the computer helper");
-      else observed = spawnObserved(launch.cmd, launch.args, path.join(socketDir, "helper.log"));
+      else
+        observed = spawnObserved(
+          launch.cmd,
+          launch.args,
+          path.join(socketDir, "helper.log"),
+        );
     } catch (err) {
       fs.rmSync(socketDir, { recursive: true, force: true });
       throw asComputerError(err);
     }
-    const helperPid = (): number => observed?.child.pid ?? strayHelperPids(socketDir)[0] ?? 0;
+    const helperPid = (): number =>
+      observed?.child.pid ?? strayHelperPids(socketDir)[0] ?? 0;
 
     const failure = observed ? watchLaunchFailure(observed) : null;
     let socket: net.Socket;
     try {
-      const connect = connectWithRetry(socketPath, this.opts.connectTimeoutMs ?? CONNECT_TIMEOUT_MS);
-      socket = await (failure ? Promise.race([connect, failure.promise]) : connect);
+      const connect = connectWithRetry(
+        socketPath,
+        this.opts.connectTimeoutMs ?? CONNECT_TIMEOUT_MS,
+      );
+      socket = await (failure
+        ? Promise.race([connect, failure.promise])
+        : connect);
     } catch (err) {
       failure?.cleanup();
       try {
@@ -495,7 +605,10 @@ export class ComputerClient {
     if (generation !== this.startGeneration) {
       socket.destroy();
       fs.rmSync(socketDir, { recursive: true, force: true });
-      throw new ComputerError("accessibility_error", "computer helper startup was superseded");
+      throw new ComputerError(
+        "accessibility_error",
+        "computer helper startup was superseded",
+      );
     }
 
     const state: ComputerInstanceState = {
@@ -549,7 +662,12 @@ export class ComputerClient {
     const onClose = () => {
       if (this.socket !== socket) return;
       forget();
-      this.rejectPending(new ComputerError("accessibility_error", "the computer helper closed the connection"));
+      this.rejectPending(
+        new ComputerError(
+          "accessibility_error",
+          "the computer helper closed the connection",
+        ),
+      );
     };
     const onError = (err: Error) => {
       if (this.socket !== socket) return;
@@ -616,10 +734,17 @@ export class ComputerClient {
 }
 
 function isRestoreWindow(params: unknown): boolean {
-  return !!params && typeof params === "object" && (params as { restoreWindow?: unknown }).restoreWindow === true;
+  return (
+    !!params &&
+    typeof params === "object" &&
+    (params as { restoreWindow?: unknown }).restoreWindow === true
+  );
 }
 
-function connectOnce(socketPath: string, timeoutMs: number): Promise<net.Socket | null> {
+function connectOnce(
+  socketPath: string,
+  timeoutMs: number,
+): Promise<net.Socket | null> {
   return new Promise((resolve) => {
     // Listeners BEFORE connect(): a missing socket path can emit 'error'
     // synchronously, and an unhandled socket 'error' is a process exception —
@@ -658,13 +783,22 @@ function connectOnce(socketPath: string, timeoutMs: number): Promise<net.Socket 
   });
 }
 
-async function connectWithRetry(socketPath: string, timeoutMs: number): Promise<net.Socket> {
+async function connectWithRetry(
+  socketPath: string,
+  timeoutMs: number,
+): Promise<net.Socket> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const socket = await connectOnce(socketPath, Math.min(1_000, Math.max(200, deadline - Date.now())));
+    const socket = await connectOnce(
+      socketPath,
+      Math.min(1_000, Math.max(200, deadline - Date.now())),
+    );
     if (socket) return socket;
     if (Date.now() >= deadline) {
-      throw new ComputerError("accessibility_error", `the computer helper did not open its socket within ${Math.round(timeoutMs / 1000)}s`);
+      throw new ComputerError(
+        "accessibility_error",
+        `the computer helper did not open its socket within ${Math.round(timeoutMs / 1000)}s`,
+      );
     }
     await sleep(100);
   }
@@ -674,11 +808,20 @@ async function connectWithRetry(socketPath: string, timeoutMs: number): Promise<
  *  launch fails fast with the real reason instead of timing out. The observer
  *  carries what the child said on the way out, which is what tells a missing
  *  bundle apart from a refused signature apart from a crash. */
-function watchLaunchFailure(observed: ObservedLaunch): { promise: Promise<never>; cleanup: () => void } {
+function watchLaunchFailure(observed: ObservedLaunch): {
+  promise: Promise<never>;
+  cleanup: () => void;
+} {
   const child = observed.child;
   let cleanup = (): void => {};
   const promise = new Promise<never>((_resolve, reject) => {
-    const died = () => reject(new ComputerError("accessibility_error", `the computer helper ${observed.explain()}`));
+    const died = () =>
+      reject(
+        new ComputerError(
+          "accessibility_error",
+          `the computer helper ${observed.explain()}`,
+        ),
+      );
     child.once("error", died);
     child.once("exit", died);
     cleanup = () => {

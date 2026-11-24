@@ -19,7 +19,9 @@ function pulseFile(sessionId: string): string {
   return path.join(defaultConfigDir(), "task-pulse", `${sessionId}.json`);
 }
 
-export function readTaskPulseFor(sessionId: string | null | undefined): TaskPulse | null {
+export function readTaskPulseFor(
+  sessionId: string | null | undefined,
+): TaskPulse | null {
   if (!sessionId) return null;
   try {
     const file = pulseFile(sessionId);
@@ -30,7 +32,12 @@ export function readTaskPulseFor(sessionId: string | null | undefined): TaskPuls
   }
 }
 
-export function writeTaskPulse(sessionId: string, taskId: string, planId?: string, opts: { started?: boolean } = {}): void {
+export function writeTaskPulse(
+  sessionId: string,
+  taskId: string,
+  planId?: string,
+  opts: { started?: boolean } = {},
+): void {
   try {
     const file = pulseFile(sessionId);
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -51,8 +58,12 @@ export function clearTaskPulse(sessionId: string): void {
 // Clear the pulse ONLY when the closed task is the one the session is bound to.
 // Closing a subtask under a still-claimed parent must not unbind the session:
 // that would silence the reminder and break `cast task context --current`.
-export function clearTaskPulseIfBound(sessionId: string, closedShortId: string): void {
-  if (readTaskPulseFor(sessionId)?.task === closedShortId) clearTaskPulse(sessionId);
+export function clearTaskPulseIfBound(
+  sessionId: string,
+  closedShortId: string,
+): void {
+  if (readTaskPulseFor(sessionId)?.task === closedShortId)
+    clearTaskPulse(sessionId);
 }
 
 /**
@@ -62,7 +73,12 @@ export function clearTaskPulseIfBound(sessionId: string, closedShortId: string):
  * work the reminder and the compaction block should name (TG5, TG10).
  * Otherwise the newest filed task takes the pulse, keeping its plan.
  */
-export function recordTaskFiled(sessionId: string | null, shortId: string, planId: string | undefined, sessionBound?: boolean): void {
+export function recordTaskFiled(
+  sessionId: string | null,
+  shortId: string,
+  planId: string | undefined,
+  sessionBound?: boolean,
+): void {
   if (!sessionId || sessionBound) return;
   const pulse = readTaskPulseFor(sessionId);
   if (pulse?.task && pulse.started) return;

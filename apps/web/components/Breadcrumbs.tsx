@@ -24,26 +24,45 @@ export type Crumb = {
   trailing?: ReactNode;
 };
 
-export function Breadcrumbs({ items, className = "" }: { items: Crumb[]; className?: string }) {
+export function Breadcrumbs({
+  items,
+  className = "",
+}: {
+  items: Crumb[];
+  className?: string;
+}) {
   const visible = items.filter(Boolean);
   if (visible.length === 0) return null;
   return (
-    <nav aria-label="Breadcrumb" className={`flex items-center gap-1 min-w-0 text-sm ${className}`}>
+    <nav
+      aria-label="Breadcrumb"
+      className={`flex items-center gap-1 min-w-0 text-sm ${className}`}
+    >
       {visible.map((crumb, i) => {
         const isLast = i === visible.length - 1;
         const body = (
           <>
             {crumb.icon}
             {crumb.shortId && (
-              <span className="font-mono text-xs text-sol-text-dim flex-shrink-0">{crumb.shortId}</span>
+              <span className="font-mono text-xs text-sol-text-dim flex-shrink-0">
+                {crumb.shortId}
+              </span>
             )}
-            <span className={isLast ? "truncate" : "truncate max-w-[14rem]"}>{crumb.label}</span>
+            <span className={isLast ? "truncate" : "truncate max-w-[14rem]"}>
+              {crumb.label}
+            </span>
           </>
         );
         return (
-          <div key={`${crumb.label}-${i}`} className={`flex items-center gap-1 min-w-0 ${isLast ? "" : "flex-shrink-0"}`}>
+          <div
+            key={`${crumb.label}-${i}`}
+            className={`flex items-center gap-1 min-w-0 ${isLast ? "" : "flex-shrink-0"}`}
+          >
             {i > 0 && (
-              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim/60" aria-hidden />
+              <ChevronRight
+                className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim/60"
+                aria-hidden
+              />
             )}
             {crumb.href && !isLast ? (
               <Link
@@ -53,7 +72,9 @@ export function Breadcrumbs({ items, className = "" }: { items: Crumb[]; classNa
                 {body}
               </Link>
             ) : (
-              <span className="flex items-center gap-1.5 min-w-0 text-sol-text font-medium">{body}</span>
+              <span className="flex items-center gap-1.5 min-w-0 text-sol-text font-medium">
+                {body}
+              </span>
             )}
             {isLast && crumb.trailing}
           </div>

@@ -1,13 +1,10 @@
-import {
-  useMemo } from 'react';
-import { View as RNView,
-  StyleSheet,
-} from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { deviceDisplayName } from '@codecast/shared/contracts';
+import { useMemo } from "react";
+import { View as RNView, StyleSheet } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 
 /**
  * Device awareness for the phone. A session runs on exactly one device; these
@@ -37,10 +34,12 @@ export function deviceColor(d: Device): string {
   return Theme.cyan;
 }
 
-export function deviceIcon(d: Device): React.ComponentProps<typeof FontAwesome>['name'] {
-  if (d.is_remote) return 'server';
-  if (/linux/i.test(d.platform)) return 'terminal';
-  return 'laptop';
+export function deviceIcon(
+  d: Device,
+): React.ComponentProps<typeof FontAwesome>["name"] {
+  if (d.is_remote) return "server";
+  if (/linux/i.test(d.platform)) return "terminal";
+  return "laptop";
 }
 
 export function relativeSeen(lastSeen: number): string {
@@ -64,7 +63,9 @@ export function useDevices() {
 
 /** Full devices list for the Settings screen. The settings page that hosts it
  *  carries the title in its nav bar, so it can drop the section heading. */
-export function DevicesSection({ showTitle = true }: { showTitle?: boolean } = {}) {
+export function DevicesSection({
+  showTitle = true,
+}: { showTitle?: boolean } = {}) {
   const Theme = useTheme();
   const { devices } = useDevices();
   const sorted = useMemo(
@@ -84,7 +85,9 @@ export function DevicesSection({ showTitle = true }: { showTitle?: boolean } = {
       <RNView style={styles.card}>
         {sorted.length === 0 ? (
           <RNView style={styles.setting}>
-            <RNText style={styles.empty}>No devices yet. Run the codecast daemon on a machine.</RNText>
+            <RNText style={styles.empty}>
+              No devices yet. Run the codecast daemon on a machine.
+            </RNText>
           </RNView>
         ) : (
           sorted.map((d, i) => {
@@ -93,24 +96,51 @@ export function DevicesSection({ showTitle = true }: { showTitle?: boolean } = {
               <RNView key={d.device_id}>
                 {i > 0 && <RNView style={styles.divider} />}
                 <RNView style={styles.row}>
-                  <FontAwesome name={deviceIcon(d)} size={18} color={color} style={{ width: 24 }} />
+                  <FontAwesome
+                    name={deviceIcon(d)}
+                    size={18}
+                    color={color}
+                    style={{ width: 24 }}
+                  />
                   <RNView style={{ flex: 1, minWidth: 0 }}>
                     <RNView style={styles.rowTop}>
                       <RNText style={styles.name} numberOfLines={1}>
                         {deviceDisplayName(d)}
                       </RNText>
                       {d.is_remote && (
-                        <RNView style={[styles.tag, { borderColor: Theme.violet + '55' }]}>
-                          <RNText style={[styles.tagText, { color: Theme.violet }]}>Remote</RNText>
+                        <RNView
+                          style={[
+                            styles.tag,
+                            { borderColor: Theme.violet + "55" },
+                          ]}
+                        >
+                          <RNText
+                            style={[styles.tagText, { color: Theme.violet }]}
+                          >
+                            Remote
+                          </RNText>
                         </RNView>
                       )}
                     </RNView>
                     <RNText style={styles.sub} numberOfLines={1}>
-                      {d.online ? 'Online' : `Last seen ${relativeSeen(d.last_seen)}`}
-                      {d.local_project_roots.length > 0 ? ` · ${d.local_project_roots.length} checkouts` : ''}
+                      {d.online
+                        ? "Online"
+                        : `Last seen ${relativeSeen(d.last_seen)}`}
+                      {d.local_project_roots.length > 0
+                        ? ` · ${d.local_project_roots.length} checkouts`
+                        : ""}
                     </RNText>
                   </RNView>
-                  <RNView style={[styles.dot, { backgroundColor: d.online ? Theme.green : Theme.textMuted0 }]} />
+                  <RNView
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: d.online
+                          ? Theme.green
+                          : Theme.textMuted0,
+                      },
+                    ]}
+                  />
                 </RNView>
               </RNView>
             );
@@ -118,40 +148,64 @@ export function DevicesSection({ showTitle = true }: { showTitle?: boolean } = {
         )}
       </RNView>
       <RNText style={styles.footnote}>
-        New sessions and messages from your phone run on your most-recently-active local machine. The remote Mac
-        only runs a session you explicitly move there.
+        New sessions and messages from your phone run on your
+        most-recently-active local machine. The remote Mac only runs a session
+        you explicitly move there.
       </RNText>
     </RNView>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  section: { marginBottom: Spacing.xl },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Theme.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-    marginLeft: Spacing.sm,
-  },
-  card: {
-    backgroundColor: Theme.bgAlt,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    overflow: 'hidden',
-  },
-  setting: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 16, fontWeight: '500', color: Theme.text, flexShrink: 1 },
-  sub: { fontSize: 13, color: Theme.textMuted, marginTop: 2 },
-  tag: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  tagText: { fontSize: 10, fontWeight: '600' },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.borderLight, marginLeft: Spacing.lg },
-  empty: { fontSize: 14, color: Theme.textMuted },
-  footnote: { fontSize: 12, color: Theme.textMuted, marginTop: Spacing.sm, marginHorizontal: Spacing.sm, lineHeight: 17 },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    dot: { width: 6, height: 6, borderRadius: 3 },
+    section: { marginBottom: Spacing.xl },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: Spacing.sm,
+      marginLeft: Spacing.sm,
+    },
+    card: {
+      backgroundColor: Theme.bgAlt,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      overflow: "hidden",
+    },
+    setting: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+    },
+    rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+    name: { fontSize: 16, fontWeight: "500", color: Theme.text, flexShrink: 1 },
+    sub: { fontSize: 13, color: Theme.textMuted, marginTop: 2 },
+    tag: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    tagText: { fontSize: 10, fontWeight: "600" },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: Theme.borderLight,
+      marginLeft: Spacing.lg,
+    },
+    empty: { fontSize: 14, color: Theme.textMuted },
+    footnote: {
+      fontSize: 12,
+      color: Theme.textMuted,
+      marginTop: Spacing.sm,
+      marginHorizontal: Spacing.sm,
+      lineHeight: 17,
+    },
+  }),
+);

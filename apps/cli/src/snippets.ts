@@ -92,7 +92,9 @@ export type { SnippetInstallResult };
 /** One instruction file on this machine. */
 export type SnippetTarget = ResolvedTarget;
 
-export function getSnippetTargets(home = process.env.HOME || os.homedir()): SnippetTarget[] {
+export function getSnippetTargets(
+  home = process.env.HOME || os.homedir(),
+): SnippetTarget[] {
   // process.env.HOME first, matching the daemon: Bun's os.homedir() answers
   // from getpwuid and ignores $HOME, which breaks every fake-HOME test and any
   // user who genuinely redirects HOME.
@@ -127,17 +129,30 @@ export function getSnippetTargets(home = process.env.HOME || os.homedir()): Snip
  *  clients that read one AGENTS.md get one target. A client counts as present
  *  under the same rule as there. Whether a write may land in one of these is
  *  not this function's question; projectWrites.ts answers it per file. */
-export function getProjectSnippetTargets(root: string, home = process.env.HOME || os.homedir()): SnippetTarget[] {
+export function getProjectSnippetTargets(
+  root: string,
+  home = process.env.HOME || os.homedir(),
+): SnippetTarget[] {
   const users = new Set(getSnippetTargets(home).map((t) => t.label));
   const seen = new Set<string>();
   const targets: SnippetTarget[] = [];
   for (const descriptor of Object.values(LOCAL_AGENT_CLIENTS)) {
     const file = descriptor.agentFileTargets?.instructionFile;
-    if (!file?.user || !file.project || file.format !== "markdown" || !users.has(file.user)) continue;
+    if (
+      !file?.user ||
+      !file.project ||
+      file.format !== "markdown" ||
+      !users.has(file.user)
+    )
+      continue;
     const filePath = path.join(root, file.project);
     if (seen.has(filePath)) continue;
     seen.add(filePath);
-    targets.push({ filePath, dirPath: path.dirname(filePath), label: file.project });
+    targets.push({
+      filePath,
+      dirPath: path.dirname(filePath),
+      label: file.project,
+    });
   }
   return targets;
 }
@@ -161,12 +176,17 @@ export function getProjectSnippetTargets(root: string, home = process.env.HOME |
 // Every section write goes through the harness writer, so it lands in the
 // change history with the action that caused it (harness.ts). Reads and the
 // directory check stay on the plain adapter.
-function sectionFs(spec: SectionSpec, what = `section:${snippetByEndMarker(spec.endMarker)?.slug ?? "references"}`): typeof nodeFs {
+function sectionFs(
+  spec: SectionSpec,
+  what = `section:${snippetByEndMarker(spec.endMarker)?.slug ?? "references"}`,
+): typeof nodeFs {
   return {
     readFile: (p) => nodeFs.readFile(p),
     exists: (p) => nodeFs.exists(p),
     mkdir: (p) => nodeFs.mkdir(p),
-    writeFile: (p, text) => { writeHarnessFile(p, text, what); },
+    writeFile: (p, text) => {
+      writeHarnessFile(p, text, what);
+    },
   };
 }
 
@@ -177,7 +197,13 @@ export function installSectionToFile(
   snippet: string,
   update: boolean,
 ): SnippetInstallResult {
-  return installSectionToFileWith(sectionFs(spec), { filePath, dirPath }, spec, renderSection(spec, snippet), update);
+  return installSectionToFileWith(
+    sectionFs(spec),
+    { filePath, dirPath },
+    spec,
+    renderSection(spec, snippet),
+    update,
+  );
 }
 
 /** Write `spec`'s section into every agent instruction file on this machine.
@@ -188,7 +214,13 @@ export function installSectionToTargets(
   snippet: string,
   update: boolean,
 ): SnippetInstallResult {
-  return installSectionToTargetsWith(sectionFs(spec), getSnippetTargets(), spec, renderSection(spec, snippet), update);
+  return installSectionToTargetsWith(
+    sectionFs(spec),
+    getSnippetTargets(),
+    spec,
+    renderSection(spec, snippet),
+    update,
+  );
 }
 
 /**
@@ -206,7 +238,8 @@ export function writeOwnedSection(
   what: string,
 ): boolean {
   const fsi = sectionFs(spec, what);
-  if (body !== null) return !installSectionToFileWith(fsi, target, spec, body, true).unchanged;
+  if (body !== null)
+    return !installSectionToFileWith(fsi, target, spec, body, true).unchanged;
   return removeSectionFromTargets(fsi, [target], spec);
 }
 
@@ -301,14 +334,22 @@ export function guidanceSectionStatus(input: {
     for (const file of input.files) {
       const blocks = findOwnedSections(file.text, section.spec);
       if (blocks.length === 0) {
-        rows.push({ slug: descriptor.slug, file: file.label, state: "missing", stamp: null });
+        rows.push({
+          slug: descriptor.slug,
+          file: file.label,
+          state: "missing",
+          stamp: null,
+        });
         continue;
       }
       const installed = file.text.slice(blocks[0]!.start, blocks[0]!.end);
       rows.push({
         slug: descriptor.slug,
         file: file.label,
-        state: stripSnippetStamp(installed).trim() === expected ? "current" : "stale",
+        state:
+          stripSnippetStamp(installed).trim() === expected
+            ? "current"
+            : "stale",
         stamp: readSnippetStamp(installed),
       });
     }
@@ -321,7 +362,11 @@ export function installBrowserSnippet(update = false): SnippetInstallResult {
 }
 
 export function installReferencesSnippet(update = false): SnippetInstallResult {
-  return installSectionToTargets(REFERENCES_SECTION, REFERENCES_SNIPPET, update);
+  return installSectionToTargets(
+    REFERENCES_SECTION,
+    REFERENCES_SNIPPET,
+    update,
+  );
 }
 
 export function installPublishSnippet(update = false): SnippetInstallResult {

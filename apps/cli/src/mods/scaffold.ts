@@ -2,10 +2,18 @@
 // command and a fence) so the first `cast mod dev` shows something real, and
 // the author edits from there instead of from an empty file.
 
-import { AGENTS_FILE, MANIFEST_FILE, TYPES_FILE, authoringTypes } from "./build.js";
+import {
+  AGENTS_FILE,
+  MANIFEST_FILE,
+  TYPES_FILE,
+  authoringTypes,
+} from "./build.js";
 
 function titleOf(name: string): string {
-  return name.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+  return name
+    .split("-")
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 export function scaffoldFiles(name: string): Record<string, string> {
@@ -17,8 +25,12 @@ export function scaffoldFiles(name: string): Record<string, string> {
     icon: "sparkles",
     permissions: { read: ["sessions"], write: ["tasks"] },
     panes: [{ id: "main", title }],
-    commands: [{ id: "open", title: `Open ${title}`, keywords: name.replace(/-/g, " ") }],
-    fences: [{ lang: `${name}-note`, description: "A callout an agent can emit" }],
+    commands: [
+      { id: "open", title: `Open ${title}`, keywords: name.replace(/-/g, " ") },
+    ],
+    fences: [
+      { lang: `${name}-note`, description: "A callout an agent can emit" },
+    ],
   };
   const ui = `import { h, Fragment, Row, Column, Card, Grid, Stat, Table, Button, Text, Markdown, Empty, type Register } from "codecast-mod";
 
@@ -90,7 +102,11 @@ export const register: Register = (on) => {
   };
   // Its own compiler, so `cast mod build` typechecks the mod on any machine
   // rather than finding no tsc; @types/bun types a local half's node: imports.
-  const pkg = { name, private: true, devDependencies: { typescript: "^5.7.2", "@types/bun": "^1.3.3" } };
+  const pkg = {
+    name,
+    private: true,
+    devDependencies: { typescript: "^5.7.2", "@types/bun": "^1.3.3" },
+  };
   return {
     [MANIFEST_FILE]: `${JSON.stringify(manifest, null, 2)}\n`,
     "package.json": `${JSON.stringify(pkg, null, 2)}\n`,

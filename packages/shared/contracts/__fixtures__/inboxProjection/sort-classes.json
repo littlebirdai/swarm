@@ -182,81 +182,21 @@
     },
     "set_digest": "89fb432e70eb18d2",
     "placements": {
-      "donenoturnz100000000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "doneoldturnz11000000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "donerecentturnz14000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "dormunnamedwakez1500000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "dormwakelaterz130000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "dormwakesoonz1200000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "newbornz700000000000000000000000": [
-        "new",
-        "idle",
-        false
-      ],
-      "newolderz80000000000000000000000": [
-        "new",
-        "idle",
-        false
-      ],
-      "nifreshz700000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "ninodaemonz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "nistalez700000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "workbornz80000000000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "workgrindingz1200000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "workjustbackz1200000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "workneversettledz160000000000000": [
-        "working",
-        "working",
-        false
-      ]
+      "donenoturnz100000000000000000000": ["done", "done", false],
+      "doneoldturnz11000000000000000000": ["done", "done", false],
+      "donerecentturnz14000000000000000": ["done", "done", false],
+      "dormunnamedwakez1500000000000000": ["dormant", "dormant", false],
+      "dormwakelaterz130000000000000000": ["dormant", "dormant", false],
+      "dormwakesoonz1200000000000000000": ["dormant", "dormant", false],
+      "newbornz700000000000000000000000": ["new", "idle", false],
+      "newolderz80000000000000000000000": ["new", "idle", false],
+      "nifreshz700000000000000000000000": ["needs_input", "needs_input", false],
+      "ninodaemonz100000000000000000000": ["needs_input", "needs_input", false],
+      "nistalez700000000000000000000000": ["needs_input", "needs_input", false],
+      "workbornz80000000000000000000000": ["working", "working", false],
+      "workgrindingz1200000000000000000": ["working", "working", false],
+      "workjustbackz1200000000000000000": ["working", "working", false],
+      "workneversettledz160000000000000": ["working", "working", false]
     },
     "sort_at": {
       "donenoturnz100000000000000000000": -3600000,

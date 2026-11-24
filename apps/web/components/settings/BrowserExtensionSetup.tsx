@@ -17,10 +17,16 @@ export function BrowserExtensionSetup() {
         <li className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sol-text">1. Add Codecast to Chrome</p>
-            <p className="mt-1 text-xs text-sol-text-muted">Install in the Chrome profile you want your agents to use.</p>
+            <p className="mt-1 text-xs text-sol-text-muted">
+              Install in the Chrome profile you want your agents to use.
+            </p>
           </div>
           <Button variant="secondary" size="sm" asChild>
-            <a href={BROWSER_EXTENSION_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <a
+              href={BROWSER_EXTENSION_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Chrome Web Store <ExternalLink className="ml-1.5 h-3 w-3" />
             </a>
           </Button>
@@ -28,7 +34,9 @@ export function BrowserExtensionSetup() {
         <li className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sol-text">2. Pair it with this computer</p>
-            <p className="mt-1 text-xs text-sol-text-muted">Switch on Browser in Agent features, then click Pair on its card.</p>
+            <p className="mt-1 text-xs text-sol-text-muted">
+              Switch on Browser in Agent features, then click Pair on its card.
+            </p>
           </div>
           <Button variant="secondary" size="sm" asChild>
             <Link href={agentFeatureHref("browser")}>Open Agent features</Link>
@@ -36,9 +44,14 @@ export function BrowserExtensionSetup() {
         </li>
       </ol>
       <p className="mt-4 text-xs leading-relaxed text-sol-text-muted">
-        Requires desktop Chrome and codecast on the same computer. Repeat on each computer you use.
-        Chrome updates the extension automatically.{" "}
-        <Link href="/documentation/browser" className="text-sol-cyan hover:underline">Setup guide</Link>
+        Requires desktop Chrome and codecast on the same computer. Repeat on
+        each computer you use. Chrome updates the extension automatically.{" "}
+        <Link
+          href="/documentation/browser"
+          className="text-sol-cyan hover:underline"
+        >
+          Setup guide
+        </Link>
       </p>
     </SettingsSection>
   );

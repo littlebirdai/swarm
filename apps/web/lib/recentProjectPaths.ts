@@ -39,10 +39,17 @@ export function recentProjectPathsFromSessionKeys(
   keys: string[],
   currentUserId: string | null | undefined,
 ): RecentProjectPath[] {
-  return recentProjectPathsFromSessions(keys.map((key) => {
-    const [user_id, project_path, updatedMinute] = JSON.parse(key) as [string, string, number];
-    return { user_id, project_path, updated_at: updatedMinute * 60_000 };
-  }), currentUserId);
+  return recentProjectPathsFromSessions(
+    keys.map((key) => {
+      const [user_id, project_path, updatedMinute] = JSON.parse(key) as [
+        string,
+        string,
+        number,
+      ];
+      return { user_id, project_path, updated_at: updatedMinute * 60_000 };
+    }),
+    currentUserId,
+  );
 }
 
 /** The checkout a path belongs to: a managed worktree folds to its repository root. */
@@ -53,10 +60,13 @@ export function projectRootOf(raw: string): string {
 
 function usableRecentPath(raw: string): string | null {
   const path = projectRootOf(raw);
-  if (!path || /^\/(tmp|var|private\/tmp|private\/var)(\/|$)/.test(path)) return null;
+  if (!path || /^\/(tmp|var|private\/tmp|private\/var)(\/|$)/.test(path))
+    return null;
   const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0 || (parts[0] === "root" && parts.length === 1)) return null;
-  if ((parts[0] === "Users" || parts[0] === "home") && parts.length <= 2) return null;
+  if (parts.length === 0 || (parts[0] === "root" && parts.length === 1))
+    return null;
+  if ((parts[0] === "Users" || parts[0] === "home") && parts.length <= 2)
+    return null;
   return path;
 }
 
@@ -105,10 +115,9 @@ export function mergeRecentProjectPaths(
  * agents started sessions in (the server counts only sessions a person
  * started). Both live behind the full picker.
  */
-export function frequentProjectChips<T extends { path: string; count: number; suggested?: boolean }>(
-  projects: T[],
-  max = 4,
-): T[] {
+export function frequentProjectChips<
+  T extends { path: string; count: number; suggested?: boolean },
+>(projects: T[], max = 4): T[] {
   return projects
     .filter((p) => !p.suggested && p.count > 0)
     .sort((a, b) => b.count - a.count)
@@ -120,8 +129,11 @@ export function frequentProjectChips<T extends { path: string; count: number; su
  * machine-root suggestions as one trailing block (the UI draws its divider at
  * the first `suggested` entry).
  */
-export function browseProjectOrder<T extends { path: string; suggested?: boolean }>(
-  projects: T[],
-): T[] {
-  return [...projects.filter((p) => !p.suggested), ...projects.filter((p) => p.suggested)];
+export function browseProjectOrder<
+  T extends { path: string; suggested?: boolean },
+>(projects: T[]): T[] {
+  return [
+    ...projects.filter((p) => !p.suggested),
+    ...projects.filter((p) => p.suggested),
+  ];
 }

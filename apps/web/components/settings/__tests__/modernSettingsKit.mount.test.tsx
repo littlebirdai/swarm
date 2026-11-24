@@ -5,7 +5,12 @@
 // exactly the classes it drew before the Modern looks (the snapshot was taken
 // from the unmodified kit; `modern:` classes are left out of it).
 import { describe, expect, test } from "bun:test";
-import { installModernDom, styleValue, classicClasses, wears } from "../../../test-helpers/modernDom";
+import {
+  installModernDom,
+  styleValue,
+  classicClasses,
+  wears,
+} from "../../../test-helpers/modernDom";
 
 installModernDom("https://app.test/settings");
 
@@ -13,7 +18,16 @@ const React = await import("react");
 const { act } = React;
 const { createRoot } = await import("react-dom/client");
 const { ThemeContext } = await import("../../ThemeProvider");
-const { SettingsPanel, SettingsSection, SettingsRow, SettingsLinkRow, SettingsField, SettingsCallout, SettingsOptionGroup, SettingsBadge } = await import("../ui");
+const {
+  SettingsPanel,
+  SettingsSection,
+  SettingsRow,
+  SettingsLinkRow,
+  SettingsField,
+  SettingsCallout,
+  SettingsOptionGroup,
+  SettingsBadge,
+} = await import("../ui");
 const { modernChip, modernPill } = await import("../../ui/modernLook");
 
 const noop = () => {};
@@ -22,16 +36,48 @@ const Icon = (p: any) => <svg {...p} />;
 function Kit() {
   return (
     <SettingsPanel>
-      <SettingsSection title="General" icon={Icon as any} description="How the app behaves." actions={<button type="button">Reset</button>}>
+      <SettingsSection
+        title="General"
+        icon={Icon as any}
+        description="How the app behaves."
+        actions={<button type="button">Reset</button>}
+      >
         <SettingsRow label="Theme" description="Light or dark">
-          <SettingsOptionGroup label="Theme" variant="pill" value="light" onChange={noop} options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
+          <SettingsOptionGroup
+            label="Theme"
+            variant="pill"
+            value="light"
+            onChange={noop}
+            options={[
+              { value: "light", label: "Light" },
+              { value: "dark", label: "Dark" },
+            ]}
+          />
         </SettingsRow>
-        <SettingsRow label="Plan"><SettingsBadge tone="cyan">Pro</SettingsBadge><SettingsBadge tone="muted">managed</SettingsBadge></SettingsRow>
+        <SettingsRow label="Plan">
+          <SettingsBadge tone="cyan">Pro</SettingsBadge>
+          <SettingsBadge tone="muted">managed</SettingsBadge>
+        </SettingsRow>
         <SettingsLinkRow label="Devices" value="3 devices" onClick={noop} />
       </SettingsSection>
       <SettingsSection title="Mode" padded>
-        <SettingsOptionGroup label="Mode" value="a" onChange={noop} options={[{ value: "a", label: "Auto", description: "Picks for you", mono: "--auto" }, { value: "b", label: "Manual" }]} />
-        <SettingsField label="Name" hint="Shown to your team"><input /></SettingsField>
+        <SettingsOptionGroup
+          label="Mode"
+          value="a"
+          onChange={noop}
+          options={[
+            {
+              value: "a",
+              label: "Auto",
+              description: "Picks for you",
+              mono: "--auto",
+            },
+            { value: "b", label: "Manual" },
+          ]}
+        />
+        <SettingsField label="Name" hint="Shown to your team">
+          <input />
+        </SettingsField>
         <SettingsCallout tone="warning">Careful</SettingsCallout>
       </SettingsSection>
     </SettingsPanel>
@@ -43,8 +89,20 @@ async function render(style: "classic" | "modern") {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  await act(async () => root.render(<ThemeContext.Provider value={styleValue(style)}><Kit /></ThemeContext.Provider>));
-  return { host, unmount: async () => { await act(async () => root.unmount()); host.remove(); } };
+  await act(async () =>
+    root.render(
+      <ThemeContext.Provider value={styleValue(style)}>
+        <Kit />
+      </ThemeContext.Provider>,
+    ),
+  );
+  return {
+    host,
+    unmount: async () => {
+      await act(async () => root.unmount());
+      host.remove();
+    },
+  };
 }
 
 describe("the settings kit in Modern", () => {
@@ -65,7 +123,9 @@ describe("the settings kit in Modern", () => {
     const pills = [...host.querySelectorAll('[aria-label="Theme"] button')];
     expect(wears(pills[0], modernChip({ active: true }))).toBe(true);
     expect(wears(pills[1], modernChip({ active: false }))).toBe(true);
-    const badges = [...host.querySelectorAll("span")].filter((s) => s.textContent === "Pro" || s.textContent === "managed");
+    const badges = [...host.querySelectorAll("span")].filter(
+      (s) => s.textContent === "Pro" || s.textContent === "managed",
+    );
     expect(wears(badges[0], modernPill({ tone: "cyan" }))).toBe(true);
     expect(wears(badges[1], modernPill({ tone: "neutral" }))).toBe(true);
     const cards = [...host.querySelectorAll('[aria-label="Mode"] button')];

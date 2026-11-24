@@ -29,27 +29,38 @@ const wireFields: Record<string, string[]> = {
     "const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;",
     "patch.last_heartbeat = now;",
   ],
-  "managedSessionsList.ts": ["last_heartbeat: await heartbeatOf(ctx, session),"],
+  "managedSessionsList.ts": [
+    "last_heartbeat: await heartbeatOf(ctx, session),",
+  ],
   "lib/closeAside.ts": [
     "last_heartbeat: lastHeartbeat,",
     "openBackgroundWork = openTasksVouchForWaiting(managed.open_tasks_at, managed.open_tasks?.length ?? 0, rowHeartbeatAliveAt({ last_heartbeat: lastHeartbeat }, now));",
   ],
   "syncLog.ts": ['"last_heartbeat",'],
-  "permissions.ts": ["const lastBeat = device ? device.last_seen : conv ? (await ctx.db.get(conv.user_id))?.last_heartbeat : undefined;"],
+  "permissions.ts": [
+    "const lastBeat = device ? device.last_seen : conv ? (await ctx.db.get(conv.user_id))?.last_heartbeat : undefined;",
+  ],
   "tasks.ts": ["const updates: any = { last_heartbeat: Date.now() };"],
 };
 
 test("managed-session heartbeat storage is accessed through sessionHeartbeat", () => {
   const violations: string[] = [];
   for (const file of new Bun.Glob("**/*.ts").scanSync(import.meta.dir)) {
-    if (file.startsWith("_generated/") || /\.(test|testkit|d)\.ts$/.test(file)) continue;
+    if (file.startsWith("_generated/") || /\.(test|testkit|d)\.ts$/.test(file))
+      continue;
     if (schemaAndStorage.has(file)) continue;
     const source = readFileSync(join(import.meta.dir, file), "utf8");
     source.split("\n").forEach((line, i) => {
       const text = line.trim();
       if (text.startsWith("//")) return;
-      if (/\bsession_heartbeats\b|\bby_user_heartbeat\b|\bby_heartbeat\b/.test(text) ||
-        (/\blast_heartbeat\b/.test(text) && !otherHeartbeats.has(file) && !wireFields[file]?.includes(text))) {
+      if (
+        /\bsession_heartbeats\b|\bby_user_heartbeat\b|\bby_heartbeat\b/.test(
+          text,
+        ) ||
+        (/\blast_heartbeat\b/.test(text) &&
+          !otherHeartbeats.has(file) &&
+          !wireFields[file]?.includes(text))
+      ) {
         violations.push(`${file}:${i + 1} ${text}`);
       }
     });

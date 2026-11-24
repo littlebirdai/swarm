@@ -14,6 +14,9 @@ export function bareName(name: string | null | undefined): string {
 }
 
 /** The identity a person is counted and filtered by: the lowercased bareName, else the email. */
-export function personKey(name: string | null | undefined, email?: string | null): string {
+export function personKey(
+  name: string | null | undefined,
+  email?: string | null,
+): string {
   return (bareName(name) || (email ?? "").trim()).toLowerCase();
 }

@@ -7,8 +7,12 @@ import { speakerShortName } from "../speakers";
 describe("speakerShortName", () => {
   it("marks guests by identity or the room's mark, agents by identity, teammates never", () => {
     expect(speakerShortName("Ada Lovelace (guest)")).toBe("Ada (guest)");
-    expect(speakerShortName("Ada Lovelace", guestIdentity("g1"))).toBe("Ada (guest)");
-    expect(speakerShortName("Fig", agentFaceIdentity("conv1"))).toBe("Fig (agent)");
+    expect(speakerShortName("Ada Lovelace", guestIdentity("g1"))).toBe(
+      "Ada (guest)",
+    );
+    expect(speakerShortName("Fig", agentFaceIdentity("conv1"))).toBe(
+      "Fig (agent)",
+    );
     expect(speakerShortName("Ann Lee", "u2")).toBe("Ann");
     expect(speakerShortName(undefined)).toBe("teammate");
   });

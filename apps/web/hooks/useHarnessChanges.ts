@@ -25,13 +25,23 @@ const rowSig = (r: HarnessChangeRow) => r._id;
  * newest first. The feed fills the `harnessChanges` collection and the list
  * paints from it, so a device you looked at before shows its history at once.
  */
-export function useHarnessChanges(deviceId: string | null): { rows: HarnessChangeRow[]; ready: boolean } {
+export function useHarnessChanges(deviceId: string | null): {
+  rows: HarnessChangeRow[];
+  ready: boolean;
+} {
   const { ready } = useSyncCollection(
     "harnessChanges",
     api.harnessChanges.listForDevice,
     deviceId ? { device_id: deviceId, limit: 100 } : "skip",
   );
-  const where = useCallback((r: HarnessChangeRow) => r.device_id === deviceId, [deviceId]);
-  const rows = useCollectionRows<HarnessChangeRow>("harnessChanges", { where, sig: rowSig, sort: newestFirst });
+  const where = useCallback(
+    (r: HarnessChangeRow) => r.device_id === deviceId,
+    [deviceId],
+  );
+  const rows = useCollectionRows<HarnessChangeRow>("harnessChanges", {
+    where,
+    sig: rowSig,
+    sort: newestFirst,
+  });
   return { rows, ready };
 }

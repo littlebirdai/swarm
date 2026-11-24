@@ -37,7 +37,8 @@ export function parseScopeString(value: unknown): ParsedScope | null {
   if (key !== undefined && key.length === 0) return null;
   // device/project/session scopes are meaningless without their qualifier;
   // user/team carry identity in the row and take none.
-  const needsKey = kind === "device" || kind === "project" || kind === "session";
+  const needsKey =
+    kind === "device" || kind === "project" || kind === "session";
   if (needsKey && key === undefined) return null;
   if (!needsKey && key !== undefined) return null;
   return { kind: kind as ScopeKind, ...(key !== undefined ? { key } : {}) };
@@ -65,7 +66,10 @@ export function normalizeGitOrigin(originUrl: string): string | null {
     const at = rest.indexOf("@");
     if (at !== -1) rest = rest.slice(at + 1);
   }
-  rest = rest.replace(/\.git$/, "").replace(/\/+$/, "").toLowerCase();
+  rest = rest
+    .replace(/\.git$/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
   if (!rest.includes("/")) return null;
   return rest;
 }
@@ -76,13 +80,21 @@ export function normalizeGitOrigin(originUrl: string): string | null {
  * The one rule shared by every server path that turns a session's
  * `git_remote_url` into the repository its pages hang off.
  */
-export function repositoryFromRemote(originUrl: string | undefined | null): string | null {
+export function repositoryFromRemote(
+  originUrl: string | undefined | null,
+): string | null {
   // A pasted URL may end in a slash after `.git`, which the normalizer would
   // otherwise keep as part of the name.
-  const normalized = originUrl ? normalizeGitOrigin(originUrl.trim().replace(/\/+$/, "")) : null;
+  const normalized = originUrl
+    ? normalizeGitOrigin(originUrl.trim().replace(/\/+$/, ""))
+    : null;
   if (!normalized?.startsWith("github.com/")) return null;
   const rest = normalized.slice("github.com/".length);
-  return /^[a-z0-9][a-z0-9-]*\/[a-z0-9._-]+$/.test(rest) && !rest.endsWith("/.") && !rest.endsWith("/..") ? rest : null;
+  return /^[a-z0-9][a-z0-9-]*\/[a-z0-9._-]+$/.test(rest) &&
+    !rest.endsWith("/.") &&
+    !rest.endsWith("/..")
+    ? rest
+    : null;
 }
 
 /**
@@ -93,13 +105,17 @@ export function repositoryFromRemote(originUrl: string | undefined | null): stri
  * whichever protocol cloned it, so a rule set on one checkout reaches the
  * others and the ones that do not exist yet.
  */
-export function repositoryKeyOfRemote(originUrl: string | undefined | null): string | null {
+export function repositoryKeyOfRemote(
+  originUrl: string | undefined | null,
+): string | null {
   const github = repositoryFromRemote(originUrl);
   if (github) return github;
   const normalized = originUrl ? normalizeGitOrigin(originUrl) : null;
   if (!normalized) return null;
   const parts = normalized.split("/").filter(Boolean);
-  return parts.length >= 3 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : null;
+  return parts.length >= 3
+    ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
+    : null;
 }
 
 export interface ProjectScopeInput {

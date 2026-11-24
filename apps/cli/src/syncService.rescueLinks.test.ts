@@ -11,10 +11,16 @@ import { tmpdir } from "node:os";
 import { SyncService } from "./syncService.js";
 
 function makeService(): SyncService {
-  return new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+  return new SyncService({
+    convexUrl: "http://localhost:0",
+    userId: "u",
+    authToken: "t",
+  });
 }
 
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
 
 let dir: string;
 let priorCodecastDir: string | undefined;
@@ -36,16 +42,22 @@ describe("SyncService.rescueLocalImageLinks", () => {
   it("rewrites image and plain links to a local raster file with its storage URL", async () => {
     const sync = makeService();
     let uploads = 0;
-    (sync as any).uploadImage = async () => { uploads++; return "sid-1"; };
-    (sync as any).getImageUrl = async () => "https://convex.test/api/storage/u1";
+    (sync as any).uploadImage = async () => {
+      uploads++;
+      return "sid-1";
+    };
+    (sync as any).getImageUrl = async () =>
+      "https://convex.test/api/storage/u1";
 
     const img = join(dir, "shot.png");
     await writeFile(img, Buffer.concat([PNG_SIGNATURE, Buffer.alloc(64)]));
 
-    const messages = [{
-      role: "assistant",
-      content: `Screenshots: ![overview](${img}) and [full view](${img})`,
-    }];
+    const messages = [
+      {
+        role: "assistant",
+        content: `Screenshots: ![overview](${img}) and [full view](${img})`,
+      },
+    ];
     await sync.rescueLocalImageLinks(messages);
 
     expect(messages[0].content).toBe(
@@ -60,7 +72,8 @@ describe("SyncService.rescueLocalImageLinks", () => {
 
     const first = makeService();
     (first as any).uploadImage = async () => "sid-2";
-    (first as any).getImageUrl = async () => "https://convex.test/api/storage/u2";
+    (first as any).getImageUrl = async () =>
+      "https://convex.test/api/storage/u2";
     const firstPass = [{ role: "assistant", content: `![a](${img})` }];
     await first.rescueLocalImageLinks(firstPass);
     expect(firstPass[0].content).toContain("/api/storage/u2");
@@ -68,8 +81,12 @@ describe("SyncService.rescueLocalImageLinks", () => {
     // New daemon run, same file: cache hit, no upload.
     const second = makeService();
     let uploads = 0;
-    (second as any).uploadImage = async () => { uploads++; return "sid-3"; };
-    (second as any).getImageUrl = async () => "https://convex.test/api/storage/u3";
+    (second as any).uploadImage = async () => {
+      uploads++;
+      return "sid-3";
+    };
+    (second as any).getImageUrl = async () =>
+      "https://convex.test/api/storage/u3";
     const secondPass = [{ role: "assistant", content: `![b](${img})` }];
     await second.rescueLocalImageLinks(secondPass);
     expect(secondPass[0].content).toContain("/api/storage/u2");
@@ -85,7 +102,8 @@ describe("SyncService.rescueLocalImageLinks", () => {
   it("leaves user messages, non-image files, and unreadable paths untouched", async () => {
     const sync = makeService();
     (sync as any).uploadImage = async () => "sid-x";
-    (sync as any).getImageUrl = async () => "https://convex.test/api/storage/ux";
+    (sync as any).getImageUrl = async () =>
+      "https://convex.test/api/storage/ux";
 
     const img = join(dir, "real.png");
     await writeFile(img, Buffer.concat([PNG_SIGNATURE, Buffer.alloc(16)]));
@@ -95,7 +113,10 @@ describe("SyncService.rescueLocalImageLinks", () => {
     const userContent = `[Image ${img}] and ![x](${img})`;
     const messages = [
       { role: "human", content: userContent },
-      { role: "assistant", content: `![fake](${fake}) ![gone](${join(dir, "missing.png")})` },
+      {
+        role: "assistant",
+        content: `![fake](${fake}) ![gone](${join(dir, "missing.png")})`,
+      },
     ];
     await sync.rescueLocalImageLinks(messages);
 

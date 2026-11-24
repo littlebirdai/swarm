@@ -47,8 +47,13 @@ export const ensure = internalMutation({
  *  The first reservation belongs in the lease mutation, through lib/wallet's
  *  `reserve`, so the turn and its money are taken together. */
 export const reserve = internalMutation({
-  args: { user_id: v.id("users"), turn_id: v.id("assistant_turns"), amount_usd: v.number() },
-  handler: async (ctx, args): Promise<boolean> => reserveTurn(ctx, args.user_id, args.turn_id, args.amount_usd),
+  args: {
+    user_id: v.id("users"),
+    turn_id: v.id("assistant_turns"),
+    amount_usd: v.number(),
+  },
+  handler: async (ctx, args): Promise<boolean> =>
+    reserveTurn(ctx, args.user_id, args.turn_id, args.amount_usd),
 });
 
 /** The true-up at a turn's end; idempotent per turn. The turn engine settles
@@ -56,8 +61,13 @@ export const reserve = internalMutation({
  *  is for repair by hand. Ending a turn and settling it apart leaves the hold
  *  to the leak scan once LEAK_GRACE_MS has passed. */
 export const settle = internalMutation({
-  args: { turn_id: v.id("assistant_turns"), cost_usd: v.number(), model: v.optional(v.string()) },
-  handler: async (ctx, args) => settleTurn(ctx, args.turn_id, args.cost_usd, args.model),
+  args: {
+    turn_id: v.id("assistant_turns"),
+    cost_usd: v.number(),
+    model: v.optional(v.string()),
+  },
+  handler: async (ctx, args) =>
+    settleTurn(ctx, args.turn_id, args.cost_usd, args.model),
 });
 
 /** Gives back what a turn holds without charging it; idempotent. */
@@ -68,14 +78,24 @@ export const release = internalMutation({
 
 /** Credit given by hand or by a promotion; spent after the plan allowance. */
 export const grant = internalMutation({
-  args: { user_id: v.id("users"), amount_usd: v.number(), external_id: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<boolean> => credit(ctx, args.user_id, "grant", args.amount_usd, args.external_id),
+  args: {
+    user_id: v.id("users"),
+    amount_usd: v.number(),
+    external_id: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<boolean> =>
+    credit(ctx, args.user_id, "grant", args.amount_usd, args.external_id),
 });
 
 /** A purchased top-up; `external_id` (the Stripe payment) makes a redelivery land once. */
 export const topup = internalMutation({
-  args: { user_id: v.id("users"), amount_usd: v.number(), external_id: v.string() },
-  handler: async (ctx, args): Promise<boolean> => credit(ctx, args.user_id, "topup", args.amount_usd, args.external_id),
+  args: {
+    user_id: v.id("users"),
+    amount_usd: v.number(),
+    external_id: v.string(),
+  },
+  handler: async (ctx, args): Promise<boolean> =>
+    credit(ctx, args.user_id, "topup", args.amount_usd, args.external_id),
 });
 
 /** Moves a person to a plan; billing passes the Stripe facts with it. */
@@ -100,12 +120,29 @@ export const setPlan = internalMutation({
  *  deleted included. Safe to rerun. */
 export const reconcile = internalMutation({
   args: { cursor: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ scanned: number; scheduled: number; done: boolean }> => {
-    const page = await ctx.db.query("wallets").paginate({ cursor: args.cursor ?? null, numItems: 200 });
-    const holding = page.page.filter((wallet) => wallet.period_reserved_usd > 0);
-    for (const wallet of holding) await ctx.scheduler.runAfter(0, internal.wallet.reconcileOne, { user_id: wallet.user_id });
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.wallet.reconcile, { cursor: page.continueCursor });
-    return { scanned: page.page.length, scheduled: holding.length, done: page.isDone };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ scanned: number; scheduled: number; done: boolean }> => {
+    const page = await ctx.db
+      .query("wallets")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
+    const holding = page.page.filter(
+      (wallet) => wallet.period_reserved_usd > 0,
+    );
+    for (const wallet of holding)
+      await ctx.scheduler.runAfter(0, internal.wallet.reconcileOne, {
+        user_id: wallet.user_id,
+      });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.wallet.reconcile, {
+        cursor: page.continueCursor,
+      });
+    return {
+      scanned: page.page.length,
+      scheduled: holding.length,
+      done: page.isDone,
+    };
   },
 });
 
@@ -114,7 +151,8 @@ export const reconcileOne = internalMutation({
   args: { user_id: v.id("users") },
   handler: async (ctx, args): Promise<number> => {
     const released = await reconcileWallet(ctx, args.user_id);
-    if (released > 0) console.log("wallet_reconcile", { user_id: args.user_id, released });
+    if (released > 0)
+      console.log("wallet_reconcile", { user_id: args.user_id, released });
     return released;
   },
 });

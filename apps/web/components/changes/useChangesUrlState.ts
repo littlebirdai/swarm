@@ -23,7 +23,11 @@ export type ChangesUrl = {
 export type Zoom = "changes" | "days" | "weeks";
 export const ZOOMS: readonly Zoom[] = ["changes", "days", "weeks"];
 
-export const EMPTY_URL: ChangesUrl = { areas: [], branches: "main", risk: false };
+export const EMPTY_URL: ChangesUrl = {
+  areas: [],
+  branches: "main",
+  risk: false,
+};
 
 const text = (v: string | null) => {
   const t = v?.trim();
@@ -33,7 +37,14 @@ const text = (v: string | null) => {
 export function parseChangesUrl(params: URLSearchParams): ChangesUrl {
   return {
     repo: text(params.get("repo")),
-    areas: [...new Set((params.get("area") ?? "").split(",").map((a) => a.trim()).filter(Boolean))].sort(),
+    areas: [
+      ...new Set(
+        (params.get("area") ?? "")
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
+      ),
+    ].sort(),
     person: text(params.get("person")),
     branches: params.get("branches") === "all" ? "all" : "main",
     risk: params.get("risk") === "1",
@@ -64,21 +75,41 @@ export function changesHref(s: ChangesUrl): string {
 
 /** Whether any filter narrows the stories (the repository is the view, not a filter). */
 export function hasFilters(s: ChangesUrl): boolean {
-  return s.areas.length > 0 || !!s.person || s.risk || s.branches === "all" || !!s.q;
+  return (
+    s.areas.length > 0 || !!s.person || s.risk || s.branches === "all" || !!s.q
+  );
 }
 
 /** The view with an area added to the area filter, or taken out of it. */
 export function toggleArea(s: ChangesUrl, area: string): ChangesUrl {
-  return { ...s, areas: s.areas.includes(area) ? s.areas.filter((a) => a !== area) : [...s.areas, area] };
+  return {
+    ...s,
+    areas: s.areas.includes(area)
+      ? s.areas.filter((a) => a !== area)
+      : [...s.areas, area],
+  };
 }
 
 export function clearFilters(s: ChangesUrl): ChangesUrl {
-  return { ...s, areas: [], person: undefined, risk: false, branches: "main", q: undefined };
+  return {
+    ...s,
+    areas: [],
+    person: undefined,
+    risk: false,
+    branches: "main",
+    q: undefined,
+  };
 }
 
-export type SetChangesUrl = (patch: Partial<ChangesUrl> | ((s: ChangesUrl) => ChangesUrl), mode?: "push" | "replace") => boolean;
+export type SetChangesUrl = (
+  patch: Partial<ChangesUrl> | ((s: ChangesUrl) => ChangesUrl),
+  mode?: "push" | "replace",
+) => boolean;
 
-export function useChangesUrlState(): { url: ChangesUrl; setUrl: SetChangesUrl } {
+export function useChangesUrlState(): {
+  url: ChangesUrl;
+  setUrl: SetChangesUrl;
+} {
   const params = useSearchParams();
   const router = useRouter();
   const key = params.toString();
@@ -90,15 +121,19 @@ export function useChangesUrlState(): { url: ChangesUrl; setUrl: SetChangesUrl }
   // query string changes (Back, a pasted link, a write landing).
   const live = useRef({ key, url });
   if (live.current.key !== key) live.current = { key, url };
-  const setUrl = useCallback<SetChangesUrl>((patch, mode = "replace") => {
-    const current = live.current.url;
-    const next = typeof patch === "function" ? patch(current) : { ...current, ...patch };
-    const href = changesHref(next);
-    if (href === changesHref(current)) return false;
-    live.current = { key: live.current.key, url: next };
-    if (mode === "push") router.push(href);
-    else router.replace(href);
-    return true;
-  }, [router]);
+  const setUrl = useCallback<SetChangesUrl>(
+    (patch, mode = "replace") => {
+      const current = live.current.url;
+      const next =
+        typeof patch === "function" ? patch(current) : { ...current, ...patch };
+      const href = changesHref(next);
+      if (href === changesHref(current)) return false;
+      live.current = { key: live.current.key, url: next };
+      if (mode === "push") router.push(href);
+      else router.replace(href);
+      return true;
+    },
+    [router],
+  );
   return { url, setUrl };
 }

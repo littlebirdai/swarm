@@ -4,40 +4,90 @@ import { MarketingNav } from "@/components/marketing/MarketingNav";
 
 function ShieldIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+      />
     </svg>
   );
 }
 
 function LockIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+      />
     </svg>
   );
 }
 
 function EyeOffIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+      />
     </svg>
   );
 }
 
 function CodeIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+      />
     </svg>
   );
 }
 
 function XIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18L18 6M6 6l12 12"
+      />
     </svg>
   );
 }
@@ -45,7 +95,11 @@ function XIcon({ className }: { className?: string }) {
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 20 20">
-      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      <path
+        fillRule="evenodd"
+        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
@@ -54,28 +108,32 @@ const SECURITY_FEATURES = [
   {
     icon: LockIcon,
     title: "Private by default",
-    description: "Every conversation starts private. You explicitly choose what to share with teammates.",
+    description:
+      "Every conversation starts private. You explicitly choose what to share with teammates.",
     detail: "Default visibility: private",
     color: "amber",
   },
   {
     icon: EyeOffIcon,
     title: "Automatic secret redaction",
-    description: "API keys, tokens, passwords, and credentials are stripped on your machine before sync. Known token formats are caught by shape, and the daemon also redacts the exact values of the secrets it can see locally: credential-named environment variables, your .env files, and credential files like ~/.netrc, ~/.aws/credentials and ~/.npmrc. A password with no recognizable format is still removed.",
+    description:
+      "API keys, tokens, passwords, and credentials are stripped on your machine before sync. Known token formats are caught by shape, and the daemon also redacts the exact values of the secrets it can see locally: credential-named environment variables, your .env files, and credential files like ~/.netrc, ~/.aws/credentials and ~/.npmrc. A password with no recognizable format is still removed.",
     detail: "Pattern and known-value detection",
     color: "red",
   },
   {
     icon: EyeOffIcon,
     title: "Activity hiding",
-    description: "Make yourself invisible. Hide your activity from team dashboards and stats.",
+    description:
+      "Make yourself invisible. Hide your activity from team dashboards and stats.",
     detail: "Per-user toggle",
     color: "purple",
   },
   {
     icon: CodeIcon,
     title: "Open source",
-    description: "The entire codebase is open source. Audit it yourself, run security scans, verify our claims.",
+    description:
+      "The entire codebase is open source. Audit it yourself, run security scans, verify our claims.",
     detail: "MIT License",
     color: "stone",
   },
@@ -84,15 +142,18 @@ const SECURITY_FEATURES = [
 const NEVER_DO = [
   {
     title: "Train AI on your code",
-    description: "Your conversations and code are never used to train AI models. Period.",
+    description:
+      "Your conversations and code are never used to train AI models. Period.",
   },
   {
     title: "Sell your data",
-    description: "We don't sell, share, or monetize your data. Our business model is subscriptions, not data.",
+    description:
+      "We don't sell, share, or monetize your data. Our business model is subscriptions, not data.",
   },
   {
     title: "Access without permission",
-    description: "No employee can view your sessions unless you explicitly grant support access.",
+    description:
+      "No employee can view your sessions unless you explicitly grant support access.",
   },
 ];
 
@@ -142,8 +203,9 @@ export default function SecurityPage() {
           </h1>
 
           <p className="text-xl text-stone-600 leading-relaxed max-w-2xl mx-auto">
-            Open source, privacy-first architecture designed for security-conscious teams.
-            Audit our code, self-host if you want, keep your code yours.
+            Open source, privacy-first architecture designed for
+            security-conscious teams. Audit our code, self-host if you want,
+            keep your code yours.
           </p>
         </div>
       </section>
@@ -151,19 +213,37 @@ export default function SecurityPage() {
       {/* Data Flow */}
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <div className="bg-white rounded-2xl border border-stone-200 p-8 md:p-12">
-          <h2 className="text-2xl font-bold text-stone-900 mb-2 text-center">How your data flows</h2>
-          <p className="text-stone-500 text-center mb-10">Code stays local unless you explicitly share it</p>
+          <h2 className="text-2xl font-bold text-stone-900 mb-2 text-center">
+            How your data flows
+          </h2>
+          <p className="text-stone-500 text-center mb-10">
+            Code stays local unless you explicitly share it
+          </p>
 
           <div className="flex flex-col md:flex-row gap-6 md:gap-0 md:items-stretch">
             {/* Local Machine */}
             <div className="flex-1 bg-stone-50 rounded-xl border-2 border-stone-200 p-6">
               <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <svg
+                  className="w-6 h-6 text-amber-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
-              <h3 className="font-semibold text-stone-900 mb-2">Your Machine</h3>
-              <p className="text-sm text-stone-500 mb-4">CLI daemon runs locally, watches conversation files</p>
+              <h3 className="font-semibold text-stone-900 mb-2">
+                Your Machine
+              </h3>
+              <p className="text-sm text-stone-500 mb-4">
+                CLI daemon runs locally, watches conversation files
+              </p>
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-center gap-2 text-stone-600">
                   <CheckIcon className="w-4 h-4 text-green-500" />
@@ -182,20 +262,42 @@ export default function SecurityPage() {
 
             {/* Arrow 1 */}
             <div className="hidden md:flex items-center justify-center px-2 text-stone-300">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
               </svg>
             </div>
 
             {/* Sync Layer */}
             <div className="flex-1 bg-stone-50 rounded-xl border-2 border-stone-200 p-6">
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
               </div>
               <h3 className="font-semibold text-stone-900 mb-2">Sync Layer</h3>
-              <p className="text-sm text-stone-500 mb-4">TLS 1.3 encrypted transport to Convex backend</p>
+              <p className="text-sm text-stone-500 mb-4">
+                TLS 1.3 encrypted transport to Convex backend
+              </p>
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-center gap-2 text-stone-600">
                   <CheckIcon className="w-4 h-4 text-green-500" />
@@ -210,20 +312,42 @@ export default function SecurityPage() {
 
             {/* Arrow 2 */}
             <div className="hidden md:flex items-center justify-center px-2 text-stone-300">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                />
               </svg>
             </div>
 
             {/* Storage */}
             <div className="flex-1 bg-stone-50 rounded-xl border-2 border-stone-200 p-6">
               <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+                  />
                 </svg>
               </div>
               <h3 className="font-semibold text-stone-900 mb-2">Storage</h3>
-              <p className="text-sm text-stone-500 mb-4">Convex database, or your own when you self-host</p>
+              <p className="text-sm text-stone-500 mb-4">
+                Convex database, or your own when you self-host
+              </p>
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-center gap-2 text-stone-600">
                   <CheckIcon className="w-4 h-4 text-green-500" />
@@ -236,39 +360,63 @@ export default function SecurityPage() {
               </div>
             </div>
           </div>
-
         </div>
       </section>
 
       {/* Security Features */}
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-stone-900 mb-4">Security features</h2>
-          <p className="text-lg text-stone-500">Built for teams that take security seriously</p>
+          <h2 className="text-3xl font-bold text-stone-900 mb-4">
+            Security features
+          </h2>
+          <p className="text-lg text-stone-500">
+            Built for teams that take security seriously
+          </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {SECURITY_FEATURES.map((feature) => (
-            <div key={feature.title} className="bg-white rounded-xl border border-stone-200 p-6">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
-                feature.color === "amber" ? "bg-amber-100" :
-                feature.color === "red" ? "bg-red-100" :
-                feature.color === "green" ? "bg-green-100" :
-                feature.color === "blue" ? "bg-blue-100" :
-                feature.color === "purple" ? "bg-purple-100" :
-                "bg-stone-100"
-              }`}>
-                <feature.icon className={`w-5 h-5 ${
-                  feature.color === "amber" ? "text-amber-600" :
-                  feature.color === "red" ? "text-red-600" :
-                  feature.color === "green" ? "text-green-600" :
-                  feature.color === "blue" ? "text-blue-600" :
-                  feature.color === "purple" ? "text-purple-600" :
-                  "text-stone-600"
-                }`} />
+            <div
+              key={feature.title}
+              className="bg-white rounded-xl border border-stone-200 p-6"
+            >
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
+                  feature.color === "amber"
+                    ? "bg-amber-100"
+                    : feature.color === "red"
+                      ? "bg-red-100"
+                      : feature.color === "green"
+                        ? "bg-green-100"
+                        : feature.color === "blue"
+                          ? "bg-blue-100"
+                          : feature.color === "purple"
+                            ? "bg-purple-100"
+                            : "bg-stone-100"
+                }`}
+              >
+                <feature.icon
+                  className={`w-5 h-5 ${
+                    feature.color === "amber"
+                      ? "text-amber-600"
+                      : feature.color === "red"
+                        ? "text-red-600"
+                        : feature.color === "green"
+                          ? "text-green-600"
+                          : feature.color === "blue"
+                            ? "text-blue-600"
+                            : feature.color === "purple"
+                              ? "text-purple-600"
+                              : "text-stone-600"
+                  }`}
+                />
               </div>
-              <h3 className="font-semibold text-stone-900 mb-2">{feature.title}</h3>
-              <p className="text-sm text-stone-500 mb-3">{feature.description}</p>
+              <h3 className="font-semibold text-stone-900 mb-2">
+                {feature.title}
+              </h3>
+              <p className="text-sm text-stone-500 mb-3">
+                {feature.description}
+              </p>
               <span className="text-xs font-mono text-stone-400 bg-stone-50 px-2 py-1 rounded">
                 {feature.detail}
               </span>
@@ -282,7 +430,9 @@ export default function SecurityPage() {
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">What we never do</h2>
-            <p className="text-lg text-stone-400">Commitments we make to every user</p>
+            <p className="text-lg text-stone-400">
+              Commitments we make to every user
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -304,48 +454,77 @@ export default function SecurityPage() {
       {/* Technical Details */}
       <section className="max-w-4xl mx-auto px-6 py-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-stone-900 mb-4">Technical details</h2>
-          <p className="text-lg text-stone-500">For security teams and auditors</p>
+          <h2 className="text-3xl font-bold text-stone-900 mb-4">
+            Technical details
+          </h2>
+          <p className="text-lg text-stone-500">
+            For security teams and auditors
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="grid md:grid-cols-2">
             <div className="p-8 border-b md:border-b-0 md:border-r border-stone-200">
-              <h3 className="font-semibold text-stone-900 mb-4">On your machine</h3>
+              <h3 className="font-semibold text-stone-900 mb-4">
+                On your machine
+              </h3>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-stone-400 font-mono text-xs">Secret redaction</dt>
-                  <dd className="text-stone-700">Known token shapes, plus the exact values of local credentials</dd>
+                  <dt className="text-stone-400 font-mono text-xs">
+                    Secret redaction
+                  </dt>
+                  <dd className="text-stone-700">
+                    Known token shapes, plus the exact values of local
+                    credentials
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-stone-400 font-mono text-xs">Excluded folders</dt>
-                  <dd className="text-stone-700"><code className="font-mono text-xs">cast config excluded_paths</code>, never synced</dd>
+                  <dt className="text-stone-400 font-mono text-xs">
+                    Excluded folders
+                  </dt>
+                  <dd className="text-stone-700">
+                    <code className="font-mono text-xs">
+                      cast config excluded_paths
+                    </code>
+                    , never synced
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-stone-400 font-mono text-xs">Auth token at rest</dt>
-                  <dd className="text-stone-700">AES-256-GCM, random 12-byte IV</dd>
+                  <dt className="text-stone-400 font-mono text-xs">
+                    Auth token at rest
+                  </dt>
+                  <dd className="text-stone-700">
+                    AES-256-GCM, random 12-byte IV
+                  </dd>
                 </div>
               </dl>
             </div>
             <div className="p-8">
-              <h3 className="font-semibold text-stone-900 mb-4">Infrastructure</h3>
+              <h3 className="font-semibold text-stone-900 mb-4">
+                Infrastructure
+              </h3>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-stone-400 font-mono text-xs">Transport</dt>
+                  <dt className="text-stone-400 font-mono text-xs">
+                    Transport
+                  </dt>
                   <dd className="text-stone-700">TLS 1.3</dd>
                 </div>
                 <div>
                   <dt className="text-stone-400 font-mono text-xs">Backend</dt>
-                  <dd className="text-stone-700">Convex, or your own when you self-host</dd>
+                  <dd className="text-stone-700">
+                    Convex, or your own when you self-host
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-stone-400 font-mono text-xs">Auth</dt>
-                  <dd className="text-stone-700">OAuth 2.0, GitHub/Google SSO</dd>
+                  <dd className="text-stone-700">
+                    OAuth 2.0, GitHub/Google SSO
+                  </dd>
                 </div>
               </dl>
             </div>
           </div>
-
         </div>
       </section>
 
@@ -353,24 +532,48 @@ export default function SecurityPage() {
       <section className="max-w-4xl mx-auto px-6 pb-20">
         <div className="bg-gradient-to-br from-stone-100 to-stone-50 rounded-2xl border border-stone-200 p-12 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium mb-6">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+              />
             </svg>
             Self-hostable
           </div>
-          <h2 className="text-3xl font-bold text-stone-900 mb-4">Complete control</h2>
+          <h2 className="text-3xl font-bold text-stone-900 mb-4">
+            Complete control
+          </h2>
           <p className="text-lg text-stone-600 leading-relaxed mb-8 max-w-2xl mx-auto">
-            Deploy the entire Codecast stack on your own infrastructure. Your data never leaves your network.
-            We provide deployment guides and enterprise support for self-hosted installations.
+            Deploy the entire Codecast stack on your own infrastructure. Your
+            data never leaves your network. We provide deployment guides and
+            enterprise support for self-hosted installations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://github.com/codecast-sh/codecast" target="_blank" rel="noopener noreferrer">
-              <Button size="lg" className="bg-stone-900 text-white hover:bg-stone-800 font-medium">
+            <a
+              href="https://github.com/codecast-sh/codecast"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                size="lg"
+                className="bg-stone-900 text-white hover:bg-stone-800 font-medium"
+              >
                 View on GitHub
               </Button>
             </a>
             <a href="mailto:enterprise@codecast.sh">
-              <Button size="lg" variant="outline" className="border-stone-300 text-stone-700 hover:bg-stone-100 font-medium">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-stone-300 text-stone-700 hover:bg-stone-100 font-medium"
+              >
                 Contact for enterprise
               </Button>
             </a>
@@ -381,12 +584,17 @@ export default function SecurityPage() {
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-6 pb-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-stone-900 mb-4">Frequently asked questions</h2>
+          <h2 className="text-3xl font-bold text-stone-900 mb-4">
+            Frequently asked questions
+          </h2>
         </div>
 
         <div className="space-y-4">
           {FAQ.map((item) => (
-            <div key={item.q} className="bg-white rounded-xl border border-stone-200 p-6">
+            <div
+              key={item.q}
+              className="bg-white rounded-xl border border-stone-200 p-6"
+            >
               <h3 className="font-semibold text-stone-900 mb-2">{item.q}</h3>
               <p className="text-stone-600">{item.a}</p>
             </div>
@@ -397,13 +605,29 @@ export default function SecurityPage() {
       {/* Security Contact */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
         <div className="bg-stone-900 rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Security contact</h2>
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Security contact
+          </h2>
           <p className="text-lg text-stone-400 mb-6 max-w-xl mx-auto">
-            Found a vulnerability? We appreciate responsible disclosure and will work with you to address it quickly.
+            Found a vulnerability? We appreciate responsible disclosure and will
+            work with you to address it quickly.
           </p>
-          <a href="mailto:security@codecast.sh" className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 font-mono text-lg">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <a
+            href="mailto:security@codecast.sh"
+            className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 font-mono text-lg"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              />
             </svg>
             security@codecast.sh
           </a>

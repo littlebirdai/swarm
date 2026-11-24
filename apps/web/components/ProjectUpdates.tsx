@@ -15,14 +15,23 @@
  * the outbox to the web mutation. Editing a post's body is undoable.
  */
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { Megaphone, MessageSquare, Pencil, Sparkles, Trash2 } from "lucide-react";
+import {
+  Megaphone,
+  MessageSquare,
+  Pencil,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useInboxStore } from "../store/inboxStore";
-import { newProjectUpdateKey, type ProjectUpdateComment, type ProjectUpdateRow } from "../store/projectUpdatesSlice";
+import {
+  newProjectUpdateKey,
+  type ProjectUpdateComment,
+  type ProjectUpdateRow,
+} from "../store/projectUpdatesSlice";
 import { relTimeShort } from "../lib/utils";
 import { CommentAvatar } from "./comments/CommentAvatar";
 import { MarkdownRenderer } from "./tools/MarkdownRenderer";
 import { KeyCap } from "./KeyboardShortcutsHelp";
-
 
 type UpdateComment = ProjectUpdateComment;
 type ProjectUpdate = ProjectUpdateRow;
@@ -114,7 +123,10 @@ export function UpdateComposer({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-sol-border/40 bg-sol-bg p-3" data-project-update-form>
+    <div
+      className="rounded-lg border border-sol-border/40 bg-sol-bg p-3"
+      data-project-update-form
+    >
       <input
         type="text"
         value={title}
@@ -146,7 +158,11 @@ export function UpdateComposer({ projectId }: { projectId: string }) {
           disabled={!body.trim()}
           className="px-2.5 py-1 rounded-md text-meta bg-sol-bg-highlight text-sol-text border border-sol-border/40 hover:border-sol-border/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Post <span className="cc-bar-keys"><KeyCap size="xs">⌘</KeyCap><KeyCap size="xs">↵</KeyCap></span>
+          Post{" "}
+          <span className="cc-bar-keys">
+            <KeyCap size="xs">⌘</KeyCap>
+            <KeyCap size="xs">↵</KeyCap>
+          </span>
         </button>
       </div>
     </div>
@@ -156,11 +172,19 @@ export function UpdateComposer({ projectId }: { projectId: string }) {
 function CommentRow({ comment }: { comment: UpdateComment }) {
   return (
     <div className="flex gap-2">
-      <CommentAvatar name={comment.author} isAgent={comment.author_kind === "agent"} size={18} />
+      <CommentAvatar
+        name={comment.author}
+        isAgent={comment.author_kind === "agent"}
+        size={18}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-meta font-medium text-sol-text">{comment.author}</span>
-          <span className="text-meta text-sol-text-dim tabular-nums">{relTimeShort(comment.created_at)}</span>
+          <span className="text-meta font-medium text-sol-text">
+            {comment.author}
+          </span>
+          <span className="text-meta text-sol-text-dim tabular-nums">
+            {relTimeShort(comment.created_at)}
+          </span>
         </div>
         <div className="text-xs text-sol-text-muted">
           <MarkdownRenderer content={comment.text} className="cc-cmt-md" />
@@ -170,13 +194,20 @@ function CommentRow({ comment }: { comment: UpdateComment }) {
   );
 }
 
-export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; currentUserId?: string }) {
+export function UpdateCard({
+  update,
+  currentUserId,
+}: {
+  update: ProjectUpdate;
+  currentUserId?: string;
+}) {
   const [commenting, setCommenting] = useState(false);
   const [commentDraft, setCommentDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [bodyDraft, setBodyDraft] = useState(update.body);
 
-  const mine = !!currentUserId && String(update.author_user_id) === String(currentUserId);
+  const mine =
+    !!currentUserId && String(update.author_user_id) === String(currentUserId);
   const digest = update.kind === "digest";
 
   const submitComment = useCallback(() => {
@@ -211,12 +242,22 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
   }, [armed, update._id]);
 
   return (
-    <div className="flex-1 min-w-0 rounded-lg border border-sol-border/30 bg-sol-bg group" id={`update-${update._id}`} data-project-update={update._id}>
+    <div
+      className="flex-1 min-w-0 rounded-lg border border-sol-border/30 bg-sol-bg group"
+      id={`update-${update._id}`}
+      data-project-update={update._id}
+    >
       <div className="p-3">
         <div className="flex items-center gap-2">
-          <CommentAvatar name={update.author} isAgent={update.author_kind === "agent"} size={22} />
+          <CommentAvatar
+            name={update.author}
+            isAgent={update.author_kind === "agent"}
+            size={22}
+          />
           <div className="flex items-baseline gap-2 flex-1 min-w-0">
-            <span className="text-xs font-medium text-sol-text truncate">{update.author}</span>
+            <span className="text-xs font-medium text-sol-text truncate">
+              {update.author}
+            </span>
             {digest && (
               <span className="flex items-center gap-1 text-meta px-1.5 py-px rounded-full bg-sol-violet/10 text-sol-violet border border-sol-violet/20 flex-shrink-0">
                 <Sparkles className="w-2.5 h-2.5" /> digest
@@ -224,13 +265,20 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
             )}
             <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
               {relTimeShort(update.created_at)}
-              {update.edited_at && <span className="text-sol-text-dim/60"> · edited</span>}
+              {update.edited_at && (
+                <span className="text-sol-text-dim/60"> · edited</span>
+              )}
             </span>
           </div>
           {mine && !editing && (
-            <div className={`flex items-center gap-1 transition-opacity ${armed ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+            <div
+              className={`flex items-center gap-1 transition-opacity ${armed ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            >
               <button
-                onClick={() => { setBodyDraft(update.body); setEditing(true); }}
+                onClick={() => {
+                  setBodyDraft(update.body);
+                  setEditing(true);
+                }}
                 className="p-1 rounded text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt/60 transition-colors"
                 title="Edit"
               >
@@ -252,7 +300,11 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
           )}
         </div>
 
-        {update.title && <h3 className="text-sm font-medium text-sol-text mt-2">{update.title}</h3>}
+        {update.title && (
+          <h3 className="text-sm font-medium text-sol-text mt-2">
+            {update.title}
+          </h3>
+        )}
 
         {editing ? (
           <div className="mt-2">
@@ -260,14 +312,20 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
               value={bodyDraft}
               onChange={setBodyDraft}
               onSubmit={saveEdit}
-              onCancel={() => { setEditing(false); setBodyDraft(update.body); }}
+              onCancel={() => {
+                setEditing(false);
+                setBodyDraft(update.body);
+              }}
               placeholder="Update body"
               autoFocus
               minRows={3}
             />
             <div className="flex items-center justify-end gap-2 mt-1">
               <button
-                onClick={() => { setEditing(false); setBodyDraft(update.body); }}
+                onClick={() => {
+                  setEditing(false);
+                  setBodyDraft(update.body);
+                }}
                 className="px-2 py-1 rounded-md text-meta text-sol-text-dim hover:text-sol-text transition-colors"
               >
                 Cancel
@@ -276,7 +334,11 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
                 onClick={saveEdit}
                 className="px-2.5 py-1 rounded-md text-meta bg-sol-bg-highlight text-sol-text border border-sol-border/40 transition-colors"
               >
-                Save <span className="cc-bar-keys"><KeyCap size="xs">⌘</KeyCap><KeyCap size="xs">↵</KeyCap></span>
+                Save{" "}
+                <span className="cc-bar-keys">
+                  <KeyCap size="xs">⌘</KeyCap>
+                  <KeyCap size="xs">↵</KeyCap>
+                </span>
               </button>
             </div>
           </div>
@@ -300,7 +362,10 @@ export function UpdateCard({ update, currentUserId }: { update: ProjectUpdate; c
                   value={commentDraft}
                   onChange={setCommentDraft}
                   onSubmit={submitComment}
-                  onCancel={() => { setCommenting(false); setCommentDraft(""); }}
+                  onCancel={() => {
+                    setCommenting(false);
+                    setCommentDraft("");
+                  }}
                   placeholder="Comment… ⌘↵ to send"
                   autoFocus
                 />

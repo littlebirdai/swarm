@@ -30,7 +30,10 @@ export const listOpenDecisions = query({
 });
 `;
 
-const session = (id: string, ...texts: string[]) => ({ id, lines: overlapLineSet(texts) });
+const session = (id: string, ...texts: string[]) => ({
+  id,
+  lines: overlapLineSet(texts),
+});
 
 describe("line normalization", () => {
   test("trims, collapses whitespace runs and drops blank lines", () => {
@@ -52,7 +55,9 @@ describe("the overlap gate", () => {
 
 describe("claimByOverlap", () => {
   test("a person committing the agent's query verbatim, reindented, is claimed", () => {
-    const committed = AGENT_EDIT.split("\n").map((l) => `  ${l.replace(/ {2}/g, "    ")}`);
+    const committed = AGENT_EDIT.split("\n").map(
+      (l) => `  ${l.replace(/ {2}/g, "    ")}`,
+    );
     const claim = claimByOverlap(committed, [session("agent", AGENT_EDIT)]);
     expect(claim).toMatchObject({ id: "agent" });
     expect(claim!.matched).toBe(claim!.total);
@@ -61,7 +66,9 @@ describe("claimByOverlap", () => {
 
   test("a small fix committed verbatim clears the proportional gate", () => {
     const fix = `if (!row) return null;\nconst owner = await ctx.db.get(row.user_id);\nif (!owner) return null;\nreturn owner.name ?? "Unknown";`;
-    expect(claimByOverlap(fix.split("\n"), [session("agent", AGENT_EDIT, fix)])).toMatchObject({ id: "agent", matched: 4, total: 4 });
+    expect(
+      claimByOverlap(fix.split("\n"), [session("agent", AGENT_EDIT, fix)]),
+    ).toMatchObject({ id: "agent", matched: 4, total: 4 });
   });
 
   test("braces, returns and shared imports do not claim a person's own commit", () => {
@@ -103,7 +110,9 @@ export const staleHostReport = query({
     return { rows, oldest, newest, spanMs, healthy, label };
   },
 });`;
-    const matched = [...overlapLineSet([human])].filter((l) => overlapLineSet([AGENT_EDIT]).has(l));
+    const matched = [...overlapLineSet([human])].filter((l) =>
+      overlapLineSet([AGENT_EDIT]).has(l),
+    );
     expect(matched).toEqual([
       'import { v } from "convex/values";',
       'import { query } from "./functions";',
@@ -113,14 +122,23 @@ export const staleHostReport = query({
       "},",
       "});",
     ]);
-    expect(claimByOverlap(human.split("\n"), [session("agent", AGENT_EDIT)])).toBeNull();
+    expect(
+      claimByOverlap(human.split("\n"), [session("agent", AGENT_EDIT)]),
+    ).toBeNull();
   });
 
   test("the session that wrote more of the commit wins; an exact tie resolves by id", () => {
     const extra = `const total = rows.reduce((n, r) => n + r.weight, 0);\nconst mean = total / Math.max(rows.length, 1);\nconst label = mean > 1 ? "heavy" : "light";`;
     const commit = [...AGENT_EDIT.split("\n"), ...extra.split("\n")];
-    expect(claimByOverlap(commit, [session("b", extra), session("a", AGENT_EDIT)])).toMatchObject({ id: "a" });
-    expect(claimByOverlap(extra.split("\n"), [session("z", extra), session("y", extra)])).toMatchObject({ id: "y" });
+    expect(
+      claimByOverlap(commit, [session("b", extra), session("a", AGENT_EDIT)]),
+    ).toMatchObject({ id: "a" });
+    expect(
+      claimByOverlap(extra.split("\n"), [
+        session("z", extra),
+        session("y", extra),
+      ]),
+    ).toMatchObject({ id: "y" });
   });
 
   test("no candidates, no claim", () => {
@@ -131,18 +149,30 @@ export const staleHostReport = query({
 describe("overlapLinesBySha", () => {
   test("groups recent commits' lines, normalized and deduped, and skips old commits", () => {
     const now = 10 * CONTENT_MATCH_MAX_AGE_MS;
-    const out = overlapLinesBySha([
-      { sha: "a", text: "  return  x;", authorMs: now - 1000 },
-      { sha: "a", text: "return x;", authorMs: now - 1000 },
-      { sha: "a", text: "", authorMs: now - 1000 },
-      { sha: "b", text: "old();", authorMs: now - CONTENT_MATCH_MAX_AGE_MS - 1 },
-      { sha: "c", text: "noTime();" },
-    ], now);
+    const out = overlapLinesBySha(
+      [
+        { sha: "a", text: "  return  x;", authorMs: now - 1000 },
+        { sha: "a", text: "return x;", authorMs: now - 1000 },
+        { sha: "a", text: "", authorMs: now - 1000 },
+        {
+          sha: "b",
+          text: "old();",
+          authorMs: now - CONTENT_MATCH_MAX_AGE_MS - 1,
+        },
+        { sha: "c", text: "noTime();" },
+      ],
+      now,
+    );
     expect([...out]).toEqual([["a", ["return x;"]]]);
   });
 
   test("caps the lines one commit sends", () => {
-    const lines = Array.from({ length: MAX_OVERLAP_LINES_PER_COMMIT + 50 }, (_, i) => ({ sha: "a", text: `line ${i}`, authorMs: 1 }));
-    expect(overlapLinesBySha(lines, 2).get("a")).toHaveLength(MAX_OVERLAP_LINES_PER_COMMIT);
+    const lines = Array.from(
+      { length: MAX_OVERLAP_LINES_PER_COMMIT + 50 },
+      (_, i) => ({ sha: "a", text: `line ${i}`, authorMs: 1 }),
+    );
+    expect(overlapLinesBySha(lines, 2).get("a")).toHaveLength(
+      MAX_OVERLAP_LINES_PER_COMMIT,
+    );
   });
 });

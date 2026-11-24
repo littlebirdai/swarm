@@ -12,7 +12,9 @@ import {
   WorkspaceUnresolved,
   unknownTeamMessage,
   WORKSPACE_TTL_MS,
-  type WorkspaceRoster, workspaceScope } from "./resolveWorkspace";
+  type WorkspaceRoster,
+  workspaceScope,
+} from "./resolveWorkspace";
 
 // The CLI used to answer "which workspace" in two places at once: pass --team
 // through if given, else send nothing and let the server read
@@ -37,18 +39,25 @@ beforeEach(clearWorkspaceCache);
 describe("roster loading", () => {
   test("carries the canonical pointer, and an absent one means personal", async () => {
     const a = await loadWorkspaceRoster(async () => ({
-      teams: [{ _id: UNION, name: "Union" }], active_team_id: UNION,
+      teams: [{ _id: UNION, name: "Union" }],
+      active_team_id: UNION,
     }));
     expect(a.activeTeamId).toBe(UNION);
     clearWorkspaceCache();
-    const b = await loadWorkspaceRoster(async () => ({ teams: [], active_team_id: null }));
+    const b = await loadWorkspaceRoster(async () => ({
+      teams: [],
+      active_team_id: null,
+    }));
     expect(b.activeTeamId).toBeNull();
     expect(resolveWorkspaceForRead(b)).toEqual({ kind: "personal" });
   });
 
   test("one fetch per TTL, then refetched — a team switch in the web app must land", async () => {
     let calls = 0;
-    const fetcher = async () => { calls++; return { teams: [], active_team_id: UNION }; };
+    const fetcher = async () => {
+      calls++;
+      return { teams: [], active_team_id: UNION };
+    };
     await loadWorkspaceRoster(fetcher, 1_000);
     await loadWorkspaceRoster(fetcher, 1_000 + WORKSPACE_TTL_MS - 1);
     expect(calls).toBe(1);
@@ -73,7 +82,9 @@ describe("READS may default", () => {
     // teams[0] is Union; the pointer says Codecast. The old CLI default was
     // teams[0], which is exactly the disagreement this replaces.
     expect(resolveWorkspaceForRead(roster())).toEqual({
-      kind: "team", teamId: CODECAST, name: "Codecast Labs",
+      kind: "team",
+      teamId: CODECAST,
+      name: "Codecast Labs",
     });
   });
 
@@ -96,8 +107,14 @@ describe("READS may default", () => {
 
 describe("WRITES must be explicit", () => {
   test("resolves the pointer and names the landing team", () => {
-    const ws = resolveWorkspaceForWrite(roster(), undefined, { teamRequired: true });
-    expect(ws).toEqual({ kind: "team", teamId: CODECAST, name: "Codecast Labs" });
+    const ws = resolveWorkspaceForWrite(roster(), undefined, {
+      teamRequired: true,
+    });
+    expect(ws).toEqual({
+      kind: "team",
+      teamId: CODECAST,
+      name: "Codecast Labs",
+    });
     expect(workspaceArgs(ws)).toEqual({ team_id: CODECAST });
   });
 
@@ -115,7 +132,9 @@ describe("WRITES must be explicit", () => {
 
   test("no team and no pointer FAILS for a team-only write, listing the teams", () => {
     try {
-      resolveWorkspaceForWrite(roster({ activeTeamId: null }), undefined, { teamRequired: true });
+      resolveWorkspaceForWrite(roster({ activeTeamId: null }), undefined, {
+        teamRequired: true,
+      });
       throw new Error("should have thrown");
     } catch (e: any) {
       expect(e).toBeInstanceOf(WorkspaceUnresolved);
@@ -126,18 +145,22 @@ describe("WRITES must be explicit", () => {
 
   test("a STALE pointer (membership lapsed) fails rather than writing into a team you left", () => {
     const stale = roster({ activeTeamId: "t_departed" });
-    expect(() => resolveWorkspaceForWrite(stale, undefined, { teamRequired: true }))
-      .toThrow(WorkspaceUnresolved);
+    expect(() =>
+      resolveWorkspaceForWrite(stale, undefined, { teamRequired: true }),
+    ).toThrow(WorkspaceUnresolved);
   });
 
   test("a write that tolerates the personal workspace gets it when no team is active", () => {
-    expect(resolveWorkspaceForWrite(roster({ activeTeamId: null }), undefined))
-      .toEqual({ kind: "personal" });
+    expect(
+      resolveWorkspaceForWrite(roster({ activeTeamId: null }), undefined),
+    ).toEqual({ kind: "personal" });
   });
 
   test("with no teams at all the message says so instead of listing nothing", () => {
     try {
-      resolveWorkspaceForWrite({ teams: [], activeTeamId: null }, undefined, { teamRequired: true });
+      resolveWorkspaceForWrite({ teams: [], activeTeamId: null }, undefined, {
+        teamRequired: true,
+      });
       throw new Error("should have thrown");
     } catch (e: any) {
       expect(e.message).toContain("not a member of any team");
@@ -157,39 +180,70 @@ describe("--team personal", () => {
   test("a real team named personal still wins", () => {
     const r = roster();
     r.teams.push({ _id: "teams_personal", name: "Personal" });
-    expect(resolveWorkspaceForRead(r, "personal")).toEqual({ kind: "team", teamId: "teams_personal", name: "Personal" });
+    expect(resolveWorkspaceForRead(r, "personal")).toEqual({
+      kind: "team",
+      teamId: "teams_personal",
+      name: "Personal",
+    });
   });
 
   test("a write that tolerates the personal workspace gets it; a team-only write fails and lists the teams", () => {
-    expect(resolveWorkspaceForWrite(roster(), "personal")).toEqual({ kind: "personal" });
-    expect(() => resolveWorkspaceForWrite(roster(), "personal", { teamRequired: true })).toThrow(WorkspaceUnresolved);
+    expect(resolveWorkspaceForWrite(roster(), "personal")).toEqual({
+      kind: "personal",
+    });
+    expect(() =>
+      resolveWorkspaceForWrite(roster(), "personal", { teamRequired: true }),
+    ).toThrow(WorkspaceUnresolved);
   });
 
   test("the work routes get the workspace as a positive value", () => {
-    expect(workspaceScope(resolveWorkspaceForRead(roster(), "personal"))).toEqual({ workspace: "personal" });
+    expect(
+      workspaceScope(resolveWorkspaceForRead(roster(), "personal")),
+    ).toEqual({ workspace: "personal" });
     const team = resolveWorkspaceForRead(roster(), roster().teams[0].name);
-    expect(workspaceScope(team)).toEqual({ workspace: "team", team_id: roster().teams[0]._id });
+    expect(workspaceScope(team)).toEqual({
+      workspace: "team",
+      team_id: roster().teams[0]._id,
+    });
   });
 
   test("an unknown team's message offers personal as a choice", () => {
-    expect(unknownTeamMessage(roster(), "ghost")).toContain("personal  your own workspace");
+    expect(unknownTeamMessage(roster(), "ghost")).toContain(
+      "personal  your own workspace",
+    );
   });
 });
 
 describe("a name that lives in another workspace", () => {
-  const roster = { teams: [{ _id: "tU", name: "Union" }, { _id: "tC", name: "Codecast" }, { _id: "tA", name: "Acme Labs" }], activeTeamId: "tU" };
+  const roster = {
+    teams: [
+      { _id: "tU", name: "Union" },
+      { _id: "tC", name: "Codecast" },
+      { _id: "tA", name: "Acme Labs" },
+    ],
+    activeTeamId: "tU",
+  };
   test("probes every other workspace and names the one that has it", async () => {
     const probed: string[] = [];
-    const hits = await otherWorkspacesWith(roster, { kind: "team", teamId: "tU", name: "Union" }, async (ws) => {
-      probed.push(workspaceLabel(ws));
-      if (ws.kind === "team" && ws.teamId === "tA") throw new Error("forbidden");
-      return ws.kind === "team" && ws.teamId === "tC";
-    });
+    const hits = await otherWorkspacesWith(
+      roster,
+      { kind: "team", teamId: "tU", name: "Union" },
+      async (ws) => {
+        probed.push(workspaceLabel(ws));
+        if (ws.kind === "team" && ws.teamId === "tA")
+          throw new Error("forbidden");
+        return ws.kind === "team" && ws.teamId === "tC";
+      },
+    );
     expect(probed.sort()).toEqual(["Acme Labs", "Codecast", "personal"]);
-    expect(elsewhereHint('"@codecast-cmo"', hits)).toBe('"@codecast-cmo" is in Codecast: add --team Codecast');
+    expect(elsewhereHint('"@codecast-cmo"', hits)).toBe(
+      '"@codecast-cmo" is in Codecast: add --team Codecast',
+    );
   });
   test("quotes a name with spaces, and says nothing when no workspace has it", () => {
-    expect(elsewhereHint("x", [{ kind: "team", teamId: "tA", name: "Acme Labs" }])).toBe('x is in Acme Labs: add --team "Acme Labs"');
+    expect(
+      elsewhereHint("x", [{ kind: "team", teamId: "tA", name: "Acme Labs" }]),
+    ).toBe('x is in Acme Labs: add --team "Acme Labs"');
     expect(elsewhereHint("x", [])).toBeNull();
   });
 });

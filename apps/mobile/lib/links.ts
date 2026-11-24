@@ -18,15 +18,15 @@
  * the same link tapped in Mail land on exactly the same screen.
  */
 
-import { Linking } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import { router } from 'expo-router';
-import { mobileRouteForUrl } from '@/lib/linkRoutes';
-import { goToTab, isTabAddress, type TabRouter } from '@/lib/tabNavigation';
-import { Theme } from '@/constants/Theme';
+import { Linking } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { router } from "expo-router";
+import { mobileRouteForUrl } from "@/lib/linkRoutes";
+import { goToTab, isTabAddress, type TabRouter } from "@/lib/tabNavigation";
+import { Theme } from "@/constants/Theme";
 
 /** The web app's address, for a page the phone has no screen of its own for. */
-export const WEB_ORIGIN = 'https://codecast.sh';
+export const WEB_ORIGIN = "https://codecast.sh";
 
 export {
   MOBILE_ENTITY_ROUTE,
@@ -36,13 +36,16 @@ export {
   trimUrlTail,
   urlPattern,
   URL_SOURCE,
-} from '@/lib/linkRoutes';
+} from "@/lib/linkRoutes";
 
 /**
  * Open a route a link resolved to (mobileRouteForUrl). A page of its own is
  * pushed over what is open; a tab is gone to, never stacked (lib/tabNavigation).
  */
-export function openAppRoute(to: TabRouter & { push: (href: never) => void }, route: string): void {
+export function openAppRoute(
+  to: TabRouter & { push: (href: never) => void },
+  route: string,
+): void {
   if (isTabAddress(route)) goToTab(to, route);
   else to.push(route as never);
 }
@@ -59,9 +62,11 @@ export async function openLink(url: string): Promise<void> {
   // an address in this app. A bare "www.example.com" has no scheme; everything
   // else keeps its own. Normalise first, so "www.codecast.sh/tasks/ct-42" is
   // recognised as ours.
-  const absolute = trimmed.startsWith('/')
+  const absolute = trimmed.startsWith("/")
     ? `${WEB_ORIGIN}${trimmed}`
-    : /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    : /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
 
   const route = mobileRouteForUrl(absolute);
   if (route) {
@@ -95,7 +100,9 @@ export async function openWebPage(absolute: string): Promise<void> {
 }
 
 /** The in-app browser sheet; resolves when it closes (on Android, once it opened). */
-export function openInAppBrowser(url: string): Promise<WebBrowser.WebBrowserResult> {
+export function openInAppBrowser(
+  url: string,
+): Promise<WebBrowser.WebBrowserResult> {
   return WebBrowser.openBrowserAsync(url, {
     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
     controlsColor: Theme.blue,

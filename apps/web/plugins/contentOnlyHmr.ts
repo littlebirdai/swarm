@@ -35,8 +35,16 @@ export type GraphNode = {
  * imports matter: an edit to it must still reload.
  */
 function scannedOnly(mod: GraphNode): boolean {
-  if (mod.isSelfAccepting || mod.importedModules.size > 0 || isCSSRequest(mod.url)) return false;
-  return mod.importers.size > 0 && [...mod.importers].every((i) => isCSSRequest(i.url));
+  if (
+    mod.isSelfAccepting ||
+    mod.importedModules.size > 0 ||
+    isCSSRequest(mod.url)
+  )
+    return false;
+  return (
+    mod.importers.size > 0 &&
+    [...mod.importers].every((i) => isCSSRequest(i.url))
+  );
 }
 
 /**

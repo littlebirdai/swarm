@@ -39,7 +39,8 @@ const LIST_LINE = /^(?:[-*+]|\d+[.)])\s+(.+?)\s*$/;
 export const TRAILING_DATE = /\s*\(?\s*(\d{4}-\d{2}-\d{2})\s*\)?\s*$/;
 
 /** A list line without its bullet, or null for any other line. */
-export const listItem = (line: string): string | null => line.trim().match(LIST_LINE)?.[1] ?? null;
+export const listItem = (line: string): string | null =>
+  line.trim().match(LIST_LINE)?.[1] ?? null;
 
 /** A day as written (YYYY-MM-DD) at UTC midnight, or null when it is no date. */
 export function dayAt(day: string): number | null {
@@ -50,12 +51,21 @@ export function dayAt(day: string): number | null {
 /** Every line under a heading, as written, in order. The section ends at the
  *  next heading of any level; a brief that repeats the heading reads as one
  *  section. The playbook's sections (rolePlaybook.ts) read through here too. */
-export function sectionRows(narrative: string | null | undefined, heading: RegExp): string[] {
+export function sectionRows(
+  narrative: string | null | undefined,
+  heading: RegExp,
+): string[] {
   const out: string[] = [];
   let inside = false;
   for (const line of (narrative ?? "").split("\n")) {
-    if (heading.test(line)) { inside = true; continue; }
-    if (ANY_HEADING.test(line)) { inside = false; continue; }
+    if (heading.test(line)) {
+      inside = true;
+      continue;
+    }
+    if (ANY_HEADING.test(line)) {
+      inside = false;
+      continue;
+    }
     if (inside) out.push(line);
   }
   return out;
@@ -69,7 +79,11 @@ const TRAILING_FROM = /\s*\(from @([a-z0-9-]{2,32})\)\s*$/i;
  *  marks it. */
 export const STANDING_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const strip = (s: string) => s.replace(/^\*\*(.+?)\*\*$/, "$1").replace(/^`(.+?)`$/, "$1").trim();
+const strip = (s: string) =>
+  s
+    .replace(/^\*\*(.+?)\*\*$/, "$1")
+    .replace(/^`(.+?)`$/, "$1")
+    .trim();
 
 export function parseStandingLine(line: string): StandingLine | null {
   const raw = listItem(line);
@@ -85,14 +99,18 @@ export function parseStandingLine(line: string): StandingLine | null {
     if (!m) return text;
     const at = dayAt(m[1]);
     if (at === null) return text;
-    written_on = m[1]; written_at = at;
+    written_on = m[1];
+    written_at = at;
     return text.slice(0, m.index).trim();
   };
   rest = take(rest, TRAILING_DATE);
   if (written_on === null) project = strip(take(project, DATE_AFTER_NAME));
   let from: string | null = null;
   const src = rest.match(TRAILING_FROM);
-  if (src) { from = src[1].toLowerCase(); rest = rest.slice(0, src.index).trim(); }
+  if (src) {
+    from = src[1].toLowerCase();
+    rest = rest.slice(0, src.index).trim();
+  }
   if (!project || !rest) return null;
   return { project, text: rest, written_on, written_at, from, raw };
 }
@@ -100,7 +118,10 @@ export function parseStandingLine(line: string): StandingLine | null {
 /** A standing line as a handoff copies it into the receiving role's brief
  *  (org-staffing.md S30): the outgoing role's sentence, marked with where it
  *  came from, dated the day it was written so its age carries over. */
-export function standingLineFrom(line: StandingLine, fromHandle: string): string {
+export function standingLineFrom(
+  line: StandingLine,
+  fromHandle: string,
+): string {
   const date = line.written_on ? ` (${line.written_on})` : "";
   return `- ${line.project}: ${line.text} (from @${fromHandle.replace(/^@/, "")})${date}`;
 }
@@ -108,14 +129,23 @@ export function standingLineFrom(line: StandingLine, fromHandle: string): string
 /** `narrative` with `lines` added under its "Where it stands" section, which
  *  is created at the end when the brief has none. A line for a project the
  *  section already names is skipped: the receiver's own word stands. */
-export function withStandingLines(narrative: string | null | undefined, lines: string[]): string {
+export function withStandingLines(
+  narrative: string | null | undefined,
+  lines: string[],
+): string {
   const text = (narrative ?? "").replace(/\s+$/, "");
   const have = parseStandingSection(text);
-  const fresh = lines.filter((l) => { const p = parseStandingLine(l); return p && !have.some((h) => norm(h.project) === norm(p.project)); });
+  const fresh = lines.filter((l) => {
+    const p = parseStandingLine(l);
+    return p && !have.some((h) => norm(h.project) === norm(p.project));
+  });
   if (!fresh.length) return text;
   const rows = text.split("\n");
   const head = rows.findIndex((l) => STANDING_HEADING.test(l));
-  if (head < 0) return [text, "", "## Where it stands", ...fresh].filter((l, i, a) => !(i === 0 && l === "" && a.length > 1)).join("\n");
+  if (head < 0)
+    return [text, "", "## Where it stands", ...fresh]
+      .filter((l, i, a) => !(i === 0 && l === "" && a.length > 1))
+      .join("\n");
   let end = head + 1;
   while (end < rows.length && !ANY_HEADING.test(rows[end])) end++;
   // Insert before the blank lines that close the section, so the list stays one list.
@@ -126,8 +156,12 @@ export function withStandingLines(narrative: string | null | undefined, lines: s
 
 /** Every line under the section, in the order written. The section ends at
  *  the next heading of any level. */
-export function parseStandingSection(narrative: string | null | undefined): StandingLine[] {
-  return sectionRows(narrative, STANDING_HEADING).flatMap((line) => parseStandingLine(line) ?? []);
+export function parseStandingSection(
+  narrative: string | null | undefined,
+): StandingLine[] {
+  return sectionRows(narrative, STANDING_HEADING).flatMap(
+    (line) => parseStandingLine(line) ?? [],
+  );
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -135,19 +169,32 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 /** The line the role wrote for a project: by short id, else by title. A
  *  title match is whole and case blind, so "growth" finds "Growth" and not
  *  "Growth review". */
-export function standingLineFor(lines: StandingLine[], project: { title: string; short_id?: string | null }): StandingLine | null {
+export function standingLineFor(
+  lines: StandingLine[],
+  project: { title: string; short_id?: string | null },
+): StandingLine | null {
   const id = project.short_id ? norm(project.short_id) : null;
   const title = norm(project.title);
-  return lines.find((l) => {
-    const p = norm(l.project);
-    return (id && (p === id || p.startsWith(id + " ") || p.endsWith(" " + id))) || p === title;
-  }) ?? null;
+  return (
+    lines.find((l) => {
+      const p = norm(l.project);
+      return (
+        (id && (p === id || p.startsWith(id + " ") || p.endsWith(" " + id))) ||
+        p === title
+      );
+    }) ?? null
+  );
 }
 
 /** The projects the role has written a line about, each with its line, in
  *  the scope's order. A project with no line is left out: an empty line tells
  *  a reader nothing. */
-export function projectsWithLines<P extends { title: string; short_id?: string | null }>(lines: StandingLine[], projects: P[]): Array<{ project: P; line: StandingLine }> {
+export function projectsWithLines<
+  P extends { title: string; short_id?: string | null },
+>(
+  lines: StandingLine[],
+  projects: P[],
+): Array<{ project: P; line: StandingLine }> {
   return projects.flatMap((project) => {
     const line = standingLineFor(lines, project);
     return line ? [{ project, line }] : [];
@@ -155,8 +202,13 @@ export function projectsWithLines<P extends { title: string; short_id?: string |
 }
 
 /** A line's age in whole days, or null when the line carries no date. */
-export function standingLineAgeDays(line: StandingLine, now: number): number | null {
-  return line.written_at === null ? null : Math.max(0, Math.floor((now - line.written_at) / 86_400_000));
+export function standingLineAgeDays(
+  line: StandingLine,
+  now: number,
+): number | null {
+  return line.written_at === null
+    ? null
+    : Math.max(0, Math.floor((now - line.written_at) / 86_400_000));
 }
 
 /** True when the line is old enough that a reader should know. */

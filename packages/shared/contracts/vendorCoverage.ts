@@ -21,14 +21,24 @@ export const VENDORS = {
   slack: { name: "Slack", receives: "team-account", feature: "Slack" },
   github: { name: "GitHub", receives: "team-account", feature: "GitHub" },
   linear: { name: "Linear", receives: "team-account", feature: "Linear" },
-  google: { name: "Google", receives: "team-account", feature: "Google Calendar" },
+  google: {
+    name: "Google",
+    receives: "team-account",
+    feature: "Google Calendar",
+  },
   // Push delivery: regulated teams' push bodies carry no transcript text (lib/pushPrivacy).
-  expo: { name: "Expo push", receives: "no-content", feature: "Push notifications" },
+  expo: {
+    name: "Expo push",
+    receives: "no-content",
+    feature: "Push notifications",
+  },
 } as const;
 
 export type Vendor = keyof typeof VENDORS;
 /** A vendor that receives a team's content from Codecast's own account, so it needs Codecast's BAA. */
-export type ContentVendor = { [V in Vendor]: (typeof VENDORS)[V]["receives"] extends "content" ? V : never }[Vendor];
+export type ContentVendor = {
+  [V in Vendor]: (typeof VENDORS)[V]["receives"] extends "content" ? V : never;
+}[Vendor];
 
 /**
  * Vendors Codecast holds a signed BAA with. Add a vendor only once its BAA is
@@ -37,25 +47,36 @@ export type ContentVendor = { [V in Vendor]: (typeof VENDORS)[V]["receives"] ext
  */
 export const BAA_COVERED_VENDORS: readonly ContentVendor[] = [];
 
-export function vendorCovered(vendor: ContentVendor, covered: readonly ContentVendor[] = BAA_COVERED_VENDORS): boolean {
+export function vendorCovered(
+  vendor: ContentVendor,
+  covered: readonly ContentVendor[] = BAA_COVERED_VENDORS,
+): boolean {
   return covered.includes(vendor);
 }
 
 /** The one line a refused request or a disabled control shows. */
-export function vendorUncoveredMessage(vendor: ContentVendor, teamName?: string | null): string {
+export function vendorUncoveredMessage(
+  vendor: ContentVendor,
+  teamName?: string | null,
+): string {
   const v = VENDORS[vendor];
   return `${v.feature} are off${teamName ? ` for ${teamName}` : ""}: no BAA with ${v.name} yet.`;
 }
 
 /** The team features that send a team's content to a vendor, and which. */
-export const FEATURE_VENDORS: Partial<Record<TeamFeatureKey, readonly ContentVendor[]>> = {
+export const FEATURE_VENDORS: Partial<
+  Record<TeamFeatureKey, readonly ContentVendor[]>
+> = {
   calls: ["livekit"],
   agent_faces: ["tavus"],
   agent_realtime: ["openai"],
 };
 
 /** The vendor a team feature still lacks a BAA with, or null when it has every one it needs. */
-export function featureUncoveredVendor(key: TeamFeatureKey, covered: readonly ContentVendor[] = BAA_COVERED_VENDORS): ContentVendor | null {
+export function featureUncoveredVendor(
+  key: TeamFeatureKey,
+  covered: readonly ContentVendor[] = BAA_COVERED_VENDORS,
+): ContentVendor | null {
   return FEATURE_VENDORS[key]?.find((v) => !covered.includes(v)) ?? null;
 }
 
@@ -75,6 +96,11 @@ export function teamVendorBlock(
   vendor: ContentVendor,
   covered: readonly ContentVendor[] = BAA_COVERED_VENDORS,
 ): string | null {
-  if (!team || vendorCovered(vendor, covered) || parseTeamPolicy(team.policy).regulated_data !== true) return null;
+  if (
+    !team ||
+    vendorCovered(vendor, covered) ||
+    parseTeamPolicy(team.policy).regulated_data !== true
+  )
+    return null;
   return vendorUncoveredMessage(vendor, team.name);
 }

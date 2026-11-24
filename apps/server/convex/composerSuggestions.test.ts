@@ -2,7 +2,13 @@ import { NO_TEAM_CONTENT_GATE } from "./lib/vendorGuard";
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { CHEAP_MODEL } from "./lib/anthropic";
-import { captureFetch, goldenBody, recordGolden, loadGolden, type GoldenCase } from "./__golden__/golden.testkit";
+import {
+  captureFetch,
+  goldenBody,
+  recordGolden,
+  loadGolden,
+  type GoldenCase,
+} from "./__golden__/golden.testkit";
 import { hashToken } from "./apiTokens";
 import {
   buildMinerPrompt,
@@ -33,12 +39,18 @@ function fakeDb(tables: Record<string, any[]>) {
     field: (name: string) => (row: any) => row[name],
     eq: (get: any, val: any) => (row: any) => get(row) === val,
     neq: (get: any, val: any) => (row: any) => get(row) !== val,
-    and: (...preds: any[]) => (row: any) => preds.every((p) => p(row)),
+    and:
+      (...preds: any[]) =>
+      (row: any) =>
+        preds.every((p) => p(row)),
   };
   return {
     // The vendor guard reads each conversation's team; none of these is a regulated team's.
     normalizeId: (_table: string, id: string) => id,
-    get: async (id: string) => Object.values(tables).flat().find((r) => r._id === id) ?? null,
+    get: async (id: string) =>
+      Object.values(tables)
+        .flat()
+        .find((r) => r._id === id) ?? null,
     query: (table: string) => {
       let rows = tables[table] ?? [];
       const chain: any = {
@@ -56,7 +68,9 @@ function fakeDb(tables: Record<string, any[]>) {
         },
         order: (dir: "asc" | "desc") => {
           const key = table === "conversations" ? "updated_at" : "timestamp";
-          rows = [...rows].sort((a, b) => (dir === "asc" ? a[key] - b[key] : b[key] - a[key]));
+          rows = [...rows].sort((a, b) =>
+            dir === "asc" ? a[key] - b[key] : b[key] - a[key],
+          );
           return chain;
         },
         take: async (n: number) => rows.slice(0, n),
@@ -68,8 +82,13 @@ function fakeDb(tables: Record<string, any[]>) {
 }
 
 async function collect(conversations: any[], messages: any[]) {
-  const handler = (getRecentUserInputs as any)._handler ?? (getRecentUserInputs as any).handler;
-  return (await handler({ db: fakeDb({ conversations, messages }) }, { user_id: "u1" })) as Array<{
+  const handler =
+    (getRecentUserInputs as any)._handler ??
+    (getRecentUserInputs as any).handler;
+  return (await handler(
+    { db: fakeDb({ conversations, messages }) },
+    { user_id: "u1" },
+  )) as Array<{
     text: string;
     ts: number;
   }>;
@@ -80,15 +99,49 @@ const POLISH =
 
 describe("getRecentUserInputs", () => {
   test("reads the opening brief of a long session, not just its newest nudges", async () => {
-    const conv = { _id: "c1", _creationTime: 1000, user_id: "u1", updated_at: 5000 };
+    const conv = {
+      _id: "c1",
+      _creationTime: 1000,
+      user_id: "u1",
+      updated_at: 5000,
+    };
     const messages = [
-      { _id: "m0", conversation_id: "c1", role: "user", content: `make the create team flow amazing. ${POLISH}`, timestamp: 1000 },
+      {
+        _id: "m0",
+        conversation_id: "c1",
+        role: "user",
+        content: `make the create team flow amazing. ${POLISH}`,
+        timestamp: 1000,
+      },
       ...Array.from({ length: 40 }, (_, i) => ({
-        _id: `n${i}`, conversation_id: "c1", role: "user", content: "continue", timestamp: 2000 + i,
+        _id: `n${i}`,
+        conversation_id: "c1",
+        role: "user",
+        content: "continue",
+        timestamp: 2000 + i,
       })),
-      { _id: "t1", conversation_id: "c1", role: "user", content: "now verify it in the browser", timestamp: 4000 },
-      { _id: "tr", conversation_id: "c1", role: "user", content: "carrier", tool_results: [{}], timestamp: 4500 },
-      { _id: "a1", conversation_id: "c1", role: "assistant", content: "done", timestamp: 4600 },
+      {
+        _id: "t1",
+        conversation_id: "c1",
+        role: "user",
+        content: "now verify it in the browser",
+        timestamp: 4000,
+      },
+      {
+        _id: "tr",
+        conversation_id: "c1",
+        role: "user",
+        content: "carrier",
+        tool_results: [{}],
+        timestamp: 4500,
+      },
+      {
+        _id: "a1",
+        conversation_id: "c1",
+        role: "assistant",
+        content: "done",
+        timestamp: 4600,
+      },
     ];
     const out = await collect([conv], messages);
     const texts = out.map((r) => r.text);
@@ -101,55 +154,171 @@ describe("getRecentUserInputs", () => {
   test("leaves out a regulated team's sessions while Anthropic has no BAA", async () => {
     const conversations = [
       { _id: "mine", _creationTime: 100, user_id: "u1", updated_at: 900 },
-      { _id: "clinic", _creationTime: 100, user_id: "u1", updated_at: 800, team_id: "t1", team_visibility: "full" },
+      {
+        _id: "clinic",
+        _creationTime: 100,
+        user_id: "u1",
+        updated_at: 800,
+        team_id: "t1",
+        team_visibility: "full",
+      },
     ];
     const messages = [
-      { _id: "a", conversation_id: "mine", role: "user", content: "plan and task this out deeply", timestamp: 200 },
-      { _id: "b", conversation_id: "clinic", role: "user", content: "summarize the patient intake notes", timestamp: 200 },
+      {
+        _id: "a",
+        conversation_id: "mine",
+        role: "user",
+        content: "plan and task this out deeply",
+        timestamp: 200,
+      },
+      {
+        _id: "b",
+        conversation_id: "clinic",
+        role: "user",
+        content: "summarize the patient intake notes",
+        timestamp: 200,
+      },
     ];
-    const handler = (getRecentUserInputs as any)._handler ?? (getRecentUserInputs as any).handler;
-    const teams = [{ _id: "t1", name: "Clinic", policy: { regulated_data: true } }];
-    const out = await handler({ db: fakeDb({ conversations, messages, teams }) }, { user_id: "u1" });
-    expect(out.map((r: { text: string }) => r.text)).toEqual(["plan and task this out deeply"]);
+    const handler =
+      (getRecentUserInputs as any)._handler ??
+      (getRecentUserInputs as any).handler;
+    const teams = [
+      { _id: "t1", name: "Clinic", policy: { regulated_data: true } },
+    ];
+    const out = await handler(
+      { db: fakeDb({ conversations, messages, teams }) },
+      { user_id: "u1" },
+    );
+    expect(out.map((r: { text: string }) => r.text)).toEqual([
+      "plan and task this out deeply",
+    ]);
   });
 
   test("skips machine-driven sessions and fork-copied history", async () => {
     const conversations = [
       { _id: "human", _creationTime: 100, user_id: "u1", updated_at: 900 },
-      { _id: "worker", _creationTime: 100, user_id: "u1", updated_at: 800, is_workflow_sub: true },
-      { _id: "fork", _creationTime: 500, user_id: "u1", updated_at: 700, forked_from: "human" },
+      {
+        _id: "worker",
+        _creationTime: 100,
+        user_id: "u1",
+        updated_at: 800,
+        is_workflow_sub: true,
+      },
+      {
+        _id: "fork",
+        _creationTime: 500,
+        user_id: "u1",
+        updated_at: 700,
+        forked_from: "human",
+      },
     ];
     const messages = [
-      { _id: "h1", conversation_id: "human", role: "user", content: "plan and task this out deeply", timestamp: 200 },
-      { _id: "w1", conversation_id: "worker", role: "user", content: "Adversarially verify this code-review finding", timestamp: 200 },
+      {
+        _id: "h1",
+        conversation_id: "human",
+        role: "user",
+        content: "plan and task this out deeply",
+        timestamp: 200,
+      },
+      {
+        _id: "w1",
+        conversation_id: "worker",
+        role: "user",
+        content: "Adversarially verify this code-review finding",
+        timestamp: 200,
+      },
       // Copied from `human` with its original timestamp (older than the fork).
-      { _id: "f0", conversation_id: "fork", role: "user", content: "plan and task this out deeply", timestamp: 200 },
-      { _id: "f1", conversation_id: "fork", role: "user", content: "take the other branch here", timestamp: 600 },
+      {
+        _id: "f0",
+        conversation_id: "fork",
+        role: "user",
+        content: "plan and task this out deeply",
+        timestamp: 200,
+      },
+      {
+        _id: "f1",
+        conversation_id: "fork",
+        role: "user",
+        content: "take the other branch here",
+        timestamp: 600,
+      },
     ];
     const out = await collect(conversations, messages);
     const texts = out.map((r) => r.text);
-    expect(texts.filter((t) => t === "plan and task this out deeply")).toHaveLength(1);
+    expect(
+      texts.filter((t) => t === "plan and task this out deeply"),
+    ).toHaveLength(1);
     expect(texts).toContain("take the other branch here");
     expect(texts.some((t) => t.startsWith("Adversarially"))).toBe(false);
   });
 
   test("skips peer-session notices and codecast's own notices carried as user rows", async () => {
-    const conv = { _id: "c1", _creationTime: 100, user_id: "u1", updated_at: 900 };
+    const conv = {
+      _id: "c1",
+      _creationTime: 100,
+      user_id: "u1",
+      updated_at: 900,
+    };
     const messages = [
-      { _id: "p", conversation_id: "c1", role: "user", content: 'Another Claude session sent a message: <teammate-message teammate_id="review-ct1" color="green"> {"type":"idle_notification"} </teammate-message>', timestamp: 200 },
-      { _id: "n", conversation_id: "c1", role: "user", content: "[codecast] Now using Codex (was Claude · Fable). This session continues here.", timestamp: 201 },
-      { _id: "t", conversation_id: "c1", role: "user", content: "verify it in the browser before you call it done", timestamp: 300 },
+      {
+        _id: "p",
+        conversation_id: "c1",
+        role: "user",
+        content:
+          'Another Claude session sent a message: <teammate-message teammate_id="review-ct1" color="green"> {"type":"idle_notification"} </teammate-message>',
+        timestamp: 200,
+      },
+      {
+        _id: "n",
+        conversation_id: "c1",
+        role: "user",
+        content:
+          "[codecast] Now using Codex (was Claude · Fable). This session continues here.",
+        timestamp: 201,
+      },
+      {
+        _id: "t",
+        conversation_id: "c1",
+        role: "user",
+        content: "verify it in the browser before you call it done",
+        timestamp: 300,
+      },
     ];
     const texts = (await collect([conv], messages)).map((r) => r.text);
     expect(texts).toEqual(["verify it in the browser before you call it done"]);
   });
 
   test("skips a slash command's expanded body along with its wrapper", async () => {
-    const conv = { _id: "c1", _creationTime: 100, user_id: "u1", updated_at: 900 };
+    const conv = {
+      _id: "c1",
+      _creationTime: 100,
+      user_id: "u1",
+      updated_at: 900,
+    };
     const messages = [
-      { _id: "w", conversation_id: "c1", role: "user", content: "<command-message>commit</command-message>\n<command-name>/commit</command-name>", timestamp: 200 },
-      { _id: "x", conversation_id: "c1", role: "user", content: "## Task\n\nAnalyze ALL uncommitted changes and create topical commits.", timestamp: 201 },
-      { _id: "t", conversation_id: "c1", role: "user", content: "also bump the desktop version", timestamp: 300 },
+      {
+        _id: "w",
+        conversation_id: "c1",
+        role: "user",
+        content:
+          "<command-message>commit</command-message>\n<command-name>/commit</command-name>",
+        timestamp: 200,
+      },
+      {
+        _id: "x",
+        conversation_id: "c1",
+        role: "user",
+        content:
+          "## Task\n\nAnalyze ALL uncommitted changes and create topical commits.",
+        timestamp: 201,
+      },
+      {
+        _id: "t",
+        conversation_id: "c1",
+        role: "user",
+        content: "also bump the desktop version",
+        timestamp: 300,
+      },
     ];
     const texts = (await collect([conv], messages)).map((r) => r.text);
     expect(texts).toEqual(["also bump the desktop version"]);
@@ -157,7 +326,9 @@ describe("getRecentUserInputs", () => {
 
   test("isMachineDrivenConversation covers every agent-authored session shape", () => {
     expect(isMachineDrivenConversation({})).toBe(false);
-    expect(isMachineDrivenConversation({ forked_from: "x" } as any)).toBe(false);
+    expect(isMachineDrivenConversation({ forked_from: "x" } as any)).toBe(
+      false,
+    );
     for (const shape of [
       { is_subagent: true },
       { is_workflow_sub: true },
@@ -165,7 +336,8 @@ describe("getRecentUserInputs", () => {
       { parent_conversation_id: "p" },
       { spawned_by_conversation_id: "s" },
       { comment_fork_parent: "c" },
-    ]) expect(isMachineDrivenConversation(shape)).toBe(true);
+    ])
+      expect(isMachineDrivenConversation(shape)).toBe(true);
   });
 });
 
@@ -177,7 +349,9 @@ describe("minePhrases", () => {
       "add a regression test then deploy",
       "unrelated message about something else entirely",
     ]);
-    expect(phrases.some((p) => p.text.includes("add a regression test"))).toBe(true);
+    expect(phrases.some((p) => p.text.includes("add a regression test"))).toBe(
+      true,
+    );
   });
 
   test("counts once per message — repetition inside one message doesn't inflate", () => {
@@ -187,7 +361,9 @@ describe("minePhrases", () => {
       "third message with different content here",
     ]);
     // Appears in only 1 of 3 messages → below the ≥3 support floor.
-    expect(phrases.some((p) => p.text.includes("make it beautiful"))).toBe(false);
+    expect(phrases.some((p) => p.text.includes("make it beautiful"))).toBe(
+      false,
+    );
   });
 
   test("prefers the longer phrase when support is comparable", () => {
@@ -240,19 +416,29 @@ describe("rankInputs", () => {
   test("phrases are mined from the same rows", () => {
     const { phrases } = rankInputs(
       [
-        { text: "verify with screenshots before you finish", ts: now - 1 * DAY },
-        { text: "always verify with screenshots after ui work", ts: now - 2 * DAY },
+        {
+          text: "verify with screenshots before you finish",
+          ts: now - 1 * DAY,
+        },
+        {
+          text: "always verify with screenshots after ui work",
+          ts: now - 2 * DAY,
+        },
         { text: "and verify with screenshots at the end", ts: now - 3 * DAY },
       ],
       now,
     );
-    expect(phrases.some((p) => p.text.includes("verify with screenshots"))).toBe(true);
+    expect(
+      phrases.some((p) => p.text.includes("verify with screenshots")),
+    ).toBe(true);
   });
 });
 
 describe("sanitizeSuggestions", () => {
   test("one reply at most: the likeliest, and only at 0.5 or above", () => {
-    expect(sanitizeSuggestions(["alpha one", { text: "beta two" }], null)).toEqual(["alpha one"]);
+    expect(
+      sanitizeSuggestions(["alpha one", { text: "beta two" }], null),
+    ).toEqual(["alpha one"]);
     expect(
       sanitizeSuggestions(
         [
@@ -276,30 +462,51 @@ describe("sanitizeSuggestions", () => {
   test("drops refusal prose, dupes, quotes, and the last user message", () => {
     expect(
       sanitizeSuggestions(
-        ['"deploy the fix"', "Deploy the fix", "I cannot predict this", "run tests now", "commit it all"],
+        [
+          '"deploy the fix"',
+          "Deploy the fix",
+          "I cannot predict this",
+          "run tests now",
+          "commit it all",
+        ],
         "run tests now",
       ),
     ).toEqual(["deploy the fix"]);
     expect(
-      sanitizeSuggestions(['"run tests now"', "I cannot predict this", "commit it all"], "run tests now"),
+      sanitizeSuggestions(
+        ['"run tests now"', "I cannot predict this", "commit it all"],
+        "run tests now",
+      ),
     ).toEqual(["commit it all"]);
   });
 
   test("drops bare continuation nudges", () => {
     expect(
-      sanitizeSuggestions(["continue", "go ahead", "Do it!", "lgtm", "deploy and verify the fix"], null),
+      sanitizeSuggestions(
+        ["continue", "go ahead", "Do it!", "lgtm", "deploy and verify the fix"],
+        null,
+      ),
     ).toEqual(["deploy and verify the fix"]);
   });
 
   test("replayed historical messages are dropped, applied habits survive", () => {
     const banned = new Set(
-      ["think of 5 ways this feature can be better", "you need to test this more thoroughly"].map(normalizeForMatch),
+      [
+        "think of 5 ways this feature can be better",
+        "you need to test this more thoroughly",
+      ].map(normalizeForMatch),
     );
     expect(
       sanitizeSuggestions(
         [
-          { text: "Think of 5 ways this feature can be better.", confidence: 0.9 },
-          { text: "think of 5 ways the pill row could be better", confidence: 0.85 },
+          {
+            text: "Think of 5 ways this feature can be better.",
+            confidence: 0.9,
+          },
+          {
+            text: "think of 5 ways the pill row could be better",
+            confidence: 0.85,
+          },
           { text: "you need to test this more thoroughly", confidence: 0.9 },
         ],
         null,
@@ -316,13 +523,18 @@ describe("sanitizeSuggestions", () => {
   test("a full reusable prompt survives; only a pasted wall is dropped", () => {
     const longPrompt =
       "you are a world class product engineer and designer, you push the final mile to polish a product to incredible detail and thoughtfulness. when you think you are done and its perfect, do another 10 rounds of iteration to improve it. do work that you are extremely proud of. I believe in you.";
-    expect(sanitizeSuggestions([{ text: longPrompt, confidence: 0.9 }], null)).toEqual([longPrompt]);
+    expect(
+      sanitizeSuggestions([{ text: longPrompt, confidence: 0.9 }], null),
+    ).toEqual([longPrompt]);
     expect(sanitizeSuggestions(["x".repeat(1001)], null)).toEqual([]);
   });
 
   test("a reusable prompt removed from the ban set comes back as a pill", () => {
-    const reusable = "plan, and task this out deeply, bind to it and then run a deep workflow against it";
-    const banned = new Set([reusable, "fix the linkedin urls in team.ts"].map(normalizeForMatch));
+    const reusable =
+      "plan, and task this out deeply, bind to it and then run a deep workflow against it";
+    const banned = new Set(
+      [reusable, "fix the linkedin urls in team.ts"].map(normalizeForMatch),
+    );
     // The action deletes mined prompts from the ban set before sanitizing.
     banned.delete(normalizeForMatch(reusable));
     expect(
@@ -340,10 +552,16 @@ describe("sanitizeSuggestions", () => {
 
 describe("parseJsonBlock", () => {
   test("takes the leading JSON value and drops trailing commentary", () => {
-    expect(parseJsonBlock("[]\n\nThe developer is waiting on a passkey touch; nothing to predict.")).toEqual([]);
-    expect(parseJsonBlock('[{"text": "ship it - [1] and {2}", "confidence": 0.8}] trailing')).toEqual([
-      { text: "ship it - [1] and {2}", confidence: 0.8 },
-    ]);
+    expect(
+      parseJsonBlock(
+        "[]\n\nThe developer is waiting on a passkey touch; nothing to predict.",
+      ),
+    ).toEqual([]);
+    expect(
+      parseJsonBlock(
+        '[{"text": "ship it - [1] and {2}", "confidence": 0.8}] trailing',
+      ),
+    ).toEqual([{ text: "ship it - [1] and {2}", confidence: 0.8 }]);
     expect(parseJsonBlock("```json\n[]\n```")).toEqual([]);
     expect(parseJsonBlock("no json here")).toBeNull();
   });
@@ -353,12 +571,19 @@ describe("parseMinedProfile", () => {
   test("reads patterns and full-text prompts, dropping under-supported and nudge entries", () => {
     const mined = parseMinedProfile({
       patterns: [
-        { pattern: "demands e2e verification before accepting work", example: "verify it e2e first", count: 4 },
+        {
+          pattern: "demands e2e verification before accepting work",
+          example: "verify it e2e first",
+          count: 4,
+        },
         { pattern: "one-off", example: "whatever", count: 1 },
         { pattern: "nudge habit", example: "continue", count: 9 },
       ],
       prompts: [
-        { text: "build all of the above and then find 10 ways it can be clearer, fix those 10, validate, and repeat 5 times", count: 3 },
+        {
+          text: "build all of the above and then find 10 ways it can be clearer, fix those 10, validate, and repeat 5 times",
+          count: 3,
+        },
         { text: "go ahead", count: 6 },
         { text: "ship it now", count: 2 },
       ],
@@ -367,12 +592,18 @@ describe("parseMinedProfile", () => {
       "demands e2e verification before accepting work",
     ]);
     expect(mined?.prompts.map((p) => p.count)).toEqual([3, 2]);
-    expect(mined?.prompts[0].text.startsWith("build all of the above")).toBe(true);
+    expect(mined?.prompts[0].text.startsWith("build all of the above")).toBe(
+      true,
+    );
   });
 
   test("legacy bare-array output reads as patterns only", () => {
     const mined = parseMinedProfile([
-      { pattern: "asks for a polished summary page", example: "publish a full page", count: 2 },
+      {
+        pattern: "asks for a polished summary page",
+        example: "publish a full page",
+        count: 2,
+      },
     ]);
     expect(mined?.patterns.length).toBe(1);
     expect(mined?.prompts).toEqual([]);
@@ -401,7 +632,12 @@ const FULL_PROFILE = {
       count: 5,
     },
   ],
-  prompts: [{ text: "polish this until it is excellent, then review it once more", count: 3 }],
+  prompts: [
+    {
+      text: "polish this until it is excellent, then review it once more",
+      count: 3,
+    },
+  ],
   recent: ["make the header sticky", "why is the build slow"],
   generated_at: 0,
 };
@@ -416,10 +652,21 @@ const PHRASES_ONLY_PROFILE = {
 const EMPTY_PROFILE = { frequent: [], recent: [], generated_at: 0 };
 
 const SHORT_CONTEXT = {
-  conversation: { title: "Fix the flaky login test", project_path: "/work/demo", git_branch: "main" },
+  conversation: {
+    title: "Fix the flaky login test",
+    project_path: "/work/demo",
+    git_branch: "main",
+  },
   turns: [
-    { role: "user", content: "the login test fails one run in five, find out why" },
-    { role: "assistant", content: "It races the session cookie. Want me to add a wait on the cookie and a regression test?" },
+    {
+      role: "user",
+      content: "the login test fails one run in five, find out why",
+    },
+    {
+      role: "assistant",
+      content:
+        "It races the session cookie. Want me to add a wait on the cookie and a regression test?",
+    },
   ],
 };
 
@@ -434,8 +681,14 @@ const LONG_CONTEXT = {
   },
   turns: Array.from({ length: 20 }, (_, i) =>
     i % 2 === 0
-      ? { role: "user", content: `step ${i}: keep going on the cache ${"detail ".repeat(70)}` }
-      : { role: "assistant", content: `done with step ${i}. ${"finding ".repeat(i === 19 ? 400 : 70)}` },
+      ? {
+          role: "user",
+          content: `step ${i}: keep going on the cache ${"detail ".repeat(70)}`,
+        }
+      : {
+          role: "assistant",
+          content: `done with step ${i}. ${"finding ".repeat(i === 19 ? 400 : 70)}`,
+        },
   ),
 };
 
@@ -446,14 +699,26 @@ const BARE_CONTEXT = {
 
 const SUGGEST_CASES = [
   { name: "short-full-profile", context: SHORT_CONTEXT, profile: FULL_PROFILE },
-  { name: "long-phrases-only", context: LONG_CONTEXT, profile: PHRASES_ONLY_PROFILE },
+  {
+    name: "long-phrases-only",
+    context: LONG_CONTEXT,
+    profile: PHRASES_ONLY_PROFILE,
+  },
   { name: "bare-empty-profile", context: BARE_CONTEXT, profile: EMPTY_PROFILE },
 ] as const;
 
-const MINER_INPUTS = ["fix the flaky login test", "add a regression test for this", "go", "add a regression test please"];
+const MINER_INPUTS = [
+  "fix the flaky login test",
+  "add a regression test for this",
+  "go",
+  "add a regression test please",
+];
 
 // Runs `fn` with fetch stubbed to answer `reply` and returns every body it posted.
-async function postedBodies(fn: () => Promise<unknown>, reply = "[]"): Promise<string[]> {
+async function postedBodies(
+  fn: () => Promise<unknown>,
+  reply = "[]",
+): Promise<string[]> {
   const stub = captureFetch(reply);
   stub.install();
   try {
@@ -468,10 +733,20 @@ describe("suggest request golden", () => {
   test("the Haiku bodies equal the recorded golden", async () => {
     const actual: GoldenCase[] = [];
     for (const c of SUGGEST_CASES) {
-      const [body] = await postedBodies(() => predictSuggestions(c.context as any, c.profile as any, "anthropic", NO_TEAM_CONTENT_GATE));
+      const [body] = await postedBodies(() =>
+        predictSuggestions(
+          c.context as any,
+          c.profile as any,
+          "anthropic",
+          NO_TEAM_CONTENT_GATE,
+        ),
+      );
       actual.push({ case: c.name, body });
     }
-    const [miner] = await postedBodies(() => minePatternsWithLLM(MINER_INPUTS), "{}");
+    const [miner] = await postedBodies(
+      () => minePatternsWithLLM(MINER_INPUTS),
+      "{}",
+    );
     actual.push({ case: "miner", body: miner });
     expect(actual).toEqual(recordGolden("suggest", actual));
   });
@@ -485,33 +760,62 @@ describe("suggest request seams", () => {
       expect(req.model).toBe(CHEAP_MODEL);
       expect(goldenBody(req)).toBe(golden.get(c.name)!);
     }
-    expect(goldenBody(haikuRequest(buildMinerPrompt(MINER_INPUTS), 3000))).toBe(golden.get("miner")!);
+    expect(goldenBody(haikuRequest(buildMinerPrompt(MINER_INPUTS), 3000))).toBe(
+      golden.get("miner")!,
+    );
   });
 
   test("an injected complete receives the opts llmComplete did, and its reply is parsed the same way", async () => {
     for (const c of SUGGEST_CASES) {
       const seen: any[] = [];
-      const reply = '[{"text":"add the wait and the regression test","confidence":0.9}]';
-      const injected = await predictSuggestions(c.context as any, c.profile as any, "anthropic", NO_TEAM_CONTENT_GATE, async (opts) => {
-        seen.push(opts);
-        return { text: reply };
-      });
+      const reply =
+        '[{"text":"add the wait and the regression test","confidence":0.9}]';
+      const injected = await predictSuggestions(
+        c.context as any,
+        c.profile as any,
+        "anthropic",
+        NO_TEAM_CONTENT_GATE,
+        async (opts) => {
+          seen.push(opts);
+          return { text: reply };
+        },
+      );
       const req = suggestRequest(c.context as any, c.profile as any);
-      expect(seen).toEqual([{ provider: "anthropic", prompt: req.prompt, maxTokens: req.max_tokens, gate: NO_TEAM_CONTENT_GATE }]);
+      expect(seen).toEqual([
+        {
+          provider: "anthropic",
+          prompt: req.prompt,
+          maxTokens: req.max_tokens,
+          gate: NO_TEAM_CONTENT_GATE,
+        },
+      ]);
       // The default path posts exactly those opts as its body, and parses the
       // same reply into the same suggestions.
       let live: any;
       const [body] = await postedBodies(async () => {
-        live = await predictSuggestions(c.context as any, c.profile as any, "anthropic", NO_TEAM_CONTENT_GATE);
+        live = await predictSuggestions(
+          c.context as any,
+          c.profile as any,
+          "anthropic",
+          NO_TEAM_CONTENT_GATE,
+        );
       }, reply);
-      expect(body).toBe(goldenBody(haikuRequest(seen[0].prompt, seen[0].maxTokens)));
+      expect(body).toBe(
+        goldenBody(haikuRequest(seen[0].prompt, seen[0].maxTokens)),
+      );
       expect(injected).toEqual(live);
     }
     const providers: string[] = [];
-    await predictSuggestions(SHORT_CONTEXT as any, FULL_PROFILE as any, "openai", NO_TEAM_CONTENT_GATE, async (opts) => {
-      providers.push(opts.provider);
-      return null;
-    });
+    await predictSuggestions(
+      SHORT_CONTEXT as any,
+      FULL_PROFILE as any,
+      "openai",
+      NO_TEAM_CONTENT_GATE,
+      async (opts) => {
+        providers.push(opts.provider);
+        return null;
+      },
+    );
     expect(providers).toEqual(["openai"]);
   });
 
@@ -533,7 +837,11 @@ describe("suggest request seams", () => {
         ? { role: "user", content: "tool output", tool_results: [{}] }
         : i % 2 === 0
           ? { role: "user", content: `ask ${i}` }
-          : { role: "assistant", content: `answer ${i}`, ...(i === 71 ? { message_uuid: "uuid-71" } : {}) }),
+          : {
+              role: "assistant",
+              content: `answer ${i}`,
+              ...(i === 71 ? { message_uuid: "uuid-71" } : {}),
+            }),
     }));
     // The query as it read before the selector moved out of it.
     const before = (raw: any[]) => {
@@ -541,16 +849,30 @@ describe("suggest request seams", () => {
       const tail = turns[turns.length - 1];
       return {
         conversation: {
-          user_id: conv.user_id, title: conv.title, subtitle: undefined, idle_summary: undefined,
-          thread_state: undefined, project_path: conv.project_path, git_branch: conv.git_branch, status: conv.status,
+          user_id: conv.user_id,
+          title: conv.title,
+          subtitle: undefined,
+          idle_summary: undefined,
+          thread_state: undefined,
+          project_path: conv.project_path,
+          git_branch: conv.git_branch,
+          status: conv.status,
         },
-        turns: turns.map((m: any) => ({ role: m.role, content: m.content || "", timestamp: m.timestamp })),
+        turns: turns.map((m: any) => ({
+          role: m.role,
+          content: m.content || "",
+          timestamp: m.timestamp,
+        })),
         tail_role: tail?.role ?? null,
         anchor: tail ? tail.message_uuid || tail._id : null,
       };
     };
-    const newest60 = [...rows].sort((a, b) => b.timestamp - a.timestamp).slice(0, 60);
-    const handler = (getSuggestionContext as any)._handler ?? (getSuggestionContext as any).handler;
+    const newest60 = [...rows]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 60);
+    const handler =
+      (getSuggestionContext as any)._handler ??
+      (getSuggestionContext as any).handler;
     const db = { ...fakeDb({ messages: rows }), get: async () => conv };
     const live = await handler({ db }, { conversation_id: "c1" });
     expect(live).toEqual(before(newest60));
@@ -569,24 +891,40 @@ describe("suggest request seams", () => {
     expect(Object.keys(args.value)).toEqual(["api_token"]);
 
     const source = readFileSync(new URL("./http.ts", import.meta.url), "utf8");
-    const route = source.slice(source.indexOf('cliRoute("/cli/suggestion-profile"'));
+    const route = source.slice(
+      source.indexOf('cliRoute("/cli/suggestion-profile"'),
+    );
     const call = route.slice(0, route.indexOf(");\n") + 2);
-    expect(call).toContain("internal.composerSuggestions.getOwnSuggestionProfile, { api_token: String(body?.api_token");
+    expect(call).toMatch(
+      /internal\.composerSuggestions\.getOwnSuggestionProfile, \{\s*api_token: String\(body\?\.api_token/,
+    );
     expect(call).not.toContain("user_id");
     expect(call).not.toContain("...body");
 
     const tables: Record<string, any[]> = {
-      api_tokens: [{ _id: "t1", user_id: "userA", token_hash: await hashToken("secret-a") }],
+      api_tokens: [
+        {
+          _id: "t1",
+          user_id: "userA",
+          token_hash: await hashToken("secret-a"),
+        },
+      ],
       suggestion_profiles: [
         { _id: "p2", user_id: "userB", recent: ["b"] },
         { _id: "p1", user_id: "userA", recent: ["a"] },
       ],
     };
     const db = fakeDb(tables);
-    const handler = (getOwnSuggestionProfile as any)._handler ?? (getOwnSuggestionProfile as any).handler;
+    const handler =
+      (getOwnSuggestionProfile as any)._handler ??
+      (getOwnSuggestionProfile as any).handler;
     expect((await handler({ db }, { api_token: "secret-a" }))._id).toBe("p1");
-    await expect(handler({ db }, { api_token: "wrong" })).rejects.toThrow("Unauthorized");
-    await expect(handler({ db }, { api_token: "" })).rejects.toThrow("Unauthorized");
+    await expect(handler({ db }, { api_token: "wrong" })).rejects.toThrow(
+      "Unauthorized",
+    );
+    await expect(handler({ db }, { api_token: "" })).rejects.toThrow(
+      "Unauthorized",
+    );
   });
 });
 
@@ -594,14 +932,30 @@ describe("suggest request seams", () => {
 // it can learn the direction they took; it must never hand those words back.
 describe("the suggestion record never comes back verbatim", () => {
   const profile = {
-    frequent: [], phrases: [], patterns: [], prompts: [], recent: [], generated_at: 0,
+    frequent: [],
+    phrases: [],
+    patterns: [],
+    prompts: [],
+    recent: [],
+    generated_at: 0,
     outcomes: [
-      { outcome: "ignored", suggestion: "ship it", reply: "Revert the flag and rerun the soak test" },
-      { outcome: "edited", suggestion: "add a test", reply: "add a test for the cookie race, then ship" },
+      {
+        outcome: "ignored",
+        suggestion: "ship it",
+        reply: "Revert the flag and rerun the soak test",
+      },
+      {
+        outcome: "edited",
+        suggestion: "add a test",
+        reply: "add a test for the cookie race, then ship",
+      },
       { outcome: "sent", suggestion: "deploy the fix" },
     ],
   };
-  const ctx = { conversation: {}, turns: [{ role: "assistant", content: "The soak test is green. Ship it?" }] };
+  const ctx = {
+    conversation: {},
+    turns: [{ role: "assistant", content: "The soak test is green. Ship it?" }],
+  };
 
   test("an echo of what they typed is dropped; a suggestion they took as written may return", async () => {
     const reply = JSON.stringify([
@@ -609,40 +963,106 @@ describe("the suggestion record never comes back verbatim", () => {
       { text: "Add a test for the cookie race, then ship", confidence: 0.3 },
       { text: "deploy the fix", confidence: 0.3 },
     ]);
-    const out = await predictSuggestions(ctx as any, profile as any, "anthropic", NO_TEAM_CONTENT_GATE, async () => ({ text: reply }));
+    const out = await predictSuggestions(
+      ctx as any,
+      profile as any,
+      "anthropic",
+      NO_TEAM_CONTENT_GATE,
+      async () => ({ text: reply }),
+    );
     expect(out.suggestions).toEqual([]);
     const withNew = JSON.stringify([
       { text: "revert the flag and rerun the soak test", confidence: 0.4 },
       { text: "deploy the fix", confidence: 0.6 },
       { text: "ship it and watch the error rate", confidence: 0.3 },
     ]);
-    const out2 = await predictSuggestions(ctx as any, profile as any, "anthropic", NO_TEAM_CONTENT_GATE, async () => ({ text: withNew }));
+    const out2 = await predictSuggestions(
+      ctx as any,
+      profile as any,
+      "anthropic",
+      NO_TEAM_CONTENT_GATE,
+      async () => ({ text: withNew }),
+    );
     expect(out2.suggestions).toEqual(["deploy the fix"]);
   });
 
   test("the prompt shows the record with its outcome, and the rule against replaying it", () => {
     const prompt = suggestRequest(ctx as any, profile as any).prompt;
-    expect(prompt).toContain('- passed over: "ship it"\n    typed instead: "Revert the flag and rerun the soak test"');
+    expect(prompt).toContain(
+      '- passed over: "ship it"\n    typed instead: "Revert the flag and rerun the soak test"',
+    );
     expect(prompt).toContain('- took and rewrote: "add a test"');
     expect(prompt).toContain("a reply from the suggestion record verbatim");
   });
 });
 
 describe("near-verbatim replays are dropped too", () => {
-  const said = new Set([normalizeForMatch("Revert the flag on the checkout page and rerun the soak test before anything ships tonight")]);
+  const said = new Set([
+    normalizeForMatch(
+      "Revert the flag on the checkout page and rerun the soak test before anything ships tonight",
+    ),
+  ]);
   test("a replay with a clause changed shares an 8-word run and is dropped", () => {
-    expect(sanitizeSuggestions([{ text: "revert the flag on the checkout page and rerun the soak test first", confidence: 0.9 }], null, said)).toEqual([]);
+    expect(
+      sanitizeSuggestions(
+        [
+          {
+            text: "revert the flag on the checkout page and rerun the soak test first",
+            confidence: 0.9,
+          },
+        ],
+        null,
+        said,
+      ),
+    ).toEqual([]);
   });
   test("the same words reordered still overlap and are dropped", () => {
-    const short = new Set([normalizeForMatch("rerun the soak test after the revert")]);
-    expect(sanitizeSuggestions([{ text: "after the revert rerun the soak test", confidence: 0.9 }], null, short)).toEqual([]);
+    const short = new Set([
+      normalizeForMatch("rerun the soak test after the revert"),
+    ]);
+    expect(
+      sanitizeSuggestions(
+        [{ text: "after the revert rerun the soak test", confidence: 0.9 }],
+        null,
+        short,
+      ),
+    ).toEqual([]);
   });
   test("a new reply on the same subject survives", () => {
-    expect(sanitizeSuggestions([{ text: "ship it to staging and watch the error rate for an hour", confidence: 0.9 }], null, said)).toEqual(["ship it to staging and watch the error rate for an hour"]);
+    expect(
+      sanitizeSuggestions(
+        [
+          {
+            text: "ship it to staging and watch the error rate for an hour",
+            confidence: 0.9,
+          },
+        ],
+        null,
+        said,
+      ),
+    ).toEqual(["ship it to staging and watch the error rate for an hour"]);
   });
   test("a reusable prompt may come back close to its own words", () => {
-    const prompt = normalizeForMatch("find 10 ways it can be clearer, fix them, verify, and repeat that 5 times");
-    const banned = new Set([normalizeForMatch("on the checkout page: find 10 ways it can be clearer, fix them, verify, and repeat that 5 times")]);
-    expect(sanitizeSuggestions([{ text: "on the export flow: find 10 ways it can be clearer, fix them, verify, and repeat that 5 times", confidence: 0.9 }], null, banned, [prompt])).toHaveLength(1);
+    const prompt = normalizeForMatch(
+      "find 10 ways it can be clearer, fix them, verify, and repeat that 5 times",
+    );
+    const banned = new Set([
+      normalizeForMatch(
+        "on the checkout page: find 10 ways it can be clearer, fix them, verify, and repeat that 5 times",
+      ),
+    ]);
+    expect(
+      sanitizeSuggestions(
+        [
+          {
+            text: "on the export flow: find 10 ways it can be clearer, fix them, verify, and repeat that 5 times",
+            confidence: 0.9,
+          },
+        ],
+        null,
+        banned,
+        [prompt],
+      ),
+    ).toHaveLength(1);
   });
 });

@@ -1,21 +1,56 @@
 import { describe, expect, test } from "bun:test";
-import { APP_DAILY_BUDGET_USD, GLOBAL_DAILY_BUDGET_USD, NARRATION_LINES_MAX, VISITOR_DAILY_BUDGET_USD } from "../lib/limits";
-import { Narration, Throttle, cleanIdeas, failureFor, nextInLine, openingLine, overBudget, startRefusal, stepLine, thinkingLine, type QueueRow } from "./rules";
+import {
+  APP_DAILY_BUDGET_USD,
+  GLOBAL_DAILY_BUDGET_USD,
+  NARRATION_LINES_MAX,
+  VISITOR_DAILY_BUDGET_USD,
+} from "../lib/limits";
+import {
+  Narration,
+  Throttle,
+  cleanIdeas,
+  failureFor,
+  nextInLine,
+  openingLine,
+  overBudget,
+  startRefusal,
+  stepLine,
+  thinkingLine,
+  type QueueRow,
+} from "./rules";
 import { dayKey } from "../tallies";
 
-const row = (id: string, status: QueueRow<string>["status"], at: number): QueueRow<string> => ({ _id: id, status, _creationTime: at });
+const row = (
+  id: string,
+  status: QueueRow<string>["status"],
+  at: number,
+): QueueRow<string> => ({ _id: id, status, _creationTime: at });
 
 describe("queue order", () => {
   test("the oldest queued build starts first", () => {
-    expect(nextInLine([row("c", "queued", 30), row("a", "queued", 10), row("b", "queued", 20)])).toBe("a");
+    expect(
+      nextInLine([
+        row("c", "queued", 30),
+        row("a", "queued", 10),
+        row("b", "queued", 20),
+      ]),
+    ).toBe("a");
   });
 
   test("nothing starts while one is building", () => {
-    expect(nextInLine([row("a", "queued", 10), row("b", "building", 20)])).toBeNull();
+    expect(
+      nextInLine([row("a", "queued", 10), row("b", "building", 20)]),
+    ).toBeNull();
   });
 
   test("finished builds do not hold the queue", () => {
-    expect(nextInLine([row("a", "live", 1), row("b", "failed", 2), row("c", "queued", 3)])).toBe("c");
+    expect(
+      nextInLine([
+        row("a", "live", 1),
+        row("b", "failed", 2),
+        row("c", "queued", 3),
+      ]),
+    ).toBe("c");
     expect(nextInLine([row("a", "live", 1)])).toBeNull();
     expect(nextInLine([])).toBeNull();
   });
@@ -30,24 +65,45 @@ describe("budgets", () => {
 
   test("a build starts only under every budget and while builds are on", () => {
     const spent = { global: 0, app: 0, visitor: 0 };
-    const refusal = (paused: boolean, more: Partial<typeof spent>) => startRefusal({ paused, over: overBudget({ ...spent, ...more }) });
+    const refusal = (paused: boolean, more: Partial<typeof spent>) =>
+      startRefusal({ paused, over: overBudget({ ...spent, ...more }) });
     expect(refusal(false, {})).toBeNull();
     expect(refusal(true, {})?.error).toMatch(/paused/);
     expect(refusal(false, { app: APP_DAILY_BUDGET_USD - 0.01 })).toBeNull();
-    expect(refusal(false, { app: APP_DAILY_BUDGET_USD })?.error).toMatch(/This app/);
-    expect(refusal(false, { global: GLOBAL_DAILY_BUDGET_USD })?.error).toMatch(/Clayground/);
-    expect(refusal(false, { visitor: VISITOR_DAILY_BUDGET_USD })?.error).toMatch(/a lot of changes today/);
+    expect(refusal(false, { app: APP_DAILY_BUDGET_USD })?.error).toMatch(
+      /This app/,
+    );
+    expect(refusal(false, { global: GLOBAL_DAILY_BUDGET_USD })?.error).toMatch(
+      /Clayground/,
+    );
+    expect(
+      refusal(false, { visitor: VISITOR_DAILY_BUDGET_USD })?.error,
+    ).toMatch(/a lot of changes today/);
   });
 });
 
 describe("failures read as one plain line with the raw cause behind it", () => {
   test("each outcome", () => {
-    expect(failureFor({ kind: "declined", reason: "I can't build a login page for a real bank." }).error).toBe("I can't build a login page for a real bank.");
-    expect(failureFor({ kind: "stopped", reason: "time" }).error).toBe("It ran out of time on a big change. Try a smaller step.");
+    expect(
+      failureFor({
+        kind: "declined",
+        reason: "I can't build a login page for a real bank.",
+      }).error,
+    ).toBe("I can't build a login page for a real bank.");
+    expect(failureFor({ kind: "stopped", reason: "time" }).error).toBe(
+      "It ran out of time on a big change. Try a smaller step.",
+    );
     const invalid = failureFor({ kind: "invalid", problems: ["a", "b"] });
     expect(invalid.detail).toBe("a\nb");
-    expect(failureFor({ kind: "stopped", reason: "error", error: "529 overloaded" }).detail).toBe("529 overloaded");
-    for (const f of [invalid, failureFor({ kind: "unchanged" }), failureFor({ kind: "stopped", reason: "budget" })]) {
+    expect(
+      failureFor({ kind: "stopped", reason: "error", error: "529 overloaded" })
+        .detail,
+    ).toBe("529 overloaded");
+    for (const f of [
+      invalid,
+      failureFor({ kind: "unchanged" }),
+      failureFor({ kind: "stopped", reason: "budget" }),
+    ]) {
       expect(f.error).not.toMatch(/—|!/);
     }
   });
@@ -61,8 +117,16 @@ describe("narration", () => {
     n.stream("m1", "I'll add", 3);
     n.stream("m1", "I'll add a reset button\nunder the score.", 4);
     n.now("Reading App.jsx", 5);
-    n.change("src/App.jsx", stepLine("Editing", "src/App.jsx", "adding a reset button."), 6);
-    n.change("src/App.jsx", stepLine("Editing", "src/App.jsx", "wiring it to the score"), 7);
+    n.change(
+      "src/App.jsx",
+      stepLine("Editing", "src/App.jsx", "adding a reset button."),
+      6,
+    );
+    n.change(
+      "src/App.jsx",
+      stepLine("Editing", "src/App.jsx", "wiring it to the score"),
+      7,
+    );
     n.change("src/styles.css", stepLine("Editing", "src/styles.css"), 8);
     n.stream("m2", "Now the check.\nOne more fix", 9);
     n.say("Checked, going live", 10);
@@ -80,7 +144,11 @@ describe("narration", () => {
     const n = new Narration();
     n.say("Fixing a problem the check found", 1);
     n.now("Thinking it over", 2);
-    expect(n.view().at(-1)).toEqual({ at: 2, text: "Thinking it over", kind: "now" });
+    expect(n.view().at(-1)).toEqual({
+      at: 2,
+      text: "Thinking it over",
+      kind: "now",
+    });
   });
 
   test("keeps the latest lines only, and always the plan", () => {
@@ -93,18 +161,38 @@ describe("narration", () => {
   });
 
   test("a build opens on what it is about, in the asker's words", () => {
-    expect(openingLine("make the bass frog wobble whenever anyone croaks their own note")).toBe("Thinking about making the bass frog wobble whenever…");
-    expect(openingLine("Please add a sun.")).toBe("Thinking about adding a sun");
-    expect(openingLine("A multiplayer drawing wall: everyone draws")).toBe("Thinking about a multiplayer drawing wall");
-    expect(openingLine("can you, like, rename it")).toBe("Thinking about like, rename it");
-    expect(openingLine("could the alto frog blink now and then")).toBe("Thinking about the alto frog blink now and…");
+    expect(
+      openingLine(
+        "make the bass frog wobble whenever anyone croaks their own note",
+      ),
+    ).toBe("Thinking about making the bass frog wobble whenever…");
+    expect(openingLine("Please add a sun.")).toBe(
+      "Thinking about adding a sun",
+    );
+    expect(openingLine("A multiplayer drawing wall: everyone draws")).toBe(
+      "Thinking about a multiplayer drawing wall",
+    );
+    expect(openingLine("can you, like, rename it")).toBe(
+      "Thinking about like, rename it",
+    );
+    expect(openingLine("could the alto frog blink now and then")).toBe(
+      "Thinking about the alto frog blink now and…",
+    );
     expect(openingLine("   ")).toBe("Thinking it through");
   });
 
   test("a thinking summary reads as its latest heading, else its latest finished sentence", () => {
-    expect(thinkingLine("**Planning the wobble**\n\nI'll add a keyframe.\n\n**Wiring the croak**\n\nOn each note")).toBe("Wiring the croak");
-    expect(thinkingLine("The wobble already works. I'm checking the croak")).toBe("The wobble already works.");
-    expect(thinkingLine("The wobble already works. I'm checking the croak.")).toBe("I'm checking the croak.");
+    expect(
+      thinkingLine(
+        "**Planning the wobble**\n\nI'll add a keyframe.\n\n**Wiring the croak**\n\nOn each note",
+      ),
+    ).toBe("Wiring the croak");
+    expect(
+      thinkingLine("The wobble already works. I'm checking the croak"),
+    ).toBe("The wobble already works.");
+    expect(
+      thinkingLine("The wobble already works. I'm checking the croak."),
+    ).toBe("I'm checking the croak.");
     expect(thinkingLine("The")).toBe("");
   });
 });
@@ -113,7 +201,11 @@ describe("Throttle", () => {
   test("writes at once, folds a burst into one trailing write, and flushes", async () => {
     let now = 0;
     const writes: number[] = [];
-    const t = new Throttle(async () => void writes.push(now), 250, () => now);
+    const t = new Throttle(
+      async () => void writes.push(now),
+      250,
+      () => now,
+    );
     t.poke();
     await t.flush();
     now = 100;
@@ -130,10 +222,16 @@ describe("Throttle", () => {
 
 describe("change ideas", () => {
   test("read as chips: one line, no end stop, lowercase first, no repeats, at most three", () => {
-    expect(cleanIdeas(["Make the frogs  harmonize.", "make the frogs harmonize", "", "x".repeat(80), "Add a moon", "Add rain!", "Add snow"])).toEqual([
-      "make the frogs harmonize",
-      "add a moon",
-      "add rain",
-    ]);
+    expect(
+      cleanIdeas([
+        "Make the frogs  harmonize.",
+        "make the frogs harmonize",
+        "",
+        "x".repeat(80),
+        "Add a moon",
+        "Add rain!",
+        "Add snow",
+      ]),
+    ).toEqual(["make the frogs harmonize", "add a moon", "add rain"]);
   });
 });

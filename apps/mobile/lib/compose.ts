@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 // The new session sheet is one per app (ComposeHost in
 // components/session/NewSessionSheet, at the root), so any screen opens it:
@@ -7,14 +7,32 @@ import { create } from 'zustand';
 // files to start it with attached; `opens` counts openings, so the host can
 // start each one fresh.
 export type ComposeImage = { uri: string; mime: string };
-type ComposeState = { open: boolean; seed: string | null; images: ComposeImage[]; opens: number };
+type ComposeState = {
+  open: boolean;
+  seed: string | null;
+  images: ComposeImage[];
+  opens: number;
+};
 
-export const useCompose = create<ComposeState>(() => ({ open: false, seed: null, images: [], opens: 0 }));
+export const useCompose = create<ComposeState>(() => ({
+  open: false,
+  seed: null,
+  images: [],
+  opens: 0,
+}));
 
 let landingFloor: ReturnType<typeof setTimeout> | null = null;
 
-export function openCompose(seed: string | null = null, images: ComposeImage[] = []) {
-  useCompose.setState((s) => ({ open: true, seed, images, opens: s.opens + 1 }));
+export function openCompose(
+  seed: string | null = null,
+  images: ComposeImage[] = [],
+) {
+  useCompose.setState((s) => ({
+    open: true,
+    seed,
+    images,
+    opens: s.opens + 1,
+  }));
 }
 
 export function closeCompose() {

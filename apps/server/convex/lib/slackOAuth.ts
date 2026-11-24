@@ -34,15 +34,30 @@ export const BOT_SCOPES = [
 // list the private channels they are in and invite the bot into one. No
 // history, no posting: their token never reads or writes a message.
 export const USER_SCOPES = [
-  "channels:read", "groups:read", "groups:write", "users:read",
+  "channels:read",
+  "groups:read",
+  "groups:write",
+  "users:read",
   // Their own direct messages, read and written as them (slackSync DMs),
   // with the images shared in them.
-  "im:read", "im:history", "mpim:read", "mpim:history", "chat:write", "files:read",
+  "im:read",
+  "im:history",
+  "mpim:read",
+  "mpim:history",
+  "chat:write",
+  "files:read",
   // Their reactions, shown in Slack under their own name.
   "reactions:write",
 ].join(",");
 /** The scopes a token needs before a person's DMs can come over. */
-export const DM_SCOPES = ["im:read", "im:history", "mpim:read", "mpim:history", "chat:write", "files:read"];
+export const DM_SCOPES = [
+  "im:read",
+  "im:history",
+  "mpim:read",
+  "mpim:history",
+  "chat:write",
+  "files:read",
+];
 export function tokenHasDmScopes(scopes: string | undefined | null): boolean {
   return DM_SCOPES.every((s) => tokenHasScope(scopes, s));
 }
@@ -51,7 +66,11 @@ export function tokenHasDmScopes(scopes: string | undefined | null): boolean {
 export { tokenCanPost } from "./slackMirror";
 
 export function convexSiteUrl(): string {
-  return process.env.SLACK_REDIRECT_BASE || process.env.CONVEX_SITE_URL || "https://convex.codecast.sh";
+  return (
+    process.env.SLACK_REDIRECT_BASE ||
+    process.env.CONVEX_SITE_URL ||
+    "https://convex.codecast.sh"
+  );
 }
 
 export function webBaseUrl(): string {
@@ -98,6 +117,12 @@ export function signState(payload: Record<string, unknown>): Promise<string> {
 /** Ten minutes matches the lifetime of the code Slack hands back, so a slow
  *  consent screen does not fail the install, while the leaked-state window
  *  stays small. */
-export function verifyState(state: string): Promise<Record<string, any> | null> {
-  return verifyStateWith(process.env.SLACK_CLIENT_SECRET || "", state, 10 * 60_000);
+export function verifyState(
+  state: string,
+): Promise<Record<string, any> | null> {
+  return verifyStateWith(
+    process.env.SLACK_CLIENT_SECRET || "",
+    state,
+    10 * 60_000,
+  );
 }

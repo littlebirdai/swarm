@@ -36,21 +36,43 @@
 
 import { useCallsAvailable, useTeamFeature } from "../../lib/teamFeatures";
 import { TeamFeatureOff } from "../../components/TeamFeatureOff";
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { dmKeyFor } from "@codecast/shared/chat";
 import { isChatRailLive, subscribeChatRailLive } from "../../lib/chatLive";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api as _chatApi } from "@codecast/convex/convex/_generated/api";
 const api = _chatApi as any;
-import { Headphones, Lock, BellOff, Bell, Bot, Plus, AlertTriangle, RotateCw, SquarePen } from "lucide-react";
+import {
+  Headphones,
+  Lock,
+  BellOff,
+  Bell,
+  Bot,
+  Plus,
+  AlertTriangle,
+  RotateCw,
+  SquarePen,
+} from "lucide-react";
 import { toast } from "sonner";
-import { ChannelMembersButton, DmHeadline } from "../../components/chat/ChannelPeople";
+import {
+  ChannelMembersButton,
+  DmHeadline,
+} from "../../components/chat/ChannelPeople";
 import { linkSendsOutbound } from "@codecast/convex/convex/lib/slackMirror";
 import { SlackMirrorPill } from "../../components/chat/SlackMirrorPill";
 import { useChannelSlackLink } from "../../hooks/useChannelSlackLink";
 import { WalkiePttButton } from "../../components/calls/WalkiePtt";
-import { HuddleWithGuest, OccupancyChip } from "../../components/calls/OccupancyChip";
+import {
+  HuddleWithGuest,
+  OccupancyChip,
+} from "../../components/calls/OccupancyChip";
 import { chatViewRoomKey } from "../../lib/chatViews";
 import { channelHuddleMemberIds } from "@codecast/shared/contracts";
 import { NewMessageModal } from "../../components/chat/NewMessageModal";
@@ -58,12 +80,22 @@ import { ChatSearch } from "../../components/chat/ChatSearch";
 import { useShortcutAction } from "../../shortcuts";
 import { channelDisplayName } from "../../lib/chatViews";
 import { useSwitchWorkspace } from "../../hooks/useSwitchWorkspace";
-import { useInboxStore, selectChannelReadMarker, selectNavHidden, type ChatNotifyLevel, type ChatRailScope } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  selectChannelReadMarker,
+  selectNavHidden,
+  type ChatNotifyLevel,
+  type ChatRailScope,
+} from "../../store/inboxStore";
 import { windowOrgTree } from "../../store/orgSlice";
 import { useAuthGate } from "@platform/auth/web";
 import { useLocalAuth } from "../../lib/localAuth";
 import { isStandaloneCommunityPath, openExternalUrl } from "../../lib/desktop";
-import { CommunityBar, SearchPill, SignInToPost } from "../../components/chat/ChatPageChrome";
+import {
+  CommunityBar,
+  SearchPill,
+  SignInToPost,
+} from "../../components/chat/ChatPageChrome";
 import { findDmChannelId, type ChatAttachment } from "../../store/chatSlice";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {
@@ -103,7 +135,9 @@ import { teamMembersOf } from "../../lib/activeTeam";
  *  honest without a re-render per row per second — see hooks/useCoarseNow. */
 const CLOCK_MS = 30_000;
 
-export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } = {}) {
+export default function ChatPage({
+  scope = "team",
+}: { scope?: ChatRailScope } = {}) {
   const params = useParams<{ channelId?: string }>();
   const search = useSearchParams();
   const router = useRouter();
@@ -115,7 +149,12 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   const isGuest = useAuthGate(useLocalAuth) === "guest";
   // In a plain browser the community page is a standalone page with its own
   // header (the layout paints a bare frame from the same rule).
-  const standalone = community && (isGuest || isStandaloneCommunityPath(typeof window === "undefined" ? "" : window.location.pathname));
+  const standalone =
+    community &&
+    (isGuest ||
+      isStandaloneCommunityPath(
+        typeof window === "undefined" ? "" : window.location.pathname,
+      ));
   // The public rail's feeder is per view, mounted here and nowhere else.
   const communityFeed = useCommunityChannelsSync(community);
 
@@ -151,7 +190,9 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
     if (supersededTo) router.replace(`${base}/${supersededTo}`);
   }, [supersededTo, router, base]);
 
-  const activeWorkspaceTeam = useInboxStore((s) => s.clientState.ui?.active_team_id) as string | undefined;
+  const activeWorkspaceTeam = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as string | undefined;
   const chatOn = useTeamFeature("chat");
   const navHidden = useInboxStore((s) => selectNavHidden(s as any));
   const headTitlebarRef = useTitlebarHead<HTMLElement>();
@@ -165,7 +206,8 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // the community page always carries its own rail (and a visitor has no
   // sidebar at all).
   // The Chat window draws no sidebar either, so the rail is the page's there.
-  const showInlineRail = community || navHidden || narrowViewport || !!inAppWindow;
+  const showInlineRail =
+    community || navHidden || narrowViewport || !!inAppWindow;
   // Switching workspace writes BOTH the local mirror and the canonical
   // users.active_team_id (hooks/useSwitchWorkspace) — one path for every caller.
   const switchWorkspace = useSwitchWorkspace();
@@ -181,13 +223,21 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
     if (!urlChannelId || community) return null;
     const row = s.chatChannels[urlChannelId];
     if (!row?.team_id) return null;
-    if (activeWorkspaceTeam && String(row.team_id) === String(activeWorkspaceTeam)) return null;
+    if (
+      activeWorkspaceTeam &&
+      String(row.team_id) === String(activeWorkspaceTeam)
+    )
+      return null;
     return row;
   });
   const outOfScopeChannel = useMemo(
     () =>
       outOfScopeRow
-        ? { id: outOfScopeRow._id, name: outOfScopeRow.name, teamId: String(outOfScopeRow.team_id) }
+        ? {
+            id: outOfScopeRow._id,
+            name: outOfScopeRow.name,
+            teamId: String(outOfScopeRow.team_id),
+          }
         : null,
     [outOfScopeRow],
   );
@@ -195,7 +245,8 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
     if (isThreadsView) return undefined; // forwarding to /threads
     if (supersededTo) return supersededTo;
     if (outOfScopeChannel) return undefined; // handled by the interstitial
-    if (urlChannelId && rail.some((c) => c.id === urlChannelId)) return urlChannelId;
+    if (urlChannelId && rail.some((c) => c.id === urlChannelId))
+      return urlChannelId;
     if (urlChannelId) return urlChannelId; // not loaded yet — trust the URL
     return rail[0]?.id;
   }, [urlChannelId, supersededTo, rail, outOfScopeChannel, isThreadsView]);
@@ -225,7 +276,10 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
     callsAvailable && activeChannel?.kind === "dm"
       ? chatViewRoomKey(activeChannel, viewerId, teamMembers)
       : undefined;
-  const resolveWalkieChannel = useCallback(() => activeChannelId ?? null, [activeChannelId]);
+  const resolveWalkieChannel = useCallback(
+    () => activeChannelId ?? null,
+    [activeChannelId],
+  );
 
   // THE ROOM, OPENED BEFORE ANYBODY SPEAKS.
   //
@@ -258,7 +312,9 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   const targetRow = useChatMessageRow(targetId);
 
   // ── Thread panel ──────────────────────────────────────────────────────────
-  const [threadRootId, setThreadRootId] = useState<string | undefined>(undefined);
+  const [threadRootId, setThreadRootId] = useState<string | undefined>(
+    undefined,
+  );
   // A permalink to a REPLY names a message that lives in a thread, so the panel
   // has to open for the link to land anywhere at all.
   const openedForRef = useRef<string | undefined>(undefined);
@@ -279,7 +335,11 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // to talk: a DM, with no thread covering it. Whether the page is the one on
   // screen is the hook's own question, asked there so no surface can arm a live
   // mic by forgetting to ask it.
-  useTalkShortcut(walkieRoomKey, resolveWalkieChannel, !!walkieRoomKey && !threadRootId);
+  useTalkShortcut(
+    walkieRoomKey,
+    resolveWalkieChannel,
+    !!walkieRoomKey && !threadRootId,
+  );
 
   // What the toast layer needs to know: a message in the room ON SCREEN must not
   // interrupt the person already reading it. On screen, not merely mounted — a
@@ -299,7 +359,9 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // vanish the moment the reader's own scrolling advanced it — erasing the place
   // they came back to, mid-read. The list still draws it; opening the room pins
   // to the newest messages, not to this mark. See the note in ChatMessageList.
-  const [frozenReadAt, setFrozenReadAt] = useState<number | undefined>(undefined);
+  const [frozenReadAt, setFrozenReadAt] = useState<number | undefined>(
+    undefined,
+  );
   const frozenForRef = useRef<string | undefined>(undefined);
   useWatchEffect(() => {
     // Wait for a RESOLVED channel, not merely for an id. On a cold load of
@@ -325,41 +387,75 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // its own. Silence when the line named nobody; the same toast the muted
   // channel notice already uses.
   const onSent = useCallback(
-    (content: string, threadRoot?: string) => (res: { mention_wakes?: any; session_relay?: { skipped?: string | null } } | undefined) => {
-      const skipped = res?.session_relay?.skipped;
-      const handed = !!threadRoot && !!(useInboxStore.getState().chatMessages[threadRoot] as { bound_session_id?: string } | undefined)?.bound_session_id;
-      if (handed && skipped === "no_access") toast("Not sent to the agent on this thread: its session isn't shared with you", { duration: 5000 });
-      if (handed && skipped === "session_ended") toast("Not sent to the agent on this thread: its session has ended", { duration: 5000 });
-      const roles = new Set<string>(
-        ((windowOrgTree(useInboxStore.getState())?.roles ?? []) as { handle: string }[]).map((r) => r.handle.toLowerCase()),
-      );
-      const line = mentionWakeLine(content, res?.mention_wakes, roles);
-      if (line) toast(line, { duration: 4000 });
-    },
+    (content: string, threadRoot?: string) =>
+      (
+        res:
+          | { mention_wakes?: any; session_relay?: { skipped?: string | null } }
+          | undefined,
+      ) => {
+        const skipped = res?.session_relay?.skipped;
+        const handed =
+          !!threadRoot &&
+          !!(
+            useInboxStore.getState().chatMessages[threadRoot] as
+              | { bound_session_id?: string }
+              | undefined
+          )?.bound_session_id;
+        if (handed && skipped === "no_access")
+          toast(
+            "Not sent to the agent on this thread: its session isn't shared with you",
+            { duration: 5000 },
+          );
+        if (handed && skipped === "session_ended")
+          toast("Not sent to the agent on this thread: its session has ended", {
+            duration: 5000,
+          });
+        const roles = new Set<string>(
+          (
+            (windowOrgTree(useInboxStore.getState())?.roles ?? []) as {
+              handle: string;
+            }[]
+          ).map((r) => r.handle.toLowerCase()),
+        );
+        const line = mentionWakeLine(content, res?.mention_wakes, roles);
+        if (line) toast(line, { duration: 4000 });
+      },
     [],
   );
 
   const send = useCallback(
-    (content: string, attachments?: ChatAttachment[], opts?: { syncLocalOnly?: boolean }) => {
+    (
+      content: string,
+      attachments?: ChatAttachment[],
+      opts?: { syncLocalOnly?: boolean },
+    ) => {
       if (!activeChannelId) return;
-      return useInboxStore.getState().sendChatMessage(activeChannelId, content, {
-        attachments,
-        syncLocalOnly: opts?.syncLocalOnly,
-        onSent: onSent(content),
-      });
+      return useInboxStore
+        .getState()
+        .sendChatMessage(activeChannelId, content, {
+          attachments,
+          syncLocalOnly: opts?.syncLocalOnly,
+          onSent: onSent(content),
+        });
     },
     [activeChannelId, onSent],
   );
 
   const sendReply = useCallback(
-    (content: string, attachments?: ChatAttachment[], opts?: { broadcast?: boolean }) => {
+    (
+      content: string,
+      attachments?: ChatAttachment[],
+      opts?: { broadcast?: boolean },
+    ) => {
       if (!activeChannelId || !threadRootId) return;
-      return useInboxStore.getState().sendChatMessage(activeChannelId, content, {
-        threadRootId,
-        attachments,
-        broadcast: opts?.broadcast,
-        onSent: onSent(content, threadRootId),
-      });
+      return useInboxStore
+        .getState()
+        .sendChatMessage(activeChannelId, content, {
+          threadRootId,
+          attachments,
+          broadcast: opts?.broadcast,
+          onSent: onSent(content, threadRootId),
+        });
     },
     [activeChannelId, threadRootId, onSent],
   );
@@ -432,7 +528,9 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // request even while it is already open.
   const searchParam = search.get("search") || undefined;
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchSeed, setSearchSeed] = useState<{ q: string; n: number } | undefined>(undefined);
+  const [searchSeed, setSearchSeed] = useState<
+    { q: string; n: number } | undefined
+  >(undefined);
   useWatchEffect(() => {
     if (!searchParam) return;
     setSearchSeed((prev) => ({ q: searchParam, n: (prev?.n ?? 0) + 1 }));
@@ -463,16 +561,33 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
 
   // A suggested teammate in the rail becomes a room in the same tick.
   const openDm = useOpenDm();
-  const openDmWith = useCallback((memberId: string) => openDm([memberId]), [openDm]);
+  const openDmWith = useCallback(
+    (memberId: string) => openDm([memberId]),
+    [openDm],
+  );
 
   // ── `?with=<userId>`: the viewer's DM with one person ─────────────────────
   // What a mention of a Slack person links to (slackSync slackPersonHref). An
   // existing DM opens; a teammate gets one opened; anyone else, once the rail
   // has landed and still holds no DM with them, opens in Slack (`slack`).
   const withId = search.get("with") || undefined;
-  const railLive = useSyncExternalStore(subscribeChatRailLive, isChatRailLive, () => false);
-  const withDmKey = withId && viewerId ? dmKeyFor(String(useInboxStore.getState().clientState?.ui?.active_team_id ?? ""), [viewerId, withId]) : undefined;
-  const withDm = useInboxStore((s) => (withDmKey ? findDmChannelId(s.chatChannels, withDmKey) : null));
+  const railLive = useSyncExternalStore(
+    subscribeChatRailLive,
+    isChatRailLive,
+    () => false,
+  );
+  const withDmKey =
+    withId && viewerId
+      ? dmKeyFor(
+          String(
+            useInboxStore.getState().clientState?.ui?.active_team_id ?? "",
+          ),
+          [viewerId, withId],
+        )
+      : undefined;
+  const withDm = useInboxStore((s) =>
+    withDmKey ? findDmChannelId(s.chatChannels, withDmKey) : null,
+  );
   const handledWithRef = useRef<string | undefined>(undefined);
   useWatchEffect(() => {
     if (!withId || handledWithRef.current === withId) return;
@@ -518,7 +633,9 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   const onDrop = useCallback((e: React.DragEvent) => {
     dragDepthRef.current = 0;
     setDragging(false);
-    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     if (files.length === 0) return;
     e.preventDefault();
     dropFilesRef.current?.(files);
@@ -533,7 +650,8 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // lands. Without this, opening a fresh DM flashed empty → skeleton → empty
   // across the stub-to-server-id handoff.
   const knownEmpty = !!activeChannel?.knownEmpty;
-  const showEmpty = messages.length === 0 && !feed.error && (knownEmpty || !feed.loading);
+  const showEmpty =
+    messages.length === 0 && !feed.error && (knownEmpty || !feed.loading);
   const showError = messages.length === 0 && !!feed.error;
   const showSkeleton = messages.length === 0 && feed.loading && !knownEmpty;
 
@@ -547,81 +665,110 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
   // and the stage clips it — a long room cannot scroll.
   return (
     <div className={standalone ? "ch-community-page" : "h-full min-h-0"}>
-    {standalone && <CommunityBar isGuest={isGuest} />}
-    <div className="ch-shell">
-      {showInlineRail && <ChatChannelRail
-        channels={rail}
-        activeChannelId={activeChannelId}
-        onChannelContextMenu={isGuest ? undefined : (e, c) =>
-          channelMenu.open(e, {
-            channelId: c.id,
-            notifyLevel: (c as any).notifyLevel ?? "mentions",
-            onArchived: c.id === activeChannelId ? () => router.replace(base) : undefined,
-          })
-        }
-        onSelect={selectChannel}
-        onCreate={community ? undefined : createChannel}
-        onNewMessage={community ? undefined : openNewMessage}
-        onOpenDm={community ? undefined : openDmWith}
-        showDms={!community}
-      />}
-
-      <div
-        className="ch-main"
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-      >
-        {dragging && (
-          <div className="ch-drop-overlay" aria-hidden="true">
-            <div className="ch-drop-card">Drop images to attach</div>
-          </div>
+      {standalone && <CommunityBar isGuest={isGuest} />}
+      <div className="ch-shell">
+        {showInlineRail && (
+          <ChatChannelRail
+            channels={rail}
+            activeChannelId={activeChannelId}
+            onChannelContextMenu={
+              isGuest
+                ? undefined
+                : (e, c) =>
+                    channelMenu.open(e, {
+                      channelId: c.id,
+                      notifyLevel: (c as any).notifyLevel ?? "mentions",
+                      onArchived:
+                        c.id === activeChannelId
+                          ? () => router.replace(base)
+                          : undefined,
+                    })
+            }
+            onSelect={selectChannel}
+            onCreate={community ? undefined : createChannel}
+            onNewMessage={community ? undefined : openNewMessage}
+            onOpenDm={community ? undefined : openDmWith}
+            showDms={!community}
+          />
         )}
-        {feed.unavailable ? (
-          // The server will not show this viewer the room the URL names (a room
-          // they left, a DM that was never theirs, a dead link). No header and
-          // no composer: the empty room state here invited a post that
-          // chat.sendMessage could only refuse.
-          <div className="ch-empty">
-            <div className="ch-empty-title">This channel isn&apos;t available</div>
-            <div className="ch-empty-sub">
-              It was removed, or you are not a member of it.
+
+        <div
+          className="ch-main"
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+        >
+          {dragging && (
+            <div className="ch-drop-overlay" aria-hidden="true">
+              <div className="ch-drop-card">Drop images to attach</div>
             </div>
-            <button type="button" className="ch-empty-action" onClick={() => router.replace(base)}>
-              {community ? "Back to the community" : "Back to chat"}
-            </button>
-          </div>
-        ) : activeChannelId ? (
-          <>
-            <header ref={headTitlebarRef} className="ch-head">
-              {activeChannel?.kind === "dm" ? (
-                <DmHeadline channel={activeChannel} />
-              ) : (
-                <span className="ch-head-name">
-                  <span className="ch-head-hash" aria-hidden="true">
-                    {activeChannel?.isPrivate
-                      ? <Lock className="w-3 h-3 inline-block" />
-                      : activeChannel?.kind === "agents"
-                        ? <Bot className="w-3 h-3 inline-block" />
-                        : "#"}
+          )}
+          {feed.unavailable ? (
+            // The server will not show this viewer the room the URL names (a room
+            // they left, a DM that was never theirs, a dead link). No header and
+            // no composer: the empty room state here invited a post that
+            // chat.sendMessage could only refuse.
+            <div className="ch-empty">
+              <div className="ch-empty-title">
+                This channel isn&apos;t available
+              </div>
+              <div className="ch-empty-sub">
+                It was removed, or you are not a member of it.
+              </div>
+              <button
+                type="button"
+                className="ch-empty-action"
+                onClick={() => router.replace(base)}
+              >
+                {community ? "Back to the community" : "Back to chat"}
+              </button>
+            </div>
+          ) : activeChannelId ? (
+            <>
+              <header ref={headTitlebarRef} className="ch-head">
+                {activeChannel?.kind === "dm" ? (
+                  <DmHeadline channel={activeChannel} />
+                ) : (
+                  <span className="ch-head-name">
+                    <span className="ch-head-hash" aria-hidden="true">
+                      {activeChannel?.isPrivate ? (
+                        <Lock className="w-3 h-3 inline-block" />
+                      ) : activeChannel?.kind === "agents" ? (
+                        <Bot className="w-3 h-3 inline-block" />
+                      ) : (
+                        "#"
+                      )}
+                    </span>
+                    {activeChannel?.name ?? "channel"}
                   </span>
-                  {activeChannel?.name ?? "channel"}
-                </span>
-              )}
-              {/* Which roles read this room on their next wake, and "follow
+                )}
+                {/* Which roles read this room on their next wake, and "follow
                   as @handle" for the viewer's own roles. */}
-              {activeChannel && !community && <ChannelListeners channel={activeChannel} hasAgents={(activeChannel.agents?.length ?? 0) > 0} />}
-              {activeChannel && activeChannel.kind !== "dm" && !community && !isGuest && (
-                <SlackMirrorPill channelId={activeChannel.id} link={slackLink} />
-              )}
-              {activeChannel?.kind !== "dm" && activeChannel?.topic
-                ? <span className="ch-head-topic">{activeChannel.topic}</span>
-                : <span className="ch-head-topic" />}
-              {activeChannel && !community && !isGuest && (
-                <ChannelMembersButton channel={activeChannel} />
-              )}
-              {/* ONE voice control per room. A DM gets the key — it used to
+                {activeChannel && !community && (
+                  <ChannelListeners
+                    channel={activeChannel}
+                    hasAgents={(activeChannel.agents?.length ?? 0) > 0}
+                  />
+                )}
+                {activeChannel &&
+                  activeChannel.kind !== "dm" &&
+                  !community &&
+                  !isGuest && (
+                    <SlackMirrorPill
+                      channelId={activeChannel.id}
+                      link={slackLink}
+                    />
+                  )}
+                {activeChannel?.kind !== "dm" && activeChannel?.topic ? (
+                  <span className="ch-head-topic">{activeChannel.topic}</span>
+                ) : (
+                  <span className="ch-head-topic" />
+                )}
+                {activeChannel && !community && !isGuest && (
+                  <ChannelMembersButton channel={activeChannel} />
+                )}
+                {/* ONE voice control per room. A DM gets the key — it used to
                   be reachable only from the composer, so a DM read from the
                   top of the room had no visible way to talk back, and the key
                   IS the product. Ring sits under the key (right click, long
@@ -632,227 +779,294 @@ export default function ChatPage({ scope = "team" }: { scope?: ChatRailScope } =
                   huddle" strip tell the team about. Either kind wears the
                   occupancy chip once the room is live; that is a state of the
                   room, not a second control. */}
-              {walkieRoomKey && activeChannel && (
-                <>
-                  <WalkiePttButton
-                    roomKey={walkieRoomKey}
-                    resolveChannelId={resolveWalkieChannel}
-                    size="sm"
-                    icon={Headphones}
+                {walkieRoomKey && activeChannel && (
+                  <>
+                    <WalkiePttButton
+                      roomKey={walkieRoomKey}
+                      resolveChannelId={resolveWalkieChannel}
+                      size="sm"
+                      icon={Headphones}
+                      className="shrink-0"
+                      title="Talk to them — they see your face and hear you; click again to stop"
+                      ring={{ toUserIds: activeChannel.dmMemberIds ?? [] }}
+                    />
+                    <OccupancyChip
+                      roomKey={walkieRoomKey}
+                      className="shrink-0"
+                    />
+                  </>
+                )}
+                {activeChannel && activeChannel.kind !== "dm" && !community && (
+                  <HuddleWithGuest
+                    roomKey={chatViewRoomKey(
+                      activeChannel,
+                      viewerId,
+                      teamMembers,
+                    )}
+                    anchorTitle={`#${activeChannel.name}`}
+                    channelMemberCount={
+                      channelHuddleMemberIds(
+                        activeChannel.kind,
+                        activeChannel.memberIds,
+                        teamMembers,
+                      )?.length
+                    }
                     className="shrink-0"
-                    title="Talk to them — they see your face and hear you; click again to stop"
-                    ring={{ toUserIds: activeChannel.dmMemberIds ?? [] }}
+                    compact
                   />
-                  <OccupancyChip roomKey={walkieRoomKey} className="shrink-0" />
-                </>
-              )}
-              {activeChannel && activeChannel.kind !== "dm" && !community && (
-                <HuddleWithGuest
-                  roomKey={chatViewRoomKey(activeChannel, viewerId, teamMembers)}
-                  anchorTitle={`#${activeChannel.name}`}
-                  channelMemberCount={channelHuddleMemberIds(activeChannel.kind, activeChannel.memberIds, teamMembers)?.length}
-                  className="shrink-0"
-                  compact
-                />
-              )}
-              {!community && <SearchPill onOpen={() => setSearchOpen(true)} />}
-              {!community && (
-                <button
-                  type="button"
-                  className="ch-tool"
-                  title="New message"
-                  aria-haspopup="dialog"
-                  onClick={openNewMessage}
-                >
-                  <SquarePen className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {/* One management surface for everything channel-shaped —
+                )}
+                {!community && (
+                  <SearchPill onOpen={() => setSearchOpen(true)} />
+                )}
+                {!community && (
+                  <button
+                    type="button"
+                    className="ch-tool"
+                    title="New message"
+                    aria-haspopup="dialog"
+                    onClick={openNewMessage}
+                  >
+                    <SquarePen className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {/* One management surface for everything channel-shaped —
                   notifications, rename, topic, archive — shared verbatim with
                   the sidebar's channel rows (ChannelMenu). */}
-              {!isGuest && (
-                <button
-                  type="button"
-                  className="ch-tool"
-                  title="Channel settings"
-                  aria-haspopup="menu"
-                  onClick={(e) => {
-                    if (!activeChannelId) return;
-                    channelMenu.open(e, {
-                      channelId: activeChannelId,
-                      notifyLevel: activeChannel?.notifyLevel ?? "mentions",
-                      onArchived: () => router.replace(base),
-                    });
-                  }}
+                {!isGuest && (
+                  <button
+                    type="button"
+                    className="ch-tool"
+                    title="Channel settings"
+                    aria-haspopup="menu"
+                    onClick={(e) => {
+                      if (!activeChannelId) return;
+                      channelMenu.open(e, {
+                        channelId: activeChannelId,
+                        notifyLevel: activeChannel?.notifyLevel ?? "mentions",
+                        onArchived: () => router.replace(base),
+                      });
+                    }}
+                  >
+                    {activeChannel?.muted ? (
+                      <BellOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Bell className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </header>
+
+              {showSkeleton ? (
+                // A first load has a shape. Rendering nothing at all made a slow
+                // channel and a broken one look identical: a large blank rectangle.
+                <div
+                  className="ch-skeleton"
+                  role="status"
+                  aria-label="Loading messages"
                 >
-                  {activeChannel?.muted ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-                </button>
-              )}
-            </header>
-
-            {showSkeleton ? (
-              // A first load has a shape. Rendering nothing at all made a slow
-              // channel and a broken one look identical: a large blank rectangle.
-              <div className="ch-skeleton" role="status" aria-label="Loading messages">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <div className="ch-skel-row" key={i}>
-                    <div className="ch-skel-avatar" />
-                    <div className="ch-skel-lines">
-                      <div className="ch-skel-line ch-skel-head" />
-                      <div className="ch-skel-line" style={{ width: `${72 - i * 9}%` }} />
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div className="ch-skel-row" key={i}>
+                      <div className="ch-skel-avatar" />
+                      <div className="ch-skel-lines">
+                        <div className="ch-skel-line ch-skel-head" />
+                        <div
+                          className="ch-skel-line"
+                          style={{ width: `${72 - i * 9}%` }}
+                        />
+                      </div>
                     </div>
+                  ))}
+                </div>
+              ) : showError ? (
+                <div className="ch-empty">
+                  <div
+                    className="ch-empty-icon ch-empty-bad"
+                    aria-hidden="true"
+                  >
+                    <AlertTriangle className="w-5 h-5" />
                   </div>
-                ))}
-              </div>
-            ) : showError ? (
-              <div className="ch-empty">
-                <div className="ch-empty-icon ch-empty-bad" aria-hidden="true">
-                  <AlertTriangle className="w-5 h-5" />
+                  <div className="ch-empty-title">
+                    Couldn&apos;t load this channel
+                  </div>
+                  <div className="ch-empty-sub">
+                    The server refused the request. Anything already on this
+                    device is still here.
+                  </div>
+                  <button
+                    type="button"
+                    className="ch-empty-action"
+                    onClick={feed.retry}
+                  >
+                    <RotateCw className="w-3 h-3" />
+                    Try again
+                  </button>
                 </div>
-                <div className="ch-empty-title">Couldn&apos;t load this channel</div>
-                <div className="ch-empty-sub">
-                  The server refused the request. Anything already on this device is still here.
+              ) : showEmpty ? (
+                <div className="ch-empty">
+                  <div className="ch-empty-title">Nothing here yet</div>
+                  <div className="ch-empty-sub">
+                    {community
+                      ? "This room is empty. Be the first to say something."
+                      : "This channel is empty. Say something, or mention the workspace's agent to bring it in."}
+                  </div>
                 </div>
-                <button type="button" className="ch-empty-action" onClick={feed.retry}>
-                  <RotateCw className="w-3 h-3" />
-                  Try again
-                </button>
-              </div>
-            ) : showEmpty ? (
-              <div className="ch-empty">
-                <div className="ch-empty-title">Nothing here yet</div>
-                <div className="ch-empty-sub">
-                  {community
-                    ? "This room is empty. Be the first to say something."
-                    : "This channel is empty. Say something, or mention the workspace's agent to bring it in."}
-                </div>
-              </div>
-            ) : (
-              <ChatMessageList
-                messages={messages}
-                lastReadAt={frozenReadAt}
-                viewerId={viewerId}
-                channelId={activeChannelId}
-                permalinkChannelId={activeChannelId}
-                knownHandles={handles.known}
-                selfHandles={handles.self}
-                handleNames={handles.names}
-                now={now}
-                hasMoreAbove={feed.hasMoreAbove}
-                isLoadingOlder={feed.isLoadingOlder}
-                onLoadOlder={feed.loadOlder}
-                onReachedBottom={markRead}
-                canReportRead={present}
-                onOpenThread={setThreadRootId}
-                onReact={react}
-                onEdit={editMessage}
-                onDelete={deleteMessage}
-                onRetrySend={retrySend}
-                slackOutbound={slackOutbound}
-                onShareToSlack={shareToSlack}
-                targetMessageId={targetRow?.thread_root_id ? undefined : targetId}
-              />
-            )}
+              ) : (
+                <ChatMessageList
+                  messages={messages}
+                  lastReadAt={frozenReadAt}
+                  viewerId={viewerId}
+                  channelId={activeChannelId}
+                  permalinkChannelId={activeChannelId}
+                  knownHandles={handles.known}
+                  selfHandles={handles.self}
+                  handleNames={handles.names}
+                  now={now}
+                  hasMoreAbove={feed.hasMoreAbove}
+                  isLoadingOlder={feed.isLoadingOlder}
+                  onLoadOlder={feed.loadOlder}
+                  onReachedBottom={markRead}
+                  canReportRead={present}
+                  onOpenThread={setThreadRootId}
+                  onReact={react}
+                  onEdit={editMessage}
+                  onDelete={deleteMessage}
+                  onRetrySend={retrySend}
+                  slackOutbound={slackOutbound}
+                  onShareToSlack={shareToSlack}
+                  targetMessageId={
+                    targetRow?.thread_root_id ? undefined : targetId
+                  }
+                />
+              )}
 
-            {isGuest ? <SignInToPost /> : <ChatComposer
-              dropFilesRef={dropFilesRef}
-              channelId={activeChannelId}
-              // The @ popup draws on a team roster; the public has none.
-              teamId={community ? undefined : activeChannel?.teamId}
-              walkieRoomKey={walkieRoomKey}
-              walkieRing={activeChannel?.dmMemberIds}
-              placeholder={
-                activeChannel?.kind === "dm"
-                  ? `Message ${channelDisplayName(activeChannel, teamMembersOf(useInboxStore.getState()))}`
-                  : `Message #${activeChannel?.name ?? "channel"}`
-              }
-              onSend={send}
-              autoFocus
-            />}
-          </>
-        ) : outOfScopeChannel ? (
-          <div className="ch-empty">
-            <div className="ch-empty-title">#{outOfScopeChannel.name} belongs to another team</div>
-            <div className="ch-empty-sub">
-              Channels live inside their team's workspace. Switch to that team to read it.
+              {isGuest ? (
+                <SignInToPost />
+              ) : (
+                <ChatComposer
+                  dropFilesRef={dropFilesRef}
+                  channelId={activeChannelId}
+                  // The @ popup draws on a team roster; the public has none.
+                  teamId={community ? undefined : activeChannel?.teamId}
+                  walkieRoomKey={walkieRoomKey}
+                  walkieRing={activeChannel?.dmMemberIds}
+                  placeholder={
+                    activeChannel?.kind === "dm"
+                      ? `Message ${channelDisplayName(activeChannel, teamMembersOf(useInboxStore.getState()))}`
+                      : `Message #${activeChannel?.name ?? "channel"}`
+                  }
+                  onSend={send}
+                  autoFocus
+                />
+              )}
+            </>
+          ) : outOfScopeChannel ? (
+            <div className="ch-empty">
+              <div className="ch-empty-title">
+                #{outOfScopeChannel.name} belongs to another team
+              </div>
+              <div className="ch-empty-sub">
+                Channels live inside their team's workspace. Switch to that team
+                to read it.
+              </div>
+              <button
+                type="button"
+                className="ch-empty-action"
+                onClick={() => {
+                  void switchWorkspace(outOfScopeChannel.teamId as any).catch(
+                    () => {},
+                  );
+                }}
+              >
+                Switch team and open
+              </button>
             </div>
-            <button
-              type="button"
-              className="ch-empty-action"
-              onClick={() => {
-                void switchWorkspace(outOfScopeChannel.teamId as any).catch(() => {});
-              }}
-            >
-              Switch team and open
-            </button>
-          </div>
-        ) : community ? (
-          <div className="ch-empty">
-            <div className="ch-empty-title">{communityFeed.loading ? "Opening the community" : "Nobody has opened a room yet"}</div>
-            <div className="ch-empty-sub">
-              {communityFeed.loading ? "Fetching the public rooms." : "The public rooms will appear here."}
+          ) : community ? (
+            <div className="ch-empty">
+              <div className="ch-empty-title">
+                {communityFeed.loading
+                  ? "Opening the community"
+                  : "Nobody has opened a room yet"}
+              </div>
+              <div className="ch-empty-sub">
+                {communityFeed.loading
+                  ? "Fetching the public rooms."
+                  : "The public rooms will appear here."}
+              </div>
             </div>
-          </div>
-        ) : !activeWorkspaceTeam ? (
-          <div className="ch-empty">
-            <div className="ch-empty-title">Chat lives in team workspaces</div>
-            <div className="ch-empty-sub">
-              The personal workspace has no channels. Switch to a team to see its rooms.
+          ) : !activeWorkspaceTeam ? (
+            <div className="ch-empty">
+              <div className="ch-empty-title">
+                Chat lives in team workspaces
+              </div>
+              <div className="ch-empty-sub">
+                The personal workspace has no channels. Switch to a team to see
+                its rooms.
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="ch-empty">
-            <div className="ch-empty-title">No channels yet</div>
-            <div className="ch-empty-sub">
-              Create the first one and the rest of the team joins it automatically.
+          ) : (
+            <div className="ch-empty">
+              <div className="ch-empty-title">No channels yet</div>
+              <div className="ch-empty-sub">
+                Create the first one and the rest of the team joins it
+                automatically.
+              </div>
+              <button
+                type="button"
+                className="ch-empty-action"
+                onClick={createChannel}
+              >
+                <Plus className="w-3 h-3" />
+                New channel
+              </button>
             </div>
-            <button type="button" className="ch-empty-action" onClick={createChannel}>
-              <Plus className="w-3 h-3" />
-              New channel
-            </button>
-          </div>
+          )}
+        </div>
+
+        <ChannelContextMenu state={channelMenu} />
+        {newMessageOpen && (
+          <NewMessageModal onClose={() => setNewMessageOpen(false)} />
+        )}
+        {searchOpen && (
+          <ChatSearch
+            key={searchSeed ? `seed-${searchSeed.n}` : "manual"}
+            channels={rail}
+            currentChannelId={activeChannelId}
+            initialQuery={searchSeed?.q}
+            onClose={closeSearch}
+          />
+        )}
+        {threadRootId && activeChannelId && !feed.unavailable && (
+          <ChatThreadPanel
+            channelId={activeChannelId}
+            channelName={activeChannel?.name ?? "channel"}
+            agentCount={
+              activeChannel?.kind === "dm"
+                ? 0
+                : (activeChannel?.agents?.length ?? 0)
+            }
+            rootId={threadRootId}
+            root={thread.root}
+            replies={thread.replies}
+            viewerId={viewerId}
+            knownHandles={handles.known}
+            selfHandles={handles.self}
+            handleNames={handles.names}
+            teamId={community ? undefined : activeChannel?.teamId}
+            composer={isGuest ? <SignInToPost compact /> : undefined}
+            now={now}
+            // The link named a reply, and a reply only exists in this panel.
+            targetMessageId={targetRow?.thread_root_id ? targetId : undefined}
+            canReportRead={present}
+            onReachedBottom={markThreadSeen}
+            onClose={() => setThreadRootId(undefined)}
+            onSend={sendReply}
+            onReact={react}
+            onEdit={editMessage}
+            onDelete={deleteMessage}
+            onRetrySend={retrySend}
+          />
         )}
       </div>
-
-      <ChannelContextMenu state={channelMenu} />
-      {newMessageOpen && <NewMessageModal onClose={() => setNewMessageOpen(false)} />}
-      {searchOpen && (
-        <ChatSearch
-          key={searchSeed ? `seed-${searchSeed.n}` : "manual"}
-          channels={rail}
-          currentChannelId={activeChannelId}
-          initialQuery={searchSeed?.q}
-          onClose={closeSearch}
-        />
-      )}
-      {threadRootId && activeChannelId && !feed.unavailable && (
-        <ChatThreadPanel
-          channelId={activeChannelId}
-          channelName={activeChannel?.name ?? "channel"}
-          agentCount={activeChannel?.kind === "dm" ? 0 : activeChannel?.agents?.length ?? 0}
-          rootId={threadRootId}
-          root={thread.root}
-          replies={thread.replies}
-          viewerId={viewerId}
-          knownHandles={handles.known}
-          selfHandles={handles.self}
-          handleNames={handles.names}
-          teamId={community ? undefined : activeChannel?.teamId}
-          composer={isGuest ? <SignInToPost compact /> : undefined}
-          now={now}
-          // The link named a reply, and a reply only exists in this panel.
-          targetMessageId={targetRow?.thread_root_id ? targetId : undefined}
-          canReportRead={present}
-          onReachedBottom={markThreadSeen}
-          onClose={() => setThreadRootId(undefined)}
-          onSend={sendReply}
-          onReact={react}
-          onEdit={editMessage}
-          onDelete={deleteMessage}
-          onRetrySend={retrySend}
-        />
-      )}
-    </div>
     </div>
   );
 }

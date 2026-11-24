@@ -30,7 +30,10 @@ function formatRelativeTime(ts: number): string {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(ts).toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function formatFullTimestamp(ts: number): string {
@@ -47,19 +50,39 @@ function formatFullTimestamp(ts: number): string {
 function GitIcon() {
   return (
     <div className="w-5 h-5 rounded bg-sol-bg-alt border border-sol-border flex items-center justify-center shrink-0">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-sol-text-muted">
-        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 16 16"
+        fill="currentColor"
+        className="text-sol-text-muted"
+      >
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
       </svg>
     </div>
   );
 }
 
-export function CommitCard({ sha, message, timestamp, filesChanged, insertions, deletions, authorName, authorEmail, repository, files }: CommitCardProps) {
+export function CommitCard({
+  sha,
+  message,
+  timestamp,
+  filesChanged,
+  insertions,
+  deletions,
+  authorName,
+  authorEmail,
+  repository,
+  files,
+}: CommitCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const { message: shownMessage, session: trailerSession } = useSessionTrailer(message);
+  const { message: shownMessage, session: trailerSession } =
+    useSessionTrailer(message);
   const shortSha = sha.slice(0, 7);
-  const commitMessage = message.split('\n')[0];
-  const githubUrl = repository ? `https://github.com/${repository}/commit/${sha}` : null;
+  const commitMessage = message.split("\n")[0];
+  const githubUrl = repository
+    ? `https://github.com/${repository}/commit/${sha}`
+    : null;
 
   return (
     <div className="my-2 rounded-lg bg-sol-bg-alt/40 border border-sol-border/50 overflow-hidden">
@@ -97,7 +120,7 @@ export function CommitCard({ sha, message, timestamp, filesChanged, insertions, 
         </div>
         <div className="flex items-center gap-2 text-meta font-mono flex-shrink-0">
           <span className="text-sol-text-dim">
-            {filesChanged} file{filesChanged !== 1 ? 's' : ''}
+            {filesChanged} file{filesChanged !== 1 ? "s" : ""}
           </span>
           {(insertions > 0 || deletions > 0) && (
             <>
@@ -107,25 +130,35 @@ export function CommitCard({ sha, message, timestamp, filesChanged, insertions, 
           )}
         </div>
         <svg
-          className={`w-4 h-4 text-sol-text-dim transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-sol-text-dim transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </div>
 
       {expanded && (
         <div className="border-t border-sol-border/50">
-          {(shownMessage.includes('\n') || trailerSession) && (
+          {(shownMessage.includes("\n") || trailerSession) && (
             <div className="px-3 py-2 bg-sol-bg/30 border-b border-sol-border/30">
-              {shownMessage.includes('\n') && (
+              {shownMessage.includes("\n") && (
                 <div className="text-xs text-sol-text-muted whitespace-pre-wrap font-mono">
                   {shownMessage}
                 </div>
               )}
-              {trailerSession && <SessionTrailerLine session={trailerSession} className={shownMessage.includes('\n') ? "mt-1.5" : ""} />}
+              {trailerSession && (
+                <SessionTrailerLine
+                  session={trailerSession}
+                  className={shownMessage.includes("\n") ? "mt-1.5" : ""}
+                />
+              )}
             </div>
           )}
 
@@ -136,8 +169,12 @@ export function CommitCard({ sha, message, timestamp, filesChanged, insertions, 
               {(insertions > 0 || deletions > 0) && (
                 <div className="flex items-center gap-3 text-meta">
                   <span className="text-sol-text-dim">Changes:</span>
-                  <span className="text-sol-green">+{insertions} insertion{insertions !== 1 ? 's' : ''}</span>
-                  <span className="text-sol-red">-{deletions} deletion{deletions !== 1 ? 's' : ''}</span>
+                  <span className="text-sol-green">
+                    +{insertions} insertion{insertions !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-sol-red">
+                    -{deletions} deletion{deletions !== 1 ? "s" : ""}
+                  </span>
                 </div>
               )}
             </div>
@@ -152,8 +189,13 @@ export function CommitCard({ sha, message, timestamp, filesChanged, insertions, 
                 className="text-meta text-sol-cyan hover:underline flex items-center gap-1"
                 onClick={(e) => e.stopPropagation()}
               >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
                 </svg>
                 View on GitHub
               </a>

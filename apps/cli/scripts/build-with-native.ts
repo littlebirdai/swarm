@@ -31,7 +31,8 @@ const target = args.find((arg) => arg.startsWith("--target="))?.split("=")[1];
  * asserts the split survived into the artifact, because a bun that stopped
  * splitting under `--compile` would cost the win silently.
  */
-const SPLIT_COMPILED_BUILDS = args.includes("--compile") && !args.includes("--splitting");
+const SPLIT_COMPILED_BUILDS =
+  args.includes("--compile") && !args.includes("--splitting");
 
 /**
  * Files the CLI starts as a `new Worker`. Bun bundles a worker only when the
@@ -47,7 +48,10 @@ const SPLIT_COMPILED_BUILDS = args.includes("--compile") && !args.includes("--sp
  * to this list and compiles the same layout in miniature.
  */
 export const WORKER_ENTRIES = ["opencodeStorage.worker.ts"];
-export function workerBuildArgs(srcDir: string, entries: string[] = WORKER_ENTRIES): string[] {
+export function workerBuildArgs(
+  srcDir: string,
+  entries: string[] = WORKER_ENTRIES,
+): string[] {
   return [...entries.map((name) => path.join(srcDir, name)), "--root", srcDir];
 }
 /**
@@ -84,16 +88,33 @@ export function needsMacHelper(
 const run = (command: string, argv: string[]) => {
   const result = spawnSync(command, argv, { stdio: "inherit" });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.signal})`);
+  if (result.status !== 0)
+    throw new Error(`${command} failed (${result.status ?? result.signal})`);
 };
 
-const packageVersion = () => JSON.parse(fs.readFileSync(path.join(import.meta.dir, "../package.json"), "utf8")).version as string;
-const signIdentity = () => (process.env.CODECAST_SKIP_SIGN === "1" ? undefined : process.env.CODECAST_SIGN_IDENTITY);
+const packageVersion = () =>
+  JSON.parse(
+    fs.readFileSync(path.join(import.meta.dir, "../package.json"), "utf8"),
+  ).version as string;
+const signIdentity = () =>
+  process.env.CODECAST_SKIP_SIGN === "1"
+    ? undefined
+    : process.env.CODECAST_SIGN_IDENTITY;
 
 /** Sign the way the browser icon helper is signed, then prove the signature reads back. */
 function signAndVerify(target: string, identifier: string) {
   const identity = signIdentity();
-  run("/usr/bin/codesign", ["--force", "--sign", identity || "-", "--identifier", identifier, "--options", "runtime", ...(identity ? ["--timestamp"] : []), target]);
+  run("/usr/bin/codesign", [
+    "--force",
+    "--sign",
+    identity || "-",
+    "--identifier",
+    identifier,
+    "--options",
+    "runtime",
+    ...(identity ? ["--timestamp"] : []),
+    target,
+  ]);
   run("/usr/bin/codesign", ["--verify", "--strict", target]);
 }
 
@@ -111,7 +132,10 @@ export const COMPUTER_HELPER_BUNDLE_NAME = "codecast computer";
  * dies with E2BIG. A bundled file asset has no such limit and is the same
  * mechanism `browser/appIdentity.ts` already uses for its icon.
  */
-export const COMPUTER_HELPER_PAYLOAD = path.join(import.meta.dir, "../src/computer/helper.tar");
+export const COMPUTER_HELPER_PAYLOAD = path.join(
+  import.meta.dir,
+  "../src/computer/helper.tar",
+);
 
 /**
  * Where the Codecast Chrome extension waits to be bundled, the same tracked
@@ -120,13 +144,27 @@ export const COMPUTER_HELPER_PAYLOAD = path.join(import.meta.dir, "../src/comput
  * own CLI carries (src/browser/hostExtension.ts), which always matches the
  * bridge protocol of that CLI.
  */
-export const BROWSER_EXTENSION_PAYLOAD = path.join(import.meta.dir, "../src/browser/extension.tar");
+export const BROWSER_EXTENSION_PAYLOAD = path.join(
+  import.meta.dir,
+  "../src/browser/extension.tar",
+);
 
 /** Tar the extension's shipped files (browser-extension/shipped.mjs) into the payload. */
-export async function packBrowserExtension(output = BROWSER_EXTENSION_PAYLOAD): Promise<number> {
-  const { SHIPPED } = await import("../../../apps/browser-extension/shipped.mjs");
+export async function packBrowserExtension(
+  output = BROWSER_EXTENSION_PAYLOAD,
+): Promise<number> {
+  const { SHIPPED } =
+    await import("../../../apps/browser-extension/shipped.mjs");
   // COPYFILE_DISABLE keeps macOS tar from adding ._ resource-fork entries.
-  run("/usr/bin/env", ["COPYFILE_DISABLE=1", "tar", "-cf", output, "-C", path.join(import.meta.dir, "../../../apps/browser-extension"), ...SHIPPED]);
+  run("/usr/bin/env", [
+    "COPYFILE_DISABLE=1",
+    "tar",
+    "-cf",
+    output,
+    "-C",
+    path.join(import.meta.dir, "../../../apps/browser-extension"),
+    ...SHIPPED,
+  ]);
   return fs.statSync(output).size;
 }
 
@@ -140,28 +178,61 @@ export async function packBrowserExtension(output = BROWSER_EXTENSION_PAYLOAD): 
  * Xcode both produce a working CLI that reports the feature unavailable. A
  * swift that is present and fails to compile is a hard error.
  */
-export function buildComputerHelper(options: { stage: string; output: string; universal?: boolean; version?: string }): number {
-  if (spawnSync("/usr/bin/env", ["swift", "--version"], { stdio: "ignore" }).status !== 0) {
-    console.error("swift is not on PATH; building without the cast computer helper");
+export function buildComputerHelper(options: {
+  stage: string;
+  output: string;
+  universal?: boolean;
+  version?: string;
+}): number {
+  if (
+    spawnSync("/usr/bin/env", ["swift", "--version"], { stdio: "ignore" })
+      .status !== 0
+  ) {
+    console.error(
+      "swift is not on PATH; building without the cast computer helper",
+    );
     fs.writeFileSync(options.output, "");
     return 0;
   }
   const source = path.join(import.meta.dir, "../native/computer-use-macos");
   const configuration = options.universal === false ? "debug" : "release";
-  const architectures = options.universal === false ? [] : ["--arch", "arm64", "--arch", "x86_64"];
-  const swiftArgs = ["swift", "build", "-c", configuration, ...architectures, "--package-path", source, "--scratch-path", path.join(options.stage, "swift")];
-  const binPath = spawnSync("/usr/bin/env", [...swiftArgs, "--show-bin-path"], { encoding: "utf8" });
-  if (binPath.status !== 0) throw new Error(`swift build --show-bin-path failed (${binPath.status})`);
+  const architectures =
+    options.universal === false ? [] : ["--arch", "arm64", "--arch", "x86_64"];
+  const swiftArgs = [
+    "swift",
+    "build",
+    "-c",
+    configuration,
+    ...architectures,
+    "--package-path",
+    source,
+    "--scratch-path",
+    path.join(options.stage, "swift"),
+  ];
+  const binPath = spawnSync("/usr/bin/env", [...swiftArgs, "--show-bin-path"], {
+    encoding: "utf8",
+  });
+  if (binPath.status !== 0)
+    throw new Error(`swift build --show-bin-path failed (${binPath.status})`);
   run("/usr/bin/env", swiftArgs);
   const binary = path.join(binPath.stdout.trim(), "codecast-computer");
 
-  const bundle = path.join(options.stage, "bundle", `${COMPUTER_HELPER_BUNDLE_NAME}.app`);
+  const bundle = path.join(
+    options.stage,
+    "bundle",
+    `${COMPUTER_HELPER_BUNDLE_NAME}.app`,
+  );
   fs.mkdirSync(path.join(bundle, "Contents/MacOS"), { recursive: true });
-  fs.copyFileSync(binary, path.join(bundle, "Contents/MacOS/codecast-computer"));
+  fs.copyFileSync(
+    binary,
+    path.join(bundle, "Contents/MacOS/codecast-computer"),
+  );
   fs.chmodSync(path.join(bundle, "Contents/MacOS/codecast-computer"), 0o755);
   // LSUIElement keeps the socket mode out of the Dock; the display name is what
   // the TCC dialog and the System Settings row show the human.
-  fs.writeFileSync(path.join(bundle, "Contents/Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
+  fs.writeFileSync(
+    path.join(bundle, "Contents/Info.plist"),
+    `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -177,10 +248,17 @@ export function buildComputerHelper(options: { stage: string; output: string; un
   <key>NSAccessibilityUsageDescription</key><string>codecast computer reads and controls app windows for the cast computer command you ran.</string>
 </dict>
 </plist>
-`);
+`,
+  );
   signAndVerify(bundle, COMPUTER_HELPER_BUNDLE_ID);
 
-  run("/usr/bin/tar", ["-cf", options.output, "-C", path.dirname(bundle), path.basename(bundle)]);
+  run("/usr/bin/tar", [
+    "-cf",
+    options.output,
+    "-C",
+    path.dirname(bundle),
+    path.basename(bundle),
+  ]);
   return fs.statSync(options.output).size;
 }
 
@@ -195,7 +273,9 @@ export function buildComputerHelper(options: { stage: string; output: string; un
  * frame and a lazily imported one alike (checked on bun 1.4.4).
  */
 function dropChunkSourcemaps() {
-  const outfile = args.find((arg) => arg.startsWith("--outfile="))?.split("=")[1];
+  const outfile = args
+    .find((arg) => arg.startsWith("--outfile="))
+    ?.split("=")[1];
   if (!outfile) return;
   const dir = path.dirname(path.resolve(outfile));
   for (const name of fs.readdirSync(dir)) {
@@ -211,9 +291,25 @@ if (import.meta.main) {
   try {
     let helper = "";
     if (needsMac) {
-      if (process.platform !== "darwin") throw new Error("Build macOS CLI releases on a Mac to compile the browser icon helper");
+      if (process.platform !== "darwin")
+        throw new Error(
+          "Build macOS CLI releases on a Mac to compile the browser icon helper",
+        );
       const binary = path.join(stage, "browser-icon");
-      run("/usr/bin/clang", ["-Os", "-fobjc-arc", "-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=11.0", "-framework", "AppKit", path.join(import.meta.dir, "../native/browser-icon.m"), "-o", binary]);
+      run("/usr/bin/clang", [
+        "-Os",
+        "-fobjc-arc",
+        "-arch",
+        "arm64",
+        "-arch",
+        "x86_64",
+        "-mmacosx-version-min=11.0",
+        "-framework",
+        "AppKit",
+        path.join(import.meta.dir, "../native/browser-icon.m"),
+        "-o",
+        binary,
+      ]);
       signAndVerify(binary, "sh.codecast.browser-icon");
       helper = fs.readFileSync(binary).toString("base64");
       // Why: build-binaries.sh compiles five targets, so a per-target swift
@@ -224,15 +320,29 @@ if (import.meta.main) {
       const prebuilt = process.env.CODECAST_COMPUTER_HELPER_TAR;
       if (prebuilt) {
         fs.copyFileSync(prebuilt, COMPUTER_HELPER_PAYLOAD);
-        console.error(`cast computer helper: ${fs.statSync(COMPUTER_HELPER_PAYLOAD).size} bytes embedded from ${prebuilt}`);
+        console.error(
+          `cast computer helper: ${fs.statSync(COMPUTER_HELPER_PAYLOAD).size} bytes embedded from ${prebuilt}`,
+        );
       } else {
-        console.error(`cast computer helper: ${buildComputerHelper({ stage, output: COMPUTER_HELPER_PAYLOAD })} bytes embedded`);
+        console.error(
+          `cast computer helper: ${buildComputerHelper({ stage, output: COMPUTER_HELPER_PAYLOAD })} bytes embedded`,
+        );
       }
     } else {
       fs.writeFileSync(COMPUTER_HELPER_PAYLOAD, "");
     }
-    console.error(`browser extension: ${await packBrowserExtension()} bytes embedded`);
-    run(process.execPath, ["build", ...args, ...workerBuildArgs(path.join(import.meta.dir, "../src")), ...(SPLIT_COMPILED_BUILDS ? ["--splitting"] : []), ...EXTERNAL_WS, "--define", `CODECAST_MAC_ICON_HELPER=${JSON.stringify(helper)}`]);
+    console.error(
+      `browser extension: ${await packBrowserExtension()} bytes embedded`,
+    );
+    run(process.execPath, [
+      "build",
+      ...args,
+      ...workerBuildArgs(path.join(import.meta.dir, "../src")),
+      ...(SPLIT_COMPILED_BUILDS ? ["--splitting"] : []),
+      ...EXTERNAL_WS,
+      "--define",
+      `CODECAST_MAC_ICON_HELPER=${JSON.stringify(helper)}`,
+    ]);
     if (SPLIT_COMPILED_BUILDS) dropChunkSourcemaps();
   } finally {
     // Leave the tracked placeholder empty again: the payload belongs in the

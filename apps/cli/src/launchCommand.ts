@@ -18,31 +18,54 @@ import {
   PI_EFFORT_LEVELS,
   cloudAgentModel,
   findModelOption,
-  type AgentClientId, localAgentClient
+  type AgentClientId,
+  localAgentClient,
 } from "@codecast/shared/contracts";
 import { getAgentArgs, type Config } from "./config/types.js";
 import { stableClaudeBinary } from "./stableClaudeBinary.js";
 import { shellArg } from "./shellQuote.js";
-import type { ApprovalPolicy, SandboxMode, ThreadStartParams } from "./codexAppServer.js";
+import type {
+  ApprovalPolicy,
+  SandboxMode,
+  ThreadStartParams,
+} from "./codexAppServer.js";
 
 export function blankCodexRecoveryParams(
-  data: { conversation: { agent_type?: string; model?: string | null; effort?: string; message_count?: number }; messages: unknown[] },
+  data: {
+    conversation: {
+      agent_type?: string;
+      model?: string | null;
+      effort?: string;
+      message_count?: number;
+    };
+    messages: unknown[];
+  },
   cwd: string | null,
   permissions: { approvalPolicy: ApprovalPolicy; sandbox: SandboxMode },
 ): ThreadStartParams | null {
-  if (data.conversation.agent_type !== "codex" || data.messages.length > 0 || (data.conversation.message_count ?? 0) > 0 || !cwd) return null;
+  if (
+    data.conversation.agent_type !== "codex" ||
+    data.messages.length > 0 ||
+    (data.conversation.message_count ?? 0) > 0 ||
+    !cwd
+  )
+    return null;
   const { model, effort } = data.conversation;
   return {
     cwd,
     ...permissions,
-    ...(model ? { model: findModelOption("codex", model)?.cliAlias ?? model } : {}),
+    ...(model
+      ? { model: findModelOption("codex", model)?.cliAlias ?? model }
+      : {}),
     ...(effort && (CODEX_EFFORT_LEVELS as readonly string[]).includes(effort)
       ? { config: { model_reasoning_effort: effort } }
       : {}),
   };
 }
 
-function codexPermissionArgs(args: readonly string[]): Array<[string, string | undefined]> {
+function codexPermissionArgs(
+  args: readonly string[],
+): Array<[string, string | undefined]> {
   const options: Array<[string, string | undefined]> = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
@@ -54,29 +77,58 @@ function codexPermissionArgs(args: readonly string[]): Array<[string, string | u
       flag = arg.slice(0, 2);
       inline = arg.length > 2 ? arg.slice(2).replace(/^=/, "") : undefined;
     }
-    if (flag === "--sandbox" || flag === "-s" || flag === "--ask-for-approval" || flag === "-a") {
-      options.push([flag, inline ?? (args[i + 1] === "--" ? undefined : args[++i])]);
-    } else if (arg === "--dangerously-bypass-approvals-and-sandbox" || arg === "--yolo" || arg === "--full-auto") {
+    if (
+      flag === "--sandbox" ||
+      flag === "-s" ||
+      flag === "--ask-for-approval" ||
+      flag === "-a"
+    ) {
+      options.push([
+        flag,
+        inline ?? (args[i + 1] === "--" ? undefined : args[++i]),
+      ]);
+    } else if (
+      arg === "--dangerously-bypass-approvals-and-sandbox" ||
+      arg === "--yolo" ||
+      arg === "--full-auto"
+    ) {
       options.push([arg, undefined]);
     }
   }
   return options;
 }
 
-export function codexPermissionsFromArgs(args: readonly string[]): { sandbox: SandboxMode; approvalPolicy: ApprovalPolicy } {
+export function codexPermissionsFromArgs(args: readonly string[]): {
+  sandbox: SandboxMode;
+  approvalPolicy: ApprovalPolicy;
+} {
   let sandbox: SandboxMode = "workspace-write";
   let approvalPolicy: ApprovalPolicy = "on-request";
   for (const [flag, value] of codexPermissionArgs(args)) {
-    if (flag === "--dangerously-bypass-approvals-and-sandbox" || flag === "--yolo") {
+    if (
+      flag === "--dangerously-bypass-approvals-and-sandbox" ||
+      flag === "--yolo"
+    ) {
       sandbox = "danger-full-access";
       approvalPolicy = "never";
     } else if (flag === "--full-auto") {
       sandbox = "workspace-write";
       approvalPolicy = "on-request";
     } else if (flag === "--sandbox" || flag === "-s") {
-      if (value === "read-only" || value === "workspace-write" || value === "danger-full-access") sandbox = value;
+      if (
+        value === "read-only" ||
+        value === "workspace-write" ||
+        value === "danger-full-access"
+      )
+        sandbox = value;
     } else if (flag === "--ask-for-approval" || flag === "-a") {
-      if (value === "untrusted" || value === "on-failure" || value === "on-request" || value === "never") approvalPolicy = value;
+      if (
+        value === "untrusted" ||
+        value === "on-failure" ||
+        value === "on-request" ||
+        value === "never"
+      )
+        approvalPolicy = value;
     }
   }
   return { sandbox, approvalPolicy };
@@ -90,16 +142,21 @@ export function codexPermissionsFromArgs(args: readonly string[]): { sandbox: Sa
  * NOTE: parameter order is (agentType, config) here but (config, clientId) on
  * getAgentArgs — keep the delegation as the only crossing point.
  */
-export function getConfiguredAgentArgs(agentType: AgentClientId, config: Config | null | undefined): string {
+export function getConfiguredAgentArgs(
+  agentType: AgentClientId,
+  config: Config | null | undefined,
+): string {
   return getAgentArgs(config, agentType) ?? "";
 }
 
 /** The claude permission flags that must not be doubled up when the user already
  *  pinned one in their configured args. */
 function claudeArgsPinPermission(configuredArgs: string): boolean {
-  return configuredArgs.includes("--dangerously-skip-permissions")
-    || configuredArgs.includes("--permission-mode")
-    || configuredArgs.includes("--allow-dangerously-skip-permissions");
+  return (
+    configuredArgs.includes("--dangerously-skip-permissions") ||
+    configuredArgs.includes("--permission-mode") ||
+    configuredArgs.includes("--allow-dangerously-skip-permissions")
+  );
 }
 
 function splitFlags(flags: string | null | undefined): string[] {
@@ -112,7 +169,14 @@ function splitFlags(flags: string | null | undefined): string[] {
  * prompt nobody can answer. Returns null when the user's configured args
  * already pin a mode, so we never double up.
  */
-const CLAUDE_PERMISSION_MODES = new Set(["default", "acceptEdits", "plan", "auto", "dontAsk", "bypassPermissions"]);
+const CLAUDE_PERMISSION_MODES = new Set([
+  "default",
+  "acceptEdits",
+  "plan",
+  "auto",
+  "dontAsk",
+  "bypassPermissions",
+]);
 
 /** Claude's permission flags for a session that already runs in `mode` (the
  *  last mode its hooks or SDK host reported): a resume onto another backend
@@ -120,17 +184,28 @@ const CLAUDE_PERMISSION_MODES = new Set(["default", "acceptEdits", "plan", "auto
  *  launch default. Unknown or absent modes fall back to that default. A
  *  non-bypass mode keeps bypass reachable from the mode control, as the
  *  "default" machine setting does. */
-export function claudePermissionFlagsFor(mode: string | null | undefined, config?: Config | null): string | null {
-  if (!mode || !CLAUDE_PERMISSION_MODES.has(mode)) return getPermissionFlags("claude", config);
-  return mode === "bypassPermissions" ? "--permission-mode bypassPermissions" : `--permission-mode ${mode} --allow-dangerously-skip-permissions`;
+export function claudePermissionFlagsFor(
+  mode: string | null | undefined,
+  config?: Config | null,
+): string | null {
+  if (!mode || !CLAUDE_PERMISSION_MODES.has(mode))
+    return getPermissionFlags("claude", config);
+  return mode === "bypassPermissions"
+    ? "--permission-mode bypassPermissions"
+    : `--permission-mode ${mode} --allow-dangerously-skip-permissions`;
 }
 
-export function getPermissionFlags(agentType: AgentClientId, config?: Config | null): string | null {
+export function getPermissionFlags(
+  agentType: AgentClientId,
+  config?: Config | null,
+): string | null {
   const modes = config?.agent_permission_modes;
 
   if (agentType === "claude") {
-    if (modes?.claude === "bypass") return "--permission-mode bypassPermissions";
-    if (modes?.claude === "default") return "--allow-dangerously-skip-permissions";
+    if (modes?.claude === "bypass")
+      return "--permission-mode bypassPermissions";
+    if (modes?.claude === "default")
+      return "--allow-dangerously-skip-permissions";
     return "--permission-mode bypassPermissions";
   } else if (agentType === "codex") {
     const existing = getAgentArgs(config, "codex") || "";
@@ -140,7 +215,11 @@ export function getPermissionFlags(agentType: AgentClientId, config?: Config | n
     return "--dangerously-bypass-approvals-and-sandbox";
   } else if (agentType === "grok") {
     const existing = getAgentArgs(config, "grok") || "";
-    if (existing.includes("--permission-mode") || existing.includes("--always-approve")) return null;
+    if (
+      existing.includes("--permission-mode") ||
+      existing.includes("--always-approve")
+    )
+      return null;
     return "--permission-mode bypassPermissions";
   } else if (agentType === "muse") {
     // Muse runs YOLO by default: `--yolo` disables approval prompts AND the
@@ -149,7 +228,12 @@ export function getPermissionFlags(agentType: AgentClientId, config?: Config | n
     // into the standard on-request model (no flags); any approval flag
     // already in agent_args.muse also suppresses the default.
     const existing = getAgentArgs(config, "muse") || "";
-    if (existing.includes("--disable-approval") || existing.includes("--approval-mode") || existing.includes("--yolo")) return null;
+    if (
+      existing.includes("--disable-approval") ||
+      existing.includes("--approval-mode") ||
+      existing.includes("--yolo")
+    )
+      return null;
     if (modes?.muse === "default") return null;
     return "--yolo";
   } else if (agentType === "cursor") {
@@ -157,7 +241,8 @@ export function getPermissionFlags(agentType: AgentClientId, config?: Config | n
     // command?" menu is invisible there (no pane prompt monitoring), so it
     // launches with Run Everything unless the user pinned a mode.
     const existing = getAgentArgs(config, "cursor") || "";
-    if (/(?:^|\s)(?:--force|-f|--yolo|--mode|--plan)\b/.test(existing)) return null;
+    if (/(?:^|\s)(?:--force|-f|--yolo|--mode|--plan)\b/.test(existing))
+      return null;
     if (modes?.cursor === "default") return null;
     return "--force";
   } else if (agentType === "antigravity") {
@@ -167,7 +252,8 @@ export function getPermissionFlags(agentType: AgentClientId, config?: Config | n
     // the flag itself pinned in agent_args.antigravity wins, and a "default"
     // mode opts back into agy's own prompts (the codex/muse/cursor rule).
     const existing = getAgentArgs(config, "antigravity") || "";
-    if (/(?:^|\s)(?:--dangerously-skip-permissions|--mode)\b/.test(existing)) return null;
+    if (/(?:^|\s)(?:--dangerously-skip-permissions|--mode)\b/.test(existing))
+      return null;
     if (modes?.antigravity === "default") return null;
     return "--dangerously-skip-permissions";
   } else if (agentType === "gemini") {
@@ -178,10 +264,15 @@ export function getPermissionFlags(agentType: AgentClientId, config?: Config | n
 }
 
 /** Extra `--flag value` pairs from config.agent_default_params. */
-export function getDefaultParamFlags(agentType: AgentClientId, config?: Config | null): string | null {
+export function getDefaultParamFlags(
+  agentType: AgentClientId,
+  config?: Config | null,
+): string | null {
   const params = config?.agent_default_params?.[agentType];
   if (!params || Object.keys(params).length === 0) return null;
-  return Object.entries(params).map(([k, v]) => `--${k} ${v}`).join(" ");
+  return Object.entries(params)
+    .map(([k, v]) => `--${k} ${v}`)
+    .join(" ");
 }
 
 /**
@@ -210,13 +301,22 @@ export function permissionFlagsForMode(
     return null;
   }
   if (agentType === "grok") {
-    if (configuredArgs.includes("--permission-mode") || configuredArgs.includes("--always-approve")) return null;
+    if (
+      configuredArgs.includes("--permission-mode") ||
+      configuredArgs.includes("--always-approve")
+    )
+      return null;
     if (m === "bypass") return "--permission-mode bypassPermissions";
     if (m === "default") return null;
     return `--permission-mode ${m}`;
   }
   if (agentType === "muse") {
-    if (configuredArgs.includes("--disable-approval") || configuredArgs.includes("--approval-mode") || configuredArgs.includes("--yolo")) return null;
+    if (
+      configuredArgs.includes("--disable-approval") ||
+      configuredArgs.includes("--approval-mode") ||
+      configuredArgs.includes("--yolo")
+    )
+      return null;
     // "bypass" is muse's own `--yolo` (no approvals, no sandbox, workspace
     // trusted) — the mode the daemon also defaults to when nothing is stored.
     if (m === "bypass") return "--yolo";
@@ -224,7 +324,10 @@ export function permissionFlagsForMode(
     return `--approval-mode ${m}`;
   }
   if (agentType === "antigravity") {
-    if (/(?:^|\s)(?:--dangerously-skip-permissions|--mode)\b/.test(configuredArgs)) return null;
+    if (
+      /(?:^|\s)(?:--dangerously-skip-permissions|--mode)\b/.test(configuredArgs)
+    )
+      return null;
     if (m === "bypass") return "--dangerously-skip-permissions";
     if (m === "default") return null;
     // agy's own execution modes: accept-edits | auto | plan.
@@ -234,7 +337,10 @@ export function permissionFlagsForMode(
 }
 
 /** Picker key (`opus`) or raw id → the launch-flag value. `default` omits the flag. */
-export function resolvePrintModelAlias(agentType: AgentClientId, model: string | undefined): string | undefined {
+export function resolvePrintModelAlias(
+  agentType: AgentClientId,
+  model: string | undefined,
+): string | undefined {
   if (!model || model === "default") return undefined;
   const opt = findModelOption(agentType, model);
   if (opt) return opt.cliAlias;
@@ -286,16 +392,21 @@ export function buildLaunchArgs(input: LaunchArgsInput): LaunchArgsResult {
     args.push(...configured);
     if (permFlags) {
       args.push(...permFlags.split(/\s+/).filter(Boolean));
-      if (!configuredArgs && !input.hasCodexPermissionMode) notifyCodexBypass = true;
+      if (!configuredArgs && !input.hasCodexPermissionMode)
+        notifyCodexBypass = true;
     }
   } else if (agentType === "claude") {
-    if (configuredArgs) args.push(...configuredArgs.split(/\s+/).filter(Boolean));
+    if (configuredArgs)
+      args.push(...configuredArgs.split(/\s+/).filter(Boolean));
     if (permFlags && !claudeArgsPinPermission(configuredArgs)) {
       args.push(...permFlags.split(/\s+/).filter(Boolean));
     }
-    args.push(...claudeSessionIdArgs(input.assignedClaudeSessionId, configuredArgs));
+    args.push(
+      ...claudeSessionIdArgs(input.assignedClaudeSessionId, configuredArgs),
+    );
   } else if (agentType === "opencode") {
-    if (configuredArgs) args.push(...configuredArgs.split(/\s+/).filter(Boolean));
+    if (configuredArgs)
+      args.push(...configuredArgs.split(/\s+/).filter(Boolean));
     // A managed opencode session is driven from the web and can't answer the TUI's
     // permission prompts (the daemon does no pane prompt monitoring for opencode),
     // so it launches auto-approved — its full-access default, matching how codex
@@ -307,20 +418,27 @@ export function buildLaunchArgs(input: LaunchArgsInput): LaunchArgsResult {
     // permission flags; its model/thinking flags are per-session and appended in
     // the model/effort block below. Without this branch the configured args are
     // dropped.
-    if (configuredArgs) args.push(...configuredArgs.split(/\s+/).filter(Boolean));
+    if (configuredArgs)
+      args.push(...configuredArgs.split(/\s+/).filter(Boolean));
   } else if (agentType === "grok") {
     // grok folds in configured args + the daemon's permission flags
     // (`--permission-mode bypassPermissions` — grok uses claude's exact flag
     // spelling). getPermissionFlags already returns null when agent_args.grok
     // pins a permission mode, so concatenating can't double up (codex shape).
-    if (configuredArgs) args.push(...configuredArgs.split(/\s+/).filter(Boolean));
+    if (configuredArgs)
+      args.push(...configuredArgs.split(/\s+/).filter(Boolean));
     if (permFlags) args.push(...permFlags.split(/\s+/).filter(Boolean));
-  } else if (agentType === "muse" || agentType === "cursor" || agentType === "antigravity") {
+  } else if (
+    agentType === "muse" ||
+    agentType === "cursor" ||
+    agentType === "antigravity"
+  ) {
     // Same grok/codex shape: configured args + the permission flag
     // (`--disable-approval` / `--force` / `--dangerously-skip-permissions`),
     // with getPermissionFlags yielding
     // null when agent_args pins a mode.
-    if (configuredArgs) args.push(...configuredArgs.split(/\s+/).filter(Boolean));
+    if (configuredArgs)
+      args.push(...configuredArgs.split(/\s+/).filter(Boolean));
     if (permFlags) args.push(...permFlags.split(/\s+/).filter(Boolean));
   }
   // gemini: no configured args or permission flags today.
@@ -338,19 +456,34 @@ export function buildLaunchArgs(input: LaunchArgsInput): LaunchArgsResult {
  *  TUI launch and print mode. */
 export function appendModelEffortFlags(
   args: string[],
-  input: { agentType: AgentClientId; modelAlias?: string; requestedEffort?: string },
+  input: {
+    agentType: AgentClientId;
+    modelAlias?: string;
+    requestedEffort?: string;
+  },
 ): void {
   const { agentType } = input;
   // A cloud choice runs on the provider's machines (cloudAgents/), never as a local flag.
-  const modelAlias = input.modelAlias && cloudAgentModel(agentType, input.modelAlias) === null ? input.modelAlias : undefined;
+  const modelAlias =
+    input.modelAlias && cloudAgentModel(agentType, input.modelAlias) === null
+      ? input.modelAlias
+      : undefined;
   if (agentType === "claude") {
     if (modelAlias) args.push("--model", modelAlias);
-    if (input.requestedEffort && (CLAUDE_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (CLAUDE_EFFORT_LEVELS as readonly string[]).includes(
+        input.requestedEffort,
+      )
+    ) {
       args.push("--effort", input.requestedEffort);
     }
   } else if (agentType === "codex") {
     if (modelAlias) args.push("-m", modelAlias);
-    if (input.requestedEffort && (CODEX_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (CODEX_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)
+    ) {
       args.push("-c", `model_reasoning_effort=${input.requestedEffort}`);
     }
   } else if (agentType === "opencode") {
@@ -361,7 +494,10 @@ export function appendModelEffortFlags(
     // pi selects a model with `--model provider/model`; its `--thinking` levels
     // ride the effort slot (launch-time only, like codex).
     if (modelAlias) args.push("--model", modelAlias);
-    if (input.requestedEffort && (PI_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (PI_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)
+    ) {
       args.push("--thinking", input.requestedEffort);
     }
   } else if (agentType === "grok") {
@@ -369,7 +505,10 @@ export function appendModelEffortFlags(
     // takes reasoning effort as a launch flag (`--reasoning-effort`; the TUI's
     // effort menu is interactive-only, like codex's).
     if (modelAlias) args.push("-m", modelAlias);
-    if (input.requestedEffort && (GROK_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (GROK_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)
+    ) {
       args.push("--reasoning-effort", input.requestedEffort);
     }
   } else if (agentType === "cursor") {
@@ -381,14 +520,22 @@ export function appendModelEffortFlags(
     // muse-spark-1.3-contributor) and takes reasoning effort as
     // `--reasoning-effort` (none|minimal|low|medium|high|xhigh|max|ultra).
     if (modelAlias) args.push("--model", modelAlias);
-    if (input.requestedEffort && (MUSE_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (MUSE_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)
+    ) {
       args.push("--reasoning-effort", input.requestedEffort);
     }
   } else if (agentType === "antigravity") {
     // agy takes the base model id and the effort apart (`--model gemini-4-neon
     // --effort low` ran as gemini-4-neon-low, agy 1.5.14).
     if (modelAlias) args.push("--model", modelAlias);
-    if (input.requestedEffort && (ANTIGRAVITY_EFFORT_LEVELS as readonly string[]).includes(input.requestedEffort)) {
+    if (
+      input.requestedEffort &&
+      (ANTIGRAVITY_EFFORT_LEVELS as readonly string[]).includes(
+        input.requestedEffort,
+      )
+    ) {
       args.push("--effort", input.requestedEffort);
     }
   }
@@ -405,7 +552,10 @@ export interface LaunchBinaryDeps {
  * claude on macOS, which runs from its fixed-path copy (stableClaudeBinary) so
  * the user's folder grants survive Claude Code updates.
  */
-export function launchBinary(agentType: AgentClientId, deps: LaunchBinaryDeps = {}): string {
+export function launchBinary(
+  agentType: AgentClientId,
+  deps: LaunchBinaryDeps = {},
+): string {
   if (agentType === "claude") {
     const stable = (deps.stable ?? stableClaudeBinary)({ warn: deps.warn });
     if (stable) return stable;
@@ -443,8 +593,13 @@ export interface PrintArgsInput {
 }
 
 /** `--session-id <id>` for a claude launch, unless the configured args already pin one. */
-export function claudeSessionIdArgs(assigned: string | null | undefined, configuredArgs: string): string[] {
-  return assigned && !configuredArgs.includes("--session-id") ? ["--session-id", assigned] : [];
+export function claudeSessionIdArgs(
+  assigned: string | null | undefined,
+  configuredArgs: string,
+): string[] {
+  return assigned && !configuredArgs.includes("--session-id")
+    ? ["--session-id", assigned]
+    : [];
 }
 
 export interface PrintArgsResult {
@@ -498,12 +653,18 @@ export function buildPrintArgs(input: PrintArgsInput): PrintArgsResult {
   }
 
   if (agentType === "claude" && !input.resumeId && !input.continueLast) {
-    args.push(...claudeSessionIdArgs(input.assignedClaudeSessionId, input.configuredArgs));
+    args.push(
+      ...claudeSessionIdArgs(
+        input.assignedClaudeSessionId,
+        input.configuredArgs,
+      ),
+    );
   }
 
   const configured = splitFlags(input.configuredArgs);
   const end = configured.indexOf("--");
-  if (agentType === "codex" && end !== -1) codexPromptArgs.push(...configured.splice(end));
+  if (agentType === "codex" && end !== -1)
+    codexPromptArgs.push(...configured.splice(end));
   args.push(...configured);
 
   if (agentType === "opencode" && !input.configuredArgs.includes("--auto")) {
@@ -512,7 +673,10 @@ export function buildPrintArgs(input: PrintArgsInput): PrintArgsResult {
 
   const perm = splitFlags(input.permFlags);
   if (perm.length) {
-    if (agentType === "claude" && claudeArgsPinPermission(input.configuredArgs)) {
+    if (
+      agentType === "claude" &&
+      claudeArgsPinPermission(input.configuredArgs)
+    ) {
       // configured args already pin a mode
     } else {
       args.push(...perm);
@@ -546,17 +710,26 @@ export function buildPrintArgs(input: PrintArgsInput): PrintArgsResult {
   }
 
   if (input.systemPrompt) {
-    if (agentType === "claude" || agentType === "pi") args.push("--system-prompt", input.systemPrompt);
-    else if (agentType === "grok") args.push("--system-prompt-override", input.systemPrompt);
+    if (agentType === "claude" || agentType === "pi")
+      args.push("--system-prompt", input.systemPrompt);
+    else if (agentType === "grok")
+      args.push("--system-prompt-override", input.systemPrompt);
     else ignored.push("--system-prompt");
   }
   if (input.appendSystemPrompt) {
-    if (agentType === "claude" || agentType === "pi") args.push("--append-system-prompt", input.appendSystemPrompt);
-    else if (agentType === "grok") args.push("--rules", input.appendSystemPrompt);
+    if (agentType === "claude" || agentType === "pi")
+      args.push("--append-system-prompt", input.appendSystemPrompt);
+    else if (agentType === "grok")
+      args.push("--rules", input.appendSystemPrompt);
     else ignored.push("--append-system-prompt");
   }
   if (input.jsonSchema) {
-    if (agentType === "claude" || agentType === "grok" || agentType === "antigravity") args.push("--json-schema", input.jsonSchema);
+    if (
+      agentType === "claude" ||
+      agentType === "grok" ||
+      agentType === "antigravity"
+    )
+      args.push("--json-schema", input.jsonSchema);
     else ignored.push("--json-schema");
   }
   if (input.bare) {
@@ -565,8 +738,13 @@ export function buildPrintArgs(input: PrintArgsInput): PrintArgsResult {
     else ignored.push("--bare");
   }
   if (input.worktree) {
-    const name = typeof input.worktree === "string" ? input.worktree : undefined;
-    if (agentType === "grok" || agentType === "cursor" || agentType === "gemini") {
+    const name =
+      typeof input.worktree === "string" ? input.worktree : undefined;
+    if (
+      agentType === "grok" ||
+      agentType === "cursor" ||
+      agentType === "gemini"
+    ) {
       if (name) args.push("--worktree", name);
       else args.push("--worktree");
     } else {
@@ -597,14 +775,22 @@ function pushOutputFormat(
   ignored: string[],
 ): void {
   if (!format || format === "text") return;
-  if (agentType === "claude" || agentType === "cursor" || agentType === "gemini" || agentType === "antigravity") {
+  if (
+    agentType === "claude" ||
+    agentType === "cursor" ||
+    agentType === "gemini" ||
+    agentType === "antigravity"
+  ) {
     // agy: --output-format text|json|stream-json (stream-json emits init,
     // step_update and result events, measured on 1.5.14).
     args.push("--output-format", format);
     return;
   }
   if (agentType === "grok") {
-    args.push("--output-format", format === "stream-json" ? "streaming-json" : "json");
+    args.push(
+      "--output-format",
+      format === "stream-json" ? "streaming-json" : "json",
+    );
     return;
   }
   if (agentType === "codex") {
@@ -633,4 +819,3 @@ function pushOutputFormat(
 export function formatPrintCommand(binary: string, args: string[]): string {
   return [binary, ...args].map(shellArg).join(" ");
 }
-

@@ -29,12 +29,12 @@ Click **Create and start** and the role starts at once.
 
 ## Give it work
 
-| You | The role |
-|-----|----------|
-| Assign a task to it (the **Assignee** picker lists roles next to people) | Is told about the task, and answers for it |
-| Mention `@handle` in team chat | Wakes and reads your line ([Team chat](/documentation/team-chat)) |
-| Write to it on its page | Gets your message in its standing conversation |
-| Wait | Runs its regular check, reads what changed in its area, and acts on it |
+| You                                                                      | The role                                                               |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Assign a task to it (the **Assignee** picker lists roles next to people) | Is told about the task, and answers for it                             |
+| Mention `@handle` in team chat                                           | Wakes and reads your line ([Team chat](/documentation/team-chat))      |
+| Write to it on its page                                                  | Gets your message in its standing conversation                         |
+| Wait                                                                     | Runs its regular check, reads what changed in its area, and acts on it |
 
 Things you might write to a role:
 
@@ -48,14 +48,14 @@ Click a role on the chart to open its page. Its standing conversation fills the 
 
 ![A role's page with its conversation and Overview tab](/documentation/org-roles/role.webp "A role's page: its conversation on the left, its Overview on the right.")
 
-| Tab | What it shows |
-|-----|---------------|
-| **Overview** | What it is for, where things stand, what it is doing, its notes, and what happened lately |
-| **Work** | Its tasks (also **By status**), its **Plans** and **Pages** |
-| **Sessions** | The sessions working for it, grouped by who acts next |
-| **Decisions** | Questions it raised and how they were answered |
-| **Triggers** | Its regular check and any other schedules, with the next run. Change or pause them here |
-| **Settings** | Name, area, who it reports to, whether it starts work on its own, its limits, where it runs, which chat channels it reads, and its history |
+| Tab           | What it shows                                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Overview**  | What it is for, where things stand, what it is doing, its notes, and what happened lately                                                  |
+| **Work**      | Its tasks (also **By status**), its **Plans** and **Pages**                                                                                |
+| **Sessions**  | The sessions working for it, grouped by who acts next                                                                                      |
+| **Decisions** | Questions it raised and how they were answered                                                                                             |
+| **Triggers**  | Its regular check and any other schedules, with the next run. Change or pause them here                                                    |
+| **Settings**  | Name, area, who it reports to, whether it starts work on its own, its limits, where it runs, which chat channels it reads, and its history |
 
 Two settings decide how much it does without you:
 
@@ -66,7 +66,7 @@ Two settings decide how much it does without you:
 
 ## What you see in the inbox
 
-A role gets one card in your inbox, with a **sessions** pill for the sessions working under it. Those sessions sit under the role (hover one: *Reports to @handle*), not in your inbox one by one, so twenty sessions on growth don't become twenty cards.
+A role gets one card in your inbox, with a **sessions** pill for the sessions working under it. Those sessions sit under the role (hover one: _Reports to @handle_), not in your inbox one by one, so twenty sessions on growth don't become twenty cards.
 
 A question travels up the line. A session asks its role; a role that can't answer asks whoever it reports to. When it reaches you, it arrives as one card from the lead that needs you, with the question pinned at the top of its conversation.
 
@@ -84,10 +84,10 @@ The iPhone app has the same org, opened as **Org** from the slide-out panel. It 
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| There is no Org page | Ask a team admin to switch on **Org** under **Settings**, **Team**, **Features** |
-| A role isn't starting anything | Check **Starts work on its own** in its **Settings**, and whether it is paused |
-| A role went quiet partway through the day | It reached one of its **Limits**. Raise it, or let it pick up tomorrow |
-| Work in a project isn't reaching its role | Check the role's **Area** includes that project, in its **Settings** |
-| Too many sessions in your inbox | Give the work a role: sessions in a role's area sit under its card |
+| What you notice                           | What to do                                                                       |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| There is no Org page                      | Ask a team admin to switch on **Org** under **Settings**, **Team**, **Features** |
+| A role isn't starting anything            | Check **Starts work on its own** in its **Settings**, and whether it is paused   |
+| A role went quiet partway through the day | It reached one of its **Limits**. Raise it, or let it pick up tomorrow           |
+| Work in a project isn't reaching its role | Check the role's **Area** includes that project, in its **Settings**             |
+| Too many sessions in your inbox           | Give the work a role: sessions in a role's area sit under its card               |

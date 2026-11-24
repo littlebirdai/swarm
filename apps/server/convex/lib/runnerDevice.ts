@@ -4,7 +4,10 @@
 
 /** The device row a conversation runs on, or null when it names none (a
  *  hosted session, one not yet claimed by a machine). */
-export async function runnerDeviceOf(ctx: { db: any }, conv: { user_id: any; owner_device_id?: string | null }) {
+export async function runnerDeviceOf(
+  ctx: { db: any },
+  conv: { user_id: any; owner_device_id?: string | null },
+) {
   const deviceId = conv.owner_device_id;
   if (!deviceId) return null;
   return await ctx.db

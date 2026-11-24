@@ -39,25 +39,65 @@
 
 import { getFunctionName } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { Principal, SimBackend, SimClient } from "@codecast/convex/convex/simBackend.testing";
+import type {
+  Principal,
+  SimBackend,
+  SimClient,
+} from "@codecast/convex/convex/simBackend.testing";
 import type { OutboxEntry } from "@platform/engine";
-import { placeInboxRows, useInboxStore, syncLogScopeMetaKey } from "../../inboxStore";
-import { deliveryReceiptRequests, settleDeliveryReceipts } from "../../../lib/syncDeliveryReceipts";
+import {
+  placeInboxRows,
+  useInboxStore,
+  syncLogScopeMetaKey,
+} from "../../inboxStore";
+import {
+  deliveryReceiptRequests,
+  settleDeliveryReceipts,
+} from "../../../lib/syncDeliveryReceipts";
 import { subscribeGestures } from "../../gestureBridge";
 import { applyBridgedGesture } from "../../syncReplication";
-import type { InboxCompareOutcome, InboxDigestComparer } from "../../inboxDigestCompare";
-import { applyDispatchFailure, makeDispatchBinding, newDispatchAckState, type DispatchAckState } from "../../../lib/dispatchBinding";
+import type {
+  InboxCompareOutcome,
+  InboxDigestComparer,
+} from "../../inboxDigestCompare";
+import {
+  applyDispatchFailure,
+  makeDispatchBinding,
+  newDispatchAckState,
+  type DispatchAckState,
+} from "../../../lib/dispatchBinding";
 import { ingestChatPage, CHAT_PAGE_SIZE } from "../../../lib/ingestChatPage";
-import { applyInboxListPayload, LIST_INBOX_SESSIONS_ARGS } from "../../../hooks/useLiveInboxSessions";
-import { applyMineLivenessPayload, inboxFloorFlags, runInboxFloorStep } from "../../../hooks/useSyncInboxSessions";
-import { applyTeamListPayload, applyTeamLivenessPayload, teamInboxArgs } from "../../../hooks/useSyncTeamInboxSessions";
+import {
+  applyInboxListPayload,
+  LIST_INBOX_SESSIONS_ARGS,
+} from "../../../hooks/useLiveInboxSessions";
+import {
+  applyMineLivenessPayload,
+  inboxFloorFlags,
+  runInboxFloorStep,
+} from "../../../hooks/useSyncInboxSessions";
+import {
+  applyTeamListPayload,
+  applyTeamLivenessPayload,
+  teamInboxArgs,
+} from "../../../hooks/useSyncTeamInboxSessions";
 import { applyCollectionFeed } from "../../../hooks/useSyncCollection";
 import { createCatchUpRunner } from "../../../hooks/useSyncChangeFeed";
-import { bootstrapFloorFor, bootstrapFloorKey, startBootstrapFloor } from "../../../hooks/useBootstrapCollection";
+import {
+  bootstrapFloorFor,
+  bootstrapFloorKey,
+  startBootstrapFloor,
+} from "../../../hooks/useBootstrapCollection";
 import { startInboxDigestCompare } from "../../../hooks/useInboxDigestCompare";
 import { reconcileStorePendingCoverage } from "../../../hooks/usePendingMessageCoverage";
 import type { Net } from "./net";
-import { createWindowStore, now, runInWindow, type RealmWindow, type SimStore } from "./realm";
+import {
+  createWindowStore,
+  now,
+  runInWindow,
+  type RealmWindow,
+  type SimStore,
+} from "./realm";
 import type { SimDevice } from "./device";
 
 /** What a window needs of the world: the server, the net, and the window registry `net.online` routes through. */
@@ -97,13 +137,20 @@ function clientError(name: string, error: any): Error {
   const shown = /^ArgumentValidationError/.test(message)
     ? message
     : `Uncaught ${error?.name === "ConvexError" ? "ConvexError" : "Error"}: ${message}`;
-  const out = new Error(`[sim ${name}] Server Error\n${shown}`) as Error & { data?: unknown };
+  const out = new Error(`[sim ${name}] Server Error\n${shown}`) as Error & {
+    data?: unknown;
+  };
   if (error?.data !== undefined) out.data = error.data;
   return out;
 }
 
 // The feeds the recovery polls re-run (useSyncInboxSessions, useSyncTeamInboxSessions).
-const RECOVERY_POLL_FEEDS = ["inbox", "liveness", "team", "teamLiveness"] as const;
+const RECOVERY_POLL_FEEDS = [
+  "inbox",
+  "liveness",
+  "team",
+  "teamLiveness",
+] as const;
 
 export class SimWindow implements RealmWindow {
   readonly store: SimStore;
@@ -122,7 +169,10 @@ export class SimWindow implements RealmWindow {
   private readonly ackState: DispatchAckState = newDispatchAckState();
   private readonly live = new Map<string, () => Promise<void>>();
   private readonly writeListeners = new Set<WriteListener>();
-  private readonly bootstraps = new Map<string, () => ReturnType<typeof bootstrapFloorFor>>();
+  private readonly bootstraps = new Map<
+    string,
+    () => ReturnType<typeof bootstrapFloorFor>
+  >();
   private readonly bootstrapsCut = new Set<string>();
   private catchUpNow: (() => void) | null = null;
   private lastHeads: string | null = null;
@@ -137,8 +187,12 @@ export class SimWindow implements RealmWindow {
     role: WindowRole,
     readonly name: string,
   ) {
-    if (name.includes(":") || /\s/.test(name)) throw new Error(`sim window: name "${name}" may not hold ':' or whitespace (it names net channels)`);
-    if (world.windows.has(name)) throw new Error(`sim window: a window named "${name}" already exists`);
+    if (name.includes(":") || /\s/.test(name))
+      throw new Error(
+        `sim window: name "${name}" may not hold ':' or whitespace (it names net channels)`,
+      );
+    if (world.windows.has(name))
+      throw new Error(`sim window: a window named "${name}" already exists`);
     this.store = createWindowStore(name);
     world.windows.set(name, this);
     this.role = role;
@@ -169,38 +223,83 @@ export class SimWindow implements RealmWindow {
    */
   async boot(opts: { scope?: BootScope } = {}): Promise<void> {
     this.scope = opts.scope ?? "mine";
-    const userRow = this.world.backend.db._tables.users?.find((u: any) => u._id === this.user.userId);
+    const userRow = this.world.backend.db._tables.users?.find(
+      (u: any) => u._id === this.user.userId,
+    );
     await this.run(() => {
       const s = this.store.getState() as any;
-      s.syncTable("currentUser", userRow ? structuredClone(userRow) : { _id: this.user.userId });
+      s.syncTable(
+        "currentUser",
+        userRow ? structuredClone(userRow) : { _id: this.user.userId },
+      );
       const team = typeof this.scope === "object" ? this.scope.team : undefined;
       s.syncTable("clientState", {
         ui: {
           inbox_scope: team ? "team" : "mine",
-          ...(team ? { active_team_id: team } : userRow?.active_team_id ? { active_team_id: userRow.active_team_id } : {}),
+          ...(team
+            ? { active_team_id: team }
+            : userRow?.active_team_id
+              ? { active_team_id: userRow.active_team_id }
+              : {}),
         },
       });
       // The app sets these by hand once its IndexedDB hydration settles.
-      this.store.setState({ clientStateInitialized: true, syncRole: this.role } as any);
+      this.store.setState({
+        clientStateInitialized: true,
+        syncRole: this.role,
+      } as any);
       s._setDispatchError(applyDispatchFailure);
       s._setOutbox(
-        (entry: OutboxEntry) => void this.outbox.set(entry.id, structuredClone(entry)),
+        (entry: OutboxEntry) =>
+          void this.outbox.set(entry.id, structuredClone(entry)),
         (id: string) => void this.outbox.delete(id),
-        async () => [...this.outbox.values()].sort((a, b) => a.ts - b.ts).map((e) => structuredClone(e)),
+        async () =>
+          [...this.outbox.values()]
+            .sort((a, b) => a.ts - b.ts)
+            .map((e) => structuredClone(e)),
       );
-      s._setDispatch(makeDispatchBinding((args) => this.client.mutation(api.dispatch.dispatch, args), this.ackState));
-      s._setIDBWrite((patches: any[], state: any) => this.teeWrite(patches, state));
-      const currentUserId = () => useInboxStore.getState().currentUser?._id?.toString?.() ?? null;
-      this.unbridge = subscribeGestures(this.user.userId, currentUserId, applyBridgedGesture);
-      this.comparer = startInboxDigestCompare(this.client, () => () => {}).comparer;
+      s._setDispatch(
+        makeDispatchBinding(
+          (args) => this.client.mutation(api.dispatch.dispatch, args),
+          this.ackState,
+        ),
+      );
+      s._setIDBWrite((patches: any[], state: any) =>
+        this.teeWrite(patches, state),
+      );
+      const currentUserId = () =>
+        useInboxStore.getState().currentUser?._id?.toString?.() ?? null;
+      this.unbridge = subscribeGestures(
+        this.user.userId,
+        currentUserId,
+        applyBridgedGesture,
+      );
+      this.comparer = startInboxDigestCompare(
+        this.client,
+        () => () => {},
+      ).comparer;
       this.device.attach(this);
-      this.mount("deliveryReceipts", api.syncOutbox.getReceipts, () => {
-        const receipts = deliveryReceiptRequests(this.store.getState().pending);
-        return receipts.length ? { receipts } : "skip";
-      }, (data) => settleDeliveryReceipts(useInboxStore.getState(), data, syncLogScopeMetaKey));
+      this.mount(
+        "deliveryReceipts",
+        api.syncOutbox.getReceipts,
+        () => {
+          const receipts = deliveryReceiptRequests(
+            this.store.getState().pending,
+          );
+          return receipts.length ? { receipts } : "skip";
+        },
+        (data) =>
+          settleDeliveryReceipts(
+            useInboxStore.getState(),
+            data,
+            syncLogScopeMetaKey,
+          ),
+      );
       if (this.role === "host") this.startHost();
     });
-    await (this.world.settleBoot ? this.world.settleBoot(this) : this.world.net.drain());
+    await (this.world.settleBoot
+      ? this.world.settleBoot(this)
+      : this.world.net.drain());
   }
 
   // -- Host duties --
@@ -211,23 +310,53 @@ export class SimWindow implements RealmWindow {
       onError: (e) => this.report("catch-up", e),
       onSettled: () => this.afterCatchUp(),
     });
-    this.mount("inbox", api.conversations.listInboxSessions, () => LIST_INBOX_SESSIONS_ARGS, (data) => void applyInboxListPayload(data, this.client));
-    this.mount("liveness", api.conversations.sessionsLiveness, () => ({}), (data) => void applyMineLivenessPayload(data));
+    this.mount(
+      "inbox",
+      api.conversations.listInboxSessions,
+      () => LIST_INBOX_SESSIONS_ARGS,
+      (data) => void applyInboxListPayload(data, this.client),
+    );
+    this.mount(
+      "liveness",
+      api.conversations.sessionsLiveness,
+      () => ({}),
+      (data) => void applyMineLivenessPayload(data),
+    );
     // The decision queue: the questions bucket's input (useSyncSessionDecisions).
-    this.mount("decisions", api.sessionDecisions.listForUser, () => ({}), (data) => applyCollectionFeed("sessionDecisions", data));
+    this.mount(
+      "decisions",
+      api.sessionDecisions.listForUser,
+      () => ({}),
+      (data) => applyCollectionFeed("sessionDecisions", data),
+    );
     if (typeof this.scope === "object") {
       const team = this.scope.team;
-      this.mount("team", api.conversations.listTeamInboxSessions, () => teamInboxArgs(team), (data) => void applyTeamListPayload(data, team));
-      this.mount("teamLiveness", api.conversations.teamSessionsLiveness, () => ({ activeTeamId: team }), (data) => void applyTeamLivenessPayload(team, data));
+      this.mount(
+        "team",
+        api.conversations.listTeamInboxSessions,
+        () => teamInboxArgs(team),
+        (data) => void applyTeamListPayload(data, team),
+      );
+      this.mount(
+        "teamLiveness",
+        api.conversations.teamSessionsLiveness,
+        () => ({ activeTeamId: team }),
+        (data) => void applyTeamLivenessPayload(team, data),
+      );
     }
     // The wake signal: the heads subscription. A change of any head runs
     // catch-up (production debounces this by 1.5s; the sim runs it at once).
-    this.mount("heads", api.syncLog.getHeads, () => ({}), (data) => {
-      const sig = JSON.stringify(data ?? null);
-      if (sig === this.lastHeads) return;
-      this.lastHeads = sig;
-      this.catchUpNow?.();
-    });
+    this.mount(
+      "heads",
+      api.syncLog.getHeads,
+      () => ({}),
+      (data) => {
+        const sig = JSON.stringify(data ?? null);
+        if (sig === this.lastHeads) return;
+        this.lastHeads = sig;
+        this.catchUpNow?.();
+      },
+    );
     // Catch-up on load, as the hook runs it when hydration settles.
     if (!this.world.holdCatchUp) this.catchUpNow();
   }
@@ -245,7 +374,8 @@ export class SimWindow implements RealmWindow {
   /** Stop being a host: unmount every feeder (the window closed, or handed the role on). */
   stopHost(): void {
     for (const channel of this.live.keys()) {
-      if (!this.closed && channel === `live:${this.name}:deliveryReceipts`) continue;
+      if (!this.closed && channel === `live:${this.name}:deliveryReceipts`)
+        continue;
       this.world.net.unmountLive(channel);
       this.live.delete(channel);
     }
@@ -258,23 +388,37 @@ export class SimWindow implements RealmWindow {
    * as useSyncCollection does. Mounted on the host only; `args` may return
    * "skip".
    */
-  async feed(key: string, query: any, args: () => Record<string, any> | "skip", opts: FeedOpts = {}): Promise<void> {
+  async feed(
+    key: string,
+    query: any,
+    args: () => Record<string, any> | "skip",
+    opts: FeedOpts = {},
+  ): Promise<void> {
     this.requireHost(`feed("${key}")`);
-    await this.run(() => this.mount(`feed-${key}`, query, args, (data) => applyCollectionFeed(key, data, opts.select, opts.syncOpts as any)));
+    await this.run(() =>
+      this.mount(`feed-${key}`, query, args, (data) =>
+        applyCollectionFeed(key, data, opts.select, opts.syncOpts as any),
+      ),
+    );
   }
 
   /** A chat channel's live page, ingested as useChannelMessagesSync does. */
   async chatPage(channelId: string): Promise<void> {
     this.requireHost(`chatPage("${channelId}")`);
     await this.run(() =>
-      this.mount(`chat-${channelId}`, api.chat.listMessages, () => ({ channel_id: channelId, limit: CHAT_PAGE_SIZE }), (data) => {
-        if (!data) return;
-        if (data.unavailable) {
-          useInboxStore.getState().retireChatChannel(channelId);
-          return;
-        }
-        ingestChatPage(data, this.client as any);
-      }),
+      this.mount(
+        `chat-${channelId}`,
+        api.chat.listMessages,
+        () => ({ channel_id: channelId, limit: CHAT_PAGE_SIZE }),
+        (data) => {
+          if (!data) return;
+          if (data.unavailable) {
+            useInboxStore.getState().retireChatChannel(channelId);
+            return;
+          }
+          ingestChatPage(data, this.client as any);
+        },
+      ),
     );
   }
 
@@ -291,14 +435,27 @@ export class SimWindow implements RealmWindow {
     let anchor = 0;
     let applied: string | null = null;
     await this.run(() =>
-      this.mount(feed, api.conversations.listMessagesTail, () => ({ conversation_id: conversationId, after_timestamp: anchor }), (res) => {
-        const sig = JSON.stringify(res ?? null);
-        if (!res || sig === applied) return;
-        applied = sig;
-        useInboxStore.getState().applyTailMessages(conversationId, anchor, res.messages ?? [], res.last_timestamp ?? null);
-        // A burst past the server cap: the next result continues where this one ended.
-        if (res.has_more && res.last_timestamp != null) anchor = res.last_timestamp - 1;
-      }),
+      this.mount(
+        feed,
+        api.conversations.listMessagesTail,
+        () => ({ conversation_id: conversationId, after_timestamp: anchor }),
+        (res) => {
+          const sig = JSON.stringify(res ?? null);
+          if (!res || sig === applied) return;
+          applied = sig;
+          useInboxStore
+            .getState()
+            .applyTailMessages(
+              conversationId,
+              anchor,
+              res.messages ?? [],
+              res.last_timestamp ?? null,
+            );
+          // A burst past the server cap: the next result continues where this one ended.
+          if (res.has_more && res.last_timestamp != null)
+            anchor = res.last_timestamp - 1;
+        },
+      ),
     );
     return `live:${this.name}:${feed}`;
   }
@@ -316,7 +473,11 @@ export class SimWindow implements RealmWindow {
       run: () =>
         this.run(() => {
           void reconcileStorePendingCoverage(
-            (conversation_id, command_ids) => this.client.query(api.messages.getMessageCoverageV2, { conversation_id, command_ids }),
+            (conversation_id, command_ids) =>
+              this.client.query(api.messages.getMessageCoverageV2, {
+                conversation_id,
+                command_ids,
+              }),
             () => !this.closed,
           ).catch((e) => this.report("coverage", e));
         }),
@@ -342,19 +503,39 @@ export class SimWindow implements RealmWindow {
    * A log-covered collection's one-shot bootstrap floor (useBootstrapCollection):
    * cut once its scopes are stamped, and recut when the floor epoch moves.
    */
-  async bootstrap(key: string, query: any, args: Record<string, any> | "skip", opts: FeedOpts = {}): Promise<void> {
+  async bootstrap(
+    key: string,
+    query: any,
+    args: Record<string, any> | "skip",
+    opts: FeedOpts = {},
+  ): Promise<void> {
     this.requireHost(`bootstrap("${key}")`);
-    this.bootstraps.set(key, () => bootstrapFloorFor(useInboxStore.getState(), this.client, key, query, args, opts));
+    this.bootstraps.set(key, () =>
+      bootstrapFloorFor(
+        useInboxStore.getState(),
+        this.client,
+        key,
+        query,
+        args,
+        opts,
+      ),
+    );
     await this.run(() => this.cutBootstraps());
   }
 
   private requireHost(what: string): void {
-    if (this.role !== "host") throw new Error(`sim window ${this.name}: ${what} needs a host window; followers mount no feeders`);
+    if (this.role !== "host")
+      throw new Error(
+        `sim window ${this.name}: ${what} needs a host window; followers mount no feeders`,
+      );
   }
 
   private afterCatchUp(): void {
     if (this.closed || this.role !== "host") return;
-    runInboxFloorStep(this.client, inboxFloorFlags(useInboxStore.getState(), this.user.userId));
+    runInboxFloorStep(
+      this.client,
+      inboxFloorFlags(useInboxStore.getState(), this.user.userId),
+    );
     this.cutBootstraps();
   }
 
@@ -362,7 +543,12 @@ export class SimWindow implements RealmWindow {
     for (const make of this.bootstraps.values()) {
       const run = make();
       if (!run) continue;
-      const key = bootstrapFloorKey(run.principal, run.epoch, run.key, run.args);
+      const key = bootstrapFloorKey(
+        run.principal,
+        run.epoch,
+        run.key,
+        run.args,
+      );
       if (this.bootstrapsCut.has(key)) continue;
       this.bootstrapsCut.add(key);
       startBootstrapFloor(run);
@@ -371,7 +557,12 @@ export class SimWindow implements RealmWindow {
 
   // A live query: its delivery recomputes the query at delivery time and
   // applies the answer inside this window's turn.
-  private mount(feed: string, query: any, args: () => Record<string, any> | "skip", apply: (data: any) => void): void {
+  private mount(
+    feed: string,
+    query: any,
+    args: () => Record<string, any> | "skip",
+    apply: (data: any) => void,
+  ): void {
     const channel = `live:${this.name}:${feed}`;
     const name = getFunctionName(query);
     const refresh = async () => {
@@ -382,12 +573,18 @@ export class SimWindow implements RealmWindow {
       try {
         data = await this.server.query(query, a);
       } catch (e: any) {
-        throw new Error(`sim window ${this.name}: live feed ${feed} (${name}) failed: ${e?.message ?? e}`);
+        throw new Error(
+          `sim window ${this.name}: live feed ${feed} (${name}) failed: ${e?.message ?? e}`,
+        );
       }
       await this.run(() => apply(data));
     };
     this.live.set(channel, refresh);
-    this.world.net.mountLive(channel, { run: refresh, label: `push ${name}`, producer: `${this.name} ${feed}` });
+    this.world.net.mountLive(channel, {
+      run: refresh,
+      label: `push ${name}`,
+      producer: `${this.name} ${feed}`,
+    });
     this.world.net.markDirty(channel);
   }
 
@@ -437,7 +634,11 @@ export class SimWindow implements RealmWindow {
                   await this.refeed();
                   if (this.dropResponses > 0) {
                     this.dropResponses--;
-                    reject(new Error(`sim net: the connection dropped before the response to ${name} arrived`));
+                    reject(
+                      new Error(
+                        `sim net: the connection dropped before the response to ${name} arrived`,
+                      ),
+                    );
                     return;
                   }
                 }
@@ -475,7 +676,9 @@ export class SimWindow implements RealmWindow {
   /** The registered collections this window feeds: live feeds (`feed`) and bootstrap floors (`bootstrap`). */
   get feeds(): ReadonlySet<string> {
     const prefix = `live:${this.name}:feed-`;
-    const live = [...this.live.keys()].filter((c) => c.startsWith(prefix)).map((c) => c.slice(prefix.length));
+    const live = [...this.live.keys()]
+      .filter((c) => c.startsWith(prefix))
+      .map((c) => c.slice(prefix.length));
     return new Set([...live, ...this.bootstraps.keys()]);
   }
 
@@ -490,13 +693,16 @@ export class SimWindow implements RealmWindow {
 
   /** The inbox as this window renders it, from the chokepoint every surface uses. */
   placed(scope: "mine" | "team" = "mine") {
-    return this.run(() => placeInboxRows(useInboxStore.getState() as any, { scope, now: now() }));
+    return this.run(() =>
+      placeInboxRows(useInboxStore.getState() as any, { scope, now: now() }),
+    );
   }
 
   /** One digest-compare tick against this window's state. */
   tick(): Promise<InboxCompareOutcome> {
     const comparer = this.comparer;
-    if (!comparer) throw new Error(`sim window ${this.name}: tick() before boot()`);
+    if (!comparer)
+      throw new Error(`sim window ${this.name}: tick() before boot()`);
     return this.run(() => comparer.tick(useInboxStore.getState() as any));
   }
 

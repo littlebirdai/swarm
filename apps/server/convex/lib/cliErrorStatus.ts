@@ -14,14 +14,20 @@ export const CLI_ERROR_STATUS: Record<string, number> = {
 };
 
 /** What a CLI route (http.ts cliRoute) answers for a throw: its status and JSON body. */
-export function cliErrorReply(error: unknown, path: string): { status: number; body: Record<string, unknown> } {
+export function cliErrorReply(
+  error: unknown,
+  path: string,
+): { status: number; body: Record<string, unknown> } {
   // A ConvexError carries structured data ({ code, message, retryable }), and
   // flattening it to a string is what makes a caller unable to tell "wait and
   // retry" from "this will never be accepted". Pass the data through, with a
   // status that says the same thing, so an outbox decides without parsing prose.
   const data = (error as any)?.data;
   if (data && typeof data === "object" && typeof data.code === "string") {
-    return { status: CLI_ERROR_STATUS[data.code] ?? 500, body: { ...data, error: data.message ?? data.code } };
+    return {
+      status: CLI_ERROR_STATUS[data.code] ?? 500,
+      body: { ...data, error: data.message ?? data.code },
+    };
   }
   const msg = error instanceof Error ? error.message : String(error);
   // A validator's refusal dumps every argument the call carried, the api token
@@ -36,8 +42,14 @@ export function cliErrorReply(error: unknown, path: string): { status: number; b
       : "";
     return {
       status: CLI_ERROR_STATUS.INVALID,
-      body: { code: "INVALID", error: `The server did not accept this request (${refused || "its arguments do not match"})${versions}` },
+      body: {
+        code: "INVALID",
+        error: `The server did not accept this request (${refused || "its arguments do not match"})${versions}`,
+      },
     };
   }
-  return { status: msg.includes("Unauthorized") ? 401 : 500, body: { error: msg } };
+  return {
+    status: msg.includes("Unauthorized") ? 401 : 500,
+    body: { error: msg },
+  };
 }

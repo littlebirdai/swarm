@@ -5,47 +5,109 @@
 // The sheet opens with the keyboard down so every choice is in view; agent,
 // machine, folder, model and the rest are pre-filled and only need a tap when
 // the default is wrong.
-import { StyleSheet, TouchableOpacity, View as RNView, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { TextInput, Text as RNText } from '@/components/Themed';
-import { Component, useEffect, useState, useRef, useMemo, type ReactNode } from 'react';
-import { router as appRouter, useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { useInboxStore, type BucketItem, sortLabels } from '@codecast/web/store/inboxStore';
 import {
-  AGENT_MODEL_CONFIG, AGENT_PICKER_OPTIONS, compareMachineChips, featuredModelOptions, fromConvexAgentType, isHostedAgentType, launchRailOptions, toConvexAgentType,
-  type AgentClientId, type DeviceModelInventory,
-} from '@codecast/shared/contracts';
-import { defaultMachineId, intendedMachineId, listedMachines, savedDefaultProject } from '@codecast/web/lib/machinePicker';
-import { ModelEffortSheet } from '@/components/ModelEffortSheet';
-import { OptionSheet } from '@/components/OptionSheet';
-import { appAlert, showActionSheet } from '@/lib/popups';
-import { SettingsSwitch } from '@/components/settings/SettingsUI';
-import { useAgentsByUse, useDefaultAgentType, useOnlyHostedAgent, usePinnedPickerOptions } from '@codecast/web/hooks/usePinnedAgents';
-import { startHostedConversation } from '@codecast/web/lib/startHostedConversation';
-import { AssistantStart } from '@/components/hosted/AssistantStart';
-import { RecentScreenshots } from '@/components/session/RecentScreenshots';
-import { checkoutMatches, displayPath, expandHome, newFolderPath } from '@/lib/folderSearch';
-import { MessageComposer, dispatchComposerSend, useComposerImages, IMAGE_ONLY_CONTENT } from '@/components/session/MessageComposer';
-import { useComposerField, nativeComposerText } from '@/lib/composerField';
-import { GestureHandlerRootView } from '@/lib/gestureHandler';
-import { useScopedRecentProjects } from '@codecast/web/hooks/useScopedRecentProjects';
-import { labelHexColor } from '@/lib/labelColors';
-import { type Device, deviceDisplayName } from '@/components/DevicesSection';
-import { AgentGlyph } from '@/components/AgentLogo';
-import { mobileCreateErrorMessage, mobileCreateFailureDisposition } from '@/lib/durableCreatePolicy';
-import { awaitSessionLanding, closeCompose, useCompose, type ComposeImage } from '@/lib/compose';
+  StyleSheet,
+  TouchableOpacity,
+  View as RNView,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { TextInput, Text as RNText } from "@/components/Themed";
+import {
+  Component,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  type ReactNode,
+} from "react";
+import { router as appRouter, useRouter } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  useInboxStore,
+  type BucketItem,
+  sortLabels,
+} from "@codecast/web/store/inboxStore";
+import {
+  AGENT_MODEL_CONFIG,
+  AGENT_PICKER_OPTIONS,
+  compareMachineChips,
+  featuredModelOptions,
+  fromConvexAgentType,
+  isHostedAgentType,
+  launchRailOptions,
+  toConvexAgentType,
+  type AgentClientId,
+  type DeviceModelInventory,
+} from "@codecast/shared/contracts";
+import {
+  defaultMachineId,
+  intendedMachineId,
+  listedMachines,
+  savedDefaultProject,
+} from "@codecast/web/lib/machinePicker";
+import { ModelEffortSheet } from "@/components/ModelEffortSheet";
+import { OptionSheet } from "@/components/OptionSheet";
+import { appAlert, showActionSheet } from "@/lib/popups";
+import { SettingsSwitch } from "@/components/settings/SettingsUI";
+import {
+  useAgentsByUse,
+  useDefaultAgentType,
+  useOnlyHostedAgent,
+  usePinnedPickerOptions,
+} from "@codecast/web/hooks/usePinnedAgents";
+import { startHostedConversation } from "@codecast/web/lib/startHostedConversation";
+import { AssistantStart } from "@/components/hosted/AssistantStart";
+import { RecentScreenshots } from "@/components/session/RecentScreenshots";
+import {
+  checkoutMatches,
+  displayPath,
+  expandHome,
+  newFolderPath,
+} from "@/lib/folderSearch";
+import {
+  MessageComposer,
+  dispatchComposerSend,
+  useComposerImages,
+  IMAGE_ONLY_CONTENT,
+} from "@/components/session/MessageComposer";
+import { useComposerField, nativeComposerText } from "@/lib/composerField";
+import { GestureHandlerRootView } from "@/lib/gestureHandler";
+import { useScopedRecentProjects } from "@codecast/web/hooks/useScopedRecentProjects";
+import { labelHexColor } from "@/lib/labelColors";
+import { type Device, deviceDisplayName } from "@/components/DevicesSection";
+import { AgentGlyph } from "@/components/AgentLogo";
+import {
+  mobileCreateErrorMessage,
+  mobileCreateFailureDisposition,
+} from "@/lib/durableCreatePolicy";
+import {
+  awaitSessionLanding,
+  closeCompose,
+  useCompose,
+  type ComposeImage,
+} from "@/lib/compose";
 
 // A sheet that throws closes itself rather than taking the app down with it
 // (it sits at the root); the next opening mounts a fresh one.
-class SheetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class SheetBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
   state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
   componentDidCatch(error: unknown) {
-    console.warn('[compose] new session sheet failed', error);
+    console.warn("[compose] new session sheet failed", error);
     closeCompose();
   }
-  render() { return this.state.failed ? null : this.props.children; }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
 /** Mounted once at the root: the sheet, and where a started session opens.
@@ -73,7 +135,9 @@ export function ComposeHost() {
           // reveal=1: no push animation (app/_layout). focus=1: an empty start
           // opens ready to type.
           awaitSessionLanding();
-          router.push(`/session/${conversationId}?reveal=1${focus ? '&focus=1' : ''}` as never);
+          router.push(
+            `/session/${conversationId}?reveal=1${focus ? "&focus=1" : ""}` as never,
+          );
         }}
       />
     </SheetBoundary>
@@ -100,7 +164,11 @@ const agentAccents: Record<AgentClientId, string> = {
 // wording, so the phone and desktop describe the injection identically. "auto"
 // stamps nothing — the machine's own `cast stable` setting decides.
 const STABLE_MODES = [
-  { key: "auto", label: "Auto", title: "Use this machine's default (cast stable)" },
+  {
+    key: "auto",
+    label: "Auto",
+    title: "Use this machine's default (cast stable)",
+  },
   { key: "team", label: "Team", title: "Team's recent sessions (14d)" },
   { key: "solo", label: "Solo", title: "Your recent sessions (7d)" },
   { key: "off", label: "Off", title: "Don't inject session history" },
@@ -116,31 +184,49 @@ type MachineDevice = Device & { model_inventory?: DeviceModelInventory };
 // durable and delivers on its own; anything else offers a retry under the same
 // session_id (idempotent server side). Left alone, the stub still self-heals on
 // its first send (awaitConvexId → ensureSessionCreated).
-function watchSessionCreate(stubId: string, ready: Promise<string>, create: (stubId: string) => Promise<string>) {
+function watchSessionCreate(
+  stubId: string,
+  ready: Promise<string>,
+  create: (stubId: string) => Promise<string>,
+) {
   ready.catch((error) => {
     const store = useInboxStore.getState();
-    if (store.getConvexId(stubId) || mobileCreateFailureDisposition(error) === "accepted-pending") return;
+    if (
+      store.getConvexId(stubId) ||
+      mobileCreateFailureDisposition(error) === "accepted-pending"
+    )
+      return;
     console.warn("[session] create refused", error);
-    appAlert("Session didn't start", "The server didn't confirm the new session. Retrying is safe.", [
-      { text: "Not now", style: "cancel" },
-      {
-        text: "Retry",
-        onPress: () => {
-          const retry = create(stubId).then((convexId) => {
-            if (convexId) store.resolveSessionId(stubId, convexId);
-            return convexId;
-          });
-          store.trackSessionCreate(stubId, retry);
-          watchSessionCreate(stubId, retry, create);
+    appAlert(
+      "Session didn't start",
+      "The server didn't confirm the new session. Retrying is safe.",
+      [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Retry",
+          onPress: () => {
+            const retry = create(stubId).then((convexId) => {
+              if (convexId) store.resolveSessionId(stubId, convexId);
+              return convexId;
+            });
+            store.trackSessionCreate(stubId, retry);
+            watchSessionCreate(stubId, retry, create);
+          },
         },
-      },
-    ]);
+      ],
+    );
   });
 }
 
 // One launch choice in the sheet's settings card: label left, the current
 // value right, tapping opens its picker.
-function SettingRow({ label, value, dot, onPress, code }: {
+function SettingRow({
+  label,
+  value,
+  dot,
+  onPress,
+  code,
+}: {
   label: string;
   value: string;
   code?: boolean;
@@ -149,18 +235,44 @@ function SettingRow({ label, value, dot, onPress, code }: {
 }) {
   const Theme = useTheme();
   return (
-    <TouchableOpacity style={modalStyles.settingRow} onPress={onPress} activeOpacity={0.6}>
+    <TouchableOpacity
+      style={modalStyles.settingRow}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
       <RNText style={modalStyles.settingLabel}>{label}</RNText>
       <RNView style={modalStyles.settingValueWrap}>
-        {dot ? <RNView style={[modalStyles.machineDot, { backgroundColor: dot }]} /> : null}
-        <RNText style={[modalStyles.settingValue, code && { fontFamily: 'JetBrainsMono-Regular' }]} numberOfLines={1}>{value}</RNText>
+        {dot ? (
+          <RNView style={[modalStyles.machineDot, { backgroundColor: dot }]} />
+        ) : null}
+        <RNText
+          style={[
+            modalStyles.settingValue,
+            code && { fontFamily: "JetBrainsMono-Regular" },
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </RNText>
       </RNView>
       <FontAwesome name="angle-right" size={16} color={Theme.textMuted0} />
     </TouchableOpacity>
   );
 }
 
-function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreated }: { visible: boolean; seed?: string | null; sharedImages: ComposeImage[]; onClose: () => void; onSessionCreated: (conversationId: string, focus: boolean) => void }) {
+function NewSessionSheet({
+  visible,
+  seed,
+  sharedImages,
+  onClose,
+  onSessionCreated,
+}: {
+  visible: boolean;
+  seed?: string | null;
+  sharedImages: ComposeImage[];
+  onClose: () => void;
+  onSessionCreated: (conversationId: string, focus: boolean) => void;
+}) {
   const Theme = useTheme();
   // The agent is the viewer's default (lib/defaultAgent: the hosted assistant
   // with no machine) until they pick one here. Where only
@@ -168,13 +280,18 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const defaultAgent = fromConvexAgentType(useDefaultAgentType());
   const onlyHosted = useOnlyHostedAgent();
   const [agentPick, setAgentId] = useState<AgentClientId | null>(null);
-  const agentId: AgentClientId = onlyHosted ? defaultAgent : agentPick ?? defaultAgent;
+  const agentId: AgentClientId = onlyHosted
+    ? defaultAgent
+    : (agentPick ?? defaultAgent);
   const hosted = isHostedAgentType(agentId);
   // The pinned agents, and always the hosted assistant: the phone has no
   // palette to reach it from, and it is the one agent that needs no machine.
   const pinnedOptions = usePinnedPickerOptions(agentId);
   const pickerOptions = useMemo(
-    () => (pinnedOptions.some((o) => o.hosted) ? pinnedOptions : [...pinnedOptions, ...AGENT_PICKER_OPTIONS.filter((o) => o.hosted)]),
+    () =>
+      pinnedOptions.some((o) => o.hosted)
+        ? pinnedOptions
+        : [...pinnedOptions, ...AGENT_PICKER_OPTIONS.filter((o) => o.hosted)],
     [pinnedOptions],
   );
   // One row, the agents the viewer runs most first, so the usual pick is in
@@ -193,14 +310,19 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   // Tri-state label pick: undefined = untouched (inherit the focused chip's
   // bucket, which beginOptimisticSession stamps on its own); null = explicitly
   // "no label" (defeats the inheritance); string = an explicit bucket.
-  const [bucketPick, setBucketPick] = useState<string | null | undefined>(undefined);
+  const [bucketPick, setBucketPick] = useState<string | null | undefined>(
+    undefined,
+  );
   const buckets = useInboxStore((s) => s.buckets);
   const activeBucketFilter = useInboxStore((s) => s.activeBucketFilter);
-  const effectiveBucketId = bucketPick === undefined ? (activeBucketFilter ?? null) : bucketPick;
+  const effectiveBucketId =
+    bucketPick === undefined ? (activeBucketFilter ?? null) : bucketPick;
   const [modelSheetVisible, setModelSheetVisible] = useState(false);
   // Every pre-filled choice is one row that opens its own picker sheet, so the
   // common launch (agent + go) fits on one screen.
-  const [openSheet, setOpenSheet] = useState<"machine" | "context" | null>(null);
+  const [openSheet, setOpenSheet] = useState<"machine" | "context" | null>(
+    null,
+  );
   // The folder search: filters the chip row as it is typed, and a path that
   // names no listed folder is offered as a chip of its own.
   const [folderQuery, setFolderQuery] = useState("");
@@ -210,11 +332,13 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const agentRowRef = useRef<ScrollView>(null);
   // The first message. The sheet remounts on every opening (ComposeHost), so
   // the seed is the box's starting text.
-  const field = useComposerField(seed ?? '');
+  const field = useComposerField(seed ?? "");
   const images = useComposerImages(field.setValue);
   // Images the opening came with (shared to the app) start attached; the
   // sheet remounts on every opening, so this runs once for each.
-  useEffect(() => { if (sharedImages.length) images.attachImages(sharedImages); }, []);
+  useEffect(() => {
+    if (sharedImages.length) images.attachImages(sharedImages);
+  }, []);
   // Machine picker. `deviceId` holds an EXPLICIT pick only: left null, routing
   // picks the machine (deviceRouting) and the folder list stays the union across
   // online devices — the behaviour before this row existed.
@@ -223,7 +347,10 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const rawDevices = useInboxStore((s) => s.machineRoster) as MachineDevice[];
   // listDevices is last_seen-sorted; chips hold still instead. Dead machines
   // stay out of the list (listedMachines) unless one is the explicit pick.
-  const devices = useMemo(() => listedMachines(rawDevices, deviceId).sort(compareMachineChips), [rawDevices, deviceId]);
+  const devices = useMemo(
+    () => listedMachines(rawDevices, deviceId).sort(compareMachineChips),
+    [rawDevices, deviceId],
+  );
   // What auto-routing would choose, so the highlighted chip matches where the
   // session actually lands. One ladder with the web picker (machinePicker), fed
   // the folder being typed so a machine holding that checkout wins — the same
@@ -234,26 +361,49 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   // The person's saved defaults and last hand pick (account-wide, Settings >
   // New sessions) decide before any heuristic; one that cannot serve falls through.
   const ui = {
-    defaultDevice: useInboxStore((s) => s.clientState.ui?.default_device ?? null),
-    lastPicked: useInboxStore((s) => s.clientState.ui?.last_picked_device_id ?? null),
-    defaultProject: useInboxStore((s) => s.clientState.ui?.default_project ?? null),
+    defaultDevice: useInboxStore(
+      (s) => s.clientState.ui?.default_device ?? null,
+    ),
+    lastPicked: useInboxStore(
+      (s) => s.clientState.ui?.last_picked_device_id ?? null,
+    ),
+    defaultProject: useInboxStore(
+      (s) => s.clientState.ui?.default_project ?? null,
+    ),
   };
-  const savedProject = savedDefaultProject({ default_project: ui.defaultProject }, rawDevices);
+  const savedProject = savedDefaultProject(
+    { default_project: ui.defaultProject },
+    rawDevices,
+  );
   // The machine intent names, judged against the folder the person chose or
   // saved (not the recents list, which is itself scoped to this machine).
-  const intendedDeviceId = deviceId ? null : intendedMachineId(rawDevices, {
-    projectPath: (pathPick ?? savedProject ?? "").trim() || null,
-    defaultDevice: ui.defaultDevice,
-    lastPicked: ui.lastPicked,
-  });
+  const intendedDeviceId = deviceId
+    ? null
+    : intendedMachineId(rawDevices, {
+        projectPath: (pathPick ?? savedProject ?? "").trim() || null,
+        defaultDevice: ui.defaultDevice,
+        lastPicked: ui.lastPicked,
+      });
   const scopedDeviceId = deviceId ?? intendedDeviceId;
-  const pickedDevice = useMemo(() => (scopedDeviceId ? devices.find((d) => d.device_id === scopedDeviceId) ?? null : null), [devices, scopedDeviceId]);
-  const recentProjects = useScopedRecentProjects({ scopedDeviceId, routedDevice: pickedDevice, active: visible });
-  const projectPath = pathPick ?? savedProject ?? recentProjects[0]?.path ?? "";
-  const defaultDeviceId = intendedDeviceId ?? defaultMachineId(rawDevices, {
-    ownerDeviceId: null,
-    projectPath: projectPath.trim() || null,
+  const pickedDevice = useMemo(
+    () =>
+      scopedDeviceId
+        ? (devices.find((d) => d.device_id === scopedDeviceId) ?? null)
+        : null,
+    [devices, scopedDeviceId],
+  );
+  const recentProjects = useScopedRecentProjects({
+    scopedDeviceId,
+    routedDevice: pickedDevice,
+    active: visible,
   });
+  const projectPath = pathPick ?? savedProject ?? recentProjects[0]?.path ?? "";
+  const defaultDeviceId =
+    intendedDeviceId ??
+    defaultMachineId(rawDevices, {
+      ownerDeviceId: null,
+      projectPath: projectPath.trim() || null,
+    });
   const selectedDeviceId = deviceId ?? defaultDeviceId;
 
   // Deliver every launch choice to the session the sheet creates. They must ride
@@ -271,7 +421,10 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const launchStampsForCreate = () => ({
     // A machine the person's default or last pick names is intent, so it is
     // stamped like a pick; a heuristic default is left to routing.
-    target_device_id: (deviceId && deviceId !== defaultDeviceId ? deviceId : intendedDeviceId) ?? undefined,
+    target_device_id:
+      (deviceId && deviceId !== defaultDeviceId
+        ? deviceId
+        : intendedDeviceId) ?? undefined,
     model: model !== "default" ? model : undefined,
     effort: effort !== "default" ? effort : undefined,
     stable_mode: stableMode !== "auto" ? stableMode : undefined,
@@ -339,7 +492,10 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   // (sendMessageWhenReady), as a message typed into the stub's own composer
   // would be.
   const handleSubmit = () => {
-    const text = nativeComposerText(field.inputRef.current as { _lastNativeText?: unknown } | null, field.value).trim();
+    const text = nativeComposerText(
+      field.inputRef.current as { _lastNativeText?: unknown } | null,
+      field.value,
+    ).trim();
     const firstImages = images.optimisticImages();
     setSubmitError(null);
     const store = useInboxStore.getState();
@@ -373,7 +529,13 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
       return;
     }
     const empty = !text && firstImages.length === 0;
-    if (!empty) dispatchComposerSend(stubId, text || IMAGE_ONLY_CONTENT, firstImages, text);
+    if (!empty)
+      dispatchComposerSend(
+        stubId,
+        text || IMAGE_ONLY_CONTENT,
+        firstImages,
+        text,
+      );
     finishSessionCreate(stubId, empty);
   };
 
@@ -385,9 +547,10 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   // heartbeats (DeviceModelInventory), keyed by client id inside `clients` —
   // never a flat id list. The literal narrowing matches the keys the contract
   // declares; a future dynamic client extends both together.
-  const inventoryIds = agentId === "opencode" || agentId === "pi"
-    ? selectedDevice?.model_inventory?.clients?.[agentId]
-    : undefined;
+  const inventoryIds =
+    agentId === "opencode" || agentId === "pi"
+      ? selectedDevice?.model_inventory?.clients?.[agentId]
+      : undefined;
   const rail = useMemo(() => {
     if (!modelCfg) return null;
     const base = launchRailOptions(modelCfg);
@@ -404,7 +567,8 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
       efforts: base.efforts,
     };
   }, [modelCfg, inventoryIds]);
-  const modelLabel = rail?.models.find((m) => m.key === model)?.label ?? "Default";
+  const modelLabel =
+    rail?.models.find((m) => m.key === model)?.label ?? "Default";
 
   // Pre-create filing. The pill shows where the session will actually land —
   // the explicit pick when there is one, else the focused chip's bucket the
@@ -414,10 +578,15 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const chosenLabel = effectiveBucketId ? buckets[effectiveBucketId] : null;
   const openBucketPicker = () => {
     const clear = () => setBucketPick(null);
-    const pick = (b: BucketItem) => setBucketPick(b._id === effectiveBucketId ? null : b._id);
-    showActionSheet('Label', [
-      ...labels.map((b) => ({ label: b.name, selected: b._id === effectiveBucketId, onPress: () => pick(b) })),
-      { label: 'No label', selected: !effectiveBucketId, onPress: clear },
+    const pick = (b: BucketItem) =>
+      setBucketPick(b._id === effectiveBucketId ? null : b._id);
+    showActionSheet("Label", [
+      ...labels.map((b) => ({
+        label: b.name,
+        selected: b._id === effectiveBucketId,
+        onPress: () => pick(b),
+      })),
+      { label: "No label", selected: !effectiveBucketId, onPress: clear },
     ]);
   };
 
@@ -430,33 +599,75 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   const folderName = (p: string) => p.replace(/\/+$/, "").split("/").pop() || p;
   const query = folderQuery.trim().toLowerCase();
   const machineRoots = useMemo(
-    () => devices.find((d) => d.device_id === selectedDeviceId)?.local_project_roots ?? [],
+    () =>
+      devices.find((d) => d.device_id === selectedDeviceId)
+        ?.local_project_roots ?? [],
     [devices, selectedDeviceId],
   );
   const folderChips = useMemo(() => {
-    type Chip = { path: string; label: string; custom?: boolean; dim?: boolean };
+    type Chip = {
+      path: string;
+      label: string;
+      custom?: boolean;
+      dim?: boolean;
+    };
     const typedPath = folderQuery.trim();
     if (query) {
       const recentPaths = recentProjects.map((p) => p.path);
       const chips: Chip[] = recentProjects
-        .filter((p) => p.path.toLowerCase().includes(query) || displayPath(p.path).toLowerCase().includes(query))
-        .sort((x, y) => Number(!folderName(x.path).toLowerCase().startsWith(query)) - Number(!folderName(y.path).toLowerCase().startsWith(query)))
-        .map((p) => ({ path: p.path, label: folderName(p.path), dim: p.suggested }));
-      for (const root of checkoutMatches(machineRoots, query, new Set(recentPaths))) chips.push({ path: root, label: folderName(root) });
+        .filter(
+          (p) =>
+            p.path.toLowerCase().includes(query) ||
+            displayPath(p.path).toLowerCase().includes(query),
+        )
+        .sort(
+          (x, y) =>
+            Number(!folderName(x.path).toLowerCase().startsWith(query)) -
+            Number(!folderName(y.path).toLowerCase().startsWith(query)),
+        )
+        .map((p) => ({
+          path: p.path,
+          label: folderName(p.path),
+          dim: p.suggested,
+        }));
+      for (const root of checkoutMatches(
+        machineRoots,
+        query,
+        new Set(recentPaths),
+      ))
+        chips.push({ path: root, label: folderName(root) });
       if (/^[~/]/.test(typedPath)) {
         const full = expandHome(typedPath, [...machineRoots, ...recentPaths]);
-        if (!chips.some((c) => c.path === full)) chips.unshift({ path: full, label: `open ${displayPath(full)}`, custom: true });
-      } else if (!chips.some((c) => folderName(c.path).toLowerCase() === query)) {
+        if (!chips.some((c) => c.path === full))
+          chips.unshift({
+            path: full,
+            label: `open ${displayPath(full)}`,
+            custom: true,
+          });
+      } else if (
+        !chips.some((c) => folderName(c.path).toLowerCase() === query)
+      ) {
         const created = newFolderPath(typedPath, machineRoots, recentPaths);
-        if (created) chips.push({ path: created, label: `create ${displayPath(created)}`, custom: true });
+        if (created)
+          chips.push({
+            path: created,
+            label: `create ${displayPath(created)}`,
+            custom: true,
+          });
       }
       return chips;
     }
     const current = projectPath.trim();
     const rest: Chip[] = recentProjects
       .filter((p) => p.path !== current)
-      .map((p) => ({ path: p.path, label: folderName(p.path), dim: p.suggested }));
-    return current ? [{ path: current, label: folderName(current) }, ...rest] : rest;
+      .map((p) => ({
+        path: p.path,
+        label: folderName(p.path),
+        dim: p.suggested,
+      }));
+    return current
+      ? [{ path: current, label: folderName(current) }, ...rest]
+      : rest;
   }, [recentProjects, machineRoots, query, folderQuery, projectPath]);
   const pickFolder = (path: string) => {
     setProjectPath(path);
@@ -466,7 +677,8 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
     folderRowRef.current?.scrollTo({ x: 0, animated: false });
   };
 
-  const stableModeItem = STABLE_MODES.find((m) => m.key === stableMode) ?? STABLE_MODES[0];
+  const stableModeItem =
+    STABLE_MODES.find((m) => m.key === stableMode) ?? STABLE_MODES[0];
 
   const agentChipsEl = (
     <ScrollView
@@ -485,8 +697,20 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
             key={a.id}
             // A less used pick can sit past the edge: its first layout
             // scrolls the row to it.
-            onLayout={(e) => { if (active) agentRowRef.current?.scrollTo({ x: Math.max(0, e.nativeEvent.layout.x - Spacing.lg), animated: false }); }}
-            style={[modalStyles.agentChip, active && { borderColor: accent + "90", backgroundColor: accent + "1c" }]}
+            onLayout={(e) => {
+              if (active)
+                agentRowRef.current?.scrollTo({
+                  x: Math.max(0, e.nativeEvent.layout.x - Spacing.lg),
+                  animated: false,
+                });
+            }}
+            style={[
+              modalStyles.agentChip,
+              active && {
+                borderColor: accent + "90",
+                backgroundColor: accent + "1c",
+              },
+            ]}
             onPress={() => {
               setSubmitError(null);
               // Re-tapping the active agent must not wipe a model/effort
@@ -494,14 +718,22 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
               // rails differ per client, so a pick can't carry over).
               if (a.id === agentId) return;
               setAgentId(a.id);
-              useInboxStore.getState().updateClientUI({ last_picked_agent: toConvexAgentType(a.id) });
+              useInboxStore
+                .getState()
+                .updateClientUI({ last_picked_agent: toConvexAgentType(a.id) });
               setModel("default");
               setEffort("default");
             }}
             activeOpacity={0.7}
           >
             <AgentGlyph agentType={a.id} size={16} />
-            <RNText style={[modalStyles.agentChipText, active && { color: accent, fontWeight: "700" }]} numberOfLines={1}>
+            <RNText
+              style={[
+                modalStyles.agentChipText,
+                active && { color: accent, fontWeight: "700" },
+              ]}
+              numberOfLines={1}
+            >
               {a.label}
             </RNText>
           </TouchableOpacity>
@@ -511,322 +743,469 @@ function NewSessionSheet({ visible, seed, sharedImages, onClose, onSessionCreate
   );
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       {/* An Android Modal renders outside the app's root view, so the
           composer's gesture-handler send button needs a root of its own. */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardAvoidingView style={modalStyles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {/* The sheet closes by swiping down. */}
-        <RNView style={modalStyles.grabber} />
+        <KeyboardAvoidingView
+          style={modalStyles.container}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {/* The sheet closes by swiping down. */}
+          <RNView style={modalStyles.grabber} />
 
-        <ScrollView style={modalStyles.body} contentContainerStyle={modalStyles.bodyContent} keyboardShouldPersistTaps="handled">
-          {/* The hosted assistant needs no machine, folder, model or context:
+          <ScrollView
+            style={modalStyles.body}
+            contentContainerStyle={modalStyles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* The hosted assistant needs no machine, folder, model or context:
               its sheet is the first ask. */}
-          {hosted ? (
-            <RNView style={{ marginTop: onlyHosted ? Spacing.sm : Spacing.lg }}>
-              {onlyHosted ? null : agentChipsEl}
-              <AssistantStart
-                key={seed ?? ''}
-                seed={seed}
-                onStart={startHosted}
-                // The sheet is a native modal: close it first, so the Plan
-                // page opens in front rather than under it.
-                onOpenPlan={() => { onClose(); appRouter.push('/settings/plan' as never); }}
-              />
-            </RNView>
-          ) : (<>
-          <RNView style={modalStyles.prompt}>
-            {/* Starting an agent session needs no words, so send is always live. */}
-            <MessageComposer
-              field={field}
-              images={images}
-              placeholder={`Ask ${agentOptions.find((a) => a.id === agentId)?.label ?? 'the agent'}`}
-              canSend
-              onSend={handleSubmit}
-              cardStyle={modalStyles.promptCard}
-              inputStyle={modalStyles.promptInput}
-            />
-            <RecentScreenshots
-              attachedUris={images.selectedImages.map((img) => img.uri)}
-              onAttach={(shot) => images.attachImages([shot])}
-            />
-          </RNView>
-          {/* The viewer's pinned agents (users.pinned_agents, registry order)
+            {hosted ? (
+              <RNView
+                style={{ marginTop: onlyHosted ? Spacing.sm : Spacing.lg }}
+              >
+                {onlyHosted ? null : agentChipsEl}
+                <AssistantStart
+                  key={seed ?? ""}
+                  seed={seed}
+                  onStart={startHosted}
+                  // The sheet is a native modal: close it first, so the Plan
+                  // page opens in front rather than under it.
+                  onOpenPlan={() => {
+                    onClose();
+                    appRouter.push("/settings/plan" as never);
+                  }}
+                />
+              </RNView>
+            ) : (
+              <>
+                <RNView style={modalStyles.prompt}>
+                  {/* Starting an agent session needs no words, so send is always live. */}
+                  <MessageComposer
+                    field={field}
+                    images={images}
+                    placeholder={`Ask ${agentOptions.find((a) => a.id === agentId)?.label ?? "the agent"}`}
+                    canSend
+                    onSend={handleSubmit}
+                    cardStyle={modalStyles.promptCard}
+                    inputStyle={modalStyles.promptInput}
+                  />
+                  <RecentScreenshots
+                    attachedUris={images.selectedImages.map((img) => img.uri)}
+                    onAttach={(shot) => images.attachImages([shot])}
+                  />
+                </RNView>
+                {/* The viewer's pinned agents (users.pinned_agents, registry order)
               with the hosted assistant among them, wrapped so every one is in
               view. It stays when the assistant is picked, so the pick can be
               undone. */}
-          {onlyHosted ? null : agentChipsEl}
-          {folderSearching ? (
-            <RNView style={modalStyles.folderSearch}>
-              <FontAwesome name="search" size={13} color={Theme.textMuted0} />
-              <TextInput
-                style={modalStyles.folderInput}
-                value={folderQuery}
-                onChangeText={setFolderQuery}
-                placeholder="Search folders or paste a path"
-                placeholderTextColor={Theme.textMuted0}
-                autoFocus
-                autoCorrect={false}
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={() => { if (folderChips[0]) pickFolder(folderChips[0].path); }}
-              />
-              <TouchableOpacity
-                onPress={() => { setFolderQuery(""); setFolderSearching(false); }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel="Close folder search"
-              >
-                <FontAwesome name="times-circle" size={15} color={Theme.textMuted0} />
-              </TouchableOpacity>
-            </RNView>
-          ) : null}
-          {folderChips.length > 0 || !folderSearching ? (
-            <ScrollView
-              ref={folderRowRef}
-              horizontal
-              style={modalStyles.chipScroller}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={modalStyles.chipRow}
-              keyboardShouldPersistTaps="handled"
-            >
-              {folderSearching ? null : (
-                <TouchableOpacity
-                  style={modalStyles.folderChip}
-                  onPress={() => setFolderSearching(true)}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Search folders or paste a path"
-                >
-                  <FontAwesome name="search" size={12} color={Theme.textMuted0} />
-                </TouchableOpacity>
-              )}
-              {folderChips.map((c) => {
-                const active = !c.custom && c.path === projectPath;
-                return (
-                  <TouchableOpacity
-                    key={c.path}
-                    style={[
-                      modalStyles.folderChip,
-                      c.custom && modalStyles.folderChipCustom,
-                      c.dim && !active && modalStyles.dim,
-                      active && modalStyles.folderChipActive,
-                    ]}
-                    onPress={() => pickFolder(c.path)}
-                    activeOpacity={0.7}
+                {onlyHosted ? null : agentChipsEl}
+                {folderSearching ? (
+                  <RNView style={modalStyles.folderSearch}>
+                    <FontAwesome
+                      name="search"
+                      size={13}
+                      color={Theme.textMuted0}
+                    />
+                    <TextInput
+                      style={modalStyles.folderInput}
+                      value={folderQuery}
+                      onChangeText={setFolderQuery}
+                      placeholder="Search folders or paste a path"
+                      placeholderTextColor={Theme.textMuted0}
+                      autoFocus
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                      onSubmitEditing={() => {
+                        if (folderChips[0]) pickFolder(folderChips[0].path);
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setFolderQuery("");
+                        setFolderSearching(false);
+                      }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityLabel="Close folder search"
+                    >
+                      <FontAwesome
+                        name="times-circle"
+                        size={15}
+                        color={Theme.textMuted0}
+                      />
+                    </TouchableOpacity>
+                  </RNView>
+                ) : null}
+                {folderChips.length > 0 || !folderSearching ? (
+                  <ScrollView
+                    ref={folderRowRef}
+                    horizontal
+                    style={modalStyles.chipScroller}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={modalStyles.chipRow}
+                    keyboardShouldPersistTaps="handled"
                   >
-                    <FontAwesome name={c.custom ? "folder-open-o" : "folder-o"} size={12} color={active || c.custom ? Theme.cyan : Theme.textMuted0} />
-                    <RNText style={[modalStyles.folderChipText, (active || c.custom) && { color: Theme.cyan }, active && { fontWeight: "700" }]} numberOfLines={1}>
-                      {c.label}
-                    </RNText>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          ) : (
-            <RNText style={modalStyles.hintText}>
-              {query ? `No folders match "${folderQuery.trim()}"` : "No recent folders. Paste a path to start in one."}
-            </RNText>
-          )}
+                    {folderSearching ? null : (
+                      <TouchableOpacity
+                        style={modalStyles.folderChip}
+                        onPress={() => setFolderSearching(true)}
+                        activeOpacity={0.7}
+                        accessibilityLabel="Search folders or paste a path"
+                      >
+                        <FontAwesome
+                          name="search"
+                          size={12}
+                          color={Theme.textMuted0}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    {folderChips.map((c) => {
+                      const active = !c.custom && c.path === projectPath;
+                      return (
+                        <TouchableOpacity
+                          key={c.path}
+                          style={[
+                            modalStyles.folderChip,
+                            c.custom && modalStyles.folderChipCustom,
+                            c.dim && !active && modalStyles.dim,
+                            active && modalStyles.folderChipActive,
+                          ]}
+                          onPress={() => pickFolder(c.path)}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome
+                            name={c.custom ? "folder-open-o" : "folder-o"}
+                            size={12}
+                            color={
+                              active || c.custom ? Theme.cyan : Theme.textMuted0
+                            }
+                          />
+                          <RNText
+                            style={[
+                              modalStyles.folderChipText,
+                              (active || c.custom) && { color: Theme.cyan },
+                              active && { fontWeight: "700" },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {c.label}
+                          </RNText>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                ) : (
+                  <RNText style={modalStyles.hintText}>
+                    {query
+                      ? `No folders match "${folderQuery.trim()}"`
+                      : "No recent folders. Paste a path to start in one."}
+                  </RNText>
+                )}
 
-          {/* The rest folds into one card: a row per choice, each opening its
+                {/* The rest folds into one card: a row per choice, each opening its
               own picker. The machine row shows even with one machine, so where
               the session runs is always in view. */}
-          <RNView style={modalStyles.card}>
-            {devices.length > 0 && (
-              <SettingRow
-                label="Machine"
-                value={selectedDevice ? deviceDisplayName(selectedDevice) : "Auto"}
-                dot={selectedDevice ? (selectedDevice.online ? Theme.green : Theme.textMuted0) : undefined}
-                onPress={() => setOpenSheet("machine")} code={!!selectedDevice}
-              />
-            )}
-            {rail && (
-              <SettingRow
-                label="Model"
-                value={effort === "default" ? modelLabel : `${modelLabel} · ${effort}`}
-                onPress={() => setModelSheetVisible(true)}
-              />
-            )}
-            <SettingRow label="Context" value={stableModeItem.label} onPress={() => setOpenSheet("context")} />
-            <RNView style={[modalStyles.settingRow, modalStyles.settingRowLast]}>
-              <RNText style={modalStyles.settingLabel}>Isolated worktree</RNText>
-              <RNView style={modalStyles.switchSlot}>
-                <SettingsSwitch value={isolated} onValueChange={setIsolated} />
-              </RNView>
-            </RNView>
-          </RNView>
-          </>)}
-
-          {labels.length > 0 && (
-            <RNView style={modalStyles.labelPillRow}>
-              <TouchableOpacity
-                style={[modalStyles.labelPill, !chosenLabel && modalStyles.labelPillEmpty]}
-                onPress={openBucketPicker}
-                activeOpacity={0.7}
-              >
-                {chosenLabel ? (
-                  <>
-                    <RNView style={[modalStyles.labelPillDot, { backgroundColor: labelHexColor(chosenLabel.name) }]} />
-                    <RNText style={[modalStyles.labelPillText, { color: labelHexColor(chosenLabel.name) }]} numberOfLines={1}>
-                      {chosenLabel.name}
+                <RNView style={modalStyles.card}>
+                  {devices.length > 0 && (
+                    <SettingRow
+                      label="Machine"
+                      value={
+                        selectedDevice
+                          ? deviceDisplayName(selectedDevice)
+                          : "Auto"
+                      }
+                      dot={
+                        selectedDevice
+                          ? selectedDevice.online
+                            ? Theme.green
+                            : Theme.textMuted0
+                          : undefined
+                      }
+                      onPress={() => setOpenSheet("machine")}
+                      code={!!selectedDevice}
+                    />
+                  )}
+                  {rail && (
+                    <SettingRow
+                      label="Model"
+                      value={
+                        effort === "default"
+                          ? modelLabel
+                          : `${modelLabel} · ${effort}`
+                      }
+                      onPress={() => setModelSheetVisible(true)}
+                    />
+                  )}
+                  <SettingRow
+                    label="Context"
+                    value={stableModeItem.label}
+                    onPress={() => setOpenSheet("context")}
+                  />
+                  <RNView
+                    style={[modalStyles.settingRow, modalStyles.settingRowLast]}
+                  >
+                    <RNText style={modalStyles.settingLabel}>
+                      Isolated worktree
                     </RNText>
-                  </>
-                ) : (
-                  <RNText style={modalStyles.labelPillText}>{hosted ? 'Add a label' : '+ label'}</RNText>
-                )}
-              </TouchableOpacity>
-            </RNView>
+                    <RNView style={modalStyles.switchSlot}>
+                      <SettingsSwitch
+                        value={isolated}
+                        onValueChange={setIsolated}
+                      />
+                    </RNView>
+                  </RNView>
+                </RNView>
+              </>
+            )}
+
+            {labels.length > 0 && (
+              <RNView style={modalStyles.labelPillRow}>
+                <TouchableOpacity
+                  style={[
+                    modalStyles.labelPill,
+                    !chosenLabel && modalStyles.labelPillEmpty,
+                  ]}
+                  onPress={openBucketPicker}
+                  activeOpacity={0.7}
+                >
+                  {chosenLabel ? (
+                    <>
+                      <RNView
+                        style={[
+                          modalStyles.labelPillDot,
+                          { backgroundColor: labelHexColor(chosenLabel.name) },
+                        ]}
+                      />
+                      <RNText
+                        style={[
+                          modalStyles.labelPillText,
+                          { color: labelHexColor(chosenLabel.name) },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {chosenLabel.name}
+                      </RNText>
+                    </>
+                  ) : (
+                    <RNText style={modalStyles.labelPillText}>
+                      {hosted ? "Add a label" : "+ label"}
+                    </RNText>
+                  )}
+                </TouchableOpacity>
+              </RNView>
+            )}
+
+            {submitError ? (
+              <RNText style={modalStyles.errorText}>{submitError}</RNText>
+            ) : null}
+          </ScrollView>
+
+          {rail && (
+            <ModelEffortSheet
+              visible={modelSheetVisible}
+              onClose={() => setModelSheetVisible(false)}
+              models={rail.models}
+              efforts={rail.efforts}
+              modelKey={model}
+              effortKey={effort === "default" ? null : effort}
+              onSelect={(sel) => {
+                if (sel.model !== undefined) setModel(sel.model);
+                if (sel.effort !== undefined) setEffort(sel.effort);
+              }}
+            />
           )}
-
-          {submitError ? (
-            <RNText style={modalStyles.errorText}>{submitError}</RNText>
-          ) : null}
-        </ScrollView>
-
-        {rail && (
-          <ModelEffortSheet
-            visible={modelSheetVisible}
-            onClose={() => setModelSheetVisible(false)}
-            models={rail.models}
-            efforts={rail.efforts}
-            modelKey={model}
-            effortKey={effort === "default" ? null : effort}
-            onSelect={(sel) => {
-              if (sel.model !== undefined) setModel(sel.model);
-              if (sel.effort !== undefined) setEffort(sel.effort);
+          <OptionSheet
+            visible={openSheet === "machine"}
+            onClose={() => setOpenSheet(null)}
+            title="Machine"
+            options={devices.map((d) => ({
+              key: d.device_id,
+              label: deviceDisplayName(d),
+              hint: d.online ? undefined : "Offline",
+              dim: !d.online,
+              leading: (
+                <RNView
+                  style={[
+                    modalStyles.machineDot,
+                    {
+                      backgroundColor: d.online
+                        ? Theme.green
+                        : Theme.textMuted0,
+                    },
+                  ]}
+                />
+              ),
+            }))}
+            selectedKey={selectedDeviceId ?? null}
+            onSelect={(id) => {
+              // Scoping the folder list to another machine can drop the current
+              // path (it may have no such checkout), so clear it and let the
+              // field fall back to the new list's top folder.
+              setDeviceId(id === defaultDeviceId ? null : id);
+              // "Last used" for the next new session, on every device.
+              useInboxStore
+                .getState()
+                .updateClientUI({ last_picked_device_id: id });
+              setProjectPath(null);
+              setSubmitError(null);
             }}
           />
-        )}
-        <OptionSheet
-          visible={openSheet === "machine"}
-          onClose={() => setOpenSheet(null)}
-          title="Machine"
-          options={devices.map((d) => ({
-            key: d.device_id,
-            label: deviceDisplayName(d),
-            hint: d.online ? undefined : "Offline",
-            dim: !d.online,
-            leading: <RNView style={[modalStyles.machineDot, { backgroundColor: d.online ? Theme.green : Theme.textMuted0 }]} />,
-          }))}
-          selectedKey={selectedDeviceId ?? null}
-          onSelect={(id) => {
-            // Scoping the folder list to another machine can drop the current
-            // path (it may have no such checkout), so clear it and let the
-            // field fall back to the new list's top folder.
-            setDeviceId(id === defaultDeviceId ? null : id);
-            // "Last used" for the next new session, on every device.
-            useInboxStore.getState().updateClientUI({ last_picked_device_id: id });
-            setProjectPath(null);
-            setSubmitError(null);
-          }}
-        />
-        <OptionSheet
-          visible={openSheet === "context"}
-          onClose={() => setOpenSheet(null)}
-          title="Context"
-          options={STABLE_MODES.map((m) => ({ key: m.key, label: m.label, hint: m.title }))}
-          selectedKey={stableMode}
-          onSelect={(k) => setStableMode(k as StableModePick)}
-        />
-      </KeyboardAvoidingView>
+          <OptionSheet
+            visible={openSheet === "context"}
+            onClose={() => setOpenSheet(null)}
+            title="Context"
+            options={STABLE_MODES.map((m) => ({
+              key: m.key,
+              label: m.label,
+              hint: m.title,
+            }))}
+            selectedKey={stableMode}
+            onSelect={(k) => setStableMode(k as StableModePick)}
+          />
+        </KeyboardAvoidingView>
       </GestureHandlerRootView>
     </Modal>
   );
 }
 
-const modalStyles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  grabber: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, marginTop: 8, marginBottom: Spacing.sm, backgroundColor: Theme.borderLight },
-  body: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
-  bodyContent: { paddingBottom: Spacing.lg },
-  prompt: { marginTop: Spacing.sm, marginBottom: Spacing.md },
-  promptCard: { marginLeft: 0, marginRight: 0, marginTop: 0 },
-  promptInput: { minHeight: 72 },
-  agentRow: { marginBottom: Spacing.md },
-  // Chip rows scroll edge to edge, past the sheet's side padding.
-  chipScroller: { marginHorizontal: -Spacing.lg, flexGrow: 0 },
-  chipRow: { flexDirection: "row", gap: 8, paddingHorizontal: Spacing.lg },
-  folderSearch: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  folderInput: { fontFamily: 'JetBrainsMono-Regular', flex: 1, fontSize: 14, paddingVertical: 10, color: Theme.text },
-  folderChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Theme.borderLight,
-    maxWidth: 220,
-  },
-  folderChipActive: { borderColor: Theme.cyan + "99", backgroundColor: Theme.cyan + "18" },
-  folderChipCustom: { borderStyle: "dashed", borderColor: Theme.cyan + "66" },
-  folderChipText: { fontFamily: 'JetBrainsMono-Regular', fontSize: 13, color: Theme.textMuted, fontWeight: "500", flexShrink: 1 },
-  dim: { opacity: 0.55 },
-  hintText: { fontSize: 12, color: Theme.textMuted0, lineHeight: 16 },
-  agentChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Theme.borderLight,
-    backgroundColor: Theme.bgAlt + "55",
-  },
-  agentChipText: { fontSize: 13, fontWeight: "500", color: Theme.textMuted },
-  // The launch choices as one grouped card, iOS-settings style.
-  card: {
-    marginTop: Spacing.lg,
-    borderRadius: 12,
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    overflow: "hidden",
-  },
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    minHeight: 48,
-    paddingHorizontal: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.borderLight,
-  },
-  settingRowLast: { borderBottomWidth: 0, justifyContent: "space-between" },
-  switchSlot: { height: 48, justifyContent: "center" },
-  settingLabel: { fontSize: 14, color: Theme.textMuted, fontWeight: "500" },
-  settingValueWrap: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minWidth: 0 },
-  settingValue: { fontSize: 14, color: Theme.text, fontWeight: "600", flexShrink: 1 },
-  machineDot: { width: 7, height: 7, borderRadius: 4 },
-  labelPillRow: { flexDirection: "row", marginTop: Spacing.md },
-  labelPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Theme.borderLight,
-  },
-  labelPillEmpty: { borderStyle: "dashed" },
-  labelPillDot: { width: 6, height: 6, borderRadius: 2 },
-  labelPillText: { fontSize: 12, color: Theme.textMuted0, fontWeight: "500" },
-  errorText: {
-    color: Theme.red,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: Spacing.md,
-  },
-}));
+const modalStyles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    grabber: {
+      alignSelf: "center",
+      width: 36,
+      height: 5,
+      borderRadius: 3,
+      marginTop: 8,
+      marginBottom: Spacing.sm,
+      backgroundColor: Theme.borderLight,
+    },
+    body: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+    bodyContent: { paddingBottom: Spacing.lg },
+    prompt: { marginTop: Spacing.sm, marginBottom: Spacing.md },
+    promptCard: { marginLeft: 0, marginRight: 0, marginTop: 0 },
+    promptInput: { minHeight: 72 },
+    agentRow: { marginBottom: Spacing.md },
+    // Chip rows scroll edge to edge, past the sheet's side padding.
+    chipScroller: { marginHorizontal: -Spacing.lg, flexGrow: 0 },
+    chipRow: { flexDirection: "row", gap: 8, paddingHorizontal: Spacing.lg },
+    folderSearch: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    folderInput: {
+      fontFamily: "JetBrainsMono-Regular",
+      flex: 1,
+      fontSize: 14,
+      paddingVertical: 10,
+      color: Theme.text,
+    },
+    folderChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: Theme.borderLight,
+      maxWidth: 220,
+    },
+    folderChipActive: {
+      borderColor: Theme.cyan + "99",
+      backgroundColor: Theme.cyan + "18",
+    },
+    folderChipCustom: { borderStyle: "dashed", borderColor: Theme.cyan + "66" },
+    folderChipText: {
+      fontFamily: "JetBrainsMono-Regular",
+      fontSize: 13,
+      color: Theme.textMuted,
+      fontWeight: "500",
+      flexShrink: 1,
+    },
+    dim: { opacity: 0.55 },
+    hintText: { fontSize: 12, color: Theme.textMuted0, lineHeight: 16 },
+    agentChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      paddingHorizontal: 11,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: Theme.borderLight,
+      backgroundColor: Theme.bgAlt + "55",
+    },
+    agentChipText: { fontSize: 13, fontWeight: "500", color: Theme.textMuted },
+    // The launch choices as one grouped card, iOS-settings style.
+    card: {
+      marginTop: Spacing.lg,
+      borderRadius: 12,
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      overflow: "hidden",
+    },
+    settingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      minHeight: 48,
+      paddingHorizontal: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.borderLight,
+    },
+    settingRowLast: { borderBottomWidth: 0, justifyContent: "space-between" },
+    switchSlot: { height: 48, justifyContent: "center" },
+    settingLabel: { fontSize: 14, color: Theme.textMuted, fontWeight: "500" },
+    settingValueWrap: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      gap: 6,
+      minWidth: 0,
+    },
+    settingValue: {
+      fontSize: 14,
+      color: Theme.text,
+      fontWeight: "600",
+      flexShrink: 1,
+    },
+    machineDot: { width: 7, height: 7, borderRadius: 4 },
+    labelPillRow: { flexDirection: "row", marginTop: Spacing.md },
+    labelPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: Theme.borderLight,
+    },
+    labelPillEmpty: { borderStyle: "dashed" },
+    labelPillDot: { width: 6, height: 6, borderRadius: 2 },
+    labelPillText: { fontSize: 12, color: Theme.textMuted0, fontWeight: "500" },
+    errorText: {
+      color: Theme.red,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: Spacing.md,
+    },
+  }),
+);

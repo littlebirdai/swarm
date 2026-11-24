@@ -9,10 +9,20 @@
 import { useRef, useState } from "react";
 import { Check, ExternalLink, Loader2, RotateCw } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { AGENT_SETUP_CONTINUE_MESSAGE, deviceDisplayName, type AgentSetupTool } from "@codecast/shared/contracts";
-import { agentSetupSteps, type AgentSetupStep } from "../../../lib/agentToolSetupSteps";
+import {
+  AGENT_SETUP_CONTINUE_MESSAGE,
+  deviceDisplayName,
+  type AgentSetupTool,
+} from "@codecast/shared/contracts";
+import {
+  agentSetupSteps,
+  type AgentSetupStep,
+} from "../../../lib/agentToolSetupSteps";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
-import { useAgentToolSetup, type AgentSetupTarget } from "../../../lib/useAgentToolSetup";
+import {
+  useAgentToolSetup,
+  type AgentSetupTarget,
+} from "../../../lib/useAgentToolSetup";
 import { useInboxStore } from "../../../store/inboxStore";
 
 const TITLE: Record<AgentSetupTool, string> = {
@@ -25,10 +35,21 @@ const READY_LINE: Record<AgentSetupTool, string> = {
   computer: "Accessibility and Screen Recording granted",
 };
 
-export function AgentToolSetupCard({ tool, conversationId }: { tool: AgentSetupTool; conversationId: string }) {
+export function AgentToolSetupCard({
+  tool,
+  conversationId,
+}: {
+  tool: AgentSetupTool;
+  conversationId: string;
+}) {
   // Enrichment only: without it the card still shows the steps, just unnamed.
-  const machineQuery = useQueryNoThrow(api.devices.getConversationMachine, { conversation_id: conversationId as any });
-  const machine = machineQuery.data as { is_mine?: boolean; label?: string; platform?: string } | null | undefined;
+  const machineQuery = useQueryNoThrow(api.devices.getConversationMachine, {
+    conversation_id: conversationId as any,
+  });
+  const machine = machineQuery.data as
+    | { is_mine?: boolean; label?: string; platform?: string }
+    | null
+    | undefined;
   const [continued, setContinued] = useState(false);
   return (
     <AgentToolSetupPanel
@@ -38,13 +59,19 @@ export function AgentToolSetupCard({ tool, conversationId }: { tool: AgentSetupT
       canAct={machine?.is_mine !== false}
       className="mt-1 ml-1"
       afterReady={(sawMissing) =>
-        sawMissing && !continued && (
+        sawMissing &&
+        !continued && (
           <button
             type="button"
             className="ml-1 px-2 py-0.5 rounded border border-sol-green/40 bg-sol-green/10 text-sol-green hover:bg-sol-green/20"
             onClick={() => {
               setContinued(true);
-              useInboxStore.getState().sendMessage(conversationId, AGENT_SETUP_CONTINUE_MESSAGE[tool]);
+              useInboxStore
+                .getState()
+                .sendMessage(
+                  conversationId,
+                  AGENT_SETUP_CONTINUE_MESSAGE[tool],
+                );
             }}
           >
             Tell the agent to continue
@@ -89,9 +116,14 @@ export function AgentToolSetupPanel({
 
   if (ready) {
     return (
-      <div className={`${className} flex items-center gap-2 text-[12px] text-sol-green`}>
+      <div
+        className={`${className} flex items-center gap-2 text-[12px] text-sol-green`}
+      >
         <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-        <span>{READY_LINE[tool]}{machineName ? ` on ${machineName}` : ""}</span>
+        <span>
+          {READY_LINE[tool]}
+          {machineName ? ` on ${machineName}` : ""}
+        </span>
         {afterReady?.(sawMissing.current)}
       </div>
     );
@@ -99,16 +131,23 @@ export function AgentToolSetupPanel({
 
   if (!canAct) {
     return (
-      <div className={`${className} border-l-2 border-sol-cyan/40 pl-2.5 text-[12px] text-sol-text-muted`}>
-        {tool === "browser" ? "The agent needs the Codecast Chrome extension" : "The agent needs macOS permissions for cast computer"}
-        {machineName ? ` on ${machineName}` : ""}. Whoever runs this session can set it up from here.
+      <div
+        className={`${className} border-l-2 border-sol-cyan/40 pl-2.5 text-[12px] text-sol-text-muted`}
+      >
+        {tool === "browser"
+          ? "The agent needs the Codecast Chrome extension"
+          : "The agent needs macOS permissions for cast computer"}
+        {machineName ? ` on ${machineName}` : ""}. Whoever runs this session can
+        set it up from here.
       </div>
     );
   }
 
   if (status && status.tool === "computer" && !status.supported) {
     return (
-      <div className={`${className} border-l-2 border-sol-yellow/40 pl-2.5 text-[12px] text-sol-text-muted`}>
+      <div
+        className={`${className} border-l-2 border-sol-yellow/40 pl-2.5 text-[12px] text-sol-text-muted`}
+      >
         {status.detail ?? "cast computer is not available on this machine."}
       </div>
     );
@@ -116,38 +155,66 @@ export function AgentToolSetupPanel({
 
   const steps = agentSetupSteps(tool, status);
   const next = steps.findIndex((st) => !st.done);
-  const action = (st: AgentSetupStep) => st.action && <StepAction action={st.action} waiting={setup.waiting} onStart={() => void setup.start()} />;
+  const action = (st: AgentSetupStep) =>
+    st.action && (
+      <StepAction
+        action={st.action}
+        waiting={setup.waiting}
+        onStart={() => void setup.start()}
+      />
+    );
 
   if (compact) {
     const left = steps.filter((st) => !st.done);
     return (
       <div data-cc-agent-setup className={`${className} space-y-1.5`}>
         <div className="flex items-center gap-1.5 text-meta text-sol-yellow">
-          {setup.checking || setup.waiting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+          {setup.checking || setup.waiting ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : null}
           <span>
             {setup.checking
               ? "Checking setup…"
               : setup.waiting
-                ? tool === "computer" ? "Turn on \"codecast computer\" in System Settings" : "Click Pair in Chrome"
+                ? tool === "computer"
+                  ? 'Turn on "codecast computer" in System Settings'
+                  : "Click Pair in Chrome"
                 : `Next: ${left.map((st) => st.next).join(", then ")}`}
           </span>
         </div>
         {!setup.checking && (
           <div className="flex flex-wrap gap-1.5 text-meta">
             {/* One button per action: both grants open the same System Settings flow. */}
-            {left.filter((st, i) => st.action && left.findIndex((o) => o.action?.label === st.action!.label) === i).map((st) => <span key={st.label}>{action(st)}</span>)}
+            {left
+              .filter(
+                (st, i) =>
+                  st.action &&
+                  left.findIndex(
+                    (o) => o.action?.label === st.action!.label,
+                  ) === i,
+              )
+              .map((st) => (
+                <span key={st.label}>{action(st)}</span>
+              ))}
           </div>
         )}
-        {setup.error && <p className="text-meta text-sol-red/90">{setup.error}</p>}
+        {setup.error && (
+          <p className="text-meta text-sol-red/90">{setup.error}</p>
+        )}
       </div>
     );
   }
 
   return (
-    <div data-cc-agent-setup className={`${className} border-l-2 border-sol-cyan/50 pl-2.5 py-1 space-y-2 max-w-xl`}>
+    <div
+      data-cc-agent-setup
+      className={`${className} border-l-2 border-sol-cyan/50 pl-2.5 py-1 space-y-2 max-w-xl`}
+    >
       <div className="flex items-baseline gap-2">
         <span className="text-[13px] text-sol-text">{TITLE[tool]}</span>
-        {machineName && <span className="text-meta text-sol-text-dim">on {machineName}</span>}
+        {machineName && (
+          <span className="text-meta text-sol-text-dim">on {machineName}</span>
+        )}
         <button
           type="button"
           aria-label="Check again"
@@ -155,7 +222,11 @@ export function AgentToolSetupPanel({
           className="ml-auto text-sol-text-dim hover:text-sol-text"
           onClick={() => void setup.check()}
         >
-          {setup.checking || setup.waiting ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
+          {setup.checking || setup.waiting ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <RotateCw className="w-3 h-3" />
+          )}
         </button>
       </div>
       <ol className="space-y-1.5">
@@ -163,12 +234,28 @@ export function AgentToolSetupPanel({
           const current = i === next && !setup.checking;
           return (
             <li key={st.label} className="flex items-start gap-2 text-[12px]">
-              <span className={`mt-[1px] shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border text-mark font-mono ${st.done ? "border-sol-green/60 text-sol-green" : current ? "border-sol-cyan/70 text-sol-cyan" : "border-sol-border text-sol-text-dim"}`}>
-                {st.done ? <Check className="w-2.5 h-2.5" strokeWidth={3} /> : i + 1}
+              <span
+                className={`mt-[1px] shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border text-mark font-mono ${st.done ? "border-sol-green/60 text-sol-green" : current ? "border-sol-cyan/70 text-sol-cyan" : "border-sol-border text-sol-text-dim"}`}
+              >
+                {st.done ? (
+                  <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                ) : (
+                  i + 1
+                )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className={st.done ? "text-sol-text-muted line-through decoration-sol-text-dim/40" : "text-sol-text"}>{st.label}</span>
-                {!st.done && st.hint && <span className="block text-sol-text-dim">{st.hint}</span>}
+                <span
+                  className={
+                    st.done
+                      ? "text-sol-text-muted line-through decoration-sol-text-dim/40"
+                      : "text-sol-text"
+                  }
+                >
+                  {st.label}
+                </span>
+                {!st.done && st.hint && (
+                  <span className="block text-sol-text-dim">{st.hint}</span>
+                )}
               </span>
               {!st.done && action(st)}
             </li>
@@ -176,14 +263,28 @@ export function AgentToolSetupPanel({
         })}
       </ol>
       {setup.waiting && tool === "computer" && (
-        <p className="text-meta text-sol-text-dim">Turn on "codecast computer" in the pane that opened{machineName ? ` on ${machineName}` : ""}. This card updates when it lands.</p>
+        <p className="text-meta text-sol-text-dim">
+          Turn on "codecast computer" in the pane that opened
+          {machineName ? ` on ${machineName}` : ""}. This card updates when it
+          lands.
+        </p>
       )}
-      {setup.error && <p className="text-meta text-sol-red/90">{setup.error}</p>}
+      {setup.error && (
+        <p className="text-meta text-sol-red/90">{setup.error}</p>
+      )}
     </div>
   );
 }
 
-function StepAction({ action, waiting, onStart }: { action: NonNullable<AgentSetupStep["action"]>; waiting: boolean; onStart: () => void }) {
+function StepAction({
+  action,
+  waiting,
+  onStart,
+}: {
+  action: NonNullable<AgentSetupStep["action"]>;
+  waiting: boolean;
+  onStart: () => void;
+}) {
   if ("href" in action) {
     return (
       <a

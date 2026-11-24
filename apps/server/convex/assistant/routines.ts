@@ -6,15 +6,23 @@
 // gathers the facts it needs, and is a leaf so agentTasks can import it.
 import type { Id } from "../_generated/dataModel";
 import { isHostedAgentType } from "@codecast/shared/contracts";
-import { routineRefusal, type RoutineShape } from "@codecast/shared/contracts/assistant";
+import {
+  routineRefusal,
+  type RoutineShape,
+} from "@codecast/shared/contracts/assistant";
 import { walletPlan } from "../lib/wallet";
-import { cadenceAt, nextCadenceRun, type WallCadence } from "@platform/assistant/cadence";
+import {
+  cadenceAt,
+  nextCadenceRun,
+  type WallCadence,
+} from "@platform/assistant/cadence";
 import { wallClockAt } from "@platform/assistant/zone";
 
 // The statuses that count as armed: a paused routine fires nothing.
 const ARMED_STATUSES = ["scheduled", "running"] as const;
 
-export const HOSTED_ROUTINE_NOT_OWNER = "Only the owner can set a routine on a hosted assistant conversation";
+export const HOSTED_ROUTINE_NOT_OWNER =
+  "Only the owner can set a routine on a hosted assistant conversation";
 
 // A hosted conversation takes input from its owner alone
 // (canSendProductMessage), and a routine anchored on one is input to it: its
@@ -30,7 +38,11 @@ export async function hostedOwnerRefusal(
 ): Promise<string | null> {
   for (const id of new Set(anchors.filter(Boolean).map(String))) {
     const conversation = await ctx.db.get(id);
-    if (conversation && isHostedAgentType(conversation.agent_type) && String(conversation.user_id) !== String(userId)) {
+    if (
+      conversation &&
+      isHostedAgentType(conversation.agent_type) &&
+      String(conversation.user_id) !== String(userId)
+    ) {
       return HOSTED_ROUTINE_NOT_OWNER;
     }
   }
@@ -85,9 +97,12 @@ export async function hostedRoutineRefusal(
   opts: { olderOnly?: boolean } = {},
 ): Promise<string | null> {
   if (!routine.originating_conversation_id) return null;
-  const ownerRefusal = await hostedOwnerRefusal(ctx, routine.user_id, [routine.originating_conversation_id]);
+  const ownerRefusal = await hostedOwnerRefusal(ctx, routine.user_id, [
+    routine.originating_conversation_id,
+  ]);
   if (ownerRefusal) return ownerRefusal;
-  if (!(await hostedHomeStamp(ctx, routine.originating_conversation_id))) return null;
+  if (!(await hostedHomeStamp(ctx, routine.originating_conversation_id)))
+    return null;
   if (routine.status === "paused") return null;
 
   const plan = await walletPlan(ctx, routine.user_id);
@@ -95,8 +110,11 @@ export async function hostedRoutineRefusal(
   let armedOthers = 0;
   if (plan.routines.max !== null) {
     for (const status of ARMED_STATUSES) {
-      const rows = await ctx.db.query("agent_tasks")
-        .withIndex("by_user_status", (q: any) => q.eq("user_id", routine.user_id).eq("status", status))
+      const rows = await ctx.db
+        .query("agent_tasks")
+        .withIndex("by_user_status", (q: any) =>
+          q.eq("user_id", routine.user_id).eq("status", status),
+        )
         .collect();
       for (const row of rows) {
         if (routine._id && String(row._id) === String(routine._id)) continue;
@@ -127,11 +145,25 @@ export type StoredCadence = WallCadence;
 // null when the routine runs on an interval.
 export async function hostedWallCadence(
   ctx: { db: any },
-  routine: { user_id: Id<"users">; hosted: boolean; schedule_type: string; interval_ms?: number; run_at?: number; weekdays?: number[]; kept?: StoredCadence },
+  routine: {
+    user_id: Id<"users">;
+    hosted: boolean;
+    schedule_type: string;
+    interval_ms?: number;
+    run_at?: number;
+    weekdays?: number[];
+    kept?: StoredCadence;
+  },
 ): Promise<{ cadence: StoredCadence; run_at: number } | null> {
-  if (!routine.hosted || routine.schedule_type !== "recurring" || !routine.run_at) return null;
+  if (
+    !routine.hosted ||
+    routine.schedule_type !== "recurring" ||
+    !routine.run_at
+  )
+    return null;
   const daily = routine.interval_ms === DAY_MS;
-  if (!routine.weekdays?.length && !daily && routine.interval_ms !== WEEK_MS) return null;
+  if (!routine.weekdays?.length && !daily && routine.interval_ms !== WEEK_MS)
+    return null;
   const user = await ctx.db.get(routine.user_id);
   const zone = user?.timezone ?? routine.kept?.zone;
   const weekdays = routine.weekdays?.length

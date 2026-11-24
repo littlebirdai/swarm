@@ -4,7 +4,16 @@
 // (lib/files + lib/transpile) to what makes an app break at load in the
 // browser: an import of a file that is not there, a package the import map
 // does not name, a stylesheet imported from JavaScript.
-import { ENTRY_PATH, FILE_TYPES, byteLength, fileExtension, fileSetProblems, needsTranspile, normalizeFilePath, type FileDraft } from "../lib/files";
+import {
+  ENTRY_PATH,
+  FILE_TYPES,
+  byteLength,
+  fileExtension,
+  fileSetProblems,
+  needsTranspile,
+  normalizeFilePath,
+  type FileDraft,
+} from "../lib/files";
 import { esmUrl } from "../lib/runtime";
 import { transpile } from "../lib/transpile";
 import type { TouchedFile } from "../validators";
@@ -15,7 +24,12 @@ const ALLOWED_TYPES = FILE_TYPES.map((t) => `.${t}`).join(" ");
 export class DraftError extends Error {}
 
 function canonical(raw: string): string {
-  return normalizeFilePath(raw) ?? fail(`"${raw}" is not a path a version can hold. Use a relative path like src/App.jsx with one of: ${ALLOWED_TYPES}.`);
+  return (
+    normalizeFilePath(raw) ??
+    fail(
+      `"${raw}" is not a path a version can hold. Use a relative path like src/App.jsx with one of: ${ALLOWED_TYPES}.`,
+    )
+  );
 }
 
 function fail(message: string): never {
@@ -49,7 +63,9 @@ export class Draft {
 
   read(raw: string): string {
     const path = canonical(raw);
-    const text = this.files.get(path) ?? fail(`${path} does not exist. Files: ${this.paths().join(", ")}`);
+    const text =
+      this.files.get(path) ??
+      fail(`${path} does not exist. Files: ${this.paths().join(", ")}`);
     this.reads.add(path);
     return text;
   }
@@ -64,18 +80,30 @@ export class Draft {
   /** Replace exactly one occurrence of `find` (or every one, with `all`). */
   edit(raw: string, find: string, replace: string, all = false): string {
     const path = canonical(raw);
-    const text = this.files.get(path) ?? fail(`${path} does not exist. Create it with write_file.`);
+    const text =
+      this.files.get(path) ??
+      fail(`${path} does not exist. Create it with write_file.`);
     if (!find) fail("old_text is empty. Give the exact text to replace.");
     const count = text.split(find).length - 1;
-    if (count === 0) fail(`old_text was not found in ${path}. Read the file and copy the text exactly, whitespace included.`);
-    if (count > 1 && !all) fail(`old_text appears ${count} times in ${path}. Include more surrounding lines so it is unique, or set all to true.`);
-    this.files.set(path, all ? text.split(find).join(replace) : text.replace(find, () => replace));
+    if (count === 0)
+      fail(
+        `old_text was not found in ${path}. Read the file and copy the text exactly, whitespace included.`,
+      );
+    if (count > 1 && !all)
+      fail(
+        `old_text appears ${count} times in ${path}. Include more surrounding lines so it is unique, or set all to true.`,
+      );
+    this.files.set(
+      path,
+      all ? text.split(find).join(replace) : text.replace(find, () => replace),
+    );
     return `Edited ${path}${count > 1 ? ` (${count} places)` : ""}.`;
   }
 
   remove(raw: string): string {
     const path = canonical(raw);
-    if (path === ENTRY_PATH) fail(`${ENTRY_PATH} is the app's entry and cannot be deleted.`);
+    if (path === ENTRY_PATH)
+      fail(`${ENTRY_PATH} is the app's entry and cannot be deleted.`);
     if (!this.files.delete(path)) fail(`${path} does not exist.`);
     return `Deleted ${path}.`;
   }
@@ -96,7 +124,8 @@ export class Draft {
       else if (after !== before) out.push({ path, how: "wrote" });
     }
     const changed = new Set(out.map((t) => t.path));
-    for (const path of this.reads) if (!changed.has(path)) out.push({ path, how: "read" });
+    for (const path of this.reads)
+      if (!changed.has(path)) out.push({ path, how: "read" });
     return out;
   }
 
@@ -124,14 +153,21 @@ export function importSpecifiers(code: string): string[] {
 }
 
 /** The import map's keys from index.html, or an error when it is unreadable. */
-export function importMapKeys(html: string): { keys: string[] } | { error: string } {
-  const m = /<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
+export function importMapKeys(
+  html: string,
+): { keys: string[] } | { error: string } {
+  const m =
+    /<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/i.exec(
+      html,
+    );
   if (!m) return { keys: [] };
   try {
     const map = JSON.parse(m[1]) as { imports?: Record<string, string> };
     return { keys: Object.keys(map.imports ?? {}) };
   } catch (e) {
-    return { error: `the import map in ${ENTRY_PATH} is not valid JSON (${e instanceof Error ? e.message : e})` };
+    return {
+      error: `the import map in ${ENTRY_PATH} is not valid JSON (${e instanceof Error ? e.message : e})`,
+    };
   }
 }
 
@@ -153,30 +189,47 @@ export function resolveRelative(from: string, spec: string): string | null {
 }
 
 function mapped(spec: string, keys: string[]): boolean {
-  return keys.some((k) => k === spec || (k.endsWith("/") && spec.startsWith(k)));
+  return keys.some(
+    (k) => k === spec || (k.endsWith("/") && spec.startsWith(k)),
+  );
 }
 
-function moduleProblems(path: string, code: string, has: (p: string) => boolean, mapKeys: string[]): string[] {
+function moduleProblems(
+  path: string,
+  code: string,
+  has: (p: string) => boolean,
+  mapKeys: string[],
+): string[] {
   const problems: string[] = [];
   for (const spec of new Set(importSpecifiers(code))) {
     if (isUrl(spec)) continue;
     if (spec.startsWith("/")) {
-      problems.push(`${path} imports "${spec}"; use a relative path ("./...") so it resolves inside the app's folder`);
+      problems.push(
+        `${path} imports "${spec}"; use a relative path ("./...") so it resolves inside the app's folder`,
+      );
       continue;
     }
     if (spec.startsWith(".")) {
       const target = resolveRelative(path, spec);
       if (!target || !has(target)) {
-        problems.push(`${path} imports "${spec}", but ${target ?? spec} does not exist`);
+        problems.push(
+          `${path} imports "${spec}", but ${target ?? spec} does not exist`,
+        );
       } else if (fileExtension(target) === "css") {
-        problems.push(`${path} imports the stylesheet "${spec}"; browsers cannot import CSS from JavaScript, so link it from ${ENTRY_PATH} instead`);
+        problems.push(
+          `${path} imports the stylesheet "${spec}"; browsers cannot import CSS from JavaScript, so link it from ${ENTRY_PATH} instead`,
+        );
       } else if (!MODULE_TYPES.has(fileExtension(target))) {
-        problems.push(`${path} imports "${spec}", which is not a JavaScript module; fetch it at runtime or inline it`);
+        problems.push(
+          `${path} imports "${spec}", which is not a JavaScript module; fetch it at runtime or inline it`,
+        );
       }
       continue;
     }
     if (!mapped(spec, mapKeys)) {
-      problems.push(`${path} imports "${spec}", which the import map does not name; import "${esmUrl(`${spec}@<version>`)}" instead`);
+      problems.push(
+        `${path} imports "${spec}", which the import map does not name; import "${esmUrl(`${spec}@<version>`)}" instead`,
+      );
     }
   }
   return problems;
@@ -188,7 +241,9 @@ export function htmlReferences(html: string): string[] {
     ...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi),
     ...html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/gi),
   ].map((m) => m[1]);
-  return refs.filter((r) => !isUrl(r) && !r.startsWith("#") && !r.startsWith("//"));
+  return refs.filter(
+    (r) => !isUrl(r) && !r.startsWith("#") && !r.startsWith("//"),
+  );
 }
 
 /** Every reason this draft cannot go live, in words the agent can act on.
@@ -218,8 +273,12 @@ export function draftProblems(files: readonly FileDraft[]): string[] {
 
   if (entry) {
     for (const ref of htmlReferences(entry.text)) {
-      if (ref.startsWith("/")) problems.push(`${ENTRY_PATH} loads "${ref}"; use a relative path like "src/main.jsx"`);
-      else if (!has(resolveRelative(ENTRY_PATH, ref) ?? "")) problems.push(`${ENTRY_PATH} loads "${ref}", which does not exist`);
+      if (ref.startsWith("/"))
+        problems.push(
+          `${ENTRY_PATH} loads "${ref}"; use a relative path like "src/main.jsx"`,
+        );
+      else if (!has(resolveRelative(ENTRY_PATH, ref) ?? ""))
+        problems.push(`${ENTRY_PATH} loads "${ref}", which does not exist`);
     }
   }
   return problems;

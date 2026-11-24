@@ -20,10 +20,15 @@ import {
 // "introduce" and "video" somewhere tied with it and won on being newer.
 const QUERY = "k pop warm intro video";
 
-const relevance = (query: string, texts: Array<{ content: string; own?: boolean }>, fields: string[] = []) => {
+const relevance = (
+  query: string,
+  texts: Array<{ content: string; own?: boolean }>,
+  fields: string[] = [],
+) => {
   const terms = parseQueryTerms(query);
   const ev = emptyEvidence(terms);
-  for (const t of texts) addEvidence(ev, t.content, terms, { own: t.own, message: true });
+  for (const t of texts)
+    addEvidence(ev, t.content, terms, { own: t.own, message: true });
   for (const f of fields) addEvidence(ev, f, terms, { own: true });
   return coverageOf(ev, terms) === null ? null : relevanceOf(ev, terms);
 };
@@ -38,7 +43,12 @@ describe("parseQueryTerms", () => {
   test("a lone letter is no word, but joins its neighbour", () => {
     const terms = parseQueryTerms(QUERY);
     expect(terms.words).toEqual(["pop", "warm", "intro", "video"]);
-    expect(terms.joins).toEqual(["k-pop", "pop-warm", "warm-intro", "intro-video"]);
+    expect(terms.joins).toEqual([
+      "k-pop",
+      "pop-warm",
+      "warm-intro",
+      "intro-video",
+    ]);
   });
 
   test("the index lookup carries joined forms ahead of the typed words", () => {
@@ -50,7 +60,10 @@ describe("parseQueryTerms", () => {
   });
 
   test("a letter after its word joins backwards", () => {
-    expect(parseQueryTerms("plan b rollout").joins).toEqual(["plan-b", "b-rollout"]);
+    expect(parseQueryTerms("plan b rollout").joins).toEqual([
+      "plan-b",
+      "b-rollout",
+    ]);
   });
 
   test("stop-words and phrases break a run of neighbours", () => {
@@ -67,7 +80,12 @@ describe("parseQueryTerms", () => {
 
 describe("findTerm", () => {
   test("a word's parts may sit together, hyphenated or spaced", () => {
-    for (const text of ["a kpop song", "a k-pop song", "a k pop song", "a k_pop song"]) {
+    for (const text of [
+      "a kpop song",
+      "a k-pop song",
+      "a k pop song",
+      "a k_pop song",
+    ]) {
       expect(findTerm(text, "k-pop")).not.toBeNull();
     }
     expect(findTerm("a korean pop song", "k-pop")).toBeNull();
@@ -95,17 +113,30 @@ describe("match quality", () => {
 
   test("query words written as one are each the whole word", () => {
     const warm = parseQueryTerms("warm intro");
-    expect(signalOf("Warmintro landing site", warm)).toMatchObject({ quality: [1, 1], pairs: [true] });
+    expect(signalOf("Warmintro landing site", warm)).toMatchObject({
+      quality: [1, 1],
+      pairs: [true],
+    });
   });
 });
 
 describe("relevance", () => {
   const made = [
-    { content: "Use suno cli to create an amazing k pop song for a music video that advertises Union", own: true },
-    { content: "Rendered warm_intro_v3.mp4, the WARM INTRO video, 3:10 at 1080p" },
+    {
+      content:
+        "Use suno cli to create an amazing k pop song for a music video that advertises Union",
+      own: true,
+    },
+    {
+      content:
+        "Rendered warm_intro_v3.mp4, the WARM INTRO video, 3:10 at 1080p",
+    },
   ];
   const noise = [
-    { content: "The modal popped up after I introduce the warmup step; see the video" },
+    {
+      content:
+        "The modal popped up after I introduce the warmup step; see the video",
+    },
   ];
 
   test("THE BUG: words inside longer words no longer tie with the real thing", () => {
@@ -117,28 +148,48 @@ describe("relevance", () => {
   });
 
   test("a session's opening prompt and earlier titles count as the person's own words", () => {
-    const late = [{ content: "warm intro landing page copy for the video and its k-pop cast" }];
+    const late = [
+      {
+        content:
+          "warm intro landing page copy for the video and its k-pop cast",
+      },
+    ];
     const without = relevance(QUERY, late)!;
-    const withFields = relevance(QUERY, late, ["Warmintro landing site", "build a k pop music video for Union"])!;
+    const withFields = relevance(QUERY, late, [
+      "Warmintro landing site",
+      "build a k pop music video for Union",
+    ])!;
     expect(withFields).toBeGreaterThan(without);
   });
 
   test("words side by side beat the same words scattered", () => {
-    const together = relevance("warm intro", [{ content: "the warm intro video" }])!;
-    const apart = relevance("warm intro", [{ content: "keep the intro short and the tone warm" }])!;
+    const together = relevance("warm intro", [
+      { content: "the warm intro video" },
+    ])!;
+    const apart = relevance("warm intro", [
+      { content: "keep the intro short and the tone warm" },
+    ])!;
     expect(together).toBeGreaterThan(apart);
   });
 
   test("a session with many matching messages beats one passing mention", () => {
     const one = [{ content: "daemon heartbeat" }];
-    const many = Array.from({ length: 12 }, () => ({ content: "daemon heartbeat" }));
-    expect(relevance("daemon heartbeat", many)!).toBeGreaterThan(relevance("daemon heartbeat", one)!);
+    const many = Array.from({ length: 12 }, () => ({
+      content: "daemon heartbeat",
+    }));
+    expect(relevance("daemon heartbeat", many)!).toBeGreaterThan(
+      relevance("daemon heartbeat", one)!,
+    );
   });
 
   test("coverage rules are unchanged: phrases required, half the words of a long query", () => {
-    expect(relevance('"exact phrase" daemon', [{ content: "daemon only" }])).toBeNull();
+    expect(
+      relevance('"exact phrase" daemon', [{ content: "daemon only" }]),
+    ).toBeNull();
     expect(relevance("one two three four", [{ content: "one" }])).toBeNull();
-    expect(relevance("one two three four", [{ content: "one two" }])).not.toBeNull();
+    expect(
+      relevance("one two three four", [{ content: "one two" }]),
+    ).not.toBeNull();
   });
 });
 
@@ -146,12 +197,16 @@ describe("marks and snippets", () => {
   test("THE BUG: a dropped letter is not marked inside other words", () => {
     const terms = parseQueryTerms(QUERY);
     const text = "ask about the K-pop look";
-    expect(termSpans(text, terms).map(([a, b]) => text.slice(a, b))).toEqual(["K-pop"]);
+    expect(termSpans(text, terms).map(([a, b]) => text.slice(a, b))).toEqual([
+      "K-pop",
+    ]);
   });
 
   test("neighbours found together are one mark", () => {
     const text = "the warm intro video";
-    expect(termSpans(text, parseQueryTerms(QUERY)).map(([a, b]) => text.slice(a, b))).toEqual(["warm intro video"]);
+    expect(
+      termSpans(text, parseQueryTerms(QUERY)).map(([a, b]) => text.slice(a, b)),
+    ).toEqual(["warm intro video"]);
   });
 
   test("a snippet centres on where most of the query sits, not on the first hit", () => {
@@ -163,26 +218,39 @@ describe("marks and snippets", () => {
   });
 
   test("no hit: the opening of the text", () => {
-    expect(snippetAround("nothing here", parseQueryTerms("zebra"))).toBe("nothing here");
-    expect(contentMatchesAnyTerm("nothing here", parseQueryTerms("zebra"))).toBe(false);
+    expect(snippetAround("nothing here", parseQueryTerms("zebra"))).toBe(
+      "nothing here",
+    );
+    expect(
+      contentMatchesAnyTerm("nothing here", parseQueryTerms("zebra")),
+    ).toBe(false);
   });
 });
 
 describe("stripWrapperTags", () => {
   test("a wrapper goes, its words and line breaks stay", () => {
-    expect(stripWrapperTags('<session-message from="jx7">Run tr-1 finished.\n\n**First thing today:** call</session-message>'))
-      .toBe("Run tr-1 finished.\n\n**First thing today:** call");
+    expect(
+      stripWrapperTags(
+        '<session-message from="jx7">Run tr-1 finished.\n\n**First thing today:** call</session-message>',
+      ),
+    ).toBe("Run tr-1 finished.\n\n**First thing today:** call");
   });
 
   test("a snippet cut from the stripped text never opens inside an attribute", () => {
     const raw = `${"x ".repeat(200)}<task-notification id="sp0vqx8v4s598fq7bh">Run jx71be5 needs attention: [call cards] Your call</task-notification>`;
-    const snippet = snippetAround(stripWrapperTags(raw), parseQueryTerms("call"), 120);
+    const snippet = snippetAround(
+      stripWrapperTags(raw),
+      parseQueryTerms("call"),
+      120,
+    );
     expect(snippet).not.toContain("sp0vqx8v4s598fq7bh");
     expect(snippet).toContain("Run jx71be5");
   });
 
   test("the cut tail of a stored snippet goes too", () => {
-    expect(stripWrapperTags('...sp0vqx8v4s598fq7bh">Run jx71be5 finished')).toBe("Run jx71be5 finished");
+    expect(
+      stripWrapperTags('...sp0vqx8v4s598fq7bh">Run jx71be5 finished'),
+    ).toBe("Run jx71be5 finished");
   });
 
   test("prose and code with angle brackets stay", () => {

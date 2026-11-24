@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { ControlModeParser, toSendKeysHex, unescapeControlData, type ControlEvent } from "./controlProtocol.js";
+import {
+  ControlModeParser,
+  toSendKeysHex,
+  unescapeControlData,
+  type ControlEvent,
+} from "./controlProtocol.js";
 
-function collect(parser: ControlModeParser, input: string | Buffer): ControlEvent[] {
+function collect(
+  parser: ControlModeParser,
+  input: string | Buffer,
+): ControlEvent[] {
   const events: ControlEvent[] = [];
   parser.feed(input, (ev) => events.push(ev));
   return events;
@@ -14,7 +22,9 @@ describe("unescapeControlData", () => {
 
   test("decodes octal escapes to bytes", () => {
     expect(unescapeControlData("a\\015\\012b")).toEqual(Buffer.from("a\r\nb"));
-    expect(unescapeControlData("\\033[1;34m")).toEqual(Buffer.from("\x1b[1;34m"));
+    expect(unescapeControlData("\\033[1;34m")).toEqual(
+      Buffer.from("\x1b[1;34m"),
+    );
   });
 
   test("decodes escaped backslash (\\134)", () => {
@@ -27,14 +37,26 @@ describe("unescapeControlData", () => {
   });
 
   test("preserves unescaped Unicode and the ANSI sequences following it", () => {
-    for (const text of ["▐▛███▜▌", "─".repeat(80), "╭─╮ café 🚀", "日本語 e\u0301"]) {
-      expect(unescapeControlData(`${text}\\033[0m`)).toEqual(Buffer.from(`${text}\x1b[0m`));
+    for (const text of [
+      "▐▛███▜▌",
+      "─".repeat(80),
+      "╭─╮ café 🚀",
+      "日本語 e\u0301",
+    ]) {
+      expect(unescapeControlData(`${text}\\033[0m`)).toEqual(
+        Buffer.from(`${text}\x1b[0m`),
+      );
     }
   });
 
   test("preserves raw UTF-8 bytes mixed with octal escapes", () => {
-    const input = Buffer.concat([Buffer.from("▐\\033[2m"), Buffer.from([0xf0, 0x9f])]);
-    expect(unescapeControlData(input)).toEqual(Buffer.concat([Buffer.from("▐\x1b[2m"), Buffer.from([0xf0, 0x9f])]));
+    const input = Buffer.concat([
+      Buffer.from("▐\\033[2m"),
+      Buffer.from([0xf0, 0x9f]),
+    ]);
+    expect(unescapeControlData(input)).toEqual(
+      Buffer.concat([Buffer.from("▐\x1b[2m"), Buffer.from([0xf0, 0x9f])]),
+    );
   });
 
   test("leaves non-octal backslash sequences alone", () => {
@@ -48,13 +70,20 @@ describe("unescapeControlData", () => {
 
 describe("toSendKeysHex", () => {
   test("hex-encodes bytes with padding", () => {
-    expect(toSendKeysHex(Buffer.from([0x0d, 0x7f, 0x01]))).toEqual(["0x0d", "0x7f", "0x01"]);
+    expect(toSendKeysHex(Buffer.from([0x0d, 0x7f, 0x01]))).toEqual([
+      "0x0d",
+      "0x7f",
+      "0x01",
+    ]);
   });
 });
 
 describe("ControlModeParser", () => {
   test("emits output events with unescaped data", () => {
-    const events = collect(new ControlModeParser(), "%output %5 echo\\015\\012\n");
+    const events = collect(
+      new ControlModeParser(),
+      "%output %5 echo\\015\\012\n",
+    );
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "output", paneId: "%5" });
     expect((events[0] as any).data).toEqual(Buffer.from("echo\r\n"));
@@ -66,12 +95,23 @@ describe("ControlModeParser", () => {
       parser,
       "%begin 100 1 1\nline one\n%output-looking content\n%end 100 1 1\n",
     );
-    expect(events).toEqual([{ type: "reply", ok: true, lines: ["line one", "%output-looking content"] }]);
+    expect(events).toEqual([
+      {
+        type: "reply",
+        ok: true,
+        lines: ["line one", "%output-looking content"],
+      },
+    ]);
   });
 
   test("marks %error blocks as failed replies", () => {
-    const events = collect(new ControlModeParser(), "%begin 1 2 1\nbad target\n%error 1 2 1\n");
-    expect(events).toEqual([{ type: "reply", ok: false, lines: ["bad target"] }]);
+    const events = collect(
+      new ControlModeParser(),
+      "%begin 1 2 1\nbad target\n%error 1 2 1\n",
+    );
+    expect(events).toEqual([
+      { type: "reply", ok: false, lines: ["bad target"] },
+    ]);
   });
 
   test("handles chunks split mid-line and mid-escape", () => {
@@ -106,7 +146,9 @@ describe("ControlModeParser", () => {
         const events: ControlEvent[] = [];
         parser.feed(protocol.subarray(0, at), (ev) => events.push(ev));
         parser.feed(protocol.subarray(at), (ev) => events.push(ev));
-        expect(events).toEqual([{ type: "output", paneId: "%5", data: output }]);
+        expect(events).toEqual([
+          { type: "output", paneId: "%5", data: output },
+        ]);
       }
     }
   });
@@ -117,11 +159,19 @@ describe("ControlModeParser", () => {
       const parser = new ControlModeParser();
       const events: ControlEvent[] = [];
       const protocol = Buffer.concat([
-        Buffer.from("%output %5 "), output.subarray(0, at), Buffer.from("\n%extended-output %5 0 : "),
-        output.subarray(at), Buffer.from("\n"),
+        Buffer.from("%output %5 "),
+        output.subarray(0, at),
+        Buffer.from("\n%extended-output %5 0 : "),
+        output.subarray(at),
+        Buffer.from("\n"),
       ]);
-      for (const byte of protocol) parser.feed(Buffer.from([byte]), (ev) => events.push(ev));
-      expect(Buffer.concat(events.flatMap((ev) => ev.type === "output" ? [ev.data] : []))).toEqual(output);
+      for (const byte of protocol)
+        parser.feed(Buffer.from([byte]), (ev) => events.push(ev));
+      expect(
+        Buffer.concat(
+          events.flatMap((ev) => (ev.type === "output" ? [ev.data] : [])),
+        ),
+      ).toEqual(output);
     }
   });
 
@@ -137,7 +187,9 @@ describe("ControlModeParser", () => {
 
   test("emits generic notifications", () => {
     const events = collect(new ControlModeParser(), "%window-renamed @1 zsh\n");
-    expect(events).toEqual([{ type: "notification", name: "window-renamed", rest: "@1 zsh" }]);
+    expect(events).toEqual([
+      { type: "notification", name: "window-renamed", rest: "@1 zsh" },
+    ]);
   });
 
   test("strips CR line endings", () => {
@@ -146,7 +198,10 @@ describe("ControlModeParser", () => {
   });
 
   test("parses extended-output data after the colon separator", () => {
-    const events = collect(new ControlModeParser(), "%extended-output %2 0 : data\\015\n");
+    const events = collect(
+      new ControlModeParser(),
+      "%extended-output %2 0 : data\\015\n",
+    );
     expect(events[0]).toMatchObject({ type: "output", paneId: "%2" });
     expect((events[0] as any).data).toEqual(Buffer.from("data\r"));
   });

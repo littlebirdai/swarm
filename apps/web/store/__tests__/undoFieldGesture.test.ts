@@ -15,8 +15,23 @@ const SNOOZE_UNTIL = 1800000000000;
 const seed = (extra: Record<string, any> = {}) => {
   useInboxStore.setState({
     pending: {},
-    sessions: { [ID]: { _id: ID, title: "Test session", updated_at: 1, inbox_snoozed_until: SNOOZE_UNTIL, ...extra } } as any,
-    conversations: { [ID]: { _id: ID, title: "Test session", inbox_snoozed_until: SNOOZE_UNTIL, ...extra } } as any,
+    sessions: {
+      [ID]: {
+        _id: ID,
+        title: "Test session",
+        updated_at: 1,
+        inbox_snoozed_until: SNOOZE_UNTIL,
+        ...extra,
+      },
+    } as any,
+    conversations: {
+      [ID]: {
+        _id: ID,
+        title: "Test session",
+        inbox_snoozed_until: SNOOZE_UNTIL,
+        ...extra,
+      },
+    } as any,
   });
 };
 
@@ -24,7 +39,10 @@ const row = () => useInboxStore.getState().sessions[ID] as any;
 const conv = () => useInboxStore.getState().conversations[ID] as any;
 
 describe("undoable field gestures restore every field the action touched", () => {
-  beforeEach(() => { _resetUndoStacks(); seed(); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
 
   test("defer clears the snooze, and undo puts it back on both rows", () => {
     useInboxStore.getState().deferSession(ID);
@@ -59,11 +77,14 @@ describe("undoable field gestures restore every field the action touched", () =>
     expect(row().inbox_snoozed_until).toBe(SNOOZE_UNTIL);
     // The pin's own locks are released: what holds the row until the server
     // echoes is a lock on each RESTORED value, never on the pin.
-    const locks = Object.entries(useInboxStore.getState().pending as Record<string, any>)
-      .filter(([k]) => k.startsWith(`sessions:${ID}:`));
+    const locks = Object.entries(
+      useInboxStore.getState().pending as Record<string, any>,
+    ).filter(([k]) => k.startsWith(`sessions:${ID}:`));
     expect(locks.length).toBeGreaterThan(0);
     for (const [key, lock] of locks) {
-      expect(lock.value ?? null).toBe(key.endsWith(":inbox_snoozed_until") ? SNOOZE_UNTIL : null);
+      expect(lock.value ?? null).toBe(
+        key.endsWith(":inbox_snoozed_until") ? SNOOZE_UNTIL : null,
+      );
     }
   });
 
@@ -73,15 +94,23 @@ describe("undoable field gestures restore every field the action touched", () =>
     // undo's server half.
     const undoPatches: Array<Record<string, any>> = [];
     const owner = {};
-    useInboxStore.getState()._setDispatch(async (action, _args, patches) => {
-      if (action === "applyUndoPatches") undoPatches.push((patches ?? {}) as Record<string, any>);
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, _args, patches) => {
+        if (action === "applyUndoPatches")
+          undoPatches.push((patches ?? {}) as Record<string, any>);
+        return null;
+      },
+      { owner },
+    );
     try {
       useInboxStore.getState().deferSession(ID);
       performUndo();
-      const stamps = undoPatches.flatMap((p) => Object.values(p.conversations ?? {}));
-      expect(stamps.some((f: any) => f.inbox_snoozed_until === SNOOZE_UNTIL)).toBe(true);
+      const stamps = undoPatches.flatMap((p) =>
+        Object.values(p.conversations ?? {}),
+      );
+      expect(
+        stamps.some((f: any) => f.inbox_snoozed_until === SNOOZE_UNTIL),
+      ).toBe(true);
       expect(stamps.some((f: any) => f.inbox_deferred_at === null)).toBe(true);
     } finally {
       useInboxStore.getState()._clearDispatch(owner);
@@ -91,10 +120,19 @@ describe("undoable field gestures restore every field the action touched", () =>
   // B2: the forward write's locks held the forward value, so a push that still
   // carried it (the server applied the gesture before the undo landed) used to
   // put it back. The undo replaces those locks with the restored values.
-  const lockedOn = () => Object.keys(useInboxStore.getState().pending).filter((k) => k.includes(ID));
+  const lockedOn = () =>
+    Object.keys(useInboxStore.getState().pending).filter((k) => k.includes(ID));
   const push = (fields: Record<string, any>) => {
-    useInboxStore.getState().syncTable("sessions", [{ _id: ID, title: "Test session", updated_at: 1, ...fields }] as any);
-    useInboxStore.getState().syncTable("conversations", [{ _id: ID, title: "Test session", ...fields }] as any);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        { _id: ID, title: "Test session", updated_at: 1, ...fields },
+      ] as any);
+    useInboxStore
+      .getState()
+      .syncTable("conversations", [
+        { _id: ID, title: "Test session", ...fields },
+      ] as any);
   };
 
   test("defer: a stale push after the undo does not re-defer, and the echo leaves no lock", () => {
@@ -117,7 +155,11 @@ describe("undoable field gestures restore every field the action touched", () =>
     const restAt = row().inbox_rest_at;
     performUndo();
 
-    push({ inbox_rest: "done", inbox_rest_at: restAt, inbox_snoozed_until: null });
+    push({
+      inbox_rest: "done",
+      inbox_rest_at: restAt,
+      inbox_snoozed_until: null,
+    });
     expect(conv().inbox_rest ?? null).toBe(null);
     expect(row().inbox_rest ?? null).toBe(null);
     expect(row().inbox_snoozed_until).toBe(SNOOZE_UNTIL);
@@ -131,7 +173,11 @@ describe("undoable field gestures restore every field the action touched", () =>
     const pinnedAt = row().inbox_pinned_at;
     performUndo();
 
-    push({ inbox_pinned_at: pinnedAt, is_pinned: true, inbox_snoozed_until: null });
+    push({
+      inbox_pinned_at: pinnedAt,
+      is_pinned: true,
+      inbox_snoozed_until: null,
+    });
     expect(row().inbox_pinned_at ?? null).toBe(null);
     expect(conv().inbox_pinned_at ?? null).toBe(null);
 
@@ -145,7 +191,10 @@ describe("undoable field gestures restore every field the action touched", () =>
 // message, switchSessionAgent, reconfigureSession), which a field restore
 // cannot reverse, so none of them lands on the stack.
 describe("live switches are not undoable", () => {
-  beforeEach(() => { _resetUndoStacks(); seed({ agent_type: "claude_code", model: "opus" }); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed({ agent_type: "claude_code", model: "opus" });
+  });
 
   test("switching agent, model, definition or project records nothing", () => {
     const s = useInboxStore.getState();

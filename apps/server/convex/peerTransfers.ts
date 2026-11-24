@@ -14,11 +14,19 @@ import { ownDevice } from "./devices";
 
 export const PEER_TRANSFER_TEXT_MAX = 200;
 
-const phase = v.union(v.literal("asking"), v.literal("receiving"), v.literal("unpacking"), v.literal("done"), v.literal("failed"));
+const phase = v.union(
+  v.literal("asking"),
+  v.literal("receiving"),
+  v.literal("unpacking"),
+  v.literal("done"),
+  v.literal("failed"),
+);
 const mode = v.union(v.literal("direct"), v.literal("relay"));
 
-const text = (s: string | undefined) => (s ? s.slice(0, PEER_TRANSFER_TEXT_MAX) : undefined);
-const count = (n: number | undefined) => (n !== undefined && Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined);
+const text = (s: string | undefined) =>
+  s ? s.slice(0, PEER_TRANSFER_TEXT_MAX) : undefined;
+const count = (n: number | undefined) =>
+  n !== undefined && Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
 
 export const reportPeerTransfer = mutation({
   args: {
@@ -37,14 +45,23 @@ export const reportPeerTransfer = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
-    if (!(await ownDevice(ctx, userId, args.device_id))) throw new Error("Unknown device");
-    if (conv.owner_device_id && conv.owner_device_id !== args.device_id) throw new Error("another machine runs this session");
-    const prev = conv.peer_transfer?.started_at === args.started_at ? conv.peer_transfer : undefined;
-    const cancel = !!prev?.cancel_requested_at && prev.cancel_requested_at >= args.started_at;
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      throw new Error("not your conversation");
+    if (!(await ownDevice(ctx, userId, args.device_id)))
+      throw new Error("Unknown device");
+    if (conv.owner_device_id && conv.owner_device_id !== args.device_id)
+      throw new Error("another machine runs this session");
+    const prev =
+      conv.peer_transfer?.started_at === args.started_at
+        ? conv.peer_transfer
+        : undefined;
+    const cancel =
+      !!prev?.cancel_requested_at &&
+      prev.cancel_requested_at >= args.started_at;
     if (args.phase === "done") {
       const cur = conv.peer_transfer;
-      if (cur && (prev || cur.phase === "failed")) await ctx.db.patch(conv._id, { peer_transfer: undefined });
+      if (cur && (prev || cur.phase === "failed"))
+        await ctx.db.patch(conv._id, { peer_transfer: undefined });
       return { cancel };
     }
     await ctx.db.patch(conv._id, {
@@ -65,12 +82,29 @@ export const reportPeerTransfer = mutation({
 });
 
 // Only the transfer the person saw: a newer one started since keeps running.
-export async function performCancelPeerTransfer(ctx: any, userId: Id<"users">, conversationId: Id<"conversations">, startedAt: number) {
+export async function performCancelPeerTransfer(
+  ctx: any,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+  startedAt: number,
+) {
   const conv = await ctx.db.get(conversationId);
-  if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+  if (!conv || conv.user_id.toString() !== userId.toString())
+    throw new Error("not your conversation");
   const pt = conv.peer_transfer;
-  if (!pt || pt.started_at !== startedAt || pt.phase === "failed" || pt.cancel_requested_at) return;
-  await ctx.db.patch(conv._id, { peer_transfer: { ...pt, cancel_requested_at: Math.max(Date.now(), pt.started_at) } });
+  if (
+    !pt ||
+    pt.started_at !== startedAt ||
+    pt.phase === "failed" ||
+    pt.cancel_requested_at
+  )
+    return;
+  await ctx.db.patch(conv._id, {
+    peer_transfer: {
+      ...pt,
+      cancel_requested_at: Math.max(Date.now(), pt.started_at),
+    },
+  });
 }
 
 export const cancelPeerTransfer = mutation({
@@ -78,15 +112,27 @@ export const cancelPeerTransfer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
     if (!userId) throw new Error("Authentication required");
-    await performCancelPeerTransfer(ctx, userId, args.conversation_id, args.started_at);
+    await performCancelPeerTransfer(
+      ctx,
+      userId,
+      args.conversation_id,
+      args.started_at,
+    );
   },
 });
 
 // Only the transfer the person saw: a newer one its daemon started since stays.
-export async function performDismissPeerTransfer(ctx: any, userId: Id<"users">, conversationId: Id<"conversations">, startedAt: number) {
+export async function performDismissPeerTransfer(
+  ctx: any,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+  startedAt: number,
+) {
   const conv = await ctx.db.get(conversationId);
-  if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
-  if (conv.peer_transfer?.started_at === startedAt) await ctx.db.patch(conv._id, { peer_transfer: undefined });
+  if (!conv || conv.user_id.toString() !== userId.toString())
+    throw new Error("not your conversation");
+  if (conv.peer_transfer?.started_at === startedAt)
+    await ctx.db.patch(conv._id, { peer_transfer: undefined });
 }
 
 export const dismissPeerTransfer = mutation({
@@ -94,6 +140,11 @@ export const dismissPeerTransfer = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
     if (!userId) throw new Error("Authentication required");
-    await performDismissPeerTransfer(ctx, userId, args.conversation_id, args.started_at);
+    await performDismissPeerTransfer(
+      ctx,
+      userId,
+      args.conversation_id,
+      args.started_at,
+    );
   },
 });

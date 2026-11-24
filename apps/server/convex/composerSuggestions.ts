@@ -1,14 +1,37 @@
-import { action, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { isLowSignalPrompt } from "./titleGeneration";
 import { verifyApiToken } from "./apiTokens";
-import { CHEAP_MODEL, parseJsonBlock, postMessages, replyText, type SurfaceRequest } from "./lib/anthropic";
+import {
+  CHEAP_MODEL,
+  parseJsonBlock,
+  postMessages,
+  replyText,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { openaiFetch } from "./lib/openai";
-import { NO_TEAM_CONTENT_GATE, vendorAllowedFor, vendorRefusalFromDb, type VendorGate } from "./lib/vendorGuard";
-import { MAX_SUGGESTIONS, MAX_SUGGESTION_CHARS, outcomeArgs, suggestionsProvider, writeSuggestionOutcome } from "./lib/suggestionOutcomeWrite";
+import {
+  NO_TEAM_CONTENT_GATE,
+  vendorAllowedFor,
+  vendorRefusalFromDb,
+  type VendorGate,
+} from "./lib/vendorGuard";
+import {
+  MAX_SUGGESTIONS,
+  MAX_SUGGESTION_CHARS,
+  outcomeArgs,
+  suggestionsProvider,
+  writeSuggestionOutcome,
+} from "./lib/suggestionOutcomeWrite";
 import { rankInputs } from "./lib/suggestionInputRanking";
 export { MAX_SUGGESTIONS, MAX_SUGGESTION_CHARS };
 
@@ -83,7 +106,10 @@ type SuggestionConversation = {
 // the moment being predicted: the newest SUGGESTION_CONTEXT_ROWS rows, kept
 // to real turns. getSuggestionContext feeds it the live tail; the evals feed
 // it the rows up to a past moment, so both see the same window.
-export function contextFromRows<C extends SuggestionConversation>(rows: SuggestionRow[], conversation: C) {
+export function contextFromRows<C extends SuggestionConversation>(
+  rows: SuggestionRow[],
+  conversation: C,
+) {
   const turns = rows.slice(-SUGGESTION_CONTEXT_ROWS).filter(isConversationTurn);
   const tail = turns[turns.length - 1];
   return {
@@ -114,7 +140,9 @@ export const getComposerSuggestions = query({
     if (!userId) return null;
     const row = await ctx.db
       .query("composer_suggestions")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     // Owner-only: suggestions are predictions of the OWNER's next message,
     // mined partly from their private input history.
@@ -142,7 +170,15 @@ export const forConversation = query({
       .withIndex("by_conversation_id", (q) => q.eq("conversation_id", id))
       .first();
     if (!row || row.user_id !== userId) return [];
-    return [{ _id: row._id, conversation_id: row.conversation_id, anchor_message_uuid: row.anchor_message_uuid, suggestions: row.suggestions, generated_at: row.generated_at }];
+    return [
+      {
+        _id: row._id,
+        conversation_id: row.conversation_id,
+        anchor_message_uuid: row.anchor_message_uuid,
+        suggestions: row.suggestions,
+        generated_at: row.generated_at,
+      },
+    ];
   },
 });
 
@@ -155,7 +191,7 @@ export const getSuggestionContext = internalQuery({
     const raw = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("desc")
       .take(SUGGESTION_CONTEXT_ROWS);
@@ -196,7 +232,9 @@ export function isMachineCarrierText(text: string): boolean {
   return (
     head.startsWith("<") ||
     head.startsWith("[codecast]") ||
-    /<(teammate-message|session-message|task-notification|cast-decision|command-(?:message|name))\b/.test(head)
+    /<(teammate-message|session-message|task-notification|cast-decision|command-(?:message|name))\b/.test(
+      head,
+    )
   );
 }
 
@@ -204,9 +242,25 @@ export function isMachineCarrierText(text: string): boolean {
 // keystroke, so a suggestion earns its place only by carrying content. The
 // prompt forbids them too; this is the backstop.
 const GENERIC_NUDGES = new Set([
-  "continue", "go", "proceed", "go ahead", "keep going", "do it", "yes", "ok",
-  "okay", "sure", "yes please", "sounds good", "looks good", "lgtm", "done",
-  "next", "fix it", "try again", "ship it",
+  "continue",
+  "go",
+  "proceed",
+  "go ahead",
+  "keep going",
+  "do it",
+  "yes",
+  "ok",
+  "okay",
+  "sure",
+  "yes please",
+  "sounds good",
+  "looks good",
+  "lgtm",
+  "done",
+  "next",
+  "fix it",
+  "try again",
+  "ship it",
 ]);
 export function isGenericNudge(text: string): boolean {
   return GENERIC_NUDGES.has(normalizeForMatch(text));
@@ -240,7 +294,14 @@ export const getRecentUserInputs = internalQuery({
       if (isMachineDrivenConversation(conv)) continue;
       // The miner sends this corpus to the suggester's vendor, so a regulated
       // team's conversation stays out of it while that vendor has no BAA.
-      if (await vendorRefusalFromDb(ctx, { conversationId: conv._id }, suggestionsProvider())) continue;
+      if (
+        await vendorRefusalFromDb(
+          ctx,
+          { conversationId: conv._id },
+          suggestionsProvider(),
+        )
+      )
+        continue;
       // Filter BEFORE take: most user-role rows are tool-result carriers (the
       // agent's tool outputs come back as role "user"), and an unfiltered
       // window fills up with them, crowding out every typed prompt. Same
@@ -249,13 +310,13 @@ export const getRecentUserInputs = internalQuery({
         ctx.db
           .query("messages")
           .withIndex("by_conversation_role_timestamp", (q) =>
-            q.eq("conversation_id", conv._id).eq("role", "user")
+            q.eq("conversation_id", conv._id).eq("role", "user"),
           )
           .filter((q) =>
             q.and(
               q.eq(q.field("tool_results"), undefined),
-              q.neq(q.field("content"), undefined)
-            )
+              q.neq(q.field("content"), undefined),
+            ),
           );
       const opening = await typed().order("asc").take(OPENING_ROWS);
       const newest = await typed().order("desc").take(NEWEST_ROWS);
@@ -325,13 +386,21 @@ export const storeSuggestionProfile = internalMutation({
   args: {
     user_id: v.id("users"),
     frequent: v.array(v.object({ text: v.string(), count: v.number() })),
-    phrases: v.optional(v.array(v.object({ text: v.string(), count: v.number() }))),
-    patterns: v.optional(v.array(v.object({
-      pattern: v.string(),
-      example: v.string(),
-      count: v.number(),
-    }))),
-    prompts: v.optional(v.array(v.object({ text: v.string(), count: v.number() }))),
+    phrases: v.optional(
+      v.array(v.object({ text: v.string(), count: v.number() })),
+    ),
+    patterns: v.optional(
+      v.array(
+        v.object({
+          pattern: v.string(),
+          example: v.string(),
+          count: v.number(),
+        }),
+      ),
+    ),
+    prompts: v.optional(
+      v.array(v.object({ text: v.string(), count: v.number() })),
+    ),
     recent: v.array(v.string()),
     generated_at: v.number(),
   },
@@ -373,7 +442,9 @@ export const storeSuggestions = internalMutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("composer_suggestions")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -389,7 +460,11 @@ export const storeSuggestions = internalMutation({
 
 // Normalization used to compare a suggestion against historical messages.
 export function normalizeForMatch(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").replace(/[.!?…]+$/, "").trim();
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?…]+$/, "")
+    .trim();
 }
 
 // Output guards: press-send-ready strings only. Refusal/meta prose from the
@@ -419,14 +494,23 @@ export function sanitizeSuggestions(
       .trim()
       .replace(/^["'`]+|["'`]+$/g, "");
     if (!text || text.length > MAX_SUGGESTION_CHARS) continue;
-    if (/^(i cannot|i can't|i'm sorry|sorry|as an ai|i don't have)/i.test(text)) continue;
+    if (/^(i cannot|i can't|i'm sorry|sorry|as an ai|i don't have)/i.test(text))
+      continue;
     const key = normalizeForMatch(text);
     if (GENERIC_NUDGES.has(key)) continue;
     if (seen.has(key) || key === lastKey) continue;
-    if (bannedVerbatim && nearlyRepeats(key, bannedVerbatim) && !nearlyRepeats(key, resendable)) continue;
+    if (
+      bannedVerbatim &&
+      nearlyRepeats(key, bannedVerbatim) &&
+      !nearlyRepeats(key, resendable)
+    )
+      continue;
     seen.add(key);
     const rawConf = (item as any)?.confidence;
-    const conf = typeof rawConf === "number" && rawConf >= 0 && rawConf <= 1 ? rawConf : 0.6;
+    const conf =
+      typeof rawConf === "number" && rawConf >= 0 && rawConf <= 1
+        ? rawConf
+        : 0.6;
     scored.push({ text, conf });
   }
   return scored
@@ -446,7 +530,8 @@ export function nearlyRepeats(key: string, others: Iterable<string>): boolean {
   const words = key.split(" ").filter(Boolean);
   const runs = (w: string[]) => {
     const out = new Set<string>();
-    for (let i = 0; i + REPEAT_RUN <= w.length; i++) out.add(w.slice(i, i + REPEAT_RUN).join(" "));
+    for (let i = 0; i + REPEAT_RUN <= w.length; i++)
+      out.add(w.slice(i, i + REPEAT_RUN).join(" "));
     return out;
   };
   const mine = runs(words);
@@ -459,7 +544,8 @@ export function nearlyRepeats(key: string, others: Iterable<string>): boolean {
       const otherSet = new Set(theirs);
       let shared = 0;
       for (const w of set) if (otherSet.has(w)) shared++;
-      if (shared / (set.size + otherSet.size - shared) >= REPEAT_OVERLAP) return true;
+      if (shared / (set.size + otherSet.size - shared) >= REPEAT_OVERLAP)
+        return true;
     }
   }
   return false;
@@ -493,19 +579,30 @@ export function parseMinedProfile(parsed: unknown): MinedProfile | null {
     }))
     // A habit whose best example is itself a bare nudge is the nudge habit
     // in disguise — the one pattern the suggester must not learn.
-    .filter((p: { example: string }) => !GENERIC_NUDGES.has(normalizeForMatch(p.example)))
+    .filter(
+      (p: { example: string }) =>
+        !GENERIC_NUDGES.has(normalizeForMatch(p.example)),
+    )
     .slice(0, 15);
   const prompts = (Array.isArray(obj.prompts) ? obj.prompts : [])
     .filter(
       (p: any) =>
-        p && typeof p.text === "string" && typeof p.count === "number" && p.count >= 2,
+        p &&
+        typeof p.text === "string" &&
+        typeof p.count === "number" &&
+        p.count >= 2,
     )
     .map((p: any) => ({
-      text: String(p.text).replace(/\s+/g, " ").trim().slice(0, MAX_SUGGESTION_CHARS),
+      text: String(p.text)
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, MAX_SUGGESTION_CHARS),
       count: Math.round(p.count),
     }))
     // Same backstop as patterns: a nudge is never a reusable prompt.
-    .filter((p: { text: string }) => !GENERIC_NUDGES.has(normalizeForMatch(p.text)))
+    .filter(
+      (p: { text: string }) => !GENERIC_NUDGES.has(normalizeForMatch(p.text)),
+    )
     .slice(0, 12);
   return patterns.length || prompts.length ? { patterns, prompts } : null;
 }
@@ -560,7 +657,12 @@ export async function minePatternsWithLLM(
 ): Promise<(MinedProfile & { usage?: unknown }) | null> {
   const prompt = buildMinerPrompt(inputs);
   // getRecentUserInputs leaves out every conversation whose team may not send to Anthropic.
-  const completion = await llmComplete({ provider: "anthropic", prompt, maxTokens: 3000, gate: NO_TEAM_CONTENT_GATE });
+  const completion = await llmComplete({
+    provider: "anthropic",
+    prompt,
+    maxTokens: 3000,
+    gate: NO_TEAM_CONTENT_GATE,
+  });
   if (!completion) return null;
   const mined = parseMinedProfile(parseJsonBlock(completion.text));
   return mined ? { ...mined, usage: completion.usage } : null;
@@ -575,11 +677,14 @@ export type SuggestionOutcome = {
   reply?: string;
 };
 
-const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n) + " […]" : t);
+const clip = (t: string, n: number) =>
+  t.length > n ? t.slice(0, n) + " […]" : t;
 
 export function renderOutcome(o: SuggestionOutcome): string {
-  if (o.outcome === "sent") return `- took as written: "${clip(o.suggestion, 200)}"`;
-  if (o.outcome === "edited") return `- took and rewrote: "${clip(o.suggestion, 200)}"\n    they sent: "${clip(o.reply ?? "", 200)}"`;
+  if (o.outcome === "sent")
+    return `- took as written: "${clip(o.suggestion, 200)}"`;
+  if (o.outcome === "edited")
+    return `- took and rewrote: "${clip(o.suggestion, 200)}"\n    they sent: "${clip(o.reply ?? "", 200)}"`;
   return `- passed over: "${clip(o.suggestion, 200)}"\n    typed instead: "${clip(o.reply ?? "", 200)}"`;
 }
 
@@ -609,9 +714,13 @@ export function buildPrompt(
   // final assistant message gets the most room — suggestions respond to it.
   const head = turns.length > 14 ? turns.slice(0, 4) : [];
   const tail = turns.length > 14 ? turns.slice(-10) : turns;
-  const renderTurn = (m: { role: string; content: string }, isLast: boolean) => {
+  const renderTurn = (
+    m: { role: string; content: string },
+    isLast: boolean,
+  ) => {
     const cap = isLast && m.role === "assistant" ? 2400 : 400;
-    const text = m.content.length > cap ? m.content.slice(0, cap) + " […]" : m.content;
+    const text =
+      m.content.length > cap ? m.content.slice(0, cap) + " […]" : m.content;
     return `${m.role === "assistant" ? "Agent" : "Developer"}: ${text}`;
   };
   const excerpt = [
@@ -628,7 +737,9 @@ export function buildPrompt(
         .map((p) => `- (×${p.count}) ${p.pattern}\n    e.g. "${p.example}"`)
         .join("\n")
     : profile.phrases.length
-      ? profile.phrases.map((f) => `- (×${f.count}) says things like: "${f.text}"`).join("\n")
+      ? profile.phrases
+          .map((f) => `- (×${f.count}) says things like: "${f.text}"`)
+          .join("\n")
       : "- none mined yet";
   // Reusable prompts are quoted whole: the wording is the point. Recent
   // messages are voice evidence only, so a long one is trimmed here (its
@@ -711,7 +822,10 @@ ${excerpt}`;
 
 // The Anthropic request the suggester and the miner send. The evals replay
 // the same object, so what they measure is what prod posts.
-export function haikuRequest(prompt: string, maxTokens: number): SurfaceRequest {
+export function haikuRequest(
+  prompt: string,
+  maxTokens: number,
+): SurfaceRequest {
   return { model: CHEAP_MODEL, prompt, max_tokens: maxTokens };
 }
 
@@ -744,7 +858,10 @@ export async function llmComplete(opts: {
       const text = data.choices?.[0]?.message?.content?.trim() ?? "";
       return text ? { text, usage: data.usage } : null;
     }
-    const response = await postMessages(haikuRequest(opts.prompt, opts.maxTokens), { gate: opts.gate });
+    const response = await postMessages(
+      haikuRequest(opts.prompt, opts.maxTokens),
+      { gate: opts.gate },
+    );
     if (!response?.ok) return null;
     const data = await response.json();
     const text = replyText(data);
@@ -786,15 +903,24 @@ function profileForPrompt(profile: StoredProfile) {
 // Rebuild one user's profile from their input history: collect, rank, mine,
 // store. Shared by the lazy TTL refresh inside the suggester and the
 // on-demand internal action below.
-async function refreshProfile(ctx: any, userId: Id<"users">, now: number): Promise<StoredProfile> {
-  const inputs = await ctx.runQuery(internal.composerSuggestions.getRecentUserInputs, {
-    user_id: userId,
-  });
+async function refreshProfile(
+  ctx: any,
+  userId: Id<"users">,
+  now: number,
+): Promise<StoredProfile> {
+  const inputs = await ctx.runQuery(
+    internal.composerSuggestions.getRecentUserInputs,
+    {
+      user_id: userId,
+    },
+  );
   const ranked = rankInputs(inputs, now);
   // Generalized habits beat literal quotes; the n-gram phrases are the
   // fallback when the miner call fails, so a bad LLM day degrades, never
   // blanks.
-  const mined = await minePatternsWithLLM(inputs.map((r: { text: string }) => r.text));
+  const mined = await minePatternsWithLLM(
+    inputs.map((r: { text: string }) => r.text),
+  );
   const profile: StoredProfile = {
     frequent: ranked.frequent,
     phrases: ranked.phrases,
@@ -812,8 +938,14 @@ async function refreshProfile(ctx: any, userId: Id<"users">, now: number): Promi
 
 // The suggestion request for one moment on the Anthropic branch: the prompt
 // predictSuggestions renders, at its token cap.
-export function suggestRequest(context: Parameters<typeof buildPrompt>[0], profile: StoredProfile): SurfaceRequest {
-  return haikuRequest(buildPrompt(context, profileForPrompt(profile)), SUGGEST_MAX_TOKENS);
+export function suggestRequest(
+  context: Parameters<typeof buildPrompt>[0],
+  profile: StoredProfile,
+): SurfaceRequest {
+  return haikuRequest(
+    buildPrompt(context, profileForPrompt(profile)),
+    SUGGEST_MAX_TOKENS,
+  );
 }
 
 // The whole prediction, from stored context and profile to press-send-ready
@@ -827,7 +959,11 @@ export async function predictSuggestions(
   provider: "anthropic" | "openai",
   gate: VendorGate,
   complete: typeof llmComplete = llmComplete,
-): Promise<{ suggestions: string[]; error?: "provider_failed" | "invalid_json"; raw?: string }> {
+): Promise<{
+  suggestions: string[];
+  error?: "provider_failed" | "invalid_json";
+  raw?: string;
+}> {
   const req = suggestRequest(context, profile);
   // Anything the user has literally said before — recent messages, mined
   // examples, repeated whole inputs — may not come back as a pill…
@@ -835,23 +971,40 @@ export async function predictSuggestions(
     ...profile.recent.map(normalizeForMatch),
     ...profile.frequent.map((f) => normalizeForMatch(f.text)),
     ...(profile.patterns ?? []).map((p) => normalizeForMatch(p.example)),
-    ...context.turns.filter((t) => t.role === "user").map((t) => normalizeForMatch(t.content)),
+    ...context.turns
+      .filter((t) => t.role === "user")
+      .map((t) => normalizeForMatch(t.content)),
     // What they typed after past suggestions teaches direction, never words.
-    ...(profile.outcomes ?? []).flatMap((o) => (o.reply && o.outcome !== "sent" ? [normalizeForMatch(o.reply)] : [])),
+    ...(profile.outcomes ?? []).flatMap((o) =>
+      o.reply && o.outcome !== "sent" ? [normalizeForMatch(o.reply)] : [],
+    ),
   ]);
   // …except a reusable prompt, which the user resends on purpose. The
   // last-user-message check in sanitizeSuggestions still stops an
   // immediate echo.
-  const resendable = (profile.prompts ?? []).map((p) => normalizeForMatch(p.text));
+  const resendable = (profile.prompts ?? []).map((p) =>
+    normalizeForMatch(p.text),
+  );
   for (const p of resendable) bannedVerbatim.delete(p);
 
-  const completion = await complete({ provider, prompt: req.prompt, maxTokens: req.max_tokens, gate });
+  const completion = await complete({
+    provider,
+    prompt: req.prompt,
+    maxTokens: req.max_tokens,
+    gate,
+  });
   if (!completion) return { suggestions: [], error: "provider_failed" };
   const parsed = parseJsonBlock(completion.text);
-  if (parsed === null) return { suggestions: [], error: "invalid_json", raw: completion.text };
+  if (parsed === null)
+    return { suggestions: [], error: "invalid_json", raw: completion.text };
   const lastUser = [...context.turns].reverse().find((t) => t.role === "user");
   return {
-    suggestions: sanitizeSuggestions(parsed, lastUser?.content ?? null, bannedVerbatim, resendable),
+    suggestions: sanitizeSuggestions(
+      parsed,
+      lastUser?.content ?? null,
+      bannedVerbatim,
+      resendable,
+    ),
     raw: completion.text,
   };
 }
@@ -868,9 +1021,12 @@ export const generateComposerSuggestions = action({
     const user = await ctx.runQuery(api.users.getCurrentUser, {} as any);
     if (!user) throw new Error("Not authenticated");
 
-    const context = await ctx.runQuery(internal.composerSuggestions.getSuggestionContext, {
-      conversation_id: args.conversation_id,
-    });
+    const context = await ctx.runQuery(
+      internal.composerSuggestions.getSuggestionContext,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
     if (!context) return { status: "skipped", reason: "missing_conversation" };
     if (context.conversation.user_id !== user._id) {
       throw new Error("Only the session owner can generate suggestions");
@@ -882,9 +1038,12 @@ export const generateComposerSuggestions = action({
     }
 
     const now = Date.now();
-    const existing = await ctx.runQuery(api.composerSuggestions.getComposerSuggestions, {
-      conversation_id: args.conversation_id,
-    });
+    const existing = await ctx.runQuery(
+      api.composerSuggestions.getComposerSuggestions,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
     // Anchor match is the throttle: the tail hasn't changed, so neither would
     // the prediction. Covers cross-device double-fires too.
     if (existing && existing.anchor_message_uuid === context.anchor) {
@@ -894,7 +1053,8 @@ export const generateComposerSuggestions = action({
     // A regulated team's session gets no suggestions while the provider has no BAA (lib/vendorGuard).
     const provider = suggestionsProvider();
     const gate = { ctx, scope: { conversationId: args.conversation_id } };
-    if (!(await vendorAllowedFor(ctx, gate.scope, provider))) return { status: "skipped", reason: "vendor_not_covered" };
+    if (!(await vendorAllowedFor(ctx, gate.scope, provider)))
+      return { status: "skipped", reason: "vendor_not_covered" };
 
     let profile: StoredProfile | null = await ctx.runQuery(
       internal.composerSuggestions.getSuggestionProfile,
@@ -904,9 +1064,16 @@ export const generateComposerSuggestions = action({
       profile = await refreshProfile(ctx, user._id, now);
     }
 
-    const outcomes = await ctx.runQuery(internal.suggestionOutcomes.recent, { user_id: user._id });
+    const outcomes = await ctx.runQuery(internal.suggestionOutcomes.recent, {
+      user_id: user._id,
+    });
     try {
-      const predicted = await predictSuggestions(context, { ...profile, outcomes }, provider, gate);
+      const predicted = await predictSuggestions(
+        context,
+        { ...profile, outcomes },
+        provider,
+        gate,
+      );
       if (predicted.error) return { status: "error", reason: predicted.error };
       const suggestions = predicted.suggestions;
 

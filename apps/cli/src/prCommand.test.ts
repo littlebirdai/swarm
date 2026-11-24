@@ -20,9 +20,16 @@ import {
   threadLocation,
   type PrWatchRow,
 } from "./prCommand";
-import { parsePrRef, extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
+import {
+  parsePrRef,
+  extractRepoFromRemoteUrl,
+} from "@codecast/shared/contracts";
 
-const LOCAL = { session: "jx7c6zk", repository: "codecast-sh/codecast", branch: "fix-auth" };
+const LOCAL = {
+  session: "jx7c6zk",
+  repository: "codecast-sh/codecast",
+  branch: "fix-auth",
+};
 
 describe("pull request references", () => {
   test("a bare number takes the repository from the checkout", () => {
@@ -48,7 +55,9 @@ describe("pull request references", () => {
       repository: "acme/widgets",
       number: 42,
     });
-    expect(parsePrRef("https://github.com/acme/widgets/pull/42/files#discussion_r1")).toEqual({
+    expect(
+      parsePrRef("https://github.com/acme/widgets/pull/42/files#discussion_r1"),
+    ).toEqual({
       repository: "acme/widgets",
       number: 42,
     });
@@ -85,20 +94,32 @@ describe("pull request references", () => {
   });
 
   test("text that names no pull request fails at the shell", () => {
-    expect(() => buildPrLocator("not a pr", LOCAL)).toThrow("does not name a pull request");
+    expect(() => buildPrLocator("not a pr", LOCAL)).toThrow(
+      "does not name a pull request",
+    );
   });
 });
 
 describe("remote URLs", () => {
   test("every shape git writes yields owner/name", () => {
-    expect(extractRepoFromRemoteUrl("git@github.com:codecast-sh/codecast.git")).toBe("codecast-sh/codecast");
-    expect(extractRepoFromRemoteUrl("https://github.com/codecast-sh/codecast.git")).toBe("codecast-sh/codecast");
-    expect(extractRepoFromRemoteUrl("https://github.com/codecast-sh/codecast")).toBe("codecast-sh/codecast");
-    expect(extractRepoFromRemoteUrl("ssh://git@github.com/codecast-sh/codecast.git")).toBe("codecast-sh/codecast");
+    expect(
+      extractRepoFromRemoteUrl("git@github.com:codecast-sh/codecast.git"),
+    ).toBe("codecast-sh/codecast");
+    expect(
+      extractRepoFromRemoteUrl("https://github.com/codecast-sh/codecast.git"),
+    ).toBe("codecast-sh/codecast");
+    expect(
+      extractRepoFromRemoteUrl("https://github.com/codecast-sh/codecast"),
+    ).toBe("codecast-sh/codecast");
+    expect(
+      extractRepoFromRemoteUrl("ssh://git@github.com/codecast-sh/codecast.git"),
+    ).toBe("codecast-sh/codecast");
   });
 
   test("a remote that is not GitHub yields nothing", () => {
-    expect(extractRepoFromRemoteUrl("git@gitlab.com:acme/widgets.git")).toBeNull();
+    expect(
+      extractRepoFromRemoteUrl("git@gitlab.com:acme/widgets.git"),
+    ).toBeNull();
     expect(extractRepoFromRemoteUrl("")).toBeNull();
   });
 });
@@ -131,7 +152,10 @@ describe("watch diffing", () => {
   });
 
   test("each changed field is its own line", () => {
-    const events = diffPrRows([row()], [row({ shepherd_state: "ci_red", checks_state: "failure" })]);
+    const events = diffPrRows(
+      [row()],
+      [row({ shepherd_state: "ci_red", checks_state: "failure" })],
+    );
     expect(events.map((e) => [e.field, e.from, e.to])).toEqual([
       ["shepherd_state", "ci_pending", "ci_red"],
       ["checks_state", "pending", "failure"],
@@ -142,7 +166,11 @@ describe("watch diffing", () => {
   test("open review comments count as a change", () => {
     const events = diffPrRows([row()], [row({ unresolved_review_count: 2 })]);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ field: "unresolved_review_count", from: "0", to: "2" });
+    expect(events[0]).toMatchObject({
+      field: "unresolved_review_count",
+      from: "0",
+      to: "2",
+    });
   });
 
   test("a pull request entering the set is new, and leaving it is gone", () => {
@@ -174,7 +202,10 @@ describe("watch diffing", () => {
   });
 
   test("a merge shows up as both a state and a shepherd change", () => {
-    const events = diffPrRows([row()], [row({ state: "merged", shepherd_state: "merged" })]);
+    const events = diffPrRows(
+      [row()],
+      [row({ state: "merged", shepherd_state: "merged" })],
+    );
     expect(events.map((e) => e.field)).toEqual(["state", "shepherd_state"]);
   });
 });
@@ -214,21 +245,41 @@ describe("the list table", () => {
   });
 
   test("checks and reviews compress to the words a person scans for", () => {
-    expect(formatChecks({ checks_green: 4, checks_red: 0, checks_pending: 1 })).toBe("4 green 1 running");
-    expect(formatChecks({ checks_green: 0, checks_red: 0, checks_pending: 0 })).toBe("");
-    expect(formatReviews({ review_decision: "approved", unresolved_review_count: 0 })).toBe("approved");
-    expect(formatReviews({ review_decision: "changes_requested", unresolved_review_count: 3 })).toBe("changes, 3 open");
-    expect(formatReviews({ review_decision: null, unresolved_review_count: 0 })).toBe("");
+    expect(
+      formatChecks({ checks_green: 4, checks_red: 0, checks_pending: 1 }),
+    ).toBe("4 green 1 running");
+    expect(
+      formatChecks({ checks_green: 0, checks_red: 0, checks_pending: 0 }),
+    ).toBe("");
+    expect(
+      formatReviews({
+        review_decision: "approved",
+        unresolved_review_count: 0,
+      }),
+    ).toBe("approved");
+    expect(
+      formatReviews({
+        review_decision: "changes_requested",
+        unresolved_review_count: 3,
+      }),
+    ).toBe("changes, 3 open");
+    expect(
+      formatReviews({ review_decision: null, unresolved_review_count: 0 }),
+    ).toBe("");
   });
 });
 
 describe("the watch socket URL", () => {
   test("the site URL maps back to the websocket deployment", () => {
-    expect(convexUrlFromSiteUrl("https://oval-cat-1.convex.site")).toBe("https://oval-cat-1.convex.cloud");
+    expect(convexUrlFromSiteUrl("https://oval-cat-1.convex.site")).toBe(
+      "https://oval-cat-1.convex.cloud",
+    );
   });
 
   test("a self hosted deployment serves both from one origin", () => {
-    expect(convexUrlFromSiteUrl("https://convex.codecast.sh")).toBe("https://convex.codecast.sh");
+    expect(convexUrlFromSiteUrl("https://convex.codecast.sh")).toBe(
+      "https://convex.codecast.sh",
+    );
   });
 });
 
@@ -257,7 +308,9 @@ describe("the comment arguments", () => {
   });
 
   test("a dash in the body slot reads stdin", () => {
-    expect(splitCommentArgs("123", "-", readBody).body).toBe("body from the heredoc");
+    expect(splitCommentArgs("123", "-", readBody).body).toBe(
+      "body from the heredoc",
+    );
   });
 
   // `cast pr comment -` puts the dash in the reference slot, which the
@@ -296,7 +349,14 @@ describe("age as a phrase", () => {
   test("show never prints the broken phrase for a row updated this minute", () => {
     const now = 1_000_000_000;
     const out = formatPrShow(
-      { pull_request: { repository: "a/b", number: 1, state: "open", updated_at: now } },
+      {
+        pull_request: {
+          repository: "a/b",
+          number: 1,
+          state: "open",
+          updated_at: now,
+        },
+      },
       now,
     );
     expect(out).toContain("just now");
@@ -306,8 +366,22 @@ describe("age as a phrase", () => {
 
 describe("review threads", () => {
   const threads = [
-    { short_id: "aaaa0001", file_path: "src/auth.ts", line_number: 12, author: "reviewer", resolved: false, first_line: "This leaks a handle" },
-    { short_id: "aaaa0002", file_path: null, line_number: null, author: "jx7mine", resolved: true, first_line: "Fixed" },
+    {
+      short_id: "aaaa0001",
+      file_path: "src/auth.ts",
+      line_number: 12,
+      author: "reviewer",
+      resolved: false,
+      first_line: "This leaks a handle",
+    },
+    {
+      short_id: "aaaa0002",
+      file_path: null,
+      line_number: null,
+      author: "jx7mine",
+      resolved: true,
+      first_line: "Fixed",
+    },
   ];
 
   test("a thread on a line reads as file:line", () => {
@@ -331,11 +405,15 @@ describe("review threads", () => {
 
   test("a thread follows its code at the pull request's head", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pr-threads-"));
-    const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
     git("init", "-q");
     git("config", "user.email", "t@t");
     git("config", "user.name", "t");
-    fs.writeFileSync(path.join(dir, "a.ts"), "// one\n// two\nconst handle = open(path);\nreturn handle;\n");
+    fs.writeFileSync(
+      path.join(dir, "a.ts"),
+      "// one\n// two\nconst handle = open(path);\nreturn handle;\n",
+    );
     git("add", ".");
     git("commit", "-qm", "head");
     const head = git("rev-parse", "HEAD");
@@ -345,19 +423,42 @@ describe("review threads", () => {
       short_id: "aaaa0003",
       file_path: "a.ts",
       line_number: 1,
-      anchor_lines: { before: [], lines: ["const handle = open(path);"], after: ["return handle;"] },
+      anchor_lines: {
+        before: [],
+        lines: ["const handle = open(path);"],
+        after: ["return handle;"],
+      },
     };
-    const gone = { ...thread, short_id: "aaaa0004", anchor_lines: { before: [], lines: ["deleted code();"], after: [] } };
-    const placements = placeComments([thread, gone], prHeadLines(dir, { head_sha: head }, null));
-    expect(threadLocation(thread, placements.get(thread))).toBe("a.ts:3 (moved from line 1)");
-    expect(threadLocation(gone, placements.get(gone))).toBe("a.ts:1 (outdated)");
+    const gone = {
+      ...thread,
+      short_id: "aaaa0004",
+      anchor_lines: { before: [], lines: ["deleted code();"], after: [] },
+    };
+    const placements = placeComments(
+      [thread, gone],
+      prHeadLines(dir, { head_sha: head }, null),
+    );
+    expect(threadLocation(thread, placements.get(thread))).toBe(
+      "a.ts:3 (moved from line 1)",
+    );
+    expect(threadLocation(gone, placements.get(gone))).toBe(
+      "a.ts:1 (outdated)",
+    );
     // A checkout without the head and on another branch says nothing.
-    expect(prHeadLines(dir, { head_sha: "f".repeat(40), head_ref: "feature" }, "main")("a.ts")).toBeNull();
+    expect(
+      prHeadLines(
+        dir,
+        { head_sha: "f".repeat(40), head_ref: "feature" },
+        "main",
+      )("a.ts"),
+    ).toBeNull();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
   test("an author we do not know still reads as somebody", () => {
-    expect(formatPrThreads([{ short_id: "a", first_line: "hi" }])).toContain("someone");
+    expect(formatPrThreads([{ short_id: "a", first_line: "hi" }])).toContain(
+      "someone",
+    );
   });
 
   test("no open threads says so instead of printing a blank block", () => {
@@ -374,16 +475,30 @@ describe("repository case", () => {
   });
 
   test("a checkout whose remote carries capitals still names the canonical repository", () => {
-    expect(extractRepoFromRemoteUrl("git@github.com:Codecast-SH/Codecast.git")).toBe("codecast-sh/codecast");
+    expect(
+      extractRepoFromRemoteUrl("git@github.com:Codecast-SH/Codecast.git"),
+    ).toBe("codecast-sh/codecast");
   });
 });
 
 describe("cast pr create description", () => {
   test("the task's change guide follows the written body as a walkthrough; no guide leaves the body as written", async () => {
     const { prBodyWithGuide } = await import("./prCommand.js");
-    const guide = { steps: [{ title: "Store it", why: "The page reads it.", file: "a.ts", start: 3, hunk: "@@ -1,1 +1,1 @@\n-a\n+b" }] };
+    const guide = {
+      steps: [
+        {
+          title: "Store it",
+          why: "The page reads it.",
+          file: "a.ts",
+          start: 3,
+          hunk: "@@ -1,1 +1,1 @@\n-a\n+b",
+        },
+      ],
+    };
     const body = prBodyWithGuide("Goal: one guide.\n", guide);
-    expect(body).toStartWith("Goal: one guide.\n\n## Walkthrough\n\n### 1. Store it\n`a.ts:3`");
+    expect(body).toStartWith(
+      "Goal: one guide.\n\n## Walkthrough\n\n### 1. Store it\n`a.ts:3`",
+    );
     expect(body).toContain("```diff\n@@ -1,1 +1,1 @@");
     expect(prBodyWithGuide("Goal.", null)).toBe("Goal.");
     expect(prBodyWithGuide("", guide)).toStartWith("## Walkthrough");

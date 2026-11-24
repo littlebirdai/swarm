@@ -11,14 +11,26 @@ import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 // queue's day-long window still reads against its ask. (Static render reads
 // the store's initial snapshot, so the live-row preference is not testable here.)
 const client = offlineConvexClient("https://example.convex.cloud");
-const render = (el: React.ReactElement) => renderToStaticMarkup(<MemoryRouter><ConvexProvider client={client}>{el}</ConvexProvider></MemoryRouter>);
+const render = (el: React.ReactElement) =>
+  renderToStaticMarkup(
+    <MemoryRouter>
+      <ConvexProvider client={client}>{el}</ConvexProvider>
+    </MemoryRouter>,
+  );
 const CONV = "conv1234567890123456789012345678";
 
 describe("DecisionAnswerQuote", () => {
   test("closed quote names the decision, its question and the way back to the ask", () => {
     useInboxStore.setState({ sessionDecisions: {} } as any);
     const html = render(
-      <DecisionAnswerQuote decision={{ id: "d1", question: "Keep the engine vendored?", answer: "Keep vendored" }} conversationId={CONV} />,
+      <DecisionAnswerQuote
+        decision={{
+          id: "d1",
+          question: "Keep the engine vendored?",
+          answer: "Keep vendored",
+        }}
+        conversationId={CONV}
+      />,
     );
     expect(html).toContain("decision");
     expect(html).toContain("Keep the engine vendored?");
@@ -35,7 +47,11 @@ describe("DecisionAnswerQuote", () => {
     // alone: placeholder question, the way back to the ask, no crash.
     useInboxStore.setState({ sessionDecisions: {} } as any);
     const html = render(
-      <DecisionAnswerQuote decision={{ id: "", answer: "Hold" }} conversationId={CONV} timestamp={5_100} />,
+      <DecisionAnswerQuote
+        decision={{ id: "", answer: "Hold" }}
+        conversationId={CONV}
+        timestamp={5_100}
+      />,
     );
     expect(html).toContain("decision");
     expect(html).toContain("the agent&#x27;s question");

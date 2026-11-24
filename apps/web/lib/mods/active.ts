@@ -7,5 +7,9 @@ import type { ModRow } from "./host";
  * (`<id>:<permissionsSig>`), so widened grants stop it until they review them.
  */
 export function modIsActive(r: ModRow, installed: readonly string[]): boolean {
-  return r.enabled && (r.is_mine !== false || installed.includes(`${r._id}:${permissionsSig(r.manifest)}`));
+  return (
+    r.enabled &&
+    (r.is_mine !== false ||
+      installed.includes(`${r._id}:${permissionsSig(r.manifest)}`))
+  );
 }

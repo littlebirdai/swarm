@@ -26,9 +26,16 @@ mock.module("convex/react", () => ({
   useMutation: () => async () => undefined,
 }));
 const noThrow = await import("../../../hooks/useQueryNoThrow");
-mock.module("../../../hooks/useQueryNoThrow", () => ({ ...noThrow, useQueryNoThrow: () => ({ data: undefined }) }));
+mock.module("../../../hooks/useQueryNoThrow", () => ({
+  ...noThrow,
+  useQueryNoThrow: () => ({ data: undefined }),
+}));
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const { createRoot } = await import("react-dom/client");
@@ -46,18 +53,37 @@ function mount(focus: any, onClear = () => {}) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  act(() => root.render(<MemoryRouter><FocusChip focus={focus} waiting deploys={[]} live={null} onClear={onClear} /></MemoryRouter>));
+  act(() =>
+    root.render(
+      <MemoryRouter>
+        <FocusChip
+          focus={focus}
+          waiting
+          deploys={[]}
+          live={null}
+          onClear={onClear}
+        />
+      </MemoryRouter>,
+    ),
+  );
   return { host, unmount: () => act(() => root.unmount()) };
 }
 
 test("a session named by its conversation id reads as its short id, in a session pill", () => {
   let cleared = 0;
-  const { host, unmount } = mount({ kind: "session", id: CONVERSATION_ID }, () => cleared++);
+  const { host, unmount } = mount(
+    { kind: "session", id: CONVERSATION_ID },
+    () => cleared++,
+  );
   const chip = host.querySelector(".dpp-focus")!;
   expect(chip.textContent).toContain("jx7b0m0");
   expect(chip.textContent).not.toContain(CONVERSATION_ID);
   expect(chip.querySelector(`a[href*="${CONVERSATION_ID}"]`)).not.toBeNull();
-  act(() => (chip.querySelector("[data-deploy-focus-clear]") as HTMLButtonElement).click());
+  act(() =>
+    (
+      chip.querySelector("[data-deploy-focus-clear]") as HTMLButtonElement
+    ).click(),
+  );
   expect(cleared).toBe(1);
   unmount();
 });

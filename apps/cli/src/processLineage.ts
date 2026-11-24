@@ -39,17 +39,30 @@ type Lineage = { startedAt: number; ancestors: Ancestors };
 /** A process that started a session of its own, away from `parent`. Unknown
  *  group or terminal counts as detached: without proof, ancestry stops. */
 export function detachedFrom(child: ProcessInfo, parent: ProcessInfo): boolean {
-  if (child.pgid === undefined || parent.pgid === undefined || child.tty === undefined) return true;
-  return child.pgid === child.pid && child.pgid !== parent.pgid && noTerminal(child.tty);
+  if (
+    child.pgid === undefined ||
+    parent.pgid === undefined ||
+    child.tty === undefined
+  )
+    return true;
+  return (
+    child.pgid === child.pid &&
+    child.pgid !== parent.pgid &&
+    noTerminal(child.tty)
+  );
 }
 
 const sameStart = (a: number, b: number) => sameStartedAt(a, b);
 
-const touchesTree = (ancestors: Ancestors, tree: ReadonlyMap<number, ProcRow>): boolean => {
+const touchesTree = (
+  ancestors: Ancestors,
+  tree: ReadonlyMap<number, ProcRow>,
+): boolean => {
   for (const [pid, ancestorStart] of ancestors) {
     const t = tree.get(pid)?.startedAt;
     const tStart = t ? Date.parse(t) : NaN;
-    if (Number.isFinite(tStart) && sameStart(tStart, ancestorStart)) return true;
+    if (Number.isFinite(tStart) && sameStart(tStart, ancestorStart))
+      return true;
   }
   return false;
 };
@@ -61,12 +74,16 @@ export class ProcessLineage {
 
   /** Fold one snapshot in: every live process keeps the ancestors it was ever
    *  seen under, and a process that has exited is forgotten. */
-  observe(snapshot: Map<number, ProcessInfo>, isAgent: (p: ProcessInfo) => boolean): void {
+  observe(
+    snapshot: Map<number, ProcessInfo>,
+    isAgent: (p: ProcessInfo) => boolean,
+  ): void {
     const next = new Map<number, Lineage>();
     for (const p of snapshot.values()) {
       if (p.pid <= 1 || p.startedAt === undefined) continue;
       const prev = this.entries.get(p.pid);
-      const kept = prev && sameStart(prev.startedAt, p.startedAt) ? prev : undefined;
+      const kept =
+        prev && sameStart(prev.startedAt, p.startedAt) ? prev : undefined;
       const ancestors = new Map(kept?.ancestors);
       let child = p;
       for (let hops = 0; hops < 64; hops++) {
@@ -76,7 +93,11 @@ export class ProcessLineage {
         ancestors.set(parent.pid, parent.startedAt);
         child = parent;
       }
-      if (ancestors.size) next.set(p.pid, { startedAt: kept?.startedAt ?? p.startedAt, ancestors });
+      if (ancestors.size)
+        next.set(p.pid, {
+          startedAt: kept?.startedAt ?? p.startedAt,
+          ancestors,
+        });
     }
     const groups = new Map<number, Ancestors>();
     for (const p of snapshot.values()) {
@@ -97,12 +118,27 @@ export class ProcessLineage {
    *  pid is no one's. A group answers only while its id names no live process
    *  in `table`: a live leader is judged as itself, and a live pid that is not
    *  the group's leader means the group emptied and the id was reused. */
-  descendsFrom(row: ProcRow, tree: ReadonlyMap<number, ProcRow>, table?: ReadonlyMap<number, ProcRow | null>): boolean {
+  descendsFrom(
+    row: ProcRow,
+    tree: ReadonlyMap<number, ProcRow>,
+    table?: ReadonlyMap<number, ProcRow | null>,
+  ): boolean {
     const entry = this.entries.get(row.pid);
     const started = row.startedAt ? Date.parse(row.startedAt) : NaN;
-    if (entry && Number.isFinite(started) && sameStart(entry.startedAt, started) && touchesTree(entry.ancestors, tree)) return true;
-    const group = row.pgid !== undefined && row.pgid !== row.pid ? this.groups.get(row.pgid) : undefined;
-    return !!group && !!table && !table.has(row.pgid!) && touchesTree(group, tree);
+    if (
+      entry &&
+      Number.isFinite(started) &&
+      sameStart(entry.startedAt, started) &&
+      touchesTree(entry.ancestors, tree)
+    )
+      return true;
+    const group =
+      row.pgid !== undefined && row.pgid !== row.pid
+        ? this.groups.get(row.pgid)
+        : undefined;
+    return (
+      !!group && !!table && !table.has(row.pgid!) && touchesTree(group, tree)
+    );
   }
 
   get size(): number {
@@ -113,7 +149,11 @@ export class ProcessLineage {
   async save(file: string): Promise<void> {
     const pairs = (m: Ancestors) => [...m];
     const data = {
-      entries: [...this.entries].map(([pid, e]) => [pid, e.startedAt, pairs(e.ancestors)]),
+      entries: [...this.entries].map(([pid, e]) => [
+        pid,
+        e.startedAt,
+        pairs(e.ancestors),
+      ]),
       groups: [...this.groups].map(([pgid, a]) => [pgid, pairs(a)]),
     };
     const tmp = `${file}.${process.pid}.tmp`;
@@ -126,14 +166,27 @@ export class ProcessLineage {
     const lineage = new ProcessLineage();
     try {
       const data = JSON.parse(fs.readFileSync(file, "utf-8"));
-      const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+      const num = (v: unknown): v is number =>
+        typeof v === "number" && Number.isFinite(v);
       const ancestors = (v: unknown): Ancestors =>
-        new Map(Array.isArray(v) ? v.filter((p): p is [number, number] => Array.isArray(p) && num(p[0]) && num(p[1])) : []);
+        new Map(
+          Array.isArray(v)
+            ? v.filter(
+                (p): p is [number, number] =>
+                  Array.isArray(p) && num(p[0]) && num(p[1]),
+              )
+            : [],
+        );
       for (const e of Array.isArray(data?.entries) ? data.entries : []) {
-        if (Array.isArray(e) && num(e[0]) && num(e[1])) lineage.entries.set(e[0], { startedAt: e[1], ancestors: ancestors(e[2]) });
+        if (Array.isArray(e) && num(e[0]) && num(e[1]))
+          lineage.entries.set(e[0], {
+            startedAt: e[1],
+            ancestors: ancestors(e[2]),
+          });
       }
       for (const g of Array.isArray(data?.groups) ? data.groups : []) {
-        if (Array.isArray(g) && num(g[0])) lineage.groups.set(g[0], ancestors(g[1]));
+        if (Array.isArray(g) && num(g[0]))
+          lineage.groups.set(g[0], ancestors(g[1]));
       }
     } catch {}
     return lineage;

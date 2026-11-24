@@ -1,15 +1,25 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import type { RunRow } from '@codecast/shared/contracts/evalsApi';
-import type { RunSource, RunSummary } from '@platform/evals';
-import { fsRunSource, parseRunId } from '@platform/evals/fs';
+import type { RunRow } from "@codecast/shared/contracts/evalsApi";
+import type { RunSource, RunSummary } from "@platform/evals";
+import { fsRunSource, parseRunId } from "@platform/evals/fs";
 
-import { indexedRuns, rulerAt } from '../history/runIndex';
-import { homePaths } from '../paths';
+import { indexedRuns, rulerAt } from "../history/runIndex";
+import { homePaths } from "../paths";
 
 /** What a rep ran on, carried from the index (run.json): what attribution and the footing compare. */
-export type RunProvenance = Pick<RunRow, 'gitHead' | 'dirty' | 'sourceHash' | 'sourceHashDisk' | 'promptSha' | 'freezeSha' | 'judgeModel' | 'visibility'>;
+export type RunProvenance = Pick<
+  RunRow,
+  | "gitHead"
+  | "dirty"
+  | "sourceHash"
+  | "sourceHashDisk"
+  | "promptSha"
+  | "freezeSha"
+  | "judgeModel"
+  | "visibility"
+>;
 
 export interface SurfaceRun extends RunSummary, Partial<RunProvenance> {
   /** The `check` invocation this rep belonged to. */
@@ -22,16 +32,21 @@ export interface SurfaceRun extends RunSummary, Partial<RunProvenance> {
 
 /** A listed rep with the replay bookkeeping the platform's summary leaves out: its batch, cadence and live reads (run.json). */
 function withRunJson(root: string, r: RunSummary): SurfaceRun {
-  const path = join(root, r.id, 'run.json');
+  const path = join(root, r.id, "run.json");
   let run: { batch?: string; cadence?: string | null; liveReads?: number } = {};
   if (existsSync(path)) {
     try {
-      run = JSON.parse(readFileSync(path, 'utf8')) as typeof run;
+      run = JSON.parse(readFileSync(path, "utf8")) as typeof run;
     } catch {
       run = {};
     }
   }
-  return { ...r, batch: run.batch ?? null, cadence: run.cadence ?? null, liveReads: run.liveReads ?? 0 };
+  return {
+    ...r,
+    batch: run.batch ?? null,
+    cadence: run.cadence ?? null,
+    liveReads: run.liveReads ?? 0,
+  };
 }
 
 /**
@@ -39,10 +54,16 @@ function withRunJson(root: string, r: RunSummary): SurfaceRun {
  * layout. Each listed rep carries its batch, so `runs list --json` can tell
  * one check from another that ran the same day with the same notes.
  */
-export const codecastRunSource = (): Omit<RunSource, 'list'> & { list: (...a: Parameters<RunSource['list']>) => Promise<SurfaceRun[]> } => {
+export const codecastRunSource = (): Omit<RunSource, "list"> & {
+  list: (...a: Parameters<RunSource["list"]>) => Promise<SurfaceRun[]>;
+} => {
   const root = homePaths().runs;
   const base = fsRunSource({ root });
-  return { ...base, list: async (filter) => (await base.list(filter)).map((r) => withRunJson(root, r)) };
+  return {
+    ...base,
+    list: async (filter) =>
+      (await base.list(filter)).map((r) => withRunJson(root, r)),
+  };
 };
 
 /**
@@ -54,7 +75,9 @@ export const codecastRunSource = (): Omit<RunSource, 'list'> & { list: (...a: Pa
 export function surfaceRunOf(row: RunRow): SurfaceRun {
   return {
     id: row.id,
-    scenario: parseRunId(row.id)?.scenario ?? `${row.surface}-${row.freezeId.slice(0, 8)}`,
+    scenario:
+      parseRunId(row.id)?.scenario ??
+      `${row.surface}-${row.freezeId.slice(0, 8)}`,
     title: row.freezeName,
     seed: row.seed,
     startedAt: row.stamp,
@@ -88,8 +111,16 @@ export function surfaceRunOf(row: RunRow): SurfaceRun {
  * surface's folders are checked against it), with the batch each came from,
  * its live reads and what it ran on. Every rep, unless `limit` says otherwise.
  */
-export async function surfaceRuns(surfaceId: string, opts: { limit?: number; freezeId?: string } = {}): Promise<SurfaceRun[]> {
-  const rows = (await indexedRuns({ surface: surfaceId })).filter((r) => !opts.freezeId || r.freezeId === opts.freezeId || r.freezeId.startsWith(opts.freezeId));
+export async function surfaceRuns(
+  surfaceId: string,
+  opts: { limit?: number; freezeId?: string } = {},
+): Promise<SurfaceRun[]> {
+  const rows = (await indexedRuns({ surface: surfaceId })).filter(
+    (r) =>
+      !opts.freezeId ||
+      r.freezeId === opts.freezeId ||
+      r.freezeId.startsWith(opts.freezeId),
+  );
   return (opts.limit ? rows.slice(0, opts.limit) : rows).map(surfaceRunOf);
 }
 
@@ -98,4 +129,5 @@ export async function surfaceRuns(surfaceId: string, opts: { limit?: number; fre
  * its folder, so a rejudge that replaces the prompt moves the rep to the new
  * ruler with nothing else to keep in step. Null for a rep no judge graded.
  */
-export const rulerOf = (r: Pick<SurfaceRun, 'id'>): string | null => rulerAt(join(homePaths().runs, r.id));
+export const rulerOf = (r: Pick<SurfaceRun, "id">): string | null =>
+  rulerAt(join(homePaths().runs, r.id));

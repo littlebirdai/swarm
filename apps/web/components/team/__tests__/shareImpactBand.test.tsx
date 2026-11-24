@@ -8,7 +8,17 @@ import { startOfDay } from "../../../lib/team/shareImpact";
 // the switch that keeps the past private whenever there is a past to keep.
 
 const NOW = Date.now();
-const impact = { repos: 2, sessions: 112, first: NOW - 100 * 86_400_000, last: NOW, older: 100, hidden: 0, manuallyShared: 0, truncated: false, exact: true };
+const impact = {
+  repos: 2,
+  sessions: 112,
+  first: NOW - 100 * 86_400_000,
+  last: NOW,
+  older: 100,
+  hidden: 0,
+  manuallyShared: 0,
+  truncated: false,
+  exact: true,
+};
 
 function render(props: Partial<Parameters<typeof ShareImpactBand>[0]> = {}) {
   return renderToStaticMarkup(

@@ -6,7 +6,12 @@ import { useInboxStore } from "../inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../cacheRetention";
 import { db } from "../persistence/db";
 import Dexie from "dexie";
-import { _reopenForTests, flushConversationMessages, loadConversationMessages, setHydrating } from "../idbCache";
+import {
+  _reopenForTests,
+  flushConversationMessages,
+  loadConversationMessages,
+  setHydrating,
+} from "../idbCache";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
 Dexie.dependencies.indexedDB = indexedDB;
@@ -19,7 +24,13 @@ setHydrating(false);
 // rewrote it on every push, and parsed 78 MB of rows at boot.
 
 const CONV = "conv_tail_cap_aaaaaaaaaaaaaaaaaaaaa";
-const msg = (n: number) => ({ _id: `m${n}`, role: "assistant", content: `row ${n}`, timestamp: n }) as any;
+const msg = (n: number) =>
+  ({
+    _id: `m${n}`,
+    role: "assistant",
+    content: `row ${n}`,
+    timestamp: n,
+  }) as any;
 const many = (n: number) => Array.from({ length: n }, (_, i) => msg(i + 1));
 
 // The web cache coalesces writes; read the committed row once the newest
@@ -28,12 +39,20 @@ const many = (n: number) => Array.from({ length: n }, (_, i) => msg(i + 1));
 async function settled(firstId: string) {
   const deadline = Date.now() + 10_000;
   for (;;) {
-    const row = await db.transaction("r", db.conversationMessageMeta, db.conversationMessageRows, async () => {
-      const meta = await db.conversationMessageMeta.get(CONV);
-      if (!meta) return undefined;
-      const rows = await db.conversationMessageRows.where("convId").equals(CONV).sortBy("position");
-      return { ...meta, messages: rows.map((row) => row.message) };
-    });
+    const row = await db.transaction(
+      "r",
+      db.conversationMessageMeta,
+      db.conversationMessageRows,
+      async () => {
+        const meta = await db.conversationMessageMeta.get(CONV);
+        if (!meta) return undefined;
+        const rows = await db.conversationMessageRows
+          .where("convId")
+          .equals(CONV)
+          .sortBy("position");
+        return { ...meta, messages: rows.map((row) => row.message) };
+      },
+    );
     if (row.messages[0]?._id === firstId || Date.now() > deadline) return row;
     await Bun.sleep(10);
   }
@@ -41,22 +60,36 @@ async function settled(firstId: string) {
 
 describe("persisted message tail", () => {
   beforeEach(() => {
-    useInboxStore.setState({ messages: { [CONV]: [] }, pendingMessages: { [CONV]: [] }, pagination: {}, pending: {} });
+    useInboxStore.setState({
+      messages: { [CONV]: [] },
+      pendingMessages: { [CONV]: [] },
+      pagination: {},
+      pending: {},
+    });
   });
 
   it("persists only the newest page and marks older rows as loadable", async () => {
-    useInboxStore.getState().setMessages(CONV, many(MESSAGE_PAGE_SIZE + 50), { hasMoreAbove: false, initialized: true });
-    expect(useInboxStore.getState().messages[CONV]).toHaveLength(MESSAGE_PAGE_SIZE + 50);
+    useInboxStore.getState().setMessages(CONV, many(MESSAGE_PAGE_SIZE + 50), {
+      hasMoreAbove: false,
+      initialized: true,
+    });
+    expect(useInboxStore.getState().messages[CONV]).toHaveLength(
+      MESSAGE_PAGE_SIZE + 50,
+    );
     flushConversationMessages();
     const cached = await loadConversationMessages(CONV);
     expect(cached?.messages).toHaveLength(MESSAGE_PAGE_SIZE);
     expect(cached?.messages[0]._id).toBe("m51");
-    expect(cached?.messages[MESSAGE_PAGE_SIZE - 1]._id).toBe(`m${MESSAGE_PAGE_SIZE + 50}`);
+    expect(cached?.messages[MESSAGE_PAGE_SIZE - 1]._id).toBe(
+      `m${MESSAGE_PAGE_SIZE + 50}`,
+    );
     expect(cached?.pagination?.hasMoreAbove).toBe(true);
   });
 
   it("persists a short conversation whole, with its own pagination", async () => {
-    useInboxStore.getState().setMessages(CONV, many(3), { hasMoreAbove: false, initialized: true });
+    useInboxStore
+      .getState()
+      .setMessages(CONV, many(3), { hasMoreAbove: false, initialized: true });
     flushConversationMessages();
     const cached = await loadConversationMessages(CONV);
     expect(cached?.messages.map((m) => m._id)).toEqual(["m1", "m2", "m3"]);
@@ -65,11 +98,19 @@ describe("persisted message tail", () => {
 
   it("applies the cap on the merge and tail paths too", async () => {
     const st = useInboxStore.getState();
-    st.setMessages(CONV, many(MESSAGE_PAGE_SIZE), { hasMoreAbove: false, initialized: true });
+    st.setMessages(CONV, many(MESSAGE_PAGE_SIZE), {
+      hasMoreAbove: false,
+      initialized: true,
+    });
     st.mergeMessages(CONV, [msg(MESSAGE_PAGE_SIZE + 1)], "append");
     flushConversationMessages();
     expect((await settled("m2"))?.messages[0]._id).toBe("m2");
-    st.applyTailMessages(CONV, MESSAGE_PAGE_SIZE + 1, [msg(MESSAGE_PAGE_SIZE + 2)], MESSAGE_PAGE_SIZE + 2);
+    st.applyTailMessages(
+      CONV,
+      MESSAGE_PAGE_SIZE + 1,
+      [msg(MESSAGE_PAGE_SIZE + 2)],
+      MESSAGE_PAGE_SIZE + 2,
+    );
     flushConversationMessages();
     const cached = await settled("m3");
     expect(cached?.messages).toHaveLength(MESSAGE_PAGE_SIZE);

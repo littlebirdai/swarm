@@ -9,8 +9,17 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   const router = useRouter();
-  const { code, setCode, newPassword, setNewPassword, confirmPassword, setConfirmPassword, error, loading, submit: handleSubmit } =
-    useResetConfirm(email, () => router.push("/login?reset=success"));
+  const {
+    code,
+    setCode,
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    error,
+    loading,
+    submit: handleSubmit,
+  } = useResetConfirm(email, () => router.push("/login?reset=success"));
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-sol-bg via-sol-bg-alt to-sol-bg flex items-center justify-center px-4">
@@ -20,7 +29,8 @@ function ResetPasswordForm() {
             Reset your password
           </h1>
           <p className="text-sol-text-muted mt-2 text-sm">
-            Enter the code sent to <span className="font-medium text-sol-text">{email}</span>
+            Enter the code sent to{" "}
+            <span className="font-medium text-sol-text">{email}</span>
           </p>
         </div>
 
@@ -98,7 +108,13 @@ function ResetPasswordForm() {
           </div>
 
           {error && (
-            <p id="auth-error" role="alert" className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>
+            <p
+              id="auth-error"
+              role="alert"
+              className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
+            >
+              {error}
+            </p>
           )}
 
           <Button
@@ -128,11 +144,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-<AppLoader />
-      }
-    >
+    <Suspense fallback={<AppLoader />}>
       <ResetPasswordForm />
     </Suspense>
   );

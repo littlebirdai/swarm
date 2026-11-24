@@ -19,9 +19,21 @@ export function CallListFeeder() {
 }
 
 /** `head` matches the chips in a task page's header; `row` the list row's. */
-export function TaskCallChip({ callId, size = "row", className = "" }: { callId: string; size?: "row" | "head"; className?: string }) {
-  const shortId = useInboxStore((s: any) => (s.callList?.[callId]?.short_id as string | undefined) ?? null);
-  const title = useInboxStore((s: any) => (s.callList?.[callId]?.title as string | undefined) ?? null);
+export function TaskCallChip({
+  callId,
+  size = "row",
+  className = "",
+}: {
+  callId: string;
+  size?: "row" | "head";
+  className?: string;
+}) {
+  const shortId = useInboxStore(
+    (s: any) => (s.callList?.[callId]?.short_id as string | undefined) ?? null,
+  );
+  const title = useInboxStore(
+    (s: any) => (s.callList?.[callId]?.title as string | undefined) ?? null,
+  );
   return (
     <Link
       href={`/calls/${shortId ?? callId}`}

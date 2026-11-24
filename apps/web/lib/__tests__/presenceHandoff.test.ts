@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { addPasskeyViaWeb, confirmPageUrl, confirmPresenceViaWeb, type OpenedChallenge, type PresenceHandoffDeps } from "../presenceHandoff";
+import {
+  addPasskeyViaWeb,
+  confirmPageUrl,
+  confirmPresenceViaWeb,
+  type OpenedChallenge,
+  type PresenceHandoffDeps,
+} from "../presenceHandoff";
 
 type Status = "pending" | "granted" | "used" | "expired";
 
@@ -8,7 +14,11 @@ type Status = "pending" | "granted" | "used" | "expired";
  * plays the person on it (`settle` pushes the challenge's new status the way
  * the /confirm page's finish would; `closePage` is the person closing it).
  */
-function rig(opts: { begins: OpenedChallenge[]; enroll?: OpenedChallenge; android?: boolean }) {
+function rig(opts: {
+  begins: OpenedChallenge[];
+  enroll?: OpenedChallenge;
+  android?: boolean;
+}) {
   const statuses = new Map<string, Status>();
   const watchers = new Map<string, (s: Status | null) => void>();
   const pages: string[] = [];
@@ -62,7 +72,9 @@ function rig(opts: { begins: OpenedChallenge[]; enroll?: OpenedChallenge; androi
 
 describe("Touch ID handed to the web's confirm page", () => {
   test("the page is the web origin's /confirm with the challenge id", () => {
-    expect(confirmPageUrl("https://codecast.sh/", "k1 7")).toBe("https://codecast.sh/confirm?c=k1%207");
+    expect(confirmPageUrl("https://codecast.sh/", "k1 7")).toBe(
+      "https://codecast.sh/confirm?c=k1%207",
+    );
   });
 
   test("granted on the page: the page closes and the action proceeds with the grant string the begin handed this client", async () => {
@@ -93,7 +105,13 @@ describe("Touch ID handed to the web's confirm page", () => {
   });
 
   test("no passkey yet: enroll on the page first, then confirm on it", async () => {
-    const r = rig({ begins: [{ error: "Set up Touch ID first", needs_passkey: true }, { challenge_id: "p1", grant: "p1.g" }], enroll: { challenge_id: "e1" } });
+    const r = rig({
+      begins: [
+        { error: "Set up Touch ID first", needs_passkey: true },
+        { challenge_id: "p1", grant: "p1.g" },
+      ],
+      enroll: { challenge_id: "e1" },
+    });
     const result = confirmPresenceViaWeb("approve", "d1", r.deps);
     await r.tick();
     expect(r.pages).toEqual(["https://codecast.sh/confirm?c=e1"]);
@@ -105,7 +123,10 @@ describe("Touch ID handed to the web's confirm page", () => {
   });
 
   test("an enrollment the person abandons stops there", async () => {
-    const r = rig({ begins: [{ error: "Set up Touch ID first", needs_passkey: true }], enroll: { challenge_id: "e1" } });
+    const r = rig({
+      begins: [{ error: "Set up Touch ID first", needs_passkey: true }],
+      enroll: { challenge_id: "e1" },
+    });
     const result = confirmPresenceViaWeb("approve", "d1", r.deps);
     await r.tick();
     await r.closePage();
@@ -114,20 +135,32 @@ describe("Touch ID handed to the web's confirm page", () => {
   });
 
   test("a challenge the server will not open throws its words", async () => {
-    const r = rig({ begins: [{ error: "Nothing to confirm: it was removed, or it is not yours" }] });
-    await expect(confirmPresenceViaWeb("approve", "d1", r.deps)).rejects.toThrow("Nothing to confirm");
+    const r = rig({
+      begins: [
+        { error: "Nothing to confirm: it was removed, or it is not yours" },
+      ],
+    });
+    await expect(
+      confirmPresenceViaWeb("approve", "d1", r.deps),
+    ).rejects.toThrow("Nothing to confirm");
     expect(r.pages).toHaveLength(0);
   });
 
   test("a browser that cannot say when it closes (Android) settles at the challenge's expiry", async () => {
-    const r = rig({ begins: [{ challenge_id: "c1", grant: "c1.g" }], android: true });
+    const r = rig({
+      begins: [{ challenge_id: "c1", grant: "c1.g" }],
+      android: true,
+    });
     const result = confirmPresenceViaWeb("approve", "d1", r.deps);
     await new Promise((res) => setTimeout(res, 40));
     expect(await result).toBeNull();
   });
 
   test("adding a second passkey confirms with one already there, then enrolls spending that grant", async () => {
-    const r = rig({ begins: [{ challenge_id: "p1", grant: "p1.g" }], enroll: { challenge_id: "e1" } });
+    const r = rig({
+      begins: [{ challenge_id: "p1", grant: "p1.g" }],
+      enroll: { challenge_id: "e1" },
+    });
     const result = addPasskeyViaWeb(true, r.deps);
     await r.tick();
     await r.settle("p1", "granted");

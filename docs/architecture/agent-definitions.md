@@ -60,15 +60,15 @@ definition without editing it.
 
 ## D3. Surfaces
 
-| Surface | How the definition arrives | Where its flags land |
-|---|---|---|
-| `cast exec --as` | `/cli/agents/resolve` | `buildPrintArgs` (`extraArgs`, `appendSystemPrompt`) |
-| `cast exec --chain` | `/cli/chains/resolve` | one print run per step, stdout captured and handed on |
-| `cast exec -j N a b c` | same `--as` | N print runs, `countingSemaphore(N)` |
-| `cast spawn --as` | `/cli/spawn { definition }` → `resolveSpawnDefinition` | `enqueueStartSession({ definition })` → daemon |
-| web compose "as" pill | `createSession { agent_definition }` → same server helper | same daemon path |
-| `cast trigger add --as` | `agent_tasks.agent_definition` | `buildRunLaunch(task, config, definition)` in the scheduler |
-| workflow node `definition=` | `/cli/agents/resolve` (builtin) or `/cli/spawn { definition }` (session) | as above |
+| Surface                     | How the definition arrives                                               | Where its flags land                                        |
+| --------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `cast exec --as`            | `/cli/agents/resolve`                                                    | `buildPrintArgs` (`extraArgs`, `appendSystemPrompt`)        |
+| `cast exec --chain`         | `/cli/chains/resolve`                                                    | one print run per step, stdout captured and handed on       |
+| `cast exec -j N a b c`      | same `--as`                                                              | N print runs, `countingSemaphore(N)`                        |
+| `cast spawn --as`           | `/cli/spawn { definition }` → `resolveSpawnDefinition`                   | `enqueueStartSession({ definition })` → daemon              |
+| web compose "as" pill       | `createSession { agent_definition }` → same server helper                | same daemon path                                            |
+| `cast trigger add --as`     | `agent_tasks.agent_definition`                                           | `buildRunLaunch(task, config, definition)` in the scheduler |
+| workflow node `definition=` | `/cli/agents/resolve` (builtin) or `/cli/spawn { definition }` (session) | as above                                                    |
 
 The daemon's argv allowlist (`SAFE_ARG_RE`) drops any arg with quotes, parens
 or newlines, so tool deny rules and the prompt cannot ride `buildLaunchArgs`.

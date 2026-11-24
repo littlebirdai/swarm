@@ -4,7 +4,11 @@
 // Run: bun test components/__tests__/notificationGroupRow.mount.test.tsx
 import { describe, expect, test } from "bun:test";
 
-const conv = (id: string, title: string) => ({ _id: id, title, agent_type: "claude_code" });
+const conv = (id: string, title: string) => ({
+  _id: id,
+  title,
+  agent_type: "claude_code",
+});
 const idle = (id: string, title: string, at: number) => ({
   _id: id,
   type: "session_idle",
@@ -18,26 +22,45 @@ const idle = (id: string, title: string, at: number) => ({
 describe("NotificationGroupRow", () => {
   test("collapses a burst to one line, opens to its sessions, and each opens", async () => {
     const { JSDOM } = await import("jsdom");
-    const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-    const DOM_GLOBAL = /^(window|document|navigator|getComputedStyle|requestAnimationFrame|cancelAnimationFrame|Node|NodeFilter|Element|Text|Range|Selection|Document\w*|MutationObserver|DOMRect\w*|HTML\w*Element|SVG\w*Element|\w*Event)$/;
+    const dom = new JSDOM(
+      "<!doctype html><html><body><div id='root'></div></body></html>",
+      { url: "https://local.codecast.sh", pretendToBeVisual: true },
+    );
+    const DOM_GLOBAL =
+      /^(window|document|navigator|getComputedStyle|requestAnimationFrame|cancelAnimationFrame|Node|NodeFilter|Element|Text|Range|Selection|Document\w*|MutationObserver|DOMRect\w*|HTML\w*Element|SVG\w*Element|\w*Event)$/;
     for (const key of Object.getOwnPropertyNames(dom.window)) {
-      if (DOM_GLOBAL.test(key)) Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+      if (DOM_GLOBAL.test(key))
+        Object.defineProperty(globalThis, key, {
+          value: (dom.window as any)[key],
+          configurable: true,
+          writable: true,
+        });
     }
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
     const React = await import("react");
     const { createRoot } = await import("react-dom/client");
     const { act } = React;
-    const { NotificationGroupRow } = await import("../notifications/NotificationRow");
-    const { groupIdleNotifications } = await import("@codecast/shared/contracts");
+    const { NotificationGroupRow } =
+      await import("../notifications/NotificationRow");
+    const { groupIdleNotifications } =
+      await import("@codecast/shared/contracts");
 
     const rows = [
-      { _id: "d1", type: "sessions_need_input", message: "old text", created_at: 3000, read: false },
+      {
+        _id: "d1",
+        type: "sessions_need_input",
+        message: "old text",
+        created_at: 3000,
+        read: false,
+      },
       idle("i3", "Ship the CLI", 2500),
       idle("i2", "Auth refactor", 2200),
       idle("i1", "Fix the parser", 2000),
     ];
-    const entries = groupIdleNotifications(rows as any, (n: any) => String(n._id));
+    const entries = groupIdleNotifications(rows as any, (n: any) =>
+      String(n._id),
+    );
     expect(entries.length).toBe(1);
     const group = entries[0] as any;
 
@@ -50,9 +73,11 @@ describe("NotificationGroupRow", () => {
           React.createElement(NotificationGroupRow, {
             group,
             open,
-            onToggle: () => { open = !open; },
+            onToggle: () => {
+              open = !open;
+            },
             onOpen: (n: any) => opened.push(n._id),
-          })
+          }),
         );
       });
 
@@ -61,7 +86,9 @@ describe("NotificationGroupRow", () => {
     // not the fold-up row's frozen text.
     const text = document.body.textContent || "";
     expect(text).toContain("3 sessions");
-    expect(text).toContain("Ship the CLI, Auth refactor and 1 other need your attention");
+    expect(text).toContain(
+      "Ship the CLI, Auth refactor and 1 other need your attention",
+    );
     expect(text).not.toContain("old text");
     // Collapsed: the members are not rendered.
     expect(text).not.toContain("Fix the parser is waiting");
@@ -74,7 +101,11 @@ describe("NotificationGroupRow", () => {
     const faces = [...header.querySelectorAll("[data-group-face]")];
     expect(faces.length).toBe(3);
     for (const face of faces) expect(face.querySelector("svg")).toBeTruthy();
-    await act(async () => { header.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => {
+      header.dispatchEvent(
+        new dom.window.MouseEvent("click", { bubbles: true }),
+      );
+    });
     expect(open).toBe(true);
     expect(opened).toEqual([]);
 
@@ -82,11 +113,19 @@ describe("NotificationGroupRow", () => {
     const afterOpen = document.body.textContent || "";
     expect(afterOpen).toContain("Fix the parser is waiting");
     // Every member is one click from the open group.
-    const memberButtons = [...document.querySelectorAll("button")].filter((b) => !b.hasAttribute("aria-expanded"));
+    const memberButtons = [...document.querySelectorAll("button")].filter(
+      (b) => !b.hasAttribute("aria-expanded"),
+    );
     expect(memberButtons.length).toBe(3);
-    await act(async () => { memberButtons[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => {
+      memberButtons[0].dispatchEvent(
+        new dom.window.MouseEvent("click", { bubbles: true }),
+      );
+    });
     expect(opened).toEqual(["i3"]);
 
-    await act(async () => { root.unmount(); });
+    await act(async () => {
+      root.unmount();
+    });
   }, 30000);
 });

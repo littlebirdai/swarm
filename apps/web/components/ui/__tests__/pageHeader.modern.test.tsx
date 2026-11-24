@@ -12,7 +12,10 @@ import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import type { VisualStyle } from "../../ThemeProvider";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/tasks" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/tasks",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -23,7 +26,11 @@ const restoreGlobals = replaceGlobals({
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 Object.defineProperties(dom.window.HTMLElement.prototype, {
-  offsetHeight: { get() { return this.hasAttribute("data-index") ? 40 : 600; } },
+  offsetHeight: {
+    get() {
+      return this.hasAttribute("data-index") ? 40 : 600;
+    },
+  },
   offsetWidth: { get: () => 1000 },
 });
 dom.window.HTMLElement.prototype.scrollTo = () => {};
@@ -41,18 +48,34 @@ afterEach(async () => {
   if (root) await act(() => root!.unmount());
   root = null;
 });
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 async function mount(style: VisualStyle, node: ReactNode) {
   root = createRoot(host);
-  await act(() => root!.render(
-    <ThemeContext.Provider value={{ theme: "dark", toggleTheme: () => {}, visualStyle: style, setVisualStyle: () => {} }}>
-      <MemoryRouter initialEntries={["/tasks"]}>{node}</MemoryRouter>
-    </ThemeContext.Provider>,
-  ));
+  await act(() =>
+    root!.render(
+      <ThemeContext.Provider
+        value={{
+          theme: "dark",
+          toggleTheme: () => {},
+          visualStyle: style,
+          setVisualStyle: () => {},
+        }}
+      >
+        <MemoryRouter initialEntries={["/tasks"]}>{node}</MemoryRouter>
+      </ThemeContext.Provider>,
+    ),
+  );
 }
 
-const legacy = <div data-legacy-head><h1>Old title</h1></div>;
+const legacy = (
+  <div data-legacy-head>
+    <h1>Old title</h1>
+  </div>
+);
 const header = (
   <PageHeader
     legacy={legacy}
@@ -61,7 +84,11 @@ const header = (
     crumbs={<a href="/home">Home</a>}
     tabs={<button type="button">Tab</button>}
     actions={<button type="button">Act</button>}
-    share={<button type="button" data-share>Share</button>}
+    share={
+      <button type="button" data-share>
+        Share
+      </button>
+    }
   />
 );
 
@@ -86,14 +113,22 @@ describe("PageHeader", () => {
     expect(h1.className).toContain("text-read");
     expect(bar.querySelector("[data-cc-page-count]")?.textContent).toBe("7");
     expect(bar.querySelector("a[href='/home']")).not.toBeNull();
-    const buttons = [...bar.querySelectorAll("button")].map((b) => b.textContent);
+    const buttons = [...bar.querySelectorAll("button")].map(
+      (b) => b.textContent,
+    );
     expect(buttons).toEqual(["Tab", "Act", "Share"]);
   });
 });
 
 describe("PageFrame", () => {
   const frame = (
-    <PageFrame header={header} legacyScroll="legacy-scroll" legacyScrollProps={{ "data-main-scroll": true }} legacyColumn="legacy-column" column="modern-column">
+    <PageFrame
+      header={header}
+      legacyScroll="legacy-scroll"
+      legacyScrollProps={{ "data-main-scroll": true }}
+      legacyColumn="legacy-column"
+      column="modern-column"
+    >
       <p data-body>Body</p>
     </PageFrame>
   );
@@ -103,7 +138,9 @@ describe("PageFrame", () => {
     const scroll = host.querySelector(".legacy-scroll")!;
     expect(scroll.hasAttribute("data-main-scroll")).toBe(true);
     const column = scroll.querySelector(":scope > .legacy-column")!;
-    expect(column.firstElementChild?.hasAttribute("data-legacy-head")).toBe(true);
+    expect(column.firstElementChild?.hasAttribute("data-legacy-head")).toBe(
+      true,
+    );
     expect(column.querySelector("[data-body]")).not.toBeNull();
     expect(host.querySelector(".modern-column")).toBeNull();
   });
@@ -119,10 +156,20 @@ describe("PageFrame", () => {
 });
 
 test("only the listed shell pages own their canvas in Modern, by exact path", () => {
-  for (const p of ["/notifications", "/pages", "/artifacts", "/feed", "/expectations", "/week", "/mods", "/pages?x=1"]) {
+  for (const p of [
+    "/notifications",
+    "/pages",
+    "/artifacts",
+    "/feed",
+    "/expectations",
+    "/week",
+    "/mods",
+    "/pages?x=1",
+  ]) {
     expect(ownsCanvasInModern(p)).toBe(true);
   }
-  for (const p of ["/team", "/pages/auth", "/feedback", "/search"]) expect(ownsCanvasInModern(p)).toBe(false);
+  for (const p of ["/team", "/pages/auth", "/feedback", "/search"])
+    expect(ownsCanvasInModern(p)).toBe(false);
 });
 
 describe("a list page (Tasks, Docs, Decisions: GenericListView)", () => {
@@ -130,7 +177,10 @@ describe("a list page (Tasks, Docs, Decisions: GenericListView)", () => {
     <GenericListView<{ id: string }>
       title="Tasks"
       page={page}
-      tabs={[{ key: "open", label: "Open", count: 2 }, { key: "all", label: "All", count: 3 }]}
+      tabs={[
+        { key: "open", label: "Open", count: 2 },
+        { key: "all", label: "All", count: 3 },
+      ]}
       activeTab="open"
       onTabChange={() => {}}
       groups={null}
@@ -148,7 +198,9 @@ describe("a list page (Tasks, Docs, Decisions: GenericListView)", () => {
     await mount("classic", list());
     expect(host.querySelector("[data-cc-page-head]")).toBeNull();
     expect(host.querySelector("h1.sr-only")?.textContent).toBe("Tasks");
-    expect(host.querySelector(".cc-panel__head--flow [data-list-tabs]")).not.toBeNull();
+    expect(
+      host.querySelector(".cc-panel__head--flow [data-list-tabs]"),
+    ).not.toBeNull();
   });
 
   test("modern names the page in the shared header, with the tabs and the toolbar in it", async () => {

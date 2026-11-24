@@ -20,69 +20,117 @@ import { sessionCardTitle } from "../../lib/sessionCard";
 import { pendingAsk } from "../../lib/conversationTitle";
 
 const NOW = Date.UTC(2026, 10, 22, 18, 0);
-const UI = { show_model_badge: true, show_agent_icon: true } as Record<string, unknown>;
+const UI = { show_model_badge: true, show_agent_icon: true } as Record<
+  string,
+  unknown
+>;
 
 // Real Convex-shaped ids (32 chars), the kind that shows as "jx71a8n" on a tab.
 const ASKS: Array<[string, string]> = [
-  ["jx71a8nrpw4pcma0fvjyn17xx18jfeb5", "Why does the deploy script skip the lockfile check?"],
-  ["jx72b9oqsx5qdnb1gwkzo28yy29kgfc6", "Rename the billing tables to match the new schema"],
-  ["jx73c0prty6reoc2hxl0p39zz30lhgd7", "Add a retry budget to the webhook sender"],
+  [
+    "jx71a8nrpw4pcma0fvjyn17xx18jfeb5",
+    "Why does the deploy script skip the lockfile check?",
+  ],
+  [
+    "jx72b9oqsx5qdnb1gwkzo28yy29kgfc6",
+    "Rename the billing tables to match the new schema",
+  ],
+  [
+    "jx73c0prty6reoc2hxl0p39zz30lhgd7",
+    "Add a retry budget to the webhook sender",
+  ],
 ];
 
-const row = (id: string): InboxSession => ({
-  _id: id,
-  session_id: `s-${id}`,
-  agent_type: "claude_code",
-  message_count: 0,
-  updated_at: NOW - 7 * 60_000,
-  started_at: NOW - 7 * 60_000,
-  is_idle: true,
-  has_pending: true,
-  project_path: "/Users/me/src/codecast",
-  git_root: "/Users/me/src/codecast",
-  user_id: "me",
-} as InboxSession);
+const row = (id: string): InboxSession =>
+  ({
+    _id: id,
+    session_id: `s-${id}`,
+    agent_type: "claude_code",
+    message_count: 0,
+    updated_at: NOW - 7 * 60_000,
+    started_at: NOW - 7 * 60_000,
+    is_idle: true,
+    has_pending: true,
+    project_path: "/Users/me/src/codecast",
+    git_root: "/Users/me/src/codecast",
+    user_id: "me",
+  }) as InboxSession;
 
 const sessions = Object.fromEntries(ASKS.map(([id]) => [id, row(id)]));
-const pendingMessages = Object.fromEntries(ASKS.map(([id, text], i) => [id, [{
-  _id: `optimistic_${i}`,
-  _clientId: `optimistic_${i}`,
-  role: "user",
-  content: text,
-  timestamp: NOW - 7 * 60_000,
-  _isOptimistic: true,
-}]]));
+const pendingMessages = Object.fromEntries(
+  ASKS.map(([id, text], i) => [
+    id,
+    [
+      {
+        _id: `optimistic_${i}`,
+        _clientId: `optimistic_${i}`,
+        role: "user",
+        content: text,
+        timestamp: NOW - 7 * 60_000,
+        _isOptimistic: true,
+      },
+    ],
+  ]),
+);
 
-const readState = mockInboxStore(() => ({
-  currentUser: { _id: "me" },
-  clientState: { ui: UI },
-  drafts: {},
-  pendingMessages,
-  sessions,
-  conversations: {},
-  sessionCommands: {},
-  blockedReviveRequestedAt: {},
-}), { useTrackedStore: () => readState() });
+const readState = mockInboxStore(
+  () => ({
+    currentUser: { _id: "me" },
+    clientState: { ui: UI },
+    drafts: {},
+    pendingMessages,
+    sessions,
+    conversations: {},
+    sessionCommands: {},
+    blockedReviveRequestedAt: {},
+  }),
+  { useTrackedStore: () => readState() },
+);
 
 const { SessionCard } = await import("./SessionCard");
 const convex = offlineConvexClient("https://example.convex.cloud");
 const noop = () => {};
 
-const cardText = (id: string) => renderToStaticMarkup(
-  <MemoryRouter>
-    <ConvexProvider client={convex}>
-      <IdentityPrefsOverride.Provider value={identityPrefsOf(UI)}>
-        <SessionCard session={sessions[id]} isActive={false} globalIndex={0} onSelect={noop} onClose={noop} onPin={noop} sessionLabel={null} isFavorite={false} />
-      </IdentityPrefsOverride.Provider>
-    </ConvexProvider>
-  </MemoryRouter>,
-).replace(/<[^>]+>/g, " ");
+const cardText = (id: string) =>
+  renderToStaticMarkup(
+    <MemoryRouter>
+      <ConvexProvider client={convex}>
+        <IdentityPrefsOverride.Provider value={identityPrefsOf(UI)}>
+          <SessionCard
+            session={sessions[id]}
+            isActive={false}
+            globalIndex={0}
+            onSelect={noop}
+            onClose={noop}
+            onPin={noop}
+            sessionLabel={null}
+            isFavorite={false}
+          />
+        </IdentityPrefsOverride.Provider>
+      </ConvexProvider>
+    </MemoryRouter>,
+  ).replace(/<[^>]+>/g, " ");
 
 // The exact call TabBar and WindowTitle make: the whole state rides as records.
 const tabText = (id: string) => {
   const s = readState() as any;
-  const tab = { id: `t-${id}`, path: `/inbox?s=${id}`, sessionId: id, title: "", createdAt: 0 } as AppTab;
-  return tabTitle(tab, s.sessions, s.chatChannels ?? {}, [], "me", s.initiatives, null, s);
+  const tab = {
+    id: `t-${id}`,
+    path: `/inbox?s=${id}`,
+    sessionId: id,
+    title: "",
+    createdAt: 0,
+  } as AppTab;
+  return tabTitle(
+    tab,
+    s.sessions,
+    s.chatChannels ?? {},
+    [],
+    "me",
+    s.initiatives,
+    null,
+    s,
+  );
 };
 
 describe("an untitled session with an undelivered first message", () => {
@@ -106,18 +154,30 @@ describe("an untitled session with an undelivered first message", () => {
 });
 
 // The card's name and the tab's, from one session row and its pending sends.
-const names = (session: Record<string, unknown>, pending: Array<{ role: string; content: string }> = []) => {
+const names = (
+  session: Record<string, unknown>,
+  pending: Array<{ role: string; content: string }> = [],
+) => {
   const id = "jx74d1qsuz7sfpd3iym1q40aa41mihe8";
-  const tab = { id: "t", path: `/inbox?s=${id}`, sessionId: id, title: "", createdAt: 0 } as AppTab;
+  const tab = {
+    id: "t",
+    path: `/inbox?s=${id}`,
+    sessionId: id,
+    title: "",
+    createdAt: 0,
+  } as AppTab;
   const s = { ...row(id), ...session };
   return {
     card: sessionCardTitle(s, pendingAsk(pending)),
-    tab: tabTitle(tab, { [id]: s }, {}, [], "me", undefined, null, { pendingMessages: { [id]: pending } }),
+    tab: tabTitle(tab, { [id]: s }, {}, [], "me", undefined, null, {
+      pendingMessages: { [id]: pending },
+    }),
   };
 };
 
 describe("the message name holds until a real title replaces it", () => {
-  const ask = "Why does the deploy script skip the lockfile check? It used to run it.\nSee CI.";
+  const ask =
+    "Why does the deploy script skip the lockfile check? It used to run it.\nSee CI.";
 
   test("card and tab cut a multi-sentence ask to the same name", () => {
     const { card, tab } = names({}, [{ role: "user", content: ask }]);
@@ -132,7 +192,10 @@ describe("the message name holds until a real title replaces it", () => {
   });
 
   test("a real title replaces the message name on card and tab", () => {
-    const { card, tab } = names({ title: "Lockfile check in deploy", first_prompt: ask }, [{ role: "user", content: ask }]);
+    const { card, tab } = names(
+      { title: "Lockfile check in deploy", first_prompt: ask },
+      [{ role: "user", content: ask }],
+    );
     expect(card).toBe("Lockfile check in deploy");
     expect(tab).toBe("Lockfile check in deploy");
   });

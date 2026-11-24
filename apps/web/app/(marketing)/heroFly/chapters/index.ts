@@ -35,11 +35,15 @@ export const LAZY_CHAPTERS: Record<Exclude<ChapterId, "inbox">, Loader> = {
 
 /** Every chapter, awaited: what the guard test mounts. */
 export async function loadAllChapters(): Promise<HeroChapter[]> {
-  const rest = await Promise.all(Object.values(LAZY_CHAPTERS).map((load) => load().then((m) => m.chapter)));
+  const rest = await Promise.all(
+    Object.values(LAZY_CHAPTERS).map((load) => load().then((m) => m.chapter)),
+  );
   return [...EAGER_CHAPTERS, ...rest];
 }
 
-const FILM_ORDER = (Object.keys(LAZY_CHAPTERS) as (keyof typeof LAZY_CHAPTERS)[]).filter((id) => id !== "conversation");
+const FILM_ORDER = (
+  Object.keys(LAZY_CHAPTERS) as (keyof typeof LAZY_CHAPTERS)[]
+).filter((id) => id !== "conversation");
 
 /** The poster's other half, requested as soon as the hero's code is: null until it lands. */
 let poster: HeroChapter | null = null;
@@ -49,7 +53,11 @@ const posterLoad: Promise<HeroChapter | null> =
     : LAZY_CHAPTERS.conversation().then(
         (m) => (poster = m.chapter),
         // One more try, then the film plays without its conversation pane rather than not at all.
-        () => LAZY_CHAPTERS.conversation().then((m) => (poster = m.chapter), () => null),
+        () =>
+          LAZY_CHAPTERS.conversation().then(
+            (m) => (poster = m.chapter),
+            () => null,
+          ),
       );
 
 /**
@@ -60,11 +68,15 @@ const posterLoad: Promise<HeroChapter | null> =
  * tried once more after a pause; the film plays on without it until then.
  */
 export function useHeroChapters(): HeroChapter[] {
-  const [chapters, setChapters] = useState(() => (poster ? [...EAGER_CHAPTERS, poster] : EAGER_CHAPTERS));
+  const [chapters, setChapters] = useState(() =>
+    poster ? [...EAGER_CHAPTERS, poster] : EAGER_CHAPTERS,
+  );
   useMountEffect(() => {
     let live = true;
     const loaded = new Map<string, HeroChapter>();
-    const mounted: HeroChapter[] = poster ? [...EAGER_CHAPTERS, poster] : [...EAGER_CHAPTERS];
+    const mounted: HeroChapter[] = poster
+      ? [...EAGER_CHAPTERS, poster]
+      : [...EAGER_CHAPTERS];
     void posterLoad.then((c) => {
       if (!live || !c || mounted.includes(c)) return;
       mounted.push(c);
@@ -74,10 +86,14 @@ export function useHeroChapters(): HeroChapter[] {
     const timers: number[] = [];
     let queued = false;
     const whenIdle = (fn: () => void, timeout: number) => {
-      if (window.requestIdleCallback) idles.push(window.requestIdleCallback(fn, { timeout }));
+      if (window.requestIdleCallback)
+        idles.push(window.requestIdleCallback(fn, { timeout }));
       else timers.push(window.setTimeout(fn, 300));
     };
-    const pending = () => FILM_ORDER.filter((id) => loaded.has(id) && !mounted.some((c) => c.id === id));
+    const pending = () =>
+      FILM_ORDER.filter(
+        (id) => loaded.has(id) && !mounted.some((c) => c.id === id),
+      );
     // One chapter per idle callback, in film order.
     const flush = () => {
       queued = false;
@@ -94,13 +110,21 @@ export function useHeroChapters(): HeroChapter[] {
       whenIdle(flush, 500);
     };
     const load = (ids: (keyof typeof LAZY_CHAPTERS)[], retry: boolean) =>
-      Promise.allSettled(ids.map((id) => LAZY_CHAPTERS[id]().then((m) => loaded.set(id, m.chapter)))).then((res) => {
+      Promise.allSettled(
+        ids.map((id) =>
+          LAZY_CHAPTERS[id]().then((m) => loaded.set(id, m.chapter)),
+        ),
+      ).then((res) => {
         if (!live) return;
         schedule();
         const failed = ids.filter((_, i) => res[i].status === "rejected");
         if (!failed.length) return;
-        if (retry) timers.push(window.setTimeout(() => live && load(failed, false), 2000));
-        else console.warn(`hero: chapters failed to load: ${failed.join(", ")}`);
+        if (retry)
+          timers.push(
+            window.setTimeout(() => live && load(failed, false), 2000),
+          );
+        else
+          console.warn(`hero: chapters failed to load: ${failed.join(", ")}`);
       });
     whenIdle(() => load(FILM_ORDER, true), 1500);
     return () => {

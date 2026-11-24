@@ -12,7 +12,12 @@ import { getAuthenticatedUserId } from "./permissions";
  * already running there stay. Settings → Machines writes it through the
  * setDeviceReservation dispatch, the CLI through `cast devices reserve`.
  */
-export async function performSetDeviceReservation(ctx: any, userId: Id<"users">, deviceId: string, purpose: string) {
+export async function performSetDeviceReservation(
+  ctx: any,
+  userId: Id<"users">,
+  deviceId: string,
+  purpose: string,
+) {
   const device = await ownDevice(ctx, userId, deviceId);
   if (!device) throw new Error("Unknown device");
   const reserved_for = cleanReservationPurpose(purpose);
@@ -21,10 +26,19 @@ export async function performSetDeviceReservation(ctx: any, userId: Id<"users">,
 }
 
 export const setDeviceReservation = mutation({
-  args: { api_token: v.optional(v.string()), device_id: v.string(), purpose: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    device_id: v.string(),
+    purpose: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    return performSetDeviceReservation(ctx, userId, args.device_id, args.purpose);
+    return performSetDeviceReservation(
+      ctx,
+      userId,
+      args.device_id,
+      args.purpose,
+    );
   },
 });

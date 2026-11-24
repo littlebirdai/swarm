@@ -45,10 +45,18 @@ export class HerdTitles {
 
   async refresh(sessionIds: string[]): Promise<void> {
     const now = Date.now();
-    const due = sessionIds.filter((id) => now - (this.titles.get(id)?.at ?? 0) >= this.ttlMs);
+    const due = sessionIds.filter(
+      (id) => now - (this.titles.get(id)?.at ?? 0) >= this.ttlMs,
+    );
     if (due.length === 0) return;
-    const got = await this.fetchTitles(due).catch(() => new Map<string, string>());
-    for (const id of due) this.titles.set(id, { title: got.get(id) ?? this.titles.get(id)?.title, at: now });
+    const got = await this.fetchTitles(due).catch(
+      () => new Map<string, string>(),
+    );
+    for (const id of due)
+      this.titles.set(id, {
+        title: got.get(id) ?? this.titles.get(id)?.title,
+        at: now,
+      });
   }
 
   get(sessionId: string): string | undefined {
@@ -57,17 +65,27 @@ export class HerdTitles {
 }
 
 /** Fetches session titles with the CLI's credentials. */
-export function serverTitles(config: { auth_token?: string; convex_url?: string } | null): HerdTitles {
+export function serverTitles(
+  config: { auth_token?: string; convex_url?: string } | null,
+): HerdTitles {
   return new HerdTitles(async (sessionIds) => {
     const out = new Map<string, string>();
     if (!config?.auth_token || !config.convex_url) return out;
-    const resp = await cliFetchRead(`${config.convex_url.replace(".cloud", ".site")}/cli/sessions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_token: config.auth_token, session_ids: sessionIds }),
-    });
+    const resp = await cliFetchRead(
+      `${config.convex_url.replace(".cloud", ".site")}/cli/sessions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_token: config.auth_token,
+          session_ids: sessionIds,
+        }),
+      },
+    );
     if (!resp.ok) return out;
-    const data = await resp.json() as { conversations?: Array<{ session_id?: string; title?: string }> };
+    const data = (await resp.json()) as {
+      conversations?: Array<{ session_id?: string; title?: string }>;
+    };
     for (const conv of data.conversations ?? []) {
       if (conv.session_id && conv.title) out.set(conv.session_id, conv.title);
     }
@@ -77,7 +95,13 @@ export function serverTitles(config: { auth_token?: string; convex_url?: string 
 
 export type HerdOp =
   | { kind: "open"; member: HerdMember }
-  | { kind: "report"; paneId: string; member: HerdMember; state: boolean; title: boolean }
+  | {
+      kind: "report";
+      paneId: string;
+      member: HerdMember;
+      state: boolean;
+      title: boolean;
+    }
   | { kind: "close"; paneId: string };
 
 const TAB_LABEL_MAX = 28;
@@ -87,7 +111,10 @@ const TAB_LABEL_MAX = 28;
  *  sessions stay out of the herd. */
 export function herdMembers(
   panes: CodecastPane[],
-  lookup: { status: (sessionId: string) => string | undefined | null; title: (sessionId: string) => string | undefined },
+  lookup: {
+    status: (sessionId: string) => string | undefined | null;
+    title: (sessionId: string) => string | undefined;
+  },
 ): HerdMember[] {
   const out: HerdMember[] = [];
   for (const pane of panes) {
@@ -102,7 +129,10 @@ export function herdMembers(
       agent: herdrAgentLabel(pane.agentType),
       state: status === null ? null : herdrStateFor(status ?? undefined),
       title: shortId ? `${title} · ${shortId}` : title,
-      tabLabel: title.length > TAB_LABEL_MAX ? `${title.slice(0, TAB_LABEL_MAX - 1)}…` : title,
+      tabLabel:
+        title.length > TAB_LABEL_MAX
+          ? `${title.slice(0, TAB_LABEL_MAX - 1)}…`
+          : title,
     });
   }
   return out;
@@ -133,25 +163,37 @@ export function planHerd(members: HerdMember[], snap: HerdrSnapshot): HerdOp[] {
       ops.push({ kind: "open", member });
       continue;
     }
-    const state = member.state !== null && !sameHerdrState(pane.agent_status, member.state);
+    const state =
+      member.state !== null && !sameHerdrState(pane.agent_status, member.state);
     const title = pane.title !== member.title;
-    if (state || title) ops.push({ kind: "report", paneId: pane.pane_id, member, state, title });
+    if (state || title)
+      ops.push({ kind: "report", paneId: pane.pane_id, member, state, title });
   }
   return ops;
 }
 
 /** Applies a plan. Ops are independent: one failing (a pane closed under us)
  *  never stops the rest, and the next pass retries whatever is still off. */
-export async function applyHerd(socketPath: string, ops: HerdOp[], snap: HerdrSnapshot, log?: (m: string) => void, isActive: () => boolean = () => true): Promise<void> {
+export async function applyHerd(
+  socketPath: string,
+  ops: HerdOp[],
+  snap: HerdrSnapshot,
+  log?: (m: string) => void,
+  isActive: () => boolean = () => true,
+): Promise<void> {
   const workspaces = new Map<string, string>();
   for (const ws of snap.workspaces) {
     const project = ws.tokens?.[HERD_PROJECT_TOKEN];
     if (project) workspaces.set(project, ws.workspace_id);
   }
-  const req = (method: string, params: Record<string, unknown>) => herdrRequest<Record<string, any>>(socketPath, method, params);
+  const req = (method: string, params: Record<string, unknown>) =>
+    herdrRequest<Record<string, any>>(socketPath, method, params);
   // Closes last: herdr removes a workspace with its last pane, and an open
   // planned into that workspace would find it gone.
-  const ordered = [...ops.filter((op) => op.kind !== "close"), ...ops.filter((op) => op.kind === "close")];
+  const ordered = [
+    ...ops.filter((op) => op.kind !== "close"),
+    ...ops.filter((op) => op.kind === "close"),
+  ];
   for (const op of ordered) {
     if (!isActive()) break;
     try {
@@ -164,29 +206,51 @@ export async function applyHerd(socketPath: string, ops: HerdOp[], snap: HerdrSn
         await openMember(req, workspaces, op.member);
       }
     } catch (err) {
-      log?.(`${op.kind} ${op.kind === "close" ? op.paneId : op.member.tmux}: ${err instanceof Error ? err.message : String(err)}`);
+      log?.(
+        `${op.kind} ${op.kind === "close" ? op.paneId : op.member.tmux}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }
 
-type Req = (method: string, params: Record<string, unknown>) => Promise<Record<string, any>>;
+type Req = (
+  method: string,
+  params: Record<string, unknown>,
+) => Promise<Record<string, any>>;
 
-async function openMember(req: Req, workspaces: Map<string, string>, member: HerdMember): Promise<void> {
+async function openMember(
+  req: Req,
+  workspaces: Map<string, string>,
+  member: HerdMember,
+): Promise<void> {
   const cwd = member.projectPath;
   const existing = workspaces.get(cwd);
   // A workspace the person closed since the snapshot is replaced, not retried.
   const tab = existing
-    ? await req("tab.create", { workspace_id: existing, cwd, label: member.tabLabel, focus: false }).catch(() => null)
+    ? await req("tab.create", {
+        workspace_id: existing,
+        cwd,
+        label: member.tabLabel,
+        focus: false,
+      }).catch(() => null)
     : null;
   let paneId: string;
   if (tab) {
     paneId = tab.root_pane.pane_id;
   } else {
-    const ws = await req("workspace.create", { cwd, label: path.basename(cwd) || cwd, focus: false });
+    const ws = await req("workspace.create", {
+      cwd,
+      label: path.basename(cwd) || cwd,
+      focus: false,
+    });
     const workspaceId = ws.workspace.workspace_id as string;
     paneId = ws.root_pane.pane_id;
     workspaces.set(cwd, workspaceId);
-    await req("workspace.report_metadata", { workspace_id: workspaceId, source: HERDR_SOURCE, tokens: { [HERD_PROJECT_TOKEN]: cwd } });
+    await req("workspace.report_metadata", {
+      workspace_id: workspaceId,
+      source: HERDR_SOURCE,
+      tokens: { [HERD_PROJECT_TOKEN]: cwd },
+    });
     await req("tab.rename", { tab_id: ws.tab.tab_id, label: member.tabLabel });
   }
   await req("pane.report_metadata", {
@@ -196,11 +260,19 @@ async function openMember(req: Req, workspaces: Map<string, string>, member: Her
     title: member.title,
     tokens: { [HERD_SESSION_TOKEN]: member.sessionId },
   });
-  await reportState(req, paneId, { ...member, state: member.state ?? "unknown" });
+  await reportState(req, paneId, {
+    ...member,
+    state: member.state ?? "unknown",
+  });
 }
 
 function reportTitle(req: Req, paneId: string, member: HerdMember) {
-  return req("pane.report_metadata", { pane_id: paneId, source: HERDR_SOURCE, agent: member.agent, title: member.title });
+  return req("pane.report_metadata", {
+    pane_id: paneId,
+    source: HERDR_SOURCE,
+    agent: member.agent,
+    title: member.title,
+  });
 }
 
 function reportState(req: Req, paneId: string, member: HerdMember) {
@@ -214,17 +286,28 @@ function reportState(req: Req, paneId: string, member: HerdMember) {
 }
 
 /** One full pass: read herdr, plan against `members`, apply. */
-export async function syncHerd(socketPath: string, members: HerdMember[], log?: (m: string) => void, isActive?: () => boolean): Promise<HerdOp[]> {
+export async function syncHerd(
+  socketPath: string,
+  members: HerdMember[],
+  log?: (m: string) => void,
+  isActive?: () => boolean,
+): Promise<HerdOp[]> {
   const snap = await herdrSnapshot(socketPath);
   const ops = planHerd(members, snap);
   if (ops.length > 0) await applyHerd(socketPath, ops, snap, log, isActive);
   return ops;
 }
 
-export async function syncHerdStatus(socketPath: string, members: HerdMember[], log?: (message: string) => void): Promise<void> {
+export async function syncHerdStatus(
+  socketPath: string,
+  members: HerdMember[],
+  log?: (message: string) => void,
+): Promise<void> {
   const snap = await herdrSnapshot(socketPath);
   const watching = await herdViewerAlive(socketPath);
-  const ops = planHerd(watching ? members : [], snap).filter((op) => watching ? op.kind === "report" : op.kind === "close");
+  const ops = planHerd(watching ? members : [], snap).filter((op) =>
+    watching ? op.kind === "report" : op.kind === "close",
+  );
   await applyHerd(socketPath, ops, snap, log);
 }
 
@@ -233,35 +316,85 @@ const RETYPE_AFTER_MS = 60_000;
 
 export class HerdFocus {
   /** `server` holds the flags that reach the session's tmux server: detach-client targets a tty, which names no session to route by. */
-  private attached: { paneId: string; tty: string; server: string[] } | null = null;
+  private attached: { paneId: string; tty: string; server: string[] } | null =
+    null;
   private typedAt = new Map<string, number>();
 
   constructor(private tmux: typeof tmuxRunAsync = tmuxRunAsync) {}
 
-  async sync(socketPath: string, members: HerdMember[], isActive: () => boolean = () => true): Promise<void> {
+  async sync(
+    socketPath: string,
+    members: HerdMember[],
+    isActive: () => boolean = () => true,
+  ): Promise<void> {
     const snap = await herdrSnapshot(socketPath);
     const pane = snap.panes.find((p) => p.pane_id === snap.focused_pane_id);
-    const member = members.find((m) => m.sessionId === pane?.tokens?.[HERD_SESSION_TOKEN]);
+    const member = members.find(
+      (m) => m.sessionId === pane?.tokens?.[HERD_SESSION_TOKEN],
+    );
     if (this.attached?.paneId === pane?.pane_id && member) return;
     if (this.attached) {
-      const result = await this.tmux([...this.attached.server, "detach-client", "-t", this.attached.tty]);
-      if (result.status !== 0 && snap.panes.some((p) => p.pane_id === this.attached!.paneId)) {
-        const clients = await this.tmux(["list-clients", "-F", "#{client_tty}"]);
-        if (clients.status !== 0 || clients.stdout.split("\n").includes(this.attached.tty)) return;
+      const result = await this.tmux([
+        ...this.attached.server,
+        "detach-client",
+        "-t",
+        this.attached.tty,
+      ]);
+      if (
+        result.status !== 0 &&
+        snap.panes.some((p) => p.pane_id === this.attached!.paneId)
+      ) {
+        const clients = await this.tmux([
+          "list-clients",
+          "-F",
+          "#{client_tty}",
+        ]);
+        if (
+          clients.status !== 0 ||
+          clients.stdout.split("\n").includes(this.attached.tty)
+        )
+          return;
       }
       this.attached = null;
     }
     if (!pane || !member || !isActive()) return;
-    const { process_info: info } = await herdrRequest<{ process_info: { tty?: string; shell_pid?: number; foreground_process_group_id?: number } }>(socketPath, "pane.process_info", { pane_id: pane.pane_id });
-    const ttyName = info.tty ?? (info.shell_pid
-      ? String((await execFileAsync("ps", ["-o", "tty=", "-p", String(info.shell_pid)], { encoding: "utf8", timeout: 3000 })).stdout).trim()
-      : "");
+    const { process_info: info } = await herdrRequest<{
+      process_info: {
+        tty?: string;
+        shell_pid?: number;
+        foreground_process_group_id?: number;
+      };
+    }>(socketPath, "pane.process_info", { pane_id: pane.pane_id });
+    const ttyName =
+      info.tty ??
+      (info.shell_pid
+        ? String(
+            (
+              await execFileAsync(
+                "ps",
+                ["-o", "tty=", "-p", String(info.shell_pid)],
+                { encoding: "utf8", timeout: 3000 },
+              )
+            ).stdout,
+          ).trim()
+        : "");
     if (!ttyName || ttyName === "??" || ttyName === "?") return;
     const tty = ttyName.startsWith("/dev/") ? ttyName : `/dev/${ttyName}`;
-    const [attach] = routeTmuxArgs(["attach-session", "-f", "ignore-size", "-t", `=${member.tmux}`]);
+    const [attach] = routeTmuxArgs([
+      "attach-session",
+      "-f",
+      "ignore-size",
+      "-t",
+      `=${member.tmux}`,
+    ]);
     const server = attach.slice(0, attach.indexOf("attach-session"));
     const listsTty = async () => {
-      const clients = await this.tmux([...server, "list-clients", "-F", "#{client_tty}"]);
+      const clients = await this.tmux([
+        ...server,
+        "list-clients",
+        "-F",
+        "#{client_tty}",
+      ]);
       return clients.status === 0 && clients.stdout.split("\n").includes(tty);
     };
     // Typed text goes to whatever holds the terminal, and a tmux client hands it to the agent as a prompt.
@@ -273,7 +406,8 @@ export class HerdFocus {
       return;
     }
     // A shell still starting up may not have read the last line, and a second line would reach the client the first one starts.
-    if (Date.now() - (this.typedAt.get(pane.pane_id) ?? 0) < RETYPE_AFTER_MS) return;
+    if (Date.now() - (this.typedAt.get(pane.pane_id) ?? 0) < RETYPE_AFTER_MS)
+      return;
     this.typedAt.set(pane.pane_id, Date.now());
     await herdrRequest(socketPath, "pane.send_text", {
       pane_id: pane.pane_id,

@@ -7,7 +7,9 @@ const TEXT = `Call ${ID} (Oct 9 14:02Z, Eric S). Feedback (slack msg 1791554755.
 
 describe("findingCalls", () => {
   test("a call named by id is the app's call view, once", () => {
-    expect(callsIn(TEXT)).toEqual([{ app: "union", view: "call", id: ID, at: null }]);
+    expect(callsIn(TEXT)).toEqual([
+      { app: "union", view: "call", id: ID, at: null },
+    ]);
   });
   test("the words keep their text, with each call id as its reference and no Slack ts", () => {
     const parts = textWithCalls(TEXT);

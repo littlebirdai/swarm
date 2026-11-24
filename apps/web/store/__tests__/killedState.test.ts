@@ -52,8 +52,12 @@ describe("isSessionKilled", () => {
   });
 
   it("does not call an ordinary stashed or dismissed row killed", () => {
-    expect(isSessionKilled(session(REAL_A, { inbox_stashed_at: 5 }))).toBe(false);
-    expect(isSessionKilled(session(REAL_A, { inbox_dismissed_at: 5 }))).toBe(false);
+    expect(isSessionKilled(session(REAL_A, { inbox_stashed_at: 5 }))).toBe(
+      false,
+    );
+    expect(isSessionKilled(session(REAL_A, { inbox_dismissed_at: 5 }))).toBe(
+      false,
+    );
   });
 });
 
@@ -64,13 +68,28 @@ const waits = (s: InboxSession) => classifySession(s).waiting;
 
 describe("killed precedence in the shared classifiers", () => {
   it("a killed row is effectively idle even while its agent_status still says working", () => {
-    expect(isSessionEffectivelyIdle(killed({ agent_status: "working", is_idle: false }))).toBe(true);
+    expect(
+      isSessionEffectivelyIdle(
+        killed({ agent_status: "working", is_idle: false }),
+      ),
+    ).toBe(true);
     // Control: the same row alive is not idle.
-    expect(isSessionEffectivelyIdle(session(REAL_A, { agent_status: "working", is_idle: false, updated_at: Date.now(), last_heartbeat: Date.now() }))).toBe(false);
+    expect(
+      isSessionEffectivelyIdle(
+        session(REAL_A, {
+          agent_status: "working",
+          is_idle: false,
+          updated_at: Date.now(),
+          last_heartbeat: Date.now(),
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("a killed row is effectively idle even while a server-queued message is pending", () => {
-    expect(isSessionEffectivelyIdle(killed({ has_pending: true, is_idle: false }))).toBe(true);
+    expect(
+      isSessionEffectivelyIdle(killed({ has_pending: true, is_idle: false })),
+    ).toBe(true);
   });
 
   it("a killed row never waits for input — not on an open poll", () => {
@@ -80,7 +99,9 @@ describe("killed precedence in the shared classifiers", () => {
 
   it("a killed row never waits for input — not on a permission block", () => {
     expect(waits(killed({ agent_status: "permission_blocked" }))).toBe(false);
-    expect(waits(session(REAL_A, { agent_status: "permission_blocked" }))).toBe(true);
+    expect(waits(session(REAL_A, { agent_status: "permission_blocked" }))).toBe(
+      true,
+    );
   });
 
   it("a killed row never waits for input — not on an unresolved auth banner", () => {
@@ -122,7 +143,11 @@ describe("pin does not un-kill", () => {
 
   it("the cross-window pin bridge likewise leaves inbox_killed_at intact", () => {
     useInboxStore.getState().applyGestureBridge({
-      kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500,
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 500,
+      ts: 500,
     } as any);
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].is_pinned).toBe(true);
@@ -138,10 +163,17 @@ describe("restore un-kills", () => {
   beforeEach(() => {
     useInboxStore.setState({
       sessions: {
-        [REAL_A]: session(REAL_A, { inbox_killed_at: 1_000, inbox_dismissed_at: null }),
+        [REAL_A]: session(REAL_A, {
+          inbox_killed_at: 1_000,
+          inbox_dismissed_at: null,
+        }),
       },
       conversations: {
-        [REAL_A]: { _id: REAL_A, inbox_killed_at: 1_000, inbox_dismissed_at: null },
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_killed_at: 1_000,
+          inbox_dismissed_at: null,
+        },
       },
       messages: {},
       pendingMessages: {},
@@ -165,7 +197,9 @@ describe("restore un-kills", () => {
 
   it("the cross-window restore receiver clears it too", () => {
     useInboxStore.getState().applyGestureBridge({
-      kind: "restore", ids: [REAL_A], ts: 9_000,
+      kind: "restore",
+      ids: [REAL_A],
+      ts: 9_000,
     } as any);
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_killed_at).toBeNull();
@@ -180,25 +214,46 @@ describe("restore un-kills", () => {
 describe("isSessionHardBlocked killed precedence", () => {
   it("a killed session is not hard-blocked by a frozen open poll", () => {
     expect(isSessionHardBlocked(killed({ awaiting_input: true }))).toBe(false);
-    expect(isSessionHardBlocked(session(REAL_A, { awaiting_input: true }))).toBe(true);
+    expect(
+      isSessionHardBlocked(session(REAL_A, { awaiting_input: true })),
+    ).toBe(true);
   });
 
   it("a killed session is not hard-blocked by a frozen permission prompt", () => {
-    expect(isSessionHardBlocked(killed({ agent_status: "permission_blocked" }))).toBe(false);
-    expect(isSessionHardBlocked(session(REAL_A, { agent_status: "permission_blocked" }))).toBe(true);
+    expect(
+      isSessionHardBlocked(killed({ agent_status: "permission_blocked" })),
+    ).toBe(false);
+    expect(
+      isSessionHardBlocked(
+        session(REAL_A, { agent_status: "permission_blocked" }),
+      ),
+    ).toBe(true);
   });
 
   it("a killed session is not hard-blocked by an auth banner or a dead agent", () => {
-    expect(isSessionHardBlocked(killed({ pending_api_error: true }))).toBe(false);
-    expect(isSessionHardBlocked(killed({ agent_status: "stopped" }))).toBe(false);
-    expect(isSessionHardBlocked(session(REAL_A, { pending_api_error: true }))).toBe(true);
-    expect(isSessionHardBlocked(session(REAL_A, { agent_status: "stopped" }))).toBe(true);
+    expect(isSessionHardBlocked(killed({ pending_api_error: true }))).toBe(
+      false,
+    );
+    expect(isSessionHardBlocked(killed({ agent_status: "stopped" }))).toBe(
+      false,
+    );
+    expect(
+      isSessionHardBlocked(session(REAL_A, { pending_api_error: true })),
+    ).toBe(true);
+    expect(
+      isSessionHardBlocked(session(REAL_A, { agent_status: "stopped" })),
+    ).toBe(true);
   });
 
   it("a killed ANCHOR stops escalating into the active inbox", () => {
     // categorizeSessions: hiddenAnchor = is_anchor && !isSessionHardBlocked(s).
     // True here means the anchor stays in its own space, which is the fix.
-    const anchor = killed({ is_anchor: true, awaiting_input: true } as Partial<InboxSession>);
-    expect(!!(anchor as any).is_anchor && !isSessionHardBlocked(anchor)).toBe(true);
+    const anchor = killed({
+      is_anchor: true,
+      awaiting_input: true,
+    } as Partial<InboxSession>);
+    expect(!!(anchor as any).is_anchor && !isSessionHardBlocked(anchor)).toBe(
+      true,
+    );
   });
 });

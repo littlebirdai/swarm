@@ -4,10 +4,18 @@
 // knows about (a running workflow or background task, a subagent still
 // producing, a trigger or /loop and its countdown), or says plainly that
 // nothing is scheduled and when the row comes back to the person.
-import { DORMANT_CLAIM_TTL_MS, threadStateRows, threadStateHeadline } from "@codecast/shared/contracts";
+import {
+  DORMANT_CLAIM_TTL_MS,
+  threadStateRows,
+  threadStateHeadline,
+} from "@codecast/shared/contracts";
 import type { InboxSession } from "../../store/inboxStore";
 import { fmtClock, fmtDuration } from "../triggerCadence";
-import { taskDisplayTitle, type TaskRow, type TriggerRow } from "../triggerTasks";
+import {
+  taskDisplayTitle,
+  type TaskRow,
+  type TriggerRow,
+} from "../triggerTasks";
 
 export type DormantWake =
   /** A workflow run in this session is still going. */
@@ -42,7 +50,11 @@ export interface DormantWakeSession {
   /** The daemon's checked report of the work the turn ended on. Watch rows
    *  draw shells and Monitors; a Workflow run or background Agent appears only
    *  here. */
-  open_tasks?: Array<{ kind: string; description?: string; command?: string }> | null;
+  open_tasks?: Array<{
+    kind: string;
+    description?: string;
+    command?: string;
+  }> | null;
 }
 
 const ARMED = new Set(["scheduled", "running"]);
@@ -51,7 +63,8 @@ const ARMED = new Set(["scheduled", "running"]);
 // trigger has no time and sorts after every timed one.
 function soonest(rows: TriggerRow[]): TriggerRow | null {
   let best: TriggerRow | null = null;
-  const key = (r: TriggerRow) => (r.task.status === "running" ? -Infinity : r.task.run_at ?? Infinity);
+  const key = (r: TriggerRow) =>
+    r.task.status === "running" ? -Infinity : (r.task.run_at ?? Infinity);
   for (const r of rows) if (!best || key(r) < key(best)) best = r;
   return best;
 }
@@ -61,7 +74,9 @@ function soonest(rows: TriggerRow[]): TriggerRow | null {
 function namedWake(state: string | null | undefined): string | null {
   const text = state?.trim();
   if (!text) return null;
-  const row = threadStateRows(text).find((r) => r.label === "Next" || r.label === "Waiting" || r.label === "Wakes");
+  const row = threadStateRows(text).find(
+    (r) => r.label === "Next" || r.label === "Waiting" || r.label === "Wakes",
+  );
   return (row?.text ?? threadStateHeadline(text)).replace(/`/g, "") || null;
 }
 
@@ -72,28 +87,52 @@ export function dormantWakeOf(
   now: number,
 ): DormantWake {
   if (session.user_rest === "dormant") return { kind: "parked" };
-  if (session.inbox_snoozed_until && session.inbox_snoozed_until > now) return { kind: "snoozed", at: session.inbox_snoozed_until };
-  if (session.workflow_run_id && !session.is_workflow_sub && (session.workflow_run_status === "running" || session.workflow_run_status === "pending")) {
+  if (session.inbox_snoozed_until && session.inbox_snoozed_until > now)
+    return { kind: "snoozed", at: session.inbox_snoozed_until };
+  if (
+    session.workflow_run_id &&
+    !session.is_workflow_sub &&
+    (session.workflow_run_status === "running" ||
+      session.workflow_run_status === "pending")
+  ) {
     return { kind: "workflow", name: session.workflow_run_name || "workflow" };
   }
   if (watches.length > 0) {
     const first = watches[0];
-    const what = (first.description || first.command?.split("\n").find((l) => l.trim()) || "").trim();
+    const what = (
+      first.description ||
+      first.command?.split("\n").find((l) => l.trim()) ||
+      ""
+    ).trim();
     return { kind: "background", count: watches.length, what };
   }
   const open = session.open_tasks ?? [];
   const workflow = open.find((t) => t.kind === "workflow");
-  if (workflow) return { kind: "workflow", name: workflow.description || "workflow run" };
-  if (open.some((t) => t.kind === "agent") || (session.producing_until != null && now < session.producing_until)) return { kind: "workers" };
+  if (workflow)
+    return { kind: "workflow", name: workflow.description || "workflow run" };
+  if (
+    open.some((t) => t.kind === "agent") ||
+    (session.producing_until != null && now < session.producing_until)
+  )
+    return { kind: "workers" };
   if (open.length > 0) {
     const first = open[0];
-    return { kind: "background", count: open.length, what: (first.description || first.command || "").trim() };
+    return {
+      kind: "background",
+      count: open.length,
+      what: (first.description || first.command || "").trim(),
+    };
   }
   const armed = triggers.filter((r) => ARMED.has(r.task.status));
   const next = soonest(armed);
   if (next) return { kind: "trigger", row: next, others: armed.length - 1 };
-  if ((session.armed_trigger_kind ?? "none") !== "none") return { kind: "trigger_unloaded" };
-  return { kind: "claim", what: namedWake(session.thread_state), back: (session.updated_at ?? now) + DORMANT_CLAIM_TTL_MS };
+  if ((session.armed_trigger_kind ?? "none") !== "none")
+    return { kind: "trigger_unloaded" };
+  return {
+    kind: "claim",
+    what: namedWake(session.thread_state),
+    back: (session.updated_at ?? now) + DORMANT_CLAIM_TTL_MS,
+  };
 }
 
 // The words for a wake, shared by the inbox card's child line (DormantWakeRow)
@@ -106,28 +145,55 @@ export interface DormantWakeLabel {
   warn: boolean;
 }
 
-export const DORMANT_CLAIM_TITLE = "The agent named a wake nothing here can see. It returns to Needs Input if nothing happens.";
+export const DORMANT_CLAIM_TITLE =
+  "The agent named a wake nothing here can see. It returns to Needs Input if nothing happens.";
 
-export function dormantWakeLabel(wake: DormantWake, now: number): DormantWakeLabel {
+export function dormantWakeLabel(
+  wake: DormantWake,
+  now: number,
+): DormantWakeLabel {
   switch (wake.kind) {
     case "trigger":
-      return { what: taskDisplayTitle(wake.row.task) + (wake.others > 0 ? ` +${wake.others}` : ""), when: { task: wake.row.task }, warn: false };
+      return {
+        what:
+          taskDisplayTitle(wake.row.task) +
+          (wake.others > 0 ? ` +${wake.others}` : ""),
+        when: { task: wake.row.task },
+        warn: false,
+      };
     case "trigger_unloaded":
       return { what: "a trigger fires into it", when: "armed", warn: false };
     case "workflow":
-      return { what: `workflow: ${wake.name}`, when: "when it finishes", warn: false };
+      return {
+        what: `workflow: ${wake.name}`,
+        when: "when it finishes",
+        warn: false,
+      };
     case "background":
-      return { what: `${wake.count > 1 ? `${wake.count} background tasks` : "background task"}${wake.what ? `: ${wake.what}` : ""}`, when: "when it finishes", warn: false };
+      return {
+        what: `${wake.count > 1 ? `${wake.count} background tasks` : "background task"}${wake.what ? `: ${wake.what}` : ""}`,
+        when: "when it finishes",
+        warn: false,
+      };
     case "workers":
-      return { what: "its subagents are still working", when: "when they finish", warn: false };
+      return {
+        what: "its subagents are still working",
+        when: "when they finish",
+        warn: false,
+      };
     case "snoozed":
       return { what: "snoozed", when: fmtClock(wake.at, now), warn: false };
     case "parked":
       return { what: "parked by you", when: "on next activity", warn: false };
     case "claim":
       return {
-        what: wake.what ? `nothing scheduled · ${wake.what}` : "nothing scheduled",
-        when: wake.back > now ? `yours in ${fmtDuration(wake.back - now)}` : "yours now",
+        what: wake.what
+          ? `nothing scheduled · ${wake.what}`
+          : "nothing scheduled",
+        when:
+          wake.back > now
+            ? `yours in ${fmtDuration(wake.back - now)}`
+            : "yours now",
         warn: true,
       };
   }
@@ -136,9 +202,14 @@ export function dormantWakeLabel(wake: DormantWake, now: number): DormantWakeLab
 /** The trigger rows a session's card carries: the ones it originates or
  *  created, plus the trigger that spawned it (GlobalSessionPanel's
  *  scheduleBarRowsFor, for one session). */
-export function sessionTriggerRows(rows: TriggerRow[], session: Pick<InboxSession, "_id" | "agent_task_id">): TriggerRow[] {
-  return rows.filter((r) =>
-    r.task.originating_conversation_id === session._id ||
-    r.task.created_by_conversation_id === session._id ||
-    (!!session.agent_task_id && r.task._id === session.agent_task_id));
+export function sessionTriggerRows(
+  rows: TriggerRow[],
+  session: Pick<InboxSession, "_id" | "agent_task_id">,
+): TriggerRow[] {
+  return rows.filter(
+    (r) =>
+      r.task.originating_conversation_id === session._id ||
+      r.task.created_by_conversation_id === session._id ||
+      (!!session.agent_task_id && r.task._id === session.agent_task_id),
+  );
 }

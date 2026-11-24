@@ -15,14 +15,16 @@ describe("getSnippetTargets over the registry", () => {
   function withHome(subdirs: string[]): string {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-targets-"));
     dirs.push(home);
-    for (const d of subdirs) fs.mkdirSync(path.join(home, d), { recursive: true });
+    for (const d of subdirs)
+      fs.mkdirSync(path.join(home, d), { recursive: true });
     process.env.HOME = home;
     return home;
   }
 
   afterEach(() => {
     process.env.HOME = originalHome;
-    for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+    for (const d of dirs.splice(0))
+      fs.rmSync(d, { recursive: true, force: true });
   });
 
   // The module caches nothing, but os.homedir() reads $HOME at call time on
@@ -66,6 +68,8 @@ describe("getSnippetTargets over the registry", () => {
 
   test("claude appears even before ~/.claude exists — the writer creates it", async () => {
     withHome([]);
-    expect((await targets()).map((t) => t.label)).toEqual(["~/.claude/CLAUDE.md"]);
+    expect((await targets()).map((t) => t.label)).toEqual([
+      "~/.claude/CLAUDE.md",
+    ]);
   });
 });

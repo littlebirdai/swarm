@@ -54,14 +54,22 @@ export async function loadOutbox(): Promise<OutboxEntry[]> {
 // delete those databases (and the "codecast-launcher-v2:*" launcher metadata).
 // Row shape is compatible: both sides persisted the middleware's OutboxEntry.
 export async function salvageLocalFirstV2Data(): Promise<number> {
-  if (typeof indexedDB === "undefined" || typeof indexedDB.databases !== "function") return 0;
+  if (
+    typeof indexedDB === "undefined" ||
+    typeof indexedDB.databases !== "function"
+  )
+    return 0;
   let salvaged = 0;
   let names: string[] = [];
   try {
     names = (await indexedDB.databases())
       .map((d) => d.name)
-      .filter((n): n is string =>
-        !!n && (n.startsWith("codecast-store-v2:") || n.startsWith("codecast-launcher-v2:")));
+      .filter(
+        (n): n is string =>
+          !!n &&
+          (n.startsWith("codecast-store-v2:") ||
+            n.startsWith("codecast-launcher-v2:")),
+      );
   } catch {
     return 0;
   }
@@ -70,7 +78,12 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
       if (name.startsWith("codecast-store-v2:")) {
         const rows = await readV2LegacyOutbox(name);
         for (const row of rows) {
-          if (!row || typeof row !== "object" || typeof (row as any).id !== "string") continue;
+          if (
+            !row ||
+            typeof row !== "object" ||
+            typeof (row as any).id !== "string"
+          )
+            continue;
           await db.dispatchOutbox.put(row as OutboxEntry);
           salvaged++;
         }
@@ -80,6 +93,9 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
       console.error(`[idbCache] v2 salvage failed for ${name}`, error);
     }
   }
-  if (salvaged > 0) console.warn(`[idbCache] salvaged ${salvaged} parked writes from retired v2 storage`);
+  if (salvaged > 0)
+    console.warn(
+      `[idbCache] salvaged ${salvaged} parked writes from retired v2 storage`,
+    );
   return salvaged;
 }

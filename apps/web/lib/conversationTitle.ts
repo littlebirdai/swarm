@@ -3,9 +3,21 @@
 // from the store or the views, so the tab strip and the lane read one rule.
 import { promptTitle } from "@codecast/shared/contracts/assistant";
 
-const PLACEHOLDER_TITLES = new Set(["new session", "new conversation", "untitled", ""]);
+const PLACEHOLDER_TITLES = new Set([
+  "new session",
+  "new conversation",
+  "untitled",
+  "",
+]);
 
-export type TitleRow = { title?: string | null; short_title?: string | null; last_user_message?: string | null } | null | undefined;
+export type TitleRow =
+  | {
+      title?: string | null;
+      short_title?: string | null;
+      last_user_message?: string | null;
+    }
+  | null
+  | undefined;
 
 /** The row's own title, or empty while it only has a placeholder. The full
  *  title comes first: short_title is a developer tab label ("Tasks" for
@@ -19,7 +31,9 @@ export function ownTitle(row: TitleRow): string {
 /** What a conversation is called: its title once it has a real one, else
  *  what the person asked, else a plain fallback. */
 export function conversationTitle(row: TitleRow): string {
-  return ownTitle(row) || promptTitle(row?.last_user_message) || "A new conversation";
+  return (
+    ownTitle(row) || promptTitle(row?.last_user_message) || "A new conversation"
+  );
 }
 
 /** A hosted conversation's name from its two store homes: the conversation
@@ -28,7 +42,11 @@ export function conversationTitle(row: TitleRow): string {
  *  else the person's first ask, read lazily from the transcript only when
  *  neither row has a title. Every surface that names a hosted conversation
  *  (the rail row, the header, the same-name suffix) reads this one rule. */
-export function hostedTitle(conversation: TitleRow, session: TitleRow, firstAsk: () => string | null | undefined): string {
+export function hostedTitle(
+  conversation: TitleRow,
+  session: TitleRow,
+  firstAsk: () => string | null | undefined,
+): string {
   return ownTitle(conversation) || ownTitle(session) || promptTitle(firstAsk());
 }
 
@@ -36,7 +54,12 @@ export function hostedTitle(conversation: TitleRow, session: TitleRow, firstAsk:
  *  way (the store's pendingMessages for that session): the only name a
  *  session has before the agent receives that message and the row learns a
  *  title or first prompt. */
-export function pendingAsk(pending: ReadonlyArray<{ role?: string; content?: unknown }> | undefined): string {
-  const m = pending?.find((p) => p.role === "user" && typeof p.content === "string" && p.content.trim());
+export function pendingAsk(
+  pending: ReadonlyArray<{ role?: string; content?: unknown }> | undefined,
+): string {
+  const m = pending?.find(
+    (p) =>
+      p.role === "user" && typeof p.content === "string" && p.content.trim(),
+  );
   return (m?.content as string | undefined) ?? "";
 }

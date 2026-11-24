@@ -5,7 +5,10 @@ import type { EncryptedProviderKeyPayload } from "./providerKeyCrypto";
 
 /** A secret input's value, sealed in the browser to the target device's
  *  provider-key public key. `payload.provider` carries the input's key. */
-export type OrgTemplateBindSecret = { key: string; payload: EncryptedProviderKeyPayload };
+export type OrgTemplateBindSecret = {
+  key: string;
+  payload: EncryptedProviderKeyPayload;
+};
 
 export type OrgTemplateBindArgs = {
   instance_key: string;

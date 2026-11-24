@@ -13,7 +13,15 @@ import { requireUserOrToken } from "./lib/auth";
 import { parseWorkspaceKey } from "./lib/accessKeys";
 import { scopeArgs } from "./lib/ingestScopeArgs";
 import { groupByRef } from "./ingest";
-import { CI_ANNOTATIONS_MAX, isFailedConclusion, logTail, readAnnotations, readJobs, readRun, type CiAnnotation } from "./lib/ciRunRead";
+import {
+  CI_ANNOTATIONS_MAX,
+  isFailedConclusion,
+  logTail,
+  readAnnotations,
+  readJobs,
+  readRun,
+  type CiAnnotation,
+} from "./lib/ciRunRead";
 
 const GITHUB_API = "https://api.github.com";
 /** A finished run does not change; a read that came back short is tried again after this. */
@@ -24,13 +32,26 @@ const ANNOTATED_JOBS = 3;
 const LOG_MAX_BYTES = 30 * 1024 * 1024;
 
 /** The repository a group's kept sample names for this run, or null when none of its samples is that run. */
-async function runRepository(ctx: any, group: Doc<"event_groups">, runId: string): Promise<string | null> {
+async function runRepository(
+  ctx: any,
+  group: Doc<"event_groups">,
+  runId: string,
+): Promise<string | null> {
   if (group.kind !== "check") return null;
-  const samples = await ctx.db.query("event_samples").withIndex("by_group_at", (q: any) => q.eq("group_id", group._id)).order("desc").take(50);
+  const samples = await ctx.db
+    .query("event_samples")
+    .withIndex("by_group_at", (q: any) => q.eq("group_id", group._id))
+    .order("desc")
+    .take(50);
   for (const s of samples) {
     try {
       const c = s.context_json ? JSON.parse(s.context_json) : null;
-      if (c && String(c.run_id ?? "") === runId && typeof c.repository === "string") return c.repository;
+      if (
+        c &&
+        String(c.run_id ?? "") === runId &&
+        typeof c.repository === "string"
+      )
+        return c.repository;
     } catch {
       // A sample whose context is not JSON names no run.
     }
@@ -46,25 +67,44 @@ export const get = query({
     const group = await groupByRef(ctx, userId, args.group);
     const repository = await runRepository(ctx, group, args.run_id);
     if (!repository) return null;
-    return await ctx.db.query("ci_run_details").withIndex("by_repo_run", (q) => q.eq("repository", repository).eq("run_id", args.run_id)).first();
+    return await ctx.db
+      .query("ci_run_details")
+      .withIndex("by_repo_run", (q) =>
+        q.eq("repository", repository).eq("run_id", args.run_id),
+      )
+      .first();
   },
 });
 
 export const fetchTarget = internalQuery({
-  args: { api_token: v.optional(v.string()), group: v.string(), run_id: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    group: v.string(),
+    run_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const group = await groupByRef(ctx, userId, args.group);
     const repository = await runRepository(ctx, group, args.run_id);
     if (!repository) return null;
     const ws = parseWorkspaceKey(group.workspace);
-    const existing = await ctx.db.query("ci_run_details").withIndex("by_repo_run", (q) => q.eq("repository", repository).eq("run_id", args.run_id)).first();
+    const existing = await ctx.db
+      .query("ci_run_details")
+      .withIndex("by_repo_run", (q) =>
+        q.eq("repository", repository).eq("run_id", args.run_id),
+      )
+      .first();
     return {
       repository,
       user_id: userId as Id<"users">,
       team_id: ws?.type === "team" ? ws.teamId : undefined,
       fetched_at: existing?.fetched_at ?? null,
-      short: existing ? !!existing.error || (!existing.log_tail && !existing.log_error && existing.jobs.some((j) => isFailedConclusion(j.conclusion))) : null,
+      short: existing
+        ? !!existing.error ||
+          (!existing.log_tail &&
+            !existing.log_error &&
+            existing.jobs.some((j) => isFailedConclusion(j.conclusion)))
+        : null,
     };
   },
 });
@@ -75,7 +115,13 @@ const jobValidator = v.object({
   conclusion: v.optional(v.string()),
   duration_ms: v.optional(v.number()),
   url: v.optional(v.string()),
-  steps: v.array(v.object({ number: v.number(), name: v.string(), conclusion: v.optional(v.string()) })),
+  steps: v.array(
+    v.object({
+      number: v.number(),
+      name: v.string(),
+      conclusion: v.optional(v.string()),
+    }),
+  ),
 });
 
 export const store = internalMutation({
@@ -89,7 +135,16 @@ export const store = internalMutation({
     started_at: v.optional(v.number()),
     duration_ms: v.optional(v.number()),
     jobs: v.array(jobValidator),
-    annotations: v.array(v.object({ job: v.string(), level: v.string(), message: v.string(), title: v.optional(v.string()), path: v.optional(v.string()), line: v.optional(v.number()) })),
+    annotations: v.array(
+      v.object({
+        job: v.string(),
+        level: v.string(),
+        message: v.string(),
+        title: v.optional(v.string()),
+        path: v.optional(v.string()),
+        line: v.optional(v.number()),
+      }),
+    ),
     log_job: v.optional(v.string()),
     log_tail: v.optional(v.string()),
     log_error: v.optional(v.string()),
@@ -97,7 +152,12 @@ export const store = internalMutation({
   },
   handler: async (ctx, args) => {
     const row = { ...args, fetched_at: Date.now() };
-    const existing = await ctx.db.query("ci_run_details").withIndex("by_repo_run", (q) => q.eq("repository", args.repository).eq("run_id", args.run_id)).first();
+    const existing = await ctx.db
+      .query("ci_run_details")
+      .withIndex("by_repo_run", (q) =>
+        q.eq("repository", args.repository).eq("run_id", args.run_id),
+      )
+      .first();
     // A short read never replaces a whole one: GitHub can drop a log or a token can lapse after a good read.
     if (existing && args.error && !existing.error) return existing._id;
     if (existing) {
@@ -109,11 +169,25 @@ export const store = internalMutation({
 });
 
 /** What one read keeps beside the run's key. */
-type KeptRun = Partial<Omit<Doc<"ci_run_details">, "_id" | "_creationTime" | "repository" | "run_id" | "fetched_at">>;
+type KeptRun = Partial<
+  Omit<
+    Doc<"ci_run_details">,
+    "_id" | "_creationTime" | "repository" | "run_id" | "fetched_at"
+  >
+>;
 
-async function gh(token: string, path: string): Promise<{ ok: true; body: any } | { ok: false; status: number; message: string }> {
+async function gh(
+  token: string,
+  path: string,
+): Promise<
+  { ok: true; body: any } | { ok: false; status: number; message: string }
+> {
   const res = await fetch(`${GITHUB_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
   });
   if (!res.ok) {
     let message = `${res.status}`;
@@ -144,40 +218,81 @@ function refusal(status: number, what: string): string {
 export const read = action({
   args: { ...scopeArgs, group: v.string(), run_id: v.string() },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
-    const target = await ctx.runQuery(internal.ciRuns.fetchTarget, { api_token: args.api_token, group: args.group, run_id: args.run_id });
+    const target = await ctx.runQuery(internal.ciRuns.fetchTarget, {
+      api_token: args.api_token,
+      group: args.group,
+      run_id: args.run_id,
+    });
     if (!target) return { ok: false, error: "no kept run with that id" };
-    if (target.fetched_at !== null && (!target.short || Date.now() - target.fetched_at < RETRY_SHORT_MS)) return { ok: true };
+    if (
+      target.fetched_at !== null &&
+      (!target.short || Date.now() - target.fetched_at < RETRY_SHORT_MS)
+    )
+      return { ok: true };
     const keep = (row: KeptRun) =>
-      ctx.runMutation(internal.ciRuns.store, { repository: target.repository, run_id: args.run_id, jobs: [], annotations: [], ...row });
-    const installation = await ctx.runQuery(internal.githubApp.getInstallationForRepo, { repository: target.repository, user_id: target.user_id, team_id: target.team_id });
+      ctx.runMutation(internal.ciRuns.store, {
+        repository: target.repository,
+        run_id: args.run_id,
+        jobs: [],
+        annotations: [],
+        ...row,
+      });
+    const installation = await ctx.runQuery(
+      internal.githubApp.getInstallationForRepo,
+      {
+        repository: target.repository,
+        user_id: target.user_id,
+        team_id: target.team_id,
+      },
+    );
     if (!installation) {
-      await keep({ error: `the GitHub App is not installed on ${target.repository}` });
+      await keep({
+        error: `the GitHub App is not installed on ${target.repository}`,
+      });
       return { ok: false, error: "no installation" };
     }
-    const { token } = await ctx.runAction(internal.githubApp.getInstallationToken, { installation_id: installation.installation_id });
+    const { token } = await ctx.runAction(
+      internal.githubApp.getInstallationToken,
+      { installation_id: installation.installation_id },
+    );
     const base = `/repos/${target.repository}/actions/runs/${encodeURIComponent(args.run_id)}`;
     const run = await gh(token, base);
     if (!run.ok) {
       await keep({ error: refusal(run.status, "Actions runs") });
       return { ok: false, error: run.message };
     }
-    const jobsAnswer = await gh(token, `${base}/jobs?filter=latest&per_page=100`);
+    const jobsAnswer = await gh(
+      token,
+      `${base}/jobs?filter=latest&per_page=100`,
+    );
     const jobs = jobsAnswer.ok ? readJobs(jobsAnswer.body) : [];
     const failed = jobs.filter((j) => isFailedConclusion(j.conclusion));
     const annotations: CiAnnotation[] = [];
     for (const job of failed.slice(0, ANNOTATED_JOBS)) {
-      const a = await gh(token, `/repos/${target.repository}/check-runs/${job.id}/annotations?per_page=${CI_ANNOTATIONS_MAX}`);
+      const a = await gh(
+        token,
+        `/repos/${target.repository}/check-runs/${job.id}/annotations?per_page=${CI_ANNOTATIONS_MAX}`,
+      );
       if (a.ok) annotations.push(...readAnnotations(job.name, a.body));
     }
     let log: { log_job?: string; log_tail?: string; log_error?: string } = {};
     const lead = failed[0];
     if (lead) {
-      const res = await fetch(`${GITHUB_API}/repos/${target.repository}/actions/jobs/${lead.id}/logs`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-      });
+      const res = await fetch(
+        `${GITHUB_API}/repos/${target.repository}/actions/jobs/${lead.id}/logs`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        },
+      );
       const size = Number(res.headers.get("content-length") ?? 0);
-      if (!res.ok) log = { log_job: lead.name, log_error: refusal(res.status, "logs") };
-      else if (size > LOG_MAX_BYTES) log = { log_job: lead.name, log_error: "the log is too large to read" };
+      if (!res.ok)
+        log = { log_job: lead.name, log_error: refusal(res.status, "logs") };
+      else if (size > LOG_MAX_BYTES)
+        log = { log_job: lead.name, log_error: "the log is too large to read" };
       else log = { log_job: lead.name, log_tail: logTail(await res.text()) };
     }
     await keep({

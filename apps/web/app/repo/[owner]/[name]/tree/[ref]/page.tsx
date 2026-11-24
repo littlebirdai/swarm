@@ -6,7 +6,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import { RepoHeader } from "../../../../../../components/repo/RepoChrome";
 import { RepoRefPicker } from "../../../../../../components/repo/RepoRefPicker";
 import { RepoPageShell } from "../../../../../../components/repo/RepoPageShell";
-import { Breadcrumb, TreeContent } from "../../../../../../components/repo/TreeContent";
+import {
+  Breadcrumb,
+  TreeContent,
+} from "../../../../../../components/repo/TreeContent";
 import { useRepoFamily } from "../../../../../../components/repo/useRepoFamily";
 import { useTitlebarHead } from "../../../../../../hooks/useTitlebarHead";
 import "../../../../../../components/repo/repo.css";
@@ -33,10 +36,29 @@ export default function RepoTreePage() {
           tab="code"
           refName={refName}
           family={family}
-          middle={<RepoRefPicker repository={repository} refName={refName} path={path} family={family} />}
-          below={<Breadcrumb repository={repository} refName={refName} path={path} family={family} />}
+          middle={
+            <RepoRefPicker
+              repository={repository}
+              refName={refName}
+              path={path}
+              family={family}
+            />
+          }
+          below={
+            <Breadcrumb
+              repository={repository}
+              refName={refName}
+              path={path}
+              family={family}
+            />
+          }
         />
-        <TreeContent repository={repository} refName={refName} path={path} family={family} />
+        <TreeContent
+          repository={repository}
+          refName={refName}
+          path={path}
+          family={family}
+        />
       </div>
     </RepoPageShell>
   );

@@ -23,12 +23,20 @@ export type RunPathProps = {
 export const RunTrail = memo(function RunTrail({ run }: { run: LineRunModel }) {
   return (
     <span className="lw-trail" aria-label={`${run.visits.length} steps`}>
-      {run.visits.map((v) => <i key={v.index} data-kind={v.kind} data-status={v.status} />)}
+      {run.visits.map((v) => (
+        <i key={v.index} data-kind={v.kind} data-status={v.status} />
+      ))}
     </span>
   );
 });
 
-export const RunPath = memo(function RunPath({ run, selectedStep, compact, framed, onVisit }: RunPathProps) {
+export const RunPath = memo(function RunPath({
+  run,
+  selectedStep,
+  compact,
+  framed,
+  onVisit,
+}: RunPathProps) {
   const nav = useLineNav();
   if (compact) return <RunTrail run={run} />;
   const seen = new Set<string>();
@@ -39,7 +47,14 @@ export const RunPath = memo(function RunPath({ run, selectedStep, compact, frame
         seen.add(v.node);
         return (
           <Fragment key={v.index}>
-            {i > 0 && (again ? <span className="lw-visit-loop">back to</span> : <span className="lw-visit-arrow" aria-hidden>→</span>)}
+            {i > 0 &&
+              (again ? (
+                <span className="lw-visit-loop">back to</span>
+              ) : (
+                <span className="lw-visit-arrow" aria-hidden>
+                  →
+                </span>
+              ))}
             <button
               type="button"
               className="lw-visit"
@@ -47,8 +62,12 @@ export const RunPath = memo(function RunPath({ run, selectedStep, compact, frame
               data-status={v.status}
               data-inferred={v.inferred ? "" : undefined}
               aria-current={selectedStep === v.node ? "step" : undefined}
-              title={[v.decided.words, durationWords(v.durationMs)].filter(Boolean).join(" · ")}
-              onClick={() => (onVisit ? onVisit(v.node, i) : nav.openStep(v.node))}
+              title={[v.decided.words, durationWords(v.durationMs)]
+                .filter(Boolean)
+                .join(" · ")}
+              onClick={() =>
+                onVisit ? onVisit(v.node, i) : nav.openStep(v.node)
+              }
             >
               <span className="lw-visit-n">{i + 1}</span>
               {v.label}
@@ -56,7 +75,15 @@ export const RunPath = memo(function RunPath({ run, selectedStep, compact, frame
           </Fragment>
         );
       })}
-      {run.live && <span className="lw-visit-arrow" aria-label="running"><span className="lw-dot" data-pulse="" style={{ color: "var(--lw-live)", display: "inline-block" }} /></span>}
+      {run.live && (
+        <span className="lw-visit-arrow" aria-label="running">
+          <span
+            className="lw-dot"
+            data-pulse=""
+            style={{ color: "var(--lw-live)", display: "inline-block" }}
+          />
+        </span>
+      )}
     </div>
   );
   if (!framed) return path;
@@ -66,14 +93,29 @@ export const RunPath = memo(function RunPath({ run, selectedStep, compact, frame
         <span className="lw-obj-title">{run.caseTitle}</span>
         {run.caseRef && <span className="lw-obj-meta">{run.caseRef}</span>}
         <span className="lw-spacer" />
-        <span className="lw-obj-meta">{[dayWords(run.at), durationWords(run.durationMs)].filter(Boolean).join(" · ")}</span>
+        <span className="lw-obj-meta">
+          {[dayWords(run.at), durationWords(run.durationMs)]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
       </div>
       <div className="lw-obj-body">
-        <p className={outcomeToneClass(run.outcome.tone)} style={{ margin: "0 0 10px", fontSize: "var(--lw-fs-md)" }}>{run.outcome.text}</p>
+        <p
+          className={outcomeToneClass(run.outcome.tone)}
+          style={{ margin: "0 0 10px", fontSize: "var(--lw-fs-md)" }}
+        >
+          {run.outcome.text}
+        </p>
         {path}
       </div>
       <div className="lw-obj-foot">
-        <NavLink className="lw-act" href={nav.runHref(run.id, run.caseId)} onOpen={() => nav.openRun(run.id, run.caseId)}>Replay this run</NavLink>
+        <NavLink
+          className="lw-act"
+          href={nav.runHref(run.id, run.caseId)}
+          onOpen={() => nav.openRun(run.id, run.caseId)}
+        >
+          Replay this run
+        </NavLink>
       </div>
     </div>
   );

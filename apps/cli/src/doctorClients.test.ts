@@ -7,18 +7,35 @@
 // real file watchers, and the registry directly, exactly as the doctor does.
 
 import { describe, expect, test } from "bun:test";
-import { LOCAL_AGENT_CLIENTS, type LocalAgentClientId } from "@codecast/shared/contracts";
+import {
+  LOCAL_AGENT_CLIENTS,
+  type LocalAgentClientId,
+} from "@codecast/shared/contracts";
 import { parseTranscriptFor } from "./parser.js";
-import { clientFixture, watcherFires, probeClient, probeAllClients } from "./doctorClients.js";
+import {
+  clientFixture,
+  watcherFires,
+  probeClient,
+  probeAllClients,
+} from "./doctorClients.js";
 
 const ALL_CLIENTS = Object.keys(LOCAL_AGENT_CLIENTS) as LocalAgentClientId[];
-const JSONL_CLIENTS: LocalAgentClientId[] = ["claude", "codex", "gemini", "pi", "grok", "muse"];
+const JSONL_CLIENTS: LocalAgentClientId[] = [
+  "claude",
+  "codex",
+  "gemini",
+  "pi",
+  "grok",
+  "muse",
+];
 const SQLITE_CLIENTS: LocalAgentClientId[] = ["opencode", "cursor"];
 
 describe("clientFixture — the synthetic transcript round-trips the PRODUCTION parser", () => {
   for (const id of ALL_CLIENTS) {
     test(`${id}: parseTranscriptFor returns a user + assistant turn`, () => {
-      const roles = parseTranscriptFor(id, clientFixture(id).transcript).map((m) => (m as { role: string }).role);
+      const roles = parseTranscriptFor(id, clientFixture(id).transcript).map(
+        (m) => (m as { role: string }).role,
+      );
       expect(roles).toContain("user");
       expect(roles).toContain("assistant");
     });
@@ -65,7 +82,11 @@ describe("watcherFires — the REAL jsonl watcher emits on a synthetic transcrip
     // keeps watcherFires honest — a green watcher leg means the watcher really fired,
     // not that the probe always resolves true.
     const fx = clientFixture("codex");
-    const fired = await watcherFires("codex", { ...fx, watchRelPath: "2026/01/01/not-a-transcript.txt" }, 1500);
+    const fired = await watcherFires(
+      "codex",
+      { ...fx, watchRelPath: "2026/01/01/not-a-transcript.txt" },
+      1500,
+    );
     expect(fired).toBe(false);
   }, 6000);
 });
@@ -80,7 +101,13 @@ describe("probeClient / probeAllClients", () => {
       // Installed clients run the full 5-leg matrix and (on a sane checkout) pass it;
       // uninstalled clients skip with no sub-checks and are not a failure.
       if (r.installed) {
-        expect(r.subChecks.map((c) => c.label)).toEqual(["descriptor", "readiness", "resume", "parser", "watcher"]);
+        expect(r.subChecks.map((c) => c.label)).toEqual([
+          "descriptor",
+          "readiness",
+          "resume",
+          "parser",
+          "watcher",
+        ]);
         expect(r.ok).toBe(true);
       } else {
         expect(r.subChecks.length).toBe(0);

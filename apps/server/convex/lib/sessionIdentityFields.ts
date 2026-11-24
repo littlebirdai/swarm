@@ -9,7 +9,10 @@ import { isRoleIcon } from "@codecast/shared/contracts/roleIcon";
  * payload that names a session (an inbox row, a comment's author) spreads
  * this, so the same session wears the same face everywhere.
  */
-export async function identityFieldsOf(conv: any, getDoc: (id: any) => Promise<any>) {
+export async function identityFieldsOf(
+  conv: any,
+  getDoc: (id: any) => Promise<any>,
+) {
   const roleId = conv.standing_role_id ?? conv.org_role_id ?? null;
   const role = roleId ? await getDoc(roleId).catch(() => null) : null;
   return {
@@ -19,7 +22,17 @@ export async function identityFieldsOf(conv: any, getDoc: (id: any) => Promise<a
     org_role_id: conv.org_role_id?.toString() ?? null,
     standing_role_id: conv.standing_role_id?.toString() ?? null,
     role: role
-      ? { _id: role._id.toString(), short_id: role.short_id, name: role.name, handle: role.handle, avatar: avatarOf(role), status: role.status, tenure_kind: role.tenure?.kind ?? "standing", given_name: role.given_name ?? null, icon: isRoleIcon(role.icon) ? role.icon : null }
+      ? {
+          _id: role._id.toString(),
+          short_id: role.short_id,
+          name: role.name,
+          handle: role.handle,
+          avatar: avatarOf(role),
+          status: role.status,
+          tenure_kind: role.tenure?.kind ?? "standing",
+          given_name: role.given_name ?? null,
+          icon: isRoleIcon(role.icon) ? role.icon : null,
+        }
       : null,
   };
 }

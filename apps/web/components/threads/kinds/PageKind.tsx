@@ -27,7 +27,9 @@ export function PageLabel({ card }: { card: ThreadCardModel }) {
 
 /** Roots in order, each followed by its replies — one level, like the source
  *  table (`parent_comment_id` is one deep). */
-function threadOrder(comments: PageCommentRow[]): Array<{ c: PageCommentRow; reply: boolean }> {
+function threadOrder(
+  comments: PageCommentRow[],
+): Array<{ c: PageCommentRow; reply: boolean }> {
   const roots = comments.filter((c) => !c.parent_comment_id);
   const byParent = new Map<string, PageCommentRow[]>();
   for (const c of comments) {
@@ -39,14 +41,27 @@ function threadOrder(comments: PageCommentRow[]): Array<{ c: PageCommentRow; rep
   const out: Array<{ c: PageCommentRow; reply: boolean }> = [];
   for (const r of roots.sort((a, b) => a.created_at - b.created_at)) {
     out.push({ c: r, reply: false });
-    for (const child of (byParent.get(r._id) ?? []).sort((a, b) => a.created_at - b.created_at)) {
+    for (const child of (byParent.get(r._id) ?? []).sort(
+      (a, b) => a.created_at - b.created_at,
+    )) {
       out.push({ c: child, reply: true });
     }
   }
   return out;
 }
 
-export function PageExpanded({ card, seen, frozenReadAt, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function PageExpanded({
+  card,
+  seen,
+  frozenReadAt,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const row = rowOf(card);
   const page = usePageRow(row.root_key);
   const { now } = useThreadsPage();
@@ -63,37 +78,70 @@ export function PageExpanded({ card, seen, frozenReadAt, focusComposer }: { card
     if (row.unread > 0 && commentCount === 0) return;
     if (row.last_read_at >= row.last_activity_at && row.unread === 0) return;
     useInboxStore.getState().markThreadRead("page", row.root_key);
-  }, [seen, row.root_key, row.last_activity_at, row.last_read_at, row.unread, commentCount]);
+  }, [
+    seen,
+    row.root_key,
+    row.last_activity_at,
+    row.last_read_at,
+    row.unread,
+    commentCount,
+  ]);
 
-  const ordered = useMemo(() => threadOrder(page?.comments ?? []), [page?.comments]);
+  const ordered = useMemo(
+    () => threadOrder(page?.comments ?? []),
+    [page?.comments],
+  );
 
   const fold = useReaderFold(ordered, (o) => o.c.created_at, frozenReadAt);
 
   const send = useCallback(() => {
     const t = text.trim();
     if (!t) return;
-    useInboxStore.getState().addPageComment({ artifactId: row.root_key, text: t, clientId: newPageCommentClientId() });
+    useInboxStore.getState().addPageComment({
+      artifactId: row.root_key,
+      text: t,
+      clientId: newPageCommentClientId(),
+    });
     setText("");
   }, [row.root_key, text]);
 
   return (
     <div className="th-card-open th-card-open-page">
-      <EarlierButton count={fold.hidden} noun="comment" onClick={fold.showAll} />
+      <EarlierButton
+        count={fold.hidden}
+        noun="comment"
+        onClick={fold.showAll}
+      />
       <div className="th-page-comments">
         {fold.visible.map(({ c, reply }) => (
-          <div key={c._id} className={`th-page-comment ${reply ? "th-page-comment-reply" : ""}`}>
-            <CommentAvatar name={c.author_name} image={c.author_avatar} size={20} />
+          <div
+            key={c._id}
+            className={`th-page-comment ${reply ? "th-page-comment-reply" : ""}`}
+          >
+            <CommentAvatar
+              name={c.author_name}
+              image={c.author_avatar}
+              size={20}
+            />
             <div className="th-page-comment-body">
               <span className="th-page-comment-head">
                 <span className="th-page-comment-name">{c.author_name}</span>
-                <span className="th-page-comment-age">{relTimeShort(c.created_at, now)}</span>
-                {c.status === "resolved" && <span className="th-page-comment-resolved">resolved</span>}
+                <span className="th-page-comment-age">
+                  {relTimeShort(c.created_at, now)}
+                </span>
+                {c.status === "resolved" && (
+                  <span className="th-page-comment-resolved">resolved</span>
+                )}
               </span>
-              <Clamp><span className="th-page-comment-text">{c.text}</span></Clamp>
+              <Clamp>
+                <span className="th-page-comment-text">{c.text}</span>
+              </Clamp>
             </div>
           </div>
         ))}
-        {ordered.length === 0 && <div className="th-card-note">No comments yet.</div>}
+        {ordered.length === 0 && (
+          <div className="th-card-note">No comments yet.</div>
+        )}
       </div>
       <div className="th-page-composer">
         <input
@@ -102,15 +150,30 @@ export function PageExpanded({ card, seen, frozenReadAt, focusComposer }: { card
           placeholder="Reply on the page…"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") send();
+          }}
           // The `r` key's focus request; the mount itself never grabs focus.
-          ref={(el) => { if (el && focusComposer) el.focus(); }}
+          ref={(el) => {
+            if (el && focusComposer) el.focus();
+          }}
         />
-        <button type="button" className="th-question-send" onClick={send} disabled={!text.trim()} title="Reply">
+        <button
+          type="button"
+          className="th-question-send"
+          onClick={send}
+          disabled={!text.trim()}
+          title="Reply"
+        >
           <CornerDownRight className="w-3.5 h-3.5" />
         </button>
         {page && (
-          <a className="th-page-openlink" href={`/a/${page.slug}`} target="_blank" rel="noreferrer">
+          <a
+            className="th-page-openlink"
+            href={`/a/${page.slug}`}
+            target="_blank"
+            rel="noreferrer"
+          >
             <ExternalLink className="w-3 h-3" /> Open page
           </a>
         )}

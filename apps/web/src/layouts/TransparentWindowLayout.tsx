@@ -17,9 +17,13 @@ export function TransparentWindowLayout() {
   useUndoUnreachable();
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         html, body { background: transparent !important; }
-      `}} />
+      `,
+        }}
+      />
       <Outlet />
     </>
   );

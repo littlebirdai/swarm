@@ -15,7 +15,11 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { chromeUserDataRoot, listRealProfiles, type RealProfile } from "../profile.js";
+import {
+  chromeUserDataRoot,
+  listRealProfiles,
+  type RealProfile,
+} from "../profile.js";
 import { BRIDGE_EXTENSION_ID } from "./protocol.js";
 
 export interface ExtensionProfiles {
@@ -38,16 +42,28 @@ function extensionEnabledIn(profileDir: string): boolean {
     const entry = prefs?.extensions?.settings?.[BRIDGE_EXTENSION_ID];
     if (!entry) continue;
     const reasons = entry.disable_reasons;
-    const disabled = (Array.isArray(reasons) && reasons.length > 0) || (typeof reasons === "number" && reasons !== 0) || entry.state === 0;
+    const disabled =
+      (Array.isArray(reasons) && reasons.length > 0) ||
+      (typeof reasons === "number" && reasons !== 0) ||
+      entry.state === 0;
     return !disabled;
   }
   return false;
 }
 
-export function extensionProfiles(root: string | null = chromeUserDataRoot()): ExtensionProfiles {
+export function extensionProfiles(
+  root: string | null = chromeUserDataRoot(),
+): ExtensionProfiles {
   const all = root ? listRealProfiles("chrome", root) : [];
-  if (!root || all.length === 0) return { known: false, all: [], withExtension: [] };
-  return { known: true, all, withExtension: all.filter((p) => extensionEnabledIn(path.join(root, p.dir))) };
+  if (!root || all.length === 0)
+    return { known: false, all: [], withExtension: [] };
+  return {
+    known: true,
+    all,
+    withExtension: all.filter((p) =>
+      extensionEnabledIn(path.join(root, p.dir)),
+    ),
+  };
 }
 
 /**
@@ -56,26 +72,44 @@ export function extensionProfiles(root: string | null = chromeUserDataRoot()): E
  * last-used profile if it has it, else the first by directory name
  * ("Default", "Profile 1", "Profile 2", …). Null when none has it.
  */
-export function pickBridgeProfile(found: ExtensionProfiles, pinned?: string): RealProfile | null {
+export function pickBridgeProfile(
+  found: ExtensionProfiles,
+  pinned?: string,
+): RealProfile | null {
   const candidates = found.withExtension;
   return (
     candidates.find((p) => p.dir === pinned) ??
     candidates.find((p) => p.lastUsed) ??
-    [...candidates].sort((a, b) => a.dir.localeCompare(b.dir, undefined, { numeric: true }))[0] ??
+    [...candidates].sort((a, b) =>
+      a.dir.localeCompare(b.dir, undefined, { numeric: true }),
+    )[0] ??
     null
   );
 }
 
 /** Chrome's last-used profile, when it has the extension and is not connected: the one a person clicking Pair is looking at. */
-export function unconnectedLastUsed(found: ExtensionProfiles, isLive: (p: RealProfile) => boolean): RealProfile | null {
+export function unconnectedLastUsed(
+  found: ExtensionProfiles,
+  isLive: (p: RealProfile) => boolean,
+): RealProfile | null {
   const p = found.withExtension.find((c) => c.lastUsed);
   return p && !isLive(p) ? p : null;
 }
 
 /** A `--profile` argument matched against a profile's name, directory or signed-in email (case-insensitive). */
-export function matchProfile(profiles: RealProfile[], query: string): RealProfile | null {
+export function matchProfile(
+  profiles: RealProfile[],
+  query: string,
+): RealProfile | null {
   const q = query.trim().toLowerCase();
-  return profiles.find((p) => p.dir.toLowerCase() === q || p.name.toLowerCase() === q || p.email?.toLowerCase() === q) ?? null;
+  return (
+    profiles.find(
+      (p) =>
+        p.dir.toLowerCase() === q ||
+        p.name.toLowerCase() === q ||
+        p.email?.toLowerCase() === q,
+    ) ?? null
+  );
 }
 
 /** How a profile reads in output: `"Work" (alex@x.com, Profile 2)`. */

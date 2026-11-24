@@ -7,7 +7,13 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { setKnownValuesForTest } from "../knownValueRedaction.js";
-import { runPaneStream, capturePane, redactFrame, type PaneFramePush, type PaneSnapshot } from "./paneStream.js";
+import {
+  runPaneStream,
+  capturePane,
+  redactFrame,
+  type PaneFramePush,
+  type PaneSnapshot,
+} from "./paneStream.js";
 import {
   PANE_CAPTURE_INTERVAL_MS,
   PANE_HEARTBEAT_MS,
@@ -23,8 +29,10 @@ function snap(frame: string): PaneSnapshot {
 /** Drive the loop on a clock we control: sleeps advance time instantly, so a
  *  test covering a minute of streaming runs in microseconds. */
 function harness(opts: {
-  screens: (Array<string | null>) | ((tick: number) => string | null);
-  answer?: (n: number) => { stop: boolean; input?: string; fast?: boolean } | null;
+  screens: Array<string | null> | ((tick: number) => string | null);
+  answer?: (
+    n: number,
+  ) => { stop: boolean; input?: string; fast?: boolean } | null;
 }) {
   const pushes: PaneFramePush[] = [];
   /** Bytes the loop typed into the pane, with the clock time it happened. */
@@ -44,7 +52,10 @@ function harness(opts: {
       runPaneStream("cc-test", {
         capture: () => {
           captures.push(clock);
-          const s = typeof screens === "function" ? screens(tick) : screens[Math.min(tick, screens.length - 1)];
+          const s =
+            typeof screens === "function"
+              ? screens(tick)
+              : screens[Math.min(tick, screens.length - 1)];
           tick++;
           return s === null ? null : snap(s);
         },
@@ -82,7 +93,9 @@ describe("runPaneStream", () => {
     expect(frames.length).toBe(1);
     expect(beats.length).toBeGreaterThan(0);
     // Heartbeats are spaced, not per-tick.
-    expect(h.now()).toBeGreaterThanOrEqual(PANE_HEARTBEAT_MS * (beats.length - 1));
+    expect(h.now()).toBeGreaterThanOrEqual(
+      PANE_HEARTBEAT_MS * (beats.length - 1),
+    );
   });
 
   test("every change is pushed, with geometry and cursor", async () => {
@@ -94,32 +107,55 @@ describe("runPaneStream", () => {
 
     const frames = h.pushes.filter((p) => p.frame !== undefined);
     expect(frames.map((f) => f.frame)).toEqual(["one", "two", "three"]);
-    expect(frames[0]).toMatchObject({ cols: 80, rows: 24, cursor_x: 3, cursor_y: 5 });
+    expect(frames[0]).toMatchObject({
+      cols: 80,
+      rows: 24,
+      cursor_x: 3,
+      cursor_y: 5,
+    });
   });
 
   test("a frame is redacted before it leaves: a Vault value printed in the pane never reaches the relay", async () => {
-    setKnownValuesForTest([{ value: "zz-pane-value-91c2", name: "zz-pane", vault: true }]);
+    setKnownValuesForTest([
+      { value: "zz-pane-value-91c2", name: "zz-pane", vault: true },
+    ]);
     const h = harness({
       screens: ["$ cast vault get zz-pane\nzz-pane-value-91c2\n$ "],
       answer: (n) => ({ stop: n >= 1 }),
     });
     await h.run();
-    expect(h.pushes[0]!.frame).toBe("$ cast vault get zz-pane\n[redacted:known:zz-pane]\n$ ");
+    expect(h.pushes[0]!.frame).toBe(
+      "$ cast vault get zz-pane\n[redacted:known:zz-pane]\n$ ",
+    );
   });
 
   test("a value wider than the pane, split across rows, is masked in every row it spans", () => {
     const value = "zzwide" + "q7".repeat(47);
     setKnownValuesForTest([{ value, name: "zz-wide", vault: true }]);
-    const frame = ["$ echo $ZZ_WIDE", value.slice(0, 80), value.slice(80), "$ "].join("\n");
+    const frame = [
+      "$ echo $ZZ_WIDE",
+      value.slice(0, 80),
+      value.slice(80),
+      "$ ",
+    ].join("\n");
     const out = redactFrame(frame, 80).split("\n");
-    expect(out).toEqual(["$ echo $ZZ_WIDE", "[redacted:known:zz-wide]", "", "$ "]);
+    expect(out).toEqual([
+      "$ echo $ZZ_WIDE",
+      "[redacted:known:zz-wide]",
+      "",
+      "$ ",
+    ]);
     for (const row of out) expect(row).not.toContain(value.slice(80));
   });
 
   test("a color change inside a value does not hide it; rows with no secret keep their colors", () => {
-    setKnownValuesForTest([{ value: "zz-pane-value-91c2", name: "zz-pane", vault: true }]);
+    setKnownValuesForTest([
+      { value: "zz-pane-value-91c2", name: "zz-pane", vault: true },
+    ]);
     const frame = "\x1b[32m$\x1b[0m ls\nzz-pane-\x1b[31mvalue-91c2\x1b[0m";
-    expect(redactFrame(frame, 80)).toBe("\x1b[32m$\x1b[0m ls\n[redacted:known:zz-pane]");
+    expect(redactFrame(frame, 80)).toBe(
+      "\x1b[32m$\x1b[0m ls\n[redacted:known:zz-pane]",
+    );
   });
 
   test("a frame with no secret leaves unchanged, full rows included", () => {
@@ -128,7 +164,10 @@ describe("runPaneStream", () => {
   });
 
   test("a lapsed lease stops the loop — no stop message needed", async () => {
-    const h = harness({ screens: ["a", "b", "c", "d", "e"], answer: () => ({ stop: true }) });
+    const h = harness({
+      screens: ["a", "b", "c", "d", "e"],
+      answer: () => ({ stop: true }),
+    });
     await h.run();
     // The very first push comes back "nobody is watching", so it never captures
     // a second time.
@@ -190,7 +229,8 @@ describe("runPaneStream typing", () => {
     const h = harness({
       screens: () => "prompt",
       // "hi\r" — an ordinary thing to send an agent.
-      answer: () => (++n === 1 ? { stop: false, input: "68690d" } : { stop: true }),
+      answer: () =>
+        ++n === 1 ? { stop: false, input: "68690d" } : { stop: true },
     });
     await h.run();
     expect(h.writes.length).toBe(1);
@@ -204,7 +244,8 @@ describe("runPaneStream typing", () => {
     let n = 0;
     const h = harness({
       screens: () => "prompt",
-      answer: () => (++n === 1 ? { stop: false, input: "68zz" } : { stop: true }),
+      answer: () =>
+        ++n === 1 ? { stop: false, input: "68zz" } : { stop: true },
     });
     await h.run();
     expect(h.writes.length).toBe(0);
@@ -235,7 +276,8 @@ describe("runPaneStream typing", () => {
     let n = 0;
     const h = harness({
       screens: (t) => `screen ${t}`,
-      answer: () => (++n === 1 ? { stop: false, input: "61" } : { stop: n > 60 }),
+      answer: () =>
+        ++n === 1 ? { stop: false, input: "61" } : { stop: n > 60 },
     });
     await h.run();
     // 3s of typing window at 100ms, then 400ms ticks: 60 pushes must span
@@ -287,7 +329,8 @@ describe("hex transport", () => {
   });
 
   test("rejects anything that isn't clean lowercase hex", () => {
-    for (const bad of ["6", "6g", "0X41", "68 69", "ABCD"]) expect(hexToBytes(bad)).toBeNull();
+    for (const bad of ["6", "6g", "0X41", "68 69", "ABCD"])
+      expect(hexToBytes(bad)).toBeNull();
   });
 
   test("empty means empty, not invalid", () => {
@@ -297,13 +340,25 @@ describe("hex transport", () => {
 
 describe("isValidPaneTarget", () => {
   test("accepts the pane names the daemon actually mints", () => {
-    for (const t of ["cc-abc123", "cast-term-1a2b", "cc-resume-f61304a3:0.0", "codex-x1:1.2"]) {
+    for (const t of [
+      "cc-abc123",
+      "cast-term-1a2b",
+      "cc-resume-f61304a3:0.0",
+      "codex-x1:1.2",
+    ]) {
       expect(isValidPaneTarget(t)).toBe(true);
     }
   });
 
   test("rejects junk, format characters and empty targets", () => {
-    for (const t of ["", "a b", "a;b", "#{pane_id}", "$(whoami)", "a".repeat(121)]) {
+    for (const t of [
+      "",
+      "a b",
+      "a;b",
+      "#{pane_id}",
+      "$(whoami)",
+      "a".repeat(121),
+    ]) {
       expect(isValidPaneTarget(t)).toBe(false);
     }
   });

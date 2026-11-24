@@ -15,18 +15,22 @@ import { handleStatusLinePost, sweepStatusLineStamps } from "./daemon.js";
 import { readUsageCache } from "./ccAccounts.js";
 import { STATUSLINE_STAMP_DIR } from "./statuslineHook.js";
 
-const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "daemon.ts"), "utf8");
+const src = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "daemon.ts"),
+  "utf8",
+);
 
 const SESSION_RESET = Math.floor(Date.now() / 1000) + 3_600;
 const WEEKLY_RESET = SESSION_RESET + 7 * 86_400;
-const payload = (session = 41, weekly = 62) => JSON.stringify({
-  session_id: "f03e4098-8b2b-44e0-9370-de3b4fc2edd0",
-  cost: { total_duration_ms: 17462 },
-  rate_limits: {
-    five_hour: { used_percentage: session, resets_at: SESSION_RESET },
-    seven_day: { used_percentage: weekly, resets_at: WEEKLY_RESET },
-  },
-});
+const payload = (session = 41, weekly = 62) =>
+  JSON.stringify({
+    session_id: "f03e4098-8b2b-44e0-9370-de3b4fc2edd0",
+    cost: { total_duration_ms: 17462 },
+    rate_limits: {
+      five_hour: { used_percentage: session, resets_at: SESSION_RESET },
+      seven_day: { used_percentage: weekly, resets_at: WEEKLY_RESET },
+    },
+  });
 const PAYLOAD = payload();
 
 let home: string;
@@ -35,7 +39,10 @@ let server: http.Server;
 let base: string;
 
 async function post(query: string, body: string): Promise<number> {
-  const res = await fetch(`${base}/hook/statusline${query}`, { method: "POST", body });
+  const res = await fetch(`${base}/hook/statusline${query}`, {
+    method: "POST",
+    body,
+  });
   await res.text();
   return res.status;
 }
@@ -45,21 +52,29 @@ async function post(query: string, body: string): Promise<number> {
 async function cacheSettles(session = 41, weekly = 62): Promise<void> {
   for (let i = 0; i < 100; i++) {
     const snap = readUsageCache().accounts["uuid-union"];
-    if (snap?.source === "live-session" && snap.session?.percent === session && snap.weekly?.percent === weekly) return;
+    if (
+      snap?.source === "live-session" &&
+      snap.session?.percent === session &&
+      snap.weekly?.percent === weekly
+    )
+      return;
     await new Promise((r) => setTimeout(r, 20));
   }
 }
 
 function seedUsage(): void {
-  fs.writeFileSync(path.join(home, ".codecast", "cc-usage.json"), JSON.stringify({
-    accounts: {
-      "uuid-union": {
-        fetched_at: Date.now() - 1_000,
-        session: { percent: 40, resets_at: SESSION_RESET * 1_000 },
-        weekly: { percent: 61, resets_at: WEEKLY_RESET * 1_000 },
+  fs.writeFileSync(
+    path.join(home, ".codecast", "cc-usage.json"),
+    JSON.stringify({
+      accounts: {
+        "uuid-union": {
+          fetched_at: Date.now() - 1_000,
+          session: { percent: 40, resets_at: SESSION_RESET * 1_000 },
+          weekly: { percent: 61, resets_at: WEEKLY_RESET * 1_000 },
+        },
       },
-    },
-  }));
+    }),
+  );
 }
 
 beforeEach(async () => {
@@ -69,9 +84,14 @@ beforeEach(async () => {
   fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
   fs.writeFileSync(
     path.join(home, ".codecast", "cc-accounts.json"),
-    JSON.stringify({ profiles: { union: { uuid: "uuid-union", email: "u@x.com" } } }),
+    JSON.stringify({
+      profiles: { union: { uuid: "uuid-union", email: "u@x.com" } },
+    }),
   );
-  fs.writeFileSync(path.join(home, ".codecast", "cc-active.json"), JSON.stringify({ key: "uuid-active", since: 1 }));
+  fs.writeFileSync(
+    path.join(home, ".codecast", "cc-active.json"),
+    JSON.stringify({ key: "uuid-active", since: 1 }),
+  );
   server = http.createServer((req, res) => handleStatusLinePost(req, res));
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -118,7 +138,12 @@ describe("/hook/statusline", () => {
   // The hook cannot retry and does not read the answer, so nothing here may
   // throw out of the request — a payload it cannot use is simply dropped.
   test("answers and changes nothing for a body it cannot use", async () => {
-    for (const body of ["", "not json", "{}", JSON.stringify({ rate_limits: null })]) {
+    for (const body of [
+      "",
+      "not json",
+      "{}",
+      JSON.stringify({ rate_limits: null }),
+    ]) {
       expect(await post("?account=union", body), body).toBe(200);
     }
     // Nothing to wait for, and nothing may appear: settle a real post's worth
@@ -128,14 +153,22 @@ describe("/hook/statusline", () => {
   });
 
   test("an account name that is not a profile name is dropped", async () => {
-    expect(await post("?account=" + encodeURIComponent("../../etc"), PAYLOAD)).toBe(200);
+    expect(
+      await post("?account=" + encodeURIComponent("../../etc"), PAYLOAD),
+    ).toBe(200);
     await new Promise((r) => setTimeout(r, 200));
     expect(readUsageCache().accounts).toEqual({});
   });
 
   test("refuses an oversized body instead of buffering it", async () => {
-    const fat = JSON.stringify({ rate_limits: { five_hour: { used_percentage: 1 } }, pad: "x".repeat(200_000) });
-    const res = await fetch(`${base}/hook/statusline?account=union`, { method: "POST", body: fat }).catch(() => null);
+    const fat = JSON.stringify({
+      rate_limits: { five_hour: { used_percentage: 1 } },
+      pad: "x".repeat(200_000),
+    });
+    const res = await fetch(`${base}/hook/statusline?account=union`, {
+      method: "POST",
+      body: fat,
+    }).catch(() => null);
     expect(res === null || res.status === 413).toBe(true);
     await new Promise((r) => setTimeout(r, 200));
     expect(readUsageCache().accounts).toEqual({});
@@ -145,12 +178,14 @@ describe("/hook/statusline", () => {
   // them apart, so the statusline branch has to be the specific one and it has
   // to come first.
   test("the statusline route is matched before /hook/status and only on POST", () => {
-    const lineAt = src.indexOf('req.url?.startsWith(STATUSLINE_HOOK_PATH)');
+    const lineAt = src.indexOf("req.url?.startsWith(STATUSLINE_HOOK_PATH)");
     const statusAt = src.indexOf('req.url?.startsWith("/hook/status")');
     expect(lineAt).toBeGreaterThan(-1);
     expect(statusAt).toBeGreaterThan(lineAt);
     expect(src.slice(lineAt - 60, lineAt)).toContain('req.method === "POST"');
-    expect(src.slice(statusAt - 60, statusAt)).toContain('req.method === "GET"');
+    expect(src.slice(statusAt - 60, statusAt)).toContain(
+      'req.method === "GET"',
+    );
   });
 });
 

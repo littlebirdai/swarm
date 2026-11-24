@@ -21,14 +21,19 @@ export const WORKING_ELAPSED_GRACE_MS = 10_000;
  *  "3d ago" just because the last loaded row is old. */
 export const IDLE_GAP_MS = 5 * 60 * 1000;
 
-export function shouldShowElapsed(startedAt: number | undefined, now: number): boolean {
+export function shouldShowElapsed(
+  startedAt: number | undefined,
+  now: number,
+): boolean {
   return !!startedAt && now - startedAt >= WORKING_ELAPSED_GRACE_MS;
 }
 
 /** Mid-turn statuses: the agent is producing. The idle-gap stamp and a
  *  days-old Working clock must not fire while these are set. */
 export function isProducingAgentStatus(status?: string | null): boolean {
-  return status === "working" || status === "thinking" || status === "compacting";
+  return (
+    status === "working" || status === "thinking" || status === "compacting"
+  );
 }
 
 /** The faint relative-time rule under the last row. Hidden while more of the
@@ -49,7 +54,10 @@ export function shouldShowIdleGap(opts: {
  *  timestamp older than the idle gap is not when this turn started (the
  *  loaded tail is behind) — returning undefined hides the clock rather than
  *  counting from three days ago. */
-export function workingSinceForClock(lastActivityAt: number | undefined, now: number): number | undefined {
+export function workingSinceForClock(
+  lastActivityAt: number | undefined,
+  now: number,
+): number | undefined {
   if (lastActivityAt == null || lastActivityAt <= 0) return undefined;
   if (now - lastActivityAt > IDLE_GAP_MS) return undefined;
   return lastActivityAt;
@@ -68,11 +76,17 @@ export function formatElapsedClock(ms: number): string {
 
 type TimelineItemLike = { type: string; data: unknown };
 type ToolCallLike = { name?: unknown; input?: unknown };
-type MessageLike = { role?: string; content?: unknown; tool_calls?: Array<ToolCallLike> | null };
+type MessageLike = {
+  role?: string;
+  content?: unknown;
+  tool_calls?: Array<ToolCallLike> | null;
+};
 
 /** The turn's latest message, when the agent wrote it: null once the person
  *  spoke last. System rows are skipped. */
-function lastAgentMessage(timeline: ReadonlyArray<TimelineItemLike>): MessageLike | null {
+function lastAgentMessage(
+  timeline: ReadonlyArray<TimelineItemLike>,
+): MessageLike | null {
   for (let i = timeline.length - 1; i >= 0; i--) {
     const item = timeline[i];
     if (item.type !== "message") continue;
@@ -85,7 +99,9 @@ function lastAgentMessage(timeline: ReadonlyArray<TimelineItemLike>): MessageLik
 
 // The tool call currently in flight (see deriveRunningTool for the rule), with
 // its input, so the phrase library can name the subject.
-function deriveRunningToolCall(timeline: ReadonlyArray<TimelineItemLike>): { name: string; input: string } | undefined {
+function deriveRunningToolCall(
+  timeline: ReadonlyArray<TimelineItemLike>,
+): { name: string; input: string } | undefined {
   for (let i = timeline.length - 1; i >= 0; i--) {
     const item = timeline[i];
     if (item.type !== "message") continue;
@@ -95,7 +111,13 @@ function deriveRunningToolCall(timeline: ReadonlyArray<TimelineItemLike>): { nam
     const tcs = msg.tool_calls;
     const tc = tcs && tcs.length ? tcs[tcs.length - 1] : undefined;
     if (!tc || typeof tc.name !== "string") return undefined;
-    return { name: tc.name, input: typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input ?? {}) };
+    return {
+      name: tc.name,
+      input:
+        typeof tc.input === "string"
+          ? tc.input
+          : JSON.stringify(tc.input ?? {}),
+    };
   }
   return undefined;
 }
@@ -110,16 +132,30 @@ function deriveRunningToolCall(timeline: ReadonlyArray<TimelineItemLike>): { nam
  *  "Searching the web for flights" while it runs, "Waiting for your go-ahead
  *  to send an email to Dana" while it waits on the person, and "Writing…"
  *  once the reply itself is coming in. */
-export function deriveHostedRunningPhrase(timeline: ReadonlyArray<TimelineItemLike>, asking: boolean): string | undefined {
+export function deriveHostedRunningPhrase(
+  timeline: ReadonlyArray<TimelineItemLike>,
+  asking: boolean,
+): string | undefined {
   const last = lastAgentMessage(timeline);
-  if (!asking && last && !last.tool_calls?.length && typeof last.content === "string" && last.content.trim()) return "Writing…";
+  if (
+    !asking &&
+    last &&
+    !last.tool_calls?.length &&
+    typeof last.content === "string" &&
+    last.content.trim()
+  )
+    return "Writing…";
   const tc = deriveRunningToolCall(timeline);
   if (!tc) return undefined;
   const call = { name: tc.name, input: tc.input };
-  return asking ? stepText(call, undefined, { asking: true }) : stepOngoing(call);
+  return asking
+    ? stepText(call, undefined, { asking: true })
+    : stepOngoing(call);
 }
 
-export function deriveRunningPhrase(timeline: ReadonlyArray<TimelineItemLike>): string | undefined {
+export function deriveRunningPhrase(
+  timeline: ReadonlyArray<TimelineItemLike>,
+): string | undefined {
   const tc = deriveRunningToolCall(timeline);
   if (!tc) return undefined;
   return activityLine(tc) || formatToolName(tc.name) || tc.name;
@@ -132,6 +168,8 @@ export function deriveRunningPhrase(timeline: ReadonlyArray<TimelineItemLike>): 
 // when the tail isn't a tool-bearing assistant message (e.g. a long single
 // generation, or a tool whose result already arrived), where the clock alone carries
 // the liveness. System messages at the tail are skipped, not treated as the end.
-export function deriveRunningTool(timeline: ReadonlyArray<TimelineItemLike>): string | undefined {
+export function deriveRunningTool(
+  timeline: ReadonlyArray<TimelineItemLike>,
+): string | undefined {
   return deriveRunningToolCall(timeline)?.name;
 }

@@ -8,7 +8,9 @@ import { entityIdArgs } from "../useSyncCollection";
 
 describe("entityIdArgs", () => {
   test("a Convex id becomes the query args", () => {
-    expect(entityIdArgs("conversation_id", "jx7edd00y85v1rgj5tda5s9cm98ewywv")).toEqual({
+    expect(
+      entityIdArgs("conversation_id", "jx7edd00y85v1rgj5tda5s9cm98ewywv"),
+    ).toEqual({
       conversation_id: "jx7edd00y85v1rgj5tda5s9cm98ewywv",
     });
   });

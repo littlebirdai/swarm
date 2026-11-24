@@ -45,7 +45,9 @@ export async function linearGraphql<T = any>(
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) {
-    throw new Error(`Linear API ${res.status}: ${(await res.text()).slice(0, 500)}`);
+    throw new Error(
+      `Linear API ${res.status}: ${(await res.text()).slice(0, 500)}`,
+    );
   }
   const body = await res.json();
   if (Array.isArray(body?.errors) && body.errors.length > 0) {
@@ -65,17 +67,28 @@ export async function linearGraphql<T = any>(
 export class LinearGraphqlError extends Error {
   readonly forbidden: boolean;
   constructor(errors: any[]) {
-    const texts = errors.map((e: any) => e?.extensions?.userPresentableMessage ?? e?.message ?? "error");
+    const texts = errors.map(
+      (e: any) =>
+        e?.extensions?.userPresentableMessage ?? e?.message ?? "error",
+    );
     super(`Linear GraphQL: ${texts.join("; ")}`);
     this.name = "LinearGraphqlError";
-    this.forbidden = errors.some((e: any) =>
-      e?.extensions?.type === "forbidden" || e?.extensions?.code === "FORBIDDEN" || e?.extensions?.statusCode === 403);
+    this.forbidden = errors.some(
+      (e: any) =>
+        e?.extensions?.type === "forbidden" ||
+        e?.extensions?.code === "FORBIDDEN" ||
+        e?.extensions?.statusCode === 403,
+    );
   }
 }
 
 /* ---------------- Reads ---------------- */
 
-export type LinearIssuePage = { nodes: any[]; hasNextPage: boolean; endCursor?: string };
+export type LinearIssuePage = {
+  nodes: any[];
+  hasNextPage: boolean;
+  endCursor?: string;
+};
 
 /**
  * One page of issues from a project or a team, newest edits first.
@@ -98,7 +111,8 @@ export async function fetchIssuesPage(
   const filter: Record<string, any> = {};
   if (opts.projectId) filter.project = { id: { eq: opts.projectId } };
   if (opts.teamId) filter.team = { id: { eq: opts.teamId } };
-  if (opts.updatedAfter) filter.updatedAt = { gte: new Date(opts.updatedAfter).toISOString() };
+  if (opts.updatedAfter)
+    filter.updatedAt = { gte: new Date(opts.updatedAfter).toISOString() };
 
   // GraphQL lets the comments ride along, so an import of 50 issues is one
   // request rather than 51. Without it a large import is all latency.
@@ -124,12 +138,22 @@ export async function fetchIssuesPage(
   };
 }
 
-export async function fetchIssue(token: string, id: string): Promise<any | null> {
-  const data = await linearGraphql(token, `query Issue($id: String!) { issue(id: $id) { ${ISSUE_FIELDS} } }`, { id });
+export async function fetchIssue(
+  token: string,
+  id: string,
+): Promise<any | null> {
+  const data = await linearGraphql(
+    token,
+    `query Issue($id: String!) { issue(id: $id) { ${ISSUE_FIELDS} } }`,
+    { id },
+  );
   return data?.issue ?? null;
 }
 
-export async function fetchIssueComments(token: string, issueId: string): Promise<any[]> {
+export async function fetchIssueComments(
+  token: string,
+  issueId: string,
+): Promise<any[]> {
   const data = await linearGraphql(
     token,
     `query IssueComments($id: String!) {
@@ -145,14 +169,24 @@ export async function fetchIssueComments(token: string, issueId: string): Promis
   return data?.issue?.comments?.nodes ?? [];
 }
 
-export async function fetchTeams(token: string): Promise<Array<{ id: string; key: string; name: string }>> {
-  const data = await linearGraphql(token, `query Teams { teams(first: 100) { nodes { id key name } } }`);
+export async function fetchTeams(
+  token: string,
+): Promise<Array<{ id: string; key: string; name: string }>> {
+  const data = await linearGraphql(
+    token,
+    `query Teams { teams(first: 100) { nodes { id key name } } }`,
+  );
   return data?.teams?.nodes ?? [];
 }
 
-export async function fetchProjects(
-  token: string,
-): Promise<Array<{ id: string; name: string; url?: string; teams?: { nodes: Array<{ id: string; key: string }> } }>> {
+export async function fetchProjects(token: string): Promise<
+  Array<{
+    id: string;
+    name: string;
+    url?: string;
+    teams?: { nodes: Array<{ id: string; key: string }> };
+  }>
+> {
   const data = await linearGraphql(
     token,
     `query Projects { projects(first: 100) { nodes { id name url teams { nodes { id key } } } } }`,
@@ -199,7 +233,9 @@ export async function fetchLabels(
     { teamId },
   );
   const nodes: any[] = data?.issueLabels?.nodes ?? [];
-  return nodes.filter((l) => !l?.isGroup).map((l) => ({ id: l.id, name: l.name }));
+  return nodes
+    .filter((l) => !l?.isGroup)
+    .map((l) => ({ id: l.id, name: l.name }));
 }
 
 /** The Linear user known by any of these addresses, or null. */
@@ -234,7 +270,11 @@ export type LinearIssueInput = {
   parentId?: string | null;
 };
 
-export async function updateIssue(token: string, id: string, input: LinearIssueInput): Promise<any> {
+export async function updateIssue(
+  token: string,
+  id: string,
+  input: LinearIssueInput,
+): Promise<any> {
   const data = await linearGraphql(
     token,
     `mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
@@ -242,11 +282,15 @@ export async function updateIssue(token: string, id: string, input: LinearIssueI
      }`,
     { id, input },
   );
-  if (!data?.issueUpdate?.success) throw new Error("Linear issueUpdate returned success: false");
+  if (!data?.issueUpdate?.success)
+    throw new Error("Linear issueUpdate returned success: false");
   return data.issueUpdate.issue;
 }
 
-export async function createIssue(token: string, input: LinearIssueInput): Promise<any> {
+export async function createIssue(
+  token: string,
+  input: LinearIssueInput,
+): Promise<any> {
   const data = await linearGraphql(
     token,
     `mutation CreateIssue($input: IssueCreateInput!) {
@@ -254,7 +298,8 @@ export async function createIssue(token: string, input: LinearIssueInput): Promi
      }`,
     { input },
   );
-  if (!data?.issueCreate?.success) throw new Error("Linear issueCreate returned success: false");
+  if (!data?.issueCreate?.success)
+    throw new Error("Linear issueCreate returned success: false");
   return data.issueCreate.issue;
 }
 
@@ -277,7 +322,11 @@ export async function createComment(
   return { id: comment.id, url: comment.url ?? undefined };
 }
 
-export async function createLabel(token: string, teamId: string, name: string): Promise<{ id: string; name: string }> {
+export async function createLabel(
+  token: string,
+  teamId: string,
+  name: string,
+): Promise<{ id: string; name: string }> {
   const data = await linearGraphql(
     token,
     `mutation CreateLabel($input: IssueLabelCreateInput!) {
@@ -286,9 +335,9 @@ export async function createLabel(token: string, teamId: string, name: string): 
     { input: { teamId, name } },
   );
   const label = data?.issueLabelCreate?.issueLabel;
-  if (!label?.id) throw new Error(`Linear issueLabelCreate failed for '${name}'`);
+  if (!label?.id)
+    throw new Error(`Linear issueLabelCreate failed for '${name}'`);
   return label;
 }
 
 /* ---------------- Webhook plumbing (S6) ---------------- */
-

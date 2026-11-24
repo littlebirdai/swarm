@@ -5,12 +5,47 @@ import { foldOps, toElement, type ArtifactOp } from "../core";
 import type { Json } from "../core";
 import { isFormula } from "./formula";
 import { Workbook } from "./engine";
-import { adjustFormula, adjustRangeText, mapFormulaRefs, refText, renameTabInFormula, shiftFormula, type Structural } from "./rewrite";
-import { cellKey, colKey, colLetters, newTabId, normRect, parseKey, rectA1, rowKey, tabKey, type Rect } from "./refs";
-import { buildModel, cellNum, STYLE_FIELDS, workbookFor, type CellEl, type CellStyle, type CondRule, type SheetModel, type TabData, type TabMeta } from "./model";
+import {
+  adjustFormula,
+  adjustRangeText,
+  mapFormulaRefs,
+  refText,
+  renameTabInFormula,
+  shiftFormula,
+  type Structural,
+} from "./rewrite";
+import {
+  cellKey,
+  colKey,
+  colLetters,
+  newTabId,
+  normRect,
+  parseKey,
+  rectA1,
+  rowKey,
+  tabKey,
+  type Rect,
+} from "./refs";
+import {
+  buildModel,
+  cellNum,
+  STYLE_FIELDS,
+  workbookFor,
+  type CellEl,
+  type CellStyle,
+  type CondRule,
+  type SheetModel,
+  type TabData,
+  type TabMeta,
+} from "./model";
 import { condOps, validationOps } from "./ruleOps";
 import { newElementKey } from "../spec";
-import { compareScalars, parseLiteral, serialToDate, type Scalar } from "./values";
+import {
+  compareScalars,
+  parseLiteral,
+  serialToDate,
+  type Scalar,
+} from "./values";
 export { fitWidthOps, textWidth } from "./fitWidth";
 
 type CellFields = Record<string, Json>;
@@ -19,7 +54,15 @@ function fieldsOf(el: CellEl): CellFields {
   const out: CellFields = {};
   for (const k in el) {
     const v = (el as Record<string, unknown>)[k];
-    if (k === "key" || k === "kind" || k === "rev" || k === "by" || k === "at" || v === undefined) continue;
+    if (
+      k === "key" ||
+      k === "kind" ||
+      k === "rev" ||
+      k === "by" ||
+      k === "at" ||
+      v === undefined
+    )
+      continue;
     out[k] = v as Json;
   }
   return out;
@@ -33,7 +76,10 @@ function withoutComment(f: CellFields): CellFields {
 
 /** A cell whose input is cleared stays when it has more than its input: a style, or a comment thread pinned to it. */
 function keepsCell(el: CellEl | undefined): boolean {
-  return !!el && (el.cm !== undefined || STYLE_FIELDS.some((f) => el[f] !== undefined));
+  return (
+    !!el &&
+    (el.cm !== undefined || STYLE_FIELDS.some((f) => el[f] !== undefined))
+  );
 }
 
 function tabData(model: SheetModel, tabId: string): TabData | undefined {
@@ -41,7 +87,11 @@ function tabData(model: SheetModel, tabId: string): TabData | undefined {
 }
 
 /** Write raw inputs into cells, keeping each cell's style. "" clears the input. */
-export function inputOps(model: SheetModel, tabId: string, cells: Array<{ col: number; row: number; input: string }>): ArtifactOp[] {
+export function inputOps(
+  model: SheetModel,
+  tabId: string,
+  cells: Array<{ col: number; row: number; input: string }>,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   const ops: ArtifactOp[] = [];
   for (const c of cells) {
@@ -60,9 +110,19 @@ export function inputOps(model: SheetModel, tabId: string, cells: Array<{ col: n
 }
 
 /** A block of text values (a TSV paste, an agent's write) at an origin. */
-export function gridOps(model: SheetModel, tabId: string, col: number, row: number, grid: string[][]): ArtifactOp[] {
+export function gridOps(
+  model: SheetModel,
+  tabId: string,
+  col: number,
+  row: number,
+  grid: string[][],
+): ArtifactOp[] {
   const cells: Array<{ col: number; row: number; input: string }> = [];
-  grid.forEach((line, r) => line.forEach((input, c) => cells.push({ col: col + c, row: row + r, input })));
+  grid.forEach((line, r) =>
+    line.forEach((input, c) =>
+      cells.push({ col: col + c, row: row + r, input }),
+    ),
+  );
   return inputOps(model, tabId, cells);
 }
 
@@ -74,14 +134,25 @@ export type SheetClip = {
   /** Source row of each clip row (a filtered copy skips rows). */
   rows?: number[];
   /** Dropdowns and date pickers on the copied cells, relative to the clip's top-left (0-based). */
-  validations?: Array<{ rect: Rect; rule: "list" | "date"; options: Array<{ v: string; color?: string }>; strict: boolean }>;
+  validations?: Array<{
+    rect: Rect;
+    rule: "list" | "date";
+    options: Array<{ v: string; color?: string }>;
+    strict: boolean;
+  }>;
 };
 
 /** `rows` limits the clip to those rows (a filtered range copies what is visible). */
-export function clipOf(model: SheetModel, tabId: string, rect: Rect, rows?: number[]): SheetClip {
+export function clipOf(
+  model: SheetModel,
+  tabId: string,
+  rect: Rect,
+  rows?: number[],
+): SheetClip {
   const t = tabData(model, tabId);
   const cells: Array<Array<CellFields | null>> = [];
-  for (const r of rows ?? Array.from({ length: rect.r1 - rect.r0 + 1 }, (_, i) => rect.r0 + i)) {
+  for (const r of rows ??
+    Array.from({ length: rect.r1 - rect.r0 + 1 }, (_, i) => rect.r0 + i)) {
     const line: Array<CellFields | null> = [];
     for (let c = rect.c0; c <= rect.c1; c++) {
       const el = t?.cells.get(cellNum(c, r));
@@ -94,36 +165,70 @@ export function clipOf(model: SheetModel, tabId: string, rect: Rect, rows?: numb
   const validations = gaps
     ? []
     : model.validations
-        .filter((v) => v.tab === tabId && v.rect.c0 <= rect.c1 && v.rect.c1 >= rect.c0 && v.rect.r0 <= rect.r1 && v.rect.r1 >= rect.r0)
+        .filter(
+          (v) =>
+            v.tab === tabId &&
+            v.rect.c0 <= rect.c1 &&
+            v.rect.c1 >= rect.c0 &&
+            v.rect.r0 <= rect.r1 &&
+            v.rect.r1 >= rect.r0,
+        )
         .map((v) => ({
-          rect: { c0: Math.max(v.rect.c0, rect.c0) - rect.c0, c1: Math.min(v.rect.c1, rect.c1) - rect.c0, r0: Math.max(v.rect.r0, rect.r0) - rect.r0, r1: Math.min(v.rect.r1, rect.r1) - rect.r0 },
+          rect: {
+            c0: Math.max(v.rect.c0, rect.c0) - rect.c0,
+            c1: Math.min(v.rect.c1, rect.c1) - rect.c0,
+            r0: Math.max(v.rect.r0, rect.r0) - rect.r0,
+            r1: Math.min(v.rect.r1, rect.r1) - rect.r0,
+          },
           rule: v.rule,
-          options: v.options.map((o) => ({ v: o.v, ...(o.color ? { color: o.color } : {}) })),
+          options: v.options.map((o) => ({
+            v: o.v,
+            ...(o.color ? { color: o.color } : {}),
+          })),
           strict: v.strict,
         }));
-  return { col: rect.c0, row: rect.r0, cells, ...(rows ? { rows } : {}), ...(validations.length ? { validations } : {}) };
+  return {
+    col: rect.c0,
+    row: rect.r0,
+    cells,
+    ...(rows ? { rows } : {}),
+    ...(validations.length ? { validations } : {}),
+  };
 }
 
 /** Paste an internal clip at an origin: formulas shift by the offset; a target larger than the clip tiles it. */
-export function pasteClipOps(model: SheetModel, tabId: string, clip: SheetClip, target: Rect): ArtifactOp[] {
-  const h = clip.cells.length, w = clip.cells[0]?.length ?? 0;
+export function pasteClipOps(
+  model: SheetModel,
+  tabId: string,
+  clip: SheetClip,
+  target: Rect,
+): ArtifactOp[] {
+  const h = clip.cells.length,
+    w = clip.cells[0]?.length ?? 0;
   if (!h || !w) return [];
-  const tr = target.r1 - target.r0 + 1, tc = target.c1 - target.c0 + 1;
+  const tr = target.r1 - target.r0 + 1,
+    tc = target.c1 - target.c0 + 1;
   const rows = tr % h === 0 && tr > h ? tr : h;
   const cols = tc % w === 0 && tc > w ? tc : w;
   const ops: ArtifactOp[] = [];
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const src = clip.cells[r % h][c % w];
-      const col = target.c0 + c, row = target.r0 + r;
+      const col = target.c0 + c,
+        row = target.r0 + r;
       const k = cellKey(tabId, col, row);
       if (!src) {
-        if (tabData(model, tabId)?.cells.has(cellNum(col, row))) ops.push({ k, del: true });
+        if (tabData(model, tabId)?.cells.has(cellNum(col, row)))
+          ops.push({ k, del: true });
         continue;
       }
       const fields = { ...src };
       if (typeof fields.input === "string" && isFormula(fields.input)) {
-        fields.input = shiftFormula(fields.input, col - (clip.col + (c % w)), row - (clip.rows?.[r % h] ?? clip.row + (r % h)));
+        fields.input = shiftFormula(
+          fields.input,
+          col - (clip.col + (c % w)),
+          row - (clip.rows?.[r % h] ?? clip.row + (r % h)),
+        );
       }
       ops.push({ k, put: { kind: "cell", ...fields } });
     }
@@ -131,20 +236,42 @@ export function pasteClipOps(model: SheetModel, tabId: string, clip: SheetClip, 
   for (const v of clip.validations ?? [])
     for (let r = 0; r < rows; r += h)
       for (let c = 0; c < cols; c += w)
-        ops.push(...validationOps(model, tabId, { c0: target.c0 + c + v.rect.c0, c1: target.c0 + c + v.rect.c1, r0: target.r0 + r + v.rect.r0, r1: target.r0 + r + v.rect.r1 }, v.rule, v.options, v.strict));
+        ops.push(
+          ...validationOps(
+            model,
+            tabId,
+            {
+              c0: target.c0 + c + v.rect.c0,
+              c1: target.c0 + c + v.rect.c1,
+              r0: target.r0 + r + v.rect.r0,
+              r1: target.r0 + r + v.rect.r1,
+            },
+            v.rule,
+            v.options,
+            v.strict,
+          ),
+        );
   return ops;
 }
 
 /** Clear a range: contents only (keep styles), or everything. */
-export function clearOps(model: SheetModel, tabId: string, rect: Rect, what: "contents" | "all" = "contents"): ArtifactOp[] {
+export function clearOps(
+  model: SheetModel,
+  tabId: string,
+  rect: Rect,
+  what: "contents" | "all" = "contents",
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   if (!t) return [];
   const ops: ArtifactOp[] = [];
   for (const [n, el] of t.cells) {
-    const col = n % 32768, row = Math.floor(n / 32768);
-    if (col < rect.c0 || col > rect.c1 || row < rect.r0 || row > rect.r1) continue;
+    const col = n % 32768,
+      row = Math.floor(n / 32768);
+    if (col < rect.c0 || col > rect.c1 || row < rect.r0 || row > rect.r1)
+      continue;
     if (what === "all" || !keepsCell(el)) ops.push({ k: el.key, del: true });
-    else if (el.input !== undefined) ops.push({ k: el.key, set: { input: null } });
+    else if (el.input !== undefined)
+      ops.push({ k: el.key, set: { input: null } });
   }
   return ops;
 }
@@ -152,7 +279,12 @@ export function clearOps(model: SheetModel, tabId: string, rect: Rect, what: "co
 export type StylePatch = { [K in keyof CellStyle]?: CellStyle[K] | null };
 
 /** Apply style fields to every cell of a range (null removes a field). */
-export function styleOps(model: SheetModel, tabId: string, rect: Rect, patch: StylePatch): ArtifactOp[] {
+export function styleOps(
+  model: SheetModel,
+  tabId: string,
+  rect: Rect,
+  patch: StylePatch,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   const ops: ArtifactOp[] = [];
   const set: Record<string, Json> = {};
@@ -164,20 +296,31 @@ export function styleOps(model: SheetModel, tabId: string, rect: Rect, patch: St
       const k = cellKey(tabId, c, r);
       const el = t?.cells.get(cellNum(c, r));
       if (el) ops.push({ k, set });
-      else if (Object.keys(putFields).length) ops.push({ k, put: { kind: "cell", ...putFields } });
+      else if (Object.keys(putFields).length)
+        ops.push({ k, put: { kind: "cell", ...putFields } });
     }
   return ops;
 }
 
 /** Borders on a range: all cell edges, the outline only, the bottom edge, or none. */
-export function borderOps(model: SheetModel, tabId: string, rect: Rect, mode: "all" | "outer" | "bottom" | "none"): ArtifactOp[] {
+export function borderOps(
+  model: SheetModel,
+  tabId: string,
+  rect: Rect,
+  mode: "all" | "outer" | "bottom" | "none",
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   const ops: ArtifactOp[] = [];
   for (let r = rect.r0; r <= rect.r1; r++)
     for (let c = rect.c0; c <= rect.c1; c++) {
       let bd = "";
       if (mode === "all") bd = "trbl";
-      else if (mode === "outer") bd = (r === rect.r0 ? "t" : "") + (c === rect.c1 ? "r" : "") + (r === rect.r1 ? "b" : "") + (c === rect.c0 ? "l" : "");
+      else if (mode === "outer")
+        bd =
+          (r === rect.r0 ? "t" : "") +
+          (c === rect.c1 ? "r" : "") +
+          (r === rect.r1 ? "b" : "") +
+          (c === rect.c0 ? "l" : "");
       else if (mode === "bottom") bd = r === rect.r1 ? "b" : "";
       const k = cellKey(tabId, c, r);
       const el = t?.cells.get(cellNum(c, r));
@@ -196,7 +339,12 @@ export function borderOps(model: SheetModel, tabId: string, rect: Rect, mode: "a
  * as a linear series; text ending in a number counts up; anything else
  * repeats, with formulas shifted like a copy.
  */
-export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect): ArtifactOp[] {
+export function fillOps(
+  model: SheetModel,
+  tabId: string,
+  src: Rect,
+  dest: Rect,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   const vertical = dest.r0 !== src.r0 || dest.r1 !== src.r1;
   const ops: ArtifactOp[] = [];
@@ -204,16 +352,27 @@ export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect)
   const along = vertical ? [src.r0, src.r1] : [src.c0, src.c1];
   const destAlong = vertical ? [dest.r0, dest.r1] : [dest.c0, dest.c1];
   const len = along[1] - along[0] + 1;
-  const at = (lane: number, i: number) => (vertical ? t?.cells.get(cellNum(lane, i)) : t?.cells.get(cellNum(i, lane)));
+  const at = (lane: number, i: number) =>
+    vertical ? t?.cells.get(cellNum(lane, i)) : t?.cells.get(cellNum(i, lane));
   for (let lane = lanes[0]; lane <= lanes[1]; lane++) {
     const seq = Array.from({ length: len }, (_, j) => at(lane, along[0] + j));
-    const inputs = seq.map((el) => (typeof el?.input === "string" ? el.input : ""));
-    const nums = inputs.map((s) => (s && !isFormula(s) ? parseLiteral(s).value : null));
+    const inputs = seq.map((el) =>
+      typeof el?.input === "string" ? el.input : "",
+    );
+    const nums = inputs.map((s) =>
+      s && !isFormula(s) ? parseLiteral(s).value : null,
+    );
     // One date steps by a day, as in Google and Excel; one plain number copies.
-    const oneDate = len === 1 && typeof nums[0] === "number" && /^date/.test(parseLiteral(inputs[0]).implied?.nf ?? "");
-    const allNum = (len >= 2 || oneDate) && nums.every((v) => typeof v === "number");
+    const oneDate =
+      len === 1 &&
+      typeof nums[0] === "number" &&
+      /^date/.test(parseLiteral(inputs[0]).implied?.nf ?? "");
+    const allNum =
+      (len >= 2 || oneDate) && nums.every((v) => typeof v === "number");
     const names = inputs.map(nameInSeries);
-    const named = names.every((n) => n && n.list === names[0]!.list) ? (names as NonNullable<ReturnType<typeof nameInSeries>>[]) : null;
+    const named = names.every((n) => n && n.list === names[0]!.list)
+      ? (names as NonNullable<ReturnType<typeof nameInSeries>>[])
+      : null;
     let step = oneDate ? 1 : 0;
     if (allNum && !oneDate) {
       const ns = nums as number[];
@@ -221,27 +380,37 @@ export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect)
       const n = ns.length;
       const mx = (n - 1) / 2;
       const my = ns.reduce((a, b) => a + b, 0) / n;
-      let sxy = 0, sxx = 0;
+      let sxy = 0,
+        sxx = 0;
       ns.forEach((y, x) => {
         sxy += (x - mx) * (y - my);
         sxx += (x - mx) ** 2;
       });
       step = sxx ? sxy / sxx : 0;
     }
-    const textNum = inputs.map((s: string) => (s.startsWith("=") ? null : s.match(/^(.*?)(\d+)$/)));
-    const countUp = textNum.every((m) => m && Number.isNaN(Number(m[0]))) && textNum.every((m) => m![1] === textNum[0]![1]);
+    const textNum = inputs.map((s: string) =>
+      s.startsWith("=") ? null : s.match(/^(.*?)(\d+)$/),
+    );
+    const countUp =
+      textNum.every((m) => m && Number.isNaN(Number(m[0]))) &&
+      textNum.every((m) => m![1] === textNum[0]![1]);
     for (let i = destAlong[0]; i <= destAlong[1]; i++) {
       if (i >= along[0] && i <= along[1]) continue;
       const offset = i - along[0];
       const j = ((offset % len) + len) % len;
       const source = seq[j];
-      const col = vertical ? lane : i, row = vertical ? i : lane;
+      const col = vertical ? lane : i,
+        row = vertical ? i : lane;
       const k = cellKey(tabId, col, row);
-      const fields: Record<string, Json> = source ? withoutComment(fieldsOf(source)) : {};
+      const fields: Record<string, Json> = source
+        ? withoutComment(fieldsOf(source))
+        : {};
       if (named) {
         const list = SERIES[named[0].list];
         const by = len >= 2 ? named[1].at - named[0].at : 1;
-        const at = (((named[0].at + by * offset) % list.length) + list.length) % list.length;
+        const at =
+          (((named[0].at + by * offset) % list.length) + list.length) %
+          list.length;
         fields.input = named[0].cased(list[at]);
       } else if (allNum) {
         const ns = nums as number[];
@@ -251,7 +420,11 @@ export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect)
         // Typed 10%, $5 or a date continue as percents, currency, dates. Dates and times are written the way
         // they were typed (2026-02-01), so every reader, the CLI included, sees a date and not a serial number.
         const implied = parseLiteral(inputs[j]).implied;
-        if (implied && (implied.nf === "date" || implied.nf === "datetime") && fields.nf === undefined) {
+        if (
+          implied &&
+          (implied.nf === "date" || implied.nf === "datetime") &&
+          fields.nf === undefined
+        ) {
           const d = serialToDate(v);
           const two = (x: number) => String(x).padStart(2, "0");
           fields.input = `${d.y}-${two(d.m)}-${two(d.d)}${implied.nf === "datetime" ? ` ${two(d.h)}:${two(d.min)}` : ""}`;
@@ -265,13 +438,25 @@ export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect)
         const stepT = len >= 2 ? Number(ms[1][2]) - first : 1;
         const width = ms[0][2].length;
         const nextNum = first + stepT * offset;
-        fields.input = ms[0][1] + (ms[0][2].startsWith("0") ? String(nextNum).padStart(width, "0") : String(nextNum));
+        fields.input =
+          ms[0][1] +
+          (ms[0][2].startsWith("0")
+            ? String(nextNum).padStart(width, "0")
+            : String(nextNum));
       } else if (typeof fields.input === "string" && isFormula(fields.input)) {
         const srcIdx = along[0] + j;
-        fields.input = shiftFormula(fields.input, vertical ? 0 : i - srcIdx, vertical ? i - srcIdx : 0);
+        fields.input = shiftFormula(
+          fields.input,
+          vertical ? 0 : i - srcIdx,
+          vertical ? i - srcIdx : 0,
+        );
       }
       if (!source && !t?.cells.has(cellNum(col, row))) continue;
-      ops.push(source || allNum ? { k, put: { kind: "cell", ...fields } } : { k, del: true });
+      ops.push(
+        source || allNum
+          ? { k, put: { kind: "cell", ...fields } }
+          : { k, del: true },
+      );
     }
   }
   return ops;
@@ -279,18 +464,63 @@ export function fillOps(model: SheetModel, tabId: string, src: Rect, dest: Rect)
 
 /** Month and weekday names that fill as a series (Jan, Feb… / Monday, Tuesday…). */
 const SERIES = {
-  mon: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-  month: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  mon: [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ],
+  month: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
   day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-  weekday: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+  weekday: [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ],
 };
 
-function nameInSeries(text: string): { list: keyof typeof SERIES; at: number; cased: (s: string) => string } | null {
+function nameInSeries(text: string): {
+  list: keyof typeof SERIES;
+  at: number;
+  cased: (s: string) => string;
+} | null {
   const t = text.trim();
   for (const list of Object.keys(SERIES) as Array<keyof typeof SERIES>) {
-    const at = SERIES[list].findIndex((n) => n.toLowerCase() === t.toLowerCase());
+    const at = SERIES[list].findIndex(
+      (n) => n.toLowerCase() === t.toLowerCase(),
+    );
     if (at < 0) continue;
-    const cased = t === t.toUpperCase() ? (s: string) => s.toUpperCase() : t === t.toLowerCase() ? (s: string) => s.toLowerCase() : (s: string) => s;
+    const cased =
+      t === t.toUpperCase()
+        ? (s: string) => s.toUpperCase()
+        : t === t.toLowerCase()
+          ? (s: string) => s.toLowerCase()
+          : (s: string) => s;
     return { list, at, cased };
   }
   return null;
@@ -304,11 +534,18 @@ function nameInSeries(text: string): { list: keyof typeof SERIES; at: number; ca
  * rewrites every formula in every tab that points into it, and moves
  * conditional colors and tables.
  */
-export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "col", at: number, count: number): ArtifactOp[] {
+export function structuralOps(
+  model: SheetModel,
+  tabId: string,
+  axis: "row" | "col",
+  at: number,
+  count: number,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   if (!t || count === 0) return [];
   const s: Structural = { tabName: t.meta.name, axis, at, count };
-  const lo = at, hi = count < 0 ? at - count - 1 : at - 1;
+  const lo = at,
+    hi = count < 0 ? at - count - 1 : at - 1;
   const move = (v: number): number | null => {
     if (count > 0) return v >= at ? v + count : v;
     if (v < lo) return v;
@@ -319,16 +556,19 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
   const dels = new Set<string>();
   // Moved/deleted cells of this tab.
   for (const [n, el] of t.cells) {
-    const col = n % 32768, row = Math.floor(n / 32768);
+    const col = n % 32768,
+      row = Math.floor(n / 32768);
     const idx = axis === "row" ? row : col;
     const next = move(idx);
     const fields = fieldsOf(el);
-    if (typeof fields.input === "string") fields.input = adjustFormula(fields.input, t.meta.name, s);
+    if (typeof fields.input === "string")
+      fields.input = adjustFormula(fields.input, t.meta.name, s);
     if (next === null) {
       dels.add(el.key);
       continue;
     }
-    const k = axis === "row" ? cellKey(tabId, col, next) : cellKey(tabId, next, row);
+    const k =
+      axis === "row" ? cellKey(tabId, col, next) : cellKey(tabId, next, row);
     if (k !== el.key || fields.input !== el.input) {
       puts.set(k, { k, put: { kind: "cell", ...fields } });
       if (k !== el.key) dels.add(el.key);
@@ -337,13 +577,16 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
   // Inserted lines take the formatting of the line before them (not its values or comments), as in Google and Excel.
   if (count > 0 && at > 1) {
     for (const [n, el] of t.cells) {
-      const col = n % 32768, row = Math.floor(n / 32768);
+      const col = n % 32768,
+        row = Math.floor(n / 32768);
       if ((axis === "row" ? row : col) !== at - 1) continue;
       const style: CellFields = {};
-      for (const f of STYLE_FIELDS) if (el[f] !== undefined) style[f] = el[f] as Json;
+      for (const f of STYLE_FIELDS)
+        if (el[f] !== undefined) style[f] = el[f] as Json;
       if (!Object.keys(style).length) continue;
       for (let i = at; i < at + count; i++) {
-        const k = axis === "row" ? cellKey(tabId, col, i) : cellKey(tabId, i, row);
+        const k =
+          axis === "row" ? cellKey(tabId, col, i) : cellKey(tabId, i, row);
         puts.set(k, { k, put: { kind: "cell", ...style } });
         dels.delete(k);
       }
@@ -360,7 +603,10 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
     }
     if (next === idx) continue;
     const k = axis === "row" ? rowKey(tabId, next) : colKey(tabId, next);
-    puts.set(k, { k, put: axis === "row" ? { kind: "row", h: size } : { kind: "col", w: size } });
+    puts.set(k, {
+      k,
+      put: axis === "row" ? { kind: "row", h: size } : { kind: "col", w: size },
+    });
     dels.add(oldK);
   }
   // Formulas in other tabs that point here.
@@ -369,30 +615,46 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
     for (const el of other.cells.values()) {
       if (typeof el.input !== "string" || !isFormula(el.input)) continue;
       const next = adjustFormula(el.input, other.meta.name, s);
-      if (next !== el.input) puts.set(el.key, { k: el.key, set: { input: next } });
+      if (next !== el.input)
+        puts.set(el.key, { k: el.key, set: { input: next } });
     }
   }
   // Conditional colors, tables and validations.
-  for (const item of [...model.conds, ...model.tables, ...model.validations, ...model.merges]) {
+  for (const item of [
+    ...model.conds,
+    ...model.tables,
+    ...model.validations,
+    ...model.merges,
+  ]) {
     if (item.tab !== tabId) continue;
     const next = adjustRangeText(rectA1(item.rect), { axis, at, count });
     if (next === null) dels.add(item.key);
-    else if (next !== rectA1(item.rect)) puts.set(item.key, { k: item.key, set: { range: next } });
+    else if (next !== rectA1(item.rect))
+      puts.set(item.key, { k: item.key, set: { range: next } });
   }
   // A custom-formula rule's formula points at cells like any formula: it moves with them, on whichever tab the rule lives.
   for (const c of model.conds) {
-    if (c.rule !== "formula" || typeof c.value !== "string" || dels.has(c.key)) continue;
-    const value = adjustFormula(c.value, model.byId.get(c.tab)?.meta.name ?? c.tab, s);
+    if (c.rule !== "formula" || typeof c.value !== "string" || dels.has(c.key))
+      continue;
+    const value = adjustFormula(
+      c.value,
+      model.byId.get(c.tab)?.meta.name ?? c.tab,
+      s,
+    );
     if (value === c.value) continue;
     const prev = puts.get(c.key);
-    puts.set(c.key, { k: c.key, set: { ...(prev && "set" in prev ? prev.set : {}), value } });
+    puts.set(c.key, {
+      k: c.key,
+      set: { ...(prev && "set" in prev ? prev.set : {}), value },
+    });
   }
   // The filter block and frozen panes move with the rows/columns they cover.
   const patch: Record<string, Json> = {};
   const f = t.meta.filter;
   if (f && axis === "row" && f.row >= at) {
     const next = move(f.row);
-    patch.filter = next === null ? null : ({ ...f, row: next } as unknown as Json);
+    patch.filter =
+      next === null ? null : ({ ...f, row: next } as unknown as Json);
   }
   if (f && axis === "col") {
     const span = (a: number, b: number): [number, number] | null => {
@@ -403,7 +665,10 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
       }
       if (!kept.length) return null;
       // An insert inside the block widens it.
-      return [Math.min(...kept), count > 0 ? Math.max(...kept) : Math.max(...kept)];
+      return [
+        Math.min(...kept),
+        count > 0 ? Math.max(...kept) : Math.max(...kept),
+      ];
     };
     const next = span(f.c0, f.c1);
     if (!next) patch.filter = null;
@@ -413,15 +678,24 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
         const n = move(Number(c));
         if (n !== null) hidden[String(n)] = vals;
       }
-      patch.filter = { ...f, c0: next[0], c1: count > 0 && f.c1 >= at ? f.c1 + count : next[1], hidden } as unknown as Json;
+      patch.filter = {
+        ...f,
+        c0: next[0],
+        c1: count > 0 && f.c1 >= at ? f.c1 + count : next[1],
+        hidden,
+      } as unknown as Json;
     }
   }
   const frozen = axis === "row" ? t.meta.frozenRows : t.meta.frozenCols;
   if (frozen > 0 && at <= frozen) {
-    const next = count > 0 ? frozen + count : Math.max(0, frozen - (Math.min(frozen, hi) - lo + 1));
+    const next =
+      count > 0
+        ? frozen + count
+        : Math.max(0, frozen - (Math.min(frozen, hi) - lo + 1));
     patch[axis === "row" ? "frozen_rows" : "frozen_cols"] = next || null;
   }
-  if (Object.keys(patch).length) for (const op of tabPatchOps(model, tabId, patch)) puts.set(op.k, op);
+  if (Object.keys(patch).length)
+    for (const op of tabPatchOps(model, tabId, patch)) puts.set(op.k, op);
   const ops: ArtifactOp[] = [];
   for (const k of dels) if (!puts.has(k)) ops.push({ k, del: true });
   ops.push(...puts.values());
@@ -431,15 +705,25 @@ export function structuralOps(model: SheetModel, tabId: string, axis: "row" | "c
 // ── Sort ────────────────────────────────────────────────────────────────────
 
 /** Sort the rows of a range by one column's evaluated values. Empty values sort last; formulas move with their row. */
-export function sortOps(model: SheetModel, wb: Workbook, tabId: string, rect: Rect, byCol: number, desc = false): ArtifactOp[] {
+export function sortOps(
+  model: SheetModel,
+  wb: Workbook,
+  tabId: string,
+  rect: Rect,
+  byCol: number,
+  desc = false,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   if (!t) return [];
   const n = rect.r1 - rect.r0 + 1;
   // Each row's key read once, into an array by row offset, not on every comparison.
-  const keys: Scalar[] = Array.from({ length: n }, (_, i) => wb.value(tabId, byCol, rect.r0 + i));
+  const keys: Scalar[] = Array.from({ length: n }, (_, i) =>
+    wb.value(tabId, byCol, rect.r0 + i),
+  );
   const blank = (v: Scalar) => v === null || v === "";
   const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => {
-    const va = keys[a], vb = keys[b];
+    const va = keys[a],
+      vb = keys[b];
     if (blank(va)) return blank(vb) ? a - b : 1;
     if (blank(vb)) return -1;
     const c = compareScalars(va, vb);
@@ -448,7 +732,8 @@ export function sortOps(model: SheetModel, wb: Workbook, tabId: string, rect: Re
   const ops: ArtifactOp[] = [];
   order.forEach((from, i) => {
     if (from === i) return;
-    const fromRow = rect.r0 + from, toRow = rect.r0 + i;
+    const fromRow = rect.r0 + from,
+      toRow = rect.r0 + i;
     for (let c = rect.c0; c <= rect.c1; c++) {
       const src = t.cells.get(cellNum(c, fromRow));
       const dest = t.cells.get(cellNum(c, toRow));
@@ -457,10 +742,14 @@ export function sortOps(model: SheetModel, wb: Workbook, tabId: string, rect: Re
         continue;
       }
       const fields = fieldsOf(src);
-      if (typeof fields.input === "string" && fields.input.startsWith("=")) fields.input = shiftFormula(fields.input, 0, toRow - fromRow);
+      if (typeof fields.input === "string" && fields.input.startsWith("="))
+        fields.input = shiftFormula(fields.input, 0, toRow - fromRow);
       // A cell landing on an identical one (a status column of "Open"s) writes nothing.
       if (dest && sameFields(fields, dest)) continue;
-      ops.push({ k: cellKey(tabId, c, toRow), put: { kind: "cell", ...fields } });
+      ops.push({
+        k: cellKey(tabId, c, toRow),
+        put: { kind: "cell", ...fields },
+      });
     }
   });
   return ops;
@@ -474,31 +763,64 @@ function sameFields(fields: CellFields, el: CellEl): boolean {
     count++;
   }
   let have = 0;
-  for (const k in el) if (k !== "key" && k !== "kind" && k !== "rev" && k !== "by" && k !== "at" && (el as Record<string, unknown>)[k] !== undefined) have++;
+  for (const k in el)
+    if (
+      k !== "key" &&
+      k !== "kind" &&
+      k !== "rev" &&
+      k !== "by" &&
+      k !== "at" &&
+      (el as Record<string, unknown>)[k] !== undefined
+    )
+      have++;
   return have === count;
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 
-export function addTabOps(model: SheetModel, name: string, extra: Record<string, Json> = {}): { id: string; ops: ArtifactOp[] } {
+export function addTabOps(
+  model: SheetModel,
+  name: string,
+  extra: Record<string, Json> = {},
+): { id: string; ops: ArtifactOp[] } {
   const id = newTabId(model.byId.keys());
   const order = Math.max(-1, ...model.tabs.map((t) => t.order)) + 1;
-  return { id, ops: [{ k: tabKey(id), put: { kind: "tab", name: uniqueTabName(model, name), order, ...extra } }] };
+  return {
+    id,
+    ops: [
+      {
+        k: tabKey(id),
+        put: { kind: "tab", name: uniqueTabName(model, name), order, ...extra },
+      },
+    ],
+  };
 }
 
 /** Tabs in a new order: every tab's order rewritten to its place, so ties can't leave two tabs in one slot. */
 function reorderOps(model: SheetModel, ids: string[]): ArtifactOp[] {
-  return ids.flatMap((id, i) => (model.byId.get(id)?.meta.order === i ? [] : tabPatchOps(model, id, { order: i })));
+  return ids.flatMap((id, i) =>
+    model.byId.get(id)?.meta.order === i
+      ? []
+      : tabPatchOps(model, id, { order: i }),
+  );
 }
 
 /** Move a tab one place left (-1) or right (+1) in the strip. */
-export function moveTabOps(model: SheetModel, tabId: string, dir: -1 | 1): ArtifactOp[] {
+export function moveTabOps(
+  model: SheetModel,
+  tabId: string,
+  dir: -1 | 1,
+): ArtifactOp[] {
   const i = model.tabs.findIndex((t) => t.id === tabId);
   return i < 0 ? [] : moveTabToOps(model, tabId, i + dir);
 }
 
 /** Put a tab at a place in the strip (a drag). */
-export function moveTabToOps(model: SheetModel, tabId: string, to: number): ArtifactOp[] {
+export function moveTabToOps(
+  model: SheetModel,
+  tabId: string,
+  to: number,
+): ArtifactOp[] {
   const ids = model.tabs.map((t) => t.id).filter((id) => id !== tabId);
   if (ids.length === model.tabs.length || to < 0 || to > ids.length) return [];
   ids.splice(to, 0, tabId);
@@ -510,39 +832,107 @@ export function moveTabToOps(model: SheetModel, tabId: string, to: number): Arti
  * lines, rules, tables, dropdowns and merges. Comment threads stay on the
  * original. A live query tab copies as a live query.
  */
-export function duplicateTabOps(model: SheetModel, tabId: string): { id: string; ops: ArtifactOp[] } {
+export function duplicateTabOps(
+  model: SheetModel,
+  tabId: string,
+): { id: string; ops: ArtifactOp[] } {
   const t = tabData(model, tabId);
   if (!t) return { id: tabId, ops: [] };
   const id = newTabId(model.byId.keys());
   const m = t.meta;
-  const ops: ArtifactOp[] = [{
-    k: tabKey(id),
-    put: {
-      kind: "tab",
-      name: uniqueTabName(model, `${m.name} copy`),
-      order: m.order,
-      ...(m.frozenRows ? { frozen_rows: m.frozenRows } : {}),
-      ...(m.frozenCols ? { frozen_cols: m.frozenCols } : {}),
-      ...(m.filter ? { filter: m.filter as unknown as Json } : {}),
-      ...(m.query ? { query: m.query as unknown as Json } : {}),
+  const ops: ArtifactOp[] = [
+    {
+      k: tabKey(id),
+      put: {
+        kind: "tab",
+        name: uniqueTabName(model, `${m.name} copy`),
+        order: m.order,
+        ...(m.frozenRows ? { frozen_rows: m.frozenRows } : {}),
+        ...(m.frozenCols ? { frozen_cols: m.frozenCols } : {}),
+        ...(m.filter ? { filter: m.filter as unknown as Json } : {}),
+        ...(m.query ? { query: m.query as unknown as Json } : {}),
+      },
     },
-  }];
-  for (const [n, el] of t.cells) ops.push({ k: cellKey(id, n % 32768, Math.floor(n / 32768)), put: { kind: "cell", ...withoutComment(fieldsOf(el)) } });
+  ];
+  for (const [n, el] of t.cells)
+    ops.push({
+      k: cellKey(id, n % 32768, Math.floor(n / 32768)),
+      put: { kind: "cell", ...withoutComment(fieldsOf(el)) },
+    });
   const cols = new Set([...t.colWidths.keys(), ...(t.hiddenCols ?? [])]);
-  for (const c of cols) ops.push({ k: colKey(id, c), put: { kind: "col", ...(t.colWidths.has(c) ? { w: t.colWidths.get(c)! } : {}), ...(t.hiddenCols?.has(c) ? { hidden: true } : {}) } });
+  for (const c of cols)
+    ops.push({
+      k: colKey(id, c),
+      put: {
+        kind: "col",
+        ...(t.colWidths.has(c) ? { w: t.colWidths.get(c)! } : {}),
+        ...(t.hiddenCols?.has(c) ? { hidden: true } : {}),
+      },
+    });
   const rows = new Set([...t.rowHeights.keys(), ...(t.hiddenRows ?? [])]);
-  for (const r of rows) ops.push({ k: rowKey(id, r), put: { kind: "row", ...(t.rowHeights.has(r) ? { h: t.rowHeights.get(r)! } : {}), ...(t.hiddenRows?.has(r) ? { hidden: true } : {}) } });
-  for (const c of model.conds) if (c.tab === tabId) ops.push({ k: newElementKey("cf"), put: { kind: "cf", tab: id, range: rectA1(c.rect), rule: c.rule, ...(c.value !== undefined ? { value: c.value } : {}), ...(c.color ? { color: c.color } : {}) } });
-  for (const x of model.tables) if (x.tab === tabId) ops.push({ k: newElementKey("tbl"), put: { kind: "table", tab: id, range: rectA1(x.rect), color: x.color, banded: x.banded } });
-  for (const v of model.validations) if (v.tab === tabId) ops.push({ k: newElementKey("dv"), put: { kind: "dv", tab: id, range: rectA1(v.rect), rule: v.rule, ...(v.rule === "list" ? { options: v.options as unknown as Json } : {}), ...(v.strict ? { strict: true } : {}) } });
-  for (const g of model.merges) if (g.tab === tabId) ops.push({ k: newElementKey("mg"), put: { kind: "merge", tab: id, range: rectA1(g.rect) } });
+  for (const r of rows)
+    ops.push({
+      k: rowKey(id, r),
+      put: {
+        kind: "row",
+        ...(t.rowHeights.has(r) ? { h: t.rowHeights.get(r)! } : {}),
+        ...(t.hiddenRows?.has(r) ? { hidden: true } : {}),
+      },
+    });
+  for (const c of model.conds)
+    if (c.tab === tabId)
+      ops.push({
+        k: newElementKey("cf"),
+        put: {
+          kind: "cf",
+          tab: id,
+          range: rectA1(c.rect),
+          rule: c.rule,
+          ...(c.value !== undefined ? { value: c.value } : {}),
+          ...(c.color ? { color: c.color } : {}),
+        },
+      });
+  for (const x of model.tables)
+    if (x.tab === tabId)
+      ops.push({
+        k: newElementKey("tbl"),
+        put: {
+          kind: "table",
+          tab: id,
+          range: rectA1(x.rect),
+          color: x.color,
+          banded: x.banded,
+        },
+      });
+  for (const v of model.validations)
+    if (v.tab === tabId)
+      ops.push({
+        k: newElementKey("dv"),
+        put: {
+          kind: "dv",
+          tab: id,
+          range: rectA1(v.rect),
+          rule: v.rule,
+          ...(v.rule === "list"
+            ? { options: v.options as unknown as Json }
+            : {}),
+          ...(v.strict ? { strict: true } : {}),
+        },
+      });
+  for (const g of model.merges)
+    if (g.tab === tabId)
+      ops.push({
+        k: newElementKey("mg"),
+        put: { kind: "merge", tab: id, range: rectA1(g.rect) },
+      });
   // Right after the original in the strip: the copy takes the next slot and the tabs after it shift.
   const ids = model.tabs.map((x) => x.id);
   const at = ids.indexOf(tabId) + 1;
   (ops[0] as { put: Record<string, Json> }).put.order = at;
   ids.forEach((x, i) => {
     const want = i < at ? i : i + 1;
-    if (model.byId.get(x)?.meta.order !== want) ops.push(...tabPatchOps(model, x, { order: want }));
+    if (model.byId.get(x)?.meta.order !== want)
+      ops.push(...tabPatchOps(model, x, { order: want }));
   });
   return { id, ops };
 }
@@ -550,11 +940,16 @@ export function duplicateTabOps(model: SheetModel, tabId: string): { id: string;
 export function uniqueTabName(model: SheetModel, name: string): string {
   const taken = new Set(model.tabs.map((t) => t.name.toLowerCase()));
   if (!taken.has(name.toLowerCase())) return name;
-  for (let i = 2; ; i++) if (!taken.has(`${name} ${i}`.toLowerCase())) return `${name} ${i}`;
+  for (let i = 2; ; i++)
+    if (!taken.has(`${name} ${i}`.toLowerCase())) return `${name} ${i}`;
 }
 
 /** Rename a tab and every formula reference to it. */
-export function renameTabOps(model: SheetModel, tabId: string, name: string): ArtifactOp[] {
+export function renameTabOps(
+  model: SheetModel,
+  tabId: string,
+  name: string,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   if (!t) return [];
   const old = t.meta.name;
@@ -574,9 +969,17 @@ export function deleteTabOps(model: SheetModel, tabId: string): ArtifactOp[] {
   if (!t) return [];
   const ops: ArtifactOp[] = [{ k: tabKey(tabId), del: true }];
   for (const el of t.cells.values()) ops.push({ k: el.key, del: true });
-  for (const c of t.colWidths.keys()) ops.push({ k: colKey(tabId, c), del: true });
-  for (const r of t.rowHeights.keys()) ops.push({ k: rowKey(tabId, r), del: true });
-  for (const item of [...model.conds, ...model.tables, ...model.validations, ...model.merges]) if (item.tab === tabId) ops.push({ k: item.key, del: true });
+  for (const c of t.colWidths.keys())
+    ops.push({ k: colKey(tabId, c), del: true });
+  for (const r of t.rowHeights.keys())
+    ops.push({ k: rowKey(tabId, r), del: true });
+  for (const item of [
+    ...model.conds,
+    ...model.tables,
+    ...model.validations,
+    ...model.merges,
+  ])
+    if (item.tab === tabId) ops.push({ k: item.key, del: true });
   return ops;
 }
 
@@ -584,7 +987,11 @@ export function deleteTabOps(model: SheetModel, tabId: string): ArtifactOp[] {
  * Change a tab's fields. Written as a whole put, because the first tab of a
  * new sheet may exist only implicitly (cells under Sheet1, no tab element).
  */
-export function tabPatchOps(model: SheetModel, tabId: string, patch: Record<string, Json>): ArtifactOp[] {
+export function tabPatchOps(
+  model: SheetModel,
+  tabId: string,
+  patch: Record<string, Json>,
+): ArtifactOp[] {
   const m = model.byId.get(tabId)?.meta;
   const base: Record<string, Json> = {
     name: m?.name ?? tabId,
@@ -604,12 +1011,26 @@ export function tabPatchOps(model: SheetModel, tabId: string, patch: Record<stri
   return [{ k: tabKey(tabId), put: { kind: "tab", ...base } }];
 }
 
-export function colWidthOps(tabId: string, cols: number[], w: number): ArtifactOp[] {
-  return cols.map((c) => ({ k: colKey(tabId, c), put: { kind: "col", w: Math.round(w) } }));
+export function colWidthOps(
+  tabId: string,
+  cols: number[],
+  w: number,
+): ArtifactOp[] {
+  return cols.map((c) => ({
+    k: colKey(tabId, c),
+    put: { kind: "col", w: Math.round(w) },
+  }));
 }
 
-export function rowHeightOps(tabId: string, rows: number[], h: number): ArtifactOp[] {
-  return rows.map((r) => ({ k: rowKey(tabId, r), put: { kind: "row", h: Math.round(h) } }));
+export function rowHeightOps(
+  tabId: string,
+  rows: number[],
+  h: number,
+): ArtifactOp[] {
+  return rows.map((r) => ({
+    k: rowKey(tabId, r),
+    put: { kind: "row", h: Math.round(h) },
+  }));
 }
 
 /** Range text for a rect, for cf/tbl elements. */
@@ -622,33 +1043,75 @@ export { rectA1, normRect, colLetters, parseKey };
  * inputs are set (a cell's style survives), cells past the new data are
  * cleared, and the tab is stamped refreshed. Unchanged cells write nothing.
  */
-export function queryTabOps(model: SheetModel, tabId: string, grid: string[][], now: number, error?: string): ArtifactOp[] {
+export function queryTabOps(
+  model: SheetModel,
+  tabId: string,
+  grid: string[][],
+  now: number,
+  error?: string,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   const ops: ArtifactOp[] = [];
   const want = new Map<number, string>();
-  grid.forEach((line, r) => line.forEach((input, c) => input !== "" && want.set(cellNum(c + 1, r + 1), input)));
+  grid.forEach((line, r) =>
+    line.forEach(
+      (input, c) => input !== "" && want.set(cellNum(c + 1, r + 1), input),
+    ),
+  );
   if (!error) {
     for (const [n, input] of want) {
-      const col = n % 32768, row = Math.floor(n / 32768);
+      const col = n % 32768,
+        row = Math.floor(n / 32768);
       const el = t?.cells.get(n);
       const k = cellKey(tabId, col, row);
       const header = row === 1;
-      if (!el) ops.push({ k, put: header ? { kind: "cell", input, b: true } : { kind: "cell", input } });
-      else if (el.input !== input || (header && el.b === undefined)) ops.push({ k, set: header && el.b === undefined ? { input, b: true } : { input } });
+      if (!el)
+        ops.push({
+          k,
+          put: header
+            ? { kind: "cell", input, b: true }
+            : { kind: "cell", input },
+        });
+      else if (el.input !== input || (header && el.b === undefined))
+        ops.push({
+          k,
+          set: header && el.b === undefined ? { input, b: true } : { input },
+        });
     }
     // Columns size to their content the first time they fill; a width someone set stays.
     const widths = new Map<number, number>();
-    grid.slice(0, 200).forEach((line) => line.forEach((v, c) => widths.set(c + 1, Math.max(widths.get(c + 1) ?? 0, v.length))));
+    grid
+      .slice(0, 200)
+      .forEach((line) =>
+        line.forEach((v, c) =>
+          widths.set(c + 1, Math.max(widths.get(c + 1) ?? 0, v.length)),
+        ),
+      );
     for (const [col, chars] of widths) {
       if (t?.colWidths.has(col)) continue;
-      ops.push({ k: colKey(tabId, col), put: { kind: "col", w: Math.max(72, Math.min(420, Math.round(chars * 7.6 + 22))) } });
+      ops.push({
+        k: colKey(tabId, col),
+        put: {
+          kind: "col",
+          w: Math.max(72, Math.min(420, Math.round(chars * 7.6 + 22))),
+        },
+      });
     }
     for (const [n, el] of t?.cells ?? []) {
       if (want.has(n) || el.input === undefined) continue;
-      ops.push(keepsCell(el) ? { k: el.key, set: { input: null } } : { k: el.key, del: true });
+      ops.push(
+        keepsCell(el)
+          ? { k: el.key, set: { input: null } }
+          : { k: el.key, del: true },
+      );
     }
   }
-  ops.push(...tabPatchOps(model, tabId, { refreshed_at: now, query_error: error ?? null }));
+  ops.push(
+    ...tabPatchOps(model, tabId, {
+      refreshed_at: now,
+      query_error: error ?? null,
+    }),
+  );
   return ops;
 }
 
@@ -660,42 +1123,81 @@ export function queryTabOps(model: SheetModel, tabId: string, grid: string[][], 
  * or a range wholly inside it) follows it to the new place, like Sheets. The
  * vacated cells clear and whatever stood under the destination is replaced.
  */
-export function moveOps(model: SheetModel, tabId: string, src: Rect, destCol: number, destRow: number, destTabId: string = tabId): ArtifactOp[] {
+export function moveOps(
+  model: SheetModel,
+  tabId: string,
+  src: Rect,
+  destCol: number,
+  destRow: number,
+  destTabId: string = tabId,
+): ArtifactOp[] {
   const t = tabData(model, tabId);
   if (!t) return [];
   const dt = tabData(model, destTabId);
   const destName = dt?.meta.name ?? destTabId;
   const crossTab = destTabId !== tabId;
-  const dc = destCol - src.c0, dr = destRow - src.r0;
+  const dc = destCol - src.c0,
+    dr = destRow - src.r0;
   if (dc === 0 && dr === 0 && !crossTab) return [];
-  const dest: Rect = { c0: src.c0 + dc, r0: src.r0 + dr, c1: src.c1 + dc, r1: src.r1 + dr };
-  const inSrc = (c: number, r: number) => c >= src.c0 && c <= src.c1 && r >= src.r0 && r <= src.r1;
+  const dest: Rect = {
+    c0: src.c0 + dc,
+    r0: src.r0 + dr,
+    c1: src.c1 + dc,
+    r1: src.r1 + dr,
+  };
+  const inSrc = (c: number, r: number) =>
+    c >= src.c0 && c <= src.c1 && r >= src.r0 && r <= src.r1;
   const name = t.meta.name.toLowerCase();
   /** Rewrite one formula; `formulaTab` is where it lives after the move, `homeTab` where its bare refs pointed before. */
   const follow = (input: string, homeTab: string, formulaTab: string) =>
     mapFormulaRefs(input, (tok) => {
       const target = tok.tab ?? homeTab;
       const b = tok.b ?? tok.a;
-      const into = target.toLowerCase() === name && tok.shape !== "cols" && tok.shape !== "rows" && inSrc(tok.a.col, tok.a.row) && inSrc(b.col, b.row);
+      const into =
+        target.toLowerCase() === name &&
+        tok.shape !== "cols" &&
+        tok.shape !== "rows" &&
+        inSrc(tok.a.col, tok.a.row) &&
+        inSrc(b.col, b.row);
       if (into) {
-        const moved = { ...tok, a: { ...tok.a, col: tok.a.col + dc, row: tok.a.row + dr }, b: tok.b ? { ...tok.b, col: tok.b.col + dc, row: tok.b.row + dr } : undefined };
-        return refText({ ...moved, tab: destName.toLowerCase() === formulaTab.toLowerCase() ? undefined : destName });
+        const moved = {
+          ...tok,
+          a: { ...tok.a, col: tok.a.col + dc, row: tok.a.row + dr },
+          b: tok.b
+            ? { ...tok.b, col: tok.b.col + dc, row: tok.b.row + dr }
+            : undefined,
+        };
+        return refText({
+          ...moved,
+          tab:
+            destName.toLowerCase() === formulaTab.toLowerCase()
+              ? undefined
+              : destName,
+        });
       }
       // A bare reference in a formula that changed tabs keeps pointing at its old tab.
-      if (tok.tab === undefined && homeTab.toLowerCase() !== formulaTab.toLowerCase()) return refText({ ...tok, tab: homeTab });
+      if (
+        tok.tab === undefined &&
+        homeTab.toLowerCase() !== formulaTab.toLowerCase()
+      )
+        return refText({ ...tok, tab: homeTab });
       return null;
     });
   const puts = new Map<string, ArtifactOp>();
   const dels = new Set<string>();
   for (const [n, el] of dt?.cells ?? []) {
-    const col = n % 32768, row = Math.floor(n / 32768);
-    if (col >= dest.c0 && col <= dest.c1 && row >= dest.r0 && row <= dest.r1) dels.add(el.key);
+    const col = n % 32768,
+      row = Math.floor(n / 32768);
+    if (col >= dest.c0 && col <= dest.c1 && row >= dest.r0 && row <= dest.r1)
+      dels.add(el.key);
   }
   for (const [n, el] of t.cells) {
-    const col = n % 32768, row = Math.floor(n / 32768);
+    const col = n % 32768,
+      row = Math.floor(n / 32768);
     if (!inSrc(col, row)) continue;
     const fields = fieldsOf(el);
-    if (typeof fields.input === "string" && isFormula(fields.input)) fields.input = follow(fields.input, t.meta.name, destName);
+    if (typeof fields.input === "string" && isFormula(fields.input))
+      fields.input = follow(fields.input, t.meta.name, destName);
     const k = cellKey(destTabId, col + dc, row + dr);
     puts.set(k, { k, put: { kind: "cell", ...fields } });
     dels.add(el.key);
@@ -703,12 +1205,14 @@ export function moveOps(model: SheetModel, tabId: string, src: Rect, destCol: nu
   for (const other of model.byId.values())
     for (const [n, el] of other.cells) {
       if (typeof el.input !== "string" || !isFormula(el.input)) continue;
-      if (other.meta.id === tabId && inSrc(n % 32768, Math.floor(n / 32768))) continue;
+      if (other.meta.id === tabId && inSrc(n % 32768, Math.floor(n / 32768)))
+        continue;
       const next = follow(el.input, other.meta.name, other.meta.name);
       if (next === el.input) continue;
       const pending = puts.get(el.key);
       if (pending && "put" in pending) continue;
-      if (!dels.has(el.key)) puts.set(el.key, { k: el.key, set: { input: next } });
+      if (!dels.has(el.key))
+        puts.set(el.key, { k: el.key, set: { input: next } });
     }
   const ops: ArtifactOp[] = [];
   for (const k of dels) if (!puts.has(k)) ops.push({ k, del: true });
@@ -720,9 +1224,18 @@ export function moveOps(model: SheetModel, tabId: string, src: Rect, destCol: nu
 export type FindOptions = { matchCase?: boolean; wholeCell?: boolean };
 
 /** One matcher for find and replace, so what is highlighted is what gets replaced. */
-export function findMatcher(find: string, opts: FindOptions = {}): { test: (text: string) => boolean; replace: (text: string, replacement: string) => string } {
+export function findMatcher(
+  find: string,
+  opts: FindOptions = {},
+): {
+  test: (text: string) => boolean;
+  replace: (text: string, replacement: string) => string;
+} {
   const body = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(opts.wholeCell ? `^${body}$` : body, opts.matchCase ? "g" : "gi");
+  const re = new RegExp(
+    opts.wholeCell ? `^${body}$` : body,
+    opts.matchCase ? "g" : "gi",
+  );
   return {
     test: (text) => {
       re.lastIndex = 0;
@@ -740,15 +1253,28 @@ export function findMatcher(find: string, opts: FindOptions = {}): { test: (text
  * cells, or of one cell. Formulas are left alone, so a replace never rewrites
  * references. Returns the ops and how many cells changed.
  */
-export function replaceOps(model: SheetModel, tabId: string, find: string, replacement: string, only?: { col: number; row: number }, opts: FindOptions = {}): { ops: ArtifactOp[]; count: number } {
+export function replaceOps(
+  model: SheetModel,
+  tabId: string,
+  find: string,
+  replacement: string,
+  only?: { col: number; row: number },
+  opts: FindOptions = {},
+): { ops: ArtifactOp[]; count: number } {
   const t = tabData(model, tabId);
   if (!t || !find) return { ops: [], count: 0 };
   const m = findMatcher(find, opts);
   const cells: Array<{ col: number; row: number; input: string }> = [];
   for (const [n, el] of t.cells) {
-    const col = n % 32768, row = Math.floor(n / 32768);
+    const col = n % 32768,
+      row = Math.floor(n / 32768);
     if (only && (only.col !== col || only.row !== row)) continue;
-    if (typeof el.input !== "string" || el.input.startsWith("=") || !m.test(el.input)) continue;
+    if (
+      typeof el.input !== "string" ||
+      el.input.startsWith("=") ||
+      !m.test(el.input)
+    )
+      continue;
     cells.push({ col, row, input: m.replace(el.input, replacement) });
   }
   return { ops: inputOps(model, tabId, cells), count: cells.length };

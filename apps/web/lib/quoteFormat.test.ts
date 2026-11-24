@@ -30,7 +30,9 @@ describe("toBlockquote", () => {
 
 describe("formatQuotedReply", () => {
   test("quote + body", () => {
-    expect(formatQuotedReply("quoted", "my reply")).toBe("> quoted\n\nmy reply");
+    expect(formatQuotedReply("quoted", "my reply")).toBe(
+      "> quoted\n\nmy reply",
+    );
   });
   test("quote only", () => {
     expect(formatQuotedReply("quoted", "")).toBe("> quoted");
@@ -74,7 +76,12 @@ describe("appendToDraft", () => {
 });
 
 describe("sortPendingComments", () => {
-  const mk = (id: string, messageId: string, blockIndex: number, createdAt: number): PendingComment => ({
+  const mk = (
+    id: string,
+    messageId: string,
+    blockIndex: number,
+    createdAt: number,
+  ): PendingComment => ({
     id,
     messageId,
     blockIndex,
@@ -107,6 +114,8 @@ describe("splitQuoteRuns", () => {
     ]);
   });
   test("text without quotes is one plain run", () => {
-    expect(splitQuoteRuns("a > b\nc")).toEqual([{ quote: false, text: "a > b\nc" }]);
+    expect(splitQuoteRuns("a > b\nc")).toEqual([
+      { quote: false, text: "a > b\nc" },
+    ]);
   });
 });

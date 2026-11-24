@@ -16,7 +16,10 @@
 // nodes, off by default: they're the shape of what you meant to write, which
 // is interesting sometimes and noise the rest of the time.
 
-import { isVaultAssetPath, isVaultMarkdownPath } from "@codecast/shared/contracts";
+import {
+  isVaultAssetPath,
+  isVaultMarkdownPath,
+} from "@codecast/shared/contracts";
 import { normalizeTarget } from "./vaultIndex";
 
 /** Ghost-node id prefix. Vault paths are relative and never start with a
@@ -57,7 +60,9 @@ export interface VaultGraph {
 export interface VaultGraphSource {
   paths(): string[];
   note(path: string): { title: string } | undefined;
-  outgoing(path: string): { resolved: string | null; link: { target: string } }[];
+  outgoing(
+    path: string,
+  ): { resolved: string | null; link: { target: string } }[];
 }
 
 export interface BuildGraphOptions {
@@ -72,7 +77,11 @@ export function topFolder(path: string): string {
 }
 
 /** Append to a Map-of-arrays, creating the array on first use. */
-function pushNeighbor(map: Map<string, string[]>, key: string, value: string): void {
+function pushNeighbor(
+  map: Map<string, string[]>,
+  key: string,
+  value: string,
+): void {
   const list = map.get(key);
   if (list) list.push(value);
   else map.set(key, [value]);
@@ -163,8 +172,13 @@ export function buildVaultGraph(
  * neighborhood" without the whole vault's hairball around it.
  * Returns an empty graph if the root isn't in the graph.
  */
-export function localSubgraph(graph: VaultGraph, rootId: string, hops: number): VaultGraph {
-  if (!graph.nodes.some((n) => n.id === rootId)) return { nodes: [], edges: [] };
+export function localSubgraph(
+  graph: VaultGraph,
+  rootId: string,
+  hops: number,
+): VaultGraph {
+  if (!graph.nodes.some((n) => n.id === rootId))
+    return { nodes: [], edges: [] };
 
   const adjacency = new Map<string, string[]>();
   for (const { source, target } of graph.edges) {
@@ -188,7 +202,9 @@ export function localSubgraph(graph: VaultGraph, rootId: string, hops: number): 
   }
 
   const nodes = graph.nodes.filter((n) => kept.has(n.id));
-  const edges = graph.edges.filter((e) => kept.has(e.source) && kept.has(e.target));
+  const edges = graph.edges.filter(
+    (e) => kept.has(e.source) && kept.has(e.target),
+  );
   // Degree is recomputed against the subgraph: in a local view, size should
   // mean "connected here", not "connected somewhere off screen".
   const localDegree = new Map<string, number>(nodes.map((n) => [n.id, 0]));

@@ -24,7 +24,10 @@ const EmbedDepth = createContext(0);
  */
 export function DocEmbed({ id }: { id: string }) {
   const depth = useContext(EmbedDepth);
-  const { data: doc, error } = useQueryNoThrow(api.docs.webGet, depth < MAX_EMBED_DEPTH ? { id } : "skip");
+  const { data: doc, error } = useQueryNoThrow(
+    api.docs.webGet,
+    depth < MAX_EMBED_DEPTH ? { id } : "skip",
+  );
 
   if (depth >= MAX_EMBED_DEPTH) return <EntityIdPill type="doc" id={id} />;
 
@@ -58,15 +61,24 @@ export function DocEmbed({ id }: { id: string }) {
   // with lib/quoteUnits: the review system descends into the body so each
   // block of a transcluded doc is quotable on its own.
   return (
-    <span data-doc-embed className="my-3 block overflow-hidden rounded-md border border-sol-green/25">
+    <span
+      data-doc-embed
+      className="my-3 block overflow-hidden rounded-md border border-sol-green/25"
+    >
       <Link
         href={`/docs/${doc._id}`}
         className="not-prose flex items-center gap-2 border-b border-sol-green/15 bg-sol-green/[0.06] px-3 py-1.5 no-underline group"
       >
         <FileText className="h-3.5 w-3.5 flex-shrink-0 text-sol-green" />
-        <span className="min-w-0 flex-1 truncate text-xs font-medium text-sol-text">{title}</span>
-        {doc.created_at && <DocDates doc={doc} className="text-meta text-sol-text-dim" />}
-        <span className="text-meta font-medium text-sol-green">{typeLabel}</span>
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-sol-text">
+          {title}
+        </span>
+        {doc.created_at && (
+          <DocDates doc={doc} className="text-meta text-sol-text-dim" />
+        )}
+        <span className="text-meta font-medium text-sol-green">
+          {typeLabel}
+        </span>
         <ArrowUpRight className="h-3 w-3 text-sol-text-dim opacity-0 transition-opacity group-hover:opacity-100" />
       </Link>
       {/* MarkdownBlocks' shared component map renders lists as `list-inside`,

@@ -63,11 +63,28 @@ describe("cast task show: decisions", () => {
     expect(isHolding(decision({ blocking: false }), task)).toBe(false);
     expect(isHolding(decision({ status: "answered" }), task)).toBe(false);
     // The refined station wins over the category when the team has one.
-    expect(isHolding(decision({ station: "st-9" }), { status: "in_review", status_id: "st-9" })).toBe(true);
+    expect(
+      isHolding(decision({ station: "st-9" }), {
+        status: "in_review",
+        status_id: "st-9",
+      }),
+    ).toBe(true);
   });
 
   test("prints id, status, station, question head and the held marker", () => {
-    const out = formatTaskDecisions([decision(), decision({ short_id: "sd-190", status: "answered", answer_index: 0, station: "in_progress" })], task, now).join("\n");
+    const out = formatTaskDecisions(
+      [
+        decision(),
+        decision({
+          short_id: "sd-190",
+          status: "answered",
+          answer_index: 0,
+          station: "in_progress",
+        }),
+      ],
+      task,
+      now,
+    ).join("\n");
     expect(out).toContain("Decisions (2)");
     expect(out).toContain("sd-211  Ship the new header?");
     expect(out).not.toContain("The context follows");
@@ -80,14 +97,32 @@ describe("cast task show: decisions", () => {
   });
 
   test("an advisory decision says so and nothing prints for none", () => {
-    expect(formatTaskDecisions([decision({ blocking: false })], task, now).join("\n")).toContain("(advisory)");
+    expect(
+      formatTaskDecisions([decision({ blocking: false })], task, now).join(
+        "\n",
+      ),
+    ).toContain("(advisory)");
     expect(formatTaskDecisions([], task, now)).toEqual([]);
   });
 });
 
 describe("cast task show: runs", () => {
   test("prints status, workflow, node and gate", () => {
-    const out = formatTaskRuns([run(), run({ _id: "r0", status: "failed", fail_reason: "gate withdrawn", gate_decision_short_id: undefined, current_node_label: undefined, current_node_id: undefined, updated_at: now - 3 * 3_600_000 })], now).join("\n");
+    const out = formatTaskRuns(
+      [
+        run(),
+        run({
+          _id: "r0",
+          status: "failed",
+          fail_reason: "gate withdrawn",
+          gate_decision_short_id: undefined,
+          current_node_label: undefined,
+          current_node_id: undefined,
+          updated_at: now - 3 * 3_600_000,
+        }),
+      ],
+      now,
+    ).join("\n");
     expect(out).toContain("Runs (2)");
     expect(out).toContain("paused  line  at Review  gate sd-211  2m ago");
     expect(out).toContain("failed  line  gate withdrawn  3h ago");
@@ -95,34 +130,75 @@ describe("cast task show: runs", () => {
   });
 
   test("a flow with a label reads by it, in the run line and the runs table, while its name stays the key", () => {
-    const labelled = run({ status: "failed", workflow_name: "agentwatch_system", workflow_label: "Union fix flow for system findings", current_node_label: "Build", gate_decision_short_id: undefined });
-    expect(formatTaskRuns([labelled], now).join("\n")).toContain("failed  Union fix flow for system findings  at Build");
-    expect(formatRunsTable([labelled], now)).toContain("Union fix flow for system findings");
+    const labelled = run({
+      status: "failed",
+      workflow_name: "agentwatch_system",
+      workflow_label: "Union fix flow for system findings",
+      current_node_label: "Build",
+      gate_decision_short_id: undefined,
+    });
+    expect(formatTaskRuns([labelled], now).join("\n")).toContain(
+      "failed  Union fix flow for system findings  at Build",
+    );
+    expect(formatRunsTable([labelled], now)).toContain(
+      "Union fix flow for system findings",
+    );
     expect(formatRunsTable([labelled], now)).not.toContain("agentwatch_system");
   });
 
   test("the runs table puts a failed run's reason under it, and --long adds its machine and run id", () => {
-    const failed = run({ _id: "run123", status: "failed", fail_reason: "verify exited 1\nstack", runner_device: "dev-abc", gate_decision_short_id: undefined });
+    const failed = run({
+      _id: "run123",
+      status: "failed",
+      fail_reason: "verify exited 1\nstack",
+      runner_device: "dev-abc",
+      gate_decision_short_id: undefined,
+    });
     const table = formatRunsTable([failed], now);
     expect(table).toContain("  verify exited 1");
     expect(table).not.toContain("stack");
     expect(table).not.toContain("run123");
-    expect(formatRunsTable([failed], now, { long: true })).toMatch(/dev-abc\s+run123/);
+    expect(formatRunsTable([failed], now, { long: true })).toMatch(
+      /dev-abc\s+run123/,
+    );
   });
 });
 
 describe("cast task show: evidence", () => {
   test("pages by station with /a/ urls, docs, files, PR, verification, verdict", () => {
-    const page = { slug: "s1", title: "Header report", version: 2, kind: "html", station: "implement", href: "/a/s1", updated_at: now };
+    const page = {
+      slug: "s1",
+      title: "Header report",
+      version: 2,
+      kind: "html",
+      station: "implement",
+      href: "/a/s1",
+      updated_at: now,
+    };
     const ev = evidence({
       pages: [page],
       stations: [{ station: "implement", pages: [page] }],
-      docs: [{ id: "doc1", title: "Handoff notes", doc_type: "note", updated_at: now, href: "/docs/doc1" }],
+      docs: [
+        {
+          id: "doc1",
+          title: "Handoff notes",
+          doc_type: "note",
+          updated_at: now,
+          href: "/docs/doc1",
+        },
+      ],
       files_changed: ["a.ts", "b.ts"],
       verification_evidence: "bun test taskShow: 6 pass\nscreenshot attached",
       pr_url: "https://github.com/x/y/pull/5",
       review_verdict: { verdict: "approve", at: now, note: "Looks right" },
-      images: [{ url: "https://img", conversation_id: "c", message_id: "m", timestamp: now }],
+      images: [
+        {
+          url: "https://img",
+          conversation_id: "c",
+          message_id: "m",
+          timestamp: now,
+        },
+      ],
     });
     const out = formatTaskEvidence(ev, "https://codecast.sh/").join("\n");
     expect(out).toContain("Evidence");
@@ -131,13 +207,28 @@ describe("cast task show: evidence", () => {
     expect(out).toContain("Images: 1");
     expect(out).toContain("Files changed: a.ts, b.ts");
     expect(out).toContain("PR: https://github.com/x/y/pull/5");
-    expect(out).toContain("Verification:\n    bun test taskShow: 6 pass\n    screenshot attached");
+    expect(out).toContain(
+      "Verification:\n    bun test taskShow: 6 pass\n    screenshot attached",
+    );
     expect(out).toContain("Review: approve Looks right");
   });
 
   test("an unfiled page prints under unfiled; empty evidence prints nothing", () => {
-    const page = { slug: "s2", title: "Loose page", version: 1, kind: "html", station: null, href: "/a/s2", updated_at: now };
-    expect(formatTaskEvidence(evidence({ pages: [page], stations: [{ station: "", pages: [page] }] }), "https://codecast.sh").join("\n")).toContain("unfiled  Loose page");
+    const page = {
+      slug: "s2",
+      title: "Loose page",
+      version: 1,
+      kind: "html",
+      station: null,
+      href: "/a/s2",
+      updated_at: now,
+    };
+    expect(
+      formatTaskEvidence(
+        evidence({ pages: [page], stations: [{ station: "", pages: [page] }] }),
+        "https://codecast.sh",
+      ).join("\n"),
+    ).toContain("unfiled  Loose page");
     expect(formatTaskEvidence(evidence(), "https://codecast.sh")).toEqual([]);
     expect(formatTaskEvidence(null, "https://codecast.sh")).toEqual([]);
   });
@@ -145,10 +236,28 @@ describe("cast task show: evidence", () => {
 
 describe("cast workflow runs", () => {
   test("one table: age, status, workflow, task, node, gate", () => {
-    const out = formatRunsTable([run(), run({ _id: "r2", status: "running", task_short_id: undefined, plan_short_id: "pl-682", current_node_label: "Implement", gate_decision_short_id: undefined, updated_at: now - 60_000 })], now);
+    const out = formatRunsTable(
+      [
+        run(),
+        run({
+          _id: "r2",
+          status: "running",
+          task_short_id: undefined,
+          plan_short_id: "pl-682",
+          current_node_label: "Implement",
+          gate_decision_short_id: undefined,
+          updated_at: now - 60_000,
+        }),
+      ],
+      now,
+    );
     const lines = out.split("\n");
-    expect(lines[0]).toBe("age     status   workflow  task      node       gate");
-    expect(lines[1]).toBe("2m ago  paused   line      ct-51468  Review     sd-211");
+    expect(lines[0]).toBe(
+      "age     status   workflow  task      node       gate",
+    );
+    expect(lines[1]).toBe(
+      "2m ago  paused   line      ct-51468  Review     sd-211",
+    );
     expect(lines[2]).toBe("1m ago  running  line      pl-682    Implement  -");
     expect(formatRunsTable([], now)).toBe("No runs.");
   });
@@ -156,26 +265,56 @@ describe("cast workflow runs", () => {
 
 describe("cast org feed", () => {
   test("a run row prints like the other kinds: kind, status and node, actor, age", () => {
-    const out = formatFeedRow({ kind: "run", title: "line", state: "paused · Review", actor: { name: "Head of Growth" }, preview: "Ship the new header?" }, "2m ago", "");
-    expect(out[0]).toBe("run               line · paused · Review · Head of Growth 2m ago");
+    const out = formatFeedRow(
+      {
+        kind: "run",
+        title: "line",
+        state: "paused · Review",
+        actor: { name: "Head of Growth" },
+        preview: "Ship the new header?",
+      },
+      "2m ago",
+      "",
+    );
+    expect(out[0]).toBe(
+      "run               line · paused · Review · Head of Growth 2m ago",
+    );
     expect(out[1]).toBe("         Ship the new header?");
   });
   test("a task row keeps its short id column", () => {
-    const out = formatFeedRow({ kind: "task", short_id: "ct-51468", title: "CLI surfaces", state: "in_review" }, "1h ago", "");
+    const out = formatFeedRow(
+      {
+        kind: "task",
+        short_id: "ct-51468",
+        title: "CLI surfaces",
+        state: "in_review",
+      },
+      "1h ago",
+      "",
+    );
     expect(out).toEqual(["task     ct-51468 CLI surfaces · in_review 1h ago"]);
   });
 });
 
 describe("task show --only and --last", () => {
-  const { parseShowSections, pickComments } = require("./taskShow") as typeof import("./taskShow");
+  const { parseShowSections, pickComments } =
+    require("./taskShow") as typeof import("./taskShow");
   test("--only takes known section names and names the rest", () => {
-    expect([...parseShowSections("Comments, runs")!]).toEqual(["comments", "runs"]);
+    expect([...parseShowSections("Comments, runs")!]).toEqual([
+      "comments",
+      "runs",
+    ]);
     expect(parseShowSections(undefined)).toBeUndefined();
-    expect(() => parseShowSections("comments,activity")).toThrow(/not activity/);
+    expect(() => parseShowSections("comments,activity")).toThrow(
+      /not activity/,
+    );
   });
   test("comments default to the last five, --last picks the count, -c shows all", () => {
     const all = Array.from({ length: 8 }, (_, i) => i);
-    expect(pickComments(all, {})).toEqual({ shown: [3, 4, 5, 6, 7], note: "showing last 5, -c for all or --last <n>" });
+    expect(pickComments(all, {})).toEqual({
+      shown: [3, 4, 5, 6, 7],
+      note: "showing last 5, -c for all or --last <n>",
+    });
     expect(pickComments(all, { last: 2 }).shown).toEqual([6, 7]);
     expect(pickComments(all, { all: true })).toEqual({ shown: all, note: "" });
     expect(pickComments([1, 2], {}).note).toBe("");

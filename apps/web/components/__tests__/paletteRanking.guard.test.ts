@@ -2,7 +2,10 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const palette = readFileSync(join(import.meta.dir, "../CommandPalette.tsx"), "utf8");
+const palette = readFileSync(
+  join(import.meta.dir, "../CommandPalette.tsx"),
+  "utf8",
+);
 
 test("named New note is a compose fallback after search results, not the default", () => {
   const named = palette.indexOf('key="vault-new-named"');

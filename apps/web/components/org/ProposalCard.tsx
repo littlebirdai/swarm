@@ -18,14 +18,33 @@ import { ProposalAuthorPill } from "./ProposalAuthorPill";
 import { proposalProgressWords } from "./proposalSubjects";
 import type { OrgProposalChange, OrgProposalListRow } from "./orgStaffingTypes";
 import { LEDGER_INKS } from "./ProposalSubjectCard";
-import { authorAppliedWords, ProposalEntries, ProposalFoot, ProposalLoading, useProposalBatch, useProposalEntries } from "./ProposalLedger";
+import {
+  authorAppliedWords,
+  ProposalEntries,
+  ProposalFoot,
+  ProposalLoading,
+  useProposalBatch,
+  useProposalEntries,
+} from "./ProposalLedger";
 
 // ---------------------------------------------------------------- the meta line
 
 /** A count of failures is the line's one coloured run. */
 export function ProgressWords({ words }: { words: string }) {
   const parts = words.split(/(\d+ failed)/);
-  return <>{parts.map((part, i) => (i % 2 ? <span key={i} className="text-[color:var(--ink-red)]">{part}</span> : part))}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 ? (
+          <span key={i} className="text-[color:var(--ink-red)]">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
 }
 
 /** Under the title: what waits or what happened, and who proposed it. Cards
@@ -33,25 +52,60 @@ export function ProgressWords({ words }: { words: string }) {
  *  decide · 1 approved", "2 approved"); records count the records ("64
  *  records to decide", "62 applied, 2 rejected"). Before the changes land,
  *  the row's own count. */
-export function ProposalMeta({ proposal, changes }: { proposal: OrgProposalListRow; changes: readonly OrgProposalChange[] }) {
+export function ProposalMeta({
+  proposal,
+  changes,
+}: {
+  proposal: OrgProposalListRow;
+  changes: readonly OrgProposalChange[];
+}) {
   const entries = useProposalEntries(proposal, changes);
   const total = proposal.counts?.total ?? 0;
-  const words = proposal.status === "withdrawn" ? "withdrawn" : authorAppliedWords(proposal, entries.work, proposalProgressWords(entries.cards, entries.records ? changes : undefined)) || (total ? `${total} ${total === 1 ? "change" : "changes"}` : "proposal");
+  const words =
+    proposal.status === "withdrawn"
+      ? "withdrawn"
+      : authorAppliedWords(
+          proposal,
+          entries.work,
+          proposalProgressWords(
+            entries.cards,
+            entries.records ? changes : undefined,
+          ),
+        ) ||
+        (total ? `${total} ${total === 1 ? "change" : "changes"}` : "proposal");
   const [count, decided] = words.split(" · ");
   return (
-    <div className={cn("not-prose mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-meta leading-snug text-[color:var(--ink-quiet)]", LEDGER_INKS)} data-proposal-meta={words}>
-      <span className="whitespace-nowrap text-[color:var(--sol-text-muted)]"><ProgressWords words={count} /></span>
+    <div
+      className={cn(
+        "not-prose mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-meta leading-snug text-[color:var(--ink-quiet)]",
+        LEDGER_INKS,
+      )}
+      data-proposal-meta={words}
+    >
+      <span className="whitespace-nowrap text-[color:var(--sol-text-muted)]">
+        <ProgressWords words={count} />
+      </span>
       {decided && (
         <>
           <span aria-hidden>·</span>
-          <span><ProgressWords words={decided} /></span>
+          <span>
+            <ProgressWords words={decided} />
+          </span>
         </>
       )}
       {/* The separator travels with "from": a wrapped author pill never leaves a dot dangling at a line's end. */}
       <span className="inline-flex min-w-0 items-center gap-1">
-        {decided && <span aria-hidden className="mr-1">·</span>}
+        {decided && (
+          <span aria-hidden className="mr-1">
+            ·
+          </span>
+        )}
         <span>{proposal.applied_by_author ? "by" : "from"}</span>
-        <ProposalAuthorPill author={proposal.author} size="sm" withHandle={false} />
+        <ProposalAuthorPill
+          author={proposal.author}
+          size="sm"
+          withHandle={false}
+        />
       </span>
     </div>
   );
@@ -68,7 +122,12 @@ export function ProposalMeta({ proposal, changes }: { proposal: OrgProposalListR
  * screen itself, unless it already sits on it (the screen feeds the hover
  * channel, so a card that can light the map needs no Map word).
  */
-export function ProposalBody({ proposal, changes, compact, onMap }: {
+export function ProposalBody({
+  proposal,
+  changes,
+  compact,
+  onMap,
+}: {
   proposal: OrgProposalListRow;
   changes: readonly OrgProposalChange[];
   compact?: boolean;
@@ -79,19 +138,55 @@ export function ProposalBody({ proposal, changes, compact, onMap }: {
   const map = onMap;
   const readonly = !batch.key || proposal.status !== "open";
   // One record group carries the proposal's totals itself.
-  const totals = entries.records && entries.groups.length === 1 ? null : entries.totals.line;
+  const totals =
+    entries.records && entries.groups.length === 1 ? null : entries.totals.line;
   return (
-    <div className={cn("not-prose min-w-0", LEDGER_INKS)} data-proposal-card={proposal.short_id} data-proposal-work={entries.work ?? undefined} data-proposal-readonly={readonly || undefined}>
-      {changes.length === 0 ? <ProposalLoading rows={proposal.counts?.total} /> : (
+    <div
+      className={cn("not-prose min-w-0", LEDGER_INKS)}
+      data-proposal-card={proposal.short_id}
+      data-proposal-work={entries.work ?? undefined}
+      data-proposal-readonly={readonly || undefined}
+    >
+      {changes.length === 0 ? (
+        <ProposalLoading rows={proposal.counts?.total} />
+      ) : (
         <>
           {proposal.summary_md?.trim() && (
-            <div className={cn("mb-2.5 text-[13px] leading-[20px] text-[color:var(--sol-text-secondary)] [&_p]:my-0 [&_p+p]:mt-1.5", compact && "line-clamp-2")} data-proposal-summary>
+            <div
+              className={cn(
+                "mb-2.5 text-[13px] leading-[20px] text-[color:var(--sol-text-secondary)] [&_p]:my-0 [&_p+p]:mt-1.5",
+                compact && "line-clamp-2",
+              )}
+              data-proposal-summary
+            >
               <MarkdownRenderer content={proposal.summary_md} />
             </div>
           )}
-          {totals && <p className="m-0 mb-1.5 text-[12.5px] leading-[18px] text-[color:var(--sol-text-muted)] [text-wrap:pretty]" data-proposal-totals>{totals}</p>}
-          {!compact && <ProposalEntries proposal={proposal} changes={changes} entries={entries} batch={batch} why={!(entries.cards.length === 1 && proposal.summary_md?.trim())} />}
-          {!compact && <ProposalFoot proposal={proposal} entries={entries} batch={batch} onMap={map} />}
+          {totals && (
+            <p
+              className="m-0 mb-1.5 text-[12.5px] leading-[18px] text-[color:var(--sol-text-muted)] [text-wrap:pretty]"
+              data-proposal-totals
+            >
+              {totals}
+            </p>
+          )}
+          {!compact && (
+            <ProposalEntries
+              proposal={proposal}
+              changes={changes}
+              entries={entries}
+              batch={batch}
+              why={!(entries.cards.length === 1 && proposal.summary_md?.trim())}
+            />
+          )}
+          {!compact && (
+            <ProposalFoot
+              proposal={proposal}
+              entries={entries}
+              batch={batch}
+              onMap={map}
+            />
+          )}
         </>
       )}
     </div>

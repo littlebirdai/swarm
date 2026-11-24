@@ -13,7 +13,8 @@ import type { ShortcutAction } from "./registry";
 
 // Focused regions that own their plain keys. Window key listeners outside the
 // dispatcher (GenericListView) honour the same selector.
-export const OWNS_KEYS_SELECTOR = '[data-review-region="active"], [data-owns-keys]';
+export const OWNS_KEYS_SELECTOR =
+  '[data-review-region="active"], [data-owns-keys]';
 
 type KeyTarget = { closest?: (selector: string) => unknown } | null | undefined;
 
@@ -40,8 +41,20 @@ const watchedWindows = new WeakSet<Window>();
 function watchGestures(): void {
   if (typeof window === "undefined" || watchedWindows.has(window)) return;
   watchedWindows.add(window);
-  window.addEventListener("pointerdown", (e) => { lastGesturePath = e.composedPath(); }, true);
-  window.addEventListener("keydown", (e) => { if (e.target !== document.body) lastGesturePath = e.composedPath(); }, true);
+  window.addEventListener(
+    "pointerdown",
+    (e) => {
+      lastGesturePath = e.composedPath();
+    },
+    true,
+  );
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.target !== document.body) lastGesturePath = e.composedPath();
+    },
+    true,
+  );
 }
 watchGestures();
 
@@ -53,12 +66,19 @@ watchGestures();
  * Then the surface keeps its keys, and takes focus back, as long as the
  * person's last click or key press was inside it.
  */
-export function keyScopeHasFocus(root: HTMLElement | null | undefined): boolean {
+export function keyScopeHasFocus(
+  root: HTMLElement | null | undefined,
+): boolean {
   watchGestures();
   if (!root) return false;
   const active = document.activeElement;
   if (active && root.contains(active)) return true;
-  if ((active && active !== document.body) || !root.isConnected || !lastGesturePath.includes(root)) return false;
+  if (
+    (active && active !== document.body) ||
+    !root.isConnected ||
+    !lastGesturePath.includes(root)
+  )
+    return false;
   root.focus({ preventScroll: true });
   return true;
 }
@@ -67,10 +87,18 @@ export function keyScopeHasFocus(root: HTMLElement | null | undefined): boolean 
  * A page's window key listener leaves this key alone: focus is in a text
  * field, or in a region that owns its keys (keysOwnedElsewhere).
  */
-export function keyBelongsElsewhere(target: EventTarget | null | undefined): boolean {
+export function keyBelongsElsewhere(
+  target: EventTarget | null | undefined,
+): boolean {
   const el = target as HTMLElement | null | undefined;
   if (!el) return false;
-  if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable) return true;
+  if (
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT" ||
+    el.isContentEditable
+  )
+    return true;
   return keysOwnedElsewhere(el);
 }
 
@@ -78,9 +106,16 @@ export function keyBelongsElsewhere(target: EventTarget | null | undefined): boo
  *  card. The card claims its keys ahead of the dispatcher and hands these on
  *  by name; its keyboard-owner entry allows them too, so the desktop Edit
  *  menu (which asks the same ownership question) reaches them as well. */
-export const UNDO_CARD_CHORDS: ShortcutAction[] = ["ui.undo", "ui.redo", "ui.undoHistory"];
+export const UNDO_CARD_CHORDS: ShortcutAction[] = [
+  "ui.undo",
+  "ui.redo",
+  "ui.undoHistory",
+];
 
-export const KEY_OWNERSHIP: Pick<KeydownOptions<ShortcutAction>, "inputLikeSelector" | "keyboardOwners"> = {
+export const KEY_OWNERSHIP: Pick<
+  KeydownOptions<ShortcutAction>,
+  "inputLikeSelector" | "keyboardOwners"
+> = {
   // Some regions own their own single-letter keys and must not leak them to the
   // global conversation shortcuts (h/t/d/r, and critically y/n which approve or
   // deny a live permission prompt). A region opts in either with the inline
@@ -99,6 +134,9 @@ export const KEY_OWNERSHIP: Pick<KeydownOptions<ShortcutAction>, "inputLikeSelec
     // chords outright (claimKeys); of the chords left, only the palette may
     // act on the page behind it. Its own chords stay allowed so the desktop
     // Edit menu's hand-back of them is not refused here.
-    { selector: '[data-undo-timeline="interactive"]', allow: ["palette.toggle", ...UNDO_CARD_CHORDS] },
+    {
+      selector: '[data-undo-timeline="interactive"]',
+      allow: ["palette.toggle", ...UNDO_CARD_CHORDS],
+    },
   ],
 };

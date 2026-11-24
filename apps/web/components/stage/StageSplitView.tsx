@@ -15,9 +15,20 @@
 // and stacking a second bar over it is the exact pattern the companion work
 // rejected.
 
-import { memo, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { PaneControls } from "./PaneControls";
-import { useInboxStore, useTrackedStore, type AppTab } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  type AppTab,
+} from "../../store/inboxStore";
 import {
   findBranch,
   stageGeometry,
@@ -27,9 +38,20 @@ import {
   type StageNode,
 } from "../../store/stageSplit";
 import { StageRail } from "./StageRail";
-import { paneSessionId, stageClose, stageExpand, stageFocus, stageNavigateLeaf, startPaneDrag } from "../../lib/stage";
+import {
+  paneSessionId,
+  stageClose,
+  stageExpand,
+  stageFocus,
+  stageNavigateLeaf,
+  startPaneDrag,
+} from "../../lib/stage";
 import { pathLabel } from "../../lib/pathLabel";
-import { browserPathLabel, isBrowserRoutePath, subscribeBrowserTitles } from "../../lib/browserPane";
+import {
+  browserPathLabel,
+  isBrowserRoutePath,
+  subscribeBrowserTitles,
+} from "../../lib/browserPane";
 import { isSimulatorRoutePath } from "../../lib/simulatorPane";
 import { chatTabTitle, recordTabTitle } from "../../lib/tabTitle";
 import { RoutePane, usePaneScope } from "../RoutePane";
@@ -47,9 +69,8 @@ function usePaneTitle(path: string): string {
   // A browser pane is titled by the page: its own title once a backend could
   // read one, else the host. That is learned, not stored, so it is subscribed
   // to rather than read once (lib/browserPane).
-  const browser = useSyncExternalStore(
-    subscribeBrowserTitles,
-    () => (isBrowserRoutePath(path) ? browserPathLabel(path) : ""),
+  const browser = useSyncExternalStore(subscribeBrowserTitles, () =>
+    isBrowserRoutePath(path) ? browserPathLabel(path) : "",
   );
   const clean = path.split("?")[0];
   const m = clean.match(/^\/(docs|tasks|plans|chat)\/([^/]+)/);
@@ -57,21 +78,44 @@ function usePaneTitle(path: string): string {
   const id = m?.[2] ?? "";
   const s = useTrackedStore([
     (st) =>
-      kind === "docs" ? ((st.docs[id] as any)?.display_title ?? st.docs[id]?.title)
-      : kind === "tasks" ? st.tasks[id]?.title
-      : kind === "plans" ? st.plans[id]?.title
-      : kind === "chat" ? chatTabTitle(path, st.chatChannels, teamMembersOf(st), (st as any).currentUser?._id)
-      : null,
+      kind === "docs"
+        ? ((st.docs[id] as any)?.display_title ?? st.docs[id]?.title)
+        : kind === "tasks"
+          ? st.tasks[id]?.title
+          : kind === "plans"
+            ? st.plans[id]?.title
+            : kind === "chat"
+              ? chatTabTitle(
+                  path,
+                  st.chatChannels,
+                  teamMembersOf(st),
+                  (st as any).currentUser?._id,
+                )
+              : null,
     // A project, a run, an org object: named the way the tab bar names them.
     (st) => (kind ? null : recordTabTitle(path, st as any)),
   ]);
   const entity =
-    kind === "docs" ? ((s.docs[id] as any)?.display_title ?? s.docs[id]?.title)
-    : kind === "tasks" ? s.tasks[id]?.title
-    : kind === "plans" ? s.plans[id]?.title
-    : kind === "chat" ? chatTabTitle(path, s.chatChannels, teamMembersOf(s), (s as any).currentUser?._id)
-    : null;
-  return browser || entity || (kind ? null : recordTabTitle(path, s as any)) || pathLabel(path);
+    kind === "docs"
+      ? ((s.docs[id] as any)?.display_title ?? s.docs[id]?.title)
+      : kind === "tasks"
+        ? s.tasks[id]?.title
+        : kind === "plans"
+          ? s.plans[id]?.title
+          : kind === "chat"
+            ? chatTabTitle(
+                path,
+                s.chatChannels,
+                teamMembersOf(s),
+                (s as any).currentUser?._id,
+              )
+            : null;
+  return (
+    browser ||
+    entity ||
+    (kind ? null : recordTabTitle(path, s as any)) ||
+    pathLabel(path)
+  );
 }
 
 // A pane that draws its OWN header (a conversation, a browser pane) still
@@ -81,7 +125,13 @@ function PaneGrip({ leafId, path }: { leafId: string; path: string }) {
   return (
     <div
       draggable
-      onDragStart={(e) => startPaneDrag(e, { path, title: pathLabel(path), from: { kind: "leaf", leafId } })}
+      onDragStart={(e) =>
+        startPaneDrag(e, {
+          path,
+          title: pathLabel(path),
+          from: { kind: "leaf", leafId },
+        })
+      }
       className="stage-grip"
       title="Drag to move this pane"
       aria-label="Drag to move this pane"
@@ -93,20 +143,41 @@ function PaneGrip({ leafId, path }: { leafId: string; path: string }) {
 
 // The strip is the pane's window title AND its drag handle: grab it to move
 // the pane to another position (the drop layer treats it as a move).
-function PaneStrip({ leafId, path, focused }: { leafId: string; path: string; focused: boolean }) {
+function PaneStrip({
+  leafId,
+  path,
+  focused,
+}: {
+  leafId: string;
+  path: string;
+  focused: boolean;
+}) {
   const title = usePaneTitle(path);
   return (
     <div
       draggable
-      onDragStart={(e) => startPaneDrag(e, { path, title, from: { kind: "leaf", leafId } })}
+      onDragStart={(e) =>
+        startPaneDrag(e, { path, title, from: { kind: "leaf", leafId } })
+      }
       className="flex items-center gap-1.5 h-[26px] px-2 flex-shrink-0 border-b cursor-grab active:cursor-grabbing select-none"
-      style={{ background: "var(--cc-panel-head-bg)", borderColor: "var(--cc-panel-rule)" }}
+      style={{
+        background: "var(--cc-panel-head-bg)",
+        borderColor: "var(--cc-panel-rule)",
+      }}
     >
-      <PageIcon path={path} className={`w-3 h-3 flex-shrink-0 ${focused ? "text-sol-text-dim" : "text-sol-text-dim/50"}`} />
-      <span className={`text-meta truncate flex-1 leading-none ${focused ? "text-sol-text-muted" : "text-sol-text-dim/70"}`}>
+      <PageIcon
+        path={path}
+        className={`w-3 h-3 flex-shrink-0 ${focused ? "text-sol-text-dim" : "text-sol-text-dim/50"}`}
+      />
+      <span
+        className={`text-meta truncate flex-1 leading-none ${focused ? "text-sol-text-muted" : "text-sol-text-dim/70"}`}
+      >
         {title}
       </span>
-      <PaneControls onExpand={() => stageExpand(leafId)} onClose={() => stageClose(leafId)} />
+      <PaneControls
+        onExpand={() => stageExpand(leafId)}
+        onClose={() => stageClose(leafId)}
+      />
     </div>
   );
 }
@@ -175,7 +246,13 @@ const StageCell = memo(function StageCell({
   // conversation in a hidden tab or an unfocused split knows it does not own
   // the keyboard. No `navigate`: a link inside a conversation moves the tab.
   const visible = isTabActive && !rail;
-  const { ctxValue: sessionScope } = usePaneScope({ tabId, path, isActive: active && !rail, isVisible: visible, leafId: paneLeafId });
+  const { ctxValue: sessionScope } = usePaneScope({
+    tabId,
+    path,
+    isActive: active && !rail,
+    isVisible: visible,
+    leafId: paneLeafId,
+  });
   return (
     <div
       data-stage-leaf={leafId}
@@ -184,39 +261,61 @@ const StageCell = memo(function StageCell({
       style={{ left, top, width, height }}
       onPointerDownCapture={solo || rail ? undefined : handleFocus}
     >
-      {rail && <StageRail side={rail} title={title} path={path} onRestore={restore} />}
+      {rail && (
+        <StageRail side={rail} title={title} path={path} onRestore={restore} />
+      )}
       <div className={rail ? "hidden" : "h-full"}>
-      {sessionId ? (
-        <>
-          {/* A conversation pane has no strip: its own header hosts close and
+        {sessionId ? (
+          <>
+            {/* A conversation pane has no strip: its own header hosts close and
               expand, so the drag handle is a grip that surfaces on hover. */}
-          {!solo && <PaneGrip leafId={leafId} path={path} />}
-          <TabParamsCtx.Provider value={sessionScope}>
-            <SessionPane sessionId={sessionId} onClose={handleClose} onExpand={handleExpand} />
-          </TabParamsCtx.Provider>
-        </>
-      ) : ownsHeader ? (
-        <>
-          {/* Same duality for a browser pane: its 32px address strip IS the
+            {!solo && <PaneGrip leafId={leafId} path={path} />}
+            <TabParamsCtx.Provider value={sessionScope}>
+              <SessionPane
+                sessionId={sessionId}
+                onClose={handleClose}
+                onExpand={handleExpand}
+              />
+            </TabParamsCtx.Provider>
+          </>
+        ) : ownsHeader ? (
+          <>
+            {/* Same duality for a browser pane: its 32px address strip IS the
               header, and it hosts PaneControls (leafId reaches it through
               TabParamsCtx). A strip above that would be two bars. */}
-          {!solo && <PaneGrip leafId={leafId} path={path} />}
-          <div className="h-full min-h-0">
-            <ErrorBoundary name="StagePane" level="panel">
-              <RoutePane tabId={tabId} path={path} isActive={active && !rail} isVisible={visible} navigate={navigate} leafId={paneLeafId} />
-            </ErrorBoundary>
+            {!solo && <PaneGrip leafId={leafId} path={path} />}
+            <div className="h-full min-h-0">
+              <ErrorBoundary name="StagePane" level="panel">
+                <RoutePane
+                  tabId={tabId}
+                  path={path}
+                  isActive={active && !rail}
+                  isVisible={visible}
+                  navigate={navigate}
+                  leafId={paneLeafId}
+                />
+              </ErrorBoundary>
+            </div>
+          </>
+        ) : (
+          <div className="h-full flex flex-col min-h-0">
+            {!solo && (
+              <PaneStrip leafId={leafId} path={path} focused={focused} />
+            )}
+            <div className="flex-1 min-h-0">
+              <ErrorBoundary name="StagePane" level="panel">
+                <RoutePane
+                  tabId={tabId}
+                  path={path}
+                  isActive={active && !rail}
+                  isVisible={visible}
+                  navigate={navigate}
+                  leafId={paneLeafId}
+                />
+              </ErrorBoundary>
+            </div>
           </div>
-        </>
-      ) : (
-        <div className="h-full flex flex-col min-h-0">
-          {!solo && <PaneStrip leafId={leafId} path={path} focused={focused} />}
-          <div className="flex-1 min-h-0">
-            <ErrorBoundary name="StagePane" level="panel">
-              <RoutePane tabId={tabId} path={path} isActive={active && !rail} isVisible={visible} navigate={navigate} leafId={paneLeafId} />
-            </ErrorBoundary>
-          </div>
-        </div>
-      )}
+        )}
       </div>
     </div>
   );
@@ -232,7 +331,10 @@ function StageHandle({
   handle: StageHandleGeom;
   layout: StageNode;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  liveSizesRef: React.MutableRefObject<{ branchId: string; sizes: number[] } | null>;
+  liveSizesRef: React.MutableRefObject<{
+    branchId: string;
+    sizes: number[];
+  } | null>;
   setLiveSizes: (v: { branchId: string; sizes: number[] } | null) => void;
 }) {
   const [active, setActive] = useState(false);
@@ -247,7 +349,11 @@ function StageHandle({
       // Capture is a nicety (keeps hover styling on the handle mid-drag); the
       // drag itself listens on window. It throws for an inactive pointer id
       // (synthetic events in tests) — never let that kill the drag setup.
-      try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch { /* no capture */ }
+      try {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* no capture */
+      }
       setActive(true);
       const box = el.getBoundingClientRect();
       const branchPx = horizontal
@@ -258,7 +364,10 @@ function StageHandle({
       // surface, so the drag clamps in pixels converted to branch shares —
       // but never past the pair's midpoint, or a pair smaller than two
       // minimums would invert the clamp and pin the seam off-pointer.
-      const minPct = Math.min(45, Math.max(8, ((horizontal ? 240 : 160) / branchPx) * 100));
+      const minPct = Math.min(
+        45,
+        Math.max(8, ((horizontal ? 240 : 160) / branchPx) * 100),
+      );
       const start = horizontal ? e.clientX : e.clientY;
       const startSizes = [...branch.sizes];
       const i = handle.index;
@@ -267,7 +376,8 @@ function StageHandle({
       document.body.style.cursor = horizontal ? "col-resize" : "row-resize";
       document.body.style.userSelect = "none";
       const move = (ev: PointerEvent) => {
-        const d = (((horizontal ? ev.clientX : ev.clientY) - start) / branchPx) * 100;
+        const d =
+          (((horizontal ? ev.clientX : ev.clientY) - start) / branchPx) * 100;
         const a = Math.max(lo, Math.min(pair - lo, startSizes[i] + d));
         const prev = liveSizesRef.current;
         if (prev && prev.branchId === branch.id && prev.sizes[i] === a) return;
@@ -288,7 +398,8 @@ function StageHandle({
         const final = liveSizesRef.current;
         liveSizesRef.current = null;
         setLiveSizes(null);
-        if (final) useInboxStore.getState().stageSetSizes(final.branchId, final.sizes);
+        if (final)
+          useInboxStore.getState().stageSetSizes(final.branchId, final.sizes);
       };
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
@@ -303,14 +414,32 @@ function StageHandle({
       className={`stage-handle${active ? " stage-handle--active" : ""}`}
       style={
         horizontal
-          ? { left: `${r.left}%`, top: `${r.top}%`, height: `${r.height}%`, width: 9, transform: "translateX(-50%)", cursor: "col-resize" }
-          : { left: `${r.left}%`, top: `${r.top}%`, width: `${r.width}%`, height: 9, transform: "translateY(-50%)", cursor: "row-resize" }
+          ? {
+              left: `${r.left}%`,
+              top: `${r.top}%`,
+              height: `${r.height}%`,
+              width: 9,
+              transform: "translateX(-50%)",
+              cursor: "col-resize",
+            }
+          : {
+              left: `${r.left}%`,
+              top: `${r.top}%`,
+              width: `${r.width}%`,
+              height: 9,
+              transform: "translateY(-50%)",
+              cursor: "row-resize",
+            }
       }
       onPointerDown={onPointerDown}
     >
       <div
         className="stage-handle__line"
-        style={horizontal ? { left: 4, top: 0, bottom: 0, width: 1 } : { top: 4, left: 0, right: 0, height: 1 }}
+        style={
+          horizontal
+            ? { left: 4, top: 0, bottom: 0, width: 1 }
+            : { top: 4, left: 0, right: 0, height: 1 }
+        }
       />
     </div>
   );
@@ -329,22 +458,46 @@ export default memo(function StageSplitView({
   // Handle drags render from local state and commit to the store on release —
   // a live drag re-rendering through the store (and persisting each step)
   // would be churn for nothing.
-  const [liveSizes, setLiveSizes] = useState<{ branchId: string; sizes: number[] } | null>(null);
-  const liveSizesRef = useRef<{ branchId: string; sizes: number[] } | null>(null);
-  const effective = liveSizes ? setBranchSizes(layout, liveSizes.branchId, liveSizes.sizes) : layout;
+  const [liveSizes, setLiveSizes] = useState<{
+    branchId: string;
+    sizes: number[];
+  } | null>(null);
+  const liveSizesRef = useRef<{ branchId: string; sizes: number[] } | null>(
+    null,
+  );
+  const effective = liveSizes
+    ? setBranchSizes(layout, liveSizes.branchId, liveSizes.sizes)
+    : layout;
   const geo = useMemo(() => stageGeometry(effective), [effective]);
   const solo = geo.leaves.length === 1;
   // One leaf of this tab takes the width (store.stageWide): its siblings fold
   // to rails and the seams go; the tree underneath is not touched.
-  const wideLeafId = useInboxStore((s) => s.stageWide && s.stageWide.tabId === tab.id ? s.stageWide.leafId : null);
-  const wide = useMemo(() => (wideLeafId ? stageWideCells(effective, wideLeafId) : null), [effective, wideLeafId]);
-  const cells = wide ?? geo.leaves.map((l) => ({ id: l.id, path: l.path, rail: null, style: { left: `${l.rect.left}%`, top: `${l.rect.top}%`, width: `${l.rect.width}%`, height: `${l.rect.height}%` } }));
+  const wideLeafId = useInboxStore((s) =>
+    s.stageWide && s.stageWide.tabId === tab.id ? s.stageWide.leafId : null,
+  );
+  const wide = useMemo(
+    () => (wideLeafId ? stageWideCells(effective, wideLeafId) : null),
+    [effective, wideLeafId],
+  );
+  const cells =
+    wide ??
+    geo.leaves.map((l) => ({
+      id: l.id,
+      path: l.path,
+      rail: null,
+      style: {
+        left: `${l.rect.left}%`,
+        top: `${l.rect.top}%`,
+        width: `${l.rect.width}%`,
+        height: `${l.rect.height}%`,
+      },
+    }));
 
   return (
     <div
       ref={containerRef}
       className={`relative h-full overflow-hidden${liveSizes ? " stage-resizing" : ""}`}
-      data-stage-wide={wide ? wideLeafId ?? undefined : undefined}
+      data-stage-wide={wide ? (wideLeafId ?? undefined) : undefined}
     >
       {cells.map((l) => (
         <StageCell
@@ -362,16 +515,17 @@ export default memo(function StageSplitView({
           rail={l.rail}
         />
       ))}
-      {!wide && geo.handles.map((h) => (
-        <StageHandle
-          key={`${h.branchId}:${h.index}`}
-          handle={h}
-          layout={layout}
-          containerRef={containerRef}
-          liveSizesRef={liveSizesRef}
-          setLiveSizes={setLiveSizes}
-        />
-      ))}
+      {!wide &&
+        geo.handles.map((h) => (
+          <StageHandle
+            key={`${h.branchId}:${h.index}`}
+            handle={h}
+            layout={layout}
+            containerRef={containerRef}
+            liveSizesRef={liveSizesRef}
+            setLiveSizes={setLiveSizes}
+          />
+        ))}
     </div>
   );
 });

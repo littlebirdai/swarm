@@ -8,10 +8,19 @@ test("a denied inbox deep link shows the note, never the previous session", () =
   const directory = mkdtempSync(join(tmpdir(), "inbox-unavailable-link-"));
   const resultPath = join(directory, "result");
   try {
-    execFileSync(process.execPath, [join(import.meta.dir, "fixtures/inboxUnavailableDeepLink.tsx"), resultPath], {
-      timeout: 120_000,
-    });
-    expect(readFileSync(resultPath, "utf8")).toContain("unavailable inbox deep link verified");
+    execFileSync(
+      process.execPath,
+      [
+        join(import.meta.dir, "fixtures/inboxUnavailableDeepLink.tsx"),
+        resultPath,
+      ],
+      {
+        timeout: 120_000,
+      },
+    );
+    expect(readFileSync(resultPath, "utf8")).toContain(
+      "unavailable inbox deep link verified",
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

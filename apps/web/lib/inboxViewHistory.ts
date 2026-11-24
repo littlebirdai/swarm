@@ -48,13 +48,26 @@ export function sameFilterExtras(
   a?: Array<{ id: string; exclude: boolean }>,
   b?: Array<{ id: string; exclude: boolean }>,
 ): boolean {
-  const la = a ?? [], lb = b ?? [];
-  return la.length === lb.length && la.every((t, i) => t.id === lb[i].id && !!t.exclude === !!lb[i].exclude);
+  const la = a ?? [],
+    lb = b ?? [];
+  return (
+    la.length === lb.length &&
+    la.every((t, i) => t.id === lb[i].id && !!t.exclude === !!lb[i].exclude)
+  );
 }
 
-export function sameInboxView(a: InboxViewSnapshot, b: InboxViewSnapshot): boolean {
-  return a.bucket === b.bucket && a.project === b.project && !!a.exclude === !!b.exclude &&
-    sameFilterExtras(a.extras, b.extras) && sameFilterExtras(a.projectExtras, b.projectExtras) && a.mode === b.mode;
+export function sameInboxView(
+  a: InboxViewSnapshot,
+  b: InboxViewSnapshot,
+): boolean {
+  return (
+    a.bucket === b.bucket &&
+    a.project === b.project &&
+    !!a.exclude === !!b.exclude &&
+    sameFilterExtras(a.extras, b.extras) &&
+    sameFilterExtras(a.projectExtras, b.projectExtras) &&
+    a.mode === b.mode
+  );
 }
 
 // Push a traversable entry for a view-settings change. The CURRENT entry is
@@ -68,18 +81,40 @@ export function sameInboxView(a: InboxViewSnapshot, b: InboxViewSnapshot): boole
 // forward to) that entry must restore the same chips. Without this, a focus
 // move caused by a chip change erases the tag from the entry it just pushed,
 // and Forward then shows the old view under the new URL.
-export function withInboxView<T extends object>(state: T): T & { inboxView?: InboxViewSnapshot } {
-  const view = typeof window !== "undefined" ? (window.history?.state as { inboxView?: InboxViewSnapshot } | null)?.inboxView : undefined;
+export function withInboxView<T extends object>(
+  state: T,
+): T & { inboxView?: InboxViewSnapshot } {
+  const view =
+    typeof window !== "undefined"
+      ? (window.history?.state as { inboxView?: InboxViewSnapshot } | null)
+          ?.inboxView
+      : undefined;
   return view ? { ...state, inboxView: view } : state;
 }
 
-export function pushInboxViewHistory(prev: InboxViewSnapshot, next: InboxViewSnapshot) {
+export function pushInboxViewHistory(
+  prev: InboxViewSnapshot,
+  next: InboxViewSnapshot,
+) {
   // React Native has a `window` global but no History API — this is browser
   // back/forward integration only, so it's a no-op anywhere else (the mobile
   // inbox calls the same store actions, e.g. setActiveProjectFilter).
-  if (applying || typeof window === "undefined" || typeof window.history?.pushState !== "function") return;
+  if (
+    applying ||
+    typeof window === "undefined" ||
+    typeof window.history?.pushState !== "function"
+  )
+    return;
   if (sameInboxView(prev, next)) return;
-  const url = window.location.pathname + window.location.search + window.location.hash;
-  window.history.replaceState({ ...(window.history.state ?? {}), inboxView: prev }, "");
-  window.history.pushState({ ...(window.history.state ?? {}), inboxView: next }, "", url);
+  const url =
+    window.location.pathname + window.location.search + window.location.hash;
+  window.history.replaceState(
+    { ...(window.history.state ?? {}), inboxView: prev },
+    "",
+  );
+  window.history.pushState(
+    { ...(window.history.state ?? {}), inboxView: next },
+    "",
+    url,
+  );
 }

@@ -59,7 +59,11 @@ describe("workspace types", () => {
       },
       env: { NODE_ENV: "development" },
       teardown: { run: ["bun run db:reset"] },
-      browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
+      browser: {
+        enabled: false,
+        headless: true,
+        cdpPort: { base: 9222, range: 100 },
+      },
       backend: "local",
       detected: "bun",
     };
@@ -82,7 +86,12 @@ describe("workspace types", () => {
   });
 
   test("WorkspaceState covers all expected states", () => {
-    const states: WorkspaceState[] = ["creating", "ready", "broken", "destroying"];
+    const states: WorkspaceState[] = [
+      "creating",
+      "ready",
+      "broken",
+      "destroying",
+    ];
     expect(states).toHaveLength(4);
   });
 
@@ -112,7 +121,11 @@ describe("workspace types", () => {
         services: {},
         env: {},
         teardown: { run: [] },
-        browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
+        browser: {
+          enabled: false,
+          headless: true,
+          cdpPort: { base: 9222, range: 100 },
+        },
         backend: "local",
       },
       ports: {},
@@ -127,10 +140,21 @@ describe("workspace types", () => {
   });
 
   test("AcquireOptions, ServiceMode, ServiceSpec etc are usable types", () => {
-    const opts: AcquireOptions = { branch: "feat/x", resourceIndex: 3, skipSetup: true, skipHooks: false };
+    const opts: AcquireOptions = {
+      branch: "feat/x",
+      resourceIndex: 3,
+      skipSetup: true,
+      skipHooks: false,
+    };
     const mode: ServiceMode = "shared";
     const service: ServiceSpec = { mode, url: "redis://localhost:6379" };
-    const setup: SetupSpec = { copy: [], share: [], install: [], generate: [], migrate: [] };
+    const setup: SetupSpec = {
+      copy: [],
+      share: [],
+      install: [],
+      generate: [],
+      migrate: [],
+    };
     const td: TeardownSpec = { run: [] };
     const port: PortSpec = { base: 4000, range: 50 };
     const check: ContractCheck = { name: "x", ok: true };
@@ -143,6 +167,8 @@ describe("workspace types", () => {
   });
 
   test("acquire stub rejects with not-implemented", async () => {
-    await expect(workspace.acquire("/tmp", "x")).rejects.toThrow("not yet implemented");
+    await expect(workspace.acquire("/tmp", "x")).rejects.toThrow(
+      "not yet implemented",
+    );
   });
 });

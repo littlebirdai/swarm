@@ -46,13 +46,19 @@ import {
   type BrowserSource,
 } from "../../lib/browserPane";
 import { pageAddressLabel } from "../../lib/browserPaneLinks";
-import { browserPaneRecents, rememberBrowserPaneUrl } from "../../lib/browserPaneRecents";
+import {
+  browserPaneRecents,
+  rememberBrowserPaneUrl,
+} from "../../lib/browserPaneRecents";
 import { useTabContext } from "../../lib/tabParams";
 import { isDesktop } from "../../lib/desktop";
 import { copyToClipboard } from "../../lib/utils";
 import { explainOpenInBrowser, openInBrowser } from "../../lib/popOut";
 import { stageClose, stageExpand } from "../../lib/stage";
-import { forwardHostPort, getTerminalEndpoint } from "../../lib/terminal/endpoint";
+import {
+  forwardHostPort,
+  getTerminalEndpoint,
+} from "../../lib/terminal/endpoint";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { DeviceIcon, deviceDisplayName, type Device } from "../DeviceBadge";
@@ -96,8 +102,10 @@ export function BrowserPane() {
   const owner = useInboxStore((s) => {
     if (!hinted || parsed?.kind !== "url") return undefined;
     const rows: any[] = [];
-    for (const r of Object.values(s.conversations)) if ((r as any)?.session_id === hinted) rows.push(r);
-    for (const r of Object.values(s.sessions)) if ((r as any)?.session_id === hinted) rows.push(r);
+    for (const r of Object.values(s.conversations))
+      if ((r as any)?.session_id === hinted) rows.push(r);
+    for (const r of Object.values(s.sessions))
+      if ((r as any)?.session_id === hinted) rows.push(r);
     return paneOfferOwner({ hinted, url: parsed.url, rows, now: Date.now() });
   });
   const source = useMemo(() => {
@@ -112,7 +120,10 @@ export function BrowserPane() {
   // tab), and the forward only exists for a host this laptop manages.
   const servedBy = useServedLoopback(parsed?.kind === "url" ? parsed : null);
   const loadSource = useMemo(
-    () => (servedBy?.loadUrl && source?.kind === "url" ? { ...source, url: servedBy.loadUrl } : source),
+    () =>
+      servedBy?.loadUrl && source?.kind === "url"
+        ? { ...source, url: servedBy.loadUrl }
+        : source,
     [source, servedBy?.loadUrl],
   );
   const focused = ctx?.isActive ?? true;
@@ -128,7 +139,10 @@ export function BrowserPane() {
   // Whether the site refuses to be framed, from its own headers
   // (lib/browserPane askFraming). Keyed by address, so an answer for the last
   // page never applies to this one.
-  const [refusal, setRefusal] = useState<{ url: string; refuses: boolean } | null>(null);
+  const [refusal, setRefusal] = useState<{
+    url: string;
+    refuses: boolean;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
 
@@ -161,11 +175,22 @@ export function BrowserPane() {
     [url],
   );
   const handleUrl = useCallback(
-    (next: string) => setLiveUrl(servedBy?.loadUrl && url ? unforwardedUrl(next, servedBy.loadUrl, url) : next),
+    (next: string) =>
+      setLiveUrl(
+        servedBy?.loadUrl && url
+          ? unforwardedUrl(next, servedBy.loadUrl, url)
+          : next,
+      ),
     [servedBy?.loadUrl, url],
   );
-  const handleState = useCallback((next: BrowserPaneState) => setState(next), []);
-  const handleActions = useCallback((next: PaneStripAction[]) => setActions(next), []);
+  const handleState = useCallback(
+    (next: BrowserPaneState) => setState(next),
+    [],
+  );
+  const handleActions = useCallback(
+    (next: PaneStripAction[]) => setActions(next),
+    [],
+  );
 
   const shownUrl = liveUrl ?? url ?? "";
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
@@ -259,9 +284,9 @@ export function BrowserPane() {
       ? StreamBackend
       : source?.kind === "screen"
         ? ScreenBackend
-      : wantsNative || backendKind === "native"
-        ? NativeBackend
-        : FrameBackend;
+        : wantsNative || backendKind === "native"
+          ? NativeBackend
+          : FrameBackend;
 
   const loopback = !!url && isLoopbackUrl(url);
   // One lookup for the badge and the "nothing is listening" card, and only for
@@ -271,7 +296,9 @@ export function BrowserPane() {
   // A refused page in a frame paints the browser's own error; the pane covers
   // it with the reason and the ways to open it.
   const shownState: BrowserPaneState =
-    refused && Backend === FrameBackend ? { kind: "blocked", reason: "refused" } : state;
+    refused && Backend === FrameBackend
+      ? { kind: "blocked", reason: "refused" }
+      : state;
   const overlay = paneOverlay({
     state: shownState,
     host: url ? displayHost(url) : "",
@@ -300,13 +327,21 @@ export function BrowserPane() {
               {liveTitle || browserPathLabel(path)}
             </span>
             {shownUrl && (
-              <span className="min-w-0 truncate text-sol-text-dim/70" title={shownUrl}>
+              <span
+                className="min-w-0 truncate text-sol-text-dim/70"
+                title={shownUrl}
+              >
                 {shownUrl}
               </span>
             )}
           </span>
         ) : (
-          <AddressField url={shownUrl} inputRef={inputRef} rowRef={headRef} onNavigate={navigateTo} />
+          <AddressField
+            url={shownUrl}
+            inputRef={inputRef}
+            rowRef={headRef}
+            onNavigate={navigateTo}
+          />
         )}
         {loopback && <LoopbackBadge device={machine} elsewhere={!!servedBy} />}
         {source?.kind === "url" && (
@@ -317,7 +352,10 @@ export function BrowserPane() {
               aria-label="Reload this page"
               onClick={reload}
             >
-              <RotateCw key={reloadToken} className={`w-3 h-3 ${reloadToken ? "ab-spin" : ""}`} />
+              <RotateCw
+                key={reloadToken}
+                className={`w-3 h-3 ${reloadToken ? "ab-spin" : ""}`}
+              />
             </button>
           </ShortcutTooltip>
         )}
@@ -348,7 +386,10 @@ export function BrowserPane() {
           </ShortcutTooltip>
         ))}
         {leafId && (
-          <PaneControls onExpand={() => stageExpand(leafId)} onClose={() => stageClose(leafId)} />
+          <PaneControls
+            onExpand={() => stageExpand(leafId)}
+            onClose={() => stageClose(leafId)}
+          />
         )}
       </div>
 
@@ -356,7 +397,10 @@ export function BrowserPane() {
         {(loading || finishing) && (
           // The page is opaque to us, so a skeleton would be a guess; a thin
           // sweep along the header's rule is the honest amount to say.
-          <div className="ab-progress" data-phase={loading ? "loading" : "done"}>
+          <div
+            className="ab-progress"
+            data-phase={loading ? "loading" : "done"}
+          >
             <div />
           </div>
         )}
@@ -396,9 +440,11 @@ function BlankPane({ onPick }: { onPick: (url: string) => void }) {
       detail={
         <>
           {/* No list, no promise of one. */}
-          {recents.length > 0 ? "Paste a URL or pick a recent page." : "Paste or type a URL."}{" "}
-          <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap> <KeyCap size="xs">L</KeyCap> focuses the
-          address bar.
+          {recents.length > 0
+            ? "Paste a URL or pick a recent page."
+            : "Paste or type a URL."}{" "}
+          <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>{" "}
+          <KeyCap size="xs">L</KeyCap> focuses the address bar.
         </>
       }
       actions={
@@ -451,7 +497,9 @@ function paneOverlay(a: {
       <PaneCardButton primary onClick={a.onOpenOutside}>
         Open in browser
       </PaneCardButton>
-      {a.desktop && <PaneCardButton onClick={a.onNative}>Open natively</PaneCardButton>}
+      {a.desktop && (
+        <PaneCardButton onClick={a.onNative}>Open natively</PaneCardButton>
+      )}
     </>
   );
   const tryAgain = (
@@ -468,14 +516,16 @@ function paneOverlay(a: {
         headline={
           a.elsewhere
             ? `Nothing answered from ${a.machineName ?? "the session's machine"}`
-            : a.state.loopback ? "Nothing is listening on this machine" : "Nothing answered at this address"
+            : a.state.loopback
+              ? "Nothing is listening on this machine"
+              : "Nothing answered at this address"
         }
         detail={
           a.elsewhere
             ? `The server may have stopped (cast dev there starts it again), or this window has no daemon that can reach ${a.machineName ?? "that machine"}: open the pane on the laptop that manages it.`
             : a.state.loopback
-            ? `Start the server on ${a.machineName ?? "this machine"}, or open this pane on the machine that runs it.`
-            : "The host may be down, or its name may not resolve from here."
+              ? `Start the server on ${a.machineName ?? "this machine"}, or open this pane on the machine that runs it.`
+              : "The host may be down, or its name may not resolve from here."
         }
         actions={tryAgain}
       />
@@ -486,7 +536,8 @@ function paneOverlay(a: {
     // Chrome's Local Network Access: a page on a public origin must be granted
     // permission to reach this machine or this network. The probe failing is
     // Chrome's refusal, not a closed port, so the pane says whose refusal it is.
-    const app = typeof window === "undefined" ? "this app" : window.location.host;
+    const app =
+      typeof window === "undefined" ? "this app" : window.location.host;
     return (
       <PaneCard
         icon={<ShieldOff className={glyph} />}
@@ -504,7 +555,9 @@ function paneOverlay(a: {
         actions={
           <>
             {tryAgain}
-            <PaneCardButton onClick={a.onOpenOutside}>Open in browser</PaneCardButton>
+            <PaneCardButton onClick={a.onOpenOutside}>
+              Open in browser
+            </PaneCardButton>
           </>
         }
       />
@@ -515,7 +568,13 @@ function paneOverlay(a: {
     const insecure = a.state.reason === "insecure";
     return (
       <PaneCard
-        icon={insecure ? <LockOpen className={glyph} /> : <EyeOff className={glyph} />}
+        icon={
+          insecure ? (
+            <LockOpen className={glyph} />
+          ) : (
+            <EyeOff className={glyph} />
+          )
+        }
         host={a.host}
         headline={
           insecure
@@ -582,7 +641,11 @@ function CopyLinkButton({ url }: { url: string }) {
           )
         }
       >
-        {copied ? <Check key={copied} className="w-3 h-3 ab-pop" /> : <Link2 className="w-3 h-3" />}
+        {copied ? (
+          <Check key={copied} className="w-3 h-3 ab-pop" />
+        ) : (
+          <Link2 className="w-3 h-3" />
+        )}
       </button>
     </ShortcutTooltip>
   );
@@ -590,20 +653,37 @@ function CopyLinkButton({ url }: { url: string }) {
 
 /** Which machine a loopback pane points at. The path persists across machines
  *  and tabs, so "localhost:3000" has to say WHOSE localhost. */
-function LoopbackBadge({ device, elsewhere }: { device: Device | undefined; elsewhere: boolean }) {
+function LoopbackBadge({
+  device,
+  elsewhere,
+}: {
+  device: Device | undefined;
+  elsewhere: boolean;
+}) {
   const name = device ? deviceDisplayName(device) : null;
   const tip = elsewhere
     ? `This address is served by ${name ?? "the session's machine"}, reached through this laptop`
     : name
-    ? `This address is served by ${name}, the machine this window runs on`
-    : "This address is served by the machine this window runs on";
+      ? `This address is served by ${name}, the machine this window runs on`
+      : "This address is served by the machine this window runs on";
   // The label folds away first when the strip runs out of room (`cq-sq1`),
   // leaving the icon and its tooltip.
   return (
     <ShortcutTooltip label={tip}>
-      <span className="flex flex-shrink-0 items-center gap-1 text-meta text-sol-text-dim/80" aria-label={tip}>
-        {device ? <DeviceIcon d={device} className="w-3 h-3" /> : <Laptop className="w-3 h-3" />}
-        <span className="cq-sq1 max-w-[140px] truncate">{elsewhere ? (name ?? "remote") : `this machine${name ? ` · ${name}` : ""}`}</span>
+      <span
+        className="flex flex-shrink-0 items-center gap-1 text-meta text-sol-text-dim/80"
+        aria-label={tip}
+      >
+        {device ? (
+          <DeviceIcon d={device} className="w-3 h-3" />
+        ) : (
+          <Laptop className="w-3 h-3" />
+        )}
+        <span className="cq-sq1 max-w-[140px] truncate">
+          {elsewhere
+            ? (name ?? "remote")
+            : `this machine${name ? ` · ${name}` : ""}`}
+        </span>
       </span>
     </ShortcutTooltip>
   );
@@ -617,18 +697,26 @@ function LoopbackBadge({ device, elsewhere }: { device: Device | undefined; else
  * forward is pending or impossible. Null when the page is served right here,
  * or the pane names no session.
  */
-function useServedLoopback(route: { url: string; session?: string } | null): { device: Device | undefined; loadUrl: string | null } | null {
+function useServedLoopback(
+  route: { url: string; session?: string } | null,
+): { device: Device | undefined; loadUrl: string | null } | null {
   const convex = useConvex();
   const loopback = !!route?.session && isLoopbackUrl(route.url);
   const conversationId = useInboxStore((s) => {
     if (!loopback) return undefined;
-    for (const r of Object.values(s.conversations)) if ((r as any)?.session_id === route!.session) return (r as any)._id as string;
-    for (const r of Object.values(s.sessions)) if ((r as any)?.session_id === route!.session) return (r as any)._id as string;
+    for (const r of Object.values(s.conversations))
+      if ((r as any)?.session_id === route!.session)
+        return (r as any)._id as string;
+    for (const r of Object.values(s.sessions))
+      if ((r as any)?.session_id === route!.session)
+        return (r as any)._id as string;
     return undefined;
   });
   const runner = useQueryNoThrow(
     api.devices.getConversationMachine,
-    conversationId ? ({ conversation_id: conversationId as any } as any) : "skip",
+    conversationId
+      ? ({ conversation_id: conversationId as any } as any)
+      : "skip",
   ).data as { device_id: string; is_remote?: boolean } | null | undefined;
   const [here, setHere] = useState<string | null | undefined>(undefined);
   const [loadUrl, setLoadUrl] = useState<string | null>(null);
@@ -636,9 +724,15 @@ function useServedLoopback(route: { url: string; session?: string } | null): { d
     if (!runner) return;
     let live = true;
     void getTerminalEndpoint(convex)
-      .then((ep) => { if (live) setHere(ep?.deviceId ?? null); })
-      .catch(() => { if (live) setHere(null); });
-    return () => { live = false; };
+      .then((ep) => {
+        if (live) setHere(ep?.deviceId ?? null);
+      })
+      .catch(() => {
+        if (live) setHere(null);
+      });
+    return () => {
+      live = false;
+    };
   }, [convex, runner?.device_id]);
   const elsewhere = !!runner && here !== undefined && here !== runner.device_id;
   useWatchEffect(() => {
@@ -650,10 +744,16 @@ function useServedLoopback(route: { url: string; session?: string } | null): { d
     void forwardHostPort(convex, runner!.device_id, port).then((local) => {
       if (live && local) setLoadUrl(forwardedLoopbackUrl(route.url, local));
     });
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [convex, elsewhere, runner?.device_id, route?.url]);
   const device = useInboxStore((s) =>
-    elsewhere ? (s.machineRoster as Device[]).find((d) => d.device_id === runner!.device_id) : undefined,
+    elsewhere
+      ? (s.machineRoster as Device[]).find(
+          (d) => d.device_id === runner!.device_id,
+        )
+      : undefined,
   );
   return elsewhere ? { device, loadUrl } : null;
 }

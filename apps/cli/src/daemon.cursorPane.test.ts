@@ -48,7 +48,11 @@ describe("cursor-agent pane classification", () => {
     ["fresh composer", FRESH, "idle"],
     ["composer after a turn", AFTER_TURN, "idle"],
     ["working", WORKING, "busy"],
-    ["working with the follow-up composer painted", WORKING_AFTER_FOLLOWUP, "busy"],
+    [
+      "working with the follow-up composer painted",
+      WORKING_AFTER_FOLLOWUP,
+      "busy",
+    ],
     ["workspace trust dialog", TRUST, "trust"],
     ["answered trust dialog left in history", TRUST_ANSWERED, "idle"],
     ["signed-out splash", SIGNED_OUT, "signed_out"],

@@ -1,9 +1,58 @@
 import { isArtifactDocType } from "@codecast/shared/artifacts";
 import type { ComponentType } from "react";
-import { DEFAULT_IDENTITY_PREFS, sessionIdentity, type IdentityPrefs } from "./sessionIdentity";
+import {
+  DEFAULT_IDENTITY_PREFS,
+  sessionIdentity,
+  type IdentityPrefs,
+} from "./sessionIdentity";
 import { cleanTitle } from "./conversationProcessor";
-import { Archive, ArrowRightLeft, ArrowUp, Bot, CheckCircle2, CircleDot, Clock, Copy, CornerDownRight, Cpu, FolderKanban, ExternalLink, EyeOff, FileText, Folder, Forward, GitBranch, Link, Moon, Pencil, Pin, PinOff, Play, RefreshCw, Square, Star, Tag, Trash2, User, CalendarDays, Plus, Smile, MessageSquare, Headphones, ArrowRight, Hourglass, Link2, X } from "lucide-react";
-import { getShortcutsForAction, inputGuardBypass, isEditableTarget, matchShortcut, type ShortcutAction } from "../shortcuts/registry";
+import {
+  Archive,
+  ArrowRightLeft,
+  ArrowUp,
+  Bot,
+  CheckCircle2,
+  CircleDot,
+  Clock,
+  Copy,
+  CornerDownRight,
+  Cpu,
+  FolderKanban,
+  ExternalLink,
+  EyeOff,
+  FileText,
+  Folder,
+  Forward,
+  GitBranch,
+  Link,
+  Moon,
+  Pencil,
+  Pin,
+  PinOff,
+  Play,
+  RefreshCw,
+  Square,
+  Star,
+  Tag,
+  Trash2,
+  User,
+  CalendarDays,
+  Plus,
+  Smile,
+  MessageSquare,
+  Headphones,
+  ArrowRight,
+  Hourglass,
+  Link2,
+  X,
+} from "lucide-react";
+import {
+  getShortcutsForAction,
+  inputGuardBypass,
+  isEditableTarget,
+  matchShortcut,
+  type ShortcutAction,
+} from "../shortcuts/registry";
 import { canControlModel } from "./modelSwitch";
 import { canMoveSessionToMachine, sessionMoveVerbs } from "./sessionControl";
 import { isForeignSession } from "./liveEntities";
@@ -12,11 +61,22 @@ import { isTriggerEditable } from "./triggerEditable";
 import { isOrgObjectKind, objectHref, personRefOf } from "./entityLinks";
 
 /** The entities a route or a collection names (paletteTarget). */
-export type PaletteEntityType = "session" | "task" | "doc" | "plan" | "project" | "trigger";
+export type PaletteEntityType =
+  | "session"
+  | "task"
+  | "doc"
+  | "plan"
+  | "project"
+  | "trigger";
 /** Plus the company's objects the palette opens on the Org screen: a goal, a
  *  role, and a "person", a teammate, whose row is a PalettePerson built where
  *  the palette drills into them (CommandPalette), never read from a collection. */
-export type PaletteTargetType = PaletteEntityType | "initiative" | "role" | "person" | "decision";
+export type PaletteTargetType =
+  | PaletteEntityType
+  | "initiative"
+  | "role"
+  | "person"
+  | "decision";
 
 /** A teammate as a palette target: the roster member plus the facts its
  *  verbs branch on, read live while the palette is drilled into them. */
@@ -42,29 +102,71 @@ export type PaletteAction = {
 /** Where a palette object opens. A goal, project, role or person opens its
  *  sheet on the Org screen (objectHref); a project's board is its own verb
  *  ("Open the board"). */
-export function paletteObjectPath(type: PaletteTargetType, target: any): string {
-  if (type === "person") return objectHref("person", personRefOf({ _id: target._id, github_username: target.member?.github_username ?? target.github_username }));
-  if (isOrgObjectKind(type)) return objectHref(type, target.short_id || target._id);
+export function paletteObjectPath(
+  type: PaletteTargetType,
+  target: any,
+): string {
+  if (type === "person")
+    return objectHref(
+      "person",
+      personRefOf({
+        _id: target._id,
+        github_username:
+          target.member?.github_username ?? target.github_username,
+      }),
+    );
+  if (isOrgObjectKind(type))
+    return objectHref(type, target.short_id || target._id);
   if (type === "decision") return `/decisions/${target.short_id || target._id}`;
-  const route = { session: "conversation", task: "tasks", doc: "docs", plan: "plans", trigger: "triggers" }[type];
+  const route = {
+    session: "conversation",
+    task: "tasks",
+    doc: "docs",
+    plan: "plans",
+    trigger: "triggers",
+  }[type];
   return `/${route}/${target._id}`;
 }
 
 /** A row already wearing a character, for the verb's wording. Reads the row
  *  alone: "Change" on a row that only has a face because of the workspace
  *  switch is still honest. */
-function isPersonified(target: { _id: string; character_avatar?: string | null; character_name?: string | null; standing_role_id?: string | null; role?: unknown }): boolean {
+function isPersonified(target: {
+  _id: string;
+  character_avatar?: string | null;
+  character_name?: string | null;
+  standing_role_id?: string | null;
+  role?: unknown;
+}): boolean {
   return sessionIdentity(target as never).kind !== "plain";
 }
 
 /** `prefs` are the viewer's: with characters off no verb gives a session one. */
-export function paletteActions(type: PaletteTargetType | null, targets: any[], userId?: string, chatOn = false, prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS): PaletteAction[] {
+export function paletteActions(
+  type: PaletteTargetType | null,
+  targets: any[],
+  userId?: string,
+  chatOn = false,
+  prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS,
+): PaletteAction[] {
   const target = targets[0];
   if (!type || !target) return [];
   // A decision selection's verbs are DecisionPalette's own.
   if (type === "decision") return [];
   const single = targets.length === 1;
-  const row = (key: string, label: string, icon: PaletteAction["icon"], hotkey?: string, shortcutAction?: ShortcutAction): PaletteAction => ({ key, label, icon, hotkey: shortcutAction ? undefined : hotkey, shortcutAction });
+  const row = (
+    key: string,
+    label: string,
+    icon: PaletteAction["icon"],
+    hotkey?: string,
+    shortcutAction?: ShortcutAction,
+  ): PaletteAction => ({
+    key,
+    label,
+    icon,
+    hotkey: shortcutAction ? undefined : hotkey,
+    shortcutAction,
+  });
   // A teammate: where they are first (follow), then the ways to reach them,
   // then their place in the org. The huddle row's word is live call state, so the
   // palette renders it from its own hook (PersonHuddleItem) and it has no
@@ -72,8 +174,20 @@ export function paletteActions(type: PaletteTargetType | null, targets: any[], u
   if (type === "person") {
     const p = target as PalettePerson;
     return [
-      ...(p.following ? [row("person_follow", "Stop following", ArrowRight, "f")]
-        : p.online ? [row("person_follow", p.session ? `Follow · ${p.session.title ? cleanTitle(p.session.title) : "a session"}` : "Follow", ArrowRight, "f")] : []),
+      ...(p.following
+        ? [row("person_follow", "Stop following", ArrowRight, "f")]
+        : p.online
+          ? [
+              row(
+                "person_follow",
+                p.session
+                  ? `Follow · ${p.session.title ? cleanTitle(p.session.title) : "a session"}`
+                  : "Follow",
+                ArrowRight,
+                "f",
+              ),
+            ]
+          : []),
       ...(chatOn ? [row("person_message", "Message", MessageSquare, "m")] : []),
       row("person_huddle", "Huddle", Headphones),
       row("open", "Open", User, "o"),
@@ -81,109 +195,284 @@ export function paletteActions(type: PaletteTargetType | null, targets: any[], u
       row("copylink", "Copy link", Link, "c"),
     ];
   }
-  const common = single ? [
-    row("open", "Open", ExternalLink, "o"),
-    row("newtab", "Open in new tab", ExternalLink, "n"),
-    row("copy", `Copy ${type === "initiative" ? "goal" : type} ID`, Copy, "i"),
-    row("copylink", "Copy link", Link, "c", type === "session" ? "conv.copyLink" : undefined),
-    ...(chatOn ? [row("forward", "Send to chat…", Forward, "h")] : []),
-  ] : [];
+  const common = single
+    ? [
+        row("open", "Open", ExternalLink, "o"),
+        row("newtab", "Open in new tab", ExternalLink, "n"),
+        row(
+          "copy",
+          `Copy ${type === "initiative" ? "goal" : type} ID`,
+          Copy,
+          "i",
+        ),
+        row(
+          "copylink",
+          "Copy link",
+          Link,
+          "c",
+          type === "session" ? "conv.copyLink" : undefined,
+        ),
+        ...(chatOn ? [row("forward", "Send to chat…", Forward, "h")] : []),
+      ]
+    : [];
   if (type === "session") {
-    const own = !target.authorName && !!userId && !isForeignSession(target, target, userId);
+    const own =
+      !target.authorName &&
+      !!userId &&
+      !isForeignSession(target, target, userId);
     if (!own) return common;
     // Verbs that read one conversation (agent, model, rename, parent, branch,
     // files) only show for one row; the rest act on every target.
     const n = targets.length;
-    const many = (one: string, several: string) => (single ? one : several.replace("#", String(n)));
+    const many = (one: string, several: string) =>
+      single ? one : several.replace("#", String(n));
     // The same move verbs the session control menu offers (none for a hosted
     // assistant conversation), and Move to machine only where one runs it.
-    const verbs = sessionMoveVerbs(target.agent_type, target.session_id, target.model);
+    const verbs = sessionMoveVerbs(
+      target.agent_type,
+      target.session_id,
+      target.model,
+    );
     const noun = "session";
     const nouns = "sessions";
     return [
-      ...(single ? [
-        ...(verbs.includes("switch") ? [row("agent_switch", "Switch agent…", Bot, "a")] : []),
-        ...(verbs.includes("fork") ? [row("agent_fork", `Fork ${noun} as…`, GitBranch, "f")] : []),
-        ...(verbs.includes("handoff") ? [row("agent_handoff", "Hand off to…", ArrowRightLeft, "t")] : []),
-        ...(canControlModel(target.agent_type, target.session_id, target.model) ? [row("model", "Change model & effort…", Cpu, "m")] : []),
-        row("rename", `Rename ${noun}…`, Pencil, "r", "session.rename"),
-      ] : []),
+      ...(single
+        ? [
+            ...(verbs.includes("switch")
+              ? [row("agent_switch", "Switch agent…", Bot, "a")]
+              : []),
+            ...(verbs.includes("fork")
+              ? [row("agent_fork", `Fork ${noun} as…`, GitBranch, "f")]
+              : []),
+            ...(verbs.includes("handoff")
+              ? [row("agent_handoff", "Hand off to…", ArrowRightLeft, "t")]
+              : []),
+            ...(canControlModel(
+              target.agent_type,
+              target.session_id,
+              target.model,
+            )
+              ? [row("model", "Change model & effort…", Cpu, "m")]
+              : []),
+            row("rename", `Rename ${noun}…`, Pencil, "r", "session.rename"),
+          ]
+        : []),
       // Personifying is opt in, so the verb names what it does for a row that
       // has no character yet (session-characters.md S2).
-      ...(prefs.characters ? [row("character", isPersonified(target) ? many("Change character…", `Change character for # ${nouns}…`) : many("Give it a character…", `Give # ${nouns} characters…`), Smile, "y")] : []),
-      row("session_pin", target.is_pinned ? many(`Unpin ${noun}`, `Unpin # ${nouns}`) : many(`Pin ${noun}`, `Pin # ${nouns}`), target.is_pinned ? PinOff : Pin, "p", "session.pin"),
-      row("session_favorite", target.is_favorite ? many("Remove from favorites", "Remove # from favorites") : many("Add to favorites", "Add # to favorites"), Star, "v", "conv.favorite"),
-      row("bucket", many(`Label ${noun}…`, `Label # ${nouns}…`), Tag, "l", "session.moveToBucket"),
-      ...(targets.every((t) => canMoveSessionToMachine(t.agent_type)) ? [row("device", many("Move to machine…", `Move # ${nouns} to machine…`), ArrowRightLeft, "w")] : []),
-      ...(!isSessionKilled(target) ? [row("snooze", many(`Snooze ${noun}…`, `Snooze # ${nouns}…`), Clock, "z", "session.snooze")] : []),
-      ...(target.inbox_snoozed_until ? [row("session_unsnooze", "Move to Needs You now", RefreshCw, "u")] : []),
-      ...(isSessionSetAside(target) ? [row("session_restore", many(`Restore ${noun} to inbox`, `Restore # ${nouns} to inbox`), RefreshCw, "u")] : [
-        row("session_stash", many(`Stash ${noun}`, `Stash # ${nouns}`), Archive, "s", "session.stash"),
-        row("session_stash_hide", many(`Stash and hide ${noun}`, `Stash and hide # ${nouns}`), EyeOff, "b", "session.stashHide"),
-        row("session_defer", many(`Defer ${noun}`, `Defer # ${nouns}`), Clock, "d", "session.deferAdvance"),
-        row("session_dormant", "Dormant: a machine wakes it", Moon, "z", "session.dormantAdvance"),
-        row("session_done", "Mark done", CheckCircle2, "e"),
-        row("session_needs_input", "Mark needs you", CircleDot, "g"),
-      ]),
-      ...(!isSessionSetAside(target) ? [row("session_close", many(`Close ${noun}`, `Close # ${nouns}`), X, undefined, "session.close")] : []),
-      ...(!isSessionKilled(target) ? [row("session_kill", many(`Kill ${noun}`, `Kill # ${nouns}`), Square)] : []),
-      ...(!target.persistent ? [row("session_delete", many(`Delete ${noun}…`, `Delete # ${nouns}…`), Trash2, "x")] : []),
-      ...(single && target.parent_conversation_id ? [row("session_parent", "View parent conversation", GitBranch)] : []),
-      ...(single && target.git_branch ? [row("session_branch", "Copy branch name", GitBranch)] : []),
-      ...(single && (target.project_path || target.git_root) ? [row("session_files", "Open project files", Folder)] : []),
+      ...(prefs.characters
+        ? [
+            row(
+              "character",
+              isPersonified(target)
+                ? many("Change character…", `Change character for # ${nouns}…`)
+                : many("Give it a character…", `Give # ${nouns} characters…`),
+              Smile,
+              "y",
+            ),
+          ]
+        : []),
+      row(
+        "session_pin",
+        target.is_pinned
+          ? many(`Unpin ${noun}`, `Unpin # ${nouns}`)
+          : many(`Pin ${noun}`, `Pin # ${nouns}`),
+        target.is_pinned ? PinOff : Pin,
+        "p",
+        "session.pin",
+      ),
+      row(
+        "session_favorite",
+        target.is_favorite
+          ? many("Remove from favorites", "Remove # from favorites")
+          : many("Add to favorites", "Add # to favorites"),
+        Star,
+        "v",
+        "conv.favorite",
+      ),
+      row(
+        "bucket",
+        many(`Label ${noun}…`, `Label # ${nouns}…`),
+        Tag,
+        "l",
+        "session.moveToBucket",
+      ),
+      ...(targets.every((t) => canMoveSessionToMachine(t.agent_type))
+        ? [
+            row(
+              "device",
+              many("Move to machine…", `Move # ${nouns} to machine…`),
+              ArrowRightLeft,
+              "w",
+            ),
+          ]
+        : []),
+      ...(!isSessionKilled(target)
+        ? [
+            row(
+              "snooze",
+              many(`Snooze ${noun}…`, `Snooze # ${nouns}…`),
+              Clock,
+              "z",
+              "session.snooze",
+            ),
+          ]
+        : []),
+      ...(target.inbox_snoozed_until
+        ? [row("session_unsnooze", "Move to Needs You now", RefreshCw, "u")]
+        : []),
+      ...(isSessionSetAside(target)
+        ? [
+            row(
+              "session_restore",
+              many(`Restore ${noun} to inbox`, `Restore # ${nouns} to inbox`),
+              RefreshCw,
+              "u",
+            ),
+          ]
+        : [
+            row(
+              "session_stash",
+              many(`Stash ${noun}`, `Stash # ${nouns}`),
+              Archive,
+              "s",
+              "session.stash",
+            ),
+            row(
+              "session_stash_hide",
+              many(`Stash and hide ${noun}`, `Stash and hide # ${nouns}`),
+              EyeOff,
+              "b",
+              "session.stashHide",
+            ),
+            row(
+              "session_defer",
+              many(`Defer ${noun}`, `Defer # ${nouns}`),
+              Clock,
+              "d",
+              "session.deferAdvance",
+            ),
+            row(
+              "session_dormant",
+              "Dormant: a machine wakes it",
+              Moon,
+              "z",
+              "session.dormantAdvance",
+            ),
+            row("session_done", "Mark done", CheckCircle2, "e"),
+            row("session_needs_input", "Mark needs you", CircleDot, "g"),
+          ]),
+      ...(!isSessionSetAside(target)
+        ? [
+            row(
+              "session_close",
+              many(`Close ${noun}`, `Close # ${nouns}`),
+              X,
+              undefined,
+              "session.close",
+            ),
+          ]
+        : []),
+      ...(!isSessionKilled(target)
+        ? [row("session_kill", many(`Kill ${noun}`, `Kill # ${nouns}`), Square)]
+        : []),
+      ...(!target.persistent
+        ? [
+            row(
+              "session_delete",
+              many(`Delete ${noun}…`, `Delete # ${nouns}…`),
+              Trash2,
+              "x",
+            ),
+          ]
+        : []),
+      ...(single && target.parent_conversation_id
+        ? [row("session_parent", "View parent conversation", GitBranch)]
+        : []),
+      ...(single && target.git_branch
+        ? [row("session_branch", "Copy branch name", GitBranch)]
+        : []),
+      ...(single && (target.project_path || target.git_root)
+        ? [row("session_files", "Open project files", Folder)]
+        : []),
       ...common,
     ];
   }
-  if (type === "task") return [
-    row("status", "Change status…", CircleDot, "s", "task.status"),
-    row("priority", "Set priority…", ArrowUp, "p", "task.priority"),
-    row("labels", "Edit labels…", Tag, "l", "task.labels"),
-    row("assign", "Assign to…", User, "a", "task.assign"),
-    row("project", "Move to project…", Folder, "j"),
-    row("parent", "Set parent…", CornerDownRight, "t"),
-    row("blocker", "Add blocker…", Hourglass, "b"),
-    row("related", "Link related task…", Link2, "k"),
-    ...(targets.some(t => t.parent_id) ? [row("remove_parent", "Remove parent", CornerDownRight)] : []),
-    row("agent_run", "Start agent run…", Bot, "g"),
-    ...(single ? [row("rename", "Rename task…", Pencil, "r")] : []),
-    ...common,
-    row("drop", "Drop task", Trash2, "x"),
-  ];
-  if (type === "doc") return [
-    // A board, sheet or dashboard holds elements, not markdown: it never changes type.
-    ...(targets.some((t) => isArtifactDocType(t.doc_type)) ? [] : [row("type", "Change type…", FileText, "t", "doc.type")]),
-    row("labels", "Edit labels…", Tag, "l", "doc.labels"),
-    ...(single ? [row("rename", "Rename document…", Pencil, "r"), row("pin", target.pinned ? "Unstar document" : "Star document", Star, "p")] : []),
-    ...common,
-    row("archive", "Archive document", Archive, "x"),
-  ];
-  if (type === "plan") return [
-    row("plan_status", "Change status…", CircleDot, "s"),
-    row("rename", "Rename plan…", Pencil, "r"),
-    row("create_task", "Add task to plan…", Plus, "t"),
-    ...common,
-  ];
+  if (type === "task")
+    return [
+      row("status", "Change status…", CircleDot, "s", "task.status"),
+      row("priority", "Set priority…", ArrowUp, "p", "task.priority"),
+      row("labels", "Edit labels…", Tag, "l", "task.labels"),
+      row("assign", "Assign to…", User, "a", "task.assign"),
+      row("project", "Move to project…", Folder, "j"),
+      row("parent", "Set parent…", CornerDownRight, "t"),
+      row("blocker", "Add blocker…", Hourglass, "b"),
+      row("related", "Link related task…", Link2, "k"),
+      ...(targets.some((t) => t.parent_id)
+        ? [row("remove_parent", "Remove parent", CornerDownRight)]
+        : []),
+      row("agent_run", "Start agent run…", Bot, "g"),
+      ...(single ? [row("rename", "Rename task…", Pencil, "r")] : []),
+      ...common,
+      row("drop", "Drop task", Trash2, "x"),
+    ];
+  if (type === "doc")
+    return [
+      // A board, sheet or dashboard holds elements, not markdown: it never changes type.
+      ...(targets.some((t) => isArtifactDocType(t.doc_type))
+        ? []
+        : [row("type", "Change type…", FileText, "t", "doc.type")]),
+      row("labels", "Edit labels…", Tag, "l", "doc.labels"),
+      ...(single
+        ? [
+            row("rename", "Rename document…", Pencil, "r"),
+            row(
+              "pin",
+              target.pinned ? "Unstar document" : "Star document",
+              Star,
+              "p",
+            ),
+          ]
+        : []),
+      ...common,
+      row("archive", "Archive document", Archive, "x"),
+    ];
+  if (type === "plan")
+    return [
+      row("plan_status", "Change status…", CircleDot, "s"),
+      row("rename", "Rename plan…", Pencil, "r"),
+      row("create_task", "Add task to plan…", Plus, "t"),
+      ...common,
+    ];
   // A goal and a role open their sheet; their verbs live there.
   if (type === "initiative" || type === "role") return common;
-  if (type === "project") return [
-    row("project_board", "Open the board", FolderKanban, "b"),
-    row("project_status", "Change status…", CircleDot, "s"),
-    row("rename", "Rename project…", Pencil, "r"),
-    row("deadline", "Set target date…", CalendarDays, "d"),
-    ...(target.target_date ? [row("clear_deadline", "Clear target date", CalendarDays)] : []),
-    row("create_task", "Add task to project…", Plus, "t"),
-    row("create_plan", "Add plan to project…", Plus, "p"),
-    row("create_doc", "Add document to project…", Plus, "f"),
-    ...common,
-  ];
+  if (type === "project")
+    return [
+      row("project_board", "Open the board", FolderKanban, "b"),
+      row("project_status", "Change status…", CircleDot, "s"),
+      row("rename", "Rename project…", Pencil, "r"),
+      row("deadline", "Set target date…", CalendarDays, "d"),
+      ...(target.target_date
+        ? [row("clear_deadline", "Clear target date", CalendarDays)]
+        : []),
+      row("create_task", "Add task to project…", Plus, "t"),
+      row("create_plan", "Add plan to project…", Plus, "p"),
+      row("create_doc", "Add document to project…", Plus, "f"),
+      ...common,
+    ];
   const armed = ["scheduled", "paused", "running"].includes(target.status);
   return [
-    ...(armed ? [
-      row("trigger_runNow", "Run trigger now", Play, "r"),
-      target.status === "paused" ? row("trigger_resume", "Resume trigger", Play, "p") : row("trigger_pause", "Pause trigger", Square, "p"),
-      row("trigger_cancel", "Cancel trigger…", Trash2, "x"),
-    ] : [row("trigger_reactivate", "Reactivate trigger", RefreshCw, "r")]),
-    ...(isTriggerEditable(target.status) ? [row("trigger_edit", "Edit prompt & cadence…", Pencil, "e")] : []),
+    ...(armed
+      ? [
+          row("trigger_runNow", "Run trigger now", Play, "r"),
+          target.status === "paused"
+            ? row("trigger_resume", "Resume trigger", Play, "p")
+            : row("trigger_pause", "Pause trigger", Square, "p"),
+          row("trigger_cancel", "Cancel trigger…", Trash2, "x"),
+        ]
+      : [row("trigger_reactivate", "Reactivate trigger", RefreshCw, "r")]),
+    ...(isTriggerEditable(target.status)
+      ? [row("trigger_edit", "Edit prompt & cadence…", Pencil, "e")]
+      : []),
     row("trigger_duplicate", "Duplicate trigger…", Copy, "d"),
     row("trigger_prompt", "Copy prompt", Copy, "m"),
     ...(!armed ? [row("trigger_delete", "Delete trigger…", Trash2, "x")] : []),
@@ -191,23 +480,51 @@ export function paletteActions(type: PaletteTargetType | null, targets: any[], u
   ];
 }
 
-export function paletteDigitIndex(event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean; isComposing?: boolean }, count: number): number {
-  if (event.isComposing || event.altKey || event.shiftKey || (!event.metaKey && !event.ctrlKey) || !/^[1-9]$/.test(event.key)) return -1;
+export function paletteDigitIndex(
+  event: {
+    key: string;
+    metaKey: boolean;
+    ctrlKey: boolean;
+    altKey: boolean;
+    shiftKey: boolean;
+    isComposing?: boolean;
+  },
+  count: number,
+): number {
+  if (
+    event.isComposing ||
+    event.altKey ||
+    event.shiftKey ||
+    (!event.metaKey && !event.ctrlKey) ||
+    !/^[1-9]$/.test(event.key)
+  )
+    return -1;
   const index = Number(event.key) - 1;
   return index < count ? index : -1;
 }
 
-export function paletteActionForKey(event: KeyboardEvent, actions: PaletteAction[]): PaletteAction | undefined {
+export function paletteActionForKey(
+  event: KeyboardEvent,
+  actions: PaletteAction[],
+): PaletteAction | undefined {
   if (event.isComposing || event.defaultPrevented) return;
   const target = event.target as HTMLElement | null;
-  return actions.find(action => {
+  return actions.find((action) => {
     if (action.shortcutAction) {
-      return getShortcutsForAction(action.shortcutAction).some(def =>
-        matchShortcut(event, def) && (!isEditableTarget(target) || inputGuardBypass(def, target)),
+      return getShortcutsForAction(action.shortcutAction).some(
+        (def) =>
+          matchShortcut(event, def) &&
+          (!isEditableTarget(target) || inputGuardBypass(def, target)),
       );
     }
-    return event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey
-      && !!action.hotkey && event.code === `Key${action.hotkey.toUpperCase()}`;
+    return (
+      event.altKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !!action.hotkey &&
+      event.code === `Key${action.hotkey.toUpperCase()}`
+    );
   });
 }
 
@@ -260,13 +577,22 @@ const ALIAS_SEP = "\u2062";
 /** A row's cmdk value: the label it renders, any other names it answers to,
  *  and then its keywords. paletteItemScore ranks a hit in a name above a hit in the
  *  keywords. */
-export function paletteValue(label: string | readonly string[], keywords = ""): string {
+export function paletteValue(
+  label: string | readonly string[],
+  keywords = "",
+): string {
   return `${typeof label === "string" ? label : label.join(ALIAS_SEP)}${LABEL_END} ${keywords}`;
 }
 
 /** A Pages row's cmdk value: its label and its aliases (the
  *  Org row answers to Goals, Team, Roadmap, the pages it replaced). */
-export function palettePageValue({ page, label }: { page: { keywords: string; aliases?: readonly string[] }; label: string }): string {
+export function palettePageValue({
+  page,
+  label,
+}: {
+  page: { keywords: string; aliases?: readonly string[] };
+  label: string;
+}): string {
   return paletteValue([label, ...(page.aliases ?? [])], page.keywords);
 }
 
@@ -305,16 +631,22 @@ export function paletteItemScore(value: string, search: string): number {
   if (value.startsWith("__filter__o")) return PALETTE_FILTER_NAME;
   if (value.startsWith(PALETTE_TAIL_MORE)) return PALETTE_MORE;
   if (value.startsWith(PALETTE_TAIL_SEARCH)) return PALETTE_FULL_SEARCH;
-  if (value.startsWith(PALETTE_KIND)) return PALETTE_MATCH + Math.max(PALETTE_TITLE_WORDS, titleHit(value, search));
-  if (value.startsWith(PALETTE_ORG) || value.startsWith(PALETTE_LIVE)) return PALETTE_MATCH + PALETTE_ORG_LIFT + titleHit(value, search);
-  if (value.startsWith("__entity__")) return PALETTE_MATCH + titleHit(value, search);
+  if (value.startsWith(PALETTE_KIND))
+    return (
+      PALETTE_MATCH + Math.max(PALETTE_TITLE_WORDS, titleHit(value, search))
+    );
+  if (value.startsWith(PALETTE_ORG) || value.startsWith(PALETTE_LIVE))
+    return PALETTE_MATCH + PALETTE_ORG_LIFT + titleHit(value, search);
+  if (value.startsWith("__entity__"))
+    return PALETTE_MATCH + titleHit(value, search);
   if (
     value.startsWith("__search__") ||
     value.startsWith("__recent__") ||
     value.startsWith("__chat__") ||
     value.startsWith("__pick__") ||
     value.startsWith("__teammate__")
-  ) return PALETTE_MATCH;
+  )
+    return PALETTE_MATCH;
   const idx = value.indexOf("|||");
   const searchable = idx >= 0 ? value.slice(0, idx) : value;
   const hay = searchable.toLowerCase();
@@ -329,6 +661,7 @@ export function paletteItemScore(value: string, search: string): number {
   if (names.some((name) => name.startsWith(needle))) return PALETTE_LABEL_HIT;
   // Each word on its own, so "new task" finds "Create task new todo".
   const words = needle.split(/\s+/);
-  if (labelEnd >= 0 && hasEveryWord(hay.slice(0, labelEnd), words)) return PALETTE_LABEL_WORDS;
+  if (labelEnd >= 0 && hasEveryWord(hay.slice(0, labelEnd), words))
+    return PALETTE_LABEL_WORDS;
   return hay.includes(needle) || hasEveryWord(hay, words) ? PALETTE_MATCH : 0;
 }

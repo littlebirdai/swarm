@@ -13,7 +13,12 @@
 // may have installed it by hand and never bound it — not ours to touch).
 
 import { snippetBySlug } from "@codecast/shared/contracts";
-import { cutOwnedSections, getSnippetTargets, installSectionToTargets, writeOwnedSection } from "../snippets.js";
+import {
+  cutOwnedSections,
+  getSnippetTargets,
+  installSectionToTargets,
+  writeOwnedSection,
+} from "../snippets.js";
 import * as fs from "fs";
 import type { DesiredState } from "@codecast/shared/contracts";
 
@@ -28,14 +33,27 @@ export interface BuiltinApplyOutcome {
 }
 
 /** Which resolved entries this driver owns: builtin/<slug> with a section. */
-export function builtinEntries(state: DesiredState): Array<{ slug: string; enabled: boolean }> {
+export function builtinEntries(
+  state: DesiredState,
+): Array<{ slug: string; enabled: boolean }> {
   return state.entries
     .filter((e) => e.slug.startsWith("builtin/"))
-    .map((e) => ({ slug: e.slug.slice("builtin/".length), enabled: e.enabled && !e.withheld }));
+    .map((e) => ({
+      slug: e.slug.slice("builtin/".length),
+      enabled: e.enabled && !e.withheld,
+    }));
 }
 
-export function applyBuiltins(state: DesiredState, dryRun = false): BuiltinApplyOutcome {
-  const out: BuiltinApplyOutcome = { installed: [], refreshed: [], removed: [], unknown: [] };
+export function applyBuiltins(
+  state: DesiredState,
+  dryRun = false,
+): BuiltinApplyOutcome {
+  const out: BuiltinApplyOutcome = {
+    installed: [],
+    refreshed: [],
+    removed: [],
+    unknown: [],
+  };
   for (const { slug, enabled } of builtinEntries(state)) {
     const desc = snippetBySlug(slug);
     const spec = desc?.section?.spec;
@@ -67,7 +85,8 @@ export function applyBuiltins(state: DesiredState, dryRun = false): BuiltinApply
           continue;
         }
         if (cutOwnedSections(existing, spec) === existing) continue;
-        if (!dryRun) writeOwnedSection(target, spec, null, `capability:builtin/${slug}`);
+        if (!dryRun)
+          writeOwnedSection(target, spec, null, `capability:builtin/${slug}`);
         removedAnywhere = true;
       }
       if (removedAnywhere) out.removed.push(slug);

@@ -22,8 +22,14 @@ export function sortedWorkbenches(s: {
 }): SavedViewRow[] {
   const teamId = s.clientState.ui?.active_team_id;
   return (Object.values(s.savedViews ?? {}) as SavedViewRow[])
-    .filter((v) => v.page === "workspace" && (!v.team_id || v.team_id === teamId))
-    .sort((a, b) => Number(!!b.is_mine) - Number(!!a.is_mine) || (a.name || "").localeCompare(b.name || ""));
+    .filter(
+      (v) => v.page === "workspace" && (!v.team_id || v.team_id === teamId),
+    )
+    .sort(
+      (a, b) =>
+        Number(!!b.is_mine) - Number(!!a.is_mine) ||
+        (a.name || "").localeCompare(b.name || ""),
+    );
 }
 
 /**
@@ -40,7 +46,11 @@ export function switchToWorkbench(
   // Where we LAND is resolved first: the arrangement's filter is applied against
   // the destination's session list, so a layout that changes surface must evict
   // focus using the surface you are arriving on, not the one you are leaving.
-  const goes = !!snap.path && !sameSurface(surfaceForPath(snap.path), surfaceForPath(pathname ?? ""));
-  useInboxStore.getState().applyWorkbench(snap, id, goes ? snap.path! : pathname);
+  const goes =
+    !!snap.path &&
+    !sameSurface(surfaceForPath(snap.path), surfaceForPath(pathname ?? ""));
+  useInboxStore
+    .getState()
+    .applyWorkbench(snap, id, goes ? snap.path! : pathname);
   if (goes) nav.push(snap.path!);
 }

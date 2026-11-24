@@ -10,7 +10,12 @@ export const MAX_PATH_DEPTH = 6;
 
 /** The room. */
 export const MESSAGE_BODY_MAX = 2_000;
-export const ELEMENT_FIELD_MAX = { selector: 300, tag: 40, text: 200, snippet: 600 } as const;
+export const ELEMENT_FIELD_MAX = {
+  selector: 300,
+  tag: 40,
+  text: 200,
+  snippet: 600,
+} as const;
 export const VERSION_SUMMARY_MAX = 160;
 export const MESSAGE_PAGE_MAX = 100;
 /** The newest messages the app's link follows while its room is closed. */
@@ -126,4 +131,6 @@ export const RATE = {
 } as const satisfies Record<string, RateRule>;
 
 /** A counter whose window opened this long ago has lapsed under every rule. */
-export const RATE_WINDOW_MAX_MS = Math.max(...Object.values(RATE).map((r) => r.windowMs));
+export const RATE_WINDOW_MAX_MS = Math.max(
+  ...Object.values(RATE).map((r) => r.windowMs),
+);

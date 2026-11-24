@@ -4,10 +4,18 @@ import { useInboxStore } from "../store/inboxStore";
 
 let askedRoleId: string | null = null;
 const listeners = new Set<() => void>();
-const setAsked = (roleId: string | null) => { askedRoleId = roleId; listeners.forEach((fn) => fn()); };
+const setAsked = (roleId: string | null) => {
+  askedRoleId = roleId;
+  listeners.forEach((fn) => fn());
+};
 
 export const seatKillAsk = {
-  subscribe: (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
+  subscribe: (fn: () => void) => {
+    listeners.add(fn);
+    return () => {
+      listeners.delete(fn);
+    };
+  },
   get: () => askedRoleId,
 };
 export const closeSeatKillAsk = () => setAsked(null);
@@ -17,7 +25,8 @@ export const closeSeatKillAsk = () => setAsked(null);
 export function askRetireInstead(sessionId: string): boolean {
   const s = useInboxStore.getState() as any;
   const live = s.resolveLiveSessionId?.(sessionId) ?? sessionId;
-  const roleId = (s.sessions?.[live] ?? s.conversations?.[sessionId])?.standing_role_id;
+  const roleId = (s.sessions?.[live] ?? s.conversations?.[sessionId])
+    ?.standing_role_id;
   if (!roleId) return false;
   setAsked(String(roleId));
   return true;

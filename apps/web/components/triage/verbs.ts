@@ -1,4 +1,13 @@
-import { Archive, Clock, EyeOff, Moon, Pin, Tag, X, type LucideIcon } from "lucide-react";
+import {
+  Archive,
+  Clock,
+  EyeOff,
+  Moon,
+  Pin,
+  Tag,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import type { ShortcutAction } from "../../shortcuts/registry";
 
 // The triage vocabulary, in one place. The bar, the intro tour, and any
@@ -7,7 +16,14 @@ import type { ShortcutAction } from "../../shortcuts/registry";
 // accents match the ones the session context menu and the card hover toolbar
 // already established (menus/ObjectContextMenus.tsx, GlobalSessionPanel.tsx).
 
-export type TriageVerbId = "defer" | "dormant" | "stash" | "hide" | "close" | "pin" | "label";
+export type TriageVerbId =
+  | "defer"
+  | "dormant"
+  | "stash"
+  | "hide"
+  | "close"
+  | "pin"
+  | "label";
 
 export interface TriageVerb {
   id: TriageVerbId;
@@ -41,7 +57,8 @@ export const PARK_VERBS: TriageVerb[] = [
     label: "Defer",
     done: "Deferred",
     icon: Clock,
-    blurb: "Not now. The card drops down the stack and returns on its next activity.",
+    blurb:
+      "Not now. The card drops down the stack and returns on its next activity.",
     hover: "hover:text-sol-orange hover:bg-sol-orange/10",
     text: "text-sol-orange",
     bg: "bg-sol-orange/10",
@@ -63,7 +80,8 @@ export const PARK_VERBS: TriageVerb[] = [
     label: "Stash",
     done: "Stashed",
     icon: Archive,
-    blurb: "Out of the inbox. The agent keeps running, and the card comes back when a trigger fires into it.",
+    blurb:
+      "Out of the inbox. The agent keeps running, and the card comes back when a trigger fires into it.",
     hover: "hover:text-sol-yellow hover:bg-sol-yellow/10",
     text: "text-sol-yellow",
     bg: "bg-sol-yellow/10",
@@ -74,7 +92,8 @@ export const PARK_VERBS: TriageVerb[] = [
     label: "Hide",
     done: "Stashed and hid",
     icon: EyeOff,
-    blurb: "Stash that stays out through trigger wakes. Only an ask brings it back.",
+    blurb:
+      "Stash that stays out through trigger wakes. Only an ask brings it back.",
     hover: "hover:text-sol-violet hover:bg-sol-violet/10",
     text: "text-sol-violet",
     bg: "bg-sol-violet/10",
@@ -126,7 +145,9 @@ export const TRIAGE_VERBS: TriageVerb[] = [...PARK_VERBS, ...FILE_VERBS];
  * else lives one click away behind the bar's "more" menu, which is the same
  * session menu every right-click opens, chords included.
  */
-export const PRIMARY_VERBS: TriageVerb[] = TRIAGE_VERBS.filter((v) =>
-  v.id === "defer" || v.id === "stash" || v.id === "close",
+export const PRIMARY_VERBS: TriageVerb[] = TRIAGE_VERBS.filter(
+  (v) => v.id === "defer" || v.id === "stash" || v.id === "close",
 );
-export const SECONDARY_VERBS: TriageVerb[] = TRIAGE_VERBS.filter((v) => !PRIMARY_VERBS.includes(v));
+export const SECONDARY_VERBS: TriageVerb[] = TRIAGE_VERBS.filter(
+  (v) => !PRIMARY_VERBS.includes(v),
+);

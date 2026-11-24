@@ -76,14 +76,30 @@ export interface SimStream {
 }
 
 /** Turn the device without a stream: what `cast sim rotate` runs. */
-export async function rotateDevice(udid: string, to: SimOrientation): Promise<{ ok: true } | { error: string }> {
+export async function rotateDevice(
+  udid: string,
+  to: SimOrientation,
+): Promise<{ ok: true } | { error: string }> {
   const helper = await ensureHelper();
-  if (!helper) return { error: "the simulator helper could not be built here (needs Xcode's clang and axe)" };
+  if (!helper)
+    return {
+      error:
+        "the simulator helper could not be built here (needs Xcode's clang and axe)",
+    };
   fs.mkdirSync(lockDir(), { recursive: true });
   return new Promise((resolve) => {
-    execFile(helper, [udid, "--orient", String(to), orientationPath(udid)], { timeout: 30_000 }, (err, _out, stderr) => {
-      resolve(err ? { error: lastLine(String(stderr)) || err.message } : { ok: true });
-    });
+    execFile(
+      helper,
+      [udid, "--orient", String(to), orientationPath(udid)],
+      { timeout: 30_000 },
+      (err, _out, stderr) => {
+        resolve(
+          err
+            ? { error: lastLine(String(stderr)) || err.message }
+            : { ok: true },
+        );
+      },
+    );
   });
 }
 
@@ -92,7 +108,9 @@ export function axeFrameworksDir(bin = axeBin()): string | null {
   if (!bin) return null;
   try {
     const dir = path.join(path.dirname(fs.realpathSync(bin)), "Frameworks");
-    return fs.existsSync(path.join(dir, "FBSimulatorControl.framework")) ? dir : null;
+    return fs.existsSync(path.join(dir, "FBSimulatorControl.framework"))
+      ? dir
+      : null;
   } catch {
     return null;
   }
@@ -100,7 +118,12 @@ export function axeFrameworksDir(bin = axeBin()): string | null {
 
 /** Where this source, built against this axe, lives. A new CLI or a new axe builds a new one. */
 export function helperPath(frameworks: string, home = os.homedir()): string {
-  const hash = crypto.createHash("sha256").update(helperSource).update(frameworks).digest("hex").slice(0, 12);
+  const hash = crypto
+    .createHash("sha256")
+    .update(helperSource)
+    .update(frameworks)
+    .digest("hex")
+    .slice(0, 12);
   return path.join(home, ".codecast", "sim", "bin", `simstream-${hash}`);
 }
 
@@ -109,20 +132,41 @@ export function helperPath(frameworks: string, home = os.homedir()): string {
  * Homebrew rewrites the install name of the top-level copy, which breaks its
  * signature, and macOS kills a process that maps a page of it.
  */
-export function buildArgs(frameworks: string, source: string, out: string): string[] {
-  const fw = (name: string) => path.join(frameworks, `${name}.framework`, "Versions", "A", name);
+export function buildArgs(
+  frameworks: string,
+  source: string,
+  out: string,
+): string[] {
+  const fw = (name: string) =>
+    path.join(frameworks, `${name}.framework`, "Versions", "A", name);
   return [
-    "clang", "-fobjc-arc", "-fmodules", "-O2", "-F", frameworks,
-    "-framework", "Foundation", "-framework", "ImageIO", "-framework", "CoreGraphics",
-    fw("FBControlCore"), fw("FBSimulatorControl"),
-    `-Wl,-rpath,${frameworks}`, source, "-o", out,
+    "clang",
+    "-fobjc-arc",
+    "-fmodules",
+    "-O2",
+    "-F",
+    frameworks,
+    "-framework",
+    "Foundation",
+    "-framework",
+    "ImageIO",
+    "-framework",
+    "CoreGraphics",
+    fw("FBControlCore"),
+    fw("FBSimulatorControl"),
+    `-Wl,-rpath,${frameworks}`,
+    source,
+    "-o",
+    out,
   ];
 }
 
 let building: Promise<string | null> | null = null;
 
 /** The helper binary, built on first use; null when it cannot be built here. */
-export function ensureHelper(log: (m: string) => void = () => {}): Promise<string | null> {
+export function ensureHelper(
+  log: (m: string) => void = () => {},
+): Promise<string | null> {
   return (building ??= (async () => {
     const frameworks = axeFrameworksDir();
     if (!frameworks) return null;
@@ -133,10 +177,22 @@ export function ensureHelper(log: (m: string) => void = () => {}): Promise<strin
     const src = `${tmp}.m`;
     fs.writeFileSync(src, helperSource);
     const ok = await new Promise<boolean>((resolve) => {
-      execFile("xcrun", buildArgs(frameworks, src, tmp), { timeout: 120_000 }, (err, _out, stderr) => {
-        if (err) log(`[SIM-STREAM] helper build failed: ${String(stderr || err.message).trim().split("\n").slice(-3).join(" | ")}`);
-        resolve(!err);
-      });
+      execFile(
+        "xcrun",
+        buildArgs(frameworks, src, tmp),
+        { timeout: 120_000 },
+        (err, _out, stderr) => {
+          if (err)
+            log(
+              `[SIM-STREAM] helper build failed: ${String(stderr || err.message)
+                .trim()
+                .split("\n")
+                .slice(-3)
+                .join(" | ")}`,
+            );
+          resolve(!err);
+        },
+      );
     });
     fs.rmSync(src, { force: true });
     if (!ok) {
@@ -148,7 +204,8 @@ export function ensureHelper(log: (m: string) => void = () => {}): Promise<strin
     // Builds for an older CLI or axe are never run again.
     const dir = path.dirname(bin);
     for (const name of fs.readdirSync(dir)) {
-      if (name.startsWith("simstream-") && name !== path.basename(bin)) fs.rmSync(path.join(dir, name), { force: true });
+      if (name.startsWith("simstream-") && name !== path.basename(bin))
+        fs.rmSync(path.join(dir, name), { force: true });
     }
     return bin;
   })().then((bin) => {
@@ -159,27 +216,37 @@ export function ensureHelper(log: (m: string) => void = () => {}): Promise<strin
 }
 
 /** Split the helper's stdout into frames: 12-byte header, then the JPEG. */
-export function helperFrameReader(onFrame: (f: SimFrame) => void): (chunk: Buffer) => void {
+export function helperFrameReader(
+  onFrame: (f: SimFrame) => void,
+): (chunk: Buffer) => void {
   let buf: Buffer = Buffer.alloc(0);
   return (chunk) => {
     buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
     while (buf.length >= 12) {
       const len = buf.readUInt32BE(0);
       if (buf.length < 12 + len) break;
-      onFrame({ data: buf.subarray(12, 12 + len).toString("base64"), width: buf.readUInt32BE(4), height: buf.readUInt32BE(8) });
+      onFrame({
+        data: buf.subarray(12, 12 + len).toString("base64"),
+        width: buf.readUInt32BE(4),
+        height: buf.readUInt32BE(8),
+      });
       buf = buf.subarray(12 + len);
     }
   };
 }
 
 /** Split `axe stream-video --format mjpeg` (multipart, a Content-Length per part) into frames. */
-export function mjpegFrameReader(onFrame: (f: SimFrame) => void): (chunk: Buffer) => void {
+export function mjpegFrameReader(
+  onFrame: (f: SimFrame) => void,
+): (chunk: Buffer) => void {
   let buf: Buffer = Buffer.alloc(0);
   const header = /Content-Length: (\d+)\r\n\r\n/;
   return (chunk) => {
     buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
     for (;;) {
-      const text = buf.subarray(0, Math.min(buf.length, 512)).toString("latin1");
+      const text = buf
+        .subarray(0, Math.min(buf.length, 512))
+        .toString("latin1");
       const m = header.exec(text);
       if (!m) {
         // Keep a tail long enough to hold a header split across chunks.
@@ -191,21 +258,36 @@ export function mjpegFrameReader(onFrame: (f: SimFrame) => void): (chunk: Buffer
       if (buf.length < start + len) return;
       const jpeg = buf.subarray(start, start + len);
       const size = jpegSize(jpeg);
-      onFrame({ data: jpeg.toString("base64"), width: size?.width ?? 0, height: size?.height ?? 0 });
+      onFrame({
+        data: jpeg.toString("base64"),
+        width: size?.width ?? 0,
+        height: size?.height ?? 0,
+      });
       buf = buf.subarray(start + len);
     }
   };
 }
 
 /** A JPEG's pixel size, from its first start-of-frame marker. */
-export function jpegSize(jpeg: Buffer): { width: number; height: number } | null {
+export function jpegSize(
+  jpeg: Buffer,
+): { width: number; height: number } | null {
   let i = 2;
   while (i + 9 < jpeg.length) {
     if (jpeg[i] !== 0xff) return null;
     const marker = jpeg[i + 1];
     const len = jpeg.readUInt16BE(i + 2);
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-      return { height: jpeg.readUInt16BE(i + 5), width: jpeg.readUInt16BE(i + 7) };
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      marker !== 0xc4 &&
+      marker !== 0xc8 &&
+      marker !== 0xcc
+    ) {
+      return {
+        height: jpeg.readUInt16BE(i + 5),
+        width: jpeg.readUInt16BE(i + 7),
+      };
     }
     i += 2 + len;
   }
@@ -216,12 +298,21 @@ export function jpegSize(jpeg: Buffer): { width: number; height: number } | null
 export function parseScreenLine(line: string): SimScreen | null {
   const m = /simstream: screen (\d+) (\d+) ([\d.]+)(?: ([1-4]))?/.exec(line);
   if (!m) return null;
-  const screen = { widthPx: Number(m[1]), heightPx: Number(m[2]), scale: Number(m[3]), orientation: (Number(m[4]) || 1) as SimOrientation };
-  return screen.widthPx > 0 && screen.heightPx > 0 && screen.scale > 0 ? screen : null;
+  const screen = {
+    widthPx: Number(m[1]),
+    heightPx: Number(m[2]),
+    scale: Number(m[3]),
+    orientation: (Number(m[4]) || 1) as SimOrientation,
+  };
+  return screen.widthPx > 0 && screen.heightPx > 0 && screen.scale > 0
+    ? screen
+    : null;
 }
 
 /** The helper's answer to `capture <path>`: the path it wrote, or null for a failure. */
-export function parseCaptureLine(line: string): { ok: boolean; path?: string } | null {
+export function parseCaptureLine(
+  line: string,
+): { ok: boolean; path?: string } | null {
   const m = /simstream: captured (.+)$/.exec(line);
   if (m) return { ok: true, path: m[1].trim() };
   return /simstream: capture failed/.test(line) ? { ok: false } : null;
@@ -229,7 +320,14 @@ export function parseCaptureLine(line: string): { ok: boolean; path?: string } |
 
 /** The helper's last diagnostic, for why a stream ended. */
 function lastLine(text: string): string {
-  return text.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("objc[")).pop()?.replace(/^simstream: /, "") ?? "";
+  return (
+    text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("objc["))
+      .pop()
+      ?.replace(/^simstream: /, "") ?? ""
+  );
 }
 
 export async function startSimStream(
@@ -245,14 +343,40 @@ export async function startSimStream(
   let stderrTail = "";
   if (helper) {
     fs.mkdirSync(lockDir(), { recursive: true });
-    child = spawn(helper, [udid, String(opts.fps), String(opts.quality), String(opts.maxDim), orientationPath(udid)], { stdio: ["pipe", "pipe", "pipe"] });
+    child = spawn(
+      helper,
+      [
+        udid,
+        String(opts.fps),
+        String(opts.quality),
+        String(opts.maxDim),
+        orientationPath(udid),
+      ],
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
     child.stdout!.on("data", helperFrameReader(handlers.onFrame));
     interactive = true;
   } else {
     const axe = axeBin();
     if (!axe) throw new Error("axe is not installed");
     const scale = Math.min(1, Math.max(0.1, opts.maxDim / 2600));
-    child = spawn(axe, ["stream-video", "--udid", udid, "--format", "mjpeg", "--fps", String(Math.min(opts.fps, 10)), "--quality", String(Math.round(opts.quality * 100)), "--scale", scale.toFixed(2)], { stdio: ["ignore", "pipe", "pipe"] });
+    child = spawn(
+      axe,
+      [
+        "stream-video",
+        "--udid",
+        udid,
+        "--format",
+        "mjpeg",
+        "--fps",
+        String(Math.min(opts.fps, 10)),
+        "--quality",
+        String(Math.round(opts.quality * 100)),
+        "--scale",
+        scale.toFixed(2),
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
     child.stdout!.on("data", mjpegFrameReader(handlers.onFrame));
   }
   // Captures answer in the order they were asked: the helper runs commands
@@ -275,7 +399,9 @@ export async function startSimStream(
     for (const done of captures.splice(0)) done(false);
     if (stopped) return;
     stopped = true;
-    handlers.onExit(lastLine(stderrTail) || `stream exited (${signal ?? code})`);
+    handlers.onExit(
+      lastLine(stderrTail) || `stream exited (${signal ?? code})`,
+    );
   });
   child.on("error", (err) => {
     if (stopped) return;

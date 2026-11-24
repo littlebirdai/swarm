@@ -30,20 +30,32 @@ export type AccessStamp = {
 };
 
 /** Pure stamp from a document that already carries its stored workspace key. */
-export function accessStampFromDoc(table: string, doc: any): AccessStamp | null {
+export function accessStampFromDoc(
+  table: string,
+  doc: any,
+): AccessStamp | null {
   if (!doc?.user_id) return null;
   const stamp: AccessStamp = { access_owner: String(doc.user_id) };
-  if (table !== "conversations" && typeof doc.workspace === "string" && doc.workspace) {
+  if (
+    table !== "conversations" &&
+    typeof doc.workspace === "string" &&
+    doc.workspace
+  ) {
     stamp.access_key = doc.workspace;
   }
-  if (table === "tasks" && isUserGrant(doc.assignee)) stamp.access_grants = [String(doc.assignee)];
+  if (table === "tasks" && isUserGrant(doc.assignee))
+    stamp.access_grants = [String(doc.assignee)];
   return stamp;
 }
 
 // A task's assignee is a user grant only when it names a user (`agent:<name>`
 // assignees are not readers). Mirrored by the sync log's fan-out.
 export function isUserGrant(assignee: unknown): assignee is string {
-  return typeof assignee === "string" && assignee.length > 0 && !assignee.startsWith("agent:");
+  return (
+    typeof assignee === "string" &&
+    assignee.length > 0 &&
+    !assignee.startsWith("agent:")
+  );
 }
 
 /**
@@ -52,7 +64,11 @@ export function isUserGrant(assignee: unknown): assignee is string {
  * indexed session_owners read). The owner set lives in its own table, so the
  * pure builder never sees it.
  */
-export async function accessStampFor(ctx: AccessCtx, table: string, doc: any): Promise<AccessStamp | null> {
+export async function accessStampFor(
+  ctx: AccessCtx,
+  table: string,
+  doc: any,
+): Promise<AccessStamp | null> {
   const stamp = accessStampFromDoc(table, doc);
   if (!stamp) return null;
   if (table === "conversations") {
@@ -86,12 +102,18 @@ export function authorizedFor(
 }
 
 /** The keys a user holds: their own personal key plus one per team membership. */
-export async function heldKeysFor(ctx: AccessCtx, userId: Id<"users">): Promise<Set<string>> {
+export async function heldKeysFor(
+  ctx: AccessCtx,
+  userId: Id<"users">,
+): Promise<Set<string>> {
   const memberships = await ctx.db
     .query("team_memberships")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  return new Set([`user:${String(userId)}`, ...memberships.map((m: any) => `team:${String(m.team_id)}`)]);
+  return new Set([
+    `user:${String(userId)}`,
+    ...memberships.map((m: any) => `team:${String(m.team_id)}`),
+  ]);
 }
 
 /**
@@ -101,9 +123,13 @@ export async function heldKeysFor(ctx: AccessCtx, userId: Id<"users">): Promise<
  * caller does not own, which on a project with 860 tasks filed by teammates
  * was 860 reads for one answer. Same stamp, same rule as canAccess*.
  */
-export async function accessJudgeFor(ctx: AccessCtx, userId: Id<"users">): Promise<(table: string, doc: any) => Promise<boolean>> {
+export async function accessJudgeFor(
+  ctx: AccessCtx,
+  userId: Id<"users">,
+): Promise<(table: string, doc: any) => Promise<boolean>> {
   const held = await heldKeysFor(ctx, userId);
-  return async (table, doc) => authorizedFor(await accessStampFor(ctx, table, doc), String(userId), held);
+  return async (table, doc) =>
+    authorizedFor(await accessStampFor(ctx, table, doc), String(userId), held);
 }
 
 export type AuthorizedWorkspace =
@@ -118,10 +144,13 @@ export type AuthorizedWorkspace =
  * omitting it made plans silently skip inheritance entirely.
  */
 export function linkedConversationId(record: any): string | undefined {
-  if (record.created_from_conversation) return String(record.created_from_conversation);
-  if (record.created_from_conversation_id) return String(record.created_from_conversation_id);
+  if (record.created_from_conversation)
+    return String(record.created_from_conversation);
+  if (record.created_from_conversation_id)
+    return String(record.created_from_conversation_id);
   if (record.conversation_id) return String(record.conversation_id);
-  if (record.related_conversation_ids?.[0]) return String(record.related_conversation_ids[0]);
+  if (record.related_conversation_ids?.[0])
+    return String(record.related_conversation_ids[0]);
   if (record.conversation_ids?.[0]) return String(record.conversation_ids[0]);
   return undefined;
 }
@@ -132,7 +161,10 @@ export function linkedConversationId(record: any): string | undefined {
 // rows it re-keys through that index instead of scanning the owner's work
 // items. The change-feed interceptor stamps it on every write that sets the
 // array; this returns the stamp a write's fields call for, or null.
-const ARRAY_LINK_FIELD: Record<string, string> = { tasks: "conversation_ids", docs: "related_conversation_ids" };
+const ARRAY_LINK_FIELD: Record<string, string> = {
+  tasks: "conversation_ids",
+  docs: "related_conversation_ids",
+};
 
 export function firstLinkedConversationStamp(
   table: string,
@@ -170,10 +202,14 @@ export function workspaceKey(ws: AuthorizedWorkspace): WorkspaceKey {
 }
 
 /** Null for unknown/absent variants — callers must treat null as NO access. */
-export function parseWorkspaceKey(key: string | null | undefined): AuthorizedWorkspace | null {
+export function parseWorkspaceKey(
+  key: string | null | undefined,
+): AuthorizedWorkspace | null {
   if (!key) return null;
-  if (key.startsWith("team:")) return { type: "team", teamId: key.slice(5) as Id<"teams"> };
-  if (key.startsWith("user:")) return { type: "personal", userId: key.slice(5) as Id<"users"> };
+  if (key.startsWith("team:"))
+    return { type: "team", teamId: key.slice(5) as Id<"teams"> };
+  if (key.startsWith("user:"))
+    return { type: "personal", userId: key.slice(5) as Id<"users"> };
   return null;
 }
 
@@ -188,7 +224,12 @@ export function parseWorkspaceKey(key: string | null | undefined): AuthorizedWor
 export function computeWorkspaceKey(
   record: { user_id: Id<"users">; team_id?: Id<"teams"> },
   linkedConv:
-    | { team_id?: Id<"teams">; is_private?: boolean; auto_shared?: boolean; team_visibility?: string }
+    | {
+        team_id?: Id<"teams">;
+        is_private?: boolean;
+        auto_shared?: boolean;
+        team_visibility?: string;
+      }
     | null
     | undefined,
 ): WorkspaceKey {
@@ -200,7 +241,10 @@ export function computeWorkspaceKey(
 }
 
 /** computeWorkspaceKey with the linked conversation fetched from the db. */
-export async function computeWorkspaceKeyDb(ctx: AccessCtx, record: any): Promise<WorkspaceKey> {
+export async function computeWorkspaceKeyDb(
+  ctx: AccessCtx,
+  record: any,
+): Promise<WorkspaceKey> {
   const cid = linkedConversationId(record);
   const conv = cid ? await ctx.db.get(cid) : null;
   return computeWorkspaceKey(record, conv);
@@ -211,8 +255,12 @@ export async function computeWorkspaceKeyDb(ctx: AccessCtx, record: any): Promis
  * for rows minted before the backfill. Once the backfill has run, the stored
  * branch is the only one taken.
  */
-export async function resolveWorkspaceKey(ctx: AccessCtx, record: any): Promise<WorkspaceKey> {
-  if (typeof record.workspace === "string" && record.workspace) return record.workspace;
+export async function resolveWorkspaceKey(
+  ctx: AccessCtx,
+  record: any,
+): Promise<WorkspaceKey> {
+  if (typeof record.workspace === "string" && record.workspace)
+    return record.workspace;
   return computeWorkspaceKeyDb(ctx, record);
 }
 

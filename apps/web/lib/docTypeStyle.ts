@@ -7,21 +7,73 @@ import { ChartColumn, Shapes, Table2, type LucideIcon } from "lucide-react";
 // and its rows, the doc page and its type picker, a project's docs, and the
 // shared doc page. The classes are written out whole because Tailwind finds
 // them by reading the source.
-const DOC_TYPE_STYLE: Record<DocType, { color: string; dot: string; bg: string }> = {
-  note: { color: "text-sol-text-muted", dot: "bg-sol-text-muted", bg: "bg-sol-text-muted/10 border-sol-text-muted/30" },
-  plan: { color: "text-sol-blue", dot: "bg-sol-blue", bg: "bg-sol-blue/10 border-sol-blue/30" },
-  design: { color: "text-sol-violet", dot: "bg-sol-violet", bg: "bg-sol-violet/10 border-sol-violet/30" },
-  spec: { color: "text-sol-cyan", dot: "bg-sol-cyan", bg: "bg-sol-cyan/10 border-sol-cyan/30" },
-  investigation: { color: "text-sol-yellow", dot: "bg-sol-yellow", bg: "bg-sol-yellow/10 border-sol-yellow/30" },
-  handoff: { color: "text-sol-orange", dot: "bg-sol-orange", bg: "bg-sol-orange/10 border-sol-orange/30" },
-  decision: { color: "text-sol-red", dot: "bg-sol-red", bg: "bg-sol-red/10 border-sol-red/30" },
-  charter: { color: "text-sol-magenta", dot: "bg-sol-magenta", bg: "bg-sol-magenta/10 border-sol-magenta/30" },
-  brief: { color: "text-sol-green", dot: "bg-sol-green", bg: "bg-sol-green/10 border-sol-green/30" },
-  board: { color: "text-sol-yellow", dot: "bg-sol-yellow", bg: "bg-sol-yellow/10 border-sol-yellow/30" },
-  sheet: { color: "text-sol-green", dot: "bg-sol-green", bg: "bg-sol-green/10 border-sol-green/30" },
-  dashboard: { color: "text-sol-blue", dot: "bg-sol-blue", bg: "bg-sol-blue/10 border-sol-blue/30" },
+const DOC_TYPE_STYLE: Record<
+  DocType,
+  { color: string; dot: string; bg: string }
+> = {
+  note: {
+    color: "text-sol-text-muted",
+    dot: "bg-sol-text-muted",
+    bg: "bg-sol-text-muted/10 border-sol-text-muted/30",
+  },
+  plan: {
+    color: "text-sol-blue",
+    dot: "bg-sol-blue",
+    bg: "bg-sol-blue/10 border-sol-blue/30",
+  },
+  design: {
+    color: "text-sol-violet",
+    dot: "bg-sol-violet",
+    bg: "bg-sol-violet/10 border-sol-violet/30",
+  },
+  spec: {
+    color: "text-sol-cyan",
+    dot: "bg-sol-cyan",
+    bg: "bg-sol-cyan/10 border-sol-cyan/30",
+  },
+  investigation: {
+    color: "text-sol-yellow",
+    dot: "bg-sol-yellow",
+    bg: "bg-sol-yellow/10 border-sol-yellow/30",
+  },
+  handoff: {
+    color: "text-sol-orange",
+    dot: "bg-sol-orange",
+    bg: "bg-sol-orange/10 border-sol-orange/30",
+  },
+  decision: {
+    color: "text-sol-red",
+    dot: "bg-sol-red",
+    bg: "bg-sol-red/10 border-sol-red/30",
+  },
+  charter: {
+    color: "text-sol-magenta",
+    dot: "bg-sol-magenta",
+    bg: "bg-sol-magenta/10 border-sol-magenta/30",
+  },
+  brief: {
+    color: "text-sol-green",
+    dot: "bg-sol-green",
+    bg: "bg-sol-green/10 border-sol-green/30",
+  },
+  board: {
+    color: "text-sol-yellow",
+    dot: "bg-sol-yellow",
+    bg: "bg-sol-yellow/10 border-sol-yellow/30",
+  },
+  sheet: {
+    color: "text-sol-green",
+    dot: "bg-sol-green",
+    bg: "bg-sol-green/10 border-sol-green/30",
+  },
+  dashboard: {
+    color: "text-sol-blue",
+    dot: "bg-sol-blue",
+    bg: "bg-sol-blue/10 border-sol-blue/30",
+  },
 };
-export const docTypeStyle = (docType: string) => DOC_TYPE_STYLE[docType as DocType] ?? DOC_TYPE_STYLE.note;
+export const docTypeStyle = (docType: string) =>
+  DOC_TYPE_STYLE[docType as DocType] ?? DOC_TYPE_STYLE.note;
 
 /**
  * The live artifact types carry an icon wherever a doc's type is marked (the
@@ -33,4 +85,5 @@ const DOC_TYPE_ICON: Partial<Record<DocType, LucideIcon>> = {
   sheet: Table2,
   dashboard: ChartColumn,
 };
-export const docTypeIcon = (docType: string): LucideIcon | undefined => DOC_TYPE_ICON[docType as DocType];
+export const docTypeIcon = (docType: string): LucideIcon | undefined =>
+  DOC_TYPE_ICON[docType as DocType];

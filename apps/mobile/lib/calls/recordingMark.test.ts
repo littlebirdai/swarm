@@ -8,24 +8,29 @@ const presses: Array<{ roomKey: string; on: boolean }> = [];
 let haptics = 0;
 
 mock.module("@/lib/popups", () => ({
-  appAlert: (title: string, body: string, buttons: any[]) => alerts.push({ title, body, buttons }),
+  appAlert: (title: string, body: string, buttons: any[]) =>
+    alerts.push({ title, body, buttons }),
 }));
 mock.module("expo-haptics", () => ({
   impactAsync: async () => void haptics++,
   ImpactFeedbackStyle: { Light: "light" },
 }));
 mock.module("@codecast/web/lib/calls/recordingPress", () => ({
-  pressRoomRecording: async (roomKey: string, on: boolean) => void presses.push({ roomKey, on }),
+  pressRoomRecording: async (roomKey: string, on: boolean) =>
+    void presses.push({ roomKey, on }),
   useRoomRecordingMark: () => ({ status: null, live: null }),
 }));
-mock.module("@codecast/web/store/inboxStore", () => ({ useInboxStore: () => undefined }));
+mock.module("@codecast/web/store/inboxStore", () => ({
+  useInboxStore: () => undefined,
+}));
 
 let useConfirmStopRecording: typeof import("./recordingMark").useConfirmStopRecording;
 let STOP_RECORDING_ASK: typeof import("@codecast/web/lib/calls/roomRecordingEnd").STOP_RECORDING_ASK;
 
 beforeAll(async () => {
   ({ useConfirmStopRecording } = await import("./recordingMark"));
-  ({ STOP_RECORDING_ASK } = await import("@codecast/web/lib/calls/roomRecordingEnd"));
+  ({ STOP_RECORDING_ASK } =
+    await import("@codecast/web/lib/calls/roomRecordingEnd"));
 }, 120_000);
 
 beforeEach(() => {

@@ -16,7 +16,12 @@ function row(over: Partial<DeviceStateRow> = {}): DeviceStateRow {
     entries_json: JSON.stringify({
       items: [
         { kind: "skill", name: "deploy", scope: "user", enabled: true },
-        { kind: "plugin", name: "simplifier@official", scope: "user", enabled: false },
+        {
+          kind: "plugin",
+          name: "simplifier@official",
+          scope: "user",
+          enabled: false,
+        },
       ],
     }),
     hash: "h1",
@@ -43,7 +48,9 @@ describe("formatDeviceMatrix", () => {
   });
 
   test("a truncated report and a scan error are loud, not footnotes", () => {
-    const out = formatDeviceMatrix([row({ truncated: true, scan_error: "EACCES ~/.claude" })]);
+    const out = formatDeviceMatrix([
+      row({ truncated: true, scan_error: "EACCES ~/.claude" }),
+    ]);
     expect(out).toContain("!! TRUNCATED report");
     expect(out).toContain("!! scan error: EACCES ~/.claude");
   });
@@ -92,7 +99,9 @@ describe("filterEntries", () => {
       device_id: "m1-mini",
       client: "codex",
       entries_json: JSON.stringify({
-        items: [{ kind: "skill", name: "deploy", scope: "project", enabled: true }],
+        items: [
+          { kind: "skill", name: "deploy", scope: "project", enabled: true },
+        ],
       }),
     }),
   ];
@@ -106,7 +115,11 @@ describe("filterEntries", () => {
   });
 
   test("an entry with no scope counts as user scope", () => {
-    const bare = [row({ entries_json: JSON.stringify({ items: [{ kind: "skill", name: "x" }] }) })];
+    const bare = [
+      row({
+        entries_json: JSON.stringify({ items: [{ kind: "skill", name: "x" }] }),
+      }),
+    ];
     expect(filterEntries(bare, { scope: "user" })).toHaveLength(1);
   });
 

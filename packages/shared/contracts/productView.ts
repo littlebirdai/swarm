@@ -35,7 +35,11 @@ const ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
 /** A moment the reference may name: an ISO date-time that parses. */
 export function isProductViewAt(at: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/.test(at) && Number.isFinite(Date.parse(at));
+  return (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/.test(
+      at,
+    ) && Number.isFinite(Date.parse(at))
+  );
 }
 
 /** `<app>:<view>/<id>[@<iso>]`, or null when any part is malformed. */
@@ -73,26 +77,43 @@ export type ProductViewMessage =
   | { source: typeof PRODUCT_VIEW_SOURCE; type: "error"; message: string };
 
 /** Host to frame. */
-export type ProductViewHostMessage = { source: typeof PRODUCT_VIEW_HOST_SOURCE; type: "hello" };
+export type ProductViewHostMessage = {
+  source: typeof PRODUCT_VIEW_HOST_SOURCE;
+  type: "hello";
+};
 
-const isObj = (d: unknown): d is Record<string, unknown> => !!d && typeof d === "object";
-const isHeight = (h: unknown): h is number => typeof h === "number" && Number.isFinite(h) && h >= 0;
+const isObj = (d: unknown): d is Record<string, unknown> =>
+  !!d && typeof d === "object";
+const isHeight = (h: unknown): h is number =>
+  typeof h === "number" && Number.isFinite(h) && h >= 0;
 
 /** A frame message, checked field by field (the host reads it from a page another app serves). */
 export function parseProductViewMessage(d: unknown): ProductViewMessage | null {
   if (!isObj(d) || d.source !== PRODUCT_VIEW_SOURCE) return null;
   if (d.type === "hello") return { source: PRODUCT_VIEW_SOURCE, type: "hello" };
   if ((d.type === "ready" || d.type === "height") && isHeight(d.height)) {
-    return { source: PRODUCT_VIEW_SOURCE, type: d.type, height: Math.min(Math.ceil(d.height), 20_000) };
+    return {
+      source: PRODUCT_VIEW_SOURCE,
+      type: d.type,
+      height: Math.min(Math.ceil(d.height), 20_000),
+    };
   }
   if (d.type === "error" && typeof d.message === "string") {
-    return { source: PRODUCT_VIEW_SOURCE, type: "error", message: d.message.slice(0, 500) };
+    return {
+      source: PRODUCT_VIEW_SOURCE,
+      type: "error",
+      message: d.message.slice(0, 500),
+    };
   }
   return null;
 }
 
-export function isProductViewHostMessage(d: unknown): d is ProductViewHostMessage {
-  return isObj(d) && d.source === PRODUCT_VIEW_HOST_SOURCE && d.type === "hello";
+export function isProductViewHostMessage(
+  d: unknown,
+): d is ProductViewHostMessage {
+  return (
+    isObj(d) && d.source === PRODUCT_VIEW_HOST_SOURCE && d.type === "hello"
+  );
 }
 
 /** Second-level labels that are a public suffix's own ("example.co.uk"): a site under one is its three last labels. */
@@ -101,14 +122,24 @@ const SHARED_SECOND = new Set(["co", "com", "org", "net", "gov", "edu", "ac"]);
 /** Is the host a public suffix rather than a site: one label ("com", "localhost") or a shared second level ("co.uk")? */
 export function isPublicSuffix(host: string): boolean {
   const labels = host.toLowerCase().split(".").filter(Boolean);
-  return labels.length < 2 || (labels.length === 2 && SHARED_SECOND.has(labels[0]) && labels[1].length === 2);
+  return (
+    labels.length < 2 ||
+    (labels.length === 2 &&
+      SHARED_SECOND.has(labels[0]) &&
+      labels[1].length === 2)
+  );
 }
 
 /** The site a host belongs to: the host's registrable part as far as a frame check needs it ("admin.union.example" is "union.example"). */
 export function siteOf(host: string): string {
   const labels = host.toLowerCase().split(".").filter(Boolean);
-  if (labels.length <= 2 || /^\d+$/.test(labels[labels.length - 1])) return labels.join(".");
-  const take = SHARED_SECOND.has(labels[labels.length - 2]) && labels[labels.length - 1].length === 2 ? 3 : 2;
+  if (labels.length <= 2 || /^\d+$/.test(labels[labels.length - 1]))
+    return labels.join(".");
+  const take =
+    SHARED_SECOND.has(labels[labels.length - 2]) &&
+    labels[labels.length - 1].length === 2
+      ? 3
+      : 2;
   return labels.slice(-take).join(".");
 }
 
@@ -131,7 +162,8 @@ export function framesOwnSite(url: string, self: string): boolean {
     return true;
   }
   if (u.origin === own.origin) return true;
-  const loopback = (h: string) => h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+  const loopback = (h: string) =>
+    h === "localhost" || h === "127.0.0.1" || h === "[::1]";
   if (loopback(own.hostname) || loopback(u.hostname)) return false;
   return siteOf(u.hostname) === siteOf(own.hostname);
 }

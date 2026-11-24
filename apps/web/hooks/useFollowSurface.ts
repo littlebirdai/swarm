@@ -22,7 +22,11 @@ import { useWatchEffect } from "./useWatchEffect";
 /** Register `surface` while mounted and `active`. Its functions are read
  *  through a ref, so a surface can close over fresh state every render.
  *  Pass `deps` that change what `read` returns, to tell a leader it moved. */
-export function useFollowSurface(surface: FollowSurface, active = true, deps: readonly unknown[] = []): void {
+export function useFollowSurface(
+  surface: FollowSurface,
+  active = true,
+  deps: readonly unknown[] = [],
+): void {
   const ref = useRef(surface);
   ref.current = surface;
   useWatchEffect(() => {
@@ -56,11 +60,18 @@ export function scrollOffsetOf(el: HTMLElement): number {
  * arriving, cards taking their real height), letting go the moment the person
  * reaches for the page.
  */
-export function useFollowScroll(key: FollowScrollKey, elRef: RefObject<HTMLElement | null>, active = true): void {
+export function useFollowScroll(
+  key: FollowScrollKey,
+  elRef: RefObject<HTMLElement | null>,
+  active = true,
+): void {
   const holdRef = useRef<(() => void) | null>(null);
   useFollowSurface(
     {
-      read: () => (onScreen(elRef.current) ? { scroll: { key, offset: scrollOffsetOf(elRef.current) } } : null),
+      read: () =>
+        onScreen(elRef.current)
+          ? { scroll: { key, offset: scrollOffsetOf(elRef.current) } }
+          : null,
       apply: (view) => {
         const el = elRef.current;
         if (view.scroll?.key !== key || !onScreen(el)) return [];
@@ -99,7 +110,9 @@ function holdScroll(el: HTMLElement, offset: number): () => void {
   for (const t of INTENT) el.addEventListener(t, stop, { passive: true });
   const step = () => {
     if (done) return;
-    const top = Math.round(offset * Math.max(0, el.scrollHeight - el.clientHeight));
+    const top = Math.round(
+      offset * Math.max(0, el.scrollHeight - el.clientHeight),
+    );
     if (Math.abs(el.scrollTop - top) > 1) el.scrollTop = top;
     if (Date.now() < until) timer = setTimeout(step, 100);
     else stop();
@@ -113,7 +126,10 @@ function holdScroll(el: HTMLElement, offset: number): () => void {
  * `enabled` (someone follows). Re-renders only when the composed view
  * changes, not on every scroll event.
  */
-export function useLeaderView(enabled: boolean): { view: FollowView | undefined; sig: string } {
+export function useLeaderView(enabled: boolean): {
+  view: FollowView | undefined;
+  sig: string;
+} {
   const sig = useSyncExternalStore(
     enabled ? subscribeFollowSurfaces : noSubscribe,
     () => (enabled ? followViewSig(readLeaderView()) : ""),

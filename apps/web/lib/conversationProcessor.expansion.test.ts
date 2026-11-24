@@ -29,52 +29,106 @@ const STDOUT = {
   timestamp: T0,
 };
 
-const LONG_PROSE = "what about descript like editing (removing deadspace/uhs as well)\n\n" +
+const LONG_PROSE =
+  "what about descript like editing (removing deadspace/uhs as well)\n\n" +
   "what about screen studio features (zoom in with mouse movement, timeline editing, etc) - " +
   "please do some web research and deeply familiarize yourself with this toolset.\n\n" +
   "wrap in a desktop app with a nice icon and deploy it - we want niceties like a control panel";
 
-const EXPANSION = "## Task\n\nAnalyze ALL uncommitted changes and create a series of " +
+const EXPANSION =
+  "## Task\n\nAnalyze ALL uncommitted changes and create a series of " +
   "well-organized, topical commits.\n\n## Process\n\n1. Analyze the full diff and group " +
   "changes by topic. 2. Stage and commit each group with a clear message. 3. Repeat until clean.";
 
 describe("commandExpansionName", () => {
   test("recognizes a real expansion echo: tagged invocation + same timestamp", () => {
-    expect(commandExpansionName(INVOCATION, { content: EXPANSION, timestamp: T0 })).toBe("commit");
+    expect(
+      commandExpansionName(INVOCATION, { content: EXPANSION, timestamp: T0 }),
+    ).toBe("commit");
   });
 
   test("handles message-before-name tag order, prefers the name tag", () => {
-    expect(commandExpansionName(INVOCATION_MSG_FIRST, { content: EXPANSION, timestamp: T0 })).toBe("migrate");
+    expect(
+      commandExpansionName(INVOCATION_MSG_FIRST, {
+        content: EXPANSION,
+        timestamp: T0,
+      }),
+    ).toBe("migrate");
   });
 
   test("the bug: long user prose after command stdout is NOT an expansion", () => {
     // /model ran an hour before; its stdout is the immediately preceding message.
-    expect(commandExpansionName(STDOUT, { content: LONG_PROSE, timestamp: T0 + 3_600_000 })).toBeNull();
+    expect(
+      commandExpansionName(STDOUT, {
+        content: LONG_PROSE,
+        timestamp: T0 + 3_600_000,
+      }),
+    ).toBeNull();
   });
 
   test("long user prose typed minutes after the invocation is NOT an expansion", () => {
-    expect(commandExpansionName(INVOCATION, { content: LONG_PROSE, timestamp: T0 + 120_000 })).toBeNull();
+    expect(
+      commandExpansionName(INVOCATION, {
+        content: LONG_PROSE,
+        timestamp: T0 + 120_000,
+      }),
+    ).toBeNull();
   });
 
   test("a short one-line template folds only on the invocation's exact timestamp", () => {
     // /deploy with no args expands to 139 characters, ending on a bare "policy:".
-    const SHORT = "Follow the `cast-deploy` skill (~/.claude/skills/cast-deploy/SKILL.md) for this checkout. Targets named here go out whatever their policy:";
-    expect(commandExpansionName({ content: "/deploy", timestamp: T0 }, { content: SHORT, timestamp: T0 })).toBe("deploy");
-    expect(commandExpansionName(INVOCATION, { content: "go", timestamp: T0 + 1_500 })).toBeNull();
-    expect(commandExpansionName(INVOCATION, { content: "   ", timestamp: T0 })).toBeNull();
+    const SHORT =
+      "Follow the `cast-deploy` skill (~/.claude/skills/cast-deploy/SKILL.md) for this checkout. Targets named here go out whatever their policy:";
+    expect(
+      commandExpansionName(
+        { content: "/deploy", timestamp: T0 },
+        { content: SHORT, timestamp: T0 },
+      ),
+    ).toBe("deploy");
+    expect(
+      commandExpansionName(INVOCATION, {
+        content: "go",
+        timestamp: T0 + 1_500,
+      }),
+    ).toBeNull();
+    expect(
+      commandExpansionName(INVOCATION, { content: "   ", timestamp: T0 }),
+    ).toBeNull();
   });
 
   test("a command sent from the app keeps its typed form and still folds its expansion", () => {
-    expect(commandExpansionName({ content: "/deploy", timestamp: T0 }, { content: EXPANSION, timestamp: T0 })).toBe("deploy");
-    expect(commandExpansionName({ content: "/migrate if you can", timestamp: T0 }, { content: EXPANSION, timestamp: T0 })).toBe("migrate");
+    expect(
+      commandExpansionName(
+        { content: "/deploy", timestamp: T0 },
+        { content: EXPANSION, timestamp: T0 },
+      ),
+    ).toBe("deploy");
+    expect(
+      commandExpansionName(
+        { content: "/migrate if you can", timestamp: T0 },
+        { content: EXPANSION, timestamp: T0 },
+      ),
+    ).toBe("migrate");
   });
 
   test("a typed path or prose starting with a slash is not an invocation", () => {
-    expect(commandExpansionName({ content: "/Users/me/file.ts is broken", timestamp: T0 }, { content: LONG_PROSE, timestamp: T0 })).toBeNull();
+    expect(
+      commandExpansionName(
+        { content: "/Users/me/file.ts is broken", timestamp: T0 },
+        { content: LONG_PROSE, timestamp: T0 },
+      ),
+    ).toBeNull();
   });
 
   test("missing prev or timestamps never classify", () => {
-    expect(commandExpansionName(null, { content: EXPANSION, timestamp: T0 })).toBeNull();
-    expect(commandExpansionName({ content: INVOCATION.content }, { content: EXPANSION, timestamp: T0 })).toBeNull();
+    expect(
+      commandExpansionName(null, { content: EXPANSION, timestamp: T0 }),
+    ).toBeNull();
+    expect(
+      commandExpansionName(
+        { content: INVOCATION.content },
+        { content: EXPANSION, timestamp: T0 },
+      ),
+    ).toBeNull();
   });
 });

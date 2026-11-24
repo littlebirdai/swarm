@@ -5,7 +5,11 @@
  * lib/migrationPlan's eligibility so a menu never offers a refused move.
  */
 import { deviceDisplayName, type Device } from "../components/DeviceBadge";
-import { eligibilityFor, type MigrationCandidate, type MigrationDevice } from "./migrationPlan";
+import {
+  eligibilityFor,
+  type MigrationCandidate,
+  type MigrationDevice,
+} from "./migrationPlan";
 
 /** The eligibility rule reads the migration-panel candidate shape; an inbox row carries the same facts under its own names. */
 export function asMigrationCandidate(s: any): MigrationCandidate {
@@ -20,7 +24,9 @@ export function asMigrationCandidate(s: any): MigrationCandidate {
     worktree_branch: s.worktree_branch ?? null,
     updated_at: s.updated_at ?? 0,
     has_pending_messages: !!s.has_pending,
-    migration: s.migration_batch_id ? { batch_id: s.migration_batch_id, migration_id: "" } : null,
+    migration: s.migration_batch_id
+      ? { batch_id: s.migration_batch_id, migration_id: "" }
+      : null,
     cloud_placement: s.cloud_placement ?? null,
     inbox_stashed_at: s.inbox_stashed_at ?? null,
     inbox_dismissed_at: s.inbox_dismissed_at ?? null,
@@ -28,7 +34,12 @@ export function asMigrationCandidate(s: any): MigrationCandidate {
 }
 
 export function asPlanDevices(devices: Device[]): MigrationDevice[] {
-  return devices.map((d) => ({ device_id: d.device_id, is_remote: d.is_remote, online: d.online, label: deviceDisplayName(d) }));
+  return devices.map((d) => ({
+    device_id: d.device_id,
+    is_remote: d.is_remote,
+    online: d.online,
+    label: deviceDisplayName(d),
+  }));
 }
 
 export type BulkMovePlan = {
@@ -41,7 +52,11 @@ export type BulkMovePlan = {
 };
 
 /** Which rail each session takes to `device`; pure, so the split is testable. */
-export function planBulkMove(sessions: any[], device: Device, devices: Device[]): BulkMovePlan {
+export function planBulkMove(
+  sessions: any[],
+  device: Device,
+  devices: Device[],
+): BulkMovePlan {
   const target = asPlanDevices([device])[0];
   const plan = asPlanDevices(devices);
   const out: BulkMovePlan = { batch: [], reassign: [], skipped: [] };
@@ -50,11 +65,18 @@ export function planBulkMove(sessions: any[], device: Device, devices: Device[])
     if (!s?._id || seen.has(s._id)) continue;
     seen.add(s._id);
     const e = eligibilityFor(asMigrationCandidate(s), target, plan);
-    if (e.ok) { out.batch.push(s); continue; }
+    if (e.ok) {
+      out.batch.push(s);
+      continue;
+    }
     // Laptop → laptop is the existing re-home, not a migration: the plan
     // refuses it with this reason precisely so a caller can route it there.
     if (!device.is_remote && e.reason.startsWith("not on a cloud host")) {
-      if (!device.online) out.skipped.push({ session: s, reason: `${deviceDisplayName(device)} is offline` });
+      if (!device.online)
+        out.skipped.push({
+          session: s,
+          reason: `${deviceDisplayName(device)} is offline`,
+        });
       else out.reassign.push(s);
       continue;
     }
@@ -62,4 +84,3 @@ export function planBulkMove(sessions: any[], device: Device, devices: Device[])
   }
   return out;
 }
-

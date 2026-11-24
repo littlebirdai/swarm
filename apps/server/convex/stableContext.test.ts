@@ -19,29 +19,52 @@ function spoolRow(overrides: Record<string, any> = {}) {
 describe("consumeStableContextSpool", () => {
   test("attaches a parked record to the conversation and deletes the spool row", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: "conversations_1", user_id: USER, session_id: "uuid-real" }],
+      conversations: [
+        { _id: "conversations_1", user_id: USER, session_id: "uuid-real" },
+      ],
       stable_context_spool: [spoolRow()],
       conversation_context: [],
     });
 
-    await consumeStableContextSpool({ db }, USER, "uuid-real", "conversations_1" as any);
+    await consumeStableContextSpool(
+      { db },
+      USER,
+      "uuid-real",
+      "conversations_1" as any,
+    );
 
     // The record lives on the conversation_context side row, not the hot doc.
     expect(db._tables.conversation_context).toHaveLength(1);
-    expect(db._tables.conversation_context[0].conversation_id).toBe("conversations_1");
-    expect(db._tables.conversation_context[0].stable_context).toContain('"mode":"team"');
+    expect(db._tables.conversation_context[0].conversation_id).toBe(
+      "conversations_1",
+    );
+    expect(db._tables.conversation_context[0].stable_context).toContain(
+      '"mode":"team"',
+    );
     expect(db._tables.conversations[0].stable_context).toBeUndefined();
     expect(db._tables.stable_context_spool).toHaveLength(0);
   });
 
   test("never clobbers a record already on the conversation", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: "conversations_1", user_id: USER, session_id: "uuid-real", stable_context: "existing" }],
+      conversations: [
+        {
+          _id: "conversations_1",
+          user_id: USER,
+          session_id: "uuid-real",
+          stable_context: "existing",
+        },
+      ],
       stable_context_spool: [spoolRow()],
       conversation_context: [],
     });
 
-    await consumeStableContextSpool({ db }, USER, "uuid-real", "conversations_1" as any);
+    await consumeStableContextSpool(
+      { db },
+      USER,
+      "uuid-real",
+      "conversations_1" as any,
+    );
 
     expect(db._tables.conversations[0].stable_context).toBe("existing");
     expect(db._tables.conversation_context).toHaveLength(0);
@@ -51,12 +74,19 @@ describe("consumeStableContextSpool", () => {
 
   test("no-op when nothing is spooled for the session", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: "conversations_1", user_id: USER, session_id: "uuid-real" }],
+      conversations: [
+        { _id: "conversations_1", user_id: USER, session_id: "uuid-real" },
+      ],
       stable_context_spool: [spoolRow({ session_id: "some-other-session" })],
       conversation_context: [],
     });
 
-    await consumeStableContextSpool({ db }, USER, "uuid-real", "conversations_1" as any);
+    await consumeStableContextSpool(
+      { db },
+      USER,
+      "uuid-real",
+      "conversations_1" as any,
+    );
 
     expect(db._tables.conversations[0].stable_context).toBeUndefined();
     expect(db._tables.conversation_context).toHaveLength(0);
@@ -67,7 +97,9 @@ describe("consumeStableContextSpool", () => {
 describe("enqueueStartSession stable-context prefs", () => {
   test("stable prefs ride the start_session args; omitted when unset", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: "conversations_1", user_id: USER, session_id: "stub" }],
+      conversations: [
+        { _id: "conversations_1", user_id: USER, session_id: "stub" },
+      ],
       devices: [],
       daemon_commands: [],
     });

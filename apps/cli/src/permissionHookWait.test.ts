@@ -12,10 +12,19 @@ import {
   type PermissionHookInput,
 } from "./permissionHookWait.js";
 import { CODECAST_STATUS_HOOK } from "./statusHook.js";
-import { handleHookIngressHttp, type HookIngressDeps, type HookStatusData } from "./daemon.js";
+import {
+  handleHookIngressHttp,
+  type HookIngressDeps,
+  type HookStatusData,
+} from "./daemon.js";
 
 const LAUNCH_TOKEN = "0123456789abcdef01234567";
-const RULE = { type: "addRules", rules: [{ toolName: "Bash", ruleContent: "bun test:*" }], behavior: "allow", destination: "localSettings" };
+const RULE = {
+  type: "addRules",
+  rules: [{ toolName: "Bash", ruleContent: "bun test:*" }],
+  behavior: "allow",
+  destination: "localSettings",
+};
 const PAYLOAD = {
   session_id: "perm-1",
   hook_event_name: "PermissionRequest",
@@ -37,26 +46,45 @@ describe("parsePermissionHookInput", () => {
       intent: "run tests",
       command: "bun test src/x.test.ts",
       suggestions: [RULE],
-      ruleRequest: { permission: "bash", patterns: ["bun test src/x.test.ts"], always: ["bun test *"] },
+      ruleRequest: {
+        permission: "bash",
+        patterns: ["bun test src/x.test.ts"],
+        always: ["bun test *"],
+      },
     });
-    expect(parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, cwd: "/tmp/lab" }))?.cwd).toBe("/tmp/lab");
+    expect(
+      parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, cwd: "/tmp/lab" }))
+        ?.cwd,
+    ).toBe("/tmp/lab");
   });
 
   test("names the subagent that raised the prompt, and only a subagent", () => {
-    const sub = parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, agent_id: "a1b2", agent_type: "Explore" }));
+    const sub = parsePermissionHookInput(
+      JSON.stringify({ ...PAYLOAD, agent_id: "a1b2", agent_type: "Explore" }),
+    );
     expect(sub?.subagentType).toBe("Explore");
     expect(sub?.agentId).toBe("a1b2");
-    const untyped = parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, agent_id: "a1b2" }));
+    const untyped = parsePermissionHookInput(
+      JSON.stringify({ ...PAYLOAD, agent_id: "a1b2" }),
+    );
     expect(untyped?.subagentType).toBe("subagent");
     // The main agent's payload carries agent_type too, but no agent_id.
-    const main = parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, agent_type: "claude" }));
+    const main = parsePermissionHookInput(
+      JSON.stringify({ ...PAYLOAD, agent_type: "claude" }),
+    );
     expect(main?.subagentType).toBeUndefined();
   });
 
   test("refuses anything that is not a PermissionRequest", () => {
     expect(parsePermissionHookInput("not json")).toBeNull();
-    expect(parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, hook_event_name: "PreToolUse" }))).toBeNull();
-    expect(parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, tool_name: "" }))).toBeNull();
+    expect(
+      parsePermissionHookInput(
+        JSON.stringify({ ...PAYLOAD, hook_event_name: "PreToolUse" }),
+      ),
+    ).toBeNull();
+    expect(
+      parsePermissionHookInput(JSON.stringify({ ...PAYLOAD, tool_name: "" })),
+    ).toBeNull();
   });
 });
 
@@ -69,33 +97,57 @@ describe("glanceCommand", () => {
       "EOF",
       'grep -n "day ${\\|\\[day" persona.ts | head',
     ].join("\n");
-    expect(glanceCommand(command)).toBe(["python3 - <<'EOF'", "…", 'grep -n "day ${\\|\\[day" persona.ts | head'].join("\n"));
+    expect(glanceCommand(command)).toBe(
+      [
+        "python3 - <<'EOF'",
+        "…",
+        'grep -n "day ${\\|\\[day" persona.ts | head',
+      ].join("\n"),
+    );
   });
 
   test("leaves a plain command alone and folds an unterminated heredoc to its end", () => {
-    expect(glanceCommand("bun test src/x.test.ts")).toBe("bun test src/x.test.ts");
+    expect(glanceCommand("bun test src/x.test.ts")).toBe(
+      "bun test src/x.test.ts",
+    );
     expect(glanceCommand('cd "/a b" && cat <<EOF\nbody')).toBe("cat <<EOF\n…");
   });
 });
 
 describe("permissionDecisionOutput", () => {
   test("allow carries the suggested rules only when remembered", () => {
-    expect(JSON.parse(permissionDecisionOutput({ approved: true }, [RULE])).hookSpecificOutput).toEqual({
+    expect(
+      JSON.parse(permissionDecisionOutput({ approved: true }, [RULE]))
+        .hookSpecificOutput,
+    ).toEqual({
       hookEventName: "PermissionRequest",
       decision: { behavior: "allow" },
     });
-    expect(decisionOf(permissionDecisionOutput({ approved: true, remember: true }, [RULE]))).toEqual({
+    expect(
+      decisionOf(
+        permissionDecisionOutput({ approved: true, remember: true }, [RULE]),
+      ),
+    ).toEqual({
       behavior: "allow",
       updatedPermissions: [RULE],
     });
   });
 
   test("a reason reaches the model and lets it continue; no reason stops the turn", () => {
-    expect(decisionOf(permissionDecisionOutput({ approved: false, message: " run only the one file " }, []))).toEqual({
+    expect(
+      decisionOf(
+        permissionDecisionOutput(
+          { approved: false, message: " run only the one file " },
+          [],
+        ),
+      ),
+    ).toEqual({
       behavior: "deny",
       message: "run only the one file",
     });
-    expect(decisionOf(permissionDecisionOutput({ approved: false }, []))).toMatchObject({ behavior: "deny", interrupt: true });
+    expect(
+      decisionOf(permissionDecisionOutput({ approved: false }, [])),
+    ).toMatchObject({ behavior: "deny", interrupt: true });
   });
 });
 
@@ -106,7 +158,10 @@ describe("PermissionHookWaiters", () => {
     expect(w.answer("p1", { approved: true })).toBe(false);
     a.bind("p1");
     expect(w.answer("p1", { approved: true, remember: true })).toBe(true);
-    expect(decisionOf((await a.done)!)).toEqual({ behavior: "allow", updatedPermissions: [RULE] });
+    expect(decisionOf((await a.done)!)).toEqual({
+      behavior: "allow",
+      updatedPermissions: [RULE],
+    });
     // The second sighting of the same answer (subscription after poll) must
     // still read as owned by the hook, so nobody presses a key.
     expect(w.answer("p1", { approved: true })).toBe(true);
@@ -134,15 +189,28 @@ describe("codecast-status.sh on a PermissionRequest", () => {
 
   const deps = (): HookIngressDeps => ({
     admit: () => ({ ok: true }) as any,
-    refuse: (_r, _why, res) => { res.writeHead(401); res.end(); },
-    deliver: (sessionId, data) => { statuses.push({ sessionId, data }); return "delivered"; },
-    statusLine: (_req, res) => { res.end(); },
+    refuse: (_r, _why, res) => {
+      res.writeHead(401);
+      res.end();
+    },
+    deliver: (sessionId, data) => {
+      statuses.push({ sessionId, data });
+      return "delivered";
+    },
+    statusLine: (_req, res) => {
+      res.end();
+    },
     ...(mode === "answer" && {
       permission: (input, res) => {
         held.push(input);
         setTimeout(() => {
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(permissionDecisionOutput({ approved: false, message: "use the watcher" }, input.suggestions));
+          res.end(
+            permissionDecisionOutput(
+              { approved: false, message: "use the watcher" },
+              input.suggestions,
+            ),
+          );
         }, 50);
       },
     }),
@@ -150,8 +218,11 @@ describe("codecast-status.sh on a PermissionRequest", () => {
 
   const runHook = (payload: object, env: Record<string, string> = {}) =>
     new Promise<string>((resolve, reject) => {
-      const child = execFile("bash", [hookFile], { env: { ...process.env, HOME: home, ...env } }, (err, stdout) =>
-        err ? reject(err) : resolve(stdout),
+      const child = execFile(
+        "bash",
+        [hookFile],
+        { env: { ...process.env, HOME: home, ...env } },
+        (err, stdout) => (err ? reject(err) : resolve(stdout)),
       );
       child.stdin!.end(JSON.stringify(payload));
     });
@@ -161,11 +232,17 @@ describe("codecast-status.sh on a PermissionRequest", () => {
     hookFile = path.join(home, "codecast-status.sh");
     fs.writeFileSync(hookFile, CODECAST_STATUS_HOOK, { mode: 0o755 });
     server = http.createServer((req, res) => {
-      if (!handleHookIngressHttp(req, res, deps())) { res.writeHead(404); res.end(); }
+      if (!handleHookIngressHttp(req, res, deps())) {
+        res.writeHead(404);
+        res.end();
+      }
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".codecast", "hook-port"), String((server.address() as any).port));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "hook-port"),
+      String((server.address() as any).port),
+    );
   });
 
   afterAll(() => {
@@ -175,10 +252,22 @@ describe("codecast-status.sh on a PermissionRequest", () => {
 
   test("prints the daemon's decision and sends the whole payload", async () => {
     mode = "answer";
-    const big = { ...PAYLOAD, tool_name: "Write", tool_input: { file_path: "/tmp/a", content: "x".repeat(200_000) } };
+    const big = {
+      ...PAYLOAD,
+      tool_name: "Write",
+      tool_input: { file_path: "/tmp/a", content: "x".repeat(200_000) },
+    };
     const out = await runHook(big);
-    expect(decisionOf(out)).toEqual({ behavior: "deny", message: "use the watcher" });
-    expect(held.at(-1)).toMatchObject({ sessionId: "perm-1", toolName: "Write", preview: "/tmp/a", suggestions: [RULE] });
+    expect(decisionOf(out)).toEqual({
+      behavior: "deny",
+      message: "use the watcher",
+    });
+    expect(held.at(-1)).toMatchObject({
+      sessionId: "perm-1",
+      toolName: "Write",
+      preview: "/tmp/a",
+      suggestions: [RULE],
+    });
     // The route reported the status itself; the script did not post it twice.
     expect(statuses).toHaveLength(0);
   });
@@ -196,7 +285,11 @@ describe("codecast-status.sh on a PermissionRequest", () => {
     mode = "answer";
     const heldBefore = held.length;
     const statusesBefore = statuses.length;
-    const out = await runHook({ ...PAYLOAD, permission_mode: "bypassPermissions", tool_input: { command: "python3 - <<'EOF'\nprint(1)\nEOF" } });
+    const out = await runHook({
+      ...PAYLOAD,
+      permission_mode: "bypassPermissions",
+      tool_input: { command: "python3 - <<'EOF'\nprint(1)\nEOF" },
+    });
     expect(decisionOf(out)).toEqual({ behavior: "allow" });
     expect(held).toHaveLength(heldBefore);
     expect(statuses).toHaveLength(statusesBefore);
@@ -206,6 +299,12 @@ describe("codecast-status.sh on a PermissionRequest", () => {
     mode = "missing";
     const out = await runHook(PAYLOAD);
     expect(out).toBe("");
-    expect(statuses.at(-1)).toMatchObject({ sessionId: "perm-1", data: { status: "permission_blocked", message: "Bash: bun test src/x.test.ts" } });
+    expect(statuses.at(-1)).toMatchObject({
+      sessionId: "perm-1",
+      data: {
+        status: "permission_blocked",
+        message: "Bash: bun test src/x.test.ts",
+      },
+    });
   });
 });

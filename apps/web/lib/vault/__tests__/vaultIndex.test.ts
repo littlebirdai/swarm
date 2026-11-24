@@ -15,13 +15,22 @@ function build(files: Record<string, string>): VaultIndex {
 function dump(index: VaultIndex) {
   return {
     paths: index.paths(),
-    outgoing: index.paths().map((p) => [
-      p,
-      index.outgoing(p).map((o) => [o.link.target, o.resolved, o.isAmbiguous]),
-    ]),
+    outgoing: index
+      .paths()
+      .map((p) => [
+        p,
+        index
+          .outgoing(p)
+          .map((o) => [o.link.target, o.resolved, o.isAmbiguous]),
+      ]),
     backlinks: index
       .paths()
-      .map((p) => [p, index.backlinks(p).map((b) => [b.source, b.link.target, b.link.line, b.link.col])]),
+      .map((p) => [
+        p,
+        index
+          .backlinks(p)
+          .map((b) => [b.source, b.link.target, b.link.line, b.link.col]),
+      ]),
     unresolved: [...index.unresolvedTargets()].sort(),
     tags: index.tags().map((t) => [t, index.filesWithTag(t)]),
     tagTree: index.tagTree(),
@@ -31,7 +40,9 @@ function dump(index: VaultIndex) {
 describe("resolution", () => {
   test("exact vault-relative path, with or without extension, any case", () => {
     const index = build({
-      "Projects/Note.md": note("[[Projects/Note]] [[Projects/Note.md]] [[projects/note]]"),
+      "Projects/Note.md": note(
+        "[[Projects/Note]] [[Projects/Note.md]] [[projects/note]]",
+      ),
       "Other.md": note(""),
     });
     for (const link of index.outgoing("Projects/Note.md")) {
@@ -69,7 +80,9 @@ describe("resolution", () => {
     expect(fromElsewhere.isAmbiguous).toBe(true);
 
     // Spelling the folder disambiguates completely.
-    expect(index.resolveLinkInfo("Projects/Meeting Notes", "Elsewhere/Other.md")).toMatchObject({
+    expect(
+      index.resolveLinkInfo("Projects/Meeting Notes", "Elsewhere/Other.md"),
+    ).toMatchObject({
       path: "Projects/Meeting Notes.md",
       isAmbiguous: false,
     });
@@ -77,7 +90,9 @@ describe("resolution", () => {
 
   test("aliases resolve, and lose to a real filename", () => {
     const index = build({
-      "People/Ada Lovelace.md": note('---\naliases: ["Ada", "The Countess"]\n---\n'),
+      "People/Ada Lovelace.md": note(
+        '---\naliases: ["Ada", "The Countess"]\n---\n',
+      ),
       "Notes/Ada.md": note(""),
       "Source.md": note("[[The Countess]] and [[Ada]]"),
     });
@@ -88,7 +103,9 @@ describe("resolution", () => {
   });
 
   test("empty target means this file (`[[#Heading]]`)", () => {
-    const index = build({ "A.md": note("[[#Some Heading]]\n\n## Some Heading") });
+    const index = build({
+      "A.md": note("[[#Some Heading]]\n\n## Some Heading"),
+    });
     const [selfLink] = index.outgoing("A.md");
     expect(selfLink.resolved).toBe("A.md");
     expect(selfLink.link.subpath).toBe("Some Heading");
@@ -114,7 +131,10 @@ describe("resolution", () => {
     });
     expect(index.outgoing("A.md")[0].resolved).toBeNull();
     // Unresolved targets key case-insensitively: one row, two sources.
-    expect(index.unresolvedTargets().get("ghost note")).toEqual(["A.md", "B.md"]);
+    expect(index.unresolvedTargets().get("ghost note")).toEqual([
+      "A.md",
+      "B.md",
+    ]);
   });
 
   test("unicode and punctuation filenames resolve", () => {
@@ -175,13 +195,15 @@ describe("the ambiguity flip", () => {
     index.upsert("Later.md", note(""));
 
     expect(index.outgoing("Source.md")[0].resolved).toBe("Later.md");
-    expect(index.backlinks("Later.md").map((b) => b.source)).toEqual(["Source.md"]);
+    expect(index.backlinks("Later.md").map((b) => b.source)).toEqual([
+      "Source.md",
+    ]);
     expect(index.unresolvedTargets().has("later")).toBe(false);
   });
 
   test("an edit that DROPS an alias re-resolves the links riding on it", () => {
     const index = build({
-      "People/Ada.md": note('---\naliases: [The Countess]\n---\n'),
+      "People/Ada.md": note("---\naliases: [The Countess]\n---\n"),
       "Source.md": note("[[The Countess]]"),
     });
     expect(index.outgoing("Source.md")[0].resolved).toBe("People/Ada.md");
@@ -228,7 +250,9 @@ describe("rename", () => {
     // The link still resolves — by basename, from its new home.
     expect(index.outgoing("A.md")[0].resolved).toBe("Archive/Target.md");
     expect(index.outgoing("Archive/Target.md")[0].resolved).toBe("A.md");
-    expect(index.backlinks("Archive/Target.md").map((b) => b.source)).toEqual(["A.md"]);
+    expect(index.backlinks("Archive/Target.md").map((b) => b.source)).toEqual([
+      "A.md",
+    ]);
   });
 
   test("renaming to a new basename strands the links that used the old one", () => {
@@ -253,7 +277,12 @@ describe("rename", () => {
     expect(index.resolveLink("Foo", "Anywhere.md")).toBe("B.md");
     expect(index.backlinks("Hub.md").map((b) => b.source)).toEqual(["B.md"]);
     expect(dump(index)).toEqual(
-      dump(build({ "B.md": note("---\naliases: [Foo]\ntags: [atag]\n---\n\n[[Hub]]"), "Hub.md": note("") })),
+      dump(
+        build({
+          "B.md": note("---\naliases: [Foo]\ntags: [atag]\n---\n\n[[Hub]]"),
+          "Hub.md": note(""),
+        }),
+      ),
     );
   });
 
@@ -276,7 +305,9 @@ describe("backlinks and outgoing", () => {
       "Alpha.md": note("[[Hub]] again [[Hub|aliased]]"),
       "Hub.md": note(""),
     });
-    expect(index.backlinks("Hub.md").map((b) => [b.source, b.link.col])).toEqual([
+    expect(
+      index.backlinks("Hub.md").map((b) => [b.source, b.link.col]),
+    ).toEqual([
       ["Alpha.md", 0],
       ["Alpha.md", 14],
       ["Zed.md", 0],
@@ -294,19 +325,31 @@ describe("backlinks and outgoing", () => {
       "B.md": "",
       "C.md": "",
     });
-    expect(index.outgoing("A.md").map((o) => o.link.target)).toEqual(["C", "B", "C"]);
+    expect(index.outgoing("A.md").map((o) => o.link.target)).toEqual([
+      "C",
+      "B",
+      "C",
+    ]);
   });
 });
 
 describe("tags", () => {
   const tagged = build({
-    "A.md": note("---\ntags: [status/draft, project]\n---\n\n#status/draft #til"),
+    "A.md": note(
+      "---\ntags: [status/draft, project]\n---\n\n#status/draft #til",
+    ),
     "B.md": note("#status/done"),
     "C.md": note("#status/draft/deep"),
   });
 
   test("frontmatter and inline tags merge, deduped and case-folded", () => {
-    expect(tagged.tags()).toEqual(["project", "status/done", "status/draft", "status/draft/deep", "til"]);
+    expect(tagged.tags()).toEqual([
+      "project",
+      "status/done",
+      "status/draft",
+      "status/draft/deep",
+      "til",
+    ]);
   });
 
   test("filesWithTag includes descendants", () => {
@@ -328,10 +371,21 @@ describe("tags", () => {
 
     // "status" is a synthetic parent: no file carries it directly, three carry
     // something under it.
-    expect(byTag.get("status")).toMatchObject({ name: "status", count: 0, total: 3 });
+    expect(byTag.get("status")).toMatchObject({
+      name: "status",
+      count: 0,
+      total: 3,
+    });
     expect(byTag.get("status/draft")).toMatchObject({ count: 1, total: 2 });
-    expect(byTag.get("status/draft/deep")).toMatchObject({ count: 1, total: 1 });
-    expect(tagged.tagTree().map((n) => n.tag)).toEqual(["project", "status", "til"]);
+    expect(byTag.get("status/draft/deep")).toMatchObject({
+      count: 1,
+      total: 1,
+    });
+    expect(tagged.tagTree().map((n) => n.tag)).toEqual([
+      "project",
+      "status",
+      "til",
+    ]);
   });
 
   test("a file tagged twice under one parent counts once", () => {
@@ -355,7 +409,9 @@ describe("snapshot", () => {
 
   test("a version mismatch refuses the snapshot so callers rebuild", () => {
     const snapshot = build({ "A.md": note("") }).snapshot();
-    expect(VaultIndex.fromSnapshot({ ...snapshot, version: snapshot.version + 1 })).toBeNull();
+    expect(
+      VaultIndex.fromSnapshot({ ...snapshot, version: snapshot.version + 1 }),
+    ).toBeNull();
   });
 });
 
@@ -366,11 +422,18 @@ describe("incremental patching equals a full rebuild", () => {
   test("random operation streams stay identical to a rebuild", () => {
     let seed = 20260731;
     const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
-    const pick = <T,>(items: T[]): T => items[Math.floor(rand() * items.length)];
+    const pick = <T>(items: T[]): T => items[Math.floor(rand() * items.length)];
 
     const folders = ["", "A/", "B/", "A/Deep/"];
     const names = ["Note", "Meeting Notes", "Café Réunion", "Target", "Hub"];
-    const targets = [...names, "Ghost", "A/Note", "Note.md", "Hub|alias", "#self"];
+    const targets = [
+      ...names,
+      "Ghost",
+      "A/Note",
+      "Note.md",
+      "Hub|alias",
+      "#self",
+    ];
 
     const bodyFor = (i: number) =>
       [
@@ -438,7 +501,11 @@ function fixtureFiles(): [string, string][] {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
-      else out.push([path.relative(FIXTURE, abs), entry.name.endsWith(".md") ? fs.readFileSync(abs, "utf8") : ""]);
+      else
+        out.push([
+          path.relative(FIXTURE, abs),
+          entry.name.endsWith(".md") ? fs.readFileSync(abs, "utf8") : "",
+        ]);
     }
   };
   walk(FIXTURE);
@@ -472,7 +539,9 @@ describe.if(hasFixture)("real fixture vault", () => {
   test("code fences in real notes never contribute links", () => {
     for (const [p, body] of files) {
       if (!body.includes("[[Not A Link]]")) continue;
-      expect(index.outgoing(p).map((o) => o.link.target)).not.toContain("Not A Link");
+      expect(index.outgoing(p).map((o) => o.link.target)).not.toContain(
+        "Not A Link",
+      );
     }
   });
 
@@ -487,11 +556,15 @@ describe.if(hasFixture)("real fixture vault", () => {
   test("unicode-named notes are reachable", () => {
     const cafe = index.paths().find((p) => p.includes("Café"));
     expect(cafe).toBeDefined();
-    expect(index.resolveLink("Café Réunion — planning", "Anything.md")).toBe(cafe);
+    expect(index.resolveLink("Café Réunion — planning", "Anything.md")).toBe(
+      cafe,
+    );
   });
 
   test("tag tree covers the fixture's nested tags", () => {
-    expect(index.tagTree().some((n) => n.tag === "status" && n.children.length >= 2)).toBe(true);
+    expect(
+      index.tagTree().some((n) => n.tag === "status" && n.children.length >= 2),
+    ).toBe(true);
     expect(index.filesWithTag("status").length).toBeGreaterThan(50);
   });
 });
@@ -558,7 +631,8 @@ describe.if(process.env.VAULT_BENCH === "1")("performance", () => {
     ]);
     const index = VaultIndex.build(files);
     const started = performance.now();
-    for (let i = 0; i < 100; i++) index.upsert(`Folder0/Synthetic Note ${i}.md`, synthetic(i));
+    for (let i = 0; i < 100; i++)
+      index.upsert(`Folder0/Synthetic Note ${i}.md`, synthetic(i));
     const per = (performance.now() - started) / 100;
     console.log(`incremental upsert: ${per.toFixed(3)}ms`);
     expect(per).toBeLessThan(10);

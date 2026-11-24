@@ -63,33 +63,61 @@ export interface OpenCulprit {
   newest_red_seq: number;
 }
 
-const owns = (c: OpenCulprit, workflow: string, job: string) => c.jobs.some((j) => j.workflow === workflow && j.job === job);
-const passedIn = (r: JudgedRun, job: string) => r.jobs.some((x) => x.name === job && x.ok);
+const owns = (c: OpenCulprit, workflow: string, job: string) =>
+  c.jobs.some((j) => j.workflow === workflow && j.job === job);
+const passedIn = (r: JudgedRun, job: string) =>
+  r.jobs.some((x) => x.name === job && x.ok);
 
 /**
  * A confirmed red run against the open culprits: the ones owning a job it failed (it joins them), and the
  * failed jobs none owns, which are a new culprit's.
  */
-export function placeRed(run: Pick<JudgedRun, "workflow" | "failed">, open: readonly OpenCulprit[]): { joins: number[]; fresh: string[] } {
+export function placeRed(
+  run: Pick<JudgedRun, "workflow" | "failed">,
+  open: readonly OpenCulprit[],
+): { joins: number[]; fresh: string[] } {
   return {
-    joins: open.flatMap((c, i) => (run.failed.some((j) => owns(c, run.workflow, j)) ? [i] : [])),
-    fresh: run.failed.filter((j) => !open.some((c) => owns(c, run.workflow, j))),
+    joins: open.flatMap((c, i) =>
+      run.failed.some((j) => owns(c, run.workflow, j)) ? [i] : [],
+    ),
+    fresh: run.failed.filter(
+      (j) => !open.some((c) => owns(c, run.workflow, j)),
+    ),
   };
 }
 
 /** The newest run of the workflow before `seq` where `job` ran and passed: that job's last green. */
-export function lastGreenFor(runs: readonly JudgedRun[], workflow: string, seq: number, job: string): JudgedRun | null {
-  return [...runs]
-    .filter((r) => r.workflow === workflow && r.seq < seq && passedIn(r, job))
-    .sort((a, b) => b.seq - a.seq)[0] ?? null;
+export function lastGreenFor(
+  runs: readonly JudgedRun[],
+  workflow: string,
+  seq: number,
+  job: string,
+): JudgedRun | null {
+  return (
+    [...runs]
+      .filter((r) => r.workflow === workflow && r.seq < seq && passedIn(r, job))
+      .sort((a, b) => b.seq - a.seq)[0] ?? null
+  );
 }
 
 /**
  * A run of the workflow after `seq` that ran and passed every one of `jobs`: the branch already recovered, so a
  * red verdict that lands late (a rerun settling after the fix's run, a manual rerun of an old run) is history.
  */
-export function greenAfter(runs: readonly JudgedRun[], workflow: string, seq: number, jobs: readonly string[]): JudgedRun | null {
-  return runs.find((r) => r.workflow === workflow && r.seq > seq && jobs.every((j) => passedIn(r, j))) ?? null;
+export function greenAfter(
+  runs: readonly JudgedRun[],
+  workflow: string,
+  seq: number,
+  jobs: readonly string[],
+): JudgedRun | null {
+  return (
+    runs.find(
+      (r) =>
+        r.workflow === workflow &&
+        r.seq > seq &&
+        jobs.every((j) => passedIn(r, j)),
+    ) ?? null
+  );
 }
 
 /**
@@ -98,7 +126,9 @@ export function greenAfter(runs: readonly JudgedRun[], workflow: string, seq: nu
  */
 export function fixedBy(run: JudgedRun, c: OpenCulprit): JobRef[] {
   if (run.seq <= c.newest_red_seq) return [];
-  return c.jobs.filter((j) => j.workflow === run.workflow && passedIn(run, j.job));
+  return c.jobs.filter(
+    (j) => j.workflow === run.workflow && passedIn(run, j.job),
+  );
 }
 
 /**
@@ -106,9 +136,20 @@ export function fixedBy(run: JudgedRun, c: OpenCulprit): JobRef[] {
  * exact when that is the red commit alone, else every commit in it is a candidate. Null when the range does
  * not end at the red commit (its place on the branch is unknown), which names nobody.
  */
-export function culpritOf(range: readonly string[], redSha: string): { culprit_sha: string; culprit_exact: boolean; candidates: string[] } | null {
+export function culpritOf(
+  range: readonly string[],
+  redSha: string,
+): {
+  culprit_sha: string;
+  culprit_exact: boolean;
+  candidates: string[];
+} | null {
   if (!range.length || range[range.length - 1] !== redSha) return null;
-  return { culprit_sha: redSha, culprit_exact: range.length === 1, candidates: [...range] };
+  return {
+    culprit_sha: redSha,
+    culprit_exact: range.length === 1,
+    candidates: [...range],
+  };
 }
 
 // ── aggregates: a job that fails because others did ─────────────────────────
@@ -120,7 +161,11 @@ export interface WorkflowJob {
   needs: string[];
 }
 
-const scalar = (raw: string): string => raw.replace(/\s+#.*$/, "").trim().replace(/^(['"])(.*)\1$/, "$2");
+const scalar = (raw: string): string =>
+  raw
+    .replace(/\s+#.*$/, "")
+    .trim()
+    .replace(/^(['"])(.*)\1$/, "$2");
 
 /**
  * The jobs of a GitHub Actions workflow file: each id under `jobs:`, its `name:` (the id when absent) and its
@@ -161,13 +206,19 @@ export function parseWorkflowJobs(yaml: string): WorkflowJob[] | null {
       const value = scalar(prop[2]!);
       if (prop[1] === "name" && value) job.name = value;
       if (prop[1] === "needs") {
-        if (value.startsWith("[")) job.needs = value.replace(/^\[|\]$/g, "").split(",").map(scalar).filter(Boolean);
+        if (value.startsWith("["))
+          job.needs = value
+            .replace(/^\[|\]$/g, "")
+            .split(",")
+            .map(scalar)
+            .filter(Boolean);
         else if (value) job.needs = [value];
         else inNeeds = true;
       }
       continue;
     }
-    if (inNeeds && at > propIndent && text.startsWith("- ")) job.needs.push(scalar(text.slice(2)));
+    if (inNeeds && at > propIndent && text.startsWith("- "))
+      job.needs.push(scalar(text.slice(2)));
   }
   return out;
 }
@@ -196,15 +247,24 @@ export function jobGone(listed: readonly string[], job: string): boolean {
  * prefix of a `name:` template (`e2e ${{ matrix.shard }}` for `e2e 3`). A template with no literal part names
  * nothing, and an unmatched name is a job of its own, never an aggregate.
  */
-export function workflowJobFor(jobs: readonly WorkflowJob[], runName: string): WorkflowJob | null {
-  const names = [...new Set([runName, runName.split(" / ")[0]!, jobKey(runName)])];
-  const exact = jobs.find((j) => names.includes(j.name) || names.includes(j.id));
+export function workflowJobFor(
+  jobs: readonly WorkflowJob[],
+  runName: string,
+): WorkflowJob | null {
+  const names = [
+    ...new Set([runName, runName.split(" / ")[0]!, jobKey(runName)]),
+  ];
+  const exact = jobs.find(
+    (j) => names.includes(j.name) || names.includes(j.id),
+  );
   if (exact) return exact;
-  return jobs.find((j) => {
-    if (!j.name.includes("${{")) return false;
-    const stem = j.name.split("${{")[0]!.trim();
-    return !!stem && names.some((n) => n.startsWith(stem));
-  }) ?? null;
+  return (
+    jobs.find((j) => {
+      if (!j.name.includes("${{")) return false;
+      const stem = j.name.split("${{")[0]!.trim();
+      return !!stem && names.some((n) => n.startsWith(stem));
+    }) ?? null
+  );
 }
 
 type TimedJob = { name: string; started: number; completed: number };
@@ -214,11 +274,23 @@ type TimedJob = { name: string; started: number; completed: number };
  * passing or failing, alongside another failure. `verify` waits on every job; a real job that only queued late
  * (a macOS runner) starts while others still run.
  */
-export function aggregateJobsByTiming(failed: readonly TimedJob[], all: readonly TimedJob[]): Set<string> {
-  return new Set(failed.filter((j) => {
-    const others = all.filter((o) => o.name !== j.name);
-    return failed.some((o) => o.name !== j.name) && others.every((o) => Number.isFinite(o.completed) && j.started >= o.completed);
-  }).map((j) => j.name));
+export function aggregateJobsByTiming(
+  failed: readonly TimedJob[],
+  all: readonly TimedJob[],
+): Set<string> {
+  return new Set(
+    failed
+      .filter((j) => {
+        const others = all.filter((o) => o.name !== j.name);
+        return (
+          failed.some((o) => o.name !== j.name) &&
+          others.every(
+            (o) => Number.isFinite(o.completed) && j.started >= o.completed,
+          )
+        );
+      })
+      .map((j) => j.name),
+  );
 }
 
 /**
@@ -228,11 +300,24 @@ export function aggregateJobsByTiming(failed: readonly TimedJob[], all: readonly
  * passing is a failure of its own. When there is no file, or a failed job matches no declared job (whose needs
  * then cannot be read), timing decides.
  */
-export function aggregateJobs(failed: readonly TimedJob[], all: readonly TimedJob[], file: readonly WorkflowJob[] | null): Set<string> {
-  const declared = file ? failed.map((j) => ({ name: j.name, job: workflowJobFor(file, j.name) })) : [];
-  if (!file || declared.some((d) => !d.job)) return aggregateJobsByTiming(failed, all);
+export function aggregateJobs(
+  failed: readonly TimedJob[],
+  all: readonly TimedJob[],
+  file: readonly WorkflowJob[] | null,
+): Set<string> {
+  const declared = file
+    ? failed.map((j) => ({ name: j.name, job: workflowJobFor(file, j.name) }))
+    : [];
+  if (!file || declared.some((d) => !d.job))
+    return aggregateJobsByTiming(failed, all);
   const failedIds = new Set(declared.map((d) => d.job!.id));
-  return new Set(declared.filter((d) => d.job!.needs.some((id) => id !== d.job!.id && failedIds.has(id))).map((d) => d.name));
+  return new Set(
+    declared
+      .filter((d) =>
+        d.job!.needs.some((id) => id !== d.job!.id && failedIds.has(id)),
+      )
+      .map((d) => d.name),
+  );
 }
 
 const BRIEF_FAILURES = 5;
@@ -240,7 +325,10 @@ const BRIEF_EXCERPT_LINES = 15;
 
 /** A fence longer than any run of backticks in the text, so the text cannot close it. */
 function fenceFor(text: string): string {
-  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((m) => m.length));
+  const longest = Math.max(
+    0,
+    ...(text.match(/`+/g) ?? []).map((m) => m.length),
+  );
   return "`".repeat(Math.max(3, longest + 1));
 }
 
@@ -249,11 +337,18 @@ function failureText(failing: readonly CiFailure[]): string {
   const out: string[] = [];
   for (const f of failing.slice(0, BRIEF_FAILURES)) {
     const where = f.file ? ` (${f.file}${f.line ? `:${f.line}` : ""})` : "";
-    out.push(`- ${f.job}: ${f.test ?? "the job failed"}${f.assertion ? `: ${f.assertion}` : ""}${where}`);
-    const excerpt = f.excerpt.split("\n").slice(-BRIEF_EXCERPT_LINES).map((l) => `    ${l}`).join("\n");
+    out.push(
+      `- ${f.job}: ${f.test ?? "the job failed"}${f.assertion ? `: ${f.assertion}` : ""}${where}`,
+    );
+    const excerpt = f.excerpt
+      .split("\n")
+      .slice(-BRIEF_EXCERPT_LINES)
+      .map((l) => `    ${l}`)
+      .join("\n");
     if (excerpt.trim()) out.push(excerpt);
   }
-  if (failing.length > BRIEF_FAILURES) out.push(`- and ${failing.length - BRIEF_FAILURES} more`);
+  if (failing.length > BRIEF_FAILURES)
+    out.push(`- and ${failing.length - BRIEF_FAILURES} more`);
   return out.join("\n");
 }
 
@@ -263,15 +358,26 @@ function failureText(failing: readonly CiFailure[]): string {
  * committer-written word (the commit's subject, and the failures its code printed) is fenced as data to read,
  * never instructions.
  */
-export function mainRedBrief(p: MainRedPayload, opts: { mine?: string; note?: string } = {}): string {
+export function mainRedBrief(
+  p: MainRedPayload,
+  opts: { mine?: string; note?: string } = {},
+): string {
   const { mine, note } = opts;
   const sha = (s: string) => s.slice(0, 7);
-  const run = p.ci_run_url ? [`CI: ${p.ci_run_url}${p.reran ? " (still red after a rerun of its failed jobs)" : ""}`] : [];
+  const run = p.ci_run_url
+    ? [
+        `CI: ${p.ci_run_url}${p.reran ? " (still red after a rerun of its failed jobs)" : ""}`,
+      ]
+    : [];
   if (note) run.push(note);
   const head = p.culprit_exact
     ? `${p.repo} ${p.branch} is red, and your commit ${sha(p.culprit_sha)} broke it.`
     : `${p.repo} ${p.branch} is red at ${sha(p.culprit_sha)}. No CI run since the last green tested the failing jobs on these ${p.candidates.length} commits, so one of them broke it: ${p.candidates.map(sha).join(", ")}.${mine ? ` Yours is ${sha(mine)}; check whether it caused the failures below.` : ""}`;
-  const text = [`Commit ${sha(p.culprit_sha)}: ${p.culprit_subject ?? "(no subject)"}`, "", failureText(p.failing)].join("\n");
+  const text = [
+    `Commit ${sha(p.culprit_sha)}: ${p.culprit_subject ?? "(no subject)"}`,
+    "",
+    failureText(p.failing),
+  ].join("\n");
   const fence = fenceFor(text);
   return [
     head,
@@ -289,7 +395,12 @@ export function mainRedBrief(p: MainRedPayload, opts: { mine?: string; note?: st
  * The words after "red since" in the Deploy station's wait line (awaitDeploy's `redSince`) for an open culprit:
  * its short sha and subject, and how many commits it could be when it is not exact.
  */
-export function mainRedSince(p: Pick<MainRedPayload, "culprit_sha" | "culprit_subject" | "culprit_exact" | "candidates">): string {
+export function mainRedSince(
+  p: Pick<
+    MainRedPayload,
+    "culprit_sha" | "culprit_subject" | "culprit_exact" | "candidates"
+  >,
+): string {
   const subject = p.culprit_subject ? ` ${p.culprit_subject}` : "";
   return `${p.culprit_sha.slice(0, 7)}${subject}${p.culprit_exact ? "" : ` (${p.candidates.length} commits)`}`;
 }

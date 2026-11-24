@@ -35,7 +35,8 @@ export async function syncDecisionInbox(
     const key = String(row.user_id);
     if (wanted.has(key)) {
       have.add(key);
-      if (row.status !== "pending") await ctx.db.patch(row._id, { status: "pending" });
+      if (row.status !== "pending")
+        await ctx.db.patch(row._id, { status: "pending" });
     } else {
       await ctx.db.delete(row._id);
       removed.push(key);
@@ -44,13 +45,20 @@ export async function syncDecisionInbox(
   // Handed to someone else: the people it left stop being told it waits on them.
   if (removed.length) {
     const decision = await ctx.db.get(decisionId);
-    if (decision) await settleDecisionWaiting(ctx, decision.conversation_id, removed);
+    if (decision)
+      await settleDecisionWaiting(ctx, decision.conversation_id, removed);
   }
   const added: Id<"users">[] = [];
   for (const userId of queue ? people : []) {
     if (have.has(String(userId))) continue;
-    await ctx.db.insert("decision_inbox", { decision_id: decisionId, user_id: userId, status: "pending", created_at: now });
+    await ctx.db.insert("decision_inbox", {
+      decision_id: decisionId,
+      user_id: userId,
+      status: "pending",
+      created_at: now,
+    });
     added.push(userId);
   }
-  if (opts.announce !== false) await announceDecisionWaiting(ctx, decisionId, added, now);
+  if (opts.announce !== false)
+    await announceDecisionWaiting(ctx, decisionId, added, now);
 }

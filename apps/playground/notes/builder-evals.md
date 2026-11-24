@@ -27,13 +27,13 @@ judge, so before and after compare like for like.
 
 ## Runs (2026-10-07, builder claude-sonnet-5-5)
 
-| Run | What changed | Hits | Top look | Median all | Median new app (max) | Median change | Median cost | Total |
-|---|---|---|---|---|---|---|---|---|
-| baseline | chunky starter, prompt as found | 16/32 | 13 | 27.1s | 31.2s (78.6s) | 25.1s | $0.066 | $2.22 |
-| v2 | calm starter; prompt says the starter is a placeholder; real-software-first design; open-ended asks get 1 or 2 real changes; SDK docs give the write rate | 9/32 | 9 | 23.9s | 36.1s (78.8s) | 21.1s | $0.063 | $2.10 |
-| v3 | every app gets its own palette and type; `setValue(prev => next)` documented as conflict-safe; effects are garnish on a real change | 31/32 | 30 | 25.6s | 36.6s (80.2s) | 24.0s | $0.065 | $2.23 |
-| v4 | speed named as part of quality in Working | 31/32 | 30 | 24.7s | 33.5s (75.0s) | 22.7s | $0.060 | $2.03 |
-| v5 | same prompt as v4; eval picks the innermost element by text or label | 31/32 | 29 | 22.8s | 37.7s (88.6s) | 22.1s | $0.057 | $2.01 |
+| Run      | What changed                                                                                                                                              | Hits  | Top look | Median all | Median new app (max) | Median change | Median cost | Total |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------- | ---------- | -------------------- | ------------- | ----------- | ----- |
+| baseline | chunky starter, prompt as found                                                                                                                           | 16/32 | 13       | 27.1s      | 31.2s (78.6s)        | 25.1s         | $0.066      | $2.22 |
+| v2       | calm starter; prompt says the starter is a placeholder; real-software-first design; open-ended asks get 1 or 2 real changes; SDK docs give the write rate | 9/32  | 9        | 23.9s      | 36.1s (78.8s)        | 21.1s         | $0.063      | $2.10 |
+| v3       | every app gets its own palette and type; `setValue(prev => next)` documented as conflict-safe; effects are garnish on a real change                       | 31/32 | 30       | 25.6s      | 36.6s (80.2s)        | 24.0s         | $0.065      | $2.23 |
+| v4       | speed named as part of quality in Working                                                                                                                 | 31/32 | 30       | 24.7s      | 33.5s (75.0s)        | 22.7s         | $0.060      | $2.03 |
+| v5       | same prompt as v4; eval picks the innermost element by text or label                                                                                      | 31/32 | 29       | 22.8s      | 37.7s (88.6s)        | 22.1s         | $0.057      | $2.01 |
 
 Every build in every run went live (160/160).
 
@@ -43,11 +43,11 @@ Sonnet 5.5 defaults to effort high. Builds now set `output_config.effort` and
 `thinking.display: "summarized"` (convex/builder/model.ts), and `finish`
 takes a spotlight selector and a "try it" line.
 
-| Run | Effort | Hits | Top look | Median change | Median new app (max) | Median cost | Total |
-|---|---|---|---|---|---|---|---|
-| effort-high | high (old prompt) | 32/32 | 29 | 22.7s | 32.4s (73.0s) | $0.058 | $1.94 |
-| effort-medium | medium for all | 30/32 | 25 | 11.4s | 16.9s (24.2s) | $0.034 | $1.10 |
-| effort-split | high for a new app, medium for a change | 31/32 | 26 | 9.6s | 29.0s (68.6s) | $0.038 | $1.52 |
+| Run           | Effort                                  | Hits  | Top look | Median change | Median new app (max) | Median cost | Total |
+| ------------- | --------------------------------------- | ----- | -------- | ------------- | -------------------- | ----------- | ----- |
+| effort-high   | high (old prompt)                       | 32/32 | 29       | 22.7s         | 32.4s (73.0s)        | $0.058      | $1.94 |
+| effort-medium | medium for all                          | 30/32 | 25       | 11.4s         | 16.9s (24.2s)        | $0.034      | $1.10 |
+| effort-split  | high for a new app, medium for a change | 31/32 | 26       | 9.6s          | 29.0s (68.6s)        | $0.038      | $1.52 |
 
 - Medium for a new app shipped an unplayable platformer (jump 84px, first
   platform at 90px), so a new app's first build stays at high
@@ -125,40 +125,40 @@ more samples to judge, or a seed of its own.
 
 ## v5, every build
 
-| Scenario | Step | Request | Time | Cost | Judge (did/mp/look) | Result |
-|---|---|---|---|---|---|---|
-| drawing | 0 | A multiplayer drawing wall ... | 54.8s | $0.101 | 2/2/2 | hit |
-| drawing | 1 | make it more fun | 30.7s | $0.080 | 2/2/2 | hit |
-| drawing | 2 | make this bigger and put an eraser next to it (picked a button) | 23.1s | $0.062 | 2/2/2 | hit |
-| drawing | 3 | let me undo my last stroke | 10.7s | $0.043 | 2/2/2 | hit |
-| poll | 0 | A voting poll for where the team should go for lunch ... | 26.4s | $0.061 | 2/2/2 | hit |
-| poll | 1 | show the results as bars that animate when votes come in | 24.3s | $0.053 | 2/2/2 | hit |
-| poll | 2 | change this to ask about Friday's team dinner instead (picked h1) | 7.6s | $0.025 | 2/-/2 | hit |
-| poll | 3 | make it more fun | 22.3s | $0.053 | 1/1/1 | miss |
-| platformer | 0 | A tiny platformer: a frog hops ... shared high score board | 88.6s | $0.173 | 2/2/2 | hit |
-| platformer | 1 | add a double jump | 20.1s | $0.057 | 2/-/2 | hit |
-| platformer | 2 | make it more fun | 35.5s | $0.090 | 2/2/2 | hit |
-| platformer | 3 | make this bigger and put a little trophy next to it (picked "High scores") | 6.3s | $0.041 | 2/-/2 | hit |
-| todo | 0 | A shared todo list for our flat ... | 28.1s | $0.067 | 2/2/2 | hit |
-| todo | 1 | let people drag chores to reorder them | 21.5s | $0.052 | 2/2/2 | hit |
-| todo | 2 | let me pick a due day right here when I add a chore (picked input) | 15.7s | $0.046 | 2/-/2 | hit |
-| todo | 3 | dark mode please | 20.4s | $0.057 | 2/-/2 | hit |
-| guestbook | 0 | A guestbook for my birthday party ... sticker | 27.9s | $0.064 | 2/2/2 | hit |
-| guestbook | 1 | make it look like a cork board with pinned paper notes | 26.5s | $0.063 | 2/-/2 | hit |
-| guestbook | 2 | make it more fun | 22.4s | $0.057 | 2/2/1 | hit |
-| guestbook | 3 | make this say 'Pin it' and give it a little wiggle (picked a button) | 13.2s | $0.041 | 2/-/1 | hit |
-| pixels | 0 | A collaborative 32x32 pixel art canvas ... | 45.1s | $0.086 | 2/2/2 | hit |
-| pixels | 1 | add a timelapse that replays how the picture was made | 22.2s | $0.058 | 2/2/2 | hit |
-| pixels | 2 | add a few pastel colors here (pick found nothing) | 8.3s | $0.026 | 2/-/2 | hit |
-| pixels | 3 | make it more fun | 28.1s | $0.070 | 2/2/2 | hit |
-| emoji | 0 | Chat roulette of emoji ... | 46.4s | $0.091 | 2/2/2 | hit |
-| emoji | 1 | add sound effects | 22.5s | $0.063 | 2/2/2 | hit |
-| emoji | 2 | make it more fun | 26.2s | $0.068 | 2/2/2 | hit |
-| emoji | 3 | this is confusing, make it clearer what to do (pick found nothing) | 14.7s | $0.052 | 2/-/2 | hit |
-| kanban | 0 | A kanban board for our hackathon team ... | 30.4s | $0.070 | 2/2/2 | hit |
-| kanban | 1 | limit doing to 3 cards and show a warning when it's full | 21.9s | $0.057 | 2/2/2 | hit |
-| kanban | 2 | give this column its own color (picked h2) | 9.9s | $0.030 | 2/-/2 | hit |
-| kanban | 3 | make it feel calmer | 23.0s | $0.056 | 2/-/2 | hit |
+| Scenario   | Step | Request                                                                    | Time  | Cost   | Judge (did/mp/look) | Result |
+| ---------- | ---- | -------------------------------------------------------------------------- | ----- | ------ | ------------------- | ------ |
+| drawing    | 0    | A multiplayer drawing wall ...                                             | 54.8s | $0.101 | 2/2/2               | hit    |
+| drawing    | 1    | make it more fun                                                           | 30.7s | $0.080 | 2/2/2               | hit    |
+| drawing    | 2    | make this bigger and put an eraser next to it (picked a button)            | 23.1s | $0.062 | 2/2/2               | hit    |
+| drawing    | 3    | let me undo my last stroke                                                 | 10.7s | $0.043 | 2/2/2               | hit    |
+| poll       | 0    | A voting poll for where the team should go for lunch ...                   | 26.4s | $0.061 | 2/2/2               | hit    |
+| poll       | 1    | show the results as bars that animate when votes come in                   | 24.3s | $0.053 | 2/2/2               | hit    |
+| poll       | 2    | change this to ask about Friday's team dinner instead (picked h1)          | 7.6s  | $0.025 | 2/-/2               | hit    |
+| poll       | 3    | make it more fun                                                           | 22.3s | $0.053 | 1/1/1               | miss   |
+| platformer | 0    | A tiny platformer: a frog hops ... shared high score board                 | 88.6s | $0.173 | 2/2/2               | hit    |
+| platformer | 1    | add a double jump                                                          | 20.1s | $0.057 | 2/-/2               | hit    |
+| platformer | 2    | make it more fun                                                           | 35.5s | $0.090 | 2/2/2               | hit    |
+| platformer | 3    | make this bigger and put a little trophy next to it (picked "High scores") | 6.3s  | $0.041 | 2/-/2               | hit    |
+| todo       | 0    | A shared todo list for our flat ...                                        | 28.1s | $0.067 | 2/2/2               | hit    |
+| todo       | 1    | let people drag chores to reorder them                                     | 21.5s | $0.052 | 2/2/2               | hit    |
+| todo       | 2    | let me pick a due day right here when I add a chore (picked input)         | 15.7s | $0.046 | 2/-/2               | hit    |
+| todo       | 3    | dark mode please                                                           | 20.4s | $0.057 | 2/-/2               | hit    |
+| guestbook  | 0    | A guestbook for my birthday party ... sticker                              | 27.9s | $0.064 | 2/2/2               | hit    |
+| guestbook  | 1    | make it look like a cork board with pinned paper notes                     | 26.5s | $0.063 | 2/-/2               | hit    |
+| guestbook  | 2    | make it more fun                                                           | 22.4s | $0.057 | 2/2/1               | hit    |
+| guestbook  | 3    | make this say 'Pin it' and give it a little wiggle (picked a button)       | 13.2s | $0.041 | 2/-/1               | hit    |
+| pixels     | 0    | A collaborative 32x32 pixel art canvas ...                                 | 45.1s | $0.086 | 2/2/2               | hit    |
+| pixels     | 1    | add a timelapse that replays how the picture was made                      | 22.2s | $0.058 | 2/2/2               | hit    |
+| pixels     | 2    | add a few pastel colors here (pick found nothing)                          | 8.3s  | $0.026 | 2/-/2               | hit    |
+| pixels     | 3    | make it more fun                                                           | 28.1s | $0.070 | 2/2/2               | hit    |
+| emoji      | 0    | Chat roulette of emoji ...                                                 | 46.4s | $0.091 | 2/2/2               | hit    |
+| emoji      | 1    | add sound effects                                                          | 22.5s | $0.063 | 2/2/2               | hit    |
+| emoji      | 2    | make it more fun                                                           | 26.2s | $0.068 | 2/2/2               | hit    |
+| emoji      | 3    | this is confusing, make it clearer what to do (pick found nothing)         | 14.7s | $0.052 | 2/-/2               | hit    |
+| kanban     | 0    | A kanban board for our hackathon team ...                                  | 30.4s | $0.070 | 2/2/2               | hit    |
+| kanban     | 1    | limit doing to 3 cards and show a warning when it's full                   | 21.9s | $0.057 | 2/2/2               | hit    |
+| kanban     | 2    | give this column its own color (picked h2)                                 | 9.9s  | $0.030 | 2/-/2               | hit    |
+| kanban     | 3    | make it feel calmer                                                        | 23.0s | $0.056 | 2/-/2               | hit    |
 
 Raw results, served files and source of every version: `/tmp/pg-evals/<run>/`.
 
@@ -169,10 +169,10 @@ description): one present-tense sentence starting with a verb, under 70
 characters, naming the most visible change; detail goes in "about" lines.
 No finish-side check. Measured on change summaries (step > 0):
 
-| | n | over 70 chars | verb-first | more than one sentence | median length |
-|---|---|---|---|---|---|
-| before (every change version in dev, 2026-10-07) | 368 | 308 (84%) | 347 (94%) | 10 | 105 |
-| after (`bun scripts/builder-evals.ts r8-summary poll todo guestbook kanban emoji`) | 15 | 1 (7%, 74 chars) | 15 | 0 | 50 |
+|                                                                                    | n   | over 70 chars    | verb-first | more than one sentence | median length |
+| ---------------------------------------------------------------------------------- | --- | ---------------- | ---------- | ---------------------- | ------------- |
+| before (every change version in dev, 2026-10-07)                                   | 368 | 308 (84%)        | 347 (94%)  | 10                     | 105           |
+| after (`bun scripts/builder-evals.ts r8-summary poll todo guestbook kanban emoji`) | 15  | 1 (7%, 74 chars) | 15         | 0                      | 50            |
 
 Quality held: 16/20 hits, 4 look defects (poll "make it more fun" again,
 kanban calm contrast, guestbook wiggle, emoji clutter), median change 10.5s,

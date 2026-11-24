@@ -36,7 +36,11 @@ export function waitForHandHost(args: {
   const grace = args.graceMs ?? HAND_HOST_BOOT_GRACE_MS;
   const claim = args.claim;
   if (!claim || typeof claim !== "object") return { wait: false };
-  const { term, ts, launch_token } = claim as { term?: unknown; ts?: unknown; launch_token?: unknown };
+  const { term, ts, launch_token } = claim as {
+    term?: unknown;
+    ts?: unknown;
+    launch_token?: unknown;
+  };
   // Only a claim from the token-aware hook can say codecast did not launch it.
   if (launch_token !== "") return { wait: false };
   if (typeof term !== "string" || NOT_A_HOST.has(term)) return { wait: false };

@@ -9,7 +9,9 @@ test("replaces an existing window and restores its exact descriptor", () => {
   try {
     expect(globalThis.window).toBe(ownWindow as any);
     restore();
-    expect(Object.getOwnPropertyDescriptor(globalThis, "window")).toEqual(previous);
+    expect(Object.getOwnPropertyDescriptor(globalThis, "window")).toEqual(
+      previous,
+    );
   } finally {
     restoreOriginal();
   }

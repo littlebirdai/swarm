@@ -9,29 +9,64 @@ import { Body, C, Section } from "./ui";
  * minute is a percent): it parks at 02:25, the window resets at 03:10, and the
  * same session resumes at 03:14. The hero's tr-46 lane shows the same night.
  */
-const PARK_TICKS: [number, string, string][] = [[0, "02:00", "fires"], [25, "02:25", "limit"], [74, "03:14", "resumes"], [100, "03:40", "done"]];
+const PARK_TICKS: [number, string, string][] = [
+  [0, "02:00", "fires"],
+  [25, "02:25", "limit"],
+  [74, "03:14", "resumes"],
+  [100, "03:40", "done"],
+];
 
 function ParkStrip() {
   const seg = (from: number, to: number, label: string, parked = false) => (
     <div
       className="absolute inset-y-0 flex items-center justify-center rounded-md font-mono text-meta sm:text-meta whitespace-nowrap overflow-hidden"
       style={{
-        left: `${from}%`, width: `${to - from}%`,
+        left: `${from}%`,
+        width: `${to - from}%`,
         color: SOL.base3,
         backgroundColor: parked ? undefined : SOL.violet,
-        backgroundImage: parked ? `repeating-linear-gradient(135deg, color-mix(in srgb, ${SOL.violet} 40%, transparent) 0 5px, transparent 5px 10px)` : undefined,
-        border: parked ? `1px solid color-mix(in srgb, ${SOL.violet} 55%, transparent)` : undefined,
+        backgroundImage: parked
+          ? `repeating-linear-gradient(135deg, color-mix(in srgb, ${SOL.violet} 40%, transparent) 0 5px, transparent 5px 10px)`
+          : undefined,
+        border: parked
+          ? `1px solid color-mix(in srgb, ${SOL.violet} 55%, transparent)`
+          : undefined,
       }}
     >
-      {parked ? <span className="rounded px-1.5 py-0.5" style={{ backgroundColor: SOL.base03, color: SOL.base2 }}>{label}</span> : label}
+      {parked ? (
+        <span
+          className="rounded px-1.5 py-0.5"
+          style={{ backgroundColor: SOL.base03, color: SOL.base2 }}
+        >
+          {label}
+        </span>
+      ) : (
+        label
+      )}
     </div>
   );
   return (
     <div className="rounded-2xl p-5" style={{ backgroundColor: SOL.base03 }}>
-      <div className="relative h-4 font-mono text-meta sm:text-meta" style={{ color: SOL.base0 }}>
+      <div
+        className="relative h-4 font-mono text-meta sm:text-meta"
+        style={{ color: SOL.base0 }}
+      >
         {PARK_TICKS.map(([at, time, what]) => (
-          <span key={time} className="absolute top-0 whitespace-nowrap" style={{ left: `${at}%`, transform: at === 0 ? "none" : at === 100 ? "translateX(-100%)" : "translateX(-50%)" }}>
-            {time}<span className="hidden sm:inline"> {what}</span>
+          <span
+            key={time}
+            className="absolute top-0 whitespace-nowrap"
+            style={{
+              left: `${at}%`,
+              transform:
+                at === 0
+                  ? "none"
+                  : at === 100
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            {time}
+            <span className="hidden sm:inline"> {what}</span>
           </span>
         ))}
       </div>
@@ -39,13 +74,31 @@ function ParkStrip() {
         {seg(0, 24.5, "working")}
         {seg(25.5, 73.5, "parked", true)}
         {seg(74.5, 100, "same session")}
-        <span className="absolute -bottom-1.5 h-[calc(100%+12px)] w-px" style={{ left: "70%", backgroundColor: SOL.yellow }} aria-hidden />
+        <span
+          className="absolute -bottom-1.5 h-[calc(100%+12px)] w-px"
+          style={{ left: "70%", backgroundColor: SOL.yellow }}
+          aria-hidden
+        />
       </div>
-      <div className="relative mt-2 h-4 font-mono text-meta sm:text-meta" style={{ color: SOL.yellow }}>
-        <span className="absolute whitespace-nowrap" style={{ left: "70%", transform: "translateX(-100%)", paddingRight: 6 }}>window resets 03:10</span>
+      <div
+        className="relative mt-2 h-4 font-mono text-meta sm:text-meta"
+        style={{ color: SOL.yellow }}
+      >
+        <span
+          className="absolute whitespace-nowrap"
+          style={{
+            left: "70%",
+            transform: "translateX(-100%)",
+            paddingRight: 6,
+          }}
+        >
+          window resets 03:10
+        </span>
       </div>
       <p className="mt-3 text-[12.5px] leading-5" style={{ color: SOL.base0 }}>
-        The run spends no retry and keeps its context. If the machine has a saved account with room and switching is on, the run can move there instead of waiting.
+        The run spends no retry and keeps its context. If the machine has a
+        saved account with room and switching is on, the run can move there
+        instead of waiting.
       </p>
     </div>
   );
@@ -54,32 +107,72 @@ function ParkStrip() {
 const GUARDS: { title: string; body: ReactNode; aside?: ReactNode }[] = [
   {
     title: "Usage limits pause a run",
-    body: <>A run that hits a usage limit parks and resumes its own session when the window resets. It keeps its context and spends none of its retries.</>,
+    body: (
+      <>
+        A run that hits a usage limit parks and resumes its own session when the
+        window resets. It keeps its context and spends none of its retries.
+      </>
+    ),
     aside: <ParkStrip />,
   },
   {
     title: "Read-only runs",
-    body: <>With <b>read-only</b> ticked in the form, a fresh run gets its write tools removed and state-changing commands blocked. Use it for watchers that should only read and report. A run that injects into an existing session inherits that session&apos;s rules instead.</>,
+    body: (
+      <>
+        With <b>read-only</b> ticked in the form, a fresh run gets its write
+        tools removed and state-changing commands blocked. Use it for watchers
+        that should only read and report. A run that injects into an existing
+        session inherits that session&apos;s rules instead.
+      </>
+    ),
   },
   {
     title: "A time limit on every run",
-    body: <>Every run has a kill cap, 10 minutes by default. An agent setting a trigger that waits or retries raises it past that window.</>,
+    body: (
+      <>
+        Every run has a kill cap, 10 minutes by default. An agent setting a
+        trigger that waits or retries raises it past that window.
+      </>
+    ),
   },
   {
     title: "Retries and failed runs",
-    body: <>A failed run is retried after a short backoff, three attempts in all, then the trigger is marked failed. A failed run stays in the inbox while its retry runs, one click from the transcript that shows what went wrong.</>,
+    body: (
+      <>
+        A failed run is retried after a short backoff, three attempts in all,
+        then the trigger is marked failed. A failed run stays in the inbox while
+        its retry runs, one click from the transcript that shows what went
+        wrong.
+      </>
+    ),
   },
   {
     title: "Repeating triggers keep their cadence",
-    body: <>A repeating trigger re-arms on its slot, counted from when it was due, so a long run does not push the next one later. A run that outlasts its interval skips the slots it missed instead of firing them all at once.</>,
+    body: (
+      <>
+        A repeating trigger re-arms on its slot, counted from when it was due,
+        so a long run does not push the next one later. A run that outlasts its
+        interval skips the slots it missed instead of firing them all at once.
+      </>
+    ),
   },
   {
     title: "A lease makes each firing run once",
-    body: <>The daemon claims a due firing with a lease before it starts, so a second machine or a second daemon never runs the same firing twice.</>,
+    body: (
+      <>
+        The daemon claims a due firing with a lease before it starts, so a
+        second machine or a second daemon never runs the same firing twice.
+      </>
+    ),
   },
   {
     title: "Killing a session cancels its triggers",
-    body: <>Killing a session cancels the triggers bound to it. Restoring the session re-arms them.</>,
+    body: (
+      <>
+        Killing a session cancels the triggers bound to it. Restoring the
+        session re-arms them.
+      </>
+    ),
   },
 ];
 
@@ -92,20 +185,45 @@ export function Unattended() {
     >
       <div className="grid gap-x-10 gap-y-0 md:grid-cols-2">
         {GUARDS.map((g, i) => (
-          <div key={g.title} className={`py-6 ${g.aside ? "md:col-span-2 md:grid md:grid-cols-2 md:gap-x-10 md:items-center" : ""}`} style={{ borderTop: `1px solid ${SOL.base2}` }}>
+          <div
+            key={g.title}
+            className={`py-6 ${g.aside ? "md:col-span-2 md:grid md:grid-cols-2 md:gap-x-10 md:items-center" : ""}`}
+            style={{ borderTop: `1px solid ${SOL.base2}` }}
+          >
             <div>
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h3 className="text-[17px] font-semibold" style={{ color: SOL.base03 }}>{g.title}</h3>
-              <span className="ml-auto font-mono text-meta" style={{ color: SOL.base1 }}>{String(i + 1).padStart(2, "0")}</span>
-            </div>
-            <Body className="mt-2">{g.body}</Body>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h3
+                  className="text-[17px] font-semibold"
+                  style={{ color: SOL.base03 }}
+                >
+                  {g.title}
+                </h3>
+                <span
+                  className="ml-auto font-mono text-meta"
+                  style={{ color: SOL.base1 }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <Body className="mt-2">{g.body}</Body>
             </div>
             {g.aside && <div className="mt-4 md:mt-0">{g.aside}</div>}
           </div>
         ))}
       </div>
       <Body className="mt-6 max-w-3xl">
-        Runs are executed by the codecast daemon, on the machine where you armed the trigger and in that checkout. If that machine is asleep when a trigger comes due, the trigger waits and runs when it wakes. Usage limits and account switching are covered in <a href="/documentation/usage-limits" className="underline" style={{ color: SOL.blue }}>the usage limits guide</a>; the <C>cast usage</C> command shows your windows.
+        Runs are executed by the codecast daemon, on the machine where you armed
+        the trigger and in that checkout. If that machine is asleep when a
+        trigger comes due, the trigger waits and runs when it wakes. Usage
+        limits and account switching are covered in{" "}
+        <a
+          href="/documentation/usage-limits"
+          className="underline"
+          style={{ color: SOL.blue }}
+        >
+          the usage limits guide
+        </a>
+        ; the <C>cast usage</C> command shows your windows.
       </Body>
     </Section>
   );

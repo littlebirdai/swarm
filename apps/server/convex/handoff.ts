@@ -14,7 +14,12 @@
 // the prompt still ships with a fallback brief built from the pinned state and
 // the last assistant message, and the response says so (brief_source).
 
-import { action, internalAction, internalMutation, internalQuery } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./functions";
 import { claimTaskOwnership } from "./lib/taskOwner";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
@@ -24,7 +29,11 @@ import { verifyApiToken } from "./apiTokens";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { isSummarizableMessage } from "./idleSummary";
 import { addConversationToWorkItem } from "./conversationLinks";
-import { enqueueKillAndResume, launchModelKeyOf, performSetThreadState } from "./conversations";
+import {
+  enqueueKillAndResume,
+  launchModelKeyOf,
+  performSetThreadState,
+} from "./conversations";
 import { briefingFor } from "./anchors";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { enqueueStartSession } from "./devices";
@@ -54,34 +63,63 @@ export const HANDOFF_MESSAGE_CHARS = 1800;
 export const HANDOFF_FINAL_CHARS = 6000;
 export const HANDOFF_SCAN_LIMIT = 400;
 
-export type HandoffTranscriptMessage = { role: "user" | "assistant"; content: string };
+export type HandoffTranscriptMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 function clip(text: string, max: number): string {
   const t = text.trim();
-  return t.length <= max ? t : `${t.slice(0, max)}\n[… ${t.length - max} more chars]`;
+  return t.length <= max
+    ? t
+    : `${t.slice(0, max)}\n[… ${t.length - max} more chars]`;
 }
 
-export interface TranscriptBudget { head: number; tail: number; messageChars: number; finalChars: number }
+export interface TranscriptBudget {
+  head: number;
+  tail: number;
+  messageChars: number;
+  finalChars: number;
+}
 const HANDOFF_BUDGET: TranscriptBudget = {
-  head: HANDOFF_HEAD_MESSAGES, tail: HANDOFF_TAIL_MESSAGES, messageChars: HANDOFF_MESSAGE_CHARS, finalChars: HANDOFF_FINAL_CHARS,
+  head: HANDOFF_HEAD_MESSAGES,
+  tail: HANDOFF_TAIL_MESSAGES,
+  messageChars: HANDOFF_MESSAGE_CHARS,
+  finalChars: HANDOFF_FINAL_CHARS,
 };
 // A recovery's brief replaces the whole history of a session that keeps
 // going, so it reads about three times as much of it (~60k tokens at most).
-export const RECOVERY_BUDGET: TranscriptBudget = { head: 10, tail: 90, messageChars: 2400, finalChars: 8000 };
+export const RECOVERY_BUDGET: TranscriptBudget = {
+  head: 10,
+  tail: 90,
+  messageChars: 2400,
+  finalChars: 8000,
+};
 
 /** Head + tail of the human-readable turns, oldest first. Pure. */
 export function shapeHandoffTranscript(
-  rowsNewestFirst: Array<{ role?: string; content?: string | null; tool_results?: unknown[] | null }>,
+  rowsNewestFirst: Array<{
+    role?: string;
+    content?: string | null;
+    tool_results?: unknown[] | null;
+  }>,
   budget: TranscriptBudget = HANDOFF_BUDGET,
 ): HandoffTranscriptMessage[] {
-  const readable = rowsNewestFirst.filter(isSummarizableMessage).reverse() as Array<{ role: "user" | "assistant"; content: string }>;
+  const readable = rowsNewestFirst
+    .filter(isSummarizableMessage)
+    .reverse() as Array<{ role: "user" | "assistant"; content: string }>;
   const picked: typeof readable =
     readable.length <= budget.head + budget.tail
       ? readable
       : [...readable.slice(0, budget.head), ...readable.slice(-budget.tail)];
   return picked.map((m, i) => ({
     role: m.role,
-    content: clip(m.content, i === picked.length - 1 && m.role === "assistant" ? budget.finalChars : budget.messageChars),
+    content: clip(
+      m.content,
+      i === picked.length - 1 && m.role === "assistant"
+        ? budget.finalChars
+        : budget.messageChars,
+    ),
   }));
 }
 
@@ -102,9 +140,14 @@ export function buildHandoffBriefPrompt(input: HandoffBriefInput): string {
   const facts: string[] = [`Title: ${input.title}`, `Agent: ${input.agent}`];
   if (input.task_short_id) facts.push(`Bound task: ${input.task_short_id}`);
   if (input.plan_short_id) facts.push(`Bound plan: ${input.plan_short_id}`);
-  if (input.thread_state) facts.push(`Pinned state (the agent's own last word on where things stand):\n${input.thread_state}`);
+  if (input.thread_state)
+    facts.push(
+      `Pinned state (the agent's own last word on where things stand):\n${input.thread_state}`,
+    );
   const transcript = input.messages
-    .map((m) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+    .map(
+      (m) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`,
+    )
     .join("\n\n");
   const intro = input.recovery
     ? `An agent session's context window filled up and could not be compacted. The same session now continues in a fresh context with none of this history: same role, same work, same people. Write the brief it starts from. It replaces the whole history, so be thorough: carry every decision, constraint, file, command, id and promise the work still depends on, and say exactly where the current turn stopped (what was being done, what was half done, what the person is waiting for).`
@@ -139,7 +182,15 @@ ${transcript}`;
 
 /** The brief's input from the source's facts and its shaped transcript. */
 export function handoffBriefInput(
-  source: Pick<HandoffSourceFacts, "title" | "agent_type" | "model" | "thread_state" | "task_short_id" | "plan_short_id">,
+  source: Pick<
+    HandoffSourceFacts,
+    | "title"
+    | "agent_type"
+    | "model"
+    | "thread_state"
+    | "task_short_id"
+    | "plan_short_id"
+  >,
   messages: HandoffTranscriptMessage[],
 ): HandoffBriefInput {
   return {
@@ -155,18 +206,38 @@ export function handoffBriefInput(
 /** The brief request prod posts, and the evals replay. Haiku 5.5 writes the
  *  longest briefs in about 1,800 tokens (2026-10-07), so the cap leaves room. */
 export function handoffBriefRequest(input: HandoffBriefInput): SurfaceRequest {
-  return { model: HANDOFF_MODEL, max_tokens: input.recovery ? 6000 : 2400, prompt: buildHandoffBriefPrompt(input) };
+  return {
+    model: HANDOFF_MODEL,
+    max_tokens: input.recovery ? 6000 : 2400,
+    prompt: buildHandoffBriefPrompt(input),
+  };
 }
 
 /** The brief used when the model is unavailable: state plus the last word. */
 export function fallbackHandoffBrief(input: HandoffBriefInput): string {
-  const parts: string[] = ["_No model brief was available; this is assembled from the source's own records._", ""];
-  if (input.thread_state) parts.push("## Pinned state", "", input.thread_state, "");
-  const lastAssistant = [...input.messages].reverse().find((m) => m.role === "assistant");
-  if (lastAssistant) parts.push("## Last message from the source agent", "", lastAssistant.content, "");
+  const parts: string[] = [
+    "_No model brief was available; this is assembled from the source's own records._",
+    "",
+  ];
+  if (input.thread_state)
+    parts.push("## Pinned state", "", input.thread_state, "");
+  const lastAssistant = [...input.messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (lastAssistant)
+    parts.push(
+      "## Last message from the source agent",
+      "",
+      lastAssistant.content,
+      "",
+    );
   const firstUser = input.messages.find((m) => m.role === "user");
   if (firstUser) parts.push("## Opening request", "", firstUser.content, "");
-  parts.push("## Next steps", "", "1. Read the tail of the source transcript with the commands below and continue from its last step.");
+  parts.push(
+    "## Next steps",
+    "",
+    "1. Read the tail of the source transcript with the commands below and continue from its last step.",
+  );
   return parts.join("\n");
 }
 
@@ -182,11 +253,22 @@ async function callerId(ctx: any, apiToken?: string): Promise<Id<"users">> {
   throw new Error("Not authenticated");
 }
 
-export async function findHandoffSource(ctx: any, userId: Id<"users">, ref: string) {
-  const conv = await findConversationByAnyRefWhere(ctx, ref, (c: any) =>
-    c.user_id?.toString() === userId.toString() || c.owner_user_id?.toString() === userId.toString(),
+export async function findHandoffSource(
+  ctx: any,
+  userId: Id<"users">,
+  ref: string,
+) {
+  const conv = await findConversationByAnyRefWhere(
+    ctx,
+    ref,
+    (c: any) =>
+      c.user_id?.toString() === userId.toString() ||
+      c.owner_user_id?.toString() === userId.toString(),
   );
-  if (!conv) throw new Error(`No session found for "${ref}" (you can only hand off sessions you run or own)`);
+  if (!conv)
+    throw new Error(
+      `No session found for "${ref}" (you can only hand off sessions you run or own)`,
+    );
   return conv;
 }
 
@@ -211,7 +293,10 @@ export interface HandoffBriefPayload {
 }
 
 export interface HandoffStartResult {
-  source: Omit<HandoffSourceFacts, "git_root" | "thread_state" | "handed_off_to_conversation_id">;
+  source: Omit<
+    HandoffSourceFacts,
+    "git_root" | "thread_state" | "handed_off_to_conversation_id"
+  >;
   prompt: string;
   brief: string;
   brief_source: "model" | "fallback";
@@ -232,14 +317,24 @@ export const briefInput = internalQuery({
   args: { api_token: v.optional(v.string()), conversation_id: v.string() },
   handler: async (ctx, args): Promise<HandoffBriefPayload> => {
     const userId = await callerId(ctx, args.api_token);
-    const conv: any = await findHandoffSource(ctx, userId, args.conversation_id);
+    const conv: any = await findHandoffSource(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
     const rows = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .order("desc")
       .take(HANDOFF_SCAN_LIMIT);
-    const task: any = conv.active_task_id ? await ctx.db.get(conv.active_task_id) : null;
-    const plan: any = conv.active_plan_id ? await ctx.db.get(conv.active_plan_id) : null;
+    const task: any = conv.active_task_id
+      ? await ctx.db.get(conv.active_task_id)
+      : null;
+    const plan: any = conv.active_plan_id
+      ? await ctx.db.get(conv.active_plan_id)
+      : null;
     const short_id = conv.short_id ?? conv._id.toString().slice(0, 7);
     return {
       source: {
@@ -254,19 +349,37 @@ export const briefInput = internalQuery({
         task_short_id: (task?.short_id as string | undefined) ?? null,
         plan_short_id: (plan?.short_id as string | undefined) ?? null,
         thread_state: (conv.thread_state as string | undefined) ?? null,
-        handed_off_to_conversation_id: (conv.handed_off_to_conversation_id as string | undefined) ?? null,
+        handed_off_to_conversation_id:
+          (conv.handed_off_to_conversation_id as string | undefined) ?? null,
       },
       messages: shapeHandoffTranscript(rows as any[]),
     };
   },
 });
 
-async function askForBrief(gate: VendorGate, input: HandoffBriefInput): Promise<string | null> {
-  const reply = await callModel({ ...handoffBriefRequest(input), label: "Handoff brief", gate });
+async function askForBrief(
+  gate: VendorGate,
+  input: HandoffBriefInput,
+): Promise<string | null> {
+  const reply = await callModel({
+    ...handoffBriefRequest(input),
+    label: "Handoff brief",
+    gate,
+  });
   return reply?.text ?? null;
 }
 
-const AGENT_TYPES = ["claude_code", "codex", "cursor", "gemini", "opencode", "pi", "grok", "muse", "antigravity"] as const;
+const AGENT_TYPES = [
+  "claude_code",
+  "codex",
+  "cursor",
+  "gemini",
+  "opencode",
+  "pi",
+  "grok",
+  "muse",
+  "antigravity",
+] as const;
 
 // handoff.start — the whole handoff. Callable from the web as a signed-in
 // action (conversation_id + agent_type/model/effort/direction) and from the
@@ -286,15 +399,36 @@ export const start = action({
     dry_run: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<HandoffStartResult> => {
-    const { source, messages }: HandoffBriefPayload = await ctx.runQuery(internal.handoff.briefInput, {
-      api_token: args.api_token,
-      conversation_id: args.conversation_id,
-    });
-    const agentType = args.agent_type ?? (source.agent_type as (typeof AGENT_TYPES)[number] | null) ?? "claude_code";
+    const { source, messages }: HandoffBriefPayload = await ctx.runQuery(
+      internal.handoff.briefInput,
+      {
+        api_token: args.api_token,
+        conversation_id: args.conversation_id,
+      },
+    );
+    const agentType =
+      args.agent_type ??
+      (source.agent_type as (typeof AGENT_TYPES)[number] | null) ??
+      "claude_code";
     const briefInputs = handoffBriefInput(source, messages);
-    const modelBrief = messages.length ? await askForBrief({ ctx, scope: { conversationId: source.conversation_id as Id<"conversations">, apiToken: args.api_token } }, briefInputs) : null;
+    const modelBrief = messages.length
+      ? await askForBrief(
+          {
+            ctx,
+            scope: {
+              conversationId: source.conversation_id as Id<"conversations">,
+              apiToken: args.api_token,
+            },
+          },
+          briefInputs,
+        )
+      : null;
     const brief = modelBrief ?? fallbackHandoffBrief(briefInputs);
-    const prompt = composeHandoffPrompt({ source, brief, direction: args.direction });
+    const prompt = composeHandoffPrompt({
+      source,
+      brief,
+      direction: args.direction,
+    });
 
     const sourceOut: HandoffStartResult["source"] = {
       conversation_id: source.conversation_id,
@@ -308,12 +442,17 @@ export const start = action({
       project_path: source.project_path,
     };
     if (args.dry_run) {
-      return { source: sourceOut, prompt, brief, brief_source: modelBrief ? ("model" as const) : ("fallback" as const), session: null };
+      return {
+        source: sourceOut,
+        prompt,
+        brief,
+        brief_source: modelBrief ? ("model" as const) : ("fallback" as const),
+        session: null,
+      };
     }
 
-    const created: { conversation_id: Id<"conversations">; short_id: string } = await ctx.runMutation(
-      (api as any).spawn.createSessionFromCli,
-      {
+    const created: { conversation_id: Id<"conversations">; short_id: string } =
+      await ctx.runMutation((api as any).spawn.createSessionFromCli, {
         api_token: args.api_token,
         prompt,
         project_path: source.project_path ?? undefined,
@@ -325,8 +464,7 @@ export const start = action({
         device: args.device,
         spawner_session: String(source.conversation_id),
         handoff_from_session: String(source.conversation_id),
-      },
-    );
+      });
     return {
       source: sourceOut,
       prompt,
@@ -361,15 +499,26 @@ export function handoffChildFields(source: any): Record<string, unknown> {
   };
 }
 
-export function handoffStateLine(childShortId: string, agentType: string | null | undefined, model?: string | null): string {
-  return normalizeThreadState(`Handed off to ${childShortId} on ${describeAgentRun(agentType, model)}`);
+export function handoffStateLine(
+  childShortId: string,
+  agentType: string | null | undefined,
+  model?: string | null,
+): string {
+  return normalizeThreadState(
+    `Handed off to ${childShortId} on ${describeAgentRun(agentType, model)}`,
+  );
 }
 
 export async function applyHandoffLink(
   ctx: any,
   userId: Id<"users">,
   source: any,
-  child: { _id: Id<"conversations">; short_id: string; agent_type?: string | null; model?: string | null },
+  child: {
+    _id: Id<"conversations">;
+    short_id: string;
+    agent_type?: string | null;
+    model?: string | null;
+  },
 ): Promise<void> {
   await ctx.db.patch(source._id, { handed_off_to_conversation_id: child._id });
 
@@ -381,19 +530,36 @@ export async function applyHandoffLink(
       await addConversationToWorkItem(ctx, userId, "task", task, child._id);
       // Ownership travels with the work: the child owns the task, the source lets go.
       const childRow = await ctx.db.get(child._id);
-      if (childRow) await claimTaskOwnership(ctx, childRow, { ...task, conversation_ids: [...(task.conversation_ids ?? []), source._id] }, { take: true });
+      if (childRow)
+        await claimTaskOwnership(
+          ctx,
+          childRow,
+          {
+            ...task,
+            conversation_ids: [...(task.conversation_ids ?? []), source._id],
+          },
+          { take: true },
+        );
     }
   }
   if (source.active_plan_id) {
     const plan = await ctx.db.get(source.active_plan_id);
     if (plan) {
-      await addConversationToWorkItem(ctx, userId, "plan", plan, child._id, { current_session_id: child._id, updated_at: Date.now() });
+      await addConversationToWorkItem(ctx, userId, "plan", plan, child._id, {
+        current_session_id: child._id,
+        updated_at: Date.now(),
+      });
     }
   }
 
   // The source is finished: its pinned state names the successor, filed as
   // done so it leaves Needs You. The source agent ends its turn after this.
-  await performSetThreadState(ctx, source, handoffStateLine(child.short_id, child.agent_type, child.model), "done");
+  await performSetThreadState(
+    ctx,
+    source,
+    handoffStateLine(child.short_id, child.agent_type, child.model),
+    "done",
+  );
 }
 
 // ── Context recovery: the same session, a fresh context ─────────────────────
@@ -429,21 +595,38 @@ export type ContextRecoveryMode = "rebuild" | "brief";
 
 /** Which rung a recovery takes now: a rebuild first, a brief after a rebuild
  *  that overflowed again inside the cooldown. Pure; read with the blocker. */
-export function contextRecoveryMode(conv: any, now: number): ContextRecoveryMode {
-  const recent = !!conv?.context_recovered_at && now - conv.context_recovered_at < CONTEXT_RECOVERY_COOLDOWN_MS;
-  if (recent || !REBUILDABLE_AGENTS.has(conv?.agent_type ?? "claude_code")) return "brief";
+export function contextRecoveryMode(
+  conv: any,
+  now: number,
+): ContextRecoveryMode {
+  const recent =
+    !!conv?.context_recovered_at &&
+    now - conv.context_recovered_at < CONTEXT_RECOVERY_COOLDOWN_MS;
+  if (recent || !REBUILDABLE_AGENTS.has(conv?.agent_type ?? "claude_code"))
+    return "brief";
   return "rebuild";
 }
 
 /** Why this conversation is not recovered now, or null when it should be. Pure. */
 export function contextRecoveryBlocker(conv: any, now: number): string | null {
   if (!conv) return "no conversation";
-  if (conv.pending_api_error !== true || conv.pending_api_error_kind !== "context") return "not parked on a full context";
+  if (
+    conv.pending_api_error !== true ||
+    conv.pending_api_error_kind !== "context"
+  )
+    return "not parked on a full context";
   if (conv.status === "completed") return "session is finished";
-  if (!RECOVERABLE_AGENTS.has(conv.agent_type ?? "claude_code")) return `codecast cannot restart a ${conv.agent_type} session`;
-  if (conv.execution_protocol_state) return "runtime is owned by the execution coordinator";
-  if (!(conv.project_path || conv.git_root)) return "no project folder to start in";
-  if (conv.context_recovered_at && now - conv.context_recovered_at < CONTEXT_RECOVERY_COOLDOWN_MS && conv.context_recovery_mode !== "rebuild") {
+  if (!RECOVERABLE_AGENTS.has(conv.agent_type ?? "claude_code"))
+    return `codecast cannot restart a ${conv.agent_type} session`;
+  if (conv.execution_protocol_state)
+    return "runtime is owned by the execution coordinator";
+  if (!(conv.project_path || conv.git_root))
+    return "no project folder to start in";
+  if (
+    conv.context_recovered_at &&
+    now - conv.context_recovered_at < CONTEXT_RECOVERY_COOLDOWN_MS &&
+    conv.context_recovery_mode !== "rebuild"
+  ) {
     return "recovered recently";
   }
   return null;
@@ -452,24 +635,43 @@ export function contextRecoveryBlocker(conv: any, now: number): string | null {
 // Rows that say nothing about the work: the overflow banners themselves,
 // slash commands and their output, compaction summaries, and an earlier
 // recovery's own prompt.
-function isRecoveryNoise(m: { role?: string; content?: string | null; subtype?: string | null }): boolean {
+function isRecoveryNoise(m: {
+  role?: string;
+  content?: string | null;
+  subtype?: string | null;
+}): boolean {
   const t = (m.content ?? "").trimStart();
   if (m.subtype) return true;
   if (m.role === "assistant") return isBannerTurn(m as any);
-  return t.startsWith("<command-name>") || t.startsWith("<local-command") || /^\/[a-z][\w-]*(\s|$)/i.test(t) ||
-    isCompactionSummaryMessage(t) || isContextRecoveryPrompt(t);
+  return (
+    t.startsWith("<command-name>") ||
+    t.startsWith("<local-command") ||
+    /^\/[a-z][\w-]*(\s|$)/i.test(t) ||
+    isCompactionSummaryMessage(t) ||
+    isContextRecoveryPrompt(t)
+  );
 }
 
 /** The newest exchange to quote exactly, oldest first: everything readable
  *  from the RECOVERY_LATEST_USER-th newest user message on. Pure. */
 export function pickLatestMessages(
-  rowsNewestFirst: Array<{ role?: string; content?: string | null; tool_results?: unknown[] | null; subtype?: string | null; timestamp?: number }>,
+  rowsNewestFirst: Array<{
+    role?: string;
+    content?: string | null;
+    tool_results?: unknown[] | null;
+    subtype?: string | null;
+    timestamp?: number;
+  }>,
 ): RecoveryMessage[] {
   const picked: RecoveryMessage[] = [];
   let users = 0;
   for (const m of rowsNewestFirst) {
     if (!isSummarizableMessage(m) || isRecoveryNoise(m)) continue;
-    picked.push({ role: m.role as "user" | "assistant", content: clip(m.content!, RECOVERY_QUOTE_CHARS), timestamp: m.timestamp ?? 0 });
+    picked.push({
+      role: m.role as "user" | "assistant",
+      content: clip(m.content!, RECOVERY_QUOTE_CHARS),
+      timestamp: m.timestamp ?? 0,
+    });
     if (m.role === "user" && ++users >= RECOVERY_LATEST_USER) break;
   }
   return picked.reverse();
@@ -491,19 +693,31 @@ export const recoveryInput = internalQuery({
     const now = Date.now();
     const blocked = contextRecoveryBlocker(conv, now);
     if (blocked) {
-      console.log(`[context recovery] ${args.conversation_id}: skipped, ${blocked}`);
+      console.log(
+        `[context recovery] ${args.conversation_id}: skipped, ${blocked}`,
+      );
       return null;
     }
     const rows = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .order("desc")
       .take(HANDOFF_SCAN_LIMIT);
-    const task: any = conv.active_task_id ? await ctx.db.get(conv.active_task_id) : null;
-    const plan: any = conv.active_plan_id ? await ctx.db.get(conv.active_plan_id) : null;
-    const anchor: any = conv.anchor_id ? await ctx.db.get(conv.anchor_id) : null;
+    const task: any = conv.active_task_id
+      ? await ctx.db.get(conv.active_task_id)
+      : null;
+    const plan: any = conv.active_plan_id
+      ? await ctx.db.get(conv.active_plan_id)
+      : null;
+    const anchor: any = conv.anchor_id
+      ? await ctx.db.get(conv.anchor_id)
+      : null;
     const readable = (rows as any[]).filter((m) => !isRecoveryNoise(m));
-    const summary = (rows as any[]).find((m) => m.role === "user" && isCompactionSummaryMessage(m.content));
+    const summary = (rows as any[]).find(
+      (m) => m.role === "user" && isCompactionSummaryMessage(m.content),
+    );
     return {
       mode: contextRecoveryMode(conv, now),
       source: {
@@ -522,7 +736,10 @@ export const recoveryInput = internalQuery({
       },
       messages: shapeHandoffTranscript(readable, RECOVERY_BUDGET),
       latest: pickLatestMessages(rows as any[]),
-      role_brief: anchor && anchor.status !== "decommissioned" ? await briefingFor(ctx, anchor) : null,
+      role_brief:
+        anchor && anchor.status !== "decommissioned"
+          ? await briefingFor(ctx, anchor)
+          : null,
       last_summary: summary?.content ?? null,
       parked_at: conv.pending_api_error_at ?? null,
     };
@@ -532,14 +749,28 @@ export const recoveryInput = internalQuery({
 export const recoverContext = internalAction({
   args: { conversation_id: v.id("conversations") },
   handler: async (ctx, args): Promise<void> => {
-    const input: ContextRecoveryInput | null = await ctx.runQuery(internal.handoff.recoveryInput, args);
+    const input: ContextRecoveryInput | null = await ctx.runQuery(
+      internal.handoff.recoveryInput,
+      args,
+    );
     if (!input) return;
     let prompt: string;
     if (input.mode === "rebuild") {
-      prompt = composeContextRebuildPrompt({ source: input.source, roleBrief: input.role_brief });
+      prompt = composeContextRebuildPrompt({
+        source: input.source,
+        roleBrief: input.role_brief,
+      });
     } else {
-      const briefInputs: HandoffBriefInput = { ...handoffBriefInput(input.source, input.messages), recovery: true };
-      const modelBrief = input.messages.length ? await askForBrief({ ctx, scope: { conversationId: args.conversation_id } }, briefInputs) : null;
+      const briefInputs: HandoffBriefInput = {
+        ...handoffBriefInput(input.source, input.messages),
+        recovery: true,
+      };
+      const modelBrief = input.messages.length
+        ? await askForBrief(
+            { ctx, scope: { conversationId: args.conversation_id } },
+            briefInputs,
+          )
+        : null;
       prompt = composeContextRecoveryPrompt({
         source: input.source,
         brief: modelBrief ?? fallbackHandoffBrief(briefInputs),
@@ -576,10 +807,17 @@ export const applyContextRecovery = internalMutation({
     const now = Date.now();
     const blocked = contextRecoveryBlocker(conv, now);
     const mode = args.mode ?? "brief";
-    const stale = blocked ?? ((conv.pending_api_error_at ?? undefined) !== args.parked_at ? "a newer park replaced the one briefed"
-      : contextRecoveryMode(conv, now) !== mode ? "the rung changed since the prompt was written" : null);
+    const stale =
+      blocked ??
+      ((conv.pending_api_error_at ?? undefined) !== args.parked_at
+        ? "a newer park replaced the one briefed"
+        : contextRecoveryMode(conv, now) !== mode
+          ? "the rung changed since the prompt was written"
+          : null);
     if (stale) {
-      console.log(`[context recovery] ${args.conversation_id}: not applied, ${stale}`);
+      console.log(
+        `[context recovery] ${args.conversation_id}: not applied, ${stale}`,
+      );
       return { recovered: false };
     }
     await ctx.db.patch(conv._id, {
@@ -595,8 +833,13 @@ export const applyContextRecovery = internalMutation({
       client_id: `context-recovery:${conv._id}:${args.parked_at ?? now}`,
     });
     if (mode === "rebuild") {
-      await enqueueKillAndResume(ctx, conv.user_id, conv, { forceReconstitute: true, cause: "context-recovery" });
-      console.log(`[context recovery] ${args.conversation_id}: rebuilding the transcript from the server copy`);
+      await enqueueKillAndResume(ctx, conv.user_id, conv, {
+        forceReconstitute: true,
+        cause: "context-recovery",
+      });
+      console.log(
+        `[context recovery] ${args.conversation_id}: rebuilding the transcript from the server copy`,
+      );
       return { recovered: true, mode };
     }
     const agentType = fromConvexAgentType(conv.agent_type);
@@ -610,7 +853,9 @@ export const applyContextRecovery = internalMutation({
       ...(conv.effort ? { effort: conv.effort } : {}),
       ...(conv.cc_account ? { ccAccount: conv.cc_account } : {}),
     });
-    console.log(`[context recovery] ${args.conversation_id}: restarted in a fresh context`);
+    console.log(
+      `[context recovery] ${args.conversation_id}: restarted in a fresh context`,
+    );
     return { recovered: true, mode };
   },
 });

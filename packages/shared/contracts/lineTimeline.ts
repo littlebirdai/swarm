@@ -4,12 +4,21 @@
 // too, so the web resolves them from its store). Decision events are derived
 // on the web from the decision collection and carry the decision fields.
 export type TimelineKind =
-  | "moment" | "judged" | "review"
+  | "moment"
+  | "judged"
+  | "review"
   | "finding"
-  | "problem_opened" | "problem_merged" | "problem_closed"
-  | "error" | "replay"
-  | "run_started" | "station" | "run_ended"
-  | "decision_asked" | "decision_answered" | "decision_closed"
+  | "problem_opened"
+  | "problem_merged"
+  | "problem_closed"
+  | "error"
+  | "replay"
+  | "run_started"
+  | "station"
+  | "run_ended"
+  | "decision_asked"
+  | "decision_answered"
+  | "decision_closed"
   | "deploy";
 
 export type TimelineEvent = {

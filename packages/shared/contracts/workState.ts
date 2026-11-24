@@ -19,7 +19,13 @@
 //
 // PURE isomorphic data — safe to import from the Convex runtime, the daemon, and
 // the browser.
-export const WORK_STATES = ["working", "needs_input", "done", "dormant", "idle"] as const;
+export const WORK_STATES = [
+  "working",
+  "needs_input",
+  "done",
+  "dormant",
+  "idle",
+] as const;
 
 export type WorkState = (typeof WORK_STATES)[number];
 
@@ -31,10 +37,24 @@ export type WorkState = (typeof WORK_STATES)[number];
 export type WorkStateFilter = WorkState | "pinned" | "live" | "hibernated";
 
 /** The canonical spellings a `--state` flag lists in its help and errors. */
-export const WORK_STATE_FILTERS = ["needs-input", "done", "working", "dormant", "hibernated", "idle", "pinned", "live"] as const;
+export const WORK_STATE_FILTERS = [
+  "needs-input",
+  "done",
+  "working",
+  "dormant",
+  "hibernated",
+  "idle",
+  "pinned",
+  "live",
+] as const;
 
-export function normalizeWorkStateFilter(raw: string | undefined | null): WorkStateFilter | null {
-  const v = (raw || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+export function normalizeWorkStateFilter(
+  raw: string | undefined | null,
+): WorkStateFilter | null {
+  const v = (raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
   switch (v) {
     case "working":
     case "active":

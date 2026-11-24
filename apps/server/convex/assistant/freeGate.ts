@@ -23,7 +23,10 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { FREE_DAILY_CEILING_USD, planOf } from "@codecast/shared/contracts/assistant";
+import {
+  FREE_DAILY_CEILING_USD,
+  planOf,
+} from "@codecast/shared/contracts/assistant";
 import { emailProven, workDomain } from "../lib/workDomain";
 import { hasLiveCode, sendEmailCode } from "../lib/emailProof";
 import { ensureWallet, money, walletRow } from "../lib/wallet";
@@ -36,7 +39,9 @@ export type FreeRefusal =
 
 /** True when a wallet's turns spend our Free allowance: a Free plan with no
  *  bought credit. */
-export function servesFromFree(wallet: Pick<Doc<"wallets">, "plan" | "topup_usd">): boolean {
+export function servesFromFree(
+  wallet: Pick<Doc<"wallets">, "plan" | "topup_usd">,
+): boolean {
   return planOf(wallet.plan).price_usd === 0 && wallet.topup_usd <= 0;
 }
 
@@ -46,7 +51,10 @@ export function servesFromFree(wallet: Pick<Doc<"wallets">, "plan" | "topup_usd"
  *  its address whole: its owner can mint any address there anyway. Null for
  *  a malformed address. */
 export function freeMailbox(email: string | undefined | null): string | null {
-  const m = String(email ?? "").trim().toLowerCase().match(/^([^\s@]+)@([a-z0-9.-]+\.[a-z]{2,})$/);
+  const m = String(email ?? "")
+    .trim()
+    .toLowerCase()
+    .match(/^([^\s@]+)@([a-z0-9.-]+\.[a-z]{2,})$/);
   if (!m) return null;
   let [, local, domain] = m;
   if (workDomain(`x@${domain}`) !== null) return `${local}@${domain}`;
@@ -76,7 +84,10 @@ export function freeDailyCeilingUsd(): number {
 }
 
 function dayRow(ctx: Pick<MutationCtx, "db">, day: string) {
-  return ctx.db.query("assistant_free_days").withIndex("by_day", (q) => q.eq("day", day)).first();
+  return ctx.db
+    .query("assistant_free_days")
+    .withIndex("by_day", (q) => q.eq("day", day))
+    .first();
 }
 
 /**
@@ -84,26 +95,43 @@ function dayRow(ctx: Pick<MutationCtx, "db">, day: string) {
  * not. Null when it may, and for every turn a paid plan or bought credit
  * pays for. A proven person's first Free turn claims their mailbox.
  */
-export async function freeTurnRefusal(ctx: MutationCtx, userId: Id<"users">, now = Date.now()): Promise<FreeRefusal | null> {
+export async function freeTurnRefusal(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  now = Date.now(),
+): Promise<FreeRefusal | null> {
   if (!servesFromFree(await ensureWallet(ctx, userId, now))) return null;
   const user = await ctx.db.get(userId);
   if (!user) return null;
-  if (!(await emailProven(ctx, user))) return { kind: "verify", email: user.email ?? "" };
+  if (!(await emailProven(ctx, user)))
+    return { kind: "verify", email: user.email ?? "" };
   const mailbox = freeMailbox(user.email);
   if (mailbox) {
-    const claim = await ctx.db.query("assistant_free_mailboxes").withIndex("by_mailbox", (q) => q.eq("mailbox", mailbox)).first();
+    const claim = await ctx.db
+      .query("assistant_free_mailboxes")
+      .withIndex("by_mailbox", (q) => q.eq("mailbox", mailbox))
+      .first();
     if (claim && claim.user_id !== userId) return { kind: "mailbox" };
-    if (!claim) await ctx.db.insert("assistant_free_mailboxes", { mailbox, user_id: userId, at: now });
+    if (!claim)
+      await ctx.db.insert("assistant_free_mailboxes", {
+        mailbox,
+        user_id: userId,
+        at: now,
+      });
   }
   const today = await dayRow(ctx, freeDay(now));
-  if (today && today.spent_usd >= freeDailyCeilingUsd()) return { kind: "paused", resumesAt: nextFreeDay(now) };
+  if (today && today.spent_usd >= freeDailyCeilingUsd())
+    return { kind: "paused", resumesAt: nextFreeDay(now) };
   return null;
 }
 
 /** Mails the person a code for the `verify` stop, unless one they can still
  *  enter is out. Never throws: a refused send (too many this hour) leaves
  *  the notice's own "send a new code" to say why. */
-export async function offerEmailCode(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+export async function offerEmailCode(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<void> {
   const user = await ctx.db.get(userId);
   if (!user?.email || (await hasLiveCode(ctx, user))) return;
   try {
@@ -120,7 +148,12 @@ export async function offerEmailCode(ctx: MutationCtx, userId: Id<"users">): Pro
  * paid (not bought credit). The first turn past the ceiling tells the
  * operator; the day's row remembers it so they hear once a day.
  */
-export async function noteFreeSpend(ctx: MutationCtx, userId: Id<"users">, allowanceUsd: number, now = Date.now()): Promise<void> {
+export async function noteFreeSpend(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  allowanceUsd: number,
+  now = Date.now(),
+): Promise<void> {
   if (!(allowanceUsd > 0)) return;
   const wallet = await walletRow(ctx, userId);
   if (!wallet || planOf(wallet.plan).price_usd !== 0) return;
@@ -129,9 +162,29 @@ export async function noteFreeSpend(ctx: MutationCtx, userId: Id<"users">, allow
   const spent = money((row?.spent_usd ?? 0) + allowanceUsd);
   const ceiling = freeDailyCeilingUsd();
   const alert = spent >= ceiling && !row?.alerted_at;
-  if (row) await ctx.db.patch(row._id, { spent_usd: spent, turns: row.turns + 1, ...(alert ? { alerted_at: now } : {}) });
-  else await ctx.db.insert("assistant_free_days", { day, spent_usd: spent, turns: 1, ...(alert ? { alerted_at: now } : {}) });
+  if (row)
+    await ctx.db.patch(row._id, {
+      spent_usd: spent,
+      turns: row.turns + 1,
+      ...(alert ? { alerted_at: now } : {}),
+    });
+  else
+    await ctx.db.insert("assistant_free_days", {
+      day,
+      spent_usd: spent,
+      turns: 1,
+      ...(alert ? { alerted_at: now } : {}),
+    });
   if (alert) {
-    await ctx.scheduler.runAfter(0, internal.assistant.incidents.alertFreeCeiling, { day, spent_usd: spent, ceiling_usd: ceiling, turns: (row?.turns ?? 0) + 1 });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.assistant.incidents.alertFreeCeiling,
+      {
+        day,
+        spent_usd: spent,
+        ceiling_usd: ceiling,
+        turns: (row?.turns ?? 0) + 1,
+      },
+    );
   }
 }

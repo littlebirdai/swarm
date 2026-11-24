@@ -1,10 +1,14 @@
-import { StyleSheet, TouchableOpacity, View as RNView } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
+import { StyleSheet, TouchableOpacity, View as RNView } from "react-native";
+import { Text as RNText } from "@/components/Themed";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import type { DocItem as DocItemType } from "@codecast/web/store/inboxStore";
 import { formatDateSmart, wasEdited } from "@codecast/shared/time";
-import { DOC_TYPES, DOC_TYPE_LABELS, type DocType } from "@codecast/shared/docs";
+import {
+  DOC_TYPES,
+  DOC_TYPE_LABELS,
+  type DocType,
+} from "@codecast/shared/docs";
 
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];
 
@@ -26,7 +30,10 @@ const DOC_TYPE_STYLE: Record<DocType, { icon: IconName; color: string }> = {
 };
 
 export const DOC_TYPE_CONFIG = Object.fromEntries(
-  DOC_TYPES.map((t) => [t, { ...DOC_TYPE_STYLE[t], label: DOC_TYPE_LABELS[t] }]),
+  DOC_TYPES.map((t) => [
+    t,
+    { ...DOC_TYPE_STYLE[t], label: DOC_TYPE_LABELS[t] },
+  ]),
 ) as Record<string, { icon: IconName; label: string; color: string }>;
 
 export { DOC_TYPES };
@@ -44,18 +51,34 @@ export function DocItemRow({
     <TouchableOpacity onPress={onPress} style={styles.row} activeOpacity={0.6}>
       <RNView style={styles.topLine}>
         <RNView style={styles.leftGroup}>
-          <FontAwesome name={cfg.icon} size={13} color={cfg.color} style={styles.typeIcon} />
-          <RNText style={styles.title} numberOfLines={1}>{doc.title || "Untitled"}</RNText>
+          <FontAwesome
+            name={cfg.icon}
+            size={13}
+            color={cfg.color}
+            style={styles.typeIcon}
+          />
+          <RNText style={styles.title} numberOfLines={1}>
+            {doc.title || "Untitled"}
+          </RNText>
           {doc.pinned && (
-            <FontAwesome name="star" size={10} color={Theme.accent} style={{ marginLeft: 4 }} />
+            <FontAwesome
+              name="star"
+              size={10}
+              color={Theme.accent}
+              style={{ marginLeft: 4 }}
+            />
           )}
         </RNView>
-        <RNText style={styles.age}>{formatDateSmart(wasEdited(doc) ? doc.updated_at : doc.created_at)}</RNText>
+        <RNText style={styles.age}>
+          {formatDateSmart(wasEdited(doc) ? doc.updated_at : doc.created_at)}
+        </RNText>
       </RNView>
 
       <RNView style={styles.metaLine}>
         <RNView style={[styles.typeBadge, { borderColor: cfg.color + "40" }]}>
-          <RNText style={[styles.typeText, { color: cfg.color }]}>{cfg.label}</RNText>
+          <RNText style={[styles.typeText, { color: cfg.color }]}>
+            {cfg.label}
+          </RNText>
         </RNView>
 
         {doc.source !== "human" && (
@@ -81,7 +104,9 @@ export function DocItemRow({
               </RNView>
             ))}
             {doc.labels.length > 2 && (
-              <RNText style={styles.moreLabels}>+{doc.labels.length - 2}</RNText>
+              <RNText style={styles.moreLabels}>
+                +{doc.labels.length - 2}
+              </RNText>
             )}
           </>
         )}
@@ -90,80 +115,82 @@ export function DocItemRow({
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  row: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.bgHighlight,
-  },
-  topLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  leftGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  typeIcon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Theme.text,
-    flex: 1,
-    letterSpacing: -0.2,
-  },
-  age: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontVariant: ["tabular-nums"],
-  },
-  metaLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 24,
-    gap: 4,
-  },
-  typeBadge: {
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  typeText: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  sep: {
-    color: Theme.textMuted0,
-    fontSize: 11,
-  },
-  planLink: {
-    fontSize: 10,
-    color: Theme.cyan,
-    fontWeight: "500",
-  },
-  labelBadge: {
-    backgroundColor: Theme.bgHighlight,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-  },
-  labelText: {
-    fontSize: 10,
-    color: Theme.textMuted,
-    fontWeight: "500",
-  },
-  moreLabels: {
-    fontSize: 10,
-    color: Theme.textMuted0,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    row: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.bgHighlight,
+    },
+    topLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    leftGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      marginRight: Spacing.sm,
+    },
+    typeIcon: {
+      marginRight: 8,
+      width: 16,
+      textAlign: "center",
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: Theme.text,
+      flex: 1,
+      letterSpacing: -0.2,
+    },
+    age: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    metaLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginLeft: 24,
+      gap: 4,
+    },
+    typeBadge: {
+      borderWidth: 1,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    typeText: {
+      fontSize: 10,
+      fontWeight: "600",
+    },
+    sep: {
+      color: Theme.textMuted0,
+      fontSize: 11,
+    },
+    planLink: {
+      fontSize: 10,
+      color: Theme.cyan,
+      fontWeight: "500",
+    },
+    labelBadge: {
+      backgroundColor: Theme.bgHighlight,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+    },
+    labelText: {
+      fontSize: 10,
+      color: Theme.textMuted,
+      fontWeight: "500",
+    },
+    moreLabels: {
+      fontSize: 10,
+      color: Theme.textMuted0,
+    },
+  }),
+);

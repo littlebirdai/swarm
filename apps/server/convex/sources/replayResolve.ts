@@ -16,24 +16,55 @@ const POSTHOG_RECORDING_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export const resolve = action({
   args: { ...scopeArgs, recording: v.string() },
-  handler: async (ctx, args): Promise<{ short_id: string; imported: boolean; source: string | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    short_id: string;
+    imported: boolean;
+    source: string | null;
+  }> => {
     const { recording, ...scope } = args;
     const id = recording.trim();
-    const found: { short_id: string | null; sources: { source_id: any; name: string; provider: string }[] } = await ctx.runQuery(internal.replaysSearch.byExternalId, { ...scope, external_id: id });
-    if (found.short_id) return { short_id: found.short_id, imported: false, source: null };
+    const found: {
+      short_id: string | null;
+      sources: { source_id: any; name: string; provider: string }[];
+    } = await ctx.runQuery(internal.replaysSearch.byExternalId, {
+      ...scope,
+      external_id: id,
+    });
+    if (found.short_id)
+      return { short_id: found.short_id, imported: false, source: null };
     const order = (p: string) => (p === "posthog" ? 0 : 1);
     const tried: string[] = [];
-    for (const s of [...found.sources].sort((a, b) => order(a.provider) - order(b.provider))) {
+    for (const s of [...found.sources].sort(
+      (a, b) => order(a.provider) - order(b.provider),
+    )) {
       if (s.provider === "posthog" && !POSTHOG_RECORDING_ID.test(id)) continue;
       if (s.provider === "sentry" && !SENTRY_REPLAY_ID.test(id)) continue;
       try {
         const out =
           s.provider === "posthog"
-            ? await importFor(ctx, await ctx.runQuery(internal.sources.posthog.sourceForPoll, { source_id: s.source_id }).then((i) => i!), id, { rest: true })
+            ? await importFor(
+                ctx,
+                await ctx
+                  .runQuery(internal.sources.posthog.sourceForPoll, {
+                    source_id: s.source_id,
+                  })
+                  .then((i) => i!),
+                id,
+                { rest: true },
+              )
             : await importSentryReplay(ctx, s.source_id, id);
-        return { short_id: out.short_id, imported: out.imported, source: s.name };
+        return {
+          short_id: out.short_id,
+          imported: out.imported,
+          source: s.name,
+        };
       } catch (err) {
-        tried.push(`${s.name}: ${err instanceof Error ? err.message : String(err)}`);
+        tried.push(
+          `${s.name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
     notFound(

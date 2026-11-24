@@ -7,15 +7,33 @@ const TASK_CONVEX_ID = "kx82qtvpbmmrmwcjqmhzawejsx8bq9gm";
 const FAKE_TASK = {
   _id: TASK_CONVEX_ID,
   short_id: "ct-46943",
-  title: "Rich object preview cards in chat: preserve the full title when shared with surrounding text",
-  description: "Preview-tier rendering for shared object references, with inline expansion.",
+  title:
+    "Rich object preview cards in chat: preserve the full title when shared with surrounding text",
+  description:
+    "Preview-tier rendering for shared object references, with inline expansion.",
   status: "in_progress",
   priority: "high",
   comments: [
-    { _id: "c0", author: "Ashot", text: "An earlier note", created_at: Date.now() - 7200_000, comment_type: "note" },
-    { _id: "c1", author: "Ashot", text: "Looks great so far", created_at: Date.now() - 3600_000, comment_type: "note" },
+    {
+      _id: "c0",
+      author: "Ashot",
+      text: "An earlier note",
+      created_at: Date.now() - 7200_000,
+      comment_type: "note",
+    },
+    {
+      _id: "c1",
+      author: "Ashot",
+      text: "Looks great so far",
+      created_at: Date.now() - 3600_000,
+      comment_type: "note",
+    },
   ],
-  plan: { short_id: "pl-476", title: "Rich inline object embeds", status: "active" },
+  plan: {
+    short_id: "pl-476",
+    title: "Rich inline object embeds",
+    status: "active",
+  },
   updated_at: Date.now() - 120_000,
 };
 
@@ -59,8 +77,19 @@ const FAKE_DOC = {
 };
 
 const PROJECT_CONVEX_ID = "sx82qtvpbmmrmwcjqmhzawejsx8bq9gm";
-const FAKE_PROJECT = { _id: PROJECT_CONVEX_ID, name: "Product improvements", description: "Larger inline objects throughout chat." };
-const FAKE_TRIGGER = { _id: "tx82qtvpbmmrmwcjqmhzawejsx8bq9gm", short_id: "tr-476", display_title: "Check the release", status: "active", prompt: "Read the release checks and report any failures.", trigger_type: "manual" };
+const FAKE_PROJECT = {
+  _id: PROJECT_CONVEX_ID,
+  name: "Product improvements",
+  description: "Larger inline objects throughout chat.",
+};
+const FAKE_TRIGGER = {
+  _id: "tx82qtvpbmmrmwcjqmhzawejsx8bq9gm",
+  short_id: "tr-476",
+  display_title: "Check the release",
+  status: "active",
+  prompt: "Read the release checks and report any failures.",
+  trigger_type: "manual",
+};
 
 const MSG_CONVEX_ID = "kx91qtvpbmmrmwcjqmhzawejsx8bq9gm";
 const SHARE_TOKEN = "3f0c1b2a-7d4e-4c9a-9b1e-2a6f8c0d1e2f";
@@ -74,7 +103,11 @@ const FAKE_MESSAGE = {
 const FAKE_SHARED_MESSAGE = {
   message: FAKE_MESSAGE,
   contextMessages: [FAKE_MESSAGE],
-  conversation: { _id: SESSION_CONVEX_ID, title: FAKE_SESSION.title, agent_type: "claude_code" },
+  conversation: {
+    _id: SESSION_CONVEX_ID,
+    title: FAKE_SESSION.title,
+    agent_type: "claude_code",
+  },
   conversationShareToken: null,
   user: { name: "Ashot", image: null },
   note: null,
@@ -109,16 +142,39 @@ const ROWS: Record<string, any[]> = {
 function fakeQuery(fn: unknown, args: any) {
   if (args === "skip") return undefined;
   const name = getFunctionName(fn as any);
-  if (name === "entities:resolveIdType") return args?.id === DOC_CONVEX_ID ? "doc" : args?.id === PROJECT_CONVEX_ID ? "project" : null;
-  if (name === "docs:webGet") return args?.id === DOC_CONVEX_ID ? FAKE_DOC : null;
-  if (name === "messages:getSharedMessage") return args?.share_token === SHARE_TOKEN ? FAKE_SHARED_MESSAGE : null;
-  if (name === "messages:webGet") return args?.id === MSG_CONVEX_ID ? FAKE_SHARED_MESSAGE : null;
-  if (name === "linkPreviews:get") return args?.url === FAKE_PREVIEW.url ? FAKE_PREVIEW : null;
-  if (name === "transcripts:webGetCallRef") return args?.ref === "cl-117" ? { _id: "k117", short_id: "cl-117", title: "Recording test coordination markers", status: "ended", turns: null, line: null } : null;
-  if (name === "replays:webGetReplay") return args?.ref === "rp-7" ? FAKE_REPLAY : null;
+  if (name === "entities:resolveIdType")
+    return args?.id === DOC_CONVEX_ID
+      ? "doc"
+      : args?.id === PROJECT_CONVEX_ID
+        ? "project"
+        : null;
+  if (name === "docs:webGet")
+    return args?.id === DOC_CONVEX_ID ? FAKE_DOC : null;
+  if (name === "messages:getSharedMessage")
+    return args?.share_token === SHARE_TOKEN ? FAKE_SHARED_MESSAGE : null;
+  if (name === "messages:webGet")
+    return args?.id === MSG_CONVEX_ID ? FAKE_SHARED_MESSAGE : null;
+  if (name === "linkPreviews:get")
+    return args?.url === FAKE_PREVIEW.url ? FAKE_PREVIEW : null;
+  if (name === "transcripts:webGetCallRef")
+    return args?.ref === "cl-117"
+      ? {
+          _id: "k117",
+          short_id: "cl-117",
+          title: "Recording test coordination markers",
+          status: "ended",
+          turns: null,
+          line: null,
+        }
+      : null;
+  if (name === "replays:webGetReplay")
+    return args?.ref === "rp-7" ? FAKE_REPLAY : null;
   const rows = ROWS[name];
   if (!rows) return undefined;
-  return rows.find((r) => r.short_id === args?.short_id || r._id === args?.id) ?? null;
+  return (
+    rows.find((r) => r.short_id === args?.short_id || r._id === args?.id) ??
+    null
+  );
 }
 
 // A product recording that kept its page capture.
@@ -144,7 +200,14 @@ mock.module("convex/react", () => ({
   useQuery: fakeQuery,
   useQueries: () => ({}),
   useMutation: () => async () => {},
-  useAction: () => async () => ({ short_id: "rp-7", has_dom: false, cap: null, player_url: null, frame_url: "", expires_at: 0 }),
+  useAction: () => async () => ({
+    short_id: "rp-7",
+    has_dom: false,
+    cap: null,
+    player_url: null,
+    frame_url: "",
+    expires_at: 0,
+  }),
 }));
 
 const noThrow = await import("../hooks/useQueryNoThrow");
@@ -155,7 +218,9 @@ mock.module("../hooks/useQueryNoThrow", () => ({
 
 mock.module("next/link", () => ({
   default: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>{children}</a>
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -165,12 +230,17 @@ const { default: ReactMarkdown } = await import("react-markdown");
 const { default: remarkBreaks } = await import("remark-breaks");
 const { entityRemarkPlugins } = await import("./remarkEntityIds");
 const { remarkEntityCards } = await import("./remarkEntityCards");
-const { EntityAwareLink, EntityAwareCode } = await import("../components/EntityIdPill");
+const { EntityAwareLink, EntityAwareCode } =
+  await import("../components/EntityIdPill");
 
 const MD_COMPONENTS = { a: EntityAwareLink, code: EntityAwareCode } as const;
 // Chat's shape: entity ids, single newlines as hard breaks, then the card
 // promotion pass — the same order ChatMessage registers.
-const PLUGINS = [...entityRemarkPlugins, remarkBreaks, remarkEntityCards] as any[];
+const PLUGINS = [
+  ...entityRemarkPlugins,
+  remarkBreaks,
+  remarkEntityCards,
+] as any[];
 
 function render(markdown: string): string {
   return renderToStaticMarkup(
@@ -189,7 +259,9 @@ describe("shared-object detection", () => {
     expect(html).toContain('data-card-count="1"');
     // The card previews usably before any click: title, status, snippet.
     expect(html).toContain("Rich object preview cards in chat");
-    expect(html).toContain("Preview-tier rendering for shared object references");
+    expect(html).toContain(
+      "Preview-tier rendering for shared object references",
+    );
     // And it is a real card, not the inline pill chrome.
     expect(html).not.toContain('class="not-prose entity-ref');
   });
@@ -199,13 +271,21 @@ describe("shared-object detection", () => {
   // whole, and the card unfurls under the paragraph.
   test("an id inside a sentence stays the pill and its card unfurls under the paragraph", () => {
     const html = render("Picked up ct-46943 this morning.");
-    expect(html).toMatch(/<p>Picked up <a [^>]*entity-ref.*<\/a> this morning\.<\/p>\s*<div class="entity-card-row" data-card-count="1">/s);
-    expect(html).toContain("Preview-tier rendering for shared object references");
+    expect(html).toMatch(
+      /<p>Picked up <a [^>]*entity-ref.*<\/a> this morning\.<\/p>\s*<div class="entity-card-row" data-card-count="1">/s,
+    );
+    expect(html).toContain(
+      "Preview-tier rendering for shared object references",
+    );
   });
 
   test("references in a list's items unfurl once, under the whole list", () => {
-    const html = render("- Eval spend review (ct-46943). See the page.\n- The plan pl-476 and ct-46943 again");
-    expect(html).toMatch(/<\/ul>\s*<div class="entity-card-row" data-card-count="2">/);
+    const html = render(
+      "- Eval spend review (ct-46943). See the page.\n- The plan pl-476 and ct-46943 again",
+    );
+    expect(html).toMatch(
+      /<\/ul>\s*<div class="entity-card-row" data-card-count="2">/,
+    );
     expect(html.match(/entity-card-row/g)?.length).toBe(1);
     expect(html).toContain("Eval spend review (");
   });
@@ -225,21 +305,29 @@ describe("shared-object detection", () => {
   // in two (#card-embeds-test, 2026-10-03), so only a moment on a line of its
   // own is the frame card, and one in prose is the moment pill.
   test("a call moment in a sentence stays the inline pill; one on its own line is the frame", () => {
-    const html = render("The share moved on to the cobalt slide by cl-117@2:45 in prose.\ncl-117@2:30");
+    const html = render(
+      "The share moved on to the cobalt slide by cl-117@2:45 in prose.\ncl-117@2:30",
+    );
     expect(html.match(/data-call-moment=/g)?.length).toBe(1);
     expect(html).toContain('data-call-moment="cl-117@2:30"');
-    expect(html).toMatch(/<p>The share moved on to the cobalt slide by .*entity-ref.* in prose\.<\/p>/s);
+    expect(html).toMatch(
+      /<p>The share moved on to the cobalt slide by .*entity-ref.* in prose\.<\/p>/s,
+    );
     expect(html).toContain('data-card-count="1"');
   });
 
   // A replay moment is the recorded page playing, so it follows the same
   // rule: the player on a line of its own, the moment pill in a sentence.
   test("a replay moment in a sentence stays the pill; one on its own line embeds the player", () => {
-    const html = render("Paying failed at rp-7@1:23 for the second time.\nrp-7@1:23");
+    const html = render(
+      "Paying failed at rp-7@1:23 for the second time.\nrp-7@1:23",
+    );
     expect(html.match(/data-replay-moment=/g)?.length).toBe(1);
     expect(html).toContain('data-replay-moment="rp-7@1:23"');
     // The pill names the page and the second, and both open the replay there.
-    expect(html).toMatch(/<p>Paying failed at .*shop\.example\.com\/checkout @1:23.* for the second time\.<\/p>/s);
+    expect(html).toMatch(
+      /<p>Paying failed at .*shop\.example\.com\/checkout @1:23.* for the second time\.<\/p>/s,
+    );
     expect(html.match(/href="\/ops\/replays\/rp-7\?t=83"/g)?.length).toBe(2);
   });
 
@@ -272,7 +360,9 @@ describe("shared-object detection", () => {
   });
 
   test("a reference line becomes a card in place; one leading a sentence unfurls below it", () => {
-    const html = render("I'm confused on this one — why is it asking me?\n@[First task ct-46943]\n@[Related plan pl-476] and what about this one?");
+    const html = render(
+      "I'm confused on this one — why is it asking me?\n@[First task ct-46943]\n@[Related plan pl-476] and what about this one?",
+    );
     expect(html.match(/data-card-count="1"/g)?.length).toBe(2);
     expect(html).toContain("why is it asking me?");
     expect(html).toContain("and what about this one?");
@@ -281,20 +371,26 @@ describe("shared-object detection", () => {
 
   test("an emphasized reference stays inside its emphasis and unfurls below", () => {
     const html = render("Review **the task ct-46943 today** please.");
-    expect(html).toMatch(/<strong>the task <a [^>]*entity-ref.*<\/a> today<\/strong>/s);
+    expect(html).toMatch(
+      /<strong>the task <a [^>]*entity-ref.*<\/a> today<\/strong>/s,
+    );
     expect(html).toContain("entity-card-row");
     expect(html).not.toMatch(/<strong>\s*<div/);
   });
 
   test("object URLs get the same cards as short references", () => {
-    const html = render("Review https://codecast.sh/tasks/ct-46943 and [the plan](/plans/pl-476).");
+    const html = render(
+      "Review https://codecast.sh/tasks/ct-46943 and [the plan](/plans/pl-476).",
+    );
     expect(html).toContain('data-card-count="2"');
     expect(html).toContain("Rich object preview cards in chat");
     expect(html).toContain("Rich inline object embeds");
   });
 
   test("code and date references remain inline", () => {
-    const html = render("Run `cast task show ct-46943` @[tomorrow date:2026-08-30].");
+    const html = render(
+      "Run `cast task show ct-46943` @[tomorrow date:2026-08-30].",
+    );
     expect(html).not.toContain("entity-card-row");
     expect(html).toContain("cast task show ct-46943");
   });
@@ -349,7 +445,10 @@ describe("shared-object detection", () => {
     // inside a <p>.
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <ReactMarkdown remarkPlugins={entityRemarkPlugins as any[]} components={MD_COMPONENTS as any}>
+        <ReactMarkdown
+          remarkPlugins={entityRemarkPlugins as any[]}
+          components={MD_COMPONENTS as any}
+        >
           {"See [card:1:ct-46943](https://example.com) for details."}
         </ReactMarkdown>
       </MemoryRouter>,
@@ -365,7 +464,9 @@ describe("card previews per type", () => {
   });
 
   test("all six object types become cards when shared together", () => {
-    const html = render(`ct-46943 pl-476 jx84qtv doc:${DOC_CONVEX_ID} tr-476 ${PROJECT_CONVEX_ID}`);
+    const html = render(
+      `ct-46943 pl-476 jx84qtv doc:${DOC_CONVEX_ID} tr-476 ${PROJECT_CONVEX_ID}`,
+    );
     expect(html).toContain('data-card-count="6"');
     expect(html).toContain("Check the release");
     expect(html).toContain("Product improvements");
@@ -406,16 +507,22 @@ describe("published pages shared from Slack", () => {
   const url = `https://a.codecast.sh/${slug}`;
 
   test("the imported page link renders one live embed beside its Slack unfurl", () => {
-    const html = render(`[a.codecast.sh/${slug}](${url})\n\n> *codecast* · **[Union — The Needs-Finding Machine (North Star demo)](${url})**\n>\n> A page published by Aivery with codecast`);
+    const html = render(
+      `[a.codecast.sh/${slug}](${url})\n\n> *codecast* · **[Union — The Needs-Finding Machine (North Star demo)](${url})**\n>\n> A page published by Aivery with codecast`,
+    );
     expect(html.match(/<iframe\b/g)).toHaveLength(1);
     expect(html).toContain(`/cli/a/${slug}?theme=`);
-    expect(html).toContain('sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"');
+    expect(html).toContain(
+      'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
+    );
     expect(html).not.toContain(`>a.codecast.sh/${slug}<`);
   });
 
   test("an authored caption survives and a page in prose stays a pill", () => {
     expect(render(`[North Star demo](${url})`)).toContain("North Star demo");
-    expect(render(`See [North Star demo](${url}) today.`)).not.toContain("<iframe");
+    expect(render(`See [North Star demo](${url}) today.`)).not.toContain(
+      "<iframe",
+    );
   });
 });
 
@@ -460,7 +567,9 @@ describe("shared conversation messages", () => {
     const html = render(inPlaceUrl);
     expect(html).toContain("entity-card-row");
     expect(html).toContain("card plugin</strong>");
-    expect(html).toContain(`href="/conversation/${SESSION_CONVEX_ID}#msg-${MSG_CONVEX_ID}"`);
+    expect(html).toContain(
+      `href="/conversation/${SESSION_CONVEX_ID}#msg-${MSG_CONVEX_ID}"`,
+    );
   });
 
   test("a note above the link (its own paragraph, as forwardToChat sends it) keeps the note as prose and the card below it", () => {
@@ -471,7 +580,9 @@ describe("shared conversation messages", () => {
 
   test("a share link inside a sentence keeps the sentence whole and unfurls the message below", () => {
     const html = render(`As I said in ${shareUrl} yesterday.`);
-    expect(html).toMatch(/<p>As I said in .* yesterday\.<\/p>\s*<div class="entity-card-row"/s);
+    expect(html).toMatch(
+      /<p>As I said in .* yesterday\.<\/p>\s*<div class="entity-card-row"/s,
+    );
     expect(html).toContain("card plugin</strong>");
   });
 
@@ -486,7 +597,6 @@ describe("shared conversation messages", () => {
     expect(html).toContain("Not available to you.");
   });
 });
-
 
 describe("pull request references in chat", () => {
   test("a pull request named by number alone stays inline text, never a card or a payload", () => {
@@ -518,15 +628,26 @@ describe("a transcript promotes a staffing proposal alone", () => {
   // the plugin with `types: ["proposal"]`: an `op-N` on its own line draws
   // the proposal live (org-staffing.md S24), while a lone task id keeps the
   // inline pill a transcript always gave it.
-  const TRANSCRIPT = [...entityRemarkPlugins, [remarkEntityCards, { types: ["proposal"], aloneOnly: true }]] as any[];
-  const renderTranscript = (markdown: string) => renderToStaticMarkup(
-    <MemoryRouter>
-      <ReactMarkdown remarkPlugins={TRANSCRIPT} components={MD_COMPONENTS as any}>{markdown}</ReactMarkdown>
-    </MemoryRouter>,
-  );
+  const TRANSCRIPT = [
+    ...entityRemarkPlugins,
+    [remarkEntityCards, { types: ["proposal"], aloneOnly: true }],
+  ] as any[];
+  const renderTranscript = (markdown: string) =>
+    renderToStaticMarkup(
+      <MemoryRouter>
+        <ReactMarkdown
+          remarkPlugins={TRANSCRIPT}
+          components={MD_COMPONENTS as any}
+        >
+          {markdown}
+        </ReactMarkdown>
+      </MemoryRouter>,
+    );
 
   test("op-N on its own line is a card row", () => {
-    const html = renderTranscript("Here is the change.\n\nop-5\n\nSay the word.");
+    const html = renderTranscript(
+      "Here is the change.\n\nop-5\n\nSay the word.",
+    );
     expect(html).toContain('class="entity-card-row"');
     expect(html).toContain("Here is the change.");
   });
@@ -550,12 +671,16 @@ describe("a transcript promotes a staffing proposal alone", () => {
   // One change of a proposal (`op-5#2`) is a proposal reference too: alone on
   // its line it is that change's card, and the payload keeps the number.
   test("op-N#seq on its own line is a card row that carries the whole reference", () => {
-    const html = renderTranscript("Start with this one.\n\nop-5#2\n\nSay the word.");
+    const html = renderTranscript(
+      "Start with this one.\n\nop-5#2\n\nSay the word.",
+    );
     expect(html).toContain('class="entity-card-row"');
     expect(html).toContain('data-card-count="1"');
     expect(html).toContain("Start with this one.");
     // With no renderer the plugin's own output shows: one link, payload whole.
-    const raw = renderToStaticMarkup(<ReactMarkdown remarkPlugins={TRANSCRIPT}>{"op-5#2"}</ReactMarkdown>);
+    const raw = renderToStaticMarkup(
+      <ReactMarkdown remarkPlugins={TRANSCRIPT}>{"op-5#2"}</ReactMarkdown>,
+    );
     expect(raw).toContain(">card:1:op-5#2</a>");
     expect(raw.match(/<a/g)?.length).toBe(1);
   });
@@ -563,7 +688,9 @@ describe("a transcript promotes a staffing proposal alone", () => {
   test("op-N#seq inside a sentence stays one inline pill", () => {
     const html = renderTranscript("Start with op-5#2 and it waits on you.");
     expect(html).not.toContain("entity-card-row");
-    expect(html.match(/entity-ref(?![-_])/g)?.length).toBe(html.match(/class="not-prose entity-ref/g)?.length);
+    expect(html.match(/entity-ref(?![-_])/g)?.length).toBe(
+      html.match(/class="not-prose entity-ref/g)?.length,
+    );
     expect(html.match(/class="not-prose entity-ref/g)?.length).toBe(1);
     expect(html).toMatch(/<p>Start with .*and it waits on you\.<\/p>/);
     // The number is part of the reference, never loose text after the pill.
@@ -592,8 +719,12 @@ describe("web link previews", () => {
 
   test("a link inside a sentence, a list of links and an object URL stay links", () => {
     expect(render(`See ${url} today.`)).not.toContain(FAKE_PREVIEW.title);
-    expect(render(`- ${url}\n- https://example.com`)).not.toContain(FAKE_PREVIEW.title);
-    expect(render("https://codecast.sh/tasks/ct-46943")).not.toContain("not-prose my-2");
+    expect(render(`- ${url}\n- https://example.com`)).not.toContain(
+      FAKE_PREVIEW.title,
+    );
+    expect(render("https://codecast.sh/tasks/ct-46943")).not.toContain(
+      "not-prose my-2",
+    );
   });
 
   test("a Slack message's own unfurl is the preview: no second card", () => {

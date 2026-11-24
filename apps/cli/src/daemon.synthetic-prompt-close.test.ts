@@ -21,7 +21,11 @@ const UUID = `interactive-prompt-${SID}-abcdef0123456789`;
 type Added = { conversationId: string; messages: any[] };
 
 function stubSync(calls: Added[]) {
-  return { addMessages: async (params: Added) => { calls.push(params); } } as any;
+  return {
+    addMessages: async (params: Added) => {
+      calls.push(params);
+    },
+  } as any;
 }
 
 beforeEach(() => {
@@ -33,14 +37,23 @@ describe("closeSyntheticPrompt", () => {
   test("syncs a tool_result for the emitted card and clears the re-emit record", async () => {
     syntheticPromptTestSeam.lastEmittedSyntheticPrompt.set(SID, UUID);
     const calls: Added[] = [];
-    await closeSyntheticPrompt(SID, CONV, stubSync(calls), "Closed in the terminal");
+    await closeSyntheticPrompt(
+      SID,
+      CONV,
+      stubSync(calls),
+      "Closed in the terminal",
+    );
 
     expect(calls.length).toBe(1);
     const msg = calls[0].messages[0];
     expect(calls[0].conversationId).toBe(CONV);
     expect(msg.messageUuid).toBe(`${UUID}-closed`);
-    expect(msg.toolResults).toEqual([{ toolUseId: UUID, content: "Closed in the terminal" }]);
-    expect(syntheticPromptTestSeam.lastEmittedSyntheticPrompt.has(SID)).toBe(false);
+    expect(msg.toolResults).toEqual([
+      { toolUseId: UUID, content: "Closed in the terminal" },
+    ]);
+    expect(syntheticPromptTestSeam.lastEmittedSyntheticPrompt.has(SID)).toBe(
+      false,
+    );
     expect(syntheticPromptTestSeam.closedSyntheticPrompts.get(UUID)).toBe(1);
   });
 
@@ -51,26 +64,40 @@ describe("closeSyntheticPrompt", () => {
   });
 
   test("never closes a limit banner (no tool_use to resolve)", async () => {
-    syntheticPromptTestSeam.lastEmittedSyntheticPrompt.set(SID, `limit-dialog-${SID}-abc-123`);
+    syntheticPromptTestSeam.lastEmittedSyntheticPrompt.set(
+      SID,
+      `limit-dialog-${SID}-abc-123`,
+    );
     const calls: Added[] = [];
     await closeSyntheticPrompt(SID, CONV, stubSync(calls), "whatever");
     expect(calls.length).toBe(0);
     // The record survives so the limit banner's own re-emit suppression keeps working.
-    expect(syntheticPromptTestSeam.lastEmittedSyntheticPrompt.has(SID)).toBe(true);
+    expect(syntheticPromptTestSeam.lastEmittedSyntheticPrompt.has(SID)).toBe(
+      true,
+    );
   });
 
   test("closing a suffixed re-emit counts against the base uuid", async () => {
     syntheticPromptTestSeam.closedSyntheticPrompts.set(UUID, 1);
     syntheticPromptTestSeam.lastEmittedSyntheticPrompt.set(SID, `${UUID}-r1`);
     const calls: Added[] = [];
-    await closeSyntheticPrompt(SID, CONV, stubSync(calls), "Answered from the app: Yes");
+    await closeSyntheticPrompt(
+      SID,
+      CONV,
+      stubSync(calls),
+      "Answered from the app: Yes",
+    );
     expect(calls[0].messages[0].toolResults[0].toolUseId).toBe(`${UUID}-r1`);
     expect(syntheticPromptTestSeam.closedSyntheticPrompts.get(UUID)).toBe(2);
   });
 
   test("a failed sync does not throw out of the caller", async () => {
     syntheticPromptTestSeam.lastEmittedSyntheticPrompt.set(SID, UUID);
-    const failing = { addMessages: async () => { throw new Error("offline"); } } as any;
+    const failing = {
+      addMessages: async () => {
+        throw new Error("offline");
+      },
+    } as any;
     await closeSyntheticPrompt(SID, CONV, failing, "Closed in the terminal");
   });
 });

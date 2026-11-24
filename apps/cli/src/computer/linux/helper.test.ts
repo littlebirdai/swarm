@@ -3,8 +3,15 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { helperAppPath, helperExecutablePath, materializeLinuxHelper } from "../helperApp.js";
-import { computerLinuxHelperSource, helperIsEmbedded } from "../helperPayload.js";
+import {
+  helperAppPath,
+  helperExecutablePath,
+  materializeLinuxHelper,
+} from "../helperApp.js";
+import {
+  computerLinuxHelperSource,
+  helperIsEmbedded,
+} from "../helperPayload.js";
 
 const SCRIPT = path.join(import.meta.dir, "helper.py");
 const hasPython = spawnSync("python3", ["--version"]).status === 0;
@@ -13,7 +20,9 @@ describe("the Linux helper", () => {
   // The renderer, chords and PNG encoder are pure, so they run anywhere
   // python3 does; the AT-SPI and X11 halves are proven on a Linux host.
   test.skipIf(!hasPython)("passes its own self-test", () => {
-    const run = spawnSync("python3", [SCRIPT, "--self-test"], { encoding: "utf8" });
+    const run = spawnSync("python3", [SCRIPT, "--self-test"], {
+      encoding: "utf8",
+    });
     expect(run.stderr).toBe("");
     expect(run.stdout.trim()).toBe("self-test ok");
     expect(run.status).toBe(0);
@@ -46,8 +55,12 @@ describe("materializeLinuxHelper", () => {
   test("writes the script once, private to the user, and leaves identical bytes alone", () => {
     const first = materializeLinuxHelper("print('v1')\n");
     expect(first.installed).toBe(true);
-    expect(first.executablePath).toBe(helperExecutablePath(helperAppPath("linux"), "linux"));
-    expect(fs.readFileSync(first.executablePath, "utf-8")).toBe("print('v1')\n");
+    expect(first.executablePath).toBe(
+      helperExecutablePath(helperAppPath("linux"), "linux"),
+    );
+    expect(fs.readFileSync(first.executablePath, "utf-8")).toBe(
+      "print('v1')\n",
+    );
     expect(fs.statSync(first.executablePath).mode & 0o777).toBe(0o700);
     expect(materializeLinuxHelper("print('v1')\n").installed).toBe(false);
   });
@@ -56,7 +69,9 @@ describe("materializeLinuxHelper", () => {
     materializeLinuxHelper("print('old')\n");
     const next = materializeLinuxHelper("print('new')\n");
     expect(next.installed).toBe(true);
-    expect(fs.readFileSync(next.executablePath, "utf-8")).toBe("print('new')\n");
+    expect(fs.readFileSync(next.executablePath, "utf-8")).toBe(
+      "print('new')\n",
+    );
     expect(fs.readdirSync(next.appPath)).toEqual(["codecast-computer.py"]);
   });
 });

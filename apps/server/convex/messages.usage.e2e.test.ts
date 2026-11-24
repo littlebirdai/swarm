@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { addMessage, addMessages, projectAgentStatusOnAddMessages } from "./messages";
+import {
+  addMessage,
+  addMessages,
+  projectAgentStatusOnAddMessages,
+} from "./messages";
 import { makeFakeDb } from "./testDb";
 
 for (const batch of [false, true]) {
@@ -9,10 +13,18 @@ for (const batch of [false, true]) {
     const conversationId = "conversations_usage";
     const db = makeFakeDb({
       users: [{ _id: userId }],
-      conversations: [{
-        _id: conversationId, user_id: userId, agent_type: "claude", owner_device_id: "device",
-        message_count: 0, updated_at: 1, status: "active", skip_title_generation: true,
-      }],
+      conversations: [
+        {
+          _id: conversationId,
+          user_id: userId,
+          agent_type: "claude",
+          owner_device_id: "device",
+          message_count: 0,
+          updated_at: 1,
+          status: "active",
+          skip_title_generation: true,
+        },
+      ],
     });
     const ctx = {
       db,
@@ -28,13 +40,27 @@ for (const batch of [false, true]) {
     };
     for (let i = 0; i < 2; i++) {
       const message = {
-        role: "assistant", content: `Response ${i}`, message_uuid: `usage-${i}`, timestamp: i + 10,
-        usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 2, cache_read_input_tokens: 3 },
+        role: "assistant",
+        content: `Response ${i}`,
+        message_uuid: `usage-${i}`,
+        timestamp: i + 10,
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          cache_creation_input_tokens: 2,
+          cache_read_input_tokens: 3,
+        },
       };
       if (batch) {
-        await (addMessages as any)._handler(ctx, { conversation_id: conversationId, messages: [message] });
+        await (addMessages as any)._handler(ctx, {
+          conversation_id: conversationId,
+          messages: [message],
+        });
       } else {
-        await (addMessage as any)._handler(ctx, { conversation_id: conversationId, ...message });
+        await (addMessage as any)._handler(ctx, {
+          conversation_id: conversationId,
+          ...message,
+        });
       }
     }
     expect(await db.get(conversationId)).toMatchObject({
@@ -51,51 +77,95 @@ for (const batch of [false, true]) {
 test("concurrent transcript batches keep status probes local to each conversation", async () => {
   const userId = "users_streaming";
   const conversations = Array.from({ length: 24 }, (_, i) => ({
-    _id: `conversations_streaming_${i}`, user_id: userId, agent_type: "claude", owner_device_id: "device",
-    message_count: 0, updated_at: 1, status: "active", skip_title_generation: true,
+    _id: `conversations_streaming_${i}`,
+    user_id: userId,
+    agent_type: "claude",
+    owner_device_id: "device",
+    message_count: 0,
+    updated_at: 1,
+    status: "active",
+    skip_title_generation: true,
   }));
   const db = makeFakeDb({
     users: [{ _id: userId }],
     conversations,
     managed_sessions: conversations.map((c, i) => ({
-      _id: `managed_sessions_streaming_${i}`, conversation_id: c._id, agent_status: "permission_blocked",
+      _id: `managed_sessions_streaming_${i}`,
+      conversation_id: c._id,
+      agent_status: "permission_blocked",
     })),
   });
   const scheduled: Array<{ ref: any; args: any }> = [];
   const ctx = {
     db,
     auth: { getUserIdentity: async () => ({ subject: `${userId}|session` }) },
-    scheduler: { runAfter: async (_delay: number, ref: any, args: any) => {
-      scheduled.push({ ref, args });
-      return "scheduled";
-    } },
+    scheduler: {
+      runAfter: async (_delay: number, ref: any, args: any) => {
+        scheduled.push({ ref, args });
+        return "scheduled";
+      },
+    },
     storage: { getUrl: async () => null },
   };
   const query = db.query.bind(db);
   db.query = (table: string) => {
-    if (table === "sync_heads") throw new Error("Transcript ingestion touched the shared sync head");
+    if (table === "sync_heads")
+      throw new Error("Transcript ingestion touched the shared sync head");
     return query(table);
   };
-  await Promise.all(conversations.map(async (c, i) => {
-    for (const message of [
-      { role: "assistant", message_uuid: `assistant-${i}`, content: "Checking", timestamp: 10 },
-      { role: "user", message_uuid: `tool-${i}`, content: "", timestamp: 11,
-        tool_results: [{ tool_use_id: `read-${i}`, content: "Done" }] },
-      { role: "assistant", message_uuid: `answer-${i}`, content: "Finished", timestamp: 12 },
-    ]) {
-      await (addMessages as any)._handler(ctx, { conversation_id: c._id, messages: [message] });
-    }
-    const row = await db.get(c._id);
-    expect(row).toMatchObject({ message_count: 3, agent_status_probe: {
-      has_assistant_message: true, has_tool_result_reply: true,
-    } });
-    await (projectAgentStatusOnAddMessages as any)._handler(ctx, { conversation_id: c._id });
-    expect(await db.get(`managed_sessions_streaming_${i}`)).toMatchObject({ agent_status: "working" });
-  }));
+  await Promise.all(
+    conversations.map(async (c, i) => {
+      for (const message of [
+        {
+          role: "assistant",
+          message_uuid: `assistant-${i}`,
+          content: "Checking",
+          timestamp: 10,
+        },
+        {
+          role: "user",
+          message_uuid: `tool-${i}`,
+          content: "",
+          timestamp: 11,
+          tool_results: [{ tool_use_id: `read-${i}`, content: "Done" }],
+        },
+        {
+          role: "assistant",
+          message_uuid: `answer-${i}`,
+          content: "Finished",
+          timestamp: 12,
+        },
+      ]) {
+        await (addMessages as any)._handler(ctx, {
+          conversation_id: c._id,
+          messages: [message],
+        });
+      }
+      const row = await db.get(c._id);
+      expect(row).toMatchObject({
+        message_count: 3,
+        agent_status_probe: {
+          has_assistant_message: true,
+          has_tool_result_reply: true,
+        },
+      });
+      await (projectAgentStatusOnAddMessages as any)._handler(ctx, {
+        conversation_id: c._id,
+      });
+      expect(await db.get(`managed_sessions_streaming_${i}`)).toMatchObject({
+        agent_status: "working",
+      });
+    }),
+  );
   expect(db._tables.messages).toHaveLength(72);
   expect(db._tables.sync_heads ?? []).toEqual([]);
   expect(db._tables.sync_actions ?? []).toEqual([]);
-  expect(scheduled.filter(({ ref }) => getFunctionName(ref) === "messages:projectAgentStatusOnAddMessages")).toHaveLength(24);
+  expect(
+    scheduled.filter(
+      ({ ref }) =>
+        getFunctionName(ref) === "messages:projectAgentStatusOnAddMessages",
+    ),
+  ).toHaveLength(24);
 });
 
 // The check only ever moves an idle or permission-blocked session to working,
@@ -105,46 +175,93 @@ test("transcript batches schedule a status check only for a session the check co
   const userId = "users_probe";
   const statuses = ["working", "idle", "permission_blocked"] as const;
   const conversations = statuses.map((status) => ({
-    _id: `conversations_probe_${status}`, user_id: userId, agent_type: "claude", owner_device_id: "device",
-    message_count: 0, updated_at: 1, status: "active", skip_title_generation: true,
+    _id: `conversations_probe_${status}`,
+    user_id: userId,
+    agent_type: "claude",
+    owner_device_id: "device",
+    message_count: 0,
+    updated_at: 1,
+    status: "active",
+    skip_title_generation: true,
   }));
   const db = makeFakeDb({
     users: [{ _id: userId }],
     conversations,
     managed_sessions: statuses.map((status) => ({
-      _id: `managed_sessions_probe_${status}`, conversation_id: `conversations_probe_${status}`,
-      agent_status: status, agent_status_updated_at: 1,
+      _id: `managed_sessions_probe_${status}`,
+      conversation_id: `conversations_probe_${status}`,
+      agent_status: status,
+      agent_status_updated_at: 1,
     })),
   });
   const scheduled: Array<{ ref: any; args: any }> = [];
   const ctx = {
     db,
     auth: { getUserIdentity: async () => ({ subject: `${userId}|session` }) },
-    scheduler: { runAfter: async (_delay: number, ref: any, args: any) => { scheduled.push({ ref, args }); return "scheduled"; } },
+    scheduler: {
+      runAfter: async (_delay: number, ref: any, args: any) => {
+        scheduled.push({ ref, args });
+        return "scheduled";
+      },
+    },
     storage: { getUrl: async () => null },
   };
-  const checks = () => scheduled.filter(({ ref }) => getFunctionName(ref) === "messages:projectAgentStatusOnAddMessages");
+  const checks = () =>
+    scheduled.filter(
+      ({ ref }) =>
+        getFunctionName(ref) === "messages:projectAgentStatusOnAddMessages",
+    );
   const realNow = Date.now;
   // Twenty assistant batches 15 s apart: every one opens a new probe window.
   for (const c of conversations) {
     for (let i = 0; i < 20; i++) {
       Date.now = () => 1_000_000 + i * 15_000;
-      await (addMessages as any)._handler(ctx, { conversation_id: c._id, messages: [
-        { role: "assistant", message_uuid: `${c._id}-a${i}`, content: `Step ${i}`, timestamp: 10 + i },
-      ] });
+      await (addMessages as any)._handler(ctx, {
+        conversation_id: c._id,
+        messages: [
+          {
+            role: "assistant",
+            message_uuid: `${c._id}-a${i}`,
+            content: `Step ${i}`,
+            timestamp: 10 + i,
+          },
+        ],
+      });
     }
   }
   Date.now = realNow;
-  expect(checks().map(({ args }) => args.conversation_id)).toEqual(Array(20).fill("conversations_probe_idle"));
+  expect(checks().map(({ args }) => args.conversation_id)).toEqual(
+    Array(20).fill("conversations_probe_idle"),
+  );
   // A tool result answers the blocked session: that one gets its check, and
   // the check still moves it.
-  await (addMessages as any)._handler(ctx, { conversation_id: "conversations_probe_permission_blocked", messages: [
-    { role: "user", message_uuid: "blocked-tool", content: "", timestamp: 100, tool_results: [{ tool_use_id: "t", content: "ok" }] },
-  ] });
+  await (addMessages as any)._handler(ctx, {
+    conversation_id: "conversations_probe_permission_blocked",
+    messages: [
+      {
+        role: "user",
+        message_uuid: "blocked-tool",
+        content: "",
+        timestamp: 100,
+        tool_results: [{ tool_use_id: "t", content: "ok" }],
+      },
+    ],
+  });
   expect(checks()).toHaveLength(21);
-  await (projectAgentStatusOnAddMessages as any)._handler(ctx, { conversation_id: "conversations_probe_permission_blocked" });
-  await (projectAgentStatusOnAddMessages as any)._handler(ctx, { conversation_id: "conversations_probe_idle" });
-  expect(await db.get("managed_sessions_probe_permission_blocked")).toMatchObject({ agent_status: "working" });
-  expect(await db.get("managed_sessions_probe_idle")).toMatchObject({ agent_status: "working" });
-  expect(await db.get("managed_sessions_probe_working")).toMatchObject({ agent_status: "working", agent_status_updated_at: 1 });
+  await (projectAgentStatusOnAddMessages as any)._handler(ctx, {
+    conversation_id: "conversations_probe_permission_blocked",
+  });
+  await (projectAgentStatusOnAddMessages as any)._handler(ctx, {
+    conversation_id: "conversations_probe_idle",
+  });
+  expect(
+    await db.get("managed_sessions_probe_permission_blocked"),
+  ).toMatchObject({ agent_status: "working" });
+  expect(await db.get("managed_sessions_probe_idle")).toMatchObject({
+    agent_status: "working",
+  });
+  expect(await db.get("managed_sessions_probe_working")).toMatchObject({
+    agent_status: "working",
+    agent_status_updated_at: 1,
+  });
 });

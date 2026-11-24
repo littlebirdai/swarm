@@ -2,8 +2,15 @@ import { useMemo } from "react";
 import { CheckCircle2, FileCode2, MessageSquare, Quote } from "lucide-react";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
-import { useCommentActions, useConversationCommentsSync } from "../../../hooks/useConversationComments";
-import { isThreadResolved, messageExcerpt, type CommentThread as CommentThreadModel } from "../../../lib/commentThread";
+import {
+  useCommentActions,
+  useConversationCommentsSync,
+} from "../../../hooks/useConversationComments";
+import {
+  isThreadResolved,
+  messageExcerpt,
+  type CommentThread as CommentThreadModel,
+} from "../../../lib/commentThread";
 import { sessionLabel } from "../../../lib/notificationTypes";
 import { cleanContent } from "../../../lib/conversationProcessor";
 import type { ThreadCardModel } from "../../../lib/threadCards";
@@ -31,12 +38,14 @@ export function CommentLabel({ card }: { card: ThreadCardModel }) {
   const row = rowOf(card);
   const { conversationId, filePath, lineNumber } = anchorOf(row);
   const agentType = useConversationAgentType(conversationId);
-  const label = useInboxStore((s) => sessionLabel(s.conversations[conversationId] ?? s.sessions[conversationId]));
+  const label = useInboxStore((s) =>
+    sessionLabel(s.conversations[conversationId] ?? s.sessions[conversationId]),
+  );
   // Never the literal word "Session": when the conversation is not cached,
   // the anchor still says what this thread is about.
   const fallback = filePath
     ? `${filePath.split("/").pop()}${lineNumber ? `:${lineNumber}` : ""}`
-    : row.last_reply?.preview ?? "Comment thread";
+    : (row.last_reply?.preview ?? "Comment thread");
   return (
     <>
       <AgentIcon agentType={agentType} className="w-3 h-3" />
@@ -47,10 +56,24 @@ export function CommentLabel({ card }: { card: ThreadCardModel }) {
 
 /** The anchor line: a quoted excerpt of the message, the file and line, or
  *  "General" for the conversation thread. */
-function AnchorLine({ conversationId, messageId, filePath, lineNumber }: { conversationId: string; messageId?: string; filePath?: string; lineNumber?: number }) {
+function AnchorLine({
+  conversationId,
+  messageId,
+  filePath,
+  lineNumber,
+}: {
+  conversationId: string;
+  messageId?: string;
+  filePath?: string;
+  lineNumber?: number;
+}) {
   const excerpt = useInboxStore((s) => {
     if (!messageId) return undefined;
-    return messageExcerpt(s.messages[conversationId]?.find((m) => m._id === messageId)?.content, 120, cleanContent);
+    return messageExcerpt(
+      s.messages[conversationId]?.find((m) => m._id === messageId)?.content,
+      120,
+      cleanContent,
+    );
   });
   if (messageId) {
     return (
@@ -64,7 +87,10 @@ function AnchorLine({ conversationId, messageId, filePath, lineNumber }: { conve
     return (
       <div className="th-card-anchor">
         <FileCode2 className="w-3 h-3 shrink-0" />
-        <span className="th-card-anchor-text">{filePath}{lineNumber ? `:${lineNumber}` : ""}</span>
+        <span className="th-card-anchor-text">
+          {filePath}
+          {lineNumber ? `:${lineNumber}` : ""}
+        </span>
       </div>
     );
   }
@@ -93,7 +119,18 @@ export function CommentMeta({ card }: { card: ThreadCardModel }) {
   );
 }
 
-export function CommentExpanded({ card, seen, frozenReadAt, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function CommentExpanded({
+  card,
+  seen,
+  frozenReadAt,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const row = rowOf(card);
   const anchor = anchorOf(row);
   const { conversationId, webKey, messageId, filePath, lineNumber } = anchor;
@@ -114,13 +151,23 @@ export function CommentExpanded({ card, seen, frozenReadAt, focusComposer }: { c
     if (row.unread > 0 && comments.length === 0) return;
     if (row.last_read_at >= row.last_activity_at && row.unread === 0) return;
     useInboxStore.getState().markThreadRead("comment", row.root_key);
-  }, [seen, row.root_key, row.last_activity_at, row.last_read_at, row.unread, comments.length]);
+  }, [
+    seen,
+    row.root_key,
+    row.last_activity_at,
+    row.last_read_at,
+    row.unread,
+    comments.length,
+  ]);
 
   // The thread's first comment is what it hangs on and always shows; its
   // replies fold to what is new (threads/readerFold).
   const replies = useMemo(() => comments.slice(1), [comments]);
   const fold = useReaderFold(replies, (c) => c.created_at, frozenReadAt);
-  const shown = useMemo(() => (comments.length ? [comments[0], ...fold.visible] : comments), [comments, fold.visible]);
+  const shown = useMemo(
+    () => (comments.length ? [comments[0], ...fold.visible] : comments),
+    [comments, fold.visible],
+  );
 
   const thread: CommentThreadModel = useMemo(
     () => ({
@@ -129,19 +176,29 @@ export function CommentExpanded({ card, seen, frozenReadAt, focusComposer }: { c
       filePath,
       lineNumber,
       comments: shown,
-      lastActivity: comments.length ? comments[comments.length - 1].created_at : 0,
+      lastActivity: comments.length
+        ? comments[comments.length - 1].created_at
+        : 0,
       resolved: isThreadResolved(comments),
     }),
     [webKey, messageId, filePath, lineNumber, comments, shown],
   );
 
-  const earlier = <EarlierButton count={fold.hidden} noun="reply" onClick={fold.showAll} />;
+  const earlier = (
+    <EarlierButton count={fold.hidden} noun="reply" onClick={fold.showAll} />
+  );
 
   if (filePath) {
     return (
       <div className="th-card-open th-card-open-comments">
         {earlier}
-        <FileLineThread conversationId={conversationId} filePath={filePath} lineNumber={lineNumber} comments={shown} composerClassName="ch-composer" />
+        <FileLineThread
+          conversationId={conversationId}
+          filePath={filePath}
+          lineNumber={lineNumber}
+          comments={shown}
+          composerClassName="ch-composer"
+        />
       </div>
     );
   }

@@ -23,17 +23,32 @@ export function useProjectInboxScope(projectId: string | undefined) {
       bucket: s.activeBucketFilter,
       bucketExtras: [...(s.extraBucketFilters ?? [])],
     };
-    const already = prev.project === key && !prev.exclude && prev.projectExtras.length === 0;
+    const already =
+      prev.project === key && !prev.exclude && prev.projectExtras.length === 0;
     if (already) return;
     // The page's own scope, not a step the person took: no back-button entry.
     withApplyingViewHistory(() => s.setActiveProjectFilter(key, null));
     return () => {
       const now = useInboxStore.getState();
-      const untouched = now.activeProjectFilter === key && !now.chipFilterExclude && !(now.extraProjectFilters?.length);
+      const untouched =
+        now.activeProjectFilter === key &&
+        !now.chipFilterExclude &&
+        !now.extraProjectFilters?.length;
       if (!untouched) return;
       withApplyingViewHistory(() => {
-        if (prev.bucket) now.setActiveBucketFilter(prev.bucket, prev.exclude, prev.bucketExtras);
-        else now.setActiveProjectFilter(prev.project, prev.path, prev.exclude, prev.projectExtras);
+        if (prev.bucket)
+          now.setActiveBucketFilter(
+            prev.bucket,
+            prev.exclude,
+            prev.bucketExtras,
+          );
+        else
+          now.setActiveProjectFilter(
+            prev.project,
+            prev.path,
+            prev.exclude,
+            prev.projectExtras,
+          );
       });
     };
   }, [projectId]);

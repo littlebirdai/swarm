@@ -36,7 +36,10 @@ export function folderOnThisMachine(folder: string, home: string): string {
 /** folderCovers across the person's machines: a folder listed on one machine
  *  covers the same place under home on every other. A folder list (the chosen
  *  folders, the excluded ones) belongs to the person, not to one machine. */
-export function folderCoversOnAnyMachine(folder: string, above: string): boolean {
+export function folderCoversOnAnyMachine(
+  folder: string,
+  above: string,
+): boolean {
   if (folderCovers(folder, above)) return true;
   const [a, b] = [folderUnderHome(folder), folderUnderHome(above)];
   return a !== null && b !== null && (a === b || a.startsWith(b + "/"));

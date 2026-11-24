@@ -3,37 +3,51 @@
 // Unset, the phone wears whatever the web's Modern switch says
 // (lib/mobileLook.ts). Picking Mono or Modern here is this phone's own
 // choice, kept per device; "Same as web" clears it again.
-import { useCallback } from 'react';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { showActionSheet } from '@/lib/popups';
-import { mobileLookSource, resolveMobileLook } from '@/lib/mobileLook';
-import { NavRow } from './SettingsUI';
+import { useCallback } from "react";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { showActionSheet } from "@/lib/popups";
+import { mobileLookSource, resolveMobileLook } from "@/lib/mobileLook";
+import { NavRow } from "./SettingsUI";
 
 /** Shown since Modern sets code-like text in mono (the Modern-on-mobile
  *  plan's Wave 2). Kept as a switch so the row can be pulled in one line. */
 export const STYLE_ROW_SHOWN = true;
 
 const CHOICES = [
-  { key: 'web', label: 'Same as web', value: null },
-  { key: 'classic', label: 'Mono', value: false },
-  { key: 'modern', label: 'Modern', value: true },
+  { key: "web", label: "Same as web", value: null },
+  { key: "classic", label: "Mono", value: false },
+  { key: "modern", label: "Modern", value: true },
 ] as const;
 
 export function StyleRow() {
   const own = useInboxStore((s) => s.clientState?.ui?.mobile_modern_style);
   const web = useInboxStore((s) => s.clientState?.ui?.modern_style);
   const webStyle = useInboxStore((s) => s.clientState?.ui?.visual_style);
-  const ui = { mobile_modern_style: own, modern_style: web, visual_style: webStyle };
+  const ui = {
+    mobile_modern_style: own,
+    modern_style: web,
+    visual_style: webStyle,
+  };
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
   const source = mobileLookSource(ui);
-  const current = source === 'web' ? 'web' : resolveMobileLook(ui);
+  const current = source === "web" ? "web" : resolveMobileLook(ui);
   const pick = useCallback(() => {
-    showActionSheet('Style', CHOICES.map((c) => ({
-      label: c.label,
-      selected: c.key === current,
-      onPress: () => updateClientUI({ mobile_modern_style: c.value }),
-    })));
+    showActionSheet(
+      "Style",
+      CHOICES.map((c) => ({
+        label: c.label,
+        selected: c.key === current,
+        onPress: () => updateClientUI({ mobile_modern_style: c.value }),
+      })),
+    );
   }, [current, updateClientUI]);
-  const detail = CHOICES.find((c) => c.key === current)?.label ?? 'Modern';
-  return <NavRow label="Style" description="Mono or Modern, or the same as on the web" detail={detail} onPress={pick} />;
+  const detail = CHOICES.find((c) => c.key === current)?.label ?? "Modern";
+  return (
+    <NavRow
+      label="Style"
+      description="Mono or Modern, or the same as on the web"
+      detail={detail}
+      onPress={pick}
+    />
+  );
 }

@@ -42,7 +42,12 @@ export interface BootBenchReport {
 export const BOOT_BENCH_ARGV: string[][] = [["--help"], ["state"], ["bogus"]];
 
 /** CPU milliseconds one run spent, via /usr/bin/time. NaN when it is absent. */
-function cpuMsOnce(runner: readonly string[], argv: readonly string[], cwd: string, home: string): number {
+function cpuMsOnce(
+  runner: readonly string[],
+  argv: readonly string[],
+  cwd: string,
+  home: string,
+): number {
   const r = spawnSync("/usr/bin/time", ["-p", ...runner, ...argv], {
     cwd,
     env: { ...process.env, HOME: home, NO_COLOR: "1" },
@@ -57,17 +62,28 @@ function cpuMsOnce(runner: readonly string[], argv: readonly string[], cwd: stri
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
-  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+  return sorted.length % 2
+    ? sorted[mid]!
+    : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-export function graphSummary(entry: string): Pick<BootBenchReport, "graph" | "heaviest"> {
+export function graphSummary(
+  entry: string,
+): Pick<BootBenchReport, "graph" | "heaviest"> {
   const graph = buildBootGraph(entry);
   const root = repoRootFrom(path.resolve(entry));
   const entryNode = graph.nodes.get(graph.entry)!;
   return {
-    graph: { modules: graph.nodes.size, kilobytes: Math.round(graph.totalBytes / 1024), packages: graph.externals.size },
+    graph: {
+      modules: graph.nodes.size,
+      kilobytes: Math.round(graph.totalBytes / 1024),
+      packages: graph.externals.size,
+    },
     heaviest: entryNode.imports
-      .map((file) => ({ file: path.relative(root, file), exclusiveModules: exclusiveTo(graph, file).size }))
+      .map((file) => ({
+        file: path.relative(root, file),
+        exclusiveModules: exclusiveTo(graph, file).size,
+      }))
       .filter((row) => row.exclusiveModules > 1)
       .sort((a, b) => b.exclusiveModules - a.exclusiveModules)
       .slice(0, 12),
@@ -87,7 +103,9 @@ export function runBootBench(opts: {
   try {
     for (const argv of opts.argvs ?? BOOT_BENCH_ARGV) {
       cpuMsOnce(opts.runner, argv, opts.cwd, home); // warm the file cache; not recorded
-      const times = Array.from({ length: opts.runs }, () => cpuMsOnce(opts.runner, argv, opts.cwd, home));
+      const times = Array.from({ length: opts.runs }, () =>
+        cpuMsOnce(opts.runner, argv, opts.cwd, home),
+      );
       samples.push({
         argv: [...argv],
         runs: opts.runs,
@@ -112,11 +130,14 @@ export function renderBootBench(report: BootBenchReport): string {
     "| --- | ---: | ---: | ---: | ---: |",
   ];
   for (const s of report.samples) {
-    lines.push(`| cast ${s.argv.join(" ")} | ${s.runs} | ${s.medianCpuMs} | ${s.minCpuMs} | ${s.maxCpuMs} |`);
+    lines.push(
+      `| cast ${s.argv.join(" ")} | ${s.runs} | ${s.medianCpuMs} | ${s.minCpuMs} | ${s.maxCpuMs} |`,
+    );
   }
   if (report.heaviest.length) {
     lines.push("", "heaviest direct imports, by modules only they pull in:");
-    for (const h of report.heaviest) lines.push(`  ${String(h.exclusiveModules).padStart(4)}  ${h.file}`);
+    for (const h of report.heaviest)
+      lines.push(`  ${String(h.exclusiveModules).padStart(4)}  ${h.file}`);
   }
   return lines.join("\n");
 }

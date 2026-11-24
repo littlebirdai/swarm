@@ -24,11 +24,17 @@ export const METER_GATE_RMS = 0.005;
 export function meterLevel(rms: number): number {
   if (!(rms > 0)) return 0;
   const db = 20 * Math.log10(rms);
-  return Math.max(0, Math.min(1, (db - METER_FLOOR_DB) / (METER_CEIL_DB - METER_FLOOR_DB)));
+  return Math.max(
+    0,
+    Math.min(1, (db - METER_FLOOR_DB) / (METER_CEIL_DB - METER_FLOOR_DB)),
+  );
 }
 
 /** One reading of an analyser, through the curve. */
-export function readMeterLevel(analyser: Pick<AnalyserNode, "getByteTimeDomainData">, bytes: Uint8Array<ArrayBuffer>): number {
+export function readMeterLevel(
+  analyser: Pick<AnalyserNode, "getByteTimeDomainData">,
+  bytes: Uint8Array<ArrayBuffer>,
+): number {
   analyser.getByteTimeDomainData(bytes);
   let sum = 0;
   for (let i = 0; i < bytes.length; i++) {

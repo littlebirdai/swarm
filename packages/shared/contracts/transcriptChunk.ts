@@ -18,7 +18,9 @@ export type TranscriptChunkSegment = { speaker_name: string; text: string };
 
 // Collapse consecutive segments from one speaker into one line — the readable
 // Otter shape: "**Name**: sentence sentence".
-export function formatTranscriptChunk(segments: TranscriptChunkSegment[]): string {
+export function formatTranscriptChunk(
+  segments: TranscriptChunkSegment[],
+): string {
   const lines: string[] = [];
   for (const s of segments) {
     const prefix = `**${s.speaker_name}**: `;
@@ -58,18 +60,25 @@ export const HUDDLE_REBRIEF_EVERY = 8;
 /** Whether the next chunk on a route carries the full framing, given how
  *  many chunks it has delivered since the last one that did. */
 export function needsFullBrief(chunksSinceBrief: number | undefined): boolean {
-  return chunksSinceBrief === undefined || chunksSinceBrief >= HUDDLE_REBRIEF_EVERY;
+  return (
+    chunksSinceBrief === undefined || chunksSinceBrief >= HUDDLE_REBRIEF_EVERY
+  );
 }
 
 /** The names a spoken line may use for an agent: its character name, and its
  *  brand said as a name ("Claude", "Codex"). A room with one Claude in it
  *  says "Claude" and means it; a room with two has both answer, which is
  *  what two people called Sam do too. */
-export function agentSpokenNames(opts: { name: string; agentType?: string | null }): string[] {
+export function agentSpokenNames(opts: {
+  name: string;
+  agentType?: string | null;
+}): string[] {
   const out = [opts.name.trim()].filter(Boolean);
   if (opts.agentType) {
-    const brand = AGENT_CLIENTS[fromConvexAgentType(opts.agentType)]?.displayName?.trim();
-    if (brand && !out.some((n) => n.toLowerCase() === brand.toLowerCase())) out.push(brand);
+    const brand =
+      AGENT_CLIENTS[fromConvexAgentType(opts.agentType)]?.displayName?.trim();
+    if (brand && !out.some((n) => n.toLowerCase() === brand.toLowerCase()))
+      out.push(brand);
   }
   return out;
 }
@@ -81,12 +90,18 @@ function escapeRegExp(s: string): string {
 /** Does this text speak TO the agent? A whole word match on any of its
  *  names, case folded, so "ember" in "remember" does not count. Speech
  *  arrives from a recognizer, so nothing here relies on punctuation. */
-export function addressesAgent(text: string, names: readonly string[]): boolean {
+export function addressesAgent(
+  text: string,
+  names: readonly string[],
+): boolean {
   const t = text ?? "";
   for (const raw of names) {
     const name = (raw ?? "").trim();
     if (!name) continue;
-    const re = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegExp(name)}(?=$|[^\\p{L}\\p{N}])`, "iu");
+    const re = new RegExp(
+      `(?:^|[^\\p{L}\\p{N}])${escapeRegExp(name)}(?=$|[^\\p{L}\\p{N}])`,
+      "iu",
+    );
     if (re.test(t)) return true;
   }
   return false;
@@ -107,8 +122,7 @@ export function isHuddlePass(text: string | null | undefined): boolean {
 // Only that final reply is mirrored (callChat.turnReplies), so a page linked
 // mid-turn never reaches the room. Said in one place so the briefing, the
 // own-room header and the generic feed header cannot drift apart on this.
-export const HUDDLE_REPLY_NOTE =
-  `Your reply at the end of this turn is shown in the huddle's chat, next to the people talking, and when you have a voice in the call it tells the room; anything they type in that chat reaches you here. Only the last text of the turn reaches the room: words and links from earlier in the turn do not. So the reply is the end of the turn, with every tool call the turn needs (the board, your pinned state, a task) done before it and nothing after it. If something still needs doing after you have written it, do it, then write the whole reply again as the turn's last text; ending on ${HUDDLE_PASS} after a reply erases that reply. Write it to be heard: short and conversational, the way you would speak in a room, with no code or tables. Anything with more in it than two spoken sentences (numbers, a comparison, a diagram, a plan, a mockup, findings) belongs on a page: write a self-contained HTML file, \`cast publish\` it, and put the URL alone on its own line in your reply, where the chat shows the page inline. Publish a first version as soon as it says something useful and republish the same file as it improves; the URL stays the same. When you have nothing the room needs, end the turn with exactly ${HUDDLE_PASS} and nothing else: the room sees nothing. Never post a line only to say you are listening or following along.`;
+export const HUDDLE_REPLY_NOTE = `Your reply at the end of this turn is shown in the huddle's chat, next to the people talking, and when you have a voice in the call it tells the room; anything they type in that chat reaches you here. Only the last text of the turn reaches the room: words and links from earlier in the turn do not. So the reply is the end of the turn, with every tool call the turn needs (the board, your pinned state, a task) done before it and nothing after it. If something still needs doing after you have written it, do it, then write the whole reply again as the turn's last text; ending on ${HUDDLE_PASS} after a reply erases that reply. Write it to be heard: short and conversational, the way you would speak in a room, with no code or tables. Anything with more in it than two spoken sentences (numbers, a comparison, a diagram, a plan, a mockup, findings) belongs on a page: write a self-contained HTML file, \`cast publish\` it, and put the URL alone on its own line in your reply, where the chat shows the page inline. Publish a first version as soon as it says something useful and republish the same file as it improves; the URL stays the same. When you have nothing the room needs, end the turn with exactly ${HUDDLE_PASS} and nothing else: the room sees nothing. Never post a line only to say you are listening or following along.`;
 
 // What a session in a huddle is there to do: bring the room what the code and
 // the team's record know, unasked, as the talk goes. Passing on everything
@@ -124,7 +138,9 @@ export const HUDDLE_WORK_NOTE =
 // sees its ideas take shape while it talks instead of reading them back from
 // the chat afterwards.
 export function huddleBoardNote(board?: string | null): string {
-  const ref = board ? `doc:${board}` : "the call's board (`cast call board` gives its id, making it if the call has none)";
+  const ref = board
+    ? `doc:${board}`
+    : "the call's board (`cast call board` gives its id, making it if the call has none)";
   return `The room has a board, ${ref}, pinned on everyone's call stage next to the faces, and you keep it. It is the room's shared picture of the conversation: as the talk goes, put its substance there with the \`cast board\` verbs (\`cast board --help\` teaches them): the topics as frames, the ideas, options, numbers and open questions as stickies inside them, how things connect, what was decided and who owns what next. Read it before you write (\`cast board read\`), because people edit it with you: build on what is there, move and reword your own work as the talk changes rather than adding second copies, and leave what people wrote to them. Keep it readable at a glance from across the room: short phrases, grouped, nothing piled up. Every page you publish goes on the board too, beside the ideas it supports (\`cast board page\`). A turn spent only on the board is a good turn: end it with ${HUDDLE_PASS} when the room needs no words from you. When the room should look at something else together (a doc, a sheet, a dashboard, a page), \`cast call pin <ref>\` puts it on the stage and \`cast call unpin <ref>\` takes it off.`;
 }
 
@@ -167,10 +183,15 @@ const LANE_LINE: Record<ChunkLane, string> = {
  *  call (callChat.mirrorAgentTurn); every other reply stays in the chat. */
 export function isAskDelivery(text: string | null | undefined): boolean {
   const t = text ?? "";
-  return t.includes(LANE_NOTE.ask) || t.includes(LANE_LINE.ask) || t.includes(VOICE_ASK_LEAD);
+  return (
+    t.includes(LANE_NOTE.ask) ||
+    t.includes(LANE_LINE.ask) ||
+    t.includes(VOICE_ASK_LEAD)
+  );
 }
 
-const HELD_NOTE = "These words waited while you worked and arrive together as one catch up.";
+const HELD_NOTE =
+  "These words waited while you worked and arrive together as one catch up.";
 
 // The lead-in for the live feed of a session's OWN huddle. Every other feed
 // reports a meeting that happened somewhere else; this one is people talking
@@ -178,7 +199,8 @@ const HELD_NOTE = "These words waited while you worked and arrive together as on
 // that more is coming, or the agent treats a mid-sentence pause as the end of
 // the thought and answers a half-finished ask.
 export function ownRoomChunkHeader(opts: ChunkHeaderOpts): string {
-  if (!opts.full) return shortHeader(`Your huddle, where you are ${opts.name}.`, opts);
+  if (!opts.full)
+    return shortHeader(`Your huddle, where you are ${opts.name}.`, opts);
   return [
     `People are talking in this session's huddle, where you are ${opts.name}. Below is what they said, transcribed as they said it — speaker attribution is exact, and more will arrive while the huddle runs.${opts.held ? ` ${HELD_NOTE}` : ""}`,
     LANE_NOTE[opts.lane],
@@ -194,7 +216,8 @@ export function ownRoomChunkHeader(opts: ChunkHeaderOpts): string {
 // The lead-in for the live feed of a huddle that is NOT this session's own:
 // a meeting happening elsewhere, pointed at this agent by a participant.
 export function liveFeedChunkHeader(opts: ChunkHeaderOpts): string {
-  if (!opts.full) return shortHeader(`Huddle (live), where you are ${opts.name}.`, opts);
+  if (!opts.full)
+    return shortHeader(`Huddle (live), where you are ${opts.name}.`, opts);
   return [
     `Huddle transcript (live). You are in the room as ${opts.name}.${opts.held ? ` ${HELD_NOTE}` : ""}`,
     LANE_NOTE[opts.lane],
@@ -208,8 +231,12 @@ export function liveFeedChunkHeader(opts: ChunkHeaderOpts): string {
 }
 
 function shortHeader(lead: string, opts: ChunkHeaderOpts): string {
-  const board = opts.board ? `Keep the room's board, doc:${opts.board}, current.` : null;
-  return [lead, opts.held ? HELD_NOTE : null, LANE_LINE[opts.lane], board].filter(Boolean).join(" ");
+  const board = opts.board
+    ? `Keep the room's board, doc:${opts.board}, current.`
+    : null;
+  return [lead, opts.held ? HELD_NOTE : null, LANE_LINE[opts.lane], board]
+    .filter(Boolean)
+    .join(" ");
 }
 
 const HUDDLE_BRIEFING_LEAD = "You're being attached to a live team huddle (";
@@ -220,7 +247,12 @@ export const HUDDLE_FEED_DISREGARD =
 
 /** The first message a session spawned FOR a huddle reads: what it is
  *  attached to, what the room calls it, and how its words travel. */
-export function huddleFeedBriefing(opts: { name: string; label: string; call?: string | null; board?: string | null }): string {
+export function huddleFeedBriefing(opts: {
+  name: string;
+  label: string;
+  call?: string | null;
+  board?: string | null;
+}): string {
   return [
     `${HUDDLE_BRIEFING_LEAD}${opts.label}). In the room you are ${opts.name}: people say that name when they want you, and it is the name beside your replies in the huddle's chat.`,
     "Attributed transcript chunks arrive here as the room talks. The room is mid-conversation: answer questions raised, and bring what the code and the team's record say about what they are discussing.",
@@ -247,13 +279,20 @@ export function huddleVoiceNote(name: string): string {
 const VOICE_ASK_LEAD = "Your voice in the call handed you this";
 
 /** A request the voice handed to the session. */
-export function huddleVoiceAskHeader(name: string, speaker: string | null): string {
+export function huddleVoiceAskHeader(
+  name: string,
+  speaker: string | null,
+): string {
   return `${VOICE_ASK_LEAD}${speaker ? `, from ${speaker}` : ""}. It told the room you are looking into it. ${huddleVoiceNote(name)}`;
 }
 
 /** The voice's standing instructions: who it is and what the session is
  *  doing. `recent` is the session's last few replies, newest last. */
-export function huddleVoiceInstructions(opts: { name: string; title: string; recent: string[] }): string {
+export function huddleVoiceInstructions(opts: {
+  name: string;
+  title: string;
+  recent: string[];
+}): string {
   return [
     `You are ${opts.name}, an AI agent, present in a team video call as a face and a voice. You hear the room. When you answer, you see every shared screen and every camera that is on, taken at that moment and labeled with whose they are; when nobody is sharing or on camera, you are told so, and that is the whole picture.`,
     "You speak only when someone says your name, or when one person is in the call and so can only be talking to you. Several people may be in the room, and what they say to each other is not for you, however much it sounds like a question.",
@@ -265,7 +304,9 @@ export function huddleVoiceInstructions(opts: { name: string; title: string; rec
     opts.recent.length
       ? `What your session said most recently, newest last:\n${opts.recent.map((r) => `- ${r}`).join("\n")}`
       : "",
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 // A line somebody typed in the huddle's chat, on its way to a fed session.
@@ -278,10 +319,13 @@ export function huddleChatLineHeader(name: string): string {
  *  a button; they did not write it. */
 export function isHuddleFeedNotice(raw: string): boolean {
   const t = raw.trimStart();
-  return t.startsWith(HUDDLE_BRIEFING_LEAD) || t.startsWith(HUDDLE_FEED_DISREGARD);
+  return (
+    t.startsWith(HUDDLE_BRIEFING_LEAD) || t.startsWith(HUDDLE_FEED_DISREGARD)
+  );
 }
 
-const EXCERPT_HEADER_RE = /(?:Excerpt from a|A) team huddle transcript(?: — "[^\n]*")? \(\d{4}-\d\d-\d\d \d\d:\d\d(?:, still live)?\)\. Speaker attribution is exact\./;
+const EXCERPT_HEADER_RE =
+  /(?:Excerpt from a|A) team huddle transcript(?: — "[^\n]*")? \(\d{4}-\d\d-\d\d \d\d:\d\d(?:, still live)?\)\. Speaker attribution is exact\./;
 
 /** A huddle excerpt handed to a session holds the person's note, if they
  *  wrote one, above the transcript. The note, or "" when the message is an
@@ -299,7 +343,10 @@ export function transcriptChunkHeader(opts: {
   live: boolean;
   partial: boolean;
 }): string {
-  const when = new Date(opts.startedAt).toISOString().slice(0, 16).replace("T", " ");
+  const when = new Date(opts.startedAt)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
   return `${opts.partial ? "Excerpt from a" : "A"} team huddle transcript${
     opts.title ? ` — "${opts.title}"` : ""
   } (${when}${opts.live ? ", still live" : ""}). Speaker attribution is exact.`;

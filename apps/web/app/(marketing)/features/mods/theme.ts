@@ -67,6 +67,6 @@ export const MODS_CSS = `
 }
 `;
 
-
 /** What the agent typed for the rollout block: three fields. */
-export const ROLLOUT_SOURCE = '```rollout\n{ "service": "payments-api", "build": "v412", "canary": 25 }\n```';
+export const ROLLOUT_SOURCE =
+  '```rollout\n{ "service": "payments-api", "build": "v412", "canary": 25 }\n```';

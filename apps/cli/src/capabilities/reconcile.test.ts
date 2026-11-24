@@ -7,7 +7,11 @@ import {
   resetConvergenceState,
   convergenceState,
 } from "./heartbeat.js";
-import { reconcileOnce, RECONCILE_BUDGET_MS, type ReconcileDeps } from "./reconcile.js";
+import {
+  reconcileOnce,
+  RECONCILE_BUDGET_MS,
+  type ReconcileDeps,
+} from "./reconcile.js";
 
 const dirs: string[] = [];
 function root(): string {
@@ -18,7 +22,8 @@ function root(): string {
 beforeEach(() => resetConvergenceState());
 afterEach(() => {
   resetConvergenceState();
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 function deps(over: Partial<ReconcileDeps> = {}): ReconcileDeps {
@@ -38,29 +43,46 @@ function deps(over: Partial<ReconcileDeps> = {}): ReconcileDeps {
 
 describe("reconcileOnce — the cost ladder", () => {
   test("mode off: one field read, nothing else happens", () => {
-    recordConvergenceSignals({ capabilities_mode: "off", capability_desired_revision: 5 });
+    recordConvergenceSignals({
+      capabilities_mode: "off",
+      capability_desired_revision: 5,
+    });
     let touched = false;
-    const out = reconcileOnce(deps({ desiredFiles: () => ((touched = true), []) }));
+    const out = reconcileOnce(
+      deps({ desiredFiles: () => ((touched = true), []) }),
+    );
     expect(out).toMatchObject({ ran: false, skipped: "mode_off" });
     expect(touched).toBe(false);
   });
 
   test("revisions equal: one integer compare, nothing else happens", () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 0 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 0,
+    });
     let touched = false;
-    const out = reconcileOnce(deps({ desiredFiles: () => ((touched = true), []) }));
+    const out = reconcileOnce(
+      deps({ desiredFiles: () => ((touched = true), []) }),
+    );
     expect(out).toMatchObject({ ran: false, skipped: "revision_current" });
     expect(touched).toBe(false);
   });
 
   test("dry mode plans, reports, and writes NOTHING", () => {
-    recordConvergenceSignals({ capabilities_mode: "dry", capability_desired_revision: 3 });
+    recordConvergenceSignals({
+      capabilities_mode: "dry",
+      capability_desired_revision: 3,
+    });
     const home = root();
     const out = reconcileOnce(
       deps({
         home,
         desiredFiles: () => [
-          { slug: "builtin/x", relPath: ".claude/skills/x/SKILL.md", content: "body\n" },
+          {
+            slug: "builtin/x",
+            relPath: ".claude/skills/x/SKILL.md",
+            content: "body\n",
+          },
         ],
         lockRoot: home,
       }),
@@ -72,7 +94,10 @@ describe("reconcileOnce — the cost ladder", () => {
   });
 
   test("a blown budget finishes planning and refuses to write", () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 3 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 3,
+    });
     let t = 0;
     const clock = () => {
       t += RECONCILE_BUDGET_MS + 1; // every observation of the clock is over budget
@@ -83,7 +108,10 @@ describe("reconcileOnce — the cost ladder", () => {
   });
 
   test("a clean ON pass converges the revision; the next beat is free", () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 4 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 4,
+    });
     const first = reconcileOnce(deps());
     expect(first).toMatchObject({ ran: true, conflicts: 0 });
     expect(convergenceState().applied).toBe(4);
@@ -92,12 +120,19 @@ describe("reconcileOnce — the cost ladder", () => {
   });
 
   test("conflicts hold the revision back — the fleet keeps showing pending", () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 7 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 7,
+    });
     const out = reconcileOnce(
       deps({
         desiredFiles: () => [
           // A path outside every allowed root is a planned conflict.
-          { slug: "mkt/evil/x", relPath: ".ssh/authorized_keys", content: "nope" },
+          {
+            slug: "mkt/evil/x",
+            relPath: ".ssh/authorized_keys",
+            content: "nope",
+          },
         ],
       }),
     );

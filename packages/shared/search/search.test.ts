@@ -3,7 +3,11 @@ import { countMatches, parseSearchTerms } from "./index";
 
 describe("parseSearchTerms", () => {
   test("lowercases words and keeps a quoted phrase whole", () => {
-    expect(parseSearchTerms('Facebook "ad spend" x')).toEqual(["facebook", "ad spend", "x"]);
+    expect(parseSearchTerms('Facebook "ad spend" x')).toEqual([
+      "facebook",
+      "ad spend",
+      "x",
+    ]);
     expect(parseSearchTerms("   ")).toEqual([]);
   });
 });

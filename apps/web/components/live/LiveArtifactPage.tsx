@@ -3,11 +3,41 @@
 // sessions), Ask agent, comments, history, the draft bar, Share, and every
 // cursor. The product's view (components/live/registry.ts) fills the body and
 // says where positions are on screen.
-import { Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, Check, Copy, Download, Link2, Lock, Maximize2, Minimize2, Plus, RotateCcw, Upload, Users, History, MessageSquare, MoreHorizontal, Redo2, Undo2, X } from "lucide-react";
-import { artifactSpec, type ArtifactElement, type ArtifactType } from "@codecast/shared/artifacts";
+import {
+  Archive,
+  Check,
+  Copy,
+  Download,
+  Link2,
+  Lock,
+  Maximize2,
+  Minimize2,
+  Plus,
+  RotateCcw,
+  Upload,
+  Users,
+  History,
+  MessageSquare,
+  MoreHorizontal,
+  Redo2,
+  Undo2,
+  X,
+} from "lucide-react";
+import {
+  artifactSpec,
+  type ArtifactElement,
+  type ArtifactType,
+} from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { ShareControl } from "../ShareControl";
 import { policyTeamOf } from "@codecast/shared/contracts";
@@ -20,7 +50,16 @@ import { docTypeStyle } from "../../lib/docTypeStyle";
 import { DocTypeMark } from "../docs/DocTypeMark";
 import { SegmentedChoice, type SegmentedOption } from "../TeamShareModePicker";
 import "./live.css";
-import { useLiveArtifact, useLiveVersions, useLiveDraftState, useLiveElements, useLivePresence, useLiveRefusal, useLiveRestoring, useLiveUnsettled } from "./useLiveArtifact";
+import {
+  useLiveArtifact,
+  useLiveVersions,
+  useLiveDraftState,
+  useLiveElements,
+  useLivePresence,
+  useLiveRefusal,
+  useLiveRestoring,
+  useLiveUnsettled,
+} from "./useLiveArtifact";
 import { useWsConnected } from "../../hooks/useWsConnected";
 import { useShortcuts } from "../../shortcuts";
 import { claimKeys } from "../../shortcuts/keyOwnership";
@@ -35,9 +74,20 @@ import { createScreenMap } from "../../lib/liveScreenMap";
 import { AskAgentControl, AskConfirmHost } from "./AskAgentControl";
 import { AskClaimProvider, useAskClaims } from "./askAgent";
 import { CommentsPanel, HistoryPanel } from "./LiveSidePanels";
-import { LIVE_VIEWS, MINIMAL_VIEWS, type LiveExport, type LiveImport } from "./registry";
+import {
+  LIVE_VIEWS,
+  MINIMAL_VIEWS,
+  type LiveExport,
+  type LiveImport,
+} from "./registry";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { duplicateLiveArtifact } from "../../lib/createLiveArtifact";
@@ -47,7 +97,17 @@ import { toast } from "sonner";
 type PanelKind = "comments" | "history" | "product" | null;
 const EMPTY: ArtifactElement[] = [];
 
-export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; doc_type: ArtifactType; project_path?: string; git_root?: string } }) {
+export function LiveArtifactPage({
+  doc,
+}: {
+  doc: {
+    _id: string;
+    title: string;
+    doc_type: ArtifactType;
+    project_path?: string;
+    git_root?: string;
+  };
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const live = useLiveArtifact(doc._id);
@@ -60,8 +120,12 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   // In zen the header is the window's top row: it clears the zen corner (and is the desktop drag region).
   const titlebarHead = useTitlebarHead<HTMLElement>();
 
-  const [selection, setSelectionState] = useState<string[]>(() => (params.get("el") ? [params.get("el")!] : []));
-  const [panel, setPanelKind] = useState<PanelKind>(() => (params.get("v") ? "history" : params.get("c") ? "comments" : null));
+  const [selection, setSelectionState] = useState<string[]>(() =>
+    params.get("el") ? [params.get("el")!] : [],
+  );
+  const [panel, setPanelKind] = useState<PanelKind>(() =>
+    params.get("v") ? "history" : params.get("c") ? "comments" : null,
+  );
   const [productPanel, setProductPanel] = useState<ReactNode | null>(null);
   const [toolbar, setToolbar] = useState<ReactNode>(null);
   const [exports, setExports] = useState<LiveExport[] | null>(null);
@@ -70,18 +134,29 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   const [discarding, setDiscarding] = useState(false);
   const [restoring, setRestoring] = useState(false);
   // A new comment a product asked for (openComments): where it anchors, and a tick that refocuses the box.
-  const [commentAsk, setCommentAsk] = useState<{ anchor?: string; tick: number } | null>(null);
-  const openComments = useCallback((opts?: { anchor?: string; thread?: string }) => {
-    setPanelKind("comments");
-    if (opts?.thread) {
-      setFocusComment(opts.thread);
-      setCommentAsk(null);
-    } else {
-      setCommentAsk((c) => ({ anchor: opts?.anchor, tick: (c?.tick ?? 0) + 1 }));
-    }
-  }, []);
+  const [commentAsk, setCommentAsk] = useState<{
+    anchor?: string;
+    tick: number;
+  } | null>(null);
+  const openComments = useCallback(
+    (opts?: { anchor?: string; thread?: string }) => {
+      setPanelKind("comments");
+      if (opts?.thread) {
+        setFocusComment(opts.thread);
+        setCommentAsk(null);
+      } else {
+        setCommentAsk((c) => ({
+          anchor: opts?.anchor,
+          tick: (c?.tick ?? 0) + 1,
+        }));
+      }
+    },
+    [],
+  );
   // ?c=<thread> (a notification, a copied comment link) opens that thread.
-  const [focusComment, setFocusComment] = useState<string | null>(() => params.get("c"));
+  const [focusComment, setFocusComment] = useState<string | null>(() =>
+    params.get("c"),
+  );
   const linkedComment = params.get("c");
   useWatchEffect(() => {
     if (!linkedComment) return;
@@ -94,7 +169,9 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
 
   // An open version (?v=<rev>) renders read-only from its folded state.
   const openRev = params.get("v") ? Number(params.get("v")) : null;
-  const [snapshot, setSnapshot] = useState<ArtifactElement[] | undefined>(undefined);
+  const [snapshot, setSnapshot] = useState<ArtifactElement[] | undefined>(
+    undefined,
+  );
   const [snapshotFailed, setSnapshotFailed] = useState(false);
   const [snapshotTry, setSnapshotTry] = useState(0);
   useWatchEffect(() => {
@@ -103,26 +180,52 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
     setSnapshotFailed(false);
     if (openRev === null || Number.isNaN(openRev)) return;
     // A version that has not arrived in 20s says so and offers Retry, rather than spinning.
-    const deadline = setTimeout(() => { if (alive) setSnapshotFailed(true); }, 20_000);
-    live.history.preview(openRev)
-      .then((els) => { if (alive) { clearTimeout(deadline); setSnapshot(els); setSnapshotFailed(false); } })
-      .catch(() => { if (alive) { clearTimeout(deadline); setSnapshotFailed(true); } });
-    return () => { alive = false; clearTimeout(deadline); };
+    const deadline = setTimeout(() => {
+      if (alive) setSnapshotFailed(true);
+    }, 20_000);
+    live.history
+      .preview(openRev)
+      .then((els) => {
+        if (alive) {
+          clearTimeout(deadline);
+          setSnapshot(els);
+          setSnapshotFailed(false);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          clearTimeout(deadline);
+          setSnapshotFailed(true);
+        }
+      });
+    return () => {
+      alive = false;
+      clearTimeout(deadline);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the handle's preview is stable per doc
   }, [openRev, doc._id, snapshotTry]);
 
-  const setParam = useCallback((key: string, value: string | null) => {
-    const next = new URLSearchParams(params.toString());
-    if (value === null) next.delete(key);
-    else next.set(key, value);
-    const q = next.toString();
-    router.replace(`/docs/${doc._id}${q ? `?${q}` : ""}`, { scroll: false });
-  }, [params, router, doc._id]);
+  const setParam = useCallback(
+    (key: string, value: string | null) => {
+      const next = new URLSearchParams(params.toString());
+      if (value === null) next.delete(key);
+      else next.set(key, value);
+      const q = next.toString();
+      router.replace(`/docs/${doc._id}${q ? `?${q}` : ""}`, { scroll: false });
+    },
+    [params, router, doc._id],
+  );
 
-  const setSelection = useCallback((keys: string[]) => {
-    setSelectionState(keys);
-    live.setPresence({ selection: keys, position: keys.length ? { key: keys[keys.length - 1] } : undefined });
-  }, [live]);
+  const setSelection = useCallback(
+    (keys: string[]) => {
+      setSelectionState(keys);
+      live.setPresence({
+        selection: keys,
+        position: keys.length ? { key: keys[keys.length - 1] } : undefined,
+      });
+    },
+    [live],
+  );
 
   const toScreen = screenMap.set;
 
@@ -134,7 +237,8 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   const togglePanel = (k: PanelKind) => {
     setPanelKind((cur) => (cur === k ? null : k));
     // A thread in the address belongs to the comments panel showing it.
-    if (params.get("c") && !(k === "comments" && panel !== "comments")) setParam("c", null);
+    if (params.get("c") && !(k === "comments" && panel !== "comments"))
+      setParam("c", null);
   };
 
   const selected = useMemo(() => {
@@ -149,9 +253,12 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
     // The view's focus (a sheet's hidden cell editor) is no text being typed; a side panel's box is.
     if (openRev !== null) {
       return claimKeys((e) => {
-        if (e.key !== "Escape" || e.defaultPrevented || hasOpenModal()) return false;
+        if (e.key !== "Escape" || e.defaultPrevented || hasOpenModal())
+          return false;
         const t = e.target as HTMLElement | null;
-        const typing = !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+        const typing =
+          !!t &&
+          (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
         if (typing && !t!.closest("[data-live-body]")) return false;
         e.preventDefault();
         setParam("v", null);
@@ -161,9 +268,14 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (
+        t &&
+        (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      )
+        return;
       // Only a press on the artifact (or on nothing in particular) is its own: a pane beside it keeps its keys.
-      if (t && t !== document.body && !t.closest("[data-detail-owns-keys]")) return;
+      if (t && t !== document.body && !t.closest("[data-detail-owns-keys]"))
+        return;
       e.preventDefault();
       if (e.shiftKey) live.redo();
       else live.undo();
@@ -176,10 +288,16 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
     const seen = new Set<string>();
     const out: PresenceFace[] = [];
     for (const p of others) {
-      const id = p.kind === "agent" ? p.actor : p.actor.split(":").slice(0, 2).join(":");
+      const id =
+        p.kind === "agent" ? p.actor : p.actor.split(":").slice(0, 2).join(":");
       if (seen.has(id)) continue;
       seen.add(id);
-      out.push({ user_id: id, user_name: p.kind === "agent" ? `${p.name} (agent)` : p.name, user_color: p.color, user_image: p.image });
+      out.push({
+        user_id: id,
+        user_name: p.kind === "agent" ? `${p.name} (agent)` : p.name,
+        user_color: p.color,
+        user_image: p.image,
+      });
     }
     return out;
   }, [others]);
@@ -189,12 +307,17 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   // An archived artifact refuses every write: it opens read only until restored.
   const archived = !!(doc as any).archived_at;
   // Who may change it (the head's edit setting); until the feed says, assume they may.
-  const canEdit = useInboxStore((s: any) => s.liveHeads?.[doc._id]?.can_edit !== false);
-  const locked = useInboxStore((s: any) => s.liveHeads?.[doc._id]?.edit === "owners");
+  const canEdit = useInboxStore(
+    (s: any) => s.liveHeads?.[doc._id]?.can_edit !== false,
+  );
+  const locked = useInboxStore(
+    (s: any) => s.liveHeads?.[doc._id]?.edit === "owners",
+  );
   // Not read yet, and nothing cached: never "Saved" and editable over a canvas that only looks empty.
   const cold = !live.ready && elements.length === 0;
-  const mode = openRev !== null || archived || !canEdit || cold ? "view" : "edit";
-  const viewSnapshot = openRev !== null ? snapshot ?? EMPTY : undefined;
+  const mode =
+    openRev !== null || archived || !canEdit || cold ? "view" : "edit";
+  const viewSnapshot = openRev !== null ? (snapshot ?? EMPTY) : undefined;
   const view = useMemo(
     () => (
       <View
@@ -214,7 +337,22 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
       />
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doc fields named explicitly
-    [View, doc._id, doc.title, doc.doc_type, doc.project_path, doc.git_root, live, selection, setSelection, mode, viewSnapshot, toScreen, setPanel, openComments],
+    [
+      View,
+      doc._id,
+      doc.title,
+      doc.doc_type,
+      doc.project_path,
+      doc.git_root,
+      live,
+      selection,
+      setSelection,
+      mode,
+      viewSnapshot,
+      toScreen,
+      setPanel,
+      openComments,
+    ],
   );
 
   const draftCount = useLiveElements(doc._id, { layer: "draft" }).length;
@@ -228,7 +366,10 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   const openVersion = useLiveVersions(doc._id).find((v) => v.rev === openRev);
   const draftLabel = useLiveDraftState(doc._id)?.label;
   const commentRows = useLiveElements(doc._id, { layer: "comments" });
-  const openRoots = useMemo(() => commentRows.filter((c) => !c.parent && !c.resolved), [commentRows]);
+  const openRoots = useMemo(
+    () => commentRows.filter((c) => !c.parent && !c.resolved),
+    [commentRows],
+  );
   // Every open thread counts, one whose element is gone (a deleted sheet cell) included: the badge, the panel's
   // Open tab and the CLI's "N open comments" say the same number.
   const commentCount = openRoots.length;
@@ -238,83 +379,264 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   return (
     // data-detail-owns-keys: the artifact owns the page's bare keys while it is open. Esc dismisses what is open
     // inside it and never closes the page (useDetailEscClose); the list behind it answers none (GenericListView).
-    <div className="h-full min-w-0 flex flex-col bg-sol-bg" data-live-page={doc.doc_type} data-detail-owns-keys="">
+    <div
+      className="h-full min-w-0 flex flex-col bg-sol-bg"
+      data-live-page={doc.doc_type}
+      data-detail-owns-keys=""
+    >
       <AskConfirmHost />
-      <header ref={titlebarHead} className="live-head flex items-center gap-2 px-3 h-11 border-b border-sol-border/40 shrink-0">
+      <header
+        ref={titlebarHead}
+        className="live-head flex items-center gap-2 px-3 h-11 border-b border-sol-border/40 shrink-0"
+      >
         <DocTypeMark type={doc.doc_type} size={15} title={spec.label} />
-        <TitleInput docId={doc._id} title={doc.title} placeholder={`Untitled ${spec.label.toLowerCase()}`} readOnly={mode === "view"} />
-        <span data-live-type-label className={`text-meta shrink-0 ${typeStyle.color}`}>{typeLabel ?? spec.label}</span>
-        {locked && <span title="Only its owner and editors can edit" className="inline-flex shrink-0"><Lock data-live-locked aria-label="Only its owner and editors can edit" className="w-3 h-3 text-sol-text-dim" /></span>}
+        <TitleInput
+          docId={doc._id}
+          title={doc.title}
+          placeholder={`Untitled ${spec.label.toLowerCase()}`}
+          readOnly={mode === "view"}
+        />
+        <span
+          data-live-type-label
+          className={`text-meta shrink-0 ${typeStyle.color}`}
+        >
+          {typeLabel ?? spec.label}
+        </span>
+        {locked && (
+          <span
+            title="Only its owner and editors can edit"
+            className="inline-flex shrink-0"
+          >
+            <Lock
+              data-live-locked
+              aria-label="Only its owner and editors can edit"
+              className="w-3 h-3 text-sol-text-dim"
+            />
+          </span>
+        )}
         {/* Cached rows paint and stay editable, but the chip says Saved only once the server has answered for all of it. */}
-        {(mode === "edit" || (cold && openRev === null)) && <SyncState docId={doc._id} loading={!live.ready} draft={live.draft.active} />}
+        {(mode === "edit" || (cold && openRev === null)) && (
+          <SyncState
+            docId={doc._id}
+            loading={!live.ready}
+            draft={live.draft.active}
+          />
+        )}
         {/* The product's controls take the room left between the title and the
             shell's own, and clip past it: the shell's buttons always stay reachable. */}
-        <div data-live-toolbar className="flex-1 min-w-10 flex items-center justify-end gap-2 overflow-hidden">{toolbar}</div>
-        {faces.length > 0 && <span data-live-facepile className="shrink-0"><PresenceFacepile present={faces} size={22} max={5} /></span>}
+        <div
+          data-live-toolbar
+          className="flex-1 min-w-10 flex items-center justify-end gap-2 overflow-hidden"
+        >
+          {toolbar}
+        </div>
+        {faces.length > 0 && (
+          <span data-live-facepile className="shrink-0">
+            <PresenceFacepile present={faces} size={22} max={5} />
+          </span>
+        )}
         {/* An agent works on the doc on the server: there is none to hand it until the create has landed. */}
-        {!askClaims.claimed && mode === "edit" && !isStubDoc(doc._id) && <span className="shrink-0"><AskAgentControl doc={doc} selected={selected} /></span>}
-        <IconToggle on={panel === "comments"} title="Comments" label={commentCount ? `Comments, ${commentCount} open` : "Comments"} onClick={() => togglePanel("comments")} badge={commentCount}>
+        {!askClaims.claimed && mode === "edit" && !isStubDoc(doc._id) && (
+          <span className="shrink-0">
+            <AskAgentControl doc={doc} selected={selected} />
+          </span>
+        )}
+        <IconToggle
+          on={panel === "comments"}
+          title="Comments"
+          label={commentCount ? `Comments, ${commentCount} open` : "Comments"}
+          onClick={() => togglePanel("comments")}
+          badge={commentCount}
+        >
           <MessageSquare className="w-4 h-4" />
         </IconToggle>
-        <IconToggle on={panel === "history"} title="History" onClick={() => togglePanel("history")}>
+        <IconToggle
+          on={panel === "history"}
+          title="History"
+          onClick={() => togglePanel("history")}
+        >
           <History className="w-4 h-4" />
         </IconToggle>
         <AskToEdit doc={doc as any} canEdit={canEdit} />
         <FocusToggle docId={doc._id} />
-        <ArtifactMenu doc={doc as any} copyOf={openRev !== null ? snapshot : undefined} shareQuery={shareQuery} canEdit={canEdit && !archived} ready={live.ready} exports={exports} fileImport={mode === "edit" ? fileImport : null} selection={selection} />
+        <ArtifactMenu
+          doc={doc as any}
+          copyOf={openRev !== null ? snapshot : undefined}
+          shareQuery={shareQuery}
+          canEdit={canEdit && !archived}
+          ready={live.ready}
+          exports={exports}
+          fileImport={mode === "edit" ? fileImport : null}
+          selection={selection}
+        />
         <ShareControl
           // An "asks to edit" notice lands here with the Share popover open on the request.
           key={params.get("share") ?? ""}
           defaultOpen={params.get("share") === "edit"}
           className="shrink-0"
-          access={<EditAccessSection doc={doc as any} ready={live.ready} requested={params.get("share") === "edit" ? params.get("add") : null} onGranted={() => { setParam("share", null); }} />}
-          linkExtra={shareQuery ? <span className="text-meta text-sol-text-dim" data-live-share-view>With this view</span> : undefined}
-          label={spec.label.toLowerCase()} path={`/docs/${doc._id}${shareQuery ? `?${shareQuery}` : ""}`} publicShare={isStubDoc(doc._id) ? undefined : { kind: "doc", id: doc._id, token: (doc as any).share_token, team: policyTeamOf("docs", doc as any) }} />
+          access={
+            <EditAccessSection
+              doc={doc as any}
+              ready={live.ready}
+              requested={
+                params.get("share") === "edit" ? params.get("add") : null
+              }
+              onGranted={() => {
+                setParam("share", null);
+              }}
+            />
+          }
+          linkExtra={
+            shareQuery ? (
+              <span
+                className="text-meta text-sol-text-dim"
+                data-live-share-view
+              >
+                With this view
+              </span>
+            ) : undefined
+          }
+          label={spec.label.toLowerCase()}
+          path={`/docs/${doc._id}${shareQuery ? `?${shareQuery}` : ""}`}
+          publicShare={
+            isStubDoc(doc._id)
+              ? undefined
+              : {
+                  kind: "doc",
+                  id: doc._id,
+                  token: (doc as any).share_token,
+                  team: policyTeamOf("docs", doc as any),
+                }
+          }
+        />
       </header>
 
       {live.draft.active && openRev === null && (
-        <div className="flex items-center gap-2 px-3 h-9 border-b border-sol-violet/30 bg-sol-violet/10 shrink-0" data-live-draft-bar>
+        <div
+          className="flex items-center gap-2 px-3 h-9 border-b border-sol-violet/30 bg-sol-violet/10 shrink-0"
+          data-live-draft-bar
+        >
           <span className="text-xs font-medium text-sol-violet">Draft</span>
-          <span className="text-meta text-sol-text-muted truncate">{live.draft.by_name} · editors only until saved</span>
+          <span className="text-meta text-sol-text-muted truncate">
+            {live.draft.by_name} · editors only until saved
+          </span>
           <span className="flex-1" />
-          <button type="button" title={`Undo (${mod}Z)`} disabled={!live.canUndo} onClick={live.undo} className="p-1 rounded text-sol-text-muted hover:text-sol-text disabled:opacity-30"><Undo2 className="w-3.5 h-3.5" /></button>
-          <button type="button" title={`Redo (${mod}⇧Z)`} disabled={!live.canRedo} onClick={live.redo} className="p-1 rounded text-sol-text-muted hover:text-sol-text disabled:opacity-30"><Redo2 className="w-3.5 h-3.5" /></button>
-          <button type="button" data-live-draft-discard onClick={() => setDiscarding(true)} className="inline-flex items-center gap-1 h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-red hover:bg-sol-red/10"><X className="w-3 h-3" /> Discard</button>
-          <Button type="button" variant="violet" size="xs" data-live-draft-save onClick={live.draft.save} className="h-6">Save</Button>
+          <button
+            type="button"
+            title={`Undo (${mod}Z)`}
+            disabled={!live.canUndo}
+            onClick={live.undo}
+            className="p-1 rounded text-sol-text-muted hover:text-sol-text disabled:opacity-30"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            title={`Redo (${mod}⇧Z)`}
+            disabled={!live.canRedo}
+            onClick={live.redo}
+            className="p-1 rounded text-sol-text-muted hover:text-sol-text disabled:opacity-30"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            data-live-draft-discard
+            onClick={() => setDiscarding(true)}
+            className="inline-flex items-center gap-1 h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-red hover:bg-sol-red/10"
+          >
+            <X className="w-3 h-3" /> Discard
+          </button>
+          <Button
+            type="button"
+            variant="violet"
+            size="xs"
+            data-live-draft-save
+            onClick={live.draft.save}
+            className="h-6"
+          >
+            Save
+          </Button>
         </div>
       )}
       {discarding && (
         <SwitchReview
           ledger={{
             name: "Discard draft",
-            subject: [draftLabel, live.draft.by_name].filter(Boolean).join(" · ") || "Draft",
+            subject:
+              [draftLabel, live.draft.by_name].filter(Boolean).join(" · ") ||
+              "Draft",
             shift: null,
             alert: "Can't be undone",
-            figures: [{ value: String(draftCount), label: draftCount === 1 ? "changed element" : "changed elements" }],
+            figures: [
+              {
+                value: String(draftCount),
+                label:
+                  draftCount === 1 ? "changed element" : "changed elements",
+              },
+            ],
             rows: [{ k: "Saved layer", v: "Stays as it is" }],
             confirm: "Discard draft",
             keep: "Keep draft",
           }}
           onClose={() => setDiscarding(false)}
-          onConfirm={() => { setDiscarding(false); live.draft.discard(); }}
+          onConfirm={() => {
+            setDiscarding(false);
+            live.draft.discard();
+          }}
         />
       )}
       {openRev === null && <RestoreStoppedBar live={live} />}
       {archived && openRev === null && (
-        <div className="flex items-center gap-2 px-3 h-9 border-b border-sol-border/40 bg-sol-bg-alt shrink-0" data-live-archived>
+        <div
+          className="flex items-center gap-2 px-3 h-9 border-b border-sol-border/40 bg-sol-bg-alt shrink-0"
+          data-live-archived
+        >
           <span className="text-xs font-medium text-sol-text">Archived</span>
           <span className="text-meta text-sol-text-muted">read only</span>
           <span className="flex-1" />
-          <Button type="button" variant="outline" size="xs" className="h-6" onClick={() => (useInboxStore.getState() as any).restoreArchivedDoc(doc._id)}>Restore</Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="h-6"
+            onClick={() =>
+              (useInboxStore.getState() as any).restoreArchivedDoc(doc._id)
+            }
+          >
+            Restore
+          </Button>
         </div>
       )}
       {openRev !== null && (
-        <div className="flex items-center gap-2 px-3 h-9 border-b border-sol-blue/30 bg-sol-blue/10 shrink-0" data-live-version-bar>
-          <span className="text-xs font-medium text-sol-blue truncate">{openVersion?.label ?? "Version"}</span>
-          {openVersion && <span className="text-meta text-sol-text-muted shrink-0 tabular-nums">{new Date(openVersion.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>}
-          <span className="text-meta text-sol-text-muted shrink-0">read only</span>
+        <div
+          className="flex items-center gap-2 px-3 h-9 border-b border-sol-blue/30 bg-sol-blue/10 shrink-0"
+          data-live-version-bar
+        >
+          <span className="text-xs font-medium text-sol-blue truncate">
+            {openVersion?.label ?? "Version"}
+          </span>
+          {openVersion && (
+            <span className="text-meta text-sol-text-muted shrink-0 tabular-nums">
+              {new Date(openVersion.at).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          )}
+          <span className="text-meta text-sol-text-muted shrink-0">
+            read only
+          </span>
           <span className="flex-1" />
-          <button type="button" onClick={() => setParam("v", null)} className="h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-text shrink-0">Back to current <KeyCap>Esc</KeyCap></button>
+          <button
+            type="button"
+            onClick={() => setParam("v", null)}
+            className="h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-text shrink-0"
+          >
+            Back to current <KeyCap>Esc</KeyCap>
+          </button>
           {!archived && canEdit ? (
             <Button
               type="button"
@@ -328,15 +650,30 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
                 try {
                   const r = await live.history.restore(openRev);
                   setParam("v", null);
-                  toast.success(r.changed ? `Restored: ${r.changed} element${r.changed === 1 ? "" : "s"} changed` : "Already matches this version");
+                  toast.success(
+                    r.changed
+                      ? `Restored: ${r.changed} element${r.changed === 1 ? "" : "s"} changed`
+                      : "Already matches this version",
+                  );
                 } catch (e: any) {
-                  toast.error(typeof e?.data === "string" ? e.data : "The restore did not finish");
+                  toast.error(
+                    typeof e?.data === "string"
+                      ? e.data
+                      : "The restore did not finish",
+                  );
                 } finally {
                   setRestoring(false);
                 }
               }}
             >
-              <RotateCcw className="w-3 h-3" /> {restoring ? "Restoring…" : snapshot === undefined ? (snapshotFailed ? "Version didn't load" : "Loading version…") : "Restore this version"}
+              <RotateCcw className="w-3 h-3" />{" "}
+              {restoring
+                ? "Restoring…"
+                : snapshot === undefined
+                  ? snapshotFailed
+                    ? "Version didn't load"
+                    : "Loading version…"
+                  : "Restore this version"}
             </Button>
           ) : null}
         </div>
@@ -348,18 +685,36 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
             <AskClaimProvider value={askClaims.value}>
               <Suspense fallback={<AppLoader className="h-full" />}>
                 {openRev !== null && snapshotFailed ? (
-                  <div className="h-full flex items-center justify-center gap-2 text-sm text-sol-text-muted" data-live-version-failed>
+                  <div
+                    className="h-full flex items-center justify-center gap-2 text-sm text-sol-text-muted"
+                    data-live-version-failed
+                  >
                     Version r{openRev} did not load
-                    <button type="button" onClick={() => setSnapshotTry((n) => n + 1)} className="h-7 px-2.5 rounded-md text-xs text-sol-text hover:bg-sol-bg-alt border border-sol-border/50">Retry</button>
+                    <button
+                      type="button"
+                      onClick={() => setSnapshotTry((n) => n + 1)}
+                      className="h-7 px-2.5 rounded-md text-xs text-sol-text hover:bg-sol-bg-alt border border-sol-border/50"
+                    >
+                      Retry
+                    </button>
                   </div>
-                ) : openRev !== null && snapshot === undefined ? <AppLoader className="h-full" /> : view}
+                ) : openRev !== null && snapshot === undefined ? (
+                  <AppLoader className="h-full" />
+                ) : (
+                  view
+                )}
               </Suspense>
             </AskClaimProvider>
           </ErrorBoundary>
-          {openRev === null && <CursorLayer others={others} screenMap={screenMap} />}
+          {openRev === null && (
+            <CursorLayer others={others} screenMap={screenMap} />
+          )}
         </div>
         {panel && (
-          <aside className={`live-panel ${panel === "product" ? "w-[clamp(360px,40%,520px)]" : "w-[300px]"} shrink-0 overflow-hidden flex flex-col border-l border-sol-border/40 bg-sol-bg min-h-0`} data-live-panel={panel}>
+          <aside
+            className={`live-panel ${panel === "product" ? "w-[clamp(360px,40%,520px)]" : "w-[300px]"} shrink-0 overflow-hidden flex flex-col border-l border-sol-border/40 bg-sol-bg min-h-0`}
+            data-live-panel={panel}
+          >
             {panel === "comments" && (
               <CommentsPanel
                 doc={doc as any}
@@ -379,10 +734,24 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
                   setParam("c", k || null);
                   if (anchor) setSelection([anchor]);
                 }}
-                onClose={() => { setPanelKind(null); setParam("c", null); setCommentAsk(null); }}
+                onClose={() => {
+                  setPanelKind(null);
+                  setParam("c", null);
+                  setCommentAsk(null);
+                }}
               />
             )}
-            {panel === "history" && <HistoryPanel live={live} openRev={openRev} onOpen={(rev) => setParam("v", rev === null ? null : String(rev))} onClose={() => setPanelKind(null)} canEdit={canEdit && !archived} />}
+            {panel === "history" && (
+              <HistoryPanel
+                live={live}
+                openRev={openRev}
+                onOpen={(rev) =>
+                  setParam("v", rev === null ? null : String(rev))
+                }
+                onClose={() => setPanelKind(null)}
+                canEdit={canEdit && !archived}
+              />
+            )}
             {panel === "product" && productPanel}
           </aside>
         )}
@@ -391,7 +760,17 @@ export function LiveArtifactPage({ doc }: { doc: { _id: string; title: string; d
   );
 }
 
-function TitleInput({ docId, title, placeholder, readOnly }: { docId: string; title: string; placeholder: string; readOnly?: boolean }) {
+function TitleInput({
+  docId,
+  title,
+  placeholder,
+  readOnly,
+}: {
+  docId: string;
+  title: string;
+  placeholder: string;
+  readOnly?: boolean;
+}) {
   const [value, setValue] = useState(title);
   useWatchEffect(() => setValue(title), [title]);
   // Esc ends the edit through blur, which commits: the flag makes that blur throw the edit away.
@@ -403,7 +782,8 @@ function TitleInput({ docId, title, placeholder, readOnly }: { docId: string; ti
       return;
     }
     const next = value.trim();
-    if (next && next !== title) (useInboxStore.getState() as any).updateDoc(docId, { title: next });
+    if (next && next !== title)
+      (useInboxStore.getState() as any).updateDoc(docId, { title: next });
     else setValue(title);
   };
   return (
@@ -430,7 +810,21 @@ function TitleInput({ docId, title, placeholder, readOnly }: { docId: string; ti
   );
 }
 
-function IconToggle({ on, title, label, onClick, badge, children }: { on: boolean; title: string; label?: string; onClick: () => void; badge?: number; children: ReactNode }) {
+function IconToggle({
+  on,
+  title,
+  label,
+  onClick,
+  badge,
+  children,
+}: {
+  on: boolean;
+  title: string;
+  label?: string;
+  onClick: () => void;
+  badge?: number;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -442,23 +836,54 @@ function IconToggle({ on, title, label, onClick, badge, children }: { on: boolea
     >
       {children}
       {!!badge && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-sol-blue text-mark leading-[14px] text-sol-bg font-semibold text-center">{badge}</span>
+        <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-sol-blue text-mark leading-[14px] text-sol-bg font-semibold text-center">
+          {badge}
+        </span>
       )}
     </button>
   );
 }
 
 /** Whether this tab's edits have reached the server: Saving, Saved, or Offline with how many wait. */
-function SyncState({ docId, loading = false, draft = false }: { docId: string; loading?: boolean; draft?: boolean }) {
+function SyncState({
+  docId,
+  loading = false,
+  draft = false,
+}: {
+  docId: string;
+  loading?: boolean;
+  draft?: boolean;
+}) {
   const online = useWsConnected();
   const waiting = useLiveUnsettled(docId);
   const refusal = useLiveRefusal(docId);
-  const state = !online ? "offline" : loading ? "loading" : waiting > 0 ? "saving" : refusal ? "refused" : "saved";
-  const label = state === "offline" ? (waiting > 0 ? `Offline · ${waiting} waiting` : "Offline") : state === "loading" ? "Loading…" : state === "saving" ? "Saving…" : state === "refused" ? "Not saved" : draft ? "Draft saved" : "Saved";
+  const state = !online
+    ? "offline"
+    : loading
+      ? "loading"
+      : waiting > 0
+        ? "saving"
+        : refusal
+          ? "refused"
+          : "saved";
+  const label =
+    state === "offline"
+      ? waiting > 0
+        ? `Offline · ${waiting} waiting`
+        : "Offline"
+      : state === "loading"
+        ? "Loading…"
+        : state === "saving"
+          ? "Saving…"
+          : state === "refused"
+            ? "Not saved"
+            : draft
+              ? "Draft saved"
+              : "Saved";
   return (
     <span
       data-live-sync={state}
-      title={state === "refused" ? refusal ?? undefined : undefined}
+      title={state === "refused" ? (refusal ?? undefined) : undefined}
       className={`text-meta shrink-0 tabular-nums ${state === "offline" || state === "refused" ? "text-sol-red" : "text-sol-text-dim"}`}
     >
       {label}
@@ -467,14 +892,20 @@ function SyncState({ docId, loading = false, draft = false }: { docId: string; l
 }
 
 /** A restore too big for one transaction stopped partway: finish it or put the artifact back. */
-function RestoreStoppedBar({ live }: { live: ReturnType<typeof useLiveArtifact> }) {
+function RestoreStoppedBar({
+  live,
+}: {
+  live: ReturnType<typeof useLiveArtifact>;
+}) {
   const restoring = useLiveRestoring(live.docId);
   const [busy, setBusy] = useState<"finish" | "undo" | null>(null);
   if (!restoring) return null;
   const run = async (kind: "finish" | "undo") => {
     setBusy(kind);
     try {
-      await live.history.restore(kind === "finish" ? restoring.to : restoring.from);
+      await live.history.restore(
+        kind === "finish" ? restoring.to : restoring.from,
+      );
     } catch (e: any) {
       toast.error(e?.data ?? e?.message ?? "The restore did not finish");
     } finally {
@@ -482,14 +913,33 @@ function RestoreStoppedBar({ live }: { live: ReturnType<typeof useLiveArtifact> 
     }
   };
   return (
-    <div className="flex items-center gap-2 px-3 h-9 border-b border-sol-red/30 bg-sol-red/10 shrink-0" data-live-restore-stopped>
-      <span className="text-xs font-medium text-sol-red">Restore to r{restoring.to} stopped partway</span>
-      <span className="text-meta text-sol-text-muted truncate">{restoring.by_name}</span>
+    <div
+      className="flex items-center gap-2 px-3 h-9 border-b border-sol-red/30 bg-sol-red/10 shrink-0"
+      data-live-restore-stopped
+    >
+      <span className="text-xs font-medium text-sol-red">
+        Restore to r{restoring.to} stopped partway
+      </span>
+      <span className="text-meta text-sol-text-muted truncate">
+        {restoring.by_name}
+      </span>
       <span className="flex-1" />
-      <button type="button" disabled={!!busy} onClick={() => run("undo")} className="h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt disabled:opacity-50">
+      <button
+        type="button"
+        disabled={!!busy}
+        onClick={() => run("undo")}
+        className="h-6 px-2 rounded text-xs text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt disabled:opacity-50"
+      >
         {busy === "undo" ? "Undoing…" : `Back to r${restoring.from}`}
       </button>
-      <Button type="button" variant="destructive" size="xs" disabled={!!busy} onClick={() => run("finish")} className="h-6">
+      <Button
+        type="button"
+        variant="destructive"
+        size="xs"
+        disabled={!!busy}
+        onClick={() => run("finish")}
+        className="h-6"
+      >
         {busy === "finish" ? "Finishing…" : "Finish restore"}
       </Button>
     </div>
@@ -497,10 +947,38 @@ function RestoreStoppedBar({ live }: { live: ReturnType<typeof useLiveArtifact> 
 }
 
 /** The artifact's "..." menu: Duplicate, and every download the view offers. */
-function ArtifactMenu({ doc, copyOf, shareQuery, canEdit, ready, exports, fileImport, selection }: { doc: { _id: string; title: string; doc_type: ArtifactType; team_id?: string; workspace?: string }; copyOf?: ArtifactElement[]; shareQuery: string; canEdit: boolean; ready: boolean; exports: LiveExport[] | null; fileImport: LiveImport | null; selection: string[] }) {
+function ArtifactMenu({
+  doc,
+  copyOf,
+  shareQuery,
+  canEdit,
+  ready,
+  exports,
+  fileImport,
+  selection,
+}: {
+  doc: {
+    _id: string;
+    title: string;
+    doc_type: ArtifactType;
+    team_id?: string;
+    workspace?: string;
+  };
+  copyOf?: ArtifactElement[];
+  shareQuery: string;
+  canEdit: boolean;
+  ready: boolean;
+  exports: LiveExport[] | null;
+  fileImport: LiveImport | null;
+  selection: string[];
+}) {
   const router = useRouter();
   const [archiving, setArchiving] = useState(false);
-  const teamName = useInboxStore((s: any) => (s.teams ?? []).find((t: any) => t && `team:${t._id}` === doc.workspace)?.name as string | undefined);
+  const teamName = useInboxStore(
+    (s: any) =>
+      (s.teams ?? []).find((t: any) => t && `team:${t._id}` === doc.workspace)
+        ?.name as string | undefined,
+  );
   const zen = useInboxStore((s: any) => s.clientState.ui?.zen_mode ?? false);
   const { dispatchAction } = useShortcuts();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -517,57 +995,108 @@ function ArtifactMenu({ doc, copyOf, shareQuery, canEdit, ready, exports, fileIm
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (e: any) {
       toast.dismiss(pending);
-      toast.error(`Could not export ${x.format.toUpperCase()}: ${e?.message ?? "failed"}`);
+      toast.error(
+        `Could not export ${x.format.toUpperCase()}: ${e?.message ?? "failed"}`,
+      );
     }
   };
   const words = (x: LiveExport) => x.label ?? x.format.toUpperCase();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" title="More" aria-label="More" data-live-menu className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt">
+        <button
+          type="button"
+          title="More"
+          aria-label="More"
+          data-live-menu
+          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt"
+        >
           <MoreHorizontal className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
       {/* The menu owns its keys: the Enter that picks a row must not also open the list row behind the page. */}
-      <DropdownMenuContent align="end" loop data-owns-keys="" className="min-w-[200px]">
+      <DropdownMenuContent
+        align="end"
+        loop
+        data-owns-keys=""
+        className="min-w-[200px]"
+      >
         {/* A copy holds the whole saved layer: offered once the page has read all of it. */}
         <DropdownMenuItem
           data-live-duplicate
           disabled={!ready}
           onSelect={() => {
-            void duplicateLiveArtifact(doc, (href) => router.push(href), copyOf);
+            void duplicateLiveArtifact(
+              doc,
+              (href) => router.push(href),
+              copyOf,
+            );
           }}
         >
           <Copy className="w-3.5 h-3.5" /> Duplicate
         </DropdownMenuItem>
-        <DropdownMenuItem data-live-menu-zen onSelect={() => toggleZenFromArtifact(zen, dispatchAction)}>
-          {zen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />} {zen ? "Exit zen" : "Zen"}
+        <DropdownMenuItem
+          data-live-menu-zen
+          onSelect={() => toggleZenFromArtifact(zen, dispatchAction)}
+        >
+          {zen ? (
+            <Minimize2 className="w-3.5 h-3.5" />
+          ) : (
+            <Maximize2 className="w-3.5 h-3.5" />
+          )}{" "}
+          {zen ? "Exit zen" : "Zen"}
         </DropdownMenuItem>
         <DropdownMenuItem
           data-live-copy-link
-          onSelect={() => { void copyText(sharePageUrl(`/docs/${doc._id}${shareQuery ? `?${shareQuery}` : ""}`), "Link copied"); }}
+          onSelect={() => {
+            void copyText(
+              sharePageUrl(
+                `/docs/${doc._id}${shareQuery ? `?${shareQuery}` : ""}`,
+              ),
+              "Link copied",
+            );
+          }}
         >
           <Link2 className="w-3.5 h-3.5" /> Copy link
         </DropdownMenuItem>
         {(!!exports?.length || fileImport) && <DropdownMenuSeparator />}
         {fileImport && (
-          <DropdownMenuItem data-live-import onSelect={() => fileInput.current?.click()}>
+          <DropdownMenuItem
+            data-live-import
+            onSelect={() => fileInput.current?.click()}
+          >
             <Upload className="w-3.5 h-3.5" /> {fileImport.label}
           </DropdownMenuItem>
         )}
         {exports?.map((x) => (
-          <DropdownMenuItem key={`${x.format}:${x.label ?? ""}`} data-live-export={x.format} onSelect={() => void download(x, [])}>
+          <DropdownMenuItem
+            key={`${x.format}:${x.label ?? ""}`}
+            data-live-export={x.format}
+            onSelect={() => void download(x, [])}
+          >
             <Download className="w-3.5 h-3.5" /> Download {words(x)}
           </DropdownMenuItem>
         ))}
-        {selection.length > 0 && exports?.filter((x) => x.selectionAware).map((x) => (
-          <DropdownMenuItem key={`sel:${x.format}:${x.label ?? ""}`} data-live-export-selection={x.format} onSelect={() => void download(x, selection)}>
-            <Download className="w-3.5 h-3.5" /> Download selection as {words(x)}
-          </DropdownMenuItem>
-        ))}
+        {selection.length > 0 &&
+          exports
+            ?.filter((x) => x.selectionAware)
+            .map((x) => (
+              <DropdownMenuItem
+                key={`sel:${x.format}:${x.label ?? ""}`}
+                data-live-export-selection={x.format}
+                onSelect={() => void download(x, selection)}
+              >
+                <Download className="w-3.5 h-3.5" /> Download selection as{" "}
+                {words(x)}
+              </DropdownMenuItem>
+            ))}
         {canEdit && <DropdownMenuSeparator />}
         {canEdit && (
-          <DropdownMenuItem data-live-archive onSelect={() => setArchiving(true)} className="text-sol-red focus:text-sol-red">
+          <DropdownMenuItem
+            data-live-archive
+            onSelect={() => setArchiving(true)}
+            className="text-sol-red focus:text-sol-red"
+          >
             <Archive className="w-3.5 h-3.5" /> Archive…
           </DropdownMenuItem>
         )}
@@ -579,7 +1108,15 @@ function ArtifactMenu({ doc, copyOf, shareQuery, canEdit, ready, exports, fileIm
             subject: doc.title || "Untitled",
             shift: null,
             figures: [],
-            rows: [{ k: "Who loses it", v: String(doc.workspace ?? "").startsWith("team:") ? `All of ${teamName ?? "the team"}` : "Only you" }, { k: "Undo", v: "From the toast that follows" }],
+            rows: [
+              {
+                k: "Who loses it",
+                v: String(doc.workspace ?? "").startsWith("team:")
+                  ? `All of ${teamName ?? "the team"}`
+                  : "Only you",
+              },
+              { k: "Undo", v: "From the toast that follows" },
+            ],
             confirm: "Archive",
             keep: "Keep",
           }}
@@ -610,12 +1147,26 @@ function ArtifactMenu({ doc, copyOf, shareQuery, canEdit, ready, exports, fileIm
 }
 
 /** A viewer's way in: the header says they are viewing and asks the owner to let them edit. */
-function AskToEdit({ doc, canEdit }: { doc: { _id: string; user_id?: string }; canEdit: boolean }) {
-  const me = useInboxStore((s: any) => s.currentUser?._id as string | undefined);
+function AskToEdit({
+  doc,
+  canEdit,
+}: {
+  doc: { _id: string; user_id?: string };
+  canEdit: boolean;
+}) {
+  const me = useInboxStore(
+    (s: any) => s.currentUser?._id as string | undefined,
+  );
   // Asked once, remembered here for a day, so a visit soon after does not ask again; access granted clears it.
   const askedKey = `live-asked-edit:${doc._id}`;
-  const [asked, setAsked] = useState(() => typeof localStorage !== "undefined" && Date.now() - Number(localStorage.getItem(askedKey) ?? 0) < 86_400_000);
-  useWatchEffect(() => { if (canEdit) localStorage.removeItem(askedKey); }, [canEdit, askedKey]);
+  const [asked, setAsked] = useState(
+    () =>
+      typeof localStorage !== "undefined" &&
+      Date.now() - Number(localStorage.getItem(askedKey) ?? 0) < 86_400_000,
+  );
+  useWatchEffect(() => {
+    if (canEdit) localStorage.removeItem(askedKey);
+  }, [canEdit, askedKey]);
   if (canEdit || !me || String(doc.user_id) === me) return null;
   return (
     <button
@@ -625,18 +1176,39 @@ function AskToEdit({ doc, canEdit }: { doc: { _id: string; user_id?: string }; c
       disabled={asked}
       onClick={() => {
         setAsked(true);
-        void useInboxStore.getState().liveAskToEdit(doc._id).then(() => { localStorage.setItem(askedKey, String(Date.now())); toast.success("The owner was asked"); }).catch(() => { setAsked(false); toast.error("Could not ask the owner"); });
+        void useInboxStore
+          .getState()
+          .liveAskToEdit(doc._id)
+          .then(() => {
+            localStorage.setItem(askedKey, String(Date.now()));
+            toast.success("The owner was asked");
+          })
+          .catch(() => {
+            setAsked(false);
+            toast.error("Could not ask the owner");
+          });
       }}
       className="inline-flex items-center gap-1 h-6 px-1.5 rounded text-meta shrink-0 text-sol-text-muted bg-sol-bg-alt hover:text-sol-text disabled:opacity-60"
     >
-      <Lock className="w-3.5 h-3.5" /> {asked ? "Asked to edit" : "View only · Ask to edit"}
+      <Lock className="w-3.5 h-3.5" />{" "}
+      {asked ? "Asked to edit" : "View only · Ask to edit"}
     </button>
   );
 }
 
 const EDIT_CHOICES: SegmentedOption<"team" | "owners">[] = [
-  { value: "team", label: "Whole team", selected: "bg-sol-bg text-sol-text", icon: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" },
-  { value: "owners", label: "You and editors", selected: "bg-sol-bg text-sol-text", icon: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" },
+  {
+    value: "team",
+    label: "Whole team",
+    selected: "bg-sol-bg text-sol-text",
+    icon: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+  },
+  {
+    value: "owners",
+    label: "You and editors",
+    selected: "bg-sol-bg text-sol-text",
+    icon: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
+  },
 ];
 
 /**
@@ -644,39 +1216,92 @@ const EDIT_CHOICES: SegmentedOption<"team" | "owners">[] = [
  * its link: the whole team, or its owner and the editors named. The workspace
  * decides who can see it; this decides who of them edits. Owner only.
  */
-function EditAccessSection({ doc, ready, requested, onGranted }: { doc: { _id: string; user_id?: string; workspace?: string }; ready: boolean; requested?: string | null; onGranted?: () => void }) {
-  const me = useInboxStore((s: any) => s.currentUser?._id as string | undefined);
-  const edit = useInboxStore((s: any) => (s.liveHeads?.[doc._id]?.edit as "team" | "owners" | undefined) ?? "team");
+function EditAccessSection({
+  doc,
+  ready,
+  requested,
+  onGranted,
+}: {
+  doc: { _id: string; user_id?: string; workspace?: string };
+  ready: boolean;
+  requested?: string | null;
+  onGranted?: () => void;
+}) {
+  const me = useInboxStore(
+    (s: any) => s.currentUser?._id as string | undefined,
+  );
+  const edit = useInboxStore(
+    (s: any) =>
+      (s.liveHeads?.[doc._id]?.edit as "team" | "owners" | undefined) ?? "team",
+  );
   // The setting is known once this page's feed has answered (a cached or placeholder head is not the server's
   // word); until then nothing here can be pressed, or a press would replace the real setting and its editors.
   const known = ready;
-  const editorsSig = useInboxStore((s: any) => (s.liveHeads?.[doc._id]?.editors ?? []).join(","));
-  const editors: string[] = useMemo(() => (editorsSig ? String(editorsSig).split(",") : []), [editorsSig]);
+  const editorsSig = useInboxStore((s: any) =>
+    (s.liveHeads?.[doc._id]?.editors ?? []).join(","),
+  );
+  const editors: string[] = useMemo(
+    () => (editorsSig ? String(editorsSig).split(",") : []),
+    [editorsSig],
+  );
   const owner = !!me && String(doc.user_id) === me;
   const team = String(doc.workspace ?? "").startsWith("team:");
-  const teamName = useInboxStore((s: any) => (s.teams ?? []).find((t: any) => t && `team:${t._id}` === doc.workspace)?.name as string | undefined);
+  const teamName = useInboxStore(
+    (s: any) =>
+      (s.teams ?? []).find((t: any) => t && `team:${t._id}` === doc.workspace)
+        ?.name as string | undefined,
+  );
   // The artifact's own team (the team being viewed may be another).
-  const { data: candidates } = useQueryNoThrow(api.liveArtifacts.editorCandidates, owner && team ? { doc_id: doc._id as any } : "skip");
+  const { data: candidates } = useQueryNoThrow(
+    api.liveArtifacts.editorCandidates,
+    owner && team ? { doc_id: doc._id as any } : "skip",
+  );
   if (!owner || !team) return null;
-  const roster: Array<{ _id: string; name: string }> = (candidates as any[] | undefined) ?? [];
-  const set = (next: "team" | "owners", list: string[]) => (useInboxStore.getState() as any).liveSetEditAccess(doc._id, next, list);
+  const roster: Array<{ _id: string; name: string }> =
+    (candidates as any[] | undefined) ?? [];
+  const set = (next: "team" | "owners", list: string[]) =>
+    (useInboxStore.getState() as any).liveSetEditAccess(doc._id, next, list);
   const nameOf = (id: string) => roster.find((m) => m._id === id)?.name ?? "…";
   const addable = roster.filter((m) => !editors.includes(m._id));
-  const asker = known && requested && edit === "owners" ? addable.find((m) => m._id === requested) : undefined;
+  const asker =
+    known && requested && edit === "owners"
+      ? addable.find((m) => m._id === requested)
+      : undefined;
   return (
     <div className="space-y-2" data-live-edit-access={edit}>
-      <span className="text-xs font-medium text-sol-text-muted">Who can edit</span>
+      <span className="text-xs font-medium text-sol-text-muted">
+        Who can edit
+      </span>
       {asker && (
-        <div className="flex items-center gap-2 h-8 px-2 rounded-md bg-sol-blue/10" data-live-edit-request={asker._id}>
-          <span className="text-xs text-sol-text truncate min-w-0 flex-1">{asker.name} asks to edit</span>
-          <Button type="button" size="xs" data-live-grant-edit onClick={() => { set("owners", [...editors, asker._id]); toast.success(`${asker.name} can edit now`); onGranted?.(); }} className="shrink-0">
+        <div
+          className="flex items-center gap-2 h-8 px-2 rounded-md bg-sol-blue/10"
+          data-live-edit-request={asker._id}
+        >
+          <span className="text-xs text-sol-text truncate min-w-0 flex-1">
+            {asker.name} asks to edit
+          </span>
+          <Button
+            type="button"
+            size="xs"
+            data-live-grant-edit
+            onClick={() => {
+              set("owners", [...editors, asker._id]);
+              toast.success(`${asker.name} can edit now`);
+              onGranted?.();
+            }}
+            className="shrink-0"
+          >
             Let them edit
           </Button>
         </div>
       )}
       <SegmentedChoice
         label="Who can edit"
-        options={EDIT_CHOICES.map((o) => (o.value === "team" && teamName ? { ...o, label: `All of ${teamName}` } : o))}
+        options={EDIT_CHOICES.map((o) =>
+          o.value === "team" && teamName
+            ? { ...o, label: `All of ${teamName}` }
+            : o,
+        )}
         // Nothing checked until the setting is known: a choice drawn before then would be a guess.
         value={known ? edit : ("" as "team")}
         disabled={!known}
@@ -686,9 +1311,23 @@ function EditAccessSection({ doc, ready, requested, onGranted }: { doc: { _id: s
       {known && edit === "owners" && (
         <div className="flex flex-wrap items-center gap-1.5">
           {editors.map((id) => (
-            <span key={id} data-live-editor={id} className="inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-full bg-sol-bg-alt text-xs text-sol-text">
+            <span
+              key={id}
+              data-live-editor={id}
+              className="inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-full bg-sol-bg-alt text-xs text-sol-text"
+            >
               {nameOf(id)}
-              <button type="button" aria-label={`Remove ${nameOf(id)}`} onClick={() => set("owners", editors.filter((x) => x !== id))} className="p-0.5 rounded-full text-sol-text-dim hover:text-sol-text">
+              <button
+                type="button"
+                aria-label={`Remove ${nameOf(id)}`}
+                onClick={() =>
+                  set(
+                    "owners",
+                    editors.filter((x) => x !== id),
+                  )
+                }
+                className="p-0.5 rounded-full text-sol-text-dim hover:text-sol-text"
+              >
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -698,11 +1337,17 @@ function EditAccessSection({ doc, ready, requested, onGranted }: { doc: { _id: s
               aria-label="Add an editor"
               data-live-add-editor
               value=""
-              onChange={(e) => { if (e.target.value) set("owners", [...editors, e.target.value]); }}
+              onChange={(e) => {
+                if (e.target.value) set("owners", [...editors, e.target.value]);
+              }}
               className="h-6 rounded-full bg-sol-bg-alt border border-sol-border/50 px-2 text-xs text-sol-text-muted outline-none"
             >
               <option value="">Add editor…</option>
-              {addable.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+              {addable.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.name}
+                </option>
+              ))}
             </select>
           )}
         </div>
@@ -729,22 +1374,28 @@ function FocusToggle({ docId }: { docId: string }) {
   useWatchEffect(() => {
     if (!zen) return;
     document.documentElement.dataset.liveFocus = "";
-    return () => { delete document.documentElement.dataset.liveFocus; };
+    return () => {
+      delete document.documentElement.dataset.liveFocus;
+    };
   }, [zen]);
   const dispatchRef = useRef(dispatchAction);
   dispatchRef.current = dispatchAction;
   // Zen turned on from an artifact holds while the person moves between docs (a copy, a link, a search hit)
   // and gives the app its chrome back once they leave Docs. A reload or hot update goes nowhere, so it holds too.
-  useWatchEffect(() => () => {
-    if (!zenFromArtifact) return;
-    setTimeout(() => {
-      // The Docs list is part of Docs: going back to it on the way to another artifact keeps zen.
-      const path = window.location.pathname;
-      if (path === "/docs" || path.startsWith("/docs/")) return;
-      zenFromArtifact = false;
-      if ((useInboxStore.getState() as any).clientState.ui?.zen_mode) dispatchRef.current("ui.zenToggle");
-    }, 0);
-  }, [docId]);
+  useWatchEffect(
+    () => () => {
+      if (!zenFromArtifact) return;
+      setTimeout(() => {
+        // The Docs list is part of Docs: going back to it on the way to another artifact keeps zen.
+        const path = window.location.pathname;
+        if (path === "/docs" || path.startsWith("/docs/")) return;
+        zenFromArtifact = false;
+        if ((useInboxStore.getState() as any).clientState.ui?.zen_mode)
+          dispatchRef.current("ui.zenToggle");
+      }, 0);
+    },
+    [docId],
+  );
   // In zen the corner holds the one way out; "..." has it too.
   if (zen) return null;
   return (
@@ -757,7 +1408,11 @@ function FocusToggle({ docId }: { docId: string }) {
       onClick={() => toggleZenFromArtifact(zen, dispatchAction)}
       className={`inline-flex items-center justify-center w-7 h-7 rounded-md shrink-0 transition-colors ${zen ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt"}`}
     >
-      {zen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+      {zen ? (
+        <Minimize2 className="w-4 h-4" />
+      ) : (
+        <Maximize2 className="w-4 h-4" />
+      )}
     </button>
   );
 }

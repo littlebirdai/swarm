@@ -62,7 +62,8 @@ export function flushDue(opts: {
 }): boolean {
   if (opts.sinceFlushMs < FLUSH_MIN_INTERVAL_MS) return false;
   const waitForTurn = opts.busy && !opts.addressed;
-  const quiet = !opts.anySpeaking && opts.quietForMs !== null && opts.quietForMs >= GAP_MS;
+  const quiet =
+    !opts.anySpeaking && opts.quietForMs !== null && opts.quietForMs >= GAP_MS;
   const limit = waitForTurn ? WORKING_HOLD_MS : MAX_HOLD_MS;
   const heldTooLong = opts.heldForMs !== null && opts.heldForMs >= limit;
   return (quiet && !waitForTurn) || heldTooLong;
@@ -85,7 +86,9 @@ export function settleFailedAppends<S>(
   failed: FailedAppend<S>[],
   now: number,
 ): { queue: FailedAppend<S>[]; dropped: number } {
-  const all = [...queue, ...failed].filter((f) => now - f.at < APPEND_RETRY_MAX_AGE_MS);
+  const all = [...queue, ...failed].filter(
+    (f) => now - f.at < APPEND_RETRY_MAX_AGE_MS,
+  );
   const kept = all.slice(-APPEND_RETRY_MAX);
   return { queue: kept, dropped: queue.length + failed.length - kept.length };
 }
@@ -95,7 +98,12 @@ const TAIL = 6;
 
 /** Where a run's words go from its first line. `face: false` seats a fed
  *  agent without its video avatar (convex/callFace.ts). */
-export type ScribeRoute = { kind: "session" | "doc" | "slack"; target: string; mode: "live" | "after"; face?: boolean };
+export type ScribeRoute = {
+  kind: "session" | "doc" | "slack";
+  target: string;
+  mode: "live" | "after";
+  face?: boolean;
+};
 
 export type ScribeStatus = {
   active: boolean;
@@ -137,7 +145,12 @@ export type ScribeEngine = {
    *  only thing `detach` needs. A repeat attach with the same track is
    *  ignored; with a different track it replaces the pipe, because a
    *  restarted microphone keeps its publication and stops its old track. */
-  attach(key: string, track: MediaStreamTrack, speakerId: string, speakerName: string): void;
+  attach(
+    key: string,
+    track: MediaStreamTrack,
+    speakerId: string,
+    speakerName: string,
+  ): void;
   detach(key: string): void;
   /** Milliseconds since `start`, which is the clock every segment offset uses. */
   elapsed(): number;
@@ -172,7 +185,13 @@ export function createScribeEngine(): ScribeEngine {
   let lastFlushAt = 0;
   let gapTimer: ReturnType<typeof setInterval> | null = null;
   let pacing: ScribePacing | null = null;
-  type Segment = { speaker_id: string; speaker_name: string; text: string; t0: number; t1: number };
+  type Segment = {
+    speaker_id: string;
+    speaker_name: string;
+    text: string;
+    t0: number;
+    t1: number;
+  };
   let failedAppends: FailedAppend<Segment>[] = [];
 
   function nowMs(): number {
@@ -186,12 +205,17 @@ export function createScribeEngine(): ScribeEngine {
     const id = transcriptId;
     if (!convex || !id || items.length === 0) return;
     convex
-      .mutation(api.transcripts.appendSegments, { transcript_id: id, segments: items.map((i) => i.segment) })
+      .mutation(api.transcripts.appendSegments, {
+        transcript_id: id,
+        segments: items.map((i) => i.segment),
+      })
       .catch((err) => {
         const settled = settleFailedAppends(failedAppends, items, Date.now());
         failedAppends = settled.queue;
         if (settled.dropped > 0) {
-          emit({ error: `${settled.dropped} line(s) never reached the transcript: ${String(err?.message ?? err).slice(0, 100)}` });
+          emit({
+            error: `${settled.dropped} line(s) never reached the transcript: ${String(err?.message ?? err).slice(0, 100)}`,
+          });
         }
       });
   }
@@ -240,8 +264,21 @@ export function createScribeEngine(): ScribeEngine {
           anySegmentsSinceFlush = true;
           if (pacing?.addressed(text)) addressedSinceFlush = true;
           if (!firstUnflushedAt) firstUnflushedAt = Date.now();
-          emit({ tail: [...status.tail, { speaker: speakerName, text }].slice(-TAIL) });
-          append([{ at: Date.now(), segment: { speaker_id: speakerId, speaker_name: speakerName, text, t0, t1 } }]);
+          emit({
+            tail: [...status.tail, { speaker: speakerName, text }].slice(-TAIL),
+          });
+          append([
+            {
+              at: Date.now(),
+              segment: {
+                speaker_id: speakerId,
+                speaker_name: speakerName,
+                text,
+                t0,
+                t1,
+              },
+            },
+          ]);
         },
         onError: (message) => emit({ error: message }),
         onFailed: (message) => {
@@ -253,7 +290,11 @@ export function createScribeEngine(): ScribeEngine {
           // Token expiry or transient drop: reopen this pipe fresh.
           forget();
           setTimeout(() => {
-            if (status.active && !pipes.has(key) && mediaTrack.readyState === "live") {
+            if (
+              status.active &&
+              !pipes.has(key) &&
+              mediaTrack.readyState === "live"
+            ) {
               attach(key, mediaTrack, speakerId, speakerName);
             }
           }, 1000);
@@ -329,7 +370,9 @@ export function createScribeEngine(): ScribeEngine {
           addressedSinceFlush = false;
           firstUnflushedAt = 0;
           lastFlushAt = now;
-          convex.mutation(api.transcripts.flush, { transcript_id: transcriptId }).catch(() => {});
+          convex
+            .mutation(api.transcripts.flush, { transcript_id: transcriptId })
+            .catch(() => {});
         }
       }, 1000);
       return transcriptId;
@@ -360,7 +403,9 @@ export function createScribeEngine(): ScribeEngine {
       // pressed it after. A huddle does not ask for this: its transcript ends
       // when the room empties, long after anyone stopped talking.
       if (opts?.graceful) {
-        await Promise.all([...pipes.values()].map((p) => p.finish().catch(() => {})));
+        await Promise.all(
+          [...pipes.values()].map((p) => p.finish().catch(() => {})),
+        );
       }
       // One last try for words an append lost; the run is over after this.
       if (failedAppends.length) append(failedAppends.splice(0));
@@ -369,9 +414,17 @@ export function createScribeEngine(): ScribeEngine {
       gapTimer = null;
       pacing = null;
       transcriptId = null;
-      emit({ active: false, transcriptId: null, trackCount: 0, tail: [], startedAt: null });
+      emit({
+        active: false,
+        transcriptId: null,
+        trackCount: 0,
+        tail: [],
+        startedAt: null,
+      });
       if (client && id && !opts?.keepLive) {
-        await client.mutation(api.transcripts.stop, { transcript_id: id }).catch(() => {});
+        await client
+          .mutation(api.transcripts.stop, { transcript_id: id })
+          .catch(() => {});
       }
     },
   };

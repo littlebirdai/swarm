@@ -41,13 +41,24 @@ describe("setupSteps", () => {
 
   test("a team of one is not done sharing in full, whatever its level", () => {
     const steps = setupSteps(facts({ team: team() }));
-    expect(steps.find((s) => s.key === "share_full")).toMatchObject({ done: false, state: "Needs a teammate" });
+    expect(steps.find((s) => s.key === "share_full")).toMatchObject({
+      done: false,
+      state: "Needs a teammate",
+    });
     expect(keyOf(nextStep(steps))).toBe("invite");
   });
 
   test("team features show only for an admin; notifications only where they apply", () => {
-    expect(setupSteps(facts({ team: team({ isAdmin: false }) })).some((s) => s.key === "team_features")).toBe(false);
-    expect(setupSteps(facts({ notifications: "n/a" })).some((s) => s.key === "notifications")).toBe(false);
+    expect(
+      setupSteps(facts({ team: team({ isAdmin: false }) })).some(
+        (s) => s.key === "team_features",
+      ),
+    ).toBe(false);
+    expect(
+      setupSteps(facts({ notifications: "n/a" })).some(
+        (s) => s.key === "notifications",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -55,28 +66,56 @@ describe("pickSetupNudge", () => {
   const now = 1_000_000_000_000;
 
   test("asks nothing before a computer is connected", () => {
-    expect(pickSetupNudge(setupSteps(facts({ connected: false })), {}, now)).toBeNull();
+    expect(
+      pickSetupNudge(setupSteps(facts({ connected: false })), {}, now),
+    ).toBeNull();
   });
 
   test("asks for the first undone step in order", () => {
     expect(keyOf(pickSetupNudge(setupSteps(facts()), {}, now))).toBe("team");
-    expect(keyOf(pickSetupNudge(setupSteps(facts({ team: team({ member_count: 3 }) })), {}, now))).toBe("share_repo");
     expect(
-      keyOf(pickSetupNudge(setupSteps(facts({ team: team({ member_count: 3, shared_project_count: 2 }) })), {}, now)),
+      keyOf(
+        pickSetupNudge(
+          setupSteps(facts({ team: team({ member_count: 3 }) })),
+          {},
+          now,
+        ),
+      ),
+    ).toBe("share_repo");
+    expect(
+      keyOf(
+        pickSetupNudge(
+          setupSteps(
+            facts({ team: team({ member_count: 3, shared_project_count: 2 }) }),
+          ),
+          {},
+          now,
+        ),
+      ),
     ).toBe("agents");
   });
 
   test("a snoozed step holds the strip back instead of skipping to a later ask", () => {
-    const dismissed = { [nudgeSnoozeKey("team")]: now - 1000, [nudgeCountKey("team")]: 1 };
+    const dismissed = {
+      [nudgeSnoozeKey("team")]: now - 1000,
+      [nudgeCountKey("team")]: 1,
+    };
     expect(pickSetupNudge(setupSteps(facts()), dismissed, now)).toBeNull();
   });
 
   test("each dismiss holds longer", () => {
     const steps = setupSteps(facts());
-    const at = (n: number, ago: number) => ({ [nudgeSnoozeKey("team")]: now - ago, [nudgeCountKey("team")]: n });
-    expect(pickSetupNudge(steps, at(1, NUDGE_SNOOZES[0] + 1), now)).not.toBeNull();
+    const at = (n: number, ago: number) => ({
+      [nudgeSnoozeKey("team")]: now - ago,
+      [nudgeCountKey("team")]: n,
+    });
+    expect(
+      pickSetupNudge(steps, at(1, NUDGE_SNOOZES[0] + 1), now),
+    ).not.toBeNull();
     expect(pickSetupNudge(steps, at(2, NUDGE_SNOOZES[0] + 1), now)).toBeNull();
-    expect(pickSetupNudge(steps, at(2, NUDGE_SNOOZES[1] + 1), now)).not.toBeNull();
+    expect(
+      pickSetupNudge(steps, at(2, NUDGE_SNOOZES[1] + 1), now),
+    ).not.toBeNull();
     expect(pickSetupNudge(steps, at(9, NUDGE_SNOOZES[2] + 1), now)).toBeNull();
   });
 });

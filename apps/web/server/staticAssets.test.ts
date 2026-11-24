@@ -3,7 +3,13 @@ import { Hono } from "hono";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { isBuildArtifactPath, registerHashedAssets, registerMissingArtifactGuard, registerStableEntryPoints, STABLE_ENTRY_POINTS } from "./staticAssets";
+import {
+  isBuildArtifactPath,
+  registerHashedAssets,
+  registerMissingArtifactGuard,
+  registerStableEntryPoints,
+  STABLE_ENTRY_POINTS,
+} from "./staticAssets";
 
 // Mirrors the prod registration order in index.ts: hashed assets first, the
 // missing-artifact guard after static serving, the SPA shell last.
@@ -13,7 +19,10 @@ let app: Hono;
 beforeAll(async () => {
   dist = await mkdtemp(join(tmpdir(), "cc-static-"));
   await mkdir(join(dist, "assets"));
-  await writeFile(join(dist, "assets", "CommandPalette-DoysUxap.js"), "export const live = 1;\n");
+  await writeFile(
+    join(dist, "assets", "CommandPalette-DoysUxap.js"),
+    "export const live = 1;\n",
+  );
   await writeFile(join(dist, "sw.js"), "// worker\n");
   await writeFile(join(dist, "registerSW.js"), "// register\n");
   await writeFile(join(dist, "manifest.webmanifest"), "{}\n");
@@ -63,7 +72,12 @@ describe("build artifacts never fall through to the SPA shell", () => {
     registerStableEntryPoints(empty);
     registerMissingArtifactGuard(empty);
     empty.get("*", (c) => c.html("<!DOCTYPE html><html>shell</html>"));
-    for (const path of ["/workbox-fed2bdfe.js", "/sw.js", "/registerSW.js", "/manifest.webmanifest"]) {
+    for (const path of [
+      "/workbox-fed2bdfe.js",
+      "/sw.js",
+      "/registerSW.js",
+      "/manifest.webmanifest",
+    ]) {
       const res = await empty.request(path);
       expect(res.status).toBe(404);
       expect(res.headers.get("cache-control") ?? "").toContain("no-store");
@@ -71,7 +85,12 @@ describe("build artifacts never fall through to the SPA shell", () => {
   });
 
   test("app routes still reach the shell, including dotted paths outside /assets", async () => {
-    for (const path of ["/inbox", "/conversation/abc123", "/repo/owner/name/src/index.js", "/u/first.last"]) {
+    for (const path of [
+      "/inbox",
+      "/conversation/abc123",
+      "/repo/owner/name/src/index.js",
+      "/u/first.last",
+    ]) {
       const res = await app.request(path);
       expect(res.status).toBe(200);
       expect(await res.text()).toContain("shell");

@@ -1,14 +1,28 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { batchStatements, createWriteBehind } from "../idbCacheWriteBehind.native";
+import {
+  batchStatements,
+  createWriteBehind,
+} from "../idbCacheWriteBehind.native";
 
 // kv-store's own table, as expo-sqlite creates it.
 function kvTable() {
   const db = new Database(":memory:");
-  db.run("CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY NOT NULL, value TEXT);");
-  const all = () => Object.fromEntries((db.query("SELECT key, value FROM storage ORDER BY key").all() as Array<{ key: string; value: string }>).map((r) => [r.key, r.value]));
+  db.run(
+    "CREATE TABLE IF NOT EXISTS storage (key TEXT PRIMARY KEY NOT NULL, value TEXT);",
+  );
+  const all = () =>
+    Object.fromEntries(
+      (
+        db.query("SELECT key, value FROM storage ORDER BY key").all() as Array<{
+          key: string;
+          value: string;
+        }>
+      ).map((r) => [r.key, r.value]),
+    );
   const run = (puts: Array<[string, string]>, removes: string[]) => {
-    for (const { sql, params } of batchStatements(puts, removes)) db.run(sql, params);
+    for (const { sql, params } of batchStatements(puts, removes))
+      db.run(sql, params);
   };
   return { db, all, run };
 }
@@ -17,14 +31,24 @@ function kvTable() {
 function recorder() {
   const disk = new Map<string, string>();
   const perKey: string[] = [];
-  const batches: Array<{ puts: Array<[string, string]>; removes: string[] }> = [];
+  const batches: Array<{ puts: Array<[string, string]>; removes: string[] }> =
+    [];
   let gate: Promise<void> = Promise.resolve();
   let failBatches = false;
   const storage = {
-    async setItem(key: string, value: string) { perKey.push(`set ${key}`); disk.set(key, value); },
-    async removeItem(key: string) { perKey.push(`remove ${key}`); disk.delete(key); },
+    async setItem(key: string, value: string) {
+      perKey.push(`set ${key}`);
+      disk.set(key, value);
+    },
+    async removeItem(key: string) {
+      perKey.push(`remove ${key}`);
+      disk.delete(key);
+    },
   };
-  const writeBatch = async (puts: Array<[string, string]>, removes: string[]) => {
+  const writeBatch = async (
+    puts: Array<[string, string]>,
+    removes: string[],
+  ) => {
     batches.push({ puts, removes });
     await gate;
     if (failBatches) throw new Error("database is locked");
@@ -32,9 +56,21 @@ function recorder() {
     for (const k of removes) disk.delete(k);
   };
   return {
-    disk, perKey, batches, storage, writeBatch,
-    hold() { let open!: () => void; gate = new Promise<void>((r) => { open = r; }); return open; },
-    failBatches(on: boolean) { failBatches = on; },
+    disk,
+    perKey,
+    batches,
+    storage,
+    writeBatch,
+    hold() {
+      let open!: () => void;
+      gate = new Promise<void>((r) => {
+        open = r;
+      });
+      return open;
+    },
+    failBatches(on: boolean) {
+      failBatches = on;
+    },
   };
 }
 
@@ -45,25 +81,58 @@ describe("batchStatements", () => {
 
   test("puts insert new keys and overwrite held ones in one statement", () => {
     const t = kvTable();
-    t.run([["a", "1"], ["b", "2"]], []);
-    t.run([["b", "two"], ["c", "3"]], []);
+    t.run(
+      [
+        ["a", "1"],
+        ["b", "2"],
+      ],
+      [],
+    );
+    t.run(
+      [
+        ["b", "two"],
+        ["c", "3"],
+      ],
+      [],
+    );
     expect(t.all()).toEqual({ a: "1", b: "two", c: "3" });
-    expect(batchStatements([["b", "two"], ["c", "3"]], [])).toHaveLength(1);
+    expect(
+      batchStatements(
+        [
+          ["b", "two"],
+          ["c", "3"],
+        ],
+        [],
+      ),
+    ).toHaveLength(1);
   });
 
   test("removes delete their keys and leave the rest", () => {
     const t = kvTable();
-    t.run([["a", "1"], ["b", "2"], ["c", "3"]], []);
+    t.run(
+      [
+        ["a", "1"],
+        ["b", "2"],
+        ["c", "3"],
+      ],
+      [],
+    );
     t.run([["d", "4"]], ["a", "c", "never-there"]);
     expect(t.all()).toEqual({ b: "2", d: "4" });
   });
 
   test("a full batch of rows with quotes and newlines round-trips", () => {
     const t = kvTable();
-    const puts = Array.from({ length: 64 }, (_, i): [string, string] => [`col:sessions:${i}`, JSON.stringify({ _id: i, title: `it's "row" ${i}\n?` })]);
+    const puts = Array.from({ length: 64 }, (_, i): [string, string] => [
+      `col:sessions:${i}`,
+      JSON.stringify({ _id: i, title: `it's "row" ${i}\n?` }),
+    ]);
     t.run(puts, []);
     expect(Object.keys(t.all())).toHaveLength(64);
-    expect(JSON.parse(t.all()["col:sessions:7"])).toEqual({ _id: 7, title: `it's "row" 7\n?` });
+    expect(JSON.parse(t.all()["col:sessions:7"])).toEqual({
+      _id: 7,
+      title: `it's "row" 7\n?`,
+    });
   });
 });
 
@@ -108,7 +177,10 @@ describe("write-behind with a batch writer", () => {
     open();
     await draining;
     expect(r.batches).toHaveLength(2);
-    expect(r.batches[1].puts).toEqual([["a", "2"], ["b", "3"]]);
+    expect(r.batches[1].puts).toEqual([
+      ["a", "2"],
+      ["b", "3"],
+    ]);
     expect(r.disk.get("a")).toBe("2");
   });
 
@@ -173,10 +245,15 @@ describe("write-behind with a batch writer", () => {
     const r = recorder();
     const w = createWriteBehind(r.storage, r.writeBatch);
     w.scheduleWrite("a", () => "1");
-    w.scheduleWrite("bad", () => { throw new Error("cyclic"); });
+    w.scheduleWrite("bad", () => {
+      throw new Error("cyclic");
+    });
     w.scheduleWrite("c", () => "3");
     await w.flush();
-    expect(r.batches[0].puts).toEqual([["a", "1"], ["c", "3"]]);
+    expect(r.batches[0].puts).toEqual([
+      ["a", "1"],
+      ["c", "3"],
+    ]);
   });
 
   test("clearScheduled forgets what has not started and settleInflight waits out what has", async () => {

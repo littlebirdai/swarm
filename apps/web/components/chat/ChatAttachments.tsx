@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { attachmentKind, type ChatAttachmentView } from "./chatTypes";
-import { useStorageImageSrc, useStorageImageUrl } from "../../hooks/useStorageImageUrl";
+import {
+  useStorageImageSrc,
+  useStorageImageUrl,
+} from "../../hooks/useStorageImageUrl";
 import { VoicePlayButton } from "./ChatVoiceBubble";
 import { ImageLightbox } from "../ImageGallery";
 
@@ -10,7 +13,13 @@ import { ImageLightbox } from "../ImageGallery";
  *  seen image paints locally and offline), opens the shared lightbox.
  *  A tile that is still resolving keeps its footprint (no reflow when the URL
  *  lands); one that failed says so instead of leaving a hole. */
-function AttachmentTile({ att, onOpen }: { att: ChatAttachmentView; onOpen: (src: string) => void }) {
+function AttachmentTile({
+  att,
+  onOpen,
+}: {
+  att: ChatAttachmentView;
+  onOpen: (src: string) => void;
+}) {
   const url = useStorageImageSrc(att.storage_id);
   // Sent before its upload finished: the local preview, until the store
   // delivers the message with the stored image.
@@ -32,7 +41,11 @@ function AttachmentTile({ att, onOpen }: { att: ChatAttachmentView; onOpen: (src
       onClick={() => url && onOpen(url)}
       title={att.name || "View image"}
     >
-      {url ? <img src={url} alt={att.name || "attachment"} loading="lazy" /> : <span className="ch-att-loading" />}
+      {url ? (
+        <img src={url} alt={att.name || "attachment"} loading="lazy" />
+      ) : (
+        <span className="ch-att-loading" />
+      )}
     </button>
   );
 }
@@ -42,7 +55,8 @@ function AttachmentTile({ att, onOpen }: { att: ChatAttachmentView; onOpen: (src
  *  so a scrolled-past video costs nothing until someone presses play. */
 function VideoTile({ att }: { att: ChatAttachmentView }) {
   const url = useStorageImageUrl(att.storage_id);
-  if (url === null) return <span className="ch-att ch-att-missing">video unavailable</span>;
+  if (url === null)
+    return <span className="ch-att ch-att-missing">video unavailable</span>;
   if (!url) return <span className="ch-att ch-att-loading" />;
   return (
     <video
@@ -52,7 +66,11 @@ function VideoTile({ att }: { att: ChatAttachmentView }) {
       playsInline
       preload="metadata"
       title={att.name}
-      style={att.width && att.height ? { aspectRatio: `${att.width} / ${att.height}` } : undefined}
+      style={
+        att.width && att.height
+          ? { aspectRatio: `${att.width} / ${att.height}` }
+          : undefined
+      }
     />
   );
 }
@@ -78,27 +96,41 @@ export function ChatAttachments({
   return (
     <>
       {audio.map((att) => (
-        <div className="ch-voice ch-voice-att" key={att.storage_id || att.preview_url}>
+        <div
+          className="ch-voice ch-voice-att"
+          key={att.storage_id || att.preview_url}
+        >
           {/* One player is shared by the whole app, so the key has to name this
               recording and not just its message. */}
-          <VoicePlayButton playKey={`${messageId}:${att.storage_id}`} att={att} />
+          <VoicePlayButton
+            playKey={`${messageId}:${att.storage_id}`}
+            att={att}
+          />
           <span className="ch-voice-text">{att.name || "recording"}</span>
         </div>
       ))}
       {/* Videos never tile: a square crop hides most of a frame. */}
       {videos.length > 0 && (
         <div className="ch-atts">
-          {videos.map((att) => <VideoTile key={att.storage_id} att={att} />)}
+          {videos.map((att) => (
+            <VideoTile key={att.storage_id} att={att} />
+          ))}
         </div>
       )}
       {images.length > 0 && (
         <div className={`ch-atts ${images.length > 1 ? "ch-atts-grid" : ""}`}>
           {images.map((att) => (
-            <AttachmentTile key={att.storage_id || att.preview_url} att={att} onOpen={setLightbox} />
+            <AttachmentTile
+              key={att.storage_id || att.preview_url}
+              att={att}
+              onOpen={setLightbox}
+            />
           ))}
         </div>
       )}
-      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && (
+        <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />
+      )}
     </>
   );
 }

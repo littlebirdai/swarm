@@ -13,7 +13,10 @@ export interface ShortcutSection {
 }
 
 /** `flowsOn`: the workspace has the Flows feature on (teamFeatures "line"). */
-export function visibleShortcutSections(flowsOn: boolean, defsIn: (when: string | undefined) => ShortcutDef[]): ShortcutSection[] {
+export function visibleShortcutSections(
+  flowsOn: boolean,
+  defsIn: (when: string | undefined) => ShortcutDef[],
+): ShortcutSection[] {
   const seen = new Set<string>();
   const out: ShortcutSection[] = [];
   for (const { when, label, accent } of HELP_SECTIONS) {

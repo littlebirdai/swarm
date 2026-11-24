@@ -80,8 +80,12 @@ describe("heading sections", () => {
 
   test("a heading written in slug form still lands", () => {
     expect(section("a-risky-heading").missing).toBe(true);
-    expect(extractEmbedSection("# Café Réunion\n\nbody", { subpath: "café-réunion", subpathType: "heading" })
-      .content).toContain("# Café Réunion");
+    expect(
+      extractEmbedSection("# Café Réunion\n\nbody", {
+        subpath: "café-réunion",
+        subpathType: "heading",
+      }).content,
+    ).toContain("# Café Réunion");
   });
 
   test("case is ignored", () => {
@@ -101,7 +105,11 @@ describe("block ids", () => {
   test("a list item carries its indented continuation and nested items", () => {
     const out = section("one", "block");
     expect(out.kind).toBe("block");
-    expect(out.content).toBe(["- item one ^one", "  continued under the item", "  - nested item"].join("\n"));
+    expect(out.content).toBe(
+      ["- item one ^one", "  continued under the item", "  - nested item"].join(
+        "\n",
+      ),
+    );
     expect(out.content).not.toContain("Outside the item.");
   });
 
@@ -112,13 +120,21 @@ describe("block ids", () => {
 
   test("an id on a plain paragraph line embeds that line", () => {
     const src = "Intro.\n\nThe claim itself. ^claim\n\nAfter.";
-    const out = extractEmbedSection(src, { subpath: "claim", subpathType: "block" }, parseNote(src));
+    const out = extractEmbedSection(
+      src,
+      { subpath: "claim", subpathType: "block" },
+      parseNote(src),
+    );
     expect(out.content).toBe("The claim itself. ^claim");
   });
 
   test("a multi-line paragraph above a bare id comes along whole", () => {
     const src = "# H\n\nline one\nline two\n\n^p\n";
-    const out = extractEmbedSection(src, { subpath: "p", subpathType: "block" }, parseNote(src));
+    const out = extractEmbedSection(
+      src,
+      { subpath: "p", subpathType: "block" },
+      parseNote(src),
+    );
     expect(out.content).toBe("line one\nline two");
   });
 
@@ -137,7 +153,11 @@ describe("line endings", () => {
   const CRLF = NOTE.replace(/\n/g, "\r\n");
 
   test("CRLF content slices on the same lines and renders without stray returns", () => {
-    const out = extractEmbedSection(CRLF, { subpath: "Plan", subpathType: "heading" }, parseNote(CRLF));
+    const out = extractEmbedSection(
+      CRLF,
+      { subpath: "Plan", subpathType: "heading" },
+      parseNote(CRLF),
+    );
     expect(out.content).toContain("## Plan");
     expect(out.content).toContain("### Details");
     expect(out.content).not.toContain("\r");
@@ -153,7 +173,10 @@ describe("line endings", () => {
 
 describe("without a prebuilt parse", () => {
   test("the helper parses the content itself when the index has nothing", () => {
-    const out = extractEmbedSection(NOTE, { subpath: "Risks", subpathType: "heading" });
+    const out = extractEmbedSection(NOTE, {
+      subpath: "Risks",
+      subpathType: "heading",
+    });
     expect(out.content).toContain("## Risks");
     expect(out.content).toContain("A risky paragraph.");
   });
@@ -164,12 +187,18 @@ describe("without a prebuilt parse", () => {
 // and silently dropped the continuation (review finding, R12).
 test("block embed keeps continuations when tabs and spaces mix", () => {
   const mixed = "  - Parent item ^blk1\n\tChild continuation\n- Sibling\n";
-  const out = extractEmbedSection(mixed, { subpath: "blk1", subpathType: "block" });
+  const out = extractEmbedSection(mixed, {
+    subpath: "blk1",
+    subpathType: "block",
+  });
   expect(out.content).toContain("Parent item");
   expect(out.content).toContain("Child continuation");
   expect(out.content).not.toContain("Sibling");
 
   const allTabs = "\t- Parent item ^blk2\n\t\tChild continuation\n";
-  const out2 = extractEmbedSection(allTabs, { subpath: "blk2", subpathType: "block" });
+  const out2 = extractEmbedSection(allTabs, {
+    subpath: "blk2",
+    subpathType: "block",
+  });
   expect(out2.content).toContain("Child continuation");
 });

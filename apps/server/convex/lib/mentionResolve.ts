@@ -26,7 +26,10 @@ import { installationsForTeam } from "./slackOutbound";
 
 type ReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
 
-export async function teamRoster(ctx: ReadCtx, teamId: Id<"teams">): Promise<Doc<"users">[]> {
+export async function teamRoster(
+  ctx: ReadCtx,
+  teamId: Id<"teams">,
+): Promise<Doc<"users">[]> {
   const memberships = await ctx.db
     .query("team_memberships")
     .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
@@ -123,28 +126,38 @@ export async function slackPersonForHandle(
   if (!want) return null;
   const exact = await ctx.db
     .query("slack_users")
-    .withIndex("by_workspace_handle", (q: any) => q.eq("workspace_id", workspaceId).eq("handle", want))
+    .withIndex("by_workspace_handle", (q: any) =>
+      q.eq("workspace_id", workspaceId).eq("handle", want),
+    )
     .first();
   if (exact && !exact.deleted) return exact;
   const rows = (await ctx.db
     .query("slack_users")
-    .withIndex("by_workspace_user", (q: any) => q.eq("workspace_id", workspaceId))
+    .withIndex("by_workspace_user", (q: any) =>
+      q.eq("workspace_id", workspaceId),
+    )
     .take(SLACK_PEOPLE_SCAN)) as Doc<"slack_users">[];
-  const live = rows.filter((r) => !r.deleted && r.slack_user_id !== "USLACKBOT");
+  const live = rows.filter(
+    (r) => !r.deleted && r.slack_user_id !== "USLACKBOT",
+  );
   const firstWord = (value: string | undefined): string | null =>
     botHandle(value?.trim().split(/\s+/)[0]);
-  const one = (match: (r: Doc<"slack_users">) => boolean): Doc<"slack_users"> | null => {
+  const one = (
+    match: (r: Doc<"slack_users">) => boolean,
+  ): Doc<"slack_users"> | null => {
     const hits = live.filter(match);
     return hits.length === 1 ? hits[0] : null;
   };
   return (
-    one((r) =>
-      (r.handle ?? "").toLowerCase() === want ||
-      botHandle(r.handle) === want ||
-      botHandle(r.name) === want ||
-      botHandle(r.real_name) === want ||
-      emailLocalHandle(r.email) === want)
-    ?? one((r) => firstWord(r.name) === want || firstWord(r.real_name) === want)
+    one(
+      (r) =>
+        (r.handle ?? "").toLowerCase() === want ||
+        botHandle(r.handle) === want ||
+        botHandle(r.name) === want ||
+        botHandle(r.real_name) === want ||
+        emailLocalHandle(r.email) === want,
+    ) ??
+    one((r) => firstWord(r.name) === want || firstWord(r.real_name) === want)
   );
 }
 
@@ -154,7 +167,13 @@ export async function resolveChatMentions(
   content: string,
   senderId: Id<"users">,
 ): Promise<ChatMentions> {
-  const empty: ChatMentions = { users: [], roles: [], sessions: [], slack: [], refs: [] };
+  const empty: ChatMentions = {
+    users: [],
+    roles: [],
+    sessions: [],
+    slack: [],
+    refs: [],
+  };
   const handles = extractMentionHandles(content);
   if (handles.length === 0) return empty;
   let users = await resolveMentions(ctx, teamId, content, senderId);
@@ -167,7 +186,9 @@ export async function resolveChatMentions(
   // everything codecast knows.
   let workspaceIds: string[] | undefined;
   const slackPersonFor = async (handle: string) => {
-    workspaceIds ??= (await installationsForTeam(ctx, teamId)).map((i) => i.workspace_id);
+    workspaceIds ??= (await installationsForTeam(ctx, teamId)).map(
+      (i) => i.workspace_id,
+    );
     for (const workspace of workspaceIds) {
       const hit = await slackPersonForHandle(ctx, workspace, handle);
       if (hit) return hit;
@@ -175,13 +196,18 @@ export async function resolveChatMentions(
     return null;
   };
   // The team's role, then the sender's personal one; never a retired seat.
-  const roleByHandle = async (handle: string): Promise<Doc<"org_roles"> | null> =>
-    (await liveRoleByHandle(ctx, { team_id: teamId }, handle)) ?? (await liveRoleByHandle(ctx, { scope_user_id: senderId }, handle));
+  const roleByHandle = async (
+    handle: string,
+  ): Promise<Doc<"org_roles"> | null> =>
+    (await liveRoleByHandle(ctx, { team_id: teamId }, handle)) ??
+    (await liveRoleByHandle(ctx, { scope_user_id: senderId }, handle));
   // A role's standing agent is a bot named after the role ("Market Growth
   // lead" answers to @marketgrowthlead), so its own handle is a second name
   // for the seat: the mention reaches the role, not the bot. Same boundary as
   // roleByHandle.
-  const roleOfBot = async (botId: Id<"users">): Promise<Doc<"org_roles"> | null> => {
+  const roleOfBot = async (
+    botId: Id<"users">,
+  ): Promise<Doc<"org_roles"> | null> => {
     const anchor = await ctx.db
       .query("anchors")
       .withIndex("by_bot_user", (q: any) => q.eq("bot_user_id", botId))
@@ -197,7 +223,9 @@ export async function resolveChatMentions(
   const workspaceAgentRole = async (): Promise<Doc<"org_roles"> | null> => {
     for (const boundary of [{ team_id: teamId }, { scope_user_id: senderId }]) {
       const seat = await workspaceAnchorFor(ctx, boundary);
-      const role = seat?.org_role_id ? ((await ctx.db.get(seat.org_role_id)) as Doc<"org_roles"> | null) : null;
+      const role = seat?.org_role_id
+        ? ((await ctx.db.get(seat.org_role_id)) as Doc<"org_roles"> | null)
+        : null;
       if (role) return role;
     }
     return null;
@@ -207,7 +235,10 @@ export async function resolveChatMentions(
     // (anchors.workspaceAgentRoleOf). The bot named Anchor is its identity, so the mention reaches
     // the seat, not the bot. `@chief-of-staff` reaches the Head of People
     // through rolesByHandle's legacy rule.
-    const handle = written.toLowerCase() === ANCHOR_ALIAS ? (await workspaceAgentRole())?.handle ?? written : written;
+    const handle =
+      written.toLowerCase() === ANCHOR_ALIAS
+        ? ((await workspaceAgentRole())?.handle ?? written)
+        : written;
     const person = matchHandle(roster, written);
     if (person && !person.is_bot) continue;
     if (SESSION_SHORT_ID_RE.test(handle)) {
@@ -222,10 +253,13 @@ export async function resolveChatMentions(
       }
       continue;
     }
-    const role = (await roleByHandle(handle)) ?? (person ? await roleOfBot(person._id) : null);
+    const role =
+      (await roleByHandle(handle)) ??
+      (person ? await roleOfBot(person._id) : null);
     if (role && role.status !== "retired") {
       // The role wins over its own bot: one handle names one party.
-      if (person) users = users.filter((id) => id.toString() !== person._id.toString());
+      if (person)
+        users = users.filter((id) => id.toString() !== person._id.toString());
       if (seen.has(String(role._id))) continue;
       seen.add(String(role._id));
       roles.push(role);
@@ -239,17 +273,29 @@ export async function resolveChatMentions(
       // resolveMentions, so a mapping to someone who has since left the team
       // cannot page them from outside it.
       const teammate = slackPerson.codecast_user_id;
-      const member = roster.some((u) => u._id.toString() === teammate.toString());
-      if (member && !users.some((id) => id.toString() === teammate.toString())) users.push(teammate);
+      const member = roster.some(
+        (u) => u._id.toString() === teammate.toString(),
+      );
+      if (member && !users.some((id) => id.toString() === teammate.toString()))
+        users.push(teammate);
       continue;
     }
     if (seen.has(`slack:${slackPerson.slack_user_id}`)) continue;
     seen.add(`slack:${slackPerson.slack_user_id}`);
-    slack.push({ user: slackPerson.slack_user_id, handle: slackPerson.handle ?? handle, name: slackPerson.name });
+    slack.push({
+      user: slackPerson.slack_user_id,
+      handle: slackPerson.handle ?? handle,
+      name: slackPerson.name,
+    });
   }
   const refs: ChatMentionRef[] = [
     ...users.map((id) => id.toString()),
-    ...roles.map((r) => ({ kind: "role" as const, role_id: r._id.toString(), short_id: r.short_id, handle: r.handle })),
+    ...roles.map((r) => ({
+      kind: "role" as const,
+      role_id: r._id.toString(),
+      short_id: r.short_id,
+      handle: r.handle,
+    })),
     ...sessions.map((c) => ({
       kind: "session" as const,
       conversation_id: c._id.toString(),
@@ -265,7 +311,9 @@ export async function resolveChatMentions(
 export function sessionRefsIn(content: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const match of content.matchAll(entityMentionRegex({ requireId: true }))) {
+  for (const match of content.matchAll(
+    entityMentionRegex({ requireId: true }),
+  )) {
     const id = (match[2] ?? "").trim();
     if (!id || !/^(jx\w+|[a-z0-9]{32})$/i.test(id)) continue;
     const key = id.toLowerCase();
@@ -288,7 +336,11 @@ export async function resolveSessionMentions(
   const out: Doc<"conversations">[] = [];
   const seen = new Set<string>();
   for (const ref of sessionRefsIn(content)) {
-    const conversation = await findConversationByAnyRefWhere(ctx as any, ref, accept as any);
+    const conversation = await findConversationByAnyRefWhere(
+      ctx as any,
+      ref,
+      accept as any,
+    );
     if (!conversation || seen.has(String(conversation._id))) continue;
     seen.add(String(conversation._id));
     out.push(conversation as Doc<"conversations">);

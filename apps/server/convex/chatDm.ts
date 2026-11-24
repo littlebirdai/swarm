@@ -39,22 +39,40 @@ export async function dmSessionLineAnswered(
   channel: Doc<"chat_channels">,
   message: Doc<"chat_messages">,
 ): Promise<Doc<"chat_messages"> | null> {
-  if (channel.kind !== "dm" || message.thread_root_id || message.origin === "agent" || message.author_kind === "agent") return null;
+  if (
+    channel.kind !== "dm" ||
+    message.thread_root_id ||
+    message.origin === "agent" ||
+    message.author_kind === "agent"
+  )
+    return null;
   // A session's own DM room (or any room with agent members) hands every line
   // to its members already (deliverToChannelAgents).
-  if (await dmAnchorFor(ctx, channel) || (await channelAgentRows(ctx, channel._id)).length > 0) return null;
+  if (
+    (await dmAnchorFor(ctx, channel)) ||
+    (await channelAgentRows(ctx, channel._id)).length > 0
+  )
+    return null;
   const recent = await ctx.db
     .query("chat_messages")
-    .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id).lt("created_at", message.created_at))
+    .withIndex("by_channel_created", (q: any) =>
+      q.eq("channel_id", channel._id).lt("created_at", message.created_at),
+    )
     .order("desc")
     .filter((q) => q.eq(q.field("thread_root_id"), undefined))
     .take(DM_ANSWER_SCAN);
   for (const row of recent) {
     if (row.deleted_at || row.agent_status || isSilentAgentRow(row)) continue;
-    const sessionLine = row.origin === "agent" && !!row.origin_session_id && row.author_kind !== "agent";
+    const sessionLine =
+      row.origin === "agent" &&
+      !!row.origin_session_id &&
+      row.author_kind !== "agent";
     // The sender's own earlier lines ("hm", then "do it") answer the same line.
-    if (String(row.user_id) === String(message.user_id) && !sessionLine) continue;
-    return sessionLine && String(row.user_id) !== String(message.user_id) ? row : null;
+    if (String(row.user_id) === String(message.user_id) && !sessionLine)
+      continue;
+    return sessionLine && String(row.user_id) !== String(message.user_id)
+      ? row
+      : null;
   }
   return null;
 }
@@ -70,10 +88,19 @@ export async function dmExchange(
   const rows = await ctx.db
     .query("chat_messages")
     .withIndex("by_channel_created", (q: any) =>
-      q.eq("channel_id", channel._id).gte("created_at", asked.created_at).lte("created_at", answer.created_at))
+      q
+        .eq("channel_id", channel._id)
+        .gte("created_at", asked.created_at)
+        .lte("created_at", answer.created_at),
+    )
     .filter((q) => q.eq(q.field("thread_root_id"), undefined))
     .take(DM_ANSWER_SCAN + 2);
   return rows
-    .filter((row) => !row.deleted_at && !row.agent_status && !isSilentAgentRow(row))
-    .map((row) => ({ name: isSelf(row) ? "You (earlier)" : senderName, content: row.content }));
+    .filter(
+      (row) => !row.deleted_at && !row.agent_status && !isSilentAgentRow(row),
+    )
+    .map((row) => ({
+      name: isSelf(row) ? "You (earlier)" : senderName,
+      content: row.content,
+    }));
 }

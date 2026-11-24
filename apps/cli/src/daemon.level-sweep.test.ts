@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { codeLines, functionBlock, intervalBlocks } from "./test-helpers/sourceRegion.js";
+import {
+  codeLines,
+  functionBlock,
+  intervalBlocks,
+} from "./test-helpers/sourceRegion.js";
 
 // The level sweep keeps shared and line checkouts on their upstream. It rode
 // the session heartbeat's maintenance pass, which runs only while a session is
@@ -10,17 +14,31 @@ import { codeLines, functionBlock, intervalBlocks } from "./test-helpers/sourceR
 
 const source = readFileSync(new URL("./daemon.ts", import.meta.url), "utf8");
 
-function runLevelSweepWith(deps: { sweep: (ids: string[]) => Promise<void>; sessions: () => string[]; log: (m: string) => void }) {
-  const code = new Bun.Transpiler({ loader: "ts" }).transformSync(functionBlock(source, "runLevelSweep").text);
-  return new Function("levelSweepInProgress", "sweepLevelCheckouts", "currentHeartbeatSessions", "log", `${code}; return runLevelSweep;`)(
-    false, deps.sweep, deps.sessions, deps.log,
-  ) as () => Promise<void>;
+function runLevelSweepWith(deps: {
+  sweep: (ids: string[]) => Promise<void>;
+  sessions: () => string[];
+  log: (m: string) => void;
+}) {
+  const code = new Bun.Transpiler({ loader: "ts" }).transformSync(
+    functionBlock(source, "runLevelSweep").text,
+  );
+  return new Function(
+    "levelSweepInProgress",
+    "sweepLevelCheckouts",
+    "currentHeartbeatSessions",
+    "log",
+    `${code}; return runLevelSweep;`,
+  )(false, deps.sweep, deps.sessions, deps.log) as () => Promise<void>;
 }
 
 describe("the level sweep's clock", () => {
   test("only runLevelSweep calls the sweep, so no session gate sits in front of it", () => {
     const callers = codeLines(source)
-      .filter(({ line }) => line.includes("sweepLevelCheckouts(") && !/function\s+sweepLevelCheckouts\(/.test(line))
+      .filter(
+        ({ line }) =>
+          line.includes("sweepLevelCheckouts(") &&
+          !/function\s+sweepLevelCheckouts\(/.test(line),
+      )
       .map(({ n }) => n);
     const own = functionBlock(source, "runLevelSweep");
     expect(callers.length).toBe(1);
@@ -30,25 +48,51 @@ describe("the level sweep's clock", () => {
 
   test("a level conflict brief goes out as a machine wake with a client id, never as a person's message", () => {
     const sweep = functionBlock(source, "sweepLevelCheckouts").text;
-    expect(sweep).toMatch(/sendMessageToSession\(to, body, "scheduler", clientId\)/);
+    expect(sweep).toMatch(
+      /sendMessageToSession\(to, body, "scheduler", clientId\)/,
+    );
     expect(sweep).not.toContain("/cli/messages/send");
     // The stuck level's ask (checkoutReport.ts) rides the same send.
-    expect(sweep).toMatch(/reportCheckoutsAfterSweep\(outcomes, send \?\?/);
+    expect(sweep).toMatch(
+      /reportCheckoutsAfterSweep\(\s*outcomes,\s*send \?\?/,
+    );
     const report = functionBlock(source, "reportCheckoutsAfterSweep").text;
-    expect(report).toMatch(/reportCheckouts\(outcomes, \{ post, sendBrief,/);
+    expect(report).toMatch(
+      /reportCheckouts\(outcomes, \{\s*post,\s*sendBrief,/,
+    );
     expect(report).not.toContain("/cli/messages/send");
   });
 
   test("daemon start arms it on its own interval", () => {
     const main = functionBlock(source, "main");
-    const lineStart = (n: number) => source.split("\n").slice(0, n - 1).join("\n").length + 1;
-    const timers = intervalBlocks(source, lineStart(main.startLine), lineStart(main.endLine));
-    expect(timers.some((t) => /runLevelSweep\(\)/.test(t.text) && /LEVEL_SWEEP_INTERVAL_MS/.test(t.text))).toBe(true);
+    const lineStart = (n: number) =>
+      source
+        .split("\n")
+        .slice(0, n - 1)
+        .join("\n").length + 1;
+    const timers = intervalBlocks(
+      source,
+      lineStart(main.startLine),
+      lineStart(main.endLine),
+    );
+    expect(
+      timers.some(
+        (t) =>
+          /runLevelSweep\(\)/.test(t.text) &&
+          /LEVEL_SWEEP_INTERVAL_MS/.test(t.text),
+      ),
+    ).toBe(true);
   });
 
   test("a pass with no session still sweeps the configured checkouts", async () => {
     const seen: string[][] = [];
-    const run = runLevelSweepWith({ sweep: async (ids) => { seen.push(ids); }, sessions: () => [], log: () => {} });
+    const run = runLevelSweepWith({
+      sweep: async (ids) => {
+        seen.push(ids);
+      },
+      sessions: () => [],
+      log: () => {},
+    });
     await run();
     expect(seen).toEqual([[]]);
   });
@@ -60,7 +104,10 @@ describe("the level sweep's clock", () => {
     const run = runLevelSweepWith({
       sweep: async () => {
         calls++;
-        if (calls === 1) await new Promise<void>((r) => { release = r; });
+        if (calls === 1)
+          await new Promise<void>((r) => {
+            release = r;
+          });
         if (calls === 2) throw new Error("fetch failed");
       },
       sessions: () => ["s1"],

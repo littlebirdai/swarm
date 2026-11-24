@@ -35,8 +35,21 @@ import { CloudApiError, KeyedCloudApi, verifyCloudKey } from "./http.js";
 import { collectPages, secondsToMs } from "./poll.js";
 import { clonesAnonymously, type CloudAgentSession } from "./sessions.js";
 import { CloudAgentStreams, type CloudStreamSpec } from "./streams.js";
-import { isRunningTurnStatus, MirrorTranscript, turnError } from "./transcript.js";
-import { CloudAgentSetupError, keyedCloudClient, type CloudAgentAdapter, type CloudAgentCreated, type CloudAgentHandle, type CloudAgentListItem, type CloudAgentMirror, type KeyedCloudAdapterOptions } from "./types.js";
+import {
+  isRunningTurnStatus,
+  MirrorTranscript,
+  turnError,
+} from "./transcript.js";
+import {
+  CloudAgentSetupError,
+  keyedCloudClient,
+  type CloudAgentAdapter,
+  type CloudAgentCreated,
+  type CloudAgentHandle,
+  type CloudAgentListItem,
+  type CloudAgentMirror,
+  type KeyedCloudAdapterOptions,
+} from "./types.js";
 import type { ProviderKeyVerdict } from "../providerKeyCrypto.js";
 
 const AGENTS = CLOUD_AGENT_PROVIDERS.codex_api;
@@ -105,9 +118,13 @@ function sessionRecord(s: AgentsSession): AgentsSession {
     id: s.id,
     status: s.status,
     created_at: s.created_at,
-    ...(s.last_active_at !== undefined ? { last_active_at: s.last_active_at } : {}),
+    ...(s.last_active_at !== undefined
+      ? { last_active_at: s.last_active_at }
+      : {}),
     ...(s.error !== undefined ? { error: s.error } : {}),
-    ...(title || repo ? { metadata: { ...(title ? { title } : {}), ...(repo ? { repo } : {}) } } : {}),
+    ...(title || repo
+      ? { metadata: { ...(title ? { title } : {}), ...(repo ? { repo } : {}) } }
+      : {}),
     ...(s.agent?.model ? { agent: { model: s.agent.model } } : {}),
     ...(s.usage ? { usage: { total_tokens: s.usage.total_tokens } } : {}),
   };
@@ -117,7 +134,13 @@ export interface AgentsTurn {
   id: string;
   /** Set on a subagent's turn: only the root agent's turns are the transcript. */
   subagent_id?: string | null;
-  status: "queued" | "in_progress" | "completed" | "failed" | "cancelled" | string;
+  status:
+    | "queued"
+    | "in_progress"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | string;
   created_at: number;
   started_at?: number | null;
   completed_at?: number | null;
@@ -132,7 +155,12 @@ export interface AgentsItem {
   status?: string | null;
   role?: "user" | "assistant";
   phase?: "commentary" | "final_answer" | null;
-  content?: Array<{ type: string; text?: string; image_url?: string; encrypted_content?: string }>;
+  content?: Array<{
+    type: string;
+    text?: string;
+    image_url?: string;
+    encrypted_content?: string;
+  }>;
   summary?: Array<{ type?: string; text?: string }>;
   command?: string;
   cwd?: string | null;
@@ -145,7 +173,13 @@ export interface AgentsItem {
   error?: unknown;
   call_id?: string;
   title?: string | null;
-  action?: { type?: string; query?: string | null; queries?: string[] | null; url?: string | null; pattern?: string | null } | null;
+  action?: {
+    type?: string;
+    query?: string | null;
+    queries?: string[] | null;
+    url?: string | null;
+    pattern?: string | null;
+  } | null;
   agent_id?: string;
   sender_agent_id?: string;
   recipient_agent_id?: string;
@@ -165,17 +199,28 @@ export interface AgentsEvent {
   summary_index?: number;
   delta?: string;
   text?: string;
-  environment?: { status?: string; error?: { message?: string; code?: string } | null };
+  environment?: {
+    status?: string;
+    error?: { message?: string; code?: string } | null;
+  };
   error?: { message?: string; code?: string | null } | null;
 }
 
-interface AgentsPage<T> { data?: T[]; has_more?: boolean; last_id?: string | null }
+interface AgentsPage<T> {
+  data?: T[];
+  has_more?: boolean;
+  last_id?: string | null;
+}
 
 // ── API client ───────────────────────────────────────────────────────────────
 
 /** Errors come as {error: {type, code, message}}. */
 export class OpenAIAgentsApi extends KeyedCloudApi {
-  constructor(key: string, fetchImpl: typeof fetch = fetch, base = OPENAI_API_BASE) {
+  constructor(
+    key: string,
+    fetchImpl: typeof fetch = fetch,
+    base = OPENAI_API_BASE,
+  ) {
     super(key, fetchImpl, base, "openai agents");
   }
 
@@ -188,35 +233,68 @@ export class OpenAIAgentsApi extends KeyedCloudApi {
    * is open (the API is listening from then on), to its events as they come,
    * until it ends or `signal` aborts it.
    */
-  async openEvents(method: "GET" | "POST", p: string, body: unknown, signal: AbortSignal): Promise<AsyncGenerator<AgentsEvent>> {
+  async openEvents(
+    method: "GET" | "POST",
+    p: string,
+    body: unknown,
+    signal: AbortSignal,
+  ): Promise<AsyncGenerator<AgentsEvent>> {
     const frames = await this.events<AgentsEvent>(method, p, { body, signal });
     return (async function* () {
       for await (const frame of frames) yield frame.data;
     })();
   }
   /** The session's event stream from now on (streams never replay what they missed). */
-  sessionEvents(id: string, signal: AbortSignal): Promise<AsyncGenerator<AgentsEvent>> {
-    return this.openEvents("GET", `/agents/sessions/${encodeURIComponent(id)}/events?stream=true`, undefined, signal);
+  sessionEvents(
+    id: string,
+    signal: AbortSignal,
+  ): Promise<AsyncGenerator<AgentsEvent>> {
+    return this.openEvents(
+      "GET",
+      `/agents/sessions/${encodeURIComponent(id)}/events?stream=true`,
+      undefined,
+      signal,
+    );
   }
 
   listSessions(limit = 50, after?: string): Promise<AgentsPage<AgentsSession>> {
-    const q = new URLSearchParams({ limit: String(limit), order: "desc", ...(after ? { after } : {}) });
+    const q = new URLSearchParams({
+      limit: String(limit),
+      order: "desc",
+      ...(after ? { after } : {}),
+    });
     return this.request("GET", `/agents/sessions?${q}`);
   }
   session(id: string): Promise<AgentsSession> {
     return this.request("GET", `/agents/sessions/${encodeURIComponent(id)}`);
   }
   /** The session's turns, oldest first, reading back from the newest only as far as `known` (one the record already has settled). */
-  turns(id: string, known: (t: AgentsTurn) => boolean = () => false): Promise<AgentsTurn[]> {
-    return this.newestPages(`/agents/sessions/${encodeURIComponent(id)}/turns`, known);
+  turns(
+    id: string,
+    known: (t: AgentsTurn) => boolean = () => false,
+  ): Promise<AgentsTurn[]> {
+    return this.newestPages(
+      `/agents/sessions/${encodeURIComponent(id)}/turns`,
+      known,
+    );
   }
   /** The session's items, oldest first, reading back from the newest only as far as `known`. */
-  items(id: string, known: (i: AgentsItem) => boolean = () => false): Promise<AgentsItem[]> {
-    return this.newestPages(`/agents/sessions/${encodeURIComponent(id)}/items`, known);
+  items(
+    id: string,
+    known: (i: AgentsItem) => boolean = () => false,
+  ): Promise<AgentsItem[]> {
+    return this.newestPages(
+      `/agents/sessions/${encodeURIComponent(id)}/items`,
+      known,
+    );
   }
   /** Submit input events: a message, or a cancel. Answers 202 with nothing. */
   sendEvents(id: string, events: unknown[]): Promise<unknown> {
-    return this.request("POST", `/agents/sessions/${encodeURIComponent(id)}/events`, { events });
+    return this.request(
+      "POST",
+      `/agents/sessions/${encodeURIComponent(id)}/events`,
+      { events },
+    );
   }
 
   /**
@@ -224,12 +302,25 @@ export class OpenAIAgentsApi extends KeyedCloudApi {
    * a read must not miss), page by page until a page reaches one `known`
    * says the record already has settled, or ITEM_PAGES; oldest first.
    */
-  private async newestPages<T>(p: string, known: (t: T) => boolean): Promise<T[]> {
+  private async newestPages<T>(
+    p: string,
+    known: (t: T) => boolean,
+  ): Promise<T[]> {
     const newest = await collectPages<T>(async (after) => {
-      const q = new URLSearchParams({ order: "desc", limit: "100", ...(after ? { after } : {}) });
+      const q = new URLSearchParams({
+        order: "desc",
+        limit: "100",
+        ...(after ? { after } : {}),
+      });
       const data = await this.request<AgentsPage<T>>("GET", `${p}?${q}`);
       const items = data.data ?? [];
-      return { items, next: data.has_more && data.last_id && !items.some(known) ? data.last_id : undefined };
+      return {
+        items,
+        next:
+          data.has_more && data.last_id && !items.some(known)
+            ? data.last_id
+            : undefined,
+      };
     }, ITEM_PAGES);
     return newest.reverse();
   }
@@ -251,14 +342,31 @@ const BILLING_URL = "https://platform.openai.com/settings/organization/billing";
  * 400), an account out of credit (429). That key is kept, and the verdict
  * says what it lacks here.
  */
-export function verifyOpenAIAgentsKey(key: string, fetchImpl: typeof fetch = fetch): Promise<ProviderKeyVerdict> {
+export function verifyOpenAIAgentsKey(
+  key: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ProviderKeyVerdict> {
   return verifyCloudKey(AGENTS.vendor, async () => {
     try {
       await new OpenAIAgentsApi(key, fetchImpl).listSessions(1);
     } catch (err) {
-      if (!(err instanceof CloudApiError && err.fromApi && err.status >= 400 && err.status < 500) || err.code === INVALID_KEY) throw err;
-      const scope = err.status === 401 || err.status === 403 ? " Give it the Agents permission, read and write, on OpenAI's API keys page." : "";
-      return { detail: `It can't run ${AGENTS.label} sessions yet (${err.message.replace(/\.$/, "")}).${scope}` };
+      if (
+        !(
+          err instanceof CloudApiError &&
+          err.fromApi &&
+          err.status >= 400 &&
+          err.status < 500
+        ) ||
+        err.code === INVALID_KEY
+      )
+        throw err;
+      const scope =
+        err.status === 401 || err.status === 403
+          ? " Give it the Agents permission, read and write, on OpenAI's API keys page."
+          : "";
+      return {
+        detail: `It can't run ${AGENTS.label} sessions yet (${err.message.replace(/\.$/, "")}).${scope}`,
+      };
     }
   });
 }
@@ -297,15 +405,25 @@ export function emptyAgentsLog(raw?: any): AgentsSessionLog {
     turns: raw?.turns && typeof raw.turns === "object" ? raw.turns : {},
     items: Array.isArray(raw?.items) ? raw.items : [],
     at: raw?.at && typeof raw.at === "object" ? raw.at : {},
-    readEnded: Array.isArray(raw?.readEnded) ? raw.readEnded.filter((id: unknown) => typeof id === "string") : [],
-    ...(typeof raw?.environmentError === "string" ? { environmentError: raw.environmentError } : {}),
-    ...(typeof raw?.streamError === "string" ? { streamError: raw.streamError } : {}),
+    readEnded: Array.isArray(raw?.readEnded)
+      ? raw.readEnded.filter((id: unknown) => typeof id === "string")
+      : [],
+    ...(typeof raw?.environmentError === "string"
+      ? { environmentError: raw.environmentError }
+      : {}),
+    ...(typeof raw?.streamError === "string"
+      ? { streamError: raw.streamError }
+      : {}),
   };
 }
 
-function findItem(log: AgentsSessionLog, id: string | undefined): AgentsItem | undefined {
+function findItem(
+  log: AgentsSessionLog,
+  id: string | undefined,
+): AgentsItem | undefined {
   if (!id) return undefined;
-  for (let i = log.items.length - 1; i >= 0; i--) if (log.items[i].id === id) return log.items[i];
+  for (let i = log.items.length - 1; i >= 0; i--)
+    if (log.items[i].id === id) return log.items[i];
   return undefined;
 }
 
@@ -315,10 +433,20 @@ function findItem(log: AgentsSessionLog, id: string | undefined): AgentsItem | u
  * command's output the stream showed stays when its final copy has none (a
  * command a cancel cut off is saved without it).
  */
-function upsertItem(log: AgentsSessionLog, given: AgentsItem, at: number): void {
+function upsertItem(
+  log: AgentsSessionLog,
+  given: AgentsItem,
+  at: number,
+): void {
   const item = structuredClone(given);
   const prior = findItem(log, item.id);
-  if (prior && (item.output === null || item.output === undefined) && typeof prior.output === "string" && prior.output) item.output = prior.output;
+  if (
+    prior &&
+    (item.output === null || item.output === undefined) &&
+    typeof prior.output === "string" &&
+    prior.output
+  )
+    item.output = prior.output;
   if (prior) log.items[log.items.indexOf(prior)] = item;
   else log.items.push(item);
   log.at[item.id] ??= at;
@@ -329,20 +457,32 @@ function itemSettled(item: AgentsItem): boolean {
   return item.status !== "in_progress";
 }
 
-function textPart(item: AgentsItem, index = 0): { type: string; text?: string } {
+function textPart(
+  item: AgentsItem,
+  index = 0,
+): { type: string; text?: string } {
   item.content ??= [];
-  while (item.content.length <= index) item.content.push({ type: "output_text", text: "" });
+  while (item.content.length <= index)
+    item.content.push({ type: "output_text", text: "" });
   return item.content[index];
 }
 
-function summaryPart(item: AgentsItem, index = 0): { type?: string; text?: string } {
+function summaryPart(
+  item: AgentsItem,
+  index = 0,
+): { type?: string; text?: string } {
   item.summary ??= [];
-  while (item.summary.length <= index) item.summary.push({ type: "summary_text", text: "" });
+  while (item.summary.length <= index)
+    item.summary.push({ type: "summary_text", text: "" });
   return item.summary[index];
 }
 
 /** Fold one streamed event into the session's record. Pure but for `log`. */
-export function applyAgentsEvent(log: AgentsSessionLog, e: AgentsEvent, now: number): void {
+export function applyAgentsEvent(
+  log: AgentsSessionLog,
+  e: AgentsEvent,
+  now: number,
+): void {
   if (e.session) log.session = sessionRecord(e.session);
   if (e.turn?.id) log.turns[e.turn.id] = e.turn;
   switch (e.type) {
@@ -352,31 +492,41 @@ export function applyAgentsEvent(log: AgentsSessionLog, e: AgentsEvent, now: num
       return;
     case "agent.session.turn.output_text.delta": {
       const item = findItem(log, e.item_id);
-      if (item && e.delta) { const part = textPart(item, e.content_index); part.text = (part.text ?? "") + e.delta; }
+      if (item && e.delta) {
+        const part = textPart(item, e.content_index);
+        part.text = (part.text ?? "") + e.delta;
+      }
       return;
     }
     case "agent.session.turn.output_text.done": {
       const item = findItem(log, e.item_id);
-      if (item && typeof e.text === "string") textPart(item, e.content_index).text = e.text;
+      if (item && typeof e.text === "string")
+        textPart(item, e.content_index).text = e.text;
       return;
     }
     case "agent.session.turn.reasoning_summary_text.delta": {
       const item = findItem(log, e.item_id);
-      if (item && e.delta) { const part = summaryPart(item, e.summary_index); part.text = (part.text ?? "") + e.delta; }
+      if (item && e.delta) {
+        const part = summaryPart(item, e.summary_index);
+        part.text = (part.text ?? "") + e.delta;
+      }
       return;
     }
     case "agent.session.turn.reasoning_summary_text.done": {
       const item = findItem(log, e.item_id);
-      if (item && typeof e.text === "string") summaryPart(item, e.summary_index).text = e.text;
+      if (item && typeof e.text === "string")
+        summaryPart(item, e.summary_index).text = e.text;
       return;
     }
     case "agent.output.command_execution_output.delta": {
       const item = findItem(log, e.item_id);
-      if (item && e.delta) item.output = `${typeof item.output === "string" ? item.output : ""}${e.delta}`;
+      if (item && e.delta)
+        item.output = `${typeof item.output === "string" ? item.output : ""}${e.delta}`;
       return;
     }
     case "agent.session.environment.failed":
-      if (e.environment?.error?.message) log.environmentError = e.environment.error.message;
+      if (e.environment?.error?.message)
+        log.environmentError = e.environment.error.message;
       return;
     case "error":
       if (e.error?.message) log.streamError = e.error.message;
@@ -390,7 +540,9 @@ function isRunningTurn(turn: AgentsTurn): boolean {
 
 /** The root agent's turns, oldest first. */
 function rootTurns(log: AgentsSessionLog): AgentsTurn[] {
-  return Object.values(log.turns).filter((t) => !t.subagent_id).sort((a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id));
+  return Object.values(log.turns)
+    .filter((t) => !t.subagent_id)
+    .sort((a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id));
 }
 
 /**
@@ -414,10 +566,16 @@ function rootTurns(log: AgentsSessionLog): AgentsTurn[] {
  * wait until the turn ends (the stream shows them as they happen, and dates
  * them when they did).
  */
-export function absorbSaved(log: AgentsSessionLog, turns: AgentsTurn[], items: AgentsItem[], live: ReadonlySet<string> = new Set()): void {
+export function absorbSaved(
+  log: AgentsSessionLog,
+  turns: AgentsTurn[],
+  items: AgentsItem[],
+  live: ReadonlySet<string> = new Set(),
+): void {
   for (const t of turns) {
     const kept = log.turns[t.id];
-    if (!isRunningTurn(t) && !log.readEnded.includes(t.id)) log.readEnded.push(t.id);
+    if (!isRunningTurn(t) && !log.readEnded.includes(t.id))
+      log.readEnded.push(t.id);
     if (kept && !isRunningTurn(kept) && isRunningTurn(t)) continue;
     log.turns[t.id] = t;
   }
@@ -435,20 +593,32 @@ export function absorbSaved(log: AgentsSessionLog, turns: AgentsTurn[], items: A
     let anchor = "";
     for (const s of saved) {
       if (keptIds.has(s.id)) anchor = s.id;
-      else after.set(anchor, [...(after.get(anchor) ?? []), structuredClone(s)]);
+      else
+        after.set(anchor, [...(after.get(anchor) ?? []), structuredClone(s)]);
     }
     const merged: AgentsItem[] = [...(after.get("") ?? [])];
     for (const k of kept) {
       const s = savedById.get(k.id);
-      merged.push(s && !(itemSettled(k) && !itemSettled(s)) ? structuredClone(s) : k);
+      merged.push(
+        s && !(itemSettled(k) && !itemSettled(s)) ? structuredClone(s) : k,
+      );
       merged.push(...(after.get(k.id) ?? []));
     }
-    const start = secondsToMs(log.turns[turnId]?.created_at) ?? secondsToMs(log.session?.created_at) ?? 0;
+    const start =
+      secondsToMs(log.turns[turnId]?.created_at) ??
+      secondsToMs(log.session?.created_at) ??
+      0;
     let prev = start - 1;
     merged.forEach((item, k) => {
       if (log.at[item.id] === undefined) {
-        const next = merged.slice(k + 1).map((i) => log.at[i.id]).find((at) => at !== undefined);
-        log.at[item.id] = next === undefined ? prev + 1 : Math.max(prev, Math.min(prev + 1, next - 1));
+        const next = merged
+          .slice(k + 1)
+          .map((i) => log.at[i.id])
+          .find((at) => at !== undefined);
+        log.at[item.id] =
+          next === undefined
+            ? prev + 1
+            : Math.max(prev, Math.min(prev + 1, next - 1));
       }
       prev = log.at[item.id];
     });
@@ -459,20 +629,32 @@ export function absorbSaved(log: AgentsSessionLog, turns: AgentsTurn[], items: A
 // ── Transcript ───────────────────────────────────────────────────────────────
 
 function texts(item: AgentsItem, type: string): string {
-  return (item.content ?? []).filter((c) => c.type === type && typeof c.text === "string").map((c) => c.text!).join("");
+  return (item.content ?? [])
+    .filter((c) => c.type === type && typeof c.text === "string")
+    .map((c) => c.text!)
+    .join("");
 }
 
 function asText(v: unknown): string {
-  return typeof v === "string" ? v : v === null || v === undefined ? "" : JSON.stringify(v);
+  return typeof v === "string"
+    ? v
+    : v === null || v === undefined
+      ? ""
+      : JSON.stringify(v);
 }
 
 function parsedArgs(v: unknown): unknown {
   if (typeof v !== "string") return v;
-  try { return JSON.parse(v); } catch { return v; }
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
 }
 
 /** What a command a cancel cut off shows when none of its output reached codecast. */
-const STOPPED_COMMAND = "(stopped before it finished; no output reached codecast)";
+const STOPPED_COMMAND =
+  "(stopped before it finished; no output reached codecast)";
 
 /** The subagent tools the harness records, by item type: delegation reads as Codex's collab calls do. */
 const SUBAGENT_TOOLS: Record<string, string> = {
@@ -490,40 +672,109 @@ const SUBAGENT_TOOLS: Record<string, string> = {
  * function or computer-use call, a subagent call. `outputs`: function results
  * by call id. Null for what the transcript does not show.
  */
-export function agentsItemToThreadItem(item: AgentsItem, outputs: Map<string, string>): ThreadItem | null {
+export function agentsItemToThreadItem(
+  item: AgentsItem,
+  outputs: Map<string, string>,
+): ThreadItem | null {
   const status = item.status ?? "completed";
   switch (item.type) {
     case "message":
-      if (item.role === "user") return { type: "userMessage", id: item.id, content: [{ type: "text", text: texts(item, "input_text") }] };
-      return { type: "agentMessage", id: item.id, text: texts(item, "output_text"), phase: item.phase ?? null };
+      if (item.role === "user")
+        return {
+          type: "userMessage",
+          id: item.id,
+          content: [{ type: "text", text: texts(item, "input_text") }],
+        };
+      return {
+        type: "agentMessage",
+        id: item.id,
+        text: texts(item, "output_text"),
+        phase: item.phase ?? null,
+      };
     case "reasoning":
-      return { type: "reasoning", id: item.id, content: [], summary: (item.summary ?? []).map((s) => s.text ?? "").filter(Boolean) };
+      return {
+        type: "reasoning",
+        id: item.id,
+        content: [],
+        summary: (item.summary ?? []).map((s) => s.text ?? "").filter(Boolean),
+      };
     case "command_execution": {
       // OpenAI keeps no output for a command a cancel cut off; what the stream showed of it is all there is.
-      const output = asText(item.output) || (status === "incomplete" ? STOPPED_COMMAND : "");
-      return { type: "commandExecution", id: item.id, command: item.command ?? "", ...(item.cwd ? { cwd: item.cwd } : {}), status, aggregatedOutput: output, exitCode: item.exit_code ?? null, durationMs: item.duration_ms ?? null };
+      const output =
+        asText(item.output) || (status === "incomplete" ? STOPPED_COMMAND : "");
+      return {
+        type: "commandExecution",
+        id: item.id,
+        command: item.command ?? "",
+        ...(item.cwd ? { cwd: item.cwd } : {}),
+        status,
+        aggregatedOutput: output,
+        exitCode: item.exit_code ?? null,
+        durationMs: item.duration_ms ?? null,
+      };
     }
     case "mcp_call":
       return {
-        type: "mcpToolCall", id: item.id, server: item.server_label ?? "mcp", tool: item.name ?? "tool", arguments: parsedArgs(item.arguments), status,
-        result: item.output === null || item.output === undefined ? null : { content: Array.isArray(item.output) ? item.output : [item.output] },
+        type: "mcpToolCall",
+        id: item.id,
+        server: item.server_label ?? "mcp",
+        tool: item.name ?? "tool",
+        arguments: parsedArgs(item.arguments),
+        status,
+        result:
+          item.output === null || item.output === undefined
+            ? null
+            : {
+                content: Array.isArray(item.output)
+                  ? item.output
+                  : [item.output],
+              },
         error: item.error ? { message: asText(item.error) } : null,
       };
     case "web_search_call": {
       const a = item.action;
-      return { type: "webSearch", id: item.id, query: a?.query ?? a?.queries?.join(", ") ?? a?.url ?? a?.pattern ?? "" };
+      return {
+        type: "webSearch",
+        id: item.id,
+        query: a?.query ?? a?.queries?.join(", ") ?? a?.url ?? a?.pattern ?? "",
+      };
     }
     case "function_call": {
       const out = item.call_id ? outputs.get(item.call_id) : undefined;
-      return { type: "dynamicToolCall", id: item.id, tool: item.name ?? "function", arguments: parsedArgs(item.arguments), status, ...(out !== undefined ? { contentItems: [{ type: "inputText", text: out }] } : {}) };
+      return {
+        type: "dynamicToolCall",
+        id: item.id,
+        tool: item.name ?? "function",
+        arguments: parsedArgs(item.arguments),
+        status,
+        ...(out !== undefined
+          ? { contentItems: [{ type: "inputText", text: out }] }
+          : {}),
+      };
     }
     case "computer_use_call":
-      return { type: "dynamicToolCall", id: item.id, tool: "computer_use", arguments: item.title ? { title: item.title } : {}, status };
+      return {
+        type: "dynamicToolCall",
+        id: item.id,
+        tool: "computer_use",
+        arguments: item.title ? { title: item.title } : {},
+        status,
+      };
     default: {
       const tool = SUBAGENT_TOOLS[item.type];
       if (!tool) return null;
-      const receivers = item.recipient_agent_ids ?? (item.recipient_agent_id ? [item.recipient_agent_id] : []);
-      return { type: "collabAgentToolCall", id: item.id, tool, status, senderThreadId: item.sender_agent_id ?? item.agent_id ?? "", receiverThreadIds: receivers, prompt: texts(item, "output_text") || null };
+      const receivers =
+        item.recipient_agent_ids ??
+        (item.recipient_agent_id ? [item.recipient_agent_id] : []);
+      return {
+        type: "collabAgentToolCall",
+        id: item.id,
+        tool,
+        status,
+        senderThreadId: item.sender_agent_id ?? item.agent_id ?? "",
+        receiverThreadIds: receivers,
+        prompt: texts(item, "output_text") || null,
+      };
     }
   }
 }
@@ -556,19 +807,30 @@ export function buildAgentsTranscript(input: AgentsTranscriptInput): string {
   const { log } = input;
   const tx = new MirrorTranscript(input.createdAt, { notice: input.notice });
   const outputs = new Map<string, string>();
-  for (const item of log.items) if (item.type === "function_call_output" && item.call_id) outputs.set(item.call_id, asText(item.output));
+  for (const item of log.items)
+    if (item.type === "function_call_output" && item.call_id)
+      outputs.set(item.call_id, asText(item.output));
   const byTurn = new Map<string, AgentsItem[]>();
-  for (const item of log.items) if (item.turn_id) byTurn.set(item.turn_id, [...(byTurn.get(item.turn_id) ?? []), item]);
+  for (const item of log.items)
+    if (item.turn_id)
+      byTurn.set(item.turn_id, [...(byTurn.get(item.turn_id) ?? []), item]);
   const turns = rootTurns(log);
   turns.forEach((turn, i) => {
     tx.advanceTo(secondsToMs(turn.created_at));
     const prior = turns[i - 1];
-    const idle = prior ? turn.created_at - (prior.completed_at ?? prior.created_at) : 0;
-    if (idle > SANDBOX_IDLE_S) tx.note(`${turn.id}:idle`, `This turn came ${Math.floor(idle / 3600)}h+ after the last one ended. OpenAI can delete a sandbox after an hour without activity, so files from earlier turns may be gone.`);
+    const idle = prior
+      ? turn.created_at - (prior.completed_at ?? prior.created_at)
+      : 0;
+    if (idle > SANDBOX_IDLE_S)
+      tx.note(
+        `${turn.id}:idle`,
+        `This turn came ${Math.floor(idle / 3600)}h+ after the last one ended. OpenAI can delete a sandbox after an hour without activity, so files from earlier turns may be gone.`,
+      );
     const items = byTurn.get(turn.id) ?? [];
     for (const item of items) {
       const thread = agentsItemToThreadItem(item, outputs);
-      const m = thread && threadItemToMessage(thread, log.at[item.id] ?? tx.clock);
+      const m =
+        thread && threadItemToMessage(thread, log.at[item.id] ?? tx.clock);
       if (!m) continue;
       // A command or call still running has no result yet.
       if (!itemSettled(item)) delete m.toolResults;
@@ -576,12 +838,30 @@ export function buildAgentsTranscript(input: AgentsTranscriptInput): string {
     }
     if (isRunningTurn(turn)) return;
     // What the agent said to the person, as opposed to its working notes (commentary).
-    const answered = items.some((i) => i.type === "message" && i.role === "assistant" && i.phase !== "commentary" && !!texts(i, "output_text").trim());
-    tx.endTurn(turn.id, { status: turn.status, label: AGENTS.label, reason: `${turnError(turn.error, log.streamError)}.${setupNote(log)}`, at: secondsToMs(turn.completed_at), answered });
+    const answered = items.some(
+      (i) =>
+        i.type === "message" &&
+        i.role === "assistant" &&
+        i.phase !== "commentary" &&
+        !!texts(i, "output_text").trim(),
+    );
+    tx.endTurn(turn.id, {
+      status: turn.status,
+      label: AGENTS.label,
+      reason: `${turnError(turn.error, log.streamError)}.${setupNote(log)}`,
+      at: secondsToMs(turn.completed_at),
+      answered,
+    });
   });
   const session = log.session;
-  if (session?.status === "failed" && !turns.some((t) => t.status === "failed")) {
-    tx.error("session:error", `${AGENTS.label} session failed: ${turnError(session.error, log.streamError)}.${setupNote(log)}`);
+  if (
+    session?.status === "failed" &&
+    !turns.some((t) => t.status === "failed")
+  ) {
+    tx.error(
+      "session:error",
+      `${AGENTS.label} session failed: ${turnError(session.error, log.streamError)}.${setupNote(log)}`,
+    );
     tx.turnEnded();
   }
   return tx.toString();
@@ -597,14 +877,24 @@ function sessionVersion(s: AgentsSession): string {
 /** A root turn's end, or the session's: what a stream follows a turn until. */
 function endsTurn(e: AgentsEvent): boolean {
   if (e.type === "agent.session.failed") return true;
-  return (e.type === "agent.session.turn.completed" || e.type === "agent.session.turn.failed" || e.type === "agent.session.turn.cancelled") && !e.turn?.subagent_id;
+  return (
+    (e.type === "agent.session.turn.completed" ||
+      e.type === "agent.session.turn.failed" ||
+      e.type === "agent.session.turn.cancelled") &&
+    !e.turn?.subagent_id
+  );
 }
 
 /** How a session's stream is followed: its events fold into the record until its turn ends, or it goes quiet. */
-function sessionStream(open: CloudStreamSpec<AgentsEvent, AgentsSessionLog>["open"]): CloudStreamSpec<AgentsEvent, AgentsSessionLog> {
+function sessionStream(
+  open: CloudStreamSpec<AgentsEvent, AgentsSessionLog>["open"],
+): CloudStreamSpec<AgentsEvent, AgentsSessionLog> {
   return {
     open,
-    apply: (e, log, at) => { applyAgentsEvent(log, e, at); return endsTurn(e) ? "end" : undefined; },
+    apply: (e, log, at) => {
+      applyAgentsEvent(log, e, at);
+      return endsTurn(e) ? "end" : undefined;
+    },
     quietMs: STREAM_QUIET_MS,
   };
 }
@@ -615,7 +905,10 @@ function sessionStream(open: CloudStreamSpec<AgentsEvent, AgentsSessionLog>["ope
  */
 function createdSession(e: AgentsEvent): string | undefined {
   if (e.type === "agent.session.created") return e.session?.id;
-  if (e.type === "error" || e.type === "agent.session.failed") throw new Error(`${AGENTS.label} could not start the session: ${turnError(e.error ?? e.session?.error)}`);
+  if (e.type === "error" || e.type === "agent.session.failed")
+    throw new Error(
+      `${AGENTS.label} could not start the session: ${turnError(e.error ?? e.session?.error)}`,
+    );
   return undefined;
 }
 
@@ -628,7 +921,11 @@ export interface OpenAIAgentsAdapterOptions extends KeyedCloudAdapterOptions {
   now?: () => number;
 }
 
-export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, AgentsSession, AgentsSessionLog> {
+export class OpenAIAgentsAdapter implements CloudAgentAdapter<
+  OpenAIAgentsApi,
+  AgentsSession,
+  AgentsSessionLog
+> {
   readonly spec = AGENTS;
   readonly mirrorFormat = MIRROR_FORMAT;
   readonly pollMs = POLL_MS;
@@ -648,18 +945,34 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
   }
 
   client(): OpenAIAgentsApi | CloudAgentSetupError {
-    return keyedCloudClient(this, this.opts.readKey, (key) => new OpenAIAgentsApi(key, this.fetchImpl));
+    return keyedCloudClient(
+      this,
+      this.opts.readKey,
+      (key) => new OpenAIAgentsApi(key, this.fetchImpl),
+    );
   }
 
   loadData(raw: unknown): AgentsSessionLog {
     return emptyAgentsLog(raw);
   }
 
-  async listAgents(api: OpenAIAgentsApi, cursor?: string): Promise<{ items: CloudAgentListItem<AgentsSession>[]; nextCursor?: string }> {
+  async listAgents(
+    api: OpenAIAgentsApi,
+    cursor?: string,
+  ): Promise<{
+    items: CloudAgentListItem<AgentsSession>[];
+    nextCursor?: string;
+  }> {
     const page = await api.listSessions(50, cursor);
     const sessions = (page.data ?? []).filter((s) => typeof s?.id === "string");
     return {
-      items: sessions.map((s) => ({ id: s.id, updatedAtMs: secondsToMs(s.created_at) ?? 0, version: sessionVersion(s), active: sessionRunning(s), agent: s })),
+      items: sessions.map((s) => ({
+        id: s.id,
+        updatedAtMs: secondsToMs(s.created_at) ?? 0,
+        version: sessionVersion(s),
+        active: sessionRunning(s),
+        agent: s,
+      })),
       nextCursor: page.has_more && page.last_id ? page.last_id : undefined,
     };
   }
@@ -670,15 +983,26 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
    * saved turns and items are read (back to what the record already has
    * settled) and merged in. A running session no stream follows gets one.
    */
-  async mirror(api: OpenAIAgentsApi, handle: CloudAgentHandle<AgentsSessionLog>, known: AgentsSession | undefined): Promise<CloudAgentMirror> {
+  async mirror(
+    api: OpenAIAgentsApi,
+    handle: CloudAgentHandle<AgentsSessionLog>,
+    known: AgentsSession | undefined,
+  ): Promise<CloudAgentMirror> {
     const id = handle.agentId;
     const log = handle.data();
     const { first, live } = this.streams.attach(id, handle);
     let stream = live;
     // The stream's own session events keep the record's copy current.
-    const session = known ?? (stream && !first && log.session ? log.session : await api.session(id));
+    const session =
+      known ??
+      (stream && !first && log.session ? log.session : await api.session(id));
     // A stream left open on a session that went idle without using it (a message that never arrived).
-    if (stream && !sessionRunning(session) && this.now() - stream.openedAt > STREAM_GRACE_MS && this.now() - stream.lastEventAt > STREAM_GRACE_MS) {
+    if (
+      stream &&
+      !sessionRunning(session) &&
+      this.now() - stream.openedAt > STREAM_GRACE_MS &&
+      this.now() - stream.lastEventAt > STREAM_GRACE_MS
+    ) {
       this.streams.drop(id, stream);
       stream = undefined;
     }
@@ -691,16 +1015,28 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
       ]);
       // A stream opened before its turn began (a create, a follow-up) shows that turn whole. The record
       // is the only copy of what the saved lists drop (a command a cancel cut off): never rebuild it from them alone.
-      absorbSaved(log, turns, items, stream ? new Set(turns.filter(isRunningTurn).map((t) => t.id)) : undefined);
+      absorbSaved(
+        log,
+        turns,
+        items,
+        stream
+          ? new Set(turns.filter(isRunningTurn).map((t) => t.id))
+          : undefined,
+      );
       if (!stream) log.session = sessionRecord(session);
     }
     log.session ??= sessionRecord(session);
-    const running = sessionRunning(session) || rootTurns(log).some(isRunningTurn);
+    const running =
+      sessionRunning(session) || rootTurns(log).some(isRunningTurn);
     if (running) this.followSession(api, id, handle);
     handle.save();
     const createdAt = secondsToMs(session.created_at) ?? 0;
     return {
-      transcript: buildAgentsTranscript({ log, createdAt, notice: await handle.notice() }),
+      transcript: buildAgentsTranscript({
+        log,
+        createdAt,
+        notice: await handle.notice(),
+      }),
       title: session.metadata?.title || undefined,
       createdAtMs: createdAt,
       repo: session.metadata?.repo || undefined,
@@ -721,35 +1057,70 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
    * retry first takes the session an earlier try created without hearing
    * back, so a slow start is never billed twice.
    */
-  async create(api: OpenAIAgentsApi, session: CloudAgentSession, content: string): Promise<CloudAgentCreated> {
+  async create(
+    api: OpenAIAgentsApi,
+    session: CloudAgentSession,
+    content: string,
+  ): Promise<CloudAgentCreated> {
     const { repo } = session;
     if (repo && (await clonesAnonymously(repo, this.fetchImpl)) === false) {
-      throw CloudAgentSetupError.repoUnreachable(this, session, "the sandbox clones without GitHub credentials, and GitHub refuses an anonymous clone: the repository is private", `Codex Cloud on your ChatGPT plan reaches private repositories: start this message there instead, or make the repository public. See ${AGENTS.repoAccessUrl}`);
+      throw CloudAgentSetupError.repoUnreachable(
+        this,
+        session,
+        "the sandbox clones without GitHub credentials, and GitHub refuses an anonymous clone: the repository is private",
+        `Codex Cloud on your ChatGPT plan reaches private repositories: start this message there instead, or make the repository public. See ${AGENTS.repoAccessUrl}`,
+      );
     }
     const ref = session.startingRef;
     const dir = repo ? `${WORKSPACE}/${repo.name}` : WORKSPACE;
     const notice = repo
       ? `Clones ${repo.owner}/${repo.name}${ref ? ` at \`${ref}\`` : " (its default branch)"} into an OpenAI-hosted sandbox, which can't push to GitHub.`
       : "Started in an empty OpenAI-hosted sandbox: this session's folder has no GitHub remote to clone.";
-    const earlier = session.createKey ? (await api.listSessions(CREATED_LOOKBACK)).data?.find((s) => s.metadata?.[CREATE_KEY] === session.createKey) : undefined;
+    const earlier = session.createKey
+      ? (await api.listSessions(CREATED_LOOKBACK)).data?.find(
+          (s) => s.metadata?.[CREATE_KEY] === session.createKey,
+        )
+      : undefined;
     if (earlier) return { agentId: earlier.id, notice };
     session.createKey ??= randomUUID();
     const body = {
       agent: {
         model: session.model || AGENTS.defaultModel,
         reasoning: { effort: REASONING_EFFORT },
-        ...(repo ? { instructions: `The repository ${repo.owner}/${repo.name} is checked out at ${dir}; work there. This sandbox has no GitHub credentials: leave your changes in the working tree and say what you changed.` } : {}),
+        ...(repo
+          ? {
+              instructions: `The repository ${repo.owner}/${repo.name} is checked out at ${dir}; work there. This sandbox has no GitHub credentials: leave your changes in the working tree and say what you changed.`,
+            }
+          : {}),
       },
       environment: {
         type: "openai_hosted",
-        ...(repo ? { setup_commands: [{ command: `git clone --depth 50 ${ref ? `--branch ${shellEscapeForSh(ref)} ` : ""}${shellEscapeForSh(`https://github.com/${repo.owner}/${repo.name}.git`)} ${shellEscapeForSh(repo.name)}`, cwd: WORKSPACE }] } : {}),
+        ...(repo
+          ? {
+              setup_commands: [
+                {
+                  command: `git clone --depth 50 ${ref ? `--branch ${shellEscapeForSh(ref)} ` : ""}${shellEscapeForSh(`https://github.com/${repo.owner}/${repo.name}.git`)} ${shellEscapeForSh(repo.name)}`,
+                  cwd: WORKSPACE,
+                },
+              ],
+            }
+          : {}),
       },
       input: content,
-      metadata: { source: "codecast", [CREATE_KEY]: session.createKey, ...(repo ? { repo: `${repo.owner}/${repo.name}` } : {}) },
+      metadata: {
+        source: "codecast",
+        [CREATE_KEY]: session.createKey,
+        ...(repo ? { repo: `${repo.owner}/${repo.name}` } : {}),
+      },
       stream: true,
     };
     const agentId = await this.streams.start(
-      { ...sessionStream((signal) => api.openEvents("POST", "/agents/sessions", body, signal)), openMs: CREATE_TIMEOUT_MS },
+      {
+        ...sessionStream((signal) =>
+          api.openEvents("POST", "/agents/sessions", body, signal),
+        ),
+        openMs: CREATE_TIMEOUT_MS,
+      },
       createdSession,
     );
     return { agentId, notice };
@@ -761,12 +1132,18 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
    * missed), unless one already follows it. A conflict (a turn that takes no
    * more input) is the core's to hold.
    */
-  async followUp(api: OpenAIAgentsApi, agentId: string, content: string): Promise<void> {
+  async followUp(
+    api: OpenAIAgentsApi,
+    agentId: string,
+    content: string,
+  ): Promise<void> {
     const opened = this.followSession(api, agentId);
     // Listening before the message goes out. A stream that fails to open leaves the message to go out anyway: the mirror reads what the turn saved.
     await opened?.opened;
     try {
-      await api.sendEvents(agentId, [{ type: "agent.session.input.message", input: messageInput(content) }]);
+      await api.sendEvents(agentId, [
+        { type: "agent.session.input.message", input: messageInput(content) },
+      ]);
     } catch (err) {
       if (opened) this.streams.drop(agentId, opened);
       throw err;
@@ -774,8 +1151,16 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
   }
 
   /** Follow the session's own event stream, unless a follow already does (undefined then). `handle`: the mirror's, when it has one. */
-  private followSession(api: OpenAIAgentsApi, id: string, handle?: CloudAgentHandle<AgentsSessionLog>) {
-    return this.streams.follow(id, sessionStream((signal) => api.sessionEvents(id, signal)), { handle });
+  private followSession(
+    api: OpenAIAgentsApi,
+    id: string,
+    handle?: CloudAgentHandle<AgentsSessionLog>,
+  ) {
+    return this.streams.follow(
+      id,
+      sessionStream((signal) => api.sessionEvents(id, signal)),
+      { handle },
+    );
   }
 
   /** Cancel the running turn; the session and its work stay. */
@@ -786,9 +1171,14 @@ export class OpenAIAgentsAdapter implements CloudAgentAdapter<OpenAIAgentsApi, A
   }
 
   /** After a 429: an account out of credit says so in its code (insufficient_quota), and lasts until someone adds credit; any other 429 is the requests being rate limited. */
-  async usageLimit(_api: OpenAIAgentsApi, err: CloudApiError): Promise<{ detail: string } | null> {
+  async usageLimit(
+    _api: OpenAIAgentsApi,
+    err: CloudApiError,
+  ): Promise<{ detail: string } | null> {
     if (err.code !== OUT_OF_CREDIT) return null;
-    return { detail: `the OpenAI account behind the API key is out of credit (${err.message.replace(/\.$/, "")}). Add credit at ${BILLING_URL}` };
+    return {
+      detail: `the OpenAI account behind the API key is out of credit (${err.message.replace(/\.$/, "")}). Add credit at ${BILLING_URL}`,
+    };
   }
 
   verifyKey(key: string) {

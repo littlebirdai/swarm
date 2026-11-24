@@ -38,14 +38,20 @@ afterEach(async () => {
   root = null;
 });
 async function mount() {
-  root = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+  root = createRoot(
+    dom.window.document.body.appendChild(
+      dom.window.document.createElement("div"),
+    ),
+  );
   await act(async () => root!.render(<Probe />));
 }
 
 function dragEvent(types: string[], files: Array<{ type: string }> = []) {
   const calls = { prevented: 0 };
   const event = {
-    preventDefault: () => { calls.prevented++; },
+    preventDefault: () => {
+      calls.prevented++;
+    },
     stopPropagation: () => {},
     dataTransfer: { types, files },
   } as unknown as React.DragEvent;
@@ -66,10 +72,15 @@ test("a drag that crosses child elements stays active until the last leave", asy
 test("a drop hands only the images to the composer and clears the state", async () => {
   await mount();
   const received: Array<{ type: string }>[] = [];
-  latest.dropFilesRef.current = (files) => { received.push(files); };
+  latest.dropFilesRef.current = (files) => {
+    received.push(files);
+  };
   await act(async () => latest.handleDragEnter(dragEvent(["Files"]).event));
-  const image = { type: "image/png" }, text = { type: "text/plain" };
-  await act(async () => latest.handleDrop(dragEvent(["Files"], [image, text]).event));
+  const image = { type: "image/png" },
+    text = { type: "text/plain" };
+  await act(async () =>
+    latest.handleDrop(dragEvent(["Files"], [image, text]).event),
+  );
   expect(received).toEqual([[image]]);
   expect(latest.isDragging).toBe(false);
 });

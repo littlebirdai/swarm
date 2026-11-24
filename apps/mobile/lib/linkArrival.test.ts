@@ -17,11 +17,24 @@ function screen() {
     }
   };
   return {
-    link(id: string) { param = id; render(); },
-    clearFilter() { filter = ""; render(); },
-    pick(id: string) { filter = id; render(); },
-    get filter() { return filter; },
-    get param() { return param; },
+    link(id: string) {
+      param = id;
+      render();
+    },
+    clearFilter() {
+      filter = "";
+      render();
+    },
+    pick(id: string) {
+      filter = id;
+      render();
+    },
+    get filter() {
+      return filter;
+    },
+    get param() {
+      return param;
+    },
   };
 }
 
@@ -58,12 +71,28 @@ describe("a link's param on a screen that stays mounted", () => {
   });
 
   test("no param applies nothing and asks for nothing", () => {
-    expect(linkArrival(undefined, null)).toEqual({ apply: null, seen: null, consume: false });
-    expect(linkArrival(null, "sarah")).toEqual({ apply: null, seen: null, consume: false });
+    expect(linkArrival(undefined, null)).toEqual({
+      apply: null,
+      seen: null,
+      consume: false,
+    });
+    expect(linkArrival(null, "sarah")).toEqual({
+      apply: null,
+      seen: null,
+      consume: false,
+    });
   });
 
   test("a param still on the address is not applied twice while it waits to be consumed", () => {
-    expect(linkArrival("sarah", null)).toEqual({ apply: "sarah", seen: "sarah", consume: true });
-    expect(linkArrival("sarah", "sarah")).toEqual({ apply: null, seen: "sarah", consume: true });
+    expect(linkArrival("sarah", null)).toEqual({
+      apply: "sarah",
+      seen: "sarah",
+      consume: true,
+    });
+    expect(linkArrival("sarah", "sarah")).toEqual({
+      apply: null,
+      seen: "sarah",
+      consume: true,
+    });
   });
 });

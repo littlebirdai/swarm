@@ -1,17 +1,25 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-import { stripAnsi } from '@platform/cli-kit/render';
-import type { ConvoMessage } from '@platform/evals';
-import { UsageError } from '@platform/evals/cli';
+import { stripAnsi } from "@platform/cli-kit/render";
+import type { ConvoMessage } from "@platform/evals";
+import { UsageError } from "@platform/evals/cli";
 
-import { briefTextLines } from '../../../../../apps/cli/src/briefLines';
+import { briefTextLines } from "../../../../../apps/cli/src/briefLines";
 
-import { emptyOrgReads } from '../../commands/snapshot';
-import { FAKED_WRITES } from '../../fakes/cast/verbs';
-import { fixturesDir, homePaths } from '../../paths';
-import { EVERY_READ, fillAliases, readFrozenVerbs, recordSentence, servedReadKey, writeFrozenVerbs, writeServedRead } from '../../served';
-import type { ReplayCtx, SurfaceMeta } from '../../surface';
+import { emptyOrgReads } from "../../commands/snapshot";
+import { FAKED_WRITES } from "../../fakes/cast/verbs";
+import { fixturesDir, homePaths } from "../../paths";
+import {
+  EVERY_READ,
+  fillAliases,
+  readFrozenVerbs,
+  recordSentence,
+  servedReadKey,
+  writeFrozenVerbs,
+  writeServedRead,
+} from "../../served";
+import type { ReplayCtx, SurfaceMeta } from "../../surface";
 
 // What role-wake and anchor-brief share: both replay one turn of a role's
 // standing session against the world it reads. A real freeze points at a
@@ -58,22 +66,41 @@ export interface StandingWorld {
  * the set writes that text itself. A synthetic brief is authored once, in
  * prod's shape, and reads the way prod would print it.
  */
-export function withBriefText(reads: FixtureRead[], now: number): FixtureRead[] {
+export function withBriefText(
+  reads: FixtureRead[],
+  now: number,
+): FixtureRead[] {
   const have = new Set(reads.map((r) => servedReadKey(r.argv)));
   const rendered = reads.flatMap((r) => {
-    if (r.argv[0] !== 'brief' || r.argv.at(-1) !== '--json' || (r.exit ?? 0) !== 0) return [];
+    if (
+      r.argv[0] !== "brief" ||
+      r.argv.at(-1) !== "--json" ||
+      (r.exit ?? 0) !== 0
+    )
+      return [];
     const argv = r.argv.slice(0, -1);
-    return have.has(servedReadKey(argv)) ? [] : [{ argv, out: stripAnsi(briefTextLines(JSON.parse(r.out), now).join('\n')) }];
+    return have.has(servedReadKey(argv))
+      ? []
+      : [
+          {
+            argv,
+            out: stripAnsi(briefTextLines(JSON.parse(r.out), now).join("\n")),
+          },
+        ];
   });
   return [...reads, ...rendered];
 }
 
-export const worldPath = (name: string): string => join(fixturesDir(), 'role-wake', 'worlds', `${name}.json`);
+export const worldPath = (name: string): string =>
+  join(fixturesDir(), "role-wake", "worlds", `${name}.json`);
 
 export function readWorld(name: string): FixtureWorld {
   const path = worldPath(name);
-  if (!existsSync(path)) throw new UsageError(`no fixture world ${name}: expected apps/evals/fixtures/role-wake/worlds/${name}.json`);
-  return JSON.parse(readFileSync(path, 'utf8')) as FixtureWorld;
+  if (!existsSync(path))
+    throw new UsageError(
+      `no fixture world ${name}: expected apps/evals/fixtures/role-wake/worlds/${name}.json`,
+    );
+  return JSON.parse(readFileSync(path, "utf8")) as FixtureWorld;
 }
 
 /**
@@ -81,24 +108,42 @@ export function readWorld(name: string): FixtureWorld {
  * it freezes every read, so a read it does not hold fails the frozen-reads
  * gate with its argv named instead of reaching the live workspace.
  */
-export function servedDirFor(world: StandingWorld, ctx: Pick<ReplayCtx, 'runDir'>, meta: Pick<SurfaceMeta, 'servedAliases'>): string {
+export function servedDirFor(
+  world: StandingWorld,
+  ctx: Pick<ReplayCtx, "runDir">,
+  meta: Pick<SurfaceMeta, "servedAliases">,
+): string {
   if (world.served) {
     const dir = join(homePaths().snapshots, world.served);
-    if (!existsSync(dir)) throw new Error(`served dir missing here: ${world.served}; it lives in EVALS_HOME on the machine that captured it`);
+    if (!existsSync(dir))
+      throw new Error(
+        `served dir missing here: ${world.served}; it lives in EVALS_HOME on the machine that captured it`,
+      );
     const empty = emptyOrgReads(dir);
-    if (empty.length) throw new Error(`served dir ${world.served} holds an empty ${empty.join(', ')} (the read failed at capture), so it cannot stand for its moment; snapshot a new moment and freeze that`);
+    if (empty.length)
+      throw new Error(
+        `served dir ${world.served} holds an empty ${empty.join(", ")} (the read failed at capture), so it cannot stand for its moment; snapshot a new moment and freeze that`,
+      );
     return dir;
   }
   const reads = new Map<string, FixtureRead>();
   const now = Date.parse(world.captured_at);
-  for (const r of [...withBriefText(world.world ? readWorld(world.world).reads : [], now), ...withBriefText(world.reads ?? [], now)]) reads.set(servedReadKey(r.argv), r);
-  for (const a of fillAliases(meta.servedAliases, world.values ?? {}, { skipUnfilled: true })) {
+  for (const r of [
+    ...withBriefText(world.world ? readWorld(world.world).reads : [], now),
+    ...withBriefText(world.reads ?? [], now),
+  ])
+    reads.set(servedReadKey(r.argv), r);
+  for (const a of fillAliases(meta.servedAliases, world.values ?? {}, {
+    skipUnfilled: true,
+  })) {
     const from = reads.get(servedReadKey(a.from));
-    if (from && !reads.has(servedReadKey(a.serve))) reads.set(servedReadKey(a.serve), { ...from, argv: a.serve });
+    if (from && !reads.has(servedReadKey(a.serve)))
+      reads.set(servedReadKey(a.serve), { ...from, argv: a.serve });
   }
-  const dir = join(ctx.runDir, 'served');
+  const dir = join(ctx.runDir, "served");
   mkdirSync(dir, { recursive: true });
-  for (const r of reads.values()) writeServedRead(dir, r.argv, r.out, r.exit ?? 0, { prefix: r.prefix });
+  for (const r of reads.values())
+    writeServedRead(dir, r.argv, r.out, r.exit ?? 0, { prefix: r.prefix });
   writeFrozenVerbs(dir, [EVERY_READ]);
   return dir;
 }
@@ -116,10 +161,19 @@ export function snapshotDirs(surface: string): SnapshotDir[] {
   const root = join(homePaths().snapshots, surface);
   if (!existsSync(root)) return [];
   return readdirSync(root, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(join(root, e.name, 'captured.json')))
+    .filter(
+      (e) => e.isDirectory() && existsSync(join(root, e.name, "captured.json")),
+    )
     .map((e) => {
-      const c = JSON.parse(readFileSync(join(root, e.name, 'captured.json'), 'utf8')) as { values?: Record<string, string>; captured_at: string };
-      return { served: `${surface}/${e.name}`, dir: join(root, e.name), values: c.values ?? {}, captured_at: c.captured_at };
+      const c = JSON.parse(
+        readFileSync(join(root, e.name, "captured.json"), "utf8"),
+      ) as { values?: Record<string, string>; captured_at: string };
+      return {
+        served: `${surface}/${e.name}`,
+        dir: join(root, e.name),
+        values: c.values ?? {},
+        captured_at: c.captured_at,
+      };
     })
     .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
 }
@@ -128,13 +182,24 @@ export function snapshotDirs(surface: string): SnapshotDir[] {
  * The served dir a ref names: one called exactly that, else the newest one
  * captured with `--<flag> <ref>` (a short id matches its full id either way).
  */
-export function findSnapshot(surface: string, flag: string, ref: string, hint: string): SnapshotDir {
+export function findSnapshot(
+  surface: string,
+  flag: string,
+  ref: string,
+  hint: string,
+): SnapshotDir {
   const all = snapshotDirs(surface);
   const named = all.find((s) => s.served === `${surface}/${ref}`);
   if (named) return named;
-  const v = (s: SnapshotDir) => s.values[flag] ?? '';
-  const hit = all.find((s) => v(s) && (v(s) === ref || v(s).startsWith(ref) || ref.startsWith(v(s))));
-  if (!hit) throw new UsageError(`no ${surface} snapshot for ${ref} in EVALS_HOME: capture its world first, ${hint}`);
+  const v = (s: SnapshotDir) => s.values[flag] ?? "";
+  const hit = all.find(
+    (s) =>
+      v(s) && (v(s) === ref || v(s).startsWith(ref) || ref.startsWith(v(s))),
+  );
+  if (!hit)
+    throw new UsageError(
+      `no ${surface} snapshot for ${ref} in EVALS_HOME: capture its world first, ${hint}`,
+    );
   return hit;
 }
 
@@ -144,7 +209,7 @@ export function findSnapshot(surface: string, flag: string, ref: string, hint: s
  * id, replay.ts); else nothing.
  */
 export function claudeModel(id: unknown): string | undefined {
-  const m = typeof id === 'string' ? id.trim() : '';
+  const m = typeof id === "string" ? id.trim() : "";
   return /^claude-/.test(m) ? m : undefined;
 }
 
@@ -155,36 +220,63 @@ export function claudeModel(id: unknown): string | undefined {
  * the served dir freezes), the refused writes, and where the words that would
  * have been posted go instead.
  */
-export function harnessNote(frozen: string[], extra: string[] = [], fakes = false): string {
+export function harnessNote(
+  frozen: string[],
+  extra: string[] = [],
+  fakes = false,
+): string {
   return [
-    '',
-    '## Dry run (harness note)',
-    '',
+    "",
+    "## Dry run (harness note)",
+    "",
     [
-      'This run grades how you handle this turn, so nothing you do reaches anyone.',
+      "This run grades how you handle this turn, so nothing you do reaches anyone.",
       recordSentence(frozen, fakes),
       fakes
-        ? `These commands write to a stand-in for the workspace that answers as production would and keeps what you did for the rest of this run, so run them as you would in production: ${FAKED_WRITES.map((v) => `\`cast ${v}\``).join(', ')}. Any other command that writes is refused: where you would run one, say so in your last message, with the exact command.`
-        : 'So run no command that writes: where you would send, post, decide, file or change something, say so in your last message instead, with the exact command you would have run.',
+        ? `These commands write to a stand-in for the workspace that answers as production would and keeps what you did for the rest of this run, so run them as you would in production: ${FAKED_WRITES.map((v) => `\`cast ${v}\``).join(", ")}. Any other command that writes is refused: where you would run one, say so in your last message, with the exact command.`
+        : "So run no command that writes: where you would send, post, decide, file or change something, say so in your last message instead, with the exact command you would have run.",
       ...extra,
-      'Run every command in the foreground and wait for it; a turn that ends waiting on a background command ends this run with no message.',
-      'End the turn with the message you would leave in this thread, verbatim and nothing else.',
-    ].join(' '),
-    '',
-  ].join('\n');
+      "Run every command in the foreground and wait for it; a turn that ends waiting on a background command ends this run with no message.",
+      "End the turn with the message you would leave in this thread, verbatim and nothing else.",
+    ].join(" "),
+    "",
+  ].join("\n");
 }
 
 /** The verbs a world's served dir freezes: a fixture's world freezes every read, a captured one says so in its `frozen` file. */
-export const frozenVerbsOf = (world: StandingWorld): string[] => (world.served ? readFrozenVerbs(join(homePaths().snapshots, world.served)) : [EVERY_READ]);
+export const frozenVerbsOf = (world: StandingWorld): string[] =>
+  world.served
+    ? readFrozenVerbs(join(homePaths().snapshots, world.served))
+    : [EVERY_READ];
 
 /**
  * A standing turn's first message as the agent gets it: the production text,
  * then the harness note. The replay sends it and the judge reads it, so the
  * judge knows a command the agent named stands for one it was told not to run.
  */
-export const withHarnessNote = (text: string, world: StandingWorld, extra: string[] = [], fakes = false): string => `${text}\n${harnessNote(frozenVerbsOf(world), extra, fakes)}`;
+export const withHarnessNote = (
+  text: string,
+  world: StandingWorld,
+  extra: string[] = [],
+  fakes = false,
+): string => `${text}\n${harnessNote(frozenVerbsOf(world), extra, fakes)}`;
 
 /** The turn's opening as the judge and the conversation views see it. */
-export function describeTurn(text: string, at: string, id: string): ConvoMessage[] {
-  return [{ n: 1, id, at, channel: 'session', isGroup: false, direction: 'in', from: 'user', text }];
+export function describeTurn(
+  text: string,
+  at: string,
+  id: string,
+): ConvoMessage[] {
+  return [
+    {
+      n: 1,
+      id,
+      at,
+      channel: "session",
+      isGroup: false,
+      direction: "in",
+      from: "user",
+      text,
+    },
+  ];
 }

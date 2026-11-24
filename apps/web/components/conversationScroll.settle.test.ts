@@ -7,7 +7,8 @@
 import { expect, test } from "bun:test";
 import { settleTimelineItemAtOffset } from "./conversationScroll";
 
-(globalThis as any).requestAnimationFrame ??= (cb: (t: number) => void) => setTimeout(() => cb(performance.now()), 16);
+(globalThis as any).requestAnimationFrame ??= (cb: (t: number) => void) =>
+  setTimeout(() => cb(performance.now()), 16);
 
 const VIEW_TOP = 100;
 const OFFSET = 50;
@@ -27,23 +28,41 @@ function fakeFeed(rowTop: number) {
   const row = {
     isConnected: true,
     getAttribute: () => null,
-    getBoundingClientRect: () => ({ top: VIEW_TOP + feed.rowTop - feed.scrollTop }),
+    getBoundingClientRect: () => ({
+      top: VIEW_TOP + feed.rowTop - feed.scrollTop,
+    }),
   };
   // Every scrollTop write is recorded, so the test can tell the settle's own from its own.
   let top = 0;
-  Object.defineProperty(feed, "scrollTop", { get: () => top, set: (v: number) => { top = v; feed.writes.push(v); } });
+  Object.defineProperty(feed, "scrollTop", {
+    get: () => top,
+    set: (v: number) => {
+      top = v;
+      feed.writes.push(v);
+    },
+  });
   return feed;
 }
 const virtualizer = { scrollToIndex() {} };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Until `ready` holds or `ms` pass: a loaded runner can be slower than any fixed sleep. */
-const until = async (ready: () => boolean, ms = 2000) => { const end = Date.now() + ms; while (!ready() && Date.now() < end) await sleep(10); };
-const rowOffset = (feed: ReturnType<typeof fakeFeed>) => feed.rowTop - feed.scrollTop;
+const until = async (ready: () => boolean, ms = 2000) => {
+  const end = Date.now() + ms;
+  while (!ready() && Date.now() < end) await sleep(10);
+};
+const rowOffset = (feed: ReturnType<typeof fakeFeed>) =>
+  feed.rowTop - feed.scrollTop;
 
 test("pins the row at the offset, reports once, and keeps correcting a re-measure above it", async () => {
   const feed = fakeFeed(3000);
   let settled = 0;
-  settleTimelineItemAtOffset(feed as any, virtualizer, 7, OFFSET, { initialDelayMs: 0, watchMs: 400, onSettled: () => { settled++; } });
+  settleTimelineItemAtOffset(feed as any, virtualizer, 7, OFFSET, {
+    initialDelayMs: 0,
+    watchMs: 400,
+    onSettled: () => {
+      settled++;
+    },
+  });
   await until(() => settled > 0);
   expect(rowOffset(feed)).toBe(OFFSET);
   expect(settled).toBe(1);
@@ -57,7 +76,10 @@ test("pins the row at the offset, reports once, and keeps correcting a re-measur
 
 test("a scroll it did not write, under an unchanged height, ends the watch where that scroll left the view", async () => {
   const feed = fakeFeed(3000);
-  settleTimelineItemAtOffset(feed as any, virtualizer, 7, OFFSET, { initialDelayMs: 0, watchMs: 400 });
+  settleTimelineItemAtOffset(feed as any, virtualizer, 7, OFFSET, {
+    initialDelayMs: 0,
+    watchMs: 400,
+  });
   await sleep(80);
   expect(rowOffset(feed)).toBe(OFFSET);
   // The host lands on a card 600px inside the row.
@@ -80,7 +102,10 @@ test("a host that scrolls from inside onSettled is honoured, never corrected on 
   settleTimelineItemAtOffset(feed as any, virtualizer, 7, OFFSET, {
     initialDelayMs: 0,
     watchMs: 400,
-    onSettled: () => { feed.scrollTop += 1322; landed = feed.scrollTop; },
+    onSettled: () => {
+      feed.scrollTop += 1322;
+      landed = feed.scrollTop;
+    },
   });
   await sleep(200);
   expect(landed).toBeGreaterThan(0);

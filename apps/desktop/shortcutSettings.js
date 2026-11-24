@@ -24,7 +24,11 @@ const LEGACY_COMPOSE_DEFAULT = "CommandOrControl+Alt+N";
 function mergeShortcuts(persisted) {
   const merged = { ...DEFAULT_SHORTCUTS, ...persisted };
   const legacy = merged[LEGACY_COMPOSE_KEY];
-  if (legacy && legacy !== LEGACY_COMPOSE_DEFAULT && persisted?.newSession === undefined) {
+  if (
+    legacy &&
+    legacy !== LEGACY_COMPOSE_DEFAULT &&
+    persisted?.newSession === undefined
+  ) {
     merged.newSession = legacy;
   }
   delete merged[LEGACY_COMPOSE_KEY];

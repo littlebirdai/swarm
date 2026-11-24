@@ -8,7 +8,10 @@ import { join } from "node:path";
 // the main shell). A host rendered in only one branch leaves the others with
 // an open card nobody can see, and an open card silences every undo toast.
 // So the host renders beside DashboardLayoutInner, never inside it.
-const source = readFileSync(join(import.meta.dir, "../../components/DashboardLayout.tsx"), "utf8");
+const source = readFileSync(
+  join(import.meta.dir, "../../components/DashboardLayout.tsx"),
+  "utf8",
+);
 const HOSTS = ["UndoTimelineHost"];
 
 describe("hosts whose doorways run in every layout branch", () => {
@@ -19,7 +22,11 @@ describe("hosts whose doorways run in every layout branch", () => {
       expect(innerStart).toBeGreaterThan(0);
       expect(inner.includes(`<${host}`)).toBe(false);
       const wrapper = source.slice(0, innerStart);
-      expect(wrapper).toMatch(new RegExp(`<DashboardLayoutInner \\{\\.\\.\\.props\\} />\\s*<${host} />`));
+      expect(wrapper).toMatch(
+        new RegExp(
+          `<DashboardLayoutInner \\{\\.\\.\\.props\\} />\\s*<${host} />`,
+        ),
+      );
     });
   }
 });

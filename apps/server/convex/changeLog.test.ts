@@ -48,9 +48,18 @@ function makeFakeDb() {
         withIndex(_name: string, fn: (q: any) => any) {
           const preds: Array<[string, (v: any) => boolean]> = [];
           const q: any = {
-            eq: (f: string, v: any) => { preds.push([f, (x) => x === v]); return q; },
-            gt: (f: string, v: any) => { preds.push([f, (x) => x > v]); return q; },
-            lt: (f: string, v: any) => { preds.push([f, (x) => x < v]); return q; },
+            eq: (f: string, v: any) => {
+              preds.push([f, (x) => x === v]);
+              return q;
+            },
+            gt: (f: string, v: any) => {
+              preds.push([f, (x) => x > v]);
+              return q;
+            },
+            lt: (f: string, v: any) => {
+              preds.push([f, (x) => x < v]);
+              return q;
+            },
           };
           fn(q);
           rows = rows.filter((r) => preds.every(([f, ok]) => ok(r[f])));
@@ -58,17 +67,28 @@ function makeFakeDb() {
         },
         order(dir?: string) {
           if (rows.length && typeof rows[0]?.position === "number") {
-            rows = [...rows].sort((a, b) => (dir === "desc" ? b.position - a.position : a.position - b.position));
+            rows = [...rows].sort((a, b) =>
+              dir === "desc"
+                ? b.position - a.position
+                : a.position - b.position,
+            );
           }
           return api;
         },
-        async first() { return rows[0] ?? null; },
-        async unique() {
-          if (rows.length > 1) throw new Error("unique() found more than one row");
+        async first() {
           return rows[0] ?? null;
         },
-        async take(n: number) { return rows.slice(0, n); },
-        async collect() { return rows; },
+        async unique() {
+          if (rows.length > 1)
+            throw new Error("unique() found more than one row");
+          return rows[0] ?? null;
+        },
+        async take(n: number) {
+          return rows.slice(0, n);
+        },
+        async collect() {
+          return rows;
+        },
       };
       return api;
     },
@@ -88,10 +108,16 @@ describe("scopeFromDoc", () => {
     });
   });
   test("team is undefined when absent", () => {
-    expect(scopeFromDoc({ user_id: "users:1" })).toEqual({ owner_user_id: "users:1", team_id: undefined });
+    expect(scopeFromDoc({ user_id: "users:1" })).toEqual({
+      owner_user_id: "users:1",
+      team_id: undefined,
+    });
   });
   test("null doc yields no owner (delete of an already-gone row)", () => {
-    expect(scopeFromDoc(null)).toEqual({ owner_user_id: undefined, team_id: undefined });
+    expect(scopeFromDoc(null)).toEqual({
+      owner_user_id: undefined,
+      team_id: undefined,
+    });
   });
 });
 
@@ -128,7 +154,11 @@ describe("makeChangeTrackedDb — emission", () => {
   test("insert into a tracked table emits one upsert row with scope", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
-    const id = await tdb.insert("conversations", { user_id: "users:1", team_id: "teams:9", status: "active" });
+    const id = await tdb.insert("conversations", {
+      user_id: "users:1",
+      team_id: "teams:9",
+      status: "active",
+    });
     const rows = changeRows();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -141,8 +171,6 @@ describe("makeChangeTrackedDb — emission", () => {
     expect(typeof rows[0].seq).toBe("number");
   });
 
-
-
   test("insert into an UNtracked table emits nothing", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
@@ -153,7 +181,10 @@ describe("makeChangeTrackedDb — emission", () => {
   test("repeated writes to one entity upsert a SINGLE row (bounded by entity count)", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
-    const id = await tdb.insert("tasks", { user_id: "users:1", status: "open" });
+    const id = await tdb.insert("tasks", {
+      user_id: "users:1",
+      status: "open",
+    });
     await tdb.patch(id, { status: "in_progress" });
     await tdb.patch(id, { status: "done" });
     const rows = changeRows();
@@ -165,7 +196,10 @@ describe("makeChangeTrackedDb — emission", () => {
   test("a dismiss-style patch (no scope fields) still emits — the gap the feed closes", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
-    const id = await tdb.insert("conversations", { user_id: "users:1", status: "active" });
+    const id = await tdb.insert("conversations", {
+      user_id: "users:1",
+      status: "active",
+    });
     // The kind of write that does NOT bump updated_at and so an updated_at delta
     // would miss — the original bug.
     await tdb.patch(id, { inbox_dismissed_at: 123456 });
@@ -177,11 +211,19 @@ describe("makeChangeTrackedDb — emission", () => {
   test("delete emits an op:delete tombstone with the pre-delete scope", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
-    const id = await tdb.insert("docs", { user_id: "users:1", team_id: "teams:3" });
+    const id = await tdb.insert("docs", {
+      user_id: "users:1",
+      team_id: "teams:3",
+    });
     await tdb.delete(id);
     const rows = changeRows();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ entity_type: "docs", op: "delete", owner_user_id: "users:1", team_id: "teams:3" });
+    expect(rows[0]).toMatchObject({
+      entity_type: "docs",
+      op: "delete",
+      owner_user_id: "users:1",
+      team_id: "teams:3",
+    });
     // And the entity itself is gone.
     expect(await db.get(id)).toBeNull();
   });
@@ -189,7 +231,11 @@ describe("makeChangeTrackedDb — emission", () => {
   test("a team reassignment patch refreshes the recorded team scope", async () => {
     const { db, changeRows } = makeFakeDb();
     const tdb = makeChangeTrackedDb(db);
-    const id = await tdb.insert("tasks", { user_id: "users:1", team_id: "teams:1", status: "open" });
+    const id = await tdb.insert("tasks", {
+      user_id: "users:1",
+      team_id: "teams:1",
+      status: "open",
+    });
     await tdb.patch(id, { team_id: "teams:2" });
     const rows = changeRows();
     expect(rows).toHaveLength(1);
@@ -212,39 +258,74 @@ describe("makeChangeTrackedDb — emission", () => {
 describe("makeChangeTrackedDb: session owners fan-out", () => {
   async function ownedConversation() {
     const f = makeFakeDb();
-    const conv = await makeChangeTrackedDb(f.db).insert("conversations", { user_id: "users:ada", title: "anchor" });
+    const conv = await makeChangeTrackedDb(f.db).insert("conversations", {
+      user_id: "users:ada",
+      title: "anchor",
+    });
     return { ...f, conv };
   }
 
   test("a session_owners insert emits a thin upsert in the new owner's scope, stamped with their grant", async () => {
     const { db, conv, syncRows } = await ownedConversation();
-    await makeChangeTrackedDb(db).insert("session_owners", { conversation_id: conv, user_id: "users:bo", added_by: "users:ada", added_at: 1 });
+    await makeChangeTrackedDb(db).insert("session_owners", {
+      conversation_id: conv,
+      user_id: "users:bo",
+      added_by: "users:ada",
+      added_at: 1,
+    });
     const rows = syncRows("user:users:bo");
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ entity_type: "conversations", entity_id: conv, op: "upsert", access_owner: "users:ada", access_grants: ["users:bo"] });
+    expect(rows[0]).toMatchObject({
+      entity_type: "conversations",
+      entity_id: conv,
+      op: "upsert",
+      access_owner: "users:ada",
+      access_grants: ["users:bo"],
+    });
     expect(rows[0].patch).toBeUndefined();
   });
 
   test("the runner joining as an owner appends nothing new", async () => {
     const { db, conv, syncRows } = await ownedConversation();
     const before = syncRows().length;
-    await makeChangeTrackedDb(db).insert("session_owners", { conversation_id: conv, user_id: "users:ada", added_by: "users:ada", added_at: 1 });
+    await makeChangeTrackedDb(db).insert("session_owners", {
+      conversation_id: conv,
+      user_id: "users:ada",
+      added_by: "users:ada",
+      added_at: 1,
+    });
     expect(syncRows()).toHaveLength(before);
   });
 
   test("a co-owner's patch lands positions in both the runner's and the co-owner's scope", async () => {
     const { db, conv, syncRows } = await ownedConversation();
-    await db.insert("session_owners", { conversation_id: conv, user_id: "users:bo", added_by: "users:ada", added_at: 1 });
+    await db.insert("session_owners", {
+      conversation_id: conv,
+      user_id: "users:bo",
+      added_by: "users:ada",
+      added_at: 1,
+    });
     const collector = makeSyncAckCollector();
     await makeChangeTrackedDb(db, collector).patch(conv, { pinned_at: 5 });
-    expect(collector.positions.map((p) => p.scope_key).sort()).toEqual(["user:users:ada", "user:users:bo"]);
-    expect(syncRows("user:users:bo")[0]).toMatchObject({ op: "upsert", access_grants: ["users:bo"] });
+    expect(collector.positions.map((p) => p.scope_key).sort()).toEqual([
+      "user:users:ada",
+      "user:users:bo",
+    ]);
+    expect(syncRows("user:users:bo")[0]).toMatchObject({
+      op: "upsert",
+      access_grants: ["users:bo"],
+    });
     expect(syncRows("user:users:bo")[0].patch).toMatchObject({ pinned_at: 5 });
   });
 
   test("removing an owner emits nothing in the departed owner's scope, and later writes stop reaching it", async () => {
     const { db, conv, syncRows } = await ownedConversation();
-    const row = await makeChangeTrackedDb(db).insert("session_owners", { conversation_id: conv, user_id: "users:bo", added_by: "users:ada", added_at: 1 });
+    const row = await makeChangeTrackedDb(db).insert("session_owners", {
+      conversation_id: conv,
+      user_id: "users:bo",
+      added_by: "users:ada",
+      added_at: 1,
+    });
     const boBefore = syncRows("user:users:bo").map((r) => ({ ...r }));
     await makeChangeTrackedDb(db).delete(row);
     await makeChangeTrackedDb(db).patch(conv, { title: "renamed" });

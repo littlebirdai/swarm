@@ -56,7 +56,9 @@ export class RuntimeDriverRegistry {
     for (const agent of driver.supportedAgents) {
       const key = driverKey(agent, driver.transport);
       if (this.drivers.has(key)) {
-        throw new TypeError(`Duplicate runtime driver for ${agent}/${driver.transport}`);
+        throw new TypeError(
+          `Duplicate runtime driver for ${agent}/${driver.transport}`,
+        );
       }
       this.drivers.set(key, driver);
     }
@@ -74,7 +76,9 @@ export class RuntimeDriverRegistry {
   }
 }
 
-export function assertRuntimeDeliveryFence(request: RuntimeDeliveryRequest): void {
+export function assertRuntimeDeliveryFence(
+  request: RuntimeDeliveryRequest,
+): void {
   if (!readyBindingMatchesPermit(request.binding, request.permit)) {
     throw new ExecutionCoordinatorError(
       "BINDING_FENCE_MISMATCH",

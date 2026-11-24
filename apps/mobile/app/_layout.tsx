@@ -1,62 +1,116 @@
-import '@/lib/polyfills';
-import { ComposeHost } from '@/components/session/NewSessionSheet';
-import { useShareInbox } from '@/lib/shareInbox';
-import { UndoBarHost } from '@/components/UndoBar';
-import { PopupHost } from '@/components/PopupHost';
-import { SelectTextHost } from '@/components/SelectTextSheet';
-import { BiometricGate } from '@/components/BiometricGate';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import * as SecureStore from 'expo-secure-store';
-import { AppState } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
-import 'react-native-reanimated';
-import { GestureHandlerRootView } from '@/lib/gestureHandler';
-import { ConvexProvider } from 'convex/react';
-import { ConvexAuthProvider } from '@convex-dev/auth/react';
+import "@/lib/polyfills";
+import { ComposeHost } from "@/components/session/NewSessionSheet";
+import { useShareInbox } from "@/lib/shareInbox";
+import { UndoBarHost } from "@/components/UndoBar";
+import { PopupHost } from "@/components/PopupHost";
+import { SelectTextHost } from "@/components/SelectTextSheet";
+import { BiometricGate } from "@/components/BiometricGate";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { useFonts } from "expo-font";
+import { Stack, useRouter, useSegments, usePathname } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import * as SecureStore from "expo-secure-store";
+import { AppState } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import {
+  Component,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+  type ReactNode,
+} from "react";
+import "react-native-reanimated";
+import { GestureHandlerRootView } from "@/lib/gestureHandler";
+import { ConvexProvider } from "convex/react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 
-import { paletteFor, setActiveLook, setActiveScheme, useActiveLook, useActiveScheme, type ColorScheme, type Look } from '@/constants/Theme';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Mono, markLateFacesLoaded, uiFace, useFacesVersion, useLateFacesLoaded } from '@/constants/fonts';
-import { resolveMobileLook } from '@/lib/mobileLook';
-import { ensureModernFaces } from '@/lib/modernFaces';
-import { followServerUiKey, useInboxStore } from '@codecast/web/store/inboxStore';
-import { convex } from '@/lib/convex';
-import { AuthProvider, useAuth } from '@/lib/auth';
-import { TextSizeProvider } from '@/hooks/useTextSize';
-import { convexAuthStorageKey } from '@/lib/cachePrincipal';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { noteRouteSegments } from '@/lib/tabNavigation';
-import { useLiveActivity } from '@/hooks/useLiveActivity';
-import { useViewerIdentity } from '@codecast/web/hooks/useTeamRoster';
-import { initAnalytics, identifyUser, resetUser, trackScreen, wrapRoot } from '@/lib/analytics';
-import { startCallKitBridge, republishVoipToken, notifyCallKitAuth } from '@/lib/calls/callKit';
-import { STORE_SHOTS } from '@/lib/storeShots/flag';
-import { bootMark } from '@/lib/bootProfile';
-import { BOOT_FONTS } from '@/lib/bootFonts';
-import { PERF_PROBE, probeTouchEnd, setProbeRoute } from '@/lib/perfProbe';
-import { startForegroundSyncTrace } from '@/lib/foregroundSyncTrace';
-import { setForegroundRoute, startForegroundResume } from '@/lib/foregroundResume';
-import * as Font from 'expo-font';
-import { setTaskErrorReporter } from '@codecast/web/lib/taskActions';
-import { StoreSyncBridge } from '@/components/StoreSyncBridge';
-import { appAlert } from '@/lib/popups';
+import {
+  paletteFor,
+  setActiveLook,
+  setActiveScheme,
+  useActiveLook,
+  useActiveScheme,
+  type ColorScheme,
+  type Look,
+} from "@/constants/Theme";
+import { useColorScheme } from "@/components/useColorScheme";
+import {
+  Mono,
+  markLateFacesLoaded,
+  uiFace,
+  useFacesVersion,
+  useLateFacesLoaded,
+} from "@/constants/fonts";
+import { resolveMobileLook } from "@/lib/mobileLook";
+import { ensureModernFaces } from "@/lib/modernFaces";
+import {
+  followServerUiKey,
+  useInboxStore,
+} from "@codecast/web/store/inboxStore";
+import { convex } from "@/lib/convex";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { TextSizeProvider } from "@/hooks/useTextSize";
+import { convexAuthStorageKey } from "@/lib/cachePrincipal";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { noteRouteSegments } from "@/lib/tabNavigation";
+import { useLiveActivity } from "@/hooks/useLiveActivity";
+import { useViewerIdentity } from "@codecast/web/hooks/useTeamRoster";
+import {
+  initAnalytics,
+  identifyUser,
+  resetUser,
+  trackScreen,
+  wrapRoot,
+} from "@/lib/analytics";
+import {
+  startCallKitBridge,
+  republishVoipToken,
+  notifyCallKitAuth,
+} from "@/lib/calls/callKit";
+import { STORE_SHOTS } from "@/lib/storeShots/flag";
+import { bootMark } from "@/lib/bootProfile";
+import { BOOT_FONTS } from "@/lib/bootFonts";
+import { PERF_PROBE, probeTouchEnd, setProbeRoute } from "@/lib/perfProbe";
+import { startForegroundSyncTrace } from "@/lib/foregroundSyncTrace";
+import {
+  setForegroundRoute,
+  startForegroundResume,
+} from "@/lib/foregroundResume";
+import * as Font from "expo-font";
+import { setTaskErrorReporter } from "@codecast/web/lib/taskActions";
+import { StoreSyncBridge } from "@/components/StoreSyncBridge";
+import { appAlert } from "@/lib/popups";
 
 // A task write the server refuses (createTaskAndAdopt drops its stub) says so,
 // as web's toast does.
-setTaskErrorReporter((msg) => appAlert('Task', msg));
+setTaskErrorReporter((msg) => appAlert("Task", msg));
 
-const CallOverlay = lazy(() => import('@/components/calls/CallOverlay').then((m) => ({ default: m.CallOverlay })));
+const CallOverlay = lazy(() =>
+  import("@/components/calls/CallOverlay").then((m) => ({
+    default: m.CallOverlay,
+  })),
+);
 
-class OverlayErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class OverlayErrorBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
   state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  render() { return this.state.failed ? null : this.props.children; }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
-
 
 // Keychain failures must degrade to "signed out", never hang auth: a rejected
 // getItem propagates into @convex-dev/auth's boot read, which is fired as
@@ -89,25 +143,26 @@ const secureStorage = {
 // Reload after calling; the provider boots signed in. Never bundled in release.
 if (__DEV__) {
   (global as any).__devAuth = async (jwt: string, refresh: string) => {
-    await secureStorage.setItem(convexAuthStorageKey('__convexAuthJWT'), jwt);
-    await secureStorage.setItem(convexAuthStorageKey('__convexAuthRefreshToken'), refresh);
+    await secureStorage.setItem(convexAuthStorageKey("__convexAuthJWT"), jwt);
+    await secureStorage.setItem(
+      convexAuthStorageKey("__convexAuthRefreshToken"),
+      refresh,
+    );
     return "ok";
   };
 }
 
-export {
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: "(tabs)",
 };
 
 SplashScreen.preventAutoHideAsync();
 
 // The phone never writes the web's Modern switch, only reads it, so the
 // server's value wins here and the phone follows the web (lib/mobileLook).
-followServerUiKey('modern_style');
+followServerUiKey("modern_style");
 
 function RootLayout() {
   // Already loading since index.ts (lib/bootFonts).
@@ -131,9 +186,9 @@ function RootLayout() {
     if (!loaded) return;
     bootMark("fonts-ready");
     void Font.loadAsync({
-      'JetBrainsMono-Medium': require('../assets/fonts/JetBrainsMono-Medium.ttf'),
-      'JetBrainsMono-Bold': require('../assets/fonts/JetBrainsMono-Bold.ttf'),
-      'JetBrainsMono-Italic': require('../assets/fonts/JetBrainsMono-Italic.ttf'),
+      "JetBrainsMono-Medium": require("../assets/fonts/JetBrainsMono-Medium.ttf"),
+      "JetBrainsMono-Bold": require("../assets/fonts/JetBrainsMono-Bold.ttf"),
+      "JetBrainsMono-Italic": require("../assets/fonts/JetBrainsMono-Italic.ttf"),
     }).then(markLateFacesLoaded, () => {});
   }, [loaded]);
 
@@ -141,7 +196,9 @@ function RootLayout() {
 
   // binaries without the native module (guarded require → no-op).
 
-  useEffect(() => { if (!STORE_SHOTS) startCallKitBridge(); }, []);
+  useEffect(() => {
+    if (!STORE_SHOTS) startCallKitBridge();
+  }, []);
 
   // Splash stays up past fonts. AuthProvider releases it once the SQLite
   // cache has hydrated (clientStateInitialized) and local boot trust is
@@ -162,7 +219,7 @@ function RootLayout() {
   // Sans they are marked ready synchronously, before the look flips.
   const look = useInboxStore((s) => resolveMobileLook(s.clientState?.ui));
   useLayoutEffect(() => {
-    if (look === 'modern') ensureModernFaces();
+    if (look === "modern") ensureModernFaces();
     setActiveLook(look);
   }, [look]);
 
@@ -183,21 +240,26 @@ function RootLayout() {
         // require, not import(): dynamic import() rejects in production
         // bundles on Hermes (chunk-URL resolution needs web "location"),
         // which silently killed the in-session OTA fetch loop.
-        const Updates = require('expo-updates') as typeof import('expo-updates');
+        const Updates =
+          require("expo-updates") as typeof import("expo-updates");
         const update = await Updates.checkForUpdateAsync();
         if (cancelled || !update.isAvailable) return;
         await Updates.fetchUpdateAsync();
         if (!cancelled) updatePending = true;
       } catch (e) {
-        console.log('OTA update check failed:', e);
+        console.log("OTA update check failed:", e);
       }
     }
 
-    const sub = AppState.addEventListener('change', (state) => {
-      if (updatePending && (state === 'background' || state === 'inactive')) {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (updatePending && (state === "background" || state === "inactive")) {
         updatePending = false;
         Promise.resolve()
-          .then(() => (require('expo-updates') as typeof import('expo-updates')).reloadAsync())
+          .then(() =>
+            (
+              require("expo-updates") as typeof import("expo-updates")
+            ).reloadAsync(),
+          )
           .catch(() => {});
       }
     });
@@ -251,7 +313,7 @@ export default wrapRoot(RootLayout);
 // every entry — the face carries the weight (see constants/fonts.ts). Under
 // Modern, the look's palette and Instrument Sans.
 function solarizedNavTheme(scheme: ColorScheme, look: Look, late: boolean) {
-  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const base = scheme === "dark" ? DarkTheme : DefaultTheme;
   const palette = paletteFor(scheme, look);
   return {
     ...base,
@@ -265,10 +327,22 @@ function solarizedNavTheme(scheme: ColorScheme, look: Look, late: boolean) {
       notification: palette.red,
     },
     fonts: {
-      regular: { fontFamily: uiFace(Mono.regular, late, look), fontWeight: 'normal' },
-      medium: { fontFamily: uiFace(Mono.medium, late, look), fontWeight: 'normal' },
-      bold: { fontFamily: uiFace(Mono.semiBold, late, look), fontWeight: 'normal' },
-      heavy: { fontFamily: uiFace(Mono.bold, late, look), fontWeight: 'normal' },
+      regular: {
+        fontFamily: uiFace(Mono.regular, late, look),
+        fontWeight: "normal",
+      },
+      medium: {
+        fontFamily: uiFace(Mono.medium, late, look),
+        fontWeight: "normal",
+      },
+      bold: {
+        fontFamily: uiFace(Mono.semiBold, late, look),
+        fontWeight: "normal",
+      },
+      heavy: {
+        fontFamily: uiFace(Mono.bold, late, look),
+        fontWeight: "normal",
+      },
     },
   } as const;
 }
@@ -278,25 +352,44 @@ function RootLayoutNav() {
   const look = useActiveLook();
   const lateFaces = useLateFacesLoaded();
   const faces = useFacesVersion();
-  const navTheme = useMemo(() => solarizedNavTheme(scheme, look, lateFaces), [scheme, look, lateFaces, faces]);
+  const navTheme = useMemo(
+    () => solarizedNavTheme(scheme, look, lateFaces),
+    [scheme, look, lateFaces, faces],
+  );
   const [calls, setCalls] = useState(false);
-  useEffect(() => { setCalls(true); }, []);
+  useEffect(() => {
+    setCalls(true);
+  }, []);
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onTouchEndCapture={PERF_PROBE ? probeTouchEnd : undefined}>
+    <GestureHandlerRootView
+      style={{ flex: 1 }}
+      onTouchEndCapture={PERF_PROBE ? probeTouchEnd : undefined}
+    >
       <ConvexProvider client={convex}>
         <ConvexAuthProvider client={convex} storage={secureStorage}>
           <AuthProvider>
             <ThemeProvider value={navTheme}>
               <TextSizeProvider>
-                <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
                 {STORE_SHOTS ? null : <AnalyticsIdentify />}
                 <AuthGate>
                   {/* Back is a bare chevron: the tab group has no title, so a labeled
                       back button read "(tabs)" on every pushed screen. */}
-                  <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen name="auth/login" options={{ title: 'Login', headerShown: false }} />
-                    <Stack.Screen name="auth/signup" options={{ title: 'Sign Up', headerShown: false }} />
+                  <Stack
+                    screenOptions={{ headerBackButtonDisplayMode: "minimal" }}
+                  >
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="auth/login"
+                      options={{ title: "Login", headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="auth/signup"
+                      options={{ title: "Sign Up", headerShown: false }}
+                    />
                     {/* The session screen draws its own title bar, so the nav
                         header is off from the first frame. reveal=1 is a session
                         the new session sheet just started: pushed with no
@@ -305,11 +398,13 @@ function RootLayoutNav() {
                     <Stack.Screen
                       name="session/[id]"
                       options={({ route }) => ({
-                        title: 'Conversation',
+                        title: "Conversation",
                         headerShown: false,
                         animation: (() => {
-                          const p = route.params as { reveal?: string } | undefined;
-                          return p?.reveal ? 'none' : 'default';
+                          const p = route.params as
+                            | { reveal?: string }
+                            | undefined;
+                          return p?.reveal ? "none" : "default";
                         })(),
                         // A rightward drag on a conversation uncovers the inbox
                         // behind it (components/inbox/ConversationSlideOut), so
@@ -317,26 +412,63 @@ function RootLayoutNav() {
                         gestureEnabled: false,
                       })}
                     />
-                    <Stack.Screen name="terminal/[id]" options={{ headerShown: false }} />
-                    <Stack.Screen name="task/[id]" options={{ title: 'Task' }} />
-                    <Stack.Screen name="plan/[id]" options={{ title: 'Plan' }} />
-                    <Stack.Screen name="project/[id]" options={{ title: 'Project' }} />
-                    <Stack.Screen name="goal/[id]" options={{ title: 'Goal' }} />
-                    <Stack.Screen name="doc/[id]" options={{ title: 'Doc' }} />
-                    <Stack.Screen name="org/index" options={{ title: 'Org' }} />
+                    <Stack.Screen
+                      name="terminal/[id]"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="task/[id]"
+                      options={{ title: "Task" }}
+                    />
+                    <Stack.Screen
+                      name="plan/[id]"
+                      options={{ title: "Plan" }}
+                    />
+                    <Stack.Screen
+                      name="project/[id]"
+                      options={{ title: "Project" }}
+                    />
+                    <Stack.Screen
+                      name="goal/[id]"
+                      options={{ title: "Goal" }}
+                    />
+                    <Stack.Screen name="doc/[id]" options={{ title: "Doc" }} />
+                    <Stack.Screen name="org/index" options={{ title: "Org" }} />
                     {/* A role's page is the session screen on its standing
                         conversation, which draws its own header. */}
-                    <Stack.Screen name="org/[id]/index" options={{ headerShown: false }} />
-                    <Stack.Screen name="org/[id]/board" options={{ title: 'Board' }} />
-                    <Stack.Screen name="person/[id]" options={{ title: 'Person' }} />
+                    <Stack.Screen
+                      name="org/[id]/index"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="org/[id]/board"
+                      options={{ title: "Board" }}
+                    />
+                    <Stack.Screen
+                      name="person/[id]"
+                      options={{ title: "Person" }}
+                    />
                     {/* Both draw their own header (a back chevron and a title),
                         so the nav header would be a second one stacked on top. */}
-                    <Stack.Screen name="record" options={{ headerShown: false }} />
-                    <Stack.Screen name="calls" options={{ headerShown: false }} />
-                    <Stack.Screen name="recording/[id]" options={{ headerShown: false }} />
+                    <Stack.Screen
+                      name="record"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="calls"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="recording/[id]"
+                      options={{ headerShown: false }}
+                    />
                     <Stack.Screen
                       name="call"
-                      options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'slide_from_bottom' }}
+                      options={{
+                        presentation: "fullScreenModal",
+                        headerShown: false,
+                        animation: "slide_from_bottom",
+                      }}
                     />
                   </Stack>
                   <ComposeHost />
@@ -374,7 +506,9 @@ function AnalyticsIdentify() {
       identifyUser(id, {
         ...(user!.email && { email: user!.email }),
         ...(user!.name && { name: user!.name }),
-        ...(user!.github_username && { github_username: user!.github_username }),
+        ...(user!.github_username && {
+          github_username: user!.github_username,
+        }),
       });
     } else if (!id && lastId.current) {
       lastId.current = null;
@@ -411,15 +545,15 @@ function RealAuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === 'auth';
+    const inAuthGroup = segments[0] === "auth";
 
     if (!isAuthenticated && !inAuthGroup) {
-      if (pathname && pathname !== '/') pendingDeepLink.current = pathname;
-      router.replace('/auth/login');
+      if (pathname && pathname !== "/") pendingDeepLink.current = pathname;
+      router.replace("/auth/login");
     } else if (isAuthenticated && inAuthGroup) {
       const target = pendingDeepLink.current;
       pendingDeepLink.current = null;
-      router.replace('/');
+      router.replace("/");
       if (target) router.push(target as never);
     }
   }, [isAuthenticated, isLoading, segments, pathname]);

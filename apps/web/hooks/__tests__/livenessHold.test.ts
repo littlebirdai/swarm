@@ -1,12 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import { LIVENESS_HIDDEN_SUSPEND_GAP_MS, LIVENESS_SUSPEND_GAP_MS, startLivenessHold, type LivenessHoldIO } from "../livenessHold";
+import {
+  LIVENESS_HIDDEN_SUSPEND_GAP_MS,
+  LIVENESS_SUSPEND_GAP_MS,
+  startLivenessHold,
+  type LivenessHoldIO,
+} from "../livenessHold";
 
 // The controller that decides when the device's liveness facts may be stale
 // (a launch from cache, a suspension, a dropped socket) and when a fresh read
 // has made them current again.
 const T0 = 1_800_000_000_000;
 
-function rig(opts: { hydrated?: boolean; heartbeats?: number[]; hidden?: boolean } = {}) {
+function rig(
+  opts: { hydrated?: boolean; heartbeats?: number[]; hidden?: boolean } = {},
+) {
   let now = T0;
   let hidden = opts.hidden ?? false;
   let hydrated = opts.hydrated ?? true;
@@ -14,12 +21,19 @@ function rig(opts: { hydrated?: boolean; heartbeats?: number[]; hidden?: boolean
   let heldAt: number | null = null;
   let seq = 0;
   const reads: Array<{ resolve: (applied: boolean) => void }> = [];
-  const listeners = { tick: new Set<() => void>(), conn: new Set<() => void>(), wake: new Set<() => void>(), store: new Set<() => void>() };
+  const listeners = {
+    tick: new Set<() => void>(),
+    conn: new Set<() => void>(),
+    wake: new Set<() => void>(),
+    store: new Set<() => void>(),
+  };
   const on = (set: Set<() => void>) => (fn: () => void) => {
     set.add(fn);
     return () => set.delete(fn);
   };
-  const sessions = Object.fromEntries((opts.heartbeats ?? []).map((b, i) => [`s${i}`, { last_heartbeat: b }]));
+  const sessions = Object.fromEntries(
+    (opts.heartbeats ?? []).map((b, i) => [`s${i}`, { last_heartbeat: b }]),
+  );
   const io: LivenessHoldIO = {
     now: () => now,
     hydrated: () => hydrated,
@@ -47,19 +61,32 @@ function rig(opts: { hydrated?: boolean; heartbeats?: number[]; hidden?: boolean
     stop,
     reads,
     held: () => heldAt,
-    advance: (ms: number) => { now += ms; },
+    advance: (ms: number) => {
+      now += ms;
+    },
     tick: () => fire(listeners.tick),
     wake: () => fire(listeners.wake),
-    setConnected: (c: boolean) => { connected = c; fire(listeners.conn); },
-    hydrate: () => { hydrated = true; fire(listeners.store); },
-    setHidden: (h: boolean) => { hidden = h; },
+    setConnected: (c: boolean) => {
+      connected = c;
+      fire(listeners.conn);
+    },
+    hydrate: () => {
+      hydrated = true;
+      fire(listeners.store);
+    },
+    setHidden: (h: boolean) => {
+      hidden = h;
+    },
   };
 }
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe("liveness hold", () => {
   it("holds a launch from cache at its latest heartbeat until a fresh read lands", async () => {
-    const r = rig({ hydrated: false, heartbeats: [T0 - 3_600_000, T0 - 600_000] });
+    const r = rig({
+      hydrated: false,
+      heartbeats: [T0 - 3_600_000, T0 - 600_000],
+    });
     expect(r.held()).toBeNull();
     r.hydrate();
     expect(r.held()).toBe(T0 - 600_000);

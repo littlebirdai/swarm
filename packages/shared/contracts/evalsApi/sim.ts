@@ -73,7 +73,14 @@ export interface SimSessionSummary extends SimSession {
 
 /** A row of events.jsonl: a delivery (rows written before step markers carry no kind) or a step marker from dsl.ts. */
 export type SimEvent =
-  | { kind?: "delivery"; seq: number; channel: string; due: number; label: string; producer: string }
+  | {
+      kind?: "delivery";
+      seq: number;
+      channel: string;
+      due: number;
+      label: string;
+      producer: string;
+    }
   | { kind: "step"; seq: number; verb: string; actor: string; label: string };
 
 /** world.json. */
@@ -82,7 +89,14 @@ export interface SimWorld {
   mode: SimMode;
   seed: number;
   labels: Record<string, string>;
-  devices: Array<{ name: string; windows: Array<{ name: string; role: "host" | "follower"; closed: boolean }> }>;
+  devices: Array<{
+    name: string;
+    windows: Array<{
+      name: string;
+      role: "host" | "follower";
+      closed: boolean;
+    }>;
+  }>;
 }
 
 /** final.json. */
@@ -90,7 +104,13 @@ export interface SimFinal {
   deliveries: number;
   writesSpent: number;
   producers: Record<string, number>;
-  calls: Array<{ seq: number; name: string; kind: string; ok: boolean; error?: string }>;
+  calls: Array<{
+    seq: number;
+    name: string;
+    kind: string;
+    ok: boolean;
+    error?: string;
+  }>;
   actors: Array<{ actor: string; verb: string; ok: boolean; error?: string }>;
   windowErrors: Record<string, string[]>;
 }
@@ -115,7 +135,12 @@ export interface SimFailureResult extends SimResultCommon {
   message?: string;
   window?: { name: string; principal: string; scope: string };
   /** The row the check names, with the rendered field diff (no raw rows). */
-  row?: { table: string; id: string; label: string; diff: Array<{ field: string; server: string; replica: string }> };
+  row?: {
+    table: string;
+    id: string;
+    label: string;
+    diff: Array<{ field: string; server: string; replica: string }>;
+  };
   /** The recorded delivery order, as `--order` takes it. */
   order: string;
   labels: Record<string, string>;
@@ -177,7 +202,13 @@ export interface SimJob {
 export interface SimGridCell {
   scenario: string;
   mode: SimMode;
-  latest: { session: string; run: string | null; seed: number; passed: boolean; at: string } | null;
+  latest: {
+    session: string;
+    run: string | null;
+    seed: number;
+    passed: boolean;
+    at: string;
+  } | null;
   /** Per session, oldest first: seeds run and seeds failed. */
   history: Array<{ session: string; seeds: number; failed: number }>;
   gitHead: string | null;
@@ -189,5 +220,11 @@ export interface SimGridCell {
    * null when the history holds no failing run with artifacts. The api child's
    * `simGrid` fills it.
    */
-  newestFailure: { session: string; run: string; seed: number; invariant: string; at: string } | null;
+  newestFailure: {
+    session: string;
+    run: string;
+    seed: number;
+    invariant: string;
+    at: string;
+  } | null;
 }

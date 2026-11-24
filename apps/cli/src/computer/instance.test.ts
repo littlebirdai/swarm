@@ -31,7 +31,9 @@ afterEach(() => {
 });
 
 function isolatedHome(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-computer-instance-test-"));
+  const dir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "cast-computer-instance-test-"),
+  );
   const prev = process.env.CODECAST_DIR;
   process.env.CODECAST_DIR = dir;
   cleanups.push(() => {
@@ -42,7 +44,9 @@ function isolatedHome(): string {
   return dir;
 }
 
-function fakeState(overrides: Partial<ComputerInstanceState> = {}): ComputerInstanceState {
+function fakeState(
+  overrides: Partial<ComputerInstanceState> = {},
+): ComputerInstanceState {
   return {
     pid: process.pid,
     socketPath: "/tmp/nowhere/helper.sock",
@@ -75,7 +79,10 @@ describe("the instance file", () => {
   test("a file with no token is refused: a helper we cannot authenticate to is no helper", () => {
     isolatedHome();
     fs.mkdirSync(computerHome(), { recursive: true });
-    fs.writeFileSync(instancePath(), JSON.stringify({ pid: 1, socketPath: "/tmp/x.sock" }));
+    fs.writeFileSync(
+      instancePath(),
+      JSON.stringify({ pid: 1, socketPath: "/tmp/x.sock" }),
+    );
     expect(readInstance()).toBeNull();
   });
 
@@ -98,7 +105,9 @@ describe("probeLiveness", () => {
 
   test("a pid that is gone is dead, however the socket behaves", async () => {
     // pid 1 is init; a pid far past the wrap point is reliably absent.
-    expect(await probeLiveness(fakeState({ pid: 0x7ffffff0 }), always)).toBe("dead");
+    expect(await probeLiveness(fakeState({ pid: 0x7ffffff0 }), always)).toBe(
+      "dead",
+    );
   });
 
   test("a live pid whose socket stays silent is unresponsive, not dead", async () => {
@@ -138,7 +147,10 @@ describe("acquireStartLock", () => {
   test("a lock whose holder is gone is reclaimed rather than waited out", async () => {
     isolatedHome();
     fs.mkdirSync(computerHome(), { recursive: true });
-    fs.writeFileSync(path.join(computerHome(), "start.lock"), JSON.stringify({ pid: 0x7ffffff0, at: Date.now() }));
+    fs.writeFileSync(
+      path.join(computerHome(), "start.lock"),
+      JSON.stringify({ pid: 0x7ffffff0, at: Date.now() }),
+    );
     const release = await acquireStartLock(2_000);
     release();
   });
@@ -146,8 +158,20 @@ describe("acquireStartLock", () => {
 
 describe("strayHelperPids", () => {
   test("finds a helper by its socket directory, despite the pattern starting with --", async () => {
-    const socketDir = path.join(os.tmpdir(), `codecast-computer-stray-${process.pid}`);
-    const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 5000)", "--agent", `${socketDir}/helper.sock`], { stdio: "ignore" });
+    const socketDir = path.join(
+      os.tmpdir(),
+      `codecast-computer-stray-${process.pid}`,
+    );
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        "setTimeout(() => {}, 5000)",
+        "--agent",
+        `${socketDir}/helper.sock`,
+      ],
+      { stdio: "ignore" },
+    );
     cleanups.push(() => child.kill("SIGKILL"));
     await new Promise((r) => setTimeout(r, 400));
     // Without the `--` before the pattern pgrep reads `--agent` as an option
@@ -160,12 +184,26 @@ describe("strayHelperPids", () => {
     // through a shell put the pattern in that shell's own argv, and Debian's
     // `sh` is still alive when pgrep reads the table, so every call reported a
     // stray and no stale socket directory was ever discarded (ct-49945).
-    expect(strayHelperPids(path.join(os.tmpdir(), "codecast-computer-nobody-here"))).toEqual([]);
+    expect(
+      strayHelperPids(path.join(os.tmpdir(), "codecast-computer-nobody-here")),
+    ).toEqual([]);
   });
 
   test("reports only processes that are running, never a killed one", async () => {
-    const socketDir = path.join(os.tmpdir(), `codecast-computer-dead-${process.pid}`);
-    const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 5000)", "--agent", `${socketDir}/helper.sock`], { stdio: "ignore" });
+    const socketDir = path.join(
+      os.tmpdir(),
+      `codecast-computer-dead-${process.pid}`,
+    );
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        "setTimeout(() => {}, 5000)",
+        "--agent",
+        `${socketDir}/helper.sock`,
+      ],
+      { stdio: "ignore" },
+    );
     cleanups.push(() => child.kill("SIGKILL"));
     await new Promise((r) => setTimeout(r, 400));
 
@@ -180,11 +218,16 @@ describe("strayHelperPids", () => {
     // than for its pid slot to free — then the lookup must come back empty.
     // Nothing here asserts on the pid after it dies: that pid belongs to the
     // kernel again, and asking about it is a race, not a check.
-    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    const exited = new Promise<void>((resolve) =>
+      child.once("exit", () => resolve()),
+    );
     child.kill("SIGKILL");
     await exited;
     const deadline = Date.now() + 5_000;
-    while ((await stillRunning([child.pid!])).length > 0 && Date.now() < deadline) {
+    while (
+      (await stillRunning([child.pid!])).length > 0 &&
+      Date.now() < deadline
+    ) {
       await new Promise((r) => setTimeout(r, 50));
     }
     expect(strayHelperPids(socketDir)).toEqual([]);

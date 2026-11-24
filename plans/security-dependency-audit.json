@@ -6,9 +6,7 @@
       "title": "Auth.js: Email normalizer validates the address before Unicode normalization, allowing a homoglyph @ bypass",
       "severity": "critical",
       "vulnerable_versions": ">=0.1.0 <0.41.3",
-      "cwe": [
-        "CWE-180"
-      ],
+      "cwe": ["CWE-180"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -20,9 +18,7 @@
       "title": "Auth.js: getToken() throws an uncaught exception on malformed Bearer authorization headers",
       "severity": "high",
       "vulnerable_versions": ">=0.1.0 <0.41.3",
-      "cwe": [
-        "CWE-20"
-      ],
+      "cwe": ["CWE-20"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -34,11 +30,7 @@
       "title": "Auth.js: OAuth state, nonce, and PKCE check cookies are not bound to the provider that created them",
       "severity": "moderate",
       "vulnerable_versions": "<=0.41.2",
-      "cwe": [
-        "CWE-345",
-        "CWE-346",
-        "CWE-940"
-      ],
+      "cwe": ["CWE-345", "CWE-346", "CWE-940"],
       "cvss": {
         "score": 6.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:N"
@@ -52,10 +44,7 @@
       "title": "@babel/core: Arbitrary File Read via sourceMappingURL Comment",
       "severity": "low",
       "vulnerable_versions": "<=7.29.0",
-      "cwe": [
-        "CWE-22",
-        "CWE-200"
-      ],
+      "cwe": ["CWE-22", "CWE-200"],
       "cvss": {
         "score": 3.2,
         "vectorString": "CVSS:3.1/AV:L/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N"
@@ -69,9 +58,7 @@
       "title": "Node.js Adapter for Hono: Path traversal in `serve-static` on Windows via encoded backslash (`%5C`)",
       "severity": "moderate",
       "vulnerable_versions": "<1.19.15",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -85,9 +72,7 @@
       "title": "OpenTelemetry Core: Unbounded memory allocation in W3C Baggage propagation",
       "severity": "moderate",
       "vulnerable_versions": "<2.8.0",
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -101,10 +86,7 @@
       "title": "Tiptap: mergeAttributes() turns an own __proto__ key into inherited executable DOM attributes",
       "severity": "moderate",
       "vulnerable_versions": ">=2.0.0-alpha.0 <3.30.4",
-      "cwe": [
-        "CWE-79",
-        "CWE-1321"
-      ],
+      "cwe": ["CWE-79", "CWE-1321"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -116,10 +98,7 @@
       "title": "Tiptap: Quadratic ReDoS in block and inline Markdown attribute parsing",
       "severity": "high",
       "vulnerable_versions": ">=3.7.0 <3.30.5",
-      "cwe": [
-        "CWE-400",
-        "CWE-1333"
-      ],
+      "cwe": ["CWE-400", "CWE-1333"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -133,9 +112,7 @@
       "title": "@tootallnate/once vulnerable to Incorrect Control Flow Scoping",
       "severity": "low",
       "vulnerable_versions": "<2.0.1",
-      "cwe": [
-        "CWE-705"
-      ],
+      "cwe": ["CWE-705"],
       "cvss": {
         "score": 3.3,
         "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L"
@@ -149,9 +126,7 @@
       "title": "xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization",
       "severity": "moderate",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-116"
-      ],
+      "cwe": ["CWE-116"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -163,9 +138,7 @@
       "title": "xmldom: XML fragment injection via invalid EntityReference.nodeName during requireWellFormed serialization",
       "severity": "moderate",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-116"
-      ],
+      "cwe": ["CWE-116"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -177,9 +150,7 @@
       "title": "xmldom: XML injection via unsafe CDATA serialization allows attacker-controlled markup insertion",
       "severity": "high",
       "vulnerable_versions": "<0.8.12",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -191,9 +162,7 @@
       "title": "xmldom: Uncontrolled recursion in XML serialization leads to DoS",
       "severity": "high",
       "vulnerable_versions": "<0.8.13",
-      "cwe": [
-        "CWE-674"
-      ],
+      "cwe": ["CWE-674"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -205,9 +174,7 @@
       "title": "xmldom has XML injection through unvalidated DocumentType serialization",
       "severity": "high",
       "vulnerable_versions": "<0.8.13",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -219,9 +186,7 @@
       "title": "xmldom has XML node injection through unvalidated processing instruction serialization",
       "severity": "high",
       "vulnerable_versions": "<0.8.13",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -233,9 +198,7 @@
       "title": "xmldom has XML node injection through unvalidated comment serialization",
       "severity": "high",
       "vulnerable_versions": "<0.8.13",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -247,10 +210,7 @@
       "title": "xmldom: HTML raw-text closing-tag case mismatch causes output amplification",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0-beta.1 <=0.9.11",
-      "cwe": [
-        "CWE-178",
-        "CWE-400"
-      ],
+      "cwe": ["CWE-178", "CWE-400"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -262,10 +222,7 @@
       "title": "xmldom PI grammar regex ReDoS: quadratic backtracking on unterminated processing instructions",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0-beta.9 <=0.9.10",
-      "cwe": [
-        "CWE-400",
-        "CWE-1333"
-      ],
+      "cwe": ["CWE-400", "CWE-1333"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -277,9 +234,7 @@
       "title": "xmldom: Element name injection via createElement() bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.13",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -291,9 +246,7 @@
       "title": "xmldom: Element name injection via createElement() bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.10",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -305,9 +258,7 @@
       "title": "xmldom: Attribute name injection via setAttribute() bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.13",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -319,9 +270,7 @@
       "title": "xmldom: Attribute name injection via setAttribute() bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.10",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -333,9 +282,7 @@
       "title": "xmldom: Processing Instruction Target Injection Bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -347,9 +294,7 @@
       "title": "xmldom: Processing Instruction Target Injection Bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -361,9 +306,7 @@
       "title": "xmldom: DocType `name` Injection Bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -375,9 +318,7 @@
       "title": "xmldom: DocType `name` Injection Bypasses requireWellFormed",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-91"
-      ],
+      "cwe": ["CWE-91"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -389,10 +330,7 @@
       "title": "xmldom: Creation-time XML Name/QName validation is bypassable via an embedded line terminator, allowing injection on the default serialization path",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-91",
-        "CWE-625"
-      ],
+      "cwe": ["CWE-91", "CWE-625"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -404,10 +342,7 @@
       "title": "xmldom: requireWellFormed DocType publicId/systemId validation is bypassable via an embedded line terminator",
       "severity": "high",
       "vulnerable_versions": ">=0.9.10 <=0.9.11",
-      "cwe": [
-        "CWE-91",
-        "CWE-625"
-      ],
+      "cwe": ["CWE-91", "CWE-625"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -419,9 +354,7 @@
       "title": "xmldom: Parser silently accepts a not-well-formed end tag whose name is followed by a line break and trailing content",
       "severity": "moderate",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-1286"
-      ],
+      "cwe": ["CWE-1286"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -433,9 +366,7 @@
       "title": "xmldom: Parser silently accepts a not-well-formed end tag whose name is followed by a line break and trailing content",
       "severity": "moderate",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-1286"
-      ],
+      "cwe": ["CWE-1286"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -447,9 +378,7 @@
       "title": "xmldom: Quadratic-time attribute deduplication",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -461,9 +390,7 @@
       "title": "xmldom: Quadratic-time attribute deduplication",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -475,10 +402,7 @@
       "title": "xmldom: End-tag Whitespace-Trim Regex ReDoS — quadratic backtracking in the 0.8.x end-tag parser",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-400",
-        "CWE-1333"
-      ],
+      "cwe": ["CWE-400", "CWE-1333"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -490,9 +414,7 @@
       "title": "xmldom: Quadratic-memory consumption",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -504,9 +426,7 @@
       "title": "xmldom: Quadratic-memory consumption",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -518,10 +438,7 @@
       "title": "xmldom: Quadratic-time parsing via the malformed-input recovery path — `parseElementStartPart` re-scan and `normalize()` adjacent-text merge",
       "severity": "high",
       "vulnerable_versions": ">=0.9.0 <=0.9.11",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -533,10 +450,7 @@
       "title": "xmldom: Quadratic-time parsing via the malformed-input recovery path — `parseElementStartPart` re-scan and `normalize()` adjacent-text merge",
       "severity": "high",
       "vulnerable_versions": ">=0.7.0 <=0.8.14",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -550,9 +464,7 @@
       "title": "electron-updater: Uncontrolled search path elements within `AppImage` built by `app-builder-lib`",
       "severity": "high",
       "vulnerable_versions": "<26.15.0",
-      "cwe": [
-        "CWE-427"
-      ],
+      "cwe": ["CWE-427"],
       "cvss": {
         "score": 7.8,
         "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
@@ -566,9 +478,7 @@
       "title": "baseline-browser-mapping process termination on invalid input causes denial of service",
       "severity": "moderate",
       "vulnerable_versions": ">=2.0.0 <2.11.0",
-      "cwe": [
-        "CWE-705"
-      ],
+      "cwe": ["CWE-705"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -582,9 +492,7 @@
       "title": "brace-expansion: Large numeric range defeats documented `max` DoS protection",
       "severity": "moderate",
       "vulnerable_versions": ">=5.0.0 <5.0.6",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"
@@ -596,10 +504,7 @@
       "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
       "severity": "high",
       "vulnerable_versions": "<1.1.17",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -611,10 +516,7 @@
       "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
       "severity": "high",
       "vulnerable_versions": ">=2.0.0 <2.1.3",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -626,10 +528,7 @@
       "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <5.0.8",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -641,10 +540,7 @@
       "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <5.0.9",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -656,10 +552,7 @@
       "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
       "severity": "high",
       "vulnerable_versions": ">=2.0.0 <2.1.4",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -671,10 +564,7 @@
       "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
       "severity": "high",
       "vulnerable_versions": "<1.1.18",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -686,10 +576,7 @@
       "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
       "severity": "high",
       "vulnerable_versions": ">=2.0.0 <2.1.2",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -701,10 +588,7 @@
       "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
       "severity": "high",
       "vulnerable_versions": "<1.1.16",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -716,10 +600,7 @@
       "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <5.0.7",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -733,9 +614,7 @@
       "title": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
       "severity": "high",
       "vulnerable_versions": "<=4.28.6",
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -747,10 +626,7 @@
       "title": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
       "severity": "high",
       "vulnerable_versions": "<=4.28.6",
-      "cwe": [
-        "CWE-248",
-        "CWE-1321"
-      ],
+      "cwe": ["CWE-248", "CWE-1321"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -764,9 +640,7 @@
       "title": "electron-updater: Cross-origin redirect leaks `PRIVATE-TOKEN` and mixed-case `Authorization` credentials in `builder-util-runtime`",
       "severity": "high",
       "vulnerable_versions": "<9.7.0",
-      "cwe": [
-        "CWE-200"
-      ],
+      "cwe": ["CWE-200"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -780,12 +654,7 @@
       "title": "decode-uri-component: Denial of service via exponential decoding of malformed percent-encoded input",
       "severity": "moderate",
       "vulnerable_versions": "<=0.4.2",
-      "cwe": [
-        "CWE-400",
-        "CWE-405",
-        "CWE-407",
-        "CWE-1176"
-      ],
+      "cwe": ["CWE-400", "CWE-405", "CWE-407", "CWE-1176"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -799,11 +668,7 @@
       "title": "DOMPurify: Cross-realm IN_PLACE sanitization leaves executable markup intact via realm-bound `instanceof` checks",
       "severity": "moderate",
       "vulnerable_versions": "<=3.4.5",
-      "cwe": [
-        "CWE-79",
-        "CWE-501",
-        "CWE-693"
-      ],
+      "cwe": ["CWE-79", "CWE-501", "CWE-693"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -815,11 +680,7 @@
       "title": "DOMPurify: IN_PLACE mode preserves attributes of a clobbered root element, allowing XSS via attacker-controlled root DOM",
       "severity": "moderate",
       "vulnerable_versions": "<=3.4.5",
-      "cwe": [
-        "CWE-79",
-        "CWE-693",
-        "CWE-1321"
-      ],
+      "cwe": ["CWE-79", "CWE-693", "CWE-1321"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -831,9 +692,7 @@
       "title": "DOMPurify IN_PLACE Sanitization Bypass via Attached Shadow Root Inside <template>.content",
       "severity": "moderate",
       "vulnerable_versions": "<=3.4.6",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -845,11 +704,7 @@
       "title": "DOMPurify: `CUSTOM_ELEMENT_HANDLING` bypasses `afterSanitizeElements` for allowed custom elements.",
       "severity": "low",
       "vulnerable_versions": "<=3.4.11",
-      "cwe": [
-        "CWE-79",
-        "CWE-184",
-        "CWE-693"
-      ],
+      "cwe": ["CWE-79", "CWE-184", "CWE-693"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -861,11 +716,7 @@
       "title": "DOMPurify: Permanent `ALLOWED_ATTR` pollution via `setConfig()` bypassing the hook clone-guard (incomplete fix of the 3.4.7 hook-pollution patch)",
       "severity": "moderate",
       "vulnerable_versions": "<=3.4.10",
-      "cwe": [
-        "CWE-79",
-        "CWE-471",
-        "CWE-665"
-      ],
+      "cwe": ["CWE-79", "CWE-471", "CWE-665"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -877,9 +728,7 @@
       "title": "DOMPurify: Trusted Types policy survives `clearConfig()` and can poison later `RETURN_TRUSTED_TYPE` output",
       "severity": "low",
       "vulnerable_versions": "<3.4.9",
-      "cwe": [
-        "CWE-693"
-      ],
+      "cwe": ["CWE-693"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -891,9 +740,7 @@
       "title": "DOMPurify: SAFE_FOR_TEMPLATES bypass - template expressions survive sanitization inside <template> content when using DOM output modes",
       "severity": "low",
       "vulnerable_versions": ">=3.0.0 <=3.4.7",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -905,9 +752,7 @@
       "title": "DOMPurify: `IN_PLACE` mode trusts attacker-controlled `nodeName` on live non-form nodes, allowing script retention and XSS via attacker-supplied DOM objects",
       "severity": "low",
       "vulnerable_versions": "<=3.4.6",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -919,10 +764,7 @@
       "title": "DOMPurify: Hook mutation of `data.allowedTags` / `data.allowedAttributes` permanently pollutes `DEFAULT_ALLOWED_TAGS` / `DEFAULT_ALLOWED_ATTR`",
       "severity": "moderate",
       "vulnerable_versions": "<3.4.7",
-      "cwe": [
-        "CWE-501",
-        "CWE-693"
-      ],
+      "cwe": ["CWE-501", "CWE-693"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -934,9 +776,7 @@
       "title": "DOMPurify: IN_PLACE hook removal leaves a detached subtree executable, causing XSS",
       "severity": "moderate",
       "vulnerable_versions": "<=3.4.12",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -950,9 +790,7 @@
       "title": "esbuild enables any website to send any requests to the development server and read the response",
       "severity": "moderate",
       "vulnerable_versions": "<=0.24.2",
-      "cwe": [
-        "CWE-346"
-      ],
+      "cwe": ["CWE-346"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N"
@@ -964,9 +802,7 @@
       "title": "esbuild allows arbitrary file read when running the development server on Windows",
       "severity": "low",
       "vulnerable_versions": ">=0.27.3 <0.28.1",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 2.5,
         "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N"
@@ -980,10 +816,7 @@
       "title": "fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.1.6",
-      "cwe": [
-        "CWE-20",
-        "CWE-918"
-      ],
+      "cwe": ["CWE-20", "CWE-918"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -995,9 +828,7 @@
       "title": "fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.1.6",
-      "cwe": [
-        "CWE-177"
-      ],
+      "cwe": ["CWE-177"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1009,9 +840,7 @@
       "title": "fast-uri vulnerable to host confusion via backslash authority introducer",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.1.5",
-      "cwe": [
-        "CWE-436"
-      ],
+      "cwe": ["CWE-436"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1023,9 +852,7 @@
       "title": "fast-uri vulnerable to host confusion via literal backslash authority delimiter",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <=3.1.3",
-      "cwe": [
-        "CWE-436"
-      ],
+      "cwe": ["CWE-436"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1037,10 +864,7 @@
       "title": "fast-uri vulnerable to host confusion via failed IDN canonicalization",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.1.3",
-      "cwe": [
-        "CWE-436",
-        "CWE-551"
-      ],
+      "cwe": ["CWE-436", "CWE-551"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1052,9 +876,7 @@
       "title": "fast-uri vulnerable to path traversal via percent-encoded dot segments",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <=3.1.0",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1066,10 +888,7 @@
       "title": "fast-uri vulnerable to host confusion via percent-encoded authority delimiters",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <=3.1.1",
-      "cwe": [
-        "CWE-140",
-        "CWE-436"
-      ],
+      "cwe": ["CWE-140", "CWE-436"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1083,9 +902,7 @@
       "title": "fflate unzipSync can enter an infinite loop when parsing malformed ZIP64 archives",
       "severity": "moderate",
       "vulnerable_versions": ">=0.4.5 <0.4.9",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1099,9 +916,7 @@
       "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <4.0.6",
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1115,10 +930,7 @@
       "title": "ReDOS vulnerabities: multiple grammars",
       "severity": "moderate",
       "vulnerable_versions": ">=9.0.0 <10.4.1",
-      "cwe": [
-        "CWE-20",
-        "CWE-400"
-      ],
+      "cwe": ["CWE-20", "CWE-400"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1130,9 +942,7 @@
       "title": "Prototype Pollution in highlight.js",
       "severity": "moderate",
       "vulnerable_versions": "<9.18.2",
-      "cwe": [
-        "CWE-471"
-      ],
+      "cwe": ["CWE-471"],
       "cvss": {
         "score": 5.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:C/C:N/I:H/A:N"
@@ -1146,10 +956,7 @@
       "title": "Hono has CSS Declaration Injection via Style Object Values in JSX SSR",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.18",
-      "cwe": [
-        "CWE-74",
-        "CWE-116"
-      ],
+      "cwe": ["CWE-74", "CWE-116"],
       "cvss": {
         "score": 4.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N"
@@ -1161,9 +968,7 @@
       "title": "Hono has improper validation of NumericDate claims (exp, nbf, iat) in JWT verify()",
       "severity": "low",
       "vulnerable_versions": "<4.12.18",
-      "cwe": [
-        "CWE-1284"
-      ],
+      "cwe": ["CWE-1284"],
       "cvss": {
         "score": 3.8,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N"
@@ -1175,9 +980,7 @@
       "title": "Hono's Cache Middleware ignores Vary: Authorization / Vary: Cookie leading to cross-user cache leakage",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.18",
-      "cwe": [
-        "CWE-524"
-      ],
+      "cwe": ["CWE-524"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
@@ -1189,9 +992,7 @@
       "title": "Hono: bodyLimit() can be bypassed for chunked / unknown-length requests",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.16",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -1203,9 +1004,7 @@
       "title": "hono/jsx has Unvalidated JSX Tag Names that May Allow HTML Injection",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.16",
-      "cwe": [
-        "CWE-74"
-      ],
+      "cwe": ["CWE-74"],
       "cvss": {
         "score": 4.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -1217,10 +1016,7 @@
       "title": "Hono: IP Restriction bypasses static deny rules for non-canonical IPv6 ",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.21",
-      "cwe": [
-        "CWE-185",
-        "CWE-1289"
-      ],
+      "cwe": ["CWE-185", "CWE-1289"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -1232,10 +1028,7 @@
       "title": "Hono: Cookie helper does not sanitize sameSite and priority, allowing Set-Cookie injection",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.21",
-      "cwe": [
-        "CWE-113",
-        "CWE-1287"
-      ],
+      "cwe": ["CWE-113", "CWE-1287"],
       "cvss": {
         "score": 4.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N"
@@ -1247,9 +1040,7 @@
       "title": "Hono: JWT middleware accepts any Authorization scheme, not only Bearer",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.21",
-      "cwe": [
-        "CWE-285"
-      ],
+      "cwe": ["CWE-285"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -1261,10 +1052,7 @@
       "title": "Hono: app.mount() strips mount prefix using undecoded path, causing incorrect routing for percent-encoded paths",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.21",
-      "cwe": [
-        "CWE-444",
-        "CWE-693"
-      ],
+      "cwe": ["CWE-444", "CWE-693"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
@@ -1276,9 +1064,7 @@
       "title": "Hono: ReDoS in CORS middleware via Access-Control-Request-Headers",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.34",
-      "cwe": [
-        "CWE-1333"
-      ],
+      "cwe": ["CWE-1333"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1290,9 +1076,7 @@
       "title": "hono: Body Limit Middleware can be bypassed on AWS Lambda by understating `Content-Length`",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.25",
-      "cwe": [
-        "CWE-345"
-      ],
+      "cwe": ["CWE-345"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -1304,9 +1088,7 @@
       "title": "hono: Lambda@Edge adapter keeps only the last value of a repeated request header, dropping the rest",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.25",
-      "cwe": [
-        "CWE-348"
-      ],
+      "cwe": ["CWE-348"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -1318,9 +1100,7 @@
       "title": "hono: CORS Middleware reflects any Origin with credentials when `origin` defaults to the wildcard",
       "severity": "high",
       "vulnerable_versions": "<4.12.25",
-      "cwe": [
-        "CWE-942"
-      ],
+      "cwe": ["CWE-942"],
       "cvss": {
         "score": 7.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:N"
@@ -1332,9 +1112,7 @@
       "title": "hono: Path traversal in `serve-static` on Windows via encoded backslash (`%5C`)",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.25",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -1346,9 +1124,7 @@
       "title": "hono: AWS Lambda adapter merges multiple `Set-Cookie` headers into one value, dropping cookies on ALB single-header and Lattice",
       "severity": "moderate",
       "vulnerable_versions": "<4.12.25",
-      "cwe": [
-        "CWE-116"
-      ],
+      "cwe": ["CWE-116"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -1360,9 +1136,7 @@
       "title": "Hono: API Gateway v1 adapter can drop a distinct repeated request header value during de-duplication",
       "severity": "moderate",
       "vulnerable_versions": ">=4.3.3 <4.12.27",
-      "cwe": [
-        "CWE-348"
-      ],
+      "cwe": ["CWE-348"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -1374,9 +1148,7 @@
       "title": "hono/jsx does not isolate context per request, leading to cross-request data disclosure",
       "severity": "moderate",
       "vulnerable_versions": ">=4.11.8 <4.12.27",
-      "cwe": [
-        "CWE-362"
-      ],
+      "cwe": ["CWE-362"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
@@ -1388,10 +1160,7 @@
       "title": "Hono: Server-Side XSS via JSX Escaping Bypass in cx() Utility",
       "severity": "moderate",
       "vulnerable_versions": ">=4.0.0 <4.12.27",
-      "cwe": [
-        "CWE-79",
-        "CWE-116"
-      ],
+      "cwe": ["CWE-79", "CWE-116"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -1403,9 +1172,7 @@
       "title": "Hono: `memo()` retains SSR output across requests, leading to cross-user data disclosure",
       "severity": "moderate",
       "vulnerable_versions": ">=3.8.0 <4.12.34",
-      "cwe": [
-        "CWE-488"
-      ],
+      "cwe": ["CWE-488"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:U/C:H/I:N/A:N"
@@ -1417,9 +1184,7 @@
       "title": "Hono: Proxy Helper does not remove response headers listed in the `Connection` header",
       "severity": "low",
       "vulnerable_versions": ">=4.7.0 <4.12.34",
-      "cwe": [
-        "CWE-200"
-      ],
+      "cwe": ["CWE-200"],
       "cvss": {
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"
@@ -1431,9 +1196,7 @@
       "title": "Hono: Algorithmic Complexity DoS in Language Middleware",
       "severity": "moderate",
       "vulnerable_versions": ">=4.12.0 <4.12.34",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1445,9 +1208,7 @@
       "title": "Hono: Incomplete fix for CVE-2026-39408: `toSSG()` still writes files outside the output directory",
       "severity": "moderate",
       "vulnerable_versions": "<4.13.5",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N"
@@ -1459,9 +1220,7 @@
       "title": "Hono: Unbounded dot-notation nesting in `parseBody()` can cause memory exhaustion",
       "severity": "moderate",
       "vulnerable_versions": "<4.13.5",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1473,9 +1232,7 @@
       "title": "Hono: Query parser reads parameters after the URL fragment, causing cache-key and proxy interpretation differentials",
       "severity": "moderate",
       "vulnerable_versions": "<4.13.5",
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -1489,9 +1246,7 @@
       "title": "image-size: ICNS parser allows denial of service through an infinite loop",
       "severity": "high",
       "vulnerable_versions": "<=2.0.2",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1503,9 +1258,7 @@
       "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops",
       "severity": "high",
       "vulnerable_versions": "<=2.0.2",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1519,10 +1272,7 @@
       "title": "ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass",
       "severity": "high",
       "vulnerable_versions": "<=10.3.0",
-      "cwe": [
-        "CWE-20",
-        "CWE-918"
-      ],
+      "cwe": ["CWE-20", "CWE-918"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1534,10 +1284,7 @@
       "title": "ip-address: a CIDR suffix on the parsed address suppresses special-use classification and can bypass SSRF and trust-boundary checks",
       "severity": "moderate",
       "vulnerable_versions": ">=10.1.1 <=10.2.1",
-      "cwe": [
-        "CWE-20",
-        "CWE-918"
-      ],
+      "cwe": ["CWE-20", "CWE-918"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1549,10 +1296,7 @@
       "title": "ip-address: misclassification of IPv4-mapped/NAT64 IPv6 addresses can bypass SSRF and trust-boundary checks",
       "severity": "moderate",
       "vulnerable_versions": ">=10.1.1 <=10.2.0",
-      "cwe": [
-        "CWE-20",
-        "CWE-918"
-      ],
+      "cwe": ["CWE-20", "CWE-918"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1566,9 +1310,7 @@
       "title": "JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
       "severity": "moderate",
       "vulnerable_versions": "<3.15.0",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1580,9 +1322,7 @@
       "title": "JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
       "severity": "moderate",
       "vulnerable_versions": ">=4.0.0 <=4.1.1",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1594,10 +1334,7 @@
       "title": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <4.3.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1609,10 +1346,7 @@
       "title": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.15.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1624,9 +1358,7 @@
       "title": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.15.1",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1638,9 +1370,7 @@
       "title": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <4.3.1",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1652,10 +1382,7 @@
       "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
       "severity": "high",
       "vulnerable_versions": ">=3.0.0 <3.15.2",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1667,10 +1394,7 @@
       "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <4.3.2",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1684,9 +1408,7 @@
       "title": "LinkifyIt#match scan loop has quadratic algorithmic complexity",
       "severity": "high",
       "vulnerable_versions": "<=5.0.0",
-      "cwe": [
-        "CWE-1333"
-      ],
+      "cwe": ["CWE-1333"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1698,9 +1420,7 @@
       "title": "linkify-it: Quadratic-complexity DoS via the `mailto:` validator scan-loop on attacker text",
       "severity": "high",
       "vulnerable_versions": "<=5.0.1",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1714,10 +1434,7 @@
       "title": "markdown-it: Quadratic complexity DoS in smartquotes rule via replaceAt string operations",
       "severity": "moderate",
       "vulnerable_versions": "<=14.1.1",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1731,9 +1448,7 @@
       "title": "Mermaid: Improper sanitization of `classDef` in state diagrams leads to HTML injection",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <=11.14.0",
-      "cwe": [
-        "CWE-94"
-      ],
+      "cwe": ["CWE-94"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1745,9 +1460,7 @@
       "title": "Mermaid: Improper sanitization of `classDefs` in diagrams leads to CSS injection",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <=11.14.0",
-      "cwe": [
-        "CWE-94"
-      ],
+      "cwe": ["CWE-94"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1759,9 +1472,7 @@
       "title": "Mermaid Gantt Charts are vulnerable to an Infinite Loop DoS",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <=11.14.0",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -1773,9 +1484,7 @@
       "title": "Mermaid: Improper sanitization of configuration leads to CSS injection",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <=11.14.0",
-      "cwe": [
-        "CWE-94"
-      ],
+      "cwe": ["CWE-94"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1787,9 +1496,7 @@
       "title": "Mermaid configuration APIs allow prototype pollution",
       "severity": "low",
       "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
-      "cwe": [
-        "CWE-1321"
-      ],
+      "cwe": ["CWE-1321"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1801,9 +1508,7 @@
       "title": "Mermaid allows CSS injection applying to sibling elements of the diagram",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
-      "cwe": [
-        "CWE-94"
-      ],
+      "cwe": ["CWE-94"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1815,9 +1520,7 @@
       "title": "Mermaid Architecture diagrams are vulnerable to prototype pollution",
       "severity": "moderate",
       "vulnerable_versions": ">=11.5.0 <11.16.1",
-      "cwe": [
-        "CWE-1321"
-      ],
+      "cwe": ["CWE-1321"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1829,10 +1532,7 @@
       "title": "Mermaid XY Charts are vulnerable to an infinite loop DoS",
       "severity": "moderate",
       "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
-      "cwe": [
-        "CWE-835",
-        "CWE-1325"
-      ],
+      "cwe": ["CWE-835", "CWE-1325"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1844,10 +1544,7 @@
       "title": "Mermaid radar diagrams are vulnerable to DoS",
       "severity": "moderate",
       "vulnerable_versions": ">=11.6.0 <11.16.1",
-      "cwe": [
-        "CWE-606",
-        "CWE-1322"
-      ],
+      "cwe": ["CWE-606", "CWE-1322"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1861,9 +1558,7 @@
       "title": "nanoid: non-secure generators can loop indefinitely with negative size",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <5.1.16",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1875,9 +1570,7 @@
       "title": "nanoid: non-secure generators can loop indefinitely with negative size",
       "severity": "high",
       "vulnerable_versions": "<3.3.16",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1889,9 +1582,7 @@
       "title": "nanoid: custom generators can loop indefinitely when size is zero",
       "severity": "high",
       "vulnerable_versions": "<3.3.18",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -1903,9 +1594,7 @@
       "title": "nanoid: Integer Overflow or Wraparound",
       "severity": "high",
       "vulnerable_versions": ">=4.0.0 <5.1.11",
-      "cwe": [
-        "CWE-190"
-      ],
+      "cwe": ["CWE-190"],
       "cvss": {
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
@@ -1917,9 +1606,7 @@
       "title": "nanoid: Integer Overflow or Wraparound",
       "severity": "high",
       "vulnerable_versions": "<3.3.12",
-      "cwe": [
-        "CWE-190"
-      ],
+      "cwe": ["CWE-190"],
       "cvss": {
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
@@ -1933,10 +1620,7 @@
       "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
       "severity": "moderate",
       "vulnerable_versions": "<=8.5.22",
-      "cwe": [
-        "CWE-22",
-        "CWE-200"
-      ],
+      "cwe": ["CWE-22", "CWE-200"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -1948,9 +1632,7 @@
       "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
       "severity": "moderate",
       "vulnerable_versions": "<8.5.10",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -1962,10 +1644,7 @@
       "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
       "severity": "high",
       "vulnerable_versions": "<=8.5.11",
-      "cwe": [
-        "CWE-22",
-        "CWE-200"
-      ],
+      "cwe": ["CWE-22", "CWE-200"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -1977,9 +1656,7 @@
       "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
       "severity": "high",
       "vulnerable_versions": "<=8.5.17",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -1993,9 +1670,7 @@
       "title": "postcss-selector-parser allows denial of service through uncontrolled AST recursion",
       "severity": "low",
       "vulnerable_versions": ">=6.1.0 <6.1.3",
-      "cwe": [
-        "CWE-404"
-      ],
+      "cwe": ["CWE-404"],
       "cvss": {
         "score": 4.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:L"
@@ -2009,9 +1684,7 @@
       "title": "prismjs Regular Expression Denial of Service vulnerability",
       "severity": "moderate",
       "vulnerable_versions": "<1.25.0",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"
@@ -2023,10 +1696,7 @@
       "title": "PrismJS DOM Clobbering vulnerability",
       "severity": "moderate",
       "vulnerable_versions": "<1.30.0",
-      "cwe": [
-        "CWE-79",
-        "CWE-94"
-      ],
+      "cwe": ["CWE-79", "CWE-94"],
       "cvss": {
         "score": 4.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:C/C:L/I:L/A:N"
@@ -2038,9 +1708,7 @@
       "title": "Cross-Site Scripting in Prism",
       "severity": "high",
       "vulnerable_versions": ">=1.1.0 <1.21.0",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 7.1,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:L"
@@ -2052,9 +1720,7 @@
       "title": "Regular Expression Denial of Service (ReDoS) in Prism",
       "severity": "high",
       "vulnerable_versions": "<1.24.0",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:N/I:N/A:H"
@@ -2066,9 +1732,7 @@
       "title": "Denial of service in prismjs",
       "severity": "high",
       "vulnerable_versions": "<1.23.0",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2080,9 +1744,7 @@
       "title": "Cross-site Scripting in Prism",
       "severity": "high",
       "vulnerable_versions": ">=1.14.0 <1.27.0",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:L/A:L"
@@ -2096,9 +1758,7 @@
       "title": "protobufjs: Denial of Service via unbounded recursive JSON descriptor expansion",
       "severity": "moderate",
       "vulnerable_versions": "<=7.5.7",
-      "cwe": [
-        "CWE-674"
-      ],
+      "cwe": ["CWE-674"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -2110,9 +1770,7 @@
       "title": "protobufjs: Denial of service through unbounded Any expansion during JSON conversion",
       "severity": "high",
       "vulnerable_versions": "<=7.6.0",
-      "cwe": [
-        "CWE-674"
-      ],
+      "cwe": ["CWE-674"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2124,10 +1782,7 @@
       "title": "protobufjs : Schema-derived names can shadow runtime-significant properties",
       "severity": "moderate",
       "vulnerable_versions": "<=7.6.2",
-      "cwe": [
-        "CWE-674",
-        "CWE-754"
-      ],
+      "cwe": ["CWE-674", "CWE-754"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -2139,9 +1794,7 @@
       "title": "protobufjs: Denial of Service via infinite loop in .proto option parsing",
       "severity": "moderate",
       "vulnerable_versions": ">=7.5.0 <=7.6.4",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -2155,9 +1808,7 @@
       "title": "React Router vulnerable to DoS via unbounded path expansion in __manifest endpoint",
       "severity": "high",
       "vulnerable_versions": ">=7.0.0 <7.15.0",
-      "cwe": [
-        "CWE-400"
-      ],
+      "cwe": ["CWE-400"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2169,9 +1820,7 @@
       "title": "React Router: Potential CSRF via PUT/PATCH/DELETE document requests",
       "severity": "low",
       "vulnerable_versions": ">=7.12.0 <7.15.1",
-      "cwe": [
-        "CWE-352"
-      ],
+      "cwe": ["CWE-352"],
       "cvss": {
         "score": 3.1,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N"
@@ -2183,9 +1832,7 @@
       "title": "React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)",
       "severity": "moderate",
       "vulnerable_versions": ">=6.0.0 <7.18.0",
-      "cwe": [
-        "CWE-601"
-      ],
+      "cwe": ["CWE-601"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2197,9 +1844,7 @@
       "title": "React Router: RSCErrorHandler Missing Protocol Validation (XSS)",
       "severity": "moderate",
       "vulnerable_versions": ">=7.11.0 <7.18.0",
-      "cwe": [
-        "CWE-79"
-      ],
+      "cwe": ["CWE-79"],
       "cvss": {
         "score": 6.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:L/A:N"
@@ -2211,9 +1856,7 @@
       "title": "React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration",
       "severity": "moderate",
       "vulnerable_versions": ">=6.4.0 <7.18.0",
-      "cwe": [
-        "CWE-470"
-      ],
+      "cwe": ["CWE-470"],
       "cvss": {
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
@@ -2225,10 +1868,7 @@
       "title": "React Router: Unauthenticated Denial of Service via Inefficient Route Matching",
       "severity": "high",
       "vulnerable_versions": ">=7.0.0 <7.18.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-407"
-      ],
+      "cwe": ["CWE-400", "CWE-407"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2240,9 +1880,7 @@
       "title": "React Router: RSC Mode CSRF Bypass Allows Action Execution Before 400 Response",
       "severity": "high",
       "vulnerable_versions": ">=7.12.0 <7.18.2",
-      "cwe": [
-        "CWE-352"
-      ],
+      "cwe": ["CWE-352"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2256,10 +1894,7 @@
       "title": "shell-quote quote() does not escape newlines in object .op values",
       "severity": "critical",
       "vulnerable_versions": ">=1.1.0 <=1.8.3",
-      "cwe": [
-        "CWE-77",
-        "CWE-78"
-      ],
+      "cwe": ["CWE-77", "CWE-78"],
       "cvss": {
         "score": 8.1,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
@@ -2271,9 +1906,7 @@
       "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
       "severity": "high",
       "vulnerable_versions": "<=1.8.4",
-      "cwe": [
-        "CWE-407"
-      ],
+      "cwe": ["CWE-407"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2287,10 +1920,7 @@
       "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
       "severity": "high",
       "vulnerable_versions": "<7.5.7",
-      "cwe": [
-        "CWE-22",
-        "CWE-59"
-      ],
+      "cwe": ["CWE-22", "CWE-59"],
       "cvss": {
         "score": 8.2,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N"
@@ -2302,9 +1932,7 @@
       "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
       "severity": "high",
       "vulnerable_versions": "<=7.5.2",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2316,9 +1944,7 @@
       "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
       "severity": "high",
       "vulnerable_versions": "<7.5.8",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 7.1,
         "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
@@ -2330,10 +1956,7 @@
       "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
       "severity": "high",
       "vulnerable_versions": "<=7.5.9",
-      "cwe": [
-        "CWE-22",
-        "CWE-59"
-      ],
+      "cwe": ["CWE-22", "CWE-59"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2345,9 +1968,7 @@
       "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
       "severity": "high",
       "vulnerable_versions": "<=7.5.10",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2359,9 +1980,7 @@
       "title": "node-tar applies PAX size override to intermediary GNU long-name/long-link headers, causing tar parser interpretation differential (file smuggling)",
       "severity": "moderate",
       "vulnerable_versions": "<=7.5.15",
-      "cwe": [
-        "CWE-436"
-      ],
+      "cwe": ["CWE-436"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2373,10 +1992,7 @@
       "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
       "severity": "high",
       "vulnerable_versions": "<=7.5.3",
-      "cwe": [
-        "CWE-176",
-        "CWE-367"
-      ],
+      "cwe": ["CWE-176", "CWE-367"],
       "cvss": {
         "score": 8.8,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:H/A:L"
@@ -2388,9 +2004,7 @@
       "title": "node-tar: Process crash via PAX numeric path type confusion",
       "severity": "moderate",
       "vulnerable_versions": "<=7.5.17",
-      "cwe": [
-        "CWE-704"
-      ],
+      "cwe": ["CWE-704"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -2402,9 +2016,7 @@
       "title": "node-tar: Decompression/parse DoS via unlimited input",
       "severity": "critical",
       "vulnerable_versions": "<=7.5.18",
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2416,9 +2028,7 @@
       "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
       "severity": "high",
       "vulnerable_versions": "<=7.5.17",
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2430,9 +2040,7 @@
       "title": "node-tar: Uncaught Exception DoS via NUL byte in PAX path/linkpath records",
       "severity": "moderate",
       "vulnerable_versions": "<=7.5.16",
-      "cwe": [
-        "CWE-248"
-      ],
+      "cwe": ["CWE-248"],
       "cvss": {
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
@@ -2444,10 +2052,7 @@
       "title": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
       "severity": "high",
       "vulnerable_versions": "<=7.5.20",
-      "cwe": [
-        "CWE-400",
-        "CWE-674"
-      ],
+      "cwe": ["CWE-400", "CWE-674"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2461,9 +2066,7 @@
       "title": "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape",
       "severity": "high",
       "vulnerable_versions": "<0.2.6",
-      "cwe": [
-        "CWE-22"
-      ],
+      "cwe": ["CWE-22"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2477,9 +2080,7 @@
       "title": "Turbo: Unexpected local code execution during Yarn Berry detection",
       "severity": "low",
       "vulnerable_versions": ">=1.1.0 <2.9.14",
-      "cwe": [
-        "CWE-426"
-      ],
+      "cwe": ["CWE-426"],
       "cvss": {
         "score": 9.8,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
@@ -2491,9 +2092,7 @@
       "title": "Turbo: Login callback CSRF/session fixation",
       "severity": "moderate",
       "vulnerable_versions": "<=2.9.13",
-      "cwe": [
-        "CWE-352"
-      ],
+      "cwe": ["CWE-352"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2507,9 +2106,7 @@
       "title": "undici vulnerable to downstream response desynchronization via retry interceptor",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.29.0",
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -2521,9 +2118,7 @@
       "title": "undici vulnerable to downstream response desynchronization via retry interceptor",
       "severity": "moderate",
       "vulnerable_versions": "<6.28.0",
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -2535,11 +2130,7 @@
       "title": "undici vulnerable to cross-user information disclosure and parse-time crash via degenerate private cache directives",
       "severity": "high",
       "vulnerable_versions": ">=7.0.0 <7.29.0",
-      "cwe": [
-        "CWE-200",
-        "CWE-248",
-        "CWE-525"
-      ],
+      "cwe": ["CWE-200", "CWE-248", "CWE-525"],
       "cvss": {
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:H"
@@ -2551,9 +2142,7 @@
       "title": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.29.0",
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "cvss": {
         "score": 4.2,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N"
@@ -2565,9 +2154,7 @@
       "title": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
       "severity": "moderate",
       "vulnerable_versions": "<6.28.0",
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "cvss": {
         "score": 4.2,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N"
@@ -2579,10 +2166,7 @@
       "title": "undici vulnerable to cross-user information disclosure via whitespace around equals in Cache-Control directives",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.29.0",
-      "cwe": [
-        "CWE-436",
-        "CWE-524"
-      ],
+      "cwe": ["CWE-436", "CWE-524"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -2594,9 +2178,7 @@
       "title": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.29.0",
-      "cwe": [
-        "CWE-74"
-      ],
+      "cwe": ["CWE-74"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -2608,9 +2190,7 @@
       "title": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
       "severity": "moderate",
       "vulnerable_versions": "<6.28.0",
-      "cwe": [
-        "CWE-74"
-      ],
+      "cwe": ["CWE-74"],
       "cvss": {
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
@@ -2622,9 +2202,7 @@
       "title": "undici vulnerable to TLS certificate validation bypass via dropped requestTls in SOCKS5 ProxyAgent",
       "severity": "high",
       "vulnerable_versions": ">=7.23.0 <7.28.0",
-      "cwe": [
-        "CWE-295"
-      ],
+      "cwe": ["CWE-295"],
       "cvss": {
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
@@ -2636,9 +2214,7 @@
       "title": "undici vulnerable to HTTP header injection via Set-Cookie percent-decoding",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.28.0",
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -2650,9 +2226,7 @@
       "title": "undici vulnerable to HTTP header injection via Set-Cookie percent-decoding",
       "severity": "moderate",
       "vulnerable_versions": "<6.27.0",
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -2664,10 +2238,7 @@
       "title": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
       "severity": "high",
       "vulnerable_versions": ">=7.0.0 <7.28.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2679,10 +2250,7 @@
       "title": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
       "severity": "high",
       "vulnerable_versions": "<6.27.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2694,9 +2262,7 @@
       "title": "undici vulnerable to cross-origin request routing via SOCKS5 proxy pool reuse",
       "severity": "high",
       "vulnerable_versions": ">=7.23.0 <7.28.0",
-      "cwe": [
-        "CWE-346"
-      ],
+      "cwe": ["CWE-346"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H"
@@ -2708,9 +2274,7 @@
       "title": "undici vulnerable to Set-Cookie SameSite attribute downgrade via permissive substring matching",
       "severity": "low",
       "vulnerable_versions": ">=7.0.0 <7.28.0",
-      "cwe": [
-        "CWE-183"
-      ],
+      "cwe": ["CWE-183"],
       "cvss": {
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -2722,9 +2286,7 @@
       "title": "undici vulnerable to Set-Cookie SameSite attribute downgrade via permissive substring matching",
       "severity": "low",
       "vulnerable_versions": "<6.27.0",
-      "cwe": [
-        "CWE-183"
-      ],
+      "cwe": ["CWE-183"],
       "cvss": {
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -2736,9 +2298,7 @@
       "title": "undici vulnerable to cross-user information disclosure via shared cache whitespace bypass",
       "severity": "moderate",
       "vulnerable_versions": ">=7.0.0 <7.28.0",
-      "cwe": [
-        "CWE-524"
-      ],
+      "cwe": ["CWE-524"],
       "cvss": {
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -2750,9 +2310,7 @@
       "title": "undici vulnerable to HTTP response queue poisoning via keep-alive socket reuse",
       "severity": "low",
       "vulnerable_versions": ">=7.0.0 <7.28.0",
-      "cwe": [
-        "CWE-367"
-      ],
+      "cwe": ["CWE-367"],
       "cvss": {
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -2764,9 +2322,7 @@
       "title": "undici vulnerable to HTTP response queue poisoning via keep-alive socket reuse",
       "severity": "low",
       "vulnerable_versions": "<6.27.0",
-      "cwe": [
-        "CWE-367"
-      ],
+      "cwe": ["CWE-367"],
       "cvss": {
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
@@ -2780,10 +2336,7 @@
       "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
       "severity": "moderate",
       "vulnerable_versions": "<11.1.1",
-      "cwe": [
-        "CWE-787",
-        "CWE-1285"
-      ],
+      "cwe": ["CWE-787", "CWE-1285"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
@@ -2797,10 +2350,7 @@
       "title": "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
       "severity": "moderate",
       "vulnerable_versions": "<=6.4.2",
-      "cwe": [
-        "CWE-73",
-        "CWE-522"
-      ],
+      "cwe": ["CWE-73", "CWE-522"],
       "cvss": {
         "score": 0,
         "vectorString": null
@@ -2812,10 +2362,7 @@
       "title": "vite: `server.fs.deny` bypass on Windows alternate paths",
       "severity": "high",
       "vulnerable_versions": "<=6.4.2",
-      "cwe": [
-        "CWE-22",
-        "CWE-200"
-      ],
+      "cwe": ["CWE-22", "CWE-200"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
@@ -2829,9 +2376,7 @@
       "title": "ws: Uninitialized memory disclosure",
       "severity": "moderate",
       "vulnerable_versions": ">=8.0.0 <8.20.1",
-      "cwe": [
-        "CWE-908"
-      ],
+      "cwe": ["CWE-908"],
       "cvss": {
         "score": 4.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:U/C:H/I:N/A:N"
@@ -2843,11 +2388,7 @@
       "title": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
       "severity": "high",
       "vulnerable_versions": ">=8.0.0 <8.21.0",
-      "cwe": [
-        "CWE-400",
-        "CWE-770",
-        "CWE-1050"
-      ],
+      "cwe": ["CWE-400", "CWE-770", "CWE-1050"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2859,11 +2400,7 @@
       "title": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
       "severity": "high",
       "vulnerable_versions": ">=7.0.0 <7.5.11",
-      "cwe": [
-        "CWE-400",
-        "CWE-770",
-        "CWE-1050"
-      ],
+      "cwe": ["CWE-400", "CWE-770", "CWE-1050"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -2875,11 +2412,7 @@
       "title": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
       "severity": "high",
       "vulnerable_versions": ">=6.0.0 <6.2.4",
-      "cwe": [
-        "CWE-400",
-        "CWE-770",
-        "CWE-1050"
-      ],
+      "cwe": ["CWE-400", "CWE-770", "CWE-1050"],
       "cvss": {
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"

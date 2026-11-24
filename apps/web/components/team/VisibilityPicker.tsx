@@ -1,5 +1,8 @@
 import { useRef } from "react";
-import { VISIBILITY_LEVELS, type TeamVisibility } from "../../lib/team/visibilityLevels";
+import {
+  VISIBILITY_LEVELS,
+  type TeamVisibility,
+} from "../../lib/team/visibilityLevels";
 import { moveRadioIndex } from "./radioNav";
 import "./teamFlow.css";
 
@@ -34,17 +37,24 @@ export function VisibilityPicker({
   };
 
   if (compact) {
-    const current = VISIBILITY_LEVELS.find((l) => l.value === value) ?? VISIBILITY_LEVELS[0];
+    const current =
+      VISIBILITY_LEVELS.find((l) => l.value === value) ?? VISIBILITY_LEVELS[0];
     return (
       <div className={`tf-accent-scope ${className}`}>
-        <div role="radiogroup" aria-label="What teammates see" className="grid grid-cols-4 gap-1 rounded-xl border border-sol-border p-1 max-sm:grid-cols-2">
+        <div
+          role="radiogroup"
+          aria-label="What teammates see"
+          className="grid grid-cols-4 gap-1 rounded-xl border border-sol-border p-1 max-sm:grid-cols-2"
+        >
           {VISIBILITY_LEVELS.map((level, i) => {
             const selected = value === level.value;
             const Icon = level.Icon;
             return (
               <button
                 key={level.value}
-                ref={(el) => { refs.current[i] = el; }}
+                ref={(el) => {
+                  refs.current[i] = el;
+                }}
                 type="button"
                 role="radio"
                 aria-checked={selected}
@@ -53,7 +63,9 @@ export function VisibilityPicker({
                 onClick={() => onChange(level.value)}
                 data-selected={selected}
                 className={`tf-option flex h-9 items-center justify-center gap-1.5 rounded-lg border text-xs outline-none ${
-                  selected ? "font-medium text-sol-text" : "border-transparent text-sol-text-dim hover:text-sol-text"
+                  selected
+                    ? "font-medium text-sol-text"
+                    : "border-transparent text-sol-text-dim hover:text-sol-text"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -62,7 +74,9 @@ export function VisibilityPicker({
             );
           })}
         </div>
-        <p className="mt-2 px-1 text-xs text-sol-text-dim">{current.description}</p>
+        <p className="mt-2 px-1 text-xs text-sol-text-dim">
+          {current.description}
+        </p>
       </div>
     );
   }
@@ -79,7 +93,9 @@ export function VisibilityPicker({
         return (
           <button
             key={level.value}
-            ref={(el) => { refs.current[i] = el; }}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={selected}
@@ -88,7 +104,9 @@ export function VisibilityPicker({
             onClick={() => onChange(level.value)}
             data-selected={selected}
             className={`tf-option w-full rounded-xl border px-5 py-3 max-sm:px-4 text-left relative outline-none motion-safe:active:scale-[0.99] ${
-              selected ? "" : "border-sol-border hover:border-sol-text-muted hover:bg-sol-bg-alt/40"
+              selected
+                ? ""
+                : "border-sol-border hover:border-sol-text-muted hover:bg-sol-bg-alt/40"
             }`}
           >
             {level.recommended && (
@@ -115,7 +133,11 @@ export function VisibilityPicker({
                     card, so all four levels fit above the fold on short
                     viewports. Collapsed content is hidden from readers: the
                     label and description carry the choice. */}
-                <div className="tf-collapse" data-open={selected} aria-hidden={!selected}>
+                <div
+                  className="tf-collapse"
+                  data-open={selected}
+                  aria-hidden={!selected}
+                >
                   <div className="min-h-0 overflow-hidden">
                     <div className="mt-2 text-xs text-sol-text-dim leading-relaxed">
                       {level.detail}

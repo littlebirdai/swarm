@@ -9,9 +9,24 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 async function mountCopy(get: () => string | undefined) {
   jest.useFakeTimers();
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   const React = await import("react");
@@ -19,12 +34,18 @@ async function mountCopy(get: () => string | undefined) {
   const { CopyButton } = await import("./parts");
   const { act } = React;
   const root = createRoot(document.getElementById("root")!);
-  act(() => root.render(React.createElement(CopyButton, { get, label: "Copy value" })));
-  const button = () => document.querySelector("[data-vault-copy]") as HTMLButtonElement;
+  act(() =>
+    root.render(React.createElement(CopyButton, { get, label: "Copy value" })),
+  );
+  const button = () =>
+    document.querySelector("[data-vault-copy]") as HTMLButtonElement;
   return {
     text: () => button().textContent ?? "",
     press: () => act(async () => button().click()),
-    advance: (ms: number) => act(() => { jest.advanceTimersByTime(ms); }),
+    advance: (ms: number) =>
+      act(() => {
+        jest.advanceTimersByTime(ms);
+      }),
     unmount: () => {
       act(() => root.unmount());
       closeDomWindow(dom);
@@ -55,7 +76,10 @@ test("unmounting mid-message clears the reset timer", async () => {
 
 test("a clipboard that refuses says Not copied rather than throwing", async () => {
   const m = await mountCopy(() => "sec-1");
-  Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("denied")) }, configurable: true });
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText: () => Promise.reject(new Error("denied")) },
+    configurable: true,
+  });
   await m.press();
   expect(m.text()).toBe("Not copied");
   m.unmount();

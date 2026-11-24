@@ -29,9 +29,25 @@ export interface AgentJudgeSpec {
   gateway?: string;
 }
 
-export const AGENT_HEADER_FIELDS = ["runner", "tools", "cwd", "max_turns", "timeout", "claude_md", "gateway"] as const;
-export const AGENT_DEFAULTS = { tools: ["Bash", "Read", "Grep", "Glob"], max_turns: 250, timeout_ms: 40 * 60_000 } as const;
-export const AGENT_LIMITS = { max_turns: 1_000, timeout_ms: 3 * 60 * 60_000, claude_md_chars: 200_000 } as const;
+export const AGENT_HEADER_FIELDS = [
+  "runner",
+  "tools",
+  "cwd",
+  "max_turns",
+  "timeout",
+  "claude_md",
+  "gateway",
+] as const;
+export const AGENT_DEFAULTS = {
+  tools: ["Bash", "Read", "Grep", "Glob"],
+  max_turns: 250,
+  timeout_ms: 40 * 60_000,
+} as const;
+export const AGENT_LIMITS = {
+  max_turns: 1_000,
+  timeout_ms: 3 * 60 * 60_000,
+  claude_md_chars: 200_000,
+} as const;
 
 const TOOL = /^[A-Z][A-Za-z]{1,40}$/;
 const REL_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[\w./-]+$/;
@@ -40,33 +56,88 @@ const REL_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[\w./-]+$/;
 function durationMs(raw: string): number | null {
   const m = raw.trim().match(/^(\d+)\s*(s|m|h)$/i);
   if (!m) return null;
-  return Number(m[1]) * { s: 1_000, m: 60_000, h: 3_600_000 }[m[2]!.toLowerCase() as "s" | "m" | "h"];
+  return (
+    Number(m[1]) *
+    { s: 1_000, m: 60_000, h: 3_600_000 }[
+      m[2]!.toLowerCase() as "s" | "m" | "h"
+    ]
+  );
 }
 
 /** An agent judge's header fields as its spec, or why they are not one. Null when the header does not say `runner: agent`. */
-export function parseAgentFields(name: string, fields: Record<string, string>): AgentJudgeSpec | { error: string } | null {
+export function parseAgentFields(
+  name: string,
+  fields: Record<string, string>,
+): AgentJudgeSpec | { error: string } | null {
   const runner = (fields.runner ?? "").toLowerCase();
   if (!runner) {
-    const stray = AGENT_HEADER_FIELDS.filter((f) => f !== "runner" && fields[f] !== undefined);
-    return stray.length ? { error: `${name}: ${stray.join(", ")} belong to an agent judge (runner: agent)` } : null;
+    const stray = AGENT_HEADER_FIELDS.filter(
+      (f) => f !== "runner" && fields[f] !== undefined,
+    );
+    return stray.length
+      ? {
+          error: `${name}: ${stray.join(", ")} belong to an agent judge (runner: agent)`,
+        }
+      : null;
   }
-  if (runner !== "agent") return { error: `${name}: runner is agent, or absent for a judge that is one model call` };
-  const tools = fields.tools ? fields.tools.split(",").map((t) => t.trim()).filter(Boolean) : [...AGENT_DEFAULTS.tools];
+  if (runner !== "agent")
+    return {
+      error: `${name}: runner is agent, or absent for a judge that is one model call`,
+    };
+  const tools = fields.tools
+    ? fields.tools
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [...AGENT_DEFAULTS.tools];
   const badTool = tools.find((t) => !TOOL.test(t));
-  if (badTool) return { error: `${name}: "${badTool}" is not a Claude Code tool name` };
-  if (tools.some((t) => /^(Write|Edit|NotebookEdit|MultiEdit)$/.test(t))) return { error: `${name}: an agent judge reads; it gets no tool that writes (${tools.join(", ")})` };
+  if (badTool)
+    return { error: `${name}: "${badTool}" is not a Claude Code tool name` };
+  if (tools.some((t) => /^(Write|Edit|NotebookEdit|MultiEdit)$/.test(t)))
+    return {
+      error: `${name}: an agent judge reads; it gets no tool that writes (${tools.join(", ")})`,
+    };
   const cwd = (fields.cwd ?? ".").trim();
-  if (cwd !== "." && !REL_PATH.test(cwd)) return { error: `${name}: cwd is a directory inside the repo, relative to its root` };
-  const maxTurns = fields.max_turns === undefined ? AGENT_DEFAULTS.max_turns : Number(fields.max_turns);
-  if (!Number.isInteger(maxTurns) || maxTurns < 1 || maxTurns > AGENT_LIMITS.max_turns) return { error: `${name}: max_turns is a whole number from 1 to ${AGENT_LIMITS.max_turns}` };
-  const timeout = fields.timeout === undefined ? AGENT_DEFAULTS.timeout_ms : durationMs(fields.timeout);
-  if (timeout === null || timeout < 60_000 || timeout > AGENT_LIMITS.timeout_ms) return { error: `${name}: timeout is a duration like 40m, from 1m to 3h` };
-  for (const f of ["claude_md", "gateway"] as const) if (fields[f] !== undefined && !REL_PATH.test(fields[f]!)) return { error: `${name}: ${f} is a file beside the judge, relative to .codecast/judges` };
-  return { tools, cwd, max_turns: maxTurns, timeout_ms: timeout, ...(fields.claude_md ? { claude_md: fields.claude_md } : {}), ...(fields.gateway ? { gateway: fields.gateway } : {}) };
+  if (cwd !== "." && !REL_PATH.test(cwd))
+    return {
+      error: `${name}: cwd is a directory inside the repo, relative to its root`,
+    };
+  const maxTurns =
+    fields.max_turns === undefined
+      ? AGENT_DEFAULTS.max_turns
+      : Number(fields.max_turns);
+  if (
+    !Number.isInteger(maxTurns) ||
+    maxTurns < 1 ||
+    maxTurns > AGENT_LIMITS.max_turns
+  )
+    return {
+      error: `${name}: max_turns is a whole number from 1 to ${AGENT_LIMITS.max_turns}`,
+    };
+  const timeout =
+    fields.timeout === undefined
+      ? AGENT_DEFAULTS.timeout_ms
+      : durationMs(fields.timeout);
+  if (timeout === null || timeout < 60_000 || timeout > AGENT_LIMITS.timeout_ms)
+    return { error: `${name}: timeout is a duration like 40m, from 1m to 3h` };
+  for (const f of ["claude_md", "gateway"] as const)
+    if (fields[f] !== undefined && !REL_PATH.test(fields[f]!))
+      return {
+        error: `${name}: ${f} is a file beside the judge, relative to .codecast/judges`,
+      };
+  return {
+    tools,
+    cwd,
+    max_turns: maxTurns,
+    timeout_ms: timeout,
+    ...(fields.claude_md ? { claude_md: fields.claude_md } : {}),
+    ...(fields.gateway ? { gateway: fields.gateway } : {}),
+  };
 }
 
 /** When the moment's facts were read, as an agent judge's prompt names it: "2026-10-20 18:05 UTC". */
-export const reviewTime = (at: number) => `${new Date(at).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+export const reviewTime = (at: number) =>
+  `${new Date(at).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 
 /**
  * The first turn of an agent judge's session: its prompt with the moment put
@@ -75,8 +146,23 @@ export const reviewTime = (at: number) => `${new Date(at).toISOString().slice(0,
  * them; {{SUBJECT}} is the moment's subject, {{WHO}} who it is about, and
  * {{NOW}} the time its facts describe.
  */
-export function agentJudgePrompt(prompt: string, record: Pick<MomentRecord, "subject" | "who" | "review" | "at" | "event_at" | "extracted_at" | "blocks" | "window">, who: string | null): string {
-  const page = record.review?.trim() || renderMoment(record as MomentRecord).trim();
+export function agentJudgePrompt(
+  prompt: string,
+  record: Pick<
+    MomentRecord,
+    | "subject"
+    | "who"
+    | "review"
+    | "at"
+    | "event_at"
+    | "extracted_at"
+    | "blocks"
+    | "window"
+  >,
+  who: string | null,
+): string {
+  const page =
+    record.review?.trim() || renderMoment(record as MomentRecord).trim();
   const at = record.at ?? record.extracted_at ?? record.event_at;
   return prompt
     .replaceAll("{{SUBJECT}}", record.subject)
@@ -124,7 +210,8 @@ export interface AgentFinding {
   cause_checked: boolean;
 }
 
-const clip = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const clip = (v: unknown, max: number) =>
+  typeof v === "string" ? v.trim().slice(0, max) : "";
 
 /** The findings in the second turn's answer; null when it holds no findings list. */
 export function parseAgentFindings(text: string): AgentFinding[] | null {
@@ -136,16 +223,36 @@ export function parseAgentFindings(text: string): AgentFinding[] | null {
     const d = raw as Record<string, unknown>;
     const what = clip(d.what, 2_000);
     if (!what) continue;
-    const evidence = (Array.isArray(d.evidence) ? d.evidence : []).slice(0, 8).flatMap((e) => {
-      if (!e || typeof e !== "object") return [];
-      const x = e as Record<string, unknown>;
-      const quote = clip(x.quote, 1_000);
-      const message = clip(x.message, 120);
-      const run = clip(x.run, 120);
-      return quote || message || run ? [{ quote, ...(message ? { message } : {}), ...(run ? { run } : {}) }] : [];
+    const evidence = (Array.isArray(d.evidence) ? d.evidence : [])
+      .slice(0, 8)
+      .flatMap((e) => {
+        if (!e || typeof e !== "object") return [];
+        const x = e as Record<string, unknown>;
+        const quote = clip(x.quote, 1_000);
+        const message = clip(x.message, 120);
+        const run = clip(x.run, 120);
+        return quote || message || run
+          ? [
+              {
+                quote,
+                ...(message ? { message } : {}),
+                ...(run ? { run } : {}),
+              },
+            ]
+          : [];
+      });
+    const layer = (AGENT_LAYERS as readonly string[]).includes(String(d.layer))
+      ? (d.layer as AgentLayer)
+      : "both";
+    out.push({
+      what,
+      evidence,
+      hurt: clip(d.hurt, 600),
+      severity: Math.min(10, Math.max(1, Math.round(Number(d.severity) || 1))),
+      layer,
+      cause: clip(d.cause, 1_500),
+      cause_checked: d.cause_checked === true,
     });
-    const layer = (AGENT_LAYERS as readonly string[]).includes(String(d.layer)) ? (d.layer as AgentLayer) : "both";
-    out.push({ what, evidence, hurt: clip(d.hurt, 600), severity: Math.min(10, Math.max(1, Math.round(Number(d.severity) || 1))), layer, cause: clip(d.cause, 1_500), cause_checked: d.cause_checked === true });
   }
   return out;
 }
@@ -155,8 +262,17 @@ export function parseAgentFindings(text: string): AgentFinding[] | null {
  * agent's own fields, plus the judge finding's (expectation, what_happened,
  * quote, markers) so every reader of a run's findings reads it.
  */
-export function agentRunFinding(f: AgentFinding, judge: string): AgentFinding & JudgeFinding {
-  return { ...f, expectation: judge, what_happened: f.what, quote: f.evidence[0]?.quote ?? "", markers: [f.layer] };
+export function agentRunFinding(
+  f: AgentFinding,
+  judge: string,
+): AgentFinding & JudgeFinding {
+  return {
+    ...f,
+    expectation: judge,
+    what_happened: f.what,
+    quote: f.evidence[0]?.quote ?? "",
+    markers: [f.layer],
+  };
 }
 
 /** A short stable hash (FNV-1a, 32 bits) of a text with its spacing and case folded. */
@@ -170,9 +286,13 @@ function textHash(text: string): string {
 }
 
 /** The words grouping compares (LL9): the cause first, then the problem in general terms, since one person's story makes two findings of one cause read apart. */
-export function agentSimilarText(f: Pick<AgentFinding, "what" | "cause">): string {
+export function agentSimilarText(
+  f: Pick<AgentFinding, "what" | "cause">,
+): string {
   const problem = firstSentence(f.what);
-  return f.cause ? `Cause: ${f.cause}\nProblem: ${problem}` : `Problem: ${problem}`;
+  return f.cause
+    ? `Cause: ${f.cause}\nProblem: ${problem}`
+    : `Problem: ${problem}`;
 }
 
 /**
@@ -180,8 +300,13 @@ export function agentSimilarText(f: Pick<AgentFinding, "what" | "cause">): strin
  * (agentFindingSignal): its title is the problem's first sentence and its
  * detail ends with the cause. For findings grouping never compared (Oct 26).
  */
-export function agentSimilarTextOf(signal: { title: string; detail_md?: string }): string {
-  const cause = signal.detail_md?.match(/\*\*Cause \((?:checked|not checked)\):\*\* ([\s\S]*)$/)?.[1]?.trim();
+export function agentSimilarTextOf(signal: {
+  title: string;
+  detail_md?: string;
+}): string {
+  const cause = signal.detail_md
+    ?.match(/\*\*Cause \((?:checked|not checked)\):\*\* ([\s\S]*)$/)?.[1]
+    ?.trim();
   return agentSimilarText({ what: signal.title, cause: cause ?? "" });
 }
 
@@ -191,16 +316,37 @@ export function agentSimilarTextOf(signal: { title: string; detail_md?: string }
  * the whole finding as its detail. Keyed by the moment and the problem's
  * words, so a re-read of one moment files no copy of the same words.
  */
-export function agentFindingSignal(f: AgentFinding, origin: { judge: string; judge_version: string; moment: string; subject: string }, evidenceUrl?: string) {
-  const ids = (e: AgentFinding["evidence"][number]) => [e.message ? `message ${e.message}` : "", e.run ? `run ${e.run}` : ""].filter(Boolean).join(", ");
-  const evidence = f.evidence.map((e) => `${e.quote ? `> ${e.quote.replace(/\n/g, "\n> ")}` : ""}${ids(e) ? `${e.quote ? "\n" : ""}(${ids(e)})` : ""}`).join("\n\n");
+export function agentFindingSignal(
+  f: AgentFinding,
+  origin: {
+    judge: string;
+    judge_version: string;
+    moment: string;
+    subject: string;
+  },
+  evidenceUrl?: string,
+) {
+  const ids = (e: AgentFinding["evidence"][number]) =>
+    [e.message ? `message ${e.message}` : "", e.run ? `run ${e.run}` : ""]
+      .filter(Boolean)
+      .join(", ");
+  const evidence = f.evidence
+    .map(
+      (e) =>
+        `${e.quote ? `> ${e.quote.replace(/\n/g, "\n> ")}` : ""}${ids(e) ? `${e.quote ? "\n" : ""}(${ids(e)})` : ""}`,
+    )
+    .join("\n\n");
   const detail = [
     f.what,
     evidence,
     f.hurt ? `**Who it hurt:** ${f.hurt}` : "",
     `**Layer:** ${f.layer}`,
-    f.cause ? `**Cause (${f.cause_checked ? "checked" : "not checked"}):** ${f.cause}` : "**Cause:** not found",
-  ].filter(Boolean).join("\n\n");
+    f.cause
+      ? `**Cause (${f.cause_checked ? "checked" : "not checked"}):** ${f.cause}`
+      : "**Cause:** not found",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   return {
     source: `judge:${origin.judge}`,
     kind: f.layer === "software" ? ("bug" as const) : ("prompt_miss" as const),
@@ -238,27 +384,63 @@ export interface ReviewTranscript {
 /** A tool's input or output past this many characters is cut, with how much was left out: a review's SQL dumps run to megabytes. */
 export const TRANSCRIPT_CLIP = 20_000;
 
-const clipped = (t: string) => (t.length > TRANSCRIPT_CLIP ? `${t.slice(0, TRANSCRIPT_CLIP)}\n[${(t.length - TRANSCRIPT_CLIP).toLocaleString("en-US")} more characters not kept]` : t);
+const clipped = (t: string) =>
+  t.length > TRANSCRIPT_CLIP
+    ? `${t.slice(0, TRANSCRIPT_CLIP)}\n[${(t.length - TRANSCRIPT_CLIP).toLocaleString("en-US")} more characters not kept]`
+    : t;
 
 /** A turn of claude's stream-json output (the dry-run harness's streamN.jsonl) as transcript entries, opening with the turn's prompt. */
-export function transcriptFromStream(prompt: string, stream: string): TranscriptEntry[] {
+export function transcriptFromStream(
+  prompt: string,
+  stream: string,
+): TranscriptEntry[] {
   const out: TranscriptEntry[] = [{ kind: "prompt", text: prompt }];
   for (const line of stream.split("\n")) {
     if (!line.trim()) continue;
     let d: any;
-    try { d = JSON.parse(line); } catch { continue; }
-    const content: any[] = Array.isArray(d?.message?.content) ? d.message.content : [];
+    try {
+      d = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content: any[] = Array.isArray(d?.message?.content)
+      ? d.message.content
+      : [];
     if (d.type === "assistant") {
       for (const c of content) {
-        if (c.type === "text" && c.text?.trim()) out.push({ kind: "text", text: c.text.trim() });
-        else if (c.type === "thinking" && c.thinking?.trim()) out.push({ kind: "thinking", text: clipped(c.thinking.trim()) });
-        else if (c.type === "tool_use") out.push({ kind: "tool_use", name: String(c.name ?? "tool"), text: clipped(typeof c.input === "string" ? c.input : JSON.stringify(c.input ?? {}, null, 1)) });
+        if (c.type === "text" && c.text?.trim())
+          out.push({ kind: "text", text: c.text.trim() });
+        else if (c.type === "thinking" && c.thinking?.trim())
+          out.push({ kind: "thinking", text: clipped(c.thinking.trim()) });
+        else if (c.type === "tool_use")
+          out.push({
+            kind: "tool_use",
+            name: String(c.name ?? "tool"),
+            text: clipped(
+              typeof c.input === "string"
+                ? c.input
+                : JSON.stringify(c.input ?? {}, null, 1),
+            ),
+          });
       }
     } else if (d.type === "user") {
       for (const c of content) {
         if (c.type !== "tool_result") continue;
-        const text = typeof c.content === "string" ? c.content : Array.isArray(c.content) ? c.content.map((x: any) => (x?.type === "text" ? x.text : `[${x?.type ?? "part"}]`)).join("\n") : "";
-        out.push({ kind: "tool_result", text: clipped(text), ...(c.is_error ? { error: true } : {}) });
+        const text =
+          typeof c.content === "string"
+            ? c.content
+            : Array.isArray(c.content)
+              ? c.content
+                  .map((x: any) =>
+                    x?.type === "text" ? x.text : `[${x?.type ?? "part"}]`,
+                  )
+                  .join("\n")
+              : "";
+        out.push({
+          kind: "tool_result",
+          text: clipped(text),
+          ...(c.is_error ? { error: true } : {}),
+        });
       }
     }
   }

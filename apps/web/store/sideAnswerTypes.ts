@@ -3,10 +3,16 @@
 import type { SideAnswerRow } from "@codecast/shared/contracts";
 
 export const sideAnswerStubId = (clientId: string) => `btwstub-${clientId}`;
-export const isSideAnswerStub = (row: { _id: string }) => row._id.startsWith("btwstub-");
+export const isSideAnswerStub = (row: { _id: string }) =>
+  row._id.startsWith("btwstub-");
 
 /** The row a question paints as before the server has it. */
-export function sideAnswerStub(o: { conversationId: string; question: string; clientId: string; now?: number }): SideAnswerRow {
+export function sideAnswerStub(o: {
+  conversationId: string;
+  question: string;
+  clientId: string;
+  now?: number;
+}): SideAnswerRow {
   return {
     _id: sideAnswerStubId(o.clientId),
     conversation_id: o.conversationId,

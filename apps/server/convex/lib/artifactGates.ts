@@ -30,18 +30,27 @@ export type GatedArtifact = {
 
 export { sha256Hex };
 
-export async function passwordHash(password: string, slug: string): Promise<string> {
+export async function passwordHash(
+  password: string,
+  slug: string,
+): Promise<string> {
   return await sha256Hex(`${password}:${slug}`);
 }
 
 /** Deterministic unlock token — knowing it ≈ knowing the password, and it
  * rotates when the password changes. Deterministic so the ?k= URL stays a
  * stable cache key. */
-export async function kTokenFor(password_hash: string, slug: string): Promise<string> {
+export async function kTokenFor(
+  password_hash: string,
+  slug: string,
+): Promise<string> {
   return (await sha256Hex(`${password_hash}:${slug}`)).slice(0, 24);
 }
 
-export async function eTokenFor(owner_key: string, slug: string): Promise<string> {
+export async function eTokenFor(
+  owner_key: string,
+  slug: string,
+): Promise<string> {
   return (await sha256Hex(`${owner_key}:emailgate:${slug}`)).slice(0, 24);
 }
 
@@ -83,7 +92,12 @@ export function teamGateMessage(teamName: string | null | undefined): string {
  * The email wall counts: it is a capture step, not secrecy, but it still
  * stands between an anonymous visitor and the page. */
 export function isGated(a: GatedArtifact, now = Date.now()): boolean {
-  return !!a.team_gate || !!a.password_hash || !!a.email_gate || (!!a.expires_at && now > a.expires_at);
+  return (
+    !!a.team_gate ||
+    !!a.password_hash ||
+    !!a.email_gate ||
+    (!!a.expires_at && now > a.expires_at)
+  );
 }
 
 export function isExpired(a: GatedArtifact, now = Date.now()): boolean {
@@ -104,12 +118,20 @@ export async function gateFailure(
   if (isExpired(a, now)) return "This page has expired";
   if (a.team_gate) {
     const holder = await mTokenHolder(a, presented.m);
-    if (!holder || !admits || !(await admits(holder))) return teamGateMessage(null);
+    if (!holder || !admits || !(await admits(holder)))
+      return teamGateMessage(null);
   }
-  if (a.password_hash && presented.k !== (await kTokenFor(a.password_hash, a.slug))) {
+  if (
+    a.password_hash &&
+    presented.k !== (await kTokenFor(a.password_hash, a.slug))
+  ) {
     return "This page is password protected";
   }
-  if (a.email_gate && a.owner_key && presented.e !== (await eTokenFor(a.owner_key, a.slug))) {
+  if (
+    a.email_gate &&
+    a.owner_key &&
+    presented.e !== (await eTokenFor(a.owner_key, a.slug))
+  ) {
     return "This page asks viewers for their email first";
   }
   return null;

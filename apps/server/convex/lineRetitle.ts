@@ -21,7 +21,11 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { CHEAP_MODEL, parseJsonBlock, type SurfaceRequest } from "./lib/anthropic";
+import {
+  CHEAP_MODEL,
+  parseJsonBlock,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { patchTask } from "./lib/taskWrite";
 import { insertTaskComment } from "./tasks";
 import { runModelCall } from "./modelCalls";
@@ -46,7 +50,11 @@ export type Titled = { title: string; from: string[] };
  * the findings on it now become its source; `retitle` when none of the
  * findings it was written from is still on it; null when it stands.
  */
-export function retitleDue(title: string, titled: Titled | undefined, live: string[]): "baseline" | "retitle" | null {
+export function retitleDue(
+  title: string,
+  titled: Titled | undefined,
+  live: string[],
+): "baseline" | "retitle" | null {
   if (!live.length) return null;
   if (!titled || titled.title !== title) return "baseline";
   const now = new Set(live);
@@ -54,7 +62,10 @@ export function retitleDue(title: string, titled: Titled | undefined, live: stri
 }
 
 /** Whether a problem needs a list name: no name was written for its title as it stands. */
-export function nameDue(title: string, named: { for: string } | undefined): boolean {
+export function nameDue(
+  title: string,
+  named: { for: string } | undefined,
+): boolean {
   return named?.for !== title;
 }
 
@@ -64,13 +75,19 @@ Answer with JSON only: {"name": "..."}`;
 
 /** The naming call for one problem; ./evals could replay exactly it. */
 export function nameRequest(title: string): SurfaceRequest {
-  return { model: CHEAP_MODEL, system: NAME_SYSTEM, prompt: `The problem's title:\n${title.replace(/^not met:\s*/i, "")}`, max_tokens: 200 };
+  return {
+    model: CHEAP_MODEL,
+    system: NAME_SYSTEM,
+    prompt: `The problem's title:\n${title.replace(/^not met:\s*/i, "")}`,
+    max_tokens: 200,
+  };
 }
 
 /** A naming reply as the name, or null when it cannot be used. */
 export function parseName(text: string | undefined): string | null {
   const j = parseJsonBlock(text ?? "") as { name?: unknown } | null;
-  const name = typeof j?.name === "string" ? j.name.trim().replace(/\.$/, "") : "";
+  const name =
+    typeof j?.name === "string" ? j.name.trim().replace(/\.$/, "") : "";
   return name && name.length <= LIST_NAME_MAX ? name : null;
 }
 
@@ -81,8 +98,17 @@ Answer with JSON only: {"title": "...", "description": "..."}`;
 export type RetitleFinding = { title: string; quote?: string };
 
 /** The rename call for one problem; ./evals could replay exactly it. */
-export function retitleRequest(was: string, findings: RetitleFinding[], conversations: number): SurfaceRequest {
-  const lines = findings.map((f, i) => `${i + 1}. ${f.title}${f.quote ? `\n   quoted: "${f.quote.slice(0, 200)}"` : ""}`).join("\n");
+export function retitleRequest(
+  was: string,
+  findings: RetitleFinding[],
+  conversations: number,
+): SurfaceRequest {
+  const lines = findings
+    .map(
+      (f, i) =>
+        `${i + 1}. ${f.title}${f.quote ? `\n   quoted: "${f.quote.slice(0, 200)}"` : ""}`,
+    )
+    .join("\n");
   return {
     model: CHEAP_MODEL,
     system: SYSTEM,
@@ -92,35 +118,75 @@ export function retitleRequest(was: string, findings: RetitleFinding[], conversa
 }
 
 /** A rename reply as fields, or null when it cannot be used. */
-export function parseRetitle(text: string | undefined): { title: string; description: string } | null {
-  const j = parseJsonBlock(text ?? "") as { title?: unknown; description?: unknown } | null;
-  const title = typeof j?.title === "string" ? j.title.trim().replace(/\.$/, "") : "";
-  const description = typeof j?.description === "string" ? j.description.trim() : "";
+export function parseRetitle(
+  text: string | undefined,
+): { title: string; description: string } | null {
+  const j = parseJsonBlock(text ?? "") as {
+    title?: unknown;
+    description?: unknown;
+  } | null;
+  const title =
+    typeof j?.title === "string" ? j.title.trim().replace(/\.$/, "") : "";
+  const description =
+    typeof j?.description === "string" ? j.description.trim() : "";
   if (!title || title.length > TITLE_MAX || !description) return null;
   return { title, description };
 }
 
-const quoteOf = (md: string | undefined) => /^> (.+)$/m.exec(md ?? "")?.[1]?.trim();
+const quoteOf = (md: string | undefined) =>
+  /^> (.+)$/m.exec(md ?? "")?.[1]?.trim();
 
-type RetitleJob = { kind?: "name"; task_id: Id<"tasks">; title: string; from: string[]; workspace: string; team_id?: Id<"teams">; project_id?: Id<"projects">; findings: RetitleFinding[]; conversations: number };
+type RetitleJob = {
+  kind?: "name";
+  task_id: Id<"tasks">;
+  title: string;
+  from: string[];
+  workspace: string;
+  team_id?: Id<"teams">;
+  project_id?: Id<"projects">;
+  findings: RetitleFinding[];
+  conversations: number;
+};
 
 /** A job's call is charged to its workspace's budget and its problem's project. */
-const scopeOfJob = (job: RetitleJob) => ({ workspace: job.workspace, ...(job.team_id ? { team_id: job.team_id } : {}), ...(job.project_id ? { project_id: job.project_id } : {}) });
+const scopeOfJob = (job: RetitleJob) => ({
+  workspace: job.workspace,
+  ...(job.team_id ? { team_id: job.team_id } : {}),
+  ...(job.project_id ? { project_id: job.project_id } : {}),
+});
 
 /** One pass's reads: baselines are written by `baseline`, renames come back as jobs. */
 export const due = internalQuery({
   args: {},
-  handler: async (ctx): Promise<{ baselines: Array<{ task_id: Id<"tasks">; titled: Titled }>; jobs: RetitleJob[] }> => {
+  handler: async (
+    ctx,
+  ): Promise<{
+    baselines: Array<{ task_id: Id<"tasks">; titled: Titled }>;
+    jobs: RetitleJob[];
+  }> => {
     const baselines: Array<{ task_id: Id<"tasks">; titled: Titled }> = [];
     const jobs: RetitleJob[] = [];
     for (const status of OPEN_STATUSES) {
-      const tasks: Doc<"tasks">[] = await ctx.db.query("tasks").withIndex("by_source_status_readiness", (q: any) => q.eq("source", "signal").eq("status", status)).take(RETITLE_SCAN);
+      const tasks: Doc<"tasks">[] = await ctx.db
+        .query("tasks")
+        .withIndex("by_source_status_readiness", (q: any) =>
+          q.eq("source", "signal").eq("status", status),
+        )
+        .take(RETITLE_SCAN);
       for (const task of tasks) {
         if (!task.cause || !task.workspace) continue;
-        const live: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).order("desc").take(50);
+        const live: Doc<"signals">[] = await ctx.db
+          .query("signals")
+          .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+          .order("desc")
+          .take(50);
         const ids = live.map((s) => s.short_id);
         const need = retitleDue(task.title, task.cause.titled, ids);
-        if (need === "baseline") baselines.push({ task_id: task._id, titled: { title: task.title, from: ids } });
+        if (need === "baseline")
+          baselines.push({
+            task_id: task._id,
+            titled: { title: task.title, from: ids },
+          });
         if (need === "retitle" && jobs.length < RETITLE_BATCH) {
           jobs.push({
             task_id: task._id,
@@ -129,11 +195,28 @@ export const due = internalQuery({
             workspace: task.workspace,
             ...(task.team_id ? { team_id: task.team_id } : {}),
             ...(task.project_id ? { project_id: task.project_id } : {}),
-            findings: live.slice(0, RETITLE_FINDINGS).map((s) => ({ title: s.title, ...(quoteOf(s.detail_md) ? { quote: quoteOf(s.detail_md) } : {}) })),
-            conversations: new Set(live.map((s) => s.moment ?? s.fingerprint)).size,
+            findings: live.slice(0, RETITLE_FINDINGS).map((s) => ({
+              title: s.title,
+              ...(quoteOf(s.detail_md) ? { quote: quoteOf(s.detail_md) } : {}),
+            })),
+            conversations: new Set(live.map((s) => s.moment ?? s.fingerprint))
+              .size,
           });
-        } else if (nameDue(task.title, task.cause.named) && jobs.length < RETITLE_BATCH) {
-          jobs.push({ kind: "name", task_id: task._id, title: task.title, from: ids, workspace: task.workspace, ...(task.team_id ? { team_id: task.team_id } : {}), ...(task.project_id ? { project_id: task.project_id } : {}), findings: [], conversations: 0 });
+        } else if (
+          nameDue(task.title, task.cause.named) &&
+          jobs.length < RETITLE_BATCH
+        ) {
+          jobs.push({
+            kind: "name",
+            task_id: task._id,
+            title: task.title,
+            from: ids,
+            workspace: task.workspace,
+            ...(task.team_id ? { team_id: task.team_id } : {}),
+            ...(task.project_id ? { project_id: task.project_id } : {}),
+            findings: [],
+            conversations: 0,
+          });
         }
       }
     }
@@ -142,13 +225,22 @@ export const due = internalQuery({
 });
 
 export const baseline = internalMutation({
-  args: { items: v.array(v.object({ task_id: v.id("tasks"), titled: v.object({ title: v.string(), from: v.array(v.string()) }) })) },
+  args: {
+    items: v.array(
+      v.object({
+        task_id: v.id("tasks"),
+        titled: v.object({ title: v.string(), from: v.array(v.string()) }),
+      }),
+    ),
+  },
   handler: async (ctx, { items }) => {
     for (const it of items) {
       const task: Doc<"tasks"> | null = await ctx.db.get(it.task_id);
       // Written only over the title it was read with: a rename or a person's edit since wins.
       if (!task?.cause || task.title !== it.titled.title) continue;
-      await ctx.db.patch(task._id, { cause: { ...task.cause, titled: it.titled } });
+      await ctx.db.patch(task._id, {
+        cause: { ...task.cause, titled: it.titled },
+      });
     }
   },
 });
@@ -158,26 +250,53 @@ export const baseline = internalMutation({
  * renamed the problem meanwhile keeps theirs. An open problem no run holds is
  * grounded again (lineGround), since its note spoke of the findings that left.
  */
-export async function applyRetitleCore(ctx: any, taskId: Id<"tasks">, was: string, from: string[], named: { title: string; description: string }, now: number): Promise<boolean> {
+export async function applyRetitleCore(
+  ctx: any,
+  taskId: Id<"tasks">,
+  was: string,
+  from: string[],
+  named: { title: string; description: string },
+  now: number,
+): Promise<boolean> {
   const task: Doc<"tasks"> | null = await ctx.db.get(taskId);
   if (!task?.cause || task.title !== was) return false;
-  const reground = task.status === "open" && !task.workflow_run_id && !!task.readiness;
+  const reground =
+    task.status === "open" && !task.workflow_run_id && !!task.readiness;
   await patchTask(ctx, task, {
     title: named.title,
     description: named.description,
     cause: { ...task.cause, titled: { title: named.title, from } },
-    ...(reground ? { goal_ref: undefined, category: undefined, risk: undefined, readiness: undefined, readiness_note: undefined } : {}),
+    ...(reground
+      ? {
+          goal_ref: undefined,
+          category: undefined,
+          risk: undefined,
+          readiness: undefined,
+          readiness_note: undefined,
+        }
+      : {}),
     updated_at: now,
   });
-  await insertTaskComment(ctx, task._id, { author: RETITLE_AUTHOR, comment_type: "note", text: `Renamed from the ${from.length} ${from.length === 1 ? "finding" : "findings"} on it now: none of the findings "${was}" was written from is still here.` });
+  await insertTaskComment(ctx, task._id, {
+    author: RETITLE_AUTHOR,
+    comment_type: "note",
+    text: `Renamed from the ${from.length} ${from.length === 1 ? "finding" : "findings"} on it now: none of the findings "${was}" was written from is still here.`,
+  });
   return true;
 }
 
 /** A list name lands only on the title it was written for; the title itself is never touched. */
-export async function applyNameCore(ctx: any, taskId: Id<"tasks">, title: string, name: string): Promise<boolean> {
+export async function applyNameCore(
+  ctx: any,
+  taskId: Id<"tasks">,
+  title: string,
+  name: string,
+): Promise<boolean> {
   const task: Doc<"tasks"> | null = await ctx.db.get(taskId);
   if (!task?.cause || task.title !== title) return false;
-  await ctx.db.patch(task._id, { cause: { ...task.cause, named: { name, for: title } } });
+  await ctx.db.patch(task._id, {
+    cause: { ...task.cause, named: { name, for: title } },
+  });
   return true;
 }
 
@@ -187,34 +306,129 @@ export const applyName = internalMutation({
 });
 
 export const apply = internalMutation({
-  args: { task_id: v.id("tasks"), was: v.string(), from: v.array(v.string()), title: v.string(), description: v.string() },
-  handler: async (ctx, a) => applyRetitleCore(ctx, a.task_id, a.was, a.from, { title: a.title, description: a.description }, Date.now()),
+  args: {
+    task_id: v.id("tasks"),
+    was: v.string(),
+    from: v.array(v.string()),
+    title: v.string(),
+    description: v.string(),
+  },
+  handler: async (ctx, a) =>
+    applyRetitleCore(
+      ctx,
+      a.task_id,
+      a.was,
+      a.from,
+      { title: a.title, description: a.description },
+      Date.now(),
+    ),
 });
 
 /** One pass (crons.ts): record what every title was written from, and rename the problems none of whose findings are left. */
 export const sweep = internalAction({
   args: { dry: v.optional(v.boolean()) },
-  handler: async (ctx, { dry }): Promise<{ baselined: number; renamed: Array<{ task_id: string; was: string; title?: string; error?: string }> }> => {
-    const { baselines, jobs } = await ctx.runQuery(internal.lineRetitle.due, {});
-    if (!dry && baselines.length) await ctx.runMutation(internal.lineRetitle.baseline, { items: baselines });
-    const renamed: Array<{ task_id: string; was: string; title?: string; error?: string }> = [];
+  handler: async (
+    ctx,
+    { dry },
+  ): Promise<{
+    baselined: number;
+    renamed: Array<{
+      task_id: string;
+      was: string;
+      title?: string;
+      error?: string;
+    }>;
+  }> => {
+    const { baselines, jobs } = await ctx.runQuery(
+      internal.lineRetitle.due,
+      {},
+    );
+    if (!dry && baselines.length)
+      await ctx.runMutation(internal.lineRetitle.baseline, {
+        items: baselines,
+      });
+    const renamed: Array<{
+      task_id: string;
+      was: string;
+      title?: string;
+      error?: string;
+    }> = [];
     for (const job of jobs) {
       if (job.kind === "name") {
         const req = nameRequest(job.title);
-        const reply = await runModelCall(ctx, scopeOfJob(job), "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "json" }, "Problem name", 30_000);
-        if (!reply.ok) { renamed.push({ task_id: String(job.task_id), was: job.title, error: reply.reason }); continue; }
+        const reply = await runModelCall(
+          ctx,
+          scopeOfJob(job),
+          "grouping",
+          {
+            model: req.model,
+            system: req.system,
+            prompt: req.prompt,
+            max_tokens: req.max_tokens,
+            output: "json",
+          },
+          "Problem name",
+          30_000,
+        );
+        if (!reply.ok) {
+          renamed.push({
+            task_id: String(job.task_id),
+            was: job.title,
+            error: reply.reason,
+          });
+          continue;
+        }
         // An unusable answer is stored as "" (asked, no name; the list cuts the title): asking again mostly gets the same answer.
         const name = parseName(reply.text) ?? "";
-        if (!dry) await ctx.runMutation(internal.lineRetitle.applyName, { task_id: job.task_id, title: job.title, name });
-        renamed.push({ task_id: String(job.task_id), was: job.title, ...(name ? { title: name } : { error: "unreadable reply" }) });
+        if (!dry)
+          await ctx.runMutation(internal.lineRetitle.applyName, {
+            task_id: job.task_id,
+            title: job.title,
+            name,
+          });
+        renamed.push({
+          task_id: String(job.task_id),
+          was: job.title,
+          ...(name ? { title: name } : { error: "unreadable reply" }),
+        });
         continue;
       }
       const req = retitleRequest(job.title, job.findings, job.conversations);
-      const reply = await runModelCall(ctx, scopeOfJob(job), "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "json" }, "Problem rename", 30_000);
+      const reply = await runModelCall(
+        ctx,
+        scopeOfJob(job),
+        "grouping",
+        {
+          model: req.model,
+          system: req.system,
+          prompt: req.prompt,
+          max_tokens: req.max_tokens,
+          output: "json",
+        },
+        "Problem rename",
+        30_000,
+      );
       const named = reply.ok ? parseRetitle(reply.text) : null;
-      if (!named) { renamed.push({ task_id: String(job.task_id), was: job.title, error: reply.ok ? "unreadable reply" : reply.reason }); continue; }
-      if (!dry) await ctx.runMutation(internal.lineRetitle.apply, { task_id: job.task_id, was: job.title, from: job.from, ...named });
-      renamed.push({ task_id: String(job.task_id), was: job.title, title: named.title });
+      if (!named) {
+        renamed.push({
+          task_id: String(job.task_id),
+          was: job.title,
+          error: reply.ok ? "unreadable reply" : reply.reason,
+        });
+        continue;
+      }
+      if (!dry)
+        await ctx.runMutation(internal.lineRetitle.apply, {
+          task_id: job.task_id,
+          was: job.title,
+          from: job.from,
+          ...named,
+        });
+      renamed.push({
+        task_id: String(job.task_id),
+        was: job.title,
+        title: named.title,
+      });
     }
     return { baselined: baselines.length, renamed };
   },

@@ -2,44 +2,89 @@ import { spawnSync, type SpawnSyncReturns } from "../proc.js";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { gitSshUrl, HOST_EXCLUDES, remoteHome, shq, sshBase, sshDestination, sshShell, type RemoteHost } from "../remote/session-move.js";
+import {
+  gitSshUrl,
+  HOST_EXCLUDES,
+  remoteHome,
+  shq,
+  sshBase,
+  sshDestination,
+  sshShell,
+  type RemoteHost,
+} from "../remote/session-move.js";
 import { hostProbeOrigin } from "./hostGit.js";
 import { MANIFEST_REL_PATH } from "../workspace/resolver.js";
-import { collectCopyFiles, manifestCopyEntries, sourceStat, validateRelativePath } from "../workspace/copyFiles.js";
+import {
+  collectCopyFiles,
+  manifestCopyEntries,
+  sourceStat,
+  validateRelativePath,
+} from "../workspace/copyFiles.js";
 import { buildMirrorBundle } from "./mirror/bundle.js";
 import { kindForPath, transformForHost } from "./mirror/transform.js";
 import { collectProjectContext } from "./mirror/discovery.js";
 import { readLocalConfig } from "../config/readLocalConfig.js";
-import { HOST_PATH_EXPORT, runSide, type Skipped, type SnapshotResult } from "./syncSide.js";
+import {
+  HOST_PATH_EXPORT,
+  runSide,
+  type Skipped,
+  type SnapshotResult,
+} from "./syncSide.js";
 import { readSyncScope } from "./syncScope.js";
 
 function checked(result: SpawnSyncReturns<string>, operation: string): string {
   if (result.error || result.status !== 0) {
-    throw new Error(`${operation} failed (${(result.error as NodeJS.ErrnoException | undefined)?.code ?? result.signal ?? `exit ${result.status}`})`);
+    throw new Error(
+      `${operation} failed (${(result.error as NodeJS.ErrnoException | undefined)?.code ?? result.signal ?? `exit ${result.status}`})`,
+    );
   }
   return result.stdout.trim();
 }
 
-function remote(host: RemoteHost, command: string, input?: number | Buffer): SpawnSyncReturns<string> {
-  const stdin = Buffer.isBuffer(input) ? "pipe" : input ?? "ignore";
+function remote(
+  host: RemoteHost,
+  command: string,
+  input?: number | Buffer,
+): SpawnSyncReturns<string> {
+  const stdin = Buffer.isBuffer(input) ? "pipe" : (input ?? "ignore");
   return spawnSync("ssh", [...sshBase(host), sshDestination(host), command], {
-    encoding: "utf-8", stdio: [stdin, "pipe", "pipe"], timeout: 300_000, env: process.env,
+    encoding: "utf-8",
+    stdio: [stdin, "pipe", "pipe"],
+    timeout: 300_000,
+    env: process.env,
     ...(Buffer.isBuffer(input) ? { input, maxBuffer: 64 * 1024 * 1024 } : {}),
   });
 }
 
 function git(repo: string, args: string[], operation: string): string {
-  return checked(spawnSync("git", ["-C", repo, ...args], {
-    encoding: "utf-8", stdio: "pipe", timeout: 300_000,
-  }), operation);
+  return checked(
+    spawnSync("git", ["-C", repo, ...args], {
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 300_000,
+    }),
+    operation,
+  );
 }
 
 function withFreshMain<T>(origin: string, use: (repo: string) => T): T {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "cast-cloud-main-"));
   try {
     git(temp, ["init", "--bare", "-q"], "initialize isolated origin fetch");
-    git(temp, ["fetch", "-q", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head",
-      "--", origin, "refs/heads/main:refs/heads/main"], "fetch fresh origin/main on laptop");
+    git(
+      temp,
+      [
+        "fetch",
+        "-q",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "--no-write-fetch-head",
+        "--",
+        origin,
+        "refs/heads/main:refs/heads/main",
+      ],
+      "fetch fresh origin/main on laptop",
+    );
     return use(temp);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
@@ -47,8 +92,12 @@ function withFreshMain<T>(origin: string, use: (repo: string) => T): T {
 }
 
 function absoluteRemotePath(value: string): void {
-  if (!value.startsWith("/") || value === "/" || /[\x00-\x1f\x7f]/.test(value)
-    || path.posix.normalize(value) !== value) {
+  if (
+    !value.startsWith("/") ||
+    value === "/" ||
+    /[\x00-\x1f\x7f]/.test(value) ||
+    path.posix.normalize(value) !== value
+  ) {
     throw new Error("cloud checkout requires a normalized absolute path");
   }
 }
@@ -61,7 +110,13 @@ function absoluteRemotePath(value: string): void {
  */
 function assertCheckoutPath(host: RemoteHost, repo: string): void {
   const q = shq(repo);
-  checked(remote(host, `test ! -L ${q} && cd ${q} && test "$(git rev-parse --show-toplevel)" = "$(pwd -P)"`), `inspect cloud checkout ${repo}`);
+  checked(
+    remote(
+      host,
+      `test ! -L ${q} && cd ${q} && test "$(git rev-parse --show-toplevel)" = "$(pwd -P)"`,
+    ),
+    `inspect cloud checkout ${repo}`,
+  );
 }
 
 export interface CheckoutProbe {
@@ -76,12 +131,19 @@ export interface CheckoutProbe {
 /** One ssh: the working tree's status, its HEAD ref, and whether any ref holds HEAD's commit. */
 function probeCheckout(host: RemoteHost, repo: string): CheckoutProbe {
   const q = shq(repo);
-  const out = checked(remote(host,
-    `cd ${q} && git status --porcelain --untracked-files=all && printf '\\036%s\\036' "$(git rev-parse --abbrev-ref HEAD)" && git for-each-ref --contains HEAD --count=1 refs/heads refs/remotes`),
-  `inspect cloud checkout ${repo}`);
+  const out = checked(
+    remote(
+      host,
+      `cd ${q} && git status --porcelain --untracked-files=all && printf '\\036%s\\036' "$(git rev-parse --abbrev-ref HEAD)" && git for-each-ref --contains HEAD --count=1 refs/heads refs/remotes`,
+    ),
+    `inspect cloud checkout ${repo}`,
+  );
   const [status = "", headRef = "", refs = ""] = out.split("\x1e");
   return {
-    dirty: status.split("\n").map((l) => l.trimEnd()).filter(Boolean),
+    dirty: status
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .filter(Boolean),
     headRef: headRef.trim(),
     containedBy: refs.trim().length > 0,
   };
@@ -92,9 +154,14 @@ function probeCheckout(host: RemoteHost, repo: string): CheckoutProbe {
  * placement (moveHead) asks; the fetch-only default clobbers nothing, so a
  * shared session's normal edits never block an isolated spawn beside it.
  */
-export function checkoutRefusal(probe: CheckoutProbe, repo = "the host checkout"): string | null {
+export function checkoutRefusal(
+  probe: CheckoutProbe,
+  repo = "the host checkout",
+): string | null {
   if (probe.dirty.length) {
-    const shown = probe.dirty.slice(0, 5).join(", ") + (probe.dirty.length > 5 ? `, … ${probe.dirty.length - 5} more` : "");
+    const shown =
+      probe.dirty.slice(0, 5).join(", ") +
+      (probe.dirty.length > 5 ? `, … ${probe.dirty.length - 5} more` : "");
     return `host checkout ${repo} has uncommitted changes (${shown}) — commit, stash or reset them on the host, or run isolated`;
   }
   if (probe.headRef === "HEAD" && !probe.containedBy) {
@@ -127,8 +194,13 @@ export function refreshRemoteCheckout(
     const reason = checkoutRefusal(probeCheckout(host, repoPath), repoPath);
     if (reason) throw new Error(reason);
   };
-  const origin = git(localGitRoot, ["remote", "get-url", "origin"], "read repository origin");
-  if (!origin || origin.startsWith("-") || /[\x00-\x1f\x7f]/.test(origin)) throw new Error("invalid repository origin");
+  const origin = git(
+    localGitRoot,
+    ["remote", "get-url", "origin"],
+    "read repository origin",
+  );
+  if (!origin || origin.startsWith("-") || /[\x00-\x1f\x7f]/.test(origin))
+    throw new Error("invalid repository origin");
   // How the HOST reaches origin decides how the origin is spelled there
   // (hostProbeOrigin). With the codecast GitHub App covering the repository it
   // is https, and `cast git-credential` hands git an installation token per
@@ -136,11 +208,17 @@ export function refreshRemoteCheckout(
   // the host's fetches and every push from the box (an agent's, the WIP
   // snapshot's) authenticate with the device key that `cast hosts key` grants.
   // The laptop fallbacks below keep the laptop's own origin and credentials.
-  const hostOrigin = hostProbeOrigin(origin, { appToken: opts.appToken === true }).origin ?? origin;
+  const hostOrigin =
+    hostProbeOrigin(origin, { appToken: opts.appToken === true }).origin ??
+    origin;
   const q = shq(repoPath);
-  const found = checked(remote(host,
-    `if [ -L ${q} ]; then echo link; elif [ -e ${q}/.git ]; then echo repo; elif [ -d ${q} ] && ! git -C ${q} rev-parse --git-dir >/dev/null 2>&1; then echo plain; elif [ -e ${q} ]; then echo other; else echo missing; fi`),
-  "inspect cloud checkout path");
+  const found = checked(
+    remote(
+      host,
+      `if [ -L ${q} ]; then echo link; elif [ -e ${q}/.git ]; then echo repo; elif [ -d ${q} ] && ! git -C ${q} rev-parse --git-dir >/dev/null 2>&1; then echo plain; elif [ -e ${q} ]; then echo other; else echo missing; fi`,
+    ),
+    "inspect cloud checkout path",
+  );
   // A plain folder where the checkout belongs (not inside another checkout)
   // is the home mirror's doing on a fresh host: it copies the repo files a
   // hook or skill names before any clone exists, and `git clone` refuses a
@@ -148,35 +226,56 @@ export function refreshRemoteCheckout(
   // clone adopts it: a file that differs from the repo's copy is kept in
   // <repo>.pre-clone-<time> first, then git's tracked files are checked out;
   // anything git does not track stays where it is. Nothing is lost.
-  const adopt = (source: string) => [
-    `set -eu; tmp=$(mktemp -d ${shq(`${repoPath}.clone.XXXXXX`)}); trap 'rm -rf "$tmp"' EXIT`,
-    `git clone -q --no-checkout --single-branch --no-tags --branch main -- ${source} "$tmp"`,
-    `mv "$tmp/.git" ${q}/.git; cd ${q}; git reset -q`,
-    `kept=${shq(`${repoPath}.pre-clone-`)}$(date +%s)`,
-    `git diff --name-only --diff-filter=M | while IFS= read -r f; do mkdir -p "$kept/$(dirname "$f")"; cp -p "$f" "$kept/$f"; done`,
-    `git checkout -q -f -- .`,
-    `if [ -d "$kept" ]; then echo "kept $kept"; fi`,
-  ].join("; ");
-  const cloneInto = (source: string) => found === "plain" ? adopt(source) : `git clone -q --single-branch --no-tags --branch main -- ${source} ${q}`;
+  const adopt = (source: string) =>
+    [
+      `set -eu; tmp=$(mktemp -d ${shq(`${repoPath}.clone.XXXXXX`)}); trap 'rm -rf "$tmp"' EXIT`,
+      `git clone -q --no-checkout --single-branch --no-tags --branch main -- ${source} "$tmp"`,
+      `mv "$tmp/.git" ${q}/.git; cd ${q}; git reset -q`,
+      `kept=${shq(`${repoPath}.pre-clone-`)}$(date +%s)`,
+      `git diff --name-only --diff-filter=M | while IFS= read -r f; do mkdir -p "$kept/$(dirname "$f")"; cp -p "$f" "$kept/$f"; done`,
+      `git checkout -q -f -- .`,
+      `if [ -d "$kept" ]; then echo "kept $kept"; fi`,
+    ].join("; ");
+  const cloneInto = (source: string) =>
+    found === "plain"
+      ? adopt(source)
+      : `git clone -q --single-branch --no-tags --branch main -- ${source} ${q}`;
   let viaLaptop = false;
   if (found === "missing" || found === "plain") {
     // GIT_TERMINAL_PROMPT=0 beside the ssh config block's BatchMode: a host
     // without access fails fast into the laptop fallback, never hangs on a
     // credential prompt nobody can answer.
-    const clone = remote(host, `GIT_TERMINAL_PROMPT=0 ${cloneInto(shq(hostOrigin))}`);
+    const clone = remote(
+      host,
+      `GIT_TERMINAL_PROMPT=0 ${cloneInto(shq(hostOrigin))}`,
+    );
     const kept = /^kept (.+)$/m.exec(String(clone.stdout ?? ""))?.[1];
-    if (kept) onProgress(`files in ${repoPath} that differ from the repository kept in ${kept}`);
+    if (kept)
+      onProgress(
+        `files in ${repoPath} that differ from the repository kept in ${kept}`,
+      );
     if (clone.error || clone.status !== 0) {
-      onProgress("host cannot clone origin — fetching fresh origin/main on laptop for a main-only bundle");
+      onProgress(
+        "host cannot clone origin — fetching fresh origin/main on laptop for a main-only bundle",
+      );
       withFreshMain(origin, (repo) => {
         const bundle = path.join(repo, "main.bundle");
-        git(repo, ["bundle", "create", bundle, "refs/heads/main"], "create main-only bundle");
+        git(
+          repo,
+          ["bundle", "create", bundle, "refs/heads/main"],
+          "create main-only bundle",
+        );
         fs.chmodSync(bundle, 0o600);
         const fd = fs.openSync(bundle, "r");
         try {
-          checked(remote(host,
-            `set -eu; umask 077; stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT; cat > "$stage/main.bundle"; ( ${cloneInto(`"$stage/main.bundle"`)} )`, fd),
-          "transfer and clone main-only bundle");
+          checked(
+            remote(
+              host,
+              `set -eu; umask 077; stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT; cat > "$stage/main.bundle"; ( ${cloneInto(`"$stage/main.bundle"`)} )`,
+              fd,
+            ),
+            "transfer and clone main-only bundle",
+          );
         } finally {
           fs.closeSync(fd);
         }
@@ -186,16 +285,37 @@ export function refreshRemoteCheckout(
   } else {
     assertCheckoutPath(host, repoPath);
     refuse();
-    const fetch = remote(host,
-      `cd ${q} && GIT_TERMINAL_PROMPT=0 git fetch -q --no-tags --no-recurse-submodules -- ${shq(hostOrigin)} '+refs/heads/main:refs/remotes/origin/main'`);
+    const fetch = remote(
+      host,
+      `cd ${q} && GIT_TERMINAL_PROMPT=0 git fetch -q --no-tags --no-recurse-submodules -- ${shq(hostOrigin)} '+refs/heads/main:refs/remotes/origin/main'`,
+    );
     if (fetch.error || fetch.status !== 0) {
-      onProgress("host cannot fetch origin — fetching fresh origin/main on laptop before transfer");
+      onProgress(
+        "host cannot fetch origin — fetching fresh origin/main on laptop before transfer",
+      );
       withFreshMain(origin, (repo) => {
-        checked(spawnSync("git", ["-C", repo, "push", "-q", "--force", "--",
-          gitSshUrl(host, repoPath), "refs/heads/main:refs/remotes/origin/main"], {
-          encoding: "utf-8", stdio: "pipe", timeout: 300_000,
-          env: { ...process.env, GIT_SSH_COMMAND: sshShell(sshBase(host)) },
-        }), "push fresh origin/main to cloud checkout");
+        checked(
+          spawnSync(
+            "git",
+            [
+              "-C",
+              repo,
+              "push",
+              "-q",
+              "--force",
+              "--",
+              gitSshUrl(host, repoPath),
+              "refs/heads/main:refs/remotes/origin/main",
+            ],
+            {
+              encoding: "utf-8",
+              stdio: "pipe",
+              timeout: 300_000,
+              env: { ...process.env, GIT_SSH_COMMAND: sshShell(sshBase(host)) },
+            },
+          ),
+          "push fresh origin/main to cloud checkout",
+        );
       });
       viaLaptop = true;
     }
@@ -203,20 +323,57 @@ export function refreshRemoteCheckout(
   assertCheckoutPath(host, repoPath);
   if (moveHead) {
     refuse();
-    checked(remote(host, `cd ${q} && git remote set-url origin ${shq(hostOrigin)} && git checkout -q --detach --no-overwrite-ignore refs/remotes/origin/main`),
-      `checkout origin/main in ${repoPath}`);
+    checked(
+      remote(
+        host,
+        `cd ${q} && git remote set-url origin ${shq(hostOrigin)} && git checkout -q --detach --no-overwrite-ignore refs/remotes/origin/main`,
+      ),
+      `checkout origin/main in ${repoPath}`,
+    );
     // Every shared placement leaves its `codecast/cloud-<hex>` branch behind.
     // Drop the ones origin/main already contains; `-d` refuses a branch with
     // unmerged commits or one checked out in a worktree, so nothing is lost.
-    remote(host, `cd ${q} && for b in $(git for-each-ref --format='%(refname:short)' --merged refs/remotes/origin/main 'refs/heads/codecast/cloud-*'); do git branch -q -d "$b" 2>/dev/null || true; done`);
-    const head = checked(remote(host, `cd ${q} && git rev-parse HEAD`), "read cloud checkout revision");
-    onProgress(`checkout at ${head.slice(0, 8)} from origin/main${viaLaptop ? " (via laptop)" : ""}`);
-    return { branch: "main", head, reset: true, via: viaLaptop ? "laptop" : "host" };
+    remote(
+      host,
+      `cd ${q} && for b in $(git for-each-ref --format='%(refname:short)' --merged refs/remotes/origin/main 'refs/heads/codecast/cloud-*'); do git branch -q -d "$b" 2>/dev/null || true; done`,
+    );
+    const head = checked(
+      remote(host, `cd ${q} && git rev-parse HEAD`),
+      "read cloud checkout revision",
+    );
+    onProgress(
+      `checkout at ${head.slice(0, 8)} from origin/main${viaLaptop ? " (via laptop)" : ""}`,
+    );
+    return {
+      branch: "main",
+      head,
+      reset: true,
+      via: viaLaptop ? "laptop" : "host",
+    };
   }
-  checked(remote(host, `cd ${q} && git remote set-url origin ${shq(hostOrigin)}`), `set origin in ${repoPath}`);
-  const head = checked(remote(host, `cd ${q} && git rev-parse refs/remotes/origin/main`), "read cloud checkout revision");
-  const branch = (() => { try { return checked(remote(host, `cd ${q} && git rev-parse --abbrev-ref HEAD`), "read cloud checkout branch") || "main"; } catch { return "main"; } })();
-  onProgress(`origin/main at ${head.slice(0, 8)}${viaLaptop ? " (via laptop)" : ""}; checkout left on ${branch}`);
+  checked(
+    remote(host, `cd ${q} && git remote set-url origin ${shq(hostOrigin)}`),
+    `set origin in ${repoPath}`,
+  );
+  const head = checked(
+    remote(host, `cd ${q} && git rev-parse refs/remotes/origin/main`),
+    "read cloud checkout revision",
+  );
+  const branch = (() => {
+    try {
+      return (
+        checked(
+          remote(host, `cd ${q} && git rev-parse --abbrev-ref HEAD`),
+          "read cloud checkout branch",
+        ) || "main"
+      );
+    } catch {
+      return "main";
+    }
+  })();
+  onProgress(
+    `origin/main at ${head.slice(0, 8)}${viaLaptop ? " (via laptop)" : ""}; checkout left on ${branch}`,
+  );
   return { branch, head, reset: false, via: viaLaptop ? "laptop" : "host" };
 }
 
@@ -269,9 +426,14 @@ export interface CloudSeed {
  */
 export function cloudSeedRef(name: string): string {
   const ref = `${CLOUD_SEED_REF_PREFIX}/${name}`;
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name)
-    || spawnSync("git", ["check-ref-format", ref], { stdio: "ignore" }).status !== 0) {
-    throw new CloudSeedNameError(`worktree name ${JSON.stringify(name)} is not a valid git ref component`);
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name) ||
+    spawnSync("git", ["check-ref-format", ref], { stdio: "ignore" }).status !==
+      0
+  ) {
+    throw new CloudSeedNameError(
+      `worktree name ${JSON.stringify(name)} is not a valid git ref component`,
+    );
   }
   return ref;
 }
@@ -285,20 +447,38 @@ const SHA_RE = /^[0-9a-f]{40}$/;
  * be a seed in principle; any other git failure is fatal with git's stderr.
  */
 export async function planLaptopSeed(seedCwd: string): Promise<CloudSeed> {
-  const head = spawnSync("git", ["-C", seedCwd, "rev-parse", "--verify", "HEAD"], { encoding: "utf-8", stdio: "pipe" });
-  if (head.error || head.status !== 0) throw new CloudSeedUnavailable(`${seedCwd} is not a git checkout with commits`);
+  const head = spawnSync(
+    "git",
+    ["-C", seedCwd, "rev-parse", "--verify", "HEAD"],
+    { encoding: "utf-8", stdio: "pipe" },
+  );
+  if (head.error || head.status !== 0)
+    throw new CloudSeedUnavailable(
+      `${seedCwd} is not a git checkout with commits`,
+    );
   // The whole working folder travels, gitignored files included: the same
   // program and rules as a live sync (cloud/syncSide.ts), so the session
   // starts with what a sync would have carried. The seed goes only to the
   // person's own host over ssh, never to a shared remote.
   let snap: SnapshotResult;
   try {
-    snap = await runSide<SnapshotResult>({ op: "snapshot", cwd: seedCwd, commit: true, scope: readSyncScope(seedCwd) });
+    snap = await runSide<SnapshotResult>({
+      op: "snapshot",
+      cwd: seedCwd,
+      commit: true,
+      scope: readSyncScope(seedCwd),
+    });
   } catch (e) {
-    const detail = ((e as Error).message ?? String(e)).trim().split("\n").find(Boolean) ?? "unknown git failure";
+    const detail =
+      ((e as Error).message ?? String(e)).trim().split("\n").find(Boolean) ??
+      "unknown git failure";
     throw new Error(`seed snapshot failed: ${detail}`);
   }
-  const headTree = spawnSync("git", ["-C", seedCwd, "rev-parse", `${snap.head}^{tree}`], { encoding: "utf-8", stdio: "pipe" }).stdout.trim();
+  const headTree = spawnSync(
+    "git",
+    ["-C", seedCwd, "rev-parse", `${snap.head}^{tree}`],
+    { encoding: "utf-8", stdio: "pipe" },
+  ).stdout.trim();
   return {
     source: "checkout",
     base: snap.head,
@@ -319,23 +499,54 @@ export async function planLaptopSeed(seedCwd: string): Promise<CloudSeed> {
  * the laptop's uncommitted tree behind. Idempotent: the same laptop tree
  * yields the same date-pinned snapshot commit.
  */
-export function pushLaptopSeed(host: RemoteHost, seedCwd: string, repoPath: string, name: string, seed: CloudSeed): CloudSeed {
+export function pushLaptopSeed(
+  host: RemoteHost,
+  seedCwd: string,
+  repoPath: string,
+  name: string,
+  seed: CloudSeed,
+): CloudSeed {
   absoluteRemotePath(repoPath);
   const ref = cloudSeedRef(name);
-  if (!seed.snapshot || !SHA_RE.test(seed.snapshot)) throw new Error("seed has no snapshot to push");
-  checked(spawnSync("git", ["-C", seedCwd, "push", "-q", "--force", "--", gitSshUrl(host, repoPath), `${seed.snapshot}:${ref}`], {
-    encoding: "utf-8", stdio: "pipe", timeout: 300_000,
-    env: { ...process.env, GIT_SSH_COMMAND: sshShell(sshBase(host)) },
-  }), `push laptop seed for ${name} to cloud checkout`);
+  if (!seed.snapshot || !SHA_RE.test(seed.snapshot))
+    throw new Error("seed has no snapshot to push");
+  checked(
+    spawnSync(
+      "git",
+      [
+        "-C",
+        seedCwd,
+        "push",
+        "-q",
+        "--force",
+        "--",
+        gitSshUrl(host, repoPath),
+        `${seed.snapshot}:${ref}`,
+      ],
+      {
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 300_000,
+        env: { ...process.env, GIT_SSH_COMMAND: sshShell(sshBase(host)) },
+      },
+    ),
+    `push laptop seed for ${name} to cloud checkout`,
+  );
   return { ...seed, ref };
 }
 
 /** Best-effort removal of a seed ref (acquire failed after the push). */
-export function dropLaptopSeed(host: RemoteHost, repoPath: string, name: string): void {
+export function dropLaptopSeed(
+  host: RemoteHost,
+  repoPath: string,
+  name: string,
+): void {
   try {
     const ref = cloudSeedRef(name);
     remote(host, `cd ${shq(repoPath)} && git update-ref -d ${shq(ref)}`);
-  } catch { /* best effort */ }
+  } catch {
+    /* best effort */
+  }
 }
 
 /**
@@ -345,17 +556,39 @@ export function dropLaptopSeed(host: RemoteHost, repoPath: string, name: string)
  * informational only — install and the manifest copy ran before this, so it
  * cannot prove the laptop's dirty set; `dirty` comes from the laptop snapshot.
  */
-export function finishSeededWorktree(host: RemoteHost, wsPath: string, seed: CloudSeed): { head: string; treeOk: boolean; statusEntries: number } {
+export function finishSeededWorktree(
+  host: RemoteHost,
+  wsPath: string,
+  seed: CloudSeed,
+): { head: string; treeOk: boolean; statusEntries: number } {
   absoluteRemotePath(wsPath);
-  if (!SHA_RE.test(seed.base) || !seed.snapshot || !SHA_RE.test(seed.snapshot) || !seed.tree || !SHA_RE.test(seed.tree) || !seed.ref) {
-    throw new Error("seed is missing a full sha or its ref; refusing to reset the host worktree");
+  if (
+    !SHA_RE.test(seed.base) ||
+    !seed.snapshot ||
+    !SHA_RE.test(seed.snapshot) ||
+    !seed.tree ||
+    !SHA_RE.test(seed.tree) ||
+    !seed.ref
+  ) {
+    throw new Error(
+      "seed is missing a full sha or its ref; refusing to reset the host worktree",
+    );
   }
-  const out = checked(remote(host,
-    `cd ${shq(wsPath)} && git reset -q --mixed ${seed.base} && git rev-parse HEAD && git rev-parse ${shq(seed.ref)}^{tree} && git status --porcelain | wc -l`),
-  `finish seeded worktree ${wsPath}`);
-  const [head = "", tree = "", count = ""] = out.split("\n").map((l) => l.trim());
+  const out = checked(
+    remote(
+      host,
+      `cd ${shq(wsPath)} && git reset -q --mixed ${seed.base} && git rev-parse HEAD && git rev-parse ${shq(seed.ref)}^{tree} && git status --porcelain | wc -l`,
+    ),
+    `finish seeded worktree ${wsPath}`,
+  );
+  const [head = "", tree = "", count = ""] = out
+    .split("\n")
+    .map((l) => l.trim());
   const treeOk = tree === seed.tree;
-  if (head !== seed.base || !treeOk) throw new Error(`seeded worktree ${wsPath} is not at the laptop snapshot (HEAD ${head.slice(0, 8)}, tree ${treeOk ? "ok" : "differs"})`);
+  if (head !== seed.base || !treeOk)
+    throw new Error(
+      `seeded worktree ${wsPath} is not at the laptop snapshot (HEAD ${head.slice(0, 8)}, tree ${treeOk ? "ok" : "differs"})`,
+    );
   return { head, treeOk, statusEntries: parseInt(count, 10) || 0 };
 }
 
@@ -364,10 +597,19 @@ export function finishSeededWorktree(host: RemoteHost, wsPath: string, seed: Clo
  * (a leftover of a failed acquire, or a worktree removed by hand): what
  * `cast hosts ls` lists as `seed ref only (orphan)`.
  */
-export function listDanglingSeedRefs(host: RemoteHost, repoPath: string): string[] {
+export function listDanglingSeedRefs(
+  host: RemoteHost,
+  repoPath: string,
+): string[] {
   absoluteRemotePath(repoPath);
-  const out = checked(remote(host, `cd ${shq(repoPath)} && ${DANGLING_SEED_REFS_SCRIPT}`), `list seed refs in ${repoPath}`);
-  return out.split("\n").map((l) => l.trim()).filter(Boolean);
+  const out = checked(
+    remote(host, `cd ${shq(repoPath)} && ${DANGLING_SEED_REFS_SCRIPT}`),
+    `list seed refs in ${repoPath}`,
+  );
+  return out
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -375,21 +617,32 @@ export function listDanglingSeedRefs(host: RemoteHost, repoPath: string): string
  * with no workspace state dir behind it (strip=3 drops refs/codecast/cloud).
  * `cast hosts ls` runs it in every checkout on the host.
  */
-export const DANGLING_SEED_REFS_SCRIPT =
-  `for n in $(git for-each-ref --format='%(refname:strip=3)' ${CLOUD_SEED_REF_PREFIX}); do [ -d ".codecast/workspaces/$n" ] || echo "$n"; done`;
+export const DANGLING_SEED_REFS_SCRIPT = `for n in $(git for-each-ref --format='%(refname:strip=3)' ${CLOUD_SEED_REF_PREFIX}); do [ -d ".codecast/workspaces/$n" ] || echo "$n"; done`;
 
 export function cloudCopyFiles(localGitRoot: string): string[] {
   const root = fs.realpathSync(localGitRoot);
   // Both of these must be real files before anything is read through them.
   sourceStat(root, MANIFEST_REL_PATH);
   sourceStat(root, ".wt-setup-files");
-  const candidates = manifestCopyEntries(root, "invalid workspace manifest; fix .codecast/workspace.toml before cloud acquire");
+  const candidates = manifestCopyEntries(
+    root,
+    "invalid workspace manifest; fix .codecast/workspace.toml before cloud acquire",
+  );
   const known = new Set(
-    collectProjectContext({ root, includeTracked: false, includeAncestors: false, config: readLocalConfig() })
+    collectProjectContext({
+      root,
+      includeTracked: false,
+      includeAncestors: false,
+      config: readLocalConfig(),
+    })
       .files.filter((f) => f.scope === "project")
       .map((f) => f.relativePath),
   );
-  return collectCopyFiles(root, [...candidates, MANIFEST_REL_PATH, ".wt-setup-files"], { known });
+  return collectCopyFiles(
+    root,
+    [...candidates, MANIFEST_REL_PATH, ".wt-setup-files"],
+    { known },
+  );
 }
 
 const receiveFile = `
@@ -465,19 +718,35 @@ export function stageCloudInputs(
 ): string {
   absoluteRemotePath(repoPath);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name)) {
-    throw new Error(`worktree name ${JSON.stringify(name)} — use letters, digits, dot, dash, underscore`);
+    throw new Error(
+      `worktree name ${JSON.stringify(name)} — use letters, digits, dot, dash, underscore`,
+    );
   }
   const files = cloudCopyFiles(localGitRoot);
-  const inputRoot = path.posix.join(repoPath, ".codecast/workspaces", name, "inputs");
+  const inputRoot = path.posix.join(
+    repoPath,
+    ".codecast/workspaces",
+    name,
+    "inputs",
+  );
   // `reuse`: an existing state dir of that name keeps its record and only
   // has its inputs snapshot recreated (the shared-checkout record); a
   // worktree of that name still refuses. Without it, an existing state dir
   // is a refusal (the name is taken).
-  const reserved = checked(remote(host,
-    `${HOST_PATH_EXPORT}; bun -e ${shq(reserveInputs)} -- ${shq(repoPath)} ${shq(name)}${opts.reuse ? " reuse" : ""}`),
-  `reserve inputs for workspace ${name}; existing worktree or state must be retained`);
-  if (reserved !== "reserved") throw new Error(`input reservation for workspace ${name} was not confirmed by the host`);
-  copyCloudFiles(host, localGitRoot, inputRoot, files, { warn: opts.warn ?? ((m) => console.error(`WARNING: ${m}`)) });
+  const reserved = checked(
+    remote(
+      host,
+      `${HOST_PATH_EXPORT}; bun -e ${shq(reserveInputs)} -- ${shq(repoPath)} ${shq(name)}${opts.reuse ? " reuse" : ""}`,
+    ),
+    `reserve inputs for workspace ${name}; existing worktree or state must be retained`,
+  );
+  if (reserved !== "reserved")
+    throw new Error(
+      `input reservation for workspace ${name} was not confirmed by the host`,
+    );
+  copyCloudFiles(host, localGitRoot, inputRoot, files, {
+    warn: opts.warn ?? ((m) => console.error(`WARNING: ${m}`)),
+  });
   return inputRoot;
 }
 
@@ -503,53 +772,132 @@ export function copyCloudFiles(
 ): void {
   absoluteRemotePath(repoPath);
   const root = fs.realpathSync(localGitRoot);
-  const ctx = { fromHome: process.env.HOME || os.homedir(), toHome: remoteHome(host) };
+  const ctx = {
+    fromHome: process.env.HOME || os.homedir(),
+    toHome: remoteHome(host),
+  };
   const staged: Array<{ rel: string; bytes: Buffer; mode: number }> = [];
-  const context = new Map(collectProjectContext({ root, includeTracked: false, includeAncestors: false, config: readLocalConfig() }).files.filter((f) => f.scope === "project").map((f) => [f.relativePath, f]));
+  const context = new Map(
+    collectProjectContext({
+      root,
+      includeTracked: false,
+      includeAncestors: false,
+      config: readLocalConfig(),
+    })
+      .files.filter((f) => f.scope === "project")
+      .map((f) => [f.relativePath, f]),
+  );
   for (const rel of files) {
     validateRelativePath(rel);
     const discovered = context.get(rel);
     if (discovered) {
       const bytes = transformForHost(rel, discovered.bytes, ctx);
-      if (bytes === null) throw new Error(`project context cannot be parsed: ${rel}`);
+      if (bytes === null)
+        throw new Error(`project context cannot be parsed: ${rel}`);
       staged.push({ rel, bytes, mode: Number.parseInt(discovered.mode, 8) });
       continue;
     }
     const stat = sourceStat(root, rel);
-    if (!stat?.isFile()) throw new Error(`workspace copy source changed: ${rel}`);
-    const fd = fs.openSync(path.join(root, rel), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    if (!stat?.isFile())
+      throw new Error(`workspace copy source changed: ${rel}`);
+    const fd = fs.openSync(
+      path.join(root, rel),
+      fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW,
+    );
     let raw: Buffer;
-    try { raw = fs.readFileSync(fd); } finally { fs.closeSync(fd); }
-    const bytes = kindForPath(rel) === "verbatim" ? raw : transformForHost(rel, raw, ctx);
-    if (bytes === null) throw new Error(`project context cannot be parsed: ${rel}`);
+    try {
+      raw = fs.readFileSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    const bytes =
+      kindForPath(rel) === "verbatim" ? raw : transformForHost(rel, raw, ctx);
+    if (bytes === null)
+      throw new Error(`project context cannot be parsed: ${rel}`);
     staged.push({ rel, bytes, mode: 0o600 | (stat.mode & 0o100) });
   }
-  if (staged.length > STAGING_BATCH_THRESHOLD && stageBatched(host, repoPath, staged)) return;
+  if (
+    staged.length > STAGING_BATCH_THRESHOLD &&
+    stageBatched(host, repoPath, staged)
+  )
+    return;
   for (const { rel, bytes, mode } of staged) {
-    const received = checked(remote(host,
-      `${HOST_PATH_EXPORT}; bun -e ${shq(receiveFile)} -- ${shq(repoPath)} ${shq(rel)} ${shq(String(mode))}`, bytes),
-    `transfer workspace file ${rel}`);
-    if (received !== "copied") throw new Error(`transfer workspace file ${rel} was not confirmed by the host`);
+    const received = checked(
+      remote(
+        host,
+        `${HOST_PATH_EXPORT}; bun -e ${shq(receiveFile)} -- ${shq(repoPath)} ${shq(rel)} ${shq(String(mode))}`,
+        bytes,
+      ),
+      `transfer workspace file ${rel}`,
+    );
+    if (received !== "copied")
+      throw new Error(
+        `transfer workspace file ${rel} was not confirmed by the host`,
+      );
   }
 }
 
 /** One bundle for the whole set. False when the host does not know the command. */
-function stageBatched(host: RemoteHost, repoPath: string, staged: Array<{ rel: string; bytes: Buffer; mode: number }>): boolean {
+function stageBatched(
+  host: RemoteHost,
+  repoPath: string,
+  staged: Array<{ rel: string; bytes: Buffer; mode: number }>,
+): boolean {
   const bundle = buildMirrorBundle(
-    staged.map((f) => ({ path: f.rel, kind: "verbatim" as const, mode: f.mode & 0o100 ? "0700" as const : "0600" as const, bytes: f.bytes })),
-    { source: { device_id: "", user_id: "", home: "", platform: process.platform, cast_version: "" }, target_home: repoPath, managed_roots: [] },
+    staged.map((f) => ({
+      path: f.rel,
+      kind: "verbatim" as const,
+      mode: f.mode & 0o100 ? ("0700" as const) : ("0600" as const),
+      bytes: f.bytes,
+    })),
+    {
+      source: {
+        device_id: "",
+        user_id: "",
+        home: "",
+        platform: process.platform,
+        cast_version: "",
+      },
+      target_home: repoPath,
+      managed_roots: [],
+    },
   );
-  const result = remote(host,
-    `${HOST_PATH_EXPORT}; cast cloud mirror-apply --stdin --into ${shq(repoPath)}`, bundle.bytes);
-  if (result.status !== 0 && (result.status === 127 || /unknown command|error: unknown|not found/i.test(result.stderr ?? ""))) return false;
-  const line = (result.stdout ?? "").trim().split("\n").reverse().find((l) => l.trimStart().startsWith("{"));
+  const result = remote(
+    host,
+    `${HOST_PATH_EXPORT}; cast cloud mirror-apply --stdin --into ${shq(repoPath)}`,
+    bundle.bytes,
+  );
+  if (
+    result.status !== 0 &&
+    (result.status === 127 ||
+      /unknown command|error: unknown|not found/i.test(result.stderr ?? ""))
+  )
+    return false;
+  const line = (result.stdout ?? "")
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.trimStart().startsWith("{"));
   let reply: { copied?: unknown; errors?: unknown } | null = null;
-  try { reply = line ? JSON.parse(line) : null; } catch { reply = null; }
-  if (result.error || result.status !== 0 || !reply) {
-    throw new Error(`transfer workspace files failed (${(result.error as NodeJS.ErrnoException | undefined)?.code ?? result.signal ?? `exit ${result.status}`})`);
+  try {
+    reply = line ? JSON.parse(line) : null;
+  } catch {
+    reply = null;
   }
-  const copied = new Set(Array.isArray(reply.copied) ? reply.copied.filter((p): p is string => typeof p === "string") : []);
+  if (result.error || result.status !== 0 || !reply) {
+    throw new Error(
+      `transfer workspace files failed (${(result.error as NodeJS.ErrnoException | undefined)?.code ?? result.signal ?? `exit ${result.status}`})`,
+    );
+  }
+  const copied = new Set(
+    Array.isArray(reply.copied)
+      ? reply.copied.filter((p): p is string => typeof p === "string")
+      : [],
+  );
   const missing = staged.filter((f) => !copied.has(f.rel));
-  if (missing.length) throw new Error(`transfer workspace file ${missing[0]!.rel} was not confirmed by the host`);
+  if (missing.length)
+    throw new Error(
+      `transfer workspace file ${missing[0]!.rel} was not confirmed by the host`,
+    );
   return true;
 }

@@ -4,18 +4,38 @@
 // an open total is a neutral count. Pages with no count (Timeline) render
 // nothing; Apps counts the apps connected, as its tab does.
 import { useMemo } from "react";
-import { OPS_OPEN_GROUPS_LIMIT, useOpsGroups, useOpsSources, useOpsWatches } from "../../hooks/useSyncOps";
+import {
+  OPS_OPEN_GROUPS_LIMIT,
+  useOpsGroups,
+  useOpsSources,
+  useOpsWatches,
+} from "../../hooks/useSyncOps";
 import { opsBadge, watchNeedsLook } from "./opsHomeModel";
 import { useOpsAttention } from "./useOpsAttention";
 import { useSourceHealthMap } from "./useSourceHealth";
 import { issueTotals, openFeederFull } from "./issuesModel";
 import { useReplayTotal } from "./useReplayTotals";
 
-function Chip({ n, alert, more, title }: { n: number; alert?: boolean; more?: boolean; title?: string }) {
+function Chip({
+  n,
+  alert,
+  more,
+  title,
+}: {
+  n: number;
+  alert?: boolean;
+  more?: boolean;
+  title?: string;
+}) {
   if (!n) return null;
   return (
-    <span className={`flex-shrink-0 rounded-full px-1.5 text-meta font-semibold tabular-nums leading-[16px] ${alert ? "bg-sol-red text-white" : "bg-sol-bg-alt text-sol-text-muted"}`} title={title} data-ops-page-count={n}>
-      {n.toLocaleString()}{more ? "+" : ""}
+    <span
+      className={`flex-shrink-0 rounded-full px-1.5 text-meta font-semibold tabular-nums leading-[16px] ${alert ? "bg-sol-red text-white" : "bg-sol-bg-alt text-sol-text-muted"}`}
+      title={title}
+      data-ops-page-count={n}
+    >
+      {n.toLocaleString()}
+      {more ? "+" : ""}
     </span>
   );
 }
@@ -30,7 +50,16 @@ function OverviewCount() {
 function IssuesCount() {
   const groups = useOpsGroups();
   const sources = useOpsSources();
-  const t = useMemo(() => issueTotals(groups, sources, null, openFeederFull(groups, OPS_OPEN_GROUPS_LIMIT)), [groups, sources]);
+  const t = useMemo(
+    () =>
+      issueTotals(
+        groups,
+        sources,
+        null,
+        openFeederFull(groups, OPS_OPEN_GROUPS_LIMIT),
+      ),
+    [groups, sources],
+  );
   return <Chip n={t.open} more={!t.exact} title="Open issues" />;
 }
 
@@ -49,8 +78,16 @@ function MetricsCount() {
 /** The Apps tab's count: the apps connected, as the tab reads it. */
 function AppsCount() {
   const sources = useOpsSources();
-  const n = useMemo(() => sources.filter((s) => s.provider === "app").length, [sources]);
-  return <Chip n={n} title={`${n.toLocaleString()} ${n === 1 ? "app" : "apps"} connected`} />;
+  const n = useMemo(
+    () => sources.filter((s) => s.provider === "app").length,
+    [sources],
+  );
+  return (
+    <Chip
+      n={n}
+      title={`${n.toLocaleString()} ${n === 1 ? "app" : "apps"} connected`}
+    />
+  );
 }
 
 export function OpsPageCount({ path }: { path: string }) {

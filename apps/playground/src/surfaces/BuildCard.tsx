@@ -8,7 +8,10 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
 import type { BuildView, MessageView } from "../../convex/messages";
-import { RETRYABLE_FAILURES, type NarrationLine } from "../../convex/validators";
+import {
+  RETRYABLE_FAILURES,
+  type NarrationLine,
+} from "../../convex/validators";
 import { useCopy } from "../lib/clipboard";
 import { errorData } from "../lib/errors";
 import { chatTime, clock, plural } from "../lib/format";
@@ -50,7 +53,21 @@ export function WaitingCard({ m }: { m: MessageView }) {
 /** In line: its place, or "Starting" with nothing ahead of it. */
 function Queued({ m, b }: { m: MessageView; b: BuildView }) {
   const label = lineLabel(b, useBusy());
-  return <QueuedRow m={m} chip={label === "Starting" ? <><Spinner />Starting</> : label} />;
+  return (
+    <QueuedRow
+      m={m}
+      chip={
+        label === "Starting" ? (
+          <>
+            <Spinner />
+            Starting
+          </>
+        ) : (
+          label
+        )
+      }
+    />
+  );
 }
 
 function QueuedRow({ m, chip }: { m: MessageView; chip: ReactNode }) {
@@ -61,7 +78,9 @@ function QueuedRow({ m, chip }: { m: MessageView; chip: ReactNode }) {
       <span className={s.ordinal}>{chip}</span>
       {m.author && <Face person={m.author} size={20} />}
       <span className={s.queuedText}>{m.body}</span>
-      <span className={s.queuedMeta}>{mine ? "You, in line" : m.author?.name}</span>
+      <span className={s.queuedMeta}>
+        {mine ? "You, in line" : m.author?.name}
+      </span>
     </div>
   );
 }
@@ -103,7 +122,11 @@ function Request({ m }: { m: MessageView }) {
       >
         {m.body}
       </p>
-      {m.element && <div className={s.element}><ElementChip element={m.element} /></div>}
+      {m.element && (
+        <div className={s.element}>
+          <ElementChip element={m.element} />
+        </div>
+      )}
     </>
   );
 }
@@ -117,29 +140,67 @@ const SHOWN_FILES = 6;
  *  turns green, the clock stops, every step is done and the title says so.
  *  While Clay makes an app's first version the app column narrates it
  *  (FirstBuild), so the card keeps to the request. */
-function Building({ m, b, landing = false }: { m: MessageView; b: BuildView; landing?: boolean }) {
+function Building({
+  m,
+  b,
+  landing = false,
+}: {
+  m: MessageView;
+  b: BuildView;
+  landing?: boolean;
+}) {
   const { app, making } = useAppState();
   const now = useNow(250);
   const { narration, files_touched: files } = useBuildProgress(b.id);
-  const elapsed = b.started_at ? (landing && b.finished_at ? b.finished_at : now) - b.started_at : 0;
+  const elapsed = b.started_at
+    ? (landing && b.finished_at ? b.finished_at : now) - b.started_at
+    : 0;
   const n = b.result_version ?? app.version_count + 1;
   return (
     <article className={s.card} data-id={m.id}>
-      <BuildLine progress={landing ? 100 : buildProgress(elapsed)} state={landing ? "live" : "building"} />
+      <BuildLine
+        progress={landing ? 100 : buildProgress(elapsed)}
+        state={landing ? "live" : "building"}
+      />
       <header className={s.head}>
         <span className={s.title}>
-          {landing ? <span className={s.check}><CheckIcon /></span> : <Spinner />}
-          {landing ? <span>v{n} <span className={s.going}>going live</span></span> : `Building v${n}`}
+          {landing ? (
+            <span className={s.check}>
+              <CheckIcon />
+            </span>
+          ) : (
+            <Spinner />
+          )}
+          {landing ? (
+            <span>
+              v{n} <span className={s.going}>going live</span>
+            </span>
+          ) : (
+            `Building v${n}`
+          )}
         </span>
-        <Asker m={m} fact={<span className={s.timer} aria-hidden>{clock(elapsed)}</span>} />
+        <Asker
+          m={m}
+          fact={
+            <span className={s.timer} aria-hidden>
+              {clock(elapsed)}
+            </span>
+          }
+        />
       </header>
       <div className={s.body}>
         <Request m={m} />
         {!making && <Narration narration={narration} landing={landing} />}
         {!making && files.length > 0 && (
           <div className={s.files} aria-hidden>
-            {files.slice(0, SHOWN_FILES).map((f) => <FileChip key={f.path} path={f.path} written={f.how !== "read"} />)}
-            {files.length > SHOWN_FILES && <span className={s.moreFiles}>+{files.length - SHOWN_FILES} more</span>}
+            {files.slice(0, SHOWN_FILES).map((f) => (
+              <FileChip key={f.path} path={f.path} written={f.how !== "read"} />
+            ))}
+            {files.length > SHOWN_FILES && (
+              <span className={s.moreFiles}>
+                +{files.length - SHOWN_FILES} more
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -149,10 +210,18 @@ function Building({ m, b, landing = false }: { m: MessageView; b: BuildView; lan
 
 /** Clay's plan, then its steps, the newest being what Clay is doing now;
  *  earlier ones fold away. Shared by the card and the first build's column. */
-export function Narration({ narration, landing = false }: { narration: NarrationLine[]; landing?: boolean }) {
+export function Narration({
+  narration,
+  landing = false,
+}: {
+  narration: NarrationLine[];
+  landing?: boolean;
+}) {
   const [allSteps, setAllSteps] = useState(false);
   const plan = narration.find((l) => l.kind === "plan");
-  const steps = narration.filter((l) => l.kind !== "plan" && !(landing && l.kind === "now"));
+  const steps = narration.filter(
+    (l) => l.kind !== "plan" && !(landing && l.kind === "now"),
+  );
   const hidden = allSteps ? 0 : Math.max(0, steps.length - SHOWN_STEPS);
   return (
     <>
@@ -166,13 +235,19 @@ export function Narration({ narration, landing = false }: { narration: Narration
         <ol className={s.steps} aria-hidden>
           {hidden > 0 && (
             <li className={s.earlier}>
-              <button onClick={() => setAllSteps(true)}>{plural(hidden, "earlier step")}</button>
+              <button onClick={() => setAllSteps(true)}>
+                {plural(hidden, "earlier step")}
+              </button>
             </li>
           )}
           {steps.slice(hidden).map((step, i, shown) => {
             const current = i === shown.length - 1 && !landing;
             return (
-              <li key={step.at} className={current ? s.now : ""} title={current ? undefined : step.text}>
+              <li
+                key={step.at}
+                className={current ? s.now : ""}
+                title={current ? undefined : step.text}
+              >
                 {current ? <i className={s.pulse} /> : <CheckIcon />}
                 <span>
                   {step.text}
@@ -196,14 +271,31 @@ function Live({ m, b }: { m: MessageView; b: BuildView }) {
 }
 
 /** A folded row's tooltip: what it did, then who asked for it, in their words. */
-const asked = (m: MessageView, summary: string) => `${summary}\n${m.author?.name ?? "Someone"} asked: ${m.body}`;
+const asked = (m: MessageView, summary: string) =>
+  `${summary}\n${m.author?.name ?? "Someone"} asked: ${m.body}`;
 
 /** A version that is no longer live, folded to one log row: the version,
  *  what it did (a restore with the restore glyph and its verb), who and
  *  when. The whole row shows it to you; "See it" says so on hover or focus.
  *  The version you are viewing is marked as on the timeline, and its row
  *  takes you back to live. */
-function FoldedRow({ id, n, summary, person, at, title, restore = false }: { id: string; n: number; summary: string; person: Person | null; at: number; title: string; restore?: boolean }) {
+function FoldedRow({
+  id,
+  n,
+  summary,
+  person,
+  at,
+  title,
+  restore = false,
+}: {
+  id: string;
+  n: number;
+  summary: string;
+  person: Person | null;
+  at: number;
+  title: string;
+  restore?: boolean;
+}) {
   const { view, viewing } = useAppState();
   const now = useNow(60_000);
   const isViewing = viewing === n;
@@ -213,17 +305,29 @@ function FoldedRow({ id, n, summary, person, at, title, restore = false }: { id:
       data-id={id}
       title={title}
       aria-current={isViewing || undefined}
-      aria-label={isViewing ? `v${n}, viewing: ${summary}. Back to live` : `v${n}: ${summary}${person ? `, ${person.name}` : ""}. See it`}
+      aria-label={
+        isViewing
+          ? `v${n}, viewing: ${summary}. Back to live`
+          : `v${n}: ${summary}${person ? `, ${person.name}` : ""}. See it`
+      }
       onClick={() => view(isViewing ? null : n)}
     >
       <i className={s.bar} />
       <span className={s.foldedV}>v{n}</span>
-      {restore && <span className={s.foldedGlyph} aria-hidden><RestoreIcon /></span>}
+      {restore && (
+        <span className={s.foldedGlyph} aria-hidden>
+          <RestoreIcon />
+        </span>
+      )}
       <span className={s.foldedSummary}>{summary}</span>
       {person && <Face person={person} size={20} />}
       <span className={s.trail}>
-        <span className={s.foldedMeta}>{isViewing ? "Viewing" : chatTime(at, now)}</span>
-        <span className={s.seeIt} aria-hidden>{isViewing ? "Back to live" : "See it"}</span>
+        <span className={s.foldedMeta}>
+          {isViewing ? "Viewing" : chatTime(at, now)}
+        </span>
+        <span className={s.seeIt} aria-hidden>
+          {isViewing ? "Back to live" : "See it"}
+        </span>
       </span>
     </button>
   );
@@ -231,7 +335,16 @@ function FoldedRow({ id, n, summary, person, at, title, restore = false }: { id:
 
 function Superseded({ m, b, n }: { m: MessageView; b: BuildView; n: number }) {
   const summary = useSummary(b);
-  return <FoldedRow id={m.id} n={n} summary={summary} person={m.author} at={b.finished_at ?? m.created_at} title={asked(m, summary)} />;
+  return (
+    <FoldedRow
+      id={m.id}
+      n={n}
+      summary={summary}
+      person={m.author}
+      at={b.finished_at ?? m.created_at}
+      title={asked(m, summary)}
+    />
+  );
 }
 
 /** The card of the live version (DESIGN 6.5): the green line, "v15 is live",
@@ -239,23 +352,51 @@ function Superseded({ m, b, n }: { m: MessageView; b: BuildView; n: number }) {
  *  the version that just landed on this screen, not one scrolled back into.
  *  `share`: the maker's own first version, the moment to pass it around, so
  *  copying the app's link leads. */
-function LiveShell({ id, n, aside, actions, meta, share = false, children }: { id: string; n: number; aside: ReactNode; actions: ReactNode; meta?: ReactNode; share?: boolean; children: ReactNode }) {
+function LiveShell({
+  id,
+  n,
+  aside,
+  actions,
+  meta,
+  share = false,
+  children,
+}: {
+  id: string;
+  n: number;
+  aside: ReactNode;
+  actions: ReactNode;
+  meta?: ReactNode;
+  share?: boolean;
+  children: ReactNode;
+}) {
   const { app, flashLive, cheer } = useAppState();
   const { copied, copy } = useCopy();
   const [celebrate] = useState(() => cheer === n);
   return (
-    <article className={`${s.card} ${s.live} ${celebrate ? s.celebrate : ""}`} data-id={id}>
+    <article
+      className={`${s.card} ${s.live} ${celebrate ? s.celebrate : ""}`}
+      data-id={id}
+    >
       <BuildLine progress={100} state="live" />
       <header className={s.head}>
-        <span className={`${s.title} ${s.liveTitle}`}><b>v{n}</b> is live</span>
+        <span className={`${s.title} ${s.liveTitle}`}>
+          <b>v{n}</b> is live
+        </span>
         {aside}
       </header>
       <div className={s.body}>
         {children}
-        {share && <p className={s.share}>Anyone with the link can change it. Send it to a friend.</p>}
+        {share && (
+          <p className={s.share}>
+            Anyone with the link can change it. Send it to a friend.
+          </p>
+        )}
         <div className={s.actions}>
           {share && (
-            <Button variant="ink" onClick={() => copy("app", absolute(appUrl(app.slug)))}>
+            <Button
+              variant="ink"
+              onClick={() => copy("app", absolute(appUrl(app.slug)))}
+            >
               {copied === "app" ? <CheckIcon /> : <LinkIcon />}
               {copied === "app" ? "Copied" : "Copy link"}
             </Button>
@@ -265,7 +406,10 @@ function LiveShell({ id, n, aside, actions, meta, share = false, children }: { i
           <span className={s.grow} />
           {meta && <span className={s.meta}>{meta}</span>}
           {!share && (
-            <IconButton label={copied ? "Copied" : `Copy the link to v${n}`} onClick={() => copy("v", absolute(versionUrl(app.slug, n)))}>
+            <IconButton
+              label={copied ? "Copied" : `Copy the link to v${n}`}
+              onClick={() => copy("v", absolute(versionUrl(app.slug, n)))}
+            >
               {copied ? <CheckIcon /> : <LinkIcon />}
             </IconButton>
           )}
@@ -283,10 +427,16 @@ function LiveNow({ m, b, n }: { m: MessageView; b: BuildView; n: number }) {
   const entry = versionByNumber.get(n);
   const tryIt = entry?.try_it;
   // The first thing Clay made for you: now it is worth sending to someone.
-  const madeByYou = entry?.kind === "build" && entry.parent_number === null && m.author?.id === me.id;
+  const madeByYou =
+    entry?.kind === "build" &&
+    entry.parent_number === null &&
+    m.author?.id === me.id;
   const undo = useReverse(n);
   const changed = files_touched.filter((f) => f.how !== "read").length;
-  const took = b.started_at && b.finished_at ? `Built in ${clock(b.finished_at - b.started_at)}` : null;
+  const took =
+    b.started_at && b.finished_at
+      ? `Built in ${clock(b.finished_at - b.started_at)}`
+      : null;
   const files = changed > 0 ? `${plural(changed, "file")} changed` : null;
   // On a narrow card the file count goes first, so the time never truncates.
   const meta = (took || files) && (
@@ -305,18 +455,29 @@ function LiveNow({ m, b, n }: { m: MessageView; b: BuildView; n: number }) {
       share={madeByYou}
       actions={undo && <ReverseButton r={undo} />}
     >
-      <p className={s.summary} title={summary}>{summary}</p>
+      <p className={s.summary} title={summary}>
+        {summary}
+      </p>
       {tryIt && <TryIt text={tryIt} className={s.tryIt} />}
     </LiveShell>
   );
 }
 
-type RestoreNote = Extract<NonNullable<MessageView["note"]>, { type: "restore" }>;
+type RestoreNote = Extract<
+  NonNullable<MessageView["note"]>,
+  { type: "restore" }
+>;
 
 /** A restore is a version too: live, it is a card saying who undid or
  *  brought back whose version, with a one-click way to reverse it; once
  *  something newer lands, it folds into the log like any other version. */
-export function RestoreCard({ m, note }: { m: MessageView; note: RestoreNote }) {
+export function RestoreCard({
+  m,
+  note,
+}: {
+  m: MessageView;
+  note: RestoreNote;
+}) {
   const { landed, versionByNumber } = useAppState();
   const { me } = useIdentity();
   const now = useNow(30_000);
@@ -325,7 +486,18 @@ export function RestoreCard({ m, note }: { m: MessageView; note: RestoreNote }) 
   const line = entry ? versionLine(entry, versionByNumber) : null;
   const said = restoreSaid(note, versionByNumber, me.id);
   const reverse = useReverse(n);
-  if (n < landed) return <FoldedRow id={m.id} n={n} summary={entry ? versionSummary(entry, versionByNumber) : said} person={note.by} at={m.created_at} title={said} restore />;
+  if (n < landed)
+    return (
+      <FoldedRow
+        id={m.id}
+        n={n}
+        summary={entry ? versionSummary(entry, versionByNumber) : said}
+        person={note.by}
+        at={m.created_at}
+        title={said}
+        restore
+      />
+    );
   if (n > landed) return null;
   return (
     <LiveShell
@@ -354,7 +526,8 @@ function Failed({ m, b }: { m: MessageView; b: BuildView }) {
   const [open, setOpen] = useState(false);
   if (b.failure === "declined") return <Declined m={m} b={b} />;
   const newer = (versionByNumber.get(landed)?.created_at ?? 0) > at;
-  if (newer && !open) return <FailedRow m={m} at={at} onOpen={() => setOpen(true)} />;
+  if (newer && !open)
+    return <FailedRow m={m} at={at} onOpen={() => setOpen(true)} />;
   return <FailedCard m={m} b={b} at={at} />;
 }
 
@@ -366,31 +539,71 @@ function Declined({ m, b }: { m: MessageView; b: BuildView }) {
   const now = useNow(30_000);
   return (
     <div data-id={m.id}>
-      <ChatMessage m={m} grouped={false} now={now} mine={m.author?.id === me.id} sharedName={false} />
-      <ClayRow at={b.finished_at ?? m.created_at} now={now} action={<Button variant="text" onClick={() => askChange(m.body, m.element)}>Edit</Button>}>
+      <ChatMessage
+        m={m}
+        grouped={false}
+        now={now}
+        mine={m.author?.id === me.id}
+        sharedName={false}
+      />
+      <ClayRow
+        at={b.finished_at ?? m.created_at}
+        now={now}
+        action={
+          <Button variant="text" onClick={() => askChange(m.body, m.element)}>
+            Edit
+          </Button>
+        }
+      >
         {b.error ?? "Clay left this one as it is."}
       </ClayRow>
     </div>
   );
 }
 
-function FailedRow({ m, at, onOpen }: { m: MessageView; at: number; onOpen: () => void }) {
+function FailedRow({
+  m,
+  at,
+  onOpen,
+}: {
+  m: MessageView;
+  at: number;
+  onOpen: () => void;
+}) {
   const now = useNow(60_000);
   return (
-    <button className={`${s.folded} ${s.foldedFailed}`} data-id={m.id} title={m.author ? `${m.author.name} asked: ${m.body}` : m.body} aria-label={`Didn't make it: ${m.body}${m.author ? `, ${m.author.name}` : ""}. Show`} onClick={onOpen}>
-      <span className={s.bang} aria-hidden>!</span>
+    <button
+      className={`${s.folded} ${s.foldedFailed}`}
+      data-id={m.id}
+      title={m.author ? `${m.author.name} asked: ${m.body}` : m.body}
+      aria-label={`Didn't make it: ${m.body}${m.author ? `, ${m.author.name}` : ""}. Show`}
+      onClick={onOpen}
+    >
+      <span className={s.bang} aria-hidden>
+        !
+      </span>
       <span className={s.foldedV}>Didn't make it</span>
       <span className={s.foldedSummary}>{m.body}</span>
       {m.author && <Face person={m.author} size={20} />}
       <span className={s.trail}>
         <span className={s.foldedMeta}>{chatTime(at, now)}</span>
-        <span className={s.seeIt} aria-hidden>Show</span>
+        <span className={s.seeIt} aria-hidden>
+          Show
+        </span>
       </span>
     </button>
   );
 }
 
-function FailedCard({ m, b, at }: { m: MessageView; b: BuildView; at: number }) {
+function FailedCard({
+  m,
+  b,
+  at,
+}: {
+  m: MessageView;
+  b: BuildView;
+  at: number;
+}) {
   const { app } = useAppState();
   const askChange = useAskChange();
   const retryBuild = useVisitorMutation(api.builder.queue.retry);
@@ -412,16 +625,24 @@ function FailedCard({ m, b, at }: { m: MessageView; b: BuildView; at: number }) 
   };
   const edit = () => askChange(m.body, m.element);
   // The line stays where the build stopped.
-  const stoppedAt = b.started_at && b.finished_at ? buildProgress(b.finished_at - b.started_at) : 8;
+  const stoppedAt =
+    b.started_at && b.finished_at
+      ? buildProgress(b.finished_at - b.started_at)
+      : 8;
   return (
     <article className={s.card} data-id={m.id}>
       <BuildLine progress={stoppedAt} state="failed" />
       <header className={s.head}>
         <span className={s.title}>
-          <span className={s.bang} aria-hidden>!</span>
+          <span className={s.bang} aria-hidden>
+            !
+          </span>
           Didn't make it
         </span>
-        <Asker m={m} fact={<time className={s.when}>{chatTime(at, now)}</time>} />
+        <Asker
+          m={m}
+          fact={<time className={s.when}>{chatTime(at, now)}</time>}
+        />
       </header>
       <div className={s.body}>
         <Request m={m} />
@@ -430,20 +651,38 @@ function FailedCard({ m, b, at }: { m: MessageView; b: BuildView; at: number }) 
           {retryable ? (
             <>
               <span className={s.tipped}>
-                <Button variant="accent" busy={retrying} disabled={!!paused} onClick={retry} {...(paused ? pausedTip.describedBy : {})}>Try again</Button>
+                <Button
+                  variant="accent"
+                  busy={retrying}
+                  disabled={!!paused}
+                  onClick={retry}
+                  {...(paused ? pausedTip.describedBy : {})}
+                >
+                  Try again
+                </Button>
                 {paused && pausedTip.tip}
               </span>
               <Button onClick={edit}>Edit</Button>
             </>
           ) : (
-            <Button variant="ink" onClick={edit}>Edit</Button>
+            <Button variant="ink" onClick={edit}>
+              Edit
+            </Button>
           )}
           <span className={s.grow} />
           {b.error_detail && (
-            <Button variant="text" onClick={() => setDetails((d) => !d)} aria-expanded={details}>Details</Button>
+            <Button
+              variant="text"
+              onClick={() => setDetails((d) => !d)}
+              aria-expanded={details}
+            >
+              Details
+            </Button>
           )}
         </div>
-        {details && b.error_detail && <pre className={s.details}>{b.error_detail}</pre>}
+        {details && b.error_detail && (
+          <pre className={s.details}>{b.error_detail}</pre>
+        )}
       </div>
     </article>
   );

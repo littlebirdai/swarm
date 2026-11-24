@@ -42,8 +42,12 @@ let returnTo: HTMLElement | null = null;
 let cardTookFocus = false;
 
 const steady = (el: Element | null): el is HTMLElement =>
-  !!el && el instanceof HTMLElement && el !== document.body && !el.closest(OVERLAY);
-const inOverlay = (el: Element | null): boolean => !!el && el !== document.body && !!el.closest?.(OVERLAY);
+  !!el &&
+  el instanceof HTMLElement &&
+  el !== document.body &&
+  !el.closest(OVERLAY);
+const inOverlay = (el: Element | null): boolean =>
+  !!el && el !== document.body && !!el.closest?.(OVERLAY);
 
 // Installed by the first subscriber (UndoTimelineHost mounts with the app),
 // against whatever document is live then.
@@ -54,8 +58,13 @@ function trackFocus(): void {
   document.addEventListener(
     "focusin",
     (e) => {
-      if (steady(e.target as Element | null)) lastSteadyFocus = e.target as HTMLElement;
-      else if (snapshot.open && (e.target as Element | null)?.closest?.("[data-undo-timeline]")) cardTookFocus = true;
+      if (steady(e.target as Element | null))
+        lastSteadyFocus = e.target as HTMLElement;
+      else if (
+        snapshot.open &&
+        (e.target as Element | null)?.closest?.("[data-undo-timeline]")
+      )
+        cardTookFocus = true;
     },
     true,
   );
@@ -64,7 +73,12 @@ function trackFocus(): void {
   document.addEventListener(
     "focusout",
     (e) => {
-      if (!(e as FocusEvent).relatedTarget && steady(e.target as Element | null) && document.activeElement !== e.target) lastSteadyFocus = null;
+      if (
+        !(e as FocusEvent).relatedTarget &&
+        steady(e.target as Element | null) &&
+        document.activeElement !== e.target
+      )
+        lastSteadyFocus = null;
     },
     true,
   );
@@ -73,20 +87,33 @@ function trackFocus(): void {
 /** Whether a press on `target` leaves the open card (and closes it). A press
  *  on a toast (its close button, its action) is not one: the toaster shares
  *  the card's corner and stays above it. */
-export function pressLeavesCard(target: EventTarget | null, card: Element | null): boolean {
+export function pressLeavesCard(
+  target: EventTarget | null,
+  card: Element | null,
+): boolean {
   const node = target as Node | null;
   if (!card || typeof node?.nodeType !== "number") return true;
   if (card.contains(node)) return false;
-  const el = typeof (node as Element).closest === "function" ? (node as Element) : node.parentElement;
+  const el =
+    typeof (node as Element).closest === "function"
+      ? (node as Element)
+      : node.parentElement;
   return !el?.closest("[data-sonner-toaster]");
 }
 
-const cardEl = () => (typeof document !== "undefined" ? document.querySelector("[data-undo-timeline]") : null);
+const cardEl = () =>
+  typeof document !== "undefined"
+    ? document.querySelector("[data-undo-timeline]")
+    : null;
 
 export function open(mode: UndoTimelineMode = "interactive"): void {
   if (!snapshot.open && typeof document !== "undefined") {
     const active = document.activeElement;
-    returnTo = steady(active) ? active : inOverlay(active) ? lastSteadyFocus : null;
+    returnTo = steady(active)
+      ? active
+      : inOverlay(active)
+        ? lastSteadyFocus
+        : null;
     cardTookFocus = false;
   }
   set({ open: true, mode });
@@ -98,9 +125,11 @@ export function close(): void {
   returnTo = null;
   // Only when focus is in the card (or already fell to the body): a close
   // that follows a click elsewhere leaves focus where the click put it.
-  const active = typeof document !== "undefined" ? document.activeElement : null;
+  const active =
+    typeof document !== "undefined" ? document.activeElement : null;
   const card = cardEl();
-  const lost = !active || active === document.body || (!!card && card.contains(active));
+  const lost =
+    !active || active === document.body || (!!card && card.contains(active));
   const took = cardTookFocus;
   cardTookFocus = false;
   set({ open: false, mode: snapshot.mode });

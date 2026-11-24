@@ -82,7 +82,17 @@ export type SavedViewRow = {
 // "plan" = sections per plan; "trigger" = trigger-first — every armed trigger
 // (and loop/subagent) is a group header with the sessions it drives beneath;
 // "machine" = sections per machine the session runs on.
-export type InboxViewMode = "grouped" | "recent" | "time" | "bucket" | "plan" | "project" | "goal" | "reports" | "trigger" | "machine";
+export type InboxViewMode =
+  | "grouped"
+  | "recent"
+  | "time"
+  | "bucket"
+  | "plan"
+  | "project"
+  | "goal"
+  | "reports"
+  | "trigger"
+  | "machine";
 
 export type ClientLayouts = {
   dashboard?: { sidebar: number; main: number };
@@ -135,7 +145,7 @@ export type ClientTips = {
   seen?: string[];
   dismissed?: string[];
   completed?: string[];
-  level?: 'all' | 'subtle' | 'none';
+  level?: "all" | "subtle" | "none";
   _inlineSuppressed?: boolean;
 };
 

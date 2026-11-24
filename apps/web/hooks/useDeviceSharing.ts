@@ -1,11 +1,19 @@
 import { useInboxStore } from "../store/inboxStore";
 import type { Device } from "../components/DeviceBadge";
 
-export type ShareTeam = { _id: string; name: string; icon?: string | null; icon_color?: string | null };
+export type ShareTeam = {
+  _id: string;
+  name: string;
+  icon?: string | null;
+  icon_color?: string | null;
+};
 
 /** The teams a machine is open to, as the viewer's team rows (unknown ids,
  *  a team since left, drop out). */
-export function sharedTeamsOf(d: Pick<Device, "shared_team_ids">, teams: ShareTeam[]): ShareTeam[] {
+export function sharedTeamsOf(
+  d: Pick<Device, "shared_team_ids">,
+  teams: ShareTeam[],
+): ShareTeam[] {
   const ids = new Set(d.shared_team_ids ?? []);
   return teams.filter((t) => ids.has(String(t._id)));
 }

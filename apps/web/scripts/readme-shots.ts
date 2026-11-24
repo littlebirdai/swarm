@@ -59,23 +59,44 @@ const DISMISS_HANDOFF = `Array.from(document.querySelectorAll("button")).find((b
 
 const names = process.argv.slice(2);
 const wanted = names.length ? names : Object.keys(SHOTS);
-for (const n of wanted) if (!(n in SHOTS)) throw new Error(`unknown shot "${n}"; known: ${Object.keys(SHOTS).join(", ")}`);
+for (const n of wanted)
+  if (!(n in SHOTS))
+    throw new Error(
+      `unknown shot "${n}"; known: ${Object.keys(SHOTS).join(", ")}`,
+    );
 
 const FILM = (url: string) => url.startsWith("https://codecast.sh/?hero-t=");
-const { send, evaluate, close } = await attachCastTab(FILM, 'on the film: run cast browser open "https://codecast.sh/?hero-t=6.6" first');
+const { send, evaluate, close } = await attachCastTab(
+  FILM,
+  'on the film: run cast browser open "https://codecast.sh/?hero-t=6.6" first',
+);
 try {
   const scratch = mkdtempSync(join(tmpdir(), "readme-shots-"));
   for (const name of wanted) {
-    await send("Page.navigate", { url: `https://codecast.sh/?hero-t=${SHOTS[name]}` });
+    await send("Page.navigate", {
+      url: `https://codecast.sh/?hero-t=${SHOTS[name]}`,
+    });
     await Bun.sleep(SETTLE_MS);
     await evaluate(DISMISS_HANDOFF);
     await Bun.sleep(1500);
-    const clip = await evaluate<{ x: number; y: number; width: number; height: number }>(WIDEN);
-    const { data } = await send<{ data: string }>("Page.captureScreenshot", { format: "png", clip: { ...clip, scale: 2 } });
+    const clip = await evaluate<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }>(WIDEN);
+    const { data } = await send<{ data: string }>("Page.captureScreenshot", {
+      format: "png",
+      clip: { ...clip, scale: 2 },
+    });
     const raw = join(scratch, `${name}.png`);
     writeFileSync(raw, Buffer.from(data, "base64"));
     const out = join(OUT_DIR, `${name}.png`);
-    execFileSync("sips", ["--resampleWidth", String(OUT_WIDTH), raw, "--out", out], { stdio: "ignore" });
+    execFileSync(
+      "sips",
+      ["--resampleWidth", String(OUT_WIDTH), raw, "--out", out],
+      { stdio: "ignore" },
+    );
     console.log(`${name.padEnd(18)} hero-t=${SHOTS[name]}  ${out}`);
   }
 } finally {

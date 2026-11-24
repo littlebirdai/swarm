@@ -10,16 +10,28 @@ export function SessionQuerySuggestionRow({ s }: { s: QuerySuggestion }) {
   const value = s.text.slice(colon + 1);
   return (
     <>
-      <span className={`font-mono text-[12.5px] flex min-w-0 ${s.hint ? "max-w-[70%] flex-shrink-0" : "flex-1"}`}>
-        <span className={`flex-shrink-0 ${value ? "text-sol-text-dim" : "text-sol-text"}`}>{op}</span>
+      <span
+        className={`font-mono text-[12.5px] flex min-w-0 ${s.hint ? "max-w-[70%] flex-shrink-0" : "flex-1"}`}
+      >
+        <span
+          className={`flex-shrink-0 ${value ? "text-sol-text-dim" : "text-sol-text"}`}
+        >
+          {op}
+        </span>
         {/* A path loses its head, not its file name, when the row is too narrow. */}
         {value && (
-          <span className={`truncate min-w-0 text-sol-text ${op === "file:" ? "[direction:rtl] text-left" : ""}`}>
+          <span
+            className={`truncate min-w-0 text-sol-text ${op === "file:" ? "[direction:rtl] text-left" : ""}`}
+          >
             <bdi dir="ltr">{value}</bdi>
           </span>
         )}
       </span>
-      {s.hint && <span className="pl-3 text-meta text-sol-text-dim truncate min-w-0 flex-1">{s.hint}</span>}
+      {s.hint && (
+        <span className="pl-3 text-meta text-sol-text-dim truncate min-w-0 flex-1">
+          {s.hint}
+        </span>
+      )}
     </>
   );
 }

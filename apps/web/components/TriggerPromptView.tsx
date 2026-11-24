@@ -15,11 +15,22 @@ const MIN_HEIGHT = 96;
 const DEFAULT_HEIGHT = 240;
 const MAX_HEIGHT = 1600;
 
-export function TriggerPromptView({ prompt, className = "" }: { prompt: string; className?: string }) {
-  const storedHeight = useInboxStore((s) => s.clientState.ui?.trigger_prompt_height);
+export function TriggerPromptView({
+  prompt,
+  className = "",
+}: {
+  prompt: string;
+  className?: string;
+}) {
+  const storedHeight = useInboxStore(
+    (s) => s.clientState.ui?.trigger_prompt_height,
+  );
   // Local height during the drag; the pref write happens once on release.
   const [dragHeight, setDragHeight] = useState<number | null>(null);
-  const height = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragHeight ?? storedHeight ?? DEFAULT_HEIGHT));
+  const height = Math.min(
+    MAX_HEIGHT,
+    Math.max(MIN_HEIGHT, dragHeight ?? storedHeight ?? DEFAULT_HEIGHT),
+  );
   const boxRef = useRef<HTMLDivElement>(null);
   const dragFrom = useRef<{ y: number; h: number } | null>(null);
 
@@ -36,7 +47,10 @@ export function TriggerPromptView({ prompt, className = "" }: { prompt: string; 
     e.preventDefault();
     // Anchor on the RENDERED height: with short content the box sits below the
     // stored max, and anchoring there would make the first downward drag jump.
-    dragFrom.current = { y: e.clientY, h: boxRef.current?.offsetHeight ?? height };
+    dragFrom.current = {
+      y: e.clientY,
+      h: boxRef.current?.offsetHeight ?? height,
+    };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -73,12 +87,18 @@ export function TriggerPromptView({ prompt, className = "" }: { prompt: string; 
           // the vh cap keeps a tall stored value from burying the conversation.
           style={{ maxHeight: `min(${height}px, 70vh)` }}
         >
-          <MarkdownRenderer content={prompt} className="text-sm leading-relaxed text-sol-text" />
+          <MarkdownRenderer
+            content={prompt}
+            className="text-sm leading-relaxed text-sol-text"
+          />
         </div>
         {clipped && (
           <div
             className="pointer-events-none absolute inset-x-0 bottom-px h-10"
-            style={{ background: "linear-gradient(to bottom, transparent, var(--sol-bg))" }}
+            style={{
+              background:
+                "linear-gradient(to bottom, transparent, var(--sol-bg))",
+            }}
           />
         )}
       </div>

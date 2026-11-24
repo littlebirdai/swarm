@@ -2,7 +2,10 @@
 // trigger on its standing session that wakes it on a schedule. Leaf module,
 // read by org.brief and org.health as well as the role writers.
 
-import { ORG_AREA_CHANGE_EVENT, SESSION_NEEDS_INPUT_EVENT } from "@codecast/shared/contracts";
+import {
+  ORG_AREA_CHANGE_EVENT,
+  SESSION_NEEDS_INPUT_EVENT,
+} from "@codecast/shared/contracts";
 import { COMPANY_REVIEW_TITLE } from "@codecast/shared/contracts/orgReview";
 import { isHeadOfPeopleRole } from "./orgAccess";
 
@@ -13,7 +16,8 @@ export const COMPANY_REVIEW_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
 // of the Head of People's jobs, run in its own thread
 // whose brief is `cast org review` (it prints the review prompt with what it
 // needs to act), and the Head of People brings the answer to the person.
-export const COMPANY_REVIEW_PROMPT = "Company review. Run `cast org review` and do the review it describes, here in your own thread: open the conversation with the person you report to, each proposal's short id alone on its line, and carry it on from there.";
+export const COMPANY_REVIEW_PROMPT =
+  "Company review. Run `cast org review` and do the review it describes, here in your own thread: open the conversation with the person you report to, each proposal's short id alone on its line, and carry it on from there.";
 
 // A role wakes on a schedule through one ordinary recurring trigger on its
 // standing session: daily for a role, the weekly company review for the Head
@@ -40,9 +44,22 @@ export const ROLE_CHECK_PROMPT = [
   ...ROLE_PLAYBOOK_LINES,
 ].join("\n");
 
-export function roleRoutineFor(role: { handle: string; name: string }): { title: string; prompt: string; every_ms: number } {
-  if (isHeadOfPeopleRole(role)) return { title: COMPANY_REVIEW_TITLE, prompt: COMPANY_REVIEW_PROMPT, every_ms: COMPANY_REVIEW_EVERY_MS };
-  return { title: `Check ${role.name}'s area`, prompt: ROLE_CHECK_PROMPT, every_ms: ROLE_CHECK_EVERY_MS };
+export function roleRoutineFor(role: { handle: string; name: string }): {
+  title: string;
+  prompt: string;
+  every_ms: number;
+} {
+  if (isHeadOfPeopleRole(role))
+    return {
+      title: COMPANY_REVIEW_TITLE,
+      prompt: COMPANY_REVIEW_PROMPT,
+      every_ms: COMPANY_REVIEW_EVERY_MS,
+    };
+  return {
+    title: `Check ${role.name}'s area`,
+    prompt: ROLE_CHECK_PROMPT,
+    every_ms: ROLE_CHECK_EVERY_MS,
+  };
 }
 
 // The route up (org-staffing.md S28) is a trigger too: one event trigger on
@@ -66,15 +83,24 @@ export const ROLE_MACHINE_AWAY_MS = 30 * 60 * 1000;
 
 /** Whether a role's machine is away. A session that names no machine (a
  *  hosted one) has nothing to be away from. */
-export function roleMachineAway(device: { last_seen?: number } | null | undefined, now: number): boolean {
-  return device?.last_seen != null && now - device.last_seen >= ROLE_MACHINE_AWAY_MS;
+export function roleMachineAway(
+  device: { last_seen?: number } | null | undefined,
+  now: number,
+): boolean {
+  return (
+    device?.last_seen != null && now - device.last_seen >= ROLE_MACHINE_AWAY_MS
+  );
 }
 
 /** An event trigger of a role: what fires it, and the words it carries. The
  *  needs-input one every role has (S28), and the area change one only the
  *  Head of People has (S29). */
 export type RoleEventSpec = { event: string; title: string; prompt: string };
-export const ROLE_NEEDS_INPUT_SPEC: RoleEventSpec = { event: SESSION_NEEDS_INPUT_EVENT, title: ROLE_NEEDS_INPUT_TITLE, prompt: ROLE_NEEDS_INPUT_PROMPT };
+export const ROLE_NEEDS_INPUT_SPEC: RoleEventSpec = {
+  event: SESSION_NEEDS_INPUT_EVENT,
+  title: ROLE_NEEDS_INPUT_TITLE,
+  prompt: ROLE_NEEDS_INPUT_PROMPT,
+};
 
 // The area watch (org-staffing.md S29) tells the Head of People, through one
 // event trigger on its standing session, about a change that lasted: an area
@@ -86,7 +112,11 @@ export const HEAD_AREA_CHANGE_PROMPT = [
   `Something in the company changed and it lasted: the run names it. Read that area as it stands now (\`cast org health\`, the role's brief, its sessions) and decide whether the structure or the owner should change, or whether the role only needs telling.`,
   `When a change is warranted, open it with the person you report to here in your thread as a small proposal, its short id alone on its line, with the evidence beside it. When the role can settle it itself, write to it (\`cast role wake @handle "<what changed and what you expect>"\`). When nothing is warranted, say so in one line and end the turn.`,
 ].join("\n");
-export const HEAD_AREA_CHANGE_SPEC: RoleEventSpec = { event: ORG_AREA_CHANGE_EVENT, title: HEAD_AREA_CHANGE_TITLE, prompt: HEAD_AREA_CHANGE_PROMPT };
+export const HEAD_AREA_CHANGE_SPEC: RoleEventSpec = {
+  event: ORG_AREA_CHANGE_EVENT,
+  title: HEAD_AREA_CHANGE_TITLE,
+  prompt: HEAD_AREA_CHANGE_PROMPT,
+};
 
 // The inbox look (org-staffing.md S43): sessions gather in the person's inbox
 // every day, so the Head of People looks daily rather than at its weekly
@@ -95,7 +125,8 @@ export const HEAD_AREA_CHANGE_SPEC: RoleEventSpec = { event: ORG_AREA_CHANGE_EVE
 // where to look and leaves the judgment to the job its opening states.
 export const HEAD_INBOX_TITLE = "Look at the inbox";
 export const HEAD_INBOX_EVERY_MS = 24 * 60 * 60 * 1000;
-export const headInboxPrecheck = (role: { team_id?: unknown }): string => `cast org loose --new --team ${role.team_id ? String(role.team_id) : "personal"}`;
+export const headInboxPrecheck = (role: { team_id?: unknown }): string =>
+  `cast org loose --new --team ${role.team_id ? String(role.team_id) : "personal"}`;
 export const HEAD_INBOX_PROMPT = [
   `New sessions are loose in the inbox of the person you report to since you last looked. \`cast org loose\` lists the sessions nothing places yet, and how a filing is written.`,
   `Keep that inbox the way your job asks: work an area's owner carries sits with that owner, and the person's own work stays with them. What you already have open for them is part of the same answer and yours to keep current: every filing still waiting is one you would make today, none is asked twice, and new filings join it rather than starting another. The person reads your reply at a glance, and a proposal's card already shows each filing and its reason, so when you post or revise one, the reply is that proposal's short id alone on its line, and when nothing should move it is one line saying so. The why is theirs to ask for.`,
@@ -104,62 +135,105 @@ export const HEAD_INBOX_PROMPT = [
 /** The event triggers a role is armed with: every role hears for its waiting
  *  sessions; the Head of People also hears the area watch. */
 export function roleEventSpecsFor(role: { handle: string }): RoleEventSpec[] {
-  return isHeadOfPeopleRole(role) ? [ROLE_NEEDS_INPUT_SPEC, HEAD_AREA_CHANGE_SPEC] : [ROLE_NEEDS_INPUT_SPEC];
+  return isHeadOfPeopleRole(role)
+    ? [ROLE_NEEDS_INPUT_SPEC, HEAD_AREA_CHANGE_SPEC]
+    : [ROLE_NEEDS_INPUT_SPEC];
 }
 
-const isEventTrigger = (event: string) => (t: any) => t.schedule_type === "event" && t.event_filter?.event_type === event;
-export const isLiveTrigger = (t: any) => t.status === "scheduled" || t.status === "running" || t.status === "paused";
+const isEventTrigger = (event: string) => (t: any) =>
+  t.schedule_type === "event" && t.event_filter?.event_type === event;
+export const isLiveTrigger = (t: any) =>
+  t.status === "scheduled" || t.status === "running" || t.status === "paused";
 
 /** Every trigger ever armed on a standing session, in whatever status. */
-async function triggersOf(ctx: { db: any }, standing: { _id: any }): Promise<any[]> {
+async function triggersOf(
+  ctx: { db: any },
+  standing: { _id: any },
+): Promise<any[]> {
   return await ctx.db
     .query("agent_tasks")
-    .withIndex("by_originating_conversation", (q: any) => q.eq("originating_conversation_id", standing._id))
+    .withIndex("by_originating_conversation", (q: any) =>
+      q.eq("originating_conversation_id", standing._id),
+    )
     .collect();
 }
 
 // A live one first, so a lookup in any status never picks a dead row over the
 // one that runs.
 const liveFirst = (rows: any[]): any | null =>
-  rows.find((t) => t.status === "scheduled" || t.status === "running") ?? rows.find((t) => t.status === "paused") ?? rows[0] ?? null;
+  rows.find((t) => t.status === "scheduled" || t.status === "running") ??
+  rows.find((t) => t.status === "paused") ??
+  rows[0] ??
+  null;
 
 // A dead row counts only when it carries this role's id, so the trigger of an
 // earlier role that stood in the same session never stops a new role from
 // getting its own, while one the person cancelled for THIS role is still
 // found and the next arming leaves it cancelled (S25).
-const ofRole = (role: { _id: any }) => (t: any) => isLiveTrigger(t) || String(t.role_id ?? "") === String(role._id);
+const ofRole = (role: { _id: any }) => (t: any) =>
+  isLiveTrigger(t) || String(t.role_id ?? "") === String(role._id);
 
 /** The role's needs-input trigger in whatever status it stands, a live one
  *  first, or null when the role never had one on this session. Found by its
  *  event, never its title, so a person may rename it. Without `role`, any
  *  needs-input trigger ever armed on the session. */
-export async function findRoleNeedsInputTrigger(ctx: { db: any }, standing: { _id: any } | null, role?: { _id: any }): Promise<any | null> {
+export async function findRoleNeedsInputTrigger(
+  ctx: { db: any },
+  standing: { _id: any } | null,
+  role?: { _id: any },
+): Promise<any | null> {
   return findRoleEventTrigger(ctx, standing, SESSION_NEEDS_INPUT_EVENT, role);
 }
 
 /** A role's event trigger for `event`, by the same rule. */
-export async function findRoleEventTrigger(ctx: { db: any }, standing: { _id: any } | null, event: string, role?: { _id: any }): Promise<any | null> {
+export async function findRoleEventTrigger(
+  ctx: { db: any },
+  standing: { _id: any } | null,
+  event: string,
+  role?: { _id: any },
+): Promise<any | null> {
   if (!standing) return null;
-  return liveFirst((await triggersOf(ctx, standing)).filter((t) => isEventTrigger(event)(t) && (!role || ofRole(role)(t))));
+  return liveFirst(
+    (await triggersOf(ctx, standing)).filter(
+      (t) => isEventTrigger(event)(t) && (!role || ofRole(role)(t)),
+    ),
+  );
 }
 
 /** Every live trigger armed on a role's standing session. */
-export async function liveRoutinesOf(ctx: { db: any }, standing: { _id: any }): Promise<any[]> {
+export async function liveRoutinesOf(
+  ctx: { db: any },
+  standing: { _id: any },
+): Promise<any[]> {
   return (await triggersOf(ctx, standing)).filter(isLiveTrigger);
 }
 
 /** The role's own routine as it stands (read only), or null before provision. */
-export async function findRoleRoutine(ctx: { db: any }, role: { handle: string; name: string }, standing: { _id: any } | null): Promise<any | null> {
+export async function findRoleRoutine(
+  ctx: { db: any },
+  role: { handle: string; name: string },
+  standing: { _id: any } | null,
+): Promise<any | null> {
   if (!standing) return null;
   const title = roleRoutineFor(role).title;
-  return (await liveRoutinesOf(ctx, standing)).find((t) => t.title === title) ?? null;
+  return (
+    (await liveRoutinesOf(ctx, standing)).find((t) => t.title === title) ?? null
+  );
 }
 
 /** The role's routine in whatever status it stands, a live one first, by the
  *  same rule as its needs-input trigger (ofRole). */
-export async function findRoleRoutineInAnyStatus(ctx: { db: any }, role: { _id: any; handle: string; name: string }, standing: { _id: any }): Promise<any | null> {
+export async function findRoleRoutineInAnyStatus(
+  ctx: { db: any },
+  role: { _id: any; handle: string; name: string },
+  standing: { _id: any },
+): Promise<any | null> {
   const title = roleRoutineFor(role).title;
-  return liveFirst((await triggersOf(ctx, standing)).filter((t) => t.title === title && ofRole(role)(t)));
+  return liveFirst(
+    (await triggersOf(ctx, standing)).filter(
+      (t) => t.title === title && ofRole(role)(t),
+    ),
+  );
 }
 
 // ── Morning agenda (org-staffing.md S33) ────────────────────────────────────
@@ -179,17 +253,53 @@ export const ROLE_AGENDA_PROMPT = [
 
 /** The next morning at `hour` in a timezone (IANA name; UTC when missing or
  *  unknown), strictly after `now`. */
-export function nextMorningAt(now: number, timezone: string | null | undefined, hour = ROLE_AGENDA_HOUR_LOCAL): number {
+export function nextMorningAt(
+  now: number,
+  timezone: string | null | undefined,
+  hour = ROLE_AGENDA_HOUR_LOCAL,
+): number {
   const zone = timezone || "UTC";
   let parts: Intl.DateTimeFormat;
-  try { parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
-  catch { parts = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
-  const read = (t: number) => Object.fromEntries(parts.formatToParts(new Date(t)).map((p) => [p.type, p.value])) as Record<string, string>;
+  try {
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }
+  const read = (t: number) =>
+    Object.fromEntries(
+      parts.formatToParts(new Date(t)).map((p) => [p.type, p.value]),
+    ) as Record<string, string>;
   const local = read(now);
   // The zone's offset at `now`: the wall clock read back as UTC, minus now.
-  const wall = Date.UTC(+local.year, +local.month - 1, +local.day, +local.hour % 24, +local.minute, +local.second);
+  const wall = Date.UTC(
+    +local.year,
+    +local.month - 1,
+    +local.day,
+    +local.hour % 24,
+    +local.minute,
+    +local.second,
+  );
   const offset = wall - Math.floor(now / 1000) * 1000;
-  let target = Date.UTC(+local.year, +local.month - 1, +local.day, hour, 0, 0) - offset;
+  let target =
+    Date.UTC(+local.year, +local.month - 1, +local.day, hour, 0, 0) - offset;
   if (target <= now) target += ROLE_AGENDA_EVERY_MS;
   return target;
 }
@@ -208,9 +318,20 @@ export function roleHandoffTitle(receivers: HandoffReceiverSpec[]): string {
   return `${ROLE_HANDOFF_TITLE_PREFIX}${receivers.length === 1 ? receivers[0].areas.join(", ") : "your areas"} to ${to}`;
 }
 
-export function roleHandoffPrompt(receivers: HandoffReceiverSpec[], reason: "retire" | "split" | "scope", deadline: number): string {
-  const lines = receivers.map((r) => `- @${r.handle} takes ${r.areas.join(", ")}`);
-  const why = reason === "retire" ? "Your role is being retired and waits for this handoff before it is decommissioned" : reason === "split" ? "Your role was split into two leads" : "Part of your area moved to another role";
+export function roleHandoffPrompt(
+  receivers: HandoffReceiverSpec[],
+  reason: "retire" | "split" | "scope",
+  deadline: number,
+): string {
+  const lines = receivers.map(
+    (r) => `- @${r.handle} takes ${r.areas.join(", ")}`,
+  );
+  const why =
+    reason === "retire"
+      ? "Your role is being retired and waits for this handoff before it is decommissioned"
+      : reason === "split"
+        ? "Your role was split into two leads"
+        : "Part of your area moved to another role";
   return [
     `${why}. Your "Where it stands" lines for the moved areas were already copied into each receiver's brief, marked as yours.`,
     ...lines,
@@ -222,6 +343,14 @@ export function roleHandoffPrompt(receivers: HandoffReceiverSpec[], reason: "ret
 // ── Merge report (the-line.md L12) ──────────────────────────────────────────
 // The line's merge step records each merge on the role's standing session so
 // the role reports it to the person it reports to in its own words.
-export function mergeReportLine(args: { task_short_id: string; task_title: string; branch: string; sha: string; into: string; used: number; limit: number }): string {
+export function mergeReportLine(args: {
+  task_short_id: string;
+  task_title: string;
+  branch: string;
+  sha: string;
+  into: string;
+  used: number;
+  limit: number;
+}): string {
   return `The flow merged ${args.task_short_id} (${args.task_title}) from ${args.branch} into ${args.into} at ${args.sha.slice(0, 10)}: merge ${args.used} of ${args.limit} today. Report it in one line to the person you report to, with the task's id, and end the turn.`;
 }

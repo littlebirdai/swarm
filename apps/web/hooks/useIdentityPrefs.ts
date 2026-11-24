@@ -11,7 +11,9 @@ const noSubscription = () => () => {};
 /** Answers the preferences for everything below it instead of the viewer's.
  *  The homepage hero sets it so its sessions render the same for every
  *  visitor; a list sets it once so its rows need no subscription each. */
-export const IdentityPrefsOverride = createContext<IdentityPrefs | undefined>(undefined);
+export const IdentityPrefsOverride = createContext<IdentityPrefs | undefined>(
+  undefined,
+);
 
 const read = (ui: ClientUI | undefined) => identityPrefsOf(ui);
 

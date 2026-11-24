@@ -16,7 +16,13 @@ import { join } from "node:path";
 import { runAssistant } from "@platform/agent";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { ROOT, timeBuild, visitor, type BuildTiming, type Visitor } from "./lib/harness";
+import {
+  ROOT,
+  timeBuild,
+  visitor,
+  type BuildTiming,
+  type Visitor,
+} from "./lib/harness";
 import { fetchServed, mount, stage, type MountReport } from "./lib/served";
 
 const BUILD_TIMEOUT_MS = 300_000;
@@ -30,9 +36,14 @@ const SCENARIOS: Scenario[] = [
     key: "drawing",
     multiplayer: true,
     steps: [
-      { ask: "A multiplayer drawing wall: everyone draws on one big shared canvas with their own color, and you can see who drew what." },
+      {
+        ask: "A multiplayer drawing wall: everyone draws on one big shared canvas with their own color, and you can see who drew what.",
+      },
       { ask: "make it more fun" },
-      { ask: "make this bigger and put an eraser next to it", pick: { tag: "button" } },
+      {
+        ask: "make this bigger and put an eraser next to it",
+        pick: { tag: "button" },
+      },
       { ask: "let me undo my last stroke" },
     ],
   },
@@ -40,9 +51,14 @@ const SCENARIOS: Scenario[] = [
     key: "poll",
     multiplayer: true,
     steps: [
-      { ask: "A voting poll for where the team should go for lunch. Anyone can add an option and everyone gets one vote." },
+      {
+        ask: "A voting poll for where the team should go for lunch. Anyone can add an option and everyone gets one vote.",
+      },
       { ask: "show the results as bars that animate when votes come in" },
-      { ask: "change this to ask about Friday's team dinner instead", pick: { tag: "h1" } },
+      {
+        ask: "change this to ask about Friday's team dinner instead",
+        pick: { tag: "h1" },
+      },
       { ask: "make it more fun" },
     ],
   },
@@ -50,19 +66,29 @@ const SCENARIOS: Scenario[] = [
     key: "platformer",
     multiplayer: true,
     steps: [
-      { ask: "A tiny platformer: a frog hops across platforms collecting flies, with a shared high score board." },
+      {
+        ask: "A tiny platformer: a frog hops across platforms collecting flies, with a shared high score board.",
+      },
       { ask: "add a double jump" },
       { ask: "make it more fun" },
-      { ask: "make this bigger and put a little trophy next to it", pick: { text: "score" } },
+      {
+        ask: "make this bigger and put a little trophy next to it",
+        pick: { text: "score" },
+      },
     ],
   },
   {
     key: "todo",
     multiplayer: true,
     steps: [
-      { ask: "A shared todo list for our flat: chores, who claimed each one, and tick them off when done." },
+      {
+        ask: "A shared todo list for our flat: chores, who claimed each one, and tick them off when done.",
+      },
       { ask: "let people drag chores to reorder them" },
-      { ask: "let me pick a due day right here when I add a chore", pick: { tag: "input" } },
+      {
+        ask: "let me pick a due day right here when I add a chore",
+        pick: { tag: "input" },
+      },
       { ask: "dark mode please" },
     ],
   },
@@ -70,19 +96,29 @@ const SCENARIOS: Scenario[] = [
     key: "guestbook",
     multiplayer: true,
     steps: [
-      { ask: "A guestbook for my birthday party where people leave a note and pick a sticker." },
+      {
+        ask: "A guestbook for my birthday party where people leave a note and pick a sticker.",
+      },
       { ask: "make it look like a cork board with pinned paper notes" },
       { ask: "make it more fun" },
-      { ask: "make this say 'Pin it' and give it a little wiggle", pick: { tag: "button" } },
+      {
+        ask: "make this say 'Pin it' and give it a little wiggle",
+        pick: { tag: "button" },
+      },
     ],
   },
   {
     key: "pixels",
     multiplayer: true,
     steps: [
-      { ask: "A collaborative 32x32 pixel art canvas with a palette of 16 colors." },
+      {
+        ask: "A collaborative 32x32 pixel art canvas with a palette of 16 colors.",
+      },
       { ask: "add a timelapse that replays how the picture was made" },
-      { ask: "add a few pastel colors here", pick: { tag: "button", text: "color" } },
+      {
+        ask: "add a few pastel colors here",
+        pick: { tag: "button", text: "color" },
+      },
       { ask: "make it more fun" },
     ],
   },
@@ -90,17 +126,24 @@ const SCENARIOS: Scenario[] = [
     key: "emoji",
     multiplayer: true,
     steps: [
-      { ask: "Chat roulette of emoji: you get paired with a random person in the room and can only talk in emoji." },
+      {
+        ask: "Chat roulette of emoji: you get paired with a random person in the room and can only talk in emoji.",
+      },
       { ask: "add sound effects" },
       { ask: "make it more fun" },
-      { ask: "this is confusing, make it clearer what to do", pick: { tag: "p" } },
+      {
+        ask: "this is confusing, make it clearer what to do",
+        pick: { tag: "p" },
+      },
     ],
   },
   {
     key: "kanban",
     multiplayer: true,
     steps: [
-      { ask: "A kanban board for our hackathon team with todo, doing and done columns." },
+      {
+        ask: "A kanban board for our hackathon team with todo, doing and done columns.",
+      },
       { ask: "limit doing to 3 cards and show a warning when it's full" },
       { ask: "give this column its own color", pick: { tag: "h2" } },
       { ask: "make it feel calmer" },
@@ -110,7 +153,9 @@ const SCENARIOS: Scenario[] = [
     key: "guessing",
     multiplayer: true,
     steps: [
-      { ask: "Drawing guessing game: one person draws a secret word, everyone else guesses in chat, points for fast guesses." },
+      {
+        ask: "Drawing guessing game: one person draws a secret word, everyone else guesses in chat, points for fast guesses.",
+      },
       { ask: "show a clear way to invite friends" },
       { ask: "make it more fun" },
     ],
@@ -119,7 +164,9 @@ const SCENARIOS: Scenario[] = [
     key: "standup",
     multiplayer: true,
     steps: [
-      { ask: "Async standup for our team: each person posts yesterday, today and blockers once a day, and we see the week at a glance." },
+      {
+        ask: "Async standup for our team: each person posts yesterday, today and blockers once a day, and we see the week at a glance.",
+      },
       { ask: "show what keeps coming up in blockers" },
     ],
   },
@@ -127,7 +174,9 @@ const SCENARIOS: Scenario[] = [
     key: "groceries",
     multiplayer: true,
     steps: [
-      { ask: "Shared grocery list for our flat, grouped by aisle, tick things off as you shop." },
+      {
+        ask: "Shared grocery list for our flat, grouped by aisle, tick things off as you shop.",
+      },
       { ask: "add a button to clear everything that's done" },
     ],
   },
@@ -135,7 +184,9 @@ const SCENARIOS: Scenario[] = [
     key: "drums",
     multiplayer: true,
     steps: [
-      { ask: "16-step drum machine everyone plays together: kick, snare, hats and clap, one shared pattern." },
+      {
+        ask: "16-step drum machine everyone plays together: kick, snare, hats and clap, one shared pattern.",
+      },
       { ask: "let people save patterns and load them back" },
     ],
   },
@@ -143,7 +194,9 @@ const SCENARIOS: Scenario[] = [
     key: "weather",
     multiplayer: true,
     steps: [
-      { ask: "A weather board for the cities our team lives in, anyone can add a city." },
+      {
+        ask: "A weather board for the cities our team lives in, anyone can add a city.",
+      },
       { ask: "make it feel calmer" },
     ],
   },
@@ -170,7 +223,12 @@ type Row = {
   dir: string | null;
 };
 
-type Judgement = { did_it: number; multiplayer: number | null; look: number; notes: string };
+type Judgement = {
+  did_it: number;
+  multiplayer: number | null;
+  look: number;
+  notes: string;
+};
 
 const EVALS = "/tmp/pg-evals";
 
@@ -184,21 +242,27 @@ const SEED_PALETTE = ["#2b2520", "#f7f3ec", "#c4491f"];
 /** The toy look the founder rejected, read from the source: a web-safe or
  *  rounded novelty face, no web font at all, and surfaces drawn as outlined
  *  stickers with hard offset shadows. */
-const NOVELTY_FACES = /Trebuchet|Comic Sans|Fredoka|Baloo|Nunito|Chewy|Bubblegum|Luckiest|Varela Round|Quicksand|Patrick Hand|Sniglet|Gochi/i;
+const NOVELTY_FACES =
+  /Trebuchet|Comic Sans|Fredoka|Baloo|Nunito|Chewy|Bubblegum|Luckiest|Varela Round|Quicksand|Patrick Hand|Sniglet|Gochi/i;
 /** A box-shadow with an offset and no blur: "0 4px 0 var(--ink)", "3px 3px 0 #000". */
-const HARD_SHADOW = /box-shadow:\s*(?:inset\s+)?-?\d+(?:\.\d+)?(?:px)?\s+-?\d+(?:\.\d+)?(?:px)?\s+0(?:px)?\s+(?![-\d])/g;
-const THICK_OUTLINE = /border(?:-(?:top|bottom|left|right))?:\s*(?:[2-9]|\d{2})px\s+solid/g;
+const HARD_SHADOW =
+  /box-shadow:\s*(?:inset\s+)?-?\d+(?:\.\d+)?(?:px)?\s+-?\d+(?:\.\d+)?(?:px)?\s+0(?:px)?\s+(?![-\d])/g;
+const THICK_OUTLINE =
+  /border(?:-(?:top|bottom|left|right))?:\s*(?:[2-9]|\d{2})px\s+solid/g;
 const LOOK_LIMITS = { hardShadows: 3, thickOutlines: 5 };
 
 export function lookDefects(code: string): string[] {
   const out: string[] = [];
   const face = NOVELTY_FACES.exec(code)?.[0];
   if (face) out.push(`novelty face: ${face}`);
-  if (!/fonts\.googleapis\.com|@font-face/.test(code)) out.push("loads no web font");
+  if (!/fonts\.googleapis\.com|@font-face/.test(code))
+    out.push("loads no web font");
   const shadows = code.match(HARD_SHADOW)?.length ?? 0;
-  if (shadows >= LOOK_LIMITS.hardShadows) out.push(`hard offset shadows on ${shadows} rules`);
+  if (shadows >= LOOK_LIMITS.hardShadows)
+    out.push(`hard offset shadows on ${shadows} rules`);
   const outlines = code.match(THICK_OUTLINE)?.length ?? 0;
-  if (outlines >= LOOK_LIMITS.thickOutlines) out.push(`thick outlines on ${outlines} rules`);
+  if (outlines >= LOOK_LIMITS.thickOutlines)
+    out.push(`thick outlines on ${outlines} rules`);
   return out;
 }
 
@@ -207,12 +271,18 @@ function defectsOf(m: MountReport | null, code: string): string[] {
   if (!m) return ["not served"];
   if (!m.firstPaint.painted) out.push("renders nothing");
   if (m.errors.length) out.push(`throws: ${m.errors[0]}`);
-  if (m.sdk.refused.length) out.push(`backend would refuse: ${m.sdk.refused[0]}`);
+  if (m.sdk.refused.length)
+    out.push(`backend would refuse: ${m.sdk.refused[0]}`);
   const storm = m.steps.find((s) => s.writes > GESTURE_WRITES_MAX);
-  if (storm) out.push(`writes on every move: ${storm.writes} writes for one ${storm.what}`);
-  if (SEED_PALETTE.every((c) => code.includes(c))) out.push("kept the starter's palette");
+  if (storm)
+    out.push(
+      `writes on every move: ${storm.writes} writes for one ${storm.what}`,
+    );
+  if (SEED_PALETTE.every((c) => code.includes(c)))
+    out.push("kept the starter's palette");
   const leaked = SEED_MARKS.filter((re) => re.test(code));
-  if (leaked.length) out.push(`starter leftovers: ${leaked.map(String).join(" ")}`);
+  if (leaked.length)
+    out.push(`starter leftovers: ${leaked.map(String).join(" ")}`);
   if (code.includes("\u2014")) out.push("emdash in the app's text");
   return [...out, ...lookDefects(code)];
 }
@@ -221,17 +291,29 @@ function defectsOf(m: MountReport | null, code: string): string[] {
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
-  return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN;
+  return s.length
+    ? s.length % 2
+      ? s[(s.length - 1) / 2]
+      : (s[s.length / 2 - 1] + s[s.length / 2]) / 2
+    : NaN;
 };
 
 /** A hit: live, runs clean, no defects, and the judge says it did what was asked without losing multiplayer. */
-const isHit = (r: Row) => r.status === "live" && !!r.mount?.ok && !r.defects.length && r.judge?.did_it === 2 && r.judge.multiplayer !== 0 && r.judge.look >= 1;
+const isHit = (r: Row) =>
+  r.status === "live" &&
+  !!r.mount?.ok &&
+  !r.defects.length &&
+  r.judge?.did_it === 2 &&
+  r.judge.multiplayer !== 0 &&
+  r.judge.look >= 1;
 
 function summarize(label: string, rows: Row[]): string {
   const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
   const first = rows.filter((r) => r.step === 0).map((r) => r.totalMs);
   const changes = rows.filter((r) => r.step > 0).map((r) => r.totalMs);
-  const costs = rows.map((r) => r.costUsd).filter((c): c is number => c !== null);
+  const costs = rows
+    .map((r) => r.costUsd)
+    .filter((c): c is number => c !== null);
   return [
     `${label}: ${rows.filter(isHit).length}/${rows.length} hits`,
     `live ${rows.filter((r) => r.status === "live").length}`,
@@ -243,8 +325,13 @@ function summarize(label: string, rows: Row[]): string {
 }
 
 async function diff(a: string, b: string): Promise<string> {
-  const proc = Bun.spawn(["git", "diff", "--no-index", "--no-color", "-U2", a, b], { stdout: "pipe" });
-  return (await new Response(proc.stdout).text()).replaceAll(a, "a").replaceAll(b, "b");
+  const proc = Bun.spawn(
+    ["git", "diff", "--no-index", "--no-color", "-U2", a, b],
+    { stdout: "pipe" },
+  );
+  return (await new Response(proc.stdout).text())
+    .replaceAll(a, "a")
+    .replaceAll(b, "b");
 }
 
 const JUDGE_SYSTEM = `\
@@ -288,9 +375,13 @@ async function judge(input: string): Promise<Judgement | null> {
     history: [{ role: "user", content: input }],
     ceilingUsd: 0.5,
     deadlineMs: 120_000,
-    apiKeys: { anthropic: process.env.ANTHROPIC_API_KEY ?? (await anthropicKey()) },
+    apiKeys: {
+      anthropic: process.env.ANTHROPIC_API_KEY ?? (await anthropicKey()),
+    },
   });
-  const text = result.messages.map((m) => (m.role === "assistant" ? (m.content ?? "") : "")).join("");
+  const text = result.messages
+    .map((m) => (m.role === "assistant" ? (m.content ?? "") : ""))
+    .join("");
   const json = /\{[\s\S]*\}/.exec(text)?.[0];
   try {
     return json ? (JSON.parse(json) as Judgement) : null;
@@ -300,7 +391,10 @@ async function judge(input: string): Promise<Judgement | null> {
 }
 
 async function anthropicKey(): Promise<string> {
-  const proc = Bun.spawn(["npx", "convex", "env", "get", "ANTHROPIC_API_KEY"], { cwd: ROOT, stdout: "pipe" });
+  const proc = Bun.spawn(["npx", "convex", "env", "get", "ANTHROPIC_API_KEY"], {
+    cwd: ROOT,
+    stdout: "pipe",
+  });
   return (await new Response(proc.stdout).text()).trim();
 }
 
@@ -311,7 +405,9 @@ function mountLine(m: MountReport | null): string {
     m.firstPaint.painted ? "rendered" : "rendered NOTHING",
     m.errors.length ? `errors: ${m.errors.join(" | ")}` : "no errors",
     `using it wrote ${writes} shared changes and ${m.sdk.setMyState} presence updates`,
-    m.sdk.refused.length ? `the backend would refuse: ${m.sdk.refused.join(" | ")}` : "",
+    m.sdk.refused.length
+      ? `the backend would refuse: ${m.sdk.refused.join(" | ")}`
+      : "",
     `steps: ${m.steps.map((s) => `${s.what} (${s.writes} writes)`).join(", ")}`,
   ]
     .filter(Boolean)
@@ -325,7 +421,10 @@ async function judgeRow(r: Row, prev: number): Promise<Judgement | null> {
   const after = join(app, `src-v${r.version}`);
   const changes =
     r.step === 0
-      ? (await Array.fromAsync(new Bun.Glob("**/*").scan(after))).sort().map((f) => `## ${f}\n${readFileSync(join(after, f), "utf8")}`).join("\n\n")
+      ? (await Array.fromAsync(new Bun.Glob("**/*").scan(after)))
+          .sort()
+          .map((f) => `## ${f}\n${readFileSync(join(after, f), "utf8")}`)
+          .join("\n\n")
       : (await diff(join(app, `src-v${prev}`), after)).slice(0, 60_000);
   return judge(
     [
@@ -333,13 +432,14 @@ async function judgeRow(r: Row, prev: number): Promise<Judgement | null> {
       r.element ? `# Pointed at\n${r.element}` : "",
       `# Builder's summary\n${r.summary}`,
       `# Mounted and used\n${mountLine(r.mount)}${r.defects.length ? `\nChecks found: ${r.defects.join("; ")}` : ""}`,
-      r.step === 0 ? `# The new app's source\n${changes}` : `# Diff of the source\n${changes}`,
+      r.step === 0
+        ? `# The new app's source\n${changes}`
+        : `# Diff of the source\n${changes}`,
     ]
       .filter(Boolean)
       .join("\n\n"),
   ).catch(() => null);
 }
-
 
 // Mount every live version of a finished run again and recheck it, for when
 // the checks change; the judge's grades stay.
@@ -353,7 +453,8 @@ if (process.argv[2] === "--rescore") {
     const src = join(r.dir, "..", `src-v${r.version}`);
     const glob = new Bun.Glob("**/*");
     let code = "";
-    for await (const f of glob.scan(src)) code += (await Bun.file(join(src, f)).text()) + "\n";
+    for await (const f of glob.scan(src))
+      code += (await Bun.file(join(src, f)).text()) + "\n";
     r.defects = defectsOf(r.mount, code);
   }
   await Bun.write(file, JSON.stringify(result, null, 2));
@@ -365,17 +466,32 @@ if (process.argv[2] === "--rescore") {
 if (process.argv[2] === "--rejudge") {
   const file = join(EVALS, process.argv[3], "results.json");
   const result = (await Bun.file(file).json()) as { rows: Row[] };
-  const prevOf = (r: Row) => result.rows.filter((x) => x.scenario === r.scenario && x.step < r.step && x.version !== null).at(-1)?.version ?? 1;
-  await Promise.all(result.rows.filter((r) => r.dir && r.version !== null).map(async (r) => (r.judge = await judgeRow(r, prevOf(r)))));
+  const prevOf = (r: Row) =>
+    result.rows
+      .filter(
+        (x) =>
+          x.scenario === r.scenario && x.step < r.step && x.version !== null,
+      )
+      .at(-1)?.version ?? 1;
+  await Promise.all(
+    result.rows
+      .filter((r) => r.dir && r.version !== null)
+      .map(async (r) => (r.judge = await judgeRow(r, prevOf(r)))),
+  );
   await Bun.write(file, JSON.stringify(result, null, 2));
   process.argv.splice(2, 2, "--stats", process.argv[3]);
 }
 
 if (process.argv[2] === "--stats") {
   for (const label of process.argv.slice(3)) {
-    const { rows } = (await Bun.file(join(EVALS, label, "results.json")).json()) as { rows: Row[] };
+    const { rows } = (await Bun.file(
+      join(EVALS, label, "results.json"),
+    ).json()) as { rows: Row[] };
     console.log(summarize(label, rows));
-    for (const r of rows.filter((r) => !isHit(r))) console.log(`   miss ${r.scenario}#${r.step}: ${[...r.defects, r.error, r.judge && `judge ${r.judge.did_it}/${r.judge.multiplayer}/${r.judge.look}: ${r.judge.notes}`].filter(Boolean).join("; ").slice(0, 300)}`);
+    for (const r of rows.filter((r) => !isHit(r)))
+      console.log(
+        `   miss ${r.scenario}#${r.step}: ${[...r.defects, r.error, r.judge && `judge ${r.judge.did_it}/${r.judge.multiplayer}/${r.judge.look}: ${r.judge.notes}`].filter(Boolean).join("; ").slice(0, 300)}`,
+      );
   }
   process.exit(0);
 }
@@ -389,7 +505,11 @@ await mkdir(OUT, { recursive: true });
 const SDK_HOOKS = ["useCollection", "useShared", "usePresence", "me"];
 
 async function sourceFiles(v: Visitor, appId: Id<"apps">, n: number) {
-  const res = await v.client.query(api.versions.files, { ...v.creds, app_id: appId, number: n });
+  const res = await v.client.query(api.versions.files, {
+    ...v.creds,
+    app_id: appId,
+    number: n,
+  });
   return (res?.files ?? []).map((f) => ({ path: f.path, text: f.text ?? "" }));
 }
 
@@ -409,23 +529,45 @@ async function runScenario(s: Scenario): Promise<Row[]> {
     let element: MountReport["picked"] = null;
     if (step.pick && appId) {
       const dir = join(OUT, slug, `pick-v${live}`);
-      element = (await mount(dir, await stage(await fetchServed(slug, live), dir), step.pick)).picked;
+      element = (
+        await mount(
+          dir,
+          await stage(await fetchServed(slug, live), dir),
+          step.pick,
+        )
+      ).picked;
     }
     const sent = performance.now();
     let messageId: string;
     if (!appId) {
-      const app = await v.client.mutation(api.apps.create, { ...v.creds, prompt: step.ask, unlisted: true });
+      const app = await v.client.mutation(api.apps.create, {
+        ...v.creds,
+        prompt: step.ask,
+        unlisted: true,
+      });
       appId = app.app_id as Id<"apps">;
       slug = app.slug;
       room = v.watchRoom(appId);
       messageId = app.request_message_id!;
     } else {
-      const sentMsg = await v.client.mutation(api.messages.send, { ...v.creds, app_id: appId, mode: "change", body: step.ask, ...(element ? { element } : {}) });
+      const sentMsg = await v.client.mutation(api.messages.send, {
+        ...v.creds,
+        app_id: appId,
+        mode: "change",
+        body: step.ask,
+        ...(element ? { element } : {}),
+      });
       messageId = sentMsg.message_id;
     }
     let timing: BuildTiming | null = null;
     try {
-      timing = await timeBuild(room!, `${s.key}#${i}`, messageId, sent, BUILD_TIMEOUT_MS);
+      timing = await timeBuild(
+        room!,
+        `${s.key}#${i}`,
+        messageId,
+        sent,
+        BUILD_TIMEOUT_MS,
+      );
     } catch (e) {
       console.log(`${s.key}#${i} timed out: ${e}`);
     }
@@ -435,18 +577,26 @@ async function runScenario(s: Scenario): Promise<Row[]> {
       step: i,
       buildId: b?.id ?? null,
       ask: step.ask,
-      element: element ? `${element.tag}: ${element.text ?? ""}` : step.pick ? "(pick found nothing)" : null,
+      element: element
+        ? `${element.tag}: ${element.text ?? ""}`
+        : step.pick
+          ? "(pick found nothing)"
+          : null,
       status: b?.status ?? "timeout",
       version: b?.result_version ?? null,
       totalMs: timing ? Math.round(timing.total) : BUILD_TIMEOUT_MS,
-      buildMs: b?.started_at && b.finished_at ? b.finished_at - b.started_at : null,
+      buildMs:
+        b?.started_at && b.finished_at ? b.finished_at - b.started_at : null,
       costUsd: null,
       summary: b?.summary ?? null,
-      error: b?.error ? `${b.error}: ${b.error_detail ?? ""}`.slice(0, 400) : null,
+      error: b?.error
+        ? `${b.error}: ${b.error_detail ?? ""}`.slice(0, 400)
+        : null,
       mount: null,
       usesSdk: [],
       judge: null,
-      defects: b?.status === "live" ? [] : [`build ${b?.status ?? "timed out"}`],
+      defects:
+        b?.status === "live" ? [] : [`build ${b?.status ?? "timed out"}`],
       dir: null,
     };
     if (b?.status === "live" && b.result_version) {
@@ -458,37 +608,67 @@ async function runScenario(s: Scenario): Promise<Row[]> {
       await writeTree(join(OUT, slug, `src-v${live}`), before);
       await writeTree(join(OUT, slug, `src-v${n}`), after);
       try {
-        row.mount = await mount(dir, await stage(await fetchServed(slug, n), dir));
+        row.mount = await mount(
+          dir,
+          await stage(await fetchServed(slug, n), dir),
+        );
       } catch (e) {
         row.mount = null;
         row.error = `serve: ${e}`;
       }
-      const code = after.filter((f) => /\.(jsx?|tsx?)$/.test(f.path)).map((f) => f.text).join("\n");
-      row.usesSdk = SDK_HOOKS.filter((h) => new RegExp(`\\b${h}\\b`).test(code) && /from\s+["']playground["']/.test(code));
+      const code = after
+        .filter((f) => /\.(jsx?|tsx?)$/.test(f.path))
+        .map((f) => f.text)
+        .join("\n");
+      row.usesSdk = SDK_HOOKS.filter(
+        (h) =>
+          new RegExp(`\\b${h}\\b`).test(code) &&
+          /from\s+["']playground["']/.test(code),
+      );
       row.defects = defectsOf(row.mount, after.map((f) => f.text).join("\n"));
-      if (row.summary?.includes("\u2014")) row.defects.push("emdash in the summary");
+      if (row.summary?.includes("\u2014"))
+        row.defects.push("emdash in the summary");
       row.judge = await judgeRow(row, live);
       live = n;
     }
     rows.push(row);
-    console.log(`${s.key}#${i} ${row.status} v${row.version ?? "-"} ${(row.totalMs / 1000).toFixed(1)}s ${row.mount?.ok ? "runs" : "BROKEN"} judge=${JSON.stringify(row.judge)}`);
+    console.log(
+      `${s.key}#${i} ${row.status} v${row.version ?? "-"} ${(row.totalMs / 1000).toFixed(1)}s ${row.mount?.ok ? "runs" : "BROKEN"} judge=${JSON.stringify(row.judge)}`,
+    );
   }
   room?.stop();
   await v.client.close();
   return rows;
 }
 
-const chosen = SCENARIOS.filter((s) => !only.length || only.includes(s.key)).map((s) => (firstOnly ? { ...s, steps: s.steps.slice(0, 1) } : s));
-const rows = (await Promise.all(chosen.map((s) => runScenario(s).catch((e) => (console.log(`${s.key} crashed: ${e}`), [] as Row[]))))).flat();
+const chosen = SCENARIOS.filter(
+  (s) => !only.length || only.includes(s.key),
+).map((s) => (firstOnly ? { ...s, steps: s.steps.slice(0, 1) } : s));
+const rows = (
+  await Promise.all(
+    chosen.map((s) =>
+      runScenario(s).catch(
+        (e) => (console.log(`${s.key} crashed: ${e}`), [] as Row[]),
+      ),
+    ),
+  )
+).flat();
 
 // Costs live on the build rows; read them from the deployment.
-const dump = Bun.spawn(["npx", "convex", "data", "builds", "--limit", "2000", "--format", "jsonl"], { cwd: ROOT, stdout: "pipe" });
+const dump = Bun.spawn(
+  ["npx", "convex", "data", "builds", "--limit", "2000", "--format", "jsonl"],
+  { cwd: ROOT, stdout: "pipe" },
+);
 const builds = (await new Response(dump.stdout).text())
   .split("\n")
   .filter((l) => l.startsWith("{"))
   .map((l) => JSON.parse(l) as { _id: string; cost_usd?: number });
 const cost = new Map(builds.map((b) => [b._id, b.cost_usd ?? null]));
-for (const row of rows) row.costUsd = row.buildId ? (cost.get(row.buildId) ?? null) : null;
+for (const row of rows)
+  row.costUsd = row.buildId ? (cost.get(row.buildId) ?? null) : null;
 
-await Bun.write(join(OUT, "results.json"), JSON.stringify({ label, rows, builds: builds.length }, null, 2));
+await Bun.write(
+  join(OUT, "results.json"),
+  JSON.stringify({ label, rows, builds: builds.length }, null, 2),
+);
 console.log(`\n${summarize(label, rows)}\nwrote ${join(OUT, "results.json")}`);

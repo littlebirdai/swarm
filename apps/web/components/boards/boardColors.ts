@@ -14,8 +14,13 @@ const TOKEN: Record<BoardColor, string> = {
   gray: "var(--sol-text-dim)",
 };
 
-export function colorToken(name: unknown, fallback: BoardColor = "gray"): string {
-  return TOKEN[(typeof name === "string" && name in TOKEN ? name : fallback) as BoardColor];
+export function colorToken(
+  name: unknown,
+  fallback: BoardColor = "gray",
+): string {
+  return TOKEN[
+    (typeof name === "string" && name in TOKEN ? name : fallback) as BoardColor
+  ];
 }
 
 /** A sticky's paper: the color washed into the card surface, strong enough to read as that color. */
@@ -35,4 +40,17 @@ export function shapeFill(name: unknown): string {
 }
 
 /** The stamp palette, in toolbar order. */
-export const STAMPS = ["👍", "❤️", "🎉", "🔥", "✅", "❓", "⭐", "👀", "🚀", "💡", "⚠️", "😂"] as const;
+export const STAMPS = [
+  "👍",
+  "❤️",
+  "🎉",
+  "🔥",
+  "✅",
+  "❓",
+  "⭐",
+  "👀",
+  "🚀",
+  "💡",
+  "⚠️",
+  "😂",
+] as const;

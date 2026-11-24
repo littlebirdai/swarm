@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { seedFiles } from "../lib/seed";
-import { Draft, DraftError, draftProblems, importSpecifiers, resolveRelative } from "./draft";
+import {
+  Draft,
+  DraftError,
+  draftProblems,
+  importSpecifiers,
+  resolveRelative,
+} from "./draft";
 
 const seed = () => new Draft(seedFiles("Frog Choir"));
 
@@ -11,16 +17,22 @@ describe("Draft operations", () => {
     expect(() => d.edit("index.html", "zzz", "x")).toThrow(/was not found/);
     expect(d.edit("index.html", "a b", "c")).toBe("Edited index.html.");
     expect(d.read("index.html")).toBe("c a");
-    expect(d.edit("./index.html", "c", "$&$1", true)).toBe("Edited index.html.");
+    expect(d.edit("./index.html", "c", "$&$1", true)).toBe(
+      "Edited index.html.",
+    );
     expect(d.read("index.html")).toBe("$&$1 a");
   });
 
   test("paths are normalized and bad ones are refused in words the agent can use", () => {
     const d = seed();
-    expect(d.write("./src/Board.jsx", "export default 1;")).toBe("Created src/Board.jsx (17 bytes).");
+    expect(d.write("./src/Board.jsx", "export default 1;")).toBe(
+      "Created src/Board.jsx (17 bytes).",
+    );
     expect(d.has("src/Board.jsx")).toBe(true);
     expect(() => d.write("../escape.js", "")).toThrow(DraftError);
-    expect(() => d.write("src/photo.png", "")).toThrow(/not a path a version can hold/);
+    expect(() => d.write("src/photo.png", "")).toThrow(
+      /not a path a version can hold/,
+    );
     expect(() => d.remove("index.html")).toThrow(/cannot be deleted/);
     expect(() => d.read("src/Nope.jsx")).toThrow(/does not exist/);
   });
@@ -64,8 +76,14 @@ describe("draftProblems", () => {
 
   test("an import of a missing file is caught before it can white-screen the app", () => {
     const d = seed();
-    d.edit("src/App.jsx", 'import { useState } from "react";', 'import { useState } from "react";\nimport Pond from "./Pond.jsx";');
-    expect(draftProblems(d.snapshot())).toEqual(['src/App.jsx imports "./Pond.jsx", but src/Pond.jsx does not exist']);
+    d.edit(
+      "src/App.jsx",
+      'import { useState } from "react";',
+      'import { useState } from "react";\nimport Pond from "./Pond.jsx";',
+    );
+    expect(draftProblems(d.snapshot())).toEqual([
+      'src/App.jsx imports "./Pond.jsx", but src/Pond.jsx does not exist',
+    ]);
   });
 
   test("CSS imported from JavaScript, root paths and unmapped packages are refused with a fix", () => {
@@ -76,14 +94,28 @@ describe("draftProblems", () => {
       'import App from "./App.jsx";\nimport "./styles.css";\nimport confetti from "canvas-confetti";\nimport x from "/src/App.jsx";',
     );
     const problems = draftProblems(d.snapshot());
-    expect(problems).toContain('src/main.jsx imports the stylesheet "./styles.css"; browsers cannot import CSS from JavaScript, so link it from index.html instead');
-    expect(problems.some((p) => p.includes('"canvas-confetti", which the import map does not name') && p.includes("https://esm.sh/"))).toBe(true);
-    expect(problems.some((p) => p.includes('"/src/App.jsx"; use a relative path'))).toBe(true);
+    expect(problems).toContain(
+      'src/main.jsx imports the stylesheet "./styles.css"; browsers cannot import CSS from JavaScript, so link it from index.html instead',
+    );
+    expect(
+      problems.some(
+        (p) =>
+          p.includes('"canvas-confetti", which the import map does not name') &&
+          p.includes("https://esm.sh/"),
+      ),
+    ).toBe(true);
+    expect(
+      problems.some((p) => p.includes('"/src/App.jsx"; use a relative path')),
+    ).toBe(true);
   });
 
   test("URL imports and import map entries pass", () => {
     const d = seed();
-    d.edit("src/main.jsx", 'import App from "./App.jsx";', 'import App from "./App.jsx";\nimport confetti from "https://esm.sh/canvas-confetti@1";\nimport { flushSync } from "react-dom";');
+    d.edit(
+      "src/main.jsx",
+      'import App from "./App.jsx";',
+      'import App from "./App.jsx";\nimport confetti from "https://esm.sh/canvas-confetti@1";\nimport { flushSync } from "react-dom";',
+    );
     expect(draftProblems(d.snapshot())).toEqual([]);
   });
 
@@ -92,12 +124,20 @@ describe("draftProblems", () => {
     d.edit("index.html", 'href="src/styles.css"', 'href="src/style.css"');
     d.edit("index.html", '"imports": {', '"imports": {,');
     const problems = draftProblems(d.snapshot());
-    expect(problems).toContain('index.html loads "src/style.css", which does not exist');
-    expect(problems.some((p) => p.startsWith("the import map in index.html is not valid JSON"))).toBe(true);
+    expect(problems).toContain(
+      'index.html loads "src/style.css", which does not exist',
+    );
+    expect(
+      problems.some((p) =>
+        p.startsWith("the import map in index.html is not valid JSON"),
+      ),
+    ).toBe(true);
   });
 
   test("losing index.html is a problem", () => {
-    expect(draftProblems([{ path: "src/main.js", text: "" }])).toContain("index.html is missing");
+    expect(draftProblems([{ path: "src/main.js", text: "" }])).toContain(
+      "index.html is missing",
+    );
   });
 });
 
@@ -113,12 +153,20 @@ describe("module references", () => {
       'const c = await import("./c.js");',
       '// import d from "./d.js";',
     ].join("\n");
-    expect(importSpecifiers(code).sort()).toEqual(["./a.js", "./b.js", "./c.js", "./side.js", "react"]);
+    expect(importSpecifiers(code).sort()).toEqual([
+      "./a.js",
+      "./b.js",
+      "./c.js",
+      "./side.js",
+      "react",
+    ]);
   });
 
   test("resolveRelative stays inside the app", () => {
     expect(resolveRelative("src/App.jsx", "./Pond.jsx")).toBe("src/Pond.jsx");
-    expect(resolveRelative("src/parts/A.jsx", "../B.jsx?v=1")).toBe("src/B.jsx");
+    expect(resolveRelative("src/parts/A.jsx", "../B.jsx?v=1")).toBe(
+      "src/B.jsx",
+    );
     expect(resolveRelative("index.html", "src/main.jsx")).toBe("src/main.jsx");
     expect(resolveRelative("src/App.jsx", "../../x.js")).toBeNull();
   });

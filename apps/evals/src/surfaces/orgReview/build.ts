@@ -1,9 +1,12 @@
-import { createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 
-import { buildOrgAnalyzerPrompt, summarizeInputs } from '../../../../../apps/cli/src/orgInitRun';
-import { REPO_ROOT } from '../../paths';
-import { recordSentence, type Cut } from '../../served';
+import {
+  buildOrgAnalyzerPrompt,
+  summarizeInputs,
+} from "../../../../../apps/cli/src/orgInitRun";
+import { REPO_ROOT } from "../../paths";
+import { recordSentence, type Cut } from "../../served";
 
 // One org-review sample's briefing (the port of ~/.cache/org-eval/bin/mkrun.ts):
 // the analyzer prompt built from the working tree (the prompt under test) over
@@ -12,14 +15,28 @@ import { recordSentence, type Cut } from '../../served';
 // wrote to hashes.json are kept, and the prompt's full sha256 becomes
 // run.json.promptSha (its first 12 characters are the old `prompt` hash).
 
-export type OrgMode = 'init' | 'review';
+export type OrgMode = "init" | "review";
 
 /** The checker the harness note sends the agent to; run from the agent's own cwd, so absolute. */
-export const CHECK_SCRIPT = join(REPO_ROOT, 'apps', 'evals', 'src', 'surfaces', 'orgReview', 'checkProposal.ts');
+export const CHECK_SCRIPT = join(
+  REPO_ROOT,
+  "apps",
+  "evals",
+  "src",
+  "surfaces",
+  "orgReview",
+  "checkProposal.ts",
+);
 
 /** What to write instead of posting. The text is mkrun's, with its two paths pointed here; `frozen` is what the served dir freezes. */
-export function harnessNote(proposalsDir: string, frozen: string[], cut?: Cut | null): string {
-  const history = cut ? ` Git history in every repository stands at ${cut.at}, when the record was saved: \`git log\`, \`git show\` and \`git grep\` answer from it (name \`origin/main\` to read a file), and no later commit exists.` : '';
+export function harnessNote(
+  proposalsDir: string,
+  frozen: string[],
+  cut?: Cut | null,
+): string {
+  const history = cut
+    ? ` Git history in every repository stands at ${cut.at}, when the record was saved: \`git log\`, \`git show\` and \`git grep\` answer from it (name \`origin/main\` to read a file), and no later commit exists.`
+    : "";
   return `
 ## Dry run (harness note)
 
@@ -46,17 +63,39 @@ export interface OrgBriefing {
   hashes: OrgHashes;
 }
 
-const sha = (s: string): string => createHash('sha256').update(s).digest('hex');
+const sha = (s: string): string => createHash("sha256").update(s).digest("hex");
 
-export function buildBriefing(o: { inputsText: string; workspace: string; served: string; proposalsDir: string; frozen: string[]; cut?: Cut | null; mode?: OrgMode; now?: Date }): OrgBriefing {
+export function buildBriefing(o: {
+  inputsText: string;
+  workspace: string;
+  served: string;
+  proposalsDir: string;
+  frozen: string[];
+  cut?: Cut | null;
+  mode?: OrgMode;
+  now?: Date;
+}): OrgBriefing {
   const inputs = JSON.parse(o.inputsText) as { workspace?: { name?: string } };
-  const mode = o.mode ?? 'review';
+  const mode = o.mode ?? "review";
   const name = inputs.workspace?.name ?? o.workspace;
-  const prompt = buildOrgAnalyzerPrompt({ mode, workspace: name, teamFlag: name, summary: summarizeInputs(inputs) });
+  const prompt = buildOrgAnalyzerPrompt({
+    mode,
+    workspace: name,
+    teamFlag: name,
+    summary: summarizeInputs(inputs),
+  });
   const promptSha = sha(prompt);
   return {
     prompt,
     briefing: prompt + harnessNote(o.proposalsDir, o.frozen, o.cut),
-    hashes: { inputs: sha(o.inputsText).slice(0, 12), prompt: promptSha.slice(0, 12), served: o.served, mode, built_at: (o.now ?? new Date()).toISOString(), workspace: o.workspace, promptSha },
+    hashes: {
+      inputs: sha(o.inputsText).slice(0, 12),
+      prompt: promptSha.slice(0, 12),
+      served: o.served,
+      mode,
+      built_at: (o.now ?? new Date()).toISOString(),
+      workspace: o.workspace,
+      promptSha,
+    },
   };
 }

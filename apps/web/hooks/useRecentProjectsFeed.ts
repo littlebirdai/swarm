@@ -9,7 +9,9 @@ import { useConvexSync } from "./useConvexSync";
  *  current list rather than whatever the cache last held. No-throw: the cached
  *  list is the honest answer when the query fails. */
 export function useRecentProjectsFeed() {
-  const { data: fresh } = useQueryNoThrow(api.users.getRecentProjectPaths, { limit: 50 });
+  const { data: fresh } = useQueryNoThrow(api.users.getRecentProjectPaths, {
+    limit: 50,
+  });
   const setRecentProjects = useInboxStore((s) => s.setRecentProjects);
   useConvexSync(fresh, setRecentProjects);
   return fresh;

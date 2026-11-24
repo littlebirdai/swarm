@@ -7,7 +7,7 @@ import { checkConversationAccess } from "./privacy";
 
 async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -86,7 +86,15 @@ export const getImageUrls = query({
     if (!args.conversation_id) return null;
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
-    if ((await checkConversationAccess(ctx, null, conversation, args.share_token)) === "denied") return null;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        null,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return null;
     // Resolve only ids that verifiably belong to the shared conversation —
     // membership is proven by scanning its messages' storage-backed
     // attachments: inline images, and the files an agent sent the reader.
@@ -98,11 +106,14 @@ export const getImageUrls = query({
     for await (const msg of ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id!)
+        q.eq("conversation_id", args.conversation_id!),
       )) {
       if (++scanned > GUEST_IMAGE_SCAN_CAP) break;
       for (const attachment of [...(msg.images ?? []), ...(msg.files ?? [])]) {
-        if (attachment.storage_id && wanted.has(attachment.storage_id.toString())) {
+        if (
+          attachment.storage_id &&
+          wanted.has(attachment.storage_id.toString())
+        ) {
           verified.add(attachment.storage_id.toString());
         }
       }
@@ -112,7 +123,9 @@ export const getImageUrls = query({
     // verdict (cached in memory, never persisted), not a transient miss.
     const urls: Record<string, string | null> = {};
     for (const id of args.storageIds) {
-      urls[id] = verified.has(id.toString()) ? await ctx.storage.getUrl(id) : null;
+      urls[id] = verified.has(id.toString())
+        ? await ctx.storage.getUrl(id)
+        : null;
     }
     return urls;
   },

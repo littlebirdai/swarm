@@ -7,7 +7,8 @@
 
 const CITATION_RE = /\bmsgs? (-?\d+)(?:\s*[–-]\s*(?:msg )?(-?\d+))?/gi;
 // A list after a citation carries on citing: "msg 262, 265 and 270–272".
-const LIST_ITEM_RE = /^(,\s*(?:and\s+)?|\s+and\s+)(-?\d+)(?:\s*[–-]\s*(-?\d+))?(?![\d.]*\d|\s*(?:%|(?!and\b)[a-z]))/i;
+const LIST_ITEM_RE =
+  /^(,\s*(?:and\s+)?|\s+and\s+)(-?\d+)(?:\s*[–-]\s*(-?\d+))?(?![\d.]*\d|\s*(?:%|(?!and\b)[a-z]))/i;
 
 export interface CitationSpan {
   /** Where the citation sits in the answer, and its exact text. */
@@ -23,13 +24,29 @@ export function citationSpans(answer: string): CitationSpan[] {
   const out: CitationSpan[] = [];
   for (const m of answer.matchAll(CITATION_RE)) {
     const from = Number(m[1]);
-    out.push({ start: m.index!, end: m.index! + m[0].length, text: m[0], from, to: m[2] ? Number(m[2]) : from });
+    out.push({
+      start: m.index!,
+      end: m.index! + m[0].length,
+      text: m[0],
+      from,
+      to: m[2] ? Number(m[2]) : from,
+    });
     let at = m.index! + m[0].length;
-    for (let item = LIST_ITEM_RE.exec(answer.slice(at)); item; item = LIST_ITEM_RE.exec(answer.slice(at))) {
+    for (
+      let item = LIST_ITEM_RE.exec(answer.slice(at));
+      item;
+      item = LIST_ITEM_RE.exec(answer.slice(at))
+    ) {
       const start = at + item[1].length;
       const text = item[0].slice(item[1].length);
       const first = Number(item[2]);
-      out.push({ start, end: start + text.length, text, from: first, to: item[3] ? Number(item[3]) : first });
+      out.push({
+        start,
+        end: start + text.length,
+        text,
+        from: first,
+        to: item[3] ? Number(item[3]) : first,
+      });
       at = start + text.length;
     }
   }
@@ -41,5 +58,8 @@ export function citationSpans(answer: string): CitationSpan[] {
 export function spanLines(span: Pick<CitationSpan, "from" | "to">): number[] {
   const { from, to } = span;
   if (to < from) return [from, to];
-  return Array.from({ length: Math.min(to, from + 50) - from + 1 }, (_, i) => from + i);
+  return Array.from(
+    { length: Math.min(to, from + 50) - from + 1 },
+    (_, i) => from + i,
+  );
 }

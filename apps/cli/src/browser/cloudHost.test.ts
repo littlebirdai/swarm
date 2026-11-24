@@ -4,10 +4,30 @@ import { promisify } from "node:util";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { instanceNameTag, NEW_HOST_LOGINS, patchHost, readHosts, registryLockPath, resolveCloudHost, toRemoteHost, upsertHost, writeHosts, type CloudHost } from "./cloudHost";
+import {
+  instanceNameTag,
+  NEW_HOST_LOGINS,
+  patchHost,
+  readHosts,
+  registryLockPath,
+  resolveCloudHost,
+  toRemoteHost,
+  upsertHost,
+  writeHosts,
+  type CloudHost,
+} from "./cloudHost";
 
 let dir: string, prev: string | undefined;
-const base: CloudHost = { id: "i-1", provider: "aws", region: "us-west-2", user: "ubuntu", keyPath: "/k", address: "1.1.1.1", forwardAgent: true, idleStopMinutes: 20 };
+const base: CloudHost = {
+  id: "i-1",
+  provider: "aws",
+  region: "us-west-2",
+  user: "ubuntu",
+  keyPath: "/k",
+  address: "1.1.1.1",
+  forwardAgent: true,
+  idleStopMinutes: 20,
+};
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-hosts-"));
@@ -17,45 +37,72 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (prev === undefined) delete process.env.CODECAST_DIR; else process.env.CODECAST_DIR = prev;
+  if (prev === undefined) delete process.env.CODECAST_DIR;
+  else process.env.CODECAST_DIR = prev;
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 describe("login setting on new hosts (#99)", () => {
   test("a host new to the registry starts with cloud and database credentials off; a host already registered keeps getting everything", () => {
-    expect(NEW_HOST_LOGINS).toEqual({ off: ["aws", "kube", "pgpass", "netrc", "git-credentials"] });
+    expect(NEW_HOST_LOGINS).toEqual({
+      off: ["aws", "kube", "pgpass", "netrc", "git-credentials"],
+    });
     upsertHost({ ...base, id: "i-new" });
-    expect(readHosts().find((h) => h.id === "i-new")!.logins).toEqual(NEW_HOST_LOGINS);
+    expect(readHosts().find((h) => h.id === "i-new")!.logins).toEqual(
+      NEW_HOST_LOGINS,
+    );
     // Re-registering an entry that predates the setting (cast hosts add on it again) leaves it unset: every login.
     upsertHost({ ...base, address: "3.3.3.3" });
     expect(readHosts().find((h) => h.id === "i-1")!.logins).toBeUndefined();
     // A caller's own setting wins on a new host.
     upsertHost({ ...base, id: "i-wide", logins: { off: [] } });
-    expect(readHosts().find((h) => h.id === "i-wide")!.logins).toEqual({ off: [] });
+    expect(readHosts().find((h) => h.id === "i-wide")!.logins).toEqual({
+      off: [],
+    });
   });
 
   test("toRemoteHost carries the setting, so every push path (daemon, prepare, wake, provision, sync-auth) reads it from the host it dials", () => {
-    expect(toRemoteHost({ ...base, logins: { only: ["gh"] } }).logins).toEqual({ only: ["gh"] });
+    expect(toRemoteHost({ ...base, logins: { only: ["gh"] } }).logins).toEqual({
+      only: ["gh"],
+    });
     expect("logins" in toRemoteHost(base)).toBe(false);
   });
 });
 
 describe("patchHost — field-level registry writes under a lock", () => {
   test("merges only the named fields and leaves the other entry alone; an explicit undefined clears a field", () => {
-    const merged = patchHost("i-1", { address: "9.9.9.9", gitAccess: { origin: "o", read: true, write: false, checkedAt: 1 } });
-    expect(merged).toEqual({ ...base, address: "9.9.9.9", gitAccess: { origin: "o", read: true, write: false, checkedAt: 1 } });
+    const merged = patchHost("i-1", {
+      address: "9.9.9.9",
+      gitAccess: { origin: "o", read: true, write: false, checkedAt: 1 },
+    });
+    expect(merged).toEqual({
+      ...base,
+      address: "9.9.9.9",
+      gitAccess: { origin: "o", read: true, write: false, checkedAt: 1 },
+    });
     const hosts = readHosts();
     expect(hosts.find((h) => h.id === "i-1")).toEqual(merged);
-    expect(hosts.find((h) => h.id === "i-2")).toEqual({ ...base, id: "i-2", address: "2.2.2.2" });
-    expect(patchHost("i-1", { gitAccess: undefined })!.gitAccess).toBeUndefined();
+    expect(hosts.find((h) => h.id === "i-2")).toEqual({
+      ...base,
+      id: "i-2",
+      address: "2.2.2.2",
+    });
+    expect(
+      patchHost("i-1", { gitAccess: undefined })!.gitAccess,
+    ).toBeUndefined();
     expect("gitAccess" in readHosts().find((h) => h.id === "i-1")!).toBe(false);
     expect(fs.existsSync(registryLockPath())).toBe(false);
   });
 
   test("an unknown id returns undefined and writes nothing", () => {
-    const before = fs.readFileSync(path.join(dir, "browser", "hosts.json"), "utf-8");
+    const before = fs.readFileSync(
+      path.join(dir, "browser", "hosts.json"),
+      "utf-8",
+    );
     expect(patchHost("i-nope", { address: "x" })).toBeUndefined();
-    expect(fs.readFileSync(path.join(dir, "browser", "hosts.json"), "utf-8")).toBe(before);
+    expect(
+      fs.readFileSync(path.join(dir, "browser", "hosts.json"), "utf-8"),
+    ).toBe(before);
     expect(fs.existsSync(registryLockPath())).toBe(false);
   });
 
@@ -68,7 +115,9 @@ describe("patchHost — field-level registry writes under a lock", () => {
     expect(fs.existsSync(lock)).toBe(false);
     // A fresh lock that is never released: patchHost retries, then gives up loudly rather than clobbering.
     fs.writeFileSync(lock, "999999");
-    expect(() => patchHost("i-1", { address: "x" })).toThrow(/registry is locked/);
+    expect(() => patchHost("i-1", { address: "x" })).toThrow(
+      /registry is locked/,
+    );
     expect(readHosts().find((h) => h.id === "i-1")!.address).toBe("1.1.1.1");
     fs.unlinkSync(lock);
   });
@@ -82,8 +131,15 @@ describe("patchHost — field-level registry writes under a lock", () => {
     `;
     const file = path.join(dir, "worker.ts");
     fs.writeFileSync(file, script);
-    const a = Bun.spawn([process.execPath, file, "address", "10.0.0."], { env: process.env, stdout: "pipe", stderr: "pipe" });
-    const r = spawnSync(process.execPath, [file, "forwardAgent", "false"], { env: process.env, encoding: "utf-8" });
+    const a = Bun.spawn([process.execPath, file, "address", "10.0.0."], {
+      env: process.env,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const r = spawnSync(process.execPath, [file, "forwardAgent", "false"], {
+      env: process.env,
+      encoding: "utf-8",
+    });
     expect(r.status).toBe(0);
     const aStatus = a.exited;
     return aStatus.then((code) => {
@@ -104,25 +160,53 @@ describe("ensureUp — the address write is a field-level patch", () => {
     const home = path.join(dir, "home");
     const localBin = path.join(home, ".local", "bin");
     fs.mkdirSync(localBin, { recursive: true });
-    fs.writeFileSync(path.join(localBin, "aws"), `#!/bin/sh
+    fs.writeFileSync(
+      path.join(localBin, "aws"),
+      `#!/bin/sh
 case "$*" in
   *describe-instances*) echo '{"Reservations":[{"Instances":[{"State":{"Name":"running"},"PublicIpAddress":"5.5.5.5"}]}]}';;
   *) echo '{}';;
 esac
-`, { mode: 0o755 });
-    fs.writeFileSync(path.join(localBin, "ssh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+`,
+      { mode: 0o755 },
+    );
+    fs.writeFileSync(path.join(localBin, "ssh"), "#!/bin/sh\nexit 0\n", {
+      mode: 0o755,
+    });
     // The object ensureUp was handed still says forwardAgent: true; `cast hosts forward-agent --off` ran meanwhile.
-    patchHost("i-1", { forwardAgent: false, gitAccess: { origin: "o", read: true, write: true, checkedAt: 7 } });
-    const { stdout } = await promisify(execFile)(process.execPath, ["-e", `
+    patchHost("i-1", {
+      forwardAgent: false,
+      gitAccess: { origin: "o", read: true, write: true, checkedAt: 7 },
+    });
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        "-e",
+        `
       import { ensureUp } from ${JSON.stringify(path.resolve(import.meta.dir, "cloudHost.ts"))};
       if (Bun.which("ssh") !== ${JSON.stringify(path.join(localBin, "ssh"))}) throw new Error("fixture ssh not selected");
       console.log(JSON.stringify(await ensureUp(${JSON.stringify(base)})));
-    `], { env: { ...process.env, HOME: home, PATH: `${localBin}:${process.env.PATH}` }, timeout: 30_000 });
+    `,
+      ],
+      {
+        env: {
+          ...process.env,
+          HOME: home,
+          PATH: `${localBin}:${process.env.PATH}`,
+        },
+        timeout: 30_000,
+      },
+    );
     expect(JSON.parse(stdout).address).toBe("5.5.5.5");
     const entry = readHosts().find((h) => h.id === "i-1")!;
     expect(entry.address).toBe("5.5.5.5");
     expect(entry.forwardAgent).toBe(false);
-    expect(entry.gitAccess).toEqual({ origin: "o", read: true, write: true, checkedAt: 7 });
+    expect(entry.gitAccess).toEqual({
+      origin: "o",
+      read: true,
+      write: true,
+      checkedAt: 7,
+    });
     expect(entry.idleStopMinutes).toBe(20);
     expect(readHosts().find((h) => h.id === "i-2")!.address).toBe("2.2.2.2");
     expect(fs.existsSync(registryLockPath())).toBe(false);
@@ -131,8 +215,17 @@ esac
 
 describe("instanceNameTag", () => {
   test("reads the Name tag a person gave the instance, and nothing for a blank or missing one", () => {
-    expect(instanceNameTag({ Tags: [{ Key: "managed-by", Value: "codecast" }, { Key: "Name", Value: " union-line-1 " }] })).toBe("union-line-1");
-    expect(instanceNameTag({ Tags: [{ Key: "Name", Value: "  " }] })).toBeUndefined();
+    expect(
+      instanceNameTag({
+        Tags: [
+          { Key: "managed-by", Value: "codecast" },
+          { Key: "Name", Value: " union-line-1 " },
+        ],
+      }),
+    ).toBe("union-line-1");
+    expect(
+      instanceNameTag({ Tags: [{ Key: "Name", Value: "  " }] }),
+    ).toBeUndefined();
     expect(instanceNameTag({})).toBeUndefined();
     expect(instanceNameTag(null)).toBeUndefined();
   });
@@ -144,6 +237,8 @@ describe("resolveCloudHost — the default skips a host reserved for one job", (
     expect(resolveCloudHost().id).toBe("i-2");
     expect(resolveCloudHost("i-1").id).toBe("i-1");
     patchHost("i-2", { reservedFor: "evals" });
-    expect(() => resolveCloudHost()).toThrow("every registered cloud host is reserved for one job (i-1: Union line, i-2: evals)");
+    expect(() => resolveCloudHost()).toThrow(
+      "every registered cloud host is reserved for one job (i-1: Union line, i-2: evals)",
+    );
   });
 });

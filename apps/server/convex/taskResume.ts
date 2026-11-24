@@ -9,11 +9,22 @@
 import { v } from "convex/values";
 import { query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
-import { canAccessPlan, canAccessTask, isSameWorkspace, workspaceForResource } from "./lib/access";
+import {
+  canAccessPlan,
+  canAccessTask,
+  isSameWorkspace,
+  workspaceForResource,
+} from "./lib/access";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
 import { orderFrontier, readyTasks, taskLookups } from "./lib/taskGraph";
 import { boundSessionsOf } from "./lib/taskOwner";
-import { blockersHoldingBack, isActiveTask, isTerminalTaskStatus, RESUME_SUBTASKS_SHOWN, type TaskResumeContext } from "@codecast/shared/tasks";
+import {
+  blockersHoldingBack,
+  isActiveTask,
+  isTerminalTaskStatus,
+  RESUME_SUBTASKS_SHOWN,
+  type TaskResumeContext,
+} from "@codecast/shared/tasks";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 
@@ -37,17 +48,31 @@ export const context = query({
   handler: async (ctx, args): Promise<TaskResumeContext | null> => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new Error("Unauthorized");
-    const readable = async (t: Doc<"tasks"> | null) => (t && (await canAccessTask(ctx, auth.userId, t)) ? t : null);
+    const readable = async (t: Doc<"tasks"> | null) =>
+      t && (await canAccessTask(ctx, auth.userId, t)) ? t : null;
     // Only the caller's own session: a teammate's shared one carries a binding
     // that says nothing about whether this session holds the task.
-    const session: Doc<"conversations"> | null = args.session_id ? await findConversationBySessionReference(ctx, args.session_id, auth.userId) : null;
+    const session: Doc<"conversations"> | null = args.session_id
+      ? await findConversationBySessionReference(
+          ctx,
+          args.session_id,
+          auth.userId,
+        )
+      : null;
     const pulsed = args.short_id
-      ? await readable(await ctx.db.query("tasks").withIndex("by_short_id", (q) => q.eq("short_id", args.short_id!)).first())
+      ? await readable(
+          await ctx.db
+            .query("tasks")
+            .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id!))
+            .first(),
+        )
       : null;
     // The binding on the conversation is the truth; the pulse only names the
     // task the session touched last, which may be one it merely filed. A
     // session the server spawned for a task has no pulse at all.
-    const heldTask = session?.active_task_id ? await readable(await ctx.db.get(session.active_task_id)) : null;
+    const heldTask = session?.active_task_id
+      ? await readable(await ctx.db.get(session.active_task_id))
+      : null;
     const task = heldTask ?? pulsed;
     if (!task) return null;
     // A task the session only filed and that has since closed leaves it nothing to pick up.
@@ -60,17 +85,25 @@ export const context = query({
     const blockers: TaskResumeContext["blockers"] = [];
     for (const b of blockersHoldingBack(task, statusOf)) {
       const row = b.kind === "task" ? statusOf(b.ref) : null;
-      const found = row && typeof row === "object" ? (row as Doc<"tasks">) : null;
+      const found =
+        row && typeof row === "object" ? (row as Doc<"tasks">) : null;
       // Older rows name a blocker by its Convex id; the agent needs the short id.
       const ref = found?.short_id ? { ref: found.short_id } : {};
       const titled = found && (await readable(found));
-      blockers.push({ ...b, ...ref, ...(titled ? { title: titled.title } : {}) });
+      blockers.push({
+        ...b,
+        ...ref,
+        ...(titled ? { title: titled.title } : {}),
+      });
     }
 
     // Newest first, until the last progress note: the comments after it are counted.
     const newer: Doc<"task_comments">[] = [];
     let note: Doc<"task_comments"> | null = null;
-    for await (const c of ctx.db.query("task_comments").withIndex("by_task_created", (q) => q.eq("task_id", task._id)).order("desc")) {
+    for await (const c of ctx.db
+      .query("task_comments")
+      .withIndex("by_task_created", (q) => q.eq("task_id", task._id))
+      .order("desc")) {
       if (c.comment_type === "progress") {
         note = c;
         break;
@@ -81,13 +114,40 @@ export const context = query({
     const capped = !note && newer.length >= COMMENT_SCAN;
 
     return {
-      task: { short_id: task.short_id, title: task.title, status: task.status, priority: task.priority },
-      ...(heldTask ? { held: true } : filed ? { filed: true, ...(session ? { held: false } : {}) } : session ? await lostOf(ctx, session, task) : {}),
-      ...(heldTask && pulsed && pulsed._id !== heldTask._id ? { recent: { short_id: pulsed.short_id, title: pulsed.title, status: pulsed.status } } : {}),
+      task: {
+        short_id: task.short_id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+      },
+      ...(heldTask
+        ? { held: true }
+        : filed
+          ? { filed: true, ...(session ? { held: false } : {}) }
+          : session
+            ? await lostOf(ctx, session, task)
+            : {}),
+      ...(heldTask && pulsed && pulsed._id !== heldTask._id
+        ? {
+            recent: {
+              short_id: pulsed.short_id,
+              title: pulsed.title,
+              status: pulsed.status,
+            },
+          }
+        : {}),
       blockers,
       subtasks: await openSubtasks(ctx, task, readable),
-      progress: note ? { text: note.text, author: note.author, created_at: note.created_at } : null,
-      newer: newer.length ? { count: newer.length, ...(capped ? { capped } : {}), latest: { type: newer[0].comment_type, author: newer[0].author } } : null,
+      progress: note
+        ? { text: note.text, author: note.author, created_at: note.created_at }
+        : null,
+      newer: newer.length
+        ? {
+            count: newer.length,
+            ...(capped ? { capped } : {}),
+            latest: { type: newer[0].comment_type, author: newer[0].author },
+          }
+        : null,
       plan: await planOf(ctx, auth.userId, task, args.plan_id, session),
     };
   },
@@ -95,10 +155,16 @@ export const context = query({
 
 /** A task the session started but no longer holds: whether it lost it because
  *  the task closed or because another session holds it now. */
-async function lostOf(ctx: QueryCtx, session: Doc<"conversations">, task: Doc<"tasks">): Promise<Pick<TaskResumeContext, "held" | "lost">> {
+async function lostOf(
+  ctx: QueryCtx,
+  session: Doc<"conversations">,
+  task: Doc<"tasks">,
+): Promise<Pick<TaskResumeContext, "held" | "lost">> {
   if (isTerminalTaskStatus(task.status)) return { held: false, lost: "closed" };
   const owners = await boundSessionsOf(ctx, task);
-  return owners.some((c) => c._id !== session._id) ? { held: false, lost: "claimed" } : { held: false };
+  return owners.some((c) => c._id !== session._id)
+    ? { held: false, lost: "claimed" }
+    : { held: false };
 }
 
 /** The first open subtasks the caller may read, in the order they were filed,
@@ -110,12 +176,21 @@ async function openSubtasks(
 ): Promise<NonNullable<TaskResumeContext["subtasks"]>> {
   const open: Doc<"tasks">[] = [];
   let scanned = 0;
-  for await (const c of ctx.db.query("tasks").withIndex("by_parent_id", (q) => q.eq("parent_id", task._id))) {
+  for await (const c of ctx.db
+    .query("tasks")
+    .withIndex("by_parent_id", (q) => q.eq("parent_id", task._id))) {
     if (++scanned > SUBTASK_SCAN) break;
-    if (!isTerminalTaskStatus(c.status) && isActiveTask(c) && (await readable(c))) open.push(c);
+    if (
+      !isTerminalTaskStatus(c.status) &&
+      isActiveTask(c) &&
+      (await readable(c))
+    )
+      open.push(c);
   }
   return {
-    items: open.slice(0, RESUME_SUBTASKS_SHOWN).map((c) => ({ short_id: c.short_id, title: c.title, status: c.status })),
+    items: open
+      .slice(0, RESUME_SUBTASKS_SHOWN)
+      .map((c) => ({ short_id: c.short_id, title: c.title, status: c.status })),
     more: Math.max(0, open.length - RESUME_SUBTASKS_SHOWN),
     ...(scanned > SUBTASK_SCAN ? { truncated: true } : {}),
   };
@@ -135,24 +210,44 @@ async function planOf(
   const plan: Doc<"plans"> | null = task.plan_id
     ? await ctx.db.get(task.plan_id)
     : boundPlan
-      ? await ctx.db.query("plans").withIndex("by_short_id", (q) => q.eq("short_id", boundPlan)).first()
+      ? await ctx.db
+          .query("plans")
+          .withIndex("by_short_id", (q) => q.eq("short_id", boundPlan))
+          .first()
       : session?.active_plan_id
         ? await ctx.db.get(session.active_plan_id)
         : null;
   if (!plan || !(await canAccessPlan(ctx, userId, plan))) return null;
-  const rows = await Promise.all((plan.task_ids ?? []).map((id) => ctx.db.get(id)));
+  const rows = await Promise.all(
+    (plan.task_ids ?? []).map((id) => ctx.db.get(id)),
+  );
   const steps: Doc<"tasks">[] = [];
   for (const t of rows) {
-    if (t && isActiveTask(t) && isSameWorkspace(t, workspaceForResource(plan)) && (await canAccessTask(ctx, userId, t))) steps.push(t);
+    if (
+      t &&
+      isActiveTask(t) &&
+      isSameWorkspace(t, workspaceForResource(plan)) &&
+      (await canAccessTask(ctx, userId, t))
+    )
+      steps.push(t);
   }
-  const readiness = { viewer: String(userId), viewerSession: session ? String(session._id) : null };
-  const ready = (await readyTasks(ctx, steps, readiness)).ready.filter((t) => t._id !== task._id);
+  const readiness = {
+    viewer: String(userId),
+    viewerSession: session ? String(session._id) : null,
+  };
+  const ready = (await readyTasks(ctx, steps, readiness)).ready.filter(
+    (t) => t._id !== task._id,
+  );
   const next = (await orderFrontier(ctx, ready, Date.now()))[0];
   return {
     short_id: plan.short_id,
     title: plan.title,
     status: plan.status,
-    ...(plan.progress ? { done: plan.progress.done, total: plan.progress.total } : {}),
-    next: next ? { short_id: next.short_id, title: next.title, priority: next.priority } : null,
+    ...(plan.progress
+      ? { done: plan.progress.done, total: plan.progress.total }
+      : {}),
+    next: next
+      ? { short_id: next.short_id, title: next.title, priority: next.priority }
+      : null,
   };
 }

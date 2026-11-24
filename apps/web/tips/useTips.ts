@@ -1,9 +1,13 @@
-import { useCallback } from 'react';
-import { useInboxStore, type ClientTips } from '../store/inboxStore';
-import { getTip, getWhisperForAction, type TipDef } from './registry';
-import { getShortcutsForAction, formatShortcutParts, type ShortcutAction } from '../shortcuts/registry';
-import { track } from '../lib/analytics';
-import { showMilestoneTip } from './TipMilestone';
+import { useCallback } from "react";
+import { useInboxStore, type ClientTips } from "../store/inboxStore";
+import { getTip, getWhisperForAction, type TipDef } from "./registry";
+import {
+  getShortcutsForAction,
+  formatShortcutParts,
+  type ShortcutAction,
+} from "../shortcuts/registry";
+import { track } from "../lib/analytics";
+import { showMilestoneTip } from "./TipMilestone";
 const NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
 const MAX_NUDGES_PER_SESSION = 3;
 const GRACE_PERIOD_MS = 2 * 60 * 1000;
@@ -31,7 +35,7 @@ function getTipsState() {
 }
 
 export function useTips() {
-  const updateTips = useInboxStore(s => s.updateClientTips);
+  const updateTips = useInboxStore((s) => s.updateClientTips);
 
   const isSeen = useCallback((tipId: string) => {
     return getTipsState()?.seen?.includes(tipId) ?? false;
@@ -46,7 +50,7 @@ export function useTips() {
   }, []);
 
   const isDisabled = useCallback(() => {
-    return getTipsState()?.level === 'none';
+    return getTipsState()?.level === "none";
   }, []);
 
   const currentPhase = useCallback((): number => {
@@ -60,15 +64,19 @@ export function useTips() {
     return 1;
   }, []);
 
-  const canShow = useCallback((tip: TipDef): boolean => {
-    if (!useInboxStore.getState().clientStateInitialized) return false;
-    const tips = getTipsState();
-    if (tips?.level === 'none') return false;
-    if (isSeen(tip.id) || isDismissed(tip.id)) return false;
-    if (tip.phase > currentPhase()) return false;
-    if (Date.now() - appStartTs < GRACE_PERIOD_MS && tip.type !== 'milestone') return false;
-    return true;
-  }, [isSeen, isDismissed, currentPhase]);
+  const canShow = useCallback(
+    (tip: TipDef): boolean => {
+      if (!useInboxStore.getState().clientStateInitialized) return false;
+      const tips = getTipsState();
+      if (tips?.level === "none") return false;
+      if (isSeen(tip.id) || isDismissed(tip.id)) return false;
+      if (tip.phase > currentPhase()) return false;
+      if (Date.now() - appStartTs < GRACE_PERIOD_MS && tip.type !== "milestone")
+        return false;
+      return true;
+    },
+    [isSeen, isDismissed, currentPhase],
+  );
 
   const canShowNudge = useCallback((): boolean => {
     if (sessionNudgeCount >= MAX_NUDGES_PER_SESSION) return false;
@@ -76,39 +84,59 @@ export function useTips() {
     return true;
   }, []);
 
-  const markSeen = useCallback((tipId: string) => {
-    const prev = getTipsState()?.seen ?? [];
-    if (prev.includes(tipId)) return;
-    updateTips({ seen: [...prev, tipId] });
-    track('tip_seen', { tip_id: tipId, type: getTip(tipId)?.type });
-  }, [updateTips]);
+  const markSeen = useCallback(
+    (tipId: string) => {
+      const prev = getTipsState()?.seen ?? [];
+      if (prev.includes(tipId)) return;
+      updateTips({ seen: [...prev, tipId] });
+      track("tip_seen", { tip_id: tipId, type: getTip(tipId)?.type });
+    },
+    [updateTips],
+  );
 
-  const markDismissed = useCallback((tipId: string) => {
-    const prev = getTipsState()?.dismissed ?? [];
-    if (prev.includes(tipId)) return;
-    updateTips({ dismissed: [...prev, tipId] });
-    track('tip_dismissed', { tip_id: tipId, type: getTip(tipId)?.type });
-  }, [updateTips]);
+  const markDismissed = useCallback(
+    (tipId: string) => {
+      const prev = getTipsState()?.dismissed ?? [];
+      if (prev.includes(tipId)) return;
+      updateTips({ dismissed: [...prev, tipId] });
+      track("tip_dismissed", { tip_id: tipId, type: getTip(tipId)?.type });
+    },
+    [updateTips],
+  );
 
-  const markCompleted = useCallback((tipId: string) => {
-    const prev = getTipsState()?.completed ?? [];
-    if (prev.includes(tipId)) return;
-    updateTips({ completed: [...prev, tipId] });
-    track('tip_completed', { tip_id: tipId, type: getTip(tipId)?.type });
-  }, [updateTips]);
+  const markCompleted = useCallback(
+    (tipId: string) => {
+      const prev = getTipsState()?.completed ?? [];
+      if (prev.includes(tipId)) return;
+      updateTips({ completed: [...prev, tipId] });
+      track("tip_completed", { tip_id: tipId, type: getTip(tipId)?.type });
+    },
+    [updateTips],
+  );
 
   // NonNullable: the stored field is optional (unset means the default), but
   // "unset it" is not a level anyone can pick, and tips_level_changed with an
   // undefined level would report a change to nothing (ct-49565).
-  const setLevel = useCallback((level: NonNullable<ClientTips['level']>) => {
-    updateTips({ level });
-    track('tips_level_changed', { level });
-  }, [updateTips]);
+  const setLevel = useCallback(
+    (level: NonNullable<ClientTips["level"]>) => {
+      updateTips({ level });
+      track("tips_level_changed", { level });
+    },
+    [updateTips],
+  );
 
   return {
-    currentPhase, canShow, canShowNudge,
-    isSeen, isDismissed, isCompleted, isDisabled,
-    markSeen, markDismissed, markCompleted, setLevel,
+    currentPhase,
+    canShow,
+    canShowNudge,
+    isSeen,
+    isDismissed,
+    isCompleted,
+    isDisabled,
+    markSeen,
+    markDismissed,
+    markCompleted,
+    setLevel,
   };
 }
 
@@ -148,14 +176,14 @@ export function checkMilestone(tipId: string) {
     return;
   }
   const tips = state.clientState.tips;
-  if (tips?.level === 'none') return;
+  if (tips?.level === "none") return;
   if (tips?.seen?.includes(tipId)) return;
   const tip = getTip(tipId);
   if (!tip) return;
   const seen = [...(tips?.seen ?? []), tipId];
   state.updateClientTips({ seen });
   showMilestoneTip(tip);
-  track('tip_seen', { tip_id: tipId, type: 'milestone' });
+  track("tip_seen", { tip_id: tipId, type: "milestone" });
 }
 
 const _firedShortcuts = new Set<string>();
@@ -164,6 +192,6 @@ export function onShortcutUsed(action: ShortcutAction) {
   if (_firedShortcuts.has(action)) return;
   _firedShortcuts.add(action);
   if (_firedShortcuts.size === 1) {
-    checkMilestone('m-first-shortcut');
+    checkMilestone("m-first-shortcut");
   }
 }

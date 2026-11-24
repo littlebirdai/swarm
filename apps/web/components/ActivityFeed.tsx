@@ -1,4 +1,11 @@
-import { useMemo, useState, useRef, useCallback, useLayoutEffect, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AvatarImg } from "../lib/avatarCache";
@@ -10,18 +17,45 @@ import { useStableOrder } from "../hooks/useStableOrder";
 import { useFlipAnimation } from "../hooks/useFlipAnimation";
 import { AgentIcon, type Conversation } from "./ConversationList";
 import { ImageLightbox } from "./ImageGallery";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { fitPeopleRow } from "../lib/peopleRowFit";
 import { cleanTitle } from "../lib/conversationProcessor";
-import { feedActorId, derivePeople, type FeedPerson } from "../lib/liveEntities";
-import { useInboxStore, useTrackedStore, sessionsWakeSig, sortSessions } from "../store/inboxStore";
+import {
+  feedActorId,
+  derivePeople,
+  type FeedPerson,
+} from "../lib/liveEntities";
+import {
+  useInboxStore,
+  useTrackedStore,
+  sessionsWakeSig,
+  sortSessions,
+} from "../store/inboxStore";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { ExternalEventGroupRow } from "./feed/ExternalEventGroupRow";
-import { externalEventGroupActor, groupExternalEvents, isQuietExternalEvent, mergeExternalEventGroups, type ExternalEventGroup, type ExternalEventRecord } from "../lib/externalEvents";
-import { useExternalEvents, externalEventsNewestFirst } from "../hooks/useSyncExternalEvents";
+import {
+  externalEventGroupActor,
+  groupExternalEvents,
+  isQuietExternalEvent,
+  mergeExternalEventGroups,
+  type ExternalEventGroup,
+  type ExternalEventRecord,
+} from "../lib/externalEvents";
+import {
+  useExternalEvents,
+  externalEventsNewestFirst,
+} from "../hooks/useSyncExternalEvents";
 import { FolderGit2 } from "lucide-react";
-import { pickShareSuggestion, useTeamWorkspaceSuggestions } from "../hooks/useTeamWorkspaceSuggestions";
+import {
+  pickShareSuggestion,
+  useTeamWorkspaceSuggestions,
+} from "../hooks/useTeamWorkspaceSuggestions";
 import { useSaveTeamSetup } from "../lib/team/saveTeamSetup";
 import { TeamFindableNudge } from "./team/TeamFindableNudge";
 import { toast } from "sonner";
@@ -33,13 +67,32 @@ import "./team/teamFlow.css";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useViewerIdentity } from "../hooks/useTeamRoster";
 import { TeamShareChip } from "./feed/TeamShareChip";
-import { FEED_CARD_ATTR, feedCardOpened, feedCardSelect } from "../lib/feedCardSelection";
+import {
+  FEED_CARD_ATTR,
+  feedCardOpened,
+  feedCardSelect,
+} from "../lib/feedCardSelection";
 import { useFeedCardTriage } from "../hooks/useFeedCardTriage";
 import { useTeamFeed, inboxSessionToConv } from "../hooks/useTeamFeed";
 import { LivePulseDot } from "./SessionActivityLine";
 import { teamMembersOf } from "../lib/activeTeam";
 import { resolveImageThumbs } from "../lib/uiPrefDefaults";
-import { extractWorkspace, formatDate, formatMsgCount, relTime, shortDuration, heatTier, cardSummary, hashIndex, HEAT_COLOR, MSG_BREAKS, DUR_MIN_BREAKS, AVATAR_BG, AVATAR_RING, PROJECT_PALETTE } from "./feed/activityFeedFormat";
+import {
+  extractWorkspace,
+  formatDate,
+  formatMsgCount,
+  relTime,
+  shortDuration,
+  heatTier,
+  cardSummary,
+  hashIndex,
+  HEAT_COLOR,
+  MSG_BREAKS,
+  DUR_MIN_BREAKS,
+  AVATAR_BG,
+  AVATAR_RING,
+  PROJECT_PALETTE,
+} from "./feed/activityFeedFormat";
 // Activity feed. Two sources, one rendering (FeedBody):
 //   • personal mode → a VIEW over store.sessions (the liberal delta cache that the
 //     inbox already syncs) — no redundant server query, instant from cache.
@@ -49,8 +102,20 @@ import { extractWorkspace, formatDate, formatMsgCount, relTime, shortDuration, h
 // Subagents excluded; pregenerated summaries shown by default; reuses the Raw
 // feed's stable-order + FLIP "slide in" hooks. FeedCard is shared (tasks/docs too).
 
-function HeatStat({ value, breaks, children }: { value: number; breaks: number[]; children: ReactNode }) {
-  return <span className={`tabular-nums ${HEAT_COLOR[heatTier(value, breaks)]}`}>{children}</span>;
+function HeatStat({
+  value,
+  breaks,
+  children,
+}: {
+  value: number;
+  breaks: number[];
+  children: ReactNode;
+}) {
+  return (
+    <span className={`tabular-nums ${HEAT_COLOR[heatTier(value, breaks)]}`}>
+      {children}
+    </span>
+  );
 }
 
 function useProjectColors(convs: Conversation[]) {
@@ -59,21 +124,42 @@ function useProjectColors(convs: Conversation[]) {
     let idx = 0;
     for (const c of convs) {
       const proj = extractWorkspace(c.project_path);
-      if (proj && !map[proj]) { map[proj] = PROJECT_PALETTE[idx % PROJECT_PALETTE.length]; idx++; }
+      if (proj && !map[proj]) {
+        map[proj] = PROJECT_PALETTE[idx % PROJECT_PALETTE.length];
+        idx++;
+      }
     }
     return map;
   }, [convs]);
 }
 
-function Avatar({ name, image, size = 18 }: { name: string; image?: string | null; size?: number }) {
+function Avatar({
+  name,
+  image,
+  size = 18,
+}: {
+  name: string;
+  image?: string | null;
+  size?: number;
+}) {
   const initial = (name || "?")[0].toUpperCase();
   return (
-    <span className="shrink-0 rounded-full overflow-hidden flex items-center justify-center" style={{ width: size, height: size }}>
+    <span
+      className="shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
       <AvatarImg
         src={image}
         alt={name}
         className="w-full h-full object-cover"
-        fallback={<span className={`w-full h-full flex items-center justify-center font-semibold ${AVATAR_BG[hashIndex(name, AVATAR_BG.length)]}`} style={{ fontSize: size * 0.5 }}>{initial}</span>}
+        fallback={
+          <span
+            className={`w-full h-full flex items-center justify-center font-semibold ${AVATAR_BG[hashIndex(name, AVATAR_BG.length)]}`}
+            style={{ fontSize: size * 0.5 }}
+          >
+            {initial}
+          </span>
+        }
       />
     </span>
   );
@@ -81,7 +167,13 @@ function Avatar({ name, image, size = 18 }: { name: string; image?: string | nul
 
 // --- The card. Clean, scannable: title row · summary · one dim meta line. ---
 // Shared across the feed, tasks/[id], and docs/[id] — keep it exported and stable.
-export function FeedCard({ conv, showActor, onNavigate, projectColor, shareTeamId }: {
+export function FeedCard({
+  conv,
+  showActor,
+  onNavigate,
+  projectColor,
+  shareTeamId,
+}: {
   conv: Conversation;
   showActor: boolean;
   onNavigate?: (id: string) => void;
@@ -103,13 +195,16 @@ export function FeedCard({ conv, showActor, onNavigate, projectColor, shareTeamI
   // Row thumbnail for sessions that contain images — same pref as the inbox
   // session list (inbox_image_thumbs). Clicking it zooms the image, not the
   // session.
-  const showImageThumb = useInboxStore((st) => resolveImageThumbs(st.clientState?.ui));
+  const showImageThumb = useInboxStore((st) =>
+    resolveImageThumbs(st.clientState?.ui),
+  );
   const [thumbZoom, setThumbZoom] = useState(false);
   // Broken preview image → drop the slot entirely, otherwise the invisible
   // img reserves width and wraps the text early.
   const [thumbBroken, setThumbBroken] = useState(false);
   useWatchEffect(() => setThumbBroken(false), [conv.image_preview_url]);
-  const thumbUrl = showImageThumb && !thumbBroken ? conv.image_preview_url : null;
+  const thumbUrl =
+    showImageThumb && !thumbBroken ? conv.image_preview_url : null;
 
   // Expandable summary: show the full text on demand. We only surface the toggle
   // when the 2-line clamp actually truncates (measured while collapsed) — so
@@ -135,7 +230,9 @@ export function FeedCard({ conv, showActor, onNavigate, projectColor, shareTeamI
     <div
       data-flip-key={conv._id}
       {...{ [FEED_CARD_ATTR]: conv._id }}
-      onClick={(e) => { if (!feedCardSelect(conv._id, e)) open(); }}
+      onClick={(e) => {
+        if (!feedCardSelect(conv._id, e)) open();
+      }}
       onContextMenu={triage.onContextMenu}
       data-hidden-from-team={hiddenFromTeam || undefined}
       aria-selected={triage.ticked || undefined}
@@ -143,79 +240,135 @@ export function FeedCard({ conv, showActor, onNavigate, projectColor, shareTeamI
         triage.ticked
           ? "border-sol-cyan/70 bg-[color-mix(in_srgb,var(--sol-cyan)_10%,var(--sol-card))] shadow-sm"
           : hiddenFromTeam
-          // Yours alone: on the board only for you, so it sits back from the
-          // shared rows and comes forward under the pointer.
-          ? "border-dashed border-sol-border/40 bg-sol-bg-alt/20 opacity-55 hover:opacity-100 hover:bg-sol-card-hover hover:border-sol-border/50"
-          : "border-sol-border/25 bg-sol-card hover:bg-sol-card-hover hover:border-sol-border/50 shadow-sm hover:shadow"
+            ? // Yours alone: on the board only for you, so it sits back from the
+              // shared rows and comes forward under the pointer.
+              "border-dashed border-sol-border/40 bg-sol-bg-alt/20 opacity-55 hover:opacity-100 hover:bg-sol-card-hover hover:border-sol-border/50"
+            : "border-sol-border/25 bg-sol-card hover:bg-sol-card-hover hover:border-sol-border/50 shadow-sm hover:shadow"
       }`}
     >
-      {isActive && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-sol-green/60" />}
+      {isActive && (
+        <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-sol-green/60" />
+      )}
       <div className="px-4 py-3 flex items-center gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 min-w-0">
-          {showActor && <Avatar name={conv.author_name || "?"} image={conv.author_avatar} />}
-          <span className="font-medium text-[13px] text-sol-text/90 truncate min-w-0 group-hover:text-sol-yellow transition-colors">
-            {title}
-          </span>
-          {isActive && (
-            <span className="flex items-center gap-1 shrink-0">
-              <LivePulseDot className="w-1.5 h-1.5" still />
-              <span className="text-mark font-medium uppercase tracking-wider text-sol-green">live</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            {showActor && (
+              <Avatar
+                name={conv.author_name || "?"}
+                image={conv.author_avatar}
+              />
+            )}
+            <span className="font-medium text-[13px] text-sol-text/90 truncate min-w-0 group-hover:text-sol-yellow transition-colors">
+              {title}
             </span>
+            {isActive && (
+              <span className="flex items-center gap-1 shrink-0">
+                <LivePulseDot className="w-1.5 h-1.5" still />
+                <span className="text-mark font-medium uppercase tracking-wider text-sol-green">
+                  live
+                </span>
+              </span>
+            )}
+            <span className="flex-1" />
+            <span className="text-meta font-mono text-sol-text-dim tabular-nums shrink-0">
+              {relTime(conv.updated_at)}
+            </span>
+          </div>
+
+          {summary && (
+            <p
+              ref={summaryRef}
+              className={`mt-1 text-meta leading-relaxed text-sol-text-muted/85 whitespace-pre-line break-words ${expanded ? "" : "line-clamp-2"}`}
+            >
+              {summary}
+            </p>
           )}
-          <span className="flex-1" />
-          <span className="text-meta font-mono text-sol-text-dim tabular-nums shrink-0">{relTime(conv.updated_at)}</span>
-        </div>
+          {(clamped || expanded) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+              className="mt-0.5 flex items-center gap-1 text-meta font-mono text-sol-text-dim hover:text-sol-yellow transition-colors"
+            >
+              <span
+                className={`inline-block transition-transform ${expanded ? "rotate-180" : ""}`}
+              >
+                &#x25BE;
+              </span>
+              {expanded ? "less" : "more"}
+            </button>
+          )}
 
-        {summary && (
-          <p
-            ref={summaryRef}
-            className={`mt-1 text-meta leading-relaxed text-sol-text-muted/85 whitespace-pre-line break-words ${expanded ? "" : "line-clamp-2"}`}
-          >
-            {summary}
-          </p>
-        )}
-        {(clamped || expanded) && (
-          <button
-            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-            className="mt-0.5 flex items-center gap-1 text-meta font-mono text-sol-text-dim hover:text-sol-yellow transition-colors"
-          >
-            <span className={`inline-block transition-transform ${expanded ? "rotate-180" : ""}`}>&#x25BE;</span>
-            {expanded ? "less" : "more"}
-          </button>
-        )}
-
-        <div className="mt-1.5 flex items-center gap-x-2.5 gap-y-1 text-meta font-mono text-sol-text-dim flex-wrap">
-          {showActor && author && <span className="text-sol-text-muted">{author}</span>}
-          {project && <span className={`rounded px-1 py-px ${projectColor || "text-sol-text-dim"}`}>{project}</span>}
-          {msgs > 0 && <HeatStat value={msgs} breaks={MSG_BREAKS}>{formatMsgCount(msgs)} msg</HeatStat>}
-          {dur && <HeatStat value={conv.duration_ms / 60000} breaks={DUR_MIN_BREAKS}>{dur}</HeatStat>}
-          {/* Your own row on the team feed: what the team sees of it, and the
+          <div className="mt-1.5 flex items-center gap-x-2.5 gap-y-1 text-meta font-mono text-sol-text-dim flex-wrap">
+            {showActor && author && (
+              <span className="text-sol-text-muted">{author}</span>
+            )}
+            {project && (
+              <span
+                className={`rounded px-1 py-px ${projectColor || "text-sol-text-dim"}`}
+              >
+                {project}
+              </span>
+            )}
+            {msgs > 0 && (
+              <HeatStat value={msgs} breaks={MSG_BREAKS}>
+                {formatMsgCount(msgs)} msg
+              </HeatStat>
+            )}
+            {dur && (
+              <HeatStat
+                value={conv.duration_ms / 60000}
+                breaks={DUR_MIN_BREAKS}
+              >
+                {dur}
+              </HeatStat>
+            )}
+            {/* Your own row on the team feed: what the team sees of it, and the
               control to change that. The store applies the change at once;
               the server write rides the action's side effect. */}
-          {ownOnTeamFeed && <TeamShareChip conv={conv} teamId={shareTeamId!} />}
-          <AgentIcon agentType={conv.agent_type || "claude_code"} className="w-3 h-3 opacity-40 ml-auto shrink-0" />
+            {ownOnTeamFeed && (
+              <TeamShareChip conv={conv} teamId={shareTeamId!} />
+            )}
+            <AgentIcon
+              agentType={conv.agent_type || "claude_code"}
+              className="w-3 h-3 opacity-40 ml-auto shrink-0"
+            />
+          </div>
         </div>
-      </div>
-      {thumbUrl && (
-        <button
-          onClick={(e) => { e.stopPropagation(); setThumbZoom(true); }}
-          className="shrink-0 self-center rounded-md overflow-hidden border border-sol-border/40 cursor-zoom-in"
-          title="View image"
-        >
-          <img src={thumbUrl} alt="" loading="lazy" draggable={false} onError={() => setThumbBroken(true)} className="w-11 h-11 object-cover" />
-        </button>
-      )}
-      {thumbZoom && thumbUrl && (
-        <ImageLightbox src={thumbUrl} onClose={() => setThumbZoom(false)} />
-      )}
+        {thumbUrl && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setThumbZoom(true);
+            }}
+            className="shrink-0 self-center rounded-md overflow-hidden border border-sol-border/40 cursor-zoom-in"
+            title="View image"
+          >
+            <img
+              src={thumbUrl}
+              alt=""
+              loading="lazy"
+              draggable={false}
+              onError={() => setThumbBroken(true)}
+              className="w-11 h-11 object-cover"
+            />
+          </button>
+        )}
+        {thumbZoom && thumbUrl && (
+          <ImageLightbox src={thumbUrl} onClose={() => setThumbZoom(false)} />
+        )}
       </div>
       {triage.overlay}
     </div>
   );
 }
 
-function PeopleRow({ people, onSelect, selectedId }: {
+function PeopleRow({
+  people,
+  onSelect,
+  selectedId,
+}: {
   people: FeedPerson[];
   onSelect: (id: Id<"users"> | undefined) => void;
   selectedId?: Id<"users">;
@@ -234,7 +387,13 @@ function PeopleRow({ people, onSelect, selectedId }: {
     const fit = () => {
       const kids = [...measure.children] as HTMLElement[];
       const more = kids.pop()!;
-      const next = fitPeopleRow(kids.map((k) => k.offsetWidth), row.clientWidth, PEOPLE_GAP, more.offsetWidth, selectedIdx);
+      const next = fitPeopleRow(
+        kids.map((k) => k.offsetWidth),
+        row.clientWidth,
+        PEOPLE_GAP,
+        more.offsetWidth,
+        selectedIdx,
+      );
       setVisible((prev) => (prev && prev.join() === next.join() ? prev : next));
     };
     fit();
@@ -254,29 +413,52 @@ function PeopleRow({ people, onSelect, selectedId }: {
         onClick={() => onSelect(isSel ? undefined : (p.id as Id<"users">))}
         className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-meta transition-colors shrink-0 ring-1 ${isSel ? "bg-sol-bg-alt text-sol-text ring-sol-border/40" : "text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt/50 ring-transparent"}`}
       >
-        <span className={`rounded-full ring-2 ${AVATAR_RING[hashIndex(p.id, AVATAR_RING.length)]}`}>
+        <span
+          className={`rounded-full ring-2 ${AVATAR_RING[hashIndex(p.id, AVATAR_RING.length)]}`}
+        >
           <Avatar name={p.name} image={p.image} size={20} />
         </span>
-        <span className="font-medium">{p.isRole ? p.name : p.name.split(" ")[0]}</span>
+        <span className="font-medium">
+          {p.isRole ? p.name : p.name.split(" ")[0]}
+        </span>
         <span className="opacity-40 tabular-nums">{p.sessions}</span>
       </button>
     );
   };
-  const moreClass = "flex items-center px-2 py-1 rounded-md text-meta font-medium tabular-nums shrink-0 text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt/50 data-[state=open]:bg-sol-bg-alt data-[state=open]:text-sol-text transition-colors";
+  const moreClass =
+    "flex items-center px-2 py-1 rounded-md text-meta font-medium tabular-nums shrink-0 text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt/50 data-[state=open]:bg-sol-bg-alt data-[state=open]:text-sol-text transition-colors";
   return (
     <div className="relative">
-      <div ref={measureRef} aria-hidden className="absolute left-0 top-0 flex invisible pointer-events-none" style={{ gap: PEOPLE_GAP }}>
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="absolute left-0 top-0 flex invisible pointer-events-none"
+        style={{ gap: PEOPLE_GAP }}
+      >
         {people.map(pill)}
         <span className={moreClass}>+{people.length}</span>
       </div>
-      <div ref={rowRef} className="flex items-center overflow-hidden px-0.5 py-0.5" style={{ gap: PEOPLE_GAP }}>
+      <div
+        ref={rowRef}
+        className="flex items-center overflow-hidden px-0.5 py-0.5"
+        style={{ gap: PEOPLE_GAP }}
+      >
         {shown.map((i) => pill(people[i]))}
         {hidden.length > 0 && (
           <DropdownMenu>
-            <DropdownMenuTrigger className={moreClass}>+{hidden.length}</DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+            <DropdownMenuTrigger className={moreClass}>
+              +{hidden.length}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="max-h-80 overflow-y-auto"
+            >
               {hidden.map((p) => (
-                <DropdownMenuItem key={p.id} onSelect={() => onSelect(p.id as Id<"users">)} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  key={p.id}
+                  onSelect={() => onSelect(p.id as Id<"users">)}
+                  className="gap-2 text-xs"
+                >
                   <Avatar name={p.name} image={p.image} size={18} />
                   <span className="flex-1 truncate">{p.name}</span>
                   <span className="opacity-40 tabular-nums">{p.sessions}</span>
@@ -291,9 +473,11 @@ function PeopleRow({ people, onSelect, selectedId }: {
 }
 const PEOPLE_GAP = 6;
 
-
 // Live overview, recomputed from the loaded session set every render — never stale.
-function RollupHeader({ convs, compact }: {
+function RollupHeader({
+  convs,
+  compact,
+}: {
   convs: Conversation[];
   compact?: boolean;
 }) {
@@ -310,28 +494,55 @@ function RollupHeader({ convs, compact }: {
       const p = extractWorkspace(c.project_path);
       if (p) projects.set(p, (projects.get(p) || 0) + 1);
     }
-    const topProjects = [...projects.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-    return { sessions: convs.length, people: people.size, active, msgs, topProjects };
+    const topProjects = [...projects.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    return {
+      sessions: convs.length,
+      people: people.size,
+      active,
+      msgs,
+      topProjects,
+    };
   }, [convs]);
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 ${compact ? "px-1" : ""}`}>
+    <div
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 ${compact ? "px-1" : ""}`}
+    >
       <div className="flex items-baseline gap-1.5">
-        <span className="text-lg font-semibold text-sol-text tabular-nums">{stats.sessions}</span>
-        <span className="text-meta text-sol-text-dim">session{stats.sessions !== 1 ? "s" : ""}</span>
+        <span className="text-lg font-semibold text-sol-text tabular-nums">
+          {stats.sessions}
+        </span>
+        <span className="text-meta text-sol-text-dim">
+          session{stats.sessions !== 1 ? "s" : ""}
+        </span>
       </div>
-      {stats.people > 1 && <span className="text-meta text-sol-text-dim tabular-nums">{stats.people} people</span>}
-      {stats.active > 0 && (
-        <span className="flex items-center gap-1 text-meta text-sol-green/70 font-medium">
-          <LivePulseDot className="w-1.5 h-1.5" still />{stats.active} live
+      {stats.people > 1 && (
+        <span className="text-meta text-sol-text-dim tabular-nums">
+          {stats.people} people
         </span>
       )}
-      {stats.msgs > 0 && <span className="text-meta text-sol-text-dim tabular-nums">{formatMsgCount(stats.msgs)} msgs</span>}
+      {stats.active > 0 && (
+        <span className="flex items-center gap-1 text-meta text-sol-green/70 font-medium">
+          <LivePulseDot className="w-1.5 h-1.5" still />
+          {stats.active} live
+        </span>
+      )}
+      {stats.msgs > 0 && (
+        <span className="text-meta text-sol-text-dim tabular-nums">
+          {formatMsgCount(stats.msgs)} msgs
+        </span>
+      )}
       {stats.topProjects.length > 0 && (
         <div className="flex items-center gap-1 overflow-x-auto">
           {stats.topProjects.map(([p, n]) => (
-            <span key={p} className="font-mono text-meta text-sol-text-dim bg-sol-bg-alt/50 rounded px-1 py-px whitespace-nowrap">
-              {p}<span className="opacity-40"> {n}</span>
+            <span
+              key={p}
+              className="font-mono text-meta text-sol-text-dim bg-sol-bg-alt/50 rounded px-1 py-px whitespace-nowrap"
+            >
+              {p}
+              <span className="opacity-40"> {n}</span>
             </span>
           ))}
         </div>
@@ -361,12 +572,16 @@ export type FeedEntry =
 // sessions. Their order comes from the stable-order hook and from the inbox
 // sort, and both must survive: a git row only takes a slot between two
 // sessions it sits between in time.
-function mergeDayEntries(convEntries: FeedEntry[], gitEntries: FeedEntry[]): FeedEntry[] {
+function mergeDayEntries(
+  convEntries: FeedEntry[],
+  gitEntries: FeedEntry[],
+): FeedEntry[] {
   if (gitEntries.length === 0) return convEntries;
   const out: FeedEntry[] = [];
   let gi = 0;
   for (const conv of convEntries) {
-    while (gi < gitEntries.length && gitEntries[gi].ts >= conv.ts) out.push(gitEntries[gi++]);
+    while (gi < gitEntries.length && gitEntries[gi].ts >= conv.ts)
+      out.push(gitEntries[gi++]);
     out.push(conv);
   }
   while (gi < gitEntries.length) out.push(gitEntries[gi++]);
@@ -402,7 +617,16 @@ function foldGitRuns(entries: FeedEntry[]): FeedEntry[] {
   return out;
 }
 
-export function DaySection({ date, entries, showActor, onNavigate, compact, projectColors, onProjectFilter, shareTeamId }: {
+export function DaySection({
+  date,
+  entries,
+  showActor,
+  onNavigate,
+  compact,
+  projectColors,
+  onProjectFilter,
+  shareTeamId,
+}: {
   date: string;
   entries: FeedEntry[];
   showActor: boolean;
@@ -436,12 +660,24 @@ export function DaySection({ date, entries, showActor, onNavigate, compact, proj
 
   return (
     <div className={compact ? "py-0.5" : "py-1"}>
-      <div className="flex items-center gap-3 mb-2 cursor-pointer select-none" onClick={() => setCollapsed(!collapsed)}>
-        <span className={`text-sol-text-dim text-meta transition-transform ${collapsed ? "" : "rotate-90"}`}>&#x25B6;</span>
-        <span className={`font-semibold tracking-tight text-sol-text ${compact ? "text-[13px]" : "text-[15px]"}`}>{label}</span>
+      <div
+        className="flex items-center gap-3 mb-2 cursor-pointer select-none"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span
+          className={`text-sol-text-dim text-meta transition-transform ${collapsed ? "" : "rotate-90"}`}
+        >
+          &#x25B6;
+        </span>
+        <span
+          className={`font-semibold tracking-tight text-sol-text ${compact ? "text-[13px]" : "text-[15px]"}`}
+        >
+          {label}
+        </span>
         {active > 0 && (
           <span className="flex items-center gap-1 text-meta text-sol-green/60 font-medium">
-            <LivePulseDot className="w-1 h-1" still />{active} active
+            <LivePulseDot className="w-1 h-1" still />
+            {active} active
           </span>
         )}
         <div className="h-px flex-1 bg-sol-border/15" />
@@ -449,7 +685,10 @@ export function DaySection({ date, entries, showActor, onNavigate, compact, proj
           {projects.slice(0, 4).map((p) => (
             <button
               key={p}
-              onClick={(e) => { e.stopPropagation(); onProjectFilter?.(p); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onProjectFilter?.(p);
+              }}
               className={`font-mono rounded px-1 py-px text-meta hover:ring-1 hover:ring-sol-cyan/30 transition-all ${projectColors[p] || "bg-sol-bg-alt text-sol-text-dim"}`}
             >
               {p}
@@ -466,14 +705,19 @@ export function DaySection({ date, entries, showActor, onNavigate, compact, proj
         <div className="space-y-1.5">
           {entries.map((entry) =>
             entry.kind === "git" ? (
-              <ExternalEventGroupRow key={`git-${entry.group.key}`} group={entry.group} />
+              <ExternalEventGroupRow
+                key={`git-${entry.group.key}`}
+                group={entry.group}
+              />
             ) : (
               <FeedCard
                 key={entry.conv._id}
                 conv={entry.conv}
                 showActor={showActor}
                 onNavigate={onNavigate}
-                projectColor={projectColors[extractWorkspace(entry.conv.project_path) || ""]}
+                projectColor={
+                  projectColors[extractWorkspace(entry.conv.project_path) || ""]
+                }
                 shareTeamId={shareTeamId}
               />
             ),
@@ -486,7 +730,21 @@ export function DaySection({ date, entries, showActor, onNavigate, compact, proj
 
 // Shared rendering for both sources: window/actor/project filter, live rollup,
 // people row (team only), day grouping, FLIP animation, infinite scroll.
-function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, hasMore, loadMore, isLoading, isLoadingMore, onNavigate, compact, hidePeopleRow, initialActorId, shareNudge, shareTeamId }: {
+function FeedBody({
+  source,
+  sourceConvs,
+  externalEvents = NO_EXTERNAL_EVENTS,
+  hasMore,
+  loadMore,
+  isLoading,
+  isLoadingMore,
+  onNavigate,
+  compact,
+  hidePeopleRow,
+  initialActorId,
+  shareNudge,
+  shareTeamId,
+}: {
   source: "team" | "personal";
   sourceConvs: Conversation[];
   /** Team mode only: the git events to interleave into the day sections. */
@@ -511,12 +769,18 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
   // in place instead of flying around / overlapping mid-FLIP.
   const animate = source === "team";
 
-  const [actorFilter, setActorFilter] = useState<Id<"users"> | undefined>(initialActorId as Id<"users"> | undefined);
+  const [actorFilter, setActorFilter] = useState<Id<"users"> | undefined>(
+    initialActorId as Id<"users"> | undefined,
+  );
   const previousSource = useRef(sourceConvs);
   useWatchEffect(() => {
     const previous = previousSource.current;
     previousSource.current = sourceConvs;
-    if (actorFilter && previous.some((c) => feedActorId(c) === actorFilter) && !sourceConvs.some((c) => feedActorId(c) === actorFilter)) {
+    if (
+      actorFilter &&
+      previous.some((c) => feedActorId(c) === actorFilter) &&
+      !sourceConvs.some((c) => feedActorId(c) === actorFilter)
+    ) {
       setActorFilter(undefined);
     }
   }, [sourceConvs, actorFilter]);
@@ -525,7 +789,10 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
   // store/inboxStore.ts) is a closed type, so a saved key would mean editing
   // that file too.
   const [showGit, setShowGit] = useState(true);
-  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const tz = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [],
+  );
 
   const isHovered = useRef(false);
   const { containerRef: flipContainerRef } = useFlipAnimation();
@@ -535,8 +802,10 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
   // filters apply here.
   const visibleConvs = useMemo(() => {
     const list = sourceConvs.filter((c) => {
-      if (actorFilter && feedActorId(c) !== actorFilter.toString()) return false;
-      if (projectFilter && extractWorkspace(c.project_path) !== projectFilter) return false;
+      if (actorFilter && feedActorId(c) !== actorFilter.toString())
+        return false;
+      if (projectFilter && extractWorkspace(c.project_path) !== projectFilter)
+        return false;
       return true;
     });
     if (animate) list.sort((a, b) => b.updated_at - a.updated_at); // personal keeps sortSessions order
@@ -559,8 +828,13 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
   // server once the window reaches the end of what's cached — so scroll feels
   // immediate even when the backend is slow, and the DOM stays light.
   const [renderLimit, setRenderLimit] = useState(40);
-  useWatchEffect(() => { setRenderLimit(40); }, [actorFilter, projectFilter]);
-  const windowed = useMemo(() => displayConvs.slice(0, renderLimit), [displayConvs, renderLimit]);
+  useWatchEffect(() => {
+    setRenderLimit(40);
+  }, [actorFilter, projectFilter]);
+  const windowed = useMemo(
+    () => displayConvs.slice(0, renderLimit),
+    [displayConvs, renderLimit],
+  );
   const canReveal = renderLimit < displayConvs.length;
 
   // External events get their own window so they never eat the session window: keep
@@ -584,7 +858,11 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
         if (isQuietExternalEvent(e)) return false;
         if (actor && e.actor_user_id?.toString() !== actor) return false;
         if (proj) {
-          const repo = e.repository?.split("/").filter(Boolean).pop()?.toLowerCase();
+          const repo = e.repository
+            ?.split("/")
+            .filter(Boolean)
+            .pop()
+            ?.toLowerCase();
           if (repo !== proj) return false;
         }
         return true;
@@ -594,12 +872,16 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
 
   // People from the full window set (ignores actor filter) so the row stays
   // populated and a selection can always be cleared.
-  const people = useMemo(() => (showPeople ? derivePeople(sourceConvs) : []), [sourceConvs, showPeople]);
+  const people = useMemo(
+    () => (showPeople ? derivePeople(sourceConvs) : []),
+    [sourceConvs, showPeople],
+  );
 
   const projectColors = useProjectColors(displayConvs);
 
   const days = useMemo(() => {
-    const dayKey = (ts: number) => new Date(ts).toLocaleDateString("en-CA", { timeZone: tz });
+    const dayKey = (ts: number) =>
+      new Date(ts).toLocaleDateString("en-CA", { timeZone: tz });
     const convDays = new Map<string, FeedEntry[]>();
     for (const c of windowed) {
       const ts = c.updated_at || c.started_at || Date.now();
@@ -625,7 +907,11 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
         // Groups come back newest first, which is the order mergeDayEntries wants.
         entries: mergeDayEntries(
           convDays.get(date) ?? [],
-          groupExternalEvents(gitDays.get(date) ?? []).map((group) => ({ kind: "git" as const, ts: group.at, group })),
+          groupExternalEvents(gitDays.get(date) ?? []).map((group) => ({
+            kind: "git" as const,
+            ts: group.at,
+            group,
+          })),
         ),
       }));
   }, [windowed, gitInView, showGit, tz]);
@@ -651,9 +937,15 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
       const s = scrollState.current;
       const rect = el.getBoundingClientRect();
       if (rect.top >= window.innerHeight + 1200) return;
-      if (s.canReveal) { setRenderLimit((r) => r + 30); return; }
+      if (s.canReveal) {
+        setRenderLimit((r) => r + 30);
+        return;
+      }
       if (s.isLoadingMore) return;
-      if (s.hasMore) { s.loadMore(); return; }
+      if (s.hasMore) {
+        s.loadMore();
+        return;
+      }
       // Believed end-of-history: a bottom-scroll still re-verifies it
       // (throttled), so a stale or poisoned persisted "end" can never strand
       // the feed — reaching the bottom always attempts to load more.
@@ -663,7 +955,10 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
         s.loadMore({ reconfirm: true });
       }
     };
-    document.addEventListener("scroll", maybeLoad, { capture: true, passive: true });
+    document.addEventListener("scroll", maybeLoad, {
+      capture: true,
+      passive: true,
+    });
     window.addEventListener("resize", maybeLoad, { passive: true });
     maybeLoad(); // top up if the sentinel is already in view (content shorter than viewport)
     return () => {
@@ -677,14 +972,24 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
   return (
     <div
       className={compact ? "space-y-2" : "space-y-3"}
-      onMouseEnter={() => { isHovered.current = true; }}
-      onMouseLeave={() => { isHovered.current = false; }}
+      onMouseEnter={() => {
+        isHovered.current = true;
+      }}
+      onMouseLeave={() => {
+        isHovered.current = false;
+      }}
     >
       <RollupHeader convs={visibleConvs} compact={compact} />
 
       {shareNudge}
 
-      {showPeople && <PeopleRow people={people} onSelect={setActorFilter} selectedId={actorFilter} />}
+      {showPeople && (
+        <PeopleRow
+          people={people}
+          onSelect={setActorFilter}
+          selectedId={actorFilter}
+        />
+      )}
 
       {(projectFilter || externalEvents.length > 0) && (
         <div className="flex items-center gap-2">
@@ -700,11 +1005,17 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
           {externalEvents.length > 0 && (
             <button
               onClick={() => setShowGit((v) => !v)}
-              title={showGit ? "Hide events from GitHub and Linear" : "Show events from GitHub and Linear"}
+              title={
+                showGit
+                  ? "Hide events from GitHub and Linear"
+                  : "Show events from GitHub and Linear"
+              }
               className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-meta transition-colors ${showGit ? "bg-sol-bg-alt/60 text-sol-text-muted hover:text-sol-text" : "bg-sol-bg-alt/30 text-sol-text-dim/50 hover:text-sol-text-muted"}`}
             >
               <span className="font-mono">Git &amp; issues</span>
-              <span className="tabular-nums text-sol-text-dim/40">{gitInView.length}</span>
+              <span className="tabular-nums text-sol-text-dim/40">
+                {gitInView.length}
+              </span>
             </button>
           )}
         </div>
@@ -717,15 +1028,18 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
             actorFilter || projectFilter
               ? "No sessions match this filter."
               : source === "team"
-                // A brand new team lands here. "No sessions in this window"
-                // reads as a bug on a feed that has never had one; say what
-                // fills it instead, in the same words the create flow used.
-                ? "Sessions from the workspaces this team shares land here."
+                ? // A brand new team lands here. "No sessions in this window"
+                  // reads as a bug on a feed that has never had one; say what
+                  // fills it instead, in the same words the create flow used.
+                  "Sessions from the workspaces this team shares land here."
                 : "No sessions in this window."
           }
         />
       ) : (
-        <div ref={animate ? flipContainerRef : undefined} className={compact ? "space-y-2" : "space-y-3"}>
+        <div
+          ref={animate ? flipContainerRef : undefined}
+          className={compact ? "space-y-2" : "space-y-3"}
+        >
           {days.map(({ date, entries }) => (
             <DaySection
               key={date}
@@ -743,7 +1057,9 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
               matches — keep "Load more" reachable so any filter can paginate. */}
           {displayConvs.length === 0 && (
             <p className="text-center text-meta text-sol-text-dim/50 py-3">
-              {actorFilter || projectFilter ? "No matches in the sessions loaded so far." : "No sessions yet."}
+              {actorFilter || projectFilter
+                ? "No matches in the sessions loaded so far."
+                : "No sessions yet."}
             </p>
           )}
           {/* Always mounted — even at the believed end of history — so the
@@ -752,17 +1068,27 @@ function FeedBody({ source, sourceConvs, externalEvents = NO_EXTERNAL_EVENTS, ha
               the feed. The label only shows while there's known work to do. */}
           <div
             ref={sentinelRef}
-            onClick={() => { if (canReveal) setRenderLimit((r) => r + 30); else if (!isLoadingMore) loadMore(hasMore ? undefined : { reconfirm: true }); }}
+            onClick={() => {
+              if (canReveal) setRenderLimit((r) => r + 30);
+              else if (!isLoadingMore)
+                loadMore(hasMore ? undefined : { reconfirm: true });
+            }}
             className={`flex justify-center py-4 select-none ${canReveal || hasMore ? "cursor-pointer" : ""}`}
-            title={canReveal || hasMore ? "Loads automatically as you scroll — click to load now" : undefined}
+            title={
+              canReveal || hasMore
+                ? "Loads automatically as you scroll — click to load now"
+                : undefined
+            }
           >
             {isLoadingMore ? (
               <Spinner className="text-sol-text-dim/70" />
-            ) : (canReveal || hasMore) && (
-              <span className="flex items-center gap-1.5 text-meta font-mono text-sol-text-dim">
-                <span className="w-1 h-1 rounded-full bg-sol-text-dim/50" />
-                more
-              </span>
+            ) : (
+              (canReveal || hasMore) && (
+                <span className="flex items-center gap-1.5 text-meta font-mono text-sol-text-dim">
+                  <span className="w-1 h-1 rounded-full bg-sol-text-dim/50" />
+                  more
+                </span>
+              )
             )}
           </div>
         </div>
@@ -787,7 +1113,9 @@ export function TeamShareNudge({ teamId }: { teamId: string }) {
   const save = useSaveTeamSetup();
   const [sharing, setSharing] = useState(false);
   const pick = pickShareSuggestion(data.suggestions?.suggestions, teamId);
-  const repoName = pick ? pick.path.split("/").filter(Boolean).pop() ?? pick.path : null;
+  const repoName = pick
+    ? (pick.path.split("/").filter(Boolean).pop() ?? pick.path)
+    : null;
   const shareNow = () => {
     if (!pick || !data.suggestions) return;
     setSharing(true);
@@ -798,40 +1126,67 @@ export function TeamShareNudge({ teamId }: { teamId: string }) {
       shareSince: Date.now(),
       allProjects: data.allProjects,
     })
-      .then(() => toast.success(`Sharing ${repoName} with ${data.teamName}`, { description: "New sessions there show in this feed. Earlier ones stay private." }))
+      .then(() =>
+        toast.success(`Sharing ${repoName} with ${data.teamName}`, {
+          description:
+            "New sessions there show in this feed. Earlier ones stay private.",
+        }),
+      )
       .catch(() => {
         setSharing(false);
-        toast.error("Could not share that repo", { description: "Try again from the sharing setup." });
+        toast.error("Could not share that repo", {
+          description: "Try again from the sharing setup.",
+        });
       });
   };
   // The card belongs to one team, so it wears that team's color instead of a
   // fixed cyan. A user who just picked a color in the create flow lands here
   // and finds the same color waiting. Cyan stays the fallback.
   const color = useInboxStore(
-    (s) => (s.teams || []).find((t: any) => String(t._id) === String(teamId))?.icon_color,
+    (s) =>
+      (s.teams || []).find((t: any) => String(t._id) === String(teamId))
+        ?.icon_color,
   ) as string | undefined;
   const generic = (
     <button
       type="button"
-      onClick={() => router.push(`/settings/team/join?teamId=${teamId}&setup=1`)}
-      style={color ? ({ "--tf-acc": `var(--sol-${color})` } as CSSProperties) : undefined}
+      onClick={() =>
+        router.push(`/settings/team/join?teamId=${teamId}&setup=1`)
+      }
+      style={
+        color
+          ? ({ "--tf-acc": `var(--sol-${color})` } as CSSProperties)
+          : undefined
+      }
       className="tf-accent-card w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left outline-none"
     >
       <FolderGit2 className="tf-accent-text h-4 w-4 shrink-0" />
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium text-sol-text">Share your workspaces with the team</span>
+        <span className="block text-sm font-medium text-sol-text">
+          Share your workspaces with the team
+        </span>
         <span className="block text-xs text-sol-text-muted">
-          Your sessions stay off this feed until you share the repos you work in.
+          Your sessions stay off this feed until you share the repos you work
+          in.
         </span>
       </span>
-      <span className="tf-accent-text shrink-0 text-sm font-medium">Set up sharing &rarr;</span>
+      <span className="tf-accent-text shrink-0 text-sm font-medium">
+        Set up sharing &rarr;
+      </span>
     </button>
   );
   if (!pick || !repoName) return generic;
-  const people = pick.matched_member_count === 1 ? "a teammate works" : `${pick.matched_member_count} teammates work`;
+  const people =
+    pick.matched_member_count === 1
+      ? "a teammate works"
+      : `${pick.matched_member_count} teammates work`;
   return (
     <div
-      style={color ? ({ "--tf-acc": `var(--sol-${color})` } as CSSProperties) : undefined}
+      style={
+        color
+          ? ({ "--tf-acc": `var(--sol-${color})` } as CSSProperties)
+          : undefined
+      }
       className="tf-accent-card w-full flex items-center gap-3 rounded-lg border px-4 py-3"
     >
       <FolderGit2 className="tf-accent-text h-4 w-4 shrink-0" />
@@ -840,12 +1195,16 @@ export function TeamShareNudge({ teamId }: { teamId: string }) {
           {people} in <span className="font-mono">{repoName}</span> too
         </span>
         <span className="block text-xs text-sol-text-muted">
-          You have {pick.session_count} session{pick.session_count === 1 ? "" : "s"} there that the team can't see. Share it from now on; earlier sessions stay private.
+          You have {pick.session_count} session
+          {pick.session_count === 1 ? "" : "s"} there that the team can't see.
+          Share it from now on; earlier sessions stay private.
         </span>
       </span>
       <button
         type="button"
-        onClick={() => router.push(`/settings/team/join?teamId=${teamId}&setup=1`)}
+        onClick={() =>
+          router.push(`/settings/team/join?teamId=${teamId}&setup=1`)
+        }
         className="shrink-0 text-xs text-sol-text-muted hover:text-sol-text"
       >
         Other repos
@@ -862,12 +1221,30 @@ export function TeamShareNudge({ teamId }: { teamId: string }) {
   );
 }
 
-function TeamFeed({ compact, directoryFilter, onNavigate, initialActorId, hidePeopleRow }: ActivityFeedProps) {
+function TeamFeed({
+  compact,
+  directoryFilter,
+  onNavigate,
+  initialActorId,
+  hidePeopleRow,
+}: ActivityFeedProps) {
   const viewer = useViewerIdentity();
   const roster = useInboxStore(teamMembersOf);
   const members = roster.length ? roster : undefined;
-  const { activeTeamId, stubTeam, rows: sourceConvs, hasMore, loadMore, loadingMore, isLoading } = useTeamFeed({ directoryFilter, members });
-  const activeTeamName = useInboxStore((s) => (s.teams || []).find((t: any) => String(t._id) === String(activeTeamId))?.name) as string | undefined;
+  const {
+    activeTeamId,
+    stubTeam,
+    rows: sourceConvs,
+    hasMore,
+    loadMore,
+    loadingMore,
+    isLoading,
+  } = useTeamFeed({ directoryFilter, members });
+  const activeTeamName = useInboxStore(
+    (s) =>
+      (s.teams || []).find((t: any) => String(t._id) === String(activeTeamId))
+        ?.name,
+  ) as string | undefined;
 
   // Enrichment only (the feed renders fine without it), so noThrow: a failure
   // means no nudge, never a broken feed.
@@ -876,8 +1253,12 @@ function TeamFeed({ compact, directoryFilter, onNavigate, initialActorId, hidePe
     activeTeamId && !stubTeam ? {} : "skip",
   ).data as { team_id?: Id<"teams">; auto_share?: boolean }[] | undefined;
   const sharesNone =
-    !!activeTeamId && !stubTeam && Array.isArray(mappings) &&
-    !mappings.some((m) => m.team_id?.toString() === activeTeamId.toString() && m.auto_share);
+    !!activeTeamId &&
+    !stubTeam &&
+    Array.isArray(mappings) &&
+    !mappings.some(
+      (m) => m.team_id?.toString() === activeTeamId.toString() && m.auto_share,
+    );
 
   // Read the store the team feeder fills; the feeder itself is mounted globally.
   // The externalEvents store key is one shared overlay: a conversation, task or
@@ -886,10 +1267,14 @@ function TeamFeed({ compact, directoryFilter, onNavigate, initialActorId, hidePe
   // the feed after that view unmounts.
   const teamEventsWhere = useMemo(
     // Personal has no team feed: no row is the active team's.
-    () => (row: { team_id?: string }) => !!activeTeamId && String(row.team_id) === String(activeTeamId),
+    () => (row: { team_id?: string }) =>
+      !!activeTeamId && String(row.team_id) === String(activeTeamId),
     [activeTeamId],
   );
-  const externalEvents = useExternalEvents(teamEventsWhere, externalEventsNewestFirst);
+  const externalEvents = useExternalEvents(
+    teamEventsWhere,
+    externalEventsNewestFirst,
+  );
 
   return (
     <FeedBody
@@ -904,19 +1289,29 @@ function TeamFeed({ compact, directoryFilter, onNavigate, initialActorId, hidePe
       compact={compact}
       hidePeopleRow={hidePeopleRow}
       initialActorId={initialActorId}
-      shareNudge={activeTeamId ? (
-        <div className="space-y-2 empty:hidden">
-          {sharesNone && <TeamShareNudge teamId={String(activeTeamId)} />}
-          <TeamFindableNudge key={String(activeTeamId)} teamId={activeTeamId} teamName={activeTeamName || "your team"} />
-        </div>
-      ) : undefined}
+      shareNudge={
+        activeTeamId ? (
+          <div className="space-y-2 empty:hidden">
+            {sharesNone && <TeamShareNudge teamId={String(activeTeamId)} />}
+            <TeamFindableNudge
+              key={String(activeTeamId)}
+              teamId={activeTeamId}
+              teamName={activeTeamName || "your team"}
+            />
+          </div>
+        ) : undefined
+      }
       shareTeamId={activeTeamId ? String(activeTeamId) : undefined}
     />
   );
 }
 
 // --- Personal source: a view over store.sessions (the liberal delta cache). ---
-function PersonalFeed({ compact, directoryFilter, onNavigate }: ActivityFeedProps) {
+function PersonalFeed({
+  compact,
+  directoryFilter,
+  onNavigate,
+}: ActivityFeedProps) {
   // Wake only on STRUCTURAL session change (bucket/order/identity), not on every ~1s
   // liveness heartbeat. Subscribing to the raw s.sessions map re-ran sortSessions
   // (O(N log N)) + filter + map on every tick even though the order was stable. The
@@ -929,7 +1324,9 @@ function PersonalFeed({ compact, directoryFilter, onNavigate }: ActivityFeedProp
   // 15s clock — same cadence the inbox sidebar uses — instead of the heartbeat.
   const coarseNow = useCoarseNow(15_000);
   const sourceConvs = useMemo(() => {
-    const dirLeaf = directoryFilter ? directoryFilter.split("/").filter(Boolean).pop() : null;
+    const dirLeaf = directoryFilter
+      ? directoryFilter.split("/").filter(Boolean).pop()
+      : null;
     // sortSessions gives the inbox's stable order (pinned/active/idle) and already
     // drops dismissed — keep that order so the feed doesn't churn on heartbeats.
     return sortSessions(sessions)
@@ -967,5 +1364,9 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed(props: ActivityFeedProps) {
-  return props.mode === "team" ? <TeamFeed {...props} /> : <PersonalFeed {...props} />;
+  return props.mode === "team" ? (
+    <TeamFeed {...props} />
+  ) : (
+    <PersonalFeed {...props} />
+  );
 }

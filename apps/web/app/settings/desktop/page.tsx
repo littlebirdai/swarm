@@ -19,10 +19,17 @@ import {
 } from "../../../lib/desktop";
 import { MeetingDetectSection } from "../../../components/settings/MeetingDetectSection";
 import { AgentDockSection } from "../../../components/settings/AgentDockSection";
-import { useDesktopSettings, refreshDesktopSettings } from "../../../hooks/useDesktopSettings";
+import {
+  useDesktopSettings,
+  refreshDesktopSettings,
+} from "../../../hooks/useDesktopSettings";
 import { Button } from "../../../components/ui/button";
 import { KeyCap } from "../../../components/KeyboardShortcutsHelp";
-import { SettingsPanel, SettingsRow, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { formatAcceleratorParts } from "../../../shortcuts";
 import { modernButton } from "../../../components/ui/modernLook";
 
@@ -69,10 +76,12 @@ function ShortcutRecorder({
       setRecording(false);
       onChange(parts.join("+"));
     },
-    [recording, onChange]
+    [recording, onChange],
   );
 
-  useEventListener("keydown", handleKeyDown, recording ? document : null, { capture: true });
+  useEventListener("keydown", handleKeyDown, recording ? document : null, {
+    capture: true,
+  });
 
   return (
     <button
@@ -104,7 +113,11 @@ function ShortcutRecorder({
 function DesktopVersionRow() {
   const [current, setCurrent] = useState<string | null>(null);
   const [available, setAvailable] = useState<string | null>(null);
-  const [ipc, setIpc] = useState<{ status: string; version?: string; percent?: number } | null>(null);
+  const [ipc, setIpc] = useState<{
+    status: string;
+    version?: string;
+    percent?: number;
+  } | null>(null);
   const [checking, setChecking] = useState(false);
 
   useMountEffect(() => {
@@ -119,7 +132,8 @@ function DesktopVersionRow() {
 
   let statusLine: string;
   if (ready) statusLine = `v${latest} is ready to install`;
-  else if (downloading) statusLine = `Downloading v${latest}… ${ipc?.percent ?? 0}%`;
+  else if (downloading)
+    statusLine = `Downloading v${latest}… ${ipc?.percent ?? 0}%`;
   else if (latest) statusLine = `v${latest} is available`;
   else if (checking) statusLine = "Checking for updates…";
   else statusLine = "You're on the latest version";
@@ -147,11 +161,20 @@ function DesktopVersionRow() {
       ) : downloading ? (
         <span className="text-xs text-sol-cyan">{ipc?.percent ?? 0}%</span>
       ) : latest ? (
-        <Button size="sm" onClick={() => checkForUpdate({ manual: false })} variant="cyan">
+        <Button
+          size="sm"
+          onClick={() => checkForUpdate({ manual: false })}
+          variant="cyan"
+        >
           Update now
         </Button>
       ) : (
-        <Button size="sm" variant="outline" onClick={runCheck} disabled={checking}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={runCheck}
+          disabled={checking}
+        >
           {checking ? "Checking…" : "Check for updates"}
         </Button>
       )}
@@ -159,12 +182,12 @@ function DesktopVersionRow() {
   );
 }
 
-
 // Every OS-level permission this Mac has decided about Codecast, with the
 // fix in reach. Hidden on shells too old to report them (all unknown).
 function PermissionsSection() {
   const { permissions, refresh } = useOsPermissions();
-  if (OS_PERMISSION_KINDS.every((k) => permissions[k] === "unknown")) return null;
+  if (OS_PERMISSION_KINDS.every((k) => permissions[k] === "unknown"))
+    return null;
   return (
     <SettingsSection
       title="Permissions"
@@ -177,7 +200,12 @@ function PermissionsSection() {
       }
     >
       {OS_PERMISSION_KINDS.map((k) => (
-        <PermissionRow key={k} kind={k} readiness={permissions[k]} onChange={refresh} />
+        <PermissionRow
+          key={k}
+          kind={k}
+          readiness={permissions[k]}
+          onChange={refresh}
+        />
       ))}
       <ComputerPermissionRows />
     </SettingsSection>
@@ -191,14 +219,17 @@ export default function DesktopSettingsPage() {
 
   // "" removes the binding; the default value restores it. Re-fetch the full
   // config afterward so registration conflicts (issues) reflect the new state.
-  const updateShortcut = useCallback(async (key: string, accelerator: string) => {
-    if (!isElectron()) return;
-    await bridge("setShortcut")?.(key, accelerator);
-    await refreshDesktopSettings();
-    setSaved(key);
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setSaved(null), 1500);
-  }, []);
+  const updateShortcut = useCallback(
+    async (key: string, accelerator: string) => {
+      if (!isElectron()) return;
+      await bridge("setShortcut")?.(key, accelerator);
+      await refreshDesktopSettings();
+      setSaved(key);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(null), 1500);
+    },
+    [],
+  );
 
   if (!isElectron()) {
     return (
@@ -228,54 +259,61 @@ export default function DesktopSettingsPage() {
         icon={Keyboard}
         description="Global shortcuts work from anywhere on your system, even when Codecast is in the background."
       >
-        {cfg && DESKTOP_SHORTCUTS.map(({ key, label, description }) => {
-          const value = cfg.shortcuts[key] || "";
-          const conflict = !!cfg.issues[key];
-          const isDefault = cfg.defaults ? value === cfg.defaults[key] : true;
-          return (
-            <SettingsRow
-              key={key}
-              label={label}
-              description={
-                <>
-                  {description}
-                  {conflict && (
-                    <span className="mt-0.5 block text-sol-orange">
-                      Couldn't register — another app may be using this shortcut.
-                    </span>
-                  )}
-                </>
-              }
-            >
-              {saved === key && <span className="text-xs text-sol-cyan">Saved</span>}
-              <ShortcutRecorder value={value} onChange={(acc) => updateShortcut(key, acc)} />
-              {!isDefault && cfg.defaults && (
-                <button
-                  onClick={() => updateShortcut(key, cfg.defaults![key])}
-                  aria-label="Reset to default"
-                  title="Reset to default"
-                  className="p-1.5 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button
-                onClick={() => updateShortcut(key, "")}
-                aria-label="Remove shortcut"
-                title="Remove shortcut"
-                disabled={!value}
-                className="p-1.5 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        {cfg &&
+          DESKTOP_SHORTCUTS.map(({ key, label, description }) => {
+            const value = cfg.shortcuts[key] || "";
+            const conflict = !!cfg.issues[key];
+            const isDefault = cfg.defaults ? value === cfg.defaults[key] : true;
+            return (
+              <SettingsRow
+                key={key}
+                label={label}
+                description={
+                  <>
+                    {description}
+                    {conflict && (
+                      <span className="mt-0.5 block text-sol-orange">
+                        Couldn't register — another app may be using this
+                        shortcut.
+                      </span>
+                    )}
+                  </>
+                }
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </SettingsRow>
-          );
-        })}
+                {saved === key && (
+                  <span className="text-xs text-sol-cyan">Saved</span>
+                )}
+                <ShortcutRecorder
+                  value={value}
+                  onChange={(acc) => updateShortcut(key, acc)}
+                />
+                {!isDefault && cfg.defaults && (
+                  <button
+                    onClick={() => updateShortcut(key, cfg.defaults![key])}
+                    aria-label="Reset to default"
+                    title="Reset to default"
+                    className="p-1.5 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => updateShortcut(key, "")}
+                  aria-label="Remove shortcut"
+                  title="Remove shortcut"
+                  disabled={!value}
+                  className="p-1.5 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </SettingsRow>
+            );
+          })}
       </SettingsSection>
 
       <p className="px-1 text-xs text-sol-text-dim">
-        Click a shortcut to re-record it, press <KeyCap size="xs">Esc</KeyCap> to cancel, or remove
-        it with the remove button.
+        Click a shortcut to re-record it, press <KeyCap size="xs">Esc</KeyCap>{" "}
+        to cancel, or remove it with the remove button.
       </p>
     </SettingsPanel>
   );

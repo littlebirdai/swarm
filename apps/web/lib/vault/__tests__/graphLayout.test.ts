@@ -7,7 +7,9 @@ import { test, expect, describe } from "bun:test";
 import { runGraphLayout, seedPosition, type LayoutTick } from "../graphLayout";
 
 /** Run a layout to completion, collecting every tick. */
-function layout(input: Parameters<typeof runGraphLayout>[0]): Promise<LayoutTick[]> {
+function layout(
+  input: Parameters<typeof runGraphLayout>[0],
+): Promise<LayoutTick[]> {
   return new Promise((resolve) => {
     const ticks: LayoutTick[] = [];
     runGraphLayout(input, (tick) => {
@@ -19,7 +21,10 @@ function layout(input: Parameters<typeof runGraphLayout>[0]): Promise<LayoutTick
 
 const chain = (n: number) => ({
   nodes: Array.from({ length: n }, (_, i) => `n${i}`),
-  edges: Array.from({ length: n - 1 }, (_, i) => [`n${i}`, `n${i + 1}`] as [string, string]),
+  edges: Array.from(
+    { length: n - 1 },
+    (_, i) => [`n${i}`, `n${i + 1}`] as [string, string],
+  ),
 });
 
 describe("seedPosition", () => {
@@ -69,7 +74,9 @@ describe("runGraphLayout", () => {
       layout({ ...chain(25), iterations: 45 }),
     ]);
 
-    expect([...first[first.length - 1].positions]).toEqual([...second[second.length - 1].positions]);
+    expect([...first[first.length - 1].positions]).toEqual([
+      ...second[second.length - 1].positions,
+    ]);
   });
 
   test("an empty graph completes immediately", async () => {
@@ -102,7 +109,9 @@ describe("runGraphLayout", () => {
 
   test("cancelling stops further ticks", async () => {
     const seen: LayoutTick[] = [];
-    const cancel = runGraphLayout({ ...chain(30), iterations: 300 }, (tick) => seen.push(tick));
+    const cancel = runGraphLayout({ ...chain(30), iterations: 300 }, (tick) =>
+      seen.push(tick),
+    );
     cancel();
 
     await new Promise((r) => setTimeout(r, 60));
@@ -113,7 +122,12 @@ describe("runGraphLayout", () => {
     // Zero iterations means the first tick IS the seed, so this reads the
     // seeding decision directly.
     const given = new Float32Array([100, 200, -100, -200]);
-    const ticks = await layout({ nodes: ["a", "b"], edges: [], iterations: 0, positions: given });
+    const ticks = await layout({
+      nodes: ["a", "b"],
+      edges: [],
+      iterations: 0,
+      positions: given,
+    });
 
     expect([...ticks[0].positions]).toEqual([100, 200, -100, -200]);
   });
@@ -129,7 +143,12 @@ describe("runGraphLayout", () => {
   test("a node missing from supplied positions falls back to the circle", async () => {
     // Only 'a' has a position; 'b' is left as NaN.
     const given = new Float32Array([50, 50, NaN, NaN]);
-    const ticks = await layout({ nodes: ["a", "b"], edges: [], iterations: 0, positions: given });
+    const ticks = await layout({
+      nodes: ["a", "b"],
+      edges: [],
+      iterations: 0,
+      positions: given,
+    });
     const b = seedPosition(1, 2);
 
     expect(ticks[0].positions[0]).toBe(50);

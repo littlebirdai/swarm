@@ -84,10 +84,18 @@ export async function snapshotStateDir(cwd: string): Promise<string | null> {
 
 function readHead(stateDir: string): ChainHead | null {
   try {
-    const raw = fs.readFileSync(path.join(stateDir, "wip.head"), "utf8").trim().split(/\s+/);
+    const raw = fs
+      .readFileSync(path.join(stateDir, "wip.head"), "utf8")
+      .trim()
+      .split(/\s+/);
     if (raw.length < 3) return null;
     const depth = Number(raw[2]);
-    if (!/^[0-9a-f]{40}$/.test(raw[0]) || !/^[0-9a-f]{40}$/.test(raw[1]) || !Number.isFinite(depth)) return null;
+    if (
+      !/^[0-9a-f]{40}$/.test(raw[0]) ||
+      !/^[0-9a-f]{40}$/.test(raw[1]) ||
+      !Number.isFinite(depth)
+    )
+      return null;
     return { sha: raw[0], tree: raw[1], depth };
   } catch {
     return null;
@@ -97,7 +105,9 @@ function readHead(stateDir: string): ChainHead | null {
 function writeHead(stateDir: string, head: ChainHead): void {
   const file = path.join(stateDir, "wip.head");
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, `${head.sha} ${head.tree} ${head.depth}\n`, { mode: 0o600 });
+  fs.writeFileSync(tmp, `${head.sha} ${head.tree} ${head.depth}\n`, {
+    mode: 0o600,
+  });
   fs.renameSync(tmp, file);
 }
 
@@ -109,7 +119,8 @@ export async function chainHead(cwd: string): Promise<ChainHead | null> {
   if (!head) return null;
   // A pruned object store, a rewritten git dir: the head file must never
   // point at something git cannot show.
-  if ((await gitTry(cwd, ["cat-file", "-e", `${head.sha}^{commit}`])) === null) return null;
+  if ((await gitTry(cwd, ["cat-file", "-e", `${head.sha}^{commit}`])) === null)
+    return null;
   return head;
 }
 
@@ -133,7 +144,10 @@ async function ensureIndex(cwd: string, stateDir: string): Promise<string> {
     const st = fs.statSync(real);
     fs.utimesSync(idx, st.atime, st.mtime);
   } else {
-    await git(cwd, ["read-tree", "HEAD"], { ...process.env, GIT_INDEX_FILE: idx });
+    await git(cwd, ["read-tree", "HEAD"], {
+      ...process.env,
+      GIT_INDEX_FILE: idx,
+    });
   }
   return idx;
 }
@@ -149,7 +163,8 @@ export const STALE_INDEX_LOCK_MS = 10 * 60_000;
  */
 function clearStaleLock(lock: string): void {
   try {
-    if (Date.now() - fs.statSync(lock).mtimeMs > STALE_INDEX_LOCK_MS) fs.unlinkSync(lock);
+    if (Date.now() - fs.statSync(lock).mtimeMs > STALE_INDEX_LOCK_MS)
+      fs.unlinkSync(lock);
   } catch {}
 }
 
@@ -191,10 +206,19 @@ async function serialized<T>(key: string, fn: () => Promise<T>): Promise<T> {
  * checkout's root, so a caller inside a subdirectory still cleans the whole
  * index and every path is root-relative.
  */
-async function dropUnwanted(top: string, head: string, env: NodeJS.ProcessEnv, opts: { ignored: boolean }): Promise<void> {
+async function dropUnwanted(
+  top: string,
+  head: string,
+  env: NodeJS.ProcessEnv,
+  opts: { ignored: boolean },
+): Promise<void> {
   const candidates = new Set<string>();
   if (opts.ignored) {
-    const listed = await gitTry(top, ["ls-files", "-z", "--cached", "--ignored", "--exclude-standard"], env);
+    const listed = await gitTry(
+      top,
+      ["ls-files", "-z", "--cached", "--ignored", "--exclude-standard"],
+      env,
+    );
     for (const p of (listed ?? "").split("\0")) if (p) candidates.add(p);
   }
   // `ls-files -s -z`: "<mode> <sha> <stage>\t<path>\0"; 160000 is a gitlink.
@@ -209,16 +233,34 @@ async function dropUnwanted(top: string, head: string, env: NodeJS.ProcessEnv, o
   // A newly ignored node_modules can name tens of thousands of paths: past a
   // few hundred, list HEAD whole rather than risk the argument limit. A failed
   // listing drops nothing, since dropping is only right for what HEAD lacks.
-  const tracked = await gitTry(top, list.length > 500
-    ? ["ls-tree", "-r", "-z", "--name-only", head]
-    : ["--literal-pathspecs", "ls-tree", "-r", "-z", "--name-only", head, "--", ...list]);
+  const tracked = await gitTry(
+    top,
+    list.length > 500
+      ? ["ls-tree", "-r", "-z", "--name-only", head]
+      : [
+          "--literal-pathspecs",
+          "ls-tree",
+          "-r",
+          "-z",
+          "--name-only",
+          head,
+          "--",
+          ...list,
+        ],
+  );
   if (tracked === null) return;
   const inHead = new Set((tracked ?? "").split("\0").filter(Boolean));
   const drop = list.filter((p) => !inHead.has(p));
   // Not `git rm --cached`: before it drops a gitlink it runs `git status
   // --porcelain -uall` inside that checkout, untracked walk and all, which is
   // the very cost this removes. update-index edits the index and nothing else.
-  if (drop.length) await git(top, ["update-index", "--force-remove", "-z", "--stdin"], env, drop.join("\0"));
+  if (drop.length)
+    await git(
+      top,
+      ["update-index", "--force-remove", "-z", "--stdin"],
+      env,
+      drop.join("\0"),
+    );
 }
 
 /**
@@ -253,24 +295,39 @@ export async function createTurnSnapshot(
       // created then deleted in one turn; a .env it wrote), so filter first:
       // keep a path that is on disk or in the index, and drop the ignored.
       const named = await namedPathsToAdd(cwd, opts.paths, env);
-      if (named.length) await git(cwd, ["add", "-A", "--", ...named, ...excludes], env);
+      if (named.length)
+        await git(cwd, ["add", "-A", "--", ...named, ...excludes], env);
     } else {
       await git(cwd, ["add", "-A", "--", ".", ...excludes], env);
     }
     await dropUnwanted(top, head, env, { ignored: false });
     const tree = await git(cwd, ["write-tree"], env);
-    const branch = (await gitTry(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])) ?? "HEAD";
+    const branch =
+      (await gitTry(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])) ?? "HEAD";
     const headTree = await git(cwd, ["rev-parse", `${head}^{tree}`]);
     const dirty = tree !== headTree;
 
     let prev = readHead(stateDir);
-    if (prev && (await gitTry(cwd, ["cat-file", "-e", `${prev.sha}^{commit}`])) === null) prev = null;
+    if (
+      prev &&
+      (await gitTry(cwd, ["cat-file", "-e", `${prev.sha}^{commit}`])) === null
+    )
+      prev = null;
     const takenAt = Date.now();
 
     if (prev && prev.tree === tree) {
       return {
-        sha: prev.sha, tree, base: head, branch, depth: prev.depth,
-        changedPaths: [], changedCount: 0, dirty, unchanged: true, takenAt, tookMs: Date.now() - started,
+        sha: prev.sha,
+        tree,
+        base: head,
+        branch,
+        depth: prev.depth,
+        changedPaths: [],
+        changedCount: 0,
+        dirty,
+        unchanged: true,
+        takenAt,
+        tookMs: Date.now() - started,
       };
     }
 
@@ -284,43 +341,101 @@ export async function createTurnSnapshot(
       `${TAKEN_AT_TRAILER}: ${new Date(takenAt).toISOString()}`,
     ].join("\n");
     const parents = ["-p", head, ...(chain ? ["-p", chain.sha] : [])];
-    const sha = await git(cwd, ["commit-tree", tree, ...parents, "-m", message], {
-      ...process.env,
-      ...SNAPSHOT_IDENTITY,
-      GIT_AUTHOR_DATE: new Date(takenAt).toISOString(),
-      GIT_COMMITTER_DATE: new Date(takenAt).toISOString(),
-    });
+    const sha = await git(
+      cwd,
+      ["commit-tree", tree, ...parents, "-m", message],
+      {
+        ...process.env,
+        ...SNAPSHOT_IDENTITY,
+        GIT_AUTHOR_DATE: new Date(takenAt).toISOString(),
+        GIT_COMMITTER_DATE: new Date(takenAt).toISOString(),
+      },
+    );
 
     const against = chain ? chain.tree : headTree;
-    const names = (await gitTry(cwd, ["diff-tree", "-r", "--name-only", against, tree])) ?? "";
+    const names =
+      (await gitTry(cwd, ["diff-tree", "-r", "--name-only", against, tree])) ??
+      "";
     const changed = names ? names.split("\n").filter(Boolean) : [];
 
     writeHead(stateDir, { sha, tree, depth });
     return {
-      sha, tree, base: head, branch, prev: chain?.sha, depth,
-      changedPaths: changed.slice(0, CHANGED_PATHS_CAP), changedCount: changed.length,
-      dirty, unchanged: false, takenAt, tookMs: Date.now() - started,
+      sha,
+      tree,
+      base: head,
+      branch,
+      prev: chain?.sha,
+      depth,
+      changedPaths: changed.slice(0, CHANGED_PATHS_CAP),
+      changedCount: changed.length,
+      dirty,
+      unchanged: false,
+      takenAt,
+      tookMs: Date.now() - started,
     };
   });
 }
 
-async function namedPathsToAdd(cwd: string, paths: string[], env: NodeJS.ProcessEnv): Promise<string[]> {
+async function namedPathsToAdd(
+  cwd: string,
+  paths: string[],
+  env: NodeJS.ProcessEnv,
+): Promise<string[]> {
   const rel = paths
     .map((p) => (path.isAbsolute(p) ? path.relative(cwd, p) : p))
     .filter((p) => p && !p.startsWith("..") && !path.isAbsolute(p));
   if (!rel.length) return [];
-  const inIndex = new Set(((await gitTry(cwd, ["ls-files", "-z", "--", ...rel], env)) ?? "").split("\0").filter(Boolean));
-  const present = rel.filter((p) => inIndex.has(p) || fs.existsSync(path.join(cwd, p)));
+  const inIndex = new Set(
+    ((await gitTry(cwd, ["ls-files", "-z", "--", ...rel], env)) ?? "")
+      .split("\0")
+      .filter(Boolean),
+  );
+  const present = rel.filter(
+    (p) => inIndex.has(p) || fs.existsSync(path.join(cwd, p)),
+  );
   if (!present.length) return [];
   // check-ignore reports untracked paths an ignore rule matches; tracked ones
   // are never reported, which is the rule add itself applies.
-  const ignored = new Set(((await gitTry(cwd, ["check-ignore", "-z", "--stdin"], env, present.join("\0"))) ?? "").split("\0").filter(Boolean));
+  const ignored = new Set(
+    (
+      (await gitTry(
+        cwd,
+        ["check-ignore", "-z", "--stdin"],
+        env,
+        present.join("\0"),
+      )) ?? ""
+    )
+      .split("\0")
+      .filter(Boolean),
+  );
   return present.filter((p) => !ignored.has(p));
 }
 
 /** The chain of snapshots behind `sha`, newest first, read from the commits themselves. */
-export async function listChain(cwd: string, sha: string, limit = 500): Promise<Array<{ sha: string; tree: string; base: string; prev?: string; depth: number; takenAt?: number; branch?: string }>> {
-  const out: Array<{ sha: string; tree: string; base: string; prev?: string; depth: number; takenAt?: number; branch?: string }> = [];
+export async function listChain(
+  cwd: string,
+  sha: string,
+  limit = 500,
+): Promise<
+  Array<{
+    sha: string;
+    tree: string;
+    base: string;
+    prev?: string;
+    depth: number;
+    takenAt?: number;
+    branch?: string;
+  }>
+> {
+  const out: Array<{
+    sha: string;
+    tree: string;
+    base: string;
+    prev?: string;
+    depth: number;
+    takenAt?: number;
+    branch?: string;
+  }> = [];
   let cur: string | null = sha;
   while (cur && out.length < limit) {
     const raw = await gitTry(cwd, ["show", "-s", "--format=%T%n%P%n%B", cur]);
@@ -331,8 +446,13 @@ export async function listChain(cwd: string, sha: string, limit = 500): Promise<
     if (!message.startsWith(WIP_SNAPSHOT_SUBJECT)) break;
     const taken = parseSnapshotTrailer(message, TAKEN_AT_TRAILER);
     out.push({
-      sha: cur, tree, base: parents[0], prev: parents[1], depth: Number(parseSnapshotTrailer(message, DEPTH_TRAILER) ?? 0),
-      takenAt: taken ? Date.parse(taken) : undefined, branch: parseSnapshotTrailer(message, BRANCH_TRAILER),
+      sha: cur,
+      tree,
+      base: parents[0],
+      prev: parents[1],
+      depth: Number(parseSnapshotTrailer(message, DEPTH_TRAILER) ?? 0),
+      takenAt: taken ? Date.parse(taken) : undefined,
+      branch: parseSnapshotTrailer(message, BRANCH_TRAILER),
     });
     cur = parents[1] ?? null;
   }
@@ -340,6 +460,16 @@ export async function listChain(cwd: string, sha: string, limit = 500): Promise<
 }
 
 /** A unified diff between two snapshots' trees (or a snapshot and its base). */
-export async function diffSnapshots(cwd: string, from: string, to: string, opts: { stat?: boolean } = {}): Promise<string | null> {
-  return gitTry(cwd, ["diff", ...(opts.stat ? ["--stat"] : []), `${from}^{tree}`, `${to}^{tree}`]);
+export async function diffSnapshots(
+  cwd: string,
+  from: string,
+  to: string,
+  opts: { stat?: boolean } = {},
+): Promise<string | null> {
+  return gitTry(cwd, [
+    "diff",
+    ...(opts.stat ? ["--stat"] : []),
+    `${from}^{tree}`,
+    `${to}^{tree}`,
+  ]);
 }

@@ -78,7 +78,8 @@ export function useOpenReveal(): OpenReveal | null {
 // and the following lines resume under the band. No text node is split, so
 // React's hold on the paragraph is untouched. Code and tables keep the band
 // under the whole block.
-const BLOCK = "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, dl, figure";
+const BLOCK =
+  "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, dl, figure";
 const FLOW = "p, li, h1, h2, h3, h4, h5, h6";
 function placeSlot(anchor: HTMLElement): HTMLElement {
   const card = anchor.closest<HTMLElement>(".entity-card-row");
@@ -92,22 +93,39 @@ function placeSlot(anchor: HTMLElement): HTMLElement {
     slot.setAttribute("data-reveal-inline", "");
     // After the pill's caret, which sits beside it.
     const caret = anchor.nextElementSibling;
-    (caret?.classList.contains("entity-ref__expand") ? caret : anchor).after(slot);
+    (caret?.classList.contains("entity-ref__expand") ? caret : anchor).after(
+      slot,
+    );
   } else {
     block.after(slot);
   }
   return slot;
 }
 
-export function toggleReveal(hostKey: string, target: RevealTarget, anchor: HTMLElement) {
-  if (current && current.hostKey === hostKey && current.target.href === target.href) {
+export function toggleReveal(
+  hostKey: string,
+  target: RevealTarget,
+  anchor: HTMLElement,
+) {
+  if (
+    current &&
+    current.hostKey === hostKey &&
+    current.target.href === target.href
+  ) {
     closeReveal();
     return;
   }
   const prev = current;
   const holdTop = prev ? anchor.getBoundingClientRect().top : null;
   prev?.slot.remove();
-  current = { hostKey, target, slot: placeSlot(anchor), anchor, fresh: true, holdTop };
+  current = {
+    hostKey,
+    target,
+    slot: placeSlot(anchor),
+    anchor,
+    fresh: true,
+    holdTop,
+  };
   emit();
 }
 
@@ -124,10 +142,21 @@ export function closeReveal() {
  * re-places the slot under itself, so the band is where the reader left it.
  * A no-op while the slot is still in the document.
  */
-export function reattachReveal(hostKey: string, href: string, anchor: HTMLElement) {
-  if (!current || current.hostKey !== hostKey || current.target.href !== href) return;
+export function reattachReveal(
+  hostKey: string,
+  href: string,
+  anchor: HTMLElement,
+) {
+  if (!current || current.hostKey !== hostKey || current.target.href !== href)
+    return;
   if (current.slot.isConnected) return;
-  current = { ...current, slot: placeSlot(anchor), anchor, fresh: false, holdTop: null };
+  current = {
+    ...current,
+    slot: placeSlot(anchor),
+    anchor,
+    fresh: false,
+    holdTop: null,
+  };
   emit();
 }
 
@@ -144,7 +173,8 @@ export function useRevealHost(): RevealHostValue | null {
 export function useIsRevealOpen(hostKey: string | null, href: string): boolean {
   return useSyncExternalStore(
     subscribeReveal,
-    () => !!current && current.hostKey === hostKey && current.target.href === href,
+    () =>
+      !!current && current.hostKey === hostKey && current.target.href === href,
     () => false,
   );
 }
@@ -158,23 +188,32 @@ export function useIsRevealOpen(hostKey: string | null, href: string): boolean {
  *  looking at (the org page's drawer opens a proposal). A reference to one of
  *  those inside it opens there instead of a band under its line: a band would
  *  draw the whole surface again inside itself. */
-export type RevealInPlace = { claims: (href: string) => boolean; isOpen: (href: string) => boolean; toggle: (href: string) => void };
+export type RevealInPlace = {
+  claims: (href: string) => boolean;
+  isOpen: (href: string) => boolean;
+  toggle: (href: string) => void;
+};
 export const RevealInPlaceCtx = createContext<RevealInPlace | null>(null);
 
-export function useRevealRef(target: RevealTarget, ref: RefObject<HTMLElement | null>) {
+export function useRevealRef(
+  target: RevealTarget,
+  ref: RefObject<HTMLElement | null>,
+) {
   const inPlace = useContext(RevealInPlaceCtx);
   const claimed = !!inPlace && inPlace.claims(target.href);
   const host = useRevealHost();
   const hostKey = host?.hostKey ?? null;
   const open = useIsRevealOpen(hostKey, target.href);
   useLayoutEffect(() => {
-    if (open && hostKey && ref.current) reattachReveal(hostKey, target.href, ref.current);
+    if (open && hostKey && ref.current)
+      reattachReveal(hostKey, target.href, ref.current);
   }, [open, hostKey, target.href, ref]);
   const toggle = useCallback(() => {
     if (claimed) inPlace!.toggle(target.href);
     else if (hostKey && ref.current) toggleReveal(hostKey, target, ref.current);
   }, [claimed, inPlace, hostKey, target, ref]);
-  if (claimed) return { host: true, open: inPlace!.isOpen(target.href), toggle };
+  if (claimed)
+    return { host: true, open: inPlace!.isOpen(target.href), toggle };
   return { host: host !== null, open, toggle };
 }
 
@@ -223,7 +262,9 @@ export function useRevealAncestry(): readonly string[] {
 }
 
 /** The ancestry a transcript hands to its own bands: what it is inside, plus itself. */
-export function useRevealAncestryWith(conversationId: string): readonly string[] {
+export function useRevealAncestryWith(
+  conversationId: string,
+): readonly string[] {
   const outer = useContext(RevealAncestryCtx);
   return useMemo(() => [...outer, conversationId], [outer, conversationId]);
 }

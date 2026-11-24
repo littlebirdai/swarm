@@ -6,7 +6,10 @@ import type { ChatRailChannel } from "../store/chatSlice";
 import { chatViewRoomKey, type ChatMember } from "./chatViews";
 import { lazyNamed } from "./lazyNamed";
 
-const OccupancyChip = lazyNamed(() => import("../components/calls/OccupancyChip"), "OccupancyChip");
+const OccupancyChip = lazyNamed(
+  () => import("../components/calls/OccupancyChip"),
+  "OccupancyChip",
+);
 
 /** The live signals a chat row wears wherever it lives — the Chat sublist and
  *  the pinned rail spread this same pair, so the rules can't drift: a huddle
@@ -25,7 +28,10 @@ export function channelSignals(
   return {
     control: (
       <Suspense fallback={null}>
-        <OccupancyChip roomKey={chatViewRoomKey(channel, viewer, teamMembers)} className="flex-shrink-0" />
+        <OccupancyChip
+          roomKey={chatViewRoomKey(channel, viewer, teamMembers)}
+          className="flex-shrink-0"
+        />
       </Suspense>
     ),
     trailing: (
@@ -41,9 +47,17 @@ export function channelSignals(
           />
         )}
         {(channel.mentionCount ?? 0) > 0 ? (
-          <NavCount n={channel.mentionCount ?? 0} tone="bg-sol-red text-white" small kind="mention" />
+          <NavCount
+            n={channel.mentionCount ?? 0}
+            tone="bg-sol-red text-white"
+            small
+            kind="mention"
+          />
         ) : (channel.unreadCount ?? 0) > 0 ? (
-          <span className="w-1.5 h-1.5 rounded-full bg-sol-cyan flex-shrink-0" aria-label="Unread" />
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-sol-cyan flex-shrink-0"
+            aria-label="Unread"
+          />
         ) : null}
       </span>
     ),

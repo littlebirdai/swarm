@@ -8,10 +8,15 @@ import { useSyncExternalStore } from "react";
 
 const openers = new Map<string, () => void>();
 const listeners = new Set<() => void>();
-const emit = () => { for (const l of listeners) l(); };
+const emit = () => {
+  for (const l of listeners) l();
+};
 
 /** Registers the card's opener for a conversation; returns the unregister. */
-export function registerDecisionOpener(conversationId: string, open: () => void): () => void {
+export function registerDecisionOpener(
+  conversationId: string,
+  open: () => void,
+): () => void {
   openers.set(conversationId, open);
   emit();
   return () => {
@@ -21,9 +26,20 @@ export function registerDecisionOpener(conversationId: string, open: () => void)
   };
 }
 
-const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+};
 
 /** The opener of the conversation's docked decision, or null when none is docked. */
-export function useDecisionOpener(conversationId: string | undefined): (() => void) | null {
-  return useSyncExternalStore(subscribe, () => (conversationId ? openers.get(conversationId) ?? null : null), () => null);
+export function useDecisionOpener(
+  conversationId: string | undefined,
+): (() => void) | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => (conversationId ? (openers.get(conversationId) ?? null) : null),
+    () => null,
+  );
 }

@@ -39,7 +39,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { fs.rmSync(path.dirname(root), { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(path.dirname(root), { recursive: true, force: true });
+  } catch {}
 });
 
 describe("normalizeVaultPath", () => {
@@ -60,18 +62,24 @@ describe("normalizeVaultPath", () => {
 
 describe("resolveVaultPath", () => {
   test("resolves a path inside the vault", () => {
-    expect(resolveVaultPath(root, "notes/one.md")).toBe(path.join(realVaultRoot(root), "notes", "one.md"));
+    expect(resolveVaultPath(root, "notes/one.md")).toBe(
+      path.join(realVaultRoot(root), "notes", "one.md"),
+    );
   });
 
   test("resolves a file that does not exist yet (a create target)", () => {
-    expect(resolveVaultPath(root, "notes/new.md")).toBe(path.join(realVaultRoot(root), "notes", "new.md"));
+    expect(resolveVaultPath(root, "notes/new.md")).toBe(
+      path.join(realVaultRoot(root), "notes", "new.md"),
+    );
   });
 
   test("rejects traversal out of the vault", () => {
     expect(resolveVaultPath(root, "../outside/secret.md")).toBeNull();
     expect(resolveVaultPath(root, "notes/../../outside/secret.md")).toBeNull();
     // A leading slash reads as vault-relative, never as the system root.
-    expect(resolveVaultPath(root, "/etc/passwd")).toBe(path.join(realVaultRoot(root), "etc", "passwd"));
+    expect(resolveVaultPath(root, "/etc/passwd")).toBe(
+      path.join(realVaultRoot(root), "etc", "passwd"),
+    );
   });
 
   test("rejects ignored segments", () => {
@@ -95,13 +103,17 @@ describe("resolveVaultPath", () => {
   test("a symlinked root is not an escape", () => {
     const alias = path.join(path.dirname(root), "alias");
     fs.symlinkSync(root, alias);
-    expect(resolveVaultPath(alias, "notes/one.md")).toBe(path.join(realVaultRoot(root), "notes", "one.md"));
+    expect(resolveVaultPath(alias, "notes/one.md")).toBe(
+      path.join(realVaultRoot(root), "notes", "one.md"),
+    );
   });
 });
 
 describe("vaultRelativePath", () => {
   test("maps absolute paths back, and refuses outsiders", () => {
-    expect(vaultRelativePath(root, path.join(root, "notes", "one.md"))).toBe("notes/one.md");
+    expect(vaultRelativePath(root, path.join(root, "notes", "one.md"))).toBe(
+      "notes/one.md",
+    );
     expect(vaultRelativePath(root, path.join(outside, "secret.md"))).toBeNull();
   });
 });
@@ -193,7 +205,7 @@ describe("revealCommand", () => {
   });
 
   test("the path is always its own argv entry, so a filename cannot inject", () => {
-    const nasty = '/v/note; rm -rf ~.md';
+    const nasty = "/v/note; rm -rf ~.md";
     for (const p of ["darwin", "win32", "linux"] as NodeJS.Platform[]) {
       const { args } = revealCommand(p, nasty, "open");
       expect(args.some((a) => a.includes(nasty))).toBe(true);
@@ -224,14 +236,19 @@ describe("repo scope", () => {
       fs.writeFileSync(path.join(dir, "dist", "bundle.md"), "generated");
       fs.writeFileSync(path.join(dir, "docs", "guide.md"), "guide");
       fs.writeFileSync(path.join(dir, ".next", "page.md"), "built");
-      fs.writeFileSync(path.join(dir, ".github", "CONTRIBUTING.md"), "contributing");
+      fs.writeFileSync(
+        path.join(dir, ".github", "CONTRIBUTING.md"),
+        "contributing",
+      );
     }
     fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
     clearRepoScopeCache();
   });
 
   afterEach(() => {
-    try { fs.rmSync(path.dirname(repo), { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(path.dirname(repo), { recursive: true, force: true });
+    } catch {}
     clearRepoScopeCache();
   });
 
@@ -273,7 +290,10 @@ describe("repo scope", () => {
 
   test("includeIgnored lists the hidden half too, flagged, and never the always-ignored set", async () => {
     fs.mkdirSync(path.join(repo, "node_modules", "pkg"), { recursive: true });
-    fs.writeFileSync(path.join(repo, "node_modules", "pkg", "readme.md"), "dep");
+    fs.writeFileSync(
+      path.join(repo, "node_modules", "pkg", "readme.md"),
+      "dep",
+    );
     fs.writeFileSync(path.join(repo, ".gitignore"), "secrets\n");
     fs.mkdirSync(path.join(repo, "secrets"), { recursive: true });
     fs.writeFileSync(path.join(repo, "secrets", "keys.md"), "shh");
@@ -297,18 +317,32 @@ describe("repo scope", () => {
     expect(byPath.has("node_modules/pkg/readme.md")).toBe(false);
     // The default scan is exactly the unflagged subset.
     const plainPaths = (await scanVault(repo)).map((f) => f.path).sort();
-    expect(files.filter((f) => !f.ignored).map((f) => f.path).sort()).toEqual(plainPaths);
+    expect(
+      files
+        .filter((f) => !f.ignored)
+        .map((f) => f.path)
+        .sort(),
+    ).toEqual(plainPaths);
   });
 
   test("ignored entries never displace the default scope, whatever the cap", async () => {
     fs.mkdirSync(path.join(repo, ".cache"), { recursive: true });
-    for (let i = 0; i < 12; i++) fs.writeFileSync(path.join(repo, ".cache", `blob-${i}.bin`), "x");
+    for (let i = 0; i < 12; i++)
+      fs.writeFileSync(path.join(repo, ".cache", `blob-${i}.bin`), "x");
     clearRepoScopeCache();
     const plain = (await scanVault(repo)).map((f) => f.path).sort();
     // A cap smaller than the ignored half alone. Every default entry survives;
     // the ignored half is what gets cut.
-    const capped = await scanVault(repo, { includeIgnored: true, maxEntries: plain.length });
-    expect(capped.filter((f) => !f.ignored).map((f) => f.path).sort()).toEqual(plain);
+    const capped = await scanVault(repo, {
+      includeIgnored: true,
+      maxEntries: plain.length,
+    });
+    expect(
+      capped
+        .filter((f) => !f.ignored)
+        .map((f) => f.path)
+        .sort(),
+    ).toEqual(plain);
     expect(capped.filter((f) => f.ignored).length).toBe(plain.length);
   });
 
@@ -317,41 +351,68 @@ describe("repo scope", () => {
     // an ignored directory holding a whole copy of the project.
     const wt = path.join(repo, ".claude", "worktrees", "feature-x");
     fs.mkdirSync(path.join(wt, "docs"), { recursive: true });
-    fs.writeFileSync(path.join(wt, ".git"), "gitdir: ../../../.git/worktrees/feature-x\n");
+    fs.writeFileSync(
+      path.join(wt, ".git"),
+      "gitdir: ../../../.git/worktrees/feature-x\n",
+    );
     fs.writeFileSync(path.join(wt, "README.md"), "# copy");
     fs.writeFileSync(path.join(wt, "docs", "guide.md"), "copy");
     clearRepoScopeCache();
 
-    const paths = (await scanVault(repo, { includeIgnored: true })).map((f) => f.path);
+    const paths = (await scanVault(repo, { includeIgnored: true })).map(
+      (f) => f.path,
+    );
     expect(paths).toContain(".claude/worktrees");
     expect(paths).toContain(".claude/worktrees/feature-x");
     expect(paths).not.toContain(".claude/worktrees/feature-x/README.md");
     expect(paths).not.toContain(".claude/worktrees/feature-x/docs");
     // The default scan is untouched by the rule.
-    expect((await scanVault(repo)).map((f) => f.path)).not.toContain(".claude/worktrees");
+    expect((await scanVault(repo)).map((f) => f.path)).not.toContain(
+      ".claude/worktrees",
+    );
   });
 
   test("a plain vault has nothing to lift: includeIgnored changes no entry", async () => {
     const withFlag = await scanVault(plain, { includeIgnored: true });
     expect(withFlag.some((f) => f.ignored)).toBe(false);
-    expect(withFlag.map((f) => f.path)).toEqual((await scanVault(plain)).map((f) => f.path));
+    expect(withFlag.map((f) => f.path)).toEqual(
+      (await scanVault(plain)).map((f) => f.path),
+    );
     expect(isVaultPathRepoIgnored(plain, "dist/bundle.md")).toBe(false);
   });
 
   test("allowIgnored admits an ignored path for a read, never the always-ignored set or an escape", () => {
-    expect(resolveVaultPath(repo, "dist/bundle.md", { allowIgnored: true })).toBe(
-      path.join(realVaultRoot(repo), "dist", "bundle.md"),
-    );
-    expect(resolveVaultPath(repo, ".next/page.md", { allowIgnored: true })).not.toBeNull();
-    expect(resolveVaultPath(repo, "node_modules/pkg/readme.md", { allowIgnored: true })).toBeNull();
-    expect(resolveVaultPath(repo, ".git/config", { allowIgnored: true })).toBeNull();
-    expect(resolveVaultPath(repo, "../outside.md", { allowIgnored: true })).toBeNull();
+    expect(
+      resolveVaultPath(repo, "dist/bundle.md", { allowIgnored: true }),
+    ).toBe(path.join(realVaultRoot(repo), "dist", "bundle.md"));
+    expect(
+      resolveVaultPath(repo, ".next/page.md", { allowIgnored: true }),
+    ).not.toBeNull();
+    expect(
+      resolveVaultPath(repo, "node_modules/pkg/readme.md", {
+        allowIgnored: true,
+      }),
+    ).toBeNull();
+    expect(
+      resolveVaultPath(repo, ".git/config", { allowIgnored: true }),
+    ).toBeNull();
+    expect(
+      resolveVaultPath(repo, "../outside.md", { allowIgnored: true }),
+    ).toBeNull();
   });
 
   test("root .gitignore names are honored, negations are not guessed at", () => {
     fs.writeFileSync(
       path.join(repo, ".gitignore"),
-      ["# comment", "generated/", "/public/built", "secret.md", "keep-me", "!keep-me", "*.log"].join("\n"),
+      [
+        "# comment",
+        "generated/",
+        "/public/built",
+        "secret.md",
+        "keep-me",
+        "!keep-me",
+        "*.log",
+      ].join("\n"),
     );
     clearRepoScopeCache();
     expect(isVaultPathIgnored(repo, "generated/notes.md")).toBe(true);
@@ -382,7 +443,9 @@ describe("repo scope", () => {
   test("worktree checkouts are hidden, whole-tree duplicates that they are", () => {
     // Measured on codecast: 19 worktrees held 796 of its 843 markdown files.
     // Admitting them means search returns twenty copies of every note.
-    expect(isVaultPathIgnored(repo, ".codecast/worktrees/fix/docs/a.md")).toBe(true);
+    expect(isVaultPathIgnored(repo, ".codecast/worktrees/fix/docs/a.md")).toBe(
+      true,
+    );
     expect(isVaultPathIgnored(repo, "worktrees/fix/docs/a.md")).toBe(true);
   });
 
@@ -401,7 +464,9 @@ describe("probeProjectVault", () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(base, { recursive: true, force: true });
+    } catch {}
   });
 
   function project(name: string, build: (dir: string) => void): string {
@@ -430,7 +495,9 @@ describe("probeProjectVault", () => {
   });
 
   test("a root README alone is enough to offer the project", () => {
-    const dir = project("bare", (d) => fs.writeFileSync(path.join(d, "README.md"), "readme"));
+    const dir = project("bare", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "readme"),
+    );
     expect(probeProjectVault(dir)).toEqual({ hasNotes: true, home: "" });
   });
 
@@ -446,7 +513,10 @@ describe("probeProjectVault", () => {
   });
 
   test("a directory that cannot be read is not offered", () => {
-    expect(probeProjectVault(path.join(base, "nope"))).toEqual({ hasNotes: false, home: "" });
+    expect(probeProjectVault(path.join(base, "nope"))).toEqual({
+      hasNotes: false,
+      home: "",
+    });
   });
 });
 
@@ -458,15 +528,28 @@ describe("repo scope: worktrees and gitignored prose", () => {
   let repo = "";
 
   beforeEach(() => {
-    repo = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "vault-wt-")), "repo");
+    repo = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "vault-wt-")),
+      "repo",
+    );
     fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
-    fs.mkdirSync(path.join(repo, ".claude", "vault-drive"), { recursive: true });
-    fs.mkdirSync(path.join(repo, ".claude", "worktrees", "agent-a1", "docs"), { recursive: true });
+    fs.mkdirSync(path.join(repo, ".claude", "vault-drive"), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(repo, ".claude", "worktrees", "agent-a1", "docs"), {
+      recursive: true,
+    });
     fs.mkdirSync(path.join(repo, "docs"), { recursive: true });
     fs.writeFileSync(path.join(repo, "README.md"), "# readme");
     fs.writeFileSync(path.join(repo, "docs", "guide.md"), "guide");
-    fs.writeFileSync(path.join(repo, ".claude", "vault-drive", "DESIGN.md"), "design");
-    fs.writeFileSync(path.join(repo, ".claude", "worktrees", "agent-a1", "docs", "guide.md"), "copy");
+    fs.writeFileSync(
+      path.join(repo, ".claude", "vault-drive", "DESIGN.md"),
+      "design",
+    );
+    fs.writeFileSync(
+      path.join(repo, ".claude", "worktrees", "agent-a1", "docs", "guide.md"),
+      "copy",
+    );
     // The shape that matters: the repo gitignores the very directory its
     // design docs live in. This is codecast's own .gitignore.
     fs.writeFileSync(path.join(repo, ".gitignore"), ".claude/\n");
@@ -474,22 +557,30 @@ describe("repo scope: worktrees and gitignored prose", () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(path.dirname(repo), { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(path.dirname(repo), { recursive: true, force: true });
+    } catch {}
     clearRepoScopeCache();
   });
 
   test("a worktree's duplicate checkout never appears", async () => {
-    expect(isVaultPathIgnored(repo, ".claude/worktrees/agent-a1/docs/guide.md")).toBe(true);
+    expect(
+      isVaultPathIgnored(repo, ".claude/worktrees/agent-a1/docs/guide.md"),
+    ).toBe(true);
     const paths = (await scanVault(repo)).map((f) => f.path);
     // One guide.md, not two: search, backlinks and the graph all break when
     // the same note is present once per checkout.
-    expect(paths.filter((p) => p.endsWith("docs/guide.md"))).toEqual(["docs/guide.md"]);
+    expect(paths.filter((p) => p.endsWith("docs/guide.md"))).toEqual([
+      "docs/guide.md",
+    ]);
   });
 
   test("a gitignored .claude keeps its hand-written design docs", async () => {
     // Untracked is not uninteresting. Without this the feature hides the notes
     // someone wrote about the feature.
-    expect(isVaultPathIgnored(repo, ".claude/vault-drive/DESIGN.md")).toBe(false);
+    expect(isVaultPathIgnored(repo, ".claude/vault-drive/DESIGN.md")).toBe(
+      false,
+    );
     const paths = (await scanVault(repo)).map((f) => f.path);
     expect(paths).toContain(".claude/vault-drive/DESIGN.md");
   });

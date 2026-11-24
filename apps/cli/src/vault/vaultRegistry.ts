@@ -28,14 +28,25 @@ import * as fs from "fs";
 import * as path from "path";
 import type { VaultFileEntry, VaultInfo } from "@codecast/shared/contracts";
 import { enumerateProjectRoots } from "../projectRoots.js";
-import { isVaultPathRepoIgnored, probeProjectVault, resolveVaultPath } from "./vaultScope.js";
-import { readSharedConfig as readConfig, writeSharedConfig as writeConfig } from "../config/sharedConfig.js";
+import {
+  isVaultPathRepoIgnored,
+  probeProjectVault,
+  resolveVaultPath,
+} from "./vaultScope.js";
+import {
+  readSharedConfig as readConfig,
+  writeSharedConfig as writeConfig,
+} from "../config/sharedConfig.js";
 
 /** Stable vault id: 12-hex sha256 prefix of the absolute root path. Derived, not
  *  stored-and-generated, so the same directory registered twice is the same
  *  vault on every machine and after any config rewrite. */
 export function vaultId(root: string): string {
-  return crypto.createHash("sha256").update(path.resolve(root)).digest("hex").slice(0, 12);
+  return crypto
+    .createHash("sha256")
+    .update(path.resolve(root))
+    .digest("hex")
+    .slice(0, 12);
 }
 
 /** Vaults someone added by hand, exactly as config.json holds them. This is the
@@ -46,7 +57,10 @@ export function registeredVaults(configDir: string): VaultInfo[] {
   if (!Array.isArray(raw)) return [];
   const valid = raw.filter(
     (v): v is VaultInfo =>
-      !!v && typeof v === "object" && typeof v.id === "string" && typeof v.root === "string",
+      !!v &&
+      typeof v === "object" &&
+      typeof v.id === "string" &&
+      typeof v.root === "string",
   );
   // First entry per id wins. Registration is a read-modify-write of a file two
   // processes share, and a project vault is registered by whichever request
@@ -107,7 +121,9 @@ export function homeForConfigDir(configDir: string): string {
 
 function hiddenRoots(configDir: string): Set<string> {
   const raw = readConfig(configDir).vaults_hidden;
-  return new Set(Array.isArray(raw) ? raw.filter((r) => typeof r === "string") : []);
+  return new Set(
+    Array.isArray(raw) ? raw.filter((r) => typeof r === "string") : [],
+  );
 }
 
 /**
@@ -162,7 +178,10 @@ export function listVaults(configDir: string): VaultInfo[] {
  * ordinary row in config.json that can hold a note count, a mirror flag and a
  * rename, and nothing downstream can tell it apart.
  */
-export function findVault(configDir: string, idOrPath: string): VaultInfo | null {
+export function findVault(
+  configDir: string,
+  idOrPath: string,
+): VaultInfo | null {
   const resolved = path.resolve(idOrPath);
   const registered = registeredVaults(configDir);
   const hit =
@@ -171,7 +190,8 @@ export function findVault(configDir: string, idOrPath: string): VaultInfo | null
   if (hit) return hit;
 
   const discovered = projectVaults(configDir).find(
-    (v) => v.id === idOrPath || v.root === resolved || v.id === vaultId(resolved),
+    (v) =>
+      v.id === idOrPath || v.root === resolved || v.id === vaultId(resolved),
   );
   if (!discovered) return null;
   return materializeProjectVault(configDir, discovered);
@@ -180,7 +200,10 @@ export function findVault(configDir: string, idOrPath: string): VaultInfo | null
 /** Write a discovered project vault into config.json. Returns the persisted
  *  entry, or the unpersisted one if the write failed — a vault that cannot be
  *  saved should still open. */
-function materializeProjectVault(configDir: string, vault: VaultInfo): VaultInfo {
+function materializeProjectVault(
+  configDir: string,
+  vault: VaultInfo,
+): VaultInfo {
   const persisted: VaultInfo = { ...vault, added_at: Date.now() };
   try {
     const config = readConfig(configDir);
@@ -219,7 +242,10 @@ export interface VaultLocation {
  * so it is the row `cast files add <dir>` would have written and `cast files rm`
  * removes it the same way.
  */
-export function locateVault(configDir: string, localPath: string): VaultLocation | null {
+export function locateVault(
+  configDir: string,
+  localPath: string,
+): VaultLocation | null {
   const abs = path.resolve(localPath);
   let stat: fs.Stats;
   try {
@@ -227,12 +253,14 @@ export function locateVault(configDir: string, localPath: string): VaultLocation
   } catch {
     return null;
   }
-  const relTo = (root: string): string => (abs === root ? "" : path.relative(root, abs).split(path.sep).join("/"));
+  const relTo = (root: string): string =>
+    abs === root ? "" : path.relative(root, abs).split(path.sep).join("/");
   // The row a scan would give this path, so the browser can open it even when
   // the scan leaves it out. Only for a path the file route would serve.
   const located = (vault: VaultInfo): VaultLocation => {
     const rel = relTo(vault.root);
-    if (!rel || !resolveVaultPath(vault.root, rel, { allowIgnored: true })) return { vault, rel };
+    if (!rel || !resolveVaultPath(vault.root, rel, { allowIgnored: true }))
+      return { vault, rel };
     const ignored = isVaultPathRepoIgnored(vault.root, rel);
     const entry: VaultFileEntry = stat.isDirectory()
       ? { path: rel, mtime: Math.round(stat.mtimeMs), size: 0, dir: true }
@@ -271,7 +299,11 @@ function gitRootAbove(dir: string): string | null {
 
 /** Register a directory as a vault. Re-registering an existing root is a no-op
  *  apart from an explicit rename, so `cast files add` is safe to repeat. */
-export function addVault(configDir: string, dir: string, name?: string): VaultInfo {
+export function addVault(
+  configDir: string,
+  dir: string,
+  name?: string,
+): VaultInfo {
   const root = path.resolve(dir);
   let stat: fs.Stats;
   try {
@@ -317,7 +349,10 @@ export function addVault(configDir: string, dir: string, name?: string): VaultIn
  * would leave discovery free to re-offer it seconds later, which reads as the
  * removal having failed.
  */
-export function removeVault(configDir: string, idOrPath: string): VaultInfo | null {
+export function removeVault(
+  configDir: string,
+  idOrPath: string,
+): VaultInfo | null {
   const discovered = projectVaults(configDir).find(
     (v) => v.id === idOrPath || v.root === path.resolve(idOrPath),
   );
@@ -336,7 +371,11 @@ export function removeVault(configDir: string, idOrPath: string): VaultInfo | nu
 /** Turn the remote mirror on or off for one vault. Off by DEFAULT and off is a
  *  real off: the daemon tears the Convex projection down rather than leaving it
  *  stale (see vaultMirror.ts). Returns the updated vault, or null if unknown. */
-export function setVaultMirroring(configDir: string, idOrPath: string, on: boolean): VaultInfo | null {
+export function setVaultMirroring(
+  configDir: string,
+  idOrPath: string,
+  on: boolean,
+): VaultInfo | null {
   const target = findVault(configDir, idOrPath);
   if (!target) return null;
   const vaults = registeredVaults(configDir);
@@ -351,7 +390,11 @@ export function setVaultMirroring(configDir: string, idOrPath: string, on: boole
 
 /** Record a fresh note count from a scan. Advisory only — written back solely
  *  when it changed, so a scan doesn't rewrite the shared config on every call. */
-export function setVaultNoteCount(configDir: string, id: string, noteCount: number): void {
+export function setVaultNoteCount(
+  configDir: string,
+  id: string,
+  noteCount: number,
+): void {
   const vaults = registeredVaults(configDir);
   const vault = vaults.find((v) => v.id === id);
   if (!vault || vault.note_count === noteCount) return;

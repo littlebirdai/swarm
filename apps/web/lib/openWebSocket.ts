@@ -5,10 +5,15 @@
 // global error reporter. This turns that throw into null, so each caller routes
 // it to the failure path it already has for a socket that drops.
 
-export function openWebSocket(url: string | null, protocols?: string | string[]): WebSocket | null {
+export function openWebSocket(
+  url: string | null,
+  protocols?: string | string[],
+): WebSocket | null {
   if (!url) return null;
   try {
-    return protocols === undefined ? new WebSocket(url) : new WebSocket(url, protocols);
+    return protocols === undefined
+      ? new WebSocket(url)
+      : new WebSocket(url, protocols);
   } catch {
     return null;
   }

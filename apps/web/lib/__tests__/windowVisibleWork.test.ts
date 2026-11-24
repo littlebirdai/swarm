@@ -14,11 +14,15 @@ beforeEach(() => {
   doc.hidden = false;
   restore = replaceGlobals({
     document: doc,
-    requestAnimationFrame: (fn: FrameRequestCallback) => setTimeout(() => fn(performance.now()), 16),
+    requestAnimationFrame: (fn: FrameRequestCallback) =>
+      setTimeout(() => fn(performance.now()), 16),
     cancelAnimationFrame: clearTimeout,
   });
 });
-afterEach(() => { restore(); jest.useRealTimers(); });
+afterEach(() => {
+  restore();
+  jest.useRealTimers();
+});
 
 test("one interval runs while visible and ticks once on each return", () => {
   const tick = mock(() => {});

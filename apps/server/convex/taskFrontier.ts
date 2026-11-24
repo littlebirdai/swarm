@@ -20,8 +20,18 @@ import { internalMutation, internalQuery } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessTask, resolveSessionConversation } from "./lib/access";
 import { readinessLookups } from "./lib/taskGraph";
-import { assigneeNamesFor, heldError, holdingDecisionFor, roleOf } from "./tasks";
-import { isStaleTask, notReadyLabel, readinessOf, STALE_TASK_WORDS } from "@codecast/shared/tasks";
+import {
+  assigneeNamesFor,
+  heldError,
+  holdingDecisionFor,
+  roleOf,
+} from "./tasks";
+import {
+  isStaleTask,
+  notReadyLabel,
+  readinessOf,
+  STALE_TASK_WORDS,
+} from "@codecast/shared/tasks";
 
 /** How many candidates one claim may try before it gives up. A candidate is
  *  passed over only when it changed since the frontier was read, or its start
@@ -36,7 +46,11 @@ export type ClaimResult = {
   task: { short_id: string; title: string; priority: string } | null;
   plan_id?: string;
   assigned_role?: { handle: string; name: string };
-  released_owners?: Array<{ short_id: string; title: string | null; live: boolean }>;
+  released_owners?: Array<{
+    short_id: string;
+    title: string | null;
+    live: boolean;
+  }>;
   /** Candidates refused at claim time, with the reason. */
   skipped: Array<{ short_id: string; reason: string }>;
   /** More claimable rows exist past the candidates tried: narrow the filters. */
@@ -72,16 +86,33 @@ const claimantArgs = {
 };
 
 /** `session` is the conversation `_id` readiness takes as `viewerSession`. */
-type Claimant = { userId: string; conv: Doc<"conversations"> | null; session: string | null };
+type Claimant = {
+  userId: string;
+  conv: Doc<"conversations"> | null;
+  session: string | null;
+};
 
 type ReadCtx = Pick<QueryCtx, "db">;
 
-async function claimantOf(ctx: ReadCtx, userId: Id<"users">, conversationId: string | undefined): Promise<Claimant> {
-  const conv = conversationId ? await resolveSessionConversation(ctx, userId, conversationId) : null;
+async function claimantOf(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  conversationId: string | undefined,
+): Promise<Claimant> {
+  const conv = conversationId
+    ? await resolveSessionConversation(ctx, userId, conversationId)
+    : null;
   // A session the server cannot find yet would claim as nobody: the start
   // drops an unresolvable link, so the task would leave the queue unowned.
-  if (conversationId && !conv) throw new Error("This session has not synced yet; retry the claim in a few seconds");
-  return { userId: String(userId), conv, session: conv ? String(conv._id) : null };
+  if (conversationId && !conv)
+    throw new Error(
+      "This session has not synced yet; retry the claim in a few seconds",
+    );
+  return {
+    userId: String(userId),
+    conv,
+    session: conv ? String(conv._id) : null,
+  };
 }
 
 /**
@@ -93,13 +124,23 @@ async function claimantOf(ctx: ReadCtx, userId: Id<"users">, conversationId: str
  * only by starting the task by name). Whose ephemeral task is whose is
  * readiness's rule (`ownsEphemeral`), applied by both steps' readiness reads.
  */
-async function claimRefusal(ctx: ReadCtx, task: Doc<"tasks"> & { assignee_name?: string }, claimant: Claimant, stale: boolean | undefined): Promise<string | null> {
-  if (!stale && isStaleTask(task, Date.now())) return `${STALE_TASK_WORDS} (claim with --stale)`;
+async function claimRefusal(
+  ctx: ReadCtx,
+  task: Doc<"tasks"> & { assignee_name?: string },
+  claimant: Claimant,
+  stale: boolean | undefined,
+): Promise<string | null> {
+  if (!stale && isStaleTask(task, Date.now()))
+    return `${STALE_TASK_WORDS} (claim with --stale)`;
   const assignee: string | undefined = task.assignee || undefined;
   // Work handed to agents is any session's to take, never a person's claim.
   if (assignee?.startsWith("agent:")) {
     if (!claimant.conv) return "assigned to an agent";
-  } else if (assignee && assignee !== claimant.userId && assignee !== roleOf(claimant.conv)) {
+  } else if (
+    assignee &&
+    assignee !== claimant.userId &&
+    assignee !== roleOf(claimant.conv)
+  ) {
     return `assigned to ${task.assignee_name ?? (await assigneeNamesFor(ctx, [assignee]))[assignee] ?? assignee}`;
   }
   const hold = await holdingDecisionFor(ctx, task, "in_progress");
@@ -109,13 +150,25 @@ async function claimRefusal(ctx: ReadCtx, task: Doc<"tasks"> & { assignee_name?:
 /** The frontier rows this caller may claim, in frontier order. */
 export const claimCandidates = internalQuery({
   args: { ...claimantArgs, ...frontierFilterArgs },
-  handler: async (ctx, args): Promise<{ candidates: string[]; more: boolean; stale_passed: number; others_passed: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    candidates: string[];
+    more: boolean;
+    stale_passed: number;
+    others_passed: number;
+  }> => {
     const { api_token, conversation_id, stale, ...filters } = args;
     const auth = await verifyApiToken(ctx, api_token, false);
     if (!auth) throw new Error("Unauthorized");
     const claimant = await claimantOf(ctx, auth.userId, conversation_id);
     const frontier = await ctx.runQuery(api.tasks.list, {
-      api_token, ...filters, ...(conversation_id ? { conversation_id } : {}), ready: true, limit: WHOLE_FRONTIER,
+      api_token,
+      ...filters,
+      ...(conversation_id ? { conversation_id } : {}),
+      ready: true,
+      limit: WHOLE_FRONTIER,
     });
     const candidates: string[] = [];
     let stale_passed = 0;
@@ -123,11 +176,17 @@ export const claimCandidates = internalQuery({
     for (const row of frontier) {
       if (await claimRefusal(ctx, row, claimant, stale)) {
         // Stale only when `--stale` alone would have let the claim take it.
-        if (!stale && row.stale && !(await claimRefusal(ctx, row, claimant, true))) stale_passed++;
+        if (
+          !stale &&
+          row.stale &&
+          !(await claimRefusal(ctx, row, claimant, true))
+        )
+          stale_passed++;
         else others_passed++;
         continue;
       }
-      if (candidates.length === CLAIM_CANDIDATES) return { candidates, more: true, stale_passed, others_passed };
+      if (candidates.length === CLAIM_CANDIDATES)
+        return { candidates, more: true, stale_passed, others_passed };
       candidates.push(row.short_id);
     }
     return { candidates, more: false, stale_passed, others_passed };
@@ -136,19 +195,36 @@ export const claimCandidates = internalQuery({
 
 /** Start the first candidate that is still ready and still the caller's to take. */
 export const claimNextReady = internalMutation({
-  args: { ...claimantArgs, candidates: v.array(v.string()), include_subtasks: v.optional(v.boolean()) },
+  args: {
+    ...claimantArgs,
+    candidates: v.array(v.string()),
+    include_subtasks: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<ClaimResult> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     const claimant = await claimantOf(ctx, auth.userId, args.conversation_id);
-    const rows = await Promise.all(args.candidates.map((shortId) =>
-      ctx.db.query("tasks").withIndex("by_short_id", (q) => q.eq("short_id", shortId)).first()));
+    const rows = await Promise.all(
+      args.candidates.map((shortId) =>
+        ctx.db
+          .query("tasks")
+          .withIndex("by_short_id", (q) => q.eq("short_id", shortId))
+          .first(),
+      ),
+    );
     const visible: Doc<"tasks">[] = [];
-    for (const row of rows) if (row && (await canAccessTask(ctx, auth.userId, row))) visible.push(row);
+    for (const row of rows)
+      if (row && (await canAccessTask(ctx, auth.userId, row)))
+        visible.push(row);
     const lookupsFor = await readinessLookups(ctx, visible);
     const skipped: ClaimResult["skipped"] = [];
     for (const task of visible) {
-      const verdict = readinessOf(task, { ...lookupsFor(task), viewer: claimant.userId, viewerSession: claimant.session, includeSubtasks: args.include_subtasks });
+      const verdict = readinessOf(task, {
+        ...lookupsFor(task),
+        viewer: claimant.userId,
+        viewerSession: claimant.session,
+        includeSubtasks: args.include_subtasks,
+      });
       // Stored nowhere, but read away from any checkout: PRs named in full.
       const reason = verdict.ready
         ? await claimRefusal(ctx, task, claimant, args.stale)
@@ -162,10 +238,16 @@ export const claimNextReady = internalMutation({
           api_token: args.api_token,
           short_id: task.short_id,
           status: "in_progress",
-          ...(args.conversation_id ? { conversation_id: args.conversation_id } : { assignee: "me" }),
+          ...(args.conversation_id
+            ? { conversation_id: args.conversation_id }
+            : { assignee: "me" }),
         });
         return {
-          task: { short_id: task.short_id, title: task.title, priority: task.priority },
+          task: {
+            short_id: task.short_id,
+            title: task.title,
+            priority: task.priority,
+          },
           plan_id: started.plan_id,
           assigned_role: started.assigned_role,
           released_owners: started.released_owners,
@@ -173,7 +255,10 @@ export const claimNextReady = internalMutation({
         };
       } catch (err) {
         // The refused start rolled back on its own; the next candidate is tried.
-        skipped.push({ short_id: task.short_id, reason: err instanceof Error ? err.message : String(err) });
+        skipped.push({
+          short_id: task.short_id,
+          reason: err instanceof Error ? err.message : String(err),
+        });
       }
     }
     return { task: null, skipped };

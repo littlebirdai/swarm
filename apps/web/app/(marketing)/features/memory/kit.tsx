@@ -41,19 +41,47 @@ export const MEMORY_CSS = `
 `;
 
 /** A wide section with a numbered margin label: the page reads as a stack of layers. */
-export function Layer({ n, id, title, lede, children, tint = false, wide = false }: {
-  n: string; id: string; title: ReactNode; lede: ReactNode; children: ReactNode; tint?: boolean; wide?: boolean;
+export function Layer({
+  n,
+  id,
+  title,
+  lede,
+  children,
+  tint = false,
+  wide = false,
+}: {
+  n: string;
+  id: string;
+  title: ReactNode;
+  lede: ReactNode;
+  children: ReactNode;
+  tint?: boolean;
+  wide?: boolean;
 }) {
   if (wide) {
     return (
-      <section id={id} className="relative py-16 sm:py-24" style={{ backgroundColor: tint ? SOL.base2 : "transparent" }}>
+      <section
+        id={id}
+        className="relative py-16 sm:py-24"
+        style={{ backgroundColor: tint ? SOL.base2 : "transparent" }}
+      >
         <div className="max-w-6xl mx-auto px-5 sm:px-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14 mb-10 items-start">
             <div>
               <LayerNum n={n} />
-              <h2 className="font-mono text-2xl sm:text-3xl font-bold tracking-tight leading-tight" style={{ color: SOL.base03 }}>{title}</h2>
+              <h2
+                className="font-mono text-2xl sm:text-3xl font-bold tracking-tight leading-tight"
+                style={{ color: SOL.base03 }}
+              >
+                {title}
+              </h2>
             </div>
-            <div className="text-[16px] sm:text-[17px] leading-7 space-y-4" style={{ color: SOL.base01 }}>{lede}</div>
+            <div
+              className="text-[16px] sm:text-[17px] leading-7 space-y-4"
+              style={{ color: SOL.base01 }}
+            >
+              {lede}
+            </div>
           </div>
           <div className="min-w-0">{children}</div>
         </div>
@@ -61,13 +89,27 @@ export function Layer({ n, id, title, lede, children, tint = false, wide = false
     );
   }
   return (
-    <section id={id} className="relative py-16 sm:py-24" style={{ backgroundColor: tint ? SOL.base2 : "transparent" }}>
+    <section
+      id={id}
+      className="relative py-16 sm:py-24"
+      style={{ backgroundColor: tint ? SOL.base2 : "transparent" }}
+    >
       <div className="max-w-6xl mx-auto px-5 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14 items-start">
           <div className="lg:sticky lg:top-24">
             <LayerNum n={n} />
-            <h2 className="font-mono text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-4" style={{ color: SOL.base03 }}>{title}</h2>
-            <div className="text-[16px] sm:text-[17px] leading-7 space-y-4" style={{ color: SOL.base01 }}>{lede}</div>
+            <h2
+              className="font-mono text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-4"
+              style={{ color: SOL.base03 }}
+            >
+              {title}
+            </h2>
+            <div
+              className="text-[16px] sm:text-[17px] leading-7 space-y-4"
+              style={{ color: SOL.base01 }}
+            >
+              {lede}
+            </div>
           </div>
           <div className="min-w-0">{children}</div>
         </div>
@@ -79,32 +121,99 @@ export function Layer({ n, id, title, lede, children, tint = false, wide = false
 function LayerNum({ n }: { n: string }) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <span className="font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded" style={{ color: SOL.base3, backgroundColor: VIOLET }}>{n}</span>
-      <span className="h-px flex-1 max-w-[80px]" style={{ backgroundColor: `color-mix(in srgb, ${VIOLET} 40%, transparent)` }} />
+      <span
+        className="font-mono text-sm font-bold tabular-nums px-2 py-0.5 rounded"
+        style={{ color: SOL.base3, backgroundColor: VIOLET }}
+      >
+        {n}
+      </span>
+      <span
+        className="h-px flex-1 max-w-[80px]"
+        style={{
+          backgroundColor: `color-mix(in srgb, ${VIOLET} 40%, transparent)`,
+        }}
+      />
     </div>
   );
 }
 
 /** Inline code in prose. */
-export function C({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
-  return <SharedC tint={VIOLET} dark={dark}>{children}</SharedC>;
+export function C({
+  children,
+  dark = false,
+}: {
+  children: ReactNode;
+  dark?: boolean;
+}) {
+  return (
+    <SharedC tint={VIOLET} dark={dark}>
+      {children}
+    </SharedC>
+  );
 }
 
 /** A dark terminal pane: title bar plus a scrollable pre. Lighter than the blog's, so several fit in one section. */
-export function Pane({ label, children, className = "", right, wrap = false }: { label: string; children: ReactNode; className?: string; right?: ReactNode; wrap?: boolean }) {
+export function Pane({
+  label,
+  children,
+  className = "",
+  right,
+  wrap = false,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+  right?: ReactNode;
+  wrap?: boolean;
+}) {
   return (
-    <div className={`rounded-xl overflow-hidden shadow-[0_24px_60px_-30px_rgba(0,43,54,.55)] ${className}`} style={{ backgroundColor: SOL.base03, border: "1px solid #0a4352" }}>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: SOL.base02, borderBottom: "1px solid #0a4352" }}>
+    <div
+      className={`rounded-xl overflow-hidden shadow-[0_24px_60px_-30px_rgba(0,43,54,.55)] ${className}`}
+      style={{ backgroundColor: SOL.base03, border: "1px solid #0a4352" }}
+    >
+      <div
+        className="flex items-center gap-2 px-4 py-2"
+        style={{
+          backgroundColor: SOL.base02,
+          borderBottom: "1px solid #0a4352",
+        }}
+      >
         <div className="flex gap-1.5" aria-hidden>
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SOL.red }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SOL.yellow }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SOL.green }} />
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: SOL.red }}
+          />
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: SOL.yellow }}
+          />
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: SOL.green }}
+          />
         </div>
-        <span className="text-meta font-mono ml-1 truncate" style={{ color: SOL.base01 }}>{label}</span>
-        {right && <span className="ml-auto text-meta font-mono" style={{ color: SOL.base01 }}>{right}</span>}
+        <span
+          className="text-meta font-mono ml-1 truncate"
+          style={{ color: SOL.base01 }}
+        >
+          {label}
+        </span>
+        {right && (
+          <span
+            className="ml-auto text-meta font-mono"
+            style={{ color: SOL.base01 }}
+          >
+            {right}
+          </span>
+        )}
       </div>
       <div className="overflow-x-auto">
-        <pre className={`px-4 py-3.5 font-mono text-meta sm:text-[12px] leading-[1.7]${wrap ? " whitespace-pre-wrap break-words" : ""}`} style={{ color: SOL.base0 }}>{children}</pre>
+        <pre
+          className={`px-4 py-3.5 font-mono text-meta sm:text-[12px] leading-[1.7]${wrap ? " whitespace-pre-wrap break-words" : ""}`}
+          style={{ color: SOL.base0 }}
+        >
+          {children}
+        </pre>
       </div>
     </div>
   );
@@ -135,12 +244,28 @@ export const t = {
 };
 
 /** A light callout card: a fact with a short label. */
-export function Note({ label, children, color = VIOLET }: { label: string; children: ReactNode; color?: string }) {
+export function Note({
+  label,
+  children,
+  color = VIOLET,
+}: {
+  label: string;
+  children: ReactNode;
+  color?: string;
+}) {
   return (
-    <div className="rounded-lg px-4 py-3 text-[14px] leading-6" style={{ backgroundColor: `color-mix(in srgb, ${color} 7%, ${SOL.base3})`, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`, color: SOL.base01 }}>
-      <span className="font-mono font-semibold mr-2" style={{ color }}>{label}</span>
+    <div
+      className="rounded-lg px-4 py-3 text-[14px] leading-6"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${color} 7%, ${SOL.base3})`,
+        border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+        color: SOL.base01,
+      }}
+    >
+      <span className="font-mono font-semibold mr-2" style={{ color }}>
+        {label}
+      </span>
       {children}
     </div>
   );
 }
-

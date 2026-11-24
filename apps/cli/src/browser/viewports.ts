@@ -16,7 +16,12 @@
 
 import * as path from "node:path";
 import { evaluate, screenshot, type ShotOptions } from "./actions.js";
-import { clearViewport, DEVICES, setViewport, type DeviceProfile } from "./devices.js";
+import {
+  clearViewport,
+  DEVICES,
+  setViewport,
+  type DeviceProfile,
+} from "./devices.js";
 import { settle, type PageSession } from "./instance.js";
 import { SHOT_TEMP_KIND, writeShotFile } from "./shotFile.js";
 import { agentTempPath } from "../tempFiles.js";
@@ -41,7 +46,12 @@ export function parseViewport(size: string): NamedViewport | null {
   if (!explicit) return null;
   return {
     name: size,
-    device: { width: parseInt(explicit[1], 10), height: parseInt(explicit[2], 10), scale: 1, mobile: false },
+    device: {
+      width: parseInt(explicit[1], 10),
+      height: parseInt(explicit[2], 10),
+      scale: 1,
+      mobile: false,
+    },
   };
 }
 
@@ -57,7 +67,10 @@ export function viewportChoices(): string {
 export function parseViewportList(raw: string): NamedViewport[] {
   const out: NamedViewport[] = [];
   const seen = new Set<string>();
-  for (const part of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+  for (const part of raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const vp = parseViewport(part);
     if (!vp) throw new Error(`unknown viewport '${part}'`);
     if (seen.has(vp.name)) continue;
@@ -71,7 +84,9 @@ export function parseViewportList(raw: string): NamedViewport[] {
 /** What a preset is called in the picture: "mobile 390×844", or the bare size. */
 export function viewportLabel(vp: NamedViewport): string {
   const size = `${vp.device.width}×${vp.device.height}`;
-  return vp.name === `${vp.device.width}x${vp.device.height}` ? vp.name : `${vp.name} ${size}`;
+  return vp.name === `${vp.device.width}x${vp.device.height}`
+    ? vp.name
+    : `${vp.name} ${size}`;
 }
 
 /**
@@ -108,7 +123,10 @@ const BADGE_ID = "__cast_viewport_badge";
  * capture. `null` removes it. Failures are ignored — a page that refuses script
  * still gets its screenshot, just unlabelled.
  */
-async function stampLabel(cap: ViewportCapture, label: string | null): Promise<void> {
+async function stampLabel(
+  cap: ViewportCapture,
+  label: string | null,
+): Promise<void> {
   await cap
     .evaluate(
       `(() => {
@@ -194,7 +212,10 @@ export interface ViewportRowOptions {
 
 /** A bad `--viewports` argument, with the hint the CLI should print under it. */
 export class ViewportArgError extends Error {
-  constructor(message: string, public readonly hint: string) {
+  constructor(
+    message: string,
+    public readonly hint: string,
+  ) {
     super(message);
   }
 }
@@ -219,13 +240,20 @@ export async function runViewportRow(
   try {
     list = parseViewportList(rawList);
   } catch (err) {
-    throw new ViewportArgError((err as Error).message, `use presets (${viewportChoices()}), comma-separated`);
+    throw new ViewportArgError(
+      (err as Error).message,
+      `use presets (${viewportChoices()}), comma-separated`,
+    );
   }
   // The engine's shot has no --jpeg flag; there the format rides on the --out
   // extension. Honour that here so `--out row.jpg` means JPEG on every engine,
   // instead of PNG bytes under a .jpg name.
-  const jpeg = o.jpeg ?? (o.out ? /\.jpe?g$/i.test(path.extname(o.out)) : false);
-  const shots = await captureAtViewports(cap, list, restore, { fullPage: o.full, format: jpeg ? "jpeg" : "png" });
+  const jpeg =
+    o.jpeg ?? (o.out ? /\.jpe?g$/i.test(path.extname(o.out)) : false);
+  const shots = await captureAtViewports(cap, list, restore, {
+    fullPage: o.full,
+    format: jpeg ? "jpeg" : "png",
+  });
   const stamp = Date.now();
   const ext = jpeg ? "jpg" : "png";
   const markers: string[] = [];
@@ -233,12 +261,19 @@ export async function runViewportRow(
   for (const { vp, bytes } of shots) {
     // `--out row.png` fans out to row-desktop.png, row-mobile.png, …
     const out = o.out
-      ? path.join(path.dirname(o.out), `${path.basename(o.out, path.extname(o.out))}-${vp.name}${path.extname(o.out) || `.${ext}`}`)
+      ? path.join(
+          path.dirname(o.out),
+          `${path.basename(o.out, path.extname(o.out))}-${vp.name}${path.extname(o.out) || `.${ext}`}`,
+        )
       : agentTempPath(SHOT_TEMP_KIND, `cast-shot-${stamp}-${vp.name}.${ext}`);
     const abs = writeShotFile(bytes, out, { ...o, jpeg });
     if (abs) markers.push(inlineImageMarker(abs));
     // --share has a real caption channel, so the viewport name goes there too.
-    if (o.share) shared.push((await uploadOne(deps, out, o.alt ? `${o.alt} — ${vp.name}` : vp.name)).markdown);
+    if (o.share)
+      shared.push(
+        (await uploadOne(deps, out, o.alt ? `${o.alt} — ${vp.name}` : vp.name))
+          .markdown,
+      );
   }
   // Consecutive lines, no blank line between: the images land in one
   // paragraph, which the web renders as a side-by-side row.

@@ -11,7 +11,9 @@ import * as path from "path";
 // between the timer and the fetch.
 describe("heartbeat body is built before the abort timer starts", () => {
   const src = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf8");
-  const calls = [...src.matchAll(/fetch\(`\$\{siteUrl\}\/cli\/heartbeat`, \{/g)];
+  const calls = [
+    ...src.matchAll(/fetch\(`\$\{siteUrl\}\/cli\/heartbeat`, \{/g),
+  ];
 
   test("every heartbeat post is found", () => {
     expect(calls.length).toBeGreaterThanOrEqual(3);

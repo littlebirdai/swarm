@@ -20,18 +20,30 @@ import { isRefusedDispatchError } from "../store/mutativeMiddleware";
  *  and delivers on its own: a parked dispatch, or the stale binding every
  *  cold start on the phone rejects in-flight writes with. `report` shows the reason where the surface has a
  *  way to (the web passes a toast; the phone has none). */
-export function settleHostedStart(ready: Promise<unknown>, stubId: string, clientId: string, report?: (message: string) => void): void {
+export function settleHostedStart(
+  ready: Promise<unknown>,
+  stubId: string,
+  clientId: string,
+  report?: (message: string) => void,
+): void {
   ready.catch((error) => {
     if (!isRefusedDispatchError(error)) return;
     useInboxStore.getState().markOptimisticAsFailed(stubId, clientId);
     console.error("[assistant] could not start the conversation", error);
-    report?.(error instanceof Error ? error.message : "Could not start the conversation");
+    report?.(
+      error instanceof Error
+        ? error.message
+        : "Could not start the conversation",
+    );
   });
 }
 
 /** Seeds the stub and fires the create; returns the stub id to navigate to.
  *  `resumeStubId` re-fires a stub whose create failed (its row is reused). */
-export function startHostedConversation(text: string, resumeStubId?: string): string {
+export function startHostedConversation(
+  text: string,
+  resumeStubId?: string,
+): string {
   const store = useInboxStore.getState();
   let clientId = "";
   const { stubId, materialize } = store.beginOptimisticSession({
@@ -39,8 +51,12 @@ export function startHostedConversation(text: string, resumeStubId?: string): st
     deferCreate: true,
     resumeStubId,
     create: (sid) =>
-      useInboxStore.getState()
-        .createSessionFromStub(sid, { agentType: HOSTED_AGENT_TYPE, firstMessage: { content: text, clientId } })
+      useInboxStore
+        .getState()
+        .createSessionFromStub(sid, {
+          agentType: HOSTED_AGENT_TYPE,
+          firstMessage: { content: text, clientId },
+        })
         .then((id: unknown) => String(id)),
   });
   clientId = store.addOptimisticMessage(stubId, text);
@@ -48,11 +64,14 @@ export function startHostedConversation(text: string, resumeStubId?: string): st
   return stubId;
 }
 
-
 /** Tries a failed start again: the failed bubble goes, the stub is reused.
  *  The store's retry rule (retryPendingSend) calls this for a hosted
  *  conversation that has no server row yet. */
-export function retryHostedStart(stubId: string, clientId: string, text: string): void {
+export function retryHostedStart(
+  stubId: string,
+  clientId: string,
+  text: string,
+): void {
   useInboxStore.getState().removeOptimisticMessage(stubId, clientId);
   startHostedConversation(text, stubId);
 }

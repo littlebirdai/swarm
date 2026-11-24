@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Chrome, ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { useMountEffect } from "../../../hooks/useMountEffect";
-import { isDesktop, isDesktopShell, getAppVersion, checkDesktopUpdate } from "../../../lib/desktop";
+import {
+  isDesktop,
+  isDesktopShell,
+  getAppVersion,
+  checkDesktopUpdate,
+} from "../../../lib/desktop";
 import {
   NATIVE_APP_COPY,
   NATIVE_APP_LINKS,
@@ -12,7 +17,12 @@ import {
 import { useInboxStore } from "../../../store/inboxStore";
 import { Button } from "../../../components/ui/button";
 import { Switch } from "../../../components/ui/switch";
-import { SettingsLinkRow, SettingsPanel, SettingsRow, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsLinkRow,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { modernPill } from "../../../components/ui/modernLook";
 
 /**
@@ -23,10 +33,15 @@ import { modernPill } from "../../../components/ui/modernLook";
 export default function AppsPage() {
   // Inside the desktop app the Mac card is a readout, not an offer, so the
   // iOS app leads there; elsewhere the app that fits this device leads.
-  const order: NativeApp[] = nativeAppOffer() === "ios" || isDesktopShell() ? ["ios", "mac"] : ["mac", "ios"];
+  const order: NativeApp[] =
+    nativeAppOffer() === "ios" || isDesktopShell()
+      ? ["ios", "mac"]
+      : ["mac", "ios"];
   return (
     <SettingsPanel>
-      {order.map((app) => (app === "mac" ? <MacSection key={app} /> : <IosSection key={app} />))}
+      {order.map((app) =>
+        app === "mac" ? <MacSection key={app} /> : <IosSection key={app} />,
+      )}
       <ChromeSection />
     </SettingsPanel>
   );
@@ -53,9 +68,16 @@ function GetAppButton({ app }: { app: NativeApp }) {
  *  now" action lives in the global banner (DesktopProvider); this is passive. */
 function MacSection() {
   const [current, setCurrent] = useState<string | null>(null);
-  const [update, setUpdate] = useState<{ current: string; latest: string } | null>(null);
-  const hasUsedDesktop = useInboxStore((s) => s.clientState?.dismissed?.has_used_desktop === true);
-  const preferBrowser = useInboxStore((s) => s.clientState?.dismissed?.prefer_browser_links === true);
+  const [update, setUpdate] = useState<{
+    current: string;
+    latest: string;
+  } | null>(null);
+  const hasUsedDesktop = useInboxStore(
+    (s) => s.clientState?.dismissed?.has_used_desktop === true,
+  );
+  const preferBrowser = useInboxStore(
+    (s) => s.clientState?.dismissed?.prefer_browser_links === true,
+  );
   const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
   const openSettingsModal = useInboxStore((s) => s.openSettingsModal);
 
@@ -71,18 +93,28 @@ function MacSection() {
   const copy = NATIVE_APP_COPY.mac;
 
   return (
-    <SettingsSection title="Desktop app" icon={Monitor} description={inDesktop ? undefined : copy.pitch}>
+    <SettingsSection
+      title="Desktop app"
+      icon={Monitor}
+      description={inDesktop ? undefined : copy.pitch}
+    >
       {inDesktop ? (
         <SettingsRow
           label="You're on the desktop app"
           description={
-            !current ? "Reading the version"
-              : update ? `Version ${current}, v${update.latest} available`
-              : `Version ${current}, up to date`
+            !current
+              ? "Reading the version"
+              : update
+                ? `Version ${current}, v${update.latest} available`
+                : `Version ${current}, up to date`
           }
         >
           {update && (
-            <span className={`rounded-md bg-sol-cyan/15 px-2 py-0.5 text-meta text-sol-cyan ${modernPill({ tone: "cyan" })}`}>Update available</span>
+            <span
+              className={`rounded-md bg-sol-cyan/15 px-2 py-0.5 text-meta text-sol-cyan ${modernPill({ tone: "cyan" })}`}
+            >
+              Update available
+            </span>
           )}
         </SettingsRow>
       ) : (
@@ -119,7 +151,11 @@ function IosSection() {
   const openSettingsModal = useInboxStore((s) => s.openSettingsModal);
   const copy = NATIVE_APP_COPY.ios;
   return (
-    <SettingsSection title="iPhone and iPad" icon={Smartphone} description={copy.pitch}>
+    <SettingsSection
+      title="iPhone and iPad"
+      icon={Smartphone}
+      description={copy.pitch}
+    >
       <SettingsRow label={copy.name} description={copy.requires}>
         <GetAppButton app="ios" />
       </SettingsRow>

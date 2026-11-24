@@ -68,7 +68,18 @@ const channelMaps = new WeakMap<object, Map<string, Map<string, string>>>();
 /** name → id for one team's rooms (never DMs), memoized on the collection ref
  *  so every message in a list shares one map until a channel row changes. */
 export function channelNameMap(
-  channels: Record<string, { _id: string; name: string; kind?: string; team_id?: string; archived_at?: number | null }> | undefined,
+  channels:
+    | Record<
+        string,
+        {
+          _id: string;
+          name: string;
+          kind?: string;
+          team_id?: string;
+          archived_at?: number | null;
+        }
+      >
+    | undefined,
   teamId: string | undefined,
 ): Map<string, string> | undefined {
   if (!channels || !teamId) return undefined;
@@ -78,7 +89,8 @@ export function channelNameMap(
   if (!map) {
     map = new Map();
     for (const c of Object.values(channels)) {
-      if (c.team_id === teamId && c.kind !== "dm" && !c.archived_at && c.name) map.set(c.name.toLowerCase(), String(c._id));
+      if (c.team_id === teamId && c.kind !== "dm" && !c.archived_at && c.name)
+        map.set(c.name.toLowerCase(), String(c._id));
     }
     byTeam.set(teamId, map);
   }
@@ -91,8 +103,17 @@ function slackMarkHast() {
   return {
     type: "element" as const,
     tagName: "svg",
-    properties: { className: ["ch-mention-slack-mark"], viewBox: SLACK_MARK_VIEWBOX, ariaHidden: "true" },
-    children: SLACK_MARK_PATHS.map(([d, fill]) => ({ type: "element" as const, tagName: "path", properties: { d, fill }, children: [] })),
+    properties: {
+      className: ["ch-mention-slack-mark"],
+      viewBox: SLACK_MARK_VIEWBOX,
+      ariaHidden: "true",
+    },
+    children: SLACK_MARK_PATHS.map(([d, fill]) => ({
+      type: "element" as const,
+      tagName: "path",
+      properties: { d, fill },
+      children: [],
+    })),
   };
 }
 
@@ -107,8 +128,13 @@ export function remarkChatMentions(options: ChatMentionOptions = {}) {
       [
         [
           MENTION_RE,
-          (match: string, handle: string, meta: { index: number; input: string }) => {
-            const before = meta && meta.index > 0 ? meta.input[meta.index - 1] : "";
+          (
+            match: string,
+            handle: string,
+            meta: { index: number; input: string },
+          ) => {
+            const before =
+              meta && meta.index > 0 ? meta.input[meta.index - 1] : "";
             // Returning false leaves the original text exactly as written, which
             // is what an unknown handle or a mid-word "@" must do.
             if (before && !BOUNDARY_RE.test(before)) return false;
@@ -162,7 +188,10 @@ export function remarkChatMentions(options: ChatMentionOptions = {}) {
                     "data-mention": lower,
                     title: `@${slackPerson.handle} in Slack`,
                   },
-                  hChildren: [slackMarkHast(), { type: "text" as const, value: `@${slackPerson.name}` }],
+                  hChildren: [
+                    slackMarkHast(),
+                    { type: "text" as const, value: `@${slackPerson.name}` },
+                  ],
                 },
                 children: [{ type: "text", value: `@${slackPerson.name}` }],
               };
@@ -188,21 +217,34 @@ export function remarkChatMentions(options: ChatMentionOptions = {}) {
                   title: display ? `@${handle}` : undefined,
                 },
               },
-              children: [{ type: "text", value: display ? `@${display}` : match }],
+              children: [
+                { type: "text", value: display ? `@${display}` : match },
+              ],
             };
           },
         ],
         [
           CHANNEL_RE,
-          (match: string, name: string, meta: { index: number; input: string }) => {
-            const before = meta && meta.index > 0 ? meta.input[meta.index - 1] : "";
+          (
+            match: string,
+            name: string,
+            meta: { index: number; input: string },
+          ) => {
+            const before =
+              meta && meta.index > 0 ? meta.input[meta.index - 1] : "";
             if (before && !BOUNDARY_RE.test(before)) return false;
             const id = channels?.get(name.toLowerCase());
             if (!id) return false;
             return {
               type: "link",
               url: `/chat/${encodeURIComponent(id)}`,
-              data: { hProperties: { className: "ch-channel-ref", "data-channel": name.toLowerCase(), title: `Open #${name}` } },
+              data: {
+                hProperties: {
+                  className: "ch-channel-ref",
+                  "data-channel": name.toLowerCase(),
+                  title: `Open #${name}`,
+                },
+              },
               children: [{ type: "text", value: match }],
             };
           },

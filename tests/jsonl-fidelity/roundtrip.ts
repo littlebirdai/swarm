@@ -14,7 +14,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import { decryptToken } from "../../apps/cli/src/tokenEncryption.js";
-import { parseSessionFile, extractMessages, parseSessionLine, type ParsedMessage, type ClaudeSessionEntry } from "../../apps/cli/src/parser.js";
+import {
+  parseSessionFile,
+  extractMessages,
+  parseSessionLine,
+  type ParsedMessage,
+  type ClaudeSessionEntry,
+} from "../../apps/cli/src/parser.js";
 import {
   fetchExport,
   generateClaudeCodeJsonl,
@@ -25,7 +31,11 @@ import {
 // ── Config ──────────────────────────────────────────────────
 
 const CONFIG_PATH = path.join(process.env.HOME!, ".codecast", "config.json");
-const CONV_CACHE_PATH = path.join(process.env.HOME!, ".codecast", "conversations.json");
+const CONV_CACHE_PATH = path.join(
+  process.env.HOME!,
+  ".codecast",
+  "conversations.json",
+);
 const CLAUDE_PROJECTS_DIR = path.join(process.env.HOME!, ".claude", "projects");
 
 interface Config {
@@ -58,9 +68,13 @@ function findLargestSessions(count: number): SessionFile[] {
     const projectDir = path.join(CLAUDE_PROJECTS_DIR, dir);
     try {
       if (!fs.statSync(projectDir).isDirectory()) continue;
-    } catch { continue; }
+    } catch {
+      continue;
+    }
 
-    const files = fs.readdirSync(projectDir).filter((f) => f.endsWith(".jsonl"));
+    const files = fs
+      .readdirSync(projectDir)
+      .filter((f) => f.endsWith(".jsonl"));
     for (const file of files) {
       const filePath = path.join(projectDir, file);
       const sessionId = file.replace(".jsonl", "");
@@ -75,7 +89,10 @@ function findLargestSessions(count: number): SessionFile[] {
 
 // ── Convert ParsedMessage to ExportedMessage (simulate DB) ──
 
-function parsedToExported(msgs: ParsedMessage[], projectPath: string): ExportResult {
+function parsedToExported(
+  msgs: ParsedMessage[],
+  projectPath: string,
+): ExportResult {
   const exportedMessages: ExportedMessage[] = [];
 
   for (const msg of msgs) {
@@ -118,7 +135,9 @@ function parsedToExported(msgs: ParsedMessage[], projectPath: string): ExportRes
       model: "claude-opus-4-6-20260205",
       message_count: exportedMessages.length,
       started_at: exportedMessages[0]?.timestamp || new Date().toISOString(),
-      updated_at: exportedMessages[exportedMessages.length - 1]?.timestamp || new Date().toISOString(),
+      updated_at:
+        exportedMessages[exportedMessages.length - 1]?.timestamp ||
+        new Date().toISOString(),
     },
     messages: exportedMessages,
   };
@@ -146,24 +165,39 @@ function normalizeContent(s: string | undefined): string {
 }
 
 function normalizeToolCalls(
-  tcs: Array<{ id: string; name: string; input: Record<string, unknown> }> | undefined
+  tcs:
+    | Array<{ id: string; name: string; input: Record<string, unknown> }>
+    | undefined,
 ): string {
   if (!tcs || tcs.length === 0) return "[]";
-  return JSON.stringify(tcs.map((tc) => ({ id: tc.id, name: tc.name, inputKeys: Object.keys(tc.input).sort() })));
+  return JSON.stringify(
+    tcs.map((tc) => ({
+      id: tc.id,
+      name: tc.name,
+      inputKeys: Object.keys(tc.input).sort(),
+    })),
+  );
 }
 
 function normalizeToolResults(
-  trs: Array<{ toolUseId: string; content: string; isError?: boolean }> | undefined
+  trs:
+    | Array<{ toolUseId: string; content: string; isError?: boolean }>
+    | undefined,
 ): string {
   if (!trs || trs.length === 0) return "[]";
-  return JSON.stringify(trs.map((tr) => ({
-    toolUseId: tr.toolUseId,
-    contentLen: (tr.content || "").length,
-    isError: !!tr.isError,
-  })));
+  return JSON.stringify(
+    trs.map((tr) => ({
+      toolUseId: tr.toolUseId,
+      contentLen: (tr.content || "").length,
+      isError: !!tr.isError,
+    })),
+  );
 }
 
-function compareMessages(original: ParsedMessage[], generated: ParsedMessage[]): ComparisonResult {
+function compareMessages(
+  original: ParsedMessage[],
+  generated: ParsedMessage[],
+): ComparisonResult {
   const diffs: MessageDiff[] = [];
 
   for (let i = 0; i < Math.min(original.length, generated.length); i++) {
@@ -171,33 +205,55 @@ function compareMessages(original: ParsedMessage[], generated: ParsedMessage[]):
     const gen = generated[i];
 
     if (orig.role !== gen.role) {
-      diffs.push({ index: i, field: "role", original: orig.role, generated: gen.role });
+      diffs.push({
+        index: i,
+        field: "role",
+        original: orig.role,
+        generated: gen.role,
+      });
     }
 
     const origContent = normalizeContent(orig.content);
     const genContent = normalizeContent(gen.content);
     if (origContent !== genContent) {
       // Check for truncation
-      const isTrunc = genContent.endsWith("... (truncated)") &&
-        origContent.startsWith(genContent.replace(/\n?\.\.\. \(truncated\)$/, ""));
+      const isTrunc =
+        genContent.endsWith("... (truncated)") &&
+        origContent.startsWith(
+          genContent.replace(/\n?\.\.\. \(truncated\)$/, ""),
+        );
       diffs.push({
         index: i,
         field: isTrunc ? "content[truncated]" : "content",
-        original: origContent.slice(0, 200) + (origContent.length > 200 ? `... (${origContent.length}c)` : ""),
-        generated: genContent.slice(0, 200) + (genContent.length > 200 ? `... (${genContent.length}c)` : ""),
+        original:
+          origContent.slice(0, 200) +
+          (origContent.length > 200 ? `... (${origContent.length}c)` : ""),
+        generated:
+          genContent.slice(0, 200) +
+          (genContent.length > 200 ? `... (${genContent.length}c)` : ""),
       });
     }
 
     const origTc = normalizeToolCalls(orig.toolCalls);
     const genTc = normalizeToolCalls(gen.toolCalls);
     if (origTc !== genTc) {
-      diffs.push({ index: i, field: "toolCalls", original: origTc.slice(0, 300), generated: genTc.slice(0, 300) });
+      diffs.push({
+        index: i,
+        field: "toolCalls",
+        original: origTc.slice(0, 300),
+        generated: genTc.slice(0, 300),
+      });
     }
 
     const origTr = normalizeToolResults(orig.toolResults);
     const genTr = normalizeToolResults(gen.toolResults);
     if (origTr !== genTr) {
-      diffs.push({ index: i, field: "toolResults", original: origTr.slice(0, 300), generated: genTr.slice(0, 300) });
+      diffs.push({
+        index: i,
+        field: "toolResults",
+        original: origTr.slice(0, 300),
+        generated: genTr.slice(0, 300),
+      });
     }
 
     // Compare thinking presence
@@ -205,7 +261,8 @@ function compareMessages(original: ParsedMessage[], generated: ParsedMessage[]):
     const genHasThinking = !!(gen.thinking && gen.thinking.trim());
     if (origHasThinking !== genHasThinking) {
       diffs.push({
-        index: i, field: "thinking",
+        index: i,
+        field: "thinking",
         original: origHasThinking ? `yes (${orig.thinking!.length}c)` : "no",
         generated: genHasThinking ? `yes (${gen.thinking!.length}c)` : "no",
       });
@@ -223,14 +280,21 @@ function compareMessages(original: ParsedMessage[], generated: ParsedMessage[]):
 
 // ── Detailed diff for first few mismatches ──────────────────
 
-function printDetailedDiff(original: ParsedMessage[], generated: ParsedMessage[], maxMsgs: number = 20) {
+function printDetailedDiff(
+  original: ParsedMessage[],
+  generated: ParsedMessage[],
+  maxMsgs: number = 20,
+) {
   const minLen = Math.min(original.length, generated.length, maxMsgs);
 
   // Find first divergence point
   let divergeAt = -1;
   for (let i = 0; i < minLen; i++) {
-    if (original[i].role !== generated[i].role ||
-        normalizeContent(original[i].content) !== normalizeContent(generated[i].content)) {
+    if (
+      original[i].role !== generated[i].role ||
+      normalizeContent(original[i].content) !==
+        normalizeContent(generated[i].content)
+    ) {
       divergeAt = i;
       break;
     }
@@ -253,18 +317,26 @@ function printDetailedDiff(original: ParsedMessage[], generated: ParsedMessage[]
     const oToolInfo = [
       o.toolCalls?.length ? `tc:${o.toolCalls.length}` : "",
       o.toolResults?.length ? `tr:${o.toolResults.length}` : "",
-    ].filter(Boolean).join(",");
+    ]
+      .filter(Boolean)
+      .join(",");
 
     const gToolInfo = [
       g.toolCalls?.length ? `tc:${g.toolCalls.length}` : "",
       g.toolResults?.length ? `tr:${g.toolResults.length}` : "",
-    ].filter(Boolean).join(",");
+    ]
+      .filter(Boolean)
+      .join(",");
 
     const oContent = (o.content || "").slice(0, 60).replace(/\n/g, "\\n");
     const gContent = (g.content || "").slice(0, 60).replace(/\n/g, "\\n");
 
-    console.log(`   ${marker} [${i}] orig: ${o.role.padEnd(10)} ${oToolInfo.padEnd(8)} "${oContent}"`);
-    console.log(`   ${marker} [${i}]  gen: ${g.role.padEnd(10)} ${gToolInfo.padEnd(8)} "${gContent}"`);
+    console.log(
+      `   ${marker} [${i}] orig: ${o.role.padEnd(10)} ${oToolInfo.padEnd(8)} "${oContent}"`,
+    );
+    console.log(
+      `   ${marker} [${i}]  gen: ${g.role.padEnd(10)} ${gToolInfo.padEnd(8)} "${gContent}"`,
+    );
   }
 }
 
@@ -293,14 +365,20 @@ async function main() {
     sessions = findLargestSessions(count);
   }
 
-  console.log(`\n Testing ${sessions.length} sessions: parse -> DB format -> generate -> parse\n`);
+  console.log(
+    `\n Testing ${sessions.length} sessions: parse -> DB format -> generate -> parse\n`,
+  );
   console.log("-".repeat(80));
 
   const allResults: ComparisonResult[] = [];
 
   for (const session of sessions) {
-    const projectPath = session.projectSlug.replace(/-/g, "/").replace(/^\//, "/");
-    console.log(`\n ${session.sessionId.slice(0, 8)}... (${session.lineCount} lines)`);
+    const projectPath = session.projectSlug
+      .replace(/-/g, "/")
+      .replace(/^\//, "/");
+    console.log(
+      `\n ${session.sessionId.slice(0, 8)}... (${session.lineCount} lines)`,
+    );
 
     try {
       // 1. Parse original JSONL
@@ -320,7 +398,9 @@ async function main() {
         return !!(hasContent || hasToolCalls || hasToolResults);
       });
       const filtered = originalMessages.length - origFiltered.length;
-      console.log(`   Original: ${origFiltered.length} messages (${filtered} filtered)`);
+      console.log(
+        `   Original: ${origFiltered.length} messages (${filtered} filtered)`,
+      );
 
       // 2. Convert to DB format (ExportedMessages)
       const exportData = parsedToExported(origFiltered, projectPath);
@@ -331,7 +411,9 @@ async function main() {
       });
 
       // 4. Parse generated JSONL
-      const generatedMessages = parseSessionFile(generatedJsonl).filter((m) => m.role !== "system");
+      const generatedMessages = parseSessionFile(generatedJsonl).filter(
+        (m) => m.role !== "system",
+      );
       console.log(`   Generated: ${generatedMessages.length} messages`);
 
       // 5. Compare
@@ -343,7 +425,9 @@ async function main() {
         console.log(`   MATCH`);
       } else {
         if (!result.countMatch) {
-          console.log(`   Count: ${result.originalCount} vs ${result.generatedCount} (${result.generatedCount > result.originalCount ? "+" : ""}${result.generatedCount - result.originalCount})`);
+          console.log(
+            `   Count: ${result.originalCount} vs ${result.generatedCount} (${result.generatedCount > result.originalCount ? "+" : ""}${result.generatedCount - result.originalCount})`,
+          );
         }
         if (result.diffs.length > 0) {
           // Group diffs by field
@@ -351,11 +435,15 @@ async function main() {
           for (const d of result.diffs) {
             byField.set(d.field, (byField.get(d.field) || 0) + 1);
           }
-          console.log(`   ${result.diffs.length} diffs: ${[...byField.entries()].map(([f, c]) => `${f}:${c}`).join(", ")}`);
+          console.log(
+            `   ${result.diffs.length} diffs: ${[...byField.entries()].map(([f, c]) => `${f}:${c}`).join(", ")}`,
+          );
 
           if (verbose) {
             for (const d of result.diffs.slice(0, 5)) {
-              console.log(`      [${d.index}] ${d.field}: "${d.original.slice(0,80)}" vs "${d.generated.slice(0,80)}"`);
+              console.log(
+                `      [${d.index}] ${d.field}: "${d.original.slice(0, 80)}" vs "${d.generated.slice(0, 80)}"`,
+              );
             }
             // Show first diff message details
             const firstDiffIdx = result.diffs[0]?.index;
@@ -366,8 +454,13 @@ async function main() {
               for (let i = start; i < end; i++) {
                 const o = origFiltered[i];
                 const g = generatedMessages[i];
-                console.log(`   [${i}] ORIG: role=${o?.role} content=${JSON.stringify((o?.content||"").slice(0,80))} tc=${o?.toolCalls?.length||0} tr=${o?.toolResults?.length||0} think=${!!(o?.thinking)} img=${!!(o?.images?.length)}`);
-                if (g) console.log(`   [${i}]  GEN: role=${g.role} content=${JSON.stringify((g.content||"").slice(0,80))} tc=${g.toolCalls?.length||0} tr=${g.toolResults?.length||0}`);
+                console.log(
+                  `   [${i}] ORIG: role=${o?.role} content=${JSON.stringify((o?.content || "").slice(0, 80))} tc=${o?.toolCalls?.length || 0} tr=${o?.toolResults?.length || 0} think=${!!o?.thinking} img=${!!o?.images?.length}`,
+                );
+                if (g)
+                  console.log(
+                    `   [${i}]  GEN: role=${g.role} content=${JSON.stringify((g.content || "").slice(0, 80))} tc=${g.toolCalls?.length || 0} tr=${g.toolResults?.length || 0}`,
+                  );
               }
             }
           }
@@ -377,7 +470,9 @@ async function main() {
         printDetailedDiff(origFiltered, generatedMessages);
       }
     } catch (err) {
-      console.log(`   Error: ${err instanceof Error ? err.message : String(err)}`);
+      console.log(
+        `   Error: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -386,8 +481,12 @@ async function main() {
   console.log("SUMMARY");
   console.log("=".repeat(80));
 
-  const perfect = allResults.filter((r) => r.countMatch && r.diffs.length === 0);
-  const imperfect = allResults.filter((r) => !r.countMatch || r.diffs.length > 0);
+  const perfect = allResults.filter(
+    (r) => r.countMatch && r.diffs.length === 0,
+  );
+  const imperfect = allResults.filter(
+    (r) => !r.countMatch || r.diffs.length > 0,
+  );
 
   console.log(`Total:    ${allResults.length}`);
   console.log(`Perfect:  ${perfect.length}`);
@@ -404,7 +503,9 @@ async function main() {
   }
   if (allDiffFields.size > 0) {
     console.log(`\nDiff breakdown (${totalDiffs} total):`);
-    for (const [field, count] of [...allDiffFields.entries()].sort((a, b) => b[1] - a[1])) {
+    for (const [field, count] of [...allDiffFields.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )) {
       console.log(`  ${field}: ${count}`);
     }
   }

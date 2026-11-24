@@ -8,10 +8,20 @@ export const SESSION_CARD_MAX_SESSIONS = 120;
 /** The pull request fields an inbox chip draws: all the feed sends of a row. */
 // Only what is drawn: a patch to anything else (updated_at moves on every
 // webhook) then answers the feed with the same result, and nothing is sent.
-export const SESSION_CARD_PR_FIELDS = ["_id", "team_id", "repository", "number", "title", "state", "draft", "checks_state"] as const;
+export const SESSION_CARD_PR_FIELDS = [
+  "_id",
+  "team_id",
+  "repository",
+  "number",
+  "title",
+  "state",
+  "draft",
+  "checks_state",
+] as const;
 export type PrLinkTier = "observed" | "committed";
 const TIER_RANK: Record<PrLinkTier, number> = { observed: 0, committed: 1 };
-const tierOf = (row: { tier?: PrLinkTier }): PrLinkTier => row.tier ?? "observed";
+const tierOf = (row: { tier?: PrLinkTier }): PrLinkTier =>
+  row.tier ?? "observed";
 
 /**
  * `pull_requests.linked_session_ids` is the one home of which sessions a pull
@@ -33,7 +43,10 @@ const tierOf = (row: { tier?: PrLinkTier }): PrLinkTier => row.tier ?? "observed
  * never loads the heavy row. Both are fixed for a pull request's life; a row
  * written before they were stamped is filled here on the next sync.
  */
-export async function syncPullRequestSessions(ctx: { db: any }, pr: PR): Promise<void> {
+export async function syncPullRequestSessions(
+  ctx: { db: any },
+  pr: PR,
+): Promise<void> {
   const want = new Set((pr.linked_session_ids ?? []).map(String));
   const rows = await ctx.db
     .query("pull_request_sessions")
@@ -46,14 +59,23 @@ export async function syncPullRequestSessions(ctx: { db: any }, pr: PR): Promise
     else {
       have.add(key);
       if (row.pr_number !== pr.number || row.team_id !== pr.team_id) {
-        await ctx.db.patch(row._id, { pr_number: pr.number, team_id: pr.team_id });
+        await ctx.db.patch(row._id, {
+          pr_number: pr.number,
+          team_id: pr.team_id,
+        });
       }
     }
   }
   for (const id of pr.linked_session_ids ?? []) {
     if (have.has(String(id))) continue;
     have.add(String(id));
-    await ctx.db.insert("pull_request_sessions", { pull_request_id: pr._id, conversation_id: id, tier: "observed", pr_number: pr.number, team_id: pr.team_id });
+    await ctx.db.insert("pull_request_sessions", {
+      pull_request_id: pr._id,
+      conversation_id: id,
+      tier: "observed",
+      pr_number: pr.number,
+      team_id: pr.team_id,
+    });
   }
 }
 
@@ -69,11 +91,18 @@ export async function linkedPullRequestNumbers(
 ): Promise<{ numbers: number[]; capped: boolean }> {
   const rows = await ctx.db
     .query("pull_request_sessions")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .take(max + 1);
   const numbers: number[] = [];
   for (const row of rows.slice(0, max)) {
-    if (row.pr_number === undefined || !row.team_id || numbers.includes(row.pr_number)) continue;
+    if (
+      row.pr_number === undefined ||
+      !row.team_id ||
+      numbers.includes(row.pr_number)
+    )
+      continue;
     if (await canSee(row.team_id)) numbers.push(row.pr_number);
   }
   return { numbers: numbers.sort((a, b) => b - a), capped: rows.length > max };
@@ -99,7 +128,10 @@ export async function linkPullRequestSessions(
     linked.add(String(id));
     added.push(id);
   }
-  if (added.length) await ctx.db.patch(prId, { linked_session_ids: [...(pr.linked_session_ids ?? []), ...added] });
+  if (added.length)
+    await ctx.db.patch(prId, {
+      linked_session_ids: [...(pr.linked_session_ids ?? []), ...added],
+    });
   const current: PR = added.length ? await ctx.db.get(prId) : pr;
   await syncPullRequestSessions(ctx, current);
   const want = new Set(conversationIds.map(String));
@@ -108,18 +140,27 @@ export async function linkPullRequestSessions(
     .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", prId))
     .collect();
   for (const row of rows) {
-    if (want.has(String(row.conversation_id)) && TIER_RANK[tier] > TIER_RANK[tierOf(row)]) await ctx.db.patch(row._id, { tier });
+    if (
+      want.has(String(row.conversation_id)) &&
+      TIER_RANK[tier] > TIER_RANK[tierOf(row)]
+    )
+      await ctx.db.patch(row._id, { tier });
   }
   return current;
 }
 
 /** The sessions whose own commit is on the pull request. */
-export async function committedSessionIds(ctx: { db: any }, prId: Id<"pull_requests">): Promise<Id<"conversations">[]> {
+export async function committedSessionIds(
+  ctx: { db: any },
+  prId: Id<"pull_requests">,
+): Promise<Id<"conversations">[]> {
   const rows = await ctx.db
     .query("pull_request_sessions")
     .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", prId))
     .collect();
-  return rows.filter((row: any) => tierOf(row) === "committed").map((row: any) => row.conversation_id);
+  return rows
+    .filter((row: any) => tierOf(row) === "committed")
+    .map((row: any) => row.conversation_id);
 }
 
 /** Every pull request that links the session. Access is the caller's to check. */
@@ -129,8 +170,12 @@ export async function pullRequestsLinkedToConversation(
 ): Promise<PR[]> {
   const rows = await ctx.db
     .query("pull_request_sessions")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
-  const prs = await Promise.all(rows.map((row: any) => ctx.db.get(row.pull_request_id)));
+  const prs = await Promise.all(
+    rows.map((row: any) => ctx.db.get(row.pull_request_id)),
+  );
   return prs.filter((pr: PR | null): pr is PR => pr !== null);
 }

@@ -25,10 +25,18 @@ type TeamRow = { _id?: string; name?: string };
 const terminal = (status?: string) => status === "done" || status === "dropped";
 
 /** The viewer's teams, busiest first (open problems, then all), then Personal when it holds problems. */
-export function lineSpaces(tasks: Iterable<CauseRow>, teams: ReadonlyArray<TeamRow>, viewerId: string | null): LineSpace[] {
+export function lineSpaces(
+  tasks: Iterable<CauseRow>,
+  teams: ReadonlyArray<TeamRow>,
+  viewerId: string | null,
+): LineSpace[] {
   const own = viewerId ? `user:${viewerId}` : null;
-  const teamName = new Map(teams.map((t) => [`team:${t._id}`, t.name ?? "Team"]));
-  const by = new Map<string, { open: number; problems: number }>([...teamName.keys()].map((k) => [k, { open: 0, problems: 0 }]));
+  const teamName = new Map(
+    teams.map((t) => [`team:${t._id}`, t.name ?? "Team"]),
+  );
+  const by = new Map<string, { open: number; problems: number }>(
+    [...teamName.keys()].map((k) => [k, { open: 0, problems: 0 }]),
+  );
   for (const t of tasks) {
     if (!t.cause || !t.workspace) continue;
     // Only the viewer's own workspaces: a cached row of a team they left, or of another person, is not offered.
@@ -38,14 +46,30 @@ export function lineSpaces(tasks: Iterable<CauseRow>, teams: ReadonlyArray<TeamR
     if (!terminal(t.status)) n.open++;
     by.set(t.workspace, n);
   }
-  return [...by].map(([key, n]) => ({ key, name: key === own ? "Personal" : teamName.get(key)!, ...n }))
-    .sort((a, b) => Number(a.key === own) - Number(b.key === own) || b.open - a.open || b.problems - a.problems || a.name.localeCompare(b.name));
+  return [...by]
+    .map(([key, n]) => ({
+      key,
+      name: key === own ? "Personal" : teamName.get(key)!,
+      ...n,
+    }))
+    .sort(
+      (a, b) =>
+        Number(a.key === own) - Number(b.key === own) ||
+        b.open - a.open ||
+        b.problems - a.problems ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 /** The workspace /line reads: the first of `asked` (the linked thing's) that is offered, then `remembered`
  *  that is offered, else the first offered: a team's before Personal. Null when no workspace has a problem: the app's active one holds. */
-export function pickLineSpace(spaces: ReadonlyArray<LineSpace>, asked: ReadonlyArray<string | null | undefined>, remembered: string | null): WorkspaceKey | null {
-  const offered = (k: string | null | undefined): k is string => !!k && spaces.some((s) => s.key === k);
+export function pickLineSpace(
+  spaces: ReadonlyArray<LineSpace>,
+  asked: ReadonlyArray<string | null | undefined>,
+  remembered: string | null,
+): WorkspaceKey | null {
+  const offered = (k: string | null | undefined): k is string =>
+    !!k && spaces.some((s) => s.key === k);
   for (const k of asked) if (offered(k)) return k;
   if (offered(remembered)) return remembered;
   return spaces[0]?.key ?? null;
@@ -53,8 +77,18 @@ export function pickLineSpace(spaces: ReadonlyArray<LineSpace>, asked: ReadonlyA
 
 const STORE = "line.workspace";
 export function readLastLineSpace(): string | null {
-  try { return typeof localStorage === "undefined" ? null : localStorage.getItem(STORE); } catch { return null; }
+  try {
+    return typeof localStorage === "undefined"
+      ? null
+      : localStorage.getItem(STORE);
+  } catch {
+    return null;
+  }
 }
 export function rememberLineSpace(key: string): void {
-  try { localStorage.setItem(STORE, key); } catch { /* private mode: the pick lasts the page */ }
+  try {
+    localStorage.setItem(STORE, key);
+  } catch {
+    /* private mode: the pick lasts the page */
+  }
 }

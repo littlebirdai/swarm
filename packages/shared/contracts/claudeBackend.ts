@@ -16,8 +16,13 @@ export const CLAUDE_BACKEND_LABELS: Record<ClaudeBackend, string> = {
 export const GROK_DIRECT_BACKEND = true;
 
 /** The conversation agent types (Convex spelling) that can run in a direct host as well as a pane. */
-export function hasDirectBackend(agentType: string | null | undefined): boolean {
-  return (agentType || "claude_code") === "claude_code" || (GROK_DIRECT_BACKEND && agentType === "grok");
+export function hasDirectBackend(
+  agentType: string | null | undefined,
+): boolean {
+  return (
+    (agentType || "claude_code") === "claude_code" ||
+    (GROK_DIRECT_BACKEND && agentType === "grok")
+  );
 }
 
 export function asClaudeBackend(v: unknown): ClaudeBackend | undefined {

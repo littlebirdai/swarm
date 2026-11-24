@@ -25,7 +25,10 @@
 // TODO: expose a per-project opt-out flag once config plumbing exists. On by
 // default for now.
 
-import { LABELED_SECRET_SHAPES, SECRET_SHAPES } from "@codecast/shared/contracts/secretShapes";
+import {
+  LABELED_SECRET_SHAPES,
+  SECRET_SHAPES,
+} from "@codecast/shared/contracts/secretShapes";
 import { redactKnownValues } from "./knownValueRedaction.js";
 
 type SecretPattern = { re: RegExp; marker: string };
@@ -33,8 +36,14 @@ type SecretPattern = { re: RegExp; marker: string };
 // The shapes live in shared/contracts/secretShapes.ts, which the web composer
 // reads too. Labeled shapes keep their group 1 (the label); only the value is
 // redacted.
-const SECRET_PATTERNS: SecretPattern[] = SECRET_SHAPES.map((s) => ({ re: s.re, marker: `[redacted:${s.id}]` }));
-const LABELED_PATTERNS: SecretPattern[] = LABELED_SECRET_SHAPES.map((s) => ({ re: s.re, marker: `[redacted:${s.id}]` }));
+const SECRET_PATTERNS: SecretPattern[] = SECRET_SHAPES.map((s) => ({
+  re: s.re,
+  marker: `[redacted:${s.id}]`,
+}));
+const LABELED_PATTERNS: SecretPattern[] = LABELED_SECRET_SHAPES.map((s) => ({
+  re: s.re,
+  marker: `[redacted:${s.id}]`,
+}));
 
 function redactLabeled(text: string): string {
   let out = text;

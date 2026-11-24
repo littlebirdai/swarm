@@ -68,9 +68,18 @@ export async function refreshUsageSnapshots(
   const now = opts.now ?? Date.now();
   const minInterval = opts.minIntervalMs ?? 4 * 60 * 1000;
   const cache = readUsageCache();
-  const summary: UsageRefreshSummary = { probed: [], skipped: [], failed: [], rotated: [], expired: [] };
+  const summary: UsageRefreshSummary = {
+    probed: [],
+    skipped: [],
+    failed: [],
+    rotated: [],
+    expired: [],
+  };
 
-  const jobs = new Map<string, { label: string; token: string; viaToken?: boolean }>();
+  const jobs = new Map<
+    string,
+    { label: string; token: string; viaToken?: boolean }
+  >();
   const activeCred = await readActiveCredentialAsync();
   const active = activeAccountSummary(activeCred);
   const activeKey = active?.uuid || active?.email;
@@ -92,25 +101,38 @@ export async function refreshUsageSnapshots(
         activeKeySettled = true;
       }
     } catch {}
-  } else if (activeKey && activeCred && activeHealth?.usable && opts.activeHeld) {
+  } else if (
+    activeKey &&
+    activeCred &&
+    activeHealth?.usable &&
+    opts.activeHeld
+  ) {
     activeKeySettled = true;
     summary.skipped.push("active");
   } else if (activeKey && activeCred && activeHealth?.usable) {
     activeKeySettled = true;
-    const rotated = await refreshActiveCredential({ fetchImpl: opts.fetchImpl, now });
+    const rotated = await refreshActiveCredential({
+      fetchImpl: opts.fetchImpl,
+      now,
+    });
     if (rotated.refreshed) {
       summary.rotated.push("active");
       const fresh = await readActiveCredentialAsync();
       try {
-        const token = fresh ? JSON.parse(fresh)?.claudeAiOauth?.accessToken : undefined;
-        if (typeof token === "string" && token) jobs.set(activeKey, { label: "active", token });
+        const token = fresh
+          ? JSON.parse(fresh)?.claudeAiOauth?.accessToken
+          : undefined;
+        if (typeof token === "string" && token)
+          jobs.set(activeKey, { label: "active", token });
       } catch {}
       // The rotation spent the previous refresh token. Fold the new pair into
       // the saved profile before a later switch restores the spent one.
       resnapshotActiveProfile();
     } else if (rotated.dead) {
       const doomed = readProfileIndex();
-      const match = Object.entries(doomed.profiles).find(([, meta]) => (meta.uuid || meta.email) === activeKey);
+      const match = Object.entries(doomed.profiles).find(
+        ([, meta]) => (meta.uuid || meta.email) === activeKey,
+      );
       if (match && !match[1].login_expired_at) {
         markLoginExpired(match[0], now);
         summary.expired.push(match[0]);
@@ -126,7 +148,8 @@ export async function refreshUsageSnapshots(
   // Without it the meter froze while that account's sessions kept running.
   const viaSetupToken = (key: string, name: string): boolean => {
     const setupToken = readAccountTokenValue(name);
-    if (setupToken) jobs.set(key, { label: name, token: setupToken, viaToken: true });
+    if (setupToken)
+      jobs.set(key, { label: name, token: setupToken, viaToken: true });
     return !!setupToken;
   };
   for (const [name, meta] of Object.entries(index.profiles)) {
@@ -182,7 +205,11 @@ export async function refreshUsageSnapshots(
       const prev = cache.accounts[key];
       // A live feed keeps fetched_at moving, so only the overdue rule can get
       // past this for an account whose sessions are running.
-      if (prev && now - prev.fetched_at < minInterval && !isLivePollOverdue(prev, now)) {
+      if (
+        prev &&
+        now - prev.fetched_at < minInterval &&
+        !isLivePollOverdue(prev, now)
+      ) {
         summary.skipped.push(name); // inside the throttle — rotating now would buy nothing
         continue;
       }
@@ -191,16 +218,24 @@ export async function refreshUsageSnapshots(
         if (!viaSetupToken(key, name)) summary.skipped.push(name);
         continue;
       }
-      const rotated = await refreshProfileCredential(name, { fetchImpl: opts.fetchImpl, now });
+      const rotated = await refreshProfileCredential(name, {
+        fetchImpl: opts.fetchImpl,
+        now,
+      });
       if (!rotated.refreshed) {
         if (rotated.dead) summary.expired.push(name);
-        else summary.failed.push({ name, reason: rotated.reason ?? "token refresh failed" });
+        else
+          summary.failed.push({
+            name,
+            reason: rotated.reason ?? "token refresh failed",
+          });
         continue;
       }
       summary.rotated.push(name);
       token = rotated.accessToken;
     }
-    if (typeof token === "string" && token) jobs.set(key, { label: name, token });
+    if (typeof token === "string" && token)
+      jobs.set(key, { label: name, token });
   }
   if (activeKey) knownKeys.add(activeKey);
 
@@ -214,7 +249,10 @@ export async function refreshUsageSnapshots(
     // snapshot predates the switch, and the server holds off judging the
     // account until one fetched after the activation lands.
     const predatesActivation =
-      key === activeKey && activeSince !== undefined && !!prev && prev.fetched_at < activeSince;
+      key === activeKey &&
+      activeSince !== undefined &&
+      !!prev &&
+      prev.fetched_at < activeSince;
     const backoff = retries[key];
     // Why: the endpoint named a wait (429 Retry-After) or we picked one after a
     // refusal; asking again before it earns another refusal and, on a 429, can
@@ -229,7 +267,11 @@ export async function refreshUsageSnapshots(
     const mustProbe = predatesActivation || isLivePollOverdue(prev, now);
     // A session of this account feeds the windows every turn, so a poll would
     // spend the usage endpoint's tight budget for a staler answer (ct-49525).
-    if (!mustProbe && (isLiveUsageFresh(prev, now) || (prev && now - prev.fetched_at < minInterval))) {
+    if (
+      !mustProbe &&
+      (isLiveUsageFresh(prev, now) ||
+        (prev && now - prev.fetched_at < minInterval))
+    ) {
       summary.skipped.push(job.label);
       continue;
     }
@@ -237,8 +279,14 @@ export async function refreshUsageSnapshots(
       // polled_at is what bounds the live feed's hold on this poll; it rides
       // the snapshot so a later live update can carry it forward.
       const snap = job.viaToken
-        ? await fetchTokenUsageSnapshot(job.token, prev, { fetchImpl: opts.fetchImpl, now })
-        : await fetchUsageSnapshot(job.token, { fetchImpl: opts.fetchImpl, now });
+        ? await fetchTokenUsageSnapshot(job.token, prev, {
+            fetchImpl: opts.fetchImpl,
+            now,
+          })
+        : await fetchUsageSnapshot(job.token, {
+            fetchImpl: opts.fetchImpl,
+            now,
+          });
       probed.set(key, { ...snap, polled_at: now });
       summary.probed.push(job.label);
       if (retries[key]) {
@@ -251,7 +299,10 @@ export async function refreshUsageSnapshots(
       retriesChanged = true;
       // Keeps being probed on the backoff, so the stamp clears on its own.
       if (isOrgAccessRefusal(err)) setAccessRefused(key, now);
-      summary.failed.push({ name: job.label, reason: err instanceof Error ? err.message : String(err) });
+      summary.failed.push({
+        name: job.label,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -284,7 +335,9 @@ export async function refreshUsageSnapshots(
     }
     if (Object.keys(retries).length > 0) latest.retries = retries;
     else delete latest.retries;
-    atomicWriteFile(usageCachePath(), JSON.stringify(latest, null, 2), { mode: 0o644 });
+    atomicWriteFile(usageCachePath(), JSON.stringify(latest, null, 2), {
+      mode: 0o644,
+    });
   }
   return summary;
 }

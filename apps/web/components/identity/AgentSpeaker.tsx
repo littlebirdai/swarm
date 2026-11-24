@@ -9,7 +9,12 @@ import { useAgentSpeaker } from "../../hooks/useLiveIdentityRow";
 import type { IdentityRow } from "../../lib/sessionIdentity";
 import { IdentityFace, IdentityHover } from "./IdentityFace";
 
-export function AgentSpeaker({ row, agentType, size = 24, nameClassName = "text-sol-text-secondary text-xs font-medium" }: {
+export function AgentSpeaker({
+  row,
+  agentType,
+  size = 24,
+  nameClassName = "text-sol-text-secondary text-xs font-medium",
+}: {
   row: IdentityRow | null;
   agentType?: string | null;
   size?: number;
@@ -21,8 +26,13 @@ export function AgentSpeaker({ row, agentType, size = 24, nameClassName = "text-
     const icon = <AssistantIcon agentType={agentType ?? undefined} />;
     return (
       <>
-        {size === 24 ? icon : (
-          <span className="flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+        {size === 24 ? (
+          icon
+        ) : (
+          <span
+            className="flex shrink-0 items-center justify-center"
+            style={{ width: size, height: size }}
+          >
             <span style={{ transform: `scale(${size / 24})` }}>{icon}</span>
           </span>
         )}
@@ -32,12 +42,20 @@ export function AgentSpeaker({ row, agentType, size = 24, nameClassName = "text-
   }
   // Face and name are one hover target: a role opens its card from either.
   return (
-    <IdentityHover row={speaker.row} triggerClassName="inline-flex items-center gap-2 cursor-default">
+    <IdentityHover
+      row={speaker.row}
+      triggerClassName="inline-flex items-center gap-2 cursor-default"
+    >
       <IdentityFace
         row={speaker.row}
         size={size}
         hover={false}
-        badge={<AgentTypeIcon agentType={agentType || "claude_code"} className="w-full h-full p-[1px]" />}
+        badge={
+          <AgentTypeIcon
+            agentType={agentType || "claude_code"}
+            className="w-full h-full p-[1px]"
+          />
+        }
       />
       <span className={nameClassName}>{speaker.name}</span>
     </IdentityHover>

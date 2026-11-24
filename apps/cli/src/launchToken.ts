@@ -53,7 +53,13 @@ export type LaunchEntry = {
 export type LaunchVerdict = {
   decision: "accept" | "drop";
   /** Short cause, for the [IDENTITY] log line. */
-  reason: "current" | "unmanaged" | "legacy" | "restart" | "stale-token" | "retired-pane";
+  reason:
+    | "current"
+    | "unmanaged"
+    | "legacy"
+    | "restart"
+    | "stale-token"
+    | "retired-pane";
   /** True when the daemon should log this one (drops, and a legacy post once per pane). */
   notable: boolean;
 };
@@ -100,7 +106,8 @@ export function launchTokenDir(): string {
 
 export function launchTokenLedger(): LaunchTokenLedger {
   const dir = launchTokenDir();
-  if (!sharedLedger || sharedLedger.dir !== dir) sharedLedger = { dir, ledger: new LaunchTokenLedger({ dir }) };
+  if (!sharedLedger || sharedLedger.dir !== dir)
+    sharedLedger = { dir, ledger: new LaunchTokenLedger({ dir }) };
   return sharedLedger.ledger;
 }
 
@@ -198,7 +205,8 @@ export class LaunchTokenLedger {
     if (!isLaunchToken(token)) return false;
     const entry = this.entries.get(token);
     if (!entry) return false;
-    if (entry.sessionId && this.sessionHead.get(entry.sessionId) !== token) return true;
+    if (entry.sessionId && this.sessionHead.get(entry.sessionId) !== token)
+      return true;
     if (this.paneHead.get(entry.pane) !== token) return true;
     return (this.paneRetiredAt.get(entry.pane) ?? -1) >= entry.issuedAt;
   }
@@ -212,14 +220,25 @@ export class LaunchTokenLedger {
    * retired pane is owned again rather than being written to by whatever
    * survived the kill.
    */
-  admit(evt: { sessionId?: string; token?: string; newTurn?: boolean; legacyScripts?: boolean; handStartedAt?: number }): LaunchVerdict {
+  admit(evt: {
+    sessionId?: string;
+    token?: string;
+    newTurn?: boolean;
+    legacyScripts?: boolean;
+    handStartedAt?: number;
+  }): LaunchVerdict {
     const token = isLaunchToken(evt.token) ? evt.token : undefined;
     const entry = token ? this.entries.get(token) : undefined;
-    const sessionHead = evt.sessionId ? this.sessionHead.get(evt.sessionId) : undefined;
-    const pane = entry?.pane ?? (sessionHead ? this.entries.get(sessionHead)?.pane : undefined);
+    const sessionHead = evt.sessionId
+      ? this.sessionHead.get(evt.sessionId)
+      : undefined;
+    const pane =
+      entry?.pane ??
+      (sessionHead ? this.entries.get(sessionHead)?.pane : undefined);
     // Nothing this daemon launched: a claude the user opened in their own
     // terminal reports status the same way, and it is not ours to fence.
-    if (!pane) return { decision: "accept", reason: "unmanaged", notable: false };
+    if (!pane)
+      return { decision: "accept", reason: "unmanaged", notable: false };
 
     if (!token) {
       // A hook script installed before launch tokens shipped. Believed only
@@ -232,7 +251,10 @@ export class LaunchTokenLedger {
         // in the person's own terminal) posts without a token because nothing
         // stamped one, not because its script is old. Its SessionStart claim
         // says so; from then on it is a session we did not launch.
-        if (evt.handStartedAt !== undefined && evt.handStartedAt >= this.launchedAt(evt.sessionId, pane)) {
+        if (
+          evt.handStartedAt !== undefined &&
+          evt.handStartedAt >= this.launchedAt(evt.sessionId, pane)
+        ) {
           return { decision: "accept", reason: "unmanaged", notable: false };
         }
         return { decision: "drop", reason: "legacy", notable: true };
@@ -252,7 +274,8 @@ export class LaunchTokenLedger {
     // ">=", not ">": a kill lands in the same millisecond as the launch it ends
     // often enough to matter, and a retirement that ties with its launch is
     // still about that launch.
-    const retired = retiredAt !== undefined && retiredAt >= (entry?.issuedAt ?? 0);
+    const retired =
+      retiredAt !== undefined && retiredAt >= (entry?.issuedAt ?? 0);
 
     if (retired || !isCurrent) {
       // A token we never issued, on a turn-starting event, is a new process
@@ -264,7 +287,11 @@ export class LaunchTokenLedger {
         this.persist();
         return { decision: "accept", reason: "restart", notable: true };
       }
-      return { decision: "drop", reason: retired ? "retired-pane" : "stale-token", notable: true };
+      return {
+        decision: "drop",
+        reason: retired ? "retired-pane" : "stale-token",
+        notable: true,
+      };
     }
 
     if (evt.sessionId && entry!.sessionId !== evt.sessionId) {
@@ -278,13 +305,22 @@ export class LaunchTokenLedger {
   /** When the launch a tokenless post would be held to was issued, floored to
    *  the second because a registry claim's `ts` is whole seconds. */
   private launchedAt(sessionId: string | undefined, pane: string): number {
-    const head = (sessionId ? this.sessionHead.get(sessionId) : undefined) ?? this.paneHead.get(pane);
+    const head =
+      (sessionId ? this.sessionHead.get(sessionId) : undefined) ??
+      this.paneHead.get(pane);
     const issuedAt = head ? this.entries.get(head)?.issuedAt : undefined;
-    return issuedAt === undefined ? Number.POSITIVE_INFINITY : Math.floor(issuedAt / 1000) * 1000;
+    return issuedAt === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.floor(issuedAt / 1000) * 1000;
   }
 
   private record(pane: string, token: string, sessionId?: string): void {
-    const entry: LaunchEntry = { token, pane, issuedAt: this.now(), ...(sessionId ? { sessionId } : {}) };
+    const entry: LaunchEntry = {
+      token,
+      pane,
+      issuedAt: this.now(),
+      ...(sessionId ? { sessionId } : {}),
+    };
     this.entries.delete(token);
     this.entries.set(token, entry);
     this.paneHead.set(pane, token);
@@ -308,21 +344,38 @@ export class LaunchTokenLedger {
     }
     if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.entries)) return;
     for (const e of parsed.entries) {
-      if (!isLaunchToken(e?.token) || typeof e.pane !== "string" || !e.pane) continue;
+      if (!isLaunchToken(e?.token) || typeof e.pane !== "string" || !e.pane)
+        continue;
       if (typeof e.issuedAt !== "number") continue;
-      this.entries.set(e.token, { token: e.token, pane: e.pane, issuedAt: e.issuedAt, ...(e.sessionId ? { sessionId: e.sessionId } : {}) });
+      this.entries.set(e.token, {
+        token: e.token,
+        pane: e.pane,
+        issuedAt: e.issuedAt,
+        ...(e.sessionId ? { sessionId: e.sessionId } : {}),
+      });
     }
     // Head per pane is the newest issue, not the last line written: a relocate
     // rewrites entries in place and the file keeps its original order.
     for (const e of this.entries.values()) {
       const paneHead = this.paneHead.get(e.pane);
-      if (!paneHead || (this.entries.get(paneHead)?.issuedAt ?? 0) <= e.issuedAt) this.paneHead.set(e.pane, e.token);
+      if (
+        !paneHead ||
+        (this.entries.get(paneHead)?.issuedAt ?? 0) <= e.issuedAt
+      )
+        this.paneHead.set(e.pane, e.token);
       if (!e.sessionId) continue;
       const sessionHead = this.sessionHead.get(e.sessionId);
-      if (!sessionHead || (this.entries.get(sessionHead)?.issuedAt ?? 0) <= e.issuedAt) this.sessionHead.set(e.sessionId, e.token);
+      if (
+        !sessionHead ||
+        (this.entries.get(sessionHead)?.issuedAt ?? 0) <= e.issuedAt
+      )
+        this.sessionHead.set(e.sessionId, e.token);
     }
-    for (const [pane, ts] of Array.isArray(parsed.retired) ? parsed.retired : []) {
-      if (typeof pane === "string" && pane && typeof ts === "number") this.paneRetiredAt.set(pane, ts);
+    for (const [pane, ts] of Array.isArray(parsed.retired)
+      ? parsed.retired
+      : []) {
+      if (typeof pane === "string" && pane && typeof ts === "number")
+        this.paneRetiredAt.set(pane, ts);
     }
   }
 

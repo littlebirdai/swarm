@@ -20,8 +20,13 @@ import {
 } from "./test-reach";
 
 const ROOT = join(import.meta.dir, "..", "..");
-const workflow = Bun.YAML.parse(readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8")) as {
-  jobs: Record<string, { steps: Array<{ run?: string; "working-directory"?: string }> }>;
+const workflow = Bun.YAML.parse(
+  readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8"),
+) as {
+  jobs: Record<
+    string,
+    { steps: Array<{ run?: string; "working-directory"?: string }> }
+  >;
 };
 
 const cache = new Map<string, unknown>();
@@ -30,23 +35,39 @@ const once = <T>(key: string, compute: () => T): T => {
   return cache.get(key) as T;
 };
 const reachOfJob = (job: string) => once(`reach:${job}`, () => reachOf(job));
-const crossingOf = (job: string) => once(`crossing:${job}`, () => crossingTests(job));
+const crossingOf = (job: string) =>
+  once(`crossing:${job}`, () => crossingTests(job));
 
 describe("resolveImport", () => {
   const from = join(ROOT, "apps/web/lib/x.ts");
 
   test("resolves workspace packages through their manifests, without node_modules", () => {
-    expect(resolveImport("@codecast/shared", from)).toBe(join(ROOT, "packages/shared/index.ts"));
-    expect(resolveImport("@codecast/shared/contracts", from)).toBe(join(ROOT, "packages/shared/contracts/index.ts"));
-    expect(resolveImport("@codecast/electron", from)).toBe(join(ROOT, "apps/desktop/main.js"));
-    expect(resolveImport("mobile", from)).toBe(join(ROOT, "apps/mobile/index.ts"));
+    expect(resolveImport("@codecast/shared", from)).toBe(
+      join(ROOT, "packages/shared/index.ts"),
+    );
+    expect(resolveImport("@codecast/shared/contracts", from)).toBe(
+      join(ROOT, "packages/shared/contracts/index.ts"),
+    );
+    expect(resolveImport("@codecast/electron", from)).toBe(
+      join(ROOT, "apps/desktop/main.js"),
+    );
+    expect(resolveImport("mobile", from)).toBe(
+      join(ROOT, "apps/mobile/index.ts"),
+    );
     // No exports map: the subpath is a path inside the package. A file bun
     // cannot load (a .d.ts) still lands in the package's area.
-    expect(resolveImport("@codecast/convex/convex/_generated/dataModel", from)?.startsWith(join(ROOT, "apps/server/"))).toBe(true);
+    expect(
+      resolveImport(
+        "@codecast/convex/convex/_generated/dataModel",
+        from,
+      )?.startsWith(join(ROOT, "apps/server/")),
+    ).toBe(true);
   });
 
   test("maps @platform to the mirror and drops builtins and npm packages", () => {
-    expect(resolveImport("@platform/engine", from)).toBe(join(ROOT, "platform/packages"));
+    expect(resolveImport("@platform/engine", from)).toBe(
+      join(ROOT, "platform/packages"),
+    );
     expect(resolveImport("node:fs", from)).toBeNull();
     expect(resolveImport("bun:test", from)).toBeNull();
     expect(resolveImport("react", from)).toBeNull();
@@ -55,10 +76,13 @@ describe("resolveImport", () => {
 
 describe("job test roots", () => {
   test("every gated test job but the mirror's has its test roots listed", () => {
-    const testJobs = Object.keys(JOB_AREAS).filter((job) => job.startsWith("test-") && job !== "test-platform");
+    const testJobs = Object.keys(JOB_AREAS).filter(
+      (job) => job.startsWith("test-") && job !== "test-platform",
+    );
     expect(Object.keys(JOB_TEST_ROOTS).sort()).toEqual(testJobs.sort());
     for (const roots of Object.values(JOB_TEST_ROOTS)) {
-      for (const root of roots) expect(existsSync(join(ROOT, root)), root).toBe(true);
+      for (const root of roots)
+        expect(existsSync(join(ROOT, root)), root).toBe(true);
     }
   });
 
@@ -77,7 +101,8 @@ describe("job test roots", () => {
   });
 
   test("every listed false positive still exists", () => {
-    for (const file of Object.keys(LITERAL_FALSE_POSITIVES)) expect(existsSync(join(ROOT, file)), file).toBe(true);
+    for (const file of Object.keys(LITERAL_FALSE_POSITIVES))
+      expect(existsSync(join(ROOT, file)), file).toBe(true);
   });
 });
 
@@ -95,28 +120,72 @@ describe("reach", () => {
   // Paths spelled as segments, join(dir, "..", "..", "..", "apps", "cli", "src"), reach as
   // far as a joined "../../../apps/cli/" does.
   test("finds a reach spelled as path segments", () => {
-    const desktop = crossingOf("test-web").find(({ file }) => file.endsWith("apps/web/lib/desktop.test.ts"));
-    expect(desktop?.areas.map(([area]) => area)).toEqual(expect.arrayContaining(["cli", "extension"]));
+    const desktop = crossingOf("test-web").find(({ file }) =>
+      file.endsWith("apps/web/lib/desktop.test.ts"),
+    );
+    expect(desktop?.areas.map(([area]) => area)).toEqual(
+      expect.arrayContaining(["cli", "extension"]),
+    );
   }, 120_000);
 
   test("reads spelled as segments, from the file or from the repo root, count as reach", () => {
-    const read = (path: string) => `import { readFileSync } from "node:fs";\nreadFileSync(${path});`;
-    const areas = (file: string, text: string, own: string) => [...new Set(literalReach(file, text, own).map(([area]) => area))];
-    expect(areas("apps/web/lib/desktop.test.ts", read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`), "web")).toEqual(["cli"]);
-    expect(areas("apps/evals/src/x.test.ts", read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`), "evals")).toEqual(["web"]);
+    const read = (path: string) =>
+      `import { readFileSync } from "node:fs";\nreadFileSync(${path});`;
+    const areas = (file: string, text: string, own: string) => [
+      ...new Set(literalReach(file, text, own).map(([area]) => area)),
+    ];
+    expect(
+      areas(
+        "apps/web/lib/desktop.test.ts",
+        read(`join(import.meta.dir, "..", "..", "cli", "src", "observe.ts")`),
+        "web",
+      ),
+    ).toEqual(["cli"]);
+    expect(
+      areas(
+        "apps/evals/src/x.test.ts",
+        read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`),
+        "evals",
+      ),
+    ).toEqual(["web"]);
     // A relative path through a workspace root is still this repository, from product code too.
-    expect(areas("apps/cli/src/browser/hostExtension.ts", read(`join(import.meta.dir, "../../../../apps/browser-extension")`), "cli")).toEqual(["extension"]);
-    expect(areas("apps/cli/src/x.ts", read(`join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`), "cli")).toEqual(["extension"]);
+    expect(
+      areas(
+        "apps/cli/src/browser/hostExtension.ts",
+        read(`join(import.meta.dir, "../../../../apps/browser-extension")`),
+        "cli",
+      ),
+    ).toEqual(["extension"]);
+    expect(
+      areas(
+        "apps/cli/src/x.ts",
+        read(
+          `join(import.meta.dir, "..", "..", "..", "apps", "browser-extension")`,
+        ),
+        "cli",
+      ),
+    ).toEqual(["extension"]);
     // From product code a rooted path is usually someone else's checkout.
-    expect(areas("apps/evals/src/x.ts", read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`), "evals")).toEqual([]);
+    expect(
+      areas(
+        "apps/evals/src/x.ts",
+        read(`join(ROOT, "apps", "web", "scripts", "sim.ts")`),
+        "evals",
+      ),
+    ).toEqual([]);
   });
 
   test("every area a job's files reach is that job's or reached only by files that always run", () => {
     for (const job of Object.keys(JOB_TEST_ROOTS)) {
-      const covered = new Set(crossingOf(job).flatMap(({ areas }) => areas.map(([area]) => area)));
+      const covered = new Set(
+        crossingOf(job).flatMap(({ areas }) => areas.map(([area]) => area)),
+      );
       for (const [area, chain] of reachOfJob(job)) {
         if (area === "unmapped" || JOB_AREAS[job].includes(area)) continue;
-        expect(covered.has(area), `${job} reaches ${area} with no crossing test: ${chain.join(" -> ")}`).toBe(true);
+        expect(
+          covered.has(area),
+          `${job} reaches ${area} with no crossing test: ${chain.join(" -> ")}`,
+        ).toBe(true);
       }
     }
   }, 120_000);
@@ -124,11 +193,21 @@ describe("reach", () => {
 
 describe("always-run set", () => {
   const always = () =>
-    once("always", () => new Set(SUITES.flatMap((suite) => alwaysRunFiles(suite).map((file) => join(suite.dir, file)))));
+    once(
+      "always",
+      () =>
+        new Set(
+          SUITES.flatMap((suite) =>
+            alwaysRunFiles(suite).map((file) => join(suite.dir, file)),
+          ),
+        ),
+    );
 
   test("holds every crossing test", () => {
     for (const job of Object.keys(JOB_TEST_ROOTS)) {
-      const missing = crossingOf(job).map(({ file }) => file).filter((file) => !always().has(file));
+      const missing = crossingOf(job)
+        .map(({ file }) => file)
+        .filter((file) => !always().has(file));
       expect(missing, job).toEqual([]);
     }
   }, 120_000);
@@ -150,9 +229,14 @@ describe("always-run set", () => {
     for (const job of Object.keys(JOB_TEST_ROOTS)) {
       const crossing = crossingOf(job);
       const byArea = new Map<string, number>();
-      for (const { areas } of crossing) for (const [area] of areas) byArea.set(area, (byArea.get(area) ?? 0) + 1);
+      for (const { areas } of crossing)
+        for (const [area] of areas)
+          byArea.set(area, (byArea.get(area) ?? 0) + 1);
       for (const [area, count] of byArea) {
-        expect(count, `${job}: ${count} test files reach ${area}; add "${area}" to its JOB_AREAS`).toBeLessThanOrEqual(40);
+        expect(
+          count,
+          `${job}: ${count} test files reach ${area}; add "${area}" to its JOB_AREAS`,
+        ).toBeLessThanOrEqual(40);
       }
     }
   }, 120_000);

@@ -39,13 +39,21 @@ function adsId(): string | undefined {
 function browserDoNotTrack(): boolean {
   if (typeof navigator === "undefined") return false;
   const nav = navigator as Navigator & { msDoNotTrack?: string };
-  const win = typeof window !== "undefined" ? (window as Window & { doNotTrack?: string }) : undefined;
-  return nav.doNotTrack === "1" || nav.msDoNotTrack === "1" || win?.doNotTrack === "1";
+  const win =
+    typeof window !== "undefined"
+      ? (window as Window & { doNotTrack?: string })
+      : undefined;
+  return (
+    nav.doNotTrack === "1" ||
+    nav.msDoNotTrack === "1" ||
+    win?.doNotTrack === "1"
+  );
 }
 
 function measurable(): boolean {
   if (!sendTo() || !adsId()) return false;
-  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  if (typeof window === "undefined" || typeof document === "undefined")
+    return false;
   return !resolveOptOut({ doNotTrack: browserDoNotTrack() }).optedOut;
 }
 

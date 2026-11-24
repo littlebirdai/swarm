@@ -11,19 +11,32 @@ import { UNDO_POLICY, UNDO_POLICY_FILES, UNDO_SPECS } from "../undo/policy";
 // surface that calls it. sync() creators never record, so most are plumbing
 // that needs no entry; one a component calls may be a gesture, so it must say
 // why it is never undoable.
-const kinds = Object.entries(useInboxStore.getState() as unknown as Record<string, unknown>)
+const kinds = Object.entries(
+  useInboxStore.getState() as unknown as Record<string, unknown>,
+)
   .map(([name, fn]) => [name, actionKind(fn)] as const)
   .filter(([, kind]) => kind !== null);
-const creators = kinds.filter(([, kind]) => kind !== "sync").map(([name]) => name).sort();
-const syncCreators = kinds.filter(([, kind]) => kind === "sync").map(([name]) => name).sort();
+const creators = kinds
+  .filter(([, kind]) => kind !== "sync")
+  .map(([name]) => name)
+  .sort();
+const syncCreators = kinds
+  .filter(([, kind]) => kind === "sync")
+  .map(([name]) => name)
+  .sort();
 
 // Every name called in the gesture surfaces: the sources under components/ and app/.
 const WEB = join(import.meta.dir, "..", "..");
 const calledInSurfaces = new Set<string>();
 for (const dir of ["components", "app"]) {
-  for (const f of new Bun.Glob("**/*.{ts,tsx}").scanSync({ cwd: join(WEB, dir) })) {
+  for (const f of new Bun.Glob("**/*.{ts,tsx}").scanSync({
+    cwd: join(WEB, dir),
+  })) {
     if (/(^|\/)__tests__\/|\.test\.tsx?$/.test(f)) continue;
-    for (const m of readFileSync(join(WEB, dir, f), "utf8").matchAll(/([\w$]+)\(/g)) calledInSurfaces.add(m[1]!);
+    for (const m of readFileSync(join(WEB, dir, f), "utf8").matchAll(
+      /([\w$]+)\(/g,
+    ))
+      calledInSurfaces.add(m[1]!);
   }
 }
 
@@ -42,7 +55,8 @@ describe("undo policy covers every creator exactly once", () => {
     const twice: string[] = [];
     for (const [file, policy] of Object.entries(UNDO_POLICY_FILES)) {
       for (const name of Object.keys(policy)) {
-        if (seen.has(name)) twice.push(`${name} (${seen.get(name)} and ${file})`);
+        if (seen.has(name))
+          twice.push(`${name} (${seen.get(name)} and ${file})`);
         seen.set(name, file);
       }
     }
@@ -59,7 +73,9 @@ describe("undo policy covers every creator exactly once", () => {
   // The engine records only action() creators, so a spec on a sync() one
   // would never fire.
   test("a sync creator is only ever classified never", () => {
-    const specced = syncCreators.filter((name) => UNDO_POLICY[name] && "spec" in UNDO_POLICY[name]!);
+    const specced = syncCreators.filter(
+      (name) => UNDO_POLICY[name] && "spec" in UNDO_POLICY[name]!,
+    );
     expect(specced).toEqual([]);
   });
 

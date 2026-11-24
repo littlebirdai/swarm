@@ -5,7 +5,13 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
-export function SeatLead({ children, ...data }: { children: ReactNode } & Record<`data-${string}`, string | boolean | undefined>) {
+export function SeatLead({
+  children,
+  ...data
+}: { children: ReactNode } & Record<
+  `data-${string}`,
+  string | boolean | undefined
+>) {
   const [open, setOpen] = useState(false);
   return (
     <button
@@ -19,7 +25,13 @@ export function SeatLead({ children, ...data }: { children: ReactNode } & Record
       <span className={cn("min-w-0 flex-1", !open && "truncate")}>
         {children}
       </span>
-      <ChevronDown className={cn("w-3.5 h-3.5 mt-[3px] shrink-0 transition-transform", open && "rotate-180")} style={{ color: "var(--sol-text-dim)" }} />
+      <ChevronDown
+        className={cn(
+          "w-3.5 h-3.5 mt-[3px] shrink-0 transition-transform",
+          open && "rotate-180",
+        )}
+        style={{ color: "var(--sol-text-dim)" }}
+      />
     </button>
   );
 }

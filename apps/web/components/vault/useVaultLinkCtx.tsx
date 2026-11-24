@@ -8,7 +8,11 @@ import { createContext, memo, useContext, useMemo } from "react";
 import { FileText } from "lucide-react";
 import { isVaultMarkdownPath } from "@codecast/shared/contracts";
 import { noteDisplayName } from "./VaultExplorer";
-import { TaskEditContext, VaultMarkdown, type VaultLinkContextValue } from "./VaultMarkdown";
+import {
+  TaskEditContext,
+  VaultMarkdown,
+  type VaultLinkContextValue,
+} from "./VaultMarkdown";
 import type { WikiLinkParts } from "../../lib/vault/remarkWikiLink";
 import { vaultAssetUrl } from "../../lib/vault/client";
 import { extractEmbedSection } from "../../lib/vault/embedSection";
@@ -46,7 +50,9 @@ export function EmbedCard({
   onOpen: (path: string) => void;
 }) {
   const depth = useContext(EmbedDepthContext);
-  const content = useVaultStore((s) => (resolvedPath ? s.bodies[resolvedPath]?.content : undefined));
+  const content = useVaultStore((s) =>
+    resolvedPath ? s.bodies[resolvedPath]?.content : undefined,
+  );
   const indexVersion = useVaultIndexVersion();
   // `![[Note#Heading]]` and `![[Note#^id]]` show that slice, not the whole
   // note. The index's parse is reused when it has one — the same headings and
@@ -54,7 +60,11 @@ export function EmbedCard({
   const section = useMemo(
     () =>
       resolvedPath && content !== undefined
-        ? extractEmbedSection(content, parts, vaultIndex.note(resolvedPath)?.parsed ?? null)
+        ? extractEmbedSection(
+            content,
+            parts,
+            vaultIndex.note(resolvedPath)?.parsed ?? null,
+          )
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [content, resolvedPath, parts.subpath, parts.subpathType, indexVersion],
@@ -62,20 +72,30 @@ export function EmbedCard({
 
   if (!resolvedPath) {
     return (
-      <span className="wiki-link wiki-link-unresolved" title={`"${parts.target}" does not exist`}>
+      <span
+        className="wiki-link wiki-link-unresolved"
+        title={`"${parts.target}" does not exist`}
+      >
         {parts.target}
       </span>
     );
   }
   if (depth >= MAX_EMBED_DEPTH) {
     return (
-      <span className="wiki-link" onClick={() => onOpen(resolvedPath)} role="link">
+      <span
+        className="wiki-link"
+        onClick={() => onOpen(resolvedPath)}
+        role="link"
+      >
         {parts.target}
       </span>
     );
   }
   return (
-    <span className="block my-3 rounded border border-sol-border/40 overflow-hidden" data-vault-embed>
+    <span
+      className="block my-3 rounded border border-sol-border/40 overflow-hidden"
+      data-vault-embed
+    >
       <span
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sol-text-muted bg-sol-bg-alt/60 cursor-pointer hover:text-sol-text"
         onClick={() => onOpen(resolvedPath)}
@@ -85,7 +105,10 @@ export function EmbedCard({
         {noteDisplayName(resolvedPath.split("/").pop()!)}
         {parts.subpath && (
           <span className="text-sol-text-dim">
-            › {parts.subpathType === "block" ? `^${parts.subpath}` : parts.subpath}
+            ›{" "}
+            {parts.subpathType === "block"
+              ? `^${parts.subpath}`
+              : parts.subpath}
           </span>
         )}
         {section?.missing && (
@@ -110,10 +133,16 @@ export function EmbedCard({
 /** Scroll a heading into view by its DEDUPED slug — the id the renderer's
  *  rehype pass stamped. Duplicate heading texts get -2/-3 suffixes in document
  *  order; a bare heading link targets the first occurrence (Obsidian rule). */
-export function scrollToHeading(headingText: string, notePath: string, delayMs = 0) {
+export function scrollToHeading(
+  headingText: string,
+  notePath: string,
+  delayMs = 0,
+) {
   const headings = vaultIndex.note(notePath)?.parsed?.headings ?? [];
   const slugs = headingSlugs(headings);
-  const idx = headings.findIndex((h) => h.text.toLowerCase() === headingText.toLowerCase());
+  const idx = headings.findIndex(
+    (h) => h.text.toLowerCase() === headingText.toLowerCase(),
+  );
   const slug = idx >= 0 ? slugs[idx] : null;
   if (slug) scrollToHeadingSlug(slug, delayMs);
 }
@@ -123,7 +152,10 @@ export function scrollToHeading(headingText: string, notePath: string, delayMs =
 export function scrollToHeadingSlug(slug: string, delayMs = 0) {
   const go = () => {
     const el = document.getElementById(`vh-${slug}`);
-    el?.scrollIntoView({ block: "start", behavior: delayMs ? "smooth" : "auto" });
+    el?.scrollIntoView({
+      block: "start",
+      behavior: delayMs ? "smooth" : "auto",
+    });
   };
   if (delayMs) setTimeout(go, delayMs);
   else go();
@@ -150,7 +182,8 @@ export function useVaultLinkCtx(
       },
       navigate: (p, subpath, subpathType) => {
         onNavigate(p);
-        if (subpath && subpathType === "heading") scrollToHeading(subpath, p, 350);
+        if (subpath && subpathType === "heading")
+          scrollToHeading(subpath, p, 350);
       },
       createNote: (target) => {
         const newPath = isVaultMarkdownPath(target) ? target : `${target}.md`;
@@ -161,7 +194,9 @@ export function useVaultLinkCtx(
       assetUrl: (p) => {
         if (!endpoint || !activeVaultId) return null;
         const assetPath = resolveAssetPath(files, p);
-        return assetPath ? vaultAssetUrl(endpoint, activeVaultId, assetPath) : null;
+        return assetPath
+          ? vaultAssetUrl(endpoint, activeVaultId, assetPath)
+          : null;
       },
       openTag: (tag) => useVaultStore.getState().openTagPane(tag),
       toggleTask: (line, checked) => {
@@ -171,18 +206,34 @@ export function useVaultLinkCtx(
         const store = useVaultStore.getState();
         const content = store.bodies[path]?.content;
         if (content === undefined) return;
-        const next = toggleTaskInContent(content, line + frontmatterLineOffset(content), checked);
+        const next = toggleTaskInContent(
+          content,
+          line + frontmatterLineOffset(content),
+          checked,
+        );
         // Null means that line isn't a task any more — a stale render, or the
         // file changed underneath. Writing a guess would be worse than nothing.
         if (next !== null) void store.writeFile(path, next).catch(() => {});
       },
       renderEmbed: (parts, resolvedPath) => (
-        <EmbedCard parts={parts} resolvedPath={resolvedPath} onOpen={onNavigate} />
+        <EmbedCard
+          parts={parts}
+          resolvedPath={resolvedPath}
+          onOpen={onNavigate}
+        />
       ),
     }),
     // indexVersion is deliberately a dep: resolution results change with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [files, path, onNavigate, createFile, endpoint, activeVaultId, indexVersion],
+    [
+      files,
+      path,
+      onNavigate,
+      createFile,
+      endpoint,
+      activeVaultId,
+      indexVersion,
+    ],
   );
 }
 

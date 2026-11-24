@@ -32,14 +32,14 @@ delve, leverage, robust, seamless, supercharge, unleash, revolutionize, game-cha
 
 From the feature page pass in October 2026 (session jx74bzx), each line rejected as "AI default":
 
-| Rejected | Kept |
-|---|---|
-| The calls only you can make, in one queue. | One queue for the decisions your agents need from you |
-| An agent at a fork has two bad options. This is the third. | Three ways an agent can handle a choice it cannot make alone |
-| Every failure names its way out. | Error codes and their recoveries |
-| Five steps, one process. | Running several steps in one command |
-| Your objects, alive in every conversation. | Live cards for your own objects in agent replies |
-| Ask a session a question. It cites its lines. | Ask one session a question and get an answer with line citations |
+| Rejected                                                   | Kept                                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| The calls only you can make, in one queue.                 | One queue for the decisions your agents need from you            |
+| An agent at a fork has two bad options. This is the third. | Three ways an agent can handle a choice it cannot make alone     |
+| Every failure names its way out.                           | Error codes and their recoveries                                 |
+| Five steps, one process.                                   | Running several steps in one command                             |
+| Your objects, alive in every conversation.                 | Live cards for your own objects in agent replies                 |
+| Ask a session a question. It cites its lines.              | Ask one session a question and get an answer with line citations |
 
 Retired headlines: "The operating system for AI coding agents", "Your AI coding sessions, accessible everywhere".
 

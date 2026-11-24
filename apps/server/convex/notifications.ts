@@ -1,8 +1,22 @@
 import { heartbeatOf } from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
-import { mutation, query, internalAction, internalMutation, internalQuery } from "./functions";
-import { deliverSessionNotification, deliverSessionNotificationToParties, idleDigestOn } from "./lib/sessionNotify";
-export { deliverSessionNotification, deliverSessionNotificationToParties, idleDigestOn };
+import {
+  mutation,
+  query,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./functions";
+import {
+  deliverSessionNotification,
+  deliverSessionNotificationToParties,
+  idleDigestOn,
+} from "./lib/sessionNotify";
+export {
+  deliverSessionNotification,
+  deliverSessionNotificationToParties,
+  idleDigestOn,
+};
 import { routeUpHears, routeUpWaitingSession } from "./agentTasks";
 import {
   openTasksVouchForWaiting,
@@ -17,10 +31,18 @@ import { enqueuePush, readMissedSince } from "./pushRouter";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { canAccessConversation, canAccessDoc, canAccessPlan, canAccessTask } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessDoc,
+  canAccessPlan,
+  canAccessTask,
+} from "./lib/access";
 import { teamReadLevel } from "./privacy";
 import { ENTITY_TYPE, NOTIFICATION_TYPE } from "./lib/notificationTypes";
-import { isAgentSpawnedConversation, isSubagentConversation } from "./ccAccountsShared";
+import {
+  isAgentSpawnedConversation,
+  isSubagentConversation,
+} from "./ccAccountsShared";
 import {
   trustedAgentStatus,
   deriveSessionActivity,
@@ -34,12 +56,24 @@ import {
   restoreToInbox,
   ROUTE_UP_STALL_GRACE_MS,
 } from "./inboxFilters";
-import { loadArmedTriggerHomes, isArmedTriggerHome, isArmedLoopHome } from "./dormancy";
-import { displayNotificationActor, rewriteNotificationMessage } from "./lib/notificationActor";
+import {
+  loadArmedTriggerHomes,
+  isArmedTriggerHome,
+  isArmedLoopHome,
+} from "./dormancy";
+import {
+  displayNotificationActor,
+  rewriteNotificationMessage,
+} from "./lib/notificationActor";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { sessionStartOf } from "./lib/sessionStarts";
 import { clearPushTokenIfCurrent, reportPushFailures } from "./pushReceipts";
-import { projectNameOf, pushesStrippedFor, stripPushContent, type PushContent } from "./lib/pushPrivacy";
+import {
+  projectNameOf,
+  pushesStrippedFor,
+  stripPushContent,
+  type PushContent,
+} from "./lib/pushPrivacy";
 
 export const sendPushNotification = internalAction({
   args: {
@@ -60,7 +94,7 @@ export const sendPushNotification = internalAction({
     // Whose token this is: decides what the push may say (pushPrivacy.ts),
     // and lets a DeviceNotRegistered ticket clear it instead of eating every
     // future push silently.
-    user_id: v.id('users'),
+    user_id: v.id("users"),
     // Bundled iOS sound file ("huddle-ring.caf" rings a closed app) — the
     // file must ship in the app binary's Resources for the name to resolve.
     sound: v.optional(v.string()),
@@ -74,28 +108,47 @@ export const sendPushNotification = internalAction({
   handler: async (ctx, args): Promise<any> => {
     // A regulated recipient's push says only what happened and where; the
     // words stay on our servers (pushPrivacy.ts).
-    const privacy: { strip: boolean; project: string | null } = await ctx.runQuery(internal.notifications.pushPrivacyFor, {
-      user_id: args.user_id,
-      conversation_id: typeof args.data?.conversationId === 'string' ? args.data.conversationId : undefined,
-    });
+    const privacy: { strip: boolean; project: string | null } =
+      await ctx.runQuery(internal.notifications.pushPrivacyFor, {
+        user_id: args.user_id,
+        conversation_id:
+          typeof args.data?.conversationId === "string"
+            ? args.data.conversationId
+            : undefined,
+      });
     const content: PushContent = privacy.strip
-      ? stripPushContent({ title: args.title, subtitle: args.subtitle, body: args.body, data: args.data }, privacy.project)
-      : { title: args.title, subtitle: args.subtitle, body: args.body, data: args.data };
+      ? stripPushContent(
+          {
+            title: args.title,
+            subtitle: args.subtitle,
+            body: args.body,
+            data: args.data,
+          },
+          privacy.project,
+        )
+      : {
+          title: args.title,
+          subtitle: args.subtitle,
+          body: args.body,
+          data: args.data,
+        };
     const message = {
       to: args.push_token,
       // 'default' until a native build ships the bundled chat sound; then the
       // chat channel flips to 'chat.caf' (asset + plugin config already in the
       // mobile app — see apps/mobile/app.json).
-      sound: args.sound ?? 'default',
+      sound: args.sound ?? "default",
       ...(args.category_id ? { categoryId: args.category_id } : {}),
       ...(args.ttl !== undefined ? { ttl: args.ttl } : {}),
       title: content.title,
       ...(content.subtitle ? { subtitle: content.subtitle } : {}),
       body: content.body,
       data: content.data || {},
-      priority: 'high',
+      priority: "high",
       ...(args.channel_id ? { channelId: args.channel_id } : {}),
-      ...(args.interruption_level ? { interruptionLevel: args.interruption_level } : {}),
+      ...(args.interruption_level
+        ? { interruptionLevel: args.interruption_level }
+        : {}),
       ...(args.badge !== undefined ? { badge: args.badge } : {}),
       // A push about a conversation passes through the app's notification
       // service extension first, which reads the conversation's new rows into
@@ -105,11 +158,11 @@ export const sendPushNotification = internalAction({
     };
 
     try {
-      const response = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(message),
       });
@@ -121,24 +174,29 @@ export const sendPushNotification = internalAction({
       // refusal is reported straight away.
       const ticket = responseData?.data;
       const single = Array.isArray(ticket) ? ticket[0] : ticket;
-      const code = single?.status === 'error' ? single?.details?.error ?? 'Unknown' : null;
-      if (single?.status === 'ok' && single.id) {
+      const code =
+        single?.status === "error"
+          ? (single?.details?.error ?? "Unknown")
+          : null;
+      if (single?.status === "ok" && single.id) {
         await ctx.runMutation(internal.pushReceipts.recordTicket, {
           ticket_id: single.id,
           push_token: args.push_token,
           user_id: args.user_id,
         });
-      } else if (code === 'DeviceNotRegistered') {
+      } else if (code === "DeviceNotRegistered") {
         await ctx.runMutation(internal.notifications.clearDeadPushToken, {
           user_id: args.user_id,
           push_token: args.push_token,
         });
       } else if (code) {
-        await reportPushFailures(ctx, [{ code, count: 1, sample: single?.message ?? code }]);
+        await reportPushFailures(ctx, [
+          { code, count: 1, sample: single?.message ?? code },
+        ]);
       }
       return responseData;
     } catch (error) {
-      console.error('Error sending push notification:', error);
+      console.error("Error sending push notification:", error);
       throw error;
     }
   },
@@ -147,10 +205,16 @@ export const sendPushNotification = internalAction({
 // Whether a push to this person must be stripped, and the project folder of
 // the session it is about (the one name a stripped push gives).
 export const pushPrivacyFor = internalQuery({
-  args: { user_id: v.id('users'), conversation_id: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ strip: boolean; project: string | null }> => {
-    if (!(await pushesStrippedFor(ctx, args.user_id))) return { strip: false, project: null };
-    const convId = args.conversation_id ? ctx.db.normalizeId('conversations', args.conversation_id) : null;
+  args: { user_id: v.id("users"), conversation_id: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ strip: boolean; project: string | null }> => {
+    if (!(await pushesStrippedFor(ctx, args.user_id)))
+      return { strip: false, project: null };
+    const convId = args.conversation_id
+      ? ctx.db.normalizeId("conversations", args.conversation_id)
+      : null;
     const conv = convId ? await ctx.db.get(convId) : null;
     return { strip: true, project: projectNameOf(conv?.project_path) };
   },
@@ -159,7 +223,7 @@ export const pushPrivacyFor = internalQuery({
 // The token the ticket declared dead — cleared only if the user still carries
 // THAT token, so a re-registration that raced the ticket is never wiped.
 export const clearDeadPushToken = internalMutation({
-  args: { user_id: v.id('users'), push_token: v.string() },
+  args: { user_id: v.id("users"), push_token: v.string() },
   handler: async (ctx, args) => {
     await clearPushTokenIfCurrent(ctx, args.user_id, args.push_token);
   },
@@ -180,14 +244,20 @@ export const notifyTeamSessionStart = internalMutation({
     // agent fan-out, and trigger runs (agent_task_id). A repeating run with no
     // session to nest under is born stashed rather than nested, so the
     // spawned check alone lets it through.
-    if (isAgentSpawnedConversation(conversation) || conversation.agent_task_id) {
+    if (
+      isAgentSpawnedConversation(conversation) ||
+      conversation.agent_task_id
+    ) {
       return;
     }
 
     // Fire time = registration + a 60s grace delay (see createConversation),
     // so of this budget ~4min covers registration lag.
     const STALE_MS = 5 * 60 * 1000;
-    if (conversation.started_at && Date.now() - conversation.started_at > STALE_MS) {
+    if (
+      conversation.started_at &&
+      Date.now() - conversation.started_at > STALE_MS
+    ) {
       return;
     }
 
@@ -203,23 +273,32 @@ export const notifyTeamSessionStart = internalMutation({
 
     const memberships = await ctx.db
       .query("team_memberships")
-      .withIndex("by_team_id", (q: any) => q.eq("team_id", conversation.team_id))
+      .withIndex("by_team_id", (q: any) =>
+        q.eq("team_id", conversation.team_id),
+      )
       .collect();
     const memberUsers = await Promise.all(
       memberships
         .filter((m: any) => m.user_id.toString() !== args.user_id.toString())
-        .map((m: any) => ctx.db.get(m.user_id))
+        .map((m: any) => ctx.db.get(m.user_id)),
     );
-    const teamMembers = memberUsers.filter((u: any): u is NonNullable<typeof u> => u !== null);
+    const teamMembers = memberUsers.filter(
+      (u: any): u is NonNullable<typeof u> => u !== null,
+    );
 
     const actorName = user.name || user.email || "Someone";
-    let body = conversation.title || conversation.project_path?.split("/").pop() || "New session";
+    let body =
+      conversation.title ||
+      conversation.project_path?.split("/").pop() ||
+      "New session";
     // The first prompt is content: it names an untitled session only for a
     // team the session's content is shared with.
     if (!conversation.title && readLevel === "content") {
       const firstMsg = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", args.conversation_id))
+        .withIndex("by_conversation_timestamp", (q: any) =>
+          q.eq("conversation_id", args.conversation_id),
+        )
         .order("asc")
         .first();
       if (firstMsg?.content) {
@@ -252,14 +331,16 @@ export const notifyTeamSessionStart = internalMutation({
         const recentNotifs = await ctx.db
           .query("notifications")
           .withIndex("by_recipient_created", (q: any) =>
-            q.eq("recipient_user_id", member._id).gte("created_at", now - THROTTLE_MS)
+            q
+              .eq("recipient_user_id", member._id)
+              .gte("created_at", now - THROTTLE_MS),
           )
           .collect();
         const alreadyPushed = recentNotifs.some(
           (n: any) =>
             n.type === "team_session_start" &&
             n.actor_user_id?.toString() === args.user_id.toString() &&
-            n.conversation_id?.toString() !== args.conversation_id.toString()
+            n.conversation_id?.toString() !== args.conversation_id.toString(),
         );
 
         if (!alreadyPushed) {
@@ -271,7 +352,7 @@ export const notifyTeamSessionStart = internalMutation({
             body,
             data: {
               conversationId: args.conversation_id,
-              type: 'team_session_start',
+              type: "team_session_start",
             },
           });
         }
@@ -310,7 +391,10 @@ export const create = internalMutation({
     }
 
     // Skip if recipient has muted this actor
-    if (args.actor_user_id && recipient.muted_members?.includes(args.actor_user_id)) {
+    if (
+      args.actor_user_id &&
+      recipient.muted_members?.includes(args.actor_user_id)
+    ) {
       return null;
     }
 
@@ -337,9 +421,13 @@ export const create = internalMutation({
 // subscriber on every streamed message of any session in it: about 40k runs an
 // hour at ~150 ms, 5% of prod CPU on 2026-11-12 (ct-92571). A row written before
 // the card existed reads the conversation until the backfill fills it in.
-async function conversationCardOf(ctx: { db: any }, conversationId: Id<"conversations">) {
+async function conversationCardOf(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+) {
   const start = await sessionStartOf(ctx.db, conversationId);
-  if (start?.card) return { _id: conversationId, agent_type: start.agent_type, ...start.card };
+  if (start?.card)
+    return { _id: conversationId, agent_type: start.agent_type, ...start.card };
   return await ctx.db.get(conversationId);
 }
 
@@ -353,7 +441,9 @@ export const list = query({
 
     const notifications = await ctx.db
       .query("notifications")
-      .withIndex("by_recipient_created", (q) => q.eq("recipient_user_id", userId))
+      .withIndex("by_recipient_created", (q) =>
+        q.eq("recipient_user_id", userId),
+      )
       .order("desc")
       .take(50);
 
@@ -375,25 +465,35 @@ export const list = query({
         const face = displayNotificationActor(notification, actor, message);
         return {
           ...notification,
-          message: rewriteNotificationMessage(notification.message, face.name, actor?.name),
-          actor: actor ? {
-            _id: actor._id,
-            name: face.name,
-            github_username: actor.github_username,
-            github_avatar_url: face.avatar,
-          } : null,
+          message: rewriteNotificationMessage(
+            notification.message,
+            face.name,
+            actor?.name,
+          ),
+          actor: actor
+            ? {
+                _id: actor._id,
+                name: face.name,
+                github_username: actor.github_username,
+                github_avatar_url: face.avatar,
+              }
+            : null,
           actor_session: face.session,
-          conversation: conversation ? {
-            _id: conversation._id,
-            title: conversation.title,
-            project_path: conversation.project_path,
-            agent_type: conversation.agent_type,
-            // Who the session is (docs/architecture/session-characters.md S1),
-            // so the row's session chip wears the same face as its card.
-            ...(await identityFieldsOf(conversation, (id: any) => ctx.db.get(id))),
-          } : null,
+          conversation: conversation
+            ? {
+                _id: conversation._id,
+                title: conversation.title,
+                project_path: conversation.project_path,
+                agent_type: conversation.agent_type,
+                // Who the session is (docs/architecture/session-characters.md S1),
+                // so the row's session chip wears the same face as its card.
+                ...(await identityFieldsOf(conversation, (id: any) =>
+                  ctx.db.get(id),
+                )),
+              }
+            : null,
         };
-      })
+      }),
     );
 
     return enriched;
@@ -420,7 +520,7 @@ export const getUnreadCount = query({
     const unreadNotifications = await ctx.db
       .query("notifications")
       .withIndex("by_recipient_read", (q) =>
-        q.eq("recipient_user_id", userId).eq("read", false)
+        q.eq("recipient_user_id", userId).eq("read", false),
       )
       .collect();
 
@@ -462,14 +562,14 @@ export const markAllAsRead = mutation({
     const unreadNotifications = await ctx.db
       .query("notifications")
       .withIndex("by_recipient_read", (q) =>
-        q.eq("recipient_user_id", userId).eq("read", false)
+        q.eq("recipient_user_id", userId).eq("read", false),
       )
       .collect();
 
     await Promise.all(
       unreadNotifications.map((notification) =>
-        ctx.db.patch(notification._id, { read: true })
-      )
+        ctx.db.patch(notification._id, { read: true }),
+      ),
     );
   },
 });
@@ -495,11 +595,16 @@ export { IDLE_DIGEST_WINDOW_MS, summarizeIdleDigest };
 
 /** Display name for a session in the aggregate line. */
 function sessionLabelOf(conv: any): string {
-  return conv?.title?.trim() || conv?.project_path?.split("/").pop() || "Session";
+  return (
+    conv?.title?.trim() || conv?.project_path?.split("/").pop() || "Session"
+  );
 }
 
 /** The session a push is about, by name: its title, else its project folder. */
-function sessionPushTitle(conv: { title?: string; project_path?: string }): string {
+function sessionPushTitle(conv: {
+  title?: string;
+  project_path?: string;
+}): string {
   return conv.title?.trim() || conv.project_path?.split("/").pop() || "Session";
 }
 
@@ -510,7 +615,7 @@ export const createSessionNotification = mutation({
     type: v.union(
       v.literal("session_idle"),
       v.literal("permission_request"),
-      v.literal("session_error")
+      v.literal("session_error"),
     ),
     title: v.string(),
     message: v.string(),
@@ -528,11 +633,16 @@ export const createSessionNotification = mutation({
 
     // A daemon titles every permission push alike; the person needs to know
     // which session is asking.
-    const title = args.type === "permission_request"
-      ? `${sessionPushTitle(conversation)} · needs permission`
-      : args.title;
+    const title =
+      args.type === "permission_request"
+        ? `${sessionPushTitle(conversation)} · needs permission`
+        : args.title;
     const delivered = await deliverSessionNotificationToParties(
-      ctx, conversation, args.type, title, args.message,
+      ctx,
+      conversation,
+      args.type,
+      title,
+      args.message,
     );
 
     // Stamp the needs-input dedupe key so the server-side check
@@ -541,8 +651,11 @@ export const createSessionNotification = mutation({
     // "permission_request" push covers the permission_blocked flavor even if
     // the pending_permissions record is slow to land.
     const dedupeKind =
-      args.type === "session_idle" ? "idle" :
-      args.type === "permission_request" ? "permission_blocked" : null;
+      args.type === "session_idle"
+        ? "idle"
+        : args.type === "permission_request"
+          ? "permission_blocked"
+          : null;
     if (dedupeKind) {
       await ctx.db.patch(args.conversation_id, {
         needs_input_notified_key: `${conversation.message_count || 0}:${dedupeKind}`,
@@ -550,9 +663,13 @@ export const createSessionNotification = mutation({
     }
 
     if (delivered && args.type === "session_idle") {
-      await ctx.scheduler.runAfter(0, internal.idleSummary.generateIdleSummary, {
-        conversation_id: args.conversation_id,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.idleSummary.generateIdleSummary,
+        {
+          conversation_id: args.conversation_id,
+        },
+      );
     }
 
     return delivered ? { notified: true } : { skipped: true };
@@ -587,8 +704,15 @@ export async function deriveConversationVerdict(
   const beat = await heartbeatOf(ctx, session);
   const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
   const agentStatus = trustedAgentStatus(
-    session?.agent_status, conv.updated_at, now, heartbeatFresh,
-    openTasksVouchForWaiting(session?.open_tasks_at, session?.open_tasks?.length ?? 0, heartbeatFresh),
+    session?.agent_status,
+    conv.updated_at,
+    now,
+    heartbeatFresh,
+    openTasksVouchForWaiting(
+      session?.open_tasks_at,
+      session?.open_tasks?.length ?? 0,
+      heartbeatFresh,
+    ),
   );
   const daemonAlive = agentStatus === "stopped" ? false : heartbeatFresh;
   const hasPending = !!conv.has_pending_messages;
@@ -598,7 +722,9 @@ export async function deriveConversationVerdict(
 
   const lastMsg = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .order("desc")
     .first();
 
@@ -621,8 +747,11 @@ export async function deriveConversationVerdict(
   // unanswered (an answer would be a later tool_result), overriding the raced
   // agent_status.
   let awaitingInput = false;
-  if (!isIdle && lastMsg?.role === "assistant" &&
-      lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")) {
+  if (
+    !isIdle &&
+    lastMsg?.role === "assistant" &&
+    lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")
+  ) {
     awaitingInput = true;
     isIdle = true;
   }
@@ -635,27 +764,49 @@ export async function deriveConversationVerdict(
   if (isIdle && !awaitingInput) {
     const children = await ctx.db
       .query("conversations")
-      .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", conv._id))
+      .withIndex("by_parent_conversation_id", (q: any) =>
+        q.eq("parent_conversation_id", conv._id),
+      )
       .take(20);
     for (const c of children) {
       if (!c.is_subagent || c.status !== "active") continue;
-      if (subagentIsProducing({
-        isSubagent: true, convStatus: c.status, updatedAt: c.updated_at,
-        isLive: false, agentStatus: undefined, now,
-      })) {
+      if (
+        subagentIsProducing({
+          isSubagent: true,
+          convStatus: c.status,
+          updatedAt: c.updated_at,
+          isLive: false,
+          agentStatus: undefined,
+          now,
+        })
+      ) {
         childProducing = true;
         break;
       }
       const childSession = await ctx.db
         .query("managed_sessions")
-        .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", c._id))
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", c._id),
+        )
         .first();
       const childBeat = await heartbeatOf(ctx, childSession);
-      const childAlive = childBeat !== 0 && now - childBeat < HEARTBEAT_ALIVE_MS;
-      if (childAlive && subagentIsProducing({
-        isSubagent: true, convStatus: c.status, updatedAt: c.updated_at,
-        isLive: true, agentStatus: trustedAgentStatus(childSession?.agent_status, c.updated_at, now), now,
-      })) {
+      const childAlive =
+        childBeat !== 0 && now - childBeat < HEARTBEAT_ALIVE_MS;
+      if (
+        childAlive &&
+        subagentIsProducing({
+          isSubagent: true,
+          convStatus: c.status,
+          updatedAt: c.updated_at,
+          isLive: true,
+          agentStatus: trustedAgentStatus(
+            childSession?.agent_status,
+            c.updated_at,
+            now,
+          ),
+          now,
+        })
+      ) {
         childProducing = true;
         break;
       }
@@ -680,7 +831,16 @@ export async function deriveConversationVerdict(
     declaredStatus: conv.thread_state_status ?? null,
     sessionBoundary: boundary,
   });
-  return { state, agentStatus, activity, isIdle, awaitingInput, hasPending, lastMsg, boundary };
+  return {
+    state,
+    agentStatus,
+    activity,
+    isIdle,
+    awaitingInput,
+    hasPending,
+    lastMsg,
+    boundary,
+  };
 }
 
 // ── Needs-input push ─────────────────────────────────────────────────────────
@@ -705,7 +865,8 @@ export async function performNeedsInputCheck(
   args: { conversation_id: any; status_ts?: number },
 ): Promise<{ notified: boolean; reason?: string }> {
   const conv = await ctx.db.get(args.conversation_id);
-  if (!conv || !conv.message_count) return { notified: false, reason: "no_content" };
+  if (!conv || !conv.message_count)
+    return { notified: false, reason: "no_content" };
   // A killed row is retired for good — the teardown is deliberate, and its
   // frozen flags never resurface anything.
   if (conv.inbox_killed_at) return { notified: false, reason: "killed" };
@@ -724,17 +885,29 @@ export async function performNeedsInputCheck(
 
   const session = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", args.conversation_id),
+    )
     .first();
   // Scheduled off a specific status change: if the status has moved since, the
   // newer write has its own check in flight — this one is stale.
-  if (args.status_ts !== undefined && session?.agent_status_updated_at !== args.status_ts) {
+  if (
+    args.status_ts !== undefined &&
+    session?.agent_status_updated_at !== args.status_ts
+  ) {
     return { notified: false, reason: "superseded" };
   }
 
   const now = Date.now();
-  const { state, agentStatus, activity, awaitingInput, hasPending, lastMsg, boundary } =
-    await deriveConversationVerdict(ctx, conv, session, now);
+  const {
+    state,
+    agentStatus,
+    activity,
+    awaitingInput,
+    hasPending,
+    lastMsg,
+    boundary,
+  } = await deriveConversationVerdict(ctx, conv, session, now);
 
   // A SESSION BOUNDARY — a resume, a clear, or a manual /compact landing the
   // pane at an idle prompt — settles the row with no turn behind it. Nothing
@@ -763,25 +936,48 @@ export async function performNeedsInputCheck(
   // to the person's own notify below, so the wait is never swallowed.
   let unheard = false;
   if ((conv.org_role_id || conv.standing_role_id) && state === "needs_input") {
-    const kind = needsInputKind({ awaitingInput, agentStatus, isUnresponsive: activity.isUnresponsive });
+    const kind = needsInputKind({
+      awaitingInput,
+      agentStatus,
+      isUnresponsive: activity.isUnresponsive,
+    });
     const declared = conv.thread_state_status === "blocked";
-    const stuck = awaitingInput || kind === "permission_blocked" || kind === "stopped" || kind === "unresponsive";
+    const stuck =
+      awaitingInput ||
+      kind === "permission_blocked" ||
+      kind === "stopped" ||
+      kind === "unresponsive";
     // A stall or a declared block is certain now. A plain turn is not yet: a
     // finished turn lands here too, so it waits for the settle classifier,
     // which fires the route up on a needs-input verdict
     // (idleSummary.setIdleSummary). Only whether anyone can hear is known now.
-    const since = (stuck ? session?.agent_status_updated_at : conv.thread_state_at) ?? lastMsg?.timestamp ?? now;
+    const since =
+      (stuck ? session?.agent_status_updated_at : conv.thread_state_at) ??
+      lastMsg?.timestamp ??
+      now;
     // A permission prompt or a stopped process gets ROUTE_UP_STALL_GRACE_MS to
     // clear on its own: the check runs again then, and a status change in
     // between supersedes it, so a stall that cleared never wakes the role.
-    const graceLeft = stuck && !awaitingInput && !declared ? since + ROUTE_UP_STALL_GRACE_MS - now : 0;
+    const graceLeft =
+      stuck && !awaitingInput && !declared
+        ? since + ROUTE_UP_STALL_GRACE_MS - now
+        : 0;
     if (graceLeft > 0) {
-      await ctx.scheduler.runAfter(graceLeft, internal.notifications.checkNeedsInput, {
-        conversation_id: conv._id,
-        status_ts: session?.agent_status_updated_at,
-      });
+      await ctx.scheduler.runAfter(
+        graceLeft,
+        internal.notifications.checkNeedsInput,
+        {
+          conversation_id: conv._id,
+          status_ts: session?.agent_status_updated_at,
+        },
+      );
     } else if (stuck || declared) {
-      unheard = (await routeUpWaitingSession(ctx, conv, { why: stuck ? kind : "blocked", since, stuck })) === "unreachable";
+      unheard =
+        (await routeUpWaitingSession(ctx, conv, {
+          why: stuck ? kind : "blocked",
+          since,
+          stuck,
+        })) === "unreachable";
     } else {
       unheard = (await routeUpHears(ctx, conv)) === "unreachable";
     }
@@ -797,10 +993,17 @@ export async function performNeedsInputCheck(
   // doors. No push from here — the row surfacing in Needs You IS the signal,
   // and the machine-turn guard below would suppress the chime anyway.
   if (hidden) {
-    const stallKind = needsInputKind({ awaitingInput, agentStatus, isUnresponsive: activity.isUnresponsive });
+    const stallKind = needsInputKind({
+      awaitingInput,
+      agentStatus,
+      isUnresponsive: activity.isUnresponsive,
+    });
     const stalled =
       state === "needs_input" &&
-      (awaitingInput || stallKind === "permission_blocked" || stallKind === "stopped" || stallKind === "unresponsive");
+      (awaitingInput ||
+        stallKind === "permission_blocked" ||
+        stallKind === "stopped" ||
+        stallKind === "unresponsive");
     if (stalled) {
       await restoreToInbox(ctx, conv);
       return { notified: false, reason: "unstashed_stall" };
@@ -856,14 +1059,21 @@ export async function performNeedsInputCheck(
   // ownAsk and the web's sessionHasOpenQuestion. A settled answer is the
   // person's to read, never "waiting for you": nine finished answers once
   // rang as nine conversations needing them (pl-840).
-  if (isHostedAgentType(conv.agent_type)) return { notified: false, reason: "hosted" };
-  if (state !== "needs_input") return { notified: false, reason: "not_needs_input" };
+  if (isHostedAgentType(conv.agent_type))
+    return { notified: false, reason: "hosted" };
+  if (state !== "needs_input")
+    return { notified: false, reason: "not_needs_input" };
 
-  const kind = needsInputKind({ awaitingInput, agentStatus, isUnresponsive: activity.isUnresponsive });
+  const kind = needsInputKind({
+    awaitingInput,
+    agentStatus,
+    isUnresponsive: activity.isUnresponsive,
+  });
   // Dead/unresponsive sessions land in needs-input on the web too, but a push
   // for every deliberately closed terminal session is noise — keep the push to
   // the genuinely-waiting kinds.
-  if (kind === "stopped" || kind === "unresponsive") return { notified: false, reason: "dead" };
+  if (kind === "stopped" || kind === "unresponsive")
+    return { notified: false, reason: "dead" };
 
   // The waiting episode's identity, and only a REAL settle ever reaches it —
   // the boundary return above is what keeps it that way (ct-49533). The key
@@ -871,7 +1081,8 @@ export async function performNeedsInputCheck(
   // too (notifySession, always for a real settle) and the two must match for
   // that stand-down to work.
   const key = `${conv.message_count}:${kind}`;
-  if (conv.needs_input_notified_key === key) return { notified: false, reason: "dup" };
+  if (conv.needs_input_notified_key === key)
+    return { notified: false, reason: "dup" };
 
   // The waiting turn must have been STARTED by the human. A turn kicked off by
   // another session's cast send (arrives wrapped in <session-message>) or by a
@@ -882,7 +1093,9 @@ export async function performNeedsInputCheck(
   // read is only paid when we'd otherwise push.
   const lastUserMsg = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .order("desc")
     .filter((q: any) => q.eq(q.field("role"), "user"))
     .first();
@@ -917,7 +1130,11 @@ export async function performNeedsInputCheck(
     "Waiting for your input";
 
   const delivered = await deliverSessionNotificationToParties(
-    ctx, conv, "session_idle", title, message,
+    ctx,
+    conv,
+    "session_idle",
+    title,
+    message,
   );
   return { notified: delivered };
 }
@@ -926,10 +1143,17 @@ export async function performNeedsInputCheck(
 // injector both wrap their prompts in a sentinel tag the human never types.
 function isMachineStartedTurn(content: string | undefined | null): boolean {
   const c = (content || "").trimStart();
-  return c.startsWith("<session-message") || c.startsWith("<scheduled-task") || c.startsWith("<session-escalation");
+  return (
+    c.startsWith("<session-message") ||
+    c.startsWith("<scheduled-task") ||
+    c.startsWith("<session-escalation")
+  );
 }
 
-export function notifPreview(text: string | undefined | null, max = 200): string | null {
+export function notifPreview(
+  text: string | undefined | null,
+  max = 200,
+): string | null {
   const cleaned = (text || "").replace(/\s+/g, " ").trim();
   if (!cleaned) return null;
   return cleaned.length > max ? cleaned.slice(0, max - 1) + "…" : cleaned;
@@ -939,7 +1163,9 @@ export function notifPreview(text: string | undefined | null, max = 200): string
 // body for "Claude is asking you something". tool_calls[].input is a JSON
 // string (messages schema).
 export function auqQuestionPreview(lastMsg: any): string | null {
-  const tc = lastMsg?.tool_calls?.find((t: any) => t.name === "AskUserQuestion");
+  const tc = lastMsg?.tool_calls?.find(
+    (t: any) => t.name === "AskUserQuestion",
+  );
   if (!tc) return null;
   try {
     const q = JSON.parse(tc.input)?.questions?.[0]?.question;
@@ -976,9 +1202,13 @@ export async function performIdleDigestFlush(
     await ctx.db.patch(user._id, {
       idle_digest_state: { last_alerted_at: since, flush_due_at: windowEndsAt },
     });
-    await ctx.scheduler.runAfter(windowEndsAt - now, internal.notifications.idleDigestFlush, {
-      user_id: user._id,
-    });
+    await ctx.scheduler.runAfter(
+      windowEndsAt - now,
+      internal.notifications.idleDigestFlush,
+      {
+        user_id: user._id,
+      },
+    );
     return { notified: false, reason: "early" };
   }
 
@@ -988,24 +1218,41 @@ export async function performIdleDigestFlush(
       q.eq("recipient_user_id", user._id).gte("created_at", since),
     )
     .collect();
-  const waiting = rows.filter((n: any) => n.quiet && n.type === "session_idle" && !n.read);
+  const waiting = rows.filter(
+    (n: any) => n.quiet && n.type === "session_idle" && !n.read,
+  );
 
   const titles: string[] = [];
   for (const row of waiting) {
-    const conv = row.conversation_id ? await ctx.db.get(row.conversation_id) : null;
-    if (!conv || conv.inbox_killed_at || conv.inbox_stashed_at || conv.inbox_dismissed_at) continue;
+    const conv = row.conversation_id
+      ? await ctx.db.get(row.conversation_id)
+      : null;
+    if (
+      !conv ||
+      conv.inbox_killed_at ||
+      conv.inbox_stashed_at ||
+      conv.inbox_dismissed_at
+    )
+      continue;
     // Rows written before hosted conversations stood down above.
     if (isHostedAgentType(conv.agent_type)) continue;
     // The episode this row announced, still current: the dedupe key names the
     // message count the session settled at, so a reply (which grows the count)
     // reads as answered.
-    if (!String(conv.needs_input_notified_key ?? "").startsWith(`${conv.message_count || 0}:`)) continue;
+    if (
+      !String(conv.needs_input_notified_key ?? "").startsWith(
+        `${conv.message_count || 0}:`,
+      )
+    )
+      continue;
     titles.push(sessionLabelOf(conv));
   }
 
   if (titles.length === 0) {
     // Close the window without spending an alert.
-    await ctx.db.patch(user._id, { idle_digest_state: { last_alerted_at: since } });
+    await ctx.db.patch(user._id, {
+      idle_digest_state: { last_alerted_at: since },
+    });
     return { notified: false, reason: "nothing_waiting" };
   }
 
@@ -1059,10 +1306,15 @@ const ENTITY_TYPE_VALIDATOR = v.union(
   v.literal("task"),
   v.literal("doc"),
   v.literal("plan"),
-  v.literal("conversation")
+  v.literal("conversation"),
 );
 
-const WATCH_TABLE = { task: "tasks", doc: "docs", plan: "plans", conversation: "conversations" } as const;
+const WATCH_TABLE = {
+  task: "tasks",
+  doc: "docs",
+  plan: "plans",
+  conversation: "conversations",
+} as const;
 
 export const isWatching = query({
   args: {
@@ -1076,7 +1328,10 @@ export const isWatching = query({
     const sub = await ctx.db
       .query("entity_subscriptions")
       .withIndex("by_user_entity", (q: any) =>
-        q.eq("user_id", userId).eq("entity_type", args.entity_type).eq("entity_id", args.entity_id)
+        q
+          .eq("user_id", userId)
+          .eq("entity_type", args.entity_type)
+          .eq("entity_id", args.entity_id),
       )
       .first();
     return sub ? !sub.muted : false;
@@ -1094,7 +1349,10 @@ export const toggleWatch = mutation({
     const existing = await ctx.db
       .query("entity_subscriptions")
       .withIndex("by_user_entity", (q: any) =>
-        q.eq("user_id", userId).eq("entity_type", args.entity_type).eq("entity_id", args.entity_id)
+        q
+          .eq("user_id", userId)
+          .eq("entity_type", args.entity_type)
+          .eq("entity_id", args.entity_id),
       )
       .first();
     if (existing) {
@@ -1107,14 +1365,20 @@ export const toggleWatch = mutation({
     }
     // A watcher receives what is said on the thing: only someone who can
     // read it may start watching it.
-    const entityId = ctx.db.normalizeId(WATCH_TABLE[args.entity_type], args.entity_id);
-    const entity: any = entityId ? await ctx.db.get(entityId) : null;
-    const readable = !!entity && (
-      args.entity_type === "task" ? await canAccessTask(ctx, userId, entity)
-      : args.entity_type === "doc" ? await canAccessDoc(ctx, userId, entity)
-      : args.entity_type === "plan" ? await canAccessPlan(ctx, userId, entity)
-      : await canAccessConversation(ctx, userId, entity)
+    const entityId = ctx.db.normalizeId(
+      WATCH_TABLE[args.entity_type],
+      args.entity_id,
     );
+    const entity: any = entityId ? await ctx.db.get(entityId) : null;
+    const readable =
+      !!entity &&
+      (args.entity_type === "task"
+        ? await canAccessTask(ctx, userId, entity)
+        : args.entity_type === "doc"
+          ? await canAccessDoc(ctx, userId, entity)
+          : args.entity_type === "plan"
+            ? await canAccessPlan(ctx, userId, entity)
+            : await canAccessConversation(ctx, userId, entity));
     if (!readable) throw new Error("Not found");
     await ctx.db.insert("entity_subscriptions", {
       user_id: userId,

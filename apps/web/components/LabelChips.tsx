@@ -31,7 +31,10 @@ export function LabelChips({
     <div className={`flex items-center gap-1 flex-shrink-0 ${className}`}>
       {labels.map((l, i) => {
         const lc = getLabelColor(l);
-        const tier = i < MAX_NAMED ? `cq-label-t${i + 1} ${lc.bg} ${lc.border} ${lc.text}` : "";
+        const tier =
+          i < MAX_NAMED
+            ? `cq-label-t${i + 1} ${lc.bg} ${lc.border} ${lc.text}`
+            : "";
         const Chip = onLabelClick ? "button" : "span";
         return (
           <Chip
@@ -39,11 +42,22 @@ export function LabelChips({
             type={onLabelClick ? "button" : undefined}
             title={onLabelClick ? `Filter by label: ${l}` : l}
             aria-label={onLabelClick ? `Filter by label: ${l}` : undefined}
-            onClick={onLabelClick ? (e) => { e.stopPropagation(); onLabelClick(l); } : undefined}
+            onClick={
+              onLabelClick
+                ? (e) => {
+                    e.stopPropagation();
+                    onLabelClick(l);
+                  }
+                : undefined
+            }
             className={`inline-flex items-center gap-1 flex-shrink-0 rounded-full py-0 text-meta leading-4 whitespace-nowrap ${tier} ${onLabelClick ? "hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan" : ""}`}
           >
-            <span className={`${dotClass} rounded-full flex-shrink-0 ${lc.dot}`} />
-            {i < MAX_NAMED && <span className="cq-label-name max-w-[10rem] truncate">{l}</span>}
+            <span
+              className={`${dotClass} rounded-full flex-shrink-0 ${lc.dot}`}
+            />
+            {i < MAX_NAMED && (
+              <span className="cq-label-name max-w-[10rem] truncate">{l}</span>
+            )}
           </Chip>
         );
       })}

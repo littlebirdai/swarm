@@ -8,13 +8,25 @@ import type { TeamDeployRow } from "../lib/deploys/targets";
 import { sendPress } from "../lib/deploys/press";
 import { PressReview, type Press } from "../components/deploys/DeployPress";
 
-export function useDeployPress(teamId: string | null, deploys: ReadonlyArray<TeamDeployRow>) {
-  const me = useInboxStore((s) => (s.currentUser as { name?: string } | null)?.name ?? "You");
+export function useDeployPress(
+  teamId: string | null,
+  deploys: ReadonlyArray<TeamDeployRow>,
+) {
+  const me = useInboxStore(
+    (s) => (s.currentUser as { name?: string } | null)?.name ?? "You",
+  );
   const [press, setPress] = useState<Press | null>(null);
   const confirm = (p: Press) => {
     setPress(null);
     if (teamId) sendPress(p, teamId, deploys, me);
   };
-  const review = press ? <PressReview press={press} deploys={deploys} onClose={() => setPress(null)} onConfirm={() => confirm(press)} /> : null;
+  const review = press ? (
+    <PressReview
+      press={press}
+      deploys={deploys}
+      onClose={() => setPress(null)}
+      onConfirm={() => confirm(press)}
+    />
+  ) : null;
   return { open: setPress, review };
 }

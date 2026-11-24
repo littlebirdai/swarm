@@ -26,15 +26,24 @@ export function slugToCwd(slug: string): string | null {
   let resolved = "/";
   let i = 0;
   while (i < tokens.length) {
-    if (tokens[i] === "") { i++; continue; }
+    if (tokens[i] === "") {
+      i++;
+      continue;
+    }
     let matched = false;
     for (let len = tokens.length - i; len >= 1; len--) {
       const candidate = tokens.slice(i, i + len).join("-");
       if (fs.existsSync(path.join(resolved, candidate))) {
-        resolved = path.join(resolved, candidate); i += len; matched = true; break;
+        resolved = path.join(resolved, candidate);
+        i += len;
+        matched = true;
+        break;
       }
       if (fs.existsSync(path.join(resolved, "." + candidate))) {
-        resolved = path.join(resolved, "." + candidate); i += len; matched = true; break;
+        resolved = path.join(resolved, "." + candidate);
+        i += len;
+        matched = true;
+        break;
       }
     }
     if (!matched) return null;
@@ -48,7 +57,10 @@ export function slugToCwd(slug: string): string | null {
  * the project-dir slug (CC collapses both "/" and "." to "-", which is not
  * losslessly reversible).
  */
-export function cwdFromTranscript(jsonlPath: string, slug = path.basename(path.dirname(jsonlPath))): string | null {
+export function cwdFromTranscript(
+  jsonlPath: string,
+  slug = path.basename(path.dirname(jsonlPath)),
+): string | null {
   // The LAST cwd, not the first: a session that has travelled between
   // machines carries entries stamped with every home it has had, and after a
   // round trip the file can even BEGIN with the remote's path (observed live:
@@ -69,9 +81,13 @@ export function cwdFromTranscript(jsonlPath: string, slug = path.basename(path.d
         if (!rec.cwd) continue;
         last = rec.cwd;
         if (claudeProjectDirName(rec.cwd) === slug) launch = rec.cwd;
-      } catch { /* skip non-JSON line */ }
+      } catch {
+        /* skip non-JSON line */
+      }
     }
-  } catch { /* unreadable */ }
+  } catch {
+    /* unreadable */
+  }
   return launch ?? last;
 }
 
@@ -88,10 +104,16 @@ export function resolveLocalSession(sessionId: string): LocalSession {
       // that machine's paths too, and pushing from a nonexistent cwd fails as
       // a baffling rsync lstat error. The slug is by construction where this
       // machine placed the project, so it is the safe fallback.
-      const cwd = [cwdFromTranscript(candidate), slugToCwd(slug)]
-        .find((c): c is string => !!c && fs.existsSync(c));
+      const cwd = [cwdFromTranscript(candidate), slugToCwd(slug)].find(
+        (c): c is string => !!c && fs.existsSync(c),
+      );
       if (!cwd) continue;
-      return { sessionId, cwd, jsonlPath: candidate, projectDir: path.join(CLAUDE_PROJECTS, slug) };
+      return {
+        sessionId,
+        cwd,
+        jsonlPath: candidate,
+        projectDir: path.join(CLAUDE_PROJECTS, slug),
+      };
     }
   }
   throw new Error(`session ${sessionId} not found under ~/.claude/projects`);

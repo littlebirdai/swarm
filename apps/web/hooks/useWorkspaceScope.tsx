@@ -10,8 +10,16 @@ import type { WorkspaceKey } from "../lib/workspaceScope";
 
 const WorkspaceScope = createContext<WorkspaceKey | null>(null);
 
-export function WorkspaceScopeProvider({ value, children }: { value: WorkspaceKey | null; children: ReactNode }) {
-  return <WorkspaceScope.Provider value={value}>{children}</WorkspaceScope.Provider>;
+export function WorkspaceScopeProvider({
+  value,
+  children,
+}: {
+  value: WorkspaceKey | null;
+  children: ReactNode;
+}) {
+  return (
+    <WorkspaceScope.Provider value={value}>{children}</WorkspaceScope.Provider>
+  );
 }
 
 /** The surrounding surface's own workspace key, or null where the app's active one holds. */

@@ -30,9 +30,17 @@ async function seed() {
     cat: await ctx.db.insert("users", { name: "Cat" } as any),
   }));
   const as = (u: string) => t.withIdentity({ subject: `${u}|test` });
-  const dispatch = (u: string, action: string, args: unknown[]) => as(u).mutation(api.dispatch.dispatch, { action, args });
-  await as(String(ids.ana)).action(api.secrets.create, { name: "zz-key", kind: "key", payload: { value: "zz-value-0123456789" }, personal: true });
-  const id = String((await as(String(ids.ana)).query(api.secrets.list, {}))[0]._id);
+  const dispatch = (u: string, action: string, args: unknown[]) =>
+    as(u).mutation(api.dispatch.dispatch, { action, args });
+  await as(String(ids.ana)).action(api.secrets.create, {
+    name: "zz-key",
+    kind: "key",
+    payload: { value: "zz-value-0123456789" },
+    personal: true,
+  });
+  const id = String(
+    (await as(String(ids.ana)).query(api.secrets.list, {}))[0]._id,
+  );
   return { t, ...ids, dispatch, id };
 }
 
@@ -42,12 +50,18 @@ test("a Vault write against a secret deleted since it was queued settles quietly
   expect(await t.run((ctx) => ctx.db.get(id as any))).toBeNull();
   // The same delete again (a redrive, a second window), an edit and Ask first: all land on nothing, none throws.
   expect(await dispatch(String(ana), "removeSecret", [id])).toBeNull();
-  expect(await dispatch(String(ana), "updateSecretMeta", [id, { note: "late" }])).toBeNull();
-  expect(await dispatch(String(ana), "setSecretAskFirst", [id, true])).toBeNull();
+  expect(
+    await dispatch(String(ana), "updateSecretMeta", [id, { note: "late" }]),
+  ).toBeNull();
+  expect(
+    await dispatch(String(ana), "setSecretAskFirst", [id, true]),
+  ).toBeNull();
 });
 
 test("a Vault write the caller may not make still refuses", async () => {
   const { t, cat, dispatch, id } = await seed();
-  await expect(dispatch(String(cat), "removeSecret", [id])).rejects.toThrow(/No secret/);
+  await expect(dispatch(String(cat), "removeSecret", [id])).rejects.toThrow(
+    /No secret/,
+  );
   expect(await t.run((ctx) => ctx.db.get(id as any))).not.toBeNull();
 });

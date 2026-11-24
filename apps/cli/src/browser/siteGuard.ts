@@ -28,7 +28,11 @@
 import { denyNavigation, loadSitePolicy, type SitePolicy } from "./policy.js";
 import { auditLanding, recordBlocked, type AuditVia } from "./audit.js";
 import { DEFAULT_WEB_URL, webBaseUrl } from "../config/readLocalConfig.js";
-import { readSigninState, unapprovedSignins, type SigninMemory } from "../secrets/signin.js";
+import {
+  readSigninState,
+  unapprovedSignins,
+  type SigninMemory,
+} from "../secrets/signin.js";
 import { isWebAuthnMethod, WEBAUTHN_REFUSAL } from "./bridge/protocol.js";
 
 export { auditLanding };
@@ -61,11 +65,18 @@ const DEV_WEB_HOSTS = new Set(["localhost:3200", "127.0.0.1:3200"]);
 
 /** Where codecast's own web app answers: the public app, the local proxy, the dev server, and the web_url this machine is configured with. */
 function codecastHosts(): Set<string> {
-  const hosts = new Set(["codecast.sh", "www.codecast.sh", "local.codecast.sh", ...DEV_WEB_HOSTS]);
+  const hosts = new Set([
+    "codecast.sh",
+    "www.codecast.sh",
+    "local.codecast.sh",
+    ...DEV_WEB_HOSTS,
+  ]);
   for (const base of [DEFAULT_WEB_URL, webBaseUrl()]) {
     try {
       hosts.add(new URL(base).host.toLowerCase());
-    } catch { /* a malformed web_url names no host */ }
+    } catch {
+      /* a malformed web_url names no host */
+    }
   }
   return hosts;
 }
@@ -77,7 +88,9 @@ function codecastHosts(): Set<string> {
  * the app stays open for agents to verify, and so does the dev server's Vault
  * page, which shows an agent's tab a sample Vault.
  */
-export function vaultPageRefusal(url: string): { message: string; hint: string } | null {
+export function vaultPageRefusal(
+  url: string,
+): { message: string; hint: string } | null {
   let u: URL;
   try {
     u = new URL(withScheme(url));
@@ -85,7 +98,12 @@ export function vaultPageRefusal(url: string): { message: string; hint: string }
     return null;
   }
   const host = u.host.toLowerCase();
-  if (!/^\/vault(\/|$)/i.test(u.pathname) || DEV_WEB_HOSTS.has(host) || !codecastHosts().has(host)) return null;
+  if (
+    !/^\/vault(\/|$)/i.test(u.pathname) ||
+    DEV_WEB_HOSTS.has(host) ||
+    !codecastHosts().has(host)
+  )
+    return null;
   return {
     message: `refusing to open ${u.origin}/vault: only a person uses the Vault page`,
     hint: "Read a secret with cast vault get or run, and ask for a missing one with cast vault request. To check the Vault page itself, open http://localhost:3200/vault: the dev server shows an agent's tab a sample Vault. An old /vault?f= Files link opens as /files.",
@@ -98,14 +116,23 @@ export function vaultPageRefusal(url: string): { message: string; hint: string }
  * arguments, or null to proceed. The bridge refuses the same methods on the
  * wire; this names the reason before the engine runs.
  */
-export function webAuthnRefusal(verb: string, args: readonly string[]): { message: string; hint: string } | null {
+export function webAuthnRefusal(
+  verb: string,
+  args: readonly string[],
+): { message: string; hint: string } | null {
   if (![verb, ...args].some(isWebAuthnMethod)) return null;
-  return { message: WEBAUTHN_REFUSAL, hint: "Touch ID confirms a Vault action only from the person; hand them the step." };
+  return {
+    message: WEBAUTHN_REFUSAL,
+    hint: "Touch ID confirms a Vault action only from the person; hand them the step.",
+  };
 }
 
 /** An argument that reads as a URL: an explicit scheme, or a bare host (`x.com`, `localhost:3200/vault`). */
 function urlShaped(arg: string): boolean {
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(arg) || /^(?:localhost|[\w-]+(?:\.[\w-]+)+)(?::\d+)?(?:[/?#]|$)/i.test(arg);
+  return (
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(arg) ||
+    /^(?:localhost|[\w-]+(?:\.[\w-]+)+)(?::\d+)?(?:[/?#]|$)/i.test(arg)
+  );
 }
 
 /**
@@ -122,15 +149,31 @@ function urlShaped(arg: string): boolean {
  * including a `--flag=<url>` value. A flag value that merely looks like a
  * host is gated too; refusing one command too many is the safe side.
  */
-export function urlsLoadedBy(verb: string, args: readonly string[], pageUrl: () => string | null = () => null): string[] {
+export function urlsLoadedBy(
+  verb: string,
+  args: readonly string[],
+  pageUrl: () => string | null = () => null,
+): string[] {
   const pos = args.filter((a) => !a.startsWith("-"));
   const withUrlShaped = (expected: string[]): string[] => {
-    const flagValues = args.filter((a) => a.startsWith("-") && a.includes("=")).map((a) => a.slice(a.indexOf("=") + 1));
-    return [...new Set([...expected, ...[...pos, ...flagValues].filter(urlShaped)])];
+    const flagValues = args
+      .filter((a) => a.startsWith("-") && a.includes("="))
+      .map((a) => a.slice(a.indexOf("=") + 1));
+    return [
+      ...new Set([...expected, ...[...pos, ...flagValues].filter(urlShaped)]),
+    ];
   };
-  if (verb === "open" || verb === "goto" || verb === "navigate" || verb === "read") return withUrlShaped(pos.slice(0, 1));
-  if (verb === "tab") return pos[0] === "new" ? withUrlShaped(pos.slice(1, 2)) : [];
-  if (verb === "diff") return pos[0] === "url" ? withUrlShaped(pos.slice(1, 3)) : [];
+  if (
+    verb === "open" ||
+    verb === "goto" ||
+    verb === "navigate" ||
+    verb === "read"
+  )
+    return withUrlShaped(pos.slice(0, 1));
+  if (verb === "tab")
+    return pos[0] === "new" ? withUrlShaped(pos.slice(1, 2)) : [];
+  if (verb === "diff")
+    return pos[0] === "url" ? withUrlShaped(pos.slice(1, 3)) : [];
   if (verb === "pushstate" && pos[0]) {
     const resolve = (raw: string): string => {
       try {
@@ -139,7 +182,12 @@ export function urlsLoadedBy(verb: string, args: readonly string[], pageUrl: () 
         return raw;
       }
     };
-    return [...new Set([resolve(pos[0]), ...pos.slice(1).filter(urlShaped).map(resolve)])];
+    return [
+      ...new Set([
+        resolve(pos[0]),
+        ...pos.slice(1).filter(urlShaped).map(resolve),
+      ]),
+    ];
   }
   return [];
 }
@@ -150,9 +198,16 @@ export function urlsLoadedBy(verb: string, args: readonly string[], pageUrl: () 
  * `navigate`, `pushstate`, `diff url`): their landing is not read off the
  * session's tab afterwards, so the URL asked for is what gets recorded.
  */
-export function auditExplicitLoads(verb: string, args: readonly string[], tab: string, session: string | null, pageUrl: () => string | null = () => null): void {
+export function auditExplicitLoads(
+  verb: string,
+  args: readonly string[],
+  tab: string,
+  session: string | null,
+  pageUrl: () => string | null = () => null,
+): void {
   if (NAVIGATING_VERBS.has(verb)) return;
-  for (const url of urlsLoadedBy(verb, args, pageUrl)) auditLanding({ url: withScheme(url), tab, session, via: "open" });
+  for (const url of urlsLoadedBy(verb, args, pageUrl))
+    auditLanding({ url: withScheme(url), tab, session, via: "open" });
 }
 
 /**
@@ -161,7 +216,18 @@ export function auditExplicitLoads(verb: string, args: readonly string[], tab: s
  * per-verb code call `auditLanding` where they already settle.
  */
 export const NAVIGATING_VERBS: ReadonlySet<string> = new Set([
-  "open", "goto", "click", "type", "fill", "press", "select", "back", "forward", "reload", "do", "batch",
+  "open",
+  "goto",
+  "click",
+  "type",
+  "fill",
+  "press",
+  "select",
+  "back",
+  "forward",
+  "reload",
+  "do",
+  "batch",
 ]);
 
 /** Which audit `via` label a passthrough verb maps to. */
@@ -194,9 +260,11 @@ const SIGN_IN_HOSTS = [
 ];
 
 /** Hosts whose first label says "this is the sign-in front door". */
-const SIGN_IN_LABELS = /^(accounts|account|login|signin|sign-in|sso|auth|id|idp|identity)$/;
+const SIGN_IN_LABELS =
+  /^(accounts|account|login|signin|sign-in|sso|auth|id|idp|identity)$/;
 /** Paths that are a sign-in form wherever they live. */
-const SIGN_IN_PATHS = /\/(login|signin|sign-in|sign_in|log-in|auth\/login|users\/sign_in|session\/new|oauth2\/v2\/auth|o\/oauth2)(\/|$|\?)/i;
+const SIGN_IN_PATHS =
+  /\/(login|signin|sign-in|sign_in|log-in|auth\/login|users\/sign_in|session\/new|oauth2\/v2\/auth|o\/oauth2)(\/|$|\?)/i;
 
 /**
  * Is this URL a sign-in page? Returns the identity host to name, or null.
@@ -213,7 +281,8 @@ export function signInHost(url: string): string | null {
   }
   const host = u.hostname.toLowerCase();
   if (SIGN_IN_HOSTS.includes(host)) return host;
-  if (SIGN_IN_LABELS.test(host.split(".")[0]) && host.split(".").length > 2) return host;
+  if (SIGN_IN_LABELS.test(host.split(".")[0]) && host.split(".").length > 2)
+    return host;
   if (SIGN_IN_PATHS.test(u.pathname)) return host;
   return null;
 }
@@ -260,7 +329,10 @@ const VAULT_SIGN_IN =
  * (`set`, `clear`) counts as a read, so a stray flag value cannot slip a read
  * past.
  */
-export function browserJarRead(verb: string, args: readonly string[]): "jar" | "page" | null {
+export function browserJarRead(
+  verb: string,
+  args: readonly string[],
+): "jar" | "page" | null {
   const ops = args.filter((a) => !a.startsWith("-"));
   const writes = (op: string | undefined) => op === "set" || op === "clear";
   if (verb === "cookies") return writes(ops[0]) ? null : "jar";
@@ -287,13 +359,17 @@ export function vaultJarRefusal(
   if (read === "page") {
     try {
       host = new URL(pageUrl ?? "").hostname;
-    } catch { /* unknown page */ }
+    } catch {
+      /* unknown page */
+    }
   }
   const held = unapprovedSignins(state, host, conversation, now);
   if (!held.length) return null;
   const site = held[0].ask_first!.sites[0];
   return {
     message: `refusing to read ${read === "jar" ? "the browser's cookies" : `storage on ${host}`}: Ask first sign-in ${held.map((m) => m.name).join(", ")} is in the agent browser and this session has no approval for it`,
-    hint: site ? `cast browser open https://${site} asks a person to approve this session.` : "A person approves this session's read when it opens the site.",
+    hint: site
+      ? `cast browser open https://${site} asks a person to approve this session.`
+      : "A person approves this session's read when it opens the site.",
   };
 }

@@ -8,29 +8,50 @@ function setup() {
   const win = {
     requestAnimationFrame: (fn: () => void) => frames.push(fn),
     cancelAnimationFrame: () => {},
-    setTimeout, clearTimeout,
+    setTimeout,
+    clearTimeout,
   };
   let onOffset: (offset: number, isScrolling: boolean) => void = () => {};
   const el = {
-    scrollTop: 0, clientHeight: 500,
-    get scrollHeight() { return v.getTotalSize(); },
+    scrollTop: 0,
+    clientHeight: 500,
+    get scrollHeight() {
+      return v.getTotalSize();
+    },
     ownerDocument: { defaultView: win },
-    addEventListener() {}, removeEventListener() {},
+    addEventListener() {},
+    removeEventListener() {},
   };
   const v: Virtualizer<any, any> = new Virtualizer({
     count: 50,
     getScrollElement: () => el,
     estimateSize: () => 100,
-    observeElementRect: (_i, cb) => { cb({ width: 800, height: 500 }); return () => {}; },
-    observeElementOffset: (_i, cb) => { onOffset = cb; cb(0, false); return () => {}; },
-    scrollToFn: (offset) => { el.scrollTop = Math.min(offset, el.scrollHeight - el.clientHeight); onOffset(el.scrollTop, false); },
+    observeElementRect: (_i, cb) => {
+      cb({ width: 800, height: 500 });
+      return () => {};
+    },
+    observeElementOffset: (_i, cb) => {
+      onOffset = cb;
+      cb(0, false);
+      return () => {};
+    },
+    scrollToFn: (offset) => {
+      el.scrollTop = Math.min(offset, el.scrollHeight - el.clientHeight);
+      onOffset(el.scrollTop, false);
+    },
     anchorTo: "end",
     scrollEndThreshold: 8,
   });
   v._didMount();
   v._willUpdate();
-  const runFrames = () => { for (let i = 0; i < 10 && frames.length; i++) frames.splice(0).forEach((f) => f()); };
-  const readerScrollsTo = (top: number) => { el.scrollTop = top; onOffset(top, true); };
+  const runFrames = () => {
+    for (let i = 0; i < 10 && frames.length; i++)
+      frames.splice(0).forEach((f) => f());
+  };
+  const readerScrollsTo = (top: number) => {
+    el.scrollTop = top;
+    onOffset(top, true);
+  };
   return { v, el, runFrames, readerScrollsTo };
 }
 
@@ -55,4 +76,3 @@ test("releasing the scroll target leaves the reader where they scrolled", () => 
   runFrames();
   expect(el.scrollTop).toBe(3000);
 });
-

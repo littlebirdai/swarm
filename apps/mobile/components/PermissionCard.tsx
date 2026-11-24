@@ -1,11 +1,17 @@
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text } from '@/components/Themed';
-import { themedStyles } from '@/constants/Theme';
-import { Id } from '@codecast/convex/convex/_generated/dataModel';
-import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { PERMISSION_CARD_COPY, PERMISSION_CARD_STYLE, permissionSourceTags, removalCountLabel, type PermissionRemoval } from '@codecast/shared/render/permissionCardStyle';
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/Themed";
+import { themedStyles } from "@/constants/Theme";
+import { Id } from "@codecast/convex/convex/_generated/dataModel";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import {
+  PERMISSION_CARD_COPY,
+  PERMISSION_CARD_STYLE,
+  permissionSourceTags,
+  removalCountLabel,
+  type PermissionRemoval,
+} from "@codecast/shared/render/permissionCardStyle";
 
 type Permission = {
   _id: Id<"pending_permissions">;
@@ -51,30 +57,50 @@ export function PermissionCard({ permission }: PermissionCardProps) {
         <View style={styles.sourceRow}>
           <Text style={styles.toolName}>{permission.tool_name}</Text>
           {permissionSourceTags(permission).map((t) => {
-            const conv = t.kind === "subagent" ? permission.subagent_conversation_id : undefined;
+            const conv =
+              t.kind === "subagent"
+                ? permission.subagent_conversation_id
+                : undefined;
             // The subagent's own conversation holds what it did before asking.
             return conv ? (
-              <TouchableOpacity key={t.kind} onPress={() => router.push(`/session/${conv}` as never)}>
+              <TouchableOpacity
+                key={t.kind}
+                onPress={() => router.push(`/session/${conv}` as never)}
+              >
                 <Text style={styles.subagentTag}>{t.label + " ›"}</Text>
               </TouchableOpacity>
             ) : (
-              <Text key={t.kind} style={t.kind === "subagent" ? styles.subagentTag : styles.safetyTag}>{t.label}</Text>
+              <Text
+                key={t.kind}
+                style={
+                  t.kind === "subagent" ? styles.subagentTag : styles.safetyTag
+                }
+              >
+                {t.label}
+              </Text>
             );
           })}
         </View>
 
-        {permission.intent && <Text style={styles.intent}>{permission.intent}</Text>}
+        {permission.intent && (
+          <Text style={styles.intent}>{permission.intent}</Text>
+        )}
         {(permission.removals ?? []).map((r, i) => (
           <Text key={i} style={styles.removal} numberOfLines={2}>
             <Text style={styles.removalVerb}>rm </Text>
             {r.target}
-            <Text style={r.note ? styles.removalNote : styles.removalCount}>{"  " + removalCountLabel(r)}</Text>
+            <Text style={r.note ? styles.removalNote : styles.removalCount}>
+              {"  " + removalCountLabel(r)}
+            </Text>
           </Text>
         ))}
 
         {permission.arguments_preview && (
           <View style={styles.argsContainer}>
-            <Text style={styles.argsText} numberOfLines={PERMISSION_CARD_COPY.argsMaxLines}>
+            <Text
+              style={styles.argsText}
+              numberOfLines={PERMISSION_CARD_COPY.argsMaxLines}
+            >
               {permission.arguments_preview}
             </Text>
           </View>
@@ -95,9 +121,7 @@ export function PermissionCard({ permission }: PermissionCardProps) {
           style={[styles.button, styles.denyButton]}
           onPress={handleDeny}
         >
-          <Text style={styles.denyButtonText}>
-            {PERMISSION_CARD_COPY.deny}
-          </Text>
+          <Text style={styles.denyButtonText}>{PERMISSION_CARD_COPY.deny}</Text>
         </TouchableOpacity>
       </View>
     </View>

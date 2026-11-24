@@ -26,7 +26,8 @@
 // docSync.submitSteps refuses steps from an editor that opened the doc before
 // a CLI/API rewrite (docs.resetSync); the editor remounts from the new snapshot
 // on its own, so the web error reporter ignores this wording.
-export const DOC_REWRITTEN_ERROR = "Document was rewritten outside the editor; reload it";
+export const DOC_REWRITTEN_ERROR =
+  "Document was rewritten outside the editor; reload it";
 
 export const DOC_TYPES = [
   "note",
@@ -71,13 +72,18 @@ const LIVE_DOC_TYPES = new Set<string>(["board", "sheet", "dashboard"]);
  * freely; a board, sheet or dashboard holds elements, not markdown, so it
  * neither becomes nor comes from another type.
  */
-export function docTypeChangeAllowed(from: string | null | undefined, to: string): boolean {
+export function docTypeChangeAllowed(
+  from: string | null | undefined,
+  to: string,
+): boolean {
   if (from === to) return true;
   return !LIVE_DOC_TYPES.has(from ?? "note") && !LIVE_DOC_TYPES.has(to);
 }
 
 /** The types a prose doc can be switched to (menus, the palette, the doc page's picker). */
-export const RETYPABLE_DOC_TYPES: readonly DocType[] = DOC_TYPES.filter((t) => !LIVE_DOC_TYPES.has(t));
+export const RETYPABLE_DOC_TYPES: readonly DocType[] = DOC_TYPES.filter(
+  (t) => !LIVE_DOC_TYPES.has(t),
+);
 
 /** The label for any stored doc_type; unknown values read as a note, like every client's style fallback. */
 export function docTypeLabel(docType: string | null | undefined): string {
@@ -101,7 +107,9 @@ export type DocOriginClass = "human" | "agent" | "mined";
 
 const MINED_SOURCES = new Set(["file_sync", "inline_extract", "import"]);
 
-export function docOriginClass(doc: { source?: string | null }): DocOriginClass {
+export function docOriginClass(doc: {
+  source?: string | null;
+}): DocOriginClass {
   if (doc.source === "human") return "human";
   if (doc.source && MINED_SOURCES.has(doc.source)) return "mined";
   return "agent";
@@ -150,12 +158,17 @@ export const DOC_SHELF_FILTER_LABELS: Record<DocShelfFilter, string> = {
   all: "All docs",
 };
 
-export function filterDocsByShelf<T extends { source?: string | null; pinned?: boolean | null }>(
-  docs: T[],
-  filter: string,
-): T[] {
-  if (filter === "agent" || filter === "bot") return docs.filter((d) => !isOnHumanShelf(d) && docOriginClass(d) === "agent");
-  if (filter === "mined") return docs.filter((d) => !isOnHumanShelf(d) && docOriginClass(d) === "mined");
+export function filterDocsByShelf<
+  T extends { source?: string | null; pinned?: boolean | null },
+>(docs: T[], filter: string): T[] {
+  if (filter === "agent" || filter === "bot")
+    return docs.filter(
+      (d) => !isOnHumanShelf(d) && docOriginClass(d) === "agent",
+    );
+  if (filter === "mined")
+    return docs.filter(
+      (d) => !isOnHumanShelf(d) && docOriginClass(d) === "mined",
+    );
   if (filter === "all") return docs;
   if (filter === "starred") return docs.filter((d) => !!d.pinned);
   return docs.filter(isOnHumanShelf);
@@ -176,7 +189,9 @@ export function compareDocsDefault(
  * fork, imported…); the doc only needs the origin answer, and anything a
  * person didn't file directly is machine work.
  */
-export function docSourceForPlanSource(planSource: string | null | undefined): "human" | "agent" {
+export function docSourceForPlanSource(
+  planSource: string | null | undefined,
+): "human" | "agent" {
   return planSource === "human" ? "human" : "agent";
 }
 
@@ -194,15 +209,23 @@ export function docSourceForPlanSource(planSource: string | null | undefined): "
 // Only real YAML frontmatter: the opening --- must be followed directly by a
 // `key:` line. A doc whose body simply opens with a horizontal rule (---,
 // blank line, prose) must not have everything up to the next --- swallowed.
-const FRONTMATTER_RE = /^---[ \t]*\n(?=[A-Za-z0-9_-]+[ \t]*:)[\s\S]*?\n---[ \t]*(?:\n|$)/;
+const FRONTMATTER_RE =
+  /^---[ \t]*\n(?=[A-Za-z0-9_-]+[ \t]*:)[\s\S]*?\n---[ \t]*(?:\n|$)/;
 
-export function splitFrontmatter(content: string): { front: string; body: string } {
+export function splitFrontmatter(content: string): {
+  front: string;
+  body: string;
+} {
   const fm = content.match(FRONTMATTER_RE);
-  return fm ? { front: fm[0], body: content.slice(fm[0].length) } : { front: "", body: content };
+  return fm
+    ? { front: fm[0], body: content.slice(fm[0].length) }
+    : { front: "", body: content };
 }
 
 /** The first non-blank line, if it is a markdown heading: its text and its span in `body`. */
-function leadingHeadingMatch(body: string): { text: string; start: number; end: number } | null {
+function leadingHeadingMatch(
+  body: string,
+): { text: string; start: number; end: number } | null {
   const start = body.search(/\S/);
   if (start < 0) return null;
   const lineEnd = body.indexOf("\n", start);
@@ -213,14 +236,19 @@ function leadingHeadingMatch(body: string): { text: string; start: number; end: 
 }
 
 /** The heading a doc opens with ("" for a bare `#`), or null when the content starts with anything else. */
-export function leadingHeading(content: string | null | undefined): string | null {
+export function leadingHeading(
+  content: string | null | undefined,
+): string | null {
   if (!content) return null;
   const m = leadingHeadingMatch(splitFrontmatter(content).body);
   return m ? m.text.slice(0, 200) : null;
 }
 
 /** The stored `title` for a body: its leading heading, else the given fallback. */
-export function docTitleFromContent(content: string | null | undefined, fallback: string): string {
+export function docTitleFromContent(
+  content: string | null | undefined,
+  fallback: string,
+): string {
   return leadingHeading(content) || fallback;
 }
 
@@ -229,7 +257,10 @@ export function docTitleFromContent(content: string | null | undefined, fallback
  * there. The body below the heading is untouched. An empty title is written
  * as a bare `#` so the editor still opens on a (placeholder) title block.
  */
-export function setTitleHeading(title: string, content: string | null | undefined): string {
+export function setTitleHeading(
+  title: string,
+  content: string | null | undefined,
+): string {
   const { front, body } = splitFrontmatter(content ?? "");
   const heading = title.trim() ? `# ${title.trim()}` : "#";
   const m = leadingHeadingMatch(body);
@@ -239,8 +270,13 @@ export function setTitleHeading(title: string, content: string | null | undefine
 }
 
 /** Content that opens with a heading, adding `# title` only when it has none. */
-export function withTitleHeading(title: string, content: string | null | undefined): string {
-  return leadingHeading(content) !== null ? (content as string) : setTitleHeading(title, content);
+export function withTitleHeading(
+  title: string,
+  content: string | null | undefined,
+): string {
+  return leadingHeading(content) !== null
+    ? (content as string)
+    : setTitleHeading(title, content);
 }
 
 /** The body without its leading heading, for surfaces that print the title themselves. */
@@ -262,7 +298,10 @@ const DOC_MENTION_OUTLINE_MAX = 40;
  * the agent can read exactly the section it needs (`cast doc show <id> 52:`).
  * Line numbers count raw content lines from 1, the way `cast doc show` pages.
  */
-export function docMentionExcerpt(content: string, maxChars: number = DOC_MENTION_EXCERPT_CHARS): {
+export function docMentionExcerpt(
+  content: string,
+  maxChars: number = DOC_MENTION_EXCERPT_CHARS,
+): {
   excerpt: string;
   truncated: boolean;
   shownLines: number;
@@ -271,31 +310,59 @@ export function docMentionExcerpt(content: string, maxChars: number = DOC_MENTIO
 } {
   const lines = content.split("\n");
   if (content.length <= maxChars) {
-    return { excerpt: content, truncated: false, shownLines: lines.length, totalLines: lines.length, outline: [] };
+    return {
+      excerpt: content,
+      truncated: false,
+      shownLines: lines.length,
+      totalLines: lines.length,
+      outline: [],
+    };
   }
   let used = 0;
   let shownLines = 0;
-  while (shownLines < lines.length && used + lines[shownLines].length + 1 <= maxChars) {
+  while (
+    shownLines < lines.length &&
+    used + lines[shownLines].length + 1 <= maxChars
+  ) {
     used += lines[shownLines].length + 1;
     shownLines++;
   }
   // One enormous first line still shows something.
-  const excerpt = shownLines > 0 ? lines.slice(0, shownLines).join("\n") : lines[0].slice(0, maxChars);
+  const excerpt =
+    shownLines > 0
+      ? lines.slice(0, shownLines).join("\n")
+      : lines[0].slice(0, maxChars);
   const outline: Array<{ line: number; heading: string }> = [];
   let inFence = false;
-  for (let i = shownLines; i < lines.length && outline.length < DOC_MENTION_OUTLINE_MAX; i++) {
+  for (
+    let i = shownLines;
+    i < lines.length && outline.length < DOC_MENTION_OUTLINE_MAX;
+    i++
+  ) {
     if (/^\s*(```|~~~)/.test(lines[i])) inFence = !inFence;
     if (inFence) continue;
     const m = lines[i].match(/^(#{1,4})[ \t]+(.+?)[ \t#]*$/);
-    if (m) outline.push({ line: i + 1, heading: `${m[1]} ${m[2].slice(0, 120)}` });
+    if (m)
+      outline.push({ line: i + 1, heading: `${m[1]} ${m[2].slice(0, 120)}` });
   }
-  return { excerpt, truncated: true, shownLines: Math.max(shownLines, 1), totalLines: lines.length, outline };
+  return {
+    excerpt,
+    truncated: true,
+    shownLines: Math.max(shownLines, 1),
+    totalLines: lines.length,
+    outline,
+  };
 }
 
 /** The excerpt rendered as markdown, ending with how to read the rest. */
-export function renderDocMentionExcerpt(content: string, docId: string, maxChars?: number): string {
+export function renderDocMentionExcerpt(
+  content: string,
+  docId: string,
+  maxChars?: number,
+): string {
   const ex = docMentionExcerpt(content, maxChars);
-  if (!ex.truncated) return `${ex.excerpt.trim()}\n\n> \`cast doc show ${docId}\` for the document\n`;
+  if (!ex.truncated)
+    return `${ex.excerpt.trim()}\n\n> \`cast doc show ${docId}\` for the document\n`;
   let md = `${ex.excerpt.trimEnd()}\n\n… excerpt ends at line ${ex.shownLines} of ${ex.totalLines}.`;
   if (ex.outline.length) {
     md += ` Sections after it:\n\n${ex.outline.map((o) => `- L${o.line} ${o.heading}`).join("\n")}\n`;

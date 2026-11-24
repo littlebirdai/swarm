@@ -1,6 +1,22 @@
-import { useState, useRef, useCallback, useMemo, type MutableRefObject } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  type MutableRefObject,
+} from "react";
 import { useQuery, useMutation } from "convex/react";
-import { Bot, ChevronDown, ChevronLeft, FileText, Flag, Keyboard, Plug, Plus, Settings } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  ChevronLeft,
+  FileText,
+  Flag,
+  Keyboard,
+  Plug,
+  Plus,
+  Settings,
+} from "lucide-react";
 import { useInboxStore } from "../store/inboxStore";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -59,20 +75,28 @@ function groupFiles(files: ConfigFile[]): Section[] {
       f.type !== "agent" &&
       f.type !== "command" &&
       f.type !== "skill" &&
-      f.type !== "prompt"
+      f.type !== "prompt",
   );
   const globalCodex = files.filter(
     (f) =>
       f.tool === "codex" &&
       !f.type.startsWith("project_") &&
       f.type !== "command" &&
-      f.type !== "skill"
+      f.type !== "skill",
   );
   const agents = files.filter((f) => f.type === "agent");
-  const claudeCommands = files.filter((f) => f.type === "command" && f.tool === "claude");
-  const codexPrompts = files.filter((f) => (f.type === "command" || f.type === "prompt") && f.tool === "codex");
-  const claudeSkills = files.filter((f) => f.type === "skill" && f.tool === "claude");
-  const codexSkills = files.filter((f) => f.type === "skill" && f.tool === "codex");
+  const claudeCommands = files.filter(
+    (f) => f.type === "command" && f.tool === "claude",
+  );
+  const codexPrompts = files.filter(
+    (f) => (f.type === "command" || f.type === "prompt") && f.tool === "codex",
+  );
+  const claudeSkills = files.filter(
+    (f) => f.type === "skill" && f.tool === "claude",
+  );
+  const codexSkills = files.filter(
+    (f) => f.type === "skill" && f.tool === "codex",
+  );
 
   // Group project files by project name
   const projectFiles = files.filter((f) => f.type.startsWith("project_"));
@@ -88,13 +112,17 @@ function groupFiles(files: ConfigFile[]): Section[] {
       key: "global_claude",
       label: "Claude Code — Global",
       tool: "claude",
-      files: globalClaude.sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9)),
+      files: globalClaude.sort(
+        (a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9),
+      ),
     },
     {
       key: "global_codex",
       label: "Codex — Global",
       tool: "codex",
-      files: globalCodex.sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9)),
+      files: globalCodex.sort(
+        (a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9),
+      ),
     },
     {
       key: "agents",
@@ -128,20 +156,26 @@ function groupFiles(files: ConfigFile[]): Section[] {
       canCreate: true,
       createDir: "~/.claude/skills",
     },
-    ...(codexSkills.length > 0 ? [{
-      key: "skills" as SectionKey,
-      label: "Skills (Codex)",
-      tool: "codex" as const,
-      files: codexSkills,
-      canCreate: false,
-    }] : []),
+    ...(codexSkills.length > 0
+      ? [
+          {
+            key: "skills" as SectionKey,
+            label: "Skills (Codex)",
+            tool: "codex" as const,
+            files: codexSkills,
+            canCreate: false,
+          },
+        ]
+      : []),
   ];
 
   for (const [proj, pfiles] of projectMap) {
     sections.push({
       key: `project` as SectionKey,
       label: proj,
-      files: pfiles.sort((a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9)),
+      files: pfiles.sort(
+        (a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9),
+      ),
     });
   }
 
@@ -149,7 +183,10 @@ function groupFiles(files: ConfigFile[]): Section[] {
 }
 
 /** A daemon answer's JSON, or null with a toast when it is not JSON: a malformed answer never takes the page down. */
-function parseAnswer<T>(raw: string | null | undefined, what: string): T | null {
+function parseAnswer<T>(
+  raw: string | null | undefined,
+  what: string,
+): T | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as T;
@@ -179,16 +216,23 @@ function ToolBadge({ tool }: { tool: "claude" | "codex" }) {
 
 function useConfigCommand() {
   const sendCommand = useMutation(api.users.sendConfigCommand);
-  const [commandId, setCommandId] = useState<Id<"daemon_commands"> | null>(null);
+  const [commandId, setCommandId] = useState<Id<"daemon_commands"> | null>(
+    null,
+  );
   const result = useQuery(
     api.users.getCommandResult,
-    commandId ? { command_id: commandId } : "skip"
+    commandId ? { command_id: commandId } : "skip",
   );
 
   const send = useCallback(
     async (
-      command: "config_list" | "config_read" | "config_write" | "config_create" | "config_delete",
-      args?: object
+      command:
+        | "config_list"
+        | "config_read"
+        | "config_write"
+        | "config_create"
+        | "config_delete",
+      args?: object,
     ) => {
       const res = await sendCommand({
         command,
@@ -197,7 +241,7 @@ function useConfigCommand() {
       setCommandId(res.command_id);
       return res.command_id;
     },
-    [sendCommand]
+    [sendCommand],
   );
 
   const reset = useCallback(() => setCommandId(null), []);
@@ -247,7 +291,10 @@ function FileEditor({
       return;
     }
     if (readCmd.result.executed_at) {
-      const parsed = parseAnswer<{ content?: string | null }>(readCmd.result.result, "the read");
+      const parsed = parseAnswer<{ content?: string | null }>(
+        readCmd.result.result,
+        "the read",
+      );
       const text = parsed?.content ?? "";
       setContent(text);
       setDraft(text);
@@ -279,7 +326,10 @@ function FileEditor({
     if (saving) return;
     setSaving(true);
     sentRef.current = draft;
-    await writeCmd.send("config_write", { file_path: file.path, content: draft });
+    await writeCmd.send("config_write", {
+      file_path: file.path,
+      content: draft,
+    });
   }, [draft, file.path, saving, writeCmd]);
 
   const handleKeyDown = useCallback(
@@ -301,14 +351,21 @@ function FileEditor({
         });
       }
     },
-    [draft, handleSave]
+    [draft, handleSave],
   );
 
   const isDirty = !loading && draft !== content;
   // While the draft is unsaved, every exit the page offers comes here first.
   useWatchEffect(() => {
-    leaveGuard.current = isDirty ? (next) => { setLeaving(() => next); return true; } : null;
-    return () => { leaveGuard.current = null; };
+    leaveGuard.current = isDirty
+      ? (next) => {
+          setLeaving(() => next);
+          return true;
+        }
+      : null;
+    return () => {
+      leaveGuard.current = null;
+    };
   }, [isDirty, leaveGuard]);
 
   const ext = file.path.split(".").pop() ?? "md";
@@ -329,26 +386,74 @@ function FileEditor({
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-mono text-sol-text truncate">{file.label}</span>
+            <span className="text-sm font-mono text-sol-text truncate">
+              {file.label}
+            </span>
             <ToolBadge tool={file.tool} />
-            <span className="text-mark font-mono text-sol-text-dim uppercase">{lang}</span>
+            <span className="text-mark font-mono text-sol-text-dim uppercase">
+              {lang}
+            </span>
             {isDirty && (
-              <span className="w-1.5 h-1.5 rounded-full bg-sol-amber" title="Unsaved changes" />
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-sol-amber"
+                title="Unsaved changes"
+              />
             )}
           </div>
-          <div className="text-meta font-mono text-sol-text-dim truncate mt-0.5">{file.path}</div>
+          <div className="text-meta font-mono text-sol-text-dim truncate mt-0.5">
+            {file.path}
+          </div>
         </div>
         {leaving ? (
-          <div className="flex shrink-0 items-center gap-2" role="group" aria-label="Unsaved changes">
+          <div
+            className="flex shrink-0 items-center gap-2"
+            role="group"
+            aria-label="Unsaved changes"
+          >
             <span className="text-xs text-sol-orange">Unsaved changes</span>
-            <Button type="button" variant="ghost" size="xs" onClick={() => setLeaving(null)} autoFocus>Keep editing</Button>
-            <Button type="button" variant="ghost" size="xs" onClick={() => { const next = leaving; setLeaving(null); leaveGuard.current = null; next(); }}>Discard</Button>
-            <Button type="button" variant="secondary" size="xs" disabled={saving} onClick={() => { afterSaveRef.current = leaving; void handleSave(); }}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setLeaving(null)}
+              autoFocus
+            >
+              Keep editing
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                const next = leaving;
+                setLeaving(null);
+                leaveGuard.current = null;
+                next();
+              }}
+            >
+              Discard
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="xs"
+              disabled={saving}
+              onClick={() => {
+                afterSaveRef.current = leaving;
+                void handleSave();
+              }}
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         ) : (
-          <Button type="button" variant="secondary" size="xs" onClick={handleSave} disabled={!isDirty || saving || loading}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            onClick={handleSave}
+            disabled={!isDirty || saving || loading}
+          >
             {saving ? "Saving…" : "Save"}
           </Button>
         )}
@@ -358,7 +463,9 @@ function FileEditor({
       <div className="flex-1 overflow-hidden relative">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <span className="text-sol-text-dim font-mono text-sm animate-pulse">Loading…</span>
+            <span className="text-sol-text-dim font-mono text-sm animate-pulse">
+              Loading…
+            </span>
           </div>
         ) : (
           <div className="flex h-full">
@@ -413,7 +520,9 @@ function NewFileModal({
   const handleCreate = async () => {
     if (!name.trim() || creating) return;
     setCreating(true);
-    const filename = name.trim().endsWith(".md") ? name.trim() : `${name.trim()}.md`;
+    const filename = name.trim().endsWith(".md")
+      ? name.trim()
+      : `${name.trim()}.md`;
     await createCmd.send("config_create", {
       dir_path: dir,
       filename,
@@ -427,20 +536,31 @@ function NewFileModal({
     if (createCmd.result.error) {
       toast.error(`Failed to create: ${createCmd.result.error}`);
     } else {
-      const parsed = parseAnswer<{ path?: string }>(createCmd.result.result, "the create");
+      const parsed = parseAnswer<{ path?: string }>(
+        createCmd.result.result,
+        "the create",
+      );
       if (parsed?.path) onCreated(parsed.path);
       onClose();
     }
   }, [createCmd.result]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <div
         className="bg-sol-bg border border-sol-border rounded-lg p-5 w-80 max-w-[calc(100vw-2rem)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-sm font-medium text-sol-text mb-1">New file</div>
-        <div className="text-meta font-mono text-sol-text-dim mb-4 truncate" title={dir}>{dir}</div>
+        <div
+          className="text-meta font-mono text-sol-text-dim mb-4 truncate"
+          title={dir}
+        >
+          {dir}
+        </div>
         <input
           autoFocus
           type="text"
@@ -455,10 +575,23 @@ function NewFileModal({
           className="w-full px-3 py-2 bg-sol-bg-alt border border-sol-border rounded text-sm font-mono text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-cyan"
         />
         <div className="flex gap-2 mt-3">
-          <Button type="button" variant="ghost" size="xs" className="flex-1" onClick={onClose}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="flex-1"
+            onClick={onClose}
+          >
             Cancel
           </Button>
-          <Button type="button" variant="secondary" size="xs" className="flex-1" onClick={handleCreate} disabled={!name.trim() || creating}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            className="flex-1"
+            onClick={handleCreate}
+            disabled={!name.trim() || creating}
+          >
             {creating ? "Creating…" : "Create"}
           </Button>
         </div>
@@ -471,18 +604,25 @@ export function ConfigEditor() {
   const [selectedFile, setSelectedFile] = useState<ConfigFile | null>(null);
   const [allFiles, setAllFiles] = useState<ConfigFile[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [newFileDir, setNewFileDir] = useState<{ dir: string; tool: "claude" | "codex" } | null>(null);
+  const [newFileDir, setNewFileDir] = useState<{
+    dir: string;
+    tool: "claude" | "codex";
+  } | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["global_claude", "global_codex", "agents", "commands", "skills"])
+    new Set(["global_claude", "global_codex", "agents", "commands", "skills"]),
   );
   // Every way out of the open file asks it first (LeaveGuard).
-  const leaveGuard: LeaveGuard = useRef<((next: () => void) => boolean) | null>(null);
+  const leaveGuard: LeaveGuard = useRef<((next: () => void) => boolean) | null>(
+    null,
+  );
   const guarded = (next: () => void) => {
     if (!leaveGuard.current?.(next)) next();
   };
 
   const [deskClass, setDeskClass] = useState("");
-  useMountEffect(() => { setDeskClass(desktopHeaderClass()); });
+  useMountEffect(() => {
+    setDeskClass(desktopHeaderClass());
+  });
   const sentPathsRef = useRef<string | null>(null);
   const listCmd = useConfigCommand();
   const projects = useQuery(api.projects.webList, {});
@@ -518,7 +658,10 @@ export function ConfigEditor() {
       return;
     }
     if (listCmd.result.result) {
-      const files = parseAnswer<ConfigFile[]>(listCmd.result.result, "the file list");
+      const files = parseAnswer<ConfigFile[]>(
+        listCmd.result.result,
+        "the file list",
+      );
       if (files) setAllFiles(files);
     }
   }, [listCmd.result]);
@@ -543,17 +686,29 @@ export function ConfigEditor() {
     listCmd.send("config_list", { project_paths: projectPaths });
     // Select the new file
     const label = path.split("/").pop() ?? path;
-    const tool = path.includes("/.claude/") || path.includes("/.codex/prompts")
-      ? path.includes(".codex") ? "codex" : "claude"
-      : "claude";
-    guarded(() => setSelectedFile({ path, type: "agent", label: label.replace(/\.md$/, ""), tool }));
+    const tool =
+      path.includes("/.claude/") || path.includes("/.codex/prompts")
+        ? path.includes(".codex")
+          ? "codex"
+          : "claude"
+        : "claude";
+    guarded(() =>
+      setSelectedFile({
+        path,
+        type: "agent",
+        label: label.replace(/\.md$/, ""),
+        tool,
+      }),
+    );
   };
 
   return (
     <div className="flex h-full min-h-0 bg-sol-bg text-sol-text">
       {/* Sidebar */}
       <aside className="w-60 shrink-0 border-r border-sol-border flex flex-col overflow-hidden">
-        <div className={`px-4 py-4 border-b border-sol-border flex items-center gap-3 ${deskClass}`}>
+        <div
+          className={`px-4 py-4 border-b border-sol-border flex items-center gap-3 ${deskClass}`}
+        >
           <span className="text-sm font-medium text-sol-text">Config</span>
         </div>
 
@@ -561,18 +716,24 @@ export function ConfigEditor() {
           {allFiles === null && !loadError && (
             <div className="px-4 py-8 text-center">
               <span className="text-sol-text-dim font-mono text-xs animate-pulse">
-                {listCmd.commandId && !listCmd.result ? "Waiting for the daemon…" : "Loading…"}
+                {listCmd.commandId && !listCmd.result
+                  ? "Waiting for the daemon…"
+                  : "Loading…"}
               </span>
             </div>
           )}
 
           {loadError && (
-            <div className="px-4 py-4 text-xs text-sol-red font-mono break-words">{loadError}</div>
+            <div className="px-4 py-4 text-xs text-sol-red font-mono break-words">
+              {loadError}
+            </div>
           )}
 
           {sections.map((section) => {
             const sectionId = `${section.key}-${section.label}`;
-            const isExpanded = expandedSections.has(sectionId) || expandedSections.has(section.key);
+            const isExpanded =
+              expandedSections.has(sectionId) ||
+              expandedSections.has(section.key);
 
             return (
               <div key={sectionId} className="mb-1">
@@ -582,7 +743,10 @@ export function ConfigEditor() {
                   aria-expanded={isExpanded}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-sol-bg-alt transition-colors group"
                 >
-                  <ChevronDown aria-hidden className={`w-3 h-3 text-sol-text-dim transition-transform shrink-0 ${isExpanded ? "" : "-rotate-90"}`} />
+                  <ChevronDown
+                    aria-hidden
+                    className={`w-3 h-3 text-sol-text-dim transition-transform shrink-0 ${isExpanded ? "" : "-rotate-90"}`}
+                  />
                   <span className="text-mark font-mono uppercase tracking-wider text-sol-text-muted flex-1 truncate">
                     {section.label}
                   </span>
@@ -599,7 +763,9 @@ export function ConfigEditor() {
                         <button
                           type="button"
                           key={file.path}
-                          onClick={() => { if (!isActive) guarded(() => setSelectedFile(file)); }}
+                          onClick={() => {
+                            if (!isActive) guarded(() => setSelectedFile(file));
+                          }}
                           aria-current={isActive ? "true" : undefined}
                           className={`w-full flex items-center gap-2 px-3 py-1.5 text-left rounded-md mx-1 transition-colors ${
                             isActive
@@ -614,7 +780,9 @@ export function ConfigEditor() {
                               : file.label}
                           </span>
                           {file.tool === "codex" && (
-                            <span className="text-meta font-mono text-sol-green shrink-0">cx</span>
+                            <span className="text-meta font-mono text-sol-green shrink-0">
+                              cx
+                            </span>
                           )}
                         </button>
                       );
@@ -673,12 +841,17 @@ export function ConfigEditor() {
 /** The file's kind, as an icon beside its name. */
 function FileIcon({ type }: { type: string }) {
   const Icon =
-    type === "agent" || type === "project_agent" ? Bot
-    : type === "settings" || type === "project_settings" ? Settings
-    : type === "keybindings" ? Keyboard
-    : type === "mcp" ? Plug
-    : type === "rules" ? Flag
-    : FileText;
+    type === "agent" || type === "project_agent"
+      ? Bot
+      : type === "settings" || type === "project_settings"
+        ? Settings
+        : type === "keybindings"
+          ? Keyboard
+          : type === "mcp"
+            ? Plug
+            : type === "rules"
+              ? Flag
+              : FileText;
   return <Icon aria-hidden className="w-3 h-3 shrink-0 text-sol-text-dim" />;
 }
 
@@ -686,10 +859,16 @@ function EmptyEditor() {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-8">
       <div className="w-12 h-12 rounded-xl bg-sol-bg-alt border border-sol-border flex items-center justify-center mb-4">
-        <FileText aria-hidden className="w-6 h-6 text-sol-text-dim" strokeWidth={1.5} />
+        <FileText
+          aria-hidden
+          className="w-6 h-6 text-sol-text-dim"
+          strokeWidth={1.5}
+        />
       </div>
       <p className="text-sol-text-muted text-sm">Select a file to edit</p>
-      <p className="text-sol-text-dim text-xs mt-1 font-mono">CLAUDE.md · AGENTS.md · settings.json · agents · commands</p>
+      <p className="text-sol-text-dim text-xs mt-1 font-mono">
+        CLAUDE.md · AGENTS.md · settings.json · agents · commands
+      </p>
     </div>
   );
 }

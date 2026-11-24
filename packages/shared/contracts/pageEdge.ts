@@ -22,6 +22,12 @@ export function pageServingOrigin(origin: string): string {
  *  and the browser keep for the whole revocation bound, since a newer version
  *  is a new address. One builder, so a frame the app preloads and a copy the
  *  CLI warms after publishing are the address the embed asks for. */
-export function pageEmbedUrl(origin: string, slug: string, theme: string, keys = "", version?: number): string {
+export function pageEmbedUrl(
+  origin: string,
+  slug: string,
+  theme: string,
+  keys = "",
+  version?: number,
+): string {
   return `${pageServingOrigin(origin)}/cli/a/${slug}?theme=${theme}&embed=1${keys}${version ? `&r=v${version}` : ""}`;
 }

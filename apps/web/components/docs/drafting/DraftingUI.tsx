@@ -14,7 +14,12 @@ import {
 import { KeyCap } from "../../KeyboardShortcutsHelp";
 import { isMac } from "../../../shortcuts";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { ContextMenu, CtxItem, CtxSeparator, useContextMenu } from "../../ui/context-menu";
+import {
+  ContextMenu,
+  CtxItem,
+  CtxSeparator,
+  useContextMenu,
+} from "../../ui/context-menu";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import {
   addAlternativesAt,
@@ -53,7 +58,9 @@ function Keys({ keys }: { keys: string[] }) {
   return (
     <span className="flex items-center gap-[3px]">
       {keys.map((k, i) => (
-        <KeyCap key={i} size="xs">{k}</KeyCap>
+        <KeyCap key={i} size="xs">
+          {k}
+        </KeyCap>
       ))}
     </span>
   );
@@ -92,14 +99,33 @@ function DotsGlyph({ on }: { on: boolean }) {
   return (
     <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden>
       <circle cx="3" cy="4" r="2.4" fill="currentColor" />
-      <circle cx="9" cy="4" r="2.4" fill="currentColor" opacity={on ? 1 : 0.55} />
-      <circle cx="15" cy="4" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.1" />
+      <circle
+        cx="9"
+        cy="4"
+        r="2.4"
+        fill="currentColor"
+        opacity={on ? 1 : 0.55}
+      />
+      <circle
+        cx="15"
+        cy="4"
+        r="2.1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+      />
     </svg>
   );
 }
 
 /** Word count, the drafting toggle, the Lab and the Overflow, for the doc page's title bar. */
-export function DraftingControls({ d, overflowEnabled }: { d: Drafting; overflowEnabled: boolean }) {
+export function DraftingControls({
+  d,
+  overflowEnabled,
+}: {
+  d: Drafting;
+  overflowEnabled: boolean;
+}) {
   useEditorTick(d.editor);
   const editor = d.editor;
   let words = 0;
@@ -107,9 +133,12 @@ export function DraftingControls({ d, overflowEnabled }: { d: Drafting; overflow
   if (editor && !editor.isDestroyed) {
     words = wordsWithout(editor.state);
     const { from, to, empty } = editor.state.selection;
-    if (!empty) selected = wordCount(editor.state.doc.textBetween(from, to, " "));
+    if (!empty)
+      selected = wordCount(editor.state.doc.textBetween(from, to, " "));
   }
-  const overflowLines = d.overflow.trim() ? d.overflow.trim().split(/\n\s*\n/).length : 0;
+  const overflowLines = d.overflow.trim()
+    ? d.overflow.trim().split(/\n\s*\n/).length
+    : 0;
   return (
     <div className="flex items-center gap-1 mr-1">
       <button
@@ -122,7 +151,11 @@ export function DraftingControls({ d, overflowEnabled }: { d: Drafting; overflow
       <button
         onClick={() => d.setEnabled(!d.enabled)}
         className={`draft-toggle p-1.5 rounded-md transition-colors ${d.enabled ? "draft-toggle--on" : "text-sol-text-dim hover:text-sol-text"}`}
-        title={d.enabled ? "Drafting on: alternatives, ghosts and Lab marks show" : "Drafting: alternatives, ghosts and the Lab"}
+        title={
+          d.enabled
+            ? "Drafting on: alternatives, ghosts and Lab marks show"
+            : "Drafting: alternatives, ghosts and the Lab"
+        }
         aria-pressed={d.enabled}
       >
         <DotsGlyph on={d.enabled} />
@@ -135,7 +168,9 @@ export function DraftingControls({ d, overflowEnabled }: { d: Drafting; overflow
           title="Overflow: writing kept beside the doc"
         >
           <PanelRight className="w-3.5 h-3.5" />
-          {overflowLines > 0 && <span className="tabular-nums text-meta">{overflowLines}</span>}
+          {overflowLines > 0 && (
+            <span className="tabular-nums text-meta">{overflowLines}</span>
+          )}
         </button>
       )}
     </div>
@@ -148,8 +183,14 @@ function LabMenu({ d }: { d: Drafting }) {
   const [open, setOpen] = useState(false);
   useEditorTick(d.editor);
   const editor = d.editor;
-  const hasFlags = !!editor && !editor.isDestroyed && editor.view.dom.querySelector("span[data-flag]") !== null;
-  const hasTrim = !!editor && !editor.isDestroyed && ghostRanges(editor.state, TRIM_REASON).length > 0;
+  const hasFlags =
+    !!editor &&
+    !editor.isDestroyed &&
+    editor.view.dom.querySelector("span[data-flag]") !== null;
+  const hasTrim =
+    !!editor &&
+    !editor.isDestroyed &&
+    ghostRanges(editor.state, TRIM_REASON).length > 0;
   const running = d.labRun;
 
   const runTrim = async (level: TrimLevel, label: string) => {
@@ -161,7 +202,13 @@ function LabMenu({ d }: { d: Drafting }) {
     const result = await d.lab({ tool: "trim", level }, label);
     if (!result || result.tool !== "trim" || editor.isDestroyed) return;
     const after = wordsWithout(editor.state, TRIM_REASON);
-    d.setTrim({ level, label, before, after, applied: ghostRanges(editor.state, TRIM_REASON).length });
+    d.setTrim({
+      level,
+      label,
+      before,
+      after,
+      applied: ghostRanges(editor.state, TRIM_REASON).length,
+    });
   };
 
   return (
@@ -171,27 +218,61 @@ function LabMenu({ d }: { d: Drafting }) {
           className={`draft-lab-button px-2 py-[3px] mx-0.5 text-meta tracking-[0.14em] rounded-md border border-dashed transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             running ? "draft-accent" : "text-sol-text-dim hover:text-sol-text"
           } ${modernButton({ variant: "outline", size: "xs" }, "modern:border-dashed")}`}
-          title={d.labBlock ?? "The Lab: marks and trims that never rewrite your words"}
+          title={
+            d.labBlock ??
+            "The Lab: marks and trims that never rewrite your words"
+          }
           disabled={!!d.labBlock}
         >
-          {running ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "LAB"}
+          {running ? (
+            <Loader2 className="w-3 h-3 animate-spin inline" />
+          ) : (
+            "LAB"
+          )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="draft-lab w-[420px] p-1.5">
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        className="draft-lab w-[420px] p-1.5"
+      >
         <div className="px-2.5 pt-1.5 pb-2 text-meta text-sol-text-dim">
-          Marks and trims. Nothing here rewrites you: findings mark the text, trims fade what could go.
+          Marks and trims. Nothing here rewrites you: findings mark the text,
+          trims fade what could go.
         </div>
-        <LabItem disabled={!!running} onClick={() => { setOpen(false); d.setEnabled(true); void d.lab({ tool: "typos" }, "Typos"); }}>
+        <LabItem
+          disabled={!!running}
+          onClick={() => {
+            setOpen(false);
+            d.setEnabled(true);
+            void d.lab({ tool: "typos" }, "Typos");
+          }}
+        >
           Fix punctuation and typos
-          <span className="ml-auto text-meta text-sol-text-dim">as versions you can flip back</span>
+          <span className="ml-auto text-meta text-sol-text-dim">
+            as versions you can flip back
+          </span>
         </LabItem>
         {LAB_FLAGS.map((f) => (
-          <LabItem key={f.flag} disabled={!!running} onClick={() => { setOpen(false); d.setEnabled(true); void d.lab({ tool: "flag", flag: f.flag }, f.label); }}>
+          <LabItem
+            key={f.flag}
+            disabled={!!running}
+            onClick={() => {
+              setOpen(false);
+              d.setEnabled(true);
+              void d.lab({ tool: "flag", flag: f.flag }, f.label);
+            }}
+          >
             {f.label}
           </LabItem>
         ))}
         {hasFlags && (
-          <LabItem onClick={() => { if (editor) clearFlags(editor.view); setOpen(false); }}>
+          <LabItem
+            onClick={() => {
+              if (editor) clearFlags(editor.view);
+              setOpen(false);
+            }}
+          >
             <span className="text-sol-text-dim">Clear the marks</span>
           </LabItem>
         )}
@@ -200,7 +281,11 @@ function LabMenu({ d }: { d: Drafting }) {
             label="Original"
             sub={hasTrim ? "undo trim" : ""}
             active={!hasTrim}
-            onClick={() => { if (editor) reviveAll(editor.view, TRIM_REASON); d.setTrim(null); setOpen(false); }}
+            onClick={() => {
+              if (editor) reviveAll(editor.view, TRIM_REASON);
+              d.setTrim(null);
+              setOpen(false);
+            }}
           />
           {LAB_TRIMS.map((t) => (
             <TrimButton
@@ -218,7 +303,15 @@ function LabMenu({ d }: { d: Drafting }) {
   );
 }
 
-function LabItem({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+function LabItem({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       disabled={disabled}
@@ -230,13 +323,27 @@ function LabItem({ children, onClick, disabled }: { children: React.ReactNode; o
   );
 }
 
-function TrimButton({ label, sub, active, disabled, onClick }: { label: string; sub: string; active: boolean; disabled?: boolean; onClick: () => void }) {
+function TrimButton({
+  label,
+  sub,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  sub: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       disabled={disabled}
       onClick={onClick}
       className={`flex flex-col items-center justify-center rounded-lg px-1 py-1.5 border text-meta leading-tight transition-colors disabled:opacity-40 ${
-        active ? "draft-trim--on" : "border-sol-border/40 text-sol-text-muted hover:text-sol-text hover:border-sol-border"
+        active
+          ? "draft-trim--on"
+          : "border-sol-border/40 text-sol-text-muted hover:text-sol-text hover:border-sol-border"
       } modern:min-h-control-md modern:rounded-control`}
     >
       <span>{label}</span>
@@ -255,13 +362,20 @@ export function TrimBar({ d }: { d: Drafting }) {
   const after = wordsWithout(editor.state, TRIM_REASON);
   const before = d.trim.before;
   const pct = before ? Math.round(((after - before) / before) * 100) : 0;
-  const close = () => { setWalk(null); d.setTrim(null); };
+  const close = () => {
+    setWalk(null);
+    d.setTrim(null);
+  };
   if (!ranges.length) {
     return (
       <div className="draft-trimbar">
-        <span className="font-semibold text-sol-text whitespace-nowrap">{d.trim.label}</span>
+        <span className="font-semibold text-sol-text whitespace-nowrap">
+          {d.trim.label}
+        </span>
         <span className="text-sol-text-dim">Nothing left to cut.</span>
-        <button className="draft-chip" onClick={close}>Done</button>
+        <button className="draft-chip" onClick={close}>
+          Done
+        </button>
       </div>
     );
   }
@@ -282,21 +396,60 @@ export function TrimBar({ d }: { d: Drafting }) {
       </div>
       {step === null ? (
         <>
-          <span className="text-sol-text-dim truncate">Faded words would go. Click one to keep it.</span>
+          <span className="text-sol-text-dim truncate">
+            Faded words would go. Click one to keep it.
+          </span>
           <div className="flex gap-1.5 ml-auto">
-            <button className="draft-chip" onClick={() => { cutRanges(editor.view, ranges); close(); }}>Make the cuts</button>
-            <button className="draft-chip" onClick={() => show(0)}>Walk through</button>
-            <button className="draft-chip" onClick={close}>Done</button>
+            <button
+              className="draft-chip"
+              onClick={() => {
+                cutRanges(editor.view, ranges);
+                close();
+              }}
+            >
+              Make the cuts
+            </button>
+            <button className="draft-chip" onClick={() => show(0)}>
+              Walk through
+            </button>
+            <button className="draft-chip" onClick={close}>
+              Done
+            </button>
           </div>
         </>
       ) : (
         <>
-          <span className="text-sol-text-dim tabular-nums">Cut {step + 1} of {ranges.length}</span>
+          <span className="text-sol-text-dim tabular-nums">
+            Cut {step + 1} of {ranges.length}
+          </span>
           <div className="flex gap-1.5 ml-auto">
-            <button className="draft-chip" onClick={() => { reviveAt(editor.view, ranges[step].from); show(step); }}>Keep</button>
-            <button className="draft-chip" onClick={() => { cutRanges(editor.view, [ranges[step]]); requestAnimationFrame(() => show(step)); }}>Cut</button>
-            <button className="draft-chip" onClick={() => show((step + 1) % ranges.length)}>Next</button>
-            <button className="draft-chip" onClick={() => setWalk(null)}>Stop</button>
+            <button
+              className="draft-chip"
+              onClick={() => {
+                reviveAt(editor.view, ranges[step].from);
+                show(step);
+              }}
+            >
+              Keep
+            </button>
+            <button
+              className="draft-chip"
+              onClick={() => {
+                cutRanges(editor.view, [ranges[step]]);
+                requestAnimationFrame(() => show(step));
+              }}
+            >
+              Cut
+            </button>
+            <button
+              className="draft-chip"
+              onClick={() => show((step + 1) % ranges.length)}
+            >
+              Next
+            </button>
+            <button className="draft-chip" onClick={() => setWalk(null)}>
+              Stop
+            </button>
           </div>
         </>
       )}
@@ -317,7 +470,10 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const editor = d.editor;
-  const focus = editor && !editor.isDestroyed ? draftingState(editor.state)?.focus ?? null : null;
+  const focus =
+    editor && !editor.isDestroyed
+      ? (draftingState(editor.state)?.focus ?? null)
+      : null;
 
   useWatchEffect(() => {
     if (d.panelOpen) requestAnimationFrame(() => inputRef.current?.focus());
@@ -327,17 +483,27 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
   if (!focus) {
     return (
       <aside className="draft-panel draft-panel--left">
-        <div className="text-[12px] text-sol-text-dim">Select a word, sentence or paragraph to try other versions of it.</div>
+        <div className="text-[12px] text-sol-text-dim">
+          Select a word, sentence or paragraph to try other versions of it.
+        </div>
         <PanelFooter onClose={d.closeAlternatives} />
       </aside>
     );
   }
   const { state, view } = editor;
   const run = altRangeAt(state, focus.from);
-  const exact = run && run.from === focus.from && run.to === focus.to ? run : null;
+  const exact =
+    run && run.from === focus.from && run.to === focus.to ? run : null;
   const shown = state.doc.textBetween(focus.from, focus.to, " ");
   const list: AltOption[] = exact
-    ? fullAltList({ alts: normalizeAlts(exact.mark.attrs.alts), at: exact.mark.attrs.at, ai: exact.mark.attrs.ai }, exact.text)
+    ? fullAltList(
+        {
+          alts: normalizeAlts(exact.mark.attrs.alts),
+          at: exact.mark.attrs.at,
+          ai: exact.mark.attrs.ai,
+        },
+        exact.text,
+      )
     : [{ t: shown }];
   const at = exact ? Math.min(exact.mark.attrs.at ?? 0, list.length - 1) : 0;
   const scope = scopeOf(state, focus);
@@ -347,7 +513,12 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
     const r = scopeRange(state, focus.from, next);
     if (!r) return;
     const existing = altRangeAt(state, r.from);
-    setDraftingFocus(editor, existing && existing.from <= r.from && existing.to >= r.to ? { from: existing.from, to: existing.to } : r);
+    setDraftingFocus(
+      editor,
+      existing && existing.from <= r.from && existing.to >= r.to
+        ? { from: existing.from, to: existing.to }
+        : r,
+    );
   };
 
   const add = () => {
@@ -358,7 +529,12 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
   };
 
   return (
-    <aside className="draft-panel draft-panel--left" onMouseDown={(e) => { if ((e.target as HTMLElement).tagName !== "INPUT") e.preventDefault(); }}>
+    <aside
+      className="draft-panel draft-panel--left"
+      onMouseDown={(e) => {
+        if ((e.target as HTMLElement).tagName !== "INPUT") e.preventDefault();
+      }}
+    >
       <div className="flex items-baseline gap-3 mb-3">
         {SCOPES.map((s) => (
           <button
@@ -373,17 +549,26 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
       <ul className="flex flex-col gap-0.5">
         {list.map((opt, i) => (
           <li key={`${i}:${opt.t}`} className="group flex items-start gap-2">
-            <span className="w-3 shrink-0 h-[22px] flex items-center justify-center" title={opt.ai ? "Written by AI" : i === 0 ? "Original" : "Yours"}>
+            <span
+              className="w-3 shrink-0 h-[22px] flex items-center justify-center"
+              title={opt.ai ? "Written by AI" : i === 0 ? "Original" : "Yours"}
+            >
               {opt.ai ? (
-                <Bot className={`w-3 h-3 ${i === at ? "draft-accent" : "text-sol-text-dim"}`} />
+                <Bot
+                  className={`w-3 h-3 ${i === at ? "draft-accent" : "text-sol-text-dim"}`}
+                />
               ) : (
-                <span className={`block rounded-full ${i === at ? "w-[6px] h-[6px] draft-accent-bg" : "w-[4px] h-[4px] bg-sol-text-dim/60"}`} />
+                <span
+                  className={`block rounded-full ${i === at ? "w-[6px] h-[6px] draft-accent-bg" : "w-[4px] h-[4px] bg-sol-text-dim/60"}`}
+                />
               )}
             </span>
             <button
               onClick={() => exact && pickAlternativeAt(view, focus.from, i)}
               className={`flex-1 text-left text-[13px] leading-snug py-0.5 rounded transition-colors ${
-                i === at ? "text-sol-text" : "text-sol-text-muted hover:text-sol-text"
+                i === at
+                  ? "text-sol-text"
+                  : "text-sol-text-muted hover:text-sol-text"
               }`}
             >
               {opt.t}
@@ -410,14 +595,20 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); add(); }
-          else if (e.key === "Escape") { e.preventDefault(); d.closeAlternatives(); }
-          else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !draft) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            d.closeAlternatives();
+          } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !draft) {
             e.preventDefault();
             cycleAlternativeAt(view, focus.from, e.key === "ArrowUp" ? -1 : 1);
           }
         }}
-        placeholder={list.length > 1 ? "Another version…" : `Another way to say it…`}
+        placeholder={
+          list.length > 1 ? "Another version…" : `Another way to say it…`
+        }
         className="draft-input mt-2"
       />
       <button
@@ -425,7 +616,8 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
         onClick={() => d.aiAlternatives(focus)}
         className="mt-2 self-start flex items-center gap-1.5 text-meta text-sol-text-dim hover:text-sol-text disabled:opacity-40 transition-colors"
       >
-        <Bot className="w-3 h-3" /> Suggest versions <Keys keys={[MOD, SHIFT, "G"]} />
+        <Bot className="w-3 h-3" /> Suggest versions{" "}
+        <Keys keys={[MOD, SHIFT, "G"]} />
       </button>
       <PanelFooter onClose={d.closeAlternatives} />
     </aside>
@@ -435,9 +627,19 @@ export function AlternativesPanel({ d }: { d: Drafting }) {
 function PanelFooter({ onClose }: { onClose: () => void }) {
   return (
     <div className="mt-auto pt-6 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta text-sol-text-dim">
-      <span className="flex items-center gap-1 whitespace-nowrap"><KeyCap size="xs">↵</KeyCap> adds</span>
-      <span className="flex items-center gap-1 whitespace-nowrap"><KeyCap size="xs">↑</KeyCap><KeyCap size="xs">↓</KeyCap> flips</span>
-      <button onClick={onClose} className="flex items-center gap-1 whitespace-nowrap hover:text-sol-text"><KeyCap size="xs">esc</KeyCap> closes</button>
+      <span className="flex items-center gap-1 whitespace-nowrap">
+        <KeyCap size="xs">↵</KeyCap> adds
+      </span>
+      <span className="flex items-center gap-1 whitespace-nowrap">
+        <KeyCap size="xs">↑</KeyCap>
+        <KeyCap size="xs">↓</KeyCap> flips
+      </span>
+      <button
+        onClick={onClose}
+        className="flex items-center gap-1 whitespace-nowrap hover:text-sol-text"
+      >
+        <KeyCap size="xs">esc</KeyCap> closes
+      </button>
     </div>
   );
 }
@@ -482,9 +684,14 @@ export function OverflowPanel({ d }: { d: Drafting }) {
     }
     const text = local.slice(a, b).trim();
     if (!text) return;
-    const paragraphs = text.split(/\n\s*\n/).map((p) => ({ type: "paragraph", content: [{ type: "text", text: p.replace(/\n/g, " ") }] }));
+    const paragraphs = text.split(/\n\s*\n/).map((p) => ({
+      type: "paragraph",
+      content: [{ type: "text", text: p.replace(/\n/g, " ") }],
+    }));
     editor.chain().focus().insertContent(paragraphs).run();
-    const rest = (local.slice(0, a) + local.slice(b)).replace(/\n{3,}/g, "\n\n").trim();
+    const rest = (local.slice(0, a) + local.slice(b))
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
     setLocal(rest);
     commit(rest);
   };
@@ -494,7 +701,11 @@ export function OverflowPanel({ d }: { d: Drafting }) {
     <aside className="draft-panel draft-panel--right">
       <div className="flex items-center mb-3">
         <span className="draft-scope draft-scope--on">Overflow</span>
-        <button onClick={() => d.setOverflowOpen(false)} className="ml-auto p-0.5 text-sol-text-dim hover:text-sol-text" title="Close">
+        <button
+          onClick={() => d.setOverflowOpen(false)}
+          className="ml-auto p-0.5 text-sol-text-dim hover:text-sol-text"
+          title="Close"
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -502,13 +713,27 @@ export function OverflowPanel({ d }: { d: Drafting }) {
         ref={ref}
         value={local}
         onChange={(e) => change(e.target.value)}
-        onFocus={() => { focused.current = true; }}
-        onBlur={() => { focused.current = false; commit(local); }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); moveIntoDoc(); }
-          if (e.key === "Escape") { e.preventDefault(); d.setOverflowOpen(false); d.editor?.commands.focus(); }
+        onFocus={() => {
+          focused.current = true;
         }}
-        placeholder={"Writing you want nearby but not in the doc: cuts, notes, words you like, an outline."}
+        onBlur={() => {
+          focused.current = false;
+          commit(local);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            moveIntoDoc();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            d.setOverflowOpen(false);
+            d.editor?.commands.focus();
+          }
+        }}
+        placeholder={
+          "Writing you want nearby but not in the doc: cuts, notes, words you like, an outline."
+        }
         className="draft-overflow flex-1"
         spellCheck
       />
@@ -537,17 +762,26 @@ export function useDraftingMenu(d: Drafting, overflowEnabled: boolean) {
     const { state, view } = editor;
     const hasSelection = !state.selection.empty;
     let range: Range | null = null;
-    if (hasSelection) range = { from: state.selection.from, to: state.selection.to };
-    else if (d.enabled || (e.target as HTMLElement).closest("span[data-ghost], span[data-alts]")) {
+    if (hasSelection)
+      range = { from: state.selection.from, to: state.selection.to };
+    else if (
+      d.enabled ||
+      (e.target as HTMLElement).closest("span[data-ghost], span[data-alts]")
+    ) {
       const pos = view.posAtCoords({ left: e.clientX, top: e.clientY })?.pos;
       if (pos != null) {
         const run = altRangeAt(state, pos);
-        range = run ? { from: run.from, to: run.to } : scopeRange(state, pos, "word");
+        range = run
+          ? { from: run.from, to: run.to }
+          : scopeRange(state, pos, "word");
       }
     }
     if (!range) return;
     const ghostType = state.schema.marks.draftGhost;
-    const ghosted = !!ghostType && (state.doc.rangeHasMark(range.from, range.to, ghostType) || !!(e.target as HTMLElement).closest("span[data-ghost]"));
+    const ghosted =
+      !!ghostType &&
+      (state.doc.rangeHasMark(range.from, range.to, ghostType) ||
+        !!(e.target as HTMLElement).closest("span[data-ghost]"));
     menu.open(e, { range, ghosted, hasSelection }, { force: true });
   };
 
@@ -556,19 +790,28 @@ export function useDraftingMenu(d: Drafting, overflowEnabled: boolean) {
       {(p) => {
         const editor = d.editor;
         if (!editor || editor.isDestroyed) return null;
-        const label = quoteLabel(editor.state.doc.textBetween(p.range.from, p.range.to, " "));
+        const label = quoteLabel(
+          editor.state.doc.textBetween(p.range.from, p.range.to, " "),
+        );
         return (
           <>
-            <CtxItem onSelect={() => d.openAlternatives(p.range)} trailing={<Keys keys={[MOD, SHIFT, "O"]} />}>
+            <CtxItem
+              onSelect={() => d.openAlternatives(p.range)}
+              trailing={<Keys keys={[MOD, SHIFT, "O"]} />}
+            >
               Alternatives for {label}
             </CtxItem>
-            <CtxItem onSelect={() => d.aiAlternatives(p.range)} trailing={<Keys keys={[MOD, SHIFT, "G"]} />}>
+            <CtxItem
+              onSelect={() => d.aiAlternatives(p.range)}
+              trailing={<Keys keys={[MOD, SHIFT, "G"]} />}
+            >
               AI alternatives for {label}
             </CtxItem>
             <CtxSeparator />
             <CtxItem
               onSelect={() => {
-                if (p.ghosted && !p.hasSelection) reviveAt(editor.view, p.range.from);
+                if (p.ghosted && !p.hasSelection)
+                  reviveAt(editor.view, p.range.from);
                 else {
                   editor.chain().setTextSelection(p.range).run();
                   toggleGhost(editor.view);
@@ -596,4 +839,3 @@ export function useDraftingMenu(d: Drafting, overflowEnabled: boolean) {
   );
   return { onContextMenu, element };
 }
-

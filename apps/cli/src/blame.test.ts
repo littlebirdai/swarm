@@ -71,9 +71,16 @@ const GIT_DEFAULT = `^c8219e9 (Al                   2026-06-10 03:26:08 -0400 1)
 describe("parseBlamePorcelain", () => {
   test("extracts lines, commit metadata, and boundary flag", () => {
     const parsed = parseBlamePorcelain(PORCELAIN);
-    expect(parsed.lines.map((l) => l.content)).toEqual(["one", "two", "three", "four-uncommitted"]);
+    expect(parsed.lines.map((l) => l.content)).toEqual([
+      "one",
+      "two",
+      "three",
+      "four-uncommitted",
+    ]);
     expect(parsed.lines.map((l) => l.finalLine)).toEqual([1, 2, 3, 4]);
-    const root = parsed.commits.get("c8219e945b7eba64dc69e07dd25052344d187c29")!;
+    const root = parsed.commits.get(
+      "c8219e945b7eba64dc69e07dd25052344d187c29",
+    )!;
     expect(root.author).toBe("Al");
     expect(root.boundary).toBe(true);
     expect(root.authorTime).toBe(1781076368);
@@ -84,8 +91,12 @@ describe("parseBlamePorcelain", () => {
 
 describe("formatGitDate", () => {
   test("renders in the author's timezone like git", () => {
-    expect(formatGitDate(1781076368, "-0400")).toBe("2026-06-10 03:26:08 -0400");
-    expect(formatGitDate(1766628673, "-0800")).toBe("2025-12-24 18:11:13 -0800");
+    expect(formatGitDate(1781076368, "-0400")).toBe(
+      "2026-06-10 03:26:08 -0400",
+    );
+    expect(formatGitDate(1766628673, "-0800")).toBe(
+      "2025-12-24 18:11:13 -0800",
+    );
     expect(formatGitDate(0, "+0000")).toBe("1970-01-01 00:00:00 +0000");
     expect(formatGitDate(3600, "+0530")).toBe("1970-01-01 06:30:00 +0530");
   });
@@ -103,25 +114,39 @@ describe("formatDefaultBlame", () => {
       bySha: new Map([
         [
           "0734898927ee6bfd79c0619b2b6cea59d2ba235f",
-          { conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv", title: "Organize commits" },
+          {
+            conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv",
+            title: "Organize commits",
+          },
         ],
       ]),
       byLine: new Map([
         [
           "four-uncommitted",
-          { conversation_id: "jx794j1m572w8abpms5vanx0ms88dvxv", title: "Model tooltip" },
+          {
+            conversation_id: "jx794j1m572w8abpms5vanx0ms88dvxv",
+            title: "Model tooltip",
+          },
         ],
       ]),
     };
     const out = formatDefaultBlame(parsed, resolution, 8);
     const lines = out.split("\n");
-    expect(lines[2]).toBe("07348989 (jx7bcds Organize commits 2026-06-10 03:26:08 -0400 3) three");
-    expect(lines[3]).toBe("00000000 (jx794j1 Model tooltip    2026-06-10 03:30:12 -0400 4) four-uncommitted");
+    expect(lines[2]).toBe(
+      "07348989 (jx7bcds Organize commits 2026-06-10 03:26:08 -0400 3) three",
+    );
+    expect(lines[3]).toBe(
+      "00000000 (jx794j1 Model tooltip    2026-06-10 03:30:12 -0400 4) four-uncommitted",
+    );
     // Unresolved lines keep the git author, padded to the new widest who.
-    expect(lines[0]).toBe("^c8219e9 (Al                       2026-06-10 03:26:08 -0400 1) one");
+    expect(lines[0]).toBe(
+      "^c8219e9 (Al                       2026-06-10 03:26:08 -0400 1) one",
+    );
     // Structure stays parseable by git-blame-shaped regexes.
     for (const line of lines) {
-      expect(line).toMatch(/^[\^0-9a-f]+ \(.+ \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{4} +\d+\) /);
+      expect(line).toMatch(
+        /^[\^0-9a-f]+ \(.+ \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{4} +\d+\) /,
+      );
     }
   });
 });
@@ -142,18 +167,29 @@ describe("rewriteFugitiveBlame", () => {
 
   const resolution: BlameResolution = {
     bySha: new Map([
-      ["cd2bb1509c85ca18c85f54c6358aface4f3398dd", { conversation_id: "jx7lic9", title: "License prep" }],
+      [
+        "cd2bb1509c85ca18c85f54c6358aface4f3398dd",
+        { conversation_id: "jx7lic9", title: "License prep" },
+      ],
     ]),
     byLine: new Map(),
   };
 
   test("swaps the author for the session label, preserving sha/lineno/code columns", () => {
-    const out = rewriteFugitiveBlame(STANDARD_TWO, parseBlamePorcelain(PORCELAIN_TWO), resolution);
+    const out = rewriteFugitiveBlame(
+      STANDARD_TWO,
+      parseBlamePorcelain(PORCELAIN_TWO),
+      resolution,
+    );
     const lines = out.split("\n");
     // Resolved line: author → session label; everything else byte-identical.
-    expect(lines[1]).toBe("cd2bb1509  5 (jx7lic9 License prep 2026-03-23 21:17:06 -0500  2)   \"license\": \"MIT\",");
+    expect(lines[1]).toBe(
+      'cd2bb1509  5 (jx7lic9 License prep 2026-03-23 21:17:06 -0500  2)   "license": "MIT",',
+    );
     // Unresolved line keeps its git author, re-padded to the new column width.
-    expect(lines[0]).toBe("bcc05bee7  1 (Ashot Petrosian      2025-12-24 18:11:13 -0800  1) {");
+    expect(lines[0]).toBe(
+      "bcc05bee7  1 (Ashot Petrosian      2025-12-24 18:11:13 -0800  1) {",
+    );
     // Author columns align (both whos padded to the same width).
     expect(lines[0].indexOf("2025")).toBe(lines[1].indexOf("2026"));
   });
@@ -161,23 +197,38 @@ describe("rewriteFugitiveBlame", () => {
   test("byLine (authoring session) wins over bySha (committing session)", () => {
     const withLine: BlameResolution = {
       bySha: resolution.bySha,
-      byLine: new Map([['"license": "MIT",', { conversation_id: "jx7auth", title: "Wrote it" }]]),
+      byLine: new Map([
+        [
+          '"license": "MIT",',
+          { conversation_id: "jx7auth", title: "Wrote it" },
+        ],
+      ]),
     };
-    const out = rewriteFugitiveBlame(STANDARD_TWO, parseBlamePorcelain(PORCELAIN_TWO), withLine);
+    const out = rewriteFugitiveBlame(
+      STANDARD_TWO,
+      parseBlamePorcelain(PORCELAIN_TWO),
+      withLine,
+    );
     expect(out.split("\n")[1]).toContain("jx7auth Wrote it");
   });
 
   test("with no resolutions the output is git-identical", () => {
-    expect(rewriteFugitiveBlame(STANDARD_TWO, parseBlamePorcelain(PORCELAIN_TWO), EMPTY_RESOLUTION)).toBe(
-      STANDARD_TWO,
-    );
+    expect(
+      rewriteFugitiveBlame(
+        STANDARD_TWO,
+        parseBlamePorcelain(PORCELAIN_TWO),
+        EMPTY_RESOLUTION,
+      ),
+    ).toBe(STANDARD_TWO);
   });
 
   test("a line-count mismatch returns real git's bytes untouched", () => {
     const oneLine = parseBlamePorcelain(
       `bcc05bee702a2ae1a58c6dc535b3fd6901a45759 1 1 1\nauthor X\nauthor-time 1\nauthor-tz +0000\nsummary s\nfilename p\n\t{\n`,
     );
-    expect(rewriteFugitiveBlame(STANDARD_TWO, oneLine, resolution)).toBe(STANDARD_TWO);
+    expect(rewriteFugitiveBlame(STANDARD_TWO, oneLine, resolution)).toBe(
+      STANDARD_TWO,
+    );
   });
 });
 
@@ -193,14 +244,38 @@ describe("groupBlameBySession", () => {
     const parsed = parseBlamePorcelain(PORC);
     const resolution: BlameResolution = {
       bySha: new Map([
-        ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", { conversation_id: "jx7newAAA000", title: "New work", author_name: "Sam Smith" }],
-        ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", { conversation_id: "jx7oldBBB000", title: "Old work", author_name: "Al" }],
+        [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          {
+            conversation_id: "jx7newAAA000",
+            title: "New work",
+            author_name: "Sam Smith",
+          },
+        ],
+        [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          {
+            conversation_id: "jx7oldBBB000",
+            title: "Old work",
+            author_name: "Al",
+          },
+        ],
       ]),
       byLine: new Map([
-        ["four-uncommitted-line", { conversation_id: "jx7newAAA000", title: "New work", author_name: "Sam Smith" }],
+        [
+          "four-uncommitted-line",
+          {
+            conversation_id: "jx7newAAA000",
+            title: "New work",
+            author_name: "Sam Smith",
+          },
+        ],
       ]),
     };
-    const { entries, attributed, total } = groupBlameBySession(parsed, resolution);
+    const { entries, attributed, total } = groupBlameBySession(
+      parsed,
+      resolution,
+    );
     expect(total).toBe(4);
     expect(attributed).toBe(4);
     // jx7new owns lines 1,2,4 (3 lines), jx7old owns line 3 (1 line).
@@ -210,15 +285,22 @@ describe("groupBlameBySession", () => {
     expect(entries[0].authorName).toBe("Sam Smith");
     // newestSha = the session's newest COMMITTED sha (line 4 is uncommitted, so
     // it falls back to the 'aaa…' commit, not the zero sha).
-    expect(entries[0].newestSha).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    expect(entries[0].newestSha).toBe(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
     expect(entries[1].lineCount).toBe(1);
     expect(entries[1].firstLine).toBe(3);
-    expect(entries[1].newestSha).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    expect(entries[1].newestSha).toBe(
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    );
   });
 
   test("unresolved lines are excluded from attribution", () => {
     const parsed = parseBlamePorcelain(PORC);
-    const { entries, attributed, total } = groupBlameBySession(parsed, EMPTY_RESOLUTION);
+    const { entries, attributed, total } = groupBlameBySession(
+      parsed,
+      EMPTY_RESOLUTION,
+    );
     expect(entries).toEqual([]);
     expect(attributed).toBe(0);
     expect(total).toBe(4);
@@ -228,20 +310,27 @@ describe("groupBlameBySession", () => {
 describe("conversationDeepLink", () => {
   test("anchors on the originating message when present", () => {
     expect(
-      conversationDeepLink({ conversation_id: "jx7azjfFULLID", title: "x", message_id: "k17abc" }),
+      conversationDeepLink({
+        conversation_id: "jx7azjfFULLID",
+        title: "x",
+        message_id: "k17abc",
+      }),
     ).toBe("https://codecast.sh/conversation/jx7azjfFULLID#msg-k17abc");
   });
   test("falls back to the bare conversation url without a message id", () => {
-    expect(conversationDeepLink({ conversation_id: "jx7azjfFULLID", title: "x" })).toBe(
-      "https://codecast.sh/conversation/jx7azjfFULLID",
-    );
+    expect(
+      conversationDeepLink({ conversation_id: "jx7azjfFULLID", title: "x" }),
+    ).toBe("https://codecast.sh/conversation/jx7azjfFULLID");
   });
 });
 
 describe("sessionLabel", () => {
   test("short id + title, parens stripped, long titles truncated", () => {
     expect(
-      sessionLabel({ conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv", title: "Fix (auth) flow" }),
+      sessionLabel({
+        conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv",
+        title: "Fix (auth) flow",
+      }),
     ).toBe("jx7bcds Fix auth flow");
     const long = sessionLabel({
       conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv",
@@ -305,7 +394,13 @@ describe("augmentPorcelain", () => {
       ],
     ]),
     byLine: new Map([
-      ["four-uncommitted", { conversation_id: "jx794j1m572w8abpms5vanx0ms88dvxv", title: "Model tooltip" }],
+      [
+        "four-uncommitted",
+        {
+          conversation_id: "jx794j1m572w8abpms5vanx0ms88dvxv",
+          title: "Model tooltip",
+        },
+      ],
     ]),
   };
 
@@ -314,7 +409,9 @@ describe("augmentPorcelain", () => {
     const lines = out.split("\n");
     const summaryIdx = lines.indexOf("summary two");
     expect(lines[summaryIdx + 1]).toBe("codecast-session jx7bcds");
-    expect(lines[summaryIdx + 2]).toBe("codecast-conversation jx7bcdsm572w8abpms5vanx0ms88dvxv");
+    expect(lines[summaryIdx + 2]).toBe(
+      "codecast-conversation jx7bcdsm572w8abpms5vanx0ms88dvxv",
+    );
     expect(lines[summaryIdx + 3]).toBe("codecast-title Organize commits");
     expect(lines[summaryIdx + 4]).toBe(
       "codecast-url https://codecast.sh/conversation/jx7bcdsm572w8abpms5vanx0ms88dvxv",
@@ -349,7 +446,11 @@ describe("augmentPorcelain", () => {
       bySha: new Map([
         [
           "0734898927ee6bfd79c0619b2b6cea59d2ba235f",
-          { conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv", title: "Organize commits", author_name: "Samvit Ramadurgam" },
+          {
+            conversation_id: "jx7bcdsm572w8abpms5vanx0ms88dvxv",
+            title: "Organize commits",
+            author_name: "Samvit Ramadurgam",
+          },
         ],
       ]),
       byLine: new Map(),
@@ -358,7 +459,9 @@ describe("augmentPorcelain", () => {
     const i = lines.indexOf("summary two");
     expect(lines[i + 3]).toBe("codecast-title Organize commits");
     expect(lines[i + 4]).toBe("codecast-author Samvit Ramadurgam");
-    expect(lines[i + 5]).toBe("codecast-url https://codecast.sh/conversation/jx7bcdsm572w8abpms5vanx0ms88dvxv");
+    expect(lines[i + 5]).toBe(
+      "codecast-url https://codecast.sh/conversation/jx7bcdsm572w8abpms5vanx0ms88dvxv",
+    );
   });
 });
 
@@ -369,7 +472,12 @@ describe("readSessionTrailers", () => {
     const os = await import("node:os");
     const path = await import("node:path");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-trailer-"));
-    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=T", "-c", "user.email=t@t", ...args], { cwd: dir, encoding: "utf-8" }).trim();
+    const git = (...args: string[]) =>
+      execFileSync(
+        "git",
+        ["-c", "user.name=T", "-c", "user.email=t@t", ...args],
+        { cwd: dir, encoding: "utf-8" },
+      ).trim();
     try {
       git("init", "-q");
       const id = "jx7bq5kz13a2eypp4a6vdqznas7zvrw2";
@@ -378,16 +486,32 @@ describe("readSessionTrailers", () => {
       git("commit", "-q", "-m", "plain");
       const plain = git("rev-parse", "HEAD");
       fs.writeFileSync(path.join(dir, "a.txt"), "two\n");
-      git("commit", "-q", "-am", "trailed", "--trailer", `Codecast-Session: https://codecast.sh/conversation/${id}`);
+      git(
+        "commit",
+        "-q",
+        "-am",
+        "trailed",
+        "--trailer",
+        `Codecast-Session: https://codecast.sh/conversation/${id}`,
+      );
       const trailed = git("rev-parse", "HEAD");
       const found = await readSessionTrailers([plain, trailed], dir);
       expect([...found]).toEqual([[trailed, id]]);
       expect((await readSessionTrailers(["f".repeat(40)], dir)).size).toBe(0);
       // One commit git cannot read (a shallow clone) costs only that commit.
-      expect([...(await readSessionTrailers(["f".repeat(40), trailed], dir))]).toEqual([[trailed, id]]);
+      expect([
+        ...(await readSessionTrailers(["f".repeat(40), trailed], dir)),
+      ]).toEqual([[trailed, id]]);
       // More shas than fit on a command line (ARG_MAX is 1 MiB on macOS).
-      const many = [...Array.from({ length: 30_000 }, (_, i) => i.toString(16).padStart(40, "0")), trailed];
-      expect([...(await readSessionTrailers(many, dir))]).toEqual([[trailed, id]]);
+      const many = [
+        ...Array.from({ length: 30_000 }, (_, i) =>
+          i.toString(16).padStart(40, "0"),
+        ),
+        trailed,
+      ];
+      expect([...(await readSessionTrailers(many, dir))]).toEqual([
+        [trailed, id],
+      ]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -401,7 +525,12 @@ describe("resolveFromParsed and the overlap lines", () => {
     const os = await import("node:os");
     const path = await import("node:path");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-overlap-"));
-    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=T", "-c", "user.email=t@t", ...args], { cwd: dir, encoding: "utf-8" }).trim();
+    const git = (...args: string[]) =>
+      execFileSync(
+        "git",
+        ["-c", "user.name=T", "-c", "user.email=t@t", ...args],
+        { cwd: dir, encoding: "utf-8" },
+      ).trim();
     const realFetch = globalThis.fetch;
     const bodies: any[] = [];
     try {
@@ -412,26 +541,63 @@ describe("resolveFromParsed and the overlap lines", () => {
       git("commit", "-q", "-m", "plain");
       const plain = git("rev-parse", "HEAD");
       fs.appendFileSync(file, "const b = 2;\n");
-      git("commit", "-q", "-am", "trailed", "--trailer", "Codecast-Session: https://codecast.sh/conversation/jx7bq5kz13a2eypp4a6vdqznas7zvrw2");
-      const parsed = parseBlamePorcelain(git("blame", "--porcelain", "--", file) + "\n");
+      git(
+        "commit",
+        "-q",
+        "-am",
+        "trailed",
+        "--trailer",
+        "Codecast-Session: https://codecast.sh/conversation/jx7bq5kz13a2eypp4a6vdqznas7zvrw2",
+      );
+      const parsed = parseBlamePorcelain(
+        git("blame", "--porcelain", "--", file) + "\n",
+      );
 
       let calls = 0;
       globalThis.fetch = (async (_url: string, init: RequestInit) => {
         bodies.push(JSON.parse(String(init.body)));
         calls++;
         // An older backend's closed validator: every try with `lines` fails.
-        const refused = bodies[bodies.length - 1].commits.some((c: any) => c.lines);
-        return new Response(JSON.stringify(refused ? { error: "Internal error" } : { resolved: { [plain]: { conversation_id: "c", title: "Writer", via: "overlap" } } }), { status: refused ? 500 : 200 });
+        const refused = bodies[bodies.length - 1].commits.some(
+          (c: any) => c.lines,
+        );
+        return new Response(
+          JSON.stringify(
+            refused
+              ? { error: "Internal error" }
+              : {
+                  resolved: {
+                    [plain]: {
+                      conversation_id: "c",
+                      title: "Writer",
+                      via: "overlap",
+                    },
+                  },
+                },
+          ),
+          { status: refused ? 500 : 200 },
+        );
       }) as any;
 
-      const resolution = await resolveFromParsed(parsed, file, { auth_token: "t", convex_url: "https://x.convex.cloud" });
+      const resolution = await resolveFromParsed(parsed, file, {
+        auth_token: "t",
+        convex_url: "https://x.convex.cloud",
+      });
       const first = bodies[0].commits;
-      expect(first.find((c: any) => c.sha === plain).lines).toEqual(["const a = 1;"]);
+      expect(first.find((c: any) => c.sha === plain).lines).toEqual([
+        "const a = 1;",
+      ]);
       expect(first.find((c: any) => c.sha !== plain).lines).toBeUndefined();
-      expect(bodies[bodies.length - 1].commits.every((c: any) => c.lines === undefined)).toBe(true);
+      expect(
+        bodies[bodies.length - 1].commits.every(
+          (c: any) => c.lines === undefined,
+        ),
+      ).toBe(true);
       expect(calls).toBeGreaterThan(1);
       expect(resolution.bySha.get(plain)?.via).toBe("overlap");
-      expect(augmentPorcelain(git("blame", "--porcelain", "--", file), resolution)).toContain("codecast-via overlap");
+      expect(
+        augmentPorcelain(git("blame", "--porcelain", "--", file), resolution),
+      ).toContain("codecast-via overlap");
     } finally {
       globalThis.fetch = realFetch;
       fs.rmSync(dir, { recursive: true, force: true });

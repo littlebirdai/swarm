@@ -26,30 +26,64 @@ export interface ReaskPlan {
  * a gate the graph no longer has and no station was named to pick it up at.
  */
 /** The run row as the server holds it, and the graph a runner picking it up here would read: the stations as they are now. */
-export async function currentRunGraph(deps: PublishDeps, runId: string): Promise<{ got: any; graph: import("./types.js").WorkflowGraph | null }> {
-  const got = await apiPost(deps, "/cli/workflow-runs/get", { run_id: runId }, { read: true, exitOnError: false }).catch(() => null);
+export async function currentRunGraph(
+  deps: PublishDeps,
+  runId: string,
+): Promise<{ got: any; graph: import("./types.js").WorkflowGraph | null }> {
+  const got = await apiPost(
+    deps,
+    "/cli/workflow-runs/get",
+    { run_id: runId },
+    { read: true, exitOnError: false },
+  ).catch(() => null);
   const { graphForDaemonRun } = await import("./daemonGraph.js");
   const { deviceId } = await import("../remote/device.js");
-  return { got, graph: got?.run ? graphForDaemonRun({ ...got.run, fresh_branch: true }, got.workflow, got.run.project_path || process.cwd(), deviceId(), true) : null };
+  return {
+    got,
+    graph: got?.run
+      ? graphForDaemonRun(
+          { ...got.run, fresh_branch: true },
+          got.workflow,
+          got.run.project_path || process.cwd(),
+          deviceId(),
+          true,
+        )
+      : null,
+  };
 }
 
-export async function prepareReask(deps: PublishDeps, runId: string, ref: string, at?: string): Promise<ReaskPlan> {
+export async function prepareReask(
+  deps: PublishDeps,
+  runId: string,
+  ref: string,
+  at?: string,
+): Promise<ReaskPlan> {
   const { got, graph } = await currentRunGraph(deps, runId);
-  const gate: string | undefined = got?.run?.gate_node_id || (got?.run?.status === "failed" ? got.run.current_node_id : undefined) || undefined;
+  const gate: string | undefined =
+    got?.run?.gate_node_id ||
+    (got?.run?.status === "failed" ? got.run.current_node_id : undefined) ||
+    undefined;
   if (at && graph) {
     const { stationOf } = await import("./resumeFailed.js");
     at = stationOf(graph, at);
   }
-  if (!at && gate && graph && !graph.nodes.has(gate)) throw new Error(`${ref} waits at ${gate}, which its graph no longer has: pick it up with --at <station>`);
+  if (!at && gate && graph && !graph.nodes.has(gate))
+    throw new Error(
+      `${ref} waits at ${gate}, which its graph no longer has: pick it up with --at <station>`,
+    );
   // Stopped last, so a refusal above leaves the run waiting as it was.
   await stopRunner(runId, ref);
-  const start = graph ? [...graph.nodes.values()].find((n) => n.type === "start") : undefined;
+  const start = graph
+    ? [...graph.nodes.values()].find((n) => n.type === "start")
+    : undefined;
   return {
     run: got?.run ?? null,
     ...(at ? { at } : {}),
     gate,
     asker: (gate && graph?.nodes.get(gate)?.asker) || undefined,
-    entry: start ? graph!.edges.find((e) => e.from === start.id)?.to : undefined,
+    entry: start
+      ? graph!.edges.find((e) => e.from === start.id)?.to
+      : undefined,
   };
 }
 
@@ -59,6 +93,8 @@ export async function stopRunner(runId: string, ref: string): Promise<void> {
   const pid = liveRunnerPid(runId);
   if (!pid) return;
   process.kill(pid, "SIGTERM");
-  for (let i = 0; i < 50 && liveRunnerPid(runId); i++) await new Promise((r) => setTimeout(r, 100));
-  if (liveRunnerPid(runId)) throw new Error(`The runner on ${ref} (pid ${pid}) did not stop`);
+  for (let i = 0; i < 50 && liveRunnerPid(runId); i++)
+    await new Promise((r) => setTimeout(r, 100));
+  if (liveRunnerPid(runId))
+    throw new Error(`The runner on ${ref} (pid ${pid}) did not stop`);
 }

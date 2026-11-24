@@ -18,24 +18,35 @@ import {
   type Evidence,
 } from "@codecast/shared/search";
 
-export { contentMatchesSearch, contentMatchesAnyTerm, relevanceOf, type ParsedTerms, type Evidence };
+export {
+  contentMatchesSearch,
+  contentMatchesAnyTerm,
+  relevanceOf,
+  type ParsedTerms,
+  type Evidence,
+};
 export const parseSearchTerms = parseQueryTerms;
 
 export function conversationMatchesAllTerms(
   messages: Array<{ content?: string | null }>,
-  terms: { phrases: string[]; words: string[] }
+  terms: { phrases: string[]; words: string[] },
 ): boolean {
-  return contentMatchesSearch(messages.map((m) => m.content || "").join(" "), terms);
+  return contentMatchesSearch(
+    messages.map((m) => m.content || "").join(" "),
+    terms,
+  );
 }
 
 // Pool messages grouped by conversation, keeping each message that holds any
 // term so a match across several messages still counts and every snippet is
 // at hand. rankConversationsByCoverage then decides which groups qualify.
-export function groupMessagesByConversation<M extends { content?: string | null; role: string; conversation_id: { toString(): string } }>(
-  pool: M[],
-  terms: ParsedTerms,
-  userOnly = false,
-): Map<string, M[]> {
+export function groupMessagesByConversation<
+  M extends {
+    content?: string | null;
+    role: string;
+    conversation_id: { toString(): string };
+  },
+>(pool: M[], terms: ParsedTerms, userOnly = false): Map<string, M[]> {
   const groups = new Map<string, M[]>();
   for (const msg of pool) {
     if (userOnly && msg.role !== "user") continue;
@@ -59,10 +70,15 @@ export type RankedConversation<M> = {
   scores: number[];
 };
 
-type RankableMessage = { content?: string | null; role?: string; tool_results_count?: number };
+type RankableMessage = {
+  content?: string | null;
+  role?: string;
+  tool_results_count?: number;
+};
 
 // A user row that carries tool results is the harness talking, not the person.
-const isOwnText = (m: RankableMessage) => m.role === "user" && !m.tool_results_count;
+const isOwnText = (m: RankableMessage) =>
+  m.role === "user" && !m.tool_results_count;
 
 // Which conversations qualify, best coverage first. Quoted phrases stay
 // required. Short word queries (≤2) keep exact AND semantics; longer queries
@@ -73,12 +89,18 @@ const isOwnText = (m: RankableMessage) => m.role === "user" && !m.tool_results_c
 // the caller has the conversation's own fields to add.
 export function rankConversationsByCoverage<M extends RankableMessage>(
   groups: Map<string, M[]>,
-  terms: ParsedTerms
+  terms: ParsedTerms,
 ): Array<RankedConversation<M>> {
   const ranked: Array<RankedConversation<M>> = [];
   for (const [convId, messages] of groups) {
     const evidence = emptyEvidence(terms);
-    const scores = messages.map((m) => addEvidence(evidence, m.content, terms, { own: isOwnText(m), message: true })?.score ?? 0);
+    const scores = messages.map(
+      (m) =>
+        addEvidence(evidence, m.content, terms, {
+          own: isOwnText(m),
+          message: true,
+        })?.score ?? 0,
+    );
     const coverage = coverageOf(evidence, terms);
     if (coverage === null) continue;
     ranked.push({ convId, messages, coverage, evidence, scores });
@@ -100,7 +122,8 @@ export function evidenceWithFields(
     pairs: [...ranked.evidence.pairs],
     phrases: [...ranked.evidence.phrases],
   };
-  for (const field of fields) addEvidence(evidence, field, terms, { own: true });
+  for (const field of fields)
+    addEvidence(evidence, field, terms, { own: true });
   return evidence;
 }
 
@@ -125,13 +148,19 @@ export function partialCoverage(
   rows: Array<{ missing: string[] }>,
   terms: ParsedTerms,
 ): { words: string[]; missing_everywhere: string[] } | null {
-  if (rows.length === 0 || rows.some((r) => r.missing.length === 0)) return null;
-  const missing_everywhere = terms.words.filter((w) => rows.every((r) => r.missing.includes(w)));
+  if (rows.length === 0 || rows.some((r) => r.missing.length === 0))
+    return null;
+  const missing_everywhere = terms.words.filter((w) =>
+    rows.every((r) => r.missing.includes(w)),
+  );
   return { words: terms.words, missing_everywhere };
 }
 
 /** The messages that show the query best, best first; ties keep pool order. */
-export function bestMessages<M>(ranked: { messages: M[]; scores: number[] }, limit: number): M[] {
+export function bestMessages<M>(
+  ranked: { messages: M[]; scores: number[] },
+  limit: number,
+): M[] {
   return ranked.messages
     .map((m, i) => ({ m, score: ranked.scores[i] ?? 0, i }))
     .sort((a, b) => b.score - a.score || a.i - b.i)
@@ -152,8 +181,13 @@ type SearchableConversation = {
 };
 
 export function searchFieldsOf(conv: SearchableConversation): string[] {
-  return [conv.title, conv.subtitle, conv.idle_summary, conv.first_prompt, ...(conv.earlier_titles ?? [])]
-    .filter((f): f is string => !!f);
+  return [
+    conv.title,
+    conv.subtitle,
+    conv.idle_summary,
+    conv.first_prompt,
+    ...(conv.earlier_titles ?? []),
+  ].filter((f): f is string => !!f);
 }
 
 /** The session's beginnings that answer the query, for a result row to show
@@ -162,20 +196,31 @@ export function originMatch(
   conv: SearchableConversation,
   terms: ParsedTerms,
 ): { started_as?: string; earlier_titles?: string[] } | undefined {
-  const started = conv.first_prompt && contentMatchesAnyTerm(conv.first_prompt, terms)
-    ? snippetAround(conv.first_prompt, terms, 200)
-    : undefined;
-  const earlier = (conv.earlier_titles ?? []).filter((t) => t !== conv.title && contentMatchesAnyTerm(t, terms));
+  const started =
+    conv.first_prompt && contentMatchesAnyTerm(conv.first_prompt, terms)
+      ? snippetAround(conv.first_prompt, terms, 200)
+      : undefined;
+  const earlier = (conv.earlier_titles ?? []).filter(
+    (t) => t !== conv.title && contentMatchesAnyTerm(t, terms),
+  );
   if (!started && earlier.length === 0) return undefined;
-  return { ...(started ? { started_as: started } : {}), ...(earlier.length ? { earlier_titles: earlier } : {}) };
+  return {
+    ...(started ? { started_as: started } : {}),
+    ...(earlier.length ? { earlier_titles: earlier } : {}),
+  };
 }
 
 const EARLIER_TITLES_KEPT = 6;
 /** A session's earlier titles once `next` replaces its current one: distinct,
  *  oldest dropped first. undefined when the title is not changing. */
-export function earlierTitlesAfter(conv: { title?: string | null; earlier_titles?: string[] | null }, next: string): string[] | undefined {
+export function earlierTitlesAfter(
+  conv: { title?: string | null; earlier_titles?: string[] | null },
+  next: string,
+): string[] | undefined {
   const current = conv.title?.trim();
   if (!current || current === next.trim()) return undefined;
-  const kept = (conv.earlier_titles ?? []).filter((t) => t !== current && t !== next.trim());
+  const kept = (conv.earlier_titles ?? []).filter(
+    (t) => t !== current && t !== next.trim(),
+  );
   return [...kept, current].slice(-EARLIER_TITLES_KEPT);
 }

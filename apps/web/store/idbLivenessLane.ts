@@ -36,36 +36,57 @@ export function connectLivenessLane(deps: LivenessLaneDeps) {
 
 function scheduleLivenessFlush(state: any) {
   livenessState = state;
-  if (!livenessTimer) livenessTimer = setTimeout(flushLivenessWrites, LIVENESS_FLUSH_MS);
+  if (!livenessTimer)
+    livenessTimer = setTimeout(flushLivenessWrites, LIVENESS_FLUSH_MS);
 }
 
 /** Whether `next` differs from the row on disk only in `live` fields. */
-function onlyLiveFieldsChanged(onDisk: any, next: any, live: ReadonlySet<string>): boolean {
+function onlyLiveFieldsChanged(
+  onDisk: any,
+  next: any,
+  live: ReadonlySet<string>,
+): boolean {
   if (!onDisk || !next || onDisk === next) return false;
-  for (const field in next) if (next[field] !== onDisk[field] && !live.has(field) && !sameValue(next[field], onDisk[field])) return false;
-  for (const field in onDisk) if (!(field in next) && !live.has(field)) return false;
+  for (const field in next)
+    if (
+      next[field] !== onDisk[field] &&
+      !live.has(field) &&
+      !sameValue(next[field], onDisk[field])
+    )
+      return false;
+  for (const field in onDisk)
+    if (!(field in next) && !live.has(field)) return false;
   return true;
 }
 
 // A meta key's live paths as a tree: `null` marks a live field, a nested
 // tree the live fields inside it ("people.counts" → people → counts).
 type LiveTree = Map<string, LiveTree | null>;
-const META_LIVE: Record<string, { tree: LiveTree; rowKeyAt: (path: string) => string }> = Object.fromEntries(
+const META_LIVE: Record<
+  string,
+  { tree: LiveTree; rowKeyAt: (path: string) => string }
+> = Object.fromEntries(
   Object.entries(META_LIVE_FIELDS).map(([key, { fields, rowKey }]) => {
     const tree: LiveTree = new Map();
     for (const path of fields) {
       const parts = path.split(".");
       let node = tree;
       parts.forEach((part, i) => {
-        if (i === parts.length - 1) { node.set(part, null); return; }
+        if (i === parts.length - 1) {
+          node.set(part, null);
+          return;
+        }
         let next = node.get(part);
         if (!next) node.set(part, (next = new Map()));
         node = next;
       });
     }
-    const rowKeyAt = typeof rowKey === "string" ? () => rowKey : (path: string) => rowKey[path] ?? "_id";
+    const rowKeyAt =
+      typeof rowKey === "string"
+        ? () => rowKey
+        : (path: string) => rowKey[path] ?? "_id";
     return [key, { tree, rowKeyAt }];
-  })
+  }),
 );
 
 /**
@@ -73,12 +94,19 @@ const META_LIVE: Record<string, { tree: LiveTree; rowKeyAt: (path: string) => st
  * paths changed, list rows matched by their path's row key in any order), or
  * "durable". `path` is where this value sits ("people.sessions").
  */
-function liveChange(onDisk: any, next: any, tree: LiveTree, rowKeyAt: (path: string) => string, path = ""): "same" | "live" | "durable" {
+function liveChange(
+  onDisk: any,
+  next: any,
+  tree: LiveTree,
+  rowKeyAt: (path: string) => string,
+  path = "",
+): "same" | "live" | "durable" {
   if (onDisk === next) return "same";
   if (Array.isArray(onDisk) && Array.isArray(next)) {
     if (onDisk.length !== next.length) return "durable";
     const rowKey = rowKeyAt(path);
-    const idOf = (row: any) => (row && typeof row === "object" ? row[rowKey] ?? row._id : undefined);
+    const idOf = (row: any) =>
+      row && typeof row === "object" ? (row[rowKey] ?? row._id) : undefined;
     const byId = new Map<unknown, any>();
     for (const row of onDisk) {
       const id = idOf(row);
@@ -95,7 +123,14 @@ function liveChange(onDisk: any, next: any, tree: LiveTree, rowKeyAt: (path: str
     }
     return moved;
   }
-  if (!onDisk || !next || typeof onDisk !== "object" || typeof next !== "object" || Array.isArray(onDisk) || Array.isArray(next)) {
+  if (
+    !onDisk ||
+    !next ||
+    typeof onDisk !== "object" ||
+    typeof next !== "object" ||
+    Array.isArray(onDisk) ||
+    Array.isArray(next)
+  ) {
     return "durable";
   }
   let moved: "same" | "live" = "same";
@@ -107,7 +142,13 @@ function liveChange(onDisk: any, next: any, tree: LiveTree, rowKeyAt: (path: str
     }
     const inner = tree.get(field);
     if (inner) {
-      const sub = liveChange(onDisk[field], next[field], inner, rowKeyAt, path ? `${path}.${field}` : field);
+      const sub = liveChange(
+        onDisk[field],
+        next[field],
+        inner,
+        rowKeyAt,
+        path ? `${path}.${field}` : field,
+      );
       if (sub === "durable") return "durable";
       if (sub === "same") continue;
     }
@@ -146,7 +187,9 @@ export function flushLivenessWrites() {
     if (!table || !shadow || !data) continue;
     const puts: any[] = [];
     for (const id of ids) {
-      const row = Object.prototype.hasOwnProperty.call(data, id) ? data[id] : undefined;
+      const row = Object.prototype.hasOwnProperty.call(data, id)
+        ? data[id]
+        : undefined;
       // Gone since (its delete was written), or already written by a later change.
       if (row === undefined || shadow.get(id) === row) continue;
       puts.push(row);
@@ -159,16 +202,22 @@ export function flushLivenessWrites() {
   db.transaction("rw", [...writes.map((w) => w.table), db.meta], async () => {
     for (const { table, puts } of writes) await table.bulkPut(puts);
     for (const row of metaPuts) await db.meta.put(row);
-    if (writeSyncMeta) await db.meta.put({ key: "syncMeta", value: state.syncMeta });
+    if (writeSyncMeta)
+      await db.meta.put({ key: "syncMeta", value: state.syncMeta });
   }).catch(() => {});
 }
-
 
 /**
  * Splits a collection write's patched `ids`: a row whose change touches only
  * liveFields waits in the lane, and the rest are returned to be written now.
  */
-export function holdLivenessRows(key: string, prevShadow: Map<string, any> | undefined, ids: Set<string> | null, data: any, state: any): Set<string> | null {
+export function holdLivenessRows(
+  key: string,
+  prevShadow: Map<string, any> | undefined,
+  ids: Set<string> | null,
+  data: any,
+  state: any,
+): Set<string> | null {
   const live = COLLECTION_LIVE_FIELDS[key];
   if (prevShadow && ids && live) {
     const now = new Set<string>();
@@ -204,7 +253,15 @@ export function holdLiveMeta(key: string, state: any): boolean {
   const live = META_LIVE[key];
   if (!live) return false;
   // A change in liveness fields only waits for the liveness flush; any other change takes this value now.
-  if (lastPersistedMeta.has(key) && liveChange(lastPersistedMeta.get(key), state[key], live.tree, live.rowKeyAt) === "live") {
+  if (
+    lastPersistedMeta.has(key) &&
+    liveChange(
+      lastPersistedMeta.get(key),
+      state[key],
+      live.tree,
+      live.rowKeyAt,
+    ) === "live"
+  ) {
     livenessMeta.add(key);
     scheduleLivenessFlush(state);
     return true;

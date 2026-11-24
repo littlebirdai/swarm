@@ -4,7 +4,12 @@
 // publish) onto index.ts's static graph (bench/bootGraph.guard.test.ts).
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { fmt } from "./colors.js";
-import { loadWorkspaceRoster, resolveWorkspaceForRead, resolveWorkspaceForWrite, workspaceScope } from "./resolveWorkspace.js";
+import {
+  loadWorkspaceRoster,
+  resolveWorkspaceForRead,
+  resolveWorkspaceForWrite,
+  workspaceScope,
+} from "./resolveWorkspace.js";
 import { LineProfileError, loadLineProfile } from "./lineProfile.js";
 
 function fail(message: string): never {
@@ -18,7 +23,10 @@ const cwd = () => process.env.CODECAST_CWD || process.cwd();
 export function lineDefaults(): { team?: string; project?: string } {
   try {
     const { profile } = loadLineProfile(cwd());
-    return { team: profile.team ?? undefined, project: profile.project ?? undefined };
+    return {
+      team: profile.team ?? undefined,
+      project: profile.project ?? undefined,
+    };
   } catch (err) {
     if (err instanceof LineProfileError) fail(err.message);
     throw err;
@@ -29,7 +37,10 @@ export function lineDefaults(): { team?: string; project?: string } {
  *  `[line] project`, but only when the write lands in the profile's own
  *  workspace. A --team naming another workspace (personal, say) gets no
  *  project from the profile, since that project lives in the profile's team. */
-export function lineProjectFor(team: string | undefined, project: string | undefined): string | undefined {
+export function lineProjectFor(
+  team: string | undefined,
+  project: string | undefined,
+): string | undefined {
   if (project?.trim()) return project;
   const defaults = lineDefaults();
   const norm = (v: string | undefined) => v?.trim().toLowerCase() || undefined;
@@ -40,7 +51,10 @@ export function lineProjectFor(team: string | undefined, project: string | undef
 /** A signal's project when its filer names none: the repo profile's, sent as
  *  a default the server keeps only until Ground places the problem, since
  *  what a problem is about decides its project (the-line-model.md LM1). */
-export function signalDefaultProject(team: string | undefined, project: string | undefined): { default_project?: string } {
+export function signalDefaultProject(
+  team: string | undefined,
+  project: string | undefined,
+): { default_project?: string } {
   if (project?.trim()) return {};
   const fallback = lineProjectFor(team, undefined);
   return fallback ? { default_project: fallback } : {};
@@ -50,13 +64,31 @@ export function signalDefaultProject(team: string | undefined, project: string |
  *  server's own rule (the session's team, the directory). A write naming a
  *  team that is not one of yours stops here. `project` rides along for the
  *  server to resolve inside that workspace. */
-export async function scopeFor(deps: PublishDeps, team: string | undefined, write: boolean, project?: string) {
+export async function scopeFor(
+  deps: PublishDeps,
+  team: string | undefined,
+  write: boolean,
+  project?: string,
+) {
   team ||= lineDefaults().team;
-  const base = { project_path: cwd(), conversation_id: deps.detectCurrentSessionId() ?? undefined, ...(project?.trim() ? { project: project.trim() } : {}) };
+  const base = {
+    project_path: cwd(),
+    conversation_id: deps.detectCurrentSessionId() ?? undefined,
+    ...(project?.trim() ? { project: project.trim() } : {}),
+  };
   if (!team) return base;
-  const roster = await loadWorkspaceRoster(async () => await apiPost(deps, "/cli/teams", {}, { read: true }));
+  const roster = await loadWorkspaceRoster(
+    async () => await apiPost(deps, "/cli/teams", {}, { read: true }),
+  );
   try {
-    return { ...base, ...workspaceScope(write ? resolveWorkspaceForWrite(roster, team) : resolveWorkspaceForRead(roster, team)) };
+    return {
+      ...base,
+      ...workspaceScope(
+        write
+          ? resolveWorkspaceForWrite(roster, team)
+          : resolveWorkspaceForRead(roster, team),
+      ),
+    };
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));
   }

@@ -1,12 +1,33 @@
-import { afterEach, beforeEach, describe, expect, it, setDefaultTimeout } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  setDefaultTimeout,
+} from "bun:test";
 
 setDefaultTimeout(300_000);
 import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
 import type { SplitCache } from "@codecast/shared/contracts/inboxSplit";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { LIST_INBOX_SESSIONS_ARGS } from "../../hooks/useLiveInboxSessions";
-import { rebuildSplitPayload, seedSplitCache, type SplitKind } from "../../hooks/useSplitQuery";
-import { GEN_MIN, ME, SERVER_EVENTS, SimServer, advance, installSim, makeRng, seededWorld, uninstallSim } from "./inboxSimHarness";
+import {
+  rebuildSplitPayload,
+  seedSplitCache,
+  type SplitKind,
+} from "../../hooks/useSplitQuery";
+import {
+  GEN_MIN,
+  ME,
+  SERVER_EVENTS,
+  SimServer,
+  advance,
+  installSim,
+  makeRng,
+  seededWorld,
+  uninstallSim,
+} from "./inboxSimHarness";
 
 // The split wire form against the real handlers: at every step of a randomized
 // world, the result a replica rebuilds from split pushes must equal the whole
@@ -28,7 +49,11 @@ describe("inbox split wire form", () => {
     const server = new SimServer(seededWorld(41));
     const db = server.backend.db;
     const activeTeamId = await db.insert("teams", { name: "Test Team" });
-    await db.insert("team_memberships", { user_id: ME, team_id: activeTeamId, role: "member" });
+    await db.insert("team_memberships", {
+      user_id: ME,
+      team_id: activeTeamId,
+      role: "member",
+    });
     const client = server.clientAs("me");
     const query = "conversations:teamSessionsLiveness";
     const args = { activeTeamId };
@@ -46,8 +71,16 @@ describe("inbox split wire form", () => {
   });
 
   it("rebuilds exactly the whole result, and ships a fraction of it", async () => {
-    const feeds: Array<{ kind: SplitKind; name: string; args: Record<string, unknown> }> = [
-      { kind: "list", name: "conversations:listInboxSessions", args: LIST_INBOX_SESSIONS_ARGS },
+    const feeds: Array<{
+      kind: SplitKind;
+      name: string;
+      args: Record<string, unknown>;
+    }> = [
+      {
+        kind: "list",
+        name: "conversations:listInboxSessions",
+        args: LIST_INBOX_SESSIONS_ARGS,
+      },
       { kind: "liveness", name: "conversations:sessionsLiveness", args: {} },
     ];
     for (const seed of [41, 42, 43, 44]) {
@@ -57,16 +90,30 @@ describe("inbox split wire form", () => {
       const client = server.clientAs("me");
       const rng = makeRng(seed * 13);
       const events = Object.keys(SERVER_EVENTS);
-      const caches = new Map(feeds.map((f) => [f.kind, new Map() as SplitCache<any>]));
-      const tally = new Map(feeds.map((f) => [f.kind, { splitBytes: 0, wholeBytes: 0, fetches: 0, steps: 0 }]));
+      const caches = new Map(
+        feeds.map((f) => [f.kind, new Map() as SplitCache<any>]),
+      );
+      const tally = new Map(
+        feeds.map((f) => [
+          f.kind,
+          { splitBytes: 0, wholeBytes: 0, fetches: 0, steps: 0 },
+        ]),
+      );
       for (let step = 0; step < 50; step++) {
         const roll = rng();
-        if (roll < 0.6) await SERVER_EVENTS[events[Math.floor(rng() * events.length)]](server, rng, step);
+        if (roll < 0.6)
+          await SERVER_EVENTS[events[Math.floor(rng() * events.length)]](
+            server,
+            rng,
+            step,
+          );
         else advance(Math.floor(rng() * 6 * GEN_MIN));
         await server.flush();
         for (const f of feeds) {
           // The server hashed its in-memory rows; the replica holds decoded ones.
-          const split = wire(await client.query(f.name, { ...f.args, split: true }));
+          const split = wire(
+            await client.query(f.name, { ...f.args, split: true }),
+          );
           const whole = wire(await client.query(f.name, f.args));
           expect(whole.split).toBeUndefined();
           const cache = caches.get(f.kind)!;
@@ -84,7 +131,9 @@ describe("inbox split wire form", () => {
         }
       }
       for (const [kind, t] of tally) {
-        console.log(`seed ${seed} ${kind}: split ${(t.splitBytes / t.wholeBytes * 100).toFixed(0)}% of whole bytes, whole fetched ${t.fetches}/${t.steps} steps`);
+        console.log(
+          `seed ${seed} ${kind}: split ${((t.splitBytes / t.wholeBytes) * 100).toFixed(0)}% of whole bytes, whole fetched ${t.fetches}/${t.steps} steps`,
+        );
         expect(t.splitBytes).toBeLessThan(t.wholeBytes);
       }
       uninstallSim();

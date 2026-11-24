@@ -15,7 +15,10 @@ import { DatabaseWriter } from "./_generated/server";
 // correctness, and the audit rated it low/medium — not worth a fragile,
 // migration-dependent id generator. Revisit only if a real hot creation path
 // (e.g. a workflow spawning many tasks at once) shows measurable OCC pain.
-export async function nextShortId(db: DatabaseWriter, prefix: string): Promise<string> {
+export async function nextShortId(
+  db: DatabaseWriter,
+  prefix: string,
+): Promise<string> {
   const counter = await db
     .query("counters")
     .withIndex("by_name", (q) => q.eq("name", prefix))

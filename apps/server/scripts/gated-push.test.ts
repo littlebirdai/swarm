@@ -1,21 +1,47 @@
 import { describe, expect, test } from "bun:test";
-import { FAILED_PUSH_RETRY_MS, Gate, QUIET_MS, STALE_RETRY_MS, bundledSources, devEnv, shipsToProd, signatureOf, type CheckResult } from "./gated-push";
+import {
+  FAILED_PUSH_RETRY_MS,
+  Gate,
+  QUIET_MS,
+  STALE_RETRY_MS,
+  bundledSources,
+  devEnv,
+  shipsToProd,
+  signatureOf,
+  type CheckResult,
+} from "./gated-push";
 
 // The pusher's contract, driven with fakes: a push happens only for a quiet,
 // fresh, green tree, and a tree that moved under the push goes around again.
 
-function harness(over: Partial<{ fresh: boolean; check: CheckResult; pushCode: number; base: string }> = {}) {
+function harness(
+  over: Partial<{
+    fresh: boolean;
+    check: CheckResult;
+    pushCode: number;
+    base: string;
+  }> = {},
+) {
   let now = 1_000_000;
   let sig = "a";
   const log: string[] = [];
   const calls = { push: 0, typecheck: 0 };
-  const state = { fresh: true, check: { errors: 0, diagnostics: "" }, pushCode: 0, sigDuringPush: null as string | null, ...over };
+  const state = {
+    fresh: true,
+    check: { errors: 0, diagnostics: "" },
+    pushCode: 0,
+    sigDuringPush: null as string | null,
+    ...over,
+  };
   const gate = new Gate({
     now: () => now,
     treeIsFresh: async () => state.fresh,
     base: over.base,
     signature: async () => sig,
-    typecheck: async () => { calls.typecheck += 1; return state.check; },
+    typecheck: async () => {
+      calls.typecheck += 1;
+      return state.check;
+    },
     push: async () => {
       calls.push += 1;
       if (state.sigDuringPush !== null) sig = state.sigDuringPush;
@@ -23,7 +49,18 @@ function harness(over: Partial<{ fresh: boolean; check: CheckResult; pushCode: n
     },
     log: (l) => log.push(l),
   });
-  return { gate, log, calls, state, advance: (ms: number) => { now += ms; }, setSig: (s: string) => { sig = s; } };
+  return {
+    gate,
+    log,
+    calls,
+    state,
+    advance: (ms: number) => {
+      now += ms;
+    },
+    setSig: (s: string) => {
+      sig = s;
+    },
+  };
 }
 
 describe("gated convex push", () => {
@@ -50,7 +87,13 @@ describe("gated convex push", () => {
   });
 
   test("a red typecheck never pushes, and the next save re-arms it", async () => {
-    const h = harness({ check: { errors: 1, diagnostics: "teams.ts(481,54): error TS2304: Cannot find name 'feedFilter'." } });
+    const h = harness({
+      check: {
+        errors: 1,
+        diagnostics:
+          "teams.ts(481,54): error TS2304: Cannot find name 'feedFilter'.",
+      },
+    });
     expect(await h.gate.tick()).toBe("errors");
     expect(h.calls.push).toBe(0);
     expect(h.log.join("\n")).toContain("feedFilter");
@@ -78,7 +121,13 @@ describe("gated convex push", () => {
   test("the refusal names the remote freshness is judged against, so a fork clone says upstream", async () => {
     const h = harness({ fresh: false, base: "upstream/main" });
     expect(await h.gate.tick()).toBe("stale");
-    expect(h.log.some((l) => l.includes("BEHIND upstream/main") && l.includes("git pull --rebase upstream main"))).toBe(true);
+    expect(
+      h.log.some(
+        (l) =>
+          l.includes("BEHIND upstream/main") &&
+          l.includes("git pull --rebase upstream main"),
+      ),
+    ).toBe(true);
   });
 
   test("files that moved under the push make it dirty again, even when the push succeeded", async () => {
@@ -121,21 +170,41 @@ describe("gated convex push", () => {
     expect(shipsToProd("testModules.testkit.ts")).toBe(false);
     expect(shipsToProd("lib/fakeDb.testkit.ts")).toBe(false);
     expect(shipsToProd("sessions.testing.ts")).toBe(false);
-    expect(shipsToProd("packages/shared/contracts/fixtures.testkit.ts")).toBe(false);
+    expect(shipsToProd("packages/shared/contracts/fixtures.testkit.ts")).toBe(
+      false,
+    );
     // A module that merely starts with "test" is a real entry module.
     expect(shipsToProd("testDb.ts")).toBe(true);
   });
 
   test("the shared and platform sources the backend bundles are watched and signed", async () => {
     const sources = bundledSources("/repo");
-    expect(sources.map((s) => s.dir)).toEqual(["/repo/apps/server/convex", "/repo/packages/shared", "/repo/platform/packages"]);
-    expect(sources.map((s) => s.prefix)).toEqual(["", "packages/shared/", "platform/packages/"]);
-    expect(shipsToProd("packages/shared/contracts/machineMessages.ts")).toBe(true);
+    expect(sources.map((s) => s.dir)).toEqual([
+      "/repo/apps/server/convex",
+      "/repo/packages/shared",
+      "/repo/platform/packages",
+    ]);
+    expect(sources.map((s) => s.prefix)).toEqual([
+      "",
+      "packages/shared/",
+      "platform/packages/",
+    ]);
+    expect(shipsToProd("packages/shared/contracts/machineMessages.ts")).toBe(
+      true,
+    );
     expect(shipsToProd("platform/packages/auth/src/index.ts")).toBe(true);
-    expect(shipsToProd("packages/shared/contracts/machineMessages.test.ts")).toBe(false);
+    expect(
+      shipsToProd("packages/shared/contracts/machineMessages.test.ts"),
+    ).toBe(false);
     expect(shipsToProd("packages/shared/node_modules/x/index.js")).toBe(false);
-    const a = signatureOf([{ rel: "packages/shared/time/index.ts", mtimeMs: 10, size: 100 }]);
-    expect(signatureOf([{ rel: "packages/shared/time/index.ts", mtimeMs: 11, size: 100 }])).not.toBe(a);
+    const a = signatureOf([
+      { rel: "packages/shared/time/index.ts", mtimeMs: 10, size: 100 },
+    ]);
+    expect(
+      signatureOf([
+        { rel: "packages/shared/time/index.ts", mtimeMs: 11, size: 100 },
+      ]),
+    ).not.toBe(a);
     // A save in shared dirties the gate like a save in convex/.
     const h = harness();
     await h.gate.tick();
@@ -151,14 +220,27 @@ describe("gated convex push", () => {
       { rel: "_generated/api.d.ts", mtimeMs: 10, size: 5 },
     ];
     const a = signatureOf(base);
-    expect(signatureOf([{ rel: "teams.ts", mtimeMs: 11, size: 100 }, base[1]!])).not.toBe(a);
-    expect(signatureOf([base[0]!, { rel: "_generated/api.d.ts", mtimeMs: 99, size: 9 }])).toBe(a);
+    expect(
+      signatureOf([{ rel: "teams.ts", mtimeMs: 11, size: 100 }, base[1]!]),
+    ).not.toBe(a);
+    expect(
+      signatureOf([
+        base[0]!,
+        { rel: "_generated/api.d.ts", mtimeMs: 99, size: 9 },
+      ]),
+    ).toBe(a);
     expect(signatureOf([base[1]!, base[0]!])).toBe(a);
   });
 });
 
 describe("watcher deployment selection", () => {
-  test.each(["dev:personal-dev-123", "local:anonymous-swarm", "local:swarm", "anonymous-swarm", ""])(
+  test.each([
+    "dev:personal-dev-123",
+    "local:anonymous-swarm",
+    "local:swarm",
+    "anonymous-swarm",
+    "",
+  ])(
     "keeps the configured dev deployment %j and prevents dotenv fallback",
     (deployment) => {
       expect(devEnv({ CONVEX_DEPLOYMENT: deployment })).toEqual({
@@ -171,17 +253,34 @@ describe("watcher deployment selection", () => {
     },
   );
 
-  test.each(["prod:production", "preview:preview", "untyped-name", "dev:prod:production"])(
-    "refuses deployment %j",
-    (deployment) => expect(() => devEnv({ CONVEX_DEPLOYMENT: deployment })).toThrow("dev or local"),
+  test.each([
+    "prod:production",
+    "preview:preview",
+    "untyped-name",
+    "dev:prod:production",
+  ])("refuses deployment %j", (deployment) =>
+    expect(() => devEnv({ CONVEX_DEPLOYMENT: deployment })).toThrow(
+      "dev or local",
+    ),
   );
 
   test("a legacy anonymous setting lets Convex select local dev", () => {
-    expect(devEnv({ CONVEX_DEPLOYMENT: "anonymous" }).CONVEX_DEPLOYMENT).toBe("");
+    expect(devEnv({ CONVEX_DEPLOYMENT: "anonymous" }).CONVEX_DEPLOYMENT).toBe(
+      "",
+    );
   });
 
-  test.each(["CONVEX_DEPLOY_KEY", "CONVEX_SELF_HOSTED_URL", "CONVEX_SELF_HOSTED_ADMIN_KEY", "CONVEX_PROVISION_HOST"])(
-    "refuses %s even with a dev deployment",
-    (key) => expect(() => devEnv({ CONVEX_DEPLOYMENT: "dev:personal-dev-123", [key]: "configured" })).toThrow("server overrides"),
+  test.each([
+    "CONVEX_DEPLOY_KEY",
+    "CONVEX_SELF_HOSTED_URL",
+    "CONVEX_SELF_HOSTED_ADMIN_KEY",
+    "CONVEX_PROVISION_HOST",
+  ])("refuses %s even with a dev deployment", (key) =>
+    expect(() =>
+      devEnv({
+        CONVEX_DEPLOYMENT: "dev:personal-dev-123",
+        [key]: "configured",
+      }),
+    ).toThrow("server overrides"),
   );
 });

@@ -15,7 +15,10 @@ import { runWakeRecovery } from "./daemon.js";
 function deferred<T = void>() {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 
@@ -25,13 +28,24 @@ type Recorder = {
   errors: string[];
 };
 
-function makeDeps(over: Partial<Parameters<typeof runWakeRecovery>[0]>, rec: Recorder) {
+function makeDeps(
+  over: Partial<Parameters<typeof runWakeRecovery>[0]>,
+  rec: Recorder,
+) {
   return {
-    restartWatcher: async () => { rec.order.push("restart"); },
-    sweep: async () => { rec.order.push("sweep"); },
-    onWatcherRestarted: () => { rec.restarted = true; },
+    restartWatcher: async () => {
+      rec.order.push("restart");
+    },
+    sweep: async () => {
+      rec.order.push("sweep");
+    },
+    onWatcherRestarted: () => {
+      rec.restarted = true;
+    },
     log: () => {},
-    logError: (msg: string, err: Error) => { rec.errors.push(`${msg}: ${err?.message ?? ""}`); },
+    logError: (msg: string, err: Error) => {
+      rec.errors.push(`${msg}: ${err?.message ?? ""}`);
+    },
     ...over,
   };
 }
@@ -47,10 +61,21 @@ test("restarts the watcher, then sweeps, in order", async () => {
 test("the sweep waits for the restart to finish (no overlap)", async () => {
   const rec: Recorder = { order: [], restarted: false, errors: [] };
   const gate = deferred();
-  const done = runWakeRecovery(makeDeps({
-    restartWatcher: async () => { rec.order.push("restart:start"); await gate.promise; rec.order.push("restart:end"); },
-    sweep: async () => { rec.order.push("sweep"); },
-  }, rec));
+  const done = runWakeRecovery(
+    makeDeps(
+      {
+        restartWatcher: async () => {
+          rec.order.push("restart:start");
+          await gate.promise;
+          rec.order.push("restart:end");
+        },
+        sweep: async () => {
+          rec.order.push("sweep");
+        },
+      },
+      rec,
+    ),
+  );
   // Let the restart begin and park on the gate; the sweep must not have run yet.
   await Promise.resolve();
   expect(rec.order).toEqual(["restart:start"]);
@@ -61,35 +86,63 @@ test("the sweep waits for the restart to finish (no overlap)", async () => {
 
 test("a failing restart still proceeds to the sweep", async () => {
   const rec: Recorder = { order: [], restarted: false, errors: [] };
-  await runWakeRecovery(makeDeps({
-    restartWatcher: async () => { rec.order.push("restart"); throw new Error("close→open deadlock"); },
-  }, rec));
+  await runWakeRecovery(
+    makeDeps(
+      {
+        restartWatcher: async () => {
+          rec.order.push("restart");
+          throw new Error("close→open deadlock");
+        },
+      },
+      rec,
+    ),
+  );
   expect(rec.order).toEqual(["restart", "sweep"]);
   expect(rec.restarted).toBe(false); // restart never succeeded
-  expect(rec.errors.some(e => e.includes("watcher restart failed"))).toBe(true);
+  expect(rec.errors.some((e) => e.includes("watcher restart failed"))).toBe(
+    true,
+  );
 });
 
 test("a hanging restart times out and the sweep still ships the bytes", async () => {
   const rec: Recorder = { order: [], restarted: false, errors: [] };
   const start = Date.now();
-  await runWakeRecovery(makeDeps({
-    // Never resolves — simulates restart() deadlocked on bun's File Watcher thread.
-    restartWatcher: () => new Promise<void>(() => { rec.order.push("restart"); }),
-    restartTimeoutMs: 30,
-  }, rec));
+  await runWakeRecovery(
+    makeDeps(
+      {
+        // Never resolves — simulates restart() deadlocked on bun's File Watcher thread.
+        restartWatcher: () =>
+          new Promise<void>(() => {
+            rec.order.push("restart");
+          }),
+        restartTimeoutMs: 30,
+      },
+      rec,
+    ),
+  );
   expect(Date.now() - start).toBeGreaterThanOrEqual(25);
   expect(rec.order).toEqual(["restart", "sweep"]);
   expect(rec.restarted).toBe(false);
-  expect(rec.errors.some(e => e.includes("timeout"))).toBe(true);
+  expect(rec.errors.some((e) => e.includes("timeout"))).toBe(true);
 });
 
 test("a failing sweep is logged but does not throw", async () => {
   const rec: Recorder = { order: [], restarted: false, errors: [] };
-  await runWakeRecovery(makeDeps({
-    sweep: async () => { rec.order.push("sweep"); throw new Error("disk gone"); },
-  }, rec));
+  await runWakeRecovery(
+    makeDeps(
+      {
+        sweep: async () => {
+          rec.order.push("sweep");
+          throw new Error("disk gone");
+        },
+      },
+      rec,
+    ),
+  );
   expect(rec.order).toEqual(["restart", "sweep"]);
-  expect(rec.errors.some(e => e.includes("unsynced sweep failed"))).toBe(true);
+  expect(rec.errors.some((e) => e.includes("unsynced sweep failed"))).toBe(
+    true,
+  );
 });
 
 // classifyTickGap is the guard that keeps wake recovery from firing on event-loop
@@ -138,7 +191,10 @@ test("a short busy gap with no monotonic signal is still a stall", () => {
   expect(classifyTickGap(29_000, 28_000)).toBe("stall");
   expect(classifyTickGap(10_000, 10_000)).toBe("stall");
   expect(classifyTickGap(29_000, 100)).toBe("sleep"); // short and idle, as before
-  expect(classifyTickWindow(10_000, 9_000, 10_000)).toEqual({ stalled: true, recover: false });
+  expect(classifyTickWindow(10_000, 9_000, 10_000)).toEqual({
+    stalled: true,
+    recover: false,
+  });
 });
 
 // "Was the loop pinned" and "did the machine sleep" are separate questions, and
@@ -150,19 +206,31 @@ import { sawSuspend, classifyTickWindow } from "./daemon.js";
 
 test("a sleep is seen by the gap between the two clocks, not by the CPU counter", () => {
   expect(sawSuspend(2_234_000, 40_000)).toBe(true);
-  expect(sawSuspend(189_000, 189_000)).toBe(false);   // a pure stall, clocks agree
-  expect(sawSuspend(60_000, 45_000)).toBe(false);     // 15s apart is timer drift, not sleep
+  expect(sawSuspend(189_000, 189_000)).toBe(false); // a pure stall, clocks agree
+  expect(sawSuspend(60_000, 45_000)).toBe(false); // 15s apart is timer drift, not sleep
 });
 
 test("a window holding both a sleep and a stall reports the stall AND still recovers", () => {
   // The 2026-09-02 15:40Z shape: 37 minutes of wall gap around 40s of real
   // freeze that burned 20s of CPU.
-  expect(classifyTickWindow(2_234_000, 20_000, 40_000)).toEqual({ stalled: true, recover: true });
+  expect(classifyTickWindow(2_234_000, 20_000, 40_000)).toEqual({
+    stalled: true,
+    recover: true,
+  });
   // A pure stall gets no recovery: the sweep it fires is what pins the loop.
-  expect(classifyTickWindow(189_000, 150_000, 189_000)).toEqual({ stalled: true, recover: false });
+  expect(classifyTickWindow(189_000, 150_000, 189_000)).toEqual({
+    stalled: true,
+    recover: false,
+  });
   // A plain hibernate recovers, as it always did.
-  expect(classifyTickWindow(2_234_000, 400, 6)).toEqual({ stalled: false, recover: true });
-  expect(classifyTickWindow(2_234_000, 400, 2_234_000)).toEqual({ stalled: true, recover: false });
+  expect(classifyTickWindow(2_234_000, 400, 6)).toEqual({
+    stalled: false,
+    recover: true,
+  });
+  expect(classifyTickWindow(2_234_000, 400, 2_234_000)).toEqual({
+    stalled: true,
+    recover: false,
+  });
 });
 
 // BackendOutageClock feeds the self-heal restart ("backend recovered after Ns
@@ -175,8 +243,8 @@ import { BackendOutageClock } from "./daemon.js";
 
 test("an outage spanning a suspend does not count the sleep", () => {
   const clock = new BackendOutageClock();
-  clock.markFailure(1_000);         // maintenance wake, no network
-  clock.noteGap();              // lid closed
+  clock.markFailure(1_000); // maintenance wake, no network
+  clock.noteGap(); // lid closed
   expect(clock.markSuccess(1_701_000)).toBe(0); // first heartbeat after the real wake
 });
 
@@ -184,7 +252,7 @@ test("a backend still dead after wake is timed from the wake, not from before it
   const clock = new BackendOutageClock();
   clock.markFailure(1_000);
   clock.noteGap();
-  clock.markFailure(1_000_000);     // still failing after wake
+  clock.markFailure(1_000_000); // still failing after wake
   expect(clock.markSuccess(1_200_000)).toBe(200_000);
 });
 
@@ -192,7 +260,7 @@ test("an awake outage is measured from its first failure", () => {
   const clock = new BackendOutageClock();
   expect(clock.markSuccess(5_000)).toBe(0);
   clock.markFailure(10_000);
-  clock.markFailure(20_000);        // repeated failures keep the original start
+  clock.markFailure(20_000); // repeated failures keep the original start
   expect(clock.markSuccess(250_000)).toBe(240_000);
   expect(clock.markSuccess(260_000)).toBe(0); // clock is cleared by success
 });
@@ -234,14 +302,26 @@ import { classifyLoopGap } from "./daemon.js";
 
 test("the loop clock separates a freeze from a suspend and measures it honestly", () => {
   // A real freeze: both clocks agree, CPU churned.
-  expect(classifyLoopGap(42_000, 42_000, 928)).toEqual({ kind: "freeze", freezeMs: 42_000 });
+  expect(classifyLoopGap(42_000, 42_000, 928)).toEqual({
+    kind: "freeze",
+    freezeMs: 42_000,
+  });
   // A lid closed for 37 minutes: the loop was late by nothing.
-  expect(classifyLoopGap(2_234_000, 400, 6)).toEqual({ kind: "suspend", freezeMs: 0 });
+  expect(classifyLoopGap(2_234_000, 400, 6)).toEqual({
+    kind: "suspend",
+    freezeMs: 0,
+  });
   // A suspend whose CPU was NOT tiny, which the CPU rule alone calls a freeze.
   expect(isSuspendGap(100_000, 5_000)).toBe(false);
-  expect(classifyLoopGap(100_000, 2_000, 5_000)).toEqual({ kind: "suspend", freezeMs: 0 });
+  expect(classifyLoopGap(100_000, 2_000, 5_000)).toEqual({
+    kind: "suspend",
+    freezeMs: 0,
+  });
   // A freeze straddling a wake: 40s of real blocking inside a 37 minute wall gap.
-  expect(classifyLoopGap(2_234_000, 40_000, 800)).toEqual({ kind: "freeze", freezeMs: 40_000 });
+  expect(classifyLoopGap(2_234_000, 40_000, 800)).toEqual({
+    kind: "freeze",
+    freezeMs: 40_000,
+  });
 });
 
 test("once the clocks disagree the CPU counter no longer overrules them", () => {
@@ -249,13 +329,24 @@ test("once the clocks disagree the CPU counter no longer overrules them", () => 
   // clock saw the whole minute, so it is a freeze even though the process burned
   // 100ms of CPU across the window and the CPU rule alone calls that a suspend.
   expect(isSuspendGap(60_000, 100)).toBe(true);
-  expect(classifyLoopGap(2_234_000, 60_000, 100)).toEqual({ kind: "freeze", freezeMs: 60_000 });
+  expect(classifyLoopGap(2_234_000, 60_000, 100)).toEqual({
+    kind: "freeze",
+    freezeMs: 60_000,
+  });
   // The sleep itself is still a sleep: the loop clock barely moved.
-  expect(classifyLoopGap(2_234_000, 900, 100)).toEqual({ kind: "suspend", freezeMs: 0 });
+  expect(classifyLoopGap(2_234_000, 900, 100)).toEqual({
+    kind: "suspend",
+    freezeMs: 0,
+  });
 });
 
 test("matching clocks count filesystem waits even with negligible CPU", () => {
-  for (const [late, cpu] of [[937_000, 6], [42_000, 928], [6_000, 0], [29_999, 0]] as const) {
+  for (const [late, cpu] of [
+    [937_000, 6],
+    [42_000, 928],
+    [6_000, 0],
+    [29_999, 0],
+  ] as const) {
     const verdict = classifyLoopGap(late, late, cpu);
     expect(verdict).toEqual({ kind: "freeze", freezeMs: late });
   }
@@ -268,8 +359,8 @@ test("the ledger keeps a rolling hour, since-boot totals and the worst cause", (
   ledger.record(9_000, 3_000_000, "psSnapshot@daemon.ts:8950 40%");
 
   const s = ledger.summary(3_010_000);
-  expect(s.recentMs).toBe(9_000);           // only the newest is inside the minute
-  expect(s.hourMs).toBe(63_000);            // all three are inside the hour
+  expect(s.recentMs).toBe(9_000); // only the newest is inside the minute
+  expect(s.hourMs).toBe(63_000); // all three are inside the hour
   expect(s.hourCount).toBe(3);
   expect(s.hourMaxMs).toBe(48_000);
   expect(s.top).toBe("scanDir@daemon.ts:900 80%"); // the worst, not the newest
@@ -294,7 +385,6 @@ test("the attribution string is capped and stripped of the roster separators", (
   expect(top).not.toContain("\n");
 });
 
-
 // The heartbeat's freeze fields are rounded HERE, not only in the server's
 // projection: the server rewrites the device row whenever any heartbeat field
 // changed, and every viewer's roster re-renders with it. A raw millisecond hour
@@ -317,14 +407,29 @@ test("a drifting hour total sends the same number until it moves a whole step", 
 
   // A whole 5s step does move it.
   ledger.record(5_000, 5_000);
-  expect(freezeBeatFields(ledger.summary(6_000)).loop_freeze_1h_ms).toBe(45_000);
+  expect(freezeBeatFields(ledger.summary(6_000)).loop_freeze_1h_ms).toBe(
+    45_000,
+  );
 });
 
-
 test("live filesystem freezes never trigger wake recovery", () => {
-  for (const [wall, cpu] of [[39436, 795], [86633, 1497], [62000, 1148], [60000, 0]]) {
-    expect(classifyTickWindow(wall, cpu, wall)).toEqual({ stalled: true, recover: false });
-    expect(classifyLoopGap(wall, wall, cpu)).toEqual({ kind: "freeze", freezeMs: wall });
+  for (const [wall, cpu] of [
+    [39436, 795],
+    [86633, 1497],
+    [62000, 1148],
+    [60000, 0],
+  ]) {
+    expect(classifyTickWindow(wall, cpu, wall)).toEqual({
+      stalled: true,
+      recover: false,
+    });
+    expect(classifyLoopGap(wall, wall, cpu)).toEqual({
+      kind: "freeze",
+      freezeMs: wall,
+    });
   }
-  expect(classifyTickWindow(2234000, 100, 60000)).toEqual({ stalled: true, recover: true });
+  expect(classifyTickWindow(2234000, 100, 60000)).toEqual({
+    stalled: true,
+    recover: true,
+  });
 });

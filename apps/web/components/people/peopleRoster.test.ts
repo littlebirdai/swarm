@@ -41,7 +41,9 @@ describe("rosterSig", () => {
 
   it("wakes when somebody joins or leaves the team", () => {
     const one = rosterSig([member()]);
-    expect(rosterSig([member(), member({ _id: "u2", name: "Bo" })])).not.toBe(one);
+    expect(rosterSig([member(), member({ _id: "u2", name: "Bo" })])).not.toBe(
+      one,
+    );
     expect(rosterSig([])).toBe("");
     expect(rosterSig(null)).toBe("");
   });
@@ -53,15 +55,31 @@ describe("rosterSig", () => {
 
 describe("dmBadgesByMember", () => {
   const dm = (id: string, others: string[], over: Record<string, any> = {}) =>
-    ({ id, kind: "dm", dmMemberIds: others, unreadCount: 0, mentionCount: 0, ...over }) as any;
+    ({
+      id,
+      kind: "dm",
+      dmMemberIds: others,
+      unreadCount: 0,
+      mentionCount: 0,
+      ...over,
+    }) as any;
 
   it("keys a one-to-one room by the OTHER person", () => {
-    const map = dmBadgesByMember([dm("c1", ["u2"], { unreadCount: 3, mentionCount: 1 })]);
-    expect(map.get("u2")).toEqual({ channelId: "c1", unread: 3, mentions: 1, muted: false });
+    const map = dmBadgesByMember([
+      dm("c1", ["u2"], { unreadCount: 3, mentionCount: 1 }),
+    ]);
+    expect(map.get("u2")).toEqual({
+      channelId: "c1",
+      unread: 3,
+      mentions: 1,
+      muted: false,
+    });
   });
 
   it("ignores group DMs, so one room never counts against three people", () => {
-    const map = dmBadgesByMember([dm("c1", ["u2", "u3", "u4"], { unreadCount: 5 })]);
+    const map = dmBadgesByMember([
+      dm("c1", ["u2", "u3", "u4"], { unreadCount: 5 }),
+    ]);
     expect(map.size).toBe(0);
   });
 
@@ -74,7 +92,9 @@ describe("dmBadgesByMember", () => {
   });
 
   it("keeps a muted room's count and says it is muted", () => {
-    const map = dmBadgesByMember([dm("c1", ["u2"], { unreadCount: 7, muted: true })]);
+    const map = dmBadgesByMember([
+      dm("c1", ["u2"], { unreadCount: 7, muted: true }),
+    ]);
     expect(map.get("u2")).toMatchObject({ unread: 7, muted: true });
   });
 
@@ -124,7 +144,12 @@ describe("the roster's sections (groupMembersByBand, reused from presence)", () 
       member({ _id: "u4", name: "Cy", presence_state: "offline" }),
       member({ _id: "u5", name: "Al", status: "busy" }),
     ]);
-    expect(groups.map((g) => g.label)).toEqual(["Online", "Idle", "Away", "Offline"]);
+    expect(groups.map((g) => g.label)).toEqual([
+      "Online",
+      "Idle",
+      "Away",
+      "Offline",
+    ]);
     // Busy sits under Online, and a section is ordered by name, not presence.
     expect(groups[0].members.map((m: any) => m.name)).toEqual(["Al", "Zoe"]);
   });
@@ -157,7 +182,9 @@ describe("isStrayWorkspace", () => {
   });
 
   it("compares ids as strings, not by reference", () => {
-    expect(isStrayWorkspace([{ _id: { toString: () => "t1" } }], "t1")).toBe(false);
+    expect(isStrayWorkspace([{ _id: { toString: () => "t1" } }], "t1")).toBe(
+      false,
+    );
     expect(isStrayWorkspace([{ _id: null }], "t1")).toBe(true);
   });
 });

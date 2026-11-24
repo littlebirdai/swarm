@@ -30,7 +30,11 @@ function fixture(deviceOverrides: Record<string, unknown> = {}) {
           usage: {
             fetched_at: now - 1_000,
             session: { percent: 100, resets_at: now + 3_600_000 },
-            weekly_scoped: { percent: 100, resets_at: now + 86_400_000, label: "Fable" },
+            weekly_scoped: {
+              percent: 100,
+              resets_at: now + 86_400_000,
+              label: "Fable",
+            },
           },
         },
         {
@@ -68,7 +72,11 @@ function fixture(deviceOverrides: Record<string, unknown> = {}) {
   };
   const db = makeFakeDb(tables);
   const scheduler = { async runAt() {}, async runAfter() {} };
-  const run = () => (autoSwitchCheck as any)._handler({ db, scheduler }, { user_id: "users_owner" });
+  const run = () =>
+    (autoSwitchCheck as any)._handler(
+      { db, scheduler },
+      { user_id: "users_owner" },
+    );
   return { now, device, tables, db, run };
 }
 
@@ -116,7 +124,9 @@ describe("ask-first recovery", () => {
     await f.run();
     f.device.cc_accounts.profiles[1].usage.weekly.percent = 70;
     await f.run();
-    expect(Math.round(f.device.cc_auto_switch_state.last_decision.target_percent)).toBe(70);
+    expect(
+      Math.round(f.device.cc_auto_switch_state.last_decision.target_percent),
+    ).toBe(70);
     // Same account: no second notification.
     expect(f.tables.notifications).toHaveLength(1);
   });
@@ -134,8 +144,12 @@ describe("ask-first recovery", () => {
       },
     });
     await f.run();
-    expect(f.device.cc_auto_switch_state.last_decision.target_email).toBe("roomier@example.com");
-    expect(Math.round(f.device.cc_auto_switch_state.last_decision.target_percent)).toBe(10);
+    expect(f.device.cc_auto_switch_state.last_decision.target_email).toBe(
+      "roomier@example.com",
+    );
+    expect(
+      Math.round(f.device.cc_auto_switch_state.last_decision.target_percent),
+    ).toBe(10);
   });
 
   test("auto mode drops a leftover ask and switches", async () => {
@@ -155,7 +169,9 @@ describe("ask-first recovery", () => {
     const res = await f.run();
     expect(res).toMatchObject({ acted: "switch", profile: "fresh" });
     expect(f.device.cc_auto_switch_state.last_decision.kind).toBe("switch");
-    expect(f.device.cc_auto_switch_state.last_decision.target_email).toBe("fresh@example.com");
+    expect(f.device.cc_auto_switch_state.last_decision.target_email).toBe(
+      "fresh@example.com",
+    );
   });
 
   test("auto mode clears a leftover ask even while a switch is cooling down", async () => {

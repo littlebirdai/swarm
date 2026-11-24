@@ -1,5 +1,11 @@
 import { v } from "convex/values";
-import { query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
+import {
+  query,
+  action,
+  internalQuery,
+  internalMutation,
+  internalAction,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { canAccessConversation } from "./lib/access";
@@ -34,7 +40,10 @@ function clip(s: string, n: number): string {
   return s.length <= n ? s : s.slice(0, n) + "…";
 }
 
-function hasStoryText(m: { content?: string; tool_results?: unknown[] }): boolean {
+function hasStoryText(m: {
+  content?: string;
+  tool_results?: unknown[];
+}): boolean {
   return !!m.content && m.content.trim().length > 0 && !m.tool_results?.length;
 }
 
@@ -43,7 +52,7 @@ async function fetchRows(ctx: { db: any }, conversationId: string) {
     ctx.db
       .query("messages")
       .withIndex("by_conversation_role_timestamp", (q: any) =>
-        q.eq("conversation_id", conversationId).eq("role", role)
+        q.eq("conversation_id", conversationId).eq("role", role),
       )
       .filter((q: any) => q.neq(q.field("content"), undefined))
       .take(cap);
@@ -52,14 +61,26 @@ async function fetchRows(ctx: { db: any }, conversationId: string) {
     byRole("assistant", MAX_ASSISTANT_ROWS),
   ]);
   const rows = [
-    ...userRows.filter((m: any) => hasStoryText(m) && !isLowSignalPrompt(m.content)),
+    ...userRows.filter(
+      (m: any) => hasStoryText(m) && !isLowSignalPrompt(m.content),
+    ),
     ...assistantRows.filter((m: any) => hasStoryText(m)),
   ].sort((a: any, b: any) => a.timestamp - b.timestamp);
-  return rows.map((m: any) => ({ id: m._id as string, role: m.role as string, content: m.content as string, ts: m.timestamp as number }));
+  return rows.map((m: any) => ({
+    id: m._id as string,
+    role: m.role as string,
+    content: m.content as string,
+    ts: m.timestamp as number,
+  }));
 }
 
 type Row = { id: string; role: string; content: string; ts: number };
-type Turn = { promptId: string; promptTs: number; prompt: string; assistant: string[] };
+type Turn = {
+  promptId: string;
+  promptTs: number;
+  prompt: string;
+  assistant: string[];
+};
 
 // A turn = one user prompt plus all the assistant text up to the next prompt.
 function buildTurns(rows: Row[]): Turn[] {
@@ -67,7 +88,12 @@ function buildTurns(rows: Row[]): Turn[] {
   let cur: Turn | null = null;
   for (const r of rows) {
     if (r.role === "user") {
-      cur = { promptId: r.id, promptTs: r.ts, prompt: r.content, assistant: [] };
+      cur = {
+        promptId: r.id,
+        promptTs: r.ts,
+        prompt: r.content,
+        assistant: [],
+      };
       turns.push(cur);
     } else if (r.role === "assistant") {
       if (!cur) {
@@ -117,7 +143,11 @@ function readLevel(row: any, level: "story" | "summary", currentCount: number) {
   const builtAt = (row?.[`${level}_message_count`] as number | undefined) ?? 0;
   let items: Beat[] = [];
   if (raw) {
-    try { items = JSON.parse(raw); } catch { items = []; }
+    try {
+      items = JSON.parse(raw);
+    } catch {
+      items = [];
+    }
   }
   return {
     items,
@@ -134,7 +164,9 @@ export const getStory = query({
     if (!conv) return null;
     const row = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .unique();
     return readLevel(row, "story", conv.message_count ?? 0);
   },
@@ -147,7 +179,9 @@ export const getSummary = query({
     if (!conv) return null;
     const row = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .unique();
     return readLevel(row, "summary", conv.message_count ?? 0);
   },
@@ -178,14 +212,28 @@ export const getCachedStory = internalQuery({
     if (!(await canAccessConversation(ctx, args.user_id, conv))) return null;
     const row = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .unique();
     let beats: Beat[] = [];
-    if (row?.story) { try { beats = JSON.parse(row.story); } catch { beats = []; } }
+    if (row?.story) {
+      try {
+        beats = JSON.parse(row.story);
+      } catch {
+        beats = [];
+      }
+    }
     // The count the beats were BUILT at, not the session's count now: a
     // summary made from these beats covers that many messages and no more.
     const builtAt = (row?.story_message_count as number | undefined) ?? 0;
-    return { beats, message_count: builtAt, stale: beats.length === 0 || (conv.message_count ?? 0) - builtAt >= STALE_AFTER };
+    return {
+      beats,
+      message_count: builtAt,
+      stale:
+        beats.length === 0 ||
+        (conv.message_count ?? 0) - builtAt >= STALE_AFTER,
+    };
   },
 });
 
@@ -200,7 +248,9 @@ export const writeLevel = internalMutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("conversation_summaries")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .unique();
     const patch: Record<string, unknown> = {
       [args.level]: args.json,
@@ -209,21 +259,37 @@ export const writeLevel = internalMutation({
       model: CHEAP_MODEL,
     };
     if (existing) await ctx.db.patch(existing._id, patch);
-    else await ctx.db.insert("conversation_summaries", { conversation_id: args.conversation_id, ...patch } as any);
+    else
+      await ctx.db.insert("conversation_summaries", {
+        conversation_id: args.conversation_id,
+        ...patch,
+      } as any);
   },
 });
 
 // ── Haiku ────────────────────────────────────────────────────────────────────
 
-async function callHaiku(gate: VendorGate, prompt: string, maxTokens: number): Promise<string | null> {
-  const reply = await callModel({ prompt, max_tokens: maxTokens, label: "storyMode Haiku", gate });
+async function callHaiku(
+  gate: VendorGate,
+  prompt: string,
+  maxTokens: number,
+): Promise<string | null> {
+  const reply = await callModel({
+    prompt,
+    max_tokens: maxTokens,
+    label: "storyMode Haiku",
+    gate,
+  });
   return reply ? stripModelPreamble(reply.text) : null;
 }
 
 // Haiku sometimes prefixes a reasoning block despite instructions. Drop a
 // leading <analysis>/<thinking> block; leave a genuine answer untouched.
 export function stripModelPreamble(text: string): string {
-  const stripped = text.replace(/^\s*<(analysis|thinking)>[\s\S]*?<\/\1>\s*/i, "");
+  const stripped = text.replace(
+    /^\s*<(analysis|thinking)>[\s\S]*?<\/\1>\s*/i,
+    "",
+  );
   return stripped.trim() || text.trim();
 }
 
@@ -231,13 +297,21 @@ export function stripModelPreamble(text: string): string {
 // carry their own newlines/structure, so a delimiter format is far more robust
 // than JSON (no escaping of multi-paragraph markdown). The first non-empty line
 // is the heading (any leading '#' stripped); everything after it is the body.
-export function parseHeadingBody(text: string): { heading?: string; body?: string } | null {
+export function parseHeadingBody(
+  text: string,
+): { heading?: string; body?: string } | null {
   const lines = text.split("\n");
   let i = 0;
   while (i < lines.length && lines[i].trim() === "") i++;
   if (i >= lines.length) return null;
-  const heading = lines[i].replace(/^#+\s*/, "").replace(/^\*\*|\*\*$/g, "").trim();
-  const body = lines.slice(i + 1).join("\n").trim();
+  const heading = lines[i]
+    .replace(/^#+\s*/, "")
+    .replace(/^\*\*|\*\*$/g, "")
+    .trim();
+  const body = lines
+    .slice(i + 1)
+    .join("\n")
+    .trim();
   if (!body) return null;
   return { heading, body };
 }
@@ -290,7 +364,11 @@ async function mapBeats<T>(
   gate: VendorGate,
   items: T[][],
   buildPrompt: (group: T[]) => string,
-  anchorOf: (group: T[]) => { anchor_prompt: string; anchor_message_id: string; anchor_timestamp: number },
+  anchorOf: (group: T[]) => {
+    anchor_prompt: string;
+    anchor_message_id: string;
+    anchor_timestamp: number;
+  },
 ): Promise<Beat[]> {
   const out: Beat[] = new Array(items.length);
   for (let i = 0; i < items.length; i += HAIKU_BATCH) {
@@ -311,7 +389,7 @@ async function mapBeats<T>(
           console.error("storyMode beat failed:", err);
           out[idx] = { heading: "", body: "", ...anchor };
         }
-      })
+      }),
     );
   }
   return out.filter((b) => b && b.body);
@@ -324,18 +402,29 @@ export const generateStory = action({
   handler: async (ctx, args): Promise<{ ok: boolean; beats: number }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { ok: false, beats: 0 };
-    if (!process.env.ANTHROPIC_API_KEY) { console.error("ANTHROPIC_API_KEY not configured"); return { ok: false, beats: 0 }; }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error("ANTHROPIC_API_KEY not configured");
+      return { ok: false, beats: 0 };
+    }
 
-    const input = await ctx.runQuery(internal.storyMode.getStoryInput, { conversation_id: args.conversation_id, user_id: userId });
+    const input = await ctx.runQuery(internal.storyMode.getStoryInput, {
+      conversation_id: args.conversation_id,
+      user_id: userId,
+    });
     if (!input || input.turns.length === 0) return { ok: false, beats: 0 };
 
     const turns = input.turns as Turn[];
     const groups = chunkInto(turns, beatCount(turns.length));
-    const beats = await mapBeats({ ctx, scope: { conversationId: args.conversation_id } }, groups, buildBeatPrompt, (g) => ({
-      anchor_prompt: g[0].prompt,
-      anchor_message_id: g[0].promptId,
-      anchor_timestamp: g[0].promptTs,
-    }));
+    const beats = await mapBeats(
+      { ctx, scope: { conversationId: args.conversation_id } },
+      groups,
+      buildBeatPrompt,
+      (g) => ({
+        anchor_prompt: g[0].prompt,
+        anchor_message_id: g[0].promptId,
+        anchor_timestamp: g[0].promptTs,
+      }),
+    );
     if (beats.length === 0) return { ok: false, beats: 0 };
 
     await ctx.runMutation(internal.storyMode.writeLevel, {
@@ -354,23 +443,40 @@ export const generateSummary = action({
   handler: async (ctx, args): Promise<{ ok: boolean; phases: number }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { ok: false, phases: 0 };
-    if (!process.env.ANTHROPIC_API_KEY) { console.error("ANTHROPIC_API_KEY not configured"); return { ok: false, phases: 0 }; }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error("ANTHROPIC_API_KEY not configured");
+      return { ok: false, phases: 0 };
+    }
 
     // Summary is built FROM the story beats. Ensure they exist and cover the session as it is now.
-    let cached = await ctx.runQuery(internal.storyMode.getCachedStory, { conversation_id: args.conversation_id, user_id: userId });
+    let cached = await ctx.runQuery(internal.storyMode.getCachedStory, {
+      conversation_id: args.conversation_id,
+      user_id: userId,
+    });
     if (!cached || cached.stale) {
-      await ctx.runAction(internal.storyMode.generateStoryInternal, { conversation_id: args.conversation_id, user_id: userId });
-      cached = await ctx.runQuery(internal.storyMode.getCachedStory, { conversation_id: args.conversation_id, user_id: userId });
+      await ctx.runAction(internal.storyMode.generateStoryInternal, {
+        conversation_id: args.conversation_id,
+        user_id: userId,
+      });
+      cached = await ctx.runQuery(internal.storyMode.getCachedStory, {
+        conversation_id: args.conversation_id,
+        user_id: userId,
+      });
     }
     if (!cached || cached.beats.length === 0) return { ok: false, phases: 0 };
 
     const beats = cached.beats as Beat[];
     const groups = chunkInto(beats, phaseCount(beats.length));
-    const phases = await mapBeats({ ctx, scope: { conversationId: args.conversation_id } }, groups, buildPhasePrompt, (g) => ({
-      anchor_prompt: g[0].anchor_prompt,
-      anchor_message_id: g[0].anchor_message_id,
-      anchor_timestamp: g[0].anchor_timestamp,
-    }));
+    const phases = await mapBeats(
+      { ctx, scope: { conversationId: args.conversation_id } },
+      groups,
+      buildPhasePrompt,
+      (g) => ({
+        anchor_prompt: g[0].anchor_prompt,
+        anchor_message_id: g[0].anchor_message_id,
+        anchor_timestamp: g[0].anchor_timestamp,
+      }),
+    );
     if (phases.length === 0) return { ok: false, phases: 0 };
 
     await ctx.runMutation(internal.storyMode.writeLevel, {
@@ -390,15 +496,23 @@ export const generateStoryInternal = internalAction({
   args: { conversation_id: v.id("conversations"), user_id: v.id("users") },
   handler: async (ctx, args): Promise<{ ok: boolean }> => {
     if (!process.env.ANTHROPIC_API_KEY) return { ok: false };
-    const input = await ctx.runQuery(internal.storyMode.getStoryInput, { conversation_id: args.conversation_id, user_id: args.user_id });
+    const input = await ctx.runQuery(internal.storyMode.getStoryInput, {
+      conversation_id: args.conversation_id,
+      user_id: args.user_id,
+    });
     if (!input || input.turns.length === 0) return { ok: false };
     const turns = input.turns as Turn[];
     const groups = chunkInto(turns, beatCount(turns.length));
-    const beats = await mapBeats({ ctx, scope: { conversationId: args.conversation_id } }, groups, buildBeatPrompt, (g) => ({
-      anchor_prompt: g[0].prompt,
-      anchor_message_id: g[0].promptId,
-      anchor_timestamp: g[0].promptTs,
-    }));
+    const beats = await mapBeats(
+      { ctx, scope: { conversationId: args.conversation_id } },
+      groups,
+      buildBeatPrompt,
+      (g) => ({
+        anchor_prompt: g[0].prompt,
+        anchor_message_id: g[0].promptId,
+        anchor_timestamp: g[0].promptTs,
+      }),
+    );
     if (beats.length === 0) return { ok: false };
     await ctx.runMutation(internal.storyMode.writeLevel, {
       conversation_id: args.conversation_id,

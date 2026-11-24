@@ -11,14 +11,18 @@ export async function listTargets(port) {
 
 /** Open a new page target on a browser and hand back its descriptor. */
 export async function newTarget(port, url = "about:blank") {
-  const r = await fetch(`http://127.0.0.1:${port}/json/new?${url}`, { method: "PUT" });
+  const r = await fetch(`http://127.0.0.1:${port}/json/new?${url}`, {
+    method: "PUT",
+  });
   return r.json();
 }
 
 /** Connect to the page whose URL matches `match`; the first page otherwise. */
 export async function connect(port, match = /localhost:3200/) {
   const targets = await listTargets(port);
-  const t = targets.find((x) => x.type === "page" && match.test(x.url)) || targets.find((x) => x.type === "page");
+  const t =
+    targets.find((x) => x.type === "page" && match.test(x.url)) ||
+    targets.find((x) => x.type === "page");
   if (!t) throw new Error(`no page target on ${port}`);
   return connectTarget(t);
 }
@@ -46,12 +50,14 @@ export async function connectTarget(t) {
   // answers nothing: every call still in flight fails at once, so a leg
   // reports the death instead of the whole run hanging on a promise.
   ws.onclose = () => {
-    for (const { rej } of pending.values()) rej(new Error(`page gone: ${t.url}`));
+    for (const { rej } of pending.values())
+      rej(new Error(`page gone: ${t.url}`));
     pending.clear();
   };
   const send = (method, params = {}) =>
     new Promise((res, rej) => {
-      if (ws.readyState !== WebSocket.OPEN) return rej(new Error(`page gone: ${t.url}`));
+      if (ws.readyState !== WebSocket.OPEN)
+        return rej(new Error(`page gone: ${t.url}`));
       const i = ++id;
       pending.set(i, { res, rej });
       ws.send(JSON.stringify({ id: i, method, params }));
@@ -62,9 +68,18 @@ export async function connectTarget(t) {
   };
   /** Evaluate an expression; promises are awaited, the value comes back by value. */
   const evaluate = async (expression, opts = {}) => {
-    const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, ...opts });
+    const r = await send("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+      ...opts,
+    });
     if (r.exceptionDetails) {
-      throw new Error("eval: " + (r.exceptionDetails.exception?.description || JSON.stringify(r.exceptionDetails)));
+      throw new Error(
+        "eval: " +
+          (r.exceptionDetails.exception?.description ||
+            JSON.stringify(r.exceptionDetails)),
+      );
     }
     return r.result.value;
   };
@@ -89,12 +104,14 @@ export async function connectTarget(t) {
       const { errorText } = await send("Page.navigate", { url });
       if (!errorText) return loaded;
       off();
-      if (Date.now() > deadline) throw new Error(`navigate ${url}: ${errorText}`);
+      if (Date.now() > deadline)
+        throw new Error(`navigate ${url}: ${errorText}`);
       await sleep(2000);
     }
   };
   /** A script that runs in every new document before the app does. */
-  const addInitScript = (source) => send("Page.addScriptToEvaluateOnNewDocument", { source });
+  const addInitScript = (source) =>
+    send("Page.addScriptToEvaluateOnNewDocument", { source });
   /** Screenshot the viewport, or the box around everything a CSS selector
    *  list matches (a bar and the card hanging under it), to a PNG file. */
   const screenshot = async (file, selector) => {
@@ -105,13 +122,33 @@ export async function connectTarget(t) {
       );
       if (!rect) throw new Error(`screenshot: nothing matches ${selector}`);
       const pad = 12;
-      clip = { x: Math.max(0, rect.x - pad), y: Math.max(0, rect.y - pad), width: rect.width + pad * 2, height: rect.height + pad * 2, scale: 2 };
+      clip = {
+        x: Math.max(0, rect.x - pad),
+        y: Math.max(0, rect.y - pad),
+        width: rect.width + pad * 2,
+        height: rect.height + pad * 2,
+        scale: 2,
+      };
     }
-    const r = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, ...(clip ? { clip } : {}) });
+    const r = await send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: false,
+      ...(clip ? { clip } : {}),
+    });
     writeFileSync(file, Buffer.from(r.data, "base64"));
     return file;
   };
-  return { ws, send, on, evaluate, navigate, addInitScript, screenshot, target: t, close: () => ws.close() };
+  return {
+    ws,
+    send,
+    on,
+    evaluate,
+    navigate,
+    addInitScript,
+    screenshot,
+    target: t,
+    close: () => ws.close(),
+  };
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

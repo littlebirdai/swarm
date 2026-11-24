@@ -11,13 +11,17 @@ let repoRoot: string;
 beforeEach(() => {
   repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "backend-local-"));
   execSync("git init -q -b main", { cwd: repoRoot });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: repoRoot });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: repoRoot,
+  });
   fs.writeFileSync(path.join(repoRoot, "README.md"), "x\n");
   execSync("git add . && git commit -q -m init", { cwd: repoRoot });
 });
 
 afterEach(() => {
-  try { execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" }); } catch {}
+  try {
+    execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" });
+  } catch {}
   fs.rmSync(repoRoot, { recursive: true, force: true });
 });
 
@@ -32,18 +36,29 @@ describe("registry", () => {
   });
 
   test("get() on unknown backend throws with helpful message", () => {
-    expect(() => defaultRegistry.get("modal-pretend")).toThrow(/unknown backend 'modal-pretend'/);
+    expect(() => defaultRegistry.get("modal-pretend")).toThrow(
+      /unknown backend 'modal-pretend'/,
+    );
   });
 
   test("registering a new backend makes it discoverable", () => {
     const fake = {
       name: "fake-test-only",
-      acquire: async () => { throw new Error("not impl"); },
+      acquire: async () => {
+        throw new Error("not impl");
+      },
       release: async () => {},
-      heal: async () => { throw new Error("not impl"); },
+      heal: async () => {
+        throw new Error("not impl");
+      },
       validate: async () => ({ ok: true, checks: [] }),
       list: async () => [],
-      exec: async () => ({ stdout: "", stderr: "", exitCode: 0, durationMs: 0 }),
+      exec: async () => ({
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 0,
+      }),
       readFile: async () => Buffer.alloc(0),
       writeFile: async () => {},
     };
@@ -75,9 +90,14 @@ describe("LocalBackend — interface conformance + parity", () => {
 
   test("exec runs a shell command in workspace CWD with env", async () => {
     await LocalBackend.acquire(repoRoot, "feat-exec");
-    const r = await LocalBackend.exec(repoRoot, "feat-exec", "pwd && echo $FOO", {
-      env: { FOO: "bar" },
-    });
+    const r = await LocalBackend.exec(
+      repoRoot,
+      "feat-exec",
+      "pwd && echo $FOO",
+      {
+        env: { FOO: "bar" },
+      },
+    );
     expect(r.exitCode).toBe(0);
     expect(r.stdout).toContain("feat-exec");
     expect(r.stdout).toContain("bar");
@@ -87,8 +107,14 @@ describe("LocalBackend — interface conformance + parity", () => {
   test("exec respects opts.cwd (relative to workspace root)", async () => {
     await LocalBackend.acquire(repoRoot, "feat-cwd");
     // Create a subdir
-    await LocalBackend.exec(repoRoot, "feat-cwd", "mkdir -p sub && echo here > sub/here.txt");
-    const r = await LocalBackend.exec(repoRoot, "feat-cwd", "cat here.txt", { cwd: "sub" });
+    await LocalBackend.exec(
+      repoRoot,
+      "feat-cwd",
+      "mkdir -p sub && echo here > sub/here.txt",
+    );
+    const r = await LocalBackend.exec(repoRoot, "feat-cwd", "cat here.txt", {
+      cwd: "sub",
+    });
     expect(r.exitCode).toBe(0);
     expect(r.stdout.trim()).toBe("here");
     await LocalBackend.release(repoRoot, "feat-cwd");
@@ -103,15 +129,26 @@ describe("LocalBackend — interface conformance + parity", () => {
 
   test("readFile/writeFile roundtrip", async () => {
     await LocalBackend.acquire(repoRoot, "feat-fs");
-    await LocalBackend.writeFile(repoRoot, "feat-fs", "nested/sub/file.txt", "hello\n");
-    const got = await LocalBackend.readFile(repoRoot, "feat-fs", "nested/sub/file.txt");
+    await LocalBackend.writeFile(
+      repoRoot,
+      "feat-fs",
+      "nested/sub/file.txt",
+      "hello\n",
+    );
+    const got = await LocalBackend.readFile(
+      repoRoot,
+      "feat-fs",
+      "nested/sub/file.txt",
+    );
     expect(got.toString("utf-8")).toBe("hello\n");
     await LocalBackend.release(repoRoot, "feat-fs");
   });
 
   test("validate matches lifecycle.validateWorkspace", async () => {
     await LocalBackend.acquire(repoRoot, "feat-v");
-    const direct = await (await import("../lifecycle.js")).validateWorkspace(repoRoot, "feat-v");
+    const direct = await (
+      await import("../lifecycle.js")
+    ).validateWorkspace(repoRoot, "feat-v");
     const viaBackend = await LocalBackend.validate(repoRoot, "feat-v");
     expect(viaBackend.ok).toBe(direct.ok);
     await LocalBackend.release(repoRoot, "feat-v");
@@ -128,8 +165,14 @@ describe("LocalBackend — interface conformance + parity", () => {
   });
 
   test("missing workspace: exec/readFile/writeFile throw clear error", async () => {
-    await expect(LocalBackend.exec(repoRoot, "nope", "true")).rejects.toThrow(/not found/);
-    await expect(LocalBackend.readFile(repoRoot, "nope", "x")).rejects.toThrow(/not found/);
-    await expect(LocalBackend.writeFile(repoRoot, "nope", "x", "y")).rejects.toThrow(/not found/);
+    await expect(LocalBackend.exec(repoRoot, "nope", "true")).rejects.toThrow(
+      /not found/,
+    );
+    await expect(LocalBackend.readFile(repoRoot, "nope", "x")).rejects.toThrow(
+      /not found/,
+    );
+    await expect(
+      LocalBackend.writeFile(repoRoot, "nope", "x", "y"),
+    ).rejects.toThrow(/not found/);
   });
 });

@@ -4,7 +4,12 @@ import { vaultRedactionSource } from "./redactionSource.js";
 const SITE = "https://backend.test";
 
 /** A fake backend: answers the two redaction routes and counts calls to each. */
-function backend(state: { version: string; values: Array<{ name: string; value: string }>; status?: number; down?: boolean }) {
+function backend(state: {
+  version: string;
+  values: Array<{ name: string; value: string }>;
+  status?: number;
+  down?: boolean;
+}) {
   const calls = { version: 0, values: 0 };
   const fetch = (async (url: string) => {
     if (state.down) throw new TypeError("fetch failed");
@@ -12,7 +17,12 @@ function backend(state: { version: string; values: Array<{ name: string; value: 
     const status = state.status ?? 200;
     if (route === "/cli/vault/redaction-version") {
       calls.version++;
-      return Response.json(status === 200 ? { version: state.version } : { error: "Unauthorized: sign in" }, { status });
+      return Response.json(
+        status === 200
+          ? { version: state.version }
+          : { error: "Unauthorized: sign in" },
+        { status },
+      );
     }
     if (route === "/cli/vault/redaction-values") {
       calls.values++;
@@ -26,17 +36,26 @@ function backend(state: { version: string; values: Array<{ name: string; value: 
 function source(state: Parameters<typeof backend>[0]) {
   const { calls, fetch } = backend(state);
   const logs: string[] = [];
-  const src = vaultRedactionSource({ endpoint: () => ({ siteUrl: SITE, apiToken: "tok" }), log: (l) => logs.push(l), fetch });
+  const src = vaultRedactionSource({
+    endpoint: () => ({ siteUrl: SITE, apiToken: "tok" }),
+    log: (l) => logs.push(l),
+    fetch,
+  });
   return { src, calls, logs };
 }
 
 describe("vault redaction source", () => {
   test("fetches values on first poll, refetches only when the version moves", async () => {
-    const state = { version: "team:a=1", values: [{ name: "stripe", value: "sk_vault_9f8e7d6c5b4a" }] };
+    const state = {
+      version: "team:a=1",
+      values: [{ name: "stripe", value: "sk_vault_9f8e7d6c5b4a" }],
+    };
     const { src, calls } = source(state);
 
     expect(await src.refresh()).toBe(true);
-    expect(src.values()).toEqual([{ name: "stripe", value: "sk_vault_9f8e7d6c5b4a" }]);
+    expect(src.values()).toEqual([
+      { name: "stripe", value: "sk_vault_9f8e7d6c5b4a" },
+    ]);
     expect(calls).toEqual({ version: 1, values: 1 });
 
     expect(await src.refresh()).toBe(false);
@@ -46,7 +65,9 @@ describe("vault redaction source", () => {
     state.values = [{ name: "stripe", value: "sk_vault_rotated_000111" }];
     expect(await src.refresh()).toBe(true);
     expect(calls).toEqual({ version: 3, values: 2 });
-    expect(src.values().map((v) => v.value)).toEqual(["sk_vault_rotated_000111"]);
+    expect(src.values().map((v) => v.value)).toEqual([
+      "sk_vault_rotated_000111",
+    ]);
   });
 
   test("refreshes made while a poll runs share one more poll after it, never a poll each", async () => {
@@ -56,7 +77,10 @@ describe("vault redaction source", () => {
   });
 
   test("a refresh asked mid-poll sees a value rotated after that poll read the version", async () => {
-    const state = { version: "v1", values: [{ name: "stripe", value: "sk_vault_old_000111" }] };
+    const state = {
+      version: "v1",
+      values: [{ name: "stripe", value: "sk_vault_old_000111" }],
+    };
     const { fetch } = backend(state);
     let releaseVersion = () => {};
     let stallNextVersion = false;
@@ -69,7 +93,10 @@ describe("vault redaction source", () => {
       }
       return res;
     }) as unknown as typeof globalThis.fetch;
-    const src = vaultRedactionSource({ endpoint: () => ({ siteUrl: SITE, apiToken: "tok" }), fetch: slow });
+    const src = vaultRedactionSource({
+      endpoint: () => ({ siteUrl: SITE, apiToken: "tok" }),
+      fetch: slow,
+    });
     await src.refresh();
     stallNextVersion = true;
     const tick = src.refresh();
@@ -85,7 +112,10 @@ describe("vault redaction source", () => {
   });
 
   test("a network failure keeps the last good set; a refused token clears it", async () => {
-    const state: Parameters<typeof backend>[0] = { version: "v1", values: [{ name: "db", value: "dbPassword-7731xyz" }] };
+    const state: Parameters<typeof backend>[0] = {
+      version: "v1",
+      values: [{ name: "db", value: "dbPassword-7731xyz" }],
+    };
     const { src } = source(state);
     await src.refresh();
 
@@ -105,9 +135,15 @@ describe("vault redaction source", () => {
   });
 
   test("signed out clears the set", async () => {
-    const { fetch } = backend({ version: "v1", values: [{ name: "db", value: "dbPassword-7731xyz" }] });
+    const { fetch } = backend({
+      version: "v1",
+      values: [{ name: "db", value: "dbPassword-7731xyz" }],
+    });
     let signedIn = true;
-    const src = vaultRedactionSource({ endpoint: () => (signedIn ? { siteUrl: SITE, apiToken: "tok" } : null), fetch });
+    const src = vaultRedactionSource({
+      endpoint: () => (signedIn ? { siteUrl: SITE, apiToken: "tok" } : null),
+      fetch,
+    });
     await src.refresh();
     signedIn = false;
     expect(await src.refresh()).toBe(true);
@@ -116,7 +152,13 @@ describe("vault redaction source", () => {
 
   test("log lines name counts, never a value", async () => {
     const secret = "never-log-me-Qw7731xyz";
-    const state: Parameters<typeof backend>[0] = { version: "v1", values: [{ name: "a", value: secret }, { name: "a", value: "second-Value-889900" }] };
+    const state: Parameters<typeof backend>[0] = {
+      version: "v1",
+      values: [
+        { name: "a", value: secret },
+        { name: "a", value: "second-Value-889900" },
+      ],
+    };
     const { src, logs } = source(state);
     await src.refresh();
     state.down = true;

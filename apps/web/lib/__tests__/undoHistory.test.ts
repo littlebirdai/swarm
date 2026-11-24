@@ -27,7 +27,10 @@ describe("undo timeline row model", () => {
 
   test("the now rule sits above the head; undone rows above it walk forward, done rows below walk back", () => {
     expect(model.headId).toBe("fx-status");
-    expect(model.rows.slice(0, model.headIndex).map((r) => r.id)).toEqual(["fx-pin", "fx-file"]);
+    expect(model.rows.slice(0, model.headIndex).map((r) => r.id)).toEqual([
+      "fx-pin",
+      "fx-file",
+    ]);
     expect(row("fx-status").act).toEqual({ kind: "back", steps: 1 });
     expect(row("fx-defer").act).toEqual({ kind: "back", steps: 2 });
     expect(row("fx-old").act).toEqual({ kind: "back", steps: 3 });
@@ -39,7 +42,12 @@ describe("undo timeline row model", () => {
   });
 
   test("with nothing left to undo the rule sits under the oldest undone row", () => {
-    const m = undoTimelineRows(undoFixtureWalk(fx.snapshot.items, null, NOW, WINDOW), fx.state, NOW, WINDOW);
+    const m = undoTimelineRows(
+      undoFixtureWalk(fx.snapshot.items, null, NOW, WINDOW),
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(m.rows[m.headIndex - 1]?.id).toBe("fx-old");
     expect(m.rows.every((r) => r.act?.kind !== "back")).toBe(true);
     // The manual entry past the window is off the stacks: it never flips.
@@ -50,8 +58,24 @@ describe("undo timeline row model", () => {
   test("a toast's out-of-turn undo then a redo: counts and the head follow the stack, not history order", () => {
     // Recorded A, B, C; the toast undid A (not the top); ⌘⇧Z redid it, so A
     // is on top of the undo stack while it stays oldest in the history.
-    const item = (id: string, ts: number) => ({ id, label: id, ts, status: "done" as const, mode: "generic" as const });
-    const snap = { version: 3, items: [item("C", NOW - 1_000), item("B", NOW - 2_000), item("A", NOW - 3_000)], head: "A", undoOrder: ["A", "C", "B"], redoOrder: [] };
+    const item = (id: string, ts: number) => ({
+      id,
+      label: id,
+      ts,
+      status: "done" as const,
+      mode: "generic" as const,
+    });
+    const snap = {
+      version: 3,
+      items: [
+        item("C", NOW - 1_000),
+        item("B", NOW - 2_000),
+        item("A", NOW - 3_000),
+      ],
+      head: "A",
+      undoOrder: ["A", "C", "B"],
+      redoOrder: [],
+    };
     const m = undoTimelineRows(snap, fx.state, NOW, WINDOW);
     expect(m.headIndex).toBe(0);
     expect(m.headId).toBe("A");
@@ -62,8 +86,20 @@ describe("undo timeline row model", () => {
   });
 
   test("an entry trimmed off the undo stack stays in the history but cannot act", () => {
-    const item = (id: string, ts: number) => ({ id, label: id, ts, status: "done" as const, mode: "generic" as const });
-    const snap = { version: 4, items: [item("new", NOW - 1_000), item("trimmed", NOW - 2_000)], head: "new", undoOrder: ["new"], redoOrder: [] };
+    const item = (id: string, ts: number) => ({
+      id,
+      label: id,
+      ts,
+      status: "done" as const,
+      mode: "generic" as const,
+    });
+    const snap = {
+      version: 4,
+      items: [item("new", NOW - 1_000), item("trimmed", NOW - 2_000)],
+      head: "new",
+      undoOrder: ["new"],
+      redoOrder: [],
+    };
     const m = undoTimelineRows(snap, fx.state, NOW, WINDOW);
     expect(row("new", m).act).toEqual({ kind: "back", steps: 1 });
     expect(row("trimmed", m).act).toBeNull();
@@ -72,39 +108,116 @@ describe("undo timeline row model", () => {
   test("a row on no stack that is newer than the head stays under the now rule", () => {
     // ⌘Z hit a conflict on the top entry (the engine took it off the stack),
     // then an org change landed: both are still applied, so neither reads as undone.
-    const item = (id: string, ts: number, status: "done" | "undone" | "conflict" | "external") => ({ id, label: id, ts, status, mode: "generic" as const });
-    const items = [item("X", NOW - 1_000, "conflict"), item("ORG", NOW - 2_000, "external"), item("Y", NOW - 3_000, "done")];
-    const m = undoTimelineRows({ version: 5, items, head: "Y", undoOrder: ["Y"], redoOrder: [] }, fx.state, NOW, WINDOW);
+    const item = (
+      id: string,
+      ts: number,
+      status: "done" | "undone" | "conflict" | "external",
+    ) => ({ id, label: id, ts, status, mode: "generic" as const });
+    const items = [
+      item("X", NOW - 1_000, "conflict"),
+      item("ORG", NOW - 2_000, "external"),
+      item("Y", NOW - 3_000, "done"),
+    ];
+    const m = undoTimelineRows(
+      { version: 5, items, head: "Y", undoOrder: ["Y"], redoOrder: [] },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(m.headIndex).toBe(0);
     expect(m.headId).toBe("Y");
     // An undone row leading the list still puts the rule under it, over the conflict.
-    const led = undoTimelineRows({ version: 6, items: [item("U", NOW - 500, "undone"), ...items], head: "Y", undoOrder: ["Y"], redoOrder: ["U"] }, fx.state, NOW, WINDOW);
+    const led = undoTimelineRows(
+      {
+        version: 6,
+        items: [item("U", NOW - 500, "undone"), ...items],
+        head: "Y",
+        undoOrder: ["Y"],
+        redoOrder: ["U"],
+      },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(led.rows.slice(0, led.headIndex).map((r) => r.id)).toEqual(["U"]);
     // Nothing left to undo: under the lowest undone row, the conflict above it or not.
-    const none = undoTimelineRows({ version: 7, items: [items[0]!, item("U", NOW - 1_500, "undone"), item("V", NOW - 2_500, "undone")], head: null, undoOrder: [], redoOrder: ["V", "U"] }, fx.state, NOW, WINDOW);
+    const none = undoTimelineRows(
+      {
+        version: 7,
+        items: [
+          items[0]!,
+          item("U", NOW - 1_500, "undone"),
+          item("V", NOW - 2_500, "undone"),
+        ],
+        head: null,
+        undoOrder: [],
+        redoOrder: ["V", "U"],
+      },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(none.headIndex).toBe(3);
   });
 
   test("a row past the window says it is reachable only while it has a button, in the window's own words", () => {
-    const item = (id: string, ts: number) => ({ id, label: id, ts, status: "done" as const, mode: "generic" as const });
-    const snap = { version: 8, items: [item("new", NOW - 1_000), item("kept", NOW - 9 * 60_000), item("trimmed", NOW - 10 * 60_000)], head: "new", undoOrder: ["new", "kept"], redoOrder: [] };
+    const item = (id: string, ts: number) => ({
+      id,
+      label: id,
+      ts,
+      status: "done" as const,
+      mode: "generic" as const,
+    });
+    const snap = {
+      version: 8,
+      items: [
+        item("new", NOW - 1_000),
+        item("kept", NOW - 9 * 60_000),
+        item("trimmed", NOW - 10 * 60_000),
+      ],
+      head: "new",
+      undoOrder: ["new", "kept"],
+      redoOrder: [],
+    };
     const m = undoTimelineRows(snap, fx.state, NOW, WINDOW);
-    expect(row("kept", m).detail).toBe("older than 5 minutes, still reachable from here");
+    expect(row("kept", m).detail).toBe(
+      "older than 5 minutes, still reachable from here",
+    );
     expect(row("trimmed", m).act).toBeNull();
     expect(row("trimmed", m).detail).toBe("older than 5 minutes");
     const two = undoTimelineRows(snap, fx.state, NOW, 2 * 60_000);
     expect(two.windowMs).toBe(2 * 60_000);
-    expect(row("kept", two).detail).toBe("older than 2 minutes, still reachable from here");
+    expect(row("kept", two).detail).toBe(
+      "older than 2 minutes, still reachable from here",
+    );
     expect(undoWindowWords(60_000)).toBe("1 minute");
     expect(undoWindowWords(30_000)).toBe("30 seconds");
   });
 
   test("dropped redo branches fold into one struck marker under the entry that set them aside", () => {
     expect(model.rows.some((r) => r.state === "dropped")).toBe(false);
-    expect(row("fx-defer").setAside).toEqual({ count: 2, labels: ["Renamed “Ship it” to “Ship the changes page”", "Labeled “Ship the changes page” Review"] });
+    expect(row("fx-defer").setAside).toEqual({
+      count: 2,
+      labels: [
+        "Renamed “Ship it” to “Ship the changes page”",
+        "Labeled “Ship the changes page” Review",
+      ],
+    });
     // A dropped entry whose cause left the history stands alone, inert.
-    const orphan = { id: "fx-orphan", label: "Pinned “x”", ts: NOW - 1000, status: "dropped" as const, droppedBy: "gone", mode: "generic" as const };
-    const m = undoTimelineRows({ ...fx.snapshot, items: [orphan, ...fx.snapshot.items] }, fx.state, NOW, WINDOW);
+    const orphan = {
+      id: "fx-orphan",
+      label: "Pinned “x”",
+      ts: NOW - 1000,
+      status: "dropped" as const,
+      droppedBy: "gone",
+      mode: "generic" as const,
+    };
+    const m = undoTimelineRows(
+      { ...fx.snapshot, items: [orphan, ...fx.snapshot.items] },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(row("fx-orphan", m).state).toBe("dropped");
     expect(row("fx-orphan", m).act).toBeNull();
   });
@@ -136,10 +249,14 @@ describe("undo timeline row model", () => {
 
   test("partial, conflict, refused and external rows say what happened", () => {
     expect(row("fx-file").state).toBe("partial");
-    expect(row("fx-file").detail).toBe("2 rows changed since, left as they are");
+    expect(row("fx-file").detail).toBe(
+      "2 rows changed since, left as they are",
+    );
     expect(row("fx-file").fold?.label).toBe("3 sessions");
     expect(row("fx-pin").detail).toBe("undone just now");
-    expect(row("fx-conflict").detail).toBe("changed since, can't be taken back");
+    expect(row("fx-conflict").detail).toBe(
+      "changed since, can't be taken back",
+    );
     expect(row("fx-conflict").act).toBeNull();
     expect(row("fx-refused").detail).toBe("the server refused this change");
     expect(row("fx-refused").act).toBeNull();
@@ -150,9 +267,18 @@ describe("undo timeline row model", () => {
   });
 
   test("a done row that ⌘Z stops at (its undo widens access) says to take it back from the row", () => {
-    const items = fx.snapshot.items.map((i) => (i.id === "fx-status" ? { ...i, confirm: true } : i));
-    const m = undoTimelineRows({ ...fx.snapshot, items }, fx.state, NOW, WINDOW);
-    expect(row("fx-status", m).detail).toMatch(/its undo widens access: take it back from here$/);
+    const items = fx.snapshot.items.map((i) =>
+      i.id === "fx-status" ? { ...i, confirm: true } : i,
+    );
+    const m = undoTimelineRows(
+      { ...fx.snapshot, items },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
+    expect(row("fx-status", m).detail).toMatch(
+      /its undo widens access: take it back from here$/,
+    );
     expect(row("fx-status", m).act).toEqual({ kind: "back", steps: 1 });
   });
 
@@ -162,37 +288,105 @@ describe("undo timeline row model", () => {
     // The label names the short id already, so the detail does not repeat it.
     expect(row("fx-status").label).toContain("ct-4102");
     expect(row("fx-status").detail).toBe("In Review · High");
-    const renamed = { ...fx.state, tasks: { "fx-task": { ...fx.state.tasks["fx-task"], title: "Renamed live" } } };
-    expect(row("fx-status", undoTimelineRows(fx.snapshot, renamed, NOW, WINDOW)).visits[0]?.title).toBe("Renamed live");
-    expect(describeUndoObject({}, "tasks", "t1")).toEqual({ kind: "page", key: "page:/tasks/t1", ts: 0, path: "/tasks/t1", label: undefined });
-    expect(describeUndoObject({ buckets: { b1: { name: "Review" } } }, "buckets", "b1")).toEqual({ kind: "view", key: "label:b1", ts: 0, label: "Review" });
-    expect(describeUndoObject({ bucketAssignments: { a1: { conversation_id: "c1" } } }, "bucketAssignments", "a1")).toEqual({ kind: "session", key: "c1", ts: 0 });
+    const renamed = {
+      ...fx.state,
+      tasks: {
+        "fx-task": { ...fx.state.tasks["fx-task"], title: "Renamed live" },
+      },
+    };
+    expect(
+      row("fx-status", undoTimelineRows(fx.snapshot, renamed, NOW, WINDOW))
+        .visits[0]?.title,
+    ).toBe("Renamed live");
+    expect(describeUndoObject({}, "tasks", "t1")).toEqual({
+      kind: "page",
+      key: "page:/tasks/t1",
+      ts: 0,
+      path: "/tasks/t1",
+      label: undefined,
+    });
+    expect(
+      describeUndoObject(
+        { buckets: { b1: { name: "Review" } } },
+        "buckets",
+        "b1",
+      ),
+    ).toEqual({ kind: "view", key: "label:b1", ts: 0, label: "Review" });
+    expect(
+      describeUndoObject(
+        { bucketAssignments: { a1: { conversation_id: "c1" } } },
+        "bucketAssignments",
+        "a1",
+      ),
+    ).toEqual({ kind: "session", key: "c1", ts: 0 });
     expect(describeUndoObject({}, "pending", "x")).toBeNull();
   });
 
   test("trigger entries name and open their trigger from either trigger store", () => {
-    expect(describeUndoObject({ agentTasks: { t1: { title: "Nightly" } } }, "agentTasks", "t1")).toEqual({ kind: "page", key: "page:/triggers/t1", ts: 0, path: "/triggers/t1", label: "Nightly" });
-    expect(describeUndoObject({}, "foreignTriggers", "t2")?.path).toBe("/triggers/t2");
-    const group = { id: "g", label: "Paused 2", ts: 0, status: "done", children: [{ objects: [{ store: "agentTasks", id: "t1" }] }, { objects: [{ store: "foreignTriggers", id: "t2" }] }] } as any;
+    expect(
+      describeUndoObject(
+        { agentTasks: { t1: { title: "Nightly" } } },
+        "agentTasks",
+        "t1",
+      ),
+    ).toEqual({
+      kind: "page",
+      key: "page:/triggers/t1",
+      ts: 0,
+      path: "/triggers/t1",
+      label: "Nightly",
+    });
+    expect(describeUndoObject({}, "foreignTriggers", "t2")?.path).toBe(
+      "/triggers/t2",
+    );
+    const group = {
+      id: "g",
+      label: "Paused 2",
+      ts: 0,
+      status: "done",
+      children: [
+        { objects: [{ store: "agentTasks", id: "t1" }] },
+        { objects: [{ store: "foreignTriggers", id: "t2" }] },
+      ],
+    } as any;
     expect(undoFoldLabel(group)).toBe("2 triggers");
   });
 
   test("every store the timeline maps is a registered store (a dead key resolves nothing)", () => {
-    for (const store of UNDO_OBJECT_STORES) expect(Object.keys(CLIENT_SYNC_REGISTRY)).toContain(store);
+    for (const store of UNDO_OBJECT_STORES)
+      expect(Object.keys(CLIENT_SYNC_REGISTRY)).toContain(store);
   });
 
   test("a label that quotes a title cut short still counts as naming it", () => {
     const long = "Append codecast p3val4 marker to README.md and commit it";
-    expect(undoLabelNamesTitle(`Stashed “${long.slice(0, 39)}…”`, long)).toBe(true);
-    expect(undoLabelNamesTitle("Pinned “Broker lead”", "Broker lead")).toBe(true);
-    expect(undoLabelNamesTitle("Moved ct-4102 to In Review", "Undo history timeline")).toBe(false);
+    expect(undoLabelNamesTitle(`Stashed “${long.slice(0, 39)}…”`, long)).toBe(
+      true,
+    );
+    expect(undoLabelNamesTitle("Pinned “Broker lead”", "Broker lead")).toBe(
+      true,
+    );
+    expect(
+      undoLabelNamesTitle(
+        "Moved ct-4102 to In Review",
+        "Undo history timeline",
+      ),
+    ).toBe(false);
     // A rename since: the live title is news, so the link shows.
-    expect(undoLabelNamesTitle("Pinned “Auth race”", "Fix the auth race on sign-in")).toBe(false);
+    expect(
+      undoLabelNamesTitle("Pinned “Auth race”", "Fix the auth race on sign-in"),
+    ).toBe(false);
   });
 
   test("a done group leaves line 2 to its fold, never one child's place", () => {
-    const items = fx.snapshot.items.map((i) => (i.id === "fx-file" ? { ...i, status: "done" as const, skipped: [] } : i));
-    const m = undoTimelineRows({ ...fx.snapshot, items }, fx.state, NOW, WINDOW);
+    const items = fx.snapshot.items.map((i) =>
+      i.id === "fx-file" ? { ...i, status: "done" as const, skipped: [] } : i,
+    );
+    const m = undoTimelineRows(
+      { ...fx.snapshot, items },
+      fx.state,
+      NOW,
+      WINDOW,
+    );
     expect(row("fx-file", m).fold?.label).toBe("3 sessions");
     expect(row("fx-file", m).detail).toBe("");
   });

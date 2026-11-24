@@ -2,17 +2,29 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Bot, Plus } from "lucide-react";
-import { MAX_TASK_DEPTH, isActiveTask, subtaskProgressOf, taskDepth } from "@codecast/shared/tasks";
+import {
+  MAX_TASK_DEPTH,
+  isActiveTask,
+  subtaskProgressOf,
+  taskDepth,
+} from "@codecast/shared/tasks";
 import { useInboxStore, type TaskDetail } from "../../store/inboxStore";
 import { taskChildren } from "../../lib/subtaskTally";
 import { closeTaskWithGuard, createTaskAndAdopt } from "../../lib/taskActions";
-import { statusVisual, taskStatusOf, useTeamTaskStatusList } from "../../lib/taskStatuses";
+import {
+  statusVisual,
+  taskStatusOf,
+  useTeamTaskStatusList,
+} from "../../lib/taskStatuses";
 
 // Linear's sub-issue section, store-driven: progress header, live rows, and a
 // quick-add whose focus survives Enter so decomposing into five subtasks is
 // five titles and five Enters. Always rendered — an empty parent shows the
 // input, otherwise the feature can never bootstrap from the UI.
-export function SubtasksSection({ task, onNavigate }: {
+export function SubtasksSection({
+  task,
+  onNavigate,
+}: {
   task: Pick<TaskDetail, "_id" | "short_id"> & { team_id?: string };
   onNavigate: (id: string) => void;
 }) {
@@ -30,13 +42,20 @@ export function SubtasksSection({ task, onNavigate }: {
         .sort((a: any, b: any) => (a.created_at || 0) - (b.created_at || 0)),
     [allTasks, task._id],
   );
-  const progress = useMemo(() => subtaskProgressOf(children as any[]), [children]);
-  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const progress = useMemo(
+    () => subtaskProgressOf(children as any[]),
+    [children],
+  );
+  const pct =
+    progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   // A subtask can't be added below the depth cap — the server would refuse and
   // strand a ghost. Compute this task's depth from the store and hide the input.
   const atMaxDepth = useMemo(() => {
-    const parentOf = (id: string) => { const p = allTasks[id]?.parent_id; return p ? String(p) : undefined; };
+    const parentOf = (id: string) => {
+      const p = allTasks[id]?.parent_id;
+      return p ? String(p) : undefined;
+    };
     return taskDepth(String(task._id), parentOf) >= MAX_TASK_DEPTH;
   }, [allTasks, task._id]);
 
@@ -56,9 +75,14 @@ export function SubtasksSection({ task, onNavigate }: {
         <div className="text-xs font-medium text-sol-text-dim">Subtasks</div>
         {progress.total > 0 && (
           <>
-            <span className="text-meta font-mono text-sol-text-muted">{progress.done}/{progress.total}</span>
+            <span className="text-meta font-mono text-sol-text-muted">
+              {progress.done}/{progress.total}
+            </span>
             <div className="flex-1 max-w-[8rem] h-1 rounded-full bg-sol-border/30 overflow-hidden">
-              <div className="h-full bg-sol-green transition-all" style={{ width: `${pct}%` }} />
+              <div
+                className="h-full bg-sol-green transition-all"
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </>
         )}
@@ -74,18 +98,30 @@ export function SubtasksSection({ task, onNavigate }: {
           // in the real row.
           const pending = String(t._id).startsWith("temp_");
           return (
-            <div key={t._id} className="group flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-sol-bg-alt/50 transition-colors">
+            <div
+              key={t._id}
+              className="group flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-sol-bg-alt/50 transition-colors"
+            >
               <button
-                onClick={() => { if (pending) return; closed ? updateTask(t.short_id, { status: "open" }) : closeTaskWithGuard(t.short_id, "done"); }}
+                onClick={() => {
+                  if (pending) return;
+                  closed
+                    ? updateTask(t.short_id, { status: "open" })
+                    : closeTaskWithGuard(t.short_id, "done");
+                }}
                 className="flex-shrink-0 hover:scale-125 transition-transform disabled:opacity-50"
                 disabled={pending}
                 title={pending ? "Saving…" : closed ? "Reopen" : "Mark done"}
               >
                 <RowIcon className={`w-3.5 h-3.5 ${cfg.color}`} />
               </button>
-              <span className="text-meta font-mono text-sol-text-dim flex-shrink-0">{pending ? "…" : t.short_id}</span>
+              <span className="text-meta font-mono text-sol-text-dim flex-shrink-0">
+                {pending ? "…" : t.short_id}
+              </span>
               {pending ? (
-                <span className="flex-1 min-w-0 text-left text-xs truncate text-sol-text-dim">{t.title}</span>
+                <span className="flex-1 min-w-0 text-left text-xs truncate text-sol-text-dim">
+                  {t.title}
+                </span>
               ) : (
                 <button
                   onClick={() => onNavigate(t._id)}
@@ -98,7 +134,9 @@ export function SubtasksSection({ task, onNavigate }: {
                 <Bot className="w-3 h-3 text-sol-text-dim/60 flex-shrink-0" />
               )}
               {t.assignee_info?.name && (
-                <span className="text-meta text-sol-text-dim flex-shrink-0">{t.assignee_info.name}</span>
+                <span className="text-meta text-sol-text-dim flex-shrink-0">
+                  {t.assignee_info.name}
+                </span>
               )}
             </div>
           );
@@ -109,21 +147,24 @@ export function SubtasksSection({ task, onNavigate }: {
           Deepest level — add further steps under a higher-level task.
         </div>
       ) : (
-      <div className="flex items-center gap-2 px-1.5 py-1 mt-0.5">
-        <Plus className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0" />
-        <input
-          ref={inputRef}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") submit();
-            if (e.key === "Escape") { setTitle(""); (e.target as HTMLInputElement).blur(); }
-            e.stopPropagation();
-          }}
-          placeholder="Add subtask…"
-          className="flex-1 bg-transparent text-xs text-sol-text placeholder:text-sol-text-dim outline-none py-0.5"
-        />
-      </div>
+        <div className="flex items-center gap-2 px-1.5 py-1 mt-0.5">
+          <Plus className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0" />
+          <input
+            ref={inputRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+              if (e.key === "Escape") {
+                setTitle("");
+                (e.target as HTMLInputElement).blur();
+              }
+              e.stopPropagation();
+            }}
+            placeholder="Add subtask…"
+            className="flex-1 bg-transparent text-xs text-sol-text placeholder:text-sol-text-dim outline-none py-0.5"
+          />
+        </div>
       )}
     </div>
   );

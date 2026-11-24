@@ -25,7 +25,11 @@ import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 
 export const LINE_SUBJECT_PREFIX = "line:";
 
-export type LineCauseInput = { subject: string; title: string; detail_md: string };
+export type LineCauseInput = {
+  subject: string;
+  title: string;
+  detail_md: string;
+};
 
 /**
  * The signal a person's request becomes. Its fingerprint is the node plus the
@@ -44,54 +48,123 @@ export function lineCauseSignal(clientKey: string, input: LineCauseInput) {
   });
 }
 
-export async function fileLineCauseCore(ctx: any, userId: Id<"users">, clientKey: string, projectId: Id<"projects">, input: LineCauseInput) {
-  if (!clientKey || clientKey.length > 64) throw new ConvexError("A problem in the flow needs its client key");
-  if (!input?.subject?.startsWith(LINE_SUBJECT_PREFIX)) throw new ConvexError("A problem in the flow names a node of the flow (line:station:<id>, line:finder:<source>, ...)");
+export async function fileLineCauseCore(
+  ctx: any,
+  userId: Id<"users">,
+  clientKey: string,
+  projectId: Id<"projects">,
+  input: LineCauseInput,
+) {
+  if (!clientKey || clientKey.length > 64)
+    throw new ConvexError("A problem in the flow needs its client key");
+  if (!input?.subject?.startsWith(LINE_SUBJECT_PREFIX))
+    throw new ConvexError(
+      "A problem in the flow names a node of the flow (line:station:<id>, line:finder:<source>, ...)",
+    );
   const existing: Doc<"tasks"> | null = await ctx.db
     .query("tasks")
-    .withIndex("by_client_key", (q: any) => q.eq("user_id", userId).eq("client_key", clientKey))
+    .withIndex("by_client_key", (q: any) =>
+      q.eq("user_id", userId).eq("client_key", clientKey),
+    )
     .first();
-  if (existing) return { task_id: existing._id, task_short_id: existing.short_id };
+  if (existing)
+    return { task_id: existing._id, task_short_id: existing.short_id };
 
   const project: Doc<"projects"> | null = await ctx.db.get(projectId);
-  if (!project || !(await canAccessProject(ctx, userId, project))) throw new ConvexError("Project not found");
+  if (!project || !(await canAccessProject(ctx, userId, project)))
+    throw new ConvexError("Project not found");
   // The cause lives where the project lives.
   const ws = parseWorkspaceKey(project.workspace);
   if (!ws) throw new ConvexError("Project not found");
-  const db = await createDataContext(ctx, ws.type === "team" ? { userId, workspace: "team", team_id: ws.teamId } : { userId, workspace: "personal" });
-  if (db.workspaceKey !== project.workspace) throw new ConvexError("This project is in another workspace");
+  const db = await createDataContext(
+    ctx,
+    ws.type === "team"
+      ? { userId, workspace: "team", team_id: ws.teamId }
+      : { userId, workspace: "personal" },
+  );
+  if (db.workspaceKey !== project.workspace)
+    throw new ConvexError("This project is in another workspace");
 
-  const result = await commitSignal(ctx, db, userId, lineCauseSignal(clientKey, input), null, Date.now(), project._id, { category: "line", client_key: clientKey });
-  return { task_id: result.task_id, task_short_id: result.task_short_id, signal_short_id: result.short_id };
+  const result = await commitSignal(
+    ctx,
+    db,
+    userId,
+    lineCauseSignal(clientKey, input),
+    null,
+    Date.now(),
+    project._id,
+    { category: "line", client_key: clientKey },
+  );
+  return {
+    task_id: result.task_id,
+    task_short_id: result.task_short_id,
+    signal_short_id: result.short_id,
+  };
 }
 
 /** The role whose line runs a project's causes: the project's lead (LP1). */
-export async function leadRoleOf(ctx: any, project: Doc<"projects">): Promise<any | null> {
+export async function leadRoleOf(
+  ctx: any,
+  project: Doc<"projects">,
+): Promise<any | null> {
   const ws = parseWorkspaceKey(project.workspace);
   if (!ws) return null;
-  const roles = await allRolesInBoundary(ctx, ws.type === "team" ? { team_id: ws.teamId } : { scope_user_id: ws.userId });
+  const roles = await allRolesInBoundary(
+    ctx,
+    ws.type === "team" ? { team_id: ws.teamId } : { scope_user_id: ws.userId },
+  );
   const lead = projectLeadOf(project as any, roles);
   return lead.kind === "lead" ? lead.role : null;
 }
 
-export async function startLineCauseCore(ctx: any, userId: Id<"users">, taskId: Id<"tasks">) {
+export async function startLineCauseCore(
+  ctx: any,
+  userId: Id<"users">,
+  taskId: Id<"tasks">,
+) {
   const task: Doc<"tasks"> | null = await ctx.db.get(taskId);
-  if (!task || !(await canAccessTask(ctx, userId, task))) throw new ConvexError("Problem not found");
-  const project: Doc<"projects"> | null = task.project_id ? await ctx.db.get(task.project_id) : null;
-  if (!project) throw new ConvexError("This problem is in no project, so no flow runs it");
+  if (!task || !(await canAccessTask(ctx, userId, task)))
+    throw new ConvexError("Problem not found");
+  const project: Doc<"projects"> | null = task.project_id
+    ? await ctx.db.get(task.project_id)
+    : null;
+  if (!project)
+    throw new ConvexError("This problem is in no project, so no flow runs it");
   const role = await leadRoleOf(ctx, project);
-  if (!role) throw new ConvexError("No role leads this project yet, so no flow runs its problems. Name a lead on the project's page.");
-  if (role.status !== "active") throw new ConvexError(`@${role.handle} is paused, so its flow starts nothing`);
-  if (!(await userCanAccessRole(ctx, userId, role))) throw new ConvexError("You cannot start this project's flow");
+  if (!role)
+    throw new ConvexError(
+      "No role leads this project yet, so no flow runs its problems. Name a lead on the project's page.",
+    );
+  if (role.status !== "active")
+    throw new ConvexError(
+      `@${role.handle} is paused, so its flow starts nothing`,
+    );
+  if (!(await userCanAccessRole(ctx, userId, role)))
+    throw new ConvexError("You cannot start this project's flow");
   await endStalledRun(ctx, task);
   // Started by hand, the run takes the sweep's admission (LE6): a free slot where the role's runs work, else the
   // problem goes back to the queue and the sweep starts it in rank order. A live run refuses either way.
   const refusal = await liveRunRefusal(ctx, await ctx.db.get(taskId));
   if (refusal) throw new ConvexError(refusal);
   const room = await admitRoleRun(ctx, role, Date.now());
-  if ("waiting" in room) return { run_id: null, role_handle: role.handle, queued: await requeueForSweep(ctx, role, task, userId, Date.now(), room.waiting) };
+  if ("waiting" in room)
+    return {
+      run_id: null,
+      role_handle: role.handle,
+      queued: await requeueForSweep(
+        ctx,
+        role,
+        task,
+        userId,
+        Date.now(),
+        room.waiting,
+      ),
+    };
   const runId = await startLineRun(ctx, role, task, Date.now(), room.place);
-  return { run_id: runId as Id<"workflow_runs"> | null, role_handle: role.handle };
+  return {
+    run_id: runId as Id<"workflow_runs"> | null,
+    role_handle: role.handle,
+  };
 }
 
 /** A runner picks an answered card up within seconds; a run at the card gate
@@ -103,8 +176,20 @@ const STALLED_MS = 15 * 60_000;
  *  it: ended, so starting the cause again is the way out of the stall rather
  *  than a refusal. Any other live run is left for createRunCore to refuse. */
 async function endStalledRun(ctx: any, task: Doc<"tasks">, now = Date.now()) {
-  const run: any = task.workflow_run_id ? await ctx.db.get(task.workflow_run_id) : null;
-  if (!run || run.status !== "running" || run.current_node_id !== CARD_GATE_NODE_ID) return;
+  const run: any = task.workflow_run_id
+    ? await ctx.db.get(task.workflow_run_id)
+    : null;
+  if (
+    !run ||
+    run.status !== "running" ||
+    run.current_node_id !== CARD_GATE_NODE_ID
+  )
+    return;
   if (now - (run.updated_at ?? 0) < STALLED_MS) return;
-  await cancelCore(ctx, run, now, "Nothing drove it after its card was answered, so the flow started the problem again");
+  await cancelCore(
+    ctx,
+    run,
+    now,
+    "Nothing drove it after its card was answered, so the flow started the problem again",
+  );
 }

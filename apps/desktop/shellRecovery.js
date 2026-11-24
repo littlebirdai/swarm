@@ -56,7 +56,10 @@ function isRecoveryUrl(url) {
 // may take it over by returning true.
 const QUIET_RELOAD_MS = 30_000;
 
-function attachCrashRecovery(win, { isQuitting, fallbackUrl, quiet = false, onGone }) {
+function attachCrashRecovery(
+  win,
+  { isQuitting, fallbackUrl, quiet = false, onGone },
+) {
   let lastAppUrl = null;
   let lastQuietReload = 0;
   const remember = (url) => {
@@ -98,4 +101,10 @@ function attachGpuRecovery(app, { isQuitting, windows, keep, onGone }) {
   });
 }
 
-module.exports = { recoveryPageUrl, isRecoveryUrl, attachCrashRecovery, attachGpuRecovery, QUIET_RELOAD_MS };
+module.exports = {
+  recoveryPageUrl,
+  isRecoveryUrl,
+  attachCrashRecovery,
+  attachGpuRecovery,
+  QUIET_RELOAD_MS,
+};

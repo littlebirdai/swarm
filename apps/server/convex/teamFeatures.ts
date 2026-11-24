@@ -6,7 +6,12 @@
 import { v } from "convex/values";
 import { mutation, internalMutation } from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { TEAM_FEATURE_KEYS, TEAM_FEATURES, teamFeatureEnabled, type TeamFeatures } from "@codecast/shared/contracts";
+import {
+  TEAM_FEATURE_KEYS,
+  TEAM_FEATURES,
+  teamFeatureEnabled,
+  type TeamFeatures,
+} from "@codecast/shared/contracts";
 import { isStaff } from "./lib/staff";
 import type { Id } from "./_generated/dataModel";
 import { applyFeatureChange } from "@platform/flags";
@@ -33,13 +38,20 @@ const teamFeatureKeyValidator = v.union(
  *  them (and the REC mark with them), and every Stop is refused by the
  *  feature gate. So a room being filmed stops here, said in the room's
  *  thread, rather than filming people who can no longer see it or end it. */
-async function afterFeatureChange(ctx: any, teamId: Id<"teams">, before: TeamFeatures | undefined, after: TeamFeatures) {
+async function afterFeatureChange(
+  ctx: any,
+  teamId: Id<"teams">,
+  before: TeamFeatures | undefined,
+  after: TeamFeatures,
+) {
   await changesFlagChanged(ctx, teamId, before, after);
-  if (teamFeatureEnabled({ features: before }, "calls") && !teamFeatureEnabled({ features: after }, "calls")) {
+  if (
+    teamFeatureEnabled({ features: before }, "calls") &&
+    !teamFeatureEnabled({ features: after }, "calls")
+  ) {
     await stopTeamRecordings(ctx, teamId, "calls_off");
   }
 }
-
 
 /** Admin-only: turn one team feature on or off. Turning on a feature still in
  *  development (it spends codecast's vendor accounts) is staff-only; a team
@@ -55,12 +67,20 @@ export const setTeamFeature = mutation({
     if (!userId) throw new Error("Not authenticated");
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
     const team = await ctx.db.get(args.team_id);
     const turningOn = args.enabled && !teamFeatureEnabled(team, args.feature);
-    if (turningOn && TEAM_FEATURES.find((f) => f.key === args.feature)?.inDevelopment && !isStaff(await ctx.db.get(userId))) {
-      throw new Error("This feature is still in development; codecast turns it on for a team");
+    if (
+      turningOn &&
+      TEAM_FEATURES.find((f) => f.key === args.feature)?.inDevelopment &&
+      !isStaff(await ctx.db.get(userId))
+    ) {
+      throw new Error(
+        "This feature is still in development; codecast turns it on for a team",
+      );
     }
     const features = applyFeatureChange(TEAM_FEATURE_CATALOG, {
       isAdmin: membership?.role === "admin",

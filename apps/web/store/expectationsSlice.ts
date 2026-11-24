@@ -31,59 +31,138 @@ import {
 import type { ProjectExpectationsRow } from "../hooks/useSyncProjectExpectations";
 
 /** The card answer the queue gives (inboxStore answerDecisionDraft), handed in so the slice answers on the same rail. */
-type AnswerCard = (draft: any, decisionId: string, answer: { index: number }) => void;
+type AnswerCard = (
+  draft: any,
+  decisionId: string,
+  answer: { index: number },
+) => void;
 
 export type ExpectationsSliceActions = {
   editExpectations: (projectId: string, edit: PersonEdit) => void;
-  resolveExpectationProposal: (projectId: string, proposal: string, verdict: "apply" | "drop") => void;
+  resolveExpectationProposal: (
+    projectId: string,
+    proposal: string,
+    verdict: "apply" | "drop",
+  ) => void;
 };
 
 /** The highest line number a document has used, for a paint that has no next_n yet. */
-const nextN = (items: Expectation[]) => items.reduce((n, e) => Math.max(n, Number(/-(\d+)$/.exec(e.id)?.[1] ?? 0) + 1), 1);
+const nextN = (items: Expectation[]) =>
+  items.reduce(
+    (n, e) => Math.max(n, Number(/-(\d+)$/.exec(e.id)?.[1] ?? 0) + 1),
+    1,
+  );
 
 /** A proposal's changes laid onto the row's document as the next version; false when they cannot apply to it. */
-function applyToRow(row: ProjectExpectationsRow, ops: ExpectationOp[], baseVersion: number, now: number): boolean {
+function applyToRow(
+  row: ProjectExpectationsRow,
+  ops: ExpectationOp[],
+  baseVersion: number,
+  now: number,
+): boolean {
   const doc = row.doc;
   const version = (doc?.version ?? 0) + 1;
   const prefix = doc?.prefix ?? expectationPrefix(row.project?.title ?? "");
-  const out = applyOps({ items: doc?.items ?? [], prefix, next_n: doc?.next_n ?? nextN(doc?.items ?? []) }, ops, version, baseVersion);
+  const out = applyOps(
+    {
+      items: doc?.items ?? [],
+      prefix,
+      next_n: doc?.next_n ?? nextN(doc?.items ?? []),
+    },
+    ops,
+    version,
+    baseVersion,
+  );
   if (!out.ok) return false;
-  row.doc = { ...(doc ?? { project: row.project, prefix, how: "person", summary: "" }), version, prefix, next_n: out.next_n, items: out.items, applied_at: now } as ProjectExpectationsRow["doc"];
+  row.doc = {
+    ...(doc ?? { project: row.project, prefix, how: "person", summary: "" }),
+    version,
+    prefix,
+    next_n: out.next_n,
+    items: out.items,
+    applied_at: now,
+  } as ProjectExpectationsRow["doc"];
   row.current_version = version;
   return true;
 }
 
 /** Paint a person's edit on the row: applied when the rule says it applies, else an open proposal at the top. */
-export function paintPersonEdit(row: ProjectExpectationsRow, edit: PersonEdit, me: string, now: number): void {
+export function paintPersonEdit(
+  row: ProjectExpectationsRow,
+  edit: PersonEdit,
+  me: string,
+  now: number,
+): void {
   const op = personOp(edit, me, now);
   const base = row.doc?.version ?? 0;
-  if (personEditApplies(op, !!row.you_answer) && applyToRow(row, [op], base, now)) return;
-  row.proposals = [{ short_id: "", status: "open", summary: personEditSummary(edit, "You"), changes: 1, base_version: base, created_at: now, ops: [op] }, ...(row.proposals ?? [])];
+  if (
+    personEditApplies(op, !!row.you_answer) &&
+    applyToRow(row, [op], base, now)
+  )
+    return;
+  row.proposals = [
+    {
+      short_id: "",
+      status: "open",
+      summary: personEditSummary(edit, "You"),
+      changes: 1,
+      base_version: base,
+      created_at: now,
+      ops: [op],
+    },
+    ...(row.proposals ?? []),
+  ];
 }
 
 /** Paint Apply or Drop on an open proposal; returns the proposal's card id when one was asked. */
-export function paintResolve(row: ProjectExpectationsRow, shortId: string, verdict: "apply" | "drop", now: number): string | undefined {
+export function paintResolve(
+  row: ProjectExpectationsRow,
+  shortId: string,
+  verdict: "apply" | "drop",
+  now: number,
+): string | undefined {
   const p = row.proposals?.find((x) => x.short_id === shortId);
   if (!p || p.status !== "open") return undefined;
-  if (verdict === "apply" && !applyToRow(row, p.ops ?? [], p.base_version, now)) return undefined;
+  if (verdict === "apply" && !applyToRow(row, p.ops ?? [], p.base_version, now))
+    return undefined;
   p.status = verdict === "apply" ? "applied" : "dropped";
   if (verdict === "apply") p.applied_version = row.current_version;
   return p.card_id;
 }
 
-export function createExpectationsSlice(answerCard: AnswerCard): ExpectationsSliceActions {
+export function createExpectationsSlice(
+  answerCard: AnswerCard,
+): ExpectationsSliceActions {
   return {
-    editExpectations: action(function (this: any, projectId: string, edit: PersonEdit) {
-      const row = this.projectExpectations?.[projectId] as ProjectExpectationsRow | undefined;
+    editExpectations: action(function (
+      this: any,
+      projectId: string,
+      edit: PersonEdit,
+    ) {
+      const row = this.projectExpectations?.[projectId] as
+        | ProjectExpectationsRow
+        | undefined;
       const me = String(this.currentUser?._id ?? "");
       if (row && me) paintPersonEdit(row, edit, me, Date.now());
     }) as ExpectationsSliceActions["editExpectations"],
-    resolveExpectationProposal: action(function (this: any, projectId: string, proposal: string, verdict: "apply" | "drop") {
-      const row = this.projectExpectations?.[projectId] as ProjectExpectationsRow | undefined;
-      const card = row ? paintResolve(row, proposal, verdict, Date.now()) : undefined;
+    resolveExpectationProposal: action(function (
+      this: any,
+      projectId: string,
+      proposal: string,
+      verdict: "apply" | "drop",
+    ) {
+      const row = this.projectExpectations?.[projectId] as
+        | ProjectExpectationsRow
+        | undefined;
+      const card = row
+        ? paintResolve(row, proposal, verdict, Date.now())
+        : undefined;
       // The answer that does it, by its verb: the asking session wrote the answers (proposalAnswerIndex).
       const decision = card ? this.sessionDecisions?.[card] : undefined;
-      const index = decision?.status === "pending" ? proposalAnswerIndex(decision.options ?? [], verdict) : -1;
+      const index =
+        decision?.status === "pending"
+          ? proposalAnswerIndex(decision.options ?? [], verdict)
+          : -1;
       if (card && index >= 0) answerCard(this, card, { index });
     }) as ExpectationsSliceActions["resolveExpectationProposal"],
   };

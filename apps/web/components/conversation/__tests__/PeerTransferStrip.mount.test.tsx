@@ -9,7 +9,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/", pretendToBeVisual: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "http://localhost/", pretendToBeVisual: true },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -33,25 +36,49 @@ const ID = "conv_1";
 let root: Root;
 let retries = 0;
 const setTransfer = (peer_transfer: Record<string, unknown> | undefined) =>
-  act(async () => { useInboxStore.setState({ conversations: { [ID]: { _id: ID, peer_transfer } }, peerTransferCancels: {} } as any); });
+  act(async () => {
+    useInboxStore.setState({
+      conversations: { [ID]: { _id: ID, peer_transfer } },
+      peerTransferCancels: {},
+    } as any);
+  });
 const syncMeta = (peer_transfer: Record<string, unknown> | null) =>
   act(async () => {
-    useInboxStore.getState().syncRecord("conversations", ID, { _id: ID, peer_transfer });
+    useInboxStore
+      .getState()
+      .syncRecord("conversations", ID, { _id: ID, peer_transfer });
     flushSyncPublishes();
   });
 const NOW = Date.now();
 const strip = () => document.querySelector("[data-peer-transfer]");
 const text = () => strip()?.textContent ?? "";
-const button = (label: string) => [...document.querySelectorAll("button")].find((b) => b.textContent === label);
-const click = (label: string) => act(async () => { button(label)!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+const button = (label: string) =>
+  [...document.querySelectorAll("button")].find((b) => b.textContent === label);
+const click = (label: string) =>
+  act(async () => {
+    button(label)!.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
 
 beforeEach(async () => {
   retries = 0;
   await setTransfer(undefined);
   root = createRoot(document.getElementById("root")!);
-  await act(async () => root.render(<PeerTransferStrip conversationId={ID} onRetry={() => { retries++; }} />));
+  await act(async () =>
+    root.render(
+      <PeerTransferStrip
+        conversationId={ID}
+        onRetry={() => {
+          retries++;
+        }}
+      />,
+    ),
+  );
 });
-afterEach(async () => { await act(async () => root.unmount()); });
+afterEach(async () => {
+  await act(async () => root.unmount());
+});
 
 test("nothing without a transfer, and nothing once it is done", async () => {
   expect(strip()).toBeNull();
@@ -65,32 +92,74 @@ test("asking, then receiving with a mode chip and a determinate bar, then unpack
   expect(button("Cancel")).toBeTruthy();
   expect(document.querySelector("[role=progressbar]")).toBeNull();
 
-  await setTransfer({ phase: "receiving", from: "MacBook-Pro-182", mode: "direct", bytes: 5 * 1024 * 1024, total: 20 * 1024 * 1024, started_at: NOW, updated_at: NOW });
+  await setTransfer({
+    phase: "receiving",
+    from: "MacBook-Pro-182",
+    mode: "direct",
+    bytes: 5 * 1024 * 1024,
+    total: 20 * 1024 * 1024,
+    started_at: NOW,
+    updated_at: NOW,
+  });
   expect(text()).toContain("Receiving from MacBook-Pro-182");
   expect(text()).toContain("Direct");
   expect(text()).toContain("5.0 MB of 20.0 MB");
-  expect(document.querySelector("[role=progressbar]")?.getAttribute("aria-valuenow")).toBe("25");
+  expect(
+    document.querySelector("[role=progressbar]")?.getAttribute("aria-valuenow"),
+  ).toBe("25");
 
-  await setTransfer({ phase: "unpacking", from: "MacBook-Pro-182", mode: "relay", total: 20 * 1024 * 1024, started_at: NOW, updated_at: NOW });
+  await setTransfer({
+    phase: "unpacking",
+    from: "MacBook-Pro-182",
+    mode: "relay",
+    total: 20 * 1024 * 1024,
+    started_at: NOW,
+    updated_at: NOW,
+  });
   expect(text()).toContain("Unpacking");
   expect(text()).toContain("Relay");
   expect(document.querySelector("[role=progressbar]")).toBeNull();
 });
 
 test("Cancel paints cancelling at once and holds it through a daemon report without the stamp", async () => {
-  await setTransfer({ phase: "receiving", from: "Mac mini", mode: "relay", total: 1024, started_at: NOW, updated_at: NOW });
+  await setTransfer({
+    phase: "receiving",
+    from: "Mac mini",
+    mode: "relay",
+    total: 1024,
+    started_at: NOW,
+    updated_at: NOW,
+  });
   await click("Cancel");
   expect(strip()?.getAttribute("data-peer-transfer")).toBe("cancelling");
   expect(text()).toContain("Cancelling");
   expect(button("Cancel")).toBeUndefined();
-  await syncMeta({ phase: "receiving", from: "Mac mini", mode: "relay", bytes: 512, total: 1024, started_at: NOW, updated_at: NOW + 1000 });
+  await syncMeta({
+    phase: "receiving",
+    from: "Mac mini",
+    mode: "relay",
+    bytes: 512,
+    total: 1024,
+    started_at: NOW,
+    updated_at: NOW + 1000,
+  });
   expect(strip()?.getAttribute("data-peer-transfer")).toBe("cancelling");
-  await syncMeta({ phase: "asking", started_at: NOW + 5000, updated_at: NOW + 5000 });
+  await syncMeta({
+    phase: "asking",
+    started_at: NOW + 5000,
+    updated_at: NOW + 5000,
+  });
   expect(button("Cancel")).toBeTruthy();
 });
 
 test("a finished transfer synced as null takes the strip away", async () => {
-  await syncMeta({ phase: "unpacking", from: "Mac mini", mode: "direct", started_at: NOW, updated_at: NOW });
+  await syncMeta({
+    phase: "unpacking",
+    from: "Mac mini",
+    mode: "direct",
+    started_at: NOW,
+    updated_at: NOW,
+  });
   expect(text()).toContain("Unpacking");
   await syncMeta(null);
   expect(strip()).toBeNull();
@@ -98,7 +167,15 @@ test("a finished transfer synced as null takes the strip away", async () => {
 
 test("a row its daemon stopped updating reads as stopped, with Try again and Dismiss instead of Cancel", async () => {
   const old = Date.now() - PEER_TRANSFER_STALE_MS - 1000;
-  await setTransfer({ phase: "receiving", from: "Mac mini", mode: "direct", bytes: 1, total: 10, started_at: old, updated_at: old });
+  await setTransfer({
+    phase: "receiving",
+    from: "Mac mini",
+    mode: "direct",
+    bytes: 1,
+    total: 10,
+    started_at: old,
+    updated_at: old,
+  });
   expect(strip()?.getAttribute("data-peer-transfer")).toBe("stalled");
   expect(text()).toContain("Transfer stopped");
   expect(button("Cancel")).toBeUndefined();
@@ -109,7 +186,13 @@ test("a row its daemon stopped updating reads as stopped, with Try again and Dis
 });
 
 test("a failure names the reason and Try again restarts", async () => {
-  await setTransfer({ phase: "failed", reason: "you cancelled the transfer", started_at: NOW, updated_at: NOW, cancel_requested_at: 2 });
+  await setTransfer({
+    phase: "failed",
+    reason: "you cancelled the transfer",
+    started_at: NOW,
+    updated_at: NOW,
+    cancel_requested_at: 2,
+  });
   expect(text()).toContain("Fetch failed");
   expect(text()).toContain("you cancelled the transfer");
   expect(button("Cancel")).toBeUndefined();

@@ -7,7 +7,11 @@ import { useCopy } from "../lib/clipboard";
 import { useOffline } from "../lib/connection";
 import { Dots } from "../ui/Dots";
 import { errorData } from "../lib/errors";
-import { useIdentity, useVisitorMutation, useVisitorQuery } from "../lib/identity";
+import {
+  useIdentity,
+  useVisitorMutation,
+  useVisitorQuery,
+} from "../lib/identity";
 import { absolute, appUrl, makeUrl, roomUrl, versionUrl } from "../lib/router";
 import { Blob } from "../ui/Blob";
 import { IconButton } from "../ui/Button";
@@ -28,10 +32,14 @@ export function RoomHeader({ compact = false }: { compact?: boolean }) {
   const here = useHereState();
   const typing = useTyping(app.id);
   const { me } = useIdentity();
-  const [menu, setMenu] = useState<null | { kind: "people" | "links"; anchor: HTMLElement }>(null);
+  const [menu, setMenu] = useState<null | {
+    kind: "people" | "links";
+    anchor: HTMLElement;
+  }>(null);
   // You already have the you chip beside it; the stack is everyone else.
   const others = here.people.filter((p) => p.id !== me.id);
-  const toggle = (kind: "people" | "links", anchor: HTMLElement) => setMenu((m) => (m?.kind === kind ? null : { kind, anchor }));
+  const toggle = (kind: "people" | "links", anchor: HTMLElement) =>
+    setMenu((m) => (m?.kind === kind ? null : { kind, anchor }));
   const mine = useIsMine();
   // Offline, who is here and what is live are unknown: the line says so.
   const offline = useOffline();
@@ -39,8 +47,20 @@ export function RoomHeader({ compact = false }: { compact?: boolean }) {
   return (
     <header className={`${s.head} ${compact ? s.compact : ""}`}>
       <div className={s.top}>
-        <h2 className={s.name} title={app.name}>{app.name}</h2>
-        {compact && <span className={s.compactLive}>{offline ? <span className={s.reconnecting} role="status">Reconnecting <Dots /></span> : <LiveVersion />}</span>}
+        <h2 className={s.name} title={app.name}>
+          {app.name}
+        </h2>
+        {compact && (
+          <span className={s.compactLive}>
+            {offline ? (
+              <span className={s.reconnecting} role="status">
+                Reconnecting <Dots />
+              </span>
+            ) : (
+              <LiveVersion />
+            )}
+          </span>
+        )}
         {others.length > 0 && (
           <button
             className={s.stack}
@@ -49,15 +69,37 @@ export function RoomHeader({ compact = false }: { compact?: boolean }) {
             aria-haspopup="dialog"
             aria-expanded={menu?.kind === "people"}
           >
-            <FaceStack people={others} max={compact ? 2 : 3} size={24} typing={typing} hop={cheer} />
-            {!compact && <span className={s.names}>{others.length <= 2 ? others.map((p) => p.name).join(", ") : `${others.length} others`}</span>}
+            <FaceStack
+              people={others}
+              max={compact ? 2 : 3}
+              size={24}
+              typing={typing}
+              hop={cheer}
+            />
+            {!compact && (
+              <span className={s.names}>
+                {others.length <= 2
+                  ? others.map((p) => p.name).join(", ")
+                  : `${others.length} others`}
+              </span>
+            )}
           </button>
         )}
-        <IconButton label="Copy a link" onClick={(e) => toggle("links", e.currentTarget)} aria-haspopup="dialog" aria-expanded={menu?.kind === "links"}>
+        <IconButton
+          label="Copy a link"
+          onClick={(e) => toggle("links", e.currentTarget)}
+          aria-haspopup="dialog"
+          aria-expanded={menu?.kind === "links"}
+        >
           <LinkIcon />
         </IconButton>
         <i className={s.divider} />
-        <button className={s.you} onClick={openCharacterPicker} aria-label="You. Change your character" title="That's you">
+        <button
+          className={s.you}
+          onClick={openCharacterPicker}
+          aria-label="You. Change your character"
+          title="That's you"
+        >
           <Face person={me} size={28} />
         </button>
         <IconButton label="Close the room" onClick={() => setRoomOpen(false)}>
@@ -67,7 +109,9 @@ export function RoomHeader({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <p className={s.sub}>
           {offline ? (
-            <span className={s.reconnecting} role="status">Reconnecting <Dots /></span>
+            <span className={s.reconnecting} role="status">
+              Reconnecting <Dots />
+            </span>
           ) : (
             <>
               <LiveVersion long />
@@ -87,12 +131,22 @@ export function RoomHeader({ compact = false }: { compact?: boolean }) {
         </p>
       )}
       {menu?.kind === "people" && (
-        <Popover anchor={menu.anchor} width={260} onClose={() => setMenu(null)} label="Who is here">
+        <Popover
+          anchor={menu.anchor}
+          width={260}
+          onClose={() => setMenu(null)}
+          label="Who is here"
+        >
           <PeopleList onDone={() => setMenu(null)} />
         </Popover>
       )}
       {menu?.kind === "links" && (
-        <Popover anchor={menu.anchor} width={320} onClose={() => setMenu(null)} label="Links to this app">
+        <Popover
+          anchor={menu.anchor}
+          width={320}
+          onClose={() => setMenu(null)}
+          label="Links to this app"
+        >
           <LinkMenu makeYourOwn={compact && !mine} />
         </Popover>
       )}
@@ -112,7 +166,11 @@ function PeopleList({ onDone }: { onDone: () => void }) {
       {here.people.map((p) => {
         const row = here.byId.get(p.id);
         const theirs = p.id === me.id ? null : (row?.viewing_version ?? null);
-        const status = typing.has(p.id) ? "typing" : row?.viewing_version ? `viewing v${row.viewing_version}` : null;
+        const status = typing.has(p.id)
+          ? "typing"
+          : row?.viewing_version
+            ? `viewing v${row.viewing_version}`
+            : null;
         return (
           <li key={p.id}>
             <Face person={p} size={24} />
@@ -127,7 +185,8 @@ function PeopleList({ onDone }: { onDone: () => void }) {
                 }}
                 title={`Look at v${theirs} with ${p.name}`}
               >
-                viewing v{theirs} · <span className={s.lookLabel}>Look with {p.name}</span>
+                viewing v{theirs} ·{" "}
+                <span className={s.lookLabel}>Look with {p.name}</span>
               </button>
             ) : (
               status && <span className={s.status}>{status}</span>
@@ -165,7 +224,9 @@ function LiveVersion({ long = false }: { long?: boolean }) {
   return (
     <>
       <LiveDot ping={cheer} />
-      <span className={s.ver}>{long ? "Live " : ""}v{landed}</span>
+      <span className={s.ver}>
+        {long ? "Live " : ""}v{landed}
+      </span>
     </>
   );
 }
@@ -174,7 +235,10 @@ function LiveVersion({ long = false }: { long?: boolean }) {
 function useIsMine(): boolean {
   const { app, timeline } = useAppState();
   const { me } = useIdentity();
-  return app.created_by?.id === me.id || !!timeline?.some((v) => v.author?.id === me.id);
+  return (
+    app.created_by?.id === me.id ||
+    !!timeline?.some((v) => v.author?.id === me.id)
+  );
 }
 
 /** A quiet way home for whoever arrived on a shared link. */
@@ -197,14 +261,24 @@ function LinkMenu({ makeYourOwn }: { makeYourOwn: boolean }) {
   const rows = [
     { key: "app", label: "App link", url: absolute(appUrl(app.slug)) },
     { key: "room", label: "Room link", url: absolute(roomUrl(app.slug)) },
-    ...(shown > 0 ? [{ key: "version", label: `This version, v${shown}`, url: absolute(versionUrl(app.slug, shown)) }] : []),
+    ...(shown > 0
+      ? [
+          {
+            key: "version",
+            label: `This version, v${shown}`,
+            url: absolute(versionUrl(app.slug, shown)),
+          },
+        ]
+      : []),
   ];
   return (
     <ul className={s.links}>
       {rows.map((r) => (
         <li key={r.key}>
           <button onClick={() => copy(r.key, r.url)}>
-            <b className={copied === r.key ? s.copied : ""}>{copied === r.key ? "Copied" : r.label}</b>
+            <b className={copied === r.key ? s.copied : ""}>
+              {copied === r.key ? "Copied" : r.label}
+            </b>
             <code>{r.url.replace(/^https?:\/\//, "")}</code>
           </button>
         </li>
@@ -241,7 +315,11 @@ function ReportRow({ version }: { version: number }) {
         }}
       >
         <b>{reported ? "Reported" : "Report this app"}</b>
-        <span>{reported ? "Thanks. A person will take a look." : "Flags it for a person to check"}</span>
+        <span>
+          {reported
+            ? "Thanks. A person will take a look."
+            : "Flags it for a person to check"}
+        </span>
       </button>
     </li>
   );

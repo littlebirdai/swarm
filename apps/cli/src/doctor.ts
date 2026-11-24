@@ -35,18 +35,39 @@ import { outsideTmuxEnv } from "./tmuxRoute.js";
 import { cliFetch } from "./cliHttp.js";
 import { fetchExport } from "./jsonlGenerator.js";
 import { claudeProjectDirName } from "./projectPathResolver.js";
-import { ensureClaudeSettingsPersistence, leakedTmuxGlobalMarkers } from "./agentEnv.js";
-import { formatHarnessChange, harnessLedgerPath, readHarnessChanges } from "./harness.js";
+import {
+  ensureClaudeSettingsPersistence,
+  leakedTmuxGlobalMarkers,
+} from "./agentEnv.js";
+import {
+  formatHarnessChange,
+  harnessLedgerPath,
+  readHarnessChanges,
+} from "./harness.js";
 import { isProjectAllowedToSync, isPathExcluded } from "./syncScope.js";
-import { getSnippetTargets, guidanceMode, guidanceSectionStatus } from "./snippets.js";
+import {
+  getSnippetTargets,
+  guidanceMode,
+  guidanceSectionStatus,
+} from "./snippets.js";
 import { c, fmt } from "./colors.js";
 import type { Config } from "./config/types.js";
 import { getMachineKey, hardwareId } from "./machineKey.js";
 import { deviceId } from "./remote/device.js";
 import { probeAllClients, hasBin } from "./doctorClients.js";
 import { defaultCursorPath } from "./cursorWatcher.js";
-import { staleTmuxServerKillPlan, killProcessTree, liveTmuxServerPid, snapshotProcessTable } from "./processTable.js";
-import { describeHangMarker, latestHang, noRestartReason, type HangMarker } from "./daemonMarkers.js";
+import {
+  staleTmuxServerKillPlan,
+  killProcessTree,
+  liveTmuxServerPid,
+  snapshotProcessTable,
+} from "./processTable.js";
+import {
+  describeHangMarker,
+  latestHang,
+  noRestartReason,
+  type HangMarker,
+} from "./daemonMarkers.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import { removedDeviceMessage } from "@codecast/shared/contracts/managedPolicy";
 
@@ -62,7 +83,11 @@ export interface DoctorDeps {
   version: string;
   configDir: string;
   getDaemonPid: () => number | null;
-  getLaunchdStatus: () => { configured: boolean; state: string | null; pid: number | null } | null;
+  getLaunchdStatus: () => {
+    configured: boolean;
+    state: string | null;
+    pid: number | null;
+  } | null;
   readDaemonState: () => {
     connected?: boolean;
     lastSyncTime?: number;
@@ -77,7 +102,15 @@ export interface DoctorDeps {
     bootPacingTier?: string;
     bootPacingReason?: string;
   } | null;
-  getStuckSyncs: () => Array<{ sessionId: string; unsyncedBytes: number; lastSyncedAt: number }> | Promise<Array<{ sessionId: string; unsyncedBytes: number; lastSyncedAt: number }>>;
+  getStuckSyncs: () =>
+    | Array<{ sessionId: string; unsyncedBytes: number; lastSyncedAt: number }>
+    | Promise<
+        Array<{
+          sessionId: string;
+          unsyncedBytes: number;
+          lastSyncedAt: number;
+        }>
+      >;
 }
 
 export interface DoctorOptions {
@@ -104,7 +137,12 @@ export interface DoctorCheck {
 // executes; the e2e legs and the per-client probe record their lines directly,
 // because each of those produces several checks from one flow.
 const CHECK_FORMAT: FormatOptions = {
-  color: { success: fmt.success, warning: fmt.warning, error: fmt.error, muted: fmt.muted },
+  color: {
+    success: fmt.success,
+    warning: fmt.warning,
+    error: fmt.error,
+    muted: fmt.muted,
+  },
   nameWidth: 22,
 };
 
@@ -208,15 +246,24 @@ export function resolveStubRuntime(): string | null {
  * scope rules the daemon's sync loop applies, or the transcript sits unsynced
  * forever and the doctor reports a false failure.
  */
-export function pickDoctorProjectDir(config: Config, runId: string, override?: string): string | null {
+export function pickDoctorProjectDir(
+  config: Config,
+  runId: string,
+  override?: string,
+): string | null {
   const candidates = override
     ? [override]
     : [
         path.join(defaultConfigDir(), "doctor", `e2e-${runId}`),
-        ...(config.sync_projects ?? []).map((root) => path.join(root, ".codecast-doctor", `e2e-${runId}`)),
+        ...(config.sync_projects ?? []).map((root) =>
+          path.join(root, ".codecast-doctor", `e2e-${runId}`),
+        ),
       ];
   for (const candidate of candidates) {
-    if (isProjectAllowedToSync(candidate, config) && !isPathExcluded(candidate, config.excluded_paths)) {
+    if (
+      isProjectAllowedToSync(candidate, config) &&
+      !isPathExcluded(candidate, config.excluded_paths)
+    ) {
       return candidate;
     }
   }
@@ -229,43 +276,92 @@ export function exportHasToken(
   token: string,
   role?: "user" | "assistant",
 ): boolean {
-  return messages.some((m) => (!role || m.role === role) && typeof m.content === "string" && m.content.includes(token));
+  return messages.some(
+    (m) =>
+      (!role || m.role === role) &&
+      typeof m.content === "string" &&
+      m.content.includes(token),
+  );
 }
 
 export async function checkDoctorTmuxServers(
   opts: { reapTmux?: boolean },
   cleanup: string[],
-  io = { snapshotProcessTable, liveTmuxServerPid, killProcessTree, uid: () => process.getuid?.(), selfPid: process.pid },
+  io = {
+    snapshotProcessTable,
+    liveTmuxServerPid,
+    killProcessTree,
+    uid: () => process.getuid?.(),
+    selfPid: process.pid,
+  },
 ) {
   const procs = io.snapshotProcessTable();
   // This check kills process trees under --reap-tmux, so it looks at the
   // servers this user owns and nothing else — the same list the daemon's
   // hourly sweep acts on.
-  const plan = staleTmuxServerKillPlan(procs, await io.liveTmuxServerPid(), io.uid(), io.selfPid);
-  if (plan.refused) return { ok: false, warn: true, skip: true, detail: `tmux reap skipped: ${plan.refused}` };
+  const plan = staleTmuxServerKillPlan(
+    procs,
+    await io.liveTmuxServerPid(),
+    io.uid(),
+    io.selfPid,
+  );
+  if (plan.refused)
+    return {
+      ok: false,
+      warn: true,
+      skip: true,
+      detail: `tmux reap skipped: ${plan.refused}`,
+    };
   const stale = plan.kill;
   if (plan.restore.length) {
     const fleet = plan.restore[0];
-    return { ok: false, warn: true, detail: `tmux server pid ${fleet.pid} holds ${fleet.agents} agent(s) but lost the default socket — the daemon hands it back within the hour, or run \`kill -USR1 ${fleet.pid}\`` };
+    return {
+      ok: false,
+      warn: true,
+      detail: `tmux server pid ${fleet.pid} holds ${fleet.agents} agent(s) but lost the default socket — the daemon hands it back within the hour, or run \`kill -USR1 ${fleet.pid}\``,
+    };
   }
-  const spared = plan.selfHosted.length ? `; skipped self-hosting server(s) ${plan.selfHosted.map(s => s.pid).join(", ")}` : "";
-  if (stale.length === 0) return { ok: !spared, warn: !!spared, skip: !!spared, detail: `no safely reapable stale servers${spared}` };
+  const spared = plan.selfHosted.length
+    ? `; skipped self-hosting server(s) ${plan.selfHosted.map((s) => s.pid).join(", ")}`
+    : "";
+  if (stale.length === 0)
+    return {
+      ok: !spared,
+      warn: !!spared,
+      skip: !!spared,
+      detail: `no safely reapable stale servers${spared}`,
+    };
   const trees = stale.reduce((n, s) => n + s.tree.length, 0);
   const agents = stale.reduce((n, s) => n + s.agents, 0);
   const summary = `${stale.length} stale server(s) (pid ${stale.map((s) => s.pid).join(", ")}) holding ${trees} process(es), ${agents} agent(s), unreachable from tmux${spared}`;
   if (!opts.reapTmux) {
-    return { ok: false, warn: true, detail: `${summary} — run \`cast doctor --no-e2e --reap-tmux\` to kill them` };
+    return {
+      ok: false,
+      warn: true,
+      detail: `${summary} — run \`cast doctor --no-e2e --reap-tmux\` to kill them`,
+    };
   }
   let killed = 0;
   for (const s of stale) {
     const r = await io.killProcessTree([...s.tree, s.row]);
     killed += r.terminated + r.killed;
   }
-  cleanup.push(`reaped stale tmux server(s) ${stale.map((s) => s.pid).join(", ")}`);
-  return { ok: false, warn: true, detail: `${summary} — reaped ${killed} process(es)` };
+  cleanup.push(
+    `reaped stale tmux server(s) ${stale.map((s) => s.pid).join(", ")}`,
+  );
+  return {
+    ok: false,
+    warn: true,
+    detail: `${summary} — reaped ${killed} process(es)`,
+  };
 }
 
-export async function doctorPost(siteUrl: string, apiToken: string, urlPath: string, body: Record<string, unknown>): Promise<any> {
+export async function doctorPost(
+  siteUrl: string,
+  apiToken: string,
+  urlPath: string,
+  body: Record<string, unknown>,
+): Promise<any> {
   const response = await cliFetch(`${siteUrl}${urlPath}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -282,9 +378,14 @@ export async function doctorPost(siteUrl: string, apiToken: string, urlPath: str
   return result;
 }
 
-export function readConversationMapping(configDir: string, sessionId: string): string | null {
+export function readConversationMapping(
+  configDir: string,
+  sessionId: string,
+): string | null {
   try {
-    const cache = JSON.parse(fs.readFileSync(path.join(configDir, "conversations.json"), "utf-8"));
+    const cache = JSON.parse(
+      fs.readFileSync(path.join(configDir, "conversations.json"), "utf-8"),
+    );
     return typeof cache[sessionId] === "string" ? cache[sessionId] : null;
   } catch {
     return null;
@@ -292,14 +393,25 @@ export function readConversationMapping(configDir: string, sessionId: string): s
 }
 
 /** daemon.log lines relevant to this run — the evidence block for failures. */
-function daemonLogEvidence(configDir: string, sessionId: string, conversationId: string | undefined, sinceMs: number): string[] {
+function daemonLogEvidence(
+  configDir: string,
+  sessionId: string,
+  conversationId: string | undefined,
+  sinceMs: number,
+): string[] {
   try {
     const raw = fs.readFileSync(path.join(configDir, "daemon.log"), "utf-8");
     const lines = raw.split("\n").slice(-2000);
     const sessionKey = sessionId.slice(0, 8);
     const convKey = conversationId?.slice(0, 12);
-    const generic = /deliverMessage|Injected|pending message|Subscription|Force-resuming/i;
-    const matched = lines.filter((l) => l.includes(sessionKey) || (convKey && l.includes(convKey)) || generic.test(l));
+    const generic =
+      /deliverMessage|Injected|pending message|Subscription|Force-resuming/i;
+    const matched = lines.filter(
+      (l) =>
+        l.includes(sessionKey) ||
+        (convKey && l.includes(convKey)) ||
+        generic.test(l),
+    );
     // Timestamps in daemon.log lead each line as an ISO string; keep it simple
     // and take the tail — sinceMs guards against a totally silent daemon where
     // generic matches would otherwise surface hours-old noise.
@@ -311,8 +423,16 @@ function daemonLogEvidence(configDir: string, sessionId: string, conversationId:
   }
 }
 
-function tmuxRunQuiet(args: string[]): { ok: boolean; stdout: string; stderr: string } {
-  const r = spawnSync("tmux", args, { encoding: "utf-8", timeout: 10_000, env: outsideTmuxEnv() });
+function tmuxRunQuiet(args: string[]): {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+} {
+  const r = spawnSync("tmux", args, {
+    encoding: "utf-8",
+    timeout: 10_000,
+    env: outsideTmuxEnv(),
+  });
   return { ok: r.status === 0, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
 
@@ -355,7 +475,10 @@ export function daemonDownDetail(
   return `not running${launchd?.configured ? ` (launchd state: ${launchd.state ?? "unknown"})` : ""} — run \`cast start\``;
 }
 
-export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<DoctorReport> {
+export async function runDoctor(
+  deps: DoctorDeps,
+  opts: DoctorOptions,
+): Promise<DoctorReport> {
   const runId = randomBytes(3).toString("hex");
   const checks: DoctorCheck[] = [];
   const cleanup: string[] = [];
@@ -364,11 +487,21 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
   };
   const record = (check: DoctorCheck) => {
     checks.push(check);
-    say(formatCheckLine(
-      { name: check.name, status: check.status, detail: check.detail, elapsedMs: check.elapsedMs ?? 0 },
-      // Passive checks carry no timing; an e2e leg always shows the one it measured.
-      { ...CHECK_FORMAT, timingThresholdMs: check.elapsedMs === undefined ? Infinity : 0 },
-    ));
+    say(
+      formatCheckLine(
+        {
+          name: check.name,
+          status: check.status,
+          detail: check.detail,
+          elapsedMs: check.elapsedMs ?? 0,
+        },
+        // Passive checks carry no timing; an e2e leg always shows the one it measured.
+        {
+          ...CHECK_FORMAT,
+          timingThresholdMs: check.elapsedMs === undefined ? Infinity : 0,
+        },
+      ),
+    );
   };
 
   say("");
@@ -386,9 +519,15 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
 
   passive.push({
     name: "auth",
-    run: () => state?.authExpired
-      ? { ok: false, detail: state.removedBy ? removedDeviceMessage(state.removedBy) : "expired — run `cast auth`" }
-      : { ok: true, detail: "authenticated" },
+    run: () =>
+      state?.authExpired
+        ? {
+            ok: false,
+            detail: state.removedBy
+              ? removedDeviceMessage(state.removedBy)
+              : "expired — run `cast auth`",
+          }
+        : { ok: true, detail: "authenticated" },
   });
 
   passive.push({
@@ -404,7 +543,11 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
           detail: `${deviceId()} (${binding})${mk.previousSecret ? " — key was rotated after a hardware clone" : ""}`,
         };
       } catch (e: any) {
-        return { ok: false, warn: true, detail: `machine key unreadable: ${e?.message ?? e}` };
+        return {
+          ok: false,
+          warn: true,
+          detail: `machine key unreadable: ${e?.message ?? e}`,
+        };
       }
     },
   });
@@ -431,7 +574,13 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
 
   // A cautious boot is the daemon protecting a loaded machine, not a fault.
   if (state?.bootPacingTier) {
-    passive.push({ name: "boot pacing", run: () => ({ ok: true, detail: `${state.bootPacingTier}${state.bootPacingReason ? ` (${state.bootPacingReason})` : ""}` }) });
+    passive.push({
+      name: "boot pacing",
+      run: () => ({
+        ok: true,
+        detail: `${state.bootPacingTier}${state.bootPacingReason ? ` (${state.bootPacingReason})` : ""}`,
+      }),
+    });
   }
 
   passive.push({
@@ -453,7 +602,12 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
       const stuck = await deps.getStuckSyncs();
       let retryDepth = 0;
       try {
-        const retry = JSON.parse(fs.readFileSync(path.join(deps.configDir, "retry-queue.json"), "utf-8"));
+        const retry = JSON.parse(
+          fs.readFileSync(
+            path.join(deps.configDir, "retry-queue.json"),
+            "utf-8",
+          ),
+        );
         retryDepth = Array.isArray(retry) ? retry.length : 0;
       } catch {}
       const backlogBad = stuck.length > 0;
@@ -478,12 +632,19 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
     passive.push({
       name: "agent env",
       run: () => {
-        const shown = spawnSync("tmux", ["show-environment", "-g"], { encoding: "utf-8" });
-        const leaked = shown.status === 0 ? leakedTmuxGlobalMarkers(shown.stdout ?? "") : [];
+        const shown = spawnSync("tmux", ["show-environment", "-g"], {
+          encoding: "utf-8",
+        });
+        const leaked =
+          shown.status === 0 ? leakedTmuxGlobalMarkers(shown.stdout ?? "") : [];
         if (leaked.length === 0) {
-          return { ok: true, detail: "no Claude session markers in the tmux global env" };
+          return {
+            ok: true,
+            detail: "no Claude session markers in the tmux global env",
+          };
         }
-        for (const v of leaked) spawnSync("tmux", ["set-environment", "-gu", v], { stdio: "ignore" });
+        for (const v of leaked)
+          spawnSync("tmux", ["set-environment", "-gu", v], { stdio: "ignore" });
         return {
           ok: false,
           warn: true,
@@ -521,7 +682,8 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
         mode: guidanceMode(),
       });
       if (rows.length === 0) return { ok: true, detail: "no snippets enabled" };
-      const slugsOf = (subset: typeof rows) => [...new Set(subset.map((r) => r.slug))].join(", ");
+      const slugsOf = (subset: typeof rows) =>
+        [...new Set(subset.map((r) => r.slug))].join(", ");
       const stale = rows.filter((r) => r.state === "stale");
       const missing = rows.filter((r) => r.state === "missing");
       if (stale.length === 0 && missing.length === 0) {
@@ -532,12 +694,20 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
       }
       // Which release wrote the drifted copy is the part the stamp adds; a
       // section installed before stamps shipped can only say it has none.
-      const stamps = [...new Set(stale.map((r) => r.stamp ?? "an unstamped cast"))].join(", ");
+      const stamps = [
+        ...new Set(stale.map((r) => r.stamp ?? "an unstamped cast")),
+      ].join(", ");
       const parts = [
-        stale.length ? `${slugsOf(stale)} written by ${stamps}, not v${deps.version}` : "",
+        stale.length
+          ? `${slugsOf(stale)} written by ${stamps}, not v${deps.version}`
+          : "",
         missing.length ? `${slugsOf(missing)} enabled but absent` : "",
       ].filter(Boolean);
-      return { ok: false, warn: true, detail: `${parts.join("; ")} — run \`cast install --all\`` };
+      return {
+        ok: false,
+        warn: true,
+        detail: `${parts.join("; ")} — run \`cast install --all\``,
+      };
     },
   });
 
@@ -560,10 +730,14 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
                 ? "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 pinned in ~/.claude/settings.json"
                 : pin === "unparseable"
                   ? "~/.claude/settings.json is not valid JSON — cannot pin transcript persistence; fix the file"
-                  : "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE set to a non-\"1\" value in ~/.claude/settings.json — a leaked CLAUDE_CODE_CHILD_SESSION would silence transcripts",
+                  : 'CLAUDE_CODE_FORCE_SESSION_PERSISTENCE set to a non-"1" value in ~/.claude/settings.json — a leaked CLAUDE_CODE_CHILD_SESSION would silence transcripts',
         };
       } catch (err) {
-        return { ok: false, warn: true, detail: `check failed: ${err instanceof Error ? err.message : String(err)}` };
+        return {
+          ok: false,
+          warn: true,
+          detail: `check failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
       }
     },
   });
@@ -575,10 +749,15 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
     name: "harness",
     run: () => {
       const on = deps.config?.hooks_enabled !== false;
-      const hooks = on ? "hooks on (cast install hooks --disable removes them)" : "hooks off (cast install hooks restores them)";
+      const hooks = on
+        ? "hooks on (cast install hooks --disable removes them)"
+        : "hooks off (cast install hooks restores them)";
       const changes = readHarnessChanges(500);
-      if (changes.length === 0) return { ok: true, detail: `${hooks}; no changes recorded` };
-      const week = changes.filter((ch) => Date.now() - ch.at < 7 * 24 * 60 * 60 * 1000).length;
+      if (changes.length === 0)
+        return { ok: true, detail: `${hooks}; no changes recorded` };
+      const week = changes.filter(
+        (ch) => Date.now() - ch.at < 7 * 24 * 60 * 60 * 1000,
+      ).length;
       const last = changes[0];
       return {
         ok: true,
@@ -607,17 +786,29 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
       run: () => {
         const cursorPref = deps.config.cursor_sync;
         const cursorAccess = state?.cursorAccess;
-        if (cursorPref === "off") return { ok: true, skip: true, detail: "disabled (`cast cursor on` to enable)" };
-        if (cursorAccess === "granted") return { ok: true, detail: "app data access granted" };
+        if (cursorPref === "off")
+          return {
+            ok: true,
+            skip: true,
+            detail: "disabled (`cast cursor on` to enable)",
+          };
+        if (cursorAccess === "granted")
+          return { ok: true, detail: "app data access granted" };
         if (cursorAccess === "denied") {
           return {
             ok: false,
             warn: true,
-            detail: "macOS denied access to Cursor's data — System Settings → Privacy & Security → allow codecast (or grant Full Disk Access), then `cast cursor on`",
+            detail:
+              "macOS denied access to Cursor's data — System Settings → Privacy & Security → allow codecast (or grant Full Disk Access), then `cast cursor on`",
           };
         }
         if (fs.existsSync(defaultCursorPath())) {
-          return { ok: false, warn: true, detail: "Cursor detected but not synced — run `cast cursor on` (macOS asks to allow access once)" };
+          return {
+            ok: false,
+            warn: true,
+            detail:
+              "Cursor detected but not synced — run `cast cursor on` (macOS asks to allow access once)",
+          };
         }
         return { ok: true, skip: true, detail: "Cursor not installed" };
       },
@@ -635,41 +826,84 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
         // graph, so a top-level import would put the computer client, the
         // permission probe and the embedded helper bundle on the startup cost
         // of `cast --help` and of every unrelated verb.
-        const [{ helperAvailability, HELPER_BUNDLE_ID }, { getPermissionStatus }] = await Promise.all([
+        const [
+          { helperAvailability, HELPER_BUNDLE_ID },
+          { getPermissionStatus },
+        ] = await Promise.all([
           import("./computer/helperApp.js"),
           import("./computer/permissions.js"),
         ]);
         const helper = helperAvailability();
-        if (!helper.embedded) return { ok: true, skip: true, detail: "not built into this CLI" };
+        if (!helper.embedded)
+          return { ok: true, skip: true, detail: "not built into this CLI" };
         if (helper.pendingSwap) {
-          return { ok: false, warn: true, detail: "an interrupted bundle swap is pending repair — run `cast computer capabilities`" };
+          return {
+            ok: false,
+            warn: true,
+            detail:
+              "an interrupted bundle swap is pending repair — run `cast computer capabilities`",
+          };
         }
         if (!helper.materialized) {
-          return { ok: true, skip: true, detail: "not set up yet (`cast computer setup` installs it and grants it)" };
+          return {
+            ok: true,
+            skip: true,
+            detail:
+              "not set up yet (`cast computer setup` installs it and grants it)",
+          };
         }
         if (!helper.atFixedPath) {
-          return { ok: false, detail: `helper is not at its fixed path (${helper.appPath}); TCC grants will not survive updates` };
+          return {
+            ok: false,
+            detail: `helper is not at its fixed path (${helper.appPath}); TCC grants will not survive updates`,
+          };
         }
         if (helper.signature === "invalid") {
-          return { ok: false, detail: `helper failed signature verification (${helper.signatureDetail}); reinstall codecast` };
+          return {
+            ok: false,
+            detail: `helper failed signature verification (${helper.signatureDetail}); reinstall codecast`,
+          };
         }
         if (helper.signature === "adhoc") {
-          return { ok: false, warn: true, detail: "ad-hoc signed (from-source build); TCC grants reset on every rebuild" };
+          return {
+            ok: false,
+            warn: true,
+            detail:
+              "ad-hoc signed (from-source build); TCC grants reset on every rebuild",
+          };
         }
         const status = await getPermissionStatus().catch(() => null);
-        const missing = status?.permissions.filter((p) => p.status !== "granted") ?? [];
-        if (!status) return { ok: false, warn: true, detail: "Developer ID signed; could not read its permissions — run `cast computer setup`" };
+        const missing =
+          status?.permissions.filter((p) => p.status !== "granted") ?? [];
+        if (!status)
+          return {
+            ok: false,
+            warn: true,
+            detail:
+              "Developer ID signed; could not read its permissions — run `cast computer setup`",
+          };
         if (missing.length) {
-          const names = missing.map((p) => (p.id === "accessibility" ? "Accessibility" : "Screen Recording")).join(" and ");
+          const names = missing
+            .map((p) =>
+              p.id === "accessibility" ? "Accessibility" : "Screen Recording",
+            )
+            .join(" and ");
           // Bare `permissions` reads and shows nothing (ct-49667), so naming it
           // here sent a human to a command that could not fix the line they
           // came to fix. `setup` is the one that can: it says what each grant
           // allows, opens the pane for each missing one, and waits for it
           // (ct-49790). A doctor line is read by a human at a terminal, which
           // is exactly the caller `setup` is written for.
-          return { ok: false, warn: true, detail: `${names} not granted; run \`cast computer setup\` to grant` };
+          return {
+            ok: false,
+            warn: true,
+            detail: `${names} not granted; run \`cast computer setup\` to grant`,
+          };
         }
-        return { ok: true, detail: `${HELPER_BUNDLE_ID}, Developer ID signed, Accessibility and Screen Recording granted` };
+        return {
+          ok: true,
+          detail: `${HELPER_BUNDLE_ID}, Developer ID signed, Accessibility and Screen Recording granted`,
+        };
       },
     });
 
@@ -681,7 +915,10 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
     // never worth a line of its own.
     let launcher = "";
     try {
-      launcher = fs.readFileSync(path.join(deps.configDir, "daemon-launcher.sh"), "utf-8");
+      launcher = fs.readFileSync(
+        path.join(deps.configDir, "daemon-launcher.sh"),
+        "utf-8",
+      );
     } catch {}
     if (/\/\.bun\/bin\/bun|[\s']bun[\s']/.test(launcher)) {
       passive.push({
@@ -689,7 +926,8 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
         run: () => ({
           ok: false,
           warn: true,
-          detail: "daemon runs from source under bun — permission prompts show \"bun\" and grants reset on bun updates; use the installed binary for a stable identity",
+          detail:
+            'daemon runs from source under bun — permission prompts show "bun" and grants reset on bun updates; use the installed binary for a stable identity',
         }),
       });
     }
@@ -698,7 +936,8 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
   await runChecks(passive, {
     product: "Codecast",
     version: deps.version,
-    onCheck: (r) => record({ name: r.name, status: r.status, detail: r.detail }),
+    onCheck: (r) =>
+      record({ name: r.name, status: r.status, detail: r.detail }),
   });
 
   const tmuxAvailable = hasBin("tmux");
@@ -709,13 +948,33 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
   let e2eConversationId: string | undefined;
   const hardFail = checks.some((ch) => ch.status === "fail");
   if (!opts.e2e) {
-    record({ name: "end-to-end", status: "skip", detail: "skipped (--no-e2e)" });
+    record({
+      name: "end-to-end",
+      status: "skip",
+      detail: "skipped (--no-e2e)",
+    });
   } else if (hardFail) {
-    record({ name: "end-to-end", status: "skip", detail: "skipped — fix the failures above first" });
+    record({
+      name: "end-to-end",
+      status: "skip",
+      detail: "skipped — fix the failures above first",
+    });
   } else if (!tmuxAvailable || !runtime) {
-    record({ name: "end-to-end", status: "skip", detail: !tmuxAvailable ? "tmux not installed" : "no node/bun on PATH" });
+    record({
+      name: "end-to-end",
+      status: "skip",
+      detail: !tmuxAvailable ? "tmux not installed" : "no node/bun on PATH",
+    });
   } else {
-    e2eConversationId = await runE2E(deps, opts, runId, record, cleanup, say, evidence);
+    e2eConversationId = await runE2E(
+      deps,
+      opts,
+      runId,
+      record,
+      cleanup,
+      say,
+      evidence,
+    );
   }
 
   // ── per-client offline self-test ──
@@ -726,12 +985,21 @@ export async function runDoctor(deps: DoctorDeps, opts: DoctorOptions): Promise<
 
   const ok = !checks.some((ch) => ch.status === "fail");
   say("");
-  say(ok
-    ? `  ${fmt.success("✓ codecast is healthy")}${opts.e2e && checks.some(ch => ch.name.startsWith("echo")) ? fmt.muted(" — full sync loop verified") : ""}`
-    : `  ${fmt.error("✗ problems found")} ${fmt.muted("— details above")}`);
+  say(
+    ok
+      ? `  ${fmt.success("✓ codecast is healthy")}${opts.e2e && checks.some((ch) => ch.name.startsWith("echo")) ? fmt.muted(" — full sync loop verified") : ""}`
+      : `  ${fmt.error("✗ problems found")} ${fmt.muted("— details above")}`,
+  );
   say("");
 
-  return { ok, runId, checks, conversationId: e2eConversationId, cleanup, evidence: evidence.length > 0 ? evidence : undefined };
+  return {
+    ok,
+    runId,
+    checks,
+    conversationId: e2eConversationId,
+    cleanup,
+    evidence: evidence.length > 0 ? evidence : undefined,
+  };
 }
 
 /** Probe every installed client's offline machinery and record one line per client:
@@ -746,7 +1014,11 @@ async function runClientSelftest(
   const results = await probeAllClients();
   for (const cr of results) {
     if (!cr.installed) {
-      record({ name: `client ${cr.id}`, status: "skip", detail: `${cr.binary} not on PATH` });
+      record({
+        name: `client ${cr.id}`,
+        status: "skip",
+        detail: `${cr.binary} not on PATH`,
+      });
       continue;
     }
     const summary = cr.subChecks
@@ -784,7 +1056,8 @@ async function runE2E(
     record({
       name: "end-to-end",
       status: "fail",
-      detail: "no syncable scratch dir — sync_mode is 'selected' and no allowed root accepts a test dir (`cast sync-settings`)",
+      detail:
+        "no syncable scratch dir — sync_mode is 'selected' and no allowed root accepts a test dir (`cast sync-settings`)",
     });
     return;
   }
@@ -794,8 +1067,18 @@ async function runE2E(
 
   fs.mkdirSync(scratchDir, { recursive: true });
   const realScratch = fs.realpathSync(scratchDir);
-  const jsonlPath = path.join(os.homedir(), ".claude", "projects", claudeProjectDirName(realScratch), `${sessionId}.jsonl`);
-  const registryPath = path.join(deps.configDir, "session-registry", `${sessionId}.json`);
+  const jsonlPath = path.join(
+    os.homedir(),
+    ".claude",
+    "projects",
+    claudeProjectDirName(realScratch),
+    `${sessionId}.jsonl`,
+  );
+  const registryPath = path.join(
+    deps.configDir,
+    "session-registry",
+    `${sessionId}.json`,
+  );
   const stubPath = path.join(realScratch, "stub.cjs");
   fs.writeFileSync(stubPath, STUB_SOURCE);
 
@@ -807,9 +1090,25 @@ async function runE2E(
     // the pane classifier sees a realistic layout.
     const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
     const shellCmd = `DOCTOR_BOOT_TOKEN=${q(tokenA)} exec ${q(runtime)} ${q(stubPath)} ${q(sessionId)} ${q(jsonlPath)} ${q(registryPath)}`;
-    const launched = tmuxRunQuiet(["new-session", "-d", "-s", tmuxName, "-x", "220", "-y", "50", "-c", realScratch, shellCmd]);
+    const launched = tmuxRunQuiet([
+      "new-session",
+      "-d",
+      "-s",
+      tmuxName,
+      "-x",
+      "220",
+      "-y",
+      "50",
+      "-c",
+      realScratch,
+      shellCmd,
+    ]);
     if (!launched.ok) {
-      record({ name: "stub agent", status: "fail", detail: `tmux launch failed: ${(launched.stderr || launched.stdout).trim().slice(0, 120)}` });
+      record({
+        name: "stub agent",
+        status: "fail",
+        detail: `tmux launch failed: ${(launched.stderr || launched.stdout).trim().slice(0, 120)}`,
+      });
       return;
     }
 
@@ -817,29 +1116,50 @@ async function runE2E(
     let legStart = Date.now();
     while (!conversationId && Date.now() - legStart < MAPPING_TIMEOUT_MS) {
       await sleep(POLL_MS);
-      conversationId = readConversationMapping(deps.configDir, sessionId) ?? undefined;
+      conversationId =
+        readConversationMapping(deps.configDir, sessionId) ?? undefined;
     }
     if (!conversationId) {
       if (!fs.existsSync(jsonlPath)) {
-        record({ name: "conversation", status: "fail", detail: `stub never wrote its transcript (${jsonlPath}) — check the pane: tmux attach -t ${tmuxName}` });
+        record({
+          name: "conversation",
+          status: "fail",
+          detail: `stub never wrote its transcript (${jsonlPath}) — check the pane: tmux attach -t ${tmuxName}`,
+        });
       } else {
         record({
           name: "conversation",
           status: "fail",
           detail: `transcript written but no conversation after ${MAPPING_TIMEOUT_MS / 1000}s — JSONL watcher or Convex write path is down (CLI → server sync broken)`,
         });
-        printEvidence(deps, sessionId, conversationId, startedAt, say, evidence);
+        printEvidence(
+          deps,
+          sessionId,
+          conversationId,
+          startedAt,
+          say,
+          evidence,
+        );
       }
       return;
     }
-    record({ name: "conversation", status: "pass", detail: `created ${fmt.id(conversationId.slice(0, 12))}… (watcher → Convex)`, elapsedMs: Date.now() - legStart });
+    record({
+      name: "conversation",
+      status: "pass",
+      detail: `created ${fmt.id(conversationId.slice(0, 12))}… (watcher → Convex)`,
+      elapsedMs: Date.now() - legStart,
+    });
 
     // Leg 2: bootstrap content is readable back from the server.
     legStart = Date.now();
     let bootstrapSeen = false;
     while (!bootstrapSeen && Date.now() - legStart < BOOTSTRAP_TIMEOUT_MS) {
       try {
-        const exported = await fetchExport(deps.siteUrl, deps.apiToken, conversationId);
+        const exported = await fetchExport(
+          deps.siteUrl,
+          deps.apiToken,
+          conversationId,
+        );
         bootstrapSeen = exportHasToken(exported.messages, tokenA);
       } catch {
         // conversation may not be queryable for a beat right after creation
@@ -847,11 +1167,20 @@ async function runE2E(
       if (!bootstrapSeen) await sleep(POLL_MS);
     }
     if (!bootstrapSeen) {
-      record({ name: "bootstrap synced", status: "fail", detail: `conversation exists but bootstrap token never appeared in export (message sync broken)` });
+      record({
+        name: "bootstrap synced",
+        status: "fail",
+        detail: `conversation exists but bootstrap token never appeared in export (message sync broken)`,
+      });
       printEvidence(deps, sessionId, conversationId, startedAt, say, evidence);
       return conversationId;
     }
-    record({ name: "bootstrap synced", status: "pass", detail: "transcript content readable from server", elapsedMs: Date.now() - legStart });
+    record({
+      name: "bootstrap synced",
+      status: "pass",
+      detail: "transcript content readable from server",
+      elapsedMs: Date.now() - legStart,
+    });
 
     // Leg 3+4: send through the SAME pending-message path the web UI uses,
     // then watch for the stub's echo to come back through the sync loop.
@@ -868,12 +1197,21 @@ async function runE2E(
       if (!injected && fs.existsSync(jsonlPath)) {
         injected = fs.readFileSync(jsonlPath, "utf-8").includes(tokenB);
         if (injected) {
-          record({ name: "message delivered", status: "pass", detail: "server → daemon → tmux inject landed in the pane", elapsedMs: Date.now() - legStart });
+          record({
+            name: "message delivered",
+            status: "pass",
+            detail: "server → daemon → tmux inject landed in the pane",
+            elapsedMs: Date.now() - legStart,
+          });
         }
       }
       if (injected) {
         try {
-          const exported = await fetchExport(deps.siteUrl, deps.apiToken, conversationId);
+          const exported = await fetchExport(
+            deps.siteUrl,
+            deps.apiToken,
+            conversationId,
+          );
           echoed = exportHasToken(exported.messages, tokenB, "assistant");
         } catch {}
       }
@@ -889,11 +1227,21 @@ async function runE2E(
       return conversationId;
     }
     if (!echoed) {
-      record({ name: "echo round-tripped", status: "fail", detail: "reply reached the transcript but never synced back to the server" });
+      record({
+        name: "echo round-tripped",
+        status: "fail",
+        detail:
+          "reply reached the transcript but never synced back to the server",
+      });
       printEvidence(deps, sessionId, conversationId, startedAt, say, evidence);
       return conversationId;
     }
-    record({ name: "echo round-tripped", status: "pass", detail: "agent reply visible from the server (full loop)", elapsedMs: Date.now() - legStart });
+    record({
+      name: "echo round-tripped",
+      status: "pass",
+      detail: "agent reply visible from the server (full loop)",
+      elapsedMs: Date.now() - legStart,
+    });
     return conversationId;
   } finally {
     if (opts.keep) {
@@ -902,26 +1250,46 @@ async function runE2E(
     } else {
       tmuxRunQuiet(["kill-session", "-t", tmuxName]);
       for (const target of [registryPath, jsonlPath, stubPath]) {
-        try { fs.rmSync(target, { force: true }); } catch {}
+        try {
+          fs.rmSync(target, { force: true });
+        } catch {}
       }
-      try { fs.rmSync(realScratch, { recursive: true, force: true }); } catch {}
+      try {
+        fs.rmSync(realScratch, { recursive: true, force: true });
+      } catch {}
       try {
         const projDir = path.dirname(jsonlPath);
-        if (fs.existsSync(projDir) && fs.readdirSync(projDir).length === 0) fs.rmdirSync(projDir);
+        if (fs.existsSync(projDir) && fs.readdirSync(projDir).length === 0)
+          fs.rmdirSync(projDir);
       } catch {}
       // The scratch path is unique to this run, so a prefix delete can only hit
       // the self-test conversation. Verify the delete actually matched — a
       // zero-count "success" means the test conversation was left behind, which
       // is exactly the silent-cleanup-failure mode this check exists to catch.
       try {
-        const result = await doctorPost(deps.siteUrl, deps.apiToken, "/cli/conversations/delete-by-path", { path_prefix: realScratch });
+        const result = await doctorPost(
+          deps.siteUrl,
+          deps.apiToken,
+          "/cli/conversations/delete-by-path",
+          { path_prefix: realScratch },
+        );
         if (conversationId && !(result?.conversationsDeleted > 0)) {
-          record({ name: "cleanup", status: "warn", detail: `server delete matched nothing — test conversation ${conversationId.slice(0, 12)}… left behind` });
+          record({
+            name: "cleanup",
+            status: "warn",
+            detail: `server delete matched nothing — test conversation ${conversationId.slice(0, 12)}… left behind`,
+          });
         }
-        cleanup.push(`server conversation deleted (${result?.conversationsDeleted ?? 0})`);
+        cleanup.push(
+          `server conversation deleted (${result?.conversationsDeleted ?? 0})`,
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        record({ name: "cleanup", status: "warn", detail: `server delete failed: ${msg.slice(0, 100)}` });
+        record({
+          name: "cleanup",
+          status: "warn",
+          detail: `server delete failed: ${msg.slice(0, 100)}`,
+        });
         cleanup.push(`server cleanup failed: ${msg}`);
       }
       cleanup.push("local artifacts removed");
@@ -937,10 +1305,19 @@ function printEvidence(
   say: (line: string) => void,
   sink: string[],
 ): void {
-  const lines = daemonLogEvidence(deps.configDir, sessionId, conversationId, sinceMs);
+  const lines = daemonLogEvidence(
+    deps.configDir,
+    sessionId,
+    conversationId,
+    sinceMs,
+  );
   sink.push(...lines);
   if (lines.length === 0) {
-    say(fmt.muted(`      no matching daemon.log lines — is the daemon logging? (${path.join(deps.configDir, "daemon.log")})`));
+    say(
+      fmt.muted(
+        `      no matching daemon.log lines — is the daemon logging? (${path.join(deps.configDir, "daemon.log")})`,
+      ),
+    );
     return;
   }
   say(fmt.muted("      daemon.log evidence:"));

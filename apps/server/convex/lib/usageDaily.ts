@@ -4,7 +4,10 @@ import { overrideFor, usageCost } from "@platform/agent/meter";
 import { dayStartUtc, resolveCounterTeam } from "./userSend";
 import { teamHasFeature } from "./teamFeatureGuard";
 import { accountOfSession } from "./sessionAccount";
-import { isUnattendedConversation, type Attendance } from "@codecast/shared/contracts";
+import {
+  isUnattendedConversation,
+  type Attendance,
+} from "@codecast/shared/contracts";
 
 // Per-day token and spend counters behind the "Tokens" and "Spend" chart
 // metrics. conversations.usage_totals is a lifetime total per session, so it
@@ -31,7 +34,12 @@ export type TurnUsage = {
 };
 
 export function turnTokens(u: TurnUsage): number {
-  return (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+  return (
+    (u.input_tokens || 0) +
+    (u.output_tokens || 0) +
+    (u.cache_read_input_tokens || 0) +
+    (u.cache_creation_input_tokens || 0)
+  );
 }
 
 // Dollars a turn costs at API list price, or 0 for a model the price table
@@ -54,9 +62,14 @@ export function turnCost(model: string | undefined, u: TurnUsage): number {
 }
 
 export type UsageTurn = { usage: TurnUsage; model?: string; timestamp: number };
-type DayHours = { day_start: number; token_hours: number[]; spend_hours: number[] };
+type DayHours = {
+  day_start: number;
+  token_hours: number[];
+  spend_hours: number[];
+};
 
-const addHours = (into: number[], from: number[]) => into.map((v, h) => v + (from[h] || 0));
+const addHours = (into: number[], from: number[]) =>
+  into.map((v, h) => v + (from[h] || 0));
 
 // Add a batch's counted turns to the session's pending rows, and schedule the
 // fold when none was pending. A fork starts with a copy of its parent's
@@ -73,14 +86,23 @@ export async function recordUsageDays(
   turns: UsageTurn[],
   opts: { withAccount?: boolean } = {},
 ): Promise<void> {
-  const own = conversation.forked_from ? turns.filter((t) => t.timestamp >= conversation._creationTime) : turns;
+  const own = conversation.forked_from
+    ? turns.filter((t) => t.timestamp >= conversation._creationTime)
+    : turns;
   const byDay = new Map<number, DayHours>();
   for (const t of own) {
     const tokens = turnTokens(t.usage);
     if (tokens === 0) continue;
     const day = dayStartUtc(t.timestamp);
-    const hour = Math.min(23, Math.max(0, Math.floor((t.timestamp - day) / HOUR)));
-    const acc = byDay.get(day) ?? { day_start: day, token_hours: zeros24(), spend_hours: zeros24() };
+    const hour = Math.min(
+      23,
+      Math.max(0, Math.floor((t.timestamp - day) / HOUR)),
+    );
+    const acc = byDay.get(day) ?? {
+      day_start: day,
+      token_hours: zeros24(),
+      spend_hours: zeros24(),
+    };
     byDay.set(day, acc);
     acc.token_hours[hour] += tokens;
     acc.spend_hours[hour] += turnCost(t.model ?? conversation.model, t.usage);
@@ -88,20 +110,36 @@ export async function recordUsageDays(
   if (byDay.size === 0) return;
   // The account these turns ran on, so the fold can split them by account
   // (the shared pool's per-person view). A pending row holds one account.
-  const account = opts.withAccount === false ? undefined : await accountOfSession(ctx, conversation);
+  const account =
+    opts.withAccount === false
+      ? undefined
+      : await accountOfSession(ctx, conversation);
   const pending = await ctx.db
     .query("usage_pending")
-    .withIndex("by_conversation_day", (q: any) => q.eq("conversation_id", conversation._id))
+    .withIndex("by_conversation_day", (q: any) =>
+      q.eq("conversation_id", conversation._id),
+    )
     .collect();
   if (pending.length === 0) {
-    await ctx.scheduler.runAfter(FOLD_DELAY_MS, internal.usageDays.fold, { conversation_id: conversation._id });
+    await ctx.scheduler.runAfter(FOLD_DELAY_MS, internal.usageDays.fold, {
+      conversation_id: conversation._id,
+    });
   }
   for (const add of byDay.values()) {
-    const row = pending.find((p: any) => p.day_start === add.day_start && p.account === account);
+    const row = pending.find(
+      (p: any) => p.day_start === add.day_start && p.account === account,
+    );
     if (row) {
-      await ctx.db.patch(row._id, { token_hours: addHours(row.token_hours, add.token_hours), spend_hours: addHours(row.spend_hours, add.spend_hours) });
+      await ctx.db.patch(row._id, {
+        token_hours: addHours(row.token_hours, add.token_hours),
+        spend_hours: addHours(row.spend_hours, add.spend_hours),
+      });
     } else {
-      await ctx.db.insert("usage_pending", { conversation_id: conversation._id, ...add, ...(account ? { account } : {}) });
+      await ctx.db.insert("usage_pending", {
+        conversation_id: conversation._id,
+        ...add,
+        ...(account ? { account } : {}),
+      });
     }
   }
 }
@@ -110,13 +148,19 @@ export async function recordUsageDays(
 // one row for the sessions they were at and one for the sessions running with
 // nobody watching, so the charts can show either (rows written before the
 // split carry no flag and read as attended).
-export async function foldUsage(ctx: { db: any }, conversationId: Id<"conversations">): Promise<void> {
+export async function foldUsage(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<void> {
   const pending = await ctx.db
     .query("usage_pending")
-    .withIndex("by_conversation_day", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_day", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   if (pending.length === 0) return;
-  const conversation: Doc<"conversations"> | null = await ctx.db.get(conversationId);
+  const conversation: Doc<"conversations"> | null =
+    await ctx.db.get(conversationId);
   if (conversation) {
     const teamId = await resolveCounterTeam(ctx, conversation);
     const unattended = isUnattendedConversation(conversation);
@@ -124,30 +168,72 @@ export async function foldUsage(ctx: { db: any }, conversationId: Id<"conversati
       const sameDay = await ctx.db
         .query("user_usage_daily")
         .withIndex("by_user_team_day", (q: any) =>
-          q.eq("user_id", conversation.user_id).eq("team_id", teamId).eq("day_start", p.day_start),
+          q
+            .eq("user_id", conversation.user_id)
+            .eq("team_id", teamId)
+            .eq("day_start", p.day_start),
         )
         .collect();
       const existing = sameDay.find((r: any) => !!r.unattended === unattended);
-      const token_hours = addHours(existing?.token_hours ?? zeros24(), p.token_hours);
-      const spend_hours = addHours(existing?.spend_hours ?? zeros24(), p.spend_hours);
+      const token_hours = addHours(
+        existing?.token_hours ?? zeros24(),
+        p.token_hours,
+      );
+      const spend_hours = addHours(
+        existing?.spend_hours ?? zeros24(),
+        p.spend_hours,
+      );
       const row = { token_hours, spend_hours, updated_at: Date.now() };
       if (existing) await ctx.db.patch(existing._id, row);
-      else await ctx.db.insert("user_usage_daily", { user_id: conversation.user_id, team_id: teamId, day_start: p.day_start, ...(unattended ? { unattended: true } : {}), ...row });
-      if (p.account) await addAccountDay(ctx, p.account, conversation.user_id, p.day_start, p.token_hours.reduce((a: number, b: number) => a + b, 0));
+      else
+        await ctx.db.insert("user_usage_daily", {
+          user_id: conversation.user_id,
+          team_id: teamId,
+          day_start: p.day_start,
+          ...(unattended ? { unattended: true } : {}),
+          ...row,
+        });
+      if (p.account)
+        await addAccountDay(
+          ctx,
+          p.account,
+          conversation.user_id,
+          p.day_start,
+          p.token_hours.reduce((a: number, b: number) => a + b, 0),
+        );
     }
   }
   for (const p of pending) await ctx.db.delete(p._id);
 }
 
 // A person's tokens on one account for one day (account_usage_daily).
-async function addAccountDay(ctx: { db: any }, email: string, userId: Id<"users">, dayStart: number, tokens: number) {
+async function addAccountDay(
+  ctx: { db: any },
+  email: string,
+  userId: Id<"users">,
+  dayStart: number,
+  tokens: number,
+) {
   if (tokens <= 0) return;
   const existing = await ctx.db
     .query("account_usage_daily")
-    .withIndex("by_email_user_day", (q: any) => q.eq("email", email).eq("user_id", userId).eq("day_start", dayStart))
+    .withIndex("by_email_user_day", (q: any) =>
+      q.eq("email", email).eq("user_id", userId).eq("day_start", dayStart),
+    )
     .first();
-  if (existing) await ctx.db.patch(existing._id, { tokens: existing.tokens + tokens, updated_at: Date.now() });
-  else await ctx.db.insert("account_usage_daily", { email, user_id: userId, day_start: dayStart, tokens, updated_at: Date.now() });
+  if (existing)
+    await ctx.db.patch(existing._id, {
+      tokens: existing.tokens + tokens,
+      updated_at: Date.now(),
+    });
+  else
+    await ctx.db.insert("account_usage_daily", {
+      email,
+      user_id: userId,
+      day_start: dayStart,
+      tokens,
+      updated_at: Date.now(),
+    });
 }
 
 export type UsageDayRow = DayHours;
@@ -166,17 +252,32 @@ export async function fetchUserUsageDays(
   const rows: UsageDayRow[] = teamId
     ? await ctx.db
         .query("user_usage_daily")
-        .withIndex("by_user_team_day", (q: any) => q.eq("user_id", userId).eq("team_id", teamId).gte("day_start", cutoff))
+        .withIndex("by_user_team_day", (q: any) =>
+          q
+            .eq("user_id", userId)
+            .eq("team_id", teamId)
+            .gte("day_start", cutoff),
+        )
         .collect()
     : await ctx.db
         .query("user_usage_daily")
-        .withIndex("by_user_day", (q: any) => q.eq("user_id", userId).gte("day_start", cutoff))
+        .withIndex("by_user_day", (q: any) =>
+          q.eq("user_id", userId).gte("day_start", cutoff),
+        )
         .collect();
   const byDay = new Map<number, UsageDayRow>();
   for (const r of rows as any[]) {
     if (who && (who === "unattended") !== !!r.unattended) continue;
-    const acc = byDay.get(r.day_start) ?? { day_start: r.day_start, token_hours: zeros24(), spend_hours: zeros24() };
-    byDay.set(r.day_start, { day_start: r.day_start, token_hours: addHours(acc.token_hours, r.token_hours), spend_hours: addHours(acc.spend_hours, r.spend_hours) });
+    const acc = byDay.get(r.day_start) ?? {
+      day_start: r.day_start,
+      token_hours: zeros24(),
+      spend_hours: zeros24(),
+    };
+    byDay.set(r.day_start, {
+      day_start: r.day_start,
+      token_hours: addHours(acc.token_hours, r.token_hours),
+      spend_hours: addHours(acc.spend_hours, r.spend_hours),
+    });
   }
   return [...byDay.values()];
 }
@@ -194,10 +295,15 @@ export async function seesTeamSpend(
   if (!viewerId || !teamId) return false;
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", viewerId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", viewerId).eq("team_id", teamId),
+    )
     .first();
   if (!membership) return false;
-  return membership.role === "admin" || (await teamHasFeature(ctx, teamId, "member_spend"));
+  return (
+    membership.role === "admin" ||
+    (await teamHasFeature(ctx, teamId, "member_spend"))
+  );
 }
 
 /** May `viewerId` see `targetId`'s tokens and spend in `teamId`? Their own always. */
@@ -207,5 +313,8 @@ export async function canSeeMemberSpend(
   targetId: Id<"users">,
   teamId: Id<"teams"> | null | undefined,
 ): Promise<boolean> {
-  return (!!viewerId && String(viewerId) === String(targetId)) || (await seesTeamSpend(ctx, viewerId, teamId));
+  return (
+    (!!viewerId && String(viewerId) === String(targetId)) ||
+    (await seesTeamSpend(ctx, viewerId, teamId))
+  );
 }

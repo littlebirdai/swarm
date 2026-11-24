@@ -62,16 +62,29 @@ describe("acquireFileLock", () => {
   });
 
   it("still reclaims a lock whose holder outlived staleMs", async () => {
-    fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, at: Date.now() - 10_000 }));
-    const release = await acquireFileLock(lock, { waitMs: 10_000, staleMs: 1_000 });
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({ pid: process.pid, at: Date.now() - 10_000 }),
+    );
+    const release = await acquireFileLock(lock, {
+      waitMs: 10_000,
+      staleMs: 1_000,
+    });
     release();
     expect(fs.existsSync(lock)).toBe(false);
   });
 
   it("gives up with a message naming the holder and the file", async () => {
-    fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, at: Date.now() }));
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({ pid: process.pid, at: Date.now() }),
+    );
     await expect(
-      acquireFileLock(lock, { waitMs: 200, staleMs: 60_000, describe: "cast browser start" }),
+      acquireFileLock(lock, {
+        waitMs: 200,
+        staleMs: 60_000,
+        describe: "cast browser start",
+      }),
     ).rejects.toThrow(/cast browser start.*has held .*x\.lock/s);
   });
 });
@@ -91,13 +104,21 @@ describe("withFileLockSync", () => {
   // The age bound is the documented rule for both variants: it is what frees a
   // lock whose dead holder's pid has been reused by an unrelated process.
   it("reclaims a lock whose holder outlived staleMs", () => {
-    fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, at: Date.now() - 10_000 }));
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({ pid: process.pid, at: Date.now() - 10_000 }),
+    );
     expect(withFileLockSync(lock, () => 7, { staleMs: 1_000 })).toBe(7);
   });
 
   it("names a live holder's pid when it gives up", () => {
-    fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, at: Date.now() }));
-    expect(() => withFileLockSync(lock, () => 7, { waitMs: 50 })).toThrow(new RegExp(`pid ${process.pid}\\) has held .*x\\.lock`));
+    fs.writeFileSync(
+      lock,
+      JSON.stringify({ pid: process.pid, at: Date.now() }),
+    );
+    expect(() => withFileLockSync(lock, () => 7, { waitMs: 50 })).toThrow(
+      new RegExp(`pid ${process.pid}\\) has held .*x\\.lock`),
+    );
   });
 
   it("does not call a half-written lock 'pid young' when it gives up", () => {
@@ -118,7 +139,11 @@ describe("withFileLockSync", () => {
 // release used to unlink whatever sat at the path: the lock of the process that
 // took over.
 describe("release after losing the lock", () => {
-  const successor = JSON.stringify({ pid: process.pid, at: Date.now(), token: "successor" });
+  const successor = JSON.stringify({
+    pid: process.pid,
+    at: Date.now(),
+    token: "successor",
+  });
 
   it("acquireFileLock's release leaves a successor's lock alone", async () => {
     const release = await acquireFileLock(lock);
@@ -140,22 +165,37 @@ describe("reclaiming an abandoned lock", () => {
   it("leaves the reclaim to a waiter that is already doing it", async () => {
     fs.writeFileSync(lock, corpse());
     // Another live waiter is between its judgement and its removal.
-    fs.writeFileSync(`${lock}.break`, JSON.stringify({ pid: process.pid, at: Date.now(), token: "other" }));
-    await expect(acquireFileLock(lock, { waitMs: 100 })).rejects.toThrow(/could not be reclaimed/);
-    expect(() => withFileLockSync(lock, () => 7, { waitMs: 50 })).toThrow(/could not be reclaimed/);
+    fs.writeFileSync(
+      `${lock}.break`,
+      JSON.stringify({ pid: process.pid, at: Date.now(), token: "other" }),
+    );
+    await expect(acquireFileLock(lock, { waitMs: 100 })).rejects.toThrow(
+      /could not be reclaimed/,
+    );
+    expect(() => withFileLockSync(lock, () => 7, { waitMs: 50 })).toThrow(
+      /could not be reclaimed/,
+    );
     expect(JSON.parse(fs.readFileSync(lock, "utf-8")).pid).toBe(DEAD_PID);
     expect(fs.existsSync(`${lock}.break`)).toBe(true);
   });
 
   it("clears the claim of a waiter that died mid-reclaim", async () => {
     fs.writeFileSync(lock, corpse());
-    fs.writeFileSync(`${lock}.break`, JSON.stringify({ pid: DEAD_PID, at: Date.now(), token: "dead" }));
+    fs.writeFileSync(
+      `${lock}.break`,
+      JSON.stringify({ pid: DEAD_PID, at: Date.now(), token: "dead" }),
+    );
     const release = await acquireFileLock(lock, { waitMs: 5_000 });
     expect(leftovers()).toEqual([]);
     release();
     fs.writeFileSync(lock, corpse());
-    fs.writeFileSync(`${lock}.break`, JSON.stringify({ pid: DEAD_PID, at: Date.now(), token: "dead" }));
-    expect(withFileLockSync(lock, () => leftovers(), { waitMs: 5_000 })).toEqual([]);
+    fs.writeFileSync(
+      `${lock}.break`,
+      JSON.stringify({ pid: DEAD_PID, at: Date.now(), token: "dead" }),
+    );
+    expect(
+      withFileLockSync(lock, () => leftovers(), { waitMs: 5_000 }),
+    ).toEqual([]);
   });
 
   // The race this pins: two waiters both judge the same lock abandoned; the
@@ -193,13 +233,19 @@ describe("reclaiming an abandoned lock", () => {
       fs.writeFileSync(script, worker(mode));
       fs.writeFileSync(lock, corpse());
       const exits = await Promise.all(
-        Array.from({ length: 6 }, () =>
-          new Promise<string>((resolve) => {
-            const child = spawn(process.execPath, [script, lock, "40"], { stdio: ["ignore", "ignore", "pipe"] });
-            let stderr = "";
-            child.stderr.on("data", (d) => (stderr += d));
-            child.on("close", (code) => resolve(code === 0 ? "ok" : `exit ${code}: ${stderr}`));
-          }),
+        Array.from(
+          { length: 6 },
+          () =>
+            new Promise<string>((resolve) => {
+              const child = spawn(process.execPath, [script, lock, "40"], {
+                stdio: ["ignore", "ignore", "pipe"],
+              });
+              let stderr = "";
+              child.stderr.on("data", (d) => (stderr += d));
+              child.on("close", (code) =>
+                resolve(code === 0 ? "ok" : `exit ${code}: ${stderr}`),
+              );
+            }),
         ),
       );
       expect(exits).toEqual(Array(6).fill("ok"));

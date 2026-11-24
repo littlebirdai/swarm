@@ -22,19 +22,29 @@ import type { ComputerClientLike } from "../src/computer/run.js";
 
 const { values: o } = parseArgs({
   options: {
-    on: { type: "string" }, local: { type: "boolean" }, app: { type: "string" },
-    n: { type: "string", default: "20" }, element: { type: "string", default: "text" },
+    on: { type: "string" },
+    local: { type: "boolean" },
+    app: { type: "string" },
+    n: { type: "string", default: "20" },
+    element: { type: "string", default: "text" },
     action: { type: "string", default: "click" },
   },
 });
 if (!o.app || (!o.on && !o.local)) {
-  console.error("usage: computer-remote-bench.ts (--on laptop | --local) --app <bundle id> [--n 20] [--element <name>]");
+  console.error(
+    "usage: computer-remote-bench.ts (--on laptop | --local) --app <bundle id> [--n 20] [--element <name>]",
+  );
   process.exit(2);
 }
 const n = Number(o.n);
-const client: ComputerClientLike = o.local ? new ComputerClient() : new RemoteComputerClient({ on: o.on!, session: sessionIdFromEnv() });
+const client: ComputerClientLike = o.local
+  ? new ComputerClient()
+  : new RemoteComputerClient({ on: o.on!, session: sessionIdFromEnv() });
 
-const pct = (xs: number[], p: number) => xs.slice().sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
+const pct = (xs: number[], p: number) =>
+  xs.slice().sort((a, b) => a - b)[
+    Math.min(xs.length - 1, Math.floor(p * xs.length))
+  ]!;
 async function time(label: string, f: () => Promise<unknown>): Promise<void> {
   const xs: number[] = [];
   for (let i = 0; i < n; i++) {
@@ -42,20 +52,35 @@ async function time(label: string, f: () => Promise<unknown>): Promise<void> {
     await f();
     xs.push(performance.now() - t);
   }
-  console.log(`${label.padEnd(28)} p50 ${pct(xs, 0.5).toFixed(0).padStart(5)} ms   p95 ${pct(xs, 0.95).toFixed(0).padStart(5)} ms   (n=${n})`);
+  console.log(
+    `${label.padEnd(28)} p50 ${pct(xs, 0.5).toFixed(0).padStart(5)} ms   p95 ${pct(xs, 0.95).toFixed(0).padStart(5)} ms   (n=${n})`,
+  );
 }
 
 try {
   const t0 = performance.now();
   const first = await client.getAppState({ app: o.app, noScreenshot: true });
-  console.log(`${"first call (connect + read)".padEnd(28)} ${(performance.now() - t0).toFixed(0)} ms`);
+  console.log(
+    `${"first call (connect + read)".padEnd(28)} ${(performance.now() - t0).toFixed(0)} ms`,
+  );
   const index = resolveElement(first.snapshot.treeText, o.element!);
-  await time("read, no screenshot", () => client.getAppState({ app: o.app, noScreenshot: true }));
+  await time("read, no screenshot", () =>
+    client.getAppState({ app: o.app, noScreenshot: true }),
+  );
   await time("read, with screenshot", () => client.getAppState({ app: o.app }));
   if (o.action === "set-value") {
     let i = 0;
-    await time(`set-value #${index}`, () => client.action("setValue", { app: o.app, elementIndex: index, value: `bench ${i++}` }));
-  } else await time(`click #${index}`, () => client.action("click", { app: o.app, elementIndex: index }));
+    await time(`set-value #${index}`, () =>
+      client.action("setValue", {
+        app: o.app,
+        elementIndex: index,
+        value: `bench ${i++}`,
+      }),
+    );
+  } else
+    await time(`click #${index}`, () =>
+      client.action("click", { app: o.app, elementIndex: index }),
+    );
 } finally {
   client.shutdown();
 }

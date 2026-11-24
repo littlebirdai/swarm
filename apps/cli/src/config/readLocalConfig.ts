@@ -24,18 +24,28 @@ export function readLocalConfig(): Config | null {
 export function addCloudMirrorExcludes(paths: string[]): string {
   const file = sharedConfigFile(defaultConfigDir());
   const config = readConfigFile(file) ?? {};
-  const current = (config.cloud_mirror_exclude ?? "").split(",").map((p) => p.trim()).filter(Boolean);
-  const next = [...new Set([...current, ...paths.map((p) => p.trim()).filter(Boolean)])].join(",");
+  const current = (config.cloud_mirror_exclude ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const next = [
+    ...new Set([...current, ...paths.map((p) => p.trim()).filter(Boolean)]),
+  ].join(",");
   if (next !== (config.cloud_mirror_exclude ?? "")) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ ...config, cloud_mirror_exclude: next }, null, 2), { mode: 0o600 });
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ ...config, cloud_mirror_exclude: next }, null, 2),
+      { mode: 0o600 },
+    );
     fs.chmodSync(file, 0o600);
   }
   return next;
 }
 
 /** The web app's origin when config names none (CODE_CHAT_SYNC_WEB_URL points a dev CLI elsewhere). */
-export const DEFAULT_WEB_URL = process.env.CODE_CHAT_SYNC_WEB_URL || "https://codecast.sh";
+export const DEFAULT_WEB_URL =
+  process.env.CODE_CHAT_SYNC_WEB_URL || "https://codecast.sh";
 
 /** The web app's origin for links this CLI prints or opens: config's web_url, else the default. */
 export function webBaseUrl(): string {

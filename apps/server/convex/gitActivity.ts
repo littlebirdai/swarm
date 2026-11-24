@@ -26,13 +26,30 @@ import type { Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { resolveCreationPrivacy } from "./privacy";
 import { recordExternalEvent } from "./externalEvents";
-import { commitRecordedBy, extractSessionTrailer, isHarnessScratch, resolveTaskLinksFromText, normalizeRepository } from "./lib/gitRefs";
+import {
+  commitRecordedBy,
+  extractSessionTrailer,
+  isHarnessScratch,
+  resolveTaskLinksFromText,
+  normalizeRepository,
+} from "./lib/gitRefs";
 import { markCommitDirty } from "./lib/changesDirty";
 import { conversationForCommit } from "./githubWebhooks";
 import { upsertLocalCommit } from "./repos";
 import { localCommitFiles } from "./lib/localCommitFiles";
 
-const KINDS = ["commit", "amend", "checkout", "merge", "pull", "rebase", "reset", "cherry_pick", "revert", "push"] as const;
+const KINDS = [
+  "commit",
+  "amend",
+  "checkout",
+  "merge",
+  "pull",
+  "rebase",
+  "reset",
+  "cherry_pick",
+  "revert",
+  "push",
+] as const;
 type Kind = (typeof KINDS)[number];
 
 const commitFields = v.object({
@@ -69,7 +86,16 @@ const event = v.object({
 const short = (sha: string) => sha.slice(0, 7);
 
 /** The one line the feed shows for an event. */
-export function localEventTitle(e: { kind: Kind; message: string; ref?: string; from_ref?: string; to_ref?: string; new_sha: string; branch?: string; commits_count?: number }): string {
+export function localEventTitle(e: {
+  kind: Kind;
+  message: string;
+  ref?: string;
+  from_ref?: string;
+  to_ref?: string;
+  new_sha: string;
+  branch?: string;
+  commits_count?: number;
+}): string {
   const subject = e.message.split("\n")[0].trim();
   switch (e.kind) {
     case "commit":
@@ -77,9 +103,14 @@ export function localEventTitle(e: { kind: Kind; message: string; ref?: string; 
     case "revert":
       return subject.slice(0, 200);
     case "amend":
-      return `amended ${short(e.new_sha)}${subject ? `: ${subject}` : ""}`.slice(0, 200);
+      return `amended ${short(e.new_sha)}${subject ? `: ${subject}` : ""}`.slice(
+        0,
+        200,
+      );
     case "checkout":
-      return e.to_ref ? `switched to ${e.to_ref}${e.from_ref && e.from_ref !== e.to_ref ? ` from ${e.from_ref}` : ""}` : `checked out ${short(e.new_sha)}`;
+      return e.to_ref
+        ? `switched to ${e.to_ref}${e.from_ref && e.from_ref !== e.to_ref ? ` from ${e.from_ref}` : ""}`
+        : `checked out ${short(e.new_sha)}`;
     case "merge":
       return `merged ${e.ref ?? short(e.new_sha)}${e.branch ? ` into ${e.branch}` : ""}`;
     case "pull":
@@ -103,23 +134,31 @@ export const recordLocal = mutation({
     branch: v.optional(v.string()),
     events: v.array(event),
   },
-  handler: async (ctx, args): Promise<{ published: boolean; reason?: "private"; recorded?: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ published: boolean; reason?: "private"; recorded?: number }> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Not authenticated");
     const privacy = await resolveCreationPrivacy(ctx, userId, args.root);
-    if (!privacy.team_id || privacy.is_private) return { published: false, reason: "private" };
+    if (!privacy.team_id || privacy.is_private)
+      return { published: false, reason: "private" };
     const teamId = privacy.team_id;
     const repository = normalizeRepository(args.repository);
     const actor = { actor_user_id: userId };
 
     let recorded = 0;
     for (const e of args.events) {
-      const branch = e.commit?.branch ?? (e.kind === "push" ? e.ref : args.branch);
+      const branch =
+        e.commit?.branch ?? (e.kind === "push" ? e.ref : args.branch);
       let commitId: Id<"commits"> | undefined;
       let conversationId: Id<"conversations"> | undefined;
       if (e.commit) {
         const row = await upsertLocalCommit(ctx, {
-          userId, teamId, repository, root: args.root,
+          userId,
+          teamId,
+          repository,
+          root: args.root,
           commit: { ...e.commit, branch: e.commit.branch ?? args.branch },
           claimedConversationId: e.conversation_id,
         });
@@ -127,7 +166,8 @@ export const recordLocal = mutation({
         conversationId = row.conversation_id;
       }
       // A harness's scratch commit belongs to no session (upsertLocalCommit).
-      const scratch = !!e.commit && isHarnessScratch({ branch, root: args.root });
+      const scratch =
+        !!e.commit && isHarnessScratch({ branch, root: args.root });
       if (!scratch && !conversationId && e.conversation_id) {
         const id = ctx.db.normalizeId("conversations", e.conversation_id);
         const conv = id ? await ctx.db.get(id) : null;
@@ -136,12 +176,24 @@ export const recordLocal = mutation({
       // The transcript that printed this sha names the session, the way the
       // webhook resolves it; a commit whose line has not synced yet is
       // back-filled when it does (linkLocalCommitToConversation).
-      if (!scratch && !conversationId && e.commit) conversationId = await conversationForCommit(ctx, e.new_sha, branch, { userId, teamId });
+      if (!scratch && !conversationId && e.commit)
+        conversationId = await conversationForCommit(ctx, e.new_sha, branch, {
+          userId,
+          teamId,
+        });
       if (conversationId && commitId) {
         const row = await ctx.db.get(commitId);
-        if (row && !row.conversation_id) await ctx.db.patch(commitId, { conversation_id: conversationId });
+        if (row && !row.conversation_id)
+          await ctx.db.patch(commitId, { conversation_id: conversationId });
       }
-      const links = e.commit ? await resolveTaskLinksFromText(ctx, { userId, teamId }, e.commit.message, branch) : { task_ids: [], plan_ids: [], project_ids: [] };
+      const links = e.commit
+        ? await resolveTaskLinksFromText(
+            ctx,
+            { userId, teamId },
+            e.commit.message,
+            branch,
+          )
+        : { task_ids: [], plan_ids: [], project_ids: [] };
       await recordExternalEvent(ctx, {
         source: "git",
         team_id: teamId,
@@ -162,11 +214,20 @@ export const recordLocal = mutation({
           to_ref: e.to_ref,
           ref: e.ref,
           commits_count: e.commits_count,
-          ...(e.commit ? { additions: e.commit.insertions, deletions: e.commit.deletions, files_changed: e.commit.files_changed } : {}),
+          ...(e.commit
+            ? {
+                additions: e.commit.insertions,
+                deletions: e.commit.deletions,
+                files_changed: e.commit.files_changed,
+              }
+            : {}),
         },
         // A commit's key is the webhook's, so the push that follows folds into
         // this event instead of announcing the same commit twice.
-        dedupe_key: e.kind === "commit" ? `commit:${e.new_sha}` : `git:${e.kind}:${repository}:${e.new_sha}:${e.at}`,
+        dedupe_key:
+          e.kind === "commit"
+            ? `commit:${e.new_sha}`
+            : `git:${e.kind}:${repository}:${e.new_sha}:${e.at}`,
         created_at: e.at,
       });
       recorded++;
@@ -188,20 +249,35 @@ export async function linkLocalCommitToConversation(
   const prefix = shortSha.toLowerCase();
   const candidates = await ctx.db
     .query("commits")
-    .withIndex("by_sha", (q: any) => q.gte("sha", prefix).lt("sha", prefix + "\uffff"))
+    .withIndex("by_sha", (q: any) =>
+      q.gte("sha", prefix).lt("sha", prefix + "\uffff"),
+    )
     .take(5);
   const conversation = await ctx.db.get(conversationId);
   for (const row of candidates) {
-    if (!row.sha.startsWith(prefix) || row.conversation_id || isHarnessScratch({ branch: row.branch })) continue;
+    if (
+      !row.sha.startsWith(prefix) ||
+      row.conversation_id ||
+      isHarnessScratch({ branch: row.branch })
+    )
+      continue;
     // The session's own team is the row's team when both are known; a same
     // prefix in another team's repository is someone else's commit.
-    if (conversation?.team_id && row.team_id && conversation.team_id !== row.team_id) continue;
+    if (
+      conversation?.team_id &&
+      row.team_id &&
+      conversation.team_id !== row.team_id
+    )
+      continue;
     await ctx.db.patch(row._id, { conversation_id: conversationId });
     const evt = await ctx.db
       .query("external_events")
-      .withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", `commit:${row.sha}`))
+      .withIndex("by_dedupe_key", (q: any) =>
+        q.eq("dedupe_key", `commit:${row.sha}`),
+      )
       .first();
-    if (evt && !evt.conversation_id) await ctx.db.patch(evt._id, { conversation_id: conversationId });
+    if (evt && !evt.conversation_id)
+      await ctx.db.patch(evt._id, { conversation_id: conversationId });
   }
 }
 
@@ -212,22 +288,34 @@ export async function linkLocalCommitToConversation(
  * give them away.
  */
 export const unlinkScratchCommits = internalMutation({
-  args: { conversation_id: v.id("conversations"), shas: v.optional(v.array(v.string())), dry: v.optional(v.boolean()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    shas: v.optional(v.array(v.string())),
+    dry: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const rows = await ctx.db
       .query("commits")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
     const named = new Set(args.shas ?? []);
-    const scratch = rows.filter((row: any) => named.has(row.sha) || isHarnessScratch({ branch: row.branch }));
+    const scratch = rows.filter(
+      (row: any) =>
+        named.has(row.sha) || isHarnessScratch({ branch: row.branch }),
+    );
     if (args.dry) return { linked: rows.length, scratch: scratch.length };
     for (const row of scratch) {
       await ctx.db.patch(row._id, { conversation_id: undefined });
       const evt = await ctx.db
         .query("external_events")
-        .withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", `commit:${row.sha}`))
+        .withIndex("by_dedupe_key", (q: any) =>
+          q.eq("dedupe_key", `commit:${row.sha}`),
+        )
         .first();
-      if (evt?.conversation_id === args.conversation_id) await ctx.db.patch(evt._id, { conversation_id: undefined });
+      if (evt?.conversation_id === args.conversation_id)
+        await ctx.db.patch(evt._id, { conversation_id: undefined });
     }
     return { linked: rows.length, scratch: scratch.length };
   },
@@ -246,18 +334,37 @@ const MADE_LOCALLY = new Set(["commit", "amend", "cherry_pick", "revert"]);
  * a checkout's one live session for every commit newer than its last publish,
  * commits a pull brought in included.
  */
-export async function sessionMadeCommit(ctx: { db: any }, row: { sha: string; message: string }, conversationId: Id<"conversations">): Promise<boolean> {
+export async function sessionMadeCommit(
+  ctx: { db: any },
+  row: { sha: string; message: string },
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const named = extractSessionTrailer(row.message);
-  if (named && String(ctx.db.normalizeId("conversations", named)) === String(conversationId)) return true;
-  if (String(await commitRecordedBy(ctx, row.sha)) === String(conversationId)) return true;
+  if (
+    named &&
+    String(ctx.db.normalizeId("conversations", named)) ===
+      String(conversationId)
+  )
+    return true;
+  if (String(await commitRecordedBy(ctx, row.sha)) === String(conversationId))
+    return true;
   const evt = await ctx.db
     .query("external_events")
-    .withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", `commit:${row.sha}`))
+    .withIndex("by_dedupe_key", (q: any) =>
+      q.eq("dedupe_key", `commit:${row.sha}`),
+    )
     .first();
-  if (evt && String(evt.conversation_id) === String(conversationId) && MADE_LOCALLY.has(evt.kind)) return true;
+  if (
+    evt &&
+    String(evt.conversation_id) === String(conversationId) &&
+    MADE_LOCALLY.has(evt.kind)
+  )
+    return true;
   const local = await ctx.db
     .query("external_events")
-    .withIndex("by_conversation_created", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_created", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .filter((q: any) => q.eq(q.field("sha"), row.sha))
     .first();
   return !!local && MADE_LOCALLY.has(local.kind);
@@ -269,24 +376,43 @@ export async function sessionMadeCommit(ctx: { db: any }, row: { sha: string; me
  * Run with dry first; pass the returned cursor until done.
  */
 export const unlinkMirrorClaims = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), num: v.optional(v.number()), dry: v.optional(v.boolean()) },
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    num: v.optional(v.number()),
+    dry: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("commits")
-      .withIndex("by_timestamp", (q: any) => q.gte("timestamp", MIRROR_CLAIMS_SINCE))
+      .withIndex("by_timestamp", (q: any) =>
+        q.gte("timestamp", MIRROR_CLAIMS_SINCE),
+      )
       .paginate({ cursor: args.cursor ?? null, numItems: args.num ?? 200 });
-    const unlinked: Array<{ sha: string; conversation_id: Id<"conversations"> }> = [];
+    const unlinked: Array<{
+      sha: string;
+      conversation_id: Id<"conversations">;
+    }> = [];
     let linked = 0;
     for (const row of page.page) {
       const conversationId = row.conversation_id;
       if (!conversationId) continue;
       linked++;
       if (await sessionMadeCommit(ctx, row, conversationId)) continue;
-      unlinked.push({ sha: row.sha.slice(0, 7), conversation_id: conversationId });
+      unlinked.push({
+        sha: row.sha.slice(0, 7),
+        conversation_id: conversationId,
+      });
       if (args.dry) continue;
       await ctx.db.patch(row._id, { conversation_id: undefined });
       await markCommitDirty(ctx, row._id);
     }
-    return { scanned: page.page.length, linked, unlinked: unlinked.length, sample: unlinked.slice(0, 20), cursor: page.continueCursor, done: page.isDone };
+    return {
+      scanned: page.page.length,
+      linked,
+      unlinked: unlinked.length,
+      sample: unlinked.slice(0, 20),
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });

@@ -12,7 +12,8 @@
   max-width: calc(100vw - 2rem);
   overflow: hidden;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--handoff-accent) 55%, var(--sol-border));
+  border: 1px solid
+    color-mix(in srgb, var(--handoff-accent) 55%, var(--sol-border));
   background: color-mix(in srgb, var(--sol-bg-alt) 92%, var(--sol-bg));
   color: var(--sol-text);
   font-family: var(--font-ui);
@@ -31,11 +32,13 @@
   inset: 0 auto 0 0;
   width: 4px;
   background: var(--handoff-accent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--handoff-accent) 70%, transparent);
+  box-shadow: 0 0 12px
+    color-mix(in srgb, var(--handoff-accent) 70%, transparent);
 }
 
 @keyframes handoff-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 18px 48px rgb(0 0 0 / 0.22),
       0 0 0 1px color-mix(in srgb, var(--handoff-accent) 22%, transparent),
@@ -50,8 +53,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .handoff-toast { animation: none; }
-  .handoff-toast-status .animate-ping { animation: none; }
+  .handoff-toast {
+    animation: none;
+  }
+  .handoff-toast-status .animate-ping {
+    animation: none;
+  }
 }
 
 .handoff-toast button {
@@ -97,13 +104,18 @@
   border-radius: 8px;
   background: transparent;
   color: var(--sol-text-dim);
-  transition: color 140ms ease-out, background 140ms ease-out, transform 160ms ease-out;
+  transition:
+    color 140ms ease-out,
+    background 140ms ease-out,
+    transform 160ms ease-out;
 }
 .handoff-toast-x:hover {
   color: var(--sol-text);
   background: color-mix(in srgb, var(--sol-bg-highlight) 70%, transparent);
 }
-.handoff-toast-x:active { transform: scale(0.97); }
+.handoff-toast-x:active {
+  transform: scale(0.97);
+}
 
 .handoff-toast-body {
   display: block;
@@ -127,7 +139,10 @@
   gap: 12px;
 }
 
-.handoff-toast-copy { min-width: 0; flex: 1; }
+.handoff-toast-copy {
+  min-width: 0;
+  flex: 1;
+}
 
 .handoff-toast-title {
   display: flex;
@@ -139,7 +154,10 @@
   color: var(--sol-text);
   overflow-wrap: anywhere;
 }
-.handoff-toast-title svg { margin-top: 2px; flex-shrink: 0; }
+.handoff-toast-title svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
 
 .handoff-toast-status {
   display: flex;
@@ -149,7 +167,10 @@
   font-size: 12px;
   color: var(--sol-text-muted);
 }
-.handoff-toast-live { color: var(--sol-green); font-weight: 500; }
+.handoff-toast-live {
+  color: var(--sol-green);
+  font-weight: 500;
+}
 
 .handoff-toast-summary {
   margin-top: 10px;
@@ -214,7 +235,11 @@
   flex-shrink: 0;
   font-style: normal;
 }
-.handoff-toast-meta-project > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.handoff-toast-meta-project > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .handoff-toast-meta-rest {
   display: inline-flex;
   align-items: center;
@@ -235,7 +260,11 @@
   word-break: break-all;
 }
 
-.handoff-toast-skel { display: grid; gap: 8px; padding: 4px 0 8px; }
+.handoff-toast-skel {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
 .handoff-toast-skel i {
   display: block;
   height: 10px;
@@ -243,15 +272,29 @@
   background: color-mix(in srgb, var(--sol-bg-highlight) 70%, transparent);
   animation: handoff-skel 1.2s ease-in-out infinite;
 }
-.handoff-toast-skel i:nth-child(1) { width: 72%; height: 14px; }
-.handoff-toast-skel i:nth-child(2) { width: 100%; }
-.handoff-toast-skel i:nth-child(3) { width: 84%; }
+.handoff-toast-skel i:nth-child(1) {
+  width: 72%;
+  height: 14px;
+}
+.handoff-toast-skel i:nth-child(2) {
+  width: 100%;
+}
+.handoff-toast-skel i:nth-child(3) {
+  width: 84%;
+}
 @keyframes handoff-skel {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .handoff-toast-skel i { animation: none; }
+  .handoff-toast-skel i {
+    animation: none;
+  }
 }
 
 .handoff-toast-actions {
@@ -271,10 +314,16 @@
   color: var(--sol-bg);
   font-size: 13px;
   font-weight: 600;
-  transition: opacity 140ms ease-out, transform 160ms ease-out;
+  transition:
+    opacity 140ms ease-out,
+    transform 160ms ease-out;
 }
-.handoff-toast-open:hover { opacity: 0.92; }
-.handoff-toast-open:active { transform: scale(0.97); }
+.handoff-toast-open:hover {
+  opacity: 0.92;
+}
+.handoff-toast-open:active {
+  transform: scale(0.97);
+}
 
 .handoff-toast-stay {
   height: 36px;
@@ -283,13 +332,20 @@
   border: 1px solid var(--sol-border);
   color: var(--sol-text-muted);
   font-size: 13px;
-  transition: color 140ms ease-out, border-color 140ms ease-out, transform 160ms ease-out;
+  transition:
+    color 140ms ease-out,
+    border-color 140ms ease-out,
+    transform 160ms ease-out;
 }
 .handoff-toast-stay:hover {
   color: var(--sol-text);
   border-color: var(--sol-text-dim);
 }
-.handoff-toast-stay:active { transform: scale(0.97); }
+.handoff-toast-stay:active {
+  transform: scale(0.97);
+}
 
 /* Modern (.modern-style): the path stays mono. */
-.modern-style .handoff-toast-path { font-family: var(--font-mono), monospace; }
+.modern-style .handoff-toast-path {
+  font-family: var(--font-mono), monospace;
+}

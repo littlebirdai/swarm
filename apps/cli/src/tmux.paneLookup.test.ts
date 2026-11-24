@@ -11,7 +11,11 @@
 
 import { describe, expect, test } from "bun:test";
 import { parseCodecastPaneRows, pickPaneForSession } from "./tmux.js";
-import { resumeShortId, resumeTmuxName, upgradedLegacyResumeTmuxName } from "./resumeCommand.js";
+import {
+  resumeShortId,
+  resumeTmuxName,
+  upgradedLegacyResumeTmuxName,
+} from "./resumeCommand.js";
 
 const SESSION = "58f3cdd1-4027-4850-be9f-d5039fbf2055";
 const SUFFIX = `-${resumeShortId(SESSION)}`;
@@ -21,23 +25,52 @@ function row(
   name: string,
   sessionId = "",
   created: string | number = "",
-  extra: { activity?: number; conversationId?: string; agentType?: string; projectPath?: string } = {},
+  extra: {
+    activity?: number;
+    conversationId?: string;
+    agentType?: string;
+    projectPath?: string;
+  } = {},
 ): string {
-  return [sessionId, created, extra.activity ?? "", extra.conversationId ?? "", extra.agentType ?? "", extra.projectPath ?? "", name].join("|");
+  return [
+    sessionId,
+    created,
+    extra.activity ?? "",
+    extra.conversationId ?? "",
+    extra.agentType ?? "",
+    extra.projectPath ?? "",
+    name,
+  ].join("|");
 }
-const UNSTAMPED = { activitySec: 0, conversationId: null, agentType: null, projectPath: null };
+const UNSTAMPED = {
+  activitySec: 0,
+  conversationId: null,
+  agentType: null,
+  projectPath: null,
+};
 function rows(...lines: string[]): string {
   return lines.join("\n") + "\n";
 }
 
 describe("parseCodecastPaneRows", () => {
   test("reads stamp, creation time and name", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-claude-nr0bqx", SESSION, 1786564893)));
-    expect(panes).toEqual([{ tmux: "cc-claude-nr0bqx", sessionId: SESSION, createdSec: 1786564893, ...UNSTAMPED }]);
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-claude-nr0bqx", SESSION, 1786564893)),
+    );
+    expect(panes).toEqual([
+      {
+        tmux: "cc-claude-nr0bqx",
+        sessionId: SESSION,
+        createdSec: 1786564893,
+        ...UNSTAMPED,
+      },
+    ]);
   });
 
   test("an unstamped pane parses with a null stamp, not an empty string", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-claude-yyp2fz", "", 1786561734)));
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-claude-yyp2fz", "", 1786561734)),
+    );
     expect(panes[0].sessionId).toBeNull();
   });
 
@@ -48,17 +81,36 @@ describe("parseCodecastPaneRows", () => {
   });
 
   test("a tmux too old to expand the stamp reads as no stamp, not as a session id", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-resume-old-58f3cdd1", "#{@codecast_session_id}", 100)));
-    expect(panes[0]).toEqual({ tmux: "cc-resume-old-58f3cdd1", sessionId: null, createdSec: 100, ...UNSTAMPED });
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-resume-old-58f3cdd1", "#{@codecast_session_id}", 100)),
+    );
+    expect(panes[0]).toEqual({
+      tmux: "cc-resume-old-58f3cdd1",
+      sessionId: null,
+      createdSec: 100,
+      ...UNSTAMPED,
+    });
   });
 
   test("reads activity and the conversation, agent and project stamps", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-claude-nr0bqx", SESSION, 100, {
-      activity: 250, conversationId: "jx7abcdefg", agentType: "codex", projectPath: "/src/app",
-    })));
+    const panes = parseCodecastPaneRows(
+      rows(
+        row("cc-claude-nr0bqx", SESSION, 100, {
+          activity: 250,
+          conversationId: "jx7abcdefg",
+          agentType: "codex",
+          projectPath: "/src/app",
+        }),
+      ),
+    );
     expect(panes[0]).toEqual({
-      tmux: "cc-claude-nr0bqx", sessionId: SESSION, createdSec: 100,
-      activitySec: 250, conversationId: "jx7abcdefg", agentType: "codex", projectPath: "/src/app",
+      tmux: "cc-claude-nr0bqx",
+      sessionId: SESSION,
+      createdSec: 100,
+      activitySec: 250,
+      conversationId: "jx7abcdefg",
+      agentType: "codex",
+      projectPath: "/src/app",
     });
   });
 
@@ -69,10 +121,12 @@ describe("parseCodecastPaneRows", () => {
 
 describe("pickPaneForSession", () => {
   test("the stamp wins over the name", () => {
-    const panes = parseCodecastPaneRows(rows(
-      row("cc-resume-something-else", "", 100),
-      row("cc-claude-nr0bqx", SESSION, 100),
-    ));
+    const panes = parseCodecastPaneRows(
+      rows(
+        row("cc-resume-something-else", "", 100),
+        row("cc-claude-nr0bqx", SESSION, 100),
+      ),
+    );
     expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe("cc-claude-nr0bqx");
   });
 
@@ -84,24 +138,34 @@ describe("pickPaneForSession", () => {
 
   test("a pane stamped for another session is never taken, whatever it is called", () => {
     const name = resumeTmuxName("claude", SESSION, "my-title");
-    const panes = parseCodecastPaneRows(rows(row(name, "someone-elses-session", 100)));
+    const panes = parseCodecastPaneRows(
+      rows(row(name, "someone-elses-session", 100)),
+    );
     expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBeNull();
   });
 
   test("skips the pre-restart pane and takes the one the resume created", () => {
-    const panes = parseCodecastPaneRows(rows(
-      row("cc-resume-title-58f3cdd1", SESSION, 100),   // the pane about to be killed
-      row("cc-resume-title-58f3cdd1b", SESSION, 500),  // the one the resume brought up
-    ));
-    expect(pickPaneForSession(panes, SESSION, SUFFIX, 400)).toBe("cc-resume-title-58f3cdd1b");
+    const panes = parseCodecastPaneRows(
+      rows(
+        row("cc-resume-title-58f3cdd1", SESSION, 100), // the pane about to be killed
+        row("cc-resume-title-58f3cdd1b", SESSION, 500), // the one the resume brought up
+      ),
+    );
+    expect(pickPaneForSession(panes, SESSION, SUFFIX, 400)).toBe(
+      "cc-resume-title-58f3cdd1b",
+    );
   });
 
   test("with no pane newer than the request, reports nothing rather than the doomed one", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-resume-title-58f3cdd1", SESSION, 100)));
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-resume-title-58f3cdd1", SESSION, 100)),
+    );
     expect(pickPaneForSession(panes, SESSION, SUFFIX, 400)).toBeNull();
     // ...and the same pane IS the answer once the caller stops demanding a new one
     // (the deduplicated-restart case: no new pane was ever coming).
-    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe("cc-resume-title-58f3cdd1");
+    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe(
+      "cc-resume-title-58f3cdd1",
+    );
   });
 
   test("resume takes the pane a live session is already in — no freshness bound", () => {
@@ -109,21 +173,31 @@ describe("pickPaneForSession", () => {
     // nothing, so the long-running pane is exactly where the user wants to land;
     // applying restart's freshness rule here would reject it and time out on a
     // perfectly healthy session.
-    const panes = parseCodecastPaneRows(rows(row("cc-resume-title-58f3cdd1", SESSION, 100)));
-    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe("cc-resume-title-58f3cdd1");
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-resume-title-58f3cdd1", SESSION, 100)),
+    );
+    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe(
+      "cc-resume-title-58f3cdd1",
+    );
   });
 
   test("a pane with no creation time can't prove it is new, so a freshness demand skips it", () => {
-    const panes = parseCodecastPaneRows(rows(row("cc-resume-title-58f3cdd1", SESSION)));
+    const panes = parseCodecastPaneRows(
+      rows(row("cc-resume-title-58f3cdd1", SESSION)),
+    );
     expect(pickPaneForSession(panes, SESSION, SUFFIX, 400)).toBeNull();
-    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe("cc-resume-title-58f3cdd1");
+    expect(pickPaneForSession(panes, SESSION, SUFFIX)).toBe(
+      "cc-resume-title-58f3cdd1",
+    );
   });
 });
 
 describe("resumeTmuxName", () => {
   test("the id suffix survives with or without a title slug", () => {
     expect(resumeTmuxName("claude", SESSION)).toBe("cc-resume-58f3cdd1");
-    expect(resumeTmuxName("claude", SESSION, "fix-auth")).toBe("cc-resume-fix-auth-58f3cdd1");
+    expect(resumeTmuxName("claude", SESSION, "fix-auth")).toBe(
+      "cc-resume-fix-auth-58f3cdd1",
+    );
     expect(resumeTmuxName("codex", SESSION)).toBe("cx-resume-58f3cdd1");
   });
 
@@ -136,16 +210,25 @@ describe("resumeTmuxName", () => {
   test("Codex UUIDv7 ids with the same time prefix get distinct pane names", () => {
     const a = "01a06e13-0e36-7202-b795-4719aa020cf4";
     const b = "01a06e13-0de8-75c2-a580-88de14265d82";
-    expect(resumeTmuxName("codex", a)).toBe("cx-resume-01a06e13-b7954719aa020cf4");
+    expect(resumeTmuxName("codex", a)).toBe(
+      "cx-resume-01a06e13-b7954719aa020cf4",
+    );
     expect(resumeTmuxName("codex", a)).not.toBe(resumeTmuxName("codex", b));
   });
 
   test("upgrades an existing eight-character resume pane without losing its title", () => {
     const sessionId = "01a06e13-6afb-71a1-9acc-deeac20e9ce5";
-    expect(upgradedLegacyResumeTmuxName("cx-resume-01a06e13", sessionId))
-      .toBe("cx-resume-01a06e13-9accdeeac20e9ce5");
-    expect(upgradedLegacyResumeTmuxName("cx-resume-cloud-01a06e13", sessionId))
-      .toBe("cx-resume-cloud-01a06e13-9accdeeac20e9ce5");
-    expect(upgradedLegacyResumeTmuxName("cx-resume-01a06e13-9accdeeac20e9ce5", sessionId)).toBeNull();
+    expect(upgradedLegacyResumeTmuxName("cx-resume-01a06e13", sessionId)).toBe(
+      "cx-resume-01a06e13-9accdeeac20e9ce5",
+    );
+    expect(
+      upgradedLegacyResumeTmuxName("cx-resume-cloud-01a06e13", sessionId),
+    ).toBe("cx-resume-cloud-01a06e13-9accdeeac20e9ce5");
+    expect(
+      upgradedLegacyResumeTmuxName(
+        "cx-resume-01a06e13-9accdeeac20e9ce5",
+        sessionId,
+      ),
+    ).toBeNull();
   });
 });

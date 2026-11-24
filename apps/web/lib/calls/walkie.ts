@@ -38,8 +38,22 @@ import { humanizeConvexError } from "@codecast/shared/contracts";
 import { useInboxStore } from "../../store/inboxStore";
 import { roomRecordingOn } from "./roomRecordingFields";
 import { focusExistingHuddle, huddleInOtherWindow } from "./huddleWindow";
-import { CHAT_CHANNEL_STUB_PREFIX, dmOpenInFlight, newChatMessageClientId, resolveChannelStubId } from "../../store/chatSlice";
-import { bindWalkieUpgrade, getCallTiles, getRoom, joinCall, leaveCall, mediaFailureReason, setCamera, setMuted } from "./callManager";
+import {
+  CHAT_CHANNEL_STUB_PREFIX,
+  dmOpenInFlight,
+  newChatMessageClientId,
+  resolveChannelStubId,
+} from "../../store/chatSlice";
+import {
+  bindWalkieUpgrade,
+  getCallTiles,
+  getRoom,
+  joinCall,
+  leaveCall,
+  mediaFailureReason,
+  setCamera,
+  setMuted,
+} from "./callManager";
 import { guestMediaOf, type GuestMedia } from "./callMedia";
 import {
   getDesktopWindowRole,
@@ -84,7 +98,11 @@ import {
   soundWalkieRoger,
   soundWalkieSquelch,
 } from "../sounds";
-import { announceJoin, clearJoinAnnouncement, youJoinedText } from "./joinAnnounce";
+import {
+  announceJoin,
+  clearJoinAnnouncement,
+  youJoinedText,
+} from "./joinAnnounce";
 
 const api = _api as any;
 
@@ -332,7 +350,8 @@ function reconcileMirroredBubble(sendingId: string | null): void {
   setTimeout(() => {
     const st = useInboxStore.getState() as any;
     const row = st.chatMessages?.[ended];
-    if (row && row._id === ended && row.voice?.status === "live") st.dropVoiceBurstRow({ clientId: ended });
+    if (row && row._id === ended && row.voice?.status === "live")
+      st.dropVoiceBurstRow({ clientId: ended });
   }, 2_000);
 }
 
@@ -343,7 +362,11 @@ function reconcileMirroredBubble(sendingId: string | null): void {
  * shell, a browser, or the second between the host's page loading and its
  * declaration — means this window acts for itself, exactly as it always did.
  */
-async function viaHost(cmd: string, args: unknown[], local: () => Promise<void>): Promise<void> {
+async function viaHost(
+  cmd: string,
+  args: unknown[],
+  local: () => Promise<void>,
+): Promise<void> {
   if (voiceHostElsewhere() && (await sendVoiceCommand(cmd, args))) return;
   await local();
 }
@@ -387,10 +410,18 @@ type CallState = { roomKey: string | null; phase: string; muted: boolean };
 
 function callState(): CallState {
   if (voiceHostElsewhere() && mirroredCall) {
-    return { roomKey: mirroredCall.roomKey, phase: mirroredCall.phase, muted: mirroredCall.muted };
+    return {
+      roomKey: mirroredCall.roomKey,
+      phase: mirroredCall.phase,
+      muted: mirroredCall.muted,
+    };
   }
   const call = useInboxStore.getState().call as any;
-  return { roomKey: call?.roomKey ?? null, phase: call?.phase ?? "idle", muted: call?.muted !== false };
+  return {
+    roomKey: call?.roomKey ?? null,
+    phase: call?.phase ?? "idle",
+    muted: call?.muted !== false,
+  };
 }
 
 /**
@@ -438,35 +469,50 @@ const EMPTY_SPEAKING: string[] = [];
  *  here, so the tiles say. A remote reads the same list off the mirror. */
 function cameraIdentities(): string[] {
   const out: string[] = [];
-  for (const t of getCallTiles()) if (t.kind === "camera" && !out.includes(t.identity)) out.push(t.identity);
+  for (const t of getCallTiles())
+    if (t.kind === "camera" && !out.includes(t.identity)) out.push(t.identity);
   return out.length ? out : EMPTY_SPEAKING;
 }
 
 /** The room's guests in this window's media, read when the tiles say the
  *  media moved (a participant, a mute). The same list until it changes, so a
  *  signature or a memo built on it holds still between moves. */
-let guestMediaCache: { tiles: unknown; list: GuestMedia[] } = { tiles: null, list: [] };
+let guestMediaCache: { tiles: unknown; list: GuestMedia[] } = {
+  tiles: null,
+  list: [],
+};
 function guestMedia(): GuestMedia[] {
   const tiles = getCallTiles();
   if (guestMediaCache.tiles === tiles) return guestMediaCache.list;
   const next = guestMediaOf(getRoom());
   const same =
     next.length === guestMediaCache.list.length &&
-    next.every((g, i) => g.identity === guestMediaCache.list[i].identity && g.muted === guestMediaCache.list[i].muted);
+    next.every(
+      (g, i) =>
+        g.identity === guestMediaCache.list[i].identity &&
+        g.muted === guestMediaCache.list[i].muted,
+    );
   guestMediaCache = { tiles, list: same ? guestMediaCache.list : next };
   return guestMediaCache.list;
 }
 
 function inRoom(roomKey: string): boolean {
   const call = callState();
-  return call.roomKey === roomKey && (call.phase === "connected" || call.phase === "connecting");
+  return (
+    call.roomKey === roomKey &&
+    (call.phase === "connected" || call.phase === "connecting")
+  );
 }
 
 /** A live call in some OTHER room. The walkie stays out of it. */
 function busyElsewhere(roomKey?: string): boolean {
   const call = callState();
   if (!call.roomKey || call.roomKey === roomKey) return false;
-  return call.phase === "connected" || call.phase === "connecting" || call.phase === "ringing_out";
+  return (
+    call.phase === "connected" ||
+    call.phase === "connecting" ||
+    call.phase === "ringing_out"
+  );
 }
 
 /**
@@ -474,13 +520,20 @@ function busyElsewhere(roomKey?: string): boolean {
  * a DM's mic button actually has. The global `status.unavailable` is this same
  * answer asked about the room the walkie is already occupied with.
  */
-export function walkieBlockedFor(roomKey?: string): WalkieStatus["unavailable"] {
+export function walkieBlockedFor(
+  roomKey?: string,
+): WalkieStatus["unavailable"] {
   if (!convex) return "not-ready";
   if (busyElsewhere(roomKey)) return "another-call";
   // Speaking or listening into a recorded room puts this person in its video;
   // the call itself, with its notice, is the way in. Someone already sitting
   // in it has seen the notice and may reply inside it as ever.
-  if (roomKey && roomRecordingOn(useInboxStore.getState(), roomKey) && !inRoom(roomKey)) return "recorded";
+  if (
+    roomKey &&
+    roomRecordingOn(useInboxStore.getState(), roomKey) &&
+    !inRoom(roomKey)
+  )
+    return "recorded";
   return null;
 }
 
@@ -550,7 +603,10 @@ function leaveLiveRoom(): void {
  * the walkie alone, which is the honest question when a burst outlives the room
  * it was spoken into: the recorder is still running and the message still lands.
  */
-export function walkieHoldsRoom(s: WalkieStatus, roomKey: string | null): boolean {
+export function walkieHoldsRoom(
+  s: WalkieStatus,
+  roomKey: string | null,
+): boolean {
   const live = s.liveRoom;
   if (!live || live.mode === "call") return false;
   return !roomKey || roomKey === live.key;
@@ -565,14 +621,19 @@ export function walkieHoldsRoom(s: WalkieStatus, roomKey: string | null): boolea
  * the ring hook read the call phase alone it called a listen "in a call",
  * opened the ring window as well, and one ring became two cards.
  */
-export function inOwnCall(s: WalkieStatus, call: { phase: string; roomKey: string | null }): boolean {
+export function inOwnCall(
+  s: WalkieStatus,
+  call: { phase: string; roomKey: string | null },
+): boolean {
   return call.phase !== "idle" && !walkieHoldsRoom(s, call.roomKey);
 }
 
 /** The same question about the whole desktop: this window's own call, the
  *  host's mirrored one, or a call any window reports hosting. */
 export function personInOwnCall(): boolean {
-  return inOwnCall(status, walkieCallState()) || getDesktopWindowRole().anyInCall;
+  return (
+    inOwnCall(status, walkieCallState()) || getDesktopWindowRole().anyInCall
+  );
 }
 
 /** Whether a voice host is showing the ring, so no other surface draws it:
@@ -790,7 +851,9 @@ function publishSending(b: Burst | null) {
 function startRecording(b: Burst, track: MediaStreamTrack) {
   try {
     const stream = new MediaStream([track]);
-    const rec = b.mime ? new MediaRecorder(stream, { mimeType: b.mime }) : new MediaRecorder(stream);
+    const rec = b.mime
+      ? new MediaRecorder(stream, { mimeType: b.mime })
+      : new MediaRecorder(stream);
     rec.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) b.chunks.push(e.data);
     };
@@ -808,7 +871,10 @@ function startRecording(b: Burst, track: MediaStreamTrack) {
 function stopRecording(b: Burst): Promise<Blob | null> {
   const rec = b.recorder;
   b.recorder = null;
-  const collect = () => (b.chunks.length ? new Blob(b.chunks, { type: b.mime || "audio/webm" }) : null);
+  const collect = () =>
+    b.chunks.length
+      ? new Blob(b.chunks, { type: b.mime || "audio/webm" })
+      : null;
   if (!rec || rec.state === "inactive") return Promise.resolve(collect());
   return new Promise((resolve) => {
     rec.onstop = () => resolve(collect());
@@ -835,10 +901,15 @@ function pushTranscript(b: Burst, onlyIfDue = false) {
   if (!text && !overdue) return;
   b.pushed = text;
   b.pushedAt = now;
-  convex.mutation(api.chat.appendVoiceTranscript, { message_id: b.messageId, content: text }).catch(() => {
-    // A dropped patch is not a dropped burst: the finalize carries the whole
-    // transcript anyway, so the words land either way.
-  });
+  convex
+    .mutation(api.chat.appendVoiceTranscript, {
+      message_id: b.messageId,
+      content: text,
+    })
+    .catch(() => {
+      // A dropped patch is not a dropped burst: the finalize carries the whole
+      // transcript anyway, so the words land either way.
+    });
 }
 
 /** How long a burst will wait for its channel to become real before giving up.
@@ -850,21 +921,29 @@ const CHANNEL_RESOLVE_MS = 8_000;
 /** The server id behind a channel the surface knows only optimistically,
  *  read from the live store (the pure matching lives in chatSlice). */
 function serverChannelIdFor(stubId: string): string | null {
-  return resolveChannelStubId(useInboxStore.getState().chatChannels as Record<string, any>, stubId);
+  return resolveChannelStubId(
+    useInboxStore.getState().chatChannels as Record<string, any>,
+    stubId,
+  );
 }
 
 /** A channel id the server will accept, or why there is none. Real ids pass
  *  straight through; a stub resolves off the open's own answer or the row it
  *  rekeys onto, whichever lands first (walkieMessage.resolveChannelStub) —
  *  bounded, and never past the burst's own end. */
-function resolveServerChannelId(b: Burst, channelId: string): Promise<ChannelStubOutcome> {
-  if (!channelId.startsWith(CHAT_CHANNEL_STUB_PREFIX)) return Promise.resolve({ id: channelId });
+function resolveServerChannelId(
+  b: Burst,
+  channelId: string,
+): Promise<ChannelStubOutcome> {
+  if (!channelId.startsWith(CHAT_CHANNEL_STUB_PREFIX))
+    return Promise.resolve({ id: channelId });
   return resolveChannelStub({
     lookup: () => serverChannelIdFor(channelId),
     inFlight: dmOpenInFlight(channelId),
     done: () => b.done,
     deadlineMs: CHANNEL_RESOLVE_MS,
-    reason: (err) => humanizeConvexError(err, "Could not open the conversation"),
+    reason: (err) =>
+      humanizeConvexError(err, "Could not open the conversation"),
   });
 }
 
@@ -881,20 +960,31 @@ function resolveServerChannelId(b: Burst, channelId: string): Promise<ChannelStu
  * promise, and a release that arrives before it lands still finalizes a
  * complete burst.
  */
-export function startBurst(channelId: string, roomKey: string, clientId?: string): Promise<void> {
+export function startBurst(
+  channelId: string,
+  roomKey: string,
+  clientId?: string,
+): Promise<void> {
   if (voiceHostElsewhere()) {
     // The bubble is on screen HERE, in the window the person pressed in, before
     // the host has heard about it: a voice message is a message, and a message
     // never waits for a round trip to appear. The same client id goes to the
     // host, so the server row supersedes both stubs.
     const id = clientId ?? newChatMessageClientId();
-    if (!burst) useInboxStore.getState().beginVoiceBurstRow(channelId, id, roomKey);
-    return viaHost("startBurst", [channelId, roomKey, id], () => startBurstHere(channelId, roomKey, id));
+    if (!burst)
+      useInboxStore.getState().beginVoiceBurstRow(channelId, id, roomKey);
+    return viaHost("startBurst", [channelId, roomKey, id], () =>
+      startBurstHere(channelId, roomKey, id),
+    );
   }
   return startBurstHere(channelId, roomKey, clientId);
 }
 
-function startBurstHere(channelId: string, roomKey: string, clientId?: string): Promise<void> {
+function startBurstHere(
+  channelId: string,
+  roomKey: string,
+  clientId?: string,
+): Promise<void> {
   if (!convex) {
     refresh();
     return Promise.resolve();
@@ -1032,7 +1122,9 @@ function startBurstHere(channelId: string, roomKey: string, clientId?: string): 
         // The reason, when the server gave one: a burst that died because the
         // DM could not be opened must say so, or the person reads it as the
         // recording stopping by itself.
-        emit({ error: channel ? channel.failed : "Could not start the voice message" });
+        emit({
+          error: channel ? channel.failed : "Could not start the voice message",
+        });
         await abortBurst(b);
         return;
       }
@@ -1067,7 +1159,10 @@ function startBurstHere(channelId: string, roomKey: string, clientId?: string): 
  * burst nobody hears live, which still records, still transcribes and still
  * lands as a message.
  */
-async function openRoomForBurst(b: Burst, track: MediaStreamTrack): Promise<void> {
+async function openRoomForBurst(
+  b: Burst,
+  track: MediaStreamTrack,
+): Promise<void> {
   try {
     // joinCall publishes in whatever mute state the store carries, so the
     // intent to be heard is written before the join reads it.
@@ -1210,9 +1305,13 @@ async function endBurstHere(): Promise<void> {
 async function abortBurst(b: Burst): Promise<void> {
   teardownBurst(b);
   if (b.messageId && convex) {
-    await convex.mutation(api.chat.cancelVoiceBurst, { message_id: b.messageId }).catch(() => {});
+    await convex
+      .mutation(api.chat.cancelVoiceBurst, { message_id: b.messageId })
+      .catch(() => {});
   }
-  useInboxStore.getState().dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
+  useInboxStore
+    .getState()
+    .dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
   if (burst === b) {
     burst = null;
     publishSending(null);
@@ -1310,9 +1409,13 @@ async function finishBurst(b: Burst, releasedAt: number): Promise<void> {
     //
     // The room was handed back above, before this round trip rather than after
     // it: nothing here needs the seat.
-    useInboxStore.getState().dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
+    useInboxStore
+      .getState()
+      .dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
     if (b.messageId && convex) {
-      await convex.mutation(api.chat.cancelVoiceBurst, { message_id: b.messageId }).catch(() => {});
+      await convex
+        .mutation(api.chat.cancelVoiceBurst, { message_id: b.messageId })
+        .catch(() => {});
     }
     refresh();
     return;
@@ -1322,9 +1425,18 @@ async function finishBurst(b: Burst, releasedAt: number): Promise<void> {
   // accepts audio or text, and a recognizer that heard nothing is not a reason
   // to throw away what the person said.
   const mime = containerMime(b.mime);
-  const storageId = blob && convex ? await uploadBlobToStorage(convex, blob, b.mime || mime) : null;
+  const storageId =
+    blob && convex
+      ? await uploadBlobToStorage(convex, blob, b.mime || mime)
+      : null;
   const attachments = storageId
-    ? [{ storage_id: storageId, mime, name: `voice-${b.startedAt}.${mime === "audio/mp4" ? "m4a" : "webm"}` }]
+    ? [
+        {
+          storage_id: storageId,
+          mime,
+          name: `voice-${b.startedAt}.${mime === "audio/mp4" ? "m4a" : "webm"}`,
+        },
+      ]
     : [];
 
   if (!b.messageId) {
@@ -1332,7 +1444,9 @@ async function finishBurst(b: Burst, releasedAt: number): Promise<void> {
     // land and nothing anyone else ever saw. Say so rather than leaving a
     // bubble that looks sent.
     emit({ error: "Could not send the voice message" });
-    useInboxStore.getState().dropVoiceBurstRow({ clientId: b.clientId, messageId: null });
+    useInboxStore
+      .getState()
+      .dropVoiceBurstRow({ clientId: b.clientId, messageId: null });
     refresh();
     return;
   }
@@ -1359,7 +1473,9 @@ async function finishBurst(b: Burst, releasedAt: number): Promise<void> {
     // the ONLY outcome that earns that: erasing a row the server might still
     // hold would be gone from the sender's screen, present on everyone else's.
     emit({ error: "Could not send the voice message" });
-    useInboxStore.getState().dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
+    useInboxStore
+      .getState()
+      .dropVoiceBurstRow({ clientId: b.clientId, messageId: b.messageId });
   } else {
     // Unresolved: the network answered nothing, so the row is still LIVE over
     // there and the orphan sweep will land it — words and all — the next time
@@ -1373,10 +1489,12 @@ async function finishBurst(b: Burst, releasedAt: number): Promise<void> {
     // transcript and no recording, which the bubble renders honestly — and lets
     // the channel's own sync reconcile if the sweep discards it instead.
     emit({ error: "The recording did not send — the words are on their way" });
-    useInboxStore.getState().updateVoiceBurstRow(
-      { clientId: b.clientId, messageId: b.messageId },
-      { content: transcript, status: "done", durationMs },
-    );
+    useInboxStore
+      .getState()
+      .updateVoiceBurstRow(
+        { clientId: b.clientId, messageId: b.messageId },
+        { content: transcript, status: "done", durationMs },
+      );
   }
   // No hold armed here: the clock started when the mic closed, above.
   refresh();
@@ -1421,7 +1539,14 @@ export function shouldReleaseRoom(input: {
 function releaseRoom(roomKey: string) {
   const live = status.liveRoom;
   if (!live || live.key !== roomKey) return;
-  if (!shouldReleaseRoom({ mode: live.mode, bursting: !!burst, incoming: !!status.incoming })) return;
+  if (
+    !shouldReleaseRoom({
+      mode: live.mode,
+      bursting: !!burst,
+      incoming: !!status.incoming,
+    })
+  )
+    return;
   // Nothing seated: there is no seat to hand back, only a claim to drop.
   if (!inRoom(roomKey)) {
     leaveLiveRoom();
@@ -1477,12 +1602,18 @@ export async function joinWalkieLive(
    *  the call" — so a caller that cannot name them still joins the same way. */
   opts: { name?: string | null } = {},
 ): Promise<void> {
-  if (voiceHostElsewhere()) return viaHost("joinWalkieLive", [roomKey, opts], () => joinWalkieLiveHere(roomKey, opts));
+  if (voiceHostElsewhere())
+    return viaHost("joinWalkieLive", [roomKey, opts], () =>
+      joinWalkieLiveHere(roomKey, opts),
+    );
   return joinWalkieLiveHere(roomKey, opts);
 }
 
-async function joinWalkieLiveHere(roomKey: string, opts: { name?: string | null }): Promise<void> {
-  if (huddleInOtherWindow() && await focusExistingHuddle()) return;
+async function joinWalkieLiveHere(
+  roomKey: string,
+  opts: { name?: string | null },
+): Promise<void> {
+  if (huddleInOtherWindow() && (await focusExistingHuddle())) return;
   markWalkieUpgraded(roomKey);
   // SAID BEFORE THE JOIN. The answer to a press has to be immediate, the stamp
   // is a round trip away, and this side already knows what it did.
@@ -1568,7 +1699,10 @@ export type LiveBurstRow = {
  * window belongs to a tab that died mid-word — the sweep will land or discard
  * it the next time anyone talks in that room. Neither is something to join.
  */
-export function pickLiveBurst(bursts: LiveBurstRow[], now: number): LiveBurstRow | null {
+export function pickLiveBurst(
+  bursts: LiveBurstRow[],
+  now: number,
+): LiveBurstRow | null {
   let best: LiveBurstRow | null = null;
   for (const b of bursts) {
     if (!b.roomKey) continue;
@@ -1588,7 +1722,10 @@ export function pickLiveBurst(bursts: LiveBurstRow[], now: number): LiveBurstRow
  * out of the existing audio host. Door closed: nothing happens at all, and the
  * burst lands as an ordinary chat message with its unread and its push.
  */
-export function observeWalkie(input: { bursts: LiveBurstRow[]; doorOpen: boolean }): void {
+export function observeWalkie(input: {
+  bursts: LiveBurstRow[];
+  doorOpen: boolean;
+}): void {
   // The host hears for the whole app. A remote's report is a copy of the same
   // rows, and its door is shut by construction; acting on it would tear the
   // mirrored `incoming` down as if the burst had ended.
@@ -1617,7 +1754,10 @@ export function onHostExpand(fn: (() => void) | null): void {
  * and callManager's own exports, so a remote and the host run the same code
  * — one of them merely runs it a window away.
  */
-export async function runVoiceCommand(cmd: string, args: unknown[]): Promise<void> {
+export async function runVoiceCommand(
+  cmd: string,
+  args: unknown[],
+): Promise<void> {
   const a = args as any[];
   switch (cmd) {
     case "expandCall":
@@ -1626,11 +1766,18 @@ export async function runVoiceCommand(cmd: string, args: unknown[]): Promise<voi
       hostExpand?.();
       return;
     case "startBurst":
-      return startBurstHere(String(a[0]), String(a[1]), a[2] ? String(a[2]) : undefined);
+      return startBurstHere(
+        String(a[0]),
+        String(a[1]),
+        a[2] ? String(a[2]) : undefined,
+      );
     case "endBurst":
       return endBurstHere();
     case "joinWalkieLive":
-      return joinWalkieLiveHere(String(a[0]), a[1] && typeof a[1] === "object" ? a[1] : {});
+      return joinWalkieLiveHere(
+        String(a[0]),
+        a[1] && typeof a[1] === "object" ? a[1] : {},
+      );
     case "endWalkie":
       return endWalkieHere();
     case "shutWalkieDoor":
@@ -1669,7 +1816,10 @@ async function takeListeningSeat(roomKey: string): Promise<void> {
   emit({ error: await mediaFailureReason("microphone") });
 }
 
-let lastReport: { bursts: LiveBurstRow[]; doorOpen: boolean } = { bursts: [], doorOpen: false };
+let lastReport: { bursts: LiveBurstRow[]; doorOpen: boolean } = {
+  bursts: [],
+  doorOpen: false,
+};
 /** When this client started hearing the burst it is hearing now. The listening
  *  side's only measure of whether anything was actually said. */
 let incomingSince = 0;

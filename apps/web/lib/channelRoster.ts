@@ -41,7 +41,8 @@ export function buildChannelRoster(opts: {
     // A teammate with several Slack accounts is represented by the one in
     // the channel, so their row says "in" rather than offering an invite.
     const uid = p.codecast_user_id ? String(p.codecast_user_id) : null;
-    if (uid && (!slackByUser.has(uid) || inSlack.has(p.slack_user_id))) slackByUser.set(uid, p);
+    if (uid && (!slackByUser.has(uid) || inSlack.has(p.slack_user_id)))
+      slackByUser.set(uid, p);
   }
   const slackSide = (slackId: string | null): RosterSide =>
     !link ? "none" : !slackId ? "none" : inSlack.has(slackId) ? "in" : "out";
@@ -72,7 +73,16 @@ export function buildChannelRoster(opts: {
   // teammate) still count as being in it.
   for (const id of members) {
     if (seenUsers.has(id)) continue;
-    rows.push({ key: `u:${id}`, userId: id, slackUserId: null, name: "Former teammate", avatar: null, member: null, here: "in", slack: "none" });
+    rows.push({
+      key: `u:${id}`,
+      userId: id,
+      slackUserId: null,
+      name: "Former teammate",
+      avatar: null,
+      member: null,
+      here: "in",
+      slack: "none",
+    });
   }
   if (link) {
     // Slack people with no teammate behind them: everyone in the Slack
@@ -82,7 +92,8 @@ export function buildChannelRoster(opts: {
       if (seenSlack.has(sid)) continue;
       const sp = slackById.get(sid);
       // Mapped to a teammate the roster above already placed.
-      if (sp?.codecast_user_id && seenUsers.has(String(sp.codecast_user_id))) continue;
+      if (sp?.codecast_user_id && seenUsers.has(String(sp.codecast_user_id)))
+        continue;
       rows.push({
         key: `s:${sid}`,
         userId: null,

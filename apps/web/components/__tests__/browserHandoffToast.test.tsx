@@ -24,7 +24,12 @@ function render(ui: React.ReactElement) {
 describe("BrowserHandoffCard", () => {
   test("the loaded card is a notice, not a hover popover", () => {
     const html = render(
-      <BrowserHandoffCard path="/conversation/jx71b14" session={session} onOpen={() => {}} onDismiss={() => {}} />,
+      <BrowserHandoffCard
+        path="/conversation/jx71b14"
+        session={session}
+        onOpen={() => {}}
+        onDismiss={() => {}}
+      />,
     );
     expect(html).toContain("From the browser");
     expect(html).toContain("Staffing layer analyzer");
@@ -44,7 +49,12 @@ describe("BrowserHandoffCard", () => {
 
   test("a page handoff with no session still opens and dismisses", () => {
     const html = render(
-      <BrowserHandoffCard path="/docs/readme" session={null} onOpen={() => {}} onDismiss={() => {}} />,
+      <BrowserHandoffCard
+        path="/docs/readme"
+        session={null}
+        onOpen={() => {}}
+        onDismiss={() => {}}
+      />,
     );
     expect(html).toContain("From the browser");
     expect(html).toContain("/docs/readme");
@@ -55,7 +65,13 @@ describe("BrowserHandoffCard", () => {
 
   test("the skeleton is the loading state, not an empty card", () => {
     const html = render(
-      <BrowserHandoffCard path="/conversation/abc" session={null} loading onOpen={() => {}} onDismiss={() => {}} />,
+      <BrowserHandoffCard
+        path="/conversation/abc"
+        session={null}
+        loading
+        onOpen={() => {}}
+        onDismiss={() => {}}
+      />,
     );
     expect(html).toContain("handoff-toast-skel");
     expect(html).toContain("Not now");
@@ -63,7 +79,12 @@ describe("BrowserHandoffCard", () => {
 
   test("Open session and Not now fire the matching callbacks", () => {
     const html = render(
-      <BrowserHandoffCard path="/conversation/jx71b14" session={session} onOpen={() => {}} onDismiss={() => {}} />,
+      <BrowserHandoffCard
+        path="/conversation/jx71b14"
+        session={session}
+        onOpen={() => {}}
+        onDismiss={() => {}}
+      />,
     );
     expect(html).toContain("handoff-toast-open");
     expect(html).toContain("handoff-toast-stay");

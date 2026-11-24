@@ -1,22 +1,38 @@
 import { describe, expect, test } from "bun:test";
 import { reorientationNotice, reparentNotice } from "./sessionMoveNotice.js";
 
-const base = { destination: "macOS - m1", newCwd: "/Users/sam/.codecast/reparented/app-1a2b3c4d", machineChanged: true };
+const base = {
+  destination: "macOS - m1",
+  newCwd: "/Users/sam/.codecast/reparented/app-1a2b3c4d",
+  machineChanged: true,
+};
 
 describe("reorientationNotice", () => {
   test("says nothing when nothing material changed", () => {
     expect(
-      reorientationNotice({ destination: "macOS - m1", newCwd: "/repo", machineChanged: false }),
+      reorientationNotice({
+        destination: "macOS - m1",
+        newCwd: "/repo",
+        machineChanged: false,
+      }),
     ).toBeNull();
     // Same path, same machine, no clone, no account change: silence.
     expect(
-      reorientationNotice({ destination: "macOS - m1", newCwd: "/repo", oldCwd: "/repo", machineChanged: false }),
+      reorientationNotice({
+        destination: "macOS - m1",
+        newCwd: "/repo",
+        oldCwd: "/repo",
+        machineChanged: false,
+      }),
     ).toBeNull();
   });
 
   test("a same-machine move reports the directory, not a machine change", () => {
     const n = reorientationNotice({
-      destination: "macOS - m1", newCwd: "/repo/b", oldCwd: "/repo/a", machineChanged: false,
+      destination: "macOS - m1",
+      newCwd: "/repo/b",
+      oldCwd: "/repo/a",
+      machineChanged: false,
     })!;
     expect(n).toContain("moved to a different directory");
     expect(n).not.toContain("different machine");
@@ -28,13 +44,20 @@ describe("reorientationNotice", () => {
     const n = reorientationNotice({
       ...base,
       oldCwd: "/Users/ashot/src/app on macOS - laptop",
-      checkout: { cwd: base.newCwd, cloned: true, remote: "git@github.com:acme/app.git", branch: "main" },
+      checkout: {
+        cwd: base.newCwd,
+        cloned: true,
+        remote: "git@github.com:acme/app.git",
+        branch: "main",
+      },
     })!;
     expect(n).toContain("fresh clone");
     expect(n).toContain("git@github.com:acme/app.git");
     expect(n).toContain("branch main");
     expect(n).toContain("committed but not pushed");
-    expect(n).toContain("If you were on a different branch, you are not on it now");
+    expect(n).toContain(
+      "If you were on a different branch, you are not on it now",
+    );
     expect(n).toContain("(previously /Users/ashot/src/app on macOS - laptop)");
   });
 
@@ -75,7 +98,10 @@ describe("reorientationNotice", () => {
   });
 
   test("a same-user move stays silent about accounts", () => {
-    const n = reorientationNotice({ ...base, checkout: { cwd: base.newCwd, cloned: true } })!;
+    const n = reorientationNotice({
+      ...base,
+      checkout: { cwd: base.newCwd, cloned: true },
+    })!;
     expect(n).not.toContain("account");
     expect(n).not.toContain("did not travel");
   });
@@ -91,13 +117,19 @@ describe("reorientationNotice", () => {
   });
 
   test("always closes by asking the agent to re-ground", () => {
-    const n = reorientationNotice({ ...base, checkout: { cwd: base.newCwd, cloned: true } })!;
+    const n = reorientationNotice({
+      ...base,
+      checkout: { cwd: base.newCwd, cloned: true },
+    })!;
     expect(n).toContain("re-ground yourself");
     expect(n).toContain("say so instead of proceeding");
   });
 
   test("degrades honestly when the branch or remote could not be read", () => {
-    const n = reorientationNotice({ ...base, checkout: { cwd: base.newCwd, cloned: true } })!;
+    const n = reorientationNotice({
+      ...base,
+      checkout: { cwd: base.newCwd, cloned: true },
+    })!;
     expect(n).toContain("fresh clone");
     // No invented branch/remote names, and no dangling connectives.
     expect(n).not.toContain("undefined");
@@ -111,7 +143,8 @@ describe("reorientationNotice", () => {
       newCwd: "/Users/m1/src/app",
       oldCwd: "/Users/ashot/src/app on laptop",
       machineChanged: true,
-      verification: "branch main at 1a2b3c4d, destination HEAD matches, working tree identical to the source's",
+      verification:
+        "branch main at 1a2b3c4d, destination HEAD matches, working tree identical to the source's",
     })!;
     expect(n).toContain("Verification: branch main at 1a2b3c4d");
     // The work arrives uncommitted, never as a commit the agent must explain.
@@ -127,7 +160,12 @@ describe("reorientationNotice", () => {
 // reparentSessionToDevice (devices.ts) emits them, plus what this machine found
 // when it prepared the checkout. Kept in step with devices.reparent.test.ts.
 describe("reparentNotice (daemon mapping)", () => {
-  const clone = { cwd: "/Users/samvit/.codecast/reparented/app-1a2b", cloned: true, remote: "git@github.com:acme/app.git", branch: "main" };
+  const clone = {
+    cwd: "/Users/samvit/.codecast/reparented/app-1a2b",
+    cloned: true,
+    remote: "git@github.com:acme/app.git",
+    branch: "main",
+  };
 
   test("the cross-account payload produces the full account warning", () => {
     const n = reparentNotice({
@@ -135,12 +173,18 @@ describe("reparentNotice (daemon mapping)", () => {
       priorCwd: "/Users/ashot/src/app",
       checkout: clone,
       command: {
-        reparented: true, device_changed: true, from_device: "macOS - ashot-laptop",
-        cross_user: true, from_user: "Ashot", to_user: "Samvit",
+        reparented: true,
+        device_changed: true,
+        from_device: "macOS - ashot-laptop",
+        cross_user: true,
+        from_user: "Ashot",
+        to_user: "Samvit",
       } as any,
     })!;
     expect(n).toContain("macOS - samvit-mbp");
-    expect(n).toContain("(previously /Users/ashot/src/app on macOS - ashot-laptop)");
+    expect(n).toContain(
+      "(previously /Users/ashot/src/app on macOS - ashot-laptop)",
+    );
     expect(n).toContain("under Samvit's account, not Ashot's");
     expect(n).toContain("fresh clone");
   });
@@ -150,7 +194,11 @@ describe("reparentNotice (daemon mapping)", () => {
       destinationLabel: "macOS - m1",
       priorCwd: "/Users/ashot/src/app",
       checkout: clone,
-      command: { reparented: true, device_changed: true, from_device: "macOS - laptop" } as any,
+      command: {
+        reparented: true,
+        device_changed: true,
+        from_device: "macOS - laptop",
+      } as any,
     })!;
     expect(n).not.toContain("account");
     expect(n).toContain("fresh clone");
@@ -160,7 +208,10 @@ describe("reparentNotice (daemon mapping)", () => {
     const n = reparentNotice({
       destinationLabel: "macOS - m1",
       priorCwd: "/Users/ashot/src/app",
-      checkout: { cwd: "/Users/ashot/.codecast/reparented/app-1a2b", cloned: true },
+      checkout: {
+        cwd: "/Users/ashot/.codecast/reparented/app-1a2b",
+        cloned: true,
+      },
       command: { reparented: true, device_changed: false } as any,
     })!;
     expect(n).toContain("moved to a different directory");
@@ -188,7 +239,12 @@ describe("reparentNotice (daemon mapping)", () => {
       destinationLabel: "macOS - m1",
       priorCwd: "/Users/ashot/src/app",
       checkout: clone,
-      command: { cross_user: "yes", from_user: 42, to_user: null, from_device: {} } as any,
+      command: {
+        cross_user: "yes",
+        from_user: 42,
+        to_user: null,
+        from_device: {},
+      } as any,
     })!;
     // cross_user must be strictly true — a truthy string is not consent to
     // claim the account changed hands.
@@ -209,7 +265,9 @@ describe("reparentNotice (daemon mapping)", () => {
   });
 
   test("nothing to say without a cwd", () => {
-    expect(reparentNotice({ destinationLabel: "macOS - m1", command: {} })).toBeNull();
+    expect(
+      reparentNotice({ destinationLabel: "macOS - m1", command: {} }),
+    ).toBeNull();
   });
 });
 
@@ -224,7 +282,12 @@ describe("reorientationNotice with a restored snapshot", () => {
       destination: "Cloud Mac",
       newCwd: cwd,
       machineChanged: true,
-      checkout: { cwd, cloned: true, branch: "feature/x", restored: { appliedWork: true } },
+      checkout: {
+        cwd,
+        cloned: true,
+        branch: "feature/x",
+        restored: { appliedWork: true },
+      },
     })!;
     expect(n).toContain("rebuilt from the previous machine");
     expect(n).toContain("on branch feature/x");
@@ -242,7 +305,12 @@ describe("reorientationNotice with a restored snapshot", () => {
       destination: "Cloud Mac",
       newCwd: cwd,
       machineChanged: true,
-      checkout: { cwd, cloned: true, branch: "main", restored: { appliedWork: false } },
+      checkout: {
+        cwd,
+        cloned: true,
+        branch: "main",
+        restored: { appliedWork: false },
+      },
     })!;
     expect(n).toContain("nothing was uncommitted there, so the tree is clean");
     expect(n).not.toContain("Only work that was pushed");
@@ -254,8 +322,13 @@ describe("reorientationNotice with a restored snapshot", () => {
       newCwd: cwd,
       machineChanged: true,
       checkout: {
-        cwd, cloned: true, branch: "feature/x",
-        restored: { appliedWork: false, applyError: "error: patch does not apply" },
+        cwd,
+        cloned: true,
+        branch: "feature/x",
+        restored: {
+          appliedWork: false,
+          applyError: "error: patch does not apply",
+        },
       },
     })!;
     expect(n).toContain("could NOT be reapplied");
@@ -275,8 +348,24 @@ describe("reorientationNotice with a restored snapshot", () => {
     expect(n).not.toContain("rebuilt from the previous machine");
   });
   test("names what the move stops on the previous machine, tagged by how it was started", () => {
-    const n = reorientationNotice({ destination: "host", newCwd: "/w", oldCwd: "/l", machineChanged: true, stoppedOnSource: [{ name: "ffmpeg", via: "background" }, { name: "bun", via: "tmux" }] })!;
+    const n = reorientationNotice({
+      destination: "host",
+      newCwd: "/w",
+      oldCwd: "/l",
+      machineChanged: true,
+      stoppedOnSource: [
+        { name: "ffmpeg", via: "background" },
+        { name: "bun", via: "tmux" },
+      ],
+    })!;
     expect(n).toContain("ffmpeg (backgrounded), bun (in a tmux pane)");
-    expect(reorientationNotice({ destination: "host", newCwd: "/w", machineChanged: true, stoppedOnSource: [] })).not.toContain("The move stops");
+    expect(
+      reorientationNotice({
+        destination: "host",
+        newCwd: "/w",
+        machineChanged: true,
+        stoppedOnSource: [],
+      }),
+    ).not.toContain("The move stops");
   });
 });

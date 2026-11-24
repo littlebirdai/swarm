@@ -1,11 +1,31 @@
 import { describe, expect, it } from "bun:test";
-import { matchProject, looksLikeConvexId, type ProjectLike } from "./projectRef.js";
+import {
+  matchProject,
+  looksLikeConvexId,
+  type ProjectLike,
+} from "./projectRef.js";
 
 const PROJECTS: ProjectLike[] = [
-  { _id: "sd72cbsfka4tq16cgpg2gftek58c8ghc", short_id: "sd-12", title: "Agent Quality" },
-  { _id: "sd7de2bbc0e93d9tggthy82d4x8c9r66", short_id: "sd-13", title: "Infrastructure" },
-  { _id: "sd7dqnq9hny1dtzy83as2av4z18c9z2z", short_id: "sd-14", title: "Codecast: Product" },
-  { _id: "sd75q66m97st2ak4anybb8jwdh8c8ktw", short_id: "sd-15", title: "Codecast: Ops & Growth" },
+  {
+    _id: "sd72cbsfka4tq16cgpg2gftek58c8ghc",
+    short_id: "sd-12",
+    title: "Agent Quality",
+  },
+  {
+    _id: "sd7de2bbc0e93d9tggthy82d4x8c9r66",
+    short_id: "sd-13",
+    title: "Infrastructure",
+  },
+  {
+    _id: "sd7dqnq9hny1dtzy83as2av4z18c9z2z",
+    short_id: "sd-14",
+    title: "Codecast: Product",
+  },
+  {
+    _id: "sd75q66m97st2ak4anybb8jwdh8c8ktw",
+    short_id: "sd-15",
+    title: "Codecast: Ops & Growth",
+  },
 ];
 
 describe("matchProject", () => {
@@ -51,14 +71,20 @@ describe("matchProject", () => {
   });
 
   it("reports no match rather than guessing", () => {
-    expect(matchProject(PROJECTS, "Nonexistent Thing")).toEqual({ kind: "none" });
+    expect(matchProject(PROJECTS, "Nonexistent Thing")).toEqual({
+      kind: "none",
+    });
   });
 
   // Typing the fuller name must never be the thing that breaks it.
   it("prefers an exact title over the longer titles containing it", () => {
     const withSuffix = [
       ...PROJECTS,
-      { _id: "sd7newprojectidaaaaaaaaaaaaaaaaaa", short_id: "sd-16", title: "Infrastructure v2" },
+      {
+        _id: "sd7newprojectidaaaaaaaaaaaaaaaaaa",
+        short_id: "sd-16",
+        title: "Infrastructure v2",
+      },
     ];
     expect(matchProject(withSuffix, "Infrastructure")).toEqual({
       kind: "one",
@@ -80,11 +106,15 @@ describe("matchProject", () => {
 
   it("survives an empty or missing project list", () => {
     expect(matchProject([], "Agent Quality")).toEqual({ kind: "none" });
-    expect(matchProject(undefined as any, "Agent Quality")).toEqual({ kind: "none" });
+    expect(matchProject(undefined as any, "Agent Quality")).toEqual({
+      kind: "none",
+    });
   });
 
   it("ignores rows with no title instead of throwing", () => {
-    const untitled: ProjectLike[] = [{ _id: "sd7untitledaaaaaaaaaaaaaaaaaaaaa" }];
+    const untitled: ProjectLike[] = [
+      { _id: "sd7untitledaaaaaaaaaaaaaaaaaaaaa" },
+    ];
     expect(matchProject(untitled, "anything")).toEqual({ kind: "none" });
   });
 });

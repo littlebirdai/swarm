@@ -3,10 +3,7 @@ import type {
   StartedDeliveryPermit,
   StructuredFailure,
 } from "@codecast/shared/contracts";
-import type {
-  DeliveryOutcome,
-  EnsureBindingRequest,
-} from "./types.js";
+import type { DeliveryOutcome, EnsureBindingRequest } from "./types.js";
 import { ExecutionCoordinatorError } from "./types.js";
 
 export interface ClaimStartRequest extends EnsureBindingRequest {

@@ -95,16 +95,8 @@
     },
     "set_digest": "50938bae97e8c8f2",
     "placements": {
-      "hostz400000000000000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "plainz50000000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ]
+      "hostz400000000000000000000000000": ["working", "working", false],
+      "plainz50000000000000000000000000": ["needs_input", "needs_input", false]
     },
     "sort_at": {
       "hostz400000000000000000000000000": -180000,

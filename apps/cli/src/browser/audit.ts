@@ -20,10 +20,22 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { browserHome } from "./profile.js";
-import { checkUrl, isInternalUrl, loadSitePolicy, originOf, type SitePolicy } from "./policy.js";
+import {
+  checkUrl,
+  isInternalUrl,
+  loadSitePolicy,
+  originOf,
+  type SitePolicy,
+} from "./policy.js";
 
 /** `sync`: a login carry refused by the policy before any request left the host. */
-export type AuditVia = "open" | "action" | "history" | "reload" | "batch" | "sync";
+export type AuditVia =
+  | "open"
+  | "action"
+  | "history"
+  | "reload"
+  | "batch"
+  | "sync";
 
 export interface AuditRecord {
   /** Epoch ms. */
@@ -63,7 +75,8 @@ function parseAudit(text: string): AuditRecord[] {
     if (!line.trim()) continue;
     try {
       const rec = JSON.parse(line) as AuditRecord;
-      if (typeof rec.t === "number" && typeof rec.origin === "string") out.push(rec);
+      if (typeof rec.t === "number" && typeof rec.origin === "string")
+        out.push(rec);
     } catch {
       /* a torn or foreign line is dropped, not fatal */
     }
@@ -82,7 +95,11 @@ export function recordVisit(rec: AuditRecord): boolean {
   for (let i = existing.length - 1; i >= 0; i--) {
     if (existing[i].tab !== rec.tab) continue;
     const last = existing[i];
-    if (last.origin === rec.origin && last.session === rec.session && !!last.blocked === !!rec.blocked) {
+    if (
+      last.origin === rec.origin &&
+      last.session === rec.session &&
+      !!last.blocked === !!rec.blocked
+    ) {
       return false;
     }
     break; // the tab's latest entry is a different origin — this is a real move
@@ -94,7 +111,10 @@ export function recordVisit(rec: AuditRecord): boolean {
   fs.appendFileSync(auditPath(), `${lead}${JSON.stringify(rec)}\n`);
   if (existing.length + 1 > MAX_RECORDS) {
     const keep = [...existing.slice(-(KEEP_RECORDS - 1)), rec];
-    fs.writeFileSync(auditPath(), keep.map((r) => JSON.stringify(r)).join("\n") + "\n");
+    fs.writeFileSync(
+      auditPath(),
+      keep.map((r) => JSON.stringify(r)).join("\n") + "\n",
+    );
   }
   return true;
 }
@@ -136,6 +156,17 @@ export function auditLanding(opts: {
 }
 
 /** Record a navigation the policy refused before it happened. */
-export function recordBlocked(url: string, session: string | null, via: AuditVia): void {
-  recordVisit({ t: Date.now(), origin: originOf(url), session, tab: "-", via, blocked: true });
+export function recordBlocked(
+  url: string,
+  session: string | null,
+  via: AuditVia,
+): void {
+  recordVisit({
+    t: Date.now(),
+    origin: originOf(url),
+    session,
+    tab: "-",
+    via,
+    blocked: true,
+  });
 }

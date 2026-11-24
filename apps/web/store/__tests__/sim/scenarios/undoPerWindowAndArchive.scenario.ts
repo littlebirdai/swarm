@@ -43,24 +43,44 @@ scenario({ name: "archivedDocLeavesLists", seeds: 2 }, async (w) => {
   const b = await w.device("ada");
   const windows = [...a.windows, ...b.windows];
   // The create's receipt lands only as the net drains, so it is not awaited.
-  await a.host.run(() => { void (a.host.store.getState() as any).createDoc({ title: "d1", content: "sim doc d1" }); });
+  await a.host.run(() => {
+    void (a.host.store.getState() as any).createDoc({
+      title: "d1",
+      content: "sim doc d1",
+    });
+  });
   await w.settle();
   const id = await a.host.run(() => {
-    const docs = Object.values((a.host.store.getState() as any).docs ?? {}) as any[];
+    const docs = Object.values(
+      (a.host.store.getState() as any).docs ?? {},
+    ) as any[];
     return String(docs.find((d) => d.title === "d1")?._id);
   });
   const read = (win: (typeof windows)[number]) =>
     win.run(() => {
       const st = win.store.getState() as any;
       const row = (st.docs ?? {})[id];
-      return { held: !!row, archived: !!row?.archived_at, listed: workspaceRows("docs", st.docs ?? {}, activeWorkspaceKeyOf(st)).some((r: any) => r._id === id) };
+      return {
+        held: !!row,
+        archived: !!row?.archived_at,
+        listed: workspaceRows(
+          "docs",
+          st.docs ?? {},
+          activeWorkspaceKeyOf(st),
+        ).some((r: any) => r._id === id),
+      };
     });
-  for (const win of windows) expect([win.name, (await read(win)).listed]).toEqual([win.name, true]);
+  for (const win of windows)
+    expect([win.name, (await read(win)).listed]).toEqual([win.name, true]);
   await a.host.run(() => (a.host.store.getState() as any).archiveDoc(id));
   await w.settle();
   for (const win of windows) {
     const r = await read(win);
     // Held or not, an archived doc is in no list; held, it carries its stamp.
-    expect([win.name, r.listed, r.held && !r.archived]).toEqual([win.name, false, false]);
+    expect([win.name, r.listed, r.held && !r.archived]).toEqual([
+      win.name,
+      false,
+      false,
+    ]);
   }
 });

@@ -15,7 +15,10 @@ export type ForkFanout = {
   branchDirections: string[];
 };
 
-export function planForkFanout(directions: string[], opts: { allBranches?: boolean } = {}): ForkFanout {
+export function planForkFanout(
+  directions: string[],
+  opts: { allBranches?: boolean } = {},
+): ForkFanout {
   if (opts.allBranches || directions.length < 2) {
     return { branchDirections: [...directions] };
   }

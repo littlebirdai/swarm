@@ -73,9 +73,7 @@
       "lspServers": {
         "clangd": {
           "command": "clangd",
-          "args": [
-            "--background-index"
-          ],
+          "args": ["--background-index"],
           "extensionToLanguage": {
             ".c": "c",
             ".h": "c",

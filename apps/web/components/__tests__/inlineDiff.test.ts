@@ -56,10 +56,22 @@ describe("parseCastDiff", () => {
     const [, modified] = parseCastDiff(FULL_CONTEXT_TWO_FILES);
     expect(modified.fullContext).toBe(true);
     expect(modified.oldContent).toBe(
-      ["Line one stays.", "Line two stays.", "Line three goes.", "Line four stays."].join("\n"),
+      [
+        "Line one stays.",
+        "Line two stays.",
+        "Line three goes.",
+        "Line four stays.",
+      ].join("\n"),
     );
     expect(modified.newContent).toBe(
-      ["Line one stays.", "Line two stays.", "Line three changed.", "Line four stays.", "", "Update: appended line."].join("\n"),
+      [
+        "Line one stays.",
+        "Line two stays.",
+        "Line three changed.",
+        "Line four stays.",
+        "",
+        "Update: appended line.",
+      ].join("\n"),
     );
     expect(modified.additions).toBe(3);
     expect(modified.deletions).toBe(1);

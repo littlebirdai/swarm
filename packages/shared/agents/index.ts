@@ -53,7 +53,9 @@ import { parseYamlSubset, toStringList } from "@codecast/shared/vault";
 function frontmatterRecord(front: string): Record<string, unknown> {
   const lines = front.split("\n");
   // Drop the opening and closing fences.
-  const inner = lines.slice(1, lines.length - 1).filter((l) => l.trim() !== "---");
+  const inner = lines
+    .slice(1, lines.length - 1)
+    .filter((l) => l.trim() !== "---");
   return parseYamlSubset(inner);
 }
 
@@ -85,20 +87,38 @@ function clientId(v: unknown): AgentClientId | undefined {
 
 /** Parse a definition file. Claude Code's `isolation: worktree` and pi's
  *  `model: id:effort` both land in the row shape. */
-export function parseAgentDefinitionFile(content: string, fallbackName?: string): AgentDefinitionSpec {
+export function parseAgentDefinitionFile(
+  content: string,
+  fallbackName?: string,
+): AgentDefinitionSpec {
   const { front, body } = splitFrontmatter(content);
   const fm = front ? frontmatterRecord(front) : {};
   const agent = clientId(fm.agent ?? fm.backend);
-  const { model, effort: suffixEffort } = splitModelEffortSuffix(str(fm.model), agent);
-  const effort = str(fm.effort ?? fm.reasoning_effort ?? fm.thinking) ?? suffixEffort;
-  const tools = toStringList(fm.tools ?? fm["allowed-tools"] ?? fm.allowedTools);
-  const disallowed = toStringList(fm.disallowedTools ?? fm["disallowed-tools"] ?? fm.disallowed_tools);
-  const promptMode = str(fm.prompt_mode ?? fm.promptMode) as AgentPromptMode | undefined;
+  const { model, effort: suffixEffort } = splitModelEffortSuffix(
+    str(fm.model),
+    agent,
+  );
+  const effort =
+    str(fm.effort ?? fm.reasoning_effort ?? fm.thinking) ?? suffixEffort;
+  const tools = toStringList(
+    fm.tools ?? fm["allowed-tools"] ?? fm.allowedTools,
+  );
+  const disallowed = toStringList(
+    fm.disallowedTools ?? fm["disallowed-tools"] ?? fm.disallowed_tools,
+  );
+  const promptMode = str(fm.prompt_mode ?? fm.promptMode) as
+    | AgentPromptMode
+    | undefined;
   const modeRaw = str(fm.mode);
   const mode: AgentDefinitionMode | undefined =
-    modeRaw === "propose" || modeRaw === "safe" || modeRaw === "read-only" ? "propose" : modeRaw === "apply" ? "apply" : undefined;
+    modeRaw === "propose" || modeRaw === "safe" || modeRaw === "read-only"
+      ? "propose"
+      : modeRaw === "apply"
+        ? "apply"
+        : undefined;
   const isolation = str(fm.isolation);
-  const isolated = bool(fm.isolated) ?? (isolation === "worktree" ? true : undefined);
+  const isolated =
+    bool(fm.isolated) ?? (isolation === "worktree" ? true : undefined);
   const mergeBack = bool(fm.merge_back ?? fm.mergeBack);
   const def: AgentDefinitionSpec = {
     name: str(fm.name) ?? fallbackName ?? "",
@@ -111,7 +131,8 @@ export function parseAgentDefinitionFile(content: string, fallbackName?: string)
   if (disallowed.length) def.disallowed_tools = disallowed;
   const prompt = body.trim();
   if (prompt) def.system_prompt = prompt;
-  if (promptMode === "append" || promptMode === "replace") def.prompt_mode = promptMode;
+  if (promptMode === "append" || promptMode === "replace")
+    def.prompt_mode = promptMode;
   if (mode) def.mode = mode;
   if (isolated !== undefined) def.isolated = isolated;
   if (mergeBack !== undefined) def.merge_back = mergeBack;
@@ -123,13 +144,19 @@ function yamlValue(s: string): string {
 }
 
 export function serializeAgentDefinitionFile(def: AgentDefinitionSpec): string {
-  const lines: string[] = ["---", `name: ${yamlValue(def.name)}`, `description: ${yamlValue(def.description)}`];
+  const lines: string[] = [
+    "---",
+    `name: ${yamlValue(def.name)}`,
+    `description: ${yamlValue(def.description)}`,
+  ];
   if (def.agent) lines.push(`agent: ${def.agent}`);
   if (def.model) lines.push(`model: ${yamlValue(def.model)}`);
   if (def.effort) lines.push(`effort: ${def.effort}`);
   if (def.tools?.length) lines.push(`tools: ${def.tools.join(", ")}`);
-  if (def.disallowed_tools?.length) lines.push(`disallowedTools: ${def.disallowed_tools.join(", ")}`);
-  if (def.prompt_mode && def.prompt_mode !== "append") lines.push(`prompt_mode: ${def.prompt_mode}`);
+  if (def.disallowed_tools?.length)
+    lines.push(`disallowedTools: ${def.disallowed_tools.join(", ")}`);
+  if (def.prompt_mode && def.prompt_mode !== "append")
+    lines.push(`prompt_mode: ${def.prompt_mode}`);
   if (def.mode && def.mode !== "apply") lines.push(`mode: ${def.mode}`);
   if (def.isolated) lines.push("isolated: true");
   if (def.merge_back !== undefined) lines.push(`merge_back: ${def.merge_back}`);
@@ -140,7 +167,10 @@ export function serializeAgentDefinitionFile(def: AgentDefinitionSpec): string {
 
 const STEP_HEADING_RE = /^##\s+([a-z0-9]+(?:-[a-z0-9]+)*)\s*$/;
 
-export function parseAgentChainFile(content: string, fallbackName?: string): AgentChainSpec {
+export function parseAgentChainFile(
+  content: string,
+  fallbackName?: string,
+): AgentChainSpec {
   const { front, body } = splitFrontmatter(content);
   const fm = front ? frontmatterRecord(front) : {};
   const steps: AgentChainStep[] = [];
@@ -171,8 +201,15 @@ export function parseAgentChainFile(content: string, fallbackName?: string): Age
 }
 
 export function serializeAgentChainFile(chain: AgentChainSpec): string {
-  const head = ["---", `name: ${yamlValue(chain.name)}`, `description: ${yamlValue(chain.description)}`, "---"].join("\n");
-  const body = chain.steps.map((s) => `## ${s.agent}\n\n${s.prompt.trim()}\n`).join("\n");
+  const head = [
+    "---",
+    `name: ${yamlValue(chain.name)}`,
+    `description: ${yamlValue(chain.description)}`,
+    "---",
+  ].join("\n");
+  const body = chain.steps
+    .map((s) => `## ${s.agent}\n\n${s.prompt.trim()}\n`)
+    .join("\n");
   return `${head}\n\n${body}`;
 }
 

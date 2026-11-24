@@ -1,30 +1,52 @@
-import React from 'react';
-import { StyleSheet } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { useQueryNoThrow } from '@codecast/web/hooks/useQueryNoThrow';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { findEntityInStore, entityTypeInStore } from '@codecast/web/lib/liveEntities';
-import { useSyncOrgProposal } from '@codecast/web/hooks/useSyncOrgProposals';
-import { useRouter } from 'expo-router';
-import Feather from '@expo/vector-icons/Feather';
-import { Theme, useTheme, type Palette } from '@/constants/Theme';
-import { isConvexId, isEntityId, entityTypeFromId, entityReferenceLabel, parseCallRef, callRefLabelSuffix, parseProposalChangeRef, proposalChangeLabelSuffix, parseReplayRef, replayRefLabelSuffix, type EntityType } from '@codecast/shared/entities';
-import { mobileEntityRoute } from '@/lib/linkRoutes';
-import { openLink } from '@/lib/links';
-import { replayTitle } from '@codecast/web/components/ops/opsModel';
-import { identityLine, identityRowOf } from '@codecast/web/lib/sessionIdentity';
-import { useIdentityPrefs } from '@codecast/web/hooks/useIdentityPrefs';
-import { MobileIdentityFace } from '@/components/identity';
-import { useMessageLongPress } from '@/components/MessageLongPress';
-import { deployTitle } from '@codecast/web/lib/line/deployWords';
-import { repoObjectTitle } from '@codecast/web/lib/repoObjects';
-import { deployPillState, deployPillSuffix, deployTone, isRollback, runRefKey, type DeployPillState, type DeployTone } from '@codecast/web/lib/deploys/deployPill';
-import { useRefLifecycle } from '@codecast/web/hooks/useRefLifecycle';
-import { ChangeWords } from '@/components/ChangeText';
-import { useNowWhen } from '@codecast/web/hooks/useCoarseNow';
-import type { ReachState } from '@codecast/shared/contracts/deployReach';
-
+import React from "react";
+import { StyleSheet } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import {
+  findEntityInStore,
+  entityTypeInStore,
+} from "@codecast/web/lib/liveEntities";
+import { useSyncOrgProposal } from "@codecast/web/hooks/useSyncOrgProposals";
+import { useRouter } from "expo-router";
+import Feather from "@expo/vector-icons/Feather";
+import { Theme, useTheme, type Palette } from "@/constants/Theme";
+import {
+  isConvexId,
+  isEntityId,
+  entityTypeFromId,
+  entityReferenceLabel,
+  parseCallRef,
+  callRefLabelSuffix,
+  parseProposalChangeRef,
+  proposalChangeLabelSuffix,
+  parseReplayRef,
+  replayRefLabelSuffix,
+  type EntityType,
+} from "@codecast/shared/entities";
+import { mobileEntityRoute } from "@/lib/linkRoutes";
+import { openLink } from "@/lib/links";
+import { replayTitle } from "@codecast/web/components/ops/opsModel";
+import { identityLine, identityRowOf } from "@codecast/web/lib/sessionIdentity";
+import { useIdentityPrefs } from "@codecast/web/hooks/useIdentityPrefs";
+import { MobileIdentityFace } from "@/components/identity";
+import { useMessageLongPress } from "@/components/MessageLongPress";
+import { deployTitle } from "@codecast/web/lib/line/deployWords";
+import { repoObjectTitle } from "@codecast/web/lib/repoObjects";
+import {
+  deployPillState,
+  deployPillSuffix,
+  deployTone,
+  isRollback,
+  runRefKey,
+  type DeployPillState,
+  type DeployTone,
+} from "@codecast/web/lib/deploys/deployPill";
+import { useRefLifecycle } from "@codecast/web/hooks/useRefLifecycle";
+import { ChangeWords } from "@/components/ChangeText";
+import { useNowWhen } from "@codecast/web/hooks/useCoarseNow";
+import type { ReachState } from "@codecast/shared/contracts/deployReach";
 
 // Detection comes from the shared mention vocabulary, the same tables web reads
 // (packages/shared/entities). Mobile used to keep its own copy of the id regex
@@ -33,25 +55,25 @@ import type { ReachState } from '@codecast/shared/contracts/deployReach';
 export { isEntityId };
 
 const TYPE_LABEL: Record<EntityType, string> = {
-  task: 'Task',
-  plan: 'Plan',
-  session: 'Session',
-  doc: 'Doc',
-  project: 'Project',
-  initiative: 'Initiative',
-  proposal: 'Proposal',
-  trigger: 'Trigger',
-  decision: 'Decision',
-  pr: 'Pull request',
-  commit: 'Commit',
-  call: 'Call',
-  source: 'Source',
-  replay: 'Replay',
-  deploy: 'Deploy',
-  role: 'Role',
-  person: 'Person',
-  secret: 'Secret',
-  flow: 'Flow',
+  task: "Task",
+  plan: "Plan",
+  session: "Session",
+  doc: "Doc",
+  project: "Project",
+  initiative: "Initiative",
+  proposal: "Proposal",
+  trigger: "Trigger",
+  decision: "Decision",
+  pr: "Pull request",
+  commit: "Commit",
+  call: "Call",
+  source: "Source",
+  replay: "Replay",
+  deploy: "Deploy",
+  role: "Role",
+  person: "Person",
+  secret: "Secret",
+  flow: "Flow",
 };
 
 // Web pill palette: session=blue, plan=cyan, task=violet, doc=green,
@@ -78,73 +100,90 @@ const TYPE_COLOR: Record<EntityType, string> = {
   flow: Theme.cyan,
 };
 
-const TYPE_ICON: Record<EntityType, React.ComponentProps<typeof Feather>['name']> = {
-  session: 'message-square',
-  plan: 'target',
-  task: 'circle',
-  doc: 'file-text',
-  project: 'folder',
-  initiative: 'flag',
-  proposal: 'share-2',
-  trigger: 'zap',
-  decision: 'help-circle',
-  pr: 'git-pull-request',
-  commit: 'git-commit',
-  call: 'phone',
-  source: 'radio',
-  replay: 'film',
-  deploy: 'upload-cloud',
-  role: 'hexagon',
-  person: 'user',
-  secret: 'key',
-  flow: 'git-merge',
+const TYPE_ICON: Record<
+  EntityType,
+  React.ComponentProps<typeof Feather>["name"]
+> = {
+  session: "message-square",
+  plan: "target",
+  task: "circle",
+  doc: "file-text",
+  project: "folder",
+  initiative: "flag",
+  proposal: "share-2",
+  trigger: "zap",
+  decision: "help-circle",
+  pr: "git-pull-request",
+  commit: "git-commit",
+  call: "phone",
+  source: "radio",
+  replay: "film",
+  deploy: "upload-cloud",
+  role: "hexagon",
+  person: "user",
+  secret: "key",
+  flow: "git-merge",
 };
 
 // Mobile stand-in for web's StatusCircle glyphs: the circle "fills in" as the
 // task progresses (disc = started, check/x = finished), tinted with the same
 // status colors the web board uses.
-const TASK_STATUS_ICON: Record<string, { icon: React.ComponentProps<typeof Feather>['name']; color: string }> = {
-  backlog: { icon: 'circle', color: Theme.textDim },
-  open: { icon: 'circle', color: Theme.blue },
-  in_progress: { icon: 'disc', color: Theme.accent },
-  in_review: { icon: 'disc', color: Theme.violet },
-  done: { icon: 'check-circle', color: Theme.green },
-  dropped: { icon: 'x-circle', color: Theme.textDim },
+const TASK_STATUS_ICON: Record<
+  string,
+  { icon: React.ComponentProps<typeof Feather>["name"]; color: string }
+> = {
+  backlog: { icon: "circle", color: Theme.textDim },
+  open: { icon: "circle", color: Theme.blue },
+  in_progress: { icon: "disc", color: Theme.accent },
+  in_review: { icon: "disc", color: Theme.violet },
+  done: { icon: "check-circle", color: Theme.green },
+  dropped: { icon: "x-circle", color: Theme.textDim },
 };
 
-export type FeatherName = React.ComponentProps<typeof Feather>['name'];
+export type FeatherName = React.ComponentProps<typeof Feather>["name"];
 
 // The web pill's deploy and reach glyphs (components/deploys/deployRefLook), in Feather.
 const DEPLOY_ICON: Record<DeployPillState, FeatherName> = {
-  waiting: 'clock',
-  going_out: 'upload-cloud',
-  live: 'check-circle',
-  replaced: 'check-circle',
-  failed: 'x-circle',
-  cancelled: 'minus-circle',
+  waiting: "clock",
+  going_out: "upload-cloud",
+  live: "check-circle",
+  replaced: "check-circle",
+  failed: "x-circle",
+  cancelled: "minus-circle",
 };
 export const REACH_ICON: Record<ReachState, FeatherName> = {
-  live: 'check-circle',
-  going_out: 'upload-cloud',
-  queued: 'clock',
-  failed: 'x-circle',
-  rolled_back: 'rotate-ccw',
-  waiting: 'circle',
+  live: "check-circle",
+  going_out: "upload-cloud",
+  queued: "clock",
+  failed: "x-circle",
+  rolled_back: "rotate-ccw",
+  waiting: "circle",
 };
 // A failure must be seen before it is read: about twice the tint every other pill wears.
-const FAILED_TINT = '33';
+const FAILED_TINT = "33";
 export const toneColor = (t: Palette, tone: DeployTone) =>
-  ({ green: t.green, yellow: t.yellow, red: t.red, orange: t.orange, muted: t.textMuted, dim: t.textDim })[tone];
+  ({
+    green: t.green,
+    yellow: t.yellow,
+    red: t.red,
+    orange: t.orange,
+    muted: t.textMuted,
+    dim: t.textDim,
+  })[tone];
 
 /**
  * Pick the right `webGet` argument for an id: a full Convex id resolves by
  * `{ id }`, a short id by `{ short_id }`. Sessions store a 7-char short id.
  * (Mirror of web EntityIdPill.entityQueryArgs.)
  */
-function entityQueryArgs(type: EntityType, id: string): { short_id?: string; id?: string } {
+function entityQueryArgs(
+  type: EntityType,
+  id: string,
+): { short_id?: string; id?: string } {
   if (isConvexId(id)) return { id };
-  if (type === 'session') return { short_id: id.slice(0, 7).toLowerCase() };
-  if (type === 'task' || type === 'plan' || type === 'trigger') return { short_id: id.toLowerCase() };
+  if (type === "session") return { short_id: id.slice(0, 7).toLowerCase() };
+  if (type === "task" || type === "plan" || type === "trigger")
+    return { short_id: id.toLowerCase() };
   return { id };
 }
 
@@ -155,7 +194,13 @@ function entityQueryArgs(type: EntityType, id: string): { short_id?: string; id?
  * not a bare id. Text-based so it sits inline in markdown prose as well as in
  * header rows. Tap navigates to the object's screen.
  */
-export function EntityPill({ shortId, type: typeProp, id: idProp, fallback, to }: {
+export function EntityPill({
+  shortId,
+  type: typeProp,
+  id: idProp,
+  fallback,
+  to,
+}: {
   shortId?: string;
   type?: EntityType;
   id?: string;
@@ -167,19 +212,29 @@ export function EntityPill({ shortId, type: typeProp, id: idProp, fallback, to }
   const Theme = useTheme();
   const router = useRouter();
   const messageLongPress = useMessageLongPress();
-  const rawId = (idProp ?? shortId ?? '').trim();
+  const rawId = (idProp ?? shortId ?? "").trim();
   const looksConvex = isConvexId(rawId);
   // A full Convex id carries no type prefix (docs have no short id at all), so
   // resolve its table server-side; prefix detection is for short ids only.
   // The store usually holds the row already, which names the type on the first
   // frame; the server resolves only ids this phone has never seen.
   const storeType = React.useMemo(
-    () => (!typeProp && looksConvex ? entityTypeInStore(useInboxStore.getState(), rawId) : undefined),
+    () =>
+      !typeProp && looksConvex
+        ? entityTypeInStore(useInboxStore.getState(), rawId)
+        : undefined,
     [typeProp, looksConvex, rawId],
   );
-  const resolvedType = useQueryNoThrow(api.entities.resolveIdType, !typeProp && looksConvex && !storeType ? { id: rawId } : 'skip').data;
-  const type: EntityType | null = typeProp ?? (looksConvex ? storeType ?? resolvedType ?? null : entityTypeFromId(rawId));
-  const isSession = type === 'session';
+  const resolvedType = useQueryNoThrow(
+    api.entities.resolveIdType,
+    !typeProp && looksConvex && !storeType ? { id: rawId } : "skip",
+  ).data;
+  const type: EntityType | null =
+    typeProp ??
+    (looksConvex
+      ? (storeType ?? resolvedType ?? null)
+      : entityTypeFromId(rawId));
+  const isSession = type === "session";
   const prefs = useIdentityPrefs();
 
   // The pill reads as the object's title (the session/doc branches also need
@@ -190,102 +245,225 @@ export function EntityPill({ shortId, type: typeProp, id: idProp, fallback, to }
   // with thousands of rows. A row the store already names needs no server read;
   // only an id this phone has never cached asks.
   const seed = React.useMemo(
-    () => (type ? findEntityInStore(useInboxStore.getState(), type, rawId) : undefined),
+    () =>
+      type
+        ? findEntityInStore(useInboxStore.getState(), type, rawId)
+        : undefined,
     [type, rawId],
   ) as any;
   const named = !!(seed && (seed.title || seed.display_title || seed.name));
   const queryArgs = type && !named ? entityQueryArgs(type, rawId) : null;
-  const task = useQueryNoThrow(api.tasks.webGet, type === 'task' && queryArgs ? queryArgs : 'skip').data;
-  const plan = useQueryNoThrow(api.plans.webGet, type === 'plan' && queryArgs ? queryArgs : 'skip').data;
-  const session = useQueryNoThrow(api.conversations.webGet, isSession && queryArgs ? queryArgs : 'skip').data;
-  const trigger = useQueryNoThrow(api.agentTasks.webGet, type === 'trigger' && queryArgs ? queryArgs : 'skip').data;
-  const doc = useQueryNoThrow(api.docs.webGet, type === 'doc' && looksConvex && !named ? { id: rawId } : 'skip').data;
+  const task = useQueryNoThrow(
+    api.tasks.webGet,
+    type === "task" && queryArgs ? queryArgs : "skip",
+  ).data;
+  const plan = useQueryNoThrow(
+    api.plans.webGet,
+    type === "plan" && queryArgs ? queryArgs : "skip",
+  ).data;
+  const session = useQueryNoThrow(
+    api.conversations.webGet,
+    isSession && queryArgs ? queryArgs : "skip",
+  ).data;
+  const trigger = useQueryNoThrow(
+    api.agentTasks.webGet,
+    type === "trigger" && queryArgs ? queryArgs : "skip",
+  ).data;
+  const doc = useQueryNoThrow(
+    api.docs.webGet,
+    type === "doc" && looksConvex && !named ? { id: rawId } : "skip",
+  ).data;
   // A call names its title; a stretch of one (`cl-42:15-25`) adds the lines,
   // a moment (`cl-42@2:30`) the time, the way the web pill labels them.
-  const callRef = type === 'call' ? parseCallRef(rawId) : null;
-  const call = useQueryNoThrow(api.transcripts.webGetCallRef, callRef && !named ? { ref: callRef.call } : 'skip').data;
-  const source = useQueryNoThrow(api.ingest.webGetSource, type === 'source' && !named ? { ref: rawId } : 'skip').data;
+  const callRef = type === "call" ? parseCallRef(rawId) : null;
+  const call = useQueryNoThrow(
+    api.transcripts.webGetCallRef,
+    callRef && !named ? { ref: callRef.call } : "skip",
+  ).data;
+  const source = useQueryNoThrow(
+    api.ingest.webGetSource,
+    type === "source" && !named ? { ref: rawId } : "skip",
+  ).data;
   // A replay, or a moment of it (`rp-12@1:23`): the replay is the row, the time rides the label.
-  const replayRef = type === 'replay' ? parseReplayRef(rawId) : null;
-  const replay = useQueryNoThrow(api.replays.webGetReplay, type === 'replay' && !named ? { ref: replayRef?.replay ?? rawId } : 'skip').data;
+  const replayRef = type === "replay" ? parseReplayRef(rawId) : null;
+  const replay = useQueryNoThrow(
+    api.replays.webGetReplay,
+    type === "replay" && !named ? { ref: replayRef?.replay ?? rawId } : "skip",
+  ).data;
   // A deploy's state is the point of its pill, so it reads live whatever the store holds (`dp-N`, or its Actions run).
-  const deploy = useQueryNoThrow(api.deploys.get, type === 'deploy' ? { ref: rawId } : 'skip').data;
+  const deploy = useQueryNoThrow(
+    api.deploys.get,
+    type === "deploy" ? { ref: rawId } : "skip",
+  ).data;
 
   // A proposal (`op-N`, or one change `op-N#k`) is store-fed, as on the web:
   // the feeder syncs its row and changes, and the pill reads the row's title back.
-  const proposalRef = type === 'proposal' && !named ? parseProposalChangeRef(rawId)?.proposal ?? rawId : null;
+  const proposalRef =
+    type === "proposal" && !named
+      ? (parseProposalChangeRef(rawId)?.proposal ?? rawId)
+      : null;
   useSyncOrgProposal(proposalRef);
-  const proposal = useInboxStore((s) => (proposalRef ? findEntityInStore(s, 'proposal', rawId) : undefined));
+  const proposal = useInboxStore((s) =>
+    proposalRef ? findEntityInStore(s, "proposal", rawId) : undefined,
+  );
 
-  const served: any = type === 'proposal' ? proposal : type === 'task' ? task : type === 'plan' ? plan : isSession ? session : type === 'trigger' ? trigger : type === 'doc' ? doc : type === 'call' ? call : type === 'source' ? source : type === 'replay' ? replay : type === 'deploy' ? deploy : undefined;
+  const served: any =
+    type === "proposal"
+      ? proposal
+      : type === "task"
+        ? task
+        : type === "plan"
+          ? plan
+          : isSession
+            ? session
+            : type === "trigger"
+              ? trigger
+              : type === "doc"
+                ? doc
+                : type === "call"
+                  ? call
+                  : type === "source"
+                    ? source
+                    : type === "replay"
+                      ? replay
+                      : type === "deploy"
+                        ? deploy
+                        : undefined;
 
   const entity: any = served ?? seed;
-  const deployState = type === 'deploy' && entity ? deployPillState(entity) : null;
-  const ticks = deployState === 'waiting' || deployState === 'going_out';
-  const now = useNowWhen((t) => (ticks ? deployPillSuffix(entity, t) : ''), 15_000);
+  const deployState =
+    type === "deploy" && entity ? deployPillState(entity) : null;
+  const ticks = deployState === "waiting" || deployState === "going_out";
+  const now = useNowWhen(
+    (t) => (ticks ? deployPillSuffix(entity, t) : ""),
+    15_000,
+  );
   // A pull request or commit says where it stands as its change: the web's track and word (changes.md CH4).
-  const change = useRefLifecycle(type === 'pr' || type === 'commit' ? type : null, entity);
+  const change = useRefLifecycle(
+    type === "pr" || type === "commit" ? type : null,
+    entity,
+  );
 
   // Unknown id shape, a Convex id resolving to no entity table, or the
   // transient state while resolveIdType is in flight.
-  if (!type) return fallback !== undefined ? <>{fallback}</> : <RNText>{rawId}</RNText>;
+  if (!type)
+    return fallback !== undefined ? <>{fallback}</> : <RNText>{rawId}</RNText>;
   // A GitHub Actions run is a deploy only once codecast says so; until then, and for every CI run, it stays its link.
-  if (type === 'deploy' && !entity && runRefKey(rawId)) return <>{fallback}</>;
+  if (type === "deploy" && !entity && runRefKey(rawId)) return <>{fallback}</>;
 
   // A merged pull request is violet, as on the web.
-  const color = deployState ? toneColor(Theme, deployTone(entity, Date.now())) : type === 'pr' && entity?.state === 'merged' ? Theme.violet : TYPE_COLOR[type];
+  const color = deployState
+    ? toneColor(Theme, deployTone(entity, Date.now()))
+    : type === "pr" && entity?.state === "merged"
+      ? Theme.violet
+      : TYPE_COLOR[type];
 
   // One label rule for every type, shared with web: the pill reads as the
   // object's NAME.
   const resolvedTitle: string | undefined =
-    (type === 'trigger' ? entity?.display_title : undefined) || (type === 'replay' ? replayTitle(entity) : undefined) || (deployState ? deployTitle(entity) : undefined) || ((type === 'commit' || type === 'pr') && entity ? repoObjectTitle(type, entity) : undefined) || entity?.title || entity?.display_title || entity?.name;
+    (type === "trigger" ? entity?.display_title : undefined) ||
+    (type === "replay" ? replayTitle(entity) : undefined) ||
+    (deployState ? deployTitle(entity) : undefined) ||
+    ((type === "commit" || type === "pr") && entity
+      ? repoObjectTitle(type, entity)
+      : undefined) ||
+    entity?.title ||
+    entity?.display_title ||
+    entity?.name;
   // One change of a proposal (`op-55#3`) reads as the proposal's name and the
   // change's number. A proposal this phone does not hold has no name, so the
   // pill shows the reference as written, which already carries the number.
-  const refLabel = entityReferenceLabel({
-    title: resolvedTitle,
-    shortId: entity?.short_id,
-    rawId,
-    typeLabel: TYPE_LABEL[type],
-  }) + (entity ? callRefLabelSuffix(callRef) + replayRefLabelSuffix(replayRef) : '') + proposalChangeLabelSuffix(type === 'proposal' && entity ? parseProposalChangeRef(rawId) : null);
+  const refLabel =
+    entityReferenceLabel({
+      title: resolvedTitle,
+      shortId: entity?.short_id,
+      rawId,
+      typeLabel: TYPE_LABEL[type],
+    }) +
+    (entity
+      ? callRefLabelSuffix(callRef) + replayRefLabelSuffix(replayRef)
+      : "") +
+    proposalChangeLabelSuffix(
+      type === "proposal" && entity ? parseProposalChangeRef(rawId) : null,
+    );
   // A session that wears a character or a role is named as that person, the
   // same rule as the web pill: its face in place of the glyph, its name as the
   // label. A session nobody personified reads exactly as it did before.
   const identityRow = isSession && entity?._id ? identityRowOf(entity) : null;
-  const label = (identityRow && identityLine(identityRow, refLabel, prefs).name) || refLabel;
+  const label =
+    (identityRow && identityLine(identityRow, refLabel, prefs).name) ||
+    refLabel;
 
   // A call keeps the whole reference, so the screen opens at the moment or
   // the lines it names, not at the top of the call.
-  const targetId = isSession || type === 'doc'
-    ? entity?._id ?? (looksConvex ? rawId : null)
-    : type === 'call' || type === 'proposal' || type === 'replay'
-      ? rawId
-      : entity?.short_id ?? rawId;
+  const targetId =
+    isSession || type === "doc"
+      ? (entity?._id ?? (looksConvex ? rawId : null))
+      : type === "call" || type === "proposal" || type === "replay"
+        ? rawId
+        : (entity?.short_id ?? rawId);
   // The type → screen table is shared with the link opener and the deep-link
   // handler (lib/links).
   const route = targetId ? mobileEntityRoute(type, targetId) : null;
 
   return (
     <RNText
-      style={[styles.pill, { backgroundColor: color + (deployState === 'failed' ? FAILED_TINT : '1a'), color }]}
-      accessibilityLabel={deployState ? `${label}, ${deployPillSuffix(entity, now)}` : undefined}
-      onPress={to ? () => void openLink(to) : route ? () => router.push(route as any) : undefined}
-      onLongPress={messageLongPress ? () => messageLongPress([{ label: 'Copy ID', text: entity?.short_id ?? rawId }]) : undefined}
+      style={[
+        styles.pill,
+        {
+          backgroundColor:
+            color + (deployState === "failed" ? FAILED_TINT : "1a"),
+          color,
+        },
+      ]}
+      accessibilityLabel={
+        deployState ? `${label}, ${deployPillSuffix(entity, now)}` : undefined
+      }
+      onPress={
+        to
+          ? () => void openLink(to)
+          : route
+            ? () => router.push(route as any)
+            : undefined
+      }
+      onLongPress={
+        messageLongPress
+          ? () =>
+              messageLongPress([
+                { label: "Copy ID", text: entity?.short_id ?? rawId },
+              ])
+          : undefined
+      }
       suppressHighlighting
     >
-      {type === 'task' ? (
+      {type === "task" ? (
         (() => {
-          const s = TASK_STATUS_ICON[entity?.status || 'open'] ?? TASK_STATUS_ICON.open;
+          const s =
+            TASK_STATUS_ICON[entity?.status || "open"] ?? TASK_STATUS_ICON.open;
           return <Feather name={s.icon} size={10} color={s.color} />;
         })()
       ) : deployState ? (
-        <Feather name={isRollback(entity) ? 'rotate-ccw' : DEPLOY_ICON[deployState]} size={10} color={color} style={deployState === 'replaced' ? { opacity: 0.5 } : undefined} />
+        <Feather
+          name={isRollback(entity) ? "rotate-ccw" : DEPLOY_ICON[deployState]}
+          size={10}
+          color={color}
+          style={deployState === "replaced" ? { opacity: 0.5 } : undefined}
+        />
       ) : (
-        <MobileIdentityFace row={identityRow} size={12} fallback={<Feather name={TYPE_ICON[type]} size={10} color={color} />} />
+        <MobileIdentityFace
+          row={identityRow}
+          size={12}
+          fallback={<Feather name={TYPE_ICON[type]} size={10} color={color} />}
+        />
       )}
-      {isSession && entity?.status === 'active' && <RNText style={{ color: Theme.greenBright, fontSize: 8 }}>{' '}●</RNText>}
+      {isSession && entity?.status === "active" && (
+        <RNText style={{ color: Theme.greenBright, fontSize: 8 }}>
+          {" "}●
+        </RNText>
+      )}
       {/* NBSP so the icon never strands on the previous line when the pill wraps */}
-      {' '}{label}
+      {" "}
+      {label}
       {deployState && ` · ${deployPillSuffix(entity, now)}`}
       {change && <ChangeWords lifecycle={change} />}
     </RNText>
@@ -294,12 +472,12 @@ export function EntityPill({ shortId, type: typeProp, id: idProp, fallback, to }
 
 const styles = StyleSheet.create({
   pill: {
-    fontFamily: 'JetBrainsMono-Regular',
+    fontFamily: "JetBrainsMono-Regular",
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 });

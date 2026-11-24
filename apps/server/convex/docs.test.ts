@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import type { Doc, Id } from "./_generated/dataModel";
-import { docTextUpdates, generateShareLink, get, isWebDocOwner, mapWebDocDetail, search, unshare, webGet, webUpdate } from "./docs";
+import {
+  docTextUpdates,
+  generateShareLink,
+  get,
+  isWebDocOwner,
+  mapWebDocDetail,
+  search,
+  unshare,
+  webGet,
+  webUpdate,
+} from "./docs";
 import { webGetDocDetail } from "./taskMining";
 
 type Patch = { id: string; patch: Record<string, unknown> };
@@ -51,20 +61,29 @@ function createWebUpdateCtx(
       // team_memberships.by_user_team lookup and claimShareToken's
       // docs.by_share_token uniqueness check.
       query(table: string) {
-        if (table !== "team_memberships" && table !== "docs") throw new Error(`unexpected query on ${table}`);
+        if (table !== "team_memberships" && table !== "docs")
+          throw new Error(`unexpected query on ${table}`);
         const eqs: Record<string, string> = {};
-        const q = { eq: (field: string, value: string) => ((eqs[field] = value), q) };
+        const q = {
+          eq: (field: string, value: string) => ((eqs[field] = value), q),
+        };
         return {
           withIndex(_name: string, fn: (q: unknown) => unknown) {
             fn(q);
             return {
               async first() {
                 if (table === "docs") {
-                  return [...rows.values()].find((d) => d.share_token === eqs.share_token) ?? null;
+                  return (
+                    [...rows.values()].find(
+                      (d) => d.share_token === eqs.share_token,
+                    ) ?? null
+                  );
                 }
                 return (
-                  memberships.find((m) => m.user_id === eqs.user_id && m.team_id === eqs.team_id)
-                  ?? null
+                  memberships.find(
+                    (m) =>
+                      m.user_id === eqs.user_id && m.team_id === eqs.team_id,
+                  ) ?? null
                 );
               },
             };
@@ -98,7 +117,9 @@ describe("webUpdate authorization", () => {
     expect(isWebDocOwner(doc as any, "other_user" as any)).toBe(false);
     // webUpdate now gates on canAccessDoc (owner-or-team). A cross-user with no
     // shared team is still denied — now via "Unauthorized" rather than owner-only.
-    await expect(runWebUpdate(ctx, { id: "doc_owner", title: "Patched" })).rejects.toThrow("Unauthorized");
+    await expect(
+      runWebUpdate(ctx, { id: "doc_owner", title: "Patched" }),
+    ).rejects.toThrow("Unauthorized");
 
     expect(patches).toHaveLength(0);
     expect(rows.get("doc_owner")?.title).toBe("Original");
@@ -118,7 +139,9 @@ describe("webUpdate authorization", () => {
     const { ctx, patches, rows } = createWebUpdateCtx("owner_user", [doc]);
 
     expect(isWebDocOwner(doc as any, "owner_user" as any)).toBe(true);
-    await expect(runWebUpdate(ctx, { id: "doc_owner", title: "Patched" })).resolves.toEqual({ success: true });
+    await expect(
+      runWebUpdate(ctx, { id: "doc_owner", title: "Patched" }),
+    ).resolves.toEqual({ success: true });
 
     expect(patches).toHaveLength(1);
     expect(patches[0].id).toBe("doc_owner");
@@ -147,20 +170,26 @@ describe("share link authorization", () => {
   });
 
   test("a teammate can generate a share link for a team doc", async () => {
-    const { ctx, patches, rows } = createWebUpdateCtx("other_user", [teamDoc()], [
-      { user_id: "other_user", team_id: "team1" },
-    ]);
+    const { ctx, patches, rows } = createWebUpdateCtx(
+      "other_user",
+      [teamDoc()],
+      [{ user_id: "other_user", team_id: "team1" }],
+    );
 
-    const result = await (generateShareLink as any)._handler(ctx, { id: "doc_team" });
+    const result = await (generateShareLink as any)._handler(ctx, {
+      id: "doc_team",
+    });
     expect(typeof result.share_token).toBe("string");
     expect(patches).toHaveLength(1);
     expect(rows.get("doc_team")?.share_token).toBe(result.share_token);
   });
 
   test("a cross-user with no shared team is still denied without patching", async () => {
-    const { ctx, patches } = createWebUpdateCtx("other_user", [teamDoc()], [
-      { user_id: "other_user", team_id: "unrelated_team" },
-    ]);
+    const { ctx, patches } = createWebUpdateCtx(
+      "other_user",
+      [teamDoc()],
+      [{ user_id: "other_user", team_id: "unrelated_team" }],
+    );
 
     await expect(
       (generateShareLink as any)._handler(ctx, { id: "doc_team" }),
@@ -172,18 +201,24 @@ describe("share link authorization", () => {
     const doc = { ...teamDoc(), share_token: "tok-existing" };
     const { ctx, patches } = createWebUpdateCtx("owner_user", [doc]);
 
-    const result = await (generateShareLink as any)._handler(ctx, { id: "doc_team" });
+    const result = await (generateShareLink as any)._handler(ctx, {
+      id: "doc_team",
+    });
     expect(result.share_token).toBe("tok-existing");
     expect(patches).toHaveLength(0);
   });
 
   test("a teammate can unshare a team doc", async () => {
     const doc = { ...teamDoc(), share_token: "tok-existing" };
-    const { ctx, rows } = createWebUpdateCtx("other_user", [doc], [
-      { user_id: "other_user", team_id: "team1" },
-    ]);
+    const { ctx, rows } = createWebUpdateCtx(
+      "other_user",
+      [doc],
+      [{ user_id: "other_user", team_id: "team1" }],
+    );
 
-    await expect((unshare as any)._handler(ctx, { id: "doc_team" })).resolves.toEqual({
+    await expect(
+      (unshare as any)._handler(ctx, { id: "doc_team" }),
+    ).resolves.toEqual({
       success: true,
     });
     expect(rows.get("doc_team")?.share_token).toBeUndefined();
@@ -241,7 +276,10 @@ describe("mapWebDocDetail", () => {
 describe("doc-by-id queries tolerate a cross-table id", () => {
   // Mirrors Convex: ids only normalize for the table they belong to. We model docs
   // ids with a "doc_" prefix; anything else (a conversation id like jx781mx…) → null.
-  function createDocReadCtx(opts: { userId: string; docs?: Record<string, any> }) {
+  function createDocReadCtx(opts: {
+    userId: string;
+    docs?: Record<string, any>;
+  }) {
     const docs = opts.docs ?? {};
     const getCalls: string[] = [];
     const ctx = {
@@ -253,14 +291,17 @@ describe("doc-by-id queries tolerate a cross-table id", () => {
       db: {
         async get(id: string) {
           getCalls.push(id);
-          if (id === opts.userId) return { _id: opts.userId, active_team_id: "team1" };
+          if (id === opts.userId)
+            return { _id: opts.userId, active_team_id: "team1" };
           return docs[id] ?? null;
         },
         normalizeId(table: string, id: string) {
           return table === "docs" && id.startsWith("doc_") ? id : null;
         },
         query() {
-          throw new Error("query() should not run on the cross-table-id early return");
+          throw new Error(
+            "query() should not run on the cross-table-id early return",
+          );
         },
       },
     };
@@ -280,7 +321,9 @@ describe("doc-by-id queries tolerate a cross-table id", () => {
 
   test("webGetDocDetail returns null (no throw) for a conversation id", async () => {
     const { ctx, getCalls } = createDocReadCtx({ userId: "u1" });
-    const res = await (webGetDocDetail as any)._handler(ctx, { id: CONVERSATION_ID });
+    const res = await (webGetDocDetail as any)._handler(ctx, {
+      id: CONVERSATION_ID,
+    });
     expect(res).toBeNull();
     expect(getCalls).not.toContain(CONVERSATION_ID);
   });
@@ -296,7 +339,10 @@ describe("doc-by-id queries tolerate a cross-table id", () => {
       created_at: 10,
       updated_at: 20,
     };
-    const { ctx } = createDocReadCtx({ userId: "u1", docs: { doc_1: ownedDoc } });
+    const { ctx } = createDocReadCtx({
+      userId: "u1",
+      docs: { doc_1: ownedDoc },
+    });
     const res = await (webGet as any)._handler(ctx, { id: "doc_1" });
     expect(res?._id).toBe("doc_1");
     expect(res?.title).toBe("Unified Value Scoring");
@@ -323,21 +369,30 @@ function createCliCtx(opts: {
         if (table === "api_tokens") {
           return {
             withIndex() {
-              return { async first() { return { _id: "tok1", user_id: opts.userId }; } };
+              return {
+                async first() {
+                  return { _id: "tok1", user_id: opts.userId };
+                },
+              };
             },
           };
         }
         if (table === "team_memberships") {
           const eqs: Record<string, string> = {};
-          const q = { eq: (field: string, value: string) => ((eqs[field] = value), q) };
+          const q = {
+            eq: (field: string, value: string) => ((eqs[field] = value), q),
+          };
           return {
             withIndex(_name: string, fn: (q: unknown) => unknown) {
               fn(q);
               return {
                 async first() {
-                  return memberships.find(
-                    (m) => m.user_id === eqs.user_id && m.team_id === eqs.team_id,
-                  ) ?? null;
+                  return (
+                    memberships.find(
+                      (m) =>
+                        m.user_id === eqs.user_id && m.team_id === eqs.team_id,
+                    ) ?? null
+                  );
                 },
               };
             },
@@ -348,13 +403,23 @@ function createCliCtx(opts: {
             withSearchIndex(_name: string, fn: (q: any) => unknown) {
               const q: any = { search: () => q, eq: () => q };
               fn(q);
-              return { async take() { return [...rows.values()]; } };
+              return {
+                async take() {
+                  return [...rows.values()];
+                },
+              };
             },
           };
         }
         // get reports the collab revision (docLiveState); these docs have no editor history.
         if (table === "doc_deltas" || table === "doc_snapshots") {
-          const empty: any = { withIndex: () => empty, order: () => empty, async first() { return null; } };
+          const empty: any = {
+            withIndex: () => empty,
+            order: () => empty,
+            async first() {
+              return null;
+            },
+          };
           return empty;
         }
         throw new Error(`unexpected query on ${table}`);
@@ -382,28 +447,48 @@ describe("CLI doc access is owner-or-team", () => {
       docs: [teamDoc],
       memberships: [{ user_id: "mate_user", team_id: "team_1" }],
     });
-    const res = await (get as any)._handler(ctx, { api_token: "t", id: "doc_team" });
+    const res = await (get as any)._handler(ctx, {
+      api_token: "t",
+      id: "doc_team",
+    });
     expect(res?._id).toBe("doc_team");
   });
 
   test("get still denies a non-member", async () => {
     const ctx = createCliCtx({ userId: "stranger", docs: [teamDoc] });
-    const res = await (get as any)._handler(ctx, { api_token: "t", id: "doc_team" });
+    const res = await (get as any)._handler(ctx, {
+      api_token: "t",
+      id: "doc_team",
+    });
     expect(res).toBeNull();
   });
 
   test("search surfaces a teammate's team doc and hides a stranger's", async () => {
-    const privateDoc = { ...teamDoc, _id: "doc_private", team_id: undefined, title: "Private Note" };
+    const privateDoc = {
+      ...teamDoc,
+      _id: "doc_private",
+      team_id: undefined,
+      title: "Private Note",
+    };
     const mate = createCliCtx({
       userId: "mate_user",
       docs: [teamDoc, privateDoc],
       memberships: [{ user_id: "mate_user", team_id: "team_1" }],
     });
-    const mateRes = await (search as any)._handler(mate, { api_token: "t", query: "Goanna" });
+    const mateRes = await (search as any)._handler(mate, {
+      api_token: "t",
+      query: "Goanna",
+    });
     expect(mateRes.map((d: any) => d._id)).toEqual(["doc_team"]);
 
-    const stranger = createCliCtx({ userId: "stranger", docs: [teamDoc, privateDoc] });
-    const strangerRes = await (search as any)._handler(stranger, { api_token: "t", query: "Goanna" });
+    const stranger = createCliCtx({
+      userId: "stranger",
+      docs: [teamDoc, privateDoc],
+    });
+    const strangerRes = await (search as any)._handler(stranger, {
+      api_token: "t",
+      query: "Goanna",
+    });
     expect(strangerRes).toEqual([]);
   });
 });
@@ -413,7 +498,9 @@ describe("CLI doc access is owner-or-team", () => {
 describe("docTextUpdates", () => {
   test("a content edit adopts the body's leading heading as the title", () => {
     const existing = doc({ title: "Old", content: "# Old\n\nbody" });
-    expect(docTextUpdates(existing, { content: "# New Name\n\nnew body" })).toEqual({
+    expect(
+      docTextUpdates(existing, { content: "# New Name\n\nnew body" }),
+    ).toEqual({
       title: "New Name",
       content: "# New Name\n\nnew body",
     });

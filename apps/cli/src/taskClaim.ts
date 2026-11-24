@@ -1,4 +1,8 @@
-import { ASSIGNEE_MEANS, isRoleAssignee, type AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import {
+  ASSIGNEE_MEANS,
+  isRoleAssignee,
+  type AssigneeInfo,
+} from "@codecast/shared/contracts/orgAssignee";
 import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
 import { STALE_TASK_WORDS, TASK_EFFORTS } from "@codecast/shared/tasks";
 
@@ -17,14 +21,24 @@ import { STALE_TASK_WORDS, TASK_EFFORTS } from "@codecast/shared/tasks";
 // `ownSessionId` (the agent's own exported id, then the process walk), which
 // is the same witness that stamps source:"agent" on create.
 
-export function buildTaskStartBody(shortId: string, sessionId: string | null, opts: { take?: boolean } = {}): Record<string, any> {
-  const body: Record<string, any> = { short_id: shortId, status: "in_progress", ...taskClaimant(sessionId) };
+export function buildTaskStartBody(
+  shortId: string,
+  sessionId: string | null,
+  opts: { take?: boolean } = {},
+): Record<string, any> {
+  const body: Record<string, any> = {
+    short_id: shortId,
+    status: "in_progress",
+    ...taskClaimant(sessionId),
+  };
   if (opts.take) body.take = true;
   return body;
 }
 
 /** Who a start is for: the session, else the person. */
-export function taskClaimant(sessionId: string | null): { conversation_id: string } | { assignee: "me" } {
+export function taskClaimant(
+  sessionId: string | null,
+): { conversation_id: string } | { assignee: "me" } {
   return sessionId ? { conversation_id: sessionId } : { assignee: "me" };
 }
 
@@ -33,32 +47,65 @@ export function taskClaimant(sessionId: string | null): { conversation_id: strin
  *  session's frontier holds its own ephemeral tasks only (TG9). A claim takes only a
  *  task that is unassigned or already the caller's (or its role's), and a
  *  task untouched 30 days only with `--stale` (task-graph.md TG7). */
-export function buildTaskClaimBody(filters: Record<string, any>, sessionId: string | null, opts: { stale?: boolean } = {}): Record<string, any> {
-  return { ...filters, ...(sessionId ? { conversation_id: sessionId } : {}), ...(opts.stale ? { stale: true } : {}) };
+export function buildTaskClaimBody(
+  filters: Record<string, any>,
+  sessionId: string | null,
+  opts: { stale?: boolean } = {},
+): Record<string, any> {
+  return {
+    ...filters,
+    ...(sessionId ? { conversation_id: sessionId } : {}),
+    ...(opts.stale ? { stale: true } : {}),
+  };
 }
 
 /** What a claim that took nothing says, naming `--stale` when stale work was
  *  passed over and counting the ready tasks it may not take, so an agent told
  *  there is nothing left does not stop early or read `cast task ready` as a
  *  contradiction. */
-export function unclaimedLine(claim: { skipped?: unknown[]; more?: boolean; stale_passed?: number; others_passed?: number } | null | undefined): string {
-  const stale = claim?.stale_passed ? ` ${claim.stale_passed} ${STALE_TASK_WORDS} passed over (claim with --stale).` : "";
+export function unclaimedLine(
+  claim:
+    | {
+        skipped?: unknown[];
+        more?: boolean;
+        stale_passed?: number;
+        others_passed?: number;
+      }
+    | null
+    | undefined,
+): string {
+  const stale = claim?.stale_passed
+    ? ` ${claim.stale_passed} ${STALE_TASK_WORDS} passed over (claim with --stale).`
+    : "";
   const n = claim?.others_passed ?? 0;
-  const others = n ? ` ${n} ready task${n === 1 ? " is" : "s are"} assigned to others or held by a decision (cast task ready lists them).` : "";
+  const others = n
+    ? ` ${n} ready task${n === 1 ? " is" : "s are"} assigned to others or held by a decision (cast task ready lists them).`
+    : "";
   if (!claim?.more) return `No ready tasks to claim.${stale}${others}`;
-  const passed = claim.skipped?.length ? `, passed over ${claim.skipped.length}` : "";
+  const passed = claim.skipped?.length
+    ? `, passed over ${claim.skipped.length}`
+    : "";
   return `No task claimed${passed}. More ready tasks exist past those tried: narrow with --plan, --project or -q.${stale}`;
 }
 
 // `--model`, `--effort` and `--ephemeral` on create and update (task-graph.md
 // TG8, TG9). An effort is checked here so a typo is refused by name rather
 // than by the server's validator; "" clears a model or an effort.
-export function taskHintBody(options: { model?: string; effort?: string; ephemeral?: boolean }): Record<string, any> {
+export function taskHintBody(options: {
+  model?: string;
+  effort?: string;
+  ephemeral?: boolean;
+}): Record<string, any> {
   const body: Record<string, any> = {};
   if (options.model !== undefined) body.model = options.model;
   if (options.effort !== undefined) {
-    if (options.effort && !(TASK_EFFORTS as readonly string[]).includes(options.effort)) {
-      throw new Error(`Unknown --effort "${options.effort}". Use: ${TASK_EFFORTS.join(", ")}, or '' to clear`);
+    if (
+      options.effort &&
+      !(TASK_EFFORTS as readonly string[]).includes(options.effort)
+    ) {
+      throw new Error(
+        `Unknown --effort "${options.effort}". Use: ${TASK_EFFORTS.join(", ")}, or '' to clear`,
+      );
     }
     body.effort = options.effort;
   }
@@ -69,7 +116,10 @@ export function taskHintBody(options: { model?: string; effort?: string; ephemer
 // `cast task ready`: the frontier comes in the order work should be taken, with
 // tasks nobody touched in 30 days last and flagged `stale` (TG7). They fold into
 // a count unless asked for.
-export function foldStaleTasks<T extends { stale?: boolean }>(tasks: T[], showStale: boolean): { shown: T[]; folded: number } {
+export function foldStaleTasks<T extends { stale?: boolean }>(
+  tasks: T[],
+  showStale: boolean,
+): { shown: T[]; folded: number } {
   if (showStale) return { shown: tasks, folded: 0 };
   const shown = tasks.filter((t) => !t.stale);
   return { shown, folded: tasks.length - shown.length };
@@ -80,35 +130,62 @@ export const READY_LIST_LIMIT = 300;
 
 /** The frontier's closing count. A list that filled `READY_LIST_LIMIT` was cut
  *  short, stale rows first since they sort last, so both counts are floors. */
-export function readyCountLine(shown: number, folded: number, listed: number): string {
+export function readyCountLine(
+  shown: number,
+  folded: number,
+  listed: number,
+): string {
   const floor = listed >= READY_LIST_LIMIT ? "+" : "";
-  const foldNote = folded ? `, ${folded}${floor} more ${STALE_TASK_WORDS} (--stale lists them)` : "";
+  const foldNote = folded
+    ? `, ${folded}${floor} more ${STALE_TASK_WORDS} (--stale lists them)`
+    : "";
   return `${shown}${floor} ready${foldNote}`;
 }
 
 // A task has one owning session (convex lib/taskOwner.ts). The start that
 // moved the binding names each session it released; one still working is the
 // taker's to tell, because it keeps acting on the task until it hears.
-export function releasedOwnerLines(result: { released_owners?: Array<{ short_id: string; live: boolean }> } | null | undefined): string[] {
-  return (result?.released_owners ?? []).map((o) => o.live
-    ? `Took ownership from ${o.short_id}, which is still working: tell it with cast send ${o.short_id} "..."`
-    : `Took ownership from ${o.short_id}, which had gone quiet`);
+export function releasedOwnerLines(
+  result:
+    | { released_owners?: Array<{ short_id: string; live: boolean }> }
+    | null
+    | undefined,
+): string[] {
+  return (result?.released_owners ?? []).map((o) =>
+    o.live
+      ? `Took ownership from ${o.short_id}, which is still working: tell it with cast send ${o.short_id} "..."`
+      : `Took ownership from ${o.short_id}, which had gone quiet`,
+  );
 }
 
 // `cast task start` from a session that works for a role hands the task to that
 // role (org-roles-run-work.md R5). The server decides, because it holds the
 // session's role pointer; the CLI only says what happened.
-export function startedForRoleLine(result: { assigned_role?: { handle: string; name: string } | null } | null | undefined): string | null {
+export function startedForRoleLine(
+  result:
+    | { assigned_role?: { handle: string; name: string } | null }
+    | null
+    | undefined,
+): string | null {
   const role = result?.assigned_role;
-  return role ? `Assigned to @${role.handle} (${role.name}), the role this session works for` : null;
+  return role
+    ? `Assigned to @${role.handle} (${role.name}), the role this session works for`
+    : null;
 }
 
 // What `cast task start` prints after "Started": the role that took it, when
 // one did, and always what an assignee means (R7), because the start is the
 // moment a session reads the task's names and decides what it may do.
-export function startedLines(result: Parameters<typeof startedForRoleLine>[0] & Parameters<typeof releasedOwnerLines>[0]): string[] {
+export function startedLines(
+  result: Parameters<typeof startedForRoleLine>[0] &
+    Parameters<typeof releasedOwnerLines>[0],
+): string[] {
   const role = startedForRoleLine(result);
-  return [...releasedOwnerLines(result), ...(role ? [role] : []), ASSIGNEE_MEANS];
+  return [
+    ...releasedOwnerLines(result),
+    ...(role ? [role] : []),
+    ASSIGNEE_MEANS,
+  ];
 }
 
 // `cast task ls --chain`: one group per assignee, the person first and then
@@ -116,15 +193,30 @@ export function startedLines(result: Parameters<typeof startedForRoleLine>[0] & 
 // without reading a column. Rows keep the order the server gave them. A role
 // is told from a person by the contract's shape on the row (`assignee_info`,
 // orgAssignee.ts), never by the look of its label.
-export function groupTasksByAssignee<T extends { assignee?: string; assignee_name?: string; assignee_info?: AssigneeInfo | null }>(tasks: T[]): Array<{ label: string; role: boolean; tasks: T[] }> {
-  const groups = new Map<string, { label: string; role: boolean; tasks: T[] }>();
+export function groupTasksByAssignee<
+  T extends {
+    assignee?: string;
+    assignee_name?: string;
+    assignee_info?: AssigneeInfo | null;
+  },
+>(tasks: T[]): Array<{ label: string; role: boolean; tasks: T[] }> {
+  const groups = new Map<
+    string,
+    { label: string; role: boolean; tasks: T[] }
+  >();
   for (const t of tasks) {
     const key = t.assignee ?? "";
-    const group = groups.get(key) ?? { label: t.assignee_name || t.assignee || "Nobody", role: isRoleAssignee(t.assignee_info), tasks: [] };
+    const group = groups.get(key) ?? {
+      label: t.assignee_name || t.assignee || "Nobody",
+      role: isRoleAssignee(t.assignee_info),
+      tasks: [],
+    };
     group.tasks.push(t);
     groups.set(key, group);
   }
-  return [...groups.values()].sort((a, b) => Number(a.role) - Number(b.role) || a.label.localeCompare(b.label));
+  return [...groups.values()].sort(
+    (a, b) => Number(a.role) - Number(b.role) || a.label.localeCompare(b.label),
+  );
 }
 
 // ─── Structured handoff and review verdict (docs/architecture/the-line.md L2, L3)
@@ -149,23 +241,40 @@ export interface HandoffInput {
 /** `--files a,b` → ["a", "b"]; blanks dropped. */
 export function parseFilesFlag(raw: string | undefined): string[] | undefined {
   if (!raw) return undefined;
-  const files = raw.split(",").map((f) => f.trim()).filter(Boolean);
+  const files = raw
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
   return files.length ? files : undefined;
 }
 
 // Words for how work ended that are not a handoff status. A handoff always
 // moves the task to in_review, so in_review and review mean done.
 const HANDOFF_ALIASES: Record<string, HandoffStatus> = {
-  in_review: "done", review: "done", complete: "done", completed: "done", finished: "done", verified: "done",
-  stuck: "blocked", needs_input: "needs_context", needs_info: "needs_context",
+  in_review: "done",
+  review: "done",
+  complete: "done",
+  completed: "done",
+  finished: "done",
+  verified: "done",
+  stuck: "blocked",
+  needs_input: "needs_context",
+  needs_info: "needs_context",
 };
 
 export function parseHandoffStatus(raw: string | undefined): HandoffStatus {
-  const key = raw?.trim().toLowerCase().replace(/[\s-]+/g, "_") ?? "";
-  if ((HANDOFF_STATUSES as readonly string[]).includes(key)) return key as HandoffStatus;
+  const key =
+    raw
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_") ?? "";
+  if ((HANDOFF_STATUSES as readonly string[]).includes(key))
+    return key as HandoffStatus;
   const alias = HANDOFF_ALIASES[key];
   if (alias) return alias;
-  throw new Error(`--status must be one of ${HANDOFF_STATUSES.join(", ")} (how the work ended; the task moves to in_review either way)`);
+  throw new Error(
+    `--status must be one of ${HANDOFF_STATUSES.join(", ")} (how the work ended; the task moves to in_review either way)`,
+  );
 }
 
 export function parseReviewVerdict(raw: string | undefined): ReviewVerdict {
@@ -178,8 +287,15 @@ export function parseReviewVerdict(raw: string | undefined): ReviewVerdict {
 // A hand ends its turn with a handoff: the task moves to in_review carrying
 // what was done and how it was checked, so the role reads the task, never the
 // transcript. Rides /cli/work/update; the comment body is a second call.
-export function buildTaskHandoffBody(shortId: string, sessionId: string | null, input: HandoffInput): Record<string, any> {
-  if (!input.evidence.trim()) throw new Error("--evidence is required (what you verified, or why you stopped)");
+export function buildTaskHandoffBody(
+  shortId: string,
+  sessionId: string | null,
+  input: HandoffInput,
+): Record<string, any> {
+  if (!input.evidence.trim())
+    throw new Error(
+      "--evidence is required (what you verified, or why you stopped)",
+    );
   const body: Record<string, any> = {
     short_id: shortId,
     status: "in_review",
@@ -196,8 +312,16 @@ export function handoffCommentText(input: HandoffInput): string {
   const lines = [`Handoff: ${input.status}`, "", input.evidence.trim()];
   if (input.files?.length) lines.push("", `Files: ${input.files.join(", ")}`);
   if (input.pr) lines.push("", `PR: ${input.pr}`);
-  if (input.pages?.length) lines.push("", `Pages: ${input.pages.map((slug) => `/a/${slug}`).join(", ")}`);
-  if (input.guide) lines.push("", `Guide: ${input.guide.steps.length} step${input.guide.steps.length === 1 ? "" : "s"}, on the task's evidence`);
+  if (input.pages?.length)
+    lines.push(
+      "",
+      `Pages: ${input.pages.map((slug) => `/a/${slug}`).join(", ")}`,
+    );
+  if (input.guide)
+    lines.push(
+      "",
+      `Guide: ${input.guide.steps.length} step${input.guide.steps.length === 1 ? "" : "s"}, on the task's evidence`,
+    );
   return lines.join("\n");
 }
 
@@ -210,7 +334,12 @@ export const VERDICT_STATUS: Record<ReviewVerdict, string> = {
   reject: "open",
 };
 
-export function buildTaskVerdictBody(shortId: string, sessionId: string | null, verdict: ReviewVerdict, note?: string): Record<string, any> {
+export function buildTaskVerdictBody(
+  shortId: string,
+  sessionId: string | null,
+  verdict: ReviewVerdict,
+  note?: string,
+): Record<string, any> {
   const body: Record<string, any> = {
     short_id: shortId,
     status: VERDICT_STATUS[verdict],
@@ -222,6 +351,11 @@ export function buildTaskVerdictBody(shortId: string, sessionId: string | null, 
   return body;
 }
 
-export function verdictCommentText(verdict: ReviewVerdict, note?: string): string {
-  return note?.trim() ? `Verdict: ${verdict}\n\n${note.trim()}` : `Verdict: ${verdict}`;
+export function verdictCommentText(
+  verdict: ReviewVerdict,
+  note?: string,
+): string {
+  return note?.trim()
+    ? `Verdict: ${verdict}\n\n${note.trim()}`
+    : `Verdict: ${verdict}`;
 }

@@ -143,7 +143,8 @@ export function hexToBytes(hex: string): number[] | null {
   if (hex.length === 0) return [];
   if (hex.length % 2 !== 0 || !/^[0-9a-f]+$/.test(hex)) return null;
   const out: number[] = [];
-  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+  for (let i = 0; i < hex.length; i += 2)
+    out.push(parseInt(hex.slice(i, i + 2), 16));
   return out;
 }
 

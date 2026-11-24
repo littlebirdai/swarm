@@ -37,19 +37,31 @@ function parseAnswers(input: any, output: any): Record<string, string> {
   if (input?.answers && typeof input.answers === "object") {
     return input.answers;
   }
-  const text = typeof output === "string" ? output : output?.content || output?.text || "";
+  const text =
+    typeof output === "string" ? output : output?.content || output?.text || "";
   return parsePollAnswers(input?.questions || [], text);
 }
 
-function QuestionBlock({ question, answer }: { question: Question; answer?: string }) {
+function QuestionBlock({
+  question,
+  answer,
+}: {
+  question: Question;
+  answer?: string;
+}) {
   const isAnswered = answer !== undefined;
   // A multiSelect answer arrives as the chosen labels joined with ", " (the CLI's own
   // join) — split it back so each chosen option lights up individually.
-  const answerParts = !isAnswered ? [] : question.multiSelect ? answer.split(", ") : [answer];
-  const matchesOption = (part: string) => question.options.some(
-    o => o.label === part || o.label.replace(" (Recommended)", "") === part
-  );
-  const customAnswer = answerParts.filter(p => !matchesOption(p)).join(", ");
+  const answerParts = !isAnswered
+    ? []
+    : question.multiSelect
+      ? answer.split(", ")
+      : [answer];
+  const matchesOption = (part: string) =>
+    question.options.some(
+      (o) => o.label === part || o.label.replace(" (Recommended)", "") === part,
+    );
+  const customAnswer = answerParts.filter((p) => !matchesOption(p)).join(", ");
   const isCustomAnswer = customAnswer !== "";
 
   return (
@@ -63,12 +75,16 @@ function QuestionBlock({ question, answer }: { question: Question; answer?: stri
       </div>
       <div className="text-sm text-foreground/90">{question.question}</div>
       {question.detail && (
-        <div className="text-xs text-muted-foreground whitespace-pre-line">{question.detail}</div>
+        <div className="text-xs text-muted-foreground whitespace-pre-line">
+          {question.detail}
+        </div>
       )}
       <div className="space-y-1 pl-1">
         {question.options.map((opt, i) => {
           const cleanLabel = opt.label.replace(" (Recommended)", "");
-          const isSelected = answerParts.some(p => opt.label === p || cleanLabel === p);
+          const isSelected = answerParts.some(
+            (p) => opt.label === p || cleanLabel === p,
+          );
           return (
             <div
               key={i}
@@ -86,7 +102,9 @@ function QuestionBlock({ question, answer }: { question: Question; answer?: stri
                 )}
               </div>
               <div className="min-w-0">
-                <span className={isSelected ? "text-foreground font-medium" : ""}>
+                <span
+                  className={isSelected ? "text-foreground font-medium" : ""}
+                >
                   {opt.label}
                 </span>
                 {opt.description && (
@@ -94,7 +112,9 @@ function QuestionBlock({ question, answer }: { question: Question; answer?: stri
                     {opt.description}
                   </span>
                 )}
-                {opt.preview && (isSelected || !isAnswered) && <OptionPreview preview={opt.preview} />}
+                {opt.preview && (isSelected || !isAnswered) && (
+                  <OptionPreview preview={opt.preview} />
+                )}
               </div>
             </div>
           );
@@ -105,8 +125,12 @@ function QuestionBlock({ question, answer }: { question: Question; answer?: stri
               <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
             </div>
             <div>
-              <span className="text-foreground font-medium">{customAnswer}</span>
-              <span className="text-xs text-muted-foreground block mt-0.5">Custom response</span>
+              <span className="text-foreground font-medium">
+                {customAnswer}
+              </span>
+              <span className="text-xs text-muted-foreground block mt-0.5">
+                Custom response
+              </span>
             </div>
           </div>
         )}

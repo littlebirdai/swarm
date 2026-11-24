@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { computeCumulativeFiles, selectFoldInputs, type CumulativeChange } from "./index";
+import {
+  computeCumulativeFiles,
+  selectFoldInputs,
+  type CumulativeChange,
+} from "./index";
 
 type Change = CumulativeChange & { id: string };
 
@@ -22,13 +26,40 @@ function randomHistory(seed: number, length: number): Change[] {
     const roll = rng();
     const text = `line${Math.floor(rng() * 5)}\n`;
     if (roll < 0.5) {
-      changes.push({ id: `c${i}`, filePath, changeType: "edit", sequenceIndex: i, oldContent: `line${Math.floor(rng() * 5)}\n`, newContent: text });
+      changes.push({
+        id: `c${i}`,
+        filePath,
+        changeType: "edit",
+        sequenceIndex: i,
+        oldContent: `line${Math.floor(rng() * 5)}\n`,
+        newContent: text,
+      });
     } else if (roll < 0.85) {
-      changes.push({ id: `c${i}`, filePath, changeType: "write", sequenceIndex: i, oldContent: rng() < 0.5 ? undefined : `old${i}\n${text}`, newContent: `${text}new${i}\n` });
+      changes.push({
+        id: `c${i}`,
+        filePath,
+        changeType: "write",
+        sequenceIndex: i,
+        oldContent: rng() < 0.5 ? undefined : `old${i}\n${text}`,
+        newContent: `${text}new${i}\n`,
+      });
     } else if (roll < 0.95) {
-      changes.push({ id: `c${i}`, filePath, changeType: "delete", sequenceIndex: i, oldContent: text, newContent: "" });
+      changes.push({
+        id: `c${i}`,
+        filePath,
+        changeType: "delete",
+        sequenceIndex: i,
+        oldContent: text,
+        newContent: "",
+      });
     } else {
-      changes.push({ id: `c${i}`, filePath: "", changeType: "commit", sequenceIndex: i, newContent: "" });
+      changes.push({
+        id: `c${i}`,
+        filePath: "",
+        changeType: "commit",
+        sequenceIndex: i,
+        newContent: "",
+      });
     }
   }
   return changes;
@@ -48,25 +79,81 @@ describe("selectFoldInputs", () => {
 
   test("a file rewritten whole many times needs two of its changes", () => {
     const history: Change[] = Array.from({ length: 200 }, (_, i) => ({
-      id: `w${i}`, filePath: "big.ts", changeType: "write", sequenceIndex: i,
-      oldContent: `v${i}\n`, newContent: `v${i + 1}\n`,
+      id: `w${i}`,
+      filePath: "big.ts",
+      changeType: "write",
+      sequenceIndex: i,
+      oldContent: `v${i}\n`,
+      newContent: `v${i + 1}\n`,
     }));
     const subset = selectFoldInputs(history, null);
     expect(subset.map((c) => c.id)).toEqual(["w0", "w199"]);
-    expect(computeCumulativeFiles(subset, null)).toEqual(computeCumulativeFiles(history, null));
+    expect(computeCumulativeFiles(subset, null)).toEqual(
+      computeCumulativeFiles(history, null),
+    );
   });
 
   test("edits after the last whole-file write stay, edits before it go", () => {
     const history: Change[] = [
-      { id: "e0", filePath: "f", changeType: "edit", sequenceIndex: 0, oldContent: "a", newContent: "b" },
-      { id: "w1", filePath: "f", changeType: "write", sequenceIndex: 1, oldContent: "b\n", newContent: "c\n" },
-      { id: "e2", filePath: "f", changeType: "edit", sequenceIndex: 2, oldContent: "c", newContent: "d" },
-      { id: "w3", filePath: "f", changeType: "write", sequenceIndex: 3, oldContent: "d\n", newContent: "e\n" },
-      { id: "e4", filePath: "f", changeType: "edit", sequenceIndex: 4, oldContent: "e", newContent: "f" },
-      { id: "k5", filePath: "", changeType: "commit", sequenceIndex: 5, newContent: "" },
+      {
+        id: "e0",
+        filePath: "f",
+        changeType: "edit",
+        sequenceIndex: 0,
+        oldContent: "a",
+        newContent: "b",
+      },
+      {
+        id: "w1",
+        filePath: "f",
+        changeType: "write",
+        sequenceIndex: 1,
+        oldContent: "b\n",
+        newContent: "c\n",
+      },
+      {
+        id: "e2",
+        filePath: "f",
+        changeType: "edit",
+        sequenceIndex: 2,
+        oldContent: "c",
+        newContent: "d",
+      },
+      {
+        id: "w3",
+        filePath: "f",
+        changeType: "write",
+        sequenceIndex: 3,
+        oldContent: "d\n",
+        newContent: "e\n",
+      },
+      {
+        id: "e4",
+        filePath: "f",
+        changeType: "edit",
+        sequenceIndex: 4,
+        oldContent: "e",
+        newContent: "f",
+      },
+      {
+        id: "k5",
+        filePath: "",
+        changeType: "commit",
+        sequenceIndex: 5,
+        newContent: "",
+      },
     ];
-    expect(selectFoldInputs(history, null).map((c) => c.id)).toEqual(["e0", "w1", "w3", "e4"]);
-    expect(selectFoldInputs(history, 2).map((c) => c.id)).toEqual(["e0", "w1", "e2"]);
+    expect(selectFoldInputs(history, null).map((c) => c.id)).toEqual([
+      "e0",
+      "w1",
+      "w3",
+      "e4",
+    ]);
+    expect(selectFoldInputs(history, 2).map((c) => c.id)).toEqual([
+      "e0",
+      "w1",
+      "e2",
+    ]);
     expect(selectFoldInputs(history, -1)).toEqual([]);
   });
 });

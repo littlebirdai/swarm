@@ -5,7 +5,11 @@ import * as path from "path";
 import { resolveCapabilities } from "@codecast/shared/contracts";
 import { applyBuiltins, builtinEntries } from "./builtinDriver.js";
 import { reconcileFromHeartbeat } from "./reconcile.js";
-import { recordConvergenceSignals, resetConvergenceState, convergenceState } from "./heartbeat.js";
+import {
+  recordConvergenceSignals,
+  resetConvergenceState,
+  convergenceState,
+} from "./heartbeat.js";
 
 // The builtin driver turns resolved bindings into CLAUDE.md sections using the
 // SAME writers cast install/uninstall use. These tests run against a fake HOME
@@ -19,7 +23,10 @@ beforeEach(() => {
   originalHome = process.env.HOME;
   home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-builtin-"));
   fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
-  fs.writeFileSync(path.join(home, ".claude", "CLAUDE.md"), "# My notes\n\nkeep me\n");
+  fs.writeFileSync(
+    path.join(home, ".claude", "CLAUDE.md"),
+    "# My notes\n\nkeep me\n",
+  );
   process.env.HOME = home;
   resetConvergenceState();
 });
@@ -29,8 +36,18 @@ afterEach(() => {
   resetConvergenceState();
 });
 
-const CTX = { userId: "u1", deviceId: "dev1", projectKeys: [], client: "claude" as const };
-const bind = (slug: string, enabled: boolean, scopeKind = "user", scopeKey = "") => ({
+const CTX = {
+  userId: "u1",
+  deviceId: "dev1",
+  projectKeys: [],
+  client: "claude" as const,
+};
+const bind = (
+  slug: string,
+  enabled: boolean,
+  scopeKind = "user",
+  scopeKey = "",
+) => ({
   id: `${slug}|${scopeKind}`,
   userId: "u1",
   capabilitySlug: slug,
@@ -39,7 +56,8 @@ const bind = (slug: string, enabled: boolean, scopeKind = "user", scopeKey = "")
   enabled,
   updatedAt: 1,
 });
-const claudeMd = () => fs.readFileSync(path.join(home, ".claude", "CLAUDE.md"), "utf-8");
+const claudeMd = () =>
+  fs.readFileSync(path.join(home, ".claude", "CLAUDE.md"), "utf-8");
 
 describe("applyBuiltins", () => {
   test("ON installs the section; the user's own text survives", () => {
@@ -57,16 +75,28 @@ describe("applyBuiltins", () => {
     const again = applyBuiltins(state);
     expect(again.installed).toEqual([]);
     expect(again.refreshed).toEqual([]);
-    expect(fs.statSync(path.join(home, ".claude", "CLAUDE.md")).mtimeMs).toBe(before);
+    expect(fs.statSync(path.join(home, ".claude", "CLAUDE.md")).mtimeMs).toBe(
+      before,
+    );
   });
 
   test("OFF cuts exactly that section and leaves neighbours byte-intact", () => {
-    applyBuiltins(resolveCapabilities([bind("builtin/visual", true), bind("builtin/memory", true)], CTX));
+    applyBuiltins(
+      resolveCapabilities(
+        [bind("builtin/visual", true), bind("builtin/memory", true)],
+        CTX,
+      ),
+    );
     const withBoth = claudeMd();
     expect(withBoth).toContain("/codecast-visual");
     expect(withBoth).toContain("/codecast-memory");
 
-    const out = applyBuiltins(resolveCapabilities([bind("builtin/visual", false), bind("builtin/memory", true)], CTX));
+    const out = applyBuiltins(
+      resolveCapabilities(
+        [bind("builtin/visual", false), bind("builtin/memory", true)],
+        CTX,
+      ),
+    );
     expect(out.removed).toEqual(["visual"]);
     const after = claudeMd();
     expect(after).not.toContain("/codecast-visual");
@@ -77,7 +107,9 @@ describe("applyBuiltins", () => {
   test("a slug with NO binding is left alone — hand installs are not ours", () => {
     applyBuiltins(resolveCapabilities([bind("builtin/visual", true)], CTX));
     // Now resolve a state that says nothing about visual at all.
-    const out = applyBuiltins(resolveCapabilities([bind("builtin/memory", true)], CTX));
+    const out = applyBuiltins(
+      resolveCapabilities([bind("builtin/memory", true)], CTX),
+    );
     expect(out.removed).toEqual([]);
     expect(claudeMd()).toContain("/codecast-visual");
   });
@@ -90,7 +122,10 @@ describe("applyBuiltins", () => {
   });
 
   test("a builtin slug the catalog does not know is reported, not thrown", () => {
-    const state = resolveCapabilities([bind("builtin/does-not-exist", true)], CTX);
+    const state = resolveCapabilities(
+      [bind("builtin/does-not-exist", true)],
+      CTX,
+    );
     expect(builtinEntries(state)).toHaveLength(1);
     const out = applyBuiltins(state);
     expect(out.unknown).toEqual(["does-not-exist"]);
@@ -107,25 +142,53 @@ describe("applyBuiltins", () => {
 
 describe("reconcileFromHeartbeat", () => {
   const stubFetch = (rows: unknown[]) =>
-    (async () => new Response(JSON.stringify(rows), { status: 200 })) as unknown as typeof fetch;
+    (async () =>
+      new Response(JSON.stringify(rows), {
+        status: 200,
+      })) as unknown as typeof fetch;
 
   test("mode off never fetches", async () => {
-    recordConvergenceSignals({ capabilities_mode: "off", capability_desired_revision: 9 });
+    recordConvergenceSignals({
+      capabilities_mode: "off",
+      capability_desired_revision: 9,
+    });
     let fetched = false;
     const out = await reconcileFromHeartbeat({
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home,
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
       log: () => {},
-      fetchImpl: (async () => { fetched = true; return new Response("[]"); }) as any,
+      fetchImpl: (async () => {
+        fetched = true;
+        return new Response("[]");
+      }) as any,
     });
     expect(out.skipped).toBe("mode_off");
     expect(fetched).toBe(false);
   });
 
   test("on: fetch, resolve, apply, converge — and the next beat is free", async () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 3 });
-    const rows = [{ capability_slug: "builtin/visual", scope_kind: "user", scope_key: "", enabled: true, updated_at: 1 }];
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 3,
+    });
+    const rows = [
+      {
+        capability_slug: "builtin/visual",
+        scope_kind: "user",
+        scope_key: "",
+        enabled: true,
+        updated_at: 1,
+      },
+    ];
     const first = await reconcileFromHeartbeat({
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {}, fetchImpl: stubFetch(rows),
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: stubFetch(rows),
     });
     expect(first.ran).toBe(true);
     expect(claudeMd()).toContain("/codecast-visual");
@@ -133,18 +196,41 @@ describe("reconcileFromHeartbeat", () => {
 
     let fetchedAgain = false;
     const second = await reconcileFromHeartbeat({
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {},
-      fetchImpl: (async () => { fetchedAgain = true; return new Response("[]"); }) as any,
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: (async () => {
+        fetchedAgain = true;
+        return new Response("[]");
+      }) as any,
     });
     expect(second.skipped).toBe("revision_current");
     expect(fetchedAgain).toBe(false);
   });
 
   test("dry: plans and reports, writes nothing, does NOT converge the revision", async () => {
-    recordConvergenceSignals({ capabilities_mode: "dry", capability_desired_revision: 3 });
-    const rows = [{ capability_slug: "builtin/visual", scope_kind: "user", scope_key: "", enabled: true, updated_at: 1 }];
+    recordConvergenceSignals({
+      capabilities_mode: "dry",
+      capability_desired_revision: 3,
+    });
+    const rows = [
+      {
+        capability_slug: "builtin/visual",
+        scope_kind: "user",
+        scope_key: "",
+        enabled: true,
+        updated_at: 1,
+      },
+    ];
     const out = await reconcileFromHeartbeat({
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {}, fetchImpl: stubFetch(rows),
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: stubFetch(rows),
     });
     expect(out.ran).toBe(true);
     expect(out.wrote).toBe(0);
@@ -153,10 +239,19 @@ describe("reconcileFromHeartbeat", () => {
   });
 
   test("a fetch failure skips this beat and leaves the revision behind, so it retries", async () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 3 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 3,
+    });
     const out = await reconcileFromHeartbeat({
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {},
-      fetchImpl: (async () => { throw new Error("network"); }) as any,
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: (async () => {
+        throw new Error("network");
+      }) as any,
     });
     expect(out.ran).toBe(false);
     expect(out.skipped).toBe("fetch_failed");
@@ -164,37 +259,76 @@ describe("reconcileFromHeartbeat", () => {
   });
 
   test("dry: a revision is planned once; the next beat is free until it moves or the mode turns on", async () => {
-    recordConvergenceSignals({ capabilities_mode: "dry", capability_desired_revision: 3 });
-    const rows = [{ capability_slug: "builtin/visual", scope_kind: "user", scope_key: "", enabled: true, updated_at: 1 }];
+    recordConvergenceSignals({
+      capabilities_mode: "dry",
+      capability_desired_revision: 3,
+    });
+    const rows = [
+      {
+        capability_slug: "builtin/visual",
+        scope_kind: "user",
+        scope_key: "",
+        enabled: true,
+        updated_at: 1,
+      },
+    ];
     let fetches = 0;
     const deps = {
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {},
-      fetchImpl: (async () => { fetches++; return new Response(JSON.stringify(rows), { status: 200 }); }) as any,
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: (async () => {
+        fetches++;
+        return new Response(JSON.stringify(rows), { status: 200 });
+      }) as any,
     };
     expect((await reconcileFromHeartbeat(deps)).ran).toBe(true);
     const after = fetches;
-    expect((await reconcileFromHeartbeat(deps)).skipped).toBe("revision_current");
+    expect((await reconcileFromHeartbeat(deps)).skipped).toBe(
+      "revision_current",
+    );
     expect(fetches).toBe(after);
     expect(convergenceState().applied).toBe(0);
 
-    recordConvergenceSignals({ capabilities_mode: "dry", capability_desired_revision: 4 });
+    recordConvergenceSignals({
+      capabilities_mode: "dry",
+      capability_desired_revision: 4,
+    });
     expect((await reconcileFromHeartbeat(deps)).ran).toBe(true);
 
     // Turning the switch on applies the revision dry mode only planned.
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 4 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 4,
+    });
     expect((await reconcileFromHeartbeat(deps)).ran).toBe(true);
     expect(claudeMd()).toContain("/codecast-visual");
     expect(convergenceState().applied).toBe(4);
   });
 
   test("a second beat while a pass is still fetching does not start another", async () => {
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 3 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 3,
+    });
     let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let fetches = 0;
     const deps = {
-      siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {},
-      fetchImpl: (async () => { fetches++; await gate; return new Response("[]", { status: 200 }); }) as any,
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: (async () => {
+        fetches++;
+        await gate;
+        return new Response("[]", { status: 200 });
+      }) as any,
     };
     const first = reconcileFromHeartbeat(deps);
     const second = await reconcileFromHeartbeat(deps);
@@ -206,14 +340,38 @@ describe("reconcileFromHeartbeat", () => {
 
   test("a project binding applies when its key is among the active conversations' keys", async () => {
     const key = "git:github.com/acme/app";
-    const rows = [{ capability_slug: "builtin/visual", scope_kind: "project", scope_key: key, enabled: true, updated_at: 1 }];
-    const deps = { siteUrl: "http://x", apiToken: "t", userId: "u1", home, log: () => {}, fetchImpl: stubFetch(rows) };
+    const rows = [
+      {
+        capability_slug: "builtin/visual",
+        scope_kind: "project",
+        scope_key: key,
+        enabled: true,
+        updated_at: 1,
+      },
+    ];
+    const deps = {
+      siteUrl: "http://x",
+      apiToken: "t",
+      userId: "u1",
+      home,
+      log: () => {},
+      fetchImpl: stubFetch(rows),
+    };
 
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 3 });
-    await reconcileFromHeartbeat({ ...deps, projectKeys: ["git:github.com/other/repo"] });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 3,
+    });
+    await reconcileFromHeartbeat({
+      ...deps,
+      projectKeys: ["git:github.com/other/repo"],
+    });
     expect(claudeMd()).not.toContain("/codecast-visual");
 
-    recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: 4 });
+    recordConvergenceSignals({
+      capabilities_mode: "on",
+      capability_desired_revision: 4,
+    });
     await reconcileFromHeartbeat({ ...deps, projectKeys: [key] });
     expect(claudeMd()).toContain("/codecast-visual");
   });

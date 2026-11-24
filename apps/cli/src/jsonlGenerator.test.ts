@@ -2,7 +2,18 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { chooseClaudeTailMessagesForTokenBudget, fetchExport, generateClaudeCodeJsonl, hasResumableMessages, generateCodexJsonl, generatedSessionCwd, isHumanInstruction, writeCodexSession, type ExportResult, renderConversationHandoff } from "./jsonlGenerator.js";
+import {
+  chooseClaudeTailMessagesForTokenBudget,
+  fetchExport,
+  generateClaudeCodeJsonl,
+  hasResumableMessages,
+  generateCodexJsonl,
+  generatedSessionCwd,
+  isHumanInstruction,
+  writeCodexSession,
+  type ExportResult,
+  renderConversationHandoff,
+} from "./jsonlGenerator.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -12,16 +23,57 @@ afterEach(() => {
 
 describe("fetchExport", () => {
   test("aggregates paginated export responses", async () => {
-    const requestBodies: Array<{ api_token?: string; conversation_id?: string; cursor?: string; limit?: number }> = [];
+    const requestBodies: Array<{
+      api_token?: string;
+      conversation_id?: string;
+      cursor?: string;
+      limit?: number;
+    }> = [];
     let call = 0;
 
-    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      _input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
       const body = JSON.parse(String(init?.body ?? "{}"));
       requestBodies.push(body);
       call += 1;
 
       if (call === 1) {
-        return new Response(JSON.stringify({
+        return new Response(
+          JSON.stringify({
+            conversation: {
+              id: "conv1",
+              title: "Conversation",
+              session_id: "session-1",
+              agent_type: "claude_code",
+              project_path: "/tmp/project",
+              model: "claude",
+              message_count: 3,
+              started_at: "2026-01-01T00:00:00.000Z",
+              updated_at: "2026-01-01T00:00:01.000Z",
+            },
+            messages: [
+              {
+                role: "user",
+                content: "a",
+                timestamp: "2026-01-01T00:00:00.000Z",
+              },
+              {
+                role: "assistant",
+                content: "b",
+                timestamp: "2026-01-01T00:00:00.100Z",
+              },
+            ],
+            next_cursor: "cursor-1",
+            done: false,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
           conversation: {
             id: "conv1",
             title: "Conversation",
@@ -34,32 +86,17 @@ describe("fetchExport", () => {
             updated_at: "2026-01-01T00:00:01.000Z",
           },
           messages: [
-            { role: "user", content: "a", timestamp: "2026-01-01T00:00:00.000Z" },
-            { role: "assistant", content: "b", timestamp: "2026-01-01T00:00:00.100Z" },
+            {
+              role: "user",
+              content: "c",
+              timestamp: "2026-01-01T00:00:00.200Z",
+            },
           ],
-          next_cursor: "cursor-1",
-          done: false,
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
-      }
-
-      return new Response(JSON.stringify({
-        conversation: {
-          id: "conv1",
-          title: "Conversation",
-          session_id: "session-1",
-          agent_type: "claude_code",
-          project_path: "/tmp/project",
-          model: "claude",
-          message_count: 3,
-          started_at: "2026-01-01T00:00:00.000Z",
-          updated_at: "2026-01-01T00:00:01.000Z",
-        },
-        messages: [
-          { role: "user", content: "c", timestamp: "2026-01-01T00:00:00.200Z" },
-        ],
-        next_cursor: null,
-        done: true,
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+          next_cursor: null,
+          done: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
     const result = await fetchExport("https://example.site", "token", "conv1");
@@ -68,28 +105,40 @@ describe("fetchExport", () => {
     expect(result.messages[2].content).toBe("c");
     expect(requestBodies).toEqual([
       { api_token: "token", conversation_id: "conv1", limit: 500 },
-      { api_token: "token", conversation_id: "conv1", cursor: "cursor-1", limit: 500 },
+      {
+        api_token: "token",
+        conversation_id: "conv1",
+        cursor: "cursor-1",
+        limit: 500,
+      },
     ]);
   });
 
   test("supports single-page export responses", async () => {
     globalThis.fetch = (async () => {
-      return new Response(JSON.stringify({
-        conversation: {
-          id: "conv2",
-          title: "Single page",
-          session_id: "session-2",
-          agent_type: "claude_code",
-          project_path: null,
-          model: null,
-          message_count: 1,
-          started_at: "2026-01-01T00:00:00.000Z",
-          updated_at: "2026-01-01T00:00:01.000Z",
-        },
-        messages: [
-          { role: "user", content: "hello", timestamp: "2026-01-01T00:00:00.000Z" },
-        ],
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          conversation: {
+            id: "conv2",
+            title: "Single page",
+            session_id: "session-2",
+            agent_type: "claude_code",
+            project_path: null,
+            model: null,
+            message_count: 1,
+            started_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:01.000Z",
+          },
+          messages: [
+            {
+              role: "user",
+              content: "hello",
+              timestamp: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
     const result = await fetchExport("https://example.site", "token", "conv2");
@@ -99,26 +148,38 @@ describe("fetchExport", () => {
 
   test("includes server details in export failures", async () => {
     globalThis.fetch = (async () => {
-      return new Response(JSON.stringify({
-        error: "Internal error",
-        details: "Unexpected backend failure",
-      }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          error: "Internal error",
+          details: "Unexpected backend failure",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
-    await expect(fetchExport("https://example.site", "token", "conv3")).rejects.toThrow(
-      "Export failed: Internal error (Unexpected backend failure)"
+    await expect(
+      fetchExport("https://example.site", "token", "conv3"),
+    ).rejects.toThrow(
+      "Export failed: Internal error (Unexpected backend failure)",
     );
   });
 
   test("falls back to read API when export hits array-length limit", async () => {
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
       const url = String(input);
 
       if (url.endsWith("/cli/export")) {
-        return new Response(JSON.stringify({
-          error: "Internal error",
-          details: "Function conversations.js:exportConversationMessages return value invalid: Array length is too long (10239 > maximum length 8192)",
-        }), { status: 500, headers: { "Content-Type": "application/json" } });
+        return new Response(
+          JSON.stringify({
+            error: "Internal error",
+            details:
+              "Function conversations.js:exportConversationMessages return value invalid: Array length is too long (10239 > maximum length 8192)",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        );
       }
 
       const body = JSON.parse(String(init?.body ?? "{}"));
@@ -135,16 +196,19 @@ describe("fetchExport", () => {
         };
       }).filter(Boolean);
 
-      return new Response(JSON.stringify({
-        conversation: {
-          id: "conv4",
-          title: "Fallback conversation",
-          project_path: "/tmp/project",
-          message_count: 55,
-          updated_at: "2026-01-01T00:02:00.000Z",
-        },
-        messages,
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          conversation: {
+            id: "conv4",
+            title: "Fallback conversation",
+            project_path: "/tmp/project",
+            message_count: 55,
+            updated_at: "2026-01-01T00:02:00.000Z",
+          },
+          messages,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
     const result = await fetchExport("https://example.site", "token", "conv4");
@@ -160,28 +224,38 @@ describe("fetchExport", () => {
     globalThis.fetch = (async () => {
       calls += 1;
       if (calls < 3) {
-        return new Response(JSON.stringify({ error: "Internal error", details: "temporary" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Internal error", details: "temporary" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
-      return new Response(JSON.stringify({
-        conversation: {
-          id: "conv5",
-          title: "Retry conversation",
-          session_id: "session-5",
-          agent_type: "claude_code",
-          project_path: null,
-          model: null,
-          message_count: 1,
-          started_at: "2026-01-01T00:00:00.000Z",
-          updated_at: "2026-01-01T00:00:01.000Z",
-        },
-        messages: [
-          { role: "user", content: "ok", timestamp: "2026-01-01T00:00:00.000Z" },
-        ],
-        done: true,
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          conversation: {
+            id: "conv5",
+            title: "Retry conversation",
+            session_id: "session-5",
+            agent_type: "claude_code",
+            project_path: null,
+            model: null,
+            message_count: 1,
+            started_at: "2026-01-01T00:00:00.000Z",
+            updated_at: "2026-01-01T00:00:01.000Z",
+          },
+          messages: [
+            {
+              role: "user",
+              content: "ok",
+              timestamp: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+          done: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
     const result = await fetchExport("https://example.site", "token", "conv5");
@@ -194,20 +268,35 @@ describe("generateClaudeCodeJsonl", () => {
   test("uses provided sessionId in all entries", () => {
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "codex",
-        project_path: "/tmp/project", model: "claude-opus-4-6-20260205",
-        message_count: 2, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "codex",
+        project_path: "/tmp/project",
+        model: "claude-opus-4-6-20260205",
+        message_count: 2,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "hello", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: "hello",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
       ],
     };
 
     const customId = "598dcda2-a20b-4b3a-9a89-d597331a3e2d";
-    const { jsonl, sessionId } = generateClaudeCodeJsonl(data, { sessionId: customId });
+    const { jsonl, sessionId } = generateClaudeCodeJsonl(data, {
+      sessionId: customId,
+    });
     expect(sessionId).toBe(customId);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     for (const line of lines) {
       if (line.sessionId) expect(line.sessionId).toBe(customId);
     }
@@ -228,16 +317,26 @@ describe("generateClaudeCodeJsonl", () => {
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "hello", thinking: "internal reasoning", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: "hello",
+          thinking: "internal reasoning",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     const assistant = lines.find((l) => l.type === "assistant") as any;
     expect(assistant?.message?.role).toBe("assistant");
     expect(Array.isArray(assistant?.message?.content)).toBe(true);
-    const thinkingBlock = assistant.message.content.find((b: any) => b?.type === "thinking");
+    const thinkingBlock = assistant.message.content.find(
+      (b: any) => b?.type === "thinking",
+    );
     expect(thinkingBlock).toBeTruthy();
     expect(thinkingBlock.thinking).toBe("internal reasoning");
   });
@@ -248,26 +347,49 @@ describe("generateClaudeCodeJsonl", () => {
   // makes the daemon sync it back as ordinary assistant prose, which the web
   // then shows as raw JSON mid-conversation.
   test("skips server-injected workflow anchors so forks don't round-trip raw JSON", () => {
-    const anchor = '{"__wf":"workflow_run","run_id":"th70zm","external_run_id":"wf_1","name":"roadmap-plain-rewrite"}';
+    const anchor =
+      '{"__wf":"workflow_run","run_id":"th70zm","external_run_id":"wf_1","name":"roadmap-plain-rewrite"}';
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "claude_code",
-        project_path: "/tmp/project", model: "claude-opus-4-6-20260205",
-        message_count: 4, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "claude_code",
+        project_path: "/tmp/project",
+        model: "claude-opus-4-6-20260205",
+        message_count: 4,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
         // Original server anchor, tagged with its subtype.
-        { role: "assistant", content: anchor, subtype: "workflow_event", timestamp: "2026-01-01T00:00:00.050Z" },
+        {
+          role: "assistant",
+          content: anchor,
+          subtype: "workflow_event",
+          timestamp: "2026-01-01T00:00:00.050Z",
+        },
         // A copy that already round-tripped through an old fork: subtype lost.
-        { role: "assistant", content: anchor, timestamp: "2026-01-01T00:00:00.060Z" },
-        { role: "assistant", content: "hello", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: anchor,
+          timestamp: "2026-01-01T00:00:00.060Z",
+        },
+        {
+          role: "assistant",
+          content: "hello",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
     expect(jsonl).not.toContain('"__wf"');
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     const assistants = lines.filter((l) => l.type === "assistant");
     expect(assistants).toHaveLength(1);
     expect(assistants[0].message.content[0].text).toBe("hello");
@@ -288,16 +410,29 @@ describe("generateClaudeCodeJsonl", () => {
       },
       messages: [
         { role: "user", content: "u1", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "a1", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: "a1",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
         { role: "user", content: "u2", timestamp: "2026-01-01T00:00:00.200Z" },
-        { role: "assistant", content: "a2", timestamp: "2026-01-01T00:00:00.300Z" },
+        {
+          role: "assistant",
+          content: "a2",
+          timestamp: "2026-01-01T00:00:00.300Z",
+        },
         { role: "user", content: "u3", timestamp: "2026-01-01T00:00:00.400Z" },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data, { tailMessages: 2 });
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
-    const chat = lines.filter((l) => l.type === "user" || l.type === "assistant");
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    const chat = lines.filter(
+      (l) => l.type === "user" || l.type === "assistant",
+    );
 
     expect(chat[0].type).toBe("user");
     expect(chat[0].message?.content).toContain("[Codecast import]");
@@ -307,16 +442,30 @@ describe("generateClaudeCodeJsonl", () => {
     expect(chat.filter((l) => l.isMeta).length).toBe(1);
     // The notice points the reader at `cast read` to pull anything omitted.
     expect(chat[0].message?.content).toContain("cast read");
-    expect(chat.some((l) => l.type === "user" && l.message?.content === "u1")).toBe(true);
+    expect(
+      chat.some((l) => l.type === "user" && l.message?.content === "u1"),
+    ).toBe(true);
 
     // Tail is the last 2 messages: a2, u3
-    expect(chat.some((l) => l.type === "assistant" && l.message?.content?.[0]?.text === "a2")).toBe(true);
-    expect(chat.some((l) => l.type === "user" && l.message?.content === "u3")).toBe(true);
+    expect(
+      chat.some(
+        (l) => l.type === "assistant" && l.message?.content?.[0]?.text === "a2",
+      ),
+    ).toBe(true);
+    expect(
+      chat.some((l) => l.type === "user" && l.message?.content === "u3"),
+    ).toBe(true);
 
     // Assistant turns from the dropped middle are omitted...
-    expect(chat.some((l) => l.type === "assistant" && l.message?.content?.[0]?.text === "a1")).toBe(false);
+    expect(
+      chat.some(
+        (l) => l.type === "assistant" && l.message?.content?.[0]?.text === "a1",
+      ),
+    ).toBe(false);
     // ...but every earlier *human* instruction is surfaced, not just the first.
-    expect(chat.some((l) => l.type === "user" && l.message?.content === "u2")).toBe(true);
+    expect(
+      chat.some((l) => l.type === "user" && l.message?.content === "u2"),
+    ).toBe(true);
   });
 
   test("surfaces every earlier human instruction and cites exact cast read lines", () => {
@@ -335,33 +484,79 @@ describe("generateClaudeCodeJsonl", () => {
         updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
-        { role: "user", content: "first ask", timestamp: "2026-01-01T00:00:00.000Z" },       // line 1
-        { role: "assistant", content: "a1", timestamp: "2026-01-01T00:00:00.100Z" },           // line 2
-        { role: "user", content: "second ask", timestamp: "2026-01-01T00:00:00.200Z" },        // line 3
-        { role: "assistant", content: "a2", timestamp: "2026-01-01T00:00:00.300Z" },           // line 4
-        { role: "user", content: "third ask", timestamp: "2026-01-01T00:00:00.400Z" },         // line 5
+        {
+          role: "user",
+          content: "first ask",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        }, // line 1
+        {
+          role: "assistant",
+          content: "a1",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        }, // line 2
+        {
+          role: "user",
+          content: "second ask",
+          timestamp: "2026-01-01T00:00:00.200Z",
+        }, // line 3
+        {
+          role: "assistant",
+          content: "a2",
+          timestamp: "2026-01-01T00:00:00.300Z",
+        }, // line 4
+        {
+          role: "user",
+          content: "third ask",
+          timestamp: "2026-01-01T00:00:00.400Z",
+        }, // line 5
         // A tool-result carrier (not a genuine human turn) must NOT be surfaced.
-        { role: "user", content: "", timestamp: "2026-01-01T00:00:00.500Z", tool_results: [{ tool_use_id: "x", content: "tool out" }] }, // line 6
-        { role: "assistant", content: "a3", timestamp: "2026-01-01T00:00:00.600Z" },           // line 7 (tail start)
-        { role: "user", content: "fourth ask", timestamp: "2026-01-01T00:00:00.700Z" },        // line 8 (tail)
+        {
+          role: "user",
+          content: "",
+          timestamp: "2026-01-01T00:00:00.500Z",
+          tool_results: [{ tool_use_id: "x", content: "tool out" }],
+        }, // line 6
+        {
+          role: "assistant",
+          content: "a3",
+          timestamp: "2026-01-01T00:00:00.600Z",
+        }, // line 7 (tail start)
+        {
+          role: "user",
+          content: "fourth ask",
+          timestamp: "2026-01-01T00:00:00.700Z",
+        }, // line 8 (tail)
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data, { tailMessages: 2 });
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
-    const chat = lines.filter((l) => l.type === "user" || l.type === "assistant");
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    const chat = lines.filter(
+      (l) => l.type === "user" || l.type === "assistant",
+    );
     const notice = chat[0].message?.content as string;
 
     // All three earlier human asks are surfaced (not just the first), in order.
-    const userTexts = chat.filter((l) => l.type === "user").map((l) => l.message?.content);
+    const userTexts = chat
+      .filter((l) => l.type === "user")
+      .map((l) => l.message?.content);
     expect(userTexts).toContain("first ask");
     expect(userTexts).toContain("second ask");
     expect(userTexts).toContain("third ask");
     expect(userTexts).toContain("fourth ask"); // tail
 
     // The tool-result carrier from the middle is dropped, not surfaced as a turn.
-    expect(chat.some((l) => l.type === "user" && Array.isArray(l.message?.content)
-      && l.message.content.some((b: any) => b?.type === "tool_result"))).toBe(false);
+    expect(
+      chat.some(
+        (l) =>
+          l.type === "user" &&
+          Array.isArray(l.message?.content) &&
+          l.message.content.some((b: any) => b?.type === "tool_result"),
+      ),
+    ).toBe(false);
 
     // Notice cites the conversation id and the exact `cast read` range for the
     // omitted middle: tail starts at line 7, so the gap is 1:6.
@@ -372,26 +567,75 @@ describe("generateClaudeCodeJsonl", () => {
   });
 
   test("isHumanInstruction distinguishes genuine human turns", () => {
-    expect(isHumanInstruction({ role: "user", content: "do the thing", timestamp: "t" })).toBe(true);
-    expect(isHumanInstruction({ role: "assistant", content: "ok", timestamp: "t" })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: "   ", timestamp: "t" })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: "[Codecast import] notice", timestamp: "t" })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: "noticed", timestamp: "t", isMeta: true })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: "result", timestamp: "t", tool_results: [{ tool_use_id: "x", content: "r" }] })).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: "do the thing",
+        timestamp: "t",
+      }),
+    ).toBe(true);
+    expect(
+      isHumanInstruction({ role: "assistant", content: "ok", timestamp: "t" }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({ role: "user", content: "   ", timestamp: "t" }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: "[Codecast import] notice",
+        timestamp: "t",
+      }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: "noticed",
+        timestamp: "t",
+        isMeta: true,
+      }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: "result",
+        timestamp: "t",
+        tool_results: [{ tool_use_id: "x", content: "r" }],
+      }),
+    ).toBe(false);
   });
 
   test("token budget reserves space for earlier instructions", () => {
     // A long human instruction up front should be reserved out of the budget, so
     // the chosen tail is strictly shorter than if it were ignored.
     const bigText = "word ".repeat(2000); // ~2500 tokens
-    const mk = (role: string, content: string, i: number): ExportResult["messages"][number] =>
-      ({ role, content, timestamp: `2026-01-01T00:00:${String(i).padStart(2, "0")}.000Z` });
+    const mk = (
+      role: string,
+      content: string,
+      i: number,
+    ): ExportResult["messages"][number] => ({
+      role,
+      content,
+      timestamp: `2026-01-01T00:00:${String(i).padStart(2, "0")}.000Z`,
+    });
     const messages = [
       mk("user", bigText, 0),
-      ...Array.from({ length: 40 }, (_, i) => mk(i % 2 === 0 ? "assistant" : "user", `m${i}`, i + 1)),
+      ...Array.from({ length: 40 }, (_, i) =>
+        mk(i % 2 === 0 ? "assistant" : "user", `m${i}`, i + 1),
+      ),
     ];
     const data: ExportResult = {
-      conversation: { id: "c", title: "t", session_id: "s", agent_type: "claude_code", project_path: null, model: null, message_count: messages.length, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z" },
+      conversation: {
+        id: "c",
+        title: "t",
+        session_id: "s",
+        agent_type: "claude_code",
+        project_path: null,
+        model: null,
+        message_count: messages.length,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
+      },
       messages,
     };
     // Budget large enough that without reservation the whole convo fits; the big
@@ -402,32 +646,83 @@ describe("generateClaudeCodeJsonl", () => {
   });
 
   test("isHumanInstruction leaves out machine-delivered turns and compaction summaries", () => {
-    expect(isHumanInstruction({ role: "user", content: "<task-notification>\n<task-id>b1</task-id>", timestamp: "t" })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: '<scheduled-task title="Daily run">go</scheduled-task>', timestamp: "t" })).toBe(false);
-    expect(isHumanInstruction({ role: "user", content: "This session is being continued from a previous conversation that ran out of context.", timestamp: "t" })).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: "<task-notification>\n<task-id>b1</task-id>",
+        timestamp: "t",
+      }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content: '<scheduled-task title="Daily run">go</scheduled-task>',
+        timestamp: "t",
+      }),
+    ).toBe(false);
+    expect(
+      isHumanInstruction({
+        role: "user",
+        content:
+          "This session is being continued from a previous conversation that ran out of context.",
+        timestamp: "t",
+      }),
+    ).toBe(false);
   });
 
   const conv = (id: string, count: number): ExportResult["conversation"] => ({
-    id, title: "t", session_id: "s", agent_type: "claude_code", project_path: "/tmp/project", model: null,
-    message_count: count, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+    id,
+    title: "t",
+    session_id: "s",
+    agent_type: "claude_code",
+    project_path: "/tmp/project",
+    model: null,
+    message_count: count,
+    started_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:01.000Z",
   });
-  const at = (i: number) => new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString();
-  const summaryText = (n: number) => `This session is being continued from a previous conversation that ran out of context. Summary ${n}.`;
-  const chatOf = (jsonl: string) => jsonl.trim().split("\n").map((l) => JSON.parse(l)).filter((l) => l.type === "user" || l.type === "assistant");
-  const textOf = (l: any): string => typeof l.message?.content === "string" ? l.message.content : l.message?.content?.[0]?.text ?? "";
+  const at = (i: number) =>
+    new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString();
+  const summaryText = (n: number) =>
+    `This session is being continued from a previous conversation that ran out of context. Summary ${n}.`;
+  const chatOf = (jsonl: string) =>
+    jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l))
+      .filter((l) => l.type === "user" || l.type === "assistant");
+  const textOf = (l: any): string =>
+    typeof l.message?.content === "string"
+      ? l.message.content
+      : (l.message?.content?.[0]?.text ?? "");
 
   test("a rebuild starts at the latest compaction summary", () => {
     const messages: ExportResult["messages"] = [
-      { role: "user", content: "ask before the first compaction", timestamp: at(0) },
+      {
+        role: "user",
+        content: "ask before the first compaction",
+        timestamp: at(0),
+      },
       { role: "assistant", content: "old work", timestamp: at(1) },
       { role: "user", content: summaryText(1), timestamp: at(2) },
       { role: "user", content: "ask between compactions", timestamp: at(3) },
       { role: "assistant", content: "middle work", timestamp: at(4) },
       { role: "user", content: summaryText(2), timestamp: at(5) },
-      { role: "user", content: "ask since the latest compaction", timestamp: at(6) },
-      ...Array.from({ length: 10 }, (_, i) => ({ role: "assistant", content: `recent ${i}`, timestamp: at(7 + i) })),
+      {
+        role: "user",
+        content: "ask since the latest compaction",
+        timestamp: at(6),
+      },
+      ...Array.from({ length: 10 }, (_, i) => ({
+        role: "assistant",
+        content: `recent ${i}`,
+        timestamp: at(7 + i),
+      })),
     ];
-    const data: ExportResult = { conversation: conv("jx7dune", messages.length), messages };
+    const data: ExportResult = {
+      conversation: conv("jx7dune", messages.length),
+      messages,
+    };
 
     const { jsonl } = generateClaudeCodeJsonl(data, { tailMessages: 3 });
     const texts = chatOf(jsonl).map(textOf);
@@ -450,29 +745,54 @@ describe("generateClaudeCodeJsonl", () => {
     for (let i = 0; i < 3000; i += 1) {
       const kind = i % 6;
       const content =
-        kind === 0 ? `<task-notification>\n<task-id>b${i}</task-id>\n${big}` :
-        kind === 1 ? `<scheduled-task title="Daily run">${big}</scheduled-task>` :
-        kind === 2 ? `human ask ${i} ${big}` :
-        kind === 3 && i % 60 === 3 ? `${summaryText(i)} ${big}` :
-        null;
-      messages.push(content
-        ? { role: "user", content, timestamp: at(i) }
-        : { role: "assistant", content: `work ${i} ${big}`, timestamp: at(i) });
+        kind === 0
+          ? `<task-notification>\n<task-id>b${i}</task-id>\n${big}`
+          : kind === 1
+            ? `<scheduled-task title="Daily run">${big}</scheduled-task>`
+            : kind === 2
+              ? `human ask ${i} ${big}`
+              : kind === 3 && i % 60 === 3
+                ? `${summaryText(i)} ${big}`
+                : null;
+      messages.push(
+        content
+          ? { role: "user", content, timestamp: at(i) }
+          : {
+              role: "assistant",
+              content: `work ${i} ${big}`,
+              timestamp: at(i),
+            },
+      );
     }
-    const data: ExportResult = { conversation: conv("jx7role", messages.length), messages };
+    const data: ExportResult = {
+      conversation: conv("jx7role", messages.length),
+      messages,
+    };
     const budget = 160_000;
 
     const tailMessages = chooseClaudeTailMessagesForTokenBudget(data, budget);
     const { jsonl } = generateClaudeCodeJsonl(data, { tailMessages });
     const chat = chatOf(jsonl);
-    const tokens = chat.reduce((sum, l) => sum + Math.ceil(textOf(l).length / 4), 0);
+    const tokens = chat.reduce(
+      (sum, l) => sum + Math.ceil(textOf(l).length / 4),
+      0,
+    );
 
     expect(tokens).toBeLessThanOrEqual(budget);
     const texts = chat.map(textOf);
-    expect(texts.filter((t) => t.startsWith("This session is being continued")).length).toBe(1);
+    expect(
+      texts.filter((t) => t.startsWith("This session is being continued"))
+        .length,
+    ).toBe(1);
     // Machine wakes from before the tail are never prepended as instructions.
     const head = texts.slice(0, texts.length - tailMessages);
-    expect(head.some((t) => t.startsWith("<task-notification>") || t.startsWith("<scheduled-task"))).toBe(false);
+    expect(
+      head.some(
+        (t) =>
+          t.startsWith("<task-notification>") ||
+          t.startsWith("<scheduled-task"),
+      ),
+    ).toBe(false);
     expect(texts.at(-1)).toBe(messages.at(-1)!.content);
   });
 
@@ -500,7 +820,9 @@ describe("generateClaudeCodeJsonl", () => {
           role: "assistant",
           content: "Running tool",
           timestamp: "2026-01-01T00:00:00.100Z",
-          tool_calls: [{ id: "call_1", name: "Bash", input: "{\"command\":\"echo hi\"}" }],
+          tool_calls: [
+            { id: "call_1", name: "Bash", input: '{"command":"echo hi"}' },
+          ],
         },
         {
           role: "user",
@@ -520,7 +842,10 @@ describe("generateClaudeCodeJsonl", () => {
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     const userEntries = lines.filter((l) => l.type === "user");
 
     const toolResultIds: string[] = [];
@@ -528,7 +853,10 @@ describe("generateClaudeCodeJsonl", () => {
       const content = entry?.message?.content;
       if (!Array.isArray(content)) continue;
       for (const block of content) {
-        if (block?.type === "tool_result" && typeof block?.tool_use_id === "string") {
+        if (
+          block?.type === "tool_result" &&
+          typeof block?.tool_use_id === "string"
+        ) {
           toolResultIds.push(block.tool_use_id);
         }
       }
@@ -557,7 +885,9 @@ describe("generateClaudeCodeJsonl", () => {
           role: "assistant",
           content: "tool call",
           timestamp: "2026-01-01T00:00:00.100Z",
-          tool_calls: [{ id: "call_2", name: "Bash", input: "{\"command\":\"pwd\"}" }],
+          tool_calls: [
+            { id: "call_2", name: "Bash", input: '{"command":"pwd"}' },
+          ],
         },
         {
           role: "user",
@@ -569,7 +899,9 @@ describe("generateClaudeCodeJsonl", () => {
           role: "user",
           content: "",
           timestamp: "2026-01-01T00:00:00.300Z",
-          tool_results: [{ tool_use_id: "call_2", content: "duplicate result" }],
+          tool_results: [
+            { tool_use_id: "call_2", content: "duplicate result" },
+          ],
         },
       ],
     };
@@ -577,7 +909,10 @@ describe("generateClaudeCodeJsonl", () => {
     // Truncation to last 1 message keeps only the last user message with tool_result.
     // The tool_result is preserved as an orphan (matching tool_use was truncated away).
     const { jsonl } = generateClaudeCodeJsonl(data, { tailMessages: 1 });
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     const userEntries = lines.filter((l) => l.type === "user");
 
     const toolResults = userEntries.flatMap((entry) => {
@@ -593,29 +928,50 @@ describe("generateClaudeCodeJsonl", () => {
   test("keeps consecutive assistant messages separate to preserve message-level structure", () => {
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "claude_code",
-        project_path: "/tmp/project", model: "claude-opus-4-6-20260205",
-        message_count: 5, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "claude_code",
+        project_path: "/tmp/project",
+        model: "claude-opus-4-6-20260205",
+        message_count: 5,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "thinking about it", timestamp: "2026-01-01T00:00:00.100Z" },
         {
-          role: "assistant", content: "",
-          timestamp: "2026-01-01T00:00:00.200Z",
-          tool_calls: [{ id: "call_1", name: "Bash", input: '{"command":"echo hi"}' }],
+          role: "assistant",
+          content: "thinking about it",
+          timestamp: "2026-01-01T00:00:00.100Z",
         },
         {
-          role: "user", content: "",
+          role: "assistant",
+          content: "",
+          timestamp: "2026-01-01T00:00:00.200Z",
+          tool_calls: [
+            { id: "call_1", name: "Bash", input: '{"command":"echo hi"}' },
+          ],
+        },
+        {
+          role: "user",
+          content: "",
           timestamp: "2026-01-01T00:00:00.300Z",
           tool_results: [{ tool_use_id: "call_1", content: "hi" }],
         },
-        { role: "assistant", content: "done", timestamp: "2026-01-01T00:00:00.400Z" },
+        {
+          role: "assistant",
+          content: "done",
+          timestamp: "2026-01-01T00:00:00.400Z",
+        },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
 
     const assistants = lines.filter((l) => l.type === "assistant");
     // Text-only assistant and tool_use assistant should be separate entries
@@ -623,15 +979,21 @@ describe("generateClaudeCodeJsonl", () => {
 
     const textAssistant = assistants.find((a) => {
       const content = a.message?.content;
-      return Array.isArray(content) &&
-        content.some((b: any) => b.type === "text" && b.text === "thinking about it");
+      return (
+        Array.isArray(content) &&
+        content.some(
+          (b: any) => b.type === "text" && b.text === "thinking about it",
+        )
+      );
     });
     expect(textAssistant).toBeTruthy();
 
     const toolAssistant = assistants.find((a) => {
       const content = a.message?.content;
-      return Array.isArray(content) &&
-        content.some((b: any) => b.type === "tool_use" && b.name === "Bash");
+      return (
+        Array.isArray(content) &&
+        content.some((b: any) => b.type === "tool_use" && b.name === "Bash")
+      );
     });
     expect(toolAssistant).toBeTruthy();
     // They should NOT be merged into the same entry
@@ -641,14 +1003,25 @@ describe("generateClaudeCodeJsonl", () => {
   test("emits only the tool_results that exist, does not synthesize placeholders", () => {
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "claude_code",
-        project_path: "/tmp/project", model: "claude-opus-4-6-20260205",
-        message_count: 4, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "claude_code",
+        project_path: "/tmp/project",
+        model: "claude-opus-4-6-20260205",
+        message_count: 4,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
-        { role: "user", content: "check files", timestamp: "2026-01-01T00:00:00.000Z" },
         {
-          role: "assistant", content: "",
+          role: "user",
+          content: "check files",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          role: "assistant",
+          content: "",
           timestamp: "2026-01-01T00:00:00.100Z",
           tool_calls: [
             { id: "call_read", name: "Read", input: '{"path":"a.txt"}' },
@@ -657,25 +1030,37 @@ describe("generateClaudeCodeJsonl", () => {
           ],
         },
         {
-          role: "user", content: "",
+          role: "user",
+          content: "",
           timestamp: "2026-01-01T00:00:00.200Z",
           tool_results: [{ tool_use_id: "call_grep", content: "found match" }],
         },
-        { role: "assistant", content: "done", timestamp: "2026-01-01T00:00:00.300Z" },
+        {
+          role: "assistant",
+          content: "done",
+          timestamp: "2026-01-01T00:00:00.300Z",
+        },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
     const userEntries = lines.filter((l) => l.type === "user");
 
-    const allToolResults: Array<{ tool_use_id: string; is_error?: boolean }> = [];
+    const allToolResults: Array<{ tool_use_id: string; is_error?: boolean }> =
+      [];
     for (const entry of userEntries) {
       const content = entry?.message?.content;
       if (!Array.isArray(content)) continue;
       for (const block of content) {
         if (block?.type === "tool_result") {
-          allToolResults.push({ tool_use_id: block.tool_use_id, is_error: block.is_error });
+          allToolResults.push({
+            tool_use_id: block.tool_use_id,
+            is_error: block.is_error,
+          });
         }
       }
     }
@@ -684,39 +1069,62 @@ describe("generateClaudeCodeJsonl", () => {
     const resultIds = allToolResults.map((r) => r.tool_use_id);
     expect(resultIds).toEqual(["call_grep"]);
 
-    const realResult = allToolResults.find((r) => r.tool_use_id === "call_grep");
+    const realResult = allToolResults.find(
+      (r) => r.tool_use_id === "call_grep",
+    );
     expect(realResult?.is_error).toBeUndefined();
   });
 
   test("does not add trailing placeholder when session ends with dangling tool_use", () => {
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "claude_code",
-        project_path: "/tmp/project", model: "claude-opus-4-6-20260205",
-        message_count: 2, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "claude_code",
+        project_path: "/tmp/project",
+        model: "claude-opus-4-6-20260205",
+        message_count: 2,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
-        { role: "user", content: "do it", timestamp: "2026-01-01T00:00:00.000Z" },
         {
-          role: "assistant", content: "running",
+          role: "user",
+          content: "do it",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          role: "assistant",
+          content: "running",
           timestamp: "2026-01-01T00:00:00.100Z",
-          tool_calls: [{ id: "call_dangling", name: "Bash", input: '{"command":"echo"}' }],
+          tool_calls: [
+            { id: "call_dangling", name: "Bash", input: '{"command":"echo"}' },
+          ],
         },
       ],
     };
 
     const { jsonl } = generateClaudeCodeJsonl(data);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l));
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
 
     // The last entry should be the assistant message, not a synthetic user message
-    const chatLines = lines.filter((l) => l.type === "user" || l.type === "assistant");
+    const chatLines = lines.filter(
+      (l) => l.type === "user" || l.type === "assistant",
+    );
     const lastChat = chatLines[chatLines.length - 1];
     expect(lastChat.type).toBe("assistant");
 
     // No synthetic tool_result for the dangling tool_use
     const userWithDangling = lines.find((l) => {
       const content = l.message?.content;
-      return Array.isArray(content) && content.some((b: any) => b.tool_use_id === "call_dangling");
+      return (
+        Array.isArray(content) &&
+        content.some((b: any) => b.tool_use_id === "call_dangling")
+      );
     });
     expect(userWithDangling).toBeUndefined();
   });
@@ -724,12 +1132,21 @@ describe("generateClaudeCodeJsonl", () => {
 
 describe("generateCodexJsonl", () => {
   test("returns the rollout path it writes", () => {
-    const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-codex-home-"));
+    const codexHome = fs.mkdtempSync(
+      path.join(os.tmpdir(), "codecast-codex-home-"),
+    );
     try {
-      const written = writeCodexSession("{\"type\":\"session_meta\"}\n", "synthetic-thread", "codecast-fork", codexHome);
+      const written = writeCodexSession(
+        '{"type":"session_meta"}\n',
+        "synthetic-thread",
+        "codecast-fork",
+        codexHome,
+      );
       expect(written.sessionId).toBe("synthetic-thread");
       expect(written.filePath).toStartWith(path.join(codexHome, "sessions"));
-      expect(fs.readFileSync(written.filePath, "utf8")).toBe("{\"type\":\"session_meta\"}\n");
+      expect(fs.readFileSync(written.filePath, "utf8")).toBe(
+        '{"type":"session_meta"}\n',
+      );
     } finally {
       fs.rmSync(codexHome, { recursive: true, force: true });
     }
@@ -751,11 +1168,17 @@ describe("generateCodexJsonl", () => {
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "hello", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: "hello",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
       ],
     };
 
-    const { jsonl, sessionId } = generateCodexJsonl(data, { sessionId: forcedSessionId });
+    const { jsonl, sessionId } = generateCodexJsonl(data, {
+      sessionId: forcedSessionId,
+    });
     expect(sessionId).toBe(forcedSessionId);
 
     const firstLine = JSON.parse(jsonl.trim().split("\n")[0]) as {
@@ -769,14 +1192,29 @@ describe("generateCodexJsonl", () => {
   test("skips server-injected workflow anchors", () => {
     const data: ExportResult = {
       conversation: {
-        id: "conv", title: "t", session_id: "session", agent_type: "codex",
-        project_path: "/tmp/project", model: "gpt-5",
-        message_count: 3, started_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:01.000Z",
+        id: "conv",
+        title: "t",
+        session_id: "session",
+        agent_type: "codex",
+        project_path: "/tmp/project",
+        model: "gpt-5",
+        message_count: 3,
+        started_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:01.000Z",
       },
       messages: [
         { role: "user", content: "hi", timestamp: "2026-01-01T00:00:00.000Z" },
-        { role: "assistant", content: '{"__wf":"workflow_run","run_id":"th70zm","name":"n"}', subtype: "workflow_event", timestamp: "2026-01-01T00:00:00.050Z" },
-        { role: "assistant", content: "hello", timestamp: "2026-01-01T00:00:00.100Z" },
+        {
+          role: "assistant",
+          content: '{"__wf":"workflow_run","run_id":"th70zm","name":"n"}',
+          subtype: "workflow_event",
+          timestamp: "2026-01-01T00:00:00.050Z",
+        },
+        {
+          role: "assistant",
+          content: "hello",
+          timestamp: "2026-01-01T00:00:00.100Z",
+        },
       ],
     };
 
@@ -786,13 +1224,21 @@ describe("generateCodexJsonl", () => {
 });
 
 describe("generatedSessionCwd", () => {
-  const data = (project_path: string | null): ExportResult => ({
-    conversation: { id: "c1", title: "t", project_path, started_at: "2026-09-05T00:00:00.000Z" },
-    messages: [],
-  } as unknown as ExportResult);
+  const data = (project_path: string | null): ExportResult =>
+    ({
+      conversation: {
+        id: "c1",
+        title: "t",
+        project_path,
+        started_at: "2026-09-05T00:00:00.000Z",
+      },
+      messages: [],
+    }) as unknown as ExportResult;
 
   test("an explicit cwd wins over the recorded project path", () => {
-    expect(generatedSessionCwd(data("/tmp/project"), { cwd: "/tmp/elsewhere" })).toBe("/tmp/elsewhere");
+    expect(
+      generatedSessionCwd(data("/tmp/project"), { cwd: "/tmp/elsewhere" }),
+    ).toBe("/tmp/elsewhere");
   });
 
   test("the recorded project path wins over process.cwd()", () => {
@@ -801,7 +1247,16 @@ describe("generatedSessionCwd", () => {
 
   test("the explicit cwd is what the codex session_meta carries", () => {
     const { jsonl } = generateCodexJsonl(
-      { ...data("/tmp/project"), messages: [{ role: "user", content: "hi", timestamp: "2026-09-05T00:00:01.000Z" }] } as unknown as ExportResult,
+      {
+        ...data("/tmp/project"),
+        messages: [
+          {
+            role: "user",
+            content: "hi",
+            timestamp: "2026-09-05T00:00:01.000Z",
+          },
+        ],
+      } as unknown as ExportResult,
       { cwd: "/tmp/elsewhere" },
     );
     const meta = JSON.parse(jsonl.split("\n")[0]);
@@ -816,23 +1271,53 @@ describe("generatedSessionCwd", () => {
 describe("renderConversationHandoff", () => {
   const data: ExportResult = {
     conversation: {
-      id: "conv-oc", title: "Rebuilt thread", session_id: "old", agent_type: "claude_code",
-      project_path: "/tmp/project", model: null, message_count: 3,
-      started_at: "2026-09-05T10:00:00.000Z", updated_at: "2026-09-05T11:00:00.000Z",
+      id: "conv-oc",
+      title: "Rebuilt thread",
+      session_id: "old",
+      agent_type: "claude_code",
+      project_path: "/tmp/project",
+      model: null,
+      message_count: 3,
+      started_at: "2026-09-05T10:00:00.000Z",
+      updated_at: "2026-09-05T11:00:00.000Z",
     },
     messages: [
-      { role: "user", content: "Remember the secret word MARMALADE", timestamp: "2026-09-05T10:00:00.000Z" },
-      { role: "assistant", content: "Noted.", timestamp: "2026-09-05T10:00:01.000Z", tool_calls: [{ id: "c1", name: "Bash", input: '{"command":"ls"}' }] },
-      { role: "user", content: "", timestamp: "2026-09-05T10:00:02.000Z", tool_results: [{ tool_use_id: "c1", content: "README.md" }] },
-      { role: "assistant", content: '{"__wf":1}', timestamp: "2026-09-05T10:00:03.000Z" },
+      {
+        role: "user",
+        content: "Remember the secret word MARMALADE",
+        timestamp: "2026-09-05T10:00:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Noted.",
+        timestamp: "2026-09-05T10:00:01.000Z",
+        tool_calls: [{ id: "c1", name: "Bash", input: '{"command":"ls"}' }],
+      },
+      {
+        role: "user",
+        content: "",
+        timestamp: "2026-09-05T10:00:02.000Z",
+        tool_results: [{ tool_use_id: "c1", content: "README.md" }],
+      },
+      {
+        role: "assistant",
+        content: '{"__wf":1}',
+        timestamp: "2026-09-05T10:00:03.000Z",
+      },
     ],
   };
   test("labels every turn and renders tool activity as text", () => {
     const text = renderConversationHandoff(data);
-    expect(text.startsWith("[Codecast import] This session continues a codecast conversation (conv-oc, 4 messages)")).toBe(true);
+    expect(
+      text.startsWith(
+        "[Codecast import] This session continues a codecast conversation (conv-oc, 4 messages)",
+      ),
+    ).toBe(true);
     expect(text).toContain("### user\nRemember the secret word MARMALADE");
-    expect(text).toContain("### assistant\nNoted.\n\n<tool_call id=\"c1\" name=\"Bash\">");
-    expect(text).toContain("<tool_result id=\"c1\">\nREADME.md\n</tool_result>");
+    expect(text).toContain(
+      '### assistant\nNoted.\n\n<tool_call id="c1" name="Bash">',
+    );
+    expect(text).toContain('<tool_result id="c1">\nREADME.md\n</tool_result>');
     expect(text).not.toContain("__wf");
   });
   test("a trimmed handoff carries the trim notice", () => {
@@ -847,8 +1332,24 @@ describe("hasResumableMessages", () => {
   // daemon repaired it into an empty transcript every two minutes, the agent
   // refused it ("No conversation found"), and the health check repaired it again.
   test("an export of workflow events alone has nothing to resume", () => {
-    const event = { role: "assistant", subtype: "workflow_event", content: '{"__wf":{}}', timestamp: "2026-10-14T00:00:00Z" } as any;
+    const event = {
+      role: "assistant",
+      subtype: "workflow_event",
+      content: '{"__wf":{}}',
+      timestamp: "2026-10-14T00:00:00Z",
+    } as any;
     expect(hasResumableMessages({ messages: [event, event] })).toBe(false);
-    expect(hasResumableMessages({ messages: [event, { role: "user", content: "go", timestamp: "2026-10-14T00:00:01Z" } as any] })).toBe(true);
+    expect(
+      hasResumableMessages({
+        messages: [
+          event,
+          {
+            role: "user",
+            content: "go",
+            timestamp: "2026-10-14T00:00:01Z",
+          } as any,
+        ],
+      }),
+    ).toBe(true);
   });
 });

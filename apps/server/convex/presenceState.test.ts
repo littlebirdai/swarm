@@ -103,7 +103,9 @@ describe("derivePresenceState", () => {
 
   test("daemon-only liveness is away, and stale daemon is offline", () => {
     expect(state({ daemonLastSeen: at(DAEMON_FRESH_MS - 1_000) })).toBe("away");
-    expect(state({ daemonLastSeen: at(DAEMON_FRESH_MS + 1_000) })).toBe("offline");
+    expect(state({ daemonLastSeen: at(DAEMON_FRESH_MS + 1_000) })).toBe(
+      "offline",
+    );
   });
 
   test("an alive surface outranks the daemon fallback", () => {
@@ -121,16 +123,24 @@ describe("derivePresenceState", () => {
 
   test("future input timestamps clamp to active, not explode", () => {
     expect(
-      state({ presence: { last_seen: at(1_000), last_input_at: NOW + 60_000 } }),
+      state({
+        presence: { last_seen: at(1_000), last_input_at: NOW + 60_000 },
+      }),
     ).toBe("active");
   });
 });
 
 test("the browser-safe presence graph excludes Convex registrations", async () => {
-  const stateSource = await Bun.file(`${import.meta.dir}/presenceState.ts`).text();
-  const policySource = await Bun.file(`${import.meta.dir}/presencePolicy.ts`).text();
+  const stateSource = await Bun.file(
+    `${import.meta.dir}/presenceState.ts`,
+  ).text();
+  const policySource = await Bun.file(
+    `${import.meta.dir}/presencePolicy.ts`,
+  ).text();
   expect(stateSource).not.toContain('from "./pushRouter"');
-  expect(policySource).not.toMatch(/\.\/functions|_generated\/server|convex\/server/);
+  expect(policySource).not.toMatch(
+    /\.\/functions|_generated\/server|convex\/server/,
+  );
 });
 
 describe("bucketTs", () => {

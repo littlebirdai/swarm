@@ -31,7 +31,9 @@ function createSettingsFile(getPath, io = fs) {
   function parse(text) {
     try {
       const value = JSON.parse(text);
-      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      return value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : {};
     } catch {
       return {};
     }
@@ -61,7 +63,9 @@ function createSettingsFile(getPath, io = fs) {
       io.writeFileSync(temp, text);
       io.renameSync(temp, file);
     } catch (err) {
-      try { io.unlinkSync(temp); } catch {}
+      try {
+        io.unlinkSync(temp);
+      } catch {}
       throw err;
     }
     // What a later read would parse, so memory and disk cannot disagree.

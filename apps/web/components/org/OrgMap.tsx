@@ -18,9 +18,19 @@ import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
 import { useSyncOrgHealth } from "../../hooks/useSyncOrgHealth";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { cn } from "../../lib/utils";
-import { OrgGraph, type OrgGraphObject, type OrgGraphProps, type OrgLens, type OrgRing } from "./OrgGraph";
+import {
+  OrgGraph,
+  type OrgGraphObject,
+  type OrgGraphProps,
+  type OrgLens,
+  type OrgRing,
+} from "./OrgGraph";
 import type { GoalProject } from "./goalsLayout";
-import { roleNodeId, type OrgFocusTarget, type OrgLayoutView } from "./orgLayout";
+import {
+  roleNodeId,
+  type OrgFocusTarget,
+  type OrgLayoutView,
+} from "./orgLayout";
 import { GHOST } from "./orgMeta";
 import { FLOW_TONE } from "./orgFlowViz";
 import { flowDays, flowMap, roleFlows } from "./orgFlow";
@@ -35,7 +45,10 @@ type OrgMapProps = {
   /** The org; null draws the placeholder until it is ready. */
   tree: OrgTree | null;
   /** The goals and projects when they are not the store's (a fixture, a test). */
-  goals?: { initiatives: readonly InitiativeRow[]; projects: readonly GoalProject[] };
+  goals?: {
+    initiatives: readonly InitiativeRow[];
+    projects: readonly GoalProject[];
+  };
   /** Role flags on the People filter; omitted, the map subscribes to org.health itself while People is on. */
   health?: OrgHealth | null;
   /** The open proposal with its changes; drawn over the filter while `asProposed`. */
@@ -75,17 +88,43 @@ type OrgMapProps = {
 };
 
 /** What the page hands the People filter to drive it (useOrgPeopleView, useOrgMoves). */
-export type OrgPeopleControls = Pick<OrgGraphProps, "view" | "loadingClusters" | "onToggleCollapse" | "onExpandCluster" | "onCollapseCluster" | "onReparentRequest" | "onDropSessions" | "onMoveMarked" | "find" | "onFindCount" | "onNodeContextMenu" | "canDrag" | "canDropPerson" | "resetKey" | "onToggleOpen"> & {
+export type OrgPeopleControls = Pick<
+  OrgGraphProps,
+  | "view"
+  | "loadingClusters"
+  | "onToggleCollapse"
+  | "onExpandCluster"
+  | "onCollapseCluster"
+  | "onReparentRequest"
+  | "onDropSessions"
+  | "onMoveMarked"
+  | "find"
+  | "onFindCount"
+  | "onNodeContextMenu"
+  | "canDrag"
+  | "canDropPerson"
+  | "resetKey"
+  | "onToggleOpen"
+> & {
   /** Which project each session works on: with it, Everything is the people chart with the goals and projects joined in. */
   sessionProject?: Readonly<Record<string, string>>;
 };
 
 /** The Projects filter draws the goals outline with the goals stepped back. */
-const LENS_OF: Record<MapFilter, OrgLens> = { everything: "everything", goals: "goals", projects: "goals", people: "people" };
+const LENS_OF: Record<MapFilter, OrgLens> = {
+  everything: "everything",
+  goals: "goals",
+  projects: "goals",
+  people: "people",
+};
 const NO_CLUSTERS: ReadonlySet<string> = new Set();
 const NO_LINKS: Readonly<Record<string, string>> = {};
 /** The week's picture is the reporting structure alone: every role card is its week, with no session rows. */
-const WEEK_VIEW: OrgLayoutView = { collapsed: new Set(), expanded: {}, structureOnly: true };
+const WEEK_VIEW: OrgLayoutView = {
+  collapsed: new Set(),
+  expanded: {},
+  structureOnly: true,
+};
 /** A week is counted in days, so the clock that re-reads it can be slow. */
 const WEEK_CLOCK_MS = 5 * 60_000;
 const noop = () => {};
@@ -95,24 +134,71 @@ let seq = 0;
 /** The map's own corner: the "As proposed" toggle, "This week" on the People
  *  filter, and what a page adds beside them (Following). The filter lives in
  *  the company pane's row. */
-function MapCorner({ asProposed, onAsProposed, hasProposal, week, size = "sm", children }: Pick<OrgMapProps, "asProposed" | "onAsProposed"> & { hasProposal: boolean; /** The This week toggle; omitted where the filter is not People. */ week?: { on: boolean; onToggle: (on: boolean) => void } | null; size?: "sm" | "md"; children?: React.ReactNode }) {
+function MapCorner({
+  asProposed,
+  onAsProposed,
+  hasProposal,
+  week,
+  size = "sm",
+  children,
+}: Pick<OrgMapProps, "asProposed" | "onAsProposed"> & {
+  hasProposal: boolean;
+  /** The This week toggle; omitted where the filter is not People. */ week?: {
+    on: boolean;
+    onToggle: (on: boolean) => void;
+  } | null;
+  size?: "sm" | "md";
+  children?: React.ReactNode;
+}) {
   const h = size === "sm" ? "h-7" : "h-[34px]";
   if (!hasProposal && !week && !children) return null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5" data-map-toolbar>
+    <div
+      className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5"
+      data-map-toolbar
+    >
       {week && (
         <button
           type="button"
           onClick={() => week.onToggle(!week.on)}
           aria-pressed={week.on}
-          title={week.on ? "Each role shows its week: work that reached it against work it closed. Click to see the roles as they are." : "Show each role's week: work that reached it against work it closed, and the work flowing down each line"}
-          className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-md border font-medium transition-colors", h, size === "sm" ? "px-2 text-meta" : "px-2.5 text-[12.5px]", week.on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/60")}
-          style={{ borderColor: week.on ? `color-mix(in srgb, ${FLOW_TONE.reached} 45%, transparent)` : "color-mix(in srgb, var(--sol-border) 30%, transparent)", color: week.on ? "var(--sol-text)" : "var(--sol-text-muted)" }}
+          title={
+            week.on
+              ? "Each role shows its week: work that reached it against work it closed. Click to see the roles as they are."
+              : "Show each role's week: work that reached it against work it closed, and the work flowing down each line"
+          }
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-md border font-medium transition-colors",
+            h,
+            size === "sm" ? "px-2 text-meta" : "px-2.5 text-[12.5px]",
+            week.on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/60",
+          )}
+          style={{
+            borderColor: week.on
+              ? `color-mix(in srgb, ${FLOW_TONE.reached} 45%, transparent)`
+              : "color-mix(in srgb, var(--sol-border) 30%, transparent)",
+            color: week.on ? "var(--sol-text)" : "var(--sol-text-muted)",
+          }}
           data-map-week={week.on ? "on" : "off"}
         >
-          <span aria-hidden className="inline-flex h-[9px] items-end gap-[1.5px]">
-            <span className="w-[2.5px] h-[9px] rounded-[1px]" style={{ background: FLOW_TONE.reached, opacity: week.on ? 0.9 : 0.55 }} />
-            <span className="w-[2.5px] h-[6px] rounded-[1px]" style={{ background: FLOW_TONE.closed, opacity: week.on ? 0.9 : 0.55 }} />
+          <span
+            aria-hidden
+            className="inline-flex h-[9px] items-end gap-[1.5px]"
+          >
+            <span
+              className="w-[2.5px] h-[9px] rounded-[1px]"
+              style={{
+                background: FLOW_TONE.reached,
+                opacity: week.on ? 0.9 : 0.55,
+              }}
+            />
+            <span
+              className="w-[2.5px] h-[6px] rounded-[1px]"
+              style={{
+                background: FLOW_TONE.closed,
+                opacity: week.on ? 0.9 : 0.55,
+              }}
+            />
           </span>
           This week
         </button>
@@ -122,12 +208,34 @@ function MapCorner({ asProposed, onAsProposed, hasProposal, week, size = "sm", c
           type="button"
           onClick={() => onAsProposed(!asProposed)}
           aria-pressed={asProposed}
-          title={asProposed ? "The open proposal is drawn in place, in violet. Click to see the company as it is." : "Draw the open proposal in place"}
-          className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-md border font-medium transition-colors", h, size === "sm" ? "px-2 text-meta" : "px-2.5 text-[12.5px]", asProposed ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/60")}
-          style={{ borderColor: asProposed ? "color-mix(in srgb, var(--sol-violet) 45%, transparent)" : "color-mix(in srgb, var(--sol-border) 30%, transparent)", color: asProposed ? "var(--sol-text)" : "var(--sol-text-muted)" }}
+          title={
+            asProposed
+              ? "The open proposal is drawn in place, in violet. Click to see the company as it is."
+              : "Draw the open proposal in place"
+          }
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-md border font-medium transition-colors",
+            h,
+            size === "sm" ? "px-2 text-meta" : "px-2.5 text-[12.5px]",
+            asProposed ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/60",
+          )}
+          style={{
+            borderColor: asProposed
+              ? "color-mix(in srgb, var(--sol-violet) 45%, transparent)"
+              : "color-mix(in srgb, var(--sol-border) 30%, transparent)",
+            color: asProposed ? "var(--sol-text)" : "var(--sol-text-muted)",
+          }}
           data-map-proposed={asProposed ? "on" : "off"}
         >
-          <span aria-hidden className="h-[9px] w-[9px] rounded-[2px]" style={{ background: asProposed ? GHOST.color : "transparent", border: `1px solid ${GHOST.color}`, opacity: asProposed ? 0.85 : 0.6 }} />
+          <span
+            aria-hidden
+            className="h-[9px] w-[9px] rounded-[2px]"
+            style={{
+              background: asProposed ? GHOST.color : "transparent",
+              border: `1px solid ${GHOST.color}`,
+              opacity: asProposed ? 0.85 : 0.6,
+            }}
+          />
           As proposed
         </button>
       )}
@@ -136,44 +244,133 @@ function MapCorner({ asProposed, onAsProposed, hasProposal, week, size = "sm", c
   );
 }
 
-export function OrgMap({ tree, goals, health: healthProp, proposal, filter, asProposed, onAsProposed, week = false, highlightChangeId = null, focusTarget = null, onSelectNode, onOpenSession, toolbar = true, className, ring = null, panelWidth = 0, onOpenObject, onOpenChange, onTalk, onMoveRole, people }: OrgMapProps) {
+export function OrgMap({
+  tree,
+  goals,
+  health: healthProp,
+  proposal,
+  filter,
+  asProposed,
+  onAsProposed,
+  week = false,
+  highlightChangeId = null,
+  focusTarget = null,
+  onSelectNode,
+  onOpenSession,
+  toolbar = true,
+  className,
+  ring = null,
+  panelWidth = 0,
+  onOpenObject,
+  onOpenChange,
+  onTalk,
+  onMoveRole,
+  people,
+}: OrgMapProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const select = useCallback((id: string | null) => { setSelected(id); onSelectNode?.(id); }, [onSelectNode]);
+  const select = useCallback(
+    (id: string | null) => {
+      setSelected(id);
+      onSelectNode?.(id);
+    },
+    [onSelectNode],
+  );
   // The people filter's flags and its week read org.health; the outline does not ask for it.
-  const { health: storeHealth, missing: healthMissing, error: healthError, refresh: refreshHealth } = useSyncOrgHealth(filter === "people" && healthProp === undefined);
+  const {
+    health: storeHealth,
+    missing: healthMissing,
+    error: healthError,
+    refresh: refreshHealth,
+  } = useSyncOrgHealth(filter === "people" && healthProp === undefined);
   const health = healthProp === undefined ? storeHealth : healthProp;
   const changes = asProposed && proposal ? proposal.changes : undefined;
   // The week draws on the People filter only; elsewhere the toggle is not shown and the flag reads as off.
   const weekOn = week && filter === "people";
   // Without the page's controls, sessions are counts and state dots on the cards, never a stack of cards under each.
-  const stillView = useMemo<OrgLayoutView>(() => ({ collapsed: new Set(), expanded: {}, sessionCards: false }), []);
+  const stillView = useMemo<OrgLayoutView>(
+    () => ({ collapsed: new Set(), expanded: {}, sessionCards: false }),
+    [],
+  );
   // With the page's controls, Everything is ONE graph: the people chart with the goals and projects joined into it.
-  const live = (filter === "people" && !weekOn) || filter === "everything" ? people : undefined;
+  const live =
+    (filter === "people" && !weekOn) || filter === "everything"
+      ? people
+      : undefined;
   const integrated = filter === "everything" && !!people;
-  const view = weekOn ? WEEK_VIEW : live?.view ?? stillView;
+  const view = weekOn ? WEEK_VIEW : (live?.view ?? stillView);
   const now = useCoarseNow(WEEK_CLOCK_MS);
-  const flows = useMemo(() => (weekOn && tree && health ? roleFlows(tree, health, now) : null), [weekOn, tree, health, now]);
+  const flows = useMemo(
+    () => (weekOn && tree && health ? roleFlows(tree, health, now) : null),
+    [weekOn, tree, health, now],
+  );
   // The open sheet's role keeps its lines lit and steps the rest back.
   const ringRole = ring?.kind === "role" ? roleNodeId(ring.id) : null;
-  const flow = useMemo(() => (flows ? { map: flowMap(flows), focusNodeId: ringRole, roles: Object.fromEntries(flows.map((f) => [f.nodeId, f])), days: flowDays(now) } : undefined), [flows, ringRole, now]);
+  const flow = useMemo(
+    () =>
+      flows
+        ? {
+            map: flowMap(flows),
+            focusNodeId: ringRole,
+            roles: Object.fromEntries(flows.map((f) => [f.nodeId, f])),
+            days: flowDays(now),
+          }
+        : undefined,
+    [flows, ringRole, now],
+  );
   // A hover lights the node and pans only when it is off screen; an explicit
   // ask pans always. Whichever changed last wins, so a hover after a link does
   // not drag the map back, a link after a hover still lands, and a hover
   // ending asks for nothing. Set from effects, so a render never carries it.
   const [target, setTarget] = useState<OrgFocusTarget | null>(null);
-  useWatchEffect(() => { setTarget(highlightChangeId ? { kind: "change", id: highlightChangeId, seq: ++seq, ifHidden: true } : null); }, [highlightChangeId]);
-  useWatchEffect(() => { if (focusTarget) setTarget(focusTarget); }, [focusTarget]);
+  useWatchEffect(() => {
+    setTarget(
+      highlightChangeId
+        ? { kind: "change", id: highlightChangeId, seq: ++seq, ifHidden: true }
+        : null,
+    );
+  }, [highlightChangeId]);
+  useWatchEffect(() => {
+    if (focusTarget) setTarget(focusTarget);
+  }, [focusTarget]);
 
   return (
-    <div className={cn("flex h-full min-h-0 w-full flex-col overflow-hidden", className)} style={{ background: "var(--sol-bg)", color: "var(--sol-text)" }} data-org-map={filter} data-map-filter={filter} data-org-map-proposed={changes ? "on" : "off"} data-org-map-week={weekOn ? "on" : undefined}>
-      {toolbar && !!proposal && <div className="flex shrink-0 justify-end border-b px-2.5 py-1.5" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 22%, transparent)" }}><MapCorner asProposed={asProposed} onAsProposed={onAsProposed} hasProposal /></div>}
+    <div
+      className={cn(
+        "flex h-full min-h-0 w-full flex-col overflow-hidden",
+        className,
+      )}
+      style={{ background: "var(--sol-bg)", color: "var(--sol-text)" }}
+      data-org-map={filter}
+      data-map-filter={filter}
+      data-org-map-proposed={changes ? "on" : "off"}
+      data-org-map-week={weekOn ? "on" : undefined}
+    >
+      {toolbar && !!proposal && (
+        <div
+          className="flex shrink-0 justify-end border-b px-2.5 py-1.5"
+          style={{
+            borderColor:
+              "color-mix(in srgb, var(--sol-border) 22%, transparent)",
+          }}
+        >
+          <MapCorner
+            asProposed={asProposed}
+            onAsProposed={onAsProposed}
+            hasProposal
+          />
+        </div>
+      )}
       <div className="relative min-h-0 flex-1">
         {tree ? (
           <OrgGraph
             tree={tree}
             view={view}
             lens={integrated ? "people" : LENS_OF[filter]}
-            product={integrated ? { sessionProject: people!.sessionProject ?? NO_LINKS } : undefined}
+            product={
+              integrated
+                ? { sessionProject: people!.sessionProject ?? NO_LINKS }
+                : undefined
+            }
             onToggleOpen={live?.onToggleOpen}
             goalsData={goals}
             selectedId={selected}
@@ -204,18 +401,51 @@ export function OrgMap({ tree, goals, health: healthProp, proposal, filter, asPr
             onOpenObject={onOpenObject}
             onOpenChange={onOpenChange}
             onTalk={onTalk}
-            onMoveRole={filter === "everything" && !integrated ? onMoveRole : undefined}
-            onOpenInPeople={onOpenObject ? (nodeId) => { if (nodeId.startsWith("person:")) onOpenObject({ kind: "person", id: nodeId.slice("person:".length) }); } : undefined}
+            onMoveRole={
+              filter === "everything" && !integrated ? onMoveRole : undefined
+            }
+            onOpenInPeople={
+              onOpenObject
+                ? (nodeId) => {
+                    if (nodeId.startsWith("person:"))
+                      onOpenObject({
+                        kind: "person",
+                        id: nodeId.slice("person:".length),
+                      });
+                  }
+                : undefined
+            }
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[12.5px] text-sol-text-dim" data-map-loading>The map appears here when it is ready.</div>
-        )}
-        {/* A week that could not be read is said, never drawn as a quiet company; it sits under the corner row. */}
-        {weekOn && healthProp === undefined && (healthMissing || healthError) && (
-          <div className="absolute left-3 top-12 z-10 max-w-[min(420px,calc(100%-24px))] rounded-md px-1 pb-2" style={{ background: "color-mix(in srgb, var(--sol-bg) 88%, transparent)" }} data-map-week-note>
-            <HealthNote missing={healthMissing} error={healthError?.message} hasHealth={!!health} onRetry={() => { void refreshHealth(); }} />
+          <div
+            className="absolute inset-0 flex items-center justify-center text-[12.5px] text-sol-text-dim"
+            data-map-loading
+          >
+            The map appears here when it is ready.
           </div>
         )}
+        {/* A week that could not be read is said, never drawn as a quiet company; it sits under the corner row. */}
+        {weekOn &&
+          healthProp === undefined &&
+          (healthMissing || healthError) && (
+            <div
+              className="absolute left-3 top-12 z-10 max-w-[min(420px,calc(100%-24px))] rounded-md px-1 pb-2"
+              style={{
+                background:
+                  "color-mix(in srgb, var(--sol-bg) 88%, transparent)",
+              }}
+              data-map-week-note
+            >
+              <HealthNote
+                missing={healthMissing}
+                error={healthError?.message}
+                hasHealth={!!health}
+                onRetry={() => {
+                  void refreshHealth();
+                }}
+              />
+            </div>
+          )}
       </div>
     </div>
   );

@@ -10,7 +10,9 @@ const CODE_TTL_MS = 10 * 60_000;
  */
 async function save(secret, port) {
   const code = normalizePairingCode(secret);
-  const bridge = code ? { port, code, codeExpiresAt: Date.now() + CODE_TTL_MS } : { token: secret, port };
+  const bridge = code
+    ? { port, code, codeExpiresAt: Date.now() + CODE_TTL_MS }
+    : { token: secret, port };
   await chrome.storage.local.set({ bridge });
   await chrome.runtime.sendMessage({ op: "reconnect" });
   setTimeout(refreshStatus, 600);
@@ -54,7 +56,8 @@ async function pairFromFragment() {
     const root = $("status");
     root.classList.remove("state-ok", "state-wait", "state-bad", "state-none");
     root.classList.add("state-wait");
-    root.querySelector("[data-title]").textContent = "Starting the Codecast worker";
+    root.querySelector("[data-title]").textContent =
+      "Starting the Codecast worker";
     root.querySelector("[data-text]").textContent =
       "A terminal asked for the extension and its worker was not running. This page keeps the extension awake while the worker starts, and closes itself when it answers.";
     $("reconnect").hidden = true;
@@ -64,7 +67,9 @@ async function pairFromFragment() {
       let timer;
       answered = await Promise.race([
         askWorker({ op: "wake" }).then((r) => !!(r && r.ok)),
-        new Promise((resolve) => { timer = setTimeout(() => resolve(false), WAKE_ASK_MS); }),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve(false), WAKE_ASK_MS);
+        }),
       ]).finally(() => clearTimeout(timer));
       // A worker Chrome refuses to start comes back only with a reload, which closes this page.
       if (!answered && reviveIfRefused()) return false;
@@ -84,8 +89,13 @@ async function pairFromFragment() {
   const { bridge } = await chrome.storage.local.get("bridge");
   if (!code && bridge && bridge.token === token && bridge.port === port) {
     // Shown until the worker reports; refreshStatus then owns the block.
-    renderBridgeStatus($("status"), { state: "connecting", attached: [] }, port);
-    $("status").querySelector("[data-title]").textContent = "Pairing from the terminal";
+    renderBridgeStatus(
+      $("status"),
+      { state: "connecting", attached: [] },
+      port,
+    );
+    $("status").querySelector("[data-title]").textContent =
+      "Pairing from the terminal";
     await save(token, port);
     return true;
   }
@@ -93,7 +103,9 @@ async function pairFromFragment() {
   const root = $("status");
   root.classList.remove("state-ok", "state-wait", "state-bad", "state-none");
   root.classList.add("state-wait");
-  root.querySelector("[data-title]").textContent = code ? `Pair with cast? Code ${code.slice(0, 4)}-${code.slice(4)}` : "Pair with cast?";
+  root.querySelector("[data-title]").textContent = code
+    ? `Pair with cast? Code ${code.slice(0, 4)}-${code.slice(4)}`
+    : "Pair with cast?";
   root.querySelector("[data-text]").textContent =
     `Codecast on this machine asked to pair this Chrome profile with the bridge host on port ${port}. ` +
     "Continue only if you just asked to pair, from the Codecast app or a terminal.";
@@ -107,8 +119,13 @@ $("pair").addEventListener("click", async () => {
   if (!offer) return void openSetupPage();
   pairingOffer = null;
   $("pair").hidden = true;
-  renderBridgeStatus($("status"), { state: "connecting", attached: [] }, offer.port);
-  $("status").querySelector("[data-title]").textContent = "Pairing from the terminal";
+  renderBridgeStatus(
+    $("status"),
+    { state: "connecting", attached: [] },
+    offer.port,
+  );
+  $("status").querySelector("[data-title]").textContent =
+    "Pairing from the terminal";
   await save(offer.token, offer.port);
   await load();
 });
@@ -127,7 +144,10 @@ async function renderTabs(ids) {
     (ids || []).map(async (id) => {
       const t = await chrome.tabs.get(id).catch(() => null);
       if (!t) return null;
-      const g = t.groupId >= 0 ? await chrome.tabGroups.get(t.groupId).catch(() => null) : null;
+      const g =
+        t.groupId >= 0
+          ? await chrome.tabGroups.get(t.groupId).catch(() => null)
+          : null;
       return { title: t.title || t.url || "", group: g };
     }),
   );
@@ -138,7 +158,8 @@ async function renderTabs(ids) {
         const chip = document.createElement("span");
         chip.className = "group";
         chip.textContent = r.group.title || "cast";
-        chip.style.background = GROUP_COLOR_HEX[r.group.color] || GROUP_COLOR_HEX.blue;
+        chip.style.background =
+          GROUP_COLOR_HEX[r.group.color] || GROUP_COLOR_HEX.blue;
         li.appendChild(chip);
       }
       const title = document.createElement("span");
@@ -150,19 +171,22 @@ async function renderTabs(ids) {
   );
 }
 
-
 async function refreshStatus() {
   if (pairingOffer) return;
   const s = await readBridgeStatus();
   const port = parseInt($("port").value, 10) || CAST_DEFAULT_PORT;
   const d = renderBridgeStatus($("status"), s, port);
   $("pair").hidden = !d.pair;
-  $("reconnect").hidden = !!d.pair || (d.cls !== "state-wait" && d.cls !== "state-bad");
+  $("reconnect").hidden =
+    !!d.pair || (d.cls !== "state-wait" && d.cls !== "state-bad");
   await renderTabs(s.attached);
 }
 
 $("save").addEventListener("click", () => {
-  save($("token").value.trim(), parseInt($("port").value, 10) || CAST_DEFAULT_PORT);
+  save(
+    $("token").value.trim(),
+    parseInt($("port").value, 10) || CAST_DEFAULT_PORT,
+  );
 });
 $("reconnect").addEventListener("click", async () => {
   await reconnectWorker();
@@ -177,7 +201,8 @@ setInterval(refreshStatus, 2000);
 (async () => {
   const { agentWindow } = await chrome.storage.local.get("agentWindow");
   for (const input of document.querySelectorAll('input[name="agentWindow"]')) {
-    input.checked = input.value === (agentWindow === "separate" ? "separate" : "current");
+    input.checked =
+      input.value === (agentWindow === "separate" ? "separate" : "current");
     input.addEventListener("change", () => {
       if (input.checked) chrome.storage.local.set({ agentWindow: input.value });
     });

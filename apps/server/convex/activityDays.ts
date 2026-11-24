@@ -2,7 +2,12 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { ACTIVITY_DAY_MS, ACTIVITY_LIVE_DAYS, activityLiveFrom, rollupActivityDay } from "./lib/activityDaily";
+import {
+  ACTIVITY_DAY_MS,
+  ACTIVITY_LIVE_DAYS,
+  activityLiveFrom,
+  rollupActivityDay,
+} from "./lib/activityDaily";
 import { dayStartUtc } from "./lib/userSend";
 
 // The rollup behind `user_activity_daily` (see lib/activityDaily.ts for why
@@ -21,7 +26,11 @@ const SWEEP_DAYS = ACTIVITY_LIVE_DAYS + 2;
 export const rollupDay = internalMutation({
   args: { user_id: v.id("users"), day_start: v.number() },
   handler: async (ctx, args) => {
-    return await rollupActivityDay(ctx, args.user_id, dayStartUtc(args.day_start));
+    return await rollupActivityDay(
+      ctx,
+      args.user_id,
+      dayStartUtc(args.day_start),
+    );
   },
 });
 
@@ -62,7 +71,12 @@ export const rollupCandidates = internalQuery({
     const users = await ctx.db.query("users").collect();
     const since = args.since;
     return users
-      .filter((u) => !since || (u.daemon_last_seen ?? 0) >= since || u._creationTime >= since)
+      .filter(
+        (u) =>
+          !since ||
+          (u.daemon_last_seen ?? 0) >= since ||
+          u._creationTime >= since,
+      )
       .map((u) => u._id);
   },
 });
@@ -82,7 +96,10 @@ export const sweep = internalAction({
     const days = args.days ?? SWEEP_DAYS;
     const today = dayStartUtc(Date.now());
     const since = today - days * ACTIVITY_DAY_MS;
-    const users: Id<"users">[] = await ctx.runQuery(internal.activityDays.rollupCandidates, { since });
+    const users: Id<"users">[] = await ctx.runQuery(
+      internal.activityDays.rollupCandidates,
+      { since },
+    );
     let rolled = 0;
     let failed = 0;
     for (const user_id of users) {
@@ -95,7 +112,9 @@ export const sweep = internalAction({
           rolled++;
         } catch (e) {
           failed++;
-          console.warn(`activity sweep: ${user_id} day ${today - i * ACTIVITY_DAY_MS} left for the next run: ${e}`);
+          console.warn(
+            `activity sweep: ${user_id} day ${today - i * ACTIVITY_DAY_MS} left for the next run: ${e}`,
+          );
         }
       }
     }
@@ -121,7 +140,15 @@ export const backfill = internalAction({
     start_index: v.optional(v.number()),
     budget: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<{ users: number; done: number; sessions: number; more: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    users: number;
+    done: number;
+    sessions: number;
+    more: boolean;
+  }> => {
     const days = args.days ?? 400;
     const today = dayStartUtc(Date.now());
     const until = today - days * ACTIVITY_DAY_MS;
@@ -137,10 +164,13 @@ export const backfill = internalAction({
     for (; index < users.length; index++) {
       let day: number | null = first;
       while (day !== null) {
-        const res: { days: number; sessions: number; next_day: number | null } = await ctx.runMutation(
-          internal.activityDays.rollupDaysBatch,
-          { user_id: users[index], from_day: day, until_day: until, budget: args.budget },
-        );
+        const res: { days: number; sessions: number; next_day: number | null } =
+          await ctx.runMutation(internal.activityDays.rollupDaysBatch, {
+            user_id: users[index],
+            from_day: day,
+            until_day: until,
+            budget: args.budget,
+          });
         sessions += res.sessions;
         day = res.next_day;
       }

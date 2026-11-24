@@ -1,8 +1,27 @@
 "use client";
 import { useMemo, useState, useRef } from "react";
-import { Activity, ChevronLeft, ChevronRight, Clock, Coins, DollarSign, LayoutGrid, MessageSquare, Send, Type, X } from "lucide-react";
+import {
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Coins,
+  DollarSign,
+  LayoutGrid,
+  MessageSquare,
+  Send,
+  Type,
+  X,
+} from "lucide-react";
 import { SegmentedToggle } from "./SegmentedToggle";
-import { heatRamp, heatColor, heatLevels, fmtHours, useContainerWidth, HoverTip } from "./ActivityHeatmap";
+import {
+  heatRamp,
+  heatColor,
+  heatLevels,
+  fmtHours,
+  useContainerWidth,
+  HoverTip,
+} from "./ActivityHeatmap";
 import { BrushRect as DayBrushRect, useDayBrush } from "@platform/evals/react";
 import { MONTHS, timeAxisLabels } from "@platform/evals/client";
 
@@ -17,8 +36,24 @@ export { timeAxisLabels, useDayBrush };
 // `sends` (messages the person actually typed) and `words` (the words in
 // them) shipped later than the rest — older cached payloads may omit them, so
 // consumers treat them as optional zeros.
-export type PunchRow = { date: string; hours: number[]; msgs: number[]; sends?: number[]; words?: number[]; tokens?: number[]; spend?: number[]; sessions: number[]; day_sessions: number };
-export type TimelineMetric = "hours" | "msgs" | "sends" | "words" | "tokens" | "spend";
+export type PunchRow = {
+  date: string;
+  hours: number[];
+  msgs: number[];
+  sends?: number[];
+  words?: number[];
+  tokens?: number[];
+  spend?: number[];
+  sessions: number[];
+  day_sessions: number;
+};
+export type TimelineMetric =
+  | "hours"
+  | "msgs"
+  | "sends"
+  | "words"
+  | "tokens"
+  | "spend";
 
 export function fmtK(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1).replace(/\.0$/, "")}B`;
@@ -35,19 +70,44 @@ export function fmtUsd(v: number): string {
 export function fmtDayLabel(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const diff = today.getTime() - date.getTime();
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   if (diff < 86400000) return `Today, ${dayNames[date.getDay()]}`;
   if (diff < 172800000) return `Yesterday, ${dayNames[date.getDay()]}`;
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
 }
 
 // Each metric draws in one theme accent: the line in the accent itself, the
 // grid in a ramp of it (heatRamp), so every theme keeps them legible.
-const metricColors = (accent: string) => ({ line: `var(${accent})`, ramp: heatRamp(accent) });
+const metricColors = (accent: string) => ({
+  line: `var(${accent})`,
+  ramp: heatRamp(accent),
+});
 
 const METRIC_CFG = {
   hours: {
@@ -97,11 +157,31 @@ const METRIC_CFG = {
 /** The metric switch every activity chart shows. */
 export const METRIC_ITEMS = [
   { key: "hours", icon: Clock, label: "Hours", title: "Agent hours" },
-  { key: "msgs", icon: MessageSquare, label: "Messages", title: "All session messages" },
-  { key: "sends", icon: Send, label: "Typed", title: "Messages the person typed" },
+  {
+    key: "msgs",
+    icon: MessageSquare,
+    label: "Messages",
+    title: "All session messages",
+  },
+  {
+    key: "sends",
+    icon: Send,
+    label: "Typed",
+    title: "Messages the person typed",
+  },
   { key: "words", icon: Type, label: "Words", title: "Words the person typed" },
-  { key: "tokens", icon: Coins, label: "Tokens", title: "Tokens billed, cache reads included" },
-  { key: "spend", icon: DollarSign, label: "Spend", title: "Claude spend at API list price" },
+  {
+    key: "tokens",
+    icon: Coins,
+    label: "Tokens",
+    title: "Tokens billed, cache reads included",
+  },
+  {
+    key: "spend",
+    icon: DollarSign,
+    label: "Spend",
+    title: "Claude spend at API list price",
+  },
 ];
 
 const USAGE_METRICS = new Set(["tokens", "spend"]);
@@ -110,11 +190,15 @@ const USAGE_METRICS = new Set(["tokens", "spend"]);
  *  viewers allowed to see them, so those tabs appear only when rows carry them. */
 export function metricItemsFor(rows: PunchRow[] | undefined) {
   const hasUsage = !!rows?.some((r) => r.tokens?.some((v) => v > 0));
-  return hasUsage ? METRIC_ITEMS : METRIC_ITEMS.filter((m) => !USAGE_METRICS.has(m.key));
+  return hasUsage
+    ? METRIC_ITEMS
+    : METRIC_ITEMS.filter((m) => !USAGE_METRICS.has(m.key));
 }
 
-export const fmtMetric = (metric: TimelineMetric, v: number) => METRIC_CFG[metric].fmtVal(v);
-export const fmtMetricAxis = (metric: TimelineMetric, v: number) => METRIC_CFG[metric].fmtAxis(v);
+export const fmtMetric = (metric: TimelineMetric, v: number) =>
+  METRIC_CFG[metric].fmtVal(v);
+export const fmtMetricAxis = (metric: TimelineMetric, v: number) =>
+  METRIC_CFG[metric].fmtAxis(v);
 
 /** Left padding that fits the widest y-axis label (11px text, ~6.7px a glyph). */
 export function axisPadLeft(labels: string[]): number {
@@ -149,7 +233,12 @@ function shortDay(key: string): string {
 export type RangePreset = "7d" | "1m" | "3m" | "1y" | "all";
 export type DayRange = { preset: RangePreset } | { from: string; to: string };
 
-const RANGE_PRESETS: { key: RangePreset; label: string; title: string; days: number | null }[] = [
+const RANGE_PRESETS: {
+  key: RangePreset;
+  label: string;
+  title: string;
+  days: number | null;
+}[] = [
   { key: "7d", label: "7D", title: "Last 7 days", days: 7 },
   { key: "1m", label: "1M", title: "Last 30 days", days: 30 },
   { key: "3m", label: "3M", title: "Last 90 days", days: 90 },
@@ -164,29 +253,56 @@ export function fillDays(punchcard: PunchRow[] | undefined): PunchRow[] {
   const todayKey = dateKey(new Date());
   const out: PunchRow[] = [];
   for (let key = punchcard[0].date; out.length < 400; key = addDays(key, 1)) {
-    out.push(map.get(key) ?? { date: key, hours: zeros24(), msgs: zeros24(), sends: zeros24(), words: zeros24(), sessions: zeros24(), day_sessions: 0 });
+    out.push(
+      map.get(key) ?? {
+        date: key,
+        hours: zeros24(),
+        msgs: zeros24(),
+        sends: zeros24(),
+        words: zeros24(),
+        sessions: zeros24(),
+        day_sessions: 0,
+      },
+    );
     if (key >= todayKey) break;
   }
   return out;
 }
 
-export function sliceRange<T extends { date: string }>(days: T[], range: DayRange): T[] {
-  if ("from" in range) return days.filter((d) => d.date >= range.from && d.date <= range.to);
+export function sliceRange<T extends { date: string }>(
+  days: T[],
+  range: DayRange,
+): T[] {
+  if ("from" in range)
+    return days.filter((d) => d.date >= range.from && d.date <= range.to);
   const n = RANGE_PRESETS.find((p) => p.key === range.preset)?.days;
   return n ? days.slice(-n) : days;
 }
 
 /** "last 30 days" for a preset, "Sep 12 – Sep 18" for an exact span. */
 export function rangeLabel(range: DayRange): string {
-  if ("from" in range) return range.from === range.to ? shortDay(range.from) : `${shortDay(range.from)} – ${shortDay(range.to)}`;
+  if ("from" in range)
+    return range.from === range.to
+      ? shortDay(range.from)
+      : `${shortDay(range.from)} – ${shortDay(range.to)}`;
   return RANGE_PRESETS.find((p) => p.key === range.preset)!.title.toLowerCase();
 }
 
 /** Presets, a step back/forward by the window's own length, and the exact
  *  span as a chip that clears back to the last preset. `days` is the filled
  *  axis the range slices, so stepping knows the window and where data ends. */
-export function RangeControl({ value, onChange, days }: { value: DayRange; onChange: (r: DayRange) => void; days: { date: string }[] }) {
-  const [lastPreset, setLastPreset] = useState<RangePreset>("preset" in value ? value.preset : "1m");
+export function RangeControl({
+  value,
+  onChange,
+  days,
+}: {
+  value: DayRange;
+  onChange: (r: DayRange) => void;
+  days: { date: string }[];
+}) {
+  const [lastPreset, setLastPreset] = useState<RangePreset>(
+    "preset" in value ? value.preset : "1m",
+  );
   const span = sliceRange(days, value);
   const first = days[0]?.date;
   const today = dateKey(new Date());
@@ -197,17 +313,34 @@ export function RangeControl({ value, onChange, days }: { value: DayRange; onCha
     if (!from || !to) return;
     let a = addDays(from, dir * len);
     let b = addDays(to, dir * len);
-    if (b > today) { b = today; a = addDays(today, -(len - 1)); }
-    if (first && a < first) { a = first; b = addDays(first, len - 1); }
+    if (b > today) {
+      b = today;
+      a = addDays(today, -(len - 1));
+    }
+    if (first && a < first) {
+      a = first;
+      b = addDays(first, len - 1);
+    }
     onChange({ from: a, to: b });
   };
-  const btn = "h-7 w-6 flex items-center justify-center rounded-md text-sol-text-muted/50 hover:text-sol-text hover:bg-sol-bg-alt/60 disabled:opacity-25 disabled:pointer-events-none transition-colors";
+  const btn =
+    "h-7 w-6 flex items-center justify-center rounded-md text-sol-text-muted/50 hover:text-sol-text hover:bg-sol-bg-alt/60 disabled:opacity-25 disabled:pointer-events-none transition-colors";
   return (
     <div className="flex items-center gap-1">
-      <button className={btn} onClick={() => step(-1)} disabled={!from || from <= (first ?? from)} title="Previous period">
+      <button
+        className={btn}
+        onClick={() => step(-1)}
+        disabled={!from || from <= (first ?? from)}
+        title="Previous period"
+      >
         <ChevronLeft className="w-3.5 h-3.5" />
       </button>
-      <button className={btn} onClick={() => step(1)} disabled={!to || to >= today} title="Next period">
+      <button
+        className={btn}
+        onClick={() => step(1)}
+        disabled={!to || to >= today}
+        title="Next period"
+      >
         <ChevronRight className="w-3.5 h-3.5" />
       </button>
       {"from" in value && (
@@ -224,15 +357,29 @@ export function RangeControl({ value, onChange, days }: { value: DayRange; onCha
       )}
       <SegmentedToggle
         value={"preset" in value ? value.preset : ""}
-        onChange={(k) => { setLastPreset(k as RangePreset); onChange({ preset: k as RangePreset }); }}
-        items={RANGE_PRESETS.map(({ key, label, title }) => ({ key, label, title }))}
+        onChange={(k) => {
+          setLastPreset(k as RangePreset);
+          onChange({ preset: k as RangePreset });
+        }}
+        items={RANGE_PRESETS.map(({ key, label, title }) => ({
+          key,
+          label,
+          title,
+        }))}
       />
     </div>
   );
 }
 
-export function BrushRect(props: { drag: { a: number; b: number } | null; toX: (i: number) => number; top: number; height: number }) {
-  return <DayBrushRect {...props} className="fill-sol-cyan/10 stroke-sol-cyan/50" />;
+export function BrushRect(props: {
+  drag: { a: number; b: number } | null;
+  toX: (i: number) => number;
+  top: number;
+  height: number;
+}) {
+  return (
+    <DayBrushRect {...props} className="fill-sol-cyan/10 stroke-sol-cyan/50" />
+  );
 }
 
 const zeros24 = () => new Array(24).fill(0);
@@ -274,7 +421,7 @@ export function TimelineCharts({
         value: sum(metricHours(r, metric)),
         sessions: r.day_sessions,
       })),
-    [sliced, metric]
+    [sliced, metric],
   );
 
   // Hourly silhouette: one point per (day × hour) — the same detail the grid
@@ -295,11 +442,14 @@ export function TimelineCharts({
               value: vals[h],
             }));
           }),
-    [sliced, metric, view]
+    [sliced, metric, view],
   );
 
   const cfg = METRIC_CFG[metric];
-  const total = useMemo(() => daySeries.reduce((s, d) => s + d.value, 0), [daySeries]);
+  const total = useMemo(
+    () => daySeries.reduce((s, d) => s + d.value, 0),
+    [daySeries],
+  );
 
   if (punchcard === undefined) {
     return (
@@ -309,14 +459,24 @@ export function TimelineCharts({
       </div>
     );
   }
-  if (filled.length === 0) return <div className="text-meta text-sol-text-muted/40 text-center py-16">No session data</div>;
+  if (filled.length === 0)
+    return (
+      <div className="text-meta text-sol-text-muted/40 text-center py-16">
+        No session data
+      </div>
+    );
 
   return (
     <div className="mt-2">
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="text-mark text-sol-text-muted uppercase tracking-wider font-semibold">{cfg.heading}</span>
+        <span className="text-mark text-sol-text-muted uppercase tracking-wider font-semibold">
+          {cfg.heading}
+        </span>
         <span className="text-meta text-sol-text-muted tabular-nums">
-          <span className="text-sol-text font-semibold">{cfg.fmtVal(total)}</span> · {sliced.length} days
+          <span className="text-sol-text font-semibold">
+            {cfg.fmtVal(total)}
+          </span>{" "}
+          · {sliced.length} days
         </span>
         <div className="ml-auto flex items-center gap-1.5 scale-[0.82] origin-right">
           <SegmentedToggle
@@ -332,60 +492,96 @@ export function TimelineCharts({
             onChange={(k) => setMetric(k as TimelineMetric)}
             items={metricItems}
           />
-          {!controlledRange && <RangeControl value={range} onChange={setRange} days={filled} />}
+          {!controlledRange && (
+            <RangeControl value={range} onChange={setRange} days={filled} />
+          )}
         </div>
       </div>
       {view === "grid" ? (
         <>
           <PunchcardChart rows={sliced} metric={metric} />
           <div className="mt-4">
-            <TimelineChart points={daySeries} cfg={cfg} onPickRange={(from, to) => setRange({ from, to })} />
+            <TimelineChart
+              points={daySeries}
+              cfg={cfg}
+              onPickRange={(from, to) => setRange({ from, to })}
+            />
           </div>
         </>
       ) : (
-        <TimelineChart points={hourSeries} cfg={cfg} hourly onPickRange={(from, to) => setRange({ from, to })} />
+        <TimelineChart
+          points={hourSeries}
+          cfg={cfg}
+          hourly
+          onPickRange={(from, to) => setRange({ from, to })}
+        />
       )}
     </div>
   );
 }
 
 /* Hour-of-day density: one column per day, one row per hour, intensity = metric. */
-function PunchcardChart({ rows, metric }: { rows: PunchRow[]; metric: TimelineMetric }) {
+function PunchcardChart({
+  rows,
+  metric,
+}: {
+  rows: PunchRow[];
+  metric: TimelineMetric;
+}) {
   const colors = METRIC_CFG[metric].ramp;
   const { ref, width } = useContainerWidth();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [hover, setHover] = useState<{ di: number; hr: number; x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<{
+    di: number;
+    hr: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
-  const padLeft = 32, padRight = 8, padTop = 4, padBottom = 16;
+  const padLeft = 32,
+    padRight = 8,
+    padTop = 4,
+    padBottom = 16;
   const cellH = 7;
   const plotW = Math.max(width - padLeft - padRight, 1);
   const plotH = 24 * cellH;
   const chartH = padTop + plotH + padBottom;
   const cellW = plotW / Math.max(rows.length, 1);
 
-  const levels = useMemo(() => heatLevels(rows.flatMap((r) => metricHours(r, metric))), [rows, metric]);
+  const levels = useMemo(
+    () => heatLevels(rows.flatMap((r) => metricHours(r, metric))),
+    [rows, metric],
+  );
 
   // Cells are memoized so hover-state changes don't rebuild thousands of rects.
   const cells = useMemo(
-    () => rows.flatMap((r, di) =>
-      metricHours(r, metric).map((v, h) =>
-        v > 0 ? (
-          <rect
-            key={`${di}-${h}`}
-            x={padLeft + di * cellW}
-            y={padTop + h * cellH}
-            width={Math.max(cellW - 0.5, 0.5)}
-            height={cellH - 0.75}
-            rx={1}
-            style={{ fill: heatColor(v, levels, colors) }}
-          />
-        ) : null
-      )
-    ),
-    [rows, metric, levels, colors, cellW]
+    () =>
+      rows.flatMap((r, di) =>
+        metricHours(r, metric).map((v, h) =>
+          v > 0 ? (
+            <rect
+              key={`${di}-${h}`}
+              x={padLeft + di * cellW}
+              y={padTop + h * cellH}
+              width={Math.max(cellW - 0.5, 0.5)}
+              height={cellH - 0.75}
+              rx={1}
+              style={{ fill: heatColor(v, levels, colors) }}
+            />
+          ) : null,
+        ),
+      ),
+    [rows, metric, levels, colors, cellW],
   );
 
-  const xLabels = useMemo(() => timeAxisLabels(rows.map((r) => r.date), (i) => padLeft + i * cellW), [rows, cellW]);
+  const xLabels = useMemo(
+    () =>
+      timeAxisLabels(
+        rows.map((r) => r.date),
+        (i) => padLeft + i * cellW,
+      ),
+    [rows, cellW],
+  );
 
   const hovered = hover ? rows[hover.di] : null;
 
@@ -402,23 +598,66 @@ function PunchcardChart({ rows, metric }: { rows: PunchRow[]; metric: TimelineMe
           if (!rect) return;
           const di = Math.floor((e.clientX - rect.left - padLeft) / cellW);
           const hr = Math.floor((e.clientY - rect.top - padTop) / cellH);
-          if (di < 0 || di >= rows.length || hr < 0 || hr > 23) { setHover(null); return; }
-          setHover({ di, hr, x: rect.left + padLeft + (di + 0.5) * cellW, y: rect.top + padTop + hr * cellH });
+          if (di < 0 || di >= rows.length || hr < 0 || hr > 23) {
+            setHover(null);
+            return;
+          }
+          setHover({
+            di,
+            hr,
+            x: rect.left + padLeft + (di + 0.5) * cellW,
+            y: rect.top + padTop + hr * cellH,
+          });
         }}
       >
         {/* level-0 backdrop so inactive hours read as empty cells */}
-        <rect x={padLeft} y={padTop} width={plotW} height={plotH} style={{ fill: colors[0] }} rx={2} />
+        <rect
+          x={padLeft}
+          y={padTop}
+          width={plotW}
+          height={plotH}
+          style={{ fill: colors[0] }}
+          rx={2}
+        />
         {/* hour-of-day guides + labels */}
         {[0, 6, 12, 18].map((h) => (
           <g key={h}>
-            <text x={padLeft - 4} y={padTop + h * cellH + cellH + 1} textAnchor="end" className="fill-sol-text-muted" style={{ fontSize: 11 }}>{hourLabel(h)}</text>
-            {h > 0 && <line x1={padLeft} x2={padLeft + plotW} y1={padTop + h * cellH - 0.5} y2={padTop + h * cellH - 0.5} stroke="currentColor" className="text-sol-border/40" strokeWidth={0.5} strokeDasharray="2,3" />}
+            <text
+              x={padLeft - 4}
+              y={padTop + h * cellH + cellH + 1}
+              textAnchor="end"
+              className="fill-sol-text-muted"
+              style={{ fontSize: 11 }}
+            >
+              {hourLabel(h)}
+            </text>
+            {h > 0 && (
+              <line
+                x1={padLeft}
+                x2={padLeft + plotW}
+                y1={padTop + h * cellH - 0.5}
+                y2={padTop + h * cellH - 0.5}
+                stroke="currentColor"
+                className="text-sol-border/40"
+                strokeWidth={0.5}
+                strokeDasharray="2,3"
+              />
+            )}
           </g>
         ))}
         {cells}
         {/* x labels */}
         {xLabels.map((l, i) => (
-          <text key={i} x={l.x} y={chartH - 4} textAnchor="start" className="fill-sol-text-muted" style={{ fontSize: 11 }}>{l.label}</text>
+          <text
+            key={i}
+            x={l.x}
+            y={chartH - 4}
+            textAnchor="start"
+            className="fill-sol-text-muted"
+            style={{ fontSize: 11 }}
+          >
+            {l.label}
+          </text>
         ))}
         {/* hovered cell outline */}
         {hover && (
@@ -438,7 +677,12 @@ function PunchcardChart({ rows, metric }: { rows: PunchRow[]; metric: TimelineMe
       </svg>
       {hover && hovered && (
         <HoverTip x={hover.x} y={hover.y - 2}>
-          {fmtDayLabel(hovered.date)} {hourLabel(hover.hr)}–{hourLabel(hover.hr + 1)} · {hovered.hours[hover.hr].toFixed(1)}h · {Math.round(hovered.msgs[hover.hr])} msgs · {Math.round(hovered.sends?.[hover.hr] ?? 0)} typed · {fmtK(Math.round(hovered.words?.[hover.hr] ?? 0))} words · {hovered.sessions[hover.hr]} sess
+          {fmtDayLabel(hovered.date)} {hourLabel(hover.hr)}–
+          {hourLabel(hover.hr + 1)} · {hovered.hours[hover.hr].toFixed(1)}h ·{" "}
+          {Math.round(hovered.msgs[hover.hr])} msgs ·{" "}
+          {Math.round(hovered.sends?.[hover.hr] ?? 0)} typed ·{" "}
+          {fmtK(Math.round(hovered.words?.[hover.hr] ?? 0))} words ·{" "}
+          {hovered.sessions[hover.hr]} sess
         </HoverTip>
       )}
     </div>
@@ -450,7 +694,14 @@ function PunchcardChart({ rows, metric }: { rows: PunchRow[]; metric: TimelineMe
  * mode — one point per (day × hour) for the dense silhouette (no markers; the
  * nearest-point hover is driven off the whole plot so the fine wave stays
  * legible). `hour` on a point flags hourly so the tooltip can break it down. */
-type ChartPoint = { date: string; value: number; sessions: number; hour?: number; hours?: number; msgs?: number };
+type ChartPoint = {
+  date: string;
+  value: number;
+  sessions: number;
+  hour?: number;
+  hours?: number;
+  msgs?: number;
+};
 
 function TimelineChart({
   points,
@@ -465,12 +716,20 @@ function TimelineChart({
 }) {
   const { ref: containerRef, width: containerW } = useContainerWidth();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [hovered, setHovered] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState<{
+    idx: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const brush = useDayBrush((a, b) => {
-    if (onPickRange && points[a].date !== points[b].date) onPickRange(points[a].date, points[b].date);
+    if (onPickRange && points[a].date !== points[b].date)
+      onPickRange(points[a].date, points[b].date);
   });
 
-  const maxV = useMemo(() => Math.max(...points.map((d) => d.value), 1), [points]);
+  const maxV = useMemo(
+    () => Math.max(...points.map((d) => d.value), 1),
+    [points],
+  );
 
   const yTicks = [0, maxV * 0.25, maxV * 0.5, maxV * 0.75, maxV];
   const chartH = 180;
@@ -489,11 +748,26 @@ function TimelineChart({
   // data or width changes, never on hover.
   const { linePath, areaPath } = useMemo(() => {
     if (points.length === 0) return { linePath: "", areaPath: "" };
-    const lp = points.map((d, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(d.value).toFixed(1)}`).join(" ");
-    return { linePath: lp, areaPath: `${lp} L${toX(points.length - 1).toFixed(1)},${toY(0).toFixed(1)} L${toX(0).toFixed(1)},${toY(0).toFixed(1)} Z` };
+    const lp = points
+      .map(
+        (d, i) =>
+          `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(d.value).toFixed(1)}`,
+      )
+      .join(" ");
+    return {
+      linePath: lp,
+      areaPath: `${lp} L${toX(points.length - 1).toFixed(1)},${toY(0).toFixed(1)} L${toX(0).toFixed(1)},${toY(0).toFixed(1)} Z`,
+    };
   }, [points, maxV, containerW]);
 
-  const xLabels = useMemo(() => timeAxisLabels(points.map((d) => d.date), toX), [points, containerW]);
+  const xLabels = useMemo(
+    () =>
+      timeAxisLabels(
+        points.map((d) => d.date),
+        toX,
+      ),
+    [points, containerW],
+  );
 
   if (points.length === 0) return null;
 
@@ -506,15 +780,27 @@ function TimelineChart({
         width={containerW}
         height={chartH}
         className="block cursor-crosshair"
-        onMouseLeave={() => { setHovered(null); brush.cancel(); }}
-        onMouseDown={(e) => { if (onPickRange && hovered) { e.preventDefault(); brush.start(hovered.idx); } }}
+        onMouseLeave={() => {
+          setHovered(null);
+          brush.cancel();
+        }}
+        onMouseDown={(e) => {
+          if (onPickRange && hovered) {
+            e.preventDefault();
+            brush.start(hovered.idx);
+          }
+        }}
         onMouseUp={brush.end}
         onMouseMove={(e) => {
           const r = svgRef.current?.getBoundingClientRect();
           if (!r) return;
           let idx = Math.round((e.clientX - r.left - padLeft) / stepX);
           idx = Math.max(0, Math.min(points.length - 1, idx));
-          setHovered({ idx, x: r.left + toX(idx), y: r.top + toY(points[idx].value) });
+          setHovered({
+            idx,
+            x: r.left + toX(idx),
+            y: r.top + toY(points[idx].value),
+          });
           brush.move(idx);
         }}
       >
@@ -524,34 +810,83 @@ function TimelineChart({
           const y = toY(v);
           return (
             <g key={i}>
-              <line x1={padLeft} x2={containerW - padRight} y1={y} y2={y} stroke="currentColor" className="text-sol-border/40" strokeWidth={0.5} strokeDasharray={i === 0 ? "none" : "2,3"} />
-              <text x={padLeft - 4} y={y + 3} textAnchor="end" className="fill-sol-text-muted" style={{ fontSize: 11 }}>{cfg.fmtAxis(v)}</text>
+              <line
+                x1={padLeft}
+                x2={containerW - padRight}
+                y1={y}
+                y2={y}
+                stroke="currentColor"
+                className="text-sol-border/40"
+                strokeWidth={0.5}
+                strokeDasharray={i === 0 ? "none" : "2,3"}
+              />
+              <text
+                x={padLeft - 4}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-sol-text-muted"
+                style={{ fontSize: 11 }}
+              >
+                {cfg.fmtAxis(v)}
+              </text>
             </g>
           );
         })}
         {/* X labels */}
         {xLabels.map((m, i) => (
-          <text key={i} x={m.x} y={chartH - 6} textAnchor="start" className="fill-sol-text-muted" style={{ fontSize: 11 }}>{m.label}</text>
+          <text
+            key={i}
+            x={m.x}
+            y={chartH - 6}
+            textAnchor="start"
+            className="fill-sol-text-muted"
+            style={{ fontSize: 11 }}
+          >
+            {m.label}
+          </text>
         ))}
         {/* Area fill */}
         <path d={areaPath} style={{ fill: cfg.line }} opacity={0.14} />
         {/* Line */}
-        <path d={linePath} fill="none" style={{ stroke: cfg.line }} strokeWidth={1.5} />
+        <path
+          d={linePath}
+          fill="none"
+          style={{ stroke: cfg.line }}
+          strokeWidth={1.5}
+        />
         {/* Markers on active days (day granularity only — too dense hourly) */}
-        {!hourly && points.map((d, i) => d.sessions > 0 ? (
-          <circle
-            key={i}
-            cx={toX(i)} cy={toY(d.value)}
-            r={d.sessions > 10 ? 3 : d.sessions > 3 ? 2.5 : 2}
-            style={{ fill: cfg.line }}
-            opacity={hovered?.idx === i ? 1 : 0.75}
-          />
-        ) : null)}
+        {!hourly &&
+          points.map((d, i) =>
+            d.sessions > 0 ? (
+              <circle
+                key={i}
+                cx={toX(i)}
+                cy={toY(d.value)}
+                r={d.sessions > 10 ? 3 : d.sessions > 3 ? 2.5 : 2}
+                style={{ fill: cfg.line }}
+                opacity={hovered?.idx === i ? 1 : 0.75}
+              />
+            ) : null,
+          )}
         {/* Hover vertical line + point */}
         {hovered && hp && (
           <>
-            <line x1={toX(hovered.idx)} x2={toX(hovered.idx)} y1={padTop} y2={padTop + plotH} style={{ stroke: cfg.line }} strokeWidth={0.5} opacity={0.5} strokeDasharray="3,3" />
-            <circle cx={toX(hovered.idx)} cy={toY(hp.value)} r={3} style={{ fill: cfg.line }} />
+            <line
+              x1={toX(hovered.idx)}
+              x2={toX(hovered.idx)}
+              y1={padTop}
+              y2={padTop + plotH}
+              style={{ stroke: cfg.line }}
+              strokeWidth={0.5}
+              opacity={0.5}
+              strokeDasharray="3,3"
+            />
+            <circle
+              cx={toX(hovered.idx)}
+              cy={toY(hp.value)}
+              r={3}
+              style={{ fill: cfg.line }}
+            />
           </>
         )}
       </svg>

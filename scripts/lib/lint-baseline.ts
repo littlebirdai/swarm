@@ -12,12 +12,16 @@ export function compareLintCounts(baseline: LintCounts, current: LintCounts) {
   const shrank: CountChange[] = [];
   const pruned: LintCounts = Object.create(null);
 
-  for (const file of [...new Set([...Object.keys(baseline), ...Object.keys(current)])].sort()) {
+  for (const file of [
+    ...new Set([...Object.keys(baseline), ...Object.keys(current)]),
+  ].sort()) {
     const allowed = baseline[file] ?? {};
     const actual = current[file] ?? {};
     const remaining: Record<string, number> = Object.create(null);
 
-    for (const rule of [...new Set([...Object.keys(allowed), ...Object.keys(actual)])].sort()) {
+    for (const rule of [
+      ...new Set([...Object.keys(allowed), ...Object.keys(actual)]),
+    ].sort()) {
       const before = Object.hasOwn(allowed, rule) ? allowed[rule]! : 0;
       const after = Object.hasOwn(actual, rule) ? actual[rule]! : 0;
       if (after > before) grew.push({ file, rule, before, after });
@@ -31,7 +35,10 @@ export function compareLintCounts(baseline: LintCounts, current: LintCounts) {
   return { grew, shrank, pruned };
 }
 
-export function carryRenames(counts: LintCounts, renames: ReadonlyArray<readonly [string, string]>): LintCounts {
+export function carryRenames(
+  counts: LintCounts,
+  renames: ReadonlyArray<readonly [string, string]>,
+): LintCounts {
   const carried: LintCounts = Object.create(null);
   for (const [file, rules] of Object.entries(counts)) carried[file] = rules;
   for (const [from, to] of renames) {
@@ -45,7 +52,7 @@ export function carryRenames(counts: LintCounts, renames: ReadonlyArray<readonly
 export function parseRenames(nameStatus: string): Array<[string, string]> {
   const fields = nameStatus.split("\0");
   const renames: Array<[string, string]> = [];
-  for (let i = 0; i < fields.length; ) {
+  for (let i = 0; i < fields.length;) {
     const status = fields[i++];
     if (!status) continue;
     if (status.startsWith("R") || status.startsWith("C")) {

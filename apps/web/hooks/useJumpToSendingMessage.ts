@@ -33,7 +33,8 @@ export function useJumpToSendingMessage(
           })
           .catch(() => null)
       : null;
-    const conversationId = found?.conversation_id ?? (isConvexId(sender) ? sender : null);
+    const conversationId =
+      found?.conversation_id ?? (isConvexId(sender) ? sender : null);
     if (!conversationId) return false;
     useInboxStore.getState().requestNavigate(conversationId, {
       scrollToMessageId: found?.message_id ?? null,

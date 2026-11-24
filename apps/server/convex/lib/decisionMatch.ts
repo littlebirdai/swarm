@@ -8,7 +8,11 @@
 export function normalizeDecisionFiles(files: string[]): string[] {
   const out = new Set<string>();
   for (const raw of files) {
-    const f = raw.trim().replace(/\\/g, "/").replace(/^(\.\/)+/, "").replace(/^\/+/, "");
+    const f = raw
+      .trim()
+      .replace(/\\/g, "/")
+      .replace(/^(\.\/)+/, "")
+      .replace(/^\/+/, "");
     if (f) out.add(f);
   }
   return [...out];
@@ -31,11 +35,22 @@ export type DecisionTouch = { files: string[]; session: boolean };
  * the session that wrote the changed lines is exact evidence.
  */
 export function decisionTouches(
-  d: { repo?: string; files?: string[]; conversation_id?: string; superseded_by?: string },
-  change: { repo?: string | null; files: string[]; conversationIds: Set<string> },
+  d: {
+    repo?: string;
+    files?: string[];
+    conversation_id?: string;
+    superseded_by?: string;
+  },
+  change: {
+    repo?: string | null;
+    files: string[];
+    conversationIds: Set<string>;
+  },
 ): DecisionTouch | null {
   if (d.superseded_by) return null;
-  const session = !!d.conversation_id && change.conversationIds.has(String(d.conversation_id));
+  const session =
+    !!d.conversation_id &&
+    change.conversationIds.has(String(d.conversation_id));
   const sameRepo = !!d.repo && !!change.repo && d.repo === change.repo;
   const files = sameRepo
     ? change.files.filter((f) => (d.files ?? []).some((g) => pathCovers(g, f)))

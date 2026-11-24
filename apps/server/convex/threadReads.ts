@@ -18,7 +18,13 @@ import { isSilentAgentRow } from "@codecast/shared/chat";
 import { commentThreadRootKey } from "@codecast/shared/comments";
 import { isHumanOrigin } from "@codecast/shared/tasks";
 
-export type ThreadKind = "chat" | "comment" | "task" | "page" | "code" | "decision";
+export type ThreadKind =
+  | "chat"
+  | "comment"
+  | "task"
+  | "page"
+  | "code"
+  | "decision";
 export const threadKindValidator = v.union(
   v.literal("chat"),
   v.literal("comment"),
@@ -64,9 +70,15 @@ export const agentCommentLevelValidator = v.union(
 const NEEDS_PERSON_TYPES: ReadonlySet<string> = new Set(["blocker", "review"]);
 
 export function agentCommentLevelOf(
-  user: { notification_preferences?: { task_agent_comments?: AgentCommentLevel } } | null | undefined,
+  user:
+    | { notification_preferences?: { task_agent_comments?: AgentCommentLevel } }
+    | null
+    | undefined,
 ): AgentCommentLevel {
-  return user?.notification_preferences?.task_agent_comments ?? DEFAULT_AGENT_COMMENT_LEVEL;
+  return (
+    user?.notification_preferences?.task_agent_comments ??
+    DEFAULT_AGENT_COMMENT_LEVEL
+  );
 }
 
 /** Who wrote a task comment, as one reader sees it: themself, another
@@ -81,7 +93,9 @@ export function taskCommentAuthorKind(
   viewerId: Id<"users">,
 ): TaskCommentAuthorKind {
   if (!comment.author_user_id || author?.is_bot) return "agent";
-  return String(comment.author_user_id) === String(viewerId) ? "self" : "person";
+  return String(comment.author_user_id) === String(viewerId)
+    ? "self"
+    : "person";
 }
 
 export function taskCommentIsNews(
@@ -103,7 +117,10 @@ export function taskCommentIsNews(
  *  news under the default level but asks no one in particular (handoffs and
  *  verdicts post as reviews); an ask that needs this person is a decision,
  *  counted on the Decisions badge, or names them. */
-export function taskCommentIsForYou(author: TaskCommentAuthorKind, mentioned: boolean): boolean {
+export function taskCommentIsForYou(
+  author: TaskCommentAuthorKind,
+  mentioned: boolean,
+): boolean {
   if (author === "self") return false;
   return author === "person" || mentioned;
 }
@@ -149,7 +166,8 @@ async function findRow(
   return await ctx.db
     .query("thread_reads")
     .withIndex("by_user_kind_root", (q: any) =>
-      q.eq("user_id", userId).eq("kind", kind).eq("root_key", rootKey))
+      q.eq("user_id", userId).eq("kind", kind).eq("root_key", rootKey),
+    )
     .first();
 }
 
@@ -184,7 +202,8 @@ async function upsertThreadRead(
     return;
   }
   const patch: Record<string, unknown> = {};
-  if (opts.activityAt > existing.last_activity_at) patch.last_activity_at = opts.activityAt;
+  if (opts.activityAt > existing.last_activity_at)
+    patch.last_activity_at = opts.activityAt;
   if (opts.readAt > existing.last_read_at) patch.last_read_at = opts.readAt;
   if (Object.keys(patch).length === 0) return;
   await ctx.db.patch(existing._id, { ...patch, updated_at: now });
@@ -204,7 +223,10 @@ function personCheck(ctx: ReadCtx) {
   };
 }
 
-function dedupe(ids: Array<Id<"users"> | undefined | null>, cap = THREAD_PARTICIPANT_CAP): Id<"users">[] {
+function dedupe(
+  ids: Array<Id<"users"> | undefined | null>,
+  cap = THREAD_PARTICIPANT_CAP,
+): Id<"users">[] {
   const seen = new Set<string>();
   const out: Id<"users">[] = [];
   for (const id of ids) {
@@ -219,7 +241,10 @@ function dedupe(ids: Array<Id<"users"> | undefined | null>, cap = THREAD_PARTICI
 }
 
 /** A visible reply landed: file the thread for every participant. */
-export async function touchThread(ctx: MutationCtx, opts: TouchThreadOptions): Promise<void> {
+export async function touchThread(
+  ctx: MutationCtx,
+  opts: TouchThreadOptions,
+): Promise<void> {
   const isPerson = personCheck(ctx);
   for (const userId of dedupe([...opts.participants, opts.actorId])) {
     if (!(await isPerson(userId))) continue;
@@ -253,10 +278,16 @@ export async function dropThreadRead(
 }
 
 /** Every follow of one thread, for a hard purge of the entity. */
-export async function purgeThread(ctx: MutationCtx, kind: ThreadKind, rootKey: string): Promise<number> {
+export async function purgeThread(
+  ctx: MutationCtx,
+  kind: ThreadKind,
+  rootKey: string,
+): Promise<number> {
   const rows = await ctx.db
     .query("thread_reads")
-    .withIndex("by_kind_root", (q: any) => q.eq("kind", kind).eq("root_key", rootKey))
+    .withIndex("by_kind_root", (q: any) =>
+      q.eq("kind", kind).eq("root_key", rootKey),
+    )
     .collect();
   for (const row of rows) await ctx.db.delete(row._id);
   return rows.length;
@@ -265,7 +296,10 @@ export async function purgeThread(ctx: MutationCtx, kind: ThreadKind, rootKey: s
 /** Every follow in one channel, for a channel purge. No caller yet: chat has
  *  archiveChannel but no hard delete. Kept with the by_channel index it pairs
  *  with, for the day one exists. */
-export async function purgeChannelThreads(ctx: MutationCtx, channelId: Id<"chat_channels">): Promise<number> {
+export async function purgeChannelThreads(
+  ctx: MutationCtx,
+  channelId: Id<"chat_channels">,
+): Promise<number> {
   const rows = await ctx.db
     .query("thread_reads")
     .withIndex("by_channel", (q: any) => q.eq("channel_id", channelId))
@@ -286,7 +320,9 @@ export async function purgeUserTeam(
 ): Promise<number> {
   const rows = await ctx.db
     .query("thread_reads")
-    .withIndex("by_user_team_activity", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team_activity", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .collect();
   let count = 0;
   for (const row of rows) {
@@ -314,7 +350,13 @@ export const backfillThreadReads = internalMutation({
     const isPerson = personCheck(ctx);
     const seed = async (
       userIds: Array<Id<"users"> | undefined | null>,
-      opts: { kind: ThreadKind; rootKey: string; teamId?: Id<"teams">; refs: ThreadRefs; at: number },
+      opts: {
+        kind: ThreadKind;
+        rootKey: string;
+        teamId?: Id<"teams">;
+        refs: ThreadRefs;
+        at: number;
+      },
     ) => {
       for (const userId of dedupe(userIds)) {
         if (!(await isPerson(userId))) continue;
@@ -340,9 +382,11 @@ export const backfillThreadReads = internalMutation({
         .paginate({ numItems: MIGRATION_PAGE, cursor: args.cursor ?? null });
       const rootCache = new Map<string, Doc<"chat_messages"> | null>();
       for (const row of page.page) {
-        if (!row.thread_root_id || row.deleted_at || isSilentAgentRow(row)) continue;
+        if (!row.thread_root_id || row.deleted_at || isSilentAgentRow(row))
+          continue;
         const rootKey = String(row.thread_root_id);
-        if (!rootCache.has(rootKey)) rootCache.set(rootKey, await ctx.db.get(row.thread_root_id));
+        if (!rootCache.has(rootKey))
+          rootCache.set(rootKey, await ctx.db.get(row.thread_root_id));
         const root = rootCache.get(rootKey);
         if (!root) continue;
         await seed([row.user_id, root.user_id], {
@@ -365,7 +409,8 @@ export const backfillThreadReads = internalMutation({
       for (const row of page.page) {
         if (!isConversationComment(row) || !row.conversation_id) continue;
         // An unfinished agent placeholder is not a reply yet.
-        if (row.agent_status === "thinking" || row.agent_status === "streaming") continue;
+        if (row.agent_status === "thinking" || row.agent_status === "streaming")
+          continue;
         const convKey = String(row.conversation_id);
         if (!conversationCache.has(convKey)) {
           conversationCache.set(convKey, await ctx.db.get(row.conversation_id));
@@ -391,14 +436,23 @@ export const backfillThreadReads = internalMutation({
       const page = await ctx.db
         .query("artifact_comments")
         .paginate({ numItems: MIGRATION_PAGE, cursor: args.cursor ?? null });
-      const artifactCache = new Map<string, { artifact: Doc<"artifacts">; participants: Id<"users">[] } | null>();
+      const artifactCache = new Map<
+        string,
+        { artifact: Doc<"artifacts">; participants: Id<"users">[] } | null
+      >();
       for (const row of page.page) {
         const artifactKey = String(row.artifact_id);
         if (!artifactCache.has(artifactKey)) {
           const artifact = await ctx.db.get(row.artifact_id);
-          artifactCache.set(artifactKey, artifact
-            ? { artifact, participants: await pageThreadParticipants(ctx, artifact) }
-            : null);
+          artifactCache.set(
+            artifactKey,
+            artifact
+              ? {
+                  artifact,
+                  participants: await pageThreadParticipants(ctx, artifact),
+                }
+              : null,
+          );
         }
         const entry = artifactCache.get(artifactKey);
         if (!entry) continue;
@@ -415,14 +469,20 @@ export const backfillThreadReads = internalMutation({
       const page = await ctx.db
         .query("task_comments")
         .paginate({ numItems: MIGRATION_PAGE, cursor: args.cursor ?? null });
-      const taskCache = new Map<string, { task: Doc<"tasks">; participants: Id<"users">[] } | null>();
+      const taskCache = new Map<
+        string,
+        { task: Doc<"tasks">; participants: Id<"users">[] } | null
+      >();
       for (const row of page.page) {
         const taskKey = String(row.task_id);
         if (!taskCache.has(taskKey)) {
           const task = await ctx.db.get(row.task_id);
-          taskCache.set(taskKey, task
-            ? { task, participants: await taskThreadParticipants(ctx, task) }
-            : null);
+          taskCache.set(
+            taskKey,
+            task
+              ? { task, participants: await taskThreadParticipants(ctx, task) }
+              : null,
+          );
         }
         const entry = taskCache.get(taskKey);
         if (!entry) continue;
@@ -439,22 +499,31 @@ export const backfillThreadReads = internalMutation({
     }
 
     if (!isDone) {
-      await ctx.scheduler.runAfter(0, internal.threadReads.backfillThreadReads, {
-        kind: args.kind,
-        cursor: continueCursor,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.threadReads.backfillThreadReads,
+        {
+          kind: args.kind,
+          cursor: continueCursor,
+        },
+      );
     }
     return { scanned, done: isDone };
   },
 });
 
 /** The task fields membership is decided from. */
-export type TaskThreadMembershipTask = Pick<Doc<"tasks">, "_id" | "user_id" | "assignee" | "source" | "promoted">;
+export type TaskThreadMembershipTask = Pick<
+  Doc<"tasks">,
+  "_id" | "user_id" | "assignee" | "source" | "promoted"
+>;
 
 /** A task a person is expected to read on its own: filed by a person (human
  *  or meeting origin; an absent source was stamped human at create) or
  *  promoted to the human board. Identity alone enrolls only on these. */
-export function isHumanTask(task: Pick<Doc<"tasks">, "source" | "promoted">): boolean {
+export function isHumanTask(
+  task: Pick<Doc<"tasks">, "source" | "promoted">,
+): boolean {
   return isHumanOrigin({ source: task.source ?? "human" }) || !!task.promoted;
 }
 
@@ -493,31 +562,62 @@ export async function taskThreadMembership(
   // for the post-stamp world without writing anything.
   preloadedSubscriptions?: Doc<"entity_subscriptions">[],
 ): Promise<TaskThreadMembership> {
-  const rows = preloadedSubscriptions ?? await ctx.db
-    .query("entity_subscriptions")
-    .withIndex("by_entity", (q: any) => q.eq("entity_type", "task").eq("entity_id", String(task._id)))
-    .collect();
-  const muted = new Set(rows.filter((s) => s.muted).map((s) => String(s.user_id)));
+  const rows =
+    preloadedSubscriptions ??
+    (await ctx.db
+      .query("entity_subscriptions")
+      .withIndex("by_entity", (q: any) =>
+        q.eq("entity_type", "task").eq("entity_id", String(task._id)),
+      )
+      .collect());
+  const muted = new Set(
+    rows.filter((s) => s.muted).map((s) => String(s.user_id)),
+  );
   const subscriptions = rows.filter((s) => !s.muted);
   const humanTask = isHumanTask(task);
   const owner = String(task.user_id);
   const hasHumanRow = (userId: Id<"users">, reason: string) =>
-    subscriptions.some((s) => String(s.user_id) === String(userId) && s.reason === reason && s.via === "human");
+    subscriptions.some(
+      (s) =>
+        String(s.user_id) === String(userId) &&
+        s.reason === reason &&
+        s.via === "human",
+    );
 
   const members: Array<Id<"users"> | null> = [];
-  if (humanTask || hasHumanRow(task.user_id, "creator")) members.push(task.user_id);
+  if (humanTask || hasHumanRow(task.user_id, "creator"))
+    members.push(task.user_id);
   for (const s of subscriptions) {
     if (s.reason === "mentioned") members.push(s.user_id);
-    else if (s.reason === "commenter" && (s.via === "human" || (!s.via && humanTask))) members.push(s.user_id);
+    else if (
+      s.reason === "commenter" &&
+      (s.via === "human" || (!s.via && humanTask))
+    )
+      members.push(s.user_id);
   }
   // An assignee is a user id or an agent label ("agent:codex"): only an id
   // that names a user row is a participant. normalizeId never throws.
-  const assigneeField = task.assignee ? ctx.db.normalizeId("users", task.assignee) : null;
-  const assignees = dedupe([assigneeField, ...subscriptions.filter((s) => s.reason === "assignee").map((s) => s.user_id)]);
+  const assigneeField = task.assignee
+    ? ctx.db.normalizeId("users", task.assignee)
+    : null;
+  const assignees = dedupe([
+    assigneeField,
+    ...subscriptions
+      .filter((s) => s.reason === "assignee")
+      .map((s) => s.user_id),
+  ]);
   for (const assignee of assignees) {
-    if (String(assignee) !== owner || humanTask || hasHumanRow(assignee, "assignee")) members.push(assignee);
+    if (
+      String(assignee) !== owner ||
+      humanTask ||
+      hasHumanRow(assignee, "assignee")
+    )
+      members.push(assignee);
   }
-  return { participants: dedupe(members).filter((id) => !muted.has(String(id))), muted };
+  return {
+    participants: dedupe(members).filter((id) => !muted.has(String(id))),
+    muted,
+  };
 }
 
 export async function taskThreadParticipants(
@@ -525,7 +625,8 @@ export async function taskThreadParticipants(
   task: TaskThreadMembershipTask,
   preloadedSubscriptions?: Doc<"entity_subscriptions">[],
 ): Promise<Id<"users">[]> {
-  return (await taskThreadMembership(ctx, task, preloadedSubscriptions)).participants;
+  return (await taskThreadMembership(ctx, task, preloadedSubscriptions))
+    .participants;
 }
 
 /** Who a published page's discussion reaches: its owner and every commenter

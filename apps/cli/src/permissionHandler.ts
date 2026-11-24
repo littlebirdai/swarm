@@ -45,15 +45,25 @@ export async function settlePermission(
   request: PermissionRuleRequest,
   log: (msg: string) => void,
 ): Promise<PermissionDecision | null> {
-  const verdict = await syncService.checkPermission(conversationId, request).catch((err) => {
-    log(`Permission check failed, asking instead: ${err instanceof Error ? err.message : String(err)}`);
-    return null;
-  });
+  const verdict = await syncService
+    .checkPermission(conversationId, request)
+    .catch((err) => {
+      log(
+        `Permission check failed, asking instead: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    });
   if (!verdict || verdict.action === "ask") return null;
-  log(`Permission ${verdict.action === "allow" ? "allowed" : "denied"} by codecast (${verdict.reason ?? "rule"}): ${request.permission} ${request.patterns.join(" ; ").slice(0, 200)}`);
+  log(
+    `Permission ${verdict.action === "allow" ? "allowed" : "denied"} by codecast (${verdict.reason ?? "rule"}): ${request.permission} ${request.patterns.join(" ; ").slice(0, 200)}`,
+  );
   return verdict.action === "allow"
     ? { approved: true, settled: "rule" }
-    : { approved: false, message: verdict.message, settled: verdict.reason === "unattended" ? "unattended" : "rule" };
+    : {
+        approved: false,
+        message: verdict.message,
+        settled: verdict.reason === "unattended" ? "unattended" : "rule",
+      };
 }
 
 export async function handlePermissionRequest(
@@ -76,7 +86,12 @@ export async function handlePermissionRequest(
     // none: its denial would be an Escape that ends the turn with no message,
     // so it keeps the card a person can answer.
     if (prompt.ruleRequest && !prompt.prechecked) {
-      const settled = await settlePermission(syncService, conversationId, prompt.ruleRequest, log);
+      const settled = await settlePermission(
+        syncService,
+        conversationId,
+        prompt.ruleRequest,
+        log,
+      );
       if (settled) return settled;
     }
     const permissionId = await syncService.createPermissionRequest({
@@ -84,14 +99,24 @@ export async function handlePermissionRequest(
       session_id: sessionId,
       tool_name: prompt.tool_name,
       arguments_preview: prompt.arguments_preview,
-      ...(prompt.suggestions?.length ? { suggestions: prompt.suggestions } : {}),
+      ...(prompt.suggestions?.length
+        ? { suggestions: prompt.suggestions }
+        : {}),
       ...(prompt.ruleRequest && { rule_request: prompt.ruleRequest }),
       ...prompt.source,
     });
 
-    log(`Created permission request ${permissionId} for tool: ${prompt.tool_name}`);
+    log(
+      `Created permission request ${permissionId} for tool: ${prompt.tool_name}`,
+    );
     onCreated?.(permissionId);
-    return await waitForPermissionDecision(syncService, sessionId, permissionId, prompt.tool_name, log);
+    return await waitForPermissionDecision(
+      syncService,
+      sessionId,
+      permissionId,
+      prompt.tool_name,
+      log,
+    );
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     log(`Error handling permission request: ${errMsg}`);
@@ -111,15 +136,22 @@ export async function waitForPermissionDecision(
   try {
     const startTime = Date.now();
     while (Date.now() - startTime < TIMEOUT_MS) {
-      const decision = await syncService.getPermissionDecision(sessionId, permissionId);
+      const decision = await syncService.getPermissionDecision(
+        sessionId,
+        permissionId,
+      );
 
       if (decision) {
         if (decision.status === "cancelled") {
-          log(`Permission auto-cancelled (agent moved on) for tool: ${prompt.tool_name}`);
+          log(
+            `Permission auto-cancelled (agent moved on) for tool: ${prompt.tool_name}`,
+          );
           return null;
         }
         const approved = decision.status === "approved";
-        log(`Permission ${approved ? "approved" : "denied"} for tool: ${prompt.tool_name}`);
+        log(
+          `Permission ${approved ? "approved" : "denied"} for tool: ${prompt.tool_name}`,
+        );
         return {
           approved,
           ...(decision.deny_message ? { message: decision.deny_message } : {}),
@@ -130,11 +162,15 @@ export async function waitForPermissionDecision(
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
 
-    log(`Permission request timed out for tool: ${prompt.tool_name}, cancelling row`);
+    log(
+      `Permission request timed out for tool: ${prompt.tool_name}, cancelling row`,
+    );
     try {
       await syncService.cancelPermissionRequest(permissionId);
     } catch (cancelErr) {
-      log(`Failed to cancel timed-out permission ${permissionId}: ${cancelErr instanceof Error ? cancelErr.message : String(cancelErr)}`);
+      log(
+        `Failed to cancel timed-out permission ${permissionId}: ${cancelErr instanceof Error ? cancelErr.message : String(cancelErr)}`,
+      );
     }
     return null;
   } catch (err) {

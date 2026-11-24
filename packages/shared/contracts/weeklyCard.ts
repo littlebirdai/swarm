@@ -17,7 +17,9 @@ export const TOKEN_HISTORY_START = Date.UTC(2026, 8, 13);
 export type WeekWhich = "last" | "current";
 
 /** The feature flag: Codecast staff only until the card is reviewed. Every reader (server and app) asks this. */
-export function weeklyCardAllowed(user: { staff?: boolean } | null | undefined): boolean {
+export function weeklyCardAllowed(
+  user: { staff?: boolean } | null | undefined,
+): boolean {
   return user?.staff === true;
 }
 
@@ -35,14 +37,25 @@ export type WeekBounds = {
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** The Monday-to-Sunday week in `tz` that holds `now` ("current") or the one before it ("last"). */
-export function weekBounds(now: number, tz: string, which: WeekWhich): WeekBounds {
+export function weekBounds(
+  now: number,
+  tz: string,
+  which: WeekWhich,
+): WeekBounds {
   const w = wallClock(now, tz);
   const today = Date.UTC(w.year, w.month - 1, w.day);
   const sinceMonday = (new Date(today).getUTCDay() + 6) % 7;
   const monday = today - (sinceMonday + (which === "last" ? 7 : 0)) * DAY;
-  const days = Array.from({ length: 8 }, (_, i) => wallTimeIn(monday + i * DAY, tz));
+  const days = Array.from({ length: 8 }, (_, i) =>
+    wallTimeIn(monday + i * DAY, tz),
+  );
   const m = new Date(monday);
-  return { start: days[0], end: days[7], key: `${m.getUTCFullYear()}-${pad(m.getUTCMonth() + 1)}-${pad(m.getUTCDate())}`, days };
+  return {
+    start: days[0],
+    end: days[7],
+    key: `${m.getUTCFullYear()}-${pad(m.getUTCMonth() + 1)}-${pad(m.getUTCDate())}`,
+    days,
+  };
 }
 
 /** One session as the card needs it: times, agent, machine, project. Never a title or a prompt. */
@@ -61,7 +74,11 @@ export type DeviceKind = "mac" | "linux" | "windows" | "cloud";
 export type WeekCardDevice = { device_id: string; kind: DeviceKind };
 
 /** A device row → the kind the card names it by. Never the hostname or label. */
-export function deviceKindOf(d: { platform?: string | null; is_remote?: boolean | null; cloud_host?: unknown }): DeviceKind {
+export function deviceKindOf(d: {
+  platform?: string | null;
+  is_remote?: boolean | null;
+  cloud_host?: unknown;
+}): DeviceKind {
   if (d.is_remote || d.cloud_host) return "cloud";
   const p = (d.platform ?? "").toLowerCase();
   if (p.startsWith("darwin") || p.startsWith("mac")) return "mac";
@@ -69,11 +86,18 @@ export function deviceKindOf(d: { platform?: string | null; is_remote?: boolean 
   return "linux";
 }
 
-export const DEVICE_KIND_LABEL: Record<DeviceKind, string> = { mac: "Mac", linux: "Linux", windows: "Windows", cloud: "cloud host" };
+export const DEVICE_KIND_LABEL: Record<DeviceKind, string> = {
+  mac: "Mac",
+  linux: "Linux",
+  windows: "Windows",
+  cloud: "cloud host",
+};
 
 /** The card's name for an agent: the product people know it by. */
 export function weekCardAgentName(agentType: string): string {
-  return agentType === "claude_code" ? "Claude Code" : agentDisplayName(agentType);
+  return agentType === "claude_code"
+    ? "Claude Code"
+    : agentDisplayName(agentType);
 }
 
 export type WeekCardDay = { date: number; hours: number; sessions: number };
@@ -90,7 +114,10 @@ export type WeekCardStats = {
   /** Hours with at least one agent working, overlaps counted once. */
   agent_hours: number;
   agents: Array<{ name: string; sessions: number }>;
-  machines: { count: number; kinds: Array<{ kind: DeviceKind; count: number }> };
+  machines: {
+    count: number;
+    kinds: Array<{ kind: DeviceKind; count: number }>;
+  };
   days: WeekCardDay[];
   /** Index into `days`, or -1 for an empty week. */
   busiest_day: number;
@@ -115,16 +142,23 @@ function union(spans: Span[]): Span[] {
 
 function overlap(spans: Span[], from: number, to: number): number {
   let t = 0;
-  for (const [a, b] of spans) t += Math.max(0, Math.min(b, to) - Math.max(a, from));
+  for (const [a, b] of spans)
+    t += Math.max(0, Math.min(b, to) - Math.max(a, from));
   return t;
 }
 
 const roundHours = (ms: number) => Math.round((ms / HOUR) * 10) / 10;
 
-function topCounts(names: Array<string | null | undefined>, limit = Infinity): Array<{ name: string; sessions: number }> {
+function topCounts(
+  names: Array<string | null | undefined>,
+  limit = Infinity,
+): Array<{ name: string; sessions: number }> {
   const counts = new Map<string, number>();
   for (const n of names) if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([name, sessions]) => ({ name, sessions }));
+  return [...counts]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([name, sessions]) => ({ name, sessions }));
 }
 
 /**
@@ -145,28 +179,59 @@ export function buildWeekCard(input: {
   const credited = input.sessions
     .map((s) => {
       const upd = Math.max(s.updated_at, s.started_at);
-      return { s, span: [Math.max(s.started_at, upd - SESSION_CREDIT_CAP_MS), upd] as Span };
+      return {
+        s,
+        span: [
+          Math.max(s.started_at, upd - SESSION_CREDIT_CAP_MS),
+          upd,
+        ] as Span,
+      };
     })
     .filter(({ span }) => span[1] >= start && span[0] < end);
 
-  const spans = union(credited.map(({ span }) => [Math.max(span[0], start), Math.min(Math.max(span[1], span[0] + 60_000), end)] as Span).sort((a, b) => a[0] - b[0]));
+  const spans = union(
+    credited
+      .map(
+        ({ span }) =>
+          [
+            Math.max(span[0], start),
+            Math.min(Math.max(span[1], span[0] + 60_000), end),
+          ] as Span,
+      )
+      .sort((a, b) => a[0] - b[0]),
+  );
   const dayRows: WeekCardDay[] = days.slice(0, 7).map((d, i) => ({
     date: d,
     hours: roundHours(overlap(spans, d, days[i + 1])),
-    sessions: credited.filter(({ span }) => span[1] >= d && span[0] < days[i + 1]).length,
+    sessions: credited.filter(
+      ({ span }) => span[1] >= d && span[0] < days[i + 1],
+    ).length,
   }));
 
   let busiest = -1;
   dayRows.forEach((d, i) => {
-    if (d.hours > 0 && (busiest < 0 || d.hours > dayRows[busiest].hours)) busiest = i;
+    if (d.hours > 0 && (busiest < 0 || d.hours > dayRows[busiest].hours))
+      busiest = i;
   });
 
   const deviceKind = new Map(input.devices.map((d) => [d.device_id, d.kind]));
-  const usedDevices = [...new Set(credited.map(({ s }) => s.device_id).filter((d): d is string => !!d))];
-  const kinds = topCounts(usedDevices.map((d) => deviceKind.get(d) ?? "linux")).map((k) => ({ kind: k.name as DeviceKind, count: k.sessions }));
+  const usedDevices = [
+    ...new Set(
+      credited.map(({ s }) => s.device_id).filter((d): d is string => !!d),
+    ),
+  ];
+  const kinds = topCounts(
+    usedDevices.map((d) => deviceKind.get(d) ?? "linux"),
+  ).map((k) => ({ kind: k.name as DeviceKind, count: k.sessions }));
 
-  const tokensComplete = start >= TOKEN_HISTORY_START && input.tokenHours !== undefined;
-  const tokens = tokensComplete ? input.tokenHours!.reduce((t, [h, n]) => (h >= start && h < end ? t + n : t), 0) : null;
+  const tokensComplete =
+    start >= TOKEN_HISTORY_START && input.tokenHours !== undefined;
+  const tokens = tokensComplete
+    ? input.tokenHours!.reduce(
+        (t, [h, n]) => (h >= start && h < end ? t + n : t),
+        0,
+      )
+    : null;
 
   return {
     week_key: bounds.key,
@@ -181,24 +246,52 @@ export function buildWeekCard(input: {
     machines: { count: usedDevices.length, kinds },
     days: dayRows,
     busiest_day: busiest,
-    projects: topCounts(credited.filter(({ s }) => !s.private).map(({ s }) => s.project), 5),
+    projects: topCounts(
+      credited.filter(({ s }) => !s.private).map(({ s }) => s.project),
+      5,
+    ),
     tokens,
   };
 }
 
 /** What a stranger sees: the stats with the owner's optional parts removed unless they turned them on. */
-export function publicWeekCard(stats: WeekCardStats, opts: { show_projects?: boolean; show_tokens?: boolean }): WeekCardStats {
-  return { ...stats, projects: opts.show_projects ? stats.projects : [], tokens: opts.show_tokens ? stats.tokens : null };
+export function publicWeekCard(
+  stats: WeekCardStats,
+  opts: { show_projects?: boolean; show_tokens?: boolean },
+): WeekCardStats {
+  return {
+    ...stats,
+    projects: opts.show_projects ? stats.projects : [],
+    tokens: opts.show_tokens ? stats.tokens : null,
+  };
 }
 
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** "Oct 26 – Nov 1" for the week, read in its own zone. */
-export function weekRangeLabel(stats: Pick<WeekCardStats, "week_start" | "week_end" | "tz">): string {
+export function weekRangeLabel(
+  stats: Pick<WeekCardStats, "week_start" | "week_end" | "tz">,
+): string {
   const a = wallClock(stats.week_start, stats.tz);
   const b = wallClock(stats.week_end - 1, stats.tz);
   const left = `${SHORT_MONTHS[a.month - 1]} ${a.day}`;
-  const right = a.month === b.month ? String(b.day) : `${SHORT_MONTHS[b.month - 1]} ${b.day}`;
+  const right =
+    a.month === b.month
+      ? String(b.day)
+      : `${SHORT_MONTHS[b.month - 1]} ${b.day}`;
   return `${left} – ${right}`;
 }
 
@@ -213,7 +306,8 @@ export function formatCount(n: number): string {
 export const WEEK_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** The footer link every published card carries. */
-export const WEEK_CARD_SITE_URL = "https://codecast.sh/?utm_source=scorecard&utm_medium=share&utm_campaign=weekly-card";
+export const WEEK_CARD_SITE_URL =
+  "https://codecast.sh/?utm_source=scorecard&utm_medium=share&utm_campaign=weekly-card";
 export const WEEK_CARD_INSTALL = "curl -fsSL codecast.sh/i/scorecard | sh";
 
 /** The card's drawn size: the social image size a link unfurls to. */
@@ -227,8 +321,16 @@ export function weekCardFigures(stats: WeekCardStats) {
   const other = stats.agents.slice(5).reduce((t, a) => t + a.sessions, 0);
   const busiest = stats.busiest_day >= 0 ? stats.days[stats.busiest_day] : null;
   const extras: Array<[string, string]> = [];
-  if (busiest) extras.push(["busiest day", `${WEEK_DAY_NAMES[stats.busiest_day]} · ${busiest.hours}h`]);
-  if (stats.active_days > 0) extras.push(["per active day", `${Math.round((stats.agent_hours / stats.active_days) * 10) / 10}h`]);
+  if (busiest)
+    extras.push([
+      "busiest day",
+      `${WEEK_DAY_NAMES[stats.busiest_day]} · ${busiest.hours}h`,
+    ]);
+  if (stats.active_days > 0)
+    extras.push([
+      "per active day",
+      `${Math.round((stats.agent_hours / stats.active_days) * 10) / 10}h`,
+    ]);
   if (stats.tokens !== null) extras.push(["tokens", formatCount(stats.tokens)]);
   return {
     maxHours: Math.max(1, ...stats.days.map((d) => d.hours)),
@@ -240,13 +342,21 @@ export function weekCardFigures(stats: WeekCardStats) {
       return p > 0 && p < 1 ? "<1%" : `${Math.round(p)}%`;
     },
     fraction: (n: number) => n / total,
-    machines: stats.machines.kinds.map((k) => `${k.count} ${DEVICE_KIND_LABEL[k.kind]}${k.count === 1 || k.kind === "linux" ? "" : "s"}`).join(" · "),
+    machines: stats.machines.kinds
+      .map(
+        (k) =>
+          `${k.count} ${DEVICE_KIND_LABEL[k.kind]}${k.count === 1 || k.kind === "linux" ? "" : "s"}`,
+      )
+      .join(" · "),
     extras,
   };
 }
 
 /** The line a shared card's post carries beside its link. */
 export function weekCardShareText(s: WeekCardStats): string {
-  const agents = s.agents.slice(0, 3).map((a) => a.name).join(", ");
+  const agents = s.agents
+    .slice(0, 3)
+    .map((a) => a.name)
+    .join(", ");
   return `My week with coding agents: ${s.sessions} sessions, ${s.agent_hours}h with agents working${agents ? ` (${agents})` : ""}`;
 }

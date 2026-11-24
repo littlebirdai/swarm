@@ -7,11 +7,21 @@ const HOSTED = "codecast";
 describe("one name for a hosted conversation", () => {
   // The rail reads the inbox row, the header reads the conversation row; a
   // row carrying both a title and a short tab label gives both the title.
-  const row = { agent_type: HOSTED, title: "Vitamin reminder", short_title: "Vitamins", last_user_message: "Every weekday at 7am remind me" };
+  const row = {
+    agent_type: HOSTED,
+    title: "Vitamin reminder",
+    short_title: "Vitamins",
+    last_user_message: "Every weekday at 7am remind me",
+  };
 
   test("rail and header agree", () => {
     expect(sessionCardTitle(row)).toBe("Vitamin reminder");
-    expect(conversationTitle({ title: row.title, last_user_message: row.last_user_message })).toBe("Vitamin reminder");
+    expect(
+      conversationTitle({
+        title: row.title,
+        last_user_message: row.last_user_message,
+      }),
+    ).toBe("Vitamin reminder");
   });
 
   test("a store home without short_title still gives the same name", () => {
@@ -23,5 +33,4 @@ describe("one name for a hosted conversation", () => {
     expect(ownTitle({ short_title: "Vitamins" })).toBe("Vitamins");
     expect(ownTitle({ title: "New session", short_title: "" })).toBe("");
   });
-
 });

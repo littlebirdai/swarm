@@ -39,13 +39,18 @@ import { teamMembersOf } from "../../lib/activeTeam";
 // Slack's three levels, in Slack's words, so nobody has to learn a second
 // vocabulary for the same idea. "Just mentions" is the join-time default and
 // covers everything addressed to you: @you, @here, your threads, DMs.
-const NOTIFY_LEVELS: { value: ChatNotifyLevel; label: string; hint: string }[] = [
-  { value: "all", label: "All new posts", hint: "every message" },
-  { value: "mentions", label: "Just mentions", hint: "default" },
-  { value: "none", label: "Mute", hint: "badge only" },
-];
+const NOTIFY_LEVELS: { value: ChatNotifyLevel; label: string; hint: string }[] =
+  [
+    { value: "all", label: "All new posts", hint: "every message" },
+    { value: "mentions", label: "Just mentions", hint: "default" },
+    { value: "none", label: "Mute", hint: "badge only" },
+  ];
 
-export function ChannelContextMenu({ state }: { state: ContextMenuState<ChannelMenuPayload> }) {
+export function ChannelContextMenu({
+  state,
+}: {
+  state: ContextMenuState<ChannelMenuPayload>;
+}) {
   const setNotifyLevel = useInboxStore((s) => s.setChannelNotifyLevel);
   const archiveChannel = useInboxStore((s) => s.archiveChatChannel);
   const [editor, setEditor] = useState<{
@@ -70,10 +75,20 @@ export function ChannelContextMenu({ state }: { state: ContextMenuState<ChannelM
           // A mirrored channel takes its name from Slack (the server refuses
           // a rename), so the menu does not offer one; the Slack item is
           // where the name is explained.
-          const slackLink = slackLinkForChannel(s.chatSlackLinks as any, p.channelId);
+          const slackLink = slackLinkForChannel(
+            s.chatSlackLinks as any,
+            p.channelId,
+          );
           const title = isDm
             ? channelDisplayName(
-                { name: "", kind: "dm", dmMemberIds: dmOtherIds(channel.dm_key, (s as any).currentUser?._id ?? "") },
+                {
+                  name: "",
+                  kind: "dm",
+                  dmMemberIds: dmOtherIds(
+                    channel.dm_key,
+                    (s as any).currentUser?._id ?? "",
+                  ),
+                },
                 teamMembersOf(s),
               )
             : `#${channel.name}`;
@@ -84,12 +99,23 @@ export function ChannelContextMenu({ state }: { state: ContextMenuState<ChannelM
                   the server row has since superseded), so match it the way the
                   rails resolve pins, and toggle the stored id. */}
               {(() => {
-                const pin = readPins(s).find((x) => x.kind === "channel" && !isThreadsPin(x)
-                  && (supersededChannelId(s.chatChannels as any, x.id) ?? x.id) === p.channelId);
+                const pin = readPins(s).find(
+                  (x) =>
+                    x.kind === "channel" &&
+                    !isThreadsPin(x) &&
+                    (supersededChannelId(s.chatChannels as any, x.id) ??
+                      x.id) === p.channelId,
+                );
                 return (
                   <CtxItem
                     icon={pin ? PinOff : Pin}
-                    onSelect={() => togglePin("channel", pin?.id ?? p.channelId, isDm ? title : channel.name)}
+                    onSelect={() =>
+                      togglePin(
+                        "channel",
+                        pin?.id ?? p.channelId,
+                        isDm ? title : channel.name,
+                      )
+                    }
                   >
                     {pin ? "Unpin from top" : "Pin to top of sidebar"}
                   </CtxItem>
@@ -101,61 +127,90 @@ export function ChannelContextMenu({ state }: { state: ContextMenuState<ChannelM
                 <CtxCheckItem
                   key={level.value}
                   checked={p.notifyLevel === level.value}
-                  onCheckedChange={() => setNotifyLevel(p.channelId, level.value)}
+                  onCheckedChange={() =>
+                    setNotifyLevel(p.channelId, level.value)
+                  }
                 >
                   <span className="truncate">{level.label}</span>
-                  <span className="ml-auto pl-4 text-meta text-sol-text-dim">{level.hint}</span>
+                  <span className="ml-auto pl-4 text-meta text-sol-text-dim">
+                    {level.hint}
+                  </span>
                 </CtxCheckItem>
               ))}
               {!isDm && <CtxSeparator />}
-              {!isDm && !slackLink && <CtxItem
-                icon={Pencil}
-                onSelect={(e: Event) => {
-                  // The menu closes; the editor opens at the same anchor.
-                  e.preventDefault();
-                  state.close();
-                  setEditor({ channelId: p.channelId, field: "name", x: state.menu!.x, y: state.menu!.y });
-                }}
-              >
-                Rename channel
-              </CtxItem>}
-              {!isDm && <CtxItem
-                icon={Text}
-                onSelect={(e: Event) => {
-                  e.preventDefault();
-                  state.close();
-                  setEditor({ channelId: p.channelId, field: "topic", x: state.menu!.x, y: state.menu!.y });
-                }}
-              >
-                {channel.topic ? "Edit topic" : "Set topic"}
-              </CtxItem>}
-              {!isDm && channel.kind !== "community" && <CtxItem
-                icon={SlackLogo as any}
-                onSelect={(e: Event) => {
-                  e.preventDefault();
-                  state.close();
-                  setSlackFor(p.channelId);
-                }}
-              >
-                {slackLink ? "Slack mirror settings" : "Mirror with Slack…"}
-              </CtxItem>}
+              {!isDm && !slackLink && (
+                <CtxItem
+                  icon={Pencil}
+                  onSelect={(e: Event) => {
+                    // The menu closes; the editor opens at the same anchor.
+                    e.preventDefault();
+                    state.close();
+                    setEditor({
+                      channelId: p.channelId,
+                      field: "name",
+                      x: state.menu!.x,
+                      y: state.menu!.y,
+                    });
+                  }}
+                >
+                  Rename channel
+                </CtxItem>
+              )}
+              {!isDm && (
+                <CtxItem
+                  icon={Text}
+                  onSelect={(e: Event) => {
+                    e.preventDefault();
+                    state.close();
+                    setEditor({
+                      channelId: p.channelId,
+                      field: "topic",
+                      x: state.menu!.x,
+                      y: state.menu!.y,
+                    });
+                  }}
+                >
+                  {channel.topic ? "Edit topic" : "Set topic"}
+                </CtxItem>
+              )}
+              {!isDm && channel.kind !== "community" && (
+                <CtxItem
+                  icon={SlackLogo as any}
+                  onSelect={(e: Event) => {
+                    e.preventDefault();
+                    state.close();
+                    setSlackFor(p.channelId);
+                  }}
+                >
+                  {slackLink ? "Slack mirror settings" : "Mirror with Slack…"}
+                </CtxItem>
+              )}
               {!isDm && <CtxSeparator />}
-              {!isDm && <CtxItem
-                icon={Archive}
-                danger
-                onSelect={() => {
-                  archiveChannel(p.channelId, true);
-                  p.onArchived?.();
-                }}
-              >
-                Archive channel
-              </CtxItem>}
+              {!isDm && (
+                <CtxItem
+                  icon={Archive}
+                  danger
+                  onSelect={() => {
+                    archiveChannel(p.channelId, true);
+                    p.onArchived?.();
+                  }}
+                >
+                  Archive channel
+                </CtxItem>
+              )}
             </>
           );
         }}
       </ContextMenu>
-      {editor && <ChannelFieldEditor {...editor} onClose={() => setEditor(null)} />}
-      {slackFor && <SlackSyncDialog channelId={slackFor} onClose={() => setSlackFor(null)} />}
+      {editor && (
+        <ChannelFieldEditor {...editor} onClose={() => setEditor(null)} />
+      )}
+      {slackFor && (
+        <SlackSyncDialog
+          channelId={slackFor}
+          onClose={() => setSlackFor(null)}
+        />
+      )}
     </>
   );
 }
@@ -177,7 +232,7 @@ function ChannelFieldEditor({
   const channel = useInboxStore((s) => s.chatChannels[channelId]);
   const updateChannel = useInboxStore((s) => s.updateChatChannel);
   const [draft, setDraft] = useState(() =>
-    field === "name" ? channel?.name ?? "" : channel?.topic ?? "",
+    field === "name" ? (channel?.name ?? "") : (channel?.topic ?? ""),
   );
   const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -210,20 +265,30 @@ function ChannelFieldEditor({
     onClose();
   };
 
-  const left = Math.min(x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 300);
-  const top = Math.min(y, (typeof window !== "undefined" ? window.innerHeight : 800) - 90);
+  const left = Math.min(
+    x,
+    (typeof window !== "undefined" ? window.innerWidth : 1200) - 300,
+  );
+  const top = Math.min(
+    y,
+    (typeof window !== "undefined" ? window.innerHeight : 800) - 90,
+  );
 
   return createPortal(
     <div ref={cardRef} className="ch-channel-edit" style={{ left, top }}>
       <div className="ch-channel-edit-label">
-        {field === "name" ? `Rename #${channel.name}` : `Topic for #${channel.name}`}
+        {field === "name"
+          ? `Rename #${channel.name}`
+          : `Topic for #${channel.name}`}
       </div>
       <div className="ch-channel-menu-edit">
         <input
           className="ch-channel-menu-input"
           value={draft}
           autoFocus
-          placeholder={field === "name" ? "channel-name" : "What is this channel for?"}
+          placeholder={
+            field === "name" ? "channel-name" : "What is this channel for?"
+          }
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

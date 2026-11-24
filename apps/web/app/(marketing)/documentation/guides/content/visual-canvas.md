@@ -4,8 +4,8 @@ Some answers are easier to see than to read: a comparison, a before and after, a
 
 ## Turn it on
 
-1. Open **Settings** (**⌘,**), then **Agent Features** under *Machines*, and pick the computer your agents run on.
-2. Switch on **Visual Canvas**, under *Showing the work*.
+1. Open **Settings** (**⌘,**), then **Agent Features** under _Machines_, and pick the computer your agents run on.
+2. Switch on **Visual Canvas**, under _Showing the work_.
 
 Agents started from then on know how to draw one. Click **How it works** on the card to see what it adds and a request to try.
 

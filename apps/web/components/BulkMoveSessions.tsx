@@ -17,11 +17,42 @@
 
 import React from "react";
 import { toast } from "sonner";
-import { ArrowRightLeft, Archive, CheckCircle2, CircleDot, Moon, Square, Tag, X } from "lucide-react";
-import { DeviceDot, DeviceIcon, RUNNING_HERE_ROW, RunningHereTag, deviceDisplayName, deviceWakesOnUse } from "./DeviceBadge";
-import { useBulkMoveSessions, useMoveTargets } from "../hooks/useBulkMoveSessions";
-import { CtxHeader, CtxItem, CtxSeparator, CtxSub, CtxSubContent, CtxSubTrigger } from "./ui/context-menu";
-import { useInboxStore, isConvexId, sortLabels, type InboxSession } from "../store/inboxStore";
+import {
+  ArrowRightLeft,
+  Archive,
+  CheckCircle2,
+  CircleDot,
+  Moon,
+  Square,
+  Tag,
+  X,
+} from "lucide-react";
+import {
+  DeviceDot,
+  DeviceIcon,
+  RUNNING_HERE_ROW,
+  RunningHereTag,
+  deviceDisplayName,
+  deviceWakesOnUse,
+} from "./DeviceBadge";
+import {
+  useBulkMoveSessions,
+  useMoveTargets,
+} from "../hooks/useBulkMoveSessions";
+import {
+  CtxHeader,
+  CtxItem,
+  CtxSeparator,
+  CtxSub,
+  CtxSubContent,
+  CtxSubTrigger,
+} from "./ui/context-menu";
+import {
+  useInboxStore,
+  isConvexId,
+  sortLabels,
+  type InboxSession,
+} from "../store/inboxStore";
 import { getLabelColor } from "../lib/labelColors";
 import { labelSessions } from "../lib/labelSessions";
 import { fileSessionsAsRest } from "../store/undoActions";
@@ -30,35 +61,70 @@ import { killReviewOf } from "./consequential/killReview";
 import type { TaskRow } from "./triggerTasks";
 
 /** The device rows of a "Move to…" submenu: laptops, team machines, then cloud hosts. */
-export function MoveToDeviceItems({ sessions, onDone }: { sessions: any[]; onDone?: () => void }) {
+export function MoveToDeviceItems({
+  sessions,
+  onDone,
+}: {
+  sessions: any[];
+  onDone?: () => void;
+}) {
   const { locals, team, remotes, all: rows, loaded } = useMoveTargets();
   const move = useBulkMoveSessions();
-  const everyOwner = sessions.length && sessions.every((s) => s.owner_device_id === sessions[0]?.owner_device_id) ? sessions[0]?.owner_device_id : null;
+  const everyOwner =
+    sessions.length &&
+    sessions.every((s) => s.owner_device_id === sessions[0]?.owner_device_id)
+      ? sessions[0]?.owner_device_id
+      : null;
   if (!loaded) return <CtxItem disabled>Loading machines…</CtxItem>;
-  if (rows.length === 0) return <CtxItem disabled>No machines — run the codecast daemon on one first</CtxItem>;
+  if (rows.length === 0)
+    return (
+      <CtxItem disabled>
+        No machines — run the codecast daemon on one first
+      </CtxItem>
+    );
   return (
     <>
       {rows.map((d, i) => {
         const here = d.device_id === everyOwner;
         const usable = d.online || (d.is_remote && deviceWakesOnUse(d));
-        const note = d.online ? "" : usable ? "asleep — wakes on move" : "offline";
+        const note = d.online
+          ? ""
+          : usable
+            ? "asleep — wakes on move"
+            : "offline";
         const runner = (d as { runner_name?: string | null }).runner_name;
         return (
           <React.Fragment key={d.device_id}>
-            {i > 0 && (i === locals.length || i === locals.length + team.length) && <CtxSeparator />}
+            {i > 0 &&
+              (i === locals.length || i === locals.length + team.length) && (
+                <CtxSeparator />
+              )}
             <CtxItem
               disabled={here || !usable}
               className={here ? RUNNING_HERE_ROW : undefined}
-              leading={<DeviceIcon d={d} className={`w-3.5 h-3.5 ${d.is_remote ? "text-sol-violet" : "text-sol-blue"}`} />}
-              trailing={here ? <RunningHereTag online={d.online} /> : (
-                <span className="ml-2 flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-sol-text-dim">
-                  {note}
-                  <DeviceDot online={d.online} />
-                </span>
-              )}
-              onSelect={() => { void move(sessions, d); onDone?.(); }}
+              leading={
+                <DeviceIcon
+                  d={d}
+                  className={`w-3.5 h-3.5 ${d.is_remote ? "text-sol-violet" : "text-sol-blue"}`}
+                />
+              }
+              trailing={
+                here ? (
+                  <RunningHereTag online={d.online} />
+                ) : (
+                  <span className="ml-2 flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-sol-text-dim">
+                    {note}
+                    <DeviceDot online={d.online} />
+                  </span>
+                )
+              }
+              onSelect={() => {
+                void move(sessions, d);
+                onDone?.();
+              }}
             >
-              {deviceDisplayName(d)}{runner ? ` · ${runner}` : ""}
+              {deviceDisplayName(d)}
+              {runner ? ` · ${runner}` : ""}
             </CtxItem>
           </React.Fragment>
         );
@@ -67,21 +133,51 @@ export function MoveToDeviceItems({ sessions, onDone }: { sessions: any[]; onDon
   );
 }
 
-
 /** The label rows of a "Label…" menu: every label, then remove and new. */
-function LabelItems({ sessions, onDone }: { sessions: any[]; onDone?: () => void }) {
-  const labels = React.useMemo(() => sortLabels(useInboxStore.getState().buckets as any), []);
-  const apply = (bucketId: string | null) => { labelSessions(sessions.map((s) => s._id), bucketId); onDone?.(); };
+function LabelItems({
+  sessions,
+  onDone,
+}: {
+  sessions: any[];
+  onDone?: () => void;
+}) {
+  const labels = React.useMemo(
+    () => sortLabels(useInboxStore.getState().buckets as any),
+    [],
+  );
+  const apply = (bucketId: string | null) => {
+    labelSessions(
+      sessions.map((s) => s._id),
+      bucketId,
+    );
+    onDone?.();
+  };
   return (
     <>
       {labels.map((b: any) => (
-        <CtxItem key={b._id} leading={<span className={`inline-block h-2 w-2 rounded-full ${getLabelColor(b.name || "").dot}`} />} onSelect={() => apply(b._id)}>
+        <CtxItem
+          key={b._id}
+          leading={
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${getLabelColor(b.name || "").dot}`}
+            />
+          }
+          onSelect={() => apply(b._id)}
+        >
           {b.name}
         </CtxItem>
       ))}
       {labels.length > 0 && <CtxSeparator />}
       <CtxItem onSelect={() => apply(null)}>Remove label</CtxItem>
-      <CtxItem onSelect={() => useInboxStore.getState().openPalette({ targets: sessions, targetType: "session", mode: "bucket" })}>
+      <CtxItem
+        onSelect={() =>
+          useInboxStore.getState().openPalette({
+            targets: sessions,
+            targetType: "session",
+            mode: "bucket",
+          })
+        }
+      >
         New label…
       </CtxItem>
     </>
@@ -89,10 +185,21 @@ function LabelItems({ sessions, onDone }: { sessions: any[]; onDone?: () => void
 }
 
 /** "Move to…" as a submenu, for the single-session and bulk menus alike. */
-export function MoveToDeviceSubmenu({ sessions, label }: { sessions: any[]; label?: string }) {
+export function MoveToDeviceSubmenu({
+  sessions,
+  label,
+}: {
+  sessions: any[];
+  label?: string;
+}) {
   return (
     <CtxSub>
-      <CtxSubTrigger icon={ArrowRightLeft}>{label ?? (sessions.length > 1 ? `Move ${sessions.length} sessions to` : "Move to machine")}</CtxSubTrigger>
+      <CtxSubTrigger icon={ArrowRightLeft}>
+        {label ??
+          (sessions.length > 1
+            ? `Move ${sessions.length} sessions to`
+            : "Move to machine")}
+      </CtxSubTrigger>
       <CtxSubContent>
         <MoveToDeviceItems sessions={sessions} />
       </CtxSubContent>
@@ -125,7 +232,13 @@ export function BulkSessionMenuItems({
       <MoveToDeviceSubmenu sessions={sessions} />
       <CtxItem
         icon={ArrowRightLeft}
-        onSelect={() => useInboxStore.getState().openPalette({ targets: sessions, targetType: "session", mode: "device" })}
+        onSelect={() =>
+          useInboxStore.getState().openPalette({
+            targets: sessions,
+            targetType: "session",
+            mode: "device",
+          })
+        }
       >
         Move {n} sessions…
       </CtxItem>
@@ -136,40 +249,92 @@ export function BulkSessionMenuItems({
         </CtxSubContent>
       </CtxSub>
       <CtxSeparator />
-      <CtxItem icon={CheckCircle2} onSelect={() => { fileSessionsAsRest(sessions.map((s) => s._id), "done"); onClear?.(); }}>
+      <CtxItem
+        icon={CheckCircle2}
+        onSelect={() => {
+          fileSessionsAsRest(
+            sessions.map((s) => s._id),
+            "done",
+          );
+          onClear?.();
+        }}
+      >
         Mark {n} done
       </CtxItem>
-      <CtxItem icon={CircleDot} onSelect={() => { fileSessionsAsRest(sessions.map((s) => s._id), "needs_input"); onClear?.(); }}>
+      <CtxItem
+        icon={CircleDot}
+        onSelect={() => {
+          fileSessionsAsRest(
+            sessions.map((s) => s._id),
+            "needs_input",
+          );
+          onClear?.();
+        }}
+      >
         Mark {n} needs you
       </CtxItem>
-      <CtxItem icon={Moon} onSelect={() => { fileSessionsAsRest(sessions.map((s) => s._id), "dormant"); onClear?.(); }}>
+      <CtxItem
+        icon={Moon}
+        onSelect={() => {
+          fileSessionsAsRest(
+            sessions.map((s) => s._id),
+            "dormant",
+          );
+          onClear?.();
+        }}
+      >
         Mark {n} dormant
       </CtxItem>
       <CtxSeparator />
       {onStash && (
-        <CtxItem icon={Archive} onSelect={() => { onStash(sessions.map((s) => s._id)); onClear?.(); }}>
+        <CtxItem
+          icon={Archive}
+          onSelect={() => {
+            onStash(sessions.map((s) => s._id));
+            onClear?.();
+          }}
+        >
           Stash {n} sessions
         </CtxItem>
       )}
       {onClose && (
-        <CtxItem icon={X} shortcut="session.close" onSelect={() => { onClose(sessions.map((s) => s._id)); onClear?.(); }}>
+        <CtxItem
+          icon={X}
+          shortcut="session.close"
+          onSelect={() => {
+            onClose(sessions.map((s) => s._id));
+            onClear?.();
+          }}
+        >
           Close {n} sessions
         </CtxItem>
       )}
       {onKill && (
-        <KillSelection sessions={sessions} onKill={onKill} onClear={() => onClear?.()} item />
+        <KillSelection
+          sessions={sessions}
+          onKill={onKill}
+          onClear={() => onClear?.()}
+          item
+        />
       )}
       {onClear && (
         <>
           <CtxSeparator />
-          <CtxItem onSelect={onClear}>Clear selection <span className="ml-auto text-meta text-sol-text-dim">Esc</span></CtxItem>
+          <CtxItem onSelect={onClear}>
+            Clear selection{" "}
+            <span className="ml-auto text-meta text-sol-text-dim">Esc</span>
+          </CtxItem>
         </>
       )}
     </>
   );
 }
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { CTX_SURFACE } from "./ui/context-menu";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 
@@ -194,12 +359,19 @@ export function InboxSelectionBar({
     // The verbs wrap onto a second line on a narrow rail instead of running
     // past its edge (the rail clips): at the usual widths Kill and Done
     // were the ones cut off.
-    <div data-sel-bar className="flex flex-wrap items-center gap-x-1.5 gap-y-1 whitespace-nowrap border-b border-sol-border/30 bg-sol-bg px-2.5 py-1.5 text-xs text-sol-text" title="⌘-click toggles a card, shift-click selects a run">
+    <div
+      data-sel-bar
+      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 whitespace-nowrap border-b border-sol-border/30 bg-sol-bg px-2.5 py-1.5 text-xs text-sol-text"
+      title="⌘-click toggles a card, shift-click selects a run"
+    >
       <span className="font-semibold">{n} selected</span>
       <div className="ml-auto flex flex-wrap items-center justify-end gap-0.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight"
+            >
               <ArrowRightLeft className="h-3 w-3" /> Move to…
             </button>
           </DropdownMenuTrigger>
@@ -209,7 +381,10 @@ export function InboxSelectionBar({
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight"
+            >
               <Tag className="h-3 w-3" /> Label
             </button>
           </DropdownMenuTrigger>
@@ -218,14 +393,30 @@ export function InboxSelectionBar({
           </DropdownMenuContent>
         </DropdownMenu>
         {onStash && (
-          <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight" onClick={() => { onStash(sessions.map((s) => s._id)); onClear(); }}>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-text hover:bg-sol-bg-highlight"
+            onClick={() => {
+              onStash(sessions.map((s) => s._id));
+              onClear();
+            }}
+          >
             <Archive className="h-3 w-3" /> Stash
           </button>
         )}
         {onKill && (
-          <KillSelection sessions={sessions} onKill={onKill} onClear={onClear} />
+          <KillSelection
+            sessions={sessions}
+            onKill={onKill}
+            onClear={onClear}
+          />
         )}
-        <button type="button" title="Leave selection" className="ml-1.5 inline-flex items-center gap-1.5 rounded bg-sol-text px-2 py-0.5 font-semibold text-sol-bg hover:opacity-90" onClick={onClear}>
+        <button
+          type="button"
+          title="Leave selection"
+          className="ml-1.5 inline-flex items-center gap-1.5 rounded bg-sol-text px-2 py-0.5 font-semibold text-sol-bg hover:opacity-90"
+          onClick={onClear}
+        >
           Done <KeyCap size="xs">Esc</KeyCap>
         </button>
       </div>
@@ -236,7 +427,13 @@ export function InboxSelectionBar({
 /** Kill for one session or a selection: it ends at once (restore brings it
  *  back) unless it would cut a turn off or cancel a trigger or a queued
  *  message, which opens the review first (killReviewOf). */
-export function KillSelection({ sessions, onKill, onClear, item, label }: {
+export function KillSelection({
+  sessions,
+  onKill,
+  onClear,
+  item,
+  label,
+}: {
   sessions: InboxSession[];
   onKill: (ids: string[]) => void;
   onClear: () => void;
@@ -245,18 +442,41 @@ export function KillSelection({ sessions, onKill, onClear, item, label }: {
   label?: string;
 }) {
   const [reviewing, setReviewing] = React.useState(false);
-  const kill = () => { setReviewing(false); onKill(sessions.map((s) => s._id)); onClear(); };
-  const review = killReviewOf(sessions, Object.values(useInboxStore.getState().agentTasks ?? {}) as TaskRow[]);
+  const kill = () => {
+    setReviewing(false);
+    onKill(sessions.map((s) => s._id));
+    onClear();
+  };
+  const review = killReviewOf(
+    sessions,
+    Object.values(useInboxStore.getState().agentTasks ?? {}) as TaskRow[],
+  );
   const asks = !!review;
   return (
     <>
       {item ? (
         // Keeping the menu open while the review shows keeps this item, and the review it owns, mounted.
-        <CtxItem danger icon={Square} onSelect={(e) => { if (asks) { e.preventDefault(); setReviewing(true); } else kill(); }} data-bulk-kill>
+        <CtxItem
+          danger
+          icon={Square}
+          onSelect={(e) => {
+            if (asks) {
+              e.preventDefault();
+              setReviewing(true);
+            } else kill();
+          }}
+          data-bulk-kill
+        >
           {label ?? `Kill ${sessions.length} sessions`}
         </CtxItem>
       ) : (
-        <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-red hover:bg-sol-bg-highlight" onClick={() => (asks ? setReviewing(true) : kill())} aria-haspopup={asks ? "dialog" : undefined} data-bulk-kill>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sol-red hover:bg-sol-bg-highlight"
+          onClick={() => (asks ? setReviewing(true) : kill())}
+          aria-haspopup={asks ? "dialog" : undefined}
+          data-bulk-kill
+        >
           <Square className="h-3 w-3" /> Kill
         </button>
       )}

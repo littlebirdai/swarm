@@ -45,8 +45,14 @@ test("a voice host is never destroyed by its own hang-up, only by the app quitti
   // cost the next burst a renderer boot before anybody could hear it.
   assert.equal(shouldHideCallWindow(facts({ ended: true, host: true })), true);
   assert.equal(shouldHideCallWindow(facts({ host: true })), true);
-  assert.equal(shouldHideCallWindow(facts({ quitting: true, host: true })), false);
-  assert.equal(shouldHideCallWindow(facts({ ended: true, quitting: true, host: true })), false);
+  assert.equal(
+    shouldHideCallWindow(facts({ quitting: true, host: true })),
+    false,
+  );
+  assert.equal(
+    shouldHideCallWindow(facts({ ended: true, quitting: true, host: true })),
+    false,
+  );
 });
 
 // ── The shapes ────────────────────────────────────────────────────────────
@@ -58,14 +64,23 @@ test("four shapes: the stage, the float, the wall and idle", () => {
   assert.deepEqual(CALL_SIZES, ["panel", "float"]);
   assert.deepEqual(CALL_WINDOW_SIZES, ["panel", "float", "wall", "idle"]);
   for (const size of CALL_SIZES) assert.equal(isCallSize(size), true, size);
-  for (const size of ["wall", "idle", "nonsense"]) assert.equal(isCallSize(size), false, size);
+  for (const size of ["wall", "idle", "nonsense"])
+    assert.equal(isCallSize(size), false, size);
 });
 
 test("the shapes the row replaced all land on the float", () => {
   // An older web build still names them. Each was a floating glance; the
   // float is that glance, so none of them may fall to the stage.
-  assert.deepEqual(LEGACY_FLOAT_SIZES, ["ring", "walkie", "circles", "speaker", "tiny", "faces"]);
-  for (const size of LEGACY_FLOAT_SIZES) assert.equal(normalizeCallWindowSize(size), "float", size);
+  assert.deepEqual(LEGACY_FLOAT_SIZES, [
+    "ring",
+    "walkie",
+    "circles",
+    "speaker",
+    "tiny",
+    "faces",
+  ]);
+  for (const size of LEGACY_FLOAT_SIZES)
+    assert.equal(normalizeCallWindowSize(size), "float", size);
 });
 
 test("an unknown size lands on the stage, never on a click-through window", () => {
@@ -75,7 +90,8 @@ test("an unknown size lands on the stage, never on a click-through window", () =
   for (const bad of ["banana", "", null, undefined, 3, {}]) {
     assert.equal(normalizeCallWindowSize(bad), "panel", String(bad));
   }
-  for (const size of CALL_WINDOW_SIZES) assert.equal(normalizeCallWindowSize(size), size);
+  for (const size of CALL_WINDOW_SIZES)
+    assert.equal(normalizeCallWindowSize(size), size);
 });
 
 // ── What kind of window each shape is ─────────────────────────────────────
@@ -127,8 +143,14 @@ test("the wall is an ordinary window that floats only by its own pin", () => {
     resizable: true,
   });
   // The pin means nothing to any other shape.
-  assert.deepEqual(callWindowChrome("panel", { pinned: true }), callWindowChrome("panel"));
-  assert.deepEqual(callWindowChrome("float", { pinned: true }), callWindowChrome("float"));
+  assert.deepEqual(
+    callWindowChrome("panel", { pinned: true }),
+    callWindowChrome("panel"),
+  );
+  assert.deepEqual(
+    callWindowChrome("float", { pinned: true }),
+    callWindowChrome("float"),
+  );
 });
 
 // ── Where each shape is remembered ────────────────────────────────────────
@@ -142,7 +164,8 @@ test("the stage's bounds, the float's anchor and the wall's rectangle are rememb
   assert.equal(callWindowPlacementKey("idle"), null);
   // The old names share the float's one anchor: there is no strip corner and
   // no ring corner left to jump to.
-  for (const size of LEGACY_FLOAT_SIZES) assert.equal(callWindowPlacementKey(size), "float", size);
+  for (const size of LEGACY_FLOAT_SIZES)
+    assert.equal(callWindowPlacementKey(size), "float", size);
 });
 
 // ── The anchor ────────────────────────────────────────────────────────────
@@ -150,32 +173,70 @@ test("the stage's bounds, the float's anchor and the wall's rectangle are rememb
 const AREA = { x: 0, y: 0, width: 1600, height: 1000 };
 
 test("the corner is the one the window sits nearest, ties to the top and the right", () => {
-  assert.equal(floatCornerFor({ x: 1300, y: 30, width: 200, height: 80 }, AREA), "top-right");
-  assert.equal(floatCornerFor({ x: 1300, y: 880, width: 200, height: 80 }, AREA), "bottom-right");
-  assert.equal(floatCornerFor({ x: 40, y: 880, width: 200, height: 80 }, AREA), "bottom-left");
-  assert.equal(floatCornerFor({ x: 40, y: 30, width: 200, height: 80 }, AREA), "top-left");
+  assert.equal(
+    floatCornerFor({ x: 1300, y: 30, width: 200, height: 80 }, AREA),
+    "top-right",
+  );
+  assert.equal(
+    floatCornerFor({ x: 1300, y: 880, width: 200, height: 80 }, AREA),
+    "bottom-right",
+  );
+  assert.equal(
+    floatCornerFor({ x: 40, y: 880, width: 200, height: 80 }, AREA),
+    "bottom-left",
+  );
+  assert.equal(
+    floatCornerFor({ x: 40, y: 30, width: 200, height: 80 }, AREA),
+    "top-left",
+  );
   // Dead centre: the default corner, so a first drag that lands in the
   // middle does not flip the row to growing rightwards.
-  assert.equal(floatCornerFor({ x: 700, y: 460, width: 200, height: 80 }, AREA), "top-right");
+  assert.equal(
+    floatCornerFor({ x: 700, y: 460, width: 200, height: 80 }, AREA),
+    "top-right",
+  );
   // A display that does not start at the origin is measured from its own edge.
-  assert.equal(floatCornerFor({ x: 1700, y: 30, width: 200, height: 80 }, { x: 1600, y: 0, width: 1600, height: 1000 }), "top-left");
+  assert.equal(
+    floatCornerFor(
+      { x: 1700, y: 30, width: 200, height: 80 },
+      { x: 1600, y: 0, width: 1600, height: 1000 },
+    ),
+    "top-left",
+  );
 });
 
 test("the anchor is the corner's screen point, and hanging a size from it lands the same corner back", () => {
   const bounds = { x: 1300, y: 30, width: 200, height: 80 };
-  for (const corner of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
+  for (const corner of [
+    "top-left",
+    "top-right",
+    "bottom-left",
+    "bottom-right",
+  ]) {
     const anchor = floatAnchorOf(bounds, corner);
     assert.equal(anchor.corner, corner);
     // The same window, hung from its own anchor, sits where it was.
-    assert.deepEqual(floatPositionFor(anchor, bounds), { x: 1300, y: 30 }, corner);
+    assert.deepEqual(
+      floatPositionFor(anchor, bounds),
+      { x: 1300, y: 30 },
+      corner,
+    );
     // A bigger window hung from the same anchor keeps that corner put and
     // grows away from it.
     const bigger = floatPositionFor(anchor, { width: 300, height: 120 });
     const grown = { ...bigger, width: 300, height: 120 };
     assert.deepEqual(floatAnchorOf(grown, corner), anchor, corner);
   }
-  assert.deepEqual(floatAnchorOf(bounds, "top-right"), { x: 1500, y: 30, corner: "top-right" });
-  assert.deepEqual(floatAnchorOf(bounds, "bottom-left"), { x: 1300, y: 110, corner: "bottom-left" });
+  assert.deepEqual(floatAnchorOf(bounds, "top-right"), {
+    x: 1500,
+    y: 30,
+    corner: "top-right",
+  });
+  assert.deepEqual(floatAnchorOf(bounds, "bottom-left"), {
+    x: 1300,
+    y: 110,
+    corner: "bottom-left",
+  });
 });
 
 // ── The window's own construction options ─────────────────────────────────
@@ -202,7 +263,10 @@ test("the call window is born frameless and see-through", () => {
     'backgroundColor: "#00000000"',
     "hasShadow: false",
   ]) {
-    assert.ok(CREATE_CALL_WINDOW.includes(option), `ensureCallWindow is missing \`${option}\``);
+    assert.ok(
+      CREATE_CALL_WINDOW.includes(option),
+      `ensureCallWindow is missing \`${option}\``,
+    );
   }
 });
 
@@ -255,5 +319,6 @@ test("the voice window is named for the shape it is in", () => {
   assert.equal(callWindowTitle("float"), "Codecast Faces");
   assert.equal(callWindowTitle("wall"), "Codecast People");
   assert.equal(callWindowTitle("idle"), "Codecast Voice");
-  for (const size of LEGACY_FLOAT_SIZES) assert.equal(callWindowTitle(size), "Codecast Faces", size);
+  for (const size of LEGACY_FLOAT_SIZES)
+    assert.equal(callWindowTitle(size), "Codecast Faces", size);
 });

@@ -36,7 +36,9 @@ function elapsedOf(raw: string | undefined): string | null {
 }
 
 /** The compaction block inside `text`, or null when the text is not that screen. */
-export function parseCompactionProgress(text: string | null | undefined): CompactionProgress | null {
+export function parseCompactionProgress(
+  text: string | null | undefined,
+): CompactionProgress | null {
   if (!text) return null;
   const lines = text.split("\n").map(visible).filter(Boolean);
   for (let i = 0; i < lines.length; i++) {
@@ -50,7 +52,8 @@ export function parseCompactionProgress(text: string | null | undefined): Compac
       const body = core(lines[j]);
       if (percent == null) {
         const bar = visible(lines[j]).match(BAR_LINE);
-        const glyphs = bar?.[1]?.match(new RegExp(BAR_BODY.source, "g"))?.length ?? 0;
+        const glyphs =
+          bar?.[1]?.match(new RegExp(BAR_BODY.source, "g"))?.length ?? 0;
         if (bar && glyphs >= 3) {
           const n = Number(bar[2]);
           if (n >= 0 && n <= 100) percent = n;
@@ -87,9 +90,15 @@ function isChromeLine(line: string): boolean {
  * that captured the chrome). A transcript that only mentions compaction in
  * passing returns null.
  */
-export function compactionProgressMessage(text: string | null | undefined): CompactionProgress | null {
+export function compactionProgressMessage(
+  text: string | null | undefined,
+): CompactionProgress | null {
   const progress = parseCompactionProgress(text);
   if (!progress || !text) return null;
-  const leftover = text.split("\n").map(visible).filter(Boolean).filter((line) => !isChromeLine(line));
+  const leftover = text
+    .split("\n")
+    .map(visible)
+    .filter(Boolean)
+    .filter((line) => !isChromeLine(line));
   return leftover.length === 0 ? progress : null;
 }

@@ -32,30 +32,66 @@ export interface ReplayCapPayload {
 }
 
 /** The signing key, or null where replays are not configured (no capability can be minted or opened). */
-export async function replayCapKey(env: Record<string, string | undefined> = process.env): Promise<string | null> {
+export async function replayCapKey(
+  env: Record<string, string | undefined> = process.env,
+): Promise<string | null> {
   const root = env.REPLAYS_R2_SECRET_ACCESS_KEY;
   return root ? await hmacSha256Hex(root, LABEL) : null;
 }
 
-const b64url = (s: string) => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const unb64url = (s: string) => atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (s.length % 4)) % 4));
+const b64url = (s: string) =>
+  btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64url = (s: string) =>
+  atob(
+    s.replace(/-/g, "+").replace(/_/g, "/") +
+      "=".repeat((4 - (s.length % 4)) % 4),
+  );
 
-export async function mintReplayCap(key: string, p: { replay_id: string; user_id: string; now: number; ttl_ms?: number; t_ms?: number }): Promise<{ cap: string; expires_at: number }> {
+export async function mintReplayCap(
+  key: string,
+  p: {
+    replay_id: string;
+    user_id: string;
+    now: number;
+    ttl_ms?: number;
+    t_ms?: number;
+  },
+): Promise<{ cap: string; expires_at: number }> {
   const exp = p.now + (p.ttl_ms ?? REPLAY_CAP_TTL_MS);
-  const body = b64url(JSON.stringify({ v: 1, r: p.replay_id, u: p.user_id, exp, ...(p.t_ms !== undefined ? { t: Math.max(0, Math.round(p.t_ms)) } : {}) } satisfies ReplayCapPayload));
+  const body = b64url(
+    JSON.stringify({
+      v: 1,
+      r: p.replay_id,
+      u: p.user_id,
+      exp,
+      ...(p.t_ms !== undefined ? { t: Math.max(0, Math.round(p.t_ms)) } : {}),
+    } satisfies ReplayCapPayload),
+  );
   return { cap: `${body}.${await hmacSha256Hex(key, body)}`, expires_at: exp };
 }
 
 /** The payload of a capability this key signed and that has not lapsed, else null. An empty key opens nothing. */
-export async function openReplayCap(key: string | null, cap: string | null | undefined, now: number): Promise<ReplayCapPayload | null> {
+export async function openReplayCap(
+  key: string | null,
+  cap: string | null | undefined,
+  now: number,
+): Promise<ReplayCapPayload | null> {
   if (!key || !cap || cap.length > 1024) return null;
   const dot = cap.lastIndexOf(".");
   if (dot <= 0) return null;
   const body = cap.slice(0, dot);
-  if (!timingSafeEqual(cap.slice(dot + 1), await hmacSha256Hex(key, body))) return null;
+  if (!timingSafeEqual(cap.slice(dot + 1), await hmacSha256Hex(key, body)))
+    return null;
   try {
     const p = JSON.parse(unb64url(body));
-    if (p?.v !== 1 || typeof p.r !== "string" || typeof p.u !== "string" || typeof p.exp !== "number" || (p.t !== undefined && typeof p.t !== "number")) return null;
+    if (
+      p?.v !== 1 ||
+      typeof p.r !== "string" ||
+      typeof p.u !== "string" ||
+      typeof p.exp !== "number" ||
+      (p.t !== undefined && typeof p.t !== "number")
+    )
+      return null;
     return p.exp > now ? (p as ReplayCapPayload) : null;
   } catch {
     return null;

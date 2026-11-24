@@ -64,34 +64,48 @@ describe("parseEntityRefHref", () => {
       ["https://codecast.sh/u/ashot", "person", "ashot"],
     ];
     for (const [href, type, id] of cases) {
-      expect(parseEntityRefHref(href)).toEqual({ type, id, key: entityRefKey(type as never, id) });
+      expect(parseEntityRefHref(href)).toEqual({
+        type,
+        id,
+        key: entityRefKey(type as never, id),
+      });
     }
   });
 
   test("accepts path-only hrefs and the local dev origins", () => {
     expect(parseEntityRefHref("/tasks/ct-1")?.type).toBe("task");
     expect(parseEntityRefHref("/team/ashot")?.type).toBe("person");
-    expect(parseEntityRefHref("http://localhost:3200/plans/pl-9")?.id).toBe("pl-9");
+    expect(parseEntityRefHref("http://localhost:3200/plans/pl-9")?.id).toBe(
+      "pl-9",
+    );
   });
 
   test("another site's URL is not ours, however similar the path", () => {
     expect(parseEntityRefHref("https://example.com/tasks/ct-1")).toBeNull();
-    expect(parseEntityRefHref("https://codecast.sh.evil.com/tasks/ct-1")).toBeNull();
+    expect(
+      parseEntityRefHref("https://codecast.sh.evil.com/tasks/ct-1"),
+    ).toBeNull();
   });
 
   // The guard that makes "unresolved" honest: a pill for an id that could never
   // name an object of that type is a promise the app cannot keep.
   test("an id that cannot name an object of that type stays a plain link", () => {
     expect(parseEntityRefHref("https://codecast.sh/tasks/pl-264")).toBeNull();
-    expect(parseEntityRefHref("https://codecast.sh/tasks/not-an-id!")).toBeNull();
+    expect(
+      parseEntityRefHref("https://codecast.sh/tasks/not-an-id!"),
+    ).toBeNull();
     expect(parseEntityRefHref("https://codecast.sh/plans/ct-1")).toBeNull();
-    expect(parseEntityRefHref("https://codecast.sh/conversation/nope")).toBeNull();
+    expect(
+      parseEntityRefHref("https://codecast.sh/conversation/nope"),
+    ).toBeNull();
     // Docs and projects have no short id — only a Convex id addresses them.
     expect(parseEntityRefHref("https://codecast.sh/docs/some-slug")).toBeNull();
   });
 
   test("non-object app pages are left alone", () => {
-    expect(parseEntityRefHref("https://codecast.sh/settings/devices")).toBeNull();
+    expect(
+      parseEntityRefHref("https://codecast.sh/settings/devices"),
+    ).toBeNull();
     expect(parseEntityRefHref("https://codecast.sh/team")).toBeNull();
     expect(parseEntityRefHref("https://codecast.sh/team/activity")).toBeNull();
     expect(parseEntityRefHref("https://codecast.sh/")).toBeNull();
@@ -108,7 +122,9 @@ describe("parseEntityRefHref", () => {
   test("a Convex id addresses any object type", () => {
     expect(isValidEntityHandle("task", CONVEX_ID)).toBe(true);
     expect(isValidEntityHandle("doc", CONVEX_ID)).toBe(true);
-    expect(parseEntityRefHref(`https://codecast.sh/tasks/${CONVEX_ID}`)?.id).toBe(CONVEX_ID);
+    expect(
+      parseEntityRefHref(`https://codecast.sh/tasks/${CONVEX_ID}`)?.id,
+    ).toBe(CONVEX_ID);
   });
 
   test("a person is addressed by a github username, and only by one", () => {
@@ -155,7 +171,10 @@ describe("scanEntityRefs", () => {
       "Belongs to https://codecast.sh/tasks/ct-40561 and nothing else.",
     ].join("\n");
     const refs = scanEntityRefs(note);
-    expect(refs.map((r) => r.ref.key)).toEqual(["session:jx7dnj1", "task:ct-40561"]);
+    expect(refs.map((r) => r.ref.key)).toEqual([
+      "session:jx7dnj1",
+      "task:ct-40561",
+    ]);
     expect(refs[0].line).toBe(3);
     expect(refs[0].col).toBe(note.split("\n")[2].indexOf("[the debug"));
     expect(refs[0].text).toBe("the debug session");
@@ -183,11 +202,15 @@ describe("scanEntityRefs", () => {
   // A path-only link carries no scheme, so any "does this line have a URL"
   // shortcut that looks for `//` skips it silently.
   test("a path-only link is found on a line with nothing else on it", () => {
-    expect(scanEntityRefs("Owner: [t](/tasks/ct-9)").map((r) => r.ref.key)).toEqual(["task:ct-9"]);
+    expect(
+      scanEntityRefs("Owner: [t](/tasks/ct-9)").map((r) => r.ref.key),
+    ).toEqual(["task:ct-9"]);
   });
 
   test("a note with no references costs nothing and finds nothing", () => {
-    expect(scanEntityRefs("# Title\n\nJust prose, and a [[Wiki Link]].")).toEqual([]);
+    expect(
+      scanEntityRefs("# Title\n\nJust prose, and a [[Wiki Link]]."),
+    ).toEqual([]);
   });
 });
 
@@ -197,14 +220,19 @@ describe("scanEntityRefs", () => {
 
 describe("vault index", () => {
   const files: Record<string, string> = {
-    "a.md": "Fixed in [the run](https://codecast.sh/conversation/jx7dnj1) for ct work.\n",
-    "b.md": "Also see https://codecast.sh/conversation/jx7dnj1 and [t](/tasks/ct-9).\n",
+    "a.md":
+      "Fixed in [the run](https://codecast.sh/conversation/jx7dnj1) for ct work.\n",
+    "b.md":
+      "Also see https://codecast.sh/conversation/jx7dnj1 and [t](/tasks/ct-9).\n",
     "c.md": "Nothing here.\n",
   };
 
   test("groups notes by the object they reference", () => {
     const index = VaultIndex.build(Object.entries(files));
-    expect(index.notesReferencingEntity("session:jx7dnj1")).toEqual(["a.md", "b.md"]);
+    expect(index.notesReferencingEntity("session:jx7dnj1")).toEqual([
+      "a.md",
+      "b.md",
+    ]);
     expect(index.notesReferencingEntity("task:ct-9")).toEqual(["b.md"]);
     expect(index.notesReferencingEntity("task:ct-404")).toEqual([]);
     expect(index.entityRefs("c.md")).toEqual([]);
@@ -226,13 +254,19 @@ describe("vault index", () => {
   test("a rename carries the references to the new path", () => {
     const index = VaultIndex.build(Object.entries(files));
     index.rename("a.md", "sub/a.md");
-    expect(index.notesReferencingEntity("session:jx7dnj1")).toEqual(["b.md", "sub/a.md"]);
+    expect(index.notesReferencingEntity("session:jx7dnj1")).toEqual([
+      "b.md",
+      "sub/a.md",
+    ]);
   });
 
   test("a snapshot round trip keeps them", () => {
     const index = VaultIndex.build(Object.entries(files));
     const restored = VaultIndex.fromSnapshot(index.snapshot())!;
-    expect(restored.notesReferencingEntity("session:jx7dnj1")).toEqual(["a.md", "b.md"]);
+    expect(restored.notesReferencingEntity("session:jx7dnj1")).toEqual([
+      "a.md",
+      "b.md",
+    ]);
     expect(restored.referencedEntities().map((e) => e.key)).toEqual([
       "session:jx7dnj1",
       "task:ct-9",
@@ -245,12 +279,32 @@ describe("vault index", () => {
 // ---------------------------------------------------------------------------
 
 const ITEMS = {
-  task: { id: CONVEX_ID, type: "task", label: "Fix the sync clog", shortId: "ct-40561" },
-  plan: { id: CONVEX_ID, type: "plan", label: "Vault links", shortId: "pl-264" },
-  session: { id: `${"jx7dnj1"}xxxxxxxxxxxxxxxxxxxxxxxxx`, type: "session", label: "Debug run", shortId: "jx7dnj1" },
+  task: {
+    id: CONVEX_ID,
+    type: "task",
+    label: "Fix the sync clog",
+    shortId: "ct-40561",
+  },
+  plan: {
+    id: CONVEX_ID,
+    type: "plan",
+    label: "Vault links",
+    shortId: "pl-264",
+  },
+  session: {
+    id: `${"jx7dnj1"}xxxxxxxxxxxxxxxxxxxxxxxxx`,
+    type: "session",
+    label: "Debug run",
+    shortId: "jx7dnj1",
+  },
   doc: { id: CONVEX_ID, type: "doc", label: "Library decisions" },
   person: { id: CONVEX_ID, type: "person", label: "Ashot", shortId: "@ashot" },
-  label: { id: CONVEX_ID, type: "label", label: "fleet", shortId: `label:${CONVEX_ID}` },
+  label: {
+    id: CONVEX_ID,
+    type: "label",
+    label: "fleet",
+    shortId: `label:${CONVEX_ID}`,
+  },
   nameless: { id: CONVEX_ID, type: "person", label: "No Handle" },
 };
 
@@ -268,11 +322,19 @@ describe("what an object completion inserts", () => {
     expect(markdownForMentionItem(ITEMS.doc)).toBe(
       `[Library decisions](https://codecast.sh/docs/${CONVEX_ID})`,
     );
-    expect(markdownForMentionItem(ITEMS.person)).toBe("[@ashot](https://codecast.sh/org/@ashot)");
+    expect(markdownForMentionItem(ITEMS.person)).toBe(
+      "[@ashot](https://codecast.sh/org/@ashot)",
+    );
   });
 
   test("everything it inserts reads back as the reference it meant", () => {
-    for (const item of [ITEMS.task, ITEMS.plan, ITEMS.session, ITEMS.doc, ITEMS.person]) {
+    for (const item of [
+      ITEMS.task,
+      ITEMS.plan,
+      ITEMS.session,
+      ITEMS.doc,
+      ITEMS.person,
+    ]) {
       const md = markdownForMentionItem(item)!;
       const href = md.slice(md.indexOf("](") + 2, -1);
       expect(parseEntityRefHref(href)).toEqual(refForMentionItem(item));
@@ -287,7 +349,10 @@ describe("what an object completion inserts", () => {
 
   test("brackets in a title are flattened, never left to break the link", () => {
     expect(sanitizeLinkText("Fix [the] sync\nclog")).toBe("Fix the sync clog");
-    const md = markdownForMentionItem({ ...ITEMS.task, label: "Fix [the] clog" })!;
+    const md = markdownForMentionItem({
+      ...ITEMS.task,
+      label: "Fix [the] clog",
+    })!;
     expect(md).toBe("[Fix the clog](https://codecast.sh/tasks/ct-40561)");
   });
 
@@ -333,7 +398,8 @@ describe("where the insertion lands in the document", () => {
 });
 
 describe("where objects are offered at all", () => {
-  const ctx = (line: string, pos: number) => wikiCompletionContext(line, 0, pos);
+  const ctx = (line: string, pos: number) =>
+    wikiCompletionContext(line, 0, pos);
 
   test("inside a fresh `[[`", () => {
     expect(ctx("see [[fix", 9)).toEqual({ from: 6, query: "fix" });
@@ -360,7 +426,9 @@ describe("where objects are offered at all", () => {
 
 /** Every link the READING VIEW produces, with the reference it resolves to.
  *  Runs the real remark chain, so this is what the note actually renders. */
-function readingViewLinks(content: string): { href: string; text: string; ref: string | null }[] {
+function readingViewLinks(
+  content: string,
+): { href: string; text: string; ref: string | null }[] {
   const found: { href: string; text: string; ref: string | null }[] = [];
   renderToStaticMarkup(
     <ReactMarkdown
@@ -370,7 +438,8 @@ function readingViewLinks(content: string): { href: string; text: string; ref: s
           const url = href ?? "";
           found.push({
             href: url,
-            text: typeof children === "string" ? children : String(children ?? ""),
+            text:
+              typeof children === "string" ? children : String(children ?? ""),
             ref: parseEntityRefHref(url)?.key ?? null,
           });
           return <a href={url}>{children}</a>;
@@ -395,7 +464,12 @@ function livePreviewRefs(content: string): string[] {
   const spans = scanLivePreview(state, [{ from: 0, to: content.length }], {});
   return spans
     .filter((s) => s.kind === "mark" && s.class.includes("cm-live-entity"))
-    .map((s) => parseEntityRefHref((s as { attrs?: Record<string, string> }).attrs?.["data-live-href"])?.key)
+    .map(
+      (s) =>
+        parseEntityRefHref(
+          (s as { attrs?: Record<string, string> }).attrs?.["data-live-href"],
+        )?.key,
+    )
     .filter((k): k is string => !!k);
 }
 
@@ -476,7 +550,9 @@ describe("byte fidelity", () => {
       const index = VaultIndex.build([["n.md", c.markdown]]);
       for (const occurrence of index.entityRefs("n.md")) {
         expect(c.markdown).toContain(occurrence.raw);
-        expect(makeEntityRef(occurrence.ref.type, occurrence.ref.id)).toEqual(occurrence.ref);
+        expect(makeEntityRef(occurrence.ref.type, occurrence.ref.id)).toEqual(
+          occurrence.ref,
+        );
         expect(entityRefMarkdown(occurrence.ref, occurrence.text)).toBeTruthy();
       }
     }

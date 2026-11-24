@@ -1,8 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { AREA_WATCH_PASSES, performApplyAreaWatch, planAreaWatch, type WatchInput, type WatchPlan } from "./orgWatch";
+import {
+  AREA_WATCH_PASSES,
+  performApplyAreaWatch,
+  planAreaWatch,
+  type WatchInput,
+  type WatchPlan,
+} from "./orgWatch";
 import { UNPLACED_CAPS } from "./lib/orgCoverage";
-import { formatScheduledTask, parseScheduledTask } from "@codecast/shared/contracts";
+import {
+  formatScheduledTask,
+  parseScheduledTask,
+} from "@codecast/shared/contracts";
 import { ORG_AREA_CHANGE_EVENT } from "@codecast/shared/contracts";
 import { HEAD_AREA_CHANGE_TITLE } from "./lib/orgRoutine";
 
@@ -14,11 +23,29 @@ import { HEAD_AREA_CHANGE_TITLE } from "./lib/orgRoutine";
 
 const NOW = 1_800_000_000_000;
 const H = 3_600_000;
-const role = (over: Partial<WatchInput["roles"][number]> = {}): WatchInput["roles"][number] => ({
-  role_id: "org_roles_growth", handle: "growth", name: "Growth lead", status: "stuck", status_line: "Stuck: 1 session under it waiting unanswered.", area_watch: null, ...over,
+const role = (
+  over: Partial<WatchInput["roles"][number]> = {},
+): WatchInput["roles"][number] => ({
+  role_id: "org_roles_growth",
+  handle: "growth",
+  name: "Growth lead",
+  status: "stuck",
+  status_line: "Stuck: 1 session under it waiting unanswered.",
+  area_watch: null,
+  ...over,
 });
-const input = (roles: WatchInput["roles"], over: Partial<WatchInput> = {}): WatchInput => ({ now: NOW, roles, head: { role_id: "org_roles_head", unowned_told: [] }, unowned: [], ...over });
-const next = (plan: WatchPlan, id = "org_roles_growth") => plan.role_writes.find((w) => w.role_id === id)!.area_watch;
+const input = (
+  roles: WatchInput["roles"],
+  over: Partial<WatchInput> = {},
+): WatchInput => ({
+  now: NOW,
+  roles,
+  head: { role_id: "org_roles_head", unowned_told: [] },
+  unowned: [],
+  ...over,
+});
+const next = (plan: WatchPlan, id = "org_roles_growth") =>
+  plan.role_writes.find((w) => w.role_id === id)!.area_watch;
 
 describe("planAreaWatch", () => {
   test("a pressing status reaches the Head of People at the second pass in a row, once, and again only in a new episode", () => {
@@ -28,28 +55,84 @@ describe("planAreaWatch", () => {
     expect(p1.changes).toEqual([]);
     expect(next(p1)).toEqual({ status: "stuck", since: NOW, passes: 1 });
     // Pass 2: the same status, told once, with what it changed from.
-    const p2 = planAreaWatch(input([role({ area_watch: next(p1) })], { now: NOW + 6 * H }));
+    const p2 = planAreaWatch(
+      input([role({ area_watch: next(p1) })], { now: NOW + 6 * H }),
+    );
     expect(p2.changes).toHaveLength(1);
-    expect(p2.changes[0].change).toEqual({ kind: "status", role_handle: "growth", role_name: "Growth lead", from: null, to: "stuck", since: NOW, line: "Stuck: 1 session under it waiting unanswered." });
-    expect(p2.changes[0].client_id).toBe(`area-change:org_roles_growth:stuck:${NOW}`);
-    expect(next(p2)).toEqual({ status: "stuck", since: NOW, passes: 2, told: "stuck", told_at: NOW + 6 * H });
+    expect(p2.changes[0].change).toEqual({
+      kind: "status",
+      role_handle: "growth",
+      role_name: "Growth lead",
+      from: null,
+      to: "stuck",
+      since: NOW,
+      line: "Stuck: 1 session under it waiting unanswered.",
+    });
+    expect(p2.changes[0].client_id).toBe(
+      `area-change:org_roles_growth:stuck:${NOW}`,
+    );
+    expect(next(p2)).toEqual({
+      status: "stuck",
+      since: NOW,
+      passes: 2,
+      told: "stuck",
+      told_at: NOW + 6 * H,
+    });
     // Pass 3: still stuck, nothing new to say.
-    const p3 = planAreaWatch(input([role({ area_watch: next(p2) })], { now: NOW + 12 * H }));
+    const p3 = planAreaWatch(
+      input([role({ area_watch: next(p2) })], { now: NOW + 12 * H }),
+    );
     expect(p3.changes).toEqual([]);
     expect(next(p3).passes).toBe(3);
     // It recovers: a new episode, from stuck, and the told mark is forgotten.
-    const p4 = planAreaWatch(input([role({ status: "on_track", status_line: "On track.", area_watch: next(p3) })], { now: NOW + 18 * H }));
+    const p4 = planAreaWatch(
+      input(
+        [
+          role({
+            status: "on_track",
+            status_line: "On track.",
+            area_watch: next(p3),
+          }),
+        ],
+        { now: NOW + 18 * H },
+      ),
+    );
     expect(p4.changes).toEqual([]);
-    expect(next(p4)).toEqual({ status: "on_track", since: NOW + 18 * H, passes: 1, from: "stuck" });
+    expect(next(p4)).toEqual({
+      status: "on_track",
+      since: NOW + 18 * H,
+      passes: 1,
+      from: "stuck",
+    });
     // Stuck again for two passes: told again, naming what it came from.
-    const p5 = planAreaWatch(input([role({ area_watch: next(p4) })], { now: NOW + 24 * H }));
-    const p6 = planAreaWatch(input([role({ area_watch: next(p5) })], { now: NOW + 30 * H }));
+    const p5 = planAreaWatch(
+      input([role({ area_watch: next(p4) })], { now: NOW + 24 * H }),
+    );
+    const p6 = planAreaWatch(
+      input([role({ area_watch: next(p5) })], { now: NOW + 30 * H }),
+    );
     expect(p5.changes).toEqual([]);
-    expect(p6.changes.map((c) => c.change)).toEqual([expect.objectContaining({ kind: "status", from: "on_track", to: "stuck", since: NOW + 24 * H })]);
+    expect(p6.changes.map((c) => c.change)).toEqual([
+      expect.objectContaining({
+        kind: "status",
+        from: "on_track",
+        to: "stuck",
+        since: NOW + 24 * H,
+      }),
+    ]);
   });
 
   test("overloaded is the other status that reaches the Head of People; waiting on you, quiet, on track and paused never do", () => {
-    const held = (status: WatchInput["roles"][number]["status"]) => planAreaWatch(input([role({ status, status_line: status, area_watch: { status, since: NOW - 6 * H, passes: 1 } })])).changes.length;
+    const held = (status: WatchInput["roles"][number]["status"]) =>
+      planAreaWatch(
+        input([
+          role({
+            status,
+            status_line: status,
+            area_watch: { status, since: NOW - 6 * H, passes: 1 },
+          }),
+        ]),
+      ).changes.length;
     expect(held("overloaded")).toBe(1);
     expect(held("stuck")).toBe(1);
     expect(held("waiting_on_you")).toBe(0);
@@ -61,25 +144,69 @@ describe("planAreaWatch", () => {
 
   test("a row is written only when something moved; a steady told episode writes its pass count", () => {
     const steady = { status: "on_track", since: NOW - 6 * H, passes: 4 };
-    const p = planAreaWatch(input([role({ status: "on_track", status_line: "On track.", area_watch: steady })]));
-    expect(p.role_writes).toEqual([{ role_id: "org_roles_growth", area_watch: { ...steady, passes: 5 } }]);
+    const p = planAreaWatch(
+      input([
+        role({
+          status: "on_track",
+          status_line: "On track.",
+          area_watch: steady,
+        }),
+      ]),
+    );
+    expect(p.role_writes).toEqual([
+      { role_id: "org_roles_growth", area_watch: { ...steady, passes: 5 } },
+    ]);
     expect(p.head_write).toBeNull();
   });
 
   test("a project with work and no owner is told once, pruned when it gains an owner, and told again if it loses one", () => {
-    const p1 = planAreaWatch(input([], { unowned: [{ id: "projects_platform", title: "Platform" }] }));
-    expect(p1.changes.map((c) => c.change)).toEqual([{ kind: "unowned_project", project_id: "projects_platform", project_title: "Platform", since: NOW, line: "No role's area includes it." }]);
-    expect(p1.head_write).toEqual({ role_id: "org_roles_head", unowned_told: [{ id: "projects_platform", since: NOW }] });
+    const p1 = planAreaWatch(
+      input([], { unowned: [{ id: "projects_platform", title: "Platform" }] }),
+    );
+    expect(p1.changes.map((c) => c.change)).toEqual([
+      {
+        kind: "unowned_project",
+        project_id: "projects_platform",
+        project_title: "Platform",
+        since: NOW,
+        line: "No role's area includes it.",
+      },
+    ]);
+    expect(p1.head_write).toEqual({
+      role_id: "org_roles_head",
+      unowned_told: [{ id: "projects_platform", since: NOW }],
+    });
     const told = p1.head_write!.unowned_told;
     // Still unowned next pass: nothing said, nothing written.
-    const p2 = planAreaWatch(input([], { now: NOW + 6 * H, unowned: [{ id: "projects_platform", title: "Platform" }], head: { role_id: "org_roles_head", unowned_told: told } }));
+    const p2 = planAreaWatch(
+      input([], {
+        now: NOW + 6 * H,
+        unowned: [{ id: "projects_platform", title: "Platform" }],
+        head: { role_id: "org_roles_head", unowned_told: told },
+      }),
+    );
     expect(p2.changes).toEqual([]);
     expect(p2.head_write).toBeNull();
     // Owned now: the mark is dropped.
-    const p3 = planAreaWatch(input([], { now: NOW + 12 * H, unowned: [], head: { role_id: "org_roles_head", unowned_told: told } }));
-    expect(p3.head_write).toEqual({ role_id: "org_roles_head", unowned_told: [] });
+    const p3 = planAreaWatch(
+      input([], {
+        now: NOW + 12 * H,
+        unowned: [],
+        head: { role_id: "org_roles_head", unowned_told: told },
+      }),
+    );
+    expect(p3.head_write).toEqual({
+      role_id: "org_roles_head",
+      unowned_told: [],
+    });
     // Unowned again later: told again.
-    const p4 = planAreaWatch(input([], { now: NOW + 18 * H, unowned: [{ id: "projects_platform", title: "Platform" }], head: { role_id: "org_roles_head", unowned_told: [] } }));
+    const p4 = planAreaWatch(
+      input([], {
+        now: NOW + 18 * H,
+        unowned: [{ id: "projects_platform", title: "Platform" }],
+        head: { role_id: "org_roles_head", unowned_told: [] },
+      }),
+    );
     expect(p4.changes).toHaveLength(1);
   });
 });
@@ -89,21 +216,100 @@ describe("performApplyAreaWatch", () => {
   const TEAM = "teams_acme" as any;
   const HEAD = "org_roles_head";
   const STANDING = "conversations_standing_head";
-  const world = () => makeFakeDb({
-    users: [{ _id: ME, name: "Me", email: "me@x.ai" }],
-    teams: [{ _id: TEAM, name: "Acme", features: { org: true } }],
-    team_memberships: [{ _id: "m1", user_id: ME, team_id: TEAM, role: "admin", joined_at: 1 }],
-    org_roles: [
-      { _id: HEAD, short_id: "or-1", scope_type: "team", team_id: TEAM, host_user_id: ME, name: "Head of People", handle: "head-of-people", scope: { project_ids: [], plan_ids: [] }, reports_to: { kind: "user", user_id: ME }, status: "active", anchor_id: "anchors_head", created_by: ME, created_at: 1, updated_at: 1 },
-      { _id: "org_roles_growth", short_id: "or-2", scope_type: "team", team_id: TEAM, host_user_id: ME, name: "Growth lead", handle: "growth", scope: { project_ids: [], plan_ids: [] }, reports_to: { kind: "user", user_id: ME }, status: "active", created_by: ME, created_at: 1, updated_at: 1 },
-    ],
-    anchors: [{ _id: "anchors_head", name: "Head of People", scope_type: "team", team_id: TEAM, host_user_id: ME, bot_user_id: ME, org_role_id: HEAD, conversation_id: STANDING, status: "active" }],
-    conversations: [{ _id: STANDING, user_id: ME, team_id: TEAM, status: "active", agent_type: "claude_code", title: "Head of People", short_id: "jx7chief", session_id: "sess_head", project_path: "/repo", updated_at: NOW, created_at: 1, message_count: 4, standing_role_id: HEAD, anchor_id: "anchors_head", persistent: true }],
-    agent_tasks: [], pending_messages: [], counters: [], docs: [],
-  });
+  const world = () =>
+    makeFakeDb({
+      users: [{ _id: ME, name: "Me", email: "me@x.ai" }],
+      teams: [{ _id: TEAM, name: "Acme", features: { org: true } }],
+      team_memberships: [
+        { _id: "m1", user_id: ME, team_id: TEAM, role: "admin", joined_at: 1 },
+      ],
+      org_roles: [
+        {
+          _id: HEAD,
+          short_id: "or-1",
+          scope_type: "team",
+          team_id: TEAM,
+          host_user_id: ME,
+          name: "Head of People",
+          handle: "head-of-people",
+          scope: { project_ids: [], plan_ids: [] },
+          reports_to: { kind: "user", user_id: ME },
+          status: "active",
+          anchor_id: "anchors_head",
+          created_by: ME,
+          created_at: 1,
+          updated_at: 1,
+        },
+        {
+          _id: "org_roles_growth",
+          short_id: "or-2",
+          scope_type: "team",
+          team_id: TEAM,
+          host_user_id: ME,
+          name: "Growth lead",
+          handle: "growth",
+          scope: { project_ids: [], plan_ids: [] },
+          reports_to: { kind: "user", user_id: ME },
+          status: "active",
+          created_by: ME,
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      anchors: [
+        {
+          _id: "anchors_head",
+          name: "Head of People",
+          scope_type: "team",
+          team_id: TEAM,
+          host_user_id: ME,
+          bot_user_id: ME,
+          org_role_id: HEAD,
+          conversation_id: STANDING,
+          status: "active",
+        },
+      ],
+      conversations: [
+        {
+          _id: STANDING,
+          user_id: ME,
+          team_id: TEAM,
+          status: "active",
+          agent_type: "claude_code",
+          title: "Head of People",
+          short_id: "jx7chief",
+          session_id: "sess_head",
+          project_path: "/repo",
+          updated_at: NOW,
+          created_at: 1,
+          message_count: 4,
+          standing_role_id: HEAD,
+          anchor_id: "anchors_head",
+          persistent: true,
+        },
+      ],
+      agent_tasks: [],
+      pending_messages: [],
+      counters: [],
+      docs: [],
+    });
   const plan = (changes: WatchPlan["changes"]): WatchPlan => ({
-    role_writes: [{ role_id: "org_roles_growth", area_watch: { status: "stuck", since: NOW, passes: 2, told: "stuck", told_at: NOW } }],
-    head_write: { role_id: HEAD, unowned_told: [{ id: "projects_platform", since: NOW }] },
+    role_writes: [
+      {
+        role_id: "org_roles_growth",
+        area_watch: {
+          status: "stuck",
+          since: NOW,
+          passes: 2,
+          told: "stuck",
+          told_at: NOW,
+        },
+      },
+    ],
+    head_write: {
+      role_id: HEAD,
+      unowned_told: [{ id: "projects_platform", since: NOW }],
+    },
     changes,
   });
 
@@ -111,85 +317,291 @@ describe("performApplyAreaWatch", () => {
     const db = world();
     const ctx = { db } as any;
     const changes: WatchPlan["changes"] = [
-      { change: { kind: "status", role_handle: "growth", role_name: "Growth lead", from: null, to: "stuck", since: NOW, line: "Stuck: 1 session under it waiting unanswered." }, client_id: `area-change:org_roles_growth:stuck:${NOW}` },
-      { change: { kind: "unowned_project", project_id: "projects_platform", project_title: "Platform", since: NOW, line: "No role's area includes it." }, client_id: `area-change:project:projects_platform:${NOW}` },
+      {
+        change: {
+          kind: "status",
+          role_handle: "growth",
+          role_name: "Growth lead",
+          from: null,
+          to: "stuck",
+          since: NOW,
+          line: "Stuck: 1 session under it waiting unanswered.",
+        },
+        client_id: `area-change:org_roles_growth:stuck:${NOW}`,
+      },
+      {
+        change: {
+          kind: "unowned_project",
+          project_id: "projects_platform",
+          project_title: "Platform",
+          since: NOW,
+          line: "No role's area includes it.",
+        },
+        client_id: `area-change:project:projects_platform:${NOW}`,
+      },
     ];
-    expect(await performApplyAreaWatch(ctx, HEAD as any, plan(changes))).toBe(2);
-    expect((await db.get("org_roles_growth" as any)).area_watch).toEqual({ status: "stuck", since: NOW, passes: 2, told: "stuck", told_at: NOW });
-    expect((await db.get(HEAD as any)).unowned_told).toEqual([{ id: "projects_platform", since: NOW }]);
+    expect(await performApplyAreaWatch(ctx, HEAD as any, plan(changes))).toBe(
+      2,
+    );
+    expect((await db.get("org_roles_growth" as any)).area_watch).toEqual({
+      status: "stuck",
+      since: NOW,
+      passes: 2,
+      told: "stuck",
+      told_at: NOW,
+    });
+    expect((await db.get(HEAD as any)).unowned_told).toEqual([
+      { id: "projects_platform", since: NOW },
+    ]);
     // One trigger, armed on first use on the Head of People's standing session, run twice.
     const triggers = db._tables.agent_tasks;
     expect(triggers).toHaveLength(1);
-    expect(triggers[0]).toMatchObject({ title: HEAD_AREA_CHANGE_TITLE, schedule_type: "event", event_filter: { event_type: ORG_AREA_CHANGE_EVENT }, role_id: HEAD, originating_conversation_id: STANDING, status: "scheduled", run_count: 2 });
-    const frames = db._tables.pending_messages.map((m: any) => parseScheduledTask(m.content)!);
+    expect(triggers[0]).toMatchObject({
+      title: HEAD_AREA_CHANGE_TITLE,
+      schedule_type: "event",
+      event_filter: { event_type: ORG_AREA_CHANGE_EVENT },
+      role_id: HEAD,
+      originating_conversation_id: STANDING,
+      status: "scheduled",
+      run_count: 2,
+    });
+    const frames = db._tables.pending_messages.map((m: any) =>
+      parseScheduledTask(m.content)!,
+    );
     expect(frames).toHaveLength(2);
-    expect(frames[0]).toMatchObject({ title: HEAD_AREA_CHANGE_TITLE, event: ORG_AREA_CHANGE_EVENT, role: expect.objectContaining({ handle: "head-of-people" }) });
-    expect(frames[0].change).toEqual({ kind: "status", role_handle: "growth", role_name: "Growth lead", from: null, to: "stuck", since: NOW, line: "Growth lead (@growth) has read stuck at two checks in a row. Stuck: 1 session under it waiting unanswered." });
-    expect(frames[1].change).toEqual({ kind: "unowned_project", project_id: "projects_platform", project_title: "Platform", since: NOW, line: 'The project "Platform" has work and no role looking after it.' });
+    expect(frames[0]).toMatchObject({
+      title: HEAD_AREA_CHANGE_TITLE,
+      event: ORG_AREA_CHANGE_EVENT,
+      role: expect.objectContaining({ handle: "head-of-people" }),
+    });
+    expect(frames[0].change).toEqual({
+      kind: "status",
+      role_handle: "growth",
+      role_name: "Growth lead",
+      from: null,
+      to: "stuck",
+      since: NOW,
+      line: "Growth lead (@growth) has read stuck at two checks in a row. Stuck: 1 session under it waiting unanswered.",
+    });
+    expect(frames[1].change).toEqual({
+      kind: "unowned_project",
+      project_id: "projects_platform",
+      project_title: "Platform",
+      since: NOW,
+      line: 'The project "Platform" has work and no role looking after it.',
+    });
     expect(frames[0].waiting).toBeNull();
-    expect(db._tables.pending_messages.every((m: any) => m.origin === "scheduler")).toBe(true);
+    expect(
+      db._tables.pending_messages.every((m: any) => m.origin === "scheduler"),
+    ).toBe(true);
   });
 
   test("a paused trigger, or a Head of People the org cannot reach, is not told; the episode still counts as told so it never fires twice", async () => {
     const db = world();
     const ctx = { db } as any;
-    const changes: WatchPlan["changes"] = [{ change: { kind: "status", role_handle: "growth", role_name: "Growth lead", from: null, to: "stuck", since: NOW, line: "Stuck." }, client_id: "area-change:x" }];
+    const changes: WatchPlan["changes"] = [
+      {
+        change: {
+          kind: "status",
+          role_handle: "growth",
+          role_name: "Growth lead",
+          from: null,
+          to: "stuck",
+          since: NOW,
+          line: "Stuck.",
+        },
+        client_id: "area-change:x",
+      },
+    ];
     // Arm it by firing once, then pause it: the person's control.
-    expect(await performApplyAreaWatch(ctx, HEAD as any, plan(changes))).toBe(1);
+    expect(await performApplyAreaWatch(ctx, HEAD as any, plan(changes))).toBe(
+      1,
+    );
     await db.patch(db._tables.agent_tasks[0]._id, { status: "paused" });
-    expect(await performApplyAreaWatch(ctx, HEAD as any, plan([{ ...changes[0], client_id: "area-change:y" }]))).toBe(0);
+    expect(
+      await performApplyAreaWatch(
+        ctx,
+        HEAD as any,
+        plan([{ ...changes[0], client_id: "area-change:y" }]),
+      ),
+    ).toBe(0);
     expect(db._tables.pending_messages).toHaveLength(1);
     // The org feature off: nothing reaches the Head of People.
     await db.patch(TEAM, { features: { org: false } });
     await db.patch(db._tables.agent_tasks[0]._id, { status: "scheduled" });
-    expect(await performApplyAreaWatch(ctx, HEAD as any, plan([{ ...changes[0], client_id: "area-change:z" }]))).toBe(0);
+    expect(
+      await performApplyAreaWatch(
+        ctx,
+        HEAD as any,
+        plan([{ ...changes[0], client_id: "area-change:z" }]),
+      ),
+    ).toBe(0);
   });
 });
 
 describe("planAreaWatch: unplaced work (ct-95901)", () => {
   const D = 24 * H;
-  const driver = { short_id: "jx7abc", title: "Budget work", last_active_at: NOW - H };
-  const plan = (over: Record<string, unknown> = {}) => ({ short_id: "pl-1043", title: "Onboarding conversion", status: "active", open_tasks: 9, done_tasks: 7, created_at: NOW - 3 * D, age_days: 3, last_activity_at: NOW - 2 * H, driver, ...over });
-  const project = (over: Record<string, unknown> = {}) => ({ short_id: "pj-9", title: "Trade budget allocation", open_tasks: 4, open_plans: 1, lead: "@head-of-growth", created_at: NOW - 10 * D, age_days: 10, last_activity_at: NOW - D, driver: null, ...over });
+  const driver = {
+    short_id: "jx7abc",
+    title: "Budget work",
+    last_active_at: NOW - H,
+  };
+  const plan = (over: Record<string, unknown> = {}) => ({
+    short_id: "pl-1043",
+    title: "Onboarding conversion",
+    status: "active",
+    open_tasks: 9,
+    done_tasks: 7,
+    created_at: NOW - 3 * D,
+    age_days: 3,
+    last_activity_at: NOW - 2 * H,
+    driver,
+    ...over,
+  });
+  const project = (over: Record<string, unknown> = {}) => ({
+    short_id: "pj-9",
+    title: "Trade budget allocation",
+    open_tasks: 4,
+    open_plans: 1,
+    lead: "@head-of-growth",
+    created_at: NOW - 10 * D,
+    age_days: 10,
+    last_activity_at: NOW - D,
+    driver: null,
+    ...over,
+  });
 
   test("a plan with no project and a project with no goal are each told once per episode, past the grace", () => {
-    const p1 = planAreaWatch(input([], { unplaced: { plans: [plan(), plan({ short_id: "pl-2000", title: "Just made", created_at: NOW - H })], projects: [project()] } }));
+    const p1 = planAreaWatch(
+      input([], {
+        unplaced: {
+          plans: [
+            plan(),
+            plan({
+              short_id: "pl-2000",
+              title: "Just made",
+              created_at: NOW - H,
+            }),
+          ],
+          projects: [project()],
+        },
+      }),
+    );
     expect(p1.changes.map((c) => c.change)).toEqual([
-      { kind: "plan_without_project", record: "pl-1043", record_title: "Onboarding conversion", since: NOW, line: "9 open tasks, last moved 0d ago; driven by jx7abc." },
-      { kind: "project_without_goal", record: "pj-9", record_title: "Trade budget allocation", since: NOW, line: "4 open tasks, 1 open plan, last moved 1d ago; lead @head-of-growth." },
+      {
+        kind: "plan_without_project",
+        record: "pl-1043",
+        record_title: "Onboarding conversion",
+        since: NOW,
+        line: "9 open tasks, last moved 0d ago; driven by jx7abc.",
+      },
+      {
+        kind: "project_without_goal",
+        record: "pj-9",
+        record_title: "Trade budget allocation",
+        since: NOW,
+        line: "4 open tasks, 1 open plan, last moved 1d ago; lead @head-of-growth.",
+      },
     ]);
-    expect(p1.changes.map((c) => c.client_id)).toEqual([`area-change:plan_without_project:pl-1043:${NOW}`, `area-change:project_without_goal:pj-9:${NOW}`]);
+    expect(p1.changes.map((c) => c.client_id)).toEqual([
+      `area-change:plan_without_project:pl-1043:${NOW}`,
+      `area-change:project_without_goal:pj-9:${NOW}`,
+    ]);
     const told = p1.head_write!.unowned_told;
-    expect(told.map((t) => t.id)).toEqual(["plan_without_project:pl-1043", "project_without_goal:pj-9"]);
+    expect(told.map((t) => t.id)).toEqual([
+      "plan_without_project:pl-1043",
+      "project_without_goal:pj-9",
+    ]);
 
     // Next pass, the same gaps: nothing said, nothing written. The new plan is past its grace now.
-    const p2 = planAreaWatch(input([], { now: NOW + 24 * H, head: { role_id: "org_roles_head", unowned_told: told }, unplaced: { plans: [plan(), plan({ short_id: "pl-2000", title: "Just made", created_at: NOW - H })], projects: [project()] } }));
-    expect(p2.changes.map((c) => (c.change as any).record)).toEqual(["pl-2000"]);
+    const p2 = planAreaWatch(
+      input([], {
+        now: NOW + 24 * H,
+        head: { role_id: "org_roles_head", unowned_told: told },
+        unplaced: {
+          plans: [
+            plan(),
+            plan({
+              short_id: "pl-2000",
+              title: "Just made",
+              created_at: NOW - H,
+            }),
+          ],
+          projects: [project()],
+        },
+      }),
+    );
+    expect(p2.changes.map((c) => (c.change as any).record)).toEqual([
+      "pl-2000",
+    ]);
 
     // The plan is filed and the project gains a goal: both leave the told list, so a reopened gap is told again.
-    const p3 = planAreaWatch(input([], { now: NOW + 30 * H, head: { role_id: "org_roles_head", unowned_told: p2.head_write!.unowned_told }, unplaced: { plans: [], projects: [] } }));
+    const p3 = planAreaWatch(
+      input([], {
+        now: NOW + 30 * H,
+        head: {
+          role_id: "org_roles_head",
+          unowned_told: p2.head_write!.unowned_told,
+        },
+        unplaced: { plans: [], projects: [] },
+      }),
+    );
     expect(p3.changes).toEqual([]);
     expect(p3.head_write!.unowned_told).toEqual([]);
   });
 
   test("a list cut at its cap keeps what it told: a gap pushed off the list is not closed (review finding 12)", () => {
-    const full = Array.from({ length: UNPLACED_CAPS.plans }, (_, i) => plan({ short_id: `pl-${i}` }));
+    const full = Array.from({ length: UNPLACED_CAPS.plans }, (_, i) =>
+      plan({ short_id: `pl-${i}` }),
+    );
     const told = [{ id: "plan_without_project:pl-off", since: NOW }];
-    const p = planAreaWatch(input([], { head: { role_id: "org_roles_head", unowned_told: told }, unplaced: { plans: full, projects: [] } }));
-    expect(p.head_write!.unowned_told.map((t) => t.id)).toContain("plan_without_project:pl-off");
+    const p = planAreaWatch(
+      input([], {
+        head: { role_id: "org_roles_head", unowned_told: told },
+        unplaced: { plans: full, projects: [] },
+      }),
+    );
+    expect(p.head_write!.unowned_told.map((t) => t.id)).toContain(
+      "plan_without_project:pl-off",
+    );
   });
 
   test("a plan with no open task is not told; a pass that could not read unplaced work keeps what it told", () => {
-    expect(planAreaWatch(input([], { unplaced: { plans: [plan({ open_tasks: 0 })], projects: [] } })).changes).toEqual([]);
-    const told = [{ id: "plan_without_project:pl-1043", since: NOW }, { id: "projects_platform", since: NOW }];
-    const p = planAreaWatch(input([], { head: { role_id: "org_roles_head", unowned_told: told }, unowned: [{ id: "projects_platform", title: "Platform" }], unplaced: null }));
+    expect(
+      planAreaWatch(
+        input([], {
+          unplaced: { plans: [plan({ open_tasks: 0 })], projects: [] },
+        }),
+      ).changes,
+    ).toEqual([]);
+    const told = [
+      { id: "plan_without_project:pl-1043", since: NOW },
+      { id: "projects_platform", since: NOW },
+    ];
+    const p = planAreaWatch(
+      input([], {
+        head: { role_id: "org_roles_head", unowned_told: told },
+        unowned: [{ id: "projects_platform", title: "Platform" }],
+        unplaced: null,
+      }),
+    );
     expect(p.changes).toEqual([]);
     expect(p.head_write).toBeNull();
   });
 
   test("the change rides the frame and reads back whole", () => {
-    const change = planAreaWatch(input([], { unplaced: { plans: [plan()], projects: [] } })).changes[0].change;
-    const frame = parseScheduledTask(formatScheduledTask({ title: HEAD_AREA_CHANGE_TITLE, event: ORG_AREA_CHANGE_EVENT, waiting: null, change, body: "x" }));
+    const change = planAreaWatch(
+      input([], { unplaced: { plans: [plan()], projects: [] } }),
+    ).changes[0].change;
+    const frame = parseScheduledTask(
+      formatScheduledTask({
+        title: HEAD_AREA_CHANGE_TITLE,
+        event: ORG_AREA_CHANGE_EVENT,
+        waiting: null,
+        change,
+        body: "x",
+      }),
+    );
     expect(frame?.change).toEqual(change);
   });
 });

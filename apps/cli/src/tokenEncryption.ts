@@ -43,11 +43,17 @@ function deriveKey(salt: Buffer, secret: Buffer | string): Buffer {
 }
 
 export function encryptToken(token: string): string {
-  return encryptTokenWithSecret(token, getMachineKey().secret.subarray(0, KEY_LEN));
+  return encryptTokenWithSecret(
+    token,
+    getMachineKey().secret.subarray(0, KEY_LEN),
+  );
 }
 
 /** encryptToken with an explicit secret — exported for tests. */
-export function encryptTokenWithSecret(token: string, secret: Buffer | string): string {
+export function encryptTokenWithSecret(
+  token: string,
+  secret: Buffer | string,
+): string {
   const salt = crypto.randomBytes(SALT_LEN);
   const iv = crypto.randomBytes(IV_LEN);
   const key = deriveKey(salt, secret);

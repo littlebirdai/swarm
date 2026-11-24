@@ -10,12 +10,40 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  desktopPanePins, desktopPaneRegistryPath, findDesktopPane, liveDesktopPaneRegistry, liveDesktopPanes, paneOwnerIds, parseDesktopPaneRegistry,
-  readDesktopPaneRegistry, type DesktopPaneRegistry, type LiveDesktopPane,
+  desktopPanePins,
+  desktopPaneRegistryPath,
+  findDesktopPane,
+  liveDesktopPaneRegistry,
+  liveDesktopPanes,
+  paneOwnerIds,
+  parseDesktopPaneRegistry,
+  readDesktopPaneRegistry,
+  type DesktopPaneRegistry,
+  type LiveDesktopPane,
 } from "./desktopPaneRegistry.js";
-import { desktopPaneCtx, DesktopPaneUnavailable, ownedDesktopPane, resolveDesktopPane } from "./desktopPane.js";
-import { explicitTarget, isPaneMode, isRealMode, rememberedDesktopPane, setStickyTarget, splitTargetFlags, stickyTarget } from "./bridge/real.js";
-import { baseSessionKey, engineSessionKey, isPaneSession, isRealSession, paneSessionKey, realSessionKey } from "./engine.js";
+import {
+  desktopPaneCtx,
+  DesktopPaneUnavailable,
+  ownedDesktopPane,
+  resolveDesktopPane,
+} from "./desktopPane.js";
+import {
+  explicitTarget,
+  isPaneMode,
+  isRealMode,
+  rememberedDesktopPane,
+  setStickyTarget,
+  splitTargetFlags,
+  stickyTarget,
+} from "./bridge/real.js";
+import {
+  baseSessionKey,
+  engineSessionKey,
+  isPaneSession,
+  isRealSession,
+  paneSessionKey,
+  realSessionKey,
+} from "./engine.js";
 import { readBoundTarget } from "./pinnedTab.js";
 import type { CdpTarget } from "./cdp.js";
 
@@ -40,7 +68,14 @@ const doc = (over: Partial<DesktopPaneRegistry> = {}): DesktopPaneRegistry => ({
   port: 9444,
   pid: process.pid,
   updatedAt: 1000,
-  panes: [{ paneId: ":r1:", targetId: "PANE1", url: "https://example.com/", session: UUID }],
+  panes: [
+    {
+      paneId: ":r1:",
+      targetId: "PANE1",
+      url: "https://example.com/",
+      session: UUID,
+    },
+  ],
   ...over,
 });
 
@@ -51,7 +86,8 @@ function writeRegistry(reg: DesktopPaneRegistry | string): string {
   return file;
 }
 
-const targets = (...ids: Array<[string, string]>): CdpTarget[] => ids.map(([targetId, url]) => ({ targetId, type: "page", title: "", url }));
+const targets = (...ids: Array<[string, string]>): CdpTarget[] =>
+  ids.map(([targetId, url]) => ({ targetId, type: "page", title: "", url }));
 
 describe("engine session keys", () => {
   test("the pane is a third mode on the same base key, and every mode reads back", () => {
@@ -71,12 +107,24 @@ describe("the registry the app writes", () => {
   test("parses the document the app writes, and nothing it did not", () => {
     expect(parseDesktopPaneRegistry(JSON.stringify(doc()))).toEqual(doc());
     expect(parseDesktopPaneRegistry("not json")).toBeNull();
-    expect(parseDesktopPaneRegistry(JSON.stringify({ ...doc(), version: 2 }))).toBeNull();
-    expect(parseDesktopPaneRegistry(JSON.stringify({ ...doc(), port: "nope" }))).toBeNull();
+    expect(
+      parseDesktopPaneRegistry(JSON.stringify({ ...doc(), version: 2 })),
+    ).toBeNull();
+    expect(
+      parseDesktopPaneRegistry(JSON.stringify({ ...doc(), port: "nope" })),
+    ).toBeNull();
     // A pane with no target yet and no session is still a pane.
-    const bare = parseDesktopPaneRegistry(JSON.stringify({ ...doc(), pid: undefined, panes: [{ paneId: "x" }, { nope: 1 }] }));
+    const bare = parseDesktopPaneRegistry(
+      JSON.stringify({
+        ...doc(),
+        pid: undefined,
+        panes: [{ paneId: "x" }, { nope: 1 }],
+      }),
+    );
     expect(bare?.pid).toBeNull();
-    expect(bare?.panes).toEqual([{ paneId: "x", targetId: null, url: null, session: null }]);
+    expect(bare?.panes).toEqual([
+      { paneId: "x", targetId: null, url: null, session: null },
+    ]);
   });
 
   test("reads from the CLI's own browser dir, and a file left by a dead app is not live", () => {
@@ -94,8 +142,16 @@ describe("the registry the app writes", () => {
     expect(paneOwnerIds(OWNER, {})).toEqual([UUID]);
     expect(paneOwnerIds(`env:${UUID}`, {})).toEqual([UUID]);
     expect(paneOwnerIds("pane:%7", {})).toEqual([]);
-    expect(paneOwnerIds(null, { CLAUDE_CODE_SESSION_ID: "abc", CAST_SESSION_ID: "abc" })).toEqual(["abc"]);
-    expect(paneOwnerIds(OWNER, { CODEX_SESSION_ID: "xyz" })).toEqual([UUID, "xyz"]);
+    expect(
+      paneOwnerIds(null, {
+        CLAUDE_CODE_SESSION_ID: "abc",
+        CAST_SESSION_ID: "abc",
+      }),
+    ).toEqual(["abc"]);
+    expect(paneOwnerIds(OWNER, { CODEX_SESSION_ID: "xyz" })).toEqual([
+      UUID,
+      "xyz",
+    ]);
   });
 
   test("a session gets the newest pane opened for it; a pane nobody offered belongs to no one", () => {
@@ -116,12 +172,22 @@ describe("the registry the app writes", () => {
     const reg = doc({
       panes: [
         { paneId: "a", targetId: "TA", url: "https://a/", session: UUID },
-        { paneId: "gone", targetId: "TGONE", url: "https://gone/", session: UUID },
+        {
+          paneId: "gone",
+          targetId: "TGONE",
+          url: "https://gone/",
+          session: UUID,
+        },
         { paneId: "noid", targetId: null, url: "https://n/", session: UUID },
         { paneId: "noid2", targetId: null, url: "https://n/", session: UUID },
       ],
     });
-    const list = async () => targets(["TA", "https://a/"], ["TN", "https://n/"], ["MAIN", "http://localhost:3200/"]);
+    const list = async () =>
+      targets(
+        ["TA", "https://a/"],
+        ["TN", "https://n/"],
+        ["MAIN", "http://localhost:3200/"],
+      );
     const live = await liveDesktopPanes(reg, list);
     expect(live.map((p) => [p.paneId, p.targetId])).toEqual([
       ["a", "TA"],
@@ -131,8 +197,18 @@ describe("the registry the app writes", () => {
 
   test("pins for the watch engine: the endpoint and the target ids the registry vouches for, off the file alone", () => {
     expect(desktopPanePins()).toBeNull();
-    writeRegistry(doc({ panes: [...doc().panes, { paneId: "x", targetId: null, url: null, session: null }] }));
-    expect(desktopPanePins()).toEqual({ endpoint: 9444, targets: new Set(["PANE1"]) });
+    writeRegistry(
+      doc({
+        panes: [
+          ...doc().panes,
+          { paneId: "x", targetId: null, url: null, session: null },
+        ],
+      }),
+    );
+    expect(desktopPanePins()).toEqual({
+      endpoint: 9444,
+      targets: new Set(["PANE1"]),
+    });
   });
 });
 
@@ -158,7 +234,12 @@ describe("sticky target: pane", () => {
   });
 
   test("--pane comes off a raw argument line like --real", () => {
-    expect(splitTargetFlags(["open", "--pane", "https://x"])).toEqual({ real: undefined, clone: undefined, pane: true, args: ["open", "https://x"] });
+    expect(splitTargetFlags(["open", "--pane", "https://x"])).toEqual({
+      real: undefined,
+      clone: undefined,
+      pane: true,
+      args: ["open", "https://x"],
+    });
   });
 });
 
@@ -167,12 +248,16 @@ describe("resolveDesktopPane", () => {
     reg.panes.filter((p): p is LiveDesktopPane => !!p.targetId);
 
   test("no app: the registry is missing, and the agent is told what that means", async () => {
-    await expect(resolveDesktopPane(OWNER, {}, { live })).rejects.toMatchObject({ reason: "no-app" });
+    await expect(resolveDesktopPane(OWNER, {}, { live })).rejects.toMatchObject(
+      { reason: "no-app" },
+    );
   });
 
   test("no pane: the session never had one, and the only move is to offer one", async () => {
     writeRegistry(doc({ panes: [] }));
-    const err = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch((e) => e);
+    const err = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch(
+      (e) => e,
+    );
     expect(err).toBeInstanceOf(DesktopPaneUnavailable);
     expect(err.reason).toBe("no-pane");
     expect(err.message).toContain("cast browser pane <url>");
@@ -186,7 +271,9 @@ describe("resolveDesktopPane", () => {
     expect(r.pane.targetId).toBe("PANE1");
     expect(r.registry.port).toBe(9444);
     expect(rememberedDesktopPane(OWNER)).toBe(":r1:");
-    expect((await ownedDesktopPane(OWNER, { live, env: {} }))?.pane.paneId).toBe(":r1:");
+    expect(
+      (await ownedDesktopPane(OWNER, { live, env: {} }))?.pane.paneId,
+    ).toBe(":r1:");
   });
 
   test("closed: said once, the sticky choice drops back to the human's Chrome, then it is 'no pane'", async () => {
@@ -195,12 +282,16 @@ describe("resolveDesktopPane", () => {
     await resolveDesktopPane(OWNER, {}, { live, env: {} });
     // The human closed it: the app rewrote the file without it.
     writeRegistry(doc({ panes: [] }));
-    const first = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch((e) => e);
+    const first = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch(
+      (e) => e,
+    );
     expect(first.reason).toBe("closed");
     expect(first.message).toBe("the pane was closed");
     expect(explicitTarget(OWNER)).toBe("real");
     expect(rememberedDesktopPane(OWNER)).toBeNull();
-    const second = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch((e) => e);
+    const second = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch(
+      (e) => e,
+    );
     expect(second.reason).toBe("no-pane");
   });
 
@@ -208,14 +299,25 @@ describe("resolveDesktopPane", () => {
     writeRegistry(doc());
     await resolveDesktopPane(OWNER, {}, { live, env: {} });
     writeRegistry(doc({ panes: [] }));
-    const err = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch((e) => e);
+    const err = await resolveDesktopPane(OWNER, {}, { live, env: {} }).catch(
+      (e) => e,
+    );
     expect(err.reason).toBe("closed");
     expect(explicitTarget(OWNER)).toBeNull();
   });
 
   test("the port not answering is 'no app', not 'no pane'", async () => {
     writeRegistry(doc());
-    const err = await resolveDesktopPane(OWNER, {}, { live: async () => { throw new Error("ECONNREFUSED"); }, env: {} }).catch((e) => e);
+    const err = await resolveDesktopPane(
+      OWNER,
+      {},
+      {
+        live: async () => {
+          throw new Error("ECONNREFUSED");
+        },
+        env: {},
+      },
+    ).catch((e) => e);
     expect(err.reason).toBe("no-app");
     expect(err.message).toContain("9444");
   });
@@ -229,8 +331,19 @@ describe("desktopPaneCtx", () => {
     writeRegistry(doc());
     const stateDir = path.join(dir, "engine");
     const detached: string[] = [];
-    const socket = async (port: number) => `ws://127.0.0.1:${port}/devtools/browser/abc`;
-    const ctx = await desktopPaneCtx(OWNER, {}, { live, env: {}, stateDir, socket, detach: (s) => (detached.push(s), true) });
+    const socket = async (port: number) =>
+      `ws://127.0.0.1:${port}/devtools/browser/abc`;
+    const ctx = await desktopPaneCtx(
+      OWNER,
+      {},
+      {
+        live,
+        env: {},
+        stateDir,
+        socket,
+        detach: (s) => (detached.push(s), true),
+      },
+    );
     expect(ctx.session).toBe(paneSessionKey(engineSessionKey(OWNER)));
     expect(ctx.cdp).toBe("ws://127.0.0.1:9444/devtools/browser/abc");
     expect(readBoundTarget(ctx.session, stateDir)).toBe("PANE1");
@@ -239,23 +352,78 @@ describe("desktopPaneCtx", () => {
     // A fresh offer, opened after the first pane closed: a new target under
     // the same key. No daemon is running in this test, so nothing to detach,
     // but the binding must follow.
-    writeRegistry(doc({ panes: [{ paneId: ":r2:", targetId: "PANE2", url: "https://example.org/", session: UUID }] }));
-    const again = await desktopPaneCtx(OWNER, {}, { live, env: {}, stateDir, socket, detach: (s) => (detached.push(s), true) });
+    writeRegistry(
+      doc({
+        panes: [
+          {
+            paneId: ":r2:",
+            targetId: "PANE2",
+            url: "https://example.org/",
+            session: UUID,
+          },
+        ],
+      }),
+    );
+    const again = await desktopPaneCtx(
+      OWNER,
+      {},
+      {
+        live,
+        env: {},
+        stateDir,
+        socket,
+        detach: (s) => (detached.push(s), true),
+      },
+    );
     expect(readBoundTarget(again.session, stateDir)).toBe("PANE2");
     // With a live daemon it is detached before the rewrite.
-    fs.writeFileSync(path.join(stateDir, `${again.session}.pid`), String(process.pid));
-    writeRegistry(doc({ panes: [{ paneId: ":r3:", targetId: "PANE3", url: "https://example.org/", session: UUID }] }));
-    await desktopPaneCtx(OWNER, {}, { live, env: {}, stateDir, socket, detach: (s) => (detached.push(s), true) });
+    fs.writeFileSync(
+      path.join(stateDir, `${again.session}.pid`),
+      String(process.pid),
+    );
+    writeRegistry(
+      doc({
+        panes: [
+          {
+            paneId: ":r3:",
+            targetId: "PANE3",
+            url: "https://example.org/",
+            session: UUID,
+          },
+        ],
+      }),
+    );
+    await desktopPaneCtx(
+      OWNER,
+      {},
+      {
+        live,
+        env: {},
+        stateDir,
+        socket,
+        detach: (s) => (detached.push(s), true),
+      },
+    );
     expect(detached).toEqual([again.session]);
     expect(readBoundTarget(again.session, stateDir)).toBe("PANE3");
   });
 
   test("a keyless caller drives the default session's pane by explicit id only", async () => {
-    writeRegistry(doc({ panes: [{ paneId: "hand", targetId: "T", url: null, session: null }] }));
+    writeRegistry(
+      doc({
+        panes: [{ paneId: "hand", targetId: "T", url: null, session: null }],
+      }),
+    );
     const stateDir = path.join(dir, "engine");
     const socket = async () => "ws://x";
-    await expect(desktopPaneCtx(null, {}, { live, env: {}, stateDir, socket })).rejects.toMatchObject({ reason: "no-pane" });
-    const ctx = await desktopPaneCtx(null, { pane: "hand" }, { live, env: {}, stateDir, socket });
+    await expect(
+      desktopPaneCtx(null, {}, { live, env: {}, stateDir, socket }),
+    ).rejects.toMatchObject({ reason: "no-pane" });
+    const ctx = await desktopPaneCtx(
+      null,
+      { pane: "hand" },
+      { live, env: {}, stateDir, socket },
+    );
     expect(ctx.session).toBe(paneSessionKey("default"));
     expect(readBoundTarget(ctx.session, stateDir)).toBe("T");
   });

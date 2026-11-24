@@ -16,7 +16,17 @@ const owner = Symbol("restore-killed");
 let sent: Array<{ action: string; args: unknown[]; patches: any }> = [];
 
 const row = (extra: Record<string, unknown> = {}) =>
-  ({ _id: ID, session_id: "sess-k", title: "Old worker", updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false, ...extra }) as InboxSession;
+  ({
+    _id: ID,
+    session_id: "sess-k",
+    title: "Old worker",
+    updated_at: 1,
+    agent_type: "claude_code",
+    message_count: 1,
+    is_idle: true,
+    has_pending: false,
+    ...extra,
+  }) as InboxSession;
 
 function seed(extra: Record<string, unknown>) {
   useInboxStore.setState({
@@ -28,18 +38,31 @@ function seed(extra: Record<string, unknown>) {
   } as any);
 }
 
-const killed = { inbox_dismissed_at: KILLED_AT, inbox_killed_at: KILLED_AT, status: "completed" };
+const killed = {
+  inbox_dismissed_at: KILLED_AT,
+  inbox_killed_at: KILLED_AT,
+  status: "completed",
+};
 const labels = () => getUndoHistory().items.map((i) => i.label);
-const reKills = () => sent.some((s) => Object.values<any>(s.patches?.conversations ?? {}).some((f) => !!f.inbox_dismissed_at) || ["killSession", "killSessions"].includes(s.action));
+const reKills = () =>
+  sent.some(
+    (s) =>
+      Object.values<any>(s.patches?.conversations ?? {}).some(
+        (f) => !!f.inbox_dismissed_at,
+      ) || ["killSession", "killSessions"].includes(s.action),
+  );
 
 describe("undoing a restore of a killed session", () => {
   beforeEach(() => {
     _resetUndoStacks();
     sent = [];
-    useInboxStore.getState()._setDispatch(async (action, args, patches) => {
-      sent.push({ action, args, patches });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args, patches) => {
+        sent.push({ action, args, patches });
+        return null;
+      },
+      { owner },
+    );
   });
   afterEach(() => useInboxStore.getState()._clearDispatch(owner));
 
@@ -48,7 +71,14 @@ describe("undoing a restore of a killed session", () => {
     useInboxStore.getState().restoreSession(ID);
     expect(labels()).toEqual([]);
     // The agent revived after the restore.
-    useInboxStore.getState().syncTable("sessions", [row({ inbox_dismissed_at: null, inbox_killed_at: null, status: "active", message_count: 5 })]);
+    useInboxStore.getState().syncTable("sessions", [
+      row({
+        inbox_dismissed_at: null,
+        inbox_killed_at: null,
+        status: "active",
+        message_count: 5,
+      }),
+    ]);
     sent = [];
     performUndo();
     expect(reKills()).toBe(false);
@@ -56,7 +86,10 @@ describe("undoing a restore of a killed session", () => {
 
   test("patchConversation clearing a kill (the /sessions restore) is not recorded either", () => {
     seed(killed);
-    useInboxStore.getState().patchConversation(ID, { inbox_dismissed_at: null, inbox_stashed_at: null } as any);
+    useInboxStore.getState().patchConversation(ID, {
+      inbox_dismissed_at: null,
+      inbox_stashed_at: null,
+    } as any);
     expect(labels()).toEqual([]);
     sent = [];
     performUndo();
@@ -72,10 +105,30 @@ describe("undoing a restore of a killed session", () => {
   // The class guard: no spec, present or future, records a call that cleared
   // a kill, because the rule wraps every spec rather than living in one.
   test("every undo spec declines a call that cleared a killed row's stamp", () => {
-    const before = { sessions: { [ID]: row(killed) }, conversations: { [ID]: { _id: ID, ...killed } } };
-    const changes = [{ store: "sessions", id: ID, field: "inbox_dismissed_at", before: KILLED_AT, hadBefore: true, after: null, hadAfter: true }];
+    const before = {
+      sessions: { [ID]: row(killed) },
+      conversations: { [ID]: { _id: ID, ...killed } },
+    };
+    const changes = [
+      {
+        store: "sessions",
+        id: ID,
+        field: "inbox_dismissed_at",
+        before: KILLED_AT,
+        hadBefore: true,
+        after: null,
+        hadAfter: true,
+      },
+    ];
     for (const [name, spec] of Object.entries(UNDO_SPECS)) {
-      const label = spec.label({ action: name, args: [ID, {}], before, after: before, result: null, changes } as any);
+      const label = spec.label({
+        action: name,
+        args: [ID, {}],
+        before,
+        after: before,
+        result: null,
+        changes,
+      } as any);
       expect([name, label]).toEqual([name, null]);
     }
   });

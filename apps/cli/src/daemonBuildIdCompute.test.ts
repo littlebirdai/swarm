@@ -3,7 +3,13 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { pathToFileURL } from "url";
-import { computeDaemonBuildId, findRepoRoot, moduleDir, scanSpecifiers, codeForSpecifiers } from "./daemonBuildIdCompute.js";
+import {
+  computeDaemonBuildId,
+  findRepoRoot,
+  moduleDir,
+  scanSpecifiers,
+  codeForSpecifiers,
+} from "./daemonBuildIdCompute.js";
 
 // A miniature repo shaped like the real one: the walker only knows how to
 // start at apps/cli/src/daemon.ts, so the fixture provides that path.
@@ -26,26 +32,39 @@ const ENTRY_SRC =
 beforeAll(() => {
   // A space in the path, as in a checkout under "Some Folder" (#72).
   root = fs.mkdtempSync(path.join(os.tmpdir(), "buildid spaced-"));
-  write("apps/cli/package.json", JSON.stringify({ version: "1.0.0", dependencies: { ws: "8.18.0" } }));
+  write(
+    "apps/cli/package.json",
+    JSON.stringify({ version: "1.0.0", dependencies: { ws: "8.18.0" } }),
+  );
   write("apps/cli/src/daemon.ts", ENTRY_SRC);
   write("packages/shared/contracts.ts", `export const c = 1;\n`);
   write("platform/packages/cli-kit/src/a.ts", `export const k = 1;\n`);
   write("platform/packages/cli-kit/src/b.ts", `export const k2 = 2;\n`);
-  write("apps/cli/src/a.ts", `export { deep } from "./nested/deep.js";\nexport const a = 1;\n`);
+  write(
+    "apps/cli/src/a.ts",
+    `export { deep } from "./nested/deep.js";\nexport const a = 1;\n`,
+  );
   write("apps/cli/src/nested/deep.ts", `export const deep = 1;\n`);
   write("apps/cli/src/bare.ts", `export {};\n`);
   write("apps/cli/src/dyn.ts", `export const dyn = 1;\n`);
   write("apps/cli/src/unrelated.ts", `export const unrelated = 1;\n`);
-  write("apps/cli/src/daemonBuildId.ts", `export const DAEMON_BUILD_ID = "aaaaaaaaaaaa";\n`);
+  write(
+    "apps/cli/src/daemonBuildId.ts",
+    `export const DAEMON_BUILD_ID = "aaaaaaaaaaaa";\n`,
+  );
 });
 
 afterAll(() => {
-  try { fs.rmSync(root, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(root, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("findRepoRoot", () => {
   test("finds the root from a module URL whose path holds a space", () => {
-    const url = pathToFileURL(path.join(root, "apps/cli/src/daemonBuildIdCompute.ts")).href;
+    const url = pathToFileURL(
+      path.join(root, "apps/cli/src/daemonBuildIdCompute.ts"),
+    ).href;
     expect(url).toContain("%20");
     expect(findRepoRoot(moduleDir(url))).toBe(root);
   });
@@ -79,7 +98,9 @@ describe("computeDaemonBuildId", () => {
   });
 
   test("an unknown @platform package is recorded, not thrown", () => {
-    expect(computeDaemonBuildId(root).external).toContain("@platform/nothing-here");
+    expect(computeDaemonBuildId(root).external).toContain(
+      "@platform/nothing-here",
+    );
   });
 
   // The blocker this test exists for: package.json resolves as a real file, so
@@ -92,9 +113,15 @@ describe("computeDaemonBuildId", () => {
     expect(files).not.toContain("apps/cli/package.json");
     expect(external).toContain("../package.json");
     const before = computeDaemonBuildId(root).id;
-    write("apps/cli/package.json", JSON.stringify({ version: "9.9.9", dependencies: { ws: "8.18.0" } }));
+    write(
+      "apps/cli/package.json",
+      JSON.stringify({ version: "9.9.9", dependencies: { ws: "8.18.0" } }),
+    );
     expect(computeDaemonBuildId(root).id).toBe(before);
-    write("apps/cli/package.json", JSON.stringify({ version: "1.0.0", dependencies: { ws: "8.18.0" } }));
+    write(
+      "apps/cli/package.json",
+      JSON.stringify({ version: "1.0.0", dependencies: { ws: "8.18.0" } }),
+    );
   });
 
   test("editing a transitively imported file changes the id", () => {
@@ -112,19 +139,33 @@ describe("computeDaemonBuildId", () => {
   });
 
   test("the stamp file itself is excluded, so stamping is not a fixed point chase", () => {
-    write("apps/cli/src/daemon.ts", `import "./a.js";\nimport "./daemonBuildId.js";\nexport {};\n`);
+    write(
+      "apps/cli/src/daemon.ts",
+      `import "./a.js";\nimport "./daemonBuildId.js";\nexport {};\n`,
+    );
     const before = computeDaemonBuildId(root).id;
-    expect(computeDaemonBuildId(root).files).not.toContain("apps/cli/src/daemonBuildId.ts");
-    write("apps/cli/src/daemonBuildId.ts", `export const DAEMON_BUILD_ID = "bbbbbbbbbbbb";\n`);
+    expect(computeDaemonBuildId(root).files).not.toContain(
+      "apps/cli/src/daemonBuildId.ts",
+    );
+    write(
+      "apps/cli/src/daemonBuildId.ts",
+      `export const DAEMON_BUILD_ID = "bbbbbbbbbbbb";\n`,
+    );
     expect(computeDaemonBuildId(root).id).toBe(before);
   });
 
   test("a dependency range moves the id, the version does not", () => {
     write("apps/cli/src/daemon.ts", ENTRY_SRC); // the previous test rewrote it
     const before = computeDaemonBuildId(root).id;
-    write("apps/cli/package.json", JSON.stringify({ version: "9.9.9", dependencies: { ws: "8.18.0" } }));
+    write(
+      "apps/cli/package.json",
+      JSON.stringify({ version: "9.9.9", dependencies: { ws: "8.18.0" } }),
+    );
     expect(computeDaemonBuildId(root).id).toBe(before);
-    write("apps/cli/package.json", JSON.stringify({ version: "9.9.9", dependencies: { ws: "9.0.0" } }));
+    write(
+      "apps/cli/package.json",
+      JSON.stringify({ version: "9.9.9", dependencies: { ws: "9.0.0" } }),
+    );
     expect(computeDaemonBuildId(root).id).not.toBe(before);
   });
 
@@ -145,9 +186,11 @@ describe("scanSpecifiers", () => {
   });
 
   test("ignores specifiers named inside comments", () => {
-    expect(scanSpecifiers(`// from "./ghost.js"\n/* import "./ghost2.js" */\nimport "./real.js";\n`)).toEqual([
-      "./real.js",
-    ]);
+    expect(
+      scanSpecifiers(
+        `// from "./ghost.js"\n/* import "./ghost2.js" */\nimport "./real.js";\n`,
+      ),
+    ).toEqual(["./real.js"]);
   });
 
   test("ignores a specifier shaped string that is data, not an import", () => {
@@ -156,7 +199,9 @@ describe("scanSpecifiers", () => {
   });
 
   test("keeps a // inside a string out of the comment stripper", () => {
-    expect(codeForSpecifiers(`const u = "https://x.example/y"; import "./real.js";`)).toContain(`import "./real.js"`);
+    expect(
+      codeForSpecifiers(`const u = "https://x.example/y"; import "./real.js";`),
+    ).toContain(`import "./real.js"`);
   });
 });
 
@@ -190,7 +235,8 @@ describe("the scanner reads the real closure without losing specifiers", () => {
     for (const rel of files) {
       const src = fs.readFileSync(path.join(repoRoot, rel), "utf-8");
       const seen = new Set(scanSpecifiers(src));
-      for (const spec of anchored(src)) if (!seen.has(spec)) missed.push(`${rel}: ${spec}`);
+      for (const spec of anchored(src))
+        if (!seen.has(spec)) missed.push(`${rel}: ${spec}`);
     }
     expect(missed).toEqual([]);
   }, 60_000);
@@ -198,17 +244,17 @@ describe("the scanner reads the real closure without losing specifiers", () => {
 
 test("worker-only runtime changes affect the daemon fingerprint without importing CLI boot", () => {
   write("apps/cli/src/workers/runtime.ts", 'import "./probeOnly.js";\n');
-  write("apps/cli/src/workers/probeOnly.ts", 'export const n = 1;\n');
+  write("apps/cli/src/workers/probeOnly.ts", "export const n = 1;\n");
   const before = computeDaemonBuildId(root);
   expect(before.files).toContain("apps/cli/src/workers/runtime.ts");
   expect(before.files).toContain("apps/cli/src/workers/probeOnly.ts");
-  write("apps/cli/src/workers/probeOnly.ts", 'export const n = 2;\n');
+  write("apps/cli/src/workers/probeOnly.ts", "export const n = 2;\n");
   expect(computeDaemonBuildId(root).id).not.toBe(before.id);
 });
 
 test("worker fast entry is fingerprinted without pulling the CLI-only import closure into the hash", () => {
   write("apps/cli/src/main.ts", 'import("./index.js");\n');
-  write("apps/cli/src/index.ts", 'export const cliOnly = 1;\n');
+  write("apps/cli/src/index.ts", "export const cliOnly = 1;\n");
   const before = computeDaemonBuildId(root);
   expect(before.files).toContain("apps/cli/src/main.ts");
   expect(before.files).not.toContain("apps/cli/src/index.ts");

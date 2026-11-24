@@ -4,22 +4,45 @@
 // Run: bun test store/__tests__/orgSlice.moveBack.test.ts
 import { describe, expect, it } from "bun:test";
 import { create as mutate } from "mutative";
-import { createOrgSlice, dropRejectedOrgIntent, mergeOrgTree, revertOrgIntent, orgIntentNoticeText, type OrgSliceData } from "../orgSlice";
+import {
+  createOrgSlice,
+  dropRejectedOrgIntent,
+  mergeOrgTree,
+  revertOrgIntent,
+  orgIntentNoticeText,
+  type OrgSliceData,
+} from "../orgSlice";
 import { ORG_FIXTURE } from "../../components/org/orgFixture";
 import type { OrgTree } from "../../components/org/orgTypes";
 import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
 
 const ROLE = "fixture-role-growth";
-const FAILOVER: RoleFailover = { at: 1000, reason: "offline", owner_user_id: "fixture-user-me", from: { device_id: "mac", label: "Jason's MacBook", user_id: "u-jason" }, to: { device_id: "cloud-1", label: "cloud-1", user_id: "fixture-user-me" }, cross_user: true };
+const FAILOVER: RoleFailover = {
+  at: 1000,
+  reason: "offline",
+  owner_user_id: "fixture-user-me",
+  from: { device_id: "mac", label: "Jason's MacBook", user_id: "u-jason" },
+  to: { device_id: "cloud-1", label: "cloud-1", user_id: "fixture-user-me" },
+  cross_user: true,
+};
 const withFailover = (): OrgTree => {
   const t: OrgTree = JSON.parse(JSON.stringify(ORG_FIXTURE));
-  t.roles.find((r) => r._id === ROLE)!.failover = JSON.parse(JSON.stringify(FAILOVER));
+  t.roles.find((r) => r._id === ROLE)!.failover = JSON.parse(
+    JSON.stringify(FAILOVER),
+  );
   return t;
 };
-const run = (data: OrgSliceData, ...args: any[]): OrgSliceData => runAs("moveOrgRoleBack", data, ...args);
-const runAs = (name: "moveOrgRoleBack" | "keepOrgRoleHere", data: OrgSliceData, ...args: any[]): OrgSliceData => {
+const run = (data: OrgSliceData, ...args: any[]): OrgSliceData =>
+  runAs("moveOrgRoleBack", data, ...args);
+const runAs = (
+  name: "moveOrgRoleBack" | "keepOrgRoleHere",
+  data: OrgSliceData,
+  ...args: any[]
+): OrgSliceData => {
   const slice = createOrgSlice();
-  return mutate(data, (draft) => { (slice[name] as any).call(draft, ...args); });
+  return mutate(data, (draft) => {
+    (slice[name] as any).call(draft, ...args);
+  });
 };
 const roleOf = (t: OrgTree | null) => t!.roles.find((r) => r._id === ROLE)!;
 
@@ -40,30 +63,55 @@ describe("move back", () => {
   it("a refusal puts the line back and says so", () => {
     const st = run({ orgTree: withFailover(), orgIntents: [] }, ROLE);
     const reverted: string[] = [];
-    const notices = dropRejectedOrgIntent({ orgIntents: st.orgIntents, dropOrgIntent: () => {}, revertOrgIntent: (id) => reverted.push(id) }, "moveOrgRoleBack", [ROLE]);
+    const notices = dropRejectedOrgIntent(
+      {
+        orgIntents: st.orgIntents,
+        dropOrgIntent: () => {},
+        revertOrgIntent: (id) => reverted.push(id),
+      },
+      "moveOrgRoleBack",
+      [ROLE],
+    );
     expect(reverted).toEqual([st.orgIntents[0].id]);
     expect(notices[0]).toBe(orgIntentNoticeText(st.orgIntents[0], "refused"));
-    const back = mutate(st, (d) => { revertOrgIntent(d as any, d.orgIntents[0] as any); });
+    const back = mutate(st, (d) => {
+      revertOrgIntent(d as any, d.orgIntents[0] as any);
+    });
     expect(roleOf(back.orgTree).failover).toEqual(FAILOVER);
   });
 
   it("does nothing for a role with no move to undo", () => {
-    const st = run({ orgTree: JSON.parse(JSON.stringify(ORG_FIXTURE)), orgIntents: [] }, ROLE);
+    const st = run(
+      { orgTree: JSON.parse(JSON.stringify(ORG_FIXTURE)), orgIntents: [] },
+      ROLE,
+    );
     expect(st.orgIntents).toHaveLength(0);
   });
 });
 
 describe("keep here", () => {
   it("clears the line at once, and only its own refusal puts it back", () => {
-    const st = runAs("keepOrgRoleHere", { orgTree: withFailover(), orgIntents: [] }, ROLE);
+    const st = runAs(
+      "keepOrgRoleHere",
+      { orgTree: withFailover(), orgIntents: [] },
+      ROLE,
+    );
     expect(roleOf(st.orgTree).failover).toBeUndefined();
-    const store = (reverted: string[]) => ({ orgIntents: st.orgIntents, dropOrgIntent: () => {}, revertOrgIntent: (id: string) => reverted.push(id) });
+    const store = (reverted: string[]) => ({
+      orgIntents: st.orgIntents,
+      dropOrgIntent: () => {},
+      revertOrgIntent: (id: string) => reverted.push(id),
+    });
     const other: string[] = [];
     dropRejectedOrgIntent(store(other), "moveOrgRoleBack", [ROLE]);
     expect(other).toEqual([]);
     const own: string[] = [];
-    const notices = dropRejectedOrgIntent(store(own), "keepOrgRoleHere", [ROLE]);
+    const notices = dropRejectedOrgIntent(store(own), "keepOrgRoleHere", [
+      ROLE,
+    ]);
     expect(own).toEqual([st.orgIntents[0].id]);
-    expect(notices[0]).toBe("Keeping @" + roleOf(withFailover()).handle + " on cloud-1 was refused.");
+    expect(notices[0]).toBe(
+      "Keeping @" + roleOf(withFailover()).handle + " on cloud-1 was refused.",
+    );
   });
 });

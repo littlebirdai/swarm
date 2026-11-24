@@ -9,7 +9,11 @@ import { MemberPicker } from "./chat/ChannelPeople";
 import { AgentPicker } from "./chat/ChannelAgents";
 import { chatAgentId, type ChatChannelAgentRef } from "../store/chatSlice";
 import { Switch } from "./ui/switch";
-import { CreateDialog, CreateDialogSubtitle, CreateDialogTitle } from "./CreateDialog";
+import {
+  CreateDialog,
+  CreateDialogSubtitle,
+  CreateDialogTitle,
+} from "./CreateDialog";
 import { useInboxStore } from "../store/inboxStore";
 import { useWorkspaceArgs } from "../hooks/useWorkspaceArgs";
 import { inActiveWorkspace } from "../lib/workspaceScope";
@@ -44,7 +48,10 @@ export function CreateChannelModal({
   const createChatChannel = useInboxStore((s) => s.createChatChannel);
   const channels = useInboxStore((s) => s.chatChannels);
   const workspace = useWorkspaceArgs();
-  const teamId = workspace !== "skip" && "team_id" in workspace ? String(workspace.team_id) : undefined;
+  const teamId =
+    workspace !== "skip" && "team_id" in workspace
+      ? String(workspace.team_id)
+      : undefined;
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -52,20 +59,29 @@ export function CreateChannelModal({
   const [agents, setAgents] = useState<ChatChannelAgentRef[]>([]);
   const [agentsOpen, setAgentsOpen] = useState(false);
   const toggleAgent = (agent: ChatChannelAgentRef) =>
-    setAgents((prev) => prev.some((a) => chatAgentId(a) === chatAgentId(agent))
-      ? prev.filter((a) => chatAgentId(a) !== chatAgentId(agent))
-      : [...prev, agent]);
+    setAgents((prev) =>
+      prev.some((a) => chatAgentId(a) === chatAgentId(agent))
+        ? prev.filter((a) => chatAgentId(a) !== chatAgentId(agent))
+        : [...prev, agent],
+    );
   const viewer = useInboxStore((s) => (s as any).currentUser?._id ?? "");
   // A team with Slack connected can also bring channels over instead of
   // typing a name: the same gesture, from the other side.
-  const slack = useQueryNoThrow(api.slackSync.getTeamSlack, teamId ? ({ team_id: teamId } as any) : "skip");
+  const slack = useQueryNoThrow(
+    api.slackSync.getTeamSlack,
+    teamId ? ({ team_id: teamId } as any) : "skip",
+  );
   const [slackOpen, setSlackOpen] = useState(false);
 
   const slug = slugChannelName(name);
   // Collision check scoped to the target workspace — the store caches channels
   // across teams, and a name taken in another team is free in this one.
   const taken = useMemo(
-    () => Object.values(channels).some((c: any) => !c.archived_at && c.name === slug && inActiveWorkspace(c, teamId)),
+    () =>
+      Object.values(channels).some(
+        (c: any) =>
+          !c.archived_at && c.name === slug && inActiveWorkspace(c, teamId),
+      ),
     [channels, slug, teamId],
   );
   // A channel MUST land in the workspace the user is looking at. Omitting the
@@ -81,7 +97,9 @@ export function CreateChannelModal({
       ...(isPrivate ? { kind: "private" as const, memberIds } : {}),
       ...(agents.length ? { agents } : {}),
     });
-    toast.success(isPrivate ? `Created private channel #${slug}` : `Created #${slug}`);
+    toast.success(
+      isPrivate ? `Created private channel #${slug}` : `Created #${slug}`,
+    );
     onCreated?.(id);
     onClose();
   };
@@ -97,7 +115,9 @@ export function CreateChannelModal({
   }
 
   const hint = !teamId ? (
-    <span className="text-sol-orange">Switch to a team first: channels live in team workspaces</span>
+    <span className="text-sol-orange">
+      Switch to a team first: channels live in team workspaces
+    </span>
   ) : taken ? (
     <span className="text-sol-red">#{slug} already exists</span>
   ) : slug && slug !== name.trim() ? (
@@ -108,29 +128,37 @@ export function CreateChannelModal({
 
   return (
     <CreateDialog
-      icon={isPrivate
-        ? <Lock className="h-3 w-3 text-sol-yellow" />
-        : <Hash className="h-3 w-3 text-sol-cyan" />}
+      icon={
+        isPrivate ? (
+          <Lock className="h-3 w-3 text-sol-yellow" />
+        ) : (
+          <Hash className="h-3 w-3 text-sol-cyan" />
+        )
+      }
       noun={isPrivate ? "private channel" : "channel"}
       onClose={onClose}
       onSubmit={submit}
       canSubmit={valid}
       submitLabel="Create channel"
       submitOnEnter
-      footerStart={slack?.data?.installation && (
-        <button
-          type="button"
-          onClick={() => setSlackOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-sol-text-muted transition-colors hover:bg-sol-bg-alt hover:text-sol-text"
-          title="Pick channels in the connected Slack workspace; each becomes a mirrored channel here"
-        >
-          <SlackLogo className="h-3 w-3" /> Add from Slack
-        </button>
-      )}
+      footerStart={
+        slack?.data?.installation && (
+          <button
+            type="button"
+            onClick={() => setSlackOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-sol-text-muted transition-colors hover:bg-sol-bg-alt hover:text-sol-text"
+            title="Pick channels in the connected Slack workspace; each becomes a mirrored channel here"
+          >
+            <SlackLogo className="h-3 w-3" /> Add from Slack
+          </button>
+        )
+      }
     >
       <div className="px-5 pb-4 pt-3">
         <div className="flex items-center gap-1.5">
-          <span className="select-none text-xl font-semibold text-sol-text-dim/70">#</span>
+          <span className="select-none text-xl font-semibold text-sol-text-dim/70">
+            #
+          </span>
           <CreateDialogTitle
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -148,14 +176,22 @@ export function CreateChannelModal({
 
       <div className="mx-5 mb-4 rounded-lg border border-sol-border/50 bg-sol-bg-alt/30">
         <label className="flex cursor-pointer select-none items-center gap-3 px-3 py-2.5">
-          <Lock className={`h-3.5 w-3.5 shrink-0 ${isPrivate ? "text-sol-yellow" : "text-sol-text-dim"}`} />
+          <Lock
+            className={`h-3.5 w-3.5 shrink-0 ${isPrivate ? "text-sol-yellow" : "text-sol-text-dim"}`}
+          />
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-medium text-sol-text">Private</span>
+            <span className="block text-xs font-medium text-sol-text">
+              Private
+            </span>
             <span className="block text-meta leading-snug text-sol-text-dim">
               Only people you invite can see it or find its messages
             </span>
           </span>
-          <Switch checked={isPrivate} onCheckedChange={setIsPrivate} aria-label="Private channel" />
+          <Switch
+            checked={isPrivate}
+            onCheckedChange={setIsPrivate}
+            aria-label="Private channel"
+          />
         </label>
         {isPrivate && (
           <div className="border-t border-sol-border/40 px-3 py-2.5">
@@ -172,13 +208,23 @@ export function CreateChannelModal({
           aria-expanded={agentsOpen}
           onClick={() => setAgentsOpen((v) => !v)}
         >
-          <Bot className={`h-3.5 w-3.5 shrink-0 ${agents.length ? "text-sol-violet" : "text-sol-text-dim"}`} />
-          <span className="min-w-0 flex-1 text-xs font-medium text-sol-text">Agents</span>
-          <span className="text-meta text-sol-text-dim">{agents.length ? agents.length : "Add roles or sessions"}</span>
+          <Bot
+            className={`h-3.5 w-3.5 shrink-0 ${agents.length ? "text-sol-violet" : "text-sol-text-dim"}`}
+          />
+          <span className="min-w-0 flex-1 text-xs font-medium text-sol-text">
+            Agents
+          </span>
+          <span className="text-meta text-sol-text-dim">
+            {agents.length ? agents.length : "Add roles or sessions"}
+          </span>
         </button>
         {agentsOpen && (
           <div className="border-t border-sol-border/40 px-3 py-2.5">
-            <AgentPicker picked={agents} onToggle={toggleAgent} autoFocus={false} />
+            <AgentPicker
+              picked={agents}
+              onToggle={toggleAgent}
+              autoFocus={false}
+            />
           </div>
         )}
       </div>

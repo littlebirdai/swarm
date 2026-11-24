@@ -13,12 +13,21 @@
 
 import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import type { CloudHostAction, CloudHostReport, HostReadiness } from "@codecast/shared/contracts";
+import type {
+  CloudHostAction,
+  CloudHostReport,
+  HostReadiness,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { Button } from "../ui/button";
 import { ConfirmButton } from "../integrations/parts";
-import { deviceDisplayName, relativeSeen, useDevices, type Device } from "../DeviceBadge";
+import {
+  deviceDisplayName,
+  relativeSeen,
+  useDevices,
+  type Device,
+} from "../DeviceBadge";
 import { useHostLoads } from "../../hooks/useHostLoads";
 import { formatHostLoad } from "../../lib/hostLoad";
 import { AddCloudHost } from "./AddCloudHost";
@@ -47,12 +56,30 @@ const DOING: Record<CloudHostAction, [running: string, done: string]> = {
 };
 
 type Tone = "ok" | "warn" | "bad" | "idle";
-const TONE_DOT: Record<Tone, string> = { ok: "bg-sol-green", warn: "bg-sol-yellow", bad: "bg-sol-red", idle: "bg-sol-text-dim opacity-60" };
+const TONE_DOT: Record<Tone, string> = {
+  ok: "bg-sol-green",
+  warn: "bg-sol-yellow",
+  bad: "bg-sol-red",
+  idle: "bg-sol-text-dim opacity-60",
+};
 
-function Row({ tone, label, children, fix }: { tone: Tone; label: string; children: ReactNode; fix?: ReactNode }) {
+function Row({
+  tone,
+  label,
+  children,
+  fix,
+}: {
+  tone: Tone;
+  label: string;
+  children: ReactNode;
+  fix?: ReactNode;
+}) {
   return (
     <li className="grid grid-cols-[0.5rem_6.5rem_1fr] items-baseline gap-x-2 text-meta">
-      <span className={`h-1.5 w-1.5 translate-y-[-1px] rounded-full ${TONE_DOT[tone]}`} aria-hidden />
+      <span
+        className={`h-1.5 w-1.5 translate-y-[-1px] rounded-full ${TONE_DOT[tone]}`}
+        aria-hidden
+      />
       <span className="text-sol-text-muted">{label}</span>
       <span className="min-w-0 text-sol-text-secondary">
         <span className="break-words">{children}</span>
@@ -62,7 +89,9 @@ function Row({ tone, label, children, fix }: { tone: Tone; label: string; childr
   );
 }
 
-const Code = ({ children }: { children: ReactNode }) => <code className="font-mono text-sol-text">{children}</code>;
+const Code = ({ children }: { children: ReactNode }) => (
+  <code className="font-mono text-sol-text">{children}</code>
+);
 
 function ago(iso: string | undefined): string {
   const t = iso ? Date.parse(iso) : NaN;
@@ -75,21 +104,50 @@ function money(n: number): string {
 
 function stateLine(r: CloudHostReport): string {
   const parts = [r.instance_type, r.region].filter(Boolean).join(" · ");
-  const cost = /^mac/.test(r.instance_type ?? "") ? "the dedicated host bills while allocated, awake or asleep" : [
-    r.hourly_usd !== undefined ? `${money(r.hourly_usd)}/h awake` : null,
-    r.disk_monthly_usd !== undefined ? `${money(r.disk_monthly_usd)}/mo disk${r.disk_gib ? ` (${r.disk_gib} GiB)` : ""}` : null,
-  ].filter(Boolean).join(", ");
-  const sleep = r.state === "stopped" ? "wakes when a session moves here" : r.idle_stop_minutes ? `sleeps after ${r.idle_stop_minutes} idle min` : null;
+  const cost = /^mac/.test(r.instance_type ?? "")
+    ? "the dedicated host bills while allocated, awake or asleep"
+    : [
+        r.hourly_usd !== undefined ? `${money(r.hourly_usd)}/h awake` : null,
+        r.disk_monthly_usd !== undefined
+          ? `${money(r.disk_monthly_usd)}/mo disk${r.disk_gib ? ` (${r.disk_gib} GiB)` : ""}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+  const sleep =
+    r.state === "stopped"
+      ? "wakes when a session moves here"
+      : r.idle_stop_minutes
+        ? `sleeps after ${r.idle_stop_minutes} idle min`
+        : null;
   return [parts, cost, sleep].filter(Boolean).join(" · ");
 }
 
 /** Free memory and agents from the host's own resource report: what decides whether new sessions land here. */
 function LoadRow({ deviceId, asleep }: { deviceId: string; asleep: boolean }) {
   const load = useHostLoads().get(deviceId);
-  if (asleep) return <Row tone="idle" label="Load">asleep · empty when it wakes</Row>;
-  if (!load) return <Row tone="idle" label="Load">no recent report</Row>;
+  if (asleep)
+    return (
+      <Row tone="idle" label="Load">
+        asleep · empty when it wakes
+      </Row>
+    );
+  if (!load)
+    return (
+      <Row tone="idle" label="Load">
+        no recent report
+      </Row>
+    );
   return (
-    <Row tone={load.tight ? "warn" : "ok"} label="Load" fix={load.tight ? "Tight: new sessions go to a roomier host when one is awake" : undefined}>
+    <Row
+      tone={load.tight ? "warn" : "ok"}
+      label="Load"
+      fix={
+        load.tight
+          ? "Tight: new sessions go to a roomier host when one is awake"
+          : undefined
+      }
+    >
       {formatHostLoad(load)}
     </Row>
   );
@@ -97,33 +155,98 @@ function LoadRow({ deviceId, asleep }: { deviceId: string; asleep: boolean }) {
 
 function SetupRow({ h, laptop }: { h?: HostReadiness; laptop: string }) {
   const m = h?.mirror;
-  if (!m) return <Row tone="idle" label="Your setup" fix={<>Turn on the home mirror on {laptop}: <Code>cast config cloud_mirror_enabled true</Code></>}>not copied here yet</Row>;
+  if (!m)
+    return (
+      <Row
+        tone="idle"
+        label="Your setup"
+        fix={
+          <>
+            Turn on the home mirror on {laptop}:{" "}
+            <Code>cast config cloud_mirror_enabled true</Code>
+          </>
+        }
+      >
+        not copied here yet
+      </Row>
+    );
   const when = ago(m.applied_at);
-  if (!m.complete) return <Row tone="warn" label="Your setup" fix={<>It finishes on the next push from {laptop}, or now with <Code>cast hosts sync</Code></>}>partly copied · the last push did not finish</Row>;
+  if (!m.complete)
+    return (
+      <Row
+        tone="warn"
+        label="Your setup"
+        fix={
+          <>
+            It finishes on the next push from {laptop}, or now with{" "}
+            <Code>cast hosts sync</Code>
+          </>
+        }
+      >
+        partly copied · the last push did not finish
+      </Row>
+    );
   if (m.host_edited.length) {
     return (
-      <Row tone="warn" label="Your setup" fix={`Edited on the host, so the mirror keeps the host's copy: ${m.host_edited.slice(0, 4).join(", ")}${m.host_edited.length > 4 ? ` +${m.host_edited.length - 4}` : ""}`}>
-        in step · {m.files.toLocaleString()} files{when ? ` · ${when}` : ""} · {m.host_edited.length} kept as the host edited {m.host_edited.length === 1 ? "it" : "them"}
+      <Row
+        tone="warn"
+        label="Your setup"
+        fix={`Edited on the host, so the mirror keeps the host's copy: ${m.host_edited.slice(0, 4).join(", ")}${m.host_edited.length > 4 ? ` +${m.host_edited.length - 4}` : ""}`}
+      >
+        in step · {m.files.toLocaleString()} files{when ? ` · ${when}` : ""} ·{" "}
+        {m.host_edited.length} kept as the host edited{" "}
+        {m.host_edited.length === 1 ? "it" : "them"}
       </Row>
     );
   }
-  return <Row tone="ok" label="Your setup">agent config, skills, shell and memory in step · {m.files.toLocaleString()} files{when ? ` · ${when}` : ""}</Row>;
+  return (
+    <Row tone="ok" label="Your setup">
+      agent config, skills, shell and memory in step ·{" "}
+      {m.files.toLocaleString()} files{when ? ` · ${when}` : ""}
+    </Row>
+  );
 }
 
-function LoginsRow({ h, r, laptop }: { h?: HostReadiness; r?: CloudHostReport; laptop: string }) {
+function LoginsRow({
+  h,
+  r,
+  laptop,
+}: {
+  h?: HostReadiness;
+  r?: CloudHostReport;
+  laptop: string;
+}) {
   const have = h?.logins ?? [];
   const held = r?.logins_held ?? [];
-  const list = have.length > 8 ? `${have.slice(0, 8).join(", ")} +${have.length - 8}` : have.join(", ");
-  if (!have.length && !held.length) return <Row tone="idle" label="Logins">none copied yet</Row>;
+  const list =
+    have.length > 8
+      ? `${have.slice(0, 8).join(", ")} +${have.length - 8}`
+      : have.join(", ");
+  if (!have.length && !held.length)
+    return (
+      <Row tone="idle" label="Logins">
+        none copied yet
+      </Row>
+    );
   return (
     <Row
       tone={held.length ? "warn" : "ok"}
       label="Logins"
-      fix={held.length ? (
-        <span className="block space-y-0.5">
-          {held.slice(0, 5).map((x) => <span key={x.id} className="block"><span className="text-sol-yellow">{x.id}</span> held back: {x.reason}.{/expir|lapsed|stale|refresh/i.test(x.reason) ? ` Sign in again on ${laptop} and it follows.` : ""}</span>)}
-        </span>
-      ) : undefined}
+      fix={
+        held.length ? (
+          <span className="block space-y-0.5">
+            {held.slice(0, 5).map((x) => (
+              <span key={x.id} className="block">
+                <span className="text-sol-yellow">{x.id}</span> held back:{" "}
+                {x.reason}.
+                {/expir|lapsed|stale|refresh/i.test(x.reason)
+                  ? ` Sign in again on ${laptop} and it follows.`
+                  : ""}
+              </span>
+            ))}
+          </span>
+        ) : undefined
+      }
     >
       {list || "none"}
     </Row>
@@ -133,9 +256,25 @@ function LoginsRow({ h, r, laptop }: { h?: HostReadiness; r?: CloudHostReport; l
 function ToolsRow({ h }: { h?: HostReadiness }) {
   const t = h?.tools;
   if (!t) return null;
-  if (!t.missing.length) return <Row tone="ok" label="Tools">{t.ok} at your versions{t.installed ? ` · ${t.installed} installed on the last push` : ""}</Row>;
+  if (!t.missing.length)
+    return (
+      <Row tone="ok" label="Tools">
+        {t.ok} at your versions
+        {t.installed ? ` · ${t.installed} installed on the last push` : ""}
+      </Row>
+    );
   return (
-    <Row tone="warn" label="Tools" fix={t.missing.slice(0, 4).map((m) => `${m.tool}${m.referenced_by ? ` (used by ${m.referenced_by})` : ""}`).join(" · ")}>
+    <Row
+      tone="warn"
+      label="Tools"
+      fix={t.missing
+        .slice(0, 4)
+        .map(
+          (m) =>
+            `${m.tool}${m.referenced_by ? ` (used by ${m.referenced_by})` : ""}`,
+        )
+        .join(" · ")}
+    >
       {t.ok} at your versions · {t.missing.length} missing
     </Row>
   );
@@ -143,18 +282,51 @@ function ToolsRow({ h }: { h?: HostReadiness }) {
 
 function HostSetupRow({ h }: { h?: HostReadiness }) {
   const s = h?.setup;
-  if (!s) return <Row tone="idle" label="Host setup" fix={<>Declare packages and services a repo needs in a <Code>[host]</Code> table in <Code>.codecast/workspace.toml</Code></>}>nothing declared</Row>;
-  const what = [...(s.packages ?? []), ...(s.services ?? []).map((x) => `${x} (service)`)];
+  if (!s)
+    return (
+      <Row
+        tone="idle"
+        label="Host setup"
+        fix={
+          <>
+            Declare packages and services a repo needs in a <Code>[host]</Code>{" "}
+            table in <Code>.codecast/workspace.toml</Code>
+          </>
+        }
+      >
+        nothing declared
+      </Row>
+    );
+  const what = [
+    ...(s.packages ?? []),
+    ...(s.services ?? []).map((x) => `${x} (service)`),
+  ];
   if (!s.ok) {
     return (
-      <Row tone="bad" label="Host setup" fix={<span className="block font-mono text-meta text-sol-red/80 line-clamp-3">{s.error}</span>}>
-        failed{s.step ? ` at ${s.step}` : ""}{s.at ? ` · ${ago(s.at)}` : ""}
+      <Row
+        tone="bad"
+        label="Host setup"
+        fix={
+          <span className="block font-mono text-meta text-sol-red/80 line-clamp-3">
+            {s.error}
+          </span>
+        }
+      >
+        failed{s.step ? ` at ${s.step}` : ""}
+        {s.at ? ` · ${ago(s.at)}` : ""}
       </Row>
     );
   }
   return (
     <Row tone="ok" label="Host setup">
-      in step{what.length ? `: ${what.slice(0, 6).join(", ")}${what.length > 6 ? ` +${what.length - 6}` : ""}` : ""}{s.commands ? ` · ${s.commands} command${s.commands === 1 ? "" : "s"}` : ""}{s.applied_at ? ` · ${ago(s.applied_at)}` : ""}
+      in step
+      {what.length
+        ? `: ${what.slice(0, 6).join(", ")}${what.length > 6 ? ` +${what.length - 6}` : ""}`
+        : ""}
+      {s.commands
+        ? ` · ${s.commands} command${s.commands === 1 ? "" : "s"}`
+        : ""}
+      {s.applied_at ? ` · ${ago(s.applied_at)}` : ""}
     </Row>
   );
 }
@@ -162,7 +334,9 @@ function HostSetupRow({ h }: { h?: HostReadiness }) {
 export function CloudHostPanel({ d }: { d: Device }) {
   const { byId } = useDevices();
   const act = useInboxStore((s) => s.cloudHostAction);
-  const now = useCoarseNow(d.cloud_host?.last_action?.status === "running" ? 5_000 : 60_000);
+  const now = useCoarseNow(
+    d.cloud_host?.last_action?.status === "running" ? 5_000 : 60_000,
+  );
   const r = d.cloud_host;
   const h = d.host_readiness;
   if (!r && !h) return null;
@@ -172,22 +346,37 @@ export function CloudHostPanel({ d }: { d: Device }) {
   const last = r?.last_action;
   const running = last?.status === "running" && now - last.at < ACTION_STALE_MS;
   const canAct = !!r && managerOnline && !running;
-  const run = (a: CloudHostAction, imageId?: string) => act(d.device_id, a, imageId);
+  const run = (a: CloudHostAction, imageId?: string) =>
+    act(d.device_id, a, imageId);
   const asleep = r?.state === "stopped";
   const reportOld = r && now - r.at > REPORT_STALE_MS;
 
   return (
-    <div className="mt-3 rounded-md border border-sol-violet/25 bg-sol-violet/[0.03] px-3 py-2.5" data-cloud-host={r?.state ?? "unreported"}>
+    <div
+      className="mt-3 rounded-md border border-sol-violet/25 bg-sol-violet/[0.03] px-3 py-2.5"
+      data-cloud-host={r?.state ?? "unreported"}
+    >
       {r && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={`h-2 w-2 rounded-full ${STATE[r.state].dot}`} aria-hidden />
-          <span className="text-xs font-medium text-sol-text">{STATE[r.state].word}</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-meta text-sol-text-dim" title={`${r.instance_id} · ${stateLine(r)}`}>{stateLine(r)}</span>
+          <span
+            className={`h-2 w-2 rounded-full ${STATE[r.state].dot}`}
+            aria-hidden
+          />
+          <span className="text-xs font-medium text-sol-text">
+            {STATE[r.state].word}
+          </span>
+          <span
+            className="min-w-0 flex-1 truncate font-mono text-meta text-sol-text-dim"
+            title={`${r.instance_id} · ${stateLine(r)}`}
+          >
+            {stateLine(r)}
+          </span>
         </div>
       )}
       {reportOld && (
         <div className="mt-1 text-meta text-sol-text-dim">
-          As {laptop} last saw it, {relativeSeen(r!.at)}{managerOnline ? "" : `; it refreshes when ${laptop} is online`}.
+          As {laptop} last saw it, {relativeSeen(r!.at)}
+          {managerOnline ? "" : `; it refreshes when ${laptop} is online`}.
         </div>
       )}
 
@@ -202,38 +391,87 @@ export function CloudHostPanel({ d }: { d: Device }) {
       {r && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {r.state !== "missing" && (
-            <Button type="button" size="sm" variant="outline" className="h-7 text-meta" disabled={!canAct} onClick={() => run(asleep ? "wake" : "sleep")}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-meta"
+              disabled={!canAct}
+              onClick={() => run(asleep ? "wake" : "sleep")}
+            >
               {asleep ? "Wake" : "Sleep"}
             </Button>
           )}
-          <Button type="button" size="sm" variant="ghost" className="h-7 text-meta" disabled={!canAct || asleep} title={asleep ? "Wake it first" : "Install the repo's [host] packages and services now"} onClick={() => run("setup")}>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-meta"
+            disabled={!canAct || asleep}
+            title={
+              asleep
+                ? "Wake it first"
+                : "Install the repo's [host] packages and services now"
+            }
+            onClick={() => run("setup")}
+          >
             Apply setup now
           </Button>
-          <Button type="button" size="sm" variant="ghost" className="h-7 text-meta" disabled={!canAct || r.state === "missing"} title="Snapshot this machine so the next one starts ready" onClick={() => run("image")}>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-meta"
+            disabled={!canAct || r.state === "missing"}
+            title="Snapshot this machine so the next one starts ready"
+            onClick={() => run("image")}
+          >
             Save image
           </Button>
-          {canAct && r.state !== "missing" && <AddCloudHost like={d} className="h-7 rounded-md px-3 text-meta text-sol-text-secondary hover:bg-sol-bg-alt hover:text-sol-text" />}
+          {canAct && r.state !== "missing" && (
+            <AddCloudHost
+              like={d}
+              className="h-7 rounded-md px-3 text-meta text-sol-text-secondary hover:bg-sol-bg-alt hover:text-sol-text"
+            />
+          )}
           {r.state !== "missing" && !r.autoscaled && <CloudAutoscale d={d} />}
-          <ActionStatus last={last} running={running} laptop={laptop} managerOnline={managerOnline} now={now} />
+          <ActionStatus
+            last={last}
+            running={running}
+            laptop={laptop}
+            managerOnline={managerOnline}
+            now={now}
+          />
         </div>
       )}
 
       {r && r.images.length > 0 && (
         <details className="mt-2 group">
           <summary className="cursor-pointer select-none text-meta text-sol-text-muted hover:text-sol-text">
-            {r.images.length} saved image{r.images.length === 1 ? "" : "s"} · new machines start from the newest
+            {r.images.length} saved image{r.images.length === 1 ? "" : "s"} ·
+            new machines start from the newest
           </summary>
           <ul className="mt-1 space-y-1">
             {r.images.map((img, i) => (
               <li key={img.id} className="flex items-center gap-2 text-meta">
-                <span className="min-w-0 flex-1 truncate font-mono text-sol-text-secondary" title={img.id}>{img.name}</span>
-                <span className="shrink-0 text-sol-text-dim">{i === 0 ? "newest · " : ""}{ago(img.created)}</span>
-                {canAct && <ConfirmButton
-                  label="Delete"
-                  className="text-sol-text-dim hover:text-sol-red hover:no-underline"
-                  question="Deletes the image and its snapshot from AWS."
-                  onConfirm={() => run("delete_image", img.id)}
-                />}
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-sol-text-secondary"
+                  title={img.id}
+                >
+                  {img.name}
+                </span>
+                <span className="shrink-0 text-sol-text-dim">
+                  {i === 0 ? "newest · " : ""}
+                  {ago(img.created)}
+                </span>
+                {canAct && (
+                  <ConfirmButton
+                    label="Delete"
+                    className="text-sol-text-dim hover:text-sol-red hover:no-underline"
+                    question="Deletes the image and its snapshot from AWS."
+                    onConfirm={() => run("delete_image", img.id)}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -243,13 +481,53 @@ export function CloudHostPanel({ d }: { d: Device }) {
   );
 }
 
-function ActionStatus({ last, running, laptop, managerOnline, now }: { last?: CloudHostReport["last_action"]; running: boolean; laptop: string; managerOnline: boolean; now: number }) {
-  if (!managerOnline) return <span className="text-meta text-sol-text-dim">Actions run through {laptop}, which is offline.</span>;
+function ActionStatus({
+  last,
+  running,
+  laptop,
+  managerOnline,
+  now,
+}: {
+  last?: CloudHostReport["last_action"];
+  running: boolean;
+  laptop: string;
+  managerOnline: boolean;
+  now: number;
+}) {
+  if (!managerOnline)
+    return (
+      <span className="text-meta text-sol-text-dim">
+        Actions run through {laptop}, which is offline.
+      </span>
+    );
   if (!last) return null;
   const [doing, did] = DOING[last.action];
-  if (running) return <span className="inline-flex items-center gap-1 text-meta text-sol-text-muted"><Loader2 className="h-3 w-3 animate-spin" />{doing} through {laptop}…</span>;
-  if (last.status === "running") return <span className="text-meta text-sol-yellow">{doing} got no answer from {laptop}. Try again.</span>;
+  if (running)
+    return (
+      <span className="inline-flex items-center gap-1 text-meta text-sol-text-muted">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        {doing} through {laptop}…
+      </span>
+    );
+  if (last.status === "running")
+    return (
+      <span className="text-meta text-sol-yellow">
+        {doing} got no answer from {laptop}. Try again.
+      </span>
+    );
   if (now - last.at > 6 * 3600_000) return null;
-  if (last.status === "failed") return <span className="min-w-0 basis-full truncate text-meta text-sol-red" title={last.detail}>{doing} failed: {last.detail ?? "no detail"}</span>;
-  return <span className="text-meta text-sol-text-dim">{did} {relativeSeen(last.at)}</span>;
+  if (last.status === "failed")
+    return (
+      <span
+        className="min-w-0 basis-full truncate text-meta text-sol-red"
+        title={last.detail}
+      >
+        {doing} failed: {last.detail ?? "no detail"}
+      </span>
+    );
+  return (
+    <span className="text-meta text-sol-text-dim">
+      {did} {relativeSeen(last.at)}
+    </span>
+  );
 }

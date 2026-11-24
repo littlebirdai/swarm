@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { evictInactiveMessages, MAX_IN_MEMORY_CONVERSATIONS } from "../inboxStore";
+import {
+  evictInactiveMessages,
+  MAX_IN_MEMORY_CONVERSATIONS,
+} from "../inboxStore";
 
 // A minimal stand-in for the mutative draft evictInactiveMessages operates on.
 // Every loaded conversation ALSO gets a session row — that's the never-prune
@@ -13,7 +16,9 @@ function makeDraft(loadedCount: number, opts: Record<string, any> = {}) {
   const _lastViewedAt: Record<string, number> = {};
   for (let i = 0; i < loadedCount; i++) {
     const id = `conv-${i}`;
-    messages[id] = [{ _id: `m-${i}`, role: "user", content: "hi", timestamp: i }];
+    messages[id] = [
+      { _id: `m-${i}`, role: "user", content: "hi", timestamp: i },
+    ];
     pagination[id] = {};
     userMessages[id] = [];
     sessions[id] = { _id: id };
@@ -69,7 +74,9 @@ describe("evictInactiveMessages", () => {
       currentSessionId: "conv-0", // oldest-viewed but on screen
       liveInboxIds: new Set(["conv-1"]), // oldest-viewed but a live agent
     });
-    d.pendingMessages["conv-2"] = [{ _id: "p", role: "user", content: "x", timestamp: 0 }];
+    d.pendingMessages["conv-2"] = [
+      { _id: "p", role: "user", content: "x", timestamp: 0 },
+    ];
     evictInactiveMessages(d, "conv-3"); // activeConvId
 
     expect(d.messages["conv-0"]).toBeDefined(); // protected: current session
@@ -90,9 +97,13 @@ describe("evictInactiveMessages", () => {
     evictInactiveMessages(shown, "zzz-not-loaded");
     expect(shown.messages["conv-0"]).toBeDefined();
     expect(shown.messages["conv-1"]).toBeUndefined();
-    expect(Object.keys(shown.messages).length).toBe(MAX_IN_MEMORY_CONVERSATIONS);
+    expect(Object.keys(shown.messages).length).toBe(
+      MAX_IN_MEMORY_CONVERSATIONS,
+    );
 
-    const boot = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 10, { liveInboxIds: new Set(["conv-1"]) });
+    const boot = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 10, {
+      liveInboxIds: new Set(["conv-1"]),
+    });
     evictInactiveMessages(boot, "zzz-not-loaded");
     expect(boot.messages["conv-1"]).toBeDefined();
   });

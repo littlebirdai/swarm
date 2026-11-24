@@ -11,9 +11,19 @@ describe("hosted conversations show no machine status", () => {
   const gone = { active: true, isConnected: false, recentlyMoved: false };
 
   it("is never disconnected", () => {
-    expect(sessionDisconnected({ ...gone, agentType: "claude_code" })).toBe(true);
-    expect(sessionDisconnected({ ...gone, agentType: HOSTED_AGENT_TYPE })).toBe(false);
-    expect(sessionDisconnected({ ...gone, isConnected: undefined, agentType: "claude_code" })).toBe(false);
+    expect(sessionDisconnected({ ...gone, agentType: "claude_code" })).toBe(
+      true,
+    );
+    expect(sessionDisconnected({ ...gone, agentType: HOSTED_AGENT_TYPE })).toBe(
+      false,
+    );
+    expect(
+      sessionDisconnected({
+        ...gone,
+        isConnected: undefined,
+        agentType: "claude_code",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -27,7 +37,9 @@ describe("hosted approvals speak of the assistant, never an agent", () => {
 
 describe("the answer strip in a hosted conversation", () => {
   it("is the question and a way back to it, with no developer words", () => {
-    const html = renderToStaticMarkup(<HostedAnswerStrip question="Update a note?" onJump={() => {}} />);
+    const html = renderToStaticMarkup(
+      <HostedAnswerStrip question="Update a note?" onJump={() => {}} />,
+    );
     expect(html).toContain("Update a note?");
     expect(html).toContain("Show the question");
     expect(html).not.toMatch(/decision|the ask|agent/i);

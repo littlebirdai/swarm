@@ -31,7 +31,8 @@ describe("Permission Detector", () => {
   });
 
   test("extracts arguments preview", () => {
-    const content = "Allow bash command:\nrm -rf /important/data\nProceed? [y/n]";
+    const content =
+      "Allow bash command:\nrm -rf /important/data\nProceed? [y/n]";
     const result = detectPermissionPrompt(content);
     expect(result).not.toBeNull();
     expect(result?.arguments_preview).toContain("rm -rf");
@@ -44,7 +45,8 @@ describe("Permission Detector", () => {
   });
 
   test("returns null for message without [y/n] prompt", () => {
-    const content = "I need permission to do this task, but I'm just explaining.";
+    const content =
+      "I need permission to do this task, but I'm just explaining.";
     const result = detectPermissionPrompt(content);
     expect(result).toBeNull();
   });

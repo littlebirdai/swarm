@@ -34,7 +34,10 @@ function buildConversionTr(
     // verbatim content, and link text is EntityRefExtension's territory (the
     // href, not the text, names the object there).
     if (parent?.type.spec.code) return;
-    if (node.marks.some((m) => m.type.name === "code" || m.type.name === "link")) return;
+    if (
+      node.marks.some((m) => m.type.name === "code" || m.type.name === "link")
+    )
+      return;
     // An id inside an `@[Title id]` mention belongs to the mention —
     // EntityRefExtension converts the whole thing. Eating the id out of it
     // here would leave `@[Title ` + pill + `]` behind.
@@ -145,7 +148,11 @@ export const EntityIdExtension = Node.create({
         key: new PluginKey("entityIdAutoConvert"),
         appendTransaction(transactions, _oldState, newState) {
           if (!transactions.some((tr) => tr.docChanged)) return null;
-          return buildConversionTr(newState, entityType, newState.selection.$head.pos);
+          return buildConversionTr(
+            newState,
+            entityType,
+            newState.selection.$head.pos,
+          );
         },
       }),
     ];

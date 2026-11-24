@@ -16,7 +16,8 @@ export function extractMentionHandles(content: string): string[] {
   const seen = new Set<string>();
   for (const match of content.matchAll(MENTION_RE)) {
     const handle = match[1].toLowerCase();
-    if (handle === "here" || handle === "channel" || handle === "everyone") continue;
+    if (handle === "here" || handle === "channel" || handle === "everyone")
+      continue;
     if (seen.has(handle)) continue;
     seen.add(handle);
     out.push(handle);
@@ -35,7 +36,10 @@ export function mentionsHere(content: string): boolean {
 // let anyone rename themselves to intercept a teammate's mentions.
 export function botHandle(name: string | undefined): string | null {
   if (!name) return null;
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "");
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "");
   return slug.length > 0 ? slug : null;
 }
 
@@ -54,20 +58,39 @@ export function memberHandle(member: {
   is_bot?: boolean;
 }): string | null {
   if (member.is_bot) return botHandle(member.name ?? undefined);
-  return member.github_username?.toLowerCase() || emailLocalHandle(member.email ?? undefined);
+  return (
+    member.github_username?.toLowerCase() ||
+    emailLocalHandle(member.email ?? undefined)
+  );
 }
 
 /** One handle read against one roster, to at most one member: a GitHub login
  *  first, then an email local part, then a bot's name, and only when exactly
  *  one member matches at that level. An ambiguous handle resolves to nobody
  *  rather than to a guess. */
-export function matchHandle<T extends { github_username?: string | null; email?: string | null; name?: string | null; is_bot?: boolean }>(roster: readonly T[], rawHandle: string): T | null {
+export function matchHandle<
+  T extends {
+    github_username?: string | null;
+    email?: string | null;
+    name?: string | null;
+    is_bot?: boolean;
+  },
+>(roster: readonly T[], rawHandle: string): T | null {
   const handle = rawHandle.replace(/^@/, "").toLowerCase();
-  const byGithub = roster.filter((u) => !u.is_bot && u.github_username?.toLowerCase() === handle);
-  const byEmail = roster.filter((u) => !u.is_bot && emailLocalHandle(u.email ?? undefined) === handle);
-  const byBot = roster.filter((u) => u.is_bot && botHandle(u.name ?? undefined) === handle);
-  return byGithub.length === 1 ? byGithub[0]
-    : byGithub.length === 0 && byEmail.length === 1 ? byEmail[0]
-    : byGithub.length === 0 && byEmail.length === 0 && byBot.length === 1 ? byBot[0]
-    : null;
+  const byGithub = roster.filter(
+    (u) => !u.is_bot && u.github_username?.toLowerCase() === handle,
+  );
+  const byEmail = roster.filter(
+    (u) => !u.is_bot && emailLocalHandle(u.email ?? undefined) === handle,
+  );
+  const byBot = roster.filter(
+    (u) => u.is_bot && botHandle(u.name ?? undefined) === handle,
+  );
+  return byGithub.length === 1
+    ? byGithub[0]
+    : byGithub.length === 0 && byEmail.length === 1
+      ? byEmail[0]
+      : byGithub.length === 0 && byEmail.length === 0 && byBot.length === 1
+        ? byBot[0]
+        : null;
 }

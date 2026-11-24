@@ -17,7 +17,10 @@ import type { WatchActionFrame } from "../browserWatch";
 // Pinned here so the overlay component can stay a drawing of this answer.
 
 const at0 = 1_000_000;
-const act = (kind: WatchActionFrame["kind"], extra: Partial<WatchActionFrame> = {}): WatchActionFrame => ({
+const act = (
+  kind: WatchActionFrame["kind"],
+  extra: Partial<WatchActionFrame> = {},
+): WatchActionFrame => ({
   kind,
   x: 0.5,
   y: 0.5,
@@ -46,10 +49,15 @@ describe("applyGhostAction", () => {
     const s1 = applyGhostAction(GHOST_EMPTY, act("down"));
     expect(ghostView(s1, at0).ripple).toBe(1);
     expect(ghostView(s1, at0 + GHOST_RIPPLE_MS).ripple).toBeNull();
-    const s2 = applyGhostAction(applyGhostAction(s1, act("up", { at: at0 + 50 })), act("down", { at: at0 + 900 }));
+    const s2 = applyGhostAction(
+      applyGhostAction(s1, act("up", { at: at0 + 50 })),
+      act("down", { at: at0 + 900 }),
+    );
     expect(ghostView(s2, at0 + 900).ripple).toBe(2);
     // The wake for the ring comes before the wake for the idle fade.
-    expect(ghostView(s2, at0 + 900).nextChangeAt).toBe(at0 + 900 + GHOST_RIPPLE_MS);
+    expect(ghostView(s2, at0 + 900).nextChangeAt).toBe(
+      at0 + 900 + GHOST_RIPPLE_MS,
+    );
   });
 
   test("typing captions the field and fades after the typing window", () => {
@@ -61,13 +69,18 @@ describe("applyGhostAction", () => {
   });
 
   test("a secret field shows that something is typed, never what", () => {
-    const s = applyGhostAction(GHOST_EMPTY, act("type", { secret: true, text: "should not appear" }));
+    const s = applyGhostAction(
+      GHOST_EMPTY,
+      act("type", { secret: true, text: "should not appear" }),
+    );
     expect(ghostView(s, at0).caption).toBe(GHOST_SECRET_CAPTION);
   });
 
   test("a long caption keeps its tail", () => {
     const long = "a".repeat(GHOST_CAPTION_CHARS) + "tail";
-    expect(captionText(long)).toBe("…" + "a".repeat(GHOST_CAPTION_CHARS - 4) + "tail");
+    expect(captionText(long)).toBe(
+      "…" + "a".repeat(GHOST_CAPTION_CHARS - 4) + "tail",
+    );
     expect(captionText("two\n lines")).toBe("two lines");
   });
 
@@ -77,19 +90,30 @@ describe("applyGhostAction", () => {
     expect(s.point).toEqual({ x: 0.2, y: 0.3 });
     expect(ghostView(s, at0 + 3000 + GHOST_IDLE_MS - 1).visible).toBe(true);
     // With no arrow yet, the scroll's own point is where it appears.
-    expect(applyGhostAction(GHOST_EMPTY, act("scroll", { x: 0.5, y: 0.5 })).point).toEqual({ x: 0.5, y: 0.5 });
+    expect(
+      applyGhostAction(GHOST_EMPTY, act("scroll", { x: 0.5, y: 0.5 })).point,
+    ).toEqual({ x: 0.5, y: 0.5 });
   });
 
   test("a navigation is remembered without moving the arrow", () => {
-    const s = applyGhostAction(applyGhostAction(GHOST_EMPTY, act("move", { x: 0.1, y: 0.2 })), act("nav", { x: 0.9, y: 0.9, url: "https://a.test/next", at: at0 + 10 }));
+    const s = applyGhostAction(
+      applyGhostAction(GHOST_EMPTY, act("move", { x: 0.1, y: 0.2 })),
+      act("nav", { x: 0.9, y: 0.9, url: "https://a.test/next", at: at0 + 10 }),
+    );
     expect(s.nav).toEqual({ url: "https://a.test/next", at: at0 + 10 });
     expect(s.point).toEqual({ x: 0.1, y: 0.2 });
     expect(applyGhostAction(GHOST_EMPTY, act("nav")).nav).toBeNull();
   });
 
   test("time never runs backwards: a late frame does not pull the arrow back", () => {
-    const fresh = applyGhostAction(GHOST_EMPTY, act("move", { x: 0.8, y: 0.8, at: at0 + 100 }));
-    const late = applyGhostAction(fresh, act("move", { x: 0.1, y: 0.1, at: at0 }));
+    const fresh = applyGhostAction(
+      GHOST_EMPTY,
+      act("move", { x: 0.8, y: 0.8, at: at0 + 100 }),
+    );
+    const late = applyGhostAction(
+      fresh,
+      act("move", { x: 0.1, y: 0.1, at: at0 }),
+    );
     expect(late).toBe(fresh);
   });
 });

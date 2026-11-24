@@ -14,6 +14,11 @@ describe("isTriageBarCompact", () => {
 
   test("legacy hint-strip dismissal maps to compact, but the toggle wins", () => {
     expect(isTriageBarCompact({ inbox_shortcuts_hidden: true })).toBe(true);
-    expect(isTriageBarCompact({ inbox_shortcuts_hidden: true, triage_bar_compact: false })).toBe(false);
+    expect(
+      isTriageBarCompact({
+        inbox_shortcuts_hidden: true,
+        triage_bar_compact: false,
+      }),
+    ).toBe(false);
   });
 });

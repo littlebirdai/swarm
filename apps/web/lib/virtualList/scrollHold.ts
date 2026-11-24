@@ -23,8 +23,17 @@ export type HoldTarget =
 type HoldVirtualizer = {
   options: { count: number };
   getTotalSize: () => number;
-  scrollToIndex: (index: number, o?: { align?: "start" | "center" | "end" | "auto"; behavior?: "auto" | "smooth" }) => void;
-  getOffsetForIndex: (index: number, align?: "start" | "center" | "end" | "auto") => readonly [number, string] | undefined;
+  scrollToIndex: (
+    index: number,
+    o?: {
+      align?: "start" | "center" | "end" | "auto";
+      behavior?: "auto" | "smooth";
+    },
+  ) => void;
+  getOffsetForIndex: (
+    index: number,
+    align?: "start" | "center" | "end" | "auto",
+  ) => readonly [number, string] | undefined;
   scrollOffset?: number | null;
 };
 
@@ -37,17 +46,26 @@ type Hold = {
   since: number | null;
 };
 
-const hidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
+const hidden = () =>
+  typeof document !== "undefined" && document.visibilityState === "hidden";
 
 /** True when the scroller already shows the target within a pixel. */
-export function holdSatisfied(sc: HTMLElement, v: HoldVirtualizer, target: HoldTarget): boolean {
-  if (target === "bottom") return sc.scrollHeight - sc.scrollTop - sc.clientHeight <= 1;
+export function holdSatisfied(
+  sc: HTMLElement,
+  v: HoldVirtualizer,
+  target: HoldTarget,
+): boolean {
+  if (target === "bottom")
+    return sc.scrollHeight - sc.scrollTop - sc.clientHeight <= 1;
   if (target === "top") return sc.scrollTop <= 0;
   const info = v.getOffsetForIndex(target.index, target.align);
   return !info || Math.abs(info[0] - sc.scrollTop) <= 1;
 }
 
-export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | null) {
+export function createScrollHold(
+  v: HoldVirtualizer,
+  getEl: () => HTMLElement | null,
+) {
   let hold: Hold | null = null;
   let lastTotal = -1;
   let ro: ResizeObserver | null = null;
@@ -67,14 +85,18 @@ export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | 
     hold = null;
     ro?.disconnect();
     observed = null;
-    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    if (typeof document !== "undefined")
+      document.removeEventListener("visibilitychange", onVisibility);
   };
 
   const apply = () => {
     const h = hold;
     const sc = getEl();
     if (!h || !sc) return;
-    if (!charge(h) || h.bail?.()) { stop(); return; }
+    if (!charge(h) || h.bail?.()) {
+      stop();
+      return;
+    }
     if (holdSatisfied(sc, v, h.target)) return;
     const count = v.options.count;
     if (h.target === "bottom") {
@@ -84,7 +106,9 @@ export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | 
       if (count > 0) v.scrollToIndex(0, { align: "start" });
       sc.scrollTop = 0;
     } else {
-      v.scrollToIndex(Math.min(h.target.index, Math.max(0, count - 1)), { align: h.target.align });
+      v.scrollToIndex(Math.min(h.target.index, Math.max(0, count - 1)), {
+        align: h.target.align,
+      });
     }
     // A programmatic write does not reliably emit a scroll event (same value
     // writes, batching), so the virtualizer could paint a frame of the range it
@@ -114,8 +138,14 @@ export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | 
     set(target: HoldTarget, o: { holdMs: number; bail?: () => boolean }) {
       const sc = getEl();
       if (!sc) return;
-      if (!hold && typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
-      hold = { target, bail: o.bail, budget: o.holdMs, since: hidden() ? null : Date.now() };
+      if (!hold && typeof document !== "undefined")
+        document.addEventListener("visibilitychange", onVisibility);
+      hold = {
+        target,
+        bail: o.bail,
+        budget: o.holdMs,
+        since: hidden() ? null : Date.now(),
+      };
       lastTotal = v.getTotalSize();
       watch(sc);
       apply();
@@ -131,7 +161,10 @@ export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | 
       const total = v.getTotalSize();
       if (total === lastTotal) return;
       lastTotal = total;
-      if (!charge(h) || h.bail?.()) { stop(); return; }
+      if (!charge(h) || h.bail?.()) {
+        stop();
+        return;
+      }
       if (applyQueued) return;
       applyQueued = true;
       // Once per frame in the microtask: each re-aim reads the scroller's
@@ -139,21 +172,36 @@ export function createScrollHold(v: HoldVirtualizer, getEl: () => HTMLElement | 
       // conversation's first frame changes sizes in many bursts. A burst
       // after this frame's re-aim waits for the next frame's start, which
       // still runs before that frame paints.
-      const raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame : null;
+      const raf =
+        typeof requestAnimationFrame === "function"
+          ? requestAnimationFrame
+          : null;
       if (frameApplied && raf) {
-        raf(() => { applyQueued = false; apply(); });
+        raf(() => {
+          applyQueued = false;
+          apply();
+        });
         return;
       }
       queueMicrotask(() => {
         applyQueued = false;
-        if (raf) { frameApplied = true; raf(() => { frameApplied = false; }); }
+        if (raf) {
+          frameApplied = true;
+          raf(() => {
+            frameApplied = false;
+          });
+        }
         apply();
       });
     },
     /** The reader took the view. */
     release: stop,
-    get active() { return hold !== null; },
-    get target() { return hold?.target ?? null; },
+    get active() {
+      return hold !== null;
+    },
+    get target() {
+      return hold?.target ?? null;
+    },
   };
 }
 

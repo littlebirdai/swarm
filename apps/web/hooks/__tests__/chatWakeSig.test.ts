@@ -34,7 +34,9 @@ describe("messagesSig — a burst finalizing wakes the transcript", () => {
   it("flips on the whole finalize — status, duration and the recording", () => {
     const done = msg({
       voice: { status: "done", duration_ms: 24_940, room_key: "dm:a:b" },
-      attachments: [{ storage_id: "st1", mime: "audio/webm", name: "voice.webm" }],
+      attachments: [
+        { storage_id: "st1", mime: "audio/webm", name: "voice.webm" },
+      ],
     });
     expect(sig(done)).not.toBe(sig(live));
   });
@@ -48,11 +50,20 @@ describe("messagesSig — a burst finalizing wakes the transcript", () => {
     // which is the screen waiting for them.
     const landed = msg({
       voice: { status: "done", duration_ms: 4_313, room_key: "dm:a:b" },
-      attachments: [{ storage_id: "st1", mime: "audio/webm", name: "voice.webm" }],
+      attachments: [
+        { storage_id: "st1", mime: "audio/webm", name: "voice.webm" },
+      ],
     });
     const recovering = msg({
-      voice: { status: "done", duration_ms: 4_313, room_key: "dm:a:b", transcribing: true },
-      attachments: [{ storage_id: "st1", mime: "audio/webm", name: "voice.webm" }],
+      voice: {
+        status: "done",
+        duration_ms: 4_313,
+        room_key: "dm:a:b",
+        transcribing: true,
+      },
+      attachments: [
+        { storage_id: "st1", mime: "audio/webm", name: "voice.webm" },
+      ],
     });
     expect(sig(recovering)).not.toBe(sig(landed));
   });
@@ -60,7 +71,12 @@ describe("messagesSig — a burst finalizing wakes the transcript", () => {
   it("flips again when the words arrive and transcribing clears", () => {
     const recovering = msg({
       content: "",
-      voice: { status: "done", duration_ms: 4_313, room_key: "dm:a:b", transcribing: true },
+      voice: {
+        status: "done",
+        duration_ms: 4_313,
+        room_key: "dm:a:b",
+        transcribing: true,
+      },
     });
     const words = msg({
       content: "Hey Sam, the deploy is green.",
@@ -70,7 +86,9 @@ describe("messagesSig — a burst finalizing wakes the transcript", () => {
   });
 
   it("flips when a cancelled burst becomes a tombstone", () => {
-    expect(sig(msg({ voice: { status: "canceled" }, deleted_at: 2_000 }))).not.toBe(sig(live));
+    expect(
+      sig(msg({ voice: { status: "canceled" }, deleted_at: 2_000 })),
+    ).not.toBe(sig(live));
   });
 
   it("flips when an attachment lands on an ordinary message", () => {
@@ -86,8 +104,14 @@ describe("messagesSig — a burst finalizing wakes the transcript", () => {
     // Cheapness is the other half of the contract: a re-push that changed
     // nothing the bubble reads must not re-render the transcript.
     expect(sig(msg({ updated_at: 9_999 }))).toBe(sig(msg()));
-    const same = { status: "done" as const, duration_ms: 1_500, room_key: "dm:a:b" };
-    expect(sig(msg({ voice: { ...same } }))).toBe(sig(msg({ voice: { ...same } })));
+    const same = {
+      status: "done" as const,
+      duration_ms: 1_500,
+      room_key: "dm:a:b",
+    };
+    expect(sig(msg({ voice: { ...same } }))).toBe(
+      sig(msg({ voice: { ...same } })),
+    );
   });
 });
 

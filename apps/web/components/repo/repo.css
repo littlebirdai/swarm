@@ -168,7 +168,10 @@
 }
 
 .repo-session-chip {
-  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
 }
 
 .repo-session-chip[data-active="true"] {

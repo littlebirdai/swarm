@@ -7,14 +7,21 @@
 // push, the app's one session path, a scroll to a message. Any move the
 // follower makes on their own ends the follow, as in Figma.
 
-import { clampFollowView, type FollowView } from "@codecast/shared/contracts/follow";
+import {
+  clampFollowView,
+  type FollowView,
+} from "@codecast/shared/contracts/follow";
 export type { FollowView };
 
 export type FollowerRow = { user_id: string; name: string; image?: string };
 
 /** Where this window is in a transcript: the top visible message and how much
  *  of it has scrolled past (0 at its top edge, 1 at its bottom). */
-export type ViewAnchor = { conversationId: string; messageId: string; offset: number };
+export type ViewAnchor = {
+  conversationId: string;
+  messageId: string;
+  offset: number;
+};
 
 export type LeaderView = {
   path: string;
@@ -33,7 +40,12 @@ export type FollowPlan =
   | { kind: "blocked" }
   | { kind: "stay"; view: FollowView | null }
   | { kind: "route"; path: string; view: FollowView | null }
-  | { kind: "session"; conversationId: string; scrollTo: string | null; view: FollowView | null };
+  | {
+      kind: "session";
+      conversationId: string;
+      scrollTo: string | null;
+      view: FollowView | null;
+    };
 
 // ── in-page state: scroll regions and surfaces ──
 
@@ -48,7 +60,8 @@ export const FOLLOW_SCROLL_REGIONS = {
   task: "a task page's body",
   pr: "a pull request page (app/pr)",
   commit: "a commit page (app/commit)",
-  "diff-pane": "a conversation's diff pane, one file or all of them (FileDiffLayout)",
+  "diff-pane":
+    "a conversation's diff pane, one file or all of them (FileDiffLayout)",
 } as const;
 export type FollowScrollKey = keyof typeof FOLLOW_SCROLL_REGIONS;
 
@@ -124,16 +137,21 @@ function hasParts(view: FollowView | null | undefined): view is FollowView {
  * it, and a scroll in a region nobody registered is dropped, so a stray key
  * never reaches a follower. Clamped as the server stores it.
  */
-export function composeLeaderView(parts: readonly (FollowView | null | undefined)[]): FollowView | undefined {
+export function composeLeaderView(
+  parts: readonly (FollowView | null | undefined)[],
+): FollowView | undefined {
   const out: FollowView = {};
   for (const p of parts) {
     if (!p) continue;
     if (out.panel === undefined && p.panel) out.panel = p.panel;
     // A diff's file and line come from the surface showing it; its base may
     // come from another (the conversation's change position).
-    if (p.diff?.file && !out.diff?.file) out.diff = { ...p.diff, base: p.diff.base ?? out.diff?.base };
-    else if (p.diff?.base && !out.diff?.base) out.diff = { ...(out.diff ?? { file: "" }), base: p.diff.base };
-    if (out.scroll === undefined && p.scroll && isFollowScrollKey(p.scroll.key)) out.scroll = p.scroll;
+    if (p.diff?.file && !out.diff?.file)
+      out.diff = { ...p.diff, base: p.diff.base ?? out.diff?.base };
+    else if (p.diff?.base && !out.diff?.base)
+      out.diff = { ...(out.diff ?? { file: "" }), base: p.diff.base };
+    if (out.scroll === undefined && p.scroll && isFollowScrollKey(p.scroll.key))
+      out.scroll = p.scroll;
   }
   if (out.diff && !out.diff.file) delete out.diff;
   return clampFollowView(out);
@@ -152,28 +170,44 @@ export function followViewSig(view: FollowView | null | undefined): string {
  * last: a part that changed, or one it has not applied at all. A scroll that
  * moved less than half a percent is the same place.
  */
-export function planViewApply(next: FollowView | null | undefined, applied: FollowView | null | undefined): FollowView | null {
+export function planViewApply(
+  next: FollowView | null | undefined,
+  applied: FollowView | null | undefined,
+): FollowView | null {
   if (!next) return null;
   const out: FollowView = {};
   if (next.panel && next.panel !== applied?.panel) out.panel = next.panel;
   const d = next.diff;
   const a = applied?.diff;
-  if (d && (!a || d.file !== a.file || d.line !== a.line || d.base !== a.base)) out.diff = d;
+  if (d && (!a || d.file !== a.file || d.line !== a.line || d.base !== a.base))
+    out.diff = d;
   const sc = next.scroll;
   const as = applied?.scroll;
-  if (sc && (!as || sc.key !== as.key || Math.abs(sc.offset - as.offset) >= 0.005)) out.scroll = sc;
+  if (
+    sc &&
+    (!as || sc.key !== as.key || Math.abs(sc.offset - as.offset) >= 0.005)
+  )
+    out.scroll = sc;
   return hasParts(out) ? out : null;
 }
 
-
-export function followersSig(rows: readonly FollowerRow[] | null | undefined): string {
+export function followersSig(
+  rows: readonly FollowerRow[] | null | undefined,
+): string {
   return (rows ?? []).map((r) => r.user_id).join(",");
 }
 
-export function sameViewAnchor(a: ViewAnchor | null, b: ViewAnchor | null): boolean {
+export function sameViewAnchor(
+  a: ViewAnchor | null,
+  b: ViewAnchor | null,
+): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
-  return a.conversationId === b.conversationId && a.messageId === b.messageId && Math.abs(a.offset - b.offset) < 0.02;
+  return (
+    a.conversationId === b.conversationId &&
+    a.messageId === b.messageId &&
+    Math.abs(a.offset - b.offset) < 0.02
+  );
 }
 
 /**
@@ -194,7 +228,8 @@ export function anchorFromRects(
   const r = rects.find((x) => x.index === topVisibleIndex);
   if (!r) return { messageId: id, offset: 0 };
   const h = r.bottom - r.top;
-  const offset = h > 0 ? Math.min(1, Math.max(0, (containerTop - r.top) / h)) : 0;
+  const offset =
+    h > 0 ? Math.min(1, Math.max(0, (containerTop - r.top) / h)) : 0;
   return { messageId: id, offset: Math.round(offset * 100) / 100 };
 }
 
@@ -216,16 +251,30 @@ export function planFollowApply(
 ): FollowPlan {
   if (view.withheld) return { kind: "blocked" };
   // A move to another page lands with nothing applied there yet.
-  const inPage = (moved: boolean) => planViewApply(view.view, moved ? null : current.appliedView);
+  const inPage = (moved: boolean) =>
+    planViewApply(view.view, moved ? null : current.appliedView);
   if (view.conversation_id) {
     const target = view.anchor?.message_id ?? null;
-    if (current.conversationId !== view.conversation_id) return { kind: "session", conversationId: view.conversation_id, scrollTo: target, view: inPage(true) };
-    if (target && target !== current.anchorMessageId) return { kind: "session", conversationId: view.conversation_id, scrollTo: target, view: inPage(false) };
+    if (current.conversationId !== view.conversation_id)
+      return {
+        kind: "session",
+        conversationId: view.conversation_id,
+        scrollTo: target,
+        view: inPage(true),
+      };
+    if (target && target !== current.anchorMessageId)
+      return {
+        kind: "session",
+        conversationId: view.conversation_id,
+        scrollTo: target,
+        view: inPage(false),
+      };
     return { kind: "stay", view: inPage(false) };
   }
   const path = view.path.trim();
   if (!path) return { kind: "stay", view: null };
-  if (current.pathname && samePath(current.pathname, path)) return { kind: "stay", view: inPage(false) };
+  if (current.pathname && samePath(current.pathname, path))
+    return { kind: "stay", view: inPage(false) };
   return { kind: "route", path, view: inPage(true) };
 }
 
@@ -244,7 +293,11 @@ export function samePath(a: string, b: string): boolean {
  * scrolling would otherwise renew any grace window forever, swallowing the
  * follower's click at the moment they most want to break away.
  */
-export function shouldEndFollow(source: string, to: string | null | undefined, expectedTarget: string | null): boolean {
+export function shouldEndFollow(
+  source: string,
+  to: string | null | undefined,
+  expectedTarget: string | null,
+): boolean {
   if (source !== "gesture") return false;
   if (!to) return false;
   return to !== expectedTarget;
@@ -255,7 +308,8 @@ export function followersLabel(rows: readonly FollowerRow[]): string {
   const first = (n: string) => n.split(/\s+/)[0] || n;
   if (rows.length === 0) return "";
   if (rows.length === 1) return `${first(rows[0].name)} is following you`;
-  if (rows.length === 2) return `${first(rows[0].name)} and ${first(rows[1].name)} are following you`;
+  if (rows.length === 2)
+    return `${first(rows[0].name)} and ${first(rows[1].name)} are following you`;
   return `${rows.length} following you`;
 }
 
@@ -280,6 +334,12 @@ export function stageFollowTarget(s: {
 }): string | null {
   if (s.view !== "speaker" || !s.leader || !s.inCall(s.leader)) return null;
   const target = s.pinned ?? s.speaker;
-  if (!target || target === s.self || target === s.leader || !s.isPerson(target)) return null;
+  if (
+    !target ||
+    target === s.self ||
+    target === s.leader ||
+    !s.isPerson(target)
+  )
+    return null;
   return target;
 }

@@ -15,7 +15,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Maximize2, Square } from "lucide-react";
 import { stopRecording } from "../../lib/calls/recorder";
-import { useRecorderLevelVar, useRecorderStatus } from "../../hooks/useRecorder";
+import {
+  useRecorderLevelVar,
+  useRecorderStatus,
+} from "../../hooks/useRecorder";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { formatCallTime } from "@codecast/shared/entities";
 import "./recorder.css";
@@ -44,7 +47,9 @@ export function RecordingPill() {
       <div className="rec-pill-host">
         <div
           className="rec-pill rec-pill-leaving"
-          onAnimationEnd={(e) => e.target === e.currentTarget && setShown(false)}
+          onAnimationEnd={(e) =>
+            e.target === e.currentTarget && setShown(false)
+          }
         >
           {lastFrame.current}
         </div>

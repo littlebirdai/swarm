@@ -1,4 +1,9 @@
-import { query, mutation, type QueryCtx, type MutationCtx } from "./_generated/server";
+import {
+  query,
+  mutation,
+  type QueryCtx,
+  type MutationCtx,
+} from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -56,7 +61,10 @@ export const webList = query({
 export const webListV2 = query({
   args: {},
   handler: async (ctx) => {
-    const identity = { contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY };
+    const identity = {
+      contractId: BUCKETS_VIEW_CONTRACT_ID,
+      viewKey: BUCKETS_VIEW_KEY,
+    };
     const userId = await getAuthUserId(ctx);
     if (!userId) return unauthenticatedView(identity);
     const [buckets, assignments, viewRevision, commandIds] = await Promise.all([
@@ -74,20 +82,23 @@ export const webListV2 = query({
     ]);
     // Grant keys are opaque within the already principal-scoped store;
     // application code must not inspect or synthesize them.
-    return grantedView(identity, { grantKeys: ["bucket-catalog"], viewRevision, commandIds }, {
-      buckets,
-      assignments,
-    });
+    return grantedView(
+      identity,
+      { grantKeys: ["bucket-catalog"], viewRevision, commandIds },
+      {
+        buckets,
+        assignments,
+      },
+    );
   },
 });
 
 // Pure label-name → bucket match: exact (case-insensitive) wins, then
 // substring; archived buckets are invisible. The error variant lists the
 // caller's labels so a typo is self-correcting.
-export function matchBucketByName<B extends { name: string; archived_at?: number }>(
-  buckets: B[],
-  label: string
-): B | { error: string } {
+export function matchBucketByName<
+  B extends { name: string; archived_at?: number },
+>(buckets: B[], label: string): B | { error: string } {
   const active = buckets.filter((b) => !b.archived_at);
   const needle = label.trim().toLowerCase();
   const bucket =
@@ -109,7 +120,7 @@ export function matchBucketByName<B extends { name: string; archived_at?: number
 export async function resolveLabelConvIds(
   ctx: QueryCtx,
   userId: Id<"users">,
-  label: string
+  label: string,
 ): Promise<{ convIds: Set<string> } | { error: string }> {
   const buckets = await ctx.db
     .query("inbox_buckets")
@@ -125,7 +136,7 @@ export async function resolveLabelConvIds(
     convIds: new Set(
       assignments
         .filter((a) => a.bucket_id === matched._id)
-        .map((a) => a.conversation_id.toString())
+        .map((a) => a.conversation_id.toString()),
     ),
   };
 }
@@ -142,10 +153,15 @@ export async function resolveLabelConvIds(
 export async function createBucketForUser(
   ctx: MutationCtx,
   userId: Id<"users">,
-  opts: { name: string; color?: string }
+  opts: { name: string; color?: string },
 ): Promise<{ _id: Id<"inbox_buckets"> }> {
   const result = await createBucketRow(ctx, userId, opts);
-  await advanceLocalViewRevision(ctx, userId, BUCKETS_VIEW_CONTRACT_ID, BUCKETS_VIEW_KEY);
+  await advanceLocalViewRevision(
+    ctx,
+    userId,
+    BUCKETS_VIEW_CONTRACT_ID,
+    BUCKETS_VIEW_KEY,
+  );
   return result;
 }
 
@@ -161,7 +177,10 @@ async function createBucketRow(
     .query("inbox_buckets")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
-  const maxOrder = existing.reduce((m: number, b) => Math.max(m, b.sort_order ?? 0), 0);
+  const maxOrder = existing.reduce(
+    (m: number, b) => Math.max(m, b.sort_order ?? 0),
+    0,
+  );
   const _id = await ctx.db.insert("inbox_buckets", {
     user_id: userId,
     name,
@@ -178,19 +197,32 @@ async function createBucketRow(
 // not fuzzy-match ("api" should never land on an existing "apiv2" label), so the
 // resolve-or-create and rename/archive paths use exact matching.
 export async function findActiveBucketByExactName<
-  B extends { name: string; archived_at?: number }
+  B extends { name: string; archived_at?: number },
 >(buckets: B[], name: string): Promise<B | null> {
   const needle = name.trim().toLowerCase();
-  return buckets.find((b) => !b.archived_at && b.name.toLowerCase() === needle) ?? null;
+  return (
+    buckets.find((b) => !b.archived_at && b.name.toLowerCase() === needle) ??
+    null
+  );
 }
 
 // The label a rename or an archive names: the exact one or an error listing
 // the labels there are. A write never takes the nearest substring match.
-export async function requireExactLabel<B extends { name: string; archived_at?: number }>(buckets: B[], name: string): Promise<B> {
+export async function requireExactLabel<
+  B extends { name: string; archived_at?: number },
+>(buckets: B[], name: string): Promise<B> {
   const exact = await findActiveBucketByExactName(buckets, name);
   if (exact) return exact;
-  const names = [...new Set(buckets.filter((b) => !b.archived_at).map((b) => b.name))].sort().join(", ");
-  throw new Error(names ? `No label named "${name}". Your labels: ${names}` : `No label named "${name}": you have no labels yet`);
+  const names = [
+    ...new Set(buckets.filter((b) => !b.archived_at).map((b) => b.name)),
+  ]
+    .sort()
+    .join(", ");
+  throw new Error(
+    names
+      ? `No label named "${name}". Your labels: ${names}`
+      : `No label named "${name}": you have no labels yet`,
+  );
 }
 
 // Resolve a label by exact name, creating it if absent. Returns the bucket id
@@ -199,7 +231,7 @@ export async function resolveOrCreateBucket(
   ctx: MutationCtx,
   userId: Id<"users">,
   name: string,
-  color?: string
+  color?: string,
 ): Promise<{ bucketId: Id<"inbox_buckets">; name: string; created: boolean }> {
   const trimmed = (name || "").trim();
   if (!trimmed) throw new Error("Label name required");
@@ -208,8 +240,12 @@ export async function resolveOrCreateBucket(
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
   const existing = await findActiveBucketByExactName(buckets, trimmed);
-  if (existing) return { bucketId: existing._id, name: existing.name, created: false };
-  const { _id } = await createBucketForUser(ctx, userId, { name: trimmed, color });
+  if (existing)
+    return { bucketId: existing._id, name: existing.name, created: false };
+  const { _id } = await createBucketForUser(ctx, userId, {
+    name: trimmed,
+    color,
+  });
   return { bucketId: _id, name: trimmed, created: true };
 }
 
@@ -235,10 +271,15 @@ export async function assignConversationToBucketForUser(
   ctx: MutationCtx,
   userId: Id<"users">,
   convId: Id<"conversations">,
-  bucketId: Id<"inbox_buckets"> | null
+  bucketId: Id<"inbox_buckets"> | null,
 ): Promise<void> {
   await assignConversationToBucketRow(ctx, userId, convId, bucketId);
-  await advanceLocalViewRevision(ctx, userId, BUCKETS_VIEW_CONTRACT_ID, BUCKETS_VIEW_KEY);
+  await advanceLocalViewRevision(
+    ctx,
+    userId,
+    BUCKETS_VIEW_CONTRACT_ID,
+    BUCKETS_VIEW_KEY,
+  );
 }
 
 async function assignConversationToBucketRow(
@@ -251,10 +292,14 @@ async function assignConversationToBucketRow(
   const existing = await ctx.db
     .query("bucket_assignments")
     .withIndex("by_user_conversation", (q) =>
-      q.eq("user_id", userId).eq("conversation_id", convId))
+      q.eq("user_id", userId).eq("conversation_id", convId),
+    )
     .first();
   if (existing) {
-    await ctx.db.patch(existing._id, { bucket_id: bucketId ?? undefined, updated_at: now });
+    await ctx.db.patch(existing._id, {
+      bucket_id: bucketId ?? undefined,
+      updated_at: now,
+    });
   } else {
     await ctx.db.insert("bucket_assignments", {
       user_id: userId,
@@ -280,76 +325,84 @@ export async function createBucketWithAssignmentsV2ForUser(
     conversationIds: Id<"conversations">[];
   },
 ) {
-  return runLocalCommand(ctx, {
-    principalId: userId,
-    commandId: args.commandId,
-    commandName: "buckets.create/v2",
-    arguments: {
-      name: args.name,
-      color: args.color,
-      assignConversationIds: args.conversationIds,
+  return runLocalCommand(
+    ctx,
+    {
+      principalId: userId,
+      commandId: args.commandId,
+      commandName: "buckets.create/v2",
+      arguments: {
+        name: args.name,
+        color: args.color,
+        assignConversationIds: args.conversationIds,
+      },
     },
-  }, async () => {
-    if (!args.name.trim()) {
-      return {
-        status: "rejected",
-        code: "INVALID_ARGUMENT",
-        message: "Label name required",
-      };
-    }
-    for (const conversationId of args.conversationIds) {
-      let conversation;
-      try {
-        conversation = await ctx.db.get(conversationId);
-      } catch {
+    async () => {
+      if (!args.name.trim()) {
         return {
           status: "rejected",
           code: "INVALID_ARGUMENT",
-          message: "A selected session id is invalid",
+          message: "Label name required",
         };
       }
-      if (!conversation) {
-        return {
-          status: "rejected",
-          code: "MISSING",
-          message: "A session selected for this label no longer exists",
-        };
+      for (const conversationId of args.conversationIds) {
+        let conversation;
+        try {
+          conversation = await ctx.db.get(conversationId);
+        } catch {
+          return {
+            status: "rejected",
+            code: "INVALID_ARGUMENT",
+            message: "A selected session id is invalid",
+          };
+        }
+        if (!conversation) {
+          return {
+            status: "rejected",
+            code: "MISSING",
+            message: "A session selected for this label no longer exists",
+          };
+        }
+        if (!(await canFileConversation(ctx, userId, conversation))) {
+          return {
+            status: "rejected",
+            code: "FORBIDDEN",
+            message: "A selected session is not visible to this account",
+          };
+        }
       }
-      if (!(await canFileConversation(ctx, userId, conversation))) {
-        return {
-          status: "rejected",
-          code: "FORBIDDEN",
-          message: "A selected session is not visible to this account",
-        };
-      }
-    }
 
-    const created = await createBucketRow(ctx, userId, {
-      name: args.name,
-      color: args.color,
-    });
-    for (const conversationId of args.conversationIds) {
-      await assignConversationToBucketRow(
-        ctx,
-        userId,
-        conversationId,
-        created._id,
-      );
-    }
-    return {
-      status: "acknowledged",
-      result: { bucketId: created._id },
-      coverageViews: [{
-        contractId: BUCKETS_VIEW_CONTRACT_ID,
-        viewKey: BUCKETS_VIEW_KEY,
-      }],
-      coverageCommandIds: [{
-        kind: "command-id" as const,
-        contractId: BUCKETS_VIEW_CONTRACT_ID_V3,
-        viewKey: BUCKETS_VIEW_KEY,
-      }],
-    };
-  });
+      const created = await createBucketRow(ctx, userId, {
+        name: args.name,
+        color: args.color,
+      });
+      for (const conversationId of args.conversationIds) {
+        await assignConversationToBucketRow(
+          ctx,
+          userId,
+          conversationId,
+          created._id,
+        );
+      }
+      return {
+        status: "acknowledged",
+        result: { bucketId: created._id },
+        coverageViews: [
+          {
+            contractId: BUCKETS_VIEW_CONTRACT_ID,
+            viewKey: BUCKETS_VIEW_KEY,
+          },
+        ],
+        coverageCommandIds: [
+          {
+            kind: "command-id" as const,
+            contractId: BUCKETS_VIEW_CONTRACT_ID_V3,
+            viewKey: BUCKETS_VIEW_KEY,
+          },
+        ],
+      };
+    },
+  );
 }
 
 // ── V2 local-command surface ────────────────────────────────────────────────
@@ -365,23 +418,42 @@ export const webCreateV2 = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "buckets.create/v2",
-      arguments: { name: args.name, color: args.color },
-    }, async () => {
-      if (!args.name.trim()) {
-        return { status: "rejected", code: "INVALID_ARGUMENT", message: "Label name required" };
-      }
-      const created = await createBucketRow(ctx, userId, { name: args.name, color: args.color });
-      return {
-        status: "acknowledged",
-        result: { bucketId: created._id },
-        coverageViews: [{ contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY }],
-        coverageCommandIds: [{ kind: "command-id" as const, contractId: BUCKETS_VIEW_CONTRACT_ID_V3, viewKey: BUCKETS_VIEW_KEY }],
-      };
-    });
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "buckets.create/v2",
+        arguments: { name: args.name, color: args.color },
+      },
+      async () => {
+        if (!args.name.trim()) {
+          return {
+            status: "rejected",
+            code: "INVALID_ARGUMENT",
+            message: "Label name required",
+          };
+        }
+        const created = await createBucketRow(ctx, userId, {
+          name: args.name,
+          color: args.color,
+        });
+        return {
+          status: "acknowledged",
+          result: { bucketId: created._id },
+          coverageViews: [
+            { contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY },
+          ],
+          coverageCommandIds: [
+            {
+              kind: "command-id" as const,
+              contractId: BUCKETS_VIEW_CONTRACT_ID_V3,
+              viewKey: BUCKETS_VIEW_KEY,
+            },
+          ],
+        };
+      },
+    );
   },
 });
 
@@ -403,35 +475,60 @@ export const webUpdateV2 = mutation({
       sortOrder: args.sort_order,
       archived: args.archived,
     };
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "buckets.update/v2",
-      arguments: commandArgs,
-    }, async () => {
-      const bucket = await ctx.db.get(args.bucket_id);
-      if (!bucket || String(bucket.user_id) !== String(userId)) {
-        return { status: "rejected", code: "NOT_FOUND", message: "Label not found" };
-      }
-      if (args.name !== undefined && !args.name.trim()) {
-        return { status: "rejected", code: "INVALID_ARGUMENT", message: "Label name required" };
-      }
-      const patch: Record<string, unknown> = { updated_at: Date.now() };
-      if (args.name !== undefined) patch.name = args.name.trim();
-      if (args.color !== undefined) patch.color = args.color ?? undefined;
-      if (args.sort_order !== undefined) patch.sort_order = args.sort_order;
-      if (args.archived !== undefined) patch.archived_at = args.archived ? Date.now() : undefined;
-      if (Object.keys(patch).length === 1) {
-        return { status: "rejected", code: "INVALID_ARGUMENT", message: "No label fields supplied" };
-      }
-      await ctx.db.patch(args.bucket_id, patch);
-      return {
-        status: "acknowledged",
-        result: { bucketId: args.bucket_id },
-        coverageViews: [{ contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY }],
-        coverageCommandIds: [{ kind: "command-id" as const, contractId: BUCKETS_VIEW_CONTRACT_ID_V3, viewKey: BUCKETS_VIEW_KEY }],
-      };
-    });
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "buckets.update/v2",
+        arguments: commandArgs,
+      },
+      async () => {
+        const bucket = await ctx.db.get(args.bucket_id);
+        if (!bucket || String(bucket.user_id) !== String(userId)) {
+          return {
+            status: "rejected",
+            code: "NOT_FOUND",
+            message: "Label not found",
+          };
+        }
+        if (args.name !== undefined && !args.name.trim()) {
+          return {
+            status: "rejected",
+            code: "INVALID_ARGUMENT",
+            message: "Label name required",
+          };
+        }
+        const patch: Record<string, unknown> = { updated_at: Date.now() };
+        if (args.name !== undefined) patch.name = args.name.trim();
+        if (args.color !== undefined) patch.color = args.color ?? undefined;
+        if (args.sort_order !== undefined) patch.sort_order = args.sort_order;
+        if (args.archived !== undefined)
+          patch.archived_at = args.archived ? Date.now() : undefined;
+        if (Object.keys(patch).length === 1) {
+          return {
+            status: "rejected",
+            code: "INVALID_ARGUMENT",
+            message: "No label fields supplied",
+          };
+        }
+        await ctx.db.patch(args.bucket_id, patch);
+        return {
+          status: "acknowledged",
+          result: { bucketId: args.bucket_id },
+          coverageViews: [
+            { contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY },
+          ],
+          coverageCommandIds: [
+            {
+              kind: "command-id" as const,
+              contractId: BUCKETS_VIEW_CONTRACT_ID_V3,
+              viewKey: BUCKETS_VIEW_KEY,
+            },
+          ],
+        };
+      },
+    );
   },
 });
 
@@ -443,35 +540,68 @@ export const webAssignV2 = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "buckets.assign/v2",
-      arguments: { conversationId: args.conversation_id, bucketId: args.bucket_id },
-    }, async () => {
-      const conversation = await ctx.db.get(args.conversation_id);
-      if (!conversation || !(await canFileConversation(ctx, userId, conversation))) {
-        return { status: "rejected", code: "NOT_FOUND", message: "Conversation not found" };
-      }
-      if (args.bucket_id) {
-        const bucket = await ctx.db.get(args.bucket_id);
-        if (!bucket || String(bucket.user_id) !== String(userId) || bucket.archived_at) {
-          return { status: "rejected", code: "NOT_FOUND", message: "Active label not found" };
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "buckets.assign/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          bucketId: args.bucket_id,
+        },
+      },
+      async () => {
+        const conversation = await ctx.db.get(args.conversation_id);
+        if (
+          !conversation ||
+          !(await canFileConversation(ctx, userId, conversation))
+        ) {
+          return {
+            status: "rejected",
+            code: "NOT_FOUND",
+            message: "Conversation not found",
+          };
         }
-      }
-      await assignConversationToBucketRow(
-        ctx,
-        userId,
-        args.conversation_id,
-        args.bucket_id ?? null,
-      );
-      return {
-        status: "acknowledged",
-        result: { conversationId: args.conversation_id, bucketId: args.bucket_id ?? null },
-        coverageViews: [{ contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY }],
-        coverageCommandIds: [{ kind: "command-id" as const, contractId: BUCKETS_VIEW_CONTRACT_ID_V3, viewKey: BUCKETS_VIEW_KEY }],
-      };
-    });
+        if (args.bucket_id) {
+          const bucket = await ctx.db.get(args.bucket_id);
+          if (
+            !bucket ||
+            String(bucket.user_id) !== String(userId) ||
+            bucket.archived_at
+          ) {
+            return {
+              status: "rejected",
+              code: "NOT_FOUND",
+              message: "Active label not found",
+            };
+          }
+        }
+        await assignConversationToBucketRow(
+          ctx,
+          userId,
+          args.conversation_id,
+          args.bucket_id ?? null,
+        );
+        return {
+          status: "acknowledged",
+          result: {
+            conversationId: args.conversation_id,
+            bucketId: args.bucket_id ?? null,
+          },
+          coverageViews: [
+            { contractId: BUCKETS_VIEW_CONTRACT_ID, viewKey: BUCKETS_VIEW_KEY },
+          ],
+          coverageCommandIds: [
+            {
+              kind: "command-id" as const,
+              contractId: BUCKETS_VIEW_CONTRACT_ID_V3,
+              viewKey: BUCKETS_VIEW_KEY,
+            },
+          ],
+        };
+      },
+    );
   },
 });
 
@@ -479,7 +609,10 @@ export const webAssignV2 = mutation({
 // `cast label …`. The ref may resolve to ANY session the caller can file
 // (canFileConversation), same bar as `cast send`/rename.
 
-async function requireCliUser(ctx: QueryCtx | MutationCtx, apiToken: string): Promise<Id<"users">> {
+async function requireCliUser(
+  ctx: QueryCtx | MutationCtx,
+  apiToken: string,
+): Promise<Id<"users">> {
   const auth = await verifyApiToken(ctx, apiToken, false);
   if (!auth) throw new Error("Unauthorized");
   return auth.userId;
@@ -502,12 +635,20 @@ export const cliListLabels = query({
       .collect();
     const counts = new Map<string, number>();
     for (const a of assignments) {
-      if (a.bucket_id) counts.set(a.bucket_id.toString(), (counts.get(a.bucket_id.toString()) ?? 0) + 1);
+      if (a.bucket_id)
+        counts.set(
+          a.bucket_id.toString(),
+          (counts.get(a.bucket_id.toString()) ?? 0) + 1,
+        );
     }
     const labels = buckets
       .filter((b) => !b.archived_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map((b) => ({ name: b.name, count: counts.get(b._id.toString()) ?? 0, color: b.color ?? null }));
+      .map((b) => ({
+        name: b.name,
+        count: counts.get(b._id.toString()) ?? 0,
+        color: b.color ?? null,
+      }));
     const labeled = labels.reduce((n, l) => n + l.count, 0);
     return { labels, counts: { total: labeled } };
   },
@@ -515,14 +656,33 @@ export const cliListLabels = query({
 
 // File a session under a label (creating the label if it doesn't exist yet).
 export const cliSetLabel = mutation({
-  args: { api_token: v.string(), session: v.string(), name: v.string(), color: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    session: v.string(),
+    name: v.string(),
+    color: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCliUser(ctx, args.api_token);
     const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      canFileConversation(ctx, userId, c));
-    if (!conv) throw new Error(`No session found for "${args.session}" (you can label your own sessions and sessions shared with your team)`);
-    const label = await resolveOrCreateBucket(ctx, userId, args.name, args.color);
-    await assignConversationToBucketForUser(ctx, userId, conv._id, label.bucketId);
+      canFileConversation(ctx, userId, c),
+    );
+    if (!conv)
+      throw new Error(
+        `No session found for "${args.session}" (you can label your own sessions and sessions shared with your team)`,
+      );
+    const label = await resolveOrCreateBucket(
+      ctx,
+      userId,
+      args.name,
+      args.color,
+    );
+    await assignConversationToBucketForUser(
+      ctx,
+      userId,
+      conv._id,
+      label.bucketId,
+    );
     return {
       label: label.name,
       created_label: label.created,
@@ -537,12 +697,17 @@ export const cliClearLabel = mutation({
   handler: async (ctx, args) => {
     const userId = await requireCliUser(ctx, args.api_token);
     const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      canFileConversation(ctx, userId, c));
-    if (!conv) throw new Error(`No session found for "${args.session}" (you can label your own sessions and sessions shared with your team)`);
+      canFileConversation(ctx, userId, c),
+    );
+    if (!conv)
+      throw new Error(
+        `No session found for "${args.session}" (you can label your own sessions and sessions shared with your team)`,
+      );
     const prior = await ctx.db
       .query("bucket_assignments")
       .withIndex("by_user_conversation", (q) =>
-        q.eq("user_id", userId).eq("conversation_id", conv._id))
+        q.eq("user_id", userId).eq("conversation_id", conv._id),
+      )
       .first();
     let priorLabel: string | null = null;
     if (prior?.bucket_id) {
@@ -559,10 +724,19 @@ export const cliClearLabel = mutation({
 
 // Create an empty label up front (idempotent on exact name).
 export const cliCreateLabel = mutation({
-  args: { api_token: v.string(), name: v.string(), color: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    name: v.string(),
+    color: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCliUser(ctx, args.api_token);
-    const label = await resolveOrCreateBucket(ctx, userId, args.name, args.color);
+    const label = await resolveOrCreateBucket(
+      ctx,
+      userId,
+      args.name,
+      args.color,
+    );
     return { label: label.name, created: label.created };
   },
 });
@@ -580,7 +754,12 @@ export const cliRenameLabel = mutation({
       .collect();
     const matched = await requireExactLabel(buckets, args.from);
     await ctx.db.patch(matched._id, { name: newName, updated_at: Date.now() });
-    await advanceLocalViewRevision(ctx, userId, BUCKETS_VIEW_CONTRACT_ID, BUCKETS_VIEW_KEY);
+    await advanceLocalViewRevision(
+      ctx,
+      userId,
+      BUCKETS_VIEW_CONTRACT_ID,
+      BUCKETS_VIEW_KEY,
+    );
     return { old: matched.name, new: newName };
   },
 });
@@ -601,8 +780,16 @@ export const cliArchiveLabel = mutation({
       .withIndex("by_user_id", (q) => q.eq("user_id", userId))
       .collect();
     const filed = assignments.filter((a) => a.bucket_id === matched._id).length;
-    await ctx.db.patch(matched._id, { archived_at: Date.now(), updated_at: Date.now() });
-    await advanceLocalViewRevision(ctx, userId, BUCKETS_VIEW_CONTRACT_ID, BUCKETS_VIEW_KEY);
+    await ctx.db.patch(matched._id, {
+      archived_at: Date.now(),
+      updated_at: Date.now(),
+    });
+    await advanceLocalViewRevision(
+      ctx,
+      userId,
+      BUCKETS_VIEW_CONTRACT_ID,
+      BUCKETS_VIEW_KEY,
+    );
     return { label: matched.name, filed_count: filed };
   },
 });

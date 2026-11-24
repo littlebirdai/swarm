@@ -38,7 +38,10 @@ import type { Config } from "../config/types.js";
 import type { AgentClientId } from "@codecast/shared/contracts";
 
 /** Arg-array tmux runner: execFile, never a shell; throws on a failed call. */
-export type TmuxRunner = (args: string[], opts?: { timeout?: number }) => string | Promise<string>;
+export type TmuxRunner = (
+  args: string[],
+  opts?: { timeout?: number },
+) => string | Promise<string>;
 
 /**
  * The real runner, off the event loop. A spawn runs on the daemon's loop, and
@@ -49,7 +52,11 @@ export type TmuxRunner = (args: string[], opts?: { timeout?: number }) => string
  */
 const defaultTmux: TmuxRunner = async (args, opts) => {
   const r = await tmuxRunAsync(args, opts);
-  if (r.status !== 0) throw Object.assign(new Error(r.stderr.trim() || `tmux ${args[0]} failed`), { stderr: r.stderr });
+  if (r.status !== 0)
+    throw Object.assign(
+      new Error(r.stderr.trim() || `tmux ${args[0]} failed`),
+      { stderr: r.stderr },
+    );
   return r.stdout;
 };
 
@@ -74,7 +81,9 @@ export interface SpawnAgentTmuxDeps {
    * auto-owns a remote). Omit for ownership-less spawns (e.g. scheduled tasks
    * that have no conversation), in which case ownership is skipped.
    */
-  claimOwnership?: (conversationId: string) => Promise<{ won: boolean; owner?: string }>;
+  claimOwnership?: (
+    conversationId: string,
+  ) => Promise<{ won: boolean; owner?: string }>;
   /**
    * Register the spawned tmux as a managed session so the UI lists it and the
    * watchdog can reconcile it. Best-effort; omit when there's no conversation.
@@ -164,15 +173,27 @@ export async function spawnAgentTmux(
   const tmux = deps.tmux ?? defaultTmux;
 
   if (!SAFE_TMUX_NAME_RE.test(req.tmuxSession)) {
-    log(`[spawnAgentTmux] refusing unsafe tmux name: ${req.tmuxSession}`, "error");
-    return { ok: false, reason: `unsafe tmux session name: ${req.tmuxSession}` };
+    log(
+      `[spawnAgentTmux] refusing unsafe tmux name: ${req.tmuxSession}`,
+      "error",
+    );
+    return {
+      ok: false,
+      reason: `unsafe tmux session name: ${req.tmuxSession}`,
+    };
   }
 
   // (a) Path safety — refuse rather than $HOME-fallback.
   const cwd = validateSpawnCwd(req.cwd);
   if (!cwd) {
-    log(`[spawnAgentTmux] refusing spawn for ${req.tmuxSession}: cwd not a local directory: ${req.cwd}`, "error");
-    return { ok: false, reason: `cwd does not exist or is not a directory: ${req.cwd}` };
+    log(
+      `[spawnAgentTmux] refusing spawn for ${req.tmuxSession}: cwd not a local directory: ${req.cwd}`,
+      "error",
+    );
+    return {
+      ok: false,
+      reason: `cwd does not exist or is not a directory: ${req.cwd}`,
+    };
   }
 
   // (d) Ownership — claim before spawning; a remote never auto-owns.
@@ -181,18 +202,26 @@ export async function spawnAgentTmux(
       // A remote box must never auto-own. The server router (pickOwnerDevice)
       // already excludes remotes, so a remote that reaches here only spawns when
       // it already owns the work; claimOwnership is the authority on that.
-      log(`[spawnAgentTmux] remote device claiming ${req.conversationId.slice(-12)} before spawn`, "debug");
+      log(
+        `[spawnAgentTmux] remote device claiming ${req.conversationId.slice(-12)} before spawn`,
+        "debug",
+      );
     }
     let claim: { won: boolean; owner?: string };
     try {
       claim = await deps.claimOwnership(req.conversationId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      log(`[spawnAgentTmux] ownership claim failed for ${req.conversationId.slice(-12)}: ${msg}`, "warn");
+      log(
+        `[spawnAgentTmux] ownership claim failed for ${req.conversationId.slice(-12)}: ${msg}`,
+        "warn",
+      );
       return { ok: false, reason: `ownership claim failed: ${msg}` };
     }
     if (!claim.won) {
-      log(`[spawnAgentTmux] ${req.conversationId.slice(-12)} owned by ${claim.owner?.slice(0, 8) ?? "another device"} — skipping spawn`);
+      log(
+        `[spawnAgentTmux] ${req.conversationId.slice(-12)} owned by ${claim.owner?.slice(0, 8) ?? "another device"} — skipping spawn`,
+      );
       return { ok: false, reason: "conversation owned by another device" };
     }
   }
@@ -200,16 +229,34 @@ export async function spawnAgentTmux(
   // (b) No shell interpolation — arg arrays only; command sent literally.
   try {
     if (req.killExisting !== false) {
-      try { await tmux(["kill-session", "-t", req.tmuxSession]); } catch { /* none to kill */ }
+      try {
+        await tmux(["kill-session", "-t", req.tmuxSession]);
+      } catch {
+        /* none to kill */
+      }
     }
     await tmux(["new-session", "-d", "-s", req.tmuxSession, "-c", cwd]);
 
     // (c) Managed-session tag — same options autoResumeSession sets, so a
     // recovered tmux is always matchable and orphans can't slip reconciliation.
     if (req.sessionId) {
-      await tmux(["set-option", "-q", "-t", req.tmuxSession, "@codecast_session_id", req.sessionId]);
+      await tmux([
+        "set-option",
+        "-q",
+        "-t",
+        req.tmuxSession,
+        "@codecast_session_id",
+        req.sessionId,
+      ]);
     }
-    await tmux(["set-option", "-q", "-t", req.tmuxSession, "@codecast_agent_type", req.agentType]);
+    await tmux([
+      "set-option",
+      "-q",
+      "-t",
+      req.tmuxSession,
+      "@codecast_agent_type",
+      req.agentType,
+    ]);
 
     // `-l` (literal): the command text is typed into the pane, never expanded by
     // the daemon's shell, so an injection attempt stays inert text. The token
@@ -218,7 +265,13 @@ export async function spawnAgentTmux(
     const command = isLaunchToken(req.launchToken)
       ? `${LAUNCH_TOKEN_VAR}=${req.launchToken} ${req.command}`
       : req.command;
-    await tmux(["send-keys", "-t", req.tmuxSession, "-l", tmuxLiteralArg(command)]);
+    await tmux([
+      "send-keys",
+      "-t",
+      req.tmuxSession,
+      "-l",
+      tmuxLiteralArg(command),
+    ]);
     await tmux(["send-keys", "-t", req.tmuxSession, "Enter"]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -229,13 +282,22 @@ export async function spawnAgentTmux(
   // Register the managed session (best-effort).
   if (req.sessionId && req.conversationId && deps.registerManagedSession) {
     try {
-      await deps.registerManagedSession(req.sessionId, req.tmuxSession, req.conversationId);
+      await deps.registerManagedSession(
+        req.sessionId,
+        req.tmuxSession,
+        req.conversationId,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      log(`[spawnAgentTmux] managed-session registration failed for ${req.tmuxSession}: ${msg}`, "warn");
+      log(
+        `[spawnAgentTmux] managed-session registration failed for ${req.tmuxSession}: ${msg}`,
+        "warn",
+      );
     }
   }
 
-  log(`[spawnAgentTmux] spawned ${req.agentType} in tmux=${req.tmuxSession} cwd=${cwd}`);
+  log(
+    `[spawnAgentTmux] spawned ${req.agentType} in tmux=${req.tmuxSession} cwd=${cwd}`,
+  );
   return { ok: true, tmuxSession: req.tmuxSession, cwd };
 }

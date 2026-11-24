@@ -18,10 +18,18 @@ describe("provider-key store", () => {
     const dir = tmpDir();
     try {
       expect(readProviderKeyStore(dir)).toEqual({});
-      const content = writeProviderKeyStore(dir, { openrouter: "sk-or-x", anthropic: "sk-ant-y" });
+      const content = writeProviderKeyStore(dir, {
+        openrouter: "sk-or-x",
+        anthropic: "sk-ant-y",
+      });
       expect(content).not.toBeNull();
-      expect((fs.statSync(providerKeyStorePath(dir)).mode & 0o777).toString(8)).toBe("600");
-      expect(readProviderKeyStore(dir)).toEqual({ anthropic: "sk-ant-y", openrouter: "sk-or-x" });
+      expect(
+        (fs.statSync(providerKeyStorePath(dir)).mode & 0o777).toString(8),
+      ).toBe("600");
+      expect(readProviderKeyStore(dir)).toEqual({
+        anthropic: "sk-ant-y",
+        openrouter: "sk-or-x",
+      });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -54,11 +62,18 @@ describe("provider-key store", () => {
   it("applies a peer's pushed blob, and rejects a malformed one without clobbering", () => {
     const dir = tmpDir();
     try {
-      expect(applyProviderKeyStoreBlob(dir, JSON.stringify({ openrouter: "sk-or-z" }))).toBe(true);
+      expect(
+        applyProviderKeyStoreBlob(
+          dir,
+          JSON.stringify({ openrouter: "sk-or-z" }),
+        ),
+      ).toBe(true);
       expect(readProviderKeyStore(dir)).toEqual({ openrouter: "sk-or-z" });
       // Garbage / wrong shape → refused, existing store untouched.
       expect(applyProviderKeyStoreBlob(dir, "not json")).toBe(false);
-      expect(applyProviderKeyStoreBlob(dir, JSON.stringify(["array"]))).toBe(false);
+      expect(applyProviderKeyStoreBlob(dir, JSON.stringify(["array"]))).toBe(
+        false,
+      );
       expect(readProviderKeyStore(dir)).toEqual({ openrouter: "sk-or-z" });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -68,7 +83,10 @@ describe("provider-key store", () => {
   it("drops non-string / empty values on read (a hand-edited or partial file degrades safely)", () => {
     const dir = tmpDir();
     try {
-      fs.writeFileSync(providerKeyStorePath(dir), JSON.stringify({ openrouter: "sk-or-x", bad: 123, empty: "" }));
+      fs.writeFileSync(
+        providerKeyStorePath(dir),
+        JSON.stringify({ openrouter: "sk-or-x", bad: 123, empty: "" }),
+      );
       expect(readProviderKeyStore(dir)).toEqual({ openrouter: "sk-or-x" });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

@@ -4,7 +4,8 @@ import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
 import { commandGroup } from "./commandGroups";
 
-const names = (cmd: Command | undefined) => (cmd?.commands ?? []).map((c) => c.name());
+const names = (cmd: Command | undefined) =>
+  (cmd?.commands ?? []).map((c) => c.name());
 
 describe("cast flow and cast line", () => {
   test("cast flow holds every cast line subcommand, beside the library's and the live flows' own", async () => {
@@ -16,7 +17,8 @@ describe("cast flow and cast line", () => {
     const line = program.commands.find((c) => c.name() === "line");
     expect(names(line).length).toBeGreaterThan(10);
     for (const n of names(line)) expect(names(flow)).toContain(n);
-    for (const n of ["ls", "show", "run", "on", "off"]) expect(names(flow)).toContain(n);
+    for (const n of ["ls", "show", "run", "on", "off"])
+      expect(names(flow)).toContain(n);
     expect(commandGroup("line").hidden).toBe(true);
     expect((line as unknown as { _hidden?: boolean })._hidden).toBe(true);
   });

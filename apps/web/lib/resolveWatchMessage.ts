@@ -1,6 +1,9 @@
 import { isShellTool } from "@codecast/shared/render";
 import { parseCastCommandString } from "../components/castCommand";
-import { backgroundStartedTaskId, type MonitorRow } from "../components/monitorRows";
+import {
+  backgroundStartedTaskId,
+  type MonitorRow,
+} from "../components/monitorRows";
 
 type WatchMessage = {
   _id: string;
@@ -11,25 +14,45 @@ type WatchMessage = {
 
 type MessageTarget = { messageId: string; timestamp: number };
 
-function findWatchMessage(row: MonitorRow, messages: readonly WatchMessage[]): MessageTarget | null {
-  const resultMessage = messages.find((message) => message.tool_results?.some((result) =>
-    result.tool_use_id === row.toolUseId
-      || (!!row.taskId && typeof result.content === "string" && backgroundStartedTaskId(result.content) === row.taskId),
-  ));
-  const toolUseId = resultMessage?.tool_results?.find((result) =>
-    result.tool_use_id === row.toolUseId
-      || (!!row.taskId && typeof result.content === "string" && backgroundStartedTaskId(result.content) === row.taskId),
-  )?.tool_use_id ?? row.toolUseId;
-  const message = messages.find((message) => message.tool_calls?.some((tool) => tool.id === toolUseId)) ?? resultMessage;
-  return message ? { messageId: message._id, timestamp: message.timestamp } : null;
+function findWatchMessage(
+  row: MonitorRow,
+  messages: readonly WatchMessage[],
+): MessageTarget | null {
+  const resultMessage = messages.find((message) =>
+    message.tool_results?.some(
+      (result) =>
+        result.tool_use_id === row.toolUseId ||
+        (!!row.taskId &&
+          typeof result.content === "string" &&
+          backgroundStartedTaskId(result.content) === row.taskId),
+    ),
+  );
+  const toolUseId =
+    resultMessage?.tool_results?.find(
+      (result) =>
+        result.tool_use_id === row.toolUseId ||
+        (!!row.taskId &&
+          typeof result.content === "string" &&
+          backgroundStartedTaskId(result.content) === row.taskId),
+    )?.tool_use_id ?? row.toolUseId;
+  const message =
+    messages.find((message) =>
+      message.tool_calls?.some((tool) => tool.id === toolUseId),
+    ) ?? resultMessage;
+  return message
+    ? { messageId: message._id, timestamp: message.timestamp }
+    : null;
 }
 
 export async function resolveWatchMessage(
   row: MonitorRow,
   messages: readonly WatchMessage[] | undefined,
-  loadAround: (timestamp: number) => Promise<{ messages: WatchMessage[] } | null>,
+  loadAround: (
+    timestamp: number,
+  ) => Promise<{ messages: WatchMessage[] } | null>,
 ): Promise<MessageTarget | null> {
-  if (row.startMessageId) return { messageId: row.startMessageId, timestamp: row.startedAt };
+  if (row.startMessageId)
+    return { messageId: row.startMessageId, timestamp: row.startedAt };
   const cached = findWatchMessage(row, messages ?? []);
   if (cached) return cached;
   const page = await loadAround(row.startedAt);
@@ -43,22 +66,36 @@ export async function resolveWatchMessage(
 const LAUNCH_BEFORE_MS = 10 * 60_000;
 const LAUNCH_AFTER_MS = 60_000;
 
-function isWorkflowLaunchCall(tool: { name?: string; input?: unknown }): boolean {
+function isWorkflowLaunchCall(tool: {
+  name?: string;
+  input?: unknown;
+}): boolean {
   if (tool.name === "Workflow" || tool.name === "workflow") return true;
   if (!tool.name || !isShellTool(tool.name)) return false;
   try {
-    const input = (typeof tool.input === "string" ? JSON.parse(tool.input) : tool.input) as { command?: unknown; cmd?: unknown } | undefined;
-    const cmd = parseCastCommandString(String(input?.command || input?.cmd || ""));
+    const input = (
+      typeof tool.input === "string" ? JSON.parse(tool.input) : tool.input
+    ) as { command?: unknown; cmd?: unknown } | undefined;
+    const cmd = parseCastCommandString(
+      String(input?.command || input?.cmd || ""),
+    );
     return cmd?.category === "workflow" && cmd.subcommand === "run";
   } catch {
     return false;
   }
 }
 
-function findWorkflowLaunch(startedAt: number, messages: readonly WatchMessage[]): WatchMessage | undefined {
+function findWorkflowLaunch(
+  startedAt: number,
+  messages: readonly WatchMessage[],
+): WatchMessage | undefined {
   let launch: WatchMessage | undefined;
   for (const message of messages) {
-    if (message.timestamp < startedAt - LAUNCH_BEFORE_MS || message.timestamp > startedAt + LAUNCH_AFTER_MS) continue;
+    if (
+      message.timestamp < startedAt - LAUNCH_BEFORE_MS ||
+      message.timestamp > startedAt + LAUNCH_AFTER_MS
+    )
+      continue;
     if (!message.tool_calls?.some(isWorkflowLaunchCall)) continue;
     if (!launch || message.timestamp > launch.timestamp) launch = message;
   }
@@ -71,13 +108,20 @@ function findWorkflowLaunch(startedAt: number, messages: readonly WatchMessage[]
 export async function resolveWorkflowMessage(
   startedAt: number,
   messages: readonly WatchMessage[] | undefined,
-  loadAround: (timestamp: number) => Promise<{ messages: WatchMessage[] } | null>,
+  loadAround: (
+    timestamp: number,
+  ) => Promise<{ messages: WatchMessage[] } | null>,
 ): Promise<MessageTarget | null> {
   const cached = findWorkflowLaunch(startedAt, messages ?? []);
   if (cached) return { messageId: cached._id, timestamp: cached.timestamp };
   const page = (await loadAround(startedAt))?.messages ?? [];
-  const found = findWorkflowLaunch(startedAt, page)
-    ?? page.filter((m) => m.timestamp >= startedAt).sort((a, b) => a.timestamp - b.timestamp)[0]
-    ?? page.filter((m) => m.timestamp < startedAt).sort((a, b) => b.timestamp - a.timestamp)[0];
+  const found =
+    findWorkflowLaunch(startedAt, page) ??
+    page
+      .filter((m) => m.timestamp >= startedAt)
+      .sort((a, b) => a.timestamp - b.timestamp)[0] ??
+    page
+      .filter((m) => m.timestamp < startedAt)
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
   return found ? { messageId: found._id, timestamp: found.timestamp } : null;
 }

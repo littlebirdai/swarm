@@ -55,20 +55,27 @@ function fakeTransport(response: unknown) {
       calls.push({ name, args });
       return response;
     },
-    async executionControlQuery() { return null; },
+    async executionControlQuery() {
+      return null;
+    },
   };
   return { transport, calls };
 }
 
 describe("ConvexExecutionControlPlane", () => {
   test("maps the immutable start fence and strictly parses a ready binding", async () => {
-    const { transport, calls } = fakeTransport({ state: "ready", binding: ready() });
+    const { transport, calls } = fakeTransport({
+      state: "ready",
+      binding: ready(),
+    });
     const control = new ConvexExecutionControlPlane(transport);
     const claim = await control.claimStart(request());
     if (claim.state !== "ready") throw new Error("expected ready binding");
     const { capabilities: _capabilities, ...expectedBinding } = ready();
     expect(claim.binding).toMatchObject(expectedBinding);
-    expect(new Set(claim.binding.capabilities)).toEqual(new Set(FENCED_RUNTIME_CAPABILITIES));
+    expect(new Set(claim.binding.capabilities)).toEqual(
+      new Set(FENCED_RUNTIME_CAPABILITIES),
+    );
     expect(calls[0]).toEqual({
       name: "claimExecutionStart",
       args: {
@@ -89,9 +96,9 @@ describe("ConvexExecutionControlPlane", () => {
       state: "ready",
       binding: ready({ actualAgent: "claude" }),
     });
-    await expect(new ConvexExecutionControlPlane(transport).claimStart(request())).rejects.toThrow(
-      "actualAgent must equal requestedAgent",
-    );
+    await expect(
+      new ConvexExecutionControlPlane(transport).claimStart(request()),
+    ).rejects.toThrow("actualAgent must equal requestedAgent");
   });
 
   test("claim and start are two exact server transitions", async () => {
@@ -118,17 +125,25 @@ describe("ConvexExecutionControlPlane", () => {
             message: { content: "hello" },
           };
         }
-        if (name === "startDelivery") return { state: "delivery-started", ...permit };
+        if (name === "startDelivery")
+          return { state: "delivery-started", ...permit };
         throw new Error(`unexpected ${name}`);
       },
-      async executionControlQuery() { return null; },
+      async executionControlQuery() {
+        return null;
+      },
     };
     const control = new ConvexExecutionControlPlane(transport);
     const claimed = await control.claimNextDelivery(ready());
     expect("permit" in claimed).toBe(true);
     if (!("permit" in claimed)) throw new Error("expected claim");
-    expect((await control.startDelivery(claimed.permit)).state).toBe("delivery-started");
-    expect(calls.map((call) => call.name)).toEqual(["claimNextDelivery", "startDelivery"]);
+    expect((await control.startDelivery(claimed.permit)).state).toBe(
+      "delivery-started",
+    );
+    expect(calls.map((call) => call.name)).toEqual([
+      "claimNextDelivery",
+      "startDelivery",
+    ]);
     expect((calls[1].args.permit as any).state).toBeUndefined();
   });
 });
@@ -136,19 +151,30 @@ describe("ConvexExecutionControlPlane", () => {
 describe("SyncService execution authority transport", () => {
   test("requires an explicit daemon token before any network request", async () => {
     const sync = new SyncService({ convexUrl: "http://localhost:0" });
-    await expect(sync.executionControlQuery("getExecutionAuthority", {
-      conversation_id: "conversation-1",
-    })).rejects.toThrow("requires the daemon API token");
+    await expect(
+      sync.executionControlQuery("getExecutionAuthority", {
+        conversation_id: "conversation-1",
+      }),
+    ).rejects.toThrow("requires the daemon API token");
   });
 
   test("injects the explicit token into the exact execution mutation", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", authToken: "daemon-token" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      authToken: "daemon-token",
+    });
     let captured: unknown;
-    (sync as any).client.mutation = async (name: unknown, args: unknown, options: unknown) => {
+    (sync as any).client.mutation = async (
+      name: unknown,
+      args: unknown,
+      options: unknown,
+    ) => {
       captured = { name, args, options };
       return { accepted: true };
     };
-    await sync.executionControlMutation("publishReadyBinding", { conversation_id: "c" });
+    await sync.executionControlMutation("publishReadyBinding", {
+      conversation_id: "c",
+    });
     expect(captured).toEqual({
       name: "executionBindings:publishReadyBinding",
       args: { conversation_id: "c", api_token: "daemon-token" },

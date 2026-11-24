@@ -13,12 +13,18 @@ const TOKEN = "dep-mirror-test-token";
 async function makeCtx(tasks: any[]) {
   const tables: Record<string, any[]> = {
     users: [{ _id: USER, name: "User" }],
-    api_tokens: [{ _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) },
+    ],
     tasks,
   };
   return {
     ctx: {
-      auth: { async getUserIdentity() { return null; } },
+      auth: {
+        async getUserIdentity() {
+          return null;
+        },
+      },
       db: makeFakeDb(tables),
       scheduler: { runAfter: async () => null },
       runMutation: async () => null,
@@ -69,7 +75,11 @@ describe("update dependency mirror", () => {
       bare("ct-12", { blocks: ["ct-11"] }),
       bare("ct-13"),
     ]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-11", blocked_by: ["ct-13"] });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-11",
+      blocked_by: ["ct-13"],
+    });
     expect(byShortId(tables, "ct-11").blocked_by).toEqual(["ct-13"]);
     expect(byShortId(tables, "ct-12").blocks).toEqual([]);
     expect(byShortId(tables, "ct-13").blocks).toEqual(["ct-11"]);
@@ -81,7 +91,11 @@ describe("update dependency mirror", () => {
       bare("ct-12", { blocks: ["ct-11"] }),
       bare("ct-14"),
     ]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-12", blocks: ["ct-14"] });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-12",
+      blocks: ["ct-14"],
+    });
     expect(byShortId(tables, "ct-12").blocks).toEqual(["ct-14"]);
     expect(byShortId(tables, "ct-11").blocked_by).toEqual([]);
     expect(byShortId(tables, "ct-14").blocked_by).toEqual(["ct-12"]);
@@ -93,7 +107,11 @@ describe("update dependency mirror", () => {
       bare("ct-12", { blocks: ["ct-11"] }),
       bare("ct-13"),
     ]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-11", blocked_by: ["ct-12", "ct-13"] });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-11",
+      blocked_by: ["ct-12", "ct-13"],
+    });
     expect(byShortId(tables, "ct-12").blocks).toEqual(["ct-11"]);
     expect(byShortId(tables, "ct-13").blocks).toEqual(["ct-11"]);
   });
@@ -105,7 +123,11 @@ describe("update dependency mirror", () => {
       bare("ct-11", { blocked_by: ["task_ct-12"] }),
       bare("ct-12", { blocks: ["ct-11"] }),
     ]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-11", blocked_by: ["ct-12"] });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-11",
+      blocked_by: ["ct-12"],
+    });
     expect(byShortId(tables, "ct-11").blocked_by).toEqual(["ct-12"]);
     expect(byShortId(tables, "ct-12").blocks).toEqual(["ct-11"]);
   });
@@ -116,8 +138,13 @@ describe("update dependency mirror", () => {
       bare("ct-11"),
       bare("ct-24", { user_id: "u_other", blocks: [] }),
     ]);
-    await expect((update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-11", blocked_by: ["ct-24"] }))
-      .rejects.toThrow("dependency task belongs to another workspace");
+    await expect(
+      (update as any)._handler(ctx, {
+        api_token: TOKEN,
+        short_id: "ct-11",
+        blocked_by: ["ct-24"],
+      }),
+    ).rejects.toThrow("dependency task belongs to another workspace");
     expect(byShortId(tables, "ct-11").blocked_by).toBeUndefined();
     expect(byShortId(tables, "ct-24").blocks).toEqual([]);
   });

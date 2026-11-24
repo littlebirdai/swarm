@@ -1,6 +1,6 @@
-import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 // Where the evals read code from, and where they keep data. Code lives in the
 // checkout this file sits in. Data lives in two homes: the synthetic freezes
@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 // which is never inside the repo because the repo is public.
 
 /** The checkout this code runs from: its scripts are what a replay spawns. */
-export const REPO_ROOT = join(import.meta.dir, '..', '..', '..');
+export const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 
 /**
  * The git tree `stale` hashes and the public freezes live in. The checkout
@@ -20,38 +20,43 @@ export function treeRoot(): string {
 }
 
 /** Committed freeze pointers: synthetic fixtures only. */
-export const publicFreezesDir = (): string => join(treeRoot(), 'apps', 'evals', 'freezes');
+export const publicFreezesDir = (): string =>
+  join(treeRoot(), "apps", "evals", "freezes");
 /** Committed synthetic snapshot content, one file per case, label inline. */
-export const fixturesDir = (): string => join(treeRoot(), 'apps', 'evals', 'fixtures');
+export const fixturesDir = (): string =>
+  join(treeRoot(), "apps", "evals", "fixtures");
 
 /** A data dir, not a cache: hand labels live here and are precious. */
 export function evalsHome(): string {
-  return process.env.CODECAST_EVALS_HOME || join(homedir(), '.local', 'share', 'codecast', 'evals');
+  return (
+    process.env.CODECAST_EVALS_HOME ||
+    join(homedir(), ".local", "share", "codecast", "evals")
+  );
 }
 
 export function homePaths(root = evalsHome()) {
   return {
     root,
-    freezes: join(root, 'freezes'),
-    snapshots: join(root, 'snapshots'),
-    runs: join(root, 'runs'),
-    labels: join(root, 'labels'),
-    html: join(root, 'html'),
-    site: join(root, 'html', 'site'),
-    scratch: join(root, 'scratch'),
-    state: join(root, 'state.json'),
-    spend: join(root, 'spend.jsonl'),
+    freezes: join(root, "freezes"),
+    snapshots: join(root, "snapshots"),
+    runs: join(root, "runs"),
+    labels: join(root, "labels"),
+    html: join(root, "html"),
+    site: join(root, "html", "site"),
+    scratch: join(root, "scratch"),
+    state: join(root, "state.json"),
+    spend: join(root, "spend.jsonl"),
     /** Every recorded run head: where it sits in git and its main-line twin (provenance.ts). */
-    heads: join(root, 'heads.json'),
+    heads: join(root, "heads.json"),
     /** `{root, at}`: the checkout that last ran ./evals, which the daemon's evals bridge execs. */
-    checkout: join(root, 'checkout.json'),
+    checkout: join(root, "checkout.json"),
     /** `<sha256>.patch`: a dirty rep's edits over its sources, so it can be replayed on its gitHead (provenance.ts diskSources). */
-    trees: join(root, 'trees'),
+    trees: join(root, "trees"),
   };
 }
 
 /** Local refs that keep every run head alive through a rebase and `git gc`. Outside refs/heads and refs/tags, so no push carries them. */
-export const PIN_REF_PREFIX = 'refs/evals/heads/';
+export const PIN_REF_PREFIX = "refs/evals/heads/";
 
 /** Write JSON through a temp file and a rename, so a reader never sees half a file. */
 export function writeJsonAtomic(path: string, value: unknown): void {
@@ -70,16 +75,29 @@ export function writeJsonAtomic(path: string, value: unknown): void {
 const HARNESS_ROOT = process.env.CODECAST_EVALS_HARNESS_ROOT || REPO_ROOT;
 
 /** The harness every model call goes through (pl-810). */
-export const DRY_RUN_SCRIPT = join(HARNESS_ROOT, 'apps', 'cli', 'scripts', 'prompt-dry-run.ts');
-export const DRY_RUN_SCRIPT_REL = 'apps/cli/scripts/prompt-dry-run.ts';
+export const DRY_RUN_SCRIPT = join(
+  HARNESS_ROOT,
+  "apps",
+  "cli",
+  "scripts",
+  "prompt-dry-run.ts",
+);
+export const DRY_RUN_SCRIPT_REL = "apps/cli/scripts/prompt-dry-run.ts";
 /** The guard `cast` a dry run puts first on PATH; its read list is the one answer to whether a call writes. */
-export const GUARD_CAST = join(HARNESS_ROOT, 'apps', 'cli', 'scripts', 'prompt-dry-run-bin', 'cast');
+export const GUARD_CAST = join(
+  HARNESS_ROOT,
+  "apps",
+  "cli",
+  "scripts",
+  "prompt-dry-run-bin",
+  "cast",
+);
 /** The file in an agent rep's folder naming the guard classifier its refusals were graded with (replay.ts guardClassifierSha); part of its ruler. */
-export const GUARD_STAMP = 'guard.sha';
+export const GUARD_STAMP = "guard.sha";
 
 /** The real instruction file; CLAUDE.md is a symlink to it. */
-export const AGENTS_MD = join(REPO_ROOT, 'AGENTS.md');
+export const AGENTS_MD = join(REPO_ROOT, "AGENTS.md");
 
 /** The private GitHub remote of EVALS_HOME/labels (founder decision sd-319). */
-export const LABELS_REMOTE = 'ashot/codecast-eval-labels';
-export const PUBLISH_TASK = 'ct-55687';
+export const LABELS_REMOTE = "ashot/codecast-eval-labels";
+export const PUBLISH_TASK = "ct-55687";

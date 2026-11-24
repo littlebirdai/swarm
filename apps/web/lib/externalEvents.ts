@@ -34,9 +34,17 @@ import {
 import { repoBlobHref } from "./repoView";
 import type { ExternalEventRecord } from "./externalEventRecord";
 import { opsHref } from "../components/ops/opsPaths";
-import { SOURCE_PROVIDERS, type SourceProvider } from "@codecast/shared/contracts/ingest";
+import {
+  SOURCE_PROVIDERS,
+  type SourceProvider,
+} from "@codecast/shared/contracts/ingest";
 
-export type ExternalEventSource = "github" | "linear" | "codecast" | "git" | IngestSourceProvider;
+export type ExternalEventSource =
+  | "github"
+  | "linear"
+  | "codecast"
+  | "git"
+  | IngestSourceProvider;
 
 // A product's own feeds (external-data.md X1): their transitions ride the same
 // timeline, named by the provider of the source that saw them.
@@ -74,7 +82,12 @@ export type ExternalEvent = {
   title: string;
   summary?: string;
   url?: string;
-  actor?: { login?: string; name?: string; avatar_url?: string; user_id?: string };
+  actor?: {
+    login?: string;
+    name?: string;
+    avatar_url?: string;
+    user_id?: string;
+  };
   at: number;
   refs: ExternalEventRef;
   meta?: Record<string, string | number | boolean | undefined>;
@@ -105,7 +118,10 @@ export function accentVar(accent: ExternalEventAccent | undefined): string {
 }
 
 /** A soft fill of the same accent, for chips and rails. */
-export function accentSoft(accent: ExternalEventAccent | undefined, percent = 14): string {
+export function accentSoft(
+  accent: ExternalEventAccent | undefined,
+  percent = 14,
+): string {
   return `color-mix(in srgb, ${accentVar(accent)} ${percent}%, transparent)`;
 }
 
@@ -135,7 +151,11 @@ export const EXTERNAL_EVENT_STYLE: Record<string, ExternalEventStyle> = {
   pr_opened: { icon: GitPullRequest, accent: "green", verb: "opened" },
   pr_synchronize: { icon: GitCommit, accent: "blue", verb: "updated" },
   pr_review: { icon: UserCheck, accent: "violet", verb: "reviewed" },
-  pr_review_comment: { icon: MessageSquareCode, accent: "violet", verb: "commented on" },
+  pr_review_comment: {
+    icon: MessageSquareCode,
+    accent: "violet",
+    verb: "commented on",
+  },
   pr_check: { icon: ShieldCheck, accent: "yellow", verb: "checked" },
   pr_merged: { icon: GitMerge, accent: "violet", verb: "merged" },
   pr_closed: { icon: GitPullRequestClosed, accent: "muted", verb: "closed" },
@@ -143,11 +163,27 @@ export const EXTERNAL_EVENT_STYLE: Record<string, ExternalEventStyle> = {
   pr_behind: { icon: GitBranch, accent: "orange", verb: "fell behind" },
   pr_conflict: { icon: AlertTriangle, accent: "red", verb: "conflicts on" },
   pr_ready: { icon: GitPullRequest, accent: "green", verb: "is ready" },
-  pr_review_requested: { icon: UserCheck, accent: "yellow", verb: "requested review on" },
-  pr_ready_for_review: { icon: GitPullRequest, accent: "blue", verb: "marked ready" },
-  pr_draft: { icon: GitPullRequestDraft, accent: "muted", verb: "moved to draft" },
+  pr_review_requested: {
+    icon: UserCheck,
+    accent: "yellow",
+    verb: "requested review on",
+  },
+  pr_ready_for_review: {
+    icon: GitPullRequest,
+    accent: "blue",
+    verb: "marked ready",
+  },
+  pr_draft: {
+    icon: GitPullRequestDraft,
+    accent: "muted",
+    verb: "moved to draft",
+  },
   pr_edited: { icon: Pencil, accent: "muted", verb: "edited" },
-  code_comment: { icon: MessageSquare, accent: "magenta", verb: "commented on" },
+  code_comment: {
+    icon: MessageSquare,
+    accent: "magenta",
+    verb: "commented on",
+  },
   file: { icon: FileDiff, accent: "blue", verb: "changed" },
   // Ship signals (the Changes page): a version tag push, and a deploy marker
   // from `cast ship mark`. Green: the moment code reaches people.
@@ -160,7 +196,9 @@ export const EXTERNAL_EVENT_STYLE: Record<string, ExternalEventStyle> = {
  * events (GitHub, Linear) register their own kinds this way, so adding a
  * source never means editing the git style table.
  */
-export function registerExternalEventStyles(styles: Record<string, ExternalEventStyle>): void {
+export function registerExternalEventStyles(
+  styles: Record<string, ExternalEventStyle>,
+): void {
   Object.assign(EXTERNAL_EVENT_STYLE, styles);
 }
 
@@ -169,7 +207,9 @@ export function externalEventStyle(kind: string): ExternalEventStyle {
 }
 
 /** A check conclusion or a review state colors the row on its own. */
-export function outcomeAccent(value: string | undefined): ExternalEventAccent | undefined {
+export function outcomeAccent(
+  value: string | undefined,
+): ExternalEventAccent | undefined {
   switch (value) {
     case "success":
     case "approved":
@@ -215,20 +255,26 @@ export function shortSha(sha: string | undefined): string {
   return (sha ?? "").slice(0, 7);
 }
 
-function splitRepository(repository: string | undefined): { owner: string; repo: string } | null {
+function splitRepository(
+  repository: string | undefined,
+): { owner: string; repo: string } | null {
   if (!repository) return null;
   const [owner, repo] = repository.split("/");
   if (!owner || !repo) return null;
   return { owner, repo };
 }
 
-export function prPath(ref: { repository: string; number: number } | undefined): string | null {
+export function prPath(
+  ref: { repository: string; number: number } | undefined,
+): string | null {
   const parts = splitRepository(ref?.repository);
   if (!parts || !ref) return null;
   return `/pr/${parts.owner}/${parts.repo}/${ref.number}`;
 }
 
-export function commitPath(ref: { repository: string; sha: string } | undefined): string | null {
+export function commitPath(
+  ref: { repository: string; sha: string } | undefined,
+): string | null {
   const parts = splitRepository(ref?.repository);
   if (!parts || !ref?.sha) return null;
   return `/commit/${parts.owner}/${parts.repo}/${ref.sha}`;
@@ -238,15 +284,21 @@ export function filePath(ref: ExternalEventRef["file"]): string | null {
   const parts = splitRepository(ref?.repository);
   if (!parts || !ref?.path) return null;
   const line = ref.line ? `#L${ref.line}` : "";
-  return repoBlobHref(`${parts.owner}/${parts.repo}`, ref.ref ?? "HEAD", ref.path) + line;
+  return (
+    repoBlobHref(`${parts.owner}/${parts.repo}`, ref.ref ?? "HEAD", ref.path) +
+    line
+  );
 }
 
 export type { ExternalEventRecord } from "./externalEventRecord";
 
-export function externalEventRowToExternalEvent(row: ExternalEventRecord): ExternalEvent {
+export function externalEventRowToExternalEvent(
+  row: ExternalEventRecord,
+): ExternalEvent {
   const meta = row.meta ?? {};
   const repository = row.repository;
-  const filePathValue = typeof meta.file_path === "string" ? meta.file_path : undefined;
+  const filePathValue =
+    typeof meta.file_path === "string" ? meta.file_path : undefined;
   const refs: ExternalEventRef = {
     session_id: row.conversation_id,
     task_id: row.task_id ?? row.task_ids?.[0],
@@ -254,7 +306,8 @@ export function externalEventRowToExternalEvent(row: ExternalEventRecord): Exter
     plan_id: row.plan_ids?.[0],
     project_id: row.project_ids?.[0],
   };
-  if (repository && row.pr_number !== undefined) refs.pr = { repository, number: row.pr_number };
+  if (repository && row.pr_number !== undefined)
+    refs.pr = { repository, number: row.pr_number };
   if (repository && row.sha) refs.commit = { repository, sha: row.sha };
   if (repository && filePathValue) {
     refs.file = {
@@ -276,18 +329,44 @@ export function externalEventRowToExternalEvent(row: ExternalEventRecord): Exter
   }
   return {
     id: row._id,
-    source: row.source === "linear" ? "linear" : row.source === "codecast" ? "codecast" : row.source === "git" ? "git" : row.source && INGEST_SOURCES.has(row.source) ? (row.source as SourceProvider) : "github",
+    source:
+      row.source === "linear"
+        ? "linear"
+        : row.source === "codecast"
+          ? "codecast"
+          : row.source === "git"
+            ? "git"
+            : row.source && INGEST_SOURCES.has(row.source)
+              ? (row.source as SourceProvider)
+              : "github",
     kind: row.kind ?? "commit",
     title: row.title ?? "",
     summary: row.summary,
     // A transition with no vendor link opens its group on the Ops page.
-    url: row.url ?? (row.data?.group_short_id ? opsHref.issue(row.data.group_short_id) : undefined),
-    actor: row.actor_login || row.actor_avatar_url || row.actor_user_id
-      ? { login: row.actor_login, avatar_url: row.actor_avatar_url, user_id: row.actor_user_id }
-      : undefined,
+    url:
+      row.url ??
+      (row.data?.group_short_id
+        ? opsHref.issue(row.data.group_short_id)
+        : undefined),
+    actor:
+      row.actor_login || row.actor_avatar_url || row.actor_user_id
+        ? {
+            login: row.actor_login,
+            avatar_url: row.actor_avatar_url,
+            user_id: row.actor_user_id,
+          }
+        : undefined,
     at: row.created_at ?? 0,
     refs,
-    meta: { ...meta, repository, branch: row.branch, issue_title: row.issue?.title, source_name: row.data?.source_name, release: row.data?.release, group_short_id: row.data?.group_short_id },
+    meta: {
+      ...meta,
+      repository,
+      branch: row.branch,
+      issue_title: row.issue?.title,
+      source_name: row.data?.source_name,
+      release: row.data?.release,
+      group_short_id: row.data?.group_short_id,
+    },
   };
 }
 
@@ -302,7 +381,9 @@ export function externalEventRowToExternalEvent(row: ExternalEventRecord): Exter
  * shepherd acts on by itself and the PR chip already shows; the row that
  * announces it is noise on every other surface.
  */
-export const QUIET_EXTERNAL_EVENT_KINDS: ReadonlySet<string> = new Set(["pr_behind"]);
+export const QUIET_EXTERNAL_EVENT_KINDS: ReadonlySet<string> = new Set([
+  "pr_behind",
+]);
 
 export function isQuietExternalEvent(row: { kind?: string }): boolean {
   return QUIET_EXTERNAL_EVENT_KINDS.has(row.kind ?? "");
@@ -335,7 +416,10 @@ export function externalEventThreadKey(row: ExternalEventRecord): string {
 }
 
 function isFailedCheck(row: ExternalEventRecord): boolean {
-  return row.kind === "pr_check" && outcomeAccent(String(row.meta?.conclusion ?? "")) === "red";
+  return (
+    row.kind === "pr_check" &&
+    outcomeAccent(String(row.meta?.conclusion ?? "")) === "red"
+  );
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -343,16 +427,35 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 // The order phrases read in: the outcome a reader acts on first, then the
 // movement of code, then the housekeeping around it.
 const PHRASE_ORDER = [
-  "pr_check_failed", "pr_conflict", "pr_review", "pr_review_comment", "pr_opened", "pr_merged", "pr_closed",
-  "pr_ready", "pr_check", "commit", "push", "pr_synchronize", "amend", "rebase", "merge", "pull",
-  "cherry_pick", "revert", "reset", "checkout",
+  "pr_check_failed",
+  "pr_conflict",
+  "pr_review",
+  "pr_review_comment",
+  "pr_opened",
+  "pr_merged",
+  "pr_closed",
+  "pr_ready",
+  "pr_check",
+  "commit",
+  "push",
+  "pr_synchronize",
+  "amend",
+  "rebase",
+  "merge",
+  "pull",
+  "cherry_pick",
+  "revert",
+  "reset",
+  "checkout",
 ];
 
 /** The phrases a group reads as, one per kind, e.g. "3 checks failed". */
-export function summarizeExternalEvents(events: ExternalEventRecord[]): ExternalEventPhrase[] {
+export function summarizeExternalEvents(
+  events: ExternalEventRecord[],
+): ExternalEventPhrase[] {
   const byKind = new Map<string, ExternalEventRecord[]>();
   for (const e of events) {
-    const kind = isFailedCheck(e) ? "pr_check_failed" : e.kind ?? "commit";
+    const kind = isFailedCheck(e) ? "pr_check_failed" : (e.kind ?? "commit");
     const list = byKind.get(kind);
     if (list) list.push(e);
     else byKind.set(kind, [e]);
@@ -367,7 +470,12 @@ export function summarizeExternalEvents(events: ExternalEventRecord[]): External
       const n = rows.length;
       switch (kind) {
         case "pr_check_failed":
-          return { kind, count: n, text: `${plural(n, "check")} failed`, accent: "red" };
+          return {
+            kind,
+            count: n,
+            text: `${plural(n, "check")} failed`,
+            accent: "red",
+          };
         case "pr_check":
           return { kind, count: n, text: "checks passed", accent: "green" };
         case "pr_conflict":
@@ -377,17 +485,40 @@ export function summarizeExternalEvents(events: ExternalEventRecord[]): External
         case "commit":
           return { kind, count: n, text: plural(n, "commit") };
         case "push": {
-          const moved = rows.reduce((sum, r) => sum + (Number(r.meta?.commits_count) || 0), 0);
-          return { kind, count: n, text: moved > 0 ? `pushed ${plural(moved, "commit")}` : n === 1 ? "pushed" : `pushed ×${n}` };
+          const moved = rows.reduce(
+            (sum, r) => sum + (Number(r.meta?.commits_count) || 0),
+            0,
+          );
+          return {
+            kind,
+            count: n,
+            text:
+              moved > 0
+                ? `pushed ${plural(moved, "commit")}`
+                : n === 1
+                  ? "pushed"
+                  : `pushed ×${n}`,
+          };
         }
         case "pr_synchronize":
           return { kind, count: n, text: "PR updated" };
         case "pr_review_comment":
-          return { kind, count: n, text: plural(n, "review comment"), accent: "violet" };
+          return {
+            kind,
+            count: n,
+            text: plural(n, "review comment"),
+            accent: "violet",
+          };
         case "checkout": {
           // The last switch is where the checkout ended up.
-          const to = rows.map((r) => r.meta?.to_ref).find((v) => typeof v === "string" && v);
-          return { kind, count: n, text: to ? `switched to ${to}` : "switched" };
+          const to = rows
+            .map((r) => r.meta?.to_ref)
+            .find((v) => typeof v === "string" && v);
+          return {
+            kind,
+            count: n,
+            text: to ? `switched to ${to}` : "switched",
+          };
         }
         default: {
           const verb = externalEventStyle(kind).verb;
@@ -405,7 +536,9 @@ export function summarizeExternalEvents(events: ExternalEventRecord[]): External
  * conflicting re-announces the conflict; a re-run check fails again) is kept
  * once, at its newest time.
  */
-export function groupExternalEvents(rows: ExternalEventRecord[]): ExternalEventGroup[] {
+export function groupExternalEvents(
+  rows: ExternalEventRecord[],
+): ExternalEventGroup[] {
   const byKey = new Map<string, ExternalEventRecord[]>();
   for (const row of rows) {
     if (isQuietExternalEvent(row)) continue;
@@ -435,14 +568,20 @@ export function groupExternalEvents(rows: ExternalEventRecord[]): ExternalEventG
 }
 
 /** Who did an event, or undefined when the row names nobody. */
-export function externalEventActorKey(row: ExternalEventRecord): string | undefined {
+export function externalEventActorKey(
+  row: ExternalEventRecord,
+): string | undefined {
   return row.actor_user_id || row.actor_login || undefined;
 }
 
 /** The one person behind every event in a group, or undefined when it is several or none. */
-export function externalEventGroupActor(group: ExternalEventGroup): string | undefined {
+export function externalEventGroupActor(
+  group: ExternalEventGroup,
+): string | undefined {
   const first = externalEventActorKey(group.events[0]);
-  return first && group.events.every((e) => externalEventActorKey(e) === first) ? first : undefined;
+  return first && group.events.every((e) => externalEventActorKey(e) === first)
+    ? first
+    : undefined;
 }
 
 /**
@@ -450,9 +589,13 @@ export function externalEventGroupActor(group: ExternalEventGroup): string | und
  * makes a group per branch, and the feed reads that run as one burst of work.
  * The input is newest first, as groupExternalEvents returns it.
  */
-export function mergeExternalEventGroups(groups: ExternalEventGroup[]): ExternalEventGroup {
+export function mergeExternalEventGroups(
+  groups: ExternalEventGroup[],
+): ExternalEventGroup {
   if (groups.length === 1) return groups[0];
-  const events = groups.flatMap((g) => g.events).sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
+  const events = groups
+    .flatMap((g) => g.events)
+    .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
   return {
     key: `run:${groups.map((g) => g.key).join("+")}`,
     events,
@@ -463,20 +606,49 @@ export function mergeExternalEventGroups(groups: ExternalEventGroup[]): External
 
 /** The shepherd states a pull request moves through, and how they read: a
  *  terse chip label, and the sentence a page with room says instead. */
-export const SHEPHERD_STATE_STYLE: Record<string, { label: string; phrase: string; accent: ExternalEventAccent }> = {
-  review_pending: { label: "review", phrase: "waiting for a review", accent: "yellow" },
-  changes_requested: { label: "changes", phrase: "has changes to make", accent: "orange" },
+export const SHEPHERD_STATE_STYLE: Record<
+  string,
+  { label: string; phrase: string; accent: ExternalEventAccent }
+> = {
+  review_pending: {
+    label: "review",
+    phrase: "waiting for a review",
+    accent: "yellow",
+  },
+  changes_requested: {
+    label: "changes",
+    phrase: "has changes to make",
+    accent: "orange",
+  },
   ci_pending: { label: "ci", phrase: "waiting on checks", accent: "yellow" },
   ci_red: { label: "ci red", phrase: "fixing failed checks", accent: "red" },
-  behind: { label: "behind", phrase: "branch is behind its base", accent: "orange" },
-  conflicts: { label: "conflicts", phrase: "has merge conflicts to resolve", accent: "red" },
+  behind: {
+    label: "behind",
+    phrase: "branch is behind its base",
+    accent: "orange",
+  },
+  conflicts: {
+    label: "conflicts",
+    phrase: "has merge conflicts to resolve",
+    accent: "red",
+  },
   approved: { label: "approved", phrase: "approved", accent: "green" },
   ready: { label: "ready", phrase: "ready to merge", accent: "green" },
   merged: { label: "merged", phrase: "merged", accent: "violet" },
   closed: { label: "closed", phrase: "closed", accent: "muted" },
 };
 
-export function shepherdStyle(state: string | undefined): { label: string; phrase: string; accent: ExternalEventAccent } {
+export function shepherdStyle(state: string | undefined): {
+  label: string;
+  phrase: string;
+  accent: ExternalEventAccent;
+} {
   const label = state ?? "open";
-  return SHEPHERD_STATE_STYLE[state ?? ""] ?? { label, phrase: label.replace(/_/g, " "), accent: "muted" };
+  return (
+    SHEPHERD_STATE_STYLE[state ?? ""] ?? {
+      label,
+      phrase: label.replace(/_/g, " "),
+      accent: "muted",
+    }
+  );
 }

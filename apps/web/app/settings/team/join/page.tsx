@@ -9,8 +9,14 @@ import { Users } from "lucide-react";
 import { Input } from "../../../../components/ui/input";
 import { Button } from "../../../../components/ui/button";
 import { Label } from "../../../../components/ui/label";
-import { TeamFlowShell, type TeamFlowStep } from "../../../../components/team/TeamFlowShell";
-import { VisibilityPicker, type TeamVisibility } from "../../../../components/team/VisibilityPicker";
+import {
+  TeamFlowShell,
+  type TeamFlowStep,
+} from "../../../../components/team/TeamFlowShell";
+import {
+  VisibilityPicker,
+  type TeamVisibility,
+} from "../../../../components/team/VisibilityPicker";
 import { WorkspaceSharePicker } from "../../../../components/team/WorkspaceSharePicker";
 import { useWorkspaceSelection } from "../../../../hooks/useWorkspaceSelection";
 import { useTeamWorkspaceSuggestions } from "../../../../hooks/useTeamWorkspaceSuggestions";
@@ -56,7 +62,9 @@ export default function JoinTeamPage() {
     () => (searchParams.get("teamId") as Id<"teams"> | null) || null,
   );
   const isSetup = searchParams.get("setup") === "1";
-  const [step, setStep] = useState(() => (isSetup ? 2 : searchParams.get("teamId") ? 1 : 0));
+  const [step, setStep] = useState(() =>
+    isSetup ? 2 : searchParams.get("teamId") ? 1 : 0,
+  );
   const agents = useAgentFeatureChoice();
   const [inviteCode, setInviteCode] = useState("");
   const [joining, setJoining] = useState(false);
@@ -75,7 +83,8 @@ export default function JoinTeamPage() {
   const previewExpired = !!preview?.isExpired;
 
   const data = useTeamWorkspaceSuggestions(teamId);
-  const { selectedPaths, toggle, selectedList, since, setSince } = useWorkspaceSelection(data, teamId);
+  const { selectedPaths, toggle, selectedList, since, setSince } =
+    useWorkspaceSelection(data, teamId);
   const impact = useShareImpact(selectedList, data.allProjects, since);
   const save = useSaveTeamSetup();
 
@@ -95,15 +104,24 @@ export default function JoinTeamPage() {
     (t) => t?._id?.toString() === teamId?.toString(),
   );
   const teamName =
-    (data.teamName !== "your team" ? data.teamName : previewOk?.name ?? storeTeam?.name) || "";
+    (data.teamName !== "your team"
+      ? data.teamName
+      : (previewOk?.name ?? storeTeam?.name)) || "";
   const crest = teamId
     ? {
         icon: data.suggestions?.team_icon ?? previewOk?.icon ?? storeTeam?.icon,
-        color: data.suggestions?.team_icon_color ?? previewOk?.icon_color ?? storeTeam?.icon_color,
+        color:
+          data.suggestions?.team_icon_color ??
+          previewOk?.icon_color ??
+          storeTeam?.icon_color,
         name: teamName,
       }
     : previewOk
-      ? { icon: previewOk.icon, color: previewOk.icon_color, name: previewOk.name }
+      ? {
+          icon: previewOk.icon,
+          color: previewOk.icon_color,
+          name: previewOk.name,
+        }
       : { name: "" };
 
   const goBack = useCallback(() => {
@@ -156,19 +174,31 @@ export default function JoinTeamPage() {
     const id = teamId;
     const name = teamName || "the team";
     if (id) {
-      save({ teamId: id, visibility, selectedPaths: paths, allProjects: data.allProjects, shareSince: since })
+      save({
+        teamId: id,
+        visibility,
+        selectedPaths: paths,
+        allProjects: data.allProjects,
+        shareSince: since,
+      })
         .then(({ mapped }) => {
-          if (mapped > 0) toast.success(`Sharing ${mapped} workspace${mapped === 1 ? "" : "s"} with ${name}`);
+          if (mapped > 0)
+            toast.success(
+              `Sharing ${mapped} workspace${mapped === 1 ? "" : "s"} with ${name}`,
+            );
         })
         .catch((err) => {
           console.error("Team setup save failed:", err);
-          toast.error("Could not save the team settings", { description: "You can change them in Settings." });
+          toast.error("Could not save the team settings", {
+            description: "You can change them in Settings.",
+          });
         });
     }
     useInboxStore.getState().updateClientUI({ setup_done_at: Date.now() });
     router.push(TEAM_FEED_PATH);
     toast.success(isSetup ? `Saved your ${name} setup` : `Welcome to ${name}`, {
-      description: "This is its feed. Sessions from shared workspaces land here.",
+      description:
+        "This is its feed. Sessions from shared workspaces land here.",
     });
   };
 
@@ -192,18 +222,29 @@ export default function JoinTeamPage() {
         backLabel="Cancel"
         formId={CODE_FORM_ID}
         continueLabel={
-          joining ? "Joining" : preview && !previewExpired ? `Join ${preview.name}` : "Join team"
+          joining
+            ? "Joining"
+            : preview && !previewExpired
+              ? `Join ${preview.name}`
+              : "Join team"
         }
-        continueDisabled={code.length !== CODE_LENGTH || joining || !user || previewExpired}
+        continueDisabled={
+          code.length !== CODE_LENGTH || joining || !user || previewExpired
+        }
       >
         <form id={CODE_FORM_ID} onSubmit={handleJoinTeam} className="space-y-5">
           <div>
-            <Label htmlFor="inviteCode" className="text-sol-text">Invite code</Label>
+            <Label htmlFor="inviteCode" className="text-sol-text">
+              Invite code
+            </Label>
             <div className="flex gap-2 mt-1.5">
               <Input
                 id="inviteCode"
                 value={inviteCode}
-                onChange={(e) => { setInviteCode(e.target.value.toUpperCase()); if (error) setError(""); }}
+                onChange={(e) => {
+                  setInviteCode(e.target.value.toUpperCase());
+                  if (error) setError("");
+                }}
                 placeholder="ABCD1234"
                 className="h-11 text-base bg-sol-bg-alt border-sol-border text-sol-text font-mono uppercase tracking-[0.2em] focus-visible:ring-[var(--team-flow-accent)]"
                 maxLength={CODE_LENGTH}
@@ -225,18 +266,30 @@ export default function JoinTeamPage() {
           </div>
 
           {preview && !previewExpired && (
-            <p className="flex items-center gap-1.5 text-sm text-sol-text-muted" aria-live="polite">
+            <p
+              className="flex items-center gap-1.5 text-sm text-sol-text-muted"
+              aria-live="polite"
+            >
               <Users className="h-3.5 w-3.5" />
-              {preview.name} has {preview.memberCount} {preview.memberCount === 1 ? "member" : "members"}
+              {preview.name} has {preview.memberCount}{" "}
+              {preview.memberCount === 1 ? "member" : "members"}
             </p>
           )}
           {previewExpired && (
-            <div role="alert" className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg">
-              <p className="text-sm text-sol-red">This invite code has expired. Ask a team admin for a new one.</p>
+            <div
+              role="alert"
+              className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg"
+            >
+              <p className="text-sm text-sol-red">
+                This invite code has expired. Ask a team admin for a new one.
+              </p>
             </div>
           )}
           {error && (
-            <div role="alert" className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg">
+            <div
+              role="alert"
+              className="p-3 bg-sol-red/10 border border-sol-red/20 rounded-lg"
+            >
               <p className="text-sm text-sol-red">{error}</p>
             </div>
           )}
@@ -256,10 +309,22 @@ export default function JoinTeamPage() {
         description={`Sessions from this computer sync, and agents learn chat, tasks and everything else ${teamName || "the team"} has on.`}
         onBack={goBack}
         backLabel="Set up later"
-        onSkip={agents.allChosen ? undefined : () => { agents.commit(); setStep(2); }}
+        onSkip={
+          agents.allChosen
+            ? undefined
+            : () => {
+                agents.commit();
+                setStep(2);
+              }
+        }
         skipLabel={`Continue with ${agents.chosen.size}`}
-        onContinue={() => { agents.commit(true); setStep(2); }}
-        continueLabel={agents.allChosen ? "Continue" : `Turn on all ${agents.total}`}
+        onContinue={() => {
+          agents.commit(true);
+          setStep(2);
+        }}
+        continueLabel={
+          agents.allChosen ? "Continue" : `Turn on all ${agents.total}`
+        }
         enterAdvances
       >
         <ConnectStep choice={agents} />
@@ -283,20 +348,20 @@ export default function JoinTeamPage() {
       enterAdvances
     >
       <div className="space-y-6">
-      <VisibilityPicker value={visibility} onChange={setVisibility} compact />
-      <WorkspaceSharePicker
-        data={data}
-        teamId={teamId}
-        selectedPaths={selectedPaths}
-        onToggle={toggle}
-        impact={{
-          teamName: teamName || "The team",
-          memberCount: storeTeam?.member_count ?? previewOk?.memberCount,
-          visibility,
-          since,
-          onSinceChange: setSince,
-        }}
-      />
+        <VisibilityPicker value={visibility} onChange={setVisibility} compact />
+        <WorkspaceSharePicker
+          data={data}
+          teamId={teamId}
+          selectedPaths={selectedPaths}
+          onToggle={toggle}
+          impact={{
+            teamName: teamName || "The team",
+            memberCount: storeTeam?.member_count ?? previewOk?.memberCount,
+            visibility,
+            since,
+            onSinceChange: setSince,
+          }}
+        />
       </div>
     </TeamFlowShell>
   );

@@ -8,7 +8,11 @@ import { createRequire } from "module";
 import { botMetaMiddleware, prerenderedRouteCount } from "./bot-meta";
 import { registerShareRoutes, getShellHtml, shareSsrReady } from "./share";
 import { registerWeekCardImage } from "./weekCardImage";
-import { registerHashedAssets, registerMissingArtifactGuard, registerStableEntryPoints } from "./staticAssets";
+import {
+  registerHashedAssets,
+  registerMissingArtifactGuard,
+  registerStableEntryPoints,
+} from "./staticAssets";
 import { createResponsePolicy } from "./responsePolicy";
 import { CONVEX_URL } from "./convexUrl";
 import { MCP_ROUTES } from "@codecast/shared/contracts/agentAccess";
@@ -21,11 +25,16 @@ const pkg = require("../package.json");
 const app = new Hono();
 // CSP violation reports go to Sentry only from a Railway deploy; a local server
 // sets the same headers and reports nothing.
-app.use("*", createResponsePolicy({
-  sentryDsn: process.env.RAILWAY_ENVIRONMENT_NAME ? process.env.VITE_SENTRY_DSN : undefined,
-  environment: process.env.RAILWAY_ENVIRONMENT_NAME,
-  release: pkg.version,
-}));
+app.use(
+  "*",
+  createResponsePolicy({
+    sentryDsn: process.env.RAILWAY_ENVIRONMENT_NAME
+      ? process.env.VITE_SENTRY_DSN
+      : undefined,
+    environment: process.env.RAILWAY_ENVIRONMENT_NAME,
+    release: pkg.version,
+  }),
+);
 
 const DIST_DIR = join(import.meta.dirname, "../dist");
 
@@ -73,13 +82,18 @@ async function latestDesktopVersion(): Promise<string> {
   if (Date.now() - desktopLatest.at < 60_000) return desktopLatest.version;
   desktopLatest = { ...desktopLatest, at: Date.now() };
   try {
-    const res = await fetch(DESKTOP_FEED, { signal: AbortSignal.timeout(3_000) });
-    const version = res.ok ? (await res.text()).match(/^version:\s*(\d+\.\d+\.\d+)\s*$/m)?.[1] : undefined;
+    const res = await fetch(DESKTOP_FEED, {
+      signal: AbortSignal.timeout(3_000),
+    });
+    const version = res.ok
+      ? (await res.text()).match(/^version:\s*(\d+\.\d+\.\d+)\s*$/m)?.[1]
+      : undefined;
     if (version) desktopLatest = { version, at: Date.now() };
   } catch {}
   return desktopLatest.version;
 }
-const macDmgUrl = (version: string) => `https://dl.codecast.sh/desktop/Codecast-${version}-arm64.dmg`;
+const macDmgUrl = (version: string) =>
+  `https://dl.codecast.sh/desktop/Codecast-${version}-arm64.dmg`;
 
 app.get("/api/health", async (c) =>
   c.json({
@@ -94,7 +108,7 @@ app.get("/api/health", async (c) =>
     // the empty SPA shell. The build fails open on purpose (SEO must never block
     // a deploy), which is why the number is reported here instead.
     prerender_routes: await prerenderedRouteCount(),
-  })
+  }),
 );
 
 // Whether a site lets the browser pane frame it (server/frameCheck.ts).
@@ -113,7 +127,7 @@ app.get("/download/mac", async (c) => {
 // compare it against the running app's version without a cross-origin fetch to
 // the R2 feed.
 app.get("/api/desktop/latest", async (c) =>
-  c.json({ version: await latestDesktopVersion() })
+  c.json({ version: await latestDesktopVersion() }),
 );
 
 app.get("/download/:binary", (c) => {
@@ -128,10 +142,17 @@ app.get("/download/:binary", (c) => {
 // terminal install never loads the site, so a UTM tag cannot carry the source.
 const INSTALL_SOURCE = /^[a-z0-9-]{1,32}$/;
 
-async function serveInstallScript(c: Context, file: "install.sh" | "install.ps1", source?: string) {
+async function serveInstallScript(
+  c: Context,
+  file: "install.sh" | "install.ps1",
+  source?: string,
+) {
   try {
     const script = await readFile(join(DIST_DIR, file), "utf-8");
-    phCapture("install_script_downloaded", { script: file === "install.sh" ? "sh" : "ps1", ...(source ? { source } : {}) });
+    phCapture("install_script_downloaded", {
+      script: file === "install.sh" ? "sh" : "ps1",
+      ...(source ? { source } : {}),
+    });
     c.header("Content-Type", "text/plain; charset=utf-8");
     c.header("Cache-Control", "public, max-age=3600");
     return c.text(script);
@@ -155,7 +176,7 @@ app.get("/.well-known/apple-app-site-association", async (c) => {
   try {
     const body = await readFile(
       join(DIST_DIR, ".well-known", "apple-app-site-association"),
-      "utf-8"
+      "utf-8",
     );
     c.header("Content-Type", "application/json");
     c.header("Cache-Control", "public, max-age=3600");
@@ -172,7 +193,8 @@ app.get("/.well-known/apple-app-site-association", async (c) => {
 const ARTIFACT_EDGE = process.env.ARTIFACT_EDGE_URL || "https://a.codecast.sh";
 app.get("/a/:slug", (c) => {
   const slug = c.req.param("slug");
-  if (!/^[A-Za-z0-9]{6,32}$/.test(slug)) return c.text("Invalid artifact link", 404);
+  if (!/^[A-Za-z0-9]{6,32}$/.test(slug))
+    return c.text("Invalid artifact link", 404);
   c.header("Cache-Control", "public, max-age=300");
   // Forward the query so shared past-version links (?v=N) survive the hop.
   const search = new URL(c.req.url).search;
@@ -184,20 +206,32 @@ app.get("/a/:slug", (c) => {
 // agents see are one origin. The Convex site serves them; this forwards the
 // request whole (method, auth, body) and hands the reply back unchanged. The
 // consent page, /oauth/authorize, is an app route and is not proxied.
-const CONVEX_SITE = (process.env.CONVEX_SITE_URL || CONVEX_URL.replace(".convex.cloud", ".convex.site")).replace(/\/+$/, "");
+const CONVEX_SITE = (
+  process.env.CONVEX_SITE_URL ||
+  CONVEX_URL.replace(".convex.cloud", ".convex.site")
+).replace(/\/+$/, "");
 for (const [path, backendPath] of Object.entries(MCP_ROUTES)) {
   app.all(path, async (c) => {
-    const headers = await mcpForwardHeaders(c.req.raw.headers, process.env.MCP_FORWARD_SECRET);
+    const headers = await mcpForwardHeaders(
+      c.req.raw.headers,
+      process.env.MCP_FORWARD_SECRET,
+    );
     const hasBody = c.req.method !== "GET" && c.req.method !== "HEAD";
-    const upstream = await fetch(`${CONVEX_SITE}${backendPath}${new URL(c.req.url).search}`, {
-      method: c.req.method,
-      headers,
-      body: hasBody ? await c.req.arrayBuffer() : undefined,
-    });
+    const upstream = await fetch(
+      `${CONVEX_SITE}${backendPath}${new URL(c.req.url).search}`,
+      {
+        method: c.req.method,
+        headers,
+        body: hasBody ? await c.req.arrayBuffer() : undefined,
+      },
+    );
     const out = new Headers(upstream.headers);
     out.delete("content-encoding");
     out.delete("content-length");
-    return new Response(upstream.body, { status: upstream.status, headers: out });
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: out,
+    });
   });
 }
 
@@ -222,7 +256,9 @@ app.use("*", serveStatic({ root: DIST_DIR }));
 registerMissingArtifactGuard(app);
 
 app.get("*", async (c) => {
-  const html = (await getShellHtml()) ?? (await readFile(join(DIST_DIR, "index.html"), "utf-8"));
+  const html =
+    (await getShellHtml()) ??
+    (await readFile(join(DIST_DIR, "index.html"), "utf-8"));
   c.header("Cache-Control", "no-cache");
   return c.html(html);
 });

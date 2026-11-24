@@ -32,7 +32,10 @@ describe("queued messages store API", () => {
     expect(s.getQueuedMessages("conv1")).toEqual([]);
 
     s.setQueuedMessagesFor("conv1", ["first", "second"]);
-    expect(useInboxStore.getState().getQueuedMessages("conv1")).toEqual(["first", "second"]);
+    expect(useInboxStore.getState().getQueuedMessages("conv1")).toEqual([
+      "first",
+      "second",
+    ]);
     // Isolated per conversation.
     expect(useInboxStore.getState().getQueuedMessages("conv2")).toEqual([]);
   });

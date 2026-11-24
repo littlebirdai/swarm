@@ -11,7 +11,7 @@ import * as fs from "fs";
 export const WINDOWS_DAEMON_UNSUPPORTED_MESSAGE =
   "The codecast daemon does not run on native Windows.\n" +
   "On Windows, codecast runs inside WSL. In PowerShell, run:\n" +
-  '  irm codecast.sh/install.ps1 | iex\n' +
+  "  irm codecast.sh/install.ps1 | iex\n" +
   "If a previous install added an auto-start task, remove it with: cast setup --disable";
 
 export function daemonSupportedOnPlatform(): boolean {
@@ -28,7 +28,10 @@ export function isWSL(): boolean {
   if (process.platform !== "linux") return false;
   if (process.env.WSL_DISTRO_NAME) return true;
   try {
-    return fs.readFileSync("/proc/version", "utf-8").toLowerCase().includes("microsoft");
+    return fs
+      .readFileSync("/proc/version", "utf-8")
+      .toLowerCase()
+      .includes("microsoft");
   } catch {
     return false;
   }
@@ -43,7 +46,11 @@ export function isWSL(): boolean {
  * to characters that survive all three unquoted; anything else returns null
  * and the caller skips Windows autostart. Pure for tests.
  */
-export function buildWslAutostartTaskRun(distro: string, user: string, castBinary: string): string | null {
+export function buildWslAutostartTaskRun(
+  distro: string,
+  user: string,
+  castBinary: string,
+): string | null {
   for (const part of [distro, user, castBinary]) {
     if (!part || !/^[A-Za-z0-9._/-]+$/.test(part)) return null;
   }

@@ -7,7 +7,15 @@
 // when they collapse it or the call ends, and the next call does not inherit
 // an open stage from the last one.
 import type { Root } from "react-dom/client";
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
@@ -25,9 +33,14 @@ mock.module("../CallStage", () => ({
 }));
 // The desktop handoff would read the shell; a browser has none.
 const realHandoff = await import("../../../hooks/useHandCallToPanel");
-mock.module("../../../hooks/useHandCallToPanel", () => ({ ...realHandoff, useHandCallToPanel: () => {} }));
+mock.module("../../../hooks/useHandCallToPanel", () => ({
+  ...realHandoff,
+  useHandCallToPanel: () => {},
+}));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -42,7 +55,8 @@ const restoreGlobals = replaceGlobals({
 const { createRoot } = await import("react-dom/client");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const { CallDock } = await import("../CallDock");
-const { openCallStage, closeCallStage, getCallStageOpen } = await import("../../../lib/calls/callStage");
+const { openCallStage, closeCallStage, getCallStageOpen } =
+  await import("../../../lib/calls/callStage");
 
 afterAll(() => {
   mock.module("../../../hooks/useHandCallToPanel", () => realHandoff);
@@ -54,7 +68,13 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 function setPhase(phase: string) {
-  useInboxStore.setState({ call: { ...useInboxStore.getState().call, phase, roomKey: phase === "idle" ? null : "dm:a:b" } } as any);
+  useInboxStore.setState({
+    call: {
+      ...useInboxStore.getState().call,
+      phase,
+      roomKey: phase === "idle" ? null : "dm:a:b",
+    },
+  } as any);
 }
 
 beforeEach(() => {
@@ -70,7 +90,9 @@ afterEach(async () => {
 });
 
 async function mount() {
-  host = dom.window.document.body.appendChild(dom.window.document.createElement("div"));
+  host = dom.window.document.body.appendChild(
+    dom.window.document.createElement("div"),
+  );
   root = createRoot(host);
   await act(async () => root!.render(<CallDock />));
   return {

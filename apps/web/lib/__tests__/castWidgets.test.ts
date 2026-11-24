@@ -46,7 +46,9 @@ describe("cast-tabs", () => {
 
   test("clicking a tab switches the visible panel", async () => {
     const host = await hydrate(TABS);
-    const buttons = host.querySelectorAll<HTMLButtonElement>(".cast-tabs-bar button");
+    const buttons = host.querySelectorAll<HTMLButtonElement>(
+      ".cast-tabs-bar button",
+    );
     buttons[1]?.click();
     const panels = host.querySelectorAll("section[data-tab]");
     expect((panels[0] as HTMLElement).hidden).toBe(true);
@@ -71,7 +73,9 @@ describe("cast-tabs", () => {
   });
 
   test("a single panel gets no tab bar", async () => {
-    const host = await hydrate('<div class="cast-tabs"><section data-tab="Only">x</section></div>');
+    const host = await hydrate(
+      '<div class="cast-tabs"><section data-tab="Only">x</section></div>',
+    );
     expect(host.querySelector(".cast-tabs-bar")).toBeNull();
   });
 });

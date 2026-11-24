@@ -14,7 +14,10 @@ import {
 } from "../syncTransaction";
 
 const id = (n: number) => `${n}`.padStart(32, "s");
-const session = (n: number, patch: Partial<InboxSession> = {}): InboxSession => ({
+const session = (
+  n: number,
+  patch: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: id(n),
   session_id: `sync-txn-${n}`,
   user_id: "me",
@@ -28,7 +31,12 @@ const session = (n: number, patch: Partial<InboxSession> = {}): InboxSession => 
 });
 
 function reset() {
-  useInboxStore.setState({ sessions: {}, conversations: {}, pending: {}, currentUser: { _id: "me" } } as any);
+  useInboxStore.setState({
+    sessions: {},
+    conversations: {},
+    pending: {},
+    currentUser: { _id: "me" },
+  } as any);
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,7 +46,9 @@ afterEach(() => resetSyncTransactionForTests());
 test("a burst of feeder applies costs one subscriber visit, not one per apply", async () => {
   reset();
   let visits = 0;
-  const stop = useInboxStore.subscribe(() => { visits++; });
+  const stop = useInboxStore.subscribe(() => {
+    visits++;
+  });
 
   const store = useInboxStore.getState();
   store.syncTable("sessions", [session(1)]);
@@ -59,7 +69,10 @@ test("the folded visit reports the newest state against the state before the win
   reset();
   const seen: Array<{ rows: number; before: number }> = [];
   const stop = useInboxStore.subscribe((state: any, previous: any) => {
-    seen.push({ rows: Object.keys(state.sessions).length, before: Object.keys(previous.sessions).length });
+    seen.push({
+      rows: Object.keys(state.sessions).length,
+      before: Object.keys(previous.sessions).length,
+    });
   });
 
   const store = useInboxStore.getState();
@@ -85,7 +98,9 @@ test("a write from outside a transaction publishes at once, carrying the held ba
 
   // A gesture: it must not wait out the window, and it must not publish a view
   // that hides the incoming row already committed underneath it.
-  useInboxStore.setState({ currentUser: { _id: "me", name: "gesture" } } as any);
+  useInboxStore.setState({
+    currentUser: { _id: "me", name: "gesture" },
+  } as any);
   expect(visits).toBe(1);
   expect(rowsAtVisit).toBe(1);
   stop();
@@ -94,7 +109,9 @@ test("a write from outside a transaction publishes at once, carrying the held ba
 test("nested transactions join the open window instead of publishing on exit", async () => {
   reset();
   let visits = 0;
-  const stop = useInboxStore.subscribe(() => { visits++; });
+  const stop = useInboxStore.subscribe(() => {
+    visits++;
+  });
 
   syncTransaction(() => {
     useInboxStore.getState().syncTable("sessions", [session(1)]);
@@ -112,10 +129,16 @@ test("nested transactions join the open window instead of publishing on exit", a
 
 test("a transaction that throws leaves the fold closed", () => {
   reset();
-  expect(() => syncTransaction(() => { throw new Error("boom"); })).toThrow("boom");
+  expect(() =>
+    syncTransaction(() => {
+      throw new Error("boom");
+    }),
+  ).toThrow("boom");
 
   let visits = 0;
-  const stop = useInboxStore.subscribe(() => { visits++; });
+  const stop = useInboxStore.subscribe(() => {
+    visits++;
+  });
   useInboxStore.setState({ currentUser: { _id: "me", name: "after" } } as any);
   expect(visits).toBe(1);
   stop();
@@ -124,7 +147,9 @@ test("a transaction that throws leaves the fold closed", () => {
 test("flushSyncPublishes visits subscribers with the whole window at once", () => {
   reset();
   let visits = 0;
-  const stop = useInboxStore.subscribe(() => { visits++; });
+  const stop = useInboxStore.subscribe(() => {
+    visits++;
+  });
 
   const store = useInboxStore.getState();
   store.syncTable("sessions", [session(1)]);
@@ -141,7 +166,9 @@ test("flushSyncPublishes visits subscribers with the whole window at once", () =
 test("a page written one record at a time costs one subscriber visit (ct-49746)", async () => {
   reset();
   let visits = 0;
-  const stop = useInboxStore.subscribe(() => { visits++; });
+  const stop = useInboxStore.subscribe(() => {
+    visits++;
+  });
 
   // The shape useSyncDocs and useSyncTasks have: one syncRecord per row.
   const store = useInboxStore.getState();

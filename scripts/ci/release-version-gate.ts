@@ -10,7 +10,9 @@ import { compareVersions } from "../../platform/packages/cli-kit/src/update/vers
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
-export type GateVerdict = { ok: true; note: string } | { ok: false; reason: string };
+export type GateVerdict =
+  | { ok: true; note: string }
+  | { ok: false; reason: string };
 
 /**
  * Pure: may `next` replace `published`? `allowEqual` covers the recovery reruns
@@ -30,15 +32,28 @@ export function checkVersionAhead(input: {
     ["next", next],
   ] as const) {
     if (!SEMVER.test(value)) {
-      return { ok: false, reason: `${channel}: unreadable ${label} version ${JSON.stringify(value)}` };
+      return {
+        ok: false,
+        reason: `${channel}: unreadable ${label} version ${JSON.stringify(value)}`,
+      };
     }
   }
   const order = compareVersions(next, published);
-  if (order > 0) return { ok: true, note: `${channel} ${next} is ahead of the published ${published}` };
+  if (order > 0)
+    return {
+      ok: true,
+      note: `${channel} ${next} is ahead of the published ${published}`,
+    };
   if (order === 0 && allowEqual) {
-    return { ok: true, note: `${channel} ${next} republishes the published version` };
+    return {
+      ok: true,
+      note: `${channel} ${next} republishes the published version`,
+    };
   }
-  const verb = order === 0 ? "is already published" : `is behind the published ${published}`;
+  const verb =
+    order === 0
+      ? "is already published"
+      : `is behind the published ${published}`;
   return {
     ok: false,
     reason:

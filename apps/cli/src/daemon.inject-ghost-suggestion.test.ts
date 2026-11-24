@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { stripTmuxFaintText, tmuxComposerHoldsPayload, tmuxPromptStillHasInput, verifyTmuxSubmitAfterPaste } from "./daemon.js";
+import {
+  stripTmuxFaintText,
+  tmuxComposerHoldsPayload,
+  tmuxPromptStillHasInput,
+  verifyTmuxSubmitAfterPaste,
+} from "./daemon.js";
 
 // ct-51376 (2026-09-14). Claude Code draws a prompt suggestion in an idle
 // composer as faint text (SGR 2): "❯ continue" when the model expects the user
@@ -27,8 +32,16 @@ describe("prompt suggestion ghost text is not composer input", () => {
     expect(stripTmuxFaintText("\x1b[48;5;2mtyped\x1b[0m")).toBe("typed");
     expect(stripTmuxFaintText("\x1b[2mghost\x1b[22m typed")).toBe(" typed");
     // Claude's composer scroll rules carry their count in faint text.
-    expect(stripTmuxFaintText("\x1b[38;5;245m───\x1b[39m \x1b[2m↑ 228 more\x1b[0m \x1b[38;5;245m──────\x1b[39m")).toBe("─── ↑ 228 more ──────");
-    expect(stripTmuxFaintText("\x1b[2m↓ 3 more\x1b[0m\n─── \x1b[2m↓ 3 more\x1b[0m ───")).toBe("\n─── ↓ 3 more ───");
+    expect(
+      stripTmuxFaintText(
+        "\x1b[38;5;245m───\x1b[39m \x1b[2m↑ 228 more\x1b[0m \x1b[38;5;245m──────\x1b[39m",
+      ),
+    ).toBe("─── ↑ 228 more ──────");
+    expect(
+      stripTmuxFaintText(
+        "\x1b[2m↓ 3 more\x1b[0m\n─── \x1b[2m↓ 3 more\x1b[0m ───",
+      ),
+    ).toBe("\n─── ↓ 3 more ───");
   });
 
   test("a faint suggestion does not read as the payload already at the prompt", () => {
@@ -49,12 +62,21 @@ describe("prompt suggestion ghost text is not composer input", () => {
     const res = await verifyTmuxSubmitAfterPaste(
       {
         capture: async () => frame,
-        sendEnter: async () => { actions.push("enter"); },
-        rePaste: async () => { actions.push("repaste"); },
+        sendEnter: async () => {
+          actions.push("enter");
+        },
+        rePaste: async () => {
+          actions.push("repaste");
+        },
         sleep: async () => {},
         log: () => {},
       },
-      { prePaste: "", pasteConfirmed: true, contentPrefix: "continue", deadlineMs: 15_000 },
+      {
+        prePaste: "",
+        pasteConfirmed: true,
+        contentPrefix: "continue",
+        deadlineMs: 15_000,
+      },
     );
     expect(actions.filter((a) => a === "enter").length).toBeLessThanOrEqual(5);
     expect(res.outcome).not.toBe("delivered");

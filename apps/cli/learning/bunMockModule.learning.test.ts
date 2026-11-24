@@ -11,7 +11,8 @@ import * as path from "node:path";
 
 function project(files: Record<string, string>): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-learning-mock-"));
-  for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), body);
+  for (const [name, body] of Object.entries(files))
+    fs.writeFileSync(path.join(dir, name), body);
   return dir;
 }
 
@@ -34,7 +35,10 @@ test("x", async () => {
 });
 `,
     });
-    const r = spawnSync("bun", ["test", "./one.test.ts"], { cwd: dir, encoding: "utf8" });
+    const r = spawnSync("bun", ["test", "./one.test.ts"], {
+      cwd: dir,
+      encoding: "utf8",
+    });
     fs.rmSync(dir, { recursive: true, force: true });
     expect(r.status, r.stderr).toBe(0);
   });
@@ -45,8 +49,14 @@ test("x", async () => {
       "a.test.ts": `import { mock, test } from "bun:test";\ntest("a", () => { mock.module("./dep", () => ({ value: "from-a" })); });\n`,
       "b.test.ts": `import { expect, test } from "bun:test";\ntest("b", async () => { expect((await import("./dep")).value).toBe("from-a"); });\n`,
     });
-    const together = spawnSync("bun", ["test", "./a.test.ts", "./b.test.ts"], { cwd: dir, encoding: "utf8" });
-    const alone = spawnSync("bun", ["test", "./b.test.ts"], { cwd: dir, encoding: "utf8" });
+    const together = spawnSync("bun", ["test", "./a.test.ts", "./b.test.ts"], {
+      cwd: dir,
+      encoding: "utf8",
+    });
+    const alone = spawnSync("bun", ["test", "./b.test.ts"], {
+      cwd: dir,
+      encoding: "utf8",
+    });
     fs.rmSync(dir, { recursive: true, force: true });
     expect(together.status, together.stderr).toBe(0);
     expect(alone.status).not.toBe(0);

@@ -23,28 +23,45 @@ export function recoverImagesFromBackup(
 
   let bakContent: string;
   try {
-    const fd = fs.openSync(bakPath,"r");
+    const fd = fs.openSync(bakPath, "r");
     try {
       const size = fs.fstatSync(fd).size;
-      if (size > INGEST_MAX_BYTES) { logFn("Backup image resource limit; primary transcript retained"); return messages; }
+      if (size > INGEST_MAX_BYTES) {
+        logFn("Backup image resource limit; primary transcript retained");
+        return messages;
+      }
       const buffer = Buffer.alloc(size);
       let offset = 0;
       while (offset < size) {
-        const bytes = fs.readSync(fd,buffer,offset,Math.min(1024*1024,size-offset),offset);
-        if (!bytes) throw Object.assign(new Error("Backup changed during read"),{code:"EIO"});
+        const bytes = fs.readSync(
+          fd,
+          buffer,
+          offset,
+          Math.min(1024 * 1024, size - offset),
+          offset,
+        );
+        if (!bytes)
+          throw Object.assign(new Error("Backup changed during read"), {
+            code: "EIO",
+          });
         offset += bytes;
       }
       bakContent = buffer.toString("utf8");
-    } finally { fs.closeSync(fd); }
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (!["ENOENT","EACCES","EPERM","EIO"].includes(code ?? "")) throw error;
+    if (!["ENOENT", "EACCES", "EPERM", "EIO"].includes(code ?? "")) throw error;
     logFn(`Backup image metadata: ${code}`);
     return messages;
   }
 
   const bakMessages = parseSessionFile(bakContent);
-  const imageMap = new Map<string, { mediaType: string; data: string; toolUseId?: string }>();
+  const imageMap = new Map<
+    string,
+    { mediaType: string; data: string; toolUseId?: string }
+  >();
   for (const bm of bakMessages) {
     if (!bm.images) continue;
     for (const img of bm.images) {
@@ -78,7 +95,9 @@ export function recoverImagesFromBackup(
   return messages;
 }
 
-export function classifyOpencodeTranscriptTail(tailContent: string): TranscriptTurnState {
+export function classifyOpencodeTranscriptTail(
+  tailContent: string,
+): TranscriptTurnState {
   let parsed: any;
   try {
     parsed = JSON.parse(tailContent);
@@ -113,7 +132,9 @@ export function classifyOpencodeTranscriptTail(tailContent: string): TranscriptT
 // message completes (session-manager `_persist` buffers until the first assistant
 // arrives), so an in-flight no-tool turn shows the PRIOR turn's end here — the pane
 // readiness / status hooks cover that gap, exactly as for the other clients.
-export function classifyPiTranscriptTail(tailContent: string): TranscriptTurnState {
+export function classifyPiTranscriptTail(
+  tailContent: string,
+): TranscriptTurnState {
   const lines = tailContent.split("\n");
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
@@ -129,7 +150,13 @@ export function classifyPiTranscriptTail(tailContent: string): TranscriptTurnSta
     if (role === "assistant") {
       const sr = d.message?.stopReason;
       if (sr === "toolUse") return "active";
-      if (sr === "stop" || sr === "length" || sr === "error" || sr === "aborted") return "idle";
+      if (
+        sr === "stop" ||
+        sr === "length" ||
+        sr === "error" ||
+        sr === "aborted"
+      )
+        return "idle";
       return "unknown"; // streaming / unrecognized stopReason -> defer
     }
     if (role === "user" || role === "toolResult") return "active";
@@ -154,7 +181,9 @@ export function classifyPiTranscriptTail(tailContent: string): TranscriptTurnSta
 // session_summary_generated, session_recap, rewind_marker) and UI/meta kinds are
 // scanned past. An unparsable line is the expected torn tail (buffered appends +
 // healing) — skip it, never fail.
-export function classifyGrokTranscriptTail(tailContent: string): TranscriptTurnState {
+export function classifyGrokTranscriptTail(
+  tailContent: string,
+): TranscriptTurnState {
   const lines = tailContent.split("\n");
   // interaction_resolved lines sit AFTER the pending_interaction they answer, so
   // scanning backward we collect resolutions first and match them off by id
@@ -164,7 +193,10 @@ export function classifyGrokTranscriptTail(tailContent: string): TranscriptTurnS
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line) continue;
-    let d: { params?: { update?: Record<string, unknown> }; update?: Record<string, unknown> };
+    let d: {
+      params?: { update?: Record<string, unknown> };
+      update?: Record<string, unknown>;
+    };
     try {
       d = JSON.parse(line);
     } catch {
@@ -205,7 +237,6 @@ export function classifyGrokTranscriptTail(tailContent: string): TranscriptTurnS
   return "unknown";
 }
 
-
 // Muse's session.jsonl marks turn boundaries with the run `terminal` event —
 // the durable signal that a turn reached its outcome — instead of a
 // per-message stop reason. We read the tail back to front and decide on the
@@ -220,13 +251,18 @@ export function classifyGrokTranscriptTail(tailContent: string): TranscriptTurnS
 //     model_response_created                                -> active
 //   - streaming deltas / task / reminder / housekeeping        -> scan past
 // An unparsable line is the expected torn tail — skip it, never fail.
-export function classifyMuseTranscriptTail(tailContent: string): TranscriptTurnState {
+export function classifyMuseTranscriptTail(
+  tailContent: string,
+): TranscriptTurnState {
   const lines = tailContent.split("\n");
   let approvalResolved = false;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line) continue;
-    let d: { payload_type?: string; payload?: { kind?: string; event?: { kind?: string } } };
+    let d: {
+      payload_type?: string;
+      payload?: { kind?: string; event?: { kind?: string } };
+    };
     try {
       d = JSON.parse(line);
     } catch {
@@ -278,7 +314,9 @@ export function generateTitleFromMessage(content: string): string {
   const cmdNameMatch = trimmed.match(/<command-name>([^<]*)<\/command-name>/);
   if (cmdNameMatch) return `/${cmdNameMatch[1].replace(/^\//, "")}`;
 
-  const cmdMsgMatch = trimmed.match(/<command-message>([^<]*)<\/command-message>/);
+  const cmdMsgMatch = trimmed.match(
+    /<command-message>([^<]*)<\/command-message>/,
+  );
   if (cmdMsgMatch) return `/${cmdMsgMatch[1].replace(/^\//, "")}`;
 
   const cleaned = trimmed

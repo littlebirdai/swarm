@@ -73,7 +73,9 @@
   opacity: 1;
   /* Slow out. A ring that vanished as fast as it arrived would flicker through
      every gap between two words. */
-  transition: opacity 220ms ease, box-shadow 400ms ease;
+  transition:
+    opacity 220ms ease,
+    box-shadow 400ms ease;
 }
 .face--hidden {
   opacity: 0;
@@ -86,7 +88,9 @@
   box-shadow:
     0 0 0 3px var(--sol-cyan),
     0 0 14px color-mix(in srgb, var(--sol-cyan) 40%, transparent);
-  transition: opacity 220ms ease, box-shadow 120ms ease;
+  transition:
+    opacity 220ms ease,
+    box-shadow 120ms ease;
 }
 
 /* Followed. The team bar's selected ring, here: a steady cyan band, no glow,
@@ -100,8 +104,11 @@
 .face-slot[data-local="true"] .face {
   box-shadow:
     0 0 0 calc(var(--level, 0) * 5px) var(--sol-orange),
-    0 0 calc(var(--level, 0) * 18px) color-mix(in srgb, var(--sol-orange) 50%, transparent);
-  transition: opacity 220ms ease, box-shadow 75ms ease;
+    0 0 calc(var(--level, 0) * 18px)
+      color-mix(in srgb, var(--sol-orange) 50%, transparent);
+  transition:
+    opacity 220ms ease,
+    box-shadow 75ms ease;
 }
 
 /* The video is laid out as a plain square and moved entirely by transform —
@@ -245,7 +252,9 @@
   text-overflow: ellipsis;
   opacity: 0;
   transform: translate(-50%, 2px);
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
   pointer-events: none;
 }
 .face-slot:hover .face-name {
@@ -281,10 +290,14 @@
   /* SOLID, with a bright edge: over a dark editor a translucent plate and its
      grey words disappeared. */
   background: #101418;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 6px 20px rgba(0, 0, 0, 0.5);
   opacity: 0;
   transform: translate(-50%, 3px);
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
   pointer-events: none;
   z-index: 2;
 }
@@ -308,7 +321,9 @@
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.92);
   background: transparent;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .faces-btn-word {
   font-family: var(--font-mono);
@@ -367,7 +382,9 @@
 .faces-row[data-reconnecting] .face {
   opacity: 0.45;
   filter: grayscale(0.6);
-  transition: opacity 200ms ease, filter 200ms ease;
+  transition:
+    opacity 200ms ease,
+    filter 200ms ease;
 }
 .faces-reconnecting {
   position: absolute;
@@ -406,9 +423,20 @@
 }
 
 /* Modern (.modern-style): names, initials and words in the interface sans. */
-.face-avatar-fallback:is(.modern-style *), .face-name:is(.modern-style *), .face-waiting:is(.modern-style *), .faces-btn-word:is(.modern-style *), .faces-reconnecting:is(.modern-style *) { font-family: var(--font-ui); }
+.face-avatar-fallback:is(.modern-style *),
+.face-name:is(.modern-style *),
+.face-waiting:is(.modern-style *),
+.faces-btn-word:is(.modern-style *),
+.faces-reconnecting:is(.modern-style *) {
+  font-family: var(--font-ui);
+}
 
 /* ── Modern (.modern-style on <html>): the stage's buttons at the control
    radius (components/ui/modernLook.ts); their glass and colours stay. ── */
-.modern-style .faces-btn { border-radius: var(--radius-control); }
-.modern-style .faces-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.modern-style .faces-btn {
+  border-radius: var(--radius-control);
+}
+.modern-style .faces-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

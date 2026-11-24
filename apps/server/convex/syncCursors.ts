@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 
 async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -40,7 +40,7 @@ export const updateSyncCursor = mutation({
       .withIndex("by_user_id", (q) => q.eq("user_id", args.user_id))
       .collect();
     const cursor = existing.find(
-      (c) => c.file_path_hash === args.file_path_hash
+      (c) => c.file_path_hash === args.file_path_hash,
     );
     const now = Date.now();
     if (cursor) {
@@ -62,7 +62,7 @@ export const updateSyncCursor = mutation({
 
 async function getAuthenticatedUserIdReadOnly(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -107,7 +107,10 @@ export const getSyncCursor = query({
     api_token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const authUserId = await getAuthenticatedUserIdReadOnly(ctx, args.api_token);
+    const authUserId = await getAuthenticatedUserIdReadOnly(
+      ctx,
+      args.api_token,
+    );
     if (!authUserId || authUserId.toString() !== args.user_id.toString()) {
       return null;
     }
@@ -116,7 +119,7 @@ export const getSyncCursor = query({
       .withIndex("by_user_id", (q) => q.eq("user_id", args.user_id))
       .collect();
     const cursor = cursors.find(
-      (c) => c.file_path_hash === args.file_path_hash
+      (c) => c.file_path_hash === args.file_path_hash,
     );
     if (!cursor) {
       return null;

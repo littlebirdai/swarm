@@ -9,19 +9,29 @@ import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 // host name, and under renderToStaticMarkup zustand answers from its initial
 // state — so the roster has to come through the harness override, registered
 // BEFORE the panel module is imported (mock.module ordering).
-const readState = mockInboxStore(() => ({
-  machineRoster: [
-    { device_id: "cloud-linux", is_remote: true, platform: "linux", online: false, last_seen: 1, label: "Cloud Linux" },
-  ],
-  machineRosterLive: true,
-}), {
-  // useTrackedStore is replaced too, for two reasons. It subscribes through
-  // useSyncExternalStore with no server snapshot, which renderToStaticMarkup
-  // treats as fatal; and it reads the store module's own binding, so the
-  // overrides above would never reach the card. A static render never
-  // re-renders, so handing back the state once is the whole job.
-  useTrackedStore: () => readState(),
-});
+const readState = mockInboxStore(
+  () => ({
+    machineRoster: [
+      {
+        device_id: "cloud-linux",
+        is_remote: true,
+        platform: "linux",
+        online: false,
+        last_seen: 1,
+        label: "Cloud Linux",
+      },
+    ],
+    machineRosterLive: true,
+  }),
+  {
+    // useTrackedStore is replaced too, for two reasons. It subscribes through
+    // useSyncExternalStore with no server snapshot, which renderToStaticMarkup
+    // treats as fatal; and it reads the store module's own binding, so the
+    // overrides above would never reach the card. A static render never
+    // re-renders, so handing back the state once is the whole job.
+    useTrackedStore: () => readState(),
+  },
+);
 
 const { SessionCard } = await import("../inbox/SessionCard");
 
@@ -29,7 +39,8 @@ const { SessionCard } = await import("../inbox/SessionCard");
 // rendering fires no effects and opens no sockets.
 const client = offlineConvexClient("https://example.convex.cloud");
 
-const worktreePath = "/home/ubuntu/work/codecast/.codecast/worktrees/cloud-d03aaa";
+const worktreePath =
+  "/home/ubuntu/work/codecast/.codecast/worktrees/cloud-d03aaa";
 const base: InboxSession = {
   _id: "c1",
   session_id: "s1",
@@ -66,7 +77,11 @@ const FAVORITE = 'aria-label="Favorite"';
 
 describe("SessionCard: worktree and cloud sessions are first-class cards", () => {
   test("a placed cloud worktree row is a full card with the host + worktree chip", () => {
-    const html = render({ worktree_name: "cloud-d03aaa", worktree_branch: "codecast/cloud-d03aaa", owner_device_id: "cloud-linux" });
+    const html = render({
+      worktree_name: "cloud-d03aaa",
+      worktree_branch: "codecast/cloud-d03aaa",
+      owner_device_id: "cloud-linux",
+    });
     expect(html).not.toContain(SUBAGENT);
     expect(html).toContain(FAVORITE);
     expect(html).toContain("Runs on Cloud Linux");
@@ -82,7 +97,10 @@ describe("SessionCard: worktree and cloud sessions are first-class cards", () =>
   });
 
   test("a parked cloud row (placement pending) is a full card that says so", () => {
-    const html = render({ cloud_placement: "pending", owner_device_id: "cloud-linux" });
+    const html = render({
+      cloud_placement: "pending",
+      owner_device_id: "cloud-linux",
+    });
     expect(html).not.toContain(SUBAGENT);
     expect(html).toContain(FAVORITE);
     expect(html).toContain("Preparing the cloud host");
@@ -97,7 +115,11 @@ describe("SessionCard: worktree and cloud sessions are first-class cards", () =>
   });
 
   test("a real Task subagent whose cwd is a worktree stays compact and keeps the chip", () => {
-    const html = render({ is_subagent: true, parent_conversation_id: "p", worktree_name: "cloud-d03aaa" });
+    const html = render({
+      is_subagent: true,
+      parent_conversation_id: "p",
+      worktree_name: "cloud-d03aaa",
+    });
     expect(html).toContain(SUBAGENT);
     expect(html).not.toContain(FAVORITE);
     expect(html).toContain("Worktree cloud-d03aaa");
@@ -110,7 +132,11 @@ describe("SessionCard: worktree and cloud sessions are first-class cards", () =>
   });
 
   test("an agent-team teammate stays compact", () => {
-    const html = render({ spawned_by_conversation_id: "lead", agent_team_name: "t", agent_name: "researcher" });
+    const html = render({
+      spawned_by_conversation_id: "lead",
+      agent_team_name: "t",
+      agent_name: "researcher",
+    });
     expect(html).toContain(SUBAGENT);
     expect(html).not.toContain(FAVORITE);
   });
@@ -132,7 +158,10 @@ describe("SessionCard: worktree and cloud sessions are first-class cards", () =>
     // nestParentIdOf's agent_team_name gate: spawned_by alone is a click-through
     // pointer, not a parent, so the worker renders as its own card with its
     // location chip.
-    const html = render({ spawned_by_conversation_id: "lead", worktree_name: "cloud-d03aaa" });
+    const html = render({
+      spawned_by_conversation_id: "lead",
+      worktree_name: "cloud-d03aaa",
+    });
     expect(html).not.toContain(SUBAGENT);
     expect(html).toContain(FAVORITE);
     expect(html).toContain("Worktree cloud-d03aaa");

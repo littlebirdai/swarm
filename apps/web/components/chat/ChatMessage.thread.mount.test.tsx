@@ -8,8 +8,17 @@ import type { ChatMessageView } from "./chatTypes";
 // a thread must open its root, never the reply.
 test("a broadcast reply opens its root's thread", async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM('<div id="root"></div>', { url: "https://local.codecast.sh/chat/c1" });
-  const restore = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, Element: dom.window.Element, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "https://local.codecast.sh/chat/c1",
+  });
+  const restore = replaceGlobals({
+    window: dom.window,
+    document: dom.window.document,
+    navigator: dom.window.navigator,
+    Element: dom.window.Element,
+    HTMLElement: dom.window.HTMLElement,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
   const React = await import("react");
   const { createRoot } = await import("react-dom/client");
   const { ChatMessage } = await import("./ChatMessage");
@@ -24,9 +33,18 @@ test("a broadcast reply opens its root's thread", async () => {
   const root = createRoot(document.getElementById("root")!);
   try {
     await React.act(async () =>
-      root.render(<ChatMessage message={message} channelId="c1" now={message.createdAt} onOpenThread={(id) => opened.push(id)} />),
+      root.render(
+        <ChatMessage
+          message={message}
+          channelId="c1"
+          now={message.createdAt}
+          onOpenThread={(id) => opened.push(id)}
+        />,
+      ),
     );
-    const replyTool = document.querySelector<HTMLButtonElement>('button[title="Reply in thread"]');
+    const replyTool = document.querySelector<HTMLButtonElement>(
+      'button[title="Reply in thread"]',
+    );
     assert.ok(replyTool, "reply tool rendered");
     await React.act(async () => replyTool!.click());
     const ctx = document.querySelector<HTMLButtonElement>(".ch-msg-threadctx");

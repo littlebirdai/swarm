@@ -2,13 +2,27 @@ import { dom, w, restoreGlobals } from "./fixtures/composeDom";
 import { afterAll, expect, mock, test } from "bun:test";
 
 mock.module("sonner", () => ({
-  toast: Object.assign(() => 1, { error: () => 1, info: () => 1, success: () => 1, warning: () => 1, dismiss: () => {}, loading: () => 1, custom: () => 1, promise: (p: any) => p }),
+  toast: Object.assign(() => 1, {
+    error: () => 1,
+    info: () => 1,
+    success: () => 1,
+    warning: () => 1,
+    dismiss: () => {},
+    loading: () => 1,
+    custom: () => 1,
+    promise: (p: any) => p,
+  }),
   Toaster: () => null,
 }));
 import * as navigation from "next/navigation";
 mock.module("next/navigation", () => ({
   ...navigation,
-  useRouter: () => ({ push: () => {}, replace: () => {}, prefetch: () => {}, back: () => {} }),
+  useRouter: () => ({
+    push: () => {},
+    replace: () => {},
+    prefetch: () => {},
+    back: () => {},
+  }),
   usePathname: () => "/inbox",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -32,30 +46,51 @@ afterAll(() => {
 });
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-const flush = async (ms = 20) => { await act(async () => { await tick(ms); }); };
+const flush = async (ms = 20) => {
+  await act(async () => {
+    await tick(ms);
+  });
+};
 
 function fakeConvex() {
   const client = offlineConvexClient("https://happy-otter-123.convex.cloud");
   (client as any).sync?.webSocketManager?.terminate?.();
   (client as any).mutation = async () => null;
   (client as any).query = async () => null;
-  (client as any).watchQuery = () => ({ onUpdate: () => () => {}, localQueryResult: () => undefined, localQueryLogs: () => undefined, journal: () => undefined });
+  (client as any).watchQuery = () => ({
+    onUpdate: () => () => {},
+    localQueryResult: () => undefined,
+    localQueryLogs: () => undefined,
+    journal: () => undefined,
+  });
   return client;
 }
 
 function typeInto(el: HTMLTextAreaElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, "value")!.set!;
+  const setter = Object.getOwnPropertyDescriptor(
+    w.HTMLTextAreaElement.prototype,
+    "value",
+  )!.set!;
   setter.call(el, value);
   const propsKey = Object.keys(el).find((k) => k.startsWith("__reactProps"));
-  (el as any)[propsKey!]?.onChange?.({ target: el, currentTarget: el, nativeEvent: new w.Event("input") });
+  (el as any)[propsKey!]?.onChange?.({
+    target: el,
+    currentTarget: el,
+    nativeEvent: new w.Event("input"),
+  });
 }
-
 
 let root: ReturnType<typeof createRoot> | null = null;
 let container: HTMLElement | null = null;
 
 function resetStore() {
-  useInboxStore.setState({ currentUser: { _id: "user_draft_test", name: "Tester" } as any, drafts: {}, sessions: {}, conversations: {}, composes: [] } as any);
+  useInboxStore.setState({
+    currentUser: { _id: "user_draft_test", name: "Tester" } as any,
+    drafts: {},
+    sessions: {},
+    conversations: {},
+    composes: [],
+  } as any);
   (useInboxStore.getState() as any)._setDispatch(async () => undefined);
 }
 
@@ -63,7 +98,9 @@ async function render(node: React.ReactNode) {
   container = w.document.createElement("div");
   w.document.body.appendChild(container);
   root = createRoot(container);
-  await act(() => root!.render(<ConvexProvider client={fakeConvex()}>{node}</ConvexProvider>));
+  await act(() =>
+    root!.render(<ConvexProvider client={fakeConvex()}>{node}</ConvexProvider>),
+  );
   await flush(50);
 }
 
@@ -72,8 +109,14 @@ async function unmount() {
   container!.remove();
 }
 
-const textarea = () => container!.querySelector("textarea") as HTMLTextAreaElement;
-const pressEscape = () => act(() => { w.document.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+const textarea = () =>
+  container!.querySelector("textarea") as HTMLTextAreaElement;
+const pressEscape = () =>
+  act(() => {
+    w.document.dispatchEvent(
+      new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
 
 async function mountAppCompose() {
   resetStore();
@@ -81,7 +124,9 @@ async function mountAppCompose() {
   await loadComposeView();
   const { ComposeHost } = await import("../ComposeHost");
   await render(<ComposeHost />);
-  await act(() => { useInboxStore.getState().openCompose(); });
+  await act(() => {
+    useInboxStore.getState().openCompose();
+  });
   await flush(50);
   expect(textarea()).toBeTruthy();
   return (useInboxStore.getState() as any).composes[0].stubId as string;
@@ -98,19 +143,29 @@ const paletteStubId = () => Object.keys(useInboxStore.getState().sessions)[0];
 
 test("app: Escape right after typing asks to keep the draft instead of dropping it", async () => {
   const stubId = await mountAppCompose();
-  await act(() => { typeInto(textarea(), "half a thought"); });
+  await act(() => {
+    typeInto(textarea(), "half a thought");
+  });
   await pressEscape();
   await flush(5);
 
-  expect(container!.querySelector("[role=alertdialog]")?.textContent).toContain("Keep this draft?");
-  expect(useInboxStore.getState().drafts[stubId]?.draft_message).toBe("half a thought");
+  expect(container!.querySelector("[role=alertdialog]")?.textContent).toContain(
+    "Keep this draft?",
+  );
+  expect(useInboxStore.getState().drafts[stubId]?.draft_message).toBe(
+    "half a thought",
+  );
   await unmount();
 }, 60_000);
 
 test("app: closing the modal right after typing keeps the draft and its session", async () => {
   const stubId = await mountAppCompose();
-  await act(() => { typeInto(textarea(), "do not lose me"); });
-  await act(() => { useInboxStore.getState().closeCompose(); });
+  await act(() => {
+    typeInto(textarea(), "do not lose me");
+  });
+  await act(() => {
+    useInboxStore.getState().closeCompose();
+  });
   await flush(5);
 
   const s = useInboxStore.getState();
@@ -123,7 +178,9 @@ test("palette: Escape closes without asking, reopening restores the draft, Clear
   resetStore();
   await mountPaletteCompose();
   const stubId = paletteStubId();
-  await act(() => { typeInto(textarea(), "half a thought"); });
+  await act(() => {
+    typeInto(textarea(), "half a thought");
+  });
   await pressEscape();
   await flush(5);
   expect(container!.querySelector("[role=alertdialog]")).toBeNull();
@@ -138,9 +195,13 @@ test("palette: Escape closes without asking, reopening restores the draft, Clear
   expect(container!.textContent).toContain("draft restored");
   expect(Object.keys(useInboxStore.getState().sessions)).toEqual([stubId]);
 
-  const clear = [...container!.querySelectorAll("button")].find((b) => b.textContent?.trim() === "clear") as HTMLButtonElement;
+  const clear = [...container!.querySelectorAll("button")].find(
+    (b) => b.textContent?.trim() === "clear",
+  ) as HTMLButtonElement;
   expect(clear).toBeTruthy();
-  await act(() => { clear.click(); });
+  await act(() => {
+    clear.click();
+  });
   await flush(5);
   expect(textarea().value).toBe("");
   expect(useInboxStore.getState().drafts[stubId]).toBeUndefined();

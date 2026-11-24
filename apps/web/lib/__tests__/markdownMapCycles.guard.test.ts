@@ -51,7 +51,8 @@ type Edge = { target: string; bindings: string[]; reexport: boolean };
 
 // Static, value-level imports (and `export … from` re-exports) of one file.
 // `import type` and dynamic `import()` never order evaluation and are skipped.
-const IMPORT_RE = /(?:^|\n)\s*(import|export)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|[\w$]+(?:\s*,\s*\{[^}]*\})?)\s+from\s*['"]([^'"]+)['"]/g;
+const IMPORT_RE =
+  /(?:^|\n)\s*(import|export)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|[\w$]+(?:\s*,\s*\{[^}]*\})?)\s+from\s*['"]([^'"]+)['"]/g;
 
 export function importEdges(file: string, source: string): Edge[] {
   const out: Edge[] = [];
@@ -72,7 +73,8 @@ export function importEdges(file: string, source: string): Edge[] {
 
 const graph = new Map<string, Edge[]>();
 for (const dir of DIRS) {
-  for (const f of walkSources(join(WEB_ROOT, dir))) graph.set(f, importEdges(f, readFileSync(f, "utf8")));
+  for (const f of walkSources(join(WEB_ROOT, dir)))
+    graph.set(f, importEdges(f, readFileSync(f, "utf8")));
 }
 
 // Shortest static-import path from `from` to `to`, as repo-relative files.
@@ -86,7 +88,8 @@ export function importPath(from: string, to: string): string[] | null {
       prev.set(target, cur);
       if (target === to) {
         const path: string[] = [];
-        for (let c: string | null = to; c; c = prev.get(c)!) path.unshift(relative(WEB_ROOT, c));
+        for (let c: string | null = to; c; c = prev.get(c)!)
+          path.unshift(relative(WEB_ROOT, c));
         return path;
       }
       queue.push(target);
@@ -98,7 +101,11 @@ export function importPath(from: string, to: string): string[] | null {
 // The names a file declares as hoisted functions (`export function X`).
 function hoistedExports(file: string): Set<string> {
   const src = readFileSync(file, "utf8");
-  return new Set([...src.matchAll(/^export\s+(?:async\s+)?function\s+([\w$]+)/gm)].map((m) => m[1]));
+  return new Set(
+    [...src.matchAll(/^export\s+(?:async\s+)?function\s+([\w$]+)/gm)].map(
+      (m) => m[1],
+    ),
+  );
 }
 
 describe("markdown component maps never read a const across an import cycle", () => {

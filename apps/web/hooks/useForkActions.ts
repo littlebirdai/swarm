@@ -2,23 +2,59 @@ import { useCallback, type RefObject } from "react";
 import { agentSupportsFork } from "@codecast/shared/contracts";
 import { toast } from "sonner";
 import { toastWriteError } from "../lib/dispatchBinding";
-import { useInboxStore, type ForkChild, type InboxSession, type OptimisticImage } from "../store/inboxStore";
+import {
+  useInboxStore,
+  type ForkChild,
+  type InboxSession,
+  type OptimisticImage,
+} from "../store/inboxStore";
 import { DispatchNotWiredError } from "../store/mutativeMiddleware";
-import { beginLocalFork, newForkSessionId, seedForkSessionRow, type LocalFork } from "../store/beginLocalFork";
+import {
+  beginLocalFork,
+  newForkSessionId,
+  seedForkSessionRow,
+  type LocalFork,
+} from "../store/beginLocalFork";
 import { canAnchorForkChips } from "../components/conversation/classify";
 import type { ConversationData } from "../components/conversation/types";
 
-export function useForkActions({ conversation, currentUser, hasMoreAbove, convCommand, timelineRef, populateInputRef, addOptimisticMsg, sendInlineMessage }: {
+export function useForkActions({
+  conversation,
+  currentUser,
+  hasMoreAbove,
+  convCommand,
+  timelineRef,
+  populateInputRef,
+  addOptimisticMsg,
+  sendInlineMessage,
+}: {
   injectSession: (session: InboxSession) => void;
   conversation: ConversationData | null | undefined;
   addOptimisticFork: (fork: ForkChild) => void;
   currentUser: any;
   hasMoreAbove: boolean | undefined;
-  convCommand: (convId: string, command: string, extraArgs?: Record<string, any>, optimistic?: Record<string, any>) => Promise<any>;
+  convCommand: (
+    convId: string,
+    command: string,
+    extraArgs?: Record<string, any>,
+    optimistic?: Record<string, any>,
+  ) => Promise<any>;
   timelineRef: RefObject<any[]>;
-  populateInputRef: RefObject<((text: string, opts?: { append?: boolean; }) => void) | null>;
-  addOptimisticMsg: (convId: string, content: string, images?: Array<OptimisticImage>, clientId?: string) => string;
-  sendInlineMessage: (convId: string, content: string, imageIds?: string[], clientId?: string) => void;
+  populateInputRef: RefObject<
+    ((text: string, opts?: { append?: boolean }) => void) | null
+  >;
+  addOptimisticMsg: (
+    convId: string,
+    content: string,
+    images?: Array<OptimisticImage>,
+    clientId?: string,
+  ) => string;
+  sendInlineMessage: (
+    convId: string,
+    content: string,
+    imageIds?: string[],
+    clientId?: string,
+  ) => void;
 }) {
   // Fork UI state (panels). Forks themselves are first-class conversations
   // (we navigate to them); no overlay state to keep in sync.
@@ -34,41 +70,56 @@ export function useForkActions({ conversation, currentUser, hasMoreAbove, convCo
   // history.replaceState. Server-derived fields (title prefix, exact message_count) are
   // approximate here and get corrected by the meta subscription within a tick.
   const seedForkSession = useCallback(
-    (convId: string, fields: Partial<InboxSession>) => seedForkSessionRow(conversation, convId, fields),
+    (convId: string, fields: Partial<InboxSession>) =>
+      seedForkSessionRow(conversation, convId, fields),
     [conversation],
   );
 
   // Local-first fork (store/beginLocalFork.ts): the fork renders fully
   // populated in the same frame as the click.
-  const doFork = useCallback(async (messageUuid: string): Promise<LocalFork | null> => (
-    beginLocalFork(conversation, messageUuid, { currentUser, hasMoreAbove, onError: (message) => toast.error(message) })
-  ), [conversation, currentUser, hasMoreAbove]);
+  const doFork = useCallback(
+    async (messageUuid: string): Promise<LocalFork | null> =>
+      beginLocalFork(conversation, messageUuid, {
+        currentUser,
+        hasMoreAbove,
+        onError: (message) => toast.error(message),
+      }),
+    [conversation, currentUser, hasMoreAbove],
+  );
 
-  const handleForkFromMessage = useCallback(async (messageUuid: string) => {
-    const tl = timelineRef.current;
-    const idx = tl.findIndex((item: any) => item.type === "message" && item.data?.message_uuid === messageUuid);
-    if (idx !== -1) {
-      const msg = tl[idx].data;
-      if (msg.role === "user") {
-        for (let i = idx - 1; i >= 0; i--) {
-          if (tl[i].type === "message" && canAnchorForkChips(tl[i].data)) {
-            await doFork(tl[i].data.message_uuid);
-            if (msg.content && populateInputRef.current) {
-              setTimeout(() => populateInputRef.current?.(msg.content), 100);
+  const handleForkFromMessage = useCallback(
+    async (messageUuid: string) => {
+      const tl = timelineRef.current;
+      const idx = tl.findIndex(
+        (item: any) =>
+          item.type === "message" && item.data?.message_uuid === messageUuid,
+      );
+      if (idx !== -1) {
+        const msg = tl[idx].data;
+        if (msg.role === "user") {
+          for (let i = idx - 1; i >= 0; i--) {
+            if (tl[i].type === "message" && canAnchorForkChips(tl[i].data)) {
+              await doFork(tl[i].data.message_uuid);
+              if (msg.content && populateInputRef.current) {
+                setTimeout(() => populateInputRef.current?.(msg.content), 100);
+              }
+              return;
             }
-            return;
           }
         }
       }
-    }
-    await doFork(messageUuid);
-  }, [doFork, populateInputRef, timelineRef]);
+      await doFork(messageUuid);
+    },
+    [doFork, populateInputRef, timelineRef],
+  );
 
   // Gate every fork affordance on the client's fork capability: claude/codex/opencode
   // can branch into a live session carrying the copied history; cursor/gemini/pi can't,
   // so the control is HIDDEN (undefined handler) rather than shown as a false success.
   // A share-link viewer is refused by the server (owners and team members only).
-  const canFork = agentSupportsFork(conversation?.agent_type) && conversation?.access_level !== "shared";
+  const canFork =
+    agentSupportsFork(conversation?.agent_type) &&
+    conversation?.access_level !== "shared";
   const forkHandler = canFork ? handleForkFromMessage : undefined;
 
   // Fork from an ARBITRARY branch — the branch map's "fork higher" drill lets you
@@ -76,52 +127,74 @@ export function useForkActions({ conversation, currentUser, hasMoreAbove, convCo
   // conversation we reuse the rich, edit-the-prompt path (handleForkFromMessage);
   // for another branch the server copies that branch's history up to the chosen
   // message and the stub fills in as the copy lands.
-  const doForkFrom = useCallback(async (branchId: string, messageUuid: string) => {
-    if (branchId === conversation?._id?.toString()) return doFork(messageUuid);
-    const store = useInboxStore.getState();
-    const src = store.sessions[branchId];
-    const forkSessionId = newForkSessionId();
-    const now = Date.now();
-    const forkTitle = src?.title ? `Fork: ${src.title}` : "Fork";
-    store.syncRecord("conversations", forkSessionId, {
-      _id: forkSessionId,
-      session_id: forkSessionId,
-      user_id: currentUser?._id?.toString() ?? "",
-      title: forkTitle,
-      agent_type: src?.agent_type,
-      project_path: src?.project_path ?? undefined,
-      git_root: src?.git_root ?? undefined,
-      started_at: now,
-      updated_at: now,
-      status: "active",
-      forked_from: branchId,
-      parent_message_uuid: messageUuid,
-      fork_status: "copying",
-    });
-    seedForkSession(forkSessionId, {
-      session_id: forkSessionId,
-      title: forkTitle,
-      started_at: now,
-      forked_from: branchId,
-      parent_message_uuid: messageUuid,
-      agent_type: src?.agent_type,
-    } as any);
-    const ready = convCommand(branchId, "forkFromMessage", { message_uuid: messageUuid, session_id: forkSessionId })
-      .then((result: any) => { resolveForkSessionId(forkSessionId, result.conversation_id); return result.conversation_id as string; });
-    store.trackSessionCreate(forkSessionId, ready);
-    ready.catch((err: any) => {
-      // Parked-unwired keeps the stub — see doFork's catch.
-      if (err instanceof DispatchNotWiredError && err.parked) return;
-      useInboxStore.getState().discardForkStub(forkSessionId, branchId);
-      toastWriteError(err, "Failed to fork");
-    });
-    return { forkSessionId, conversationId: forkSessionId, ready };
-  }, [conversation?._id, doFork, currentUser?._id, seedForkSession, convCommand, resolveForkSessionId]);
+  const doForkFrom = useCallback(
+    async (branchId: string, messageUuid: string) => {
+      if (branchId === conversation?._id?.toString())
+        return doFork(messageUuid);
+      const store = useInboxStore.getState();
+      const src = store.sessions[branchId];
+      const forkSessionId = newForkSessionId();
+      const now = Date.now();
+      const forkTitle = src?.title ? `Fork: ${src.title}` : "Fork";
+      store.syncRecord("conversations", forkSessionId, {
+        _id: forkSessionId,
+        session_id: forkSessionId,
+        user_id: currentUser?._id?.toString() ?? "",
+        title: forkTitle,
+        agent_type: src?.agent_type,
+        project_path: src?.project_path ?? undefined,
+        git_root: src?.git_root ?? undefined,
+        started_at: now,
+        updated_at: now,
+        status: "active",
+        forked_from: branchId,
+        parent_message_uuid: messageUuid,
+        fork_status: "copying",
+      });
+      seedForkSession(forkSessionId, {
+        session_id: forkSessionId,
+        title: forkTitle,
+        started_at: now,
+        forked_from: branchId,
+        parent_message_uuid: messageUuid,
+        agent_type: src?.agent_type,
+      } as any);
+      const ready = convCommand(branchId, "forkFromMessage", {
+        message_uuid: messageUuid,
+        session_id: forkSessionId,
+      }).then((result: any) => {
+        resolveForkSessionId(forkSessionId, result.conversation_id);
+        return result.conversation_id as string;
+      });
+      store.trackSessionCreate(forkSessionId, ready);
+      ready.catch((err: any) => {
+        // Parked-unwired keeps the stub — see doFork's catch.
+        if (err instanceof DispatchNotWiredError && err.parked) return;
+        useInboxStore.getState().discardForkStub(forkSessionId, branchId);
+        toastWriteError(err, "Failed to fork");
+      });
+      return { forkSessionId, conversationId: forkSessionId, ready };
+    },
+    [
+      conversation?._id,
+      doFork,
+      currentUser?._id,
+      seedForkSession,
+      convCommand,
+      resolveForkSessionId,
+    ],
+  );
 
-  const handleForkFromBranch = useCallback((branchId: string, messageUuid: string, _content: string) => {
-    if (branchId === conversation?._id?.toString()) { handleForkFromMessage(messageUuid); return; }
-    doForkFrom(branchId, messageUuid);
-  }, [conversation?._id, handleForkFromMessage, doForkFrom]);
+  const handleForkFromBranch = useCallback(
+    (branchId: string, messageUuid: string, _content: string) => {
+      if (branchId === conversation?._id?.toString()) {
+        handleForkFromMessage(messageUuid);
+        return;
+      }
+      doForkFrom(branchId, messageUuid);
+    },
+    [conversation?._id, handleForkFromMessage, doForkFrom],
+  );
 
   // Branch from the latest message; the caller sends into the fork.
   const forkFromTail = useCallback(async (): Promise<LocalFork | null> => {
@@ -135,22 +208,36 @@ export function useForkActions({ conversation, currentUser, hasMoreAbove, convCo
     return doFork(lastMsg.message_uuid);
   }, [conversation, doFork]);
 
-  const handleForkReply = useCallback(async (content: string) => {
-    const fork = await forkFromTail();
-    if (!fork) return;
-    // Optimistic bubble lands on the stub instantly (rekeyId carries pending
-    // messages to the real id); the durable send waits for the real Convex id
-    // since the dispatch pipeline can't address a stub.
-    const clientId = addOptimisticMsg(fork.conversationId, content);
-    fork.ready
-      .then((realId) => sendInlineMessage(realId, content, undefined, clientId))
-      .catch(() => {}); // fork failure already surfaced by doFork
-  }, [forkFromTail, addOptimisticMsg, sendInlineMessage]);
+  const handleForkReply = useCallback(
+    async (content: string) => {
+      const fork = await forkFromTail();
+      if (!fork) return;
+      // Optimistic bubble lands on the stub instantly (rekeyId carries pending
+      // messages to the real id); the durable send waits for the real Convex id
+      // since the dispatch pipeline can't address a stub.
+      const clientId = addOptimisticMsg(fork.conversationId, content);
+      fork.ready
+        .then((realId) =>
+          sendInlineMessage(realId, content, undefined, clientId),
+        )
+        .catch(() => {}); // fork failure already surfaced by doFork
+    },
+    [forkFromTail, addOptimisticMsg, sendInlineMessage],
+  );
 
   // Same capability gate as forkHandler: hide fork-and-send where forks can't run.
   // The composer sends into the fork's stub id itself, so its images ride along.
-  const forkTailId = useCallback(async () => (await forkFromTail())?.conversationId ?? null, [forkFromTail]);
+  const forkTailId = useCallback(
+    async () => (await forkFromTail())?.conversationId ?? null,
+    [forkFromTail],
+  );
   const forkTailHandler = canFork ? forkTailId : undefined;
 
-  return { handleForkFromMessage, forkHandler, handleForkFromBranch, handleForkReply: canFork ? handleForkReply : undefined, forkTailHandler };
+  return {
+    handleForkFromMessage,
+    forkHandler,
+    handleForkFromBranch,
+    handleForkReply: canFork ? handleForkReply : undefined,
+    forkTailHandler,
+  };
 }

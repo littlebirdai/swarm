@@ -38,7 +38,9 @@ export async function resolveSearchSelf(
     const own = rows.find((c) => c.user_id === userId);
     if (own) return own._id;
   }
-  const byId = ref.conversation_id ? ctx.db.normalizeId("conversations", ref.conversation_id) : null;
+  const byId = ref.conversation_id
+    ? ctx.db.normalizeId("conversations", ref.conversation_id)
+    : null;
   if (!byId) return null;
   const conv = await ctx.db.get(byId);
   return conv && conv.user_id === userId ? conv._id : null;
@@ -57,9 +59,15 @@ export function selfFamilyTest(ctx: QueryCtx, selfId: Id<"conversations">) {
     let at: Doc<"conversations"> | null = conv;
     let inFamily = false;
     for (let hops = 0; at && hops < 5; hops++) {
-      if (at._id === selfId) { inFamily = true; break; }
+      if (at._id === selfId) {
+        inFamily = true;
+        break;
+      }
       const cached = memo.get(at._id.toString());
-      if (cached !== undefined) { inFamily = cached; break; }
+      if (cached !== undefined) {
+        inFamily = cached;
+        break;
+      }
       const parentId = await searchParentId(ctx, at);
       at = parentId ? await ctx.db.get(parentId) : null;
     }

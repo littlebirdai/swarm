@@ -5,10 +5,15 @@ import { useInboxStore } from "../store/inboxStore";
  * holds it for sessions in the inbox window; a conversation opened by link
  * (an older or hidden session) has only its conversation row.
  */
-export function useConversationOwnerDevice(conversationId: string | null | undefined): string | undefined {
+export function useConversationOwnerDevice(
+  conversationId: string | null | undefined,
+): string | undefined {
   return useInboxStore((s) =>
     conversationId
-      ? ((s.sessions[conversationId]?.owner_device_id ?? s.conversations[conversationId]?.owner_device_id) as string | undefined)
+      ? ((s.sessions[conversationId]?.owner_device_id ??
+          s.conversations[conversationId]?.owner_device_id) as
+          | string
+          | undefined)
       : undefined,
   );
 }

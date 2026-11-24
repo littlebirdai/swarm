@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { parseInteractivePrompt, jsonlHasPendingAskUserQuestion, spendLimitDialogBanner, usageLimitMenuBanner, jsonlTailEndsWithLimitBanner } from "./daemon.js";
+import {
+  parseInteractivePrompt,
+  jsonlHasPendingAskUserQuestion,
+  spendLimitDialogBanner,
+  usageLimitMenuBanner,
+  jsonlTailEndsWithLimitBanner,
+} from "./daemon.js";
 import { classifyApiErrorBanner } from "@codecast/shared/contracts";
 
 // Regression coverage for dropped Q&A descriptions: Claude Code's AskUserQuestion
@@ -35,7 +41,9 @@ describe("parseInteractivePrompt option descriptions", () => {
 
     const prompt = parseInteractivePrompt(menu);
     expect(prompt).not.toBeNull();
-    expect(prompt!.question).toBe("How should I roll out and verify the new Sessions page?");
+    expect(prompt!.question).toBe(
+      "How should I roll out and verify the new Sessions page?",
+    );
     expect(prompt!.options).toEqual([
       {
         label: "Deploy + restart now",
@@ -54,7 +62,8 @@ describe("parseInteractivePrompt option descriptions", () => {
       },
       {
         label: "Just leave it uncommitted",
-        description: "Stop here. Changes stay in the working tree for you to review the diff first.",
+        description:
+          "Stop here. Changes stay in the working tree for you to review the diff first.",
       },
       { label: "Type something.", description: undefined },
       { label: "Chat about this", description: undefined },
@@ -120,7 +129,8 @@ describe("parseInteractivePrompt option descriptions", () => {
       },
       {
         label: "Just leave it for now",
-        description: "Code stays uncommitted in the working tree; you handle activation later. I'll stop here.",
+        description:
+          "Code stays uncommitted in the working tree; you handle activation later. I'll stop here.",
       },
       { label: "Type something", description: undefined },
       { label: "Chat about this", description: undefined },
@@ -213,7 +223,7 @@ describe("parseInteractivePrompt option descriptions", () => {
 
     const prompt = parseInteractivePrompt(menu);
     expect(prompt).not.toBeNull();
-    expect(prompt!.options.map(o => o.label)).toEqual([
+    expect(prompt!.options.map((o) => o.label)).toEqual([
       "I'll bump the volume",
       "Proceed now, watch disk,",
       "Let me inspect disk first",
@@ -223,7 +233,8 @@ describe("parseInteractivePrompt option descriptions", () => {
     expect(prompt!.question).not.toMatch(boxArt);
     for (const o of prompt!.options) {
       expect(o.label).not.toMatch(boxArt);
-      if (o.description !== undefined) expect(o.description).not.toMatch(boxArt);
+      if (o.description !== undefined)
+        expect(o.description).not.toMatch(boxArt);
     }
   });
 });
@@ -263,7 +274,7 @@ describe("parseInteractivePrompt header chip + wrapped question", () => {
     expect(prompt!.question).toBe(
       "How should old undelivered pending messages be resolved? (Today they strand after 1h and pin the session in 'Working' forever.)",
     );
-    expect(prompt!.options.map(o => o.label)).toEqual([
+    expect(prompt!.options.map((o) => o.label)).toEqual([
       "Deliver if recent, else resolve",
       "Always deliver, any age",
       "Resolve only, never auto-inject",
@@ -300,8 +311,10 @@ describe("parseInteractivePrompt header chip + wrapped question", () => {
     const prompt = parseInteractivePrompt(menu);
     expect(prompt).not.toBeNull();
     expect(prompt!.header).toBe("Direction");
-    expect(prompt!.question).toBe("How do you want to proceed on the budget work?");
-    expect(prompt!.options.map(o => o.label)).toEqual([
+    expect(prompt!.question).toBe(
+      "How do you want to proceed on the budget work?",
+    );
+    expect(prompt!.options.map((o) => o.label)).toEqual([
       "Ship the small fix first",
       "Write the v4 design doc",
       "Both, in sequence",
@@ -310,7 +323,8 @@ describe("parseInteractivePrompt header chip + wrapped question", () => {
     expect(prompt!.question).not.toMatch(boxArt);
     for (const o of prompt!.options) {
       expect(o.label).not.toMatch(boxArt);
-      if (o.description !== undefined) expect(o.description).not.toMatch(boxArt);
+      if (o.description !== undefined)
+        expect(o.description).not.toMatch(boxArt);
     }
   });
 
@@ -335,31 +349,80 @@ describe("jsonlHasPendingAskUserQuestion", () => {
   const ask = (id: string) =>
     JSON.stringify({
       type: "assistant",
-      message: { content: [{ type: "tool_use", name: "AskUserQuestion", id, input: { questions: [{ header: "Rollout", question: "q?", options: [{ label: "A", description: "desc" }] }] } }] },
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            name: "AskUserQuestion",
+            id,
+            input: {
+              questions: [
+                {
+                  header: "Rollout",
+                  question: "q?",
+                  options: [{ label: "A", description: "desc" }],
+                },
+              ],
+            },
+          },
+        ],
+      },
     });
   const answer = (id: string) =>
-    JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: 'Your questions have been answered: "q?"="A"' }] } });
-  const text = (t: string) => JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: t }] } });
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: id,
+            content: 'Your questions have been answered: "q?"="A"',
+          },
+        ],
+      },
+    });
+  const text = (t: string) =>
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: t }] },
+    });
 
   test("pending tool_use with no result → true", () => {
-    expect(jsonlHasPendingAskUserQuestion([text("working"), ask("toolu_1")].join("\n"))).toBe(true);
+    expect(
+      jsonlHasPendingAskUserQuestion(
+        [text("working"), ask("toolu_1")].join("\n"),
+      ),
+    ).toBe(true);
   });
 
   test("answered tool_use → false", () => {
-    expect(jsonlHasPendingAskUserQuestion([ask("toolu_1"), answer("toolu_1"), text("moving on")].join("\n"))).toBe(false);
+    expect(
+      jsonlHasPendingAskUserQuestion(
+        [ask("toolu_1"), answer("toolu_1"), text("moving on")].join("\n"),
+      ),
+    ).toBe(false);
   });
 
   test("no AskUserQuestion at all → false", () => {
-    expect(jsonlHasPendingAskUserQuestion([text("hello"), text("world")].join("\n"))).toBe(false);
+    expect(
+      jsonlHasPendingAskUserQuestion([text("hello"), text("world")].join("\n")),
+    ).toBe(false);
   });
 
   test("latest is pending even if an earlier one was answered → true", () => {
-    expect(jsonlHasPendingAskUserQuestion([ask("toolu_1"), answer("toolu_1"), ask("toolu_2")].join("\n"))).toBe(true);
+    expect(
+      jsonlHasPendingAskUserQuestion(
+        [ask("toolu_1"), answer("toolu_1"), ask("toolu_2")].join("\n"),
+      ),
+    ).toBe(true);
   });
 
   test("tolerates a truncated/garbage leading line (tail cut mid-line)", () => {
-    const garbage = '{"type":"assistant","message":{"content":[{"type":"tool_us';
-    expect(jsonlHasPendingAskUserQuestion([garbage, ask("toolu_9")].join("\n"))).toBe(true);
+    const garbage =
+      '{"type":"assistant","message":{"content":[{"type":"tool_us';
+    expect(
+      jsonlHasPendingAskUserQuestion([garbage, ask("toolu_9")].join("\n")),
+    ).toBe(true);
   });
 
   test("empty input → false", () => {
@@ -385,12 +448,12 @@ describe("parseInteractivePrompt rejects prose answers with numbered sections", 
       "  The flag (outreach-email-ai-identity) is variant-weighted 1000/9000 — exactly 10%, with 3,351 ai_identity vs 29,871",
       "  control assignments all-time. The ~116 exposures you're seeing (live count: 17 + 105 = 122) are from the flag_exposures table.",
       "",
-      "  2. The \"coach prompt\" experiment",
+      '  2. The "coach prompt" experiment',
       "",
       "  It's tip-prompt — the system prompt for live coaching tips streamed to callers during calls (generateCallTip.ts:815).",
       "  The experiment ran 2026-04-14 → 2026-04-20 and is marked completed, but the flag still splits contacts 50/50.",
       "",
-      "  3. What \"51% real\" means",
+      '  3. What "51% real" means',
       "",
       "  Of 122 exposures, 62 (51%) are from real production sends; the rest are previews. Replies trend ↑ while bookings trend ↓",
       "  on the disclosure arm, which is the tension to resolve.",
@@ -435,7 +498,10 @@ describe("parseInteractivePrompt rejects prose answers with numbered sections", 
     const prompt = parseInteractivePrompt(pane);
     expect(prompt).not.toBeNull();
     expect(prompt!.question).toBe("Which fix should land first?");
-    expect(prompt!.options.map(o => o.label)).toEqual(["Doom loop", "Pre-enrich dam"]);
+    expect(prompt!.options.map((o) => o.label)).toEqual([
+      "Doom loop",
+      "Pre-enrich dam",
+    ]);
   });
 });
 
@@ -483,7 +549,10 @@ describe("parseInteractivePrompt ignores a queued message above the composer", (
   });
 
   test("a queued message with a paste chip still open reads the same", () => {
-    const chip = queuedPane.replace("❯ Press up to edit queued messages", "❯ [Pasted text #1 +8 lines]");
+    const chip = queuedPane.replace(
+      "❯ Press up to edit queued messages",
+      "❯ [Pasted text #1 +8 lines]",
+    );
     expect(parseInteractivePrompt(chip)).toBeNull();
     expect(parseInteractivePrompt(chip, true)).toBeNull();
   });
@@ -571,8 +640,13 @@ describe("parseInteractivePrompt rejects prose when the live composer is below i
     ].join("\n");
     const prompt = parseInteractivePrompt(pane);
     expect(prompt).not.toBeNull();
-    expect(prompt!.question).toBe("Should the chords be global or picker-only?");
-    expect(prompt!.options.map(o => o.label)).toEqual(["Global", "Picker-only"]);
+    expect(prompt!.question).toBe(
+      "Should the chords be global or picker-only?",
+    );
+    expect(prompt!.options.map((o) => o.label)).toEqual([
+      "Global",
+      "Picker-only",
+    ]);
   });
 
   // Real captured pane (session 63d7b9cf, 2026-06-11): the usage-credit limit
@@ -605,7 +679,10 @@ describe("parseInteractivePrompt rejects prose when the live composer is below i
     const prompt = parseInteractivePrompt(pane);
     expect(prompt?.isConfirmation).toBe(true);
     expect(prompt?.question).toBe("What do you want to do?");
-    expect(prompt?.options.map(o => o.label)).toEqual(["Continue (confirm)", "Cancel (cancel)"]);
+    expect(prompt?.options.map((o) => o.label)).toEqual([
+      "Continue (confirm)",
+      "Cancel (cancel)",
+    ]);
   });
 
   test("a REAL bare confirmation (no composer anywhere) still parses", () => {
@@ -616,7 +693,10 @@ describe("parseInteractivePrompt rejects prose when the live composer is below i
     ].join("\n");
     const prompt = parseInteractivePrompt(pane);
     expect(prompt?.isConfirmation).toBe(true);
-    expect(prompt?.options.map(o => o.label)).toEqual(["Continue (continue)", "Cancel (cancel)"]);
+    expect(prompt?.options.map((o) => o.label)).toEqual([
+      "Continue (continue)",
+      "Cancel (cancel)",
+    ]);
   });
 });
 
@@ -650,13 +730,18 @@ describe("parseInteractivePrompt unnumbered select dialogs", () => {
     expect(prompt!.detail).toBe(
       "Opus 5 at medium effort is faster and uses fewer tokens so that you can get more tasks done. Opus 5 at medium effort solves the large majority of coding tasks as well as high. Run /effort to toggle.",
     );
-    expect(prompt!.options).toEqual([{ label: "Keep high" }, { label: "Switch Opus 5 to medium effort" }]);
+    expect(prompt!.options).toEqual([
+      { label: "Keep high" },
+      { label: "Switch Opus 5 to medium effort" },
+    ]);
     expect(prompt!.unnumbered).toBe(true);
     expect(prompt!.isConfirmation).toBeUndefined();
   });
 
   test("the machine input guard sees it too", () => {
-    expect(parseInteractivePrompt(EFFORT_DIALOG_PANE, true)?.question).toBe("We recommend Opus 5 at medium effort");
+    expect(parseInteractivePrompt(EFFORT_DIALOG_PANE, true)?.question).toBe(
+      "We recommend Opus 5 at medium effort",
+    );
   });
 
   test("the same rows in scrollback, with the live composer below, are not a dialog", () => {
@@ -737,7 +822,9 @@ describe("spendLimitDialogBanner", () => {
       "   Enter to confirm · Esc to cancel",
     ].join("\n");
     const banner = spendLimitDialogBanner(pane);
-    expect(banner).toBe("You've hit your monthly spend limit · Resets 2:50pm (America/New_York)");
+    expect(banner).toBe(
+      "You've hit your monthly spend limit · Resets 2:50pm (America/New_York)",
+    );
     expect(classifyApiErrorBanner(banner)).toBe("limit");
   });
 
@@ -759,7 +846,9 @@ describe("spendLimitDialogBanner", () => {
     ].join("\n");
     expect(parseInteractivePrompt(pane)?.isConfirmation).toBe(true);
     const banner = spendLimitDialogBanner(pane);
-    expect(banner).toBe("You've hit your monthly spend limit · Resets Sep 1, 12:00am (America/New_York)");
+    expect(banner).toBe(
+      "You've hit your monthly spend limit · Resets Sep 1, 12:00am (America/New_York)",
+    );
     expect(classifyApiErrorBanner(banner)).toBe("limit");
   });
 
@@ -774,7 +863,9 @@ describe("spendLimitDialogBanner", () => {
       "   Enter to confirm · Esc to cancel",
     ].join("\n");
     const banner = spendLimitDialogBanner(pane);
-    expect(banner).toBe("You've hit your monthly spend limit · parked at the spend limit dialog");
+    expect(banner).toBe(
+      "You've hit your monthly spend limit · parked at the spend limit dialog",
+    );
     expect(classifyApiErrorBanner(banner)).toBe("limit");
   });
 
@@ -814,13 +905,17 @@ describe("usageLimitMenuBanner", () => {
       "   Enter to confirm · Esc to cancel",
     ].join("\n");
     const banner = usageLimitMenuBanner(pane, labels);
-    expect(banner).toBe("You've hit your usage limit · Resets 3:30am (America/New_York)");
+    expect(banner).toBe(
+      "You've hit your usage limit · Resets 3:30am (America/New_York)",
+    );
     expect(classifyApiErrorBanner(banner)).toBe("limit");
   });
 
   test("no reset column still yields a limit-classified banner", () => {
     const banner = usageLimitMenuBanner("   What do you want to do?", labels);
-    expect(banner).toBe("You've hit your usage limit · parked at the usage limit dialog");
+    expect(banner).toBe(
+      "You've hit your usage limit · parked at the usage limit dialog",
+    );
     expect(classifyApiErrorBanner(banner)).toBe("limit");
   });
 
@@ -834,7 +929,9 @@ describe("usageLimitMenuBanner", () => {
       "",
       "   Enter to confirm · Esc to cancel",
     ].join("\n");
-    expect(usageLimitMenuBanner(pane, ["Rebase onto main", "Merge main in"])).toBeNull();
+    expect(
+      usageLimitMenuBanner(pane, ["Rebase onto main", "Merge main in"]),
+    ).toBeNull();
   });
 
   test("an unrelated confirmation dialog does not match", () => {
@@ -852,22 +949,30 @@ describe("usageLimitMenuBanner", () => {
 // synthetic banner — the JSONL banner is the park signal, and the fix is only
 // suppressing the scraped card that used to supersede it.
 describe("jsonlTailEndsWithLimitBanner", () => {
-  const banner = (text: string) => JSON.stringify({
-    isApiErrorMessage: true,
-    message: { role: "assistant", content: [{ type: "text", text }] },
-  });
-  const realTurn = (text: string) => JSON.stringify({
-    message: { role: "assistant", content: [{ type: "text", text }] },
-  });
-  const limitText = "You've hit your monthly spend limit · raise it at claude.ai/settings/usage?from=cc_cli_limit_message";
+  const banner = (text: string) =>
+    JSON.stringify({
+      isApiErrorMessage: true,
+      message: { role: "assistant", content: [{ type: "text", text }] },
+    });
+  const realTurn = (text: string) =>
+    JSON.stringify({
+      message: { role: "assistant", content: [{ type: "text", text }] },
+    });
+  const limitText =
+    "You've hit your monthly spend limit · raise it at claude.ai/settings/usage?from=cc_cli_limit_message";
 
   test("banner as the newest content entry → true", () => {
-    const jsonl = [realTurn("Checking the build."), banner(limitText), ""].join("\n");
+    const jsonl = [realTurn("Checking the build."), banner(limitText), ""].join(
+      "\n",
+    );
     expect(jsonlTailEndsWithLimitBanner(jsonl)).toBe(true);
   });
 
   test("banner followed by a real turn (park over) → false", () => {
-    const jsonl = [banner(limitText), realTurn("Resumed after the reset.")].join("\n");
+    const jsonl = [
+      banner(limitText),
+      realTurn("Resumed after the reset."),
+    ].join("\n");
     expect(jsonlTailEndsWithLimitBanner(jsonl)).toBe(false);
   });
 
@@ -881,7 +986,9 @@ describe("jsonlTailEndsWithLimitBanner", () => {
   });
 
   test("auth banner is not a limit park → false", () => {
-    expect(jsonlTailEndsWithLimitBanner(banner("Please run /login"))).toBe(false);
+    expect(jsonlTailEndsWithLimitBanner(banner("Please run /login"))).toBe(
+      false,
+    );
   });
 
   test("empty tail → false", () => {

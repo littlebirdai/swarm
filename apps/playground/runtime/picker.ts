@@ -33,8 +33,12 @@ export function selectorFor(el: SelectorNode): string {
       steps.unshift(tag);
       break;
     }
-    const same = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
-    steps.unshift(same.length > 1 ? `${tag}:nth-of-type(${same.indexOf(node) + 1})` : tag);
+    const same = Array.from(parent.children).filter(
+      (c) => c.tagName === node!.tagName,
+    );
+    steps.unshift(
+      same.length > 1 ? `${tag}:nth-of-type(${same.indexOf(node) + 1})` : tag,
+    );
   }
   return steps.join(" > ");
 }
@@ -49,7 +53,11 @@ export function describeElement(el: Element): ElementFields {
   };
 }
 
-const DEFAULT_THEME: PickTheme = { accent: "#c4491f", ink: "#2b2520", font: "ui-monospace, monospace" };
+const DEFAULT_THEME: PickTheme = {
+  accent: "#c4491f",
+  ink: "#2b2520",
+  font: "ui-monospace, monospace",
+};
 
 /** A ring around an element, drawn from a shadow root on <html> so the app's
  *  CSS cannot restyle it and its DOM queries cannot see it: a 2px outline 3px
@@ -75,7 +83,13 @@ export function ringLayer(color: string, css = "", inner = "") {
     box,
     place(el: Element) {
       const r = el.getBoundingClientRect();
-      Object.assign(box.style, { display: "block", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      Object.assign(box.style, {
+        display: "block",
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+      });
     },
     remove: () => host.remove(),
   };
@@ -94,10 +108,16 @@ function tagCss(t: PickTheme): string {
   `;
 }
 
-export type PickerEvents = { picked(element: ElementFields): void; cancelled(): void };
+export type PickerEvents = {
+  picked(element: ElementFields): void;
+  cancelled(): void;
+};
 
 /** Turn picking on; returns the function that turns it off. */
-export function startPicking(theme: PickTheme | undefined, on: PickerEvents): () => void {
+export function startPicking(
+  theme: PickTheme | undefined,
+  on: PickerEvents,
+): () => void {
   const t = theme ?? DEFAULT_THEME;
   const layer = ringLayer(t.accent, tagCss(t), `<div class="tag"></div>`);
   const tag = layer.root.querySelector<HTMLElement>(".tag")!;
@@ -111,7 +131,8 @@ export function startPicking(theme: PickTheme | undefined, on: PickerEvents): ()
     const { tag: name, text } = describeElement(el);
     tag.textContent = text ? `${name} · ${text}` : name;
   };
-  const target = (e: Event) => (e.target instanceof Element && e.target !== layer.host ? e.target : null);
+  const target = (e: Event) =>
+    e.target instanceof Element && e.target !== layer.host ? e.target : null;
 
   const onMove = (e: Event) => {
     const el = target(e);
@@ -145,13 +166,15 @@ export function startPicking(theme: PickTheme | undefined, on: PickerEvents): ()
     ["click", onClick],
     ["keydown", onKey],
   ];
-  for (const [type, fn] of listeners) window.addEventListener(type, fn as EventListener, true);
+  for (const [type, fn] of listeners)
+    window.addEventListener(type, fn as EventListener, true);
 
   let stopped = false;
   function stop() {
     if (stopped) return;
     stopped = true;
-    for (const [type, fn] of listeners) window.removeEventListener(type, fn as EventListener, true);
+    for (const [type, fn] of listeners)
+      window.removeEventListener(type, fn as EventListener, true);
     layer.remove();
     cursor.remove();
   }

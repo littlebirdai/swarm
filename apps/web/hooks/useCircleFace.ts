@@ -42,9 +42,20 @@ export function useCircleFace({
   // A circle nobody can see does not need a face tracked in it. The hook also
   // writes `data-tracking` on the circle — "face" while the detector is holding
   // one, "center" otherwise — so the picture says which of the two it is.
-  useFaceCrop({ hostRef, videoRef, active: !!track && active, diameter, mirror: !!tile?.isLocal });
+  useFaceCrop({
+    hostRef,
+    videoRef,
+    active: !!track && active,
+    diameter,
+    mirror: !!tile?.isLocal,
+  });
   // Camera off: the same centring, once, on the picture that stands in.
-  useAvatarFaceCrop({ hostRef, src: image, active: !track && active, diameter });
+  useAvatarFaceCrop({
+    hostRef,
+    src: image,
+    active: !track && active,
+    diameter,
+  });
 
   return { hostRef, videoRef, track };
 }

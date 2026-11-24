@@ -8,91 +8,142 @@
   picks the entry. Served from the repository root.
 -->
 <html>
-<head>
-<meta charset="utf-8" />
-<link rel="stylesheet" href="../../../apps/web/docs-shots/frame.css" />
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: var(--w); height: var(--h); overflow: hidden; }
-  body { font-family: "Instrument Sans", sans-serif; }
-  .plate { position: absolute; inset: 0; }
-  /* The store grid reaches further down than the docs one: the caption sits on it. */
-  .plate::before { background-size: 16px 16px; mask-image: linear-gradient(180deg, black 0%, black 22%, transparent 48%); }
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../apps/web/docs-shots/frame.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: var(--w);
+        height: var(--h);
+        overflow: hidden;
+      }
+      body {
+        font-family: "Instrument Sans", sans-serif;
+      }
+      .plate {
+        position: absolute;
+        inset: 0;
+      }
+      /* The store grid reaches further down than the docs one: the caption sits on it. */
+      .plate::before {
+        background-size: 16px 16px;
+        mask-image: linear-gradient(
+          180deg,
+          black 0%,
+          black 22%,
+          transparent 48%
+        );
+      }
 
-  .caption { position: absolute; left: var(--pad); right: var(--pad); top: var(--top); }
-  h1 {
-    font-weight: 700;
-    font-size: var(--h1);
-    line-height: 1.04;
-    letter-spacing: -0.035em;
-    color: var(--plate-ink);
-    text-wrap: balance;
-  }
-  /* The one word that carries the shot, set on a block of the shot's accent like a selection. */
-  h1 mark {
-    color: #fff;
-    background: var(--accent);
-    padding: 0 0.12em;
-    margin: 0 -0.02em;
-    border-radius: 0.1em;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-  .sub {
-    margin-top: 0.7em;
-    font-size: var(--sub);
-    font-weight: 500;
-    line-height: 1.35;
-    color: var(--text-muted);
-    max-width: 34ch;
-    text-wrap: pretty;
-  }
+      .caption {
+        position: absolute;
+        left: var(--pad);
+        right: var(--pad);
+        top: var(--top);
+      }
+      h1 {
+        font-weight: 700;
+        font-size: var(--h1);
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        color: var(--plate-ink);
+        text-wrap: balance;
+      }
+      /* The one word that carries the shot, set on a block of the shot's accent like a selection. */
+      h1 mark {
+        color: #fff;
+        background: var(--accent);
+        padding: 0 0.12em;
+        margin: 0 -0.02em;
+        border-radius: 0.1em;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+      .sub {
+        margin-top: 0.7em;
+        font-size: var(--sub);
+        font-weight: 500;
+        line-height: 1.35;
+        color: var(--text-muted);
+        max-width: 34ch;
+        text-wrap: pretty;
+      }
 
-  /* The device, large, bleeding off the bottom edge. */
-  .phone { position: absolute; left: 50%; transform: translateX(-50%); top: var(--device-top); }
+      /* The device, large, bleeding off the bottom edge. */
+      .phone {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        top: var(--device-top);
+      }
 
-  body.iphone {
-    --w: 660px; --h: 1434px;
-    --pad: 48px; --top: 68px;
-    --h1: 58px; --sub: 21px;
-    --device-top: 318px; --phone-w: 520px;
-  }
-  body.ipad {
-    --w: 1032px; --h: 1376px;
-    --pad: 84px; --top: 74px;
-    --h1: 62px; --sub: 23px;
-    --device-top: 330px; --phone-w: 840px;
-  }
-</style>
-</head>
-<body>
-  <div class="plate"></div>
-  <div class="caption">
-    <h1 id="h1"></h1>
-    <p class="sub" id="sub"></p>
-  </div>
-  <div class="phone" id="device">
-    <span class="key l1"></span><span class="key l2"></span><span class="key l3"></span><span class="key r1"></span>
-    <img id="screen" alt="" />
-    <span class="island"></span>
-  </div>
-<script type="module">
-  import { SHOTS } from "./shots.js";
-  const q = new URLSearchParams(location.search);
-  const device = q.get("device") === "ipad" ? "ipad" : "iphone";
-  const shot = SHOTS[q.get("shot")] ?? Object.values(SHOTS)[0];
-  document.body.className = `${device} frame-light`;
-  if (device === "ipad") document.getElementById("device").classList.add("tablet");
-  document.body.style.setProperty("--accent", `var(--${shot.accent})`);
-  // `[word]` in a headline marks the word set on the accent block.
-  document.getElementById("h1").innerHTML = shot.title.replace(/\[([^\]]+)\]/g, "<mark>$1</mark>");
-  document.getElementById("sub").textContent = shot.sub ?? "";
-  const img = document.getElementById("screen");
-  const loaded = new Promise((r) => { img.onload = r; img.onerror = () => { img.onerror = null; img.src = "raw/placeholder.png"; }; });
-  img.src = `raw/${device}-${(device === "ipad" && shot.ipad) || shot.screen}.png`;
-  await document.fonts.ready;
-  await loaded;
-  document.body.dataset.ready = "1";
-</script>
-</body>
+      body.iphone {
+        --w: 660px;
+        --h: 1434px;
+        --pad: 48px;
+        --top: 68px;
+        --h1: 58px;
+        --sub: 21px;
+        --device-top: 318px;
+        --phone-w: 520px;
+      }
+      body.ipad {
+        --w: 1032px;
+        --h: 1376px;
+        --pad: 84px;
+        --top: 74px;
+        --h1: 62px;
+        --sub: 23px;
+        --device-top: 330px;
+        --phone-w: 840px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="plate"></div>
+    <div class="caption">
+      <h1 id="h1"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="phone" id="device">
+      <span class="key l1"></span><span class="key l2"></span
+      ><span class="key l3"></span><span class="key r1"></span>
+      <img id="screen" alt="" />
+      <span class="island"></span>
+    </div>
+    <script type="module">
+      import { SHOTS } from "./shots.js";
+      const q = new URLSearchParams(location.search);
+      const device = q.get("device") === "ipad" ? "ipad" : "iphone";
+      const shot = SHOTS[q.get("shot")] ?? Object.values(SHOTS)[0];
+      document.body.className = `${device} frame-light`;
+      if (device === "ipad")
+        document.getElementById("device").classList.add("tablet");
+      document.body.style.setProperty("--accent", `var(--${shot.accent})`);
+      // `[word]` in a headline marks the word set on the accent block.
+      document.getElementById("h1").innerHTML = shot.title.replace(
+        /\[([^\]]+)\]/g,
+        "<mark>$1</mark>",
+      );
+      document.getElementById("sub").textContent = shot.sub ?? "";
+      const img = document.getElementById("screen");
+      const loaded = new Promise((r) => {
+        img.onload = r;
+        img.onerror = () => {
+          img.onerror = null;
+          img.src = "raw/placeholder.png";
+        };
+      });
+      img.src = `raw/${device}-${(device === "ipad" && shot.ipad) || shot.screen}.png`;
+      await document.fonts.ready;
+      await loaded;
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
 </html>

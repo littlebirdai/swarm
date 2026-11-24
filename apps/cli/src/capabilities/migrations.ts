@@ -48,7 +48,10 @@ export const skillCopiesToSharedLinks: Migration = {
         const p = path.join(dir, name);
         // A real directory (not a link) with a SKILL.md is a legacy copy.
         try {
-          if (!fs.lstatSync(p).isSymbolicLink() && fs.existsSync(path.join(p, "SKILL.md"))) {
+          if (
+            !fs.lstatSync(p).isSymbolicLink() &&
+            fs.existsSync(path.join(p, "SKILL.md"))
+          ) {
             return true;
           }
         } catch {
@@ -88,8 +91,12 @@ export const skillCopiesToSharedLinks: Migration = {
           // consented source of truth) decides.
           const same = sameTree(legacy, shared);
           if (!same) {
-            report.skipped.push(`${legacy}: differs from ${shared}; left in place`);
-            log(`[migrate] ${legacy} differs from shared copy — left for review`);
+            report.skipped.push(
+              `${legacy}: differs from ${shared}; left in place`,
+            );
+            log(
+              `[migrate] ${legacy} differs from shared copy — left for review`,
+            );
             continue;
           }
           fs.rmSync(legacy, { recursive: true });
@@ -105,7 +112,9 @@ export const skillCopiesToSharedLinks: Migration = {
           // No symlink support: move the content back rather than leave the
           // client dir empty — the migration must never LOSE a skill.
           fs.renameSync(shared, legacy);
-          report.skipped.push(`${legacy}: filesystem refuses symlinks; copy left in place`);
+          report.skipped.push(
+            `${legacy}: filesystem refuses symlinks; copy left in place`,
+          );
         }
       }
     }

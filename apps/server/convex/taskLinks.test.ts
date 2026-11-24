@@ -6,7 +6,15 @@
 // resolved.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { addDepCore, context, create, get, moveTaskStatus, update, updateTaskAs } from "./tasks";
+import {
+  addDepCore,
+  context,
+  create,
+  get,
+  moveTaskStatus,
+  update,
+  updateTaskAs,
+} from "./tasks";
 import { cutCrossedEdges, relate, supersede, unrelate } from "./taskLinks";
 import { hashToken } from "./apiTokens";
 import { dispatch } from "./dispatch";
@@ -22,9 +30,22 @@ const SESSION = "sess-bound";
 
 async function makeCtx(tasks: any[], conv: any = {}) {
   const tables: Record<string, any[]> = {
-    users: [{ _id: USER, name: "User" }, { _id: OTHER, name: "Other" }],
-    api_tokens: [{ _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) }],
-    conversations: [{ _id: "conv_1", user_id: USER, session_id: SESSION, is_private: true, ...conv }],
+    users: [
+      { _id: USER, name: "User" },
+      { _id: OTHER, name: "Other" },
+    ],
+    api_tokens: [
+      { _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) },
+    ],
+    conversations: [
+      {
+        _id: "conv_1",
+        user_id: USER,
+        session_id: SESSION,
+        is_private: true,
+        ...conv,
+      },
+    ],
     counters: [{ _id: "counter_ct", name: "ct", value: 100 }],
     tasks,
     task_history: [],
@@ -32,7 +53,11 @@ async function makeCtx(tasks: any[], conv: any = {}) {
   };
   return {
     ctx: {
-      auth: { async getUserIdentity() { return { subject: `${USER}|session` }; } },
+      auth: {
+        async getUserIdentity() {
+          return { subject: `${USER}|session` };
+        },
+      },
       db: makeFakeDb(tables),
       scheduler: { runAfter: async () => null, runAt: async () => null },
       runMutation: async () => null,
@@ -54,60 +79,132 @@ const task = (shortId: string, over: any = {}) => ({
   ...over,
 });
 
-const call = (fn: any, ctx: any, args: any) => fn._handler(ctx, { api_token: TOKEN, ...args });
-const row = (tables: any, id: string) => tables.tasks.find((t: any) => t.short_id === id);
-const commentsOn = (tables: any, id: string) => tables.task_comments.filter((c: any) => c.task_id === `task_${id}`).map((c: any) => c.text);
+const call = (fn: any, ctx: any, args: any) =>
+  fn._handler(ctx, { api_token: TOKEN, ...args });
+const row = (tables: any, id: string) =>
+  tables.tasks.find((t: any) => t.short_id === id);
+const commentsOn = (tables: any, id: string) =>
+  tables.task_comments
+    .filter((c: any) => c.task_id === `task_${id}`)
+    .map((c: any) => c.text);
 const historyOf = (tables: any, id: string, field: string) =>
-  tables.task_history.filter((h: any) => h.task_id === `task_${id}` && h.field === field).map((h: any) => [h.old_value, h.new_value]);
+  tables.task_history
+    .filter((h: any) => h.task_id === `task_${id}` && h.field === field)
+    .map((h: any) => [h.old_value, h.new_value]);
 
 describe("found_during (TG5)", () => {
   test("fills from the creating session's bound task and records it", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1")], { active_task_id: "task_ct-1" });
-    const { short_id } = await call(create, ctx, { title: "Found bug", conversation_id: SESSION });
+    const { ctx, tables } = await makeCtx([task("ct-1")], {
+      active_task_id: "task_ct-1",
+    });
+    const { short_id } = await call(create, ctx, {
+      title: "Found bug",
+      conversation_id: SESSION,
+    });
     expect(row(tables, short_id).found_during).toBe("ct-1");
-    expect(tables.task_history.filter((h: any) => h.field === "found_during").map((h: any) => h.new_value)).toEqual(["ct-1"]);
+    expect(
+      tables.task_history
+        .filter((h: any) => h.field === "found_during")
+        .map((h: any) => h.new_value),
+    ).toEqual(["ct-1"]);
   });
 
   test("skips the bound task's own subtasks, deep ones included, and its plan's steps", async () => {
-    const { ctx, tables } = await makeCtx([
-      task("ct-1", { plan_id: "plan_1" }),
-      task("ct-2", { parent_id: "task_ct-1" }),
-    ], { active_task_id: "task_ct-1" });
-    tables.plans = [{ _id: "plan_1", short_id: "pl-1", user_id: USER, title: "P", status: "active", task_ids: ["task_ct-1"], created_at: 1, updated_at: 1 }];
-    const sub = await call(create, ctx, { title: "Sub", conversation_id: SESSION, parent_id: "ct-1" });
-    const deep = await call(create, ctx, { title: "Deeper", conversation_id: SESSION, parent_id: "ct-2" });
-    const step = await call(create, ctx, { title: "Step", conversation_id: SESSION, plan_id: "pl-1" });
-    for (const r of [sub, deep, step]) expect(row(tables, r.short_id).found_during).toBeUndefined();
+    const { ctx, tables } = await makeCtx(
+      [
+        task("ct-1", { plan_id: "plan_1" }),
+        task("ct-2", { parent_id: "task_ct-1" }),
+      ],
+      { active_task_id: "task_ct-1" },
+    );
+    tables.plans = [
+      {
+        _id: "plan_1",
+        short_id: "pl-1",
+        user_id: USER,
+        title: "P",
+        status: "active",
+        task_ids: ["task_ct-1"],
+        created_at: 1,
+        updated_at: 1,
+      },
+    ];
+    const sub = await call(create, ctx, {
+      title: "Sub",
+      conversation_id: SESSION,
+      parent_id: "ct-1",
+    });
+    const deep = await call(create, ctx, {
+      title: "Deeper",
+      conversation_id: SESSION,
+      parent_id: "ct-2",
+    });
+    const step = await call(create, ctx, {
+      title: "Step",
+      conversation_id: SESSION,
+      plan_id: "pl-1",
+    });
+    for (const r of [sub, deep, step])
+      expect(row(tables, r.short_id).found_during).toBeUndefined();
   });
 
   test("an explicit value wins, and none skips the default", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1"), task("ct-5")], { active_task_id: "task_ct-1" });
-    const explicit = await call(create, ctx, { title: "A", conversation_id: SESSION, found_during: "ct-5" });
-    const none = await call(create, ctx, { title: "B", conversation_id: SESSION, found_during: "none" });
+    const { ctx, tables } = await makeCtx([task("ct-1"), task("ct-5")], {
+      active_task_id: "task_ct-1",
+    });
+    const explicit = await call(create, ctx, {
+      title: "A",
+      conversation_id: SESSION,
+      found_during: "ct-5",
+    });
+    const none = await call(create, ctx, {
+      title: "B",
+      conversation_id: SESSION,
+      found_during: "none",
+    });
     expect(row(tables, explicit.short_id).found_during).toBe("ct-5");
     expect(row(tables, none.short_id).found_during).toBeUndefined();
   });
 
   test("an explicit task in another workspace is refused; a bound one there is skipped", async () => {
-    const foreign = task("ct-9", { user_id: OTHER, team_id: "team_x", workspace: "team:team_x" });
-    const { ctx, tables } = await makeCtx([foreign], { active_task_id: "task_ct-9" });
-    tables.team_memberships = [{ _id: "m1", user_id: USER, team_id: "team_x", role: "member" }];
-    await expect(call(create, ctx, { title: "A", found_during: "ct-9" })).rejects.toThrow(/another workspace|not found/i);
-    const auto = await call(create, ctx, { title: "B", conversation_id: SESSION });
+    const foreign = task("ct-9", {
+      user_id: OTHER,
+      team_id: "team_x",
+      workspace: "team:team_x",
+    });
+    const { ctx, tables } = await makeCtx([foreign], {
+      active_task_id: "task_ct-9",
+    });
+    tables.team_memberships = [
+      { _id: "m1", user_id: USER, team_id: "team_x", role: "member" },
+    ];
+    await expect(
+      call(create, ctx, { title: "A", found_during: "ct-9" }),
+    ).rejects.toThrow(/another workspace|not found/i);
+    const auto = await call(create, ctx, {
+      title: "B",
+      conversation_id: SESSION,
+    });
     expect(row(tables, auto.short_id).found_during).toBeUndefined();
   });
 
   test("the source lists what was found there; show and context resolve every link", async () => {
     const { ctx } = await makeCtx([
       task("ct-1", { related: ["ct-3"] }),
-      task("ct-2", { found_during: "ct-1", superseded_by: "ct-3", status: "dropped" }),
+      task("ct-2", {
+        found_during: "ct-1",
+        superseded_by: "ct-3",
+        status: "dropped",
+      }),
       task("ct-3", { related: ["ct-1"] }),
     ]);
     const shown = await call(get, ctx, { short_id: "ct-2" });
     expect(shown.links.found_during.short_id).toBe("ct-1");
     expect(shown.links.superseded_by.short_id).toBe("ct-3");
     const ctx1 = await call(context, ctx, { short_id: "ct-1" });
-    expect(ctx1.links.found_here).toEqual([{ short_id: "ct-2", title: "Title ct-2", status: "dropped" }]);
+    expect(ctx1.links.found_here).toEqual([
+      { short_id: "ct-2", title: "Title ct-2", status: "dropped" },
+    ]);
     expect(ctx1.links.related.map((r: any) => r.short_id)).toEqual(["ct-3"]);
   });
 
@@ -115,7 +212,10 @@ describe("found_during (TG5)", () => {
     const { ctx } = await makeCtx([
       task("ct-1", { status: "done", blocks: ["ct-4"] }),
       task("ct-2", { workspace: `user:${OTHER}`, user_id: OTHER }),
-      task("ct-4", { blocked_by: ["ct-1", "task_ct-1", "ct-9", "ct-2"], blocks: ["ct-5"] }),
+      task("ct-4", {
+        blocked_by: ["ct-1", "task_ct-1", "ct-9", "ct-2"],
+        blocks: ["ct-5"],
+      }),
       task("ct-5", { blocked_by: ["ct-4"] }),
     ]);
     const shown = await call(get, ctx, { short_id: "ct-4" });
@@ -124,7 +224,9 @@ describe("found_during (TG5)", () => {
       { kind: "task", ref: "ct-9", missing: true },
       { kind: "task", ref: "ct-2", status: "unknown" },
     ]);
-    expect(shown.links.blocks).toEqual([{ short_id: "ct-5", title: "Title ct-5", status: "open" }]);
+    expect(shown.links.blocks).toEqual([
+      { short_id: "ct-5", title: "Title ct-5", status: "open" },
+    ]);
   });
 
   test("a blocks entry whose task no longer waits on this one is not listed", async () => {
@@ -135,7 +237,10 @@ describe("found_during (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-9"] }),
     ]);
     const shown = await call(get, ctx, { short_id: "ct-1" });
-    expect(shown.links.blocks.map((r: any) => r.short_id)).toEqual(["ct-2", "ct-3"]);
+    expect(shown.links.blocks.map((r: any) => r.short_id)).toEqual([
+      "ct-2",
+      "ct-3",
+    ]);
   });
 });
 
@@ -149,16 +254,26 @@ describe("supersede (TG5)", () => {
       task("ct-5"),
       task("ct-9"),
     ]);
-    const res = await call(supersede, ctx, { short_id: "ct-1", by: "ct-5", note: "Rewritten scope." });
+    const res = await call(supersede, ctx, {
+      short_id: "ct-1",
+      by: "ct-5",
+      note: "Rewritten scope.",
+    });
     expect(res.moved).toEqual(["ct-2", "ct-3"]);
     const old = row(tables, "ct-1");
-    expect([old.status, old.superseded_by, old.blocks]).toEqual(["dropped", "ct-5", ["ct-4"]]);
+    expect([old.status, old.superseded_by, old.blocks]).toEqual([
+      "dropped",
+      "ct-5",
+      ["ct-4"],
+    ]);
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-5"]);
     expect(row(tables, "ct-3").blocked_by).toEqual(["ct-9", "ct-5"]);
     // A finished dependent keeps its history.
     expect(row(tables, "ct-4").blocked_by).toEqual(["ct-1"]);
     expect(row(tables, "ct-5").blocks).toEqual(["ct-2", "ct-3"]);
-    expect(tables.task_comments.map((c: any) => c.text)).toEqual(["Superseded by ct-5. Rewritten scope. Its dependents now wait on it: ct-2, ct-3."]);
+    expect(tables.task_comments.map((c: any) => c.text)).toEqual([
+      "Superseded by ct-5. Rewritten scope. Its dependents now wait on it: ct-2, ct-3.",
+    ]);
     expect(historyOf(tables, "ct-1", "superseded_by")).toEqual([["", "ct-5"]]);
     expect(historyOf(tables, "ct-2", "blocked_by")).toEqual([["ct-1", "ct-5"]]);
   });
@@ -169,8 +284,13 @@ describe("supersede (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"], blocks: ["ct-5"] }),
       task("ct-5", { blocked_by: ["ct-2"] }),
     ]);
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-5" })).rejects.toThrow(/loop/);
-    expect([row(tables, "ct-1").status, row(tables, "ct-2").blocked_by]).toEqual(["open", ["ct-1"]]);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-5" }),
+    ).rejects.toThrow(/loop/);
+    expect([
+      row(tables, "ct-1").status,
+      row(tables, "ct-2").blocked_by,
+    ]).toEqual(["open", ["ct-1"]]);
   });
 
   test("the replacement's own edge to the old task just goes", async () => {
@@ -185,7 +305,9 @@ describe("supersede (TG5)", () => {
     expect(row(tables, "ct-1").blocks).toEqual([]);
     expect(commentsOn(tables, "ct-1")).toEqual(["Superseded by ct-5."]);
     // That edge was its last blocker, so it is released and told.
-    expect(commentsOn(tables, "ct-5")).toEqual(["Unblocked: ct-1 superseded by ct-5"]);
+    expect(commentsOn(tables, "ct-5")).toEqual([
+      "Unblocked: ct-1 superseded by ct-5",
+    ]);
   });
 
   test("a blocks entry whose task no longer waits on the old task gains no edge and is dropped", async () => {
@@ -213,7 +335,9 @@ describe("supersede (TG5)", () => {
     ]);
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-5"]);
-    expect(commentsOn(tables, "ct-2")).toEqual(["Unblocked: ct-1 superseded by ct-5"]);
+    expect(commentsOn(tables, "ct-2")).toEqual([
+      "Unblocked: ct-1 superseded by ct-5",
+    ]);
     // Still waits on ct-9.
     expect(commentsOn(tables, "ct-3")).toEqual([]);
   });
@@ -236,7 +360,9 @@ describe("supersede (TG5)", () => {
       task("ct-5"),
     ]);
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
-    expect(commentsOn(tables, "ct-2")).toEqual(["Blocked again: ct-1 superseded by ct-5, so it waits on ct-5"]);
+    expect(commentsOn(tables, "ct-2")).toEqual([
+      "Blocked again: ct-1 superseded by ct-5, so it waits on ct-5",
+    ]);
   });
 
   test("a dependent that already names the replacement by _id gains no second edge", async () => {
@@ -261,11 +387,21 @@ describe("supersede (TG5)", () => {
   });
 
   test("a session bound to the old task is released, and its next task is not found there", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1", { conversation_ids: ["conv_1"] }), task("ct-5")], { active_task_id: "task_ct-1" });
-    await call(supersede, ctx, { short_id: "ct-1", by: "ct-5", conversation_id: SESSION });
+    const { ctx, tables } = await makeCtx(
+      [task("ct-1", { conversation_ids: ["conv_1"] }), task("ct-5")],
+      { active_task_id: "task_ct-1" },
+    );
+    await call(supersede, ctx, {
+      short_id: "ct-1",
+      by: "ct-5",
+      conversation_id: SESSION,
+    });
     expect(tables.conversations[0].active_task_id).toBeUndefined();
     tables.conversations[0].active_task_id = "task_ct-1";
-    const { short_id } = await call(create, ctx, { title: "Later", conversation_id: SESSION });
+    const { short_id } = await call(create, ctx, {
+      title: "Later",
+      conversation_id: SESSION,
+    });
     expect(row(tables, short_id).found_during).toBeUndefined();
   });
 
@@ -279,17 +415,28 @@ describe("supersede (TG5)", () => {
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
     await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "open" });
     const old = row(tables, "ct-1");
-    expect([old.status, old.superseded_by, old.blocks]).toEqual(["open", undefined, ["ct-3", "ct-2"]]);
+    expect([old.status, old.superseded_by, old.blocks]).toEqual([
+      "open",
+      undefined,
+      ["ct-3", "ct-2"],
+    ]);
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     // It waited on the replacement before the move too, so it keeps it.
     expect(row(tables, "ct-3").blocked_by).toEqual(["ct-5", "ct-1"]);
     expect(row(tables, "ct-5").blocks).toEqual(["ct-3"]);
-    expect(historyOf(tables, "ct-1", "superseded_by")).toEqual([["", "ct-5"], ["ct-5", ""]]);
+    expect(historyOf(tables, "ct-1", "superseded_by")).toEqual([
+      ["", "ct-5"],
+      ["ct-5", ""],
+    ]);
   });
 
   test("a supersede from a session is recorded as the agent's", async () => {
     const { ctx, tables } = await makeCtx([task("ct-1"), task("ct-5")]);
-    await call(supersede, ctx, { short_id: "ct-1", by: "ct-5", conversation_id: SESSION });
+    await call(supersede, ctx, {
+      short_id: "ct-1",
+      by: "ct-5",
+      conversation_id: SESSION,
+    });
     const h = tables.task_history.find((r: any) => r.field === "superseded_by");
     expect([h.actor_type, h.conversation_id]).toEqual(["agent", "conv_1"]);
   });
@@ -302,17 +449,30 @@ describe("supersede (TG5)", () => {
     ]);
     const res = await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
     expect(res.moved).toEqual(["ct-2"]);
-    expect([row(tables, "ct-2").blocked_by, row(tables, "ct-5").blocks]).toEqual([["ct-5"], ["ct-2"]]);
+    expect([
+      row(tables, "ct-2").blocked_by,
+      row(tables, "ct-5").blocks,
+    ]).toEqual([["ct-5"], ["ct-2"]]);
   });
 
   test("a plan made from a template writes the blocks mirror, so superseding its blocker moves the dependent", async () => {
     const { ctx, tables } = await makeCtx([task("ct-5")]);
-    tables.plan_templates = [{
-      _id: "tpl_1", user_id: USER, name: "T", goal_template: "G",
-      task_templates: [{ title: "First" }, { title: "Second", blocked_by_indices: [0] }],
-    }];
+    tables.plan_templates = [
+      {
+        _id: "tpl_1",
+        user_id: USER,
+        name: "T",
+        goal_template: "G",
+        task_templates: [
+          { title: "First" },
+          { title: "Second", blocked_by_indices: [0] },
+        ],
+      },
+    ];
     await call(createFromTemplate, ctx, { template_id: "tpl_1" });
-    const [first, second] = tables.tasks.filter((t: any) => t.source === "template");
+    const [first, second] = tables.tasks.filter(
+      (t: any) => t.source === "template",
+    );
     expect(first.blocks).toEqual([second.short_id]);
     await call(supersede, ctx, { short_id: first.short_id, by: "ct-5" });
     expect(row(tables, second.short_id).blocked_by).toEqual(["ct-5"]);
@@ -327,8 +487,13 @@ describe("supersede (TG5)", () => {
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
     row(tables, "ct-1").blocked_by = ["ct-2"];
     await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "open" });
-    expect([row(tables, "ct-1").status, row(tables, "ct-2").blocked_by]).toEqual(["open", ["ct-5"]]);
-    expect(commentsOn(tables, "ct-2")[0]).toMatch(/^Still waits on ct-5: ct-1 was reopened, but waiting on ct-1 again was refused\. .*loop/);
+    expect([
+      row(tables, "ct-1").status,
+      row(tables, "ct-2").blocked_by,
+    ]).toEqual(["open", ["ct-5"]]);
+    expect(commentsOn(tables, "ct-2")[0]).toMatch(
+      /^Still waits on ct-5: ct-1 was reopened, but waiting on ct-1 again was refused\. .*loop/,
+    );
   });
 
   test("a task already superseded by another is refused until reopened", async () => {
@@ -339,25 +504,49 @@ describe("supersede (TG5)", () => {
       task("ct-6"),
     ]);
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-6" })).rejects.toThrow(/already superseded by ct-5/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-6" }),
+    ).rejects.toThrow(/already superseded by ct-5/);
     expect(row(tables, "ct-1").superseded_by).toBe("ct-5");
   });
 
   test("refuses itself, a done task, a parent with open subtasks, and a replacement that was itself superseded", async () => {
     const { ctx } = await makeCtx([
-      task("ct-1"), task("ct-2", { status: "done" }), task("ct-3", { superseded_by: "ct-4" }), task("ct-4"),
-      task("ct-6"), task("ct-7", { parent_id: "task_ct-6" }), task("ct-8", { status: "dropped" }),
+      task("ct-1"),
+      task("ct-2", { status: "done" }),
+      task("ct-3", { superseded_by: "ct-4" }),
+      task("ct-4"),
+      task("ct-6"),
+      task("ct-7", { parent_id: "task_ct-6" }),
+      task("ct-8", { status: "dropped" }),
     ]);
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-8" })).rejects.toThrow(/ct-8 is dropped/);
-    await expect(call(supersede, ctx, { short_id: "ct-6", by: "ct-4" })).rejects.toThrow(/open subtasks \(ct-7\)/);
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-1" })).rejects.toThrow(/itself/);
-    await expect(call(supersede, ctx, { short_id: "ct-2", by: "ct-4" })).rejects.toThrow(/done/);
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-3" })).rejects.toThrow(/superseded by ct-4/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-8" }),
+    ).rejects.toThrow(/ct-8 is dropped/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-6", by: "ct-4" }),
+    ).rejects.toThrow(/open subtasks \(ct-7\)/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-1" }),
+    ).rejects.toThrow(/itself/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-2", by: "ct-4" }),
+    ).rejects.toThrow(/done/);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-3" }),
+    ).rejects.toThrow(/superseded by ct-4/);
   });
 
   test("a replacement that is the old task's own subtask is named as such", async () => {
-    const { ctx } = await makeCtx([task("ct-1"), task("ct-5", { parent_id: "task_ct-1" })]);
-    await expect(call(supersede, ctx, { short_id: "ct-1", by: "ct-5" })).rejects.toThrow(/ct-5 is a subtask of ct-1, the task it would replace; move it to the top level first/);
+    const { ctx } = await makeCtx([
+      task("ct-1"),
+      task("ct-5", { parent_id: "task_ct-1" }),
+    ]);
+    await expect(
+      call(supersede, ctx, { short_id: "ct-1", by: "ct-5" }),
+    ).rejects.toThrow(
+      /ct-5 is a subtask of ct-1, the task it would replace; move it to the top level first/,
+    );
   });
 });
 
@@ -368,7 +557,10 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+    });
     expect(row(tables, "ct-1").duplicate_of).toBe("ct-7");
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-7"]);
     expect(row(tables, "ct-7").blocks).toEqual(["ct-2"]);
@@ -380,7 +572,11 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
     expect(row(tables, "ct-1").status).toBe("dropped");
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-7"]);
     expect(commentsOn(tables, "ct-2")).toEqual([]);
@@ -392,8 +588,14 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "done" }),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" });
-    expect(commentsOn(tables, "ct-2")).toEqual(["Unblocked: ct-1 duplicate of ct-7"]);
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
+    expect(commentsOn(tables, "ct-2")).toEqual([
+      "Unblocked: ct-1 duplicate of ct-7",
+    ]);
   });
 
   test("a done duplicate keeps its released dependents where they are", async () => {
@@ -402,7 +604,10 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"], status: "in_progress" }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+    });
     expect(row(tables, "ct-1").duplicate_of).toBe("ct-7");
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     expect(row(tables, "ct-7").blocks ?? []).toEqual([]);
@@ -414,8 +619,16 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "", status: "open" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "",
+      status: "open",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     expect(row(tables, "ct-1").blocks).toEqual(["ct-2"]);
     expect(row(tables, "ct-7").blocks).toEqual([]);
@@ -427,10 +640,19 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "done" }),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+    });
     await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "open" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     expect(row(tables, "ct-7").blocks).toEqual([]);
     expect(commentsOn(tables, "ct-2")).toEqual([
@@ -447,11 +669,24 @@ describe("duplicate (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-3"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-3", duplicate_of: "ct-7", status: "dropped" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-3", duplicate_of: "" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-3",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-3",
+      duplicate_of: "",
+    });
     expect(row(tables, "ct-4").blocked_by).toEqual(["ct-7"]);
   });
 
@@ -462,10 +697,22 @@ describe("duplicate (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-1", "ct-2"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-2", duplicate_of: "ct-7", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-2",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
     expect(row(tables, "ct-4").blocked_by).toEqual(["ct-7"]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "", status: "open" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "",
+      status: "open",
+    });
     expect(row(tables, "ct-4").blocked_by).toEqual(["ct-7", "ct-1"]);
     expect(row(tables, "ct-7").blocks).toEqual(["ct-4"]);
   });
@@ -476,21 +723,48 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+      status: "dropped",
+    });
     await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "open" });
-    expect([row(tables, "ct-1").duplicate_of, row(tables, "ct-2").blocked_by]).toEqual(["ct-7", ["ct-1"]]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped" });
+    expect([
+      row(tables, "ct-1").duplicate_of,
+      row(tables, "ct-2").blocked_by,
+    ]).toEqual(["ct-7", ["ct-1"]]);
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-7"]);
     expect(row(tables, "ct-7").blocks).toEqual(["ct-2"]);
     expect(row(tables, "ct-1").blocks).toEqual([]);
-    expect(commentsOn(tables, "ct-2").filter((c: string) => c.startsWith("Unblocked"))).toEqual([]);
+    expect(
+      commentsOn(tables, "ct-2").filter((c: string) =>
+        c.startsWith("Unblocked"),
+      ),
+    ).toEqual([]);
   });
 
   test("a dependent added after the mark moves to the canonical when the duplicate is dropped", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1"), task("ct-3"), task("ct-7")]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7" });
-    await addDepCore(ctx, USER as any, { short_id: "ct-3", blocked_by: "ct-1" });
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped" });
+    const { ctx, tables } = await makeCtx([
+      task("ct-1"),
+      task("ct-3"),
+      task("ct-7"),
+    ]);
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      duplicate_of: "ct-7",
+    });
+    await addDepCore(ctx, USER as any, {
+      short_id: "ct-3",
+      blocked_by: "ct-1",
+    });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+    });
     expect(row(tables, "ct-3").blocked_by).toEqual(["ct-7"]);
     expect(row(tables, "ct-7").blocks).toEqual(["ct-3"]);
     expect(commentsOn(tables, "ct-3")).toEqual([]);
@@ -499,11 +773,19 @@ describe("duplicate (TG5)", () => {
   test("a duplicate dropped with its parent's cascade moves its dependents too", async () => {
     const { ctx, tables } = await makeCtx([
       task("ct-1"),
-      task("ct-2", { parent_id: "task_ct-1", duplicate_of: "ct-7", blocks: ["ct-3"] }),
+      task("ct-2", {
+        parent_id: "task_ct-1",
+        duplicate_of: "ct-7",
+        blocks: ["ct-3"],
+      }),
       task("ct-3", { blocked_by: ["ct-2"] }),
       task("ct-7"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped", subtask_resolution: "cascade" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+      subtask_resolution: "cascade",
+    });
     expect(row(tables, "ct-2").status).toBe("dropped");
     expect(row(tables, "ct-3").blocked_by).toEqual(["ct-7"]);
   });
@@ -514,7 +796,10 @@ describe("duplicate (TG5)", () => {
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7", { status: "dropped" }),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     expect(commentsOn(tables, "ct-2")).toEqual(["Unblocked: ct-1 dropped"]);
   });
@@ -527,9 +812,23 @@ describe("duplicate (TG5)", () => {
       task("ct-8", { superseded_by: "ct-9" }),
       task("ct-9"),
     ]);
-    await expect(updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-7", status: "dropped" })).rejects.toThrow(/ct-7 is dropped/);
-    await expect(updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-8" })).rejects.toThrow(/superseded by ct-9/);
-    expect([row(tables, "ct-1").duplicate_of, row(tables, "ct-2").blocked_by]).toEqual([undefined, ["ct-1"]]);
+    await expect(
+      updateTaskAs(ctx, USER as any, {
+        short_id: "ct-1",
+        duplicate_of: "ct-7",
+        status: "dropped",
+      }),
+    ).rejects.toThrow(/ct-7 is dropped/);
+    await expect(
+      updateTaskAs(ctx, USER as any, {
+        short_id: "ct-1",
+        duplicate_of: "ct-8",
+      }),
+    ).rejects.toThrow(/superseded by ct-9/);
+    expect([
+      row(tables, "ct-1").duplicate_of,
+      row(tables, "ct-2").blocked_by,
+    ]).toEqual([undefined, ["ct-1"]]);
   });
 
   test("a duplicate dropped by a line's move with a dependent that would loop completes and notes it", async () => {
@@ -540,12 +839,22 @@ describe("duplicate (TG5)", () => {
       task("ct-4", { blocked_by: ["ct-1"] }),
       task("ct-7", { blocked_by: ["ct-3"] }),
     ]);
-    await moveTaskStatus(ctx, row(tables, "ct-1"), "dropped", { actorUserId: USER as any });
+    await moveTaskStatus(ctx, row(tables, "ct-1"), "dropped", {
+      actorUserId: USER as any,
+    });
     expect(row(tables, "ct-1").status).toBe("dropped");
-    expect([row(tables, "ct-3").blocked_by, row(tables, "ct-4").blocked_by]).toEqual([["ct-1"], ["ct-7"]]);
-    expect([row(tables, "ct-1").blocks, row(tables, "ct-7").blocks]).toEqual([["ct-3"], ["ct-4"]]);
+    expect([
+      row(tables, "ct-3").blocked_by,
+      row(tables, "ct-4").blocked_by,
+    ]).toEqual([["ct-1"], ["ct-7"]]);
+    expect([row(tables, "ct-1").blocks, row(tables, "ct-7").blocks]).toEqual([
+      ["ct-3"],
+      ["ct-4"],
+    ]);
     const notes = commentsOn(tables, "ct-3");
-    expect(notes[0]).toMatch(/^Released from ct-1 rather than moved to ct-7 \(ct-1 duplicate of ct-7\): ct-7 already waits on ct-3 .*loop/);
+    expect(notes[0]).toMatch(
+      /^Released from ct-1 rather than moved to ct-7 \(ct-1 duplicate of ct-7\): ct-7 already waits on ct-3 .*loop/,
+    );
     expect(notes[1]).toBe("Unblocked: ct-1 dropped");
   });
 
@@ -556,7 +865,10 @@ describe("duplicate (TG5)", () => {
       task("ct-7", { duplicate_of: "ct-9" }),
       task("ct-9"),
     ]);
-    await updateTaskAs(ctx, USER as any, { short_id: "ct-1", status: "dropped" });
+    await updateTaskAs(ctx, USER as any, {
+      short_id: "ct-1",
+      status: "dropped",
+    });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-7"]);
     expect(commentsOn(tables, "ct-2")).toEqual([]);
   });
@@ -565,19 +877,47 @@ describe("duplicate (TG5)", () => {
     const { ctx, tables } = await makeCtx([
       task("ct-1", { blocks: ["ct-2"] }),
       task("ct-2", { blocked_by: ["ct-1"] }),
-      task("ct-9", { user_id: OTHER, team_id: "team_x", workspace: "team:team_x" }),
+      task("ct-9", {
+        user_id: OTHER,
+        team_id: "team_x",
+        workspace: "team:team_x",
+      }),
     ]);
-    tables.team_memberships = [{ _id: "m1", user_id: USER, team_id: "team_x", role: "member" }];
-    await expect(updateTaskAs(ctx, USER as any, { short_id: "ct-1", duplicate_of: "ct-9", status: "dropped" })).rejects.toThrow(/another workspace/);
-    expect([row(tables, "ct-1").status, row(tables, "ct-1").duplicate_of, row(tables, "ct-2").blocked_by]).toEqual(["open", undefined, ["ct-1"]]);
+    tables.team_memberships = [
+      { _id: "m1", user_id: USER, team_id: "team_x", role: "member" },
+    ];
+    await expect(
+      updateTaskAs(ctx, USER as any, {
+        short_id: "ct-1",
+        duplicate_of: "ct-9",
+        status: "dropped",
+      }),
+    ).rejects.toThrow(/another workspace/);
+    expect([
+      row(tables, "ct-1").status,
+      row(tables, "ct-1").duplicate_of,
+      row(tables, "ct-2").blocked_by,
+    ]).toEqual(["open", undefined, ["ct-1"]]);
   });
 });
 
 describe("status moves outside tasks.ts (TG5)", () => {
-  const external = { provider: "linear", id: "issue_1", identifier: "LIN-1", url: "", synced_at: 1, remote_updated_at: 1 };
+  const external = {
+    provider: "linear",
+    id: "issue_1",
+    identifier: "LIN-1",
+    url: "",
+    synced_at: 1,
+    remote_updated_at: 1,
+  };
   const sync = async (ctx: any, state?: { type: string; name: string }) => {
     ctx.db.normalizeId ??= (_t: string, id: string) => id;
-    const issue = normalizeLinearIssue({ id: "issue_1", identifier: "LIN-1", title: "Title ct-1", ...(state ? { state } : { trashed: true }) });
+    const issue = normalizeLinearIssue({
+      id: "issue_1",
+      identifier: "LIN-1",
+      title: "Title ct-1",
+      ...(state ? { state } : { trashed: true }),
+    });
     await (applyRemote as any)._handler(ctx, { issue });
   };
 
@@ -589,9 +929,16 @@ describe("status moves outside tasks.ts (TG5)", () => {
     ]);
     await sync(ctx);
     expect(row(tables, "ct-1").status).toBe("dropped");
-    expect([row(tables, "ct-2").blocked_by, row(tables, "ct-7").blocks]).toEqual([["ct-7"], ["ct-2"]]);
+    expect([
+      row(tables, "ct-2").blocked_by,
+      row(tables, "ct-7").blocks,
+    ]).toEqual([["ct-7"], ["ct-2"]]);
     expect(commentsOn(tables, "ct-2")).toEqual([]);
-    expect(tables.task_history.find((h: any) => h.task_id === "task_ct-2" && h.field === "blocked_by")).toMatchObject({ actor_type: "system" });
+    expect(
+      tables.task_history.find(
+        (h: any) => h.task_id === "task_ct-2" && h.field === "blocked_by",
+      ),
+    ).toMatchObject({ actor_type: "system" });
   });
 
   test("a superseded task reopened by an issue sync takes its dependents back", async () => {
@@ -603,18 +950,42 @@ describe("status moves outside tasks.ts (TG5)", () => {
     await call(supersede, ctx, { short_id: "ct-1", by: "ct-5" });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-5"]);
     await sync(ctx, { type: "unstarted", name: "Todo" });
-    expect([row(tables, "ct-1").status, row(tables, "ct-1").superseded_by]).toEqual(["open", undefined]);
+    expect([
+      row(tables, "ct-1").status,
+      row(tables, "ct-1").superseded_by,
+    ]).toEqual(["open", undefined]);
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
   });
 
   test("a duplicate dropped by an org plan close moves its dependents to the canonical", async () => {
     const { ctx, tables } = await makeCtx([
-      task("ct-1", { plan_id: "plan_1", duplicate_of: "ct-7", blocks: ["ct-2"] }),
+      task("ct-1", {
+        plan_id: "plan_1",
+        duplicate_of: "ct-7",
+        blocks: ["ct-2"],
+      }),
       task("ct-2", { blocked_by: ["ct-1"] }),
       task("ct-7"),
     ]);
-    tables.plans = [{ _id: "plan_1", short_id: "pl-1", user_id: USER, title: "P", status: "active", task_ids: ["task_ct-1"], created_at: 1, updated_at: 1 }];
-    await applyPlanStatus(ctx, USER as any, { scope_user_id: USER } as any, { plan: "pl-1", status: "abandoned" } as any, {} as any);
+    tables.plans = [
+      {
+        _id: "plan_1",
+        short_id: "pl-1",
+        user_id: USER,
+        title: "P",
+        status: "active",
+        task_ids: ["task_ct-1"],
+        created_at: 1,
+        updated_at: 1,
+      },
+    ];
+    await applyPlanStatus(
+      ctx,
+      USER as any,
+      { scope_user_id: USER } as any,
+      { plan: "pl-1", status: "abandoned" } as any,
+      {} as any,
+    );
     expect(row(tables, "ct-1").status).toBe("dropped");
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-7"]);
     expect(commentsOn(tables, "ct-2")).toEqual([]);
@@ -622,7 +993,9 @@ describe("status moves outside tasks.ts (TG5)", () => {
 
   test("a drop whose canonical has too much upstream to check still completes and releases the dependent", async () => {
     // 2001 open blockers, one of them waiting further back: the walk stops at its cap.
-    const upstream = Array.from({ length: 2001 }, (_, i) => task(`ct-${1000 + i}`, i ? {} : { blocked_by: ["ct-999"] }));
+    const upstream = Array.from({ length: 2001 }, (_, i) =>
+      task(`ct-${1000 + i}`, i ? {} : { blocked_by: ["ct-999"] }),
+    );
     const { ctx, tables } = await makeCtx([
       task("ct-1", { duplicate_of: "ct-7", blocks: ["ct-2"] }),
       task("ct-2", { blocked_by: ["ct-1"] }),
@@ -630,11 +1003,15 @@ describe("status moves outside tasks.ts (TG5)", () => {
       task("ct-999"),
       ...upstream,
     ]);
-    await moveTaskStatus(ctx, row(tables, "ct-1"), "dropped", { actorUserId: USER as any });
+    await moveTaskStatus(ctx, row(tables, "ct-1"), "dropped", {
+      actorUserId: USER as any,
+    });
     expect(row(tables, "ct-1").status).toBe("dropped");
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     const notes = commentsOn(tables, "ct-2");
-    expect(notes[0]).toMatch(/^Released from ct-1 rather than moved to ct-7 .*: Cannot check ct-7's dependencies/);
+    expect(notes[0]).toMatch(
+      /^Released from ct-1 rather than moved to ct-7 .*: Cannot check ct-7's dependencies/,
+    );
     expect(notes[1]).toBe("Unblocked: ct-1 dropped");
   });
 });
@@ -644,48 +1021,85 @@ describe("related (TG5)", () => {
     const { ctx, tables } = await makeCtx([task("ct-1"), task("ct-2")]);
     await call(relate, ctx, { short_id: "ct-1", other: "ct-2" });
     await call(relate, ctx, { short_id: "ct-2", other: "ct-1" });
-    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([["ct-2"], ["ct-1"]]);
+    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([
+      ["ct-2"],
+      ["ct-1"],
+    ]);
     expect(historyOf(tables, "ct-1", "related")).toEqual([["", "ct-2"]]);
     await call(unrelate, ctx, { short_id: "ct-2", other: "ct-1" });
-    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([[], []]);
+    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([
+      [],
+      [],
+    ]);
   });
 
   test("unrelate removes a link whose far side is gone; relate refuses self and missing", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1", { related: ["ct-404"] })]);
+    const { ctx, tables } = await makeCtx([
+      task("ct-1", { related: ["ct-404"] }),
+    ]);
     await call(unrelate, ctx, { short_id: "ct-1", other: "ct-404" });
     expect(row(tables, "ct-1").related).toEqual([]);
-    await expect(call(relate, ctx, { short_id: "ct-1", other: "ct-1" })).rejects.toThrow(/itself/);
-    await expect(call(relate, ctx, { short_id: "ct-1", other: "ct-404" })).rejects.toThrow(/not found/i);
-    await expect(call(unrelate, ctx, { short_id: "ct-1", other: "task_ct-404" })).rejects.toThrow(/ct-1 is not related to task_ct-404/);
+    await expect(
+      call(relate, ctx, { short_id: "ct-1", other: "ct-1" }),
+    ).rejects.toThrow(/itself/);
+    await expect(
+      call(relate, ctx, { short_id: "ct-1", other: "ct-404" }),
+    ).rejects.toThrow(/not found/i);
+    await expect(
+      call(unrelate, ctx, { short_id: "ct-1", other: "task_ct-404" }),
+    ).rejects.toThrow(/ct-1 is not related to task_ct-404/);
   });
 
   test("unrelate clears the far row's mirror after it moved to a workspace the caller cannot read", async () => {
     const { ctx, tables } = await makeCtx([
       task("ct-1", { related: ["ct-2"] }),
-      task("ct-2", { related: ["ct-1"], user_id: OTHER, workspace: `user:${OTHER}` }),
+      task("ct-2", {
+        related: ["ct-1"],
+        user_id: OTHER,
+        workspace: `user:${OTHER}`,
+      }),
     ]);
     await call(unrelate, ctx, { short_id: "ct-1", other: "ct-2" });
-    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([[], []]);
+    expect([row(tables, "ct-1").related, row(tables, "ct-2").related]).toEqual([
+      [],
+      [],
+    ]);
   });
 
   test("relate refuses a row already holding the cap", async () => {
     const full = Array.from({ length: 50 }, (_, i) => `ct-${200 + i}`);
-    const { ctx, tables } = await makeCtx([task("ct-1", { related: full }), task("ct-2")]);
-    await expect(call(relate, ctx, { short_id: "ct-2", other: "ct-1" })).rejects.toThrow(/ct-1 already has 50 related tasks/);
+    const { ctx, tables } = await makeCtx([
+      task("ct-1", { related: full }),
+      task("ct-2"),
+    ]);
+    await expect(
+      call(relate, ctx, { short_id: "ct-2", other: "ct-1" }),
+    ).rejects.toThrow(/ct-1 already has 50 related tasks/);
     expect(row(tables, "ct-2").related).toBeUndefined();
   });
 });
 
 describe("web side effects (dispatch)", () => {
-  const run = (ctx: any, action: string, args: unknown[]) => (dispatch as any)._handler(ctx, { action, args });
+  const run = (ctx: any, action: string, args: unknown[]) =>
+    (dispatch as any)._handler(ctx, { action, args });
 
   test("relateTasks and unrelateTasks take the tuples the store sends", async () => {
     const { ctx, tables } = await makeCtx([task("ct-5"), task("ct-6")]);
     await run(ctx, "relateTasks", ["ct-5", "ct-6"]);
-    expect([row(tables, "ct-5").related, row(tables, "ct-6").related]).toEqual([["ct-6"], ["ct-5"]]);
+    expect([row(tables, "ct-5").related, row(tables, "ct-6").related]).toEqual([
+      ["ct-6"],
+      ["ct-5"],
+    ]);
     await run(ctx, "unrelateTasks", ["ct-6", "ct-5"]);
-    expect([row(tables, "ct-5").related, row(tables, "ct-6").related]).toEqual([[], []]);
-    expect(tables.task_history.filter((h: any) => h.field === "related").map((h: any) => h.actor_type)).toEqual(["user", "user", "user", "user"]);
+    expect([row(tables, "ct-5").related, row(tables, "ct-6").related]).toEqual([
+      [],
+      [],
+    ]);
+    expect(
+      tables.task_history
+        .filter((h: any) => h.field === "related")
+        .map((h: any) => h.actor_type),
+    ).toEqual(["user", "user", "user", "user"]);
   });
 });
 
@@ -695,7 +1109,11 @@ describe("edges across workspaces", () => {
   test("a task that changed workspace loses its edges into the old one, and a dependent it held is released", async () => {
     const team = { team_id: "team_t", workspace: "team:team_t" };
     const { ctx, tables } = await makeCtx([
-      task("ct-1", { workspace: `user:${USER}`, blocks: ["ct-2"], blocked_by: ["ct-3"] }),
+      task("ct-1", {
+        workspace: `user:${USER}`,
+        blocks: ["ct-2"],
+        blocked_by: ["ct-3"],
+      }),
       task("ct-2", { ...team, blocked_by: ["ct-1"] }),
       task("ct-3", { ...team, blocks: ["ct-1"] }),
     ]);
@@ -742,15 +1160,25 @@ describe("edges across workspaces", () => {
       task("ct-6", routed),
     ]);
     tables.team_memberships = [{ _id: "m1", user_id: USER, team_id: "team_t" }];
-    await expect(call(update, ctx, { short_id: "ct-1", parent: "ct-5" })).rejects.toThrow(/another workspace/);
-    await expect(updateTaskAs(ctx, USER as any, { short_id: "ct-2", parent: "ct-5" })).rejects.toThrow(/another workspace/);
+    await expect(
+      call(update, ctx, { short_id: "ct-1", parent: "ct-5" }),
+    ).rejects.toThrow(/another workspace/);
+    await expect(
+      updateTaskAs(ctx, USER as any, { short_id: "ct-2", parent: "ct-5" }),
+    ).rejects.toThrow(/another workspace/);
     await call(update, ctx, { short_id: "ct-1", parent: "ct-6" });
     await updateTaskAs(ctx, USER as any, { short_id: "ct-2", parent: "ct-6" });
-    expect([row(tables, "ct-1").parent_id, row(tables, "ct-2").parent_id]).toEqual(["task_ct-6", "task_ct-6"]);
+    expect([
+      row(tables, "ct-1").parent_id,
+      row(tables, "ct-2").parent_id,
+    ]).toEqual(["task_ct-6", "task_ct-6"]);
   });
 
   test("edges inside one workspace are left alone", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1", { blocks: ["ct-2"] }), task("ct-2", { blocked_by: ["ct-1"] })]);
+    const { ctx, tables } = await makeCtx([
+      task("ct-1", { blocks: ["ct-2"] }),
+      task("ct-2", { blocked_by: ["ct-1"] }),
+    ]);
     await (cutCrossedEdges as any)._handler(ctx, { task_ids: ["task_ct-1"] });
     expect(row(tables, "ct-2").blocked_by).toEqual(["ct-1"]);
     expect(tables.task_history).toEqual([]);

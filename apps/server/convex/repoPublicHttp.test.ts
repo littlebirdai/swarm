@@ -31,19 +31,27 @@ async function describeResponse(response: Response) {
 
 describe("parsePublicRepoPath", () => {
   test("reads owner, name and kind from either prefix", () => {
-    expect(parsePublicRepoPath("/api/public/repo/codecast-sh/codecast/meta")).toEqual({
+    expect(
+      parsePublicRepoPath("/api/public/repo/codecast-sh/codecast/meta"),
+    ).toEqual({
       repository: "codecast-sh/codecast",
       kind: "meta",
     });
-    expect(parsePublicRepoPath("/cli/public/repo/codecast-sh/codecast/blob")).toEqual({
+    expect(
+      parsePublicRepoPath("/cli/public/repo/codecast-sh/codecast/blob"),
+    ).toEqual({
       repository: "codecast-sh/codecast",
       kind: "blob",
     });
   });
 
   test("rejects anything that is not exactly owner/name/kind", () => {
-    expect(parsePublicRepoPath("/api/public/repo/codecast-sh/codecast")).toBeNull();
-    expect(parsePublicRepoPath("/api/public/repo/codecast-sh/codecast/tree/extra")).toBeNull();
+    expect(
+      parsePublicRepoPath("/api/public/repo/codecast-sh/codecast"),
+    ).toBeNull();
+    expect(
+      parsePublicRepoPath("/api/public/repo/codecast-sh/codecast/tree/extra"),
+    ).toBeNull();
     expect(parsePublicRepoPath("/api/public/repo/")).toBeNull();
     expect(parsePublicRepoPath("/cli/a/somepage")).toBeNull();
   });
@@ -58,13 +66,18 @@ describe("parsePublicRepoPath", () => {
     expect(parsePublicRepoPath("/api/public/repo/o/../meta")).toBeNull();
     expect(parsePublicRepoPath("/api/public/repo/o/n%20ame/meta")).toBeNull();
     // A dot is legal in a repository name and must still be accepted.
-    expect(parsePublicRepoPath("/api/public/repo/o/n.js/meta")?.repository).toBe("o/n.js");
+    expect(
+      parsePublicRepoPath("/api/public/repo/o/n.js/meta")?.repository,
+    ).toBe("o/n.js");
   });
 });
 
 describe("session kinds", () => {
   test("blame sessions read the same ref and path a blame does", () => {
-    const params = paramsForKind("blamesessions", new URLSearchParams({ ref: "main", path: "src/a.ts" }));
+    const params = paramsForKind(
+      "blamesessions",
+      new URLSearchParams({ ref: "main", path: "src/a.ts" }),
+    );
     expect(params).toEqual({ ref: "main", path: "src/a.ts" });
     expect(paramsComplete("blamesessions", params)).toBe(true);
     expect(paramsComplete("blamesessions", { ref: "main" })).toBe(false);
@@ -72,35 +85,64 @@ describe("session kinds", () => {
 
   test("commit sessions take a comma list of full shas, lowercased, and refuse anything else", () => {
     const upper = SHA.toUpperCase();
-    const params = paramsForKind("commitsessions", new URLSearchParams({ shas: ` ${upper},${SHA}, ` }));
+    const params = paramsForKind(
+      "commitsessions",
+      new URLSearchParams({ shas: ` ${upper},${SHA}, ` }),
+    );
     expect(params).toEqual({ shas: [SHA, SHA] });
     expect(paramsComplete("commitsessions", params)).toBe(true);
     expect(paramsComplete("commitsessions", { shas: [] })).toBe(false);
     expect(paramsComplete("commitsessions", { shas: ["abc1234"] })).toBe(false);
-    expect(paramsComplete("commitsessions", { shas: Array.from({ length: 101 }, () => SHA) })).toBe(false);
+    expect(
+      paramsComplete("commitsessions", {
+        shas: Array.from({ length: 101 }, () => SHA),
+      }),
+    ).toBe(false);
   });
 
   test("the sessions list needs nothing", () => {
-    expect(paramsComplete("sessions", paramsForKind("sessions", new URLSearchParams()))).toBe(true);
+    expect(
+      paramsComplete(
+        "sessions",
+        paramsForKind("sessions", new URLSearchParams()),
+      ),
+    ).toBe(true);
   });
 });
 
 describe("pulse", () => {
   test("is a kind the route answers, with no params", () => {
-    expect(parsePublicRepoPath("/cli/public/repo/codecast-sh/codecast/pulse")).toEqual({ repository: "codecast-sh/codecast", kind: "pulse" });
-    expect(paramsComplete("pulse", paramsForKind("pulse", new URLSearchParams("ref=main")))).toBe(true);
+    expect(
+      parsePublicRepoPath("/cli/public/repo/codecast-sh/codecast/pulse"),
+    ).toEqual({ repository: "codecast-sh/codecast", kind: "pulse" });
+    expect(
+      paramsComplete(
+        "pulse",
+        paramsForKind("pulse", new URLSearchParams("ref=main")),
+      ),
+    ).toBe(true);
   });
 
   test("carries stars from the meta row and the live count, and null stars when the row is missing", () => {
-    expect(pulseBody({ stargazers_count: 33 }, { live: 4 })).toEqual({ stargazers_count: 33, live: 4 });
-    expect(pulseBody(null, { live: 0 })).toEqual({ stargazers_count: null, live: 0 });
+    expect(pulseBody({ stargazers_count: 33 }, { live: 4 })).toEqual({
+      stargazers_count: 33,
+      live: 4,
+    });
+    expect(pulseBody(null, { live: 0 })).toEqual({
+      stargazers_count: null,
+      live: 0,
+    });
   });
 });
 
 describe("publicGate", () => {
   test("private and never-heard-of are the same answer, byte for byte", async () => {
-    const unknown = await describeResponse(publicGate({ installed: false, private: false })!);
-    const secret = await describeResponse(publicGate({ installed: true, private: true })!);
+    const unknown = await describeResponse(
+      publicGate({ installed: false, private: false })!,
+    );
+    const secret = await describeResponse(
+      publicGate({ installed: true, private: true })!,
+    );
 
     expect(secret).toEqual(unknown);
     expect(unknown.status).toBe(404);
@@ -124,26 +166,42 @@ describe("paramsForKind", () => {
   const q = (s: string) => new URLSearchParams(s);
 
   test("each kind reads only its own params", () => {
-    expect(paramsForKind("log", q("ref=main&path=src&page=2&author=ada"))).toEqual({
+    expect(
+      paramsForKind("log", q("ref=main&path=src&page=2&author=ada")),
+    ).toEqual({
       ref: "main",
       path: "src",
       page: 2,
       author: "ada",
     });
-    expect(paramsForKind("compare", q("base=main&head=next"))).toEqual({ base: "main", head: "next" });
-    expect(paramsForKind("pulls", q("state=closed&page=3"))).toEqual({ state: "closed", page: 3 });
+    expect(paramsForKind("compare", q("base=main&head=next"))).toEqual({
+      base: "main",
+      head: "next",
+    });
+    expect(paramsForKind("pulls", q("state=closed&page=3"))).toEqual({
+      state: "closed",
+      page: 3,
+    });
     expect(paramsForKind("meta", q("ref=main"))).toEqual({});
   });
 
   test("a missing state defaults to open and a missing directory to the root", () => {
-    expect(paramsForKind("pulls", q(""))).toEqual({ state: "open", page: undefined });
-    expect(paramsForKind("lastcommits", q("ref=main"))).toEqual({ ref: "main", path: "" });
+    expect(paramsForKind("pulls", q(""))).toEqual({
+      state: "open",
+      page: undefined,
+    });
+    expect(paramsForKind("lastcommits", q("ref=main"))).toEqual({
+      ref: "main",
+      path: "",
+    });
   });
 });
 
 describe("cache keys", () => {
   test("a log page carries its page and author, so two pages are two rows", () => {
-    expect(cacheKeyFor("log", { ref: "main", path: "src", page: 2, author: "ada" })).toEqual({
+    expect(
+      cacheKeyFor("log", { ref: "main", path: "src", page: 2, author: "ada" }),
+    ).toEqual({
       ref: "main",
       path: "src#2#ada",
     });
@@ -154,7 +212,10 @@ describe("cache keys", () => {
   });
 
   test("a compare is keyed base to head, and a search by query and page", () => {
-    expect(cacheKeyFor("compare", { base: "main", head: "next" })).toEqual({ ref: "main", path: "next" });
+    expect(cacheKeyFor("compare", { base: "main", head: "next" })).toEqual({
+      ref: "main",
+      path: "next",
+    });
     expect(cacheKeyFor("search", { q: "useRepoTree", page: 2 })).toEqual({
       ref: "-",
       path: "scoped-v2:useRepoTree#2",
@@ -168,8 +229,14 @@ describe("cache keys", () => {
   });
 
   test("a recursive tree is a different row from a shallow one", () => {
-    expect(cacheKeyFor("tree", { ref: "main" })).toEqual({ ref: "main", path: "" });
-    expect(cacheKeyFor("tree", { ref: "main", recursive: true })).toEqual({ ref: "main", path: "**" });
+    expect(cacheKeyFor("tree", { ref: "main" })).toEqual({
+      ref: "main",
+      path: "",
+    });
+    expect(cacheKeyFor("tree", { ref: "main", recursive: true })).toEqual({
+      ref: "main",
+      path: "**",
+    });
   });
 });
 
@@ -196,16 +263,26 @@ describe("freshness", () => {
 describe("paramsComplete", () => {
   test("a kind missing what it needs is a bad request, not a GitHub call", () => {
     expect(paramsComplete("blob", { ref: "main" })).toBe(false);
-    expect(paramsComplete("blob", { ref: "main", path: "README.md" })).toBe(true);
+    expect(paramsComplete("blob", { ref: "main", path: "README.md" })).toBe(
+      true,
+    );
     expect(paramsComplete("compare", { base: "main" })).toBe(false);
-    expect(paramsComplete("compare", { base: "main", head: "next" })).toBe(true);
+    expect(paramsComplete("compare", { base: "main", head: "next" })).toBe(
+      true,
+    );
     expect(paramsComplete("search", { q: "" })).toBe(false);
     expect(paramsComplete("search", { q: "useRepoTree" })).toBe(true);
     expect(paramsComplete("log", {})).toBe(false);
   });
 
   test("the whole-repository kinds need nothing", () => {
-    for (const kind of ["meta", "tags", "branches", "branchdetails", "pulls"] as const) {
+    for (const kind of [
+      "meta",
+      "tags",
+      "branches",
+      "branchdetails",
+      "pulls",
+    ] as const) {
       expect(paramsComplete(kind, {})).toBe(true);
     }
   });

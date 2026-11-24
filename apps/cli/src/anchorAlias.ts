@@ -30,7 +30,9 @@ const ROLE_VERB: Record<AnchorVerb, { verb: string; route: string | null }> = {
   rm: { verb: "role retire", route: "/cli/org/retire" },
 };
 
-export function isSeatedAnchor(row: { org_role_id?: string | null } | null | undefined): boolean {
+export function isSeatedAnchor(
+  row: { org_role_id?: string | null } | null | undefined,
+): boolean {
   return !!row?.org_role_id;
 }
 

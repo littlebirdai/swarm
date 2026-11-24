@@ -39,8 +39,15 @@ const END_KEY = "mySends:end";
 const SWEPT_KEY = "mySends:sweptAt";
 const SWEEP_EVERY_MS = 24 * 3600_000;
 
-const heldRows = () => Object.values(((useInboxStore.getState() as any).mySends ?? {}) as Record<string, MySendRow>);
-const oldestHeld = () => heldRows().reduce((min, r) => Math.min(min, r.timestamp), Infinity);
+const heldRows = () =>
+  Object.values(
+    ((useInboxStore.getState() as any).mySends ?? {}) as Record<
+      string,
+      MySendRow
+    >,
+  );
+const oldestHeld = () =>
+  heldRows().reduce((min, r) => Math.min(min, r.timestamp), Infinity);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const byNewest = (a: MySendRow, b: MySendRow) => b.timestamp - a.timestamp;
@@ -56,7 +63,9 @@ export function useMySends(): {
 } {
   const convex = useConvex();
   const authSettled = useServerAuthSettled();
-  const coll = useInboxStore((s) => (s as any).mySends) as Record<string, MySendRow> | undefined;
+  const coll = useInboxStore((s) => (s as any).mySends) as
+    | Record<string, MySendRow>
+    | undefined;
   const rows = useMemo(() => Object.values(coll ?? {}).sort(byNewest), [coll]);
   const endRaw = useInboxStore((s) => s.feedCursors[END_KEY]);
   const end = endRaw == null ? null : Number(endRaw);
@@ -64,7 +73,12 @@ export function useMySends(): {
   // The tail's window is fixed for the mount, so the subscription is one
   // query for as long as the page is open.
   const [tailAfter] = useState(() => Date.now() - TAIL_WINDOW_MS);
-  const tail = useSyncCollection("mySends", api.userSends.mine, { after: tailAfter, limit: 200 }, { select: selectRows });
+  const tail = useSyncCollection(
+    "mySends",
+    api.userSends.mine,
+    { after: tailAfter, limit: 200 },
+    { select: selectRows },
+  );
 
   const oldest = rows.length ? rows[rows.length - 1].timestamp : null;
   const hasMore = end === null || (oldest !== null && oldest > end);
@@ -75,28 +89,44 @@ export function useMySends(): {
 
   // One page below `before`, applied as the truth for the time range it
   // covers: a held row in that range the answer lacks is gone.
-  const fetchPage = useCallback(async (before: number | undefined) => {
-    const page = await convex.query(api.userSends.mine, { ...(before !== undefined ? { before } : {}), limit: PAGE });
-    const top = before ?? Infinity;
-    const floor = page.nextBefore ?? -Infinity;
-    applyCollectionFeed("mySends", page.rows, undefined, undefined, (r: MySendRow) => r.timestamp < top && r.timestamp >= floor);
-    if (page.nextBefore === null) {
-      const last = page.rows[page.rows.length - 1]?.timestamp ?? before ?? 0;
-      useInboxStore.getState().setFeedCursor(END_KEY, String(last));
-    }
-    return page;
-  }, [convex]);
+  const fetchPage = useCallback(
+    async (before: number | undefined) => {
+      const page = await convex.query(api.userSends.mine, {
+        ...(before !== undefined ? { before } : {}),
+        limit: PAGE,
+      });
+      const top = before ?? Infinity;
+      const floor = page.nextBefore ?? -Infinity;
+      applyCollectionFeed(
+        "mySends",
+        page.rows,
+        undefined,
+        undefined,
+        (r: MySendRow) => r.timestamp < top && r.timestamp >= floor,
+      );
+      if (page.nextBefore === null) {
+        const last = page.rows[page.rows.length - 1]?.timestamp ?? before ?? 0;
+        useInboxStore.getState().setFeedCursor(END_KEY, String(last));
+      }
+      return page;
+    },
+    [convex],
+  );
 
   const loadOlder = useCallback(() => {
     if (busy.current || !caughtUp.current) return;
     const from = oldestHeld();
     const endTs = useInboxStore.getState().feedCursors[END_KEY];
-    if (!Number.isFinite(from) || (endTs != null && from <= Number(endTs))) return;
+    if (!Number.isFinite(from) || (endTs != null && from <= Number(endTs)))
+      return;
     busy.current = true;
     setLoadingOlder(true);
     fetchPage(from)
       .catch(() => {})
-      .finally(() => { busy.current = false; setLoadingOlder(false); });
+      .finally(() => {
+        busy.current = false;
+        setLoadingOlder(false);
+      });
   }, [fetchPage]);
 
   useWatchEffect(() => {
@@ -111,7 +141,10 @@ export function useMySends(): {
       await sleep(50);
       const st = useInboxStore.getState();
       const heldBefore = new Set(heldRows().map((r) => r._id));
-      const sweep = !(Number(st.feedCursors[SWEPT_KEY] ?? 0) > Date.now() - SWEEP_EVERY_MS);
+      const sweep = !(
+        Number(st.feedCursors[SWEPT_KEY] ?? 0) >
+        Date.now() - SWEEP_EVERY_MS
+      );
       busy.current = true;
       try {
         let before: number | undefined;
@@ -125,8 +158,11 @@ export function useMySends(): {
             // A sweep that reached the cap: what lies below is not known to
             // be whole, so it goes (the run stays contiguous).
             if (sweep) {
-              const below = heldRows().filter((r) => r.timestamp < page.nextBefore!).map((r) => r._id);
-              if (below.length) useInboxStore.getState().dropRows("mySends", below);
+              const below = heldRows()
+                .filter((r) => r.timestamp < page.nextBefore!)
+                .map((r) => r._id);
+              if (below.length)
+                useInboxStore.getState().dropRows("mySends", below);
             }
             break;
           }
@@ -136,7 +172,8 @@ export function useMySends(): {
           // The first screen comes at once; the rest of a sweep is paced.
           if (walked >= COLD_FIRST) await sleep(IDLE_GAP_MS);
         }
-        if (sweep) useInboxStore.getState().setFeedCursor(SWEPT_KEY, String(Date.now()));
+        if (sweep)
+          useInboxStore.getState().setFeedCursor(SWEPT_KEY, String(Date.now()));
       } catch {
         return;
       } finally {
@@ -146,17 +183,36 @@ export function useMySends(): {
       // Fill older history in idle time, up to the cache cap.
       while (!cancelled) {
         await sleep(IDLE_GAP_MS);
-        if (cancelled || heldRows().length >= MAX_CACHED_MY_SENDS || !hasMoreNow()) return;
+        if (
+          cancelled ||
+          heldRows().length >= MAX_CACHED_MY_SENDS ||
+          !hasMoreNow()
+        )
+          return;
         if (busy.current) continue;
         busy.current = true;
-        try { await fetchPage(oldestHeld()); } catch { return; } finally { busy.current = false; }
+        try {
+          await fetchPage(oldestHeld());
+        } catch {
+          return;
+        } finally {
+          busy.current = false;
+        }
       }
     };
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [authSettled, fetchPage]);
 
-  return { rows, ready: rows.length > 0 || tail.ready, hasMore, loadingOlder, loadOlder };
+  return {
+    rows,
+    ready: rows.length > 0 || tail.ready,
+    hasMore,
+    loadingOlder,
+    loadOlder,
+  };
 }
 
 function hasMoreNow(): boolean {
@@ -167,17 +223,31 @@ function hasMoreNow(): boolean {
 }
 
 /** Server matches for a search over everything the viewer typed. */
-export function useMySendSearch(q: string): { rows: MySendRow[]; ready: boolean } {
+export function useMySendSearch(q: string): {
+  rows: MySendRow[];
+  ready: boolean;
+} {
   const query = q.trim();
   const select = useCallback(
-    (data: MySendRow[] | undefined) => data?.map((r) => ({ ...r, _id: `${query}\u0000${r._id}`, q: query })),
+    (data: MySendRow[] | undefined) =>
+      data?.map((r) => ({ ...r, _id: `${query}\u0000${r._id}`, q: query })),
     [query],
   );
   const opts = useMemo(() => ({ select }), [select]);
-  const res = useSyncCollection("mySendSearch", api.userSends.searchMine, query.length >= 2 ? { q: query } : "skip", opts);
-  const coll = useInboxStore((s) => (s as any).mySendSearch) as Record<string, MySendRow & { q: string }> | undefined;
+  const res = useSyncCollection(
+    "mySendSearch",
+    api.userSends.searchMine,
+    query.length >= 2 ? { q: query } : "skip",
+    opts,
+  );
+  const coll = useInboxStore((s) => (s as any).mySendSearch) as
+    | Record<string, MySendRow & { q: string }>
+    | undefined;
   const rows = useMemo(
-    () => Object.values(coll ?? {}).filter((r) => r.q === query).map((r) => ({ ...r, _id: r._id.slice(query.length + 1) })),
+    () =>
+      Object.values(coll ?? {})
+        .filter((r) => r.q === query)
+        .map((r) => ({ ...r, _id: r._id.slice(query.length + 1) })),
     [coll, query],
   );
   // A failed search settles too: the cached matches are the answer then.
@@ -187,10 +257,22 @@ export function useMySendSearch(q: string): { rows: MySendRow[]; ready: boolean 
 /** The whole text of one send, once opened. */
 export function useMySendText(messageId: string | null): string | null {
   const select = useCallback(
-    (data: { text: string } | null | undefined) => (data && messageId ? [{ _id: messageId, text: data.text }] : []),
+    (data: { text: string } | null | undefined) =>
+      data && messageId ? [{ _id: messageId, text: data.text }] : [],
     [messageId],
   );
   const opts = useMemo(() => ({ select }), [select]);
-  useSyncCollection("mySendText", api.userSends.fullText, messageId ? { message_id: messageId as any } : "skip", opts);
-  return useInboxStore((s) => (messageId ? ((s as any).mySendText?.[messageId]?.text as string | undefined) : undefined)) ?? null;
+  useSyncCollection(
+    "mySendText",
+    api.userSends.fullText,
+    messageId ? { message_id: messageId as any } : "skip",
+    opts,
+  );
+  return (
+    useInboxStore((s) =>
+      messageId
+        ? ((s as any).mySendText?.[messageId]?.text as string | undefined)
+        : undefined,
+    ) ?? null
+  );
 }

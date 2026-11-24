@@ -28,11 +28,15 @@ export function SidebarDrillStack({
   children: ReactNode;
 }) {
   const backKeys = useShortcutParts("sidebar.back");
-  useShortcutAction("sidebar.back", useCallback(() => {
-    if (!level) return false;
-    onBack();
-  }, [level, onBack]));
-  const motion = "transition-[transform,opacity] duration-300 [transition-timing-function:cubic-bezier(.3,.7,.2,1)] motion-reduce:transition-none";
+  useShortcutAction(
+    "sidebar.back",
+    useCallback(() => {
+      if (!level) return false;
+      onBack();
+    }, [level, onBack]),
+  );
+  const motion =
+    "transition-[transform,opacity] duration-300 [transition-timing-function:cubic-bezier(.3,.7,.2,1)] motion-reduce:transition-none";
   return (
     <div className="flex-1 min-h-0 relative overflow-hidden">
       <div
@@ -56,12 +60,27 @@ export function SidebarDrillStack({
             className="group/back w-[calc(100%-12px)] mx-1.5 mb-1 flex items-center gap-2 pl-2.5 pr-2 py-2 rounded-md text-sm font-semibold text-sol-text hover:bg-sol-bg-highlight/60"
             title="Back to the menu"
           >
-            <svg className="w-3.5 h-3.5 text-sol-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-3.5 h-3.5 text-sol-text-dim"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
             <span className="flex-1 text-left">{label}</span>
             <span className="hidden group-hover/back:flex gap-0.5">
-              {backKeys?.map((k) => <KeyCap key={k} size="xs">{k}</KeyCap>)}
+              {backKeys?.map((k) => (
+                <KeyCap key={k} size="xs">
+                  {k}
+                </KeyCap>
+              ))}
             </span>
             {peek}
           </button>

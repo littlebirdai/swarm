@@ -17,8 +17,14 @@ import { PreviewFrame } from "./PreviewFrame";
 import s from "./Thumbnail.module.css";
 /** Live previews at once: two on a phone, with data saver, or on a small device. */
 const maxLive = () => {
-  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
-  return matchMedia("(max-width: 767px)").matches || saveData || navigator.hardwareConcurrency <= 4 ? 2 : 6;
+  const saveData = (
+    navigator as Navigator & { connection?: { saveData?: boolean } }
+  ).connection?.saveData;
+  return matchMedia("(max-width: 767px)").matches ||
+    saveData ||
+    navigator.hardwareConcurrency <= 4
+    ? 2
+    : 6;
 };
 
 /** Which cards hold a live slot: a hovered card first, then page order. */
@@ -28,7 +34,13 @@ const slots = (() => {
   const listeners = new Set<() => void>();
   const emit = () => {
     order = [...wanting]
-      .sort(([, a], [, b]) => Number(b.hovered) - Number(a.hovered) || (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+      .sort(
+        ([, a], [, b]) =>
+          Number(b.hovered) - Number(a.hovered) ||
+          (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING
+            ? -1
+            : 1),
+      )
       .map(([id]) => id);
     listeners.forEach((l) => l());
   };
@@ -51,9 +63,25 @@ const slots = (() => {
   };
 })();
 
-type Props = { appId: Id<"apps">; slug: string; name: string; version: number; still: string | null; busy: boolean; hovered: boolean };
+type Props = {
+  appId: Id<"apps">;
+  slug: string;
+  name: string;
+  version: number;
+  still: string | null;
+  busy: boolean;
+  hovered: boolean;
+};
 
-export function Thumbnail({ appId, slug, name, version, still, busy, hovered }: Props) {
+export function Thumbnail({
+  appId,
+  slug,
+  name,
+  version,
+  still,
+  busy,
+  hovered,
+}: Props) {
   const box = useRef<HTMLDivElement>(null);
   const scale = useCover(box);
   const [visible, setVisible] = useState(false);
@@ -66,7 +94,9 @@ export function Thumbnail({ appId, slug, name, version, still, busy, hovered }: 
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "120px" });
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), {
+      rootMargin: "120px",
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -81,13 +111,24 @@ export function Thumbnail({ appId, slug, name, version, still, busy, hovered }: 
   useEffect(() => setPainted(false), [live, version]);
 
   return (
-    <div ref={box} className={s.thumb} style={{ "--scale": scale } as React.CSSProperties}>
+    <div
+      ref={box}
+      className={s.thumb}
+      style={{ "--scale": scale } as React.CSSProperties}
+    >
       {!imageShown && !painted && (
         <div className={s.placeholder}>
           <Blob size={28} faint />
         </div>
       )}
-      {still && <img className={`${s.still} ${imageShown ? s.shown : ""}`} src={still} alt="" onLoad={() => setImageShown(true)} />}
+      {still && (
+        <img
+          className={`${s.still} ${imageShown ? s.shown : ""}`}
+          src={still}
+          alt=""
+          onLoad={() => setImageShown(true)}
+        />
+      )}
       {live && (
         <PreviewFrame
           key={version}
@@ -110,7 +151,14 @@ function useCover(box: React.RefObject<HTMLDivElement | null>): number {
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setScale(Math.max(e.contentRect.width / STILL_VIEWPORT.width, e.contentRect.height / STILL_VIEWPORT.height)));
+    const ro = new ResizeObserver(([e]) =>
+      setScale(
+        Math.max(
+          e.contentRect.width / STILL_VIEWPORT.width,
+          e.contentRect.height / STILL_VIEWPORT.height,
+        ),
+      ),
+    );
     ro.observe(el);
     return () => ro.disconnect();
   }, [box]);

@@ -9,7 +9,10 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // Whether the server has confirmed the caller (convex/react useConvexAuth).
 let authenticated = true;
 const convexReact = { ...(await import("convex/react")) };
-mock.module("convex/react", () => ({ ...convexReact, useConvexAuth: () => ({ isAuthenticated: authenticated, isLoading: false }) }));
+mock.module("convex/react", () => ({
+  ...convexReact,
+  useConvexAuth: () => ({ isAuthenticated: authenticated, isLoading: false }),
+}));
 
 let React: typeof import("react");
 let createRoot: typeof import("react-dom/client").createRoot;
@@ -21,9 +24,24 @@ let dom: import("jsdom").JSDOM;
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "localStorage"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "localStorage",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -40,10 +58,21 @@ afterAll(() => {
 
 // Convex ids: the feeder skips an optimistic stub's key.
 const id = (n: number) => `k57${String(n).padStart(29, "0")}`;
-const comment = (n: number) => ({ _id: `c${n}`, author: "line", text: `Refine refused: ${n}`, created_at: n });
+const comment = (n: number) => ({
+  _id: `c${n}`,
+  author: "line",
+  text: `Refine refused: ${n}`,
+  created_at: n,
+});
 const served = (n: number, comments: any[], last?: number) => ({
-  _id: id(n), short_id: `ct-${n}`, title: `problem ${n}`, status: "open", updated_at: 1, cause: {},
-  ...(last !== undefined ? { last_comment_at: last } : {}), comments,
+  _id: id(n),
+  short_id: `ct-${n}`,
+  title: `problem ${n}`,
+  status: "open",
+  updated_at: 1,
+  cause: {},
+  ...(last !== undefined ? { last_comment_at: last } : {}),
+  comments,
 });
 
 let asked: string[][];
@@ -61,17 +90,38 @@ const client: any = {
   },
 };
 const state = () => useInboxStore.getState() as any;
-const settle = async () => { await React.act(async () => { await new Promise((r) => setTimeout(r, 5)); }); };
+const settle = async () => {
+  await React.act(async () => {
+    await new Promise((r) => setTimeout(r, 5));
+  });
+};
 
-function Probe({ rows }: { rows: Array<{ _id: string; last_comment_at?: number }> }) {
+function Probe({
+  rows,
+}: {
+  rows: Array<{ _id: string; last_comment_at?: number }>;
+}) {
   tasksHooks.useSyncTaskThreads(rows);
   return null;
 }
-const draw = async (root: import("react-dom/client").Root, rows: Array<{ _id: string; last_comment_at?: number }>) => {
-  await React.act(async () => root.render(React.createElement(ConvexProvider, { client }, React.createElement(Probe, { rows }))));
+const draw = async (
+  root: import("react-dom/client").Root,
+  rows: Array<{ _id: string; last_comment_at?: number }>,
+) => {
+  await React.act(async () =>
+    root.render(
+      React.createElement(
+        ConvexProvider,
+        { client },
+        React.createElement(Probe, { rows }),
+      ),
+    ),
+  );
   await settle();
 };
-const mount = async (rows: Array<{ _id: string; last_comment_at?: number }>) => {
+const mount = async (
+  rows: Array<{ _id: string; last_comment_at?: number }>,
+) => {
   const root = createRoot(document.getElementById("root")!);
   await draw(root, rows);
   return root;
@@ -83,13 +133,22 @@ beforeEach(() => {
   gate = null;
   authenticated = true;
   tasksHooks.resetTaskThreadReads();
-  useInboxStore.setState({ tasks: {}, taskComments: {}, pending: {}, currentUser: { _id: "userA" } } as any);
+  useInboxStore.setState({
+    tasks: {},
+    taskComments: {},
+    pending: {},
+    currentUser: { _id: "userA" },
+  } as any);
 });
 
 test("reads the threads the store lacks, once, and files them thin", async () => {
   answers.set(id(1), served(1, [comment(1)], 1));
   answers.set(id(2), served(2, [], undefined));
-  const rows = [{ _id: id(1), last_comment_at: 1 }, { _id: id(2) }, { _id: "temp_task_stub" }];
+  const rows = [
+    { _id: id(1), last_comment_at: 1 },
+    { _id: id(2) },
+    { _id: "temp_task_stub" },
+  ];
   const root = await mount(rows);
   expect(asked).toEqual([[id(1), id(2)]]);
   expect(state().taskComments[id(1)].comments).toEqual([comment(1)]);
@@ -105,13 +164,22 @@ test("reads the threads the store lacks, once, and files them thin", async () =>
 });
 
 test("reads a held thread again only when the task row says its comments moved", async () => {
-  tasksHooks.holdTaskThreads([served(1, [comment(1)], 1), served(2, [comment(2)], 2)]);
+  tasksHooks.holdTaskThreads([
+    served(1, [comment(1)], 1),
+    served(2, [comment(2)], 2),
+  ]);
   answers.set(id(2), served(2, [comment(2), comment(3)], 3));
   // Task 2's row was patched by the sync log (a new comment); this window
   // holds the thread from before it.
-  const root = await mount([{ _id: id(1), last_comment_at: 1 }, { _id: id(2), last_comment_at: 3 }]);
+  const root = await mount([
+    { _id: id(1), last_comment_at: 1 },
+    { _id: id(2), last_comment_at: 3 },
+  ]);
   expect(asked).toEqual([[id(2)]]);
-  expect(state().taskComments[id(2)].comments).toEqual([comment(2), comment(3)]);
+  expect(state().taskComments[id(2)].comments).toEqual([
+    comment(2),
+    comment(3),
+  ]);
   expect(state().taskComments[id(2)].as_of).toBe(3);
   await React.act(async () => root.unmount());
 });
@@ -127,8 +195,21 @@ test("a task the server leaves out of its answer is not asked for again", async 
 });
 
 test("many problems are read in bounded calls and land together", async () => {
-  const rows = Array.from({ length: 120 }, (_, n) => ({ _id: id(n + 100), last_comment_at: 1 }));
-  for (const r of rows) answers.set(r._id, { _id: r._id, short_id: `ct-${r._id.slice(-4)}`, title: "p", status: "open", updated_at: 1, cause: {}, last_comment_at: 1, comments: [comment(1)] });
+  const rows = Array.from({ length: 120 }, (_, n) => ({
+    _id: id(n + 100),
+    last_comment_at: 1,
+  }));
+  for (const r of rows)
+    answers.set(r._id, {
+      _id: r._id,
+      short_id: `ct-${r._id.slice(-4)}`,
+      title: "p",
+      status: "open",
+      updated_at: 1,
+      cause: {},
+      last_comment_at: 1,
+      comments: [comment(1)],
+    });
   const root = await mount(rows);
   expect(asked.map((ids) => ids.length)).toEqual([50, 50, 20]);
   expect(Object.keys(state().taskComments)).toHaveLength(120);
@@ -158,7 +239,9 @@ test("an answer that lands after the socket lost its identity is not taken as th
   answers.set(id(1), served(1, [comment(1)], 1));
   const rows = [{ _id: id(1), last_comment_at: 1 }];
   let release!: () => void;
-  gate = new Promise<void>((r) => { release = r; });
+  gate = new Promise<void>((r) => {
+    release = r;
+  });
   let root = await mount(rows);
   expect(asked).toHaveLength(1);
   // The token refresh fails while the read is out: the server answers a stranger.

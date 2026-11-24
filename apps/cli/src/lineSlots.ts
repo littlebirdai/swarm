@@ -25,7 +25,10 @@ export interface LineSlot {
   runs: number;
 }
 
-export function readLineSlots(config: Pick<Config, "line"> | null | undefined, originOf: (root: string) => string | undefined = gitOrigin): LineSlot[] {
+export function readLineSlots(
+  config: Pick<Config, "line"> | null | undefined,
+  originOf: (root: string) => string | undefined = gitOrigin,
+): LineSlot[] {
   const checkouts = config?.line?.checkouts;
   if (!Array.isArray(checkouts)) return [];
   const slots: LineSlot[] = [];
@@ -35,7 +38,7 @@ export function readLineSlots(config: Pick<Config, "line"> | null | undefined, o
     // 0 runs keeps the checkout in the pool with no room (the slot governor, a full disk): runs wait for it.
     if (!root || !Number.isFinite(runs) || runs < 0) continue;
     const raw = originOf(root);
-    const origin = raw ? normalizeGitOrigin(raw) ?? undefined : undefined;
+    const origin = raw ? (normalizeGitOrigin(raw) ?? undefined) : undefined;
     slots.push({ root, ...(origin ? { origin } : {}), runs: Math.floor(runs) });
   }
   return slots;
@@ -43,7 +46,13 @@ export function readLineSlots(config: Pick<Config, "line"> | null | undefined, o
 
 function gitOrigin(root: string): string | undefined {
   try {
-    return execFileSync("git", ["-C", root, "remote", "get-url", "origin"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim() || undefined;
+    return (
+      execFileSync("git", ["-C", root, "remote", "get-url", "origin"], {
+        encoding: "utf8",
+        timeout: 5000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || undefined
+    );
   } catch {
     return undefined;
   }
@@ -63,7 +72,12 @@ export class LineSlotsReporter {
 
   constructor(private log: (m: string) => void = () => {}) {}
 
-  next(config: Pick<Config, "line"> | null | undefined, now = Date.now(), originOf?: (root: string) => string | undefined, holdOf: (root: string) => string | null = diskFullHold): LineSlot[] | undefined {
+  next(
+    config: Pick<Config, "line"> | null | undefined,
+    now = Date.now(),
+    originOf?: (root: string) => string | undefined,
+    holdOf: (root: string) => string | null = diskFullHold,
+  ): LineSlot[] | undefined {
     const held = new Map<string, string>();
     const slots = readLineSlots(config, originOf).map((s) => {
       const hold = holdOf(s.root);
@@ -71,12 +85,17 @@ export class LineSlotsReporter {
       held.set(s.root, hold);
       return { ...s, runs: 0 };
     });
-    for (const [root, hold] of held) if (!this.held.has(root)) this.log(`[LINE] ${root} takes no line runs: ${hold}`);
-    for (const root of this.held.keys()) if (!held.has(root)) this.log(`[LINE] ${root} takes line runs again: its disk has room`);
+    for (const [root, hold] of held)
+      if (!this.held.has(root))
+        this.log(`[LINE] ${root} takes no line runs: ${hold}`);
+    for (const root of this.held.keys())
+      if (!held.has(root))
+        this.log(`[LINE] ${root} takes line runs again: its disk has room`);
     this.held = held;
     if (!slots.length && this.sentKey === null) return undefined;
     const key = JSON.stringify(slots);
-    if (key === this.sentKey && now - this.sentAt < 10 * 60_000) return undefined;
+    if (key === this.sentKey && now - this.sentAt < 10 * 60_000)
+      return undefined;
     this.sentKey = key;
     this.sentAt = now;
     return slots;

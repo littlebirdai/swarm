@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { findConversationBySessionReference, findConversationByAnyRef, findConversationByAnyRefWhere, otherShortIdMatches, resolveConversationRefRanked } from "./conversationSessionLookup";
+import {
+  findConversationBySessionReference,
+  findConversationByAnyRef,
+  findConversationByAnyRefWhere,
+  otherShortIdMatches,
+  resolveConversationRefRanked,
+} from "./conversationSessionLookup";
 
 const createLookupCtx = ({
   conversationsBySessionId = {},
@@ -15,7 +21,12 @@ const createLookupCtx = ({
   db: {
     query(table: string) {
       return {
-        withIndex(indexName: string, builder: (query: { eq(fieldName: string, value: string): unknown }) => unknown) {
+        withIndex(
+          indexName: string,
+          builder: (query: {
+            eq(fieldName: string, value: string): unknown;
+          }) => unknown,
+        ) {
           let matchedValue = "";
           builder({
             eq(_fieldName: string, value: string) {
@@ -52,7 +63,11 @@ const createLookupCtx = ({
                 return shortIdMatches();
               }
               const bySession = conversationsBySessionId[matchedValue];
-              if (table === "conversations" && indexName === "by_session_id" && Array.isArray(bySession)) {
+              if (
+                table === "conversations" &&
+                indexName === "by_session_id" &&
+                Array.isArray(bySession)
+              ) {
                 return bySession;
               }
               const one = single();
@@ -70,27 +85,41 @@ const createLookupCtx = ({
 
 describe("findConversationBySessionReference", () => {
   test("returns the direct conversation match when the session id is current", async () => {
-    const conversation = { _id: "conv-1", user_id: "user-1", session_id: "session-1" };
+    const conversation = {
+      _id: "conv-1",
+      user_id: "user-1",
+      session_id: "session-1",
+    };
     const result = await findConversationBySessionReference(
-      createLookupCtx({ conversationsBySessionId: { "session-1": conversation } }),
+      createLookupCtx({
+        conversationsBySessionId: { "session-1": conversation },
+      }),
       "session-1",
-      "user-1"
+      "user-1",
     );
 
     expect(result).toEqual(conversation);
   });
 
   test("falls back through managed_sessions when the conversation session id is stale", async () => {
-    const conversation = { _id: "conv-1", user_id: "user-1", session_id: "old-session" };
+    const conversation = {
+      _id: "conv-1",
+      user_id: "user-1",
+      session_id: "old-session",
+    };
     const result = await findConversationBySessionReference(
       createLookupCtx({
         managedSessionsBySessionId: {
-          "new-session": { _id: "managed-1", user_id: "user-1", conversation_id: "conv-1" },
+          "new-session": {
+            _id: "managed-1",
+            user_id: "user-1",
+            conversation_id: "conv-1",
+          },
         },
         conversationsById: { "conv-1": conversation },
       }),
       "new-session",
-      "user-1"
+      "user-1",
     );
 
     expect(result).toEqual(conversation);
@@ -100,14 +129,22 @@ describe("findConversationBySessionReference", () => {
     const result = await findConversationBySessionReference(
       createLookupCtx({
         managedSessionsBySessionId: {
-          "new-session": { _id: "managed-1", user_id: "user-2", conversation_id: "conv-1" },
+          "new-session": {
+            _id: "managed-1",
+            user_id: "user-2",
+            conversation_id: "conv-1",
+          },
         },
         conversationsById: {
-          "conv-1": { _id: "conv-1", user_id: "user-2", session_id: "old-session" },
+          "conv-1": {
+            _id: "conv-1",
+            user_id: "user-2",
+            session_id: "old-session",
+          },
         },
       }),
       "new-session",
-      "user-1"
+      "user-1",
     );
 
     expect(result).toBeNull();
@@ -124,47 +161,88 @@ describe("a session id shared by rows of different owners", () => {
   // left on Ashot's laptop synced into a second row under Ashot. Cam's row
   // sits first in the index (jx7cvd9: `cast state` said "No session found").
   const cams = { _id: "conv-cam", user_id: "user-cam", session_id: "s-1" };
-  const ashots = { _id: "conv-ashot", user_id: "user-ashot", session_id: "s-1" };
-  const ctx = () => createLookupCtx({ conversationsBySessionId: { "s-1": [cams, ashots] } });
+  const ashots = {
+    _id: "conv-ashot",
+    user_id: "user-ashot",
+    session_id: "s-1",
+  };
+  const ctx = () =>
+    createLookupCtx({ conversationsBySessionId: { "s-1": [cams, ashots] } });
 
   test("findConversationByAnyRef finds the caller's row behind another owner's", async () => {
-    expect(await findConversationByAnyRef(ctx(), "s-1", "user-ashot")).toEqual(ashots);
-    expect(await findConversationByAnyRef(ctx(), "s-1", "user-cam")).toEqual(cams);
+    expect(await findConversationByAnyRef(ctx(), "s-1", "user-ashot")).toEqual(
+      ashots,
+    );
+    expect(await findConversationByAnyRef(ctx(), "s-1", "user-cam")).toEqual(
+      cams,
+    );
   });
 
   test("findConversationBySessionReference finds the caller's row behind another owner's", async () => {
-    expect(await findConversationBySessionReference(ctx(), "s-1", "user-ashot")).toEqual(ashots);
+    expect(
+      await findConversationBySessionReference(ctx(), "s-1", "user-ashot"),
+    ).toEqual(ashots);
   });
 });
 
 describe("findConversationByAnyRefWhere full-id-wins (normalizeId present)", () => {
-  const withNormalizeId = (ctx: any, conversationsById: Record<string, any>) => {
-    ctx.db.normalizeId = (_table: string, id: string) => (conversationsById[id] ? id : null);
+  const withNormalizeId = (
+    ctx: any,
+    conversationsById: Record<string, any>,
+  ) => {
+    ctx.db.normalizeId = (_table: string, id: string) =>
+      conversationsById[id] ? id : null;
     return ctx;
   };
 
   test("a full id resolves to its own row even when its prefix collides with another short_id", async () => {
-    const target = { _id: "jx7c6zktargettargettargettarget0", user_id: "user-1" };
-    const collider = { _id: "jx7c6zkcollider", user_id: "user-1", short_id: "jx7c6zk" };
+    const target = {
+      _id: "jx7c6zktargettargettargettarget0",
+      user_id: "user-1",
+    };
+    const collider = {
+      _id: "jx7c6zkcollider",
+      user_id: "user-1",
+      short_id: "jx7c6zk",
+    };
     const byId = { [target._id]: target };
     const ctx = withNormalizeId(
-      createLookupCtx({ conversationsById: byId, conversationsByShortId: { "jx7c6zk": collider } }),
+      createLookupCtx({
+        conversationsById: byId,
+        conversationsByShortId: { jx7c6zk: collider },
+      }),
       byId,
     );
-    const result = await findConversationByAnyRefWhere(ctx, target._id, () => true);
+    const result = await findConversationByAnyRefWhere(
+      ctx,
+      target._id,
+      () => true,
+    );
     expect(result).toEqual(target);
   });
 
   test("a full id the caller can't access returns null — never falls back to a prefix collision", async () => {
-    const target = { _id: "jx7c6zktargettargettargettarget0", user_id: "user-2" };
-    const collider = { _id: "jx7c6zkcollider", user_id: "user-1", short_id: "jx7c6zk" };
+    const target = {
+      _id: "jx7c6zktargettargettargettarget0",
+      user_id: "user-2",
+    };
+    const collider = {
+      _id: "jx7c6zkcollider",
+      user_id: "user-1",
+      short_id: "jx7c6zk",
+    };
     const byId = { [target._id]: target };
     const ctx = withNormalizeId(
-      createLookupCtx({ conversationsById: byId, conversationsByShortId: { "jx7c6zk": collider } }),
+      createLookupCtx({
+        conversationsById: byId,
+        conversationsByShortId: { jx7c6zk: collider },
+      }),
       byId,
     );
     const result = await findConversationByAnyRefWhere(
-      ctx, target._id, (c: any) => c.user_id === "user-1",
+      ctx,
+      target._id,
+      (c: any) => c.user_id === "user-1",
     );
     expect(result).toBeNull();
   });
@@ -172,53 +250,84 @@ describe("findConversationByAnyRefWhere full-id-wins (normalizeId present)", () 
   test("a foreign-table id (normalizeId → null) is rejected, not blindly db.get'd", async () => {
     // db.get would happily return this doc (it's in another table); with
     // normalizeId present the legacy last-resort must never run.
-    const foreignDoc = { _id: "kd7sometaskid0000000000000000000", user_id: "user-1" };
+    const foreignDoc = {
+      _id: "kd7sometaskid0000000000000000000",
+      user_id: "user-1",
+    };
     const ctx = withNormalizeId(
       createLookupCtx({ conversationsById: { [foreignDoc._id]: foreignDoc } }),
       {}, // normalizeId: not a conversations id
     );
-    const result = await findConversationByAnyRefWhere(ctx, foreignDoc._id, () => true);
+    const result = await findConversationByAnyRefWhere(
+      ctx,
+      foreignDoc._id,
+      () => true,
+    );
     expect(result).toBeNull();
   });
 
   test("a non-conversation ref (normalizeId → null) still resolves via session_id", async () => {
-    const conversation = { _id: "conv-1", user_id: "user-1", session_id: "uuid-session" };
+    const conversation = {
+      _id: "conv-1",
+      user_id: "user-1",
+      session_id: "uuid-session",
+    };
     const ctx = withNormalizeId(
-      createLookupCtx({ conversationsBySessionId: { "uuid-session": conversation } }),
+      createLookupCtx({
+        conversationsBySessionId: { "uuid-session": conversation },
+      }),
       {},
     );
-    const result = await findConversationByAnyRefWhere(ctx, "uuid-session", () => true);
+    const result = await findConversationByAnyRefWhere(
+      ctx,
+      "uuid-session",
+      () => true,
+    );
     expect(result).toEqual(conversation);
   });
 });
 
 describe("findConversationByAnyRef", () => {
   test("resolves a short_id (what users type for `cast send`)", async () => {
-    const conversation = { _id: "jx7c6zkfull", user_id: "user-1", short_id: "jx7c6zk" };
+    const conversation = {
+      _id: "jx7c6zkfull",
+      user_id: "user-1",
+      short_id: "jx7c6zk",
+    };
     const result = await findConversationByAnyRef(
-      createLookupCtx({ conversationsByShortId: { "jx7c6zk": conversation } }),
+      createLookupCtx({ conversationsByShortId: { jx7c6zk: conversation } }),
       "jx7c6zk",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(conversation);
   });
 
   test("truncates a long paste to the 7-char short_id", async () => {
-    const conversation = { _id: "jx7c6zkfull", user_id: "user-1", short_id: "jx7c6zk" };
+    const conversation = {
+      _id: "jx7c6zkfull",
+      user_id: "user-1",
+      short_id: "jx7c6zk",
+    };
     const result = await findConversationByAnyRef(
-      createLookupCtx({ conversationsByShortId: { "jx7c6zk": conversation } }),
+      createLookupCtx({ conversationsByShortId: { jx7c6zk: conversation } }),
       "jx7c6zkfull0000",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(conversation);
   });
 
   test("falls back to a Claude session_id (what detectCurrentSessionId returns for --from)", async () => {
-    const conversation = { _id: "conv-1", user_id: "user-1", session_id: "uuid-session" };
+    const conversation = {
+      _id: "conv-1",
+      user_id: "user-1",
+      session_id: "uuid-session",
+    };
     const result = await findConversationByAnyRef(
-      createLookupCtx({ conversationsBySessionId: { "uuid-session": conversation } }),
+      createLookupCtx({
+        conversationsBySessionId: { "uuid-session": conversation },
+      }),
       "uuid-session",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(conversation);
   });
@@ -228,7 +337,7 @@ describe("findConversationByAnyRef", () => {
     const result = await findConversationByAnyRef(
       createLookupCtx({ conversationsById: { "conv-direct": conversation } }),
       "conv-direct",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(conversation);
   });
@@ -236,10 +345,12 @@ describe("findConversationByAnyRef", () => {
   test("refuses a short_id belonging to another user (no cross-user messaging)", async () => {
     const result = await findConversationByAnyRef(
       createLookupCtx({
-        conversationsByShortId: { "jx7c6zk": { _id: "x", user_id: "user-2", short_id: "jx7c6zk" } },
+        conversationsByShortId: {
+          jx7c6zk: { _id: "x", user_id: "user-2", short_id: "jx7c6zk" },
+        },
       }),
       "jx7c6zk",
-      "user-1"
+      "user-1",
     );
     expect(result).toBeNull();
   });
@@ -252,20 +363,24 @@ describe("findConversationByAnyRef", () => {
     const result = await findConversationByAnyRef(
       createLookupCtx({
         conversationsByShortId: {
-          "jx7c6zk": [
+          jx7c6zk: [
             { _id: "jx7c6zkOTHER", user_id: "user-2", short_id: "jx7c6zk" },
             mine,
           ],
         },
       }),
       "jx7c6zk",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(mine);
   });
 
   test("returns null for an empty ref", async () => {
-    const result = await findConversationByAnyRef(createLookupCtx({}), "  ", "user-1");
+    const result = await findConversationByAnyRef(
+      createLookupCtx({}),
+      "  ",
+      "user-1",
+    );
     expect(result).toBeNull();
   });
 
@@ -275,9 +390,9 @@ describe("findConversationByAnyRef", () => {
     const older = { _id: "jx7c6zkOLD", user_id: "user-1", short_id: "jx7c6zk" };
     const newer = { _id: "jx7c6zkNEW", user_id: "user-1", short_id: "jx7c6zk" };
     const result = await findConversationByAnyRef(
-      createLookupCtx({ conversationsByShortId: { "jx7c6zk": [older, newer] } }),
+      createLookupCtx({ conversationsByShortId: { jx7c6zk: [older, newer] } }),
       "jx7c6zk",
-      "user-1"
+      "user-1",
     );
     expect(result).toEqual(newer);
   });
@@ -290,24 +405,34 @@ describe("resolveConversationRefRanked", () => {
     // The bug: .first() returned the oldest collider — another user's private
     // conversation — so `cast read <short-id>` said "Access denied" for the
     // caller's own session.
-    const theirs = { _id: "jx75d4pTHEIRS", user_id: "user-2", short_id: "jx75d4p" };
+    const theirs = {
+      _id: "jx75d4pTHEIRS",
+      user_id: "user-2",
+      short_id: "jx75d4p",
+    };
     const mine = { _id: "jx75d4pMINE", user_id: "user-1", short_id: "jx75d4p" };
     const result = await resolveConversationRefRanked(
-      createLookupCtx({ conversationsByShortId: { "jx75d4p": [theirs, mine] } }),
+      createLookupCtx({ conversationsByShortId: { jx75d4p: [theirs, mine] } }),
       "jx75d4p",
       "user-1",
-      never
+      never,
     );
     expect(result).toEqual(mine);
   });
 
   test("resolves a session's own uuid, so `cast state` reads from inside the session", async () => {
-    const mine = { _id: "jx73kh0MINE", user_id: "user-1", session_id: "c280d57c-uuid" };
+    const mine = {
+      _id: "jx73kh0MINE",
+      user_id: "user-1",
+      session_id: "c280d57c-uuid",
+    };
     const result = await resolveConversationRefRanked(
-      createLookupCtx({ conversationsBySessionId: { "c280d57c-uuid": [mine] } }),
+      createLookupCtx({
+        conversationsBySessionId: { "c280d57c-uuid": [mine] },
+      }),
       "c280d57c-uuid",
       "user-1",
-      never
+      never,
     );
     expect(result).toEqual(mine);
   });
@@ -316,10 +441,10 @@ describe("resolveConversationRefRanked", () => {
     const older = { _id: "a", user_id: "user-2", short_id: "jx7aaaa" };
     const newer = { _id: "b", user_id: "user-3", short_id: "jx7aaaa" };
     const result = await resolveConversationRefRanked(
-      createLookupCtx({ conversationsByShortId: { "jx7aaaa": [older, newer] } }),
+      createLookupCtx({ conversationsByShortId: { jx7aaaa: [older, newer] } }),
       "jx7aaaa",
       "user-1",
-      async (c) => c._id !== "a"
+      async (c) => c._id !== "a",
     );
     expect(result).toEqual(newer);
   });
@@ -327,24 +452,30 @@ describe("resolveConversationRefRanked", () => {
   test("still returns a candidate when none are accessible, so the caller can say Access denied (not found)", async () => {
     const theirs = { _id: "a", user_id: "user-2", short_id: "jx7bbbb" };
     const result = await resolveConversationRefRanked(
-      createLookupCtx({ conversationsByShortId: { "jx7bbbb": [theirs] } }),
+      createLookupCtx({ conversationsByShortId: { jx7bbbb: [theirs] } }),
       "jx7bbbb",
       "user-1",
-      never
+      never,
     );
     expect(result).toEqual(theirs);
   });
 
   test("a full conversation id resolves directly and wins over short-id candidates", async () => {
-    const full = { _id: "jx75d4pvw40zz4yaekqdz612ed8aejvp", user_id: "user-2", short_id: "jx75d4p" };
+    const full = {
+      _id: "jx75d4pvw40zz4yaekqdz612ed8aejvp",
+      user_id: "user-2",
+      short_id: "jx75d4p",
+    };
     const result = await resolveConversationRefRanked(
       createLookupCtx({
         conversationsById: { [full._id]: full },
-        conversationsByShortId: { "jx75d4p": [{ _id: "other", user_id: "user-1", short_id: "jx75d4p" }] },
+        conversationsByShortId: {
+          jx75d4p: [{ _id: "other", user_id: "user-1", short_id: "jx75d4p" }],
+        },
       }),
       full._id,
       "user-1",
-      never
+      never,
     );
     expect(result).toEqual(full);
   });
@@ -352,10 +483,10 @@ describe("resolveConversationRefRanked", () => {
   test("a longer-than-7 ref is truncated to its short id when no full id matches", async () => {
     const conv = { _id: "jx7ccccfull", user_id: "user-1", short_id: "jx7cccc" };
     const result = await resolveConversationRefRanked(
-      createLookupCtx({ conversationsByShortId: { "jx7cccc": [conv] } }),
+      createLookupCtx({ conversationsByShortId: { jx7cccc: [conv] } }),
       "jx7ccccXYZ",
       "user-1",
-      never
+      never,
     );
     expect(result).toEqual(conv);
   });
@@ -363,20 +494,39 @@ describe("resolveConversationRefRanked", () => {
 
 describe("shared short ids", () => {
   // Two of the caller's own conversations whose ids share their first 7 chars.
-  const older = { _id: "jx78gqj0geycnazw", user_id: "user-1", short_id: "jx78gqj" };
-  const newer = { _id: "jx78gqjjkyk3ejtz", user_id: "user-1", short_id: "jx78gqj" };
-  const ctx = () => createLookupCtx({ conversationsByShortId: { jx78gqj: [older, newer] } });
+  const older = {
+    _id: "jx78gqj0geycnazw",
+    user_id: "user-1",
+    short_id: "jx78gqj",
+  };
+  const newer = {
+    _id: "jx78gqjjkyk3ejtz",
+    user_id: "user-1",
+    short_id: "jx78gqj",
+  };
+  const ctx = () =>
+    createLookupCtx({ conversationsByShortId: { jx78gqj: [older, newer] } });
   const never = async () => false;
 
   test("the bare short id still resolves to the newest", async () => {
-    expect(await resolveConversationRefRanked(ctx(), "jx78gqj", "user-1", never)).toEqual(newer);
-    expect(await findConversationByAnyRef(ctx(), "jx78gqj", "user-1")).toEqual(newer);
+    expect(
+      await resolveConversationRefRanked(ctx(), "jx78gqj", "user-1", never),
+    ).toEqual(newer);
+    expect(await findConversationByAnyRef(ctx(), "jx78gqj", "user-1")).toEqual(
+      newer,
+    );
   });
 
   test("a longer prefix picks the conversation it names, not the newest", async () => {
-    expect(await resolveConversationRefRanked(ctx(), "jx78gqj0", "user-1", never)).toEqual(older);
-    expect(await findConversationByAnyRef(ctx(), "jx78gqj0g", "user-1")).toEqual(older);
-    expect(await resolveConversationRefRanked(ctx(), "jx78gqjj", "user-1", never)).toEqual(newer);
+    expect(
+      await resolveConversationRefRanked(ctx(), "jx78gqj0", "user-1", never),
+    ).toEqual(older);
+    expect(
+      await findConversationByAnyRef(ctx(), "jx78gqj0g", "user-1"),
+    ).toEqual(older);
+    expect(
+      await resolveConversationRefRanked(ctx(), "jx78gqjj", "user-1", never),
+    ).toEqual(newer);
   });
 
   test("otherShortIdMatches names the rest for a short id, nothing for a distinct prefix or full id", async () => {
@@ -384,6 +534,8 @@ describe("shared short ids", () => {
     expect(await otherShortIdMatches(ctx(), "jx78gqj", older)).toEqual([newer]);
     expect(await otherShortIdMatches(ctx(), "jx78gqj0", older)).toEqual([]);
     expect(await otherShortIdMatches(ctx(), older._id, older)).toEqual([]);
-    expect(await otherShortIdMatches(ctx(), "c280d57c-uuid", older)).toEqual([]);
+    expect(await otherShortIdMatches(ctx(), "c280d57c-uuid", older)).toEqual(
+      [],
+    );
   });
 });

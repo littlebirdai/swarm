@@ -37,7 +37,9 @@ export function DeviceReservationControl({ d }: { d: Device }) {
     <div
       data-device-reservation
       className={`mt-3 rounded-lg border px-3 py-2.5 transition-colors duration-300 ${
-        reserved ? "border-sol-orange/30 bg-sol-orange/[0.06]" : "border-sol-border/60 bg-sol-bg-alt/40"
+        reserved
+          ? "border-sol-orange/30 bg-sol-orange/[0.06]"
+          : "border-sol-border/60 bg-sol-bg-alt/40"
       }`}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -48,9 +50,15 @@ export function DeviceReservationControl({ d }: { d: Device }) {
         {reserved ? (
           <>
             <span className="text-meta text-sol-text">
-              Reserved for <span className="font-medium text-sol-orange">{reserved}</span>
+              Reserved for{" "}
+              <span className="font-medium text-sol-orange">{reserved}</span>
             </span>
-            <Button size="sm" variant="ghost" className="ml-auto h-6 px-2 text-meta" onClick={open}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto h-6 px-2 text-meta"
+              onClick={open}
+            >
               Open to any work
             </Button>
           </>
@@ -71,17 +79,33 @@ export function DeviceReservationControl({ d }: { d: Device }) {
               maxLength={60}
               className="h-7 min-w-0 flex-1 text-meta"
             />
-            <Button type="submit" size="sm" className="h-7 px-2.5 text-meta" disabled={!purpose.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              className="h-7 px-2.5 text-meta"
+              disabled={!purpose.trim()}
+            >
               Reserve
             </Button>
-            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-meta" onClick={() => setEditing(false)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-meta"
+              onClick={() => setEditing(false)}
+            >
               Cancel
             </Button>
           </form>
         ) : (
           <>
             <span className="text-meta text-sol-text-dim">Any work</span>
-            <Button size="sm" variant="ghost" className="ml-auto h-6 px-2 text-meta" onClick={() => setEditing(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto h-6 px-2 text-meta"
+              onClick={() => setEditing(true)}
+            >
               Reserve
             </Button>
           </>

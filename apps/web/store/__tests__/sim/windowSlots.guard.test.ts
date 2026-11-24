@@ -22,14 +22,19 @@ const SIM = import.meta.dir;
 const WEB = join(SIM, "../../..");
 // The web's own state, and the engine the store runs on (its undo history is
 // per window too).
-const GUARDED = /^((store|hooks|lib)\/|\.\.\/\.\.\/platform\/packages\/engine\/src\/)/;
+const GUARDED =
+  /^((store|hooks|lib)\/|\.\.\/\.\.\/platform\/packages\/engine\/src\/)/;
 const SKIP = /(^|\/)__tests__\/|\.test\.tsx?$/;
 
-/** Top-level mutable bindings of one source file, in source order. Prettier keeps top-level declarations at column 0. */
+/** Top-level mutable bindings of one source file, in source order. The formatter keeps top-level declarations at column 0. */
 export function topLevelBindings(source: string): string[] {
   const out: string[] = [];
-  for (const m of source.matchAll(/^(?:export\s+)?(?:let|var)\s+([\w$]+)/gm)) out.push(m[1]);
-  for (const m of source.matchAll(/^(?:export\s+)?const\s+([\w$]+)\b[^\n]*?=\s*new\s+(?:Map|Set)\b/gm)) out.push(m[1]);
+  for (const m of source.matchAll(/^(?:export\s+)?(?:let|var)\s+([\w$]+)/gm))
+    out.push(m[1]);
+  for (const m of source.matchAll(
+    /^(?:export\s+)?const\s+([\w$]+)\b[^\n]*?=\s*(?:(?:\(\(\s*globalThis as any\s*\)\.\w+\s*\?\?=\s*)?)new\s+(?:Map|Set)\b/gm,
+  ))
+    out.push(m[1]);
   return out;
 }
 
@@ -37,7 +42,9 @@ function simRoots(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = join(dir, e.name);
     if (e.isDirectory()) return simRoots(p);
-    return e.name.endsWith(".ts") && !e.name.endsWith(".guard.test.ts") ? [p] : [];
+    return e.name.endsWith(".ts") && !e.name.endsWith(".guard.test.ts")
+      ? [p]
+      : [];
   });
 }
 
@@ -55,7 +62,8 @@ describe("sim window slots", () => {
     () => {
       const graph = buildBootGraph(simRoots(SIM), undefined, {
         calls: true,
-        alias: (spec) => (spec.startsWith("@/") ? join(WEB, spec.slice(2)) : null),
+        alias: (spec) =>
+          spec.startsWith("@/") ? join(WEB, spec.slice(2)) : null,
       });
       const files = [...graph.nodes.keys()]
         .map((f) => relative(WEB, f))
@@ -63,13 +71,19 @@ describe("sim window slots", () => {
         .sort();
       // A walk that stops at the sim's own files would pass vacuously.
       expect(files).toContain("store/inboxStore.ts");
-      expect(files).toContain("../../platform/packages/engine/src/undoStack.ts");
+      expect(files).toContain(
+        "../../platform/packages/engine/src/undoStack.ts",
+      );
 
       const missing: string[] = [];
       for (const file of files) {
-        for (const binding of topLevelBindings(readFileSync(join(WEB, file), "utf8"))) {
+        for (const binding of topLevelBindings(
+          readFileSync(join(WEB, file), "utf8"),
+        )) {
           if (!(`${file}:${binding}` in WINDOW_SLOTS)) {
-            missing.push(`  "${file}:${binding}": CONSTANT | "window" | "memo" | "transient" | { shared: "<why one copy is right>" },`);
+            missing.push(
+              `  "${file}:${binding}": CONSTANT | "window" | "memo" | "transient" | { shared: "<why one copy is right>" },`,
+            );
           }
         }
       }
@@ -87,9 +101,17 @@ describe("sim window slots", () => {
       const stale = Object.keys(WINDOW_SLOTS).filter((key) => {
         const file = key.slice(0, key.lastIndexOf(":"));
         const path = join(WEB, file);
-        return !existsSync(path) || !topLevelBindings(readFileSync(path, "utf8")).includes(key.slice(file.length + 1));
+        return (
+          !existsSync(path) ||
+          !topLevelBindings(readFileSync(path, "utf8")).includes(
+            key.slice(file.length + 1),
+          )
+        );
       });
-      expect(stale, "WINDOW_SLOTS entries naming a binding that is gone; remove them").toEqual([]);
+      expect(
+        stale,
+        "WINDOW_SLOTS entries naming a binding that is gone; remove them",
+      ).toEqual([]);
     },
     WALK_TIMEOUT,
   );
@@ -98,9 +120,16 @@ describe("sim window slots", () => {
   // a store built any other way while a realm runs draws from whatever stream is current.
   test("only realm.ts builds a store directly; every sim window goes through createWindowStore", () => {
     const direct = simRoots(SIM)
-      .filter((f) => relative(SIM, f) !== "realm.ts" && /\b__createInboxStoreForTests\s*\(/.test(readFileSync(f, "utf8")))
+      .filter(
+        (f) =>
+          relative(SIM, f) !== "realm.ts" &&
+          /\b__createInboxStoreForTests\s*\(/.test(readFileSync(f, "utf8")),
+      )
       .map((f) => relative(WEB, f));
-    expect(direct, "build sim window stores with createWindowStore(name) from sim/realm.ts").toEqual([]);
+    expect(
+      direct,
+      "build sim window stores with createWindowStore(name) from sim/realm.ts",
+    ).toEqual([]);
   });
 
   test("the extractor sees the shapes it is meant to", () => {

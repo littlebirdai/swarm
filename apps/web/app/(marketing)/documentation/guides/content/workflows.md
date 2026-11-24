@@ -56,8 +56,8 @@ Use a **workflow** when you know the steps and they must run the same way every 
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| A run failed right after a gate | It was dismissed, or the answer matched none of the gate's ways out. Start it again and pick one of the listed choices |
-| A run keeps looping | Ask the agent to give the loop a limit, so it stops after a few failed attempts |
-| Nothing listed under **Routines** | No workflow has been written in this workspace yet. Ask an agent to write one |
+| What you notice                   | What to do                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| A run failed right after a gate   | It was dismissed, or the answer matched none of the gate's ways out. Start it again and pick one of the listed choices |
+| A run keeps looping               | Ask the agent to give the loop a limit, so it stops after a few failed attempts                                        |
+| Nothing listed under **Routines** | No workflow has been written in this workspace yet. Ask an agent to write one                                          |

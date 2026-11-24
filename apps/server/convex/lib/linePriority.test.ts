@@ -15,7 +15,9 @@ describe("line priority", () => {
   });
 
   test("signals are damped: doubling adds one step, 128 p3 signals tie one p0", () => {
-    expect(priority("p2", "medium", 8) - priority("p2", "medium", 4)).toBe(priority("p2", "medium", 1));
+    expect(priority("p2", "medium", 8) - priority("p2", "medium", 4)).toBe(
+      priority("p2", "medium", 1),
+    );
     expect(priority("p3", "medium", 128)).toBe(priority("p0", "medium", 1));
   });
 

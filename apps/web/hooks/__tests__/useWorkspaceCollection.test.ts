@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { defaultFieldSig, membershipSig, workspaceRows } from "../useWorkspaceCollection";
+import {
+  defaultFieldSig,
+  membershipSig,
+  workspaceRows,
+} from "../useWorkspaceCollection";
 
 // Regression: marking a task done flips row.status/updated_at but does NOT
 // change which rows are in the workspace. The membership-only signature was
@@ -19,26 +23,41 @@ describe("useWorkspaceCollection wake signature", () => {
   it("shares row scans but gives each caller its own sortable array", () => {
     let reads = 0;
     const a = row("a", "open", 1);
-    const coll = { get a() { reads++; return a; } };
+    const coll = {
+      get a() {
+        reads++;
+        return a;
+      },
+    };
     const first = workspaceRows("tasks", coll, KEY);
     first.pop();
     expect(workspaceRows("tasks", coll, KEY)).toEqual([a]);
     expect(reads).toBe(1);
     expect(workspaceRows("tasks", coll, "team:t2")).toEqual([]);
-    expect(workspaceRows("tasks", { a: { ...a, workspace: "team:t2" } }, KEY)).toEqual([]);
+    expect(
+      workspaceRows("tasks", { a: { ...a, workspace: "team:t2" } }, KEY),
+    ).toEqual([]);
   });
   it("retains signatures for two workspaces without rescanning on each switch", () => {
     let reads = 0;
     const coll = {
-      get a() { reads++; return row("a", "open", 1); },
-      get b() { reads++; return { ...row("b", "open", 1), workspace: "team:t2" }; },
+      get a() {
+        reads++;
+        return row("a", "open", 1);
+      },
+      get b() {
+        reads++;
+        return { ...row("b", "open", 1), workspace: "team:t2" };
+      },
     };
     const first = membershipSig(coll, KEY, defaultFieldSig, "tasks");
     const second = membershipSig(coll, "team:t2", defaultFieldSig, "tasks");
     expect(first).not.toBe(second);
     for (let i = 0; i < 10; i++) {
       expect(membershipSig(coll, KEY, defaultFieldSig, "tasks")).toBe(first);
-      expect(membershipSig(coll, "team:t2", defaultFieldSig, "tasks")).toBe(second);
+      expect(membershipSig(coll, "team:t2", defaultFieldSig, "tasks")).toBe(
+        second,
+      );
     }
     expect(reads).toBe(4);
   });
@@ -56,20 +75,27 @@ describe("useWorkspaceCollection wake signature", () => {
     const a = { a: row("a", "open", 100) };
     const b = { a: row("a", "open", 100) };
 
-    expect(membershipSig(b, KEY, defaultFieldSig)).toBe(membershipSig(a, KEY, defaultFieldSig));
+    expect(membershipSig(b, KEY, defaultFieldSig)).toBe(
+      membershipSig(a, KEY, defaultFieldSig),
+    );
   });
 
   it("membership-only mode (sig: null) stays blind to field edits — the old default this bug lived in", () => {
     const before = { a: row("a", "open", 100) };
     const after = { a: row("a", "done", 200) };
 
-    expect(membershipSig(after, KEY, null)).toBe(membershipSig(before, KEY, null));
+    expect(membershipSig(after, KEY, null)).toBe(
+      membershipSig(before, KEY, null),
+    );
   });
 
   it("is a short digest however many rows the workspace holds", () => {
     const coll: Record<string, any> = {};
-    for (let i = 0; i < 10_000; i++) coll[`task_${i}`] = row(`task_${i}`, "open", i);
-    expect(membershipSig(coll, KEY, defaultFieldSig, "tasks").length).toBeLessThan(64);
+    for (let i = 0; i < 10_000; i++)
+      coll[`task_${i}`] = row(`task_${i}`, "open", i);
+    expect(
+      membershipSig(coll, KEY, defaultFieldSig, "tasks").length,
+    ).toBeLessThan(64);
     expect(membershipSig(coll, KEY, null, "tasks").length).toBeLessThan(64);
   });
 
@@ -91,7 +117,11 @@ describe("useWorkspaceCollection wake signature", () => {
 describe("rows the list channels would not deliver", () => {
   it("does not scan cached rows before the viewer is known", async () => {
     const { workspaceRows } = await import("../useWorkspaceCollection");
-    const coll = { get a() { throw new Error("unresolved viewer must not scan"); } };
+    const coll = {
+      get a() {
+        throw new Error("unresolved viewer must not scan");
+      },
+    };
     expect(workspaceRows("tasks", coll, null)).toEqual([]);
   });
 
@@ -99,9 +129,15 @@ describe("rows the list channels would not deliver", () => {
     const { workspaceRows } = await import("../useWorkspaceCollection");
     const a = row("a", "open", 1);
     const b = row("b", "done", 2);
-    const coll = Object.assign(Object.create({ inherited: row("inherited", "open", 1) }), {
-      a, alias: a, foreign: { ...row("foreign", "open", 1), workspace: "team:other" }, b,
-    });
+    const coll = Object.assign(
+      Object.create({ inherited: row("inherited", "open", 1) }),
+      {
+        a,
+        alias: a,
+        foreign: { ...row("foreign", "open", 1), workspace: "team:other" },
+        b,
+      },
+    );
     expect(workspaceRows("tasks", coll, KEY)).toEqual([a, b]);
     expect(workspaceRows("tasks", coll, null)).toEqual([]);
   });
@@ -109,10 +145,26 @@ describe("rows the list channels would not deliver", () => {
   it("an archived doc leaves the docs enumeration and its wake signature", async () => {
     const { workspaceRows } = await import("../useWorkspaceCollection");
     const live = { _id: "d1", workspace: KEY, title: "kept", updated_at: 1 };
-    const archived = { _id: "d2", workspace: KEY, title: "gone", updated_at: 2, archived_at: 3 };
+    const archived = {
+      _id: "d2",
+      workspace: KEY,
+      title: "gone",
+      updated_at: 2,
+      archived_at: 3,
+    };
     const coll = { d1: live, d2: archived };
-    expect(workspaceRows("docs", coll, KEY).map((r: any) => r._id)).toEqual(["d1"]);
-    expect(membershipSig(coll, KEY, null, "docs")).toBe(membershipSig({ d1: live }, KEY, null, "docs"));
-    expect(workspaceRows("docs", { ...coll, d2: { ...archived, archived_at: undefined } }, KEY).map((r: any) => r._id)).toEqual(["d1", "d2"]);
+    expect(workspaceRows("docs", coll, KEY).map((r: any) => r._id)).toEqual([
+      "d1",
+    ]);
+    expect(membershipSig(coll, KEY, null, "docs")).toBe(
+      membershipSig({ d1: live }, KEY, null, "docs"),
+    );
+    expect(
+      workspaceRows(
+        "docs",
+        { ...coll, d2: { ...archived, archived_at: undefined } },
+        KEY,
+      ).map((r: any) => r._id),
+    ).toEqual(["d1", "d2"]);
   });
 });

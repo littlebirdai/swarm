@@ -13,17 +13,27 @@ export function completionWindow(value: string | null | undefined): string {
 let lastPending: Record<string, PendingEntry> | undefined;
 let lastSignature = "";
 
-export function pendingTaskCompletionsSig(pending: Record<string, PendingEntry>): string {
+export function pendingTaskCompletionsSig(
+  pending: Record<string, PendingEntry>,
+): string {
   if (pending === lastPending) return lastSignature;
   lastPending = pending;
   lastSignature = Object.entries(pending)
-    .filter(([key, entry]) => key.startsWith("tasks:") && key.endsWith(":status") && entry.type === "field" && entry.value === "done")
+    .filter(
+      ([key, entry]) =>
+        key.startsWith("tasks:") &&
+        key.endsWith(":status") &&
+        entry.type === "field" &&
+        entry.value === "done",
+    )
     .map(([key, entry]) => `${key}:${entry.ts}`)
     .join("|");
   return lastSignature;
 }
 
-export function filterTasksByCompletion<T extends { _id: string; status: string; closed_at?: number }>(
+export function filterTasksByCompletion<
+  T extends { _id: string; status: string; closed_at?: number },
+>(
   tasks: T[],
   window: string,
   now: number,
@@ -35,9 +45,14 @@ export function filterTasksByCompletion<T extends { _id: string; status: string;
   return tasks.filter((task) => {
     if (task.status !== "done") return false;
     const statusWrite = pending[`tasks:${task._id}:status`];
-    const completedAt = statusWrite?.type === "field" && statusWrite.value === "done" && statusWrite.ts !== undefined
-      ? statusWrite.ts
-      : task.closed_at;
-    return completedAt !== undefined && completedAt >= since && completedAt <= now;
+    const completedAt =
+      statusWrite?.type === "field" &&
+      statusWrite.value === "done" &&
+      statusWrite.ts !== undefined
+        ? statusWrite.ts
+        : task.closed_at;
+    return (
+      completedAt !== undefined && completedAt >= since && completedAt <= now
+    );
   });
 }

@@ -48,8 +48,13 @@ export type RoomRecordingEnd = {
  *  runs alone: it is mounted in every window of everyone seated, for the
  *  whole huddle, and re-runs only as a run ends. An enrichment, so a server
  *  without the query degrades to "Recording stopped". */
-export function useRoomRecordingEnded(roomKey: string | null | undefined): RoomRecordingEnd | null | undefined {
-  const { data, error } = useQueryNoThrow(api.callRecordings.getRoomRecordingEnd, roomKey ? { room_key: roomKey } : "skip");
+export function useRoomRecordingEnded(
+  roomKey: string | null | undefined,
+): RoomRecordingEnd | null | undefined {
+  const { data, error } = useQueryNoThrow(
+    api.callRecordings.getRoomRecordingEnd,
+    roomKey ? { room_key: roomKey } : "skip",
+  );
   if (error || data === null) return null;
   return data === undefined ? undefined : (data as RoomRecordingEnd);
 }
@@ -104,25 +109,34 @@ export function owesRecordingNotice(
 
 /** The reason under RECORDING_LOST_TITLE: the server's plain words, which
  *  already say what was lost. */
-const plainLossWords = (error: string | null) => error?.trim() || "The video never finished saving.";
+const plainLossWords = (error: string | null) =>
+  error?.trim() || "The video never finished saving.";
 
 /** What the room is told when the run's video will be on the call's public
  *  link (callRecordings: a link whose video was chosen before this press):
  *  faces and screens, guests' included, then reach anyone with the link. */
-export const RECORDING_SHARED_WORDS = "The video is shared by the call's public link.";
+export const RECORDING_SHARED_WORDS =
+  "The video is shared by the call's public link.";
 
 /** What the room is told when its call record's public link is on: the
  *  transcript reaches anyone with the link as it is written, guests' words
  *  included (callRooms.words_public; the guests' notice says the same). */
-export const TRANSCRIPT_SHARED_WORDS = "The transcript is shared by the call's public link: anyone with it can read along.";
+export const TRANSCRIPT_SHARED_WORDS =
+  "The transcript is shared by the call's public link: anyone with it can read along.";
 
 /** The body under RECORDING_STARTED_TITLE: who pressed, whether the video
  *  goes out with the public link, and that anyone may stop it. Consent copy,
  *  so the web and the phone say it from this one place. Without the run (a
  *  server too old to send it) it says what is kept, and nothing it cannot
  *  know. */
-export function startedWords(live: Pick<RoomRecordingLive, "started_by" | "video_shared"> | null | undefined): string {
-  if (!live) return "Video and shared screens are kept with the call. Anyone in the call can stop it.";
+export function startedWords(
+  live:
+    | Pick<RoomRecordingLive, "started_by" | "video_shared">
+    | null
+    | undefined,
+): string {
+  if (!live)
+    return "Video and shared screens are kept with the call. Anyone in the call can stop it.";
   const shared = live.video_shared ? ` ${RECORDING_SHARED_WORDS}` : "";
   return `${firstName(live.started_by.name)} started recording.${shared} Anyone in the call can stop it.`;
 }
@@ -130,10 +144,14 @@ export function startedWords(live: Pick<RoomRecordingLive, "started_by" | "video
 /** Where a notice's Open goes: the call page at the run's first frame (or
  *  the whole call, before LiveKit said where that is). Null from a server
  *  that did not say which call. */
-export function recordingEndHref(end: RoomRecordingEnd | null | undefined): string | null {
+export function recordingEndHref(
+  end: RoomRecordingEnd | null | undefined,
+): string | null {
   // A run that failed left nothing to open.
   if (!end?.transcript_id || end.status === "failed") return null;
-  return end.at_ms != null ? callMomentHref(end.transcript_id, end.at_ms) : callAnchorHref(end.transcript_id);
+  return end.at_ms != null
+    ? callMomentHref(end.transcript_id, end.at_ms)
+    : callAnchorHref(end.transcript_id);
 }
 
 /** What the room is told when a run stops, from how it ended (convex
@@ -142,19 +160,43 @@ export function recordingEndHref(end: RoomRecordingEnd | null | undefined): stri
  *  run that was filming; a run LiveKit refused or lost left nothing to save.
  *  Unknown (a server older than the end facts), it says only that it
  *  stopped. */
-export function stoppedWords(end: RoomRecordingEnd | null, me: string | null): { title: string; body: string; failed: boolean } {
+export function stoppedWords(
+  end: RoomRecordingEnd | null,
+  me: string | null,
+): { title: string; body: string; failed: boolean } {
   // The stop was said when it happened; this is the video it was saving.
-  if (end?.lost) return { title: RECORDING_LOST_TITLE, body: plainLossWords(end.error), failed: true };
-  const by = end?.stopped_by ? (me && end.stopped_by.id === me ? "You" : speakerShortName(end.stopped_by.name, end.stopped_by.id)) : null;
-  const pressed = by && end?.stop_reason === "pressed" ? `${by} stopped recording` : null;
+  if (end?.lost)
+    return {
+      title: RECORDING_LOST_TITLE,
+      body: plainLossWords(end.error),
+      failed: true,
+    };
+  const by = end?.stopped_by
+    ? me && end.stopped_by.id === me
+      ? "You"
+      : speakerShortName(end.stopped_by.name, end.stopped_by.id)
+    : null;
+  const pressed =
+    by && end?.stop_reason === "pressed" ? `${by} stopped recording` : null;
   if (end?.status === "failed") {
-    return { title: pressed ?? "Recording failed", body: recordingFailureWords(end.error), failed: !pressed };
+    return {
+      title: pressed ?? "Recording failed",
+      body: recordingFailureWords(end.error),
+      failed: !pressed,
+    };
   }
-  const title = pressed ?? recordingStoppedItselfWords(end?.stop_reason) ?? "Recording stopped";
+  const title =
+    pressed ??
+    recordingStoppedItselfWords(end?.stop_reason) ??
+    "Recording stopped";
   // Where it went in words a person knows: the call itself, which the
   // notice's Open goes to. The call's short id is for agents and the CLI;
   // to somebody recording their first call it names nothing.
-  const body = !end ? "" : end.status === "ready" ? "The video is saved with the call." : "The video is still saving. It stays with the call.";
+  const body = !end
+    ? ""
+    : end.status === "ready"
+      ? "The video is saved with the call."
+      : "The video is still saving. It stays with the call.";
   return { title, body, failed: false };
 }
 
@@ -164,10 +206,18 @@ export function stoppedWords(end: RoomRecordingEnd | null, me: string | null): {
  *  notice the mark going, and keep talking as if they were recorded, so
  *  that notice stays up until it is dismissed and offers to record again.
  *  A press, the huddle ending, or a share ending is somebody's own doing. */
-export function stoppedByItself(end: RoomRecordingEnd | null | undefined): boolean {
+export function stoppedByItself(
+  end: RoomRecordingEnd | null | undefined,
+): boolean {
   // A lost video's stop was its own news, said when it happened.
   if (!end || end.lost) return false;
-  if (end.stop_reason === "failed" || end.stop_reason === "limit" || end.stop_reason === "ended" || end.stop_reason === "room_empty") return true;
+  if (
+    end.stop_reason === "failed" ||
+    end.stop_reason === "limit" ||
+    end.stop_reason === "ended" ||
+    end.stop_reason === "room_empty"
+  )
+    return true;
   return end.status === "failed" && !end.stop_reason;
 }
 
@@ -181,11 +231,28 @@ export const SAVED_TITLE = "Recording saved with the call";
  *  goes. The web's banner, toast and system banner and the phone's card all
  *  take it from here, so none of them can say a stop differently or let one
  *  that matters go by itself. */
-export type StopNoticeCard = { title: string; body: string; failed: boolean; sticky: boolean; href: string | null };
+export type StopNoticeCard = {
+  title: string;
+  body: string;
+  failed: boolean;
+  sticky: boolean;
+  href: string | null;
+};
 
-export function stopNoticeCard(how: "saved" | "say", end: RoomRecordingEnd | null | undefined, me: string | null): StopNoticeCard {
-  const words = how === "saved" ? { title: SAVED_TITLE, body: "", failed: false } : stoppedWords(end ?? null, me);
-  return { ...words, sticky: stoppedByItself(end), href: recordingEndHref(end) };
+export function stopNoticeCard(
+  how: "saved" | "say",
+  end: RoomRecordingEnd | null | undefined,
+  me: string | null,
+): StopNoticeCard {
+  const words =
+    how === "saved"
+      ? { title: SAVED_TITLE, body: "", failed: false }
+      : stoppedWords(end ?? null, me);
+  return {
+    ...words,
+    sticky: stoppedByItself(end),
+    href: recordingEndHref(end),
+  };
 }
 
 /** Whether a stopped run's line is said to this person yet, and which.
@@ -197,11 +264,20 @@ export function stopNoticeCard(how: "saved" | "say", end: RoomRecordingEnd | nul
  *  room's row and the end are two subscriptions; the end follows within a
  *  push), and while the presser's file is still saving. A server too old to
  *  send the end (null) cannot say who stopped it, so the line is said. */
-export function stopNoticeVerdict(end: RoomRecordingEnd | null | undefined, runId: string, me: string | null): "say" | "saved" | "wait" {
+export function stopNoticeVerdict(
+  end: RoomRecordingEnd | null | undefined,
+  runId: string,
+  me: string | null,
+): "say" | "saved" | "wait" {
   if (end === null) return "say";
   if (!end || end.run_id !== runId) return "wait";
-  if (!(me && end.stop_reason === "pressed" && end.stopped_by?.id === me)) return "say";
-  return end.status === "ready" ? "saved" : end.status === "failed" ? "say" : "wait";
+  if (!(me && end.stop_reason === "pressed" && end.stopped_by?.id === me))
+    return "say";
+  return end.status === "ready"
+    ? "saved"
+    : end.status === "failed"
+      ? "say"
+      : "wait";
 }
 
 /**
@@ -217,8 +293,23 @@ export function unseenPressedFailure(
   pressedRun: string | null,
   seenRun: string | null,
 ): RoomRecordingLive | null {
-  if (!end || end.status !== "failed" || !pressedRun || end.run_id !== pressedRun || seenRun === end.run_id) return null;
-  return { status: "starting", run_id: end.run_id, started_by: { id: "", name: "" }, requested_at: 0, started_at: null, stop_requested_at: null, video_shared: false };
+  if (
+    !end ||
+    end.status !== "failed" ||
+    !pressedRun ||
+    end.run_id !== pressedRun ||
+    seenRun === end.run_id
+  )
+    return null;
+  return {
+    status: "starting",
+    run_id: end.run_id,
+    started_by: { id: "", name: "" },
+    requested_at: 0,
+    started_at: null,
+    stop_requested_at: null,
+    video_shared: false,
+  };
 }
 
 // ── Watching a room's runs ────────────────────────────────────────────────
@@ -270,7 +361,10 @@ export function watchRoomRun(
     if (w.stop && w.stop.was.run_id !== running.run_id) w.stop = null;
   }
   let stopped: RoomRecordingLive | null = null;
-  if (was && (!live || live.run_id !== was.run_id || !isRecordingFilming(live.status))) {
+  if (
+    was &&
+    (!live || live.run_id !== was.run_id || !isRecordingFilming(live.status))
+  ) {
     w.live = running;
     stopped = was;
     if (!noticed(stopNoticeKey(was.run_id))) w.stop = { was, at: now };
@@ -278,8 +372,13 @@ export function watchRoomRun(
   // A run this person pressed for that LiveKit refused before any push
   // showed it live: the steps above never saw it, but the presser is owed
   // the reason all the same, through the notice every stop takes.
-  const unseen = unseenPressedFailure(end, pressedRun, end && w.shown.has(end.run_id) ? end.run_id : null);
-  if (unseen && !w.stop && !noticed(stopNoticeKey(unseen.run_id))) w.stop = { was: unseen, at: now };
+  const unseen = unseenPressedFailure(
+    end,
+    pressedRun,
+    end && w.shown.has(end.run_id) ? end.run_id : null,
+  );
+  if (unseen && !w.stop && !noticed(stopNoticeKey(unseen.run_id)))
+    w.stop = { was: unseen, at: now };
   return { running, stopped };
 }
 
@@ -293,7 +392,8 @@ export const lostNoticeKey = (runId: string) => `${stopNoticeKey(runId)}:lost`;
 
 /** The key a stop's notice is claimed under, given what is known of how it
  *  ended. */
-const noticeKeyFor = (runId: string, own: RoomRecordingEnd | null) => (own?.lost ? lostNoticeKey(runId) : stopNoticeKey(runId));
+const noticeKeyFor = (runId: string, own: RoomRecordingEnd | null) =>
+  own?.lost ? lostNoticeKey(runId) : stopNoticeKey(runId);
 
 /**
  * The word owed when a stopped run's video was lost while it saved (`lost`):
@@ -308,12 +408,27 @@ function owedLostNotice(
   me: string | null,
   noticed: (key: string) => boolean,
   now: number,
-): { stop: NonNullable<RoomRunWatch["stop"]>; key: string; how: "say"; end: RoomRecordingEnd } | null {
+): {
+  stop: NonNullable<RoomRunWatch["stop"]>;
+  key: string;
+  how: "say";
+  end: RoomRecordingEnd;
+} | null {
   if (!end?.lost || !me) return null;
-  const mine = end.started_by === me || (end.stop_reason === "pressed" && end.stopped_by?.id === me);
+  const mine =
+    end.started_by === me ||
+    (end.stop_reason === "pressed" && end.stopped_by?.id === me);
   const key = lostNoticeKey(end.run_id);
   if (!mine || noticed(key)) return null;
-  const was: RoomRecordingLive = { status: "stopping", run_id: end.run_id, started_by: { id: end.started_by ?? "", name: "" }, requested_at: 0, started_at: null, stop_requested_at: null, video_shared: false };
+  const was: RoomRecordingLive = {
+    status: "stopping",
+    run_id: end.run_id,
+    started_by: { id: end.started_by ?? "", name: "" },
+    requested_at: 0,
+    started_at: null,
+    stop_requested_at: null,
+    video_shared: false,
+  };
   return { stop: { was, at: now }, key, how: "say", end };
 }
 
@@ -329,13 +444,24 @@ export function owedStopNotice(
   me: string | null,
   noticed: (key: string) => boolean,
   now: number,
-): { stop: NonNullable<RoomRunWatch["stop"]>; key: string; how: "saved" | "say" | "wait" | "drop"; end: RoomRecordingEnd | null } | null {
+): {
+  stop: NonNullable<RoomRunWatch["stop"]>;
+  key: string;
+  how: "saved" | "say" | "wait" | "drop";
+  end: RoomRecordingEnd | null;
+} | null {
   const stop = w.stop;
   if (!stop) return owedLostNotice(end, me, noticed, now);
   const own = end?.run_id === stop.was.run_id ? end : null;
   const key = noticeKeyFor(stop.was.run_id, own);
-  if (now - stop.at >= STOP_NEWS_MS || noticed(key)) return { stop, key, how: "drop", end: own };
+  if (now - stop.at >= STOP_NEWS_MS || noticed(key))
+    return { stop, key, how: "drop", end: own };
   const verdict = stopNoticeVerdict(end, stop.was.run_id, me);
   // `saved` names where the file went, so it needs the run's own end.
-  return { stop, key, how: verdict === "saved" && !own ? "wait" : verdict, end: own };
+  return {
+    stop,
+    key,
+    how: verdict === "saved" && !own ? "wait" : verdict,
+    end: own,
+  };
 }

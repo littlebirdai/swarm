@@ -6,7 +6,12 @@ import { toast } from "sonner";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { useIsPhone } from "../../hooks/useIsPhone";
 import { markOrgUpsellSeen } from "../../lib/orgIntro";
-import { ORG_MEET_TOAST_ID, ORG_MEET_SETTLE_MS, orgIntroCardMayRise, composerHasText } from "../../lib/orgIntroCard";
+import {
+  ORG_MEET_TOAST_ID,
+  ORG_MEET_SETTLE_MS,
+  orgIntroCardMayRise,
+  composerHasText,
+} from "../../lib/orgIntroCard";
 import type { OrgIntroCardFacts } from "../../lib/orgIntroCard";
 import { showOrgIntroCard } from "../../lib/showOrgIntroCard";
 import { isSetupFlowPath } from "../../lib/setupFlow";
@@ -37,7 +42,8 @@ export function OrgIntroAnywhere() {
   const introSeen = s.clientState.ui?.org_intro_seen === true;
   const upsellSeen = s.clientState.ui?.org_upsell_seen === true;
   const callPhase = s.call?.phase ?? "idle";
-  const onOrgPage = pathname === "/org" || (pathname?.startsWith("/org/") ?? false);
+  const onOrgPage =
+    pathname === "/org" || (pathname?.startsWith("/org/") ?? false);
 
   // Sold by another route while the card is up (the person opened the org
   // page from the sidebar, or answered on another device): the card goes.
@@ -49,7 +55,16 @@ export function OrgIntroAnywhere() {
   // eslint-disable-next-line no-restricted-syntax -- arms the rise timer when the facts that gate it change
   useEffect(() => {
     if (risen.current || !orgOn || blocked) return;
-    const facts: OrgIntroCardFacts = { initialized, signedIn, onOrgPage, phone, callPhase, composerHasText: false, introSeen, upsellSeen };
+    const facts: OrgIntroCardFacts = {
+      initialized,
+      signedIn,
+      onOrgPage,
+      phone,
+      callPhase,
+      composerHasText: false,
+      introSeen,
+      upsellSeen,
+    };
     if (!orgIntroCardMayRise(facts)) return;
     const t = window.setTimeout(() => {
       // The page has settled; read the facts that can change without a
@@ -70,7 +85,19 @@ export function OrgIntroAnywhere() {
       });
     }, ORG_MEET_SETTLE_MS);
     return () => window.clearTimeout(t);
-  }, [orgOn, blocked, initialized, signedIn, onOrgPage, phone, callPhase, introSeen, upsellSeen, pathname, router]);
+  }, [
+    orgOn,
+    blocked,
+    initialized,
+    signedIn,
+    onOrgPage,
+    phone,
+    callPhase,
+    introSeen,
+    upsellSeen,
+    pathname,
+    router,
+  ]);
 
   return null;
 }
@@ -78,4 +105,10 @@ export function OrgIntroAnywhere() {
 // Dev console hook, the meeting offer's convention: __showOrgIntroCard() raises
 // the card without the gate, so the look can be checked in any state.
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined")
-  (window as any).__showOrgIntroCard = () => showOrgIntroCard({ onAnswer: () => {}, onSee: () => { window.location.assign("/org?panel=open"); } });
+  (window as any).__showOrgIntroCard = () =>
+    showOrgIntroCard({
+      onAnswer: () => {},
+      onSee: () => {
+        window.location.assign("/org?panel=open");
+      },
+    });

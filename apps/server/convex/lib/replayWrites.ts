@@ -7,9 +7,21 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { takeFromWindow } from "../ipRateLimit";
 import { nextShortId } from "../counters";
 import { parseReplayChunkKey, parseReplayDomChunkKey } from "./r2";
-import { REPLAY_LIMITS, cleanKeepReasons, type ReplayProvider } from "@codecast/shared/contracts/replay";
-import { INGEST_SHORT_ID_PREFIX, type IngestItem, type SourceProvider } from "@codecast/shared/contracts/ingest";
-import { REPLAY_DOM_LIMITS, REPLAY_STYLE_LIMITS, type ReplayChunkKind } from "@codecast/shared/contracts/replayPlayer";
+import {
+  REPLAY_LIMITS,
+  cleanKeepReasons,
+  type ReplayProvider,
+} from "@codecast/shared/contracts/replay";
+import {
+  INGEST_SHORT_ID_PREFIX,
+  type IngestItem,
+  type SourceProvider,
+} from "@codecast/shared/contracts/ingest";
+import {
+  REPLAY_DOM_LIMITS,
+  REPLAY_STYLE_LIMITS,
+  type ReplayChunkKind,
+} from "@codecast/shared/contracts/replayPlayer";
 import { patchReplay } from "./replayIndex";
 import { moveTally } from "./replayTallies";
 
@@ -36,10 +48,16 @@ export function replayProviderFor(source: SourceProvider): ReplayProvider {
   return source === "posthog" || source === "sentry" ? source : "sdk";
 }
 
-export async function findReplay(ctx: Db, sourceId: Id<"event_sources">, externalId: string): Promise<Doc<"replays"> | null> {
+export async function findReplay(
+  ctx: Db,
+  sourceId: Id<"event_sources">,
+  externalId: string,
+): Promise<Doc<"replays"> | null> {
   return await ctx.db
     .query("replays")
-    .withIndex("by_source_external", (q: any) => q.eq("source_id", sourceId).eq("external_id", externalId))
+    .withIndex("by_source_external", (q: any) =>
+      q.eq("source_id", sourceId).eq("external_id", externalId),
+    )
     .first();
 }
 
@@ -50,10 +68,28 @@ export async function findReplay(ctx: Db, sourceId: Id<"event_sources">, externa
  * them opens it the same way and the others fill it in. Null when the source
  * is past REPLAYS_NEW_PER_HOUR; an import a person asked for is not capped.
  */
-export async function ensureReplay(ctx: Db, source: Doc<"event_sources">, externalId: string, now: number, opts: { capped?: boolean } = { capped: true }): Promise<Doc<"replays"> | null> {
+export async function ensureReplay(
+  ctx: Db,
+  source: Doc<"event_sources">,
+  externalId: string,
+  now: number,
+  opts: { capped?: boolean } = { capped: true },
+): Promise<Doc<"replays"> | null> {
   const existing = await findReplay(ctx, source._id, externalId);
   if (existing) return existing;
-  if (opts.capped !== false && !(await takeFromWindow(ctx.db, `replay-new:${source._id}`, REPLAYS_NEW_PER_HOUR, 3600_000, 1)).granted) return null;
+  if (
+    opts.capped !== false &&
+    !(
+      await takeFromWindow(
+        ctx.db,
+        `replay-new:${source._id}`,
+        REPLAYS_NEW_PER_HOUR,
+        3600_000,
+        1,
+      )
+    ).granted
+  )
+    return null;
   const row = {
     workspace: source.workspace,
     team_id: source.team_id,
@@ -69,11 +105,23 @@ export async function ensureReplay(ctx: Db, source: Doc<"event_sources">, extern
     updated_at: now,
   };
   // A source's first recording starts its tallies at zero, so they are whole from here on (lib/replayTallies.ts).
-  if (source.replay_tally_at === undefined && !(await ctx.db.query("replays").withIndex("by_source_started", (q: any) => q.eq("source_id", source._id)).first())) {
+  if (
+    source.replay_tally_at === undefined &&
+    !(await ctx.db
+      .query("replays")
+      .withIndex("by_source_started", (q: any) => q.eq("source_id", source._id))
+      .first())
+  ) {
     await ctx.db.patch(source._id, { replay_tally_at: now });
   }
   const id = await ctx.db.insert("replays", row);
-  await moveTally(ctx, { workspace: row.workspace, source_id: row.source_id }, null, row, now);
+  await moveTally(
+    ctx,
+    { workspace: row.workspace, source_id: row.source_id },
+    null,
+    row,
+    now,
+  );
   return { ...row, _id: id, _creationTime: now } as Doc<"replays">;
 }
 
@@ -82,27 +130,41 @@ export async function ensureReplay(ctx: Db, source: Doc<"event_sources">, extern
  * from the SDK stand until the chunks are assembled, which recounts them from
  * the stream itself. Schedules that assembly when chunks exist.
  */
-export async function upsertReplayManifest(ctx: WriteCtx, source: Doc<"event_sources">, item: ReplayItem, now: number): Promise<Id<"replays"> | null> {
+export async function upsertReplayManifest(
+  ctx: WriteCtx,
+  source: Doc<"event_sources">,
+  item: ReplayItem,
+  now: number,
+): Promise<Id<"replays"> | null> {
   const row = await ensureReplay(ctx, source, item.replay_id, now);
   if (!row) return null;
   const patch: Partial<Doc<"replays">> = { updated_at: now };
   if (item.url) patch.url = item.url;
   if (item.user) patch.user = item.user;
-  if (item.started_at !== undefined && item.started_at < row.started_at) patch.started_at = item.started_at;
-  if (item.duration_ms !== undefined) patch.duration_ms = Math.max(0, item.duration_ms);
+  if (item.started_at !== undefined && item.started_at < row.started_at)
+    patch.started_at = item.started_at;
+  if (item.duration_ms !== undefined)
+    patch.duration_ms = Math.max(0, item.duration_ms);
   // Reasons only add up: a later manifest names the earlier ones too, but one that arrives out of order must not drop any.
-  const keptFor = cleanKeepReasons([...(row.kept_for ?? []), ...(item.kept_for ?? [])]);
-  if (keptFor && keptFor.join() !== (row.kept_for ?? []).join()) patch.kept_for = keptFor;
+  const keptFor = cleanKeepReasons([
+    ...(row.kept_for ?? []),
+    ...(item.kept_for ?? []),
+  ]);
+  if (keptFor && keptFor.join() !== (row.kept_for ?? []).join())
+    patch.kept_for = keptFor;
   if (item.counts && !row.timeline_at) {
     patch.counts = {
       clicks: item.counts.clicks ?? row.counts.clicks,
       errors: item.counts.errors ?? row.counts.errors,
-      failed_requests: item.counts.failed_requests ?? row.counts.failed_requests,
+      failed_requests:
+        item.counts.failed_requests ?? row.counts.failed_requests,
     };
   }
   if (shouldQueueAssembly(row, now)) {
     patch.assemble_at = now;
-    await ctx.scheduler.runAfter(ASSEMBLE_DELAY_MS, internal.replays.assemble, { replay_id: row._id });
+    await ctx.scheduler.runAfter(ASSEMBLE_DELAY_MS, internal.replays.assemble, {
+      replay_id: row._id,
+    });
   }
   await patchReplay(ctx, row, patch);
   return row._id;
@@ -115,11 +177,21 @@ export async function upsertReplayManifest(ctx: WriteCtx, source: Doc<"event_sou
  * would otherwise queue a download of up to 60 chunks per item. A queued
  * assembly that never reported back stops counting after ASSEMBLE_STALE_MS.
  */
-export function shouldQueueAssembly(row: Pick<Doc<"replays">, "chunk_keys" | "chunks_at" | "timeline_at" | "assemble_at">, now: number): boolean {
+export function shouldQueueAssembly(
+  row: Pick<
+    Doc<"replays">,
+    "chunk_keys" | "chunks_at" | "timeline_at" | "assemble_at"
+  >,
+  now: number,
+): boolean {
   if (!row.chunk_keys.length) return false;
   const timelineAt = row.timeline_at ?? 0;
-  if (row.timeline_at !== undefined && (row.chunks_at ?? 0) <= timelineAt) return false;
-  const queued = row.assemble_at !== undefined && row.assemble_at > timelineAt && now - row.assemble_at < ASSEMBLE_STALE_MS;
+  if (row.timeline_at !== undefined && (row.chunks_at ?? 0) <= timelineAt)
+    return false;
+  const queued =
+    row.assemble_at !== undefined &&
+    row.assemble_at > timelineAt &&
+    now - row.assemble_at < ASSEMBLE_STALE_MS;
   return !queued;
 }
 
@@ -128,11 +200,23 @@ export function shouldQueueAssembly(row: Pick<Doc<"replays">, "chunk_keys" | "ch
  * group, opening the stub when the manifest has not arrived yet. Returns the
  * replay row for the sample's `replay_id`.
  */
-export async function linkReplayToGroup(ctx: Db, source: Doc<"event_sources">, externalId: string, groupId: Id<"event_groups">, now: number): Promise<Id<"replays"> | null> {
+export async function linkReplayToGroup(
+  ctx: Db,
+  source: Doc<"event_sources">,
+  externalId: string,
+  groupId: Id<"event_groups">,
+  now: number,
+): Promise<Id<"replays"> | null> {
   const row = await ensureReplay(ctx, source, externalId, now);
   if (!row) return null;
-  if (!row.group_ids.some((g) => g === groupId) && row.group_ids.length < REPLAY_GROUP_LINKS_MAX) {
-    await patchReplay(ctx, row, { group_ids: [...row.group_ids, groupId], updated_at: now });
+  if (
+    !row.group_ids.some((g) => g === groupId) &&
+    row.group_ids.length < REPLAY_GROUP_LINKS_MAX
+  ) {
+    await patchReplay(ctx, row, {
+      group_ids: [...row.group_ids, groupId],
+      updated_at: now,
+    });
   }
   return row._id;
 }
@@ -157,13 +241,23 @@ export async function recordReplayChunk(
   now: number,
   kind: ReplayChunkKind = "events",
   replaceUnlanded?: string,
-): Promise<{ ok: true; replay_id: Id<"replays">; held?: string } | { ok: false; reason: string }> {
-  const max = kind === "dom" ? REPLAY_DOM_LIMITS.max_chunks_per_replay : REPLAY_LIMITS.max_chunks_per_replay;
+): Promise<
+  | { ok: true; replay_id: Id<"replays">; held?: string }
+  | { ok: false; reason: string }
+> {
+  const max =
+    kind === "dom"
+      ? REPLAY_DOM_LIMITS.max_chunks_per_replay
+      : REPLAY_LIMITS.max_chunks_per_replay;
   if (!Number.isInteger(seq) || seq < 0 || seq >= max) {
     return { ok: false, reason: `seq must be 0 to ${max - 1}` };
   }
   const row = await ensureReplay(ctx, source, externalId, now);
-  if (!row) return { ok: false, reason: `this source opened ${REPLAYS_NEW_PER_HOUR} recordings in the last hour; try again later` };
+  if (!row)
+    return {
+      ok: false,
+      reason: `this source opened ${REPLAYS_NEW_PER_HOUR} recordings in the last hour; try again later`,
+    };
   // The DOM capture the player plays is listed apart from the stream, so the
   // assembly (which reads chunk_keys) never sees it.
   const dom = kind === "dom";
@@ -171,11 +265,17 @@ export async function recordReplayChunk(
   const current = (dom ? row.dom_chunk_keys : row.chunk_keys) ?? [];
   if (current.includes(key)) return { ok: true, replay_id: row._id };
   const existing = current.find((k) => parse(k)?.seq === seq);
-  if (existing && existing !== replaceUnlanded) return { ok: true, replay_id: row._id, held: existing };
+  if (existing && existing !== replaceUnlanded)
+    return { ok: true, replay_id: row._id, held: existing };
   const next = current.filter((k) => k !== existing);
   next.push(key);
   next.sort((a, b) => (parse(a)?.seq ?? 0) - (parse(b)?.seq ?? 0));
-  await ctx.db.patch(row._id, dom ? { dom_chunk_keys: next, updated_at: now } : { chunk_keys: next, chunks_at: now, updated_at: now });
+  await ctx.db.patch(
+    row._id,
+    dom
+      ? { dom_chunk_keys: next, updated_at: now }
+      : { chunk_keys: next, chunks_at: now, updated_at: now },
+  );
   return { ok: true, replay_id: row._id };
 }
 
@@ -194,11 +294,22 @@ export async function recordReplayStyle(
   now: number,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   const row = await ensureReplay(ctx, source, externalId, now);
-  if (!row) return { ok: false, reason: `this source opened ${REPLAYS_NEW_PER_HOUR} recordings in the last hour; try again later` };
+  if (!row)
+    return {
+      ok: false,
+      reason: `this source opened ${REPLAYS_NEW_PER_HOUR} recordings in the last hour; try again later`,
+    };
   const current = row.dom_styles ?? [];
   const same = current.find((s) => s.href === href);
   if (same?.key === key) return { ok: true };
-  if (!same && current.length >= REPLAY_STYLE_LIMITS.max_per_replay) return { ok: false, reason: `a recording names at most ${REPLAY_STYLE_LIMITS.max_per_replay} stylesheets` };
-  await ctx.db.patch(row._id, { dom_styles: [...current.filter((s) => s.href !== href), { href, key }], updated_at: now });
+  if (!same && current.length >= REPLAY_STYLE_LIMITS.max_per_replay)
+    return {
+      ok: false,
+      reason: `a recording names at most ${REPLAY_STYLE_LIMITS.max_per_replay} stylesheets`,
+    };
+  await ctx.db.patch(row._id, {
+    dom_styles: [...current.filter((s) => s.href !== href), { href, key }],
+    updated_at: now,
+  });
   return { ok: true };
 }

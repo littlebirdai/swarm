@@ -1,6 +1,9 @@
 import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { SharedMessageNotFound, SharedMessageView } from "@/app/share/message/[token]/SharedMessageView";
+import {
+  SharedMessageNotFound,
+  SharedMessageView,
+} from "@/app/share/message/[token]/SharedMessageView";
 import type { SharedMessageData } from "@/app/share/message/[token]/SharedMessageView";
 
 /**
@@ -13,10 +16,20 @@ import type { SharedMessageData } from "@/app/share/message/[token]/SharedMessag
  * MemoryRouter gives the compat <Link> its router context; hrefs render
  * identically under the client's BrowserRouter.
  */
-export function renderShare(kind: string, path: string, data: unknown, now: number): string | null {
+export function renderShare(
+  kind: string,
+  path: string,
+  data: unknown,
+  now: number,
+): string | null {
   if (kind !== "message") return null;
-  const body = data === null
-    ? <SharedMessageNotFound />
-    : <SharedMessageView data={data as SharedMessageData} now={now} />;
-  return renderToString(<MemoryRouter initialEntries={[path]}>{body}</MemoryRouter>);
+  const body =
+    data === null ? (
+      <SharedMessageNotFound />
+    ) : (
+      <SharedMessageView data={data as SharedMessageData} now={now} />
+    );
+  return renderToString(
+    <MemoryRouter initialEntries={[path]}>{body}</MemoryRouter>,
+  );
 }

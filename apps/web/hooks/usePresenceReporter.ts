@@ -4,8 +4,16 @@ import { usePathname } from "next/navigation";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { INPUT_ACTIVE_MS } from "@codecast/convex/convex/presenceState";
-import { getIdleMs, installDesktopInputTracker, isElectron } from "../lib/desktop";
-import { isConvexId, mountedPathname, useInboxStore } from "../store/inboxStore";
+import {
+  getIdleMs,
+  installDesktopInputTracker,
+  isElectron,
+} from "../lib/desktop";
+import {
+  isConvexId,
+  mountedPathname,
+  useInboxStore,
+} from "../store/inboxStore";
 import { sessionFocusKind } from "../lib/inboxRouting";
 
 import { useWatchEffect } from "./useWatchEffect";
@@ -51,12 +59,14 @@ export function viewedConversationId(
   },
   fallbackPathname?: string | null,
 ): string | null {
-  const pathname = state.activeTabId ? mountedPathname(state) : fallbackPathname ?? undefined;
+  const pathname = state.activeTabId
+    ? mountedPathname(state)
+    : (fallbackPathname ?? undefined);
   const kind = sessionFocusKind(pathname, state.currentConversation?.source);
   let id: string | undefined;
   if (kind === "current") {
     const key = state.viewingDismissedId ?? state.currentSessionId;
-    id = key ? state.sessions[key]?._id ?? key : undefined;
+    id = key ? (state.sessions[key]?._id ?? key) : undefined;
   } else if (kind === "url") {
     id = pathname?.split("/conversation/")[1]?.split(/[/?#]/)[0];
   }
@@ -94,7 +104,8 @@ export function createPresenceReporter(deps: PresenceReporterDeps) {
   let blurTimer: unknown = null;
 
   const effectiveView = (): string | null => {
-    if (blurredAt !== null && deps.now() - blurredAt >= VIEW_BLUR_CLEAR_MS) return null;
+    if (blurredAt !== null && deps.now() - blurredAt >= VIEW_BLUR_CLEAR_MS)
+      return null;
     return deps.viewing();
   };
 
@@ -177,7 +188,9 @@ export function usePresenceReporter() {
   const viewing = useInboxStore((s) => viewedConversationId(s, pathname));
   const viewingRef = useRef(viewing);
   viewingRef.current = viewing;
-  const reporterRef = useRef<ReturnType<typeof createPresenceReporter> | null>(null);
+  const reporterRef = useRef<ReturnType<typeof createPresenceReporter> | null>(
+    null,
+  );
 
   useWatchEffect(() => {
     if (typeof window === "undefined" || !isAuthenticated) return;
@@ -189,7 +202,9 @@ export function usePresenceReporter() {
         report({
           focused: r.focused,
           idle_ms: r.idle_ms,
-          viewing_conversation_id: r.viewing_conversation_id as Id<"conversations"> | undefined,
+          viewing_conversation_id: r.viewing_conversation_id as
+            | Id<"conversations">
+            | undefined,
         }).catch(() => {});
       },
       idleMs: getIdleMs,
@@ -211,7 +226,10 @@ export function usePresenceReporter() {
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
     document.addEventListener("visibilitychange", onVisibility);
-    const interval = window.setInterval(() => reporter.heartbeat(), HEARTBEAT_MS);
+    const interval = window.setInterval(
+      () => reporter.heartbeat(),
+      HEARTBEAT_MS,
+    );
     reporter.heartbeat();
 
     return () => {

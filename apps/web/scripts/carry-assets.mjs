@@ -20,7 +20,8 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const HASHED = /(?:\.\/|\/assets\/|["'`]assets\/)([\w.-]+-[\w-]{8}\.(?:js|css|woff2?|svg|png|webp|wasm))/g;
+const HASHED =
+  /(?:\.\/|\/assets\/|["'`]assets\/)([\w.-]+-[\w-]{8}\.(?:js|css|woff2?|svg|png|webp|wasm))/g;
 
 export function assetRefs(text) {
   return [...new Set([...text.matchAll(HASHED)].map((m) => m[1]))];
@@ -34,8 +35,16 @@ async function exists(path) {
   }
 }
 
-export async function carryAssets({ origin, assetsDir, fetchImpl = fetch, concurrency = 32, deadline = Infinity }) {
-  const html = await fetchImpl(`${origin}/`).then((r) => (r.ok ? r.text() : ""));
+export async function carryAssets({
+  origin,
+  assetsDir,
+  fetchImpl = fetch,
+  concurrency = 32,
+  deadline = Infinity,
+}) {
+  const html = await fetchImpl(`${origin}/`).then((r) =>
+    r.ok ? r.text() : "",
+  );
   const queue = assetRefs(html);
   const seen = new Set(queue);
   const carried = [];
@@ -68,14 +77,22 @@ export async function carryAssets({ origin, assetsDir, fetchImpl = fetch, concur
 
 async function main() {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  const origin = process.env.CARRY_ASSETS_ORIGIN || (domain ? `https://${domain}` : "https://codecast.sh");
+  const origin =
+    process.env.CARRY_ASSETS_ORIGIN ||
+    (domain ? `https://${domain}` : "https://codecast.sh");
   if (!process.env.RAILWAY_ENVIRONMENT && !process.env.CARRY_ASSETS_ORIGIN) {
-    console.log("carry-assets: not a deploy build (RAILWAY_ENVIRONMENT unset), skipping");
+    console.log(
+      "carry-assets: not a deploy build (RAILWAY_ENVIRONMENT unset), skipping",
+    );
     return;
   }
   const assetsDir = new URL("../dist/assets/", import.meta.url).pathname;
   const started = Date.now();
-  const r = await carryAssets({ origin, assetsDir, deadline: started + 180_000 });
+  const r = await carryAssets({
+    origin,
+    assetsDir,
+    deadline: started + 180_000,
+  });
   console.log(
     `carry-assets: ${origin} live build has ${r.seen} files; carried ${r.carried.length} the new build lacks` +
       `${r.missing.length ? `, ${r.missing.length} unreachable` : ""}${r.complete ? "" : ", STOPPED at the time limit"}` +
@@ -84,5 +101,7 @@ async function main() {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main().catch((err) => console.log(`carry-assets: skipped after error: ${err?.message ?? err}`));
+  main().catch((err) =>
+    console.log(`carry-assets: skipped after error: ${err?.message ?? err}`),
+  );
 }

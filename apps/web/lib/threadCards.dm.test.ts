@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  cardsForChip,
-  dmCards,
-  sortCards,
-  unreadByChip,
-} from "./threadCards";
+import { cardsForChip, dmCards, sortCards, unreadByChip } from "./threadCards";
 import type { ChatRailChannel } from "../store/chatSlice";
 
 // DM cards on /threads: rank keys to the counterpart's last message
@@ -13,7 +8,10 @@ import type { ChatRailChannel } from "../store/chatSlice";
 
 const T0 = 1_700_000_000_000;
 
-function room(id: string, over: Partial<ChatRailChannel> = {}): ChatRailChannel {
+function room(
+  id: string,
+  over: Partial<ChatRailChannel> = {},
+): ChatRailChannel {
   return {
     id,
     name: id,
@@ -36,27 +34,46 @@ describe("rank and timestamp", () => {
   ];
 
   test("every room is listed, including one the counterpart never spoke in", () => {
-    const cards = dmCards([room("quiet", { sortAt: T0 + 5000 }), room("live", { sortAt: T0, lastInboundAt: T0 })]);
-    expect(cardsForChip(cards, "dm", false).map((c) => c.id).sort()).toEqual(["dm:live", "dm:quiet"]);
+    const cards = dmCards([
+      room("quiet", { sortAt: T0 + 5000 }),
+      room("live", { sortAt: T0, lastInboundAt: T0 }),
+    ]);
+    expect(
+      cardsForChip(cards, "dm", false)
+        .map((c) => c.id)
+        .sort(),
+    ).toEqual(["dm:live", "dm:quiet"]);
   });
 
   test("an own send leaves the room's rank alone; the next inbound moves it", () => {
-    const cardB = (cards: ReturnType<typeof dmCards>) => cards.find((c) => c.id === "dm:b")!;
+    const cardB = (cards: ReturnType<typeof dmCards>) =>
+      cards.find((c) => c.id === "dm:b")!;
     const before = dmCards(rail(T0, T0));
     const afterOwnSend = dmCards(rail(T0 + 9000, T0));
     expect(cardB(afterOwnSend).activityAt).toBe(cardB(before).activityAt);
     const afterInbound = dmCards(rail(T0 + 9000, T0 + 9000));
     expect(cardB(afterInbound).activityAt).toBe(T0 + 9000);
-    expect(sortCards(cardsForChip(afterInbound, "all", false)).map((c) => c.id)).toEqual(["dm:b", "dm:a"]);
+    expect(
+      sortCards(cardsForChip(afterInbound, "all", false)).map((c) => c.id),
+    ).toEqual(["dm:b", "dm:a"]);
   });
 });
 
 describe("activity", () => {
   test("the viewer's own send does not move a room's activity; the counterpart's does", () => {
-    const at = (inboundAt: number) => dmCards([room("b", { sortAt: inboundAt, lastInboundAt: inboundAt, unreadCount: 1 })])[0];
+    const at = (inboundAt: number) =>
+      dmCards([
+        room("b", {
+          sortAt: inboundAt,
+          lastInboundAt: inboundAt,
+          unreadCount: 1,
+        }),
+      ])[0];
     const card = at(T0);
     // The viewer replies: sortAt moves, activityAt does not — the row keeps its rank.
-    const afterOwnSend = dmCards([room("b", { sortAt: T0 + 5000, lastInboundAt: T0, unreadCount: 1 })])[0];
+    const afterOwnSend = dmCards([
+      room("b", { sortAt: T0 + 5000, lastInboundAt: T0, unreadCount: 1 }),
+    ])[0];
     expect(afterOwnSend.activityAt).toBe(card.activityAt);
     // The counterpart speaks again: the row moves up.
     expect(at(T0 + 8000).activityAt).toBe(T0 + 8000);
@@ -72,7 +89,11 @@ describe("counts", () => {
         room("hushed", { unreadCount: 3, muted: true, lastInboundAt: T0 }),
         // Answered elsewhere but the count is stale: neither the DMs chip
         // nor the All badge counts it.
-        room("answered", { unreadCount: 1, sortAt: T0 + 5000, lastInboundAt: T0 }),
+        room("answered", {
+          unreadCount: 1,
+          sortAt: T0 + 5000,
+          lastInboundAt: T0,
+        }),
       ]),
     );
     expect(counts.all).toBe(1);

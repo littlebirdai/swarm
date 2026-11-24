@@ -14,7 +14,9 @@ describe("orgPager", () => {
 
   it("a moved session leaves every loaded list and joins the target's only when that list is open", () => {
     const [a, b, c] = ORG_FIXTURE_ALL_SESSIONS;
-    const me = personNodeId("fixture-user-me"), sam = personNodeId("fixture-user-sam"), role = roleNodeId("fixture-role-growth");
+    const me = personNodeId("fixture-user-me"),
+      sam = personNodeId("fixture-user-sam"),
+      role = roleNodeId("fixture-role-growth");
     const start = { [me]: [a, b], [sam]: [c] };
     const toSam = moveExpandedSession(start, a._id, sam, a);
     expect(toSam[me].map((s) => s._id)).toEqual([b._id]);
@@ -32,8 +34,13 @@ describe("orgPager", () => {
     // even if the two sources disagree for a render.
     const me = personNodeId("fixture-user-me");
     const fromRole = ORG_FIXTURE.roles[0].sessions[0];
-    const { nodes } = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: { [me]: [fromRole] } });
-    const ids = nodes.filter((n) => n.kind === "session" && n.session._id === fromRole._id);
+    const { nodes } = layoutOrgTree(ORG_FIXTURE, {
+      collapsed: new Set(),
+      expanded: { [me]: [fromRole] },
+    });
+    const ids = nodes.filter(
+      (n) => n.kind === "session" && n.session._id === fromRole._id,
+    );
     expect(ids).toHaveLength(1);
   });
 });

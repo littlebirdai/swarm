@@ -4,7 +4,10 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/threads" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/threads",
+});
 dom.window.document.hasFocus = () => true;
 const restoreGlobals = replaceGlobals({
   window: dom.window,
@@ -14,7 +17,10 @@ const restoreGlobals = replaceGlobals({
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 const { createRoot } = await import("react-dom/client");
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const { usePagePresence, usePageReading } = await import("../usePagePresence");
 const { TabParamsCtx } = await import("../../lib/tabParams");
@@ -35,7 +41,15 @@ function probe(ctx: { isActive: boolean; isVisible?: boolean }) {
   const root = createRoot(container);
   act(() => {
     root.render(
-      <TabParamsCtx.Provider value={{ tabId: "t", pathname: "/threads", params: {}, searchParams: new URLSearchParams(), ...ctx }}>
+      <TabParamsCtx.Provider
+        value={{
+          tabId: "t",
+          pathname: "/threads",
+          params: {},
+          searchParams: new URLSearchParams(),
+          ...ctx,
+        }}
+      >
         <Probe />
       </TabParamsCtx.Provider>,
     );
@@ -45,14 +59,26 @@ function probe(ctx: { isActive: boolean; isVisible?: boolean }) {
 }
 
 test("an unfocused split sibling reads but does not own the keyboard", () => {
-  expect(probe({ isActive: false, isVisible: true })).toEqual({ present: false, reading: true });
+  expect(probe({ isActive: false, isVisible: true })).toEqual({
+    present: false,
+    reading: true,
+  });
 });
 
 test("the focused pane reads and owns the keyboard", () => {
-  expect(probe({ isActive: true, isVisible: true })).toEqual({ present: true, reading: true });
+  expect(probe({ isActive: true, isVisible: true })).toEqual({
+    present: true,
+    reading: true,
+  });
 });
 
 test("a pane in a hidden tab does neither", () => {
-  expect(probe({ isActive: false, isVisible: false })).toEqual({ present: false, reading: false });
-  expect(probe({ isActive: false })).toEqual({ present: false, reading: false });
+  expect(probe({ isActive: false, isVisible: false })).toEqual({
+    present: false,
+    reading: false,
+  });
+  expect(probe({ isActive: false })).toEqual({
+    present: false,
+    reading: false,
+  });
 });

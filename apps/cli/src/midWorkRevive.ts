@@ -17,7 +17,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { MID_WORK_REVIVE_MESSAGE, reviveClientId } from "@codecast/shared/contracts";
+import {
+  MID_WORK_REVIVE_MESSAGE,
+  reviveClientId,
+} from "@codecast/shared/contracts";
 import { workflowRunLastActivity } from "./workflowRunLive.js";
 import { writeFileAtomic } from "./fsAtomic.js";
 
@@ -36,9 +39,17 @@ import { writeFileAtomic } from "./fsAtomic.js";
 // transcript still holds open background work (ReviveFacts.wakeDiedWithProcess).
 export const REVIVABLE_STATUSES: ReadonlySet<string> = new Set(["waiting"]);
 // What the watchdog asks midWorkReviveDecision about, and keeps the status file of.
-export const REVIVE_CANDIDATE_STATUSES: ReadonlySet<string> = new Set([...REVIVABLE_STATUSES, "dormant"]);
+export const REVIVE_CANDIDATE_STATUSES: ReadonlySet<string> = new Set([
+  ...REVIVABLE_STATUSES,
+  "dormant",
+]);
 // Status files kept for the long TTL: the turn or its work was unfinished.
-const UNFINISHED_STATUSES: ReadonlySet<string> = new Set([...REVIVE_CANDIDATE_STATUSES, "working", "thinking", "compacting"]);
+const UNFINISHED_STATUSES: ReadonlySet<string> = new Set([
+  ...REVIVE_CANDIDATE_STATUSES,
+  "working",
+  "thinking",
+  "compacting",
+]);
 
 // A session silent this long died on work nobody would expect to resume now;
 // the first pass after this ships must not wake sessions that died days ago.
@@ -63,12 +74,19 @@ export const REVIVE_MAX_PER_PASS = 3;
 // the run (runner.ts stationBrief); a hand whose run ended was stopped with
 // it (workflow_runs.stopStationHands) and is declined as retired anyway.
 // The head is raw transcript JSON, where the brief's quotes read \".
-const STATION_OPENING_RE = /the \\?"[^"\n]*?\\?" step of workflow [^\n(]* \(run \w+\)/;
+const STATION_OPENING_RE =
+  /the \\?"[^"\n]*?\\?" step of workflow [^\n(]* \(run \w+\)/;
 export function isStationHandOpening(head: string): boolean {
   return STATION_OPENING_RE.test(head);
 }
-export function stationHandsFirst<T>(items: readonly T[], isStation: (item: T) => boolean): T[] {
-  return [...items.filter(isStation), ...items.filter((item) => !isStation(item))];
+export function stationHandsFirst<T>(
+  items: readonly T[],
+  isStation: (item: T) => boolean,
+): T[] {
+  return [
+    ...items.filter(isStation),
+    ...items.filter((item) => !isStation(item)),
+  ];
 }
 
 // The web recognizes it by content (isMidWorkReviveNotice) to render it as
@@ -80,11 +98,14 @@ export const REVIVE_MESSAGE = MID_WORK_REVIVE_MESSAGE;
 // like blockedContinueClientId: a pass that runs twice cannot double-queue.
 export { reviveClientId };
 
-export type ReviveLifecycle = {
-  hideStateKnown?: boolean;
-  inboxKilledAt?: number | null;
-  inboxDismissedAt?: number | null;
-} | null | undefined;
+export type ReviveLifecycle =
+  | {
+      hideStateKnown?: boolean;
+      inboxKilledAt?: number | null;
+      inboxDismissedAt?: number | null;
+    }
+  | null
+  | undefined;
 
 // The status cleanup's retention. A status file that says the turn was not
 // over is the watchdog's only evidence that a session died mid-work, and the
@@ -97,8 +118,15 @@ export type ReviveLifecycle = {
 // another machine).
 export const UNFINISHED_STATUS_FILE_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
-export function statusFileExpired(status: string | undefined, mtimeMs: number, now: number, finishedTtlMs: number): boolean {
-  const ttl = UNFINISHED_STATUSES.has(status ?? "") ? UNFINISHED_STATUS_FILE_TTL_MS : finishedTtlMs;
+export function statusFileExpired(
+  status: string | undefined,
+  mtimeMs: number,
+  now: number,
+  finishedTtlMs: number,
+): boolean {
+  const ttl = UNFINISHED_STATUSES.has(status ?? "")
+    ? UNFINISHED_STATUS_FILE_TTL_MS
+    : finishedTtlMs;
   return now - mtimeMs > ttl;
 }
 
@@ -106,12 +134,29 @@ export function statusFileExpired(status: string | undefined, mtimeMs: number, n
 // workflow agent it hosted. A session waiting on a workflow wrote its status
 // when its turn ended, often hours before the workflow and the process died,
 // so the status file's age says nothing about how long ago it was alive.
-export async function lastSignOfLifeMs(transcriptPath: string): Promise<number> {
-  let latest = await fs.promises.stat(transcriptPath).then((s) => s.mtimeMs, () => 0);
-  const subagents = path.join(path.dirname(transcriptPath), path.basename(transcriptPath, ".jsonl"), "subagents");
-  const runs = await fs.promises.readdir(path.join(subagents, "workflows")).catch(() => [] as string[]);
-  for (const dir of [subagents, ...runs.map((run) => path.join(subagents, "workflows", run))]) {
-    latest = Math.max(latest, await workflowRunLastActivity(dir).catch(() => 0));
+export async function lastSignOfLifeMs(
+  transcriptPath: string,
+): Promise<number> {
+  let latest = await fs.promises.stat(transcriptPath).then(
+    (s) => s.mtimeMs,
+    () => 0,
+  );
+  const subagents = path.join(
+    path.dirname(transcriptPath),
+    path.basename(transcriptPath, ".jsonl"),
+    "subagents",
+  );
+  const runs = await fs.promises
+    .readdir(path.join(subagents, "workflows"))
+    .catch(() => [] as string[]);
+  for (const dir of [
+    subagents,
+    ...runs.map((run) => path.join(subagents, "workflows", run)),
+  ]) {
+    latest = Math.max(
+      latest,
+      await workflowRunLastActivity(dir).catch(() => 0),
+    );
   }
   return latest;
 }
@@ -136,14 +181,21 @@ export type ReviveFacts = {
   now: number;
 };
 
-export type ReviveDecision = { revive: true } | { revive: false; reason: string };
+export type ReviveDecision =
+  | { revive: true }
+  | { revive: false; reason: string };
 
 /**
  * Why a dead session must not be brought back whatever it was doing, or null.
  * Shared with the turn claims (turnClaims.ts), so both revive paths refuse the
  * same sessions.
  */
-export function reviveRefusal(f: Pick<ReviveFacts, "lifecycle" | "interruptedByUser" | "limitParked" | "turnFailed">): string | null {
+export function reviveRefusal(
+  f: Pick<
+    ReviveFacts,
+    "lifecycle" | "interruptedByUser" | "limitParked" | "turnFailed"
+  >,
+): string | null {
   // Unknown hide state fails toward the old behavior (mark it completed): a
   // revive the person did not want costs a turn, and here nothing says they
   // still hold the session.
@@ -154,11 +206,16 @@ export function reviveRefusal(f: Pick<ReviveFacts, "lifecycle" | "interruptedByU
 
 /** A person killed or dismissed the session; a stash keeps the agent running by design, so it does not count. */
 export function retiredByPerson(lifecycle: ReviveFacts["lifecycle"]): boolean {
-  return !!lifecycle?.hideStateKnown && !!(lifecycle.inboxKilledAt || lifecycle.inboxDismissedAt);
+  return (
+    !!lifecycle?.hideStateKnown &&
+    !!(lifecycle.inboxKilledAt || lifecycle.inboxDismissedAt)
+  );
 }
 
 /** The transcript says the turn already ended (an interrupt, a usage limit, another API error), or null. Needs no lookup. */
-export function turnEndedRefusal(f: Pick<ReviveFacts, "interruptedByUser" | "limitParked" | "turnFailed">): string | null {
+export function turnEndedRefusal(
+  f: Pick<ReviveFacts, "interruptedByUser" | "limitParked" | "turnFailed">,
+): string | null {
   if (f.interruptedByUser) return "interrupted";
   if (f.limitParked) return "limit-parked";
   if (f.turnFailed) return "turn-failed";
@@ -172,11 +229,13 @@ export function recentRevives(prior: readonly number[], now: number): number {
 
 export function midWorkReviveDecision(f: ReviveFacts): ReviveDecision {
   const ownWake = f.status === "dormant" && !!f.wakeDiedWithProcess;
-  if (!REVIVABLE_STATUSES.has(f.status ?? "") && !ownWake) return { revive: false, reason: "turn-finished" };
+  if (!REVIVABLE_STATUSES.has(f.status ?? "") && !ownWake)
+    return { revive: false, reason: "turn-finished" };
   if (f.ageMs > REVIVE_MAX_AGE_MS) return { revive: false, reason: "too-old" };
   const refusal = reviveRefusal(f);
   if (refusal) return { revive: false, reason: refusal };
-  if (recentRevives(f.priorRevives, f.now) >= REVIVE_BUDGET) return { revive: false, reason: "budget-spent" };
+  if (recentRevives(f.priorRevives, f.now) >= REVIVE_BUDGET)
+    return { revive: false, reason: "budget-spent" };
   return { revive: true };
 }
 
@@ -189,7 +248,7 @@ type Ledger = Record<string, number[]>;
 function readLedger(file: string): Ledger {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-    return parsed && typeof parsed === "object" ? parsed as Ledger : {};
+    return parsed && typeof parsed === "object" ? (parsed as Ledger) : {};
   } catch {
     return {};
   }
@@ -201,7 +260,11 @@ export function priorRevives(file: string, conversationId: string): number[] {
 }
 
 /** Take back a revive recorded at `at` whose message was never queued. */
-export function unrecordRevive(file: string, conversationId: string, at: number): void {
+export function unrecordRevive(
+  file: string,
+  conversationId: string,
+  at: number,
+): void {
   const ledger = readLedger(file);
   const list = ledger[conversationId];
   if (!Array.isArray(list) || !list.includes(at)) return;
@@ -210,11 +273,16 @@ export function unrecordRevive(file: string, conversationId: string, at: number)
   writeFileAtomic(file, JSON.stringify(ledger), { sync: true });
 }
 
-export function recordRevive(file: string, conversationId: string, at: number): void {
+export function recordRevive(
+  file: string,
+  conversationId: string,
+  at: number,
+): void {
   const ledger = readLedger(file);
   for (const [id, list] of Object.entries(ledger)) {
     const kept = list.filter((t) => at - t < REVIVE_BUDGET_WINDOW_MS);
-    if (kept.length) ledger[id] = kept; else delete ledger[id];
+    if (kept.length) ledger[id] = kept;
+    else delete ledger[id];
   }
   ledger[conversationId] = [...(ledger[conversationId] ?? []), at];
   fs.mkdirSync(path.dirname(file), { recursive: true });

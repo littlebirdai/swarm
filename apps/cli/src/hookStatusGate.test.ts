@@ -35,7 +35,9 @@ describe("hook status gate", () => {
     gate.setSink(() => {
       throw new Error("handler blew up");
     });
-    expect(gate.deliver("sess-3", { status: "working", ts: 1 })).toBe("delivered");
+    expect(gate.deliver("sess-3", { status: "working", ts: 1 })).toBe(
+      "delivered",
+    );
     // The hook has already moved on; falling back to the file here would write
     // a record the handler may have half processed.
     expect(deferred).toEqual([]);

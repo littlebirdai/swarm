@@ -1,13 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { applyEditVersion, cachePolicy, REVOCATION_BOUND_MS } from "./artifactsHttp";
+import {
+  applyEditVersion,
+  cachePolicy,
+  REVOCATION_BOUND_MS,
+} from "./artifactsHttp";
 import { MAX_DOCUMENT_BYTES } from "./artifacts";
 
 async function sha256Hex(s: string): Promise<string> {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+  const bytes = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)),
+  );
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-type AssetSeed = { path: string; storage_id: string; content_type: string; size: number; body: string };
+type AssetSeed = {
+  path: string;
+  storage_id: string;
+  content_type: string;
+  size: number;
+  body: string;
+};
 
 // Hand-rolled action ctx in the style of artifacts.test.ts: just enough
 // storage + runQuery/runMutation surface for applyEditVersion, recording
@@ -19,7 +31,8 @@ function makeEditCtx(opts: { assets?: AssetSeed[] } = {}) {
   const queries: Array<Record<string, any>> = [];
   const mutations: Array<Record<string, any>> = [];
   const blobsById = new Map<string, Blob>();
-  for (const a of opts.assets ?? []) blobsById.set(a.storage_id, new Blob([a.body], { type: a.content_type }));
+  for (const a of opts.assets ?? [])
+    blobsById.set(a.storage_id, new Blob([a.body], { type: a.content_type }));
   const ctx = {
     storage: {
       store: async (blob: Blob) => {
@@ -42,15 +55,31 @@ function makeEditCtx(opts: { assets?: AssetSeed[] } = {}) {
       return { version: 8 };
     },
   };
-  return { ctx: ctx as never as Parameters<typeof applyEditVersion>[0], stored, storageDeletes, queries, mutations };
+  return {
+    ctx: ctx as never as Parameters<typeof applyEditVersion>[0],
+    stored,
+    storageDeletes,
+    queries,
+    mutations,
+  };
 }
 
-const baseArtifact = { _id: "a1" as never, version: 3, title: "T", content_hash: "old" };
+const baseArtifact = {
+  _id: "a1" as never,
+  version: 3,
+  title: "T",
+  content_hash: "old",
+};
 
 describe("applyEditVersion", () => {
   test("html edit stores one doc blob and appends a version", async () => {
     const { ctx, stored, storageDeletes, mutations } = makeEditCtx();
-    const out = await applyEditVersion(ctx, { ...baseArtifact }, "<h1>hi</h1>", "link editor");
+    const out = await applyEditVersion(
+      ctx,
+      { ...baseArtifact },
+      "<h1>hi</h1>",
+      "link editor",
+    );
     expect(out).toEqual({ version: 8 });
     expect(stored).toHaveLength(1);
     expect(stored[0].type).toBe("text/html; charset=utf-8");
@@ -70,9 +99,17 @@ describe("applyEditVersion", () => {
 
   test("markdown edit stores the raw source blob and the rendered doc", async () => {
     const { ctx, stored, mutations } = makeEditCtx();
-    const out = await applyEditVersion(ctx, { ...baseArtifact, kind: "markdown" }, "# Title", undefined);
+    const out = await applyEditVersion(
+      ctx,
+      { ...baseArtifact, kind: "markdown" },
+      "# Title",
+      undefined,
+    );
     expect(out).toEqual({ version: 8 });
-    expect(stored.map((s) => s.type)).toEqual(["text/markdown; charset=utf-8", "text/html; charset=utf-8"]);
+    expect(stored.map((s) => s.type)).toEqual([
+      "text/markdown; charset=utf-8",
+      "text/html; charset=utf-8",
+    ]);
     expect(await stored[0].blob.text()).toBe("# Title");
     expect(await stored[1].blob.text()).toContain("<h1");
     // The hash is over the SOURCE, so a rendering tweak never bumps versions.
@@ -90,7 +127,11 @@ describe("applyEditVersion", () => {
     const { ctx, stored, storageDeletes, mutations } = makeEditCtx();
     const out = await applyEditVersion(
       ctx,
-      { ...baseArtifact, kind: "markdown", content_hash: await sha256Hex(content) },
+      {
+        ...baseArtifact,
+        kind: "markdown",
+        content_hash: await sha256Hex(content),
+      },
       content,
       "link editor",
     );
@@ -105,7 +146,12 @@ describe("applyEditVersion", () => {
 
   test("unchanged html short-circuits with nothing stored or deleted", async () => {
     const { ctx, stored, storageDeletes, mutations } = makeEditCtx();
-    const out = await applyEditVersion(ctx, { ...baseArtifact, content_hash: await sha256Hex("<p>x</p>") }, "<p>x</p>", undefined);
+    const out = await applyEditVersion(
+      ctx,
+      { ...baseArtifact, content_hash: await sha256Hex("<p>x</p>") },
+      "<p>x</p>",
+      undefined,
+    );
     expect(out).toEqual({ version: 3, unchanged: true });
     expect(stored).toHaveLength(0);
     expect(storageDeletes).toEqual([]);
@@ -114,17 +160,44 @@ describe("applyEditVersion", () => {
 
   test("bundle edit carries assets forward as blob COPIES with distinct storage ids", async () => {
     const assets: AssetSeed[] = [
-      { path: "a.css", storage_id: "asset_a", content_type: "text/css", size: 6, body: "body{}" },
-      { path: "b.js", storage_id: "asset_b", content_type: "text/javascript", size: 3, body: "x=1" },
+      {
+        path: "a.css",
+        storage_id: "asset_a",
+        content_type: "text/css",
+        size: 6,
+        body: "body{}",
+      },
+      {
+        path: "b.js",
+        storage_id: "asset_b",
+        content_type: "text/javascript",
+        size: 3,
+        body: "x=1",
+      },
     ];
     const { ctx, queries, mutations } = makeEditCtx({ assets });
-    const out = await applyEditVersion(ctx, { ...baseArtifact, kind: "bundle" }, "<html>new</html>", undefined);
+    const out = await applyEditVersion(
+      ctx,
+      { ...baseArtifact, kind: "bundle" },
+      "<html>new</html>",
+      undefined,
+    );
     expect(out).toEqual({ version: 8 });
     expect(queries).toEqual([{ artifact_id: "a1", version: 3 }]);
-    const copied = mutations[0].assets as Array<{ path: string; storage_id: string; content_type: string; size: number }>;
+    const copied = mutations[0].assets as Array<{
+      path: string;
+      storage_id: string;
+      content_type: string;
+      size: number;
+    }>;
     expect(copied).toEqual([
       { path: "a.css", storage_id: "st_1", content_type: "text/css", size: 6 },
-      { path: "b.js", storage_id: "st_2", content_type: "text/javascript", size: 3 },
+      {
+        path: "b.js",
+        storage_id: "st_2",
+        content_type: "text/javascript",
+        size: 3,
+      },
     ]);
     const ids = copied.map((a) => a.storage_id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -137,7 +210,11 @@ describe("applyEditVersion", () => {
     const { ctx, mutations } = makeEditCtx();
     const out = await applyEditVersion(
       ctx,
-      { ...baseArtifact, kind: "bundle", content_hash: await sha256Hex(content) },
+      {
+        ...baseArtifact,
+        kind: "bundle",
+        content_hash: await sha256Hex(content),
+      },
       content,
       undefined,
     );
@@ -147,7 +224,12 @@ describe("applyEditVersion", () => {
 
   test("oversized content errors before any doc blob is stored", async () => {
     const { ctx, stored, mutations } = makeEditCtx();
-    const out = await applyEditVersion(ctx, { ...baseArtifact }, "a".repeat(MAX_DOCUMENT_BYTES + 1), undefined);
+    const out = await applyEditVersion(
+      ctx,
+      { ...baseArtifact },
+      "a".repeat(MAX_DOCUMENT_BYTES + 1),
+      undefined,
+    );
     expect(out).toEqual({ error: "Content exceeds the 8MB limit" });
     expect(stored).toHaveLength(0);
     expect(mutations).toHaveLength(0);
@@ -161,13 +243,19 @@ describe("applyEditVersion", () => {
 import { getFunctionName } from "convex/server";
 import { publish } from "./artifactsHttp";
 
-function makePublishCtx(resolveEvidence: (args: Record<string, any>) => Record<string, any>, policyRefusal: string | null = null) {
+function makePublishCtx(
+  resolveEvidence: (args: Record<string, any>) => Record<string, any>,
+  policyRefusal: string | null = null,
+) {
   const stored: Blob[] = [];
   const queries: Array<{ name: string; args: Record<string, any> }> = [];
   const mutations: Array<{ name: string; args: Record<string, any> }> = [];
   const ctx = {
     storage: {
-      store: async (blob: Blob) => { stored.push(blob); return `st_${stored.length}`; },
+      store: async (blob: Blob) => {
+        stored.push(blob);
+        return `st_${stored.length}`;
+      },
       delete: async () => {},
     },
     runQuery: async (fn: unknown, args: Record<string, any>) => {
@@ -177,7 +265,8 @@ function makePublishCtx(resolveEvidence: (args: Record<string, any>) => Record<s
       if (name === "managedDevices:publishRefusal") return policyRefusal;
       if (name === "artifacts:byUserPath") return null;
       if (name === "artifacts:slugTaken") return false;
-      if (name === "artifacts:resolveSessionRef") return { short_id: "jx1", conversation_id: "conversations_s1" };
+      if (name === "artifacts:resolveSessionRef")
+        return { short_id: "jx1", conversation_id: "conversations_s1" };
       if (name === "artifacts:resolveEvidence") return resolveEvidence(args);
       if (name === "artifacts:publishGate") return null;
       throw new Error(`unexpected query ${name}`);
@@ -185,35 +274,76 @@ function makePublishCtx(resolveEvidence: (args: Record<string, any>) => Record<s
     runMutation: async (fn: unknown, args: Record<string, any>) => {
       const name = getFunctionName(fn as never);
       mutations.push({ name, args });
-      return { url: "https://codecast.sh/a/fresh", version: 1, updated: false, owner_key: "ok" };
+      return {
+        url: "https://codecast.sh/a/fresh",
+        version: 1,
+        updated: false,
+        owner_key: "ok",
+      };
     },
   };
   return { ctx: ctx as never, stored, queries, mutations };
 }
 
 const publishRequest = (body: Record<string, unknown>) =>
-  new Request("https://x/cli/artifacts/publish", { method: "POST", body: JSON.stringify({ api_token: "t", title: "Report", content: "<h1>hi</h1>", session_ref: "jx1", ...body }) });
+  new Request("https://x/cli/artifacts/publish", {
+    method: "POST",
+    body: JSON.stringify({
+      api_token: "t",
+      title: "Report",
+      content: "<h1>hi</h1>",
+      session_ref: "jx1",
+      ...body,
+    }),
+  });
 
 describe("publish route evidence binding", () => {
   test("--task rides into resolveEvidence with the session, lands on upsertFromPublish, and comes back in the response", async () => {
     const { ctx, stored, queries, mutations } = makePublishCtx(() => ({
-      binding: { task_id: "tasks_t1", plan_id: "plans_p1", station: "in_progress", task_short_id: "ct-1" },
+      binding: {
+        task_id: "tasks_t1",
+        plan_id: "plans_p1",
+        station: "in_progress",
+        task_short_id: "ct-1",
+      },
       error: null,
     }));
-    const res = await (publish as any)._handler(ctx, publishRequest({ task: "ct-1" }));
+    const res = await (publish as any)._handler(
+      ctx,
+      publishRequest({ task: "ct-1" }),
+    );
     expect(res.status).toBe(200);
     const ev = queries.find((q) => q.name === "artifacts:resolveEvidence")!;
-    expect(ev.args).toEqual({ user_id: "users_owner", task: "ct-1", plan: undefined, session_conversation_id: "conversations_s1" });
+    expect(ev.args).toEqual({
+      user_id: "users_owner",
+      task: "ct-1",
+      plan: undefined,
+      session_conversation_id: "conversations_s1",
+    });
     // The upsert, then the page's live query set (none declared: an empty set clears any old one).
-    expect(mutations.map((m) => m.name)).toEqual(["artifacts:upsertFromPublish", "pageData:replaceQueries"]);
+    expect(mutations.map((m) => m.name)).toEqual([
+      "artifacts:upsertFromPublish",
+      "pageData:replaceQueries",
+    ]);
     expect(mutations[1].args).toMatchObject({ set_json: "" });
-    expect(mutations[0].args).toMatchObject({ task_id: "tasks_t1", plan_id: "plans_p1", station: "in_progress", session_conversation_id: "conversations_s1" });
+    expect(mutations[0].args).toMatchObject({
+      task_id: "tasks_t1",
+      plan_id: "plans_p1",
+      station: "in_progress",
+      session_conversation_id: "conversations_s1",
+    });
     expect(stored).toHaveLength(1);
-    expect(await res.json()).toMatchObject({ url: "https://codecast.sh/a/fresh", evidence: { task: "ct-1", plan: null, station: "in_progress" } });
+    expect(await res.json()).toMatchObject({
+      url: "https://codecast.sh/a/fresh",
+      evidence: { task: "ct-1", plan: null, station: "in_progress" },
+    });
   });
 
   test("a device enrolled in a team that turned public sharing off is a 403 before any blob is stored", async () => {
-    const { ctx, stored, mutations } = makePublishCtx(() => ({ binding: {}, error: null }), "Public sharing is turned off by Acme's admins.");
+    const { ctx, stored, mutations } = makePublishCtx(
+      () => ({ binding: {}, error: null }),
+      "Public sharing is turned off by Acme's admins.",
+    );
     const res = await (publish as any)._handler(ctx, publishRequest({}));
     expect(res.status).toBe(403);
     expect((await res.json()).error).toContain("Acme's admins");
@@ -222,8 +352,14 @@ describe("publish route evidence binding", () => {
   });
 
   test("a task the publisher cannot read is a 404 before any blob is stored", async () => {
-    const { ctx, stored, mutations } = makePublishCtx(() => ({ binding: null, error: "Task not found: ct-9" }));
-    const res = await (publish as any)._handler(ctx, publishRequest({ task: "ct-9" }));
+    const { ctx, stored, mutations } = makePublishCtx(() => ({
+      binding: null,
+      error: "Task not found: ct-9",
+    }));
+    const res = await (publish as any)._handler(
+      ctx,
+      publishRequest({ task: "ct-9" }),
+    );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "Task not found: ct-9" });
     expect(stored).toHaveLength(0);
@@ -231,10 +367,22 @@ describe("publish route evidence binding", () => {
   });
 
   test("no flag: the session still reaches resolveEvidence (a bound session attaches), and an empty binding adds nothing", async () => {
-    const { ctx, queries, mutations } = makePublishCtx(() => ({ binding: {}, error: null }));
-    const res = await (publish as any)._handler(ctx, publishRequest({ plan: "" }));
+    const { ctx, queries, mutations } = makePublishCtx(() => ({
+      binding: {},
+      error: null,
+    }));
+    const res = await (publish as any)._handler(
+      ctx,
+      publishRequest({ plan: "" }),
+    );
     expect(res.status).toBe(200);
-    expect(queries.find((q) => q.name === "artifacts:resolveEvidence")!.args).toMatchObject({ task: undefined, plan: undefined, session_conversation_id: "conversations_s1" });
+    expect(
+      queries.find((q) => q.name === "artifacts:resolveEvidence")!.args,
+    ).toMatchObject({
+      task: undefined,
+      plan: undefined,
+      session_conversation_id: "conversations_s1",
+    });
     expect(mutations[0].args.task_id).toBeUndefined();
     expect(mutations[0].args.station).toBeUndefined();
     expect(await res.json()).not.toHaveProperty("evidence");
@@ -270,8 +418,12 @@ describe("cachePolicy", () => {
   });
 
   test("a near expiry caps the window at the moment the page stops existing", () => {
-    expect(cachePolicy({ expires_at: now + 90_000 }, now)).toBe("public, max-age=90");
-    expect(cachePolicy({ expires_at: now + 5_000 }, now)).toBe("public, max-age=5");
+    expect(cachePolicy({ expires_at: now + 90_000 }, now)).toBe(
+      "public, max-age=90",
+    );
+    expect(cachePolicy({ expires_at: now + 5_000 }, now)).toBe(
+      "public, max-age=5",
+    );
   });
 
   test("an already-expired page is never cached", () => {
@@ -284,7 +436,10 @@ describe("cachePolicy", () => {
   test("no representation may outlive the revocation bound", () => {
     for (const a of [{}, { expires_at: now + 10 * 3600_000 }]) {
       const policy = cachePolicy(a, now);
-      const total = [...policy.matchAll(/=(\d+)/g)].reduce((n, m) => n + Number(m[1]), 0);
+      const total = [...policy.matchAll(/=(\d+)/g)].reduce(
+        (n, m) => n + Number(m[1]),
+        0,
+      );
       expect(total * 1000).toBeLessThanOrEqual(REVOCATION_BOUND_MS);
     }
   });
@@ -297,9 +452,26 @@ import { comment as commentRoute, serve } from "./artifactsHttp";
 
 describe("living pages over HTTP", () => {
   const artifact = {
-    _id: "a1", slug: "s1", title: "T", version: 4, updated_at: 100, kind: "html", views: 2,
-    comment_count: 1, open_comments: [{ id: "c1", text: "x", delivered: true, delivered_at: 150, role: "owner" }],
-    session_short_id: "jx1", session_title: "Session", owner_key: "ok",
+    _id: "a1",
+    slug: "s1",
+    title: "T",
+    version: 4,
+    updated_at: 100,
+    kind: "html",
+    views: 2,
+    comment_count: 1,
+    open_comments: [
+      {
+        id: "c1",
+        text: "x",
+        delivered: true,
+        delivered_at: 150,
+        role: "owner",
+      },
+    ],
+    session_short_id: "jx1",
+    session_title: "Session",
+    owner_key: "ok",
   };
   const agent = { state: "working", since: 140, awaiting_since: 150 };
 
@@ -308,12 +480,19 @@ describe("living pages over HTTP", () => {
       runQuery: async (fn: unknown) => {
         const name = getFunctionName(fn as never);
         if (name === "artifacts:bySlug") return artifact;
-        if (name === "artifacts:historyBySlug") return { ...artifact, versions: [{ version: 4, title: "T", size: 1, published_at: 100 }] };
+        if (name === "artifacts:historyBySlug")
+          return {
+            ...artifact,
+            versions: [{ version: 4, title: "T", size: 1, published_at: 100 }],
+          };
         if (name === "artifacts:agentStateBySlug") return agent;
         throw new Error(`unexpected query ${name}`);
       },
     };
-    const res = await (serve as any)._handler(ctx, new Request("https://x/cli/a/s1?meta=1"));
+    const res = await (serve as any)._handler(
+      ctx,
+      new Request("https://x/cli/a/s1?meta=1"),
+    );
     const body = await res.json();
     expect(body.agent).toEqual(agent);
     expect(body.comments[0]).toMatchObject({ delivered: true, role: "owner" });
@@ -321,15 +500,35 @@ describe("living pages over HTTP", () => {
 
   test("the comment route passes the batch and per-comment deliver flags through", async () => {
     const calls: Array<Record<string, any>> = [];
-    const ctx = { runMutation: async (_fn: unknown, args: Record<string, any>) => { calls.push(args); return { delivered: true, count: 2 }; } };
-    await (commentRoute as any)._handler(ctx, new Request("https://x/cli/artifacts/comment", {
-      method: "POST",
-      body: JSON.stringify({ slug: "s1", author_name: "A", deliver: false, identity_token: "tok", comments: [
-        { text: "one", deliver: true }, { text: "two", deliver: "yes" }, { text: "three" },
-      ] }),
-    }));
+    const ctx = {
+      runMutation: async (_fn: unknown, args: Record<string, any>) => {
+        calls.push(args);
+        return { delivered: true, count: 2 };
+      },
+    };
+    await (commentRoute as any)._handler(
+      ctx,
+      new Request("https://x/cli/artifacts/comment", {
+        method: "POST",
+        body: JSON.stringify({
+          slug: "s1",
+          author_name: "A",
+          deliver: false,
+          identity_token: "tok",
+          comments: [
+            { text: "one", deliver: true },
+            { text: "two", deliver: "yes" },
+            { text: "three" },
+          ],
+        }),
+      }),
+    );
     expect(calls[0].deliver).toBe(false);
-    expect(calls[0].comments.map((c: any) => c.deliver)).toEqual([true, undefined, undefined]);
+    expect(calls[0].comments.map((c: any) => c.deliver)).toEqual([
+      true,
+      undefined,
+      undefined,
+    ]);
   });
 });
 
@@ -337,15 +536,25 @@ describe("living pages over HTTP", () => {
 // It must not open the live data route or assets behind the wall.
 describe("email wall and ?meta=1", () => {
   const artifact = {
-    _id: "a1", slug: "s1", title: "T", version: 1, updated_at: 100, kind: "html", views: 0,
-    comment_count: 0, open_comments: [], owner_key: "ok", email_gate: true,
+    _id: "a1",
+    slug: "s1",
+    title: "T",
+    version: 1,
+    updated_at: 100,
+    kind: "html",
+    views: 0,
+    comment_count: 0,
+    open_comments: [],
+    owner_key: "ok",
+    email_gate: true,
   };
   const ctxFor = (seen: string[]) => ({
     runQuery: async (fn: unknown) => {
       const name = getFunctionName(fn as never);
       seen.push(name);
       if (name === "artifacts:bySlug") return artifact;
-      if (name === "artifacts:historyBySlug") return { ...artifact, versions: [] };
+      if (name === "artifacts:historyBySlug")
+        return { ...artifact, versions: [] };
       if (name === "artifacts:agentStateBySlug") return null;
       throw new Error(`unexpected query ${name}`);
     },
@@ -353,13 +562,19 @@ describe("email wall and ?meta=1", () => {
 
   test("_data?meta=1 without the e token stays behind the wall", async () => {
     const seen: string[] = [];
-    const res = await (serve as any)._handler(ctxFor(seen), new Request("https://x/cli/a/s1/_data?meta=1"));
+    const res = await (serve as any)._handler(
+      ctxFor(seen),
+      new Request("https://x/cli/a/s1/_data?meta=1"),
+    );
     expect(res.headers.get("Content-Type")).toContain("text/html");
     expect(seen).toEqual(["artifacts:bySlug"]);
   });
 
   test("the page's own ?meta=1 stays open", async () => {
-    const res = await (serve as any)._handler(ctxFor([]), new Request("https://x/cli/a/s1?meta=1"));
+    const res = await (serve as any)._handler(
+      ctxFor([]),
+      new Request("https://x/cli/a/s1?meta=1"),
+    );
     expect(res.status).toBe(200);
     expect((await res.json()).gated.email).toBe(true);
   });
@@ -370,12 +585,25 @@ describe("email wall and ?meta=1", () => {
 import { editorPage } from "./artifactPages";
 
 describe("editor markdown preview links", () => {
-  const html = editorPage({ slug: "s", title: "t", kind: "markdown", source: "x", version: 1, apiBase: "https://a", shareUrl: "https://s" } as any);
+  const html = editorPage({
+    slug: "s",
+    title: "t",
+    kind: "markdown",
+    source: "x",
+    version: 1,
+    apiBase: "https://a",
+    shareUrl: "https://s",
+  } as any);
   const src = html.match(/var mdr=function\(src\)\{[\s\S]*?\n  \};/)![0];
   const mdr = new Function(`${src}; return mdr;`)() as (s: string) => string;
 
   test("script and data schemes render as text", () => {
-    for (const s of ["[a](javascript:alert(1))", "[a](java\tscript:x)", "[a](JaVaScRiPt:x)", "[a](data:text/html,x)"]) {
+    for (const s of [
+      "[a](javascript:alert(1))",
+      "[a](java\tscript:x)",
+      "[a](JaVaScRiPt:x)",
+      "[a](data:text/html,x)",
+    ]) {
       expect(mdr(s)).not.toContain("<a ");
     }
   });

@@ -10,11 +10,11 @@ Codecast does not become an observability store. Its value is the join, from
 an outside fact to a release, a commit, the `Codecast-Session` trailer and the
 session that wrote the code. So it keeps three shapes of data apart:
 
-| Shape | Examples | Treatment |
-|---|---|---|
+| Shape         | Examples                                                                 | Treatment                                                                                                        |
+| ------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | Grouped facts | an error group, a failing job, a red invariant, a metric crossing a line | Stored as `event_groups` with counts. Transitions become `external_events`, fire triggers and promote to signals |
-| Raw streams | log lines, analytics events, traces | Never stored. Grouped at the door (errors, warnings) or queried in place through the source |
-| Artifacts | session replays | Chunks in a private R2 bucket. Convex holds a manifest row and a cached text summary |
+| Raw streams   | log lines, analytics events, traces                                      | Never stored. Grouped at the door (errors, warnings) or queried in place through the source                      |
+| Artifacts     | session replays                                                          | Chunks in a private R2 bucket. Convex holds a manifest row and a cached text summary                             |
 
 Business data stays in the product. The app connector reads and acts through
 named readers and actions the product declares; codecast stores the call audit,
@@ -1019,26 +1019,27 @@ person does it (`/ops/apps?app=<src-N>`) and exit non-zero. Every outside write,
 an app's `do` and a Sentry status change alike, passes the one check
 `writeRefusal` (`@codecast/shared/contracts/appConnector`), and a refusal names
 that page.
+
 - Watches turn polled readers into `check` or `job` groups, which is how Union's invariants and job failures arrive without codecast reading its database. A watch that fails (an HTTP error, rows that do not map) records `last_error` in `watch_state` and an error row in the call audit, and nothing else: the source stays `active`, no group or transition is written, no trigger fires. A lost connection is different (X1, Lost connections): no connection, or a 401 or 403 from the app, stops the source in `error` after at most one audited call, and the watches are not polled again until a connection is stored or a person resumes it.
 
 Raw SQL is never a reader.
 
 ## X9. Union parity
 
-| Aivery sees or does | Codecast |
-|---|---|
-| Slack DMs, mentions, threads | chat mirror plus anchor (shipped) |
-| Huddle transcripts | `cast calls` (shipped) |
-| Check-in every 3h | `trigger --every 3h` (shipped) |
-| CI failed | `pr_check_failed` on pull requests; on the default branch `check_failed` and `check_recovered` from the system `github-ci` source, one group per repository and workflow, with no setup (X7) |
-| Claude Code sessions: create, read, send, kill | `cast spawn --subagent`, `read`, `send`, `kill` (shipped) |
-| Job failures (`job_failed` activities) | SDK `job_failed` from `logError`, plus a `jobs.failed` watch |
-| `error_logs` and Sentry | SDK errors from `logError` and a Sentry source |
-| Invariants (61 checks, every 6h) | an `invariants.list` watch on the app connector |
-| `read_history` over contacts, calls, emails | app connector readers `history.timeline`, `history.search`, `history.item` |
-| `rerun_job`, `cancel_job` | app connector actions `jobs.rerun`, `jobs.cancel` (granted) |
-| AgentWatch findings and spotlights | the line (signals, causes, owned by the line sessions) |
-| Admin chat with page context | out of scope for this plan; noted in the parity doc |
+| Aivery sees or does                            | Codecast                                                                                                                                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slack DMs, mentions, threads                   | chat mirror plus anchor (shipped)                                                                                                                                                            |
+| Huddle transcripts                             | `cast calls` (shipped)                                                                                                                                                                       |
+| Check-in every 3h                              | `trigger --every 3h` (shipped)                                                                                                                                                               |
+| CI failed                                      | `pr_check_failed` on pull requests; on the default branch `check_failed` and `check_recovered` from the system `github-ci` source, one group per repository and workflow, with no setup (X7) |
+| Claude Code sessions: create, read, send, kill | `cast spawn --subagent`, `read`, `send`, `kill` (shipped)                                                                                                                                    |
+| Job failures (`job_failed` activities)         | SDK `job_failed` from `logError`, plus a `jobs.failed` watch                                                                                                                                 |
+| `error_logs` and Sentry                        | SDK errors from `logError` and a Sentry source                                                                                                                                               |
+| Invariants (61 checks, every 6h)               | an `invariants.list` watch on the app connector                                                                                                                                              |
+| `read_history` over contacts, calls, emails    | app connector readers `history.timeline`, `history.search`, `history.item`                                                                                                                   |
+| `rerun_job`, `cancel_job`                      | app connector actions `jobs.rerun`, `jobs.cancel` (granted)                                                                                                                                  |
+| AgentWatch findings and spotlights             | the line (signals, causes, owned by the line sessions)                                                                                                                                       |
+| Admin chat with page context                   | out of scope for this plan; noted in the parity doc                                                                                                                                          |
 
 The Union side is one router (`outreach/backend/src/routes/codecast.ts`)
 reached only by a request codecast signed for a source in Union's committed

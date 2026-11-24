@@ -7,7 +7,10 @@
 // buckets asked for (average, min and max per bucket), the way a Grafana
 // panel's max data points or a Datadog rollup bound what one chart draws.
 import type { Doc, Id } from "../_generated/dataModel";
-import { ofVersion, type MetricDefinition } from "@codecast/shared/contracts/metricStanding";
+import {
+  ofVersion,
+  type MetricDefinition,
+} from "@codecast/shared/contracts/metricStanding";
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
@@ -29,13 +32,24 @@ export const METRIC_SERIES = {
 
 export type MetricPt = { at: number; value: number };
 /** One drawn point: the bucket's average at its mean time, with the bucket's extremes and how many values it holds. */
-export type SeriesPoint = { at: number; value: number; min: number; max: number; n: number };
+export type SeriesPoint = {
+  at: number;
+  value: number;
+  min: number;
+  max: number;
+  n: number;
+};
 type Entry = { at: number; n: number; sum: number; min: number; max: number };
 
 export const hourOf = (at: number) => Math.floor(at / HOUR) * HOUR;
 
 /** Count, sum, min and max of some values. */
-export function rollupOf(points: readonly MetricPt[]): { n: number; sum: number; min: number; max: number } {
+export function rollupOf(points: readonly MetricPt[]): {
+  n: number;
+  sum: number;
+  min: number;
+  max: number;
+} {
   let sum = 0;
   let min = Infinity;
   let max = -Infinity;
@@ -57,16 +71,40 @@ export function rollupOf(points: readonly MetricPt[]): { n: number; sum: number;
  * Each point carries `n`, the values it holds. `step_ms` is the bucket
  * width, 0 when nothing was folded.
  */
-export function bucketize(entries: readonly Entry[], from: number, to: number, buckets: number): { points: SeriesPoint[]; step_ms: number } {
-  const inside = entries.filter((e) => e.at >= from && e.at <= to && e.n > 0).sort((a, b) => a.at - b.at);
+export function bucketize(
+  entries: readonly Entry[],
+  from: number,
+  to: number,
+  buckets: number,
+): { points: SeriesPoint[]; step_ms: number } {
+  const inside = entries
+    .filter((e) => e.at >= from && e.at <= to && e.n > 0)
+    .sort((a, b) => a.at - b.at);
   const n = Math.max(1, Math.floor(buckets));
-  if (inside.length <= n) return { points: inside.map((e) => ({ at: e.at, value: e.sum / e.n, min: e.min, max: e.max, n: e.n })), step_ms: 0 };
+  if (inside.length <= n)
+    return {
+      points: inside.map((e) => ({
+        at: e.at,
+        value: e.sum / e.n,
+        min: e.min,
+        max: e.max,
+        n: e.n,
+      })),
+      step_ms: 0,
+    };
   const step = Math.ceil((to - from) / n) || 1;
   const out: SeriesPoint[] = [];
   let key = -1;
   let acc = { atSum: 0, k: 0, n: 0, sum: 0, min: Infinity, max: -Infinity };
   const flush = () => {
-    if (acc.n) out.push({ at: Math.round(acc.atSum / acc.k), value: acc.sum / acc.n, min: acc.min, max: acc.max, n: acc.n });
+    if (acc.n)
+      out.push({
+        at: Math.round(acc.atSum / acc.k),
+        value: acc.sum / acc.n,
+        min: acc.min,
+        max: acc.max,
+        n: acc.n,
+      });
   };
   for (const e of inside) {
     const b = Math.floor(e.at / step);
@@ -89,23 +127,39 @@ export function bucketize(entries: readonly Entry[], from: number, to: number, b
 /** Finite values, one per time (the last given wins), oldest first. */
 function cleanPoints(points: readonly MetricPt[]): MetricPt[] {
   const byAt = new Map<number, MetricPt>();
-  for (const p of points) if (Number.isFinite(p.at) && Number.isFinite(p.value)) byAt.set(p.at, { at: p.at, value: p.value });
+  for (const p of points)
+    if (Number.isFinite(p.at) && Number.isFinite(p.value))
+      byAt.set(p.at, { at: p.at, value: p.value });
   return [...byAt.values()].sort((a, b) => a.at - b.at);
 }
 
 /** The raw values in [from, to]; over `max` of them, the newest `max`. */
-async function rawBetween(ctx: { db: any }, watchId: Id<"metric_watches">, from: number, to: number, max: number): Promise<Doc<"metric_points">[]> {
+async function rawBetween(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+  from: number,
+  to: number,
+  max: number,
+): Promise<Doc<"metric_points">[]> {
   const rows: Doc<"metric_points">[] = await ctx.db
     .query("metric_points")
-    .withIndex("by_watch_at", (q: any) => q.eq("watch_id", watchId).gte("at", from).lte("at", to))
+    .withIndex("by_watch_at", (q: any) =>
+      q.eq("watch_id", watchId).gte("at", from).lte("at", to),
+    )
     .order("desc")
     .take(max);
   return rows.filter((r) => r.at >= from && r.at <= to);
 }
 
 /** Whether the watch's history has moved into metric_points yet (a watch made before the table holds its values only on its row). */
-export async function holdsPoints(ctx: { db: any }, watchId: Id<"metric_watches">): Promise<boolean> {
-  return !!(await ctx.db.query("metric_points").withIndex("by_watch_at", (q: any) => q.eq("watch_id", watchId)).first());
+export async function holdsPoints(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+): Promise<boolean> {
+  return !!(await ctx.db
+    .query("metric_points")
+    .withIndex("by_watch_at", (q: any) => q.eq("watch_id", watchId))
+    .first());
 }
 
 /**
@@ -113,21 +167,41 @@ export async function holdsPoints(ctx: { db: any }, watchId: Id<"metric_watches"
  * it holds with another value takes the new one, and every hour touched has
  * its rollup recounted from the raw values. Returns how many were added.
  */
-export async function writePoints(ctx: { db: any }, watchId: Id<"metric_watches">, points: readonly MetricPt[], version?: string, def: MetricDefinition = { version }): Promise<number> {
+export async function writePoints(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+  points: readonly MetricPt[],
+  version?: string,
+  def: MetricDefinition = { version },
+): Promise<number> {
   const pts = cleanPoints(points);
   if (!pts.length) return 0;
-  const held = await rawBetween(ctx, watchId, pts[0].at, pts[pts.length - 1].at, METRIC_SERIES.raw_read_max);
+  const held = await rawBetween(
+    ctx,
+    watchId,
+    pts[0].at,
+    pts[pts.length - 1].at,
+    METRIC_SERIES.raw_read_max,
+  );
   const byAt = new Map(held.map((r) => [r.at, r]));
   const touched = new Set<number>();
   let added = 0;
   for (const p of pts) {
     const row = byAt.get(p.at);
     if (!row) {
-      await ctx.db.insert("metric_points", { watch_id: watchId, at: p.at, value: p.value, ...(version ? { version } : {}) });
+      await ctx.db.insert("metric_points", {
+        watch_id: watchId,
+        at: p.at,
+        value: p.value,
+        ...(version ? { version } : {}),
+      });
       added++;
       touched.add(hourOf(p.at));
     } else if (row.value !== p.value || (version && row.version !== version)) {
-      await ctx.db.patch(row._id, { value: p.value, ...(version ? { version } : {}) });
+      await ctx.db.patch(row._id, {
+        value: p.value,
+        ...(version ? { version } : {}),
+      });
       touched.add(hourOf(p.at));
     }
   }
@@ -135,38 +209,88 @@ export async function writePoints(ctx: { db: any }, watchId: Id<"metric_watches"
   return added;
 }
 
-
 /** Each hour's rollup recounted from its raw values of the current version; an hour left with none loses its rollup. */
-export async function recountHours(ctx: { db: any }, watchId: Id<"metric_watches">, hours: Iterable<number>, def: MetricDefinition): Promise<void> {
+export async function recountHours(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+  hours: Iterable<number>,
+  def: MetricDefinition,
+): Promise<void> {
   for (const hour of hours) {
-    const inHour = (await rawBetween(ctx, watchId, hour, hour + HOUR - 1, METRIC_SERIES.raw_read_max)).filter(ofVersion(def));
+    const inHour = (
+      await rawBetween(
+        ctx,
+        watchId,
+        hour,
+        hour + HOUR - 1,
+        METRIC_SERIES.raw_read_max,
+      )
+    ).filter(ofVersion(def));
     const r = rollupOf(inHour);
-    const row = await ctx.db.query("metric_rollups").withIndex("by_watch_hour", (q: any) => q.eq("watch_id", watchId).eq("hour", hour)).first();
+    const row = await ctx.db
+      .query("metric_rollups")
+      .withIndex("by_watch_hour", (q: any) =>
+        q.eq("watch_id", watchId).eq("hour", hour),
+      )
+      .first();
     if (row && r.n) await ctx.db.patch(row._id, r);
     else if (row) await ctx.db.delete(row._id);
-    else if (r.n) await ctx.db.insert("metric_rollups", { watch_id: watchId, hour, ...r });
+    else if (r.n)
+      await ctx.db.insert("metric_rollups", { watch_id: watchId, hour, ...r });
   }
 }
 
 /** One page of a watch's rollups after `afterHour`, recounted under `version`; the next page's cursor, or null when done. */
-export async function recountRollupPage(ctx: { db: any }, watchId: Id<"metric_watches">, def: MetricDefinition, afterHour: number, page = 100): Promise<number | null> {
-  const rows: Doc<"metric_rollups">[] = await ctx.db.query("metric_rollups").withIndex("by_watch_hour", (q: any) => q.eq("watch_id", watchId).gt("hour", afterHour)).take(page);
-  await recountHours(ctx, watchId, rows.map((r) => r.hour), def);
+export async function recountRollupPage(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+  def: MetricDefinition,
+  afterHour: number,
+  page = 100,
+): Promise<number | null> {
+  const rows: Doc<"metric_rollups">[] = await ctx.db
+    .query("metric_rollups")
+    .withIndex("by_watch_hour", (q: any) =>
+      q.eq("watch_id", watchId).gt("hour", afterHour),
+    )
+    .take(page);
+  await recountHours(
+    ctx,
+    watchId,
+    rows.map((r) => r.hour),
+    def,
+  );
   return rows.length === page ? rows[rows.length - 1]!.hour : null;
 }
 
 /** Removes the stored values at times in [from, to] (a person's correction), recounts their hours, and returns what was removed. */
-export async function removePointsBetween(ctx: { db: any }, watchId: Id<"metric_watches">, from: number, to: number, def: MetricDefinition): Promise<MetricPt[]> {
+export async function removePointsBetween(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+  from: number,
+  to: number,
+  def: MetricDefinition,
+): Promise<MetricPt[]> {
   const rows = await rawBetween(ctx, watchId, from, to, 500);
   for (const r of rows) await ctx.db.delete(r._id);
   await recountHours(ctx, watchId, new Set(rows.map((r) => hourOf(r.at))), def);
-  return rows.map((r) => ({ at: r.at, value: r.value })).sort((a, b) => a.at - b.at);
+  return rows
+    .map((r) => ({ at: r.at, value: r.value }))
+    .sort((a, b) => a.at - b.at);
 }
 
 /** The oldest time the watch holds a value for, in the table or on its row; null when it holds none. */
-export async function oldestHeld(ctx: { db: any }, watch: Pick<Doc<"metric_watches">, "_id" | "points">): Promise<number | null> {
-  const first = await ctx.db.query("metric_points").withIndex("by_watch_at", (q: any) => q.eq("watch_id", watch._id)).first();
-  const row = watch.points.length ? Math.min(...watch.points.map((p) => p.at)) : null;
+export async function oldestHeld(
+  ctx: { db: any },
+  watch: Pick<Doc<"metric_watches">, "_id" | "points">,
+): Promise<number | null> {
+  const first = await ctx.db
+    .query("metric_points")
+    .withIndex("by_watch_at", (q: any) => q.eq("watch_id", watch._id))
+    .first();
+  const row = watch.points.length
+    ? Math.min(...watch.points.map((p) => p.at))
+    : null;
   if (!first) return row;
   return row === null ? first.at : Math.min(first.at, row);
 }
@@ -189,7 +313,10 @@ export type SeriesAnswer = {
  */
 export async function readSeries(
   ctx: { db: any },
-  watch: Pick<Doc<"metric_watches">, "_id" | "points"> & { version?: string; version_since?: number },
+  watch: Pick<Doc<"metric_watches">, "_id" | "points"> & {
+    version?: string;
+    version_since?: number;
+  },
   from: number | null,
   to: number,
   buckets: number,
@@ -197,32 +324,87 @@ export async function readSeries(
 ): Promise<SeriesAnswer> {
   const held_from = await oldestHeld(ctx, watch);
   const f = from ?? held_from ?? to - DAY;
-  const n = Math.min(Math.max(1, Math.round(buckets)), METRIC_SERIES.buckets_max);
+  const n = Math.min(
+    Math.max(1, Math.round(buckets)),
+    METRIC_SERIES.buckets_max,
+  );
   const rowPts = watch.points.filter((p) => p.at >= f && p.at <= to);
   if (to - f <= METRIC_SERIES.raw_span_ms) {
-    const raw = (await rawBetween(ctx, watch._id, f, to, METRIC_SERIES.raw_read_max)).filter(ofVersion({ version: watch.version, since: watch.version_since }));
-    const byAt = new Map<number, MetricPt>(raw.map((r) => [r.at, { at: r.at, value: r.value }]));
+    const raw = (
+      await rawBetween(ctx, watch._id, f, to, METRIC_SERIES.raw_read_max)
+    ).filter(ofVersion({ version: watch.version, since: watch.version_since }));
+    const byAt = new Map<number, MetricPt>(
+      raw.map((r) => [r.at, { at: r.at, value: r.value }]),
+    );
     for (const p of rowPts) if (!byAt.has(p.at)) byAt.set(p.at, p);
-    const entries = [...byAt.values()].map((p) => ({ at: p.at, n: 1, sum: p.value, min: p.value, max: p.value }));
-    return { from: f, to, held_from, resolution: "raw", ...bucketize(entries, f, to, n) };
+    const entries = [...byAt.values()].map((p) => ({
+      at: p.at,
+      n: 1,
+      sum: p.value,
+      min: p.value,
+      max: p.value,
+    }));
+    return {
+      from: f,
+      to,
+      held_from,
+      resolution: "raw",
+      ...bucketize(entries, f, to, n),
+    };
   }
-  const rollups: Doc<"metric_rollups">[] = (await ctx.db
-    .query("metric_rollups")
-    .withIndex("by_watch_hour", (q: any) => q.eq("watch_id", watch._id).gte("hour", hourOf(f)).lte("hour", to))
-    .order("desc")
-    .take(rollupMax)).filter((r: Doc<"metric_rollups">) => r.hour >= hourOf(f) && r.hour <= to);
+  const rollups: Doc<"metric_rollups">[] = (
+    await ctx.db
+      .query("metric_rollups")
+      .withIndex("by_watch_hour", (q: any) =>
+        q.eq("watch_id", watch._id).gte("hour", hourOf(f)).lte("hour", to),
+      )
+      .order("desc")
+      .take(rollupMax)
+  ).filter((r: Doc<"metric_rollups">) => r.hour >= hourOf(f) && r.hour <= to);
   const hours = new Set(rollups.map((r) => r.hour));
   // An hourly rollup sits at the middle of its hour, inside the window.
-  const entries: Entry[] = rollups.map((r) => ({ at: Math.min(Math.max(r.hour + HOUR / 2, f), to), n: r.n, sum: r.sum, min: r.min, max: r.max }));
-  for (const p of rowPts) if (!hours.has(hourOf(p.at))) entries.push({ at: p.at, n: 1, sum: p.value, min: p.value, max: p.value });
-  return { from: f, to, held_from, resolution: "hour", ...bucketize(entries, f, to, n) };
+  const entries: Entry[] = rollups.map((r) => ({
+    at: Math.min(Math.max(r.hour + HOUR / 2, f), to),
+    n: r.n,
+    sum: r.sum,
+    min: r.min,
+    max: r.max,
+  }));
+  for (const p of rowPts)
+    if (!hours.has(hourOf(p.at)))
+      entries.push({
+        at: p.at,
+        n: 1,
+        sum: p.value,
+        min: p.value,
+        max: p.value,
+      });
+  return {
+    from: f,
+    to,
+    held_from,
+    resolution: "hour",
+    ...bucketize(entries, f, to, n),
+  };
 }
 
 /** Deletes up to one batch of a removed watch's history; true when more is left. */
-export async function purgePoints(ctx: { db: any }, watchId: Id<"metric_watches">): Promise<boolean> {
-  const raw = await ctx.db.query("metric_points").withIndex("by_watch_at", (q: any) => q.eq("watch_id", watchId)).take(METRIC_SERIES.purge_batch);
+export async function purgePoints(
+  ctx: { db: any },
+  watchId: Id<"metric_watches">,
+): Promise<boolean> {
+  const raw = await ctx.db
+    .query("metric_points")
+    .withIndex("by_watch_at", (q: any) => q.eq("watch_id", watchId))
+    .take(METRIC_SERIES.purge_batch);
   for (const r of raw) await ctx.db.delete(r._id);
-  const roll = await ctx.db.query("metric_rollups").withIndex("by_watch_hour", (q: any) => q.eq("watch_id", watchId)).take(METRIC_SERIES.purge_batch);
+  const roll = await ctx.db
+    .query("metric_rollups")
+    .withIndex("by_watch_hour", (q: any) => q.eq("watch_id", watchId))
+    .take(METRIC_SERIES.purge_batch);
   for (const r of roll) await ctx.db.delete(r._id);
-  return raw.length === METRIC_SERIES.purge_batch || roll.length === METRIC_SERIES.purge_batch;
+  return (
+    raw.length === METRIC_SERIES.purge_batch ||
+    roll.length === METRIC_SERIES.purge_batch
+  );
 }

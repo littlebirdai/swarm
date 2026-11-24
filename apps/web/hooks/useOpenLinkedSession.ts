@@ -2,7 +2,11 @@ import { useCallback, useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocation } from "react-router";
 import { useInboxStore, sessionRowFromSummary } from "../store/inboxStore";
-import { isInboxSessionView, resolveSessionSelectKind, type SessionSelectKind } from "../lib/inboxRouting";
+import {
+  isInboxSessionView,
+  resolveSessionSelectKind,
+  type SessionSelectKind,
+} from "../lib/inboxRouting";
 import { divertSessionOpen } from "../lib/openIntent";
 import { openBeside, sessionPanePath } from "../lib/stage";
 import { EntityFixtureContext } from "../lib/entityDisplay";
@@ -22,7 +26,10 @@ const MOBILE_MAX_WIDTH = 768;
  *    owner is redirected into the inbox with the session selected, a guest gets
  *    the read-only viewer
  */
-export function resolveLinkedSessionOpen(kind: SessionSelectKind, narrow: boolean): "select" | "route" {
+export function resolveLinkedSessionOpen(
+  kind: SessionSelectKind,
+  narrow: boolean,
+): "select" | "route" {
   if (narrow) return "route";
   if (kind === "inboxInPlace") return "select";
   return "route";
@@ -62,30 +69,41 @@ export function useOpenLinkedSession() {
   // Under fixture entities (the homepage hero) a linked session is not a real
   // row: opening it would seed the store with a fixture and navigate away.
   const fixtures = useContext(EntityFixtureContext);
-  return useCallback((conv: any) => {
-    if (fixtures) return;
-    const sid = conv._id;
-    const store = useInboxStore.getState();
-    if (!store.sessions[sid]) {
-      // sessionRowFromSummary carries the triage stamps through (a stampless
-      // stub renders a stashed/dismissed session as an active needs-input card
-      // at boot, ct-42666) and keeps parent_conversation_id so a workflow-agent
-      // stub classifies as a subagent instead of surfacing top-level.
-      store.syncRecord("sessions", sid, sessionRowFromSummary({
-        ...conv,
-        is_idle: !conv.is_active,
-      }));
-    }
-    const narrow = typeof window !== "undefined" && window.innerWidth < MOBILE_MAX_WIDTH;
-    const kind = resolveSessionSelectKind({
-      isOnSettingsPage: routerLocation.pathname.startsWith("/settings"),
-      isOnInboxPage: isInboxSessionView(pathname, store.currentConversation?.source),
-    });
-    const open = resolveLinkedSessionOpen(kind, narrow);
-    if (open === "route") {
-      router.push(`/conversation/${sid}`);
-    } else {
-      store.navigateToSession(sid);
-    }
-  }, [router, pathname, routerLocation.pathname, fixtures]);
+  return useCallback(
+    (conv: any) => {
+      if (fixtures) return;
+      const sid = conv._id;
+      const store = useInboxStore.getState();
+      if (!store.sessions[sid]) {
+        // sessionRowFromSummary carries the triage stamps through (a stampless
+        // stub renders a stashed/dismissed session as an active needs-input card
+        // at boot, ct-42666) and keeps parent_conversation_id so a workflow-agent
+        // stub classifies as a subagent instead of surfacing top-level.
+        store.syncRecord(
+          "sessions",
+          sid,
+          sessionRowFromSummary({
+            ...conv,
+            is_idle: !conv.is_active,
+          }),
+        );
+      }
+      const narrow =
+        typeof window !== "undefined" && window.innerWidth < MOBILE_MAX_WIDTH;
+      const kind = resolveSessionSelectKind({
+        isOnSettingsPage: routerLocation.pathname.startsWith("/settings"),
+        isOnInboxPage: isInboxSessionView(
+          pathname,
+          store.currentConversation?.source,
+        ),
+      });
+      const open = resolveLinkedSessionOpen(kind, narrow);
+      if (open === "route") {
+        router.push(`/conversation/${sid}`);
+      } else {
+        store.navigateToSession(sid);
+      }
+    },
+    [router, pathname, routerLocation.pathname, fixtures],
+  );
 }

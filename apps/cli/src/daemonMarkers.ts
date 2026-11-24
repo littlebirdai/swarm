@@ -96,9 +96,14 @@ function removeQuietly(filePath: string): void {
   }
 }
 
-export function writeHangMarker(marker: HangMarker, dir: string = codecastDir()): void {
+export function writeHangMarker(
+  marker: HangMarker,
+  dir: string = codecastDir(),
+): void {
   try {
-    fs.writeFileSync(hangMarkerPath(dir), JSON.stringify(marker), { mode: 0o600 });
+    fs.writeFileSync(hangMarkerPath(dir), JSON.stringify(marker), {
+      mode: 0o600,
+    });
   } catch {
     // Losing the breadcrumb is not worth failing the probe tick over.
   }
@@ -124,14 +129,18 @@ export function peekHangMarker(dir: string = codecastDir()): HangMarker | null {
     // A marker the resolve leg never rewrote means the stall never cleared, so
     // a missing flag reads as "did not recover" — the conservative reading.
     self_recovered: parsed.self_recovered === true,
-    ...(typeof parsed.watchdog_rule === "string" && parsed.watchdog_rule ? { watchdog_rule: parsed.watchdog_rule } : {}),
+    ...(typeof parsed.watchdog_rule === "string" && parsed.watchdog_rule
+      ? { watchdog_rule: parsed.watchdog_rule }
+      : {}),
   };
 }
 
 /** Read and delete. The daemon calls this once at boot; the record moves into
  * the daemon state file, which is what the CLI surfaces from then on. A
  * corrupted file is deleted too, so it cannot be re-reported forever. */
-export function consumeHangMarker(dir: string = codecastDir()): HangMarker | null {
+export function consumeHangMarker(
+  dir: string = codecastDir(),
+): HangMarker | null {
   const markerPath = hangMarkerPath(dir);
   if (!fs.existsSync(markerPath)) return null;
   const marker = peekHangMarker(dir);
@@ -149,9 +158,10 @@ export function latestHang(
   opts: { now?: number; withinMs?: number } = {},
 ): HangMarker | null {
   const onDisk = peekHangMarker(dir);
-  const newest = onDisk && (!fromState || onDisk.detected_at >= fromState.detected_at)
-    ? onDisk
-    : fromState ?? null;
+  const newest =
+    onDisk && (!fromState || onDisk.detected_at >= fromState.detected_at)
+      ? onDisk
+      : (fromState ?? null);
   if (!newest) return null;
   // The state record is never pruned, so without a window a single stall from a
   // month ago would warn in every `cast doctor` run forever.
@@ -161,7 +171,10 @@ export function latestHang(
 }
 
 /** One line for `cast health` / `cast doctor`. `now` makes it testable. */
-export function describeHangMarker(marker: HangMarker, now: number = Date.now()): string {
+export function describeHangMarker(
+  marker: HangMarker,
+  now: number = Date.now(),
+): string {
   const seconds = Math.round(marker.unresponsive_ms / 1000);
   const agoMin = Math.max(0, Math.round((now - marker.detected_at) / 60000));
   const when = agoMin === 0 ? "just now" : `${agoMin}m ago`;
@@ -170,8 +183,10 @@ export function describeHangMarker(marker: HangMarker, now: number = Date.now())
     : marker.watchdog_rule
       ? `loop never resumed — the watchdog killed it (${marker.watchdog_rule})`
       : "loop never resumed — the daemon died in it";
-  return `${seconds}s of loop silence ${when} (pid ${marker.pid}), ${outcome}` +
-    (marker.hot_stacks ? `; hot stacks: ${marker.hot_stacks}` : "");
+  return (
+    `${seconds}s of loop silence ${when} (pid ${marker.pid}), ${outcome}` +
+    (marker.hot_stacks ? `; hot stacks: ${marker.hot_stacks}` : "")
+  );
 }
 
 /** The detect/resolve state machine around the marker, kept pure (no clock, no
@@ -228,17 +243,26 @@ export function wedgedPassStampPath(dir: string = codecastDir()): string {
 /** What the previous watchdog pass left behind when it judged the daemon
  * wedged, or null. A torn file reads as "not armed", which errs toward one more
  * pass before a kill, never toward one fewer. */
-export function readWedgedPassStamp(dir: string = codecastDir()): WedgedPassStamp | null {
+export function readWedgedPassStamp(
+  dir: string = codecastDir(),
+): WedgedPassStamp | null {
   try {
-    return parseWedgedPassStamp(fs.readFileSync(wedgedPassStampPath(dir), "utf-8"));
+    return parseWedgedPassStamp(
+      fs.readFileSync(wedgedPassStampPath(dir), "utf-8"),
+    );
   } catch {
     return null;
   }
 }
 
-export function writeWedgedPassStamp(stamp: WedgedPassStamp, dir: string = codecastDir()): void {
+export function writeWedgedPassStamp(
+  stamp: WedgedPassStamp,
+  dir: string = codecastDir(),
+): void {
   try {
-    fs.writeFileSync(wedgedPassStampPath(dir), JSON.stringify(stamp), { mode: 0o600 });
+    fs.writeFileSync(wedgedPassStampPath(dir), JSON.stringify(stamp), {
+      mode: 0o600,
+    });
   } catch {
     // An unwritable arm means the next pass sees no arm and arms again: the
     // kill is delayed, never hastened.
@@ -273,10 +297,19 @@ export function writeWatchdogKillMarker(
   return marker;
 }
 
-export function writeDaemonExitStamp(reason: string, dir: string = codecastDir()): void {
+export function writeDaemonExitStamp(
+  reason: string,
+  dir: string = codecastDir(),
+): void {
   try {
-    const stamp: DaemonExitStamp = { code: EXIT_DO_NOT_RESTART, at: Date.now(), reason };
-    fs.writeFileSync(daemonExitStampPath(dir), JSON.stringify(stamp), { mode: 0o600 });
+    const stamp: DaemonExitStamp = {
+      code: EXIT_DO_NOT_RESTART,
+      at: Date.now(),
+      reason,
+    };
+    fs.writeFileSync(daemonExitStampPath(dir), JSON.stringify(stamp), {
+      mode: 0o600,
+    });
   } catch {
     // If the stamp cannot be written the daemon is no worse off than before it
     // existed: the watchdog revives it and it exits the same way again.
@@ -289,8 +322,12 @@ export function clearDaemonExitStamp(dir: string = codecastDir()): void {
   removeQuietly(daemonExitStampPath(dir));
 }
 
-export function readDaemonExitStamp(dir: string = codecastDir()): DaemonExitStamp | null {
-  const parsed = readJson(daemonExitStampPath(dir)) as Partial<DaemonExitStamp> | null;
+export function readDaemonExitStamp(
+  dir: string = codecastDir(),
+): DaemonExitStamp | null {
+  const parsed = readJson(
+    daemonExitStampPath(dir),
+  ) as Partial<DaemonExitStamp> | null;
   if (!parsed || typeof parsed.code !== "number") return null;
   return {
     code: parsed.code,

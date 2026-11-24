@@ -5,19 +5,26 @@ import { Chip } from "../ui/Chips";
 import { useAppState, useAskChange } from "./appState";
 
 /** Until Clay has written ideas for this app. */
-const STARTER_IDEAS = ["make it dark", "add a sound when someone clicks", "add a scoreboard"];
+const STARTER_IDEAS = [
+  "make it dark",
+  "add a sound when someone clicks",
+  "add a scoreboard",
+];
 
-export function IdeaChips({ max = 3, className }: { max?: number; className?: string }) {
+export function IdeaChips({
+  max = 3,
+  className,
+}: {
+  max?: number;
+  className?: string;
+}) {
   const { app } = useAppState();
   const askChange = useAskChange();
   const ideas = (app.ideas.length ? app.ideas : STARTER_IDEAS).slice(0, max);
   return (
     <div className={className}>
       {ideas.map((idea) => (
-        <Chip
-          key={idea}
-          onClick={() => askChange(idea)}
-        >
+        <Chip key={idea} onClick={() => askChange(idea)}>
           {idea}
         </Chip>
       ))}

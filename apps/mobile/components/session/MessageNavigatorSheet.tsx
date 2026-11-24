@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
-import { themedStyles, useTheme } from '@/constants/Theme';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
+import { themedStyles, useTheme } from "@/constants/Theme";
 import {
   Animated,
   Easing,
@@ -13,11 +20,11 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
-} from 'react-native';
-import { Text, TextInput } from '@/components/Themed';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { Text, TextInput } from "@/components/Themed";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   filterNavigatorRows,
   formatTimeAgo,
@@ -29,22 +36,32 @@ import {
   type NavigatorAuthor,
   type NavigatorAuthorship,
   type NavigatorRow,
-} from '@codecast/web/lib/messageNavigator';
-import { AuthorFace } from './AuthorFace';
-import { Mono } from '../../constants/fonts';
-import { CHROME_FONT_CAP, Spacing, Theme, chipShell, chipText, chipTint } from '../../constants/Theme';
+} from "@codecast/web/lib/messageNavigator";
+import { AuthorFace } from "./AuthorFace";
+import { Mono } from "../../constants/fonts";
+import {
+  CHROME_FONT_CAP,
+  Spacing,
+  Theme,
+  chipShell,
+  chipText,
+  chipTint,
+} from "../../constants/Theme";
 
 // The mobile form of the web message navigator popover
 // (apps/web/components/MessageBrowserPopover.tsx). Rows and filtering come
 // from the shared module; this file owns only the sheet chrome, the search and
 // chip state, and the inline expansion a long press triggers.
 
-const KIND_ICON: Record<HiddenKind, ComponentProps<typeof FontAwesome>['name']> = {
-  schedule: 'clock-o',
-  session: 'arrow-right',
-  continue: 'refresh',
-  chat: 'comment-o',
-  teammate: 'users',
+const KIND_ICON: Record<
+  HiddenKind,
+  ComponentProps<typeof FontAwesome>["name"]
+> = {
+  schedule: "clock-o",
+  session: "arrow-right",
+  continue: "refresh",
+  chat: "comment-o",
+  teammate: "users",
 };
 
 // Modal animationType="slide" would slide the whole transparent container, so
@@ -60,7 +77,11 @@ const EXPAND_ANIM_MS = 180;
 // snapping in one frame.
 function animateSheetHeight() {
   LayoutAnimation.configureNext(
-    LayoutAnimation.create(EXPAND_ANIM_MS, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
+    LayoutAnimation.create(
+      EXPAND_ANIM_MS,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    ),
   );
 }
 
@@ -85,7 +106,7 @@ export function MessageNavigatorSheet({
   const Theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   // Hidden kinds start hidden: the list is first a navigator for the human's
   // own prompts; the chip reveals the machine rows on demand (web semantics).
   const [showHidden, setShowHidden] = useState(false);
@@ -111,15 +132,34 @@ export function MessageNavigatorSheet({
     if (visible) {
       setMounted(true);
       const anim = Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: ENTER_BACKDROP_MS, useNativeDriver: true }),
-        Animated.timing(sheetShift, { toValue: 0, duration: ENTER_SHEET_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: ENTER_BACKDROP_MS,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetShift, {
+          toValue: 0,
+          duration: ENTER_SHEET_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
       ]);
       anim.start();
       return () => anim.stop();
     }
     const anim = Animated.parallel([
-      Animated.timing(backdropOpacity, { toValue: 0, duration: EXIT_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(sheetShift, { toValue: 1, duration: EXIT_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetShift, {
+        toValue: 1,
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
     ]);
     anim.start(({ finished }) => {
       if (finished) setMounted(false);
@@ -133,7 +173,7 @@ export function MessageNavigatorSheet({
   // exit slide has finished so it never shows the list changing.
   useEffect(() => {
     if (mounted) return;
-    setSearch('');
+    setSearch("");
     setShowHidden(false);
     setAuthorKey(null);
     setExpandedIds(new Set());
@@ -141,11 +181,22 @@ export function MessageNavigatorSheet({
 
   const labels = useMemo(() => navigatorHeaderLabels(rows), [rows]);
   const attributed = authors.attributed;
-  const onlyAuthor = attributed && authorKey ? authors.authors.find((a) => a.key === authorKey) ?? null : null;
+  const onlyAuthor =
+    attributed && authorKey
+      ? (authors.authors.find((a) => a.key === authorKey) ?? null)
+      : null;
   // Inverted list: index 0 renders at the bottom, so the newest prompt sits
   // next to the thumb.
   const data = useMemo(
-    () => filterNavigatorRows(rows, { search: search.trim(), showHidden, authors, authorKey: onlyAuthor?.key }).slice().reverse(),
+    () =>
+      filterNavigatorRows(rows, {
+        search: search.trim(),
+        showHidden,
+        authors,
+        authorKey: onlyAuthor?.key,
+      })
+        .slice()
+        .reverse(),
     [rows, search, showHidden, authors, onlyAuthor],
   );
 
@@ -155,7 +206,10 @@ export function MessageNavigatorSheet({
   dataRef.current = data;
   const currentIdRef = useRef(currentMessageId);
   currentIdRef.current = currentMessageId;
-  const scrollRetryRef = useRef<{ index: number; count: number }>({ index: -1, count: 0 });
+  const scrollRetryRef = useRef<{ index: number; count: number }>({
+    index: -1,
+    count: 0,
+  });
 
   // The inverted list always opens at the newest prompt (index 0). In a long
   // thread the current row — the one that orients the reader — can sit far
@@ -168,36 +222,51 @@ export function MessageNavigatorSheet({
     const index = dataRef.current.findIndex((r) => r._id === currentId);
     if (index <= 6) return;
     const frame = requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+      listRef.current?.scrollToIndex({
+        index,
+        viewPosition: 0.5,
+        animated: false,
+      });
     });
     return () => cancelAnimationFrame(frame);
   }, [visible]);
 
-  const select = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-    onSelect(id);
-  }, [onClose, onSelect]);
+  const select = useCallback(
+    (id: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onClose();
+      onSelect(id);
+    },
+    [onClose, onSelect],
+  );
 
-  const toggleExpanded = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    animateSheetHeight();
-    const expanding = !expandedIds.has(id);
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    if (!expanding) return;
-    // The inverted list grows an expanding row upward, which can push its
-    // header line past the visible top; once the height change settles, pull
-    // the row back into view (viewPosition 1 = top edge in an inverted list).
-    const item = data.find((r) => r._id === id);
-    if (!item) return;
-    setTimeout(() => {
-      listRef.current?.scrollToItem({ item, viewPosition: 1, animated: true });
-    }, EXPAND_ANIM_MS + 20);
-  }, [expandedIds, data]);
+  const toggleExpanded = useCallback(
+    (id: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      animateSheetHeight();
+      const expanding = !expandedIds.has(id);
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      if (!expanding) return;
+      // The inverted list grows an expanding row upward, which can push its
+      // header line past the visible top; once the height change settles, pull
+      // the row back into view (viewPosition 1 = top edge in an inverted list).
+      const item = data.find((r) => r._id === id);
+      if (!item) return;
+      setTimeout(() => {
+        listRef.current?.scrollToItem({
+          item,
+          viewPosition: 1,
+          animated: true,
+        });
+      }, EXPAND_ANIM_MS + 20);
+    },
+    [expandedIds, data],
+  );
 
   const toggleAuthor = useCallback((key: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -211,17 +280,28 @@ export function MessageNavigatorSheet({
     setShowHidden((v) => !v);
   }, []);
 
-  const renderItem = useCallback(({ item }: { item: NavigatorRow }) => (
-    <NavigatorRowView
-      row={item}
-      author={attributed ? authors.byRow.get(item._id) : undefined}
-      current={item._id === currentMessageId}
-      expanded={expandedIds.has(item._id)}
-      search={search}
-      onPress={select}
-      onLongPress={toggleExpanded}
-    />
-  ), [attributed, authors, currentMessageId, expandedIds, search, select, toggleExpanded]);
+  const renderItem = useCallback(
+    ({ item }: { item: NavigatorRow }) => (
+      <NavigatorRowView
+        row={item}
+        author={attributed ? authors.byRow.get(item._id) : undefined}
+        current={item._id === currentMessageId}
+        expanded={expandedIds.has(item._id)}
+        search={search}
+        onPress={select}
+        onLongPress={toggleExpanded}
+      />
+    ),
+    [
+      attributed,
+      authors,
+      currentMessageId,
+      expandedIds,
+      search,
+      select,
+      toggleExpanded,
+    ],
+  );
 
   return (
     <Modal
@@ -229,12 +309,23 @@ export function MessageNavigatorSheet({
       transparent
       animationType="none"
       onRequestClose={onClose}
-      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right']}
+      supportedOrientations={[
+        "portrait",
+        "portrait-upside-down",
+        "landscape-left",
+        "landscape-right",
+      ]}
     >
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         {/* The dim layer is separate from the touch backdrop so it can fade
             without fading the sheet with it. */}
-        <Animated.View pointerEvents="none" style={[styles.dim, { opacity: backdropOpacity }]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.dim, { opacity: backdropOpacity }]}
+        />
         {/* accessible={false} on both Pressables: a Pressable defaults to
             accessible, which would flatten the whole sheet into one VoiceOver
             element and make the search, chip and rows unreachable. Close stays
@@ -245,21 +336,42 @@ export function MessageNavigatorSheet({
               styles.sheet,
               {
                 paddingBottom: insets.bottom + 8,
-                transform: [{ translateY: sheetShift.interpolate({ inputRange: [0, 1], outputRange: [0, windowHeight] }) }],
+                transform: [
+                  {
+                    translateY: sheetShift.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, windowHeight],
+                    }),
+                  },
+                ],
               },
             ]}
             onPress={() => {}}
             accessible={false}
           >
             <View style={styles.grabber} />
-            <View style={[styles.headerRow, attributed && styles.headerRowAbovePeople]}>
+            <View
+              style={[
+                styles.headerRow,
+                attributed && styles.headerRowAbovePeople,
+              ]}
+            >
               <View style={styles.searchInputRow}>
-                <FontAwesome name="search" size={14} color={Theme.textMuted0} style={{ marginRight: 8 }} />
+                <FontAwesome
+                  name="search"
+                  size={14}
+                  color={Theme.textMuted0}
+                  style={{ marginRight: 8 }}
+                />
                 <TextInput
                   style={styles.searchInput}
                   value={search}
                   onChangeText={setSearch}
-                  placeholder={onlyAuthor ? `Search ${possessive(onlyAuthor)} ${onlyAuthor.count} message${onlyAuthor.count === 1 ? '' : 's'}` : labels.placeholder}
+                  placeholder={
+                    onlyAuthor
+                      ? `Search ${possessive(onlyAuthor)} ${onlyAuthor.count} message${onlyAuthor.count === 1 ? "" : "s"}`
+                      : labels.placeholder
+                  }
                   placeholderTextColor={Theme.textMuted0}
                   returnKeyType="search"
                   autoCorrect={false}
@@ -267,23 +379,41 @@ export function MessageNavigatorSheet({
                   accessibilityLabel="Search messages"
                 />
                 {search.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityLabel="Clear search">
-                    <FontAwesome name="times-circle" size={16} color={Theme.textMuted0} />
+                  <TouchableOpacity
+                    onPress={() => setSearch("")}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    accessibilityLabel="Clear search"
+                  >
+                    <FontAwesome
+                      name="times-circle"
+                      size={16}
+                      color={Theme.textMuted0}
+                    />
                   </TouchableOpacity>
                 )}
               </View>
               {labels.hiddenCount > 0 && !onlyAuthor && (
                 <TouchableOpacity
-                  style={[styles.chip, showHidden ? chipTint(Theme.violet) : styles.chipOff]}
+                  style={[
+                    styles.chip,
+                    showHidden ? chipTint(Theme.violet) : styles.chipOff,
+                  ]}
                   onPress={toggleHidden}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityState={{ selected: showHidden }}
-                  accessibilityLabel={`${showHidden ? 'Hide' : 'Show'} ${labels.chipLabel}`}
+                  accessibilityLabel={`${showHidden ? "Hide" : "Show"} ${labels.chipLabel}`}
                 >
-                  <FontAwesome name="bolt" size={10} color={showHidden ? Theme.violet : Theme.textDim} />
+                  <FontAwesome
+                    name="bolt"
+                    size={10}
+                    color={showHidden ? Theme.violet : Theme.textDim}
+                  />
                   <Text
-                    style={[styles.chipText, showHidden ? styles.chipTextOn : styles.chipTextOff]}
+                    style={[
+                      styles.chipText,
+                      showHidden ? styles.chipTextOn : styles.chipTextOff,
+                    ]}
                     maxFontSizeMultiplier={CHROME_FONT_CAP}
                     numberOfLines={1}
                   >
@@ -295,22 +425,51 @@ export function MessageNavigatorSheet({
             {attributed && (
               // Who wrote in this thread, and a way to read one person's
               // messages alone. Each face and color matches the rows and rail.
-              <View style={styles.peopleRow} accessibilityLabel="Show one person's messages">
+              <View
+                style={styles.peopleRow}
+                accessibilityLabel="Show one person's messages"
+              >
                 {authors.authors.map((a) => {
                   const on = onlyAuthor?.key === a.key;
                   return (
                     <TouchableOpacity
                       key={a.key}
-                      style={[styles.personChip, on ? chipTint(Theme.cyan) : onlyAuthor ? styles.personChipDim : styles.chipOff]}
+                      style={[
+                        styles.personChip,
+                        on
+                          ? chipTint(Theme.cyan)
+                          : onlyAuthor
+                            ? styles.personChipDim
+                            : styles.chipOff,
+                      ]}
                       onPress={() => toggleAuthor(a.key)}
                       activeOpacity={0.7}
                       accessibilityRole="button"
                       accessibilityState={{ selected: on }}
-                      accessibilityLabel={on ? "Show everyone's messages" : `Show only ${possessive(a)} messages, ${a.count}`}
+                      accessibilityLabel={
+                        on
+                          ? "Show everyone's messages"
+                          : `Show only ${possessive(a)} messages, ${a.count}`
+                      }
                     >
-                      <View style={onlyAuthor && !on ? styles.faceDim : undefined}><AuthorFace author={a} size={16} /></View>
-                      <Text style={[styles.personName, on && styles.personNameOn]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_CAP}>{a.label}</Text>
-                      <Text style={styles.personCount} maxFontSizeMultiplier={CHROME_FONT_CAP}>{a.count}</Text>
+                      <View
+                        style={onlyAuthor && !on ? styles.faceDim : undefined}
+                      >
+                        <AuthorFace author={a} size={16} />
+                      </View>
+                      <Text
+                        style={[styles.personName, on && styles.personNameOn]}
+                        numberOfLines={1}
+                        maxFontSizeMultiplier={CHROME_FONT_CAP}
+                      >
+                        {a.label}
+                      </Text>
+                      <Text
+                        style={styles.personCount}
+                        maxFontSizeMultiplier={CHROME_FONT_CAP}
+                      >
+                        {a.count}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -324,7 +483,8 @@ export function MessageNavigatorSheet({
               renderItem={renderItem}
               extraData={expandedIds}
               onLayout={(e) => {
-                if (!searchActive) listHeightRef.current = e.nativeEvent.layout.height;
+                if (!searchActive)
+                  listHeightRef.current = e.nativeEvent.layout.height;
               }}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
@@ -337,20 +497,36 @@ export function MessageNavigatorSheet({
                 if (retry.index === info.index) retry.count += 1;
                 else scrollRetryRef.current = { index: info.index, count: 1 };
                 if (scrollRetryRef.current.count > 3) return;
-                listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+                listRef.current?.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: false,
+                });
                 setTimeout(() => {
                   if (info.index >= dataRef.current.length) return;
-                  listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: false });
+                  listRef.current?.scrollToIndex({
+                    index: info.index,
+                    viewPosition: 0.5,
+                    animated: false,
+                  });
                 }, 250);
               }}
               // Hug the content: a short list collapses the sheet to its rows
               // (the sheet caps at 78%); shrink lets a long list stay inside
               // the cap and scroll instead of overflowing it.
-              style={[styles.list, searchActive && { minHeight: listHeightRef.current }]}
-              contentContainerStyle={data.length === 0 ? styles.emptyContainer : undefined}
+              style={[
+                styles.list,
+                searchActive && { minHeight: listHeightRef.current },
+              ]}
+              contentContainerStyle={
+                data.length === 0 ? styles.emptyContainer : undefined
+              }
               ListEmptyComponent={
                 <Text style={styles.emptyText}>
-                  {rows.length === 0 ? 'No messages' : search.trim() || !onlyAuthor ? 'No matching messages' : `No messages from ${onlyAuthor.label === 'You' ? 'you' : onlyAuthor.label}`}
+                  {rows.length === 0
+                    ? "No messages"
+                    : search.trim() || !onlyAuthor
+                      ? "No matching messages"
+                      : `No messages from ${onlyAuthor.label === "You" ? "you" : onlyAuthor.label}`}
                 </Text>
               }
             />
@@ -362,7 +538,7 @@ export function MessageNavigatorSheet({
 }
 
 function possessive(author: NavigatorAuthor): string {
-  return author.label === 'You' ? 'your' : `${author.label}\u2019s`;
+  return author.label === "You" ? "your" : `${author.label}\u2019s`;
 }
 
 function NavigatorRowView({
@@ -383,29 +559,42 @@ function NavigatorRowView({
   onLongPress: (id: string) => void;
 }) {
   const Theme = useTheme();
-  const hidden = row.kind !== 'user';
+  const hidden = row.kind !== "user";
   const timeAgo = formatTimeAgo(row.timestamp);
-  const ordinalLabel = hidden ? MACHINE_KIND_LABEL[row.kind as HiddenKind] : `#${row.originalIndex + 1}`;
+  const ordinalLabel = hidden
+    ? MACHINE_KIND_LABEL[row.kind as HiddenKind]
+    : `#${row.originalIndex + 1}`;
   // While searching, start the clamped body near the first hit and tint the
   // hit, so a row shows why it matched. An expanded row keeps its full text.
   const query = search.trim();
-  const body = query && !expanded ? matchSnippet(row.display, query) : row.display;
+  const body =
+    query && !expanded ? matchSnippet(row.display, query) : row.display;
   const hit = query ? matchIndex(body, query) : -1;
   return (
     <TouchableOpacity
-      style={[styles.row, current && styles.rowCurrent, hidden && styles.rowHidden]}
+      style={[
+        styles.row,
+        current && styles.rowCurrent,
+        hidden && styles.rowHidden,
+      ]}
       activeOpacity={0.6}
       onPress={() => onPress(row._id)}
       onLongPress={() => onLongPress(row._id)}
       delayLongPress={300}
       accessibilityRole="button"
-      accessibilityLabel={`${ordinalLabel}${row.source ? ` from ${row.source}` : ''}${author ? ` from ${author.label === 'You' ? 'you' : author.name}` : ''}, ${row.display || ordinalLabel}, ${timeAgo}`}
-      accessibilityHint={expanded ? 'Long press to collapse' : 'Long press to show full text'}
+      accessibilityLabel={`${ordinalLabel}${row.source ? ` from ${row.source}` : ""}${author ? ` from ${author.label === "You" ? "you" : author.name}` : ""}, ${row.display || ordinalLabel}, ${timeAgo}`}
+      accessibilityHint={
+        expanded ? "Long press to collapse" : "Long press to show full text"
+      }
       accessibilityState={{ selected: current, expanded }}
     >
       <View style={styles.ordinalCol}>
         {hidden ? (
-          <FontAwesome name={KIND_ICON[row.kind as HiddenKind]} size={11} color={Theme.violet} />
+          <FontAwesome
+            name={KIND_ICON[row.kind as HiddenKind]}
+            size={11}
+            color={Theme.violet}
+          />
         ) : (
           <Text
             style={[styles.ordinal, current && styles.ordinalCurrent]}
@@ -419,36 +608,61 @@ function NavigatorRowView({
         {author && (
           <View style={styles.authorLine}>
             <AuthorFace author={author} size={14} />
-            <Text style={[styles.authorName, current && styles.authorNameCurrent]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_CAP}>{author.label}</Text>
+            <Text
+              style={[styles.authorName, current && styles.authorNameCurrent]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={CHROME_FONT_CAP}
+            >
+              {author.label}
+            </Text>
           </View>
         )}
         {hidden && (
-          <Text style={styles.kindLine} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_CAP}>
+          <Text
+            style={styles.kindLine}
+            numberOfLines={1}
+            maxFontSizeMultiplier={CHROME_FONT_CAP}
+          >
             {MACHINE_KIND_LABEL[row.kind as HiddenKind]}
-            {row.source ? `  ${row.source}` : ''}
+            {row.source ? `  ${row.source}` : ""}
           </Text>
         )}
         {row.display.length > 0 && (
           <Text
-            style={[styles.rowText, row.isCmd && styles.rowTextCmd, current && styles.rowTextCurrent]}
+            style={[
+              styles.rowText,
+              row.isCmd && styles.rowTextCmd,
+              current && styles.rowTextCurrent,
+            ]}
             numberOfLines={expanded ? undefined : 2}
           >
             {hit >= 0 ? (
               <>
                 {body.slice(0, hit)}
-                <Text style={styles.rowTextHit}>{body.slice(hit, hit + query.length)}</Text>
+                <Text style={styles.rowTextHit}>
+                  {body.slice(hit, hit + query.length)}
+                </Text>
                 {body.slice(hit + query.length)}
               </>
-            ) : body}
+            ) : (
+              body
+            )}
           </Text>
         )}
       </View>
       <View style={styles.metaCol}>
-        <Text style={styles.time} maxFontSizeMultiplier={CHROME_FONT_CAP}>{timeAgo}</Text>
+        <Text style={styles.time} maxFontSizeMultiplier={CHROME_FONT_CAP}>
+          {timeAgo}
+        </Text>
         {row.commentCount > 0 && (
           <View style={styles.commentBadge}>
             <FontAwesome name="comment-o" size={9} color={Theme.cyan} />
-            <Text style={styles.commentCount} maxFontSizeMultiplier={CHROME_FONT_CAP}>{row.commentCount}</Text>
+            <Text
+              style={styles.commentCount}
+              maxFontSizeMultiplier={CHROME_FONT_CAP}
+            >
+              {row.commentCount}
+            </Text>
           </View>
         )}
       </View>
@@ -456,231 +670,233 @@ function NavigatorRowView({
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  fill: { flex: 1 },
-  list: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  dim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    maxHeight: '78%',
-    backgroundColor: Theme.cardBg,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 8,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.border,
-    opacity: 0.5,
-    marginBottom: 10,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    // Scrolled rows clip mid line against the header; the hairline (same
-    // token as the row dividers) and the extra padding make the boundary
-    // read as a surface edge rather than an accidental crop.
-    paddingBottom: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '40',
-  },
-  // The people chips sit inside the header surface, so the edge moves below them.
-  headerRowAbovePeople: {
-    paddingBottom: 0,
-    borderBottomWidth: 0,
-  },
-  searchInputRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.bg,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.md,
-    height: 34,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Theme.text,
-    paddingVertical: 0,
-  },
-  chip: {
-    ...chipShell,
-    height: 28,
-  },
-  chipOff: {
-    borderColor: Theme.border + '60',
-  },
-  chipText: {
-    ...chipText,
-    fontVariant: ['tabular-nums'],
-  },
-  chipTextOn: {
-    color: Theme.violet,
-  },
-  chipTextOff: {
-    color: Theme.textDim,
-    textDecorationLine: 'line-through',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    // Thumb surface: 12 + 18 line height + 12 keeps a single-line row near
-    // the 44pt touch guideline (web is denser because it is a pointer surface).
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '40',
-  },
-  rowCurrent: {
-    backgroundColor: Theme.cyan + '14',
-  },
-  rowHidden: {
-    opacity: 0.7,
-  },
-  ordinalCol: {
-    width: 28,
-    alignItems: 'flex-end',
-    paddingTop: 2,
-  },
-  ordinal: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: Theme.blue,
-    fontVariant: ['tabular-nums'],
-  },
-  ordinalCurrent: {
-    color: Theme.cyan,
-    fontWeight: '700',
-  },
-  body: {
-    flex: 1,
-    gap: 2,
-  },
-  authorLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 1,
-  },
-  authorName: {
-    flexShrink: 1,
-    fontSize: 11,
-    fontWeight: '600',
-    color: Theme.textMuted,
-  },
-  authorNameCurrent: {
-    color: Theme.text,
-  },
-  peopleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '40',
-  },
-  personChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 30,
-    paddingLeft: 6,
-    paddingRight: 10,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: 200,
-  },
-  personChipDim: {
-    borderColor: 'transparent',
-  },
-  faceDim: {
-    opacity: 0.45,
-  },
-  personName: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: Theme.textMuted,
-  },
-  personNameOn: {
-    color: Theme.text,
-  },
-  personCount: {
-    fontSize: 11,
-    color: Theme.textDim,
-    fontVariant: ['tabular-nums'],
-  },
-  kindLine: {
-    fontSize: 10,
-    color: Theme.violet,
-  },
-  rowText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: Theme.text,
-  },
-  rowTextCmd: {
-    fontFamily: Mono.medium,
-    color: Theme.orange,
-  },
-  rowTextCurrent: {
-    color: Theme.cyan,
-  },
-  rowTextHit: {
-    color: Theme.blue,
-    fontWeight: '600',
-  },
-  metaCol: {
-    alignItems: 'flex-end',
-    gap: 3,
-    paddingTop: 2,
-  },
-  time: {
-    fontSize: 10,
-    color: Theme.textDim,
-    fontVariant: ['tabular-nums'],
-  },
-  commentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  commentCount: {
-    fontSize: 10,
-    color: Theme.cyan,
-  },
-  emptyContainer: {
-    flex: 1,
-    // The list hugs its content, so an empty list no longer fills the sheet;
-    // the floor keeps the empty state a centered block rather than a sliver.
-    minHeight: 160,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: Theme.textDim,
-    textAlign: 'center',
-    paddingVertical: Spacing.xxl,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    fill: { flex: 1 },
+    list: {
+      flexGrow: 0,
+      flexShrink: 1,
+    },
+    dim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+    },
+    backdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      maxHeight: "78%",
+      backgroundColor: Theme.cardBg,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingTop: 8,
+    },
+    grabber: {
+      alignSelf: "center",
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Theme.border,
+      opacity: 0.5,
+      marginBottom: 10,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      // Scrolled rows clip mid line against the header; the hairline (same
+      // token as the row dividers) and the extra padding make the boundary
+      // read as a surface edge rather than an accidental crop.
+      paddingBottom: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "40",
+    },
+    // The people chips sit inside the header surface, so the edge moves below them.
+    headerRowAbovePeople: {
+      paddingBottom: 0,
+      borderBottomWidth: 0,
+    },
+    searchInputRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: Theme.bg,
+      borderRadius: 10,
+      paddingHorizontal: Spacing.md,
+      height: 34,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: Theme.text,
+      paddingVertical: 0,
+    },
+    chip: {
+      ...chipShell,
+      height: 28,
+    },
+    chipOff: {
+      borderColor: Theme.border + "60",
+    },
+    chipText: {
+      ...chipText,
+      fontVariant: ["tabular-nums"],
+    },
+    chipTextOn: {
+      color: Theme.violet,
+    },
+    chipTextOff: {
+      color: Theme.textDim,
+      textDecorationLine: "line-through",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: Spacing.sm,
+      // Thumb surface: 12 + 18 line height + 12 keeps a single-line row near
+      // the 44pt touch guideline (web is denser because it is a pointer surface).
+      paddingVertical: 12,
+      paddingHorizontal: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "40",
+    },
+    rowCurrent: {
+      backgroundColor: Theme.cyan + "14",
+    },
+    rowHidden: {
+      opacity: 0.7,
+    },
+    ordinalCol: {
+      width: 28,
+      alignItems: "flex-end",
+      paddingTop: 2,
+    },
+    ordinal: {
+      fontSize: 11,
+      fontWeight: "500",
+      color: Theme.blue,
+      fontVariant: ["tabular-nums"],
+    },
+    ordinalCurrent: {
+      color: Theme.cyan,
+      fontWeight: "700",
+    },
+    body: {
+      flex: 1,
+      gap: 2,
+    },
+    authorLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 1,
+    },
+    authorName: {
+      flexShrink: 1,
+      fontSize: 11,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    authorNameCurrent: {
+      color: Theme.text,
+    },
+    peopleRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "40",
+    },
+    personChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      height: 30,
+      paddingLeft: 6,
+      paddingRight: 10,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      maxWidth: 200,
+    },
+    personChipDim: {
+      borderColor: "transparent",
+    },
+    faceDim: {
+      opacity: 0.45,
+    },
+    personName: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    personNameOn: {
+      color: Theme.text,
+    },
+    personCount: {
+      fontSize: 11,
+      color: Theme.textDim,
+      fontVariant: ["tabular-nums"],
+    },
+    kindLine: {
+      fontSize: 10,
+      color: Theme.violet,
+    },
+    rowText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: Theme.text,
+    },
+    rowTextCmd: {
+      fontFamily: Mono.medium,
+      color: Theme.orange,
+    },
+    rowTextCurrent: {
+      color: Theme.cyan,
+    },
+    rowTextHit: {
+      color: Theme.blue,
+      fontWeight: "600",
+    },
+    metaCol: {
+      alignItems: "flex-end",
+      gap: 3,
+      paddingTop: 2,
+    },
+    time: {
+      fontSize: 10,
+      color: Theme.textDim,
+      fontVariant: ["tabular-nums"],
+    },
+    commentBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    commentCount: {
+      fontSize: 10,
+      color: Theme.cyan,
+    },
+    emptyContainer: {
+      flex: 1,
+      // The list hugs its content, so an empty list no longer fills the sheet;
+      // the floor keeps the empty state a centered block rather than a sliver.
+      minHeight: 160,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    emptyText: {
+      fontSize: 13,
+      color: Theme.textDim,
+      textAlign: "center",
+      paddingVertical: Spacing.xxl,
+    },
+  }),
+);

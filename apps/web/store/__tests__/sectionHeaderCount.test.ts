@@ -8,7 +8,7 @@ import { sectionHeaderCount, type InboxSession } from "../inboxStore";
 // "NEEDS YOU (121)" above 33 cards, while the sidebar badge (flat cards)
 // said 34. Nothing on screen could reach the other 88.
 
-const row = (id: string): InboxSession => ({ _id: id } as InboxSession);
+const row = (id: string): InboxSession => ({ _id: id }) as InboxSession;
 const rows = (n: number) => Array.from({ length: n }, (_, i) => row(`s${i}`));
 
 describe("sectionHeaderCount", () => {

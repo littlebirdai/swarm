@@ -8,14 +8,26 @@ import type { AddressInfo } from "net";
 import { WebSocket } from "ws";
 import type { CdpConnection, CdpEvent, CdpTarget } from "./cdp.js";
 import type { InstanceState } from "./instance.js";
-import { attachWatchServer, ownerCandidates, resolveWatchTarget, type WatchServerDeps } from "./watchServer.js";
-import { cdpWatchEngine, pollingWatchEngine, type CdpEngineDeps } from "./watchSource.js";
+import {
+  attachWatchServer,
+  ownerCandidates,
+  resolveWatchTarget,
+  type WatchServerDeps,
+} from "./watchServer.js";
+import {
+  cdpWatchEngine,
+  pollingWatchEngine,
+  type CdpEngineDeps,
+} from "./watchSource.js";
 import { ACTION_BINDING, WATCH_PROTOCOL_VERSION } from "./watchActions.js";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const ORIGIN = "http://localhost:3000";
 
-const state = (tabs: Record<string, string>, active: string | null = null): InstanceState => ({
+const state = (
+  tabs: Record<string, string>,
+  active: string | null = null,
+): InstanceState => ({
   pid: 1,
   port: 9999,
   userDataDir: "/tmp/none",
@@ -29,19 +41,23 @@ const state = (tabs: Record<string, string>, active: string | null = null): Inst
 
 describe("ownerCandidates", () => {
   test("session uuid yields session: and env: keys", async () => {
-    expect(await ownerCandidates({ session_uuid: "abc-123" }, async () => null)).toEqual([
-      "session:abc-123",
-      "env:abc-123",
-    ]);
+    expect(
+      await ownerCandidates({ session_uuid: "abc-123" }, async () => null),
+    ).toEqual(["session:abc-123", "env:abc-123"]);
   });
 
   test("tmux session resolves to a pane key", async () => {
-    expect(await ownerCandidates({ tmux_session: "cc-agent-1" }, async () => "%7")).toEqual(["pane:%7"]);
+    expect(
+      await ownerCandidates({ tmux_session: "cc-agent-1" }, async () => "%7"),
+    ).toEqual(["pane:%7"]);
   });
 
   test("hostile tmux names never reach the pane lookup", async () => {
     let asked = false;
-    await ownerCandidates({ tmux_session: "x; rm -rf /" }, async () => ((asked = true), "%1"));
+    await ownerCandidates(
+      { tmux_session: "x; rm -rf /" },
+      async () => ((asked = true), "%1"),
+    );
     expect(asked).toBe(false);
   });
 });
@@ -58,11 +74,15 @@ describe("resolveWatchTarget", () => {
   });
 
   test("with no claims at all, the shared active tab stands in", () => {
-    expect(resolveWatchTarget(state({}, "tab-x"), ["session:u1"])).toEqual({ tabId: "tab-x" });
+    expect(resolveWatchTarget(state({}, "tab-x"), ["session:u1"])).toEqual({
+      tabId: "tab-x",
+    });
   });
 
   test("no browser state means no-browser", () => {
-    expect(resolveWatchTarget(null, ["session:u1"])).toEqual({ error: "no-browser" });
+    expect(resolveWatchTarget(null, ["session:u1"])).toEqual({
+      error: "no-browser",
+    });
   });
 });
 
@@ -70,7 +90,11 @@ describe("resolveWatchTarget", () => {
 // Live socket tests against a fake CDP connection.
 
 class FakeCdp {
-  calls: Array<{ method: string; params: Record<string, unknown>; sessionId?: string }> = [];
+  calls: Array<{
+    method: string;
+    params: Record<string, unknown>;
+    sessionId?: string;
+  }> = [];
   handlers = new Set<(ev: CdpEvent) => void>();
   closed = false;
   nextSession = 1;
@@ -80,11 +104,18 @@ class FakeCdp {
    *  a previous viewer's script left behind (JSON), see watchActions.ts. */
   pageRecent: string = "[]";
 
-  send(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<any> {
+  send(
+    method: string,
+    params: Record<string, unknown> = {},
+    sessionId?: string,
+  ): Promise<any> {
     this.calls.push({ method, params, sessionId });
-    if (method === "Target.attachToTarget") return Promise.resolve({ sessionId: `cdp-${this.nextSession++}` });
-    if (method === "Page.captureScreenshot" && this.screenshotData) return Promise.resolve({ data: this.screenshotData });
-    if (method === "Runtime.evaluate") return Promise.resolve({ result: { value: this.pageRecent } });
+    if (method === "Target.attachToTarget")
+      return Promise.resolve({ sessionId: `cdp-${this.nextSession++}` });
+    if (method === "Page.captureScreenshot" && this.screenshotData)
+      return Promise.resolve({ data: this.screenshotData });
+    if (method === "Runtime.evaluate")
+      return Promise.resolve({ result: { value: this.pageRecent } });
     return Promise.resolve({});
   }
 
@@ -102,7 +133,8 @@ class FakeCdp {
   }
 
   ackCount(): number {
-    return this.calls.filter((c) => c.method === "Page.screencastFrameAck").length;
+    return this.calls.filter((c) => c.method === "Page.screencastFrameAck")
+      .length;
   }
 }
 
@@ -118,7 +150,14 @@ let targets: CdpTarget[];
 beforeAll(async () => {
   cdp = new FakeCdp();
   currentState = state({ "session:u1": "tab-a" });
-  targets = [{ targetId: "tab-a", type: "page", title: "Example", url: "https://example.com/" }];
+  targets = [
+    {
+      targetId: "tab-a",
+      type: "page",
+      title: "Example",
+      url: "https://example.com/",
+    },
+  ];
   cdpDeps = {
     getState: () => currentState,
     connect: async () => cdp as unknown as CdpConnection,
@@ -147,10 +186,14 @@ interface Collected {
 }
 
 function connect(hello: Record<string, unknown>, origin = ORIGIN): Collected {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/watch/ws`, { headers: { Origin: origin } });
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/watch/ws`, {
+    headers: { Origin: origin },
+  });
   const messages: any[] = [];
   const waiters: Array<{ type: string; resolve: (m: any) => void }> = [];
-  ws.on("open", () => ws.send(JSON.stringify({ type: "hello", token: TOKEN, ...hello })));
+  ws.on("open", () =>
+    ws.send(JSON.stringify({ type: "hello", token: TOKEN, ...hello })),
+  );
   ws.on("message", (raw) => {
     const msg = JSON.parse(String(raw));
     messages.push(msg);
@@ -171,7 +214,10 @@ function connect(hello: Record<string, unknown>, origin = ORIGIN): Collected {
       if (existing) return Promise.resolve(existing);
       return new Promise((resolve, reject) => {
         waiters.push({ type, resolve });
-        setTimeout(() => reject(new Error(`no ${type} within ${timeoutMs}ms`)), timeoutMs).unref?.();
+        setTimeout(
+          () => reject(new Error(`no ${type} within ${timeoutMs}ms`)),
+          timeoutMs,
+        ).unref?.();
       });
     },
   };
@@ -212,7 +258,9 @@ describe("watch socket", () => {
     expect(ready.url).toBe("https://example.com/");
 
     // The screencast must have been started on the attached CDP session.
-    const start = cdp.calls.find((call) => call.method === "Page.startScreencast");
+    const start = cdp.calls.find(
+      (call) => call.method === "Page.startScreencast",
+    );
     expect(start).toBeTruthy();
     const cdpSession = start!.sessionId!;
 
@@ -220,7 +268,11 @@ describe("watch socket", () => {
     const acksBefore = cdp.ackCount();
     cdp.emit({
       method: "Page.screencastFrame",
-      params: { data: "aGVsbG8=", metadata: { deviceWidth: 800, deviceHeight: 600 }, sessionId: 42 },
+      params: {
+        data: "aGVsbG8=",
+        metadata: { deviceWidth: 800, deviceHeight: 600 },
+        sessionId: 42,
+      },
       sessionId: cdpSession,
     });
     const frame = await c.waitFor("frame");
@@ -233,7 +285,9 @@ describe("watch socket", () => {
       await new Promise((r) => setTimeout(r, 25));
     }
     expect(cdp.ackCount()).toBe(acksBefore + 1);
-    const ack = cdp.calls.filter((call) => call.method === "Page.screencastFrameAck").pop()!;
+    const ack = cdp.calls
+      .filter((call) => call.method === "Page.screencastFrameAck")
+      .pop()!;
     expect(ack.params.sessionId).toBe(42);
 
     c.ws.close();
@@ -264,9 +318,13 @@ describe("watch socket", () => {
     await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
     const p = (srv.address() as AddressInfo).port;
     try {
-      const ws = new WebSocket(`ws://127.0.0.1:${p}/watch/ws`, { headers: { Origin: ORIGIN } });
+      const ws = new WebSocket(`ws://127.0.0.1:${p}/watch/ws`, {
+        headers: { Origin: ORIGIN },
+      });
       await new Promise<void>((r) => ws.on("open", () => r()));
-      ws.send(JSON.stringify({ type: "hello", token: TOKEN, session_uuid: "u1" }));
+      ws.send(
+        JSON.stringify({ type: "hello", token: TOKEN, session_uuid: "u1" }),
+      );
       // Give the server a tick to reach connect(), then hang up before it answers.
       await new Promise((r) => setTimeout(r, 100));
       const closed = new Promise<void>((r) => ws.on("close", () => r()));
@@ -278,7 +336,9 @@ describe("watch socket", () => {
       release();
       await new Promise((r) => setTimeout(r, 100));
       expect(slow.closed).toBe(true);
-      expect(slow.calls.some((c) => c.method === "Page.startScreencast")).toBe(false);
+      expect(slow.calls.some((c) => c.method === "Page.startScreencast")).toBe(
+        false,
+      );
     } finally {
       h.close();
       srv.close();
@@ -326,31 +386,60 @@ describe("polling engine", () => {
     let shots = 0;
     let alive = true;
     const engine = pollingWatchEngine({
-      resolveTab: (cands) => (cands.includes("session:p1") ? { tabId: "ext-7" } : { error: "no-tab" }),
-      screenshot: async () => (alive ? { data: "Zg==", width: 10, height: 10 } : null),
-      describe: async () => (alive ? { title: shots++ < 3 ? "One" : "Two", url: "https://x.test/" } : null),
+      resolveTab: (cands) =>
+        cands.includes("session:p1") ? { tabId: "ext-7" } : { error: "no-tab" },
+      screenshot: async () =>
+        alive ? { data: "Zg==", width: 10, height: 10 } : null,
+      describe: async () =>
+        alive
+          ? { title: shots++ < 3 ? "One" : "Two", url: "https://x.test/" }
+          : null,
     });
     const srv = http.createServer((_req, res) => {
       res.writeHead(404);
       res.end();
     });
-    const h = attachWatchServer(srv, { token: TOKEN, log: () => {} }, { engine, paneIdFor: async () => null });
+    const h = attachWatchServer(
+      srv,
+      { token: TOKEN, log: () => {} },
+      { engine, paneIdFor: async () => null },
+    );
     await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
     const p = (srv.address() as AddressInfo).port;
     try {
-      const ws = new WebSocket(`ws://127.0.0.1:${p}/watch/ws`, { headers: { Origin: ORIGIN } });
+      const ws = new WebSocket(`ws://127.0.0.1:${p}/watch/ws`, {
+        headers: { Origin: ORIGIN },
+      });
       const msgs: any[] = [];
       ws.on("message", (raw) => msgs.push(JSON.parse(String(raw))));
       await new Promise<void>((r) => ws.on("open", () => r()));
-      ws.send(JSON.stringify({ type: "hello", token: TOKEN, session_uuid: "p1", fps: 20 }));
+      ws.send(
+        JSON.stringify({
+          type: "hello",
+          token: TOKEN,
+          session_uuid: "p1",
+          fps: 20,
+        }),
+      );
       const until = async (pred: () => boolean, ms = 4000) => {
         const dl = Date.now() + ms;
-        while (!pred() && Date.now() < dl) await new Promise((r) => setTimeout(r, 20));
+        while (!pred() && Date.now() < dl)
+          await new Promise((r) => setTimeout(r, 20));
         return pred();
       };
-      expect(await until(() => msgs.some((m) => m.type === "ready" && m.targetId === "ext-7"))).toBe(true);
-      expect(await until(() => msgs.filter((m) => m.type === "frame").length >= 3)).toBe(true);
-      expect(await until(() => msgs.some((m) => m.type === "tab" && m.title === "Two"))).toBe(true);
+      expect(
+        await until(() =>
+          msgs.some((m) => m.type === "ready" && m.targetId === "ext-7"),
+        ),
+      ).toBe(true);
+      expect(
+        await until(() => msgs.filter((m) => m.type === "frame").length >= 3),
+      ).toBe(true);
+      expect(
+        await until(() =>
+          msgs.some((m) => m.type === "tab" && m.title === "Two"),
+        ),
+      ).toBe(true);
       // Tab dies → orderly exit.
       alive = false;
       expect(await until(() => msgs.some((m) => m.type === "exit"))).toBe(true);
@@ -371,19 +460,41 @@ describe("control mode", () => {
     const ready = await c.waitFor("ready");
     expect(ready.control).toBe(true);
     // The fake accumulates sessions across tests — take THIS connection's.
-    const cdpSession = cdp.calls.filter((call) => call.method === "Page.startScreencast").pop()!.sessionId!;
+    const cdpSession = cdp.calls
+      .filter((call) => call.method === "Page.startScreencast")
+      .pop()!.sessionId!;
 
     // No frame yet → no viewport → a click has nowhere to land and is dropped.
     const before = cdp.calls.length;
-    c.ws.send(JSON.stringify({ type: "input", events: [{ kind: "mouse", type: "mousePressed", nx: 0.5, ny: 0.5, button: "left", clickCount: 1 }] }));
+    c.ws.send(
+      JSON.stringify({
+        type: "input",
+        events: [
+          {
+            kind: "mouse",
+            type: "mousePressed",
+            nx: 0.5,
+            ny: 0.5,
+            button: "left",
+            clickCount: 1,
+          },
+        ],
+      }),
+    );
     await new Promise((r) => setTimeout(r, 50));
-    expect(cdp.calls.filter((x) => x.method === "Input.dispatchMouseEvent").length).toBe(0);
+    expect(
+      cdp.calls.filter((x) => x.method === "Input.dispatchMouseEvent").length,
+    ).toBe(0);
     expect(cdp.calls.length).toBe(before);
 
     // A frame teaches the viewport; normalized coordinates scale by it.
     cdp.emit({
       method: "Page.screencastFrame",
-      params: { data: "aGVsbG8=", metadata: { deviceWidth: 1000, deviceHeight: 500 }, sessionId: 7 },
+      params: {
+        data: "aGVsbG8=",
+        metadata: { deviceWidth: 1000, deviceHeight: 500 },
+        sessionId: 7,
+      },
       sessionId: cdpSession,
     });
     await c.waitFor("frame");
@@ -391,24 +502,49 @@ describe("control mode", () => {
       JSON.stringify({
         type: "input",
         events: [
-          { kind: "mouse", type: "mousePressed", nx: 0.25, ny: 0.5, button: "left", clickCount: 1 },
+          {
+            kind: "mouse",
+            type: "mousePressed",
+            nx: 0.25,
+            ny: 0.5,
+            button: "left",
+            clickCount: 1,
+          },
           { kind: "key", type: "keyDown", key: "Enter", code: "Enter" },
           { kind: "insertText", text: "hello" },
         ],
       }),
     );
     const deadline = Date.now() + 2000;
-    while (!cdp.calls.some((x) => x.method === "Input.insertText") && Date.now() < deadline) {
+    while (
+      !cdp.calls.some((x) => x.method === "Input.insertText") &&
+      Date.now() < deadline
+    ) {
       await new Promise((r) => setTimeout(r, 20));
     }
-    const mouse = cdp.calls.find((x) => x.method === "Input.dispatchMouseEvent")!;
+    const mouse = cdp.calls.find(
+      (x) => x.method === "Input.dispatchMouseEvent",
+    )!;
     expect(mouse.sessionId).toBe(cdpSession);
-    expect(mouse.params).toMatchObject({ type: "mousePressed", x: 250, y: 250, button: "left", clickCount: 1 });
+    expect(mouse.params).toMatchObject({
+      type: "mousePressed",
+      x: 250,
+      y: 250,
+      button: "left",
+      clickCount: 1,
+    });
     const key = cdp.calls.find((x) => x.method === "Input.dispatchKeyEvent")!;
     // Enter carries the virtual key code and a CR — without them Chrome
     // delivers the event but never submits the form.
-    expect(key.params).toMatchObject({ type: "keyDown", key: "Enter", windowsVirtualKeyCode: 13, text: "\r" });
-    expect(cdp.calls.find((x) => x.method === "Input.insertText")!.params).toEqual({ text: "hello" });
+    expect(key.params).toMatchObject({
+      type: "keyDown",
+      key: "Enter",
+      windowsVirtualKeyCode: 13,
+      text: "\r",
+    });
+    expect(
+      cdp.calls.find((x) => x.method === "Input.insertText")!.params,
+    ).toEqual({ text: "hello" });
 
     c.ws.close();
     await c.closed;
@@ -418,17 +554,32 @@ describe("control mode", () => {
     const c = connect({ session_uuid: "u1" });
     const ready = await c.waitFor("ready");
     expect(ready.control).toBe(false);
-    const cdpSession = cdp.calls.filter((call) => call.method === "Page.startScreencast").pop()!.sessionId!;
+    const cdpSession = cdp.calls
+      .filter((call) => call.method === "Page.startScreencast")
+      .pop()!.sessionId!;
     cdp.emit({
       method: "Page.screencastFrame",
-      params: { data: "aGVsbG8=", metadata: { deviceWidth: 1000, deviceHeight: 500 }, sessionId: 8 },
+      params: {
+        data: "aGVsbG8=",
+        metadata: { deviceWidth: 1000, deviceHeight: 500 },
+        sessionId: 8,
+      },
       sessionId: cdpSession,
     });
     await c.waitFor("frame");
-    const before = cdp.calls.filter((x) => x.method.startsWith("Input.")).length;
-    c.ws.send(JSON.stringify({ type: "input", events: [{ kind: "insertText", text: "nope" }] }));
+    const before = cdp.calls.filter((x) =>
+      x.method.startsWith("Input."),
+    ).length;
+    c.ws.send(
+      JSON.stringify({
+        type: "input",
+        events: [{ kind: "insertText", text: "nope" }],
+      }),
+    );
     await new Promise((r) => setTimeout(r, 100));
-    expect(cdp.calls.filter((x) => x.method.startsWith("Input.")).length).toBe(before);
+    expect(cdp.calls.filter((x) => x.method.startsWith("Input.")).length).toBe(
+      before,
+    );
     c.ws.close();
     await c.closed;
   });
@@ -439,9 +590,19 @@ describe("control mode", () => {
 // the viewer as `action` frames, normalized to the viewport.
 
 describe("action channel", () => {
-  const sessionOf = () => cdp.calls.filter((call) => call.method === "Page.startScreencast").pop()!.sessionId!;
+  const sessionOf = () =>
+    cdp.calls.filter((call) => call.method === "Page.startScreencast").pop()!
+      .sessionId!;
   const report = (cdpSession: string, raw: Record<string, unknown>) =>
-    cdp.emit({ method: "Runtime.bindingCalled", params: { name: ACTION_BINDING, payload: JSON.stringify(raw), executionContextId: 1 }, sessionId: cdpSession });
+    cdp.emit({
+      method: "Runtime.bindingCalled",
+      params: {
+        name: ACTION_BINDING,
+        payload: JSON.stringify(raw),
+        executionContextId: 1,
+      },
+      sessionId: cdpSession,
+    });
   const settle = () => new Promise((r) => setTimeout(r, 60));
 
   test("ready names the protocol, the observer is installed, and a report becomes a normalized action frame", async () => {
@@ -450,31 +611,78 @@ describe("action channel", () => {
     expect(ready.protocol).toBe(WATCH_PROTOCOL_VERSION);
     const cdpSession = sessionOf();
     await settle();
-    const onSession = cdp.calls.filter((x) => x.sessionId === cdpSession).map((x) => x.method);
+    const onSession = cdp.calls
+      .filter((x) => x.sessionId === cdpSession)
+      .map((x) => x.method);
     expect(onSession).toContain("Runtime.addBinding");
-    expect(cdp.calls.find((x) => x.method === "Runtime.addBinding" && x.sessionId === cdpSession)!.params).toEqual({ name: ACTION_BINDING });
+    expect(
+      cdp.calls.find(
+        (x) => x.method === "Runtime.addBinding" && x.sessionId === cdpSession,
+      )!.params,
+    ).toEqual({ name: ACTION_BINDING });
     expect(onSession).toContain("Page.addScriptToEvaluateOnNewDocument");
     expect(onSession).toContain("Runtime.evaluate");
 
     const at = Date.now();
     report(cdpSession, { kind: "down", x: 400, y: 150, w: 800, h: 600, at });
     const action = await c.waitFor("action");
-    expect(action).toEqual({ type: "action", kind: "down", x: 0.5, y: 0.25, at });
+    expect(action).toEqual({
+      type: "action",
+      kind: "down",
+      x: 0.5,
+      y: 0.25,
+      at,
+    });
 
     // Text is a caption, and a secret field never carries one.
-    report(cdpSession, { kind: "type", x: 100, y: 100, w: 800, h: 600, at: at + 1, text: "hello" });
-    report(cdpSession, { kind: "type", x: 100, y: 100, w: 800, h: 600, at: at + 2, secret: true, text: "leak" });
+    report(cdpSession, {
+      kind: "type",
+      x: 100,
+      y: 100,
+      w: 800,
+      h: 600,
+      at: at + 1,
+      text: "hello",
+    });
+    report(cdpSession, {
+      kind: "type",
+      x: 100,
+      y: 100,
+      w: 800,
+      h: 600,
+      at: at + 2,
+      secret: true,
+      text: "leak",
+    });
     await settle();
-    const typed = c.messages.filter((m) => m.type === "action" && m.kind === "type");
+    const typed = c.messages.filter(
+      (m) => m.type === "action" && m.kind === "type",
+    );
     expect(typed[0]).toMatchObject({ text: "hello" });
     expect(typed[1]).toMatchObject({ secret: true });
     expect(typed[1].text).toBeUndefined();
 
     // A report from another CDP session, or under another binding name, is not ours.
-    cdp.emit({ method: "Runtime.bindingCalled", params: { name: "other", payload: JSON.stringify({ kind: "up", x: 1, y: 1, w: 2, h: 2 }) }, sessionId: cdpSession });
-    cdp.emit({ method: "Runtime.bindingCalled", params: { name: ACTION_BINDING, payload: JSON.stringify({ kind: "up", x: 1, y: 1, w: 2, h: 2 }) }, sessionId: "cdp-elsewhere" });
+    cdp.emit({
+      method: "Runtime.bindingCalled",
+      params: {
+        name: "other",
+        payload: JSON.stringify({ kind: "up", x: 1, y: 1, w: 2, h: 2 }),
+      },
+      sessionId: cdpSession,
+    });
+    cdp.emit({
+      method: "Runtime.bindingCalled",
+      params: {
+        name: ACTION_BINDING,
+        payload: JSON.stringify({ kind: "up", x: 1, y: 1, w: 2, h: 2 }),
+      },
+      sessionId: "cdp-elsewhere",
+    });
     await settle();
-    expect(c.messages.filter((m) => m.type === "action" && m.kind === "up").length).toBe(0);
+    expect(
+      c.messages.filter((m) => m.type === "action" && m.kind === "up").length,
+    ).toBe(0);
 
     c.ws.close();
     await c.closed;
@@ -484,14 +692,37 @@ describe("action channel", () => {
     const c = connect({ session_uuid: "u1" });
     await c.waitFor("ready");
     const cdpSession = sessionOf();
-    report(cdpSession, { kind: "move", x: 200, y: 300, w: 800, h: 600, at: Date.now() });
+    report(cdpSession, {
+      kind: "move",
+      x: 200,
+      y: 300,
+      w: 800,
+      h: 600,
+      at: Date.now(),
+    });
     await c.waitFor("action");
-    cdp.emit({ method: "Page.frameNavigated", params: { frame: { id: "child", parentId: "main", url: "https://ad.example/" } }, sessionId: cdpSession });
-    cdp.emit({ method: "Page.frameNavigated", params: { frame: { id: "main", url: "https://example.com/next" } }, sessionId: cdpSession });
+    cdp.emit({
+      method: "Page.frameNavigated",
+      params: {
+        frame: { id: "child", parentId: "main", url: "https://ad.example/" },
+      },
+      sessionId: cdpSession,
+    });
+    cdp.emit({
+      method: "Page.frameNavigated",
+      params: { frame: { id: "main", url: "https://example.com/next" } },
+      sessionId: cdpSession,
+    });
     await settle();
-    const navs = c.messages.filter((m) => m.type === "action" && m.kind === "nav");
+    const navs = c.messages.filter(
+      (m) => m.type === "action" && m.kind === "nav",
+    );
     expect(navs.length).toBe(1);
-    expect(navs[0]).toMatchObject({ url: "https://example.com/next", x: 0.25, y: 0.5 });
+    expect(navs[0]).toMatchObject({
+      url: "https://example.com/next",
+      x: 0.25,
+      y: 0.5,
+    });
     c.ws.close();
     await c.closed;
   });
@@ -507,10 +738,18 @@ describe("action channel", () => {
     await second.waitFor("ready");
     await settle();
     const idx = second.messages.findIndex((m) => m.type === "ready");
-    const replayed = second.messages.slice(idx + 1).filter((m) => m.type === "action");
-    expect(replayed.some((m) => m.kind === "down" && m.x === 0.1 && m.y === 0.1 && m.at === at)).toBe(true);
+    const replayed = second.messages
+      .slice(idx + 1)
+      .filter((m) => m.type === "action");
+    expect(
+      replayed.some(
+        (m) => m.kind === "down" && m.x === 0.1 && m.y === 0.1 && m.at === at,
+      ),
+    ).toBe(true);
     // Nothing arrived before ready.
-    expect(second.messages.slice(0, idx).some((m) => m.type === "action")).toBe(false);
+    expect(second.messages.slice(0, idx).some((m) => m.type === "action")).toBe(
+      false,
+    );
 
     first.ws.close();
     second.ws.close();
@@ -527,9 +766,17 @@ describe("action channel", () => {
       const c = connect({ session_uuid: "u1" });
       await c.waitFor("ready");
       const deadline = Date.now() + 2000;
-      while (!c.messages.some((m) => m.type === "action" && m.at === at) && Date.now() < deadline) await settle();
-      const mine = c.messages.filter((m) => m.type === "action" && (m.at === at || m.at === at - 60_000));
-      expect(mine).toEqual([{ type: "action", kind: "up", x: 0.5, y: 0.5, at }]);
+      while (
+        !c.messages.some((m) => m.type === "action" && m.at === at) &&
+        Date.now() < deadline
+      )
+        await settle();
+      const mine = c.messages.filter(
+        (m) => m.type === "action" && (m.at === at || m.at === at - 60_000),
+      );
+      expect(mine).toEqual([
+        { type: "action", kind: "up", x: 0.5, y: 0.5, at },
+      ]);
       c.ws.close();
       await c.closed;
     } finally {
@@ -543,16 +790,36 @@ describe("action channel", () => {
     const cdpSession = sessionOf();
     cdp.emit({
       method: "Page.screencastFrame",
-      params: { data: "aGVsbG8=", metadata: { deviceWidth: 800, deviceHeight: 600 }, sessionId: 9 },
+      params: {
+        data: "aGVsbG8=",
+        metadata: { deviceWidth: 800, deviceHeight: 600 },
+        sessionId: 9,
+      },
       sessionId: cdpSession,
     });
     await c.waitFor("frame");
-    c.ws.send(JSON.stringify({ type: "input", events: [{ kind: "mouse", type: "mousePressed", nx: 0.5, ny: 0.5, button: "left", clickCount: 1 }] }));
+    c.ws.send(
+      JSON.stringify({
+        type: "input",
+        events: [
+          {
+            kind: "mouse",
+            type: "mousePressed",
+            nx: 0.5,
+            ny: 0.5,
+            button: "left",
+            clickCount: 1,
+          },
+        ],
+      }),
+    );
     await settle();
     const at = Date.now();
     report(cdpSession, { kind: "down", x: 400, y: 300, w: 800, h: 600, at });
     await settle();
-    expect(c.messages.some((m) => m.type === "action" && m.at === at)).toBe(false);
+    expect(c.messages.some((m) => m.type === "action" && m.at === at)).toBe(
+      false,
+    );
     c.ws.close();
     await c.closed;
   });

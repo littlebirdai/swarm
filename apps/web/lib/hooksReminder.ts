@@ -14,11 +14,16 @@ export function hooksReminderHidden(deviceId: string): boolean {
   }
 }
 
-export function setHooksReminderHidden(deviceId: string, hidden: boolean): void {
+export function setHooksReminderHidden(
+  deviceId: string,
+  hidden: boolean,
+): void {
   try {
     if (hidden) localStorage.setItem(KEY(deviceId), "1");
     else localStorage.removeItem(KEY(deviceId));
-  } catch { /* storage unavailable: the mark stays */ }
+  } catch {
+    /* storage unavailable: the mark stays */
+  }
   window.dispatchEvent(new Event(EVENT));
 }
 
@@ -31,7 +36,9 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
-export function useHooksReminderHidden(deviceId: string | null | undefined): boolean {
+export function useHooksReminderHidden(
+  deviceId: string | null | undefined,
+): boolean {
   return useSyncExternalStore(
     subscribe,
     () => (deviceId ? hooksReminderHidden(deviceId) : false),

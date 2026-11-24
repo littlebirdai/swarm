@@ -6,8 +6,8 @@ A coding agent starts every session knowing nothing about the work that came bef
 
 Memory is on by default when you connect a computer to codecast ([Getting started](/documentation#getting-started) covers connecting one). To check it or switch it off:
 
-1. Open **Settings** (**⌘,**), then **Agent Features** under *Machines*, and pick the computer.
-2. Find **Memory** under *Context*. The switch on its card turns it on or off for that computer.
+1. Open **Settings** (**⌘,**), then **Agent Features** under _Machines_, and pick the computer.
+2. Find **Memory** under _Context_. The switch on its card turns it on or off for that computer.
 3. Click **How it works** on the card for what changes and a question to try.
 
 ![The Context section of Agent Features, with the Stable context and Memory cards](/documentation/memory/agent-features.webp "Memory and Stable context, under Context.")
@@ -40,12 +40,12 @@ You can run the same search yourself: press **⌘K** anywhere in the app and typ
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The agent rediscovers something you know was settled | Check that **Memory** is on for that computer, then ask it to look the decision up |
-| A teammate's session never comes up | It may not be shared with the team. Ask them, or see [Team sessions](/documentation/team-sessions) |
-| Work from another computer is missing | That computer needs codecast running and signed in to the same account |
-| An answer quotes a decision that was later reversed | Ask the agent to check for anything newer; it can read the later session too |
+| What you notice                                      | What to do                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| The agent rediscovers something you know was settled | Check that **Memory** is on for that computer, then ask it to look the decision up                 |
+| A teammate's session never comes up                  | It may not be shared with the team. Ask them, or see [Team sessions](/documentation/team-sessions) |
+| Work from another computer is missing                | That computer needs codecast running and signed in to the same account                             |
+| An answer quotes a decision that was later reversed  | Ask the agent to check for anything newer; it can read the later session too                       |
 
 ## For agents and scripts
 

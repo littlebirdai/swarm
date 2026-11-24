@@ -9,12 +9,21 @@ import { resumeReuseCandidates } from "./daemon.js";
 
 describe("resumeReuseCandidates", () => {
   test("includes the started session between cached and resume-named", () => {
-    expect(resumeReuseCandidates("cc-resume-abc", "cc-claude-conv123", "cc-resume-slug-abc"))
-      .toEqual(["cc-resume-abc", "cc-claude-conv123", "cc-resume-slug-abc"]);
+    expect(
+      resumeReuseCandidates(
+        "cc-resume-abc",
+        "cc-claude-conv123",
+        "cc-resume-slug-abc",
+      ),
+    ).toEqual(["cc-resume-abc", "cc-claude-conv123", "cc-resume-slug-abc"]);
   });
 
   test("the bug case: no cached tmux, but a live started session exists — it is probed before spawning fresh", () => {
-    const candidates = resumeReuseCandidates(undefined, "cc-claude-conv123", "cc-resume-slug-abc");
+    const candidates = resumeReuseCandidates(
+      undefined,
+      "cc-claude-conv123",
+      "cc-resume-slug-abc",
+    );
     expect(candidates).toEqual(["cc-claude-conv123", "cc-resume-slug-abc"]);
     // The started session is probed first, so an alive original is reused instead
     // of creating the resume-named session in parallel.
@@ -22,27 +31,39 @@ describe("resumeReuseCandidates", () => {
   });
 
   test("omits undefined cached and started entries", () => {
-    expect(resumeReuseCandidates(undefined, undefined, "cc-resume-abc"))
-      .toEqual(["cc-resume-abc"]);
+    expect(
+      resumeReuseCandidates(undefined, undefined, "cc-resume-abc"),
+    ).toEqual(["cc-resume-abc"]);
   });
 
   test("de-duplicates when cached equals the started session", () => {
-    expect(resumeReuseCandidates("cc-claude-conv123", "cc-claude-conv123", "cc-resume-abc"))
-      .toEqual(["cc-claude-conv123", "cc-resume-abc"]);
+    expect(
+      resumeReuseCandidates(
+        "cc-claude-conv123",
+        "cc-claude-conv123",
+        "cc-resume-abc",
+      ),
+    ).toEqual(["cc-claude-conv123", "cc-resume-abc"]);
   });
 
   test("de-duplicates when started equals the resume-named session", () => {
-    expect(resumeReuseCandidates(undefined, "cc-resume-abc", "cc-resume-abc"))
-      .toEqual(["cc-resume-abc"]);
+    expect(
+      resumeReuseCandidates(undefined, "cc-resume-abc", "cc-resume-abc"),
+    ).toEqual(["cc-resume-abc"]);
   });
 
   test("de-duplicates when all three are identical", () => {
-    expect(resumeReuseCandidates("cc-resume-abc", "cc-resume-abc", "cc-resume-abc"))
-      .toEqual(["cc-resume-abc"]);
+    expect(
+      resumeReuseCandidates("cc-resume-abc", "cc-resume-abc", "cc-resume-abc"),
+    ).toEqual(["cc-resume-abc"]);
   });
 
   test("preserves cached-first priority", () => {
-    const candidates = resumeReuseCandidates("cc-resume-cached", "cc-claude-conv123", "cc-resume-slug-abc");
+    const candidates = resumeReuseCandidates(
+      "cc-resume-cached",
+      "cc-claude-conv123",
+      "cc-resume-slug-abc",
+    );
     expect(candidates[0]).toBe("cc-resume-cached");
   });
 });

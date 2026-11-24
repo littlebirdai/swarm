@@ -7,7 +7,10 @@ export const SESSION_SNOOZE_CHOICES = [
 
 export type SessionSnoozeKey = (typeof SESSION_SNOOZE_CHOICES)[number]["key"];
 
-export function sessionSnoozeUntil(key: SessionSnoozeKey, now = Date.now()): number {
+export function sessionSnoozeUntil(
+  key: SessionSnoozeKey,
+  now = Date.now(),
+): number {
   const choice = SESSION_SNOOZE_CHOICES.find((item) => item.key === key);
   if (!choice) throw new Error("Invalid snooze duration");
   const date = new Date(now);
@@ -16,7 +19,11 @@ export function sessionSnoozeUntil(key: SessionSnoozeKey, now = Date.now()): num
     const day = date.getDate();
     date.setDate(1);
     date.setMonth(date.getMonth() + 1);
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const lastDay = new Date(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      0,
+    ).getDate();
     date.setDate(Math.min(day, lastDay));
   }
   return date.getTime();

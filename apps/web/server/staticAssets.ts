@@ -26,7 +26,10 @@ async function tryFile(path: string) {
 // manifest.webmanifest). Nothing else — app routes such as /repo/... carry
 // dotted file paths and must keep reaching the SPA shell.
 export function isBuildArtifactPath(pathname: string): boolean {
-  return pathname.startsWith("/assets/") || /^\/[^/]+\.(js|mjs|css|map|webmanifest)$/.test(pathname);
+  return (
+    pathname.startsWith("/assets/") ||
+    /^\/[^/]+\.(js|mjs|css|map|webmanifest)$/.test(pathname)
+  );
 }
 
 // A build artifact that is not on disk is deploy skew: the client wants a chunk
@@ -94,7 +97,11 @@ export function registerHashedAssets(app: Hono, distDir: string) {
 //
 // workbox-<hash>.js is deliberately absent: its name carries the hash, so it
 // stays immutable like any other build artifact.
-export const STABLE_ENTRY_POINTS = new Set(["/sw.js", "/registerSW.js", "/manifest.webmanifest"]);
+export const STABLE_ENTRY_POINTS = new Set([
+  "/sw.js",
+  "/registerSW.js",
+  "/manifest.webmanifest",
+]);
 
 // Register BEFORE the static file handler: it wraps whatever serves the file
 // and replaces the caching policy on the way out.
@@ -110,7 +117,8 @@ export function registerStableEntryPoints(app: Hono) {
 // build artifact that static serving did not find is missing, not a route.
 export function registerMissingArtifactGuard(app: Hono) {
   app.use("*", async (c, next) => {
-    if (isBuildArtifactPath(new URL(c.req.url).pathname)) return missingBuildArtifact(c);
+    if (isBuildArtifactPath(new URL(c.req.url).pathname))
+      return missingBuildArtifact(c);
     await next();
   });
 }

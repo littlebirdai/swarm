@@ -6,6 +6,9 @@ test.each([
   ["regular", true, true],
   ["spare", false, false],
   ["spare", true, true],
-] as const)("%s window with claimed=%s has store access=%s", (role, claimed, active) => {
-  expect(shouldStartWindowStore(role, claimed)).toBe(active);
-});
+] as const)(
+  "%s window with claimed=%s has store access=%s",
+  (role, claimed, active) => {
+    expect(shouldStartWindowStore(role, claimed)).toBe(active);
+  },
+);

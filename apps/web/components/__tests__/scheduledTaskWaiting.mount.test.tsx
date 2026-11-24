@@ -5,9 +5,15 @@ import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
-import { formatScheduledTask, STASHED_RUN_NOTE } from "@codecast/shared/contracts";
+import {
+  formatScheduledTask,
+  STASHED_RUN_NOTE,
+} from "@codecast/shared/contracts";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://local.codecast.sh",
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -31,21 +37,46 @@ const { MemoryRouter } = await import("react-router");
 const pills = await import("../EntityIdPill");
 mock.module("../EntityIdPill", () => ({
   ...pills,
-  EntityIdPill: ({ shortId }: { shortId: string }) => React.createElement("span", { "data-pill": shortId }, shortId),
+  EntityIdPill: ({ shortId }: { shortId: string }) =>
+    React.createElement("span", { "data-pill": shortId }, shortId),
 }));
-const { ScheduledTaskBlock } = await import("../conversation/blocks/systemBlocks");
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+const { ScheduledTaskBlock } =
+  await import("../conversation/blocks/systemBlocks");
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 test("a needs-input run names the session, why it waits, for how long, its state line and the trigger", async () => {
   const firedAt = Date.now();
   const content = formatScheduledTask({
-    title: "A session under you needs input", task_id: "rx1", trigger: "tr-1168", event: "session_needs_input",
-    waiting: { short_id: "jx7781p", title: "Broker agent scheduling cleanup", why: "blocked", since: firedAt - 12 * 60_000, state: "Broker cleanup: 8 self-wake paths collapsed to 2" },
+    title: "A session under you needs input",
+    task_id: "rx1",
+    trigger: "tr-1168",
+    event: "session_needs_input",
+    waiting: {
+      short_id: "jx7781p",
+      title: "Broker agent scheduling cleanup",
+      why: "blocked",
+      since: firedAt - 12 * 60_000,
+      state: "Broker cleanup: 8 self-wake paths collapsed to 2",
+    },
     body: "A session that reports to you is waiting.",
   });
   const host = document.createElement("div");
   document.body.appendChild(host);
-  await act(async () => createRoot(host).render(React.createElement(MemoryRouter, null, React.createElement(ScheduledTaskBlock, { content, timestamp: firedAt }))));
+  await act(async () =>
+    createRoot(host).render(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(ScheduledTaskBlock, {
+          content,
+          timestamp: firedAt,
+        }),
+      ),
+    ),
+  );
   const line = host.querySelector("[data-waiting-session]") as HTMLElement;
   expect(line.getAttribute("data-waiting-session")).toBe("jx7781p");
   expect(line.textContent).toContain("is blocked");
@@ -60,45 +91,112 @@ test("a needs-input run names the session, why it waits, for how long, its state
 test("a role's run is one line at rest and opens inline to its card, the waiting state and the prompt", async () => {
   const firedAt = Date.now();
   const content = formatScheduledTask({
-    title: "A session under you needs input", task_id: "rx2", trigger: "tr-1168", event: "session_needs_input",
-    role: { handle: "calling", name: "Calling lead", reports_to: "Cam", scope: ["Callers & Call Management"], charter: "Keeps the caller team effective.", goals: ["Cost per intro under $250"] },
-    waiting: { short_id: "jx7781p", title: "Broker cleanup", why: "blocked", since: firedAt - 9 * 60_000, state: "Which tool cuts come next?" },
+    title: "A session under you needs input",
+    task_id: "rx2",
+    trigger: "tr-1168",
+    event: "session_needs_input",
+    role: {
+      handle: "calling",
+      name: "Calling lead",
+      reports_to: "Cam",
+      scope: ["Callers & Call Management"],
+      charter: "Keeps the caller team effective.",
+      goals: ["Cost per intro under $250"],
+    },
+    waiting: {
+      short_id: "jx7781p",
+      title: "Broker cleanup",
+      why: "blocked",
+      since: firedAt - 9 * 60_000,
+      state: "Which tool cuts come next?",
+    },
     // The writer appends a note for the agent alone when its session is out of the inbox.
     body: `A session that reports to you is waiting.${STASHED_RUN_NOTE}`,
   });
   const host = document.createElement("div");
   document.body.appendChild(host);
-  await act(async () => createRoot(host).render(React.createElement(MemoryRouter, null, React.createElement(ScheduledTaskBlock, { content, timestamp: firedAt }))));
+  await act(async () =>
+    createRoot(host).render(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(ScheduledTaskBlock, {
+          content,
+          timestamp: firedAt,
+        }),
+      ),
+    ),
+  );
   const block = host.querySelector("[data-role-wake=calling]") as HTMLElement;
   expect(block.textContent).toContain("is blocked for 9m");
   // The trigger reads as its title and opens the trigger; the waiting session is the line's one pill.
-  expect(block.querySelector("a[href='/triggers/tr-1168']")!.textContent).toBe("A session under you needs input");
+  expect(block.querySelector("a[href='/triggers/tr-1168']")!.textContent).toBe(
+    "A session under you needs input",
+  );
   expect(block.querySelector("[data-pill='tr-1168']")).toBeNull();
   expect(host.querySelector("[data-role-wake-detail]")).toBeNull();
-  await act(async () => (block.querySelector("[role=button]") as HTMLElement).click());
+  await act(async () =>
+    (block.querySelector("[role=button]") as HTMLElement).click(),
+  );
   const detail = host.querySelector("[data-role-wake-detail]") as HTMLElement;
   expect(detail.textContent).toContain("Which tool cuts come next?");
   expect(detail.textContent).toContain("Callers & Call Management");
   expect(detail.textContent).toContain("reports to Cam");
-  expect(host.querySelector("[data-role-wake-prompt]")!.textContent).toBe("A session that reports to you is waiting.");
+  expect(host.querySelector("[data-role-wake-prompt]")!.textContent).toBe(
+    "A session that reports to you is waiting.",
+  );
   expect(detail.textContent).not.toMatch(/STASHED|cast state/);
 });
 
 test("a role's run that its turn left without a word is marked; an answered or pending one is not", async () => {
   const firedAt = Date.now();
   const content = formatScheduledTask({
-    title: "A session under you needs input", task_id: "rx3", trigger: "tr-3513", event: "session_needs_input",
-    role: { handle: "mobile", name: "Head of Mobile", reports_to: "Ashot", scope: [], goals: [] },
-    waiting: { short_id: "jx7e7q1", title: "Broker app-status prompt", why: "decision", since: firedAt - 60_000, state: "" },
+    title: "A session under you needs input",
+    task_id: "rx3",
+    trigger: "tr-3513",
+    event: "session_needs_input",
+    role: {
+      handle: "mobile",
+      name: "Head of Mobile",
+      reports_to: "Ashot",
+      scope: [],
+      goals: [],
+    },
+    waiting: {
+      short_id: "jx7e7q1",
+      title: "Broker app-status prompt",
+      why: "decision",
+      since: firedAt - 60_000,
+      state: "",
+    },
     body: "A session that reports to you is waiting.",
   });
   const mount = async (unanswered?: boolean) => {
     const host = document.createElement("div");
     document.body.appendChild(host);
-    await act(async () => createRoot(host).render(React.createElement(MemoryRouter, null, React.createElement(ScheduledTaskBlock, { content, timestamp: firedAt, unanswered }))));
+    await act(async () =>
+      createRoot(host).render(
+        React.createElement(
+          MemoryRouter,
+          null,
+          React.createElement(ScheduledTaskBlock, {
+            content,
+            timestamp: firedAt,
+            unanswered,
+          }),
+        ),
+      ),
+    );
     return host;
   };
-  expect((await mount(true)).querySelector("[data-role-wake-unanswered]")!.textContent).toBe("no reply");
-  expect((await mount(false)).querySelector("[data-role-wake-unanswered]")).toBeNull();
-  expect((await mount()).querySelector("[data-role-wake-unanswered]")).toBeNull();
+  expect(
+    (await mount(true)).querySelector("[data-role-wake-unanswered]")!
+      .textContent,
+  ).toBe("no reply");
+  expect(
+    (await mount(false)).querySelector("[data-role-wake-unanswered]"),
+  ).toBeNull();
+  expect(
+    (await mount()).querySelector("[data-role-wake-unanswered]"),
+  ).toBeNull();
 });

@@ -16,8 +16,16 @@ import { Closing } from "./Closing";
 import { Chapters } from "./Chapters";
 
 const SECTIONS: [string, ComponentType][] = [
-  ["hero", Hero], ["ladder", Ladder], ["views", Views], ["proposals", Proposals], ["anatomy", Anatomy],
-  ["templates", Templates], ["faces", Faces], ["routing", Routing], ["control", Control], ["closing", Closing],
+  ["hero", Hero],
+  ["ladder", Ladder],
+  ["views", Views],
+  ["proposals", Proposals],
+  ["anatomy", Anatomy],
+  ["templates", Templates],
+  ["faces", Faces],
+  ["routing", Routing],
+  ["control", Control],
+  ["closing", Closing],
 ];
 
 /**
@@ -35,10 +43,18 @@ export default function OrgPage() {
     setOnly(q.get("only"));
   });
   return (
-    <main className="og-root" data-static={still ? "" : undefined} style={{ backgroundColor: PAPER }}>
+    <main
+      className="og-root"
+      data-static={still ? "" : undefined}
+      style={{ backgroundColor: PAPER }}
+    >
       <style>{ORG_CSS}</style>
       {!only && <Chapters />}
-      {SECTIONS.filter(([name]) => !only || name === only).map(([name, Section]) => <Section key={name} />)}
+      {SECTIONS.filter(([name]) => !only || name === only).map(
+        ([name, Section]) => (
+          <Section key={name} />
+        ),
+      )}
     </main>
   );
 }

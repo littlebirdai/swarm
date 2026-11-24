@@ -9,7 +9,12 @@ import type { HeroChapter } from "./contract";
 export const chapter: HeroChapter = {
   id: "work",
   parts: [
-    { key: "files", region: "desk.transcript", order: 40, Component: TaskFiled },
+    {
+      key: "files",
+      region: "desk.transcript",
+      order: 40,
+      Component: TaskFiled,
+    },
     { key: "board", region: "board.main", order: 0, Component: TaskBoard },
   ],
   flyers: {

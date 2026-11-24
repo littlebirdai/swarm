@@ -7,12 +7,21 @@ import { unfurlSlug } from "./convex/lib/unfurl";
  *  serves the built shell in production routes the same way (unfurlSlug). */
 function unfurls(runOrigin: string): Plugin {
   const handle: Connect.NextHandleFunction = (req, res, next) => {
-    const slug = req.method === "GET" && req.url ? unfurlSlug(new URL(req.url, "http://shell").pathname, req.headers["user-agent"]) : null;
+    const slug =
+      req.method === "GET" && req.url
+        ? unfurlSlug(
+            new URL(req.url, "http://shell").pathname,
+            req.headers["user-agent"],
+          )
+        : null;
     if (!slug) return next();
     fetch(`${runOrigin}/og/${slug}`)
       .then(async (r) => {
         res.statusCode = r.status;
-        res.setHeader("Content-Type", r.headers.get("content-type") ?? "text/html; charset=utf-8");
+        res.setHeader(
+          "Content-Type",
+          r.headers.get("content-type") ?? "text/html; charset=utf-8",
+        );
         res.end(await r.text());
       })
       .catch(next);
@@ -30,15 +39,26 @@ function preconnects(origins: string[]): Plugin {
   return {
     name: "clayground-preconnects",
     transformIndexHtml: () =>
-      origins.filter(Boolean).map((href) => ({ tag: "link", attrs: { rel: "preconnect", href }, injectTo: "head-prepend" as const })),
+      origins.filter(Boolean).map((href) => ({
+        tag: "link",
+        attrs: { rel: "preconnect", href },
+        injectTo: "head-prepend" as const,
+      })),
   };
 }
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ["VITE_", "CONVEX_URL"]);
-  const runOrigin = env.VITE_RUN_ORIGIN ?? env.CONVEX_URL?.replace(/\.convex\.cloud$/, ".convex.site") ?? "";
+  const runOrigin =
+    env.VITE_RUN_ORIGIN ??
+    env.CONVEX_URL?.replace(/\.convex\.cloud$/, ".convex.site") ??
+    "";
   return {
-    plugins: [react(), unfurls(runOrigin), preconnects([env.CONVEX_URL, runOrigin])],
+    plugins: [
+      react(),
+      unfurls(runOrigin),
+      preconnects([env.CONVEX_URL, runOrigin]),
+    ],
     // CONVEX_URL comes from .env.local, written by the Convex CLI.
     envPrefix: ["VITE_", "CONVEX_URL"],
     server: {

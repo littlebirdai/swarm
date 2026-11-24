@@ -17,7 +17,13 @@
 
 import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
 import { cliFetchRead } from "../cliHttp.js";
-import { BRANCH_TRAILER, defaultRemote, git, parseSnapshotTrailer, wipRef } from "../wipSnapshot.js";
+import {
+  BRANCH_TRAILER,
+  defaultRemote,
+  git,
+  parseSnapshotTrailer,
+  wipRef,
+} from "../wipSnapshot.js";
 import { listChain } from "../treeSnapshot.js";
 
 /** Past this age (of the snapshot, else of the session's last activity) the pickup warns. */
@@ -56,7 +62,11 @@ export class PickupError extends Error {}
 
 function stderrOf(e: unknown): string {
   const err = e as { stderr?: string | Buffer; message?: string };
-  return (err.stderr?.toString().trim().split("\n").pop() || err.message || String(e)).slice(0, 300);
+  return (
+    err.stderr?.toString().trim().split("\n").pop() ||
+    err.message ||
+    String(e)
+  ).slice(0, 300);
 }
 
 /**
@@ -72,18 +82,40 @@ export async function fetchPickupConversation(
   const resp = await cliFetchRead(`${siteUrl}/cli/export`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_token: auth.authToken, conversation_id: ref, limit: 1 }),
+    body: JSON.stringify({
+      api_token: auth.authToken,
+      conversation_id: ref,
+      limit: 1,
+    }),
   });
   const data = (await resp.json().catch(() => ({}))) as {
     error?: string;
-    conversation?: { id: string; title?: string; git_remote_url?: string | null; updated_at?: string };
+    conversation?: {
+      id: string;
+      title?: string;
+      git_remote_url?: string | null;
+      updated_at?: string;
+    };
   };
-  if (data.error === "Conversation not found") throw new PickupError(`no session ${ref} found`);
-  if (data.error === "Access denied") throw new PickupError(`session ${ref} is not shared with you; ask its owner to share it or pass it to you`);
-  if (data.error === "Unauthorized") throw new PickupError("not signed in; run: cast auth");
-  if (data.error || !data.conversation) throw new PickupError(`could not read session ${ref}: ${data.error ?? `HTTP ${resp.status}`}`);
+  if (data.error === "Conversation not found")
+    throw new PickupError(`no session ${ref} found`);
+  if (data.error === "Access denied")
+    throw new PickupError(
+      `session ${ref} is not shared with you; ask its owner to share it or pass it to you`,
+    );
+  if (data.error === "Unauthorized")
+    throw new PickupError("not signed in; run: cast auth");
+  if (data.error || !data.conversation)
+    throw new PickupError(
+      `could not read session ${ref}: ${data.error ?? `HTTP ${resp.status}`}`,
+    );
   const c = data.conversation;
-  return { id: c.id, title: c.title, remoteUrl: c.git_remote_url ?? null, updatedAt: c.updated_at };
+  return {
+    id: c.id,
+    title: c.title,
+    remoteUrl: c.git_remote_url ?? null,
+    updatedAt: c.updated_at,
+  };
 }
 
 /**
@@ -97,46 +129,84 @@ export async function preparePickup(
   opts: { remote?: string; now?: number } = {},
 ): Promise<PickupSnapshot> {
   const remote = opts.remote ?? (await defaultRemote(repoRoot));
-  if (!remote) throw new PickupError("this checkout has no remote to fetch the snapshot from");
-  const localUrl = await git(repoRoot, ["remote", "get-url", remote]).catch(() => "");
+  if (!remote)
+    throw new PickupError(
+      "this checkout has no remote to fetch the snapshot from",
+    );
+  const localUrl = await git(repoRoot, ["remote", "get-url", remote]).catch(
+    () => "",
+  );
   const warnings: string[] = [];
 
   const theirs = repositoryKeyOfRemote(conversation.remoteUrl);
   const ours = repositoryKeyOfRemote(localUrl);
   if (theirs && ours && theirs !== ours) {
-    throw new PickupError(`session ${conversation.id.slice(0, 7)} ran in ${theirs}, but this checkout is ${ours}; run this from a checkout of ${theirs}`);
+    throw new PickupError(
+      `session ${conversation.id.slice(0, 7)} ran in ${theirs}, but this checkout is ${ours}; run this from a checkout of ${theirs}`,
+    );
   }
-  if (!theirs) warnings.push(`the session recorded no repository; trying ${remote} anyway`);
+  if (!theirs)
+    warnings.push(
+      `the session recorded no repository; trying ${remote} anyway`,
+    );
 
   const ref = wipRef(conversation.id);
   try {
-    await git(repoRoot, ["fetch", "--quiet", "--force", "--no-tags", remote, `+${ref}:${ref}`]);
+    await git(repoRoot, [
+      "fetch",
+      "--quiet",
+      "--force",
+      "--no-tags",
+      remote,
+      `+${ref}:${ref}`,
+    ]);
   } catch (e) {
-    const listed = await git(repoRoot, ["ls-remote", remote, ref]).catch(() => null);
+    const listed = await git(repoRoot, ["ls-remote", remote, ref]).catch(
+      () => null,
+    );
     if (listed === "") {
       throw new PickupError(
         `no snapshot of session ${conversation.id.slice(0, 7)} on ${remote}. The daemon on the session's machine publishes one every few minutes while it runs; ` +
           `check that machine is online and on a current cast, and that it can push to ${remote}`,
       );
     }
-    throw new PickupError(`could not fetch ${ref} from ${remote}: ${stderrOf(e)}`);
+    throw new PickupError(
+      `could not fetch ${ref} from ${remote}: ${stderrOf(e)}`,
+    );
   }
 
   const sha = await git(repoRoot, ["rev-parse", ref]);
   const message = await git(repoRoot, ["show", "-s", "--format=%B", sha]);
   const branch = parseSnapshotTrailer(message, BRANCH_TRAILER);
   const base = await git(repoRoot, ["rev-parse", `${sha}^`]).catch(() => "");
-  if (!branch || !base) throw new PickupError(`${ref} on ${remote} is not a codecast snapshot`);
-  const files = (await git(repoRoot, ["diff", "--name-only", "--no-renames", base, sha])).split("\n").filter(Boolean).length;
+  if (!branch || !base)
+    throw new PickupError(`${ref} on ${remote} is not a codecast snapshot`);
+  const files = (
+    await git(repoRoot, ["diff", "--name-only", "--no-renames", base, sha])
+  )
+    .split("\n")
+    .filter(Boolean).length;
   const baseDate = await git(repoRoot, ["show", "-s", "--format=%cI", base]);
 
   const taken = (await listChain(repoRoot, sha, 1))[0]?.takenAt;
-  const takenAt = taken !== undefined && Number.isFinite(taken) ? new Date(taken).toISOString() : undefined;
-  const hoursSince = (iso: string) => Math.floor(((opts.now ?? Date.now()) - Date.parse(iso)) / 3_600_000);
+  const takenAt =
+    taken !== undefined && Number.isFinite(taken)
+      ? new Date(taken).toISOString()
+      : undefined;
+  const hoursSince = (iso: string) =>
+    Math.floor(((opts.now ?? Date.now()) - Date.parse(iso)) / 3_600_000);
   if (takenAt && hoursSince(takenAt) > PICKUP_STALE_HOURS) {
-    warnings.push(`the snapshot is ${hoursSince(takenAt)} hours old; the session's machine may be offline or unable to push`);
-  } else if (!takenAt && conversation.updatedAt && hoursSince(conversation.updatedAt) > PICKUP_STALE_HOURS) {
-    warnings.push(`the session has been idle ${hoursSince(conversation.updatedAt)} hours; this is its tree as it stood then`);
+    warnings.push(
+      `the snapshot is ${hoursSince(takenAt)} hours old; the session's machine may be offline or unable to push`,
+    );
+  } else if (
+    !takenAt &&
+    conversation.updatedAt &&
+    hoursSince(conversation.updatedAt) > PICKUP_STALE_HOURS
+  ) {
+    warnings.push(
+      `the session has been idle ${hoursSince(conversation.updatedAt)} hours; this is its tree as it stood then`,
+    );
   }
   return { ref, sha, base, branch, files, baseDate, takenAt, warnings };
 }
@@ -147,9 +217,16 @@ export async function preparePickup(
  * (main, or a branch this person has too), and acquire never resets an existing
  * branch, so the fallback names the session.
  */
-export function pickupBranches(snapshot: Pick<PickupSnapshot, "branch">, conversationId: string, override?: string): { branch: string; altBranch?: string } {
+export function pickupBranches(
+  snapshot: Pick<PickupSnapshot, "branch">,
+  conversationId: string,
+  override?: string,
+): { branch: string; altBranch?: string } {
   const short = conversationId.slice(0, 7);
   if (override) return { branch: override };
   if (snapshot.branch === "HEAD") return { branch: `codecast/pickup-${short}` };
-  return { branch: snapshot.branch, altBranch: `${snapshot.branch}-pickup-${short}` };
+  return {
+    branch: snapshot.branch,
+    altBranch: `${snapshot.branch}-pickup-${short}`,
+  };
 }

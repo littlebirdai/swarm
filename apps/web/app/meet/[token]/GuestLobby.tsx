@@ -1,13 +1,27 @@
 import { useRef, useSyncExternalStore, type FormEvent } from "react";
 import { Loader2, Mic, MicOff, RefreshCw, Video, VideoOff } from "lucide-react";
-import { GUEST_NAME_MAX, noticeNews, type GuestNotice } from "@codecast/shared/contracts";
+import {
+  GUEST_NAME_MAX,
+  noticeNews,
+  type GuestNotice,
+} from "@codecast/shared/contracts";
 import { AvatarImg } from "../../../lib/avatarCache";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
-import { canPickSpeaker, devicePermissionHint, type GuestPreview, type PreviewSnapshot } from "../../../lib/calls/guestRoom";
+import {
+  canPickSpeaker,
+  devicePermissionHint,
+  type GuestPreview,
+  type PreviewSnapshot,
+} from "../../../lib/calls/guestRoom";
 import { STAGE_CTL } from "../../../components/calls/stageHost";
 import { firstName } from "../../../components/calls/speakers";
-import { CallNotice, DEVICE_META, DeviceSelect, GUEST_PRIMARY } from "./MeetChrome";
+import {
+  CallNotice,
+  DEVICE_META,
+  DeviceSelect,
+  GUEST_PRIMARY,
+} from "./MeetChrome";
 
 // The lobby and the door, one screen: the guest's own camera on the left (it
 // stays theirs to fix their hair in or switch off while they wait), what they
@@ -93,15 +107,27 @@ export function GuestLobby({
   error: string | null;
   waitingSince: number | null;
 }) {
-  const p = useSyncExternalStore(preview.subscribe, preview.getSnapshot, preview.getSnapshot);
+  const p = useSyncExternalStore(
+    preview.subscribe,
+    preview.getSnapshot,
+    preview.getSnapshot,
+  );
   const inviterName = inviter?.name ? firstName(inviter.name) : null;
   // What the room keeps beyond the notice they agreed to (noticeWidened,
   // row by row, so the Join can name the row that changed).
-  const news = noticeNews(accepted, { recording, transcribed, video_public: videoPublic, words_public: wordsPublic });
+  const news = noticeNews(accepted, {
+    recording,
+    transcribed,
+    video_public: videoPublic,
+    words_public: wordsPublic,
+  });
   const widened = news.rec || news.words;
   // What changed, in the words of the line under the Join: a recording or a
   // transcript that started, or one they knew of that went to a public link.
-  const started = [news.rec && !accepted?.recording && "recording", news.words && !accepted?.transcribed && "transcribing"].filter(Boolean);
+  const started = [
+    news.rec && !accepted?.recording && "recording",
+    news.words && !accepted?.transcribed && "transcribing",
+  ].filter(Boolean);
   const changed = [
     started.length ? `started ${started.join(" and ")}` : null,
     news.rec && accepted?.recording ? "made its recording public" : null,
@@ -127,9 +153,15 @@ export function GuestLobby({
       {/* What they are joining. */}
       <div className="meet-rise flex min-w-0 flex-col gap-2 lg:self-end lg:[grid-area:head]">
         <span className="text-[12px] text-sol-text-muted">
-          {mode === "waiting" ? "Asking to join" : mode === "rejoin" ? "You've been let in to" : "You're invited to"}
+          {mode === "waiting"
+            ? "Asking to join"
+            : mode === "rejoin"
+              ? "You've been let in to"
+              : "You're invited to"}
         </span>
-        <h1 className="meet-title text-balance text-[30px] leading-[1.12] text-sol-text sm:text-[36px]">{title}</h1>
+        <h1 className="meet-title text-balance text-[30px] leading-[1.12] text-sol-text sm:text-[36px]">
+          {title}
+        </h1>
         {/* Who it is from is the one fact that tells a stranger what this
             is, so the live state wraps to a line of its own before the name
             is cut, and its dot goes with it, clipped at the line's start. */}
@@ -165,19 +197,50 @@ export function GuestLobby({
       </div>
 
       {/* Their own picture, and the devices behind it. */}
-      <section className="meet-rise flex min-w-0 flex-col gap-3 lg:self-center lg:[grid-area:preview]" aria-label="Your camera and microphone">
-        <PreviewFrame preview={preview} name={name} mode={mode} onToggle={onToggle} />
+      <section
+        className="meet-rise flex min-w-0 flex-col gap-3 lg:self-center lg:[grid-area:preview]"
+        aria-label="Your camera and microphone"
+      >
+        <PreviewFrame
+          preview={preview}
+          name={name}
+          mode={mode}
+          onToggle={onToggle}
+        />
         <div className="flex flex-wrap gap-2">
-          <DeviceSelect compact kind="mic" devices={p.devices.mic} choice={p.choice} asking={p.asking} onChoose={(k, id) => void preview.choose(k, id)} />
-          <DeviceSelect compact kind="camera" devices={p.devices.camera} choice={p.choice} asking={p.asking} onChoose={(k, id) => void preview.choose(k, id)} />
+          <DeviceSelect
+            compact
+            kind="mic"
+            devices={p.devices.mic}
+            choice={p.choice}
+            asking={p.asking}
+            onChoose={(k, id) => void preview.choose(k, id)}
+          />
+          <DeviceSelect
+            compact
+            kind="camera"
+            devices={p.devices.camera}
+            choice={p.choice}
+            asking={p.asking}
+            onChoose={(k, id) => void preview.choose(k, id)}
+          />
           {canPickSpeaker() && p.devices.speaker.length > 0 && (
-            <DeviceSelect compact kind="speaker" devices={p.devices.speaker} choice={p.choice} onChoose={(k, id) => void preview.choose(k, id)} />
+            <DeviceSelect
+              compact
+              kind="speaker"
+              devices={p.devices.speaker}
+              choice={p.choice}
+              onChoose={(k, id) => void preview.choose(k, id)}
+            />
           )}
         </div>
       </section>
 
       {/* The one thing to do about it. */}
-      <section className="meet-rise flex min-w-0 flex-col gap-5 lg:self-start lg:[grid-area:form]" aria-live="polite">
+      <section
+        className="meet-rise flex min-w-0 flex-col gap-5 lg:self-start lg:[grid-area:form]"
+        aria-live="polite"
+      >
         {mode === "waiting" ? (
           <div className="flex flex-col gap-3">
             <WaitingCard
@@ -190,19 +253,31 @@ export function GuestLobby({
               busy={busy}
             />
             {error && (
-              <p role="alert" className="text-[12px] leading-snug text-sol-orange">
+              <p
+                role="alert"
+                className="text-[12px] leading-snug text-sol-orange"
+              >
                 {error}
               </p>
             )}
             {/* Live while they wait: the room can start recording before it
                 lets them in, and they hear about it here first. */}
-            <CallNotice compact transcribed={transcribed} recording={recording} videoPublic={videoPublic} wordsPublic={wordsPublic} since={accepted} />
+            <CallNotice
+              compact
+              transcribed={transcribed}
+              recording={recording}
+              videoPublic={videoPublic}
+              wordsPublic={wordsPublic}
+              since={accepted}
+            />
           </div>
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-4">
             {mode === "ask" && (
               <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] text-sol-text-muted">Your name</span>
+                <span className="text-[12px] text-sol-text-muted">
+                  Your name
+                </span>
                 <input
                   value={name}
                   onChange={(e) => onName(e.target.value)}
@@ -215,7 +290,13 @@ export function GuestLobby({
                 />
               </label>
             )}
-            <CallNotice transcribed={transcribed} recording={recording} videoPublic={videoPublic} wordsPublic={wordsPublic} since={mode === "rejoin" ? accepted : null} />
+            <CallNotice
+              transcribed={transcribed}
+              recording={recording}
+              videoPublic={videoPublic}
+              wordsPublic={wordsPublic}
+              since={mode === "rejoin" ? accepted : null}
+            />
             {/* Joining while the browser's prompt is up would walk in with
                 no camera and no microphone, so the press waits for it. When
                 `pinned`, a phone keeps the press in reach at the bottom of
@@ -231,7 +312,11 @@ export function GuestLobby({
               <button
                 type={mode === "ask" ? "submit" : "button"}
                 onClick={mode === "rejoin" ? onJoin : undefined}
-                disabled={busy || (mode === "ask" && !name.trim()) || (mode === "rejoin" && p.asking)}
+                disabled={
+                  busy ||
+                  (mode === "ask" && !name.trim()) ||
+                  (mode === "rejoin" && p.asking)
+                }
                 className={`${GUEST_PRIMARY} flex w-full items-center justify-center gap-2 px-4 py-3`}
               >
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -265,7 +350,10 @@ export function GuestLobby({
             )}
             {mode === "rejoin" && heldUntil && <HeldFor until={heldUntil} />}
             {error ? (
-              <p role="alert" className="text-[12px] leading-snug text-sol-orange">
+              <p
+                role="alert"
+                className="text-[12px] leading-snug text-sol-orange"
+              >
                 {error}
               </p>
             ) : (
@@ -282,8 +370,12 @@ export function GuestLobby({
                 room is instead. */}
             {signedIn && (
               <p className="rounded-lg bg-white/[0.035] px-3 py-2 text-meta leading-snug text-sol-text-muted ring-1 ring-white/[0.06]">
-                You're signed in to codecast in this browser. On the team? Join as yourself, not as a guest:{" "}
-                <a href="/inbox" className="text-sol-cyan underline-offset-2 hover:underline">
+                You're signed in to codecast in this browser. On the team? Join
+                as yourself, not as a guest:{" "}
+                <a
+                  href="/inbox"
+                  className="text-sol-cyan underline-offset-2 hover:underline"
+                >
                   open codecast
                 </a>{" "}
                 and join from Live now in the sidebar.
@@ -359,22 +451,32 @@ function WaitingCard({
         </span>
         <div className="min-w-0">
           <div className="text-[14px] font-medium text-sol-text">
-            {doorFull ? "Lots of people are waiting" : live ? "The room knows you're here" : "Waiting for the call to start"}
+            {doorFull
+              ? "Lots of people are waiting"
+              : live
+                ? "The room knows you're here"
+                : "Waiting for the call to start"}
           </div>
           <div className="mt-0.5 text-[12px] leading-snug text-sol-text-muted">
             {doorFull
               ? "Every place at the door is taken right now. Keep this page open: you'll be back in line as soon as one frees up."
               : live
-              ? "Someone in the call will let you in."
-              : inviterName
-                ? `We let ${inviterName} know you're here. Someone can let you in once the call starts.`
-                : "Someone can let you in once the call starts."}
+                ? "Someone in the call will let you in."
+                : inviterName
+                  ? `We let ${inviterName} know you're here. Someone can let you in once the call starts.`
+                  : "Someone can let you in once the call starts."}
           </div>
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3 font-mono text-meta text-sol-text-dim">
         {/* One line at 320 px: the time is short, and the way out never wraps. */}
-        <span className="min-w-0">{doorFull ? "waiting for a place at the door" : mins < 1 ? "asked just now" : `waiting ${mins} min`}</span>
+        <span className="min-w-0">
+          {doorFull
+            ? "waiting for a place at the door"
+            : mins < 1
+              ? "asked just now"
+              : `waiting ${mins} min`}
+        </span>
         <button
           type="button"
           onClick={onCancel}
@@ -402,7 +504,11 @@ function PreviewFrame({
   mode: LobbyMode;
   onToggle: (kind: "mic" | "camera", on: boolean) => void;
 }) {
-  const p = useSyncExternalStore(preview.subscribe, preview.getSnapshot, preview.getSnapshot);
+  const p = useSyncExternalStore(
+    preview.subscribe,
+    preview.getSnapshot,
+    preview.getSnapshot,
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const micRef = useRef<HTMLButtonElement>(null);
   useWatchEffect(() => {
@@ -415,7 +521,11 @@ function PreviewFrame({
   }, [p.video]);
   // The level never touches React: the meter writes the button's variable.
   useWatchEffect(() => {
-    const write = () => micRef.current?.style.setProperty("--meet-level", String(preview.level()));
+    const write = () =>
+      micRef.current?.style.setProperty(
+        "--meet-level",
+        String(preview.level()),
+      );
     write();
     return preview.subscribeLevel(write);
   }, [preview, p.audio]);
@@ -425,12 +535,17 @@ function PreviewFrame({
   // off: the picture says what the camera picker under it says, and the
   // switch rests, since there is nothing for it to turn on. Only once the
   // browser has listed the devices; before that an empty list is unknown.
-  const noCamera = p.devicesListed && !p.asking && !p.video && p.devices.camera.length === 0;
+  const noCamera =
+    p.devicesListed && !p.asking && !p.video && p.devices.camera.length === 0;
   // While the browser's prompt is up the switches rest: a press there would
   // only queue a second request behind the one being answered, and "off" in
   // red would be a claim about a device nobody has decided yet.
   const ctl = (on: boolean, resting = p.asking) =>
-    resting ? "bg-white/10 text-white/50" : on ? "bg-white/15 text-white hover:bg-white/25" : "bg-sol-red/85 text-white hover:bg-sol-red";
+    resting
+      ? "bg-white/10 text-white/50"
+      : on
+        ? "bg-white/15 text-white hover:bg-white/25"
+        : "bg-sol-red/85 text-white hover:bg-sol-red";
   const initial = (name.trim() || "?").charAt(0).toUpperCase();
   // The device notice sits over the picture where there is room, and under
   // it on a phone: four lines over a narrow preview ran its last one, the
@@ -441,7 +556,13 @@ function PreviewFrame({
     <div className="relative">
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl max-sm:max-h-[30dvh] bg-black/50 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.08]">
         {p.video ? (
-          <video ref={videoRef} autoPlay playsInline muted className="h-full w-full -scale-x-100 object-cover" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="h-full w-full -scale-x-100 object-cover"
+          />
         ) : (
           // pb-14 keeps the initial and its words clear of the switch strip
           // along the bottom (44px buttons on 12px of padding).
@@ -449,14 +570,22 @@ function PreviewFrame({
             {p.asking ? (
               <>
                 <Loader2 className="h-6 w-6 animate-spin text-sol-text-dim" />
-                <span className="text-[12px] text-sol-text-muted">Allow your camera and microphone in the browser's prompt</span>
+                <span className="text-[12px] text-sol-text-muted">
+                  Allow your camera and microphone in the browser's prompt
+                </span>
               </>
             ) : (
               <>
                 <span className="flex h-20 w-20 items-center justify-center rounded-full bg-sol-bg-alt font-mono text-[30px] text-sol-text-secondary max-sm:h-14 max-sm:w-14 max-sm:text-[22px]">
                   {initial}
                 </span>
-                <span className="text-[12px] text-sol-text-muted">{noCamera ? DEVICE_META.camera.empty : p.cameraError ? "No camera" : "Your camera is off"}</span>
+                <span className="text-[12px] text-sol-text-muted">
+                  {noCamera
+                    ? DEVICE_META.camera.empty
+                    : p.cameraError
+                      ? "No camera"
+                      : "Your camera is off"}
+                </span>
               </>
             )}
           </div>
@@ -477,11 +606,23 @@ function PreviewFrame({
               void preview.setMic(on);
             }}
             className={`${STAGE_CTL} meet-level p-3 backdrop-blur disabled:cursor-default ${ctl(!!p.audio)}`}
-            title={p.asking ? "Waiting for the browser's prompt" : p.audio ? "Turn your microphone off" : "Turn your microphone on"}
-            aria-label={p.audio ? "Turn your microphone off" : "Turn your microphone on"}
+            title={
+              p.asking
+                ? "Waiting for the browser's prompt"
+                : p.audio
+                  ? "Turn your microphone off"
+                  : "Turn your microphone on"
+            }
+            aria-label={
+              p.audio ? "Turn your microphone off" : "Turn your microphone on"
+            }
             aria-pressed={!p.audio}
           >
-            {p.audio || p.asking ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+            {p.audio || p.asking ? (
+              <Mic className="h-5 w-5" />
+            ) : (
+              <MicOff className="h-5 w-5" />
+            )}
           </button>
           <button
             type="button"
@@ -501,21 +642,31 @@ function PreviewFrame({
                     ? "Turn your camera off"
                     : "Turn your camera on"
             }
-            aria-label={noCamera ? DEVICE_META.camera.empty : p.video ? "Turn your camera off" : "Turn your camera on"}
+            aria-label={
+              noCamera
+                ? DEVICE_META.camera.empty
+                : p.video
+                  ? "Turn your camera off"
+                  : "Turn your camera on"
+            }
             aria-pressed={noCamera ? undefined : !p.video}
           >
-            {p.video || p.asking ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+            {p.video || p.asking ? (
+              <Video className="h-5 w-5" />
+            ) : (
+              <VideoOff className="h-5 w-5" />
+            )}
           </button>
         </div>
       </div>
       {refused && !p.asking && (
         <div className="absolute inset-x-3 top-3 flex items-center gap-2 rounded-lg bg-black/60 px-3 py-2 max-sm:static max-sm:mt-2 max-sm:bg-sol-orange/10 max-sm:ring-1 max-sm:ring-sol-orange/20 text-meta leading-snug text-sol-orange backdrop-blur">
-          <span className="min-w-0 flex-1">
-            {deviceTrouble(p)}
-          </span>
+          <span className="min-w-0 flex-1">{deviceTrouble(p)}</span>
           <button
             type="button"
-            onClick={() => void preview.start({ mic: !!p.micError, camera: !!p.cameraError })}
+            onClick={() =>
+              void preview.start({ mic: !!p.micError, camera: !!p.cameraError })
+            }
             className="flex shrink-0 items-center gap-1 rounded-md bg-white/10 px-2 py-1 font-mono text-meta text-white/90 transition-colors hover:bg-white/20"
           >
             <RefreshCw className="h-3 w-3" />
@@ -534,7 +685,10 @@ function PreviewFrame({
  *  (devicePermissionHint), never one the guest cannot find. Without a
  *  microphone they can still listen, and that is always said. */
 export function deviceTrouble(
-  p: Pick<PreviewSnapshot, "micError" | "cameraError" | "micDenied" | "cameraDenied">,
+  p: Pick<
+    PreviewSnapshot,
+    "micError" | "cameraError" | "micDenied" | "cameraDenied"
+  >,
   where: string = devicePermissionHint(),
 ): string {
   if (p.micError && p.cameraError) {
@@ -542,7 +696,8 @@ export function deviceTrouble(
       ? `Your browser is blocking the camera and microphone. ${where} Then try again. You can still join and listen.`
       : `${sentence(p.micError)} ${sentence(p.cameraError)} You can still join and listen.`;
   }
-  if (p.micError) return `${sentence(p.micError)} You can still join and listen.`;
+  if (p.micError)
+    return `${sentence(p.micError)} You can still join and listen.`;
   return `${sentence(p.cameraError ?? "")} You can still join without it.`;
 }
 

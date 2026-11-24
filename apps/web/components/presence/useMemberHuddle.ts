@@ -53,8 +53,24 @@ export function useMemberHuddle(
   const addTo = myCall && !inRoomKey && !elsewhere ? myCall : null;
 
   return useMemo(() => {
-    if (elsewhere) return { label: "Open huddle", title: "Show the huddle window", waiting: false, go: () => { void showCallPanel(); } };
-    if (addTo) return { label: "Add to call", title: `Ring ${displayName} into your call`, waiting: false, go: () => { void ringInto(addTo, [memberId]); } };
+    if (elsewhere)
+      return {
+        label: "Open huddle",
+        title: "Show the huddle window",
+        waiting: false,
+        go: () => {
+          void showCallPanel();
+        },
+      };
+    if (addTo)
+      return {
+        label: "Add to call",
+        title: `Ring ${displayName} into your call`,
+        waiting: false,
+        go: () => {
+          void ringInto(addTo, [memberId]);
+        },
+      };
     const label = inRoomKey
       ? "Join huddle"
       : !lockedRoomKey
@@ -87,5 +103,14 @@ export function useMemberHuddle(
         });
     };
     return { label, title, waiting: knocked, go };
-  }, [inRoomKey, lockedRoomKey, knocked, displayName, viewerId, memberId, elsewhere, addTo]);
+  }, [
+    inRoomKey,
+    lockedRoomKey,
+    knocked,
+    displayName,
+    viewerId,
+    memberId,
+    elsewhere,
+    addTo,
+  ]);
 }

@@ -33,7 +33,12 @@
  * that row's signature changes as results land and the sync delta resends it.
  */
 
-import { isCodecastImportNotice, type ParsedMessage, type ToolCall, type ToolResult } from "./parser.js";
+import {
+  isCodecastImportNotice,
+  type ParsedMessage,
+  type ToolCall,
+  type ToolResult,
+} from "./parser.js";
 
 interface AntigravityRow {
   step_index?: unknown;
@@ -59,7 +64,8 @@ function rows(content: string): AntigravityRow[] {
     if (!line.trim()) continue;
     try {
       const row = JSON.parse(line);
-      if (row && typeof row === "object" && !Array.isArray(row)) out.push(row as AntigravityRow);
+      if (row && typeof row === "object" && !Array.isArray(row))
+        out.push(row as AntigravityRow);
     } catch {
       // A torn last line heals on the next append.
     }
@@ -72,18 +78,23 @@ function text(value: unknown): string {
 }
 
 function stepOf(row: AntigravityRow, fallback: number): number {
-  return typeof row.step_index === "number" && Number.isSafeInteger(row.step_index) && row.step_index >= 0
+  return typeof row.step_index === "number" &&
+    Number.isSafeInteger(row.step_index) &&
+    row.step_index >= 0
     ? row.step_index
     : fallback;
 }
 
 function timestampOf(row: AntigravityRow): number {
-  const parsed = typeof row.created_at === "string" ? Date.parse(row.created_at) : NaN;
+  const parsed =
+    typeof row.created_at === "string" ? Date.parse(row.created_at) : NaN;
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
 function count(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
 }
 
 /** The user's own words of a USER_INPUT row: the <USER_REQUEST> body when agy
@@ -94,11 +105,13 @@ export function antigravityUserRequest(content: string): string {
 }
 
 function toolInput(args: unknown): Record<string, unknown> {
-  if (args && typeof args === "object" && !Array.isArray(args)) return args as Record<string, unknown>;
+  if (args && typeof args === "object" && !Array.isArray(args))
+    return args as Record<string, unknown>;
   if (typeof args === "string") {
     try {
       const parsed = JSON.parse(args);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
+        return parsed as Record<string, unknown>;
     } catch {}
   }
   return {};
@@ -106,21 +119,32 @@ function toolInput(args: unknown): Record<string, unknown> {
 
 function str(value: unknown): string | undefined {
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   return undefined;
 }
 
 function int(value: unknown): number | undefined {
-  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : NaN;
   return Number.isSafeInteger(n) ? n : undefined;
 }
 
 function truthy(value: unknown): boolean {
-  return value === true || (typeof value === "string" && value.toLowerCase() === "true");
+  return (
+    value === true ||
+    (typeof value === "string" && value.toLowerCase() === "true")
+  );
 }
 
 function compact(input: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined && v !== ""));
+  return Object.fromEntries(
+    Object.entries(input).filter(([, v]) => v !== undefined && v !== ""),
+  );
 }
 
 /**
@@ -132,7 +156,10 @@ function compact(input: Record<string, unknown>): Record<string, unknown> {
  * real transcripts (agy 1.5.14). Tools with no counterpart (manage_task,
  * send_message, manage_subagents, ask_question) keep their own name and args.
  */
-export function normalizeAntigravityToolCall(name: string, args: Record<string, unknown>): { name: string; input: Record<string, unknown> } {
+export function normalizeAntigravityToolCall(
+  name: string,
+  args: Record<string, unknown>,
+): { name: string; input: Record<string, unknown> } {
   switch (name) {
     case "run_command":
       return {
@@ -151,23 +178,40 @@ export function normalizeAntigravityToolCall(name: string, args: Record<string, 
         input: compact({
           file_path: str(args.Path),
           offset: start,
-          limit: start !== undefined && end !== undefined && end >= start ? end - start + 1 : undefined,
+          limit:
+            start !== undefined && end !== undefined && end >= start
+              ? end - start + 1
+              : undefined,
         }),
       };
     }
     case "edit_file":
       return {
         name: "Edit",
-        input: compact({ file_path: str(args.Path), old_string: str(args.Target), new_string: str(args.Replacement) }),
+        input: compact({
+          file_path: str(args.Path),
+          old_string: str(args.Target),
+          new_string: str(args.Replacement),
+        }),
       };
     case "write_file":
-      return { name: "Write", input: compact({ file_path: str(args.Path), content: str(args.Content) }) };
+      return {
+        name: "Write",
+        input: compact({
+          file_path: str(args.Path),
+          content: str(args.Content),
+        }),
+      };
     case "search_web":
       return { name: "WebSearch", input: compact({ query: str(args.query) }) };
     case "invoke_subagent":
       return {
         name: "Agent",
-        input: compact({ description: str(args.Role), subagent_type: str(args.TypeName), prompt: str(args.Prompt) }),
+        input: compact({
+          description: str(args.Role),
+          subagent_type: str(args.TypeName),
+          prompt: str(args.Prompt),
+        }),
       };
     default:
       return { name, input: args };
@@ -188,7 +232,12 @@ export function parseAntigravityTranscript(content: string): ParsedMessage[] {
         const request = antigravityUserRequest(text(row.content));
         pending = [];
         if (!request || isCodecastImportNotice(request)) return;
-        messages.push({ uuid: `agy-u${step}`, role: "user", content: request, timestamp });
+        messages.push({
+          uuid: `agy-u${step}`,
+          role: "user",
+          content: request,
+          timestamp,
+        });
         return;
       }
       case "PLANNER_RESPONSE": {
@@ -196,7 +245,17 @@ export function parseAntigravityTranscript(content: string): ParsedMessage[] {
           ? row.tool_calls.flatMap((raw, i) => {
               const call = raw as { name?: unknown; args?: unknown } | null;
               const name = text(call?.name);
-              return name ? [{ id: `agy-t${step}-${i}`, ...normalizeAntigravityToolCall(name, toolInput(call?.args)) }] : [];
+              return name
+                ? [
+                    {
+                      id: `agy-t${step}-${i}`,
+                      ...normalizeAntigravityToolCall(
+                        name,
+                        toolInput(call?.args),
+                      ),
+                    },
+                  ]
+                : [];
             })
           : [];
         const body = text(row.content);
@@ -219,7 +278,9 @@ export function parseAntigravityTranscript(content: string): ParsedMessage[] {
                 usage: {
                   input_tokens: input ?? 0,
                   output_tokens: output ?? 0,
-                  ...(cacheRead !== undefined ? { cache_read_input_tokens: cacheRead } : {}),
+                  ...(cacheRead !== undefined
+                    ? { cache_read_input_tokens: cacheRead }
+                    : {}),
                 },
               }
             : {}),
@@ -231,14 +292,26 @@ export function parseAntigravityTranscript(content: string): ParsedMessage[] {
       case "GENERIC": {
         const next = pending.shift();
         if (!next) return;
-        const result: ToolResult = { toolUseId: next.call.id, content: text(row.content) };
-        next.message.toolResults = [...(next.message.toolResults ?? []), result];
+        const result: ToolResult = {
+          toolUseId: next.call.id,
+          content: text(row.content),
+        };
+        next.message.toolResults = [
+          ...(next.message.toolResults ?? []),
+          result,
+        ];
         return;
       }
       case "ERROR_MESSAGE": {
         const error = text(row.error) || text(row.content);
         pending = [];
-        if (error.trim()) messages.push({ uuid: `agy-e${step}`, role: "system", content: error, timestamp });
+        if (error.trim())
+          messages.push({
+            uuid: `agy-e${step}`,
+            role: "system",
+            content: error,
+            timestamp,
+          });
         return;
       }
       default:
@@ -259,13 +332,16 @@ type TranscriptTurnState = "idle" | "active" | "unknown";
  *   - a response that made calls, a tool result, the user's prompt or agy's
  *     own system notice all mean more steps are coming → active
  */
-export function classifyAntigravityTranscriptTail(tailContent: string): TranscriptTurnState {
+export function classifyAntigravityTranscriptTail(
+  tailContent: string,
+): TranscriptTurnState {
   const all = rows(tailContent);
   for (let i = all.length - 1; i >= 0; i--) {
     const row = all[i]!;
     switch (row.type) {
       case "PLANNER_RESPONSE": {
-        const calls = Array.isArray(row.tool_calls) && row.tool_calls.length > 0;
+        const calls =
+          Array.isArray(row.tool_calls) && row.tool_calls.length > 0;
         if (calls) return "active";
         return text(row.content).trim() ? "idle" : "active";
       }

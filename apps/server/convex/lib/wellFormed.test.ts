@@ -14,7 +14,12 @@ describe("wellFormed", () => {
 
   test("lone halves become U+FFFD, whole pairs stay, untouched values keep their reference", () => {
     const cut = `ab${emoji}`.slice(0, 3);
-    const doc = { a: cut, b: [`x${emoji.slice(1)}`, "ok"], c: { d: emoji }, n: 1 };
+    const doc = {
+      a: cut,
+      b: [`x${emoji.slice(1)}`, "ok"],
+      c: { d: emoji },
+      n: 1,
+    };
     const out = wellFormedValue(doc);
     expect(out).toEqual({ a: "ab�", b: ["x�", "ok"], c: { d: emoji }, n: 1 });
     expect(out.c).toBe(doc.c);
@@ -24,13 +29,23 @@ describe("wellFormed", () => {
 
   test("the db wrapper repairs the value argument of every write overload", async () => {
     const calls: any[][] = [];
-    const db: any = { normalizeId: () => null, insert: (...a: any[]) => calls.push(a), patch: (...a: any[]) => calls.push(a), replace: (...a: any[]) => calls.push(a) };
+    const db: any = {
+      normalizeId: () => null,
+      insert: (...a: any[]) => calls.push(a),
+      patch: (...a: any[]) => calls.push(a),
+      replace: (...a: any[]) => calls.push(a),
+    };
     const w = makeWellFormedDb(db);
     const half = emoji.slice(0, 1);
     await w.insert("t", { s: half });
     await w.patch("id", { s: half });
     await w.patch("t", "id", { s: half });
     await w.replace("id", { s: half });
-    expect(calls).toEqual([["t", { s: "�" }], ["id", { s: "�" }], ["t", "id", { s: "�" }], ["id", { s: "�" }]]);
+    expect(calls).toEqual([
+      ["t", { s: "�" }],
+      ["id", { s: "�" }],
+      ["t", "id", { s: "�" }],
+      ["id", { s: "�" }],
+    ]);
   });
 });

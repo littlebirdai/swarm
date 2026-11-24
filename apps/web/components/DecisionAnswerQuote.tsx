@@ -1,11 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, ChevronRight, CornerUpLeft } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CornerUpLeft,
+} from "lucide-react";
 import Link from "next/link";
-import { pickAnsweredDecision, type DecisionAnswerMessage } from "@codecast/shared/contracts";
+import {
+  pickAnsweredDecision,
+  type DecisionAnswerMessage,
+} from "@codecast/shared/contracts";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { type SessionDecisionItem, useInboxStore, isConvexId } from "../store/inboxStore";
+import {
+  type SessionDecisionItem,
+  useInboxStore,
+  isConvexId,
+} from "../store/inboxStore";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useJumpToDecisionAsk } from "../hooks/useJumpToDecisionAsk";
 import { MarkdownRenderer } from "./tools/MarkdownRenderer";
@@ -30,7 +43,15 @@ import { LANE_COPY } from "./simple/lane";
 // already says what came of each ("Didn't update a note (you said no)"), so
 // there the strip is just the question in plain words and a way back to it:
 // no kicker, no options, no decision page.
-export function DecisionAnswerQuote({ decision, conversationId, timestamp }: { decision: DecisionAnswerMessage; conversationId?: string; timestamp?: number }) {
+export function DecisionAnswerQuote({
+  decision,
+  conversationId,
+  timestamp,
+}: {
+  decision: DecisionAnswerMessage;
+  conversationId?: string;
+  timestamp?: number;
+}) {
   const [open, setOpen] = useState(false);
   const storeRow = useInboxStore((s) => {
     if (decision.id) return s.sessionDecisions[decision.id];
@@ -43,106 +64,164 @@ export function DecisionAnswerQuote({ decision, conversationId, timestamp }: { d
   });
   const { data: fetchedById } = useQueryNoThrow(
     api.sessionDecisions.get,
-    open && !storeRow && isConvexId(decision.id) ? { decision_id: decision.id as any } : "skip",
+    open && !storeRow && isConvexId(decision.id)
+      ? { decision_id: decision.id as any }
+      : "skip",
   );
-  const legacyLookup = !decision.id && !storeRow && !!conversationId && isConvexId(conversationId);
+  const legacyLookup =
+    !decision.id && !storeRow && !!conversationId && isConvexId(conversationId);
   const { data: fetchedByAnswer } = useQueryNoThrow(
     api.sessionDecisions.findByAnswer,
-    legacyLookup ? { conversation_id: conversationId as any, answer: decision.answer, near: timestamp } : "skip",
+    legacyLookup
+      ? {
+          conversation_id: conversationId as any,
+          answer: decision.answer,
+          near: timestamp,
+        }
+      : "skip",
   );
   // The fetched shapes are the row's answer-bubble projection; one type for the render below.
-  const row = (storeRow ?? fetchedById ?? fetchedByAnswer ?? null) as SessionDecisionItem | null;
+  const row = (storeRow ??
+    fetchedById ??
+    fetchedByAnswer ??
+    null) as SessionDecisionItem | null;
   const question = row?.question ?? decision.question ?? "";
-  const jump = useJumpToDecisionAsk(conversationId, decision.id || row?._id, question);
-  const loading = !row && ((open && isConvexId(decision.id) && fetchedById === undefined) || (legacyLookup && fetchedByAnswer === undefined));
+  const jump = useJumpToDecisionAsk(
+    conversationId,
+    decision.id || row?._id,
+    question,
+  );
+  const loading =
+    !row &&
+    ((open && isConvexId(decision.id) && fetchedById === undefined) ||
+      (legacyLookup && fetchedByAnswer === undefined));
   // Which options the answer names: one for a single, several for a multi or
   // a rank (answer_json, in order), none for a typed or form answer.
   const recorded = row ? chosenOptions(row) : [];
-  const chosenList: number[] = !row || recorded.length
-    ? recorded
-    : [row.options.findIndex((o) => o.label === decision.answer)].filter((i) => i >= 0);
+  const chosenList: number[] =
+    !row || recorded.length
+      ? recorded
+      : [row.options.findIndex((o) => o.label === decision.answer)].filter(
+          (i) => i >= 0,
+        );
   const chosenSet = new Set(chosenList);
   const isRank = row?.kind === "rank";
   const isForm = row?.kind === "form";
   const hosted = useIsHostedConversation(conversationId);
 
-  if (hosted) return <HostedAnswerStrip question={question} onJump={() => void jump()} />;
+  if (hosted)
+    return <HostedAnswerStrip question={question} onJump={() => void jump()} />;
 
   return (
     <div className="pl-8 mb-2 max-w-[44rem] text-[12px]">
       <div className="border-l-2 border-sol-border pl-2.5">
-      <div className="flex items-start gap-2 min-w-0">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex items-start gap-1.5 min-w-0 flex-1 text-left text-sol-text-muted hover:text-sol-text transition-colors"
-        >
-          <span className="uppercase tracking-wide text-mark leading-[18px] text-sol-text-dim shrink-0">decision</span>
-          {question ? (
-            <span className={`leading-[18px] ${open ? "" : "line-clamp-2"}`}>{question}</span>
-          ) : (
-            <span className="leading-[18px] text-sol-text-dim">the agent's question</span>
-          )}
-          {open
-            ? <ChevronDown className="w-3 h-3 mt-[3px] shrink-0 text-sol-text-dim" />
-            : <ChevronRight className="w-3 h-3 mt-[3px] shrink-0 text-sol-text-dim" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => void jump()}
-          title="Go to the ask in the conversation"
-          aria-label="Go to the ask in the conversation"
-          className="flex items-center gap-1 shrink-0 leading-[18px] text-meta text-sol-text-dim hover:text-sol-text transition-colors"
-        >
-          <CornerUpLeft className="w-3 h-3" />
-          the ask
-        </button>
-      </div>
-      {open && (
-        <div className="pt-2 pb-1 space-y-2.5">
-          {row && isForm ? (
-            <DecisionRecordedAnswer decision={row} />
-          ) : row ? (
-            <ol className="space-y-1">
-              {row.options.map((opt, i) => {
-                const picked = chosenSet.has(i);
-                const rank = isRank && picked ? chosenList.indexOf(i) + 1 : 0;
-                return (
-                  <li key={i} className={`flex items-start gap-2 ${picked ? "text-sol-text" : "text-sol-text-dim"}`}>
-                    <span className="w-3.5 h-3.5 mt-0.5 shrink-0 flex items-center justify-center">
-                      {rank ? <span className="text-meta text-sol-green">{rank}</span> : picked ? <Check className="w-3.5 h-3.5 text-sol-green" /> : <span className="text-meta">{i + 1}</span>}
-                    </span>
-                    <span className="min-w-0">
-                      <span className={picked ? "font-medium" : ""}>{opt.label}</span>
-                      {opt.description && <span className="text-sol-text-dim"> — {opt.description}</span>}
-                    </span>
-                  </li>
-                );
-              })}
-              {chosenList.length === 0 && (
-                <li className="flex items-start gap-2 text-sol-text">
-                  <Check className="w-3.5 h-3.5 mt-0.5 shrink-0 text-sol-green" />
-                  <span className="font-medium">{decision.answer}</span>
-                </li>
-              )}
-            </ol>
-          ) : (
-            <div className="text-sol-text-dim">{loading ? "Loading the question…" : "The full question is no longer available."}</div>
-          )}
-          {row?.context_md && (
-            <div className="text-sol-text-muted [&_p]:my-1">
-              <MarkdownRenderer content={row.context_md} />
-            </div>
-          )}
-          {row?.report_slug && <PublishedPageEmbed slug={row.report_slug} decision={row._id} />}
-          {row && (
-            <Link href={decisionHref(row)} className="inline-flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text hover:underline">
-              the decision page <ArrowUpRight className="w-3 h-3" />
-            </Link>
-          )}
+        <div className="flex items-start gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex items-start gap-1.5 min-w-0 flex-1 text-left text-sol-text-muted hover:text-sol-text transition-colors"
+          >
+            <span className="uppercase tracking-wide text-mark leading-[18px] text-sol-text-dim shrink-0">
+              decision
+            </span>
+            {question ? (
+              <span className={`leading-[18px] ${open ? "" : "line-clamp-2"}`}>
+                {question}
+              </span>
+            ) : (
+              <span className="leading-[18px] text-sol-text-dim">
+                the agent's question
+              </span>
+            )}
+            {open ? (
+              <ChevronDown className="w-3 h-3 mt-[3px] shrink-0 text-sol-text-dim" />
+            ) : (
+              <ChevronRight className="w-3 h-3 mt-[3px] shrink-0 text-sol-text-dim" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => void jump()}
+            title="Go to the ask in the conversation"
+            aria-label="Go to the ask in the conversation"
+            className="flex items-center gap-1 shrink-0 leading-[18px] text-meta text-sol-text-dim hover:text-sol-text transition-colors"
+          >
+            <CornerUpLeft className="w-3 h-3" />
+            the ask
+          </button>
         </div>
-      )}
+        {open && (
+          <div className="pt-2 pb-1 space-y-2.5">
+            {row && isForm ? (
+              <DecisionRecordedAnswer decision={row} />
+            ) : row ? (
+              <ol className="space-y-1">
+                {row.options.map((opt, i) => {
+                  const picked = chosenSet.has(i);
+                  const rank = isRank && picked ? chosenList.indexOf(i) + 1 : 0;
+                  return (
+                    <li
+                      key={i}
+                      className={`flex items-start gap-2 ${picked ? "text-sol-text" : "text-sol-text-dim"}`}
+                    >
+                      <span className="w-3.5 h-3.5 mt-0.5 shrink-0 flex items-center justify-center">
+                        {rank ? (
+                          <span className="text-meta text-sol-green">
+                            {rank}
+                          </span>
+                        ) : picked ? (
+                          <Check className="w-3.5 h-3.5 text-sol-green" />
+                        ) : (
+                          <span className="text-meta">{i + 1}</span>
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <span className={picked ? "font-medium" : ""}>
+                          {opt.label}
+                        </span>
+                        {opt.description && (
+                          <span className="text-sol-text-dim">
+                            {" "}
+                            — {opt.description}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+                {chosenList.length === 0 && (
+                  <li className="flex items-start gap-2 text-sol-text">
+                    <Check className="w-3.5 h-3.5 mt-0.5 shrink-0 text-sol-green" />
+                    <span className="font-medium">{decision.answer}</span>
+                  </li>
+                )}
+              </ol>
+            ) : (
+              <div className="text-sol-text-dim">
+                {loading
+                  ? "Loading the question…"
+                  : "The full question is no longer available."}
+              </div>
+            )}
+            {row?.context_md && (
+              <div className="text-sol-text-muted [&_p]:my-1">
+                <MarkdownRenderer content={row.context_md} />
+              </div>
+            )}
+            {row?.report_slug && (
+              <PublishedPageEmbed slug={row.report_slug} decision={row._id} />
+            )}
+            {row && (
+              <Link
+                href={decisionHref(row)}
+                className="inline-flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text hover:underline"
+              >
+                the decision page <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -150,7 +229,13 @@ export function DecisionAnswerQuote({ decision, conversationId, timestamp }: { d
 
 /** The line above an answer in a hosted conversation: the question it
  *  answered, in plain words, and a way back to where it was asked. */
-export function HostedAnswerStrip({ question, onJump }: { question: string; onJump: () => void }) {
+export function HostedAnswerStrip({
+  question,
+  onJump,
+}: {
+  question: string;
+  onJump: () => void;
+}) {
   return (
     <div className="pl-8 mb-2 flex max-w-[44rem] items-center gap-3 text-[12px] text-sol-text-muted min-w-0">
       {question ? <span className="truncate">{question}</span> : null}

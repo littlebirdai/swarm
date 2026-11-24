@@ -19,15 +19,32 @@ if (file) {
   const spawnSync = Bun.spawnSync.bind(Bun);
   const cmdOf = (args: unknown[]) => {
     const first = args[0] as { cmd?: unknown } | unknown[];
-    return JSON.stringify(Array.isArray(first) ? first : (first as { cmd?: unknown })?.cmd ?? first).slice(0, 240);
+    return JSON.stringify(
+      Array.isArray(first)
+        ? first
+        : ((first as { cmd?: unknown })?.cmd ?? first),
+    ).slice(0, 240);
   };
   const note = (what: string, args: unknown[]) => {
-    try { fs.appendFileSync(file, `${new Date().toISOString()} ${process.pid} ${what} ${cmdOf(args)}\n`); } catch { /* tracing never fails a test */ }
+    try {
+      fs.appendFileSync(
+        file,
+        `${new Date().toISOString()} ${process.pid} ${what} ${cmdOf(args)}\n`,
+      );
+    } catch {
+      /* tracing never fails a test */
+    }
   };
   note("file-start", [Bun.main]);
   afterAll(() => note("file-done", [Bun.main]));
-  (Bun as unknown as { spawnSync: typeof Bun.spawnSync }).spawnSync = ((...args: Parameters<typeof Bun.spawnSync>) => {
+  (Bun as unknown as { spawnSync: typeof Bun.spawnSync }).spawnSync = ((
+    ...args: Parameters<typeof Bun.spawnSync>
+  ) => {
     note("start", args);
-    try { return spawnSync(...args); } finally { note("done", args); }
+    try {
+      return spawnSync(...args);
+    } finally {
+      note("done", args);
+    }
   }) as typeof Bun.spawnSync;
 }

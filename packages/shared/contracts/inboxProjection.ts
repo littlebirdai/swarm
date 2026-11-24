@@ -5,13 +5,33 @@
 //
 // PURE isomorphic code: no Node or DOM APIs, no BigInt, so the Convex runtime,
 // the daemon, the browser and React Native all run the same bytes.
-import { ACTIVE_AGENT_STATUSES, AGENT_IDLE_GRACE_MS, DORMANT_CLAIM_TTL_MS, HEARTBEAT_ALIVE_MS, STATUS_TRUST_TTL_MS, trustedAgentStatus } from "./agentStatus";
+import {
+  ACTIVE_AGENT_STATUSES,
+  AGENT_IDLE_GRACE_MS,
+  DORMANT_CLAIM_TTL_MS,
+  HEARTBEAT_ALIVE_MS,
+  STATUS_TRUST_TTL_MS,
+  trustedAgentStatus,
+} from "./agentStatus";
 import { isMachineDeliveredMessage } from "./machineMessages";
-import { isLoopFresh, LOOP_OVERDUE_GRACE_MS, type LoopState } from "./loopState";
+import {
+  isLoopFresh,
+  LOOP_OVERDUE_GRACE_MS,
+  type LoopState,
+} from "./loopState";
 import { openTasksVouchForWaiting } from "./openTasks";
 import { isHostedAgentType } from "./agentClients";
 import type { WorkState } from "./workState";
-import { isNoiseTitle, type InboxRowIdentity, type RunLogIdentity, isRunLog, isNestedIdentity, isOrphanOrSubagent, type RollupRow, rollupParentIdOf } from "./inboxMembership";
+import {
+  isNoiseTitle,
+  type InboxRowIdentity,
+  type RunLogIdentity,
+  isRunLog,
+  isNestedIdentity,
+  isOrphanOrSubagent,
+  type RollupRow,
+  rollupParentIdOf,
+} from "./inboxMembership";
 // Field ownership (design C1): which channel writes which row field.
 export * from "./inboxFields";
 // Membership identity (subagents, rollups, stacked asks).
@@ -161,7 +181,9 @@ export function inboxEpoch(asOf: number): number {
 // A daemon-reported status that means the agent process is gone. A dead session
 // with content still needs a human (to read the result / restart it), so the
 // classifier routes it to needs-input rather than working.
-export const DEAD_AGENT_STATUSES: ReadonlySet<string> = new Set<string>(["stopped"]);
+export const DEAD_AGENT_STATUSES: ReadonlySet<string> = new Set<string>([
+  "stopped",
+]);
 
 export interface WorkStateInput {
   /** Heartbeat-fresh managed_sessions.agent_status, or undefined when stale/absent. */
@@ -235,7 +257,15 @@ export interface WorkStateInput {
 // the session keeps firing, but the agent said a human must act, and the card
 // must say so where the human looks (isDeclaredBlocked).
 export function classifyWorkState(input: WorkStateInput): WorkState {
-  const { agentStatus, isIdle, awaitingInput, hasPending, isUnresponsive, messageCount, killed } = input;
+  const {
+    agentStatus,
+    isIdle,
+    awaitingInput,
+    hasPending,
+    isUnresponsive,
+    messageCount,
+    killed,
+  } = input;
   const dead = !!agentStatus && DEAD_AGENT_STATUSES.has(agentStatus);
   const canDeliver = !isUnresponsive && !dead;
   const hasMsgs = messageCount > 0;
@@ -264,9 +294,13 @@ export function classifyWorkState(input: WorkStateInput): WorkState {
   // (its pinned declaration, the settle classifier, a structural wake).
   // Filing every hibernated row as dormant parked finished sessions and open
   // asks alike behind a wake that does not exist.
-  const verdictStatus = input.sessionBoundary || agentStatus === "hibernated" ? undefined : agentStatus;
+  const verdictStatus =
+    input.sessionBoundary || agentStatus === "hibernated"
+      ? undefined
+      : agentStatus;
   const declaredDormant =
-    (verdictStatus === "dormant" && !input.dormantClaimExpired) || verdictStatus === "waiting";
+    (verdictStatus === "dormant" && !input.dormantClaimExpired) ||
+    verdictStatus === "waiting";
   // The daemon carries a declaration as the settle status while the session is
   // live. When there is NO daemon status at all (the managed row aged out, the
   // machine is gone, the row predates the feature), the row's own pinned
@@ -274,13 +308,16 @@ export function classifyWorkState(input: WorkStateInput): WorkState {
   // the agent's last word and nothing can have moved since without a daemon.
   // Only `done` rides this fallback: a `dormant` promise with no daemon has no
   // one to deliver its wake, so it stays needs_input (a human must look).
-  const declaredDone = verdictStatus === "done" || (!verdictStatus && input.declaredStatus === "done");
+  const declaredDone =
+    verdictStatus === "done" ||
+    (!verdictStatus && input.declaredStatus === "done");
   // A `done` rest with an armed once trigger into the session parks instead:
   // the follow-up names the next actor (the machine fires in N days), and
   // nothing is left for the human to unblock. Only `done` demotes — a once
   // trigger on a needs_input session is a reminder, and a reminder must never
   // hide an open ask.
-  const doneRest = (): WorkState => (input.armedOnceTriggerHome ? "dormant" : "done");
+  const doneRest = (): WorkState =>
+    input.armedOnceTriggerHome ? "dormant" : "done";
   const restState = (): WorkState => {
     // A blocked PIN is the agent's explicit claim on the human — the same
     // claim that un-stashes (setThreadState) — so neither the classifier's
@@ -288,11 +325,21 @@ export function classifyWorkState(input: WorkStateInput): WorkState {
     // keeps injecting into the session) overrides it. Cleared by the agent's
     // own next declaration, never by a model.
     if (isDeclaredBlocked(input)) return "needs_input";
-    if (declaredDormant || input.armedTriggerHome || input.armedLoopHome || input.childProducing) return "dormant";
+    if (
+      declaredDormant ||
+      input.armedTriggerHome ||
+      input.armedLoopHome ||
+      input.childProducing
+    )
+      return "dormant";
     if (declaredDone) return doneRest();
     // The classifier only ever files DONE: dormancy needs a wake the system
     // can verify, and prose cannot supply one (see idleSummary.SETTLE_VERDICTS).
-    if ((verdictStatus === "idle" || !verdictStatus) && input.settleVerdict === "done") return doneRest();
+    if (
+      (verdictStatus === "idle" || !verdictStatus) &&
+      input.settleVerdict === "done"
+    )
+      return doneRest();
     return "needs_input";
   };
 
@@ -319,7 +366,12 @@ export function classifyWorkState(input: WorkStateInput): WorkState {
   // An unresolved API-error banner ("Please run /login", a usage limit) parks
   // the CLI on the user or on a reset: the agent cannot proceed, whatever its
   // daemon status claims. Rule the web inbox had and the server lacked.
-  if ((input.pendingApiError || (agentStatus === "hibernated" && input.sessionError)) && hasMsgs) return "needs_input";
+  if (
+    (input.pendingApiError ||
+      (agentStatus === "hibernated" && input.sessionError)) &&
+    hasMsgs
+  )
+    return "needs_input";
 
   // Blocked on the user right now (open AskUserQuestion poll, or a tool-use
   // awaiting approve/deny) → needs input. A poll/permission on an empty session
@@ -330,7 +382,8 @@ export function classifyWorkState(input: WorkStateInput): WorkState {
   // Actively producing, or carrying deliverable queued work on a live daemon.
   if (agentStatus && ACTIVE_AGENT_STATUSES.has(agentStatus)) return "working";
   if (canDeliver && hasPending) return "working";
-  if (agentStatus === "hibernated" && !hasPending) return hasMsgs ? restState() : "idle";
+  if (agentStatus === "hibernated" && !hasPending)
+    return hasMsgs ? restState() : "idle";
 
   // Dead or unresponsive with output → a human needs to read/restart it. A
   // dead daemon cannot deliver a wake, so no rest verdict survives this arm —
@@ -379,8 +432,13 @@ export type InboxPlacement = { bucket: InboxBucket; work_state: WorkState };
 // row aged out, the machine is gone). A live status that is NOT idle is a
 // fresher signal than the pin: working means the agent moved on, and
 // dormant / done / waiting are the daemon carrying a newer declaration.
-export function isDeclaredBlocked(input: Pick<WorkStateInput, "agentStatus" | "declaredStatus">): boolean {
-  return input.declaredStatus === "blocked" && (input.agentStatus === "idle" || !input.agentStatus);
+export function isDeclaredBlocked(
+  input: Pick<WorkStateInput, "agentStatus" | "declaredStatus">,
+): boolean {
+  return (
+    input.declaredStatus === "blocked" &&
+    (input.agentStatus === "idle" || !input.agentStatus)
+  );
 }
 
 // The process exited AFTER the agent declared the work delivered, with nothing
@@ -390,7 +448,12 @@ export function isDeclaredBlocked(input: Pick<WorkStateInput, "agentStatus" | "d
 // The declaration is read off the row because the daemon's "stopped" replaced
 // the settle status that carried it. Queued work or a hanging message on a
 // dead agent still needs a restart, so those keep the dead arm.
-export function isExitAfterDone(input: Pick<WorkStateInput, "agentStatus" | "declaredStatus" | "hasPending" | "isUnresponsive">): boolean {
+export function isExitAfterDone(
+  input: Pick<
+    WorkStateInput,
+    "agentStatus" | "declaredStatus" | "hasPending" | "isUnresponsive"
+  >,
+): boolean {
   return (
     !!input.agentStatus &&
     DEAD_AGENT_STATUSES.has(input.agentStatus) &&
@@ -405,7 +468,17 @@ export function isExitAfterDone(input: Pick<WorkStateInput, "agentStatus" | "dec
 // delivers into a stopped session by resuming it, so the exit ends a run, not
 // the session: the wake the system verified stands. A declared block still
 // claims the human, and queued work still needs a restart.
-export function isExitBeforeArmedWake(input: Pick<WorkStateInput, "agentStatus" | "declaredStatus" | "hasPending" | "isUnresponsive" | "armedTriggerHome" | "armedLoopHome">): boolean {
+export function isExitBeforeArmedWake(
+  input: Pick<
+    WorkStateInput,
+    | "agentStatus"
+    | "declaredStatus"
+    | "hasPending"
+    | "isUnresponsive"
+    | "armedTriggerHome"
+    | "armedLoopHome"
+  >,
+): boolean {
   return (
     !!input.agentStatus &&
     DEAD_AGENT_STATUSES.has(input.agentStatus) &&
@@ -421,12 +494,32 @@ export function isExitBeforeArmedWake(input: Pick<WorkStateInput, "agentStatus" 
 // agent's own declared block. The one condition that surfaces an anchor row out
 // of `hidden`, and what keeps a standing trigger's home from collapsing under
 // its schedule row.
-export function isHardBlocked(input: Pick<WorkStateInput, "awaitingInput" | "pendingApiError" | "agentStatus" | "messageCount" | "isUnresponsive" | "declaredStatus" | "hasPending" | "armedTriggerHome" | "armedLoopHome">): boolean {
+export function isHardBlocked(
+  input: Pick<
+    WorkStateInput,
+    | "awaitingInput"
+    | "pendingApiError"
+    | "agentStatus"
+    | "messageCount"
+    | "isUnresponsive"
+    | "declaredStatus"
+    | "hasPending"
+    | "armedTriggerHome"
+    | "armedLoopHome"
+  >,
+): boolean {
   const hasMsgs = input.messageCount > 0;
   if (input.awaitingInput) return true;
   if (input.pendingApiError && hasMsgs) return true;
   if (input.agentStatus === "permission_blocked") return true;
-  if (!!input.agentStatus && DEAD_AGENT_STATUSES.has(input.agentStatus) && hasMsgs && !isExitAfterDone(input) && !isExitBeforeArmedWake(input)) return true;
+  if (
+    !!input.agentStatus &&
+    DEAD_AGENT_STATUSES.has(input.agentStatus) &&
+    hasMsgs &&
+    !isExitAfterDone(input) &&
+    !isExitBeforeArmedWake(input)
+  )
+    return true;
   if (isDeclaredBlocked(input) && hasMsgs) return true;
   return input.isUnresponsive;
 }
@@ -445,7 +538,13 @@ export function placeInboxRow(input: InboxPlacementInput): InboxPlacement {
   // and surfaces when it needs a person: hard blocked, asking (a `cast decide`
   // in its own thread is how a lead raises a choice, org-staffing.md S28), or
   // answering a turn a person started, whose reply is theirs to read.
-  else if (input.isAnchor && !isHardBlocked(input) && !input.asking && !input.personTurn) bucket = "hidden";
+  else if (
+    input.isAnchor &&
+    !isHardBlocked(input) &&
+    !input.asking &&
+    !input.personTurn
+  )
+    bucket = "hidden";
   // A killed row is triaged: its prompt or pending decide has nobody to answer
   // it, so it never files as a question (the replica's asking derivation and
   // the web decision queue already skip killed rows; the two-replica
@@ -454,7 +553,8 @@ export function placeInboxRow(input: InboxPlacementInput): InboxPlacement {
   // ask notwithstanding — they saw the ask and triaged past it (the same
   // standing snooze has above). The next activity expires the verdict and
   // the ask surfaces again.
-  else if (input.asking && !input.killed && !input.userRest) bucket = "questions";
+  else if (input.asking && !input.killed && !input.userRest)
+    bucket = "questions";
   else if (input.pinned) bucket = "pinned";
   else if (input.messageCount === 0) bucket = "new";
   else bucket = work_state;
@@ -528,7 +628,10 @@ function withCreateGrace(at: number, createdAt: number, now: number): number {
 }
 
 // One row's position inside its bucket, from stamps every replica holds.
-export function inboxSortTime(input: InboxSortTimeInput, now: number): InboxSortTime {
+export function inboxSortTime(
+  input: InboxSortTimeInput,
+  now: number,
+): InboxSortTime {
   const status = sortStamp(input.statusStartedAt);
   const turn = sortStamp(input.turnCompletedAt);
   const activity = sortStamp(input.activityAt);
@@ -598,7 +701,10 @@ export function inboxSortTimeOfRow(
 
 // ── Time flip ────────────────────────────────────────────────────────────────
 
-export type InboxBucketStale = { bucket_stale_at: number | null; stale_bucket: InboxBucket | null };
+export type InboxBucketStale = {
+  bucket_stale_at: number | null;
+  stale_bucket: InboxBucket | null;
+};
 
 // Convex re-executes a subscription only when a document in its read set
 // changes, so a stamped bucket can outlive the thresholds it was computed with.
@@ -620,14 +726,21 @@ export function computeBucketStale(
   const seen = new Set<number>();
   const sorted: number[] = [];
   for (const d of input.deadlines) {
-    if (typeof d !== "number" || !Number.isFinite(d) || d <= from || seen.has(d)) continue;
+    if (
+      typeof d !== "number" ||
+      !Number.isFinite(d) ||
+      d <= from ||
+      seen.has(d)
+    )
+      continue;
     seen.add(d);
     sorted.push(d);
   }
   sorted.sort((a, b) => a - b);
   for (const d of sorted) {
     const next = input.placeAt(d + 1).bucket;
-    if (next !== input.current) return { bucket_stale_at: d, stale_bucket: next };
+    if (next !== input.current)
+      return { bucket_stale_at: d, stale_bucket: next };
   }
   return { bucket_stale_at: null, stale_bucket: null };
 }
@@ -665,7 +778,9 @@ function hex8(n: number): string {
 // old off the headline count is the shown tally, so two replicas that agree on
 // every bucket but cut the fold differently are diverged, and the digest must
 // say so.
-export function digestProjection(entries: Iterable<readonly [string, string, boolean]>): string {
+export function digestProjection(
+  entries: Iterable<readonly [string, string, boolean]>,
+): string {
   let laneA = 0;
   let laneB = 0;
   for (const [id, bucket, fold] of entries) {
@@ -711,7 +826,13 @@ export function settleRiders(
     if (settled.has(id)) return true;
     if (trail.has(id)) return false;
     const row = rowOf(id);
-    const leadId = row && !keepsOwn(id) ? rollupParentIdOf(row) ?? (isUnderRole(row) ? roleLeads.get(String(row.org_role_id)) ?? null : null) : null;
+    const leadId =
+      row && !keepsOwn(id)
+        ? (rollupParentIdOf(row) ??
+          (isUnderRole(row)
+            ? (roleLeads.get(String(row.org_role_id)) ?? null)
+            : null))
+        : null;
     if (leadId && leadId !== id && rowOf(leadId)) {
       trail.add(id);
       const acyclic = settle(leadId, trail);
@@ -749,7 +870,10 @@ export function isUnderRole(row: RollupRow): boolean {
 // role id → the id of the row that is that role's standing session, over the
 // rows present. Read off the rows themselves (standing_role_id), so every
 // channel resolves the same lead with no extra read.
-export function roleLeadIdsOf(ids: Iterable<string>, rowOf: (id: string) => RollupRow | undefined): Map<string, string> {
+export function roleLeadIdsOf(
+  ids: Iterable<string>,
+  rowOf: (id: string) => RollupRow | undefined,
+): Map<string, string> {
   const leads = new Map<string, string>();
   for (const id of ids) {
     const role = rowOf(id)?.standing_role_id;
@@ -758,7 +882,12 @@ export function roleLeadIdsOf(ids: Iterable<string>, rowOf: (id: string) => Roll
   return leads;
 }
 
-export const RIDE_KEEPS_OWN: ReadonlySet<InboxBucket> = new Set<InboxBucket>(["dismissed", "stashed", "snoozed", "pinned"]);
+export const RIDE_KEEPS_OWN: ReadonlySet<InboxBucket> = new Set<InboxBucket>([
+  "dismissed",
+  "stashed",
+  "snoozed",
+  "pinned",
+]);
 
 // The bucket ride over an id → placement map, in place: a rider takes its
 // present lead's bucket. The fold rides inside computeFold (the one fold
@@ -777,7 +906,8 @@ export function rideLeadPlacements<P extends { bucket: InboxBucket }>(
   // one. A workspace anchor (no role) stays in its own space.
   for (const [id, lead] of placements) {
     const row = rowOf(id);
-    if (lead.bucket !== "hidden" || !row?.child_live || !row.standing_role_id) continue;
+    if (lead.bucket !== "hidden" || !row?.child_live || !row.standing_role_id)
+      continue;
     const state = (lead as { work_state?: WorkState }).work_state;
     if (state && state !== "idle") lead.bucket = state;
   }
@@ -796,7 +926,8 @@ export function rideLeadPlacements<P extends { bucket: InboxBucket }>(
         // A blank standing session (idle) has no section to file in, so it
         // stays hidden and its sessions stand on their own facts.
         const state = (lead as { work_state?: WorkState }).work_state;
-        if (lead.bucket === "hidden" && state && state !== "idle") lead.bucket = state;
+        if (lead.bucket === "hidden" && state && state !== "idle")
+          lead.bucket = state;
         if (lead.bucket === "hidden") return;
       }
       rider.bucket = lead.bucket;
@@ -820,9 +951,10 @@ export interface InboxVisibilityRow extends InboxRowIdentity, RunLogIdentity {
 // agent working out of sight; only an ask (blocked declaration, needs-attention
 // run, a stall) brings it back. The flag is honored only while the stash stamp
 // is set, so a stale `true` on an unstashed row means nothing.
-export function isStashHidden(
-  row: { inbox_stashed_at?: number | null; inbox_stash_hidden?: boolean | null },
-): boolean {
+export function isStashHidden(row: {
+  inbox_stashed_at?: number | null;
+  inbox_stash_hidden?: boolean | null;
+}): boolean {
   return !!row.inbox_stashed_at && !!row.inbox_stash_hidden;
 }
 
@@ -838,8 +970,10 @@ export function commandsSession(
   if (userId == null) return false;
   const me = userId.toString();
   if (!me) return false;
-  return (row.user_id != null && row.user_id.toString() === me) ||
-    (row.owner_user_id != null && row.owner_user_id.toString() === me);
+  return (
+    (row.user_id != null && row.user_id.toString() === me) ||
+    (row.owner_user_id != null && row.owner_user_id.toString() === me)
+  );
 }
 
 // THE ASSIGNMENT RULE, in one place: a session whose owner set excludes the
@@ -883,7 +1017,8 @@ export function isAssignedAwayFromViewer(
 export function shouldShowInInbox(conv: InboxVisibilityRow): boolean {
   if (isOrphanOrSubagent(conv)) return false;
   if (isRunLog(conv)) return false;
-  if (conv.status === "completed" && (conv.message_count ?? 0) === 0) return false;
+  if (conv.status === "completed" && (conv.message_count ?? 0) === 0)
+    return false;
   if (isNoiseTitle(conv.title)) return false;
   if (conv.inbox_killed_at && !conv.inbox_pinned_at) return false;
   return true;
@@ -894,19 +1029,30 @@ export function shouldShowInInbox(conv: InboxVisibilityRow): boolean {
 // The user's rest verdict: where THEY filed the row — Needs You, Done or
 // Dormant — by gesture or by dragging it into that section.
 export type UserRest = "needs_input" | "done" | "dormant";
-export const USER_RESTS: readonly UserRest[] = ["needs_input", "done", "dormant"];
+export const USER_RESTS: readonly UserRest[] = [
+  "needs_input",
+  "done",
+  "dormant",
+];
 
 // The effective stamp: the inbox_rest / inbox_rest_at pair, or the legacy
 // dormant-only inbox_dormant_at from before the pair existed — whichever is
 // newer, so a row parked back then keeps its verdict. The server ships THIS
 // pair as the row's raw stamp (enrichment), so every replica re-checks the
 // same two numbers against updated_at and can never disagree with it.
-export function userRestStampOf(
-  conv: { inbox_rest?: string | null; inbox_rest_at?: number | null; inbox_dormant_at?: number | null },
-): { rest: UserRest; at: number } | null {
+export function userRestStampOf(conv: {
+  inbox_rest?: string | null;
+  inbox_rest_at?: number | null;
+  inbox_dormant_at?: number | null;
+}): { rest: UserRest; at: number } | null {
   const legacyAt = conv.inbox_dormant_at ?? 0;
   const at = conv.inbox_rest_at ?? 0;
-  if (conv.inbox_rest && at && at >= legacyAt && (USER_RESTS as readonly string[]).includes(conv.inbox_rest)) {
+  if (
+    conv.inbox_rest &&
+    at &&
+    at >= legacyAt &&
+    (USER_RESTS as readonly string[]).includes(conv.inbox_rest)
+  ) {
     return { rest: conv.inbox_rest as UserRest, at };
   }
   if (legacyAt) return { rest: "dormant", at: legacyAt };
@@ -916,9 +1062,12 @@ export function userRestStampOf(
 // The verdict is a stamp that any later activity silently expires: honored
 // while newer than the row's last activity, dead the moment a wake, a message,
 // or a new turn bumps updated_at. No write un-files; the row simply moves on.
-export function userRestOf(
-  conv: { inbox_rest?: string | null; inbox_rest_at?: number | null; inbox_dormant_at?: number | null; updated_at: number },
-): UserRest | null {
+export function userRestOf(conv: {
+  inbox_rest?: string | null;
+  inbox_rest_at?: number | null;
+  inbox_dormant_at?: number | null;
+  updated_at: number;
+}): UserRest | null {
   const stamp = userRestStampOf(conv);
   return stamp && stamp.at >= conv.updated_at ? stamp.rest : null;
 }
@@ -928,9 +1077,10 @@ export function userRestOf(
 // bumps updated_at past it and the verdict is stale until the next settle —
 // during which the active arms of classifyWorkState win anyway. Same contract
 // as userRestOf, deliberately.
-export function isSettleVerdictCurrent(
-  conv: { settle_verdict_at?: number | null; updated_at: number },
-): boolean {
+export function isSettleVerdictCurrent(conv: {
+  settle_verdict_at?: number | null;
+  updated_at: number;
+}): boolean {
   return !!conv.settle_verdict_at && conv.settle_verdict_at >= conv.updated_at;
 }
 
@@ -951,7 +1101,9 @@ export const INBOX_WINDOW_CAPS = {
 
 export type WorkingSetWindow = keyof typeof INBOX_WINDOW_CAPS;
 
-export const WORKING_SET_WINDOWS = Object.keys(INBOX_WINDOW_CAPS) as readonly WorkingSetWindow[];
+export const WORKING_SET_WINDOWS = Object.keys(
+  INBOX_WINDOW_CAPS,
+) as readonly WorkingSetWindow[];
 
 // Is this truncation flag one of the five windows (as opposed to a member or
 // scan cap)? The compare drops a row whose every window overflowed.
@@ -969,8 +1121,13 @@ export const WORKING_SET_RECENCY_MS = 30 * 24 * 60 * 60 * 1000;
 export const HISTORY_IMPORT_INBOX_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** True for a history import too old to take a recent seat. */
-export function isStaleHistoryImport(row: { history_import?: boolean | null; updated_at: number }, epoch: number): boolean {
-  return !!row.history_import && row.updated_at < epoch - HISTORY_IMPORT_INBOX_MS;
+export function isStaleHistoryImport(
+  row: { history_import?: boolean | null; updated_at: number },
+  epoch: number,
+): boolean {
+  return (
+    !!row.history_import && row.updated_at < epoch - HISTORY_IMPORT_INBOX_MS
+  );
 }
 // The fold: a clean gap this wide in the recent members' activity hides
 // everything older behind the show-old toggle.
@@ -998,13 +1155,31 @@ export interface WorkingSetRow extends InboxVisibilityRow, RollupRow {
 // and the replica cut the recent window over the same rows.
 // An adoption stamp files the row too: it holds its seat through the adopted
 // window, and the server's recent index never reads a nested row at all.
-export function isFiled(row: Pick<WorkingSetRow, "inbox_pinned_at" | "inbox_dismissed_at" | "inbox_stashed_at" | "inbox_snoozed_until" | "inbox_adopted_at">): boolean {
-  return !!(row.inbox_pinned_at || row.inbox_dismissed_at || row.inbox_stashed_at || row.inbox_snoozed_until || row.inbox_adopted_at);
+export function isFiled(
+  row: Pick<
+    WorkingSetRow,
+    | "inbox_pinned_at"
+    | "inbox_dismissed_at"
+    | "inbox_stashed_at"
+    | "inbox_snoozed_until"
+    | "inbox_adopted_at"
+  >,
+): boolean {
+  return !!(
+    row.inbox_pinned_at ||
+    row.inbox_dismissed_at ||
+    row.inbox_stashed_at ||
+    row.inbox_snoozed_until ||
+    row.inbox_adopted_at
+  );
 }
 
 // Window eligibility BEFORE caps ([] = nonmember). Top-level rows only, after
 // shouldShowInInbox — both checks live here so a caller cannot forget them.
-export function inWorkingSet(row: WorkingSetRow, epoch: number): WorkingSetWindow[] {
+export function inWorkingSet(
+  row: WorkingSetRow,
+  epoch: number,
+): WorkingSetWindow[] {
   if (!shouldShowInInbox(row)) return [];
   const windows: WorkingSetWindow[] = [];
   const horizon = epoch - WORKING_SET_RECENCY_MS;
@@ -1013,16 +1188,22 @@ export function inWorkingSet(row: WorkingSetRow, epoch: number): WorkingSetWindo
   // agent may still be running (a stash keeps it alive), and fresh activity
   // stamps on filed rows would crowd the plain rows out of the recent cap.
   const recentEligible =
-    !isFiled(row) && (row.status === "active" || row.status === "completed") && row.updated_at >= horizon && !isStaleHistoryImport(row, epoch);
+    !isFiled(row) &&
+    (row.status === "active" || row.status === "completed") &&
+    row.updated_at >= horizon &&
+    !isStaleHistoryImport(row, epoch);
   if (recentEligible) windows.push("recent");
   if (row.inbox_pinned_at) windows.push("pinned");
-  if (row.inbox_adopted_at && row.inbox_adopted_at >= horizon) windows.push("adopted");
+  if (row.inbox_adopted_at && row.inbox_adopted_at >= horizon)
+    windows.push("adopted");
   // The server reads the hide windows over top-level rows only (is_subagent
   // pinned at the index), so an adopted child holds its seat through the
   // adopted window alone and files under its hide stamp by placement.
   if (!row.inbox_killed_at && !isNestedIdentity(row)) {
-    if (row.inbox_dismissed_at && row.inbox_dismissed_at >= horizon) windows.push("dismissed");
-    if (row.inbox_stashed_at && row.inbox_stashed_at >= horizon) windows.push("stashed");
+    if (row.inbox_dismissed_at && row.inbox_dismissed_at >= horizon)
+      windows.push("dismissed");
+    if (row.inbox_stashed_at && row.inbox_stashed_at >= horizon)
+      windows.push("stashed");
     if (row.inbox_snoozed_until) windows.push("snoozed");
   }
   // The owner seat alone — no recency, no status gate. Assignment means the
@@ -1032,7 +1213,10 @@ export function inWorkingSet(row: WorkingSetRow, epoch: number): WorkingSetWindo
   return windows;
 }
 
-const WINDOW_SORT_KEY: Record<Exclude<WorkingSetWindow, "owned">, (row: WorkingSetRow) => number> = {
+const WINDOW_SORT_KEY: Record<
+  Exclude<WorkingSetWindow, "owned">,
+  (row: WorkingSetRow) => number
+> = {
   recent: (r) => r.updated_at,
   pinned: (r) => r.inbox_pinned_at ?? 0,
   dismissed: (r) => r.inbox_dismissed_at ?? 0,
@@ -1055,7 +1239,10 @@ export type WorkingSetMember<Row extends WorkingSetRow = WorkingSetRow> = {
 export function selectWorkingSet<Row extends WorkingSetRow>(
   rows: Iterable<Row>,
   epoch: number,
-): { members: Map<string, WorkingSetMember<Row>>; truncated: InboxTruncation[] } {
+): {
+  members: Map<string, WorkingSetMember<Row>>;
+  truncated: InboxTruncation[];
+} {
   const eligible: Array<{ id: string; member: WorkingSetMember<Row> }> = [];
   for (const row of rows) {
     const windows = inWorkingSet(row, epoch);
@@ -1071,13 +1258,19 @@ export function selectWorkingSet<Row extends WorkingSetRow>(
       truncated.add(w);
       if (w !== "owned") {
         const key = WINDOW_SORT_KEY[w];
-        inWindow = [...inWindow].sort((a, b) => key(b.member.row) - key(a.member.row));
+        inWindow = [...inWindow].sort(
+          (a, b) => key(b.member.row) - key(a.member.row),
+        );
       }
       inWindow = inWindow.slice(0, cap);
     }
-    for (const e of inWindow) if (!members.has(e.id)) members.set(e.id, e.member);
+    for (const e of inWindow)
+      if (!members.has(e.id)) members.set(e.id, e.member);
   }
-  return { members, truncated: INBOX_TRUNCATION_KINDS.filter((k) => truncated.has(k)) };
+  return {
+    members,
+    truncated: INBOX_TRUNCATION_KINDS.filter((k) => truncated.has(k)),
+  };
 }
 
 // ── The fold (design C4) ────────────────────────────────────────────────────
@@ -1114,9 +1307,10 @@ export function isBelowFoldAt(row: WorkingSetRow, cutoff: number): boolean {
 // (has_pending_messages) is about to move, so it never folds either, though
 // it still counts toward the gap. Fold never changes membership; it splits
 // the tally and the default rendering.
-export function computeFold(
-  members: ReadonlyMap<string, WorkingSetMember>,
-): { belowFold: Set<string>; cutoff: number } {
+export function computeFold(members: ReadonlyMap<string, WorkingSetMember>): {
+  belowFold: Set<string>;
+  cutoff: number;
+} {
   const candidates: Array<{ id: string; row: WorkingSetRow }> = [];
   for (const [id, m] of members) {
     if (isFoldExempt(m.row)) continue;
@@ -1125,7 +1319,10 @@ export function computeFold(
   candidates.sort((a, b) => b.row.updated_at - a.row.updated_at);
   let cutoff = 0;
   for (let i = 1; i < candidates.length; i++) {
-    if (candidates[i - 1].row.updated_at - candidates[i].row.updated_at > INBOX_FOLD_GAP_MS) {
+    if (
+      candidates[i - 1].row.updated_at - candidates[i].row.updated_at >
+      INBOX_FOLD_GAP_MS
+    ) {
       cutoff = candidates[i].row.updated_at;
       break;
     }
@@ -1177,7 +1374,10 @@ export interface ProjectableInboxRow extends WorkingSetRow {
     state: string;
     at: number;
   } | null;
-  loop_state?: Pick<LoopState, "status" | "wakeup_at" | "fired_at" | "event_at"> | null;
+  loop_state?: Pick<
+    LoopState,
+    "status" | "wakeup_at" | "fired_at" | "event_at"
+  > | null;
   settle_verdict?: string | null;
   settle_verdict_at?: number | null;
   thread_state_status?: string | null;
@@ -1304,8 +1504,13 @@ export function isUnservedSession(input: {
   hasPending: boolean;
   recentlyUpdated: boolean;
 }): boolean {
-  return input.status === "active" && !input.daemonAlive && !isHostedAgentType(input.agentType) &&
-    (input.lastRoleIsUser || input.hasPending) && !input.recentlyUpdated;
+  return (
+    input.status === "active" &&
+    !input.daemonAlive &&
+    !isHostedAgentType(input.agentType) &&
+    (input.lastRoleIsUser || input.hasPending) &&
+    !input.recentlyUpdated
+  );
 }
 
 export interface LiveFactsRow {
@@ -1341,8 +1546,13 @@ export type LiveFacts = {
 };
 
 // The row's own heartbeat is inside the liveness window at instant `t`.
-export function rowHeartbeatAliveAt(row: { last_heartbeat?: number | null }, t: number): boolean {
-  return row.last_heartbeat != null && t - row.last_heartbeat < HEARTBEAT_ALIVE_MS;
+export function rowHeartbeatAliveAt(
+  row: { last_heartbeat?: number | null },
+  t: number,
+): boolean {
+  return (
+    row.last_heartbeat != null && t - row.last_heartbeat < HEARTBEAT_ALIVE_MS
+  );
 }
 
 // The status a row's facts are trusted to say at `t`: the trust rules over the
@@ -1352,14 +1562,31 @@ export function rowHeartbeatAliveAt(row: { last_heartbeat?: number | null }, t: 
 // reader that shows or branches on what the agent is doing reads this, never
 // the raw field.
 export function trustedStatusAt(
-  row: Pick<LiveFactsRow, "agent_status" | "updated_at" | "last_heartbeat" | "open_tasks" | "open_tasks_at">,
+  row: Pick<
+    LiveFactsRow,
+    | "agent_status"
+    | "updated_at"
+    | "last_heartbeat"
+    | "open_tasks"
+    | "open_tasks_at"
+  >,
   t: number,
 ): string | undefined {
   // isLiveAt: the row's own heartbeat inside the window (the liveness set and
   // the heartbeat map are populated together, so this IS membership).
   const heartbeatAlive = rowHeartbeatAliveAt(row, t);
-  const verifiedWaiting = openTasksVouchForWaiting(row.open_tasks_at, row.open_tasks?.length ?? 0, heartbeatAlive);
-  return trustedAgentStatus(row.agent_status ?? undefined, row.updated_at, t, heartbeatAlive, verifiedWaiting);
+  const verifiedWaiting = openTasksVouchForWaiting(
+    row.open_tasks_at,
+    row.open_tasks?.length ?? 0,
+    heartbeatAlive,
+  );
+  return trustedAgentStatus(
+    row.agent_status ?? undefined,
+    row.updated_at,
+    t,
+    heartbeatAlive,
+    verifiedWaiting,
+  );
 }
 
 export function deriveLiveAt(row: LiveFactsRow, t: number): LiveFacts {
@@ -1367,12 +1594,22 @@ export function deriveLiveAt(row: LiveFactsRow, t: number): LiveFacts {
   const hasPending = !!row.has_pending_messages;
   const agentStatus = trustedStatusAt(row, t);
   // A stopped agent is never connected, whatever the user's other daemons say.
-  const daemonAlive = agentStatus !== "stopped" && row.daemon_alive_until != null && t < row.daemon_alive_until;
+  const daemonAlive =
+    agentStatus !== "stopped" &&
+    row.daemon_alive_until != null &&
+    t < row.daemon_alive_until;
   const recentlyUpdated = t - row.updated_at < AGENT_IDLE_GRACE_MS;
   const lastRoleIsUser = !!row.last_role_is_user;
-  const isUnresponsive = (agentStatus !== "hibernated" || hasPending) && isUnservedSession({
-    status: row.status ?? "active", agentType: row.agent_type, daemonAlive, lastRoleIsUser, hasPending, recentlyUpdated,
-  });
+  const isUnresponsive =
+    (agentStatus !== "hibernated" || hasPending) &&
+    isUnservedSession({
+      status: row.status ?? "active",
+      agentType: row.agent_type,
+      daemonAlive,
+      lastRoleIsUser,
+      hasPending,
+      recentlyUpdated,
+    });
   let isIdle = isSessionIdle({
     agentStatus,
     agentStatusUpdatedAt: row.agent_status_updated_at ?? undefined,
@@ -1388,11 +1625,21 @@ export function deriveLiveAt(row: LiveFactsRow, t: number): LiveFacts {
   // older channel carries only the epoch's awaiting_input, which is the same
   // answer already gated on not-idle.
   let awaitingInput = false;
-  if ((!isIdle || agentStatus === "hibernated") && msgs > 0 && (row.auq_open ?? row.awaiting_input ?? false)) {
+  if (
+    (!isIdle || agentStatus === "hibernated") &&
+    msgs > 0 &&
+    (row.auq_open ?? row.awaiting_input ?? false)
+  ) {
     awaitingInput = true;
     isIdle = true;
   }
-  return { agent_status: agentStatus ?? null, is_idle: isIdle, is_unresponsive: isUnresponsive, awaiting_input: awaitingInput, daemon_alive: daemonAlive };
+  return {
+    agent_status: agentStatus ?? null,
+    is_idle: isIdle,
+    is_unresponsive: isUnresponsive,
+    awaiting_input: awaitingInput,
+    daemon_alive: daemonAlive,
+  };
 }
 
 // Every instant at which one of the row's time terms crosses its threshold
@@ -1407,13 +1654,17 @@ export function rowLiveDeadlines(row: LiveFactsRow): Array<number | null> {
     u + AGENT_IDLE_GRACE_MS,
     u + HEARTBEAT_ALIVE_MS,
     u + STATUS_TRUST_TTL_MS,
-    row.agent_status_updated_at != null ? row.agent_status_updated_at + AGENT_IDLE_GRACE_MS : null,
+    row.agent_status_updated_at != null
+      ? row.agent_status_updated_at + AGENT_IDLE_GRACE_MS
+      : null,
     row.last_heartbeat != null ? row.last_heartbeat + HEARTBEAT_ALIVE_MS : null,
     row.daemon_alive_until ?? null,
     row.producing_until ?? null,
     row.child_asking_until ?? null,
     row.inbox_snoozed_until ?? null,
-    row.loop_state?.status === "armed" ? row.loop_state.wakeup_at + LOOP_OVERDUE_GRACE_MS : null,
+    row.loop_state?.status === "armed"
+      ? row.loop_state.wakeup_at + LOOP_OVERDUE_GRACE_MS
+      : null,
     // A bare dormant claim outliving its trust (placeProjectableRow).
     u + DORMANT_CLAIM_TTL_MS,
   ];
@@ -1425,8 +1676,14 @@ export function rowLiveDeadlines(row: LiveFactsRow): Array<number | null> {
 // the replicated `last_turn_allows_park` fact (the server computed it from the
 // newest message, including the probed fallback the preview lacks); falls back
 // to the preview fields for rows the overlay has not covered.
-export function rowLastTurnAllowsPark(row: Pick<ProjectableInboxRow, "last_turn_allows_park" | "last_message_preview" | "last_user_message">): boolean {
-  if (typeof row.last_turn_allows_park === "boolean") return row.last_turn_allows_park;
+export function rowLastTurnAllowsPark(
+  row: Pick<
+    ProjectableInboxRow,
+    "last_turn_allows_park" | "last_message_preview" | "last_user_message"
+  >,
+): boolean {
+  if (typeof row.last_turn_allows_park === "boolean")
+    return row.last_turn_allows_park;
   const preview = row.last_message_preview ?? row.last_user_message ?? null;
   return !preview || isMachineDeliveredMessage(preview);
 }
@@ -1436,14 +1693,23 @@ export function rowLastTurnAllowsPark(row: Pick<ProjectableInboxRow, "last_turn_
 // placeConversationRow and every replica surface delegate here, so a rule can
 // never exist on one side only.
 // A subagent child of the row is still producing at instant `t`.
-export function childProducingAt(row: { producing_until?: number | null }, t: number): boolean {
+export function childProducingAt(
+  row: { producing_until?: number | null },
+  t: number,
+): boolean {
   return row.producing_until != null && t < row.producing_until;
 }
 
 // A child of this row is asking at instant t: the child_asking fact, bounded by
 // child_asking_until. The server's placement and the replica's both read it.
-export function childAskingAt(row: { child_asking?: boolean | null; child_asking_until?: number | null }, t: number): boolean {
-  return !!row.child_asking && (row.child_asking_until == null || t < row.child_asking_until);
+export function childAskingAt(
+  row: { child_asking?: boolean | null; child_asking_until?: number | null },
+  t: number,
+): boolean {
+  return (
+    !!row.child_asking &&
+    (row.child_asking_until == null || t < row.child_asking_until)
+  );
 }
 
 // The structural parks a row's facts stand behind: a standing or once trigger
@@ -1451,9 +1717,21 @@ export function childAskingAt(row: { child_asking?: boolean | null; child_asking
 // machine delivered the last turn, and a hosted conversation's routine never
 // parks it (its answers file like any turn).
 export function rowArmedHomes(
-  row: Pick<ProjectableInboxRow, "armed_trigger_kind" | "loop_state" | "agent_type" | "last_turn_allows_park" | "last_message_preview" | "last_user_message">,
+  row: Pick<
+    ProjectableInboxRow,
+    | "armed_trigger_kind"
+    | "loop_state"
+    | "agent_type"
+    | "last_turn_allows_park"
+    | "last_message_preview"
+    | "last_user_message"
+  >,
   epoch: number,
-): { armedTriggerHome: boolean; armedOnceTriggerHome: boolean; armedLoopHome: boolean } {
+): {
+  armedTriggerHome: boolean;
+  armedOnceTriggerHome: boolean;
+  armedLoopHome: boolean;
+} {
   const park = rowLastTurnAllowsPark(row);
   const kind = row.armed_trigger_kind ?? "none";
   const hosted = isHostedAgentType(row.agent_type);
@@ -1461,7 +1739,8 @@ export function rowArmedHomes(
   return {
     armedTriggerHome: kind === "standing" && park && !hosted,
     armedOnceTriggerHome: kind === "once" && park && !hosted,
-    armedLoopHome: !!loop && loop.status === "armed" && isLoopFresh(loop, epoch) && park,
+    armedLoopHome:
+      !!loop && loop.status === "armed" && isLoopFresh(loop, epoch) && park,
   };
 }
 
@@ -1481,7 +1760,11 @@ export function placeProjectableRow(
     (row.armed_trigger_kind ?? "none") !== "none" ||
     childProducingAt(row, epoch) ||
     (!!loop && loop.status === "armed" && isLoopFresh(loop, epoch)) ||
-    openTasksVouchForWaiting(row.open_tasks_at, row.open_tasks?.length ?? 0, rowHeartbeatAliveAt(row, epoch));
+    openTasksVouchForWaiting(
+      row.open_tasks_at,
+      row.open_tasks?.length ?? 0,
+      rowHeartbeatAliveAt(row, epoch),
+    );
   return placeInboxRow({
     agentStatus: row.agent_status ?? undefined,
     isIdle: !!row.is_idle,
@@ -1495,9 +1778,16 @@ export function placeProjectableRow(
     userRest: userRestOf(row),
     ...rowArmedHomes(row, epoch),
     childProducing: childProducingAt(row, epoch),
-    settleVerdict: isSettleVerdictCurrent(row as { settle_verdict_at?: number | null; updated_at: number }) ? (row.settle_verdict ?? null) : null,
+    settleVerdict: isSettleVerdictCurrent(
+      row as { settle_verdict_at?: number | null; updated_at: number },
+    )
+      ? (row.settle_verdict ?? null)
+      : null,
     declaredStatus: row.thread_state_status ?? null,
-    dormantClaimExpired: row.agent_status === "dormant" && !verifiedWake && epoch - row.updated_at >= DORMANT_CLAIM_TTL_MS,
+    dormantClaimExpired:
+      row.agent_status === "dormant" &&
+      !verifiedWake &&
+      epoch - row.updated_at >= DORMANT_CLAIM_TTL_MS,
     sessionBoundary: row.agent_status_boundary === true,
     pendingApiError: row.pending_api_error === true,
     sessionError: !!row.session_error,
@@ -1540,12 +1830,18 @@ export function projectInbox<Row extends ProjectableInboxRow>(
   const { members, truncated } = selectWorkingSet(rows, epoch);
   const { belowFold } = computeFold(members);
   const entries: Array<readonly [string, InboxBucket, boolean]> = [];
-  const placements = new Map<string, InboxPlacement & { below_fold: boolean }>();
+  const placements = new Map<
+    string,
+    InboxPlacement & { below_fold: boolean }
+  >();
   const windows = new Map<string, WorkingSetWindow[]>();
   const tally = { shown: emptyInboxTally(), folded: emptyInboxTally() };
   for (const [id, m] of members) {
     const asking = overlays?.asking?.(id) ?? false;
-    placements.set(id, { ...placeProjectableRow(m.row as ProjectableInboxRow, asking, epoch), below_fold: belowFold.has(id) });
+    placements.set(id, {
+      ...placeProjectableRow(m.row as ProjectableInboxRow, asking, epoch),
+      below_fold: belowFold.has(id),
+    });
     windows.set(id, m.windows);
   }
   // Every member placed on its own facts first, then riders take their lead's
@@ -1553,9 +1849,17 @@ export function projectInbox<Row extends ProjectableInboxRow>(
   rideLeadPlacements(placements, (id) => members.get(id)?.row);
   for (const [id, p] of placements) {
     entries.push([id, p.bucket, p.below_fold]);
-    if (p.bucket !== "hidden") (p.below_fold ? tally.folded : tally.shown)[p.bucket]++;
+    if (p.bucket !== "hidden")
+      (p.below_fold ? tally.folded : tally.shown)[p.bucket]++;
   }
-  return { entries, placements, tally, set_digest: digestProjection(entries), truncated, windows };
+  return {
+    entries,
+    placements,
+    tally,
+    set_digest: digestProjection(entries),
+    truncated,
+    windows,
+  };
 }
 
 // The activity line on a session row: a present tense phrase built by the

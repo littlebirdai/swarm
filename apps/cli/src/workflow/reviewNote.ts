@@ -5,7 +5,11 @@
 // verdict for the implementer. decide.cast reads the first two through the run
 // context ($review_question, $review_body), and the review-note eval renders
 // its card from the same split. A note with no `---` line is all card.
-export function splitReviewNote(note: string): { question: string; body: string; record: string } {
+export function splitReviewNote(note: string): {
+  question: string;
+  body: string;
+  record: string;
+} {
   const text = note.trim();
   const cut = text.indexOf("\n");
   if (cut < 0) return { question: text, body: "", record: "" };

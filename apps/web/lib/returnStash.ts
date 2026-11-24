@@ -10,7 +10,11 @@
 import { captureException } from "@sentry/react";
 
 /** What a connector's return carried: its code, our state, or its error. */
-export type StashedReturn = { code: string | null; state: string | null; error: string | null };
+export type StashedReturn = {
+  code: string | null;
+  state: string | null;
+  error: string | null;
+};
 export type ReturnStorage = Pick<Storage, "setItem" | "getItem" | "removeItem">;
 
 export function browserStorage(): ReturnStorage | null {
@@ -35,10 +39,18 @@ export function returnStash(key: string, name: string) {
       const raw = store?.getItem(key);
       if (!raw) return null;
       const ret = JSON.parse(raw);
-      if (!ret || ![ret.code, ret.state, ret.error].every((v) => v === null || typeof v === "string")) return null;
+      if (
+        !ret ||
+        ![ret.code, ret.state, ret.error].every(
+          (v) => v === null || typeof v === "string",
+        )
+      )
+        return null;
       return ret;
     } catch {
-      captureException(new Error(`Could not read the pending ${name} connection`));
+      captureException(
+        new Error(`Could not read the pending ${name} connection`),
+      );
       return null;
     }
   };
@@ -46,7 +58,10 @@ export function returnStash(key: string, name: string) {
   return {
     key,
     /** Hold a return just read from the URL. */
-    put(ret: StashedReturn, store: ReturnStorage | null = browserStorage()): void {
+    put(
+      ret: StashedReturn,
+      store: ReturnStorage | null = browserStorage(),
+    ): void {
       memory = ret;
       try {
         store?.setItem(key, JSON.stringify(ret));
@@ -55,17 +70,26 @@ export function returnStash(key: string, name: string) {
       }
     },
     /** The held return, unless the URL names a different state. */
-    read(search: string, store: ReturnStorage | null = browserStorage()): StashedReturn | null {
+    read(
+      search: string,
+      store: ReturnStorage | null = browserStorage(),
+    ): StashedReturn | null {
       const ret = memory ?? stored(store);
       const state = new URLSearchParams(search).get("state");
       return ret && (state === null || state === ret.state) ? ret : null;
     },
     /** Whether the return survives a page load: a sign-in leaves the page. */
-    canResume(ret: StashedReturn, store: ReturnStorage | null = browserStorage()): boolean {
+    canResume(
+      ret: StashedReturn,
+      store: ReturnStorage | null = browserStorage(),
+    ): boolean {
       return sameReturn(stored(store), ret);
     },
     /** Drop the return once it is spent or refused; a newer one stays. */
-    clear(ret: StashedReturn, store: ReturnStorage | null = browserStorage()): void {
+    clear(
+      ret: StashedReturn,
+      store: ReturnStorage | null = browserStorage(),
+    ): void {
       if (sameReturn(memory, ret)) memory = null;
       try {
         if (sameReturn(stored(store), ret)) store?.removeItem(key);

@@ -32,10 +32,22 @@ function openStderr(): Stderr {
 }
 function closeStderr(held: Stderr): string {
   let text = "";
-  try { if (held.out) text = fs.readFileSync(held.out, "utf-8"); } catch { /* nothing was written */ }
+  try {
+    if (held.out) text = fs.readFileSync(held.out, "utf-8");
+  } catch {
+    /* nothing was written */
+  }
   // A hook job still holding the file makes removal fail on Windows.
-  try { if (held.fd !== undefined) fs.closeSync(held.fd); } catch { /* closed */ }
-  try { if (held.dir) fs.rmSync(held.dir, { recursive: true, force: true }); } catch { /* left for the OS temp sweep */ }
+  try {
+    if (held.fd !== undefined) fs.closeSync(held.fd);
+  } catch {
+    /* closed */
+  }
+  try {
+    if (held.dir) fs.rmSync(held.dir, { recursive: true, force: true });
+  } catch {
+    /* left for the OS temp sweep */
+  }
   return text;
 }
 function failure(err: Error, stderr: string): Error {
@@ -45,10 +57,17 @@ function failure(err: Error, stderr: string): Error {
   return err;
 }
 
-export function execFileSyncToFile(file: string, args: string[], options: { cwd?: string } = {}): void {
+export function execFileSyncToFile(
+  file: string,
+  args: string[],
+  options: { cwd?: string } = {},
+): void {
   const held = openStderr();
   try {
-    execFileSync(file, args, { ...options, stdio: ["ignore", "ignore", held.fd!] });
+    execFileSync(file, args, {
+      ...options,
+      stdio: ["ignore", "ignore", held.fd!],
+    });
   } catch (err) {
     throw failure(err as Error, closeStderr(held));
   }
@@ -56,16 +75,42 @@ export function execFileSyncToFile(file: string, args: string[], options: { cwd?
 }
 
 /** The async twin of execFileSyncToFile: settles when the command exits, not when its stdio closes. */
-export function execFileToFile(file: string, args: string[], options: { cwd?: string } = {}): Promise<void> {
+export function execFileToFile(
+  file: string,
+  args: string[],
+  options: { cwd?: string } = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     let held: Stderr;
-    try { held = openStderr(); } catch (err) { reject(err); return; }
-    const child = spawn(file, args, { ...options, stdio: ["ignore", "ignore", held.fd!] });
-    child.once("error", (err) => { closeStderr(held); reject(err); });
+    try {
+      held = openStderr();
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    const child = spawn(file, args, {
+      ...options,
+      stdio: ["ignore", "ignore", held.fd!],
+    });
+    child.once("error", (err) => {
+      closeStderr(held);
+      reject(err);
+    });
     child.once("exit", (code, signal) => {
       const stderr = closeStderr(held);
-      if (code === 0) { resolve(); return; }
-      reject(failure(Object.assign(new Error(`Command failed: ${[file, ...args].join(" ")}`), { code, status: code, signal }), stderr));
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(
+        failure(
+          Object.assign(
+            new Error(`Command failed: ${[file, ...args].join(" ")}`),
+            { code, status: code, signal },
+          ),
+          stderr,
+        ),
+      );
     });
   });
 }
@@ -79,7 +124,11 @@ export interface WorktreeResult {
   portIndex: number;
 }
 
-export function createWorktreeLegacy(repoRoot: string, name: string, log: (message: string) => void): WorktreeResult | { error: string } {
+export function createWorktreeLegacy(
+  repoRoot: string,
+  name: string,
+  log: (message: string) => void,
+): WorktreeResult | { error: string } {
   const worktreeDir = path.join(repoRoot, CODECAST_WORKTREE_DIR);
   const worktreePath = path.join(worktreeDir, name);
   const branchName = `codecast/${name}`;
@@ -88,9 +137,13 @@ export function createWorktreeLegacy(repoRoot: string, name: string, log: (messa
     const existingBranch = (() => {
       try {
         return execSync(`git rev-parse --abbrev-ref HEAD`, {
-          cwd: worktreePath, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"],
+          cwd: worktreePath,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "ignore"],
         }).trim();
-      } catch { return branchName; }
+      } catch {
+        return branchName;
+      }
     })();
     return {
       worktreePath,
@@ -107,16 +160,26 @@ export function createWorktreeLegacy(repoRoot: string, name: string, log: (messa
   let lastErr: unknown;
   for (let attempt = 0; attempt < 5; attempt++) {
     if (attempt > 0) {
-      try { execSync(`sleep ${(200 + attempt * 300) / 1000}`, { stdio: "ignore" }); } catch {}
+      try {
+        execSync(`sleep ${(200 + attempt * 300) / 1000}`, { stdio: "ignore" });
+      } catch {}
     }
     try {
-      execFileSyncToFile("git", ["worktree", "add", "--no-track", "-b", branchName, worktreePath], { cwd: repoRoot });
+      execFileSyncToFile(
+        "git",
+        ["worktree", "add", "--no-track", "-b", branchName, worktreePath],
+        { cwd: repoRoot },
+      );
       created = true;
       break;
     } catch (err) {
       // Branch already exists — try without -b
       try {
-        execFileSyncToFile("git", ["worktree", "add", worktreePath, branchName], { cwd: repoRoot });
+        execFileSyncToFile(
+          "git",
+          ["worktree", "add", worktreePath, branchName],
+          { cwd: repoRoot },
+        );
         created = true;
         break;
       } catch (err2) {
@@ -127,8 +190,16 @@ export function createWorktreeLegacy(repoRoot: string, name: string, log: (messa
 
   if (!created) {
     log(`[WORKTREE] Failed to create worktree: ${lastErr}`);
-    const e = lastErr as { stderr?: string | Buffer; message?: string } | undefined;
-    return { error: (e?.stderr?.toString().trim() || e?.message || String(lastErr)).split("\n").find((l) => /^(fatal|error):/.test(l.trim())) ?? (e?.message || String(lastErr)).split("\n")[0] };
+    const e = lastErr as
+      | { stderr?: string | Buffer; message?: string }
+      | undefined;
+    return {
+      error:
+        (e?.stderr?.toString().trim() || e?.message || String(lastErr))
+          .split("\n")
+          .find((l) => /^(fatal|error):/.test(l.trim())) ??
+        (e?.message || String(lastErr)).split("\n")[0],
+    };
   }
 
   copySetupFiles(repoRoot, worktreePath);
@@ -144,8 +215,12 @@ export function createWorktreeLegacy(repoRoot: string, name: string, log: (messa
 function assignPortIndex(repoRoot: string): number {
   const worktreeDir = path.join(repoRoot, CODECAST_WORKTREE_DIR);
   if (!fs.existsSync(worktreeDir)) return 0;
-  const existing = fs.readdirSync(worktreeDir).filter(f => {
-    try { return fs.statSync(path.join(worktreeDir, f)).isDirectory(); } catch { return false; }
+  const existing = fs.readdirSync(worktreeDir).filter((f) => {
+    try {
+      return fs.statSync(path.join(worktreeDir, f)).isDirectory();
+    } catch {
+      return false;
+    }
   });
   return Math.min(existing.length - 1, 9);
 }
@@ -153,7 +228,11 @@ function assignPortIndex(repoRoot: string): number {
 function copySetupFiles(mainRoot: string, worktreePath: string): void {
   const configFile = path.join(mainRoot, ".wt-setup-files");
   const patterns = fs.existsSync(configFile)
-    ? fs.readFileSync(configFile, "utf-8").split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"))
+    ? fs
+        .readFileSync(configFile, "utf-8")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"))
     : [".env", ".env.local"];
 
   for (const pattern of patterns) {
@@ -164,7 +243,9 @@ function copySetupFiles(mainRoot: string, worktreePath: string): void {
       const destDir = path.dirname(dest);
       fs.mkdirSync(destDir, { recursive: true });
       if (fs.statSync(src).isDirectory()) {
-        execSync(`cp -r ${JSON.stringify(src)} ${JSON.stringify(dest)}`, { stdio: "ignore" });
+        execSync(`cp -r ${JSON.stringify(src)} ${JSON.stringify(dest)}`, {
+          stdio: "ignore",
+        });
       } else {
         fs.copyFileSync(src, dest);
       }

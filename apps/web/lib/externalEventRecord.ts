@@ -33,7 +33,14 @@ export type ExternalEventRecord = {
   // the source that saw it.
   source_id?: string;
   group_id?: string;
-  data?: { group_short_id?: string; source_name?: string; release?: string; environment?: string; count?: number; level?: string };
+  data?: {
+    group_short_id?: string;
+    source_name?: string;
+    release?: string;
+    environment?: string;
+    count?: number;
+    level?: string;
+  };
   dedupe_key?: string;
   created_at?: number;
 };

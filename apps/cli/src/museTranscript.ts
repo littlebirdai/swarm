@@ -4,7 +4,12 @@
  * only while parsing, so the import cycle resolves before it is used.
  */
 
-import { isCodecastImportNotice, type ParsedMessage, type ToolCall, type ToolResult } from "./parser.js";
+import {
+  isCodecastImportNotice,
+  type ParsedMessage,
+  type ToolCall,
+  type ToolResult,
+} from "./parser.js";
 
 // ── Muse (Meta Muse Code, `muse` CLI) ─────────────────────────────────────
 // session.jsonl is an event-sourced runtime log, not a message transcript:
@@ -48,7 +53,11 @@ interface MuseEnvelope {
     kind?: string;
     run_id?: string;
     event?: { kind?: string; prompt?: unknown };
-    record?: { run_stream?: { id?: string }; model_id?: unknown; cwd?: unknown };
+    record?: {
+      run_stream?: { id?: string };
+      model_id?: unknown;
+      cwd?: unknown;
+    };
   };
 }
 
@@ -61,7 +70,8 @@ interface MuseToolCall {
 
 function museTimestamp(recordedAt: unknown): number {
   // recorded_at is unix MICROSECONDS (16 digits); tolerate seconds/millis.
-  if (typeof recordedAt !== "number" || !Number.isFinite(recordedAt)) return Date.now();
+  if (typeof recordedAt !== "number" || !Number.isFinite(recordedAt))
+    return Date.now();
   if (recordedAt > 1e14) return Math.floor(recordedAt / 1000);
   if (recordedAt > 1e11) return Math.floor(recordedAt);
   return Math.floor(recordedAt * 1000);
@@ -82,7 +92,10 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
   const retractedRuns = new Set<string>();
   let lastAssistant: ParsedMessage | null = null;
 
-  const emit = (msg: ParsedMessage, runId: string | undefined): ParsedMessage => {
+  const emit = (
+    msg: ParsedMessage,
+    runId: string | undefined,
+  ): ParsedMessage => {
     messages.push(msg);
     messageRun.set(msg, runId);
     if (msg.uuid) byUuid.set(msg.uuid, msg);
@@ -111,23 +124,30 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
     }
 
     if (payload.kind !== "run") continue;
-    const runId = typeof payload.run_id === "string" ? payload.run_id : undefined;
+    const runId =
+      typeof payload.run_id === "string" ? payload.run_id : undefined;
     const event = payload.event;
-    if (!event || typeof event !== "object" || typeof event.kind !== "string") continue;
+    if (!event || typeof event !== "object" || typeof event.kind !== "string")
+      continue;
 
     switch (event.kind) {
       case "started": {
         const prompt = museText(event.prompt);
         if (isCodecastImportNotice(prompt)) break;
         if (prompt.trim()) {
-          emit({ uuid: runId, role: "user", content: prompt, timestamp }, runId);
+          emit(
+            { uuid: runId, role: "user", content: prompt, timestamp },
+            runId,
+          );
           lastAssistant = null;
         }
         break;
       }
       case "assistant_message_committed": {
         const text = museText((event as { text?: unknown }).text);
-        const messageId = museText((event as { message_id?: unknown }).message_id);
+        const messageId = museText(
+          (event as { message_id?: unknown }).message_id,
+        );
         if (text) {
           const msg: ParsedMessage = {
             uuid: messageId || undefined,
@@ -150,13 +170,16 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
         const terminal = museText((event as { terminal?: unknown }).terminal);
         const reason = museText((event as { reason?: unknown }).reason);
         if (terminal === "failed" && reason.trim()) {
-          lastAssistant = emit({
-            uuid: runId ? `${runId}:failed` : undefined,
-            role: "assistant",
-            content: reason,
-            timestamp,
-            model: runId ? runModel.get(runId) : undefined,
-          }, runId);
+          lastAssistant = emit(
+            {
+              uuid: runId ? `${runId}:failed` : undefined,
+              role: "assistant",
+              content: reason,
+              timestamp,
+              model: runId ? runModel.get(runId) : undefined,
+            },
+            runId,
+          );
         }
         break;
       }
@@ -169,7 +192,9 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
       case "reasoning_summary_committed": {
         const text = museText((event as { text?: unknown }).text);
         if (text && lastAssistant) {
-          lastAssistant.thinking = lastAssistant.thinking ? `${lastAssistant.thinking}\n${text}` : text;
+          lastAssistant.thinking = lastAssistant.thinking
+            ? `${lastAssistant.thinking}\n${text}`
+            : text;
         }
         break;
       }
@@ -198,7 +223,9 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
           }
         }
         if (toolCalls.length > 0) {
-          const messageId = museText((event as { message_id?: unknown }).message_id);
+          const messageId = museText(
+            (event as { message_id?: unknown }).message_id,
+          );
           const msg: ParsedMessage = {
             uuid: messageId || undefined,
             role: "assistant",
@@ -216,7 +243,11 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
         const rawResults = (event as { results?: unknown }).results;
         const toolResults: ToolResult[] = [];
         if (Array.isArray(rawResults)) {
-          for (const raw of rawResults as Array<{ tool_call_id?: unknown; text?: unknown; isError?: unknown }>) {
+          for (const raw of rawResults as Array<{
+            tool_call_id?: unknown;
+            text?: unknown;
+            isError?: unknown;
+          }>) {
             if (!raw || typeof raw !== "object") continue;
             const text = museText(raw.text);
             toolResults.push({
@@ -235,35 +266,51 @@ export function parseMuseSessionFile(content: string): ParsedMessage[] {
             // rather than appending a second copy of it.
             const merged = callMessage.toolResults ?? [];
             for (const result of toolResults) {
-              const at = merged.findIndex((r) => r.toolUseId === result.toolUseId);
+              const at = merged.findIndex(
+                (r) => r.toolUseId === result.toolUseId,
+              );
               if (at >= 0) merged[at] = result;
               else merged.push(result);
             }
             callMessage.toolResults = merged;
           } else {
-            emit({
-              uuid: batchId || undefined,
-              role: "assistant",
-              content: "",
-              timestamp,
-              toolResults,
-            }, runId);
+            emit(
+              {
+                uuid: batchId || undefined,
+                role: "assistant",
+                content: "",
+                timestamp,
+                toolResults,
+              },
+              runId,
+            );
           }
         }
         break;
       }
       case "model_completed": {
         const usage = (event as { usage?: unknown }).usage as
-          | { input_tokens?: unknown; output_tokens?: unknown; cached_tokens?: unknown }
+          | {
+              input_tokens?: unknown;
+              output_tokens?: unknown;
+              cached_tokens?: unknown;
+            }
           | undefined;
         if (usage && typeof usage === "object" && lastAssistant) {
-          const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : 0;
-          const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
-          const cached = typeof usage.cached_tokens === "number" ? usage.cached_tokens : undefined;
+          const inputTokens =
+            typeof usage.input_tokens === "number" ? usage.input_tokens : 0;
+          const outputTokens =
+            typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
+          const cached =
+            typeof usage.cached_tokens === "number"
+              ? usage.cached_tokens
+              : undefined;
           lastAssistant.usage = {
             input_tokens: inputTokens,
             output_tokens: outputTokens,
-            ...(cached !== undefined ? { cache_read_input_tokens: cached } : {}),
+            ...(cached !== undefined
+              ? { cache_read_input_tokens: cached }
+              : {}),
           };
         }
         break;

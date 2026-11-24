@@ -60,7 +60,12 @@ export const LIVE_ACTIVITY_DISMISS_AFTER_MS = 60_000;
 // heartbeat that stopped, which no write ever announces.
 export const LIVE_ACTIVITY_SWEEP_INTERVAL_MS = 60_000;
 
-export const LIVE_ACTIVITY_STATUSES = ["working", "waiting", "done", "failed"] as const;
+export const LIVE_ACTIVITY_STATUSES = [
+  "working",
+  "waiting",
+  "done",
+  "failed",
+] as const;
 export type LiveActivityStatus = (typeof LIVE_ACTIVITY_STATUSES)[number];
 
 // Lock Screen order: whoever needs the human first.
@@ -139,7 +144,9 @@ const LINGER_MS: Record<LiveActivityStatus, number | null> = {
 };
 
 // When a row leaves the strip, or null while it stays (a working row).
-function liveActivityExpiresAt(session: Pick<LiveActivitySessionInput, "status" | "updatedAt">): number | null {
+function liveActivityExpiresAt(
+  session: Pick<LiveActivitySessionInput, "status" | "updatedAt">,
+): number | null {
   const linger = LINGER_MS[session.status];
   return linger === null ? null : session.updatedAt + linger;
 }
@@ -172,7 +179,10 @@ export function clipLiveActivityText(text: string, limit: number): string {
   return flat.slice(0, limit - 1).trimEnd() + "…";
 }
 
-function compareSessions(a: LiveActivitySessionInput, b: LiveActivitySessionInput): number {
+function compareSessions(
+  a: LiveActivitySessionInput,
+  b: LiveActivitySessionInput,
+): number {
   const byStatus = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
   if (byStatus !== 0) return byStatus;
   // Working rows keep their place while agents report: oldest start first.
@@ -181,22 +191,33 @@ function compareSessions(a: LiveActivitySessionInput, b: LiveActivitySessionInpu
   return b.updatedAt - a.updatedAt;
 }
 
-function resolveHeadline(ordered: LiveActivitySessionInput[], waiting: number, working: number, failed: number): string {
+function resolveHeadline(
+  ordered: LiveActivitySessionInput[],
+  waiting: number,
+  working: number,
+  failed: number,
+): string {
   if (ordered.length === 0) return "All clear";
   if (ordered.length === 1) return ordered[0].title;
-  if (waiting > 0) return waiting === 1 ? "Waiting on you" : `${waiting} waiting on you`;
+  if (waiting > 0)
+    return waiting === 1 ? "Waiting on you" : `${waiting} waiting on you`;
   if (failed > 0) return `${failed} failed`;
-  if (working > 0) return `${working} ${working === 1 ? "agent" : "agents"} working`;
+  if (working > 0)
+    return `${working} ${working === 1 ? "agent" : "agents"} working`;
   return "Done";
 }
 
 function resolveDetail(ordered: LiveActivitySessionInput[]): string | null {
   if (ordered.length === 0) return null;
   if (ordered.length === 1) {
-    return ordered[0].detail ? clipLiveActivityText(ordered[0].detail, LIVE_ACTIVITY_DETAIL_LIMIT) : null;
+    return ordered[0].detail
+      ? clipLiveActivityText(ordered[0].detail, LIVE_ACTIVITY_DETAIL_LIMIT)
+      : null;
   }
   const leader = ordered[0];
-  const text = leader.project ? `${leader.project} · ${leader.title}` : leader.title;
+  const text = leader.project
+    ? `${leader.project} · ${leader.title}`
+    : leader.title;
   return clipLiveActivityText(text, LIVE_ACTIVITY_DETAIL_LIMIT);
 }
 
@@ -204,7 +225,9 @@ function serializeSession(s: LiveActivitySessionInput): LiveActivitySession {
   return {
     id: s.id,
     title: clipLiveActivityText(s.title, LIVE_ACTIVITY_TITLE_LIMIT),
-    ...(s.detail ? { detail: clipLiveActivityText(s.detail, LIVE_ACTIVITY_DETAIL_LIMIT) } : {}),
+    ...(s.detail
+      ? { detail: clipLiveActivityText(s.detail, LIVE_ACTIVITY_DETAIL_LIMIT) }
+      : {}),
     agent: s.agent,
     ...(s.project ? { project: s.project } : {}),
     status: s.status,
@@ -228,7 +251,10 @@ export function deriveLiveActivityState(
   const displayed = ordered.slice(0, LIVE_ACTIVITY_DISPLAYED_SESSIONS);
   return {
     version: LIVE_ACTIVITY_SCHEMA_VERSION,
-    headline: clipLiveActivityText(resolveHeadline(ordered, waiting, working, failed), LIVE_ACTIVITY_TITLE_LIMIT),
+    headline: clipLiveActivityText(
+      resolveHeadline(ordered, waiting, working, failed),
+      LIVE_ACTIVITY_TITLE_LIMIT,
+    ),
     detail: resolveDetail(ordered),
     status: ordered[0]?.status ?? "done",
     live: waiting + working,
@@ -257,5 +283,8 @@ export function liveActivityStateKey(state: LiveActivityContentState): string {
 // The per-session statuses, in wire order. A change here (a row entering,
 // leaving or moving between statuses) is what makes a push urgent.
 export function liveActivityStatusKey(state: LiveActivityContentState): string {
-  return state.sessions.map((s) => `${s.id}:${s.status}`).join(",") + `|${state.overflow}`;
+  return (
+    state.sessions.map((s) => `${s.id}:${s.status}`).join(",") +
+    `|${state.overflow}`
+  );
 }

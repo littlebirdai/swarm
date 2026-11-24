@@ -7,7 +7,10 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { FIXTURE_TEAM, withTeamRoster } from "../../test-helpers/teamRoster";
 import { stampRoster } from "../../lib/activeTeam";
 import { useInboxStore } from "../../store/inboxStore";
-import { announceJoin, clearJoinAnnouncement } from "../../lib/calls/joinAnnounce";
+import {
+  announceJoin,
+  clearJoinAnnouncement,
+} from "../../lib/calls/joinAnnounce";
 import { resetFaceRow, type FaceRow } from "../../lib/faces/faceRow";
 import { useFaceRow } from "../useFaceRow";
 
@@ -33,7 +36,11 @@ afterAll(() => {
 
 const ME = "u-me";
 const ANN = "u-ann";
-const member = (id: string, name: string, over: Record<string, unknown> = {}) => ({ _id: id, name, presence_state: "active", ...over });
+const member = (
+  id: string,
+  name: string,
+  over: Record<string, unknown> = {},
+) => ({ _id: id, name, presence_state: "active", ...over });
 
 let renders = 0;
 let latest: FaceRow;
@@ -50,12 +57,19 @@ beforeEach(() => {
   clearJoinAnnouncement();
   useInboxStore.setState({
     currentUser: { _id: ME, name: "Me" },
-    ...withTeamRoster([member(ME, "Me"), member(ANN, "Ann")], { clientState: useInboxStore.getState().clientState }),
+    ...withTeamRoster([member(ME, "Me"), member(ANN, "Ann")], {
+      clientState: useInboxStore.getState().clientState,
+    }),
     callOccupancy: {},
     liveRooms: [],
     myCalls: { incoming: [], outgoing: [], membership: null },
     followLeaderId: null,
-    call: { ...useInboxStore.getState().call, phase: "idle", roomKey: null, muted: true },
+    call: {
+      ...useInboxStore.getState().call,
+      phase: "idle",
+      roomKey: null,
+      muted: true,
+    },
   } as any);
 });
 afterEach(async () => {
@@ -64,7 +78,11 @@ afterEach(async () => {
   clearJoinAnnouncement();
 });
 async function mount() {
-  root = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+  root = createRoot(
+    dom.window.document.body.appendChild(
+      dom.window.document.createElement("div"),
+    ),
+  );
   await act(async () => root!.render(<Probe />));
 }
 
@@ -76,7 +94,16 @@ test("a heartbeat only roster push renders nobody; a face change renders once", 
 
   await act(async () => {
     useInboxStore.setState({
-      teamMembers: stampRoster([member(ME, "Me"), member(ANN, "Ann", { presence_input_at: Date.now(), daemon_last_seen: Date.now() })], FIXTURE_TEAM),
+      teamMembers: stampRoster(
+        [
+          member(ME, "Me"),
+          member(ANN, "Ann", {
+            presence_input_at: Date.now(),
+            daemon_last_seen: Date.now(),
+          }),
+        ],
+        FIXTURE_TEAM,
+      ),
     } as any);
   });
   expect(renders).toBe(mounted);
@@ -92,7 +119,12 @@ test("a heartbeat only roster push renders nobody; a face change renders once", 
 test("a join announcement wakes the row through its own subscription", async () => {
   const room = `dm:${ANN}:${ME}`;
   useInboxStore.setState({
-    call: { ...useInboxStore.getState().call, phase: "connected", roomKey: room, muted: false },
+    call: {
+      ...useInboxStore.getState().call,
+      phase: "connected",
+      roomKey: room,
+      muted: false,
+    },
     callOccupancy: { [room]: [{ user_id: ME }, { user_id: ANN }] },
   } as any);
   await mount();
@@ -102,6 +134,9 @@ test("a join announcement wakes the row through its own subscription", async () 
     announceJoin(room, "Ann joined");
   });
   expect(renders).toBe(mounted + 1);
-  expect(latest.card).toMatchObject({ kind: "joined-notice", text: "Ann joined" });
+  expect(latest.card).toMatchObject({
+    kind: "joined-notice",
+    text: "Ann joined",
+  });
   expect(latest.entries.map((e) => e.state)).toEqual(["in-call", "joining"]);
 });

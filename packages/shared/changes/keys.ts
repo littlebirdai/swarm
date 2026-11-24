@@ -32,11 +32,21 @@ export function hash64(parts: readonly string[]): string {
  * `branch|area|scope|first_sha`. Late commits join at the end, so the anchor
  * and the key stay put while a day is live.
  */
-export function clusterAnchor(branch: string, area: string, scope: string | null, firstSha: string): string {
+export function clusterAnchor(
+  branch: string,
+  area: string,
+  scope: string | null,
+  firstSha: string,
+): string {
   return `${branch}|${area}|${scope ?? ""}|${firstSha}`;
 }
 
-export function storyKey(teamId: string, repository: string, date: string, anchor: string): string {
+export function storyKey(
+  teamId: string,
+  repository: string,
+  date: string,
+  anchor: string,
+): string {
   return hash64(["story", teamId, repository, date, anchor]);
 }
 
@@ -62,7 +72,9 @@ export function inputsHash(i: StoryInputs): string {
     sorted(i.shas).join(","),
     sorted(i.insights.map((x) => `${x.id}@${x.generated_at}`)).join(","),
     sorted(i.visibility.map((x) => `${x.conversation_id}=${x.mode}`)).join(","),
-    sorted(i.membership.map((x) => `${x.conversation_id}=${x.level}`)).join(","),
+    sorted(i.membership.map((x) => `${x.conversation_id}=${x.level}`)).join(
+      ",",
+    ),
     sorted(i.prs.map((x) => `${x.id}@${x.updated_at}`)).join(","),
     sorted(i.risks).join(","),
   ]);

@@ -1,11 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import { makeRng } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
 import { HIDDEN_OVERRIDE_SETTLE_MS } from "../../inboxOverlays";
-import { DEFAULT_DRAIN_HORIZON_MS, Net, SimNetError, formatOrder, parseOrder, type NetMode } from "./net";
+import {
+  DEFAULT_DRAIN_HORIZON_MS,
+  Net,
+  SimNetError,
+  formatOrder,
+  parseOrder,
+  type NetMode,
+} from "./net";
 
 // A world small enough to read: a virtual clock, a write counter and a log of
 // what ran, in order.
-function rig(opts: { seed?: number; maxDeliveries?: number; maxWrites?: number; onOnline?: (w: string) => void; rng?: () => number } = {}) {
+function rig(
+  opts: {
+    seed?: number;
+    maxDeliveries?: number;
+    maxWrites?: number;
+    onOnline?: (w: string) => void;
+    rng?: () => number;
+  } = {},
+) {
   let t = 1_000;
   let writes = 0;
   const log: string[] = [];
@@ -20,7 +35,15 @@ function rig(opts: { seed?: number; maxDeliveries?: number; maxWrites?: number; 
     },
     onOnline: opts.onOnline,
   });
-  const put = (channel: string, label: string, extra: { due?: number; producer?: string; run?: () => void | Promise<void> } = {}) =>
+  const put = (
+    channel: string,
+    label: string,
+    extra: {
+      due?: number;
+      producer?: string;
+      run?: () => void | Promise<void>;
+    } = {},
+  ) =>
     net.enqueue(channel, {
       label,
       due: extra.due,
@@ -45,7 +68,8 @@ function populate(r: ReturnType<typeof rig>): void {
   }
 }
 
-const perChannel = (log: string[], ch: string) => log.filter((l) => l.startsWith(`${ch}#`));
+const perChannel = (log: string[], ch: string) =>
+  log.filter((l) => l.startsWith(`${ch}#`));
 
 describe("sim net", () => {
   test("a channel is FIFO in every mode", async () => {
@@ -56,7 +80,11 @@ describe("sim net", () => {
         populate(r);
         await r.net.drain();
         for (const ch of ["conn:a", "conn:b", "actor:ada"]) {
-          expect(perChannel(r.log, ch)).toEqual([`${ch}#1`, `${ch}#2`, `${ch}#3`]);
+          expect(perChannel(r.log, ch)).toEqual([
+            `${ch}#1`,
+            `${ch}#2`,
+            `${ch}#3`,
+          ]);
         }
       }
     }
@@ -81,7 +109,8 @@ describe("sim net", () => {
         r.net.mode = "interleave";
         populate(r);
         await r.net.drain();
-        for (const ch of ["conn:a", "conn:b", "actor:ada"]) expect(perChannel(r.log, ch)).toHaveLength(3);
+        for (const ch of ["conn:a", "conn:b", "actor:ada"])
+          expect(perChannel(r.log, ch)).toHaveLength(3);
         runs.push(r.log);
       }
       expect(runs[1]).toEqual(runs[0]);
@@ -120,7 +149,9 @@ describe("sim net", () => {
     const err = await r.net.step().catch((e) => e);
     expect(err).toBeInstanceOf(SimNetError);
     expect(err.code).toBe("order-mismatch");
-    expect(err.message).toBe('sim net: order replay diverged at delivery 2 (order entry 2): expected "conn:c" but it is not ready; ready: conn:a');
+    expect(err.message).toBe(
+      'sim net: order replay diverged at delivery 2 (order entry 2): expected "conn:c" but it is not ready; ready: conn:a',
+    );
   });
 
   test("an order replay continues as scripted once its list is used up", async () => {
@@ -193,7 +224,9 @@ describe("sim net", () => {
     r.net.unmountLive("live:b:inbox");
     await r.net.drain();
     expect(seen).toEqual([2, 2, -2, 2, -2]);
-    expect(() => r.net.markDirty("live:b:inbox")).toThrow(/no mounted live query/);
+    expect(() => r.net.markDirty("live:b:inbox")).toThrow(
+      /no mounted live query/,
+    );
   });
 
   test("drain moves the clock to the next due event and stops at the horizon", async () => {
@@ -242,25 +275,36 @@ describe("sim net", () => {
     const r = rig({ maxDeliveries: 50 });
     // Two agents mentioning each other forever, plus one unrelated delivery.
     const pong = (who: string, other: string) => {
-      r.put(`actor:${who}`, who, { producer: `${who}-pong`, run: () => void pong(other, who) });
+      r.put(`actor:${who}`, who, {
+        producer: `${who}-pong`,
+        run: () => void pong(other, who),
+      });
     };
     pong("ada", "bo");
     r.put("a:once", "once", { producer: "once" });
     const err = await r.net.drain().catch((e) => e);
     expect(err).toBeInstanceOf(SimNetError);
     expect(err.code).toBe("no-quiescence");
-    expect(err.message).toBe("sim net: did not quiesce after 50 deliveries; top producers: ada-pong (25), bo-pong (24), once (1)");
+    expect(err.message).toBe(
+      "sim net: did not quiesce after 50 deliveries; top producers: ada-pong (25), bo-pong (24), once (1)",
+    );
     expect(r.net.producers().get("ada-pong")).toBe(25);
   });
 
   test("the write budget fails at the delivery that crosses it", async () => {
     const r = rig({ maxWrites: 10 });
     r.write(500); // genesis: writes outside a delivery are not budgeted
-    for (let i = 1; i <= 4; i++) r.put("actor:ada", `w${i}`, { producer: "ada", run: () => void r.write(3) });
+    for (let i = 1; i <= 4; i++)
+      r.put("actor:ada", `w${i}`, {
+        producer: "ada",
+        run: () => void r.write(3),
+      });
     const err = await r.net.drain().catch((e) => e);
     expect(err).toBeInstanceOf(SimNetError);
     expect(err.code).toBe("write-budget");
-    expect(err.message).toBe('sim net: 12 server writes exceeded the budget of 10 at delivery 4 ("w4" on actor:ada); top writers: ada (12)');
+    expect(err.message).toBe(
+      'sim net: 12 server writes exceeded the budget of 10 at delivery 4 ("w4" on actor:ada); top writers: ada (12)',
+    );
   });
 
   test("the ring keeps the last 64 deliveries", async () => {
@@ -275,6 +319,13 @@ describe("sim net", () => {
 
   test("enqueue refuses a delivery addressed to another channel", () => {
     const r = rig();
-    expect(() => r.net.enqueue("conn:a", { channel: "conn:b", label: "x", producer: "x", run: () => {} })).toThrow(/given a delivery for "conn:b"/);
+    expect(() =>
+      r.net.enqueue("conn:a", {
+        channel: "conn:b",
+        label: "x",
+        producer: "x",
+        run: () => {},
+      }),
+    ).toThrow(/given a delivery for "conn:b"/);
   });
 });

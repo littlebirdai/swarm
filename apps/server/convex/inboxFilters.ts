@@ -2,14 +2,34 @@ import type { Doc } from "./_generated/dataModel";
 // Single source of truth for the "agent is actively producing" set and the
 // stale-status trust TTL. Re-exported so existing `from "./inboxFilters"`
 // importers (incl. the tests) keep working unchanged.
-import { ACTIVE_AGENT_STATUSES, TRUST_DECAYING_STATUSES, DECLARED_VERDICT_STATUSES, STATUS_TRUST_TTL_MS, AGENT_IDLE_GRACE_MS, WORK_STATES, isSessionIdle, isUnservedSession, type WorkState } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  TRUST_DECAYING_STATUSES,
+  DECLARED_VERDICT_STATUSES,
+  STATUS_TRUST_TTL_MS,
+  AGENT_IDLE_GRACE_MS,
+  WORK_STATES,
+  isSessionIdle,
+  isUnservedSession,
+  type WorkState,
+} from "@codecast/shared/contracts";
 
-export { ACTIVE_AGENT_STATUSES, STATUS_TRUST_TTL_MS, AGENT_IDLE_GRACE_MS, WORK_STATES, type WorkState };
+export {
+  ACTIVE_AGENT_STATUSES,
+  STATUS_TRUST_TTL_MS,
+  AGENT_IDLE_GRACE_MS,
+  WORK_STATES,
+  type WorkState,
+};
 // The work-state classifier lives in @codecast/shared/contracts/inboxProjection
 // (the ONE placement function the liveness overlay, the CLI inbox and every
 // client share — sync-convergence C3). Re-exported so existing importers keep
 // working unchanged.
-export { classifyWorkState, DEAD_AGENT_STATUSES, type WorkStateInput } from "@codecast/shared/contracts";
+export {
+  classifyWorkState,
+  DEAD_AGENT_STATUSES,
+  type WorkStateInput,
+} from "@codecast/shared/contracts";
 
 export type ConversationDoc = Doc<"conversations">;
 
@@ -18,8 +38,20 @@ export type ConversationDoc = Doc<"conversations">;
 // @codecast/shared/contracts/inboxProjection — ONE implementation serves the
 // server scan and every replica's working-set selection (sync-convergence C4).
 // Re-exported so existing `from "./inboxFilters"` importers keep working.
-export { NOISE_TITLE_PREFIXES, isNoiseTitle, isOrphanOrSubagent, isAdoptedChild, isRunLog, shouldShowInInbox } from "@codecast/shared/contracts";
-import { shouldShowInInbox, isCompactionSummaryMessage, isNestedIdentity, isRunLog } from "@codecast/shared/contracts";
+export {
+  NOISE_TITLE_PREFIXES,
+  isNoiseTitle,
+  isOrphanOrSubagent,
+  isAdoptedChild,
+  isRunLog,
+  shouldShowInInbox,
+} from "@codecast/shared/contracts";
+import {
+  shouldShowInInbox,
+  isCompactionSummaryMessage,
+  isNestedIdentity,
+  isRunLog,
+} from "@codecast/shared/contracts";
 
 // The three DISTINCT ways a session leaves the active inbox. They were reported
 // as a single "dismissed" figure back when kill was an event rather than a
@@ -55,7 +87,9 @@ import { shouldShowInInbox, isCompactionSummaryMessage, isNestedIdentity, isRunL
 // true rather than merely asserted.
 export type RetirementState = "killed" | "dismissed" | "stashed";
 
-export function classifyRetirement(conv: ConversationDoc): RetirementState | null {
+export function classifyRetirement(
+  conv: ConversationDoc,
+): RetirementState | null {
   if (conv.inbox_killed_at) return "killed";
   if (conv.inbox_dismissed_at) return "dismissed";
   if (conv.inbox_stashed_at) return "stashed";
@@ -67,11 +101,23 @@ export function classifyRetirement(conv: ConversationDoc): RetirementState | nul
 // stall behind a hide, an orphan run's failure). Killed rows are exempt: kill
 // tore the agent down, and a straggling write must not resurrect it.
 export async function restoreToInbox(
-  ctx: { db: { patch: (id: any, patch: Record<string, unknown>) => Promise<void> } },
-  conv: Pick<ConversationDoc, "_id" | "inbox_stashed_at" | "inbox_dismissed_at" | "inbox_killed_at">,
+  ctx: {
+    db: { patch: (id: any, patch: Record<string, unknown>) => Promise<void> };
+  },
+  conv: Pick<
+    ConversationDoc,
+    "_id" | "inbox_stashed_at" | "inbox_dismissed_at" | "inbox_killed_at"
+  >,
 ): Promise<boolean> {
-  if (conv.inbox_killed_at || !(conv.inbox_stashed_at || conv.inbox_dismissed_at)) return false;
-  await ctx.db.patch(conv._id, { inbox_stashed_at: undefined, inbox_dismissed_at: undefined });
+  if (
+    conv.inbox_killed_at ||
+    !(conv.inbox_stashed_at || conv.inbox_dismissed_at)
+  )
+    return false;
+  await ctx.db.patch(conv._id, {
+    inbox_stashed_at: undefined,
+    inbox_dismissed_at: undefined,
+  });
   return true;
 }
 
@@ -83,12 +129,27 @@ export async function restoreToInbox(
 // missing parent shows nothing, so there the session itself is adopted
 // (inbox_adopted_at): it stands alone in their inbox from now on.
 export async function bringNestedThreadToInbox(
-  ctx: { db: { get: (id: any) => Promise<any>; patch: (id: any, patch: Record<string, unknown>) => Promise<void> } },
-  conv: Pick<ConversationDoc, "_id" | "parent_conversation_id" | "parent_message_uuid" | "is_subagent" | "is_workflow_sub" | "inbox_adopted_at">,
+  ctx: {
+    db: {
+      get: (id: any) => Promise<any>;
+      patch: (id: any, patch: Record<string, unknown>) => Promise<void>;
+    };
+  },
+  conv: Pick<
+    ConversationDoc,
+    | "_id"
+    | "parent_conversation_id"
+    | "parent_message_uuid"
+    | "is_subagent"
+    | "is_workflow_sub"
+    | "inbox_adopted_at"
+  >,
   now: number = Date.now(),
 ): Promise<boolean> {
   if (!conv.parent_conversation_id || !isNestedIdentity(conv)) return false;
-  const parent = conv.inbox_adopted_at ? null : await ctx.db.get(conv.parent_conversation_id);
+  const parent = conv.inbox_adopted_at
+    ? null
+    : await ctx.db.get(conv.parent_conversation_id);
   if (parent && !isRunLog(parent)) return restoreToInbox(ctx, parent);
   await ctx.db.patch(conv._id, { inbox_adopted_at: now });
   return true;
@@ -146,7 +207,8 @@ export function nextAgentStatusOnAddMessages(
   hasToolResultReply: boolean,
 ): "working" | null {
   if (hasAssistantMsg && currentStatus === "idle") return "working";
-  if (hasToolResultReply && currentStatus === "permission_blocked") return "working";
+  if (hasToolResultReply && currentStatus === "permission_blocked")
+    return "working";
   return null;
 }
 
@@ -161,8 +223,20 @@ export function nextAgentStatusOnAddMessages(
 // the server can supersede them once a genuine turn follows. The classifier
 // lives in @codecast/shared/contracts as the single source of truth shared
 // with the web client's ApiErrorCard rendering.
-export { isApiErrorBanner, classifyApiErrorBanner, CLIENT_ERROR_BANNER_PREFIX, blockedContinueClientId, BLOCKED_BANNER_KINDS, CONTINUE_BANNER_KINDS } from "@codecast/shared/contracts";
-import { isApiErrorBanner as isApiErrorBannerFn, classifyApiErrorBanner, isLocalCommandLine, isNoResponseStub } from "@codecast/shared/contracts";
+export {
+  isApiErrorBanner,
+  classifyApiErrorBanner,
+  CLIENT_ERROR_BANNER_PREFIX,
+  blockedContinueClientId,
+  BLOCKED_BANNER_KINDS,
+  CONTINUE_BANNER_KINDS,
+} from "@codecast/shared/contracts";
+import {
+  isApiErrorBanner as isApiErrorBannerFn,
+  classifyApiErrorBanner,
+  isLocalCommandLine,
+  isNoResponseStub,
+} from "@codecast/shared/contracts";
 
 // Decides what an addMessages batch should do about stale API-error banners.
 //   - "supersede": a real turn arrived; delete banner(s) that precede it and
@@ -182,7 +256,8 @@ export function apiErrorBatchAction(input: {
   conversationPending: boolean;
 }): ApiErrorBatchAction {
   const { batchHasRealTurn, batchHasBanner, conversationPending } = input;
-  if (batchHasRealTurn && (conversationPending || batchHasBanner)) return "supersede";
+  if (batchHasRealTurn && (conversationPending || batchHasBanner))
+    return "supersede";
   if (batchHasBanner && !batchHasRealTurn) return "mark_pending";
   return "none";
 }
@@ -216,7 +291,8 @@ export function isRealTurn(m: TurnShape): boolean {
     return !!m.content?.trim() && !isNoResponseStub(m.content);
   }
   if (m.role === "user") {
-    if ((m.tool_results?.length ?? 0) > 0 || (m.images?.length ?? 0) > 0) return true;
+    if ((m.tool_results?.length ?? 0) > 0 || (m.images?.length ?? 0) > 0)
+      return true;
     return !!m.content?.trim() && !isLocalCommandLine(m.content);
   }
   return false;
@@ -229,10 +305,9 @@ export function isRealTurn(m: TurnShape): boolean {
 // The notice is newer by timestamp but says nothing about the block; judging
 // it "newest" left the banner unflagged, so the session rendered resolved
 // while still parked. Ties keep the later row, like the reduce it replaces.
-export function newestSignificantMessage<T extends TurnShape & { timestamp?: number }>(
-  msgs: readonly T[],
-  parkedKind?: string | null,
-): T | undefined {
+export function newestSignificantMessage<
+  T extends TurnShape & { timestamp?: number },
+>(msgs: readonly T[], parkedKind?: string | null): T | undefined {
   return parkWalk(msgs, parkedKind).newest;
 }
 
@@ -241,7 +316,10 @@ export function newestSignificantMessage<T extends TurnShape & { timestamp?: num
 // full as before. Only the agent answering or a compaction that worked (its
 // summary row) proves it lifted. Counting queued messages as lifting deleted
 // the banner and cleared the park, so nothing recovered the session.
-export function liftsPark(m: TurnShape, parkedKind: string | null | undefined): boolean {
+export function liftsPark(
+  m: TurnShape,
+  parkedKind: string | null | undefined,
+): boolean {
   if (!isRealTurn(m)) return false;
   if (parkedKind !== "context" || m.role === "assistant") return true;
   return isCompactionSummaryMessage(m.content);
@@ -254,7 +332,8 @@ export function parkWalk<T extends TurnShape & { timestamp?: number }>(
   msgs: readonly T[],
   parkedKind?: string | null,
 ): { newest: T | undefined; liftedAt: number } {
-  const ordered = msgs.map((m, i) => [m, i] as const)
+  const ordered = msgs
+    .map((m, i) => [m, i] as const)
     .sort(([a, i], [b, j]) => (a.timestamp || 0) - (b.timestamp || 0) || i - j);
   let newest: T | undefined;
   let liftedAt = 0;
@@ -323,17 +402,25 @@ export interface SessionActivity {
 // The newest message is a real user turn: a non-interrupt user message. One
 // rule for the enrichment, the notifier and the overlay's replicated
 // `last_role_is_user` fact (ct-47609).
-export function lastRoleIsUserOf(lastMessageRole: string | undefined, lastMessagePreview: string | null | undefined): boolean {
-  const isInterruptMsg = !!lastMessagePreview && (
-    lastMessagePreview.startsWith("[Request interrupted") ||
-    lastMessagePreview.startsWith("[Request cancelled")
-  );
+export function lastRoleIsUserOf(
+  lastMessageRole: string | undefined,
+  lastMessagePreview: string | null | undefined,
+): boolean {
+  const isInterruptMsg =
+    !!lastMessagePreview &&
+    (lastMessagePreview.startsWith("[Request interrupted") ||
+      lastMessagePreview.startsWith("[Request cancelled"));
   return lastMessageRole === "user" && !isInterruptMsg;
 }
 
-export function deriveSessionActivity(input: SessionActivityInput): SessionActivity {
-  const lastRoleIsUser = lastRoleIsUserOf(input.lastMessageRole, input.lastMessagePreview);
-  const recentlyUpdated = (input.now - input.updatedAt) < AGENT_IDLE_GRACE_MS;
+export function deriveSessionActivity(
+  input: SessionActivityInput,
+): SessionActivity {
+  const lastRoleIsUser = lastRoleIsUserOf(
+    input.lastMessageRole,
+    input.lastMessagePreview,
+  );
+  const recentlyUpdated = input.now - input.updatedAt < AGENT_IDLE_GRACE_MS;
 
   const isUnresponsive = isUnservedSession({
     status: input.status,
@@ -397,11 +484,19 @@ export function subagentIsProducing(input: {
 // live in @codecast/shared/contracts/inboxProjection — the shared row placement
 // needs them, and one rule must decide "does this stamp still describe the row"
 // on every surface. Re-exported for existing importers.
-export { userRestOf, userRestStampOf, isSettleVerdictCurrent } from "@codecast/shared/contracts";
+export {
+  userRestOf,
+  userRestStampOf,
+  isSettleVerdictCurrent,
+} from "@codecast/shared/contracts";
 
 // The `--state` filter vocabulary lives in shared/contracts/workState.ts so the
 // CLI rejects a value the server would ignore. Re-exported for existing importers.
-export { normalizeWorkStateFilter, WORK_STATE_FILTERS, type WorkStateFilter } from "@codecast/shared/contracts";
+export {
+  normalizeWorkStateFilter,
+  WORK_STATE_FILTERS,
+  type WorkStateFilter,
+} from "@codecast/shared/contracts";
 
 // The "waiting" flavor behind a needs_input verdict — the server mirror of the
 // web's waitingSoundKey kind (useSyncInboxSessions), so the needs-input push
@@ -444,5 +539,9 @@ export const ROUTE_UP_STALL_GRACE_MS = 2 * 60_000;
 // the shared contracts now (sync-convergence ct-47609: a replica re-derives
 // is_idle from replicated facts at any instant, so the rule has ONE home).
 // Re-exported so existing `from "./inboxFilters"` importers keep working.
-export { HEARTBEAT_ALIVE_MS, trustedAgentStatus, isSessionIdle, type SessionIdleInput } from "@codecast/shared/contracts";
-
+export {
+  HEARTBEAT_ALIVE_MS,
+  trustedAgentStatus,
+  isSessionIdle,
+  type SessionIdleInput,
+} from "@codecast/shared/contracts";

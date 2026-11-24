@@ -19,10 +19,16 @@ import {
   extractGrokCwd,
   isGrokInternalSession,
 } from "./parser.js";
-import { classifyGrokTranscriptTail, classifyTranscriptTailFor } from "./daemon.js";
+import {
+  classifyGrokTranscriptTail,
+  classifyTranscriptTailFor,
+} from "./daemon.js";
 
 const fixture = (name: string) =>
-  fs.readFileSync(path.join(import.meta.dir, "__fixtures__", "grok", name), "utf8");
+  fs.readFileSync(
+    path.join(import.meta.dir, "__fixtures__", "grok", name),
+    "utf8",
+  );
 
 describe("parseGrokSessionFile — linear turn with a bash tool call", () => {
   const content = fixture("linear-tools.jsonl");
@@ -36,7 +42,9 @@ describe("parseGrokSessionFile — linear turn with a bash tool call", () => {
     expect(messages.length).toBeGreaterThan(0);
     expect(messages[0].role).toBe("user");
     for (let i = 1; i < messages.length; i++) {
-      expect(messages[i].timestamp).toBeGreaterThanOrEqual(messages[i - 1].timestamp);
+      expect(messages[i].timestamp).toBeGreaterThanOrEqual(
+        messages[i - 1].timestamp,
+      );
     }
   });
 
@@ -56,7 +64,9 @@ describe("parseGrokSessionFile — linear turn with a bash tool call", () => {
   });
 
   test("maps tool_call to ToolCall{ id:toolCallId, name:title, input:rawInput }", () => {
-    const withCall = messages.find((m) => m.toolCalls && m.toolCalls.length > 0);
+    const withCall = messages.find(
+      (m) => m.toolCalls && m.toolCalls.length > 0,
+    );
     expect(withCall).toBeDefined();
     const call = withCall!.toolCalls![0];
     expect(call.id).toBe("call_synthbash01");
@@ -65,7 +75,9 @@ describe("parseGrokSessionFile — linear turn with a bash tool call", () => {
   });
 
   test("merges tool_call_update by toolCallId and emits the result at terminal status", () => {
-    const withResult = messages.find((m) => m.toolResults && m.toolResults.length > 0);
+    const withResult = messages.find(
+      (m) => m.toolResults && m.toolResults.length > 0,
+    );
     expect(withResult).toBeDefined();
     expect(withResult!.role).toBe("assistant");
     const result = withResult!.toolResults![0];
@@ -98,7 +110,9 @@ describe("parseGrokSessionFile — linear turn with a bash tool call", () => {
   });
 
   test("stamps turn_completed's stop_reason on the turn's last assistant message", () => {
-    const assistants = messages.filter((m) => m.role === "assistant" && m.content);
+    const assistants = messages.filter(
+      (m) => m.role === "assistant" && m.content,
+    );
     expect(assistants[assistants.length - 1].stopReason).toBe("end_turn");
   });
 
@@ -114,9 +128,13 @@ describe("parseGrokSessionFile — thinking, rewind filter, torn tail", () => {
   const texts = messages.map((m) => m.content).join(" | ");
 
   test("accumulates agent_thought_chunk deltas as the assistant's thinking block", () => {
-    const withThinking = messages.find((m) => m.thinking && m.thinking.length > 0);
+    const withThinking = messages.find(
+      (m) => m.thinking && m.thinking.length > 0,
+    );
     expect(withThinking).toBeDefined();
-    expect(withThinking!.thinking).toBe("First map the modules, then order the steps.");
+    expect(withThinking!.thinking).toBe(
+      "First map the modules, then order the steps.",
+    );
   });
 
   test("rewind_marker drops every message of the rewound-away turn", () => {
@@ -170,7 +188,9 @@ describe("parseGrokSessionFile — degenerate input", () => {
 
 describe("grok summary.json helpers", () => {
   test("extractGrokCwd reads summary info.cwd (authoritative across relocation)", () => {
-    expect(extractGrokCwd(fixture("summary-normal.json"))).toBe("/tmp/grok-demo");
+    expect(extractGrokCwd(fixture("summary-normal.json"))).toBe(
+      "/tmp/grok-demo",
+    );
     expect(extractGrokCwd("{}")).toBeUndefined();
     expect(extractGrokCwd("not json")).toBeUndefined();
   });
@@ -179,7 +199,9 @@ describe("grok summary.json helpers", () => {
     expect(isGrokInternalSession(fixture("summary-normal.json"))).toBe(false);
     expect(isGrokInternalSession(fixture("summary-subagent.json"))).toBe(true);
     expect(isGrokInternalSession(fixture("summary-hidden.json"))).toBe(true);
-    expect(isGrokInternalSession('{"session_kind":"subagent_fork"}')).toBe(true);
+    expect(isGrokInternalSession('{"session_kind":"subagent_fork"}')).toBe(
+      true,
+    );
     // A user-initiated fork is a REAL top-level session, not an internal child.
     expect(isGrokInternalSession('{"session_kind":"fork"}')).toBe(false);
     expect(isGrokInternalSession("not json")).toBe(false);
@@ -191,12 +213,26 @@ describe("classifyGrokTranscriptTail", () => {
     `{"timestamp":1772550000,"method":"session/update","params":{"sessionId":"s","update":${update}}}`;
   const wrapX = (update: string) =>
     `{"timestamp":1772550000,"method":"_x.ai/session/update","params":{"sessionId":"s","update":${update}}}`;
-  const turnDone = wrapX('{"sessionUpdate":"turn_completed","prompt_id":"p-0","stop_reason":"end_turn"}');
+  const turnDone = wrapX(
+    '{"sessionUpdate":"turn_completed","prompt_id":"p-0","stop_reason":"end_turn"}',
+  );
 
   test("turn_completed -> idle, for ANY stop_reason (end_turn/cancelled/error)", () => {
     expect(classifyGrokTranscriptTail(turnDone)).toBe("idle");
-    expect(classifyGrokTranscriptTail(wrapX('{"sessionUpdate":"turn_completed","prompt_id":"p","stop_reason":"cancelled"}'))).toBe("idle");
-    expect(classifyGrokTranscriptTail(wrapX('{"sessionUpdate":"turn_completed","prompt_id":"p","stop_reason":"error"}'))).toBe("idle");
+    expect(
+      classifyGrokTranscriptTail(
+        wrapX(
+          '{"sessionUpdate":"turn_completed","prompt_id":"p","stop_reason":"cancelled"}',
+        ),
+      ),
+    ).toBe("idle");
+    expect(
+      classifyGrokTranscriptTail(
+        wrapX(
+          '{"sessionUpdate":"turn_completed","prompt_id":"p","stop_reason":"error"}',
+        ),
+      ),
+    ).toBe("idle");
   });
 
   test("scans past post-turn housekeeping to the turn_completed beneath it", () => {
@@ -205,13 +241,35 @@ describe("classifyGrokTranscriptTail", () => {
   });
 
   test("a user chunk / tool_call / tool_call_update tail -> active", () => {
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"go"},"_meta":{"promptIndex":0}}'))).toBe("active");
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"tool_call","toolCallId":"t1","title":"bash","status":"pending"}'))).toBe("active");
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"tool_call_update","toolCallId":"t1","status":"in_progress"}'))).toBe("active");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"go"},"_meta":{"promptIndex":0}}',
+        ),
+      ),
+    ).toBe("active");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"tool_call","toolCallId":"t1","title":"bash","status":"pending"}',
+        ),
+      ),
+    ).toBe("active");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"tool_call_update","toolCallId":"t1","status":"in_progress"}',
+        ),
+      ),
+    ).toBe("active");
   });
 
   test("an unresolved pending_interaction -> active (agent parked on a question)", () => {
-    expect(classifyGrokTranscriptTail(wrapX('{"sessionUpdate":"pending_interaction","interaction_id":"q1"}'))).toBe("active");
+    expect(
+      classifyGrokTranscriptTail(
+        wrapX('{"sessionUpdate":"pending_interaction","interaction_id":"q1"}'),
+      ),
+    ).toBe("active");
   });
 
   test("a RESOLVED pending_interaction is scanned past to the state beneath it", () => {
@@ -220,23 +278,47 @@ describe("classifyGrokTranscriptTail", () => {
   });
 
   test("a streaming assistant chunk with no terminal marker -> unknown (defer)", () => {
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"streaming"}}'))).toBe("unknown");
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"hmm"}}'))).toBe("unknown");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"streaming"}}',
+        ),
+      ),
+    ).toBe("unknown");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"hmm"}}',
+        ),
+      ),
+    ).toBe("unknown");
   });
 
   test("empty / unparseable / meta-only tail -> unknown", () => {
     expect(classifyGrokTranscriptTail("")).toBe("unknown");
     expect(classifyGrokTranscriptTail("{torn")).toBe("unknown");
-    expect(classifyGrokTranscriptTail(wrap('{"sessionUpdate":"available_commands_update","availableCommands":[]}'))).toBe("unknown");
+    expect(
+      classifyGrokTranscriptTail(
+        wrap(
+          '{"sessionUpdate":"available_commands_update","availableCommands":[]}',
+        ),
+      ),
+    ).toBe("unknown");
   });
 
   test("a completed session (linear-tools) reads idle; rewind fixture's torn tail still reads idle", () => {
-    expect(classifyGrokTranscriptTail(fixture("linear-tools.jsonl"))).toBe("idle");
-    expect(classifyGrokTranscriptTail(fixture("thinking-rewind.jsonl"))).toBe("idle");
+    expect(classifyGrokTranscriptTail(fixture("linear-tools.jsonl"))).toBe(
+      "idle",
+    );
+    expect(classifyGrokTranscriptTail(fixture("thinking-rewind.jsonl"))).toBe(
+      "idle",
+    );
   });
 
   test("a mid-turn session (pending tool call, no turn_completed) reads active", () => {
-    expect(classifyGrokTranscriptTail(fixture("mid-turn.jsonl"))).toBe("active");
+    expect(classifyGrokTranscriptTail(fixture("mid-turn.jsonl"))).toBe(
+      "active",
+    );
   });
 
   test("registered in classifyTranscriptTailFor('grok')", () => {

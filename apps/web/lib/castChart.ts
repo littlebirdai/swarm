@@ -10,16 +10,29 @@ import { isSafeCanvasLink, sanitizeCanvasElement } from "./canvasSanitize";
 import { isTrustedAbsoluteImageSrc } from "./trustedImageOrigins";
 import { sanitizeCanvasCss } from "../../../packages/shared/render/canvasCss";
 
-const safeRender: PlotNS.RenderFunction = (index, scales, values, dimensions, context, next) => {
+const safeRender: PlotNS.RenderFunction = (
+  index,
+  scales,
+  values,
+  dimensions,
+  context,
+  next,
+) => {
   const node = next?.(index, scales, values, dimensions, context) ?? null;
   if (node) sanitizeCanvasElement(node);
   return node;
 };
 
 function secureMark(mark: PlotNS.Markish): void {
-  if (Array.isArray(mark)) { mark.forEach(secureMark); return; }
+  if (Array.isArray(mark)) {
+    mark.forEach(secureMark);
+    return;
+  }
   if (!mark || typeof mark === "function") return;
-  const m = mark as PlotNS.RenderableMark & { channels: Record<string, unknown>; [key: string]: unknown };
+  const m = mark as PlotNS.RenderableMark & {
+    channels: Record<string, unknown>;
+    [key: string]: unknown;
+  };
   if (typeof m.ariaLabel === "string" && m.ariaLabel.startsWith("crosshair ")) {
     delete m.channels.href;
     delete m.channels.src;
@@ -28,46 +41,133 @@ function secureMark(mark: PlotNS.Markish): void {
     if (typeof m[key] === "string") m[key] = sanitizeCanvasCss(m[key], "value");
   }
   m.target = "_blank";
-  if (typeof m.src === "string" && !isTrustedAbsoluteImageSrc(m.src)) m.src = undefined;
+  if (typeof m.src === "string" && !isTrustedAbsoluteImageSrc(m.src))
+    m.src = undefined;
   const render = m.render;
   m.render = function (index, scales, values, dimensions, context, next) {
     for (const name of ["href", "src", "fill", "stroke"]) {
       if (!values[name]) continue;
       values[name] = Array.from(values[name], (value: unknown) => {
         if (name === "href") return isSafeCanvasLink(value) ? value : null;
-        if (name === "src") return typeof value === "string" && isTrustedAbsoluteImageSrc(value) ? value : null;
-        return typeof value === "string" ? sanitizeCanvasCss(value, "value") : value;
+        if (name === "src")
+          return typeof value === "string" && isTrustedAbsoluteImageSrc(value)
+            ? value
+            : null;
+        return typeof value === "string"
+          ? sanitizeCanvasCss(value, "value")
+          : value;
       });
     }
-    const node = render.call(this, index, scales, values, dimensions, context, next);
+    const node = render.call(
+      this,
+      index,
+      scales,
+      values,
+      dimensions,
+      context,
+      next,
+    );
     if (node) sanitizeCanvasElement(node);
     return node;
   };
-  if (m.tip) m.tip = { ...(typeof m.tip === "object" ? m.tip : typeof m.tip === "string" ? { pointer: m.tip } : {}), render: safeRender };
+  if (m.tip)
+    m.tip = {
+      ...(typeof m.tip === "object"
+        ? m.tip
+        : typeof m.tip === "string"
+          ? { pointer: m.tip }
+          : {}),
+      render: safeRender,
+    };
 }
 
 const MARK_TYPES = new Set([
-  "area", "areaX", "areaY", "arrow", "barX", "barY", "bollinger", "bollingerX", "bollingerY",
-  "boxX", "boxY", "cell", "cellX", "cellY", "contour", "crosshair", "crosshairX", "crosshairY",
-  "delaunayLink", "delaunayMesh", "hull", "voronoi", "voronoiMesh", "density", "differenceX", "differenceY",
-  "dot", "dotX", "dotY", "circle", "hexagon", "geo", "image", "line", "lineX", "lineY",
-  "linearRegressionX", "linearRegressionY", "link", "raster", "rect", "rectX", "rectY", "ruleX", "ruleY",
-  "text", "textX", "textY", "tickX", "tickY", "tip", "tree", "cluster", "vector", "vectorX", "vectorY",
-  "spike", "waffleX", "waffleY",
+  "area",
+  "areaX",
+  "areaY",
+  "arrow",
+  "barX",
+  "barY",
+  "bollinger",
+  "bollingerX",
+  "bollingerY",
+  "boxX",
+  "boxY",
+  "cell",
+  "cellX",
+  "cellY",
+  "contour",
+  "crosshair",
+  "crosshairX",
+  "crosshairY",
+  "delaunayLink",
+  "delaunayMesh",
+  "hull",
+  "voronoi",
+  "voronoiMesh",
+  "density",
+  "differenceX",
+  "differenceY",
+  "dot",
+  "dotX",
+  "dotY",
+  "circle",
+  "hexagon",
+  "geo",
+  "image",
+  "line",
+  "lineX",
+  "lineY",
+  "linearRegressionX",
+  "linearRegressionY",
+  "link",
+  "raster",
+  "rect",
+  "rectX",
+  "rectY",
+  "ruleX",
+  "ruleY",
+  "text",
+  "textX",
+  "textY",
+  "tickX",
+  "tickY",
+  "tip",
+  "tree",
+  "cluster",
+  "vector",
+  "vectorX",
+  "vectorY",
+  "spike",
+  "waffleX",
+  "waffleY",
 ]);
 
 // Categorical default palette — solarized accents, as live CSS vars.
 const SOL_RANGE = [
-  "var(--sol-blue)", "var(--sol-green)", "var(--sol-yellow)", "var(--sol-magenta)",
-  "var(--sol-cyan)", "var(--sol-orange)", "var(--sol-violet)", "var(--sol-red)",
+  "var(--sol-blue)",
+  "var(--sol-green)",
+  "var(--sol-yellow)",
+  "var(--sol-magenta)",
+  "var(--sol-cyan)",
+  "var(--sol-orange)",
+  "var(--sol-violet)",
+  "var(--sol-red)",
 ];
 
 // Friendly color words → tokens, so a spec can say "stroke":"blue".
 const COLOR_WORDS: Record<string, string> = {
-  blue: "var(--sol-blue)", green: "var(--sol-green)", yellow: "var(--sol-yellow)",
-  orange: "var(--sol-orange)", red: "var(--sol-red)", magenta: "var(--sol-magenta)",
-  violet: "var(--sol-violet)", cyan: "var(--sol-cyan)",
-  text: "var(--sol-text)", muted: "var(--sol-text-muted)", border: "var(--sol-border)",
+  blue: "var(--sol-blue)",
+  green: "var(--sol-green)",
+  yellow: "var(--sol-yellow)",
+  orange: "var(--sol-orange)",
+  red: "var(--sol-red)",
+  magenta: "var(--sol-magenta)",
+  violet: "var(--sol-violet)",
+  cyan: "var(--sol-cyan)",
+  text: "var(--sol-text)",
+  muted: "var(--sol-text-muted)",
+  border: "var(--sol-border)",
 };
 
 function resolveColor(v: unknown): unknown {
@@ -83,11 +183,23 @@ function resolveColor(v: unknown): unknown {
 // mark's own channels into the transform's options. The allowlist keeps a spec
 // from invoking arbitrary Plot exports.
 const TRANSFORM_KINDS = new Set([
-  "bin", "binX", "binY",
-  "group", "groupX", "groupY", "groupZ",
-  "stackX", "stackY",
-  "hexbin", "dodgeX", "dodgeY",
-  "normalizeX", "normalizeY", "windowX", "windowY", "shiftX",
+  "bin",
+  "binX",
+  "binY",
+  "group",
+  "groupX",
+  "groupY",
+  "groupZ",
+  "stackX",
+  "stackY",
+  "hexbin",
+  "dodgeX",
+  "dodgeY",
+  "normalizeX",
+  "normalizeY",
+  "windowX",
+  "windowY",
+  "shiftX",
 ]);
 
 interface TransformSpec {
@@ -108,7 +220,8 @@ function applyTransform(
   const fn = TRANSFORM_KINDS.has(t.kind)
     ? (Plot as unknown as Record<string, unknown>)[t.kind]
     : undefined;
-  if (typeof fn !== "function") throw new Error(`unknown transform "${t.kind}"`);
+  if (typeof fn !== "function")
+    throw new Error(`unknown transform "${t.kind}"`);
   // The mark's channels (x, fill, …) are the transform's options; `out` supplies
   // the reduced outputs. Anything in `t.options` is merged in underneath.
   const options = { ...(t.options ?? {}), ...channelOpts };
@@ -118,12 +231,25 @@ function applyTransform(
     : (fn as (o: unknown) => unknown)(options);
 }
 
-interface MarkSpec { type: string; data?: unknown[]; transform?: TransformSpec; [k: string]: unknown; }
+interface MarkSpec {
+  type: string;
+  data?: unknown[];
+  transform?: TransformSpec;
+  [k: string]: unknown;
+}
 interface ChartSpec {
   data?: unknown[]; // default data; marks without their own `data` inherit this
   height?: number;
-  marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number;
-  x?: unknown; y?: unknown; fx?: unknown; fy?: unknown; color?: Record<string, unknown>; r?: unknown;
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  x?: unknown;
+  y?: unknown;
+  fx?: unknown;
+  fy?: unknown;
+  color?: Record<string, unknown>;
+  r?: unknown;
   marks?: MarkSpec[];
 }
 
@@ -134,10 +260,14 @@ function loadPlot(): Promise<typeof PlotNS> {
 
 function fail(el: HTMLElement, msg: string): void {
   el.textContent = `⚠ ${msg}`;
-  el.style.cssText += ";color:var(--sol-red);font-size:12px;padding:8px;display:block";
+  el.style.cssText +=
+    ";color:var(--sol-red);font-size:12px;padding:8px;display:block";
 }
 
-async function renderChartInto(el: HTMLElement, fallbackWidth: number): Promise<void> {
+async function renderChartInto(
+  el: HTMLElement,
+  fallbackWidth: number,
+): Promise<void> {
   const raw = el.getAttribute("data-spec");
   if (!raw) return;
   // Size each chart to its OWN container, not the whole canvas — so a chart in a
@@ -159,12 +289,18 @@ async function renderChartInto(el: HTMLElement, fallbackWidth: number): Promise<
   try {
     const marks = (spec.marks ?? []).map((m) => {
       const { type, data, transform, ...opts } = m;
-      const fn = MARK_TYPES.has(type) ? (Plot as unknown as Record<string, unknown>)[type] : undefined;
+      const fn = MARK_TYPES.has(type)
+        ? (Plot as unknown as Record<string, unknown>)[type]
+        : undefined;
       if (typeof fn !== "function") throw new Error(`unknown mark "${type}"`);
       if ("stroke" in opts) opts.stroke = resolveColor(opts.stroke);
       if ("fill" in opts) opts.fill = resolveColor(opts.fill);
       // Default a bare mark to an accent instead of currentColor/black.
-      if (opts.stroke === undefined && opts.fill === undefined && /line|dot|rule|tick/i.test(type)) {
+      if (
+        opts.stroke === undefined &&
+        opts.fill === undefined &&
+        /line|dot|rule|tick/i.test(type)
+      ) {
         opts.stroke = "var(--sol-blue)";
       }
       if (opts.fill === undefined && /bar|area|rect|cell/i.test(type)) {
@@ -172,14 +308,21 @@ async function renderChartInto(el: HTMLElement, fallbackWidth: number): Promise<
       }
       // A transform (binX, hexbin, groupX, dodgeX, …) wraps the resolved channels.
       opts.render = safeRender;
-      const finalOpts = transform ? applyTransform(Plot, transform, opts) : opts;
-      const mark = (fn as (d: unknown, o: unknown) => PlotNS.Markish)(data ?? spec.data ?? [], finalOpts);
+      const finalOpts = transform
+        ? applyTransform(Plot, transform, opts)
+        : opts;
+      const mark = (fn as (d: unknown, o: unknown) => PlotNS.Markish)(
+        data ?? spec.data ?? [],
+        finalOpts,
+      );
       secureMark(mark);
       return mark;
     });
 
     const document = el.ownerDocument.implementation.createHTMLDocument("");
-    Object.defineProperty(document, "defaultView", { value: el.ownerDocument.defaultView });
+    Object.defineProperty(document, "defaultView", {
+      value: el.ownerDocument.defaultView,
+    });
     const fig = Plot.plot({
       document,
       width: Math.max(200, width),
@@ -196,7 +339,11 @@ async function renderChartInto(el: HTMLElement, fallbackWidth: number): Promise<
         overflow: "visible",
       },
       color: { range: SOL_RANGE, ...(spec.color ?? {}) },
-      x: spec.x as never, y: spec.y as never, fx: spec.fx as never, fy: spec.fy as never, r: spec.r as never,
+      x: spec.x as never,
+      y: spec.y as never,
+      fx: spec.fx as never,
+      fy: spec.fy as never,
+      r: spec.r as never,
       marks: marks as never,
     });
     (fig as HTMLElement).style.maxWidth = "100%";
@@ -208,7 +355,10 @@ async function renderChartInto(el: HTMLElement, fallbackWidth: number): Promise<
 }
 
 /** Render every .cast-chart element found under `root` (a shadow root). */
-export async function hydrateCharts(root: ParentNode, width: number): Promise<void> {
+export async function hydrateCharts(
+  root: ParentNode,
+  width: number,
+): Promise<void> {
   const els = Array.from(root.querySelectorAll<HTMLElement>(".cast-chart"));
   for (const el of els) await renderChartInto(el, width);
 }

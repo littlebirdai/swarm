@@ -40,12 +40,17 @@ import type { BridgeHostStatus, ProvenBridge } from "./bridge/host.js";
 
 /** Where the embedded tar sits, in a compiled binary, a dist bundle or a source checkout. */
 function payloadPath(): string {
-  return path.isAbsolute(extensionTar) ? extensionTar : fileURLToPath(new URL(extensionTar, import.meta.url));
+  return path.isAbsolute(extensionTar)
+    ? extensionTar
+    : fileURLToPath(new URL(extensionTar, import.meta.url));
 }
 
 /** apps/browser-extension beside this file, when cast runs from a source checkout. */
 function sourceExtensionDir(): string | null {
-  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../apps/browser-extension");
+  const dir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../../../apps/browser-extension",
+  );
   return fs.existsSync(path.join(dir, "manifest.json")) ? dir : null;
 }
 
@@ -58,7 +63,11 @@ export function hostExtensionDir(): string | null {
   const tar = payloadPath();
   const bytes = fs.existsSync(tar) ? fs.readFileSync(tar) : Buffer.alloc(0);
   if (!bytes.length) return sourceExtensionDir();
-  const dir = path.join(browserHome(), "extension", createHash("sha256").update(bytes).digest("hex").slice(0, 12));
+  const dir = path.join(
+    browserHome(),
+    "extension",
+    createHash("sha256").update(bytes).digest("hex").slice(0, 12),
+  );
   if (fs.existsSync(path.join(dir, "manifest.json"))) return dir;
   const tmp = `${dir}.tmp-${process.pid}`;
   fs.rmSync(tmp, { recursive: true, force: true });
@@ -83,24 +92,44 @@ export function hostExtensionDir(): string | null {
 export function hostExtensionVersion(dir = hostExtensionDir()): string | null {
   if (!dir) return null;
   try {
-    return (JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf-8")) as { version?: string }).version ?? null;
+    return (
+      (
+        JSON.parse(
+          fs.readFileSync(path.join(dir, "manifest.json"), "utf-8"),
+        ) as { version?: string }
+      ).version ?? null
+    );
   } catch {
     return null;
   }
 }
 
 /** Load the carried extension into the Chrome on this debugging port. Resolves with its id. */
-export async function loadHostExtension(port: number, dir = hostExtensionDir()): Promise<string> {
-  if (!dir) throw new Error("this cast carries no copy of the Codecast extension");
+export async function loadHostExtension(
+  port: number,
+  dir = hostExtensionDir(),
+): Promise<string> {
+  if (!dir)
+    throw new Error("this cast carries no copy of the Codecast extension");
   const conn = await CdpConnection.fromPort(port);
   try {
-    const { id } = await conn.send<{ id: string }>("Extensions.loadUnpacked", { path: dir }, undefined, 20_000);
-    if (id !== BRIDGE_EXTENSION_ID) throw new Error(`Chrome loaded the extension as ${id}, not ${BRIDGE_EXTENSION_ID}: its manifest has no key`);
+    const { id } = await conn.send<{ id: string }>(
+      "Extensions.loadUnpacked",
+      { path: dir },
+      undefined,
+      20_000,
+    );
+    if (id !== BRIDGE_EXTENSION_ID)
+      throw new Error(
+        `Chrome loaded the extension as ${id}, not ${BRIDGE_EXTENSION_ID}: its manifest has no key`,
+      );
     return id;
   } catch (err) {
     const msg = (err as Error).message;
     if (/not found|wasn't found|not allowed|unsafe/i.test(msg)) {
-      throw new Error("this Chrome was started without --enable-unsafe-extension-debugging (it predates this cast); it gets the extension on its next start");
+      throw new Error(
+        "this Chrome was started without --enable-unsafe-extension-debugging (it predates this cast); it gets the extension on its next start",
+      );
     }
     throw err;
   } finally {
@@ -113,34 +142,72 @@ export async function loadHostExtension(port: number, dir = hostExtensionDir()):
  * host on `bridgePort`: what the options page's Pair button does, run in the
  * worker. Waits for the worker to come up after a fresh load.
  */
-export async function pairHostExtension(port: number, bridgePort: number, code: string, timeoutMs = 20_000): Promise<void> {
+export async function pairHostExtension(
+  port: number,
+  bridgePort: number,
+  code: string,
+  timeoutMs = 20_000,
+): Promise<void> {
   const conn = await CdpConnection.fromPort(port);
   try {
     const deadline = Date.now() + timeoutMs;
     let worker: string | null = null;
     while (!worker) {
-      const { targetInfos } = await conn.send<{ targetInfos: Array<{ targetId: string; type: string; url: string }> }>("Target.getTargets");
-      worker = targetInfos.find((t) => t.type === "service_worker" && t.url.startsWith(`chrome-extension://${BRIDGE_EXTENSION_ID}/`))?.targetId ?? null;
+      const { targetInfos } = await conn.send<{
+        targetInfos: Array<{ targetId: string; type: string; url: string }>;
+      }>("Target.getTargets");
+      worker =
+        targetInfos.find(
+          (t) =>
+            t.type === "service_worker" &&
+            t.url.startsWith(`chrome-extension://${BRIDGE_EXTENSION_ID}/`),
+        )?.targetId ?? null;
       if (worker) break;
-      if (Date.now() > deadline) throw new Error("the extension's worker did not start");
+      if (Date.now() > deadline)
+        throw new Error("the extension's worker did not start");
       await new Promise((r) => setTimeout(r, 500));
     }
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: worker, flatten: true });
-    const bridge = { port: bridgePort, code, codeExpiresAt: Date.now() + 10 * 60_000 };
-    const r = await conn.send<{ result?: { value?: unknown }; exceptionDetails?: { text?: string; exception?: { description?: string } } }>(
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: worker, flatten: true },
+    );
+    const bridge = {
+      port: bridgePort,
+      code,
+      codeExpiresAt: Date.now() + 10 * 60_000,
+    };
+    const r = await conn.send<{
+      result?: { value?: unknown };
+      exceptionDetails?: {
+        text?: string;
+        exception?: { description?: string };
+      };
+    }>(
       "Runtime.evaluate",
-      { expression: `chrome.storage.local.set({ bridge: ${JSON.stringify(bridge)} }).then(() => { reconnect(); return "ok"; })`, awaitPromise: true, returnByValue: true },
+      {
+        expression: `chrome.storage.local.set({ bridge: ${JSON.stringify(bridge)} }).then(() => { reconnect(); return "ok"; })`,
+        awaitPromise: true,
+        returnByValue: true,
+      },
       sessionId,
       15_000,
     );
-    if (r.result?.value !== "ok") throw new Error(`the extension's worker refused the code: ${r.exceptionDetails?.exception?.description ?? r.exceptionDetails?.text ?? "no answer"}`);
+    if (r.result?.value !== "ok")
+      throw new Error(
+        `the extension's worker refused the code: ${r.exceptionDetails?.exception?.description ?? r.exceptionDetails?.text ?? "no answer"}`,
+      );
   } finally {
     conn.close();
   }
 }
 
 export type HostChromeReady =
-  | { ok: true; bridge: ProvenBridge; status: BridgeHostStatus; paired: boolean }
+  | {
+      ok: true;
+      bridge: ProvenBridge;
+      status: BridgeHostStatus;
+      paired: boolean;
+    }
   | { ok: false; reason: string };
 
 /**
@@ -149,20 +216,36 @@ export type HostChromeReady =
  * no-op it should be when already done: a connected extension returns at
  * once. `ok: false` says why the host's Chrome is driven without it.
  */
-export async function readyHostChrome(note: (line: string) => void = () => {}): Promise<HostChromeReady> {
-  const { ensureBridgeHost, waitForExtension, readBridgeState, writeBridgeState } = await import("./bridge/host.js");
+export async function readyHostChrome(
+  note: (line: string) => void = () => {},
+): Promise<HostChromeReady> {
+  const {
+    ensureBridgeHost,
+    waitForExtension,
+    readBridgeState,
+    writeBridgeState,
+  } = await import("./bridge/host.js");
   const { mintPairingCode } = await import("./bridge/pairing.js");
   const bridge = await ensureBridgeHost(undefined, { note });
   let status = await waitForExtension(bridge, 1_500);
-  if (status.extensionConnected) return { ok: true, bridge, status, paired: false };
+  if (status.extensionConnected)
+    return { ok: true, bridge, status, paired: false };
 
-  const { startLocalBrowser, DEFAULT_START } = await import("./managedBrowser.js");
+  const { startLocalBrowser, DEFAULT_START } =
+    await import("./managedBrowser.js");
   const inst = await startLocalBrowser({ ...DEFAULT_START, quiet: true });
-  if (inst.hostExtension !== true) return { ok: false, reason: inst.hostExtension ?? "this Chrome was started before cast carried the extension; it gets it on its next start" };
+  if (inst.hostExtension !== true)
+    return {
+      ok: false,
+      reason:
+        inst.hostExtension ??
+        "this Chrome was started before cast carried the extension; it gets it on its next start",
+    };
   // A profile paired before reconnects on its own within seconds of the load.
   if (readBridgeState()?.hostChrome) {
     status = await waitForExtension(bridge, 8_000);
-    if (status.extensionConnected) return { ok: true, bridge, status, paired: false };
+    if (status.extensionConnected)
+      return { ok: true, bridge, status, paired: false };
   }
   // Marked before the extension connects, so no process in between reads
   // the pairing as a human's Chrome (real.ts hostHasNoHumanChrome).
@@ -172,5 +255,9 @@ export async function readyHostChrome(note: (line: string) => void = () => {}): 
   status = await waitForExtension(bridge, 20_000);
   return status.extensionConnected
     ? { ok: true, bridge, status, paired: true }
-    : { ok: false, reason: "the extension took the pairing code but did not connect to this host's bridge" };
+    : {
+        ok: false,
+        reason:
+          "the extension took the pairing code but did not connect to this host's bridge",
+      };
 }

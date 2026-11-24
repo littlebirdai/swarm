@@ -8,7 +8,19 @@ import { PR_TABS, TAB_BAR_PX } from "./prTabs";
 // number key that opens it, and, once the header has scrolled away, the
 // title that takes the reader back to the top.
 
-export function PRTabBar({ repository, number, title, tab, family, filesCount, notesCount, commitsCount, checksCount, pastHeader, onTop }: {
+export function PRTabBar({
+  repository,
+  number,
+  title,
+  tab,
+  family,
+  filesCount,
+  notesCount,
+  commitsCount,
+  checksCount,
+  pastHeader,
+  onTop,
+}: {
   repository: string;
   number: number;
   title: string;
@@ -46,7 +58,10 @@ export function PRTabBar({ repository, number, title, tab, family, filesCount, n
             <span className="text-meta text-sol-text-dim">{filesCount}</span>
           )}
           {key === "files" && notesCount > 0 && (
-            <span className="rounded-full border border-dashed border-sol-yellow/60 px-1.5 text-meta text-sol-yellow" title="Notes in your review, not sent yet">
+            <span
+              className="rounded-full border border-dashed border-sol-yellow/60 px-1.5 text-meta text-sol-yellow"
+              title="Notes in your review, not sent yet"
+            >
               {notesCount}
             </span>
           )}

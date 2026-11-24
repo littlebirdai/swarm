@@ -14,29 +14,60 @@ export type CardFactsProps = {
   ruleLabel?: string;
   builds?: { ref: string; saw: string } | null;
   /** `how`: the card's own line on how the two fixes meet (ProposalCard.alongside); shown in place of the place they share. */
-  overlaps?: Array<{ card: string; task: string; title: string; where: string; on?: "code" | "rule"; how?: string }>;
+  overlaps?: Array<{
+    card: string;
+    task: string;
+    title: string;
+    where: string;
+    on?: "code" | "rule";
+    how?: string;
+  }>;
   /** Waiting cards this one was measured on top of: they publish first (a judge fix's builds_on). `where` is what they edit. */
   after?: Array<{ card: string; title?: string; where: string }>;
 };
 
-export function CardFacts({ rule, ruleLabel = "Rule", builds, overlaps = [], after = [] }: CardFactsProps) {
+export function CardFacts({
+  rule,
+  ruleLabel = "Rule",
+  builds,
+  overlaps = [],
+  after = [],
+}: CardFactsProps) {
   const taskHref = useTaskHref();
   if (!rule && !builds && !overlaps.length && !after.length) return null;
-  const first = after.map((a) => ({ ...a, title: a.title ?? overlaps.find((o) => o.card === a.card)?.title ?? "" }));
-  const sameCode = overlaps.filter((o) => o.on !== "rule" && !after.some((a) => a.card === o.card));
+  const first = after.map((a) => ({
+    ...a,
+    title: a.title ?? overlaps.find((o) => o.card === a.card)?.title ?? "",
+  }));
+  const sameCode = overlaps.filter(
+    (o) => o.on !== "rule" && !after.some((a) => a.card === o.card),
+  );
   const sameRule = overlaps.filter((o) => o.on === "rule");
   return (
     <dl className="ccd-facts" data-card-facts>
       {rule && (
         <div data-card-rule>
           <dt>{ruleLabel}</dt>
-          <dd><code className="ccd-fact-id">{rule.id}</code> {rule.text}</dd>
+          <dd>
+            <code className="ccd-fact-id">{rule.id}</code> {rule.text}
+          </dd>
         </div>
       )}
       {builds && (
         <div className="is-warn" data-card-builds>
           <dt>Builds on</dt>
-          <dd><Link href={taskHref(builds.ref)} className="ccd-fact-id hover:underline">{builds.ref}</Link> unmerged fix{builds.saw ? <span className="text-sol-text-dim"> · {builds.saw}</span> : null}</dd>
+          <dd>
+            <Link
+              href={taskHref(builds.ref)}
+              className="ccd-fact-id hover:underline"
+            >
+              {builds.ref}
+            </Link>{" "}
+            unmerged fix
+            {builds.saw ? (
+              <span className="text-sol-text-dim"> · {builds.saw}</span>
+            ) : null}
+          </dd>
         </div>
       )}
       {first.length > 0 && (
@@ -45,7 +76,13 @@ export function CardFacts({ rule, ruleLabel = "Rule", builds, overlaps = [], aft
           <dd>
             {first.map((o) => (
               <span key={o.card} className="block" title={o.where}>
-                <Link href={`/trial?card=${o.card}`} className="ccd-fact-id hover:underline">{o.card}</Link> {o.title}
+                <Link
+                  href={`/trial?card=${o.card}`}
+                  className="ccd-fact-id hover:underline"
+                >
+                  {o.card}
+                </Link>{" "}
+                {o.title}
                 <span className="text-sol-text-dim"> · {o.where}</span>
               </span>
             ))}
@@ -54,14 +91,44 @@ export function CardFacts({ rule, ruleLabel = "Rule", builds, overlaps = [], aft
       )}
       {/* A line that concludes the two cannot conflict is no warning: it reads as a muted note. The id is the link, so the line drops its own copy of it and any file reference. */}
       {sameCode.length > 0 && (
-        <div className={sameCode.every((o) => overlapNote(o).clear) ? undefined : "is-warn"} data-card-overlaps>
+        <div
+          className={
+            sameCode.every((o) => overlapNote(o).clear) ? undefined : "is-warn"
+          }
+          data-card-overlaps
+        >
           <dt>Same code as</dt>
           <dd>
             {sameCode.map((o) => {
               const note = overlapNote(o);
               return (
-                <span key={o.card} className={note.clear ? "block text-sol-text-dim" : "block"} title={`${o.title} · ${o.where}`} data-card-overlap={note.clear ? "clear" : "open"}>
-                  {note.clear ? <>no conflict with <Link href={`/trial?card=${o.card}`} className="ccd-fact-id hover:underline">{o.card}</Link></> : <><Link href={`/trial?card=${o.card}`} className="ccd-fact-id hover:underline">{o.card}</Link>{" "}<span data-card-overlap-how>{note.text}</span></>}
+                <span
+                  key={o.card}
+                  className={note.clear ? "block text-sol-text-dim" : "block"}
+                  title={`${o.title} · ${o.where}`}
+                  data-card-overlap={note.clear ? "clear" : "open"}
+                >
+                  {note.clear ? (
+                    <>
+                      no conflict with{" "}
+                      <Link
+                        href={`/trial?card=${o.card}`}
+                        className="ccd-fact-id hover:underline"
+                      >
+                        {o.card}
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href={`/trial?card=${o.card}`}
+                        className="ccd-fact-id hover:underline"
+                      >
+                        {o.card}
+                      </Link>{" "}
+                      <span data-card-overlap-how>{note.text}</span>
+                    </>
+                  )}
                 </span>
               );
             })}
@@ -75,7 +142,13 @@ export function CardFacts({ rule, ruleLabel = "Rule", builds, overlaps = [], aft
           <dd>
             {sameRule.map((o) => (
               <span key={o.card} className="block">
-                <Link href={`/trial?card=${o.card}`} className="ccd-fact-id hover:underline">{o.card}</Link> {o.title}
+                <Link
+                  href={`/trial?card=${o.card}`}
+                  className="ccd-fact-id hover:underline"
+                >
+                  {o.card}
+                </Link>{" "}
+                {o.title}
               </span>
             ))}
           </dd>

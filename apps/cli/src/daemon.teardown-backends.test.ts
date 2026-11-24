@@ -9,7 +9,9 @@ import { teardownConversationBackends } from "./daemon.js";
 
 type ThreadEntry = { threadId: string; conversationId: string };
 
-function makeDeps(overrides: Partial<Parameters<typeof teardownConversationBackends>[1]> = {}) {
+function makeDeps(
+  overrides: Partial<Parameters<typeof teardownConversationBackends>[1]> = {},
+) {
   const calls = {
     killedTmux: [] as string[],
     deletedStarted: [] as string[],
@@ -25,17 +27,31 @@ function makeDeps(overrides: Partial<Parameters<typeof teardownConversationBacke
     appServerConversations,
     appServerThreads,
     startedTmux,
-    killTmuxTree: async (s: string) => { calls.killedTmux.push(s); },
-    deleteStarted: (c: string) => { calls.deletedStarted.push(c); },
-    stopHeartbeat: (s: string) => { calls.stoppedHeartbeat.push(s); },
-    forgetPersisted: (c: string) => { calls.forgotPersisted.push(c); },
-    interruptActiveTurn: async (t: string) => { calls.interrupted.push(t); },
+    killTmuxTree: async (s: string) => {
+      calls.killedTmux.push(s);
+    },
+    deleteStarted: (c: string) => {
+      calls.deletedStarted.push(c);
+    },
+    stopHeartbeat: (s: string) => {
+      calls.stoppedHeartbeat.push(s);
+    },
+    forgetPersisted: (c: string) => {
+      calls.forgotPersisted.push(c);
+    },
+    interruptActiveTurn: async (t: string) => {
+      calls.interrupted.push(t);
+    },
     ...overrides,
   };
   return { deps, calls, appServerConversations, appServerThreads, startedTmux };
 }
 
-function bindCodex(d: ReturnType<typeof makeDeps>, conv: string, thread: string) {
+function bindCodex(
+  d: ReturnType<typeof makeDeps>,
+  conv: string,
+  thread: string,
+) {
   d.appServerConversations.set(conv, thread);
   d.appServerThreads.set(thread, { threadId: thread, conversationId: conv });
 }
@@ -68,7 +84,11 @@ describe("teardownConversationBackends", () => {
 
     const r = await teardownConversationBackends("conv-2", d.deps);
 
-    expect(r).toMatchObject({ killedAppServer: true, killedTmux: false, appServerThreadId: "thread-y" });
+    expect(r).toMatchObject({
+      killedAppServer: true,
+      killedTmux: false,
+      appServerThreadId: "thread-y",
+    });
     expect(d.appServerConversations.size).toBe(0);
     expect(d.calls.killedTmux).toEqual([]);
   });
@@ -104,14 +124,20 @@ describe("teardownConversationBackends", () => {
   test("nothing bound: pure no-op (first start of a fresh conversation)", async () => {
     const d = makeDeps();
     const r = await teardownConversationBackends("conv-new", d.deps);
-    expect(r).toEqual({ killedAppServer: false, killedTmux: false, appServerThreadId: undefined });
+    expect(r).toEqual({
+      killedAppServer: false,
+      killedTmux: false,
+      appServerThreadId: undefined,
+    });
     expect(d.calls.killedTmux).toEqual([]);
     expect(d.calls.deletedStarted).toEqual([]);
   });
 
   test("a failing turn-interrupt still tears the thread down", async () => {
     const d = makeDeps({
-      interruptActiveTurn: async () => { throw new Error("app-server down"); },
+      interruptActiveTurn: async () => {
+        throw new Error("app-server down");
+      },
     });
     bindCodex(d, "conv-4", "thread-z");
 
@@ -127,7 +153,11 @@ describe("teardownConversationBackends", () => {
 
     const r = await teardownConversationBackends("conv-persisted", d.deps);
 
-    expect(r).toMatchObject({ killedAppServer: true, killedTmux: false, appServerThreadId: "thread-persisted" });
+    expect(r).toMatchObject({
+      killedAppServer: true,
+      killedTmux: false,
+      appServerThreadId: "thread-persisted",
+    });
     expect(d.calls.interrupted).toEqual(["thread-persisted"]);
     expect(d.calls.forgotPersisted).toEqual(["conv-persisted"]);
     expect(d.calls.stoppedHeartbeat).toEqual(["thread-persisted"]);

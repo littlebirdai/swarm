@@ -3,7 +3,11 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { canAccessChannel, channelMemberIds, isRestricted } from "../chatAccess";
+import {
+  canAccessChannel,
+  channelMemberIds,
+  isRestricted,
+} from "../chatAccess";
 import { isSilentAgentRow, isThreadMuted } from "@codecast/shared/chat";
 import { teamRoster } from "./mentionResolve";
 import { isDesktopActivePresence } from "../pushRouter";
@@ -29,7 +33,13 @@ type ReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
 export async function notifyChat(
   ctx: MutationCtx,
   opts: {
-    eventType: "chat_mention" | "chat_reply" | "chat_here" | "chat_dm" | "chat_added" | "chat_post";
+    eventType:
+      | "chat_mention"
+      | "chat_reply"
+      | "chat_here"
+      | "chat_dm"
+      | "chat_added"
+      | "chat_post";
     actorUserId: Id<"users">;
     actorName: string;
     channel: Doc<"chat_channels">;
@@ -66,13 +76,19 @@ export async function notifyChat(
   const read = await ctx.db
     .query("chat_reads")
     .withIndex("by_user_channel", (q: any) =>
-      q.eq("user_id", opts.recipientId).eq("channel_id", opts.channel._id))
+      q.eq("user_id", opts.recipientId).eq("channel_id", opts.channel._id),
+    )
     .first();
   // No row means the member has never opened this channel, which reads as
   // "mentions only" — the same default the rail shows.
-  if (!notifyLevelAllows(read?.notify_level ?? "mentions", opts.eventType)) return;
+  if (!notifyLevelAllows(read?.notify_level ?? "mentions", opts.eventType))
+    return;
   // A thread the member muted keeps its replies quiet; a mention still lands.
-  if (opts.eventType === "chat_reply" && isThreadMuted(read?.muted_threads, opts.threadRootId)) return;
+  if (
+    opts.eventType === "chat_reply" &&
+    isThreadMuted(read?.muted_threads, opts.threadRootId)
+  )
+    return;
   await ctx.runMutation(internal.notificationRouter.emit, {
     event_type: opts.eventType,
     actor_user_id: opts.actorUserId,
@@ -102,7 +118,9 @@ export async function threadParticipants(
 ): Promise<Id<"users">[]> {
   const replies = await ctx.db
     .query("chat_messages")
-    .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", root._id))
+    .withIndex("by_thread_created", (q: any) =>
+      q.eq("thread_root_id", root._id),
+    )
     .order("desc")
     .take(limit);
   const ids: Id<"users">[] = [];
@@ -126,7 +144,9 @@ export async function channelAudience(
 ): Promise<Id<"users">[]> {
   let roster = await teamRoster(ctx, channel.team_id);
   if (isRestricted(channel)) {
-    const members = new Set((await channelMemberIds(ctx, channel._id)).map(String));
+    const members = new Set(
+      (await channelMemberIds(ctx, channel._id)).map(String),
+    );
     roster = roster.filter((u) => members.has(u._id.toString()));
   }
   return roster.filter((u) => !u.is_bot).map((u) => u._id);
@@ -148,8 +168,8 @@ export async function presentMembers(
       .first();
     if (!presence) continue;
     if (
-      isDesktopActivePresence(presence, now)
-      || now - presence.last_input_at < HERE_PRESENCE_MS
+      isDesktopActivePresence(presence, now) ||
+      now - presence.last_input_at < HERE_PRESENCE_MS
     ) {
       present.push(userId);
     }

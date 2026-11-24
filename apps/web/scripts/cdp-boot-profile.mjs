@@ -11,9 +11,15 @@ const output = readArg("--output", "/tmp/codecast-boot-profile.json");
 const screenshot = readArg("--screenshot", "");
 const offline = args.includes("--offline");
 
-const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-const target = targets.find((candidate) => candidate.type === "page" && candidate.url.includes(targetMatch));
-if (!target?.webSocketDebuggerUrl) throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
+const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+  (response) => response.json(),
+);
+const target = targets.find(
+  (candidate) =>
+    candidate.type === "page" && candidate.url.includes(targetMatch),
+);
+if (!target?.webSocketDebuggerUrl)
+  throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
 
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
@@ -34,13 +40,18 @@ socket.addEventListener("message", ({ data }) => {
   if (message.method === "Runtime.consoleAPICalled") {
     consoleMessages.push({
       level: message.params.type,
-      text: message.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "),
+      text: message.params.args
+        .map((arg) => arg.value ?? arg.description ?? "")
+        .join(" "),
       at: message.params.timestamp,
     });
   } else if (message.method === "Runtime.exceptionThrown") {
     consoleMessages.push({
       level: "exception",
-      text: message.params.exceptionDetails?.exception?.description ?? message.params.exceptionDetails?.text ?? "",
+      text:
+        message.params.exceptionDetails?.exception?.description ??
+        message.params.exceptionDetails?.text ??
+        "",
       at: message.params.timestamp,
     });
   }
@@ -62,7 +73,9 @@ const send = (method, params = {}) =>
     socket.send(JSON.stringify({ id, method, params }));
   });
 const once = (method) =>
-  new Promise((resolve) => listeners.set(method, [...(listeners.get(method) ?? []), resolve]));
+  new Promise((resolve) =>
+    listeners.set(method, [...(listeners.get(method) ?? []), resolve]),
+  );
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 await send("Page.enable");
@@ -133,7 +146,9 @@ const probeSource = `(() => {
   requestAnimationFrame(sample);
 })()`;
 
-const { identifier } = await send("Page.addScriptToEvaluateOnNewDocument", { source: probeSource });
+const { identifier } = await send("Page.addScriptToEvaluateOnNewDocument", {
+  source: probeSource,
+});
 await send("Page.bringToFront");
 await send("Emulation.setFocusEmulationEnabled", { enabled: true });
 if (offline) {
@@ -160,7 +175,10 @@ let timeout;
 await Promise.race([
   loaded,
   new Promise((_, reject) => {
-    timeout = setTimeout(() => reject(new Error("Timed out waiting for Page.loadEventFired")), 30_000);
+    timeout = setTimeout(
+      () => reject(new Error("Timed out waiting for Page.loadEventFired")),
+      30_000,
+    );
   }),
 ]);
 clearTimeout(timeout);
@@ -189,7 +207,10 @@ const evaluated = await send("Runtime.evaluate", {
 const page = JSON.parse(evaluated.result.value);
 
 if (screenshot) {
-  const capture = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  const capture = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
   await Bun.write(screenshot, Buffer.from(capture.data, "base64"));
 }
 

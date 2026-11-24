@@ -15,12 +15,12 @@ thing it was made for is gone. It is decided by one pure predicate per kind
 over facts the record already holds, never by a flag a person or a sweep
 sets, and never item by item.
 
-| Artifact | Superseded when | Replaced by |
-|---|---|---|
-| Problem (cause task) | it was merged into another (`cause.merged_into`); or it is open, once held findings (`cause.last_seen`), and holds none now (`cause.signal_count` 0) | the survivor, or nothing |
-| Run (live only) | a later run exists on the same problem; or its problem is superseded or closed; or it stands at a station its line's graph no longer has; or it waits at a gate the line has changed since (below). For a pinned run, its line's graph is the one it would resume with (below) | the newer run, the problem's next run, or the line's newer version |
-| Card or decision a run's gate asks | its run or its problem is superseded; or its run has left that gate; or it declares what it covers (`reach.covers`) and none of the problem's live findings is among them | its run's or problem's replacement |
-| Finding | it does not stand as evidence (`retired`, `merged_into`, `case_of`, `judge_review`); or its judge is no longer published | the finding it merged into, or nothing |
+| Artifact                           | Superseded when                                                                                                                                                                                                                                                                | Replaced by                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Problem (cause task)               | it was merged into another (`cause.merged_into`); or it is open, once held findings (`cause.last_seen`), and holds none now (`cause.signal_count` 0)                                                                                                                           | the survivor, or nothing                                           |
+| Run (live only)                    | a later run exists on the same problem; or its problem is superseded or closed; or it stands at a station its line's graph no longer has; or it waits at a gate the line has changed since (below). For a pinned run, its line's graph is the one it would resume with (below) | the newer run, the problem's next run, or the line's newer version |
+| Card or decision a run's gate asks | its run or its problem is superseded; or its run has left that gate; or it declares what it covers (`reach.covers`) and none of the problem's live findings is among them                                                                                                      | its run's or problem's replacement                                 |
+| Finding                            | it does not stand as evidence (`retired`, `merged_into`, `case_of`, `judge_review`); or its judge is no longer published                                                                                                                                                       | the finding it merged into, or nothing                             |
 
 **Iterating the line supersedes what it waits on.** A run waiting at a gate
 is superseded ("line changed", by the version) when the line's published

@@ -9,7 +9,11 @@
  */
 import { inlineForeignText } from "@codecast/shared/contracts";
 import { resolveMessagingPolicy } from "@codecast/shared/contracts/messagingPolicy";
-import { renderFencedPlanRecord, renderFencedTaskRecord, type TaskEffort } from "@codecast/shared/tasks";
+import {
+  renderFencedPlanRecord,
+  renderFencedTaskRecord,
+  type TaskEffort,
+} from "@codecast/shared/tasks";
 
 // --- Model Stylesheet Types & Resolution ---
 
@@ -27,12 +31,20 @@ export function parseModelSpec(raw: string): ResolvedModel {
     const [provider, ...rest] = raw.split("/");
     const model = rest.join("/");
     const knownProviders: Record<string, ResolvedModel["provider"]> = {
-      anthropic: "anthropic", openai: "openai", gemini: "gemini", google: "gemini",
+      anthropic: "anthropic",
+      openai: "openai",
+      gemini: "gemini",
+      google: "gemini",
     };
     return { provider: knownProviders[provider] || "unknown", model, raw };
   }
 
-  if (raw.startsWith("gpt-") || raw.startsWith("o1") || raw.startsWith("o3") || raw.startsWith("o4")) {
+  if (
+    raw.startsWith("gpt-") ||
+    raw.startsWith("o1") ||
+    raw.startsWith("o3") ||
+    raw.startsWith("o4")
+  ) {
     return { provider: "openai", model: raw, raw };
   }
   if (raw.startsWith("gemini")) {
@@ -54,7 +66,10 @@ interface StylesheetRule {
 
 function parseModelStylesheet(stylesheet: string): StylesheetRule[] {
   const rules: StylesheetRule[] = [];
-  const lines = stylesheet.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//"));
+  const lines = stylesheet
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("//"));
 
   for (const line of lines) {
     const selectorMatch = line.match(/^([*#.]\S*)\s*\{(.+)\}/);
@@ -68,7 +83,8 @@ function parseModelStylesheet(stylesheet: string): StylesheetRule[] {
     if (modelMatch) properties.model = modelMatch[1];
 
     const effortMatch = body.match(/reasoning_effort:\s*(low|medium|high)/);
-    if (effortMatch) properties.reasoning_effort = effortMatch[1] as "low" | "medium" | "high";
+    if (effortMatch)
+      properties.reasoning_effort = effortMatch[1] as "low" | "medium" | "high";
 
     const tempMatch = body.match(/temperature:\s*([\d.]+)/);
     if (tempMatch) properties.temperature = parseFloat(tempMatch[1]);
@@ -84,19 +100,33 @@ function parseModelStylesheet(stylesheet: string): StylesheetRule[] {
   return rules;
 }
 
-export function resolveTaskModel(plan: any, task: any, defaultModel = "opus"): string {
+export function resolveTaskModel(
+  plan: any,
+  task: any,
+  defaultModel = "opus",
+): string {
   const resolved = resolveTaskModelFull(plan, task, defaultModel);
   return resolved.model;
 }
 
 /** The model and effort a session spawned for `task` launches with (task-graph.md
  *  TG8): the task's own `model` and `effort` win over the plan's stylesheet. */
-export function resolveTaskModelFull(plan: any, task: any, defaultModel = "opus"): ResolvedModel {
+export function resolveTaskModelFull(
+  plan: any,
+  task: any,
+  defaultModel = "opus",
+): ResolvedModel {
   const resolved = stylesheetModel(plan, task, defaultModel);
-  return task.effort ? { ...resolved, reasoning_effort: task.effort } : resolved;
+  return task.effort
+    ? { ...resolved, reasoning_effort: task.effort }
+    : resolved;
 }
 
-function stylesheetModel(plan: any, task: any, defaultModel: string): ResolvedModel {
+function stylesheetModel(
+  plan: any,
+  task: any,
+  defaultModel: string,
+): ResolvedModel {
   if (task.model) return { ...parseModelSpec(task.model), raw: task.model };
   if (!plan.model_stylesheet) return parseModelSpec(defaultModel);
 
@@ -139,7 +169,8 @@ function stylesheetModel(plan: any, task: any, defaultModel: string): ResolvedMo
         backend: rule.properties.backend,
       };
       if (rule.properties.provider) {
-        bestMatch.provider = rule.properties.provider as ResolvedModel["provider"];
+        bestMatch.provider = rule.properties
+          .provider as ResolvedModel["provider"];
       }
     }
   }
@@ -149,10 +180,21 @@ function stylesheetModel(plan: any, task: any, defaultModel: string): ResolvedMo
 
 // --- Fidelity Control ---
 
-export type FidelityLevel = "full" | "compact" | "summary_high" | "summary_medium" | "summary_low" | "truncate";
+export type FidelityLevel =
+  | "full"
+  | "compact"
+  | "summary_high"
+  | "summary_medium"
+  | "summary_low"
+  | "truncate";
 
 const FIDELITY_RANK: Record<FidelityLevel, number> = {
-  full: 5, compact: 4, summary_high: 3, summary_medium: 2, summary_low: 1, truncate: 0,
+  full: 5,
+  compact: 4,
+  summary_high: 3,
+  summary_medium: 2,
+  summary_low: 1,
+  truncate: 0,
 };
 
 export function resolveFidelity(plan: any, task: any): FidelityLevel {
@@ -169,9 +211,15 @@ export function resolveFidelity(plan: any, task: any): FidelityLevel {
 function buildDoneContext(doneTasks: any[], fidelity?: FidelityLevel): string {
   if (doneTasks.length === 0) return "";
 
-  const level = fidelity || (doneTasks.length > 50 ? "summary_low" :
-    doneTasks.length > 30 ? "summary_medium" :
-    doneTasks.length > 15 ? "compact" : "full");
+  const level =
+    fidelity ||
+    (doneTasks.length > 50
+      ? "summary_low"
+      : doneTasks.length > 30
+        ? "summary_medium"
+        : doneTasks.length > 15
+          ? "compact"
+          : "full");
 
   switch (level) {
     case "truncate":
@@ -188,18 +236,20 @@ function buildDoneContext(doneTasks: any[], fidelity?: FidelityLevel): string {
     case "summary_high": {
       const recent = doneTasks.slice(-8);
       const earlier = doneTasks.slice(0, -8);
-      const summary = earlier.length > 0
-        ? `${earlier.length} earlier tasks (${summarizeTaskTopics(earlier)})`
-        : "";
+      const summary =
+        earlier.length > 0
+          ? `${earlier.length} earlier tasks (${summarizeTaskTopics(earlier)})`
+          : "";
       return `\nAlready completed (${doneTasks.length} total):\n${summary ? `- ${summary}\n` : ""}${recent.map((t: any) => `- ${inlineForeignText(t.title)}`).join("\n")}`;
     }
 
     case "compact": {
       const recent = doneTasks.slice(-8);
       const earlier = doneTasks.slice(0, -8);
-      const summary = earlier.length > 0
-        ? `${earlier.length} earlier tasks completed (covering: ${summarizeTaskTopics(earlier)})`
-        : "";
+      const summary =
+        earlier.length > 0
+          ? `${earlier.length} earlier tasks completed (covering: ${summarizeTaskTopics(earlier)})`
+          : "";
       return `\nAlready completed (${doneTasks.length} total):\n${summary ? `- ${summary}\n` : ""}${recent.map((t: any) => `- ${inlineForeignText(t.title)}`).join("\n")}`;
     }
 
@@ -223,51 +273,105 @@ function summarizeTaskTopics(tasks: any[]): string {
 // --- Typed Retrospective Categories ---
 
 export const LEARNING_CATEGORIES = [
-  "architecture", "tooling", "process", "testing", "performance", "security", "ux", "documentation",
+  "architecture",
+  "tooling",
+  "process",
+  "testing",
+  "performance",
+  "security",
+  "ux",
+  "documentation",
 ] as const;
-export type LearningCategory = typeof LEARNING_CATEGORIES[number];
+export type LearningCategory = (typeof LEARNING_CATEGORIES)[number];
 
 export const FRICTION_KINDS = [
-  "retry", "timeout", "wrong_approach", "unclear_spec", "merge_conflict",
-  "dependency_issue", "environment", "flaky_test", "context_overflow",
+  "retry",
+  "timeout",
+  "wrong_approach",
+  "unclear_spec",
+  "merge_conflict",
+  "dependency_issue",
+  "environment",
+  "flaky_test",
+  "context_overflow",
 ] as const;
-export type FrictionKind = typeof FRICTION_KINDS[number];
+export type FrictionKind = (typeof FRICTION_KINDS)[number];
 
 export const OPEN_ITEM_KINDS = [
-  "tech_debt", "follow_up", "investigation", "optimization", "refactor", "test_coverage",
+  "tech_debt",
+  "follow_up",
+  "investigation",
+  "optimization",
+  "refactor",
+  "test_coverage",
 ] as const;
-export type OpenItemKind = typeof OPEN_ITEM_KINDS[number];
+export type OpenItemKind = (typeof OPEN_ITEM_KINDS)[number];
 
 export interface TypedRetro {
   smoothness: "effortless" | "smooth" | "bumpy" | "struggled" | "failed";
   headline: string;
   learnings: Array<{ text: string; category: LearningCategory }>;
-  friction_points: Array<{ text: string; kind: FrictionKind; severity: "low" | "medium" | "high" }>;
-  open_items: Array<{ text: string; kind: OpenItemKind; priority: "low" | "medium" | "high" }>;
+  friction_points: Array<{
+    text: string;
+    kind: FrictionKind;
+    severity: "low" | "medium" | "high";
+  }>;
+  open_items: Array<{
+    text: string;
+    kind: OpenItemKind;
+    priority: "low" | "medium" | "high";
+  }>;
   generated_at: number;
 }
 
-export function buildRetroPrompt(plan: any, tasks: any[], progressLog?: any[]): string {
+export function buildRetroPrompt(
+  plan: any,
+  tasks: any[],
+  progressLog?: any[],
+): string {
   const done = tasks.filter((t: any) => t.status === "done");
   const failed = tasks.filter((t: any) => t.status === "dropped");
-  const blocked = tasks.filter((t: any) => t.execution_status === "blocked" || t.execution_status === "needs_context");
-  const withConcerns = tasks.filter((t: any) => t.execution_status === "done_with_concerns");
-  const totalRetries = tasks.reduce((sum: number, t: any) => sum + (t.retry_count || 0), 0);
-  const totalTime = tasks.reduce((sum: number, t: any) => sum + (t.actual_minutes || 0), 0);
+  const blocked = tasks.filter(
+    (t: any) =>
+      t.execution_status === "blocked" ||
+      t.execution_status === "needs_context",
+  );
+  const withConcerns = tasks.filter(
+    (t: any) => t.execution_status === "done_with_concerns",
+  );
+  const totalRetries = tasks.reduce(
+    (sum: number, t: any) => sum + (t.retry_count || 0),
+    0,
+  );
+  const totalTime = tasks.reduce(
+    (sum: number, t: any) => sum + (t.actual_minutes || 0),
+    0,
+  );
 
-  const taskSummaries = tasks.map((t: any) => {
-    const parts = [`- [${t.status}] ${inlineForeignText(t.title)} (${t.short_id})`];
-    if (t.execution_concerns) parts.push(`  concern: ${inlineForeignText(t.execution_concerns)}`);
-    if (t.retry_count) parts.push(`  retries: ${t.retry_count}`);
-    return parts.join("\n");
-  }).join("\n");
+  const taskSummaries = tasks
+    .map((t: any) => {
+      const parts = [
+        `- [${t.status}] ${inlineForeignText(t.title)} (${t.short_id})`,
+      ];
+      if (t.execution_concerns)
+        parts.push(`  concern: ${inlineForeignText(t.execution_concerns)}`);
+      if (t.retry_count) parts.push(`  retries: ${t.retry_count}`);
+      return parts.join("\n");
+    })
+    .join("\n");
 
-  const driveRounds = plan.drive_state?.rounds?.map((r: any) =>
-    `Round ${r.round}: ${r.findings.length} findings, ${r.fixed.length} fixed${r.deferred?.length ? `, ${r.deferred.length} deferred` : ""}`
-  ).join("\n") || "No drive rounds";
+  const driveRounds =
+    plan.drive_state?.rounds
+      ?.map(
+        (r: any) =>
+          `Round ${r.round}: ${r.findings.length} findings, ${r.fixed.length} fixed${r.deferred?.length ? `, ${r.deferred.length} deferred` : ""}`,
+      )
+      .join("\n") || "No drive rounds";
 
-  const logEntries = (progressLog || plan.entries || plan.progress_log || []).slice(-10)
-    .map((e: any) => `- ${inlineForeignText(e.content || e.entry)}`).join("\n");
+  const logEntries = (progressLog || plan.entries || plan.progress_log || [])
+    .slice(-10)
+    .map((e: any) => `- ${inlineForeignText(e.content || e.entry)}`)
+    .join("\n");
 
   return `Generate a structured retrospective for this plan. Return ONLY valid JSON.
 
@@ -322,7 +426,12 @@ function sharedLogSection(plan: any): string | null {
 
 export function buildImplementerPrompt(plan: any, task: any): string {
   const steps = task.steps?.length
-    ? task.steps.map((s: any, i: number) => `${i + 1}. ${s.done ? "[x]" : "[ ]"} ${inlineForeignText(s.title)}${s.verification ? ` (verify: ${inlineForeignText(s.verification)})` : ""}`).join("\n")
+    ? task.steps
+        .map(
+          (s: any, i: number) =>
+            `${i + 1}. ${s.done ? "[x]" : "[ ]"} ${inlineForeignText(s.title)}${s.verification ? ` (verify: ${inlineForeignText(s.verification)})` : ""}`,
+        )
+        .join("\n")
     : "";
 
   const doneTasks = (plan.tasks || []).filter((t: any) => t.status === "done");
@@ -339,16 +448,21 @@ export function buildImplementerPrompt(plan: any, task: any): string {
     `Plan: ${inlineForeignText(plan.title)} (${plan.short_id})`,
     fencedPlan(plan),
     `Task: ${task.short_id}`,
-    renderFencedTaskRecord({
-      short_id: task.short_id,
-      title: task.title,
-      description: task.description,
-      acceptance_criteria: task.acceptance_criteria,
-      external: task.external,
-    }, "assignment"),
+    renderFencedTaskRecord(
+      {
+        short_id: task.short_id,
+        title: task.title,
+        description: task.description,
+        acceptance_criteria: task.acceptance_criteria,
+        external: task.external,
+      },
+      "assignment",
+    ),
     doneContext,
     threadContext,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
   const sharedLog = sharedLogSection(plan);
 
   return `You are implementing a task. Your progress is visible to the team in the codecast dashboard.
@@ -378,21 +492,28 @@ Use these markers (exact format, the orchestrator parses them):
 - **DONE_WITH_CONCERNS: <concern>** — completed but with worries`;
 }
 
-export function buildReviewerPrompt(plan: any, task: any, branchName: string): string {
+export function buildReviewerPrompt(
+  plan: any,
+  task: any,
+  branchName: string,
+): string {
   const planContext = [
     `Plan: ${inlineForeignText(plan.title)} (${plan.short_id})`,
     fencedPlan(plan),
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   // The reviewer checks the task against its spec, so the task is reference
   // here rather than an assignment.
-  const taskBlock = renderFencedTaskRecord({
-    short_id: task.short_id,
-    title: task.title,
-    description: task.description,
-    acceptance_criteria: task.acceptance_criteria,
-    external: task.external,
-  }) || "No task detail recorded.";
+  const taskBlock =
+    renderFencedTaskRecord({
+      short_id: task.short_id,
+      title: task.title,
+      description: task.description,
+      acceptance_criteria: task.acceptance_criteria,
+      external: task.external,
+    }) || "No task detail recorded.";
 
   return `You are a code reviewer agent. Your job is to review a completed task's changes and provide a pass/fail verdict.
 
@@ -446,11 +567,17 @@ Mark the task with execution status:
 - FAIL: \`codecast task update ${task.short_id} --execution-status needs_context\``;
 }
 
-export function buildCriticPrompt(plan: any, scope: string, roundNumber: number): string {
+export function buildCriticPrompt(
+  plan: any,
+  scope: string,
+  roundNumber: number,
+): string {
   const planContext = [
     `Plan: ${inlineForeignText(plan.title)} (${plan.short_id})`,
     fencedPlan(plan),
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return `You are a critic agent for drive round ${roundNumber}. Your job is to find issues in the current state of the project.
 
@@ -517,10 +644,14 @@ const TASK_PROMPT_VARIABLES: Record<string, (t: TaskPromptInput) => string> = {
   // description written by whoever filed the task is escaped, capped and (for
   // the description) fenced before it lands there (ct-49593).
   title: (t) => inlineForeignText(t.title),
-  description: (t) => renderFencedTaskRecord({
-    short_id: t.slug,
-    description: t.description,
-  }, "assignment") || "No description provided.",
+  description: (t) =>
+    renderFencedTaskRecord(
+      {
+        short_id: t.slug,
+        description: t.description,
+      },
+      "assignment",
+    ) || "No description provided.",
   priority: (t) => t.priority || "none",
   status: (t) => t.status || "Unknown",
   labels: (t) => inlineForeignText(t.labels?.join(", ")) || "None",
@@ -536,13 +667,24 @@ Labels: {{labels}}
 Work in the current workspace. Inspect the relevant code, make the needed changes, verify them when practical, and update the task with a short summary when done:
 \`cast task done {{id}} -m "summary of what you did"\``;
 
-export function renderTaskPromptTemplate(template: string, task: TaskPromptInput): string {
-  return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, key: string) => {
-    const fn = TASK_PROMPT_VARIABLES[key.trim()];
-    return fn ? fn(task) : `{{${key}}}`;
-  }).trim();
+export function renderTaskPromptTemplate(
+  template: string,
+  task: TaskPromptInput,
+): string {
+  return template
+    .replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, key: string) => {
+      const fn = TASK_PROMPT_VARIABLES[key.trim()];
+      return fn ? fn(task) : `{{${key}}}`;
+    })
+    .trim();
 }
 
-export function buildTaskPrompt(task: TaskPromptInput, template?: string): string {
-  return renderTaskPromptTemplate(template || DEFAULT_TASK_PROMPT_TEMPLATE, task);
+export function buildTaskPrompt(
+  task: TaskPromptInput,
+  template?: string,
+): string {
+  return renderTaskPromptTemplate(
+    template || DEFAULT_TASK_PROMPT_TEMPLATE,
+    task,
+  );
 }

@@ -1,11 +1,18 @@
 // A repository name is case insensitive on GitHub and byte-equal in our
 // indexes, so everything that parses one hands back the canonical spelling.
 import { describe, expect, test } from "bun:test";
-import { extractRepoFromRemoteUrl, normalizeRepository, parsePrRef, repositoryOwner } from "./prRefs";
+import {
+  extractRepoFromRemoteUrl,
+  normalizeRepository,
+  parsePrRef,
+  repositoryOwner,
+} from "./prRefs";
 
 describe("normalizeRepository", () => {
   test("lower cases owner and name and trims", () => {
-    expect(normalizeRepository(" Codecast-SH/Codecast ")).toBe("codecast-sh/codecast");
+    expect(normalizeRepository(" Codecast-SH/Codecast ")).toBe(
+      "codecast-sh/codecast",
+    );
   });
 
   test("passes null and undefined through", () => {
@@ -26,11 +33,16 @@ describe("parsePrRef canonical spelling", () => {
     ["https://github.com/Codecast-SH/Codecast/pull/12/files", 12],
     ["https://codecast.sh/pr/Codecast-SH/Codecast/12", 12],
   ])("%s names codecast-sh/codecast", (raw, number) => {
-    expect(parsePrRef(raw)).toEqual({ repository: "codecast-sh/codecast", number });
+    expect(parsePrRef(raw)).toEqual({
+      repository: "codecast-sh/codecast",
+      number,
+    });
   });
 
   test("a repository alone is canonical too", () => {
-    expect(parsePrRef("Codecast-SH/Codecast")).toEqual({ repository: "codecast-sh/codecast" });
+    expect(parsePrRef("Codecast-SH/Codecast")).toEqual({
+      repository: "codecast-sh/codecast",
+    });
   });
 
   test("a bare number carries no repository", () => {
@@ -48,6 +60,8 @@ describe("extractRepoFromRemoteUrl canonical spelling", () => {
   });
 
   test("a remote off GitHub is not a repository", () => {
-    expect(extractRepoFromRemoteUrl("git@gitlab.com:Codecast-SH/Codecast.git")).toBeNull();
+    expect(
+      extractRepoFromRemoteUrl("git@gitlab.com:Codecast-SH/Codecast.git"),
+    ).toBeNull();
   });
 });

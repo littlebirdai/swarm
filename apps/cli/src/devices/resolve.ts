@@ -30,22 +30,37 @@ function shownName(d: NamedDevice): string {
 /** Every device the needle names. An exact id, label, or shown name wins
  *  outright, so a name that is a substring of another ("Mac-mini" vs
  *  "Mac-mini 2") stays reachable. */
-export function matchDevices<T extends NamedDevice>(devices: T[], needle: string): T[] {
+export function matchDevices<T extends NamedDevice>(
+  devices: T[],
+  needle: string,
+): T[] {
   const n = needle.trim().toLowerCase();
   if (!n) return [];
-  const exact = devices.filter((d) =>
-    d.device_id.toLowerCase() === n ||
-    String(d.label ?? "").toLowerCase() === n ||
-    String(d.display_name ?? "").trim().toLowerCase() === n ||
-    shownName(d).toLowerCase() === n);
+  const exact = devices.filter(
+    (d) =>
+      d.device_id.toLowerCase() === n ||
+      String(d.label ?? "").toLowerCase() === n ||
+      String(d.display_name ?? "")
+        .trim()
+        .toLowerCase() === n ||
+      shownName(d).toLowerCase() === n,
+  );
   if (exact.length) return exact;
-  return devices.filter((d) =>
-    d.device_id.toLowerCase().startsWith(n) ||
-    String(d.label ?? "").toLowerCase().includes(n) ||
-    String(d.display_name ?? "").toLowerCase().includes(n) ||
-    String(d.hostname ?? "").toLowerCase().includes(n) ||
-    shownName(d).toLowerCase().includes(n) ||
-    (n === "cloud" && !!d.is_remote));
+  return devices.filter(
+    (d) =>
+      d.device_id.toLowerCase().startsWith(n) ||
+      String(d.label ?? "")
+        .toLowerCase()
+        .includes(n) ||
+      String(d.display_name ?? "")
+        .toLowerCase()
+        .includes(n) ||
+      String(d.hostname ?? "")
+        .toLowerCase()
+        .includes(n) ||
+      shownName(d).toLowerCase().includes(n) ||
+      (n === "cloud" && !!d.is_remote),
+  );
 }
 
 /** One line naming a device in a list: short id, name, cloud and offline marks. */
@@ -54,11 +69,21 @@ export function deviceLine(d: NamedDevice): string {
 }
 
 /** The one device the needle names, or a message naming why not and what does match. */
-export function pickDevice<T extends NamedDevice>(devices: T[], needle: string, what = "device"): { device: T } | { error: string } {
+export function pickDevice<T extends NamedDevice>(
+  devices: T[],
+  needle: string,
+  what = "device",
+): { device: T } | { error: string } {
   const matches = matchDevices(devices, needle);
   if (matches.length === 1) return { device: matches[0] };
-  const head = matches.length === 0
-    ? `no ${what} matches "${needle}"`
-    : `${what} "${needle}" matches ${matches.length} machines; be more specific:`;
-  return { error: [head, ...(matches.length ? matches : devices).map((d) => `  ${deviceLine(d)}`)].join("\n") };
+  const head =
+    matches.length === 0
+      ? `no ${what} matches "${needle}"`
+      : `${what} "${needle}" matches ${matches.length} machines; be more specific:`;
+  return {
+    error: [
+      head,
+      ...(matches.length ? matches : devices).map((d) => `  ${deviceLine(d)}`),
+    ].join("\n"),
+  };
 }

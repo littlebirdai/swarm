@@ -29,7 +29,10 @@ export interface StartHandoffResult {
 /** The launch flag value for a picker key: the option's cliAlias (the same
  *  value `cast handoff --model` takes), a dynamic id as-is, nothing for
  *  "default". */
-export function handoffModelFlag(agentType: string | undefined, key: string | undefined): string | undefined {
+export function handoffModelFlag(
+  agentType: string | undefined,
+  key: string | undefined,
+): string | undefined {
   if (!key || key === "default") return undefined;
   return findModelOption(agentType, key)?.cliAlias ?? key;
 }
@@ -38,7 +41,8 @@ export async function startHandoff(
   client: Pick<ConvexReactClient, "action">,
   args: StartHandoffArgs,
 ): Promise<StartHandoffResult> {
-  const effort = args.effort && args.effort !== "default" ? args.effort : undefined;
+  const effort =
+    args.effort && args.effort !== "default" ? args.effort : undefined;
   const direction = args.direction?.trim() || undefined;
   const result = await client.action(api.handoff.start, {
     conversation_id: args.conversation_id,
@@ -47,9 +51,17 @@ export async function startHandoff(
     effort,
     direction,
   });
-  const session = (result as any)?.session as { conversation_id: string; short_id: string; agent_type: string } | null;
+  const session = (result as any)?.session as {
+    conversation_id: string;
+    short_id: string;
+    agent_type: string;
+  } | null;
   if (!session) throw new Error("Handoff did not start a session");
-  return { conversation_id: String(session.conversation_id), short_id: session.short_id, agent_type: session.agent_type };
+  return {
+    conversation_id: String(session.conversation_id),
+    short_id: session.short_id,
+    agent_type: session.agent_type,
+  };
 }
 
 /** The one-line explanation every handoff surface shows above its submit. */

@@ -47,20 +47,36 @@ mock.module("convex/react", () => ({
   },
 }));
 
-const { TeamMembersPump } = await import(`${import.meta.dir}/../TeamAvatarBar.tsx?fresh`);
+const { TeamMembersPump } = await import(
+  `${import.meta.dir}/../TeamAvatarBar.tsx?fresh`
+);
 const { useInboxStore } = await import("../../store/inboxStore");
 const { renderToStaticMarkup } = await import("react-dom/server");
 
 const TEAM_ID = "k97b3xkt3wvhmc3p03dgwxtfr583m6bg" as any;
 const CACHED_ROSTER = [
-  { _id: "kd75bs3q5x39xnc7bsjv6wz8wd7z9zy7", name: "Alexander Green", email: "alex@genos.dev", role: "admin", presence_state: "active" },
-  { _id: "kd78n5cgr6n8cps77ry3d9hn3h8evvwe", name: "Krithik Suvarna", email: "krithik@littlebird.ai", role: "member", presence_state: "offline" },
+  {
+    _id: "kd75bs3q5x39xnc7bsjv6wz8wd7z9zy7",
+    name: "Alexander Green",
+    email: "alex@genos.dev",
+    role: "admin",
+    presence_state: "active",
+  },
+  {
+    _id: "kd78n5cgr6n8cps77ry3d9hn3h8evvwe",
+    name: "Krithik Suvarna",
+    email: "krithik@littlebird.ai",
+    role: "member",
+    presence_state: "offline",
+  },
 ];
 
 describe("TeamMembersPump — a terminal server error degrades to the cached roster", () => {
   test("the pump renders through the error instead of throwing into the bar's boundary", () => {
     useInboxStore.getState().syncTable("teamMembers", CACHED_ROSTER);
-    expect(() => renderToStaticMarkup(<TeamMembersPump teamId={TEAM_ID} />)).not.toThrow();
+    expect(() =>
+      renderToStaticMarkup(<TeamMembersPump teamId={TEAM_ID} />),
+    ).not.toThrow();
     const names = useInboxStore.getState().teamMembers.map((m: any) => m.name);
     expect(names).toEqual(["Alexander Green", "Krithik Suvarna"]);
   });

@@ -39,8 +39,15 @@ import { SegmentedToggle } from "./SegmentedToggle";
 import { groupByDay } from "../lib/timelineRail";
 import { RailBare, RailDay, RailRow, StatusWord } from "./timeline/Rail";
 import { ExternalEventRow } from "./feed/ExternalEventRow";
-import { externalEventRowToExternalEvent, type ExternalEventRecord } from "../lib/externalEvents";
-import { useSyncProjectExternalEvents, useExternalEvents, externalEventsNewestFirst } from "../hooks/useSyncExternalEvents";
+import {
+  externalEventRowToExternalEvent,
+  type ExternalEventRecord,
+} from "../lib/externalEvents";
+import {
+  useSyncProjectExternalEvents,
+  useExternalEvents,
+  externalEventsNewestFirst,
+} from "../hooks/useSyncExternalEvents";
 
 const api = _api as any;
 
@@ -59,9 +66,20 @@ type TimelineEvent = {
     | "git";
   actor?: string;
   actor_kind?: "user" | "agent" | "system";
-  update?: { id: string; short_id?: string; title?: string; kind: "update" | "digest"; body: string };
+  update?: {
+    id: string;
+    short_id?: string;
+    title?: string;
+    kind: "update" | "digest";
+    body: string;
+  };
   text?: string;
-  task?: { short_id?: string; title: string; status: string; priority?: string };
+  task?: {
+    short_id?: string;
+    title: string;
+    status: string;
+    priority?: string;
+  };
   old_value?: string;
   new_value?: string;
   plan?: { short_id?: string; title: string; status: string };
@@ -74,7 +92,10 @@ type TimelineEvent = {
 };
 
 /** Icon + accent per event kind. The rail dot wears the accent; rows stay calm. */
-const EVENT_STYLE: Record<TimelineEvent["type"], { icon: typeof Circle; color: string }> = {
+const EVENT_STYLE: Record<
+  TimelineEvent["type"],
+  { icon: typeof Circle; color: string }
+> = {
   project_created: { icon: Target, color: "text-sol-violet" },
   update_posted: { icon: Megaphone, color: "text-sol-blue" },
   update_comment: { icon: MessageSquare, color: "text-sol-blue" },
@@ -105,9 +126,15 @@ const FILTER_TYPES: Record<string, Set<TimelineEvent["type"]>> = {
 
 function TaskLink({ task }: { task: NonNullable<TimelineEvent["task"]> }) {
   const inner = (
-    <span className="text-sol-text hover:text-sol-cyan transition-colors truncate">{task.title}</span>
+    <span className="text-sol-text hover:text-sol-cyan transition-colors truncate">
+      {task.title}
+    </span>
   );
-  return task.short_id ? <Link href={`/tasks/${task.short_id}`}>{inner}</Link> : inner;
+  return task.short_id ? (
+    <Link href={`/tasks/${task.short_id}`}>{inner}</Link>
+  ) : (
+    inner
+  );
 }
 
 function Actor({ event }: { event: TimelineEvent }) {
@@ -115,7 +142,9 @@ function Actor({ event }: { event: TimelineEvent }) {
   return (
     <span className="text-sol-text font-medium">
       {event.actor}
-      {event.actor_kind === "agent" && <Sparkles className="inline w-2.5 h-2.5 ml-1 text-sol-violet" />}
+      {event.actor_kind === "agent" && (
+        <Sparkles className="inline w-2.5 h-2.5 ml-1 text-sol-violet" />
+      )}
     </span>
   );
 }
@@ -130,15 +159,21 @@ function EventBody({ event }: { event: TimelineEvent }) {
           <div className="flex items-baseline gap-2">
             <Actor event={event} />
             <span className="text-sol-text-dim">
-              posted {event.update?.kind === "digest" ? "a digest" : "an update"}
+              posted{" "}
+              {event.update?.kind === "digest" ? "a digest" : "an update"}
             </span>
           </div>
           {event.update?.title && (
-            <div className="text-sm font-medium text-sol-text mt-1">{event.update.title}</div>
+            <div className="text-sm font-medium text-sol-text mt-1">
+              {event.update.title}
+            </div>
           )}
           {event.update?.body && (
             <div className="text-xs text-sol-text-muted mt-1">
-              <MarkdownRenderer content={event.update.body} className="cc-cmt-md" />
+              <MarkdownRenderer
+                content={event.update.body}
+                className="cc-cmt-md"
+              />
             </div>
           )}
         </div>
@@ -148,15 +183,21 @@ function EventBody({ event }: { event: TimelineEvent }) {
       // carries its own thread, so its comments are not repeated here.
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
-          <Actor event={event} /> <span className="text-sol-text-dim">commented on</span>{" "}
-          <span className="text-sol-text">{event.update?.title || "an update"}</span>
-          {event.text && <span className="text-sol-text-muted">: {event.text}</span>}
+          <Actor event={event} />{" "}
+          <span className="text-sol-text-dim">commented on</span>{" "}
+          <span className="text-sol-text">
+            {event.update?.title || "an update"}
+          </span>
+          {event.text && (
+            <span className="text-sol-text-muted">: {event.text}</span>
+          )}
         </span>
       );
     case "task_created":
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
-          <Actor event={event} /> <span className="text-sol-text-dim">filed</span>{" "}
+          <Actor event={event} />{" "}
+          <span className="text-sol-text-dim">filed</span>{" "}
           <TaskLink task={event.task!} />
         </span>
       );
@@ -165,7 +206,8 @@ function EventBody({ event }: { event: TimelineEvent }) {
       // to truncate; the status change is the reason the row exists.
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
-          <Actor event={event} /> <span className="text-sol-text-dim">moved</span>{" "}
+          <Actor event={event} />{" "}
+          <span className="text-sol-text-dim">moved</span>{" "}
           {event.old_value && (
             <>
               <StatusWord status={event.old_value} />
@@ -173,7 +215,8 @@ function EventBody({ event }: { event: TimelineEvent }) {
             </>
           )}
           <StatusWord status={event.new_value} />{" "}
-          <span className="text-sol-text-dim">·</span> <TaskLink task={event.task!} />
+          <span className="text-sol-text-dim">·</span>{" "}
+          <TaskLink task={event.task!} />
         </span>
       );
     case "task_comment":
@@ -181,13 +224,16 @@ function EventBody({ event }: { event: TimelineEvent }) {
         <span className="text-sol-text-muted min-w-0 truncate">
           <Actor event={event} /> <span className="text-sol-text-dim">on</span>{" "}
           <TaskLink task={event.task!} />
-          {event.text && <span className="text-sol-text-muted">: {event.text}</span>}
+          {event.text && (
+            <span className="text-sol-text-muted">: {event.text}</span>
+          )}
         </span>
       );
     case "plan_created":
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
-          <Actor event={event} /> <span className="text-sol-text-dim">created plan</span>{" "}
+          <Actor event={event} />{" "}
+          <span className="text-sol-text-dim">created plan</span>{" "}
           <Link
             href={`/plans?plan=${event.plan?.short_id ?? ""}`}
             className="text-sol-text hover:text-sol-cyan transition-colors"
@@ -200,14 +246,18 @@ function EventBody({ event }: { event: TimelineEvent }) {
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
           <Actor event={event} />{" "}
-          <span className="text-sol-text-dim">{event.entry_type ?? "note"} on</span>{" "}
+          <span className="text-sol-text-dim">
+            {event.entry_type ?? "note"} on
+          </span>{" "}
           <Link
             href={`/plans?plan=${event.plan?.short_id ?? ""}`}
             className="text-sol-text hover:text-sol-cyan transition-colors"
           >
             {event.plan?.title}
           </Link>
-          {event.text && <span className="text-sol-text-muted">: {event.text}</span>}
+          {event.text && (
+            <span className="text-sol-text-muted">: {event.text}</span>
+          )}
         </span>
       );
     case "git":
@@ -216,38 +266,57 @@ function EventBody({ event }: { event: TimelineEvent }) {
     case "doc_created":
       return (
         <span className="text-sol-text-muted min-w-0 truncate">
-          <Actor event={event} /> <span className="text-sol-text-dim">wrote</span>{" "}
+          <Actor event={event} />{" "}
+          <span className="text-sol-text-dim">wrote</span>{" "}
           <Link
             href={`/docs/${event.doc?.id}`}
             className="text-sol-text hover:text-sol-cyan transition-colors"
           >
             {event.doc?.title || "Untitled"}
           </Link>
-          {event.doc?.doc_type && <span className="text-sol-text-dim"> ({event.doc.doc_type})</span>}
+          {event.doc?.doc_type && (
+            <span className="text-sol-text-dim"> ({event.doc.doc_type})</span>
+          )}
         </span>
       );
   }
 }
 
-export function ProjectTimeline({ projectId, composer = true }: { projectId: string; /** The composer for the next update, on top. */ composer?: boolean }) {
-  const { data: events, error, retry } = useQueryNoThrow(
+export function ProjectTimeline({
+  projectId,
+  composer = true,
+}: {
+  projectId: string;
+  /** The composer for the next update, on top. */ composer?: boolean;
+}) {
+  const {
+    data: events,
+    error,
+    retry,
+  } = useQueryNoThrow(
     api.projectUpdates.webTimeline,
     projectId ? { project_id: projectId } : "skip",
   );
   const [filter, setFilter] = useState<string>("all");
   // The posts, from the store: fed here, read here, written by the composer above.
   const posts = useProjectUpdates(projectId);
-  const currentUserId = useInboxStore((s: any) => s.currentUser?._id && String(s.currentUser._id));
+  const currentUserId = useInboxStore(
+    (s: any) => s.currentUser?._id && String(s.currentUser._id),
+  );
   const postsHeld = posts.ready || posts.updates.length > 0;
 
   // External events do not come from webTimeline: they are their own synced
   // collection, so mount the project feeder and read the store.
   useSyncProjectExternalEvents(projectId);
   const externalWhere = useMemo(
-    () => (row: ExternalEventRecord) => !!projectId && !!row.project_ids?.includes(projectId),
+    () => (row: ExternalEventRecord) =>
+      !!projectId && !!row.project_ids?.includes(projectId),
     [projectId],
   );
-  const externalRows = useExternalEvents(externalWhere, externalEventsNewestFirst);
+  const externalRows = useExternalEvents(
+    externalWhere,
+    externalEventsNewestFirst,
+  );
 
   const groups = useMemo(() => {
     const now = Date.now();
@@ -256,15 +325,29 @@ export function ProjectTimeline({ projectId, composer = true }: { projectId: str
       type: "git",
       git: row,
     }));
-    const postEvents: TimelineEvent[] = postsHeld ? posts.updates.map((u) => ({ ts: u.created_at, type: "update_posted", actor: u.author, actor_kind: u.author_kind, post: u })) : [];
+    const postEvents: TimelineEvent[] = postsHeld
+      ? posts.updates.map((u) => ({
+          ts: u.created_at,
+          type: "update_posted",
+          actor: u.author,
+          actor_kind: u.author_kind,
+          post: u,
+        }))
+      : [];
     // Once the store holds the posts, each is drawn as its card, thread and
     // all: the server's copy of a post goes, and so do the comment rows of
     // every post the store holds.
-    const held = new Set(postsHeld ? posts.updates.map((u) => String(u._id)) : []);
+    const held = new Set(
+      postsHeld ? posts.updates.map((u) => String(u._id)) : [],
+    );
     const serverEvents = ((events ?? []) as TimelineEvent[]).filter((e) => {
       if (!postsHeld) return true;
       if (e.type === "update_posted") return false;
-      return !(e.type === "update_comment" && e.update && held.has(String(e.update.id)));
+      return !(
+        e.type === "update_comment" &&
+        e.update &&
+        held.has(String(e.update.id))
+      );
     });
     const list = [...serverEvents, ...postEvents, ...externalEvents]
       .filter((e) => {
@@ -283,30 +366,49 @@ export function ProjectTimeline({ projectId, composer = true }: { projectId: str
   if (error) {
     return (
       <div className="max-w-3xl mx-auto py-12 text-center">
-        <p className="text-xs text-sol-text-dim">The timeline could not load.</p>
-        <button onClick={retry} className="mt-2 text-meta text-sol-cyan hover:underline">
+        <p className="text-xs text-sol-text-dim">
+          The timeline could not load.
+        </p>
+        <button
+          onClick={retry}
+          className="mt-2 text-meta text-sol-cyan hover:underline"
+        >
           Try again
         </button>
       </div>
     );
   }
-  const top = composer && !posts.refused ? <div className="mb-4"><UpdateComposer projectId={projectId} /></div> : null;
+  const top =
+    composer && !posts.refused ? (
+      <div className="mb-4">
+        <UpdateComposer projectId={projectId} />
+      </div>
+    ) : null;
   if (events === undefined && !postsHeld) {
     return (
       <div className="max-w-3xl mx-auto py-4 px-2">
         {top}
-        <div className="py-12 text-center text-xs text-sol-text-dim">Loading timeline…</div>
+        <div className="py-12 text-center text-xs text-sol-text-dim">
+          Loading timeline…
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-4 px-2" data-project-timeline={projectId}>
+    <div
+      className="max-w-3xl mx-auto py-4 px-2"
+      data-project-timeline={projectId}
+    >
       {top}
       {/* Kind filter — the feed mixes narration with mechanics; let the reader
           pick which layer they are reading. */}
       <div className="mb-4 w-fit">
-        <SegmentedToggle value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ ...f }))} />
+        <SegmentedToggle
+          value={filter}
+          onChange={setFilter}
+          items={FILTERS.map((f) => ({ ...f }))}
+        />
       </div>
 
       {groups.length === 0 && (
@@ -343,13 +445,25 @@ export function ProjectTimeline({ projectId, composer = true }: { projectId: str
             const style = EVENT_STYLE[e.type];
             if (e.post) {
               return (
-                <RailRow key={e.post._id} icon={style.icon} color={style.color} ts={e.ts} card>
+                <RailRow
+                  key={e.post._id}
+                  icon={style.icon}
+                  color={style.color}
+                  ts={e.ts}
+                  card
+                >
                   <UpdateCard update={e.post} currentUserId={currentUserId} />
                 </RailRow>
               );
             }
             return (
-              <RailRow key={`${e.ts}-${i}`} icon={style.icon} color={style.color} ts={e.ts} card={e.type === "update_posted"}>
+              <RailRow
+                key={`${e.ts}-${i}`}
+                icon={style.icon}
+                color={style.color}
+                ts={e.ts}
+                card={e.type === "update_posted"}
+              >
                 <EventBody event={e} />
               </RailRow>
             );

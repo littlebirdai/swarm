@@ -62,7 +62,10 @@ import { makeCollectionSig, rowSigExcluding } from "./wakeSig";
 // wildcard subpath, so the barrel spelling does not resolve today. The import is
 // erased at build time, so this costs nothing at runtime. Change the two words
 // to `@codecast/shared/contracts` the moment the barrel exports the module.
-import type { Capability, InstalledEntry } from "../../../packages/shared/contracts/capabilities";
+import type {
+  Capability,
+  InstalledEntry,
+} from "../../../packages/shared/contracts/capabilities";
 
 /* ---------------------------------------------------------------------------
  * Row shapes
@@ -188,7 +191,10 @@ export type CapabilitySliceActions = {
   /** Fold one page of a paginated catalog browse into the cache. Named rather
    *  than routed through `syncTable`, because a page is a fragment: a singleton
    *  merge would drop everything the reader already scrolled past. */
-  cacheCapabilityCatalogPage: (query: string, page: readonly Capability[]) => void;
+  cacheCapabilityCatalogPage: (
+    query: string,
+    page: readonly Capability[],
+  ) => void;
   /** Drop the cache. The library's "refresh" gesture, and the escape hatch when
    *  a cached page is provably behind the server. */
   clearCapabilityCatalogCache: () => void;
@@ -201,7 +207,9 @@ export type CapabilitySliceState = CapabilitySliceData & CapabilitySliceActions;
 type CapabilityDraft = CapabilitySliceData;
 
 /** The store's `sync` decorator, as a parameter. See `createCapabilitySlice`. */
-export type SliceWriterDecorator = <T extends (...args: any[]) => any>(fn: T) => T;
+export type SliceWriterDecorator = <T extends (...args: any[]) => any>(
+  fn: T,
+) => T;
 
 /**
  * Build the slice. `decorate` is `sync` from store/mutativeMiddleware — passed
@@ -219,7 +227,9 @@ export type SliceWriterDecorator = <T extends (...args: any[]) => any>(fn: T) =>
  *
  * A test passes the identity function: `sync` only tags the function it is given.
  */
-export function createCapabilitySlice(decorate: SliceWriterDecorator): CapabilitySliceState {
+export function createCapabilitySlice(
+  decorate: SliceWriterDecorator,
+): CapabilitySliceState {
   const sync = decorate;
   return {
     capabilityState: {},
@@ -270,14 +280,21 @@ export function createCapabilitySlice(decorate: SliceWriterDecorator): Capabilit
       // rows' position, which is what makes the cap an LRU rather than a
       // first-300-wins.
       const arrivingSet = new Set(arriving);
-      const nextRecent = arriving.concat(recent.filter((s) => !arrivingSet.has(s)));
+      const nextRecent = arriving.concat(
+        recent.filter((s) => !arrivingSet.has(s)),
+      );
       if (nextRecent.length > CAPABILITY_CATALOG_CACHE_MAX) {
         for (const slug of nextRecent.splice(CAPABILITY_CATALOG_CACHE_MAX)) {
           delete entries[slug];
         }
       }
 
-      this.capabilityCatalog = { entries, recent: nextRecent, query, fetchedAt: now };
+      this.capabilityCatalog = {
+        entries,
+        recent: nextRecent,
+        query,
+        fetchedAt: now,
+      };
     }),
 
     clearCapabilityCatalogCache: sync(function (this: CapabilityDraft) {
@@ -350,8 +367,10 @@ export const CAPABILITY_CLIENT_SYNC_REGISTRY = {
     persistence: { kind: "collection", key: "capabilityState" },
     hydration: { phase: "deferred" },
     validRow: (row: any) =>
-      typeof row?.device_id === "string" && row.device_id !== "" &&
-      typeof row?.client === "string" && row.client !== "",
+      typeof row?.device_id === "string" &&
+      row.device_id !== "" &&
+      typeof row?.client === "string" &&
+      row.client !== "",
   },
   capabilityCatalog: {
     persistence: { kind: "meta", key: "capabilityCatalog" },
@@ -399,13 +418,23 @@ export const CAPABILITY_IDB_STORES = {
  * Everything else is in, `_id` included, so a row appearing or disappearing
  * flips the signature.
  */
-const CAPABILITY_STATE_SIG_DENY: ReadonlySet<string> = new Set(["reported_at", "entries_json"]);
+const CAPABILITY_STATE_SIG_DENY: ReadonlySet<string> = new Set([
+  "reported_at",
+  "entries_json",
+]);
 
 /** One machine's row, for a pane watching a single device. */
-export function capabilityStateRowSig(row: CapabilityStateRow | null | undefined): string {
+export function capabilityStateRowSig(
+  row: CapabilityStateRow | null | undefined,
+): string {
   if (!row) return "none";
-  const base = rowSigExcluding(row as unknown as Record<string, any>, CAPABILITY_STATE_SIG_DENY);
-  return row.entries_hash ? base : base + "raw:" + (row.entries_json ?? "") + ";";
+  const base = rowSigExcluding(
+    row as unknown as Record<string, any>,
+    CAPABILITY_STATE_SIG_DENY,
+  );
+  return row.entries_hash
+    ? base
+    : base + "raw:" + (row.entries_json ?? "") + ";";
 }
 
 /**
@@ -413,7 +442,9 @@ export function capabilityStateRowSig(row: CapabilityStateRow | null | undefined
  * count, a sidebar "N machines drifting" badge. Subscribe to this instead of
  * `s.capabilityState` and a liveness restamp across the fleet is inert.
  */
-export const capabilityStateWakeSig = makeCollectionSig<CapabilityStateRow>(capabilityStateRowSig);
+export const capabilityStateWakeSig = makeCollectionSig<CapabilityStateRow>(
+  capabilityStateRowSig,
+);
 
 /* ---------------------------------------------------------------------------
  * Reading a row's inventory
@@ -459,13 +490,25 @@ function freezeParse(value: ParsedCapabilityEntries): ParsedCapabilityEntries {
 }
 
 const EMPTY_PARSE = freezeParse({
-  entries: [], marketplaces: [], unreadableEntries: 0, unreadable: false, withheld: false,
+  entries: [],
+  marketplaces: [],
+  unreadableEntries: 0,
+  unreadable: false,
+  withheld: false,
 });
 const UNREADABLE_PARSE = freezeParse({
-  entries: [], marketplaces: [], unreadableEntries: 0, unreadable: true, withheld: false,
+  entries: [],
+  marketplaces: [],
+  unreadableEntries: 0,
+  unreadable: true,
+  withheld: false,
 });
 const WITHHELD_PARSE = freezeParse({
-  entries: [], marketplaces: [], unreadableEntries: 0, unreadable: false, withheld: true,
+  entries: [],
+  marketplaces: [],
+  unreadableEntries: 0,
+  unreadable: false,
+  withheld: true,
 });
 
 // Keyed by the ROW OBJECT, not by the string. The sync layer preserves a row's
@@ -484,8 +527,10 @@ function isReadableEntry(value: any): value is InstalledEntry {
   return (
     !!value &&
     typeof value === "object" &&
-    typeof value.kind === "string" && value.kind !== "" &&
-    typeof value.name === "string" && value.name !== ""
+    typeof value.kind === "string" &&
+    value.kind !== "" &&
+    typeof value.name === "string" &&
+    value.name !== ""
   );
 }
 
@@ -495,8 +540,14 @@ function readMarketplace(value: any): MarketplaceEntry | undefined {
   if (name === "") return undefined;
   return {
     name,
-    repo: typeof value.repo === "string" && value.repo !== "" ? value.repo : undefined,
-    scope: typeof value.scope === "string" && value.scope !== "" ? value.scope : undefined,
+    repo:
+      typeof value.repo === "string" && value.repo !== ""
+        ? value.repo
+        : undefined,
+    scope:
+      typeof value.scope === "string" && value.scope !== ""
+        ? value.scope
+        : undefined,
   };
 }
 
@@ -547,7 +598,9 @@ export function parseCapabilityEntries(
     }
     const items = Array.isArray(decoded)
       ? decoded
-      : decoded && typeof decoded === "object" && Array.isArray((decoded as any).items)
+      : decoded &&
+          typeof decoded === "object" &&
+          Array.isArray((decoded as any).items)
         ? ((decoded as any).items as unknown[])
         : undefined;
     if (!items) {
@@ -568,7 +621,13 @@ export function parseCapabilityEntries(
           else unreadableEntries++;
         }
       }
-      result = { entries, marketplaces, unreadableEntries, unreadable: false, withheld: false };
+      result = {
+        entries,
+        marketplaces,
+        unreadableEntries,
+        unreadable: false,
+        withheld: false,
+      };
     }
   }
 
@@ -622,7 +681,12 @@ export function parseCapabilityEntries(
  * four answers. `unknown` is not among them: it is a fact about a MACHINE, not
  * about an entry, so it lives in `CapabilityDriftRow.unknownOn`.
  */
-export const CAPABILITY_PRESENCE = ["active", "broken", "off", "absent"] as const;
+export const CAPABILITY_PRESENCE = [
+  "active",
+  "broken",
+  "off",
+  "absent",
+] as const;
 export type CapabilityPresence = (typeof CAPABILITY_PRESENCE)[number];
 
 // Strongest wins when one machine reports the same capability from several
@@ -642,12 +706,18 @@ function presenceOf(entry: InstalledEntry): CapabilityPresence {
   // report that omits the flag describes something merely present, and only an
   // explicit `false` means switched off. The contract types the field as
   // required; the wire does not honour that, and this is the reader.
-  if (entry.enabled !== false) return entry.installed === false ? "broken" : "active";
+  if (entry.enabled !== false)
+    return entry.installed === false ? "broken" : "active";
   return entry.installed === false ? "absent" : "off";
 }
 
 /** The canonical row verdict. Same four words the server's fold uses. */
-export const CAPABILITY_ROW_STATUS = ["drift", "unique", "in_sync", "not_comparable"] as const;
+export const CAPABILITY_ROW_STATUS = [
+  "drift",
+  "unique",
+  "in_sync",
+  "not_comparable",
+] as const;
 export type CapabilityRowStatus = (typeof CAPABILITY_ROW_STATUS)[number];
 
 /** One machine, summarized. */
@@ -802,7 +872,9 @@ function text(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function metaOf(entry: { meta?: unknown }): Record<string, unknown> | undefined {
+function metaOf(entry: {
+  meta?: unknown;
+}): Record<string, unknown> | undefined {
   const meta = entry.meta;
   return meta && typeof meta === "object" && !Array.isArray(meta)
     ? (meta as Record<string, unknown>)
@@ -828,7 +900,10 @@ function metaOf(entry: { meta?: unknown }): Record<string, unknown> | undefined 
 // capability the same way.
 // A bare `export … from` would satisfy this file's importers but NOT its own
 // callers below, which need the names in local scope — so import, then re-export.
-import { capabilityIdentity, fleetRowKey as capabilityRowKey } from "@codecast/shared/contracts";
+import {
+  capabilityIdentity,
+  fleetRowKey as capabilityRowKey,
+} from "@codecast/shared/contracts";
 export { capabilityIdentity, capabilityRowKey };
 
 /**
@@ -841,7 +916,10 @@ export { capabilityIdentity, capabilityRowKey };
  * page cannot afford. A remote server's URL has no such problem and a changed
  * URL is real drift, so that one counts.
  */
-function pinOf(kind: string, meta?: Record<string, unknown>): string | undefined {
+function pinOf(
+  kind: string,
+  meta?: Record<string, unknown>,
+): string | undefined {
   if (kind === "plugin") return text(meta?.sha) ?? text(meta?.version);
   if (kind === "mcp") {
     const url = text(meta?.url);
@@ -859,7 +937,10 @@ function modal(values: string[]): string | undefined {
   let best: string | undefined;
   let bestCount = 0;
   for (const [value, count] of counts) {
-    if (count > bestCount || (count === bestCount && best !== undefined && value < best)) {
+    if (
+      count > bestCount ||
+      (count === bestCount && best !== undefined && value < best)
+    ) {
       best = value;
       bestCount = count;
     }
@@ -918,7 +999,9 @@ function newRollup(deviceId: string): DeviceCapabilityRollup {
   };
 }
 
-function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): CapabilityIndex {
+function buildCapabilityIndex(
+  collection: Record<string, CapabilityStateRow>,
+): CapabilityIndex {
   const devices: Record<string, DeviceCapabilityRollup> = {};
   const byKey = new Map<string, DriftAccumulator>();
   // Per device, the strongest presence seen for each key — the same reduction the
@@ -928,7 +1011,8 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
 
   for (const id in collection) {
     const row = collection[id];
-    if (!row || typeof row.device_id !== "string" || row.device_id === "") continue;
+    if (!row || typeof row.device_id !== "string" || row.device_id === "")
+      continue;
     const deviceId = row.device_id;
 
     let rollup = devices[deviceId];
@@ -939,13 +1023,21 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
     const seen = devicePresence.get(deviceId)!;
 
     rollup.rowCount++;
-    if (typeof row.client === "string" && row.client !== "" && !rollup.clients.includes(row.client)) {
+    if (
+      typeof row.client === "string" &&
+      row.client !== "" &&
+      !rollup.clients.includes(row.client)
+    ) {
       rollup.clients.push(row.client);
     }
     const scopeKey = typeof row.scope_key === "string" ? row.scope_key : "";
     if (!rollup.scopeKeys.includes(scopeKey)) rollup.scopeKeys.push(scopeKey);
-    if (row.client_version && row.client) rollup.clientVersions[row.client] = row.client_version;
-    if (typeof row.reported_at === "number" && row.reported_at > rollup.reportedAt) {
+    if (row.client_version && row.client)
+      rollup.clientVersions[row.client] = row.client_version;
+    if (
+      typeof row.reported_at === "number" &&
+      row.reported_at > rollup.reportedAt
+    ) {
       rollup.reportedAt = row.reported_at;
     }
     if (typeof row.applied_revision === "number") {
@@ -954,16 +1046,22 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
           ? row.applied_revision
           : Math.min(rollup.appliedRevision, row.applied_revision);
     }
-    if (row.last_error && !rollup.errors.includes(row.last_error)) rollup.errors.push(row.last_error);
+    if (row.last_error && !rollup.errors.includes(row.last_error))
+      rollup.errors.push(row.last_error);
     // "[]" is how a driver says "no conflicts"; only a payload with something in
     // it is a conflict worth a badge.
-    if (row.conflicts_json && row.conflicts_json !== "[]" && row.conflicts_json !== "{}") {
+    if (
+      row.conflicts_json &&
+      row.conflicts_json !== "[]" &&
+      row.conflicts_json !== "{}"
+    ) {
       rollup.conflictRows++;
     }
     if (typeof row.entry_count === "number") {
       rollup.entryCount = (rollup.entryCount ?? 0) + row.entry_count;
     }
-    if (typeof row.dropped_count === "number") rollup.truncatedEntries += row.dropped_count;
+    if (typeof row.dropped_count === "number")
+      rollup.truncatedEntries += row.dropped_count;
 
     const parsed = parseCapabilityEntries(row);
     if (parsed.unreadable) rollup.unreadableRows++;
@@ -996,13 +1094,20 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
     }
 
     for (const observed of observations) {
-      const identity = capabilityIdentity(observed.kind, observed.name, observed.meta);
+      const identity = capabilityIdentity(
+        observed.kind,
+        observed.name,
+        observed.meta,
+      );
       if (!identity) continue;
       const key = capabilityRowKey(observed.kind, identity);
       const presence = observed.presence;
 
       const prior = seen.get(key);
-      if (prior === undefined || PRESENCE_RANK[presence] > PRESENCE_RANK[prior]) {
+      if (
+        prior === undefined ||
+        PRESENCE_RANK[presence] > PRESENCE_RANK[prior]
+      ) {
         seen.set(key, presence);
       }
 
@@ -1020,7 +1125,8 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
       }
       // First non-empty wins; a machine that omitted a field should not erase
       // one another machine reported.
-      if (!acc.description && observed.description) acc.description = observed.description;
+      if (!acc.description && observed.description)
+        acc.description = observed.description;
       if (!acc.slug && observed.slug) acc.slug = observed.slug;
       if (row.client) acc.clients.add(row.client);
 
@@ -1029,7 +1135,8 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
       if (!fold) {
         acc.perDevice.set(deviceId, { presence, pin });
       } else {
-        if (PRESENCE_RANK[presence] > PRESENCE_RANK[fold.presence]) fold.presence = presence;
+        if (PRESENCE_RANK[presence] > PRESENCE_RANK[fold.presence])
+          fold.presence = presence;
         fold.pin = fold.pin ?? pin;
       }
     }
@@ -1061,7 +1168,9 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
   }
 
   const deviceIds = Object.keys(devices).sort();
-  const comparableDeviceIds = deviceIds.filter((id) => devices[id].readableRows > 0);
+  const comparableDeviceIds = deviceIds.filter(
+    (id) => devices[id].readableRows > 0,
+  );
   const comparable = comparableDeviceIds.length >= 2;
   const unknownOn = deviceIds.filter((id) => devices[id].readableRows === 0);
 
@@ -1084,10 +1193,18 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
         presentPins.push(fold.pin);
       }
       switch (fold?.presence ?? "absent") {
-        case "active": activeOn.push(deviceId); break;
-        case "broken": brokenOn.push(deviceId); break;
-        case "off": offOn.push(deviceId); break;
-        default: missingOn.push(deviceId); break;
+        case "active":
+          activeOn.push(deviceId);
+          break;
+        case "broken":
+          brokenOn.push(deviceId);
+          break;
+        case "off":
+          offOn.push(deviceId);
+          break;
+        default:
+          missingOn.push(deviceId);
+          break;
       }
     }
 
@@ -1097,7 +1214,9 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
     // other. Machines disagree on the first when they are not all in the same
     // one of its four states.
     const stateDrift =
-      [activeOn, brokenOn, offOn, missingOn].filter((bucket) => bucket.length > 0).length > 1;
+      [activeOn, brokenOn, offOn, missingOn].filter(
+        (bucket) => bucket.length > 0,
+      ).length > 1;
     const presentCount = activeOn.length + brokenOn.length + offOn.length;
 
     // `unique` outranks `drift` for DISPLAY — something only one machine has is
@@ -1118,7 +1237,8 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
     // and still something to fix. Uneven adoption is the other, and that one
     // does need a fleet: on a single machine "everything is unique to it" is an
     // alarm we invented.
-    const drifting = brokenOn.length > 0 || (comparable && (stateDrift || pinDrift));
+    const drifting =
+      brokenOn.length > 0 || (comparable && (stateDrift || pinDrift));
     if (drifting) driftCount++;
     if (brokenOn.length > 0) brokenCount++;
 
@@ -1143,7 +1263,15 @@ function buildCapabilityIndex(collection: Record<string, CapabilityStateRow>): C
     });
   }
 
-  return { deviceIds, comparableDeviceIds, comparable, devices, drift, driftCount, brokenCount };
+  return {
+    deviceIds,
+    comparableDeviceIds,
+    comparable,
+    devices,
+    drift,
+    driftCount,
+    brokenCount,
+  };
 }
 
 // Single-slot memo on the collection ref. The collection's identity changes only

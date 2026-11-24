@@ -1,6 +1,21 @@
-import { AlarmClock, Compass, ListChecks, MessageCircleQuestionMark, Rss, Settings2, Terminal } from "lucide-react";
+import {
+  AlarmClock,
+  Compass,
+  ListChecks,
+  MessageCircleQuestionMark,
+  Rss,
+  Settings2,
+  Terminal,
+} from "lucide-react";
 
-export type ScopeTabKey = "scope" | "feed" | "work" | "sessions" | "decisions" | "triggers" | "settings";
+export type ScopeTabKey =
+  | "scope"
+  | "feed"
+  | "work"
+  | "sessions"
+  | "decisions"
+  | "triggers"
+  | "settings";
 
 /** What the Work tab lists: tasks, the same tasks by status, plans, pages. */
 export type ScopeWorkView = "tasks" | "status" | "plans" | "pages";
@@ -16,7 +31,13 @@ export const SCOPE_WORK_VIEWS: { key: ScopeWorkView; label: string }[] = [
  *  Overview (what it is for, where things stand, what it is doing, its notes
  *  and what happened lately); the workspace has no role to describe, so it
  *  keeps the activity as a tab of its own. */
-export const SCOPE_TABS: { key: ScopeTabKey; label: string; icon: any; roleOnly?: boolean; rootOnly?: boolean }[] = [
+export const SCOPE_TABS: {
+  key: ScopeTabKey;
+  label: string;
+  icon: any;
+  roleOnly?: boolean;
+  rootOnly?: boolean;
+}[] = [
   { key: "scope", label: "Overview", icon: Compass, roleOnly: true },
   { key: "feed", label: "Activity", icon: Rss, rootOnly: true },
   { key: "work", label: "Work", icon: ListChecks },
@@ -48,7 +69,10 @@ export function scopeDefaultTab(hasRole: boolean): ScopeTabKey {
 }
 
 /** The tab a URL names, when it is one this scope shows; else the default. */
-export function scopeTabFromParam(param: string | null, hasRole: boolean): ScopeTabKey {
+export function scopeTabFromParam(
+  param: string | null,
+  hasRole: boolean,
+): ScopeTabKey {
   const key = (param && MOVED[param]?.tab) || param;
   const hit = scopeTabsFor(hasRole).find((t) => t.key === key);
   return hit ? hit.key : scopeDefaultTab(hasRole);

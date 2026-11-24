@@ -20,15 +20,15 @@ and repos copied whole graphs instead of saying how they differ.
 
 ## PL1. Words
 
-| Word | Meaning |
-|---|---|
-| pipeline | a project's change flow, main, and release flow, read as one |
-| change flow | the flow a session's change runs when it presses Ship: the team's default flow as this repo resolves it (a repo flow named change, in the repo's own flows directory, before the shipped `change`) |
-| release flow | the flow a release runs: main's commits since what is live, as one batch, out to every target they touch |
-| station | one step: what it does, who does it (agent, command, person, rule, eval, deploy), and when it runs |
-| backbone | the library flow a project's flow extends; its stations are inherited |
-| own station | a station this project added or changed; everything else is inherited and keeps receiving the team's improvements |
-| edit | one typed change to a project's flow: add a station, add guidance to a prompt, replace a prompt or command, skip a station, set when one runs |
+| Word         | Meaning                                                                                                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pipeline     | a project's change flow, main, and release flow, read as one                                                                                                                                       |
+| change flow  | the flow a session's change runs when it presses Ship: the team's default flow as this repo resolves it (a repo flow named change, in the repo's own flows directory, before the shipped `change`) |
+| release flow | the flow a release runs: main's commits since what is live, as one batch, out to every target they touch                                                                                           |
+| station      | one step: what it does, who does it (agent, command, person, rule, eval, deploy), and when it runs                                                                                                 |
+| backbone     | the library flow a project's flow extends; its stations are inherited                                                                                                                              |
+| own station  | a station this project added or changed; everything else is inherited and keeps receiving the team's improvements                                                                                  |
+| edit         | one typed change to a project's flow: add a station, add guidance to a prompt, replace a prompt or command, skip a station, set when one runs                                                      |
 
 ## PL2. Scope: per change and per release
 
@@ -107,7 +107,7 @@ stations of this lane when they exist.
 The same five edits, three ways in, one path out:
 
 - **A sentence in a conversation.** An agent runs `cast flow edit <flow> add
-  lint --after pr --fix brief --run "bun run lint"` (or `guide`, `prompt`, `skip`,
+lint --after pr --fix brief --run "bun run lint"` (or `guide`, `prompt`, `skip`,
   `when`). It writes the project's flow file, validates the result, and prints
   an edit object that draws inline: the pipeline with the new or changed
   station marked, the file diff folded under it, and what it costs (how many
@@ -171,7 +171,7 @@ end to end and found what the tests had not:
 
 - **An edit is the session's change.** Files a `cast` command writes for a
   session are attributed to it (`writeLedger`), so `cast flow run` after `cast
-  flow edit` ships them without a workaround.
+flow edit` ships them without a workaround.
 - **A release ships the commit it names.** A deploy request pins its sha, and a
   target whose command sends the tree it runs in refuses any sha but main's
   head instead of shipping something else.

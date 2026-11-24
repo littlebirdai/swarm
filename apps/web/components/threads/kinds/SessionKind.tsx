@@ -22,11 +22,30 @@ export function SessionLabel({ card }: { card: ThreadCardModel }) {
   return (
     <>
       <SessionMark session={session as any} size={14} iconClassName="w-3 h-3" />
-      <SessionIdentityLine row={session as any} title={sessionLabel(session) ?? "Session"} />
+      <SessionIdentityLine
+        row={session as any}
+        title={sessionLabel(session) ?? "Session"}
+      />
     </>
   );
 }
 
-export function SessionExpanded({ card, seen, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
-  return <SessionInlineThread session={sessionOf(card)} seen={seen} focusComposer={focusComposer} />;
+export function SessionExpanded({
+  card,
+  seen,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
+  return (
+    <SessionInlineThread
+      session={sessionOf(card)}
+      seen={seen}
+      focusComposer={focusComposer}
+    />
+  );
 }

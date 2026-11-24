@@ -13,33 +13,41 @@ function setup(html: string) {
 
 describe("the List button", () => {
   test("a caret in the first (bare) line bullets that line, not the caret spot", () => {
-    const { dom, doc, ed, sel } = setup("Ship <b>it</b> today<div>second</div>");
+    const { dom, doc, ed, sel } = setup(
+      "Ship <b>it</b> today<div>second</div>",
+    );
     const r = doc.createRange();
     r.setStart(ed.querySelector("b")!.firstChild!, 1);
     r.collapse(true);
-    sel.removeAllRanges(); sel.addRange(r);
+    sel.removeAllRanges();
+    sel.addRange(r);
     toggleBullet(ed, sel as unknown as Selection);
     expect(editorToMarks(ed)).toBe("- Ship **it** today\nsecond");
     dom.window.close();
   });
   test("a selection over two lines bullets both; again takes them off", () => {
-    const { dom, doc, ed, sel } = setup("<div>one</div><div>two</div><div>three</div>");
+    const { dom, doc, ed, sel } = setup(
+      "<div>one</div><div>two</div><div>three</div>",
+    );
     const divs = ed.querySelectorAll("div");
     const r = doc.createRange();
     r.setStart(divs[0].firstChild!, 1);
     r.setEnd(divs[1].firstChild!, 2);
-    sel.removeAllRanges(); sel.addRange(r);
+    sel.removeAllRanges();
+    sel.addRange(r);
     toggleBullet(ed, sel as unknown as Selection);
     expect(editorToMarks(ed)).toBe("- one\n- two\nthree");
     // The whole sticky: a mixed selection bullets the line that lacks one; again takes them all off.
     const r2 = doc.createRange();
     r2.selectNodeContents(ed);
-    sel.removeAllRanges(); sel.addRange(r2);
+    sel.removeAllRanges();
+    sel.addRange(r2);
     toggleBullet(ed, sel as unknown as Selection);
     expect(editorToMarks(ed)).toBe("- one\n- two\n- three");
     const r3 = doc.createRange();
     r3.selectNodeContents(ed);
-    sel.removeAllRanges(); sel.addRange(r3);
+    sel.removeAllRanges();
+    sel.addRange(r3);
     toggleBullet(ed, sel as unknown as Selection);
     expect(editorToMarks(ed)).toBe("one\ntwo\nthree");
     dom.window.close();
@@ -50,7 +58,8 @@ describe("the List button", () => {
     const r = doc.createRange();
     r.setStart(div.childNodes[2], 1);
     r.setEnd(div.childNodes[4], 3);
-    sel.removeAllRanges(); sel.addRange(r);
+    sel.removeAllRanges();
+    sel.addRange(r);
     toggleBullet(ed, sel as unknown as Selection);
     expect(editorToMarks(ed)).toBe("Title\n- first\n- second");
     dom.window.close();

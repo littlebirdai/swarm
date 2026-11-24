@@ -11,17 +11,17 @@ DP1 onward so code can cite them.
 `deploys` (convex), one row per version that went live, or was asked to, on
 one target. Short id `dp-N`.
 
-| Field | What it holds |
-|---|---|
-| `target` | the surface or environment it went to: `backend`, `production` |
-| `status` | `requested` (asked for, no machine has started it), `running`, `live`, `failed`, `cancelled` |
-| `trigger` | `person` (Deploy on the Line page, `cast line deploy --go`), `role` (the profile's role, DP4), `schedule` / `count` (reserved), `outside` (the team's own path, recorded from its marker) |
-| `started_by` | who or what started it: a person, the CLI, a source |
-| `source` | who reported it: `cast ship mark`, a source's name, `line` |
-| `sha`, `previous_sha`, `version`, `url`, `commits` | what went out, when the reporter knows |
-| `carries` | the fixes it carried: problem, run, the card that shipped it, the merge, and how it is known (`sent`, `same commit`, `deployed after the merge`) |
-| `event_ids` | the markers that reported it |
-| `run_id` | the line-deploy run that carries it through its steps (DP8); each step's state is that run's station, read from the run |
+| Field                                              | What it holds                                                                                                                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target`                                           | the surface or environment it went to: `backend`, `production`                                                                                                                            |
+| `status`                                           | `requested` (asked for, no machine has started it), `running`, `live`, `failed`, `cancelled`                                                                                              |
+| `trigger`                                          | `person` (Deploy on the Line page, `cast line deploy --go`), `role` (the profile's role, DP4), `schedule` / `count` (reserved), `outside` (the team's own path, recorded from its marker) |
+| `started_by`                                       | who or what started it: a person, the CLI, a source                                                                                                                                       |
+| `source`                                           | who reported it: `cast ship mark`, a source's name, `line`                                                                                                                                |
+| `sha`, `previous_sha`, `version`, `url`, `commits` | what went out, when the reporter knows                                                                                                                                                    |
+| `carries`                                          | the fixes it carried: problem, run, the card that shipped it, the merge, and how it is known (`sent`, `same commit`, `deployed after the merge`)                                          |
+| `event_ids`                                        | the markers that reported it                                                                                                                                                              |
+| `run_id`                                           | the line-deploy run that carries it through its steps (DP8); each step's state is that run's station, read from the run                                                                   |
 
 A deploy marker stays an `external_events` row of kind `deploy` (the team's
 event stream, triggers, the Changes page); its `meta.deploy` names the deploy
@@ -36,7 +36,7 @@ order it:
 3. otherwise records a deploy of its own (`trigger: outside`) carrying the
    fixes the history's rule says it carried: the first live deploy on its
    target whose code holds a merge, on the same code (`causeHistory
-   carryingDeploys`, the same rule a problem's timeline reads; DP3).
+carryingDeploys`, the same rule a problem's timeline reads; DP3).
 
 A deploy recorded from a marker names no project: it ships the code, and one
 repository holds every project of a team like Union, so it carries the fixes
@@ -78,7 +78,7 @@ deploy path, as one deploy.
   waits.
 - From the web, or from the role (DP4), the request queues `line_deploy` on
   the machine that publishes the profile, which runs `cast line deploy run
-  dp-N` in that checkout (the daemon gives it ten hours: CI and an eval gate
+dp-N` in that checkout (the daemon gives it ten hours: CI and an eval gate
   take hours). From a terminal, `cast line deploy` shows the stage and `--go`
   asks and runs here.
 - Either way the deploy's steps run as the stations of the line-deploy
@@ -220,15 +220,15 @@ A deploy runs on the shipped `line-deploy` graph
 the deploy (dp-N) as its goal, so the runner keeps each step's state, its
 timeout and its resume, and the deploy's page shows them.
 
-| Station | Runs | When it is left out |
-|---|---|---|
-| CI | `[line.deploy] ci`, before anything goes out | passes with a note |
-| Send | `[line.deploy] command`, the team's deploy path | (the stage needs it) |
-| Gate | `[line.deploy] gate`, the eval gate's verdict | passes with a note |
-| Roll out | `[line.deploy] rollout` | passes with a note |
-| Live | `[line.deploy] live`, production answering with `$sha` | passes with a note |
-| Finish | a target's `finish` (DP15), once it is live: the deploy is reported live first, so a failure here only notes it and files the finding | passes with a note |
-| Watch | `cast line deploy watch`: the deploy is live, and every carried fix that shipped is watched for the profile's `watch_days` from now, never shortened (LE12) | |
+| Station  | Runs                                                                                                                                                        | When it is left out  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| CI       | `[line.deploy] ci`, before anything goes out                                                                                                                | passes with a note   |
+| Send     | `[line.deploy] command`, the team's deploy path                                                                                                             | (the stage needs it) |
+| Gate     | `[line.deploy] gate`, the eval gate's verdict                                                                                                               | passes with a note   |
+| Roll out | `[line.deploy] rollout`                                                                                                                                     | passes with a note   |
+| Live     | `[line.deploy] live`, production answering with `$sha`                                                                                                      | passes with a note   |
+| Finish   | a target's `finish` (DP15), once it is live: the deploy is reported live first, so a failure here only notes it and files the finding                       | passes with a note   |
+| Watch    | `cast line deploy watch`: the deploy is live, and every carried fix that shipped is watched for the profile's `watch_days` from now, never shortened (LE12) |                      |
 
 Each step station is `cast line deploy step <step> dp-N`. A team whose path
 does everything in one command names only `command`, and the graph is the
@@ -274,7 +274,6 @@ the same step joins it, whichever deploy it was. The finding carries the
 deploy, its sha, the run's url, the fixes it carried, and what the step
 said. The carried fixes stay shipped and wait for the next deploy; the
 problem runs on the line like any other.
-
 
 ## DP10. A repository's deploy targets
 
@@ -373,7 +372,7 @@ it (`gate` and `rollout` came after `ci` and `finish`, which 1.1.235 reads).
   minutes) reads each `json` reader and records a deploy when it names a new
   commit or version: the CLI release goes live when latest.json says so.
 - **Release scripts.** scripts/deploy-all.sh marks `mobile` after `eas
-  update` and `desktop` after its release; release.sh marks `desktop` itself
+update` and `desktop` after its release; release.sh marks `desktop` itself
   when it commits the version.
 
 A deploy that goes live fills its range on main (`fillDeployRange`): its
@@ -436,7 +435,7 @@ jobs pass and fails when one fails or is cancelled. A job the workflow
 skipped passes and says "skipped by the workflow", unless the run ended
 failed, which means a job it needs did not pass, and then it fails.
 
-```toml
+````toml
 ci      = "cast line deploy follow --jobs ci-verdict"
 gate    = "cast line deploy follow --jobs gate,evals"
 rollout = "cast line deploy follow --jobs deploy"
@@ -460,15 +459,17 @@ its first read.
 A team ships main many times a day; each push leaves some targets behind
 (a CLI release not cut, an app update not published). A release sends them:
 
-```
-cast deploy                 every `release` target main moved past, and the push targets it waits on
-cast deploy cli mobile      those targets, whatever their policy
-cast deploy --dry-run       what it would send, wait for and leave alone, and why
-cast deploy --files "<paths>" --carrying <sha> [--except <targets>]   only what one landed change touches, sending main's head
-cast deploy --sha <sha>     every deploy of the release makes exactly that commit live (request sha), not main's head
-cast deploy                 pins origin's head as the release plans it for each target whose command takes $sha,
-                            so a push after planning never rides along; a commit codecast has not read from
-                            GitHub yet is asked for again for up to two minutes
+````
+
+cast deploy every `release` target main moved past, and the push targets it waits on
+cast deploy cli mobile those targets, whatever their policy
+cast deploy --dry-run what it would send, wait for and leave alone, and why
+cast deploy --files "<paths>" --carrying <sha> [--except <targets>] only what one landed change touches, sending main's head
+cast deploy --sha <sha> every deploy of the release makes exactly that commit live (request sha), not main's head
+cast deploy pins origin's head as the release plans it for each target whose command takes $sha,
+so a push after planning never rides along; a commit codecast has not read from
+GitHub yet is asked for again for up to two minutes
+
 ```
 
 `deployRelease.ts planRelease` reads the checkout's targets (the file is the
@@ -612,3 +613,4 @@ dormant, all of them speak. A pull request
 names its commit on main by `pull_requests.merge_commit_sha`, which the closed
 webhook and the GitHub sync write. The rule is `contracts/deployReach`; the
 web's store holds each answer in `deployReach`, keyed by its ref.
+```

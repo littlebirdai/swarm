@@ -8,10 +8,18 @@ import { terminalIslandVars } from "../lib/terminal/theme";
  * the `dark` class plus the dark variables on the frame itself, so every
  * `sol-*` class under it resolves dark. Elsewhere, nothing.
  */
-export function useTerminalIsland(): { className: string; style: CSSProperties | undefined } {
+export function useTerminalIsland(): {
+  className: string;
+  style: CSSProperties | undefined;
+} {
   const { theme, visualStyle } = useTheme();
   return useMemo(() => {
-    const vars = visualStyle === "modern" && theme === "light" ? terminalIslandVars() : null;
-    return vars ? { className: "dark", style: vars as CSSProperties } : { className: "", style: undefined };
+    const vars =
+      visualStyle === "modern" && theme === "light"
+        ? terminalIslandVars()
+        : null;
+    return vars
+      ? { className: "dark", style: vars as CSSProperties }
+      : { className: "", style: undefined };
   }, [theme, visualStyle]);
 }

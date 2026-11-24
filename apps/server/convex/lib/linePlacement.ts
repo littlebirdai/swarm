@@ -10,26 +10,51 @@
 // account's machine runs and bills as that account, the way any session placed
 // on a teammate's machine does, and the seat's person stays its owner, so its
 // cards reach who they reach on the seat's own machine (orgLine.startRoleRun).
-import { fromConvexAgentType, normalizeGitOrigin, pathUnderRoot, signedOutAgents } from "@codecast/shared/contracts";
+import {
+  fromConvexAgentType,
+  normalizeGitOrigin,
+  pathUnderRoot,
+  signedOutAgents,
+} from "@codecast/shared/contracts";
 import { isDeviceOnline } from "../ccAccountsShared";
 
 type Ctx = { db: any };
 
-export type LineSlot = { device: string; user: string; root: string; runs: number; working: number };
+export type LineSlot = {
+  device: string;
+  user: string;
+  root: string;
+  runs: number;
+  working: number;
+};
 /** `offline`: the machines that hold a slot for the checkout and are offline now (or cannot start the flow's agents). */
-export type LinePool = { origin: string; subpath: string; slots: LineSlot[]; offline?: number };
+export type LinePool = {
+  origin: string;
+  subpath: string;
+  slots: LineSlot[];
+  offline?: number;
+};
 
 // A run works while it is pending or running. A run paused at its card, or
 // running but blocked on a person's answer, uses no machine.
 export const WORKING_RUN_STATUSES = ["pending", "running"] as const;
 
 /** Runs of `runner` that wait on a blocking decision: they hold no slot. */
-export async function runsWaitingOnAPerson(ctx: Ctx, runner: string): Promise<Set<string>> {
+export async function runsWaitingOnAPerson(
+  ctx: Ctx,
+  runner: string,
+): Promise<Set<string>> {
   const asked: any[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_user_status", (q: any) => q.eq("user_id", runner).eq("status", "pending"))
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("user_id", runner).eq("status", "pending"),
+    )
     .collect();
-  return new Set(asked.filter((d) => d.blocking && d.workflow_run_id).map((d) => String(d.workflow_run_id)));
+  return new Set(
+    asked
+      .filter((d) => d.blocking && d.workflow_run_id)
+      .map((d) => String(d.workflow_run_id)),
+  );
 }
 
 /**
@@ -42,8 +67,13 @@ export async function runsWaitingOnAPerson(ctx: Ctx, runner: string): Promise<Se
  * a station its flow marks `parks` (a wait for an eval wallet's room): it takes
  * a slot again once it moves on.
  */
-export async function holdsSlot(ctx: Ctx, run: any, waiting: Set<string>): Promise<boolean> {
-  if (!(run.org_role_id || run.task_id) || waiting.has(String(run._id))) return false;
+export async function holdsSlot(
+  ctx: Ctx,
+  run: any,
+  waiting: Set<string>,
+): Promise<boolean> {
+  if (!(run.org_role_id || run.task_id) || waiting.has(String(run._id)))
+    return false;
   if (await parkedAtStation(ctx, run)) return false;
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
   return !task?.waiting_since;
@@ -63,7 +93,11 @@ async function parkedAtStation(ctx: Ctx, run: any): Promise<boolean> {
       const id = ctx.db.normalizeId?.("workflow_versions", key) ?? key;
       const version = await ctx.db.get(id);
       if (!version) continue;
-      parks = new Set((version.snapshot?.nodes ?? []).filter((n: any) => n.parks).map((n: any) => String(n.id)));
+      parks = new Set(
+        (version.snapshot?.nodes ?? [])
+          .filter((n: any) => n.parks)
+          .map((n: any) => String(n.id)),
+      );
       parkingStations.set(key, parks);
     }
     if (parks.has(String(run.current_node_id))) return true;
@@ -75,8 +109,12 @@ async function parkedAtStation(ctx: Ctx, run: any): Promise<boolean> {
  * The agents a flow's stations start: each agent or prompt station's own, and the runner's default (Claude) for one
  * that names none, spelled as the runner spells them (cli runner.ts waitOnStation).
  */
-export function flowAgents(nodes: readonly { type?: string; agent?: string }[] | null | undefined): string[] {
-  const agents = (nodes ?? []).filter((n) => n.type === "agent" || n.type === "prompt").map((n) => fromConvexAgentType(String(n.agent || "claude").toLowerCase()));
+export function flowAgents(
+  nodes: readonly { type?: string; agent?: string }[] | null | undefined,
+): string[] {
+  const agents = (nodes ?? [])
+    .filter((n) => n.type === "agent" || n.type === "prompt")
+    .map((n) => fromConvexAgentType(String(n.agent || "claude").toLowerCase()));
   return [...new Set(agents)].sort();
 }
 
@@ -84,27 +122,51 @@ export function flowAgents(nodes: readonly { type?: string; agent?: string }[] |
  * The first of `needs` a machine reports it cannot start (its CLI has no sign-in there: devices.cloud_agent_blocks),
  * and what it needs to: a run placed there would fail at that agent's station.
  */
-export function missingAgentOn(device: { cloud_agent_blocks?: any[] | null }, needs: readonly string[] | undefined): { agent: string; login: string } | null {
+export function missingAgentOn(
+  device: { cloud_agent_blocks?: any[] | null },
+  needs: readonly string[] | undefined,
+): { agent: string; login: string } | null {
   if (!needs?.length) return null;
-  return signedOutAgents(device.cloud_agent_blocks).find((b) => needs.includes(b.agent)) ?? null;
+  return (
+    signedOutAgents(device.cloud_agent_blocks).find((b) =>
+      needs.includes(b.agent),
+    ) ?? null
+  );
 }
 
 /** The runs a device's line slot takes at once: none while an operator holds the device (linePool.holdLine). */
-export const slotRuns = (device: { line_hold?: unknown }, slot: { runs: number }): number => (device.line_hold ? 0 : slot.runs);
+export const slotRuns = (
+  device: { line_hold?: unknown },
+  slot: { runs: number },
+): number => (device.line_hold ? 0 : slot.runs);
 
 /** The runner's devices that offer any line checkout: their runs are counted by the pool, not the runner's own cap. */
-export async function poolDeviceIds(ctx: Ctx, runner: string): Promise<Set<string>> {
-  const devices: any[] = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", runner)).collect();
-  return new Set(devices.filter((d) => d.line_slots?.length).map((d) => String(d.device_id)));
+export async function poolDeviceIds(
+  ctx: Ctx,
+  runner: string,
+): Promise<Set<string>> {
+  const devices: any[] = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", runner))
+    .collect();
+  return new Set(
+    devices.filter((d) => d.line_slots?.length).map((d) => String(d.device_id)),
+  );
 }
 
 /** The slots the runs on a machine use now: a run waiting on a person, parked, or with no role or task uses none. */
-export async function deviceWorking(ctx: Ctx, device: string, waiting: Set<string>): Promise<number> {
+export async function deviceWorking(
+  ctx: Ctx,
+  device: string,
+  waiting: Set<string>,
+): Promise<number> {
   let working = 0;
   for (const status of WORKING_RUN_STATUSES) {
     const runs: any[] = await ctx.db
       .query("workflow_runs")
-      .withIndex("by_runner_device_status", (q: any) => q.eq("runner_device", device).eq("status", status))
+      .withIndex("by_runner_device_status", (q: any) =>
+        q.eq("runner_device", device).eq("status", status),
+      )
       .collect();
     for (const r of runs) if (await holdsSlot(ctx, r, waiting)) working++;
   }
@@ -113,7 +175,10 @@ export async function deviceWorking(ctx: Ctx, device: string, waiting: Set<strin
 
 /** The members of a team, the people whose machines make up its line pool. */
 async function teamMemberIds(ctx: Ctx, teamId: string): Promise<string[]> {
-  const rows: any[] = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect();
+  const rows: any[] = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+    .collect();
   return [...new Set(rows.map((m) => String(m.user_id)))];
 }
 
@@ -123,13 +188,29 @@ async function teamMemberIds(ctx: Ctx, teamId: string): Promise<string[]> {
  * and the run stays on the runner's own machine. A machine that cannot start one of the agents the run's flow needs
  * (`needs`: flowAgents) is no slot of it, so a runner whose own machines all lack one takes the team's pool.
  */
-export async function linePoolFor(ctx: Ctx, runner: string, projectPath: string | undefined, now: number, teamId?: string | null, needs?: readonly string[], known?: Map<string, LineSlot>): Promise<LinePool | null> {
+export async function linePoolFor(
+  ctx: Ctx,
+  runner: string,
+  projectPath: string | undefined,
+  now: number,
+  teamId?: string | null,
+  needs?: readonly string[],
+  known?: Map<string, LineSlot>,
+): Promise<LinePool | null> {
   if (!projectPath) return null;
-  const devices: any[] = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", runner)).collect();
+  const devices: any[] = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", runner))
+    .collect();
   let checkout: { root: string; origin: string } | null = null;
   for (const d of devices) {
     for (const g of d.git_plane ?? []) {
-      if (!g.origin || !pathUnderRoot(projectPath, g.root) || (checkout && checkout.root.length >= g.root.length)) continue;
+      if (
+        !g.origin ||
+        !pathUnderRoot(projectPath, g.root) ||
+        (checkout && checkout.root.length >= g.root.length)
+      )
+        continue;
       checkout = { root: g.root, origin: g.origin };
     }
   }
@@ -137,26 +218,54 @@ export async function linePoolFor(ctx: Ctx, runner: string, projectPath: string 
   if (!checkout || !origin) return null;
   const subpath = projectPath.slice(checkout.root.length).replace(/^\/+/, "");
   const own = await slotsFor(ctx, devices, origin, now, needs, known);
-  const offline = (ds: any[]) => ds.filter((d) => (d.line_slots ?? []).some((s: any) => s.origin === origin) && (!isDeviceOnline(d, now) || missingAgentOn(d, needs))).length;
-  if (own.length) return { origin, subpath, slots: own, offline: offline(devices) };
+  const offline = (ds: any[]) =>
+    ds.filter(
+      (d) =>
+        (d.line_slots ?? []).some((s: any) => s.origin === origin) &&
+        (!isDeviceOnline(d, now) || missingAgentOn(d, needs)),
+    ).length;
+  if (own.length)
+    return { origin, subpath, slots: own, offline: offline(devices) };
   if (!teamId) return null;
   const team: any[] = [];
   for (const member of await teamMemberIds(ctx, teamId)) {
     if (member === runner) continue;
-    team.push(...await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", member)).collect());
+    team.push(
+      ...(await ctx.db
+        .query("devices")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", member))
+        .collect()),
+    );
   }
   const shared = await slotsFor(ctx, team, origin, now, needs, known);
-  return shared.length ? { origin, subpath, slots: shared, offline: offline(devices) + offline(team) } : null;
+  return shared.length
+    ? {
+        origin,
+        subpath,
+        slots: shared,
+        offline: offline(devices) + offline(team),
+      }
+    : null;
 }
 
 /** `known`: the machines a pass already read (orgLine passSlots), by device and origin; a slot taken through one pool is taken in all. */
-async function slotsFor(ctx: Ctx, devices: any[], origin: string, now: number, needs?: readonly string[], known?: Map<string, LineSlot>): Promise<LineSlot[]> {
+async function slotsFor(
+  ctx: Ctx,
+  devices: any[],
+  origin: string,
+  now: number,
+  needs?: readonly string[],
+  known?: Map<string, LineSlot>,
+): Promise<LineSlot[]> {
   const waiting = new Map<string, Set<string>>();
   const slots: LineSlot[] = [];
   for (const d of devices) {
     if (!isDeviceOnline(d, now) || missingAgentOn(d, needs)) continue;
     const seen = known?.get(`${d.device_id}|${origin}`);
-    if (seen) { slots.push(seen); continue; }
+    if (seen) {
+      slots.push(seen);
+      continue;
+    }
     // A slot with no runs (a spent account, a full disk, an operator's hold) keeps its machine in the pool with no room,
     // so the run waits for a slot instead of falling back to the runner's own machine (Oct 24: 7 of 10 runs landed on
     // the laptop).
@@ -164,22 +273,46 @@ async function slotsFor(ctx: Ctx, devices: any[], origin: string, now: number, n
     if (!slot) continue;
     const user = String(d.user_id);
     // A run's decisions are asked by its sessions, which run as the machine's account.
-    if (!waiting.has(user)) waiting.set(user, await runsWaitingOnAPerson(ctx, user));
-    const read: LineSlot = { device: String(d.device_id), user, root: slot.root, runs: slotRuns(d, slot), working: await deviceWorking(ctx, String(d.device_id), waiting.get(user)!) };
+    if (!waiting.has(user))
+      waiting.set(user, await runsWaitingOnAPerson(ctx, user));
+    const read: LineSlot = {
+      device: String(d.device_id),
+      user,
+      root: slot.root,
+      runs: slotRuns(d, slot),
+      working: await deviceWorking(
+        ctx,
+        String(d.device_id),
+        waiting.get(user)!,
+      ),
+    };
     known?.set(`${d.device_id}|${origin}`, read);
     slots.push(read);
   }
   return slots;
 }
 
-export const poolFree = (pool: LinePool): number => pool.slots.reduce((n, s) => n + Math.max(0, s.runs - s.working), 0);
-export const poolCap = (pool: LinePool): number => pool.slots.reduce((n, s) => n + s.runs, 0);
-export const poolWorking = (pool: LinePool): number => pool.slots.reduce((n, s) => n + s.working, 0);
+export const poolFree = (pool: LinePool): number =>
+  pool.slots.reduce((n, s) => n + Math.max(0, s.runs - s.working), 0);
+export const poolCap = (pool: LinePool): number =>
+  pool.slots.reduce((n, s) => n + s.runs, 0);
+export const poolWorking = (pool: LinePool): number =>
+  pool.slots.reduce((n, s) => n + s.working, 0);
 
 /** The slot with the most free runs, and the run's folder there; null when every slot is full. Counts the run on it. */
-export function takeSlot(pool: LinePool): { device: string; user: string; project_path: string } | null {
-  const slot = [...pool.slots].sort((a, b) => (b.runs - b.working) - (a.runs - a.working))[0];
+export function takeSlot(
+  pool: LinePool,
+): { device: string; user: string; project_path: string } | null {
+  const slot = [...pool.slots].sort(
+    (a, b) => b.runs - b.working - (a.runs - a.working),
+  )[0];
   if (!slot || slot.runs - slot.working <= 0) return null;
   slot.working++;
-  return { device: slot.device, user: slot.user, project_path: pool.subpath ? `${slot.root.replace(/\/+$/, "")}/${pool.subpath}` : slot.root };
+  return {
+    device: slot.device,
+    user: slot.user,
+    project_path: pool.subpath
+      ? `${slot.root.replace(/\/+$/, "")}/${pool.subpath}`
+      : slot.root,
+  };
 }

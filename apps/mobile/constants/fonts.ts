@@ -1,7 +1,7 @@
-import { useSyncExternalStore } from 'react';
-import { StyleProp, StyleSheet, TextStyle } from 'react-native';
-import { getActiveLook, useActiveLook, type Look } from '@/constants/Theme';
-import { floorTextSize } from '@codecast/shared/render/typeScale';
+import { useSyncExternalStore } from "react";
+import { StyleProp, StyleSheet, TextStyle } from "react-native";
+import { getActiveLook, useActiveLook, type Look } from "@/constants/Theme";
+import { floorTextSize } from "@codecast/shared/render/typeScale";
 
 // JetBrains Mono is the app face, same as web (web aliases font-sans to it —
 // the entire product renders in mono). Each face is named by its PostScript
@@ -11,11 +11,11 @@ import { floorTextSize } from '@codecast/shared/render/typeScale';
 // weight selection CANNOT rely on fontWeight; the style resolver below swaps
 // the face per weight instead.
 export const Mono = {
-  regular: 'JetBrainsMono-Regular',
-  medium: 'JetBrainsMono-Medium',
-  semiBold: 'JetBrainsMono-SemiBold',
-  bold: 'JetBrainsMono-Bold',
-  italic: 'JetBrainsMono-Italic',
+  regular: "JetBrainsMono-Regular",
+  medium: "JetBrainsMono-Medium",
+  semiBold: "JetBrainsMono-SemiBold",
+  bold: "JetBrainsMono-Bold",
+  italic: "JetBrainsMono-Italic",
 } as const;
 
 // The Modern look's interface face, the web's: Instrument Sans. Its four
@@ -23,11 +23,11 @@ export const Mono = {
 // list); the italic is not, and loads at runtime as an asset of the update
 // (lib/modernFaces.ts). Both are named by PostScript name, like Mono.
 export const Sans = {
-  regular: 'InstrumentSans-Regular',
-  medium: 'InstrumentSans-Medium',
-  semiBold: 'InstrumentSans-SemiBold',
-  bold: 'InstrumentSans-Bold',
-  italic: 'InstrumentSans-Italic',
+  regular: "InstrumentSans-Regular",
+  medium: "InstrumentSans-Medium",
+  semiBold: "InstrumentSans-SemiBold",
+  bold: "InstrumentSans-Bold",
+  italic: "InstrumentSans-Italic",
 } as const;
 
 /** The style for code-like text: code, commands, paths, branch names,
@@ -37,10 +37,18 @@ export const Sans = {
  *  lib/modernMono.guard.test.ts holds the code renderers to it. */
 export const codeFont = { fontFamily: Mono.regular } as const;
 
-export type FaceGroup = { readonly regular: string; readonly medium: string; readonly semiBold: string; readonly bold: string; readonly italic: string };
+export type FaceGroup = {
+  readonly regular: string;
+  readonly medium: string;
+  readonly semiBold: string;
+  readonly bold: string;
+  readonly italic: string;
+};
 
 const GROUP_OF = new Map<string, FaceGroup>(
-  [Mono, Sans].flatMap((g) => Object.values(g).map((face) => [face, g] as [string, FaceGroup])),
+  [Mono, Sans].flatMap((g) =>
+    Object.values(g).map((face) => [face, g] as [string, FaceGroup]),
+  ),
 );
 
 // Medium, Bold and Italic load after first paint (app/_layout.tsx). Text laid
@@ -76,11 +84,17 @@ export function markSansItalicLoaded(): void {
   notifyFaces();
 }
 function facesKey(): number {
-  return (lateFacesLoaded ? 1 : 0) + (sansFacesLoaded ? 2 : 0) + (sansItalicLoaded ? 4 : 0);
+  return (
+    (lateFacesLoaded ? 1 : 0) +
+    (sansFacesLoaded ? 2 : 0) +
+    (sansItalicLoaded ? 4 : 0)
+  );
 }
 function subscribeFaces(l: () => void): () => void {
   lateListeners.add(l);
-  return () => { lateListeners.delete(l); };
+  return () => {
+    lateListeners.delete(l);
+  };
 }
 /** Re-renders when any face lands; returns whether the late mono faces have. */
 export function useLateFacesLoaded(): boolean {
@@ -97,7 +111,7 @@ const EARLY_STAND_IN: Record<string, string> = {
   [Mono.italic]: Mono.regular,
 };
 function loadedFace(face: string, late: boolean): string {
-  return late ? face : EARLY_STAND_IN[face] ?? face;
+  return late ? face : (EARLY_STAND_IN[face] ?? face);
 }
 
 function sansLoaded(face: string): boolean {
@@ -113,29 +127,43 @@ export function useMonoFace(face: string): string {
   const look = useActiveLook();
   return uiFace(face, late, look);
 }
-export function uiFace(face: string, late = lateFacesLoaded, look: Look = getActiveLook()): string {
-  if (look !== 'modern') return loadedFace(face, late);
-  const key = (Object.keys(Mono) as (keyof typeof Mono)[]).find((k) => Mono[k] === face);
+export function uiFace(
+  face: string,
+  late = lateFacesLoaded,
+  look: Look = getActiveLook(),
+): string {
+  if (look !== "modern") return loadedFace(face, late);
+  const key = (Object.keys(Mono) as (keyof typeof Mono)[]).find(
+    (k) => Mono[k] === face,
+  );
   if (!key) return loadedFace(face, late);
-  return sansLoaded(Sans[key]) ? Sans[key] : 'System';
+  return sansLoaded(Sans[key]) ? Sans[key] : "System";
 }
 
 /** The face group a style names outright, for nested text to inherit (a bold
  *  run inside mono code stays mono under Modern). Undefined when the style
  *  names none, or a family outside the groups. */
-export function namedFaceGroup(style: StyleProp<TextStyle>): FaceGroup | undefined {
+export function namedFaceGroup(
+  style: StyleProp<TextStyle>,
+): FaceGroup | undefined {
   const family = StyleSheet.flatten(style)?.fontFamily;
   return family ? GROUP_OF.get(family) : undefined;
 }
 
 const MONO_FACES = new Set<string>(Object.values(Mono));
 
-function faceFor(weight: TextStyle['fontWeight'], italic: boolean, group: FaceGroup = Mono): string {
+function faceFor(
+  weight: TextStyle["fontWeight"],
+  italic: boolean,
+  group: FaceGroup = Mono,
+): string {
   if (italic) return group.italic;
   const w =
-    weight == null || weight === 'normal' ? 400 :
-    weight === 'bold' ? 700 :
-    Number(weight);
+    weight == null || weight === "normal"
+      ? 400
+      : weight === "bold"
+        ? 700
+        : Number(weight);
   if (w >= 700) return group.bold;
   if (w >= 600) return group.semiBold;
   if (w >= 500) return group.medium;
@@ -162,20 +190,36 @@ function faceFor(weight: TextStyle['fontWeight'], italic: boolean, group: FaceGr
  * 'uppercase'`, or `caps` for a run whose words are capitals), which may sit
  * at 11.
  */
-export function monoStyle(style: StyleProp<TextStyle>, late = lateFacesLoaded, look: Look = getActiveLook(), inherited?: FaceGroup, caps = false): TextStyle {
+export function monoStyle(
+  style: StyleProp<TextStyle>,
+  late = lateFacesLoaded,
+  look: Look = getActiveLook(),
+  inherited?: FaceGroup,
+  caps = false,
+): TextStyle {
   const flat = StyleSheet.flatten(style) ?? {};
-  if (look === 'modern') return modernStyle(flat, late, inherited, caps);
+  if (look === "modern") return modernStyle(flat, late, inherited, caps);
   if (flat.fontFamily && !MONO_FACES.has(flat.fontFamily)) return flat;
   const { fontWeight, fontStyle, ...rest } = flat;
-  return { ...rest, fontFamily: loadedFace(faceFor(fontWeight, fontStyle === 'italic'), late) };
+  return {
+    ...rest,
+    fontFamily: loadedFace(faceFor(fontWeight, fontStyle === "italic"), late),
+  };
 }
 
-function modernStyle(style: TextStyle, late: boolean, inherited: FaceGroup | undefined, caps: boolean): TextStyle {
-  const group = style.fontFamily ? GROUP_OF.get(style.fontFamily) : inherited ?? Sans;
+function modernStyle(
+  style: TextStyle,
+  late: boolean,
+  inherited: FaceGroup | undefined,
+  caps: boolean,
+): TextStyle {
+  const group = style.fontFamily
+    ? GROUP_OF.get(style.fontFamily)
+    : (inherited ?? Sans);
   if (!group) return style;
-  const flat = floored(style, caps || style.textTransform === 'uppercase');
+  const flat = floored(style, caps || style.textTransform === "uppercase");
   const { fontWeight, fontStyle, ...rest } = flat;
-  const face = faceFor(fontWeight, fontStyle === 'italic', group);
+  const face = faceFor(fontWeight, fontStyle === "italic", group);
   if (group === Mono) return { ...rest, fontFamily: loadedFace(face, late) };
   if (sansLoaded(face)) return { ...rest, fontFamily: face };
   // Not registered yet: the system face, which has real weights and slants.
@@ -184,16 +228,29 @@ function modernStyle(style: TextStyle, late: boolean, inherited: FaceGroup | und
 }
 
 function floored(style: TextStyle, caps: boolean): TextStyle {
-  const lineHeight = typeof style.lineHeight === 'number' ? style.lineHeight : undefined;
+  const lineHeight =
+    typeof style.lineHeight === "number" ? style.lineHeight : undefined;
   const next = floorTextSize(style.fontSize, lineHeight, caps);
   if (next.fontSize === style.fontSize) return style;
-  return lineHeight === undefined ? { ...style, fontSize: next.fontSize } : { ...style, fontSize: next.fontSize, lineHeight: next.lineHeight };
+  return lineHeight === undefined
+    ? { ...style, fontSize: next.fontSize }
+    : { ...style, fontSize: next.fontSize, lineHeight: next.lineHeight };
 }
 
 /** Whether a run's words are set in capitals ("PLAN", "410 GONE"), which the
  *  floor lets sit at 11 like a `textTransform: 'uppercase'` label. */
 export function isCapsText(children: unknown): boolean {
-  const text = typeof children === 'string' ? children : Array.isArray(children) && children.every((c) => typeof c === 'string' || typeof c === 'number') ? children.join('') : null;
+  const text =
+    typeof children === "string"
+      ? children
+      : Array.isArray(children) &&
+          children.every((c) => typeof c === "string" || typeof c === "number")
+        ? children.join("")
+        : null;
   // Three letters at least, so a clock ("9:01 AM") is not a label.
-  return !!text && (text.match(/[A-Z]/g)?.length ?? 0) >= 3 && text === text.toUpperCase();
+  return (
+    !!text &&
+    (text.match(/[A-Z]/g)?.length ?? 0) >= 3 &&
+    text === text.toUpperCase()
+  );
 }

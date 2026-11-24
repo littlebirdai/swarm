@@ -4,7 +4,9 @@ import os from "node:os";
  *  now. Below two runnable threads per core it is 1; above that it is the run
  *  queue per core, because the scheduler queue, not the work, then sets how
  *  long anything takes. */
-export function machineLoadFactor(loadPerCpu = os.loadavg()[0] / Math.max(1, os.cpus().length)): number {
+export function machineLoadFactor(
+  loadPerCpu = os.loadavg()[0] / Math.max(1, os.cpus().length),
+): number {
   return loadPerCpu <= 2 ? 1 : loadPerCpu;
 }
 
@@ -12,6 +14,10 @@ export function machineLoadFactor(loadPerCpu = os.loadavg()[0] / Math.max(1, os.
  *  loaded machine slows what is bounded by it instead of failing it, and an
  *  idle one keeps the bound as written. Tests bound their waits with it
  *  (test-helpers/pollUntil.ts), and the runner a hand's quiet time (runner.ts). */
-export function loadScaledMs(baseMs: number, maxFactor = 8, factor = machineLoadFactor()): number {
+export function loadScaledMs(
+  baseMs: number,
+  maxFactor = 8,
+  factor = machineLoadFactor(),
+): number {
   return Math.round(baseMs * Math.min(maxFactor, factor));
 }

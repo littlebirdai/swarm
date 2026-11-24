@@ -21,9 +21,16 @@ function storage(): Storage | null {
   }
 }
 
-export function writeDocSyncCache(docId: string, content: unknown, version: number): void {
+export function writeDocSyncCache(
+  docId: string,
+  content: unknown,
+  version: number,
+): void {
   try {
-    storage()?.setItem(`convex-sync-${docId}`, JSON.stringify({ content, version }));
+    storage()?.setItem(
+      `convex-sync-${docId}`,
+      JSON.stringify({ content, version }),
+    );
   } catch {
     // best-effort — without the cache, loading falls back to the server path
   }

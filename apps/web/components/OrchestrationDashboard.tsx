@@ -30,7 +30,16 @@ function timeAgo(ts: number): string {
   return `${days}d`;
 }
 
-function ProgressBar({ progress }: { progress?: { total: number; done: number; in_progress: number; open?: number } }) {
+function ProgressBar({
+  progress,
+}: {
+  progress?: {
+    total: number;
+    done: number;
+    in_progress: number;
+    open?: number;
+  };
+}) {
   if (!progress || progress.total === 0) return null;
   const donePct = (progress.done / progress.total) * 100;
   const ipPct = (progress.in_progress / progress.total) * 100;
@@ -39,8 +48,14 @@ function ProgressBar({ progress }: { progress?: { total: number; done: number; i
     <div className="flex items-center gap-2 w-full">
       <div className="flex-1 h-1.5 bg-sol-border/20 rounded-full overflow-hidden">
         <div className="h-full flex">
-          <div className="bg-sol-green transition-all" style={{ width: `${donePct}%` }} />
-          <div className="bg-sol-yellow transition-all" style={{ width: `${ipPct}%` }} />
+          <div
+            className="bg-sol-green transition-all"
+            style={{ width: `${donePct}%` }}
+          />
+          <div
+            className="bg-sol-yellow transition-all"
+            style={{ width: `${ipPct}%` }}
+          />
         </div>
       </div>
       <span className="text-meta text-sol-text-dim tabular-nums whitespace-nowrap">
@@ -50,12 +65,26 @@ function ProgressBar({ progress }: { progress?: { total: number; done: number; i
   );
 }
 
-function StatCard({ label, value, color, sub }: { label: string; value: number; color: string; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  sub,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  sub?: string;
+}) {
   return (
     <div className="px-3 py-2.5 rounded-lg bg-sol-bg-alt/50">
-      <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">
+        {label}
+      </div>
       <div className="flex items-baseline gap-1.5">
-        <span className={`text-xl font-semibold tabular-nums ${color}`}>{value}</span>
+        <span className={`text-xl font-semibold tabular-nums ${color}`}>
+          {value}
+        </span>
         {sub && <span className="text-meta text-sol-text-dim">{sub}</span>}
       </div>
     </div>
@@ -71,13 +100,22 @@ function PlanCard({ plan }: { plan: any }) {
     <Link
       href={`/plans?plan=${plan.short_id}`}
       className={`block p-3 rounded-lg border transition-colors hover:bg-sol-bg-alt/40 ${
-        isActive ? "border-sol-cyan/20 bg-sol-cyan/3" : "border-sol-border/15 bg-sol-bg-alt/10"
+        isActive
+          ? "border-sol-cyan/20 bg-sol-cyan/3"
+          : "border-sol-border/15 bg-sol-bg-alt/10"
       }`}
     >
       <div className="flex items-center gap-2 mb-1.5">
-        <CircleDot className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-sol-cyan" : "text-sol-text-dim"}`} />
-        <span className="text-sm text-sol-text font-medium truncate">{plan.title}</span>
-        <ShortId id={plan.short_id} className="text-meta text-sol-text-dim ml-auto" />
+        <CircleDot
+          className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-sol-cyan" : "text-sol-text-dim"}`}
+        />
+        <span className="text-sm text-sol-text font-medium truncate">
+          {plan.title}
+        </span>
+        <ShortId
+          id={plan.short_id}
+          className="text-meta text-sol-text-dim ml-auto"
+        />
       </div>
 
       {hasProgress && <ProgressBar progress={progress} />}
@@ -125,18 +163,23 @@ interface OrchestrationDashboardProps {
   className?: string;
 }
 
-export function OrchestrationDashboard({ className }: OrchestrationDashboardProps) {
+export function OrchestrationDashboard({
+  className,
+}: OrchestrationDashboardProps) {
   const workspaceArgs = useWorkspaceArgs();
   // Local-first: paint from the store's plans collection; the feeder hook
   // keeps it fresh. The gate below only shows for a genuinely cold cache.
   const { ready } = useSyncPlansWithArgs(workspaceArgs, undefined, true);
   const wsPlans = useWorkspaceCollection<any>(
     "plans",
-    (p) => `${p.status}|${p.updated_at ?? 0}|${p.progress?.done ?? 0}/${p.progress?.total ?? 0}`,
+    (p) =>
+      `${p.status}|${p.updated_at ?? 0}|${p.progress?.done ?? 0}/${p.progress?.total ?? 0}`,
   );
   const plans = useMemo(() => {
     if (!ready && wsPlans.length === 0) return undefined;
-    return [...wsPlans].sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
+    return [...wsPlans].sort(
+      (a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0),
+    );
   }, [ready, wsPlans]);
 
   const activePlanIds = useMemo(() => {
@@ -147,11 +190,26 @@ export function OrchestrationDashboard({ className }: OrchestrationDashboardProp
       .map((p: any) => p.short_id);
   }, [plans]);
 
-  const plan0 = useQuery(api.plans.webGet, activePlanIds[0] ? { short_id: activePlanIds[0] } : "skip");
-  const plan1 = useQuery(api.plans.webGet, activePlanIds[1] ? { short_id: activePlanIds[1] } : "skip");
-  const plan2 = useQuery(api.plans.webGet, activePlanIds[2] ? { short_id: activePlanIds[2] } : "skip");
-  const plan3 = useQuery(api.plans.webGet, activePlanIds[3] ? { short_id: activePlanIds[3] } : "skip");
-  const plan4 = useQuery(api.plans.webGet, activePlanIds[4] ? { short_id: activePlanIds[4] } : "skip");
+  const plan0 = useQuery(
+    api.plans.webGet,
+    activePlanIds[0] ? { short_id: activePlanIds[0] } : "skip",
+  );
+  const plan1 = useQuery(
+    api.plans.webGet,
+    activePlanIds[1] ? { short_id: activePlanIds[1] } : "skip",
+  );
+  const plan2 = useQuery(
+    api.plans.webGet,
+    activePlanIds[2] ? { short_id: activePlanIds[2] } : "skip",
+  );
+  const plan3 = useQuery(
+    api.plans.webGet,
+    activePlanIds[3] ? { short_id: activePlanIds[3] } : "skip",
+  );
+  const plan4 = useQuery(
+    api.plans.webGet,
+    activePlanIds[4] ? { short_id: activePlanIds[4] } : "skip",
+  );
 
   const enrichedPlans = useMemo(() => {
     return [plan0, plan1, plan2, plan3, plan4].filter(Boolean);
@@ -181,7 +239,11 @@ export function OrchestrationDashboard({ className }: OrchestrationDashboardProp
       if (!ep?.tasks) continue;
       for (const t of ep.tasks) {
         if (t.activeSession) activeAgents.push(t);
-        if (t.execution_status === "blocked" || t.execution_status === "needs_context") blockedTasks.push(t);
+        if (
+          t.execution_status === "blocked" ||
+          t.execution_status === "needs_context"
+        )
+          blockedTasks.push(t);
       }
     }
 
@@ -199,7 +261,9 @@ export function OrchestrationDashboard({ className }: OrchestrationDashboardProp
 
   if (plans === undefined) {
     return (
-      <div className={`flex items-center justify-center h-48 text-sol-text-dim ${className || ""}`}>
+      <div
+        className={`flex items-center justify-center h-48 text-sol-text-dim ${className || ""}`}
+      >
         <span className="text-sm">Loading orchestration data...</span>
       </div>
     );
@@ -212,25 +276,53 @@ export function OrchestrationDashboard({ className }: OrchestrationDashboardProp
 
   return (
     <div className={className}>
-      <div className={`rounded-lg border overflow-hidden mb-6 ${
-        hasActiveWork ? "border-sol-green/30 bg-sol-green/[0.04]" : "border-sol-border/20 bg-sol-bg-alt/15"
-      }`}>
+      <div
+        className={`rounded-lg border overflow-hidden mb-6 ${
+          hasActiveWork
+            ? "border-sol-green/30 bg-sol-green/[0.04]"
+            : "border-sol-border/20 bg-sol-bg-alt/15"
+        }`}
+      >
         <div className="px-4 py-3 flex items-center gap-2 border-b border-sol-border/10">
-          <Zap className={`w-4 h-4 ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`} />
-          <span className={`text-xs font-semibold uppercase tracking-wider ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}>
+          <Zap
+            className={`w-4 h-4 ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}
+          />
+          <span
+            className={`text-xs font-semibold uppercase tracking-wider ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}
+          >
             Orchestration Overview
           </span>
-          {hasActiveWork && <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />}
+          {hasActiveWork && (
+            <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
+          )}
         </div>
 
         <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Active Plans" value={stats.activePlanCount} color="text-sol-cyan" sub={`of ${stats.totalPlans}`} />
-          <StatCard label="Tasks Done" value={stats.doneTasks} color="text-sol-green" sub={`of ${stats.totalTasks}`} />
-          <StatCard label="In Progress" value={stats.inProgressTasks} color="text-sol-yellow" />
+          <StatCard
+            label="Active Plans"
+            value={stats.activePlanCount}
+            color="text-sol-cyan"
+            sub={`of ${stats.totalPlans}`}
+          />
+          <StatCard
+            label="Tasks Done"
+            value={stats.doneTasks}
+            color="text-sol-green"
+            sub={`of ${stats.totalTasks}`}
+          />
+          <StatCard
+            label="In Progress"
+            value={stats.inProgressTasks}
+            color="text-sol-yellow"
+          />
           <StatCard
             label="Issues"
             value={stats.blockedTasks.length}
-            color={stats.blockedTasks.length > 0 ? "text-sol-red" : "text-sol-text-dim"}
+            color={
+              stats.blockedTasks.length > 0
+                ? "text-sol-red"
+                : "text-sol-text-dim"
+            }
             sub={stats.blockedTasks.length > 0 ? "blocked" : ""}
           />
         </div>
@@ -258,10 +350,19 @@ export function OrchestrationDashboard({ className }: OrchestrationDashboardProp
           </h3>
           <div className="space-y-1.5">
             {stats.blockedTasks.map((t: any) => (
-              <Link key={t._id} href={`/tasks/${t.short_id ?? t._id}`} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sol-red/5 border border-sol-red/15 hover:bg-sol-red/10 transition-colors">
+              <Link
+                key={t._id}
+                href={`/tasks/${t.short_id ?? t._id}`}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sol-red/5 border border-sol-red/15 hover:bg-sol-red/10 transition-colors"
+              >
                 <TaskStatusBadge status={t.execution_status} type="execution" />
-                <ShortId id={t.short_id} className="text-xs text-sol-text-dim" />
-                <span className="text-xs text-sol-text truncate">{t.title}</span>
+                <ShortId
+                  id={t.short_id}
+                  className="text-xs text-sol-text-dim"
+                />
+                <span className="text-xs text-sol-text truncate">
+                  {t.title}
+                </span>
               </Link>
             ))}
           </div>

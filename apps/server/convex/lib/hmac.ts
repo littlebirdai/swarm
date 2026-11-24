@@ -11,8 +11,12 @@ export { hmacSha256Hex };
 
 export const hex = (bytes: ArrayBuffer) => encodeHex(new Uint8Array(bytes));
 
-export async function hmacSha256(key: ArrayBuffer, value: string): Promise<ArrayBuffer> {
-  return (await hmac_sha256(new Uint8Array(key), encodeUTF8(value))).buffer as ArrayBuffer;
+export async function hmacSha256(
+  key: ArrayBuffer,
+  value: string,
+): Promise<ArrayBuffer> {
+  return (await hmac_sha256(new Uint8Array(key), encodeUTF8(value)))
+    .buffer as ArrayBuffer;
 }
 
 /** Constant-time hex-string compare, so a signature check can't be timing-probed. */
@@ -24,9 +28,16 @@ export const timingSafeEqualHex = timingSafeEqual;
  * secret or no signature is never a match. A sender's uppercase hex is
  * folded, since the digest is the same either way.
  */
-export async function verifyHmacHex(body: string, signature: string | null | undefined, secret: string | null | undefined): Promise<boolean> {
+export async function verifyHmacHex(
+  body: string,
+  signature: string | null | undefined,
+  secret: string | null | undefined,
+): Promise<boolean> {
   if (!secret || !signature) return false;
-  return timingSafeEqual(signature.trim().toLowerCase(), await hmacSha256Hex(secret, body));
+  return timingSafeEqual(
+    signature.trim().toLowerCase(),
+    await hmacSha256Hex(secret, body),
+  );
 }
 
 // ── OAuth state ─────────────────────────────────────────────────────────────
@@ -37,7 +48,10 @@ export async function verifyHmacHex(body: string, signature: string | null | und
 /** The default life of a signed state: long enough for a consent screen. */
 export const STATE_MAX_AGE_MS = 5 * 60_000;
 
-export async function signStateWith(secret: string, payload: Record<string, unknown>): Promise<string> {
+export async function signStateWith(
+  secret: string,
+  payload: Record<string, unknown>,
+): Promise<string> {
   const body = btoa(JSON.stringify(payload));
   return `${body}.${await hmacSha256Hex(secret, body)}`;
 }
@@ -46,16 +60,22 @@ export async function signStateWith(secret: string, payload: Record<string, unkn
  *  the signature does not match, the payload is not JSON, or its `ts` is
  *  missing or older than `maxAgeMs`. An empty secret verifies nothing, since
  *  anyone could sign under it. */
-export async function verifyStateWith(secret: string, state: string, maxAgeMs = STATE_MAX_AGE_MS): Promise<Record<string, any> | null> {
+export async function verifyStateWith(
+  secret: string,
+  state: string,
+  maxAgeMs = STATE_MAX_AGE_MS,
+): Promise<Record<string, any> | null> {
   if (!secret) return null;
   const dot = state.lastIndexOf(".");
   if (dot <= 0) return null;
   const body = state.slice(0, dot);
-  if (!timingSafeEqual(state.slice(dot + 1), await hmacSha256Hex(secret, body))) return null;
+  if (!timingSafeEqual(state.slice(dot + 1), await hmacSha256Hex(secret, body)))
+    return null;
   try {
     const payload = JSON.parse(atob(body));
     // A state with no numeric ts would never expire, defeating the replay window.
-    if (typeof payload.ts !== "number" || Date.now() - payload.ts > maxAgeMs) return null;
+    if (typeof payload.ts !== "number" || Date.now() - payload.ts > maxAgeMs)
+      return null;
     return payload;
   } catch {
     return null;

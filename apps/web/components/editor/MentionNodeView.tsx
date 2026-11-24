@@ -44,7 +44,12 @@ export { PersonMention, DateMention };
 // doc is being edited and while it is being read. An unresolved id degrades
 // exactly like read mode does: a pill labeled with the short id or type.
 // Person/date mentions have no read-mode pill twin and keep their inline chips.
-const OBJECT_MENTION_TYPES = new Set<EntityType>(["task", "doc", "plan", "session"]);
+const OBJECT_MENTION_TYPES = new Set<EntityType>([
+  "task",
+  "doc",
+  "plan",
+  "session",
+]);
 
 export function MentionNodeView({ node }: NodeViewProps) {
   const attrs = node.attrs;

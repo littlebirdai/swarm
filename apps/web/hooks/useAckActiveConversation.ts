@@ -14,17 +14,24 @@
 // watched) — and NOT when the read mark itself changes. That is what lets
 // "mark unread" survive: the gesture flips manual_unread without touching
 // either dependency, so nothing re-acks until you leave and come back.
-import { sessionActivityAt, shouldAcknowledge } from "@codecast/shared/contracts";
+import {
+  sessionActivityAt,
+  shouldAcknowledge,
+} from "@codecast/shared/contracts";
 import { sessionActivityFacts, useInboxStore } from "../store/inboxStore";
 import { usePagePresence } from "./usePagePresence";
 import { useWatchEffect } from "./useWatchEffect";
 
-export function useAckActiveConversation(conversationId: string | null | undefined): void {
+export function useAckActiveConversation(
+  conversationId: string | null | undefined,
+): void {
   const present = usePagePresence();
   // A ConversationView also renders for the side panel and for panes the
   // reader is not on; only the session the shell says is current counts as
   // being read.
-  const isCurrent = useInboxStore((s) => !!conversationId && s.currentSessionId === conversationId);
+  const isCurrent = useInboxStore(
+    (s) => !!conversationId && s.currentSessionId === conversationId,
+  );
   // The moment the card compares the mark against — the last turn ending, or
   // the row's activity watermark when no turn stamp exists. Acknowledging
   // exactly this number is what makes the dot go out without a round trip, and
@@ -36,7 +43,15 @@ export function useAckActiveConversation(conversationId: string | null | undefin
   });
 
   useWatchEffect(() => {
-    if (!shouldAcknowledge({ conversationId, isActiveView: isCurrent, present, updatedAt })) return;
+    if (
+      !shouldAcknowledge({
+        conversationId,
+        isActiveView: isCurrent,
+        present,
+        updatedAt,
+      })
+    )
+      return;
     useInboxStore.getState().ackSessionRead(conversationId!, updatedAt);
   }, [conversationId, isCurrent, present, updatedAt]);
 }

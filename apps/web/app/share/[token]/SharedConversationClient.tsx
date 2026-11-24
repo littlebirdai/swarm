@@ -27,7 +27,7 @@ export default function SharedConversationClient() {
       setShareTokenScope(conversationId, token);
       // Keep the #msg- anchor (bookmark deep links) alongside the token.
       router.replace(
-        `/conversation/${conversationId}?share=${encodeURIComponent(token)}${window.location.hash}`
+        `/conversation/${conversationId}?share=${encodeURIComponent(token)}${window.location.hash}`,
       );
     }
   }, [conversationId, router, token]);
@@ -36,12 +36,23 @@ export default function SharedConversationClient() {
     return (
       <main className="h-screen flex flex-col bg-sol-bg items-center justify-center">
         <div className="text-center max-w-md px-4">
-          <svg className="w-16 h-16 mx-auto mb-4 text-sol-text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          <svg
+            className="w-16 h-16 mx-auto mb-4 text-sol-text-dim"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
           </svg>
           <h1 className="text-xl text-sol-text mb-2">Invalid Link</h1>
           <p className="text-sol-text-muted text-sm">
-            This share link is invalid or the conversation has been made private.
+            This share link is invalid or the conversation has been made
+            private.
           </p>
         </div>
       </main>

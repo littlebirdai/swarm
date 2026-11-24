@@ -38,7 +38,10 @@ function sixDigits(): string {
 }
 
 function codeRow(ctx: Pick<MutationCtx, "db">, user: Doc<"users">) {
-  return ctx.db.query("work_email_codes").withIndex("by_user", (q) => q.eq("user_id", user._id)).first();
+  return ctx.db
+    .query("work_email_codes")
+    .withIndex("by_user", (q) => q.eq("user_id", user._id))
+    .first();
 }
 
 function refuse(message: string): never {
@@ -47,26 +50,54 @@ function refuse(message: string): never {
 
 /** True while the person holds a code for their current address that can
  *  still be entered. */
-export async function hasLiveCode(ctx: Pick<MutationCtx, "db">, user: Doc<"users">, now = Date.now()): Promise<boolean> {
+export async function hasLiveCode(
+  ctx: Pick<MutationCtx, "db">,
+  user: Doc<"users">,
+  now = Date.now(),
+): Promise<boolean> {
   const row = await codeRow(ctx, user);
-  return !!row && row.email === user.email && row.expires_at > now && row.attempts < MAX_CODE_ATTEMPTS;
+  return (
+    !!row &&
+    row.email === user.email &&
+    row.expires_at > now &&
+    row.attempts < MAX_CODE_ATTEMPTS
+  );
 }
 
 /** Mails a fresh code, replacing any earlier one: to the person's account
  *  email to prove it, or to `movingTo`, the address the account is moving to,
  *  worded as that. Throws when there is no address or they asked too often
  *  this hour. */
-export async function sendEmailCode(ctx: MutationCtx, user: Doc<"users">, movingTo?: string): Promise<{ sent_to: string }> {
+export async function sendEmailCode(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  movingTo?: string,
+): Promise<{ sent_to: string }> {
   const email = movingTo ?? user.email;
   if (!email) refuse("This account has no email address to confirm");
-  const limit = await bumpWindow(ctx.db, `work-email-code:${user._id}`, CODES_PER_HOUR, 60 * 60 * 1000);
+  const limit = await bumpWindow(
+    ctx.db,
+    `work-email-code:${user._id}`,
+    CODES_PER_HOUR,
+    60 * 60 * 1000,
+  );
   if (!limit.ok) refuse("Too many codes this hour, try again later");
   const code = sixDigits();
-  const row = { user_id: user._id, email, code_hash: await sha256(code), expires_at: Date.now() + CODE_TTL_MS, attempts: 0 };
+  const row = {
+    user_id: user._id,
+    email,
+    code_hash: await sha256(code),
+    expires_at: Date.now() + CODE_TTL_MS,
+    attempts: 0,
+  };
   const existing = await codeRow(ctx, user);
   if (existing) await ctx.db.patch(existing._id, row);
   else await ctx.db.insert("work_email_codes", row);
-  await ctx.scheduler.runAfter(0, internal.teamDiscovery.deliverWorkEmailCode, { email, code, ...(movingTo ? { moving: true } : {}) });
+  await ctx.scheduler.runAfter(0, internal.teamDiscovery.deliverWorkEmailCode, {
+    email,
+    code,
+    ...(movingTo ? { moving: true } : {}),
+  });
   return { sent_to: email };
 }
 
@@ -78,10 +109,17 @@ export type CodeCheck = { ok: true } | { ok: false; message: string };
  *  no usable code for that address (none, another address's, expired, out of
  *  tries); returns the failed check, with the try counted, when the digits
  *  are wrong. */
-export async function redeemEmailCode(ctx: MutationCtx, user: Doc<"users">, email: string | undefined, code: string): Promise<CodeCheck> {
+export async function redeemEmailCode(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  email: string | undefined,
+  code: string,
+): Promise<CodeCheck> {
   const row = await codeRow(ctx, user);
-  if (!row || !email || row.email !== email || Date.now() > row.expires_at) refuse("That code expired, send a new one");
-  if (row.attempts >= MAX_CODE_ATTEMPTS) refuse("Too many tries, send a new code");
+  if (!row || !email || row.email !== email || Date.now() > row.expires_at)
+    refuse("That code expired, send a new one");
+  if (row.attempts >= MAX_CODE_ATTEMPTS)
+    refuse("Too many tries, send a new code");
   if (row.code_hash !== (await sha256(code.trim()))) {
     await ctx.db.patch(row._id, { attempts: row.attempts + 1 });
     return { ok: false, message: "That code is not right" };
@@ -91,8 +129,13 @@ export async function redeemEmailCode(ctx: MutationCtx, user: Doc<"users">, emai
 }
 
 /** Proves the account email with the code it was sent. */
-export async function confirmEmailCode(ctx: MutationCtx, user: Doc<"users">, code: string): Promise<CodeCheck> {
+export async function confirmEmailCode(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  code: string,
+): Promise<CodeCheck> {
   const check = await redeemEmailCode(ctx, user, user.email, code);
-  if (check.ok) await ctx.db.patch(user._id, { emailVerificationTime: Date.now() });
+  if (check.ok)
+    await ctx.db.patch(user._id, { emailVerificationTime: Date.now() });
   return check;
 }

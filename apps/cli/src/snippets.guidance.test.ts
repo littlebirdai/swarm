@@ -66,7 +66,9 @@ describe("section version stamp", () => {
     for (const descriptor of SNIPPET_CATALOG) {
       if (!descriptor.section) continue;
       const stamped = renderSectionBody(descriptor, "full", "3.2.1");
-      expect(`${descriptor.slug}: ${readSnippetStamp(stamped)}`).toBe(`${descriptor.slug}: 3.2.1`);
+      expect(`${descriptor.slug}: ${readSnippetStamp(stamped)}`).toBe(
+        `${descriptor.slug}: 3.2.1`,
+      );
       expect(stamped).toContain(descriptor.section.spec.endMarker);
     }
   });
@@ -85,11 +87,17 @@ describe("stub sections", () => {
     for (const descriptor of SNIPPET_CATALOG) {
       if (!descriptor.section) continue;
       const rendered = renderSectionBody(descriptor, "stub", "1.0.0");
-      const stubbed = rendered !== renderSectionBody(descriptor, "full", "1.0.0");
-      const worthIt = stubSectionBody(descriptor).length * 3 < descriptor.section.body.length * 2;
-      expect(`${descriptor.slug} stubbed: ${stubbed}`).toBe(`${descriptor.slug} stubbed: ${worthIt}`);
-      expect(`${descriptor.slug} smaller: ${rendered.length <= renderSectionBody(descriptor, "full", "1.0.0").length}`)
-        .toBe(`${descriptor.slug} smaller: true`);
+      const stubbed =
+        rendered !== renderSectionBody(descriptor, "full", "1.0.0");
+      const worthIt =
+        stubSectionBody(descriptor).length * 3 <
+        descriptor.section.body.length * 2;
+      expect(`${descriptor.slug} stubbed: ${stubbed}`).toBe(
+        `${descriptor.slug} stubbed: ${worthIt}`,
+      );
+      expect(
+        `${descriptor.slug} smaller: ${rendered.length <= renderSectionBody(descriptor, "full", "1.0.0").length}`,
+      ).toBe(`${descriptor.slug} smaller: true`);
     }
   });
 
@@ -98,7 +106,9 @@ describe("stub sections", () => {
     // little to pay for a `cast guide` run.
     for (const slug of ["calls", "limits"]) {
       const stub = renderSectionBody(snippetBySlug(slug)!, "stub", "1.0.0");
-      expect(`${slug}: ${stub === renderSectionBody(snippetBySlug(slug)!, "full", "1.0.0")}`).toBe(`${slug}: true`);
+      expect(
+        `${slug}: ${stub === renderSectionBody(snippetBySlug(slug)!, "full", "1.0.0")}`,
+      ).toBe(`${slug}: true`);
     }
   });
 
@@ -113,7 +123,9 @@ describe("stub sections", () => {
     // Measured at ~14.5k vs ~2.4k tokens when the mode shipped (ct-49544). The
     // bar is loose on purpose: it fails if stubbing ever stops being the large
     // saving the mode exists for, not on ordinary edits to a body.
-    expect(`stub/full under half: ${stub * 2 < full}`).toBe("stub/full under half: true");
+    expect(`stub/full under half: ${stub * 2 < full}`).toBe(
+      "stub/full under half: true",
+    );
   });
 
   test("stay recognizable to the installer: heading first, end marker last", () => {
@@ -121,7 +133,9 @@ describe("stub sections", () => {
       if (!descriptor.section) continue;
       const spec = descriptor.section.spec;
       const stub = stubSectionBody(descriptor);
-      expect(stub.indexOf(spec.headings[0])).toBeLessThan(stub.indexOf(spec.endMarker));
+      expect(stub.indexOf(spec.headings[0])).toBeLessThan(
+        stub.indexOf(spec.endMarker),
+      );
       expect(stub.trimEnd().endsWith(spec.endMarker)).toBe(true);
     }
   });
@@ -138,7 +152,9 @@ describe("guidanceSectionStatus — what cast doctor reads", () => {
       version: "1.0.0",
       mode: "full",
     });
-    expect(rows).toEqual([{ slug: "calls", file: "CLAUDE.md", state: "current", stamp: "1.0.0" }]);
+    expect(rows).toEqual([
+      { slug: "calls", file: "CLAUDE.md", state: "current", stamp: "1.0.0" },
+    ]);
   });
 
   test("a version bump with no body change is NOT drift", () => {
@@ -197,8 +213,12 @@ describe("guidanceSectionStatus — what cast doctor reads", () => {
       config: { browser_enabled: true },
       version: "1.0.0",
     };
-    expect(guidanceSectionStatus({ ...asStub, mode: "stub" })[0]).toMatchObject({ state: "current" });
-    expect(guidanceSectionStatus({ ...asStub, mode: "full" })[0]).toMatchObject({ state: "stale" });
+    expect(guidanceSectionStatus({ ...asStub, mode: "stub" })[0]).toMatchObject(
+      { state: "current" },
+    );
+    expect(guidanceSectionStatus({ ...asStub, mode: "full" })[0]).toMatchObject(
+      { state: "stale" },
+    );
   });
 
   test("an enabled snippet with no section on disk reads as missing", () => {
@@ -212,12 +232,14 @@ describe("guidanceSectionStatus — what cast doctor reads", () => {
   });
 
   test("a snippet that is off is not graded at all", () => {
-    expect(guidanceSectionStatus({
-      files: [{ label: "CLAUDE.md", text: fileWith(current) }],
-      config: { calls_enabled: false },
-      version: "1.0.0",
-      mode: "full",
-    })).toEqual([]);
+    expect(
+      guidanceSectionStatus({
+        files: [{ label: "CLAUDE.md", text: fileWith(current) }],
+        config: { calls_enabled: false },
+        version: "1.0.0",
+        mode: "full",
+      }),
+    ).toEqual([]);
   });
 
   test("one row per file, so a stale AGENTS.md is not hidden by a fresh CLAUDE.md", () => {
@@ -230,6 +252,9 @@ describe("guidanceSectionStatus — what cast doctor reads", () => {
       version: "1.0.0",
       mode: "full",
     });
-    expect(rows.map((r) => `${r.file}:${r.state}`)).toEqual(["CLAUDE.md:current", "AGENTS.md:stale"]);
+    expect(rows.map((r) => `${r.file}:${r.state}`)).toEqual([
+      "CLAUDE.md:current",
+      "AGENTS.md:stale",
+    ]);
   });
 });

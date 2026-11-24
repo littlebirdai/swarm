@@ -2,9 +2,18 @@
 // direct host, which one it is on, and what pressing the other does. Pure, so
 // the header pill and the session control panel say the same thing.
 
-import { CLAUDE_BACKEND_LABELS, MID_TURN_AGENT_STATUSES, hasDirectBackend, isHostedAgentType, type ClaudeBackend } from "@codecast/shared/contracts";
+import {
+  CLAUDE_BACKEND_LABELS,
+  MID_TURN_AGENT_STATUSES,
+  hasDirectBackend,
+  isHostedAgentType,
+  type ClaudeBackend,
+} from "@codecast/shared/contracts";
 
-export type BackendSwitching = { moving: ClaudeBackend } | { failed: string } | null;
+export type BackendSwitching =
+  | { moving: ClaudeBackend }
+  | { failed: string }
+  | null;
 
 export interface BackendRow {
   backend: ClaudeBackend;
@@ -25,8 +34,13 @@ const HINTS: Record<ClaudeBackend, string> = {
 };
 
 /** Only a started local Claude or Grok session has a backend to move. */
-export function canSwitchClaudeBackend(agentType: string | undefined, sessionId: string | null | undefined, messageCount: number | undefined): boolean {
-  if (isHostedAgentType(agentType) || !hasDirectBackend(agentType)) return false;
+export function canSwitchClaudeBackend(
+  agentType: string | undefined,
+  sessionId: string | null | undefined,
+  messageCount: number | undefined,
+): boolean {
+  if (isHostedAgentType(agentType) || !hasDirectBackend(agentType))
+    return false;
   return !!sessionId && (messageCount ?? 0) > 0;
 }
 
@@ -34,19 +48,35 @@ export function turnRunning(agentStatus: string | null | undefined): boolean {
   return MID_TURN_AGENT_STATUSES.has(agentStatus ?? "");
 }
 
-export function backendRows(backend: ClaudeBackend, agentStatus: string | null | undefined, switching: BackendSwitching): BackendRow[] {
+export function backendRows(
+  backend: ClaudeBackend,
+  agentStatus: string | null | undefined,
+  switching: BackendSwitching,
+): BackendRow[] {
   const moving = switching && "moving" in switching ? switching.moving : null;
   const busy = turnRunning(agentStatus);
   return (["tmux", "sdk"] as const).map((b) => {
     const current = b === backend;
-    const action = current || moving ? null : busy ? "interrupt_and_switch" as const : "switch" as const;
-        return {
+    const action =
+      current || moving
+        ? null
+        : busy
+          ? ("interrupt_and_switch" as const)
+          : ("switch" as const);
+    return {
       backend: b,
       label: CLAUDE_BACKEND_LABELS[b],
       hint: moving === b ? "Moving…" : HINTS[b],
       current,
       action,
-      ...(action === "interrupt_and_switch" ? { verb: b === "sdk" ? "Stop the turn, run without a terminal" : "Stop the turn, run in a terminal" } : {}),
+      ...(action === "interrupt_and_switch"
+        ? {
+            verb:
+              b === "sdk"
+                ? "Stop the turn, run without a terminal"
+                : "Stop the turn, run in a terminal",
+          }
+        : {}),
     };
   });
 }

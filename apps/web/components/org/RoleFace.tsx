@@ -6,20 +6,39 @@
 // chose, else the stable default for its handle) or its drawn icon tile. The
 // art lives in avatars/RoleAvatar and identity/RoleIconTile.
 import { useMemo } from "react";
-import { avatarOf, type AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import {
+  avatarOf,
+  type AvatarKey,
+} from "@codecast/shared/contracts/orgAvatars";
 import { RoleAvatar } from "./avatars";
 import { RoleIconTile } from "../identity/RoleIconTile";
 import { useInboxStore } from "../../store/inboxStore";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
-import { roleIconSig, roleTile, type IdentityPrefs, type RoleRows, type RoleTile } from "../../lib/sessionIdentity";
+import {
+  roleIconSig,
+  roleTile,
+  type IdentityPrefs,
+  type RoleRows,
+  type RoleTile,
+} from "../../lib/sessionIdentity";
 import { roleRowsOf } from "../../lib/roleRows";
 import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
 
-export type RoleLike = { _id?: string; short_id?: string; avatar?: string | null; handle: string; name?: string; icon?: RoleIcon | null };
+export type RoleLike = {
+  _id?: string;
+  short_id?: string;
+  avatar?: string | null;
+  handle: string;
+  name?: string;
+  icon?: RoleIcon | null;
+};
 
 type RoleRowLike = RoleRows["roles"][number];
 type FaceState = Parameters<typeof roleRowsOf>[0] & {
-  orgTree?: { roles?: readonly { _id: string; handle: string }[]; workspace?: { kind: string; id: string } } | null;
+  orgTree?: {
+    roles?: readonly { _id: string; handle: string }[];
+    workspace?: { kind: string; id: string };
+  } | null;
   clientState?: { ui?: { active_team_id?: string | null } } | null;
 };
 
@@ -31,12 +50,20 @@ type FaceState = Parameters<typeof roleRowsOf>[0] & {
  *  switch would hand over the other workspace's role. */
 function findRole(s: FaceState, role: RoleLike): RoleRowLike | null {
   const roles = roleRowsOf(s).roles;
-  if (role._id || role.short_id) return roles.find((r) => (role._id && r._id === role._id) || (role.short_id && r.short_id === role.short_id)) ?? null;
+  if (role._id || role.short_id)
+    return (
+      roles.find(
+        (r) =>
+          (role._id && r._id === role._id) ||
+          (role.short_id && r.short_id === role.short_id),
+      ) ?? null
+    );
   const ws = s.orgTree?.workspace;
   const active = s.clientState?.ui?.active_team_id ?? null;
-  if (!ws || (ws.kind === "team" ? ws.id !== active : active !== null)) return null;
+  if (!ws || (ws.kind === "team" ? ws.id !== active : active !== null))
+    return null;
   const id = s.orgTree?.roles?.find((r) => r.handle === role.handle)?._id;
-  return id ? roles.find((r) => r._id === id) ?? null : null;
+  return id ? (roles.find((r) => r._id === id) ?? null) : null;
 }
 
 /** The role's face as the viewer sees it: its animal, or with characters
@@ -46,11 +73,17 @@ function findRole(s: FaceState, role: RoleLike): RoleRowLike | null {
  *  a role of its own making (a hire preview, a template, the intro card): its
  *  own avatar and icon win, and the rows only fill what it left out.
  *  Subscribes to a signature of that role's face fields alone. */
-function useRoleFace(role: RoleLike, characters: boolean): { kind: "animal"; avatar: AvatarKey } | { kind: "tile"; tile: RoleTile } {
+function useRoleFace(
+  role: RoleLike,
+  characters: boolean,
+): { kind: "animal"; avatar: AvatarKey } | { kind: "tile"; tile: RoleTile } {
   const sig = useInboxStore((s) => {
     const r = findRole(s as FaceState, role);
-    return r ? `${r._id}|${r.name}|${r.avatar ?? ""}|${roleIconSig(r.icon)}` : "";
+    return r
+      ? `${r._id}|${r.name}|${r.avatar ?? ""}|${roleIconSig(r.icon)}`
+      : "";
   });
+  // oxfmt-ignore
   return useMemo(() => {
     // An empty signature means no row names this role, so there is nothing to
     // read (the homepage poster renders on the server with an empty store).
@@ -69,15 +102,35 @@ function useRoleFace(role: RoleLike, characters: boolean): { kind: "animal"; ava
  * name when it has one, else its handle, so a screen reader hears the role
  * rather than the animal.
  */
-export function RoleFace({ role, size = 24, className, title, prefs: prefsProp, bare }: {
-  role: RoleLike; size?: number | string; className?: string; title?: string; prefs?: IdentityPrefs;
+export function RoleFace({
+  role,
+  size = 24,
+  className,
+  title,
+  prefs: prefsProp,
+  bare,
+}: {
+  role: RoleLike;
+  size?: number | string;
+  className?: string;
+  title?: string;
+  prefs?: IdentityPrefs;
   /** In a nav rail of line icons: with characters off, the glyph alone
    *  (RoleIconTile bare). The animal is unchanged. */
   bare?: boolean;
 }) {
   const prefs = useIdentityPrefs(prefsProp);
   const face = useRoleFace(role, prefs.characters);
-  if (face.kind === "tile") return <RoleIconTile tile={face.tile} size={size} className={className} title={title ?? face.tile.title} bare={bare} />;
+  if (face.kind === "tile")
+    return (
+      <RoleIconTile
+        tile={face.tile}
+        size={size}
+        className={className}
+        title={title ?? face.tile.title}
+        bare={bare}
+      />
+    );
   return (
     <RoleAvatar
       avatar={face.avatar}

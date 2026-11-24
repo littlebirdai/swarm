@@ -5,12 +5,30 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 
 const api = _api as any;
 
-export type RunOutcome = { ok: boolean; status?: number; text?: string; error?: string; ms?: number; denied?: boolean };
-export type ManifestCheck = { ok: boolean; error?: string; readers?: number; actions?: number; watches?: number };
+export type RunOutcome = {
+  ok: boolean;
+  status?: number;
+  text?: string;
+  error?: string;
+  ms?: number;
+  denied?: boolean;
+};
+export type ManifestCheck = {
+  ok: boolean;
+  error?: string;
+  readers?: number;
+  actions?: number;
+  watches?: number;
+};
 
 /** The calls the board makes as the person: a reader or an action, and a fresh read of the manifest. */
 export type AppRunner = {
-  call: (kind: "read" | "do", name: string, argsJson: string, opts: { idempotencyKey?: string }) => Promise<RunOutcome>;
+  call: (
+    kind: "read" | "do",
+    name: string,
+    argsJson: string,
+    opts: { idempotencyKey?: string },
+  ) => Promise<RunOutcome>;
   refresh: () => Promise<ManifestCheck>;
 };
 
@@ -23,7 +41,13 @@ export function useAppRunner(sourceRef: string): AppRunner {
     call: (kind, name, args_json, { idempotencyKey }) =>
       kind === "read"
         ? read({ source: sourceRef, reader: name, args_json })
-        : doAction({ source: sourceRef, action: name, args_json, yes: true, ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}) }),
+        : doAction({
+            source: sourceRef,
+            action: name,
+            args_json,
+            yes: true,
+            ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+          }),
     refresh: () => refresh({ source: sourceRef }),
   };
 }

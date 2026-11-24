@@ -4,8 +4,12 @@ import type { ChildProcess } from "../proc.js";
 import { HeldConnections } from "./heldConnection.js";
 import { AGENT_BRIDGE_TICK_MS } from "./agentBridge.js";
 
-function fakeChild(): ChildProcess & { die: (code: number | null, stderr?: string) => void } {
-  const c = new EventEmitter() as ChildProcess & { die: (code: number | null, stderr?: string) => void };
+function fakeChild(): ChildProcess & {
+  die: (code: number | null, stderr?: string) => void;
+} {
+  const c = new EventEmitter() as ChildProcess & {
+    die: (code: number | null, stderr?: string) => void;
+  };
   (c as { stderr: EventEmitter }).stderr = new EventEmitter();
   c.die = (code, stderr) => {
     if (stderr) c.stderr!.emit("data", Buffer.from(stderr));
@@ -18,16 +22,33 @@ function setup() {
   let now = 1_000_000;
   const logs: string[] = [];
   const stopped: ChildProcess[] = [];
-  const exits: Array<{ key: string; closedOnPurpose: boolean; refused: string | null }> = [];
+  const exits: Array<{
+    key: string;
+    closedOnPurpose: boolean;
+    refused: string | null;
+  }> = [];
   const held = new HeldConnections({
     tag: "[T]",
     log: (m) => logs.push(m),
     refusal: (code, key) => (code === 4 ? `refused ${key}` : null),
     stop: (c) => stopped.push(c),
-    onExit: (key, i) => exits.push({ key, closedOnPurpose: i.closedOnPurpose, refused: i.refused }),
+    onExit: (key, i) =>
+      exits.push({
+        key,
+        closedOnPurpose: i.closedOnPurpose,
+        refused: i.refused,
+      }),
     now: () => now,
   });
-  return { held, logs, stopped, exits, advance: (ms: number) => { now += ms; } };
+  return {
+    held,
+    logs,
+    stopped,
+    exits,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 describe("HeldConnections", () => {
@@ -63,7 +84,9 @@ describe("HeldConnections", () => {
     c.die(4);
     expect(held.refusedReason("k")).toBe("refused k");
     expect(held.canOpen("k")).toBe(false);
-    expect(exits).toEqual([{ key: "k", closedOnPurpose: false, refused: "refused k" }]);
+    expect(exits).toEqual([
+      { key: "k", closedOnPurpose: false, refused: "refused k" },
+    ]);
     held.forget("k");
     expect(held.canOpen("k")).toBe(true);
   });

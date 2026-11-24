@@ -2,20 +2,33 @@
 // spelling, walks every table in order, and changes nothing on a dry run.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { canonicalizeRepositoryNames, REPOSITORY_NAME_TABLES } from "./migrations";
+import {
+  canonicalizeRepositoryNames,
+  REPOSITORY_NAME_TABLES,
+} from "./migrations";
 
 function context() {
   const scheduled: any[] = [];
   return {
     db: makeFakeDb({
-      pull_requests: [{ _id: "p1", repository: "Codecast-SH/Codecast" }, { _id: "p2", repository: "codecast-sh/codecast" }],
-      commits: [{ _id: "c1", repository: "Codecast-SH/Codecast" }, { _id: "c2" }],
+      pull_requests: [
+        { _id: "p1", repository: "Codecast-SH/Codecast" },
+        { _id: "p2", repository: "codecast-sh/codecast" },
+      ],
+      commits: [
+        { _id: "c1", repository: "Codecast-SH/Codecast" },
+        { _id: "c2" },
+      ],
       review_comments: [{ _id: "r1", repository: "Codecast-SH/Codecast" }],
       external_events: [],
       github_check_suites: [{ _id: "s1", repository: "codecast-sh/codecast" }],
       github_app_installations: [{ _id: "i1", account_login: "Codecast-SH" }],
     }),
-    scheduler: { async runAfter(_d: number, _ref: any, args: any) { scheduled.push(args); } },
+    scheduler: {
+      async runAfter(_d: number, _ref: any, args: any) {
+        scheduled.push(args);
+      },
+    },
     _scheduled: scheduled,
   } as any;
 }
@@ -24,7 +37,9 @@ async function drain(ctx: any, args: Record<string, any>) {
   const results = [];
   let next: Record<string, any> | undefined = args;
   while (next) {
-    results.push(await (canonicalizeRepositoryNames as any)._handler(ctx, next));
+    results.push(
+      await (canonicalizeRepositoryNames as any)._handler(ctx, next),
+    );
     next = ctx._scheduled.shift();
   }
   return results;

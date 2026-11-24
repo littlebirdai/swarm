@@ -39,17 +39,24 @@ export async function sessionVisibilityFor(
   conv: Doc<"conversations">,
 ): Promise<VisibilityMode | null> {
   if (await isConversationOwner(ctx, viewerId, conv as any)) return "full";
-  if (!conv.team_id || !(await isTeamMember(ctx, viewerId, conv.team_id))) return null;
+  if (!conv.team_id || !(await isTeamMember(ctx, viewerId, conv.team_id)))
+    return null;
   const membership = await getOwnerMembership(ctx, conv.user_id, conv.team_id);
   const ownerLevel = effectiveMembershipVisibility(membership, conv.started_at);
   if (teamReadLevelSync(conv as any, ownerLevel) === "none") return null;
   return resolveVisibilityMode(conv.team_visibility, ownerLevel, true);
 }
 
-const clean = (s: string | undefined | null): string | undefined => (s ? redactSecrets(s) : undefined);
+const clean = (s: string | undefined | null): string | undefined =>
+  s ? redactSecrets(s) : undefined;
 
-export function sessionCard(conv: Doc<"conversations">, mode: VisibilityMode, authorName: string): SessionCard {
-  const project = (conv.project_path || conv.git_root)?.split("/").pop() || "unknown project";
+export function sessionCard(
+  conv: Doc<"conversations">,
+  mode: VisibilityMode,
+  authorName: string,
+): SessionCard {
+  const project =
+    (conv.project_path || conv.git_root)?.split("/").pop() || "unknown project";
   const card: SessionCard = {
     id: conv.short_id ?? String(conv._id),
     visibility: mode,
@@ -78,5 +85,9 @@ export async function sessionCardFor(
   const mode = await sessionVisibilityFor(ctx, viewerId, conv);
   if (!mode) return null;
   const author = await ctx.db.get(conv.user_id);
-  return sessionCard(conv, mode, author?.name || author?.email?.split("@")[0] || "Unknown");
+  return sessionCard(
+    conv,
+    mode,
+    author?.name || author?.email?.split("@")[0] || "Unknown",
+  );
 }

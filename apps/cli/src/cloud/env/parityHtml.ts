@@ -5,27 +5,50 @@
  * for. The status buttons filter the rows.
  */
 
-import { AREA_TITLES, type ParityItem, type ParityReport, type ParityStatus } from "./parity.js";
+import {
+  AREA_TITLES,
+  type ParityItem,
+  type ParityReport,
+  type ParityStatus,
+} from "./parity.js";
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const esc = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
 
 const STATUS_LABEL: Record<ParityStatus, string> = {
-  planned: "Will carry", carried: "Carried", installed: "Installed", present: "Present", skipped: "Skipped", failed: "Failed",
+  planned: "Will carry",
+  carried: "Carried",
+  installed: "Installed",
+  present: "Present",
+  skipped: "Skipped",
+  failed: "Failed",
 };
 
 function row(i: ParityItem): string {
   const paths = i.paths?.length
     ? `<details><summary>${i.paths.length} path${i.paths.length === 1 ? "" : "s"}</summary><ul>${i.paths.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></details>`
     : "";
-  return `<tr data-status="${i.status}"><td><span class="st st-${i.status}">${STATUS_LABEL[i.status]}</span></td>`
-    + `<td class="name">${esc(i.name)}${i.detail ? `<div class="detail">${esc(i.detail)}</div>` : ""}</td>`
-    + `<td>${i.reason ? `<div class="reason">${esc(i.reason)}</div>` : ""}${i.fix ? `<div class="fix"><code>${esc(i.fix)}</code></div>` : ""}${paths}</td></tr>`;
+  return (
+    `<tr data-status="${i.status}"><td><span class="st st-${i.status}">${STATUS_LABEL[i.status]}</span></td>` +
+    `<td class="name">${esc(i.name)}${i.detail ? `<div class="detail">${esc(i.detail)}</div>` : ""}</td>` +
+    `<td>${i.reason ? `<div class="reason">${esc(i.reason)}</div>` : ""}${i.fix ? `<div class="fix"><code>${esc(i.fix)}</code></div>` : ""}${paths}</td></tr>`
+  );
 }
 
 export function renderParityHtml(r: ParityReport): string {
-  const statuses: ParityStatus[] = r.dry_run ? ["planned", "skipped"] : ["carried", "installed", "present", "skipped", "failed"];
+  const statuses: ParityStatus[] = r.dry_run
+    ? ["planned", "skipped"]
+    : ["carried", "installed", "present", "skipped", "failed"];
   const areas = [...new Set(r.items.map((i) => i.area))];
-  const title = r.dry_run ? `cast cloud dry run: ${r.laptop}` : `cast cloud: ${r.laptop} → ${r.target}`;
+  const title = r.dry_run
+    ? `cast cloud dry run: ${r.laptop}`
+    : `cast cloud: ${r.laptop} → ${r.target}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -57,14 +80,20 @@ section.first{border-color:var(--failed)}section.first h2{color:var(--failed)}
 <h1>${esc(title)}</h1><div class="when">${esc(new Date(r.created_at).toLocaleString())}</div>
 <div class="counts">${statuses.map((s) => `<button data-filter="${s}" aria-pressed="false"><b style="color:var(--${s})">${r.counts[s]}</b><span>${STATUS_LABEL[s]}</span></button>`).join("")}</div>
 ${(() => {
-    const failed = r.items.filter((i) => i.status === "failed");
-    return failed.length ? `<section class="first"><h2>Failed<small>${failed.length}, from every area below</small></h2><table>${failed.map((i) => row({ ...i, name: `${AREA_TITLES[i.area]}: ${i.name}` })).join("")}</table></section>` : "";
-  })()}
-${areas.map((a) => {
+  const failed = r.items.filter((i) => i.status === "failed");
+  return failed.length
+    ? `<section class="first"><h2>Failed<small>${failed.length}, from every area below</small></h2><table>${failed.map((i) => row({ ...i, name: `${AREA_TITLES[i.area]}: ${i.name}` })).join("")}</table></section>`
+    : "";
+})()}
+${areas
+  .map((a) => {
     const items = r.items.filter((i) => i.area === a);
-    const gaps = items.filter((i) => i.status === "skipped" || i.status === "failed").length;
+    const gaps = items.filter(
+      (i) => i.status === "skipped" || i.status === "failed",
+    ).length;
     return `<section><h2>${esc(AREA_TITLES[a])}<small>${items.length - gaps} ok${gaps ? ` · ${gaps} not` : ""}</small></h2><table>${items.map(row).join("")}</table></section>`;
-  }).join("\n")}
+  })
+  .join("\n")}
 <ul class="scope">${r.scope.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
 </main><script>
 let on=null;for(const b of document.querySelectorAll("[data-filter]"))b.onclick=()=>{on=on===b.dataset.filter?null:b.dataset.filter;

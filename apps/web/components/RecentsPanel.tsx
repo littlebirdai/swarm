@@ -82,20 +82,36 @@ export function RecentsPanel({
         <span className="ml-auto flex items-center gap-2.5 text-meta text-sol-text-dim/60">
           {mode === "walk" && (
             <>
-              <span className={HINT}><KeyCap size="xs">Tab</KeyCap><span>next</span></span>
-              <span className={HINT}><KeyCap size="xs">Shift</KeyCap><KeyCap size="xs">Tab</KeyCap><span>back</span></span>
-              <span className={HINT}><KeyCap size="xs">R</KeyCap><span>search</span></span>
+              <span className={HINT}>
+                <KeyCap size="xs">Tab</KeyCap>
+                <span>next</span>
+              </span>
+              <span className={HINT}>
+                <KeyCap size="xs">Shift</KeyCap>
+                <KeyCap size="xs">Tab</KeyCap>
+                <span>back</span>
+              </span>
+              <span className={HINT}>
+                <KeyCap size="xs">R</KeyCap>
+                <span>search</span>
+              </span>
             </>
           )}
           {mode === "menu" && (
             <span className={HINT}>
-              <MenuKeyCaps action="recents.open" className="flex items-center gap-[2px]" />
+              <MenuKeyCaps
+                action="recents.open"
+                className="flex items-center gap-[2px]"
+              />
               <span>search</span>
             </span>
           )}
           {mode !== "walk" && (
             <span className={HINT}>
-              <MenuKeyCaps action="session.mruSwitch" className="flex items-center gap-[2px]" />
+              <MenuKeyCaps
+                action="session.mruSwitch"
+                className="flex items-center gap-[2px]"
+              />
               <span>switch</span>
             </span>
           )}
@@ -112,31 +128,52 @@ export function RecentsPanel({
       </div>
       <CommandPrimitive.List className="flex-1 overflow-y-auto overscroll-contain py-1 scrollbar-auto">
         <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-sol-text-dim">
-          {items.length === 0 ? "Nothing visited yet" : "No recent view matches"}
+          {items.length === 0
+            ? "Nothing visited yet"
+            : "No recent view matches"}
         </CommandPrimitive.Empty>
         {items.map((item, i) => (
           <CommandPrimitive.Item
             key={item.key}
             value={values[i]}
             onSelect={() => onSelect(item)}
-            onContextMenu={onItemContextMenu ? (e) => onItemContextMenu(e, item) : undefined}
+            onContextMenu={
+              onItemContextMenu ? (e) => onItemContextMenu(e, item) : undefined
+            }
             className="mx-1 px-2 py-1.5 rounded-md flex items-center gap-2.5 cursor-default border border-transparent data-[selected=true]:bg-sol-cyan/15 data-[selected=true]:border-sol-cyan/30 transition-colors"
           >
             <RecentVisitRow
               item={item}
-              trailing={i === 0 ? <span className="text-meta text-sol-text-dim/50 flex-shrink-0">current</span> : undefined}
+              trailing={
+                i === 0 ? (
+                  <span className="text-meta text-sol-text-dim/50 flex-shrink-0">
+                    current
+                  </span>
+                ) : undefined
+              }
             />
           </CommandPrimitive.Item>
         ))}
       </CommandPrimitive.List>
       <div className="flex items-center gap-3 px-3 py-1.5 border-t border-sol-border/30 text-meta text-sol-text-dim">
         {mode === "walk" ? (
-          <span className={HINT}><span>release</span><KeyCap size="xs">Ctrl</KeyCap><span>to open</span></span>
+          <span className={HINT}>
+            <span>release</span>
+            <KeyCap size="xs">Ctrl</KeyCap>
+            <span>to open</span>
+          </span>
         ) : (
           <>
-            <span className={HINT}><KeyCap size="xs">&uarr;</KeyCap><KeyCap size="xs">&darr;</KeyCap>navigate</span>
-            <span className={HINT}><KeyCap size="xs">&#9166;</KeyCap>open</span>
-            <span className={HINT}><KeyCap size="xs">Esc</KeyCap>close</span>
+            <span className={HINT}>
+              <KeyCap size="xs">&uarr;</KeyCap>
+              <KeyCap size="xs">&darr;</KeyCap>navigate
+            </span>
+            <span className={HINT}>
+              <KeyCap size="xs">&#9166;</KeyCap>open
+            </span>
+            <span className={HINT}>
+              <KeyCap size="xs">Esc</KeyCap>close
+            </span>
           </>
         )}
       </div>

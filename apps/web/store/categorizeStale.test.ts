@@ -36,7 +36,12 @@ function bucketsOf(sessions: any[]) {
 
 describe("placeSections — stale frozen-working safety net", () => {
   it("keeps a genuinely-active, freshly-updated session in working", () => {
-    const s = mk({ _id: "live", agent_status: "working", is_idle: false, updated_at: NOW - 30_000 });
+    const s = mk({
+      _id: "live",
+      agent_status: "working",
+      is_idle: false,
+      updated_at: NOW - 30_000,
+    });
     const { working, needsInput } = bucketsOf([s]);
     expect(working).toContain("live");
     expect(needsInput).not.toContain("live");
@@ -57,7 +62,10 @@ describe("placeSections — stale frozen-working safety net", () => {
   });
 
   it("also catches an aged row whose liveness was never synced (is_idle undefined)", () => {
-    const s = mk({ _id: "noliveness", updated_at: NOW - (STATUS_TRUST_TTL_MS + 60_000) });
+    const s = mk({
+      _id: "noliveness",
+      updated_at: NOW - (STATUS_TRUST_TTL_MS + 60_000),
+    });
     delete s.is_idle;
     delete s.agent_status;
     const { working, needsInput } = bucketsOf([s]);
@@ -66,7 +74,12 @@ describe("placeSections — stale frozen-working safety net", () => {
   });
 
   it("does not touch a blank (0-message) aged session — it isn't work", () => {
-    const s = mk({ _id: "blank", message_count: 0, agent_status: "working", updated_at: NOW - 2 * STATUS_TRUST_TTL_MS });
+    const s = mk({
+      _id: "blank",
+      message_count: 0,
+      agent_status: "working",
+      updated_at: NOW - 2 * STATUS_TRUST_TTL_MS,
+    });
     const { working, needsInput } = bucketsOf([s]);
     expect(working).not.toContain("blank");
     expect(needsInput).not.toContain("blank");

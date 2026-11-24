@@ -36,11 +36,15 @@ function useOnScreen(ref: React.RefObject<HTMLElement | null>): boolean {
       setOnScreen(true);
       return;
     }
-    const io = new IntersectionObserver(([e]) => {
-      const viewport = e.rootBounds?.height ?? window.innerHeight;
-      const need = Math.min(e.boundingClientRect.height, viewport) * READ_SHARE;
-      setOnScreen(e.isIntersecting && e.intersectionRect.height >= need);
-    }, { threshold: THRESHOLDS });
+    const io = new IntersectionObserver(
+      ([e]) => {
+        const viewport = e.rootBounds?.height ?? window.innerHeight;
+        const need =
+          Math.min(e.boundingClientRect.height, viewport) * READ_SHARE;
+        setOnScreen(e.isIntersecting && e.intersectionRect.height >= need);
+      },
+      { threshold: THRESHOLDS },
+    );
     io.observe(el);
     return () => io.disconnect();
   });
@@ -91,27 +95,50 @@ export const ThreadCard = memo(function ThreadCard({
       onMouseDown={selected ? undefined : () => select(card)}
     >
       <div className="th-row-head">
-        <span className={`th-row-kind th-tone-${spec.tone}`} aria-label={spec.label} title={spec.label}>
+        <span
+          className={`th-row-kind th-tone-${spec.tone}`}
+          aria-label={spec.label}
+          title={spec.label}
+        >
           {Glyph ? <Glyph card={card} /> : <spec.icon className="w-3 h-3" />}
         </span>
         <span className="th-row-title">
           <Label card={card} />
         </span>
         {unread && (
-          <span className={`th-row-badge ${card.forYou ? "" : "th-row-badge-activity"}`} aria-label={`${card.unread} new`}>
-            {card.unread}{card.unreadCapped ? "+" : ""} new
+          <span
+            className={`th-row-badge ${card.forYou ? "" : "th-row-badge-activity"}`}
+            aria-label={`${card.unread} new`}
+          >
+            {card.unread}
+            {card.unreadCapped ? "+" : ""} new
           </span>
         )}
-        <span className="th-row-age" title={new Date(card.activityAt).toLocaleString()}>
+        <span
+          className="th-row-age"
+          title={new Date(card.activityAt).toLocaleString()}
+        >
           {relTimeShort(card.activityAt, now)}
         </span>
         <span className="th-row-tools">
           {isDismissible(card) && (
-            <button type="button" className="ch-tool th-row-tool" aria-label="Done" title="Done: archive (comes back on new activity)" onClick={dismiss}>
+            <button
+              type="button"
+              className="ch-tool th-row-tool"
+              aria-label="Done"
+              title="Done: archive (comes back on new activity)"
+              onClick={dismiss}
+            >
               <Check className="w-3 h-3" />
             </button>
           )}
-          <button type="button" className="ch-tool th-row-tool" aria-label="Open" title="Open" onClick={openIn}>
+          <button
+            type="button"
+            className="ch-tool th-row-tool"
+            aria-label="Open"
+            title="Open"
+            onClick={openIn}
+          >
             <ExternalLink className="w-3 h-3" />
           </button>
         </span>

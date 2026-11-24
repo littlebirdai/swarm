@@ -12,7 +12,7 @@ Before quarantining, check that the failure is a flake. A test that fails alone 
 
 1. Skip only the flaky test (`test.skip`), never its whole file, and put `// quarantined: see QUARANTINE.md` on the line above it.
 2. Add a row below with:
-   - **Test**: the repo-relative file path, then ` > ` and the test name (`apps/web/lib/x.test.ts > keeps the tail`). `scripts/ci/quarantine.guard.test.ts` matches rows to marked files by that path and fails CI on a row past its deadline.
+   - **Test**: the repo-relative file path, then `>` and the test name (`apps/web/lib/x.test.ts > keeps the tail`). `scripts/ci/quarantine.guard.test.ts` matches rows to marked files by that path and fails CI on a row past its deadline.
    - **Date**: the day it was quarantined (YYYY-MM-DD). The deadline is 14 days later.
    - **Owner**: the person or session that will fix or delete it.
    - **Symptom**: what the failure looks like (the assertion or error text, how often, which suite or CI job).
@@ -22,4 +22,4 @@ Before quarantining, check that the failure is a flake. A test that fails alone 
 ## List
 
 | Test | Date | Owner | Symptom | Link |
-|------|------|-------|---------|------|
+| ---- | ---- | ----- | ------- | ---- |

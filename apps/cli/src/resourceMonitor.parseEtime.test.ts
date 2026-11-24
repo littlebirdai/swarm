@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { parseEtimeSeconds, captureProcessSnapshot, stableAgentStartedAt } from "./resourceMonitor.js";
+import {
+  parseEtimeSeconds,
+  captureProcessSnapshot,
+  stableAgentStartedAt,
+} from "./resourceMonitor.js";
 
 // ps `etime` is the only whitespace-free way to get a process's age on macOS
 // (`lstart` has spaces and `etimes` does not exist there), and the snapshot
@@ -8,7 +12,9 @@ describe("parseEtimeSeconds", () => {
   it("reads every column width ps uses as the process ages", () => {
     expect(parseEtimeSeconds("00:07")).toBe(7);
     expect(parseEtimeSeconds("01:04:47")).toBe(3887);
-    expect(parseEtimeSeconds("09-22:25:17")).toBe(9 * 86400 + 22 * 3600 + 25 * 60 + 17);
+    expect(parseEtimeSeconds("09-22:25:17")).toBe(
+      9 * 86400 + 22 * 3600 + 25 * 60 + 17,
+    );
     expect(parseEtimeSeconds("  01:04:47  ")).toBe(3887);
   });
 

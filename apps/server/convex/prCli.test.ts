@@ -7,7 +7,17 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import { ls, show, shepherd, resolve, watchPRs, countChecks, threads, findComment, parseCommentLocation } from "./prCli";
+import {
+  ls,
+  show,
+  shepherd,
+  resolve,
+  watchPRs,
+  countChecks,
+  threads,
+  findComment,
+  parseCommentLocation,
+} from "./prCli";
 
 const TEAM = "team_1";
 const OTHER_TEAM = "team_2";
@@ -23,20 +33,52 @@ async function tables(overrides: Record<string, any[]> = {}) {
       { _id: OUTSIDER, name: "Outsider", github_username: "outsider" },
     ],
     api_tokens: [
-      { _id: "tok_member", user_id: MEMBER, token_hash: await hashToken(TOKEN) },
-      { _id: "tok_outsider", user_id: OUTSIDER, token_hash: await hashToken(OUTSIDER_TOKEN) },
+      {
+        _id: "tok_member",
+        user_id: MEMBER,
+        token_hash: await hashToken(TOKEN),
+      },
+      {
+        _id: "tok_outsider",
+        user_id: OUTSIDER,
+        token_hash: await hashToken(OUTSIDER_TOKEN),
+      },
     ],
     teams: [
       { _id: TEAM, name: "Codecast" },
       { _id: OTHER_TEAM, name: "Somebody else" },
     ],
     team_memberships: [
-      { _id: "tm_1", user_id: MEMBER, team_id: TEAM, role: "member", joined_at: 1 },
-      { _id: "tm_2", user_id: OUTSIDER, team_id: OTHER_TEAM, role: "member", joined_at: 1 },
+      {
+        _id: "tm_1",
+        user_id: MEMBER,
+        team_id: TEAM,
+        role: "member",
+        joined_at: 1,
+      },
+      {
+        _id: "tm_2",
+        user_id: OUTSIDER,
+        team_id: OTHER_TEAM,
+        role: "member",
+        joined_at: 1,
+      },
     ],
     conversations: [
-      { _id: "conv_mine", user_id: MEMBER, short_id: "jx7mine", title: "My session", team_id: TEAM },
-      { _id: "conv_theirs", user_id: OUTSIDER, short_id: "jx7them", title: "Their session", team_id: OTHER_TEAM },
+      {
+        _id: "conv_mine",
+        user_id: MEMBER,
+        short_id: "jx7mine",
+        title: "My session",
+        team_id: TEAM,
+      },
+      {
+        _id: "conv_theirs",
+        user_id: OUTSIDER,
+        short_id: "jx7them",
+        title: "Their session",
+        team_id: OTHER_TEAM,
+      },
     ],
     pull_requests: [
       {
@@ -53,8 +95,18 @@ async function tables(overrides: Record<string, any[]> = {}) {
         base_ref: "main",
         linked_session_ids: [],
         checks: [
-          { name: "build", status: "completed", conclusion: "success", updated_at: 1 },
-          { name: "test", status: "completed", conclusion: "failure", updated_at: 1 },
+          {
+            name: "build",
+            status: "completed",
+            conclusion: "success",
+            updated_at: 1,
+          },
+          {
+            name: "test",
+            status: "completed",
+            conclusion: "failure",
+            updated_at: 1,
+          },
           { name: "lint", status: "in_progress", updated_at: 1 },
         ],
         checks_state: "failure",
@@ -77,12 +129,45 @@ async function tables(overrides: Record<string, any[]> = {}) {
       },
     ],
     external_events: [
-      { _id: "ev_1", team_id: TEAM, source: "github", kind: "pr_check", title: "test failed", pr_id: "pr_1", dedupe_key: "a", created_at: 50 },
-      { _id: "ev_2", team_id: TEAM, source: "github", kind: "pr_synchronize", title: "2 commits pushed", pr_id: "pr_1", dedupe_key: "b", created_at: 60 },
+      {
+        _id: "ev_1",
+        team_id: TEAM,
+        source: "github",
+        kind: "pr_check",
+        title: "test failed",
+        pr_id: "pr_1",
+        dedupe_key: "a",
+        created_at: 50,
+      },
+      {
+        _id: "ev_2",
+        team_id: TEAM,
+        source: "github",
+        kind: "pr_synchronize",
+        title: "2 commits pushed",
+        pr_id: "pr_1",
+        dedupe_key: "b",
+        created_at: 60,
+      },
     ],
     review_comments: [
-      { _id: C1, pull_request_id: "pr_1", content: "This leaks a handle", file_path: "src/auth.ts", line_number: 12, resolved: false, created_at: 10, author_github_username: "reviewer" },
-      { _id: "rc_2", pull_request_id: "pr_1", content: "Fixed", resolved: true, created_at: 11 },
+      {
+        _id: C1,
+        pull_request_id: "pr_1",
+        content: "This leaks a handle",
+        file_path: "src/auth.ts",
+        line_number: 12,
+        resolved: false,
+        created_at: 10,
+        author_github_username: "reviewer",
+      },
+      {
+        _id: "rc_2",
+        pull_request_id: "pr_1",
+        content: "Fixed",
+        resolved: true,
+        created_at: 11,
+      },
     ],
     tasks: [],
     agent_tasks: [],
@@ -94,7 +179,8 @@ async function ctx(overrides: Record<string, any[]> = {}) {
   return { db: makeFakeDb(await tables(overrides)) } as any;
 }
 
-const call = (fn: any, testCtx: any, args: Record<string, any>) => (fn as any)._handler(testCtx, args);
+const call = (fn: any, testCtx: any, args: Record<string, any>) =>
+  (fn as any)._handler(testCtx, args);
 
 describe("resolving a pull request", () => {
   test("a number plus the repository finds it", async () => {
@@ -104,17 +190,27 @@ describe("resolving a pull request", () => {
       number: 42,
     });
     expect(result.pull_request?.id).toBe("pr_1");
-    expect(result.pull_request?.codecast_url).toBe("https://codecast.sh/pr/codecast-sh/codecast/42");
-    expect(result.pull_request?.url).toBe("https://github.com/codecast-sh/codecast/pull/42");
+    expect(result.pull_request?.codecast_url).toBe(
+      "https://codecast.sh/pr/codecast-sh/codecast/42",
+    );
+    expect(result.pull_request?.url).toBe(
+      "https://github.com/codecast-sh/codecast/pull/42",
+    );
   });
 
   test("a bare number searches only the caller's own teams", async () => {
     // Both pull requests are number 42. The member must get theirs, never the
     // other team's row that happens to share the number.
-    const mine = await call(resolve, await ctx(), { api_token: TOKEN, number: 42 });
+    const mine = await call(resolve, await ctx(), {
+      api_token: TOKEN,
+      number: 42,
+    });
     expect(mine.pull_request?.id).toBe("pr_1");
 
-    const theirs = await call(resolve, await ctx(), { api_token: OUTSIDER_TOKEN, number: 42 });
+    const theirs = await call(resolve, await ctx(), {
+      api_token: OUTSIDER_TOKEN,
+      number: 42,
+    });
     expect(theirs.pull_request?.id).toBe("pr_other");
   });
 
@@ -136,8 +232,9 @@ describe("resolving a pull request", () => {
   });
 
   test("an unknown token is refused outright", async () => {
-    await expect(call(resolve, await ctx(), { api_token: "made-up", number: 42 }))
-      .rejects.toThrow("Unauthorized");
+    await expect(
+      call(resolve, await ctx(), { api_token: "made-up", number: 42 }),
+    ).rejects.toThrow("Unauthorized");
   });
 
   test("the branch of the checkout locates the pull request", async () => {
@@ -152,9 +249,15 @@ describe("resolving a pull request", () => {
   test("a session's binding locates the pull request with no reference at all", async () => {
     const testCtx = await ctx({
       pull_requests: (await tables()).pull_requests.map((pr: any) =>
-        pr._id === "pr_1" ? { ...pr, shepherd_conversation_id: "conv_mine" } : pr),
+        pr._id === "pr_1"
+          ? { ...pr, shepherd_conversation_id: "conv_mine" }
+          : pr,
+      ),
     });
-    const result = await call(resolve, testCtx, { api_token: TOKEN, session: "jx7mine" });
+    const result = await call(resolve, testCtx, {
+      api_token: TOKEN,
+      session: "jx7mine",
+    });
     expect(result.pull_request?.id).toBe("pr_1");
   });
 });
@@ -179,47 +282,98 @@ describe("listing", () => {
   });
 
   test("--shepherded drops the pull requests nobody owns", async () => {
-    const result = await call(ls, await ctx(), { api_token: TOKEN, shepherded: true });
+    const result = await call(ls, await ctx(), {
+      api_token: TOKEN,
+      shepherded: true,
+    });
     expect(result.pull_requests).toEqual([]);
   });
 
   test("a page is the newest matching changes, filtered as the rows stream", async () => {
     const pr = (n: number, state: string, updated_at: number) => ({
-      _id: `pr_${n}`, team_id: TEAM, github_pr_id: 1000 + n, repository: "codecast-sh/codecast", number: n,
-      title: `PR ${n}`, body: "", state, linked_session_ids: [], created_at: 1, updated_at,
+      _id: `pr_${n}`,
+      team_id: TEAM,
+      github_pr_id: 1000 + n,
+      repository: "codecast-sh/codecast",
+      number: n,
+      title: `PR ${n}`,
+      body: "",
+      state,
+      linked_session_ids: [],
+      created_at: 1,
+      updated_at,
     });
-    const rows = [pr(1, "merged", 10), pr(2, "open", 20), pr(3, "merged", 30), pr(4, "open", 40), pr(5, "open", 50)];
-    const result = await call(ls, await ctx({ pull_requests: rows }), { api_token: TOKEN, state: "open", limit: 2 });
+    const rows = [
+      pr(1, "merged", 10),
+      pr(2, "open", 20),
+      pr(3, "merged", 30),
+      pr(4, "open", 40),
+      pr(5, "open", 50),
+    ];
+    const result = await call(ls, await ctx({ pull_requests: rows }), {
+      api_token: TOKEN,
+      state: "open",
+      limit: 2,
+    });
     expect(result.pull_requests.map((p: any) => p.number)).toEqual([5, 4]);
   });
 });
 
 describe("show", () => {
   test("carries the unresolved comments and the recent events", async () => {
-    const result = await call(show, await ctx(), { api_token: TOKEN, number: 42 });
+    const result = await call(show, await ctx(), {
+      api_token: TOKEN,
+      number: 42,
+    });
     expect(result.unresolved_comments).toHaveLength(1);
     expect(result.unresolved_comments[0]).toMatchObject({
       file_path: "src/auth.ts",
       line_number: 12,
       author: "reviewer",
     });
-    expect(result.events.map((e: any) => e.kind)).toEqual(["pr_synchronize", "pr_check"]);
+    expect(result.events.map((e: any) => e.kind)).toEqual([
+      "pr_synchronize",
+      "pr_check",
+    ]);
   });
 
   test("a non member gets nothing to read", async () => {
-    const result = await call(show, await ctx(), { api_token: OUTSIDER_TOKEN, number: 42, repository: "codecast-sh/codecast" });
+    const result = await call(show, await ctx(), {
+      api_token: OUTSIDER_TOKEN,
+      number: 42,
+      repository: "codecast-sh/codecast",
+    });
     expect(result.pull_request).toBeNull();
   });
 
   test("lists only the linked tasks the caller may read, even if the row names another tenant's (F9)", async () => {
     const base = await tables({
       tasks: [
-        { _id: "task_ours", short_id: "ct-1", user_id: MEMBER, team_id: TEAM, workspace: `team:${TEAM}`, title: "Ours", status: "open" },
-        { _id: "task_theirs", short_id: "ct-2", user_id: OUTSIDER, team_id: OTHER_TEAM, workspace: `team:${OTHER_TEAM}`, title: "Secret", status: "open" },
+        {
+          _id: "task_ours",
+          short_id: "ct-1",
+          user_id: MEMBER,
+          team_id: TEAM,
+          workspace: `team:${TEAM}`,
+          title: "Ours",
+          status: "open",
+        },
+        {
+          _id: "task_theirs",
+          short_id: "ct-2",
+          user_id: OUTSIDER,
+          team_id: OTHER_TEAM,
+          workspace: `team:${OTHER_TEAM}`,
+          title: "Secret",
+          status: "open",
+        },
       ],
     });
     base.pull_requests[0].task_ids = ["task_ours", "task_theirs"];
-    const result = await call(show, { db: makeFakeDb(base) } as any, { api_token: TOKEN, number: 42 });
+    const result = await call(show, { db: makeFakeDb(base) } as any, {
+      api_token: TOKEN,
+      number: 42,
+    });
     expect(result.tasks.map((t: any) => t.short_id)).toEqual(["ct-1"]);
   });
 
@@ -228,15 +382,49 @@ describe("show", () => {
     const testCtx = await ctx({
       conversations: [
         ...base.conversations,
-        { _id: "conv_mate_shared", user_id: "user_mate", title: "Shared work", team_id: TEAM, is_private: false },
-        { _id: "conv_mate_private", user_id: "user_mate", title: "Private work", team_id: TEAM, is_private: true },
+        {
+          _id: "conv_mate_shared",
+          user_id: "user_mate",
+          title: "Shared work",
+          team_id: TEAM,
+          is_private: false,
+        },
+        {
+          _id: "conv_mate_private",
+          user_id: "user_mate",
+          title: "Private work",
+          team_id: TEAM,
+          is_private: true,
+        },
       ],
-      team_memberships: [...base.team_memberships, { _id: "tm_3", user_id: "user_mate", team_id: TEAM, role: "member", joined_at: 1 }],
+      team_memberships: [
+        ...base.team_memberships,
+        {
+          _id: "tm_3",
+          user_id: "user_mate",
+          team_id: TEAM,
+          role: "member",
+          joined_at: 1,
+        },
+      ],
       pull_requests: base.pull_requests.map((pr: any) =>
-        pr._id === "pr_1" ? { ...pr, linked_session_ids: ["conv_mine", "conv_mate_shared", "conv_mate_private"] } : pr),
+        pr._id === "pr_1"
+          ? {
+              ...pr,
+              linked_session_ids: [
+                "conv_mine",
+                "conv_mate_shared",
+                "conv_mate_private",
+              ],
+            }
+          : pr,
+      ),
     });
     const result = await call(show, testCtx, { api_token: TOKEN, number: 42 });
-    expect(result.sessions.map((s: any) => s.id)).toEqual(["conv_mine", "conv_mate_shared"]);
+    expect(result.sessions.map((s: any) => s.id)).toEqual([
+      "conv_mine",
+      "conv_mate_shared",
+    ]);
   });
 
   // An agent commenting through `cast pr comment` has no GitHub username, so
@@ -276,8 +464,13 @@ describe("the shepherd binding", () => {
       state: "ci_red",
     });
     // The session card learns about the pull request in the same write.
-    const cardPatch = testCtx.db._patched.find((p: any) => p._id === "conv_mine" && p.patch.pr_status);
-    expect(cardPatch.patch.pr_status).toMatchObject({ repository: "codecast-sh/codecast", number: 42 });
+    const cardPatch = testCtx.db._patched.find(
+      (p: any) => p._id === "conv_mine" && p.patch.pr_status,
+    );
+    expect(cardPatch.patch.pr_status).toMatchObject({
+      repository: "codecast-sh/codecast",
+      number: 42,
+    });
 
     const off = await call(shepherd, testCtx, {
       api_token: TOKEN,
@@ -292,25 +485,33 @@ describe("the shepherd binding", () => {
     expect(off.pull_request.shepherd_state).toBe(null);
     // Off stands the trigger down. The card keeps naming the pull request: the
     // session is still the one that opened it, it just stops being woken.
-    const retired = testCtx.db._patched.filter((p: any) => p.patch.status === "completed");
+    const retired = testCtx.db._patched.filter(
+      (p: any) => p.patch.status === "completed",
+    );
     expect(retired).toHaveLength(1);
   });
 
   test("status reads without writing", async () => {
     const testCtx = await ctx();
-    const result = await call(shepherd, testCtx, { api_token: TOKEN, number: 42, action: "status" });
+    const result = await call(shepherd, testCtx, {
+      api_token: TOKEN,
+      number: 42,
+      action: "status",
+    });
     expect(result.changed).toBe(false);
     expect(testCtx.db._patched).toHaveLength(0);
   });
 
   test("a session you do not own cannot be bound", async () => {
     const testCtx = await ctx();
-    await expect(call(shepherd, testCtx, {
-      api_token: TOKEN,
-      number: 42,
-      action: "on",
-      bind_session: "jx7them",
-    })).rejects.toThrow("No session of yours");
+    await expect(
+      call(shepherd, testCtx, {
+        api_token: TOKEN,
+        number: 42,
+        action: "on",
+        bind_session: "jx7them",
+      }),
+    ).rejects.toThrow("No session of yours");
     expect(testCtx.db._patched).toHaveLength(0);
   });
 
@@ -332,7 +533,8 @@ describe("watching", () => {
   test("open pull requests in the caller's teams, closed ones dropped", async () => {
     const testCtx = await ctx({
       pull_requests: (await tables()).pull_requests.map((pr: any) =>
-        pr._id === "pr_1" ? { ...pr, state: "merged" } : pr),
+        pr._id === "pr_1" ? { ...pr, state: "merged" } : pr,
+      ),
     });
     const result = await call(watchPRs, testCtx, { api_token: TOKEN });
     expect(result.pull_requests).toEqual([]);
@@ -341,20 +543,36 @@ describe("watching", () => {
   test("an explicit set is watched whatever its state", async () => {
     const testCtx = await ctx({
       pull_requests: (await tables()).pull_requests.map((pr: any) =>
-        pr._id === "pr_1" ? { ...pr, state: "merged" } : pr),
+        pr._id === "pr_1" ? { ...pr, state: "merged" } : pr,
+      ),
     });
-    const result = await call(watchPRs, testCtx, { api_token: TOKEN, pr_ids: ["pr_1"] });
+    const result = await call(watchPRs, testCtx, {
+      api_token: TOKEN,
+      pr_ids: ["pr_1"],
+    });
     expect(result.pull_requests.map((pr: any) => pr.id)).toEqual(["pr_1"]);
   });
 });
 
 describe("counting checks", () => {
   test("a check that has not concluded is still running", () => {
-    expect(countChecks([
-      { name: "a", status: "completed", conclusion: "success", updated_at: 1 },
-      { name: "b", status: "completed", conclusion: "timed_out", updated_at: 1 },
-      { name: "c", status: "queued", updated_at: 1 },
-    ])).toEqual({ green: 1, red: 1, pending: 1 });
+    expect(
+      countChecks([
+        {
+          name: "a",
+          status: "completed",
+          conclusion: "success",
+          updated_at: 1,
+        },
+        {
+          name: "b",
+          status: "completed",
+          conclusion: "timed_out",
+          updated_at: 1,
+        },
+        { name: "c", status: "queued", updated_at: 1 },
+      ]),
+    ).toEqual({ green: 1, red: 1, pending: 1 });
   });
 
   test("no checks at all is not a failure", () => {
@@ -376,24 +594,59 @@ const C3 = "p17cccccccccccccccccccccccccc003";
 // C1 is an open thread on src/auth.ts:12; C2 is resolved and has no file.
 const threadTables = {
   review_comments: [
-    { _id: C1, pull_request_id: "pr_1", content: "This leaks a handle\nsecond line", file_path: "src/auth.ts", line_number: 12, resolved: false, created_at: 10, author_github_username: "reviewer" },
-    { _id: C2, pull_request_id: "pr_1", content: "Fixed", resolved: true, created_at: 11, conversation_id: "conv_mine" },
-    { _id: C3, pull_request_id: "pr_1", content: "And this one too", file_path: "src/auth.ts", line_number: 40, resolved: false, created_at: 12, author_github_username: "reviewer" },
+    {
+      _id: C1,
+      pull_request_id: "pr_1",
+      content: "This leaks a handle\nsecond line",
+      file_path: "src/auth.ts",
+      line_number: 12,
+      resolved: false,
+      created_at: 10,
+      author_github_username: "reviewer",
+    },
+    {
+      _id: C2,
+      pull_request_id: "pr_1",
+      content: "Fixed",
+      resolved: true,
+      created_at: 11,
+      conversation_id: "conv_mine",
+    },
+    {
+      _id: C3,
+      pull_request_id: "pr_1",
+      content: "And this one too",
+      file_path: "src/auth.ts",
+      line_number: 40,
+      resolved: false,
+      created_at: 12,
+      author_github_username: "reviewer",
+    },
   ],
 };
 
 describe("listing threads", () => {
   test("open threads only, unless every one is asked for", async () => {
-    const open = await call(threads, await ctx(threadTables), { api_token: TOKEN, number: 42 });
+    const open = await call(threads, await ctx(threadTables), {
+      api_token: TOKEN,
+      number: 42,
+    });
     expect(open.threads.map((t: any) => t.id)).toEqual([C1, C3]);
     expect(open.resolved_count).toBe(1);
 
-    const all = await call(threads, await ctx(threadTables), { api_token: TOKEN, number: 42, all: true });
+    const all = await call(threads, await ctx(threadTables), {
+      api_token: TOKEN,
+      number: 42,
+      all: true,
+    });
     expect(all.threads).toHaveLength(3);
   });
 
   test("a row carries what the next command needs", async () => {
-    const result = await call(threads, await ctx(threadTables), { api_token: TOKEN, number: 42 });
+    const result = await call(threads, await ctx(threadTables), {
+      api_token: TOKEN,
+      number: 42,
+    });
     expect(result.threads[0]).toMatchObject({
       id: C1,
       file_path: "src/auth.ts",
@@ -406,13 +659,19 @@ describe("listing threads", () => {
   });
 
   test("an agent's thread names the session that wrote it", async () => {
-    const result = await call(threads, await ctx(threadTables), { api_token: TOKEN, number: 42, all: true });
+    const result = await call(threads, await ctx(threadTables), {
+      api_token: TOKEN,
+      number: 42,
+      all: true,
+    });
     expect(result.threads.find((t: any) => t.id === C2).author).toBe("jx7mine");
   });
 
   test("a non member sees no threads", async () => {
     const result = await call(threads, await ctx(threadTables), {
-      api_token: OUTSIDER_TOKEN, number: 42, repository: "codecast-sh/codecast",
+      api_token: OUTSIDER_TOKEN,
+      number: 42,
+      repository: "codecast-sh/codecast",
     });
     expect(result.pull_request).toBeNull();
     expect(result.threads).toEqual([]);
@@ -421,7 +680,9 @@ describe("listing threads", () => {
 
 describe("naming a thread", () => {
   const find = (selector: string) =>
-    ctx(threadTables).then((c) => call(findComment, c, { api_token: TOKEN, number: 42, selector }));
+    ctx(threadTables).then((c) =>
+      call(findComment, c, { api_token: TOKEN, number: 42, selector }),
+    );
 
   test("the short id the list printed", async () => {
     expect((await find(C1.slice(-8))).comment_id).toBe(C1);
@@ -453,19 +714,44 @@ describe("naming a thread", () => {
   test("an open thread wins over a settled one at the same line", async () => {
     const testCtx = await ctx({
       review_comments: [
-        { _id: C1, pull_request_id: "pr_1", content: "old", file_path: "a.ts", line_number: 3, resolved: true, created_at: 1 },
-        { _id: C2, pull_request_id: "pr_1", content: "new", file_path: "a.ts", line_number: 3, resolved: false, created_at: 2 },
+        {
+          _id: C1,
+          pull_request_id: "pr_1",
+          content: "old",
+          file_path: "a.ts",
+          line_number: 3,
+          resolved: true,
+          created_at: 1,
+        },
+        {
+          _id: C2,
+          pull_request_id: "pr_1",
+          content: "new",
+          file_path: "a.ts",
+          line_number: 3,
+          resolved: false,
+          created_at: 2,
+        },
       ],
     });
-    const result = await call(findComment, testCtx, { api_token: TOKEN, number: 42, selector: "a.ts:3" });
+    const result = await call(findComment, testCtx, {
+      api_token: TOKEN,
+      number: 42,
+      selector: "a.ts:3",
+    });
     expect(result.comment_id).toBe(C2);
   });
 });
 
 describe("reading a thread selector", () => {
   test("a file with a line, and a file without one", () => {
-    expect(parseCommentLocation("src/auth.ts:12")).toEqual({ file: "src/auth.ts", line: 12 });
-    expect(parseCommentLocation("src/auth.ts")).toEqual({ file: "src/auth.ts" });
+    expect(parseCommentLocation("src/auth.ts:12")).toEqual({
+      file: "src/auth.ts",
+      line: 12,
+    });
+    expect(parseCommentLocation("src/auth.ts")).toEqual({
+      file: "src/auth.ts",
+    });
   });
 
   test("a convex id is an id, never a path", () => {
@@ -477,7 +763,9 @@ describe("reading a thread selector", () => {
   });
 
   test("a windows-looking path with no line still names a file", () => {
-    expect(parseCommentLocation("apps/cli/src/index.ts")).toEqual({ file: "apps/cli/src/index.ts" });
+    expect(parseCommentLocation("apps/cli/src/index.ts")).toEqual({
+      file: "apps/cli/src/index.ts",
+    });
   });
 });
 
@@ -500,7 +788,10 @@ describe("repository case", () => {
   });
 
   test("ls narrowed to a repository typed with capitals still lists it", async () => {
-    const result = await call(ls, await ctx(), { api_token: TOKEN, repository: "Codecast-SH/Codecast" });
+    const result = await call(ls, await ctx(), {
+      api_token: TOKEN,
+      repository: "Codecast-SH/Codecast",
+    });
     expect(result.pull_requests.map((pr: any) => pr.id)).toContain("pr_1");
   });
 });

@@ -97,5 +97,10 @@ export type AckGateInput = {
  *  mount: a session open behind another tab is not being read, and marking it
  *  read anyway is the one thing an unread model must never do. */
 export function shouldAcknowledge(input: AckGateInput): boolean {
-  return !!input.conversationId && input.isActiveView && input.present && input.updatedAt > 0;
+  return (
+    !!input.conversationId &&
+    input.isActiveView &&
+    input.present &&
+    input.updatedAt > 0
+  );
 }

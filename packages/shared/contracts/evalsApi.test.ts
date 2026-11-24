@@ -1,5 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { EVALS_ROUTE_KEYS, EVALS_SHA_RE, flipCounts, isNoiseFlip, matchEvalsRoute, runRowProblems, searchRows, unaskedSet, type RunRow, type VerdictFlip } from "./evalsApi";
+import {
+  EVALS_ROUTE_KEYS,
+  EVALS_SHA_RE,
+  flipCounts,
+  isNoiseFlip,
+  matchEvalsRoute,
+  runRowProblems,
+  searchRows,
+  unaskedSet,
+  type RunRow,
+  type VerdictFlip,
+} from "./evalsApi";
 
 const row: RunRow = {
   id: "settle-1a2b3c4d-seed1-2026-10-03T01-13-08-164Z",
@@ -46,14 +57,24 @@ describe("runRowProblems", () => {
   test("names each missing or mistyped field", () => {
     const { treePatch: _, ...missing } = row;
     expect(runRowProblems(missing)).toEqual(["treePatch: missing"]);
-    expect(runRowProblems({ ...row, seed: "1" })).toEqual(['seed: expected number, got "1"']);
-    expect(runRowProblems({ ...row, guard: { served: 1 } })[0]).toStartWith("guard:");
-    expect(runRowProblems({ ...row, checks: { criteria: "x" } })[0]).toStartWith("checks:");
+    expect(runRowProblems({ ...row, seed: "1" })).toEqual([
+      'seed: expected number, got "1"',
+    ]);
+    expect(runRowProblems({ ...row, guard: { served: 1 } })[0]).toStartWith(
+      "guard:",
+    );
+    expect(
+      runRowProblems({ ...row, checks: { criteria: "x" } })[0],
+    ).toStartWith("checks:");
   });
 
   test("refuses an unknown status or visibility", () => {
-    expect(runRowProblems({ ...row, status: "running" })).toEqual(['status: unknown "running"']);
-    expect(runRowProblems({ ...row, visibility: "team" })).toEqual(['visibility: unknown "team"']);
+    expect(runRowProblems({ ...row, status: "running" })).toEqual([
+      'status: unknown "running"',
+    ]);
+    expect(runRowProblems({ ...row, visibility: "team" })).toEqual([
+      'visibility: unknown "team"',
+    ]);
   });
 
   test("a non-object is not a row", () => {
@@ -63,11 +84,39 @@ describe("runRowProblems", () => {
 });
 
 describe("searchRows", () => {
-  const row = (id: string, freezeId: string, stamp: string) => ({ id, surface: "settle", freezeId, freezeName: `f ${freezeId}`, batch: "b", stamp });
-  const rows = [row("settle-54f84f69-seed1-2026-10-01T00-00-00-000Z", "54f84f69aa", "2026-10-01T00:00:00.000Z"), row("settle-54f84f69-seed2-2026-10-02T00-00-00-000Z", "54f84f69aa", "2026-10-02T00:00:00.000Z"), row("settle-ca497977-seed1-2026-10-03T00-00-00-000Z", "ca497977bb", "2026-10-03T00:00:00.000Z")];
+  const row = (id: string, freezeId: string, stamp: string) => ({
+    id,
+    surface: "settle",
+    freezeId,
+    freezeName: `f ${freezeId}`,
+    batch: "b",
+    stamp,
+  });
+  const rows = [
+    row(
+      "settle-54f84f69-seed1-2026-10-01T00-00-00-000Z",
+      "54f84f69aa",
+      "2026-10-01T00:00:00.000Z",
+    ),
+    row(
+      "settle-54f84f69-seed2-2026-10-02T00-00-00-000Z",
+      "54f84f69aa",
+      "2026-10-02T00:00:00.000Z",
+    ),
+    row(
+      "settle-ca497977-seed1-2026-10-03T00-00-00-000Z",
+      "ca497977bb",
+      "2026-10-03T00:00:00.000Z",
+    ),
+  ];
   test("matches a freeze id prefix once and runs by prefix, newest first", () => {
-    expect(searchRows(rows, "54f8").freezes).toEqual([{ id: "54f84f69aa", name: "f 54f84f69aa", surface: "settle" }]);
-    expect(searchRows(rows, "settle-54f").runs.map((r) => r.id)).toEqual([rows[1]!.id, rows[0]!.id]);
+    expect(searchRows(rows, "54f8").freezes).toEqual([
+      { id: "54f84f69aa", name: "f 54f84f69aa", surface: "settle" },
+    ]);
+    expect(searchRows(rows, "settle-54f").runs.map((r) => r.id)).toEqual([
+      rows[1]!.id,
+      rows[0]!.id,
+    ]);
   });
   test("asks for three characters before it matches anything", () => {
     expect(searchRows(rows, "se")).toEqual({ freezes: [], runs: [] });
@@ -89,13 +138,29 @@ describe("matchEvalsRoute", () => {
   });
 
   test("decodes params and tells static paths from param paths", () => {
-    expect(matchEvalsRoute("GET", "/sim/run/2026-10-03T01/memberRemovedMidTurn-interleave-3")).toEqual({
+    expect(
+      matchEvalsRoute(
+        "GET",
+        "/sim/run/2026-10-03T01/memberRemovedMidTurn-interleave-3",
+      ),
+    ).toEqual({
       key: "GET /sim/run/:session/:run",
-      params: { session: "2026-10-03T01", run: "memberRemovedMidTurn-interleave-3" },
+      params: {
+        session: "2026-10-03T01",
+        run: "memberRemovedMidTurn-interleave-3",
+      },
     });
-    expect(matchEvalsRoute("POST", "/bisect/plan")?.key).toBe("POST /bisect/plan");
-    expect(matchEvalsRoute("POST", "/bisect/b-12/stop")).toEqual({ key: "POST /bisect/:id/stop", params: { id: "b-12" } });
-    expect(matchEvalsRoute("GET", "/run/a%2Fb/file")).toEqual({ key: "GET /run/:id/file", params: { id: "a/b" } });
+    expect(matchEvalsRoute("POST", "/bisect/plan")?.key).toBe(
+      "POST /bisect/plan",
+    );
+    expect(matchEvalsRoute("POST", "/bisect/b-12/stop")).toEqual({
+      key: "POST /bisect/:id/stop",
+      params: { id: "b-12" },
+    });
+    expect(matchEvalsRoute("GET", "/run/a%2Fb/file")).toEqual({
+      key: "GET /run/:id/file",
+      params: { id: "a/b" },
+    });
     expect(matchEvalsRoute("get", "/health")?.key).toBe("GET /health");
   });
 
@@ -115,37 +180,78 @@ test("EVALS_SHA_RE takes 7 to 40 lowercase hex", () => {
 });
 
 describe("flip noise", () => {
-  const flip = (direction: VerdictFlip["direction"], extra: Partial<VerdictFlip> = {}): VerdictFlip => ({ freezeId: "f", name: "a moment", visibility: "public", direction, before: ["a"], after: ["b"], ...extra });
+  const flip = (
+    direction: VerdictFlip["direction"],
+    extra: Partial<VerdictFlip> = {},
+  ): VerdictFlip => ({
+    freezeId: "f",
+    name: "a moment",
+    visibility: "public",
+    direction,
+    before: ["a"],
+    after: ["b"],
+    ...extra,
+  });
 
   test("a flip on a freeze that flaps 9 times in 22 batches, under the same prompt, is noise and never counts as broke", () => {
     // The title row of 2026-10-04: jx7btyt:100 flipped in 9 of 22 batches and rendered one promptSha on every night.
-    const flapping = flip("broke", { history: { flips: 9, batches: 22 }, samePrompt: true });
-    const real = flip("broke", { history: { flips: 1, batches: 22 }, samePrompt: false });
+    const flapping = flip("broke", {
+      history: { flips: 9, batches: 22 },
+      samePrompt: true,
+    });
+    const real = flip("broke", {
+      history: { flips: 1, batches: 22 },
+      samePrompt: false,
+    });
     expect(isNoiseFlip(flapping)).toBe(true);
     expect(isNoiseFlip(real)).toBe(false);
-    const c = flipCounts([flapping, real, flip("fixed", { history: { flips: 2, batches: 22 } })]);
+    const c = flipCounts([
+      flapping,
+      real,
+      flip("fixed", { history: { flips: 2, batches: 22 } }),
+    ]);
     expect(c.broke).toBe(1);
     expect(c.fixed).toBe(1);
     expect(c.noise).toEqual([flapping]);
   });
 
   test("an unchanged prompt alone makes a flip noise, and a flip with no history is taken at its word", () => {
-    expect(isNoiseFlip(flip("broke", { history: { flips: 1, batches: 22 }, samePrompt: true }))).toBe(true);
-    expect(flipCounts([flip("broke")])).toEqual({ broke: 1, fixed: 0, noise: [] });
+    expect(
+      isNoiseFlip(
+        flip("broke", { history: { flips: 1, batches: 22 }, samePrompt: true }),
+      ),
+    ).toBe(true);
+    expect(flipCounts([flip("broke")])).toEqual({
+      broke: 1,
+      fixed: 0,
+      noise: [],
+    });
   });
 });
 
 describe("unaskedSet", () => {
   test("every rep failed and nothing was spent on the model or the judge: the harness answered, not the prompt", () => {
     // The ~line-branch batches of 2026-10-02: a reply of "..." in 3 ms, $0, every rep failing its clean gate.
-    expect(unaskedSet([{ status: "fail", costUsd: 0, judgeCostUsd: 0 }, { status: "fail", costUsd: 0 }, { status: "crash", costUsd: 0 }])).toBe(true);
+    expect(
+      unaskedSet([
+        { status: "fail", costUsd: 0, judgeCostUsd: 0 },
+        { status: "fail", costUsd: 0 },
+        { status: "crash", costUsd: 0 },
+      ]),
+    ).toBe(true);
   });
 
   test("a prompt that breaks parsing still pays for its calls, a passing rep is an answer, and an all-crash set is a crash", () => {
-    expect(unaskedSet([{ status: "fail", costUsd: 0.002, judgeCostUsd: 0 }])).toBe(false);
-    expect(unaskedSet([{ status: "fail", costUsd: 0 }, { status: "pass", costUsd: 0 }])).toBe(false);
+    expect(
+      unaskedSet([{ status: "fail", costUsd: 0.002, judgeCostUsd: 0 }]),
+    ).toBe(false);
+    expect(
+      unaskedSet([
+        { status: "fail", costUsd: 0 },
+        { status: "pass", costUsd: 0 },
+      ]),
+    ).toBe(false);
     expect(unaskedSet([{ status: "crash", costUsd: 0 }])).toBe(false);
     expect(unaskedSet([])).toBe(false);
   });
 });
-

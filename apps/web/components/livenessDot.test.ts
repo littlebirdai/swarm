@@ -15,26 +15,62 @@ const working = {
 
 describe("sessionLivenessState — killed rows never read active", () => {
   it("a session killed mid-turn stops pulsing immediately", () => {
-    expect(sessionLivenessState({ ...working, inbox_killed_at: Date.now() })).toBe("idle");
+    expect(
+      sessionLivenessState({ ...working, inbox_killed_at: Date.now() }),
+    ).toBe("idle");
     // Control: the same row alive is active — the marker is doing the work,
     // not the clock.
     expect(sessionLivenessState(working)).toBe("active");
   });
 
   it("holds for every ACTIVE status, not just 'working'", () => {
-    for (const agent_status of ["working", "thinking", "compacting", "connected", "starting", "resuming"]) {
-      expect(sessionLivenessState({ ...working, agent_status, inbox_killed_at: 1 })).toBe("idle");
+    for (const agent_status of [
+      "working",
+      "thinking",
+      "compacting",
+      "connected",
+      "starting",
+      "resuming",
+    ]) {
+      expect(
+        sessionLivenessState({ ...working, agent_status, inbox_killed_at: 1 }),
+      ).toBe("idle");
       expect(sessionLivenessState({ ...working, agent_status })).toBe("active");
     }
   });
 
   it("leaves the error / unresponsive / pinned branches ahead of it alone", () => {
-    expect(sessionLivenessState({ ...working, inbox_killed_at: 1, session_error: "boom" })).toBe("error");
-    expect(sessionLivenessState({ ...working, inbox_killed_at: 1, is_unresponsive: true })).toBe("unresponsive");
-    expect(sessionLivenessState({ ...working, is_idle: true, is_pinned: true, inbox_killed_at: 1 })).toBe("pinned");
+    expect(
+      sessionLivenessState({
+        ...working,
+        inbox_killed_at: 1,
+        session_error: "boom",
+      }),
+    ).toBe("error");
+    expect(
+      sessionLivenessState({
+        ...working,
+        inbox_killed_at: 1,
+        is_unresponsive: true,
+      }),
+    ).toBe("unresponsive");
+    expect(
+      sessionLivenessState({
+        ...working,
+        is_idle: true,
+        is_pinned: true,
+        inbox_killed_at: 1,
+      }),
+    ).toBe("pinned");
   });
 
   it("a killed row with no messages is still 'new', not 'idle'", () => {
-    expect(sessionLivenessState({ ...working, message_count: 0, inbox_killed_at: 1 })).toBe("new");
+    expect(
+      sessionLivenessState({
+        ...working,
+        message_count: 0,
+        inbox_killed_at: 1,
+      }),
+    ).toBe("new");
   });
 });

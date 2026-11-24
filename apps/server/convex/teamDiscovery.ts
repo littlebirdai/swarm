@@ -35,14 +35,21 @@ async function me(ctx: any): Promise<Doc<"users">> {
   return user;
 }
 
-async function requireAdmin(ctx: any, userId: Id<"users">, teamId: Id<"teams">) {
-  if (!(await isTeamAdmin(ctx, userId, teamId))) throw new Error("Only team admins can do this");
+async function requireAdmin(
+  ctx: any,
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+) {
+  if (!(await isTeamAdmin(ctx, userId, teamId)))
+    throw new Error("Only team admins can do this");
 }
 
 async function isMember(ctx: any, userId: Id<"users">, teamId: Id<"teams">) {
   return !!(await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .first());
 }
 
@@ -54,7 +61,10 @@ export const myWorkDomain = query({
     const userId = await getAuthUserId(ctx);
     const user = userId ? await ctx.db.get(userId) : null;
     const domain = workDomain(user?.email);
-    return { domain, proven: !!(user && domain && (await emailProven(ctx, user))) };
+    return {
+      domain,
+      proven: !!(user && domain && (await emailProven(ctx, user))),
+    };
   },
 });
 
@@ -70,17 +80,33 @@ export const discoveryNudge = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId || !(await isTeamAdmin(ctx, userId, args.team_id))) return null;
-    const [user, team] = await Promise.all([ctx.db.get(userId), ctx.db.get(args.team_id)]);
-    if (!user || !team || team.deleted_at || team.discoverable_domain) return null;
+    const [user, team] = await Promise.all([
+      ctx.db.get(userId),
+      ctx.db.get(args.team_id),
+    ]);
+    if (!user || !team || team.deleted_at || team.discoverable_domain)
+      return null;
     const domain = workDomain(user.email);
     if (!domain || !(await emailProven(ctx, user))) return null;
     const members = new Set(
-      (await ctx.db.query("team_memberships").withIndex("by_team_id", (q) => q.eq("team_id", args.team_id)).collect()).map((m) => String(m.user_id)),
+      (
+        await ctx.db
+          .query("team_memberships")
+          .withIndex("by_team_id", (q) => q.eq("team_id", args.team_id))
+          .collect()
+      ).map((m) => String(m.user_id)),
     );
     const suffix = `@${domain}`;
     let outside = 0;
     for await (const u of ctx.db.query("users")) {
-      if (!u.is_bot && !members.has(String(u._id)) && String(u.email ?? "").toLowerCase().endsWith(suffix)) outside++;
+      if (
+        !u.is_bot &&
+        !members.has(String(u._id)) &&
+        String(u.email ?? "")
+          .toLowerCase()
+          .endsWith(suffix)
+      )
+        outside++;
     }
     return { domain, coworkers_outside: outside };
   },
@@ -92,7 +118,10 @@ export const discoverySettings = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId || !(await isTeamAdmin(ctx, userId, args.team_id))) return null;
-    const [user, team] = await Promise.all([ctx.db.get(userId), ctx.db.get(args.team_id)]);
+    const [user, team] = await Promise.all([
+      ctx.db.get(userId),
+      ctx.db.get(args.team_id),
+    ]);
     if (!user || !team) return null;
     const domain = workDomain(user.email);
     return {
@@ -114,8 +143,12 @@ export const setDiscoverable = mutation({
       return { domain: null };
     }
     const domain = workDomain(user.email);
-    if (!domain) throw new Error("Your account email is not a work address, so there is no company domain to open");
-    if (!(await emailProven(ctx, user))) throw new Error(`Confirm you hold ${user.email} first`);
+    if (!domain)
+      throw new Error(
+        "Your account email is not a work address, so there is no company domain to open",
+      );
+    if (!(await emailProven(ctx, user)))
+      throw new Error(`Confirm you hold ${user.email} first`);
     await ctx.db.patch(args.team_id, { discoverable_domain: domain });
     return { domain };
   },
@@ -136,15 +169,29 @@ export const teamsForMyDomain = query({
     if (!user || !domain) return null;
     const teams = await ctx.db
       .query("teams")
-      .withIndex("by_discoverable_domain", (q) => q.eq("discoverable_domain", domain))
+      .withIndex("by_discoverable_domain", (q) =>
+        q.eq("discoverable_domain", domain),
+      )
       .collect();
-    const open: Array<{ _id: Id<"teams">; name: string; icon?: string; icon_color?: string; member_count: number; request: "none" | "pending" | "declined" }> = [];
+    const open: Array<{
+      _id: Id<"teams">;
+      name: string;
+      icon?: string;
+      icon_color?: string;
+      member_count: number;
+      request: "none" | "pending" | "declined";
+    }> = [];
     for (const team of teams) {
       if (team.deleted_at || (await isMember(ctx, userId, team._id))) continue;
-      const members = await ctx.db.query("team_memberships").withIndex("by_team_id", (q) => q.eq("team_id", team._id)).collect();
+      const members = await ctx.db
+        .query("team_memberships")
+        .withIndex("by_team_id", (q) => q.eq("team_id", team._id))
+        .collect();
       const request = await ctx.db
         .query("team_join_requests")
-        .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", team._id))
+        .withIndex("by_user_team", (q) =>
+          q.eq("user_id", userId).eq("team_id", team._id),
+        )
         .first();
       open.push({
         _id: team._id,
@@ -152,14 +199,21 @@ export const teamsForMyDomain = query({
         icon: team.icon,
         icon_color: team.icon_color,
         member_count: members.length,
-        request: request?.status === "pending" ? "pending" : request?.status === "declined" ? "declined" : "none",
+        request:
+          request?.status === "pending"
+            ? "pending"
+            : request?.status === "declined"
+              ? "declined"
+              : "none",
       });
     }
     if (open.length === 0) return null;
     const proven = await emailProven(ctx, user);
     // An unproven address learns nothing beyond "a team may be waiting":
     // the names show only once the address is proven.
-    return proven ? { domain, needs_proof: false, teams: open } : { domain, needs_proof: true, teams: [] };
+    return proven
+      ? { domain, needs_proof: false, teams: open }
+      : { domain, needs_proof: true, teams: [] };
   },
 });
 
@@ -168,7 +222,8 @@ export const sendWorkEmailCode = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await me(ctx);
-    if (!workDomain(user.email)) throw new Error("Only work addresses can be confirmed here");
+    if (!workDomain(user.email))
+      throw new Error("Only work addresses can be confirmed here");
     return await sendEmailCode(ctx, user);
   },
 });
@@ -176,13 +231,29 @@ export const sendWorkEmailCode = mutation({
 /** Mails a code lib/emailProof issued: to prove the account's own address,
  *  or, with `moving`, to move the account to this one (accountEmail.ts). */
 export const deliverWorkEmailCode = internalAction({
-  args: { email: v.string(), code: v.string(), moving: v.optional(v.boolean()) },
+  args: {
+    email: v.string(),
+    code: v.string(),
+    moving: v.optional(v.boolean()),
+  },
   handler: async (_ctx, args) => {
     if (args.moving) {
-      await deliver(args.email, confirmNewEmail({ code: args.code, email: args.email, expiryMinutes: CODE_TTL_MS / 60_000 }), "change-email");
+      await deliver(
+        args.email,
+        confirmNewEmail({
+          code: args.code,
+          email: args.email,
+          expiryMinutes: CODE_TTL_MS / 60_000,
+        }),
+        "change-email",
+      );
       return;
     }
-    await deliver(args.email, verifyEmail({ code: args.code, email: args.email }), "verify-email");
+    await deliver(
+      args.email,
+      verifyEmail({ code: args.code, email: args.email }),
+      "verify-email",
+    );
   },
 });
 
@@ -191,9 +262,14 @@ export const deliverWorkEmailCode = internalAction({
  *  kept (lib/emailProof). */
 export const confirmWorkEmailCode = mutation({
   args: { code: v.string() },
-  handler: async (ctx, args): Promise<{ proven: true } | { proven: false; error: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ proven: true } | { proven: false; error: string }> => {
     const check = await confirmEmailCode(ctx, await me(ctx), args.code);
-    return check.ok ? { proven: true } : { proven: false, error: check.message };
+    return check.ok
+      ? { proven: true }
+      : { proven: false, error: check.message };
   },
 });
 
@@ -204,22 +280,55 @@ export const requestToJoin = mutation({
     const user = await me(ctx);
     const team = await ctx.db.get(args.team_id);
     const domain = workDomain(user.email);
-    if (!team || team.deleted_at || !domain || team.discoverable_domain !== domain) throw new Error("This team is not open to your email domain");
-    if (!(await emailProven(ctx, user))) throw new Error(`Confirm you hold ${user.email} first`);
-    if (await isMember(ctx, user._id, team._id)) return { status: "member" as const };
+    if (
+      !team ||
+      team.deleted_at ||
+      !domain ||
+      team.discoverable_domain !== domain
+    )
+      throw new Error("This team is not open to your email domain");
+    if (!(await emailProven(ctx, user)))
+      throw new Error(`Confirm you hold ${user.email} first`);
+    if (await isMember(ctx, user._id, team._id))
+      return { status: "member" as const };
     const existing = await ctx.db
       .query("team_join_requests")
-      .withIndex("by_user_team", (q) => q.eq("user_id", user._id).eq("team_id", team._id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", user._id).eq("team_id", team._id),
+      )
       .first();
     if (existing?.status === "pending") return { status: "pending" as const };
     // A declined request may be asked again, once a day at most.
-    if (existing?.status === "declined" && Date.now() - (existing.decided_at ?? 0) < 24 * 60 * 60 * 1000) {
+    if (
+      existing?.status === "declined" &&
+      Date.now() - (existing.decided_at ?? 0) < 24 * 60 * 60 * 1000
+    ) {
       return { status: "declined" as const };
     }
-    if (existing) await ctx.db.patch(existing._id, { status: "pending", created_at: Date.now(), decided_at: undefined, decided_by: undefined });
-    else await ctx.db.insert("team_join_requests", { team_id: team._id, user_id: user._id, status: "pending", created_at: Date.now() });
-    const admins = (await ctx.db.query("team_memberships").withIndex("by_team_id", (q) => q.eq("team_id", team._id)).collect()).filter((m) => m.role === "admin");
-    const who = user.name && user.email ? `${user.name} (${user.email})` : user.name || user.email || "Someone";
+    if (existing)
+      await ctx.db.patch(existing._id, {
+        status: "pending",
+        created_at: Date.now(),
+        decided_at: undefined,
+        decided_by: undefined,
+      });
+    else
+      await ctx.db.insert("team_join_requests", {
+        team_id: team._id,
+        user_id: user._id,
+        status: "pending",
+        created_at: Date.now(),
+      });
+    const admins = (
+      await ctx.db
+        .query("team_memberships")
+        .withIndex("by_team_id", (q) => q.eq("team_id", team._id))
+        .collect()
+    ).filter((m) => m.role === "admin");
+    const who =
+      user.name && user.email
+        ? `${user.name} (${user.email})`
+        : user.name || user.email || "Someone";
     for (const admin of admins) {
       await ctx.scheduler.runAfter(0, internal.notificationRouter.emit, {
         event_type: "team_join_request" as const,
@@ -242,12 +351,22 @@ export const pendingRequests = query({
     if (!userId || !(await isTeamAdmin(ctx, userId, args.team_id))) return [];
     const rows = await ctx.db
       .query("team_join_requests")
-      .withIndex("by_team_status", (q) => q.eq("team_id", args.team_id).eq("status", "pending"))
+      .withIndex("by_team_status", (q) =>
+        q.eq("team_id", args.team_id).eq("status", "pending"),
+      )
       .collect();
     const out = [];
     for (const r of rows) {
       const u = await ctx.db.get(r.user_id);
-      if (u) out.push({ _id: r._id, user_id: u._id, name: u.name ?? null, email: u.email ?? null, image: u.github_avatar_url ?? u.image ?? null, created_at: r.created_at });
+      if (u)
+        out.push({
+          _id: r._id,
+          user_id: u._id,
+          name: u.name ?? null,
+          email: u.email ?? null,
+          image: u.github_avatar_url ?? u.image ?? null,
+          created_at: r.created_at,
+        });
     }
     return out;
   },
@@ -264,9 +383,19 @@ export const decideRequest = mutation({
     if (req.status !== "pending") return { status: req.status };
     const team = await ctx.db.get(req.team_id);
     if (!team || team.deleted_at) throw new Error("That team is gone");
-    await ctx.db.patch(req._id, { status: args.approve ? "approved" : "declined", decided_at: Date.now(), decided_by: user._id });
+    await ctx.db.patch(req._id, {
+      status: args.approve ? "approved" : "declined",
+      decided_at: Date.now(),
+      decided_by: user._id,
+    });
     if (args.approve) {
-      await addTeamMember(ctx, req.user_id, team, `Approved by ${user.name || user.email || "an admin"} (found by work email)`, user._id);
+      await addTeamMember(
+        ctx,
+        req.user_id,
+        team,
+        `Approved by ${user.name || user.email || "an admin"} (found by work email)`,
+        user._id,
+      );
       await ctx.scheduler.runAfter(0, internal.notificationRouter.emit, {
         event_type: "team_join_approved" as const,
         actor_user_id: user._id,

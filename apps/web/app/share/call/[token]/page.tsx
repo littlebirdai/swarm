@@ -13,19 +13,52 @@ import { Mic } from "lucide-react";
 // app store, and this page boots without it (standaloneBootGraph guard).
 import { useSearchParams } from "react-router";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { callAnchorKey, lineSeekMs, parseCallAnchor, parseCallMomentParam, type CallAnchor } from "@codecast/shared/contracts";
+import {
+  callAnchorKey,
+  lineSeekMs,
+  parseCallAnchor,
+  parseCallMomentParam,
+  type CallAnchor,
+} from "@codecast/shared/contracts";
 import { TranscriptTurnList } from "../../../../components/calls/TranscriptTurns";
-import { groupTurns, oneSegmentTurns } from "../../../../components/calls/transcriptTurnModel";
+import {
+  groupTurns,
+  oneSegmentTurns,
+} from "../../../../components/calls/transcriptTurnModel";
 import { fmtCallLength } from "../../../../components/calls/speakers";
-import { Bullets, Callout, Pill, Prose, Section, ShareHead, SharedObjectPage } from "../../SharedObjectPage";
+import {
+  Bullets,
+  Callout,
+  Pill,
+  Prose,
+  Section,
+  ShareHead,
+  SharedObjectPage,
+} from "../../SharedObjectPage";
 import { useWatchEffect } from "../../../../hooks/useWatchEffect";
-import { CallVideoPlayer, type CallVideoHandle } from "../../../../components/calls/CallVideoPlayer";
-import { filmedSpans, lineSeqAt, turnIndexAt, videoStretches, type CallVideoFile } from "../../../../lib/calls/callVideo";
+import {
+  CallVideoPlayer,
+  type CallVideoHandle,
+} from "../../../../components/calls/CallVideoPlayer";
+import {
+  filmedSpans,
+  lineSeqAt,
+  turnIndexAt,
+  videoStretches,
+  type CallVideoFile,
+} from "../../../../lib/calls/callVideo";
 import { useMediaMoment } from "../../../../hooks/useMediaMoment";
-import { callLineEl, seekCallMedia, useCallMomentLanding, type CallMediaTarget } from "../../../../hooks/useCallMomentLanding";
+import {
+  callLineEl,
+  seekCallMedia,
+  useCallMomentLanding,
+  type CallMediaTarget,
+} from "../../../../hooks/useCallMomentLanding";
 import { scrollIntoContainer } from "../../../../lib/scrollWithin";
 
-type SharedCall = NonNullable<FunctionReturnType<typeof api.publicShare.getSharedCall>>;
+type SharedCall = NonNullable<
+  FunctionReturnType<typeof api.publicShare.getSharedCall>
+>;
 
 const MARK = "ring-2 ring-sol-violet/50 rounded-[14px]";
 
@@ -40,9 +73,13 @@ export default function SharedCallPage() {
     const timer = setInterval(() => {
       // Turns mark their list with the first anchored turn; the recap parts
       // carry the key themselves.
-      const host = document.querySelector<HTMLElement>(`[data-call-anchor="${anchorKey}"]`);
+      const host = document.querySelector<HTMLElement>(
+        `[data-call-anchor="${anchorKey}"]`,
+      );
       const first = host?.dataset.firstTurn;
-      const el = first ? document.querySelector(`[data-turn="${first}"]`) : host;
+      const el = first
+        ? document.querySelector(`[data-turn="${first}"]`)
+        : host;
       if (!el) return;
       clearInterval(timer);
       scrollIntoContainer(el as HTMLElement, { block: "center" });
@@ -50,8 +87,19 @@ export default function SharedCallPage() {
     return () => clearInterval(timer);
   }, [anchorKey]);
   return (
-    <SharedObjectPage<SharedCall> kind="call" query={api.publicShare.getSharedCall} noun="call">
-      {(call) => <SharedCallBody call={call} anchor={anchor} anchorKey={anchorKey} momentMs={momentMs} />}
+    <SharedObjectPage<SharedCall>
+      kind="call"
+      query={api.publicShare.getSharedCall}
+      noun="call"
+    >
+      {(call) => (
+        <SharedCallBody
+          call={call}
+          anchor={anchor}
+          anchorKey={anchorKey}
+          momentMs={momentMs}
+        />
+      )}
     </SharedObjectPage>
   );
 }
@@ -68,9 +116,18 @@ function SharedCallBody({
   momentMs: number | null;
 }) {
   // A recording has one microphone: line by line, no speaker names.
-  const turns = useMemo(() => (call.recording ? oneSegmentTurns(call.segments) : groupTurns(call.segments)), [call.recording, call.segments]);
+  const turns = useMemo(
+    () =>
+      call.recording
+        ? oneSegmentTurns(call.segments)
+        : groupTurns(call.segments),
+    [call.recording, call.segments],
+  );
   const inAnchor = (i: number) =>
-    anchor?.kind === "turns" && turns[i]?.segments.some((sg) => sg.seq >= anchor.from_seq && sg.seq <= anchor.to_seq);
+    anchor?.kind === "turns" &&
+    turns[i]?.segments.some(
+      (sg) => sg.seq >= anchor.from_seq && sg.seq <= anchor.to_seq,
+    );
   const firstAnchored = turns.findIndex((_, i) => inAnchor(i));
 
   // The media the words follow: the room's video when the link includes it,
@@ -97,13 +154,26 @@ function SharedCallBody({
   // A line clicked where no video shows says so where the video is (the
   // player's own line, as on the call page), until the next seek.
   const [missed, setMissed] = useState<number | null>(null);
-  const target: CallMediaTarget = { hasVideo: files.length > 0, player: playerRef, audio: audioRef, media, setMissed };
+  const target: CallMediaTarget = {
+    hasVideo: files.length > 0,
+    player: playerRef,
+    audio: audioRef,
+    media,
+    setMissed,
+  };
   const seekTo = (ms: number) => seekCallMedia(target, ms);
-  const activeIndex = hasMedia && mediaAt ? turnIndexAt(turns, mediaAt.ms, !mediaAt.playing) : null;
+  const activeIndex =
+    hasMedia && mediaAt
+      ? turnIndexAt(turns, mediaAt.ms, !mediaAt.playing)
+      : null;
   // The line being said inside that turn, and the stretches the shared video
   // covers: the same rails the call page draws.
-  const activeSeq = activeIndex === null ? null : lineSeqAt(turns[activeIndex], mediaAt!.ms);
-  const stretches = useMemo(() => videoStretches(filmedSpans(files, call.started_at)), [files, call.started_at]);
+  const activeSeq =
+    activeIndex === null ? null : lineSeqAt(turns[activeIndex], mediaAt!.ms);
+  const stretches = useMemo(
+    () => videoStretches(filmedSpans(files, call.started_at)),
+    [files, call.started_at],
+  );
 
   // A link to a moment waits there, its line lit and in view, found inside
   // this page's own transcript.
@@ -130,17 +200,25 @@ function SharedCallBody({
             <Pill quiet>{fmtCallLength(call.started_at, call.ended_at)}</Pill>
           </>
         }
-        title={call.title || (call.recording ? "Untitled voice note" : "Untitled huddle")}
+        title={
+          call.title ||
+          (call.recording ? "Untitled voice note" : "Untitled huddle")
+        }
         at={call.started_at}
         meta={
           // The voices on the record, a guest among them already marked
           // "(guest)" in the name. A guest who only listened is not named on
           // a page anybody with the link can open.
-          !call.recording && call.participants.length > 0 ? <span>with {call.participants.map((p) => p.name).join(", ")}</span> : null
+          !call.recording && call.participants.length > 0 ? (
+            <span>with {call.participants.map((p) => p.name).join(", ")}</span>
+          ) : null
         }
       />
       {call.summary && (
-        <div data-call-anchor="summary" className={anchor?.kind === "summary" ? MARK : ""}>
+        <div
+          data-call-anchor="summary"
+          className={anchor?.kind === "summary" ? MARK : ""}
+        >
           <Callout label="Summary">
             <Prose content={call.summary} compact />
           </Callout>
@@ -151,7 +229,15 @@ function SharedCallBody({
           <Bullets
             tone="cyan"
             items={call.action_items.map((a, i) => (
-              <span key={i} data-call-anchor={`action-${i}`} className={anchor?.kind === "action" && anchor.index === i ? `${MARK} px-1` : ""}>
+              <span
+                key={i}
+                data-call-anchor={`action-${i}`}
+                className={
+                  anchor?.kind === "action" && anchor.index === i
+                    ? `${MARK} px-1`
+                    : ""
+                }
+              >
                 {a}
               </span>
             ))}
@@ -178,8 +264,15 @@ function SharedCallBody({
           preload="metadata"
           src={call.recording_url}
           style={{ width: "100%", marginBottom: 36 }}
-          onTimeUpdate={(e) => media.onTime(e.currentTarget.currentTime * 1000, !e.currentTarget.paused)}
-          onPause={(e) => media.onTime(e.currentTarget.currentTime * 1000, false)}
+          onTimeUpdate={(e) =>
+            media.onTime(
+              e.currentTarget.currentTime * 1000,
+              !e.currentTarget.paused,
+            )
+          }
+          onPause={(e) =>
+            media.onTime(e.currentTarget.currentTime * 1000, false)
+          }
         />
       )}
       {turns.length > 0 && (
@@ -187,16 +280,29 @@ function SharedCallBody({
           <div
             ref={threadRef}
             className="space-y-2"
-            data-call-anchor={firstAnchored >= 0 ? anchorKey ?? undefined : undefined}
-            data-first-turn={firstAnchored >= 0 ? turns[firstAnchored].index : undefined}
+            data-call-anchor={
+              firstAnchored >= 0 ? (anchorKey ?? undefined) : undefined
+            }
+            data-first-turn={
+              firstAnchored >= 0 ? turns[firstAnchored].index : undefined
+            }
           >
             <TranscriptTurnList
               turns={turns}
               compact={call.recording}
               isSelected={inAnchor}
               activeIndex={activeIndex}
-              {...(hasMedia ? { activeSeq, filmed: files.length > 0 ? stretches : undefined } : {})}
-              onTurnClick={hasMedia ? (_i, _e, line) => seekTo(lineSeekMs(stretches, line)) : undefined}
+              {...(hasMedia
+                ? {
+                    activeSeq,
+                    filmed: files.length > 0 ? stretches : undefined,
+                  }
+                : {})}
+              onTurnClick={
+                hasMedia
+                  ? (_i, _e, line) => seekTo(lineSeekMs(stretches, line))
+                  : undefined
+              }
             />
           </div>
         </Section>

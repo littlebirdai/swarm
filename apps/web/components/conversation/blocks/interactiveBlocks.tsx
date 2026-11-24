@@ -3,7 +3,10 @@ import { useShallow } from "zustand/react/shallow";
 import { pressable } from "../../ops/parts";
 import { Button } from "../../ui/button";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
-import { hasDecodedSrc, markSrcDecoded } from "../../../hooks/useStorageImageUrl";
+import {
+  hasDecodedSrc,
+  markSrcDecoded,
+} from "../../../hooks/useStorageImageUrl";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { ShortcutTooltip } from "../../KeyboardShortcutsHelp";
 import { LivePulseDot } from "../../SessionActivityLine";
@@ -11,13 +14,30 @@ import { formatPlanFeedback } from "../../../lib/quoteFormat";
 import { takeReviewBatch } from "../../../lib/reviewActions";
 import { MessageReview } from "../../MessageReview";
 import { fmtDuration } from "../../triggerCadence";
-import { monitorRowsFor, effectiveMonitorStatus, isWatchHostDead, reportSaysDead, type MonitorStatus } from "../../monitorRows";
+import {
+  monitorRowsFor,
+  effectiveMonitorStatus,
+  isWatchHostDead,
+  reportSaysDead,
+  type MonitorStatus,
+} from "../../monitorRows";
 import { OptionPreview } from "../../tools/AskUserQuestionToolView";
-import { buildPollPayload, pollCardAnswers, pollClosedLabel, pollDeadline, pollKeyForOption, POLL_TIMED_OUT, SYNTHETIC_POLL_OPTION } from "../../../lib/pollPayload";
+import {
+  buildPollPayload,
+  pollCardAnswers,
+  pollClosedLabel,
+  pollDeadline,
+  pollKeyForOption,
+  POLL_TIMED_OUT,
+  SYNTHETIC_POLL_OPTION,
+} from "../../../lib/pollPayload";
 import { useImageGallery, useGalleryMessageId } from "../../ImageGallery";
 import { useInboxStore } from "../../../store/inboxStore";
 import { Radar, Terminal } from "lucide-react";
-import { formatFullTimestamp, formatRelativeTime } from "../../../lib/conversationFormat";
+import {
+  formatFullTimestamp,
+  formatRelativeTime,
+} from "../../../lib/conversationFormat";
 import { renderAssistantBody } from "../../../lib/renderAssistantBody";
 import type { ImageData, ToolCall, ToolResult } from "../types";
 import { useImageSrc } from "../../../hooks/useImageSrc";
@@ -26,9 +46,18 @@ import { ModernImage } from "./ModernImage";
 import { ModernMonitorRow, ModernThinking } from "./ModernEventRows";
 import { ModernPlanMode } from "./ModernPlanMode";
 import { ModernAskUserQuestion } from "./ModernAskUserQuestion";
-import { forgetModernAskSent, markModernAskSent } from "../../../lib/modernAskSent";
+import {
+  forgetModernAskSent,
+  markModernAskSent,
+} from "../../../lib/modernAskSent";
 import { AnswerProposals, MyProposalStatus } from "../teamProposals";
-import { newProposalKey, proposeOrExplain, useMyName, useMyProposalFor, useTeamProposalRole } from "../../../hooks/useTeamProposals";
+import {
+  newProposalKey,
+  proposeOrExplain,
+  useMyName,
+  useMyProposalFor,
+  useTeamProposalRole,
+} from "../../../hooks/useTeamProposals";
 
 // Live status badge + latest event for a Monitor or background-Bash block,
 // derived from the conversation's message window (monitorRowsFor — one
@@ -36,32 +65,66 @@ import { newProposalKey, proposeOrExplain, useMyName, useMyProposalFor, useTeamP
 // above: identity accent + uppercase eyebrow + one-line gist, so standing
 // machinery reads as one family.
 const MONITOR_BADGE: Record<MonitorStatus, { label: string; cls: string }> = {
-  watching: { label: "watching", cls: "bg-sol-green/10 text-sol-green border-sol-green/30" },
-  ended: { label: "ended", cls: "bg-sol-bg-alt text-sol-text-dim border-sol-border/50" },
-  timed_out: { label: "timed out", cls: "bg-sol-orange/10 text-sol-orange border-sol-orange/30" },
-  stopped: { label: "stopped", cls: "bg-sol-bg-alt text-sol-text-dim border-sol-border/50" },
+  watching: {
+    label: "watching",
+    cls: "bg-sol-green/10 text-sol-green border-sol-green/30",
+  },
+  ended: {
+    label: "ended",
+    cls: "bg-sol-bg-alt text-sol-text-dim border-sol-border/50",
+  },
+  timed_out: {
+    label: "timed out",
+    cls: "bg-sol-orange/10 text-sol-orange border-sol-orange/30",
+  },
+  stopped: {
+    label: "stopped",
+    cls: "bg-sol-bg-alt text-sol-text-dim border-sol-border/50",
+  },
 };
 // A detached command "runs" rather than "watches", and finishing is its
 // purpose ("done"), not a stream folding ("ended"). Workflow runs share the
 // same voice.
 const BACKGROUND_BADGE_LABEL: Record<MonitorStatus, string> = {
-  watching: "running", ended: "done", timed_out: "timed out", stopped: "stopped",
+  watching: "running",
+  ended: "done",
+  timed_out: "timed out",
+  stopped: "stopped",
 };
 
-export function MonitorBlock({ tool, conversationId }: { tool: ToolCall; conversationId?: string }) {
+export function MonitorBlock({
+  tool,
+  conversationId,
+}: {
+  tool: ToolCall;
+  conversationId?: string;
+}) {
   "use no memo"; // formatRelativeTime() reads the clock as this renders; compiled, the time shown would stop moving.
   const isBackground = tool.name !== "Monitor";
-  let input: { command?: string; description?: string; timeout_ms?: number; persistent?: boolean } = {};
-  try { input = JSON.parse(tool.input); } catch {}
+  let input: {
+    command?: string;
+    description?: string;
+    timeout_ms?: number;
+    persistent?: boolean;
+  } = {};
+  try {
+    input = JSON.parse(tool.input);
+  } catch {}
   const [showCommand, setShowCommand] = useState(false);
   const modern = useIsModernStyle();
   // This watch's own row, not the conversation's message array: the scan is
   // shared and memoized per array, and a row of plain fields compared
   // shallowly re-renders the card only when its own watch changed, never on
   // every streamed message.
-  const row = useInboxStore(useShallow((s) =>
-    conversationId ? monitorRowsFor(s.messages[conversationId]).find((r) => r.toolUseId === tool.id) : undefined,
-  ));
+  const row = useInboxStore(
+    useShallow((s) =>
+      conversationId
+        ? monitorRowsFor(s.messages[conversationId]).find(
+            (r) => r.toolUseId === tool.id,
+          )
+        : undefined,
+    ),
+  );
   const now = useCoarseNow(30_000);
   // Background rows carry no timeout, so the scanner's defensive expiry never
   // fires for them — without this gate a dead session's block would claim
@@ -83,40 +146,100 @@ export function MonitorBlock({ tool, conversationId }: { tool: ToolCall; convers
   // Start of the process currently behind this session. A watch armed before it
   // died with the process that armed it — the session being alive says nothing
   // about a shell owned by its predecessor. Narrow numeric subscription.
-  const agentStartedAt = useInboxStore((s) =>
-    (conversationId ? s.sessions[conversationId]?.agent_started_at : undefined) ?? undefined,
+  const agentStartedAt = useInboxStore(
+    (s) =>
+      (conversationId
+        ? s.sessions[conversationId]?.agent_started_at
+        : undefined) ?? undefined,
   );
-  const rawStatus: MonitorStatus = row ? effectiveMonitorStatus(row, now, agentStartedAt) : "watching";
-  const status: MonitorStatus = rawStatus === "watching" && (sessionDead || reportedDead) ? "stopped" : rawStatus;
+  const rawStatus: MonitorStatus = row
+    ? effectiveMonitorStatus(row, now, agentStartedAt)
+    : "watching";
+  const status: MonitorStatus =
+    rawStatus === "watching" && (sessionDead || reportedDead)
+      ? "stopped"
+      : rawStatus;
   const failed = isBackground && status === "ended" && (row?.exitCode ?? 0) > 0;
   const badge = failed
-    ? { label: `exit ${row!.exitCode}`, cls: "bg-sol-red/10 text-sol-red border-sol-red/30" }
-    : { cls: MONITOR_BADGE[status].cls, label: isBackground ? BACKGROUND_BADGE_LABEL[status] : MONITOR_BADGE[status].label };
+    ? {
+        label: `exit ${row!.exitCode}`,
+        cls: "bg-sol-red/10 text-sol-red border-sol-red/30",
+      }
+    : {
+        cls: MONITOR_BADGE[status].cls,
+        label: isBackground
+          ? BACKGROUND_BADGE_LABEL[status]
+          : MONITOR_BADGE[status].label,
+      };
   const watching = status === "watching";
-  const commandFirstLine = (input.command || "").split("\n").find((l) => l.trim()) || "";
+  const commandFirstLine =
+    (input.command || "").split("\n").find((l) => l.trim()) || "";
   const Icon = isBackground ? Terminal : Radar;
   // Modern: one row, the status a word (never a pulse), the command behind the chevron.
-  if (modern) return <ModernMonitorRow background={isBackground} description={input.description} command={input.command} status={badge.label} tone={failed ? "error" : watching ? "live" : "quiet"} events={row?.eventCount ?? 0} lastEvent={row?.lastEvent} lastEventAt={row?.lastEventAt} persistent={input.persistent} title={input.timeout_ms !== undefined ? `Timeout: ${fmtDuration(input.timeout_ms)}` : undefined} />;
+  if (modern)
+    return (
+      <ModernMonitorRow
+        background={isBackground}
+        description={input.description}
+        command={input.command}
+        status={badge.label}
+        tone={failed ? "error" : watching ? "live" : "quiet"}
+        events={row?.eventCount ?? 0}
+        lastEvent={row?.lastEvent}
+        lastEventAt={row?.lastEventAt}
+        persistent={input.persistent}
+        title={
+          input.timeout_ms !== undefined
+            ? `Timeout: ${fmtDuration(input.timeout_ms)}`
+            : undefined
+        }
+      />
+    );
 
   return (
-    <div data-cc-monitor-card className={`my-1 rounded border-l-2 ${watching ? "border-sol-blue/60 bg-sol-blue/5" : "border-sol-border/60 bg-sol-bg-alt/30"}`}>
+    <div
+      data-cc-monitor-card
+      className={`my-1 rounded border-l-2 ${watching ? "border-sol-blue/60 bg-sol-blue/5" : "border-sol-border/60 bg-sol-bg-alt/30"}`}
+    >
       <div className="flex items-center gap-2 px-3 pt-2 pb-1 min-w-0">
-        <Icon className={`w-3.5 h-3.5 shrink-0 ${watching ? "text-sol-blue/70" : "text-sol-text-dim"}`} />
-        <span data-cc-tech className={`text-mark font-medium tracking-wide uppercase shrink-0 ${watching ? "text-sol-blue/70" : "text-sol-text-dim"}`}>{isBackground ? "Background" : "Monitor"}</span>
+        <Icon
+          className={`w-3.5 h-3.5 shrink-0 ${watching ? "text-sol-blue/70" : "text-sol-text-dim"}`}
+        />
+        <span
+          data-cc-tech
+          className={`text-mark font-medium tracking-wide uppercase shrink-0 ${watching ? "text-sol-blue/70" : "text-sol-text-dim"}`}
+        >
+          {isBackground ? "Background" : "Monitor"}
+        </span>
         {input.persistent && (
           <ShortcutTooltip label="Runs until TaskStop or session end — not a one-shot watch">
-            <span data-cc-tech className="px-1 py-0 rounded border text-meta font-semibold shrink-0 border-sol-blue/40 text-sol-blue/90 bg-sol-blue/10">persistent</span>
+            <span
+              data-cc-tech
+              className="px-1 py-0 rounded border text-meta font-semibold shrink-0 border-sol-blue/40 text-sol-blue/90 bg-sol-blue/10"
+            >
+              persistent
+            </span>
           </ShortcutTooltip>
         )}
-        <span className="text-xs text-sol-text truncate min-w-0">{input.description || (isBackground ? "background command" : "background watch")}</span>
+        <span className="text-xs text-sol-text truncate min-w-0">
+          {input.description ||
+            (isBackground ? "background command" : "background watch")}
+        </span>
         {(row?.eventCount ?? 0) > 0 && (
-          <span data-cc-tech className="ml-auto shrink-0 text-meta text-sol-text-dim tabular-nums">
+          <span
+            data-cc-tech
+            className="ml-auto shrink-0 text-meta text-sol-text-dim tabular-nums"
+          >
             {row!.eventCount} event{row!.eventCount === 1 ? "" : "s"}
           </span>
         )}
         <span
           className={`${(row?.eventCount ?? 0) > 0 ? "" : "ml-auto "}shrink-0 inline-flex items-center gap-1 px-1.5 py-0 rounded text-meta font-semibold border ${badge.cls}`}
-          title={input.timeout_ms !== undefined ? `Timeout: ${fmtDuration(input.timeout_ms)}` : undefined}
+          title={
+            input.timeout_ms !== undefined
+              ? `Timeout: ${fmtDuration(input.timeout_ms)}`
+              : undefined
+          }
         >
           {watching && <LivePulseDot still />}
           {badge.label}
@@ -127,23 +250,37 @@ export function MonitorBlock({ tool, conversationId }: { tool: ToolCall; convers
           data-cc-tech
           onClick={() => setShowCommand((v) => !v)}
           className="w-full text-left px-3 pb-1.5 font-mono text-meta text-sol-text-dim hover:text-sol-text-muted transition-colors"
-          title={showCommand ? "Collapse the watch command" : "Show the full watch command"}
+          title={
+            showCommand
+              ? "Collapse the watch command"
+              : "Show the full watch command"
+          }
         >
           {showCommand ? (
-            <pre className="whitespace-pre-wrap break-words">{input.command}</pre>
+            <pre className="whitespace-pre-wrap break-words">
+              {input.command}
+            </pre>
           ) : (
             <span className="block truncate">{commandFirstLine}</span>
           )}
         </button>
       )}
       {row?.lastEvent && (
-        <div data-cc-tech className="mx-3 mb-2 flex items-baseline gap-1.5 min-w-0 text-meta leading-snug">
-          <span className={`truncate min-w-0 font-medium ${watching ? "text-sol-text-muted" : "text-sol-text-dim"}`}>
+        <div
+          data-cc-tech
+          className="mx-3 mb-2 flex items-baseline gap-1.5 min-w-0 text-meta leading-snug"
+        >
+          <span
+            className={`truncate min-w-0 font-medium ${watching ? "text-sol-text-muted" : "text-sol-text-dim"}`}
+          >
             <span className="mr-0.5 text-sol-blue/50">&gt;</span>
             {row.lastEvent}
           </span>
           {row.lastEventAt !== undefined && (
-            <span className="ml-auto shrink-0 text-meta text-sol-text-dim whitespace-nowrap" title={formatFullTimestamp(row.lastEventAt)}>
+            <span
+              className="ml-auto shrink-0 text-meta text-sol-text-dim whitespace-nowrap"
+              title={formatFullTimestamp(row.lastEventAt)}
+            >
               {formatRelativeTime(row.lastEventAt)}
             </span>
           )}
@@ -153,8 +290,21 @@ export function MonitorBlock({ tool, conversationId }: { tool: ToolCall; convers
   );
 }
 
-export function PlanModeBlock({ tool, result, conversationId, messageId, onSendMessage }: { tool: ToolCall; result?: ToolResult; conversationId?: string; messageId?: string; onSendMessage?: (content: string) => void }) {
-  const isEnter = tool.name === "EnterPlanMode" || tool.name === "enter_plan_mode";
+export function PlanModeBlock({
+  tool,
+  result,
+  conversationId,
+  messageId,
+  onSendMessage,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  conversationId?: string;
+  messageId?: string;
+  onSendMessage?: (content: string) => void;
+}) {
+  const isEnter =
+    tool.name === "EnterPlanMode" || tool.name === "enter_plan_mode";
   const isExit = tool.name === "ExitPlanMode" || tool.name === "exit_plan_mode";
   const isWaitingForApproval = isExit && !result && !!onSendMessage;
   const [sent, setSent] = useState(false);
@@ -164,32 +314,82 @@ export function PlanModeBlock({ tool, result, conversationId, messageId, onSendM
   // while it's awaiting approval so the user can quote/comment specific sections
   // (reusing MessageReview) and send those notes back as the rejection feedback.
   let plan = "";
-  try { plan = JSON.parse(tool.input)?.plan ?? ""; } catch {}
+  try {
+    plan = JSON.parse(tool.input)?.plan ?? "";
+  } catch {}
 
   // Namespace the plan's review batch under its own key so its comments never
   // collide with comments on this message's prose body (both render their own
   // MessageReview with the same messageId otherwise).
-  const reviewKey = conversationId && messageId ? `${messageId}#plan` : undefined;
-  const canReview = isWaitingForApproval && !sent && !!plan && !!conversationId && !!reviewKey;
+  const reviewKey =
+    conversationId && messageId ? `${messageId}#plan` : undefined;
+  const canReview =
+    isWaitingForApproval && !sent && !!plan && !!conversationId && !!reviewKey;
   const pendingCount = useInboxStore((s) =>
-    reviewKey ? (s.reviewComments[conversationId!] ?? []).filter((c) => c.messageId === reviewKey).length : 0,
+    reviewKey
+      ? (s.reviewComments[conversationId!] ?? []).filter(
+          (c) => c.messageId === reviewKey,
+        ).length
+      : 0,
   );
 
   const requestChanges = () => {
     const batch = reviewKey ? takeReviewBatch(conversationId!, reviewKey) : "";
     setSent(true);
-    onSendMessage!(JSON.stringify({ __cc_poll: true, keys: ["4"], text: formatPlanFeedback(batch), display: "Requested changes" }));
+    onSendMessage!(
+      JSON.stringify({
+        __cc_poll: true,
+        keys: ["4"],
+        text: formatPlanFeedback(batch),
+        display: "Requested changes",
+      }),
+    );
   };
-  const start = (keep: boolean) => { setSent(true); onSendMessage!(JSON.stringify({ __cc_poll: true, keys: [keep ? "3" : "1"], display: keep ? "Start (keep context)" : "Start (clear context)" })); };
-  if (modern) return <ModernPlanMode enter={isEnter} plan={plan} result={result} waiting={isWaitingForApproval && !sent} sent={sent} reviewKey={canReview ? reviewKey : undefined} conversationId={conversationId} pendingCount={pendingCount} onStart={start} onRequestChanges={requestChanges} />;
+  const start = (keep: boolean) => {
+    setSent(true);
+    onSendMessage!(
+      JSON.stringify({
+        __cc_poll: true,
+        keys: [keep ? "3" : "1"],
+        display: keep ? "Start (keep context)" : "Start (clear context)",
+      }),
+    );
+  };
+  if (modern)
+    return (
+      <ModernPlanMode
+        enter={isEnter}
+        plan={plan}
+        result={result}
+        waiting={isWaitingForApproval && !sent}
+        sent={sent}
+        reviewKey={canReview ? reviewKey : undefined}
+        conversationId={conversationId}
+        pendingCount={pendingCount}
+        onStart={start}
+        onRequestChanges={requestChanges}
+      />
+    );
 
   return (
     <div className="my-0.5">
       <div className="flex items-center gap-1.5 text-xs">
-        <svg className="w-3 h-3 text-sol-violet/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+        <svg
+          className="w-3 h-3 text-sol-violet/80"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+          />
         </svg>
-        <span className="font-mono text-sol-violet font-semibold text-meta">Plan Mode</span>
+        <span className="font-mono text-sol-violet font-semibold text-meta">
+          Plan Mode
+        </span>
         <span className="text-meta font-mono px-1.5 py-0.5 rounded bg-sol-violet/15 text-sol-violet border border-sol-violet/30">
           {isEnter ? "enter" : "exit"}
         </span>
@@ -208,13 +408,31 @@ export function PlanModeBlock({ tool, result, conversationId, messageId, onSendM
         <>
           <div className="flex items-center gap-1.5 mt-2 ml-0.5 flex-wrap">
             <button
-              onClick={() => { setSent(true); onSendMessage(JSON.stringify({ __cc_poll: true, keys: ["1"], display: "Start (clear context)" })); }}
+              onClick={() => {
+                setSent(true);
+                onSendMessage(
+                  JSON.stringify({
+                    __cc_poll: true,
+                    keys: ["1"],
+                    display: "Start (clear context)",
+                  }),
+                );
+              }}
               className="text-meta px-2.5 py-1 rounded border border-sol-border/40 bg-sol-bg-alt text-sol-text hover:border-sol-green/40 hover:bg-sol-green/10 hover:text-sol-green transition-colors cursor-pointer"
             >
               Start (clear context)
             </button>
             <button
-              onClick={() => { setSent(true); onSendMessage(JSON.stringify({ __cc_poll: true, keys: ["3"], display: "Start (keep context)" })); }}
+              onClick={() => {
+                setSent(true);
+                onSendMessage(
+                  JSON.stringify({
+                    __cc_poll: true,
+                    keys: ["3"],
+                    display: "Start (keep context)",
+                  }),
+                );
+              }}
               className="text-meta px-2.5 py-1 rounded border border-sol-border/40 bg-sol-bg-alt text-sol-text hover:border-sol-green/40 hover:bg-sol-green/10 hover:text-sol-green transition-colors cursor-pointer"
             >
               Start (keep context)
@@ -222,7 +440,11 @@ export function PlanModeBlock({ tool, result, conversationId, messageId, onSendM
             <button
               onClick={requestChanges}
               disabled={canReview && pendingCount === 0}
-              title={canReview && pendingCount === 0 ? "Quote a section of the plan first" : undefined}
+              title={
+                canReview && pendingCount === 0
+                  ? "Quote a section of the plan first"
+                  : undefined
+              }
               className="text-meta px-2.5 py-1 rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer border-sol-yellow/40 bg-sol-yellow/5 text-sol-yellow enabled:hover:bg-sol-yellow/15 enabled:hover:border-sol-yellow/60"
             >
               Request changes{pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -238,13 +460,18 @@ export function PlanModeBlock({ tool, result, conversationId, messageId, onSendM
         </>
       )}
       {sent && (
-        <div className="text-meta text-sol-text-dim mt-1 ml-0.5 italic">Message sent</div>
+        <div className="text-meta text-sol-text-dim mt-1 ml-0.5 italic">
+          Message sent
+        </div>
       )}
     </div>
   );
 }
 
-const _askUserSentState = new Map<string, Record<number, Array<{ key: string; label: string; text?: string }>>>();
+const _askUserSentState = new Map<
+  string,
+  Record<number, Array<{ key: string; label: string; text?: string }>>
+>();
 
 // The poll wire format (option keys, free-text decline, submit chords) lives in
 // lib/pollPayload so the decision queue answers polls the exact same way.
@@ -252,19 +479,43 @@ const _askUserSentState = new Map<string, Record<number, Array<{ key: string; la
 // The check glyph shown in a selected poll option's index slot / pill.
 function PollCheckIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={3}
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   );
 }
 
-type AskUserQuestionProps = { tool: ToolCall; result?: ToolResult; onSendMessage?: (content: string) => void };
-type AskUserQuestionInput = { questions?: Array<{ question: string; header?: string; detail?: string; options: Array<{ label: string; description?: string; preview?: string }>; multiSelect?: boolean; multi_select?: boolean; isConfirmation?: boolean }>; answers?: Record<string, string>; deniesAt?: number };
+type AskUserQuestionProps = {
+  tool: ToolCall;
+  result?: ToolResult;
+  onSendMessage?: (content: string) => void;
+};
+type AskUserQuestionInput = {
+  questions?: Array<{
+    question: string;
+    header?: string;
+    detail?: string;
+    options: Array<{ label: string; description?: string; preview?: string }>;
+    multiSelect?: boolean;
+    multi_select?: boolean;
+    isConfirmation?: boolean;
+  }>;
+  answers?: Record<string, string>;
+  deniesAt?: number;
+};
 
 export function AskUserQuestionBlock(props: AskUserQuestionProps) {
   const proposals = useTeamProposalRole();
-  if (proposals?.role === "teammate" && !props.onSendMessage && !props.result) return <TeammateAskUserQuestion {...props} />;
-  if (proposals?.role === "owner" && props.onSendMessage && !props.result) return <OwnerAskUserQuestion {...props} />;
+  if (proposals?.role === "teammate" && !props.onSendMessage && !props.result)
+    return <TeammateAskUserQuestion {...props} />;
+  if (proposals?.role === "owner" && props.onSendMessage && !props.result)
+    return <OwnerAskUserQuestion {...props} />;
   return <AskUserQuestionInner {...props} />;
 }
 
@@ -275,25 +526,52 @@ export function AskUserQuestionBlock(props: AskUserQuestionProps) {
 function OwnerAskUserQuestion(props: AskUserQuestionProps) {
   const [rev, setRev] = useState(0);
   const [answered, setAnswered] = useState(false);
-  const closeCard = () => { markModernAskSent(props.tool.id); _askUserSentState.set(props.tool.id, {}); setAnswered(true); setRev((r) => r + 1); };
-  const reopenCard = () => { forgetModernAskSent(props.tool.id); _askUserSentState.delete(props.tool.id); setAnswered(false); setRev((r) => r + 1); };
+  const closeCard = () => {
+    markModernAskSent(props.tool.id);
+    _askUserSentState.set(props.tool.id, {});
+    setAnswered(true);
+    setRev((r) => r + 1);
+  };
+  const reopenCard = () => {
+    forgetModernAskSent(props.tool.id);
+    _askUserSentState.delete(props.tool.id);
+    setAnswered(false);
+    setRev((r) => r + 1);
+  };
   // Answering on the card itself takes the proposals away with it.
-  const answerOnCard = (content: string) => { setAnswered(true); props.onSendMessage?.(content); };
+  const answerOnCard = (content: string) => {
+    setAnswered(true);
+    props.onSendMessage?.(content);
+  };
   return (
     <>
       <AskUserQuestionInner key={rev} {...props} onSendMessage={answerOnCard} />
-      {!answered && <AnswerProposals toolUseId={props.tool.id} onSending={closeCard} onNotSent={reopenCard} />}
+      {!answered && (
+        <AnswerProposals
+          toolUseId={props.tool.id}
+          onSending={closeCard}
+          onNotSent={reopenCard}
+        />
+      )}
     </>
   );
 }
 
 function AskUserQuestionInner(props: AskUserQuestionProps) {
   let parsedInput: AskUserQuestionInput = {};
-  try { parsedInput = JSON.parse(props.tool.input); } catch {}
+  try {
+    parsedInput = JSON.parse(props.tool.input);
+  } catch {}
   // Only a terminal dialog still counting down holds a ticking clock.
-  return typeof parsedInput.deniesAt === "number" && !props.result
-    ? <TimedAskUserQuestion {...props} parsedInput={parsedInput} deniesAt={parsedInput.deniesAt} />
-    : <AskUserQuestionCard {...props} parsedInput={parsedInput} />;
+  return typeof parsedInput.deniesAt === "number" && !props.result ? (
+    <TimedAskUserQuestion
+      {...props}
+      parsedInput={parsedInput}
+      deniesAt={parsedInput.deniesAt}
+    />
+  ) : (
+    <AskUserQuestionCard {...props} parsedInput={parsedInput} />
+  );
 }
 
 // A teammate's press on an open question proposes that answer to the owner
@@ -305,35 +583,78 @@ function TeammateAskUserQuestion(props: AskUserQuestionProps) {
   const propose = useInboxStore((s) => s.proposeAnswer);
   const withdraw = useInboxStore((s) => s.withdrawTeamSuggestion);
   const me = useMyName();
-  const mine = useMyProposalFor((r) => r.kind === "answer" && r.tool_use_id === props.tool.id);
-  const reopen = () => { forgetModernAskSent(props.tool.id); _askUserSentState.delete(props.tool.id); setRev((r) => r + 1); };
+  const mine = useMyProposalFor(
+    (r) => r.kind === "answer" && r.tool_use_id === props.tool.id,
+  );
+  const reopen = () => {
+    forgetModernAskSent(props.tool.id);
+    _askUserSentState.delete(props.tool.id);
+    setRev((r) => r + 1);
+  };
   const onPropose = (payload: string) => {
     const key = newProposalKey();
-    proposeOrExplain(propose(ctx.conversationId, props.tool.id, payload, key, me), key, ctx.conversationId);
+    proposeOrExplain(
+      propose(ctx.conversationId, props.tool.id, payload, key, me),
+      key,
+      ctx.conversationId,
+    );
     reopen();
   };
   return (
     <>
       <AskUserQuestionInner key={rev} {...props} onSendMessage={onPropose} />
-      <MyProposalStatus row={mine} onWithdraw={mine ? () => withdraw(mine._id, ctx.conversationId) : undefined} />
+      <MyProposalStatus
+        row={mine}
+        onWithdraw={
+          mine ? () => withdraw(mine._id, ctx.conversationId) : undefined
+        }
+      />
     </>
   );
 }
 
-function TimedAskUserQuestion({ deniesAt, ...props }: AskUserQuestionProps & { parsedInput: AskUserQuestionInput; deniesAt: number }) {
+function TimedAskUserQuestion({
+  deniesAt,
+  ...props
+}: AskUserQuestionProps & {
+  parsedInput: AskUserQuestionInput;
+  deniesAt: number;
+}) {
   const now = useCoarseNow(1000);
-  return <AskUserQuestionCard {...props} deadline={pollDeadline(deniesAt, now)} />;
+  return (
+    <AskUserQuestionCard {...props} deadline={pollDeadline(deniesAt, now)} />
+  );
 }
 
-function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadline }: AskUserQuestionProps & { parsedInput: AskUserQuestionInput; deadline?: ReturnType<typeof pollDeadline> }) {
+function AskUserQuestionCard({
+  tool,
+  result,
+  onSendMessage,
+  parsedInput,
+  deadline,
+}: AskUserQuestionProps & {
+  parsedInput: AskUserQuestionInput;
+  deadline?: ReturnType<typeof pollDeadline>;
+}) {
   const [sent, setSent] = useState(() => _askUserSentState.has(tool.id));
   // Per-question selections. multiSelect questions hold several entries (checkbox
   // semantics); single-select questions hold at most one.
-  const [selections, setSelections] = useState<Record<number, Array<{ key: string; label: string; text?: string }>>>(() => _askUserSentState.get(tool.id) ?? {});
+  const [selections, setSelections] = useState<
+    Record<number, Array<{ key: string; label: string; text?: string }>>
+  >(() => _askUserSentState.get(tool.id) ?? {});
   const [otherOpen, setOtherOpen] = useState<Record<number, boolean>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
   const modern = useIsModernStyle();
-  if (modern) return <ModernAskUserQuestion tool={tool} result={result} onSendMessage={onSendMessage} parsedInput={parsedInput} deadline={deadline} />;
+  if (modern)
+    return (
+      <ModernAskUserQuestion
+        tool={tool}
+        result={result}
+        onSendMessage={onSendMessage}
+        parsedInput={parsedInput}
+        deadline={deadline}
+      />
+    );
 
   const questions = (parsedInput.questions || []).map((q) => ({
     ...q,
@@ -343,7 +664,7 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
 
   const isMultiQuestion = questions.length > 1;
   const isConfirmation = questions[0]?.isConfirmation;
-  const anyMultiSelect = questions.some(q => q.multiSelect);
+  const anyMultiSelect = questions.some((q) => q.multiSelect);
   // multiSelect answers can't auto-submit on first click, so they share the
   // multi-question "pick everything, then submit" flow.
   const needsSubmit = isMultiQuestion || anyMultiSelect;
@@ -352,10 +673,14 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
 
   const expired = !!deadline?.expired;
   const isInteractive = !result && !!onSendMessage && !sent && !expired;
-  const closedLabel = expired ? POLL_TIMED_OUT : pollClosedLabel(result, answers);
-  const allAnswered = needsSubmit && questions.every((_, i) => (selections[i]?.length ?? 0) > 0);
+  const closedLabel = expired
+    ? POLL_TIMED_OUT
+    : pollClosedLabel(result, answers);
+  const allAnswered =
+    needsSubmit && questions.every((_, i) => (selections[i]?.length ?? 0) > 0);
 
-  const buildPayload = (sels: typeof selections) => buildPollPayload(questions, sels);
+  const buildPayload = (sels: typeof selections) =>
+    buildPollPayload(questions, sels);
 
   const handleSubmitAll = () => {
     if (!onSendMessage || !allAnswered) return;
@@ -369,9 +694,15 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
     const sel = { key: otherKey, label: text, text };
     if (questions[qIdx]?.multiSelect) {
       // Joins the toggled options (replacing any previous custom entry); sent on Submit.
-      setSelections(prev => ({ ...prev, [qIdx]: [...(prev[qIdx] ?? []).filter(s => s.text === undefined), sel] }));
+      setSelections((prev) => ({
+        ...prev,
+        [qIdx]: [
+          ...(prev[qIdx] ?? []).filter((s) => s.text === undefined),
+          sel,
+        ],
+      }));
     } else if (isMultiQuestion) {
-      setSelections(prev => ({ ...prev, [qIdx]: [sel] }));
+      setSelections((prev) => ({ ...prev, [qIdx]: [sel] }));
     } else {
       const newSels = { 0: [sel] };
       _askUserSentState.set(tool.id, newSels);
@@ -387,18 +718,28 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
         const answer = answers[q.question];
         // A multiSelect answer arrives as the chosen labels joined with ", " (the CLI's
         // own join) — split it back so each chosen option lights up individually.
-        const answerParts = answer === undefined ? [] : q.multiSelect ? answer.split(", ") : [answer];
-        const matchesOption = (part: string) => q.options.some(
-          o => o.label === part || o.label.replace(" (Recommended)", "") === part
-        );
-        const customAnswer = answerParts.filter(p => !matchesOption(p)).join(", ");
+        const answerParts =
+          answer === undefined
+            ? []
+            : q.multiSelect
+              ? answer.split(", ")
+              : [answer];
+        const matchesOption = (part: string) =>
+          q.options.some(
+            (o) =>
+              o.label === part ||
+              o.label.replace(" (Recommended)", "") === part,
+          );
+        const customAnswer = answerParts
+          .filter((p) => !matchesOption(p))
+          .join(", ");
         const isCustom = customAnswer !== "";
         const sels = selections[i] ?? [];
-        const otherSel = sels.find(s => s.text !== undefined);
+        const otherSel = sels.find((s) => s.text !== undefined);
         const isOtherSelected = otherSel !== undefined;
         // Rich layout (numbered rows with stacked descriptions) when any option carries a
         // description or preview; otherwise compact borderless pills.
-        const hasRich = q.options.some(o => o.description || o.preview);
+        const hasRich = q.options.some((o) => o.description || o.preview);
         return (
           <div key={i} className="space-y-2">
             {q.header && (
@@ -411,40 +752,67 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
             <div className="text-[13px] leading-snug font-medium text-sol-text-secondary">
               {q.question}
               {q.multiSelect && isInteractive && (
-                <span className="ml-2 text-mark font-normal uppercase tracking-[0.07em] text-sol-text-dim">select all that apply</span>
+                <span className="ml-2 text-mark font-normal uppercase tracking-[0.07em] text-sol-text-dim">
+                  select all that apply
+                </span>
               )}
             </div>
             {q.detail && (
-              <div className="text-[12px] leading-relaxed text-sol-text-muted whitespace-pre-line max-w-prose">{q.detail}</div>
+              <div className="text-[12px] leading-relaxed text-sol-text-muted whitespace-pre-line max-w-prose">
+                {q.detail}
+              </div>
             )}
-            <div className={hasRich ? "flex flex-col gap-0.5" : "flex flex-wrap gap-1.5"}>
+            <div
+              className={
+                hasRich ? "flex flex-col gap-0.5" : "flex flex-wrap gap-1.5"
+              }
+            >
               {q.options.map((opt, j) => {
                 // Synthetic CLI menu chrome scraped as bare options — drop it. Keep the
                 // index `j` so the surviving options retain their positional poll keys.
                 if (SYNTHETIC_POLL_OPTION.test(opt.label.trim())) return null;
                 const cleanLabel = opt.label.replace(" (Recommended)", "");
-                const isSelected = answerParts.some(p => opt.label === p || cleanLabel === p);
-                const isLocalSelected = sels.some(s => s.text === undefined && s.label === cleanLabel);
+                const isSelected = answerParts.some(
+                  (p) => opt.label === p || cleanLabel === p,
+                );
+                const isLocalSelected = sels.some(
+                  (s) => s.text === undefined && s.label === cleanLabel,
+                );
                 const on = isSelected || isLocalSelected;
                 const choose = () => {
-                  setOtherOpen(prev => ({ ...prev, [i]: false }));
+                  setOtherOpen((prev) => ({ ...prev, [i]: false }));
                   const pollKey = pollKeyForOption(j, isConfirmation);
                   const sel = { key: pollKey, label: cleanLabel };
                   if (q.multiSelect) {
                     // Checkbox semantics: clicking toggles; Submit sends.
-                    setSelections(prev => {
+                    setSelections((prev) => {
                       const cur = prev[i] ?? [];
-                      const has = cur.some(s => s.text === undefined && s.key === pollKey);
-                      return { ...prev, [i]: has ? cur.filter(s => s.text !== undefined || s.key !== pollKey) : [...cur, sel] };
+                      const has = cur.some(
+                        (s) => s.text === undefined && s.key === pollKey,
+                      );
+                      return {
+                        ...prev,
+                        [i]: has
+                          ? cur.filter(
+                              (s) => s.text !== undefined || s.key !== pollKey,
+                            )
+                          : [...cur, sel],
+                      };
                     });
                   } else if (isMultiQuestion) {
-                    setSelections(prev => ({ ...prev, [i]: [sel] }));
+                    setSelections((prev) => ({ ...prev, [i]: [sel] }));
                   } else {
                     const newSels = { ...selections, [i]: [sel] };
                     _askUserSentState.set(tool.id, newSels);
                     setSelections(newSels);
                     setSent(true);
-                    onSendMessage!(JSON.stringify({ __cc_poll: true, keys: [pollKey], display: cleanLabel }));
+                    onSendMessage!(
+                      JSON.stringify({
+                        __cc_poll: true,
+                        keys: [pollKey],
+                        display: cleanLabel,
+                      }),
+                    );
                   }
                 };
                 // Rich row: a numbered index slot (becomes a check when chosen) plus the
@@ -453,47 +821,80 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                 // multiSelect renders the index slot as an empty checkbox outline so the
                 // rows read as toggles, not a pick-one menu.
                 const marker = (
-                  <span className={`mt-px flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-meta font-semibold tabular-nums leading-none transition-colors ${
-                    on
-                      ? isInteractive ? "bg-sol-violet text-white" : "bg-sol-green text-white"
-                      : q.multiSelect && isInteractive ? "border border-sol-violet/40 text-sol-violet/80 group-hover/opt:bg-sol-violet/15"
-                      : isInteractive ? "bg-sol-violet/15 text-sol-violet/80 group-hover/opt:bg-sol-violet/25" : "bg-sol-border/15 text-sol-text-dim"
-                  }`}>
+                  <span
+                    className={`mt-px flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-meta font-semibold tabular-nums leading-none transition-colors ${
+                      on
+                        ? isInteractive
+                          ? "bg-sol-violet text-white"
+                          : "bg-sol-green text-white"
+                        : q.multiSelect && isInteractive
+                          ? "border border-sol-violet/40 text-sol-violet/80 group-hover/opt:bg-sol-violet/15"
+                          : isInteractive
+                            ? "bg-sol-violet/15 text-sol-violet/80 group-hover/opt:bg-sol-violet/25"
+                            : "bg-sol-border/15 text-sol-text-dim"
+                    }`}
+                  >
                     {on ? <PollCheckIcon className="w-2.5 h-2.5" /> : j + 1}
                   </span>
                 );
                 const body = (
                   <span className="min-w-0 flex-1 leading-snug">
-                    <span className={`text-xs font-medium ${
-                      on ? (isInteractive ? "text-sol-violet" : "text-sol-green") : isInteractive ? "text-sol-violet/90" : "text-sol-text-dim"
-                    }`}>{opt.label}</span>
+                    <span
+                      className={`text-xs font-medium ${
+                        on
+                          ? isInteractive
+                            ? "text-sol-violet"
+                            : "text-sol-green"
+                          : isInteractive
+                            ? "text-sol-violet/90"
+                            : "text-sol-text-dim"
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
                     {opt.description && (
-                      <span className="mt-0.5 block text-xs leading-relaxed text-sol-text-dim">{opt.description}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-sol-text-dim">
+                        {opt.description}
+                      </span>
                     )}
                   </span>
                 );
                 const rowCls = `group/opt flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
                   isInteractive ? "cursor-pointer " : ""
-                }${on ? (isInteractive ? "bg-sol-violet/12" : "bg-sol-green/10") : (isInteractive ? "hover:bg-sol-violet/10" : "")}`;
+                }${on ? (isInteractive ? "bg-sol-violet/12" : "bg-sol-green/10") : isInteractive ? "hover:bg-sol-violet/10" : ""}`;
                 const node = hasRich ? (
-                  isInteractive
-                    ? <button type="button" onClick={choose} className={rowCls}>{marker}{body}</button>
-                    : <div className={rowCls}>{marker}{body}</div>
+                  isInteractive ? (
+                    <button type="button" onClick={choose} className={rowCls}>
+                      {marker}
+                      {body}
+                    </button>
+                  ) : (
+                    <div className={rowCls}>
+                      {marker}
+                      {body}
+                    </div>
+                  )
                 ) : isInteractive ? (
                   <button
                     type="button"
                     onClick={choose}
                     className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
-                      on ? "bg-sol-violet text-white" : "bg-sol-violet/12 text-sol-violet hover:bg-sol-violet/25"
+                      on
+                        ? "bg-sol-violet text-white"
+                        : "bg-sol-violet/12 text-sol-violet hover:bg-sol-violet/25"
                     }`}
                   >
                     {on && <PollCheckIcon className="w-3 h-3" />}
                     {opt.label}
                   </button>
                 ) : (
-                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                    on ? "bg-sol-green text-white" : "bg-sol-border/12 text-sol-text-dim"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+                      on
+                        ? "bg-sol-green text-white"
+                        : "bg-sol-border/12 text-sol-text-dim"
+                    }`}
+                  >
                     {on && <PollCheckIcon className="w-3 h-3" />}
                     {opt.label}
                   </span>
@@ -514,24 +915,42 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                   <Fragment key={j}>{node}</Fragment>
                 );
               })}
-              {isInteractive && !otherOpen[i] && (
-                hasRich ? (
+              {isInteractive &&
+                !otherOpen[i] &&
+                (hasRich ? (
                   <button
                     type="button"
                     onClick={() => {
-                      setOtherOpen(prev => ({ ...prev, [i]: true }));
-                      setSelections(prev => ({ ...prev, [i]: q.multiSelect ? (prev[i] ?? []).filter(s => s.text === undefined) : [] }));
+                      setOtherOpen((prev) => ({ ...prev, [i]: true }));
+                      setSelections((prev) => ({
+                        ...prev,
+                        [i]: q.multiSelect
+                          ? (prev[i] ?? []).filter((s) => s.text === undefined)
+                          : [],
+                      }));
                     }}
                     className={`group/opt flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors cursor-pointer ${
-                      isOtherSelected ? "bg-sol-blue/12" : "hover:bg-sol-blue/10"
+                      isOtherSelected
+                        ? "bg-sol-blue/12"
+                        : "hover:bg-sol-blue/10"
                     }`}
                   >
-                    <span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[12px] leading-none transition-colors ${
-                      isOtherSelected ? "bg-sol-blue text-white" : "bg-sol-border/15 text-sol-text-dim group-hover/opt:bg-sol-blue/25 group-hover/opt:text-sol-blue"
-                    }`}>
-                      {isOtherSelected ? <PollCheckIcon className="w-2.5 h-2.5" /> : "+"}
+                    <span
+                      className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[12px] leading-none transition-colors ${
+                        isOtherSelected
+                          ? "bg-sol-blue text-white"
+                          : "bg-sol-border/15 text-sol-text-dim group-hover/opt:bg-sol-blue/25 group-hover/opt:text-sol-blue"
+                      }`}
+                    >
+                      {isOtherSelected ? (
+                        <PollCheckIcon className="w-2.5 h-2.5" />
+                      ) : (
+                        "+"
+                      )}
                     </span>
-                    <span className={`text-xs ${isOtherSelected ? "font-medium text-sol-blue" : "text-sol-text-dim group-hover/opt:text-sol-blue/90"}`}>
+                    <span
+                      className={`text-xs ${isOtherSelected ? "font-medium text-sol-blue" : "text-sol-text-dim group-hover/opt:text-sol-blue/90"}`}
+                    >
                       {isOtherSelected ? otherSel!.label : "Other"}
                     </span>
                   </button>
@@ -539,33 +958,45 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                   <button
                     type="button"
                     onClick={() => {
-                      setOtherOpen(prev => ({ ...prev, [i]: true }));
-                      setSelections(prev => ({ ...prev, [i]: q.multiSelect ? (prev[i] ?? []).filter(s => s.text === undefined) : [] }));
+                      setOtherOpen((prev) => ({ ...prev, [i]: true }));
+                      setSelections((prev) => ({
+                        ...prev,
+                        [i]: q.multiSelect
+                          ? (prev[i] ?? []).filter((s) => s.text === undefined)
+                          : [],
+                      }));
                     }}
                     className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
-                      isOtherSelected ? "bg-sol-blue text-white font-medium" : "bg-sol-border/12 text-sol-text-dim hover:bg-sol-blue/18 hover:text-sol-blue"
+                      isOtherSelected
+                        ? "bg-sol-blue text-white font-medium"
+                        : "bg-sol-border/12 text-sol-text-dim hover:bg-sol-blue/18 hover:text-sol-blue"
                     }`}
                   >
-                    {isOtherSelected ? <PollCheckIcon className="w-3 h-3" /> : <span className="text-[13px] leading-none">+</span>}
+                    {isOtherSelected ? (
+                      <PollCheckIcon className="w-3 h-3" />
+                    ) : (
+                      <span className="text-[13px] leading-none">+</span>
+                    )}
                     {isOtherSelected ? otherSel!.label : "Other"}
                   </button>
-                )
-              )}
-              {!isInteractive && (isCustom || isOtherSelected) && (
-                hasRich ? (
+                ))}
+              {!isInteractive &&
+                (isCustom || isOtherSelected) &&
+                (hasRich ? (
                   <div className="flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 bg-sol-blue/10">
                     <span className="mt-px flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md bg-sol-blue text-white">
                       <PollCheckIcon className="w-2.5 h-2.5" />
                     </span>
-                    <span className="min-w-0 flex-1 text-xs font-medium text-sol-blue leading-snug">{isOtherSelected ? otherSel!.label : customAnswer}</span>
+                    <span className="min-w-0 flex-1 text-xs font-medium text-sol-blue leading-snug">
+                      {isOtherSelected ? otherSel!.label : customAnswer}
+                    </span>
                   </div>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-sol-blue text-white">
                     <PollCheckIcon className="w-3 h-3" />
                     {isOtherSelected ? otherSel!.label : customAnswer}
                   </span>
-                )
-              )}
+                ))}
             </div>
             {isInteractive && otherOpen[i] && (
               <div className="flex items-center gap-1.5">
@@ -573,13 +1004,15 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                   autoFocus
                   type="text"
                   value={otherTexts[i] || ""}
-                  onChange={e => setOtherTexts(prev => ({ ...prev, [i]: e.target.value }))}
-                  onKeyDown={e => {
+                  onChange={(e) =>
+                    setOtherTexts((prev) => ({ ...prev, [i]: e.target.value }))
+                  }
+                  onKeyDown={(e) => {
                     if (e.key === "Enter" && otherTexts[i]?.trim()) {
                       commitOther(i, otherTexts[i].trim(), q.options.length);
-                      setOtherOpen(prev => ({ ...prev, [i]: false }));
+                      setOtherOpen((prev) => ({ ...prev, [i]: false }));
                     } else if (e.key === "Escape") {
-                      setOtherOpen(prev => ({ ...prev, [i]: false }));
+                      setOtherOpen((prev) => ({ ...prev, [i]: false }));
                     }
                   }}
                   placeholder="Type your answer..."
@@ -591,7 +1024,7 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                   onClick={() => {
                     if (otherTexts[i]?.trim()) {
                       commitOther(i, otherTexts[i].trim(), q.options.length);
-                      setOtherOpen(prev => ({ ...prev, [i]: false }));
+                      setOtherOpen((prev) => ({ ...prev, [i]: false }));
                     }
                   }}
                   disabled={!otherTexts[i]?.trim()}
@@ -599,7 +1032,9 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
                   OK
                 </Button>
                 <button
-                  onClick={() => setOtherOpen(prev => ({ ...prev, [i]: false }))}
+                  onClick={() =>
+                    setOtherOpen((prev) => ({ ...prev, [i]: false }))
+                  }
                   className="text-meta px-1.5 py-1.5 text-sol-text-dim hover:text-sol-text transition-colors cursor-pointer"
                 >
                   Cancel
@@ -612,7 +1047,9 @@ function AskUserQuestionCard({ tool, result, onSendMessage, parsedInput, deadlin
       {closedLabel ? (
         <div className="text-meta text-sol-text-dim">{closedLabel}</div>
       ) : isInteractive && deadline ? (
-        <div className="text-meta text-sol-yellow tabular-nums">Auto-denies in {deadline.left}</div>
+        <div className="text-meta text-sol-yellow tabular-nums">
+          Auto-denies in {deadline.left}
+        </div>
       ) : null}
       {isInteractive && needsSubmit && (
         <div className="pt-0.5">
@@ -650,7 +1087,12 @@ export function ThinkingBlock({ content }: { content: string }) {
     <div className="my-0.5 opacity-50">
       <div
         className={`flex items-start gap-1 ${isLong ? "cursor-pointer" : ""}`}
-        {...(isLong ? { ...pressable(() => setExpanded(!expanded)), "aria-expanded": expanded } : {})}
+        {...(isLong
+          ? {
+              ...pressable(() => setExpanded(!expanded)),
+              "aria-expanded": expanded,
+            }
+          : {})}
       >
         {isLong && (
           <svg
@@ -659,7 +1101,12 @@ export function ThinkingBlock({ content }: { content: string }) {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
           </svg>
         )}
         <div className="flex-1 text-sol-text-muted font-mono whitespace-pre-wrap break-words text-xs">
@@ -690,7 +1137,8 @@ export function ImageBlock({ image }: { image: ImageData }) {
   }, [src]);
 
   useWatchEffect(() => {
-    if (src && gallery) gallery.register({ src, href, messageId, storageId: image.storage_id });
+    if (src && gallery)
+      gallery.register({ src, href, messageId, storageId: image.storage_id });
   }, [src, href, messageId, image.storage_id, gallery]);
 
   // Keep the same reserved height when a stored image is missing or undecodable.
@@ -705,18 +1153,38 @@ export function ImageBlock({ image }: { image: ImageData }) {
       >
         <span className="text-sol-text-muted text-xs">Image unavailable</span>
         <span className="text-sol-text-dim text-meta">
-          {errored ? "The stored image could not be decoded." : "The stored image could not be found."}
+          {errored
+            ? "The stored image could not be decoded."
+            : "The stored image could not be found."}
         </span>
       </div>
     );
   }
 
   // Modern shows the whole picture at its aspect ratio (ModernImage, CONV-18).
-  if (modern) return <ModernImage image={image} src={src} loaded={loaded} onLoad={() => { markSrcDecoded(src); setLoaded(true); }} onError={() => setErrored(true)} onOpen={() => { if (src) gallery?.open(src); }} />;
+  if (modern)
+    return (
+      <ModernImage
+        image={image}
+        src={src}
+        loaded={loaded}
+        onLoad={() => {
+          markSrcDecoded(src);
+          setLoaded(true);
+        }}
+        onError={() => setErrored(true)}
+        onOpen={() => {
+          if (src) gallery?.open(src);
+        }}
+      />
+    );
 
   if (!src) {
     return (
-      <div className="my-2 max-w-md rounded-t border-x border-t border-sol-border bg-sol-bg-alt flex items-center justify-center" style={{ height: IMAGE_COLLAPSED_HEIGHT }}>
+      <div
+        className="my-2 max-w-md rounded-t border-x border-t border-sol-border bg-sol-bg-alt flex items-center justify-center"
+        style={{ height: IMAGE_COLLAPSED_HEIGHT }}
+      >
         <span className="text-sol-text-dim text-xs">Loading image...</span>
       </div>
     );
@@ -730,7 +1198,10 @@ export function ImageBlock({ image }: { image: ImageData }) {
       aria-label="Open image"
     >
       {!loaded && (
-        <div className="absolute inset-0 rounded-t border-x border-t border-sol-border bg-sol-bg-alt flex items-center justify-center z-10" style={{ height: IMAGE_COLLAPSED_HEIGHT }}>
+        <div
+          className="absolute inset-0 rounded-t border-x border-t border-sol-border bg-sol-bg-alt flex items-center justify-center z-10"
+          style={{ height: IMAGE_COLLAPSED_HEIGHT }}
+        >
           <span className="text-sol-text-dim text-xs">Loading image...</span>
         </div>
       )}
@@ -742,22 +1213,55 @@ export function ImageBlock({ image }: { image: ImageData }) {
           src={src}
           alt={image.tool_use_id ? "Image from a tool" : "Attached image"}
           className="w-full"
-          style={loaded ? undefined : { width: 0, height: 0, overflow: 'hidden', position: 'absolute' }}
-          onLoad={() => { markSrcDecoded(src); setLoaded(true); }}
+          style={
+            loaded
+              ? undefined
+              : {
+                  width: 0,
+                  height: 0,
+                  overflow: "hidden",
+                  position: "absolute",
+                }
+          }
+          onLoad={() => {
+            markSrcDecoded(src);
+            setLoaded(true);
+          }}
           onError={() => setErrored(true)}
         />
       </div>
       {loaded && !image.uploading && (
         <div
           className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none"
-          style={{ background: 'linear-gradient(to bottom, transparent, var(--image-fade-bg, var(--sol-bg, #0a0a0a)))' }}
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, var(--image-fade-bg, var(--sol-bg, #0a0a0a)))",
+          }}
         />
       )}
       {image.uploading && (
-        <div className="absolute inset-0 rounded-t bg-black/40 flex items-center justify-center z-20" style={{ height: IMAGE_COLLAPSED_HEIGHT }}>
-          <svg className="w-6 h-6 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        <div
+          className="absolute inset-0 rounded-t bg-black/40 flex items-center justify-center z-20"
+          style={{ height: IMAGE_COLLAPSED_HEIGHT }}
+        >
+          <svg
+            className="w-6 h-6 animate-spin text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
           </svg>
         </div>
       )}

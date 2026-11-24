@@ -34,7 +34,12 @@ import { bridge, isDesktop, isDetachedTabWindow } from "./desktop";
 import { routeElsewhere } from "./desktopApps";
 import { appPathOf } from "./browserPane";
 import { pathLabel, conversationTabPath, inboxTabSessionId } from "./pathLabel";
-import { interceptSettingsNav, isNonTabRoute, shouldUseTabRouting, tabNavigate } from "../src/compat/tabRouting";
+import {
+  interceptSettingsNav,
+  isNonTabRoute,
+  shouldUseTabRouting,
+  tabNavigate,
+} from "../src/compat/tabRouting";
 
 // The stage (lib/stage.ts) is web only: it carries the pane UI and, through it,
 // every route page. The shared store imports this module, and the native app
@@ -68,7 +73,10 @@ export function openTargetForClick(e: {
 }): OpenTarget | null {
   if (e.button !== undefined && e.button !== 0 && e.button !== 1) return null;
   // Option alone splits; Option with any other modifier is nobody's gesture.
-  if (e.altKey) return e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1 ? null : "split";
+  if (e.altKey)
+    return e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1
+      ? null
+      : "split";
   if (e.button === 1) return "tab";
   if (!(e.metaKey || e.ctrlKey)) return null;
   return e.shiftKey ? "window" : "tab";
@@ -85,7 +93,10 @@ export function beginClickIntent(target: OpenTarget): void {
 
 export function endClickIntent(): void {
   intent = { kind: "none" };
-  if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+  if (clearTimer) {
+    clearTimeout(clearTimer);
+    clearTimer = null;
+  }
 }
 
 /** The armed target, if this click is a modified click nobody has claimed. */
@@ -105,7 +116,10 @@ export function pendingOpenTarget(): OpenTarget | null {
  * (router.replace) — it never claims the intent, but still stands down once
  * a sibling navigation has claimed it (its page never became current).
  */
-export function divertNavigation(path: string, opts?: { openable?: boolean }): boolean {
+export function divertNavigation(
+  path: string,
+  opts?: { openable?: boolean },
+): boolean {
   if (intent.kind === "consumed") return true;
   if (opts?.openable === false) return false;
   if (intent.kind === "pending") {
@@ -126,16 +140,20 @@ export function divertNavigation(path: string, opts?: { openable?: boolean }): b
 
 /** Session chokepoints (navigateToSession & co) resolve their id to the path a
  *  session tab holds. Returns true when the caller must stand down. */
-export function divertSessionOpen(sessionId: string, opts?: { messageId?: string | null }): boolean {
+export function divertSessionOpen(
+  sessionId: string,
+  opts?: { messageId?: string | null },
+): boolean {
   if (intent.kind === "consumed") return true;
   // A detached window loads its URL for real, so a message target rides the
   // universal /conversation/<id>#msg-<id> form and lands on the message. A tab
   // pane can't (its route is the inbox), so it opens on the session's tail.
   // A plain click computes the inbox form too: the rule below may still hand
   // the session to the main window from inside the Chat or Work window.
-  const path = intent.kind === "pending" && intent.target === "window" && opts?.messageId
-    ? `/conversation/${sessionId}#msg-${opts.messageId}`
-    : `/inbox?s=${sessionId}`;
+  const path =
+    intent.kind === "pending" && intent.target === "window" && opts?.messageId
+      ? `/conversation/${sessionId}#msg-${opts.messageId}`
+      : `/inbox?s=${sessionId}`;
   return divertNavigation(path);
 }
 
@@ -143,9 +161,15 @@ export function divertSessionOpen(sessionId: string, opts?: { messageId?: string
 // mounts these hidden (a background tab is otherwise a cold shell until first
 // shown), and forgets one the moment it is switched to. Deliberately NOT
 // persisted: tabs restored at boot must not all mount at once.
-const prewarmTabIds: Set<string> = ((globalThis as any).__codecastPrewarmTabs ??= new Set());
-export function isPrewarmTab(id: string): boolean { return prewarmTabIds.has(id); }
-export function clearPrewarmTab(id: string): void { prewarmTabIds.delete(id); }
+const prewarmTabIds: Set<string> = ((
+  globalThis as any
+).__codecastPrewarmTabs ??= new Set());
+export function isPrewarmTab(id: string): boolean {
+  return prewarmTabIds.has(id);
+}
+export function clearPrewarmTab(id: string): void {
+  prewarmTabIds.delete(id);
+}
 
 /** Open `path` in a background in-app tab, beside the stage, or in a detached window. */
 export function openIn(target: OpenTarget, path: string): void {
@@ -188,7 +212,10 @@ export function openIn(target: OpenTarget, path: string): void {
   // for an older shell without the verb, and for a Cmd-click with no tab shell
   // to open into (a detached window, a route outside the shell).
   const detach = bridge("detachTab");
-  if (detach) { void detach(path); return; }
+  if (detach) {
+    void detach(path);
+    return;
+  }
   window.open(path, "_blank");
 }
 
@@ -245,7 +272,9 @@ export function detachCurrentView(): boolean {
   if (isDetachedTabWindow()) {
     const fn = bridge("detachTab");
     if (!fn) return false;
-    void fn(window.location.pathname + window.location.search + window.location.hash);
+    void fn(
+      window.location.pathname + window.location.search + window.location.hash,
+    );
     return true;
   }
   const state = useInboxStore.getState();
@@ -285,7 +314,10 @@ function onCaptureClick(e: MouseEvent): void {
   if (!path) return; // a row/button: its handler's navigation claims the intent
   // Routes outside the shell (settings, marketing) have no tab to open into;
   // let the browser handle those the way it always did.
-  if (target !== "window" && isNonTabRoute(path)) { endClickIntent(); return; }
+  if (target !== "window" && isNonTabRoute(path)) {
+    endClickIntent();
+    return;
+  }
   e.preventDefault();
   divertNavigation(path);
 }

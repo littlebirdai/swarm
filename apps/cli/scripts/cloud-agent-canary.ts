@@ -16,19 +16,26 @@
  * trigger hears of it, rather than reading as a clean day.
  */
 const fail = (err: unknown) => {
-  console.log(`the canary could not run: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+  console.log(
+    `the canary could not run: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+  );
   process.exit(1);
 };
 process.on("uncaughtException", fail);
 process.on("unhandledRejection", fail);
 
 try {
-  const [{ runCanary }, { cloudAgentAdapters }, { defaultConfigDir }] = await Promise.all([
-    import("../src/cloudAgents/canary.js"),
-    import("../src/cloudAgents/index.js"),
-    import("../src/config/configDir.js"),
-  ]);
-  const { code, line } = await runCanary(cloudAgentAdapters(), process.argv[2] ?? "codex", defaultConfigDir());
+  const [{ runCanary }, { cloudAgentAdapters }, { defaultConfigDir }] =
+    await Promise.all([
+      import("../src/cloudAgents/canary.js"),
+      import("../src/cloudAgents/index.js"),
+      import("../src/config/configDir.js"),
+    ]);
+  const { code, line } = await runCanary(
+    cloudAgentAdapters(),
+    process.argv[2] ?? "codex",
+    defaultConfigDir(),
+  );
   console.log(line);
   process.exit(code);
 } catch (err) {

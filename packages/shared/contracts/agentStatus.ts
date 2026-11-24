@@ -168,7 +168,10 @@ export function isStatusTrustStale(
   s: { message_count?: number; updated_at?: number },
   now: number,
 ): boolean {
-  return (s.message_count ?? 0) > 0 && now - (s.updated_at || 0) >= STATUS_TRUST_TTL_MS;
+  return (
+    (s.message_count ?? 0) > 0 &&
+    now - (s.updated_at || 0) >= STATUS_TRUST_TTL_MS
+  );
 }
 
 // Anti-flicker grace before a finished agent is treated as idle. Shared by the
@@ -212,7 +215,10 @@ export function isQuietSettled(
   if (s.agent_status && ACTIVE_AGENT_STATUSES.has(s.agent_status)) return false;
   if (s.is_idle === true) return false; // already settled the normal way
   if (s.has_pending) return false; // server-queued work in flight
-  return (s.message_count ?? 0) > 0 && now - (s.updated_at || 0) >= AGENT_IDLE_GRACE_MS;
+  return (
+    (s.message_count ?? 0) > 0 &&
+    now - (s.updated_at || 0) >= AGENT_IDLE_GRACE_MS
+  );
 }
 
 // THE staleness test every reader of a row's live-looking fields (agent_status,
@@ -265,7 +271,8 @@ export const HEARTBEAT_REFRESH_MS = 45 * 1000;
 // The interval between two WRITES that follows from those two: the write lands
 // on the first flush after the throttle expires, so the stamp advances every
 // HEARTBEAT_REFRESH_MS plus up to one flush — never on the flush cadence alone.
-export const HEARTBEAT_WRITE_CADENCE_MS = HEARTBEAT_REFRESH_MS + HEARTBEAT_FLUSH_INTERVAL_MS;
+export const HEARTBEAT_WRITE_CADENCE_MS =
+  HEARTBEAT_REFRESH_MS + HEARTBEAT_FLUSH_INTERVAL_MS;
 
 // The daemon liveness window: a managed row whose heartbeat is older than this
 // has no process behind it. Shared by the needs-input check, the inbox scan,
@@ -339,11 +346,22 @@ export function trustedAgentStatus(
   verifiedWaiting: boolean = false,
 ): string | undefined {
   if (!agentStatus) return agentStatus;
-  const decays = TRUST_DECAYING_STATUSES.has(agentStatus) && !(agentStatus === "waiting" && verifiedWaiting);
-  const declared = DECLARED_VERDICT_STATUSES.has(agentStatus) || (agentStatus === "waiting" && verifiedWaiting);
+  const decays =
+    TRUST_DECAYING_STATUSES.has(agentStatus) &&
+    !(agentStatus === "waiting" && verifiedWaiting);
+  const declared =
+    DECLARED_VERDICT_STATUSES.has(agentStatus) ||
+    (agentStatus === "waiting" && verifiedWaiting);
   if (!decays && !declared) return agentStatus;
-  const quietPastHeartbeat = updatedAt === undefined || now - updatedAt >= HEARTBEAT_ALIVE_MS;
-  if (!heartbeatAlive && quietPastHeartbeat && agentStatus !== "done") return "stopped";
-  if (decays && updatedAt !== undefined && now - updatedAt >= STATUS_TRUST_TTL_MS) return "idle";
+  const quietPastHeartbeat =
+    updatedAt === undefined || now - updatedAt >= HEARTBEAT_ALIVE_MS;
+  if (!heartbeatAlive && quietPastHeartbeat && agentStatus !== "done")
+    return "stopped";
+  if (
+    decays &&
+    updatedAt !== undefined &&
+    now - updatedAt >= STATUS_TRUST_TTL_MS
+  )
+    return "idle";
   return agentStatus;
 }

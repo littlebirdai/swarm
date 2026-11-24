@@ -17,8 +17,26 @@ const restoreGlobals = replaceGlobals({
 // what a click records; starting a session is sharingAgent.ts's job.
 const launched: number[] = [];
 const realSharingAgent = await import("../../lib/sharingAgent");
-mock.module("../../lib/sharingAgent", () => ({ ...realSharingAgent, launchSharingAgent: () => { launched.push(Date.now()); } }));
-mock.module("next/link", () => ({ default: ({ href, onClick, children, ...rest }: any) => <a href={href} onClick={(e) => { e.preventDefault(); onClick?.(e); }} {...rest}>{children}</a> }));
+mock.module("../../lib/sharingAgent", () => ({
+  ...realSharingAgent,
+  launchSharingAgent: () => {
+    launched.push(Date.now());
+  },
+}));
+mock.module("next/link", () => ({
+  default: ({ href, onClick, children, ...rest }: any) => (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        onClick?.(e);
+      }}
+      {...rest}
+    >
+      {children}
+    </a>
+  ),
+}));
 
 const { createRoot } = await import("react-dom/client");
 const { useInboxStore } = await import("../../store/inboxStore");
@@ -32,28 +50,55 @@ afterAll(() => {
 const DAY = 24 * 60 * 60 * 1000;
 let stamps: Record<string, number> = {};
 
-function seedNow(over: { user?: Record<string, unknown> | null; sessions?: number; taken?: number } = {}) {
+function seedNow(
+  over: {
+    user?: Record<string, unknown> | null;
+    sessions?: number;
+    taken?: number;
+  } = {},
+) {
   const sessions: Record<string, unknown> = {};
-  for (let i = 0; i < (over.sessions ?? 1); i++) sessions[`s${i}`] = { _id: `s${i}` };
+  for (let i = 0; i < (over.sessions ?? 1); i++)
+    sessions[`s${i}`] = { _id: `s${i}` };
   useInboxStore.setState({
-    currentUser: over.user === null ? null : { _id: "u1", _creationTime: Date.now() - 2 * DAY, cli_version: "1.0.0", ...over.user },
+    currentUser:
+      over.user === null
+        ? null
+        : {
+            _id: "u1",
+            _creationTime: Date.now() - 2 * DAY,
+            cli_version: "1.0.0",
+            ...over.user,
+          },
     sessions: sessions as any,
-    clientState: { ...useInboxStore.getState().clientState, dismissed: over.taken ? { sharing_setup: over.taken } : {} },
+    clientState: {
+      ...useInboxStore.getState().clientState,
+      dismissed: over.taken ? { sharing_setup: over.taken } : {},
+    },
     updateClientDismissed: ((key: string, value: number) => {
       stamps[key] = value;
-      useInboxStore.setState((s) => ({ clientState: { ...s.clientState, dismissed: { ...s.clientState.dismissed, [key]: value } } }));
+      useInboxStore.setState((s) => ({
+        clientState: {
+          ...s.clientState,
+          dismissed: { ...s.clientState.dismissed, [key]: value },
+        },
+      }));
     }) as any,
   });
 }
 
 async function seed(over: Parameters<typeof seedNow>[0] = {}) {
-  await act(async () => { seedNow(over); });
+  await act(async () => {
+    seedNow(over);
+  });
 }
 
 async function render() {
   const container = document.createElement("div");
   const root = createRoot(container);
-  await act(async () => { root.render(<SharingSetupBanner />); });
+  await act(async () => {
+    root.render(<SharingSetupBanner />);
+  });
   return { container, root };
 }
 
@@ -88,8 +133,12 @@ test("the strip waits for a connected CLI, a synced session and a recent sign up
 test("taking the agent starts it and retires the strip", async () => {
   await seed();
   const { container, root } = await render();
-  const button = [...container.querySelectorAll("button")].find((b) => b.textContent === "Set up with an agent")!;
-  await act(async () => { button.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  const button = [...container.querySelectorAll("button")].find(
+    (b) => b.textContent === "Set up with an agent",
+  )!;
+  await act(async () => {
+    button.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
   expect(launched.length).toBe(1);
   expect(stamps.sharing_setup).toBeGreaterThan(0);
   expect(container.textContent).toBe("");
@@ -100,7 +149,9 @@ test("doing it by hand links to the settings page and also retires the strip", a
   await seed();
   const { container, root } = await render();
   const link = container.querySelector('a[href="/settings/sync"]')!;
-  await act(async () => { link.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await act(async () => {
+    link.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
   expect(launched.length).toBe(0);
   expect(stamps.sharing_setup).toBeGreaterThan(0);
   root.unmount();

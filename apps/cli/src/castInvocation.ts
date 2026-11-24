@@ -38,7 +38,9 @@ export function resolveCastInvocation(): { cmd: string; prefixArgs: string[] } {
     // The argv-derived path stays as the fallback: it is right whenever argv[1]
     // IS the entry, and a wrong guess now fails loudly at the spawn rather than
     // silently.
-    const entry = entryBesideThisModule(ext) ?? path.join(path.dirname(argv1), `main${ext}`);
+    const entry =
+      entryBesideThisModule(ext) ??
+      path.join(path.dirname(argv1), `main${ext}`);
     return { cmd: process.argv[0], prefixArgs: [entry] };
   }
   if (!argv1.includes("/")) return { cmd: process.execPath, prefixArgs: [] };

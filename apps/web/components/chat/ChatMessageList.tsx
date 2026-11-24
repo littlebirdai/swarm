@@ -1,8 +1,15 @@
 import type { ReactNode } from "react";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { ArrowDown, Loader2 } from "lucide-react";
-import { useBottomAnchoredList, prefersReducedMotion } from "../../hooks/useBottomAnchoredList";
-import { lineGroupKey, buildChatTimeline, type TimelineRow } from "../../lib/chatTimeline";
+import {
+  useBottomAnchoredList,
+  prefersReducedMotion,
+} from "../../hooks/useBottomAnchoredList";
+import {
+  lineGroupKey,
+  buildChatTimeline,
+  type TimelineRow,
+} from "../../lib/chatTimeline";
 import { isModernStyle } from "../../lib/visualStyle";
 import { ChatMessage, ChatDayDivider, ChatNewDivider } from "./ChatMessage";
 import type { ChatMessageView } from "./chatTypes";
@@ -60,15 +67,33 @@ const estimateRow = (row: ListRow | undefined): number => {
   // A voice bubble is one padded line around its transcript, plus the control
   // and clock that sit on the same line as the words.
   if (m.voice) {
-    const spoken = Math.max(1, Math.ceil(m.content.length / (isModernStyle() ? 100 : 80)));
+    const spoken = Math.max(
+      1,
+      Math.ceil(m.content.length / (isModernStyle() ? 100 : 80)),
+    );
     return (row.grouped ? 8 : 26) + spoken * 20;
   }
   // Characters per line of the message column: 92 in the mono face, about 20%
   // more in Modern's sans; erring high keeps the guess small.
-  const lines = Math.max(1, Math.ceil(m.content.length / (isModernStyle() ? 115 : 92)));
+  const lines = Math.max(
+    1,
+    Math.ceil(m.content.length / (isModernStyle() ? 115 : 92)),
+  );
   // A huddle digest carries its own header plus the transcript disclosure line.
-  if (m.call) return 26 + lines * 21 + 22 + (m.reactions?.length ? 24 : 0) + (m.replyCount ? 26 : 0);
-  return (row.grouped ? 4 : 22) + lines * 21 + (m.reactions?.length ? 24 : 0) + (m.replyCount ? 26 : 0);
+  if (m.call)
+    return (
+      26 +
+      lines * 21 +
+      22 +
+      (m.reactions?.length ? 24 : 0) +
+      (m.replyCount ? 26 : 0)
+    );
+  return (
+    (row.grouped ? 4 : 22) +
+    lines * 21 +
+    (m.reactions?.length ? 24 : 0) +
+    (m.replyCount ? 26 : 0)
+  );
 };
 
 export type ChatMessageListProps = {
@@ -147,30 +172,32 @@ export const ChatMessageList = memo(function ChatMessageList({
   hereSessionId,
 }: ChatMessageListProps) {
   const hasHeader = header != null && header !== false;
-  const rows = useMemo<ListRow[]>(
-    () => {
-      const timeline = buildChatTimeline(
-        messages.map((m) => ({
-          id: m.id,
-          authorId: m.author.id,
-          groupKey: lineGroupKey(m.author, m.contextSessionId),
-          createdAt: m.createdAt,
-          pendingAgent: m.agentStatus === "thinking" || m.agentStatus === "streaming",
-          deleted: !!m.deletedAt,
-          standalone: !!m.call,
-          view: m,
-        })),
-        { now, lastReadAt, viewerId, withoutDays: inThread },
-      ) as Row[];
-      return hasHeader ? [{ kind: "header", key: "header" }, ...timeline] : timeline;
-    },
-    [messages, lastReadAt, viewerId, now, inThread, hasHeader],
-  );
+  const rows = useMemo<ListRow[]>(() => {
+    const timeline = buildChatTimeline(
+      messages.map((m) => ({
+        id: m.id,
+        authorId: m.author.id,
+        groupKey: lineGroupKey(m.author, m.contextSessionId),
+        createdAt: m.createdAt,
+        pendingAgent:
+          m.agentStatus === "thinking" || m.agentStatus === "streaming",
+        deleted: !!m.deletedAt,
+        standalone: !!m.call,
+        view: m,
+      })),
+      { now, lastReadAt, viewerId, withoutDays: inThread },
+    ) as Row[];
+    return hasHeader
+      ? [{ kind: "header", key: "header" }, ...timeline]
+      : timeline;
+  }, [messages, lastReadAt, viewerId, now, inThread, hasHeader]);
 
   const targetIndex = useMemo(
     () =>
       targetMessageId
-        ? rows.findIndex((r) => r.kind === "message" && r.message.id === targetMessageId)
+        ? rows.findIndex(
+            (r) => r.kind === "message" && r.message.id === targetMessageId,
+          )
         : -1,
     [rows, targetMessageId],
   );
@@ -253,8 +280,10 @@ export const ChatMessageList = memo(function ChatMessageList({
   // ever pending, so an echo rekey or someone else's message can't re-trigger.
   const tail = rows.length ? rows[rows.length - 1] : undefined;
   const ownSendKey =
-    tail && tail.kind === "message" && tail.message.view.pending
-      && tail.message.view.author.id === viewerId
+    tail &&
+    tail.kind === "message" &&
+    tail.message.view.pending &&
+    tail.message.view.author.id === viewerId
       ? tail.key
       : null;
   // Entering a channel is a landing, not a send — a pending tail that is
@@ -276,14 +305,16 @@ export const ChatMessageList = memo(function ChatMessageList({
   useLayoutEffect(() => {
     const previous = previousMessagesRef.current;
     previousMessagesRef.current = { channelId, messages };
-    if (previous.channelId !== channelId || previous.messages.length === 0) return;
+    if (previous.channelId !== channelId || previous.messages.length === 0)
+      return;
     const previousTail = previous.messages[previous.messages.length - 1];
     const previousIds = new Set(previous.messages.map((message) => message.id));
-    const arrived = messages.some((message) =>
-      message.author.id !== viewerId
-      && !message.deletedAt
-      && message.createdAt >= previousTail.createdAt
-      && !previousIds.has(message.id),
+    const arrived = messages.some(
+      (message) =>
+        message.author.id !== viewerId &&
+        !message.deletedAt &&
+        message.createdAt >= previousTail.createdAt &&
+        !previousIds.has(message.id),
     );
     if (arrived) scrollToBottom();
   }, [channelId, messages, viewerId, scrollToBottom]);
@@ -308,10 +339,17 @@ export const ChatMessageList = memo(function ChatMessageList({
   // being read.
   const flashedRef = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (!targetMessageId || !targetFound || flashedRef.current === targetMessageId) return;
+    if (
+      !targetMessageId ||
+      !targetFound ||
+      flashedRef.current === targetMessageId
+    )
+      return;
     flashedRef.current = targetMessageId;
     if (holdTarget) {
-      listRef.current.scrollToIndex(targetIndexRef.current, { align: "center" });
+      listRef.current.scrollToIndex(targetIndexRef.current, {
+        align: "center",
+      });
     } else if (!listRef.current.atBottom) {
       // The pin resets only on a channel change: a notification for the room
       // already open, read from higher up, would otherwise flash off screen.
@@ -327,68 +365,74 @@ export const ChatMessageList = memo(function ChatMessageList({
   }, [targetMessageId, targetFound, holdTarget]);
 
   const items = list.virtualizer.getVirtualItems();
-  const selectionButton = useChatSelection(list.containerRef, messages, permalinkChannelId);
+  const selectionButton = useChatSelection(
+    list.containerRef,
+    messages,
+    permalinkChannelId,
+  );
 
   return (
     <div className="ch-list-wrap">
       <div className="ch-list" ref={list.containerRef}>
         <div className="ch-list-fill">
-        {isLoadingOlder && (
-          <div className="ch-loading-older" role="status">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            <span>Loading earlier messages</span>
+          {isLoadingOlder && (
+            <div className="ch-loading-older" role="status">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Loading earlier messages</span>
+            </div>
+          )}
+          <div className="ch-list-sizer" style={{ height: list.totalSize }}>
+            {items.map((item) => {
+              const row = rows[item.index];
+              if (!row) return null;
+              // React 19 refuses a key arriving through a spread, so it is lifted
+              // out and passed as its own attribute.
+              // The virtualizer types its key as `Key`, which includes bigint; the
+              // hook's rowProps takes string | number. Our getItemKey only ever
+              // returns a string, so the narrowing is honest.
+              const { key, ...rowProps } = list.rowProps({
+                index: item.index,
+                key: item.key as string | number,
+                start: item.start,
+              });
+              return (
+                <div key={key} {...rowProps}>
+                  {row.kind === "header" ? (
+                    header
+                  ) : row.kind === "day" ? (
+                    <ChatDayDivider label={row.label} />
+                  ) : row.kind === "new" ? (
+                    <ChatNewDivider />
+                  ) : (
+                    <ChatMessage
+                      message={row.message.view}
+                      grouped={row.grouped}
+                      channelId={permalinkChannelId}
+                      knownHandles={knownHandles}
+                      selfHandles={selfHandles}
+                      handleNames={handleNames}
+                      now={now}
+                      mine={row.message.view.author.id === viewerId}
+                      inThread={inThread}
+                      onOpenThread={onOpenThread}
+                      onReact={onReact}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onRetryAgent={onRetryAgent}
+                      onRetrySend={onRetrySend}
+                      slackOutbound={slackOutbound}
+                      onShareToSlack={onShareToSlack}
+                      contextSessionId={
+                        row.message.view.contextSessionId !== hereSessionId
+                          ? row.message.view.contextSessionId
+                          : undefined
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-        <div className="ch-list-sizer" style={{ height: list.totalSize }}>
-          {items.map((item) => {
-            const row = rows[item.index];
-            if (!row) return null;
-            // React 19 refuses a key arriving through a spread, so it is lifted
-            // out and passed as its own attribute.
-            // The virtualizer types its key as `Key`, which includes bigint; the
-            // hook's rowProps takes string | number. Our getItemKey only ever
-            // returns a string, so the narrowing is honest.
-            const { key, ...rowProps } = list.rowProps({
-              index: item.index,
-              key: item.key as string | number,
-              start: item.start,
-            });
-            return (
-              <div key={key} {...rowProps}>
-                {row.kind === "header" ? (
-                  header
-                ) : row.kind === "day" ? (
-                  <ChatDayDivider label={row.label} />
-                ) : row.kind === "new" ? (
-                  <ChatNewDivider />
-                ) : (
-                  <ChatMessage
-                    message={row.message.view}
-                    grouped={row.grouped}
-                    channelId={permalinkChannelId}
-                    knownHandles={knownHandles}
-                    selfHandles={selfHandles}
-                    handleNames={handleNames}
-                    now={now}
-                    mine={row.message.view.author.id === viewerId}
-                    inThread={inThread}
-                    onOpenThread={onOpenThread}
-                    onReact={onReact}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onRetryAgent={onRetryAgent}
-                    onRetrySend={onRetrySend}
-                    slackOutbound={slackOutbound}
-                    onShareToSlack={onShareToSlack}
-                    contextSessionId={
-                      row.message.view.contextSessionId !== hereSessionId ? row.message.view.contextSessionId : undefined
-                    }
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
         </div>
       </div>
 

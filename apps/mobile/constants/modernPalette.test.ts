@@ -36,7 +36,8 @@ test("derived surfaces are the web's themeVars mixes", () => {
 
 test("Verdigris declares every colour token, so no palette key falls back", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const t of THEME_COLOR_TOKENS) expect(DEFAULT_THEME[scheme]?.[t]).toMatch(/^#[0-9a-f]{6}$/i);
+    for (const t of THEME_COLOR_TOKENS)
+      expect(DEFAULT_THEME[scheme]?.[t]).toMatch(/^#[0-9a-f]{6}$/i);
   }
 });
 

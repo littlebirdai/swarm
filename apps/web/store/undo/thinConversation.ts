@@ -22,9 +22,17 @@
 import { sameShape, type CellChange, type UndoCtx } from "@platform/engine";
 import { OPTIONAL_INBOX_TIMESTAMPS } from "../syncProtocol";
 
-const isThinAdd = (c: CellChange) => c.store === "conversations" && c.field === undefined && !c.hadBefore && c.hadAfter;
+const isThinAdd = (c: CellChange) =>
+  c.store === "conversations" &&
+  c.field === undefined &&
+  !c.hadBefore &&
+  c.hadAfter;
 
-const sessionsTwin = (cells: readonly CellChange[], id: string, field: string) =>
+const sessionsTwin = (
+  cells: readonly CellChange[],
+  id: string,
+  field: string,
+) =>
   cells.find((s) => s.store === "sessions" && s.id === id && s.field === field);
 
 /**
@@ -32,17 +40,25 @@ const sessionsTwin = (cells: readonly CellChange[], id: string, field: string) =
  * same row and field; undefined where the inbox row did not change (or there
  * is none), so the prior value is unknown here.
  */
-export const withSessionsPrior = (cells: readonly CellChange[], c: CellChange): CellChange | undefined => {
+export const withSessionsPrior = (
+  cells: readonly CellChange[],
+  c: CellChange,
+): CellChange | undefined => {
   const twin = sessionsTwin(cells, c.id, c.field!);
   return twin && { ...c, before: twin.before, hadBefore: twin.hadBefore };
 };
 
 // Whether the inbox row held `value` in `field` before the gesture. An optional
 // stamp's clear is spelled either way (null or left out), as in the sync merge.
-const inboxRowHeld = (row: Record<string, unknown>, field: string, value: unknown): boolean =>
+const inboxRowHeld = (
+  row: Record<string, unknown>,
+  field: string,
+  value: unknown,
+): boolean =>
   OPTIONAL_INBOX_TIMESTAMPS.has(field) && row[field] == null
     ? value == null
-    : Object.prototype.hasOwnProperty.call(row, field) && sameShape(row[field], value);
+    : Object.prototype.hasOwnProperty.call(row, field) &&
+      sameShape(row[field], value);
 
 /**
  * Turns each thin-row add into one cell per field it wrote, restored from the
@@ -53,12 +69,18 @@ const inboxRowHeld = (row: Record<string, unknown>, field: string, value: unknow
  * takes its prior value, and one whose value the inbox row already showed is
  * dropped (the conversations copy was stale).
  */
-export const keepConversationRows = (cells: CellChange[], ctx?: Pick<UndoCtx, "before">): CellChange[] =>
+export const keepConversationRows = (
+  cells: CellChange[],
+  ctx?: Pick<UndoCtx, "before">,
+): CellChange[] =>
   cells.flatMap((c) => {
     if (c.store !== "conversations") return [c];
-    const inboxRow = ctx?.before?.sessions?.[c.id] as Record<string, unknown> | undefined;
+    const inboxRow = ctx?.before?.sessions?.[c.id] as
+      | Record<string, unknown>
+      | undefined;
     if (c.field !== undefined) {
-      if (!inboxRow) return [c.hadBefore ? c : (withSessionsPrior(cells, c) ?? c)];
+      if (!inboxRow)
+        return [c.hadBefore ? c : (withSessionsPrior(cells, c) ?? c)];
       const twin = withSessionsPrior(cells, c);
       if (twin) return [twin];
       return inboxRowHeld(inboxRow, c.field, c.after) ? [] : [c];
@@ -66,7 +88,15 @@ export const keepConversationRows = (cells: CellChange[], ctx?: Pick<UndoCtx, "b
     if (c.hadBefore || !isThinAdd(c)) return [c];
     const added = c.after as Record<string, unknown>;
     const fields = Object.keys(added).filter((field) => field !== "_id");
-    return fields.flatMap((field) => withSessionsPrior(cells, { ...c, field, before: undefined, after: added[field] }) ?? []);
+    return fields.flatMap(
+      (field) =>
+        withSessionsPrior(cells, {
+          ...c,
+          field,
+          before: undefined,
+          after: added[field],
+        }) ?? [],
+    );
   });
 
 /**
@@ -77,9 +107,16 @@ export const keepConversationRows = (cells: CellChange[], ctx?: Pick<UndoCtx, "b
  * could only clear those fields, so taking back an unpin would send the unpin
  * again. Such a gesture is not recorded.
  */
-export const priorUnknown = (ctx: Pick<UndoCtx, "changes" | "before">): boolean =>
+export const priorUnknown = (
+  ctx: Pick<UndoCtx, "changes" | "before">,
+): boolean =>
   ctx.changes.some(
-    (c) => c.store === "conversations" && !c.hadBefore && c.hadAfter && isThinBefore(ctx, c.id) && ctx.before?.sessions?.[c.id] == null,
+    (c) =>
+      c.store === "conversations" &&
+      !c.hadBefore &&
+      c.hadAfter &&
+      isThinBefore(ctx, c.id) &&
+      ctx.before?.sessions?.[c.id] == null,
   );
 
 /**
@@ -87,5 +124,7 @@ export const priorUnknown = (ctx: Pick<UndoCtx, "changes" | "before">): boolean 
  * conversations row, or a stub an earlier write left. The server's row always
  * carries _creationTime. With no record of the gesture the row counts as thin.
  */
-export const isThinBefore = (ctx: Pick<UndoCtx, "before"> | undefined, id: string): boolean =>
-  ctx?.before?.conversations?.[id]?._creationTime == null;
+export const isThinBefore = (
+  ctx: Pick<UndoCtx, "before"> | undefined,
+  id: string,
+): boolean => ctx?.before?.conversations?.[id]?._creationTime == null;

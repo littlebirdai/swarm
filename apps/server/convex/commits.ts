@@ -1,4 +1,10 @@
-import { mutation, query, internalAction, internalQuery, internalMutation } from "./functions";
+import {
+  mutation,
+  query,
+  internalAction,
+  internalQuery,
+  internalMutation,
+} from "./functions";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal, api } from "./_generated/api";
@@ -6,7 +12,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { canAccessConversation, canAccessCommit } from "./lib/access";
 import { isConversationTeamVisible } from "./privacy";
 import { markCommitDirty } from "./lib/changesDirty";
-import { extractRepoFromRemoteUrl, normalizeRepository } from "@codecast/shared/contracts";
+import {
+  extractRepoFromRemoteUrl,
+  normalizeRepository,
+} from "@codecast/shared/contracts";
 import { commitCarriesDiffs } from "@codecast/shared/contracts/commitDiffs";
 
 export const addCommit = mutation({
@@ -22,14 +31,18 @@ export const addCommit = mutation({
     deletions: v.number(),
     repository: v.optional(v.string()),
     pr_number: v.optional(v.number()),
-    files: v.optional(v.array(v.object({
-      filename: v.string(),
-      status: v.string(),
-      additions: v.number(),
-      deletions: v.number(),
-      changes: v.number(),
-      patch: v.optional(v.string()),
-    }))),
+    files: v.optional(
+      v.array(
+        v.object({
+          filename: v.string(),
+          status: v.string(),
+          additions: v.number(),
+          deletions: v.number(),
+          changes: v.number(),
+          patch: v.optional(v.string()),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     // Public mutation that writes into a caller-supplied conversation's
@@ -40,7 +53,10 @@ export const addCommit = mutation({
     if (!userId) throw new Error("Not authenticated");
     if (args.conversation_id) {
       const conversation = await ctx.db.get(args.conversation_id);
-      if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) {
+      if (
+        !conversation ||
+        !(await canAccessConversation(ctx, userId, conversation))
+      ) {
         throw new Error("No access to that conversation");
       }
     }
@@ -72,27 +88,38 @@ export const addCommit = mutation({
     if (args.conversation_id) {
       const conversation = await ctx.db.get(args.conversation_id);
       if (conversation) {
-        if (conversation.team_id && await isConversationTeamVisible(ctx, conversation)) {
-          await ctx.scheduler.runAfter(0, internal.teamActivity.recordTeamActivity, {
-            team_id: conversation.team_id,
-            actor_user_id: conversation.user_id,
-            event_type: "commit_pushed" as const,
-            title: args.message.split('\n')[0],
-            description: args.repository,
-            related_conversation_id: args.conversation_id,
-            related_commit_sha: args.sha,
-            metadata: {
-              files_changed: args.files_changed,
-              insertions: args.insertions,
-              deletions: args.deletions,
+        if (
+          conversation.team_id &&
+          (await isConversationTeamVisible(ctx, conversation))
+        ) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.teamActivity.recordTeamActivity,
+            {
+              team_id: conversation.team_id,
+              actor_user_id: conversation.user_id,
+              event_type: "commit_pushed" as const,
+              title: args.message.split("\n")[0],
+              description: args.repository,
+              related_conversation_id: args.conversation_id,
+              related_commit_sha: args.sha,
+              metadata: {
+                files_changed: args.files_changed,
+                insertions: args.insertions,
+                deletions: args.deletions,
+              },
             },
-          });
+          );
         }
 
-        await ctx.scheduler.runAfter(0, internal.sessionInsights.generateSessionInsight, {
-          conversation_id: args.conversation_id,
-          reason: "commit",
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.sessionInsights.generateSessionInsight,
+          {
+            conversation_id: args.conversation_id,
+            reason: "commit",
+          },
+        );
       }
     }
 
@@ -160,7 +187,8 @@ export async function accessibleCommits<
   const out: T[] = [];
   for (const c of commits) {
     const key = `${c.conversation_id ?? ""}|${c.team_id ?? ""}`;
-    if (!verdict.has(key)) verdict.set(key, await canAccessCommit(ctx, userId, c));
+    if (!verdict.has(key))
+      verdict.set(key, await canAccessCommit(ctx, userId, c));
     if (verdict.get(key)) out.push(c);
   }
   return out;
@@ -174,12 +202,16 @@ export const getCommitsForConversation = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return [];
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return [];
 
     const commits = await ctx.db
       .query("commits")
       .withIndex("by_conversation_id", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .collect();
 
@@ -221,9 +253,13 @@ export const webGet = query({
     if (!userId) return null;
     if (args.id) {
       const commit = await ctx.db.get(args.id);
-      return commit ? (await accessibleCommits(ctx, userId, [commit]))[0] ?? null : null;
+      return commit
+        ? ((await accessibleCommits(ctx, userId, [commit]))[0] ?? null)
+        : null;
     }
-    return args.sha ? await commitBySha(ctx, userId, args.sha, args.repository) : null;
+    return args.sha
+      ? await commitBySha(ctx, userId, args.sha, args.repository)
+      : null;
   },
 });
 
@@ -232,18 +268,33 @@ export const webGet = query({
  * transcript-written commit may carry no repository; the sha alone still
  * names it. A row that names a different repository does not.
  */
-export async function commitBySha(ctx: any, userId: Id<"users">, rawSha: string, rawRepository?: string): Promise<any | null> {
+export async function commitBySha(
+  ctx: any,
+  userId: Id<"users">,
+  rawSha: string,
+  rawRepository?: string,
+): Promise<any | null> {
   const sha = rawSha.trim().toLowerCase();
   if (!sha) return null;
-  const repository = rawRepository ? normalizeRepository(rawRepository) : undefined;
+  const repository = rawRepository
+    ? normalizeRepository(rawRepository)
+    : undefined;
   const candidates =
     sha.length === 40
-      ? await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.eq("sha", sha)).collect()
+      ? await ctx.db
+          .query("commits")
+          .withIndex("by_sha", (q: any) => q.eq("sha", sha))
+          .collect()
       : await ctx.db
           .query("commits")
-          .withIndex("by_sha", (q: any) => q.gte("sha", sha).lt("sha", sha + "\uffff"))
+          .withIndex("by_sha", (q: any) =>
+            q.gte("sha", sha).lt("sha", sha + "\uffff"),
+          )
           .take(20);
-  const commit = candidates.find((c: any) => !repository || !c.repository || c.repository === repository) ?? null;
+  const commit =
+    candidates.find(
+      (c: any) => !repository || !c.repository || c.repository === repository,
+    ) ?? null;
   if (!commit) return null;
   return (await accessibleCommits(ctx, userId, [commit]))[0] ?? null;
 }
@@ -286,8 +337,11 @@ export const neighbours = query({
         .take(WINDOW);
       const allowed = await accessibleCommits(ctx, userId, rows);
       const pick =
-        (commit.branch && allowed.find((c) => c.branch === commit.branch)) || allowed[0];
-      return pick ? { sha: pick.sha, message: pick.message, branch: pick.branch ?? null } : null;
+        (commit.branch && allowed.find((c) => c.branch === commit.branch)) ||
+        allowed[0];
+      return pick
+        ? { sha: pick.sha, message: pick.message, branch: pick.branch ?? null }
+        : null;
     };
 
     return { newer: await side("newer"), older: await side("older") };
@@ -304,7 +358,9 @@ export const getCommitsByRepository = query({
     if (!userId) return [];
     const commits = await ctx.db
       .query("commits")
-      .withIndex("by_repository", (q) => q.eq("repository", normalizeRepository(args.repository)))
+      .withIndex("by_repository", (q) =>
+        q.eq("repository", normalizeRepository(args.repository)),
+      )
       .collect();
 
     commits.sort((a, b) => b.timestamp - a.timestamp);
@@ -335,7 +391,9 @@ export const clearMyGitHubData = mutation({
     for (const conversation of conversations) {
       const commits = await ctx.db
         .query("commits")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conversation._id),
+        )
         .collect();
       for (const commit of commits) {
         await ctx.db.delete(commit._id);
@@ -385,16 +443,32 @@ export const syncRepositoriesForUser = internalAction({
     user_id: v.id("users"),
     per_page: v.optional(v.number()),
   },
-  returns: v.object({ repos_synced: v.number(), total_commits: v.number(), repos: v.array(v.string()) }),
-  handler: async (ctx, args): Promise<{ repos_synced: number; total_commits: number; repos: string[] }> => {
-    const user = await ctx.runQuery(internal.commits.getUserById, { user_id: args.user_id });
+  returns: v.object({
+    repos_synced: v.number(),
+    total_commits: v.number(),
+    repos: v.array(v.string()),
+  }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    repos_synced: number;
+    total_commits: number;
+    repos: string[];
+  }> => {
+    const user = await ctx.runQuery(internal.commits.getUserById, {
+      user_id: args.user_id,
+    });
     if (!user?.github_access_token) {
       throw new Error("User has no GitHub token");
     }
 
-    const activeRepos = await ctx.runQuery(internal.commits.getActiveRepositoriesForUser, {
-      user_id: args.user_id,
-    });
+    const activeRepos = await ctx.runQuery(
+      internal.commits.getActiveRepositoriesForUser,
+      {
+        user_id: args.user_id,
+      },
+    );
 
     if (activeRepos.length === 0) {
       return { repos_synced: 0, total_commits: 0, repos: [] };
@@ -405,11 +479,14 @@ export const syncRepositoriesForUser = internalAction({
 
     for (const repo of activeRepos) {
       try {
-        const result = await ctx.runAction(internal.githubApi.syncRepositoryCommits, {
-          repository: repo,
-          github_access_token: user.github_access_token,
-          per_page: args.per_page ?? 100,
-        });
+        const result = await ctx.runAction(
+          internal.githubApi.syncRepositoryCommits,
+          {
+            repository: repo,
+            github_access_token: user.github_access_token,
+            per_page: args.per_page ?? 100,
+          },
+        );
         totalCommits += result.synced;
         reposSynced++;
       } catch (e) {
@@ -417,7 +494,11 @@ export const syncRepositoriesForUser = internalAction({
       }
     }
 
-    return { repos_synced: reposSynced, total_commits: totalCommits, repos: activeRepos };
+    return {
+      repos_synced: reposSynced,
+      total_commits: totalCommits,
+      repos: activeRepos,
+    };
   },
 });
 
@@ -451,7 +532,11 @@ export const commitFilesState = internalQuery({
     // session knew the checkout, not the remote. That is missing information,
     // not a mismatch, so it does not disqualify the row. Only a row that names
     // a DIFFERENT repository is somebody else's commit.
-    if (commit.repository && commit.repository !== normalizeRepository(args.repository)) return null;
+    if (
+      commit.repository &&
+      commit.repository !== normalizeRepository(args.repository)
+    )
+      return null;
 
     return {
       commit_id: commit._id,
@@ -467,14 +552,16 @@ export const commitFilesState = internalQuery({
 export const applyCommitFiles = internalMutation({
   args: {
     commit_id: v.id("commits"),
-    files: v.array(v.object({
-      filename: v.string(),
-      status: v.string(),
-      additions: v.number(),
-      deletions: v.number(),
-      changes: v.number(),
-      patch: v.optional(v.string()),
-    })),
+    files: v.array(
+      v.object({
+        filename: v.string(),
+        status: v.string(),
+        additions: v.number(),
+        deletions: v.number(),
+        changes: v.number(),
+        patch: v.optional(v.string()),
+      }),
+    ),
     additions: v.number(),
     deletions: v.number(),
     author_login: v.optional(v.string()),
@@ -498,7 +585,14 @@ export async function applyCommitFilesTo(
   ctx: { db: any },
   args: {
     commit_id: Id<"commits">;
-    files: { filename: string; status: string; additions: number; deletions: number; changes: number; patch?: string }[];
+    files: {
+      filename: string;
+      status: string;
+      additions: number;
+      deletions: number;
+      changes: number;
+      patch?: string;
+    }[];
     additions: number;
     deletions: number;
     author_login?: string;
@@ -522,8 +616,10 @@ export async function applyCommitFilesTo(
     insertions: args.additions,
     deletions: args.deletions,
   };
-  if (!commit.repository && args.repository) patch.repository = normalizeRepository(args.repository);
-  if (!commit.author_login && args.author_login) patch.author_login = args.author_login;
+  if (!commit.repository && args.repository)
+    patch.repository = normalizeRepository(args.repository);
+  if (!commit.author_login && args.author_login)
+    patch.author_login = args.author_login;
   if (!commit.author_avatar_url && args.author_avatar_url) {
     patch.author_avatar_url = args.author_avatar_url;
   }

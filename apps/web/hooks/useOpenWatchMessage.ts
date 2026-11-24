@@ -4,8 +4,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { captureException } from "@sentry/react";
 import { toast } from "sonner";
 import type { MonitorRow } from "../components/monitorRows";
-import { isOnThreadRoute, openSessionAtMessage } from "../lib/openSessionAtMessage";
-import { resolveWatchMessage, resolveWorkflowMessage } from "../lib/resolveWatchMessage";
+import {
+  isOnThreadRoute,
+  openSessionAtMessage,
+} from "../lib/openSessionAtMessage";
+import {
+  resolveWatchMessage,
+  resolveWorkflowMessage,
+} from "../lib/resolveWatchMessage";
 import { useInboxStore } from "../store/inboxStore";
 import { fetchMessagesAround } from "./inboxWarm";
 
@@ -18,7 +24,8 @@ export function useOpenWatchMessage(conversationId: string) {
   const pathname = usePathname();
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
-  const loadAround = (timestamp: number) => fetchMessagesAround(convex, conversationId, timestamp, 50, 50);
+  const loadAround = (timestamp: number) =>
+    fetchMessagesAround(convex, conversationId, timestamp, 50, 50);
 
   const openAt = async (
     key: string,
@@ -33,13 +40,19 @@ export function useOpenWatchMessage(conversationId: string) {
         return;
       }
       if (isOnThreadRoute(pathname)) {
-        openSessionAtMessage(conversationId, target.messageId, target.timestamp);
+        openSessionAtMessage(
+          conversationId,
+          target.messageId,
+          target.timestamp,
+        );
       } else {
         router.push(`/conversation/${conversationId}#msg-${target.messageId}`);
       }
     } catch (error) {
       captureException(error);
-      toast.error(`Couldn't open this ${what}'s message`, { description: "Try again." });
+      toast.error(`Couldn't open this ${what}'s message`, {
+        description: "Try again.",
+      });
     } finally {
       setOpeningKey(null);
     }
@@ -48,10 +61,14 @@ export function useOpenWatchMessage(conversationId: string) {
   const messages = () => useInboxStore.getState().messages[conversationId];
 
   const openWatchMessage = (row: MonitorRow) =>
-    openAt(row.toolUseId, "task", () => resolveWatchMessage(row, messages(), loadAround));
+    openAt(row.toolUseId, "task", () =>
+      resolveWatchMessage(row, messages(), loadAround),
+    );
 
   const openWorkflowMessage = (runId: string, startedAt: number) =>
-    openAt(runId, "workflow", () => resolveWorkflowMessage(startedAt, messages(), loadAround));
+    openAt(runId, "workflow", () =>
+      resolveWorkflowMessage(startedAt, messages(), loadAround),
+    );
 
   return { openWatchMessage, openWorkflowMessage, openingKey };
 }

@@ -10,7 +10,15 @@ import {
   resumePinFor,
   AUTO_SWITCH_ATTEMPT_EVIDENCE_MS,
 } from "./ccAccountsShared";
-import { awaitsManualTarget, decideSwitchAhead, dropLineHostRefused, fleetHostFollowsSwitch, holdsManualTarget, MANUAL_TARGET_HOLD_MS, SWITCH_AHEAD_COOLDOWN_MS } from "./ccSwitchAhead";
+import {
+  awaitsManualTarget,
+  decideSwitchAhead,
+  dropLineHostRefused,
+  fleetHostFollowsSwitch,
+  holdsManualTarget,
+  MANUAL_TARGET_HOLD_MS,
+  SWITCH_AHEAD_COOLDOWN_MS,
+} from "./ccSwitchAhead";
 
 // A machine whose sessions run on the fleet store (cli/ccAccounts.ts): the
 // store carries launch_profile and every session launched on it reads it. A
@@ -29,7 +37,12 @@ const accounts = {
   profiles: [
     { name: "keychain", email: "keychain@x.com", usage: usage(5) },
     { name: "fleet", email: "fleet@x.com", usage: usage(96) },
-    { name: "roomy", email: "roomy@x.com", usage: usage(20), setup_token: { stored_at: 1, expires_at: now + 1e10 } },
+    {
+      name: "roomy",
+      email: "roomy@x.com",
+      usage: usage(20),
+      setup_token: { stored_at: 1, expires_at: now + 1e10 },
+    },
     { name: "tight", email: "tight@x.com", usage: usage(94) },
   ],
 };
@@ -37,105 +50,195 @@ const device = { device_id: "mac", cc_accounts: accounts } as any;
 
 describe("fleet store: the store is the account, nothing is pinned", () => {
   test("the fleet account is the store's profile and needs no restart", () => {
-    expect(fleetAccount(accounts, now)).toEqual({ email: "fleet@x.com", profile: "fleet", viaToken: false });
+    expect(fleetAccount(accounts, now)).toEqual({
+      email: "fleet@x.com",
+      profile: "fleet",
+      viaToken: false,
+    });
     expect(activeTokenProfile(accounts, now)).toBeUndefined();
   });
 
   test("a limit park restarts onto the store, since its process may hold an account the store left", () => {
     // 2026-11-14: switch ahead moved the store off claude2 with nothing parked;
     // sessions parked on claude2 hours later and a plain continue retried it.
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit" }, device, now)).toBe(true);
-    expect(continueNeedsRestart({ pending_api_error_kind: "connection" }, device, now)).toBe(false);
+    expect(
+      continueNeedsRestart({ pending_api_error_kind: "limit" }, device, now),
+    ).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "connection" },
+        device,
+        now,
+      ),
+    ).toBe(false);
     expect(parkedOnActiveAccount({}, device, now)).toBe(true);
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "roomy" }, device, now)).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "roomy" },
+        device,
+        now,
+      ),
+    ).toBe(true);
     // An automatic pin is dropped at resume, so the session lands on the store.
-    expect(resumePinFor({ cc_account: "roomy", cc_account_auto: true }, device, now)).toBeUndefined();
+    expect(
+      resumePinFor({ cc_account: "roomy", cc_account_auto: true }, device, now),
+    ).toBeUndefined();
     // A person's --account pin stays.
     expect(resumePinFor({ cc_account: "roomy" }, device, now)).toBe("roomy");
   });
 });
 
 describe("decideSwitchAhead", () => {
-  const base = { now, fleetEmail: "fleet@x.com", fleetSince: accounts.active_since, profiles: accounts.profiles, attempts: [] };
+  const base = {
+    now,
+    fleetEmail: "fleet@x.com",
+    fleetSince: accounts.active_since,
+    profiles: accounts.profiles,
+    attempts: [],
+  };
 
   test("leaves a near-limit account for the one with the most room", () => {
     expect(decideSwitchAhead(base)).toEqual({ profile: "keychain" });
   });
 
   test("stays while the fleet account has room", () => {
-    const profiles = accounts.profiles.map((p) => (p.name === "fleet" ? { ...p, usage: usage(80) } : p));
+    const profiles = accounts.profiles.map((p) =>
+      p.name === "fleet" ? { ...p, usage: usage(80) } : p,
+    );
     expect(decideSwitchAhead({ ...base, profiles })).toBeNull();
   });
 
   test("a weekly window near its limit counts too", () => {
-    const profiles = accounts.profiles.map((p) => (p.name === "fleet" ? { ...p, usage: usage(10, 98) } : p));
+    const profiles = accounts.profiles.map((p) =>
+      p.name === "fleet" ? { ...p, usage: usage(10, 98) } : p,
+    );
     expect(decideSwitchAhead({ ...base, profiles })?.profile).toBe("keychain");
   });
 
   test("ignores a reading taken before the fleet last moved", () => {
-    const profiles = accounts.profiles.map((p) => (p.name === "fleet" ? { ...p, usage: usage(99, 10, now - 10_000) } : p));
-    expect(decideSwitchAhead({ ...base, profiles, fleetSince: now - 5_000 })).toBeNull();
+    const profiles = accounts.profiles.map((p) =>
+      p.name === "fleet" ? { ...p, usage: usage(99, 10, now - 10_000) } : p,
+    );
+    expect(
+      decideSwitchAhead({ ...base, profiles, fleetSince: now - 5_000 }),
+    ).toBeNull();
   });
 
   test("never moves onto another near-limit account or one barely better", () => {
-    const profiles = accounts.profiles.filter((p) => p.name === "fleet" || p.name === "tight");
+    const profiles = accounts.profiles.filter(
+      (p) => p.name === "fleet" || p.name === "tight",
+    );
     expect(decideSwitchAhead({ ...base, profiles })).toBeNull();
   });
 
   test("a model-scoped week counts only for the models the fleet runs", () => {
     // 2026-10-04: an Opus fleet was moved onto an account at 85% because every
     // account at 5-65% of its week had a pegged Fable week.
-    const fable = (u: ReturnType<typeof usage>) => ({ ...u, weekly_scoped: { percent: 100, resets_at: now + 86_400_000, label: "Fable" } });
+    const fable = (u: ReturnType<typeof usage>) => ({
+      ...u,
+      weekly_scoped: {
+        percent: 100,
+        resets_at: now + 86_400_000,
+        label: "Fable",
+      },
+    });
     const profiles = [
       { name: "fleet", email: "fleet@x.com", usage: usage(10, 98) },
       { name: "fableSpent", email: "fable@x.com", usage: fable(usage(5, 5)) },
       { name: "busy", email: "busy@x.com", usage: usage(5, 60) },
     ];
-    expect(decideSwitchAhead({ ...base, profiles, models: ["claude-opus-5-5"] })).toEqual({ profile: "fableSpent" });
-    expect(decideSwitchAhead({ ...base, profiles, models: ["claude-fable-5-1"] })).toEqual({ profile: "busy" });
+    expect(
+      decideSwitchAhead({ ...base, profiles, models: ["claude-opus-5-5"] }),
+    ).toEqual({ profile: "fableSpent" });
+    expect(
+      decideSwitchAhead({ ...base, profiles, models: ["claude-fable-5-1"] }),
+    ).toEqual({ profile: "busy" });
     // A pegged Fable week on the fleet account does not drive an Opus fleet away.
-    const onFable = [{ name: "fleet", email: "fleet@x.com", usage: fable(usage(10, 50)) }, profiles[2]];
-    expect(decideSwitchAhead({ ...base, profiles: onFable, models: ["claude-opus-5-5"] })).toBeNull();
-    expect(decideSwitchAhead({ ...base, profiles: onFable, models: ["claude-fable-5-1"] })).toEqual({ profile: "busy" });
+    const onFable = [
+      { name: "fleet", email: "fleet@x.com", usage: fable(usage(10, 50)) },
+      profiles[2],
+    ];
+    expect(
+      decideSwitchAhead({
+        ...base,
+        profiles: onFable,
+        models: ["claude-opus-5-5"],
+      }),
+    ).toBeNull();
+    expect(
+      decideSwitchAhead({
+        ...base,
+        profiles: onFable,
+        models: ["claude-fable-5-1"],
+      }),
+    ).toEqual({ profile: "busy" });
   });
 
   test("two Fable sessions do not move a mostly Opus fleet off an account with room", () => {
     // 2026-11-14: mike at 9% of its session and 34% of its week, Fable week
     // full on every account; switch ahead moved the fleet onto peter at 75%.
-    const fable = (u: ReturnType<typeof usage>) => ({ ...u, weekly_scoped: { percent: 100, resets_at: now + 86_400_000, label: "Fable" } });
+    const fable = (u: ReturnType<typeof usage>) => ({
+      ...u,
+      weekly_scoped: {
+        percent: 100,
+        resets_at: now + 86_400_000,
+        label: "Fable",
+      },
+    });
     const profiles = [
       { name: "fleet", email: "fleet@x.com", usage: fable(usage(9, 34)) },
       { name: "peter", email: "peter@x.com", usage: usage(16, 75) },
     ];
-    const running = [...Array.from({ length: 29 }, () => "claude-opus-5-5"), "claude-fable-5-2", "claude-fable-5-2"];
-    expect(decideSwitchAhead({ ...base, profiles, models: fleetModels(running) })).toBeNull();
+    const running = [
+      ...Array.from({ length: 29 }, () => "claude-opus-5-5"),
+      "claude-fable-5-2",
+      "claude-fable-5-2",
+    ];
+    expect(
+      decideSwitchAhead({ ...base, profiles, models: fleetModels(running) }),
+    ).toBeNull();
   });
 
   test("on its last call the fleet takes any account below the thresholds", () => {
-    const profiles = [{ name: "fleet", email: "fleet@x.com", usage: usage(10, 99) }, { name: "close", email: "close@x.com", usage: usage(10, 92) }];
-    expect(decideSwitchAhead({ ...base, profiles })).toEqual({ profile: "close" });
+    const profiles = [
+      { name: "fleet", email: "fleet@x.com", usage: usage(10, 99) },
+      { name: "close", email: "close@x.com", usage: usage(10, 92) },
+    ];
+    expect(decideSwitchAhead({ ...base, profiles })).toEqual({
+      profile: "close",
+    });
     const notYet = [{ ...profiles[0], usage: usage(10, 97) }, profiles[1]];
     expect(decideSwitchAhead({ ...base, profiles: notYet })).toBeNull();
   });
 
   test("waits out the cooldown and skips an account tried this window without fresh evidence", () => {
-    expect(decideSwitchAhead({ ...base, lastActionAt: now - SWITCH_AHEAD_COOLDOWN_MS + 1000 })).toBeNull();
-    const attempts = [{ profile: "keychain", at: now - AUTO_SWITCH_ATTEMPT_EVIDENCE_MS / 2 }];
-    expect(decideSwitchAhead({ ...base, attempts })).toEqual({ profile: "roomy" });
+    expect(
+      decideSwitchAhead({
+        ...base,
+        lastActionAt: now - SWITCH_AHEAD_COOLDOWN_MS + 1000,
+      }),
+    ).toBeNull();
+    const attempts = [
+      { profile: "keychain", at: now - AUTO_SWITCH_ATTEMPT_EVIDENCE_MS / 2 },
+    ];
+    expect(decideSwitchAhead({ ...base, attempts })).toEqual({
+      profile: "roomy",
+    });
   });
 });
 
 describe("a manual switch holds the fleet on the account the person picked", () => {
   const decision = { kind: "switch" as const, target_email: "fleet@x.com" };
-  const held = (over: Record<string, unknown> = {}) => holdsManualTarget({
-    now,
-    fleetEmail: "fleet@x.com",
-    usage: usage(21),
-    lastAction: "manual",
-    lastActionAt: now - 60_000,
-    decision,
-    ...over,
-  });
+  const held = (over: Record<string, unknown> = {}) =>
+    holdsManualTarget({
+      now,
+      fleetEmail: "fleet@x.com",
+      usage: usage(21),
+      lastAction: "manual",
+      lastActionAt: now - 60_000,
+      decision,
+      ...over,
+    });
 
   test("stays while that account has room, including when its meter has not been read", () => {
     expect(held()).toBe(true);
@@ -146,7 +249,9 @@ describe("a manual switch holds the fleet on the account the person picked", () 
     expect(held({ usage: usage(96) })).toBe(false);
     expect(held({ lastActionAt: now - MANUAL_TARGET_HOLD_MS - 1 })).toBe(false);
     expect(held({ fleetEmail: "other@x.com" })).toBe(false);
-    expect(held({ decision: { kind: "continue", target_email: "fleet@x.com" } })).toBe(false);
+    expect(
+      held({ decision: { kind: "continue", target_email: "fleet@x.com" } }),
+    ).toBe(false);
     expect(held({ lastAction: "switch:other" })).toBe(false);
   });
 
@@ -160,19 +265,51 @@ describe("a manual switch holds the fleet on the account the person picked", () 
     };
     expect(awaitsManualTarget(flight)).toBe(true);
     expect(holdsManualTarget({ ...flight, usage: usage(99) })).toBe(false);
-    expect(awaitsManualTarget({ ...flight, fleetEmail: "fleet@x.com" })).toBe(false);
-    expect(awaitsManualTarget({ ...flight, lastActionAt: now - MANUAL_TARGET_HOLD_MS - 1 })).toBe(false);
-    expect(awaitsManualTarget({ ...flight, lastAction: "ahead:other" })).toBe(false);
+    expect(awaitsManualTarget({ ...flight, fleetEmail: "fleet@x.com" })).toBe(
+      false,
+    );
+    expect(
+      awaitsManualTarget({
+        ...flight,
+        lastActionAt: now - MANUAL_TARGET_HOLD_MS - 1,
+      }),
+    ).toBe(false);
+    expect(awaitsManualTarget({ ...flight, lastAction: "ahead:other" })).toBe(
+      false,
+    );
   });
 });
 
 describe("a switch on the fleet store restarts every blocked session onto the store", () => {
   test("unpinned and pinned parks both restart, and neither keeps a pin", async () => {
     const userId = "user_1" as any;
-    const dev = { _id: "device_1", user_id: userId, device_id: "mac", label: "Mac", last_seen: now, cc_accounts: accounts } as any;
-    const follower = { _id: "c_follow", session_id: "s1", owner_device_id: "mac", pending_api_error_kind: "limit" } as any;
-    const pinned = { _id: "c_pinned", session_id: "s2", owner_device_id: "mac", pending_api_error_kind: "limit", cc_account: "tight", cc_account_auto: true } as any;
-    const db = makeFakeDb({ conversations: [follower, pinned], devices: [dev], daemon_commands: [] });
+    const dev = {
+      _id: "device_1",
+      user_id: userId,
+      device_id: "mac",
+      label: "Mac",
+      last_seen: now,
+      cc_accounts: accounts,
+    } as any;
+    const follower = {
+      _id: "c_follow",
+      session_id: "s1",
+      owner_device_id: "mac",
+      pending_api_error_kind: "limit",
+    } as any;
+    const pinned = {
+      _id: "c_pinned",
+      session_id: "s2",
+      owner_device_id: "mac",
+      pending_api_error_kind: "limit",
+      cc_account: "tight",
+      cc_account_auto: true,
+    } as any;
+    const db = makeFakeDb({
+      conversations: [follower, pinned],
+      devices: [dev],
+      daemon_commands: [],
+    });
     const result = await insertSwitchCommands({ db }, userId, {
       profile: "roomy",
       blocked: [follower, pinned],
@@ -186,42 +323,109 @@ describe("a switch on the fleet store restarts every blocked session onto the st
     expect(args.profile).toBe("roomy");
     expect(args.conversation_ids).toEqual(["c_follow", "c_pinned"]);
     expect(args.follow_ids).toBeUndefined();
-    expect(db._tables.conversations.find((c: any) => c._id === "c_pinned").cc_account).toBeUndefined();
-    expect(db._tables.conversations.find((c: any) => c._id === "c_follow").cc_account).toBeUndefined();
+    expect(
+      db._tables.conversations.find((c: any) => c._id === "c_pinned")
+        .cc_account,
+    ).toBeUndefined();
+    expect(
+      db._tables.conversations.find((c: any) => c._id === "c_follow")
+        .cc_account,
+    ).toBeUndefined();
   });
 
   test("the server paces the same continues the daemon reports before it enqueues them", async () => {
     const userId = "user_1" as any;
-    const dev = { _id: "device_1", user_id: userId, device_id: "mac", label: "Mac", last_seen: now, cc_accounts: accounts } as any;
-    const follower = { _id: "c_follow", session_id: "s1", owner_device_id: "mac", pending_api_error_kind: "limit" } as any;
-    const pinned = { _id: "c_pinned", session_id: "s2", owner_device_id: "mac", pending_api_error_kind: "limit", cc_account: "tight", cc_account_auto: true } as any;
-    const db = makeFakeDb({ conversations: [follower, pinned], devices: [dev], daemon_commands: [] });
-    const scheduled: Array<{ delay: number; args: any }> = [];
-    await insertSwitchCommands({
-      db,
-      scheduler: { runAfter: async (delay, _fn, args) => { scheduled.push({ delay, args }); } },
-    }, userId, {
-      profile: "roomy",
-      blocked: [follower, pinned],
-      online: [dev],
-      primary: dev,
-      continueBlocked: true,
-      now,
-      continueClientIds: { c_follow: "painted-follow" },
+    const dev = {
+      _id: "device_1",
+      user_id: userId,
+      device_id: "mac",
+      label: "Mac",
+      last_seen: now,
+      cc_accounts: accounts,
+    } as any;
+    const follower = {
+      _id: "c_follow",
+      session_id: "s1",
+      owner_device_id: "mac",
+      pending_api_error_kind: "limit",
+    } as any;
+    const pinned = {
+      _id: "c_pinned",
+      session_id: "s2",
+      owner_device_id: "mac",
+      pending_api_error_kind: "limit",
+      cc_account: "tight",
+      cc_account_auto: true,
+    } as any;
+    const db = makeFakeDb({
+      conversations: [follower, pinned],
+      devices: [dev],
+      daemon_commands: [],
     });
+    const scheduled: Array<{ delay: number; args: any }> = [];
+    await insertSwitchCommands(
+      {
+        db,
+        scheduler: {
+          runAfter: async (delay, _fn, args) => {
+            scheduled.push({ delay, args });
+          },
+        },
+      },
+      userId,
+      {
+        profile: "roomy",
+        blocked: [follower, pinned],
+        online: [dev],
+        primary: dev,
+        continueBlocked: true,
+        now,
+        continueClientIds: { c_follow: "painted-follow" },
+      },
+    );
     expect(scheduled).toHaveLength(1);
     expect(scheduled[0].delay).toBe(0);
-    expect(scheduled[0].args.conversation_ids).toEqual(["c_follow", "c_pinned"]);
+    expect(scheduled[0].args.conversation_ids).toEqual([
+      "c_follow",
+      "c_pinned",
+    ]);
     expect(scheduled[0].args.index).toBe(0);
     expect(scheduled[0].args.client_ids.c_follow).toBe("painted-follow");
   });
 
   test("a person's switch also moves the other cloud hosts that keep their own fleet", async () => {
     const userId = "user_1" as any;
-    const laptop = { _id: "d1", user_id: userId, device_id: "mac", label: "Mac", last_seen: now, cc_accounts: accounts } as any;
-    const host = { _id: "d2", user_id: userId, device_id: "host", label: "host", last_seen: now, is_remote: true, cc_accounts: accounts } as any;
-    const pushed = { _id: "d3", user_id: userId, device_id: "mini", label: "mini", last_seen: now, is_remote: true, cc_accounts: { ...accounts, fleet_store: false } } as any;
-    const db = makeFakeDb({ conversations: [], devices: [laptop, host, pushed], daemon_commands: [] });
+    const laptop = {
+      _id: "d1",
+      user_id: userId,
+      device_id: "mac",
+      label: "Mac",
+      last_seen: now,
+      cc_accounts: accounts,
+    } as any;
+    const host = {
+      _id: "d2",
+      user_id: userId,
+      device_id: "host",
+      label: "host",
+      last_seen: now,
+      is_remote: true,
+      cc_accounts: accounts,
+    } as any;
+    const pushed = {
+      _id: "d3",
+      user_id: userId,
+      device_id: "mini",
+      label: "mini",
+      last_seen: now,
+      is_remote: true,
+      cc_accounts: { ...accounts, fleet_store: false },
+    } as any;
+    const db = makeFakeDb({
+      conversations: [],
+      devices: [laptop, host, pushed],
+      daemon_commands: [],
+    });
     const result = await insertSwitchCommands({ db }, userId, {
       profile: "roomy",
       blocked: [],
@@ -231,7 +435,9 @@ describe("a switch on the fleet store restarts every blocked session onto the st
       now,
       switchFleetHosts: true,
     });
-    const targets = db._tables.daemon_commands.map((c: any) => c.target_device_id).sort();
+    const targets = db._tables.daemon_commands
+      .map((c: any) => c.target_device_id)
+      .sort();
     expect(targets).toEqual(["host", "mac"]);
     expect(result.devices).toBe(2);
     expect(result.restarted).toBe(0);
@@ -243,14 +449,50 @@ describe("a switch on the fleet store restarts every blocked session onto the st
     const saved = {
       fleet_store: true,
       profiles: [
-        { name: "cam", email: cam, setup_token: { stored_at: 1, expires_at: now + 1e10 } },
-        { name: "other", email: "other@x.com", setup_token: { stored_at: 1, expires_at: now + 1e10 } },
+        {
+          name: "cam",
+          email: cam,
+          setup_token: { stored_at: 1, expires_at: now + 1e10 },
+        },
+        {
+          name: "other",
+          email: "other@x.com",
+          setup_token: { stored_at: 1, expires_at: now + 1e10 },
+        },
       ],
     };
-    const laptop = { _id: "d1", user_id: userId, device_id: "mac", label: "Mac", last_seen: now, cc_accounts: saved } as any;
-    const line = { _id: "d2", user_id: userId, device_id: "line", label: "line", last_seen: now, is_remote: true, line_slots: [{ origin: "git@github.com:acme/app.git" }], cc_accounts: saved } as any;
-    const box = { _id: "d3", user_id: userId, device_id: "box", label: "box", last_seen: now, is_remote: true, cc_accounts: saved } as any;
-    const db = makeFakeDb({ conversations: [], devices: [laptop, line, box], daemon_commands: [] });
+    const laptop = {
+      _id: "d1",
+      user_id: userId,
+      device_id: "mac",
+      label: "Mac",
+      last_seen: now,
+      cc_accounts: saved,
+    } as any;
+    const line = {
+      _id: "d2",
+      user_id: userId,
+      device_id: "line",
+      label: "line",
+      last_seen: now,
+      is_remote: true,
+      line_slots: [{ origin: "git@github.com:acme/app.git" }],
+      cc_accounts: saved,
+    } as any;
+    const box = {
+      _id: "d3",
+      user_id: userId,
+      device_id: "box",
+      label: "box",
+      last_seen: now,
+      is_remote: true,
+      cc_accounts: saved,
+    } as any;
+    const db = makeFakeDb({
+      conversations: [],
+      devices: [laptop, line, box],
+      daemon_commands: [],
+    });
     const result = await insertSwitchCommands({ db }, userId, {
       profile: "cam",
       blocked: [],
@@ -260,7 +502,9 @@ describe("a switch on the fleet store restarts every blocked session onto the st
       now,
       switchFleetHosts: true,
     });
-    expect(db._tables.daemon_commands.map((c: any) => c.target_device_id).sort()).toEqual(["box", "mac"]);
+    expect(
+      db._tables.daemon_commands.map((c: any) => c.target_device_id).sort(),
+    ).toEqual(["box", "mac"]);
     expect(result.devices).toBe(2);
   });
 });
@@ -271,24 +515,77 @@ describe("line hosts stay off the account Cloudflare refuses there", () => {
   const profiles = [
     { name: "fleet", email: "fleet@x.com", usage: usage(96) },
     { name: "cam", email: cam, usage: usage(5) },
-    { name: "roomy", email: "roomy@x.com", usage: usage(20), setup_token: { stored_at: 1, expires_at: now + 1e10 } },
+    {
+      name: "roomy",
+      email: "roomy@x.com",
+      usage: usage(20),
+      setup_token: { stored_at: 1, expires_at: now + 1e10 },
+    },
   ];
 
   test("a line host ranks the next account, and a laptop still ranks this one", () => {
     const ranked = dropLineHostRefused(profiles, line, "fleet@x.com");
     expect(ranked.map((p) => p.name)).toEqual(["fleet", "roomy"]);
-    expect(decideSwitchAhead({ now, fleetEmail: "fleet@x.com", fleetSince: now - 3_600_000, profiles: ranked, attempts: [] })).toEqual({ profile: "roomy" });
-    expect(dropLineHostRefused(profiles, { is_remote: false }, "fleet@x.com")).toBe(profiles);
-    expect(decideSwitchAhead({ now, fleetEmail: "fleet@x.com", fleetSince: now - 3_600_000, profiles, attempts: [] })).toEqual({ profile: "cam" });
+    expect(
+      decideSwitchAhead({
+        now,
+        fleetEmail: "fleet@x.com",
+        fleetSince: now - 3_600_000,
+        profiles: ranked,
+        attempts: [],
+      }),
+    ).toEqual({ profile: "roomy" });
+    expect(
+      dropLineHostRefused(profiles, { is_remote: false }, "fleet@x.com"),
+    ).toBe(profiles);
+    expect(
+      decideSwitchAhead({
+        now,
+        fleetEmail: "fleet@x.com",
+        fleetSince: now - 3_600_000,
+        profiles,
+        attempts: [],
+      }),
+    ).toEqual({ profile: "cam" });
   });
 
   test("a line host already on it can leave, and does not follow another machine's switch onto it", () => {
-    const onIt = dropLineHostRefused(profiles, line, cam).map((p) => (p.email === cam ? { ...p, usage: usage(96) } : p));
+    const onIt = dropLineHostRefused(profiles, line, cam).map((p) =>
+      p.email === cam ? { ...p, usage: usage(96) } : p,
+    );
     expect(onIt.map((p) => p.name)).toEqual(["fleet", "cam", "roomy"]);
-    expect(decideSwitchAhead({ now, fleetEmail: cam, fleetSince: now - 3_600_000, profiles: onIt, attempts: [] })?.profile).toBe("roomy");
-    const saved = { profiles: [{ name: "cam", email: cam }, { name: "roomy", email: "roomy@x.com" }] };
-    expect(fleetHostFollowsSwitch({ ...line, cc_accounts: saved }, { profile: "cam" })).toBe(false);
-    expect(fleetHostFollowsSwitch({ is_remote: true, cc_accounts: saved }, { profile: "cam" })).toBe(true);
-    expect(fleetHostFollowsSwitch({ ...line, cc_accounts: saved }, { profile: "roomy" })).toBe(true);
+    expect(
+      decideSwitchAhead({
+        now,
+        fleetEmail: cam,
+        fleetSince: now - 3_600_000,
+        profiles: onIt,
+        attempts: [],
+      })?.profile,
+    ).toBe("roomy");
+    const saved = {
+      profiles: [
+        { name: "cam", email: cam },
+        { name: "roomy", email: "roomy@x.com" },
+      ],
+    };
+    expect(
+      fleetHostFollowsSwitch(
+        { ...line, cc_accounts: saved },
+        { profile: "cam" },
+      ),
+    ).toBe(false);
+    expect(
+      fleetHostFollowsSwitch(
+        { is_remote: true, cc_accounts: saved },
+        { profile: "cam" },
+      ),
+    ).toBe(true);
+    expect(
+      fleetHostFollowsSwitch(
+        { ...line, cc_accounts: saved },
+        { profile: "roomy" },
+      ),
+    ).toBe(true);
   });
 });

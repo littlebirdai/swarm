@@ -22,9 +22,28 @@ export const BOARD_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
 };
 
 /** Sticky and shape colors, by name. The web maps each to a theme token. */
-export const BOARD_COLORS = ["yellow", "orange", "red", "pink", "violet", "blue", "cyan", "green", "gray"] as const;
+export const BOARD_COLORS = [
+  "yellow",
+  "orange",
+  "red",
+  "pink",
+  "violet",
+  "blue",
+  "cyan",
+  "green",
+  "gray",
+] as const;
 export type BoardColor = (typeof BOARD_COLORS)[number];
-export const BOARD_SHAPES = ["rect", "ellipse", "diamond", "pill", "triangle", "hexagon", "cylinder", "star"] as const;
+export const BOARD_SHAPES = [
+  "rect",
+  "ellipse",
+  "diamond",
+  "pill",
+  "triangle",
+  "hexagon",
+  "cylinder",
+  "star",
+] as const;
 export type BoardShape = (typeof BOARD_SHAPES)[number];
 
 function num(v: unknown, fallback: number): number {
@@ -42,7 +61,8 @@ export function textWidth(text: string, size: number): number {
 export function textHeight(text: string, size: number, w: number): number {
   const perLine = Math.max(1, Math.floor(w / (size * 0.6)));
   let lines = 0;
-  for (const line of (text || " ").split("\n")) lines += wrappedLines(line.replace(/\*\*|~~/g, ""), perLine);
+  for (const line of (text || " ").split("\n"))
+    lines += wrappedLines(line.replace(/\*\*|~~/g, ""), perLine);
   return Math.ceil(lines * size * 1.3);
 }
 
@@ -57,10 +77,16 @@ export function wrapLine(line: string, perLine: number): string[] {
   let cur = "";
   for (const word of line.split(" ")) {
     const next = cur ? `${cur} ${word}` : word;
-    if (next.length <= perLine) { cur = next; continue; }
+    if (next.length <= perLine) {
+      cur = next;
+      continue;
+    }
     if (cur) out.push(cur);
     let w = word;
-    while (w.length > perLine) { out.push(w.slice(0, perLine)); w = w.slice(perLine); }
+    while (w.length > perLine) {
+      out.push(w.slice(0, perLine));
+      w = w.slice(perLine);
+    }
     cur = w;
   }
   out.push(cur);
@@ -72,7 +98,8 @@ export function unflatten(points: unknown): Pt[] {
   if (!Array.isArray(points)) return [];
   const out: Pt[] = [];
   for (let i = 0; i + 1 < points.length; i += 2) {
-    const x = points[i], y = points[i + 1];
+    const x = points[i],
+      y = points[i + 1];
     if (typeof x === "number" && typeof y === "number") out.push({ x, y });
   }
   return out;
@@ -80,20 +107,30 @@ export function unflatten(points: unknown): Pt[] {
 
 export function boxOfPoints(pts: readonly Pt[]): Box {
   if (pts.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of pts) {
-    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
   }
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
 export function unionBox(boxes: readonly Box[]): Box | null {
   if (boxes.length === 0) return null;
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const b of boxes) {
-    minX = Math.min(minX, b.x); minY = Math.min(minY, b.y);
-    maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h);
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.w);
+    maxY = Math.max(maxY, b.y + b.h);
   }
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
@@ -103,16 +140,28 @@ export function center(b: Box): Pt {
 }
 
 export function intersects(a: Box, b: Box): boolean {
-  return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
+  return (
+    a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
+  );
 }
 
 export function contains(outer: Box, inner: Box): boolean {
-  return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.w <= outer.x + outer.w &&
+    inner.y + inner.h <= outer.y + outer.h
+  );
 }
 
 /** Normalize a box with a possibly negative width/height (a marquee dragged up-left). */
 export function normBox(a: Pt, b: Pt): Box {
-  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(b.x - a.x),
+    h: Math.abs(b.y - a.y),
+  };
 }
 
 /**
@@ -121,11 +170,17 @@ export function normBox(a: Pt, b: Pt): Box {
  */
 export function elementBox(el: ArtifactElement): Box {
   const d = BOARD_DEFAULT_SIZE[el.kind] ?? { w: 120, h: 80 };
-  const x = num(el.x, 0), y = num(el.y, 0);
+  const x = num(el.x, 0),
+    y = num(el.y, 0);
   if (el.kind === "pen") {
     const b = boxOfPoints(unflatten(el.points));
     const pad = num(el.width, 4) / 2;
-    return { x: x + b.x - pad, y: y + b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 };
+    return {
+      x: x + b.x - pad,
+      y: y + b.y - pad,
+      w: b.w + pad * 2,
+      h: b.h + pad * 2,
+    };
   }
   if (el.kind === "stamp") {
     const s = num(el.size, d.w);
@@ -148,17 +203,21 @@ export function elementBounds(el: ArtifactElement): Box {
   const b = elementBox(el);
   const rot = typeof el.rot === "number" ? (el.rot * Math.PI) / 180 : 0;
   if (!rot) return b;
-  const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot));
-  const w = b.w * c + b.h * s, h = b.w * s + b.h * c;
+  const c = Math.abs(Math.cos(rot)),
+    s = Math.abs(Math.sin(rot));
+  const w = b.w * c + b.h * s,
+    h = b.w * s + b.h * c;
   return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
 }
 
 /** Where a ray from the box's center toward `toward` leaves the element's outline. */
 export function anchorPoint(b: Box, shape: string | undefined, toward: Pt): Pt {
   const c = center(b);
-  const dx = toward.x - c.x, dy = toward.y - c.y;
+  const dx = toward.x - c.x,
+    dy = toward.y - c.y;
   if (dx === 0 && dy === 0) return c;
-  const hw = b.w / 2, hh = b.h / 2;
+  const hw = b.w / 2,
+    hh = b.h / 2;
   if (hw === 0 || hh === 0) return c;
   let t: number;
   if (shape === "ellipse") {
@@ -166,13 +225,25 @@ export function anchorPoint(b: Box, shape: string | undefined, toward: Pt): Pt {
   } else if (shape === "diamond") {
     t = 1 / (Math.abs(dx) / hw + Math.abs(dy) / hh);
   } else {
-    t = Math.min(dx === 0 ? Infinity : hw / Math.abs(dx), dy === 0 ? Infinity : hh / Math.abs(dy));
+    t = Math.min(
+      dx === 0 ? Infinity : hw / Math.abs(dx),
+      dy === 0 ? Infinity : hh / Math.abs(dy),
+    );
   }
   return { x: c.x + dx * t, y: c.y + dy * t };
 }
 
 /** `points`: the drawn path as a polyline (the route of an elbow, samples of a curve), for hit-testing and placing a label along it. */
-export type ConnectorGeometry = { a: Pt; b: Pt; d: string; mid: Pt; box: Box; angleEnd: number; angleStart: number; points: Pt[] };
+export type ConnectorGeometry = {
+  a: Pt;
+  b: Pt;
+  d: string;
+  mid: Pt;
+  box: Box;
+  angleEnd: number;
+  angleStart: number;
+  points: Pt[];
+};
 
 /**
  * A connector's drawn path. Attached ends follow their element (computed from
@@ -180,46 +251,100 @@ export type ConnectorGeometry = { a: Pt; b: Pt; d: string; mid: Pt; box: Box; an
  * use x1,y1 / x2,y2. Curved connectors leave each box along the axis the
  * other end lies on, like FigJam's.
  */
-export function connectorGeometry(el: ArtifactElement, lookup: (key: string) => ArtifactElement | undefined, obstacles?: readonly Box[]): ConnectorGeometry | null {
+export function connectorGeometry(
+  el: ArtifactElement,
+  lookup: (key: string) => ArtifactElement | undefined,
+  obstacles?: readonly Box[],
+): ConnectorGeometry | null {
   const fromEl = typeof el.from === "string" ? lookup(el.from) : undefined;
   const toEl = typeof el.to === "string" ? lookup(el.to) : undefined;
   // A rotated element is attached at the box it covers, so the arrow meets what is drawn.
   const fromBox = fromEl ? elementBounds(fromEl) : null;
   const toBox = toEl ? elementBounds(toEl) : null;
-  const freeA: Pt | null = typeof el.x1 === "number" && typeof el.y1 === "number" ? { x: el.x1, y: el.y1 } : null;
-  const freeB: Pt | null = typeof el.x2 === "number" && typeof el.y2 === "number" ? { x: el.x2, y: el.y2 } : null;
+  const freeA: Pt | null =
+    typeof el.x1 === "number" && typeof el.y1 === "number"
+      ? { x: el.x1, y: el.y1 }
+      : null;
+  const freeB: Pt | null =
+    typeof el.x2 === "number" && typeof el.y2 === "number"
+      ? { x: el.x2, y: el.y2 }
+      : null;
   const aRef = fromBox ? center(fromBox) : freeA;
   const bRef = toBox ? center(toBox) : freeB;
   if (!aRef || !bRef) return null;
-  if (el.curve === "elbow") return elbowGeometry(fromBox ?? { ...aRef, w: 0, h: 0 }, toBox ?? { ...bRef, w: 0, h: 0 }, obstacles ?? [], el.label_at, { a: parseAnchor(el.from_at), b: parseAnchor(el.to_at) });
+  if (el.curve === "elbow")
+    return elbowGeometry(
+      fromBox ?? { ...aRef, w: 0, h: 0 },
+      toBox ?? { ...bRef, w: 0, h: 0 },
+      obstacles ?? [],
+      el.label_at,
+      { a: parseAnchor(el.from_at), b: parseAnchor(el.to_at) },
+    );
   const curved = el.curve === "curved";
   // Between two boxes, a straight arrow joins the middles of the sides that face each other (FigJam's),
   // so a diagonal pair never meets corner to corner and a resized box keeps the arrow at its side's middle.
-  const facing = !curved && fromBox && toBox && midAnchored(fromEl!) && midAnchored(toEl!) ? facingMiddles(pad(fromBox, 4), pad(toBox, 4)) : null;
-  const a = facing ? facing[0] : fromBox ? anchorPoint(pad(fromBox, 4), rotated(fromEl!) ? "rect" : shapeOf(fromEl!), bRef) : aRef;
-  const b = facing ? facing[1] : toBox ? anchorPoint(pad(toBox, 4), rotated(toEl!) ? "rect" : shapeOf(toEl!), aRef) : bRef;
-  let d: string, mid: Pt, c1: Pt = a, c2: Pt = b;
+  const facing =
+    !curved && fromBox && toBox && midAnchored(fromEl!) && midAnchored(toEl!)
+      ? facingMiddles(pad(fromBox, 4), pad(toBox, 4))
+      : null;
+  const a = facing
+    ? facing[0]
+    : fromBox
+      ? anchorPoint(
+          pad(fromBox, 4),
+          rotated(fromEl!) ? "rect" : shapeOf(fromEl!),
+          bRef,
+        )
+      : aRef;
+  const b = facing
+    ? facing[1]
+    : toBox
+      ? anchorPoint(
+          pad(toBox, 4),
+          rotated(toEl!) ? "rect" : shapeOf(toEl!),
+          aRef,
+        )
+      : bRef;
+  let d: string,
+    mid: Pt,
+    c1: Pt = a,
+    c2: Pt = b;
   if (curved) {
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const dx = b.x - a.x,
+      dy = b.y - a.y;
     const horizontal = Math.abs(dx) >= Math.abs(dy);
     const k = (horizontal ? Math.abs(dx) : Math.abs(dy)) * 0.5;
-    c1 = horizontal ? { x: a.x + Math.sign(dx) * k, y: a.y } : { x: a.x, y: a.y + Math.sign(dy) * k };
-    c2 = horizontal ? { x: b.x - Math.sign(dx) * k, y: b.y } : { x: b.x, y: b.y - Math.sign(dy) * k };
+    c1 = horizontal
+      ? { x: a.x + Math.sign(dx) * k, y: a.y }
+      : { x: a.x, y: a.y + Math.sign(dy) * k };
+    c2 = horizontal
+      ? { x: b.x - Math.sign(dx) * k, y: b.y }
+      : { x: b.x, y: b.y - Math.sign(dy) * k };
     d = `M${r(a.x)},${r(a.y)} C${r(c1.x)},${r(c1.y)} ${r(c2.x)},${r(c2.y)} ${r(b.x)},${r(b.y)}`;
     mid = a;
   } else {
     d = `M${r(a.x)},${r(a.y)} L${r(b.x)},${r(b.y)}`;
     mid = a;
   }
-  const points = curved ? Array.from({ length: 25 }, (_, i) => cubicAt(a, c1, c2, b, i / 24)) : [a, b];
+  const points = curved
+    ? Array.from({ length: 25 }, (_, i) => cubicAt(a, c1, c2, b, i / 24))
+    : [a, b];
   // The label sits `label_at` of the way along the drawn line, by length (the same measure a drag sets).
   mid = pointAlong(points, labelT(el.label_at));
   return {
-    a, b, d, mid, points,
+    a,
+    b,
+    d,
+    mid,
+    points,
     box: boxOfPoints([a, b, c1, c2]),
     // Tangents at each end: from the control point for a curve, along the line for a straight one.
-    angleEnd: curved ? Math.atan2(b.y - c2.y, b.x - c2.x) : Math.atan2(b.y - a.y, b.x - a.x),
-    angleStart: curved ? Math.atan2(a.y - c1.y, a.x - c1.x) : Math.atan2(a.y - b.y, a.x - b.x),
+    angleEnd: curved
+      ? Math.atan2(b.y - c2.y, b.x - c2.x)
+      : Math.atan2(b.y - a.y, b.x - a.x),
+    angleStart: curved
+      ? Math.atan2(a.y - c1.y, a.x - c1.x)
+      : Math.atan2(a.y - b.y, a.x - b.x),
   };
 }
 
@@ -237,7 +362,10 @@ const CLEAR = 16;
  */
 function sidePoint(b: Box, side: Side, toward?: Pt): Pt {
   const inset = (len: number) => Math.min(24, len * 0.2);
-  const along = (lo: number, len: number, v: number | undefined) => (v === undefined || v <= lo + inset(len) || v >= lo + len - inset(len) ? lo + len / 2 : v);
+  const along = (lo: number, len: number, v: number | undefined) =>
+    v === undefined || v <= lo + inset(len) || v >= lo + len - inset(len)
+      ? lo + len / 2
+      : v;
   if (side === "n") return { x: along(b.x, b.w, toward?.x), y: b.y };
   if (side === "s") return { x: along(b.x, b.w, toward?.x), y: b.y + b.h };
   if (side === "w") return { x: b.x, y: along(b.y, b.h, toward?.y) };
@@ -248,22 +376,44 @@ function sidePoint(b: Box, side: Side, toward?: Pt): Pt {
 export type Anchor = { fx: number; fy: number };
 
 function anchorSide(a: Anchor): Side {
-  const d = [["n", a.fy], ["s", 1 - a.fy], ["w", a.fx], ["e", 1 - a.fx]] as const;
+  const d = [
+    ["n", a.fy],
+    ["s", 1 - a.fy],
+    ["w", a.fx],
+    ["e", 1 - a.fx],
+  ] as const;
   return [...d].sort((x, y) => x[1] - y[1])[0][0];
 }
 
 export function parseAnchor(v: unknown): Anchor | null {
-  if (!Array.isArray(v) || v.length !== 2 || !v.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
-  return { fx: Math.max(0, Math.min(1, v[0])), fy: Math.max(0, Math.min(1, v[1])) };
+  if (
+    !Array.isArray(v) ||
+    v.length !== 2 ||
+    !v.every((n) => typeof n === "number" && Number.isFinite(n))
+  )
+    return null;
+  return {
+    fx: Math.max(0, Math.min(1, v[0])),
+    fy: Math.max(0, Math.min(1, v[1])),
+  };
 }
 
 function stubOut(p: Pt, side: Side, d: number): Pt {
-  return side === "n" ? { x: p.x, y: p.y - d } : side === "s" ? { x: p.x, y: p.y + d } : side === "w" ? { x: p.x - d, y: p.y } : { x: p.x + d, y: p.y };
+  return side === "n"
+    ? { x: p.x, y: p.y - d }
+    : side === "s"
+      ? { x: p.x, y: p.y + d }
+      : side === "w"
+        ? { x: p.x - d, y: p.y }
+        : { x: p.x + d, y: p.y };
 }
 
 /** Whether an axis-aligned segment crosses the inside of a box. */
 function segHitsBox(p: Pt, q: Pt, b: Box): boolean {
-  const x0 = Math.min(p.x, q.x), x1 = Math.max(p.x, q.x), y0 = Math.min(p.y, q.y), y1 = Math.max(p.y, q.y);
+  const x0 = Math.min(p.x, q.x),
+    x1 = Math.max(p.x, q.x),
+    y0 = Math.min(p.y, q.y),
+    y1 = Math.max(p.y, q.y);
   return x0 < b.x + b.w && x1 > b.x && y0 < b.y + b.h && y1 > b.y;
 }
 
@@ -272,9 +422,16 @@ function tidy(pts: Pt[]): Pt[] {
   const out: Pt[] = [];
   for (const p of pts) {
     const last = out[out.length - 1];
-    if (last && Math.abs(last.x - p.x) < 0.5 && Math.abs(last.y - p.y) < 0.5) continue;
+    if (last && Math.abs(last.x - p.x) < 0.5 && Math.abs(last.y - p.y) < 0.5)
+      continue;
     const prev = out[out.length - 2];
-    if (prev && last && ((Math.abs(prev.x - last.x) < 0.5 && Math.abs(last.x - p.x) < 0.5) || (Math.abs(prev.y - last.y) < 0.5 && Math.abs(last.y - p.y) < 0.5))) out[out.length - 1] = p;
+    if (
+      prev &&
+      last &&
+      ((Math.abs(prev.x - last.x) < 0.5 && Math.abs(last.x - p.x) < 0.5) ||
+        (Math.abs(prev.y - last.y) < 0.5 && Math.abs(last.y - p.y) < 0.5))
+    )
+      out[out.length - 1] = p;
     else out.push(p);
   }
   return out;
@@ -282,7 +439,8 @@ function tidy(pts: Pt[]): Pt[] {
 
 function polyLength(pts: readonly Pt[]): number {
   let n = 0;
-  for (let i = 1; i < pts.length; i++) n += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  for (let i = 1; i < pts.length; i++)
+    n += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
   return n;
 }
 
@@ -291,9 +449,13 @@ export function pointAlong(pts: readonly Pt[], t: number): Pt {
   const total = polyLength(pts);
   let left = Math.max(0, Math.min(1, t)) * total;
   for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i];
+    const a = pts[i - 1],
+      b = pts[i];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
-    if (left <= len && len > 0) { const k = left / len; return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; }
+    if (left <= len && len > 0) {
+      const k = left / len;
+      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+    }
     left -= len;
   }
   return pts[pts.length - 1] ?? { x: 0, y: 0 };
@@ -306,64 +468,144 @@ export function pointAlong(pts: readonly Pt[], t: number): Pt {
  * every pair of sides joined with one or two bends, the two-bend ones placed
  * on the midline or just outside any obstacle; the shortest clear one wins.
  */
-export function elbowRoute(A: Box, B: Box, obstacles: readonly Box[], anchors: { a?: Anchor | null; b?: Anchor | null } = {}): Pt[] {
-  const freeA = A.w === 0 && A.h === 0, freeB = B.w === 0 && B.h === 0;
+export function elbowRoute(
+  A: Box,
+  B: Box,
+  obstacles: readonly Box[],
+  anchors: { a?: Anchor | null; b?: Anchor | null } = {},
+): Pt[] {
+  const freeA = A.w === 0 && A.h === 0,
+    freeB = B.w === 0 && B.h === 0;
   const span = unionBoxOf(A, B);
-  const near = obstacles.filter((o) => !sameBox(o, A) && !sameBox(o, B) && o.x < span.x + span.w + 200 && o.x + o.w > span.x - 200 && o.y < span.y + span.h + 200 && o.y + o.h > span.y - 200).slice(0, 60);
+  const near = obstacles
+    .filter(
+      (o) =>
+        !sameBox(o, A) &&
+        !sameBox(o, B) &&
+        o.x < span.x + span.w + 200 &&
+        o.x + o.w > span.x - 200 &&
+        o.y < span.y + span.h + 200 &&
+        o.y + o.h > span.y - 200,
+    )
+    .slice(0, 60);
   const blockers = near.map((o) => padBox(o, CLEAR / 2));
-  const xs = new Set<number>(), ys = new Set<number>();
-  for (const o of [...near, A, B]) { xs.add(o.x - CLEAR); xs.add(o.x + o.w + CLEAR); ys.add(o.y - CLEAR); ys.add(o.y + o.h + CLEAR); }
-  let best: { pts: Pt[]; score: number } | null = null;
-  const cA = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cB = { x: B.x + B.w / 2, y: B.y + B.h / 2 };
-  const fixed = (b: Box, an: Anchor) => ({ x: b.x + an.fx * b.w, y: b.y + an.fy * b.h });
-  const sidesA: Side[] = freeA ? ["e"] : anchors.a ? [anchorSide(anchors.a)] : SIDES;
-  const sidesB: Side[] = freeB ? ["w"] : anchors.b ? [anchorSide(anchors.b)] : SIDES;
-  for (const sa of sidesA) for (const sb of sidesB) {
-    const p0 = freeA ? { x: A.x, y: A.y } : anchors.a ? fixed(A, anchors.a) : sidePoint(A, sa, cB);
-    const p3 = freeB ? { x: B.x, y: B.y } : anchors.b ? fixed(B, anchors.b) : sidePoint(B, sb, p0);
-    const p1 = freeA ? p0 : stubOut(p0, sa, STUB);
-    const p2 = freeB ? p3 : stubOut(p3, sb, STUB);
-    const mids: Pt[][] = [[{ x: p2.x, y: p1.y }], [{ x: p1.x, y: p2.y }]];
-    for (const x of [(p1.x + p2.x) / 2, ...xs]) mids.push([{ x, y: p1.y }, { x, y: p2.y }]);
-    for (const y of [(p1.y + p2.y) / 2, ...ys]) mids.push([{ x: p1.x, y }, { x: p2.x, y }]);
-    for (const m of mids) {
-      const pts = tidy([p0, p1, ...m, p2, p3]);
-      let hits = 0;
-      for (let i = 1; i < pts.length; i++) {
-        const p = pts[i - 1], q = pts[i];
-        for (const o of blockers) if (segHitsBox(p, q, o)) hits++;
-        // The route may not pass back through either end's own box (its first and last legs touch them).
-        if (!freeA && i > 1 && segHitsBox(p, q, padBox(A, -1))) hits++;
-        if (!freeB && i < pts.length - 1 && segHitsBox(p, q, padBox(B, -1))) hits++;
-      }
-      // A route doubling back on itself (a leg reversing the one before) reads as a glitch.
-      let reversals = 0;
-      for (let i = 2; i < pts.length; i++) {
-        const d1 = { x: Math.sign(pts[i - 1].x - pts[i - 2].x), y: Math.sign(pts[i - 1].y - pts[i - 2].y) };
-        const d2 = { x: Math.sign(pts[i].x - pts[i - 1].x), y: Math.sign(pts[i].y - pts[i - 1].y) };
-        if (d1.x === -d2.x && d1.y === -d2.y) reversals++;
-      }
-      // A route leaves its box straight out of the side it starts on and enters the target head-on. (A stub that
-      // tidy() folded away would otherwise leave a line running along the box's own edge.)
-      const out = (from: Pt, to: Pt, side: Side) => {
-        const n = stubOut({ x: 0, y: 0 }, side, 1);
-        return Math.sign(to.x - from.x) === n.x && Math.sign(to.y - from.y) === n.y;
-      };
-      const n = pts.length;
-      const skew = (!freeA && !anchors.a && n > 1 && !out(pts[0], pts[1], sa) ? 1 : 0) + (!freeB && !anchors.b && n > 1 && !out(pts[n - 1], pts[n - 2], sb) ? 1 : 0);
-      const score = polyLength(pts) + (pts.length - 2) * 24 + hits * 10000 + (reversals + skew) * 5000;
-      if (!best || score < best.score) best = { pts, score };
-    }
+  const xs = new Set<number>(),
+    ys = new Set<number>();
+  for (const o of [...near, A, B]) {
+    xs.add(o.x - CLEAR);
+    xs.add(o.x + o.w + CLEAR);
+    ys.add(o.y - CLEAR);
+    ys.add(o.y + o.h + CLEAR);
   }
+  let best: { pts: Pt[]; score: number } | null = null;
+  const cA = { x: A.x + A.w / 2, y: A.y + A.h / 2 },
+    cB = { x: B.x + B.w / 2, y: B.y + B.h / 2 };
+  const fixed = (b: Box, an: Anchor) => ({
+    x: b.x + an.fx * b.w,
+    y: b.y + an.fy * b.h,
+  });
+  const sidesA: Side[] = freeA
+    ? ["e"]
+    : anchors.a
+      ? [anchorSide(anchors.a)]
+      : SIDES;
+  const sidesB: Side[] = freeB
+    ? ["w"]
+    : anchors.b
+      ? [anchorSide(anchors.b)]
+      : SIDES;
+  for (const sa of sidesA)
+    for (const sb of sidesB) {
+      const p0 = freeA
+        ? { x: A.x, y: A.y }
+        : anchors.a
+          ? fixed(A, anchors.a)
+          : sidePoint(A, sa, cB);
+      const p3 = freeB
+        ? { x: B.x, y: B.y }
+        : anchors.b
+          ? fixed(B, anchors.b)
+          : sidePoint(B, sb, p0);
+      const p1 = freeA ? p0 : stubOut(p0, sa, STUB);
+      const p2 = freeB ? p3 : stubOut(p3, sb, STUB);
+      const mids: Pt[][] = [[{ x: p2.x, y: p1.y }], [{ x: p1.x, y: p2.y }]];
+      for (const x of [(p1.x + p2.x) / 2, ...xs])
+        mids.push([
+          { x, y: p1.y },
+          { x, y: p2.y },
+        ]);
+      for (const y of [(p1.y + p2.y) / 2, ...ys])
+        mids.push([
+          { x: p1.x, y },
+          { x: p2.x, y },
+        ]);
+      for (const m of mids) {
+        const pts = tidy([p0, p1, ...m, p2, p3]);
+        let hits = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const p = pts[i - 1],
+            q = pts[i];
+          for (const o of blockers) if (segHitsBox(p, q, o)) hits++;
+          // The route may not pass back through either end's own box (its first and last legs touch them).
+          if (!freeA && i > 1 && segHitsBox(p, q, padBox(A, -1))) hits++;
+          if (!freeB && i < pts.length - 1 && segHitsBox(p, q, padBox(B, -1)))
+            hits++;
+        }
+        // A route doubling back on itself (a leg reversing the one before) reads as a glitch.
+        let reversals = 0;
+        for (let i = 2; i < pts.length; i++) {
+          const d1 = {
+            x: Math.sign(pts[i - 1].x - pts[i - 2].x),
+            y: Math.sign(pts[i - 1].y - pts[i - 2].y),
+          };
+          const d2 = {
+            x: Math.sign(pts[i].x - pts[i - 1].x),
+            y: Math.sign(pts[i].y - pts[i - 1].y),
+          };
+          if (d1.x === -d2.x && d1.y === -d2.y) reversals++;
+        }
+        // A route leaves its box straight out of the side it starts on and enters the target head-on. (A stub that
+        // tidy() folded away would otherwise leave a line running along the box's own edge.)
+        const out = (from: Pt, to: Pt, side: Side) => {
+          const n = stubOut({ x: 0, y: 0 }, side, 1);
+          return (
+            Math.sign(to.x - from.x) === n.x && Math.sign(to.y - from.y) === n.y
+          );
+        };
+        const n = pts.length;
+        const skew =
+          (!freeA && !anchors.a && n > 1 && !out(pts[0], pts[1], sa) ? 1 : 0) +
+          (!freeB && !anchors.b && n > 1 && !out(pts[n - 1], pts[n - 2], sb)
+            ? 1
+            : 0);
+        const score =
+          polyLength(pts) +
+          (pts.length - 2) * 24 +
+          hits * 10000 +
+          (reversals + skew) * 5000;
+        if (!best || score < best.score) best = { pts, score };
+      }
+    }
   return best!.pts;
 }
 
 function unionBoxOf(a: Box, b: Box): Box {
-  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
-  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+  const x = Math.min(a.x, b.x),
+    y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    w: Math.max(a.x + a.w, b.x + b.w) - x,
+    h: Math.max(a.y + a.h, b.y + b.h) - y,
+  };
 }
 function sameBox(a: Box, b: Box): boolean {
-  return Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.w - b.w) < 0.5 && Math.abs(a.h - b.h) < 0.5;
+  return (
+    Math.abs(a.x - b.x) < 0.5 &&
+    Math.abs(a.y - b.y) < 0.5 &&
+    Math.abs(a.w - b.w) < 0.5 &&
+    Math.abs(a.h - b.h) < 0.5
+  );
 }
 function padBox(b: Box, p: number): Box {
   return { x: b.x - p, y: b.y - p, w: b.w + p * 2, h: b.h + p * 2 };
@@ -374,12 +616,24 @@ export function roundedPath(pts: readonly Pt[], radius = 10): string {
   if (pts.length === 0) return "";
   let d = `M${r(pts[0].x)},${r(pts[0].y)}`;
   for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i - 1], c = pts[i], n = pts[i + 1];
-    const l1 = Math.hypot(c.x - p.x, c.y - p.y), l2 = Math.hypot(n.x - c.x, n.y - c.y);
+    const p = pts[i - 1],
+      c = pts[i],
+      n = pts[i + 1];
+    const l1 = Math.hypot(c.x - p.x, c.y - p.y),
+      l2 = Math.hypot(n.x - c.x, n.y - c.y);
     const k = Math.min(radius, l1 / 2, l2 / 2);
-    if (k < 0.5) { d += ` L${r(c.x)},${r(c.y)}`; continue; }
-    const a = { x: c.x + ((p.x - c.x) / l1) * k, y: c.y + ((p.y - c.y) / l1) * k };
-    const b = { x: c.x + ((n.x - c.x) / l2) * k, y: c.y + ((n.y - c.y) / l2) * k };
+    if (k < 0.5) {
+      d += ` L${r(c.x)},${r(c.y)}`;
+      continue;
+    }
+    const a = {
+      x: c.x + ((p.x - c.x) / l1) * k,
+      y: c.y + ((p.y - c.y) / l1) * k,
+    };
+    const b = {
+      x: c.x + ((n.x - c.x) / l2) * k,
+      y: c.y + ((n.y - c.y) / l2) * k,
+    };
     d += ` L${r(a.x)},${r(a.y)} Q${r(c.x)},${r(c.y)} ${r(b.x)},${r(b.y)}`;
   }
   const last = pts[pts.length - 1];
@@ -388,10 +642,17 @@ export function roundedPath(pts: readonly Pt[], radius = 10): string {
 
 /** An elbow's label by default: the middle of its longest straight leg, never on a bend. */
 function longestLegMiddle(pts: readonly Pt[]): Pt {
-  let best = 0, at = { x: pts[0].x, y: pts[0].y };
+  let best = 0,
+    at = { x: pts[0].x, y: pts[0].y };
   for (let i = 1; i < pts.length; i++) {
     const len = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    if (len > best) { best = len; at = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2 }; }
+    if (len > best) {
+      best = len;
+      at = {
+        x: (pts[i].x + pts[i - 1].x) / 2,
+        y: (pts[i].y + pts[i - 1].y) / 2,
+      };
+    }
   }
   return at;
 }
@@ -402,38 +663,93 @@ function longestLegMiddle(pts: readonly Pt[]): Pt {
  * arrowhead past the chip, it moves just beside the line (above a level leg, to
  * the right of an upright one), so the arrow's direction stays visible.
  */
-export function labelSpot(g: { points: readonly Pt[]; mid: Pt }, label: string): Pt {
+export function labelSpot(
+  g: { points: readonly Pt[]; mid: Pt },
+  label: string,
+): Pt {
   const lw = textWidth(label, 15) + 16;
-  let leg: [Pt, Pt] | null = null, near = Infinity;
+  let leg: [Pt, Pt] | null = null,
+    near = Infinity;
   for (let i = 1; i < g.points.length; i++) {
-    const p = g.points[i - 1], q = g.points[i];
-    const t = Math.max(0, Math.min(1, ((g.mid.x - p.x) * (q.x - p.x) + (g.mid.y - p.y) * (q.y - p.y)) / (Math.hypot(q.x - p.x, q.y - p.y) ** 2 || 1)));
-    const d = Math.hypot(p.x + (q.x - p.x) * t - g.mid.x, p.y + (q.y - p.y) * t - g.mid.y);
-    if (d < near) { near = d; leg = [p, q]; }
+    const p = g.points[i - 1],
+      q = g.points[i];
+    const t = Math.max(
+      0,
+      Math.min(
+        1,
+        ((g.mid.x - p.x) * (q.x - p.x) + (g.mid.y - p.y) * (q.y - p.y)) /
+          (Math.hypot(q.x - p.x, q.y - p.y) ** 2 || 1),
+      ),
+    );
+    const d = Math.hypot(
+      p.x + (q.x - p.x) * t - g.mid.x,
+      p.y + (q.y - p.y) * t - g.mid.y,
+    );
+    if (d < near) {
+      near = d;
+      leg = [p, q];
+    }
   }
   if (!leg) return g.mid;
   const [p, q] = leg;
   const level = Math.abs(q.x - p.x) >= Math.abs(q.y - p.y);
   const len = Math.hypot(q.x - p.x, q.y - p.y);
   if (len >= (level ? lw : 24) + 48) return g.mid;
-  return level ? { x: g.mid.x, y: g.mid.y - 20 } : { x: g.mid.x + lw / 2 + 8, y: g.mid.y };
+  return level
+    ? { x: g.mid.x, y: g.mid.y - 20 }
+    : { x: g.mid.x + lw / 2 + 8, y: g.mid.y };
 }
 
 /** Where along a connector its label sits, 0 (start) to 1 (end); the middle by default. */
 function labelT(v: unknown): number {
-  return typeof v === "number" && Number.isFinite(v) ? Math.max(0.05, Math.min(0.95, v)) : 0.5;
+  return typeof v === "number" && Number.isFinite(v)
+    ? Math.max(0.05, Math.min(0.95, v))
+    : 0.5;
 }
 
-function elbowGeometry(A: Box, B: Box, obstacles: readonly Box[], labelAt: unknown, anchors: { a?: Anchor | null; b?: Anchor | null } = {}): ConnectorGeometry {
+function elbowGeometry(
+  A: Box,
+  B: Box,
+  obstacles: readonly Box[],
+  labelAt: unknown,
+  anchors: { a?: Anchor | null; b?: Anchor | null } = {},
+): ConnectorGeometry {
   // The ends' own boxes are not obstacles; the route starts just off their outline.
-  const others = obstacles.filter((o) => !sameBox(o, A) && !sameBox(o, B) && !(o.x <= A.x && o.y <= A.y && o.x + o.w >= A.x + A.w && o.y + o.h >= A.y + A.h) && !(o.x <= B.x && o.y <= B.y && o.x + o.w >= B.x + B.w && o.y + o.h >= B.y + B.h));
-  const pts = elbowRoute(padBox(A, A.w || A.h ? 4 : 0), padBox(B, B.w || B.h ? 4 : 0), others, anchors);
-  const a = pts[0], b = pts[pts.length - 1];
-  const pa = pts[1] ?? b, pb = pts[pts.length - 2] ?? a;
+  const others = obstacles.filter(
+    (o) =>
+      !sameBox(o, A) &&
+      !sameBox(o, B) &&
+      !(
+        o.x <= A.x &&
+        o.y <= A.y &&
+        o.x + o.w >= A.x + A.w &&
+        o.y + o.h >= A.y + A.h
+      ) &&
+      !(
+        o.x <= B.x &&
+        o.y <= B.y &&
+        o.x + o.w >= B.x + B.w &&
+        o.y + o.h >= B.y + B.h
+      ),
+  );
+  const pts = elbowRoute(
+    padBox(A, A.w || A.h ? 4 : 0),
+    padBox(B, B.w || B.h ? 4 : 0),
+    others,
+    anchors,
+  );
+  const a = pts[0],
+    b = pts[pts.length - 1];
+  const pa = pts[1] ?? b,
+    pb = pts[pts.length - 2] ?? a;
   return {
-    a, b,
+    a,
+    b,
     d: roundedPath(pts),
-    mid: typeof labelAt === "number" ? pointAlong(pts, labelT(labelAt)) : longestLegMiddle(pts),
+    mid:
+      typeof labelAt === "number"
+        ? pointAlong(pts, labelT(labelAt))
+        : longestLegMiddle(pts),
     box: boxOfPoints(pts),
     angleEnd: Math.atan2(b.y - pb.y, b.x - pb.x),
     angleStart: Math.atan2(a.y - pa.y, a.x - pa.x),
@@ -450,14 +766,21 @@ function midAnchored(el: ArtifactElement): boolean {
 
 /** The middles of the sides two boxes face each other with, along the axis they are further apart on; null when they overlap. */
 function facingMiddles(A: Box, B: Box): [Pt, Pt] | null {
-  const gx = Math.max(B.x - (A.x + A.w), A.x - (B.x + B.w)), gy = Math.max(B.y - (A.y + A.h), A.y - (B.y + B.h));
+  const gx = Math.max(B.x - (A.x + A.w), A.x - (B.x + B.w)),
+    gy = Math.max(B.y - (A.y + A.h), A.y - (B.y + B.h));
   if (gx <= 0 && gy <= 0) return null;
   if (gx >= gy) {
     const right = B.x > A.x;
-    return [{ x: right ? A.x + A.w : A.x, y: A.y + A.h / 2 }, { x: right ? B.x : B.x + B.w, y: B.y + B.h / 2 }];
+    return [
+      { x: right ? A.x + A.w : A.x, y: A.y + A.h / 2 },
+      { x: right ? B.x : B.x + B.w, y: B.y + B.h / 2 },
+    ];
   }
   const down = B.y > A.y;
-  return [{ x: A.x + A.w / 2, y: down ? A.y + A.h : A.y }, { x: B.x + B.w / 2, y: down ? B.y : B.y + B.h }];
+  return [
+    { x: A.x + A.w / 2, y: down ? A.y + A.h : A.y },
+    { x: B.x + B.w / 2, y: down ? B.y : B.y + B.h },
+  ];
 }
 
 function rotated(el: ArtifactElement): boolean {
@@ -465,7 +788,8 @@ function rotated(el: ArtifactElement): boolean {
 }
 
 function shapeOf(el: ArtifactElement): string | undefined {
-  if (el.kind === "shape") return typeof el.shape === "string" ? el.shape : "rect";
+  if (el.kind === "shape")
+    return typeof el.shape === "string" ? el.shape : "rect";
   if (el.kind === "stamp") return "ellipse";
   return "rect";
 }
@@ -477,8 +801,16 @@ function pad(b: Box, p: number): Box {
 function cubicAt(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
   const u = 1 - t;
   return {
-    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+    x:
+      u * u * u * p0.x +
+      3 * u * u * t * p1.x +
+      3 * u * t * t * p2.x +
+      t * t * t * p3.x,
+    y:
+      u * u * u * p0.y +
+      3 * u * u * t * p1.y +
+      3 * u * t * t * p2.y +
+      t * t * t * p3.y,
   };
 }
 
@@ -488,10 +820,14 @@ const r = (n: number) => Math.round(n * 10) / 10;
 export function smoothPath(pts: readonly Pt[]): string {
   if (pts.length === 0) return "";
   if (pts.length === 1) return `M${r(pts[0].x)},${r(pts[0].y)} l0.01,0`;
-  if (pts.length === 2) return `M${r(pts[0].x)},${r(pts[0].y)} L${r(pts[1].x)},${r(pts[1].y)}`;
+  if (pts.length === 2)
+    return `M${r(pts[0].x)},${r(pts[0].y)} L${r(pts[1].x)},${r(pts[1].y)}`;
   let d = `M${r(pts[0].x)},${r(pts[0].y)}`;
   for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] ?? p2;
+    const p0 = pts[i - 1] ?? pts[i],
+      p1 = pts[i],
+      p2 = pts[i + 1],
+      p3 = pts[i + 2] ?? p2;
     const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
     const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
     d += ` C${r(c1.x)},${r(c1.y)} ${r(c2.x)},${r(c2.y)} ${r(p2.x)},${r(p2.y)}`;
@@ -511,10 +847,14 @@ export function simplifyStroke(pts: readonly Pt[], eps = 1.2): Pt[] {
   const stack: [number, number][] = [[0, pts.length - 1]];
   while (stack.length) {
     const [s, e] = stack.pop()!;
-    let maxD = 0, idx = -1;
+    let maxD = 0,
+      idx = -1;
     for (let i = s + 1; i < e; i++) {
       const dd = segDist(pts[i], pts[s], pts[e]);
-      if (dd > maxD) { maxD = dd; idx = i; }
+      if (dd > maxD) {
+        maxD = dd;
+        idx = i;
+      }
     }
     if (maxD > eps && idx > 0) {
       keep[idx] = true;
@@ -525,10 +865,14 @@ export function simplifyStroke(pts: readonly Pt[], eps = 1.2): Pt[] {
 }
 
 function segDist(p: Pt, a: Pt, b: Pt): number {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const len2 = dx * dx + dy * dy;
   if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2),
+  );
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
@@ -536,20 +880,30 @@ function segDist(p: Pt, a: Pt, b: Pt): number {
 export function distToPolyline(p: Pt, pts: readonly Pt[]): number {
   if (pts.length === 1) return Math.hypot(p.x - pts[0].x, p.y - pts[0].y);
   let best = Infinity;
-  for (let i = 0; i + 1 < pts.length; i++) best = Math.min(best, segDist(p, pts[i], pts[i + 1]));
+  for (let i = 0; i + 1 < pts.length; i++)
+    best = Math.min(best, segDist(p, pts[i], pts[i + 1]));
   return best;
 }
 
 // ── Snapping ───────────────────────────────────────────────────────────────
 
-export type SnapGuide = { axis: "x" | "y"; at: number; from: number; to: number };
+export type SnapGuide = {
+  axis: "x" | "y";
+  at: number;
+  from: number;
+  to: number;
+};
 
 /**
  * Snap a moving box to the edges and centers of nearby boxes. Returns the
  * offset to add and the guide lines to draw. `threshold` is in canvas pixels
  * (the caller divides its screen tolerance by zoom).
  */
-export function snapBox(moving: Box, others: readonly Box[], threshold: number): { dx: number; dy: number; guides: SnapGuide[] } {
+export function snapBox(
+  moving: Box,
+  others: readonly Box[],
+  threshold: number,
+): { dx: number; dy: number; guides: SnapGuide[] } {
   const xs = [moving.x, moving.x + moving.w / 2, moving.x + moving.w];
   const ys = [moving.y, moving.y + moving.h / 2, moving.y + moving.h];
   let bestX: { d: number; to: number } | null = null;
@@ -557,28 +911,52 @@ export function snapBox(moving: Box, others: readonly Box[], threshold: number):
   for (const o of others) {
     const oxs = [o.x, o.x + o.w / 2, o.x + o.w];
     const oys = [o.y, o.y + o.h / 2, o.y + o.h];
-    for (const mx of xs) for (const ox of oxs) {
-      const d = ox - mx;
-      if (Math.abs(d) <= threshold && (!bestX || Math.abs(d) < Math.abs(bestX.d))) bestX = { d, to: ox };
-    }
-    for (const my of ys) for (const oy of oys) {
-      const d = oy - my;
-      if (Math.abs(d) <= threshold && (!bestY || Math.abs(d) < Math.abs(bestY.d))) bestY = { d, to: oy };
-    }
+    for (const mx of xs)
+      for (const ox of oxs) {
+        const d = ox - mx;
+        if (
+          Math.abs(d) <= threshold &&
+          (!bestX || Math.abs(d) < Math.abs(bestX.d))
+        )
+          bestX = { d, to: ox };
+      }
+    for (const my of ys)
+      for (const oy of oys) {
+        const d = oy - my;
+        if (
+          Math.abs(d) <= threshold &&
+          (!bestY || Math.abs(d) < Math.abs(bestY.d))
+        )
+          bestY = { d, to: oy };
+      }
   }
-  const dx = bestX?.d ?? 0, dy = bestY?.d ?? 0;
-  const snapped = { x: moving.x + dx, y: moving.y + dy, w: moving.w, h: moving.h };
+  const dx = bestX?.d ?? 0,
+    dy = bestY?.d ?? 0;
+  const snapped = {
+    x: moving.x + dx,
+    y: moving.y + dy,
+    w: moving.w,
+    h: moving.h,
+  };
   const guides: SnapGuide[] = [];
   if (bestX) guides.push(guideFor("x", bestX.to, snapped, others));
   if (bestY) guides.push(guideFor("y", bestY.to, snapped, others));
   return { dx, dy, guides };
 }
 
-function guideFor(axis: "x" | "y", at: number, moving: Box, others: readonly Box[]): SnapGuide {
+function guideFor(
+  axis: "x" | "y",
+  at: number,
+  moving: Box,
+  others: readonly Box[],
+): SnapGuide {
   let from = axis === "x" ? moving.y : moving.x;
   let to = axis === "x" ? moving.y + moving.h : moving.x + moving.w;
   for (const o of others) {
-    const edges = axis === "x" ? [o.x, o.x + o.w / 2, o.x + o.w] : [o.y, o.y + o.h / 2, o.y + o.h];
+    const edges =
+      axis === "x"
+        ? [o.x, o.x + o.w / 2, o.x + o.w]
+        : [o.y, o.y + o.h / 2, o.y + o.h];
     if (!edges.some((e) => Math.abs(e - at) < 0.5)) continue;
     from = Math.min(from, axis === "x" ? o.y : o.x);
     to = Math.max(to, axis === "x" ? o.y + o.h : o.x + o.w);
@@ -588,10 +966,19 @@ function guideFor(axis: "x" | "y", at: number, moving: Box, others: readonly Box
 
 // ── Align and distribute ──────────────────────────────────────────────────
 
-export type AlignMode = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom";
+export type AlignMode =
+  | "left"
+  | "hcenter"
+  | "right"
+  | "top"
+  | "vcenter"
+  | "bottom";
 
 /** New x/y per key that aligns the boxes on one edge or center line. */
-export function alignBoxes(boxes: ReadonlyMap<string, Box>, mode: AlignMode): Map<string, Pt> {
+export function alignBoxes(
+  boxes: ReadonlyMap<string, Box>,
+  mode: AlignMode,
+): Map<string, Pt> {
   const all = unionBox([...boxes.values()]);
   const out = new Map<string, Pt>();
   if (!all) return out;
@@ -609,25 +996,44 @@ export function alignBoxes(boxes: ReadonlyMap<string, Box>, mode: AlignMode): Ma
 }
 
 /** New x/y per key that spaces the boxes evenly between the outermost two. */
-export function distributeBoxes(boxes: ReadonlyMap<string, Box>, axis: "h" | "v"): Map<string, Pt> {
-  const entries = [...boxes.entries()].sort((a, b) => (axis === "h" ? a[1].x - b[1].x : a[1].y - b[1].y));
+export function distributeBoxes(
+  boxes: ReadonlyMap<string, Box>,
+  axis: "h" | "v",
+): Map<string, Pt> {
+  const entries = [...boxes.entries()].sort((a, b) =>
+    axis === "h" ? a[1].x - b[1].x : a[1].y - b[1].y,
+  );
   const out = new Map<string, Pt>();
   if (entries.length < 3) return out;
-  const first = entries[0][1], last = entries[entries.length - 1][1];
-  const span = axis === "h" ? last.x + last.w - first.x : last.y + last.h - first.y;
+  const first = entries[0][1],
+    last = entries[entries.length - 1][1];
+  const span =
+    axis === "h" ? last.x + last.w - first.x : last.y + last.h - first.y;
   const used = entries.reduce((s, [, b]) => s + (axis === "h" ? b.w : b.h), 0);
   const gap = (span - used) / (entries.length - 1);
   let cursor = axis === "h" ? first.x : first.y;
   for (const [k, b] of entries) {
-    out.set(k, axis === "h" ? { x: Math.round(cursor), y: b.y } : { x: b.x, y: Math.round(cursor) });
+    out.set(
+      k,
+      axis === "h"
+        ? { x: Math.round(cursor), y: b.y }
+        : { x: b.x, y: Math.round(cursor) },
+    );
     cursor += (axis === "h" ? b.w : b.h) + gap;
   }
   return out;
 }
 
 /** Sticky font size that fits `text` inside a w x h sticky (auto-fit text). */
-export function stickyFontSize(text: string, w: number, h: number, max = 22, min = 9): number {
-  const innerW = w - 28, innerH = h - 28;
+export function stickyFontSize(
+  text: string,
+  w: number,
+  h: number,
+  max = 22,
+  min = 9,
+): number {
+  const innerW = w - 28,
+    innerH = h - 28;
   for (let size = max; size > min; size -= 1) {
     if (textHeight(text, size, innerW) <= innerH) return size;
   }
@@ -638,9 +1044,16 @@ export function stickyFontSize(text: string, w: number, h: number, max = 22, min
 export const STICKY_MIN_FONT = 13;
 
 /** How tall a sticky's illustration (or emoji) draws: painted art scales with the card's width. */
-export function stickyIconHeight(icon: unknown, art: boolean, w: number, h: number): number {
+export function stickyIconHeight(
+  icon: unknown,
+  art: boolean,
+  w: number,
+  h: number,
+): number {
   if (typeof icon !== "string" || !icon) return 0;
-  return art ? Math.round(Math.min(96, w * 0.42)) : Math.round(Math.min(64, h * 0.32));
+  return art
+    ? Math.round(Math.min(96, w * 0.42))
+    : Math.round(Math.min(64, h * 0.32));
 }
 
 /**
@@ -648,23 +1061,54 @@ export function stickyIconHeight(icon: unknown, art: boolean, w: number, h: numb
  * current height when that already fits, more when it does not (FigJam's
  * stickies grow with their text the same way).
  */
-export function stickyFitHeight(text: string, w: number, h: number, iconH: number): number {
-  const need = Math.ceil(28 + (iconH ? iconH + 6 : 0) + textHeight(text || " ", STICKY_MIN_FONT, w - 28));
+export function stickyFitHeight(
+  text: string,
+  w: number,
+  h: number,
+  iconH: number,
+): number {
+  const need = Math.ceil(
+    28 +
+      (iconH ? iconH + 6 : 0) +
+      textHeight(text || " ", STICKY_MIN_FONT, w - 28),
+  );
   return Math.max(h, need);
 }
 
 /** How far along a polyline (0..1, by length) the point nearest `p` lies: where a dragged label lands. */
 export function nearestAlong(pts: readonly Pt[], p: Pt): number {
-  let total = 0, best = Infinity, at = 0;
+  let total = 0,
+    best = Infinity,
+    at = 0;
   const lens: number[] = [];
-  for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); lens.push(l); total += l; }
+  for (let i = 1; i < pts.length; i++) {
+    const l = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    lens.push(l);
+    total += l;
+  }
   if (total === 0) return 0.5;
   let run = 0;
   for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i], l = lens[i - 1];
-    const t = l ? Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (l * l))) : 0;
-    const d = Math.hypot(a.x + (b.x - a.x) * t - p.x, a.y + (b.y - a.y) * t - p.y);
-    if (d < best) { best = d; at = (run + t * l) / total; }
+    const a = pts[i - 1],
+      b = pts[i],
+      l = lens[i - 1];
+    const t = l
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (l * l),
+          ),
+        )
+      : 0;
+    const d = Math.hypot(
+      a.x + (b.x - a.x) * t - p.x,
+      a.y + (b.y - a.y) * t - p.y,
+    );
+    if (d < best) {
+      best = d;
+      at = (run + t * l) / total;
+    }
     run += l;
   }
   return at;
@@ -673,7 +1117,14 @@ export function nearestAlong(pts: readonly Pt[], p: Pt): number {
 /** What elbow arrows route around: everything a line should not cross (frames hold things, pens and stamps sit on them). */
 export function elbowObstacles(els: Iterable<ArtifactElement>): Box[] {
   const out: Box[] = [];
-  for (const e of els) if (e.kind !== "connector" && e.kind !== "frame" && e.kind !== "pen" && e.kind !== "stamp") out.push(elementBounds(e));
+  for (const e of els)
+    if (
+      e.kind !== "connector" &&
+      e.kind !== "frame" &&
+      e.kind !== "pen" &&
+      e.kind !== "stamp"
+    )
+      out.push(elementBounds(e));
   return out;
 }
 
@@ -683,16 +1134,33 @@ export function elbowObstacles(els: Iterable<ArtifactElement>): Box[] {
  * room, the illustration gives it up first (down to a third of its size), then
  * the type shrinks, never below `floor`. The canvas and exports both use it.
  */
-export function stickyLayout(text: string, w: number, h: number, icon: unknown, art: boolean, floor = 10): { iconH: number; size: number } {
+export function stickyLayout(
+  text: string,
+  w: number,
+  h: number,
+  icon: unknown,
+  art: boolean,
+  floor = 10,
+): { iconH: number; size: number } {
   const full = stickyIconHeight(icon, art, w, h);
   const innerW = w - 28;
   const room = (ih: number) => h - 28 - (ih ? ih + 6 : 0);
   let iconH = full;
   if (full) {
     const need = textHeight(text || " ", STICKY_MIN_FONT, innerW);
-    if (need > room(full)) iconH = Math.max(Math.round(full / 3), Math.min(full, h - 28 - 6 - need));
+    if (need > room(full))
+      iconH = Math.max(Math.round(full / 3), Math.min(full, h - 28 - 6 - need));
   }
-  return { iconH, size: stickyFontSize(text || " ", w, h - (iconH ? iconH + 6 : 0), 17, floor) };
+  return {
+    iconH,
+    size: stickyFontSize(
+      text || " ",
+      w,
+      h - (iconH ? iconH + 6 : 0),
+      17,
+      floor,
+    ),
+  };
 }
 
 /**
@@ -700,34 +1168,67 @@ export function stickyLayout(text: string, w: number, h: number, icon: unknown, 
  * box's own coordinates (inset by half a stroke). Rect and pill draw as boxes
  * and have none. The canvas and exports draw the same path.
  */
-export function shapeOutline(shape: string, w: number, h: number): string | null {
-  const i = 1, W = w - i, H = h - i, cx = w / 2, cy = h / 2;
+export function shapeOutline(
+  shape: string,
+  w: number,
+  h: number,
+): string | null {
+  const i = 1,
+    W = w - i,
+    H = h - i,
+    cx = w / 2,
+    cy = h / 2;
   const n = (v: number) => Math.round(v * 10) / 10;
-  const poly = (pts: [number, number][]) => `M${pts.map(([x, y]) => `${n(x)},${n(y)}`).join(" L")} Z`;
+  const poly = (pts: [number, number][]) =>
+    `M${pts.map(([x, y]) => `${n(x)},${n(y)}`).join(" L")} Z`;
   switch (shape) {
     case "ellipse": {
-      const rx = cx - i, ry = cy - i;
+      const rx = cx - i,
+        ry = cy - i;
       return `M${n(i)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(W)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(i)},${n(cy)} Z`;
     }
     case "diamond":
-      return poly([[cx, i], [W, cy], [cx, H], [i, cy]]);
+      return poly([
+        [cx, i],
+        [W, cy],
+        [cx, H],
+        [i, cy],
+      ]);
     case "triangle":
-      return poly([[cx, i], [W, H], [i, H]]);
+      return poly([
+        [cx, i],
+        [W, H],
+        [i, H],
+      ]);
     case "hexagon":
-      return poly([[w * 0.25, i], [w * 0.75, i], [W, cy], [w * 0.75, H], [w * 0.25, H], [i, cy]]);
+      return poly([
+        [w * 0.25, i],
+        [w * 0.75, i],
+        [W, cy],
+        [w * 0.75, H],
+        [w * 0.25, H],
+        [i, cy],
+      ]);
     case "star": {
       const pts: [number, number][] = [];
       for (let k = 0; k < 10; k++) {
-        const a = -Math.PI / 2 + (k * Math.PI) / 5, r = k % 2 ? 0.42 : 1;
-        pts.push([cx + Math.cos(a) * (cx - i) * r, cy + 0.06 * h + Math.sin(a) * (cy - i) * r]);
+        const a = -Math.PI / 2 + (k * Math.PI) / 5,
+          r = k % 2 ? 0.42 : 1;
+        pts.push([
+          cx + Math.cos(a) * (cx - i) * r,
+          cy + 0.06 * h + Math.sin(a) * (cy - i) * r,
+        ]);
       }
       return poly(pts);
     }
     case "cylinder": {
       // A database drum: the body, then its top rim drawn as a full ellipse.
-      const rx = cx - i, ry = Math.min(h * 0.14, 18);
-      return `M${n(i)},${n(ry + i)} L${n(i)},${n(H - ry)} A${n(rx)},${n(ry)} 0 0 0 ${n(W)},${n(H - ry)} L${n(W)},${n(ry + i)} `
-        + `M${n(i)},${n(ry + i)} A${n(rx)},${n(ry)} 0 1 0 ${n(W)},${n(ry + i)} A${n(rx)},${n(ry)} 0 1 0 ${n(i)},${n(ry + i)} Z`;
+      const rx = cx - i,
+        ry = Math.min(h * 0.14, 18);
+      return (
+        `M${n(i)},${n(ry + i)} L${n(i)},${n(H - ry)} A${n(rx)},${n(ry)} 0 0 0 ${n(W)},${n(H - ry)} L${n(W)},${n(ry + i)} ` +
+        `M${n(i)},${n(ry + i)} A${n(rx)},${n(ry)} 0 1 0 ${n(W)},${n(ry + i)} A${n(rx)},${n(ry)} 0 1 0 ${n(i)},${n(ry + i)} Z`
+      );
     }
     default:
       return null;

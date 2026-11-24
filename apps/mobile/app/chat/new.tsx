@@ -1,18 +1,26 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, View as RNView } from 'react-native';
-import { Text as RNText, TextInput as ThemedTextInput } from '@/components/Themed';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
-import { dmRoomKey } from '@codecast/shared/contracts';
-import { startHuddle } from '@/lib/calls/callManager';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { ChatAvatar } from '@/components/chat/MessageRow';
-import { isPerson } from '@codecast/shared/team/memberKind';
-import { teamMembersOf } from '@codecast/web/lib/activeTeam';
+import { useMemo, useState } from "react";
+import {
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  View as RNView,
+} from "react-native";
+import {
+  Text as RNText,
+  TextInput as ThemedTextInput,
+} from "@/components/Themed";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter, Stack, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
+import { dmRoomKey } from "@codecast/shared/contracts";
+import { startHuddle } from "@/lib/calls/callManager";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { ChatAvatar } from "@/components/chat/MessageRow";
+import { isPerson } from "@codecast/shared/team/memberKind";
+import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 // New message: pick one teammate and land in the 1:1, or several and land in
 // the group. openDmChannel is idempotent on the member set and local-first:
@@ -27,27 +35,36 @@ export default function NewMessageScreen() {
   const Theme = useTheme();
   const router = useRouter();
   const { huddle } = useLocalSearchParams<{ huddle?: string }>();
-  const huddleMode = huddle === '1';
+  const huddleMode = huddle === "1";
   // The active team's roster, off the store the sync bridge feeds.
-  const viewerId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : ''));
+  const viewerId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : "",
+  );
   const teamMembers = useInboxStore(teamMembersOf) as any[];
 
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
 
   const candidates = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (teamMembers ?? [])
       .filter((m: any) => isPerson(m) && String(m._id) !== viewerId)
-      .filter((m: any) =>
-        !needle
-        || (m.name ?? '').toLowerCase().includes(needle)
-        || (m.github_username ?? '').toLowerCase().includes(needle))
+      .filter(
+        (m: any) =>
+          !needle ||
+          (m.name ?? "").toLowerCase().includes(needle) ||
+          (m.github_username ?? "").toLowerCase().includes(needle),
+      )
       .sort((a: any, b: any) => {
         // The people who are around sort first — a DM is usually to someone
         // you expect to answer.
-        const rank = (m: any) => (m.presence_state === 'active' ? 0 : m.presence_state === 'idle' ? 1 : 2);
-        return rank(a) - rank(b) || (a.name ?? '').localeCompare(b.name ?? '');
+        const rank = (m: any) =>
+          m.presence_state === "active"
+            ? 0
+            : m.presence_state === "idle"
+              ? 1
+              : 2;
+        return rank(a) - rank(b) || (a.name ?? "").localeCompare(b.name ?? "");
       });
   }, [teamMembers, q, viewerId]);
 
@@ -56,35 +73,51 @@ export default function NewMessageScreen() {
     if (huddleMode) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       void startHuddle({ roomKey: dmRoomKey(viewerId, ids), toUserIds: ids });
-      router.replace('/call');
+      router.replace("/call");
       return;
     }
     const channelId = useInboxStore.getState().openDmChannel(ids);
     if (!channelId) return;
-    router.replace({ pathname: '/chat/[id]', params: { id: channelId } } as never);
+    router.replace({
+      pathname: "/chat/[id]",
+      params: { id: channelId },
+    } as never);
   };
 
   const toggle = (id: string) =>
-    setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setPicked((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <RNView style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.back}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.back}
+        >
           <FontAwesome name="chevron-left" size={18} color={Theme.text} />
         </TouchableOpacity>
-        <RNText style={styles.title}>{huddleMode ? 'Start a huddle' : 'New message'}</RNText>
+        <RNText style={styles.title}>
+          {huddleMode ? "Start a huddle" : "New message"}
+        </RNText>
         {picked.length > 0 && (
-          <TouchableOpacity style={[styles.go, huddleMode && styles.goHuddle]} onPress={() => open(picked)}>
+          <TouchableOpacity
+            style={[styles.go, huddleMode && styles.goHuddle]}
+            onPress={() => open(picked)}
+          >
             {huddleMode ? (
               <RNView style={styles.goRow}>
                 <Ionicons name="headset" size={13} color={Theme.bg} />
-                <RNText style={styles.goText}>Ring{picked.length > 1 ? ` ${picked.length}` : ''}</RNText>
+                <RNText style={styles.goText}>
+                  Ring{picked.length > 1 ? ` ${picked.length}` : ""}
+                </RNText>
               </RNView>
             ) : (
               <RNText style={styles.goText}>
-                Open{picked.length > 1 ? ` (${picked.length})` : ''}
+                Open{picked.length > 1 ? ` (${picked.length})` : ""}
               </RNText>
             )}
           </TouchableOpacity>
@@ -113,8 +146,20 @@ export default function NewMessageScreen() {
           const id = String(m._id);
           const on = picked.includes(id);
           const presence = m.presence_state as string | undefined;
-          const dotColor = presence === 'active' ? Theme.green : presence === 'idle' ? Theme.accent : null;
-          const line = presence === 'active' ? 'Active now' : presence === 'idle' ? 'Idle' : presence === 'away' ? 'Away' : 'Offline';
+          const dotColor =
+            presence === "active"
+              ? Theme.green
+              : presence === "idle"
+                ? Theme.accent
+                : null;
+          const line =
+            presence === "active"
+              ? "Active now"
+              : presence === "idle"
+                ? "Idle"
+                : presence === "away"
+                  ? "Away"
+                  : "Offline";
           return (
             <TouchableOpacity
               style={[styles.row, on && styles.rowOn]}
@@ -126,19 +171,37 @@ export default function NewMessageScreen() {
             >
               <RNView>
                 <ChatAvatar
-                  author={{ id, name: m.name || 'Teammate', avatarUrl: m.github_avatar_url || m.image }}
+                  author={{
+                    id,
+                    name: m.name || "Teammate",
+                    avatarUrl: m.github_avatar_url || m.image,
+                  }}
                   size={44}
                 />
-                {dotColor && <RNView style={[styles.presenceDot, { backgroundColor: dotColor }]} />}
+                {dotColor && (
+                  <RNView
+                    style={[styles.presenceDot, { backgroundColor: dotColor }]}
+                  />
+                )}
               </RNView>
               <RNView style={styles.rowMain}>
-                <RNText style={styles.name} numberOfLines={1}>{m.name || m.github_username || 'Teammate'}</RNText>
+                <RNText style={styles.name} numberOfLines={1}>
+                  {m.name || m.github_username || "Teammate"}
+                </RNText>
                 <RNText style={styles.presence}>{line}</RNText>
               </RNView>
               {on ? (
-                <FontAwesome name="check-circle" size={22} color={huddleMode ? Theme.violet : Theme.blue} />
+                <FontAwesome
+                  name="check-circle"
+                  size={22}
+                  color={huddleMode ? Theme.violet : Theme.blue}
+                />
               ) : huddleMode ? (
-                <Ionicons name="headset-outline" size={20} color={Theme.violet} />
+                <Ionicons
+                  name="headset-outline"
+                  size={20}
+                  color={Theme.violet}
+                />
               ) : null}
             </TouchableOpacity>
           );
@@ -152,77 +215,91 @@ export default function NewMessageScreen() {
       />
       {picked.length === 0 && (
         <RNText style={styles.hint}>
-          {huddleMode ? 'Tap to ring · hold to ring a group' : 'Tap to message · hold to start a group'}
+          {huddleMode
+            ? "Tap to ring · hold to ring a group"
+            : "Tap to message · hold to start a group"}
         </RNText>
       )}
     </SafeAreaView>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 4,
-    paddingRight: Spacing.md,
-    minHeight: 56,
-  },
-  back: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, fontSize: 15.5, fontWeight: '700', color: Theme.text },
-  go: {
-    minWidth: 72,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Theme.blue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  goText: { fontSize: 13.5, fontWeight: '700', color: Theme.bg },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: Spacing.md,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    height: 42,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    borderRadius: 21,
-    backgroundColor: Theme.bgAlt,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: Theme.text },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: Spacing.md,
-    minHeight: 64,
-  },
-  rowOn: { backgroundColor: Theme.blue + '14' },
-  goHuddle: { backgroundColor: Theme.violet },
-  goRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  rowMain: { flex: 1, minWidth: 0 },
-  name: { fontSize: 15.5, fontWeight: '500', color: Theme.text },
-  presence: { fontSize: 12.5, color: Theme.textMuted, marginTop: 2 },
-  presenceDot: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2.5,
-    borderColor: Theme.bg,
-  },
-  emptyText: { textAlign: 'center', padding: 24, fontSize: 13.5, color: Theme.textMuted0 },
-  hint: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: Theme.textMuted,
-    paddingVertical: 10,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingLeft: 4,
+      paddingRight: Spacing.md,
+      minHeight: 56,
+    },
+    back: {
+      width: 36,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: { flex: 1, fontSize: 15.5, fontWeight: "700", color: Theme.text },
+    go: {
+      minWidth: 72,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Theme.blue,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 12,
+    },
+    goText: { fontSize: 13.5, fontWeight: "700", color: Theme.bg },
+    search: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: Spacing.md,
+      marginBottom: 8,
+      paddingHorizontal: 14,
+      height: 42,
+      borderWidth: 1,
+      borderColor: Theme.border,
+      borderRadius: 21,
+      backgroundColor: Theme.bgAlt,
+    },
+    searchInput: { flex: 1, fontSize: 14, color: Theme.text },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingHorizontal: Spacing.md,
+      minHeight: 64,
+    },
+    rowOn: { backgroundColor: Theme.blue + "14" },
+    goHuddle: { backgroundColor: Theme.violet },
+    goRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+    rowMain: { flex: 1, minWidth: 0 },
+    name: { fontSize: 15.5, fontWeight: "500", color: Theme.text },
+    presence: { fontSize: 12.5, color: Theme.textMuted, marginTop: 2 },
+    presenceDot: {
+      position: "absolute",
+      right: -2,
+      bottom: -2,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      borderWidth: 2.5,
+      borderColor: Theme.bg,
+    },
+    emptyText: {
+      textAlign: "center",
+      padding: 24,
+      fontSize: 13.5,
+      color: Theme.textMuted0,
+    },
+    hint: {
+      textAlign: "center",
+      fontSize: 12,
+      color: Theme.textMuted,
+      paddingVertical: 10,
+    },
+  }),
+);

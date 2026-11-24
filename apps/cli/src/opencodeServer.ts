@@ -118,9 +118,17 @@ export function parseListeningPort(line: string): number | null {
  * JSON-parsed, frames that are not `{type}` objects dropped (never thrown).
  * Returns the unconsumed tail to carry into the next chunk.
  */
-export function parseSseFrames(buffer: string): { events: OpencodeRawEvent[]; rest: string } {
+export function parseSseFrames(buffer: string): {
+  events: OpencodeRawEvent[];
+  rest: string;
+} {
   const { frames, rest } = parseSseStream(buffer);
-  return { events: frames.map(opencodeEvent).filter((e): e is OpencodeRawEvent => e !== null), rest };
+  return {
+    events: frames
+      .map(opencodeEvent)
+      .filter((e): e is OpencodeRawEvent => e !== null),
+    rest,
+  };
 }
 
 /** One frame's opencode event: its data JSON-parsed, or null for anything that is not a `{type}` object. */
@@ -151,7 +159,9 @@ function propSessionId(raw: OpencodeRawEvent): string | undefined {
  *   permission.replied / permission.v2.replied → working (resumed)
  *   message.* / session.created / session.updated → no workState (content/metadata)
  */
-export function mapOpencodeEvent(raw: OpencodeRawEvent): OpencodeServerEvent | null {
+export function mapOpencodeEvent(
+  raw: OpencodeRawEvent,
+): OpencodeServerEvent | null {
   if (!raw || typeof raw.type !== "string") return null;
   const sessionId = propSessionId(raw);
   let workState: OpencodeWorkState | undefined;
@@ -265,7 +275,9 @@ export class OpencodeServer extends EventEmitter {
   }
 
   get running(): boolean {
-    return this.process !== null && this.process.exitCode === null && this.healthy;
+    return (
+      this.process !== null && this.process.exitCode === null && this.healthy
+    );
   }
 
   get binaryMissing(): boolean {
@@ -278,7 +290,10 @@ export class OpencodeServer extends EventEmitter {
 
   /** Headers every request to this launch carries. */
   private headers(extra?: Record<string, string>): Record<string, string> {
-    return { authorization: `Basic ${Buffer.from(`${OPENCODE_USERNAME}:${this.password}`).toString("base64")}`, ...extra };
+    return {
+      authorization: `Basic ${Buffer.from(`${OPENCODE_USERNAME}:${this.password}`).toString("base64")}`,
+      ...extra,
+    };
   }
 
   get baseUrl(): string {
@@ -286,8 +301,16 @@ export class OpencodeServer extends EventEmitter {
   }
 
   private spawnProcess(): void {
-    const args = ["serve", "--hostname", this.hostname, "--port", String(this.requestedPort)];
-    this.log(`[opencode-server] spawning: ${this.opencodeBinary} ${args.join(" ")}`);
+    const args = [
+      "serve",
+      "--hostname",
+      this.hostname,
+      "--port",
+      String(this.requestedPort),
+    ];
+    this.log(
+      `[opencode-server] spawning: ${this.opencodeBinary} ${args.join(" ")}`,
+    );
     this.lastSpawnTime = Date.now();
     this.healthy = false;
     // Clear the previous life's port so THIS spawn's announce line re-triggers the
@@ -304,7 +327,9 @@ export class OpencodeServer extends EventEmitter {
         stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...process.env,
-          PATH: agentSpawnPath(process.env.HOME && `${process.env.HOME}/.opencode/bin`),
+          PATH: agentSpawnPath(
+            process.env.HOME && `${process.env.HOME}/.opencode/bin`,
+          ),
           OPENCODE_SERVER_USERNAME: OPENCODE_USERNAME,
           OPENCODE_SERVER_PASSWORD: this.password,
         },
@@ -334,7 +359,8 @@ export class OpencodeServer extends EventEmitter {
 
     child.stderr?.on("data", (data: Buffer) => {
       const text = data.toString().trim();
-      if (text && /error|fatal|unhandled/i.test(text)) this.log(`[opencode-server:stderr] ${text}`);
+      if (text && /error|fatal|unhandled/i.test(text))
+        this.log(`[opencode-server:stderr] ${text}`);
     });
 
     child.on("error", (err) => {
@@ -349,12 +375,16 @@ export class OpencodeServer extends EventEmitter {
     });
 
     child.on("close", (code, signal) => {
-      this.log(`[opencode-server] process exited: code=${code} signal=${signal}`);
+      this.log(
+        `[opencode-server] process exited: code=${code} signal=${signal}`,
+      );
       const uptime = Date.now() - this.lastSpawnTime;
       if (uptime < QUICK_EXIT_THRESHOLD_MS) {
         this.consecutiveQuickExits++;
         if (this.consecutiveQuickExits >= MAX_CONSECUTIVE_QUICK_EXITS) {
-          this.log(`[opencode-server] ${this.consecutiveQuickExits} consecutive quick exits, disabling`);
+          this.log(
+            `[opencode-server] ${this.consecutiveQuickExits} consecutive quick exits, disabling`,
+          );
           this.stopped = true;
           this.cleanup();
           this.emit("closed");
@@ -372,7 +402,10 @@ export class OpencodeServer extends EventEmitter {
 
   private handleSpawnFailure(err: any): void {
     const msg = err?.message ?? String(err);
-    const isNotFound = err?.code === "ENOENT" || msg.includes("ENOENT") || msg.includes("not found");
+    const isNotFound =
+      err?.code === "ENOENT" ||
+      msg.includes("ENOENT") ||
+      msg.includes("not found");
     this.log(`[opencode-server] spawn failed: ${msg}`);
     if (isNotFound) {
       this._binaryMissing = true;
@@ -417,7 +450,9 @@ export class OpencodeServer extends EventEmitter {
       await new Promise((r) => setTimeout(r, 250));
     }
     if (!this.healthy && !this.stopped) {
-      this.log("[opencode-server] health check timed out — killing unhealthy process");
+      this.log(
+        "[opencode-server] health check timed out — killing unhealthy process",
+      );
       this.emit("error", new Error("opencode serve health check timed out"));
       // Don't leak a spawned-but-never-healthy child: kill it. Its `close`
       // handler then schedules a backoff restart (self-recovery), the same
@@ -531,7 +566,9 @@ export class OpencodeServer extends EventEmitter {
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
       if (this.stopped || !this.process) return;
-      this.log(`[opencode-server] idle ${this.idleTimeoutMs}ms — stopping sidecar`);
+      this.log(
+        `[opencode-server] idle ${this.idleTimeoutMs}ms — stopping sidecar`,
+      );
       this.emit("idleStopped");
       this.stop();
     }, this.idleTimeoutMs);
@@ -540,17 +577,25 @@ export class OpencodeServer extends EventEmitter {
 
   // ── HTTP API ────────────────────────────────────────────────────────────────
 
-  private async apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async apiRequest<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<T> {
     if (!this.resolvedPort) throw new Error("opencode server not ready");
     const resp = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
-      headers: this.headers(body !== undefined ? { "content-type": "application/json" } : undefined),
+      headers: this.headers(
+        body !== undefined ? { "content-type": "application/json" } : undefined,
+      ),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(30_000),
     });
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
-      throw new Error(`opencode ${method} ${path} → ${resp.status} ${text.slice(0, 200)}`);
+      throw new Error(
+        `opencode ${method} ${path} → ${resp.status} ${text.slice(0, 200)}`,
+      );
     }
     return (await resp.json()) as T;
   }
@@ -562,14 +607,21 @@ export class OpencodeServer extends EventEmitter {
    * forkable, and the minted id is one `opencode -s <id>` can actually resume
    * (unlike a synthetic copy id).
    */
-  async fork(sessionId: string, opts: OpencodeForkOptions = {}): Promise<OpencodeApiSession> {
+  async fork(
+    sessionId: string,
+    opts: OpencodeForkOptions = {},
+  ): Promise<OpencodeApiSession> {
     const query = directoryQuery(opts.directory);
     const body = opts.messageID ? { messageID: opts.messageID } : {};
     // Re-arm at the START too so the idle timer can't fire mid-fork (a fork is
     // bounded well under the idle window); the finally re-arms from completion.
     this.armIdleTimer();
     try {
-      return await this.apiRequest<OpencodeApiSession>("POST", `/session/${sessionId}/fork${query}`, body);
+      return await this.apiRequest<OpencodeApiSession>(
+        "POST",
+        `/session/${sessionId}/fork${query}`,
+        body,
+      );
     } finally {
       // Fork is the only activity that keeps the sidecar alive — restart the idle
       // countdown from the end of each fork so a burst holds the server open but a
@@ -586,8 +638,15 @@ export class OpencodeServer extends EventEmitter {
   /** Create a session driven through this server (its turns WILL stream on /event).
    *  `directory` scopes it to that project (the session's cwd); the sidecar's own
    *  cwd otherwise. */
-  async createSession(body: { title?: string; parentID?: string } = {}, opts: { directory?: string } = {}): Promise<OpencodeApiSession> {
-    return this.apiRequest<OpencodeApiSession>("POST", `/session${directoryQuery(opts.directory)}`, body);
+  async createSession(
+    body: { title?: string; parentID?: string } = {},
+    opts: { directory?: string } = {},
+  ): Promise<OpencodeApiSession> {
+    return this.apiRequest<OpencodeApiSession>(
+      "POST",
+      `/session${directoryQuery(opts.directory)}`,
+      body,
+    );
   }
 
   /**
@@ -597,7 +656,11 @@ export class OpencodeServer extends EventEmitter {
    * the next turn reads (verified live 2026-09-06: the TUI resumes and renders
    * it, and no assistant turn runs). Returns the stored message's id.
    */
-  async appendUserMessage(sessionId: string, text: string, opts: { directory?: string } = {}): Promise<{ info: { id: string } }> {
+  async appendUserMessage(
+    sessionId: string,
+    text: string,
+    opts: { directory?: string } = {},
+  ): Promise<{ info: { id: string } }> {
     this.armIdleTimer();
     try {
       return await this.apiRequest<{ info: { id: string } }>(

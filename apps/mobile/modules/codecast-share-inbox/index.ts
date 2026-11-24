@@ -4,8 +4,8 @@
 // binary built before the module existed has no share inbox instead of
 // crashing at import (see the guarded-native-require rule).
 
-import { Platform } from 'react-native';
-import { requireOptionalNativeModule } from 'expo';
+import { Platform } from "react-native";
+import { requireOptionalNativeModule } from "expo";
 
 type NativeModule = {
   /** The images shared to the app since the last call, as file URLs in the
@@ -14,4 +14,6 @@ type NativeModule = {
 };
 
 export const shareInboxNative: NativeModule | null =
-  Platform.OS === 'ios' ? requireOptionalNativeModule<NativeModule>('CodecastShareInbox') : null;
+  Platform.OS === "ios"
+    ? requireOptionalNativeModule<NativeModule>("CodecastShareInbox")
+    : null;

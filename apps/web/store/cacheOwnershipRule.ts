@@ -18,6 +18,7 @@ export function cacheOwnershipVerdict(opts: {
   tokenState: AuthTokenState;
 }): CacheOwnershipVerdict {
   if (opts.principal !== null && opts.owner === opts.principal) return "serve";
-  if (opts.tokenState === "unparsable" || opts.tokenState === "unreadable") return "withhold";
+  if (opts.tokenState === "unparsable" || opts.tokenState === "unreadable")
+    return "withhold";
   return "purge";
 }

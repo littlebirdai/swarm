@@ -51,19 +51,19 @@ The installer ships a prebuilt binary, so no runtime is required. The daemon run
 
 ## Features
 
-| | |
-|---|---|
-| **Inbox** | Every session from every agent and machine, sorted by who acts next. |
-| **Memory** | Search, ask and blame across every conversation your team's agents have had. |
-| **Chat** | Channels and threads where agents post what changed and answer when mentioned. |
-| **Calls** | Huddles transcribed by speaker. Action items become tasks linked to the exact line. |
-| **Tasks and plans** | Agents are assignees. Progress, comments and evidence land on the task. |
-| **Docs** | Specs in, findings out. Every edit links to the session that made it. |
-| **Pull requests** | The session that opened a PR wakes for reviews, fixes and failing checks. |
-| **Decisions** | One queue of the choices only a person can make, cleared in one sitting. |
-| **Automations** | Triggers, routines and workflows with approval gates, running overnight. |
-| **Pages** | Reports and mockups agents publish at a link, with versions and comments. |
-| **Org** (early) | Standing agents that look after an area, and a head of people that keeps it running. |
+|                     |                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| **Inbox**           | Every session from every agent and machine, sorted by who acts next.                 |
+| **Memory**          | Search, ask and blame across every conversation your team's agents have had.         |
+| **Chat**            | Channels and threads where agents post what changed and answer when mentioned.       |
+| **Calls**           | Huddles transcribed by speaker. Action items become tasks linked to the exact line.  |
+| **Tasks and plans** | Agents are assignees. Progress, comments and evidence land on the task.              |
+| **Docs**            | Specs in, findings out. Every edit links to the session that made it.                |
+| **Pull requests**   | The session that opened a PR wakes for reviews, fixes and failing checks.            |
+| **Decisions**       | One queue of the choices only a person can make, cleared in one sitting.             |
+| **Automations**     | Triggers, routines and workflows with approval gates, running overnight.             |
+| **Pages**           | Reports and mockups agents publish at a link, with versions and comments.            |
+| **Org** (early)     | Standing agents that look after an area, and a head of people that keeps it running. |
 
 ### Inbox
 
@@ -342,19 +342,19 @@ declares only the capabilities it actually has. A capability a client lacks is
 simply absent, and the session never breaks. The matrix below states the real
 per-client reality as merged; ✓ = supported, ✗ = not available.
 
-| Agent | History location | Launch from web | Transcript sync | `cast send` | State detection | Resume | Fork | Model control | Permissions |
-|-------|------------------|:---------------:|:---------------:|:-----------:|:---------------:|:------:|:----:|:-------------:|:-----------:|
-| Claude Code | `~/.claude/projects/**/*.jsonl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ (mid-session) | ✓ |
-| Codex CLI | `~/.codex/sessions/**/*.jsonl` | ✓ | ✓ | ✓ | ✓ | ✓ (+ app-server) | ✓⁸ | ✓ (at launch) | ✓ |
-| OpenCode | `~/.local/share/opencode/opencode.db` (SQLite) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓¹ | ✓ (at launch) | auto² |
-| pi | `~/.pi/agent/sessions/**/*.jsonl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗³ | tracked⁴ | ✗ |
-| Cursor | `~/.cursor/projects/**/agent-transcripts/*.jsonl` (CLI and IDE), IDE SQLite for older chats | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ (at launch) | auto⁵ |
-| Cursor Cloud | Cloud Agents API (api.cursor.com), mirrored to `~/.codecast/cursor-cloud/` | ✓⁹ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ (at launch) | cloud |
-| Codex Cloud | Codex Cloud's private API (chatgpt.com), mirrored to `~/.codecast/codex-cloud/` | ✓¹⁰ | ✓ | ✓ | ✓ | ✓ | attempts¹⁰ | ✗ | cloud |
-| OpenAI Agents API | Agents API (api.openai.com), mirrored to `~/.codecast/openai-agents/` | ✓¹¹ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ (at launch) | cloud |
-| Gemini CLI | `~/.gemini/tmp/**/*.jsonl` | ✓ | ✓ | ✓ | ✗⁶ | ✓⁷ | ✗ | ✗ | ✗ |
-| Grok | `~/.grok/sessions/**/*.jsonl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ (at launch) | auto¹² |
-| Muse Spark | `~/.local/share/muse/sessions/**/*.jsonl` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ (at launch) | auto¹² |
+| Agent             | History location                                                                            | Launch from web | Transcript sync | `cast send` | State detection |      Resume      |    Fork    |  Model control  | Permissions |
+| ----------------- | ------------------------------------------------------------------------------------------- | :-------------: | :-------------: | :---------: | :-------------: | :--------------: | :--------: | :-------------: | :---------: |
+| Claude Code       | `~/.claude/projects/**/*.jsonl`                                                             |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✓      | ✓ (mid-session) |      ✓      |
+| Codex CLI         | `~/.codex/sessions/**/*.jsonl`                                                              |        ✓        |        ✓        |      ✓      |        ✓        | ✓ (+ app-server) |     ✓⁸     |  ✓ (at launch)  |      ✓      |
+| OpenCode          | `~/.local/share/opencode/opencode.db` (SQLite)                                              |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✓¹     |  ✓ (at launch)  |    auto²    |
+| pi                | `~/.pi/agent/sessions/**/*.jsonl`                                                           |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✗³     |    tracked⁴     |      ✗      |
+| Cursor            | `~/.cursor/projects/**/agent-transcripts/*.jsonl` (CLI and IDE), IDE SQLite for older chats |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✗      |  ✓ (at launch)  |    auto⁵    |
+| Cursor Cloud      | Cloud Agents API (api.cursor.com), mirrored to `~/.codecast/cursor-cloud/`                  |       ✓⁹        |        ✓        |      ✓      |        ✓        |        ✓         |     ✗      |  ✓ (at launch)  |    cloud    |
+| Codex Cloud       | Codex Cloud's private API (chatgpt.com), mirrored to `~/.codecast/codex-cloud/`             |       ✓¹⁰       |        ✓        |      ✓      |        ✓        |        ✓         | attempts¹⁰ |        ✗        |    cloud    |
+| OpenAI Agents API | Agents API (api.openai.com), mirrored to `~/.codecast/openai-agents/`                       |       ✓¹¹       |        ✓        |      ✓      |        ✓        |        ✓         |     ✗      |  ✓ (at launch)  |    cloud    |
+| Gemini CLI        | `~/.gemini/tmp/**/*.jsonl`                                                                  |        ✓        |        ✓        |      ✓      |       ✗⁶        |        ✓⁷        |     ✗      |        ✗        |      ✗      |
+| Grok              | `~/.grok/sessions/**/*.jsonl`                                                               |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✓      |  ✓ (at launch)  |   auto¹²    |
+| Muse Spark        | `~/.local/share/muse/sessions/**/*.jsonl`                                                   |        ✓        |        ✓        |      ✓      |        ✓        |        ✓         |     ✗      |  ✓ (at launch)  |   auto¹²    |
 
 1. OpenCode forks through an `opencode serve` sidecar (`POST /session/:id/fork`, ct-39079/ct-39150): a fork at the conversation tip copies the full session, a mid-history fork truncates to the fork point to match the copied transcript. If the sidecar is unreachable the fork degrades to a fresh session rather than fabricated context.
 2. OpenCode launches auto-approved (`--auto`): the daemon reads its turn state from the SQLite store and can't answer the TUI's permission prompts, so there is no per-session permission control.
@@ -371,14 +371,14 @@ per-client reality as merged; ✓ = supported, ✗ = not available.
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, Vite 6, TailwindCSS, TipTap, Zustand |
-| Backend | Self-hosted Convex (real-time sync, auth, full-text search) |
-| CLI | Bun (compiled to standalone binaries), Commander, Chokidar |
-| Desktop | Electron 44, electron-updater |
-| Calls | LiveKit |
-| Mobile | Expo 54, React Native |
+| Layer    | Technology                                                  |
+| -------- | ----------------------------------------------------------- |
+| Frontend | React 19, Vite 6, TailwindCSS, TipTap, Zustand              |
+| Backend  | Self-hosted Convex (real-time sync, auth, full-text search) |
+| CLI      | Bun (compiled to standalone binaries), Commander, Chokidar  |
+| Desktop  | Electron 44, electron-updater                               |
+| Calls    | LiveKit                                                     |
+| Mobile   | Expo 54, React Native                                       |
 
 ## Development
 
@@ -441,17 +441,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code conventions and architecture det
 
 Start at the [docs index](docs/README.md), which lists the guides, the architecture notes, the proposals and the research notes. The main guides:
 
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](docs/GETTING-STARTED.md) | Dev environment setup, env files, testing, releases |
-| [Self-Hosting](docs/SELF-HOSTING.md) | Full setup guide: Convex, web, CLI, auth, mobile, desktop |
-| [Contributing](CONTRIBUTING.md) | Code conventions, architecture, dev setup |
-| [Releasing Mobile](docs/RELEASING-MOBILE.md) | iOS build, TestFlight, and App Store submission |
-| [Orchestration](docs/orchestration-guide.md) | Running a plan's tasks in parallel waves across agents |
-| [cast exec](docs/exec.md) | One-shot agent runs from scripts and other sessions |
-| [Multi-client](docs/multi-client.md) | How each agent CLI plugs in through one descriptor registry |
-| [Prompting](docs/prompting.md) and [Principles](docs/principles.md) | How we write agent prompts and build the product |
-| [Changelog](CHANGELOG.md) | Version history and release notes |
+| Guide                                                               | Description                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [Getting Started](docs/GETTING-STARTED.md)                          | Dev environment setup, env files, testing, releases         |
+| [Self-Hosting](docs/SELF-HOSTING.md)                                | Full setup guide: Convex, web, CLI, auth, mobile, desktop   |
+| [Contributing](CONTRIBUTING.md)                                     | Code conventions, architecture, dev setup                   |
+| [Releasing Mobile](docs/RELEASING-MOBILE.md)                        | iOS build, TestFlight, and App Store submission             |
+| [Orchestration](docs/orchestration-guide.md)                        | Running a plan's tasks in parallel waves across agents      |
+| [cast exec](docs/exec.md)                                           | One-shot agent runs from scripts and other sessions         |
+| [Multi-client](docs/multi-client.md)                                | How each agent CLI plugs in through one descriptor registry |
+| [Prompting](docs/prompting.md) and [Principles](docs/principles.md) | How we write agent prompts and build the product            |
+| [Changelog](CHANGELOG.md)                                           | Version history and release notes                           |
 
 ## Configuration
 
@@ -477,35 +477,35 @@ Self-hosters: replace the URLs with your own. See [Self-Hosting](docs/SELF-HOSTI
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+K` | Command palette |
-| `Cmd+/` | Search |
-| `Ctrl+J / K` | Next / previous session |
-| `Ctrl+I` | Jump to the top needs-input session |
-| `Ctrl+P` (`Alt+P` off macOS) | Jump to pinned session |
-| `Ctrl+Shift+P` | Pin/unpin session |
-| `Ctrl+L` | Label session |
-| `Ctrl+Shift+L` | Switch label/project view |
-| `Ctrl+Backspace` | Stash session (keep agent running) |
-| `Ctrl+Shift+Backspace` | Kill session |
-| `Shift+Backspace` | Defer and advance |
-| `Ctrl+N` | New session |
-| `Ctrl+Tab` | Switch session (most recently used) |
-| `Ctrl+Shift+E` | Rename session |
-| `D` | Toggle diff panel (in conversation) |
-| `T` | Toggle branch map (in conversation) |
-| `H` | Toggle thinking blocks (in conversation) |
-| `R` | Quote selection into your reply, or review replies |
-| `Y / N` | Approve / deny permission prompt |
-| `Alt+J / K` | Next / previous user message |
-| `Alt+F` | Fork from message |
-| `Alt+Enter` | Send and advance |
-| `Ctrl+M` | Focus message input |
-| `Ctrl+.` | Zen mode |
-| `Ctrl+,` | Cycle inbox view (grouped / time / label) |
-| `Ctrl+[ / ]` | Toggle left / right sidebars |
-| `?` | Toggle shortcuts help |
+| Shortcut                     | Action                                             |
+| ---------------------------- | -------------------------------------------------- |
+| `Cmd+K`                      | Command palette                                    |
+| `Cmd+/`                      | Search                                             |
+| `Ctrl+J / K`                 | Next / previous session                            |
+| `Ctrl+I`                     | Jump to the top needs-input session                |
+| `Ctrl+P` (`Alt+P` off macOS) | Jump to pinned session                             |
+| `Ctrl+Shift+P`               | Pin/unpin session                                  |
+| `Ctrl+L`                     | Label session                                      |
+| `Ctrl+Shift+L`               | Switch label/project view                          |
+| `Ctrl+Backspace`             | Stash session (keep agent running)                 |
+| `Ctrl+Shift+Backspace`       | Kill session                                       |
+| `Shift+Backspace`            | Defer and advance                                  |
+| `Ctrl+N`                     | New session                                        |
+| `Ctrl+Tab`                   | Switch session (most recently used)                |
+| `Ctrl+Shift+E`               | Rename session                                     |
+| `D`                          | Toggle diff panel (in conversation)                |
+| `T`                          | Toggle branch map (in conversation)                |
+| `H`                          | Toggle thinking blocks (in conversation)           |
+| `R`                          | Quote selection into your reply, or review replies |
+| `Y / N`                      | Approve / deny permission prompt                   |
+| `Alt+J / K`                  | Next / previous user message                       |
+| `Alt+F`                      | Fork from message                                  |
+| `Alt+Enter`                  | Send and advance                                   |
+| `Ctrl+M`                     | Focus message input                                |
+| `Ctrl+.`                     | Zen mode                                           |
+| `Ctrl+,`                     | Cycle inbox view (grouped / time / label)          |
+| `Ctrl+[ / ]`                 | Toggle left / right sidebars                       |
+| `?`                          | Toggle shortcuts help                              |
 
 The full registry of 140+ context-aware shortcuts is available in-app via `?`.
 

@@ -112,15 +112,24 @@ afterEach(() => {
 
 describe("a close crosses windows as a close", () => {
   it("closeSession's hide carries inbox_closed_at equal to its dismissed stamp, and a sibling applies both", () => {
-    seed({ sessions: { [REAL_A]: session(REAL_A) }, conversations: { [REAL_A]: { _id: REAL_A } } });
+    seed({
+      sessions: { [REAL_A]: session(REAL_A) },
+      conversations: { [REAL_A]: { _id: REAL_A } },
+    });
     useInboxStore.getState().closeSession(REAL_A);
     const msg = hub.posted.find((p) => p.data.kind === "hide")!.data;
     const wrote = msg.writes[REAL_A];
     expect(wrote.inbox_closed_at).toBe(wrote.inbox_dismissed_at);
 
     // A sibling window holding the row un-hidden receives it.
-    seed({ sessions: { [REAL_A]: session(REAL_A) }, conversations: { [REAL_A]: { _id: REAL_A } } });
-    (useInboxStore.getState() as any).applyGestureBridge({ ...msg, source: "another-window" });
+    seed({
+      sessions: { [REAL_A]: session(REAL_A) },
+      conversations: { [REAL_A]: { _id: REAL_A } },
+    });
+    (useInboxStore.getState() as any).applyGestureBridge({
+      ...msg,
+      source: "another-window",
+    });
     const row = useInboxStore.getState().sessions[REAL_A] as any;
     expect(row.inbox_dismissed_at).toBe(wrote.inbox_dismissed_at);
     expect(row.inbox_closed_at).toBe(wrote.inbox_closed_at);
@@ -151,18 +160,26 @@ describe("gesture bridge senders", () => {
   });
 
   it("stashSession broadcasts mode:stash", () => {
-    seed({ sessions: { [REAL_A]: session(REAL_A) }, conversations: { [REAL_A]: { _id: REAL_A } } });
+    seed({
+      sessions: { [REAL_A]: session(REAL_A) },
+      conversations: { [REAL_A]: { _id: REAL_A } },
+    });
     useInboxStore.getState().stashSession(REAL_A);
     expect(hub.posted).toHaveLength(1);
     expect(hub.posted[0].data.mode).toBe("stash");
     expect(hub.posted[0].data.hidden).toBeUndefined();
     // A plain stash writes the mode flag explicitly (null), so a re-stash
     // never inherits an earlier "stash and hide".
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_stash_hidden).toBeNull();
+    expect(
+      useInboxStore.getState().sessions[REAL_A].inbox_stash_hidden,
+    ).toBeNull();
   });
 
   it("stash and hide carries hidden:true and stamps the mode on the row", () => {
-    seed({ sessions: { [REAL_A]: session(REAL_A) }, conversations: { [REAL_A]: { _id: REAL_A } } });
+    seed({
+      sessions: { [REAL_A]: session(REAL_A) },
+      conversations: { [REAL_A]: { _id: REAL_A } },
+    });
     useInboxStore.getState().stashSession(REAL_A, { hidden: true });
     expect(hub.posted[0].data.mode).toBe("stash");
     expect(hub.posted[0].data.hidden).toBe(true);
@@ -173,7 +190,10 @@ describe("gesture bridge senders", () => {
 
   it("a stub in the cascade rides the SAME message as a forget list", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A), [STUB]: session(STUB, { parent_conversation_id: REAL_A } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A),
+        [STUB]: session(STUB, { parent_conversation_id: REAL_A } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A }, [STUB]: { _id: STUB } },
     });
 
@@ -225,7 +245,10 @@ describe("gesture bridge senders", () => {
     seed({
       sessions: {
         [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any),
-        [REAL_B]: session(REAL_B, { parent_conversation_id: REAL_A, inbox_dismissed_at: 100 } as any),
+        [REAL_B]: session(REAL_B, {
+          parent_conversation_id: REAL_A,
+          inbox_dismissed_at: 100,
+        } as any),
       },
       conversations: { [REAL_A]: { _id: REAL_A }, [REAL_B]: { _id: REAL_B } },
     });
@@ -238,15 +261,28 @@ describe("gesture bridge senders", () => {
   });
 
   it("pinSession broadcasts the RESOLVED pin value, not the toggle", () => {
-    seed({ sessions: { [REAL_A]: session(REAL_A) }, conversations: { [REAL_A]: { _id: REAL_A } } });
+    seed({
+      sessions: { [REAL_A]: session(REAL_A) },
+      conversations: { [REAL_A]: { _id: REAL_A } },
+    });
 
     useInboxStore.getState().pinSession(REAL_A);
     expect(hub.posted).toHaveLength(1);
-    expect(hub.posted[0].data).toMatchObject({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: hub.posted[0].data.ts });
+    expect(hub.posted[0].data).toMatchObject({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: hub.posted[0].data.ts,
+    });
 
     useInboxStore.getState().pinSession(REAL_A);
     expect(hub.posted).toHaveLength(2);
-    expect(hub.posted[1].data).toMatchObject({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null });
+    expect(hub.posted[1].data).toMatchObject({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+    });
   });
 
   it("pruneGhostSessions announces only the ids it actually removed", () => {
@@ -272,7 +308,9 @@ describe("gesture bridge senders", () => {
 
     expect(hub.posted).toHaveLength(1);
     expect(hub.posted[0].data).toMatchObject({
-      kind: "forget", ids: [REAL_A], scope: "session-row",
+      kind: "forget",
+      ids: [REAL_A],
+      scope: "session-row",
     });
     // The sender kept the conversation cached — the message must not tell
     // siblings to drop it.
@@ -301,7 +339,10 @@ describe("gesture bridge senders", () => {
         [REAL_A]: session(REAL_A, { inbox_dismissed_at: 111 } as any),
         [REAL_B]: session(REAL_B),
       },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 111 }, [REAL_B]: { _id: REAL_B } },
+      conversations: {
+        [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 111 },
+        [REAL_B]: { _id: REAL_B },
+      },
     });
 
     useInboxStore.getState().markSessionsDismissed([REAL_A, REAL_B]);
@@ -310,12 +351,16 @@ describe("gesture bridge senders", () => {
     // keeps its original stamp rather than being re-dated.
     expect(hub.posted).toHaveLength(1);
     expect(hub.posted[0].data.ids).toEqual([REAL_B]);
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(111);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      111,
+    );
   });
 
   it("a sweep that stamps nothing broadcasts nothing", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 111 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 111 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 111 } },
     });
     useInboxStore.getState().markSessionsDismissed([REAL_A]);
@@ -349,11 +394,15 @@ describe("gesture bridge senders", () => {
     });
 
     // handleToggleDismiss's stash leg (app/sessions/page.tsx).
-    useInboxStore.getState().patchConversation(REAL_A, { inbox_stashed_at: 4242 });
+    useInboxStore
+      .getState()
+      .patchConversation(REAL_A, { inbox_stashed_at: 4242 });
 
     expect(hub.posted).toHaveLength(1);
     expect(hub.posted[0].data).toMatchObject({
-      kind: "fields", id: REAL_A, fields: { inbox_stashed_at: 4242 },
+      kind: "fields",
+      id: REAL_A,
+      fields: { inbox_stashed_at: 4242 },
     });
   });
 
@@ -362,7 +411,9 @@ describe("gesture bridge senders", () => {
       sessions: { [REAL_A]: session(REAL_A) },
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
-    useInboxStore.getState().patchConversation(REAL_A, { title: "renamed", project_path: "/tmp" });
+    useInboxStore
+      .getState()
+      .patchConversation(REAL_A, { title: "renamed", project_path: "/tmp" });
     expect(hub.posted).toHaveLength(0);
   });
 
@@ -384,7 +435,9 @@ describe("gesture bridge senders", () => {
 
     expect(hub.posted).toHaveLength(2);
     expect(hub.posted[1].data).toMatchObject({
-      kind: "fields", id: REAL_A, fields: { inbox_pinned_at: null },
+      kind: "fields",
+      id: REAL_A,
+      fields: { inbox_pinned_at: null },
     });
   });
 
@@ -392,7 +445,12 @@ describe("gesture bridge senders", () => {
     _resetUndoStacks();
     const PINNED_AT = 1700000000000;
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: PINNED_AT } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: PINNED_AT,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: PINNED_AT } },
     });
 
@@ -402,8 +460,13 @@ describe("gesture bridge senders", () => {
     expect(performUndo()).toBe(true);
     expect(hub.posted).toHaveLength(2);
     expect(hub.posted[1].data.kind).toBe("fields");
-    expect(hub.posted[1].data.fields).toMatchObject({ inbox_pinned_at: PINNED_AT, is_pinned: true });
-    expect(useInboxStore.getState().sessions[REAL_A]?.inbox_pinned_at).toBe(PINNED_AT);
+    expect(hub.posted[1].data.fields).toMatchObject({
+      inbox_pinned_at: PINNED_AT,
+      is_pinned: true,
+    });
+    expect(useInboxStore.getState().sessions[REAL_A]?.inbox_pinned_at).toBe(
+      PINNED_AT,
+    );
   });
 
   it("undoing a hide broadcasts the snapshot flags per id, under one timestamp", () => {
@@ -413,9 +476,15 @@ describe("gesture bridge senders", () => {
     seed({
       sessions: {
         [REAL_A]: session(REAL_A),
-        [REAL_B]: session(REAL_B, { parent_conversation_id: REAL_A, inbox_stashed_at: 111 } as any),
+        [REAL_B]: session(REAL_B, {
+          parent_conversation_id: REAL_A,
+          inbox_stashed_at: 111,
+        } as any),
       },
-      conversations: { [REAL_A]: { _id: REAL_A }, [REAL_B]: { _id: REAL_B, inbox_stashed_at: 111 } },
+      conversations: {
+        [REAL_A]: { _id: REAL_A },
+        [REAL_B]: { _id: REAL_B, inbox_stashed_at: 111 },
+      },
     });
 
     _resetUndoStacks();
@@ -434,12 +503,14 @@ describe("gesture bridge senders", () => {
     const byId = Object.fromEntries(undo.map((m) => [m.id, m]));
     // Exactly the fields the kill wrote on the row: it had no stash to clear.
     expect(byId[REAL_A]).toMatchObject({
-      kind: "fields", fields: { inbox_dismissed_at: null },
+      kind: "fields",
+      fields: { inbox_dismissed_at: null },
     });
     // Verbatim: the values applyUndoPatches dispatches, so the receiver's lock
     // retires on the matching server echo.
     expect(byId[REAL_B]).toMatchObject({
-      kind: "fields", fields: { inbox_dismissed_at: null, inbox_stashed_at: 111 },
+      kind: "fields",
+      fields: { inbox_dismissed_at: null, inbox_stashed_at: 111 },
     });
   });
 
@@ -462,7 +533,12 @@ describe("gesture bridge receiver", () => {
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_dismissed_at).toBe(500);
@@ -471,11 +547,24 @@ describe("gesture bridge receiver", () => {
 
   it("kill clears an existing stash and pin (the buckets are exclusive)", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_stashed_at: 100, is_pinned: true, inbox_pinned_at: 100 } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_stashed_at: 100, inbox_pinned_at: 100 } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          inbox_stashed_at: 100,
+          is_pinned: true,
+          inbox_pinned_at: 100,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: { _id: REAL_A, inbox_stashed_at: 100, inbox_pinned_at: 100 },
+      },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_dismissed_at).toBe(500);
@@ -490,16 +579,29 @@ describe("gesture bridge receiver", () => {
       sessions: { [REAL_A]: session(REAL_A) },
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", hidden: true, ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      hidden: true,
+      ids: [REAL_A],
+      ts: 500,
+    });
     let s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_stashed_at).toBe(500);
     expect(s.sessions[REAL_A].inbox_stash_hidden).toBe(true);
     // A later plain stash from a sibling rewrites the mode, and a restore
     // clears it with the stamp.
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 600 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 600,
+    });
     s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_stash_hidden).toBeNull();
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 700 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 700 });
     s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_stashed_at).toBeNull();
     expect(s.sessions[REAL_A].inbox_stash_hidden).toBeNull();
@@ -507,11 +609,24 @@ describe("gesture bridge receiver", () => {
 
   it("restore clears both hide flags", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100, inbox_stashed_at: 90 } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 100, inbox_stashed_at: 90 } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          inbox_dismissed_at: 100,
+          inbox_stashed_at: 90,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: 100,
+          inbox_stashed_at: 90,
+        },
+      },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
 
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].inbox_dismissed_at).toBeNull();
@@ -525,13 +640,25 @@ describe("gesture bridge receiver", () => {
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 500,
+      ts: 500,
+    });
     let s = useInboxStore.getState();
     expect(s.sessions[REAL_A].is_pinned).toBe(true);
     expect(s.sessions[REAL_A].inbox_pinned_at).toBe(500);
     expect((s.conversations[REAL_A] as any).inbox_pinned_at).toBe(500);
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 600 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 600,
+    });
     s = useInboxStore.getState();
     expect(s.sessions[REAL_A].is_pinned).toBe(false);
     expect(s.sessions[REAL_A].inbox_pinned_at).toBeNull();
@@ -540,17 +667,29 @@ describe("gesture bridge receiver", () => {
 
   it("a fields message writes is_pinned on the sessions twin only, so no conversations lock is left", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 500 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 500,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 500 } },
     });
     // An undone pin, as afterReplay announces it.
-    useInboxStore.getState().applyGestureBridge({ kind: "fields", id: REAL_A, fields: { is_pinned: false, inbox_pinned_at: null }, ts: 600 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "fields",
+      id: REAL_A,
+      fields: { is_pinned: false, inbox_pinned_at: null },
+      ts: 600,
+    });
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A].is_pinned).toBe(false);
     expect(s.sessions[REAL_A].inbox_pinned_at).toBeNull();
     expect((s.conversations[REAL_A] as any).inbox_pinned_at).toBeNull();
     expect("is_pinned" in (s.conversations[REAL_A] as any)).toBe(false);
-    expect((s.pending as any)[`conversations:${REAL_A}:is_pinned`]).toBeUndefined();
+    expect(
+      (s.pending as any)[`conversations:${REAL_A}:is_pinned`],
+    ).toBeUndefined();
   });
 
   it("forget removes every trace of the row and plants the excludes", () => {
@@ -561,7 +700,9 @@ describe("gesture bridge receiver", () => {
       pagination: { [STUB]: { cursor: "x" } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
 
     const s = useInboxStore.getState();
     expect(s.sessions[STUB]).toBeUndefined();
@@ -571,7 +712,9 @@ describe("gesture bridge receiver", () => {
     // The exclude is what authorizes the durable IDB row delete — a bare
     // store-shrink is ignored by the collection diff.
     expect(s.pending[`sessions:${STUB}`]).toMatchObject({ type: "exclude" });
-    expect(s.pending[`conversations:${STUB}`]).toMatchObject({ type: "exclude" });
+    expect(s.pending[`conversations:${STUB}`]).toMatchObject({
+      type: "exclude",
+    });
   });
 
   it("scope:session-row drops the inbox row but spares the cached conversation", () => {
@@ -582,7 +725,10 @@ describe("gesture bridge receiver", () => {
     });
 
     useInboxStore.getState().applyGestureBridge({
-      kind: "forget", ids: [REAL_A], scope: "session-row", ts: 500,
+      kind: "forget",
+      ids: [REAL_A],
+      scope: "session-row",
+      ts: 500,
     });
 
     const s = useInboxStore.getState();
@@ -602,7 +748,11 @@ describe("gesture bridge receiver", () => {
     });
 
     useInboxStore.getState().applyGestureBridge({
-      kind: "hide", mode: "kill", ids: [REAL_A], forget: [STUB], ts: 500,
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      forget: [STUB],
+      ts: 500,
     });
 
     const s = useInboxStore.getState();
@@ -617,7 +767,9 @@ describe("gesture bridge receiver", () => {
       currentSessionId: REAL_A,
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "forget", ids: [REAL_A], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "forget", ids: [REAL_A], ts: 500 });
 
     const s = useInboxStore.getState();
     expect(s.sessions[REAL_A]).toBeDefined();
@@ -632,7 +784,9 @@ describe("gesture bridge receiver", () => {
       pendingMessages: { [STUB]: [{ content: "half-typed thought" }] },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
 
     const s = useInboxStore.getState();
     // A queued message means this window knows something the sender did not.
@@ -647,14 +801,21 @@ describe("gesture bridge receiver", () => {
       pendingSessionCreates: { [STUB]: { ts: 1 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "forget", ids: [STUB], ts: 500 });
 
     expect(useInboxStore.getState().sessions[STUB]).toBeDefined();
   });
 
   it("ignores ids this window has never heard of", () => {
     seed({ sessions: {}, conversations: {} });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
     expect(useInboxStore.getState().sessions[REAL_A]).toBeUndefined();
   });
 
@@ -665,7 +826,12 @@ describe("gesture bridge receiver", () => {
       currentSessionId: REAL_A,
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     expect(useInboxStore.getState().currentSessionId).toBe(REAL_A);
   });
@@ -674,51 +840,105 @@ describe("gesture bridge receiver", () => {
 describe("gesture bridge ordering guards", () => {
   it("an older hide does not regress a newer local hide", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 900 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 900 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(900);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      900,
+    );
   });
 
   it("an older restore does not un-hide a newer local kill", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 900 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 900 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
 
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(900);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      900,
+    );
   });
 
   it("a delayed older hide cannot overwrite a newer restore lock", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 100 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBeNull();
-    expect(useInboxStore.getState().conversations[REAL_A].inbox_dismissed_at).toBeNull();
+    expect(
+      useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at,
+    ).toBeNull();
+    expect(
+      useInboxStore.getState().conversations[REAL_A].inbox_dismissed_at,
+    ).toBeNull();
   });
 
   it("a no-op restore plants twin tombstones that reject a delayed kill", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: null, inbox_stashed_at: null } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: null, inbox_stashed_at: null } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+        },
+      },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
     const locks = useInboxStore.getState().pending;
-    expect(locks[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    expect(locks[`conversations:${REAL_A}:inbox_stashed_at`]).toEqual({ type: "field", value: null, ts: 900 });
+    expect(locks[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    expect(locks[`conversations:${REAL_A}:inbox_stashed_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeNull();
@@ -733,8 +953,18 @@ describe("gesture bridge ordering guards", () => {
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 900,
+    });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeUndefined();
@@ -745,11 +975,21 @@ describe("gesture bridge ordering guards", () => {
 
   it("stash clears the sender's pin state on both twins", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 100,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 100 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 900,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBe(900);
@@ -761,11 +1001,21 @@ describe("gesture bridge ordering guards", () => {
 
   it("does not let an older stash clear a newer pin", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 900 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 900,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBeUndefined();
@@ -777,12 +1027,28 @@ describe("gesture bridge ordering guards", () => {
 
   it("does not let a delayed pin undo a newer stash", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 100,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 100 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 900,
+    });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 500,
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBe(900);
@@ -798,14 +1064,24 @@ describe("gesture bridge ordering guards", () => {
       conversations: { [REAL_A]: { _id: REAL_A, inbox_stashed_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
     let state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeUndefined();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBe(100);
     expect(state.conversations[REAL_A].inbox_dismissed_at).toBeUndefined();
     expect(state.conversations[REAL_A].inbox_stashed_at).toBe(900);
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 1_000 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 1_000,
+    });
     state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBe(1_000);
     expect(state.sessions[REAL_A].inbox_stashed_at).toBeNull();
@@ -815,16 +1091,22 @@ describe("gesture bridge ordering guards", () => {
 
   it("keeps divergent twins unchanged for an older restore, then restores both", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
     let state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBe(100);
     expect(state.conversations[REAL_A].inbox_dismissed_at).toBe(900);
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 1_000 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 1_000 });
     state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeNull();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBeNull();
@@ -834,17 +1116,23 @@ describe("gesture bridge ordering guards", () => {
 
   it("keeps divergent twins unchanged for older generic fields, then applies them to both", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 900 } },
     });
 
     const fields = { inbox_dismissed_at: null, inbox_stashed_at: null };
-    useInboxStore.getState().applyGestureBridge({ kind: "fields", id: REAL_A, fields, ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "fields", id: REAL_A, fields, ts: 500 });
     let state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBe(100);
     expect(state.conversations[REAL_A].inbox_dismissed_at).toBe(900);
 
-    useInboxStore.getState().applyGestureBridge({ kind: "fields", id: REAL_A, fields, ts: 1_000 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "fields", id: REAL_A, fields, ts: 1_000 });
     state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeNull();
     expect(state.sessions[REAL_A].inbox_stashed_at).toBeNull();
@@ -854,17 +1142,34 @@ describe("gesture bridge ordering guards", () => {
 
   it("keeps divergent twins unchanged for an older pin, then applies the newer unpin to both", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 100,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 500,
+    });
     let state = useInboxStore.getState();
     expect(state.sessions[REAL_A].is_pinned).toBe(true);
     expect(state.sessions[REAL_A].inbox_pinned_at).toBe(100);
     expect(state.conversations[REAL_A].inbox_pinned_at).toBe(900);
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 1_000 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 1_000,
+    });
     state = useInboxStore.getState();
     expect(state.sessions[REAL_A].is_pinned).toBe(false);
     expect(state.sessions[REAL_A].inbox_pinned_at).toBeNull();
@@ -877,8 +1182,18 @@ describe("gesture bridge ordering guards", () => {
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "stash", ids: [REAL_A], ts: 500 });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "stash",
+      ids: [REAL_A],
+      ts: 500,
+    });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 900,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBe(900);
@@ -889,17 +1204,46 @@ describe("gesture bridge ordering guards", () => {
 
   it("a no-op unpin plants twin tombstones that reject a delayed pin", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_pinned_at: null } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: false,
+          inbox_pinned_at: null,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: null } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 900,
+    });
     const locks = useInboxStore.getState().pending;
-    expect(locks[`sessions:${REAL_A}:is_pinned`]).toEqual({ type: "field", value: false, ts: 900 });
-    expect(locks[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    expect(locks[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
+    expect(locks[`sessions:${REAL_A}:is_pinned`]).toEqual({
+      type: "field",
+      value: false,
+      ts: 900,
+    });
+    expect(locks[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    expect(locks[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 500,
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].is_pinned).toBe(false);
@@ -911,25 +1255,56 @@ describe("gesture bridge ordering guards", () => {
     const originalNow = Date.now;
     Date.now = () => 1_000;
     try {
-      for (const [mode, hiddenField] of [["kill", "inbox_dismissed_at"], ["stash", "inbox_stashed_at"]] as const) {
+      for (const [mode, hiddenField] of [
+        ["kill", "inbox_dismissed_at"],
+        ["stash", "inbox_stashed_at"],
+      ] as const) {
         const enqueued: any[] = [];
         const dispatched: string[] = [];
         seed({
-          sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_pinned_at: null } as any) },
+          sessions: {
+            [REAL_A]: session(REAL_A, {
+              is_pinned: false,
+              inbox_pinned_at: null,
+            } as any),
+          },
           conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: null } },
         });
         const store = useInboxStore.getState() as any;
-        store._setOutbox((entry: any) => { enqueued.push(entry); }, () => {}, async () => []);
-        store._setDispatch((action: string) => { dispatched.push(action); return Promise.resolve(); });
+        store._setOutbox(
+          (entry: any) => {
+            enqueued.push(entry);
+          },
+          () => {},
+          async () => [],
+        );
+        store._setDispatch((action: string) => {
+          dispatched.push(action);
+          return Promise.resolve();
+        });
 
-        useInboxStore.getState().applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 900 });
+        useInboxStore
+          .getState()
+          .applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 900 });
         let state = useInboxStore.getState();
         expect(state.sessions[REAL_A][hiddenField]).toBe(900);
-        expect(state.pending[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
-        expect(state.pending[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
+        expect(state.pending[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({
+          type: "field",
+          value: null,
+          ts: 900,
+        });
+        expect(
+          state.pending[`conversations:${REAL_A}:inbox_pinned_at`],
+        ).toEqual({ type: "field", value: null, ts: 900 });
 
         // The late pin is older than the hide's pin-clear tombstone.
-        useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500 });
+        useInboxStore.getState().applyGestureBridge({
+          kind: "pin",
+          id: REAL_A,
+          pinned: true,
+          pinnedAt: 500,
+          ts: 500,
+        });
         state = useInboxStore.getState();
         expect(state.sessions[REAL_A].is_pinned).toBe(false);
         expect(state.sessions[REAL_A].inbox_pinned_at).toBeNull();
@@ -943,25 +1318,56 @@ describe("gesture bridge ordering guards", () => {
         // cursor has passed it here). The barrier lock on the hidden field the
         // gesture did NOT dispatch keeps its retained value until the row's
         // next echo carries it.
-        const other = mode === "kill" ? "inbox_stashed_at" : "inbox_dismissed_at";
-        useInboxStore.getState().syncTable("syncMeta", { "synclog:v1:user:me": { cursor: 10 } }, { kind: "singleton" });
+        const other =
+          mode === "kill" ? "inbox_stashed_at" : "inbox_dismissed_at";
+        useInboxStore
+          .getState()
+          .syncTable(
+            "syncMeta",
+            { "synclog:v1:user:me": { cursor: 10 } },
+            { kind: "singleton" },
+          );
         useInboxStore.getState().applyGestureBridge({
-          kind: "ack", sentAt: 950, ts: 950, ack: [{ scope_key: "user:me", position: 7 }],
-          patches: { conversations: { [REAL_A]: { [hiddenField]: 900, inbox_pinned_at: null, inbox_stash_hidden: null } } },
+          kind: "ack",
+          sentAt: 950,
+          ts: 950,
+          ack: [{ scope_key: "user:me", position: 7 }],
+          patches: {
+            conversations: {
+              [REAL_A]: {
+                [hiddenField]: 900,
+                inbox_pinned_at: null,
+                inbox_stash_hidden: null,
+              },
+            },
+          },
         });
         const pending = useInboxStore.getState().pending;
         for (const coll of ["sessions", "conversations"]) {
           expect(pending[`${coll}:${REAL_A}:${hiddenField}`]).toBeUndefined();
           expect(pending[`${coll}:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
-          expect(pending[`${coll}:${REAL_A}:${other}`]).toMatchObject({ type: "field", ts: 900 });
+          expect(pending[`${coll}:${REAL_A}:${other}`]).toMatchObject({
+            type: "field",
+            ts: 900,
+          });
         }
         expect(pending[`sessions:${REAL_A}:is_pinned`]).toBeUndefined();
 
         // With the locks retired, a later authoritative pin is no longer
         // overwritten by the old null tombstone on either twin; the barrier
         // lock retires on this echo of its retained value.
-        useInboxStore.getState().syncTable("sessions", [session(REAL_A, { is_pinned: true, [hiddenField]: 900, inbox_pinned_at: 1_000 } as any)]);
-        useInboxStore.getState().syncRecord("conversations", REAL_A, { _id: REAL_A, [hiddenField]: 900, inbox_pinned_at: 1_000 });
+        useInboxStore.getState().syncTable("sessions", [
+          session(REAL_A, {
+            is_pinned: true,
+            [hiddenField]: 900,
+            inbox_pinned_at: 1_000,
+          } as any),
+        ]);
+        useInboxStore.getState().syncRecord("conversations", REAL_A, {
+          _id: REAL_A,
+          [hiddenField]: 900,
+          inbox_pinned_at: 1_000,
+        });
         state = useInboxStore.getState();
         expect(state.sessions[REAL_A].is_pinned).toBe(true);
         expect(state.sessions[REAL_A].inbox_pinned_at).toBe(1_000);
@@ -973,23 +1379,46 @@ describe("gesture bridge ordering guards", () => {
     }
   });
 
-
   it("an undo pin with an older pinnedAt still orders after delayed hide or stash", () => {
-    for (const [mode, hiddenField] of [["kill", "inbox_dismissed_at"], ["stash", "inbox_stashed_at"]] as const) {
+    for (const [mode, hiddenField] of [
+      ["kill", "inbox_dismissed_at"],
+      ["stash", "inbox_stashed_at"],
+    ] as const) {
       seed({
-        sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any) },
+        sessions: {
+          [REAL_A]: session(REAL_A, {
+            is_pinned: true,
+            inbox_pinned_at: 100,
+          } as any),
+        },
         conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 100 } },
       });
 
       // Undo restores the original pinnedAt value, while its fresh message ts
       // is the causal ordering stamp. This is visibly a no-op but not a
       // causally empty transition.
-      useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 100, ts: 900 });
+      useInboxStore.getState().applyGestureBridge({
+        kind: "pin",
+        id: REAL_A,
+        pinned: true,
+        pinnedAt: 100,
+        ts: 900,
+      });
       let state = useInboxStore.getState();
-      expect(state.pending[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: 100, ts: 900 });
-      expect(state.pending[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: 100, ts: 900 });
+      expect(state.pending[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({
+        type: "field",
+        value: 100,
+        ts: 900,
+      });
+      expect(state.pending[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({
+        type: "field",
+        value: 100,
+        ts: 900,
+      });
 
-      useInboxStore.getState().applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 500 });
+      useInboxStore
+        .getState()
+        .applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 500 });
       state = useInboxStore.getState();
       expect(state.sessions[REAL_A][hiddenField]).toBeUndefined();
       expect(state.sessions[REAL_A].is_pinned).toBe(true);
@@ -997,12 +1426,27 @@ describe("gesture bridge ordering guards", () => {
 
       // The old payload is also the exact server echo value, so it retires the
       // fresh ordering lock rather than pinning the field indefinitely.
-      useInboxStore.getState().syncTable("sessions", [session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any)]);
-      useInboxStore.getState().syncRecord("conversations", REAL_A, { _id: REAL_A, inbox_pinned_at: 100 });
-      expect(useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
-      expect(useInboxStore.getState().pending[`conversations:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
+      useInboxStore
+        .getState()
+        .syncTable("sessions", [
+          session(REAL_A, { is_pinned: true, inbox_pinned_at: 100 } as any),
+        ]);
+      useInboxStore.getState().syncRecord("conversations", REAL_A, {
+        _id: REAL_A,
+        inbox_pinned_at: 100,
+      });
+      expect(
+        useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_pinned_at`],
+      ).toBeUndefined();
+      expect(
+        useInboxStore.getState().pending[
+          `conversations:${REAL_A}:inbox_pinned_at`
+        ],
+      ).toBeUndefined();
 
-      useInboxStore.getState().applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 1_000 });
+      useInboxStore
+        .getState()
+        .applyGestureBridge({ kind: "hide", mode, ids: [REAL_A], ts: 1_000 });
       state = useInboxStore.getState();
       expect(state.sessions[REAL_A][hiddenField]).toBe(1_000);
       expect(state.sessions[REAL_A].is_pinned).toBe(false);
@@ -1013,8 +1457,22 @@ describe("gesture bridge ordering guards", () => {
 
   it("no-op undo fields plant twin tombstones that reject delayed hide and pin gestures", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: false,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        },
+      },
     });
 
     // The sibling payload an undo of a hide broadcasts (the undo binding's
@@ -1026,9 +1484,22 @@ describe("gesture bridge ordering guards", () => {
       ts: 900,
     });
     let locks = useInboxStore.getState().pending;
-    expect(locks[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    expect(locks[`conversations:${REAL_A}:inbox_stashed_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    expect(locks[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    expect(locks[`conversations:${REAL_A}:inbox_stashed_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     // Generic pin patches also need their no-op ordering tombstone.
     useInboxStore.getState().applyGestureBridge({
@@ -1038,9 +1509,23 @@ describe("gesture bridge ordering guards", () => {
       ts: 900,
     });
     locks = useInboxStore.getState().pending;
-    expect(locks[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    expect(locks[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: null, ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 500, ts: 500 });
+    expect(locks[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    expect(locks[`conversations:${REAL_A}:inbox_pinned_at`]).toEqual({
+      type: "field",
+      value: null,
+      ts: 900,
+    });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 500,
+      ts: 500,
+    });
 
     const state = useInboxStore.getState();
     expect(state.sessions[REAL_A].inbox_dismissed_at).toBeNull();
@@ -1054,16 +1539,40 @@ describe("gesture bridge ordering guards", () => {
 
   it("delayed pin and hide field writes cannot overwrite newer field locks", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100, is_pinned: true, inbox_pinned_at: 100 } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 100, inbox_pinned_at: 100 } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          inbox_dismissed_at: 100,
+          is_pinned: true,
+          inbox_pinned_at: 100,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: 100,
+          inbox_pinned_at: 100,
+        },
+      },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 900 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 900,
+    });
     useInboxStore.getState().applyGestureBridge({
       kind: "fields",
       id: REAL_A,
-      fields: { inbox_dismissed_at: 500, is_pinned: true, inbox_pinned_at: 500 },
+      fields: {
+        inbox_dismissed_at: 500,
+        is_pinned: true,
+        inbox_pinned_at: 500,
+      },
       ts: 500,
     });
 
@@ -1075,11 +1584,22 @@ describe("gesture bridge ordering guards", () => {
 
   it("an older unpin does not undo a newer local pin", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 900 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 900,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 500,
+    });
 
     expect(useInboxStore.getState().sessions[REAL_A].is_pinned).toBe(true);
     expect(useInboxStore.getState().sessions[REAL_A].inbox_pinned_at).toBe(900);
@@ -1087,11 +1607,21 @@ describe("gesture bridge ordering guards", () => {
 
   it("an older kill does not clear a newer local pin", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 900 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 900,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 900 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     expect(useInboxStore.getState().sessions[REAL_A].is_pinned).toBe(true);
   });
@@ -1101,17 +1631,28 @@ describe("gesture bridge ordering guards", () => {
       sessions: { [REAL_A]: session(REAL_A) },
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
-    const msg: GestureMessage = { kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 };
+    const msg: GestureMessage = {
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    };
     useInboxStore.getState().applyGestureBridge(msg);
     useInboxStore.getState().applyGestureBridge(msg);
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(500);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      500,
+    );
   });
 });
 
 describe("gesture bridge delivery filters", () => {
   it("drops a window's own broadcast (source token)", () => {
     const seen: GestureMessage[] = [];
-    const stop = subscribeGestures("user-1", () => "user-1", (m) => seen.push(m));
+    const stop = subscribeGestures(
+      "user-1",
+      () => "user-1",
+      (m) => seen.push(m),
+    );
     // Same process, same source token — as if the window heard itself.
     broadcastGesture({ kind: "restore", ids: [REAL_A], ts: 1 }, "user-1");
     stop();
@@ -1121,11 +1662,19 @@ describe("gesture bridge delivery filters", () => {
   it("drops a message stamped with a different user", () => {
     const seen: GestureMessage[] = [];
     // Subscribe on the "user-2" channel but with our account since switched.
-    const stop = subscribeGestures("user-2", () => "user-1", (m) => seen.push(m));
+    const stop = subscribeGestures(
+      "user-2",
+      () => "user-1",
+      (m) => seen.push(m),
+    );
     // A foreign sender: same channel, different source token and user id.
     hub.factory("codecast-gesture:user-2").postMessage({
-      v: 1, source: "other-window", userId: "user-2",
-      kind: "restore", ids: [REAL_A], ts: 1,
+      v: 1,
+      source: "other-window",
+      userId: "user-2",
+      kind: "restore",
+      ids: [REAL_A],
+      ts: 1,
     });
     stop();
     expect(seen).toHaveLength(0);
@@ -1133,22 +1682,57 @@ describe("gesture bridge delivery filters", () => {
 
   it("delivers a sibling's message on the matching channel and user", () => {
     const seen: GestureMessage[] = [];
-    const stop = subscribeGestures("user-1", () => "user-1", (m) => seen.push(m));
+    const stop = subscribeGestures(
+      "user-1",
+      () => "user-1",
+      (m) => seen.push(m),
+    );
     hub.factory("codecast-gesture:user-1").postMessage({
-      v: 1, source: "other-window", userId: "user-1",
-      kind: "hide", mode: "kill", ids: [REAL_A], ts: 7,
+      v: 1,
+      source: "other-window",
+      userId: "user-1",
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 7,
     });
     stop();
-    expect(seen).toEqual([{ kind: "hide", mode: "kill", ids: [REAL_A], ts: 7 }]);
+    expect(seen).toEqual([
+      { kind: "hide", mode: "kill", ids: [REAL_A], ts: 7 },
+    ]);
   });
 
   it("ignores malformed and wrong-version payloads", () => {
     const seen: GestureMessage[] = [];
-    const stop = subscribeGestures("user-1", () => "user-1", (m) => seen.push(m));
+    const stop = subscribeGestures(
+      "user-1",
+      () => "user-1",
+      (m) => seen.push(m),
+    );
     const ch = hub.factory("codecast-gesture:user-1");
-    ch.postMessage({ v: 2, source: "o", userId: "user-1", kind: "restore", ids: [], ts: 1 });
-    ch.postMessage({ v: 1, source: "o", userId: "user-1", kind: "nope", ts: 1 });
-    ch.postMessage({ v: 1, source: "o", userId: "user-1", kind: "pin", id: REAL_A, ts: 1 });
+    ch.postMessage({
+      v: 2,
+      source: "o",
+      userId: "user-1",
+      kind: "restore",
+      ids: [],
+      ts: 1,
+    });
+    ch.postMessage({
+      v: 1,
+      source: "o",
+      userId: "user-1",
+      kind: "nope",
+      ts: 1,
+    });
+    ch.postMessage({
+      v: 1,
+      source: "o",
+      userId: "user-1",
+      kind: "pin",
+      id: REAL_A,
+      ts: 1,
+    });
     ch.postMessage("garbage");
     stop();
     expect(seen).toHaveLength(0);
@@ -1156,9 +1740,18 @@ describe("gesture bridge delivery filters", () => {
 
   it("a stopped subscription receives nothing", () => {
     const seen: GestureMessage[] = [];
-    subscribeGestures("user-1", () => "user-1", (m) => seen.push(m))();
+    subscribeGestures(
+      "user-1",
+      () => "user-1",
+      (m) => seen.push(m),
+    )();
     hub.factory("codecast-gesture:user-1").postMessage({
-      v: 1, source: "other-window", userId: "user-1", kind: "restore", ids: [REAL_A], ts: 1,
+      v: 1,
+      source: "other-window",
+      userId: "user-1",
+      kind: "restore",
+      ids: [REAL_A],
+      ts: 1,
     });
     expect(seen).toHaveLength(0);
   });
@@ -1177,12 +1770,35 @@ describe("gesture bridge receiver is local-only", () => {
       conversations: { [REAL_A]: { _id: REAL_A }, [STUB]: { _id: STUB } },
     });
     const store = useInboxStore.getState() as any;
-    store._setOutbox((e: any) => { enqueued.push(e); }, () => {}, async () => []);
-    store._setDispatch((action: string) => { dispatched.push(action); return Promise.resolve(); });
+    store._setOutbox(
+      (e: any) => {
+        enqueued.push(e);
+      },
+      () => {},
+      async () => [],
+    );
+    store._setDispatch((action: string) => {
+      dispatched.push(action);
+      return Promise.resolve();
+    });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], forget: [STUB], ts: 500 });
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 600 });
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 700, ts: 700 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      forget: [STUB],
+      ts: 500,
+    });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 600 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 700,
+      ts: 700,
+    });
 
     expect(enqueued).toEqual([]);
     expect(dispatched).toEqual([]);
@@ -1193,7 +1809,12 @@ describe("gesture bridge receiver is local-only", () => {
       sessions: { [REAL_A]: session(REAL_A) },
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
     expect(hub.posted).toHaveLength(0);
   });
 
@@ -1208,11 +1829,24 @@ describe("gesture bridge receiver is local-only", () => {
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     const p = useInboxStore.getState().pending;
-    expect(p[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({ type: "field", value: 500, ts: 500 });
-    expect(p[`conversations:${REAL_A}:inbox_dismissed_at`]).toEqual({ type: "field", value: 500, ts: 500 });
+    expect(p[`sessions:${REAL_A}:inbox_dismissed_at`]).toEqual({
+      type: "field",
+      value: 500,
+      ts: 500,
+    });
+    expect(p[`conversations:${REAL_A}:inbox_dismissed_at`]).toEqual({
+      type: "field",
+      value: 500,
+      ts: 500,
+    });
   });
 
   // THE regression test for the field-lock defect. A sessions crawl already in
@@ -1228,160 +1862,311 @@ describe("gesture bridge receiver is local-only", () => {
     expect(useInboxStore.getState().sessions[REAL_A]).toBeDefined();
 
     // The user kills REAL_A in the OTHER window mid-crawl.
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(500);
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      500,
+    );
 
     // The in-flight crawl now delivers its pre-kill snapshot.
     useInboxStore.getState().syncTable("sessions", [serverRow]);
 
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(500);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      500,
+    );
   });
 
   it("the lock retires once the server echoes the gesture back", () => {
     seed({ sessions: {}, conversations: {} });
     useInboxStore.getState().syncTable("sessions", [session(REAL_A)]);
-    useInboxStore.getState().applyGestureBridge({ kind: "hide", mode: "kill", ids: [REAL_A], ts: 500 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "hide",
+      mode: "kill",
+      ids: [REAL_A],
+      ts: 500,
+    });
 
     // The acting window's server write lands; the crawl now carries the hide.
-    useInboxStore.getState().syncTable("sessions", [session(REAL_A, { inbox_dismissed_at: 500 } as any)]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        session(REAL_A, { inbox_dismissed_at: 500 } as any),
+      ]);
 
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(500);
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      500,
+    );
     // Self-clearing: the lock exists to bridge the gap until the echo, and
     // applyFieldOverrides drops it once the server agrees. A lock that never
     // retired would pin the row against every later server change.
-    expect(useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_dismissed_at`]).toBeUndefined();
+    expect(
+      useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_dismissed_at`],
+    ).toBeUndefined();
   });
 
   it("locks the cleared fields on restore, and the pin fields on pin", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, { inbox_dismissed_at: 100 } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: 100 } },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
-    expect(useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_dismissed_at`])
-      .toEqual({ type: "field", value: null, ts: 500 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 500 });
+    expect(
+      useInboxStore.getState().pending[`sessions:${REAL_A}:inbox_dismissed_at`],
+    ).toEqual({ type: "field", value: null, ts: 500 });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: true, pinnedAt: 600, ts: 600 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: true,
+      pinnedAt: 600,
+      ts: 600,
+    });
     const p = useInboxStore.getState().pending;
-    expect(p[`sessions:${REAL_A}:is_pinned`]).toEqual({ type: "field", value: true, ts: 600 });
+    expect(p[`sessions:${REAL_A}:is_pinned`]).toEqual({
+      type: "field",
+      value: true,
+      ts: 600,
+    });
     // The locked value must equal what the SENDER dispatched — the lock retires
     // only when the server echo matches it, so a re-derived timestamp would
     // stick forever.
-    expect(p[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({ type: "field", value: 600, ts: 600 });
+    expect(p[`sessions:${REAL_A}:inbox_pinned_at`]).toEqual({
+      type: "field",
+      value: 600,
+      ts: 600,
+    });
   });
 
   it("retires no-op restore and unpin tombstones on matching server echoes", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: false,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        },
+      },
     });
 
-    useInboxStore.getState().applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
-    useInboxStore.getState().applyGestureBridge({ kind: "pin", id: REAL_A, pinned: false, pinnedAt: null, ts: 900 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "restore", ids: [REAL_A], ts: 900 });
+    useInboxStore.getState().applyGestureBridge({
+      kind: "pin",
+      id: REAL_A,
+      pinned: false,
+      pinnedAt: null,
+      ts: 900,
+    });
     useInboxStore.getState().syncTable("sessions", [
-      session(REAL_A, { is_pinned: false, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } as any),
+      session(REAL_A, {
+        is_pinned: false,
+        inbox_dismissed_at: null,
+        inbox_stashed_at: null,
+        inbox_pinned_at: null,
+      } as any),
     ]);
     // Production conversation echoes omit clear optional inbox timestamps.
-    useInboxStore.getState().syncRecord("conversations", REAL_A, { _id: REAL_A });
+    useInboxStore
+      .getState()
+      .syncRecord("conversations", REAL_A, { _id: REAL_A });
 
     const pending = useInboxStore.getState().pending;
     expect(pending[`sessions:${REAL_A}:inbox_dismissed_at`]).toBeUndefined();
     expect(pending[`sessions:${REAL_A}:inbox_stashed_at`]).toBeUndefined();
     expect(pending[`sessions:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
-    expect(pending[`conversations:${REAL_A}:inbox_dismissed_at`]).toBeUndefined();
+    expect(
+      pending[`conversations:${REAL_A}:inbox_dismissed_at`],
+    ).toBeUndefined();
     expect(pending[`conversations:${REAL_A}:inbox_stashed_at`]).toBeUndefined();
     expect(pending[`conversations:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
   });
 
   it("retires no-op generic fields tombstones on matching server echoes", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A, inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        } as any),
+      },
+      conversations: {
+        [REAL_A]: {
+          _id: REAL_A,
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_pinned_at: null,
+        },
+      },
     });
 
     useInboxStore.getState().applyGestureBridge({
       kind: "fields",
       id: REAL_A,
-      fields: { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null },
+      fields: {
+        inbox_dismissed_at: null,
+        inbox_stashed_at: null,
+        inbox_pinned_at: null,
+      },
       ts: 900,
     });
     useInboxStore.getState().syncTable("sessions", [
-      session(REAL_A, { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_pinned_at: null } as any),
+      session(REAL_A, {
+        inbox_dismissed_at: null,
+        inbox_stashed_at: null,
+        inbox_pinned_at: null,
+      } as any),
     ]);
-    useInboxStore.getState().syncRecord("conversations", REAL_A, { _id: REAL_A });
+    useInboxStore
+      .getState()
+      .syncRecord("conversations", REAL_A, { _id: REAL_A });
 
     const pending = useInboxStore.getState().pending;
     expect(pending[`sessions:${REAL_A}:inbox_dismissed_at`]).toBeUndefined();
     expect(pending[`sessions:${REAL_A}:inbox_stashed_at`]).toBeUndefined();
     expect(pending[`sessions:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
-    expect(pending[`conversations:${REAL_A}:inbox_dismissed_at`]).toBeUndefined();
+    expect(
+      pending[`conversations:${REAL_A}:inbox_dismissed_at`],
+    ).toBeUndefined();
     expect(pending[`conversations:${REAL_A}:inbox_stashed_at`]).toBeUndefined();
     expect(pending[`conversations:${REAL_A}:inbox_pinned_at`]).toBeUndefined();
   });
 });
 
 import { test as followTest, expect as followExpect } from "bun:test";
-import { broadcastGesture as followBroadcast, subscribeGestures as followSubscribe, setGestureChannelFactory as followFactory } from "../gestureBridge";
+import {
+  broadcastGesture as followBroadcast,
+  subscribeGestures as followSubscribe,
+  setGestureChannelFactory as followFactory,
+} from "../gestureBridge";
 
-followTest("a follow gesture crosses to a sibling window and a malformed one is dropped", () => {
-  const listeners: Array<(e: MessageEvent) => void> = [];
-  const fake = {
-    addEventListener: (_: string, fn: (e: MessageEvent) => void) => listeners.push(fn),
-    removeEventListener: () => {},
-    postMessage: (data: unknown) => {
-      // A sibling: a different source token, so the message is not our own.
-      for (const fn of listeners) fn({ data: { ...(data as object), source: "other-window" } } as MessageEvent);
-    },
-    close: () => {},
-  };
-  followFactory(() => fake as any);
-  const seen: unknown[] = [];
-  const stop = followSubscribe("user-1", () => "user-1", (m) => seen.push(m));
-  followBroadcast({ kind: "follow", leaderId: "u-ann", ts: 1 }, "user-1");
-  followBroadcast({ kind: "follow", leaderId: null, ts: 2 }, "user-1");
-  fake.postMessage({ kind: "follow", leaderId: 42, ts: 3, v: 1, userId: "user-1" });
-  followExpect(seen).toEqual([
-    { kind: "follow", leaderId: "u-ann", ts: 1 },
-    { kind: "follow", leaderId: null, ts: 2 },
-  ]);
-  stop();
-  followFactory(null);
-});
+followTest(
+  "a follow gesture crosses to a sibling window and a malformed one is dropped",
+  () => {
+    const listeners: Array<(e: MessageEvent) => void> = [];
+    const fake = {
+      addEventListener: (_: string, fn: (e: MessageEvent) => void) =>
+        listeners.push(fn),
+      removeEventListener: () => {},
+      postMessage: (data: unknown) => {
+        // A sibling: a different source token, so the message is not our own.
+        for (const fn of listeners)
+          fn({
+            data: { ...(data as object), source: "other-window" },
+          } as MessageEvent);
+      },
+      close: () => {},
+    };
+    followFactory(() => fake as any);
+    const seen: unknown[] = [];
+    const stop = followSubscribe(
+      "user-1",
+      () => "user-1",
+      (m) => seen.push(m),
+    );
+    followBroadcast({ kind: "follow", leaderId: "u-ann", ts: 1 }, "user-1");
+    followBroadcast({ kind: "follow", leaderId: null, ts: 2 }, "user-1");
+    fake.postMessage({
+      kind: "follow",
+      leaderId: 42,
+      ts: 3,
+      v: 1,
+      userId: "user-1",
+    });
+    followExpect(seen).toEqual([
+      { kind: "follow", leaderId: "u-ann", ts: 1 },
+      { kind: "follow", leaderId: null, ts: 2 },
+    ]);
+    stop();
+    followFactory(null);
+  },
+);
 
 // ct-56048: a kill of a plain row dispatches inbox_dismissed_at alone, but the
 // receiver locked all four hide fields plus retained-value barriers. The row
 // never echoes again, so the extra locks outlived their settle window.
 describe("gesture bridge lock parity", () => {
   const fieldLocks = (pending: Record<string, any>, id: string) =>
-    Object.fromEntries(Object.entries(pending)
-      .filter(([k, v]) => (k.startsWith(`sessions:${id}:`) || k.startsWith(`conversations:${id}:`)) && v?.type === "field")
-      .map(([k, v]) => [k, v.value]));
+    Object.fromEntries(
+      Object.entries(pending)
+        .filter(
+          ([k, v]) =>
+            (k.startsWith(`sessions:${id}:`) ||
+              k.startsWith(`conversations:${id}:`)) &&
+            v?.type === "field",
+        )
+        .map(([k, v]) => [k, v.value]),
+    );
 
   it("a kill of a plain row leaves the sibling exactly the sender's locks, and the bridged ack retires every one", () => {
-    const plain = () => seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_pinned_at: null } as any) },
-      conversations: { [REAL_A]: { _id: REAL_A } },
-    });
+    const plain = () =>
+      seed({
+        sessions: {
+          [REAL_A]: session(REAL_A, {
+            is_pinned: false,
+            inbox_pinned_at: null,
+          } as any),
+        },
+        conversations: { [REAL_A]: { _id: REAL_A } },
+      });
     plain();
     const store = useInboxStore.getState() as any;
-    store._setOutbox(() => {}, () => {}, async () => []);
+    store._setOutbox(
+      () => {},
+      () => {},
+      async () => [],
+    );
     store._setDispatch(() => Promise.resolve());
     useInboxStore.getState().killSession(REAL_A);
     const senderLocks = fieldLocks(useInboxStore.getState().pending, REAL_A);
     const msg = hub.posted[0].data as GestureMessage & { kind: "hide" };
     expect(msg.writes).toEqual({ [REAL_A]: { inbox_dismissed_at: msg.ts } });
-    expect(Object.keys(senderLocks).sort()).toEqual([`conversations:${REAL_A}:inbox_dismissed_at`, `sessions:${REAL_A}:inbox_dismissed_at`]);
+    expect(Object.keys(senderLocks).sort()).toEqual([
+      `conversations:${REAL_A}:inbox_dismissed_at`,
+      `sessions:${REAL_A}:inbox_dismissed_at`,
+    ]);
 
     // The sibling, holding the same plain row.
     plain();
     useInboxStore.getState().applyGestureBridge(msg);
-    expect(fieldLocks(useInboxStore.getState().pending, REAL_A)).toEqual(senderLocks);
-    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(msg.ts);
+    expect(fieldLocks(useInboxStore.getState().pending, REAL_A)).toEqual(
+      senderLocks,
+    );
+    expect(useInboxStore.getState().sessions[REAL_A].inbox_dismissed_at).toBe(
+      msg.ts,
+    );
 
-    useInboxStore.getState().syncTable("syncMeta", { "synclog:v1:user:me": { cursor: 10 } }, { kind: "singleton" });
+    useInboxStore
+      .getState()
+      .syncTable(
+        "syncMeta",
+        { "synclog:v1:user:me": { cursor: 10 } },
+        { kind: "singleton" },
+      );
     useInboxStore.getState().applyGestureBridge({
-      kind: "ack", sentAt: msg.ts + 1, ts: msg.ts + 1, ack: [{ scope_key: "user:me", position: 7 }],
+      kind: "ack",
+      sentAt: msg.ts + 1,
+      ts: msg.ts + 1,
+      ack: [{ scope_key: "user:me", position: 7 }],
       patches: { conversations: { [REAL_A]: { inbox_dismissed_at: msg.ts } } },
     });
     expect(fieldLocks(useInboxStore.getState().pending, REAL_A)).toEqual({});
@@ -1392,80 +2177,153 @@ describe("gesture bridge lock parity", () => {
   // skips a lock newer than its send) and names exactly the fields the replay
   // sent, so no barrier lock waits on an ack that never covers it. The
   // dispatch here takes a few milliseconds, as a real replay can.
-  const undoLeavesNoSiblingLocks = (forwardRow: Record<string, unknown>, forward: () => void) => {
+  const undoLeavesNoSiblingLocks = (
+    forwardRow: Record<string, unknown>,
+    forward: () => void,
+  ) => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_pinned_at: null } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: false,
+          inbox_pinned_at: null,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A } },
     });
     _resetUndoStacks();
     const store = useInboxStore.getState() as any;
     const sends: Array<{ patches: any; sentAt: number }> = [];
-    store._setOutbox(() => {}, () => {}, async () => []);
+    store._setOutbox(
+      () => {},
+      () => {},
+      async () => [],
+    );
     store._setDispatch((_action: string, _args: unknown[], patches: any) => {
       sends.push({ patches, sentAt: Date.now() });
       const until = Date.now() + 3;
-      while (Date.now() < until) { /* the replay's remaining work */ }
+      while (Date.now() < until) {
+        /* the replay's remaining work */
+      }
       return Promise.resolve();
     });
     forward();
     sends.length = 0;
     const posted = hub.posted.length;
     expect(performUndo()).toBe(true);
-    const messages = hub.posted.slice(posted).map((p) => p.data as GestureMessage);
+    const messages = hub.posted
+      .slice(posted)
+      .map((p) => p.data as GestureMessage);
     expect(messages.some((m) => m.kind === "fields")).toBe(true);
     expect(sends.length).toBeGreaterThan(0);
 
     // The sibling, holding the row as the forward gesture left it.
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: false, inbox_pinned_at: null, ...forwardRow } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: false,
+          inbox_pinned_at: null,
+          ...forwardRow,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, ...forwardRow } },
     });
     for (const m of messages) useInboxStore.getState().applyGestureBridge(m);
-    expect(Object.keys(fieldLocks(useInboxStore.getState().pending, REAL_A)).length).toBeGreaterThan(0);
-    useInboxStore.getState().syncTable("syncMeta", { "synclog:v1:user:me": { cursor: 10 } }, { kind: "singleton" });
+    expect(
+      Object.keys(fieldLocks(useInboxStore.getState().pending, REAL_A)).length,
+    ).toBeGreaterThan(0);
+    useInboxStore
+      .getState()
+      .syncTable(
+        "syncMeta",
+        { "synclog:v1:user:me": { cursor: 10 } },
+        { kind: "singleton" },
+      );
     for (const { patches, sentAt } of sends) {
-      useInboxStore.getState().applyGestureBridge({ kind: "ack", sentAt, ts: sentAt, ack: [{ scope_key: "user:me", position: 7 }], patches });
+      useInboxStore.getState().applyGestureBridge({
+        kind: "ack",
+        sentAt,
+        ts: sentAt,
+        ack: [{ scope_key: "user:me", position: 7 }],
+        patches,
+      });
     }
     expect(fieldLocks(useInboxStore.getState().pending, REAL_A)).toEqual({});
   };
 
   it("the undo of a pin leaves the sibling no lock its ack does not retire", () => {
     let pinnedAt = 0;
-    undoLeavesNoSiblingLocks({ get inbox_pinned_at() { return pinnedAt; }, is_pinned: true }, () => {
-      useInboxStore.getState().pinSession(REAL_A);
-      pinnedAt = useInboxStore.getState().sessions[REAL_A]!.inbox_pinned_at as number;
-    });
+    undoLeavesNoSiblingLocks(
+      {
+        get inbox_pinned_at() {
+          return pinnedAt;
+        },
+        is_pinned: true,
+      },
+      () => {
+        useInboxStore.getState().pinSession(REAL_A);
+        pinnedAt = useInboxStore.getState().sessions[REAL_A]!
+          .inbox_pinned_at as number;
+      },
+    );
   });
 
   it("the undo of a stash leaves the sibling no lock its ack does not retire", () => {
     let stashedAt = 0;
-    undoLeavesNoSiblingLocks({ get inbox_stashed_at() { return stashedAt; } }, () => {
-      useInboxStore.getState().stashSession(REAL_A);
-      stashedAt = useInboxStore.getState().sessions[REAL_A]!.inbox_stashed_at as number;
-    });
+    undoLeavesNoSiblingLocks(
+      {
+        get inbox_stashed_at() {
+          return stashedAt;
+        },
+      },
+      () => {
+        useInboxStore.getState().stashSession(REAL_A);
+        stashedAt = useInboxStore.getState().sessions[REAL_A]!
+          .inbox_stashed_at as number;
+      },
+    );
   });
 
   it("a kill of a pinned row bridges the pin clear it wrote, is_pinned included", () => {
     seed({
-      sessions: { [REAL_A]: session(REAL_A, { is_pinned: true, inbox_pinned_at: 5 } as any) },
+      sessions: {
+        [REAL_A]: session(REAL_A, {
+          is_pinned: true,
+          inbox_pinned_at: 5,
+        } as any),
+      },
       conversations: { [REAL_A]: { _id: REAL_A, inbox_pinned_at: 5 } },
     });
     useInboxStore.getState().killSession(REAL_A);
     const msg = hub.posted[0].data as GestureMessage & { kind: "hide" };
-    expect(msg.writes?.[REAL_A]).toEqual({ inbox_dismissed_at: msg.ts, is_pinned: false, inbox_pinned_at: null });
+    expect(msg.writes?.[REAL_A]).toEqual({
+      inbox_dismissed_at: msg.ts,
+      is_pinned: false,
+      inbox_pinned_at: null,
+    });
   });
 
   it("a row dropped by a forget or a prune leaves no field locks, only its excludes", () => {
-    const withLocks = () => seed({
-      sessions: { [REAL_A]: session(REAL_A) },
-      conversations: { [REAL_A]: { _id: REAL_A } },
-      pending: {
-        [`sessions:${REAL_A}:inbox_dismissed_at`]: { type: "field", value: 1, ts: 1 },
-        [`conversations:${REAL_A}:inbox_dismissed_at`]: { type: "field", value: 1, ts: 1 },
-      },
-    });
+    const withLocks = () =>
+      seed({
+        sessions: { [REAL_A]: session(REAL_A) },
+        conversations: { [REAL_A]: { _id: REAL_A } },
+        pending: {
+          [`sessions:${REAL_A}:inbox_dismissed_at`]: {
+            type: "field",
+            value: 1,
+            ts: 1,
+          },
+          [`conversations:${REAL_A}:inbox_dismissed_at`]: {
+            type: "field",
+            value: 1,
+            ts: 1,
+          },
+        },
+      });
     withLocks();
-    useInboxStore.getState().applyGestureBridge({ kind: "forget", ids: [REAL_A], ts: 2 });
+    useInboxStore
+      .getState()
+      .applyGestureBridge({ kind: "forget", ids: [REAL_A], ts: 2 });
     let pending = useInboxStore.getState().pending;
     expect(fieldLocks(pending, REAL_A)).toEqual({});
     expect(pending[`sessions:${REAL_A}`]).toMatchObject({ type: "exclude" });
@@ -1474,6 +2332,8 @@ describe("gesture bridge lock parity", () => {
     useInboxStore.getState().pruneGhostSessions([REAL_A]);
     pending = useInboxStore.getState().pending;
     expect(fieldLocks(pending, REAL_A)).toEqual({});
-    expect(pending[`conversations:${REAL_A}`]).toMatchObject({ type: "exclude" });
+    expect(pending[`conversations:${REAL_A}`]).toMatchObject({
+      type: "exclude",
+    });
   });
 });

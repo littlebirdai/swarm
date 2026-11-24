@@ -15,17 +15,12 @@
     "world": "fernhill",
     "reads": [
       {
-        "argv": [
-          "brief"
-        ],
+        "argv": ["brief"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       },
       {
-        "argv": [
-          "brief",
-          "--json"
-        ],
+        "argv": ["brief", "--json"],
         "out": "Not inside a role's session: pass a handle (cast brief @handle)",
         "exit": 1
       }

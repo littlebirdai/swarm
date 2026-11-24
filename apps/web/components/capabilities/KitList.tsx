@@ -3,12 +3,25 @@
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
-import { confidenceFromSurfaces, kindMeta, type CapabilityDevice } from "./kinds";
+import {
+  confidenceFromSurfaces,
+  kindMeta,
+  type CapabilityDevice,
+} from "./kinds";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 import { kitTeamLedger } from "../consequential/ledgers";
 import { MachineDots } from "./MachineDots";
 import type { FleetGridRow } from "./fleetRows";
-import { kitKeyOf, setKitReach, useKitReach, type KitItem, type KitReach, type KitConflict, type KitWorkspace, type PendingConsent } from "./useKit";
+import {
+  kitKeyOf,
+  setKitReach,
+  useKitReach,
+  type KitItem,
+  type KitReach,
+  type KitConflict,
+  type KitWorkspace,
+  type PendingConsent,
+} from "./useKit";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 export function KitList({
@@ -51,17 +64,23 @@ export function KitList({
     <section>
       <div className="flex items-baseline gap-2 mb-2 pb-2 border-b border-sol-border">
         <h2 className="text-sm font-medium text-sol-text">{title}</h2>
-        <span className="text-xs text-sol-text-dim tabular-nums">{items.length || ""}</span>
+        <span className="text-xs text-sol-text-dim tabular-nums">
+          {items.length || ""}
+        </span>
       </div>
       {items.length === 0 ? (
         <p className="px-2 py-4 text-xs text-sol-text-dim">
-          Nothing shared yet. Open a skill, command or subagent below and share it.
+          Nothing shared yet. Open a skill, command or subagent below and share
+          it.
         </p>
       ) : (
         <ul>
           {items.map((item) => {
             const key = kitKeyOf(item.kind, item.name);
-            const r = reach[item.slug] ?? { reach: "off" as KitReach, teamOn: false };
+            const r = reach[item.slug] ?? {
+              reach: "off" as KitReach,
+              teamOn: false,
+            };
             const author = nameOf(item.author_user_id);
             return (
               <li
@@ -70,12 +89,23 @@ export function KitList({
                   selectedKey === key ? "bg-sol-bg-alt" : "hover:bg-sol-bg-alt"
                 }`}
               >
-                <button type="button" onClick={() => onOpen(item)} className="min-w-0 flex-1 text-left">
+                <button
+                  type="button"
+                  onClick={() => onOpen(item)}
+                  className="min-w-0 flex-1 text-left"
+                >
                   <span className="flex items-center gap-2">
-                    <span className="font-mono text-[13px] text-sol-text truncate">{item.name}</span>
-                    <span className="text-meta text-sol-text-dim">{kindMeta(item.kind)?.label ?? item.kind}</span>
-                    {(pending.some((p) => p.slug === item.slug) || conflicts.some((c) => c.slug === item.slug)) && (
-                      <span className="text-meta text-sol-orange">needs you</span>
+                    <span className="font-mono text-[13px] text-sol-text truncate">
+                      {item.name}
+                    </span>
+                    <span className="text-meta text-sol-text-dim">
+                      {kindMeta(item.kind)?.label ?? item.kind}
+                    </span>
+                    {(pending.some((p) => p.slug === item.slug) ||
+                      conflicts.some((c) => c.slug === item.slug)) && (
+                      <span className="text-meta text-sol-orange">
+                        needs you
+                      </span>
                     )}
                     {item.publishing ? (
                       <span className="inline-flex items-center gap-1 text-meta text-sol-text-dim">
@@ -89,7 +119,9 @@ export function KitList({
                     )}
                   </span>
                   {item.description && (
-                    <span className="block text-xs text-sol-text-muted truncate">{item.description}</span>
+                    <span className="block text-xs text-sol-text-muted truncate">
+                      {item.description}
+                    </span>
                   )}
                 </button>
                 <MachineDots row={rowFor(item)} devices={devices} />
@@ -175,8 +207,13 @@ export function ReachControl({
           className={`inline-flex shrink-0 rounded-md border border-sol-border p-0.5 ${disabled ? "opacity-50 pointer-events-none" : ""}`}
         >
           {segment("off", "Off", () => onChange("off"))}
-          {segment("me", !canTeam && teamOn ? "Team" : "Me", () => onChange("me"))}
-          {canTeam && segment("team", "Team", () => (value === "team" ? undefined : p.press()))}
+          {segment("me", !canTeam && teamOn ? "Team" : "Me", () =>
+            onChange("me"),
+          )}
+          {canTeam &&
+            segment("team", "Team", () =>
+              value === "team" ? undefined : p.press(),
+            )}
         </div>
       )}
     />

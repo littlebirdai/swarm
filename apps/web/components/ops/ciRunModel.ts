@@ -5,7 +5,12 @@ import type { OpsCiRun } from "./opsTypes";
 
 type Job = OpsCiRun["jobs"][number];
 
-const FAILED = new Set(["failure", "timed_out", "startup_failure", "action_required"]);
+const FAILED = new Set([
+  "failure",
+  "timed_out",
+  "startup_failure",
+  "action_required",
+]);
 
 export function jobFailed(job: Pick<Job, "conclusion">): boolean {
   return !!job.conclusion && FAILED.has(job.conclusion);
@@ -13,11 +18,17 @@ export function jobFailed(job: Pick<Job, "conclusion">): boolean {
 
 /** The step a failed job stopped at: its first failed step, else none named. */
 export function failedStep(job: Job): Job["steps"][number] | null {
-  return job.steps.find((s) => s.conclusion && FAILED.has(s.conclusion)) ?? null;
+  return (
+    job.steps.find((s) => s.conclusion && FAILED.has(s.conclusion)) ?? null
+  );
 }
 
 /** The run's jobs split the way the card shows them: failed ones whole, the rest as a count by how they ended. */
-export function runJobs(run: Pick<OpsCiRun, "jobs">): { failed: Job[]; passed: number; other: number } {
+export function runJobs(run: Pick<OpsCiRun, "jobs">): {
+  failed: Job[];
+  passed: number;
+  other: number;
+} {
   const failed = run.jobs.filter(jobFailed);
   const passed = run.jobs.filter((j) => j.conclusion === "success").length;
   return { failed, passed, other: run.jobs.length - failed.length - passed };
@@ -28,7 +39,8 @@ export function isErrorLine(line: string): boolean {
   return line.startsWith("##[error]");
 }
 
-const EXPLAINS = /^\s*(?:Error|ERROR|error|Fatal|FATAL|fatal)\b[:\s]|^\s*(?:FAIL|Failed|failed)\b|^\s*npm ERR!|^\s*(?:✗|×|✘)\s|\bCannot\s|\bTraceback\b/;
+const EXPLAINS =
+  /^\s*(?:Error|ERROR|error|Fatal|FATAL|fatal)\b[:\s]|^\s*(?:FAIL|Failed|failed)\b|^\s*npm ERR!|^\s*(?:✗|×|✘)\s|\bCannot\s|\bTraceback\b/;
 
 /**
  * The line a reader looks for first: the first that says what went wrong
@@ -49,7 +61,9 @@ export function isFailureLine(line: string): boolean {
 export function tailLines(tail: string | undefined): string[] {
   const lines = tail ? tail.split("\n") : [];
   let last = -1;
-  lines.forEach((l, i) => { if (isErrorLine(l)) last = i; });
+  lines.forEach((l, i) => {
+    if (isErrorLine(l)) last = i;
+  });
   return last >= 0 ? lines.slice(0, last + 1) : lines;
 }
 
@@ -72,21 +86,31 @@ export function ciFailureText(run: OpsCiRun): string | null {
   if (run.title) lines.push(`run: ${run.title}`);
   for (const j of failed) {
     const step = failedStep(j);
-    lines.push(`job ${j.name} ${j.conclusion}${step ? ` at step ${step.number} "${step.name}"` : ""}`);
+    lines.push(
+      `job ${j.name} ${j.conclusion}${step ? ` at step ${step.number} "${step.name}"` : ""}`,
+    );
   }
   for (const a of run.annotations.slice(0, 8)) {
     const path = annotationPath(a.path);
-    lines.push(`${path ? `${path}${a.line ? `:${a.line}` : ""} ` : ""}${a.title ? `${a.title}: ` : ""}${a.message}`);
+    lines.push(
+      `${path ? `${path}${a.line ? `:${a.line}` : ""} ` : ""}${a.title ? `${a.title}: ` : ""}${a.message}`,
+    );
   }
   const tail = tailLines(run.log_tail);
-  if (tail.length) lines.push(`log tail${run.log_job ? ` (${run.log_job})` : ""}:`, tail.join("\n"));
+  if (tail.length)
+    lines.push(
+      `log tail${run.log_job ? ` (${run.log_job})` : ""}:`,
+      tail.join("\n"),
+    );
   return lines.length ? lines.join("\n") : null;
 }
 
 /** Steps that set the machine up rather than run the project's code. */
-const SETUP_STEP = /^(set up|setup|install|initiali[sz]e|checkout|cache|restore|download|pull|login|configure|run actions\/(setup|checkout|cache))\b/i;
+const SETUP_STEP =
+  /^(set up|setup|install|initiali[sz]e|checkout|cache|restore|download|pull|login|configure|run actions\/(setup|checkout|cache))\b/i;
 /** Log lines that blame the machine, not the commit: an unsupported OS image, a full disk, the network, the runner itself. */
-const ENV_LINE = /(does not support \S+ on \S+|unsupported (platform|os)|no space left on device|runner (has received a shutdown|lost communication)|ETIMEDOUT|ECONNRESET|EAI_AGAIN|rate limit exceeded|503 Service Unavailable|could not resolve host)/i;
+const ENV_LINE =
+  /(does not support \S+ on \S+|unsupported (platform|os)|no space left on device|runner (has received a shutdown|lost communication)|ETIMEDOUT|ECONNRESET|EAI_AGAIN|rate limit exceeded|503 Service Unavailable|could not resolve host)/i;
 
 /**
  * Why a run failed when the cause is the machine it ran on and not a commit:
@@ -94,12 +118,17 @@ const ENV_LINE = /(does not support \S+ on \S+|unsupported (platform|os)|no spac
  * network. `image` is the runner image the log names (ubuntu26.04), when it
  * names one. Null when the failure reads as the code's.
  */
-export function envFailure(run: Pick<OpsCiRun, "jobs" | "log_tail">): { step: string | null; image: string | null } | null {
+export function envFailure(
+  run: Pick<OpsCiRun, "jobs" | "log_tail">,
+): { step: string | null; image: string | null } | null {
   const job = run.jobs.find(jobFailed);
   const step = job ? failedStep(job) : null;
   const lines = tailLines(run.log_tail);
   const blamed = lines.find((l) => ENV_LINE.test(l)) ?? null;
   if (!blamed && !(step && SETUP_STEP.test(step.name))) return null;
-  const image = (blamed ?? lines.join("\n")).match(/\b((?:ubuntu|macos|windows)-?\d+(?:\.\d+)?)/i)?.[1] ?? null;
+  const image =
+    (blamed ?? lines.join("\n")).match(
+      /\b((?:ubuntu|macos|windows)-?\d+(?:\.\d+)?)/i,
+    )?.[1] ?? null;
   return { step: step?.name ?? null, image };
 }

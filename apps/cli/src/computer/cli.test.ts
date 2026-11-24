@@ -39,18 +39,41 @@ function snapshotResult(opts: { shot?: boolean } = {}): ComputerSnapshotResult {
     snapshot: {
       id: "snap-1",
       app: { name: "TextEdit", bundleId: "com.apple.TextEdit", pid: 4413 },
-      window: { id: 812, title: "Untitled", x: 220, y: 140, width: 900, height: 700 },
+      window: {
+        id: 812,
+        title: "Untitled",
+        x: 220,
+        y: 140,
+        width: 900,
+        height: 700,
+      },
       coordinateSpace: "window",
-      treeText: 'App=com.apple.TextEdit (pid 4413)\nWindow: "Untitled", App: TextEdit.\n\n0 window Untitled',
+      treeText:
+        'App=com.apple.TextEdit (pid 4413)\nWindow: "Untitled", App: TextEdit.\n\n0 window Untitled',
       elementCount: 61,
       focusedElementId: 12,
     },
-    screenshot: opts.shot === false ? null : { path: helperWrittenShot(), format: "png", bytes: 68, width: 1800, height: 1400, scale: 2 },
-    screenshotStatus: { state: "captured", metadata: { engine: "cgWindowList", windowId: 812 } },
+    screenshot:
+      opts.shot === false
+        ? null
+        : {
+            path: helperWrittenShot(),
+            format: "png",
+            bytes: 68,
+            width: 1800,
+            height: 1400,
+            scale: 2,
+          },
+    screenshotStatus: {
+      state: "captured",
+      metadata: { engine: "cgWindowList", windowId: 812 },
+    },
   };
 }
 
-function actionResult(action: ComputerActionResult["action"]): ComputerActionResult {
+function actionResult(
+  action: ComputerActionResult["action"],
+): ComputerActionResult {
   return { ...snapshotResult(), action };
 }
 
@@ -59,8 +82,13 @@ type Call = { method: string; params: unknown };
 class FakeClient implements ComputerClientLike {
   calls: Call[] = [];
   shutdowns = 0;
-  constructor(private readonly answers: { result?: unknown; error?: ComputerError } = {}) {}
-  private answer(method: string, params: unknown): Promise<never> | Promise<unknown> {
+  constructor(
+    private readonly answers: { result?: unknown; error?: ComputerError } = {},
+  ) {}
+  private answer(
+    method: string,
+    params: unknown,
+  ): Promise<never> | Promise<unknown> {
     this.calls.push({ method, params });
     if (this.answers.error) return Promise.reject(this.answers.error);
     return Promise.resolve(this.answers.result);
@@ -170,23 +198,51 @@ async function run(
   } catch (e) {
     if (!(e instanceof Error) || !e.message.startsWith("__exit")) throw e;
   }
-  return { client, exit, clientsCreated, params: client.calls[0]?.params, method: client.calls[0]?.method ?? null };
+  return {
+    client,
+    exit,
+    clientsCreated,
+    params: client.calls[0]?.params,
+    method: client.calls[0]?.method ?? null,
+  };
 }
 
 describe("argv becomes exactly one helper request", () => {
   test("get-app-state carries the app, the window selector and the observation flags", async () => {
-    const r = await run(["get-app-state", "--app", "com.apple.TextEdit", "--window-id", "812", "--no-screenshot", "--restore-window"]);
+    const r = await run([
+      "get-app-state",
+      "--app",
+      "com.apple.TextEdit",
+      "--window-id",
+      "812",
+      "--no-screenshot",
+      "--restore-window",
+    ]);
     expect(r.method).toBe("getAppState");
-    expect(r.params).toEqual({ app: "com.apple.TextEdit", windowId: 812, noScreenshot: true, restoreWindow: true });
+    expect(r.params).toEqual({
+      app: "com.apple.TextEdit",
+      windowId: 812,
+      noScreenshot: true,
+      restoreWindow: true,
+    });
   });
 
   test("an ordinary snapshot asks for no raise and no skip, and names where the helper writes the picture", async () => {
     const r = await run(["get-app-state", "--app", "TextEdit"]);
-    expect(r.params).toEqual({ app: "TextEdit", screenshotDir: path.join(tmp, "codecast-computer") });
+    expect(r.params).toEqual({
+      app: "TextEdit",
+      screenshotDir: path.join(tmp, "codecast-computer"),
+    });
   });
 
   test("--crop sends the region in window points", async () => {
-    const r = await run(["get-app-state", "--app", "TextEdit", "--crop", "10, 20.5,300,40"]);
+    const r = await run([
+      "get-app-state",
+      "--app",
+      "TextEdit",
+      "--crop",
+      "10, 20.5,300,40",
+    ]);
     expect(r.params).toEqual({
       app: "TextEdit",
       screenshotDir: path.join(tmp, "codecast-computer"),
@@ -209,36 +265,138 @@ describe("argv becomes exactly one helper request", () => {
 
   test("click maps every flag mechanically, index route", async () => {
     const r = await run([
-      "click", "--app", "pid:4413", "--element-index", "34", "--click-count", "2", "--mouse-button", "right", "--modifiers", "CmdOrCtrl+Shift",
+      "click",
+      "--app",
+      "pid:4413",
+      "--element-index",
+      "34",
+      "--click-count",
+      "2",
+      "--mouse-button",
+      "right",
+      "--modifiers",
+      "CmdOrCtrl+Shift",
     ]);
     expect(r.method).toBe("click");
-    expect(r.params).toEqual({ app: "pid:4413", elementIndex: 34, clickCount: 2, mouseButton: "right", modifiers: "CmdOrCtrl+Shift", noScreenshot: true });
+    expect(r.params).toEqual({
+      app: "pid:4413",
+      elementIndex: 34,
+      clickCount: 2,
+      mouseButton: "right",
+      modifiers: "CmdOrCtrl+Shift",
+      noScreenshot: true,
+    });
   });
 
   test("click by coordinate keeps both numbers and no element index", async () => {
-    const r = await run(["click", "--app", "Slack", "--x", "120.5", "--y", "44", "--window-index", "1"]);
-    expect(r.params).toEqual({ app: "Slack", windowIndex: 1, x: 120.5, y: 44, noScreenshot: true });
+    const r = await run([
+      "click",
+      "--app",
+      "Slack",
+      "--x",
+      "120.5",
+      "--y",
+      "44",
+      "--window-index",
+      "1",
+    ]);
+    expect(r.params).toEqual({
+      app: "Slack",
+      windowIndex: 1,
+      x: 120.5,
+      y: 44,
+      noScreenshot: true,
+    });
   });
 
   test("scroll, secondary action, keys and set-value each reach their own method", async () => {
-    expect((await run(["scroll", "--app", "A", "--direction", "Down", "--element-index", "3", "--pages", "2"])).params).toEqual({
-      app: "A", elementIndex: 3, direction: "down", pages: 2, noScreenshot: true,
+    expect(
+      (
+        await run([
+          "scroll",
+          "--app",
+          "A",
+          "--direction",
+          "Down",
+          "--element-index",
+          "3",
+          "--pages",
+          "2",
+        ])
+      ).params,
+    ).toEqual({
+      app: "A",
+      elementIndex: 3,
+      direction: "down",
+      pages: 2,
+      noScreenshot: true,
     });
-    expect((await run(["perform-secondary-action", "--app", "A", "--element-index", "3", "--action", "zoom the window"])).params).toEqual({
-      app: "A", elementIndex: 3, action: "zoom the window", noScreenshot: true,
+    expect(
+      (
+        await run([
+          "perform-secondary-action",
+          "--app",
+          "A",
+          "--element-index",
+          "3",
+          "--action",
+          "zoom the window",
+        ])
+      ).params,
+    ).toEqual({
+      app: "A",
+      elementIndex: 3,
+      action: "zoom the window",
+      noScreenshot: true,
     });
-    expect((await run(["press-key", "--app", "A", "--key", "Return"])).params).toEqual({ app: "A", key: "Return", noScreenshot: true });
-    expect((await run(["hotkey", "--app", "A", "--key", "CmdOrCtrl+A"])).params).toEqual({ app: "A", key: "CmdOrCtrl+A", noScreenshot: true });
-    expect((await run(["set-value", "--app", "A", "--element-index", "12", "--value", "hello"])).params).toEqual({
-      app: "A", elementIndex: 12, value: "hello", noScreenshot: true,
+    expect(
+      (await run(["press-key", "--app", "A", "--key", "Return"])).params,
+    ).toEqual({ app: "A", key: "Return", noScreenshot: true });
+    expect(
+      (await run(["hotkey", "--app", "A", "--key", "CmdOrCtrl+A"])).params,
+    ).toEqual({ app: "A", key: "CmdOrCtrl+A", noScreenshot: true });
+    expect(
+      (
+        await run([
+          "set-value",
+          "--app",
+          "A",
+          "--element-index",
+          "12",
+          "--value",
+          "hello",
+        ])
+      ).params,
+    ).toEqual({
+      app: "A",
+      elementIndex: 12,
+      value: "hello",
+      noScreenshot: true,
     });
-    expect((await run(["set-value", "--app", "A", "--element-index", "12", "--value", ""])).params).toEqual({
-      app: "A", elementIndex: 12, value: "", noScreenshot: true,
+    expect(
+      (
+        await run([
+          "set-value",
+          "--app",
+          "A",
+          "--element-index",
+          "12",
+          "--value",
+          "",
+        ])
+      ).params,
+    ).toEqual({
+      app: "A",
+      elementIndex: 12,
+      value: "",
+      noScreenshot: true,
     });
   });
 
   test("the connection is released even when the helper fails", async () => {
-    const r = await run(["get-app-state", "--app", "A"], { answers: { error: new ComputerError("window_not_found", "no window") } });
+    const r = await run(["get-app-state", "--app", "A"], {
+      answers: { error: new ComputerError("window_not_found", "no window") },
+    });
     expect(r.client.shutdowns).toBe(1);
     expect(r.exit).toBe(1);
   });
@@ -246,30 +404,47 @@ describe("argv becomes exactly one helper request", () => {
 
 describe("secrets arrive on stdin, never in argv", () => {
   test("--text-stdin reads the payload and strips the heredoc newline", async () => {
-    const r = await run(["type-text", "--app", "A", "--text-stdin"], { stdin: "hunter2" });
+    const r = await run(["type-text", "--app", "A", "--text-stdin"], {
+      stdin: "hunter2",
+    });
     expect(r.params).toEqual({ app: "A", text: "hunter2", noScreenshot: true });
   });
 
   test("--value-stdin accepts an empty payload, because clearing a field is a real action", async () => {
-    const r = await run(["set-value", "--app", "A", "--element-index", "2", "--value-stdin"], { stdin: "" });
-    expect(r.params).toEqual({ app: "A", elementIndex: 2, value: "", noScreenshot: true });
+    const r = await run(
+      ["set-value", "--app", "A", "--element-index", "2", "--value-stdin"],
+      { stdin: "" },
+    );
+    expect(r.params).toEqual({
+      app: "A",
+      elementIndex: 2,
+      value: "",
+      noScreenshot: true,
+    });
   });
 
   test("a literal and a stdin flag together is a refusal, not a guess", async () => {
-    const r = await run(["type-text", "--app", "A", "--text", "a", "--text-stdin"], { stdin: "b" });
+    const r = await run(
+      ["type-text", "--app", "A", "--text", "a", "--text-stdin"],
+      { stdin: "b" },
+    );
     expect(r.method).toBeNull();
     expect(r.exit).toBe(1);
     expect(stderr()).toContain("use either --text or --text-stdin, not both");
   });
 
   test("a stdin payload with a terminal on stdin would hang, so it fails instead", async () => {
-    const r = await run(["type-text", "--app", "A", "--text-stdin"], { tty: true });
+    const r = await run(["type-text", "--app", "A", "--text-stdin"], {
+      tty: true,
+    });
     expect(stderr()).toContain("stdin is a terminal");
     expect(r.exit).toBe(1);
   });
 
   test("empty stdin has nothing to type", async () => {
-    const r = await run(["type-text", "--app", "A", "--text-stdin"], { stdin: "" });
+    const r = await run(["type-text", "--app", "A", "--text-stdin"], {
+      stdin: "",
+    });
     expect(stderr()).toContain("received no input");
     expect(r.exit).toBe(1);
   });
@@ -284,48 +459,118 @@ describe("flags are validated before the helper is spawned", () => {
   };
 
   test("press-key takes one key, and the literal + is one key", async () => {
-    await refuses(["press-key", "--app", "A", "--key", "Cmd+A"], "press-key accepts one key only");
-    expect((await run(["press-key", "--app", "A", "--key", "+"])).params).toEqual({ app: "A", key: "+", noScreenshot: true });
+    await refuses(
+      ["press-key", "--app", "A", "--key", "Cmd+A"],
+      "press-key accepts one key only",
+    );
+    expect(
+      (await run(["press-key", "--app", "A", "--key", "+"])).params,
+    ).toEqual({ app: "A", key: "+", noScreenshot: true });
   });
 
   test("hotkey needs a modifier and exactly one key", async () => {
-    await refuses(["hotkey", "--app", "A", "--key", "A"], "hotkey requires a modifier and one key");
-    await refuses(["hotkey", "--app", "A", "--key", "Cmd+Shift"], "hotkey requires a modifier and one key");
-    expect((await run(["hotkey", "--app", "A", "--key", "Cmd++"])).params).toEqual({ app: "A", key: "Cmd++", noScreenshot: true });
+    await refuses(
+      ["hotkey", "--app", "A", "--key", "A"],
+      "hotkey requires a modifier and one key",
+    );
+    await refuses(
+      ["hotkey", "--app", "A", "--key", "Cmd+Shift"],
+      "hotkey requires a modifier and one key",
+    );
+    expect(
+      (await run(["hotkey", "--app", "A", "--key", "Cmd++"])).params,
+    ).toEqual({ app: "A", key: "Cmd++", noScreenshot: true });
   });
 
   test("--modifiers takes modifiers only, at most four", async () => {
-    await refuses(["click", "--app", "A", "--x", "1", "--y", "1", "--modifiers", "Cmd+A"], "modifiers accept modifier keys only");
     await refuses(
-      ["click", "--app", "A", "--x", "1", "--y", "1", "--modifiers", "Cmd+Shift+Alt+Ctrl+Meta"],
+      ["click", "--app", "A", "--x", "1", "--y", "1", "--modifiers", "Cmd+A"],
+      "modifiers accept modifier keys only",
+    );
+    await refuses(
+      [
+        "click",
+        "--app",
+        "A",
+        "--x",
+        "1",
+        "--y",
+        "1",
+        "--modifiers",
+        "Cmd+Shift+Alt+Ctrl+Meta",
+      ],
       "modifiers accept modifier keys only",
     );
   });
 
   test("a target is either an index or a coordinate pair, never both and never half", async () => {
-    await refuses(["click", "--app", "A", "--element-index", "1", "--x", "2", "--y", "3"], "not both");
+    await refuses(
+      ["click", "--app", "A", "--element-index", "1", "--x", "2", "--y", "3"],
+      "not both",
+    );
     await refuses(["click", "--app", "A", "--x", "2"], "--x and --y together");
     await refuses(["click", "--app", "A"], "requires --element-index");
   });
 
   test("a window is selected by id or by index, never by both", async () => {
-    await refuses(["get-app-state", "--app", "A", "--window-id", "1", "--window-index", "2"], "not both");
+    await refuses(
+      [
+        "get-app-state",
+        "--app",
+        "A",
+        "--window-id",
+        "1",
+        "--window-index",
+        "2",
+      ],
+      "not both",
+    );
   });
 
   test("numbers are bounded before any conversion", async () => {
-    await refuses(["click", "--app", "A", "--element-index", "1e300"], "must be an integer");
-    await refuses(["click", "--app", "A", "--element-index", "-1"], "must be an integer");
-    await refuses(["click", "--app", "A", "--element-index", "1", "--click-count", "9"], "must be an integer between 1 and 3");
-    await refuses(["scroll", "--app", "A", "--direction", "sideways", "--element-index", "1"], "--direction must be one of");
+    await refuses(
+      ["click", "--app", "A", "--element-index", "1e300"],
+      "must be an integer",
+    );
+    await refuses(
+      ["click", "--app", "A", "--element-index", "-1"],
+      "must be an integer",
+    );
+    await refuses(
+      ["click", "--app", "A", "--element-index", "1", "--click-count", "9"],
+      "must be an integer between 1 and 3",
+    );
+    await refuses(
+      [
+        "scroll",
+        "--app",
+        "A",
+        "--direction",
+        "sideways",
+        "--element-index",
+        "1",
+      ],
+      "--direction must be one of",
+    );
   });
 
   test("a refused flag never reaches for a client, so it cannot launch a helper", async () => {
-    expect((await run(["click", "--app", "A", "--element-index", "-1"])).clientsCreated).toBe(0);
+    expect(
+      (await run(["click", "--app", "A", "--element-index", "-1"]))
+        .clientsCreated,
+    ).toBe(0);
     expect((await run(["get-app-state", "--app", "A"])).clientsCreated).toBe(1);
   });
 
   test("a validation failure with --json still answers in the flat envelope", async () => {
-    const r = await run(["press-key", "--app", "A", "--key", "Cmd+A", "--json"]);
+    const r = await run([
+      "press-key",
+      "--app",
+      "A",
+      "--key",
+      "Cmd+A",
+      "--json",
+    ]);
     expect(r.exit).toBe(1);
     const envelope = JSON.parse(stdout());
     expect(envelope.ok).toBe(false);
@@ -340,7 +585,9 @@ describe("human output", () => {
     const text = stdout();
     expect(text).toContain("TextEdit (pid 4413, com.apple.TextEdit)");
     expect(text).toContain('Window: id:812 "Untitled" (900x700 @ 220,140)');
-    expect(text).toContain("Visible elements: 61  Focused: #12  Coordinates: window");
+    expect(text).toContain(
+      "Visible elements: 61  Focused: #12  Coordinates: window",
+    );
     expect(text).toContain("Truncated: no");
     expect(text).toContain("coordinate x/y = screenshot pixels / 2");
     expect(text).toContain("App=com.apple.TextEdit (pid 4413)");
@@ -350,9 +597,22 @@ describe("human output", () => {
   });
 
   test("an unverified action says attempted, names the path, and hands over the command that would settle it", async () => {
-    await run(["set-value", "--app", "com.apple.TextEdit", "--element-index", "12", "--value", "hi"], {
-      answers: { result: actionResult({ path: "synthetic", targetWindowId: 812 }) },
-    });
+    await run(
+      [
+        "set-value",
+        "--app",
+        "com.apple.TextEdit",
+        "--element-index",
+        "12",
+        "--value",
+        "hi",
+      ],
+      {
+        answers: {
+          result: actionResult({ path: "synthetic", targetWindowId: 812 }),
+        },
+      },
+    );
     // A helper too old to send the tree it acted on: say how to look instead.
     expect(stdout()).toContain(
       "Set value attempted via synthetic, unverified (synthetic input). 61 visible elements in current window. " +
@@ -361,15 +621,23 @@ describe("human output", () => {
   });
 
   test("an action prints what it changed, by depth and body, so shifted indexes are not changes", async () => {
-    const before = 'App=A (pid 1)\nWindow: "W", App: A.\n\n0 window W\n\t1 button Sign\n\t2 text hello\n\nThe focused UI element is 0 window W.';
+    const before =
+      'App=A (pid 1)\nWindow: "W", App: A.\n\n0 window W\n\t1 button Sign\n\t2 text hello\n\nThe focused UI element is 0 window W.';
     const after =
       'App=A (pid 1)\nWindow: "W", App: A.\n\n0 window W\n\t1 popover\n\t\t2 cell, Secondary Actions: insert signature\n\t3 button Sign\n\t4 text hello\n\nThe focused UI element is 2 cell, Secondary Actions: insert signature.';
-    const result = actionResult({ path: "accessibility", actionName: "AXPress" });
+    const result = actionResult({
+      path: "accessibility",
+      actionName: "AXPress",
+    });
     result.snapshot.treeText = after;
     result.baselineTreeText = before;
-    await run(["click", "--app", "A", "--element-index", "1"], { answers: { result } });
+    await run(["click", "--app", "A", "--element-index", "1"], {
+      answers: { result },
+    });
     const text = stdout();
-    expect(text).toContain("Click attempted via accessibility (AXPress), unverified (accessibility action unasserted).");
+    expect(text).toContain(
+      "Click attempted via accessibility (AXPress), unverified (accessibility action unasserted).",
+    );
     expect(text).toContain("Changes: 2 added, 0 removed");
     expect(text).toContain("+   1 popover");
     expect(text).toContain("+     2 cell, Secondary Actions: insert signature");
@@ -378,16 +646,26 @@ describe("human output", () => {
   });
 
   test("an action that changed nothing says so, which is how an ignored press shows", async () => {
-    const result = actionResult({ path: "accessibility", actionName: "AXPress" });
+    const result = actionResult({
+      path: "accessibility",
+      actionName: "AXPress",
+    });
     result.baselineTreeText = result.snapshot.treeText;
-    await run(["click", "--app", "A", "--element-index", "1"], { answers: { result } });
+    await run(["click", "--app", "A", "--element-index", "1"], {
+      answers: { result },
+    });
     expect(stdout()).toContain("No change in the window's tree.");
   });
 
   test("--json reports changes in place of the tree it compared against", async () => {
     const result = actionResult({ path: "accessibility" });
-    result.baselineTreeText = result.snapshot.treeText.replace("0 window Untitled", "0 window Old");
-    await run(["click", "--app", "A", "--element-index", "1", "--json"], { answers: { result } });
+    result.baselineTreeText = result.snapshot.treeText.replace(
+      "0 window Untitled",
+      "0 window Old",
+    );
+    await run(["click", "--app", "A", "--element-index", "1", "--json"], {
+      answers: { result },
+    });
     const body = JSON.parse(stdout());
     expect(body.baselineTreeText).toBeUndefined();
     expect(body.changes.added).toEqual(["0 window Untitled"]);
@@ -395,17 +673,31 @@ describe("human output", () => {
   });
 
   test("a read-back verification is the only thing that reads as completed", async () => {
-    await run(["set-value", "--app", "A", "--element-index", "12", "--value", "hi"], {
-      answers: { result: actionResult({ path: "accessibility", verification: { state: "verified", property: "value" } }) },
-    });
-    expect(stdout()).toContain("Set value completed via accessibility, verified (value)");
+    await run(
+      ["set-value", "--app", "A", "--element-index", "12", "--value", "hi"],
+      {
+        answers: {
+          result: actionResult({
+            path: "accessibility",
+            verification: { state: "verified", property: "value" },
+          }),
+        },
+      },
+    );
+    expect(stdout()).toContain(
+      "Set value completed via accessibility, verified (value)",
+    );
     expect(stdout()).not.toContain("before assuming it worked");
   });
 
   test("a window that changed drops the selector, which no longer resolves", async () => {
     await run(["click", "--app", "A", "--element-index", "1"], {
       answers: {
-        result: actionResult({ path: "accessibility", targetWindowId: 812, verification: { state: "unverified", reason: "window_changed" } }),
+        result: actionResult({
+          path: "accessibility",
+          targetWindowId: 812,
+          verification: { state: "unverified", reason: "window_changed" },
+        }),
       },
     });
     expect(stdout()).toContain("The target window is gone");
@@ -414,31 +706,55 @@ describe("human output", () => {
   });
 
   test("a helper that reports no action metadata cannot look verified", async () => {
-    await run(["click", "--app", "A", "--element-index", "1"], { answers: { result: actionResult(undefined) } });
-    expect(stdout()).toContain("Click attempted, unverified (verification metadata unavailable)");
+    await run(["click", "--app", "A", "--element-index", "1"], {
+      answers: { result: actionResult(undefined) },
+    });
+    expect(stdout()).toContain(
+      "Click attempted, unverified (verification metadata unavailable)",
+    );
   });
 
   test("every action result ends its sentence with an explicit verdict", async () => {
-    const result = actionResult({ path: "accessibility", actionName: "AXPress" });
+    const result = actionResult({
+      path: "accessibility",
+      actionName: "AXPress",
+    });
     result.baselineTreeText = result.snapshot.treeText;
-    await run(["click", "--app", "A", "--element-index", "1"], { answers: { result } });
-    expect(stdout()).toContain("Verdict: suspected no-op, nothing in the tree changed.");
+    await run(["click", "--app", "A", "--element-index", "1"], {
+      answers: { result },
+    });
+    expect(stdout()).toContain(
+      "Verdict: suspected no-op, nothing in the tree changed.",
+    );
   });
 
   test("an action that was sent and never answered says the outcome is unknown; one refused says nothing was done", async () => {
     await run(["click", "--app", "A", "--element-index", "1"], {
-      answers: { error: new ComputerError("action_timeout", "Press got no answer", { outcomeUnknown: true }) },
+      answers: {
+        error: new ComputerError("action_timeout", "Press got no answer", {
+          outcomeUnknown: true,
+        }),
+      },
     });
-    expect(stderr()).toContain("Verdict: outcome unknown, it was sent and never answered.");
+    expect(stderr()).toContain(
+      "Verdict: outcome unknown, it was sent and never answered.",
+    );
     await run(["click", "--app", "A", "--element-index", "42", "--json"], {
-      answers: { error: new ComputerError("element_not_found", "element 42 is stale") },
+      answers: {
+        error: new ComputerError("element_not_found", "element 42 is stale"),
+      },
     });
     expect(JSON.parse(stdout()).verdict.state).toBe("refused");
   });
 
   test("an error prints the message and its recovery, and exits 1", async () => {
     const r = await run(["click", "--app", "A", "--element-index", "42"], {
-      answers: { error: new ComputerError("element_not_found", "element 42 is stale; run get-app-state again") },
+      answers: {
+        error: new ComputerError(
+          "element_not_found",
+          "element 42 is stale; run get-app-state again",
+        ),
+      },
     });
     expect(r.exit).toBe(1);
     expect(stderr()).toContain("element 42 is stale");
@@ -453,9 +769,13 @@ describe("--json", () => {
     const payload = JSON.parse(stdout());
     expect(payload.ok).toBe(true);
     expect(payload.screenshot.data).toBeUndefined();
-    expect(payload.screenshot.path).toBe(path.join(tmp, "codecast-computer", "snap-1-screenshot.png"));
+    expect(payload.screenshot.path).toBe(
+      path.join(tmp, "codecast-computer", "snap-1-screenshot.png"),
+    );
     expect(payload.screenshot.scale).toBe(2);
-    expect(fs.readFileSync(payload.screenshot.path).length).toBe(Buffer.from(PNG, "base64").length);
+    expect(fs.readFileSync(payload.screenshot.path).length).toBe(
+      Buffer.from(PNG, "base64").length,
+    );
     // Nothing about the tree changes on the way through.
     expect(payload.snapshot.treeText).toContain("App=com.apple.TextEdit");
     expect(stdout()).not.toContain("cast:image");
@@ -463,9 +783,17 @@ describe("--json", () => {
 
   test("an action's --json carries its verdict", async () => {
     const result = actionResult({ path: "accessibility" });
-    result.baselineTreeText = result.snapshot.treeText.replace("0 window Untitled", "0 window Old");
-    await run(["click", "--app", "A", "--element-index", "1", "--json"], { answers: { result } });
-    expect(JSON.parse(stdout()).verdict).toEqual({ state: "confirmed", why: "the window changed" });
+    result.baselineTreeText = result.snapshot.treeText.replace(
+      "0 window Untitled",
+      "0 window Old",
+    );
+    await run(["click", "--app", "A", "--element-index", "1", "--json"], {
+      answers: { result },
+    });
+    expect(JSON.parse(stdout()).verdict).toEqual({
+      state: "confirmed",
+      why: "the window changed",
+    });
   });
 
   test("the capture expires in a day, so a stale path is readable as stale", async () => {
@@ -478,22 +806,39 @@ describe("--json", () => {
 
   test("a skipped capture stays skipped and writes nothing", async () => {
     await run(["get-app-state", "--app", "A", "--no-screenshot", "--json"], {
-      answers: { result: { ...snapshotResult({ shot: false }), screenshotStatus: { state: "skipped", reason: "no_screenshot_flag" } } },
+      answers: {
+        result: {
+          ...snapshotResult({ shot: false }),
+          screenshotStatus: { state: "skipped", reason: "no_screenshot_flag" },
+        },
+      },
     });
     const payload = JSON.parse(stdout());
     expect(payload.screenshot).toBeNull();
-    expect(payload.screenshotStatus).toEqual({ state: "skipped", reason: "no_screenshot_flag" });
+    expect(payload.screenshotStatus).toEqual({
+      state: "skipped",
+      reason: "no_screenshot_flag",
+    });
     expect(fs.existsSync(path.join(tmp, "codecast-computer"))).toBe(false);
   });
 
   test("a helper failure is the flat envelope with ok first, the code, and the recovery", async () => {
     const r = await run(["get-app-state", "--app", "A", "--json"], {
-      answers: { error: new ComputerError("permission_denied", "Accessibility is not granted") },
+      answers: {
+        error: new ComputerError(
+          "permission_denied",
+          "Accessibility is not granted",
+        ),
+      },
     });
     expect(r.exit).toBe(1);
     const envelope = JSON.parse(stdout());
     expect(Object.keys(envelope)[0]).toBe("ok");
-    expect(envelope).toMatchObject({ ok: false, code: "permission_denied", message: "Accessibility is not granted" });
+    expect(envelope).toMatchObject({
+      ok: false,
+      code: "permission_denied",
+      message: "Accessibility is not granted",
+    });
     expect(envelope.recovery.join(" ")).toContain("cast computer permissions");
   });
 });
@@ -515,11 +860,22 @@ describe("`permissions` reads; only --open-settings raises", () => {
       getPermissionStatus: async () => status,
       readPermissionStatus: async (id?: string) => {
         calls.push({ fn: "readPermissionStatus", id });
-        return { ...status, permissionId: id, launchedHelper: false, nextStep: "Grant Screen Recording to codecast computer, then retry get-app-state." };
+        return {
+          ...status,
+          permissionId: id,
+          launchedHelper: false,
+          nextStep:
+            "Grant Screen Recording to codecast computer, then retry get-app-state.",
+        };
       },
       openPermissionSettings: async (id?: string) => {
         calls.push({ fn: "openPermissionSettings", id });
-        return { ...status, permissionId: id, launchedHelper: true, nextStep: null };
+        return {
+          ...status,
+          permissionId: id,
+          launchedHelper: true,
+          nextStep: null,
+        };
       },
       resetPermissions: async () => {
         calls.push({ fn: "resetPermissions" });
@@ -541,20 +897,31 @@ describe("`permissions` reads; only --open-settings raises", () => {
 
   test("--id alone still only reports", async () => {
     const d = permissionsDouble();
-    await run(["permissions", "--id", "screenshots"], { permissions: d.permissions });
-    expect(d.calls).toEqual([{ fn: "readPermissionStatus", id: "screenshots" }]);
+    await run(["permissions", "--id", "screenshots"], {
+      permissions: d.permissions,
+    });
+    expect(d.calls).toEqual([
+      { fn: "readPermissionStatus", id: "screenshots" },
+    ]);
   });
 
   test("--open-settings is the explicit ask, and carries the id", async () => {
     const d = permissionsDouble();
-    const r = await run(["permissions", "--open-settings", "--id", "accessibility", "--json"], { permissions: d.permissions });
-    expect(d.calls).toEqual([{ fn: "openPermissionSettings", id: "accessibility" }]);
+    const r = await run(
+      ["permissions", "--open-settings", "--id", "accessibility", "--json"],
+      { permissions: d.permissions },
+    );
+    expect(d.calls).toEqual([
+      { fn: "openPermissionSettings", id: "accessibility" },
+    ]);
     expect(JSON.parse(stdout())).toMatchObject({ launchedHelper: true });
   });
 
   test("a bad --id is refused before either call", async () => {
     const d = permissionsDouble();
-    const r = await run(["permissions", "--open-settings", "--id", "camera"], { permissions: d.permissions });
+    const r = await run(["permissions", "--open-settings", "--id", "camera"], {
+      permissions: d.permissions,
+    });
     expect(r.exit).toBe(1);
     expect(d.calls).toEqual([]);
   });
@@ -577,7 +944,11 @@ describe("an invented verb fails loudly", () => {
 
 describe("registration cost", () => {
   const staticImports = (file: string): string[] =>
-    [...fs.readFileSync(file, "utf8").matchAll(/^import\s+(?!type\b)[^;]*from\s+"([^"]+)"/gm)].map((m) => m[1]);
+    [
+      ...fs
+        .readFileSync(file, "utf8")
+        .matchAll(/^import\s+(?!type\b)[^;]*from\s+"([^"]+)"/gm),
+    ].map((m) => m[1]);
 
   test("the command group loads no helper machinery until a verb runs", () => {
     // A static import of the client, the permission probe or the embedded
@@ -597,11 +968,17 @@ describe("registration cost", () => {
     // the carve-out is claimed, rather than quietly costing every verb.
     const free = ["../commandGroups.js", "../commandSuggestion.js"];
     expect(staticImports(path.join(import.meta.dir, "cli.ts"))).toEqual(free);
-    const startup = staticImports(path.resolve(import.meta.dir, "..", "index.ts"));
+    const startup = staticImports(
+      path.resolve(import.meta.dir, "..", "index.ts"),
+    );
     // index.ts reaches commandGroups.js through commandGroupActivation.js (its
     // own import of it is type-only), which loads it just as early.
     expect(startup).toContain("./commandGroupActivation.js");
-    expect(staticImports(path.resolve(import.meta.dir, "..", "commandGroupActivation.ts"))).toContain("./commandGroups.js");
+    expect(
+      staticImports(
+        path.resolve(import.meta.dir, "..", "commandGroupActivation.ts"),
+      ),
+    ).toContain("./commandGroups.js");
     expect(startup).toContain("./commandSuggestion.js");
   });
 
@@ -613,7 +990,8 @@ describe("registration cost", () => {
     const offenders: string[] = [];
     for (const file of ["index.ts", "doctor.ts"]) {
       for (const spec of staticImports(path.join(src, file))) {
-        if (spec.startsWith("./computer/") && spec !== "./computer/cli.js") offenders.push(`${file} imports ${spec}`);
+        if (spec.startsWith("./computer/") && spec !== "./computer/cli.js")
+          offenders.push(`${file} imports ${spec}`);
       }
     }
     expect(offenders).toEqual([]);

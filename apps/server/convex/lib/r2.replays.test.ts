@@ -1,7 +1,19 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { parseReplayChunkKey, replayChunkKey, replaysBucketFromEnv, safeReplayPathSegment } from "./r2";
+import {
+  parseReplayChunkKey,
+  replayChunkKey,
+  replaysBucketFromEnv,
+  safeReplayPathSegment,
+} from "./r2";
 
-const ENV = ["R2_ENDPOINT", "REPLAYS_R2_BUCKET", "REPLAYS_R2_ACCESS_KEY_ID", "REPLAYS_R2_SECRET_ACCESS_KEY", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"];
+const ENV = [
+  "R2_ENDPOINT",
+  "REPLAYS_R2_BUCKET",
+  "REPLAYS_R2_ACCESS_KEY_ID",
+  "REPLAYS_R2_SECRET_ACCESS_KEY",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+];
 const saved = Object.fromEntries(ENV.map((k) => [k, process.env[k]]));
 afterEach(() => {
   for (const k of ENV) {
@@ -21,7 +33,12 @@ describe("replays bucket", () => {
     expect(replaysBucketFromEnv()).toBeNull();
     process.env.REPLAYS_R2_ACCESS_KEY_ID = "rk";
     process.env.REPLAYS_R2_SECRET_ACCESS_KEY = "rs";
-    expect(replaysBucketFromEnv()).toEqual({ endpoint: "https://acct.r2.cloudflarestorage.com", accessKeyId: "rk", secretAccessKey: "rs", bucket: "codecast-replays" });
+    expect(replaysBucketFromEnv()).toEqual({
+      endpoint: "https://acct.r2.cloudflarestorage.com",
+      accessKeyId: "rk",
+      secretAccessKey: "rs",
+      bucket: "codecast-replays",
+    });
     process.env.REPLAYS_R2_BUCKET = "codecast-replays-dev";
     expect(replaysBucketFromEnv()?.bucket).toBe("codecast-replays-dev");
   });
@@ -29,7 +46,12 @@ describe("replays bucket", () => {
 
 describe("chunk keys", () => {
   test("content addressed under source and recording, in sequence order", () => {
-    const key = replayChunkKey({ sourceId: "src1", replay: "r_9", seq: 3, sha256: SHA });
+    const key = replayChunkKey({
+      sourceId: "src1",
+      replay: "r_9",
+      seq: 3,
+      sha256: SHA,
+    });
     expect(key).toBe(`replays/src1/r_9/0003-${SHA}.json.gz`);
     expect(parseReplayChunkKey(key)).toEqual({ seq: 3, sha256: SHA });
     expect(parseReplayChunkKey("calls/x/1-composite.mp4")).toBeNull();
@@ -41,7 +63,12 @@ describe("chunk keys", () => {
     expect(climbed).not.toContain("/");
     expect(safeReplayPathSegment("")).toMatch(/^_~[0-9a-f]{8}$/);
     expect(safeReplayPathSegment("ok-ID_1")).toBe("ok-ID_1");
-    const key = replayChunkKey({ sourceId: "src1", replay: climbed, seq: 0, sha256: SHA });
+    const key = replayChunkKey({
+      sourceId: "src1",
+      replay: climbed,
+      seq: 0,
+      sha256: SHA,
+    });
     expect(parseReplayChunkKey(key)).toEqual({ seq: 0, sha256: SHA });
   });
 
@@ -50,7 +77,8 @@ describe("chunk keys", () => {
     const segments = ids.map(safeReplayPathSegment);
     expect(new Set(segments).size).toBe(ids.length);
     expect(segments[1]).toBe("a_b");
-    for (const seg of segments) expect(seg).toMatch(/^[A-Za-z0-9_-]+(~[0-9a-f]{8})?$/);
+    for (const seg of segments)
+      expect(seg).toMatch(/^[A-Za-z0-9_-]+(~[0-9a-f]{8})?$/);
     expect(safeReplayPathSegment("a/b")).toBe(safeReplayPathSegment("a/b"));
   });
 });

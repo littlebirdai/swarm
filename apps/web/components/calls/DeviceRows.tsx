@@ -6,7 +6,11 @@
 // about what was chosen.
 import { useCallback, useRef, useState } from "react";
 import { Check, ChevronUp, Mic, Video, type LucideIcon } from "lucide-react";
-import { grantDeviceNames, listDevices, switchDevice } from "../../lib/calls/callManager";
+import {
+  grantDeviceNames,
+  listDevices,
+  switchDevice,
+} from "../../lib/calls/callManager";
 import { chosenDevice } from "../../lib/calls/joinPrefs";
 import { DEVICE_RANK_KEY, type DeviceKind } from "../../lib/calls/deviceRank";
 import { useInboxStore } from "../../store/inboxStore";
@@ -17,7 +21,11 @@ import { modernButton } from "../ui/modernLook";
 type Kind = DeviceKind;
 type Lists = Record<Kind, MediaDeviceInfo[]>;
 
-const KIND_WORD: Record<Kind, string> = { audioinput: "Microphone", audiooutput: "Speaker", videoinput: "Camera" };
+const KIND_WORD: Record<Kind, string> = {
+  audioinput: "Microphone",
+  audiooutput: "Speaker",
+  videoinput: "Camera",
+};
 const KINDS: Kind[] = ["audioinput", "audiooutput", "videoinput"];
 
 // The browser's device lists, refreshed when a device is plugged in or pulled.
@@ -28,12 +36,15 @@ const KINDS: Kind[] = ["audioinput", "audiooutput", "videoinput"];
 function useDeviceLists() {
   const [lists, setLists] = useState<Lists | null>(null);
   const refresh = useCallback(async () => {
-    const [a, b, c] = await Promise.all(KINDS.map((k) => listDevices(k, { prompt: false })));
+    const [a, b, c] = await Promise.all(
+      KINDS.map((k) => listDevices(k, { prompt: false })),
+    );
     setLists({ audioinput: a, audiooutput: b, videoinput: c });
   }, []);
   useMountEffect(() => {
     void refresh();
-    const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+    const md =
+      typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
     const onChange = () => void refresh();
     md?.addEventListener?.("devicechange", onChange);
     return () => md?.removeEventListener?.("devicechange", onChange);
@@ -44,7 +55,10 @@ function useDeviceLists() {
 // The device a join will open for this kind: the best-ranked one plugged in,
 // else the system default. Subscribed, so a pick made in another window shows
 // here too.
-function useChosenId(kind: Kind, devices: MediaDeviceInfo[] | undefined): string {
+function useChosenId(
+  kind: Kind,
+  devices: MediaDeviceInfo[] | undefined,
+): string {
   useInboxStore((s) => (s.clientState?.ui as any)?.[DEVICE_RANK_KEY[kind]]);
   if (!devices?.length) return "";
   return chosenDevice(kind, devices) ?? "";
@@ -53,15 +67,27 @@ function useChosenId(kind: Kind, devices: MediaDeviceInfo[] | undefined): string
 // Chrome names the system default "Default - AirPods Pro (Bluetooth)" and USB
 // devices "Logitech BRIO (046d:085e)". The person wants the device, not the
 // plumbing, so the prefix and the trailing parenthetical both go.
-function deviceName(d: MediaDeviceInfo | undefined, kind: Kind, index = 0): string {
+function deviceName(
+  d: MediaDeviceInfo | undefined,
+  kind: Kind,
+  index = 0,
+): string {
   if (!d?.label) return `${KIND_WORD[kind]} ${index + 1}`;
-  return d.label.replace(/^(Default|Communications) - /, "").replace(/\s*\([^()]*\)$/, "");
+  return d.label
+    .replace(/^(Default|Communications) - /, "")
+    .replace(/\s*\([^()]*\)$/, "");
 }
 
 // Without permission the browser lists devices but withholds their names. A
 // picker of "Microphone 1, Microphone 2" is no picker, so the honest offer is
 // one grant, released the moment it lands.
-function NameMyDevices({ lists, refresh }: { lists: Lists; refresh: () => Promise<void> }) {
+function NameMyDevices({
+  lists,
+  refresh,
+}: {
+  lists: Lists;
+  refresh: () => Promise<void>;
+}) {
   if (!KINDS.some((k) => lists[k].some((d) => !d.label))) return null;
   return (
     <div className="flex items-center justify-between gap-3 rounded-md bg-sol-bg-alt px-2.5 py-2">
@@ -79,12 +105,22 @@ function NameMyDevices({ lists, refresh }: { lists: Lists; refresh: () => Promis
   );
 }
 
-function DeviceSelect({ kind, devices, compact }: { kind: Kind; devices: MediaDeviceInfo[]; compact: boolean }) {
+function DeviceSelect({
+  kind,
+  devices,
+  compact,
+}: {
+  kind: Kind;
+  devices: MediaDeviceInfo[];
+  compact: boolean;
+}) {
   const value = useChosenId(kind, devices);
   if (devices.length === 0) return null;
   return (
     <label className="block">
-      <span className={`uppercase tracking-wide text-sol-text-muted ${compact ? "text-mark" : "text-mark"}`}>
+      <span
+        className={`uppercase tracking-wide text-sol-text-muted ${compact ? "text-mark" : "text-mark"}`}
+      >
         {KIND_WORD[kind]}
       </span>
       <select
@@ -100,12 +136,20 @@ function DeviceSelect({ kind, devices, compact }: { kind: Kind; devices: MediaDe
   );
 }
 
-export function DeviceOptions({ kind, devices }: { kind: Kind; devices: MediaDeviceInfo[] }) {
+export function DeviceOptions({
+  kind,
+  devices,
+}: {
+  kind: Kind;
+  devices: MediaDeviceInfo[];
+}) {
   return (
     <>
       {devices.map((d, i) => (
         <option key={d.deviceId || i} value={d.deviceId}>
-          {d.deviceId === "default" ? `System default (${deviceName(d, kind, i)})` : deviceName(d, kind, i)}
+          {d.deviceId === "default"
+            ? `System default (${deviceName(d, kind, i)})`
+            : deviceName(d, kind, i)}
         </option>
       ))}
     </>
@@ -137,7 +181,11 @@ export function DeviceRows({ compact = false }: { compact?: boolean }) {
   const { lists, refresh } = useDeviceLists();
   if (!lists) return null;
   if (KINDS.every((k) => lists[k].length === 0)) {
-    return <p className="text-xs leading-relaxed text-sol-text-muted">No microphone, speaker or camera found on this machine.</p>;
+    return (
+      <p className="text-xs leading-relaxed text-sol-text-muted">
+        No microphone, speaker or camera found on this machine.
+      </p>
+    );
   }
   return (
     <>
@@ -149,12 +197,20 @@ export function DeviceRows({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function DeviceList({ kind, devices }: { kind: Kind; devices: MediaDeviceInfo[] }) {
+function DeviceList({
+  kind,
+  devices,
+}: {
+  kind: Kind;
+  devices: MediaDeviceInfo[];
+}) {
   const chosen = useChosenId(kind, devices);
   if (devices.length === 0) return null;
   return (
     <section>
-      <div className="px-2 pb-1 text-mark uppercase tracking-wide text-sol-text-dim">{KIND_WORD[kind]}</div>
+      <div className="px-2 pb-1 text-mark uppercase tracking-wide text-sol-text-dim">
+        {KIND_WORD[kind]}
+      </div>
       {devices.map((d, i) => {
         const on = d.deviceId === chosen;
         return (
@@ -166,11 +222,16 @@ function DeviceList({ kind, devices }: { kind: Kind; devices: MediaDeviceInfo[] 
               on ? "text-sol-text" : "text-sol-text-muted"
             }`}
           >
-            <Check className={`h-3.5 w-3.5 shrink-0 text-sol-cyan ${on ? "" : "invisible"}`} />
+            <Check
+              className={`h-3.5 w-3.5 shrink-0 text-sol-cyan ${on ? "" : "invisible"}`}
+            />
             <span className="min-w-0 truncate">
               {d.deviceId === "default" ? (
                 <>
-                  System default <span className="text-sol-text-dim">· {deviceName(d, kind, i)}</span>
+                  System default{" "}
+                  <span className="text-sol-text-dim">
+                    · {deviceName(d, kind, i)}
+                  </span>
                 </>
               ) : (
                 deviceName(d, kind, i)
@@ -199,12 +260,20 @@ export function DeviceChips({ footer }: { footer?: React.ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   // A click outside or Escape closes the open picker; nothing listens while closed.
   const dismissTarget = open ? window : null;
-  useEventListener("pointerdown", (e) => {
-    if (!root.current?.contains(e.target as Node)) setOpen(null);
-  }, dismissTarget);
-  useEventListener("keydown", (e) => {
-    if (e.key === "Escape") setOpen(null);
-  }, dismissTarget);
+  useEventListener(
+    "pointerdown",
+    (e) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(null);
+    },
+    dismissTarget,
+  );
+  useEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape") setOpen(null);
+    },
+    dismissTarget,
+  );
   if (!lists) return null;
   return (
     <div ref={root} className="relative flex items-center justify-center gap-1">
@@ -272,7 +341,9 @@ function Chip({
       >
         {name}
       </span>
-      <ChevronUp className={`ml-0.5 h-3 w-3 shrink-0 transition-transform ${active ? "" : "rotate-180"}`} />
+      <ChevronUp
+        className={`ml-0.5 h-3 w-3 shrink-0 transition-transform ${active ? "" : "rotate-180"}`}
+      />
     </button>
   );
 }

@@ -10,7 +10,11 @@ import { FileDiffLayout } from "../FileDiffLayout";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
 dom.window.HTMLElement.prototype.scrollIntoView = () => {};
-class TestResizeObserver { observe() {} unobserve() {} disconnect() {} }
+class TestResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 (dom.window as any).ResizeObserver = TestResizeObserver;
 const restoreGlobals = replaceGlobals({
   window: dom.window,
@@ -26,41 +30,86 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 for (const mode of ["unified", "split"] as const) {
   test(`${mode} diff keeps its parsed diff until patch or language changes`, async () => {
     const initial = useInboxStore.getState().clientState;
-    useInboxStore.setState({ clientState: { ...initial, ui: { ...initial.ui, file_diff_view_mode: mode } } });
+    useInboxStore.setState({
+      clientState: {
+        ...initial,
+        ui: { ...initial.ui, file_diff_view_mode: mode },
+      },
+    });
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
     const highlight = spyOn(diffModel, "buildDiffModel");
-    const file = { filename: "sample.ts", status: "modified", additions: 1, deletions: 1, changes: 2,
-      patch: "@@ -1,1 +1,1 @@\n-const value = 1;\n+const value = 2;" };
+    const file = {
+      filename: "sample.ts",
+      status: "modified",
+      additions: 1,
+      deletions: 1,
+      changes: 2,
+      patch: "@@ -1,1 +1,1 @@\n-const value = 1;\n+const value = 2;",
+    };
     try {
       await act(() => root.render(<FileDiffLayout files={[]} />));
       await act(() => root.render(<FileDiffLayout files={[file]} />));
       const first = highlight.mock.calls.length;
       expect(first > 0).toBe(true);
-      await act(() => root.render(<FileDiffLayout files={[{ ...file }]} renderFileExtra={() => <span>Changed caption</span>} />));
+      await act(() =>
+        root.render(
+          <FileDiffLayout
+            files={[{ ...file }]}
+            renderFileExtra={() => <span>Changed caption</span>}
+          />,
+        ),
+      );
       expect(highlight.mock.calls.length).toBe(first);
       expect(container.textContent).toContain("Changed caption");
-      await act(() => root.render(<FileDiffLayout files={[{ ...file }]} lineThreads={{
-        threadsFor: () => new Map([["RIGHT:1", ["review"]]]),
-        render: () => <span>New review comment</span>,
-      }} />));
+      await act(() =>
+        root.render(
+          <FileDiffLayout
+            files={[{ ...file }]}
+            lineThreads={{
+              threadsFor: () => new Map([["RIGHT:1", ["review"]]]),
+              render: () => <span>New review comment</span>,
+            }}
+          />,
+        ),
+      );
       expect(container.textContent).toContain("New review comment");
       expect(highlight.mock.calls.length).toBe(first);
-      const changed = { ...file, patch: file.patch.replace("value = 2", "value = 3") };
+      const changed = {
+        ...file,
+        patch: file.patch.replace("value = 2", "value = 3"),
+      };
       await act(() => root.render(<FileDiffLayout files={[changed]} />));
       expect(highlight.mock.calls.length > first).toBe(true);
       expect(container.textContent).toContain("value = 3");
-      await act(() => root.render(<FileDiffLayout files={[{ ...changed, filename: "sample.py" }]} focusFile="sample.py" />));
+      await act(() =>
+        root.render(
+          <FileDiffLayout
+            files={[{ ...changed, filename: "sample.py" }]}
+            focusFile="sample.py"
+          />,
+        ),
+      );
       expect(fileDiffRenders.at(-1)?.fileDiff.lang).toBe("python");
-      await act(() => root.render(<FileDiffLayout files={[{ ...file, filename: "sample.py", patch: undefined }]} focusFile="sample.py" />));
+      await act(() =>
+        root.render(
+          <FileDiffLayout
+            files={[{ ...file, filename: "sample.py", patch: undefined }]}
+            focusFile="sample.py"
+          />,
+        ),
+      );
       expect(container.textContent).toContain("No changes to display");
     } finally {
       await act(() => root.unmount());

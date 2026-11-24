@@ -1,11 +1,28 @@
 // The pieces around the grid: the cell ref box and formula bar, the in-cell
 // editor (which is also the grid's keyboard focus), function autocomplete,
 // the tab strip, and the selection summary.
-import { memo, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import {
+  memo,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { List, Plus, Radio } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import type { ArtifactPresence } from "@codecast/shared/artifacts";
-import { formatValue, splitError, type CellNumberFormat, type TabMeta } from "@codecast/shared/artifacts/sheets";
+import {
+  formatValue,
+  splitError,
+  type CellNumberFormat,
+  type TabMeta,
+} from "@codecast/shared/artifacts/sheets";
 import { useEditState, type EditStore } from "./editStore";
 import { AssistPopup, FunctionList } from "./FormulaAssist";
 import { useFormulaAssist } from "./useFormulaAssist";
@@ -36,19 +53,23 @@ export function FormulaBar({
   readOnly: boolean;
   onJump: (ref: string) => boolean;
   onBeginBarEdit: () => void;
-  onKey: (e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, surface: "bar" | "cell") => void;
+  onKey: (
+    e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+    surface: "bar" | "cell",
+  ) => void;
 }) {
   const state = useEditState(edit);
   const [refDraft, setRefDraft] = useState<string | null>(null);
   // A new selection replaces whatever was half-typed in the name box (a grid click doesn't blur it).
   useWatchEffect(() => setRefDraft(null), [refLabel]);
   const barRef = useRef<HTMLInputElement>(null);
-  const value = state ? state.text : spilledFrom ?? activeInput;
+  const value = state ? state.text : (spilledFrom ?? activeInput);
   const barEditing = state?.surface === "bar";
   const assist = useFormulaAssist(edit, barEditing ? state.text : null, barRef);
   const [fnOpen, setFnOpen] = useState(false);
   useWatchEffect(() => {
-    if (state?.surface === "bar" && document.activeElement !== barRef.current) barRef.current?.focus();
+    if (state?.surface === "bar" && document.activeElement !== barRef.current)
+      barRef.current?.focus();
   }, [state?.surface]);
   /** Open the formula bar on a proposed formula; Enter writes it, Escape drops it. */
   const startWith = (text: string) => {
@@ -65,7 +86,11 @@ export function FormulaBar({
     if (!cur) return;
     const el = barRef.current;
     const formula = cur.text.startsWith("=");
-    const at = formula ? (el && cur.surface === "bar" ? el.selectionStart ?? cur.text.length : cur.text.length) : 1;
+    const at = formula
+      ? el && cur.surface === "bar"
+        ? (el.selectionStart ?? cur.text.length)
+        : cur.text.length
+      : 1;
     const base = formula ? cur.text : "=";
     const text = base.slice(0, at) + name + "(" + base.slice(at);
     edit.patch({ text, surface: "bar" });
@@ -105,44 +130,68 @@ export function FormulaBar({
       />
       <Popover open={fnOpen} onOpenChange={setFnOpen}>
         <PopoverTrigger asChild>
-          <button type="button" className="sheet-fx-button" aria-label="Functions" title="Functions" data-sheet-fx>
+          <button
+            type="button"
+            className="sheet-fx-button"
+            aria-label="Functions"
+            title="Functions"
+            data-sheet-fx
+          >
             fx
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent
+          align="start"
+          className="w-auto p-2"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <FunctionList onPick={insertFunction} />
         </PopoverContent>
       </Popover>
       <span className="sheet-formula-field">
-      <input
-        ref={barRef}
-        className={`sheet-formula-input${!state && spilledFrom ? " is-spilled" : ""}`}
-        data-sheet-formula-input
-        aria-label="Formula"
-        value={value}
-        readOnly={readOnly}
-        spellCheck={false}
-        onFocus={() => {
-          if (!readOnly && !edit.get()) onBeginBarEdit();
-          else if (edit.get()) edit.patch({ surface: "bar" });
-        }}
-        onChange={(e) => {
-          edit.patch({ text: e.target.value, surface: "bar", error: undefined });
-          assist.track(e.target);
-        }}
-        onSelect={(e) => assist.track(e.currentTarget)}
-        onKeyDown={(e) => {
-          if (barEditing && assist.onKeyDown(e)) return;
-          onKey(e, "bar");
-        }}
-      />
-      {barEditing && state?.error ? (
-        <div className="sheet-formula-error" style={{ left: 0, top: "calc(100% + 4px)" }} role="alert" data-sheet-formula-error>
-          {state.error}
-        </div>
-      ) : (
-        barEditing && <AssistPopup assist={assist} style={{ left: 0, top: "calc(100% + 4px)" }} />
-      )}
+        <input
+          ref={barRef}
+          className={`sheet-formula-input${!state && spilledFrom ? " is-spilled" : ""}`}
+          data-sheet-formula-input
+          aria-label="Formula"
+          value={value}
+          readOnly={readOnly}
+          spellCheck={false}
+          onFocus={() => {
+            if (!readOnly && !edit.get()) onBeginBarEdit();
+            else if (edit.get()) edit.patch({ surface: "bar" });
+          }}
+          onChange={(e) => {
+            edit.patch({
+              text: e.target.value,
+              surface: "bar",
+              error: undefined,
+            });
+            assist.track(e.target);
+          }}
+          onSelect={(e) => assist.track(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (barEditing && assist.onKeyDown(e)) return;
+            onKey(e, "bar");
+          }}
+        />
+        {barEditing && state?.error ? (
+          <div
+            className="sheet-formula-error"
+            style={{ left: 0, top: "calc(100% + 4px)" }}
+            role="alert"
+            data-sheet-formula-error
+          >
+            {state.error}
+          </div>
+        ) : (
+          barEditing && (
+            <AssistPopup
+              assist={assist}
+              style={{ left: 0, top: "calc(100% + 4px)" }}
+            />
+          )
+        )}
       </span>
       {error && !state && (
         <Popover>
@@ -152,7 +201,11 @@ export function FormulaBar({
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-auto p-3">
-            <ErrorCard {...splitError(error)} input={activeInput} onFix={readOnly ? undefined : startWith} />
+            <ErrorCard
+              {...splitError(error)}
+              input={activeInput}
+              onFix={readOnly ? undefined : startWith}
+            />
           </PopoverContent>
         </Popover>
       )}
@@ -162,7 +215,14 @@ export function FormulaBar({
 
 // ── In-cell editor (and the grid's keyboard focus) ──────────────────────────
 
-export type EditorPlacement = { x: number; y: number; w: number; h: number; visible: boolean; align: "left" | "right" | "center" };
+export type EditorPlacement = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  visible: boolean;
+  align: "left" | "right" | "center";
+};
 
 export const CellEditor = memo(function CellEditor({
   edit,
@@ -201,11 +261,21 @@ export const CellEditor = memo(function CellEditor({
     if (state?.surface === "bar") return;
     const el = sinkRef.current;
     const ae = document.activeElement as HTMLElement | null;
-    if (el && ae !== el && (!ae || ae === document.body || ae.closest("[data-sheet-root]"))) {
-      if (!ae?.closest("input, textarea, [contenteditable=true]") || ae === el) el.focus({ preventScroll: true });
+    if (
+      el &&
+      ae !== el &&
+      (!ae || ae === document.body || ae.closest("[data-sheet-root]"))
+    ) {
+      if (!ae?.closest("input, textarea, [contenteditable=true]") || ae === el)
+        el.focus({ preventScroll: true });
     }
   });
-  const assist = useFormulaAssist(edit, editing && state ? state.text : null, sinkRef, onCaret);
+  const assist = useFormulaAssist(
+    edit,
+    editing && state ? state.text : null,
+    sinkRef,
+    onCaret,
+  );
 
   return (
     <>
@@ -228,7 +298,8 @@ export const CellEditor = memo(function CellEditor({
           minHeight: editing ? placement.h : 1,
           height: editing ? placement.h : 1,
           opacity: editing ? 1 : 0,
-          textAlign: editing && !state?.text.startsWith("=") ? placement.align : "left",
+          textAlign:
+            editing && !state?.text.startsWith("=") ? placement.align : "left",
           pointerEvents: editing ? "auto" : "none",
         }}
         value={editing ? state!.text : ""}
@@ -252,11 +323,21 @@ export const CellEditor = memo(function CellEditor({
         onPaste={editing ? undefined : onPaste}
       />
       {editing && state?.error ? (
-        <div className="sheet-formula-error" style={{ left: placement.x, top: placement.y + placement.h + 2 }} role="alert" data-sheet-formula-error>
+        <div
+          className="sheet-formula-error"
+          style={{ left: placement.x, top: placement.y + placement.h + 2 }}
+          role="alert"
+          data-sheet-formula-error
+        >
           {state.error}
         </div>
       ) : (
-        editing && <AssistPopup assist={assist} style={{ left: placement.x, top: placement.y + placement.h + 2 }} />
+        editing && (
+          <AssistPopup
+            assist={assist}
+            style={{ left: placement.x, top: placement.y + placement.h + 2 }}
+          />
+        )
       )}
     </>
   );
@@ -299,7 +380,8 @@ export function TabStrip({
   /** A tab dragged to a place in the strip. */
   onReorder?: (id: string, to: number) => void;
 }) {
-  const onTab = (id: string) => (others ?? []).filter((p) => presenceTab(p) === id);
+  const onTab = (id: string) =>
+    (others ?? []).filter((p) => presenceTab(p) === id);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   useWatchEffect(() => {
@@ -315,12 +397,20 @@ export function TabStrip({
   // The open tab stays in view when the strip scrolls (a pick from All tabs, a link to a tab).
   const listRef = useRef<HTMLDivElement>(null);
   useWatchEffect(() => {
-    listRef.current?.querySelector<HTMLElement>(".sheet-tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    listRef.current
+      ?.querySelector<HTMLElement>(".sheet-tab.is-active")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [activeId]);
   return (
     <div className="sheet-tabs" data-sheet-tabs>
       {!readOnly && (
-        <button type="button" className="sheet-tab-add" title="Add tab" aria-label="Add tab" onClick={onAdd}>
+        <button
+          type="button"
+          className="sheet-tab-add"
+          title="Add tab"
+          aria-label="Add tab"
+          onClick={onAdd}
+        >
           <Plus className="w-3.5 h-3.5" />
         </button>
       )}
@@ -335,7 +425,8 @@ export function TabStrip({
               onChange={(e) => setDraft(e.target.value)}
               onFocus={(e) => e.target.select()}
               onBlur={() => {
-                if (draft.trim() && draft.trim() !== t.name) onRename(t.id, draft.trim());
+                if (draft.trim() && draft.trim() !== t.name)
+                  onRename(t.id, draft.trim());
                 setRenaming(null);
               }}
               onKeyDown={(e) => {
@@ -360,7 +451,10 @@ export function TabStrip({
                 const id = e.dataTransfer.getData(TAB_DRAG);
                 if (!id || id === t.id) return;
                 e.preventDefault();
-                onReorder?.(id, tabs.findIndex((x) => x.id === t.id));
+                onReorder?.(
+                  id,
+                  tabs.findIndex((x) => x.id === t.id),
+                );
               }}
               onDoubleClick={() => {
                 if (readOnly) return;
@@ -372,7 +466,12 @@ export function TabStrip({
             >
               {t.query && <Radio className="w-3 h-3 text-sol-green" />}
               {t.name}
-              {t.id !== activeId && <TabActivity people={onTab(t.id)} unseen={!!unseen?.has(t.id)} />}
+              {t.id !== activeId && (
+                <TabActivity
+                  people={onTab(t.id)}
+                  unseen={!!unseen?.has(t.id)}
+                />
+              )}
             </button>
           ),
         )}
@@ -381,13 +480,27 @@ export function TabStrip({
         // Every tab, by name: a narrow pane hides some of the strip.
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="sheet-tab-add" aria-label="All tabs" title="All tabs" data-sheet-all-tabs>
+            <button
+              type="button"
+              className="sheet-tab-add"
+              aria-label="All tabs"
+              title="All tabs"
+              data-sheet-all-tabs
+            >
               <List className="w-3.5 h-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" className="min-w-[180px]">
+          <DropdownMenuContent
+            align="start"
+            side="top"
+            className="min-w-[180px]"
+          >
             {tabs.map((t) => (
-              <DropdownMenuItem key={t.id} onSelect={() => onSelect(t.id)} className={t.id === activeId ? "font-semibold" : undefined}>
+              <DropdownMenuItem
+                key={t.id}
+                onSelect={() => onSelect(t.id)}
+                className={t.id === activeId ? "font-semibold" : undefined}
+              >
                 {t.query && <Radio className="w-3 h-3 text-sol-green" />}
                 {t.name}
               </DropdownMenuItem>
@@ -409,21 +522,46 @@ function presenceTab(p: ArtifactPresence): string | null {
 }
 
 /** On a tab label: a dot per person or agent working there, and a mark for agent writes not yet looked at. */
-function TabActivity({ people, unseen }: { people: ArtifactPresence[]; unseen: boolean }) {
+function TabActivity({
+  people,
+  unseen,
+}: {
+  people: ArtifactPresence[];
+  unseen: boolean;
+}) {
   if (!people.length && !unseen) return null;
   return (
     <span className="sheet-tab-activity" data-sheet-tab-activity>
       {people.slice(0, 3).map((p) => (
-        <span key={p.actor} className={`sheet-tab-face${p.kind === "agent" ? " is-agent" : ""}`} style={{ background: p.color }} title={p.status ? `${p.name}: ${p.status}` : p.name} />
+        <span
+          key={p.actor}
+          className={`sheet-tab-face${p.kind === "agent" ? " is-agent" : ""}`}
+          style={{ background: p.color }}
+          title={p.status ? `${p.name}: ${p.status}` : p.name}
+        />
       ))}
-      {unseen && !people.some((p) => p.kind === "agent") && <span className="sheet-tab-unseen" title="New agent edits" data-sheet-tab-unseen />}
+      {unseen && !people.some((p) => p.kind === "agent") && (
+        <span
+          className="sheet-tab-unseen"
+          title="New agent edits"
+          data-sheet-tab-unseen
+        />
+      )}
     </span>
   );
 }
 
 /** Sum / average / count of the selection's numbers, the way Sheets shows it bottom-right. */
-export function SelectionSummary({ values, style }: { values: Array<unknown>; style?: CellNumberFormat }) {
-  let sum = 0, n = 0, count = 0;
+export function SelectionSummary({
+  values,
+  style,
+}: {
+  values: Array<unknown>;
+  style?: CellNumberFormat;
+}) {
+  let sum = 0,
+    n = 0,
+    count = 0;
   for (const v of values) {
     if (v === null || v === "") continue;
     count++;
@@ -440,7 +578,13 @@ export function SelectionSummary({ values, style }: { values: Array<unknown>; st
   const tidy = (x: number) => Number(x.toPrecision(15));
   // Totals read in the format of the cells summed (a growth column averages to a percent).
   const fmt = style?.nf && style.nf !== "text" ? style : undefined;
-  const shown = (x: number) => formatValue(tidy(x), fmt ? { ...fmt, sign: false } : { nf: "number", dp: Number.isInteger(tidy(x)) ? 0 : 2 });
+  const shown = (x: number) =>
+    formatValue(
+      tidy(x),
+      fmt
+        ? { ...fmt, sign: false }
+        : { nf: "number", dp: Number.isInteger(tidy(x)) ? 0 : 2 },
+    );
   return (
     <div className="sheet-summary" data-sheet-summary>
       {n > 0 && (

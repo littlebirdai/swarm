@@ -11,7 +11,16 @@
  * which is what "who did what, when" needs.
  */
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowRight, History, Link2, ListPlus, MessageSquare, Pencil, Terminal, UserRound } from "lucide-react";
+import {
+  ArrowRight,
+  History,
+  Link2,
+  ListPlus,
+  MessageSquare,
+  Pencil,
+  Terminal,
+  UserRound,
+} from "lucide-react";
 import { WAIT_STATE_STYLE } from "./TaskBlockedMark";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { ISSUE_PROVIDER_NAME } from "../../lib/integrations";
@@ -19,13 +28,26 @@ import { SegmentedToggle } from "../SegmentedToggle";
 import { SessionTag } from "../identity/SessionTag";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { ExternalEventRow } from "../feed/ExternalEventRow";
-import { externalEventRowToExternalEvent, type ExternalEventRecord } from "../../lib/externalEvents";
+import {
+  externalEventRowToExternalEvent,
+  type ExternalEventRecord,
+} from "../../lib/externalEvents";
 import { groupByDay } from "../../lib/timelineRail";
 import { RailBare, RailDay, RailRow, StatusWord } from "../timeline/Rail";
-import { TaskCommentItem, UserBadge, type TaskCommentRow } from "./TaskCommentStream";
+import {
+  TaskCommentItem,
+  UserBadge,
+  type TaskCommentRow,
+} from "./TaskCommentStream";
 import type { TaskLinkedSession } from "./TaskSessionList";
 import { EntityIdPill } from "../EntityIdPill";
-import { findStoredWaitTime, formatWaitTime, graphChange, type GraphChange, type GraphTone } from "@codecast/shared/tasks";
+import {
+  findStoredWaitTime,
+  formatWaitTime,
+  graphChange,
+  type GraphChange,
+  type GraphTone,
+} from "@codecast/shared/tasks";
 
 type Person = { name: string; image?: string; github_username?: string };
 
@@ -55,32 +77,54 @@ const FILTER_KINDS: Record<string, Item["kind"]> = {
 };
 
 function Who({ person }: { person?: Person | null }) {
-  return person
-    ? <UserBadge name={person.name} image={person.image} username={person.github_username} />
-    : <span className="text-sol-text font-medium">System</span>;
+  return person ? (
+    <UserBadge
+      name={person.name}
+      image={person.image}
+      username={person.github_username}
+    />
+  ) : (
+    <span className="text-sol-text font-medium">System</span>
+  );
 }
 
 // Avatars and status icons sit beside plain words here, and a text baseline
 // drops the words below the avatar's name. One line, centered.
 function Line({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center flex-wrap gap-x-2 gap-y-0.5 min-w-0">{children}</span>;
+  return (
+    <span className="inline-flex items-center flex-wrap gap-x-2 gap-y-0.5 min-w-0">
+      {children}
+    </span>
+  );
 }
 
 /** The issue sync writes three actions of its own (issue-sync.md S6, S5). */
-const SYNC_ACTIONS = new Set(["synced_from_provider", "synced_to_provider", "sync_refused"]);
+const SYNC_ACTIONS = new Set([
+  "synced_from_provider",
+  "synced_to_provider",
+  "sync_refused",
+]);
 
 /** `graph`: the row's `graphChange`, read once where the row renders. */
 function changeStyle(row: HistoryRow, graph: GraphChange | null) {
-  if (row.action === "created") return { icon: ListPlus, color: "text-sol-green" };
-  if (row.action === "sync_refused") return { icon: Link2, color: "text-sol-red" };
-  if (SYNC_ACTIONS.has(row.action)) return { icon: Link2, color: "text-sol-cyan" };
-  if (row.field === "status") return { icon: ArrowRight, color: "text-sol-yellow" };
-  if (row.field === "assignee") return { icon: UserRound, color: "text-sol-cyan" };
+  if (row.action === "created")
+    return { icon: ListPlus, color: "text-sol-green" };
+  if (row.action === "sync_refused")
+    return { icon: Link2, color: "text-sol-red" };
+  if (SYNC_ACTIONS.has(row.action))
+    return { icon: Link2, color: "text-sol-cyan" };
+  if (row.field === "status")
+    return { icon: ArrowRight, color: "text-sol-yellow" };
+  if (row.field === "assignee")
+    return { icon: UserRound, color: "text-sol-cyan" };
   if (graph) return GRAPH_STYLE[graph.tone];
   return { icon: Pencil, color: "text-sol-text-dim" };
 }
 
-const waitStyle = ({ icon, text }: { icon: typeof Pencil; text: string }) => ({ icon, color: text });
+const waitStyle = ({ icon, text }: { icon: typeof Pencil; text: string }) => ({
+  icon,
+  color: text,
+});
 const GRAPH_STYLE: Record<GraphTone, { icon: typeof Pencil; color: string }> = {
   blocked: waitStyle(WAIT_STATE_STYLE.waiting),
   met: waitStyle(WAIT_STATE_STYLE.met),
@@ -96,37 +140,76 @@ function GraphText({ text }: { text: string }) {
   if (!t) return <span className="text-sol-text min-w-0">{text}</span>;
   return (
     <span className="text-sol-text min-w-0" title={text}>
-      {text.slice(0, t.start)}{formatWaitTime(t.at, { now })}{text.slice(t.end)}
+      {text.slice(0, t.start)}
+      {formatWaitTime(t.at, { now })}
+      {text.slice(t.end)}
     </span>
   );
 }
 
 /** A linked session named inline, opening it on click. */
-export function TaskSessionLink({ session, onOpen }: { session: TaskLinkedSession; onOpen: (s: TaskLinkedSession) => void }) {
-  return <SessionTag session={session} size="sm" onClick={() => onOpen(session)} className="font-medium" />;
+export function TaskSessionLink({
+  session,
+  onOpen,
+}: {
+  session: TaskLinkedSession;
+  onOpen: (s: TaskLinkedSession) => void;
+}) {
+  return (
+    <SessionTag
+      session={session}
+      size="sm"
+      onClick={() => onOpen(session)}
+      className="font-medium"
+    />
+  );
 }
 
-function ChangeBody({ row, graph, provider, origin, openLinkedSession }: { row: HistoryRow; graph: GraphChange | null; provider?: "linear" | "github"; origin?: TaskLinkedSession; openLinkedSession: (info: any) => void }) {
+function ChangeBody({
+  row,
+  graph,
+  provider,
+  origin,
+  openLinkedSession,
+}: {
+  row: HistoryRow;
+  graph: GraphChange | null;
+  provider?: "linear" | "github";
+  origin?: TaskLinkedSession;
+  openLinkedSession: (info: any) => void;
+}) {
   const dim = "text-sol-text-muted";
   if (row.action === "created") {
     // A task a session filed says so: the session is the author, and its
     // person is who it ran for.
-    return origin
-      ? <><TaskSessionLink session={origin} onOpen={openLinkedSession} /><span className={dim}>created this task for</span><Who person={row.actor} /></>
-      : <><Who person={row.actor} /><span className={dim}>created this task</span></>;
+    return origin ? (
+      <>
+        <TaskSessionLink session={origin} onOpen={openLinkedSession} />
+        <span className={dim}>created this task for</span>
+        <Who person={row.actor} />
+      </>
+    ) : (
+      <>
+        <Who person={row.actor} />
+        <span className={dim}>created this task</span>
+      </>
+    );
   }
   if (SYNC_ACTIONS.has(row.action)) {
     const name = provider ? ISSUE_PROVIDER_NAME[provider] : "the issue tracker";
-    const verb = row.action === "synced_from_provider"
-      ? `imported from ${name} as`
-      : row.action === "synced_to_provider"
-        ? `created on ${name} as`
-        : `${name} refused these labels:`;
+    const verb =
+      row.action === "synced_from_provider"
+        ? `imported from ${name} as`
+        : row.action === "synced_to_provider"
+          ? `created on ${name} as`
+          : `${name} refused these labels:`;
     return (
       <>
         <Who person={row.actor} />
         <span className={dim}>{verb}</span>
-        <span className="text-sol-text truncate max-w-[14rem]">{row.new_value}</span>
+        <span className="text-sol-text truncate max-w-[14rem]">
+          {row.new_value}
+        </span>
       </>
     );
   }
@@ -145,10 +228,17 @@ function ChangeBody({ row, graph, provider, origin, openLinkedSession }: { row: 
     return (
       <>
         <Who person={row.actor} />
-        <span className={dim}>{row.new_value ? "assigned it to" : "removed the assignee"}</span>
-        {row.new_value && (row.new_value_resolved
-          ? <Who person={row.new_value_resolved} />
-          : <span className="text-sol-text-muted italic">someone who has since left</span>)}
+        <span className={dim}>
+          {row.new_value ? "assigned it to" : "removed the assignee"}
+        </span>
+        {row.new_value &&
+          (row.new_value_resolved ? (
+            <Who person={row.new_value_resolved} />
+          ) : (
+            <span className="text-sol-text-muted italic">
+              someone who has since left
+            </span>
+          ))}
       </>
     );
   }
@@ -157,9 +247,14 @@ function ChangeBody({ row, graph, provider, origin, openLinkedSession }: { row: 
       <>
         <Who person={row.actor} />
         {graph.clauses.map((c, i) => (
-          <span key={i} className="inline-flex items-center flex-wrap gap-x-1.5 gap-y-0.5 min-w-0">
+          <span
+            key={i}
+            className="inline-flex items-center flex-wrap gap-x-1.5 gap-y-0.5 min-w-0"
+          >
             <span className={dim}>{c.verb}</span>
-            {c.refs?.map((ref) => <EntityIdPill key={ref} type="task" shortId={ref} />)}
+            {c.refs?.map((ref) => (
+              <EntityIdPill key={ref} type="task" shortId={ref} />
+            ))}
             {c.text && <GraphText text={c.text} />}
           </span>
         ))}
@@ -170,8 +265,16 @@ function ChangeBody({ row, graph, provider, origin, openLinkedSession }: { row: 
     <>
       <Who person={row.actor} />
       <span className={dim}>changed {row.field?.replace(/_/g, " ")}</span>
-      {row.old_value && <span className="text-sol-text-dim line-through truncate max-w-[14rem]">{row.old_value}</span>}
-      {row.new_value && <span className="text-sol-text truncate max-w-[14rem]">{row.new_value}</span>}
+      {row.old_value && (
+        <span className="text-sol-text-dim line-through truncate max-w-[14rem]">
+          {row.old_value}
+        </span>
+      )}
+      {row.new_value && (
+        <span className="text-sol-text truncate max-w-[14rem]">
+          {row.new_value}
+        </span>
+      )}
     </>
   );
 }
@@ -183,7 +286,15 @@ export function TaskTimeline({
   externalEvents,
   openLinkedSession,
 }: {
-  task: { _id: string; created_at: number; creator?: Person | null; created_from_conversation?: string | null; history?: HistoryRow[]; comments?: TaskCommentRow[]; external?: { provider: "linear" | "github" } };
+  task: {
+    _id: string;
+    created_at: number;
+    creator?: Person | null;
+    created_from_conversation?: string | null;
+    history?: HistoryRow[];
+    comments?: TaskCommentRow[];
+    external?: { provider: "linear" | "github" };
+  };
   /** The task's thread. The store's task row does not carry it (lib/detailRows), so the task page hands it in; a caller
    *  with a whole task object (a fixture) may leave it on the task. */
   comments?: TaskCommentRow[];
@@ -193,7 +304,9 @@ export function TaskTimeline({
 }) {
   const [filter, setFilter] = useState("all");
   const comments = thread ?? task.comments;
-  const origin = task.created_from_conversation ? sessions.find((s) => s._id === task.created_from_conversation) : undefined;
+  const origin = task.created_from_conversation
+    ? sessions.find((s) => s._id === task.created_from_conversation)
+    : undefined;
 
   const items = useMemo(() => {
     const history = task.history ?? [];
@@ -202,19 +315,63 @@ export function TaskTimeline({
     // with its first event.
     const created: HistoryRow[] = history.some((h) => h.action === "created")
       ? []
-      : [{ _id: `created-${task._id}`, created_at: task.created_at, action: "created", actor: task.creator }];
+      : [
+          {
+            _id: `created-${task._id}`,
+            created_at: task.created_at,
+            action: "created",
+            actor: task.creator,
+          },
+        ];
     const all: Item[] = [
-      ...[...created, ...history].map((row) => ({ kind: "change" as const, ts: row.created_at, key: row._id, row })),
-      ...(comments ?? []).map((row) => ({ kind: "comment" as const, ts: row.created_at, key: row._id, row })),
+      ...[...created, ...history].map((row) => ({
+        kind: "change" as const,
+        ts: row.created_at,
+        key: row._id,
+        row,
+      })),
+      ...(comments ?? []).map((row) => ({
+        kind: "comment" as const,
+        ts: row.created_at,
+        key: row._id,
+        row,
+      })),
       // A blank session that never got a message did no work on the task, and
       // the session that filed it is named on the created row instead.
-      ...sessions.filter((s) => s.started_at && (s.title || s.message_count) && s._id !== task.created_from_conversation).map((row) => ({ kind: "session" as const, ts: row.started_at!, key: `s-${row._id}`, row })),
-      ...externalEvents.map((row) => ({ kind: "git" as const, ts: row.created_at ?? 0, key: row._id, row })),
+      ...sessions
+        .filter(
+          (s) =>
+            s.started_at &&
+            (s.title || s.message_count) &&
+            s._id !== task.created_from_conversation,
+        )
+        .map((row) => ({
+          kind: "session" as const,
+          ts: row.started_at!,
+          key: `s-${row._id}`,
+          row,
+        })),
+      ...externalEvents.map((row) => ({
+        kind: "git" as const,
+        ts: row.created_at ?? 0,
+        key: row._id,
+        row,
+      })),
     ];
     return all.sort((a, b) => a.ts - b.ts);
-  }, [task._id, task.created_at, task.creator, task.created_from_conversation, task.history, comments, sessions, externalEvents]);
+  }, [
+    task._id,
+    task.created_at,
+    task.creator,
+    task.created_from_conversation,
+    task.history,
+    comments,
+    sessions,
+    externalEvents,
+  ]);
 
-  const count = (kind: Item["kind"]) => items.filter((i) => i.kind === kind).length;
+  const count = (kind: Item["kind"]) =>
+    items.filter((i) => i.kind === kind).length;
   const filters = [
     { key: "all", label: "All", count: items.length },
     { key: "changes", label: "Changes", count: count("change") },
@@ -224,7 +381,13 @@ export function TaskTimeline({
   ].filter((f) => f.key === "all" || f.count > 0);
 
   const groups = useMemo(
-    () => groupByDay(filter === "all" ? items : items.filter((i) => i.kind === FILTER_KINDS[filter]), Date.now()),
+    () =>
+      groupByDay(
+        filter === "all"
+          ? items
+          : items.filter((i) => i.kind === FILTER_KINDS[filter]),
+        Date.now(),
+      ),
     [items, filter],
   );
 
@@ -235,7 +398,14 @@ export function TaskTimeline({
           <History className="w-3.5 h-3.5" />
           Activity
         </h2>
-        {filters.length > 2 && <SegmentedToggle value={filter} onChange={setFilter} items={filters} variant="bare" />}
+        {filters.length > 2 && (
+          <SegmentedToggle
+            value={filter}
+            onChange={setFilter}
+            items={filters}
+            variant="bare"
+          />
+        )}
       </div>
 
       {groups.map((group) => (
@@ -254,9 +424,25 @@ export function TaskTimeline({
             }
             if (item.kind === "comment") {
               return (
-                <RailRow key={item.key} icon={MessageSquare} color="text-sol-blue" ts={item.ts} card clock>
-                  <CollapsibleBody collapsedHeight={132} className="flex-1 min-w-0 -mt-1.5" expandLabel="Read the whole comment" collapseLabel="Collapse">
-                    <TaskCommentItem comment={item.row} openLinkedSession={openLinkedSession} noTime />
+                <RailRow
+                  key={item.key}
+                  icon={MessageSquare}
+                  color="text-sol-blue"
+                  ts={item.ts}
+                  card
+                  clock
+                >
+                  <CollapsibleBody
+                    collapsedHeight={132}
+                    className="flex-1 min-w-0 -mt-1.5"
+                    expandLabel="Read the whole comment"
+                    collapseLabel="Collapse"
+                  >
+                    <TaskCommentItem
+                      comment={item.row}
+                      openLinkedSession={openLinkedSession}
+                      noTime
+                    />
                   </CollapsibleBody>
                 </RailRow>
               );
@@ -264,10 +450,18 @@ export function TaskTimeline({
             if (item.kind === "session") {
               const s = item.row;
               return (
-                <RailRow key={item.key} icon={Terminal} color="text-sol-violet" ts={item.ts} clock>
+                <RailRow
+                  key={item.key}
+                  icon={Terminal}
+                  color="text-sol-violet"
+                  ts={item.ts}
+                  clock
+                >
                   <Line>
                     <TaskSessionLink session={s} onOpen={openLinkedSession} />
-                    <span className="text-sol-text-muted flex-shrink-0">started working on it</span>
+                    <span className="text-sol-text-muted flex-shrink-0">
+                      started working on it
+                    </span>
                   </Line>
                 </RailRow>
               );
@@ -275,8 +469,22 @@ export function TaskTimeline({
             const graph = graphChange(item.row);
             const style = changeStyle(item.row, graph);
             return (
-              <RailRow key={item.key} icon={style.icon} color={style.color} ts={item.ts} clock>
-                <Line><ChangeBody row={item.row} graph={graph} provider={task.external?.provider} origin={origin} openLinkedSession={openLinkedSession} /></Line>
+              <RailRow
+                key={item.key}
+                icon={style.icon}
+                color={style.color}
+                ts={item.ts}
+                clock
+              >
+                <Line>
+                  <ChangeBody
+                    row={item.row}
+                    graph={graph}
+                    provider={task.external?.provider}
+                    origin={origin}
+                    openLinkedSession={openLinkedSession}
+                  />
+                </Line>
               </RailRow>
             );
           })}

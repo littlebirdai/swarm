@@ -17,7 +17,10 @@ import { join } from "node:path";
 // See components/__tests__/recoverableRenderError.test.tsx for the behaviour
 // itself, driven through a real concurrent render that throws.
 
-const boot = readFileSync(join(import.meta.dir, "..", "..", "src", "boot.tsx"), "utf8");
+const boot = readFileSync(
+  join(import.meta.dir, "..", "..", "src", "boot.tsx"),
+  "utf8",
+);
 
 describe("boot wires React's recoverable render errors into reporting", () => {
   test("createRoot receives onRecoverableError", () => {
@@ -27,7 +30,7 @@ describe("boot wires React's recoverable render errors into reporting", () => {
 
   test("the handler is imported from the reporting layer", () => {
     expect(boot).toMatch(
-      /import \{[^}]*reportRecoverableRenderError[^}]*\} from "\.\.\/lib\/analytics"/
+      /import \{[^}]*reportRecoverableRenderError[^}]*\} from "\.\.\/lib\/analytics"/,
     );
   });
 });

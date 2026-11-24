@@ -1,7 +1,8 @@
 // The page's small wording and motion helpers, one copy each.
 
 /** "1 commit", "1,204 commits": a count with its noun, the plural `one + s` unless named. */
-export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** `--i` for the first paint's stagger (spec 5.4), capped at 10. */
 export const rise = (i: number) => ({ ["--i" as any]: Math.min(i, 10) });
@@ -12,4 +13,8 @@ export const rise = (i: number) => ({ ["--i" as any]: Math.min(i, 10) });
  * unit. `%` is a non-word character, so the unit's end is "no word character
  * follows", not a word boundary.
  */
-export const glueUnits = (t: string) => t.replace(/(\d) (ms|s|MB|GB|KB|x|%|min|h|seconds|minutes)(?!\w)/g, "$1\u00a0$2");
+export const glueUnits = (t: string) =>
+  t.replace(
+    /(\d) (ms|s|MB|GB|KB|x|%|min|h|seconds|minutes)(?!\w)/g,
+    "$1\u00a0$2",
+  );

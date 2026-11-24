@@ -18,7 +18,10 @@ import { execFileAsync, execFileSync, spawnSync } from "./proc.js";
 import { isDevMode } from "./update.js";
 // The desktop app's own updater rules (zip name, version floor), shared so
 // this out-of-band path accepts exactly what the app would.
-import { bundleRefusal, parseFeed } from "../../../apps/desktop/updatePolicy.js";
+import {
+  bundleRefusal,
+  parseFeed,
+} from "../../../apps/desktop/updatePolicy.js";
 
 const DESKTOP_FEED = "https://dl.codecast.sh/desktop/latest-mac.yml";
 const DESKTOP_BASE = "https://dl.codecast.sh/desktop";
@@ -31,8 +34,18 @@ const EXPECTED_TEAM_ID = "WRG9THCK9Q";
 
 const CONFIG_DIR = defaultConfigDir();
 const STATE_FILE = path.join(CONFIG_DIR, "desktop-update-state.json");
-const WORK_DIR = path.join(process.env.HOME || "", "Library", "Caches", "codecast-desktop-update");
-const SHIPIT_CACHE = path.join(process.env.HOME || "", "Library", "Caches", "sh.codecast.desktop.ShipIt");
+const WORK_DIR = path.join(
+  process.env.HOME || "",
+  "Library",
+  "Caches",
+  "codecast-desktop-update",
+);
+const SHIPIT_CACHE = path.join(
+  process.env.HOME || "",
+  "Library",
+  "Caches",
+  "sh.codecast.desktop.ShipIt",
+);
 
 // Don't re-download the (~95MB) artifact for the same target version more often
 // than this when an attempt fails; a successful apply no-ops via version compare.
@@ -106,7 +119,10 @@ export function shouldApplyWhileRunning(
 // daemon of the user (it cannot name the machine it runs on: the shell bridge
 // is exactly what is dead on the builds it rescues), so a second Mac that is
 // already current must not have its app quit and rewritten for nothing.
-export function wantsReinstall(opts: { force?: boolean; reinstall?: boolean }): boolean {
+export function wantsReinstall(opts: {
+  force?: boolean;
+  reinstall?: boolean;
+}): boolean {
   return opts.force === true && opts.reinstall !== false;
 }
 
@@ -117,8 +133,17 @@ export function wantsReinstall(opts: { force?: boolean; reinstall?: boolean }): 
  * walk the app back to an older signed build. With no readable installed
  * version there is nothing to hold it to.
  */
-export function archiveRefusal(feedVersion: string, archiveVersion: string | null, installed: string | null): string | null {
-  return bundleRefusal({ feedVersion, bundleVersion: archiveVersion, runningVersion: installed ?? "0.0.0", force: true });
+export function archiveRefusal(
+  feedVersion: string,
+  archiveVersion: string | null,
+  installed: string | null,
+): string | null {
+  return bundleRefusal({
+    feedVersion,
+    bundleVersion: archiveVersion,
+    runningVersion: installed ?? "0.0.0",
+    force: true,
+  });
 }
 
 export interface DesktopUpdateOpts {
@@ -156,7 +181,12 @@ function plistVersion(plistPath: string): string | null {
 
 function macosVersion(): string | null {
   try {
-    return execFileSync("/usr/bin/sw_vers", ["-productVersion"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || null;
+    return (
+      execFileSync("/usr/bin/sw_vers", ["-productVersion"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null
+    );
   } catch {
     return null;
   }
@@ -169,7 +199,10 @@ function macosVersion(): string | null {
  * Electron 44 shell needs macOS 13, and a Mac on 12 must keep the build it has.
  * Unknown on either side installs, as every earlier release did.
  */
-export function macosMeetsMinimum(current: string | null, minimum: string | null): boolean {
+export function macosMeetsMinimum(
+  current: string | null,
+  minimum: string | null,
+): boolean {
   if (!current || !minimum) return true;
   return compareVersions(current, minimum) >= 0;
 }
@@ -211,15 +244,22 @@ function signalApp(extraArgs: string[]): void {
 // dock/tray and silently swallows the quit Apple event (verified on macOS 26),
 // so an osascript-only quit left always-open clients stranded forever. Escalate
 // quit → SIGTERM → SIGKILL so the forced/min-version rollout can't stall.
-async function ensureAppNotRunning(force: boolean, log: Logger): Promise<boolean> {
+async function ensureAppNotRunning(
+  force: boolean,
+  log: Logger,
+): Promise<boolean> {
   if (!isDesktopAppRunning()) return true;
   if (!force) return false;
 
   log("desktop update: quitting running app to apply (forced)");
   try {
-    execFileSync("/usr/bin/osascript", ["-e", 'tell application "Codecast" to quit'], {
-      stdio: ["ignore", "ignore", "ignore"],
-    });
+    execFileSync(
+      "/usr/bin/osascript",
+      ["-e", 'tell application "Codecast" to quit'],
+      {
+        stdio: ["ignore", "ignore", "ignore"],
+      },
+    );
   } catch {}
   if (await waitForExit(8)) return true; // graceful, ~4s
 
@@ -254,7 +294,10 @@ export function stagingPaths(appPath: string) {
 // bundle it moved aside still exists). True when it settled. A staged bundle
 // left by an app that was killed before it could quit never moves, so after
 // the timeout it is removed: no helper is left to rename it.
-export async function waitForAppSwap(appPath: string, opts: { timeoutMs?: number; pollMs?: number } = {}): Promise<boolean> {
+export async function waitForAppSwap(
+  appPath: string,
+  opts: { timeoutMs?: number; pollMs?: number } = {},
+): Promise<boolean> {
   const { appIncoming, appOld } = stagingPaths(appPath);
   const deadline = Date.now() + (opts.timeoutMs ?? 20_000);
   while (fs.existsSync(appIncoming) || fs.existsSync(appOld)) {
@@ -277,16 +320,22 @@ async function sha512Base64(filePath: string): Promise<string> {
 // Verify the extracted bundle is a valid, untampered signature from our team.
 function verifyBundleSignature(appPath: string, log: Logger): boolean {
   try {
-    execFileSync("/usr/bin/codesign", ["--verify", "--strict", "--deep", appPath], {
-      stdio: ["ignore", "ignore", "ignore"],
-    });
+    execFileSync(
+      "/usr/bin/codesign",
+      ["--verify", "--strict", "--deep", appPath],
+      {
+        stdio: ["ignore", "ignore", "ignore"],
+      },
+    );
   } catch {
     log("desktop update: codesign --verify failed; refusing to install");
     return false;
   }
   // `codesign -dvv` writes its details (Authority, TeamIdentifier) to stderr,
   // so use spawnSync and read both streams.
-  const r = spawnSync("/usr/bin/codesign", ["-dvv", appPath], { encoding: "utf8" });
+  const r = spawnSync("/usr/bin/codesign", ["-dvv", appPath], {
+    encoding: "utf8",
+  });
   const info = `${r.stdout || ""}${r.stderr || ""}`;
   if (!info.includes(`TeamIdentifier=${EXPECTED_TEAM_ID}`)) {
     log("desktop update: unexpected TeamIdentifier; refusing to install");
@@ -307,7 +356,9 @@ export function swapInBundle(newApp: string, appPath: string): void {
   const { incoming, old } = stagingPaths(appPath);
   rmrf(incoming);
   rmrf(old);
-  execFileSync("/usr/bin/ditto", [newApp, incoming], { stdio: ["ignore", "ignore", "ignore"] });
+  execFileSync("/usr/bin/ditto", [newApp, incoming], {
+    stdio: ["ignore", "ignore", "ignore"],
+  });
   if (!fs.existsSync(appPath)) {
     fs.renameSync(incoming, appPath); // a fresh install: nothing to move aside
     return;
@@ -318,7 +369,9 @@ export function swapInBundle(newApp: string, appPath: string): void {
   } catch (e) {
     // Roll back if the second rename failed and we moved the old one away.
     if (!fs.existsSync(appPath) && fs.existsSync(old)) {
-      try { fs.renameSync(old, appPath); } catch {}
+      try {
+        fs.renameSync(old, appPath);
+      } catch {}
     }
     rmrf(incoming);
     throw e;
@@ -360,7 +413,8 @@ export async function checkForDesktopUpdate(
   // level the server sees. Silent gates are how a client sits on a broken
   // build for weeks with every dashboard reading "up to date".
   const installed = fs.existsSync(APP_PATH) ? plistVersion(APP_PLIST) : null;
-  const belowFloor = installed != null && isBelowMinimum(installed, opts.minVersion);
+  const belowFloor =
+    installed != null && isBelowMinimum(installed, opts.minVersion);
   const bail: Logger = force || belowFloor ? (opts.warn ?? log) : log;
 
   if (!shouldAttemptDesktopUpdate(process.platform, isDevMode(), force)) {
@@ -372,16 +426,22 @@ export async function checkForDesktopUpdate(
     return false;
   }
   if (!fs.existsSync(APP_PATH) && !opts.install) {
-    if (force || opts.minVersion) bail("desktop update: /Applications/Codecast.app not found");
+    if (force || opts.minVersion)
+      bail("desktop update: /Applications/Codecast.app not found");
     return false;
   }
 
   try {
     // A damaged bundle cannot launch to update itself, and its version may
     // still read as current, so it takes the reinstall path.
-    const damaged = !installed || (!isDesktopAppRunning() && !installedBundleIntact());
-    if (!fs.existsSync(APP_PATH)) log("desktop update: the app is not installed; installing");
-    else if (damaged) bail(`desktop update: the installed app ${installed ? `v${installed} ` : ""}fails its signature or has no readable version; reinstalling`);
+    const damaged =
+      !installed || (!isDesktopAppRunning() && !installedBundleIntact());
+    if (!fs.existsSync(APP_PATH))
+      log("desktop update: the app is not installed; installing");
+    else if (damaged)
+      bail(
+        `desktop update: the installed app ${installed ? `v${installed} ` : ""}fails its signature or has no readable version; reinstalling`,
+      );
     const current = installed ?? "0.0.0";
 
     // Server-pinned floor: when the installed app is below min_desktop_version,
@@ -406,11 +466,15 @@ export async function checkForDesktopUpdate(
     if (!damaged && compareVersions(version, current) <= 0) {
       // Already current — clear any stale per-version attempt bookkeeping.
       const st = readState();
-      if (st.appliedVersion !== installed) writeState({ ...st, appliedVersion: installed });
+      if (st.appliedVersion !== installed)
+        writeState({ ...st, appliedVersion: installed });
       if (wantsReinstall(opts)) {
-        log(`desktop update: already on v${installed} (forcing reinstall of v${version})`);
+        log(
+          `desktop update: already on v${installed} (forcing reinstall of v${version})`,
+        );
       } else {
-        if (force) log(`desktop update: already on v${installed}; nothing to apply`);
+        if (force)
+          log(`desktop update: already on v${installed}; nothing to apply`);
         return false;
       }
     }
@@ -422,13 +486,18 @@ export async function checkForDesktopUpdate(
     // once a good bundle is in hand means a failed download can never leave the
     // user with no app (and then get throttled out of retrying for hours).
     if (!applyWhileRunning && isDesktopAppRunning()) {
-      log(`desktop update: v${version} available (installed v${installed}); deferring — app is running`);
+      log(
+        `desktop update: v${version} available (installed v${installed}); deferring — app is running`,
+      );
       return false;
     }
 
     // Throttle repeated failures for the same target version (skip when forced).
     const state = readState();
-    const retryAfter = state.lastAttemptPid === process.pid ? RETRY_INTERVAL_MS : INTERRUPTED_RETRY_MS;
+    const retryAfter =
+      state.lastAttemptPid === process.pid
+        ? RETRY_INTERVAL_MS
+        : INTERRUPTED_RETRY_MS;
     if (
       !force &&
       state.lastAttemptVersion === version &&
@@ -437,11 +506,18 @@ export async function checkForDesktopUpdate(
     ) {
       if (belowFloor) {
         const ago = Math.round((Date.now() - state.lastAttemptAt) / 60_000);
-        bail(`desktop update: v${installed} is below the floor v${opts.minVersion}; the last attempt at v${version} failed ${ago} min ago, retrying after ${Math.round(retryAfter / 60_000)} min`);
+        bail(
+          `desktop update: v${installed} is below the floor v${opts.minVersion}; the last attempt at v${version} failed ${ago} min ago, retrying after ${Math.round(retryAfter / 60_000)} min`,
+        );
       }
       return false;
     }
-    writeState({ ...state, lastAttemptVersion: version, lastAttemptAt: Date.now(), lastAttemptPid: process.pid });
+    writeState({
+      ...state,
+      lastAttemptVersion: version,
+      lastAttemptAt: Date.now(),
+      lastAttemptPid: process.pid,
+    });
 
     log(`desktop update: installing v${version} (from v${installed})`);
     rmrf(WORK_DIR);
@@ -452,7 +528,20 @@ export async function checkForDesktopUpdate(
     // curl streams to disk and works reliably under launchd. Off the event
     // loop: a synchronous download froze the daemon for minutes, its
     // heartbeats stopped, and the watchdog replaced it mid-install (2026-09-24).
-    await execFileAsync("/usr/bin/curl", ["-fsSL", "--proto", "=https", "--proto-redir", "=https", zipUrl, "-o", zipPath], { timeout: 600000 });
+    await execFileAsync(
+      "/usr/bin/curl",
+      [
+        "-fsSL",
+        "--proto",
+        "=https",
+        "--proto-redir",
+        "=https",
+        zipUrl,
+        "-o",
+        zipPath,
+      ],
+      { timeout: 600000 },
+    );
 
     const got = await sha512Base64(zipPath);
     if (got !== sha512) {
@@ -472,7 +561,11 @@ export async function checkForDesktopUpdate(
       return false;
     }
 
-    const refusal = archiveRefusal(version, plistVersion(path.join(newApp, "Contents", "Info.plist")), installed);
+    const refusal = archiveRefusal(
+      version,
+      plistVersion(path.join(newApp, "Contents", "Info.plist")),
+      installed,
+    );
     if (refusal) {
       bail(`desktop update: ${refusal}; aborting`);
       rmrf(WORK_DIR);
@@ -482,10 +575,15 @@ export async function checkForDesktopUpdate(
       rmrf(WORK_DIR);
       return false;
     }
-    const minimumOs = plistValue(path.join(newApp, "Contents", "Info.plist"), "LSMinimumSystemVersion");
+    const minimumOs = plistValue(
+      path.join(newApp, "Contents", "Info.plist"),
+      "LSMinimumSystemVersion",
+    );
     const currentOs = macosVersion();
     if (!macosMeetsMinimum(currentOs, minimumOs)) {
-      bail(`desktop update: v${version} needs macOS ${minimumOs}; this Mac runs ${currentOs}; keeping v${installed}`);
+      bail(
+        `desktop update: v${version} needs macOS ${minimumOs}; this Mac runs ${currentOs}; keeping v${installed}`,
+      );
       rmrf(WORK_DIR);
       return false;
     }
@@ -499,16 +597,24 @@ export async function checkForDesktopUpdate(
       return false;
     }
 
-    if (!(await waitForAppSwap(APP_PATH))) log("desktop update: the app's own staged bundle never moved; removed it");
+    if (!(await waitForAppSwap(APP_PATH)))
+      log(
+        "desktop update: the app's own staged bundle never moved; removed it",
+      );
     try {
       // The app's quit helper may have installed this very version already.
-      if (plistVersion(APP_PLIST) === version && verifyBundleSignature(APP_PATH, () => {})) {
+      if (
+        plistVersion(APP_PLIST) === version &&
+        verifyBundleSignature(APP_PATH, () => {})
+      ) {
         log(`desktop update: the app installed v${version} itself on quit`);
       } else {
         swapInBundle(newApp, APP_PATH);
       }
     } catch (e) {
-      bail(`desktop update: swap failed: ${e instanceof Error ? e.message : String(e)}`);
+      bail(
+        `desktop update: swap failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
       rmrf(WORK_DIR);
       return false;
     }
@@ -517,9 +623,13 @@ export async function checkForDesktopUpdate(
     // Defensive: clear quarantine so Gatekeeper doesn't block relaunch, and drop
     // any stale Squirrel staged update so autoInstallOnAppQuit can't revert us.
     try {
-      execFileSync("/usr/bin/xattr", ["-dr", "com.apple.quarantine", APP_PATH], {
-        stdio: ["ignore", "ignore", "ignore"],
-      });
+      execFileSync(
+        "/usr/bin/xattr",
+        ["-dr", "com.apple.quarantine", APP_PATH],
+        {
+          stdio: ["ignore", "ignore", "ignore"],
+        },
+      );
     } catch {}
     try {
       rmrf(path.join(SHIPIT_CACHE, "ShipItState.plist"));
@@ -539,7 +649,9 @@ export async function checkForDesktopUpdate(
     // (minVersion, no force) still uses -g so it never steals focus uninvited.
     try {
       const openArgs = force ? [APP_PATH] : ["-g", APP_PATH];
-      execFileSync("/usr/bin/open", openArgs, { stdio: ["ignore", "ignore", "ignore"] });
+      execFileSync("/usr/bin/open", openArgs, {
+        stdio: ["ignore", "ignore", "ignore"],
+      });
     } catch {}
     return true;
   } catch (e) {

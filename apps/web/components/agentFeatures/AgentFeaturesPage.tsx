@@ -66,7 +66,11 @@ function AgentFeaturesContent() {
   const teams = useInboxStore((s) => s.teams);
   const panel = useDeviceSettingsPanel();
   const router = useRouter();
-  const features = useMemo(() => SNIPPET_CATALOG.filter((s) => snippetAvailableForTeams(s.slug, teams)), [teams]);
+  const features = useMemo(
+    () =>
+      SNIPPET_CATALOG.filter((s) => snippetAvailableForTeams(s.slug, teams)),
+    [teams],
+  );
 
   return (
     <div className="h-full overflow-y-auto" data-main-scroll>
@@ -86,8 +90,15 @@ function AgentFeaturesContent() {
           </button>
         </header>
 
-        <DeviceSettingsFrame panel={panel} title="Agent features" icon={Blocks} className="max-w-none space-y-6">
-          {(selected) => <FeatureBoard d={selected} features={features} panel={panel} />}
+        <DeviceSettingsFrame
+          panel={panel}
+          title="Agent features"
+          icon={Blocks}
+          className="max-w-none space-y-6"
+        >
+          {(selected) => (
+            <FeatureBoard d={selected} features={features} panel={panel} />
+          )}
         </DeviceSettingsFrame>
       </div>
     </div>
@@ -96,7 +107,15 @@ function AgentFeaturesContent() {
 
 type Panel = ReturnType<typeof useDeviceSettingsPanel>;
 
-function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDescriptor[]; panel: Panel }) {
+function FeatureBoard({
+  d,
+  features,
+  panel,
+}: {
+  d: Device;
+  features: SnippetDescriptor[];
+  panel: Panel;
+}) {
   const { pending, run, setSnippet } = panel;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -104,13 +123,18 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
   const pathname = usePathname();
   const open = useSearchParams()?.get("feature") ?? null;
   const setOpen = (slug: string | null) =>
-    router.replace(slug ? `${pathname}?feature=${encodeURIComponent(slug)}` : pathname ?? "/agent-features");
+    router.replace(
+      slug
+        ? `${pathname}?feature=${encodeURIComponent(slug)}`
+        : (pathname ?? "/agent-features"),
+    );
 
   const stableMode: StableMode = d.settings?.stable_mode ?? "off";
   // A feature the device's team holds off (Managed devices) reads off and locked.
   const devicePolicy = useDevicePolicy(d);
   const lockOf = (s: SnippetDescriptor) => featureLock(devicePolicy, s.slug);
-  const isOn = (s: SnippetDescriptor) => !lockOf(s) && snippetEnabledOn(d.settings ?? undefined, s);
+  const isOn = (s: SnippetDescriptor) =>
+    !lockOf(s) && snippetEnabledOn(d.settings ?? undefined, s);
   const toggle = (s: SnippetDescriptor, next: boolean) => {
     // A feature with a one-time step on the machine opens on its steps the
     // moment it is switched on, so the next thing to do is in front of you.
@@ -118,32 +142,68 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
     return run(s.slug, () =>
       // Send the pre-rename slug when one exists: old daemons only match their
       // exact slug, new daemons resolve it as an alias.
-      setSnippet({ device_id: d.device_id, snippet: s.wireSlug ?? s.slug, enabled: next }),
+      setSnippet({
+        device_id: d.device_id,
+        snippet: s.wireSlug ?? s.slug,
+        enabled: next,
+      }),
     );
   };
 
   const q = query.trim().toLowerCase();
   const searchText = (slug: string, ...parts: string[]) => {
     const e = FEATURE_EXPLAINERS[slug];
-    return [...parts, slug, e?.pitch ?? "", ...(e?.youSee ?? []), ...(e?.agentsUse ?? [])].join(" ");
+    return [
+      ...parts,
+      slug,
+      e?.pitch ?? "",
+      ...(e?.youSee ?? []),
+      ...(e?.agentsUse ?? []),
+    ].join(" ");
   };
   const matches = (on: boolean, text: string) =>
-    (filter === "all" || (filter === "on") === on) && (!q || text.toLowerCase().includes(q));
+    (filter === "all" || (filter === "on") === on) &&
+    (!q || text.toLowerCase().includes(q));
 
   const groups = SNIPPET_CATEGORIES.map((c) => {
     const all = features.filter((s) => s.category === c.id);
     const shown = all.filter((s) =>
-      matches(isOn(s), searchText(s.slug, s.name, s.aliases?.join(" ") ?? "", s.desc, s.detail)),
+      matches(
+        isOn(s),
+        searchText(
+          s.slug,
+          s.name,
+          s.aliases?.join(" ") ?? "",
+          s.desc,
+          s.detail,
+        ),
+      ),
     );
     const withStable = c.id === "context";
-    const stableShown = withStable && matches(stableMode !== "off", searchText(STABLE_KEY, STABLE_NAME, "session history"));
-    const onCount = all.filter(isOn).length + (withStable && stableMode !== "off" ? 1 : 0);
-    return { ...c, all, shown, stableShown, total: all.length + (withStable ? 1 : 0), onCount };
+    const stableShown =
+      withStable &&
+      matches(
+        stableMode !== "off",
+        searchText(STABLE_KEY, STABLE_NAME, "session history"),
+      );
+    const onCount =
+      all.filter(isOn).length + (withStable && stableMode !== "off" ? 1 : 0);
+    return {
+      ...c,
+      all,
+      shown,
+      stableShown,
+      total: all.length + (withStable ? 1 : 0),
+      onCount,
+    };
   });
   const totalOn = groups.reduce((n, g) => n + g.onCount, 0);
   const total = groups.reduce((n, g) => n + g.total, 0);
   const visible = groups.filter((g) => g.shown.length > 0 || g.stableShown);
-  const openFeature = open && open !== STABLE_KEY ? features.find((s) => s.slug === open) ?? null : null;
+  const openFeature =
+    open && open !== STABLE_KEY
+      ? (features.find((s) => s.slug === open) ?? null)
+      : null;
 
   return (
     <>
@@ -175,8 +235,16 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
         />
         <div className="flex-1" />
         <span className="text-xs text-sol-text-muted">
-          <span className="font-medium text-sol-text">{totalOn}</span> of {total} on {deviceDisplayName(d)}
-          {!d.online && <span className="ml-2 rounded bg-sol-yellow/10 px-1.5 py-0.5 text-sol-yellow" title="Its switches come back when it reconnects">Offline</span>}
+          <span className="font-medium text-sol-text">{totalOn}</span> of{" "}
+          {total} on {deviceDisplayName(d)}
+          {!d.online && (
+            <span
+              className="ml-2 rounded bg-sol-yellow/10 px-1.5 py-0.5 text-sol-yellow"
+              title="Its switches come back when it reconnects"
+            >
+              Offline
+            </span>
+          )}
         </span>
       </div>
 
@@ -187,10 +255,16 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
               <button
                 key={g.id}
                 type="button"
-                onClick={() => document.getElementById(`af-${g.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={() =>
+                  document
+                    .getElementById(`af-${g.id}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
                 className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] text-sol-text-secondary transition-colors hover:bg-sol-bg-highlight/50 hover:text-sol-text ${modernMenuRow({}, "modern:text-sol-text")}`}
               >
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE[g.id].dot}`} />
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE[g.id].dot}`}
+                />
                 <span className="flex-1">{g.name}</span>
                 <span className="font-mono text-meta text-sol-text-dim">
                   {g.onCount}/{g.total}
@@ -213,16 +287,28 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
                         {g.onCount} of {g.total} on
                       </span>
                     </h2>
-                    <p className="mt-1 text-[13px] leading-relaxed text-sol-text-muted">{g.blurb}</p>
+                    <p className="mt-1 text-[13px] leading-relaxed text-sol-text-muted">
+                      {g.blurb}
+                    </p>
                   </div>
                   {off.length > 1 && d.online && (
                     <ConsequentialSwitch
                       on={false}
-                      ledger={featuresAllLedger({ group: g.name, machine: deviceDisplayName(d), names: off.map((s) => s.name) })}
+                      ledger={featuresAllLedger({
+                        group: g.name,
+                        machine: deviceDisplayName(d),
+                        names: off.map((s) => s.name),
+                      })}
                       onTurnOn={() => off.forEach((s) => toggle(s, true))}
                       onTurnOff={() => {}}
                       trigger={({ press }) => (
-                        <button type="button" onClick={press} aria-haspopup="dialog" className="text-xs text-sol-text-muted hover:text-sol-text" data-features-all={g.id}>
+                        <button
+                          type="button"
+                          onClick={press}
+                          aria-haspopup="dialog"
+                          className="text-xs text-sol-text-muted hover:text-sol-text"
+                          data-features-all={g.id}
+                        >
                           Review all {off.length}
                         </button>
                       )}
@@ -230,7 +316,13 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
                   )}
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-                  {g.stableShown && <StableCard d={d} panel={panel} onOpen={() => setOpen(STABLE_KEY)} />}
+                  {g.stableShown && (
+                    <StableCard
+                      d={d}
+                      panel={panel}
+                      onOpen={() => setOpen(STABLE_KEY)}
+                    />
+                  )}
                   {g.shown.map((s) => (
                     <FeatureCard
                       key={s.slug}
@@ -259,11 +351,24 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
       </div>
 
       <FeatureDialog
-        slug={openFeature ? openFeature.slug : open === STABLE_KEY ? STABLE_KEY : null}
+        slug={
+          openFeature
+            ? openFeature.slug
+            : open === STABLE_KEY
+              ? STABLE_KEY
+              : null
+        }
         feature={openFeature}
         setup={
-          openFeature && isAgentSetupTool(openFeature.slug) && isOn(openFeature) && d.online ? (
-            <AgentToolSetupPanel tool={openFeature.slug} target={{ deviceId: d.device_id }} machineName={deviceDisplayName(d)} />
+          openFeature &&
+          isAgentSetupTool(openFeature.slug) &&
+          isOn(openFeature) &&
+          d.online ? (
+            <AgentToolSetupPanel
+              tool={openFeature.slug}
+              target={{ deviceId: d.device_id }}
+              machineName={deviceDisplayName(d)}
+            />
           ) : null
         }
         onClose={() => setOpen(null)}
@@ -275,7 +380,11 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
                 s={openFeature}
                 machine={deviceDisplayName(d)}
                 on={isOn(openFeature)}
-                disabled={!d.online || pending.has(openFeature.slug) || !!lockOf(openFeature)}
+                disabled={
+                  !d.online ||
+                  pending.has(openFeature.slug) ||
+                  !!lockOf(openFeature)
+                }
                 onToggle={(next) => toggle(openFeature, next)}
               />
             </label>
@@ -289,7 +398,19 @@ function FeatureBoard({ d, features, panel }: { d: Device; features: SnippetDesc
 }
 
 /** A feature's switch. On goes through the shared review (it hands this machine's agents a capability); off is one press. */
-function FeatureSwitch({ s, machine, on, disabled, onToggle }: { s: SnippetDescriptor; machine: string; on: boolean; disabled: boolean; onToggle: (next: boolean) => void }) {
+function FeatureSwitch({
+  s,
+  machine,
+  on,
+  disabled,
+  onToggle,
+}: {
+  s: SnippetDescriptor;
+  machine: string;
+  on: boolean;
+  disabled: boolean;
+  onToggle: (next: boolean) => void;
+}) {
   const name = s.name;
   return (
     <ConsequentialSwitch
@@ -297,7 +418,15 @@ function FeatureSwitch({ s, machine, on, disabled, onToggle }: { s: SnippetDescr
       ledger={featureOnLedger(s, [machine])}
       onTurnOn={() => onToggle(true)}
       onTurnOff={() => onToggle(false)}
-      trigger={({ on, press }) => <Switch checked={on} disabled={disabled} onCheckedChange={press} aria-label={name} aria-haspopup={on ? undefined : "dialog"} />}
+      trigger={({ on, press }) => (
+        <Switch
+          checked={on}
+          disabled={disabled}
+          onCheckedChange={press}
+          aria-label={name}
+          aria-haspopup={on ? undefined : "dialog"}
+        />
+      )}
     />
   );
 }
@@ -329,7 +458,10 @@ function CardShell({
       data-feature-card={slug}
       onClick={onOpen}
       onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+        if (
+          (e.key === "Enter" || e.key === " ") &&
+          e.target === e.currentTarget
+        ) {
           e.preventDefault();
           onOpen();
         }
@@ -338,31 +470,52 @@ function CardShell({
         on ? `${tone.on} bg-sol-bg-alt/40` : "border-sol-border/70 bg-sol-bg"
       }`}
     >
-      <FeatureVignette slug={slug} className="h-[132px] rounded-none border-0 border-b border-sol-border/50" />
+      <FeatureVignette
+        slug={slug}
+        className="h-[132px] rounded-none border-0 border-b border-sol-border/50"
+      />
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-center gap-2.5">
-          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tone.tile}`}>
+          <div
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tone.tile}`}
+          >
             <Icon className="h-4 w-4" strokeWidth={1.75} />
           </div>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">{title}</div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            {title}
+          </div>
           {control && (
             <div onClick={(e) => e.stopPropagation()} className="shrink-0">
               {control}
             </div>
           )}
         </div>
-        <p className="mt-3 text-[13px] leading-relaxed text-sol-text">{FEATURE_EXPLAINERS[slug]?.pitch}</p>
+        <p className="mt-3 text-[13px] leading-relaxed text-sol-text">
+          {FEATURE_EXPLAINERS[slug]?.pitch}
+        </p>
         <div className="mt-auto pt-3">{footer}</div>
       </div>
     </div>
   );
 }
 
-function CardFooter({ left, mono = true }: { left: React.ReactNode; mono?: boolean }) {
+function CardFooter({
+  left,
+  mono = true,
+}: {
+  left: React.ReactNode;
+  mono?: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-meta">
-      <span className={`text-meta text-sol-text-dim ${mono ? "font-mono" : ""}`}>{left}</span>
-      <span className="text-sol-text-muted group-hover:text-sol-text">How it works →</span>
+      <span
+        className={`text-meta text-sol-text-dim ${mono ? "font-mono" : ""}`}
+      >
+        {left}
+      </span>
+      <span className="text-sol-text-muted group-hover:text-sol-text">
+        How it works →
+      </span>
     </div>
   );
 }
@@ -396,13 +549,30 @@ function FeatureCard({
           {isRecentlyShipped(s) && <NewPill />}
         </>
       }
-      control={<FeatureSwitch s={s} machine={deviceDisplayName(d)} on={on} disabled={disabled} onToggle={onToggle} />}
+      control={
+        <FeatureSwitch
+          s={s}
+          machine={deviceDisplayName(d)}
+          on={on}
+          disabled={disabled}
+          onToggle={onToggle}
+        />
+      }
       footer={
-        lock
-          ? <CardFooter mono={false} left={<span className="inline-flex items-center gap-1 text-sol-text-muted"><Lock className="h-3 w-3" /> {lock}</span>} />
-          : isAgentSetupTool(s.slug) && on && d.online
-            ? <SetupFooter tool={s.slug} d={d} />
-            : <CardFooter left={null} />
+        lock ? (
+          <CardFooter
+            mono={false}
+            left={
+              <span className="inline-flex items-center gap-1 text-sol-text-muted">
+                <Lock className="h-3 w-3" /> {lock}
+              </span>
+            }
+          />
+        ) : isAgentSetupTool(s.slug) && on && d.online ? (
+          <SetupFooter tool={s.slug} d={d} />
+        ) : (
+          <CardFooter left={null} />
+        )
       }
     />
   );
@@ -421,7 +591,8 @@ function SetupFooter({ tool, d }: { tool: AgentSetupTool; d: Device }) {
         mono={false}
         left={
           <span className="inline-flex items-center gap-1 text-sol-green">
-            <Check className="h-3 w-3" strokeWidth={2.5} /> {tool === "browser" ? "Chrome connected" : "Permissions granted"}
+            <Check className="h-3 w-3" strokeWidth={2.5} />{" "}
+            {tool === "browser" ? "Chrome connected" : "Permissions granted"}
           </span>
         }
       />
@@ -429,7 +600,12 @@ function SetupFooter({ tool, d }: { tool: AgentSetupTool; d: Device }) {
   }
   return (
     <div className="space-y-2 border-t border-sol-yellow/25 pt-3">
-      <AgentToolSetupPanel tool={tool} target={{ deviceId: d.device_id }} machineName={deviceDisplayName(d)} compact />
+      <AgentToolSetupPanel
+        tool={tool}
+        target={{ deviceId: d.device_id }}
+        machineName={deviceDisplayName(d)}
+        compact
+      />
     </div>
   );
 }
@@ -456,14 +632,23 @@ function useStable(d: Device, panel: Panel) {
 function StableControls({ d, panel }: { d: Device; panel: Panel }) {
   const { mode, global, disabled, apply } = useStable(d, panel);
   return (
-    <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-3">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="flex flex-wrap items-center gap-3"
+    >
       <SegmentedToggle
         size="sm"
         value={mode}
         onChange={(v) => !disabled && apply(v as StableMode, global)}
-        items={STABLE_MODES.map((m) => ({ key: m.value, label: m.name, title: m.desc }))}
+        items={STABLE_MODES.map((m) => ({
+          key: m.value,
+          label: m.name,
+          title: m.desc,
+        }))}
       />
-      <label className={`flex items-center gap-2 text-meta text-sol-text-muted ${mode === "off" ? "opacity-55" : ""}`}>
+      <label
+        className={`flex items-center gap-2 text-meta text-sol-text-muted ${mode === "off" ? "opacity-55" : ""}`}
+      >
         All projects
         <Switch
           checked={global}
@@ -476,7 +661,15 @@ function StableControls({ d, panel }: { d: Device; panel: Panel }) {
   );
 }
 
-function StableCard({ d, panel, onOpen }: { d: Device; panel: Panel; onOpen: () => void }) {
+function StableCard({
+  d,
+  panel,
+  onOpen,
+}: {
+  d: Device;
+  panel: Panel;
+  onOpen: () => void;
+}) {
   const { mode } = useStable(d, panel);
   return (
     <CardShell
@@ -485,13 +678,18 @@ function StableCard({ d, panel, onOpen }: { d: Device; panel: Panel; onOpen: () 
       onOpen={onOpen}
       title={
         <>
-          <span className="text-sm font-medium text-sol-text">{STABLE_NAME}</span>
+          <span className="text-sm font-medium text-sol-text">
+            {STABLE_NAME}
+          </span>
         </>
       }
       footer={
         <div className="space-y-3">
           <StableControls d={d} panel={panel} />
-          <CardFooter mono={false} left={STABLE_MODES.find((m) => m.value === mode)?.desc ?? ""} />
+          <CardFooter
+            mono={false}
+            left={STABLE_MODES.find((m) => m.value === mode)?.desc ?? ""}
+          />
         </div>
       }
     />

@@ -24,11 +24,27 @@
 // closeHost promotes the first follower the way a released lock would) and
 // the follower's solo fallback after 8s without a host.
 
-import type { ReplicationChannel, ReplicationFollower, ReplicationHost, ReplicationMessage } from "@platform/engine";
+import type {
+  ReplicationChannel,
+  ReplicationFollower,
+  ReplicationHost,
+  ReplicationMessage,
+} from "@platform/engine";
 import { setGestureChannelFactory } from "../../gestureBridge";
-import { followerActionTee, promoteToHost, replicationFollowerFor, replicationHostFor, setFollowerTee } from "../../syncReplication";
+import {
+  followerActionTee,
+  promoteToHost,
+  replicationFollowerFor,
+  replicationHostFor,
+  setFollowerTee,
+} from "../../syncReplication";
 import { activeWindow, type RealmWindow } from "./realm";
-import { SimWindow, type BootScope, type SimPrincipal, type SimWindowWorld } from "./window";
+import {
+  SimWindow,
+  type BootScope,
+  type SimPrincipal,
+  type SimWindowWorld,
+} from "./window";
 
 type Handler = (event: { data: unknown }) => void;
 type BridgeSub = { channel: object; name: string; handler: Handler };
@@ -63,7 +79,10 @@ export class SimDevice {
   readonly windows: SimWindow[] = [];
   private hostRuntime: ReplicationHost | null = null;
   private readonly followerRuntimes = new Map<SimWindow, ReplicationFollower>();
-  private readonly replSubs = new Map<SimWindow, Set<(msg: ReplicationMessage) => void>>();
+  private readonly replSubs = new Map<
+    SimWindow,
+    Set<(msg: ReplicationMessage) => void>
+  >();
   private readonly bridgeSubs = new Map<SimWindow, BridgeSub[]>();
   private windowCount = 0;
 
@@ -72,7 +91,10 @@ export class SimDevice {
     readonly user: SimPrincipal,
     readonly name: string,
   ) {
-    if (name.includes(":") || /\s/.test(name)) throw new Error(`sim device: name "${name}" may not hold ':' or whitespace (it names net channels)`);
+    if (name.includes(":") || /\s/.test(name))
+      throw new Error(
+        `sim device: name "${name}" may not hold ':' or whitespace (it names net channels)`,
+      );
     setGestureChannelFactory(simGestureChannel);
   }
 
@@ -88,17 +110,31 @@ export class SimDevice {
   }
 
   /** A host window, then `followers` follower windows, each booted and drained. */
-  async start(opts: { followers?: number; scope?: BootScope } = {}): Promise<this> {
+  async start(
+    opts: { followers?: number; scope?: BootScope } = {},
+  ): Promise<this> {
     await this.addWindow("host", { scope: opts.scope });
-    for (let i = 0; i < (opts.followers ?? 0); i++) await this.addWindow("follower", { scope: opts.scope });
+    for (let i = 0; i < (opts.followers ?? 0); i++)
+      await this.addWindow("follower", { scope: opts.scope });
     return this;
   }
 
   /** Open a window on this device. The first one must be the host. Default names: `<device>-host`, `<device>-w<n>`. */
-  async addWindow(role: "host" | "follower", opts: { scope?: BootScope; name?: string } = {}): Promise<SimWindow> {
-    if (role === "host" && this.windows.some((w) => w.role === "host")) throw new Error(`sim device ${this.name}: already has a host`);
-    if (role === "follower" && !this.windows.some((w) => w.role === "host")) throw new Error(`sim device ${this.name}: a follower needs a host to join`);
-    const name = opts.name ?? (role === "host" ? `${this.name}-host` : `${this.name}-w${++this.windowCount}`);
+  async addWindow(
+    role: "host" | "follower",
+    opts: { scope?: BootScope; name?: string } = {},
+  ): Promise<SimWindow> {
+    if (role === "host" && this.windows.some((w) => w.role === "host"))
+      throw new Error(`sim device ${this.name}: already has a host`);
+    if (role === "follower" && !this.windows.some((w) => w.role === "host"))
+      throw new Error(
+        `sim device ${this.name}: a follower needs a host to join`,
+      );
+    const name =
+      opts.name ??
+      (role === "host"
+        ? `${this.name}-host`
+        : `${this.name}-w${++this.windowCount}`);
     const w = new SimWindow(this.world, this.user, this, role, name);
     deviceOf.set(w, this);
     this.windows.push(w);
@@ -118,7 +154,8 @@ export class SimDevice {
 
   /** The host window's write tee: every store write's patches, broadcast through the runtime. */
   hostTee(w: SimWindow, patches: readonly any[], state: any): void {
-    if (this.windows.includes(w) && w.role === "host") this.hostRuntime?.tee(patches as any, state);
+    if (this.windows.includes(w) && w.role === "host")
+      this.hostRuntime?.tee(patches as any, state);
   }
 
   /**
@@ -136,7 +173,10 @@ export class SimDevice {
     if (next) {
       await next.run(() => {
         next.role = "host";
-        this.hostRuntime = promoteToHost(this.followerRuntimes.get(next) ?? null, () => this.hostRuntimeFor(next));
+        this.hostRuntime = promoteToHost(
+          this.followerRuntimes.get(next) ?? null,
+          () => this.hostRuntimeFor(next),
+        );
         this.followerRuntimes.delete(next);
         next.startHost();
       });
@@ -147,7 +187,10 @@ export class SimDevice {
 
   /** Close one follower window. */
   closeWindow(w: SimWindow): void {
-    if (w.role === "host") throw new Error(`sim device ${this.name}: close the host with closeHost()`);
+    if (w.role === "host")
+      throw new Error(
+        `sim device ${this.name}: close the host with closeHost()`,
+      );
     this.followerRuntimes.get(w)?.stop();
     this.followerRuntimes.delete(w);
     this.retire(w);
@@ -169,7 +212,11 @@ export class SimDevice {
     this.followerRuntimes.set(
       w,
       replicationFollowerFor(w.name, channel, (synced) => {
-        if (synced) setFollowerTee(w.store.getState(), followerActionTee(channel, w.name));
+        if (synced)
+          setFollowerTee(
+            w.store.getState(),
+            followerActionTee(channel, w.name),
+          );
       }),
     );
   }
@@ -235,13 +282,19 @@ export class SimDevice {
       postMessage: (data: unknown) => {
         const copy = structuredClone(data);
         for (const to of this.windows) {
-          if (to === w || !this.bridgeSubs.get(to)?.some((s) => s.name === name)) continue;
+          if (
+            to === w ||
+            !this.bridgeSubs.get(to)?.some((s) => s.name === name)
+          )
+            continue;
           this.world.net.enqueue(`bridge:${this.name}:${w.name}`, {
             label: `gesture ${(copy as any)?.kind ?? "?"} to ${to.name}`,
             producer: `${w.name} gesture`,
             run: () => {
               if (to.closed) return;
-              const handlers = (this.bridgeSubs.get(to) ?? []).filter((s) => s.name === name).map((s) => s.handler);
+              const handlers = (this.bridgeSubs.get(to) ?? [])
+                .filter((s) => s.name === name)
+                .map((s) => s.handler);
               if (!handlers.length) return;
               return to.run(() => {
                 for (const h of handlers) h({ data: copy });
@@ -254,7 +307,8 @@ export class SimDevice {
         if (type === "message") subsOf(w).push({ channel, name, handler });
       },
       removeEventListener: (type: string, handler: Handler) => {
-        if (type === "message") drop((s) => s.channel !== channel || s.handler !== handler);
+        if (type === "message")
+          drop((s) => s.channel !== channel || s.handler !== handler);
       },
       close: () => drop((s) => s.channel !== channel),
     });

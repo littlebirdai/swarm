@@ -22,8 +22,15 @@
 //   The ground contrasts with the figure. Eleven grounds rotate through the
 //     set and also tell two similar silhouettes apart in a list.
 
-import { defaultAvatarFor, isAvatarKey } from "@codecast/shared/contracts/orgAvatars";
-import { AVATAR_URLS, AVATAR_LABELS, avatarLength } from "../../../lib/orgAvatars";
+import {
+  defaultAvatarFor,
+  isAvatarKey,
+} from "@codecast/shared/contracts/orgAvatars";
+import {
+  AVATAR_URLS,
+  AVATAR_LABELS,
+  avatarLength,
+} from "../../../lib/orgAvatars";
 
 /**
  * A role's face at `size` px. `avatar` takes whatever a role row carries: a
@@ -31,14 +38,36 @@ import { AVATAR_URLS, AVATAR_LABELS, avatarLength } from "../../../lib/orgAvatar
  * newer build) draws the stable default for that string, so every role has a
  * face without anyone choosing one.
  */
-export function RoleAvatar({ avatar, size = 20, className, title }: { avatar: string; size?: number | string; className?: string; title?: string }) {
+export function RoleAvatar({
+  avatar,
+  size = 20,
+  className,
+  title,
+}: {
+  avatar: string;
+  size?: number | string;
+  className?: string;
+  title?: string;
+}) {
   const key = isAvatarKey(avatar) ? avatar : defaultAvatarFor(avatar);
   return (
     <span
       className={className}
-      style={{ width: avatarLength(size), height: avatarLength(size), display: "inline-block", flexShrink: 0, borderRadius: "9999px", overflow: "hidden" }}
+      style={{
+        width: avatarLength(size),
+        height: avatarLength(size),
+        display: "inline-block",
+        flexShrink: 0,
+        borderRadius: "9999px",
+        overflow: "hidden",
+      }}
     >
-      <img src={AVATAR_URLS[key]} alt={title ?? AVATAR_LABELS[key]} data-avatar={key} style={{ width: "100%", height: "100%", display: "block" }} />
+      <img
+        src={AVATAR_URLS[key]}
+        alt={title ?? AVATAR_LABELS[key]}
+        data-avatar={key}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      />
     </span>
   );
 }

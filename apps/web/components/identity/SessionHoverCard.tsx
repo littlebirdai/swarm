@@ -8,33 +8,65 @@ import { SessionHoverContent } from "../SessionHoverContent";
 import { HoverCard } from "../ui/HoverCard";
 import { SessionFace } from "./SessionFace";
 import { RoleFace } from "../org/RoleFace";
-import { PERSONIFY_ALL_PREFS, sessionIdentity, type IdentityRow } from "../../lib/sessionIdentity";
+import {
+  PERSONIFY_ALL_PREFS,
+  sessionIdentity,
+  type IdentityRow,
+} from "../../lib/sessionIdentity";
 import { useLiveIdentityRow } from "../../hooks/useLiveIdentityRow";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
 
 type HoverRow = IdentityRow & Record<string, any>;
 
-export function SessionIdentityHeader({ row: rawRow, size = 36 }: { row: HoverRow; size?: number }) {
+export function SessionIdentityHeader({
+  row: rawRow,
+  size = 36,
+}: {
+  row: HoverRow;
+  size?: number;
+}) {
   // Resolved as personified: this header sits under a face (the card opens
   // off one, the picker previews one), so it names the character that face
   // belongs to even when the row itself has not opted in. With characters
   // off there is no face but a role's: a plain row's header is its title.
   const row = useLiveIdentityRow(rawRow);
   const prefs = useIdentityPrefs();
-  const id = sessionIdentity(row, prefs.characters ? PERSONIFY_ALL_PREFS : prefs);
+  const id = sessionIdentity(
+    row,
+    prefs.characters ? PERSONIFY_ALL_PREFS : prefs,
+  );
   const title = (row.title ?? "").trim();
-  if (id.kind === "plain") return title ? <div className="text-xs font-medium text-sol-text line-clamp-2">{title}</div> : null;
+  if (id.kind === "plain")
+    return title ? (
+      <div className="text-xs font-medium text-sol-text line-clamp-2">
+        {title}
+      </div>
+    ) : null;
   const showTitle = title && !(id.kind === "role" && title === id.name);
   return (
     <div className="flex items-start gap-2.5">
       <SessionFace row={row} size={size} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5 min-w-0">
-          <span className="text-xs font-medium text-sol-text truncate">{id.name}</span>
-          {id.kind === "role" && <span className="font-mono text-meta text-sol-text-dim flex-shrink-0">@{id.handle}</span>}
-          {id.kind === "character" && !id.chosen && <span className="text-meta text-sol-text-dim flex-shrink-0">default</span>}
+          <span className="text-xs font-medium text-sol-text truncate">
+            {id.name}
+          </span>
+          {id.kind === "role" && (
+            <span className="font-mono text-meta text-sol-text-dim flex-shrink-0">
+              @{id.handle}
+            </span>
+          )}
+          {id.kind === "character" && !id.chosen && (
+            <span className="text-meta text-sol-text-dim flex-shrink-0">
+              default
+            </span>
+          )}
         </div>
-        {showTitle && <div className="text-meta text-sol-text-secondary leading-snug line-clamp-2">{title}</div>}
+        {showTitle && (
+          <div className="text-meta text-sol-text-secondary leading-snug line-clamp-2">
+            {title}
+          </div>
+        )}
         {id.kind === "character" && id.reportsTo && (
           <div className="mt-1 flex items-center gap-1 text-meta text-sol-text-dim">
             reports to
@@ -56,9 +88,30 @@ export function SessionHoverCardContent({ row }: { row: HoverRow }) {
   );
 }
 
-export function SessionHoverCard({ row, children, side, align, disabled, triggerClassName }: { row: HoverRow; children: React.ReactNode; side?: "top" | "bottom" | "left" | "right"; align?: "start" | "center" | "end"; disabled?: boolean; triggerClassName?: string }) {
+export function SessionHoverCard({
+  row,
+  children,
+  side,
+  align,
+  disabled,
+  triggerClassName,
+}: {
+  row: HoverRow;
+  children: React.ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  disabled?: boolean;
+  triggerClassName?: string;
+}) {
   return (
-    <HoverCard card={<SessionHoverCardContent row={row} />} side={side} align={align} disabled={disabled} className="w-80" triggerClassName={triggerClassName}>
+    <HoverCard
+      card={<SessionHoverCardContent row={row} />}
+      side={side}
+      align={align}
+      disabled={disabled}
+      className="w-80"
+      triggerClassName={triggerClassName}
+    >
       {children}
     </HoverCard>
   );

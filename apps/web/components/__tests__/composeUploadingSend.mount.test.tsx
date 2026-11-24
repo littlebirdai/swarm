@@ -2,12 +2,26 @@ import { dom, w, restoreGlobals } from "./fixtures/composeDom";
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 
 const toasts: string[] = [];
-const record = (kind: string) => (msg: any) => { toasts.push(`${kind}:${String(msg)}`); return 1; };
+const record = (kind: string) => (msg: any) => {
+  toasts.push(`${kind}:${String(msg)}`);
+  return 1;
+};
 mock.module("sonner", () => ({
-  toast: Object.assign(record("toast"), { error: record("error"), info: record("info"), success: record("success"), warning: record("warning"), dismiss: () => {}, loading: record("loading"), custom: record("custom"), promise: (p: any) => p }),
+  toast: Object.assign(record("toast"), {
+    error: record("error"),
+    info: record("info"),
+    success: record("success"),
+    warning: record("warning"),
+    dismiss: () => {},
+    loading: record("loading"),
+    custom: record("custom"),
+    promise: (p: any) => p,
+  }),
   Toaster: () => null,
 }));
-process.on("unhandledRejection", (err) => { console.log("UNHANDLED", err); });
+process.on("unhandledRejection", (err) => {
+  console.log("UNHANDLED", err);
+});
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ConvexProvider } from "convex/react";
@@ -33,11 +47,17 @@ const STORAGE_ID = "kg2composeupload";
 type Deferred<T> = { promise: Promise<T>; resolve: (v: T) => void };
 function deferred<T>(): Deferred<T> {
   let resolve!: (v: T) => void;
-  const promise = new Promise<T>((r) => { resolve = r; });
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
   return { promise, resolve };
 }
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-const flush = async (ms = 20) => { await act(async () => { await tick(ms); }); };
+const flush = async (ms = 20) => {
+  await act(async () => {
+    await tick(ms);
+  });
+};
 /**
  * Flush until a condition holds, rather than for a fixed span. The rekey and
  * the upload settle on their own promises, so a runner slower than this laptop
@@ -68,22 +88,39 @@ function fakeConvex(uploadGate: Deferred<void>, failFirst = 0) {
     const url = typeof input === "string" ? input : input?.url;
     if (url === "https://upload.test/storage") {
       await uploadGate.promise;
-      if (failuresLeft > 0) { failuresLeft--; return { ok: false, status: 503, json: async () => ({}) } as any; }
-      return { ok: true, status: 200, json: async () => ({ storageId: STORAGE_ID }) } as any;
+      if (failuresLeft > 0) {
+        failuresLeft--;
+        return { ok: false, status: 503, json: async () => ({}) } as any;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ storageId: STORAGE_ID }),
+      } as any;
     }
     return realFetch(input, init);
   }) as any;
-  return { client, restore: () => { globalThis.fetch = realFetch; } };
+  return {
+    client,
+    restore: () => {
+      globalThis.fetch = realFetch;
+    },
+  };
 }
 
 type DispatchCall = { action: string; args: any[] };
 function fakeDispatch(createGate: Deferred<void>) {
   const calls: DispatchCall[] = [];
-  (useInboxStore.getState() as any)._setDispatch(async (action: string, args: any[]) => {
-    calls.push({ action, args });
-    if (action === "createSession") { await createGate.promise; return REAL_ID; }
-    return undefined;
-  });
+  (useInboxStore.getState() as any)._setDispatch(
+    async (action: string, args: any[]) => {
+      calls.push({ action, args });
+      if (action === "createSession") {
+        await createGate.promise;
+        return REAL_ID;
+      }
+      return undefined;
+    },
+  );
   return calls;
 }
 
@@ -91,11 +128,18 @@ function fakeDispatch(createGate: Deferred<void>) {
 // at load time whether native input events exist, and under jsdom it can pick
 // the legacy polling path where a dispatched `input` never reaches onChange.
 function setNativeValue(el: HTMLTextAreaElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, "value")!.set!;
+  const setter = Object.getOwnPropertyDescriptor(
+    w.HTMLTextAreaElement.prototype,
+    "value",
+  )!.set!;
   setter.call(el, value);
   const propsKey = Object.keys(el).find((k) => k.startsWith("__reactProps"));
   const props = propsKey ? (el as any)[propsKey] : null;
-  props?.onChange?.({ target: el, currentTarget: el, nativeEvent: new w.Event("input") });
+  props?.onChange?.({
+    target: el,
+    currentTarget: el,
+    nativeEvent: new w.Event("input"),
+  });
 }
 
 beforeEach(() => {
@@ -111,10 +155,16 @@ beforeEach(() => {
   } as any);
 });
 
-async function runScenario(order: "create-first" | "upload-first", opts: { failUploadsFirst?: number } = {}) {
+async function runScenario(
+  order: "create-first" | "upload-first",
+  opts: { failUploadsFirst?: number } = {},
+) {
   const uploadGate = deferred<void>();
   const createGate = deferred<void>();
-  const { client, restore } = fakeConvex(uploadGate, opts.failUploadsFirst ?? 0);
+  const { client, restore } = fakeConvex(
+    uploadGate,
+    opts.failUploadsFirst ?? 0,
+  );
   const calls = fakeDispatch(createGate);
   const { MessageInput } = await import("../MessageInput");
 
@@ -126,10 +176,17 @@ async function runScenario(order: "create-first" | "upload-first", opts: { failU
     projectPath: "/Users/me/proj",
     gitRoot: "/Users/me/proj",
     deferCreate: true,
-    create: (id) => store.createSessionFromStub(id, { agentType: "claude_code", projectPath: "/Users/me/proj", gitRoot: "/Users/me/proj" }),
+    create: (id) =>
+      store.createSessionFromStub(id, {
+        agentType: "claude_code",
+        projectPath: "/Users/me/proj",
+        gitRoot: "/Users/me/proj",
+      }),
   });
 
-  const dropFilesRef: { current: ((files: File[]) => void) | null } = { current: null };
+  const dropFilesRef: { current: ((files: File[]) => void) | null } = {
+    current: null,
+  };
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -140,31 +197,45 @@ async function runScenario(order: "create-first" | "upload-first", opts: { failU
     void materialize();
     root.unmount();
   };
-  await act(() => root.render(
-    <ConvexProvider client={client}>
-      <MessageInput
-        conversationId={stubId}
-        status="active"
-        embedded
-        autoFocusInput
-        onDropFiles={dropFilesRef as any}
-        onSubmitWithIntent={onSubmitWithIntent}
-      />
-    </ConvexProvider>,
-  ));
+  await act(() =>
+    root.render(
+      <ConvexProvider client={client}>
+        <MessageInput
+          conversationId={stubId}
+          status="active"
+          embedded
+          autoFocusInput
+          onDropFiles={dropFilesRef as any}
+          onSubmitWithIntent={onSubmitWithIntent}
+        />
+      </ConvexProvider>,
+    ),
+  );
   const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
   expect(textarea).toBeTruthy();
   expect(dropFilesRef.current).toBeTruthy();
 
   // Paste an image (the drop zone hands files to the same uploadImage), type,
   // and hit Enter while the storage POST is still in flight.
-  const file = new File([new Uint8Array(64)], "shot.png", { type: "image/png" });
-  await act(() => { dropFilesRef.current!([file]); });
-  await flush();
-  await act(() => { setNativeValue(textarea, textarea.value + "look at this"); });
+  const file = new File([new Uint8Array(64)], "shot.png", {
+    type: "image/png",
+  });
+  await act(() => {
+    dropFilesRef.current!([file]);
+  });
   await flush();
   await act(() => {
-    textarea.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    setNativeValue(textarea, textarea.value + "look at this");
+  });
+  await flush();
+  await act(() => {
+    textarea.dispatchEvent(
+      new w.KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
   });
   expect(submitted).toBe(false);
 
@@ -173,9 +244,17 @@ async function runScenario(order: "create-first" | "upload-first", opts: { failU
   if (pendingRows.length !== 1) {
     const st = useInboxStore.getState();
     console.log("DEBUG pendingMessages", JSON.stringify(st.pendingMessages));
-    console.log("DEBUG calls", JSON.stringify(calls.map((c) => [c.action, c.args?.[0]])));
+    console.log(
+      "DEBUG calls",
+      JSON.stringify(calls.map((c) => [c.action, c.args?.[0]])),
+    );
     console.log("DEBUG drafts", JSON.stringify(st.drafts));
-    console.log("DEBUG textarea", JSON.stringify(textarea.value), "pendingUploads", [...pendingImageUploads.keys()]);
+    console.log(
+      "DEBUG textarea",
+      JSON.stringify(textarea.value),
+      "pendingUploads",
+      [...pendingImageUploads.keys()],
+    );
     console.log("DEBUG sessions", Object.keys(st.sessions));
     console.log("DEBUG toasts", JSON.stringify(toasts));
   }
@@ -189,20 +268,35 @@ async function runScenario(order: "create-first" | "upload-first", opts: { failU
 
   if (order === "create-first") {
     createGate.resolve();
-    await flushUntil(() => !!useInboxStore.getState().pendingMessages[REAL_ID]?.[0]);
+    await flushUntil(
+      () => !!useInboxStore.getState().pendingMessages[REAL_ID]?.[0],
+    );
     // Rekeyed to the real id, still unsent (image still uploading).
-    expect(useInboxStore.getState().pendingMessages[REAL_ID]?.[0]?.images?.[0]).toMatchObject({ uploading: true });
+    expect(
+      useInboxStore.getState().pendingMessages[REAL_ID]?.[0]?.images?.[0],
+    ).toMatchObject({ uploading: true });
     expect(calls.filter((c) => c.action === "sendMessage")).toHaveLength(0);
     uploadGate.resolve();
     // The retries back off 1.5s each, so wait for the send rather than for a
     // span: a slower runner made the fixed wait end before it happened.
-    await flushUntil(() => calls.some((c) => c.action === "sendMessage"),
-      opts.failUploadsFirst ? 1500 * opts.failUploadsFirst + 8_000 : 8_000);
+    await flushUntil(
+      () => calls.some((c) => c.action === "sendMessage"),
+      opts.failUploadsFirst ? 1500 * opts.failUploadsFirst + 8_000 : 8_000,
+    );
   } else {
     uploadGate.resolve();
-    await flushUntil(() => !!(useInboxStore.getState().pendingMessages[stubId]?.[0]?.images?.[0] as { storage_id?: string } | undefined)?.storage_id);
+    await flushUntil(
+      () =>
+        !!(
+          useInboxStore.getState().pendingMessages[stubId]?.[0]?.images?.[0] as
+            | { storage_id?: string }
+            | undefined
+        )?.storage_id,
+    );
     // Upload landed on the row, but the create is still in flight: no send yet.
-    expect(useInboxStore.getState().pendingMessages[stubId]?.[0]?.images).toEqual([{ media_type: "image/png", storage_id: STORAGE_ID }]);
+    expect(
+      useInboxStore.getState().pendingMessages[stubId]?.[0]?.images,
+    ).toEqual([{ media_type: "image/png", storage_id: STORAGE_ID }]);
     expect(calls.filter((c) => c.action === "sendMessage")).toHaveLength(0);
     createGate.resolve();
     await flushUntil(() => calls.some((c) => c.action === "sendMessage"));
@@ -211,10 +305,19 @@ async function runScenario(order: "create-first" | "upload-first", opts: { failU
   const sends = calls.filter((c) => c.action === "sendMessage");
   expect(sends.length).toBeGreaterThanOrEqual(1);
   for (const s of sends) {
-    expect(s.args).toEqual([REAL_ID, "[Image 1] look at this", [STORAGE_ID], clientId, null, "[Image 1] look at this"]);
+    expect(s.args).toEqual([
+      REAL_ID,
+      "[Image 1] look at this",
+      [STORAGE_ID],
+      clientId,
+      null,
+      "[Image 1] look at this",
+    ]);
   }
   const row = useInboxStore.getState().pendingMessages[REAL_ID]?.[0] as any;
-  expect(row?.images).toEqual([{ media_type: "image/png", storage_id: STORAGE_ID }]);
+  expect(row?.images).toEqual([
+    { media_type: "image/png", storage_id: STORAGE_ID },
+  ]);
   expect(row?._isFailed).toBeFalsy();
 
   restore();
@@ -250,37 +353,73 @@ test("a refused commit keeps the popup open with the text instead of dismissing"
     projectPath: "/Users/me/proj",
     gitRoot: "/Users/me/proj",
     deferCreate: true,
-    create: (id) => store.createSessionFromStub(id, { agentType: "claude_code", projectPath: "/Users/me/proj", gitRoot: "/Users/me/proj" }),
+    create: (id) =>
+      store.createSessionFromStub(id, {
+        agentType: "claude_code",
+        projectPath: "/Users/me/proj",
+        gitRoot: "/Users/me/proj",
+      }),
   });
-  const dropFilesRef: { current: ((files: File[]) => void) | null } = { current: null };
+  const dropFilesRef: { current: ((files: File[]) => void) | null } = {
+    current: null,
+  };
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root: Root = createRoot(container);
   let dismissed = 0;
-  const onSubmitWithIntent = () => { dismissed++; void materialize(); root.unmount(); };
-  await act(() => root.render(
-    <ConvexProvider client={client}>
-      <MessageInput conversationId={stubId} status="active" embedded autoFocusInput onDropFiles={dropFilesRef as any} onSubmitWithIntent={onSubmitWithIntent} />
-    </ConvexProvider>,
-  ));
+  const onSubmitWithIntent = () => {
+    dismissed++;
+    void materialize();
+    root.unmount();
+  };
+  await act(() =>
+    root.render(
+      <ConvexProvider client={client}>
+        <MessageInput
+          conversationId={stubId}
+          status="active"
+          embedded
+          autoFocusInput
+          onDropFiles={dropFilesRef as any}
+          onSubmitWithIntent={onSubmitWithIntent}
+        />
+      </ConvexProvider>,
+    ),
+  );
   const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
-  await act(() => { dropFilesRef.current!([new File([new Uint8Array(64)], "shot.png", { type: "image/png" })]); });
+  await act(() => {
+    dropFilesRef.current!([
+      new File([new Uint8Array(64)], "shot.png", { type: "image/png" }),
+    ]);
+  });
   await flush();
-  await act(() => { setNativeValue(textarea, textarea.value + "look at this"); });
+  await act(() => {
+    setNativeValue(textarea, textarea.value + "look at this");
+  });
   await flush();
   toasts.length = 0;
   await act(() => {
-    textarea.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    textarea.dispatchEvent(
+      new w.KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
   });
   // The refusal comes back from the server call, so wait for its toast rather
   // than for a span.
   await flushUntil(() => toasts.some((t) => t.startsWith("error:")));
   expect(dismissed).toBe(0);
   expect(container.querySelector("textarea")).toBeTruthy();
-  expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe("[Image 1] look at this");
+  expect(
+    (container.querySelector("textarea") as HTMLTextAreaElement).value,
+  ).toBe("[Image 1] look at this");
   expect(toasts.some((t) => t.startsWith("error:"))).toBe(true);
   expect(calls.filter((c) => c.action === "createSession")).toHaveLength(0);
-  expect(useInboxStore.getState().pendingMessages[stubId] ?? []).toHaveLength(0);
+  expect(useInboxStore.getState().pendingMessages[stubId] ?? []).toHaveLength(
+    0,
+  );
   await act(() => root.unmount());
   restore();
   container.remove();
@@ -295,37 +434,77 @@ async function mountWithSelectedImage({ keepPreview = false } = {}) {
   const { client, restore } = fakeConvex(deferred<void>());
   fakeDispatch(deferred<void>());
   const { MessageInput } = await import("../MessageInput");
-  const dropFilesRef: { current: ((files: File[]) => void) | null } = { current: null };
+  const dropFilesRef: { current: ((files: File[]) => void) | null } = {
+    current: null,
+  };
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(() => root.render(
-    <ConvexProvider client={client}>
-      <MessageInput conversationId="stub_image_select" status="active" embedded onDropFiles={dropFilesRef as any} />
-    </ConvexProvider>,
-  ));
+  await act(() =>
+    root.render(
+      <ConvexProvider client={client}>
+        <MessageInput
+          conversationId="stub_image_select"
+          status="active"
+          embedded
+          onDropFiles={dropFilesRef as any}
+        />
+      </ConvexProvider>,
+    ),
+  );
   const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
-  await act(() => { dropFilesRef.current!([new File([new Uint8Array(64)], "shot.png", { type: "image/png" })]); });
+  await act(() => {
+    dropFilesRef.current!([
+      new File([new Uint8Array(64)], "shot.png", { type: "image/png" }),
+    ]);
+  });
   await flush();
-  await act(() => { setNativeValue(textarea, textarea.value + "hello world"); });
+  await act(() => {
+    setNativeValue(textarea, textarea.value + "hello world");
+  });
   await flush();
   const images = () => container.querySelectorAll('img[alt="Pasted"]').length;
   const selected = () => (container.textContent ?? "").includes("navigate");
-  const previewOpen = () => !!w.document.querySelector('img[alt="Image preview"]');
-  const key = (init: KeyboardEventInit) => act(() => { textarea.dispatchEvent(new w.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })); });
-  await act(() => { (container.querySelector('img[alt="Pasted"]')!.closest(".group") as HTMLElement).click(); });
+  const previewOpen = () =>
+    !!w.document.querySelector('img[alt="Image preview"]');
+  const key = (init: KeyboardEventInit) =>
+    act(() => {
+      textarea.dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        }),
+      );
+    });
+  await act(() => {
+    (
+      container
+        .querySelector('img[alt="Pasted"]')!
+        .closest(".group") as HTMLElement
+    ).click();
+  });
   expect(previewOpen()).toBe(true);
   if (!keepPreview) await key({ key: "Escape" }); // closes the preview, keeps the selection
   expect(images()).toBe(1);
   expect(selected()).toBe(true);
-  const cleanup = async () => { await act(() => root.unmount()); restore(); container.remove(); };
+  const cleanup = async () => {
+    await act(() => root.unmount());
+    restore();
+    container.remove();
+  };
   return { textarea, images, selected, previewOpen, key, cleanup };
 }
 
 test("no Backspace or Delete removes a selected image", async () => {
   const c = await mountWithSelectedImage();
   for (const k of ["Backspace", "Delete"]) {
-    for (const mod of [{}, { altKey: true }, { metaKey: true }, { ctrlKey: true }]) {
+    for (const mod of [
+      {},
+      { altKey: true },
+      { metaKey: true },
+      { ctrlKey: true },
+    ]) {
       await c.key({ key: k, ...mod });
       expect(c.images()).toBe(1);
     }
@@ -335,7 +514,9 @@ test("no Backspace or Delete removes a selected image", async () => {
 
 test("clicking back into the text ends the image selection", async () => {
   const c = await mountWithSelectedImage();
-  await act(() => { c.textarea.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true })); });
+  await act(() => {
+    c.textarea.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true }));
+  });
   expect(c.selected()).toBe(false);
   expect(c.images()).toBe(1);
   await c.cleanup();
@@ -343,7 +524,9 @@ test("clicking back into the text ends the image selection", async () => {
 
 test("typing with the preview open keeps it open; Escape then closes it", async () => {
   const c = await mountWithSelectedImage({ keepPreview: true });
-  await act(() => { setNativeValue(c.textarea, c.textarea.value + "!"); });
+  await act(() => {
+    setNativeValue(c.textarea, c.textarea.value + "!");
+  });
   expect(c.selected()).toBe(false);
   expect(c.previewOpen()).toBe(true);
   expect(c.images()).toBe(1);

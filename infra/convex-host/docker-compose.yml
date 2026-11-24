@@ -44,8 +44,8 @@ services:
     volumes:
       - /srv/convex/data:/convex/data
     ports:
-      - "127.0.0.1:3210:3210"   # cloud origin (api)
-      - "127.0.0.1:3211:3211"   # site origin (http actions)
+      - "127.0.0.1:3210:3210" # cloud origin (api)
+      - "127.0.0.1:3211:3211" # site origin (http actions)
     healthcheck:
       # The image is a minimal Ubuntu carrying only the convex binary: it has no
       # curl, wget, python or aws (verified 2026-09-13). It does have bash, so

@@ -1,10 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router";
-import { initAnalytics, reportRecoverableRenderError, setRegulatedData, setupErrorToasts } from "../lib/analytics";
+import {
+  initAnalytics,
+  reportRecoverableRenderError,
+  setRegulatedData,
+  setupErrorToasts,
+} from "../lib/analytics";
 import { watchRegulatedData } from "../lib/regulatedData";
 import { initGoogleAds } from "../lib/googleAds";
-import { armChunkReloadGuardReset, installStaleChunkReload } from "../lib/chunkReloadGuard";
+import {
+  armChunkReloadGuardReset,
+  installStaleChunkReload,
+} from "../lib/chunkReloadGuard";
 import { installIdleAnimationPause, isDesktop } from "../lib/desktop";
 import { hasStoredAuthToken } from "../lib/localAuth";
 import { serviceWorkerHooks } from "@platform/update-prompt";
@@ -55,9 +63,14 @@ installIdleAnimationPause();
 // React's own cheap path. Only dev warnings lose the owner stack; set
 // localStorage cc_owner_stacks=1 when you need them.
 if (import.meta.env.DEV && localStorage.getItem("cc_owner_stacks") !== "1") {
-  const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+  const internals = (React as any)
+    .__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
   if (internals && "recentlyCreatedOwnerStacks" in internals) {
-    Object.defineProperty(internals, "recentlyCreatedOwnerStacks", { get: () => 1e4, set() {}, configurable: true });
+    Object.defineProperty(internals, "recentlyCreatedOwnerStacks", {
+      get: () => 1e4,
+      set() {},
+      configurable: true,
+    });
   }
 }
 
@@ -72,13 +85,16 @@ ReactDOM.createRoot(document.getElementById("root")!, {
   // real failure hidden in `cause` — that is where "Uncaught: Minified React
   // error #520" came from. Take the callback so the report names the throw.
   onRecoverableError: reportRecoverableRenderError,
-}).render(
-  isDesktop() ? app : <React.StrictMode>{app}</React.StrictMode>
-);
+}).render(isDesktop() ? app : <React.StrictMode>{app}</React.StrictMode>);
 
 const entryPath = window.location.pathname;
-if (hasStoredAuthToken() && (entryPath === "/inbox" || entryPath.startsWith("/conversation/"))) {
-  setTimeout(() => { void import("@/app/inbox/page"); }, 0);
+if (
+  hasStoredAuthToken() &&
+  (entryPath === "/inbox" || entryPath.startsWith("/conversation/"))
+) {
+  setTimeout(() => {
+    void import("@/app/inbox/page");
+  }, 0);
 }
 
 // Defer non-critical work until after first paint. The timeout is load-bearing:
@@ -127,10 +143,15 @@ idle(() => {
         // gone a few minutes untouched, never during a call. A window that is
         // always in use also gets lib/updatePrompt's card, but only for a
         // release that asked for it or an update a day old.
-        ...serviceWorkerHooks(() => {
-          void import("../lib/updatePrompt").then((m) => m.noteUpdateWaiting()).catch(() => {});
-        }, { busy: () => inHuddle(useInboxStore.getState()) }),
-      })
+        ...serviceWorkerHooks(
+          () => {
+            void import("../lib/updatePrompt")
+              .then((m) => m.noteUpdateWaiting())
+              .catch(() => {});
+          },
+          { busy: () => inHuddle(useInboxStore.getState()) },
+        ),
+      }),
     )
     .catch(() => {});
 });
@@ -153,7 +174,9 @@ idle(() => {
   void import("@/app/decisions/page");
   // Ctrl+N paints the compose backdrop at once, so the composer's module must
   // already be held when the key lands (see lib/composeViewLoader).
-  void import("../lib/composeViewLoader").then((module) => module.loadComposeView());
+  void import("../lib/composeViewLoader").then((module) =>
+    module.loadComposeView(),
+  );
   // Then every other shell route (prod only — in dev this would make Vite
   // transform the whole app at boot). Wait until the window is hidden or has
   // been open for a minute so startup and the first interaction stay clear.

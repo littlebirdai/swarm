@@ -9,7 +9,15 @@
 // page falls into an ErrorBoundary.
 // Run: cd apps/web && bun test --isolate components/__tests__/chat.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, fixtureId, installDom, installMissingBackend, seedViewer, TEAM_ID, VIEWER_ID } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+  TEAM_ID,
+  VIEWER_ID,
+} from "../../test-helpers/missingBackend";
 
 const CHANNEL = fixtureId("chatgeneral");
 
@@ -22,17 +30,45 @@ const { default: ChatPage } = await import("../../app/chat/page");
 
 const now = Date.now();
 const store = useInboxStore.getState();
-store.syncTable("chatChannels", [{ _id: CHANNEL, team_id: TEAM_ID, workspace: `team:${TEAM_ID}`, name: "release-room", is_default: true, created_at: now - 86_400_000, updated_at: now - 60_000 }] as any);
-store.syncTable("chatMessages", [{ _id: fixtureId("chatline"), team_id: TEAM_ID, channel_id: CHANNEL, user_id: VIEWER_ID, content: "Cutting the 1.1.168 release after lunch", created_at: now - 60_000, updated_at: now - 60_000 }] as any);
+store.syncTable("chatChannels", [
+  {
+    _id: CHANNEL,
+    team_id: TEAM_ID,
+    workspace: `team:${TEAM_ID}`,
+    name: "release-room",
+    is_default: true,
+    created_at: now - 86_400_000,
+    updated_at: now - 60_000,
+  },
+] as any);
+store.syncTable("chatMessages", [
+  {
+    _id: fixtureId("chatline"),
+    team_id: TEAM_ID,
+    channel_id: CHANNEL,
+    user_id: VIEWER_ID,
+    content: "Cutting the 1.1.168 release after lunch",
+    created_at: now - 60_000,
+    updated_at: now - 60_000,
+  },
+] as any);
 
 test("a chat channel paints its cached line with every query missing", async () => {
-  const page = await mountPage(`/chat/${CHANNEL}`, { "chat/:channelId": <ChatPage /> });
+  const page = await mountPage(`/chat/${CHANNEL}`, {
+    "chat/:channelId": <ChatPage />,
+  });
   try {
     expect(describeFailures(page)).toBe("");
     const text = page.text();
     expect(text).toContain("release-room");
     expect(text).toContain("Cutting the 1.1.168 release after lunch");
-    for (const fn of ["chat:listChannels", "chat:listMessages", "chatTyping:list", "slackSync:listSlackPeople", "org:roles"]) {
+    for (const fn of [
+      "chat:listChannels",
+      "chat:listMessages",
+      "chatTyping:list",
+      "slackSync:listSlackPeople",
+      "org:roles",
+    ]) {
       expect(backend.refused).toContain(fn);
     }
   } finally {

@@ -8,7 +8,12 @@
  * nothing.
  */
 
-import { deviceDisplayName, localTmuxAttachCommand, sshTmuxAttachCommand, wslTmuxAttachCommand } from "@codecast/shared/contracts";
+import {
+  deviceDisplayName,
+  localTmuxAttachCommand,
+  sshTmuxAttachCommand,
+  wslTmuxAttachCommand,
+} from "@codecast/shared/contracts";
 import { tailnetShortName } from "@codecast/shared/contracts/peerTransport";
 import { visitorPlatform } from "../lib/visitorPlatform";
 
@@ -42,10 +47,21 @@ export type SessionMachine = {
  * tailnet (search domains resolve it), else the full name. Null when it is not
  * a plain hostname, since it lands in a copied shell line.
  */
-export function tailnetSshHost(name: string | null | undefined, viewerTailnet?: string | null): string | null {
+export function tailnetSshHost(
+  name: string | null | undefined,
+  viewerTailnet?: string | null,
+): string | null {
   const full = name?.replace(/\.$/, "") ?? "";
-  const host = viewerTailnet && full.endsWith(`.${viewerTailnet}`) ? tailnetShortName(full) : full;
-  return host.length <= 253 && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})(?:\.[A-Za-z0-9][A-Za-z0-9-]{0,62})*$/.test(host) ? host : null;
+  const host =
+    viewerTailnet && full.endsWith(`.${viewerTailnet}`)
+      ? tailnetShortName(full)
+      : full;
+  return host.length <= 253 &&
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})(?:\.[A-Za-z0-9][A-Za-z0-9-]{0,62})*$/.test(
+      host,
+    )
+    ? host
+    : null;
 }
 
 /**
@@ -75,8 +91,11 @@ export function attachCommand(
   if (!machine || machine.is_here) return local;
   if (!machine.is_mine) return null;
   // A Windows viewer pastes into PowerShell, where tmux only exists inside WSL.
-  if (!machine.ssh_host && machine.wsl_distro && viewerOnWindows) return wslTmuxAttachCommand(machine.wsl_distro, tmuxSession);
-  const host = machine.ssh_host ?? tailnetSshHost(machine.tailnet_name, machine.viewer_tailnet);
+  if (!machine.ssh_host && machine.wsl_distro && viewerOnWindows)
+    return wslTmuxAttachCommand(machine.wsl_distro, tmuxSession);
+  const host =
+    machine.ssh_host ??
+    tailnetSshHost(machine.tailnet_name, machine.viewer_tailnet);
   return host ? sshTmuxAttachCommand(host, tmuxSession) : local;
 }
 
@@ -105,7 +124,15 @@ export function attachCopy(
       message: `Runs on ${name}, which isn't one of your machines, so no attach command works from here. Run on device → run here brings it to this machine.`,
     };
   }
-  if (command.startsWith("ssh ")) return { command, message: "ssh + tmux attach copied" };
-  if (command?.startsWith("wsl.exe")) return { command, message: `tmux attach copied: run it in PowerShell on ${name}` };
-  return { command, message: `tmux attach copied — run it in a shell on ${name}` };
+  if (command.startsWith("ssh "))
+    return { command, message: "ssh + tmux attach copied" };
+  if (command?.startsWith("wsl.exe"))
+    return {
+      command,
+      message: `tmux attach copied: run it in PowerShell on ${name}`,
+    };
+  return {
+    command,
+    message: `tmux attach copied — run it in a shell on ${name}`,
+  };
 }

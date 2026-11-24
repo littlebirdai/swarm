@@ -49,11 +49,15 @@ async function maybeRegisterCloud(): Promise<void> {
   try {
     const { E2bBackend } = await import("./e2b.js");
     defaultRegistry.register(E2bBackend);
-  } catch { /* e2b module load failed — local still works */ }
+  } catch {
+    /* e2b module load failed — local still works */
+  }
   try {
     const { MacMiniBackend } = await import("./mac-mini.js");
     defaultRegistry.register(MacMiniBackend);
-  } catch { /* mac module load failed — local still works */ }
+  } catch {
+    /* mac module load failed — local still works */
+  }
 }
 // Kick off async cloud registration; if anything throws it's caught above.
 void maybeRegisterCloud();

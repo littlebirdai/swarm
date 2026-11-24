@@ -15,11 +15,28 @@
 // undo could not put the server back where it was (a field its mutation cannot
 // clear, a prior state the inverse verb does not produce); each such case says
 // why at its site.
-import type { CellChange, Invocation, UndoCtx, UndoSpec } from "@platform/engine";
-import { DEFAULT_TASK_STATUS_NAMES, teamTaskStatuses, waitClause, waitTargetOf, type TaskWait } from "@codecast/shared/tasks";
+import type {
+  CellChange,
+  Invocation,
+  UndoCtx,
+  UndoSpec,
+} from "@platform/engine";
+import {
+  DEFAULT_TASK_STATUS_NAMES,
+  teamTaskStatuses,
+  waitClause,
+  waitTargetOf,
+  type TaskWait,
+} from "@codecast/shared/tasks";
 import { targetDayOf } from "@codecast/shared/time";
-import { INITIATIVE_RECORD_NOUN, type InitiativeRecordOp } from "@codecast/shared/contracts/initiative";
-import { assigneeLabelOf, resolveAssigneeInfo } from "../../../lib/liveEntities";
+import {
+  INITIATIVE_RECORD_NOUN,
+  type InitiativeRecordOp,
+} from "@codecast/shared/contracts/initiative";
+import {
+  assigneeLabelOf,
+  resolveAssigneeInfo,
+} from "../../../lib/liveEntities";
 import type { UndoPolicy } from "../policy";
 import type { OrgReparentSessionTarget } from "../../orgSlice";
 import { counted, quoted, sessionTitle } from "../labels";
@@ -30,33 +47,78 @@ import type { TaskWaitInput } from "../../taskGraphDraft";
 type Spec = { spec: UndoSpec };
 
 /** The fields updateSecretMeta writes, each with how secrets.updateMeta unsets it (a name is never unset). */
-const SECRET_CLEARS = new Map<string, unknown>([["name", undefined], ["note", ""], ["env", []], ["sites", []]]);
+const SECRET_CLEARS = new Map<string, unknown>([
+  ["name", undefined],
+  ["note", ""],
+  ["env", []],
+  ["sites", []],
+]);
 
-export const call = (action: string, ...args: unknown[]): Invocation => ({ action, args, runDraft: false });
+export const call = (action: string, ...args: unknown[]): Invocation => ({
+  action,
+  args,
+  runDraft: false,
+});
 
-export const cellsOf = (ctx: UndoCtx, stores: string | readonly string[], field?: string): CellChange[] => {
+export const cellsOf = (
+  ctx: UndoCtx,
+  stores: string | readonly string[],
+  field?: string,
+): CellChange[] => {
   const keys = typeof stores === "string" ? [stores] : stores;
-  return ctx.changes.filter((c) => keys.includes(c.store) && (field === undefined || c.field === field));
+  return ctx.changes.filter(
+    (c) => keys.includes(c.store) && (field === undefined || c.field === field),
+  );
 };
 
-export const rowIds = (cells: readonly CellChange[]): string[] => [...new Set(cells.map((c) => c.id))];
+export const rowIds = (cells: readonly CellChange[]): string[] => [
+  ...new Set(cells.map((c) => c.id)),
+];
 
 /** The writer route's label: null when the undo would need a clear the server cannot make. */
-const viaWriter = (label: (ctx: UndoCtx) => string | null, extra?: Partial<UndoSpec>): Spec => ({
-  spec: { label: (ctx) => (undoBlockedByWire(ctx.changes) ? null : label(ctx)), ...extra },
+const viaWriter = (
+  label: (ctx: UndoCtx) => string | null,
+  extra?: Partial<UndoSpec>,
+): Spec => ({
+  spec: {
+    label: (ctx) => (undoBlockedByWire(ctx.changes) ? null : label(ctx)),
+    ...extra,
+  },
 });
 
 // ── Tasks ────────────────────────────────────────────────────────────────────
 
 /** The team status a write picks (status_id), else its category's built-in name. */
-function statusName(state: any, task: any, fields: Record<string, unknown>): string {
-  const team = ((state?.teams ?? []) as any[]).find((t) => task?.team_id && String(t?._id) === String(task.team_id));
-  const picked = fields.status_id ? teamTaskStatuses(team?.task_statuses).find((st) => st.id === fields.status_id) : undefined;
-  return picked?.name ?? DEFAULT_TASK_STATUS_NAMES[fields.status as keyof typeof DEFAULT_TASK_STATUS_NAMES] ?? String(fields.status);
+function statusName(
+  state: any,
+  task: any,
+  fields: Record<string, unknown>,
+): string {
+  const team = ((state?.teams ?? []) as any[]).find(
+    (t) => task?.team_id && String(t?._id) === String(task.team_id),
+  );
+  const picked = fields.status_id
+    ? teamTaskStatuses(team?.task_statuses).find(
+        (st) => st.id === fields.status_id,
+      )
+    : undefined;
+  return (
+    picked?.name ??
+    DEFAULT_TASK_STATUS_NAMES[
+      fields.status as keyof typeof DEFAULT_TASK_STATUS_NAMES
+    ] ??
+    String(fields.status)
+  );
 }
 
 function assigneeName(state: any, assignee: string): string {
-  const info = resolveAssigneeInfo(assignee, null, state?.teamMembers, state?.currentUser, state?.orgTree?.roles);
+  const info = resolveAssigneeInfo(
+    assignee,
+    null,
+    state?.teamMembers,
+    state?.currentUser,
+    state?.orgTree?.roles,
+  );
   return assigneeLabelOf(assignee, info);
 }
 
@@ -66,37 +128,70 @@ function assigneeName(state: any, assignee: string): string {
  * says `moved`, which names a cascade's subtasks too. `task` is a row the
  * write touched, for its team's status names.
  */
-export function taskEditLabel(state: any, task: any, subject: string, fields: Record<string, unknown>, moved = subject): string {
-  if (fields.status !== undefined) return `Moved ${moved} to ${statusName(state, task, fields)}`;
+export function taskEditLabel(
+  state: any,
+  task: any,
+  subject: string,
+  fields: Record<string, unknown>,
+  moved = subject,
+): string {
+  if (fields.status !== undefined)
+    return `Moved ${moved} to ${statusName(state, task, fields)}`;
   if (fields.duplicate_of !== undefined) {
-    return fields.duplicate_of ? `Marked ${subject} as a duplicate of ${fields.duplicate_of}` : `Unmarked ${subject} as a duplicate`;
+    return fields.duplicate_of
+      ? `Marked ${subject} as a duplicate of ${fields.duplicate_of}`
+      : `Unmarked ${subject} as a duplicate`;
   }
   // A refinement rides along with its category; any other pair is an edit.
-  if (Object.keys(fields).filter((k) => k !== "subtask_resolution" && k !== "status_id").length > 1) return `Edited ${subject}`;
+  if (
+    Object.keys(fields).filter(
+      (k) => k !== "subtask_resolution" && k !== "status_id",
+    ).length > 1
+  )
+    return `Edited ${subject}`;
   if (fields.assignee !== undefined) {
-    return fields.assignee ? `Assigned ${subject} to ${assigneeName(state, String(fields.assignee))}` : `Unassigned ${subject}`;
+    return fields.assignee
+      ? `Assigned ${subject} to ${assigneeName(state, String(fields.assignee))}`
+      : `Unassigned ${subject}`;
   }
-  if (fields.parent !== undefined) return fields.parent ? `Moved ${subject} under ${fields.parent}` : `Moved ${subject} to the top level`;
+  if (fields.parent !== undefined)
+    return fields.parent
+      ? `Moved ${subject} under ${fields.parent}`
+      : `Moved ${subject} to the top level`;
   if (fields.title !== undefined) return `Renamed ${subject}`;
-  if (fields.priority !== undefined) return `Set ${subject} to ${fields.priority} priority`;
+  if (fields.priority !== undefined)
+    return `Set ${subject} to ${fields.priority} priority`;
   if (fields.labels !== undefined) return `Changed the labels of ${subject}`;
   if (fields.sort_order !== undefined) return `Reordered ${subject}`;
   return `Edited ${subject}`;
 }
 
 /** One task's write, with "and N subtasks" when a status move cascaded. */
-function taskLabel(ctx: UndoCtx, shortId: string, fields: Record<string, unknown>): string {
-  const ownRows = Object.values(ctx.before?.tasks ?? {}).filter((t: any) => t?.short_id === shortId) as any[];
+function taskLabel(
+  ctx: UndoCtx,
+  shortId: string,
+  fields: Record<string, unknown>,
+): string {
+  const ownRows = Object.values(ctx.before?.tasks ?? {}).filter(
+    (t: any) => t?.short_id === shortId,
+  ) as any[];
   const own = new Set(ownRows.map((t) => String(t._id)));
-  const subtasks = rowIds(cellsOf(ctx, "tasks")).filter((id) => !own.has(id)).length;
-  const moved = subtasks > 0 ? `${shortId} and ${counted(subtasks, "subtask")}` : shortId;
+  const subtasks = rowIds(cellsOf(ctx, "tasks")).filter(
+    (id) => !own.has(id),
+  ).length;
+  const moved =
+    subtasks > 0 ? `${shortId} and ${counted(subtasks, "subtask")}` : shortId;
   return taskEditLabel(ctx.after, ownRows[0], shortId, fields, moved);
 }
 
 // closed_at and the attempt stamps are the server's to set: a reopen leaves
 // the server's closed_at in place, so restoring the cached one locally would
 // hold a lock its echo never matches.
-const TASK_SERVER_STAMPS = ["closed_at", "attempt_count", "last_attempted_at"] as const;
+const TASK_SERVER_STAMPS = [
+  "closed_at",
+  "attempt_count",
+  "last_attempted_at",
+] as const;
 // The description is edited in DocEditor, which owns its text undo (as the
 // doc body is); a description-only save records nothing.
 const TASK_UNCAPTURED = [...TASK_SERVER_STAMPS, "description"] as const;
@@ -108,7 +203,11 @@ const TASK_UNCAPTURED = [...TASK_SERVER_STAMPS, "description"] as const;
 
 /** Whether this gesture's cells still hold `field` on task `shortId`. */
 function touchesTask(ctx: UndoCtx, shortId: string, field: string): boolean {
-  return cellsOf(ctx, "tasks", field).some((c) => (ctx.before?.tasks?.[c.id] ?? ctx.after?.tasks?.[c.id])?.short_id === shortId);
+  return cellsOf(ctx, "tasks", field).some(
+    (c) =>
+      (ctx.before?.tasks?.[c.id] ?? ctx.after?.tasks?.[c.id])?.short_id ===
+      shortId,
+  );
 }
 
 /** A verb on (task, other) whose undo is `inverse` with the same arguments,
@@ -120,41 +219,66 @@ const graphPair = (
   other: (ctx: UndoCtx, ref: string) => string = (_ctx, ref) => ref,
 ): Spec => ({
   spec: {
-    label: (ctx) => label(ctx.args[0] as string, other(ctx, ctx.args[1] as string)),
-    inverse: (ctx) => (touchesTask(ctx, ctx.args[0] as string, field) ? [call(inverse, ctx.args[0], other(ctx, ctx.args[1] as string))] : []),
+    label: (ctx) =>
+      label(ctx.args[0] as string, other(ctx, ctx.args[1] as string)),
+    inverse: (ctx) =>
+      touchesTask(ctx, ctx.args[0] as string, field)
+        ? [call(inverse, ctx.args[0], other(ctx, ctx.args[1] as string))]
+        : [],
   },
 });
 
 /** A blocker an older plan row names by `_id`, as its short id: addBlocker
  *  finds blockers by short id only. */
 const blockerShortId = (ctx: UndoCtx, ref: string): string =>
-  (Object.values(ctx.before?.tasks ?? {}) as any[]).find((t) => String(t?._id) === ref)?.short_id ?? ref;
+  (Object.values(ctx.before?.tasks ?? {}) as any[]).find(
+    (t) => String(t?._id) === ref,
+  )?.short_id ?? ref;
 
 /** The wait `waitId` on task `shortId` as the gesture found it. */
-function waitBefore(ctx: UndoCtx, shortId: string, waitId: string): TaskWait | undefined {
-  const row = Object.values(ctx.before?.tasks ?? {}).find((t: any) => t?.short_id === shortId) as any;
+function waitBefore(
+  ctx: UndoCtx,
+  shortId: string,
+  waitId: string,
+): TaskWait | undefined {
+  const row = Object.values(ctx.before?.tasks ?? {}).find(
+    (t: any) => t?.short_id === shortId,
+  ) as any;
   return (row?.waits as TaskWait[] | undefined)?.find((w) => w.id === waitId);
 }
 
 /** A wait addWaitCore's target check refuses outright (TG2). */
-const cannotSetAgain = (w: TaskWait, now = Date.now()): boolean => w.state === "failed" || (w.kind === "time" && w.at <= now);
+const cannotSetAgain = (w: TaskWait, now = Date.now()): boolean =>
+  w.state === "failed" || (w.kind === "time" && w.at <= now);
 
 // ── Plans, projects, initiatives, docs ───────────────────────────────────────
 
-function editLabel(row: any, fields: Record<string, unknown>, noun: string): string {
+function editLabel(
+  row: any,
+  fields: Record<string, unknown>,
+  noun: string,
+): string {
   const name = quoted(row?.title, noun);
-  if (fields.title !== undefined && fields.title !== row?.title) return `Renamed ${name} to ${quoted(String(fields.title), noun)}`;
-  if (fields.status !== undefined) return `Marked ${name} ${String(fields.status).replace(/_/g, " ")}`;
+  if (fields.title !== undefined && fields.title !== row?.title)
+    return `Renamed ${name} to ${quoted(String(fields.title), noun)}`;
+  if (fields.status !== undefined)
+    return `Marked ${name} ${String(fields.status).replace(/_/g, " ")}`;
   if (Object.keys(fields).length === 1 && "target_date" in fields) {
     const day = targetDayOf(fields.target_date as number | null);
-    return day ? `Set the target of ${name} to ${day}` : `Cleared the target of ${name}`;
+    return day
+      ? `Set the target of ${name} to ${day}`
+      : `Cleared the target of ${name}`;
   }
   return `Edited ${name}`;
 }
 
 const planOf = (state: any, ref: string) =>
-  Object.values(state?.plans ?? {}).find((p: any) => p?.short_id === ref || p?._id === ref) as any;
-const projectOf = (state: any, id: string) => state?.projects?.[id] ?? Object.values(state?.projects ?? {}).find((p: any) => p?._id === id);
+  Object.values(state?.plans ?? {}).find(
+    (p: any) => p?.short_id === ref || p?._id === ref,
+  ) as any;
+const projectOf = (state: any, id: string) =>
+  state?.projects?.[id] ??
+  Object.values(state?.projects ?? {}).find((p: any) => p?._id === id);
 
 // An initiative owned by a role has its projects in that role's scope: the
 // server widens the scope in the write's own transaction and logs it in the
@@ -174,30 +298,55 @@ function widenedRoleScope(ctx: UndoCtx): boolean {
   const now = ctx.after?.initiatives?.[id];
   if (now?.owner?.kind !== "role" || !now.project_ids?.length) return false;
   const was = ctx.before?.initiatives?.[id];
-  const sameOwner = was?.owner?.kind === "role" && was.owner.role_id === now.owner.role_id;
-  return !sameOwner || now.project_ids.some((p: string) => !(was?.project_ids ?? []).includes(p));
+  const sameOwner =
+    was?.owner?.kind === "role" && was.owner.role_id === now.owner.role_id;
+  return (
+    !sameOwner ||
+    now.project_ids.some((p: string) => !(was?.project_ids ?? []).includes(p))
+  );
 }
-const viaInitiativeWriter = (label: (ctx: UndoCtx) => string, extra?: Partial<UndoSpec>): Spec =>
+const viaInitiativeWriter = (
+  label: (ctx: UndoCtx) => string,
+  extra?: Partial<UndoSpec>,
+): Spec =>
   viaWriter((ctx) => (widenedRoleScope(ctx) ? null : label(ctx)), extra);
 
 type RecordOpLike = Pick<InitiativeRecordOp, "list" | "action">;
 /** "Reached a milestone of “X”", "Answered a question on “X”", "Added a source to “X”". */
 function recordLabel(op: RecordOpLike, goal: string): string {
   const noun = INITIATIVE_RECORD_NOUN[op?.list] ?? "entry";
-  if (op?.action === "close") return op.list === "questions" ? `Answered a question on ${goal}` : `Reached a milestone of ${goal}`;
+  if (op?.action === "close")
+    return op.list === "questions"
+      ? `Answered a question on ${goal}`
+      : `Reached a milestone of ${goal}`;
   if (op?.action === "add") return `Added a ${noun} to ${goal}`;
   if (op?.action === "remove") return `Removed a ${noun} from ${goal}`;
   return `Edited a ${noun} of ${goal}`;
 }
 
-const docTitle = (state: any, id: string) => quoted(state?.docs?.[id]?.title ?? state?.docDetails?.[id]?.title, "doc");
+const docTitle = (state: any, id: string) =>
+  quoted(state?.docs?.[id]?.title ?? state?.docDetails?.[id]?.title, "doc");
 
 // The docs writer reaches the server from a cell of the `docs` list. A doc
 // held only in docDetails (opened by link before the list lands, or from
 // another workspace) has no such cell, so its undo would restore the detail
 // row and send nothing: the gesture is not recorded.
-const viaDocsWriter = (label: (ctx: UndoCtx) => string, extra?: Partial<UndoSpec>): Spec =>
-  viaWriter((ctx) => (ctx.changes.some((c) => c.store === "docs" && c.kind === "protected" && c.field !== "updated_at") ? label(ctx) : null), extra);
+const viaDocsWriter = (
+  label: (ctx: UndoCtx) => string,
+  extra?: Partial<UndoSpec>,
+): Spec =>
+  viaWriter(
+    (ctx) =>
+      ctx.changes.some(
+        (c) =>
+          c.store === "docs" &&
+          c.kind === "protected" &&
+          c.field !== "updated_at",
+      )
+        ? label(ctx)
+        : null,
+    extra,
+  );
 
 // The server never deletes an assignment row: an unfile keeps it with
 // bucket_id unset and the next filing reuses it. So the undo of a filing that
@@ -206,8 +355,16 @@ const viaDocsWriter = (label: (ctx: UndoCtx) => string, extra?: Partial<UndoSpec
 // delta collection would then skip every later push of it.
 const spellFirstFiling = (cells: CellChange[]): CellChange[] =>
   cells.map((c) =>
-    c.store === "bucketAssignments" && c.field === undefined && !c.hadBefore && c.hadAfter
-      ? { ...c, field: "bucket_id", before: undefined, after: (c.after as { bucket_id?: string } | undefined)?.bucket_id }
+    c.store === "bucketAssignments" &&
+    c.field === undefined &&
+    !c.hadBefore &&
+    c.hadAfter
+      ? {
+          ...c,
+          field: "bucket_id",
+          before: undefined,
+          after: (c.after as { bucket_id?: string } | undefined)?.bucket_id,
+        }
       : c,
   );
 
@@ -217,15 +374,28 @@ const CONV_STORES = ["conversations", "sessions"] as const;
 
 /** A conversation field's prior value, from the cells that changed it (either store copy). */
 function priorOf(ctx: UndoCtx, id: string, field: string): unknown {
-  const cells = ctx.changes.filter((c) => c.id === id && c.field === field && (CONV_STORES as readonly string[]).includes(c.store));
+  const cells = ctx.changes.filter(
+    (c) =>
+      c.id === id &&
+      c.field === field &&
+      (CONV_STORES as readonly string[]).includes(c.store),
+  );
   const known = cells.find((c) => c.before !== undefined) ?? cells[0];
   return known ? known.before : rowBefore(ctx, id)?.[field];
 }
 
-const rowBefore = (ctx: UndoCtx, id: string) => ctx.before?.conversations?.[id] ?? ctx.before?.sessions?.[id];
+const rowBefore = (ctx: UndoCtx, id: string) =>
+  ctx.before?.conversations?.[id] ?? ctx.before?.sessions?.[id];
 
 const convIds = (ctx: UndoCtx, fields: readonly string[]) =>
-  rowIds(ctx.changes.filter((c) => (CONV_STORES as readonly string[]).includes(c.store) && c.field !== undefined && fields.includes(c.field)));
+  rowIds(
+    ctx.changes.filter(
+      (c) =>
+        (CONV_STORES as readonly string[]).includes(c.store) &&
+        c.field !== undefined &&
+        fields.includes(c.field),
+    ),
+  );
 
 // The server's setPrivacy(true) stamps team_visibility "private", and its
 // setPrivacy(false) keeps whatever visibility the row has; setTeamVisibility
@@ -236,7 +406,11 @@ function restorePrivacy(ctx: UndoCtx): Invocation[] {
   return convIds(ctx, ["is_private", "team_visibility"]).map((id) =>
     priorOf(ctx, id, "is_private") === true
       ? call("setPrivacy", id, true)
-      : call("setTeamVisibility", id, (priorOf(ctx, id, "team_visibility") as string | undefined) ?? null),
+      : call(
+          "setTeamVisibility",
+          id,
+          (priorOf(ctx, id, "team_visibility") as string | undefined) ?? null,
+        ),
   );
 }
 
@@ -249,7 +423,9 @@ function restorePrivacy(ctx: UndoCtx): Invocation[] {
 const privacyRestorable = (ctx: UndoCtx): boolean =>
   convIds(ctx, ["is_private", "team_visibility"]).every((id) => {
     const prior = priorOf(ctx, id, "is_private");
-    return prior === true || (prior === false && rowBefore(ctx, id)?.team_id != null);
+    return (
+      prior === true || (prior === false && rowBefore(ctx, id)?.team_id != null)
+    );
   });
 
 // On a row with no loaded meta, these inverses cannot restore a conversations
@@ -261,9 +437,17 @@ const privacyRestorable = (ctx: UndoCtx): boolean =>
 // nothing is written or locked for it. A row whose meta was loaded keeps the
 // cell: there the field really was unset, and the inverse returns it to that
 // (setTeamVisibility(id, null) clears the level).
-const spellThinConversation = (cells: CellChange[], ctx?: UndoCtx): CellChange[] =>
+const spellThinConversation = (
+  cells: CellChange[],
+  ctx?: UndoCtx,
+): CellChange[] =>
   cells.flatMap((c) =>
-    c.store !== "conversations" || c.field === undefined || c.hadBefore || !isThinBefore(ctx, c.id) ? [c] : (withSessionsPrior(cells, c) ?? []),
+    c.store !== "conversations" ||
+    c.field === undefined ||
+    c.hadBefore ||
+    !isThinBefore(ctx, c.id)
+      ? [c]
+      : (withSessionsPrior(cells, c) ?? []),
   );
 
 // setPrivacy(true) stores team_visibility "private" even on a row born
@@ -272,7 +456,9 @@ const spellThinConversation = (cells: CellChange[], ctx?: UndoCtx): CellChange[]
 const spellPrivacy = (all: CellChange[], ctx?: UndoCtx): CellChange[] => {
   const cells = spellThinConversation(all, ctx);
   return cells.map((c) =>
-    c.field === "team_visibility" && c.before == null && priorPrivate(cells, c.id)
+    c.field === "team_visibility" &&
+    c.before == null &&
+    priorPrivate(cells, c.id)
       ? { ...c, before: "private", hadBefore: true }
       : c,
   );
@@ -285,13 +471,19 @@ const spellSwitchProject = (all: CellChange[], ctx?: UndoCtx): CellChange[] => {
   const cells = spellThinConversation(all, ctx);
   return cells.map((c) => {
     if (c.field !== "git_root") return c;
-    const prior = cells.find((p) => p.id === c.id && p.store === c.store && p.field === "project_path")?.before;
-    return typeof prior === "string" ? { ...c, before: prior, hadBefore: true } : c;
+    const prior = cells.find(
+      (p) => p.id === c.id && p.store === c.store && p.field === "project_path",
+    )?.before;
+    return typeof prior === "string"
+      ? { ...c, before: prior, hadBefore: true }
+      : c;
   });
 };
 
 const priorPrivate = (cells: readonly CellChange[], id: string) =>
-  cells.some((c) => c.id === id && c.field === "is_private" && c.before === true);
+  cells.some(
+    (c) => c.id === id && c.field === "is_private" && c.before === true,
+  );
 
 /**
  * Who can see a row, ordered: private, then a summary, then everything. A
@@ -304,41 +496,62 @@ function audience(isPrivate: unknown, visibility: unknown): number | "default" {
   return isPrivate === true || visibility === "private" ? 0 : "default";
 }
 
-const rowNow = (ctx: UndoCtx, id: string) => ctx.after?.conversations?.[id] ?? ctx.after?.sessions?.[id];
+const rowNow = (ctx: UndoCtx, id: string) =>
+  ctx.after?.conversations?.[id] ?? ctx.after?.sessions?.[id];
 
 // Undo widens access when the prior audience is wider than the one the
 // gesture left, or when the two cannot be ordered (the member default).
 function undoWidens(ctx: UndoCtx): boolean {
   return convIds(ctx, ["is_private", "team_visibility"]).some((id) => {
-    const prior = audience(priorOf(ctx, id, "is_private"), priorOf(ctx, id, "team_visibility"));
-    const now = audience(rowNow(ctx, id)?.is_private, rowNow(ctx, id)?.team_visibility);
+    const prior = audience(
+      priorOf(ctx, id, "is_private"),
+      priorOf(ctx, id, "team_visibility"),
+    );
+    const now = audience(
+      rowNow(ctx, id)?.is_private,
+      rowNow(ctx, id)?.team_visibility,
+    );
     if (prior === now || prior === 0) return false;
     return now === 0 || prior === "default" || now === "default" || prior > now;
   });
 }
 
-const visibilityName = (v: unknown) => (v === "full" ? "full" : v === "summary" ? "summary" : "default");
+const visibilityName = (v: unknown) =>
+  v === "full" ? "full" : v === "summary" ? "summary" : "default";
 
 // ── Comments, stacks ─────────────────────────────────────────────────────────
 
-const stackTitle = (state: any, id: string) => quoted(state?.decisionStacks?.[id]?.title, "stack");
+const stackTitle = (state: any, id: string) =>
+  quoted(state?.decisionStacks?.[id]?.title, "stack");
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
-const channelName = (state: any, id: string) => `#${state?.chatChannels?.[id]?.name ?? "channel"}`;
+const channelName = (state: any, id: string) =>
+  `#${state?.chatChannels?.[id]?.name ?? "channel"}`;
 const railMembers = (state: any, channelId: string): string[] =>
-  ((state?.chatRail ?? []) as any[]).find((r) => String(r?.channel_id) === channelId)?.member_ids?.map(String) ?? [];
+  ((state?.chatRail ?? []) as any[])
+    .find((r) => String(r?.channel_id) === channelId)
+    ?.member_ids?.map(String) ?? [];
 const personName = (state: any, id: string) => assigneeName(state, id);
 const railAgents = (state: any, channelId: string): any[] =>
-  ((state?.chatRail ?? []) as any[]).find((r) => String(r?.channel_id) === channelId)?.agents ?? [];
+  ((state?.chatRail ?? []) as any[]).find(
+    (r) => String(r?.channel_id) === channelId,
+  )?.agents ?? [];
 const agentKey = (a: any) => String(a?.role_id ?? a?.conversation_id);
-const teamRow = (state: any, id: string): any => (state?.teams ?? []).find((t: any) => t?._id === id);
+const teamRow = (state: any, id: string): any =>
+  (state?.teams ?? []).find((t: any) => t?._id === id);
 
 // ── Org ──────────────────────────────────────────────────────────────────────
 
 const roleName = (state: any, id: string) =>
-  quoted(((state?.orgTree?.roles ?? []) as any[]).find((r) => String(r?._id) === id)?.name, "role");
-const org = (label: (ctx: UndoCtx) => string): Spec => ({ spec: { label, external: "org" } });
+  quoted(
+    ((state?.orgTree?.roles ?? []) as any[]).find((r) => String(r?._id) === id)
+      ?.name,
+    "role",
+  );
+const org = (label: (ctx: UndoCtx) => string): Spec => ({
+  spec: { label, external: "org" },
+});
 
 // The owners chip, the handoff composer and the chart all move a session
 // through reparentOrgSession. The label says which gesture it was, in the
@@ -346,47 +559,87 @@ const org = (label: (ctx: UndoCtx) => string): Spec => ({ spec: { label, externa
 function reparentSessionLabel(ctx: UndoCtx): string {
   const session = sessionTitle(ctx.before, ctx.args[0] as string);
   const target = ctx.args[1] as OrgReparentSessionTarget | undefined;
-  if (target?.kind === "role") return `Filed ${session} under ${roleName(ctx.before, target.role_id)}`;
+  if (target?.kind === "role")
+    return `Filed ${session} under ${roleName(ctx.before, target.role_id)}`;
   const owners = target?.owners;
   if (target?.kind !== "user" || !owners) {
-    return target?.kind === "user" && target.user_id ? `Moved ${session} under ${personName(ctx.before, target.user_id)}` : `Moved ${session} in the org`;
+    return target?.kind === "user" && target.user_id
+      ? `Moved ${session} under ${personName(ctx.before, target.user_id)}`
+      : `Moved ${session} in the org`;
   }
   const names = owners.map((id) => personName(ctx.before, id)).join(", ");
-  if (target.mode === "add") return `Made ${names} ${owners.length === 1 ? "an owner" : "owners"} of ${session}`;
+  if (target.mode === "add")
+    return `Made ${names} ${owners.length === 1 ? "an owner" : "owners"} of ${session}`;
   if (target.mode === "remove") return `Removed ${names} from ${session}`;
   // The named person goes last in a handoff's owner set (handoffOwnerSet).
-  return owners.length ? `Handed ${session} off to ${personName(ctx.before, owners[owners.length - 1]!)}` : `Cleared the owners of ${session}`;
+  return owners.length
+    ? `Handed ${session} off to ${personName(ctx.before, owners[owners.length - 1]!)}`
+    : `Cleared the owners of ${session}`;
 }
 
 export const WORK_UNDO_POLICY: UndoPolicy = {
   // ── Tasks (writer: updateTask per row) ─────────────────────────────────────
   // Rapid edits of the same fields (priority cycling, a title committed per
   // keystroke) merge into one entry.
-  updateTask: viaWriter((ctx) => taskLabel(ctx, ctx.args[0] as string, (ctx.args[1] ?? {}) as Record<string, unknown>), {
-    ignoreFields: TASK_UNCAPTURED,
-    coalesce: true,
-  }),
-  updateTaskStatus: viaWriter((ctx) => taskLabel(ctx, ctx.args[0] as string, { status: ctx.args[1] }), {
-    ignoreFields: TASK_SERVER_STAMPS,
-  }),
+  updateTask: viaWriter(
+    (ctx) =>
+      taskLabel(
+        ctx,
+        ctx.args[0] as string,
+        (ctx.args[1] ?? {}) as Record<string, unknown>,
+      ),
+    {
+      ignoreFields: TASK_UNCAPTURED,
+      coalesce: true,
+    },
+  ),
+  updateTaskStatus: viaWriter(
+    (ctx) => taskLabel(ctx, ctx.args[0] as string, { status: ctx.args[1] }),
+    {
+      ignoreFields: TASK_SERVER_STAMPS,
+    },
+  ),
 
   // ── The task graph (inverses: each verb's pair) ────────────────────────────
-  addBlocker: graphPair("blocked_by", "removeBlocker", (a, b) => `Made ${a} wait on ${b}`),
-  removeBlocker: graphPair("blocked_by", "addBlocker", (a, b) => `Removed blocker ${b} from ${a}`, blockerShortId),
+  addBlocker: graphPair(
+    "blocked_by",
+    "removeBlocker",
+    (a, b) => `Made ${a} wait on ${b}`,
+  ),
+  removeBlocker: graphPair(
+    "blocked_by",
+    "addBlocker",
+    (a, b) => `Removed blocker ${b} from ${a}`,
+    blockerShortId,
+  ),
   removeBlocks: {
     spec: {
       label: (ctx) => `${ctx.args[1]} no longer waits on ${ctx.args[0]}`,
-      inverse: (ctx) => (touchesTask(ctx, ctx.args[0] as string, "blocks") ? [call("addBlocker", ctx.args[1], ctx.args[0])] : []),
+      inverse: (ctx) =>
+        touchesTask(ctx, ctx.args[0] as string, "blocks")
+          ? [call("addBlocker", ctx.args[1], ctx.args[0])]
+          : [],
     },
   },
-  relateTasks: graphPair("related", "unrelateTasks", (a, b) => `Linked ${a} and ${b}`),
-  unrelateTasks: graphPair("related", "relateTasks", (a, b) => `Unlinked ${a} and ${b}`),
+  relateTasks: graphPair(
+    "related",
+    "unrelateTasks",
+    (a, b) => `Linked ${a} and ${b}`,
+  ),
+  unrelateTasks: graphPair(
+    "related",
+    "relateTasks",
+    (a, b) => `Unlinked ${a} and ${b}`,
+  ),
   addWait: {
     spec: {
-      label: (ctx) => `Made ${ctx.args[0]} wait ${waitClause((ctx.args[1] as TaskWaitInput).target)}`,
+      label: (ctx) =>
+        `Made ${ctx.args[0]} wait ${waitClause((ctx.args[1] as TaskWaitInput).target)}`,
       inverse: (ctx) => {
         const [shortId, input] = ctx.args as [string, TaskWaitInput];
-        return touchesTask(ctx, shortId, "waits") ? [call("removeWait", shortId, input.id)] : [];
+        return touchesTask(ctx, shortId, "waits")
+          ? [call("removeWait", shortId, input.id)]
+          : [];
       },
     },
   },
@@ -397,41 +650,76 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: (ctx) => {
         const w = waitBefore(ctx, ctx.args[0] as string, ctx.args[1] as string);
-        return w && !cannotSetAgain(w) ? `Removed the wait ${waitClause(w)} from ${ctx.args[0]}` : null;
+        return w && !cannotSetAgain(w)
+          ? `Removed the wait ${waitClause(w)} from ${ctx.args[0]}`
+          : null;
       },
       inverse: (ctx) => {
         const [shortId, waitId] = ctx.args as [string, string];
         const w = waitBefore(ctx, shortId, waitId);
-        return w && touchesTask(ctx, shortId, "waits") ? [call("addWait", shortId, { id: w.id, target: waitTargetOf(w) })] : [];
+        return w && touchesTask(ctx, shortId, "waits")
+          ? [call("addWait", shortId, { id: w.id, target: waitTargetOf(w) })]
+          : [];
       },
     },
   },
 
   // ── Plans, projects, initiatives (writers: their update verbs) ─────────────
-  updatePlan: viaWriter((ctx) => editLabel(planOf(ctx.before, ctx.args[0] as string), ctx.args[1] as Record<string, unknown>, "plan"), {
-    coalesce: true,
-  }),
-  updateProject: viaWriter((ctx) => editLabel(projectOf(ctx.before, ctx.args[0] as string), ctx.args[1] as Record<string, unknown>, "project"), {
-    coalesce: true,
-  }),
+  updatePlan: viaWriter(
+    (ctx) =>
+      editLabel(
+        planOf(ctx.before, ctx.args[0] as string),
+        ctx.args[1] as Record<string, unknown>,
+        "plan",
+      ),
+    {
+      coalesce: true,
+    },
+  ),
+  updateProject: viaWriter(
+    (ctx) =>
+      editLabel(
+        projectOf(ctx.before, ctx.args[0] as string),
+        ctx.args[1] as Record<string, unknown>,
+        "project",
+      ),
+    {
+      coalesce: true,
+    },
+  ),
   // Not recorded when the gesture widened the owner role's scope (see
   // widenedRoleScope); removing a project never does.
   // The target date picker writes once per input event (a typed year is four
   // writes), so rapid edits of one field merge as they do for plans.
   updateInitiative: viaInitiativeWriter(
-    (ctx) => editLabel(ctx.before?.initiatives?.[ctx.args[0] as string], (ctx.args[1] ?? {}) as Record<string, unknown>, "goal"),
+    (ctx) =>
+      editLabel(
+        ctx.before?.initiatives?.[ctx.args[0] as string],
+        (ctx.args[1] ?? {}) as Record<string, unknown>,
+        "goal",
+      ),
     { coalesce: true },
   ),
   addInitiativeProject: viaInitiativeWriter(
-    (ctx) => `Added ${quoted(projectOf(ctx.before, ctx.args[1] as string)?.title, "project")} to ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`,
+    (ctx) =>
+      `Added ${quoted(projectOf(ctx.before, ctx.args[1] as string)?.title, "project")} to ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`,
   ),
   removeInitiativeProject: viaWriter(
-    (ctx) => `Removed ${quoted(projectOf(ctx.before, ctx.args[1] as string)?.title, "project")} from ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`,
+    (ctx) =>
+      `Removed ${quoted(projectOf(ctx.before, ctx.args[1] as string)?.title, "project")} from ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`,
   ),
   // One entry of the intent record: the writer sends the entry's prior state
   // back by key (recordOpsBetween), so an undo never replaces the list.
-  recordInitiativeEntry: viaWriter((ctx) => recordLabel(ctx.args[1] as RecordOpLike, quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal"))),
-  setInitiativeProjects: viaInitiativeWriter((ctx) => `Reordered the projects of ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`),
+  recordInitiativeEntry: viaWriter((ctx) =>
+    recordLabel(
+      ctx.args[1] as RecordOpLike,
+      quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal"),
+    ),
+  ),
+  setInitiativeProjects: viaInitiativeWriter(
+    (ctx) =>
+      `Reordered the projects of ${quoted(ctx.before?.initiatives?.[ctx.args[0] as string]?.title, "goal")}`,
+  ),
   // Naming a lead also widens the role's scope in the org record, in one
   // server transaction (orgRoles.setProjectLead); the org record owns its undo.
   setProjectLead: org((ctx) =>
@@ -446,15 +734,24 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     (ctx) => {
       const fields = (ctx.args[1] ?? {}) as Record<string, unknown>;
       const title = docTitle(ctx.before, ctx.args[0] as string);
-      return fields.title !== undefined && fields.title !== ctx.before?.docs?.[ctx.args[0] as string]?.title
+      return fields.title !== undefined &&
+        fields.title !== ctx.before?.docs?.[ctx.args[0] as string]?.title
         ? `Renamed ${title} to ${quoted(String(fields.title), "doc")}`
         : `Edited ${title}`;
     },
     { ignoreFields: ["content", "overflow"] },
   ),
-  pinDoc: viaDocsWriter((ctx) => `${ctx.args[1] ? "Starred" : "Unstarred"} ${docTitle(ctx.before, ctx.args[0] as string)}`),
-  moveDoc: viaDocsWriter((ctx) => `Moved ${docTitle(ctx.before, ctx.args[0] as string)}`),
-  archiveDoc: viaDocsWriter((ctx) => `Archived ${docTitle(ctx.before, ctx.args[0] as string)}`, { toast: true }),
+  pinDoc: viaDocsWriter(
+    (ctx) =>
+      `${ctx.args[1] ? "Starred" : "Unstarred"} ${docTitle(ctx.before, ctx.args[0] as string)}`,
+  ),
+  moveDoc: viaDocsWriter(
+    (ctx) => `Moved ${docTitle(ctx.before, ctx.args[0] as string)}`,
+  ),
+  archiveDoc: viaDocsWriter(
+    (ctx) => `Archived ${docTitle(ctx.before, ctx.args[0] as string)}`,
+    { toast: true },
+  ),
 
   // ── Inbox filing and project ───────────────────────────────────────────────
   assignSessionToBucket: viaWriter(
@@ -477,7 +774,9 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       inverse: (ctx) =>
         convIds(ctx, ["project_path"]).flatMap((id) => {
           const prior = priorOf(ctx, id, "project_path");
-          return typeof prior === "string" ? [call("switchProject", id, prior)] : [];
+          return typeof prior === "string"
+            ? [call("switchProject", id, prior)]
+            : [];
         }),
       spell: spellSwitchProject,
     },
@@ -502,7 +801,9 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   setTeamVisibility: {
     spec: {
       label: (ctx) =>
-        privacyRestorable(ctx) ? `Set ${sessionTitle(ctx.before, ctx.args[0] as string)} to ${visibilityName(ctx.args[1])} team visibility` : null,
+        privacyRestorable(ctx)
+          ? `Set ${sessionTitle(ctx.before, ctx.args[0] as string)} to ${visibilityName(ctx.args[1])} team visibility`
+          : null,
       inverse: restorePrivacy,
       spell: spellPrivacy,
       confirm: undoWidens,
@@ -515,8 +816,14 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // bookmark is still where the gesture left it.
   toggleBookmark: {
     spec: {
-      label: (ctx) => (cellsOf(ctx, "bookmarks").some((c) => c.hadAfter) ? "Bookmarked a message" : "Removed a bookmark"),
-      inverse: (ctx) => rowIds(cellsOf(ctx, "bookmarks")).map((messageId) => call("toggleBookmark", ctx.args[0], messageId)),
+      label: (ctx) =>
+        cellsOf(ctx, "bookmarks").some((c) => c.hadAfter)
+          ? "Bookmarked a message"
+          : "Removed a bookmark",
+      inverse: (ctx) =>
+        rowIds(cellsOf(ctx, "bookmarks")).map((messageId) =>
+          call("toggleBookmark", ctx.args[0], messageId),
+        ),
     },
   },
   // savedViews is not local-first, so its cells are mirrors with no writer:
@@ -530,20 +837,35 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: (ctx) => {
         const cells = cellsOf(ctx, "savedViews");
-        if (cells.some((c) => c.field !== "updated_at" && c.before === undefined)) return null;
-        const name = quoted(ctx.before?.savedViews?.[ctx.args[0] as string]?.name, "view");
+        if (
+          cells.some((c) => c.field !== "updated_at" && c.before === undefined)
+        )
+          return null;
+        const name = quoted(
+          ctx.before?.savedViews?.[ctx.args[0] as string]?.name,
+          "view",
+        );
         const shared = cells.find((c) => c.field === "shared");
-        if (shared) return shared.after ? `Shared view ${name} with the team` : `Stopped sharing view ${name}`;
+        if (shared)
+          return shared.after
+            ? `Shared view ${name} with the team`
+            : `Stopped sharing view ${name}`;
         return `Edited view ${name}`;
       },
-      confirm: (ctx) => cellsOf(ctx, "savedViews").some((c) => c.field === "shared" && !!c.before && !c.after),
+      confirm: (ctx) =>
+        cellsOf(ctx, "savedViews").some(
+          (c) => c.field === "shared" && !!c.before && !c.after,
+        ),
       inverse: (ctx) =>
         rowIds(cellsOf(ctx, "savedViews")).flatMap((id) => {
           const fields: Record<string, unknown> = {};
           for (const c of cellsOf(ctx, "savedViews")) {
-            if (c.id === id && c.field && c.field !== "updated_at") fields[c.field] = c.before;
+            if (c.id === id && c.field && c.field !== "updated_at")
+              fields[c.field] = c.before;
           }
-          return Object.keys(fields).length ? [call("updateSavedView", id, fields)] : [];
+          return Object.keys(fields).length
+            ? [call("updateSavedView", id, fields)]
+            : [];
         }),
     },
   },
@@ -553,19 +875,32 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   updateModObject: {
     spec: {
       label: (ctx) => {
-        const cells = cellsOf(ctx, "modObjects").filter((c) => c.field !== "updated_at");
-        if (!cells.length || cells.some((c) => c.before === undefined)) return null;
+        const cells = cellsOf(ctx, "modObjects").filter(
+          (c) => c.field !== "updated_at",
+        );
+        if (!cells.length || cells.some((c) => c.before === undefined))
+          return null;
         const before = ctx.before?.modObjects?.[ctx.args[0] as string];
-        const added = ctx.args[1] && typeof ctx.args[1] === "object" ? Object.keys(((ctx.args[1] as any).fields ?? {}) as object).filter((k) => !(k in (before?.fields ?? {}))) : [];
-        return added.length ? null : `Edited ${quoted(before?.short_id ?? before?.title, "object")}`;
+        const added =
+          ctx.args[1] && typeof ctx.args[1] === "object"
+            ? Object.keys(((ctx.args[1] as any).fields ?? {}) as object).filter(
+                (k) => !(k in (before?.fields ?? {})),
+              )
+            : [];
+        return added.length
+          ? null
+          : `Edited ${quoted(before?.short_id ?? before?.title, "object")}`;
       },
       inverse: (ctx) =>
         rowIds(cellsOf(ctx, "modObjects")).flatMap((id) => {
           const patch: Record<string, unknown> = {};
           for (const c of cellsOf(ctx, "modObjects")) {
-            if (c.id === id && c.field && c.field !== "updated_at") patch[c.field] = c.before;
+            if (c.id === id && c.field && c.field !== "updated_at")
+              patch[c.field] = c.before;
           }
-          return Object.keys(patch).length ? [call("updateModObject", id, patch)] : [];
+          return Object.keys(patch).length
+            ? [call("updateModObject", id, patch)]
+            : [];
         }),
     },
   },
@@ -574,15 +909,19 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // vars and sites. The value is never in the store, so never in an undo.
   updateSecretMeta: {
     spec: {
-      label: (ctx) => `Edited ${quoted(ctx.before?.secrets?.[ctx.args[0] as string]?.name, "secret")}`,
+      label: (ctx) =>
+        `Edited ${quoted(ctx.before?.secrets?.[ctx.args[0] as string]?.name, "secret")}`,
       inverse: (ctx) =>
         rowIds(cellsOf(ctx, "secrets")).flatMap((id) => {
           const patch: Record<string, unknown> = {};
           for (const c of cellsOf(ctx, "secrets")) {
-            if (c.id !== id || !c.field || !SECRET_CLEARS.has(c.field)) continue;
+            if (c.id !== id || !c.field || !SECRET_CLEARS.has(c.field))
+              continue;
             patch[c.field] = c.before ?? SECRET_CLEARS.get(c.field);
           }
-          return Object.keys(patch).length ? [call("updateSecretMeta", id, patch)] : [];
+          return Object.keys(patch).length
+            ? [call("updateSecretMeta", id, patch)]
+            : [];
         }),
     },
   },
@@ -594,16 +933,27 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   resolveCommentThread: {
     spec: {
       label: (ctx) =>
-        ctx.args[2] && !cellsOf(ctx, "comments", "resolved_at").some((c) => c.before != null) ? "Resolved a comment thread" : null,
+        ctx.args[2] &&
+        !cellsOf(ctx, "comments", "resolved_at").some((c) => c.before != null)
+          ? "Resolved a comment thread"
+          : null,
       inverse: (ctx) => {
         const [conv, anchor] = ctx.args as [string, unknown];
         // The thread is one server call: if a comment in it changed since,
         // the undo cannot leave that one out, so it is refused whole.
         const resolved = Object.values(ctx.after?.comments ?? {}).filter(
-          (c: any) => c?.conversation_id === conv && c.resolved_at !== ctx.before?.comments?.[c._id]?.resolved_at,
+          (c: any) =>
+            c?.conversation_id === conv &&
+            c.resolved_at !== ctx.before?.comments?.[c._id]?.resolved_at,
         );
-        const changed = new Set(rowIds(cellsOf(ctx, "comments", "resolved_at")));
-        if (changed.size === 0 || resolved.some((c: any) => !changed.has(String(c._id)))) return null;
+        const changed = new Set(
+          rowIds(cellsOf(ctx, "comments", "resolved_at")),
+        );
+        if (
+          changed.size === 0 ||
+          resolved.some((c: any) => !changed.has(String(c._id)))
+        )
+          return null;
         return [call("resolveCommentThread", conv, anchor, false)];
       },
     },
@@ -614,22 +964,41 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // One comment on a published page's discussion: the flag flips both ways.
   resolvePageComment: {
     spec: {
-      label: (ctx) => (ctx.args[2] ? "Resolved a page comment" : "Reopened a page comment"),
+      label: (ctx) =>
+        ctx.args[2] ? "Resolved a page comment" : "Reopened a page comment",
       inverse: (ctx) => {
-        const [artifactId, commentId, resolved] = ctx.args as [string, string, boolean];
+        const [artifactId, commentId, resolved] = ctx.args as [
+          string,
+          string,
+          boolean,
+        ];
         return [call("resolvePageComment", artifactId, commentId, !resolved)];
       },
     },
   },
   resolveCodeCommentThread: {
     spec: {
-      label: (ctx) => (ctx.args[1] ? "Resolved a review thread" : "Reopened a review thread"),
+      label: (ctx) =>
+        ctx.args[1] ? "Resolved a review thread" : "Reopened a review thread",
       inverse: (ctx) => {
         const [ids, resolved] = ctx.args as [string[], boolean];
-        const flipped = ids.filter((id) => ctx.before?.codeComments?.[id]?.resolved !== ctx.after?.codeComments?.[id]?.resolved);
-        const changed = new Set(rowIds(cellsOf(ctx, "codeComments", "resolved")));
-        if (changed.size === 0 || flipped.some((id) => !changed.has(id))) return null;
-        return [call("resolveCodeCommentThread", ids.filter((id) => changed.has(id)), !resolved)];
+        const flipped = ids.filter(
+          (id) =>
+            ctx.before?.codeComments?.[id]?.resolved !==
+            ctx.after?.codeComments?.[id]?.resolved,
+        );
+        const changed = new Set(
+          rowIds(cellsOf(ctx, "codeComments", "resolved")),
+        );
+        if (changed.size === 0 || flipped.some((id) => !changed.has(id)))
+          return null;
+        return [
+          call(
+            "resolveCodeCommentThread",
+            ids.filter((id) => changed.has(id)),
+            !resolved,
+          ),
+        ];
       },
     },
   },
@@ -637,7 +1006,13 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: () => "Edited a review comment",
       inverse: (ctx) =>
-        cellsOf(ctx, "codeComments", "content").map((c) => call("editCodeComment", c.id, typeof c.before === "string" ? c.before : "")),
+        cellsOf(ctx, "codeComments", "content").map((c) =>
+          call(
+            "editCodeComment",
+            c.id,
+            typeof c.before === "string" ? c.before : "",
+          ),
+        ),
     },
   },
   // A decision's team thread (decisionThread.ts): an edit goes back to the
@@ -646,15 +1021,26 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: () => "Edited a comment on a decision",
       inverse: (ctx) =>
-        cellsOf(ctx, "decisionComments", "content").map((c) => call("editDecisionComment", c.id, typeof c.before === "string" ? c.before : "")),
+        cellsOf(ctx, "decisionComments", "content").map((c) =>
+          call(
+            "editDecisionComment",
+            c.id,
+            typeof c.before === "string" ? c.before : "",
+          ),
+        ),
     },
   },
   resolveDecisionThread: {
     spec: {
-      label: (ctx) => (ctx.args[1] ? "Resolved a decision's thread" : "Reopened a decision's thread"),
+      label: (ctx) =>
+        ctx.args[1]
+          ? "Resolved a decision's thread"
+          : "Reopened a decision's thread",
       inverse: (ctx) => {
         const [decisionId, resolved] = ctx.args as [string, boolean];
-        return cellsOf(ctx, "decisionComments", "resolved_at").length ? [call("resolveDecisionThread", decisionId, !resolved)] : null;
+        return cellsOf(ctx, "decisionComments", "resolved_at").length
+          ? [call("resolveDecisionThread", decisionId, !resolved)]
+          : null;
       },
     },
   },
@@ -662,7 +1048,13 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: () => "Edited a project update",
       inverse: (ctx) =>
-        cellsOf(ctx, "projectUpdates", "body").map((c) => call("editProjectUpdate", c.id, typeof c.before === "string" ? c.before : "")),
+        cellsOf(ctx, "projectUpdates", "body").map((c) =>
+          call(
+            "editProjectUpdate",
+            c.id,
+            typeof c.before === "string" ? c.before : "",
+          ),
+        ),
     },
   },
   editComment: {
@@ -672,7 +1064,12 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
         // The draft runs: its returned payload is the receipt the side effect reads.
         cellsOf(ctx, "comments", "content").map((c) => ({
           action: "editComment",
-          args: [c.id, typeof c.before === "string" ? c.before : ((ctx.result as any)?.previousContent ?? "")],
+          args: [
+            c.id,
+            typeof c.before === "string"
+              ? c.before
+              : ((ctx.result as any)?.previousContent ?? ""),
+          ],
         })),
     },
   },
@@ -680,8 +1077,12 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // ── Decision stacks ────────────────────────────────────────────────────────
   reorderStack: {
     spec: {
-      label: (ctx) => `Reordered ${stackTitle(ctx.before, ctx.args[0] as string)}`,
-      inverse: (ctx) => cellsOf(ctx, "decisionStacks", "decision_ids").map((c) => call("reorderStack", c.id, c.before)),
+      label: (ctx) =>
+        `Reordered ${stackTitle(ctx.before, ctx.args[0] as string)}`,
+      inverse: (ctx) =>
+        cellsOf(ctx, "decisionStacks", "decision_ids").map((c) =>
+          call("reorderStack", c.id, c.before),
+        ),
     },
   },
   // The prior policy as a patch: each key the gesture moved goes back to its
@@ -689,14 +1090,16 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // nothing locally and records nothing.
   setStackPolicy: {
     spec: {
-      label: (ctx) => `Changed the timing of ${stackTitle(ctx.before, ctx.args[0] as string)}`,
+      label: (ctx) =>
+        `Changed the timing of ${stackTitle(ctx.before, ctx.args[0] as string)}`,
       inverse: (ctx) =>
         cellsOf(ctx, "decisionStacks", "policy").map((c) => {
           const before = (c.before ?? {}) as Record<string, unknown>;
           const after = (c.after ?? {}) as Record<string, unknown>;
           const patch: Record<string, unknown> = {};
           if (before.auto_default_after_ms !== after.auto_default_after_ms) {
-            if (before.auto_default_after_ms === undefined) patch.clear_auto_default = true;
+            if (before.auto_default_after_ms === undefined)
+              patch.clear_auto_default = true;
             else patch.auto_default_after_ms = before.auto_default_after_ms;
           }
           if (before.due_at !== after.due_at) {
@@ -712,9 +1115,16 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   updateChatChannel: {
     spec: {
       label: (ctx) => {
-        const [id, fields] = ctx.args as [string, { name?: string; topic?: string }];
+        const [id, fields] = ctx.args as [
+          string,
+          { name?: string; topic?: string },
+        ];
         const after = ctx.after?.chatChannels?.[id]?.name;
-        if (fields.name !== undefined && after !== ctx.before?.chatChannels?.[id]?.name) return `Renamed ${channelName(ctx.before, id)} to #${after}`;
+        if (
+          fields.name !== undefined &&
+          after !== ctx.before?.chatChannels?.[id]?.name
+        )
+          return `Renamed ${channelName(ctx.before, id)} to #${after}`;
         return `Changed the topic of ${channelName(ctx.before, id)}`;
       },
       inverse: (ctx) =>
@@ -722,18 +1132,24 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
           const fields: Record<string, unknown> = {};
           for (const c of cellsOf(ctx, "chatChannels")) {
             if (c.id !== id) continue;
-            if (c.field === "name" && typeof c.before === "string") fields.name = c.before;
+            if (c.field === "name" && typeof c.before === "string")
+              fields.name = c.before;
             if (c.field === "topic") fields.topic = c.before ?? "";
           }
-          return Object.keys(fields).length ? [call("updateChatChannel", id, fields)] : [];
+          return Object.keys(fields).length
+            ? [call("updateChatChannel", id, fields)]
+            : [];
         }),
     },
   },
   archiveChatChannel: {
     spec: {
-      label: (ctx) => `${ctx.args[1] ? "Archived" : "Unarchived"} ${channelName(ctx.before, ctx.args[0] as string)}`,
+      label: (ctx) =>
+        `${ctx.args[1] ? "Archived" : "Unarchived"} ${channelName(ctx.before, ctx.args[0] as string)}`,
       inverse: (ctx) =>
-        cellsOf(ctx, "chatChannels", "archived_at").map((c) => call("archiveChatChannel", c.id, c.before != null)),
+        cellsOf(ctx, "chatChannels", "archived_at").map((c) =>
+          call("archiveChatChannel", c.id, c.before != null),
+        ),
       toast: true,
     },
   },
@@ -743,7 +1159,9 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: (ctx) => {
         const [id] = ctx.args as [string];
-        const added = railMembers(ctx.after, id).filter((m) => !railMembers(ctx.before, id).includes(m));
+        const added = railMembers(ctx.after, id).filter(
+          (m) => !railMembers(ctx.before, id).includes(m),
+        );
         if (added.length === 0) return null;
         return `Added ${added.length === 1 ? personName(ctx.after, added[0]!) : `${added.length} people`} to ${channelName(ctx.before, id)}`;
       },
@@ -763,7 +1181,9 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       label: (ctx) => {
         const [id] = ctx.args as [string];
         const before = new Set(railAgents(ctx.before, id).map(agentKey));
-        const added = railAgents(ctx.after, id).filter((a) => !before.has(agentKey(a)));
+        const added = railAgents(ctx.after, id).filter(
+          (a) => !before.has(agentKey(a)),
+        );
         if (added.length === 0) return null;
         return `Added ${added.length === 1 ? added[0].short_id : `${added.length} agents`} to ${channelName(ctx.before, id)}`;
       },
@@ -780,12 +1200,18 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: (ctx) => {
         const [id, agentId] = ctx.args as [string, string];
-        const gone = railAgents(ctx.before, id).find((a) => agentKey(a) === agentId);
-        return gone ? `Removed ${gone.short_id} from ${channelName(ctx.before, id)}` : null;
+        const gone = railAgents(ctx.before, id).find(
+          (a) => agentKey(a) === agentId,
+        );
+        return gone
+          ? `Removed ${gone.short_id} from ${channelName(ctx.before, id)}`
+          : null;
       },
       inverse: (ctx) => {
         const [id, agentId] = ctx.args as [string, string];
-        const gone = railAgents(ctx.before, id).find((a) => agentKey(a) === agentId);
+        const gone = railAgents(ctx.before, id).find(
+          (a) => agentKey(a) === agentId,
+        );
         return gone ? [call("addChatChannelAgents", id, [gone])] : null;
       },
     },
@@ -801,18 +1227,29 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       },
       inverse: (ctx) => {
         const [id, user] = ctx.args as [string, string];
-        return ctx.changes.some((c) => c.store === "chatRail") ? [call("addChatChannelMembers", id, [user])] : null;
+        return ctx.changes.some((c) => c.store === "chatRail")
+          ? [call("addChatChannelMembers", id, [user])]
+          : null;
       },
     },
   },
   dispatchChatEdit: {
     spec: {
       label: (ctx) => {
-        const channel = ctx.before?.chatMessages?.[ctx.args[0] as string]?.channel_id;
-        return channel ? `Edited a message in ${channelName(ctx.before, String(channel))}` : "Edited a message";
+        const channel =
+          ctx.before?.chatMessages?.[ctx.args[0] as string]?.channel_id;
+        return channel
+          ? `Edited a message in ${channelName(ctx.before, String(channel))}`
+          : "Edited a message";
       },
       inverse: (ctx) =>
-        cellsOf(ctx, "chatMessages", "content").map((c) => call("dispatchChatEdit", c.id, typeof c.before === "string" ? c.before : "")),
+        cellsOf(ctx, "chatMessages", "content").map((c) =>
+          call(
+            "dispatchChatEdit",
+            c.id,
+            typeof c.before === "string" ? c.before : "",
+          ),
+        ),
     },
   },
 
@@ -821,10 +1258,13 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
   // sends the value the row held before through the same verb.
   renameTeam: {
     spec: {
-      label: (ctx) => `Renamed the team to ${quoted(ctx.args[1] as string, "a new name")}`,
+      label: (ctx) =>
+        `Renamed the team to ${quoted(ctx.args[1] as string, "a new name")}`,
       inverse: (ctx) => {
         const before = teamRow(ctx.before, ctx.args[0] as string);
-        return before?.name ? [call("renameTeam", ctx.args[0], before.name)] : null;
+        return before?.name
+          ? [call("renameTeam", ctx.args[0], before.name)]
+          : null;
       },
     },
   },
@@ -833,7 +1273,14 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       label: () => "Changed the team's icon",
       inverse: (ctx) => {
         const before = teamRow(ctx.before, ctx.args[0] as string);
-        return before ? [call("updateTeamIcon", ctx.args[0], { icon: before.icon, icon_color: before.icon_color })] : null;
+        return before
+          ? [
+              call("updateTeamIcon", ctx.args[0], {
+                icon: before.icon,
+                icon_color: before.icon_color,
+              }),
+            ]
+          : null;
       },
     },
   },
@@ -842,7 +1289,15 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       label: () => "Edited the team's task statuses",
       inverse: (ctx) => {
         const before = teamRow(ctx.before, ctx.args[0] as string);
-        return before ? [call("updateTeamTaskStatuses", ctx.args[0], teamTaskStatuses(before.task_statuses))] : null;
+        return before
+          ? [
+              call(
+                "updateTeamTaskStatuses",
+                ctx.args[0],
+                teamTaskStatuses(before.task_statuses),
+              ),
+            ]
+          : null;
       },
     },
   },
@@ -851,7 +1306,15 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
       label: () => "Changed the team's default flow",
       inverse: (ctx) => {
         const before = teamRow(ctx.before, ctx.args[0] as string);
-        return before ? [call("setTeamDefaultFlow", ctx.args[0], before.default_flow ?? null)] : null;
+        return before
+          ? [
+              call(
+                "setTeamDefaultFlow",
+                ctx.args[0],
+                before.default_flow ?? null,
+              ),
+            ]
+          : null;
       },
     },
   },
@@ -859,66 +1322,142 @@ export const WORK_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: () => "Changed the workspace's agent",
       inverse: (ctx) => {
-        const root = Object.values((ctx.before as any)?.anchors ?? {}).find((a: any) => a?.scope_type === "team" && String(a.team_id) === ctx.args[0] && a.is_root && a.role) as any;
-        return root ? [call("setTeamWorkspaceAgent", ctx.args[0], String(root.role._id))] : null;
+        const root = Object.values((ctx.before as any)?.anchors ?? {}).find(
+          (a: any) =>
+            a?.scope_type === "team" &&
+            String(a.team_id) === ctx.args[0] &&
+            a.is_root &&
+            a.role,
+        ) as any;
+        return root
+          ? [call("setTeamWorkspaceAgent", ctx.args[0], String(root.role._id))]
+          : null;
       },
     },
   },
   setTeamMemberRole: {
     spec: {
-      label: (ctx) => `Made ${personName(ctx.before, ctx.args[1] as string)} ${ctx.args[2] === "admin" ? "an admin" : "a member"}`,
+      label: (ctx) =>
+        `Made ${personName(ctx.before, ctx.args[1] as string)} ${ctx.args[2] === "admin" ? "an admin" : "a member"}`,
       inverse: (ctx) => {
-        const before = (ctx.before?.teamMembers ?? []).find((m: any) => String(m?._id) === ctx.args[1])?.role;
-        return before === "admin" || before === "member" ? [call("setTeamMemberRole", ctx.args[0], ctx.args[1], before)] : null;
+        const before = (ctx.before?.teamMembers ?? []).find(
+          (m: any) => String(m?._id) === ctx.args[1],
+        )?.role;
+        return before === "admin" || before === "member"
+          ? [call("setTeamMemberRole", ctx.args[0], ctx.args[1], before)]
+          : null;
       },
     },
   },
-  removeTeamMember: { never: "sharing: removing a member ends their membership; they come back through an invite" },
+  removeTeamMember: {
+    never:
+      "sharing: removing a member ends their membership; they come back through an invite",
+  },
 
   // ── Org record (display-only history items) ────────────────────────────────
   reparentOrgSession: org(reparentSessionLabel),
-  reparentOrgRole: org((ctx) => `Moved ${roleName(ctx.before, ctx.args[0] as string)} in the org`),
+  reparentOrgRole: org(
+    (ctx) => `Moved ${roleName(ctx.before, ctx.args[0] as string)} in the org`,
+  ),
   reparentOrgPerson: {
     spec: {
-      label: (ctx) => `Moved ${personName(ctx.before, ctx.args[1] as string)} in the org`,
+      label: (ctx) =>
+        `Moved ${personName(ctx.before, ctx.args[1] as string)} in the org`,
       inverse: (ctx) => {
-        const was = (ctx.before as any)?.orgTree?.people?.find((p: any) => p.user_id === ctx.args[1]);
-        return was ? [call("reparentOrgPerson", ctx.args[0], ctx.args[1], was.reports_to_user_id ?? null)] : null;
+        const was = (ctx.before as any)?.orgTree?.people?.find(
+          (p: any) => p.user_id === ctx.args[1],
+        );
+        return was
+          ? [
+              call(
+                "reparentOrgPerson",
+                ctx.args[0],
+                ctx.args[1],
+                was.reports_to_user_id ?? null,
+              ),
+            ]
+          : null;
       },
     },
   },
-  createOrgRole: org((ctx) => `Created the role ${quoted((ctx.args[0] as { name?: string })?.name, "role")}`),
-  updateOrgRole: org((ctx) => `Edited ${roleName(ctx.before, ctx.args[0] as string)}`),
-  setRoleLine: org((ctx) => `Changed the steps of ${roleName(ctx.before, ctx.args[0] as string)}`),
+  createOrgRole: org(
+    (ctx) =>
+      `Created the role ${quoted((ctx.args[0] as { name?: string })?.name, "role")}`,
+  ),
+  updateOrgRole: org(
+    (ctx) => `Edited ${roleName(ctx.before, ctx.args[0] as string)}`,
+  ),
+  setRoleLine: org(
+    (ctx) =>
+      `Changed the steps of ${roleName(ctx.before, ctx.args[0] as string)}`,
+  ),
   // A project's customized line (writer: workflows). The fork mints the row,
   // a create, so it is not recorded; each later save undoes to the prior graph.
   saveLineWorkflow: viaWriter((ctx) => {
     const wf = ctx.args[0] as { slug?: string; name?: string } | undefined;
-    const before = Object.values((ctx.before?.workflows ?? {}) as Record<string, any>).some((w) => w?.slug === wf?.slug);
-    return before ? `Edited the stations of ${quoted(wf?.name, "the steps")}` : null;
+    const before = Object.values(
+      (ctx.before?.workflows ?? {}) as Record<string, any>,
+    ).some((w) => w?.slug === wf?.slug);
+    return before
+      ? `Edited the stations of ${quoted(wf?.name, "the steps")}`
+      : null;
   }),
-  followOrgChannel: org((ctx) => `${ctx.args[2] ? "Followed" : "Unfollowed"} a channel for a role`),
+  followOrgChannel: org(
+    (ctx) => `${ctx.args[2] ? "Followed" : "Unfollowed"} a channel for a role`,
+  ),
   staffHeadOfPeople: org(() => "Staffed the Head of People"),
   hireExecutiveAssistant: org(() => "Hired an executive assistant"),
-  replyOnOrgProposal: org((ctx) => { const n = (ctx.args[1] as unknown[] | undefined)?.length ?? 0; return `Answered ${n === 1 ? "a change" : `${n} changes`} of an org proposal`; }),
+  replyOnOrgProposal: org((ctx) => {
+    const n = (ctx.args[1] as unknown[] | undefined)?.length ?? 0;
+    return `Answered ${n === 1 ? "a change" : `${n} changes`} of an org proposal`;
+  }),
   withdrawOrgProposal: org(() => "Withdrew an org proposal"),
   undoOrgChange: org(() => "Undid an org change"),
   redoOrgChange: org(() => "Redid an org change"),
-  retireOrgRole: org((ctx) => `Retired ${roleName(ctx.before, ctx.args[0] as string)}`),
-  splitOrgRole: org((ctx) => `Split ${roleName(ctx.before, (ctx.args[0] as { role_id: string }).role_id)} into two leads`),
-  settleOrgHandoff: org((ctx) => `${ctx.args[1] === "close" ? "Closed" : "Ran"} the handoff of ${roleName(ctx.before, ctx.args[0] as string)}`),
-  setOrgLineMerge: org((ctx) => ctx.args[3] !== undefined
-    ? `Set ${roleName(ctx.before, ctx.args[0] as string)}'s merge step to ${ctx.args[3] ? "the measured rate" : "the daily count"}`
-    : `Turned the merge step ${ctx.args[1] ? "on" : "off"} for ${roleName(ctx.before, ctx.args[0] as string)}`),
-  markOrgTemplateSetup: org((ctx) => `Marked a setup item ${String(ctx.args[2])}`),
-  answerOrgTemplateInput: org(() => "Answered a template role's setup question"),
+  retireOrgRole: org(
+    (ctx) => `Retired ${roleName(ctx.before, ctx.args[0] as string)}`,
+  ),
+  splitOrgRole: org(
+    (ctx) =>
+      `Split ${roleName(ctx.before, (ctx.args[0] as { role_id: string }).role_id)} into two leads`,
+  ),
+  settleOrgHandoff: org(
+    (ctx) =>
+      `${ctx.args[1] === "close" ? "Closed" : "Ran"} the handoff of ${roleName(ctx.before, ctx.args[0] as string)}`,
+  ),
+  setOrgLineMerge: org((ctx) =>
+    ctx.args[3] !== undefined
+      ? `Set ${roleName(ctx.before, ctx.args[0] as string)}'s merge step to ${ctx.args[3] ? "the measured rate" : "the daily count"}`
+      : `Turned the merge step ${ctx.args[1] ? "on" : "off"} for ${roleName(ctx.before, ctx.args[0] as string)}`,
+  ),
+  markOrgTemplateSetup: org(
+    (ctx) => `Marked a setup item ${String(ctx.args[2])}`,
+  ),
+  answerOrgTemplateInput: org(
+    () => "Answered a template role's setup question",
+  ),
   activateOrgTemplateRoutine: org(() => "Turned on a template role's routine"),
-  setOrgTemplateLearning: org((ctx) => `${ctx.args[1] ? "Let" : "Stopped"} Codecast learn${ctx.args[1] ? "" : "ing"} from template roles`),
+  setOrgTemplateLearning: org(
+    (ctx) =>
+      `${ctx.args[1] ? "Let" : "Stopped"} Codecast learn${ctx.args[1] ? "" : "ing"} from template roles`,
+  ),
   // Not in the record: a reset wipes the chart the record describes, and
   // bringing a seat online or running the host step acts on a machine.
-  resetOrg: { never: "machine control: a reset retires every role and its standing agents, which an undo cannot rewind" },
-  provisionOrgRole: { never: "machine control: it starts the role's standing agent on a host" },
-  moveOrgRoleBack: { never: "machine control: it moves the role's standing agent to another machine" },
-  keepOrgRoleHere: { never: "it clears a failover record that undo cannot restore" },
-  requestOrgTemplateBind: { never: "machine control: the host's daemon runs the bind on a machine" },
+  resetOrg: {
+    never:
+      "machine control: a reset retires every role and its standing agents, which an undo cannot rewind",
+  },
+  provisionOrgRole: {
+    never: "machine control: it starts the role's standing agent on a host",
+  },
+  moveOrgRoleBack: {
+    never:
+      "machine control: it moves the role's standing agent to another machine",
+  },
+  keepOrgRoleHere: {
+    never: "it clears a failover record that undo cannot restore",
+  },
+  requestOrgTemplateBind: {
+    never: "machine control: the host's daemon runs the bind on a machine",
+  },
 };

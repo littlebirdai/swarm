@@ -2,7 +2,11 @@
 // server-side file-change materializer. This module re-exports it and keeps the
 // web-only presentation helper (getFileStatus) local.
 export { parsePatch } from "@codecast/convex/convex/fileChanges/patchParser";
-export type { PatchHunk, PatchLine, ParsedPatch } from "@codecast/convex/convex/fileChanges/patchParser";
+export type {
+  PatchHunk,
+  PatchLine,
+  ParsedPatch,
+} from "@codecast/convex/convex/fileChanges/patchParser";
 
 export function getFileStatus(status: string): {
   label: string;
@@ -11,18 +15,34 @@ export function getFileStatus(status: string): {
 } {
   switch (status.toLowerCase()) {
     case "added":
-      return { label: "A", color: "text-sol-green", bgColor: "bg-sol-green/20" };
+      return {
+        label: "A",
+        color: "text-sol-green",
+        bgColor: "bg-sol-green/20",
+      };
     case "removed":
     case "deleted":
       return { label: "D", color: "text-sol-red", bgColor: "bg-sol-red/20" };
     case "modified":
-      return { label: "M", color: "text-sol-yellow", bgColor: "bg-sol-yellow/20" };
+      return {
+        label: "M",
+        color: "text-sol-yellow",
+        bgColor: "bg-sol-yellow/20",
+      };
     case "renamed":
       return { label: "R", color: "text-sol-cyan", bgColor: "bg-sol-cyan/20" };
     case "copied":
-      return { label: "C", color: "text-sol-violet", bgColor: "bg-sol-violet/20" };
+      return {
+        label: "C",
+        color: "text-sol-violet",
+        bgColor: "bg-sol-violet/20",
+      };
     default:
-      return { label: "?", color: "text-sol-text-muted", bgColor: "bg-sol-text-muted/20" };
+      return {
+        label: "?",
+        color: "text-sol-text-muted",
+        bgColor: "bg-sol-text-muted/20",
+      };
   }
 }
 
@@ -38,7 +58,11 @@ export type DiffSide = "LEFT" | "RIGHT";
  * either way, so a single line anchor is a range of one and nothing has to
  * branch on which kind it is.
  */
-export type DiffLineAnchor = { side: DiffSide; lineNumber: number; lineEnd?: number };
+export type DiffLineAnchor = {
+  side: DiffSide;
+  lineNumber: number;
+  lineEnd?: number;
+};
 
 /** One string key for an anchor, so a Map can hold both sides of a line and a
  *  range on a line can sit beside a comment on the line alone. */
@@ -75,9 +99,15 @@ export function anchorEndLine(anchor: DiffLineAnchor): number {
 export type LineRange = { start: number; end: number };
 
 /** Extend a selection to a shift-clicked line, anchored on where it started. */
-export function extendLineRange(current: LineRange | null, line: number): LineRange {
+export function extendLineRange(
+  current: LineRange | null,
+  line: number,
+): LineRange {
   if (!current) return { start: line, end: line };
-  return { start: Math.min(current.start, line), end: Math.max(current.start, line) };
+  return {
+    start: Math.min(current.start, line),
+    end: Math.max(current.start, line),
+  };
 }
 
 export function isLineSelected(range: LineRange | null, line: number): boolean {
@@ -86,9 +116,14 @@ export function isLineSelected(range: LineRange | null, line: number): boolean {
 
 /** The end of a comment's anchor: the selection's last line when the composer
  *  opened inside a multi-line selection, and nothing when it is one line. */
-export function commentRangeEnd(selection: LineRange | null, line: number): number | undefined {
+export function commentRangeEnd(
+  selection: LineRange | null,
+  line: number,
+): number | undefined {
   if (!selection || selection.start === selection.end) return undefined;
-  return line >= selection.start && line <= selection.end ? selection.end : undefined;
+  return line >= selection.start && line <= selection.end
+    ? selection.end
+    : undefined;
 }
 
 /** The side a comment with no explicit side belongs to. GitHub defaults an

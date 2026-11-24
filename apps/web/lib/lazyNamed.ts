@@ -12,20 +12,21 @@ import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 // undefined (reading 'SettingsModal')" from DashboardLayout (ct-91263), a
 // TypeError the error boundary cannot tell from a code bug. Here an undefined
 // module stays suspended instead: the page is already leaving.
-export function lazyNamed<K extends string, M extends Record<K, ComponentType<any>>>(
-  load: () => Promise<M>,
-  name: K,
-): LazyExoticComponent<M[K]> {
+export function lazyNamed<
+  K extends string,
+  M extends Record<K, ComponentType<any>>,
+>(load: () => Promise<M>, name: K): LazyExoticComponent<M[K]> {
   return lazy(namedExportLoader(load, name));
 }
 
 // The factory lazyNamed hands React.lazy, exported so a test can drive it
 // through Vite's preload semantics without rendering.
-export function namedExportLoader<K extends string, M extends Record<K, ComponentType<any>>>(
-  load: () => Promise<M>,
-  name: K,
-): () => Promise<{ default: M[K] }> {
-  return () => namedExport(load, name).then((component) => ({ default: component }));
+export function namedExportLoader<
+  K extends string,
+  M extends Record<K, ComponentType<any>>,
+>(load: () => Promise<M>, name: K): () => Promise<{ default: M[K] }> {
+  return () =>
+    namedExport(load, name).then((component) => ({ default: component }));
 }
 
 // The named export of a lazily loaded module, for a loader that holds the
@@ -39,7 +40,10 @@ export function namedExport<K extends string, M extends Record<K, unknown>>(
     const value = module[name];
     // A module that loaded but lacks the export is real breakage (a rename,
     // a removed export): say which, so the boundary and Sentry see it.
-    if (value == null) throw new Error(`Lazy component "${name}" is missing from ${moduleSource(load)}`);
+    if (value == null)
+      throw new Error(
+        `Lazy component "${name}" is missing from ${moduleSource(load)}`,
+      );
     return value;
   });
 }
@@ -49,7 +53,9 @@ export function namedExport<K extends string, M extends Record<K, unknown>>(
 // undefined only when the stale-chunk guard cancelled the preload, which it
 // does after starting a reload, so that answer stays suspended.
 export function loadedModule<M>(load: () => Promise<M>): Promise<M> {
-  return load().then((module: M | undefined) => (module == null ? new Promise<never>(() => {}) : module));
+  return load().then((module: M | undefined) =>
+    module == null ? new Promise<never>(() => {}) : module,
+  );
 }
 
 // The specifier the loader imports: the source path in dev, the hashed chunk

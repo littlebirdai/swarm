@@ -19,7 +19,8 @@ export function percentile(sortedAsc: number[], q: number): number | null {
 }
 
 export function summarizeLatency(samples: number[]): LatencySummary {
-  if (samples.some(value => !Number.isFinite(value) || value < 0)) throw new Error("invalid latency sample");
+  if (samples.some((value) => !Number.isFinite(value) || value < 0))
+    throw new Error("invalid latency sample");
   const sorted = [...samples].sort((a, b) => a - b);
   return {
     n: sorted.length,
@@ -42,7 +43,10 @@ export interface HistogramBucket {
  * Buckets values by ascending edges: [<e0, e0..e1, ..., >=eLast]. Every bucket
  * is reported, including empty ones, so two runs line up row for row.
  */
-export function histogram(values: number[], edgesMs: number[]): HistogramBucket[] {
+export function histogram(
+  values: number[],
+  edgesMs: number[],
+): HistogramBucket[] {
   const edges = [...edgesMs].sort((a, b) => a - b);
   const labels: string[] = [];
   for (let i = 0; i <= edges.length; i++) {

@@ -6,35 +6,59 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { REVIVE_BUDGET } from "./midWorkRevive.js";
 import {
-  CLAIM_MAX_AGE_MS, MAX_TURN_RESUME_ATTEMPTS, RESUME_START_MS,
-  TurnClaimLedger, TurnClaimRecovery, claimDecision, claimTransition,
-  type ClaimFacts, type TurnClaim,
+  CLAIM_MAX_AGE_MS,
+  MAX_TURN_RESUME_ATTEMPTS,
+  RESUME_START_MS,
+  TurnClaimLedger,
+  TurnClaimRecovery,
+  claimDecision,
+  claimTransition,
+  type ClaimFacts,
+  type TurnClaim,
 } from "./turnClaims.js";
 
 const MIN = 60_000;
 const dirs: string[] = [];
-afterEach(() => { for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
+});
 function scratch(): string {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), "turn-claims-"));
   dirs.push(d);
   return d;
 }
 
-const visible = { hideStateKnown: true, inboxKilledAt: null, inboxDismissedAt: null };
+const visible = {
+  hideStateKnown: true,
+  inboxKilledAt: null,
+  inboxDismissedAt: null,
+};
 const dead = (over: Partial<ClaimFacts> = {}): ClaimFacts => ({
-  liveness: "exited", ownedElsewhere: false, lifecycle: visible, interruptedByUser: false, limitParked: false, lastLifeAt: 0, recentRevives: 0, continueState: "unknown", ...over,
+  liveness: "exited",
+  ownedElsewhere: false,
+  lifecycle: visible,
+  interruptedByUser: false,
+  limitParked: false,
+  lastLifeAt: 0,
+  recentRevives: 0,
+  continueState: "unknown",
+  ...over,
 });
 
 describe("claimTransition", () => {
   test("mid-turn statuses open, a turn's end releases, a session coming up does neither", () => {
-    for (const s of ["thinking", "working", "permission_blocked"]) expect(claimTransition(s)).toBe("open");
+    for (const s of ["thinking", "working", "permission_blocked"])
+      expect(claimTransition(s)).toBe("open");
     // An automatic compaction runs inside a claimed turn; a manual /compact is no turn.
     expect(claimTransition("compacting")).toBe("none");
-    for (const s of ["waiting", "dormant", "stopped", "done", "blocked"]) expect(claimTransition(s)).toBe("release");
+    for (const s of ["waiting", "dormant", "stopped", "done", "blocked"])
+      expect(claimTransition(s)).toBe("release");
     // The Stop's idle ends the turn; Claude's idle_prompt (a bare idle) ends nothing.
     expect(claimTransition("idle", { turnEnded: true })).toBe("release");
     expect(claimTransition("idle")).toBe("none");
-    for (const s of ["connected", "starting", "resuming"]) expect(claimTransition(s)).toBe("none");
+    for (const s of ["connected", "starting", "resuming"])
+      expect(claimTransition(s)).toBe("none");
     // SessionStart landing a resume at its prompt is not the end of the turn being continued.
     expect(claimTransition("idle", { sessionBoundary: true })).toBe("none");
   });
@@ -47,18 +71,27 @@ describe("TurnClaimLedger", () => {
     ledger.apply("s1", "c1", "thinking", { at: 1000 });
     const opened = fs.statSync(file).mtimeMs;
     fs.utimesSync(file, 1, 1);
-    for (let i = 0; i < 5; i++) ledger.apply("s1", "c1", "working", { at: 2000 + i });
+    for (let i = 0; i < 5; i++)
+      ledger.apply("s1", "c1", "working", { at: 2000 + i });
     expect(fs.statSync(file).mtimeMs).toBe(1000); // utimes in seconds: untouched by tool calls
     expect(opened).toBeGreaterThan(0);
     ledger.beginAttempt("s1", 5000);
     ledger.apply("s1", "c1", "thinking", { at: 6000 }); // the continue a resume sent
-    expect(new TurnClaimLedger(file).get("s1")).toMatchObject({ conversationId: "c1", claimedAt: 1000, attempts: 1, lastAttemptAt: 5000 });
+    expect(new TurnClaimLedger(file).get("s1")).toMatchObject({
+      conversationId: "c1",
+      claimedAt: 1000,
+      attempts: 1,
+      lastAttemptAt: 5000,
+    });
     ledger.apply("s1", "c1", "idle", { turnEnded: true, at: 7000 });
     expect(new TurnClaimLedger(file).list()).toEqual([]);
   });
 
   test("a manual /compact opens nothing; an automatic one keeps the turn's claim", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("s1", "c1", "compacting", { at: 1000 });
     ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: 2000 }); // PostCompact, trigger manual
     expect(ledger.list()).toEqual([]);
@@ -90,7 +123,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("only the compaction's own next status is swallowed", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 60_000);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 60_000,
+    );
     ledger.apply("s1", "c1", "compacting", { at: 50_000 });
     ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: 51_000 }); // a manual /compact ended
     ledger.apply("s1", "c1", "working", { at: 53_000 });
@@ -98,14 +134,20 @@ describe("TurnClaimLedger", () => {
   });
 
   test("an older status from the previous session, replayed late, does not drop the new session's claim", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("new", "c1", "working", { at: 5000 });
     ledger.apply("old", "c1", "working", { at: 2000 }); // its status file, replayed after the new one's at boot
     expect(ledger.get("new")).toMatchObject({ claimedAt: 5000 });
   });
 
   test("a /clear that moved the conversation to a new session releases the old session's claim", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("old", "c1", "thinking", { at: 1000 });
     ledger.apply("other", "c2", "thinking", { at: 1000 });
     ledger.apply("new", "c1", "idle", { sessionBoundary: true, at: 2000 });
@@ -121,12 +163,20 @@ describe("TurnClaimLedger", () => {
     expect(ledger.get("s1")?.heardAt).toBeUndefined();
     ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: 61_000 }); // SessionStart(resume)
     ledger.apply("s1", "c1", "thinking", { at: 62_000 }); // the continue starts: same turn
-    expect(new TurnClaimLedger(file).get("s1")).toMatchObject({ attempts: 1, lastAttemptAt: 60_000, heardAt: 61_000, claimedAt: 1000 });
+    expect(new TurnClaimLedger(file).get("s1")).toMatchObject({
+      attempts: 1,
+      lastAttemptAt: 60_000,
+      heardAt: 61_000,
+      claimedAt: 1000,
+    });
   });
 
   test("a turn starting in the same second as a teardown still opens its claim", () => {
     let clock = 20_400;
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => clock);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => clock,
+    );
     ledger.apply("s1", "c1", "working", { at: 10_000 });
     ledger.releaseConversation("c1"); // a restart at 20.4s
     ledger.apply("s1", "c1", "thinking", { at: 20_000 }); // its first prompt, stamped 20s
@@ -134,7 +184,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("a status file from the second of a release is the dying process's, a live status from it the next turn", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 20_400);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 20_400,
+    );
     ledger.apply("s1", "c1", "working", { at: 10_000 });
     ledger.releaseConversation("c1"); // marked 20s
     expect(ledger.open("s1", "c1", 20_000)).toBe(false); // the watchdog's stale file
@@ -156,7 +209,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("the next turn starting in the same second as a Stop still opens its claim", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("s1", "c1", "thinking", { at: 1000 });
     ledger.apply("s1", "c1", "idle", { turnEnded: true, at: 5000 });
     ledger.apply("s1", "c1", "thinking", { at: 5000 }); // a queued message injected at the Stop
@@ -164,7 +220,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("a resumed session waiting at its prompt for the continue keeps its attempts", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("s1", "c1", "working", { at: 1000 });
     ledger.beginAttempt("s1", 5000);
     ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: 6000 }); // SessionStart(resume)
@@ -174,7 +233,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("a boundary idle ends the claim, except the first status after a resume", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     // An SDK turn whose session id changed reports its end as a boundary.
     ledger.apply("s2", "c1", "working", { at: 1000 });
     ledger.apply("s2", "c1", "idle", { sessionBoundary: true, at: 2000 });
@@ -190,19 +252,29 @@ describe("TurnClaimLedger", () => {
 
   // A "working" status file left from days ago (the first deploy reads them all) opens nothing.
   test("a status older than the age bound never opens a claim", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => CLAIM_MAX_AGE_MS + 10 * MIN);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => CLAIM_MAX_AGE_MS + 10 * MIN,
+    );
     expect(ledger.open("s1", "c1", 5 * MIN)).toBe(false);
     ledger.apply("s1", "c1", "working", { at: 5 * MIN });
     expect(ledger.list()).toEqual([]);
   });
 
   test("after an Escape left the claim open, a new prompt is a new turn with its own attempts", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("s1", "c1", "thinking", { at: 1000 });
     ledger.beginAttempt("s1", 2000);
     ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: 3000 }); // the resume lands
     ledger.apply("s1", "c1", "thinking", { at: 4000 }); // its continue: same turn
-    expect(ledger.get("s1")).toMatchObject({ attempts: 1, claimedAt: 1000, continuedAt: 4000 });
+    expect(ledger.get("s1")).toMatchObject({
+      attempts: 1,
+      claimedAt: 1000,
+      continuedAt: 4000,
+    });
     ledger.apply("s1", "c1", "thinking", { at: 9000 }); // Escape, then the person's next prompt
     expect(ledger.get("s1")).toMatchObject({ attempts: 0, claimedAt: 9000 });
     expect(ledger.get("s1")?.lastAttemptAt).toBeUndefined();
@@ -211,13 +283,23 @@ describe("TurnClaimLedger", () => {
   // An SDK session that moved on, or a delivery restart: the resumed process
   // reports under a new session id. Its turn is the same one, attempts included.
   test("a resume that comes up under a new session id carries the claim and its attempts", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("old", "c1", "working", { at: 1000 });
     ledger.beginAttempt("old", 2000);
     ledger.setContinue("old", "m1");
     ledger.apply("new", "c1", "idle", { sessionBoundary: true, at: 3000 }); // up, then dies before its continue
     expect(ledger.get("old")).toBeUndefined();
-    expect(ledger.get("new")).toMatchObject({ conversationId: "c1", claimedAt: 1000, attempts: 1, lastAttemptAt: 2000, heardAt: 3000, continueId: "m1" });
+    expect(ledger.get("new")).toMatchObject({
+      conversationId: "c1",
+      claimedAt: 1000,
+      attempts: 1,
+      lastAttemptAt: 2000,
+      heardAt: 3000,
+      continueId: "m1",
+    });
     // A turn that was not being resumed still ends when another session speaks.
     ledger.apply("a", "c2", "working", { at: 1000 });
     ledger.apply("b", "c2", "idle", { sessionBoundary: true, at: 3000 });
@@ -226,7 +308,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("a status file the sweep re-reads is not the session speaking", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.apply("s1", "c1", "working", { at: 1000 });
     const mark = ledger.touchMark("s1");
     expect(ledger.open("s1", "c1", 1000)).toBe(true);
@@ -237,7 +322,11 @@ describe("TurnClaimLedger", () => {
   // stalled continue the server would put back must not arrive afterwards.
   test("a claim that ends withdraws its continue; a superseded one is withdrawn; a carried one is not", () => {
     const withdrawn: string[] = [];
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0, (id) => withdrawn.push(id));
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+      (id) => withdrawn.push(id),
+    );
     ledger.apply("s1", "c1", "working", { at: 1000 });
     ledger.beginAttempt("s1", 2000);
     ledger.setContinue("s1", "m1");
@@ -268,7 +357,10 @@ describe("TurnClaimLedger", () => {
   });
 
   test("releaseConversation drops every claim of a stopped conversation", () => {
-    const ledger = new TurnClaimLedger(path.join(scratch(), "claims.json"), () => 0);
+    const ledger = new TurnClaimLedger(
+      path.join(scratch(), "claims.json"),
+      () => 0,
+    );
     ledger.open("s1", "c1", 1);
     ledger.open("s2", "c2", 1);
     ledger.releaseConversation("c1");
@@ -277,85 +369,267 @@ describe("TurnClaimLedger", () => {
 });
 
 describe("claimDecision", () => {
-  const claim: TurnClaim = { sessionId: "s", conversationId: "c", claimedAt: 0, attempts: 0 };
+  const claim: TurnClaim = {
+    sessionId: "s",
+    conversationId: "c",
+    claimedAt: 0,
+    attempts: 0,
+  };
   const now = 60 * MIN;
 
   test("resumes a dead, visible, uninterrupted claim", () => {
-    expect(claimDecision(claim, dead({ lastLifeAt: now - MIN }), now)).toEqual({ action: "resume" });
+    expect(claimDecision(claim, dead({ lastLifeAt: now - MIN }), now)).toEqual({
+      action: "resume",
+    });
   });
 
   test("never resumes beside a process that is alive or could not be checked", () => {
-    expect(claimDecision(claim, dead({ liveness: "live" }), now).action).toBe("keep");
-    expect(claimDecision(claim, dead({ liveness: "unverifiable" }), now).action).toBe("keep");
+    expect(claimDecision(claim, dead({ liveness: "live" }), now).action).toBe(
+      "keep",
+    );
+    expect(
+      claimDecision(claim, dead({ liveness: "unverifiable" }), now).action,
+    ).toBe("keep");
   });
 
   test("waits until the resumed process has spoken, and when a lookup failed", () => {
     // A continue still queued (a load hold, a slow server) is not a second death.
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS + MIN }, dead({ lastLifeAt: now }), now)).toEqual({ action: "keep", reason: "resume-in-flight" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS + MIN },
+        dead({ lastLifeAt: now }),
+        now,
+      ),
+    ).toEqual({ action: "keep", reason: "resume-in-flight" });
     // A resume that never reported in that long died before its first hook: the next attempt goes.
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS - MIN }, dead({ lastLifeAt: now }), now)).toEqual({ action: "resume" });
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS - MIN }, dead({ lastLifeAt: now, continueState: "delivered" }), now)).toEqual({ action: "resume" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS - MIN },
+        dead({ lastLifeAt: now }),
+        now,
+      ),
+    ).toEqual({ action: "resume" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - RESUME_START_MS - MIN },
+        dead({ lastLifeAt: now, continueState: "delivered" }),
+        now,
+      ),
+    ).toEqual({ action: "resume" });
     // ...unless its continue is still queued on the server: delivery is slow, nothing died again.
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: MIN }, dead({ lastLifeAt: MIN, continueState: "open" }), 10 * RESUME_START_MS)).toEqual({ action: "keep", reason: "resume-in-flight" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: MIN },
+        dead({ lastLifeAt: MIN, continueState: "open" }),
+        10 * RESUME_START_MS,
+      ),
+    ).toEqual({ action: "keep", reason: "resume-in-flight" });
     // A person cancelled the continue: they do not want the turn back.
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - MIN }, dead({ continueState: "cancelled" }), now)).toEqual({ action: "release", reason: "continue-cancelled" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - MIN },
+        dead({ continueState: "cancelled" }),
+        now,
+      ),
+    ).toEqual({ action: "release", reason: "continue-cancelled" });
     // ...but a session that is already up again is not marked completed for it.
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - MIN }, dead({ continueState: "cancelled", liveness: "live" }), now).action).toBe("keep");
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: now - MIN, heardAt: now - MIN }, dead({ lastLifeAt: now }), now)).toEqual({ action: "resume" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - MIN },
+        dead({ continueState: "cancelled", liveness: "live" }),
+        now,
+      ).action,
+    ).toBe("keep");
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: now - MIN, heardAt: now - MIN },
+        dead({ lastLifeAt: now }),
+        now,
+      ),
+    ).toEqual({ action: "resume" });
     // A blip is not a decision: a failed lookup, or the legacy fallback with no hide state.
-    expect(claimDecision(claim, dead({ lifecycle: undefined }), now).action).toBe("keep");
-    expect(claimDecision(claim, dead({ lifecycle: { hideStateKnown: false } }), now).action).toBe("keep");
-    expect(claimDecision(claim, dead({ ownedElsewhere: null }), now).action).toBe("keep");
+    expect(
+      claimDecision(claim, dead({ lifecycle: undefined }), now).action,
+    ).toBe("keep");
+    expect(
+      claimDecision(claim, dead({ lifecycle: { hideStateKnown: false } }), now)
+        .action,
+    ).toBe("keep");
+    expect(
+      claimDecision(claim, dead({ ownedElsewhere: null }), now).action,
+    ).toBe("keep");
     // A claim nobody can answer for (a message stuck in the queue) ends at the age bound; a live one never does.
     // A pane idle at its prompt for days after an Escape, whose probe once failed: not ended.
-    expect(claimDecision(claim, dead({ liveness: "unverifiable", lastLifeAt: MIN }), CLAIM_MAX_AGE_MS + 2 * MIN).action).toBe("keep");
-    expect(claimDecision(claim, dead({ liveness: "live", lastLifeAt: MIN }), CLAIM_MAX_AGE_MS + 2 * MIN).action).toBe("keep");
+    expect(
+      claimDecision(
+        claim,
+        dead({ liveness: "unverifiable", lastLifeAt: MIN }),
+        CLAIM_MAX_AGE_MS + 2 * MIN,
+      ).action,
+    ).toBe("keep");
+    expect(
+      claimDecision(
+        claim,
+        dead({ liveness: "live", lastLifeAt: MIN }),
+        CLAIM_MAX_AGE_MS + 2 * MIN,
+      ).action,
+    ).toBe("keep");
     // ...and a claim whose lookups keep failing still ends at the age bound.
-    expect(claimDecision(claim, dead({ lifecycle: undefined }), CLAIM_MAX_AGE_MS + 2 * MIN)).toEqual({ action: "fail", reason: "too-old" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ lifecycle: undefined }),
+        CLAIM_MAX_AGE_MS + 2 * MIN,
+      ),
+    ).toEqual({ action: "fail", reason: "too-old" });
   });
 
   test("releases what is not codecast's to continue", () => {
-    expect(claimDecision(claim, dead({ ownedElsewhere: true, liveness: "unverifiable" }), now)).toEqual({ action: "release", reason: "moved" });
-    expect(claimDecision(claim, dead({ lifecycle: { ...visible, inboxKilledAt: 1 } }), now)).toEqual({ action: "release", reason: "retired" });
-    expect(claimDecision(claim, dead({ lifecycle: null }), now)).toEqual({ action: "release", reason: "conversation-gone" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ ownedElsewhere: true, liveness: "unverifiable" }),
+        now,
+      ),
+    ).toEqual({ action: "release", reason: "moved" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ lifecycle: { ...visible, inboxKilledAt: 1 } }),
+        now,
+      ),
+    ).toEqual({ action: "release", reason: "retired" });
+    expect(claimDecision(claim, dead({ lifecycle: null }), now)).toEqual({
+      action: "release",
+      reason: "conversation-gone",
+    });
     // Off for a weekend while someone deleted or killed it: settled quietly, not "died 24 hours ago".
-    expect(claimDecision(claim, dead({ lifecycle: null }), CLAIM_MAX_AGE_MS + 2 * MIN)).toEqual({ action: "release", reason: "conversation-gone" });
-    expect(claimDecision(claim, dead({ lifecycle: { ...visible, inboxDismissedAt: 1 } }), CLAIM_MAX_AGE_MS + 2 * MIN)).toEqual({ action: "release", reason: "retired" });
-    expect(claimDecision(claim, dead({ interruptedByUser: true }), now)).toEqual({ action: "release", reason: "interrupted" });
-    expect(claimDecision(claim, dead({ limitParked: true }), now)).toEqual({ action: "release", reason: "limit-parked" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ lifecycle: null }),
+        CLAIM_MAX_AGE_MS + 2 * MIN,
+      ),
+    ).toEqual({ action: "release", reason: "conversation-gone" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ lifecycle: { ...visible, inboxDismissedAt: 1 } }),
+        CLAIM_MAX_AGE_MS + 2 * MIN,
+      ),
+    ).toEqual({ action: "release", reason: "retired" });
+    expect(
+      claimDecision(claim, dead({ interruptedByUser: true }), now),
+    ).toEqual({ action: "release", reason: "interrupted" });
+    expect(claimDecision(claim, dead({ limitParked: true }), now)).toEqual({
+      action: "release",
+      reason: "limit-parked",
+    });
     // Ended on an API error (StopFailure, no Stop): the turn is over, and a continue would fail the same way.
-    expect(claimDecision(claim, dead({ turnFailed: true }), now)).toEqual({ action: "release", reason: "turn-failed" });
+    expect(claimDecision(claim, dead({ turnFailed: true }), now)).toEqual({
+      action: "release",
+      reason: "turn-failed",
+    });
     const later = CLAIM_MAX_AGE_MS + 2 * MIN;
-    expect(claimDecision(claim, dead({ lastLifeAt: MIN }), later)).toEqual({ action: "fail", reason: "too-old" });
+    expect(claimDecision(claim, dead({ lastLifeAt: MIN }), later)).toEqual({
+      action: "fail",
+      reason: "too-old",
+    });
     // Gone that long after a resume of its own: the session says so, not a quiet "completed".
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: MIN, continuedAt: MIN }, dead({ lastLifeAt: MIN }), later)).toEqual({ action: "fail", reason: "attempts-spent" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: MIN, continuedAt: MIN },
+        dead({ lastLifeAt: MIN }),
+        later,
+      ),
+    ).toEqual({ action: "fail", reason: "attempts-spent" });
     // ...but a resume whose continue never got in (the machine went off after queueing it) did not "fail to come back".
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: MIN }, dead({ lastLifeAt: MIN }), later)).toEqual({ action: "fail", reason: "too-old" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: MIN },
+        dead({ lastLifeAt: MIN }),
+        later,
+      ),
+    ).toEqual({ action: "fail", reason: "too-old" });
   });
 
   // An Escape or a failed turn leaves the claim open while the pane lives;
   // when it dies days later, the turn had ended: no false "died mid-turn".
   test("a turn the transcript says ended is released at any age, never failed as too old", () => {
     const days = CLAIM_MAX_AGE_MS + 6 * 60 * MIN;
-    expect(claimDecision(claim, dead({ interruptedByUser: true, lastLifeAt: MIN }), days)).toEqual({ action: "release", reason: "interrupted" });
-    expect(claimDecision(claim, dead({ turnFailed: true, lastLifeAt: MIN }), days)).toEqual({ action: "release", reason: "turn-failed" });
-    expect(claimDecision(claim, dead({ limitParked: true, lifecycle: undefined, lastLifeAt: MIN }), days)).toEqual({ action: "release", reason: "limit-parked" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ interruptedByUser: true, lastLifeAt: MIN }),
+        days,
+      ),
+    ).toEqual({ action: "release", reason: "interrupted" });
+    expect(
+      claimDecision(claim, dead({ turnFailed: true, lastLifeAt: MIN }), days),
+    ).toEqual({ action: "release", reason: "turn-failed" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ limitParked: true, lifecycle: undefined, lastLifeAt: MIN }),
+        days,
+      ),
+    ).toEqual({ action: "release", reason: "limit-parked" });
     // A message already waiting brings the session back; one stuck in the queue cannot hold the claim past the age bound.
-    expect(claimDecision(claim, dead({ messagePending: true, lastLifeAt: 60 * MIN }), 61 * MIN)).toEqual({ action: "keep", reason: "message-pending" });
-    expect(claimDecision({ ...claim, attempts: 1, lastAttemptAt: MIN }, dead({ messagePending: true, lastLifeAt: MIN }), days)).toEqual({ action: "fail", reason: "too-old" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ messagePending: true, lastLifeAt: 60 * MIN }),
+        61 * MIN,
+      ),
+    ).toEqual({ action: "keep", reason: "message-pending" });
+    expect(
+      claimDecision(
+        { ...claim, attempts: 1, lastAttemptAt: MIN },
+        dead({ messagePending: true, lastLifeAt: MIN }),
+        days,
+      ),
+    ).toEqual({ action: "fail", reason: "too-old" });
     // A Stop the ledger never saw (a dropped post): the transcript's last turn ended, so nothing to continue.
-    expect(claimDecision(claim, dead({ turnFinished: true, lastLifeAt: MIN }), days)).toEqual({ action: "release", reason: "turn-finished" });
-    expect(claimDecision(claim, dead({ turnFinished: true, lastLifeAt: 60 * MIN }), 61 * MIN)).toEqual({ action: "release", reason: "turn-finished" });
+    expect(
+      claimDecision(claim, dead({ turnFinished: true, lastLifeAt: MIN }), days),
+    ).toEqual({ action: "release", reason: "turn-finished" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ turnFinished: true, lastLifeAt: 60 * MIN }),
+        61 * MIN,
+      ),
+    ).toEqual({ action: "release", reason: "turn-finished" });
   });
 
   test("fails once every attempt is spent, in this turn or across turns", () => {
-    expect(claimDecision({ ...claim, attempts: MAX_TURN_RESUME_ATTEMPTS, lastAttemptAt: 0, heardAt: 0 }, dead({ lastLifeAt: now }), now)).toEqual({ action: "fail", reason: "attempts-spent" });
+    expect(
+      claimDecision(
+        {
+          ...claim,
+          attempts: MAX_TURN_RESUME_ATTEMPTS,
+          lastAttemptAt: 0,
+          heardAt: 0,
+        },
+        dead({ lastLifeAt: now }),
+        now,
+      ),
+    ).toEqual({ action: "fail", reason: "attempts-spent" });
     // Each resumed turn ended and the next one killed the process: the turn count reset, the window did not.
-    expect(claimDecision(claim, dead({ lastLifeAt: now, recentRevives: REVIVE_BUDGET }), now)).toEqual({ action: "fail", reason: "budget-spent" });
+    expect(
+      claimDecision(
+        claim,
+        dead({ lastLifeAt: now, recentRevives: REVIVE_BUDGET }),
+        now,
+      ),
+    ).toEqual({ action: "fail", reason: "budget-spent" });
   });
 });
 
-function harness(file: string, facts: (c: TurnClaim) => ClaimFacts | Promise<ClaimFacts>) {
+function harness(
+  file: string,
+  facts: (c: TurnClaim) => ClaimFacts | Promise<ClaimFacts>,
+) {
   let clock = 100 * MIN;
   const resumes: TurnClaim[] = [];
   const settled: string[] = [];
@@ -365,17 +639,32 @@ function harness(file: string, facts: (c: TurnClaim) => ClaimFacts | Promise<Cla
     ledger,
     now: () => clock,
     inspect: async (c) => facts(c),
-    resume: async (c) => { resumes.push(c); return `cont-${resumes.length}`; },
+    resume: async (c) => {
+      resumes.push(c);
+      return `cont-${resumes.length}`;
+    },
     settle: (_c, why) => settled.push(why),
     fail: (_c, message) => failed.push(message),
     log: () => {},
   });
-  return { ledger, recovery, resumes, settled, failed, advance: (ms: number) => { clock += ms; }, now: () => clock };
+  return {
+    ledger,
+    recovery,
+    resumes,
+    settled,
+    failed,
+    advance: (ms: number) => {
+      clock += ms;
+    },
+    now: () => clock,
+  };
 }
 
 describe("TurnClaimRecovery", () => {
   test("a session that dies on every resume is tried the capped number of times, then failed visibly", async () => {
-    const h = harness(path.join(scratch(), "claims.json"), () => dead({ lastLifeAt: h.now() }));
+    const h = harness(path.join(scratch(), "claims.json"), () =>
+      dead({ lastLifeAt: h.now() }),
+    );
     h.ledger.open("s1", "c1", h.now());
     for (let i = 1; i <= MAX_TURN_RESUME_ATTEMPTS; i++) {
       await h.recovery.request();
@@ -385,7 +674,10 @@ describe("TurnClaimRecovery", () => {
       await h.recovery.request();
       expect(h.resumes.length).toBe(i);
       // The resumed process starts the continue (same turn, attempts kept), then dies again.
-      h.ledger.apply("s1", "c1", "idle", { sessionBoundary: true, at: h.now() });
+      h.ledger.apply("s1", "c1", "idle", {
+        sessionBoundary: true,
+        at: h.now(),
+      });
       h.ledger.apply("s1", "c1", "thinking", { at: h.now() });
       expect(h.ledger.get("s1")?.attempts).toBe(i);
       h.advance(MIN);
@@ -400,20 +692,41 @@ describe("TurnClaimRecovery", () => {
   });
 
   test("after a mass death the newest turns are resumed first", async () => {
-    const h = harness(path.join(scratch(), "claims.json"), () => dead({ lastLifeAt: h.now() }));
-    for (const [id, minutesAgo] of [["old", 90], ["older", 95], ["oldest", 99], ["mid-turn", 1]] as const) {
+    const h = harness(path.join(scratch(), "claims.json"), () =>
+      dead({ lastLifeAt: h.now() }),
+    );
+    for (const [id, minutesAgo] of [
+      ["old", 90],
+      ["older", 95],
+      ["oldest", 99],
+      ["mid-turn", 1],
+    ] as const) {
       h.ledger.open(id, `conv-${id}`, h.now() - minutesAgo * MIN);
     }
     await h.recovery.request();
-    expect(h.resumes.map((c) => c.sessionId)).toEqual(["mid-turn", "old", "older"]);
+    expect(h.resumes.map((c) => c.sessionId)).toEqual([
+      "mid-turn",
+      "old",
+      "older",
+    ]);
     await h.recovery.request();
-    expect(h.resumes.map((c) => c.sessionId)).toEqual(["mid-turn", "old", "older", "oldest"]);
+    expect(h.resumes.map((c) => c.sessionId)).toEqual([
+      "mid-turn",
+      "old",
+      "older",
+      "oldest",
+    ]);
   });
 
   test("a claim whose agent is still alive is never resumed, and keeps its claim", async () => {
-    const h = harness(path.join(scratch(), "claims.json"), () => dead({ liveness: "live", lastLifeAt: 0 }));
+    const h = harness(path.join(scratch(), "claims.json"), () =>
+      dead({ liveness: "live", lastLifeAt: 0 }),
+    );
     h.ledger.open("s1", "c1", 0);
-    for (let i = 0; i < 3; i++) { await h.recovery.request(); h.advance(RESUME_START_MS); }
+    for (let i = 0; i < 3; i++) {
+      await h.recovery.request();
+      h.advance(RESUME_START_MS);
+    }
     expect(h.resumes).toEqual([]);
     expect(h.ledger.get("s1")?.attempts).toBe(0);
   });
@@ -435,15 +748,24 @@ describe("TurnClaimRecovery", () => {
     const settled: string[] = [];
     const ledger = new TurnClaimLedger(file, () => 10 * MIN);
     const recovery = new TurnClaimRecovery({
-      ledger, now: () => 10 * MIN, log: () => {}, fail: () => {},
+      ledger,
+      now: () => 10 * MIN,
+      log: () => {},
+      fail: () => {},
       inspect: async () => dead({ lastLifeAt: 10 * MIN }),
-      resume: async () => { if (mode === "throw") throw new Error("offline"); return null; },
+      resume: async () => {
+        if (mode === "throw") throw new Error("offline");
+        return null;
+      },
       settle: (_c, why) => settled.push(why),
     });
     ledger.open("s1", "c1", 10 * MIN);
     await recovery.request();
     // The server may have stored it: no second continue until the start window passes.
-    expect(ledger.get("s1")).toMatchObject({ attempts: 1, lastAttemptAt: 10 * MIN });
+    expect(ledger.get("s1")).toMatchObject({
+      attempts: 1,
+      lastAttemptAt: 10 * MIN,
+    });
     await recovery.request();
     expect(ledger.get("s1")).toMatchObject({ attempts: 1 });
     ledger.apply("s1", "c1", "working", { at: 11 * MIN }); // it came up, then died again
@@ -487,27 +809,58 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 async function bootFixture(dir: string) {
   const script = path.join(dir, "daemon.ts");
   fs.writeFileSync(script, FIXTURE);
-  const child = spawn(process.execPath, [script, path.join(dir, "claims.json"), path.join(dir, "resumes.jsonl")], { stdio: ["pipe", "pipe", "inherit"] });
+  const child = spawn(
+    process.execPath,
+    [script, path.join(dir, "claims.json"), path.join(dir, "resumes.jsonl")],
+    { stdio: ["pipe", "pipe", "inherit"] },
+  );
   const lines: string[] = [];
   const waiters: Array<() => void> = [];
-  createInterface({ input: child.stdout! }).on("line", (l) => { lines.push(l); waiters.splice(0).forEach((w) => w()); });
+  createInterface({ input: child.stdout! }).on("line", (l) => {
+    lines.push(l);
+    waiters.splice(0).forEach((w) => w());
+  });
   const waitFor = async (want: string) => {
-    while (!lines.includes(want)) await new Promise<void>((r) => waiters.push(r));
+    while (!lines.includes(want))
+      await new Promise<void>((r) => waiters.push(r));
     lines.splice(lines.indexOf(want), 1);
   };
   await waitFor("booted");
   return {
     status: async (status: string, boundary = false) => {
-      child.stdin!.write(JSON.stringify({ session: "sess-1", conv: "conv-1", status, boundary }) + "\n");
+      child.stdin!.write(
+        JSON.stringify({
+          session: "sess-1",
+          conv: "conv-1",
+          status,
+          boundary,
+        }) + "\n",
+      );
       await waitFor(`ack ${status}`);
     },
-    kill: async () => { child.kill("SIGKILL"); await new Promise((r) => child.once("exit", r)); },
-    stop: async () => { child.stdin!.end(); child.kill(); await new Promise((r) => child.once("exit", r)); },
+    kill: async () => {
+      child.kill("SIGKILL");
+      await new Promise((r) => child.once("exit", r));
+    },
+    stop: async () => {
+      child.stdin!.end();
+      child.kill();
+      await new Promise((r) => child.once("exit", r));
+    },
   };
 }
 
 const resumesIn = (dir: string): TurnClaim[] => {
-  try { return fs.readFileSync(path.join(dir, "resumes.jsonl"), "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; }
+  try {
+    return fs
+      .readFileSync(path.join(dir, "resumes.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((l) => JSON.parse(l));
+  } catch {
+    return [];
+  }
 };
 
 test("a daemon killed mid-turn resumes the claimed session exactly once after it restarts", async () => {
@@ -521,7 +874,11 @@ test("a daemon killed mid-turn resumes the claimed session exactly once after it
   // The restart resumes the claim, with the attempt on disk before the continue is queued.
   const second = await bootFixture(dir);
   expect(resumesIn(dir)).toHaveLength(1);
-  expect(resumesIn(dir)[0]).toMatchObject({ sessionId: "sess-1", conversationId: "conv-1", attempts: 1 });
+  expect(resumesIn(dir)[0]).toMatchObject({
+    sessionId: "sess-1",
+    conversationId: "conv-1",
+    attempts: 1,
+  });
   await second.kill();
 
   // A crash while that resume is still starting does not resume it again.
@@ -535,6 +892,8 @@ test("a daemon killed mid-turn resumes the claimed session exactly once after it
 
   const fourth = await bootFixture(dir);
   expect(resumesIn(dir)).toHaveLength(1);
-  expect(JSON.parse(fs.readFileSync(path.join(dir, "claims.json"), "utf8")).claims).toEqual({});
+  expect(
+    JSON.parse(fs.readFileSync(path.join(dir, "claims.json"), "utf8")).claims,
+  ).toEqual({});
   await fourth.stop();
 }, 60_000);

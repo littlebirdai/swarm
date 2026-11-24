@@ -1,7 +1,15 @@
 import { lineSlotsValidator } from "./lib/lineSlotsValidator";
 import { currentMembershipVisibility } from "./teamVisibility";
-import { heartbeatTailnetPatch, tailnetValidator } from "./lib/heartbeatTailnet";
-import { distributionValidator, selfUpdateBeatPatch, updateRequestFor, updateStatusValidator } from "./lib/deviceUpdate";
+import {
+  heartbeatTailnetPatch,
+  tailnetValidator,
+} from "./lib/heartbeatTailnet";
+import {
+  distributionValidator,
+  selfUpdateBeatPatch,
+  updateRequestFor,
+  updateStatusValidator,
+} from "./lib/deviceUpdate";
 import { getUserOrToken } from "./lib/auth";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { mutation, query, internalMutation, internalQuery } from "./functions";
@@ -12,14 +20,34 @@ import { ConvexError, v } from "convex/values";
 import { peopleOf } from "@codecast/shared/team/memberKind";
 import { planSyncChange } from "@codecast/shared/team/syncPlan";
 import { paginationOptsValidator } from "convex/server";
-import type { PaginationOptions, PaginationResult, RegisteredQuery } from "convex/server";
+import type {
+  PaginationOptions,
+  PaginationResult,
+  RegisteredQuery,
+} from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { enqueueStartSession, getDeviceLocalRoots, getOnlineLocalRoots, ownDevice } from "./devices";
+import {
+  enqueueStartSession,
+  getDeviceLocalRoots,
+  getOnlineLocalRoots,
+  ownDevice,
+} from "./devices";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { reissueStrandedCloudSpawns } from "./cloudPlacement";
-import { reissueWaitingMigrations, settleLateResume } from "./sessionMigrations";
-import { fromConvexAgentType, LOCAL_AGENT_CLIENTS, isPinnableAgentId, pinnableAgentIds, findModelOption, CLOUD_SESSION_SOURCES, cloudSessionSyncSettings } from "@codecast/shared/contracts";
+import {
+  reissueWaitingMigrations,
+  settleLateResume,
+} from "./sessionMigrations";
+import {
+  fromConvexAgentType,
+  LOCAL_AGENT_CLIENTS,
+  isPinnableAgentId,
+  pinnableAgentIds,
+  findModelOption,
+  CLOUD_SESSION_SOURCES,
+  cloudSessionSyncSettings,
+} from "@codecast/shared/contracts";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { adminChangesZones, recutChangesDays } from "./lib/changesDirty";
 import { normalizeTimezone } from "./lib/teamDay";
@@ -27,25 +55,68 @@ import { startedBefore } from "./pathStats";
 import { isStaff } from "./lib/staff";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { verifyApiToken } from "./apiTokens";
-import { findSessionCommandByRequest, resumeConversationSession } from "./daemonCommandUtils";
-import { resolveTeamForPath, resolveCreationPrivacy, getProfileVisibilityPredicate, isTeamMember, profilePublicSessionVisible, conversationRepository, matchDirectoryMapping, type DirectoryMapping } from "./privacy";
-import { DAEMON_COMMAND_TTL_MS, WORK_STARTING_DAEMON_COMMANDS, isReservedDevice, isUnattendedConversation, isTestArtifactPath, repositoryKeyOfRemote } from "@codecast/shared/contracts";
-import { activeTeamMembershipFor, canAccessTask, canAccessDoc, workspaceGrantsAccess } from "./lib/access";
+import {
+  findSessionCommandByRequest,
+  resumeConversationSession,
+} from "./daemonCommandUtils";
+import {
+  resolveTeamForPath,
+  resolveCreationPrivacy,
+  getProfileVisibilityPredicate,
+  isTeamMember,
+  profilePublicSessionVisible,
+  conversationRepository,
+  matchDirectoryMapping,
+  type DirectoryMapping,
+} from "./privacy";
+import {
+  DAEMON_COMMAND_TTL_MS,
+  WORK_STARTING_DAEMON_COMMANDS,
+  isReservedDevice,
+  isUnattendedConversation,
+  isTestArtifactPath,
+  repositoryKeyOfRemote,
+} from "@codecast/shared/contracts";
+import {
+  activeTeamMembershipFor,
+  canAccessTask,
+  canAccessDoc,
+  workspaceGrantsAccess,
+} from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
-import { canReleaseCommandClaim, commandVisibleToClaimer, decideCommandClaim } from "./lib/daemonCommandClaim";
+import {
+  canReleaseCommandClaim,
+  commandVisibleToClaimer,
+  decideCommandClaim,
+} from "./lib/daemonCommandClaim";
 import { fetchUserSendDays, isProgramLaunched } from "./lib/userSend";
 import { bucketActivityDays, loadUserActivity } from "./lib/profileActivity";
 import { canSeeMemberSpend, fetchUserUsageDays } from "./lib/usageDaily";
 import { bucketPunchcardRows } from "./lib/activityPunchcard";
 import { ccAccountsValidator } from "./ccAccountsShared";
-import { cloudAgentBlocksValidator, cloudSessionSyncFields, deviceSettingsValidator, modelInventoryValidator } from "./deviceSettingsShared";
 import {
-  conversationProjectRoot, foldCheckoutsByRepository, getConversationProjectPath, getPathPrefixUpperBound,
-  getRepoKeyFromRemote, getRepoNameFromPath, knownCheckoutRoots, matchesPathPrefix, pathWithinLocalRoots,
+  cloudAgentBlocksValidator,
+  cloudSessionSyncFields,
+  deviceSettingsValidator,
+  modelInventoryValidator,
+} from "./deviceSettingsShared";
+import {
+  conversationProjectRoot,
+  foldCheckoutsByRepository,
+  getConversationProjectPath,
+  getPathPrefixUpperBound,
+  getRepoKeyFromRemote,
+  getRepoNameFromPath,
+  knownCheckoutRoots,
+  matchesPathPrefix,
+  pathWithinLocalRoots,
 } from "./projectPaths";
 import { bucketTs } from "./presenceState";
 import { backlogFieldsPatch } from "./heartbeatBacklog";
-import { activeEnrollmentTeam, heartbeatTeamPolicy } from "./lib/teamPolicyGuard";
+import {
+  activeEnrollmentTeam,
+  heartbeatTeamPolicy,
+} from "./lib/teamPolicyGuard";
 import { agentCommentLevelValidator } from "./threadReads";
 import { gatedSnippetAvailability } from "./teamFeatures";
 import { startAccountDeletion } from "./accountDelete";
@@ -53,7 +124,10 @@ import { readLocalViewRevision } from "./localFirstCommands";
 import { daemonLastSeenStale } from "./lib/daemonLiveness";
 import { linkTeamHostBeat } from "./teamHosts";
 import { dropLateExportAnswer } from "./folderSync";
-import { scheduleRecoveryOnNewAccount, scheduleSwitchAhead } from "./lib/hostRecovery";
+import {
+  scheduleRecoveryOnNewAccount,
+  scheduleSwitchAhead,
+} from "./lib/hostRecovery";
 import { ensurePersonalShares } from "./accountPool";
 import {
   CURRENT_USER_GRANT_KEY,
@@ -72,17 +146,23 @@ import {
 // on its own query, getMySkills: Convex re-sends only a result that changed,
 // and the user row's daemon stamps would otherwise re-send the whole catalog
 // to every client every few seconds.
-export async function readSkillsJson(ctx: QueryCtx, user: Doc<"users">): Promise<string | null> {
+export async function readSkillsJson(
+  ctx: QueryCtx,
+  user: Doc<"users">,
+): Promise<string | null> {
   const rows = await ctx.db
     .query("user_skills")
     .withIndex("by_user", (q) => q.eq("user_id", user._id))
     .collect();
-  const legacy = rows.find((row) => row.project_path === undefined)?.skills_json ?? user.available_skills;
+  const legacy =
+    rows.find((row) => row.project_path === undefined)?.skills_json ??
+    user.available_skills;
   const projects = rows.filter((row) => row.project_path !== undefined);
   if (projects.length === 0) return legacy ?? null;
   const parsed = legacy ? JSON.parse(legacy) : {};
   const skillsMap = Array.isArray(parsed) ? { global: parsed } : parsed;
-  for (const row of projects) skillsMap[row.project_path!] = JSON.parse(row.skills_json);
+  for (const row of projects)
+    skillsMap[row.project_path!] = JSON.parse(row.skills_json);
   return JSON.stringify(skillsMap);
 }
 
@@ -145,17 +225,28 @@ export const getCurrentUser = query({
 export const getCurrentUserV2 = query({
   args: {},
   handler: async (ctx) => {
-    const identity = { contractId: CURRENT_USER_VIEW_CONTRACT_ID, viewKey: CURRENT_USER_VIEW_KEY };
+    const identity = {
+      contractId: CURRENT_USER_VIEW_CONTRACT_ID,
+      viewKey: CURRENT_USER_VIEW_KEY,
+    };
     const userId = await getAuthUserId(ctx);
     if (!userId) return unauthenticatedView(identity);
 
     const user = await ctx.db.get(userId);
     if (!user) return missingView(identity, [CURRENT_USER_GRANT_KEY]);
     const viewRevision = await readLocalViewRevision(
-      ctx, userId, identity.contractId, identity.viewKey);
-    return grantedView(identity, { grantKeys: [CURRENT_USER_GRANT_KEY], viewRevision }, {
-      user: projectCurrentUserMetadata(user),
-    });
+      ctx,
+      userId,
+      identity.contractId,
+      identity.viewKey,
+    );
+    return grantedView(
+      identity,
+      { grantKeys: [CURRENT_USER_GRANT_KEY], viewRevision },
+      {
+        user: projectCurrentUserMetadata(user),
+      },
+    );
   },
 });
 
@@ -194,7 +285,9 @@ export const updateProfile = mutation({
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
     title: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("available"), v.literal("busy"), v.literal("away"))),
+    status: v.optional(
+      v.union(v.literal("available"), v.literal("busy"), v.literal("away")),
+    ),
     timezone: v.optional(v.string()),
     // The walkie door. "team" (the absent default) lets a teammate's push-to-talk
     // burst play live here; "off" closes it. It gates LIVE PLAYBACK on this
@@ -218,11 +311,13 @@ export const updateProfile = mutation({
     if (args.title !== undefined) updateData.title = args.title;
     if (args.status !== undefined) updateData.status = args.status;
     if (args.timezone !== undefined) updateData.timezone = args.timezone;
-    if (args.walkie_pref !== undefined) updateData.walkie_pref = args.walkie_pref;
+    if (args.walkie_pref !== undefined)
+      updateData.walkie_pref = args.walkie_pref;
     if (args.walkie_snoozed_until !== undefined) {
       updateData.walkie_snoozed_until = args.walkie_snoozed_until;
     }
-    const zones = args.timezone !== undefined ? await adminChangesZones(ctx, userId) : null;
+    const zones =
+      args.timezone !== undefined ? await adminChangesZones(ctx, userId) : null;
     await ctx.db.patch(userId, updateData);
     if (zones) await recutChangesDays(ctx, zones);
     return userId;
@@ -236,7 +331,12 @@ export const adoptTimezone = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const user = await ctx.db.get(userId);
-    if (!user || user.timezone || normalizeTimezone(args.timezone) !== args.timezone) return;
+    if (
+      !user ||
+      user.timezone ||
+      normalizeTimezone(args.timezone) !== args.timezone
+    )
+      return;
     const zones = await adminChangesZones(ctx, userId);
     await ctx.db.patch(userId, { timezone: args.timezone });
     await recutChangesDays(ctx, zones);
@@ -277,14 +377,20 @@ export const addAlternateEmail = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Not authenticated");
     const email = normalizeEmail(args.email);
-    if (!looksLikeEmail(email)) throw new Error("That does not look like an email address");
+    if (!looksLikeEmail(email))
+      throw new Error("That does not look like an email address");
     const me = await ctx.db.get(userId);
     if (!me) throw new Error("Not authenticated");
-    if (normalizeEmail(me.email ?? "") === email) throw new Error("That is already your primary address");
+    if (normalizeEmail(me.email ?? "") === email)
+      throw new Error("That is already your primary address");
     const mine = (me.alternate_emails ?? []).map(normalizeEmail);
     if (mine.includes(email)) return { ok: true as const, email, added: false };
-    if (mine.length >= MAX_ALTERNATE_EMAILS) throw new Error(`At most ${MAX_ALTERNATE_EMAILS} other addresses`);
-    const primaryOwner = await ctx.db.query("users").withIndex("email", (q: any) => q.eq("email", email)).first();
+    if (mine.length >= MAX_ALTERNATE_EMAILS)
+      throw new Error(`At most ${MAX_ALTERNATE_EMAILS} other addresses`);
+    const primaryOwner = await ctx.db
+      .query("users")
+      .withIndex("email", (q: any) => q.eq("email", email))
+      .first();
     if (primaryOwner && primaryOwner._id.toString() !== userId.toString()) {
       throw new Error("Another account already signs in with that address");
     }
@@ -299,7 +405,9 @@ export const myEmails = query({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
     const me = await ctx.db.get(userId);
-    return me ? { email: me.email ?? null, alternate_emails: me.alternate_emails ?? [] } : null;
+    return me
+      ? { email: me.email ?? null, alternate_emails: me.alternate_emails ?? [] }
+      : null;
   },
 });
 
@@ -311,7 +419,9 @@ export const removeAlternateEmail = mutation({
     const me = await ctx.db.get(userId);
     if (!me) throw new Error("Not authenticated");
     const email = normalizeEmail(args.email);
-    const left = (me.alternate_emails ?? []).filter((e) => normalizeEmail(e) !== email);
+    const left = (me.alternate_emails ?? []).filter(
+      (e) => normalizeEmail(e) !== email,
+    );
     await ctx.db.patch(userId, { alternate_emails: left });
     return { ok: true as const, email, remaining: left };
   },
@@ -353,7 +463,8 @@ export function resolveMachineFieldsOwner(input: {
   if (!owner) return { owns: true, claim: deviceId !== undefined };
   if (owner === deviceId) return { owns: true, claim: false };
   const ownerAlive =
-    ownerLastSeen !== undefined && now - ownerLastSeen < DAEMON_FIELDS_OWNER_STALE_MS;
+    ownerLastSeen !== undefined &&
+    now - ownerLastSeen < DAEMON_FIELDS_OWNER_STALE_MS;
   if (ownerAlive) return { owns: false, claim: false };
   return { owns: true, claim: deviceId !== undefined };
 }
@@ -381,7 +492,13 @@ export function deviceLabelWrite(input: {
  */
 export function sameHeartbeatValue(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  if (
+    a === null ||
+    b === null ||
+    typeof a !== "object" ||
+    typeof b !== "object"
+  )
+    return false;
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
@@ -406,7 +523,10 @@ export function deviceBeatChanged(
     if (k === "last_seen") return false;
     if (k === "last_input_at") {
       const prev = existing.last_input_at;
-      return typeof prev !== "number" || Math.abs((val as number) - prev) >= INPUT_AT_TOLERANCE_MS;
+      return (
+        typeof prev !== "number" ||
+        Math.abs((val as number) - prev) >= INPUT_AT_TOLERANCE_MS
+      );
     }
     return !sameHeartbeatValue(existing[k], val);
   });
@@ -458,20 +578,24 @@ export const daemonHeartbeat = mutation({
     line_slots: v.optional(lineSlotsValidator),
     // Git-plane health per repo (gitPlane.ts) — metadata only, mirrors the
     // devices.git_plane schema field.
-    git_plane: v.optional(v.array(v.object({
-      root: v.string(),
-      origin: v.optional(v.string()),
-      origin_ok: v.boolean(),
-      fetch_ok: v.optional(v.boolean()),
-      ahead: v.optional(v.number()),
-      behind: v.optional(v.number()),
-      branch: v.optional(v.string()),
-      fetched_at: v.optional(v.number()),
-      repaired_from: v.optional(v.string()),
-      needs_access: v.optional(v.boolean()),
-      identity: v.optional(v.string()),
-      error: v.optional(v.string()),
-    }))),
+    git_plane: v.optional(
+      v.array(
+        v.object({
+          root: v.string(),
+          origin: v.optional(v.string()),
+          origin_ok: v.boolean(),
+          fetch_ok: v.optional(v.boolean()),
+          ahead: v.optional(v.number()),
+          behind: v.optional(v.number()),
+          branch: v.optional(v.string()),
+          fetched_at: v.optional(v.number()),
+          repaired_from: v.optional(v.string()),
+          needs_access: v.optional(v.boolean()),
+          identity: v.optional(v.string()),
+          error: v.optional(v.string()),
+        }),
+      ),
+    ),
     // The device's PUBLIC git key — see schema devices.git_pubkey.
     git_pubkey: v.optional(v.string()),
     // CC account inventory (names/emails/tiers, never tokens) for the switcher.
@@ -503,7 +627,9 @@ export const daemonHeartbeat = mutation({
     model_inventory: v.optional(modelInventoryValidator),
     // The daemon runs on a team machine: its marker's key and the Linux user
     // it runs as (teamHosts.linkTeamHostBeat).
-    team_host: v.optional(v.object({ key: v.string(), linux_user: v.string() })),
+    team_host: v.optional(
+      v.object({ key: v.string(), linux_user: v.string() }),
+    ),
     // This machine's place on a running tailnet; null when it is on none.
     tailnet: v.optional(v.union(v.null(), tailnetValidator)),
   },
@@ -564,11 +690,15 @@ export const daemonHeartbeat = mutation({
     if (claim) patch.daemon_fields_device_id = args.device_id;
     // Sticky fields: write only on actual change.
     if (ownsMachineFields) {
-      if (existingUser?.cli_version !== args.version) patch.cli_version = args.version;
-      if (existingUser?.cli_platform !== args.platform) patch.cli_platform = args.platform;
+      if (existingUser?.cli_version !== args.version)
+        patch.cli_version = args.version;
+      if (existingUser?.cli_platform !== args.platform)
+        patch.cli_platform = args.platform;
       if (existingUser?.daemon_pid !== args.pid) patch.daemon_pid = args.pid;
-      if (existingUser?.autostart_enabled !== args.autostart_enabled) patch.autostart_enabled = args.autostart_enabled;
-      if (existingUser?.has_tmux !== args.has_tmux) patch.has_tmux = args.has_tmux;
+      if (existingUser?.autostart_enabled !== args.autostart_enabled)
+        patch.autostart_enabled = args.autostart_enabled;
+      if (existingUser?.has_tmux !== args.has_tmux)
+        patch.has_tmux = args.has_tmux;
     }
 
     // Volatile liveness/queue fields: refresh on a throttle, when queue zeroness
@@ -577,23 +707,34 @@ export const daemonHeartbeat = mutation({
     // follow the owner rule above: two machines, one with an empty queue, saw
     // a flip on every beat and wrote the user doc each time, conflicting with
     // each other. Each machine's own values stay on its device row below.
-    const lastSeenStale = daemonLastSeenStale(existingUser?.daemon_last_seen, now);
+    const lastSeenStale = daemonLastSeenStale(
+      existingUser?.daemon_last_seen,
+      now,
+    );
     const queueZeronessFlipped =
-      ((existingUser?.daemon_pending_sync_count ?? 0) === 0) !== (newPending === 0);
+      ((existingUser?.daemon_pending_sync_count ?? 0) === 0) !==
+      (newPending === 0);
     // Same rule for load: a loop that just started (or stopped) freezing must
     // reach the web on this beat, not up to 50s later.
     const loadFlipped =
       args.loop_freeze_ms !== undefined &&
-      ((existingUser?.daemon_loop_freeze_ms ?? 0) === 0) !== (args.loop_freeze_ms === 0);
-    if (lastSeenStale || (ownsMachineFields && (queueZeronessFlipped || loadFlipped)) || Object.keys(patch).length > 0) {
+      ((existingUser?.daemon_loop_freeze_ms ?? 0) === 0) !==
+        (args.loop_freeze_ms === 0);
+    if (
+      lastSeenStale ||
+      (ownsMachineFields && (queueZeronessFlipped || loadFlipped)) ||
+      Object.keys(patch).length > 0
+    ) {
       patch.daemon_last_seen = now;
       patch.last_heartbeat = now;
     }
     if (ownsMachineFields && "daemon_last_seen" in patch) {
       patch.daemon_pending_sync_count = newPending;
       patch.daemon_oldest_pending_ms = newOldest;
-      if (args.loop_freeze_ms !== undefined) patch.daemon_loop_freeze_ms = args.loop_freeze_ms;
-      if (args.daemon_started_at !== undefined) patch.daemon_started_at = args.daemon_started_at;
+      if (args.loop_freeze_ms !== undefined)
+        patch.daemon_loop_freeze_ms = args.loop_freeze_ms;
+      if (args.daemon_started_at !== undefined)
+        patch.daemon_started_at = args.daemon_started_at;
       // Only patch the per-table backlog fields when the daemon actually sent
       // them. During a mixed-version rollout an OLD daemon omits these (undefined),
       // and coercing to 0 would clobber a real backlog → the web chip shows
@@ -612,7 +753,9 @@ export const daemonHeartbeat = mutation({
       const prev = existingUser?.local_project_roots;
       const next = args.local_project_roots;
       const rootsChanged =
-        !prev || prev.length !== next.length || prev.some((p: string, i: number) => p !== next[i]);
+        !prev ||
+        prev.length !== next.length ||
+        prev.some((p: string, i: number) => p !== next[i]);
       if (rootsChanged) {
         patch.local_project_roots = next;
         patch.local_project_roots_updated_at = now;
@@ -637,25 +780,56 @@ export const daemonHeartbeat = mutation({
         )
         .first();
       // A team machine names every member's device after itself.
-      const teamHost = args.team_host ? await linkTeamHostBeat(ctx, auth.userId, args.device_id, args.team_host) : null;
+      const teamHost = args.team_host
+        ? await linkTeamHostBeat(
+            ctx,
+            auth.userId,
+            args.device_id,
+            args.team_host,
+          )
+        : null;
       const devicePatch = {
-        ...deviceLabelWrite({ deviceLabel: teamHost?.name ?? args.device_label, platform: args.platform, isNew: !existingDevice }),
+        ...deviceLabelWrite({
+          deviceLabel: teamHost?.name ?? args.device_label,
+          platform: args.platform,
+          isNew: !existingDevice,
+        }),
         platform: args.platform,
         last_seen: now,
         status: "online" as const,
         // Per-device daemon health (see schema devices.daemon_started_at). Only
         // the fields this daemon actually sent: an older daemon must not zero a
         // value a newer one wrote — same rule as backlogFieldsPatch.
-        ...(args.daemon_started_at !== undefined ? { daemon_started_at: args.daemon_started_at } : {}),
-        ...(args.loop_freeze_ms !== undefined ? { loop_freeze_ms: args.loop_freeze_ms } : {}),
-        ...(args.loop_freeze_1h_ms !== undefined ? { loop_freeze_1h_ms: args.loop_freeze_1h_ms } : {}),
-        ...(args.loop_freeze_max_ms !== undefined ? { loop_freeze_max_ms: args.loop_freeze_max_ms } : {}),
-        ...(args.loop_freeze_top !== undefined ? { loop_freeze_top: args.loop_freeze_top } : {}),
-        ...(args.pending_sync_count !== undefined ? { pending_sync_count: args.pending_sync_count } : {}),
-        ...(args.oldest_pending_ms !== undefined ? { oldest_pending_ms: args.oldest_pending_ms } : {}),
-        ...(args.pending_sync_messages !== undefined ? { pending_sync_messages: args.pending_sync_messages } : {}),
-        ...(args.pending_sync_conversations !== undefined ? { pending_sync_conversations: args.pending_sync_conversations } : {}),
-        ...(args.sync_no_progress_ms !== undefined ? { sync_no_progress_ms: args.sync_no_progress_ms } : {}),
+        ...(args.daemon_started_at !== undefined
+          ? { daemon_started_at: args.daemon_started_at }
+          : {}),
+        ...(args.loop_freeze_ms !== undefined
+          ? { loop_freeze_ms: args.loop_freeze_ms }
+          : {}),
+        ...(args.loop_freeze_1h_ms !== undefined
+          ? { loop_freeze_1h_ms: args.loop_freeze_1h_ms }
+          : {}),
+        ...(args.loop_freeze_max_ms !== undefined
+          ? { loop_freeze_max_ms: args.loop_freeze_max_ms }
+          : {}),
+        ...(args.loop_freeze_top !== undefined
+          ? { loop_freeze_top: args.loop_freeze_top }
+          : {}),
+        ...(args.pending_sync_count !== undefined
+          ? { pending_sync_count: args.pending_sync_count }
+          : {}),
+        ...(args.oldest_pending_ms !== undefined
+          ? { oldest_pending_ms: args.oldest_pending_ms }
+          : {}),
+        ...(args.pending_sync_messages !== undefined
+          ? { pending_sync_messages: args.pending_sync_messages }
+          : {}),
+        ...(args.pending_sync_conversations !== undefined
+          ? { pending_sync_conversations: args.pending_sync_conversations }
+          : {}),
+        ...(args.sync_no_progress_ms !== undefined
+          ? { sync_no_progress_ms: args.sync_no_progress_ms }
+          : {}),
         // Absolute time of this machine's last HID event, on the server clock.
         // Left untouched when the daemon doesn't report idle (Linux, or a daemon
         // predating this): a frozen last_input_at simply goes stale, which reads
@@ -667,35 +841,70 @@ export const daemonHeartbeat = mutation({
         ...(args.input_idle_ms !== undefined &&
         Number.isFinite(args.input_idle_ms) &&
         args.input_idle_ms >= 0
-          ? { last_input_at: now - Math.min(args.input_idle_ms, 7 * 24 * 3600_000) }
+          ? {
+              last_input_at:
+                now - Math.min(args.input_idle_ms, 7 * 24 * 3600_000),
+            }
           : {}),
-        ...(args.device_hostname !== undefined ? { hostname: args.device_hostname } : {}),
-        ...(args.wsl_distro !== undefined && /^[A-Za-z0-9._-]{1,64}$/.test(args.wsl_distro) ? { wsl_distro: args.wsl_distro } : {}),
-        ...(args.is_remote_device !== undefined ? { is_remote: args.is_remote_device } : {}),
+        ...(args.device_hostname !== undefined
+          ? { hostname: args.device_hostname }
+          : {}),
+        ...(args.wsl_distro !== undefined &&
+        /^[A-Za-z0-9._-]{1,64}$/.test(args.wsl_distro)
+          ? { wsl_distro: args.wsl_distro }
+          : {}),
+        ...(args.is_remote_device !== undefined
+          ? { is_remote: args.is_remote_device }
+          : {}),
         // The device is awake: whatever asked for it has been answered.
-        ...((existingDevice as any)?.wake_requested_at !== undefined ? { wake_requested_at: undefined } : {}),
+        ...((existingDevice as any)?.wake_requested_at !== undefined
+          ? { wake_requested_at: undefined }
+          : {}),
         ...(args.local_project_roots !== undefined
           ? { local_project_roots: args.local_project_roots }
           : {}),
         ...(args.git_plane !== undefined ? { git_plane: args.git_plane } : {}),
-        ...(args.line_slots !== undefined ? { line_slots: args.line_slots } : {}),
-        ...(args.git_pubkey !== undefined ? { git_pubkey: args.git_pubkey } : {}),
-        ...(args.cc_accounts !== undefined ? { cc_accounts: args.cc_accounts } : {}),
-        ...(args.codex_usage !== undefined ? { codex_usage: args.codex_usage } : {}),
-        ...(args.codex_accounts !== undefined ? { codex_accounts: args.codex_accounts } : {}),
-        ...(args.provider_key_pubkey !== undefined ? { provider_key_pubkey: args.provider_key_pubkey } : {}),
-        ...(args.managed_provider_ids !== undefined ? { managed_provider_ids: args.managed_provider_ids } : {}),
-        ...(args.cloud_agent_blocks !== undefined ? { cloud_agent_blocks: args.cloud_agent_blocks.length ? args.cloud_agent_blocks : undefined } : {}),
+        ...(args.line_slots !== undefined
+          ? { line_slots: args.line_slots }
+          : {}),
+        ...(args.git_pubkey !== undefined
+          ? { git_pubkey: args.git_pubkey }
+          : {}),
+        ...(args.cc_accounts !== undefined
+          ? { cc_accounts: args.cc_accounts }
+          : {}),
+        ...(args.codex_usage !== undefined
+          ? { codex_usage: args.codex_usage }
+          : {}),
+        ...(args.codex_accounts !== undefined
+          ? { codex_accounts: args.codex_accounts }
+          : {}),
+        ...(args.provider_key_pubkey !== undefined
+          ? { provider_key_pubkey: args.provider_key_pubkey }
+          : {}),
+        ...(args.managed_provider_ids !== undefined
+          ? { managed_provider_ids: args.managed_provider_ids }
+          : {}),
+        ...(args.cloud_agent_blocks !== undefined
+          ? {
+              cloud_agent_blocks: args.cloud_agent_blocks.length
+                ? args.cloud_agent_blocks
+                : undefined,
+            }
+          : {}),
         ...(args.settings !== undefined ? { settings: args.settings } : {}),
         cli_version: args.version,
-        ...(args.update_available !== undefined ? { update_available: args.update_available || undefined } : {}),
+        ...(args.update_available !== undefined
+          ? { update_available: args.update_available || undefined }
+          : {}),
         ...selfUpdateBeatPatch(existingDevice, args),
         ...heartbeatTailnetPatch(existingDevice?.tailnet, args.tailnet),
         // Hash-gated: the daemon only attaches this when it changed, but guard
         // against a resend loop (e.g. a failed-ack daemon) rewriting the ~10KB
         // field every beat anyway.
         ...(args.model_inventory !== undefined &&
-        args.model_inventory.hash !== (existingDevice as any)?.model_inventory?.hash
+        args.model_inventory.hash !==
+          (existingDevice as any)?.model_inventory?.hash
           ? { model_inventory: args.model_inventory }
           : {}),
       };
@@ -710,8 +919,11 @@ export const daemonHeartbeat = mutation({
       // window every routing and delivery path gates on.
       const DEVICE_WRITE_THROTTLE_MS = 45 * 1000;
       // Read BEFORE the patch: was this machine offline until this beat?
-      const cameOnline = !existingDevice || now - existingDevice.last_seen >= DEVICE_ONLINE_MS;
-      const seenStale = !existingDevice || now - existingDevice.last_seen >= DEVICE_WRITE_THROTTLE_MS;
+      const cameOnline =
+        !existingDevice || now - existingDevice.last_seen >= DEVICE_ONLINE_MS;
+      const seenStale =
+        !existingDevice ||
+        now - existingDevice.last_seen >= DEVICE_WRITE_THROTTLE_MS;
       if (existingDevice) {
         if (seenStale || deviceBeatChanged(existingDevice, devicePatch)) {
           await ctx.db.patch(existingDevice._id, devicePatch);
@@ -719,7 +931,11 @@ export const daemonHeartbeat = mutation({
       } else {
         // An enrollment that completed before this machine's first beat had
         // no row to record its team on.
-        enrolledTeamId = await activeEnrollmentTeam(ctx, auth.userId, args.device_id);
+        enrolledTeamId = await activeEnrollmentTeam(
+          ctx,
+          auth.userId,
+          args.device_id,
+        );
         await ctx.db.insert("devices", {
           user_id: auth.userId,
           device_id: args.device_id,
@@ -735,13 +951,37 @@ export const daemonHeartbeat = mutation({
       // no laptop was around get re-issued, preferably to this laptop
       // (cloudPlacement.reissueStrandedCloudSpawns). Only the transition beat
       // schedules it, and it runs as its own mutation (catchUpCameOnline).
-      const localDevice = !(args.is_remote_device ?? existingDevice?.is_remote ?? false);
+      const localDevice = !(
+        args.is_remote_device ??
+        existingDevice?.is_remote ??
+        false
+      );
       // The fleet's account may be about to run out (lib/hostRecovery).
-      await scheduleSwitchAhead(ctx, auth.userId, { deviceId: args.device_id, local: localDevice, ccAccounts: args.cc_accounts, previous: existingDevice?.cc_accounts, seenStale });
-      await scheduleRecoveryOnNewAccount(ctx, auth.userId, { ccAccounts: args.cc_accounts, previous: existingDevice?.cc_accounts });
-      await ensurePersonalShares(ctx, auth.userId, args.device_id, args.cc_accounts ?? existingDevice?.cc_accounts, existingDevice?.cc_accounts, existingDevice?.last_seen, now);
+      await scheduleSwitchAhead(ctx, auth.userId, {
+        deviceId: args.device_id,
+        local: localDevice,
+        ccAccounts: args.cc_accounts,
+        previous: existingDevice?.cc_accounts,
+        seenStale,
+      });
+      await scheduleRecoveryOnNewAccount(ctx, auth.userId, {
+        ccAccounts: args.cc_accounts,
+        previous: existingDevice?.cc_accounts,
+      });
+      await ensurePersonalShares(
+        ctx,
+        auth.userId,
+        args.device_id,
+        args.cc_accounts ?? existingDevice?.cc_accounts,
+        existingDevice?.cc_accounts,
+        existingDevice?.last_seen,
+        now,
+      );
       if (cameOnline && localDevice) {
-        await ctx.scheduler.runAfter(0, internal.users.catchUpCameOnline, { user_id: auth.userId, device_id: args.device_id });
+        await ctx.scheduler.runAfter(0, internal.users.catchUpCameOnline, {
+          user_id: auth.userId,
+          device_id: args.device_id,
+        });
       }
     }
 
@@ -756,7 +996,10 @@ export const daemonHeartbeat = mutation({
     const staleCommands = await ctx.db
       .query("daemon_commands")
       .withIndex("by_user_pending", (q) =>
-        q.eq("user_id", auth.userId).eq("executed_at", undefined).lt("_creationTime", now - DAEMON_COMMAND_TTL_MS)
+        q
+          .eq("user_id", auth.userId)
+          .eq("executed_at", undefined)
+          .lt("_creationTime", now - DAEMON_COMMAND_TTL_MS),
       )
       .take(50);
     for (const stale of staleCommands) {
@@ -835,7 +1078,10 @@ export const daemonHeartbeat = mutation({
       // wake — no pushed command to miss.
       snippet_availability: await gatedSnippetAvailability(ctx, auth.userId),
       capability_desired_revision: (user as any)?.capability_revision ?? 0,
-      capabilities_mode: (globalCapMode?.value as string | undefined) ?? (user as any)?.capabilities_mode ?? "dry",
+      capabilities_mode:
+        (globalCapMode?.value as string | undefined) ??
+        (user as any)?.capabilities_mode ??
+        "dry",
       // The managed policy of the team this device is enrolled in (one point
       // read of the team row); null for an unmanaged device.
       team_policy: await heartbeatTeamPolicy(ctx, enrolledTeamId),
@@ -918,12 +1164,18 @@ export const claimDaemonCommand = mutation({
 // An isolated start made its worktree on the machine: the row learns it here,
 // since a spawned row exists before the daemon picks the worktree. The header
 // chip, the worktree GC and a worker's merge back all read these fields.
-async function stampStartedWorktree(ctx: any, commandArgs: string | undefined, result: string | undefined): Promise<void> {
+async function stampStartedWorktree(
+  ctx: any,
+  commandArgs: string | undefined,
+  result: string | undefined,
+): Promise<void> {
   let started: any;
   let conversationId: string | undefined;
   try {
     started = result ? JSON.parse(result) : null;
-    conversationId = commandArgs ? JSON.parse(commandArgs).conversation_id : undefined;
+    conversationId = commandArgs
+      ? JSON.parse(commandArgs).conversation_id
+      : undefined;
   } catch {
     return;
   }
@@ -956,7 +1208,8 @@ export const reportCommandResult = mutation({
     if (!command || command.user_id !== auth.userId) {
       return { error: "Command not found" };
     }
-    if (await dropLateExportAnswer(ctx, command, args.result)) return { success: true };
+    if (await dropLateExportAnswer(ctx, command, args.result))
+      return { success: true };
     await ctx.db.patch(args.command_id, {
       executed_at: Date.now(),
       result: args.result,
@@ -968,12 +1221,29 @@ export const reportCommandResult = mutation({
       // applied it; the ciphertext has no further use.
       ...(command.command === "set_provider_key" ? { args: undefined } : {}),
     });
-    if (command.command === "start_session" && !args.error) await stampStartedWorktree(ctx, command.args, args.result);
-    if (command.command === "resume_session" && !args.error) await settleLateResume(ctx, command);
+    if (command.command === "start_session" && !args.error)
+      await stampStartedWorktree(ctx, command.args, args.result);
+    if (command.command === "resume_session" && !args.error)
+      await settleLateResume(ctx, command);
     // A `cast decide --run` the machine could not take fails its card and tells the session.
     if (command.command === "run_cast" && args.error) {
-      const decision_id = (() => { try { return String(JSON.parse(command.args ?? "{}").decision_id ?? ""); } catch { return ""; } })();
-      if (decision_id) await ctx.scheduler.runAfter(0, internal.sessionDecisions.failCommandRun, { user_id: auth.userId, decision_id, error: args.error.slice(0, 500) });
+      const decision_id = (() => {
+        try {
+          return String(JSON.parse(command.args ?? "{}").decision_id ?? "");
+        } catch {
+          return "";
+        }
+      })();
+      if (decision_id)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.sessionDecisions.failCommandRun,
+          {
+            user_id: auth.userId,
+            decision_id,
+            error: args.error.slice(0, 500),
+          },
+        );
     }
 
     return { success: true };
@@ -993,7 +1263,7 @@ export const sendDaemonCommand = mutation({
       v.literal("version"),
       v.literal("restart"),
       v.literal("force_update"),
-      v.literal("reinstall")
+      v.literal("reinstall"),
     ),
   },
   handler: async (ctx, args) => {
@@ -1067,7 +1337,11 @@ export const requestTerminalEndpoints = mutation({
       .filter((d) => now - d.last_seen < 5 * 60 * 1000)
       .filter((d) => !args.device_id || d.device_id === args.device_id);
 
-    const commands: Array<{ command_id: Id<"daemon_commands">; device_id: string; label: string }> = [];
+    const commands: Array<{
+      command_id: Id<"daemon_commands">;
+      device_id: string;
+      label: string;
+    }> = [];
     for (const device of live) {
       const commandId = await ctx.db.insert("daemon_commands", {
         user_id: userId,
@@ -1075,7 +1349,11 @@ export const requestTerminalEndpoints = mutation({
         created_at: now,
         target_device_id: device.device_id,
       });
-      commands.push({ command_id: commandId, device_id: device.device_id, label: device.label });
+      commands.push({
+        command_id: commandId,
+        device_id: device.device_id,
+        label: device.label,
+      });
     }
     return { commands };
   },
@@ -1087,7 +1365,7 @@ export const sendDaemonCommandToAll = mutation({
       v.literal("restart"),
       v.literal("force_update"),
       v.literal("reinstall"),
-      v.literal("desktop_update")
+      v.literal("desktop_update"),
     ),
     max_version: v.optional(v.string()),
     api_token: v.optional(v.string()),
@@ -1096,12 +1374,13 @@ export const sendDaemonCommandToAll = mutation({
     const authUserId = await getUserOrToken(ctx, args.api_token);
     if (!authUserId) throw new Error("Not authenticated");
     const currentUser = await ctx.db.get(authUserId);
-    if (!currentUser || !isStaff(currentUser)) throw new Error("Not authorized");
+    if (!currentUser || !isStaff(currentUser))
+      throw new Error("Not authorized");
 
     const allUsers = await ctx.db.query("users").collect();
     const now = Date.now();
     const recentlyActive = allUsers.filter(
-      (u) => u.last_heartbeat && now - u.last_heartbeat < 24 * 60 * 60 * 1000
+      (u) => u.last_heartbeat && now - u.last_heartbeat < 24 * 60 * 60 * 1000,
     );
 
     let targeted = recentlyActive;
@@ -1130,7 +1409,14 @@ export const sendDaemonCommandToAll = mutation({
     await recordAuthorityEvent(ctx, {
       kind: "staff_daemon_command",
       actor_user_id: authUserId,
-      detail: { after: { command: args.command, fleet: true, max_version: args.max_version ?? null, sent } },
+      detail: {
+        after: {
+          command: args.command,
+          fleet: true,
+          max_version: args.max_version ?? null,
+          sent,
+        },
+      },
     });
 
     return { sent, total: recentlyActive.length };
@@ -1151,7 +1437,12 @@ export const resumeSession = mutation({
     // Runner or second-party owner, runner-addressed command — the same core
     // as the dispatch resume handler, so an owned (Mr-Bot-run) session resumes
     // from the owner's inbox exactly like their own.
-    return await resumeConversationSession(ctx, authUserId, args.conversation_id, { leaveOut: args.leave_out });
+    return await resumeConversationSession(
+      ctx,
+      authUserId,
+      args.conversation_id,
+      { leaveOut: args.leave_out },
+    );
   },
 });
 
@@ -1184,7 +1475,9 @@ export const getDaemonStatus = query({
         daemon_pid: u.daemon_pid,
         last_heartbeat: u.last_heartbeat,
         daemon_last_seen: u.daemon_last_seen,
-        is_online: u.last_heartbeat ? now - u.last_heartbeat < tenMinutes : false,
+        is_online: u.last_heartbeat
+          ? now - u.last_heartbeat < tenMinutes
+          : false,
         offline_duration: u.last_heartbeat ? now - u.last_heartbeat : null,
       }))
       .sort((a, b) => (b.last_heartbeat || 0) - (a.last_heartbeat || 0));
@@ -1225,7 +1518,9 @@ export const storeVoipPushToken = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    await ctx.db.patch(userId, { voip_push_token: args.voip_push_token ?? undefined });
+    await ctx.db.patch(userId, {
+      voip_push_token: args.voip_push_token ?? undefined,
+    });
   },
 });
 
@@ -1261,13 +1556,16 @@ export const storePushToken = mutation({
       .withIndex("by_push_token", (q) => q.eq("push_token", args.push_token))
       .take(20);
     for (const holder of holders) {
-      if (holder._id !== userId) await ctx.db.patch(holder._id, { push_token: undefined });
+      if (holder._id !== userId)
+        await ctx.db.patch(holder._id, { push_token: undefined });
     }
     // Token registration runs on every app launch — seed notification defaults
     // only for first-time registration, never overwrite saved preferences.
     await ctx.db.patch(userId, {
       push_token: args.push_token,
-      ...(user?.notifications_enabled === undefined && { notifications_enabled: true }),
+      ...(user?.notifications_enabled === undefined && {
+        notifications_enabled: true,
+      }),
       ...(user?.notification_preferences === undefined && {
         notification_preferences: {
           team_session_start: true,
@@ -1284,30 +1582,32 @@ export const storePushToken = mutation({
 export const updateNotificationPreferences = mutation({
   args: {
     notifications_enabled: v.optional(v.boolean()),
-    notification_preferences: v.optional(v.object({
-      team_session_start: v.boolean(),
-      mention: v.boolean(),
-      permission_request: v.boolean(),
-      session_idle: v.optional(v.boolean()),
-      session_error: v.optional(v.boolean()),
-      session_assigned: v.optional(v.boolean()),
-      task_activity: v.optional(v.boolean()),
-      doc_activity: v.optional(v.boolean()),
-      plan_activity: v.optional(v.boolean()),
-      artifact_activity: v.optional(v.boolean()),
-      // This list must hold every key the schema holds. A Convex object
-      // validator REJECTS a field it does not declare, so a key the schema has
-      // and this does not can never be written — and, worse, once such a key
-      // reaches a user row by any other route, the settings page echoes the
-      // stored object back and every toggle on web and mobile fails validation.
-      chat_activity: v.optional(v.boolean()),
-      email_notifications: v.optional(v.boolean()),
-      session_idle_digest: v.optional(v.boolean()),
-      live_activity: v.optional(v.boolean()),
-      task_agent_comments: v.optional(agentCommentLevelValidator),
-      task_status_changes: v.optional(v.boolean()),
-      machine_alerts: v.optional(v.boolean()),
-    })),
+    notification_preferences: v.optional(
+      v.object({
+        team_session_start: v.boolean(),
+        mention: v.boolean(),
+        permission_request: v.boolean(),
+        session_idle: v.optional(v.boolean()),
+        session_error: v.optional(v.boolean()),
+        session_assigned: v.optional(v.boolean()),
+        task_activity: v.optional(v.boolean()),
+        doc_activity: v.optional(v.boolean()),
+        plan_activity: v.optional(v.boolean()),
+        artifact_activity: v.optional(v.boolean()),
+        // This list must hold every key the schema holds. A Convex object
+        // validator REJECTS a field it does not declare, so a key the schema has
+        // and this does not can never be written — and, worse, once such a key
+        // reaches a user row by any other route, the settings page echoes the
+        // stored object back and every toggle on web and mobile fails validation.
+        chat_activity: v.optional(v.boolean()),
+        email_notifications: v.optional(v.boolean()),
+        session_idle_digest: v.optional(v.boolean()),
+        live_activity: v.optional(v.boolean()),
+        task_agent_comments: v.optional(agentCommentLevelValidator),
+        task_status_changes: v.optional(v.boolean()),
+        machine_alerts: v.optional(v.boolean()),
+      }),
+    ),
     muted_members: v.optional(v.array(v.id("users"))),
     machine_wide_presence: v.optional(v.boolean()),
   },
@@ -1339,7 +1639,8 @@ export const updateNotificationPreferences = mutation({
     await ctx.db.patch(userId, updateData);
     // Flipping the Lock Screen switch ends the running activity (or starts one
     // for what is already live) on the next refresh.
-    const before = (await ctx.db.get(userId))?.notification_preferences?.live_activity;
+    const before = (await ctx.db.get(userId))?.notification_preferences
+      ?.live_activity;
     const after = updateData.notification_preferences?.live_activity;
     if (args.notification_preferences !== undefined && before !== after) {
       await scheduleLiveActivityRefresh(ctx, userId, { urgent: true });
@@ -1360,12 +1661,14 @@ export const updateDefaultModel = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    if (!(args.agent in LOCAL_AGENT_CLIENTS)) throw new Error(`Unknown agent client: ${args.agent}`);
+    if (!(args.agent in LOCAL_AGENT_CLIENTS))
+      throw new Error(`Unknown agent client: ${args.agent}`);
     if (args.model !== null) {
       const opt = findModelOption(args.agent, args.model);
       // Launchability is the bar: a default the daemon can't put on the launch
       // line (menu keys, Sonnet 1M) would silently degrade to "no flag".
-      if (!opt?.cliAlias) throw new Error(`Model ${args.model} cannot be a launch default`);
+      if (!opt?.cliAlias)
+        throw new Error(`Model ${args.model} cannot be a launch default`);
     }
     const user = await ctx.db.get(userId);
     const merged: Record<string, string> = { ...(user?.default_models ?? {}) };
@@ -1379,12 +1682,14 @@ export const updatePrivacySettings = mutation({
   args: {
     hide_activity: v.optional(v.boolean()),
     share_session_metadata: v.optional(v.boolean()),
-    activity_visibility: v.optional(v.union(
-      v.literal("detailed"),
-      v.literal("summary"),
-      v.literal("minimal"),
-      v.literal("hidden")
-    )),
+    activity_visibility: v.optional(
+      v.union(
+        v.literal("detailed"),
+        v.literal("summary"),
+        v.literal("minimal"),
+        v.literal("hidden"),
+      ),
+    ),
     encryption_enabled: v.optional(v.boolean()),
     encryption_master_key: v.optional(v.string()),
   },
@@ -1445,17 +1750,22 @@ export const getUserByUsername = query({
     if (args.username) {
       const byUsername = await ctx.db
         .query("users")
-        .withIndex("by_github_username", (q) => q.eq("github_username", args.username))
+        .withIndex("by_github_username", (q) =>
+          q.eq("github_username", args.username),
+        )
         .first();
       if (byUsername) return card(byUsername);
       const asId = ctx.db.normalizeId("users", args.username);
       if (asId) return card(await ctx.db.get(asId));
       const lower = args.username.toLowerCase();
       const all = await ctx.db.query("users").take(200);
-      return card(all.find((u) =>
-        u.name?.toLowerCase() === lower ||
-        u.github_username?.toLowerCase() === lower
-      ) ?? null);
+      return card(
+        all.find(
+          (u) =>
+            u.name?.toLowerCase() === lower ||
+            u.github_username?.toLowerCase() === lower,
+        ) ?? null,
+      );
     }
     return null;
   },
@@ -1478,7 +1788,7 @@ export const getUserActivity = query({
     const pinned = await ctx.db
       .query("conversations")
       .withIndex("by_user_profile_pinned", (q) =>
-        q.eq("user_id", args.user_id).gt("profile_pinned_at", 0)
+        q.eq("user_id", args.user_id).gt("profile_pinned_at", 0),
       )
       .order("desc")
       .collect();
@@ -1515,36 +1825,111 @@ export const getUserActivity = query({
 // new first-segment route here. Plus product nouns we don't want impersonated.
 const RESERVED_USERNAMES = new Set([
   // Top-level route segments (web/src/App.tsx)
-  "about", "features", "documentation", "privacy", "security", "support", "terms",
-  "login", "signup", "signin", "logout", "forgot-password", "reset-password", "confirm", "auth",
-  "join", "inbox", "feed", "search", "notifications", "conversation", "docs", "plans",
-  "tasks", "projects", "goals", "workflows", "routines", "schedules", "sessions", "resources", "team",
-  "admin", "config", "memory", "dashboard", "explore", "timeline", "windows", "orchestration",
-  "roadmap", "cli", "share", "commit", "pr", "review", "palette", "people", "call-panel", "settings",
-  "pricing", "blog", "a", "simple", "welcome",
+  "about",
+  "features",
+  "documentation",
+  "privacy",
+  "security",
+  "support",
+  "terms",
+  "login",
+  "signup",
+  "signin",
+  "logout",
+  "forgot-password",
+  "reset-password",
+  "confirm",
+  "auth",
+  "join",
+  "inbox",
+  "feed",
+  "search",
+  "notifications",
+  "conversation",
+  "docs",
+  "plans",
+  "tasks",
+  "projects",
+  "goals",
+  "workflows",
+  "routines",
+  "schedules",
+  "sessions",
+  "resources",
+  "team",
+  "admin",
+  "config",
+  "memory",
+  "dashboard",
+  "explore",
+  "timeline",
+  "windows",
+  "orchestration",
+  "roadmap",
+  "cli",
+  "share",
+  "commit",
+  "pr",
+  "review",
+  "palette",
+  "people",
+  "call-panel",
+  "settings",
+  "pricing",
+  "blog",
+  "a",
+  "simple",
+  "welcome",
   // A trial project's cards (web /trial, convex lineTrial.ts).
   "trial",
   // Hosted mode's page names, which redirect to their pages (web
   // lib/laneRedirect.ts PAGE_ALIASES), renamed pages' old roots (web
   // lib/renamedPages.ts), and the pages they name.
-  "approvals", "plan", "mail", "integrations", "initiatives", "questions", "triggers", "assistant",
+  "approvals",
+  "plan",
+  "mail",
+  "integrations",
+  "initiatives",
+  "questions",
+  "triggers",
+  "assistant",
   // The Org screen and the company document's old address, which redirects to it.
-  "org", "company",
+  "org",
+  "company",
   // The non-developer funnel's address (/everyone, the landing's For everyone).
   "everyone",
   // Product nouns / safety
-  "u", "api", "teams", "codecast", "help", "status", "me", "you", "new", "null", "undefined",
+  "u",
+  "api",
+  "teams",
+  "codecast",
+  "help",
+  "status",
+  "me",
+  "you",
+  "new",
+  "null",
+  "undefined",
 ]);
 
 // Lowercase, 3–30 chars, alnum + single internal dashes, must start/end alnum.
 // Returns the normalized handle or an error string.
-export function normalizeUsername(raw: string): { username?: string; error?: string } {
+export function normalizeUsername(raw: string): {
+  username?: string;
+  error?: string;
+} {
   const username = raw.trim().toLowerCase();
-  if (username.length < 3) return { error: "Username must be at least 3 characters" };
-  if (username.length > 30) return { error: "Username must be at most 30 characters" };
+  if (username.length < 3)
+    return { error: "Username must be at least 3 characters" };
+  if (username.length > 30)
+    return { error: "Username must be at most 30 characters" };
   if (!/^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9]))*$/.test(username))
-    return { error: "Use lowercase letters, numbers, and single dashes (no leading/trailing dash)" };
-  if (RESERVED_USERNAMES.has(username)) return { error: "That username is reserved" };
+    return {
+      error:
+        "Use lowercase letters, numbers, and single dashes (no leading/trailing dash)",
+    };
+  if (RESERVED_USERNAMES.has(username))
+    return { error: "That username is reserved" };
   return { username };
 }
 
@@ -1617,7 +2002,8 @@ export const setPublicProfileEnabled = mutation({
     if (!me) throw new Error("Unauthorized");
     if (args.enabled) {
       const user = await ctx.db.get(me);
-      if (!user?.username) throw new Error("Claim a username before enabling your public profile");
+      if (!user?.username)
+        throw new Error("Claim a username before enabling your public profile");
     }
     await ctx.db.patch(me, { public_profile_enabled: args.enabled });
     return { enabled: args.enabled };
@@ -1640,7 +2026,7 @@ export const getPublicProfile = query({
     const pinned = await ctx.db
       .query("conversations")
       .withIndex("by_user_profile_pinned", (q) =>
-        q.eq("user_id", user._id).gt("profile_pinned_at", 0)
+        q.eq("user_id", user._id).gt("profile_pinned_at", 0),
       )
       .collect();
     const publicPins = pinned.filter((c) => profilePublicSessionVisible(c));
@@ -1650,7 +2036,10 @@ export const getPublicProfile = query({
       show_activity_graph: !user.hide_activity,
       stats: {
         pinned_sessions: publicPins.length,
-        pinned_messages: publicPins.reduce((s, c) => s + (c.message_count ?? 0), 0),
+        pinned_messages: publicPins.reduce(
+          (s, c) => s + (c.message_count ?? 0),
+          0,
+        ),
       },
     };
   },
@@ -1673,7 +2062,7 @@ export const getPublicPinnedSessions = query({
     const pinned = await ctx.db
       .query("conversations")
       .withIndex("by_user_profile_pinned", (q) =>
-        q.eq("user_id", user._id).gt("profile_pinned_at", 0)
+        q.eq("user_id", user._id).gt("profile_pinned_at", 0),
       )
       .order("desc")
       .collect();
@@ -1752,7 +2141,7 @@ export const getUserAbstractActivity = query({
       ? await ctx.db
           .query("conversations")
           .withIndex("by_team_user_updated", (q: any) =>
-            q.eq("team_id", args.team_id).eq("user_id", args.user_id)
+            q.eq("team_id", args.team_id).eq("user_id", args.user_id),
           )
           .order("desc")
           .take(10)
@@ -1764,26 +2153,43 @@ export const getUserAbstractActivity = query({
 
     // Privacy gate: exclude private conversations from a teammate's profile so
     // their titles/subtitles/projects and counts don't leak (owner sees all).
-    const isVisible = await getProfileVisibilityPredicate(ctx, viewerId, args.user_id, args.team_id);
+    const isVisible = await getProfileVisibilityPredicate(
+      ctx,
+      viewerId,
+      args.user_id,
+      args.team_id,
+    );
     const recentConversations = recentConversationsRaw.filter(isVisible);
 
-    const weekConversations = recentConversations.filter(c => c.started_at > oneWeekAgo);
-    const monthConversations = recentConversations.filter(c => c.started_at > oneMonthAgo);
-    const activeSession = recentConversations.find(c => c.status === "active");
+    const weekConversations = recentConversations.filter(
+      (c) => c.started_at > oneWeekAgo,
+    );
+    const monthConversations = recentConversations.filter(
+      (c) => c.started_at > oneMonthAgo,
+    );
+    const activeSession = recentConversations.find(
+      (c) => c.status === "active",
+    );
 
-    const projectCounts: Record<string, { sessions: number; messages: number; lastActive: number }> = {};
-    monthConversations.forEach(c => {
-      const project = c.project_path?.split('/').pop() || 'Unknown';
+    const projectCounts: Record<
+      string,
+      { sessions: number; messages: number; lastActive: number }
+    > = {};
+    monthConversations.forEach((c) => {
+      const project = c.project_path?.split("/").pop() || "Unknown";
       if (!projectCounts[project]) {
         projectCounts[project] = { sessions: 0, messages: 0, lastActive: 0 };
       }
       projectCounts[project].sessions++;
       projectCounts[project].messages += c.message_count;
-      projectCounts[project].lastActive = Math.max(projectCounts[project].lastActive, c.updated_at);
+      projectCounts[project].lastActive = Math.max(
+        projectCounts[project].lastActive,
+        c.updated_at,
+      );
     });
 
     const recentProjects = Object.entries(projectCounts)
-      .sort(([,a], [,b]) => b.lastActive - a.lastActive)
+      .sort(([, a], [, b]) => b.lastActive - a.lastActive)
       .slice(0, 5)
       .map(([name, stats]) => ({
         name,
@@ -1791,11 +2197,22 @@ export const getUserAbstractActivity = query({
         messages: stats.messages,
       }));
 
-    const weekTotalMessages = weekConversations.reduce((sum, c) => sum + c.message_count, 0);
-    const monthTotalMessages = monthConversations.reduce((sum, c) => sum + c.message_count, 0);
+    const weekTotalMessages = weekConversations.reduce(
+      (sum, c) => sum + c.message_count,
+      0,
+    );
+    const monthTotalMessages = monthConversations.reduce(
+      (sum, c) => sum + c.message_count,
+      0,
+    );
 
     let teamActivityStats = null;
-    let recentCommits: Array<{ message: string; branch?: string; filesChanged?: number; timestamp: number }> = [];
+    let recentCommits: Array<{
+      message: string;
+      branch?: string;
+      filesChanged?: number;
+      timestamp: number;
+    }> = [];
 
     if (args.team_id || user.team_id) {
       const teamEventsRaw = await ctx.db
@@ -1804,31 +2221,43 @@ export const getUserAbstractActivity = query({
         .order("desc")
         .take(args.team_id ? 60 : 15);
       const teamEvents = args.team_id
-        ? teamEventsRaw.filter(e => String(e.team_id) === String(args.team_id)).slice(0, 15)
+        ? teamEventsRaw
+            .filter((e) => String(e.team_id) === String(args.team_id))
+            .slice(0, 15)
         : teamEventsRaw;
 
-      const weekEvents = teamEvents.filter(e => e.timestamp > oneWeekAgo);
-      const monthEvents = teamEvents.filter(e => e.timestamp > oneMonthAgo);
+      const weekEvents = teamEvents.filter((e) => e.timestamp > oneWeekAgo);
+      const monthEvents = teamEvents.filter((e) => e.timestamp > oneMonthAgo);
 
-      const weekCommits = weekEvents.filter(e => e.event_type === "commit_pushed").length;
-      const monthCommits = monthEvents.filter(e => e.event_type === "commit_pushed").length;
-      const weekPRs = weekEvents.filter(e => e.event_type === "pr_created" || e.event_type === "pr_merged").length;
-      const monthPRs = monthEvents.filter(e => e.event_type === "pr_created" || e.event_type === "pr_merged").length;
+      const weekCommits = weekEvents.filter(
+        (e) => e.event_type === "commit_pushed",
+      ).length;
+      const monthCommits = monthEvents.filter(
+        (e) => e.event_type === "commit_pushed",
+      ).length;
+      const weekPRs = weekEvents.filter(
+        (e) => e.event_type === "pr_created" || e.event_type === "pr_merged",
+      ).length;
+      const monthPRs = monthEvents.filter(
+        (e) => e.event_type === "pr_created" || e.event_type === "pr_merged",
+      ).length;
 
       const weekFilesChanged = weekEvents
-        .filter(e => e.event_type === "commit_pushed" && e.metadata?.files_changed)
+        .filter(
+          (e) => e.event_type === "commit_pushed" && e.metadata?.files_changed,
+        )
         .reduce((sum, e) => sum + (e.metadata?.files_changed || 0), 0);
 
       const recentBranches = monthEvents
-        .filter(e => e.metadata?.git_branch)
-        .map(e => e.metadata!.git_branch!)
+        .filter((e) => e.metadata?.git_branch)
+        .map((e) => e.metadata!.git_branch!)
         .filter((v, i, a) => a.indexOf(v) === i)
         .slice(0, 5);
 
       recentCommits = monthEvents
-        .filter(e => e.event_type === "commit_pushed")
+        .filter((e) => e.event_type === "commit_pushed")
         .slice(0, 5)
-        .map(e => ({
+        .map((e) => ({
           message: e.title,
           branch: e.metadata?.git_branch,
           filesChanged: e.metadata?.files_changed,
@@ -1846,27 +2275,33 @@ export const getUserAbstractActivity = query({
     }
 
     const hourOfDay: Record<number, number> = {};
-    monthConversations.forEach(c => {
+    monthConversations.forEach((c) => {
       const hour = new Date(c.started_at).getHours();
       hourOfDay[hour] = (hourOfDay[hour] || 0) + 1;
     });
     const peakHours = Object.entries(hourOfDay)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([hour]) => parseInt(hour));
 
     const daySet = new Set<string>();
-    recentConversations.forEach(c => {
-      const day = new Date(c.started_at).toISOString().split('T')[0];
+    recentConversations.forEach((c) => {
+      const day = new Date(c.started_at).toISOString().split("T")[0];
       daySet.add(day);
     });
     const sortedDays = Array.from(daySet).sort().reverse();
     let streak = 0;
     for (let i = 0; i < sortedDays.length; i++) {
-      const expectedDate = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+      const expectedDate = new Date(Date.now() - i * 86400000)
+        .toISOString()
+        .split("T")[0];
       if (sortedDays[i] === expectedDate) {
         streak++;
-      } else if (i === 0 && sortedDays[0] === new Date(Date.now() - 86400000).toISOString().split('T')[0]) {
+      } else if (
+        i === 0 &&
+        sortedDays[0] ===
+          new Date(Date.now() - 86400000).toISOString().split("T")[0]
+      ) {
         streak++;
       } else {
         break;
@@ -1875,20 +2310,22 @@ export const getUserAbstractActivity = query({
 
     const shareMetadata = user.share_session_metadata !== false;
 
-    const recentSessions = shareMetadata ? weekConversations.slice(0, 5).map(c => ({
-      title: c.title || 'Untitled Session',
-      subtitle: c.subtitle,
-      message_count: c.message_count,
-      project: c.project_path?.split('/').pop(),
-      started_at: c.started_at,
-      updated_at: c.updated_at,
-      status: c.status,
-    })) : [];
+    const recentSessions = shareMetadata
+      ? weekConversations.slice(0, 5).map((c) => ({
+          title: c.title || "Untitled Session",
+          subtitle: c.subtitle,
+          message_count: c.message_count,
+          project: c.project_path?.split("/").pop(),
+          started_at: c.started_at,
+          updated_at: c.updated_at,
+          status: c.status,
+        }))
+      : [];
 
     return {
       last_active: user.daemon_last_seen,
       is_currently_active: activeSession !== undefined,
-      current_project: activeSession?.project_path?.split('/').pop(),
+      current_project: activeSession?.project_path?.split("/").pop(),
       week_sessions: weekConversations.length,
       month_sessions: monthConversations.length,
       week_messages: weekTotalMessages,
@@ -1950,15 +2387,40 @@ export const getUserActivityPunchcard = query({
     // gate loadUserActivity applies to the day rows must hold for them too:
     // anyone else reads one team they belong to, never the cross-team total.
     const isOwner = String(userId) === String(args.user_id);
-    if (!isOwner && !(args.team_id && (await isTeamMember(ctx, userId, args.team_id)))) return [];
-    const seesSpend = await canSeeMemberSpend(ctx, userId, args.user_id, args.team_id);
+    if (
+      !isOwner &&
+      !(args.team_id && (await isTeamMember(ctx, userId, args.team_id)))
+    )
+      return [];
+    const seesSpend = await canSeeMemberSpend(
+      ctx,
+      userId,
+      args.user_id,
+      args.team_id,
+    );
 
     const [{ days, live }, sendDays, usageDays] = await Promise.all([
       loadUserActivity(ctx, userId, args),
-      args.who === "unattended" ? undefined : fetchUserSendDays(ctx, args.user_id, args.team_id, args.days ?? 365),
-      seesSpend ? fetchUserUsageDays(ctx, args.user_id, args.team_id, args.days ?? 365, args.who) : undefined,
+      args.who === "unattended"
+        ? undefined
+        : fetchUserSendDays(ctx, args.user_id, args.team_id, args.days ?? 365),
+      seesSpend
+        ? fetchUserUsageDays(
+            ctx,
+            args.user_id,
+            args.team_id,
+            args.days ?? 365,
+            args.who,
+          )
+        : undefined,
     ]);
-    return bucketPunchcardRows(live, args.tz_offset_minutes ?? 0, sendDays, usageDays, days);
+    return bucketPunchcardRows(
+      live,
+      args.tz_offset_minutes ?? 0,
+      sendDays,
+      usageDays,
+      days,
+    );
   },
 });
 
@@ -1981,10 +2443,21 @@ export const getPublicActivityPunchcard = query({
     if (!user || !user.public_profile_enabled || user.hide_activity) return [];
 
     const [{ days, live }, sendDays] = await Promise.all([
-      loadUserActivity(ctx, null, { user_id: user._id, days: args.days }, { countAll: true }),
+      loadUserActivity(
+        ctx,
+        null,
+        { user_id: user._id, days: args.days },
+        { countAll: true },
+      ),
       fetchUserSendDays(ctx, user._id, undefined, args.days ?? 365),
     ]);
-    return bucketPunchcardRows(live, args.tz_offset_minutes ?? 0, sendDays, undefined, days);
+    return bucketPunchcardRows(
+      live,
+      args.tz_offset_minutes ?? 0,
+      sendDays,
+      undefined,
+      days,
+    );
   },
 });
 
@@ -2009,12 +2482,18 @@ export const getUserTasks = query({
       .order("desc")
       .take(limit * 4);
     const scoped = args.team_id
-      ? tasks.filter((t: any) => t.team_id && String(t.team_id) === String(args.team_id))
+      ? tasks.filter(
+          (t: any) => t.team_id && String(t.team_id) === String(args.team_id),
+        )
       : tasks;
     // Access checks are independent per row — run them concurrently instead of
     // serially awaiting up to 4×limit round-trips.
-    const access = await Promise.all(scoped.map((t: any) => canAccessTask(ctx, userId, t)));
-    const visible = scoped.filter((_: any, i: number) => access[i]).slice(0, limit);
+    const access = await Promise.all(
+      scoped.map((t: any) => canAccessTask(ctx, userId, t)),
+    );
+    const visible = scoped
+      .filter((_: any, i: number) => access[i])
+      .slice(0, limit);
     return visible.map((t: any) => ({
       _id: t._id,
       short_id: t.short_id,
@@ -2049,11 +2528,18 @@ export const getUserDocs = query({
       .withIndex("by_user_id", (q: any) => q.eq("user_id", args.user_id))
       .order("desc")
       .take(limit * 4);
-    const live = docs.filter((d: any) =>
-      !d.archived_at && (!args.team_id || (d.team_id && String(d.team_id) === String(args.team_id)))
+    const live = docs.filter(
+      (d: any) =>
+        !d.archived_at &&
+        (!args.team_id ||
+          (d.team_id && String(d.team_id) === String(args.team_id))),
     );
-    const access = await Promise.all(live.map((d: any) => canAccessDoc(ctx, userId, d)));
-    const visible = live.filter((_: any, i: number) => access[i]).slice(0, limit);
+    const access = await Promise.all(
+      live.map((d: any) => canAccessDoc(ctx, userId, d)),
+    );
+    const visible = live
+      .filter((_: any, i: number) => access[i])
+      .slice(0, limit);
     return visible.map((d: any) => ({
       _id: d._id,
       title: d.title,
@@ -2092,7 +2578,10 @@ export const getUserProfileFeed = query({
   handler: async (ctx, args) => {
     const legacy = !args.paginationOpts;
     const legacyLimit = Math.min(args.limit ?? 30, 200);
-    const paginationOpts = args.paginationOpts ?? { numItems: 30, cursor: null };
+    const paginationOpts = args.paginationOpts ?? {
+      numItems: 30,
+      cursor: null,
+    };
     const empty = legacy ? [] : { page: [], isDone: true, continueCursor: "" };
     const userId = await getAuthUserId(ctx);
     if (!userId) return empty;
@@ -2112,20 +2601,30 @@ export const getUserProfileFeed = query({
       .query("user_sends")
       .withIndex("by_user_timestamp", (q) => q.eq("user_id", args.user_id))
       .order("desc");
-    if (args.team_id) sendQuery = sendQuery.filter((q) => q.eq(q.field("team_id"), args.team_id));
+    if (args.team_id)
+      sendQuery = sendQuery.filter((q) =>
+        q.eq(q.field("team_id"), args.team_id),
+      );
     const sendPage = await sendQuery.paginate(paginationOpts);
 
     // Privacy gate: a send's team is routing, not visibility. Drop sends into
     // private sessions so a teammate's profile never exposes their text.
-    const isVisible = await getProfileVisibilityPredicate(ctx, userId, args.user_id, args.team_id);
+    const isVisible = await getProfileVisibilityPredicate(
+      ctx,
+      userId,
+      args.user_id,
+      args.team_id,
+    );
     const conversations = new Map<string, Doc<"conversations"> | null>();
     for (const send of sendPage.page) {
       // A picked decision option is a tap, not typing.
       if (send.decision?.picked) continue;
       const key = String(send.conversation_id);
-      if (!conversations.has(key)) conversations.set(key, await ctx.db.get(send.conversation_id));
+      if (!conversations.has(key))
+        conversations.set(key, await ctx.db.get(send.conversation_id));
       const c = conversations.get(key);
-      if (!c || !isVisible(c) || isTestArtifactPath(c.project_path ?? "")) continue;
+      if (!c || !isVisible(c) || isTestArtifactPath(c.project_path ?? ""))
+        continue;
       items.push({
         type: "message",
         timestamp: send.timestamp,
@@ -2139,94 +2638,127 @@ export const getUserProfileFeed = query({
           message_count: c.message_count,
           project: c.project_path?.split("/").pop(),
           status: c.status,
-          duration_ms: c.started_at && c.updated_at ? c.updated_at - c.started_at : undefined,
+          duration_ms:
+            c.started_at && c.updated_at
+              ? c.updated_at - c.started_at
+              : undefined,
         },
       });
     }
 
     if (isFirstPage) {
-    const tasks = await ctx.db
-      .query("tasks")
-      .withIndex("by_user_id", (q: any) => q.eq("user_id", args.user_id))
-      .order("desc")
-      .take(20);
-    for (const t of tasks as any[]) {
-      if (args.team_id && t.team_id && String(t.team_id) !== String(args.team_id)) continue;
-      if (!(await canAccessTask(ctx, userId, t))) continue;
-      items.push({
-        type: "task",
-        timestamp: t.updated_at || t.created_at || t._creationTime,
-        verb: t.status === "done" ? "completed" : t.updated_at > t.created_at + 1000 ? "updated" : "created",
-        entity_id: String(t._id),
-        entity_type: "task",
-        entity_title: t.title,
-        entity_short_id: t.short_id,
-        meta: { status: t.status, priority: t.priority },
-      });
-    }
+      const tasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", args.user_id))
+        .order("desc")
+        .take(20);
+      for (const t of tasks as any[]) {
+        if (
+          args.team_id &&
+          t.team_id &&
+          String(t.team_id) !== String(args.team_id)
+        )
+          continue;
+        if (!(await canAccessTask(ctx, userId, t))) continue;
+        items.push({
+          type: "task",
+          timestamp: t.updated_at || t.created_at || t._creationTime,
+          verb:
+            t.status === "done"
+              ? "completed"
+              : t.updated_at > t.created_at + 1000
+                ? "updated"
+                : "created",
+          entity_id: String(t._id),
+          entity_type: "task",
+          entity_title: t.title,
+          entity_short_id: t.short_id,
+          meta: { status: t.status, priority: t.priority },
+        });
+      }
 
-    const docs = await ctx.db
-      .query("docs")
-      .withIndex("by_user_id", (q: any) => q.eq("user_id", args.user_id))
-      .order("desc")
-      .take(15);
-    for (const d of docs as any[]) {
-      if (d.archived_at) continue;
-      if (args.team_id && d.team_id && String(d.team_id) !== String(args.team_id)) continue;
-      if (!(await canAccessDoc(ctx, userId, d))) continue;
-      items.push({
-        type: "doc",
-        timestamp: d.updated_at || d.created_at || d._creationTime,
-        verb: d.updated_at > (d.created_at || d._creationTime) + 1000 ? "edited" : "wrote",
-        entity_id: String(d._id),
-        entity_type: "doc",
-        entity_title: d.title || "Untitled",
-        meta: { doc_type: d.doc_type },
-      });
-    }
+      const docs = await ctx.db
+        .query("docs")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", args.user_id))
+        .order("desc")
+        .take(15);
+      for (const d of docs as any[]) {
+        if (d.archived_at) continue;
+        if (
+          args.team_id &&
+          d.team_id &&
+          String(d.team_id) !== String(args.team_id)
+        )
+          continue;
+        if (!(await canAccessDoc(ctx, userId, d))) continue;
+        items.push({
+          type: "doc",
+          timestamp: d.updated_at || d.created_at || d._creationTime,
+          verb:
+            d.updated_at > (d.created_at || d._creationTime) + 1000
+              ? "edited"
+              : "wrote",
+          entity_id: String(d._id),
+          entity_type: "doc",
+          entity_title: d.title || "Untitled",
+          meta: { doc_type: d.doc_type },
+        });
+      }
 
-    const teamEvents = await ctx.db
-      .query("team_activity_events")
-      .withIndex("by_actor", (q) => q.eq("actor_user_id", args.user_id))
-      .order("desc")
-      .take(20);
-    for (const e of teamEvents) {
-      if (args.team_id && String(e.team_id) !== String(args.team_id)) continue;
-      if (!(await workspaceGrantsAccess(ctx, userId, `team:${e.team_id}`))) continue;
-      const typeMap: Record<string, string> = {
-        commit_pushed: "pushed",
-        pr_created: "opened PR",
-        pr_merged: "merged PR",
-        session_started: "started",
-        session_completed: "finished",
-      };
-      if (!typeMap[e.event_type]) continue;
-      items.push({
-        type: e.event_type,
-        timestamp: e.timestamp,
-        verb: typeMap[e.event_type],
-        preview: e.title,
-        entity_id: e.related_conversation_id ? String(e.related_conversation_id) : undefined,
-        entity_type: e.related_conversation_id ? "session" : undefined,
-        meta: {
-          branch: e.metadata?.git_branch,
-          files_changed: e.metadata?.files_changed,
-          pr_number: e.related_pr_id,
-        },
-      });
-    }
+      const teamEvents = await ctx.db
+        .query("team_activity_events")
+        .withIndex("by_actor", (q) => q.eq("actor_user_id", args.user_id))
+        .order("desc")
+        .take(20);
+      for (const e of teamEvents) {
+        if (args.team_id && String(e.team_id) !== String(args.team_id))
+          continue;
+        if (!(await workspaceGrantsAccess(ctx, userId, `team:${e.team_id}`)))
+          continue;
+        const typeMap: Record<string, string> = {
+          commit_pushed: "pushed",
+          pr_created: "opened PR",
+          pr_merged: "merged PR",
+          session_started: "started",
+          session_completed: "finished",
+        };
+        if (!typeMap[e.event_type]) continue;
+        items.push({
+          type: e.event_type,
+          timestamp: e.timestamp,
+          verb: typeMap[e.event_type],
+          preview: e.title,
+          entity_id: e.related_conversation_id
+            ? String(e.related_conversation_id)
+            : undefined,
+          entity_type: e.related_conversation_id ? "session" : undefined,
+          meta: {
+            branch: e.metadata?.git_branch,
+            files_changed: e.metadata?.files_changed,
+            pr_number: e.related_pr_id,
+          },
+        });
+      }
     }
 
     items.sort((a, b) => b.timestamp - a.timestamp);
     if (legacy) return items.slice(0, legacyLimit);
-    return { page: items, isDone: sendPage.isDone, continueCursor: sendPage.continueCursor };
+    return {
+      page: items,
+      isDone: sendPage.isDone,
+      continueCursor: sendPage.continueCursor,
+    };
   },
   // The runtime validator above also tolerates legacy {limit} callers, but the
   // advertised type is paginated-only so usePaginatedQuery accepts it and new
   // callers are steered to paginationOpts.
 }) as unknown as RegisteredQuery<
   "public",
-  { user_id: Id<"users">; team_id?: Id<"teams">; paginationOpts: PaginationOptions },
+  {
+    user_id: Id<"users">;
+    team_id?: Id<"teams">;
+    paginationOpts: PaginationOptions;
+  },
   Promise<PaginationResult<ProfileFeedItem>>
 >;
 
@@ -2239,7 +2771,9 @@ export const getTeamMembers = query({
     if (!userId) return [];
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q: any) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership) return [];
 
@@ -2250,7 +2784,9 @@ export const getTeamMembers = query({
       .query("team_memberships")
       .withIndex("by_team_id", (q: any) => q.eq("team_id", args.team_id))
       .collect();
-    const users = await Promise.all(memberships.map((m) => ctx.db.get(m.user_id)));
+    const users = await Promise.all(
+      memberships.map((m) => ctx.db.get(m.user_id)),
+    );
     return peopleOf(users).map((member) => ({
       _id: member._id,
       name: member.name,
@@ -2281,7 +2817,9 @@ export const unlinkGitHub = mutation({
       throw new Error("User not found");
     }
     if (!user.email) {
-      throw new Error("Cannot unlink GitHub without an email/password login configured");
+      throw new Error(
+        "Cannot unlink GitHub without an email/password login configured",
+      );
     }
     await ctx.db.patch(userId, {
       github_id: undefined,
@@ -2336,7 +2874,11 @@ export const syncFolder = mutation({
     const user = await ctx.db.get(userId);
     if (!user || !args.folder.startsWith("/")) return null;
     const plan = planSyncChange(
-      { sync_mode: user.sync_mode ?? "all", sync_projects: user.sync_projects ?? [], sync_excluded: user.sync_excluded ?? [] },
+      {
+        sync_mode: user.sync_mode ?? "all",
+        sync_projects: user.sync_projects ?? [],
+        sync_excluded: user.sync_excluded ?? [],
+      },
       { sync: [args.folder] },
     );
     if (plan.next) await ctx.db.patch(userId, plan.next);
@@ -2426,14 +2968,14 @@ export const getDirectoryTeamMappings = query({
           _id: m._id,
           path_prefix: m.path_prefix,
           team_id: m.team_id ?? null,
-          team_name: m.team_id ? team?.name ?? "Unknown Team" : null,
+          team_name: m.team_id ? (team?.name ?? "Unknown Team") : null,
           auto_share: m.auto_share,
           private: m.private ?? false,
           share_since: m.share_since,
           repository: m.repository,
           created_at: m.created_at,
         };
-      })
+      }),
     );
     return mappingsWithTeams;
   },
@@ -2458,23 +3000,32 @@ async function scanRecentConversations(
   return ctx.db
     .query("conversations")
     .withIndex("by_user_updated", (q) =>
-      since === undefined ? q.eq("user_id", userId) : q.eq("user_id", userId).gte("updated_at", since)
+      since === undefined
+        ? q.eq("user_id", userId)
+        : q.eq("user_id", userId).gte("updated_at", since),
     )
     .order("desc")
     .take(take);
 }
 
-async function collectRecentProjects(ctx: QueryCtx, userId: Id<"users">, take = 600) {
+async function collectRecentProjects(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  take = 600,
+) {
   const conversations = await scanRecentConversations(ctx, userId, take);
 
-  const projectMap = new Map<string, {
-    path: string;
-    git_root: string | null;
-    git_remote_url?: string;
-    session_count: number;
-    first_active: number;
-    last_active: number;
-  }>();
+  const projectMap = new Map<
+    string,
+    {
+      path: string;
+      git_root: string | null;
+      git_remote_url?: string;
+      session_count: number;
+      first_active: number;
+      last_active: number;
+    }
+  >();
 
   for (const conv of conversations) {
     const path = getConversationProjectPath(conv);
@@ -2502,7 +3053,9 @@ async function collectRecentProjects(ctx: QueryCtx, userId: Id<"users">, take = 
     });
   }
 
-  return Array.from(projectMap.values()).sort((a, b) => b.last_active - a.last_active);
+  return Array.from(projectMap.values()).sort(
+    (a, b) => b.last_active - a.last_active,
+  );
 }
 
 async function getMatchingConversationsPage(
@@ -2514,14 +3067,15 @@ async function getMatchingConversationsPage(
   numItems = DIRECTORY_MATCH_BATCH_SIZE,
 ) {
   const field = source === "git_root" ? "git_root" : "project_path";
-  const index = source === "git_root" ? "by_user_git_root" : "by_user_project_path";
+  const index =
+    source === "git_root" ? "by_user_git_root" : "by_user_project_path";
   const page = await ctx.db
     .query("conversations")
     .withIndex(index, (q: any) =>
       q
         .eq("user_id", userId)
         .gte(field, pathPrefix)
-        .lt(field, getPathPrefixUpperBound(pathPrefix))
+        .lt(field, getPathPrefixUpperBound(pathPrefix)),
     )
     .paginate({
       cursor: (cursor || null) as any,
@@ -2535,7 +3089,11 @@ async function getMatchingConversationsPage(
     return matchesPathPrefix(getConversationProjectPath(conv), pathPrefix);
   });
 
-  return { page: matches, isDone: page.isDone, continueCursor: page.continueCursor };
+  return {
+    page: matches,
+    isDone: page.isDone,
+    continueCursor: page.continueCursor,
+  };
 }
 
 // Visit every conversation matching `pathPrefix` (git_root first, then
@@ -2567,10 +3125,15 @@ export async function scanConversationsForPath(
   const childPrefix = pathPrefix.endsWith("/") ? pathPrefix : `${pathPrefix}/`;
   for (const source of ["git_root", "project_path"] as const) {
     const field = source === "git_root" ? "git_root" : "project_path";
-    const index = source === "git_root" ? "by_user_git_root" : "by_user_project_path";
+    const index =
+      source === "git_root" ? "by_user_git_root" : "by_user_project_path";
     const ranges: ((q: any) => any)[] = [
       (q: any) => q.eq("user_id", userId).eq(field, pathPrefix),
-      (q: any) => q.eq("user_id", userId).gte(field, childPrefix).lt(field, getPathPrefixUpperBound(childPrefix)),
+      (q: any) =>
+        q
+          .eq("user_id", userId)
+          .gte(field, childPrefix)
+          .lt(field, getPathPrefixUpperBound(childPrefix)),
     ];
     for (const range of ranges) {
       let take = 128;
@@ -2582,14 +3145,18 @@ export async function scanConversationsForPath(
           .take(take);
         for (const conv of rows) {
           if (source === "project_path" && conv.git_root) continue;
-          if (!matchesPathPrefix(getConversationProjectPath(conv), pathPrefix)) continue;
+          if (!matchesPathPrefix(getConversationProjectPath(conv), pathPrefix))
+            continue;
           const id = conv._id.toString();
           if (seen.has(id)) continue;
           seen.add(id);
           if (!visit(conv)) return { truncated };
         }
         if (rows.length < take) break;
-        if (take >= MAX_TAKE) { truncated = true; break; }
+        if (take >= MAX_TAKE) {
+          truncated = true;
+          break;
+        }
         take *= 2;
       }
     }
@@ -2621,22 +3188,32 @@ async function queueRetroactiveResolveConversations(
   pathPrefix: string,
   repository?: string,
 ) {
-  await ctx.scheduler.runAfter(0, internal.users.backfillDirectoryTeamMappingConversations, {
-    user_id: userId,
-    path_prefix: pathPrefix,
-    repository,
-    source: "git_root",
-  });
+  await ctx.scheduler.runAfter(
+    0,
+    internal.users.backfillDirectoryTeamMappingConversations,
+    {
+      user_id: userId,
+      path_prefix: pathPrefix,
+      repository,
+      source: "git_root",
+    },
+  );
 }
 
 // The repository a checkout root is a clone of, read off the sessions
 // recorded there: the daemon stamps every session's origin, so the newest
 // session in the folder knows. Undefined for a folder with no remote or no
 // synced session yet; the backfill fills it in once a session lands.
-export async function repositoryOfCheckout(ctx: any, userId: any, root: string): Promise<string | undefined> {
+export async function repositoryOfCheckout(
+  ctx: any,
+  userId: any,
+  root: string,
+): Promise<string | undefined> {
   const rows = await ctx.db
     .query("conversations")
-    .withIndex("by_user_git_root", (q: any) => q.eq("user_id", userId).eq("git_root", root))
+    .withIndex("by_user_git_root", (q: any) =>
+      q.eq("user_id", userId).eq("git_root", root),
+    )
     .order("desc")
     .take(20);
   for (const row of rows) {
@@ -2653,13 +3230,21 @@ export async function repositoryOfCheckout(ctx: any, userId: any, root: string):
 // which it only reads, and a 32 row page turned one share into hundreds of
 // scheduled runs on an owner with thousands of sessions.
 const REPOSITORY_MATCH_BATCH_SIZE = 400;
-async function getRepositoryConversationsPage(ctx: any, userId: any, repository: string, cursor?: string, numItems = REPOSITORY_MATCH_BATCH_SIZE) {
+async function getRepositoryConversationsPage(
+  ctx: any,
+  userId: any,
+  repository: string,
+  cursor?: string,
+  numItems = REPOSITORY_MATCH_BATCH_SIZE,
+) {
   const page = await ctx.db
     .query("conversations")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .paginate({ cursor: (cursor || null) as any, numItems });
   return {
-    page: page.page.filter((conv: any) => conversationRepository(conv) === repository),
+    page: page.page.filter(
+      (conv: any) => conversationRepository(conv) === repository,
+    ),
     isDone: page.isDone,
     continueCursor: page.continueCursor,
   };
@@ -2676,7 +3261,13 @@ export const backfillDirectoryTeamMappingConversations = internalMutation({
     // wherever they live. Carried explicitly because a removed mapping is
     // gone by the time the pass runs.
     repository: v.optional(v.string()),
-    source: v.optional(v.union(v.literal("git_root"), v.literal("project_path"), v.literal("repository"))),
+    source: v.optional(
+      v.union(
+        v.literal("git_root"),
+        v.literal("project_path"),
+        v.literal("repository"),
+      ),
+    ),
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -2685,15 +3276,21 @@ export const backfillDirectoryTeamMappingConversations = internalMutation({
       .query("directory_team_mappings")
       .withIndex("by_user_id", (q) => q.eq("user_id", args.user_id))
       .collect();
-    const page = source === "repository"
-      ? await getRepositoryConversationsPage(ctx, args.user_id, args.repository!, args.cursor)
-      : await getMatchingConversationsPage(
-          ctx,
-          args.user_id,
-          args.path_prefix,
-          source,
-          args.cursor,
-        );
+    const page =
+      source === "repository"
+        ? await getRepositoryConversationsPage(
+            ctx,
+            args.user_id,
+            args.repository!,
+            args.cursor,
+          )
+        : await getMatchingConversationsPage(
+            ctx,
+            args.user_id,
+            args.path_prefix,
+            source,
+            args.cursor,
+          );
 
     let updated = 0;
     for (const conv of page.page) {
@@ -2704,15 +3301,23 @@ export const backfillDirectoryTeamMappingConversations = internalMutation({
       // hidden, and a manual share (non-private without the auto stamp)
       // stays shared. Only rows the mappings put in their state re-resolve.
       if (conv.team_visibility === "private") continue;
-      if (conv.is_private === false && !conv.auto_shared && conv.team_id) continue;
-      const { teamId, isPrivate, autoShared } = resolveTeamForPath(mappings, convPath, undefined, conv.started_at, conversationRepository(conv));
+      if (conv.is_private === false && !conv.auto_shared && conv.team_id)
+        continue;
+      const { teamId, isPrivate, autoShared } = resolveTeamForPath(
+        mappings,
+        convPath,
+        undefined,
+        conv.started_at,
+        conversationRepository(conv),
+      );
 
       const patch: Record<string, unknown> = {};
       const newTeam = teamId ? teamId.toString() : null;
       const oldTeam = conv.team_id ? conv.team_id.toString() : null;
       if (newTeam !== oldTeam) patch.team_id = teamId ?? undefined;
       if ((conv.is_private ?? true) !== isPrivate) patch.is_private = isPrivate;
-      if ((conv.auto_shared ?? false) !== autoShared) patch.auto_shared = autoShared;
+      if ((conv.auto_shared ?? false) !== autoShared)
+        patch.auto_shared = autoShared;
 
       if (Object.keys(patch).length > 0) {
         // Visibility and routing change together here, and linked work
@@ -2722,24 +3327,35 @@ export const backfillDirectoryTeamMappingConversations = internalMutation({
       }
     }
 
-    const next = (source === "git_root")
-      ? "project_path"
-      : (source === "project_path" && args.repository) ? "repository" : null;
+    const next =
+      source === "git_root"
+        ? "project_path"
+        : source === "project_path" && args.repository
+          ? "repository"
+          : null;
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.users.backfillDirectoryTeamMappingConversations, {
-        user_id: args.user_id,
-        path_prefix: args.path_prefix,
-        repository: args.repository,
-        source,
-        cursor: page.continueCursor,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.users.backfillDirectoryTeamMappingConversations,
+        {
+          user_id: args.user_id,
+          path_prefix: args.path_prefix,
+          repository: args.repository,
+          source,
+          cursor: page.continueCursor,
+        },
+      );
     } else if (next) {
-      await ctx.scheduler.runAfter(0, internal.users.backfillDirectoryTeamMappingConversations, {
-        user_id: args.user_id,
-        path_prefix: args.path_prefix,
-        repository: args.repository,
-        source: next,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.users.backfillDirectoryTeamMappingConversations,
+        {
+          user_id: args.user_id,
+          path_prefix: args.path_prefix,
+          repository: args.repository,
+          source: next,
+        },
+      );
     }
 
     return {
@@ -2778,15 +3394,22 @@ export type MappingUpsertArgs = {
 // is) and a removal takes every rule of the repository with it. Two rules for
 // one repository was the state that let "switch team" leave the old team
 // sharing through the other checkout.
-async function rulesForCheckout(ctx: any, userId: Id<"users">, pathPrefix: string) {
+async function rulesForCheckout(
+  ctx: any,
+  userId: Id<"users">,
+  pathPrefix: string,
+) {
   const mappings = await ctx.db
     .query("directory_team_mappings")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
   const own = mappings.find((m: any) => m.path_prefix === pathPrefix) ?? null;
-  const repository: string | undefined = own?.repository ?? (await repositoryOfCheckout(ctx, userId, pathPrefix));
+  const repository: string | undefined =
+    own?.repository ?? (await repositoryOfCheckout(ctx, userId, pathPrefix));
   const siblings = repository
-    ? mappings.filter((m: any) => m.repository === repository && m._id !== own?._id)
+    ? mappings.filter(
+        (m: any) => m.repository === repository && m._id !== own?._id,
+      )
     : [];
   return { own, repository, siblings };
 }
@@ -2795,19 +3418,42 @@ export async function upsertDirectoryMapping(
   ctx: any,
   userId: Id<"users">,
   args: MappingUpsertArgs,
-): Promise<{ error: string } | { success: true; action: "removed" | "updated" | "created"; share_since: number | null }> {
-  const { own, repository, siblings } = await rulesForCheckout(ctx, userId, args.path_prefix);
+): Promise<
+  | { error: string }
+  | {
+      success: true;
+      action: "removed" | "updated" | "created";
+      share_since: number | null;
+    }
+> {
+  const { own, repository, siblings } = await rulesForCheckout(
+    ctx,
+    userId,
+    args.path_prefix,
+  );
   // The rule this write addresses: the checkout's own, else the repository's.
   const existingMapping = own ?? siblings[0] ?? null;
-  const duplicates = existingMapping ? siblings.filter((m: any) => m._id !== existingMapping._id) : [];
+  const duplicates = existingMapping
+    ? siblings.filter((m: any) => m._id !== existingMapping._id)
+    : [];
 
   if (!args.team_id && !args.private) {
     for (const rule of [existingMapping, ...duplicates].filter(Boolean)) {
       await ctx.db.delete(rule._id);
-      await queueRetroactiveResolveConversations(ctx, userId, rule.path_prefix, rule.repository ?? repository);
+      await queueRetroactiveResolveConversations(
+        ctx,
+        userId,
+        rule.path_prefix,
+        rule.repository ?? repository,
+      );
     }
     if (!existingMapping) {
-      await queueRetroactiveResolveConversations(ctx, userId, args.path_prefix, repository);
+      await queueRetroactiveResolveConversations(
+        ctx,
+        userId,
+        args.path_prefix,
+        repository,
+      );
     }
     return { success: true, action: "removed", share_since: null };
   }
@@ -2819,18 +3465,46 @@ export async function upsertDirectoryMapping(
     // by hand keeps that choice, as it does under every rule change.
     for (const rule of duplicates) {
       await ctx.db.delete(rule._id);
-      await queueRetroactiveResolveConversations(ctx, userId, rule.path_prefix, rule.repository ?? repository);
+      await queueRetroactiveResolveConversations(
+        ctx,
+        userId,
+        rule.path_prefix,
+        rule.repository ?? repository,
+      );
     }
-    const lock = { team_id: undefined, auto_share: false, private: true, share_since: undefined, repository };
+    const lock = {
+      team_id: undefined,
+      auto_share: false,
+      private: true,
+      share_since: undefined,
+      repository,
+    };
     if (existingMapping) await ctx.db.patch(existingMapping._id, lock);
-    else await ctx.db.insert("directory_team_mappings", { user_id: userId, path_prefix: args.path_prefix, ...lock, created_at: Date.now() });
-    await queueRetroactiveResolveConversations(ctx, userId, existingMapping?.path_prefix ?? args.path_prefix, repository);
-    return { success: true, action: existingMapping ? "updated" : "created", share_since: null };
+    else
+      await ctx.db.insert("directory_team_mappings", {
+        user_id: userId,
+        path_prefix: args.path_prefix,
+        ...lock,
+        created_at: Date.now(),
+      });
+    await queueRetroactiveResolveConversations(
+      ctx,
+      userId,
+      existingMapping?.path_prefix ?? args.path_prefix,
+      repository,
+    );
+    return {
+      success: true,
+      action: existingMapping ? "updated" : "created",
+      share_since: null,
+    };
   }
 
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", args.team_id!))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", args.team_id!),
+    )
     .unique();
   if (!membership) {
     return { error: "Not a member of this team" };
@@ -2838,7 +3512,8 @@ export async function upsertDirectoryMapping(
 
   // A lock carries no share to inherit from: a team share that lifts one
   // starts like a new rule.
-  const prior = existingMapping && !existingMapping.private ? existingMapping : null;
+  const prior =
+    existingMapping && !existingMapping.private ? existingMapping : null;
   const autoShare = args.auto_share ?? (prior ? prior.auto_share : true);
   const shareSince =
     args.share_since !== undefined
@@ -2847,20 +3522,29 @@ export async function upsertDirectoryMapping(
         ? prior?.share_since
         : args.include_past
           ? undefined
-          : prior?.share_since ?? Date.now();
+          : (prior?.share_since ?? Date.now());
 
   // A session the owner keeps private locks first, through the visibility
   // chokepoint, so the backfill queued below reads it as a hand lock.
   for (const id of args.lock_private ?? []) {
     const conv = await ctx.db.get(id);
     if (!conv || conv.user_id.toString() !== userId.toString()) continue;
-    if (conv.team_visibility === "private" && conv.is_private !== false) continue;
-    await patchConversationVisibility(ctx, conv, { is_private: true, team_visibility: "private" });
+    if (conv.team_visibility === "private" && conv.is_private !== false)
+      continue;
+    await patchConversationVisibility(ctx, conv, {
+      is_private: true,
+      team_visibility: "private",
+    });
   }
 
   for (const rule of duplicates) {
     await ctx.db.delete(rule._id);
-    await queueRetroactiveResolveConversations(ctx, userId, rule.path_prefix, rule.repository ?? repository);
+    await queueRetroactiveResolveConversations(
+      ctx,
+      userId,
+      rule.path_prefix,
+      rule.repository ?? repository,
+    );
   }
   if (existingMapping) {
     await ctx.db.patch(existingMapping._id, {
@@ -2885,9 +3569,18 @@ export async function upsertDirectoryMapping(
   // Re-resolve every matching conversation against current mappings,
   // regardless of auto_share: the backfill applies the mapping's
   // is_private/auto_shared per conversation, share start included.
-  await queueRetroactiveResolveConversations(ctx, userId, existingMapping?.path_prefix ?? args.path_prefix, repository);
+  await queueRetroactiveResolveConversations(
+    ctx,
+    userId,
+    existingMapping?.path_prefix ?? args.path_prefix,
+    repository,
+  );
 
-  return { success: true, action: existingMapping ? "updated" : "created", share_since: shareSince ?? null };
+  return {
+    success: true,
+    action: existingMapping ? "updated" : "created",
+    share_since: shareSince ?? null,
+  };
 }
 
 export const updateDirectoryTeamMapping = mutation({
@@ -2948,7 +3641,11 @@ export const removeDirectoryTeamMapping = mutation({
     let messagesDeleted = 0;
     let hasMore = false;
     if (args.delete_conversations) {
-      const result = await deleteConversationsForPathInternal(ctx, userId, args.path_prefix);
+      const result = await deleteConversationsForPathInternal(
+        ctx,
+        userId,
+        args.path_prefix,
+      );
       conversationsDeleted = result.conversationsDeleted;
       messagesDeleted = result.messagesDeleted;
       hasMore = result.hasMore;
@@ -2976,7 +3673,9 @@ async function deleteConversationsForPathInternal(
   const MSG_BATCH = 100;
   const msgs = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .take(MSG_BATCH);
 
   for (const msg of msgs) {
@@ -2984,12 +3683,20 @@ async function deleteConversationsForPathInternal(
   }
 
   if (msgs.length === MSG_BATCH) {
-    return { conversationsDeleted: 0, messagesDeleted: msgs.length, hasMore: true };
+    return {
+      conversationsDeleted: 0,
+      messagesDeleted: msgs.length,
+      hasMore: true,
+    };
   }
 
   await ctx.db.delete(conv._id);
   const nextConv = await findNextConversationForPath(ctx, userId, pathPrefix);
-  return { conversationsDeleted: 1, messagesDeleted: msgs.length, hasMore: !!nextConv };
+  return {
+    conversationsDeleted: 1,
+    messagesDeleted: msgs.length,
+    hasMore: !!nextConv,
+  };
 }
 
 // What a share of `pathPrefix` would expose: how many sessions, and the span
@@ -3016,7 +3723,9 @@ function conversationStart(conv: any): number | null {
   // A stored NaN (Convex floats allow it) would poison every min/max after
   // it and print as "Invalid Date"; only finite stamps count.
   const started = conv.started_at ?? conv.updated_at ?? null;
-  return typeof started === "number" && Number.isFinite(started) ? started : null;
+  return typeof started === "number" && Number.isFinite(started)
+    ? started
+    : null;
 }
 
 export async function summarizeConversationsForPath(
@@ -3033,19 +3742,24 @@ export async function summarizeConversationsForPath(
   let olderThanDay = 0;
   let hidden = 0;
   let manuallyShared = 0;
-  const { truncated } = await scanConversationsForPath(ctx, userId, pathPrefix, (conv) => {
-    count++;
-    const started = conversationStart(conv);
-    if (started != null) {
-      first = first == null ? started : Math.min(first, started);
-      last = last == null ? started : Math.max(last, started);
-      if (since != null && started < since) older++;
-      if (dayStart != null && started < dayStart) olderThanDay++;
-    }
-    if (conv.team_visibility === "private") hidden++;
-    else if (conv.is_private === false && !conv.auto_shared) manuallyShared++;
-    return true;
-  });
+  const { truncated } = await scanConversationsForPath(
+    ctx,
+    userId,
+    pathPrefix,
+    (conv) => {
+      count++;
+      const started = conversationStart(conv);
+      if (started != null) {
+        first = first == null ? started : Math.min(first, started);
+        last = last == null ? started : Math.max(last, started);
+        if (since != null && started < since) older++;
+        if (dayStart != null && started < dayStart) olderThanDay++;
+      }
+      if (conv.team_visibility === "private") hidden++;
+      else if (conv.is_private === false && !conv.auto_shared) manuallyShared++;
+      return true;
+    },
+  );
   return {
     count,
     first_started_at: first,
@@ -3088,17 +3802,27 @@ export async function listConversationsForPathInternal(
   const childPrefix = pathPrefix.endsWith("/") ? pathPrefix : `${pathPrefix}/`;
   let truncated = false;
   for (const source of ["git_root", "project_path"] as const) {
-    const index = source === "git_root" ? "by_user_git_root" : "by_user_project_path";
+    const index =
+      source === "git_root" ? "by_user_git_root" : "by_user_project_path";
     const ranges: ((q: any) => any)[] = [
       (q: any) => q.eq("user_id", userId).eq(source, pathPrefix),
-      (q: any) => q.eq("user_id", userId).gte(source, childPrefix).lt(source, getPathPrefixUpperBound(childPrefix)),
+      (q: any) =>
+        q
+          .eq("user_id", userId)
+          .gte(source, childPrefix)
+          .lt(source, getPathPrefixUpperBound(childPrefix)),
     ];
     for (const range of ranges) {
-      const page = await ctx.db.query("conversations").withIndex(index, range).order("desc").take(limit);
+      const page = await ctx.db
+        .query("conversations")
+        .withIndex(index, range)
+        .order("desc")
+        .take(limit);
       if (page.length === limit) truncated = true;
       for (const conv of page) {
         if (source === "project_path" && conv.git_root) continue;
-        if (!matchesPathPrefix(getConversationProjectPath(conv), pathPrefix)) continue;
+        if (!matchesPathPrefix(getConversationProjectPath(conv), pathPrefix))
+          continue;
         rows.push({
           _id: conv._id,
           title: conv.title ?? null,
@@ -3132,7 +3856,12 @@ export const listConversationsForPath = query({
     let total = 0;
     let truncated = false;
     for (const prefix of args.path_prefixes.slice(0, 12)) {
-      const part = await listConversationsForPathInternal(ctx, userId, prefix, limit);
+      const part = await listConversationsForPathInternal(
+        ctx,
+        userId,
+        prefix,
+        limit,
+      );
       rows.push(...part.rows);
       total += part.total;
       truncated = truncated || part.truncated;
@@ -3154,7 +3883,16 @@ export const countConversationsForPath = query({
 });
 
 function summarizeNothing(): PathShareSummary {
-  return { count: 0, first_started_at: null, last_started_at: null, truncated: false, older: 0, older_than_day: 0, hidden: 0, manually_shared: 0 };
+  return {
+    count: 0,
+    first_started_at: null,
+    last_started_at: null,
+    truncated: false,
+    older: 0,
+    older_than_day: 0,
+    hidden: 0,
+    manually_shared: 0,
+  };
 }
 
 // The preview behind a share step: one summary per selected directory. Capped
@@ -3175,21 +3913,32 @@ export const shareImpactForPaths = query({
     const userId = await getUserOrToken(ctx, args.api_token);
     const out: Record<string, PathShareSummary> = {};
     if (!userId) return out;
-    const mappings = args.since === undefined
-      ? await ctx.db
-          .query("directory_team_mappings")
-          .withIndex("by_user_id", (q) => q.eq("user_id", userId))
-          .collect()
-      : [];
+    const mappings =
+      args.since === undefined
+        ? await ctx.db
+            .query("directory_team_mappings")
+            .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+            .collect()
+        : [];
     for (const prefix of args.path_prefixes.slice(0, 12)) {
       let since: number | null | undefined = args.since;
       if (since === undefined) {
         // The rule this checkout lives under: its own path rule, else the
         // repository rule another clone carries (matchDirectoryMapping).
-        let rule = matchDirectoryMapping(mappings as DirectoryMapping[], prefix, undefined);
+        let rule = matchDirectoryMapping(
+          mappings as DirectoryMapping[],
+          prefix,
+          undefined,
+        );
         if (!rule && mappings.some((m) => m.repository)) {
           const repository = await repositoryOfCheckout(ctx, userId, prefix);
-          rule = repository ? matchDirectoryMapping(mappings as DirectoryMapping[], undefined, repository) : null;
+          rule = repository
+            ? matchDirectoryMapping(
+                mappings as DirectoryMapping[],
+                undefined,
+                repository,
+              )
+            : null;
         }
         since = rule?.share_since ?? null;
       }
@@ -3199,7 +3948,9 @@ export const shareImpactForPaths = query({
       // out, and the page reads it as still counting.
       const stats = await ctx.db
         .query("path_session_stats")
-        .withIndex("by_user_path", (q) => q.eq("user_id", userId).eq("path", prefix))
+        .withIndex("by_user_path", (q) =>
+          q.eq("user_id", userId).eq("path", prefix),
+        )
         .first();
       if (!stats || stats.computed_at === 0) continue;
       out[prefix] = {
@@ -3207,8 +3958,14 @@ export const shareImpactForPaths = query({
         first_started_at: stats.first_started_at ?? null,
         last_started_at: stats.last_started_at ?? null,
         truncated: false,
-        older: since != null ? startedBefore(stats.buckets, stats.bucket_counts, since) : 0,
-        older_than_day: args.day_start != null ? startedBefore(stats.buckets, stats.bucket_counts, args.day_start) : 0,
+        older:
+          since != null
+            ? startedBefore(stats.buckets, stats.bucket_counts, since)
+            : 0,
+        older_than_day:
+          args.day_start != null
+            ? startedBefore(stats.buckets, stats.bucket_counts, args.day_start)
+            : 0,
         hidden: stats.hidden,
         manually_shared: stats.manually_shared,
       };
@@ -3251,29 +4008,31 @@ export const getRecentProjectsWithGitInfo = query({
       .withIndex("by_user_id", (q) => q.eq("user_id", userId))
       .collect();
 
-    const projects = recentProjects
-      .slice(0, limit)
-      .map((data) => {
-        // The mapping that governs this checkout: its own path rule, else the
-        // rule on another clone of the same repository.
-        const repository = repositoryKeyOfRemote(data.git_remote_url);
-        const mapping = matchDirectoryMapping(mappings as DirectoryMapping[], data.path, repository);
-        return {
-          path: data.path,
-          is_git_repo: !!data.git_root,
-          git_remote_url: data.git_remote_url,
-          repository: repository ?? undefined,
-          session_count: data.session_count,
-          first_active: data.first_active,
-          last_active: data.last_active,
-          team_id: mapping?.team_id ?? null,
-          auto_share: mapping?.auto_share ?? false,
-          private: mapping?.private ?? false,
-          share_since: mapping?.share_since ?? null,
-          // Whether the rule is this checkout's own or inherited from the repository.
-          mapped_directly: !!mapping && mapping.path_prefix === data.path,
-        };
-      });
+    const projects = recentProjects.slice(0, limit).map((data) => {
+      // The mapping that governs this checkout: its own path rule, else the
+      // rule on another clone of the same repository.
+      const repository = repositoryKeyOfRemote(data.git_remote_url);
+      const mapping = matchDirectoryMapping(
+        mappings as DirectoryMapping[],
+        data.path,
+        repository,
+      );
+      return {
+        path: data.path,
+        is_git_repo: !!data.git_root,
+        git_remote_url: data.git_remote_url,
+        repository: repository ?? undefined,
+        session_count: data.session_count,
+        first_active: data.first_active,
+        last_active: data.last_active,
+        team_id: mapping?.team_id ?? null,
+        auto_share: mapping?.auto_share ?? false,
+        private: mapping?.private ?? false,
+        share_since: mapping?.share_since ?? null,
+        // Whether the rule is this checkout's own or inherited from the repository.
+        mapped_directly: !!mapping && mapping.path_prefix === data.path,
+      };
+    });
 
     return projects;
   },
@@ -3294,14 +4053,17 @@ export const getSuggestedTeamProjects = query({
       return null;
     }
 
-    const teamId = args.team_id || (await activeTeamMembershipFor(ctx, userId))?.teamId;
+    const teamId =
+      args.team_id || (await activeTeamMembershipFor(ctx, userId))?.teamId;
     if (!teamId) {
       return null;
     }
 
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", teamId))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", teamId),
+      )
       .unique();
     if (!membership) {
       return null;
@@ -3317,14 +4079,19 @@ export const getSuggestedTeamProjects = query({
       .query("directory_team_mappings")
       .withIndex("by_user_id", (q) => q.eq("user_id", userId))
       .collect();
-    const mappingByPath = new Map(currentUserMappings.map((mapping) => [mapping.path_prefix, mapping]));
+    const mappingByPath = new Map(
+      currentUserMappings.map((mapping) => [mapping.path_prefix, mapping]),
+    );
 
     const projectMap = new Map(
-      (await collectRecentProjects(ctx, userId)).map((project) => [project.path, {
-        ...project,
-        repo_key: getRepoKeyFromRemote(project.git_remote_url),
-        repo_name: getRepoNameFromPath(project.path),
-      }]),
+      (await collectRecentProjects(ctx, userId)).map((project) => [
+        project.path,
+        {
+          ...project,
+          repo_key: getRepoKeyFromRemote(project.git_remote_url),
+          repo_name: getRepoNameFromPath(project.path),
+        },
+      ]),
     );
 
     const repoKeySignals = new Map<string, { members: Set<string> }>();
@@ -3347,7 +4114,9 @@ export const getSuggestedTeamProjects = query({
 
       const sharedConversations = await ctx.db
         .query("conversations")
-        .withIndex("by_team_user_updated", (q) => q.eq("team_id", teamId).eq("user_id", member.user_id))
+        .withIndex("by_team_user_updated", (q) =>
+          q.eq("team_id", teamId).eq("user_id", member.user_id),
+        )
         .order("desc")
         .take(40);
 
@@ -3356,7 +4125,11 @@ export const getSuggestedTeamProjects = query({
         const path = getConversationProjectPath(conv);
         if (!path) continue;
         const memberKey = member.user_id.toString();
-        registerSignal(repoKeySignals, getRepoKeyFromRemote(conv.git_remote_url), memberKey);
+        registerSignal(
+          repoKeySignals,
+          getRepoKeyFromRemote(conv.git_remote_url),
+          memberKey,
+        );
         registerSignal(repoNameSignals, getRepoNameFromPath(path), memberKey);
       }
     }
@@ -3369,7 +4142,11 @@ export const getSuggestedTeamProjects = query({
       if (mapping.user_id.toString() === userId.toString()) {
         continue;
       }
-      registerSignal(repoNameSignals, getRepoNameFromPath(mapping.path_prefix), mapping.user_id.toString());
+      registerSignal(
+        repoNameSignals,
+        getRepoNameFromPath(mapping.path_prefix),
+        mapping.user_id.toString(),
+      );
     }
 
     const suggestions = Array.from(projectMap.values())
@@ -3379,8 +4156,12 @@ export const getSuggestedTeamProjects = query({
           return null;
         }
 
-        const repoKeySignal = project.repo_key ? repoKeySignals.get(project.repo_key) : null;
-        const repoNameSignal = project.repo_name ? repoNameSignals.get(project.repo_name) : null;
+        const repoKeySignal = project.repo_key
+          ? repoKeySignals.get(project.repo_key)
+          : null;
+        const repoNameSignal = project.repo_name
+          ? repoNameSignals.get(project.repo_name)
+          : null;
         const signal = repoKeySignal || repoNameSignal;
         if (!signal) {
           return null;
@@ -3403,7 +4184,9 @@ export const getSuggestedTeamProjects = query({
           current_team_id: currentMapping?.team_id || null,
         };
       })
-      .filter((project): project is NonNullable<typeof project> => project !== null)
+      .filter(
+        (project): project is NonNullable<typeof project> => project !== null,
+      )
       .sort((a, b) => {
         if (b.matched_member_count !== a.matched_member_count) {
           return b.matched_member_count - a.matched_member_count;
@@ -3421,7 +4204,11 @@ export const getSuggestedTeamProjects = query({
       if (project.repo_key) userRepoKeys.add(project.repo_key);
     }
 
-    const teamOnlyRepos: { repo_key: string; repo_name: string; member_count: number }[] = [];
+    const teamOnlyRepos: {
+      repo_key: string;
+      repo_name: string;
+      member_count: number;
+    }[] = [];
     for (const [key, signal] of repoKeySignals) {
       if (!userRepoKeys.has(key)) {
         const name = key.split("/").pop() || key;
@@ -3470,7 +4257,12 @@ export async function performGetRecentProjectPaths(
   {
     const limit = args.limit ?? 10;
     const windowStart = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const conversations = await scanRecentConversations(ctx, userId, 500, windowStart);
+    const conversations = await scanRecentConversations(
+      ctx,
+      userId,
+      500,
+      windowStart,
+    );
 
     // Hide paths none of the user's machines can see locally. Read the union of
     // online devices' roots (NOT the per-user field, which every daemon clobbers
@@ -3486,9 +4278,13 @@ export async function performGetRecentProjectPaths(
       : null;
     if (args.device_id && !deviceRoots) return [];
     const onlineRoots = deviceRoots ?? (await getOnlineLocalRoots(ctx, userId));
-    const localRoots = deviceRoots || onlineRoots.length > 0 ? onlineRoots : null;
+    const localRoots =
+      deviceRoots || onlineRoots.length > 0 ? onlineRoots : null;
 
-    const pathCounts = new Map<string, { count: number; lastActive: number; repository?: string }>();
+    const pathCounts = new Map<
+      string,
+      { count: number; lastActive: number; repository?: string }
+    >();
     const checkouts = knownCheckoutRoots(conversations);
     for (const conv of conversations) {
       const path = conversationProjectRoot(conv, checkouts);
@@ -3505,18 +4301,25 @@ export async function performGetRecentProjectPaths(
       // so a folder that only agents work in stays listed (behind "other")
       // without earning a chip: one lead's thirty reviewers outvoted every
       // repo its person actually opens.
-      const started = isProgramLaunched(conv) || isUnattendedConversation(conv) ? 0 : 1;
+      const started =
+        isProgramLaunched(conv) || isUnattendedConversation(conv) ? 0 : 1;
       const existing = pathCounts.get(path);
       if (existing) {
         existing.count += started;
         existing.lastActive = Math.max(existing.lastActive, lastActive);
         existing.repository ??= conversationRepository(conv);
       } else {
-        pathCounts.set(path, { count: started, lastActive, repository: conversationRepository(conv) });
+        pathCounts.set(path, {
+          count: started,
+          lastActive,
+          repository: conversationRepository(conv),
+        });
       }
     }
 
-    const entries = foldCheckoutsByRepository(Array.from(pathCounts, ([path, stats]) => ({ path, ...stats })));
+    const entries = foldCheckoutsByRepository(
+      Array.from(pathCounts, ([path, stats]) => ({ path, ...stats })),
+    );
     const maxCount = Math.max(1, ...entries.map((s) => s.count));
     const now = Date.now();
     const ageRange = now - windowStart;
@@ -3531,10 +4334,16 @@ export async function performGetRecentProjectPaths(
       .collect();
     const teamNames = new Map<string, string>();
     const shareOf = async (path: string, repository: string | undefined) => {
-      const mapping = matchDirectoryMapping(mappings as DirectoryMapping[], path, repository);
-      if (!mapping?.auto_share || !mapping.team_id) return { team_id: null, team_name: null };
+      const mapping = matchDirectoryMapping(
+        mappings as DirectoryMapping[],
+        path,
+        repository,
+      );
+      if (!mapping?.auto_share || !mapping.team_id)
+        return { team_id: null, team_name: null };
       const key = String(mapping.team_id);
-      if (!teamNames.has(key)) teamNames.set(key, (await ctx.db.get(mapping.team_id))?.name ?? "Team");
+      if (!teamNames.has(key))
+        teamNames.set(key, (await ctx.db.get(mapping.team_id))?.name ?? "Team");
       return { team_id: mapping.team_id, team_name: teamNames.get(key)! };
     };
 
@@ -3545,11 +4354,28 @@ export async function performGetRecentProjectPaths(
           0.65 * (stats.count / maxCount) +
           0.35 * ((stats.lastActive - windowStart) / ageRange),
       }))
-      .sort((a, b) => Number(b.count > 0) - Number(a.count > 0) || b.score - a.score)
+      .sort(
+        (a, b) =>
+          Number(b.count > 0) - Number(a.count > 0) || b.score - a.score,
+      )
       .slice(0, limit);
-    const recents: { path: string; count: number; lastActive: number; suggested?: true; repository?: string; team_id?: Id<"teams"> | null; team_name?: string | null }[] = [];
+    const recents: {
+      path: string;
+      count: number;
+      lastActive: number;
+      suggested?: true;
+      repository?: string;
+      team_id?: Id<"teams"> | null;
+      team_name?: string | null;
+    }[] = [];
     for (const { path, count, lastActive, repository } of ranked) {
-      recents.push({ path, count, lastActive, repository, ...(await shareOf(path, repository)) });
+      recents.push({
+        path,
+        count,
+        lastActive,
+        repository,
+        ...(await shareOf(path, repository)),
+      });
     }
 
     // A freshly-picked machine may have almost no history here, so pad with its
@@ -3597,14 +4423,19 @@ export const getMyPendingCommands = query({
     const commands = await ctx.db
       .query("daemon_commands")
       .withIndex("by_user_pending", (q) =>
-        q.eq("user_id", auth.userId).eq("executed_at", undefined)
+        q.eq("user_id", auth.userId).eq("executed_at", undefined),
       )
       .collect();
     // A reserved machine takes work only by name: untargeted starts are for the rest.
-    const self = args.device_id === undefined ? null : await ctx.db
-      .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", auth.userId).eq("device_id", args.device_id))
-      .first();
+    const self =
+      args.device_id === undefined
+        ? null
+        : await ctx.db
+            .query("devices")
+            .withIndex("by_user_device", (q: any) =>
+              q.eq("user_id", auth.userId).eq("device_id", args.device_id),
+            )
+            .first();
     const reserved = !!self && isReservedDevice(self);
 
     return commands
@@ -3616,8 +4447,17 @@ export const getMyPendingCommands = query({
           c.target_device_id === undefined ||
           c.target_device_id === args.device_id,
       )
-      .filter((c) => !(reserved && c.target_device_id === undefined && WORK_STARTING_DAEMON_COMMANDS.has(c.command)))
-      .filter((c) => commandVisibleToClaimer(c, args.boot_id, args.device_id, now))
+      .filter(
+        (c) =>
+          !(
+            reserved &&
+            c.target_device_id === undefined &&
+            WORK_STARTING_DAEMON_COMMANDS.has(c.command)
+          ),
+      )
+      .filter((c) =>
+        commandVisibleToClaimer(c, args.boot_id, args.device_id, now),
+      )
       .map((c) => ({
         id: c._id,
         command: c.command,
@@ -3637,7 +4477,7 @@ export const startSession = mutation({
       v.literal("pi"),
       v.literal("grok"),
       v.literal("muse"),
-      v.literal("antigravity")
+      v.literal("antigravity"),
     ),
     project_path: v.optional(v.string()),
     prompt: v.optional(v.string()),
@@ -3654,11 +4494,16 @@ export const startSession = mutation({
     // Derive team/privacy from the owner's directory mappings, exactly like
     // every other conversation insert. Writing a literal is_private:true ignored
     // an auto_share mapping and permanently under-shared the session.
-    const privacy = await resolveCreationPrivacy(ctx, userId, args.project_path);
+    const privacy = await resolveCreationPrivacy(
+      ctx,
+      userId,
+      args.project_path,
+    );
 
     const conversationId = await ctx.db.insert("conversations", {
       user_id: userId,
-      agent_type: args.agent_type === "claude" ? "claude_code" : args.agent_type,
+      agent_type:
+        args.agent_type === "claude" ? "claude_code" : args.agent_type,
       session_id: sessionId,
       project_path: args.project_path,
       started_at: now,
@@ -3718,7 +4563,7 @@ export const getTeamsForCLI = query({
           role: m.role,
           visibility: currentMembershipVisibility(m),
         };
-      })
+      }),
     );
     // The CANONICAL active-workspace pointer travels with the roster, so the
     // CLI resolves the workspace from the same field web and mobile read
@@ -3753,11 +4598,11 @@ export const getDirectoryMappingsForCLI = query({
         return {
           path_prefix: m.path_prefix,
           team_id: m.team_id ?? null,
-          team_name: m.team_id ? team?.name ?? "Unknown" : null,
+          team_name: m.team_id ? (team?.name ?? "Unknown") : null,
           private: m.private ?? false,
           auto_share: m.auto_share,
         };
-      })
+      }),
     );
     return { mappings: mappingsWithTeams };
   },
@@ -3815,7 +4660,11 @@ export const deleteConversationsForPathCLI = mutation({
     if (!result) {
       return { error: "Unauthorized" };
     }
-    return deleteConversationsForPathInternal(ctx, result.userId, args.path_prefix);
+    return deleteConversationsForPathInternal(
+      ctx,
+      result.userId,
+      args.path_prefix,
+    );
   },
 });
 
@@ -3836,11 +4685,14 @@ export const getProjectsWithTeamsForCLI = query({
       .order("desc")
       .take(200);
 
-    const projectMap = new Map<string, {
-      session_count: number;
-      first_active: number;
-      last_active: number;
-    }>();
+    const projectMap = new Map<
+      string,
+      {
+        session_count: number;
+        first_active: number;
+        last_active: number;
+      }
+    >();
 
     for (const conv of conversations) {
       const key = conv.git_root || conv.project_path;
@@ -3872,13 +4724,15 @@ export const getProjectsWithTeamsForCLI = query({
         return {
           path_prefix: m.path_prefix,
           team_id: m.team_id ?? null,
-          team_name: m.team_id ? team?.name ?? "Unknown" : null,
+          team_name: m.team_id ? (team?.name ?? "Unknown") : null,
           private: m.private ?? false,
           share_since: m.share_since ?? null,
         };
-      })
+      }),
     );
-    const mappingsByPath = new Map(mappingsWithTeams.map(m => [m.path_prefix, m]));
+    const mappingsByPath = new Map(
+      mappingsWithTeams.map((m) => [m.path_prefix, m]),
+    );
 
     for (const m of mappingsWithTeams) {
       if (!projectMap.has(m.path_prefix)) {
@@ -3930,15 +4784,25 @@ export const setPinnedAgents = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const unknown = args.agents.filter((id) => !isPinnableAgentId(id));
-    if (unknown.length) throw new Error(`Unknown agent client: ${unknown.join(", ")}`);
-    await ctx.db.patch(userId, { pinned_agents: [...new Set(args.agents)], pinned_agents_known: pinnableAgentIds() });
+    if (unknown.length)
+      throw new Error(`Unknown agent client: ${unknown.join(", ")}`);
+    await ctx.db.patch(userId, {
+      pinned_agents: [...new Set(args.agents)],
+      pinned_agents_known: pinnableAgentIds(),
+    });
   },
 });
 
 export const updateAgentPermissionModes = mutation({
   args: {
     claude: v.optional(v.union(v.literal("default"), v.literal("bypass"))),
-    codex: v.optional(v.union(v.literal("default"), v.literal("full_auto"), v.literal("bypass"))),
+    codex: v.optional(
+      v.union(
+        v.literal("default"),
+        v.literal("full_auto"),
+        v.literal("bypass"),
+      ),
+    ),
     gemini: v.optional(v.union(v.literal("default"), v.literal("bypass"))),
     muse: v.optional(v.union(v.literal("default"), v.literal("bypass"))),
   },
@@ -3964,7 +4828,9 @@ export const setClaudeBackend = mutation({
     api_token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = args.api_token ? await getAuthenticatedUserId(ctx, args.api_token) : await getAuthUserId(ctx);
+    const userId = args.api_token
+      ? await getAuthenticatedUserId(ctx, args.api_token)
+      : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     await ctx.db.patch(userId, { claude_backend: args.backend });
     return { claude_backend: args.backend };
@@ -3984,7 +4850,13 @@ export const getAgentDefaultParams = query({
 export const updateAgentDefaultParams = mutation({
   args: {
     api_token: v.optional(v.string()),
-    agent: v.union(v.literal("claude"), v.literal("codex"), v.literal("gemini"), v.literal("cursor"), v.literal("muse")),
+    agent: v.union(
+      v.literal("claude"),
+      v.literal("codex"),
+      v.literal("gemini"),
+      v.literal("cursor"),
+      v.literal("muse"),
+    ),
     params: v.record(v.string(), v.string()),
   },
   handler: async (ctx, args) => {
@@ -4011,7 +4883,13 @@ export const updateAgentDefaultParams = mutation({
 
 export const deleteAgentDefaultParam = mutation({
   args: {
-    agent: v.union(v.literal("claude"), v.literal("codex"), v.literal("gemini"), v.literal("cursor"), v.literal("muse")),
+    agent: v.union(
+      v.literal("claude"),
+      v.literal("codex"),
+      v.literal("gemini"),
+      v.literal("cursor"),
+      v.literal("muse"),
+    ),
     param: v.string(),
   },
   handler: async (ctx, args) => {
@@ -4039,7 +4917,7 @@ export const sendConfigCommand = mutation({
       v.literal("config_write"),
       v.literal("config_create"),
       v.literal("config_delete"),
-      v.literal("line_profile_edit")
+      v.literal("line_profile_edit"),
     ),
     args_json: v.optional(v.string()),
     // The one machine that should answer (a project's file lives on the
@@ -4049,7 +4927,15 @@ export const sendConfigCommand = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    return { command_id: await enqueueConfigCommand(ctx, userId, args.command, args.args_json, args.target_device_id) };
+    return {
+      command_id: await enqueueConfigCommand(
+        ctx,
+        userId,
+        args.command,
+        args.args_json,
+        args.target_device_id,
+      ),
+    };
   },
 });
 
@@ -4062,20 +4948,36 @@ export const sendConfigCommand = mutation({
 export async function enqueueConfigCommand(
   ctx: Pick<MutationCtx, "db">,
   userId: Id<"users">,
-  command: "config_list" | "config_read" | "config_write" | "config_create" | "config_delete" | "line_profile_edit" | "line_graph_edit" | "line_try" | "line_trial_reask" | "line_deploy" | "line_fixloop",
+  command:
+    | "config_list"
+    | "config_read"
+    | "config_write"
+    | "config_create"
+    | "config_delete"
+    | "line_profile_edit"
+    | "line_graph_edit"
+    | "line_try"
+    | "line_trial_reask"
+    | "line_deploy"
+    | "line_fixloop",
   argsJson: string | undefined,
   targetDeviceId?: string,
   requestId?: string,
 ): Promise<Id<"daemon_commands">> {
   if (targetDeviceId && !(await ownDevice(ctx, userId, targetDeviceId))) {
-    throw new ConvexError("That machine is not yours: only its owner can send it commands");
+    throw new ConvexError(
+      "That machine is not yours: only its owner can send it commands",
+    );
   }
   // A store action's request id binds its sessionCommands row to this command;
   // an outbox retry of the same request answers the command already queued.
   if (requestId !== undefined) {
     const existing = await findSessionCommandByRequest(ctx, userId, requestId);
     if (existing) {
-      if (existing.command !== command) throw new ConvexError("Request ID is already bound to a different command");
+      if (existing.command !== command)
+        throw new ConvexError(
+          "Request ID is already bound to a different command",
+        );
       return existing._id;
     }
   }

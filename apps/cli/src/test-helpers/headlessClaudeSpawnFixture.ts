@@ -11,7 +11,10 @@ import { resolveSpawnerConversation } from "../daemon.js";
 const dir = process.argv[2];
 const sessions = join(dir, ".claude", "sessions");
 mkdirSync(sessions, { recursive: true });
-writeFileSync(join(sessions, `${process.pid}.json`), JSON.stringify({ sessionId: "parent-session" }));
+writeFileSync(
+  join(sessions, `${process.pid}.json`),
+  JSON.stringify({ sessionId: "parent-session" }),
+);
 const transcript = join(dir, "child.jsonl");
 const child = spawn(
   process.execPath,
@@ -30,7 +33,12 @@ for (let i = 0; i < 100 && !existsSync(transcript); i++) await Bun.sleep(50);
 assert.ok(existsSync(transcript));
 await Bun.sleep(300);
 
-const parent = await resolveSpawnerConversation(transcript, "child-session", "claude", { "parent-session": "parent-conversation" });
+const parent = await resolveSpawnerConversation(
+  transcript,
+  "child-session",
+  "claude",
+  { "parent-session": "parent-conversation" },
+);
 child.kill("SIGKILL");
 writeFileSync(join(dir, "result.json"), JSON.stringify({ parent }));
 process.exit(0);

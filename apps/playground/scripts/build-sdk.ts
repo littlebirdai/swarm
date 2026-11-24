@@ -20,12 +20,20 @@ export async function bundleSdk(): Promise<string> {
     format: "esm",
     minify: true,
     external: ["react"],
-    define: { "process.env.PLAYGROUND_CONVEX_URL": JSON.stringify(CONVEX_URL_PLACEHOLDER) },
+    define: {
+      "process.env.PLAYGROUND_CONVEX_URL": JSON.stringify(
+        CONVEX_URL_PLACEHOLDER,
+      ),
+    },
   });
-  if (!result.success) throw new AggregateError(result.logs, "SDK bundle failed");
+  if (!result.success)
+    throw new AggregateError(result.logs, "SDK bundle failed");
   const code = await result.outputs[0].text();
   const placeholders = code.split(CONVEX_URL_PLACEHOLDER).length - 1;
-  if (placeholders !== 1) throw new Error(`the bundle holds ${placeholders} Convex URL placeholders; expected 1`);
+  if (placeholders !== 1)
+    throw new Error(
+      `the bundle holds ${placeholders} Convex URL placeholders; expected 1`,
+    );
   return code;
 }
 
@@ -44,12 +52,16 @@ if (import.meta.main) {
   const current = (await file.exists()) ? await file.text() : "";
   if (process.argv.includes("--check")) {
     if (current !== next) {
-      console.error("convex/lib/sdk.generated.ts is stale: run bun scripts/build-sdk.ts");
+      console.error(
+        "convex/lib/sdk.generated.ts is stale: run bun scripts/build-sdk.ts",
+      );
       process.exit(1);
     }
   } else if (current !== next) {
     await Bun.write(GENERATED_PATH, next);
-    console.log(`wrote ${GENERATED_PATH} (${(next.length / 1000).toFixed(1)} KB)`);
+    console.log(
+      `wrote ${GENERATED_PATH} (${(next.length / 1000).toFixed(1)} KB)`,
+    );
   } else {
     console.log("SDK bundle is current");
   }

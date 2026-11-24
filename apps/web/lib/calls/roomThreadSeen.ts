@@ -70,12 +70,19 @@ export function getRoomThreadSeen(roomKey: string): Seen {
 /** The rows are on screen: everything up to the newest is seen. A room seen
  *  for the first time starts from what is already there, so the backlog of a
  *  room you walk into is never "new". */
-export function markRoomThreadSeen(roomKey: string, rows: ThreadRow[], open: boolean): void {
+export function markRoomThreadSeen(
+  roomKey: string,
+  rows: ThreadRow[],
+  open: boolean,
+): void {
   if (!open && read(roomKey).seenAt !== undefined) return;
   write(roomKey, { seenAt: rows[rows.length - 1]?.at ?? 0 });
 }
 
-export function setRoomThreadWatching(roomKey: string, watching: boolean): void {
+export function setRoomThreadWatching(
+  roomKey: string,
+  watching: boolean,
+): void {
   write(roomKey, { watching });
 }
 
@@ -87,13 +94,19 @@ export function isArrival(row: ThreadRow): boolean {
 
 /** The arrivals after what the viewer last saw, oldest first. None while the
  *  room has never been seen or the thread is open in a focused window. */
-export function unreadArrivals(rows: ThreadRow[] | null | undefined, seen: Seen): ThreadRow[] {
+export function unreadArrivals(
+  rows: ThreadRow[] | null | undefined,
+  seen: Seen,
+): ThreadRow[] {
   if (!rows || seen.seenAt === undefined || seen.watching) return [];
   const after = seen.seenAt;
   return rows.filter((r) => r.at > after && isArrival(r));
 }
 
-export function countUnread(rows: ThreadRow[] | null | undefined, seen: Seen): number {
+export function countUnread(
+  rows: ThreadRow[] | null | undefined,
+  seen: Seen,
+): number {
   return unreadArrivals(rows, seen).length;
 }
 

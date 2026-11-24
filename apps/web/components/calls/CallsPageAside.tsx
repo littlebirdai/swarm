@@ -17,8 +17,14 @@ import { getRecorderStatus, startRecording } from "../../lib/calls/recorder";
 // this covers the huddles nobody toggled Transcribe on, which under open rooms
 // is most of them. Locked rooms list too — seeing one is what makes knocking
 // possible — with Knock in place of Join for the people the lock shuts out.
-export function LiveNowSection({ transcribedRoomKeys }: { transcribedRoomKeys: Set<string> }) {
-  const rooms = useLiveRooms().filter((r) => !transcribedRoomKeys.has(r.roomKey));
+export function LiveNowSection({
+  transcribedRoomKeys,
+}: {
+  transcribedRoomKeys: Set<string>;
+}) {
+  const rooms = useLiveRooms().filter(
+    (r) => !transcribedRoomKeys.has(r.roomKey),
+  );
   if (rooms.length === 0) return null;
   return (
     <>
@@ -32,7 +38,10 @@ export function LiveNowSection({ transcribedRoomKeys }: { transcribedRoomKeys: S
         >
           <Facepile members={row.members} max={4} size={22} />
           <div className="min-w-0 flex-1">
-            <LiveRoomLabel row={row} className="text-[13px] font-medium text-sol-text" />
+            <LiveRoomLabel
+              row={row}
+              className="text-[13px] font-medium text-sol-text"
+            />
             <div className="mt-0.5 min-w-0 truncate text-meta text-sol-text-dim">
               {row.members.map((m) => firstName(m.user_name)).join(", ")}
             </div>
@@ -60,7 +69,9 @@ export function RecordMeetingButton() {
   if (running) {
     return (
       <button
-        onClick={() => status.transcriptId && router.push(`/calls/${status.transcriptId}`)}
+        onClick={() =>
+          status.transcriptId && router.push(`/calls/${status.transcriptId}`)
+        }
         className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-md border border-sol-red/50 bg-sol-red/12 px-3 py-2 text-xs font-medium text-sol-red transition-colors hover:bg-sol-red/20"
       >
         <span className="rec-pill-dot" aria-hidden="true" />
@@ -76,7 +87,8 @@ export function RecordMeetingButton() {
           // A refused microphone is the common failure and the pill is not up
           // to carry the news — nothing started, so nothing is showing.
           if (id) router.push(`/calls/${id}`);
-          else if (getRecorderStatus().error) toast.error(getRecorderStatus().error!);
+          else if (getRecorderStatus().error)
+            toast.error(getRecorderStatus().error!);
         })
       }
       disabled={starting}
@@ -110,7 +122,8 @@ export function SeatedHuddleRecord() {
   }
   return (
     <p className="mt-1 text-meta leading-snug text-sol-text-dim/80">
-      To film a huddle, press Record on its card at the top of the window, beside Mute, or on the open call.
+      To film a huddle, press Record on its card at the top of the window,
+      beside Mute, or on the open call.
     </p>
   );
 }

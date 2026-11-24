@@ -20,7 +20,9 @@ function taskSig(t: TaskDetail | undefined): string {
 }
 
 export function useTaskRow(taskId: string): TaskDetail | undefined {
-  const s = useTrackedStore([(s) => taskSig(s.tasks[taskId] as TaskDetail | undefined)]);
+  const s = useTrackedStore([
+    (s) => taskSig(s.tasks[taskId] as TaskDetail | undefined),
+  ]);
   return s.tasks[taskId] as TaskDetail | undefined;
 }
 
@@ -31,7 +33,9 @@ function pageSig(p: PageThreadRow | undefined): string {
   return `${p.title}|${p.slug}|${p.comments.length}|${last?._id ?? ""}|${last?.text.length ?? 0}`;
 }
 
-export function usePageThreadRow(artifactId: string): PageThreadRow | undefined {
+export function usePageThreadRow(
+  artifactId: string,
+): PageThreadRow | undefined {
   const s = useTrackedStore([(s: any) => pageSig(s.pageThreads[artifactId])]);
   return (s as any).pageThreads[artifactId] as PageThreadRow | undefined;
 }

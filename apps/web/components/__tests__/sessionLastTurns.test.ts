@@ -9,7 +9,11 @@ describe("lastTurns", () => {
       { _id: "3", role: "assistant", content: "Looking at it." },
       { _id: "4", role: "user", content: "", tool_results: [{}] },
       { _id: "5", role: "assistant", content: "Fixed it in `deploy.sh`." },
-      { _id: "6", role: "user", content: "<system-reminder>noise</system-reminder>" },
+      {
+        _id: "6",
+        role: "user",
+        content: "<system-reminder>noise</system-reminder>",
+      },
       { _id: "7", role: "system", content: "switched model" },
     ];
     expect(lastTurns(rows)).toEqual([
@@ -39,9 +43,19 @@ describe("lastTurns", () => {
 describe("lastTurns envelopes", () => {
   test("a message from another session shows its body under the sender's name", () => {
     const rows = [
-      { _id: "1", role: "user", content: '<session-message from="jx7d538" name="Cam">\nrelay both in one wake\n</session-message>' },
+      {
+        _id: "1",
+        role: "user",
+        content:
+          '<session-message from="jx7d538" name="Cam">\nrelay both in one wake\n</session-message>',
+      },
       { _id: "2", role: "assistant", content: "Relayed." },
     ];
-    expect(lastTurns(rows)[0]).toEqual({ _id: "1", role: "user", text: "relay both in one wake", from: "Cam" });
+    expect(lastTurns(rows)[0]).toEqual({
+      _id: "1",
+      role: "user",
+      text: "relay both in one wake",
+      from: "Cam",
+    });
   });
 });

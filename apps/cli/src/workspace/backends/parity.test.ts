@@ -13,7 +13,14 @@
  *     credentials; that's why we gate via env.
  */
 
-import { describe, test, expect, beforeEach, afterEach, beforeAll } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+} from "bun:test";
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -38,14 +45,18 @@ beforeAll(async () => {
 function makeRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ws-parity-"));
   execSync("git init -q -b main", { cwd: dir });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: dir });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: dir,
+  });
   fs.writeFileSync(path.join(dir, "README.md"), "parity\n");
   execSync("git add . && git commit -q -m init", { cwd: dir });
   return dir;
 }
 
 function cleanupRepo(dir: string) {
-  try { execSync("git worktree prune", { cwd: dir, stdio: "ignore" }); } catch {}
+  try {
+    execSync("git worktree prune", { cwd: dir, stdio: "ignore" });
+  } catch {}
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
@@ -71,7 +82,9 @@ for (const backendName of TESTED_BACKENDS) {
 
     afterEach(async () => {
       for (const name of created) {
-        try { await backend.release(repoRoot, name); } catch {}
+        try {
+          await backend.release(repoRoot, name);
+        } catch {}
       }
       cleanupRepo(repoRoot);
     });
@@ -110,7 +123,11 @@ for (const backendName of TESTED_BACKENDS) {
 
     test("exec returns non-zero exit + stderr on failure (no throw)", async () => {
       await acquire("p-exec-fail");
-      const r = await backend.exec(repoRoot, "p-exec-fail", "echo oops >&2; exit 42");
+      const r = await backend.exec(
+        repoRoot,
+        "p-exec-fail",
+        "echo oops >&2; exit 42",
+      );
       expect(r.exitCode).toBe(42);
       expect(r.stderr).toContain("oops");
     }, 30000);
@@ -137,9 +154,16 @@ for (const backendName of TESTED_BACKENDS) {
     test("writeFile creates intermediate directories", async () => {
       await acquire("p-fs-deep");
       await backend.writeFile(
-        repoRoot, "p-fs-deep", "a/b/c/deep.txt", "deep\n",
+        repoRoot,
+        "p-fs-deep",
+        "a/b/c/deep.txt",
+        "deep\n",
       );
-      const got = await backend.readFile(repoRoot, "p-fs-deep", "a/b/c/deep.txt");
+      const got = await backend.readFile(
+        repoRoot,
+        "p-fs-deep",
+        "a/b/c/deep.txt",
+      );
       expect(got.toString("utf-8")).toBe("deep\n");
     }, 30000);
 
@@ -172,7 +196,9 @@ for (const backendName of TESTED_BACKENDS) {
         ...s,
         contract: { ok: true, checks: [{ name: "parity-check", ok: true }] },
       });
-      const ws = (await backend.list(repoRoot)).find((w) => w.name === "p-contract");
+      const ws = (await backend.list(repoRoot)).find(
+        (w) => w.name === "p-contract",
+      );
       expect(ws).toBeTruthy();
       expect(ws!.contract?.ok).toBe(true);
       expect(ws!.contract?.checks.map((c) => c.name)).toContain("parity-check");

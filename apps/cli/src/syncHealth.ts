@@ -1,14 +1,25 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { getAllSyncRecords, readOldestUnsyncedTimestamp, type SyncRecord } from './syncLedger.js';
-import { getPosition } from './positionTracker.js';
-import { isClaudeTranscriptOutOfWatchScope, isTestArtifactPath } from './syncScope.js';
-import { isAppServerManagedCodexSessionHead } from './codexWatcher.js';
-import { agentSessionFromTranscriptPath, decodeGrokCwdSlug } from './transcriptDirWatcher.js';
+import fs from "node:fs";
+import path from "node:path";
+import {
+  getAllSyncRecords,
+  readOldestUnsyncedTimestamp,
+  type SyncRecord,
+} from "./syncLedger.js";
+import { getPosition } from "./positionTracker.js";
+import {
+  isClaudeTranscriptOutOfWatchScope,
+  isTestArtifactPath,
+} from "./syncScope.js";
+import { isAppServerManagedCodexSessionHead } from "./codexWatcher.js";
+import {
+  agentSessionFromTranscriptPath,
+  decodeGrokCwdSlug,
+} from "./transcriptDirWatcher.js";
 
 export const STUCK_SYNC_THRESHOLD_MS = 5 * 60_000;
 const STUCK_SYNC_MIN_BYTES = 4096;
-const UUID_IN_NAME_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const UUID_IN_NAME_RE =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 export type StuckSyncReason = "byte_backlog" | "unexamined_writes";
 
@@ -27,47 +38,65 @@ export type StuckSync = {
 };
 
 async function isAppServerManagedRollout(filePath: string): Promise<boolean> {
-  const file = await fs.promises.open(filePath, 'r');
+  const file = await fs.promises.open(filePath, "r");
   try {
     const buf = Buffer.alloc(2048);
     const { bytesRead } = await file.read(buf, 0, buf.length, 0);
-    return isAppServerManagedCodexSessionHead(buf.toString('utf8', 0, bytesRead));
+    return isAppServerManagedCodexSessionHead(
+      buf.toString("utf8", 0, bytesRead),
+    );
   } finally {
     await file.close();
   }
 }
 
 function isGrokUpdatesPath(filePath: string): boolean {
-  return path.basename(filePath) === "updates.jsonl" && filePath.split(path.sep).includes(".grok");
+  return (
+    path.basename(filePath) === "updates.jsonl" &&
+    filePath.split(path.sep).includes(".grok")
+  );
 }
 
 function isMuseSessionPath(filePath: string): boolean {
   // session.jsonl is a common basename — require the muse sessions root on
   // the path (…/.local/share/muse/sessions/YYYY/MM/DD/<uuid>/session.jsonl).
   const segs = filePath.split(path.sep);
-  return path.basename(filePath) === "session.jsonl"
-    && segs.includes("sessions")
-    && segs.includes("muse");
+  return (
+    path.basename(filePath) === "session.jsonl" &&
+    segs.includes("sessions") &&
+    segs.includes("muse")
+  );
 }
 
-function sessionIdentity(filePath: string, record: SyncRecord): {
+function sessionIdentity(
+  filePath: string,
+  record: SyncRecord,
+): {
   sessionId: string;
   agentType?: string;
   projectPath?: string;
 } {
   const fromPath = agentSessionFromTranscriptPath(filePath);
-  const sessionId = record.sourceGeneration?.sessionId
-    ?? fromPath?.sessionId
-    ?? (path.basename(filePath, path.extname(filePath)).match(UUID_IN_NAME_RE)?.[0]
-      ?? path.basename(filePath, path.extname(filePath)));
-  const agentType = record.sourceGeneration?.client ?? fromPath?.agentType
-    ?? (isGrokUpdatesPath(filePath) ? "grok" : undefined)
-    ?? (isMuseSessionPath(filePath) ? "muse" : undefined);
-  const projectPath = agentType === "grok"
-    ? decodeGrokCwdSlug(path.basename(path.dirname(path.dirname(filePath)))) ?? undefined
-    // muse's date-sharded dirs carry no cwd — the parser's route_facts cwd
-    // (ingest metadata) is authoritative, so no path fallback here.
-    : undefined;
+  const sessionId =
+    record.sourceGeneration?.sessionId ??
+    fromPath?.sessionId ??
+    path
+      .basename(filePath, path.extname(filePath))
+      .match(UUID_IN_NAME_RE)?.[0] ??
+    path.basename(filePath, path.extname(filePath));
+  const agentType =
+    record.sourceGeneration?.client ??
+    fromPath?.agentType ??
+    (isGrokUpdatesPath(filePath) ? "grok" : undefined) ??
+    (isMuseSessionPath(filePath) ? "muse" : undefined);
+  const projectPath =
+    agentType === "grok"
+      ? (decodeGrokCwdSlug(
+          path.basename(path.dirname(path.dirname(filePath))),
+        ) ?? undefined)
+      : // muse's date-sharded dirs carry no cwd — the parser's route_facts cwd
+        // (ingest metadata) is authoritative, so no path fallback here.
+        undefined;
   return { sessionId, agentType, projectPath };
 }
 
@@ -80,18 +109,27 @@ const MUSE_MESSAGE_EVENT_KINDS = new Set([
   "tool_result_batch_committed",
 ]);
 
-function museLineMeta(line: string): { tsMs: number | null; messageBearing: boolean } {
+function museLineMeta(line: string): {
+  tsMs: number | null;
+  messageBearing: boolean;
+} {
   try {
     const parsed = JSON.parse(line);
     const ts = parsed?.recorded_at;
     // recorded_at is unix MICROSECONDS (16 digits); tolerate seconds/millis.
-    const tsMs = typeof ts === "number"
-      ? ts > 1e14 ? Math.floor(ts / 1000) : ts > 1e11 ? Math.floor(ts) : Math.floor(ts * 1000)
-      : null;
+    const tsMs =
+      typeof ts === "number"
+        ? ts > 1e14
+          ? Math.floor(ts / 1000)
+          : ts > 1e11
+            ? Math.floor(ts)
+            : Math.floor(ts * 1000)
+        : null;
     const payload = parsed?.payload;
-    const messageBearing = payload?.kind === "run"
-      && typeof payload?.event?.kind === "string"
-      && MUSE_MESSAGE_EVENT_KINDS.has(payload.event.kind);
+    const messageBearing =
+      payload?.kind === "run" &&
+      typeof payload?.event?.kind === "string" &&
+      MUSE_MESSAGE_EVENT_KINDS.has(payload.event.kind);
     return { tsMs, messageBearing };
   } catch {
     return { tsMs: null, messageBearing: false };
@@ -102,7 +140,10 @@ function museLineMeta(line: string): { tsMs: number | null; messageBearing: bool
 // model_input_trace_recorded, reminders, terminal markers) AFTER the last
 // message commit. Those bump mtime without producing messages — same stuck
 // forever shape as grok's hook_execution lines under signature sync.
-function museGrowthIsHousekeeping(filePath: string, lastSyncedAt: number): boolean {
+function museGrowthIsHousekeeping(
+  filePath: string,
+  lastSyncedAt: number,
+): boolean {
   let fd: number | undefined;
   try {
     fd = fs.openSync(filePath, "r");
@@ -123,12 +164,19 @@ function museGrowthIsHousekeeping(filePath: string, lastSyncedAt: number): boole
     return false;
   } finally {
     if (fd !== undefined) {
-      try { fs.closeSync(fd); } catch { /* ignore */ }
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
 
-function grokLineMeta(line: string): { tsMs: number | null; kind: string | null } {
+function grokLineMeta(line: string): {
+  tsMs: number | null;
+  kind: string | null;
+} {
   try {
     const parsed = JSON.parse(line);
     const ts = parsed?.timestamp;
@@ -139,7 +187,8 @@ function grokLineMeta(line: string): { tsMs: number | null; kind: string | null 
       if (Number.isFinite(n)) tsMs = n;
     }
     const update = parsed?.params?.update ?? parsed?.update;
-    const kind = typeof update?.sessionUpdate === "string" ? update.sessionUpdate : null;
+    const kind =
+      typeof update?.sessionUpdate === "string" ? update.sessionUpdate : null;
     return { tsMs, kind };
   } catch {
     return { tsMs: null, kind: null };
@@ -150,7 +199,10 @@ function grokLineMeta(line: string): { tsMs: number | null; kind: string | null 
 // commit. Those bump mtime without producing messages. Combined with
 // lastSyncedPosition always 0 (signature sync), a byte-delta detector then
 // reported the whole file as stuck forever.
-function grokGrowthIsHousekeeping(filePath: string, lastSyncedAt: number): boolean {
+function grokGrowthIsHousekeeping(
+  filePath: string,
+  lastSyncedAt: number,
+): boolean {
   let fd: number | undefined;
   try {
     fd = fs.openSync(filePath, "r");
@@ -171,30 +223,50 @@ function grokGrowthIsHousekeeping(filePath: string, lastSyncedAt: number): boole
     return false;
   } finally {
     if (fd !== undefined) {
-      try { fs.closeSync(fd); } catch { /* ignore */ }
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
 
 function isSignatureUnit(filePath: string, record: SyncRecord): boolean {
-  return record.sourceGeneration?.unit === "signatures" || isGrokUpdatesPath(filePath);
+  return (
+    record.sourceGeneration?.unit === "signatures" ||
+    isGrokUpdatesPath(filePath)
+  );
 }
 
-export async function getStuckSyncs(options: {
-  records?: Record<string, SyncRecord>;
-  now?: number;
-} = {}): Promise<StuckSync[]> {
+export async function getStuckSyncs(
+  options: {
+    records?: Record<string, SyncRecord>;
+    now?: number;
+  } = {},
+): Promise<StuckSync[]> {
   const now = options.now ?? Date.now();
   const out: StuckSync[] = [];
-  for (const [filePath, record] of Object.entries(options.records ?? getAllSyncRecords())) {
-    if (record.lastSyncedAt <= 0 || now - record.lastSyncedAt < STUCK_SYNC_THRESHOLD_MS) continue;
-    if (isTestArtifactPath(filePath) || isClaudeTranscriptOutOfWatchScope(filePath)) continue;
+  for (const [filePath, record] of Object.entries(
+    options.records ?? getAllSyncRecords(),
+  )) {
+    if (
+      record.lastSyncedAt <= 0 ||
+      now - record.lastSyncedAt < STUCK_SYNC_THRESHOLD_MS
+    )
+      continue;
+    if (
+      isTestArtifactPath(filePath) ||
+      isClaudeTranscriptOutOfWatchScope(filePath)
+    )
+      continue;
     const stats = await fs.promises.stat(filePath).catch(() => null);
     if (!stats) continue;
     if (stats.mtimeMs <= record.lastSyncedAt) continue;
     if (filePath.includes("/.codex/sessions/")) {
       if (stats.size <= getPosition(filePath)) continue;
-      if (await isAppServerManagedRollout(filePath).catch(() => false)) continue;
+      if (await isAppServerManagedRollout(filePath).catch(() => false))
+        continue;
     }
 
     const identity = sessionIdentity(filePath, record);
@@ -206,20 +278,35 @@ export async function getStuckSyncs(options: {
     // attributed to the recorded session. A 1.5GB opencode.db once reported
     // its whole file as one fully-synced idle session's backlog. There is no
     // honest stuck signal here, so skip these records entirely.
-    if (unit === "count" && (client === "opencode" || client === "cursorDb")) continue;
+    if (unit === "count" && (client === "opencode" || client === "cursorDb"))
+      continue;
     // Any other non-byte unit (signatures, or a per-session count-unit file
     // like gemini's) reports stale writes without byte claims — `size -
     // position` would mix bytes with counts or signatures.
     const unexamined = isSignatureUnit(filePath, record) || unit === "count";
 
     if (unexamined) {
-      if (isGrokUpdatesPath(filePath) && grokGrowthIsHousekeeping(filePath, record.lastSyncedAt)) continue;
-      if (isMuseSessionPath(filePath) && museGrowthIsHousekeeping(filePath, record.lastSyncedAt)) continue;
+      if (
+        isGrokUpdatesPath(filePath) &&
+        grokGrowthIsHousekeeping(filePath, record.lastSyncedAt)
+      )
+        continue;
+      if (
+        isMuseSessionPath(filePath) &&
+        museGrowthIsHousekeeping(filePath, record.lastSyncedAt)
+      )
+        continue;
       const pendingSince = record.lastSyncedAt;
       if (now - pendingSince < STUCK_SYNC_THRESHOLD_MS) continue;
       out.push({
-        filePath, ...identity, unsyncedBytes: 0, fileSize: stats.size, fileMtimeMs: stats.mtimeMs,
-        lastSyncedAt: record.lastSyncedAt, pendingSince, conversationId: record.conversationId,
+        filePath,
+        ...identity,
+        unsyncedBytes: 0,
+        fileSize: stats.size,
+        fileMtimeMs: stats.mtimeMs,
+        lastSyncedAt: record.lastSyncedAt,
+        pendingSince,
+        conversationId: record.conversationId,
         reason: "unexamined_writes",
       });
       continue;
@@ -227,16 +314,27 @@ export async function getStuckSyncs(options: {
 
     const unsyncedBytes = stats.size - record.lastSyncedPosition;
     if (unsyncedBytes < STUCK_SYNC_MIN_BYTES) continue;
-    const bornAt = readOldestUnsyncedTimestamp(filePath, record.lastSyncedPosition);
+    const bornAt = readOldestUnsyncedTimestamp(
+      filePath,
+      record.lastSyncedPosition,
+    );
     const pendingSince = Math.max(record.lastSyncedAt, bornAt ?? 0);
     if (now - pendingSince < STUCK_SYNC_THRESHOLD_MS) continue;
     out.push({
-      filePath, ...identity, unsyncedBytes, fileSize: stats.size, fileMtimeMs: stats.mtimeMs,
-      lastSyncedAt: record.lastSyncedAt, pendingSince, conversationId: record.conversationId,
+      filePath,
+      ...identity,
+      unsyncedBytes,
+      fileSize: stats.size,
+      fileMtimeMs: stats.mtimeMs,
+      lastSyncedAt: record.lastSyncedAt,
+      pendingSince,
+      conversationId: record.conversationId,
       reason: "byte_backlog",
     });
   }
-  return out.sort((a, b) => (b.unsyncedBytes - a.unsyncedBytes) || (b.fileSize - a.fileSize));
+  return out.sort(
+    (a, b) => b.unsyncedBytes - a.unsyncedBytes || b.fileSize - a.fileSize,
+  );
 }
 
 // The heartbeat reads this, and the heartbeat is the machine's presence, so it
@@ -251,10 +349,17 @@ export function createStuckSyncReader(scan = getStuckSyncs, now = Date.now) {
   return (): StuckSync[] => {
     if (!running && now() >= nextCheck) {
       running = true;
-      scan().then((r) => { last = r; }, () => {}).finally(() => {
-        running = false;
-        nextCheck = now() + 30_000;
-      });
+      scan()
+        .then(
+          (r) => {
+            last = r;
+          },
+          () => {},
+        )
+        .finally(() => {
+          running = false;
+          nextCheck = now() + 30_000;
+        });
     }
     return last;
   };

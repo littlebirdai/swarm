@@ -25,15 +25,23 @@ export function copyAddress(url: string): void {
   void copyToClipboard(url).then(() => toast.success("Address copied"));
 }
 
-export function browserPaneMenuItems(url: string, opts?: { paneLabel?: string }) {
+export function browserPaneMenuItems(
+  url: string,
+  opts?: { paneLabel?: string },
+) {
   return (
     <>
-      <CtxItem icon={Columns2} onSelect={() => openBrowserPane({ kind: "url", url })}>
+      <CtxItem
+        icon={Columns2}
+        onSelect={() => openBrowserPane({ kind: "url", url })}
+      >
         {opts?.paneLabel ?? "Open in a pane"}
       </CtxItem>
       <CtxItem
         icon={PanelTop}
-        onSelect={() => openBrowserPane({ kind: "url", url }, { beside: false })}
+        onSelect={() =>
+          openBrowserPane({ kind: "url", url }, { beside: false })
+        }
       >
         Open in a pane, full width
       </CtxItem>
@@ -44,10 +52,7 @@ export function browserPaneMenuItems(url: string, opts?: { paneLabel?: string })
         Open in a browser tab
       </CtxItem>
       <CtxSeparator />
-      <CtxItem
-        icon={Copy}
-        onSelect={() => copyAddress(url)}
-      >
+      <CtxItem icon={Copy} onSelect={() => copyAddress(url)}>
         Copy address
       </CtxItem>
     </>

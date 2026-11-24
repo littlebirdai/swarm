@@ -6,7 +6,10 @@ import { PRESENCE_REQUIRED } from "@codecast/shared/contracts/secrets";
  * client tag, request id, stack frames and routing context. "Not authorized"
  * reads as the session access it is.
  */
-export function dispatchRefusalReason(message: string, fallback = "rejected by the server"): string {
+export function dispatchRefusalReason(
+  message: string,
+  fallback = "rejected by the server",
+): string {
   const reason =
     message
       .split(/Uncaught (?:Convex)?Error:/)
@@ -16,5 +19,7 @@ export function dispatchRefusalReason(message: string, fallback = "rejected by t
       .replace(/\s+Called by client.*$/, "")
       .replace(`${PRESENCE_REQUIRED}: `, "")
       .trim() || fallback;
-  return /not authorized/i.test(reason) ? "you don't have access to that session" : reason;
+  return /not authorized/i.test(reason)
+    ? "you don't have access to that session"
+    : reason;
 }

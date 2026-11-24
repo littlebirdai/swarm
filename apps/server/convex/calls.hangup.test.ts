@@ -56,7 +56,12 @@ const handler = (fn: any) => fn._handler ?? fn.handler;
 function asAnn(rows: ReturnType<typeof tables>) {
   return {
     db: makeFakeDb(rows as any),
-    auth: { getUserIdentity: async () => ({ subject: `${ANN}|sess`, tokenIdentifier: "x" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: `${ANN}|sess`,
+        tokenIdentifier: "x",
+      }),
+    },
     scheduler: { runAfter: async () => null },
   };
 }

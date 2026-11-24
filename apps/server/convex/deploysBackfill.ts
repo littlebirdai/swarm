@@ -9,7 +9,11 @@ import { normalizeRepository } from "./lib/gitRefs";
 import { normalizeDeployTarget } from "@codecast/shared/contracts/deploys";
 import { recordDeployMarker, type DeployMarker } from "./deploys";
 import { closeSuperseded, supersededNote, urlFields } from "./lib/deployRows";
-import { carriesForMarker, lineDeployTargets, workspaceMergeWindow } from "./deployCarries";
+import {
+  carriesForMarker,
+  lineDeployTargets,
+  workspaceMergeWindow,
+} from "./deployCarries";
 import { fillDeployRange } from "./deployTargets";
 import { mainAtOf } from "./deployTargetsState";
 
@@ -32,31 +36,73 @@ export const backfill = internalMutation({
     const since = args.since ?? 0;
     let events: any[] = [];
     if (args.source_id) {
-      events = await ctx.db.query("external_events").withIndex("by_source_created", (q: any) => q.eq("source_id", args.source_id).gt("created_at", since)).order("asc").take(PAGE);
+      events = await ctx.db
+        .query("external_events")
+        .withIndex("by_source_created", (q: any) =>
+          q.eq("source_id", args.source_id).gt("created_at", since),
+        )
+        .order("asc")
+        .take(PAGE);
     } else if (args.repository) {
-      events = await ctx.db.query("external_events").withIndex("by_repository_created", (q: any) => q.eq("repository", normalizeRepository(args.repository!)).gt("created_at", since)).order("asc").take(PAGE);
+      events = await ctx.db
+        .query("external_events")
+        .withIndex("by_repository_created", (q: any) =>
+          q
+            .eq("repository", normalizeRepository(args.repository!))
+            .gt("created_at", since),
+        )
+        .order("asc")
+        .take(PAGE);
     } else throw new Error("pass source_id or repository");
-    let next: number | null = events.length === PAGE ? events[events.length - 1].created_at : null;
+    let next: number | null =
+      events.length === PAGE ? events[events.length - 1].created_at : null;
     const markers = events.filter((e) => e.kind === "deploy");
     // Each recorded marker reads the workspace's merges and deploys: a few per call keeps a call well under its read limit.
     const PER_CALL = 10;
-    let recorded = 0, skipped = 0, notLive = 0;
+    let recorded = 0,
+      skipped = 0,
+      notLive = 0;
     for (const e of markers) {
-      if (e.meta?.deploy) { skipped++; continue; }
-      if (recorded >= PER_CALL) { next = e.created_at - 1; break; }
+      if (e.meta?.deploy) {
+        skipped++;
+        continue;
+      }
+      if (recorded >= PER_CALL) {
+        next = e.created_at - 1;
+        break;
+      }
       const marker = await markerOfEvent(ctx, e);
-      if (!marker) { notLive++; continue; }
-      if (args.dry) { recorded++; continue; }
+      if (!marker) {
+        notLive++;
+        continue;
+      }
+      if (args.dry) {
+        recorded++;
+        continue;
+      }
       const id = await recordDeployMarker(ctx, marker);
-      if (id) recorded++; else notLive++;
+      if (id) recorded++;
+      else notLive++;
     }
-    return { markers: markers.length, recorded, skipped, not_live: notLive, dry: !!args.dry, next };
+    return {
+      markers: markers.length,
+      recorded,
+      skipped,
+      not_live: notLive,
+      dry: !!args.dry,
+      next,
+    };
   },
 });
 
 /** The marker a stored deploy event describes, in the shape recordDeployMarker takes. */
-export async function markerOfEvent(ctx: any, e: any): Promise<DeployMarker | null> {
-  const target = normalizeDeployTarget(e.meta?.surface ?? e.data?.environment ?? null) ?? "deploy";
+export async function markerOfEvent(
+  ctx: any,
+  e: any,
+): Promise<DeployMarker | null> {
+  const target =
+    normalizeDeployTarget(e.meta?.surface ?? e.data?.environment ?? null) ??
+    "deploy";
   let workspace: string | null = e.workspace ?? null;
   if (e.source_id) {
     const source = await ctx.db.get(e.source_id);
@@ -70,12 +116,31 @@ export async function markerOfEvent(ctx: any, e: any): Promise<DeployMarker | nu
     ...(e.team_id ? { team_id: e.team_id } : {}),
     target,
     ...(e.sha ? { sha: e.sha } : {}),
-    ...(e.meta?.version ?? e.data?.release ? { version: e.meta?.version ?? e.data?.release } : {}),
+    ...((e.meta?.version ?? e.data?.release)
+      ? { version: e.meta?.version ?? e.data?.release }
+      : {}),
     ...(e.repository ? { repository: e.repository } : {}),
-    source: e.data?.source_name ?? (e.source === "codecast" ? "cast ship mark" : e.source),
+    source:
+      e.data?.source_name ??
+      (e.source === "codecast" ? "cast ship mark" : e.source),
     ...(e.source_id ? { source_id: e.source_id } : {}),
     event_id: e._id,
-    ...(actor ? { started_by: { kind: "person" as const, name: actor.name ?? actor.github_username ?? "someone", user_id: actor._id } } : e.source_id ? { started_by: { kind: "source" as const, name: e.data?.source_name ?? "source" } } : {}),
+    ...(actor
+      ? {
+          started_by: {
+            kind: "person" as const,
+            name: actor.name ?? actor.github_username ?? "someone",
+            user_id: actor._id,
+          },
+        }
+      : e.source_id
+        ? {
+            started_by: {
+              kind: "source" as const,
+              name: e.data?.source_name ?? "source",
+            },
+          }
+        : {}),
     at: e.created_at,
   };
 }
@@ -86,8 +151,12 @@ export const backfillTargets = internalQuery({
   handler: async (ctx) => {
     const sources = await ctx.db.query("event_sources").take(500);
     const repos = new Set<string>();
-    for (const r of await ctx.db.query("repo_sources").take(2000)) repos.add(normalizeRepository(r.repository));
-    return { sources: sources.map((s: any) => ({ _id: String(s._id), name: s.name })), repositories: [...repos].sort() };
+    for (const r of await ctx.db.query("repo_sources").take(2000))
+      repos.add(normalizeRepository(r.repository));
+    return {
+      sources: sources.map((s: any) => ({ _id: String(s._id), name: s.name })),
+      repositories: [...repos].sort(),
+    };
   },
 });
 
@@ -102,34 +171,59 @@ export const backfillTargets = internalQuery({
  * the deploys it names (dp-N).
  */
 export const recarry = internalMutation({
-  args: { workspace: v.string(), since: v.optional(v.number()), dry: v.optional(v.boolean()), show: v.optional(v.array(v.string())) },
+  args: {
+    workspace: v.string(),
+    since: v.optional(v.number()),
+    dry: v.optional(v.boolean()),
+    show: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const PER_CALL = 10;
     const rows = await ctx.db
       .query("deploys")
-      .withIndex("by_workspace_created", (q: any) => q.eq("workspace", args.workspace).gt("created_at", args.since ?? 0))
+      .withIndex("by_workspace_created", (q: any) =>
+        q.eq("workspace", args.workspace).gt("created_at", args.since ?? 0),
+      )
       .order("asc")
       .take(PER_CALL);
     const now = Date.now();
     const window = await workspaceMergeWindow(ctx, args.workspace, now);
-    const read = { merges: window.merges, targets: await lineDeployTargets(ctx, args.workspace) };
+    const read = {
+      merges: window.merges,
+      targets: await lineDeployTargets(ctx, args.workspace),
+    };
     // A dry run writes no cut_at, so every live deploy's place on main is read here instead.
     const cuts = new Map<string, number>();
     if (args.dry) {
-      const live = await ctx.db.query("deploys").withIndex("by_workspace_created", (q: any) => q.eq("workspace", args.workspace)).order("desc").take(300);
+      const live = await ctx.db
+        .query("deploys")
+        .withIndex("by_workspace_created", (q: any) =>
+          q.eq("workspace", args.workspace),
+        )
+        .order("desc")
+        .take(300);
       for (const d of live) {
         if (d.status !== "live" || !d.sha || d.cut_at != null) continue;
         const cut = await mainAtOf(ctx, d.repository, d.sha);
         if (cut != null) cuts.set(String(d._id), cut);
       }
     }
-    const shortOf = async (id: string) => ((await ctx.db.get(id as Id<"tasks">)) as Doc<"tasks"> | null)?.short_id ?? id;
-    let changed = 0, skipped = 0;
+    const shortOf = async (id: string) =>
+      ((await ctx.db.get(id as Id<"tasks">)) as Doc<"tasks"> | null)
+        ?.short_id ?? id;
+    let changed = 0,
+      skipped = 0;
     const deploys = [];
     const shown: Array<{ deploy: string; carries: string[] }> = [];
     for (const row of rows) {
       if (row.trigger !== "outside" || row.status !== "live") continue;
-      if ((row.live_at ?? row.created_at) < window.from || row.carries.some((c) => (c.merged_at ?? now) < window.from)) { skipped++; continue; }
+      if (
+        (row.live_at ?? row.created_at) < window.from ||
+        row.carries.some((c) => (c.merged_at ?? now) < window.from)
+      ) {
+        skipped++;
+        continue;
+      }
       // Its sha's place on main first (cut_at), which the rule holds merges against; oldest first, so every earlier
       // deploy is already placed when this one's carries are read.
       if (row.cut_at == null && !args.dry) await fillDeployRange(ctx, row._id);
@@ -137,19 +231,67 @@ export const recarry = internalMutation({
       // A marker's deploy names no project (it ships the code); one recorded before that rule lets go of its project.
       const wide = d.project_id ? { ...d, project_id: undefined } : d;
       const carries = await carriesForMarker(ctx, wide, now, cuts, read);
-      if (args.show?.includes(d.short_id)) shown.push({ deploy: d.short_id, carries: await Promise.all(carries.map(async (c) => `${await shortOf(String(c.task_id))} ${c.merge_sha?.slice(0, 10) ?? "-"}`)) });
+      if (args.show?.includes(d.short_id))
+        shown.push({
+          deploy: d.short_id,
+          carries: await Promise.all(
+            carries.map(
+              async (c) =>
+                `${await shortOf(String(c.task_id))} ${c.merge_sha?.slice(0, 10) ?? "-"}`,
+            ),
+          ),
+        });
       // Stored objects come back with their keys in another order, so compare what each carry says, not its JSON.
-      const said = (cs: Doc<"deploys">["carries"]) => cs.map((c) => [c.task_id, c.run_id, c.decision_id, c.merge_sha, c.merged_at, c.pr_url, c.how].join("|")).sort().join("\n");
+      const said = (cs: Doc<"deploys">["carries"]) =>
+        cs
+          .map((c) =>
+            [
+              c.task_id,
+              c.run_id,
+              c.decision_id,
+              c.merge_sha,
+              c.merged_at,
+              c.pr_url,
+              c.how,
+            ].join("|"),
+          )
+          .sort()
+          .join("\n");
       if (!d.project_id && said(carries) === said(d.carries)) continue;
       changed++;
       const before = new Set(d.carries.map((c) => String(c.task_id)));
       const after = new Set(carries.map((c) => String(c.task_id)));
-      const dropped = await Promise.all([...before].filter((t) => !after.has(t)).map(shortOf));
-      const added = await Promise.all([...after].filter((t) => !before.has(t)).map(shortOf));
-      if (dropped.length || added.length) deploys.push({ deploy: d.short_id, sha: d.sha ?? null, target: d.target, dropped, added });
-      if (!args.dry) await ctx.db.patch(d._id, { carries, project_id: undefined, updated_at: now });
+      const dropped = await Promise.all(
+        [...before].filter((t) => !after.has(t)).map(shortOf),
+      );
+      const added = await Promise.all(
+        [...after].filter((t) => !before.has(t)).map(shortOf),
+      );
+      if (dropped.length || added.length)
+        deploys.push({
+          deploy: d.short_id,
+          sha: d.sha ?? null,
+          target: d.target,
+          dropped,
+          added,
+        });
+      if (!args.dry)
+        await ctx.db.patch(d._id, {
+          carries,
+          project_id: undefined,
+          updated_at: now,
+        });
     }
-    return { dry: !!args.dry, read: rows.length, changed, skipped, merges_from: window.from, deploys, ...(args.show ? { shown } : {}), next: rows.length === PER_CALL ? rows[rows.length - 1].created_at : null };
+    return {
+      dry: !!args.dry,
+      read: rows.length,
+      changed,
+      skipped,
+      merges_from: window.from,
+      deploys,
+      ...(args.show ? { shown } : {}),
+      next: rows.length === PER_CALL ? rows[rows.length - 1].created_at : null,
+    };
   },
 });
 
@@ -158,16 +300,22 @@ export const recarry = internalMutation({
  * its deploy. A page per call, resumed from `cursor`; a rerun writes nothing.
  */
 export const stampRunKeys = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), dry: v.optional(v.boolean()) },
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    dry: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("deploys").paginate({ cursor: args.cursor ?? null, numItems: 500 });
+    const page = await ctx.db
+      .query("deploys")
+      .paginate({ cursor: args.cursor ?? null, numItems: 500 });
     let stamped = 0;
     for (const d of page.page) {
       if (d.workflow_run || !d.url) continue;
       const fields = urlFields(d.url);
       if (!fields.workflow_run) continue;
       stamped++;
-      if (!args.dry) await ctx.db.patch(d._id, { workflow_run: fields.workflow_run });
+      if (!args.dry)
+        await ctx.db.patch(d._id, { workflow_run: fields.workflow_run });
     }
     return { stamped, next: page.isDone ? null : page.continueCursor };
   },
@@ -181,10 +329,24 @@ export const closeSupersededDeploys = internalMutation({
   args: { dry: v.boolean(), since: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const PAGE = 2000;
-    const page: Doc<"deploys">[] = await ctx.db.query("deploys").withIndex("by_creation_time", (q: any) => q.gt("_creationTime", args.since ?? 0)).order("asc").take(PAGE);
+    const page: Doc<"deploys">[] = await ctx.db
+      .query("deploys")
+      .withIndex("by_creation_time", (q: any) =>
+        q.gt("_creationTime", args.since ?? 0),
+      )
+      .order("asc")
+      .take(PAGE);
     const lives = page.filter((d) => d.status === "live");
     const seen = new Set<string>();
-    const closed: Array<{ short_id: string; workspace: string; repository: string | null; target: string; status: string; created_at: number; superseded_by: string }> = [];
+    const closed: Array<{
+      short_id: string;
+      workspace: string;
+      repository: string | null;
+      target: string;
+      status: string;
+      created_at: number;
+      superseded_by: string;
+    }> = [];
     // The newest live of each target closes everything open before it, so one per target is enough.
     const newest = new Map<string, Doc<"deploys">>();
     for (const d of lives) {
@@ -197,11 +359,37 @@ export const closeSupersededDeploys = internalMutation({
         if (seen.has(d.short_id)) continue;
         seen.add(d.short_id);
         // Named by the first live after it, the one that superseded it.
-        const by = lives.filter((l) => l.workspace === d.workspace && l.target === d.target && l.created_at > d.created_at).sort((a, b) => a.created_at - b.created_at)[0] ?? live;
-        if (!args.dry && by._id !== live._id) await ctx.db.patch(d._id, { superseded_by: by.short_id, note: [supersededNote(by.short_id), d.note].filter(Boolean).join("\n") });
-        closed.push({ short_id: d.short_id, workspace: d.workspace, repository: d.repository ?? null, target: d.target, status: d.status, created_at: d.created_at, superseded_by: by.short_id });
+        const by =
+          lives
+            .filter(
+              (l) =>
+                l.workspace === d.workspace &&
+                l.target === d.target &&
+                l.created_at > d.created_at,
+            )
+            .sort((a, b) => a.created_at - b.created_at)[0] ?? live;
+        if (!args.dry && by._id !== live._id)
+          await ctx.db.patch(d._id, {
+            superseded_by: by.short_id,
+            note: [supersededNote(by.short_id), d.note]
+              .filter(Boolean)
+              .join("\n"),
+          });
+        closed.push({
+          short_id: d.short_id,
+          workspace: d.workspace,
+          repository: d.repository ?? null,
+          target: d.target,
+          status: d.status,
+          created_at: d.created_at,
+          superseded_by: by.short_id,
+        });
       }
     }
-    return { dry: args.dry, closed, next: page.length === PAGE ? page[page.length - 1]._creationTime : null };
+    return {
+      dry: args.dry,
+      closed,
+      next: page.length === PAGE ? page[page.length - 1]._creationTime : null,
+    };
   },
 });

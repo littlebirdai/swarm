@@ -23,11 +23,15 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
 // lets the test deliver a resize by hand (JSDOM has no layout, so nothing else
 // can).
 type Entry = { target: Element; contentRect: { width: number } };
-const observers: { targets: Element[]; fire: (entries: Entry[]) => void }[] = [];
+const observers: { targets: Element[]; fire: (entries: Entry[]) => void }[] =
+  [];
 class FakeResizeObserver {
   targets: Element[] = [];
   constructor(private cb: (entries: Entry[]) => void) {
-    observers.push({ targets: this.targets, fire: (entries) => this.cb(entries) });
+    observers.push({
+      targets: this.targets,
+      fire: (entries) => this.cb(entries),
+    });
   }
   observe(el: Element) {
     this.targets.push(el);
@@ -41,12 +45,26 @@ class FakeResizeObserver {
 let scrollerWidth = 960;
 const COLUMN_W = 848; // the column's cap — it never changes in this test
 let scrollerEl: HTMLElement | null = null;
-(dom.window.HTMLElement.prototype as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect =
-  function (this: HTMLElement) {
-    const left = this === scrollerEl ? 0 : Math.round((scrollerWidth - COLUMN_W) / 2);
-    const width = this === scrollerEl ? scrollerWidth : COLUMN_W;
-    return { left, right: left + width, top: 0, bottom: 0, width, height: 0, x: left, y: 0, toJSON() {} } as DOMRect;
-  };
+(
+  dom.window.HTMLElement.prototype as unknown as {
+    getBoundingClientRect: () => DOMRect;
+  }
+).getBoundingClientRect = function (this: HTMLElement) {
+  const left =
+    this === scrollerEl ? 0 : Math.round((scrollerWidth - COLUMN_W) / 2);
+  const width = this === scrollerEl ? scrollerWidth : COLUMN_W;
+  return {
+    left,
+    right: left + width,
+    top: 0,
+    bottom: 0,
+    width,
+    height: 0,
+    x: left,
+    y: 0,
+    toJSON() {},
+  } as DOMRect;
+};
 
 const restoreGlobals = replaceGlobals({
   window: dom.window,
@@ -60,7 +78,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
@@ -70,7 +88,16 @@ afterAll(() => {
 test("widening the scroller un-wedges the rail even when the column never resizes", async () => {
   useInboxStore.setState({
     reviewComments: {
-      c1: [{ id: "q1", messageId: "m1", blockIndex: 0, quote: "a quoted line", body: "", createdAt: 1 }],
+      c1: [
+        {
+          id: "q1",
+          messageId: "m1",
+          blockIndex: 0,
+          quote: "a quoted line",
+          body: "",
+          createdAt: 1,
+        },
+      ],
     },
   });
 
@@ -86,7 +113,12 @@ test("widening the scroller un-wedges the rail even when the column never resize
   try {
     await act(() =>
       root.render(
-        <MessageReview conversationId="c1" messageId="m1" content="a quoted line" renderBlock={(c) => <p>{c}</p>} />,
+        <MessageReview
+          conversationId="c1"
+          messageId="m1"
+          content="a quoted line"
+          renderBlock={(c) => <p>{c}</p>}
+        />,
       ),
     );
     const region = column.querySelector(".cc-msg-review") as HTMLElement;
@@ -118,15 +150,22 @@ test("widening the scroller un-wedges the rail even when the column never resize
     // reason to re-measure every engaged message.
     let measured = 0;
     const rect = dom.window.HTMLElement.prototype.getBoundingClientRect;
-    (dom.window.HTMLElement.prototype as unknown as { getBoundingClientRect: unknown }).getBoundingClientRect =
-      function (this: HTMLElement) {
-        if (this === scrollerEl) measured++;
-        return rect.call(this);
-      };
+    (
+      dom.window.HTMLElement.prototype as unknown as {
+        getBoundingClientRect: unknown;
+      }
+    ).getBoundingClientRect = function (this: HTMLElement) {
+      if (this === scrollerEl) measured++;
+      return rect.call(this);
+    };
     await act(async () => {
       ro!.fire([{ target: scrollerEl!, contentRect: { width: 960 } }]);
     });
-    (dom.window.HTMLElement.prototype as unknown as { getBoundingClientRect: unknown }).getBoundingClientRect = rect;
+    (
+      dom.window.HTMLElement.prototype as unknown as {
+        getBoundingClientRect: unknown;
+      }
+    ).getBoundingClientRect = rect;
     expect(measured).toBe(0);
   } finally {
     await act(() => root.unmount());

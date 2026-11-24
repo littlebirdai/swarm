@@ -43,14 +43,21 @@ let meterAnalyser: AnalyserNode | null = null;
 let meterBytes: Uint8Array<ArrayBuffer> | null = null;
 let stopFrames: (() => void) | undefined;
 
-function sameRemote(a: Record<string, number>, b: Record<string, number>): boolean {
+function sameRemote(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): boolean {
   const keys = Object.keys(a);
   if (keys.length !== Object.keys(b).length) return false;
   return keys.every((k) => k in b && Math.abs(a[k] - b[k]) <= 0.02);
 }
 
 function publishLevels(local: number, remote: Record<string, number>) {
-  if (Math.abs(local - levels.local) <= 0.02 && sameRemote(levels.remote, remote)) return;
+  if (
+    Math.abs(local - levels.local) <= 0.02 &&
+    sameRemote(levels.remote, remote)
+  )
+    return;
   levels = { local, remote };
   for (const cb of levelSubscribers) cb();
 }

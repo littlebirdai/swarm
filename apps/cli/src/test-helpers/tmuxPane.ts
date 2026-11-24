@@ -39,15 +39,28 @@ export interface SpawnTmuxPaneOptions {
 export function spawnTmuxPane(opts: SpawnTmuxPaneOptions): void {
   const tmuxRun = opts.run ?? defaultTmuxRun;
   const attempts = opts.attempts ?? 3;
-  const alive = (): boolean => tmuxRun(["has-session", "-t", opts.session]).status === 0;
+  const alive = (): boolean =>
+    tmuxRun(["has-session", "-t", opts.session]).status === 0;
   let lastErr = "";
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const r = tmuxRun([
-      "new-session", "-d", "-s", opts.session,
-      "-x", "200", "-y", "50",
-      "-c", opts.cwd,
-      "bash", "-c", opts.body,
-    ], opts.env ? { env: opts.env } : undefined);
+    const r = tmuxRun(
+      [
+        "new-session",
+        "-d",
+        "-s",
+        opts.session,
+        "-x",
+        "200",
+        "-y",
+        "50",
+        "-c",
+        opts.cwd,
+        "bash",
+        "-c",
+        opts.body,
+      ],
+      opts.env ? { env: opts.env } : undefined,
+    );
     if (r.status !== 0) {
       lastErr = `tmux new-session failed (status ${r.status}): ${r.stderr ?? ""} ${r.stdout ?? ""}`;
       if (attempts > 1) tmuxRun(["kill-session", "-t", opts.session]);
@@ -63,5 +76,7 @@ export function spawnTmuxPane(opts: SpawnTmuxPaneOptions): void {
     lastErr = "tmux session died within 1s of spawn";
     tmuxRun(["kill-session", "-t", opts.session]);
   }
-  throw new Error(`tmux pane spawn failed after ${attempts} attempts: ${lastErr}`);
+  throw new Error(
+    `tmux pane spawn failed after ${attempts} attempts: ${lastErr}`,
+  );
 }

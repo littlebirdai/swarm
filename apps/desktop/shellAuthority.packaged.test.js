@@ -1,24 +1,55 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { cpSync, mkdirSync, mkdtempSync, writeFileSync, rmSync, renameSync } = require("node:fs");
+const {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+  renameSync,
+} = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 const { execFile, execFileSync } = require("node:child_process");
 
-test("packaged shell contains foreign navigation and exposes no bridge to foreign documents or frames", { skip: process.platform !== "darwin", timeout: 90_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), "codecast-authority-package-"));
-  const app = join(dir, "Fixture.app");
-  cpSync(resolve(require("electron"), "../../.."), app, { recursive: true, verbatimSymlinks: true });
-  renameSync(join(app, "Contents/MacOS/Electron"), join(app, "Contents/MacOS/AuthorityFixture"));
-  execFileSync("plutil", ["-replace", "CFBundleExecutable", "-string", "AuthorityFixture", join(app, "Contents/Info.plist")]);
-  const resources = join(app, "Contents/Resources");
-  rmSync(join(resources, "default_app.asar"), { force: true });
-  const source = join(resources, "app");
-  mkdirSync(source);
-  writeFileSync(join(source, "package.json"), JSON.stringify({ name: "codecast-authority-fixture", version: "1.0.0", main: "main.js" }));
-  const preload = join(__dirname, "preload.js");
-  const authorityPath = join(__dirname, "shellAuthority.js");
-  writeFileSync(join(source, "main.js"), `
+test(
+  "packaged shell contains foreign navigation and exposes no bridge to foreign documents or frames",
+  { skip: process.platform !== "darwin", timeout: 90_000 },
+  async () => {
+    const dir = mkdtempSync(join(tmpdir(), "codecast-authority-package-"));
+    const app = join(dir, "Fixture.app");
+    cpSync(resolve(require("electron"), "../../.."), app, {
+      recursive: true,
+      verbatimSymlinks: true,
+    });
+    renameSync(
+      join(app, "Contents/MacOS/Electron"),
+      join(app, "Contents/MacOS/AuthorityFixture"),
+    );
+    execFileSync("plutil", [
+      "-replace",
+      "CFBundleExecutable",
+      "-string",
+      "AuthorityFixture",
+      join(app, "Contents/Info.plist"),
+    ]);
+    const resources = join(app, "Contents/Resources");
+    rmSync(join(resources, "default_app.asar"), { force: true });
+    const source = join(resources, "app");
+    mkdirSync(source);
+    writeFileSync(
+      join(source, "package.json"),
+      JSON.stringify({
+        name: "codecast-authority-fixture",
+        version: "1.0.0",
+        main: "main.js",
+      }),
+    );
+    const preload = join(__dirname, "preload.js");
+    const authorityPath = join(__dirname, "shellAuthority.js");
+    writeFileSync(
+      join(source, "main.js"),
+      `
 const {app,BrowserWindow,ipcMain}=require('electron');
 const http=require('node:http');
 const {createShellAuthority,installShellCapabilities}=require(${JSON.stringify(authorityPath)});
@@ -65,29 +96,52 @@ server.listen(0,'127.0.0.1',()=>app.whenReady().then(async()=>{
   win.destroy();server.close();app.exit(0);
  } catch(e){process.stdout.write('FAIL '+e.stack+'\\n');app.exit(1);}
 }));
-`);
-  try {
-    const out = await new Promise((resolveOutput, reject) => execFile(join(app, "Contents/MacOS/AuthorityFixture"), [], { timeout: 70_000, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => error ? reject(new Error(`${error}\n${stdout}\n${stderr}`)) : resolveOutput(stdout)));
-    const line = out.split("\n").find(line => line.startsWith("AUTHORITY "));
-    assert.ok(line, out);
-    const result = JSON.parse(line.slice(10));
-    assert.equal(result.packaged, true);
-    assert.deepEqual(result.errors, []);
-    assert.equal(result.first.bridge, "object");
-    assert.equal(result.first.command, true);
-    assert.equal(result.calls, 1);
-    assert.equal(result.iframeBridge, "undefined");
-    assert.ok(result.permissionChecks.some(check => check.allowed && check.isMainFrame));
-    assert.ok(result.permissionChecks.some(check => !check.allowed && !check.isMainFrame), JSON.stringify(result.permissionChecks));
-    assert.equal(result.afterClick, result.base + "/");
-    assert.ok(result.external.length > 0);
-    assert.deepEqual(result.denied, {});
-    assert.equal(result.sources, 0);
-    assert.equal(result.allowed, true);
-    assert.equal(result.foreignPermission, false);
-    assert.equal(result.foreignBridge, "undefined");
-    assert.equal(result.lateAdmission, false);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+`,
+    );
+    try {
+      const out = await new Promise((resolveOutput, reject) =>
+        execFile(
+          join(app, "Contents/MacOS/AuthorityFixture"),
+          [],
+          { timeout: 70_000, maxBuffer: 1024 * 1024 },
+          (error, stdout, stderr) =>
+            error
+              ? reject(new Error(`${error}\n${stdout}\n${stderr}`))
+              : resolveOutput(stdout),
+        ),
+      );
+      const line = out
+        .split("\n")
+        .find((line) => line.startsWith("AUTHORITY "));
+      assert.ok(line, out);
+      const result = JSON.parse(line.slice(10));
+      assert.equal(result.packaged, true);
+      assert.deepEqual(result.errors, []);
+      assert.equal(result.first.bridge, "object");
+      assert.equal(result.first.command, true);
+      assert.equal(result.calls, 1);
+      assert.equal(result.iframeBridge, "undefined");
+      assert.ok(
+        result.permissionChecks.some(
+          (check) => check.allowed && check.isMainFrame,
+        ),
+      );
+      assert.ok(
+        result.permissionChecks.some(
+          (check) => !check.allowed && !check.isMainFrame,
+        ),
+        JSON.stringify(result.permissionChecks),
+      );
+      assert.equal(result.afterClick, result.base + "/");
+      assert.ok(result.external.length > 0);
+      assert.deepEqual(result.denied, {});
+      assert.equal(result.sources, 0);
+      assert.equal(result.allowed, true);
+      assert.equal(result.foreignPermission, false);
+      assert.equal(result.foreignBridge, "undefined");
+      assert.equal(result.lateAdmission, false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);

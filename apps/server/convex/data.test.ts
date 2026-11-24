@@ -9,12 +9,15 @@ import { createDataContext, pathIsWithin, scopeByProject } from "./data";
 // gate). Directory mappings are now the whole rule: mapped → that team,
 // unmapped → personal.
 
-function mockDb(opts: { mappings?: any[]; isMember?: boolean; deletedTeams?: string[] } = {}) {
+function mockDb(
+  opts: { mappings?: any[]; isMember?: boolean; deletedTeams?: string[] } = {},
+) {
   const inserted: Array<{ table: string; doc: any }> = [];
   const db = {
     query: (table: string) => ({
       withIndex: (_name: string, _fn: any) => ({
-        collect: async () => (table === "directory_team_mappings" ? opts.mappings || [] : []),
+        collect: async () =>
+          table === "directory_team_mappings" ? opts.mappings || [] : [],
         first: async () =>
           table === "team_memberships" && opts.isMember ? { _id: "m1" } : null,
         order: (_d: string) => ({ take: async () => [] }),
@@ -26,14 +29,22 @@ function mockDb(opts: { mappings?: any[]; isMember?: boolean; deletedTeams?: str
     },
     // Team rows exist unless the test deleted them; everything else is unknown.
     get: async (id: any) =>
-      typeof id === "string" && id.startsWith("t") && !opts.deletedTeams?.includes(id) ? { _id: id } : null,
+      typeof id === "string" &&
+      id.startsWith("t") &&
+      !opts.deletedTeams?.includes(id)
+        ? { _id: id }
+        : null,
     patch: async () => {},
   };
   return { ctx: { db } as any, inserted };
 }
 
 const UNION = "t_union";
-const mapping = { team_id: UNION, path_prefix: "/Users/j/code/union-mobile", auto_share: true };
+const mapping = {
+  team_id: UNION,
+  path_prefix: "/Users/j/code/union-mobile",
+  auto_share: true,
+};
 
 describe("createDataContext — work items follow directory→team privacy", () => {
   test("THE BUG (ct-38419): an unmapped ('Only Me') directory resolves personal, never the active team", async () => {
@@ -63,7 +74,11 @@ describe("createDataContext — work items follow directory→team privacy", () 
   // command from the repo was Forbidden with no way to self-heal. A mapping to a
   // team that no longer exists is dangling data, not an access decision.
   test("a mapping to a DELETED team resolves personal instead of bricking the directory", async () => {
-    const { ctx, inserted } = mockDb({ mappings: [mapping], isMember: false, deletedTeams: [UNION] });
+    const { ctx, inserted } = mockDb({
+      mappings: [mapping],
+      isMember: false,
+      deletedTeams: [UNION],
+    });
     const dc = await createDataContext(ctx, {
       userId: "u1" as any,
       project_path: "/Users/j/code/union-mobile/outreach",
@@ -78,7 +93,11 @@ describe("createDataContext — work items follow directory→team privacy", () 
   // stamped before its team was deleted used to fail "team membership
   // required" on every write from that session.
   test("an explicit DELETED team falls through to the directory rule", async () => {
-    const { ctx, inserted } = mockDb({ mappings: [], isMember: false, deletedTeams: [UNION] });
+    const { ctx, inserted } = mockDb({
+      mappings: [],
+      isMember: false,
+      deletedTeams: [UNION],
+    });
     const dc = await createDataContext(ctx, {
       userId: "u1" as any,
       workspace: "team",
@@ -92,19 +111,23 @@ describe("createDataContext — work items follow directory→team privacy", () 
 
   test("an explicit LIVE team without membership still fails closed", async () => {
     const { ctx } = mockDb({ mappings: [], isMember: false });
-    await expect(createDataContext(ctx, {
-      userId: "u1" as any,
-      workspace: "team",
-      team_id: UNION as any,
-    })).rejects.toThrow(/team membership required/);
+    await expect(
+      createDataContext(ctx, {
+        userId: "u1" as any,
+        workspace: "team",
+        team_id: UNION as any,
+      }),
+    ).rejects.toThrow(/team membership required/);
   });
 
   test("a mapping to a LIVE team the user left still fails closed", async () => {
     const { ctx } = mockDb({ mappings: [mapping], isMember: false });
-    await expect(createDataContext(ctx, {
-      userId: "u1" as any,
-      project_path: "/Users/j/code/union-mobile/outreach",
-    })).rejects.toThrow("Forbidden");
+    await expect(
+      createDataContext(ctx, {
+        userId: "u1" as any,
+        project_path: "/Users/j/code/union-mobile/outreach",
+      }),
+    ).rejects.toThrow("Forbidden");
   });
 
   test("no project_path and no explicit workspace defaults to personal, never raw", async () => {
@@ -129,21 +152,24 @@ describe("createDataContext — work items follow directory→team privacy", () 
 
   test("an explicit team workspace from a NON-member is forbidden, never downgraded", async () => {
     const { ctx } = mockDb({ mappings: [mapping], isMember: false });
-    await expect(createDataContext(ctx, {
+    await expect(
+      createDataContext(ctx, {
         userId: "u1" as any,
         workspace: "team",
         team_id: "t_foreign" as any,
         project_path: "/Users/j/code/re-underwriting",
-      }))
-      .rejects.toThrow("Forbidden");
+      }),
+    ).rejects.toThrow("Forbidden");
   });
 
   test("a team workspace without a team id is rejected", async () => {
     const { ctx } = mockDb();
-    await expect(createDataContext(ctx, {
-      userId: "u1" as any,
-      workspace: "team",
-    })).rejects.toThrow("team_id");
+    await expect(
+      createDataContext(ctx, {
+        userId: "u1" as any,
+        workspace: "team",
+      }),
+    ).rejects.toThrow("team_id");
   });
 
   test("pagination applies the same personal and project filters as collect", async () => {
@@ -159,13 +185,18 @@ describe("createDataContext — work items follow directory→team privacy", () 
       paginate: async () => ({ page: rows, isDone: true, continueCursor: "" }),
       collect: async () => rows,
     };
-    const dc = await createDataContext({ db: { query: () => builder } } as any, {
-      userId: "u1" as any,
-      workspace: "personal",
-      project_path: "/repo",
-    });
+    const dc = await createDataContext(
+      { db: { query: () => builder } } as any,
+      {
+        userId: "u1" as any,
+        workspace: "personal",
+        project_path: "/repo",
+      },
+    );
 
-    const result = await dc.query("tasks").paginate({ numItems: 10, cursor: null });
+    const result = await dc
+      .query("tasks")
+      .paginate({ numItems: 10, cursor: null });
     expect(result.page.map((row: any) => row._id)).toEqual(["mine"]);
   });
 });
@@ -174,9 +205,13 @@ describe("project scoping stops at a path boundary", () => {
   test("a sibling directory sharing the prefix is another project", () => {
     expect(pathIsWithin("/repo/codecast-web", "/repo/codecast")).toBe(false);
     expect(pathIsWithin("/repo/codecast", "/repo/codecast")).toBe(true);
-    expect(pathIsWithin("/repo/codecast/apps/web", "/repo/codecast")).toBe(true);
+    expect(pathIsWithin("/repo/codecast/apps/web", "/repo/codecast")).toBe(
+      true,
+    );
     // A worktree lives under its repository, and a trailing slash names the same directory.
-    expect(pathIsWithin("/repo/codecast/.codecast/worktrees/fix", "/repo/codecast/")).toBe(true);
+    expect(
+      pathIsWithin("/repo/codecast/.codecast/worktrees/fix", "/repo/codecast/"),
+    ).toBe(true);
     expect(pathIsWithin("/repo/codecast-web", "/repo/codecast/")).toBe(false);
     expect(pathIsWithin("/anything", "/")).toBe(true);
   });
@@ -186,11 +221,24 @@ describe("project scoping stops at a path boundary", () => {
       { _id: "same", project_path: "/repo/codecast" },
       { _id: "child", project_path: "/repo/codecast/apps/cli" },
       { _id: "sibling", project_path: "/repo/codecast-web" },
-      { _id: "by-root", project_path: "/elsewhere", git_root: "/repo/codecast" },
-      { _id: "sibling-root", project_path: "/elsewhere", git_root: "/repo/codecast-web" },
+      {
+        _id: "by-root",
+        project_path: "/elsewhere",
+        git_root: "/repo/codecast",
+      },
+      {
+        _id: "sibling-root",
+        project_path: "/elsewhere",
+        git_root: "/repo/codecast-web",
+      },
       { _id: "unplaced" },
     ];
-    expect(scopeByProject(rows, "/repo/codecast").map((r) => r._id)).toEqual(["same", "child", "by-root", "unplaced"]);
+    expect(scopeByProject(rows, "/repo/codecast").map((r) => r._id)).toEqual([
+      "same",
+      "child",
+      "by-root",
+      "unplaced",
+    ]);
   });
 
   test("a scoped query applies the same boundary", async () => {
@@ -205,12 +253,17 @@ describe("project scoping stops at a path boundary", () => {
       paginate: async () => ({ page: rows, isDone: true, continueCursor: "" }),
       collect: async () => rows,
     };
-    const dc = await createDataContext({ db: { query: () => builder } } as any, {
-      userId: "u1" as any,
-      workspace: "personal",
-      project_path: "/repo/app",
-    });
-    const result = await dc.query("tasks").paginate({ numItems: 10, cursor: null });
+    const dc = await createDataContext(
+      { db: { query: () => builder } } as any,
+      {
+        userId: "u1" as any,
+        workspace: "personal",
+        project_path: "/repo/app",
+      },
+    );
+    const result = await dc
+      .query("tasks")
+      .paginate({ numItems: 10, cursor: null });
     expect(result.page.map((row: any) => row._id)).toEqual(["mine"]);
   });
 });

@@ -2,8 +2,14 @@ import { useSyncExternalStore } from "react";
 import { Captions, CaptionsOff } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
 import { useRoomTranscribeOff } from "../../hooks/useRoomTranscribeOff";
-import { getScribeStatus, subscribeScribe } from "../../lib/calls/transcription";
-import { startTranscribing, stopTranscribing } from "../../lib/calls/callManager";
+import {
+  getScribeStatus,
+  subscribeScribe,
+} from "../../lib/calls/transcription";
+import {
+  startTranscribing,
+  stopTranscribing,
+} from "../../lib/calls/callManager";
 import { TranscribeSwitchView } from "./TranscribeSwitchView";
 
 // The transcription switch, for the ROOM. Every huddle transcribes on its own
@@ -50,18 +56,37 @@ export function TranscribeControls({ live }: { live: boolean }) {
           ? "bg-sol-green/15 text-sol-green hover:bg-sol-green/25"
           : "text-sol-text-muted hover:bg-sol-bg-highlight hover:text-sol-text"
       }`}
-      title={on ? "Stop transcribing this huddle (for everyone)" : "Transcribe this huddle"}
+      title={
+        on
+          ? "Stop transcribing this huddle (for everyone)"
+          : "Transcribe this huddle"
+      }
       aria-pressed={on}
     >
-      {on ? <Captions className="h-[18px] w-[18px]" /> : <CaptionsOff className="h-[18px] w-[18px]" />}
+      {on ? (
+        <Captions className="h-[18px] w-[18px]" />
+      ) : (
+        <CaptionsOff className="h-[18px] w-[18px]" />
+      )}
     </button>
   );
 }
 
 /** The transcript rail's labelled switch: the state in words, and the way
  *  to flip it, where the words themselves are read. */
-export function TranscribeSwitch({ live, className = "" }: { live: boolean; className?: string }) {
+export function TranscribeSwitch({
+  live,
+  className = "",
+}: {
+  live: boolean;
+  className?: string;
+}) {
   const { on, toggle } = useTranscribeToggle(live);
-  return <TranscribeSwitchView on={on} onToggle={() => void toggle()} className={className} />;
+  return (
+    <TranscribeSwitchView
+      on={on}
+      onToggle={() => void toggle()}
+      className={className}
+    />
+  );
 }
-

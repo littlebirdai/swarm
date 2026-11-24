@@ -5,25 +5,65 @@
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { isMissingFunctionError } from "./useSyncOrgTree";
-import type { FeedKind, FeedPage, RoleBrief, ScopeSummary } from "../components/org/scope/scopeTypes";
+import type {
+  FeedKind,
+  FeedPage,
+  RoleBrief,
+  ScopeSummary,
+} from "../components/org/scope/scopeTypes";
 
 const api = _api as any;
 
 /** Which scope a query reads: a role by id, or a literal set of projects, plans and goals (ids or `in-N`). */
-export type ScopeRef = { role_id: string } | { scope: { project_ids: string[]; plan_ids: string[]; initiative_ids?: string[] }; team_id?: string };
+export type ScopeRef =
+  | { role_id: string }
+  | {
+      scope: {
+        project_ids: string[];
+        plan_ids: string[];
+        initiative_ids?: string[];
+      };
+      team_id?: string;
+    };
 
-export function useScopeFeedPage(args: (ScopeRef & { cursor?: string; limit?: number; kinds?: FeedKind[] }) | "skip"): { data: FeedPage | undefined; error?: Error; missing: boolean } {
+export function useScopeFeedPage(
+  args:
+    | (ScopeRef & { cursor?: string; limit?: number; kinds?: FeedKind[] })
+    | "skip",
+): { data: FeedPage | undefined; error?: Error; missing: boolean } {
   const { data, error } = useQueryNoThrow(api.org.scopeFeed, args);
-  return { data: data as FeedPage | undefined, error, missing: isMissingFunctionError(error) };
+  return {
+    data: data as FeedPage | undefined,
+    error,
+    missing: isMissingFunctionError(error),
+  };
 }
 
-export function useScopeSummary(args: ScopeRef | "skip"): { data: ScopeSummary | null | undefined; error?: Error; missing: boolean } {
+export function useScopeSummary(args: ScopeRef | "skip"): {
+  data: ScopeSummary | null | undefined;
+  error?: Error;
+  missing: boolean;
+} {
   const { data, error } = useQueryNoThrow(api.org.scopeSummary, args);
-  return { data: data as ScopeSummary | null | undefined, error, missing: isMissingFunctionError(error) };
+  return {
+    data: data as ScopeSummary | null | undefined,
+    error,
+    missing: isMissingFunctionError(error),
+  };
 }
 
-
-export function useRoleBrief(roleId: string | null): { data: RoleBrief | null | undefined; error?: Error; missing: boolean } {
-  const { data, error } = useQueryNoThrow(api.org.brief, roleId ? { role_id: roleId } : "skip");
-  return { data: data as RoleBrief | null | undefined, error, missing: isMissingFunctionError(error) };
+export function useRoleBrief(roleId: string | null): {
+  data: RoleBrief | null | undefined;
+  error?: Error;
+  missing: boolean;
+} {
+  const { data, error } = useQueryNoThrow(
+    api.org.brief,
+    roleId ? { role_id: roleId } : "skip",
+  );
+  return {
+    data: data as RoleBrief | null | undefined,
+    error,
+    missing: isMissingFunctionError(error),
+  };
 }

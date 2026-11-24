@@ -16,10 +16,26 @@ const JSONL = [
 describe("cursor JSONL transcripts", () => {
   test("parse user queries, assistant text and tool calls; drop turn markers and redaction stubs", () => {
     const msgs = parseCursorTranscriptFile(JSONL);
-    expect(msgs.map((m) => m.role)).toEqual(["user", "assistant", "assistant", "assistant"]);
-    expect(msgs[0].content).toBe("create a file hello.txt containing the word hi, then reply done");
+    expect(msgs.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "assistant",
+      "assistant",
+    ]);
+    expect(msgs[0].content).toBe(
+      "create a file hello.txt containing the word hi, then reply done",
+    );
     expect(msgs[0].timestamp).toBe(Date.parse("2026-09-29T06:29:00Z"));
-    expect(msgs[1].toolCalls).toEqual([{ id: "cursor-1-0", name: "Write", input: { path: "/private/tmp/cursor-scratch/hello.txt", contents: "hi\n" } }]);
+    expect(msgs[1].toolCalls).toEqual([
+      {
+        id: "cursor-1-0",
+        name: "Write",
+        input: {
+          path: "/private/tmp/cursor-scratch/hello.txt",
+          contents: "hi\n",
+        },
+      },
+    ]);
     expect(msgs[2].content).toBe("done");
     expect(msgs[2].stopReason).toBe("end_turn");
     expect(msgs[3].stopReason).toBeUndefined();
@@ -33,8 +49,13 @@ describe("cursor JSONL transcripts", () => {
     const ids = parseCursorTranscriptFile(JSONL, "chat-1").map((m) => m.uuid);
     expect(ids).toEqual(["chat-1:0", "chat-1:1", "chat-1:2", "chat-1:3"]);
     // A redacted-only record renders nothing but still holds its ordinal.
-    const withEmpty = JSONL.replace(`{"role":"assistant","message":{"content":[{"type":"text","text":"done\\n\\n[REDACTED]"}]}}`, `{"role":"assistant","message":{"content":[{"type":"text","text":"[REDACTED]"}]}}`);
-    expect(parseCursorTranscriptFile(withEmpty, "chat-1").map((m) => m.uuid)).toEqual(["chat-1:0", "chat-1:1", "chat-1:3"]);
+    const withEmpty = JSONL.replace(
+      `{"role":"assistant","message":{"content":[{"type":"text","text":"done\\n\\n[REDACTED]"}]}}`,
+      `{"role":"assistant","message":{"content":[{"type":"text","text":"[REDACTED]"}]}}`,
+    );
+    expect(
+      parseCursorTranscriptFile(withEmpty, "chat-1").map((m) => m.uuid),
+    ).toEqual(["chat-1:0", "chat-1:1", "chat-1:3"]);
   });
 
   test("terminal control bytes a paste left in the query are dropped", () => {
@@ -44,17 +65,26 @@ describe("cursor JSONL transcripts", () => {
 
   test("turn state comes from turn_ended", () => {
     expect(classifyCursorTranscriptTail(JSONL)).toBe("active");
-    expect(classifyCursorTranscriptTail(JSONL.split("\n").slice(0, 4).join("\n"))).toBe("idle");
+    expect(
+      classifyCursorTranscriptTail(JSONL.split("\n").slice(0, 4).join("\n")),
+    ).toBe("idle");
     expect(classifyCursorTranscriptTail("")).toBe("unknown");
   });
 
   test("the older text format still parses", () => {
-    const msgs = parseCursorTranscriptFile("user:\n<user_query>\nhi\n</user_query>\nassistant:\nhello\n");
-    expect(msgs.map((m) => [m.role, m.content])).toEqual([["user", "hi"], ["assistant", "hello"]]);
+    const msgs = parseCursorTranscriptFile(
+      "user:\n<user_query>\nhi\n</user_query>\nassistant:\nhello\n",
+    );
+    expect(msgs.map((m) => [m.role, m.content])).toEqual([
+      ["user", "hi"],
+      ["assistant", "hello"],
+    ]);
   });
 
   test("the watcher accepts .jsonl transcripts", () => {
-    expect(isCursorTranscriptPath("p/agent-transcripts/abc/abc.jsonl")).toBe(true);
+    expect(isCursorTranscriptPath("p/agent-transcripts/abc/abc.jsonl")).toBe(
+      true,
+    );
     expect(isCursorTranscriptPath("p/terminals/abc.jsonl")).toBe(false);
   });
 });

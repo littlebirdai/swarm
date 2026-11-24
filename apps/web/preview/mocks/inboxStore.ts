@@ -4,7 +4,10 @@ import { create } from "zustand";
 import { devices, liveStatus } from "./fixtures";
 
 const sessions: Record<string, any> = Object.fromEntries(
-  Object.entries(liveStatus).map(([id, agent_status]) => [id, { _id: id, agent_status }]),
+  Object.entries(liveStatus).map(([id, agent_status]) => [
+    id,
+    { _id: id, agent_status },
+  ]),
 );
 
 const buckets: Record<string, any> = {
@@ -18,7 +21,8 @@ export const useInboxStore = create<any>(() => ({
   conversations: {},
   buckets,
   bucketAssignments: {},
-  assignSessionToBucket: (id: string, bucketId: string | null) => console.log("assignSessionToBucket", id, bucketId),
+  assignSessionToBucket: (id: string, bucketId: string | null) =>
+    console.log("assignSessionToBucket", id, bucketId),
   openPalette: (opts: unknown) => console.log("openPalette", opts),
   machineRoster: devices,
   machineRosterLive: true,
@@ -26,12 +30,16 @@ export const useInboxStore = create<any>(() => ({
   resolveLiveSessionId: (id: string) => id,
   setMachineRoster: () => {},
   getConvexId: (id: string) => id,
-  openSettingsModal: (section?: string) => console.log("openSettingsModal", section),
+  openSettingsModal: (section?: string) =>
+    console.log("openSettingsModal", section),
 }));
 
 export const isConvexId = (s: string) => /^[a-z0-9]{32}$/.test(s);
 
-export const sortLabels = (b: Record<string, any>) => Object.values(b ?? {}).sort((x: any, y: any) => (x.sort_order ?? 0) - (y.sort_order ?? 0));
+export const sortLabels = (b: Record<string, any>) =>
+  Object.values(b ?? {}).sort(
+    (x: any, y: any) => (x.sort_order ?? 0) - (y.sort_order ?? 0),
+  );
 export const findProjectPathByName = () => null;
 export const resolveComposeProjectPath = () => null;
 

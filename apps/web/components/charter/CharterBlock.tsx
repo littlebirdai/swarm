@@ -10,14 +10,24 @@
 import { useWorkspaceFeature } from "../../lib/teamFeatures";
 import { useState } from "react";
 import Link from "next/link";
-import { Compass, Flag, ListChecks, Ban, AlertTriangle,  Plus, X, Sparkles, UserRoundPlus } from "lucide-react";
+import {
+  Compass,
+  Flag,
+  ListChecks,
+  Ban,
+  AlertTriangle,
+  Plus,
+  X,
+  Sparkles,
+  UserRoundPlus,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 import { InlineEdit } from "../org/scope/ScopeEditors";
 import { OwnerRoleChip, PriorityPill } from "./CharterChips";
 import {
   headOfPeopleOf,
-  composeCharterHref, 
-  hasCharter, 
+  composeCharterHref,
+  hasCharter,
   PRIORITY_META,
   type CharterFields,
   type CharterKind,
@@ -53,7 +63,16 @@ export type CharterBlockProps = {
 
 /** One list of the charter (metrics, non goals, risks). Each row is an inline
  *  edit; saving a row empty removes it; the last row adds. */
-function ListField({ label, singular, icon: Icon, items, canEdit, onChange, placeholder, marker }: {
+function ListField({
+  label,
+  singular,
+  icon: Icon,
+  items,
+  canEdit,
+  onChange,
+  placeholder,
+  marker,
+}: {
   label: string;
   /** Names one row for a screen reader: "Sign it works 2", "Risk 1". */
   singular: string;
@@ -67,32 +86,73 @@ function ListField({ label, singular, icon: Icon, items, canEdit, onChange, plac
   if (items.length === 0 && !canEdit) return null;
   const setAt = (i: number, v: string) => {
     const next = items.slice();
-    if (v) next[i] = v; else next.splice(i, 1);
+    if (v) next[i] = v;
+    else next.splice(i, 1);
     onChange(next);
   };
   return (
     <div className="min-w-0" data-charter-list={label}>
       <div className="flex items-center gap-1.5 mb-1">
         <Icon className="w-3 h-3" style={{ color: "var(--sol-text-dim)" }} />
-        <span className="text-mark font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--sol-text-dim)" }}>{label}</span>
-        {items.length > 0 && <span className="text-meta tabular-nums" style={{ color: "var(--sol-text-dim)" }}>{items.length}</span>}
+        <span
+          className="text-mark font-semibold uppercase tracking-[0.08em]"
+          style={{ color: "var(--sol-text-dim)" }}
+        >
+          {label}
+        </span>
+        {items.length > 0 && (
+          <span
+            className="text-meta tabular-nums"
+            style={{ color: "var(--sol-text-dim)" }}
+          >
+            {items.length}
+          </span>
+        )}
       </div>
       <ul className="space-y-0.5">
         {items.map((item, i) => (
-          <li key={`${i}:${item}`} className="group/item flex items-start gap-2 text-[12.5px] leading-snug" style={{ color: "var(--sol-text)" }}>
+          <li
+            key={`${i}:${item}`}
+            className="group/item flex items-start gap-2 text-[12.5px] leading-snug"
+            style={{ color: "var(--sol-text)" }}
+          >
             <span className="mt-[5px] shrink-0">{marker(i)}</span>
-            <InlineEdit value={item} canEdit={canEdit} onSave={(v) => setAt(i, v)} className="text-[12.5px] flex-1" ariaLabel={`${singular} ${i + 1}`} />
+            <InlineEdit
+              value={item}
+              canEdit={canEdit}
+              onSave={(v) => setAt(i, v)}
+              className="text-[12.5px] flex-1"
+              ariaLabel={`${singular} ${i + 1}`}
+            />
             {canEdit && (
-              <button type="button" onClick={() => setAt(i, "")} className="mt-[3px] shrink-0 opacity-0 group-hover/item:opacity-60 focus-visible:opacity-100 hover:!opacity-100 transition-opacity" aria-label={`Remove ${singular} ${i + 1}`} style={{ color: "var(--sol-text-dim)" }}>
+              <button
+                type="button"
+                onClick={() => setAt(i, "")}
+                className="mt-[3px] shrink-0 opacity-0 group-hover/item:opacity-60 focus-visible:opacity-100 hover:!opacity-100 transition-opacity"
+                aria-label={`Remove ${singular} ${i + 1}`}
+                style={{ color: "var(--sol-text-dim)" }}
+              >
                 <X className="w-3 h-3" />
               </button>
             )}
           </li>
         ))}
         {canEdit && (
-          <li className="flex items-start gap-2 text-[12px]" style={{ color: "var(--sol-text-dim)" }}>
+          <li
+            className="flex items-start gap-2 text-[12px]"
+            style={{ color: "var(--sol-text-dim)" }}
+          >
             <Plus className="w-3 h-3 mt-[5px] shrink-0" />
-            <InlineEdit value="" canEdit placeholder={placeholder} onSave={(v) => { if (v) onChange([...items, v]); }} className="text-[12px] flex-1" ariaLabel={`New ${singular.toLowerCase()}`} />
+            <InlineEdit
+              value=""
+              canEdit
+              placeholder={placeholder}
+              onSave={(v) => {
+                if (v) onChange([...items, v]);
+              }}
+              className="text-[12px] flex-1"
+              ariaLabel={`New ${singular.toLowerCase()}`}
+            />
           </li>
         )}
       </ul>
@@ -103,12 +163,27 @@ function ListField({ label, singular, icon: Icon, items, canEdit, onChange, plac
 /** Advisory: what the owner role should spend on this line per day. Written
  *  on the project; the role's caps still bound the actual spend. */
 
-export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, onHire, ownerBlockedReason, hideOwner, hideGoal, plain, className }: CharterBlockProps) {
+export function CharterBlock({
+  kind,
+  title,
+  charter,
+  canEdit,
+  onChange,
+  roles,
+  onHire,
+  ownerBlockedReason,
+  hideOwner,
+  hideGoal,
+  plain,
+  className,
+}: CharterBlockProps) {
   // "No charter yet" until someone opens the fields or a value lands.
   const [opened, setOpened] = useState(false);
   const filled = hasCharter(charter);
   const head = headOfPeopleOf(roles);
-  const accent = charter.priority ? PRIORITY_META[charter.priority].color : "color-mix(in srgb, var(--sol-border) 70%, transparent)";
+  const accent = charter.priority
+    ? PRIORITY_META[charter.priority].color
+    : "color-mix(in srgb, var(--sol-border) 70%, transparent)";
 
   // The ask always goes to /org with the composer prefilled: with a head of
   // people the draft request lands in its standing session; without one the
@@ -121,24 +196,52 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
   const rolesLoaded = roles != null;
   const orgOn = useWorkspaceFeature("org");
   const hires = rolesLoaded && !head;
-  const askLabel = head ? `Ask @${head.handle} to draft one` : hires ? "Hire a Head of People to draft one" : "Ask the Head of People to draft one";
+  const askLabel = head
+    ? `Ask @${head.handle} to draft one`
+    : hires
+      ? "Hire a Head of People to draft one"
+      : "Ask the Head of People to draft one";
   const AskIcon = hires ? UserRoundPlus : Sparkles;
   if (!filled && !opened && !plain) {
     return (
-      <div className={cn("flex items-center gap-2 text-[12px] flex-wrap", className)} data-charter="empty">
-        <Compass className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sol-text-dim)" }} />
+      <div
+        className={cn(
+          "flex items-center gap-2 text-[12px] flex-wrap",
+          className,
+        )}
+        data-charter="empty"
+      >
+        <Compass
+          className="w-3.5 h-3.5 shrink-0"
+          style={{ color: "var(--sol-text-dim)" }}
+        />
         <span style={{ color: "var(--sol-text-dim)" }}>No charter yet.</span>
-        {orgOn && (<Link
-          href={composeCharterHref(title)}
-          className="inline-flex items-center gap-1 font-medium hover:underline"
-          style={{ color: "var(--sol-cyan)" }}
-          title={head ? `Sends "draft a charter for ${title}" to @${head.handle}` : hires ? "Opens the org page on hiring a Head of People; the draft request follows the hire" : "Sends the draft request to the Head of People"}
-          data-charter-ask={head ? "ask" : hires ? "hire" : "unknown"}
-        >
-          <AskIcon className="w-3 h-3" /> {askLabel}
-        </Link>)}
+        {orgOn && (
+          <Link
+            href={composeCharterHref(title)}
+            className="inline-flex items-center gap-1 font-medium hover:underline"
+            style={{ color: "var(--sol-cyan)" }}
+            title={
+              head
+                ? `Sends "draft a charter for ${title}" to @${head.handle}`
+                : hires
+                  ? "Opens the org page on hiring a Head of People; the draft request follows the hire"
+                  : "Sends the draft request to the Head of People"
+            }
+            data-charter-ask={head ? "ask" : hires ? "hire" : "unknown"}
+          >
+            <AskIcon className="w-3 h-3" /> {askLabel}
+          </Link>
+        )}
         {canEdit && (
-          <button type="button" onClick={() => setOpened(true)} className="hover:underline" style={{ color: "var(--sol-text-dim)" }}>or write it</button>
+          <button
+            type="button"
+            onClick={() => setOpened(true)}
+            className="hover:underline"
+            style={{ color: "var(--sol-text-dim)" }}
+          >
+            or write it
+          </button>
         )}
       </div>
     );
@@ -147,30 +250,60 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
   const metrics = charter.success_metrics ?? [];
   const nonGoals = charter.non_goals ?? [];
   const risks = charter.risks ?? [];
-  const showOwner = hideOwner ? false : kind === "project" ? true : !!charter.owner_role_id || canEdit;
+  const showOwner = hideOwner
+    ? false
+    : kind === "project"
+      ? true
+      : !!charter.owner_role_id || canEdit;
 
   return (
     <section
-      className={cn("relative", !plain && "rounded-lg border pl-4 pr-3.5 py-3", className)}
-      style={plain ? undefined : { borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)", background: "color-mix(in srgb, var(--sol-card) 60%, transparent)" }}
+      className={cn(
+        "relative",
+        !plain && "rounded-lg border pl-4 pr-3.5 py-3",
+        className,
+      )}
+      style={
+        plain
+          ? undefined
+          : {
+              borderColor:
+                "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+              background:
+                "color-mix(in srgb, var(--sol-card) 60%, transparent)",
+            }
+      }
       data-charter={kind}
       aria-label="Charter"
     >
       {/* The rule carries the priority colour: the block reads at a glance from across the room. */}
-      {!plain && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: accent }} />}
+      {!plain && (
+        <span
+          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+          style={{ background: accent }}
+        />
+      )}
 
       <div className="flex items-center gap-2 flex-wrap mb-2">
         {!plain && (
-          <span className="inline-flex items-center gap-1.5 text-mark font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--sol-text-dim)" }}>
+          <span
+            className="inline-flex items-center gap-1.5 text-mark font-semibold uppercase tracking-[0.08em]"
+            style={{ color: "var(--sol-text-dim)" }}
+          >
             <Compass className="w-3 h-3" /> Charter
           </span>
         )}
-        <PriorityPill priority={charter.priority} onChange={canEdit ? (p) => onChange({ priority: p }) : undefined} />
+        <PriorityPill
+          priority={charter.priority}
+          onChange={canEdit ? (p) => onChange({ priority: p }) : undefined}
+        />
         {showOwner && (
           <OwnerRoleChip
             roles={roles}
             ownerRoleId={charter.owner_role_id}
-            onChange={canEdit ? (id) => onChange({ owner_role_id: id }) : undefined}
+            onChange={
+              canEdit ? (id) => onChange({ owner_role_id: id }) : undefined
+            }
             onHire={canEdit && kind === "project" ? onHire : undefined}
             blockedReason={ownerBlockedReason}
           />
@@ -183,7 +316,11 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
             value={charter.goal ?? ""}
             canEdit={canEdit}
             multiline
-            placeholder={kind === "project" ? "What this project is for, in one paragraph a new hire could act on." : "What this plan delivers and how you will know it landed."}
+            placeholder={
+              kind === "project"
+                ? "What this project is for, in one paragraph a new hire could act on."
+                : "What this plan delivers and how you will know it landed."
+            }
             onSave={(v) => onChange({ goal: v })}
             ariaLabel="What it is for"
             className="text-[13.5px] leading-relaxed whitespace-pre-wrap"
@@ -193,7 +330,12 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
       )}
 
       {(metrics.length + nonGoals.length + risks.length > 0 || canEdit) && (
-        <div className={cn(!hideGoal && "mt-3", "grid gap-x-6 gap-y-3")} style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <div
+          className={cn(!hideGoal && "mt-3", "grid gap-x-6 gap-y-3")}
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
           <ListField
             label="Signs it works"
             singular="Sign it works"
@@ -202,7 +344,15 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
             canEdit={canEdit}
             onChange={(next) => onChange({ success_metrics: next })}
             placeholder="Add a sign it works"
-            marker={() => <span className="inline-block w-3 h-3 rounded-[3px] border" style={{ borderColor: "color-mix(in srgb, var(--sol-green) 70%, transparent)" }} />}
+            marker={() => (
+              <span
+                className="inline-block w-3 h-3 rounded-[3px] border"
+                style={{
+                  borderColor:
+                    "color-mix(in srgb, var(--sol-green) 70%, transparent)",
+                }}
+              />
+            )}
           />
           <ListField
             label="Non goals"
@@ -212,7 +362,12 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
             canEdit={canEdit}
             onChange={(next) => onChange({ non_goals: next })}
             placeholder="Add a non goal"
-            marker={() => <Ban className="w-3 h-3" style={{ color: "var(--sol-text-dim)" }} />}
+            marker={() => (
+              <Ban
+                className="w-3 h-3"
+                style={{ color: "var(--sol-text-dim)" }}
+              />
+            )}
           />
           {kind === "project" && (
             <ListField
@@ -223,7 +378,12 @@ export function CharterBlock({ kind, title, charter, canEdit, onChange, roles, o
               canEdit={canEdit}
               onChange={(next) => onChange({ risks: next })}
               placeholder="Add a risk"
-              marker={() => <AlertTriangle className="w-3 h-3" style={{ color: "var(--sol-orange)" }} />}
+              marker={() => (
+                <AlertTriangle
+                  className="w-3 h-3"
+                  style={{ color: "var(--sol-orange)" }}
+                />
+              )}
             />
           )}
         </div>

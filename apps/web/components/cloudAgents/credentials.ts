@@ -1,5 +1,11 @@
 import { useCallback, useMemo } from "react";
-import { isCloudAgentCredentialKind, signInExpired, type CloudAgentProviderId, type CloudAgentProviderSpec, type CloudAgentSetupBlock } from "@codecast/shared/contracts";
+import {
+  isCloudAgentCredentialKind,
+  signInExpired,
+  type CloudAgentProviderId,
+  type CloudAgentProviderSpec,
+  type CloudAgentSetupBlock,
+} from "@codecast/shared/contracts";
 import type { Device } from "../DeviceBadge";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
@@ -7,7 +13,10 @@ import { deviceManagedKeys } from "../../lib/useProviderKeyCommand";
 
 type ConnectedCheck = (device: Device) => boolean;
 /** Where a machine's sign-in stands: connected, or when the sign-in it had ran out. */
-type SignInCheck = (device: Device) => { connected: boolean; expiredAt?: number };
+type SignInCheck = (device: Device) => {
+  connected: boolean;
+  expiredAt?: number;
+};
 
 /** A machine is connected to a key-based provider when it manages that provider's key. */
 function hasCloudAgentKey(keyProvider: string): ConnectedCheck {
@@ -22,11 +31,18 @@ function hasCloudAgentKey(keyProvider: string): ConnectedCheck {
 function useCodexSignIn(): SignInCheck {
   const devices = useSettingsData("accountProfiles").data?.devices;
   const now = useCoarseNow(60_000);
-  return useCallback((device) => {
-    const login = devices?.find((d) => d.device_id === device.device_id)?.codex_accounts;
-    if (!login?.active_email) return { connected: false };
-    return signInExpired(login.active_expires_at, now) ? { connected: false, expiredAt: login.active_expires_at } : { connected: true };
-  }, [devices, now]);
+  return useCallback(
+    (device) => {
+      const login = devices?.find(
+        (d) => d.device_id === device.device_id,
+      )?.codex_accounts;
+      if (!login?.active_email) return { connected: false };
+      return signInExpired(login.active_expires_at, now)
+        ? { connected: false, expiredAt: login.active_expires_at }
+        : { connected: true };
+    },
+    [devices, now],
+  );
 }
 
 const NEVER: ConnectedCheck = () => false;
@@ -42,8 +58,13 @@ function blocksConnection(block: CloudAgentSetupBlock | undefined): boolean {
 }
 
 /** What the machine's daemon last found keeps it from reading the provider (turned off for the account, refused), if anything. */
-export function cloudAgentBlockOf(spec: CloudAgentProviderSpec | undefined, device: Device): CloudAgentSetupBlock | undefined {
-  return spec ? device.cloud_agent_blocks?.find((b) => b.provider === spec.id) : undefined;
+export function cloudAgentBlockOf(
+  spec: CloudAgentProviderSpec | undefined,
+  device: Device,
+): CloudAgentSetupBlock | undefined {
+  return spec
+    ? device.cloud_agent_blocks?.find((b) => b.provider === spec.id)
+    : undefined;
 }
 
 /**
@@ -53,17 +74,29 @@ export function cloudAgentBlockOf(spec: CloudAgentProviderSpec | undefined, devi
  */
 function useSignInChecks(): Partial<Record<string, SignInCheck>> {
   const codex = useCodexSignIn();
-  return useMemo(() => ({ codex }) satisfies Partial<Record<CloudAgentProviderId, SignInCheck>>, [codex]);
+  return useMemo(
+    () =>
+      ({ codex }) satisfies Partial<Record<CloudAgentProviderId, SignInCheck>>,
+    [codex],
+  );
 }
 
-function useSignInCheck(spec: CloudAgentProviderSpec | undefined): SignInCheck | undefined {
+function useSignInCheck(
+  spec: CloudAgentProviderSpec | undefined,
+): SignInCheck | undefined {
   const checks = useSignInChecks();
   return spec ? checks[spec.id] : undefined;
 }
 
 /** Whether a machine holds a provider's credential (`signIn`: the provider's sign-in check, if it has one) and its daemon found nothing in the way (blocksConnection). */
-function connectedWith(spec: CloudAgentProviderSpec, signIn: SignInCheck | undefined, device: Device): boolean {
-  const holds = signIn ? signIn(device).connected : !!spec.keyProvider && hasCloudAgentKey(spec.keyProvider)(device);
+function connectedWith(
+  spec: CloudAgentProviderSpec,
+  signIn: SignInCheck | undefined,
+  device: Device,
+): boolean {
+  const holds = signIn
+    ? signIn(device).connected
+    : !!spec.keyProvider && hasCloudAgentKey(spec.keyProvider)(device);
   return holds && !blocksConnection(cloudAgentBlockOf(spec, device));
 }
 
@@ -72,19 +105,32 @@ function connectedWith(spec: CloudAgentProviderSpec, signIn: SignInCheck | undef
  * provider): it holds the credential, and its daemon found nothing in the
  * provider's way (blocksConnection). Stable while what it reads holds still.
  */
-export function useCloudAgentConnected(spec: CloudAgentProviderSpec | undefined): ConnectedCheck {
+export function useCloudAgentConnected(
+  spec: CloudAgentProviderSpec | undefined,
+): ConnectedCheck {
   const signIn = useSignInCheck(spec);
-  return useMemo<ConnectedCheck>(() => spec ? (device) => connectedWith(spec, signIn, device) : NEVER, [spec, signIn]);
+  return useMemo<ConnectedCheck>(
+    () => (spec ? (device) => connectedWith(spec, signIn, device) : NEVER),
+    [spec, signIn],
+  );
 }
 
 /** useCloudAgentConnected for whichever provider is asked about at the time (a surface choosing between lanes). */
-export function useCloudAgentConnectedTo(): (spec: CloudAgentProviderSpec, device: Device) => boolean {
+export function useCloudAgentConnectedTo(): (
+  spec: CloudAgentProviderSpec,
+  device: Device,
+) => boolean {
   const checks = useSignInChecks();
-  return useCallback((spec, device) => connectedWith(spec, checks[spec.id], device), [checks]);
+  return useCallback(
+    (spec, device) => connectedWith(spec, checks[spec.id], device),
+    [checks],
+  );
 }
 
 /** When a machine's sign-in to the provider ran out, if it did (a key never runs out here). */
-export function useCloudAgentExpiry(spec: CloudAgentProviderSpec | undefined): (device: Device) => number | undefined {
+export function useCloudAgentExpiry(
+  spec: CloudAgentProviderSpec | undefined,
+): (device: Device) => number | undefined {
   const signIn = useSignInCheck(spec);
   return useCallback((device) => signIn?.(device).expiredAt, [signIn]);
 }

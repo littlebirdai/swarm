@@ -12,13 +12,18 @@ import { useIsModernStyle } from "../../hooks/useVisualStyle";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { Button } from "../ui/button";
 
-const RING = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sol-cyan";
+const RING =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sol-cyan";
 
 export function NewSessionButton({ variant }: { variant: "row" | "icon" }) {
   const openCompose = useInboxStore((s) => s.openCompose);
   if (variant === "row") {
     return (
-      <ShortcutTooltip label="New session" action="session.compose" side="right">
+      <ShortcutTooltip
+        label="New session"
+        action="session.compose"
+        side="right"
+      >
         <button
           type="button"
           data-new-session="row"

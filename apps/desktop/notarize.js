@@ -29,5 +29,7 @@ const AGENT_KEY = {
 };
 
 exports.default = createNotarizeHook({
-  env: existsSync(AGENT_KEY.APPLE_API_KEY) ? { ...process.env, ...AGENT_KEY } : process.env,
+  env: existsSync(AGENT_KEY.APPLE_API_KEY)
+    ? { ...process.env, ...AGENT_KEY }
+    : process.env,
 });

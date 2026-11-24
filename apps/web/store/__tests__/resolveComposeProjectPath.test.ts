@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { resolveComposeProjectPath, findProjectPathByName, bucketProjectPath } from "../inboxStore";
+import {
+  resolveComposeProjectPath,
+  findProjectPathByName,
+  bucketProjectPath,
+} from "../inboxStore";
 import type { InboxSession } from "../inboxStore";
 
 const recentProjects = [{ path: "/Users/j/code/recent" }];
@@ -42,7 +46,10 @@ describe("resolveComposeProjectPath", () => {
   it("keeps the conversation's own path (worktree/subdir) when it matches the filter", () => {
     expect(
       resolveComposeProjectPath({
-        conversation: { gitRoot: "/Users/j/code/codecast", projectPath: "/Users/j/code/codecast/apps/web" },
+        conversation: {
+          gitRoot: "/Users/j/code/codecast",
+          projectPath: "/Users/j/code/codecast/apps/web",
+        },
         activeProjectFilter: "codecast",
         activeProjectPath: "/Users/j/code/codecast",
         recentProjects,
@@ -63,39 +70,64 @@ describe("resolveComposeProjectPath", () => {
 
   it("falls back to the most recent project, then undefined", () => {
     expect(
-      resolveComposeProjectPath({ conversation: {}, activeProjectFilter: null, activeProjectPath: null, recentProjects }),
+      resolveComposeProjectPath({
+        conversation: {},
+        activeProjectFilter: null,
+        activeProjectPath: null,
+        recentProjects,
+      }),
     ).toBe("/Users/j/code/recent");
     expect(resolveComposeProjectPath({ conversation: {} })).toBeUndefined();
   });
 
   it("finds a named project among recents, sessions, then machine roots", () => {
     const sessions = {
-      s1: { _id: "s1", git_root: "/Users/j/code/codecast", project_path: "/Users/j/code/codecast" },
+      s1: {
+        _id: "s1",
+        git_root: "/Users/j/code/codecast",
+        project_path: "/Users/j/code/codecast",
+      },
     } as unknown as Record<string, InboxSession>;
     // Recent project wins.
     expect(
       findProjectPathByName("codecast", {
-        recentProjects: [{ path: "/Users/j/code/other" }, { path: "/Users/j/src/codecast" }],
+        recentProjects: [
+          { path: "/Users/j/code/other" },
+          { path: "/Users/j/src/codecast" },
+        ],
         sessions,
       }),
     ).toBe("/Users/j/src/codecast");
     // Then a session's checkout.
-    expect(findProjectPathByName("codecast", { recentProjects, sessions })).toBe("/Users/j/code/codecast");
+    expect(
+      findProjectPathByName("codecast", { recentProjects, sessions }),
+    ).toBe("/Users/j/code/codecast");
     // A teammate's checkout no machine of mine has is skipped; the roster's own root still resolves.
     expect(
       findProjectPathByName("codecast", {
         sessions: {
           s1: { _id: "s1", git_root: "/Users/samvit/dev/codecast" },
         } as unknown as Record<string, InboxSession>,
-        machineRoster: [{ local_project_roots: ["/Users/j/code/recent", "/Users/j/code/codecast"] }],
+        machineRoster: [
+          {
+            local_project_roots: [
+              "/Users/j/code/recent",
+              "/Users/j/code/codecast",
+            ],
+          },
+        ],
       }),
     ).toBe("/Users/j/code/codecast");
     // Nothing known → undefined.
-    expect(findProjectPathByName("codecast", { recentProjects })).toBeUndefined();
+    expect(
+      findProjectPathByName("codecast", { recentProjects }),
+    ).toBeUndefined();
   });
 
   it("never seeds from a teammate's conversation whose checkout no machine of mine has", () => {
-    const machineRoster = [{ local_project_roots: ["/Users/j/code/recent", "/Users/j/code/conv"] }];
+    const machineRoster = [
+      { local_project_roots: ["/Users/j/code/recent", "/Users/j/code/conv"] },
+    ];
     expect(
       resolveComposeProjectPath({
         conversation: { projectPath: "/Users/samvit/dev/codecast" },
@@ -135,20 +167,45 @@ describe("bucketProjectPath", () => {
   } as never;
 
   it("picks the most recently updated session filed under the active label", () => {
-    expect(bucketProjectPath({ activeBucketFilter: "codex", chipFilterExclude: false, sessions, bucketAssignments })).toBe(
-      "/Users/j/code/codex-proj",
-    );
+    expect(
+      bucketProjectPath({
+        activeBucketFilter: "codex",
+        chipFilterExclude: false,
+        sessions,
+        bucketAssignments,
+      }),
+    ).toBe("/Users/j/code/codex-proj");
   });
 
   it("seeds nothing for an exclude chip or no label", () => {
-    expect(bucketProjectPath({ activeBucketFilter: "codex", chipFilterExclude: true, sessions, bucketAssignments })).toBeUndefined();
-    expect(bucketProjectPath({ activeBucketFilter: null, chipFilterExclude: false, sessions, bucketAssignments })).toBeUndefined();
+    expect(
+      bucketProjectPath({
+        activeBucketFilter: "codex",
+        chipFilterExclude: true,
+        sessions,
+        bucketAssignments,
+      }),
+    ).toBeUndefined();
+    expect(
+      bucketProjectPath({
+        activeBucketFilter: null,
+        chipFilterExclude: false,
+        sessions,
+        bucketAssignments,
+      }),
+    ).toBeUndefined();
   });
 
   it("skips checkouts none of my machines have", () => {
     const machineRoster = [{ local_project_roots: ["/Users/j/code/old"] }];
     expect(
-      bucketProjectPath({ activeBucketFilter: "codex", chipFilterExclude: false, sessions, bucketAssignments, machineRoster }),
+      bucketProjectPath({
+        activeBucketFilter: "codex",
+        chipFilterExclude: false,
+        sessions,
+        bucketAssignments,
+        machineRoster,
+      }),
     ).toBe("/Users/j/code/old");
   });
 });
@@ -186,13 +243,22 @@ describe("resolveComposeProjectPath with a room's team", () => {
 
   it("falls back to the ordinary default when the team has no shared repo", () => {
     expect(
-      resolveComposeProjectPath({ conversation: { projectPath: "/Users/j/src/products" }, recentProjects: ranked, teamId: "other" }),
+      resolveComposeProjectPath({
+        conversation: { projectPath: "/Users/j/src/products" },
+        recentProjects: ranked,
+        teamId: "other",
+      }),
     ).toBe("/Users/j/src/products");
   });
 
   it("starts from the checkout when the viewed session runs in a worktree", () => {
     expect(
-      resolveComposeProjectPath({ conversation: { projectPath: "/home/ubuntu/work/codecast/.codecast/worktrees/cloud-5646a5" } }),
+      resolveComposeProjectPath({
+        conversation: {
+          projectPath:
+            "/home/ubuntu/work/codecast/.codecast/worktrees/cloud-5646a5",
+        },
+      }),
     ).toBe("/home/ubuntu/work/codecast");
   });
 });
@@ -237,7 +303,18 @@ describe("resolveComposeProjectPath with a teammate's project chip", () => {
   });
 
   it("a saved default project beats the conversation on screen, not an explicit caller context", () => {
-    expect(resolveComposeProjectPath({ conversation: { projectPath: "/Users/me/src/a" }, defaultProject: "/Users/me/src/b" })).toBe("/Users/me/src/b");
-    expect(resolveComposeProjectPath({ context: { projectPath: "/Users/me/src/c" }, conversation: {}, defaultProject: "/Users/me/src/b" })).toBe("/Users/me/src/c");
+    expect(
+      resolveComposeProjectPath({
+        conversation: { projectPath: "/Users/me/src/a" },
+        defaultProject: "/Users/me/src/b",
+      }),
+    ).toBe("/Users/me/src/b");
+    expect(
+      resolveComposeProjectPath({
+        context: { projectPath: "/Users/me/src/c" },
+        conversation: {},
+        defaultProject: "/Users/me/src/b",
+      }),
+    ).toBe("/Users/me/src/c");
   });
 });

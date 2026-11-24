@@ -59,11 +59,16 @@ export const DESKTOP_APPS = /** @type {const} */ ({
 });
 
 /** @type {readonly DesktopApp[]} */
-export const DESKTOP_APP_NAMES = /** @type {DesktopApp[]} */ (Object.keys(DESKTOP_APPS));
+export const DESKTOP_APP_NAMES = /** @type {DesktopApp[]} */ (
+  Object.keys(DESKTOP_APPS)
+);
 
 /** True for a string naming one of the apps. */
 export function isDesktopApp(name) {
-  return typeof name === "string" && Object.prototype.hasOwnProperty.call(DESKTOP_APPS, name);
+  return (
+    typeof name === "string" &&
+    Object.prototype.hasOwnProperty.call(DESKTOP_APPS, name)
+  );
 }
 
 function cleanPath(path) {
@@ -93,7 +98,11 @@ export function sectionForRoute(app, path) {
   if (!isDesktopApp(app)) return null;
   const clean = cleanPath(path);
   const under = (prefix) => clean === prefix || clean.startsWith(prefix + "/");
-  return DESKTOP_APPS[app].sections.find((s) => under(s.path) || (s.also ?? []).some(under)) ?? null;
+  return (
+    DESKTOP_APPS[app].sections.find(
+      (s) => under(s.path) || (s.also ?? []).some(under),
+    ) ?? null
+  );
 }
 
 /**

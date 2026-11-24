@@ -3,7 +3,11 @@
 export { SessionFace } from "./SessionFace";
 export { SessionGlyph } from "./SessionGlyph";
 export { SessionIdentityLine } from "./SessionIdentityLine";
-export { SessionHoverCard, SessionHoverCardContent, SessionIdentityHeader } from "./SessionHoverCard";
+export {
+  SessionHoverCard,
+  SessionHoverCardContent,
+  SessionIdentityHeader,
+} from "./SessionHoverCard";
 export { RoleHoverCard, RoleHoverContent, type RoleRef } from "./RoleHoverCard";
 export { IdentityFace, IdentityHover } from "./IdentityFace";
 export { SessionMark, SessionTag, type SessionTagSize } from "./SessionTag";

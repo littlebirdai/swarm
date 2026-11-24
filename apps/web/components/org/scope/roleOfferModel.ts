@@ -3,7 +3,11 @@
 // Company review trigger, whether the seat is working, and the workspace's
 // proposals, and says which one state the row is in. One state at a time, so
 // a run in flight is never started twice from here.
-import { COMPANY_REVIEW_TITLE, orgReviewFocusOf, type OrgReviewFocusKey } from "@codecast/shared/contracts/orgReview";
+import {
+  COMPANY_REVIEW_TITLE,
+  orgReviewFocusOf,
+  type OrgReviewFocusKey,
+} from "@codecast/shared/contracts/orgReview";
 
 export type RoleOfferTrigger = {
   id: string;
@@ -17,7 +21,13 @@ export type RoleOfferTrigger = {
   focus: string | null;
 };
 
-export type RoleOfferProposal = { _id: string; short_id: string; title: string; status: string; created_at: number };
+export type RoleOfferProposal = {
+  _id: string;
+  short_id: string;
+  title: string;
+  status: string;
+  created_at: number;
+};
 
 export type RoleOfferInput = {
   trigger: RoleOfferTrigger | null;
@@ -36,10 +46,25 @@ export type RoleOffer =
   | { kind: "none" }
   | { kind: "paused"; trigger: RoleOfferTrigger }
   /** Asked for, not yet picked up by the daemon. */
-  | { kind: "starting"; trigger: RoleOfferTrigger; focus: RoleOfferFocus | null; since: number }
+  | {
+      kind: "starting";
+      trigger: RoleOfferTrigger;
+      focus: RoleOfferFocus | null;
+      since: number;
+    }
   /** The run landed in the thread and the seat is still on it. */
-  | { kind: "reviewing"; trigger: RoleOfferTrigger; focus: RoleOfferFocus | null; since: number }
-  | { kind: "offer"; trigger: RoleOfferTrigger; setUp: boolean; open: RoleOfferProposal | null };
+  | {
+      kind: "reviewing";
+      trigger: RoleOfferTrigger;
+      focus: RoleOfferFocus | null;
+      since: number;
+    }
+  | {
+      kind: "offer";
+      trigger: RoleOfferTrigger;
+      setUp: boolean;
+      open: RoleOfferProposal | null;
+    };
 
 /** How long after a run lands the seat's work still counts as that review. */
 export const REVIEW_WINDOW_MS = 2 * 60 * 60 * 1000;
@@ -56,19 +81,44 @@ export function deriveRoleOffer(input: RoleOfferInput): RoleOffer {
   // daemon has delivered the run.
   const runAt = t.run_at ?? 0;
   const lastRun = t.last_run_at ?? 0;
-  if (t.status === "running" || (t.requested && lastRun < runAt)) return { kind: "starting", trigger: t, focus, since: runAt || input.now };
-  const newest = input.proposals.reduce<RoleOfferProposal | null>((best, p) => (!best || p.created_at > best.created_at ? p : best), null);
+  if (t.status === "running" || (t.requested && lastRun < runAt))
+    return { kind: "starting", trigger: t, focus, since: runAt || input.now };
+  const newest = input.proposals.reduce<RoleOfferProposal | null>(
+    (best, p) => (!best || p.created_at > best.created_at ? p : best),
+    null,
+  );
   const landedSince = !!newest && newest.created_at >= lastRun;
-  if (lastRun > 0 && input.now - lastRun < REVIEW_WINDOW_MS && input.working && !landedSince) return { kind: "reviewing", trigger: t, focus, since: lastRun };
-  const open = input.proposals.filter((p) => p.status === "open").sort((a, b) => b.created_at - a.created_at)[0] ?? null;
-  return { kind: "offer", trigger: t, setUp: input.proposals.length === 0, open };
+  if (
+    lastRun > 0 &&
+    input.now - lastRun < REVIEW_WINDOW_MS &&
+    input.working &&
+    !landedSince
+  )
+    return { kind: "reviewing", trigger: t, focus, since: lastRun };
+  const open =
+    input.proposals
+      .filter((p) => p.status === "open")
+      .sort((a, b) => b.created_at - a.created_at)[0] ?? null;
+  return {
+    kind: "offer",
+    trigger: t,
+    setUp: input.proposals.length === 0,
+    open,
+  };
 }
 
 /** The Company review among a seat's triggers (the title is how every reader
  *  finds the routine), a live one first. */
-export function companyReviewOf(tasks: readonly { title?: string; status: string }[]): any | null {
+export function companyReviewOf(
+  tasks: readonly { title?: string; status: string }[],
+): any | null {
   const mine = tasks.filter((t) => t.title === COMPANY_REVIEW_TITLE);
-  return mine.find((t) => t.status === "scheduled" || t.status === "running") ?? mine.find((t) => t.status === "paused") ?? mine[0] ?? null;
+  return (
+    mine.find((t) => t.status === "scheduled" || t.status === "running") ??
+    mine.find((t) => t.status === "paused") ??
+    mine[0] ??
+    null
+  );
 }
 
 /** The trigger row as the offer reads it. */

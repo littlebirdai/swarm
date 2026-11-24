@@ -93,14 +93,25 @@ export function mirrorRowNeedsWrite(
     scan_id?: string;
     body_storage_id?: string;
   } | null,
-  incoming: { content_hash: string; title: string; mtime: number; size: number; body_storage_id?: string },
+  incoming: {
+    content_hash: string;
+    title: string;
+    mtime: number;
+    size: number;
+    body_storage_id?: string;
+  },
   scanId?: string,
 ): boolean {
   if (!existing) return true;
   if (existing.content_hash !== incoming.content_hash) return true;
   if (existing.title !== incoming.title) return true;
-  if (existing.mtime !== incoming.mtime || existing.size !== incoming.size) return true;
-  if (incoming.body_storage_id && incoming.body_storage_id !== existing.body_storage_id) return true;
+  if (existing.mtime !== incoming.mtime || existing.size !== incoming.size)
+    return true;
+  if (
+    incoming.body_storage_id &&
+    incoming.body_storage_id !== existing.body_storage_id
+  )
+    return true;
   // An unchanged row still has to be re-stamped, or the completion sweep would
   // delete every note the scan legitimately found unchanged.
   if (scanId !== undefined && existing.scan_id !== scanId) return true;
@@ -114,7 +125,9 @@ export function mirrorRowNeedsWrite(
  *
  * Pure — unit-tested without a backend.
  */
-export function clampMirrorNote<T extends { tags: string[]; links: string[] }>(note: T): T {
+export function clampMirrorNote<T extends { tags: string[]; links: string[] }>(
+  note: T,
+): T {
   return {
     ...note,
     tags: note.tags.slice(0, VAULT_MIRROR_MAX_TAGS),
@@ -143,7 +156,11 @@ export const cliBodyUploadUrl = mutation({
   handler: async (ctx, args): Promise<string> => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const token = crypto.randomUUID();
-    await ctx.db.insert("vault_upload_tickets", { token, user_id: userId, expires_at: Date.now() + UPLOAD_TICKET_TTL_MS });
+    await ctx.db.insert("vault_upload_tickets", {
+      token,
+      user_id: userId,
+      expires_at: Date.now() + UPLOAD_TICKET_TTL_MS,
+    });
     const site = (process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "");
     return `${site}${VAULT_BODY_UPLOAD_PATH}?ticket=${token}`;
   },
@@ -155,9 +172,15 @@ export const consumeUploadTicket = internalMutation({
   args: { token: v.string() },
   handler: async (ctx, args): Promise<Id<"users"> | null> => {
     const now = Date.now();
-    const row = await ctx.db.query("vault_upload_tickets").withIndex("by_token", (q: any) => q.eq("token", args.token)).first();
+    const row = await ctx.db
+      .query("vault_upload_tickets")
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
     if (row) await ctx.db.delete(row._id);
-    const stale = await ctx.db.query("vault_upload_tickets").withIndex("by_expires_at", (q: any) => q.lt("expires_at", now)).take(20);
+    const stale = await ctx.db
+      .query("vault_upload_tickets")
+      .withIndex("by_expires_at", (q: any) => q.lt("expires_at", now))
+      .take(20);
     for (const s of stale) await ctx.db.delete(s._id);
     return row && row.expires_at > now ? row.user_id : null;
   },
@@ -165,22 +188,42 @@ export const consumeUploadTicket = internalMutation({
 
 export const uploadBody = httpAction(async (ctx, request) => {
   const out = (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   const token = new URL(request.url).searchParams.get("ticket") ?? "";
-  const userId: Id<"users"> | null = token ? await ctx.runMutation(internal.vaultMirror.consumeUploadTicket, { token }) : null;
+  const userId: Id<"users"> | null = token
+    ? await ctx.runMutation(internal.vaultMirror.consumeUploadTicket, { token })
+    : null;
   if (!userId) return out({ error: "Unauthorized" }, 401);
   const body = await request.blob();
-  if (body.size > MAX_BODY_UPLOAD_BYTES) return out({ error: "Body too large" }, 413);
-  const storageId = await ctx.storage.store(new Blob([body], { type: request.headers.get("content-type") || "text/markdown" }));
-  await ctx.runMutation(internal.artifacts.recordUpload, { user_id: userId, storage_id: storageId });
+  if (body.size > MAX_BODY_UPLOAD_BYTES)
+    return out({ error: "Body too large" }, 413);
+  const storageId = await ctx.storage.store(
+    new Blob([body], {
+      type: request.headers.get("content-type") || "text/markdown",
+    }),
+  );
+  await ctx.runMutation(internal.artifacts.recordUpload, {
+    user_id: userId,
+    storage_id: storageId,
+  });
   return out({ storageId });
 });
 
 /** Claim an uploaded body for a row: true when `userId` uploaded it and nobody
  *  claimed it yet. Claiming removes the upload record, so the sweep spares the
  *  blob and no second row can claim it. */
-async function claimBody(ctx: MutationCtx, userId: Id<"users">, storageId: Id<"_storage">): Promise<boolean> {
-  const row = await ctx.db.query("artifact_uploads").withIndex("by_storage_id", (q: any) => q.eq("storage_id", storageId)).first();
+async function claimBody(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  storageId: Id<"_storage">,
+): Promise<boolean> {
+  const row = await ctx.db
+    .query("artifact_uploads")
+    .withIndex("by_storage_id", (q: any) => q.eq("storage_id", storageId))
+    .first();
   if (!row || row.user_id !== userId) return false;
   await ctx.db.delete(row._id);
   return true;
@@ -189,7 +232,10 @@ async function claimBody(ctx: MutationCtx, userId: Id<"users">, storageId: Id<"_
 /** Drop a body blob, tolerating an id that storage no longer has. One row owns
  *  one blob (claimBody enforces it), so this is always safe: no other row can
  *  be pointing at it. */
-async function dropBody(ctx: MutationCtx, storageId?: Id<"_storage">): Promise<void> {
+async function dropBody(
+  ctx: MutationCtx,
+  storageId?: Id<"_storage">,
+): Promise<void> {
   if (!storageId) return;
   await ctx.storage.delete(storageId).catch(() => {});
 }
@@ -206,7 +252,11 @@ async function findNote(
   return await ctx.db
     .query("vault_notes")
     .withIndex("by_user_vault_device", (q: any) =>
-      q.eq("user_id", userId).eq("vault_id", vaultId).eq("device_id", deviceId).eq("path", path),
+      q
+        .eq("user_id", userId)
+        .eq("vault_id", vaultId)
+        .eq("device_id", deviceId)
+        .eq("path", path),
     )
     .first();
 }
@@ -247,12 +297,22 @@ export const cliRegisterMirror = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    const existing = await findMirror(ctx, userId, args.vault_id, args.device_id);
+    const existing = await findMirror(
+      ctx,
+      userId,
+      args.vault_id,
+      args.device_id,
+    );
 
     if (args.enabled === false) {
       // Notes go first: a caller that stops looping mid-purge leaves the mirror
       // row behind as the marker that there is still something to clean up.
-      const { removed, more } = await purgeVaultNotes(ctx, userId, args.vault_id, args.device_id);
+      const { removed, more } = await purgeVaultNotes(
+        ctx,
+        userId,
+        args.vault_id,
+        args.device_id,
+      );
       if (!more && existing) await ctx.db.delete(existing._id);
       return { ok: true, enabled: false, removed, more };
     }
@@ -285,7 +345,8 @@ async function purgeVaultNotes(
   const rows = await ctx.db
     .query("vault_notes")
     .withIndex("by_user_vault_device", (q: any) =>
-      q.eq("user_id", userId).eq("vault_id", vaultId).eq("device_id", deviceId))
+      q.eq("user_id", userId).eq("vault_id", vaultId).eq("device_id", deviceId),
+    )
     .take(SWEEP_WALK_BUDGET);
   let removed = 0;
   for (const row of rows) {
@@ -329,7 +390,9 @@ export const cliUpsertNotes = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     if (args.notes.length > MAX_UPSERT_BATCH) {
-      throw new Error(`Batch too large: ${args.notes.length} notes (max ${MAX_UPSERT_BATCH})`);
+      throw new Error(
+        `Batch too large: ${args.notes.length} notes (max ${MAX_UPSERT_BATCH})`,
+      );
     }
     const now = Date.now();
     let upserted = 0;
@@ -337,10 +400,20 @@ export const cliUpsertNotes = mutation({
 
     for (const raw of args.notes) {
       const note = clampMirrorNote(raw as IncomingNote);
-      const existingRow = await findNote(ctx, userId, args.vault_id, args.device_id, note.path);
+      const existingRow = await findNote(
+        ctx,
+        userId,
+        args.vault_id,
+        args.device_id,
+        note.path,
+      );
       // A new body id counts only with proof the caller uploaded it; without
       // it the note lands as metadata-only, as a failed upload would.
-      if (note.body_storage_id && note.body_storage_id !== existingRow?.body_storage_id && !(await claimBody(ctx, userId, note.body_storage_id))) {
+      if (
+        note.body_storage_id &&
+        note.body_storage_id !== existingRow?.body_storage_id &&
+        !(await claimBody(ctx, userId, note.body_storage_id))
+      ) {
         delete note.body_storage_id;
       }
       const existing = existingRow;
@@ -350,11 +423,17 @@ export const cliUpsertNotes = mutation({
       // the moment the new one lands — dropping it here is what keeps storage
       // from growing by one blob per edit.
       const keepBody =
-        existing && existing.content_hash === note.content_hash && !note.body_storage_id
+        existing &&
+        existing.content_hash === note.content_hash &&
+        !note.body_storage_id
           ? existing.body_storage_id
           : undefined;
       const nextBody = note.body_storage_id ?? keepBody;
-      if (existing && existing.body_storage_id && existing.body_storage_id !== nextBody) {
+      if (
+        existing &&
+        existing.body_storage_id &&
+        existing.body_storage_id !== nextBody
+      ) {
         await dropBody(ctx, existing.body_storage_id);
       }
 
@@ -392,14 +471,26 @@ export const cliUpsertNotes = mutation({
     }
     if (args.scan_id) {
       for (const path of stampPaths) {
-        const row = await findNote(ctx, userId, args.vault_id, args.device_id, path);
+        const row = await findNote(
+          ctx,
+          userId,
+          args.vault_id,
+          args.device_id,
+          path,
+        );
         if (!row || row.scan_id === args.scan_id) continue;
         await ctx.db.patch(row._id, { scan_id: args.scan_id });
       }
     }
 
     for (const path of args.deleted_paths ?? []) {
-      const row = await findNote(ctx, userId, args.vault_id, args.device_id, path);
+      const row = await findNote(
+        ctx,
+        userId,
+        args.vault_id,
+        args.device_id,
+        path,
+      );
       if (!row) continue;
       await dropBody(ctx, row.body_storage_id);
       await ctx.db.delete(row._id);
@@ -415,7 +506,9 @@ export const cliUpsertNotes = mutation({
             .eq("user_id", userId)
             .eq("vault_id", args.vault_id)
             .eq("device_id", args.device_id);
-          return args.sweep_after_path === undefined ? base : base.gt("path", args.sweep_after_path);
+          return args.sweep_after_path === undefined
+            ? base
+            : base.gt("path", args.sweep_after_path);
         })
         .take(SWEEP_WALK_BUDGET);
       for (const row of walked) {
@@ -425,14 +518,19 @@ export const cliUpsertNotes = mutation({
         deleted++;
       }
       // A short walk means the index is exhausted and the sweep is finished.
-      sweepAfter = walked.length === SWEEP_WALK_BUDGET ? walked[walked.length - 1].path : null;
+      sweepAfter =
+        walked.length === SWEEP_WALK_BUDGET
+          ? walked[walked.length - 1].path
+          : null;
     }
 
     const mirror = await findMirror(ctx, userId, args.vault_id, args.device_id);
     if (mirror) {
       await ctx.db.patch(mirror._id, {
         name: args.vault_name,
-        ...(args.note_count === undefined ? {} : { note_count: args.note_count }),
+        ...(args.note_count === undefined
+          ? {}
+          : { note_count: args.note_count }),
         last_synced_at: now,
       });
     }
@@ -493,7 +591,10 @@ export const webListNotes = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const limit = Math.min(Math.max(args.limit ?? DEFAULT_NOTES_PAGE, 1), MAX_NOTES_PAGE);
+    const limit = Math.min(
+      Math.max(args.limit ?? DEFAULT_NOTES_PAGE, 1),
+      MAX_NOTES_PAGE,
+    );
     const after = (idx: any) =>
       args.after_path === undefined ? idx : idx.gt("path", args.after_path);
     const rows = args.device_id
@@ -501,7 +602,10 @@ export const webListNotes = query({
           .query("vault_notes")
           .withIndex("by_user_vault_device", (idx: any) =>
             after(
-              idx.eq("user_id", userId).eq("vault_id", args.vault_id).eq("device_id", args.device_id),
+              idx
+                .eq("user_id", userId)
+                .eq("vault_id", args.vault_id)
+                .eq("device_id", args.device_id),
             ),
           )
           .take(limit + 1)
@@ -557,12 +661,18 @@ export const webGetNote = query({
       : await ctx.db
           .query("vault_notes")
           .withIndex("by_user_vault", (q: any) =>
-            q.eq("user_id", userId).eq("vault_id", args.vault_id).eq("path", args.path))
+            q
+              .eq("user_id", userId)
+              .eq("vault_id", args.vault_id)
+              .eq("path", args.path),
+          )
           .first();
     if (!row) return notFound("Note not mirrored");
     return {
       note: stripNoteRow(row),
-      body_url: row.body_storage_id ? await ctx.storage.getUrl(row.body_storage_id) : null,
+      body_url: row.body_storage_id
+        ? await ctx.storage.getUrl(row.body_storage_id)
+        : null,
     };
   },
 });

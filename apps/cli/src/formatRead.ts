@@ -2,7 +2,14 @@
 // ref a shared short id needs. Loaded by the read commands only.
 
 import { fmt } from "./colors.js";
-import { formatDate, formatRole, READ_BACK_MAX, summarizeToolCall, truncateId, truncatePath } from "./formatter.js";
+import {
+  formatDate,
+  formatRole,
+  READ_BACK_MAX,
+  summarizeToolCall,
+  truncateId,
+  truncatePath,
+} from "./formatter.js";
 
 interface ReadMessage {
   line: number;
@@ -44,8 +51,14 @@ export function distinctIdPrefix(id: string, others: string[] = []): string {
 
 /** The ref a read's hints print for its conversation: the short id, or a
  *  longer prefix when other conversations share that short id. */
-export function readRefFor(conv: { id: string; same_short_id?: Array<{ id: string }> }): string {
-  return distinctIdPrefix(conv.id, (conv.same_short_id ?? []).map((o) => o.id));
+export function readRefFor(conv: {
+  id: string;
+  same_short_id?: Array<{ id: string }>;
+}): string {
+  return distinctIdPrefix(
+    conv.id,
+    (conv.same_short_id ?? []).map((o) => o.id),
+  );
 }
 
 export interface FormatOptions {
@@ -61,7 +74,10 @@ export interface FormatOptions {
   grep?: string;
 }
 
-export function formatReadResult(result: ReadResult, options: FormatOptions = {}): string {
+export function formatReadResult(
+  result: ReadResult,
+  options: FormatOptions = {},
+): string {
   const lines: string[] = [];
 
   const conv = result.conversation;
@@ -75,20 +91,31 @@ export function formatReadResult(result: ReadResult, options: FormatOptions = {}
     formatDate(conv.updated_at),
     `${conv.message_count} msgs`,
     truncatePath(conv.project_path),
-  ].filter(Boolean).join(" | ");
+  ]
+    .filter(Boolean)
+    .join(" | ");
   lines.push(`   ${meta}`);
   const others = conv.same_short_id ?? [];
   if (others.length > 0) {
     const allIds = [conv.id, ...others.map((o) => o.id)];
-    lines.push(`   ${fmt.accent(`! ${others.length + 1} sessions share the short id ${truncateId(conv.id)}. This is ${ref}; to read the other${others.length === 1 ? "" : "s"}:`)}`);
+    lines.push(
+      `   ${fmt.accent(`! ${others.length + 1} sessions share the short id ${truncateId(conv.id)}. This is ${ref}; to read the other${others.length === 1 ? "" : "s"}:`)}`,
+    );
     for (const o of others) {
-      lines.push(`     cast read ${distinctIdPrefix(o.id, allIds.filter((x) => x !== o.id))}   ${o.title} (${formatDate(o.updated_at)})`);
+      lines.push(
+        `     cast read ${distinctIdPrefix(
+          o.id,
+          allIds.filter((x) => x !== o.id),
+        )}   ${o.title} (${formatDate(o.updated_at)})`,
+      );
     }
   }
 
   const targetLine = options.targetLine ?? result.target_line;
   if (targetLine !== undefined) {
-    lines.push(`   ${fmt.muted(`↓ around linked message (line ${targetLine})`)}`);
+    lines.push(
+      `   ${fmt.muted(`↓ around linked message (line ${targetLine})`)}`,
+    );
   }
   lines.push("");
 
@@ -100,8 +127,18 @@ export function formatReadResult(result: ReadResult, options: FormatOptions = {}
     // Streaming artifacts carry nothing; a turn holding only tool results shows
     // nothing but its header unless --full prints the results.
     // A grep match can sit in a tool result alone: name it rather than drop it.
-    const resultOnlyMatch = options.grep !== undefined && hasToolResults && !options.full && !hasContent && !hasToolCalls;
-    if (!hasContent && !hasToolCalls && !(hasToolResults && options.full) && !resultOnlyMatch) {
+    const resultOnlyMatch =
+      options.grep !== undefined &&
+      hasToolResults &&
+      !options.full &&
+      !hasContent &&
+      !hasToolCalls;
+    if (
+      !hasContent &&
+      !hasToolCalls &&
+      !(hasToolResults && options.full) &&
+      !resultOnlyMatch
+    ) {
       continue;
     }
     const block: string[] = [];
@@ -109,30 +146,54 @@ export function formatReadResult(result: ReadResult, options: FormatOptions = {}
     const isTarget = targetLine !== undefined && msg.line === targetLine;
     const lineNum = String(msg.line).padStart(4);
     const role = formatRole(msg.role);
-    block.push(isTarget ? `${fmt.accent("►")}${lineNum.slice(1)}: ${role} ${fmt.accent("← linked")}` : `${lineNum}: ${role}`);
+    block.push(
+      isTarget
+        ? `${fmt.accent("►")}${lineNum.slice(1)}: ${role} ${fmt.accent("← linked")}`
+        : `${lineNum}: ${role}`,
+    );
 
     if (hasContent) {
-      const indentedContent = msg.content.split("\n").map((l) => "       " + l).join("\n");
+      const indentedContent = msg.content
+        .split("\n")
+        .map((l) => "       " + l)
+        .join("\n");
       block.push(indentedContent);
     }
-    if (resultOnlyMatch) block.push(`       ${fmt.muted(`(in a tool result: cast read ${ref} ${msg.line} --full)`)}`);
+    if (resultOnlyMatch)
+      block.push(
+        `       ${fmt.muted(`(in a tool result: cast read ${ref} ${msg.line} --full)`)}`,
+      );
 
     if (hasToolCalls && msg.tool_calls) {
       if (options.full) {
         block.push(`       <TOOL_CALLS>`);
-        for (const tc of msg.tool_calls as Array<{ name?: string; input?: unknown }>) {
+        for (const tc of msg.tool_calls as Array<{
+          name?: string;
+          input?: unknown;
+        }>) {
           block.push(`       - ${tc.name || "unknown"}`);
           if (tc.input) {
             let parsed = tc.input;
-            try { if (typeof parsed === "string") parsed = JSON.parse(parsed); } catch {}
-            const inputStr = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
-            const indented = inputStr.split("\n").map((l: string) => "         " + l).join("\n");
+            try {
+              if (typeof parsed === "string") parsed = JSON.parse(parsed);
+            } catch {}
+            const inputStr =
+              typeof parsed === "string"
+                ? parsed
+                : JSON.stringify(parsed, null, 2);
+            const indented = inputStr
+              .split("\n")
+              .map((l: string) => "         " + l)
+              .join("\n");
             block.push(indented);
           }
         }
         block.push(`       </TOOL_CALLS>`);
       } else {
-        const calls = msg.tool_calls as Array<{ name?: string; input?: unknown }>;
+        const calls = msg.tool_calls as Array<{
+          name?: string;
+          input?: unknown;
+        }>;
         const first = summarizeToolCall(calls[0]);
         const more = calls.length > 1 ? ` ...(${calls.length - 1} more)` : "";
         block.push(`       ${fmt.muted(`${first}${more}`)}`);
@@ -140,18 +201,29 @@ export function formatReadResult(result: ReadResult, options: FormatOptions = {}
         // this collapsed line is all a non-full read shows of it — readers have
         // mistaken that for an empty result. Point at the exact command.
         if (calls.some((tc) => tc.name === "StructuredOutput")) {
-          block.push(`       ${fmt.muted(`↳ full payload: cast read ${ref} ${msg.line} --full`)}`);
+          block.push(
+            `       ${fmt.muted(`↳ full payload: cast read ${ref} ${msg.line} --full`)}`,
+          );
         }
       }
     }
 
     if (hasToolResults && msg.tool_results && options.full) {
       block.push(`       <TOOL_RESULTS>`);
-      for (const tr of msg.tool_results as Array<{ content?: string; isError?: boolean }>) {
+      for (const tr of msg.tool_results as Array<{
+        content?: string;
+        isError?: boolean;
+      }>) {
         const prefix = tr.isError ? "[ERROR] " : "";
         const content = tr.content || "(empty)";
-        const truncated = content.length > 2000 ? content.slice(0, 2000) + "\n... (truncated)" : content;
-        const indented = truncated.split("\n").map((l) => "         " + prefix + l).join("\n");
+        const truncated =
+          content.length > 2000
+            ? content.slice(0, 2000) + "\n... (truncated)"
+            : content;
+        const indented = truncated
+          .split("\n")
+          .map((l) => "         " + prefix + l)
+          .join("\n");
         block.push(indented);
       }
       block.push(`       </TOOL_RESULTS>`);
@@ -176,16 +248,25 @@ export function formatReadResult(result: ReadResult, options: FormatOptions = {}
  * the earlier ones. Lines below zero count back from the end (a tail read on
  * a session too long to number from the start).
  */
-function readFooter(result: ReadResult, id: string, grep?: string): string | null {
+function readFooter(
+  result: ReadResult,
+  id: string,
+  grep?: string,
+): string | null {
   const shown = result.messages.map((m) => m.line);
   const total = result.conversation.message_count;
-  const about = result.conversation.message_count_exact === false ? "about " : "";
+  const about =
+    result.conversation.message_count_exact === false ? "about " : "";
   if (grep !== undefined) {
     const g = result.grep;
     const found = g ? g.matches : shown.length;
     const quoted = JSON.stringify(grep);
-    if (found === 0) return `no message in this session contains ${quoted}${g?.searched ? ` (searched ${g.searched} lines)` : ""}`;
-    const more = g?.more && shown.length ? `; more: cast read ${id} ${shown[shown.length - 1] + 1}: --grep ${quoted}` : "";
+    if (found === 0)
+      return `no message in this session contains ${quoted}${g?.searched ? ` (searched ${g.searched} lines)` : ""}`;
+    const more =
+      g?.more && shown.length
+        ? `; more: cast read ${id} ${shown[shown.length - 1] + 1}: --grep ${quoted}`
+        : "";
     return `${found}${g?.more ? "+" : ""} message${found === 1 ? "" : "s"} contain ${quoted}${more}; open one with: cast read ${id} <line> -c 3`;
   }
   if (shown.length === 0) return null;
@@ -195,19 +276,30 @@ function readFooter(result: ReadResult, id: string, grep?: string): string | nul
     const back = -first;
     const span = back + last + 1;
     const reach = Math.min(back + span, READ_BACK_MAX);
-    const parts = [last === -1
-      ? `the last ${back} of ${about}${total} lines, counted back from the end`
-      : `lines ${first} to ${last} of ${about}${total}, counted back from the end`];
-    if (reach > back) parts.push(`earlier: cast read ${id} -${reach}:-${back + 1}`);
+    const parts = [
+      last === -1
+        ? `the last ${back} of ${about}${total} lines, counted back from the end`
+        : `lines ${first} to ${last} of ${about}${total}, counted back from the end`,
+    ];
+    if (reach > back)
+      parts.push(`earlier: cast read ${id} -${reach}:-${back + 1}`);
     if (last < -1) parts.push(`later: cast read ${id} ${last + 1}:`);
     return parts.join("; ");
   }
-  const parts = [first === last ? `line ${first} of ${about}${total}` : `lines ${first}-${last} of ${about}${total}`];
+  const parts = [
+    first === last
+      ? `line ${first} of ${about}${total}`
+      : `lines ${first}-${last} of ${about}${total}`,
+  ];
   if (last < total) {
-    parts.push(`next: cast read ${id} ${last + 1}:${Math.min(total, last + 20)}`);
+    parts.push(
+      `next: cast read ${id} ${last + 1}:${Math.min(total, last + 20)}`,
+    );
     parts.push(`latest: cast read ${id} -n 10`);
   } else if (first > 1) {
-    parts.push(`earlier: cast read ${id} ${Math.max(1, first - 20)}:${first - 1}`);
+    parts.push(
+      `earlier: cast read ${id} ${Math.max(1, first - 20)}:${first - 1}`,
+    );
   }
   return parts.join("; ");
 }
@@ -218,36 +310,76 @@ function readFooter(result: ReadResult, id: string, grep?: string): string | nul
  * the end) keeps its newest messages. A single message larger than the page
  * is cut, with the command that prints it whole.
  */
-export function fitReadPage(blocks: Array<{ line: number; text: string }>, maxChars: number | undefined, id: string, targetLine?: number): { texts: string[]; cut: boolean } {
+export function fitReadPage(
+  blocks: Array<{ line: number; text: string }>,
+  maxChars: number | undefined,
+  id: string,
+  targetLine?: number,
+): { texts: string[]; cut: boolean } {
   const total = blocks.reduce((n, b) => n + b.text.length, 0);
-  if (!maxChars || total <= maxChars) return { texts: blocks.map((b) => b.text), cut: false };
+  if (!maxChars || total <= maxChars)
+    return { texts: blocks.map((b) => b.text), cut: false };
   const limit = `${Math.round(maxChars / 1000)}K-character page`;
   if (blocks.length === 1) {
     const b = blocks[0];
     return {
-      texts: [b.text.slice(0, maxChars), fmt.muted(`… message ${b.line} is ${b.text.length} characters, cut to fit a ${limit}; whole: cast read ${id} ${b.line} --full --json`)],
+      texts: [
+        b.text.slice(0, maxChars),
+        fmt.muted(
+          `… message ${b.line} is ${b.text.length} characters, cut to fit a ${limit}; whole: cast read ${id} ${b.line} --full --json`,
+        ),
+      ],
       cut: true,
     };
   }
   // A read around a linked message keeps that message and grows outward from
   // it, nearest first: filling forward from the earliest context line can push
   // the very message asked for off the page.
-  const at = targetLine === undefined ? -1 : blocks.findIndex((b) => b.line === targetLine);
+  const at =
+    targetLine === undefined
+      ? -1
+      : blocks.findIndex((b) => b.line === targetLine);
   if (at >= 0) {
     // A linked message larger than the page takes half of it, so what answered
     // it still shows: a reader following a link needs the reaction as much as the text.
     const big = blocks[at].text.length > maxChars;
-    const target = big ? fitReadPage([blocks[at]], Math.floor(maxChars / 2), id).texts.join("\n") + "\n" : blocks[at].text;
+    const target = big
+      ? fitReadPage([blocks[at]], Math.floor(maxChars / 2), id).texts.join(
+          "\n",
+        ) + "\n"
+      : blocks[at].text;
     blocks = blocks.map((b, i) => (i === at ? { ...b, text: target } : b));
-    let lo = at, hi = at, used = target.length, grew = true;
+    let lo = at,
+      hi = at,
+      used = target.length,
+      grew = true;
     while (grew) {
       grew = false;
-      if (hi + 1 < blocks.length && used + blocks[hi + 1].text.length <= maxChars) { used += blocks[++hi].text.length; grew = true; }
-      if (lo > 0 && used + blocks[lo - 1].text.length <= maxChars) { used += blocks[--lo].text.length; grew = true; }
+      if (
+        hi + 1 < blocks.length &&
+        used + blocks[hi + 1].text.length <= maxChars
+      ) {
+        used += blocks[++hi].text.length;
+        grew = true;
+      }
+      if (lo > 0 && used + blocks[lo - 1].text.length <= maxChars) {
+        used += blocks[--lo].text.length;
+        grew = true;
+      }
     }
     const texts = blocks.slice(lo, hi + 1).map((b) => b.text);
-    if (lo > 0) texts.unshift(fmt.muted(`… ${lo} earlier message${lo === 1 ? "" : "s"} cut to fit a ${limit}; read them: cast read ${id} ${blocks[0].line}:${blocks[lo - 1].line}`) + "\n");
-    if (hi < blocks.length - 1) texts.push(fmt.muted(`… page ends here (${limit}); continue: cast read ${id} ${blocks[hi + 1].line}:${blocks[blocks.length - 1].line}`));
+    if (lo > 0)
+      texts.unshift(
+        fmt.muted(
+          `… ${lo} earlier message${lo === 1 ? "" : "s"} cut to fit a ${limit}; read them: cast read ${id} ${blocks[0].line}:${blocks[lo - 1].line}`,
+        ) + "\n",
+      );
+    if (hi < blocks.length - 1)
+      texts.push(
+        fmt.muted(
+          `… page ends here (${limit}); continue: cast read ${id} ${blocks[hi + 1].line}:${blocks[blocks.length - 1].line}`,
+        ),
+      );
     return { texts, cut: true };
   }
   const fromEnd = blocks.some((b) => b.line < 0);
@@ -262,14 +394,32 @@ export function fitReadPage(blocks: Array<{ line: number; text: string }>, maxCh
   if (kept.length === 1 && kept[0].text.length > maxChars) {
     // The one message kept is itself past the page: cut it as above and name the rest.
     const lone = fitReadPage(kept, maxChars, id).texts;
-    const rest = fromEnd ? `read further back: cast read ${id} ${kept[0].line - (blocks.length - 1)}:${kept[0].line - 1}` : `continue: cast read ${id} ${blocks[1].line}:${blocks[blocks.length - 1].line}`;
+    const rest = fromEnd
+      ? `read further back: cast read ${id} ${kept[0].line - (blocks.length - 1)}:${kept[0].line - 1}`
+      : `continue: cast read ${id} ${blocks[1].line}:${blocks[blocks.length - 1].line}`;
     return { texts: [...lone, fmt.muted(`… ${rest}`)], cut: true };
   }
   const cut = blocks.length - kept.length;
   if (fromEnd) {
-    return { texts: [fmt.muted(`… ${cut} older message${cut === 1 ? "" : "s"} cut to fit a ${limit}; read further back: cast read ${id} ${kept[kept.length - 1].line - cut}:${kept[kept.length - 1].line - 1}`) + "\n", ...kept.reverse().map((b) => b.text)], cut: true };
+    return {
+      texts: [
+        fmt.muted(
+          `… ${cut} older message${cut === 1 ? "" : "s"} cut to fit a ${limit}; read further back: cast read ${id} ${kept[kept.length - 1].line - cut}:${kept[kept.length - 1].line - 1}`,
+        ) + "\n",
+        ...kept.reverse().map((b) => b.text),
+      ],
+      cut: true,
+    };
   }
   const next = blocks[kept.length].line;
   const last = blocks[blocks.length - 1].line;
-  return { texts: [...kept.map((b) => b.text), fmt.muted(`… page ends here (${limit}); continue: cast read ${id} ${next}:${last}`)], cut: true };
+  return {
+    texts: [
+      ...kept.map((b) => b.text),
+      fmt.muted(
+        `… page ends here (${limit}); continue: cast read ${id} ${next}:${last}`,
+      ),
+    ],
+    cut: true,
+  };
 }

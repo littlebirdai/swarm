@@ -6,7 +6,13 @@
 // in it and the first few faces, changed only by an arrival or a departure)
 // for the gallery, and who is typing, for the room.
 import { v } from "convex/values";
-import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { HERE_MAX } from "./lib/limits";
 import { PRESENCE, heartbeatPatch, presenceCutoff } from "./lib/presence";
@@ -19,37 +25,61 @@ const PRUNE_BATCH = 200;
 /** The faces a crowd keeps, for the gallery's face stack. */
 export const CROWD_FACES = 3;
 
-export function presenceRow(ctx: QueryCtx, appId: Id<"apps">, visitorId: Id<"visitors">) {
+export function presenceRow(
+  ctx: QueryCtx,
+  appId: Id<"apps">,
+  visitorId: Id<"visitors">,
+) {
   return ctx.db
     .query("presence")
-    .withIndex("by_app_visitor", (q) => q.eq("app_id", appId).eq("visitor_id", visitorId))
+    .withIndex("by_app_visitor", (q) =>
+      q.eq("app_id", appId).eq("visitor_id", visitorId),
+    )
     .unique();
 }
 
 /** The presence rows of an app still inside the stale window, earliest
  *  arrival first: the HERE_MAX most recently seen. */
-export async function hereRows(ctx: QueryCtx, appId: Id<"apps">, now = Date.now()): Promise<Doc<"presence">[]> {
+export async function hereRows(
+  ctx: QueryCtx,
+  appId: Id<"apps">,
+  now = Date.now(),
+): Promise<Doc<"presence">[]> {
   const rows = await ctx.db
     .query("presence")
-    .withIndex("by_app_seen", (q) => q.eq("app_id", appId).gt("last_seen", presenceCutoff(now)))
+    .withIndex("by_app_seen", (q) =>
+      q.eq("app_id", appId).gt("last_seen", presenceCutoff(now)),
+    )
     .order("desc")
     .take(HERE_MAX);
   return rows.sort((a, b) => a.joined_at - b.joined_at);
 }
 
 export function crowdRow(ctx: QueryCtx, appId: Id<"apps">) {
-  return ctx.db.query("crowds").withIndex("by_app", (q) => q.eq("app_id", appId)).unique();
+  return ctx.db
+    .query("crowds")
+    .withIndex("by_app", (q) => q.eq("app_id", appId))
+    .unique();
 }
 
 /** Keep an app's crowd in step with an arrival or a departure. A departure
  *  of one of its faces takes the next earliest arrival's in its place. */
-async function recount(ctx: MutationCtx, appId: Id<"apps">, visitorId: Id<"visitors">, delta: 1 | -1): Promise<void> {
+async function recount(
+  ctx: MutationCtx,
+  appId: Id<"apps">,
+  visitorId: Id<"visitors">,
+  delta: 1 | -1,
+): Promise<void> {
   const crowd = await crowdRow(ctx, appId);
   const count = Math.max(0, (crowd?.count ?? 0) + delta);
   let faces = crowd?.faces ?? [];
-  if (delta > 0 && faces.length < CROWD_FACES && !faces.includes(visitorId)) faces = [...faces, visitorId];
+  if (delta > 0 && faces.length < CROWD_FACES && !faces.includes(visitorId))
+    faces = [...faces, visitorId];
   if (delta < 0 && faces.includes(visitorId)) {
-    const rest = await ctx.db.query("presence").withIndex("by_app_visitor", (q) => q.eq("app_id", appId)).take(HERE_MAX);
+    const rest = await ctx.db
+      .query("presence")
+      .withIndex("by_app_visitor", (q) => q.eq("app_id", appId))
+      .take(HERE_MAX);
     faces = rest
       .filter((r) => r.visitor_id !== visitorId)
       .sort((a, b) => a.joined_at - b.joined_at)
@@ -82,21 +112,34 @@ export async function insertPresence(
 }
 
 /** A visitor leaves an app, saying so or lapsing. */
-async function removePresence(ctx: MutationCtx, row: Doc<"presence">): Promise<void> {
+async function removePresence(
+  ctx: MutationCtx,
+  row: Doc<"presence">,
+): Promise<void> {
   await ctx.db.delete(row._id);
   await recount(ctx, row.app_id, row.visitor_id, -1);
   await stopTyping(ctx, row.app_id, row.visitor_id);
 }
 
-function typingRow(ctx: QueryCtx, appId: Id<"apps">, visitorId: Id<"visitors">) {
+function typingRow(
+  ctx: QueryCtx,
+  appId: Id<"apps">,
+  visitorId: Id<"visitors">,
+) {
   return ctx.db
     .query("typing")
-    .withIndex("by_app_visitor", (q) => q.eq("app_id", appId).eq("visitor_id", visitorId))
+    .withIndex("by_app_visitor", (q) =>
+      q.eq("app_id", appId).eq("visitor_id", visitorId),
+    )
     .unique();
 }
 
 /** Clear a visitor's typing indicator in an app, if it is up. */
-export async function stopTyping(ctx: MutationCtx, appId: Id<"apps">, visitorId: Id<"visitors">): Promise<void> {
+export async function stopTyping(
+  ctx: MutationCtx,
+  appId: Id<"apps">,
+  visitorId: Id<"visitors">,
+): Promise<void> {
   const row = await typingRow(ctx, appId, visitorId);
   if (row) await ctx.db.delete(row._id);
 }
@@ -104,7 +147,11 @@ export async function stopTyping(ctx: MutationCtx, appId: Id<"apps">, visitorId:
 /** Renew this visitor's place in the app; also how the page says which
  *  version it is looking at (null for live). Beat every PRESENCE.heartbeatMs. */
 export const heartbeat = mutation({
-  args: { ...visitorArgs, app_id: v.id("apps"), viewing_version: v.optional(v.union(v.number(), v.null())) },
+  args: {
+    ...visitorArgs,
+    app_id: v.id("apps"),
+    viewing_version: v.optional(v.union(v.number(), v.null())),
+  },
   handler: async (ctx, args) => {
     const visitor = await requireVisitor(ctx, args);
     await requireApp(ctx, args.app_id);
@@ -115,9 +162,16 @@ export const heartbeat = mutation({
     // Only beats that write count: an idle room's skipped beats stay free.
     if (!row || patch) await takeRate(ctx, "presence", visitor._id);
     if (!row) {
-      await insertPresence(ctx, args.app_id, visitor._id, now, { viewing_version: viewing });
+      await insertPresence(ctx, args.app_id, visitor._id, now, {
+        viewing_version: viewing,
+      });
     } else if (patch) {
-      await ctx.db.patch(row._id, row.last_seen > presenceCutoff(now) ? patch : { ...patch, joined_at: now });
+      await ctx.db.patch(
+        row._id,
+        row.last_seen > presenceCutoff(now)
+          ? patch
+          : { ...patch, joined_at: now },
+      );
     }
     return null;
   },
@@ -136,7 +190,12 @@ export const setTyping = mutation({
     const until = Date.now() + PRESENCE.typingMs;
     const row = await typingRow(ctx, args.app_id, visitor._id);
     if (row) await ctx.db.patch(row._id, { until });
-    else await ctx.db.insert("typing", { app_id: args.app_id, visitor_id: visitor._id, until });
+    else
+      await ctx.db.insert("typing", {
+        app_id: args.app_id,
+        visitor_id: visitor._id,
+        until,
+      });
     return null;
   },
 });
@@ -164,7 +223,10 @@ export const here = query({
   handler: async (ctx, args): Promise<HereEntry[]> => {
     await requireVisitor(ctx, args);
     const rows = await hereRows(ctx, args.app_id);
-    const people = await publicVisitors(ctx, rows.map((r) => r.visitor_id));
+    const people = await publicVisitors(
+      ctx,
+      rows.map((r) => r.visitor_id),
+    );
     return rows.flatMap((r) => {
       const visitor = people.get(r.visitor_id);
       return visitor ? [{ visitor, viewing_version: r.viewing_version }] : [];
@@ -176,9 +238,15 @@ export const here = query({
  *  clock, since nothing writes when a deadline passes. */
 export const typing = query({
   args: { ...visitorArgs, app_id: v.id("apps") },
-  handler: async (ctx, args): Promise<{ visitor_id: Id<"visitors">; until: number }[]> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ visitor_id: Id<"visitors">; until: number }[]> => {
     await requireVisitor(ctx, args);
-    const rows = await ctx.db.query("typing").withIndex("by_app_visitor", (q) => q.eq("app_id", args.app_id)).take(HERE_MAX);
+    const rows = await ctx.db
+      .query("typing")
+      .withIndex("by_app_visitor", (q) => q.eq("app_id", args.app_id))
+      .take(HERE_MAX);
     return rows.map((r) => ({ visitor_id: r.visitor_id, until: r.until }));
   },
 });
@@ -189,7 +257,9 @@ export const prune = internalMutation({
   handler: async (ctx) => {
     const stale = await ctx.db
       .query("presence")
-      .withIndex("by_seen", (q) => q.lte("last_seen", presenceCutoff(Date.now())))
+      .withIndex("by_seen", (q) =>
+        q.lte("last_seen", presenceCutoff(Date.now())),
+      )
       .take(PRUNE_BATCH);
     for (const row of stale) await removePresence(ctx, row);
     return stale.length;

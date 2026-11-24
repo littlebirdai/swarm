@@ -1,60 +1,227 @@
 /* The left nav (PipelineNav): For you on top, then the stages on a rail, each its number and its state. */
 .pn {
-  flex: none; width: 212px; display: flex; flex-direction: column; gap: var(--lw-s2); padding: var(--lw-s3) var(--lw-s2);
-  border-right: 1px solid var(--lw-rule-2); overflow-y: auto; overflow-x: hidden;
+  flex: none;
+  width: 212px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lw-s2);
+  padding: var(--lw-s3) var(--lw-s2);
+  border-right: 1px solid var(--lw-rule-2);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .pn-item {
-  position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; grid-template-rows: auto auto;
-  column-gap: 9px; row-gap: 1px; align-items: center; width: 100%; padding: 7px 9px 8px; border: 0; border-radius: 8px;
-  background: none; font: inherit; color: var(--lw-ink-2); text-align: left; cursor: pointer;
-  transition: background var(--lw-fast), color var(--lw-fast);
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  row-gap: 1px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 9px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  color: var(--lw-ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--lw-fast),
+    color var(--lw-fast);
 }
-.pn-item:hover { background: var(--lw-paper-2); color: var(--lw-ink); }
-.pn-item[aria-current="page"] { background: var(--lw-card); color: var(--lw-ink); box-shadow: 0 1px 2px color-mix(in srgb, var(--sol-text) 12%, transparent); }
-.pn-item:focus-visible { outline: 2px solid color-mix(in srgb, var(--lw-person) 50%, transparent); outline-offset: -2px; }
-.pn-icon { grid-row: 1; grid-column: 1; width: 15px; height: 15px; opacity: .8; }
-.pn-label { grid-row: 1; grid-column: 2; font-size: var(--lw-fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pn-n { grid-row: 1; grid-column: 3; font-size: var(--lw-fs-sm); font-weight: 650; font-variant-numeric: tabular-nums; color: var(--lw-ink); }
-.pn-n[data-tone="ask"] { color: var(--lw-person); }
-.pn-key { grid-row: 1; grid-column: 3; justify-self: end; display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--lw-fast); }
-.pn-item:hover .pn-key, .pn-item:focus-visible .pn-key { opacity: .7; }
-.pn-item:hover .pn-n, .pn-item:focus-visible .pn-n { opacity: 0; }
+.pn-item:hover {
+  background: var(--lw-paper-2);
+  color: var(--lw-ink);
+}
+.pn-item[aria-current="page"] {
+  background: var(--lw-card);
+  color: var(--lw-ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sol-text) 12%, transparent);
+}
+.pn-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--lw-person) 50%, transparent);
+  outline-offset: -2px;
+}
+.pn-icon {
+  grid-row: 1;
+  grid-column: 1;
+  width: 15px;
+  height: 15px;
+  opacity: 0.8;
+}
+.pn-label {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: var(--lw-fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pn-n {
+  grid-row: 1;
+  grid-column: 3;
+  font-size: var(--lw-fs-sm);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--lw-ink);
+}
+.pn-n[data-tone="ask"] {
+  color: var(--lw-person);
+}
+.pn-key {
+  grid-row: 1;
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--lw-fast);
+}
+.pn-item:hover .pn-key,
+.pn-item:focus-visible .pn-key {
+  opacity: 0.7;
+}
+.pn-item:hover .pn-n,
+.pn-item:focus-visible .pn-n {
+  opacity: 0;
+}
 .pn-state {
-  grid-row: 2; grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 0 8px; min-width: 0;
-  font-size: var(--lw-fs-xs); color: var(--lw-ink-3);
+  grid-row: 2;
+  grid-column: 2 / 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  min-width: 0;
+  font-size: var(--lw-fs-xs);
+  color: var(--lw-ink-3);
 }
-.pn-unit { white-space: nowrap; }
+.pn-unit {
+  white-space: nowrap;
+}
 /* A long state (a live flow's whole name) ends in an ellipsis inside the nav, never across the stage beside it. */
-.pn-state .pl-word { min-width: 0; max-width: 100%; }
-.pn-state .pl-word-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The rail: the stages work moves through, joined icon to icon. */
-.pn-rail { position: relative; display: flex; flex-direction: column; gap: 1px; padding-top: var(--lw-s2); border-top: 1px solid var(--lw-rule-2); }
-.pn-rail::before {
-  content: ""; position: absolute; left: 16.5px; top: calc(var(--lw-s2) + 16px); bottom: 28px; width: 1px;
-  background: var(--lw-rule); pointer-events: none;
+.pn-state .pl-word {
+  min-width: 0;
+  max-width: 100%;
 }
-.pn-rail .pn-icon { position: relative; z-index: 1; padding: 1px 0; background: var(--lw-paper, var(--sol-bg)); border-radius: 50%; box-sizing: content-box; }
-.pn-rail .pn-item:hover .pn-icon { background: var(--lw-paper-2); }
-.pn-rail .pn-item[aria-current="page"] .pn-icon { background: var(--lw-card); }
+.pn-state .pl-word-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The rail: the stages work moves through, joined icon to icon. */
+.pn-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: var(--lw-s2);
+  border-top: 1px solid var(--lw-rule-2);
+}
+.pn-rail::before {
+  content: "";
+  position: absolute;
+  left: 16.5px;
+  top: calc(var(--lw-s2) + 16px);
+  bottom: 28px;
+  width: 1px;
+  background: var(--lw-rule);
+  pointer-events: none;
+}
+.pn-rail .pn-icon {
+  position: relative;
+  z-index: 1;
+  padding: 1px 0;
+  background: var(--lw-paper, var(--sol-bg));
+  border-radius: 50%;
+  box-sizing: content-box;
+}
+.pn-rail .pn-item:hover .pn-icon {
+  background: var(--lw-paper-2);
+}
+.pn-rail .pn-item[aria-current="page"] .pn-icon {
+  background: var(--lw-card);
+}
 
-.pl-word { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.pl-word > i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.pl-word[data-tone="ok"] > i { color: var(--lw-ok); }
-.pl-word[data-tone="live"] > i { color: var(--lw-live); }
-.pl-word[data-tone="ask"] > i { color: var(--lw-person); }
-.pl-word[data-tone="warn"] { color: color-mix(in srgb, var(--lw-warn) 70%, var(--lw-ink)); }
-.pl-word[data-tone="warn"] > i { color: var(--lw-warn); }
-.pl-word[data-tone="bad"] { color: color-mix(in srgb, var(--lw-bad) 80%, var(--lw-ink)); }
-.pl-word[data-tone="bad"] > i { color: var(--lw-bad); }
-.pl-word[data-tone="calm"] > i { color: var(--lw-ink-3); }
+.pl-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.pl-word > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.pl-word[data-tone="ok"] > i {
+  color: var(--lw-ok);
+}
+.pl-word[data-tone="live"] > i {
+  color: var(--lw-live);
+}
+.pl-word[data-tone="ask"] > i {
+  color: var(--lw-person);
+}
+.pl-word[data-tone="warn"] {
+  color: color-mix(in srgb, var(--lw-warn) 70%, var(--lw-ink));
+}
+.pl-word[data-tone="warn"] > i {
+  color: var(--lw-warn);
+}
+.pl-word[data-tone="bad"] {
+  color: color-mix(in srgb, var(--lw-bad) 80%, var(--lw-ink));
+}
+.pl-word[data-tone="bad"] > i {
+  color: var(--lw-bad);
+}
+.pl-word[data-tone="calm"] > i {
+  color: var(--lw-ink-3);
+}
 
 @media (max-width: 900px) {
-  .pn { width: 52px; padding: var(--lw-s2) 6px; }
-  .pn-item { grid-template-columns: 16px; padding: 8px; justify-content: center; }
-  .pn-label, .pn-n, .pn-key, .pn-state { display: none; }
-  .pn-rail::before { display: none; }
+  .pn {
+    width: 52px;
+    padding: var(--lw-s2) 6px;
+  }
+  .pn-item {
+    grid-template-columns: 16px;
+    padding: 8px;
+    justify-content: center;
+  }
+  .pn-label,
+  .pn-n,
+  .pn-key,
+  .pn-state {
+    display: none;
+  }
+  .pn-rail::before {
+    display: none;
+  }
   /* Decisions waiting stay said: their count rides the icon's corner. */
-  .pn-item .pn-n[data-tone="ask"] { display: block; position: absolute; top: -6px; right: -6px; z-index: 2; min-width: 16px; padding: 0 4px; border-radius: 999px; line-height: 16px; text-align: center; color: var(--lw-paper); background: var(--lw-person); box-shadow: 0 0 0 2px var(--lw-paper, var(--sol-bg)); }
+  .pn-item .pn-n[data-tone="ask"] {
+    display: block;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 2;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    line-height: 16px;
+    text-align: center;
+    color: var(--lw-paper);
+    background: var(--lw-person);
+    box-shadow: 0 0 0 2px var(--lw-paper, var(--sol-bg));
+  }
 }
 /* Until the feeds answer, the numbers are the cache's: dim, so one about to move never reads as settled. */
-.pn[data-settling] .pn-n { opacity: .55; transition: opacity var(--lw-med); }
+.pn[data-settling] .pn-n {
+  opacity: 0.55;
+  transition: opacity var(--lw-med);
+}

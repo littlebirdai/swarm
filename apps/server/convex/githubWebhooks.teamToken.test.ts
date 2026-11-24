@@ -19,7 +19,9 @@ test("a member whose home team is elsewhere still serves; a person who left, or 
       { _id: "m3", user_id: "member", team_id: "team_b" },
     ],
   });
-  expect(await teamMemberGithubToken({ db }, "team_a" as any)).toBe(tok("member"));
+  expect(await teamMemberGithubToken({ db }, "team_a" as any)).toBe(
+    tok("member"),
+  );
   expect(await teamMemberGithubToken({ db }, "team_c" as any)).toBeNull();
   expect(await teamMemberGithubToken({ db }, undefined)).toBeNull();
 });

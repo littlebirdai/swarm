@@ -11,7 +11,12 @@ import type { AcmePart } from "./parts";
 import { DAY, HOUR, MIN, PEOPLE, SESSIONS, cid, session } from "./world";
 
 /** Maya's session on the retries PR review; the event trigger answers in it. */
-export const MAYA_REVIEW = { _id: cid("smayareview"), short_id: "jx7p2rv", title: "Review webhook retries PR", agent_type: "claude_code" } as const;
+export const MAYA_REVIEW = {
+  _id: cid("smayareview"),
+  short_id: "jx7p2rv",
+  title: "Review webhook retries PR",
+  agent_type: "claude_code",
+} as const;
 
 export const TRIGGER_IDS = {
   deadLetter: cid("trdeadletter"),
@@ -51,14 +56,20 @@ const nineAm = (now: number) => {
 
 export const TRIGGERS = (now: number): Array<Record<string, any>> => {
   const lastSummary = nineAm(now) <= now ? nineAm(now) : nineAm(now) - DAY;
-  const base = { mode: "apply", agent_type: "claude_code", run_count: 0, project_path: "~/src/billing" };
+  const base = {
+    mode: "apply",
+    agent_type: "claude_code",
+    run_count: 0,
+    project_path: "~/src/billing",
+  };
   return [
     {
       ...base,
       _id: TRIGGER_IDS.deadLetter,
       short_id: "tr-4812",
       title: "Check webhook retry dead-letter queue",
-      prompt: "Check the webhook retry dead-letter queue. If anything landed there since the last check, say which endpoints and why, and retry the ones that failed on a 5xx.",
+      prompt:
+        "Check the webhook retry dead-letter queue. If anything landed there since the last check, say which endpoints and why, and retry the ones that failed on a 5xx.",
       status: "scheduled",
       schedule_type: "recurring",
       interval_ms: 4 * HOUR,
@@ -66,7 +77,8 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
       run_count: 9,
       created_at: now - 2 * DAY,
       last_run_at: now - HOUR - 20 * MIN,
-      last_run_summary: "Dead-letter queue empty; 3 deliveries retried on attempt 2, all landed.",
+      last_run_summary:
+        "Dead-letter queue empty; 3 deliveries retried on attempt 2, all landed.",
       originating_conversation_id: SESSIONS.lead._id,
       originating_conversation_title: SESSIONS.lead.title,
       created_by_conversation_id: SESSIONS.lead._id,
@@ -78,7 +90,8 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
       short_id: "tr-4815",
       title: "Summarize open webhook PRs",
       prompt: SUMMARY_PROMPT,
-      display_summary: "Every morning, lists the open webhook PRs with their checks and reviews, and what merged the day before, and posts it in #eng.",
+      display_summary:
+        "Every morning, lists the open webhook PRs with their checks and reviews, and what merged the day before, and posts it in #eng.",
       mode: "propose",
       status: "scheduled",
       schedule_type: "recurring",
@@ -99,7 +112,8 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
       _id: TRIGGER_IDS.retests,
       short_id: "tr-4820",
       title: "Re-run retry integration tests",
-      prompt: "Re-run the retry integration tests against the real queue and report whether the backoff schedule held.",
+      prompt:
+        "Re-run the retry integration tests against the real queue and report whether the backoff schedule held.",
       status: "scheduled",
       schedule_type: "once",
       run_at: now + 30 * MIN,
@@ -114,14 +128,19 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
       _id: TRIGGER_IDS.prComments,
       short_id: "tr-4817",
       title: "Answer review comments on the webhook retries PR",
-      prompt: "A review comment landed on acme/acme-api#482. Read it, make the change if it is right, push, and reply on the thread.",
+      prompt:
+        "A review comment landed on acme/acme-api#482. Read it, make the change if it is right, push, and reply on the thread.",
       status: "scheduled",
       schedule_type: "event",
-      event_filter: { event_type: "pull_request_review_comment", action: "created" },
+      event_filter: {
+        event_type: "pull_request_review_comment",
+        action: "created",
+      },
       run_count: 2,
       created_at: now - 3 * HOUR,
       last_run_at: now - 15 * MIN,
-      last_run_summary: "Replied on retry.ts:24: a 410 is final and never retries.",
+      last_run_summary:
+        "Replied on retry.ts:24: a 410 is final and never retries.",
       originating_conversation_id: MAYA_REVIEW._id,
       originating_conversation_title: MAYA_REVIEW.title,
       created_by_conversation_id: MAYA_REVIEW._id,
@@ -134,7 +153,8 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
       _id: TRIGGER_IDS.backlog,
       short_id: "tr-4809",
       title: "Alert when the retry queue backs up",
-      prompt: "Check the retry queue depth. If more than 500 deliveries are waiting, post in #billing-alerts with the top failing endpoints.",
+      prompt:
+        "Check the retry queue depth. If more than 500 deliveries are waiting, post in #billing-alerts with the top failing endpoints.",
       status: "paused",
       schedule_type: "recurring",
       interval_ms: HOUR,
@@ -155,7 +175,9 @@ export const TRIGGERS = (now: number): Array<Record<string, any>> => {
 
 /** The daily summary's history, newest first, in webListRuns' shape. */
 export const SUMMARY_RUN_ROWS = (now: number) => {
-  const first = TRIGGERS(now).find((t) => t._id === TRIGGER_IDS.summary)!.last_run_at!;
+  const first = TRIGGERS(now).find(
+    (t) => t._id === TRIGGER_IDS.summary,
+  )!.last_run_at!;
   return SUMMARY_RUNS.map((r, i) => ({
     _id: r._id,
     run_key: r._id,
@@ -190,7 +212,12 @@ export const TRIGGER_SESSIONS = (now: number) => {
         messages: 9,
         state: `${RUN_SUMMARIES[i].split(".")[0]}\nStatus: posted in #eng`,
         preview: RUN_SUMMARIES[i],
-        extra: { agent_task_id: TRIGGER_IDS.summary, is_subagent: true, parent_conversation_id: SESSIONS.lead._id, started_at: runs[i].created_at },
+        extra: {
+          agent_task_id: TRIGGER_IDS.summary,
+          is_subagent: true,
+          parent_conversation_id: SESSIONS.lead._id,
+          started_at: runs[i].created_at,
+        },
       }),
     ),
   ];
@@ -199,21 +226,44 @@ export const TRIGGER_SESSIONS = (now: number) => {
 /** The newest run's transcript: the trigger's brief, the reads, the summary. */
 export const SUMMARY_RUN_TRANSCRIPT = (now: number) => {
   const at = SUMMARY_RUN_ROWS(now)[0].created_at;
-  const call = (id: string, name: string, input: unknown) => ({ id, name, input: JSON.stringify(input) });
-  const result = (id: string, content: string) => ({ tool_use_id: id, content });
+  const call = (id: string, name: string, input: unknown) => ({
+    id,
+    name,
+    input: JSON.stringify(input),
+  });
+  const result = (id: string, content: string) => ({
+    tool_use_id: id,
+    content,
+  });
   return [
-    { _id: "hero-run-m1", role: "user", content: SUMMARY_PROMPT, timestamp: at },
+    {
+      _id: "hero-run-m1",
+      role: "user",
+      content: SUMMARY_PROMPT,
+      timestamp: at,
+    },
     {
       _id: "hero-run-m2",
       role: "assistant",
       content: "Reading the open and recently merged PRs on acme/acme-api.",
       tool_calls: [
-        call("hero-run-tc1", "Bash", { command: "cast pr list --repo acme/acme-api --label webhooks --state open" }),
-        call("hero-run-tc2", "Bash", { command: "cast pr list --repo acme/acme-api --merged-since 1d" }),
+        call("hero-run-tc1", "Bash", {
+          command:
+            "cast pr list --repo acme/acme-api --label webhooks --state open",
+        }),
+        call("hero-run-tc2", "Bash", {
+          command: "cast pr list --repo acme/acme-api --merged-since 1d",
+        }),
       ],
       tool_results: [
-        result("hero-run-tc1", "#482  Retry failed webhooks with backoff  approved  checks 10/10\n#485  Sign webhook payloads with HMAC    changes requested  checks 9/10 (integration failed)"),
-        result("hero-run-tc2", "#479  Upgrade Stripe SDK to v14  merged 18h ago by Alex Rivera"),
+        result(
+          "hero-run-tc1",
+          "#482  Retry failed webhooks with backoff  approved  checks 10/10\n#485  Sign webhook payloads with HMAC    changes requested  checks 9/10 (integration failed)",
+        ),
+        result(
+          "hero-run-tc2",
+          "#479  Upgrade Stripe SDK to v14  merged 18h ago by Alex Rivera",
+        ),
       ],
       timestamp: at + MIN,
     },
@@ -229,21 +279,48 @@ export const SUMMARY_RUN_TRANSCRIPT = (now: number) => {
 
 const byId = (a: any) => {
   const id = a?.id ?? a?.short_id;
-  return TRIGGERS(Date.now()).find((t) => t._id === id || t.short_id === String(id ?? "").toLowerCase()) ?? null;
+  return (
+    TRIGGERS(Date.now()).find(
+      (t) => t._id === id || t.short_id === String(id ?? "").toLowerCase(),
+    ) ?? null
+  );
 };
 
 export const TRIGGER_ANSWERS: Record<string, (args: any) => unknown> = {
   "agentTasks:webList": () => TRIGGERS(Date.now()),
-  "agentTasks:webListHistory": () => ({ page: TRIGGERS(Date.now()), isDone: true, continueCursor: "" }),
+  "agentTasks:webListHistory": () => ({
+    page: TRIGGERS(Date.now()),
+    isDone: true,
+    continueCursor: "",
+  }),
   "agentTasks:webGet": byId,
-  "agentTasks:webListRuns": (a) => (a?.task_id === TRIGGER_IDS.summary ? SUMMARY_RUN_ROWS(Date.now()) : []),
-  "agentTasks:webListForConversation": (a) => TRIGGERS(Date.now()).filter((t) => t.originating_conversation_id === a?.conversation_id || t.created_by_conversation_id === a?.conversation_id),
-  "agentTasks:webListForConversations": (a) => TRIGGERS(Date.now()).filter((t) => (a?.conversation_ids ?? []).includes(t.originating_conversation_id)),
+  "agentTasks:webListRuns": (a) =>
+    a?.task_id === TRIGGER_IDS.summary ? SUMMARY_RUN_ROWS(Date.now()) : [],
+  "agentTasks:webListForConversation": (a) =>
+    TRIGGERS(Date.now()).filter(
+      (t) =>
+        t.originating_conversation_id === a?.conversation_id ||
+        t.created_by_conversation_id === a?.conversation_id,
+    ),
+  "agentTasks:webListForConversations": (a) =>
+    TRIGGERS(Date.now()).filter((t) =>
+      (a?.conversation_ids ?? []).includes(t.originating_conversation_id),
+    ),
 };
 
 export function seedAcmeTriggers(s: any, now: number) {
   s.syncTable("agentTasks", TRIGGERS(now));
-  s.applyTailMessages(SUMMARY_RUNS[0]._id, 0, SUMMARY_RUN_TRANSCRIPT(now) as any, null);
+  s.applyTailMessages(
+    SUMMARY_RUNS[0]._id,
+    0,
+    SUMMARY_RUN_TRANSCRIPT(now) as any,
+    null,
+  );
 }
 
-export const TRIGGERS_PART: AcmePart = { name: "triggers", sessions: TRIGGER_SESSIONS, seed: seedAcmeTriggers, answers: TRIGGER_ANSWERS };
+export const TRIGGERS_PART: AcmePart = {
+  name: "triggers",
+  sessions: TRIGGER_SESSIONS,
+  seed: seedAcmeTriggers,
+  answers: TRIGGER_ANSWERS,
+};

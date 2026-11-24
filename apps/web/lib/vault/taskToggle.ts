@@ -26,12 +26,15 @@ export function toggleTaskInContent(
   // Split on "\n" alone so a CRLF file keeps its bytes; the carriage return
   // then rides at the end of the line, where the shared regex (which the index
   // engine applies to already-normalized lines) would refuse to match it.
-  const match = TASK_LINE_RE.exec(line.endsWith("\r") ? line.slice(0, -1) : line);
+  const match = TASK_LINE_RE.exec(
+    line.endsWith("\r") ? line.slice(0, -1) : line,
+  );
   if (!match) return null;
   const done = /[xX]/.test(match[2]);
   const next = checked ?? !done;
   if (next === done) return null;
   const at = match[1].length;
-  lines[sourceLine - 1] = line.slice(0, at) + (next ? "x" : " ") + line.slice(at + 1);
+  lines[sourceLine - 1] =
+    line.slice(0, at) + (next ? "x" : " ") + line.slice(at + 1);
   return lines.join("\n");
 }

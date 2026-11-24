@@ -3,12 +3,33 @@
 import { useTaskHref } from "../../lib/taskHrefContext";
 import { useCallback } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Layers, LayoutTemplate, ShieldCheck, Workflow } from "lucide-react";
-import { useInboxStore, useTrackedStore, getProjectName, type SessionDecisionItem, type DecisionAnswerInput } from "../../store/inboxStore";
-import { DecisionAnswerControls, DecisionRecordedAnswer } from "./DecisionAnswerControls";
+import {
+  ArrowUpRight,
+  Layers,
+  LayoutTemplate,
+  ShieldCheck,
+  Workflow,
+} from "lucide-react";
+import {
+  useInboxStore,
+  useTrackedStore,
+  getProjectName,
+  type SessionDecisionItem,
+  type DecisionAnswerInput,
+} from "../../store/inboxStore";
+import {
+  DecisionAnswerControls,
+  DecisionRecordedAnswer,
+} from "./DecisionAnswerControls";
 import { DecisionDiscussion } from "./DecisionDiscussion";
 import { DecisionThreadUnread } from "./DecisionThreadUnread";
-import { askingSessionName, decisionHref, gateRunLabel, ladderRecommendation, runHref } from "../../lib/decisionLinks";
+import {
+  askingSessionName,
+  decisionHref,
+  gateRunLabel,
+  ladderRecommendation,
+  runHref,
+} from "../../lib/decisionLinks";
 import { optionPageSlugs } from "../../lib/decisionQueue";
 import { useSyncWorkflowRun } from "../../hooks/useSyncWorkflows";
 import { useJumpToDecisionAsk } from "../../hooks/useJumpToDecisionAsk";
@@ -17,12 +38,21 @@ import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { isHumanOnlyCategory } from "@codecast/convex/convex/lib/decisionCategory";
 import { DecisionProposalOrigin } from "../org/ProposalAuthorPill";
 import { CollapsibleBody } from "../CollapsibleBody";
-import { AskingSessionView, HandoffNote, type AskingSessionRow } from "./DecisionParties";
+import {
+  AskingSessionView,
+  HandoffNote,
+  type AskingSessionRow,
+} from "./DecisionParties";
 import { askingSessionDeps } from "./askingSessionDeps";
 import { OptionPages } from "./OptionPages";
 import { PublishedPageEmbed } from "../PublishedPageEmbed";
 import { RunFallbackLine } from "./RunFallbackLine";
-import { ChangeCardHeadline, ChangeCardView, SepRow, cardAnswerIndexes } from "./ChangeCardView";
+import {
+  ChangeCardHeadline,
+  ChangeCardView,
+  SepRow,
+  cardAnswerIndexes,
+} from "./ChangeCardView";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { hasCanvasFence } from "../HtmlSnippet";
 import { stripMarkdown } from "../../lib/notificationText";
@@ -63,19 +93,35 @@ export function DecisionCompactCard({
 }) {
   const s = useTrackedStore([
     ...askingSessionDeps(decision.conversation_id),
-    (st) => decision.task_id ? st.tasks[decision.task_id]?.short_id : undefined,
-    (st) => decision.stack_id ? st.decisionStacks[decision.stack_id]?.title : undefined,
+    (st) =>
+      decision.task_id ? st.tasks[decision.task_id]?.short_id : undefined,
+    (st) =>
+      decision.stack_id
+        ? st.decisionStacks[decision.stack_id]?.title
+        : undefined,
   ]);
   const answerDecision = useInboxStore((st) => st.answerDecision);
   const adoptDecision = useInboxStore((st) => st.adoptDecision);
-  const jumpToAsk = useJumpToDecisionAsk(decision.conversation_id, decision._id, decision.question);
+  const jumpToAsk = useJumpToDecisionAsk(
+    decision.conversation_id,
+    decision._id,
+    decision.question,
+  );
   const session = s.sessions[decision.conversation_id];
   const task = decision.task_id ? s.tasks[decision.task_id] : undefined;
-  const stack = decision.stack_id ? s.decisionStacks[decision.stack_id] : undefined;
+  const stack = decision.stack_id
+    ? s.decisionStacks[decision.stack_id]
+    : undefined;
   const now = useCoarseNow(30_000);
   // A row outside the viewer's queue (asked of somebody else, read by id)
   // becomes a store row first: the answer is a patch on a row that exists.
-  const onAnswer = useCallback((input: DecisionAnswerInput) => { adoptDecision(decision._id); answerDecision(decision._id, input); }, [adoptDecision, answerDecision, decision._id]);
+  const onAnswer = useCallback(
+    (input: DecisionAnswerInput) => {
+      adoptDecision(decision._id);
+      answerDecision(decision._id, input);
+    },
+    [adoptDecision, answerDecision, decision._id],
+  );
   const onDismiss = useCallback(() => onAnswer({ dismiss: true }), [onAnswer]);
 
   return (
@@ -173,17 +219,90 @@ export function DecisionCompactCardView({
   // card some other session asked names that session, and the click jumps
   // to the ask. An advisory card's course is said beside its chips.
   const lineGate = !!(decision.workflow_run_id || decision.station);
-  const cardFacts = decision.card ? [
-    { key: "asked", className: "cc-nowrap", node: asked },
-    ...(!lineGate ? [{ key: "who", className: "min-w-0", node: <span className="inline-flex min-w-0 gap-1">from <AskingSessionView decision={decision} session={session} onJumpToAsk={onJumpToAsk} label={askingSessionName(session?.title || decision.session_title, taskRef) || "a session"} /></span> }] : []),
-    ...(stack ? [{ key: "stack", node: <Link href={`/decisions/stacks/${stack.short_id ?? stack._id}`} className="text-sol-cyan hover:underline">{stack.title}</Link> }] : []),
-    ...(decision.holder?.kind === "role" ? [{ key: "lead", className: "cc-nowrap text-sol-green", node: "with a lead" }] : []),
-    // The run that asked (LE16): its report tells the path to this card.
-    ...(decision.workflow_run_id ? [{ key: "run", className: "cc-nowrap", node: <Link href={runHref(decision.workflow_run_id)} className="hover:underline" title="The run that made this card: the path it took" data-card-run>the run</Link> }] : []),
-  ] : [];
+  const cardFacts = decision.card
+    ? [
+        { key: "asked", className: "cc-nowrap", node: asked },
+        ...(!lineGate
+          ? [
+              {
+                key: "who",
+                className: "min-w-0",
+                node: (
+                  <span className="inline-flex min-w-0 gap-1">
+                    from{" "}
+                    <AskingSessionView
+                      decision={decision}
+                      session={session}
+                      onJumpToAsk={onJumpToAsk}
+                      label={
+                        askingSessionName(
+                          session?.title || decision.session_title,
+                          taskRef,
+                        ) || "a session"
+                      }
+                    />
+                  </span>
+                ),
+              },
+            ]
+          : []),
+        ...(stack
+          ? [
+              {
+                key: "stack",
+                node: (
+                  <Link
+                    href={`/decisions/stacks/${stack.short_id ?? stack._id}`}
+                    className="text-sol-cyan hover:underline"
+                  >
+                    {stack.title}
+                  </Link>
+                ),
+              },
+            ]
+          : []),
+        ...(decision.holder?.kind === "role"
+          ? [
+              {
+                key: "lead",
+                className: "cc-nowrap text-sol-green",
+                node: "with a lead",
+              },
+            ]
+          : []),
+        // The run that asked (LE16): its report tells the path to this card.
+        ...(decision.workflow_run_id
+          ? [
+              {
+                key: "run",
+                className: "cc-nowrap",
+                node: (
+                  <Link
+                    href={runHref(decision.workflow_run_id)}
+                    className="hover:underline"
+                    title="The run that made this card: the path it took"
+                    data-card-run
+                  >
+                    the run
+                  </Link>
+                ),
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   const openLink = (
-    <Link href={decisionHref(decision)} className="group/open flex items-center gap-1 font-mono text-meta text-sol-text-dim hover:text-sol-text focus-visible:text-sol-text" title={decision.card ? `Open ${decision.short_id ?? "the decision"}` : undefined} aria-label={decision.card ? "Open the decision" : undefined}>
+    <Link
+      href={decisionHref(decision)}
+      className="group/open flex items-center gap-1 font-mono text-meta text-sol-text-dim hover:text-sol-text focus-visible:text-sol-text"
+      title={
+        decision.card
+          ? `Open ${decision.short_id ?? "the decision"}`
+          : undefined
+      }
+      aria-label={decision.card ? "Open the decision" : undefined}
+    >
       {/* A card's change is its link and its task chip names it, so its own
           id stays on hover. */}
       {!decision.card && (decision.short_id ?? "open")}
@@ -204,66 +323,157 @@ export function DecisionCompactCardView({
         {/* Each fact carries its own separator (SepRow), so a wrapped line
             never opens on a dot or an orphaned mark. The asking session's
             own dot says whether it is live; only a blocking ask adds one. */}
-        {!decision.card && <div className="flex items-start gap-2">
-          <SepRow
-          className="flex-1 min-w-0 text-meta text-sol-text-dim"
-          items={[
-            {
-              key: "who",
-              plain: true,
-              className: "items-center gap-2",
-              node: (
-                <>
-                  {onToggleSelect && (
-                    <input type="checkbox" checked={!!selected} onChange={onToggleSelect} className="accent-[var(--sol-violet)]" aria-label="Select for a stack" />
-                  )}
-                  {decision.blocking && <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-sol-yellow" title="Blocking: the session is parked" aria-label="blocking" />}
-                  <AskingSessionView decision={decision} session={session} onJumpToAsk={onJumpToAsk} className="max-w-[22rem]" />
-                </>
-              ),
-            },
-            { key: "asked", className: "cc-nowrap", node: asked },
-            ...(!pending ? [{ key: "state", className: `cc-nowrap ${SETTLED_STATE[decision.status]?.className ?? "text-sol-text-dim"}`, node: SETTLED_STATE[decision.status]?.label ?? decision.status }] : []),
-            { key: "chips", plain: true, className: "flex-wrap items-center gap-2 min-w-0", node: (
-              <>
-                <DecisionThreadUnread decisionId={decision._id} href={decisionHref(decision)} />
-                {!decision.blocking && <span className={`px-1.5 py-0.5 rounded border border-sol-blue/30 text-sol-blue${m ? ` ${modernPill({ tone: "blue" })}` : ""}`}>advisory</span>}
-                {askedOf && <span className={`px-1.5 py-0.5 rounded border border-sol-border text-sol-text-muted${m ? ` ${modernPill({ tone: "neutral" })}` : ""}`} title={`Asked of ${askedOf}. Your answer counts, and they are told you answered.`} data-decision-asked-of>for {askedOf}</span>}
-                {/* The category decides who may answer, and only a real one says
+        {!decision.card && (
+          <div className="flex items-start gap-2">
+            <SepRow
+              className="flex-1 min-w-0 text-meta text-sol-text-dim"
+              items={[
+                {
+                  key: "who",
+                  plain: true,
+                  className: "items-center gap-2",
+                  node: (
+                    <>
+                      {onToggleSelect && (
+                        <input
+                          type="checkbox"
+                          checked={!!selected}
+                          onChange={onToggleSelect}
+                          className="accent-[var(--sol-violet)]"
+                          aria-label="Select for a stack"
+                        />
+                      )}
+                      {decision.blocking && (
+                        <span
+                          className="w-1.5 h-1.5 shrink-0 rounded-full bg-sol-yellow"
+                          title="Blocking: the session is parked"
+                          aria-label="blocking"
+                        />
+                      )}
+                      <AskingSessionView
+                        decision={decision}
+                        session={session}
+                        onJumpToAsk={onJumpToAsk}
+                        className="max-w-[22rem]"
+                      />
+                    </>
+                  ),
+                },
+                { key: "asked", className: "cc-nowrap", node: asked },
+                ...(!pending
+                  ? [
+                      {
+                        key: "state",
+                        className: `cc-nowrap ${SETTLED_STATE[decision.status]?.className ?? "text-sol-text-dim"}`,
+                        node:
+                          SETTLED_STATE[decision.status]?.label ??
+                          decision.status,
+                      },
+                    ]
+                  : []),
+                {
+                  key: "chips",
+                  plain: true,
+                  className: "flex-wrap items-center gap-2 min-w-0",
+                  node: (
+                    <>
+                      <DecisionThreadUnread
+                        decisionId={decision._id}
+                        href={decisionHref(decision)}
+                      />
+                      {!decision.blocking && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded border border-sol-blue/30 text-sol-blue${m ? ` ${modernPill({ tone: "blue" })}` : ""}`}
+                        >
+                          advisory
+                        </span>
+                      )}
+                      {askedOf && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded border border-sol-border text-sol-text-muted${m ? ` ${modernPill({ tone: "neutral" })}` : ""}`}
+                          title={`Asked of ${askedOf}. Your answer counts, and they are told you answered.`}
+                          data-decision-asked-of
+                        >
+                          for {askedOf}
+                        </span>
+                      )}
+                      {/* The category decides who may answer, and only a real one says
                     anything: "unknown" is the absence of a proposal, so it earns no
                     chip here. The document page spells out what it means. */}
-                {!line && decision.category && decision.category !== "unknown" && (
-                  <span className={`px-1.5 py-0.5 rounded border ${isHumanOnlyCategory(decision.category) ? "border-sol-red/30 text-sol-red" : "border-sol-border text-sol-text-dim"}${m ? ` ${modernPill({ tone: isHumanOnlyCategory(decision.category) ? "red" : "neutral" })}` : ""}`} title={isHumanOnlyCategory(decision.category) ? "Always answered by a person, never a role" : "A role can earn the right to answer these"}>
-                    {decision.category}
-                  </span>
-                )}
-                {/* S15: a staffing proposal's pointer card names who wrote the proposal */}
-                <DecisionProposalOrigin contextMd={decision.context_md} />
-                {showTask && (task || decision.task_id) && (
-                  <Link href={taskHref(String(task?.short_id ?? decision.task_id))} className={`px-1.5 py-0.5 rounded border border-sol-violet/30 text-sol-violet hover:bg-sol-violet/10${m ? ` ${modernPill({ tone: "violet" })}` : ""}`}>
-                    {task?.short_id ? <span className="modern:font-mono">{task.short_id}</span> : "task"}{decision.station ? ` · ${decision.station}` : ""}
-                  </Link>
-                )}
-                {stack && (
-                  <Link href={`/decisions/stacks/${stack.short_id ?? stack._id}`} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-cyan/30 text-sol-cyan hover:bg-sol-cyan/10${m ? ` ${modernPill({ tone: "cyan" })}` : ""}`}>
-                    <Layers className="w-3 h-3" />{stack.title}
-                  </Link>
-                )}
-                {!line && decision.workflow_run_id && <GateRunChip runId={decision.workflow_run_id} nodeId={decision.gate_node_id} />}
-                {pageCount > 0 && (
-                  <Link href={decisionHref(decision)} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim hover:text-sol-text${m ? ` ${modernPill({ tone: "neutral" })}` : ""}`} title="The options carry pages to compare">
-                    <LayoutTemplate className="w-3 h-3" />{pageCount} page{pageCount === 1 ? "" : "s"}
-                  </Link>
-                )}
-                {decision.holder?.kind === "role" && (
-                  <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-green/30 text-sol-green${m ? ` ${modernPill({ tone: "green" })}` : ""}`}><ShieldCheck className="w-3 h-3" />with a lead</span>
-                )}
-              </>
-            ) },
-            { key: "open", plain: true, end: true, node: openLink },
-          ]}
-          />
-        </div>}
+                      {!line &&
+                        decision.category &&
+                        decision.category !== "unknown" && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded border ${isHumanOnlyCategory(decision.category) ? "border-sol-red/30 text-sol-red" : "border-sol-border text-sol-text-dim"}${m ? ` ${modernPill({ tone: isHumanOnlyCategory(decision.category) ? "red" : "neutral" })}` : ""}`}
+                            title={
+                              isHumanOnlyCategory(decision.category)
+                                ? "Always answered by a person, never a role"
+                                : "A role can earn the right to answer these"
+                            }
+                          >
+                            {decision.category}
+                          </span>
+                        )}
+                      {/* S15: a staffing proposal's pointer card names who wrote the proposal */}
+                      <DecisionProposalOrigin contextMd={decision.context_md} />
+                      {showTask && (task || decision.task_id) && (
+                        <Link
+                          href={taskHref(
+                            String(task?.short_id ?? decision.task_id),
+                          )}
+                          className={`px-1.5 py-0.5 rounded border border-sol-violet/30 text-sol-violet hover:bg-sol-violet/10${m ? ` ${modernPill({ tone: "violet" })}` : ""}`}
+                        >
+                          {task?.short_id ? (
+                            <span className="modern:font-mono">
+                              {task.short_id}
+                            </span>
+                          ) : (
+                            "task"
+                          )}
+                          {decision.station ? ` · ${decision.station}` : ""}
+                        </Link>
+                      )}
+                      {stack && (
+                        <Link
+                          href={`/decisions/stacks/${stack.short_id ?? stack._id}`}
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-cyan/30 text-sol-cyan hover:bg-sol-cyan/10${m ? ` ${modernPill({ tone: "cyan" })}` : ""}`}
+                        >
+                          <Layers className="w-3 h-3" />
+                          {stack.title}
+                        </Link>
+                      )}
+                      {!line && decision.workflow_run_id && (
+                        <GateRunChip
+                          runId={decision.workflow_run_id}
+                          nodeId={decision.gate_node_id}
+                        />
+                      )}
+                      {pageCount > 0 && (
+                        <Link
+                          href={decisionHref(decision)}
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim hover:text-sol-text${m ? ` ${modernPill({ tone: "neutral" })}` : ""}`}
+                          title="The options carry pages to compare"
+                        >
+                          <LayoutTemplate className="w-3 h-3" />
+                          {pageCount} page{pageCount === 1 ? "" : "s"}
+                        </Link>
+                      )}
+                      {decision.holder?.kind === "role" && (
+                        <span
+                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-green/30 text-sol-green${m ? ` ${modernPill({ tone: "green" })}` : ""}`}
+                        >
+                          <ShieldCheck className="w-3 h-3" />
+                          with a lead
+                        </span>
+                      )}
+                    </>
+                  ),
+                },
+                { key: "open", plain: true, end: true, node: openLink },
+              ]}
+            />
+          </div>
+        )}
         {decision.card ? (
           // A change card (LE11) is the same card on the queue and on the
           // line: the head (change, cause, goal and this row's facts), the
@@ -273,18 +483,52 @@ export function DecisionCompactCardView({
           // page and in the sheet.
           <>
             <div className="flex items-start gap-2">
-              {onToggleSelect && <input type="checkbox" checked={!!selected} onChange={onToggleSelect} className="mt-1 accent-[var(--sol-violet)]" aria-label="Select for a stack" />}
-              <ChangeCardHeadline card={decision.card} size="row" href={decisionHref(decision)} question={decision.question} facts={cardFacts} folded={folded} className="flex-1 min-w-0" />
+              {onToggleSelect && (
+                <input
+                  type="checkbox"
+                  checked={!!selected}
+                  onChange={onToggleSelect}
+                  className="mt-1 accent-[var(--sol-violet)]"
+                  aria-label="Select for a stack"
+                />
+              )}
+              <ChangeCardHeadline
+                card={decision.card}
+                size="row"
+                href={decisionHref(decision)}
+                question={decision.question}
+                facts={cardFacts}
+                folded={folded}
+                className="flex-1 min-w-0"
+              />
               {!line && <span className="shrink-0 pt-px">{openLink}</span>}
             </div>
             <div className="cc-card-row mt-2" data-card-row>
-              <ChangeCardView card={decision.card} density="line" recommend={!answersHere && pending && !folded} story={line} folded={folded} />
-              {chipsInRow && <DecisionAnswerControls decision={decision} onAnswer={onAnswer} onDismiss={onDismiss} keys={keys} size="line" recommendation={rec} />}
+              <ChangeCardView
+                card={decision.card}
+                density="line"
+                recommend={!answersHere && pending && !folded}
+                story={line}
+                folded={folded}
+              />
+              {chipsInRow && (
+                <DecisionAnswerControls
+                  decision={decision}
+                  onAnswer={onAnswer}
+                  onDismiss={onDismiss}
+                  keys={keys}
+                  size="line"
+                  recommendation={rec}
+                />
+              )}
             </div>
           </>
         ) : (
           <>
-            <Link href={decisionHref(decision)} className="decision-question block mt-2 text-sol-text hover:text-sol-blue transition-colors">
+            <Link
+              href={decisionHref(decision)}
+              className="decision-question block mt-2 text-sol-text hover:text-sol-blue transition-colors"
+            >
               {decision.question}
             </Link>
           </>
@@ -309,9 +553,15 @@ export function DecisionCompactCardView({
           >
             {(expanded) => (
               <div className="decision-card-body" data-decision-context>
-                {expanded || hasCanvasFence(decision.context_md!)
-                  ? <MarkdownRenderer content={decision.context_md!} />
-                  : <p className="whitespace-pre-wrap">{stripMarkdown(decision.context_md!, { keepNewlines: true })}</p>}
+                {expanded || hasCanvasFence(decision.context_md!) ? (
+                  <MarkdownRenderer content={decision.context_md!} />
+                ) : (
+                  <p className="whitespace-pre-wrap">
+                    {stripMarkdown(decision.context_md!, {
+                      keepNewlines: true,
+                    })}
+                  </p>
+                )}
               </div>
             )}
           </CollapsibleBody>
@@ -321,26 +571,58 @@ export function DecisionCompactCardView({
             page. Clipped like the context: a page is taller than a card. */}
         {decision.report_slug && !decision.card && (
           <div className="mt-1" data-decision-report={decision.report_slug}>
-            <PublishedPageEmbed slug={decision.report_slug} decision={decision._id} height={240} />
+            <PublishedPageEmbed
+              slug={decision.report_slug}
+              decision={decision._id}
+              height={240}
+            />
           </div>
         )}
         {pageCount > 0 && (
-          <div className="mt-2"><OptionPages decision={decision} answerable={pending && kind === "single"} onAnswer={(i) => onAnswer({ index: i })} /></div>
+          <div className="mt-2">
+            <OptionPages
+              decision={decision}
+              answerable={pending && kind === "single"}
+              onAnswer={(i) => onAnswer({ index: i })}
+            />
+          </div>
         )}
         {decision.status === "answered" && !decision.card && (
-          <div className="mt-2.5 border-t border-sol-border/50 pt-2" data-decision-answer><DecisionRecordedAnswer decision={decision} /></div>
+          <div
+            className="mt-2.5 border-t border-sol-border/50 pt-2"
+            data-decision-answer
+          >
+            <DecisionRecordedAnswer decision={decision} />
+          </div>
         )}
         {rec !== undefined && (
-          <div className="mt-2 text-[12px] text-sol-cyan">a lead recommends: {decision.options[rec]?.label}</div>
+          <div className="mt-2 text-[12px] text-sol-cyan">
+            a lead recommends: {decision.options[rec]?.label}
+          </div>
         )}
       </div>
       {pending && !chipsInRow && !folded && (
         <div className="px-4 pb-3">
           {kind === "single" ? (
-            <DecisionAnswerControls decision={decision} onAnswer={onAnswer} onDismiss={onDismiss} keys={keys} size="compact" recommendation={rec} />
+            <DecisionAnswerControls
+              decision={decision}
+              onAnswer={onAnswer}
+              onDismiss={onDismiss}
+              keys={keys}
+              size="compact"
+              recommendation={rec}
+            />
           ) : (
-            <Link href={decisionHref(decision)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-sol-yellow/40 text-[12px] text-sol-text hover:bg-sol-yellow hover:text-sol-bg transition-colors${m ? ` ${modernButton({ variant: "outline", size: "sm" })}` : ""}`}>
-              {kind === "multi" ? "Pick several" : kind === "rank" ? "Rank the options" : "Fill in the form"}<ArrowUpRight className="w-3 h-3" />
+            <Link
+              href={decisionHref(decision)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-sol-yellow/40 text-[12px] text-sol-text hover:bg-sol-yellow hover:text-sol-bg transition-colors${m ? ` ${modernButton({ variant: "outline", size: "sm" })}` : ""}`}
+            >
+              {kind === "multi"
+                ? "Pick several"
+                : kind === "rank"
+                  ? "Rank the options"
+                  : "Fill in the form"}
+              <ArrowUpRight className="w-3 h-3" />
             </Link>
           )}
         </div>
@@ -348,7 +630,9 @@ export function DecisionCompactCardView({
       {pending && <RunFallbackLine run={decision.run} className="px-4 pb-3" />}
       {/* The team thread, with the session that owns it, without leaving the queue (ct-74449). */}
       {!folded && (
-        <div className="px-4 pb-3"><DecisionDiscussion decisionId={decision._id} compact /></div>
+        <div className="px-4 pb-3">
+          <DecisionDiscussion decisionId={decision._id} compact />
+        </div>
       )}
     </div>
   );
@@ -358,11 +642,24 @@ export function DecisionCompactCardView({
 // label from the workflowRuns store row, which useSyncWorkflowRun feeds per
 // card (a run is per view data, not a global feed). A row not yet synced
 // reads "a workflow run"; the chip links to the run either way.
-const runChipSig = (r: any) => (r ? `${r.workflow_name ?? ""}|${r.current_node_id ?? ""}|${r.current_node_label ?? ""}|${r.status ?? ""}` : "");
+const runChipSig = (r: any) =>
+  r
+    ? `${r.workflow_name ?? ""}|${r.current_node_id ?? ""}|${r.current_node_label ?? ""}|${r.status ?? ""}`
+    : "";
 
-export function GateRunChip({ runId, nodeId, className = "" }: { runId: string; nodeId?: string; className?: string }) {
+export function GateRunChip({
+  runId,
+  nodeId,
+  className = "",
+}: {
+  runId: string;
+  nodeId?: string;
+  className?: string;
+}) {
   useSyncWorkflowRun(runId);
-  const s = useTrackedStore([(st) => runChipSig((st as any).workflowRuns?.[runId])]);
+  const s = useTrackedStore([
+    (st) => runChipSig((st as any).workflowRuns?.[runId]),
+  ]);
   const m = useIsModernStyle();
   const run = (s as any).workflowRuns?.[runId];
   const label = gateRunLabel(run, nodeId);
@@ -371,10 +668,17 @@ export function GateRunChip({ runId, nodeId, className = "" }: { runId: string; 
       href={runHref(runId)}
       data-gate-run={runId}
       className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-sol-green/30 text-sol-green hover:bg-sol-green/10 max-w-[18rem] min-w-0 ${className}${m ? ` ${modernPill({ tone: "green" })}` : ""}`}
-      title={label.known ? `Gate on ${label.workflow}${label.node ? ` at ${label.node}` : ""}` : "A gate on a workflow run"}
+      title={
+        label.known
+          ? `Gate on ${label.workflow}${label.node ? ` at ${label.node}` : ""}`
+          : "A gate on a workflow run"
+      }
     >
       <Workflow className="w-3 h-3 shrink-0" />
-      <span className="truncate">{label.workflow}{label.node ? ` · ${label.node}` : ""}</span>
+      <span className="truncate">
+        {label.workflow}
+        {label.node ? ` · ${label.node}` : ""}
+      </span>
     </Link>
   );
 }

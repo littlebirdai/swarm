@@ -40,7 +40,8 @@ const SIM_ERROR = /^sim (client|server|ctx|world|realm|net)\b/;
 
 // A pasted line as Claude Code 2.1.277+ writes it into the transcript (the
 // tag's id is the paste's own short token).
-const pastedEcho = (pendingId: string, text: string) => `<pasted_content id="${pendingId.slice(0, 4)}">\n${text}\n</pasted_content>`;
+const pastedEcho = (pendingId: string, text: string) =>
+  `<pasted_content id="${pendingId.slice(0, 4)}">\n${text}\n</pasted_content>`;
 
 export interface HumanActor {
   kill(session: string): number;
@@ -73,7 +74,12 @@ export interface DaemonActor {
 
 export interface AgentActor {
   /** `thread`: the label of the root to reply under, as `cast chat send --thread <root>` does. */
-  says(channel: string, text: string, mentions?: string[], opts?: { thread?: string }): number;
+  says(
+    channel: string,
+    text: string,
+    mentions?: string[],
+    opts?: { thread?: string },
+  ): number;
 }
 
 export interface AdminActor {
@@ -98,14 +104,30 @@ export interface Actors {
  * What the actors need of a world. SimWorld is one; the legacy suites'
  * SimServer (inboxSimHarness.ts) is another, so both drive one copy of the verbs.
  */
-export type ActorWorld = Pick<SimWorld, "net" | "start" | "row" | "labels" | "idOf" | "clientAs" | "daemonClientAs" | "realm"> & Partial<Pick<SimWorld, "afterAdvance">>;
+export type ActorWorld = Pick<
+  SimWorld,
+  | "net"
+  | "start"
+  | "row"
+  | "labels"
+  | "idOf"
+  | "clientAs"
+  | "daemonClientAs"
+  | "realm"
+> &
+  Partial<Pick<SimWorld, "afterAdvance">>;
 
 export function makeActors(world: ActorWorld): Actors {
   const log: ActorLogEntry[] = [];
   const daemons = new Map<string, DaemonActor>();
 
   // One verb: a delivery on actor:<name> that runs `body` and records the outcome.
-  function verb(actor: string, name: string, subject: string, body: () => Promise<unknown>): number {
+  function verb(
+    actor: string,
+    name: string,
+    subject: string,
+    body: () => Promise<unknown>,
+  ): number {
     return world.net.enqueue(`actor:${actor}`, {
       label: `${actor} ${name}${subject ? ` ${subject}` : ""}`,
       producer: `actor:${actor} ${name}`,
@@ -133,7 +155,9 @@ export function makeActors(world: ActorWorld): Actors {
 
   function human(win: ActorWindow): HumanActor {
     const act = (name: string, subject: string, fn: (s: any) => unknown) =>
-      verb(win.name, name, subject, () => win.run(() => fn(win.store.getState())));
+      verb(win.name, name, subject, () =>
+        win.run(() => fn(win.store.getState())),
+      );
     // A composer send: paint the bubble, then the durable send under its client id.
     const send = (s: any, id: string, text: string) => {
       const clientId = s.addOptimisticMessage(id, text);
@@ -143,12 +167,16 @@ export function makeActors(world: ActorWorld): Actors {
     const chat = (channel: string, text: string) =>
       act("chat", channel, (s) => s.sendChatMessage(channelId(channel), text));
     return {
-      kill: (session) => act("kill", session, (s) => s.killSession(world.idOf(session))),
-      stash: (session) => act("stash", session, (s) => s.stashSession(world.idOf(session))),
-      restore: (session) => act("restore", session, (s) => s.restoreSession(world.idOf(session))),
+      kill: (session) =>
+        act("kill", session, (s) => s.killSession(world.idOf(session))),
+      stash: (session) =>
+        act("stash", session, (s) => s.stashSession(world.idOf(session))),
+      restore: (session) =>
+        act("restore", session, (s) => s.restoreSession(world.idOf(session))),
       undo: () => act("undo", "", () => performUndo()),
       redo: () => act("redo", "", () => performRedo()),
-      pin: (session) => act("pin", session, (s) => s.pinSession(world.idOf(session))),
+      pin: (session) =>
+        act("pin", session, (s) => s.pinSession(world.idOf(session))),
       // The context-park revive: the turn goes out, and the row is stamped
       // revive-in-flight so it leaves the blocked set at once.
       revive: (session, text = "continue") =>
@@ -158,8 +186,12 @@ export function makeActors(world: ActorWorld): Actors {
           s.markBlockedReviveRequested([id]);
           return clientId;
         }),
-      send: (session, text) => act("send", session, (s) => send(s, world.idOf(session), text)),
-      setPrivacy: (session, to) => act("setPrivacy", `${session} ${to}`, (s) => s.setPrivacy(world.idOf(session), to === "private")),
+      send: (session, text) =>
+        act("send", session, (s) => send(s, world.idOf(session), text)),
+      setPrivacy: (session, to) =>
+        act("setPrivacy", `${session} ${to}`, (s) =>
+          s.setPrivacy(world.idOf(session), to === "private"),
+        ),
       chat,
       // `@handle` in the role's team channel, as a person addresses a role.
       tellRole: (role, text) => {
@@ -194,7 +226,9 @@ export function makeActors(world: ActorWorld): Actors {
         verb(actor, "heartbeat", session, () =>
           cli().mutation("managedSessions:heartbeat", {
             session_id: sessionIdFor(world.idOf(session)),
-            ...(status ? { agent_status: status, client_ts: world.realm.now() } : {}),
+            ...(status
+              ? { agent_status: status, client_ts: world.realm.now() }
+              : {}),
           }),
         ),
       // A restarted daemon re-registers every session it recovers from tmux.
@@ -203,12 +237,14 @@ export function makeActors(world: ActorWorld): Actors {
           const out = [];
           for (const session of sessions) {
             const conversation_id = world.idOf(session);
-            out.push(await cli().mutation("managedSessions:registerManagedSession", {
-              session_id: sessionIdFor(conversation_id),
-              pid: 4242,
-              conversation_id,
-              device_id,
-            }));
+            out.push(
+              await cli().mutation("managedSessions:registerManagedSession", {
+                session_id: sessionIdFor(conversation_id),
+                pid: 4242,
+                conversation_id,
+                device_id,
+              }),
+            );
           }
           return out;
         }),
@@ -216,16 +252,22 @@ export function makeActors(world: ActorWorld): Actors {
       claimPending: (session) =>
         verb(actor, "claimPending", session ?? "", async () => {
           const only = session ? world.idOf(session) : undefined;
-          const pending: any[] = await cli().query("pendingMessages:getPendingMessagesForDaemon", { device_id });
+          const pending: any[] = await cli().query(
+            "pendingMessages:getPendingMessagesForDaemon",
+            { device_id },
+          );
           const got = [];
           for (const msg of pending) {
             const conv = String(msg.conversation_id);
             if (only && conv !== only) continue;
-            const row = await cli().mutation("pendingMessages:claimPendingMessageForDelivery", {
-              message_id: msg._id,
-              conversation_id: conv,
-              device_id,
-            });
+            const row = await cli().mutation(
+              "pendingMessages:claimPendingMessageForDelivery",
+              {
+                message_id: msg._id,
+                conversation_id: conv,
+                device_id,
+              },
+            );
             if (!row) continue;
             pasted.set(String(msg._id), String(row.content ?? ""));
             claimed.set(conv, [...(claimed.get(conv) ?? []), String(msg._id)]);
@@ -244,29 +286,47 @@ export function makeActors(world: ActorWorld): Actors {
           const ids = claimed.get(conversation_id) ?? [];
           claimed.delete(conversation_id);
           for (const message_id of ids) {
-            await cli().mutation("pendingMessages:updateMessageStatus", { message_id, status: "injected", paste_verified: true, device_id });
+            await cli().mutation("pendingMessages:updateMessageStatus", {
+              message_id,
+              status: "injected",
+              paste_verified: true,
+              device_id,
+            });
           }
           return cli().mutation("messages:addMessages", {
             conversation_id,
             echo_ids: true,
-            messages: ids.map((id) => ({ message_uuid: `sim-echo-${id}`, role: "user", content: pastedEcho(id, pasted.get(id) ?? ""), timestamp: world.realm.now(), delivery_ids: [id] })),
+            messages: ids.map((id) => ({
+              message_uuid: `sim-echo-${id}`,
+              role: "user",
+              content: pastedEcho(id, pasted.get(id) ?? ""),
+              timestamp: world.realm.now(),
+              delivery_ids: [id],
+            })),
           });
         }),
       // Resuming a parked session goes through resumeConversationSession, as
       // the user it runs for.
       resume: (session) =>
         verb(actor, "resume", session, () =>
-          world.clientAs(user).mutation("users:resumeSession", { conversation_id: world.idOf(session) }),
+          world.clientAs(user).mutation("users:resumeSession", {
+            conversation_id: world.idOf(session),
+          }),
         ),
       // The scheduler poll: due triggers, each claimed under a lease.
       claimTask: (trigger) =>
         verb(actor, "claimTask", trigger ?? "", async () => {
           const only = trigger ? world.idOf(trigger) : undefined;
-          const due: any[] = await cli().query("agentTasks:getDueTasks", { limit: 5 });
+          const due: any[] = await cli().query("agentTasks:getDueTasks", {
+            limit: 5,
+          });
           const got = [];
           for (const task of due) {
             if (only && String(task._id) !== only) continue;
-            const run = await cli().mutation("agentTasks:claimTask", { task_id: task._id, daemon_id: device_id });
+            const run = await cli().mutation("agentTasks:claimTask", {
+              task_id: task._id,
+              daemon_id: device_id,
+            });
             if (!run) continue;
             leases.push(String(task._id));
             got.push(String(task._id));
@@ -282,16 +342,23 @@ export function makeActors(world: ActorWorld): Actors {
     const actor = `agent.${session}`;
     return {
       says: (channel, text, mentions = [], opts = {}) =>
-        verb(actor, "says", opts.thread ? `${channel} ${opts.thread}` : channel, async () => {
-          const owner = await ownerOf(session);
-          return world.daemonClientAs(owner).mutation("chat:sendMessage", {
-            channel_id: channelId(channel),
-            ...(opts.thread ? { thread_root_id: world.idOf(opts.thread) } : {}),
-            content: [...mentions.map((m) => `@${m}`), text].join(" "),
-            origin: "agent",
-            origin_session_id: sessionIdFor(world.idOf(session)),
-          });
-        }),
+        verb(
+          actor,
+          "says",
+          opts.thread ? `${channel} ${opts.thread}` : channel,
+          async () => {
+            const owner = await ownerOf(session);
+            return world.daemonClientAs(owner).mutation("chat:sendMessage", {
+              channel_id: channelId(channel),
+              ...(opts.thread
+                ? { thread_root_id: world.idOf(opts.thread) }
+                : {}),
+              content: [...mentions.map((m) => `@${m}`), text].join(" "),
+              origin: "agent",
+              origin_session_id: sessionIdFor(world.idOf(session)),
+            });
+          },
+        ),
     };
   }
 
@@ -300,7 +367,10 @@ export function makeActors(world: ActorWorld): Actors {
     return {
       remove: (team, member) =>
         verb(actor, "remove", `${team} ${member}`, () =>
-          world.clientAs(user).mutation("teams:removeMember", { team_id: world.idOf(team), member_user_id: world.idOf(member) }),
+          world.clientAs(user).mutation("teams:removeMember", {
+            team_id: world.idOf(team),
+            member_user_id: world.idOf(member),
+          }),
         ),
     };
   }
@@ -318,6 +388,9 @@ export function makeActors(world: ActorWorld): Actors {
 
 function roleParts(role: string): [team: string, handle: string] {
   const m = /^role:([^/]+)\/(.+)$/.exec(role);
-  if (!m) throw new Error(`sim world: "${role}" is not a role label (role:<team>/<handle>)`);
+  if (!m)
+    throw new Error(
+      `sim world: "${role}" is not a role label (role:<team>/<handle>)`,
+    );
   return [m[1], m[2]];
 }

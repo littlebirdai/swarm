@@ -55,7 +55,9 @@ const LINKABLE: Record<string, EntityRefType> = {
  * `/team/<name>` needs). Returning null is the honest answer: a link that
  * cannot resolve anywhere is worse than no completion.
  */
-export function refForMentionItem(item: EntityCompletionItem): VaultEntityRef | null {
+export function refForMentionItem(
+  item: EntityCompletionItem,
+): VaultEntityRef | null {
   const type = LINKABLE[item.type];
   if (!type) return null;
   if (type === "person") {
@@ -64,17 +66,24 @@ export function refForMentionItem(item: EntityCompletionItem): VaultEntityRef | 
   }
   // Short id first — `ct-40561` reads as itself in the file, where a 32-char
   // Convex id reads as noise. Docs have no short id and fall back to theirs.
-  return makeEntityRef(type, item.shortId || item.id) ?? makeEntityRef(type, item.id);
+  return (
+    makeEntityRef(type, item.shortId || item.id) ?? makeEntityRef(type, item.id)
+  );
 }
 
 /** The text the link carries: the object's name, or the handle for a person. */
-export function linkTextFor(item: EntityCompletionItem, ref: VaultEntityRef): string {
+export function linkTextFor(
+  item: EntityCompletionItem,
+  ref: VaultEntityRef,
+): string {
   if (ref.type === "person") return `@${ref.id}`;
   return sanitizeLinkText(item.label) || ref.id;
 }
 
 /** The markdown a picked item inserts, or null when it addresses nothing. */
-export function markdownForMentionItem(item: EntityCompletionItem): string | null {
+export function markdownForMentionItem(
+  item: EntityCompletionItem,
+): string | null {
   const ref = refForMentionItem(item);
   if (!ref) return null;
   return entityRefMarkdown(ref, linkTextFor(item, ref));
@@ -93,7 +102,10 @@ export function entityLinkEdit(
   from: number,
   to: number,
   insert: string,
-): { changes: { from: number; to: number; insert: string }; selection: { anchor: number } } {
+): {
+  changes: { from: number; to: number; insert: string };
+  selection: { anchor: number };
+} {
   const start = Math.max(0, from - 2);
   const end = state.sliceDoc(to, to + 2) === "]]" ? to + 2 : to;
   return {
@@ -104,7 +116,9 @@ export function entityLinkEdit(
 
 /** Completion options for a batch of mention items, in the order the mention
  *  query ranked them (the result sets `filter: false`, so that order stands). */
-export function entityCompletions(items: readonly EntityCompletionItem[]): Completion[] {
+export function entityCompletions(
+  items: readonly EntityCompletionItem[],
+): Completion[] {
   const options: Completion[] = [];
   const seen = new Set<string>();
   for (const item of items) {
@@ -140,6 +154,7 @@ export function wikiCompletionContext(
   const open = before.lastIndexOf("[[");
   if (open === -1) return null;
   const inner = before.slice(open + 2);
-  if (inner.includes("]]") || inner.includes("|") || inner.includes("#")) return null;
+  if (inner.includes("]]") || inner.includes("|") || inner.includes("#"))
+    return null;
   return { from: lineFrom + open + 2, query: inner };
 }

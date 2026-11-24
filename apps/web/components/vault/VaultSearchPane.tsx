@@ -18,8 +18,15 @@ import {
 import { isVaultMarkdownPath } from "@codecast/shared/contracts";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { vaultIndex, vaultSearch, useVaultIndexVersion } from "../../lib/vault/indexHost";
-import type { FileSearchResult, SearchMatch } from "../../lib/vault/searchIndex";
+import {
+  vaultIndex,
+  vaultSearch,
+  useVaultIndexVersion,
+} from "../../lib/vault/indexHost";
+import type {
+  FileSearchResult,
+  SearchMatch,
+} from "../../lib/vault/searchIndex";
 import {
   blockMatchesPhrases,
   fileMatchesQuery,
@@ -49,7 +56,10 @@ function Highlighted({ match }: { match: SearchMatch }) {
     if (start < at) return;
     if (start > at) parts.push(snippet.slice(at, start));
     parts.push(
-      <mark key={i} className="bg-sol-yellow/25 text-sol-text rounded-[2px] px-[1px]">
+      <mark
+        key={i}
+        className="bg-sol-yellow/25 text-sol-text rounded-[2px] px-[1px]"
+      >
         {snippet.slice(start, end)}
       </mark>,
     );
@@ -109,7 +119,9 @@ const FileGroup = memo(function FileGroup({
           </span>
         </button>
         {result.matches.length > 0 && (
-          <span className="text-meta text-sol-text-dim tabular-nums">{result.matches.length}</span>
+          <span className="text-meta text-sol-text-dim tabular-nums">
+            {result.matches.length}
+          </span>
         )}
       </div>
       {shown.map((match, i) => (
@@ -150,20 +162,25 @@ const FileGroup = memo(function FileGroup({
 function TeachingState() {
   return (
     <div className="px-3 py-6 text-meta leading-5 text-sol-text-dim">
-      <div className="text-sol-text-muted mb-2">Search every note in this vault.</div>
+      <div className="text-sol-text-muted mb-2">
+        Search every note in this vault.
+      </div>
       <div className="mb-1">Narrow it with operators:</div>
       <ul className="space-y-0.5">
         <li>
           <code className="text-sol-cyan">path:</code>projects — path contains
         </li>
         <li>
-          <code className="text-sol-cyan">file:</code>meeting — filename contains
+          <code className="text-sol-cyan">file:</code>meeting — filename
+          contains
         </li>
         <li>
-          <code className="text-sol-cyan">tag:</code>#status/draft — tag or a nested one
+          <code className="text-sol-cyan">tag:</code>#status/draft — tag or a
+          nested one
         </li>
         <li>
-          <code className="text-sol-cyan">&quot;exact phrase&quot;</code> — words together
+          <code className="text-sol-cyan">&quot;exact phrase&quot;</code> —
+          words together
         </li>
         <li>
           <code className="text-sol-cyan">-draft</code> — exclude
@@ -194,12 +211,15 @@ export const VaultSearchPane = memo(function VaultSearchPane({
     const q = parseVaultQuery(query);
     if (q.isEmpty) return null;
 
-    const proseOf = (path: string) => vaultIndex.note(path)?.parsed?.plainText ?? "";
+    const proseOf = (path: string) =>
+      vaultIndex.note(path)?.parsed?.plainText ?? "";
 
     // Tags come from the index (nested tags included); repeats intersect.
     const tagSets = q.tags.map((tag) => new Set(vaultIndex.filesWithTag(tag)));
     const tagged: Set<string> | null = tagSets.length
-      ? tagSets.reduce((acc, files) => new Set([...acc].filter((f) => files.has(f))))
+      ? tagSets.reduce(
+          (acc, files) => new Set([...acc].filter((f) => files.has(f))),
+        )
       : null;
 
     if (!hasRankableText(q)) {
@@ -207,17 +227,24 @@ export const VaultSearchPane = memo(function VaultSearchPane({
       // not a search — every file that passes, sorted by name.
       const candidates = tagged ? [...tagged] : vaultIndex.paths();
       return candidates
-        .filter((p) => isVaultMarkdownPath(p) && fileMatchesQuery(q, p, proseOf(p)))
+        .filter(
+          (p) => isVaultMarkdownPath(p) && fileMatchesQuery(q, p, proseOf(p)),
+        )
         .map<FileSearchResult>((p) => ({
           path: p,
           title: displayTitle(p, vaultIndex.note(p)?.title),
           score: 0,
           matches: [],
         }))
-        .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+        .sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base" }),
+        );
     }
 
-    const found = vaultSearch.search(q.text, { limit: 200, matchesPerFile: 20 });
+    const found = vaultSearch.search(q.text, {
+      limit: 200,
+      matchesPerFile: 20,
+    });
     const filtered: FileSearchResult[] = [];
     for (const file of found) {
       if (tagged && !tagged.has(file.path)) continue;
@@ -230,7 +257,10 @@ export const VaultSearchPane = memo(function VaultSearchPane({
       // the snippet is a window around one term and can cut the phrase in half.
       const lines = bodies[file.path]?.content.split("\n") ?? [];
       const matches = file.matches.filter((m) =>
-        blockMatchesPhrases(lines.slice(m.line - 1, m.endLine).join(" "), q.phrases),
+        blockMatchesPhrases(
+          lines.slice(m.line - 1, m.endLine).join(" "),
+          q.phrases,
+        ),
       );
       if (matches.length) filtered.push({ ...file, matches });
     }
@@ -255,13 +285,19 @@ export const VaultSearchPane = memo(function VaultSearchPane({
     });
   }, []);
 
-  const allCollapsed = !!results?.length && results.every((r) => collapsed[r.path]);
+  const allCollapsed =
+    !!results?.length && results.every((r) => collapsed[r.path]);
   const collapseAll = useCallback(() => {
     if (!results) return;
-    setCollapsed(allCollapsed ? {} : Object.fromEntries(results.map((r) => [r.path, true as const])));
+    setCollapsed(
+      allCollapsed
+        ? {}
+        : Object.fromEntries(results.map((r) => [r.path, true as const])),
+    );
   }, [results, allCollapsed]);
 
-  const totalMatches = results?.reduce((acc, r) => acc + r.matches.length, 0) ?? 0;
+  const totalMatches =
+    results?.reduce((acc, r) => acc + r.matches.length, 0) ?? 0;
 
   return (
     <div className="h-full flex flex-col min-h-0">
@@ -310,7 +346,9 @@ export const VaultSearchPane = memo(function VaultSearchPane({
       {results && results.length > 0 && (
         <div className="flex items-center gap-2 px-3 py-1 border-b border-sol-border/20 text-mark uppercase tracking-wide text-sol-text-dim">
           <span className="tabular-nums">
-            {totalMatches > 0 ? `${totalMatches} match${totalMatches === 1 ? "" : "es"} in ` : ""}
+            {totalMatches > 0
+              ? `${totalMatches} match${totalMatches === 1 ? "" : "es"} in `
+              : ""}
             {results.length} note{results.length === 1 ? "" : "s"}
           </span>
           <button
@@ -329,7 +367,8 @@ export const VaultSearchPane = memo(function VaultSearchPane({
           <TeachingState />
         ) : results.length === 0 ? (
           <div className="px-3 py-6 text-meta leading-5 text-sol-text-dim text-center">
-            No notes match <span className="text-sol-text-muted">{query.trim()}</span>.
+            No notes match{" "}
+            <span className="text-sol-text-muted">{query.trim()}</span>.
             <div className="mt-1">Try fewer words, or drop an operator.</div>
           </div>
         ) : (

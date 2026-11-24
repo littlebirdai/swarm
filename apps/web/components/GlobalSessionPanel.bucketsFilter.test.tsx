@@ -13,7 +13,9 @@ import { useHiddenBucketsOpen } from "../hooks/useHiddenBucketsOpen";
 // filter's value now: a re-render with the same filter keeps an open bucket
 // open, and a filter change closes it.
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -29,7 +31,9 @@ let openStashed: () => void = () => {};
 
 function Buckets({ project, tick }: { project: string; tick: number }) {
   // A fresh array every render, like the panel's filter terms.
-  const [open, setOpen] = useHiddenBucketsOpen(JSON.stringify([[{ id: project }], []]));
+  const [open, setOpen] = useHiddenBucketsOpen(
+    JSON.stringify([[{ id: project }], []]),
+  );
   openStashed = () => setOpen((o) => ({ ...o, stashed: true }));
   return <span data-tick={tick}>{open.stashed ? "open" : "closed"}</span>;
 }

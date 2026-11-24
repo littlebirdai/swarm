@@ -36,10 +36,16 @@ export function buildAgentThreadPrompt(
     }
   }
   lines.push("");
-  lines.push(followUp ? "New comments since your last reply:" : "Comment thread so far (oldest first):");
+  lines.push(
+    followUp
+      ? "New comments since your last reply:"
+      : "Comment thread so far (oldest first):",
+  );
   for (const e of entries) {
     if (!e.content.trim()) continue;
-    lines.push(`- ${e.isAgent ? "You (earlier)" : e.name}: ${e.content.trim()}`);
+    lines.push(
+      `- ${e.isAgent ? "You (earlier)" : e.name}: ${e.content.trim()}`,
+    );
   }
   lines.push("");
   lines.push(

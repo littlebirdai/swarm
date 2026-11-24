@@ -9,19 +9,55 @@ import { StandingLine } from "../stateWords";
 import type { LineProject } from "./lineData";
 import { ProjectGlyph } from "./lineAtoms";
 import { projectFacts, projectSays } from "./lineFacts";
-import { LineBody, ObjectLine, type LineGhost, type ObjectLineProps } from "./ObjectLine";
+import {
+  LineBody,
+  ObjectLine,
+  type LineGhost,
+  type ObjectLineProps,
+} from "./ObjectLine";
 import { ProjectPinButton } from "../../projects/ProjectPinButton";
 
-export { ProjectGlyph, ProjectLead, ProjectState, ProjectWork } from "./lineAtoms";
+export {
+  ProjectGlyph,
+  ProjectLead,
+  ProjectState,
+  ProjectWork,
+} from "./lineAtoms";
 export type { LineProject } from "./lineData";
 
 const DIM = "var(--sol-text-dim)";
 
-function ProjectBody({ says }: { says: NonNullable<ReturnType<typeof projectSays>> }) {
+function ProjectBody({
+  says,
+}: {
+  says: NonNullable<ReturnType<typeof projectSays>>;
+}) {
   return (
     <>
-      {says.standing && <div className="flex min-w-0 items-center gap-2 text-[12px]" data-project-standing><span className="shrink-0" style={{ color: DIM }}>Where it stands</span><StandingLine standing={says.standing} size="md" className="min-w-0" /></div>}
-      {says.trouble && <p className="mt-1 text-[12px]" style={{ color: "var(--sol-orange)" }} data-project-trouble>{says.trouble.charAt(0).toUpperCase() + says.trouble.slice(1)}</p>}
+      {says.standing && (
+        <div
+          className="flex min-w-0 items-center gap-2 text-[12px]"
+          data-project-standing
+        >
+          <span className="shrink-0" style={{ color: DIM }}>
+            Where it stands
+          </span>
+          <StandingLine
+            standing={says.standing}
+            size="md"
+            className="min-w-0"
+          />
+        </div>
+      )}
+      {says.trouble && (
+        <p
+          className="mt-1 text-[12px]"
+          style={{ color: "var(--sol-orange)" }}
+          data-project-trouble
+        >
+          {says.trouble.charAt(0).toUpperCase() + says.trouble.slice(1)}
+        </p>
+      )}
     </>
   );
 }
@@ -38,16 +74,33 @@ export type ProjectLineProps = {
   opens?: boolean;
   /** Overrides the state cell; null leaves it empty. */
   state?: ObjectLineProps["state"];
-} & Pick<ObjectLineProps, "depth" | "expanded" | "onToggle" | "sub" | "selected" | "hideOwner">;
+} & Pick<
+  ObjectLineProps,
+  "depth" | "expanded" | "onToggle" | "sub" | "selected" | "hideOwner"
+>;
 
-export function ProjectLine({ project, now, editable = true, ghost, opens = !ghost, expanded, onToggle, depth = 0, ...rest }: ProjectLineProps) {
+export function ProjectLine({
+  project,
+  now,
+  editable = true,
+  ghost,
+  opens = !ghost,
+  expanded,
+  onToggle,
+  depth = 0,
+  ...rest
+}: ProjectLineProps) {
   const says = expanded && !ghost ? projectSays(project, now) : null;
   return (
     <>
       <ObjectLine
         kind="project"
         id={project.id}
-        target={opens ? { kind: "project", ref: project.short_id || project.id } : undefined}
+        target={
+          opens
+            ? { kind: "project", ref: project.short_id || project.id }
+            : undefined
+        }
         glyph={<ProjectGlyph project={project} ghost={!!ghost} />}
         title={project.title}
         {...projectFacts(project, now, editable && !ghost)}
@@ -56,11 +109,26 @@ export function ProjectLine({ project, now, editable = true, ghost, opens = !gho
         depth={depth}
         expanded={expanded}
         onToggle={onToggle}
-        action={!ghost && opens ? <ProjectPinButton projectId={project.id} title={project.title} className="w-5 h-5" /> : undefined}
+        action={
+          !ghost && opens ? (
+            <ProjectPinButton
+              projectId={project.id}
+              title={project.title}
+              className="w-5 h-5"
+            />
+          ) : undefined
+        }
         data-line-ref={project.short_id || undefined}
         {...rest}
       />
-      {says && <LineBody depth={depth} data-project-body={project.short_id ?? project.id}><ProjectBody says={says} /></LineBody>}
+      {says && (
+        <LineBody
+          depth={depth}
+          data-project-body={project.short_id ?? project.id}
+        >
+          <ProjectBody says={says} />
+        </LineBody>
+      )}
     </>
   );
 }

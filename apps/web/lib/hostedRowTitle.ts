@@ -6,9 +6,16 @@ import type { useInboxStore } from "../store/inboxStore";
 import { hostedTitle } from "./conversationTitle";
 import { firstUserPromptOf } from "../hooks/useForkTree";
 
-export type TitleState = Pick<ReturnType<typeof useInboxStore.getState>, "conversations" | "sessions" | "messages" | "pendingMessages">;
+export type TitleState = Pick<
+  ReturnType<typeof useInboxStore.getState>,
+  "conversations" | "sessions" | "messages" | "pendingMessages"
+>;
 
 export function hostedRowTitle(s: TitleState, id: string): string {
   return hostedTitle(s.conversations[id] as any, s.sessions[id] as any, () =>
-    firstUserPromptOf([...(s.messages[id] ?? []), ...(s.pendingMessages[id] ?? [])]));
+    firstUserPromptOf([
+      ...(s.messages[id] ?? []),
+      ...(s.pendingMessages[id] ?? []),
+    ]),
+  );
 }

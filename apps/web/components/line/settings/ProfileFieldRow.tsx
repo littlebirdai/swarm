@@ -3,12 +3,31 @@
 // line settings lists by section, and a map panel lists for its node
 // (line-map.md LX3, LX5). An edit travels the profile's edit path
 // (useLineProfileEdits); clearing a value the file sets puts back the default.
-import type { LineProfileEdit, PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
-import { commandNote, editForField, fieldText, lineSource, lineValue, type LineField } from "../../../lib/lineSettings";
+import type {
+  LineProfileEdit,
+  PublishedLineProfile,
+} from "@codecast/shared/contracts/lineProfile";
+import {
+  commandNote,
+  editForField,
+  fieldText,
+  lineSource,
+  lineValue,
+  type LineField,
+} from "../../../lib/lineSettings";
 import { EditStatus, InlineEdit, LineValueRow } from "./LineValueRow";
 import type { EditState } from "./useLineProfileEdits";
 
-export function ProfileFieldRow({ field, lp, writable, states, device, now, send, clear }: {
+export function ProfileFieldRow({
+  field,
+  lp,
+  writable,
+  states,
+  device,
+  now,
+  send,
+  clear,
+}: {
   field: LineField;
   lp: PublishedLineProfile;
   writable: boolean;
@@ -21,7 +40,10 @@ export function ProfileFieldRow({ field, lp, writable, states, device, now, send
   const value = lineValue(lp, field.key);
   const source = lineSource(lp, field.key);
   const s = states[field.key];
-  const reset = source === "file" && writable ? () => send([{ op: "remove", key: field.key }]) : undefined;
+  const reset =
+    source === "file" && writable
+      ? () => send([{ op: "remove", key: field.key }])
+      : undefined;
   const commit = (text: string) => {
     const r = editForField(field, text, lp);
     if ("error" in r) return r.error;
@@ -35,8 +57,19 @@ export function ProfileFieldRow({ field, lp, writable, states, device, now, send
       unit={field.unit}
       source={source}
       refused={s?.state === "refused"}
-      note={value == null && field.key.startsWith("commands.") ? commandNote(lp, field.key) : null}
-      status={<EditStatus s={s} device={device} now={now} onDismiss={() => clear(field.key)} />}
+      note={
+        value == null && field.key.startsWith("commands.")
+          ? commandNote(lp, field.key)
+          : null
+      }
+      status={
+        <EditStatus
+          s={s}
+          device={device}
+          now={now}
+          onDismiss={() => clear(field.key)}
+        />
+      }
       onReset={reset}
       defaultText={fieldText(field, lineValue(null, field.key))}
     >
@@ -46,7 +79,15 @@ export function ProfileFieldRow({ field, lp, writable, states, device, now, send
         placeholder={field.placeholder}
         multiline={field.kind === "list"}
         disabled={!writable}
-        display={field.kind === "list" && Array.isArray(value) && value.length ? <span className="lset-list">{value.map((v) => <span key={v}>{v}</span>)}</span> : undefined}
+        display={
+          field.kind === "list" && Array.isArray(value) && value.length ? (
+            <span className="lset-list">
+              {value.map((v) => (
+                <span key={v}>{v}</span>
+              ))}
+            </span>
+          ) : undefined
+        }
         onCommit={commit}
         onReset={reset}
       />

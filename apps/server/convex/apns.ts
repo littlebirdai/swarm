@@ -76,7 +76,12 @@ function pemToPkcs8(pem: string): ArrayBuffer {
 
 // APNs provider token: ES256 JWT, reused for 50 minutes through the database
 // so separate action invocations and concurrent sends share the same token.
-export async function mintApnsJwt(keyId: string, teamId: string, pem: string, issuedAt = Date.now()): Promise<string> {
+export async function mintApnsJwt(
+  keyId: string,
+  teamId: string,
+  pem: string,
+  issuedAt = Date.now(),
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "pkcs8",
     pemToPkcs8(pem),
@@ -85,9 +90,13 @@ export async function mintApnsJwt(keyId: string, teamId: string, pem: string, is
     ["sign"],
   );
   const enc = new TextEncoder();
-  const header = b64url(enc.encode(JSON.stringify({ alg: "ES256", kid: keyId })));
+  const header = b64url(
+    enc.encode(JSON.stringify({ alg: "ES256", kid: keyId })),
+  );
   const claims = b64url(
-    enc.encode(JSON.stringify({ iss: teamId, iat: Math.floor(issuedAt / 1000) })),
+    enc.encode(
+      JSON.stringify({ iss: teamId, iat: Math.floor(issuedAt / 1000) }),
+    ),
   );
   const input = `${header}.${claims}`;
   // WebCrypto ECDSA returns raw r||s (64 bytes) — exactly the JWS form.
@@ -100,11 +109,17 @@ export async function mintApnsJwt(keyId: string, teamId: string, pem: string, is
 }
 
 export function apnsConfigured(): boolean {
-  return !!(process.env.APNS_KEY_ID && process.env.APNS_TEAM_ID && process.env.APNS_AUTH_KEY);
+  return !!(
+    process.env.APNS_KEY_ID &&
+    process.env.APNS_TEAM_ID &&
+    process.env.APNS_AUTH_KEY
+  );
 }
 
 export function apnsDefaultEnvironment(): ApnsEnvironment {
-  return (process.env.APNS_ENV ?? "production") === "sandbox" ? "sandbox" : "production";
+  return (process.env.APNS_ENV ?? "production") === "sandbox"
+    ? "sandbox"
+    : "production";
 }
 
 export function apnsHost(environment: ApnsEnvironment): string {
@@ -113,11 +128,15 @@ export function apnsHost(environment: ApnsEnvironment): string {
     : "https://api.push.apple.com";
 }
 
-export async function sendApns(ctx: Pick<ActionCtx, "runQuery" | "runMutation">, args: ApnsSendArgs): Promise<ApnsSendResult> {
+export async function sendApns(
+  ctx: Pick<ActionCtx, "runQuery" | "runMutation">,
+  args: ApnsSendArgs,
+): Promise<ApnsSendResult> {
   const keyId = process.env.APNS_KEY_ID;
   const teamId = process.env.APNS_TEAM_ID;
   const pem = process.env.APNS_AUTH_KEY;
-  if (!keyId || !teamId || !pem) return { ok: false, status: 0, reason: "APNS not configured" };
+  if (!keyId || !teamId || !pem)
+    return { ok: false, status: 0, reason: "APNS not configured" };
   const identity = { key_id: keyId, team_id: teamId };
   let jwt = await ctx.runQuery(internal.apnsProviderToken.get, identity);
   if (!jwt) {
@@ -136,13 +155,17 @@ export async function sendApns(ctx: Pick<ActionCtx, "runQuery" | "runMutation">,
     "apns-priority": String(args.priority),
     "content-type": "application/json",
   };
-  if (args.expiration !== undefined) headers["apns-expiration"] = String(args.expiration);
+  if (args.expiration !== undefined)
+    headers["apns-expiration"] = String(args.expiration);
   if (args.collapseId) headers["apns-collapse-id"] = args.collapseId;
-  const res = await fetch(`${apnsHost(args.environment ?? apnsDefaultEnvironment())}/3/device/${args.token}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(args.payload),
-  });
+  const res = await fetch(
+    `${apnsHost(args.environment ?? apnsDefaultEnvironment())}/3/device/${args.token}`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(args.payload),
+    },
+  );
   if (res.status === 200) return { ok: true, status: 200 };
   let reason: string | undefined;
   try {

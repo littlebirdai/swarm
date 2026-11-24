@@ -63,7 +63,9 @@ const DEFAULT_MEETING_DETECT = { mode: "ask", never: [] };
 // never-list is filtered to apps that still exist in the table so a retired
 // entry cannot linger as a permanent refusal.
 function mergeMeetingDetect(persisted) {
-  const mode = MEETING_MODES.includes(persisted?.mode) ? persisted.mode : DEFAULT_MEETING_DETECT.mode;
+  const mode = MEETING_MODES.includes(persisted?.mode)
+    ? persisted.mode
+    : DEFAULT_MEETING_DETECT.mode;
   const never = Array.isArray(persisted?.never)
     ? persisted.never.filter((id) => MEETING_APPS.some((a) => a.id === id))
     : [];

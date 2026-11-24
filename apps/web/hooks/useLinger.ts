@@ -9,7 +9,10 @@ export const EXIT_MS = 220;
  * node can fade out instead of vanishing. `leaving` is true during that hold.
  * A value that comes back before the hold ends cancels the exit.
  */
-export function useLinger<T>(value: T | null): { value: T | null; leaving: boolean } {
+export function useLinger<T>(value: T | null): {
+  value: T | null;
+  leaving: boolean;
+} {
   const [held, setHeld] = useState<T | null>(value);
   // eslint-disable-next-line no-restricted-syntax -- the exit timer is keyed to the value it is holding open
   useEffect(() => {

@@ -19,7 +19,8 @@ function myStatus(): string | undefined {
   return (s.teamMembers as any[]).find((m) => m._id === ME)?.status;
 }
 
-const lock = () => (useInboxStore.getState().pending as any)[`teamMembers:${ME}:status`];
+const lock = () =>
+  (useInboxStore.getState().pending as any)[`teamMembers:${ME}:status`];
 
 describe("manual status local-first", () => {
   const owner = {};
@@ -31,10 +32,13 @@ describe("manual status local-first", () => {
       teamMembers: [member(ME, "available"), member(OTHER, "available")],
       pending: {},
     });
-    useInboxStore.getState()._setDispatch(async () => {
-      if (refuse) throw new Error("Uncaught Error: no");
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async () => {
+        if (refuse) throw new Error("Uncaught Error: no");
+        return null;
+      },
+      { owner },
+    );
   });
   afterEach(() => useInboxStore.getState()._clearDispatch(owner));
 
@@ -47,17 +51,29 @@ describe("manual status local-first", () => {
   it("keeps the flip when a stale roster push arrives before the mutation commits", () => {
     useInboxStore.getState().setMyStatus("away");
     // Heartbeat re-push of getTeamMembers: server hasn't seen the write yet.
-    useInboxStore.getState().syncTable("teamMembers", [member(ME, "available"), member(OTHER, "busy")]);
+    useInboxStore
+      .getState()
+      .syncTable("teamMembers", [
+        member(ME, "available"),
+        member(OTHER, "busy"),
+      ]);
     expect(myStatus()).toBe("away");
     // The rest of the push still lands.
-    const other = (useInboxStore.getState().teamMembers as any[]).find((m) => m._id === OTHER);
+    const other = (useInboxStore.getState().teamMembers as any[]).find(
+      (m) => m._id === OTHER,
+    );
     expect(other.status).toBe("busy");
     expect(lock()).toBeDefined();
   });
 
   it("stops protecting once the server reflects the status", () => {
     useInboxStore.getState().setMyStatus("away");
-    useInboxStore.getState().syncTable("teamMembers", [member(ME, "away"), member(OTHER, "available")]);
+    useInboxStore
+      .getState()
+      .syncTable("teamMembers", [
+        member(ME, "away"),
+        member(OTHER, "available"),
+      ]);
     expect(myStatus()).toBe("away");
     expect(lock()).toBeUndefined();
   });
@@ -66,9 +82,15 @@ describe("manual status local-first", () => {
     refuse = true;
     useInboxStore.getState().setMyStatus("away");
     expect(myStatus()).toBe("away");
-    for (let i = 0; i < 100 && lock(); i++) await new Promise((r) => setTimeout(r, 10));
+    for (let i = 0; i < 100 && lock(); i++)
+      await new Promise((r) => setTimeout(r, 10));
     expect(myStatus()).toBe("available");
-    useInboxStore.getState().syncTable("teamMembers", [member(ME, "busy"), member(OTHER, "available")]);
+    useInboxStore
+      .getState()
+      .syncTable("teamMembers", [
+        member(ME, "busy"),
+        member(OTHER, "available"),
+      ]);
     expect(myStatus()).toBe("busy");
   });
 

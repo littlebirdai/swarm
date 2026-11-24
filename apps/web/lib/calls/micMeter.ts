@@ -58,7 +58,8 @@ export function createMicMeter(track: MediaStreamTrack): MicMeter {
     ac.createMediaStreamSource(new MediaStream([track])).connect(node);
     analyser = node;
     bytes = new Uint8Array(new ArrayBuffer(node.fftSize));
-    if (typeof requestAnimationFrame === "function") stopFrames = visibleAnimationLoop(() => publish(read()));
+    if (typeof requestAnimationFrame === "function")
+      stopFrames = visibleAnimationLoop(() => publish(read()));
   } catch {
     // No meter is a flat bar, never a failed recording. The words are the
     // artifact and they do not come through here.

@@ -65,16 +65,25 @@ export type CueSpec = {
 // where the cue it replaced peaked, so swapping a sound did not move its level.
 
 /** A chat message: one struck marimba note (LloydEvans09, freesound 185833). Peak 0.0316, the old knock's. */
-export const CHAT_MARIMBA: CueSpec = { master: 0.047, sample: { src: "/sounds/chat-marimba.mp3", dur: 0.55 } };
+export const CHAT_MARIMBA: CueSpec = {
+  master: 0.047,
+  sample: { src: "/sounds/chat-marimba.mp3", dur: 0.55 },
+};
 
 /** Someone knocking at your locked huddle: knuckles on a wooden door
  *  (Flem0527, freesound 629987). Literally a knock, never mistaken for a ring. */
-export const DOOR_KNOCK: CueSpec = { master: 0.047, sample: { src: "/sounds/knock-wood-door.mp3", dur: 0.59 } };
+export const DOOR_KNOCK: CueSpec = {
+  master: 0.047,
+  sample: { src: "/sounds/knock-wood-door.mp3", dur: 0.59 },
+};
 
 /** One ring cycle: a vibraphone chord (jack_urbanski, freesound 495674),
  *  2.2 s inside the 3 s CALL_RING_PERIOD_MS. Peak 0.0458 on the first cycle,
  *  the old ring's; RING_GAIN_BY_CYCLE climbs from there. */
-export const CALL_RING: CueSpec = { master: 0.068, sample: { src: "/sounds/ring-vibraphone.mp3", dur: 2.2 } };
+export const CALL_RING: CueSpec = {
+  master: 0.068,
+  sample: { src: "/sounds/ring-vibraphone.mp3", dur: 2.2 },
+};
 
 // Where the rest of the app sits, measured by `cueRender` off the same
 // envelopes `sounds.ts` builds. This is the band the walkie cues had to join;
@@ -112,13 +121,23 @@ export const CALL_RING: CueSpec = { master: 0.068, sample: { src: "/sounds/ring-
 
 /** YOUR key down, mic genuinely open: a real walkie-talkie's key-up beep
  *  (SoundBiterSFX, freesound 732209). Peak 0.0460, level with the ring. */
-export const WALKIE_KEY_UP: CueSpec = { master: 0.068, sample: { src: "/sounds/walkie-key-up.mp3", dur: 0.72 } };
+export const WALKIE_KEY_UP: CueSpec = {
+  master: 0.068,
+  sample: { src: "/sounds/walkie-key-up.mp3", dur: 0.72 },
+};
 
 /** YOUR key up, the burst is closed and gone. One falling tone. */
 export const WALKIE_ROGER: CueSpec = {
   master: 0.085,
   tones: [
-    { freq: 880, start: 0, dur: 0.13, gain: 0.46, type: "sine", sweepTo: 587.33 },
+    {
+      freq: 880,
+      start: 0,
+      dur: 0.13,
+      gain: 0.46,
+      type: "sine",
+      sweepTo: 587.33,
+    },
   ],
 };
 
@@ -126,8 +145,22 @@ export const WALKIE_ROGER: CueSpec = {
 export const WALKIE_OPEN: CueSpec = {
   master: 0.085,
   tones: [
-    { freq: 1046.5, start: 0, dur: 0.045, gain: 0.3, type: "square", lowpass: 1700 },
-    { freq: 1046.5, start: 0.055, dur: 0.05, gain: 0.26, type: "square", lowpass: 1700 },
+    {
+      freq: 1046.5,
+      start: 0,
+      dur: 0.045,
+      gain: 0.3,
+      type: "square",
+      lowpass: 1700,
+    },
+    {
+      freq: 1046.5,
+      start: 0.055,
+      dur: 0.05,
+      gain: 0.26,
+      type: "square",
+      lowpass: 1700,
+    },
   ],
 };
 
@@ -177,7 +210,17 @@ export const WALKIE_AWAY: CueSpec = {
  *  and not as a hit. */
 export const STASH_AWAY: CueSpec = {
   master: 0.083,
-  noise: [{ start: 0, dur: 0.22, attack: 0.09, gain: 0.7, band: 500, sweepTo: 2800, q: 1.1 }],
+  noise: [
+    {
+      start: 0,
+      dur: 0.22,
+      attack: 0.09,
+      gain: 0.7,
+      band: 500,
+      sweepTo: 2800,
+      q: 1.1,
+    },
+  ],
 };
 
 /** Kill: a door that closes. A soft push of air, then a low thud and a small
@@ -186,10 +229,29 @@ export const STASH_AWAY: CueSpec = {
 export const KILL_DOOR: CueSpec = {
   master: 0.0278,
   noise: [
-    { start: 0, dur: 0.1, attack: 0.05, gain: 0.35, band: 600, sweepTo: 250, q: 0.8 },
+    {
+      start: 0,
+      dur: 0.1,
+      attack: 0.05,
+      gain: 0.35,
+      band: 600,
+      sweepTo: 250,
+      q: 0.8,
+    },
     { start: 0.14, dur: 0.02, gain: 0.35, band: 2400, q: 2 },
   ],
-  tones: [{ freq: 95, sweepTo: 70, start: 0.09, dur: 0.18, gain: 0.9, attack: 0.003, type: "triangle", lowpass: 400 }],
+  tones: [
+    {
+      freq: 95,
+      sweepTo: 70,
+      start: 0.09,
+      dur: 0.18,
+      gain: 0.9,
+      attack: 0.003,
+      type: "triangle",
+      lowpass: 400,
+    },
+  ],
 };
 
 /** Dormant: the session settles down to wait for a machine to wake it. The
@@ -200,6 +262,26 @@ export const KILL_DOOR: CueSpec = {
  *  with the session chimes. */
 export const DORMANT_SETTLE: CueSpec = {
   master: 0.054,
-  noise: [{ start: 0, dur: 0.36, attack: 0.13, gain: 0.55, band: 1300, sweepTo: 320, q: 0.9 }],
-  tones: [{ freq: 329.63, sweepTo: 293.66, start: 0.05, dur: 0.38, gain: 0.22, attack: 0.09, type: "sine" }],
+  noise: [
+    {
+      start: 0,
+      dur: 0.36,
+      attack: 0.13,
+      gain: 0.55,
+      band: 1300,
+      sweepTo: 320,
+      q: 0.9,
+    },
+  ],
+  tones: [
+    {
+      freq: 329.63,
+      sweepTo: 293.66,
+      start: 0.05,
+      dur: 0.38,
+      gain: 0.22,
+      attack: 0.09,
+      type: "sine",
+    },
+  ],
 };

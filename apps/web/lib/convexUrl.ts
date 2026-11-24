@@ -20,7 +20,9 @@ const FALLBACK_CONVEX_URL = "https://convex.codecast.sh";
 
 export function getConvexUrl(): string {
   const raw = import.meta.env.VITE_CONVEX_URL;
-  return typeof raw === "string" && /^https?:\/\/[^/\s]+/i.test(raw) ? raw : FALLBACK_CONVEX_URL;
+  return typeof raw === "string" && /^https?:\/\/[^/\s]+/i.test(raw)
+    ? raw
+    : FALLBACK_CONVEX_URL;
 }
 
 export const CONVEX_URL = getConvexUrl();

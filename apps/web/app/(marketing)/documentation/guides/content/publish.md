@@ -4,8 +4,8 @@ When an agent finishes a report, a dashboard or a mockup, you shouldn't have to 
 
 ## Turn it on
 
-1. Open **Settings** (**⌘,**), then **Agent Features** under *Machines*, and pick the computer your agents run on.
-2. Switch on **Publish**, under *Showing the work*.
+1. Open **Settings** (**⌘,**), then **Agent Features** under _Machines_, and pick the computer your agents run on.
+2. Switch on **Publish**, under _Showing the work_.
 
 Click **How it works** on the card for what it adds and a request to try. **See it in Pages** opens the list of everything published so far.
 
@@ -44,7 +44,7 @@ CommentFlowFigure
 A reader leaves a note, you decide what to send, and the agent gets it as one message.
 ```
 
-Comments from readers stay on the page until you send them. On your own comments and your teammates', a **Send to agent** switch delivers the comment straight to the session that published the page. **Send all** delivers every unsent comment as one message. The agent revises the page, publishes the next version to the same link, and the comment shows as *addressed in v4*.
+Comments from readers stay on the page until you send them. On your own comments and your teammates', a **Send to agent** switch delivers the comment straight to the session that published the page. **Send all** delivers every unsent comment as one message. The agent revises the page, publishes the next version to the same link, and the comment shows as _addressed in v4_.
 
 The agent is told that reader comments are feedback from people viewing the link, not instructions from you, so a comment can't take over the session.
 
@@ -54,14 +54,14 @@ Pages are unlisted: the link is unguessable, pages are never listed anywhere pub
 
 ![The Manage sharing sheet on a published page](/documentation/publish/manage.webp "Manage sharing: views, the gates, who may edit, and the manage link.")
 
-| Setting | What it does |
-|---------|--------------|
-| **Password** | Readers type a password before the page loads |
-| **Email gate** | Readers give an email address first, and the sheet lists who opened it and how often. The address isn't verified |
-| **Session link** | Hides the link back to the session, for pages you send outside your team |
-| **Comments** | Turns the discussion off |
-| **Expires** | Closes the link after 1h, 24h, 7d or 30d, or never |
-| **Editing** | Who can publish edits from the browser: only you, anyone with the edit link, or your teammates |
+| Setting          | What it does                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Password**     | Readers type a password before the page loads                                                                    |
+| **Email gate**   | Readers give an email address first, and the sheet lists who opened it and how often. The address isn't verified |
+| **Session link** | Hides the link back to the session, for pages you send outside your team                                         |
+| **Comments**     | Turns the discussion off                                                                                         |
+| **Expires**      | Closes the link after 1h, 24h, 7d or 30d, or never                                                               |
+| **Editing**      | Who can publish edits from the browser: only you, anyone with the edit link, or your teammates                   |
 
 ```figure
 GateScreensFigure
@@ -80,12 +80,12 @@ Each page's menu offers **Open**, **Copy link**, **Manage**, **Edit** and **Dele
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The agent replied with a file path instead of a link | Check that Publish is on for that computer, then ask it to publish the file |
-| A reader can't open the link | Check **Manage sharing…**: an expiry may have passed, or a password is set |
-| Your comment didn't reach the agent | Make sure **Send to agent** was on, or use **Send all** |
-| The page in the conversation looks out of date | It reloads on a new version; if it doesn't, use **Open in a new tab** to see the latest |
+| What you notice                                      | What to do                                                                              |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| The agent replied with a file path instead of a link | Check that Publish is on for that computer, then ask it to publish the file             |
+| A reader can't open the link                         | Check **Manage sharing…**: an expiry may have passed, or a password is set              |
+| Your comment didn't reach the agent                  | Make sure **Send to agent** was on, or use **Send all**                                 |
+| The page in the conversation looks out of date       | It reloads on a new version; if it doesn't, use **Open in a new tab** to see the latest |
 
 ## For agents and scripts
 

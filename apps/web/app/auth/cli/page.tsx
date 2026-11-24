@@ -24,14 +24,16 @@ function CliAuthContent() {
   const localAuthed = useLocalAuth();
   const currentUser = useQuery(
     api.users.getCurrentUser,
-    isAuthenticated ? {} : "skip"
+    isAuthenticated ? {} : "skip",
   );
   const createToken = useMutation(api.apiTokens.createToken);
   const depositCliAuth = useMutation(api.cliAuth.deposit);
   const searchParams = useSearchParams();
   const router = useRouter();
   const { signIn, signOut } = useAuthActions();
-  const [status, setStatus] = useState<"waiting" | "sending" | "success" | "error">("waiting");
+  const [status, setStatus] = useState<
+    "waiting" | "sending" | "success" | "error"
+  >("waiting");
   const [viaRelay, setViaRelay] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const oauthStarted = useRef(false);
@@ -46,7 +48,9 @@ function CliAuthContent() {
   // has no session yet, we jump straight into that provider's OAuth instead
   // of parking the user on the login page.
   const provider = oauthProviderButton(searchParams.get("provider"));
-  const device = searchParams.get("device") || (isDesktopMode ? "Codecast Desktop" : "CLI Device");
+  const device =
+    searchParams.get("device") ||
+    (isDesktopMode ? "Codecast Desktop" : "CLI Device");
   // What the server recorded when `cast auth` registered this request: its
   // device, network and start time. Null for a request that was never
   // registered (an older CLI, the desktop app). The registered device name
@@ -56,7 +60,9 @@ function CliAuthContent() {
     isAuthenticated && nonce ? { nonce } : "skip",
   ).data;
   const deviceName = request?.device_name ?? decodeURIComponent(device);
-  const requestDead = request ? request.used || Date.now() > request.expires_at : false;
+  const requestDead = request
+    ? request.used || Date.now() > request.expires_at
+    : false;
   // The CLI's device id, when it sent one: the token minted below binds to it
   // and works only from that machine. Absent (an older CLI, the desktop sign
   // in, whose token is consumed by the exchange anyway), the token is unbound.
@@ -91,15 +97,26 @@ function CliAuthContent() {
     let tokenResult: { token: string };
     try {
       tokenResult = enrollmentId
-        ? await completeEnrollment({ enrollment_id: enrollmentId, name: deviceName, device_id: deviceIdParam ?? "" })
-        : await createToken({ name: deviceName, ...(deviceIdParam ? { device_id: deviceIdParam } : {}) });
+        ? await completeEnrollment({
+            enrollment_id: enrollmentId,
+            name: deviceName,
+            device_id: deviceIdParam ?? "",
+          })
+        : await createToken({
+            name: deviceName,
+            ...(deviceIdParam ? { device_id: deviceIdParam } : {}),
+          });
     } catch (err) {
       console.error("Auth token mint error:", err);
       setStatus("error");
       // An enrollment refusal (wrong account, revoked device) says what to do.
-      const refusal = err instanceof ConvexError ? (err.data as { message?: string } | undefined)?.message : undefined;
+      const refusal =
+        err instanceof ConvexError
+          ? (err.data as { message?: string } | undefined)?.message
+          : undefined;
       setErrorMessage(
-        refusal ?? "Couldn't create an API token for this device. Please reload this page and try again."
+        refusal ??
+          "Couldn't create an API token for this device. Please reload this page and try again.",
       );
       return;
     }
@@ -136,7 +153,10 @@ function CliAuthContent() {
         // (cast auth over SSH; 127.0.0.1 here is the browser's machine). Fall
         // through to the server relay below: the CLI polls for it by nonce
         // while it waits, so a remote auth still completes hands-free.
-        console.error("Auth callback connection error, relaying via server:", err);
+        console.error(
+          "Auth callback connection error, relaying via server:",
+          err,
+        );
       }
 
       if (response) {
@@ -146,7 +166,7 @@ function CliAuthContent() {
           console.error("Auth callback rejected:", response.status);
           setStatus("error");
           setErrorMessage(
-            "The CLI rejected this sign-in. It may be left over from an earlier 'cast auth' run."
+            "The CLI rejected this sign-in. It may be left over from an earlier 'cast auth' run.",
           );
           return;
         }
@@ -171,7 +191,7 @@ function CliAuthContent() {
       setErrorMessage(
         isDesktopMode
           ? "Couldn't hand the sign-in to the desktop app. Go back to Codecast and try again."
-          : `Couldn't reach the cast CLI on 127.0.0.1:${port}. It may have stopped waiting.`
+          : `Couldn't reach the cast CLI on 127.0.0.1:${port}. It may have stopped waiting.`,
       );
     }
   };
@@ -219,7 +239,18 @@ function CliAuthContent() {
     // Both modes wait for the explicit Authorize click below — an emailed
     // link must not be able to connect a stranger's device just by being
     // opened in a signed-in browser.
-  }, [isAuthenticated, isLoading, localAuthed, currentUser, nonce, port, device, provider, router, signIn]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    localAuthed,
+    currentUser,
+    nonce,
+    port,
+    device,
+    provider,
+    router,
+    signIn,
+  ]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -243,39 +274,65 @@ function CliAuthContent() {
   // so both modes get a real consent step showing which account is about to
   // be handed over — never an auto-fire on page load.
   if (status === "waiting") {
-    const wrongAccount = !!(enrollmentId && enrollment?.email && currentUser?.email && enrollment.email.toLowerCase() !== currentUser.email.toLowerCase());
+    const wrongAccount = !!(
+      enrollmentId &&
+      enrollment?.email &&
+      currentUser?.email &&
+      enrollment.email.toLowerCase() !== currentUser.email.toLowerCase()
+    );
     return (
       <div className="min-h-screen bg-sol-bg flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-sol-bg-alt/50 rounded-lg p-8 border border-sol-border">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-sol-text mb-2">
-              {enrollmentId ? `Enroll this device into ${enrollment?.team_name ?? "your team"}` : isDesktopMode ? "Sign in to the desktop app" : "Connect your terminal"}
+              {enrollmentId
+                ? `Enroll this device into ${enrollment?.team_name ?? "your team"}`
+                : isDesktopMode
+                  ? "Sign in to the desktop app"
+                  : "Connect your terminal"}
             </h1>
             <p className="text-sol-text-muted mb-6">
               {wrongAccount ? (
                 <>
-                  {deviceName} belongs to <span className="text-sol-text">{enrollment!.email}</span>. You're signed in as{" "}
+                  {deviceName} belongs to{" "}
+                  <span className="text-sol-text">{enrollment!.email}</span>.
+                  You're signed in as{" "}
                   <span className="text-sol-text">{currentUser!.email}</span>.
                 </>
               ) : (
                 <>
-                  {deviceName} will be {isDesktopMode ? "signed in" : "connected"} as{" "}
-                  <span className="text-sol-text">{currentUser?.email ?? "your account"}</span>.
+                  {deviceName} will be{" "}
+                  {isDesktopMode ? "signed in" : "connected"} as{" "}
+                  <span className="text-sol-text">
+                    {currentUser?.email ?? "your account"}
+                  </span>
+                  .
                 </>
               )}
             </p>
             {request && (
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm text-left bg-sol-bg-alt/60 rounded-lg px-4 py-3 mb-6">
                 <dt className="text-sol-text-dim">Device</dt>
-                <dd className="text-sol-text truncate">{request.device_name}</dd>
+                <dd className="text-sol-text truncate">
+                  {request.device_name}
+                </dd>
                 <dt className="text-sol-text-dim">Network</dt>
                 <dd className="text-sol-text font-mono truncate">
                   {request.ip}
-                  {request.country ? <span className="text-sol-text-muted"> · {request.country}</span> : null}
+                  {request.country ? (
+                    <span className="text-sol-text-muted">
+                      {" "}
+                      · {request.country}
+                    </span>
+                  ) : null}
                 </dd>
                 <dt className="text-sol-text-dim">Started</dt>
                 <dd className={requestDead ? "text-sol-red" : "text-sol-text"}>
-                  {request.used ? "Already used" : requestDead ? "Expired" : formatRelativeTime(request.created_at)}
+                  {request.used
+                    ? "Already used"
+                    : requestDead
+                      ? "Expired"
+                      : formatRelativeTime(request.created_at)}
                 </dd>
               </dl>
             )}
@@ -305,7 +362,9 @@ function CliAuthContent() {
               </Button>
             )}
             <p className="text-sol-text-dim text-sm mt-4">
-              Didn&apos;t request this from {isDesktopMode ? "the Codecast app" : "cast auth"}? Close this page.
+              Didn&apos;t request this from{" "}
+              {isDesktopMode ? "the Codecast app" : "cast auth"}? Close this
+              page.
             </p>
           </div>
         </div>
@@ -320,7 +379,9 @@ function CliAuthContent() {
           <div className="text-center">
             <AppLoader className="min-h-0 bg-transparent mb-4" size={32} />
             <h1 className="text-2xl font-semibold text-sol-text mb-2">
-              {isDesktopMode ? "Signing in the desktop app" : "Authenticating CLI"}
+              {isDesktopMode
+                ? "Signing in the desktop app"
+                : "Authenticating CLI"}
             </h1>
             <p className="text-sol-text-muted">
               Generating API token for {deviceName}...
@@ -361,26 +422,34 @@ function CliAuthContent() {
                 will open a fresh page here.
               </p>
             ) : (
-            <div className="text-left bg-sol-bg-alt/60 rounded-lg p-4 text-sm">
-              <p className="text-sol-text-muted mb-2">To finish connecting:</p>
-              <ol className="list-decimal list-inside space-y-1.5 text-sol-text-muted">
-                <li>
-                  Re-run <code className="font-semibold text-sol-text">cast auth</code> in your
-                  terminal and complete it within 5 minutes.
-                </li>
-                <li>
-                  Or skip the browser entirely: open{" "}
-                  <a
-                    href="/settings/cli"
-                    className="text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange"
-                  >
-                    Settings → CLI
-                  </a>
-                  , generate a token, and run{" "}
-                  <code className="font-semibold text-sol-text">cast login &lt;token&gt;</code>.
-                </li>
-              </ol>
-            </div>
+              <div className="text-left bg-sol-bg-alt/60 rounded-lg p-4 text-sm">
+                <p className="text-sol-text-muted mb-2">
+                  To finish connecting:
+                </p>
+                <ol className="list-decimal list-inside space-y-1.5 text-sol-text-muted">
+                  <li>
+                    Re-run{" "}
+                    <code className="font-semibold text-sol-text">
+                      cast auth
+                    </code>{" "}
+                    in your terminal and complete it within 5 minutes.
+                  </li>
+                  <li>
+                    Or skip the browser entirely: open{" "}
+                    <a
+                      href="/settings/cli"
+                      className="text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange"
+                    >
+                      Settings → CLI
+                    </a>
+                    , generate a token, and run{" "}
+                    <code className="font-semibold text-sol-text">
+                      cast login &lt;token&gt;
+                    </code>
+                    .
+                  </li>
+                </ol>
+              </div>
             )}
           </div>
         </div>
@@ -431,7 +500,8 @@ function CliAuthContent() {
                 Device: {deviceName}
               </p>
               <p className="text-sol-text-muted text-sm">
-                Taking you to your inbox. Finish setup in your terminal, and your sessions appear there as they sync.
+                Taking you to your inbox. Finish setup in your terminal, and
+                your sessions appear there as they sync.
               </p>
             </>
           )}
@@ -443,11 +513,7 @@ function CliAuthContent() {
 
 export default function CliAuthPage() {
   return (
-    <Suspense
-      fallback={
-        <AppLoader />
-      }
-    >
+    <Suspense fallback={<AppLoader />}>
       <CliAuthContent />
     </Suspense>
   );

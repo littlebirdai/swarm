@@ -24,14 +24,30 @@ let listening = false;
 function listen() {
   if (listening || typeof window === "undefined") return;
   listening = true;
-  window.addEventListener("keydown", (e) => { if (!MODIFIERS.has(e.key)) source = "keyboard"; }, true);
-  window.addEventListener("pointermove", (e) => {
-    if (e.screenX === lastX && e.screenY === lastY) return;
-    lastX = e.screenX;
-    lastY = e.screenY;
-    source = "mouse";
-  }, true);
-  window.addEventListener("pointerdown", () => { source = "mouse"; }, true);
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (!MODIFIERS.has(e.key)) source = "keyboard";
+    },
+    true,
+  );
+  window.addEventListener(
+    "pointermove",
+    (e) => {
+      if (e.screenX === lastX && e.screenY === lastY) return;
+      lastX = e.screenX;
+      lastY = e.screenY;
+      source = "mouse";
+    },
+    true,
+  );
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      source = "mouse";
+    },
+    true,
+  );
 }
 
 /** True while the last thing that moved a list cursor was a key press. */
@@ -42,8 +58,13 @@ export function keyboardOwnsFocus(): boolean {
 
 /** Hover props for a keyboard list row: `fn` runs only while the mouse owns
  *  focus. Called while rendering the row, which starts the watch. */
-export function hoverFocus(fn: () => void): { onMouseEnter: () => void; onMouseMove: () => void } {
+export function hoverFocus(fn: () => void): {
+  onMouseEnter: () => void;
+  onMouseMove: () => void;
+} {
   listen();
-  const run = () => { if (source === "mouse") fn(); };
+  const run = () => {
+    if (source === "mouse") fn();
+  };
   return { onMouseEnter: run, onMouseMove: run };
 }

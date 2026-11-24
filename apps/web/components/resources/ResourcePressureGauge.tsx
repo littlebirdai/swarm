@@ -10,9 +10,18 @@
 import { useContext, useMemo } from "react";
 import { CloudUpload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { sustainedResourcePressure, type ResourceIncident, type ResourcePoint, type ResourcePressure } from "@codecast/shared/contracts";
+import {
+  sustainedResourcePressure,
+  type ResourceIncident,
+  type ResourcePoint,
+  type ResourcePressure,
+} from "@codecast/shared/contracts";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { joinMachines, toResourceSession, useMachineResourceRows } from "../../hooks/useResourceMonitor";
+import {
+  joinMachines,
+  toResourceSession,
+  useMachineResourceRows,
+} from "../../hooks/useResourceMonitor";
 import { useManagedSessions } from "../../hooks/useSyncManagedSessions";
 import { useOpenSession } from "../../hooks/useOpenSession";
 import { HoverCardClose } from "../../lib/hoverCardsOff";
@@ -23,7 +32,15 @@ import { localDeviceIdOf } from "../../hooks/useLocalDeviceId";
 import { TopbarButton } from "../TopbarButton";
 import { HoverCard } from "../ui/HoverCard";
 import { MiniTrace } from "./HealthStrip";
-import { attribute, fmtAgo, fmtBytes, fmtCpu, freshness, loadPercent, memoryUsedPct } from "./resourceModel";
+import {
+  attribute,
+  fmtAgo,
+  fmtBytes,
+  fmtCpu,
+  freshness,
+  loadPercent,
+  memoryUsedPct,
+} from "./resourceModel";
 import type { ResourceMachine } from "./types";
 import { Button } from "../ui/button";
 
@@ -38,24 +55,47 @@ export function levelOf(incident: ResourceIncident | null): Level {
 
 /** The gauge's color at a load: muted to 50%, warming to yellow by 75%, red from 90%. */
 export function loadColor(load: number): string {
-  const t = (from: number, to: number) => Math.round(Math.min(1, Math.max(0, (load - from) / (to - from))) * 100);
-  if (load <= 75) return `color-mix(in srgb, var(--sol-yellow) ${t(50, 75)}%, var(--sol-text-muted))`;
+  const t = (from: number, to: number) =>
+    Math.round(Math.min(1, Math.max(0, (load - from) / (to - from))) * 100);
+  if (load <= 75)
+    return `color-mix(in srgb, var(--sol-yellow) ${t(50, 75)}%, var(--sol-text-muted))`;
   return `color-mix(in srgb, var(--sol-red) ${t(75, 90)}%, var(--sol-yellow))`;
 }
 
 /** The needle's angle in degrees from pointing at 0% load; the dial's arc sweeps 240°. */
-export const needleAngle = (load: number) => (Math.min(100, Math.max(0, load)) / 100) * 240;
+export const needleAngle = (load: number) =>
+  (Math.min(100, Math.max(0, load)) / 100) * 240;
 
 /** A gauge glyph drawn to the load: the arc fills to it and the needle points at it. */
 function LoadGauge({ load }: { load: number | null }) {
-  const ease = "motion-safe:transition-[transform,stroke-dasharray,color] motion-safe:duration-700 motion-safe:ease-out";
+  const ease =
+    "motion-safe:transition-[transform,stroke-dasharray,color] motion-safe:duration-700 motion-safe:ease-out";
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" aria-hidden style={{ color: load === null ? "var(--sol-text-dim)" : loadColor(load) }} className={ease}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      aria-hidden
+      style={{ color: load === null ? "var(--sol-text-dim)" : loadColor(load) }}
+      className={ease}
+    >
       <path d="M3.34 19a10 10 0 1 1 17.32 0" opacity={0.3} />
       {load !== null && (
         <>
-          <path d="M3.34 19a10 10 0 1 1 17.32 0" pathLength={100} style={{ strokeDasharray: `${Math.max(0.1, load)} 100` }} className={ease} />
-          <g className={ease} style={{ transform: `rotate(${needleAngle(load)}deg)`, transformOrigin: "12px 14px" }}>
+          <path
+            d="M3.34 19a10 10 0 1 1 17.32 0"
+            pathLength={100}
+            style={{ strokeDasharray: `${Math.max(0.1, load)} 100` }}
+            className={ease}
+          />
+          <g
+            className={ease}
+            style={{
+              transform: `rotate(${needleAngle(load)}deg)`,
+              transformOrigin: "12px 14px",
+            }}
+          >
             <path d="M12 14 6.8 17" />
           </g>
         </>
@@ -66,20 +106,41 @@ function LoadGauge({ load }: { load: number | null }) {
 }
 
 const RANK: Record<Level, number> = { calm: 0, elevated: 1, critical: 2 };
-const TONE: Record<Level, string> = { calm: "", elevated: "text-sol-yellow", critical: "text-sol-red" };
-const DOT: Record<Level, string> = { calm: "", elevated: "bg-sol-yellow", critical: "bg-sol-red" };
+const TONE: Record<Level, string> = {
+  calm: "",
+  elevated: "text-sol-yellow",
+  critical: "text-sol-red",
+};
+const DOT: Record<Level, string> = {
+  calm: "",
+  elevated: "bg-sol-yellow",
+  critical: "bg-sol-red",
+};
 
-export type Watched = { machine: ResourceMachine; incident: ResourceIncident | null; level: Level; load: number };
+export type Watched = {
+  machine: ResourceMachine;
+  incident: ResourceIncident | null;
+  level: Level;
+  load: number;
+};
 
 /** The local machine to show: this computer, unless another live laptop is
  *  under worse sustained pressure. When this computer has no live reading, the
  *  laptop in the worst state, then the busiest. */
-export function pickWatched(candidates: Watched[], localDeviceId: string | null): Watched | null {
+export function pickWatched(
+  candidates: Watched[],
+  localDeviceId: string | null,
+): Watched | null {
   const here = (w: Watched) => w.machine.deviceId === localDeviceId;
   let best: Watched | null = null;
   for (const c of candidates) {
     if (!best || RANK[c.level] > RANK[best.level]) best = c;
-    else if (RANK[c.level] === RANK[best.level] && !here(best) && (here(c) || c.load > best.load)) best = c;
+    else if (
+      RANK[c.level] === RANK[best.level] &&
+      !here(best) &&
+      (here(c) || c.load > best.load)
+    )
+      best = c;
   }
   return best;
 }
@@ -91,9 +152,15 @@ function useWatchedMachine(now: number): Watched | null {
   return useMemo(() => {
     const candidates: Watched[] = [];
     for (const machine of joinMachines(devices, rows)) {
-      if (machine.role !== "local" || freshness(machine, now) !== "live") continue;
+      if (machine.role !== "local" || freshness(machine, now) !== "live")
+        continue;
       const incident = sustainedResourcePressure(machine.history, now);
-      candidates.push({ machine, incident, level: levelOf(incident), load: loadPercent(machine.snapshot!.sample) });
+      candidates.push({
+        machine,
+        incident,
+        level: levelOf(incident),
+        load: loadPercent(machine.snapshot!.sample),
+      });
     }
     return pickWatched(candidates, localDeviceId);
   }, [devices, rows, now, localDeviceId]);
@@ -107,11 +174,27 @@ export function ResourcePressureGauge() {
   const { machine, incident, level, load } = watched;
   const label = `${machine.name}: ${Math.round(load)}% load${level === "calm" ? "" : `, ${incident!.reason.toLowerCase()}`}`;
   return (
-    <HoverCard side="bottom" align="end" className="w-[360px]" focusable card={<GaugeCard watched={watched} now={now} />}>
-      <TopbarButton onClick={() => router.push("/resources")} aria-label={label}>
+    <HoverCard
+      side="bottom"
+      align="end"
+      className="w-[360px]"
+      focusable
+      card={<GaugeCard watched={watched} now={now} />}
+    >
+      <TopbarButton
+        onClick={() => router.push("/resources")}
+        aria-label={label}
+      >
         <LoadGauge load={load} />
         {level !== "calm" && (
-          <span aria-hidden className={cn("absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-sol-bg", DOT[level], level === "critical" && "motion-safe:animate-pulse")} />
+          <span
+            aria-hidden
+            className={cn(
+              "absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-sol-bg",
+              DOT[level],
+              level === "critical" && "motion-safe:animate-pulse",
+            )}
+          />
         )}
       </TopbarButton>
     </HoverCard>
@@ -121,15 +204,30 @@ export function ResourcePressureGauge() {
 export function ResourcePressureFallback() {
   const router = useRouter();
   return (
-    <TopbarButton onClick={() => router.push("/resources")} aria-label="Resources — live readings unavailable" title="Resources — live readings unavailable">
+    <TopbarButton
+      onClick={() => router.push("/resources")}
+      aria-label="Resources — live readings unavailable"
+      title="Resources — live readings unavailable"
+    >
       <LoadGauge load={null} />
     </TopbarButton>
   );
 }
 
-const PRESSURE_RANK: Record<ResourcePressure, number | undefined> = { normal: 0, elevated: 1, critical: 2, unknown: undefined };
+const PRESSURE_RANK: Record<ResourcePressure, number | undefined> = {
+  normal: 0,
+  elevated: 1,
+  critical: 2,
+  unknown: undefined,
+};
 
-function GaugeCard({ watched: { machine, incident, level }, now }: { watched: Watched; now: number }) {
+function GaugeCard({
+  watched: { machine, incident, level },
+  now,
+}: {
+  watched: Watched;
+  now: number;
+}) {
   const snap = machine.snapshot!;
   const sample = snap.sample;
   const points = machine.history.filter((p) => p.at >= now - TRACE_MS);
@@ -140,20 +238,66 @@ function GaugeCard({ watched: { machine, incident, level }, now }: { watched: Wa
   return (
     <div className="p-3 text-sol-text">
       <div className="flex items-baseline gap-2">
-        <span className="truncate text-[13px] font-semibold">{machine.name}</span>
+        <span className="truncate text-[13px] font-semibold">
+          {machine.name}
+        </span>
         <span className="ml-auto shrink-0 text-meta text-sol-text-dim">
           {sample.logicalCpus} cores · {fmtBytes(sample.memoryTotal)}
         </span>
       </div>
-      <div className={cn("mt-0.5 text-meta", level === "calm" ? "text-sol-text-muted" : TONE[level])}>{status}</div>
+      <div
+        className={cn(
+          "mt-0.5 text-meta",
+          level === "calm" ? "text-sol-text-muted" : TONE[level],
+        )}
+      >
+        {status}
+      </div>
 
       <div className="mt-2.5 grid grid-cols-3 gap-1.5">
-        <Vital label="CPU" value={sample.cpuPercent === undefined ? "n/a" : `${sample.cpuPercent.toFixed(0)}%`} hot={(sample.cpuPercent ?? 0) >= 90}
-          trace={<MiniTrace points={points} f={(p: ResourcePoint) => p.cpuPercent} max={100} className="h-[18px] w-full text-sol-blue" />} />
-        <Vital label="Memory" value={memPct === undefined ? "n/a" : `${memPct.toFixed(0)}%`} hot={sample.pressure === "critical"}
-          trace={<MiniTrace points={points} f={memoryUsedPct} max={100} className="h-[18px] w-full text-sol-violet" />} />
-        <Vital label="Pressure" value={sample.pressure} hot={sample.pressure === "critical" || sample.pressure === "elevated"}
-          trace={<MiniTrace points={points} f={(p: ResourcePoint) => PRESSURE_RANK[p.pressure]} max={2} className="h-[18px] w-full text-sol-cyan" />} />
+        <Vital
+          label="CPU"
+          value={
+            sample.cpuPercent === undefined
+              ? "n/a"
+              : `${sample.cpuPercent.toFixed(0)}%`
+          }
+          hot={(sample.cpuPercent ?? 0) >= 90}
+          trace={
+            <MiniTrace
+              points={points}
+              f={(p: ResourcePoint) => p.cpuPercent}
+              max={100}
+              className="h-[18px] w-full text-sol-blue"
+            />
+          }
+        />
+        <Vital
+          label="Memory"
+          value={memPct === undefined ? "n/a" : `${memPct.toFixed(0)}%`}
+          hot={sample.pressure === "critical"}
+          trace={
+            <MiniTrace
+              points={points}
+              f={memoryUsedPct}
+              max={100}
+              className="h-[18px] w-full text-sol-violet"
+            />
+          }
+        />
+        <Vital
+          label="Pressure"
+          value={sample.pressure}
+          hot={sample.pressure === "critical" || sample.pressure === "elevated"}
+          trace={
+            <MiniTrace
+              points={points}
+              f={(p: ResourcePoint) => PRESSURE_RANK[p.pressure]}
+              max={2}
+              className="h-[18px] w-full text-sol-cyan"
+            />
+          }
+        />
       </div>
 
       <TopUsers machine={machine} level={level} />
@@ -163,40 +307,88 @@ function GaugeCard({ watched: { machine, incident, level }, now }: { watched: Wa
   );
 }
 
-function Vital({ label, value, hot, trace }: { label: string; value: string; hot: boolean; trace: React.ReactNode }) {
+function Vital({
+  label,
+  value,
+  hot,
+  trace,
+}: {
+  label: string;
+  value: string;
+  hot: boolean;
+  trace: React.ReactNode;
+}) {
   return (
     <div className="min-w-0 rounded-md bg-sol-bg-alt px-2 pb-1 pt-1.5">
       <div className="text-meta text-sol-text-dim">{label}</div>
-      <div className={cn("text-[13px] font-semibold tabular-nums", hot && "text-sol-red")}>{value}</div>
+      <div
+        className={cn(
+          "text-[13px] font-semibold tabular-nums",
+          hot && "text-sol-red",
+        )}
+      >
+        {value}
+      </div>
       <div className="mt-0.5">{trace}</div>
     </div>
   );
 }
 
 /** The sessions using the machine most, by CPU, with whatever no session owns as one row. */
-function TopUsers({ machine, level }: { machine: ResourceMachine; level: Level }) {
+function TopUsers({
+  machine,
+  level,
+}: {
+  machine: ResourceMachine;
+  level: Level;
+}) {
   const { sessions } = useManagedSessions();
   const openSession = useOpenSession();
   const close = useContext(HoverCardClose);
   const rows = useMemo(() => {
-    const byId = new Map(sessions.map((m) => [m.session_id, toResourceSession(m, false)]));
+    const byId = new Map(
+      sessions.map((m) => [m.session_id, toResourceSession(m, false)]),
+    );
     const attributed = attribute(machine.deviceId, machine.snapshot!);
     const named = attributed
       .filter((r) => r.type === "session" && r.sessionId)
       .map((r) => {
         const s = byId.get(r.sessionId!);
-        return { key: r.key, title: s?.title ?? `Session ${r.sessionId!.slice(0, 7)}`, conversationId: s?.conversationId, usage: r.usage };
+        return {
+          key: r.key,
+          title: s?.title ?? `Session ${r.sessionId!.slice(0, 7)}`,
+          conversationId: s?.conversationId,
+          usage: r.usage,
+        };
       })
       .sort((a, b) => b.usage.cpu - a.usage.cpu)
       .slice(0, 3);
-    const other = attributed.filter((r) => r.type !== "session").reduce((u, r) => ({ cpu: u.cpu + r.usage.cpu, rss: u.rss + r.usage.rss }), { cpu: 0, rss: 0 });
+    const other = attributed
+      .filter((r) => r.type !== "session")
+      .reduce(
+        (u, r) => ({ cpu: u.cpu + r.usage.cpu, rss: u.rss + r.usage.rss }),
+        { cpu: 0, rss: 0 },
+      );
     return other.cpu > 0 || other.rss > 0
-      ? [...named, { key: "other", title: "Everything else", conversationId: undefined, usage: other }]
+      ? [
+          ...named,
+          {
+            key: "other",
+            title: "Everything else",
+            conversationId: undefined,
+            usage: other,
+          },
+        ]
       : named;
   }, [sessions, machine]);
   if (rows.length === 0) return null;
   const max = Math.max(1, ...rows.map((r) => r.usage.cpu));
-  const bar = level === "critical" ? "bg-sol-red" : level === "elevated" ? "bg-sol-yellow" : "bg-sol-blue";
+  const bar =
+    level === "critical"
+      ? "bg-sol-red"
+      : level === "elevated"
+        ? "bg-sol-yellow"
+        : "bg-sol-blue";
   return (
     <div className="mt-3">
       <div className="mb-1 text-meta text-sol-text-dim">Using it most</div>
@@ -206,20 +398,38 @@ function TopUsers({ machine, level }: { machine: ResourceMachine; level: Level }
             <div className="min-w-0">
               <div className="truncate text-meta">{r.title}</div>
               <div className="mt-1 h-[3px] rounded-full bg-sol-bg-highlight">
-                <div className={cn("h-full rounded-full", bar)} style={{ width: `${(r.usage.cpu / max) * 100}%` }} />
+                <div
+                  className={cn("h-full rounded-full", bar)}
+                  style={{ width: `${(r.usage.cpu / max) * 100}%` }}
+                />
               </div>
             </div>
-            <span className="text-right text-meta tabular-nums text-sol-text-muted">{fmtCpu(r.usage.cpu)}</span>
-            <span className="text-right text-meta tabular-nums text-sol-text-muted">{fmtBytes(r.usage.rss)}</span>
+            <span className="text-right text-meta tabular-nums text-sol-text-muted">
+              {fmtCpu(r.usage.cpu)}
+            </span>
+            <span className="text-right text-meta tabular-nums text-sol-text-muted">
+              {fmtBytes(r.usage.rss)}
+            </span>
           </>
         );
-        const grid = "grid w-full grid-cols-[1fr_64px_56px] items-center gap-2 rounded px-1.5 py-1 text-left";
+        const grid =
+          "grid w-full grid-cols-[1fr_64px_56px] items-center gap-2 rounded px-1.5 py-1 text-left";
         return r.conversationId ? (
-          <button key={r.key} type="button" className={cn(grid, "hover:bg-sol-bg-alt")} onClick={() => { close?.(); openSession(r.conversationId!); }}>
+          <button
+            key={r.key}
+            type="button"
+            className={cn(grid, "hover:bg-sol-bg-alt")}
+            onClick={() => {
+              close?.();
+              openSession(r.conversationId!);
+            }}
+          >
             {body}
           </button>
         ) : (
-          <div key={r.key} className={grid}>{body}</div>
+          <div key={r.key} className={grid}>
+            {body}
+          </div>
         );
       })}
     </div>
@@ -229,13 +439,27 @@ function TopUsers({ machine, level }: { machine: ResourceMachine; level: Level }
 function ResourcesLink({ deviceId, hot }: { deviceId: string; hot: boolean }) {
   const router = useRouter();
   const close = useContext(HoverCardClose);
-  const go = (path: string) => { close?.(); router.push(path); };
+  const go = (path: string) => {
+    close?.();
+    router.push(path);
+  };
   return (
     <div className="mt-2.5 flex gap-1.5 border-t border-sol-border/30 pt-2.5">
-      <Button type="button" variant={hot ? "cyan" : "outline"} size="xs" onClick={() => go(`/resources?offload=${encodeURIComponent(deviceId)}`)}>
-        <CloudUpload className="h-3.5 w-3.5" />Move load to cloud
+      <Button
+        type="button"
+        variant={hot ? "cyan" : "outline"}
+        size="xs"
+        onClick={() => go(`/resources?offload=${encodeURIComponent(deviceId)}`)}
+      >
+        <CloudUpload className="h-3.5 w-3.5" />
+        Move load to cloud
       </Button>
-      <Button type="button" variant="outline" size="xs" onClick={() => go("/resources")}>
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        onClick={() => go("/resources")}
+      >
         Open Resources
       </Button>
     </div>

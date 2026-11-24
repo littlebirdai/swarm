@@ -3,7 +3,9 @@ import { AccountLifecycleGate } from "./accountLifecycleGate";
 
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>((r) => { resolve = r; });
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
   return { promise, resolve };
 }
 
@@ -35,7 +37,10 @@ test("queued account switches settle before a waiting resume reads the login", a
   const gate = new AccountLifecycleGate();
   const first = await gate.acquireSwitch();
   let account = "first";
-  const second = gate.acquireSwitch().then((release) => { account = "second"; release(); });
+  const second = gate.acquireSwitch().then((release) => {
+    account = "second";
+    release();
+  });
   const launch = gate.resume("claude", async () => account);
   const codex = gate.resume("codex", async () => "codex ready");
   expect(await codex).toBe("codex ready");
@@ -47,13 +52,22 @@ test("queued account switches settle before a waiting resume reads the login", a
 test("independent Claude resumes remain concurrent and a failed boot releases its hold", async () => {
   const gate = new AccountLifecycleGate();
   const ready = deferred();
-  const first = gate.resume("claude", async () => { await ready.promise; return "first"; });
+  const first = gate.resume("claude", async () => {
+    await ready.promise;
+    return "first";
+  });
   expect(await gate.resume("claude", async () => "second")).toBe("second");
-  await expect(gate.resume(undefined, async () => { throw new Error("boot failed"); })).rejects.toThrow("boot failed");
+  await expect(
+    gate.resume(undefined, async () => {
+      throw new Error("boot failed");
+    }),
+  ).rejects.toThrow("boot failed");
   ready.resolve();
   expect(await first).toBe("first");
   const release = await gate.acquireSwitch();
   release();
   release();
-  expect(await gate.resume("claude", async () => "recovered")).toBe("recovered");
+  expect(await gate.resume("claude", async () => "recovered")).toBe(
+    "recovered",
+  );
 });

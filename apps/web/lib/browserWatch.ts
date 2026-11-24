@@ -20,7 +20,13 @@ export interface WatchTabInfo {
   id: string;
 }
 
-export type WatchActionKind = "move" | "down" | "up" | "type" | "nav" | "scroll";
+export type WatchActionKind =
+  | "move"
+  | "down"
+  | "up"
+  | "type"
+  | "nav"
+  | "scroll";
 
 /**
  * One thing the agent did on the page; mirrors WatchAction in the CLI's
@@ -75,7 +81,14 @@ export type WatchInputEvent =
       deltaY?: number;
       modifiers?: number;
     }
-  | { kind: "key"; type: "keyDown" | "keyUp"; key: string; code?: string; text?: string; modifiers?: number }
+  | {
+      kind: "key";
+      type: "keyDown" | "keyUp";
+      key: string;
+      code?: string;
+      text?: string;
+      modifiers?: number;
+    }
   | { kind: "insertText"; text: string }
   /** A simulator's hardware button (source "sim" only), and its device verbs:
    *  a quarter turn, a full resolution screenshot, a screen recording. */
@@ -105,14 +118,23 @@ export function parseSimDevice(msg: any): SimDeviceState | null {
   const o = msg?.orientation;
   if (o !== 1 && o !== 2 && o !== 3 && o !== 4) return null;
   const since = msg?.recording?.since;
-  return { orientation: o, recording: typeof since === "number" ? { since } : null, canCapture: msg?.canCapture === true };
+  return {
+    orientation: o,
+    recording: typeof since === "number" ? { since } : null,
+    canCapture: msg?.canCapture === true,
+  };
 }
 
 export function parseSimCapture(msg: any): SimCapture | null {
   const kind = msg?.kind;
   if (kind !== "screenshot" && kind !== "video") return null;
   if (typeof msg.error === "string") return { kind, error: msg.error };
-  if (typeof msg.data !== "string" || typeof msg.mime !== "string" || typeof msg.name !== "string") return null;
+  if (
+    typeof msg.data !== "string" ||
+    typeof msg.mime !== "string" ||
+    typeof msg.name !== "string"
+  )
+    return null;
   return { kind, mime: msg.mime, name: msg.name, data: msg.data };
 }
 
@@ -133,12 +155,24 @@ export interface FrameBox {
  * The one piece of geometry both directions below share, so the arrow drawn
  * from an action and the click sent from the control surface agree.
  */
-export function frameContentRect(box: FrameBox, natural: { width: number; height: number }): FrameBox | null {
-  if (!natural.width || !natural.height || !box.width || !box.height) return null;
-  const scale = Math.min(box.width / natural.width, box.height / natural.height);
+export function frameContentRect(
+  box: FrameBox,
+  natural: { width: number; height: number },
+): FrameBox | null {
+  if (!natural.width || !natural.height || !box.width || !box.height)
+    return null;
+  const scale = Math.min(
+    box.width / natural.width,
+    box.height / natural.height,
+  );
   const width = natural.width * scale;
   const height = natural.height * scale;
-  return { left: box.left + (box.width - width) / 2, top: box.top + (box.height - height) / 2, width, height };
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
+  };
 }
 
 /**
@@ -167,11 +201,22 @@ export function mapToFrame(
  * an iPhone with a Dynamic Island or notch is about 13.5% of its short side,
  * an iPad about 2%, a home-button iPhone (SE) square.
  */
-export function glassClip(boxSig: string, frame: { width: number; height: number }, deviceName: string): string | undefined {
+export function glassClip(
+  boxSig: string,
+  frame: { width: number; height: number },
+  deviceName: string,
+): string | undefined {
   const [w, h] = boxSig.split("x").map(Number);
-  const rect = frameContentRect({ left: 0, top: 0, width: w, height: h }, frame);
+  const rect = frameContentRect(
+    { left: 0, top: 0, width: w, height: h },
+    frame,
+  );
   if (!rect) return undefined;
-  const fraction = /\bSE\b/.test(deviceName) ? 0 : /iPad/i.test(deviceName) ? 0.02 : 0.135;
+  const fraction = /\bSE\b/.test(deviceName)
+    ? 0
+    : /iPad/i.test(deviceName)
+      ? 0.02
+      : 0.135;
   const r = Math.round(Math.min(rect.width, rect.height) * fraction);
   const px = (n: number) => `${Math.max(0, Math.round(n))}px`;
   return `inset(${px(rect.top)} ${px(w - rect.left - rect.width)} ${px(h - rect.top - rect.height)} ${px(rect.left)} round ${r}px)`;
@@ -192,10 +237,20 @@ export function mapFromFrame(
   const rect = frameContentRect(box, natural);
   if (!rect) return null;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
-  return { x: rect.left + clamp(nx) * rect.width, y: rect.top + clamp(ny) * rect.height };
+  return {
+    x: rect.left + clamp(nx) * rect.width,
+    y: rect.top + clamp(ny) * rect.height,
+  };
 }
 
-const ACTION_KINDS = new Set<WatchActionKind>(["move", "down", "up", "type", "nav", "scroll"]);
+const ACTION_KINDS = new Set<WatchActionKind>([
+  "move",
+  "down",
+  "up",
+  "type",
+  "nav",
+  "scroll",
+]);
 
 /** The daemon caps typed text here (the CLI's ACTION_TEXT_CAP); the viewer
  *  holds the same line so a frame from an older or foreign daemon cannot
@@ -212,19 +267,31 @@ const unit = (v: number) => Math.min(1, Math.max(0, v));
  * only ever sees frames the protocol defines.
  */
 export function parseWatchAction(msg: any): WatchActionFrame | null {
-  if (!msg || typeof msg.kind !== "string" || !ACTION_KINDS.has(msg.kind)) return null;
-  if (typeof msg.x !== "number" || typeof msg.y !== "number" || !Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return null;
+  if (!msg || typeof msg.kind !== "string" || !ACTION_KINDS.has(msg.kind))
+    return null;
+  if (
+    typeof msg.x !== "number" ||
+    typeof msg.y !== "number" ||
+    !Number.isFinite(msg.x) ||
+    !Number.isFinite(msg.y)
+  )
+    return null;
   const action: WatchActionFrame = {
     kind: msg.kind,
     x: unit(msg.x),
     y: unit(msg.y),
-    at: typeof msg.at === "number" && Number.isFinite(msg.at) ? msg.at : Date.now(),
+    at:
+      typeof msg.at === "number" && Number.isFinite(msg.at)
+        ? msg.at
+        : Date.now(),
   };
   if (action.kind === "type") {
     if (msg.secret === true) action.secret = true;
-    else if (typeof msg.text === "string") action.text = msg.text.slice(-WATCH_ACTION_TEXT_CAP);
+    else if (typeof msg.text === "string")
+      action.text = msg.text.slice(-WATCH_ACTION_TEXT_CAP);
   }
-  if (action.kind === "nav" && typeof msg.url === "string") action.url = msg.url;
+  if (action.kind === "nav" && typeof msg.url === "string")
+    action.url = msg.url;
   return action;
 }
 
@@ -240,7 +307,12 @@ export function watchWsUrl(ep: TerminalEndpoint): string | null {
 
 export function connectBrowserWatch(
   ep: TerminalEndpoint,
-  session: { sessionUuid?: string | null; tmuxSession?: string | null; control?: boolean; source?: WatchSource },
+  session: {
+    sessionUuid?: string | null;
+    tmuxSession?: string | null;
+    control?: boolean;
+    source?: WatchSource;
+  },
   handlers: WatchHandlers,
 ): WatchConnection {
   const ws = openWebSocket(watchWsUrl(ep));
@@ -251,7 +323,12 @@ export function connectBrowserWatch(
       if (!done) handlers.onError("socket", "invalid daemon address");
       done = true;
     });
-    return { close: () => { done = true; }, sendInput: () => {} };
+    return {
+      close: () => {
+        done = true;
+      },
+      sendInput: () => {},
+    };
   }
 
   ws.onopen = () => {
@@ -283,13 +360,28 @@ export function connectBrowserWatch(
     }
     switch (msg.type) {
       case "ready":
-        handlers.onReady({ title: msg.title ?? "", url: msg.url ?? "", id: msg.targetId ?? "" }, msg.control === true);
+        handlers.onReady(
+          {
+            title: msg.title ?? "",
+            url: msg.url ?? "",
+            id: msg.targetId ?? "",
+          },
+          msg.control === true,
+        );
         break;
       case "frame":
-        handlers.onFrame(`data:image/jpeg;base64,${msg.data}`, msg.w ?? 0, msg.h ?? 0);
+        handlers.onFrame(
+          `data:image/jpeg;base64,${msg.data}`,
+          msg.w ?? 0,
+          msg.h ?? 0,
+        );
         break;
       case "tab":
-        handlers.onTab({ title: msg.title ?? "", url: msg.url ?? "", id: msg.targetId ?? "" });
+        handlers.onTab({
+          title: msg.title ?? "",
+          url: msg.url ?? "",
+          id: msg.targetId ?? "",
+        });
         break;
       case "action": {
         const action = parseWatchAction(msg);
@@ -337,7 +429,8 @@ export function connectBrowserWatch(
       } catch {}
     },
     sendInput(events) {
-      if (done || ws.readyState !== WebSocket.OPEN || events.length === 0) return;
+      if (done || ws.readyState !== WebSocket.OPEN || events.length === 0)
+        return;
       ws.send(JSON.stringify({ type: "input", events }));
     },
   };
@@ -375,7 +468,12 @@ export type WatchStatus =
 
 function failed(
   message: string,
-  opts?: { canRetry?: boolean; tabGone?: boolean; capped?: boolean; waiting?: boolean },
+  opts?: {
+    canRetry?: boolean;
+    tabGone?: boolean;
+    capped?: boolean;
+    waiting?: boolean;
+  },
 ): WatchStatus {
   return {
     kind: "failed",
@@ -393,9 +491,14 @@ export function watchExitStatus(reason: string): WatchStatus {
     case "tab-closed":
       return failed("the agent's browser tab was closed", { tabGone: true });
     case "browser-closed":
-      return failed("the managed browser is no longer running", { tabGone: true });
+      return failed("the managed browser is no longer running", {
+        tabGone: true,
+      });
     case "timeout":
-      return failed("stream paused after 30 minutes — resume to keep watching", { capped: true });
+      return failed(
+        "stream paused after 30 minutes — resume to keep watching",
+        { capped: true },
+      );
     case "sim-released":
       return failed("the session released its simulator", { waiting: true });
     case "sim-not-booted":
@@ -409,22 +512,33 @@ export function watchExitStatus(reason: string): WatchStatus {
 export function watchErrorStatus(code: string, message: string): WatchStatus {
   switch (code) {
     case "no-browser":
-      return failed("no managed browser is running on the agent's machine", { tabGone: true });
+      return failed("no managed browser is running on the agent's machine", {
+        tabGone: true,
+      });
     case "no-tab":
-      return failed("this session hasn't driven a browser tab yet", { tabGone: true });
+      return failed("this session hasn't driven a browser tab yet", {
+        tabGone: true,
+      });
     case "no-sim":
       return failed("this session holds no simulator", { waiting: true });
     case "no-simulators":
-      return failed("the agent's machine has no iOS simulators", { canRetry: false });
+      return failed("the agent's machine has no iOS simulators", {
+        canRetry: false,
+      });
     case "sim-not-booted":
       return failed("the session's simulator is shut down", { waiting: true });
     case "no-answer":
       // The relay asked the agent's machine and heard nothing back.
       return failed(message || "the agent's machine did not answer");
     case "unknown-device":
-      return failed(message || "that machine is not registered to your account", { canRetry: false });
+      return failed(
+        message || "that machine is not registered to your account",
+        { canRetry: false },
+      );
     case "forbidden":
-      return failed("the daemon refused the stream — reload to refresh the endpoint");
+      return failed(
+        "the daemon refused the stream — reload to refresh the endpoint",
+      );
     default:
       return failed(message || "could not open the stream");
   }
@@ -438,18 +552,26 @@ export function watchErrorStatus(code: string, message: string): WatchStatus {
  * (A machine of yours that is not this one is watched through the relay,
  * lib/browserWatchRelay.ts, and never lands here.)
  */
-export function watchUnreachableStatus(a: { foreign: boolean; machineName: string | null }): WatchStatus {
+export function watchUnreachableStatus(a: {
+  foreign: boolean;
+  machineName: string | null;
+}): WatchStatus {
   if (a.foreign) {
     return failed(
       `This agent's browser runs on ${a.machineName ?? "someone else's machine"}, which only its owner can watch.`,
       { canRetry: false },
     );
   }
-  return failed("No local daemon reachable — watching needs cast running on this machine.");
+  return failed(
+    "No local daemon reachable — watching needs cast running on this machine.",
+  );
 }
 
 /** The pane's "there is no tab" sentence: whose session, and where it last was. */
-export function missingTabMessage(sessionTitle: string | null, lastUrl: string | null): string {
+export function missingTabMessage(
+  sessionTitle: string | null,
+  lastUrl: string | null,
+): string {
   const who = sessionTitle?.trim() || "This session";
   const where = lastUrl ? ` Its last page was ${lastUrl}.` : "";
   return `${who} has no browser tab open right now.${where}`;

@@ -4,7 +4,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resolveMachineKey, MACHINE_KEY_LEN } from "./machineKey.js";
-import { encryptTokenWithSecret, decryptTokenWithSecrets, TokenDecryptError } from "./tokenEncryption.js";
+import {
+  encryptTokenWithSecret,
+  decryptTokenWithSecrets,
+  TokenDecryptError,
+} from "./tokenEncryption.js";
 
 const HW_A = () => "AAAAAAAA-1111-2222-3333-444444444444";
 const HW_B = () => "BBBBBBBB-5555-6666-7777-888888888888";
@@ -39,7 +43,9 @@ describe("machineKey hardware binding", () => {
   it("adopts a pre-binding key without changing it (upgrade path)", () => {
     const dir = tmpDir();
     const legacyKey = crypto.randomBytes(MACHINE_KEY_LEN);
-    fs.writeFileSync(path.join(dir, ".machine_key"), legacyKey, { mode: 0o600 });
+    fs.writeFileSync(path.join(dir, ".machine_key"), legacyKey, {
+      mode: 0o600,
+    });
 
     const result = resolveMachineKey(dir, HW_A);
     expect(result.secret.equals(legacyKey)).toBe(true);
@@ -59,7 +65,8 @@ describe("machineKey hardware binding", () => {
     expect(cloned.previousSecret!.equals(original.secret)).toBe(true);
 
     // Device ids (sha256 of the secret) diverge — the collision is gone.
-    const idOf = (s: Buffer) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
+    const idOf = (s: Buffer) =>
+      crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
     expect(idOf(cloned.secret)).not.toBe(idOf(original.secret));
 
     // Mac A is untouched and stable.
@@ -92,7 +99,10 @@ describe("machineKey hardware binding", () => {
 
     // Rewind the sidecar to Mac A's hostid, as if the rotation crashed after
     // writing key+prev but before the sidecar.
-    fs.copyFileSync(path.join(macA, ".machine_key.hostid"), path.join(macB, ".machine_key.hostid"));
+    fs.copyFileSync(
+      path.join(macA, ".machine_key.hostid"),
+      path.join(macB, ".machine_key.hostid"),
+    );
 
     const recovered = resolveMachineKey(macB, HW_B);
     // Must finish the interrupted rotation, not rotate a second time.
@@ -117,7 +127,10 @@ describe("machineKey hardware binding", () => {
     const macA = tmpDir();
     const original = resolveMachineKey(macA, HW_A);
     const token = "cxt_migrated_token_value";
-    const encrypted = encryptTokenWithSecret(token, original.secret.subarray(0, MACHINE_KEY_LEN));
+    const encrypted = encryptTokenWithSecret(
+      token,
+      original.secret.subarray(0, MACHINE_KEY_LEN),
+    );
 
     const cloned = resolveMachineKey(cloneDir(macA), HW_B);
     const chain = [
@@ -127,6 +140,8 @@ describe("machineKey hardware binding", () => {
     expect(decryptTokenWithSecrets(encrypted, chain)).toBe(token);
 
     // Without the previous key the rotated machine could not decrypt.
-    expect(() => decryptTokenWithSecrets(encrypted, [chain[0]])).toThrow(TokenDecryptError);
+    expect(() => decryptTokenWithSecrets(encrypted, [chain[0]])).toThrow(
+      TokenDecryptError,
+    );
   });
 });

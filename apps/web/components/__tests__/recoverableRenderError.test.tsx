@@ -1,5 +1,13 @@
 import { replaceGlobals } from "../../test-helpers/globals";
-import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 
 // React does not report the error a render threw. When a concurrent render
 // throws and the synchronous retry succeeds, React builds a NEW Error whose
@@ -15,10 +23,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bu
 import { JSDOM } from "jsdom";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", {
-  url: "https://app.test/inbox",
-  pretendToBeVisual: true,
-});
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  {
+    url: "https://app.test/inbox",
+    pretendToBeVisual: true,
+  },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -32,16 +43,12 @@ afterAll(() => {
   restoreGlobals();
 });
 
-
-
 // posthog-js (imported by lib/analytics) touches these at module scope.
-
-
-
 
 const toasts: Array<{ title: string; trace: string }> = [];
 mock.module("../../lib/errorToast", () => ({
-  showErrorToast: (title: string, trace: string) => toasts.push({ title, trace }),
+  showErrorToast: (title: string, trace: string) =>
+    toasts.push({ title, trace }),
 }));
 
 const THROWN = "Cannot read properties of undefined (reading 'title')";
@@ -55,7 +62,10 @@ describe("recoverable render errors report the throw, not the React code", () =>
     root = undefined;
   });
   let act: typeof import("react").act;
-  let reportRecoverableRenderError: (e: unknown, i?: { componentStack?: string | null }) => void;
+  let reportRecoverableRenderError: (
+    e: unknown,
+    i?: { componentStack?: string | null },
+  ) => void;
 
   beforeAll(async () => {
     React = await import("react");
@@ -82,16 +92,23 @@ describe("recoverable render errors report the throw, not the React code", () =>
 
     const container = dom.window.document.getElementById("root")!;
     root = createRoot(container, {
-      onRecoverableError: (error: unknown, info: { componentStack?: string | null }) => {
+      onRecoverableError: (
+        error: unknown,
+        info: { componentStack?: string | null },
+      ) => {
         recovered.push(error);
         reportRecoverableRenderError(error, info);
       },
     });
 
-    await act(async () => { root!.render(React.createElement(Flaky)); });
+    await act(async () => {
+      root!.render(React.createElement(Flaky));
+    });
     // A transition renders in slices, which is the path that produces the
     // wrapper — a default-lane update renders synchronously and would not.
-    await act(async () => { React.startTransition(() => bump(1)); });
+    await act(async () => {
+      React.startTransition(() => bump(1));
+    });
 
     // React recovered: the UI shows the post-throw render.
     expect(container.textContent).toBe("n=1");

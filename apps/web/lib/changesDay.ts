@@ -4,7 +4,20 @@
 
 const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** A YYYY-MM-DD as a calendar date at UTC midnight, or null when it is not a real day. */
 export function parseDay(ymd: string): Date | null {
@@ -12,7 +25,10 @@ export function parseDay(ymd: string): Date | null {
   if (!m) return null;
   const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
   // Date.UTC rolls 2026-02-31 into March; a rolled date is not the day asked for.
-  return date.getUTCDate() === Number(m[3]) && date.getUTCMonth() === Number(m[2]) - 1 ? date : null;
+  return date.getUTCDate() === Number(m[3]) &&
+    date.getUTCMonth() === Number(m[2]) - 1
+    ? date
+    : null;
 }
 
 /** "Fri 2 Oct" for "2026-10-02". The string names a calendar day, so no time zone applies. */

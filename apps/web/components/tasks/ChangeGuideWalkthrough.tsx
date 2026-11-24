@@ -14,7 +14,8 @@ import { cn } from "../../lib/utils";
 // verdict on the line's change card.
 
 // The author's prose: inline code as a quiet chip, not backtick glyphs.
-const PROSE = "prose-sm prose-invert max-w-none prose-p:my-1 prose-code:rounded prose-code:bg-sol-bg-alt prose-code:px-1 prose-code:py-px prose-code:text-[12px] prose-code:font-normal prose-code:text-sol-text";
+const PROSE =
+  "prose-sm prose-invert max-w-none prose-p:my-1 prose-code:rounded prose-code:bg-sol-bg-alt prose-code:px-1 prose-code:py-px prose-code:text-[12px] prose-code:font-normal prose-code:text-sol-text";
 
 type Step = ChangeGuide["steps"][number];
 
@@ -30,10 +31,21 @@ function StepLocation({ step, href }: { step: Step; href?: string }) {
       {range && <span className="text-sol-cyan shrink-0">{range}</span>}
     </>
   );
-  const cls = "inline-flex items-baseline min-w-0 max-w-full font-mono text-meta leading-5";
-  return href
-    ? <Link href={href} className={cn(cls, "hover:underline decoration-sol-text-dim")} title={`Open ${stepLocation(step)} in the diff`}>{label}</Link>
-    : <span className={cls} title={stepLocation(step)}>{label}</span>;
+  const cls =
+    "inline-flex items-baseline min-w-0 max-w-full font-mono text-meta leading-5";
+  return href ? (
+    <Link
+      href={href}
+      className={cn(cls, "hover:underline decoration-sol-text-dim")}
+      title={`Open ${stepLocation(step)} in the diff`}
+    >
+      {label}
+    </Link>
+  ) : (
+    <span className={cls} title={stepLocation(step)}>
+      {label}
+    </span>
+  );
 }
 
 /**
@@ -41,7 +53,13 @@ function StepLocation({ step, href }: { step: Step; href?: string }) {
  * handoff) or a model's (written from the diff on the PR page). `stepHref`
  * makes each location open the step in the full diff.
  */
-export function ChangeGuideWalkthrough({ guide, className, compact = false, source = "the author's order", stepHref }: {
+export function ChangeGuideWalkthrough({
+  guide,
+  className,
+  compact = false,
+  source = "the author's order",
+  stepHref,
+}: {
   guide: ChangeGuide;
   className?: string;
   compact?: boolean;
@@ -50,42 +68,74 @@ export function ChangeGuideWalkthrough({ guide, className, compact = false, sour
 }) {
   const steps = guide.steps;
   return (
-    <section className={cn("min-w-0", className)} data-change-guide={steps.length}>
+    <section
+      className={cn("min-w-0", className)}
+      data-change-guide={steps.length}
+    >
       <div className="flex items-center gap-1.5 text-xs font-medium text-sol-text-dim mb-2">
         <Route className="w-3.5 h-3.5" />
         Change guide
-        <span className="text-sol-text-dim/60 font-normal">· {steps.length} {steps.length === 1 ? "step" : "steps"}, in {source}</span>
+        <span className="text-sol-text-dim/60 font-normal">
+          · {steps.length} {steps.length === 1 ? "step" : "steps"}, in {source}
+        </span>
       </div>
       {guide.summary && (
-        <MarkdownRenderer content={guide.summary} className={cn("text-sm text-sol-text mb-3", PROSE)} />
+        <MarkdownRenderer
+          content={guide.summary}
+          className={cn("text-sm text-sol-text mb-3", PROSE)}
+        />
       )}
       <ol className="relative">
         {steps.map((step, i) => {
           const last = i === steps.length - 1;
           return (
-            <li key={`${i}:${step.file}`} className="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3" data-guide-step={i + 1}>
+            <li
+              key={`${i}:${step.file}`}
+              className="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3"
+              data-guide-step={i + 1}
+            >
               {/* The rail: a numbered stop per step, joined to the next. */}
               <div className="relative flex justify-center">
-                {!last && <span className="absolute top-6 bottom-0 w-px bg-sol-border/60" aria-hidden />}
+                {!last && (
+                  <span
+                    className="absolute top-6 bottom-0 w-px bg-sol-border/60"
+                    aria-hidden
+                  />
+                )}
                 <span className="relative z-[1] mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-sol-cyan/50 bg-sol-bg text-meta font-semibold tabular-nums text-sol-cyan">
                   {i + 1}
                 </span>
               </div>
               <div className={cn("min-w-0", last ? "pb-1" : "pb-5")}>
-                <h3 className="text-sm font-medium text-sol-text leading-6">{step.title}</h3>
+                <h3 className="text-sm font-medium text-sol-text leading-6">
+                  {step.title}
+                </h3>
                 <StepLocation step={step} href={stepHref?.(step)} />
                 {step.why && (
-                  <MarkdownRenderer content={step.why} className={cn("mt-1.5 text-sm text-sol-text-muted", PROSE)} />
+                  <MarkdownRenderer
+                    content={step.why}
+                    className={cn("mt-1.5 text-sm text-sol-text-muted", PROSE)}
+                  />
                 )}
                 {step.hunk ? (
                   <div className="mt-2 rounded-md border border-sol-border/40 bg-sol-bg/60 overflow-hidden">
-                    <FilePatchDiff patch={step.hunk} fileName={step.file} showLineNumbers wrap maxLines={compact ? 24 : 60} />
+                    <FilePatchDiff
+                      patch={step.hunk}
+                      fileName={step.file}
+                      showLineNumbers
+                      wrap
+                      maxLines={compact ? 24 : 60}
+                    />
                     {step.truncated && (
-                      <div className="px-2 py-1 text-meta text-sol-text-dim border-t border-sol-border/30">Cut to fit; the full change is in the diff.</div>
+                      <div className="px-2 py-1 text-meta text-sol-text-dim border-t border-sol-border/30">
+                        Cut to fit; the full change is in the diff.
+                      </div>
                     )}
                   </div>
                 ) : (
-                  <div className="mt-1.5 text-meta text-sol-text-dim">No diff captured for this range.</div>
+                  <div className="mt-1.5 text-meta text-sol-text-dim">
+                    No diff captured for this range.
+                  </div>
                 )}
               </div>
             </li>

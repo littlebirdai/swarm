@@ -33,7 +33,13 @@ describe("marketing nav", () => {
   test("every top-level marketing page renders the shared nav", () => {
     const pages = readdirSync(MARKETING)
       .map((name) => join(MARKETING, name, "page.tsx"))
-      .filter((p) => { try { return statSync(p).isFile(); } catch { return false; } })
+      .filter((p) => {
+        try {
+          return statSync(p).isFile();
+        } catch {
+          return false;
+        }
+      })
       .concat(join(MARKETING, "page.tsx"));
     const missing = pages
       .filter((f) => !/<(MarketingNav|BlogNav)\b/.test(readFileSync(f, "utf8")))

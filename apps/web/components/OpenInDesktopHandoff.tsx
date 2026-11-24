@@ -46,7 +46,8 @@ export function OpenInDesktopHandoff() {
   // it parks the choice for whoever boots next; only the store can reach the
   // server with it.
   useMountEffect(() => {
-    if (takePendingPreferBrowser()) s.updateClientDismissed("prefer_browser_links", true);
+    if (takePendingPreferBrowser())
+      s.updateClientDismissed("prefer_browser_links", true);
     return () => hideScreenRef.current?.();
   });
 
@@ -57,7 +58,8 @@ export function OpenInDesktopHandoff() {
   useWatchEffect(() => {
     if (isDesktop() || !s.clientStateInitialized) return;
     const hasUsedDesktop = s.clientState.dismissed?.has_used_desktop ?? false;
-    const preferBrowser = s.clientState.dismissed?.prefer_browser_links ?? false;
+    const preferBrowser =
+      s.clientState.dismissed?.prefer_browser_links ?? false;
     writeHandoffMirror(hasUsedDesktop && !preferBrowser);
   }, [
     s.clientStateInitialized,

@@ -21,21 +21,36 @@ import type { ComputerOptions, ComputerRunDeps, ComputerVerb } from "./run.js";
 /** Injected by the tests so a verb can run against a fake helper client. */
 export type ComputerCommandDeps = ComputerRunDeps;
 
-function run(verb: ComputerVerb, o: ComputerOptions, deps: ComputerCommandDeps): Promise<void> {
-  return import("./run.js").then(({ runComputerVerb }) => runComputerVerb(verb, o, deps));
+function run(
+  verb: ComputerVerb,
+  o: ComputerOptions,
+  deps: ComputerCommandDeps,
+): Promise<void> {
+  return import("./run.js").then(({ runComputerVerb }) =>
+    runComputerVerb(verb, o, deps),
+  );
 }
 
 /** `--app` plus the window selector, on every verb that targets a window. */
 function targetFlags<T extends Command>(cmd: T): T {
   return onFlag(cmd)
-    .requiredOption("--app <selector>", "bundle id (com.apple.TextEdit; on Linux the WM_CLASS, google-chrome), app name (TextEdit), or pid:1234")
+    .requiredOption(
+      "--app <selector>",
+      "bundle id (com.apple.TextEdit; on Linux the WM_CLASS, google-chrome), app name (TextEdit), or pid:1234",
+    )
     .option("--window-id <id>", "target this window id (from list-windows)")
-    .option("--window-index <n>", "target this window index (from list-windows)");
+    .option(
+      "--window-index <n>",
+      "target this window index (from list-windows)",
+    );
 }
 
 /** Where the verb runs: this machine, or from a cloud host the person's laptop (computer/remoteClient.ts). */
 function onFlag<T extends Command>(cmd: T): T {
-  return cmd.option("--on <laptop>", "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host");
+  return cmd.option(
+    "--on <laptop>",
+    "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host",
+  );
 }
 
 /**
@@ -47,34 +62,82 @@ function onFlag<T extends Command>(cmd: T): T {
  * sentinel does not bounce it. No click, no keystroke and no snapshot raises
  * anything on its own.
  */
-function observeFlags<T extends Command>(cmd: T, kind: "snapshot" | "action" = "snapshot"): T {
+function observeFlags<T extends Command>(
+  cmd: T,
+  kind: "snapshot" | "action" = "snapshot",
+): T {
   const shot =
     kind === "snapshot"
       ? cmd
-          .option("--no-screenshot", "skip the capture (faster, and the tree is usually the answer)")
-          .option("--crop <x,y,w,h>", "zoom: only this window region (window points) at full pixel density, for small text")
+          .option(
+            "--no-screenshot",
+            "skip the capture (faster, and the tree is usually the answer)",
+          )
+          .option(
+            "--crop <x,y,w,h>",
+            "zoom: only this window region (window points) at full pixel density, for small text",
+          )
       : cmd
-          .option("--screenshot", "also capture the window after the action (off by default: the output says what changed)")
-          .option("--no-screenshot", "the default for an action; kept so older scripts still parse")
-          .option("--no-cursor", "do not show the agent cursor for this action (CODECAST_COMPUTER_CURSOR=0 turns it off everywhere)");
+          .option(
+            "--screenshot",
+            "also capture the window after the action (off by default: the output says what changed)",
+          )
+          .option(
+            "--no-screenshot",
+            "the default for an action; kept so older scripts still parse",
+          )
+          .option(
+            "--no-cursor",
+            "do not show the agent cursor for this action (CODECAST_COMPUTER_CURSOR=0 turns it off everywhere)",
+          );
   return shot
-    .option("--full-resolution", "capture at the display's full pixel density (for small text); coordinates are then pixels / scale")
-    .option("--find <text>", "print only elements matching this text (or /regex/), with their ancestors")
-    .option("--under <index>", "print only the subtree under this element index")
-    .option("--restore-window", "raise and unminimize the target window first — the only flag that takes the human's screen")
-    .option("--no-inline", "write the screenshot but do not show it in the conversation")
-    .option("--json", "machine-readable result; the screenshot is written to a 0600 file and reported as a path");
+    .option(
+      "--full-resolution",
+      "capture at the display's full pixel density (for small text); coordinates are then pixels / scale",
+    )
+    .option(
+      "--find <text>",
+      "print only elements matching this text (or /regex/), with their ancestors",
+    )
+    .option(
+      "--under <index>",
+      "print only the subtree under this element index",
+    )
+    .option(
+      "--restore-window",
+      "raise and unminimize the target window first — the only flag that takes the human's screen",
+    )
+    .option(
+      "--no-inline",
+      "write the screenshot but do not show it in the conversation",
+    )
+    .option(
+      "--json",
+      "machine-readable result; the screenshot is written to a 0600 file and reported as a path",
+    );
 }
 
 /** The element a verb acts on: an index from the tree, or a name resolved against a fresh one. */
 function elementFlags<T extends Command>(cmd: T, required = false): T {
   return cmd
-    .option("--element-index <n>", `element index from the latest get-app-state${required ? " (or use --element)" : ""}`)
-    .option("--element <query>", "the element by name, e.g. \"Sign\" or \"button Save\"; several matches are listed, never guessed")
-    .option("--nth <n>", "with --element, take the nth of several matches (1 based)");
+    .option(
+      "--element-index <n>",
+      `element index from the latest get-app-state${required ? " (or use --element)" : ""}`,
+    )
+    .option(
+      "--element <query>",
+      'the element by name, e.g. "Sign" or "button Save"; several matches are listed, never guessed',
+    )
+    .option(
+      "--nth <n>",
+      "with --element, take the nth of several matches (1 based)",
+    );
 }
 
-export function registerComputerCommand(program: Command, deps: ComputerCommandDeps = {}): void {
+export function registerComputerCommand(
+  program: Command,
+  deps: ComputerCommandDeps = {},
+): void {
   // Every other group hands its unknown subcommand to the guarded suggester
   // through commander's unknownCommand hook (index.ts). That hook fires only
   // for a group with NO action handler, and this group has one — so without
@@ -84,7 +147,10 @@ export function registerComputerCommand(program: Command, deps: ComputerCommandD
   // only to a token one edit away from it. ct-49879.
   const failUnknownVerb = (typed: string): void => {
     console.error(`error: unknown command 'computer ${typed}'`);
-    const nextStep = unknownCommandNextStep(commandTree(program), ["computer", typed]);
+    const nextStep = unknownCommandNextStep(commandTree(program), [
+      "computer",
+      typed,
+    ]);
     if (nextStep) console.error(nextStep);
     console.error("Run 'cast computer --help' for the list of verbs.");
     (deps.exit ?? process.exit)(1);
@@ -139,23 +205,44 @@ release than the one about to run.
 
   computer
     .command("capabilities")
-    .description("What this helper supports on this machine (materializes it on first run)")
+    .description(
+      "What this helper supports on this machine (materializes it on first run)",
+    )
     .option("--json", "as JSON")
-    .option("--on <laptop>", "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host")
+    .option(
+      "--on <laptop>",
+      "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host",
+    )
     .action((o) => run("capabilities", o, deps));
 
   computer
     .command("setup")
-    .description("Set the helper up and walk a human through both grants (idempotent; nothing opens until they confirm)")
-    .option("--yes", "skip the confirm and open the panes — for a script, since nobody is there to answer")
+    .description(
+      "Set the helper up and walk a human through both grants (idempotent; nothing opens until they confirm)",
+    )
+    .option(
+      "--yes",
+      "skip the confirm and open the panes — for a script, since nobody is there to answer",
+    )
     .action((o) => run("setup", o, deps));
 
   computer
     .command("permissions")
-    .description("Read the helper's Accessibility and Screen Recording grants (reports only; nothing appears on screen)")
-    .option("--open-settings", "open System Settings so a human can grant — this takes the front, so ask first")
-    .option("--id <id>", "accessibility | screenshots — which grant --open-settings opens")
-    .option("--reset", "clear both TCC rows for the helper (a stale deny needs an explicit way out)")
+    .description(
+      "Read the helper's Accessibility and Screen Recording grants (reports only; nothing appears on screen)",
+    )
+    .option(
+      "--open-settings",
+      "open System Settings so a human can grant — this takes the front, so ask first",
+    )
+    .option(
+      "--id <id>",
+      "accessibility | screenshots — which grant --open-settings opens",
+    )
+    .option(
+      "--reset",
+      "clear both TCC rows for the helper (a stale deny needs an explicit way out)",
+    )
     .option("--json", "as JSON")
     .action((o) => run("permissions", o, deps));
 
@@ -163,46 +250,91 @@ release than the one about to run.
     .command("list-apps")
     .description("Running apps with a bundle id and a pid")
     .option("--json", "as JSON")
-    .option("--on <laptop>", "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host")
+    .option(
+      "--on <laptop>",
+      "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host",
+    )
     .action((o) => run("list-apps", o, deps));
 
   computer
     .command("list-windows")
-    .description("Visible windows of one app, with the id and index the other verbs target")
+    .description(
+      "Visible windows of one app, with the id and index the other verbs target",
+    )
     .requiredOption("--app <selector>", "bundle id, app name, or pid:1234")
     .option("--json", "as JSON")
-    .option("--on <laptop>", "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host")
+    .option(
+      "--on <laptop>",
+      "from a cloud host: drive your person's laptop (laptop, or its name or device id when several are linked) once they allowed this host",
+    )
     .action((o) => run("list-windows", o, deps));
 
   observeFlags(
-    targetFlags(computer.command("get-app-state").description("The indexed accessibility tree of one window, plus a screenshot")),
+    targetFlags(
+      computer
+        .command("get-app-state")
+        .description(
+          "The indexed accessibility tree of one window, plus a screenshot",
+        ),
+    ),
   )
-    .option("--diff", "print only what changed since this window's last snapshot")
+    .option(
+      "--diff",
+      "print only what changed since this window's last snapshot",
+    )
     .action((o) => run("get-app-state", o, deps));
 
-  targetFlags(computer.command("find").description("Elements matching text, with their ancestors — the cheap way to get an index"))
+  targetFlags(
+    computer
+      .command("find")
+      .description(
+        "Elements matching text, with their ancestors — the cheap way to get an index",
+      ),
+  )
     .argument("<text>", "text to match (case insensitive), or /regex/")
     .option("--under <index>", "search only under this element index")
     .option("--json", "machine-readable result")
     .action((text: string, o) => run("find", { ...o, find: text }, deps));
 
-  targetFlags(computer.command("wait").description("Wait until text appears in the window (or disappears, or anything changes)"))
+  targetFlags(
+    computer
+      .command("wait")
+      .description(
+        "Wait until text appears in the window (or disappears, or anything changes)",
+      ),
+  )
     .argument("[text]", "text to wait for (same as --text)")
     .option("--text <text>", "text to wait for, matched like find")
     .option("--gone", "wait for the text to disappear instead")
     .option("--change", "wait for any change in the window's tree")
     .option("--timeout <seconds>", "give up after this long (default 10)")
     .option("--json", "machine-readable result")
-    .action((text: string | undefined, o) => run("wait", { ...o, text: o.text ?? text }, deps));
+    .action((text: string | undefined, o) =>
+      run("wait", { ...o, text: o.text ?? text }, deps),
+    );
 
   observeFlags(
-    elementFlags(targetFlags(computer.command("click").description("Click an element by index or name, or a window-local coordinate")))
-      .option("--mouse", "a real mouse click at the element's center instead of its accessibility press (for controls that ignore the press)")
+    elementFlags(
+      targetFlags(
+        computer
+          .command("click")
+          .description(
+            "Click an element by index or name, or a window-local coordinate",
+          ),
+      ),
+    )
+      .option(
+        "--mouse",
+        "a real mouse click at the element's center instead of its accessibility press (for controls that ignore the press)",
+      )
       .option("--x <n>", "window-local x (screenshot pixel / screenshot.scale)")
       .option("--y <n>", "window-local y")
       .option("--click-count <n>", "1, 2 or 3 presses")
       .option("--mouse-button <button>", "left | right | middle")
-      .option("--modifiers <chord>", "modifiers only, e.g. CmdOrCtrl or CmdOrCtrl+Shift"),
+      .option(
+        "--modifiers <chord>",
+        "modifiers only, e.g. CmdOrCtrl or CmdOrCtrl+Shift",
+      ),
     "action",
   ).action((o) => run("click", o, deps));
 
@@ -211,15 +343,28 @@ release than the one about to run.
       targetFlags(
         computer
           .command("perform-secondary-action")
-          .description("Run one of an element's advertised Secondary Actions (no focus needed)"),
+          .description(
+            "Run one of an element's advertised Secondary Actions (no focus needed)",
+          ),
       ),
       true,
-    ).requiredOption("--action <name>", "exactly as the element's Secondary Actions list it"),
+    ).requiredOption(
+      "--action <name>",
+      "exactly as the element's Secondary Actions list it",
+    ),
     "action",
   ).action((o) => run("perform-secondary-action", o, deps));
 
   observeFlags(
-    elementFlags(targetFlags(computer.command("drag").description("Press on an element or point, move, and release on another")))
+    elementFlags(
+      targetFlags(
+        computer
+          .command("drag")
+          .description(
+            "Press on an element or point, move, and release on another",
+          ),
+      ),
+    )
       .option("--x <n>", "window-local x to press at")
       .option("--y <n>", "window-local y to press at")
       .option("--to-element <query>", "drop on this element, by name or #index")
@@ -230,7 +375,13 @@ release than the one about to run.
   ).action((o) => run("drag", o, deps));
 
   observeFlags(
-    elementFlags(targetFlags(computer.command("scroll").description("Scroll an element or a window-local point")))
+    elementFlags(
+      targetFlags(
+        computer
+          .command("scroll")
+          .description("Scroll an element or a window-local point"),
+      ),
+    )
       .requiredOption("--direction <direction>", "up | down | left | right")
       .option("--x <n>", "window-local x")
       .option("--y <n>", "window-local y")
@@ -239,22 +390,40 @@ release than the one about to run.
   ).action((o) => run("scroll", o, deps));
 
   observeFlags(
-    targetFlags(computer.command("type-text").description("Type into the focused element (a background window takes it without taking the front)"))
+    targetFlags(
+      computer
+        .command("type-text")
+        .description(
+          "Type into the focused element (a background window takes it without taking the front)",
+        ),
+    )
       .option("--text <text>", "the text to type")
-      .option("--text-stdin", "read the text from stdin — the only safe route for a secret"),
+      .option(
+        "--text-stdin",
+        "read the text from stdin — the only safe route for a secret",
+      ),
     "action",
   ).action((o) => run("type-text", o, deps));
 
   observeFlags(
-    targetFlags(computer.command("press-key").description("Press one key (Return, Escape, Tab, +) in the target window")).requiredOption(
-      "--key <key>",
-      "one key; use hotkey for a combination",
-    ),
+    targetFlags(
+      computer
+        .command("press-key")
+        .description(
+          "Press one key (Return, Escape, Tab, +) in the target window",
+        ),
+    ).requiredOption("--key <key>", "one key; use hotkey for a combination"),
     "action",
   ).action((o) => run("press-key", o, deps));
 
   observeFlags(
-    targetFlags(computer.command("hotkey").description("Press a modifier combination (CmdOrCtrl+A) in the target window")).requiredOption(
+    targetFlags(
+      computer
+        .command("hotkey")
+        .description(
+          "Press a modifier combination (CmdOrCtrl+A) in the target window",
+        ),
+    ).requiredOption(
       "--key <chord>",
       "a modifier and one key, e.g. CmdOrCtrl+A",
     ),
@@ -262,25 +431,47 @@ release than the one about to run.
   ).action((o) => run("hotkey", o, deps));
 
   observeFlags(
-    targetFlags(computer.command("paste-text").description("Paste text through the clipboard, restoring what was there"))
+    targetFlags(
+      computer
+        .command("paste-text")
+        .description(
+          "Paste text through the clipboard, restoring what was there",
+        ),
+    )
       .option("--text <text>", "the text to paste")
-      .option("--text-stdin", "read the text from stdin — the only safe route for a secret"),
+      .option(
+        "--text-stdin",
+        "read the text from stdin — the only safe route for a secret",
+      ),
     "action",
   ).action((o) => run("paste-text", o, deps));
 
   observeFlags(
     elementFlags(
       targetFlags(
-        computer.command("set-value").description("Write a value straight into an element — no focus needed, and read back to verify"),
+        computer
+          .command("set-value")
+          .description(
+            "Write a value straight into an element — no focus needed, and read back to verify",
+          ),
       ),
       true,
     )
       .option("--value <value>", "the value to write (empty clears the field)")
-      .option("--value-stdin", "read the value from stdin — the only safe route for a secret"),
+      .option(
+        "--value-stdin",
+        "read the value from stdin — the only safe route for a secret",
+      ),
     "action",
   ).action((o) => run("set-value", o, deps));
 
-  targetFlags(computer.command("do").description("Run several steps against one app in one go — much faster than separate commands"))
+  targetFlags(
+    computer
+      .command("do")
+      .description(
+        "Run several steps against one app in one go — much faster than separate commands",
+      ),
+  )
     .argument("[steps...]", "steps, or - to read one per line from stdin")
     .option("--keep-going", "carry on after a step fails")
     .addHelpText(
@@ -304,27 +495,47 @@ Steps read the way the window does, and each takes the single command's flags:
   wait <text> [--gone] [--change] [--timeout s]   snapshot [--find t]   shot [--crop x,y,w,h]   sleep <ms>`,
     )
     .action((steps: string[], o) =>
-      import("./batch.js").then(({ runComputerDo }) => runComputerDo(steps, o, deps)),
+      import("./batch.js").then(({ runComputerDo }) =>
+        runComputerDo(steps, o, deps),
+      ),
     );
 
   const remote = computer
     .command("remote")
-    .description("On the laptop: which cloud hosts may drive this Mac's apps (`cast computer --on laptop` there); grant is your person's, revoke is anyone's")
+    .description(
+      "On the laptop: which cloud hosts may drive this Mac's apps (`cast computer --on laptop` there); grant is your person's, revoke is anyone's",
+    )
     .option("--json", "as JSON")
-    .action((o: { json?: boolean }) => import("./remoteCommands.js").then(({ listRemote }) => listRemote(o)));
+    .action((o: { json?: boolean }) =>
+      import("./remoteCommands.js").then(({ listRemote }) => listRemote(o)),
+    );
   remote
     .command("grant")
-    .description("Let a cloud host's sessions drive this Mac's apps until revoked (the person's call; an agent asks with the card this prints)")
+    .description(
+      "Let a cloud host's sessions drive this Mac's apps until revoked (the person's call; an agent asks with the card this prints)",
+    )
     .requiredOption("--host <id>", "the cloud host (cast hosts ls)")
     .option("--session <id...>", "only these sessions on that host")
     .option("--for <duration>", "end on its own after this long: 30m, 8h, 2d")
     .option("--apps <apps...>", "only these apps (bundle ids or names)")
-    .action((o: { host: string; session?: string[]; for?: string; apps?: string[] }) => import("./remoteCommands.js").then(({ grantRemote }) => grantRemote(o)));
+    .action(
+      (o: {
+        host: string;
+        session?: string[];
+        for?: string;
+        apps?: string[];
+      }) =>
+        import("./remoteCommands.js").then(({ grantRemote }) => grantRemote(o)),
+    );
   remote
     .command("revoke")
-    .description("Stop a cloud host driving this Mac's apps; its live sessions are cut off within seconds")
+    .description(
+      "Stop a cloud host driving this Mac's apps; its live sessions are cut off within seconds",
+    )
     .requiredOption("--host <id>", "the cloud host")
-    .action((o: { host: string }) => import("./remoteCommands.js").then(({ revokeRemote }) => revokeRemote(o)));
+    .action((o: { host: string }) =>
+      import("./remoteCommands.js").then(({ revokeRemote }) => revokeRemote(o)),
+    );
 
   // Commander only wires its implicit `help [command]` when the parent has no
   // action handler, and this group needs one to make an invented verb fail
@@ -334,7 +545,9 @@ Steps read the way the window does, and each takes the single command's flags:
   // instead of listing flags that would drift from the binary.
   computer
     .command("help")
-    .description("Print one verb's flags, straight from this binary (`cast computer help click`)")
+    .description(
+      "Print one verb's flags, straight from this binary (`cast computer help click`)",
+    )
     .argument("[verb]", "the verb to document; omit it for the list of verbs")
     .action((verb: string | undefined) => {
       if (!verb) return computer.outputHelp();

@@ -5,20 +5,36 @@
 import { createElement, Fragment, useMemo, type ReactElement } from "react";
 import { useDeployTargets } from "./useSyncDeployTargets";
 import { useSyncRuns, useWorkspaceRuns } from "./useSyncRuns";
-import { usePipelines, useSyncPipelines, type PipelineRow } from "./useSyncPipelines";
+import {
+  usePipelines,
+  useSyncPipelines,
+  type PipelineRow,
+} from "./useSyncPipelines";
 import { useWorkspacesCollection } from "./useWorkspaceCollection";
 import { activeTeamIdOf } from "../lib/activeTeam";
 import { useCoarseNow } from "./useCoarseNow";
-import { pendingEdits, pipelineCheckout, pipelineModel, type PipelineModel, type PipelineRun } from "../lib/line/pipelineModel";
+import {
+  pendingEdits,
+  pipelineCheckout,
+  pipelineModel,
+  type PipelineModel,
+  type PipelineRun,
+} from "../lib/line/pipelineModel";
 import { useInboxStore } from "../store/inboxStore";
 import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
 import { sessionRemoteOf } from "./useRepoFlows";
 import type { Pipeline } from "../lib/line/pipelineTypes";
 
-const teamOf = (workspace: string | null | undefined) => (workspace?.startsWith("team:") ? workspace.slice(5) : null);
+const teamOf = (workspace: string | null | undefined) =>
+  workspace?.startsWith("team:") ? workspace.slice(5) : null;
 
 /** Every pipeline of the workspace's team, live: `models[i]` draws `pipelines[i]`. `failed`: why the feed did not answer. */
-export function usePipelineModels(workspace: string | null | undefined): { models: PipelineModel[]; pipelines: Pipeline[]; ready: boolean; failed: string | null } {
+export function usePipelineModels(workspace: string | null | undefined): {
+  models: PipelineModel[];
+  pipelines: Pipeline[];
+  ready: boolean;
+  failed: string | null;
+} {
   const teamId = teamOf(workspace);
   const { ready, error, refused } = useSyncPipelines(teamId);
   const pipelines = usePipelines(teamId);
@@ -32,53 +48,120 @@ export function usePipelineModels(workspace: string | null | undefined): { model
   const models = useMemo(() => {
     const rows = JSON.parse(proposalSig) as ProposalRow[];
     const first = new Map(rows.map((r) => [r.id, r.first]));
-    return pipelines.map((p) => pipelineModel(p, runs, targets, deploys, now, pendingEdits(p.repository, rows, (id) => first.get(id), [p.root])));
+    return pipelines.map((p) =>
+      pipelineModel(
+        p,
+        runs,
+        targets,
+        deploys,
+        now,
+        pendingEdits(p.repository, rows, (id) => first.get(id), [p.root]),
+      ),
+    );
   }, [pipelines, runs, targets, deploys, now, proposalSig]);
-  const failed = refused ? "not allowed in this workspace" : error ? "could not be read" : null;
+  const failed = refused
+    ? "not allowed in this workspace"
+    : error
+      ? "could not be read"
+      : null;
   return { models, pipelines, ready: ready || !teamId, failed };
 }
 
-type ProposalRow = { id: string; title: string | null; project_path: string | null; repository: string | null; ended: boolean; first: string };
+type ProposalRow = {
+  id: string;
+  title: string | null;
+  project_path: string | null;
+  repository: string | null;
+  ended: boolean;
+  first: string;
+};
 type State = ReturnType<typeof useInboxStore.getState>;
 type MessageRow = { role?: string; content?: string | null };
-type SessionRow = { title?: string | null; project_path?: string | null; git_root?: string | null; git_remote_url?: string | null; inbox_killed_at?: number | null };
+type SessionRow = {
+  title?: string | null;
+  project_path?: string | null;
+  git_root?: string | null;
+  git_remote_url?: string | null;
+  inbox_killed_at?: number | null;
+};
 
 /** The sessions whose first message opens with a `cast flow edit` command, as a string so a store push that changes
  *  none of them re-renders nothing. */
 function proposalsSig(s: State): string {
-  const messages = (s as unknown as { messages?: Record<string, MessageRow[]> }).messages ?? {};
+  const messages =
+    (s as unknown as { messages?: Record<string, MessageRow[]> }).messages ??
+    {};
   const rows: ProposalRow[] = [];
   for (const id in messages) {
     const first = messages[id]?.find((m) => m.role === "user")?.content;
     if (!first?.startsWith("cast flow edit ")) continue;
-    const row = ((s.sessions as Record<string, SessionRow>)[id] ?? (s.conversations as Record<string, SessionRow>)[id]) as SessionRow | undefined;
-    rows.push({ id, title: row?.title ?? null, project_path: row?.project_path ?? row?.git_root ?? null, repository: repositoryKeyOfRemote(sessionRemoteOf(s as any, id)) ?? null, ended: !!row?.inbox_killed_at, first });
+    const row = ((s.sessions as Record<string, SessionRow>)[id] ??
+      (s.conversations as Record<string, SessionRow>)[id]) as
+      | SessionRow
+      | undefined;
+    rows.push({
+      id,
+      title: row?.title ?? null,
+      project_path: row?.project_path ?? row?.git_root ?? null,
+      repository: repositoryKeyOfRemote(sessionRemoteOf(s as any, id)) ?? null,
+      ended: !!row?.inbox_killed_at,
+      first,
+    });
   }
   return JSON.stringify(rows);
 }
 
-type RosterRow = { device_id: string; display_name?: string | null; label?: string | null; hostname?: string | null };
-type CheckoutRow = { git_remote_url?: string | null; git_root?: string | null; project_path?: string | null; updated_at?: number; owner_device_id?: string | null };
+type RosterRow = {
+  device_id: string;
+  display_name?: string | null;
+  label?: string | null;
+  hostname?: string | null;
+};
+type CheckoutRow = {
+  git_remote_url?: string | null;
+  git_root?: string | null;
+  project_path?: string | null;
+  updated_at?: number;
+  owner_device_id?: string | null;
+};
 
 /**
  * Where an edit session for this pipeline starts: the checkout that publishes it, when that machine is the viewer's
  * own; else the viewer's own most recent checkout of the repo. Null when the viewer has no checkout of it.
  */
-export function useEditWhere(p: Pipeline | null): { root: string; device: string | null; machine: string | null } | null {
+export function useEditWhere(
+  p: Pipeline | null,
+): { root: string; device: string | null; machine: string | null } | null {
   const sig = useInboxStore((s) => {
     if (!p) return "";
     const roster = (s.machineRoster ?? []) as RosterRow[];
-    const name = (id: string | null) => { const d = id ? roster.find((x) => x.device_id === id) : null; return d ? d.display_name || d.label || d.hostname || null : null; };
+    const name = (id: string | null) => {
+      const d = id ? roster.find((x) => x.device_id === id) : null;
+      return d ? d.display_name || d.label || d.hostname || null : null;
+    };
     const { root, device } = pipelineCheckout(p);
-    if (root && device && roster.some((d) => d.device_id === device)) return JSON.stringify({ root, device, machine: name(device) });
+    if (root && device && roster.some((d) => d.device_id === device))
+      return JSON.stringify({ root, device, machine: name(device) });
     let best: CheckoutRow | null = null;
-    for (const [id, row] of Object.entries(s.sessions as Record<string, CheckoutRow>)) {
-      if (!row?.git_root || repositoryKeyOfRemote(sessionRemoteOf(s as any, id)) !== p.repository) continue;
+    for (const [id, row] of Object.entries(
+      s.sessions as Record<string, CheckoutRow>,
+    )) {
+      if (
+        !row?.git_root ||
+        repositoryKeyOfRemote(sessionRemoteOf(s as any, id)) !== p.repository
+      )
+        continue;
       if (!best || (row.updated_at ?? 0) > (best.updated_at ?? 0)) best = row;
     }
     // The checkout lives on the machine that ran that session: the edit session starts there, named.
-    const own = best?.owner_device_id && roster.some((d) => d.device_id === best!.owner_device_id) ? best.owner_device_id : null;
-    return best?.git_root ? JSON.stringify({ root: best.git_root, device: own, machine: name(own) }) : "";
+    const own =
+      best?.owner_device_id &&
+      roster.some((d) => d.device_id === best!.owner_device_id)
+        ? best.owner_device_id
+        : null;
+    return best?.git_root
+      ? JSON.stringify({ root: best.git_root, device: own, machine: name(own) })
+      : "";
   });
   return useMemo(() => (sig ? JSON.parse(sig) : null), [sig]);
 }
@@ -93,8 +176,13 @@ function TeamPipelinesFeeder({ teamId }: { teamId: string }) {
 function useViewerTeamIds(): string[] {
   const sig = useInboxStore((s) => {
     const active = activeTeamIdOf(s as any);
-    const ids = ((s as any).teams ?? []).map((t: { _id: string }) => String(t._id)) as string[];
-    return [...(active ? [active] : []), ...ids.filter((id) => id !== active)].join(",");
+    const ids = ((s as any).teams ?? []).map((t: { _id: string }) =>
+      String(t._id),
+    ) as string[];
+    return [
+      ...(active ? [active] : []),
+      ...ids.filter((id) => id !== active),
+    ].join(",");
   });
   return useMemo(() => (sig ? sig.split(",") : []), [sig]);
 }
@@ -106,13 +194,25 @@ const rowSig = (p: PipelineRow) => `${p._id}|${p.repository}|${p.published_at}`;
  * another team ships): its workspace, or null until a team is found to publish it. `feeders` must be rendered: one
  * feed per team, each drawing nothing.
  */
-export function usePipelineWorkspace(repository: string): { workspace: string | null; feeders: ReactElement } {
+export function usePipelineWorkspace(repository: string): {
+  workspace: string | null;
+  feeders: ReactElement;
+} {
   const teams = useViewerTeamIds();
   const keys = useMemo(() => teams.map((id) => `team:${id}`), [teams]);
   const rows = useWorkspacesCollection<PipelineRow>("pipelines", rowSig, keys);
   const repo = repository.toLowerCase();
   // The active team's copy wins when two teams publish the same repository.
-  const found = keys.find((k) => rows.some((r) => r.workspace === k && r.repository === repo)) ?? null;
-  const feeders = createElement(Fragment, null, ...teams.map((id) => createElement(TeamPipelinesFeeder, { key: id, teamId: id })));
+  const found =
+    keys.find((k) =>
+      rows.some((r) => r.workspace === k && r.repository === repo),
+    ) ?? null;
+  const feeders = createElement(
+    Fragment,
+    null,
+    ...teams.map((id) =>
+      createElement(TeamPipelinesFeeder, { key: id, teamId: id }),
+    ),
+  );
   return { workspace: found, feeders };
 }

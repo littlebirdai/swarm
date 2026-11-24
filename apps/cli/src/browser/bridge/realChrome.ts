@@ -26,7 +26,11 @@ import { findChromeBinary, keychainArgs } from "../../workspace/chrome.js";
 import { realChromePid } from "../localChrome.js";
 import { browserHome } from "../profile.js";
 import { isWSL } from "../../windowsSupport.js";
-import { bridgePairingPage, bridgeSettledPage, bridgeWakeUrl } from "./protocol.js";
+import {
+  bridgePairingPage,
+  bridgeSettledPage,
+  bridgeWakeUrl,
+} from "./protocol.js";
 import { extensionProfiles, pickBridgeProfile } from "./chromeProfiles.js";
 import { readBridgeState } from "./host.js";
 
@@ -61,20 +65,42 @@ export function chromeLaunchCommand(
   platform = process.platform,
   wsl = isWSL(),
 ): { command: string; args: string[]; cwd?: string } | null {
-  if (wsl) return { command: "cmd.exe", args: ["/c", "start", "", "chrome", ...args], cwd: "/mnt/c" };
+  if (wsl)
+    return {
+      command: "cmd.exe",
+      args: ["/c", "start", "", "chrome", ...args],
+      cwd: "/mnt/c",
+    };
   if (!bin) return null;
   if (platform === "darwin" && bin.includes(".app/Contents/MacOS/")) {
-    return { command: "/usr/bin/open", args: ["-n", "-g", "-a", bin.slice(0, bin.indexOf(".app/Contents/MacOS/") + 4), "--args", ...args] };
+    return {
+      command: "/usr/bin/open",
+      args: [
+        "-n",
+        "-g",
+        "-a",
+        bin.slice(0, bin.indexOf(".app/Contents/MacOS/") + 4),
+        "--args",
+        ...args,
+      ],
+    };
   }
   return { command: bin, args };
 }
 
 /** Start Chrome detached with `args`; true when a process was spawned. */
 function spawnChrome(args: string[]): boolean {
-  const launch = chromeLaunchCommand(isWSL() ? null : findChromeBinary(), [...keychainArgs(), ...args]);
+  const launch = chromeLaunchCommand(isWSL() ? null : findChromeBinary(), [
+    ...keychainArgs(),
+    ...args,
+  ]);
   if (!launch) return false;
   try {
-    const child = spawn(launch.command, launch.args, { stdio: "ignore", detached: true, cwd: launch.cwd });
+    const child = spawn(launch.command, launch.args, {
+      stdio: "ignore",
+      detached: true,
+      cwd: launch.cwd,
+    });
     child.on("error", () => {});
     child.unref();
     return !!child.pid;
@@ -95,11 +121,15 @@ export function stampPath(): string {
   return path.join(browserHome(), "real-chrome.json");
 }
 
-async function claim(decide: (current: Record<string, unknown>) => Record<string, unknown> | null): Promise<boolean> {
+async function claim(
+  decide: (current: Record<string, unknown>) => Record<string, unknown> | null,
+): Promise<boolean> {
   // The lock's own budgets: the claim holds it for microseconds, and a
   // holder that died is reclaimed by its dead pid, so a live one on a loaded
   // machine is never stolen from.
-  const release = await acquireFileLock(stampPath() + ".lock", { describe: "cast browser real chrome stamp" });
+  const release = await acquireFileLock(stampPath() + ".lock", {
+    describe: "cast browser real chrome stamp",
+  });
   try {
     let current: Record<string, unknown> = {};
     try {
@@ -120,9 +150,17 @@ async function claim(decide: (current: Record<string, unknown>) => Record<string
 }
 
 /** Take the stamp for `kind` unless one was taken within `withinMs`; true when this caller holds it. */
-export function takeStamp(kind: "launchedAt", withinMs: number, now = Date.now()): Promise<boolean> {
+export function takeStamp(
+  kind: "launchedAt",
+  withinMs: number,
+  now = Date.now(),
+): Promise<boolean> {
   // A stamp in the future is a hold: it says "not until then".
-  return claim((current) => (now - (Number(current[kind]) || 0) < withinMs ? null : { ...current, [kind]: now }));
+  return claim((current) =>
+    now - (Number(current[kind]) || 0) < withinMs
+      ? null
+      : { ...current, [kind]: now },
+  );
 }
 
 export const LAUNCH_ONCE_MS = 60_000;
@@ -171,7 +209,10 @@ export function takeWake(outage: string, now = Date.now()): Promise<boolean> {
  * Chrome this command starts: a Chrome the human opened from the Dock keeps
  * Chrome's defaults.
  */
-export const REAL_CHROME_LAUNCH_ARGS = ["--disable-renderer-backgrounding", "--silent-debugger-extension-api"];
+export const REAL_CHROME_LAUNCH_ARGS = [
+  "--disable-renderer-backgrounding",
+  "--silent-debugger-extension-api",
+];
 
 /**
  * Start the human's Chrome in the background. True when a launch was
@@ -179,7 +220,10 @@ export const REAL_CHROME_LAUNCH_ARGS = ["--disable-renderer-backgrounding", "--s
  */
 export async function launchRealChrome(): Promise<boolean> {
   if (!(await takeStamp("launchedAt", LAUNCH_ONCE_MS))) return true;
-  return spawnChrome([...REAL_CHROME_LAUNCH_ARGS, ...(bridgeProfileArgs() ?? [])]);
+  return spawnChrome([
+    ...REAL_CHROME_LAUNCH_ARGS,
+    ...(bridgeProfileArgs() ?? []),
+  ]);
 }
 
 /** The forwarding page `setup` leaves for Chrome to open; stripped of its token once pairing settles. */
@@ -193,7 +237,10 @@ export function pairingPagePath(): string {
  * can see whether Chrome showed the page or an error, which is why callers
  * ask the host afterwards and print the fallback themselves.
  */
-export function openInRealChrome(url: string, profileArgs: string[] = []): boolean {
+export function openInRealChrome(
+  url: string,
+  profileArgs: string[] = [],
+): boolean {
   const page = pairingPagePath();
   try {
     fs.mkdirSync(path.dirname(page), { recursive: true, mode: 0o700 });
@@ -202,12 +249,18 @@ export function openInRealChrome(url: string, profileArgs: string[] = []): boole
   } catch {
     return false;
   }
-  return spawnChrome([...profileArgs, isWSL() ? windowsPathOf(page) : pathToFileURL(page).href]);
+  return spawnChrome([
+    ...profileArgs,
+    isWSL() ? windowsPathOf(page) : pathToFileURL(page).href,
+  ]);
 }
 
 /** The path Windows programs use for a file inside WSL (\\wsl.localhost\<distro>\...). */
 function windowsPathOf(linuxPath: string): string {
-  const out = spawnSync("wslpath", ["-w", linuxPath], { encoding: "utf-8", timeout: 5_000 }).stdout?.trim();
+  const out = spawnSync("wslpath", ["-w", linuxPath], {
+    encoding: "utf-8",
+    timeout: 5_000,
+  }).stdout?.trim();
   return out || linuxPath;
 }
 
@@ -218,7 +271,8 @@ function windowsPathOf(linuxPath: string): string {
 export function settlePairingPage(connected: boolean): void {
   const page = pairingPagePath();
   try {
-    if (fs.existsSync(page)) fs.writeFileSync(page, bridgeSettledPage(connected), { mode: 0o600 });
+    if (fs.existsSync(page))
+      fs.writeFileSync(page, bridgeSettledPage(connected), { mode: 0o600 });
   } catch {
     fs.rmSync(page, { force: true });
   }
@@ -265,24 +319,38 @@ export const CHROME_LAUNCHER_NAME = "Google Chrome for Codecast";
  * lose what the human had open. The human runs this; nothing here runs on
  * its own.
  */
-export async function restartRealChrome(opts: { quitWaitMs?: number; note?: (line: string) => void } = {}): Promise<{ restarted: boolean; pid: number | null; reason?: string }> {
+export async function restartRealChrome(
+  opts: { quitWaitMs?: number; note?: (line: string) => void } = {},
+): Promise<{ restarted: boolean; pid: number | null; reason?: string }> {
   const note = opts.note ?? (() => {});
   const was = realChromePid();
   if (was) {
     note(`asking Chrome (pid ${was}) to quit…`);
-    spawnSync("osascript", ["-e", 'tell application "Google Chrome" to quit'], { timeout: 15_000 });
+    spawnSync("osascript", ["-e", 'tell application "Google Chrome" to quit'], {
+      timeout: 15_000,
+    });
     const deadline = Date.now() + (opts.quitWaitMs ?? 60_000);
     while (Date.now() < deadline && realChromePid() !== null) await sleep(500);
-    if (realChromePid() !== null) return { restarted: false, pid: was, reason: `Chrome did not quit within ${Math.round((opts.quitWaitMs ?? 60_000) / 1000)}s; quit it by hand and run this again` };
+    if (realChromePid() !== null)
+      return {
+        restarted: false,
+        pid: was,
+        reason: `Chrome did not quit within ${Math.round((opts.quitWaitMs ?? 60_000) / 1000)}s; quit it by hand and run this again`,
+      };
     // Chrome's singleton lock and the DevToolsActivePort file linger a beat.
     await sleep(1_500);
   }
   note(`starting Chrome with ${REAL_CHROME_LAUNCH_ARGS.join(" ")}…`);
-  if (!spawnChrome([...REAL_CHROME_LAUNCH_ARGS, "--restore-last-session"])) return { restarted: false, pid: null, reason: "no Chrome binary found" };
+  if (!spawnChrome([...REAL_CHROME_LAUNCH_ARGS, "--restore-last-session"]))
+    return { restarted: false, pid: null, reason: "no Chrome binary found" };
   const deadline = Date.now() + 30_000;
   let pid: number | null = null;
   while (Date.now() < deadline && !(pid = realChromePid())) await sleep(500);
-  return { restarted: pid !== null, pid, reason: pid ? undefined : "Chrome did not appear within 30s" };
+  return {
+    restarted: pid !== null,
+    pid,
+    reason: pid ? undefined : "Chrome did not appear within 30s",
+  };
 }
 
 /**
@@ -294,7 +362,9 @@ export async function restartRealChrome(opts: { quitWaitMs?: number; note?: (lin
  * would only bring forward. While the human's Chrome runs, the script brings
  * that process forward instead, so a hotkey or Dock press never opens a window.
  */
-export function installChromeLauncher(dir = path.join(os.homedir(), "Applications")): { app: string; iconCopied: boolean } {
+export function installChromeLauncher(
+  dir = path.join(os.homedir(), "Applications"),
+): { app: string; iconCopied: boolean } {
   const app = path.join(dir, `${CHROME_LAUNCHER_NAME}.app`);
   const contents = path.join(app, "Contents");
   fs.mkdirSync(path.join(contents, "MacOS"), { recursive: true });
@@ -313,7 +383,9 @@ for pid in $(pgrep -x "Google Chrome"); do
 done
 exec /usr/bin/open -n -a "Google Chrome" --args ${REAL_CHROME_LAUNCH_ARGS.join(" ")} "$@"
 `;
-  fs.writeFileSync(path.join(contents, "MacOS", "launch"), script, { mode: 0o755 });
+  fs.writeFileSync(path.join(contents, "MacOS", "launch"), script, {
+    mode: 0o755,
+  });
   fs.writeFileSync(
     path.join(contents, "Info.plist"),
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -332,12 +404,17 @@ exec /usr/bin/open -n -a "Google Chrome" --args ${REAL_CHROME_LAUNCH_ARGS.join("
 `,
   );
   let iconCopied = false;
-  const chromeIcon = "/Applications/Google Chrome.app/Contents/Resources/app.icns";
+  const chromeIcon =
+    "/Applications/Google Chrome.app/Contents/Resources/app.icns";
   if (fs.existsSync(chromeIcon)) {
     fs.copyFileSync(chromeIcon, path.join(contents, "Resources", "app.icns"));
     iconCopied = true;
   }
   // Launch Services learns the bundle when it is registered; the Dock reads the icon from it.
-  spawnSync("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", ["-f", app], { timeout: 15_000 });
+  spawnSync(
+    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+    ["-f", app],
+    { timeout: 15_000 },
+  );
   return { app, iconCopied };
 }

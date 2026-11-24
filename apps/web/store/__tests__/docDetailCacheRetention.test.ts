@@ -22,23 +22,40 @@ function row(over: Record<string, any> = {}) {
 describe("partitionDocDetailRetention", () => {
   it("keeps rows opened inside the TTL and drops ones idle past it", () => {
     const fresh = row({ _id: cid(1), _cachedAt: NOW - 5 * DAY });
-    const stale = row({ _id: cid(2), _cachedAt: NOW - 45 * DAY, updated_at: NOW - 45 * DAY });
+    const stale = row({
+      _id: cid(2),
+      _cachedAt: NOW - 45 * DAY,
+      updated_at: NOW - 45 * DAY,
+    });
     const { keep, drop } = partitionDocDetailRetention([fresh, stale], NOW);
     expect(keep.map((r) => r._id)).toEqual([cid(1)]);
     expect(drop).toEqual([cid(2)]);
   });
 
   it("a recent open (_cachedAt) rescues a doc whose own updated_at is ancient", () => {
-    const oldDocReadYesterday = row({ _id: cid(1), updated_at: NOW - 200 * DAY, _cachedAt: NOW - DAY });
-    const { keep, drop } = partitionDocDetailRetention([oldDocReadYesterday], NOW);
+    const oldDocReadYesterday = row({
+      _id: cid(1),
+      updated_at: NOW - 200 * DAY,
+      _cachedAt: NOW - DAY,
+    });
+    const { keep, drop } = partitionDocDetailRetention(
+      [oldDocReadYesterday],
+      NOW,
+    );
     expect(keep.map((r) => r._id)).toEqual([cid(1)]);
     expect(drop).toEqual([]);
   });
 
   it("rows from older builds without _cachedAt fall back to updated_at", () => {
     const legacyFresh = row({ _id: cid(1), updated_at: NOW - 2 * DAY });
-    const legacyStale = row({ _id: cid(2), updated_at: NOW - DOC_DETAIL_CACHE_TTL_MS - DAY });
-    const { keep, drop } = partitionDocDetailRetention([legacyFresh, legacyStale], NOW);
+    const legacyStale = row({
+      _id: cid(2),
+      updated_at: NOW - DOC_DETAIL_CACHE_TTL_MS - DAY,
+    });
+    const { keep, drop } = partitionDocDetailRetention(
+      [legacyFresh, legacyStale],
+      NOW,
+    );
     expect(keep.map((r) => r._id)).toEqual([cid(1)]);
     expect(drop).toEqual([cid(2)]);
   });
@@ -54,7 +71,7 @@ describe("partitionDocDetailRetention", () => {
 
   it("caps the cache at the most recently opened MAX rows", () => {
     const rows = Array.from({ length: MAX_CACHED_DOC_DETAILS + 50 }, (_, i) =>
-      row({ _id: cid(i), _cachedAt: NOW - i * 60_000 })
+      row({ _id: cid(i), _cachedAt: NOW - i * 60_000 }),
     );
     const { keep, drop } = partitionDocDetailRetention(rows, NOW);
     expect(keep.length).toBe(MAX_CACHED_DOC_DETAILS);

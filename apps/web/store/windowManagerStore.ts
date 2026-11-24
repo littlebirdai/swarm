@@ -35,13 +35,19 @@ interface WindowManagerState {
   closeWindow: (id: string) => void;
   closeAll: () => void;
   minimizeWindow: (id: string) => void;
-  maximizeWindow: (id: string, viewport: { width: number; height: number }) => void;
+  maximizeWindow: (
+    id: string,
+    viewport: { width: number; height: number },
+  ) => void;
   restoreWindow: (id: string) => void;
   bringToFront: (id: string) => void;
   updatePosition: (id: string, x: number, y: number) => void;
   updateSize: (id: string, width: number, height: number) => void;
   updateBounds: (id: string, bounds: Partial<WindowBounds>) => void;
-  autoArrange: (mode: ArrangeMode, viewport: { width: number; height: number }) => void;
+  autoArrange: (
+    mode: ArrangeMode,
+    viewport: { width: number; height: number },
+  ) => void;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────
@@ -53,7 +59,10 @@ const TASKBAR_HEIGHT = 44;
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function nextCascadePosition(windows: Record<string, WindowState>): { x: number; y: number } {
+function nextCascadePosition(windows: Record<string, WindowState>): {
+  x: number;
+  y: number;
+} {
   const count = Object.keys(windows).length;
   return {
     x: 40 + (count % 8) * CASCADE_OFFSET,
@@ -143,9 +152,12 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   openWindow(sessionId, bounds) {
     const state = get();
     // If already open for this session, just bring to front
-    const existing = Object.values(state.windows).find(w => w.sessionId === sessionId);
+    const existing = Object.values(state.windows).find(
+      (w) => w.sessionId === sessionId,
+    );
     if (existing) {
-      if (existing.visualState === "minimized") get().restoreWindow(existing.id);
+      if (existing.visualState === "minimized")
+        get().restoreWindow(existing.id);
       get().bringToFront(existing.id);
       return existing.id;
     }
@@ -192,14 +204,20 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
           restoreTo: win.visualState === "maximized" ? "maximized" : "normal",
         },
       },
-      focusedWindowId: get().focusedWindowId === id ? null : get().focusedWindowId,
+      focusedWindowId:
+        get().focusedWindowId === id ? null : get().focusedWindowId,
     });
   },
 
   maximizeWindow(id, viewport) {
     const win = get().windows[id];
     if (!win) return;
-    const prevBounds: WindowBounds = { x: win.x, y: win.y, width: win.width, height: win.height };
+    const prevBounds: WindowBounds = {
+      x: win.x,
+      y: win.y,
+      width: win.width,
+      height: win.height,
+    };
     set({
       windows: {
         ...get().windows,
@@ -207,7 +225,8 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
           ...win,
           visualState: "maximized",
           restoreTo: undefined,
-          prevBounds: win.visualState === "maximized" ? win.prevBounds : prevBounds,
+          prevBounds:
+            win.visualState === "maximized" ? win.prevBounds : prevBounds,
           x: 0,
           y: 0,
           width: viewport.width,
@@ -228,11 +247,20 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
     // un-maximize: reapply the bounds saved before the maximize.
     const next: WindowState =
       win.visualState === "minimized"
-        ? { ...win, visualState: win.restoreTo ?? "normal", restoreTo: undefined }
+        ? {
+            ...win,
+            visualState: win.restoreTo ?? "normal",
+            restoreTo: undefined,
+          }
         : {
             ...win,
             visualState: "normal",
-            ...(win.prevBounds ?? { x: win.x, y: win.y, width: win.width, height: win.height }),
+            ...(win.prevBounds ?? {
+              x: win.x,
+              y: win.y,
+              width: win.width,
+              height: win.height,
+            }),
             prevBounds: undefined,
           };
     set({
@@ -261,7 +289,8 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   updatePosition(id, x, y) {
     const win = get().windows[id];
     if (!win) return;
-    const visualState = win.visualState === "maximized" ? "normal" : win.visualState;
+    const visualState =
+      win.visualState === "maximized" ? "normal" : win.visualState;
     set({
       windows: { ...get().windows, [id]: { ...win, x, y, visualState } },
     });
@@ -270,16 +299,21 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
   updateSize(id, width, height) {
     const win = get().windows[id];
     if (!win) return;
-    const visualState = win.visualState === "maximized" ? "normal" : win.visualState;
+    const visualState =
+      win.visualState === "maximized" ? "normal" : win.visualState;
     set({
-      windows: { ...get().windows, [id]: { ...win, width, height, visualState } },
+      windows: {
+        ...get().windows,
+        [id]: { ...win, width, height, visualState },
+      },
     });
   },
 
   updateBounds(id, bounds) {
     const win = get().windows[id];
     if (!win) return;
-    const visualState = win.visualState === "maximized" ? "normal" : win.visualState;
+    const visualState =
+      win.visualState === "maximized" ? "normal" : win.visualState;
     set({
       windows: {
         ...get().windows,
@@ -290,10 +324,17 @@ export const useWindowManager = create<WindowManagerState>((set, get) => ({
 
   autoArrange(mode, viewport) {
     const state = get();
-    const visible = Object.values(state.windows).filter(w => w.visualState !== "minimized");
+    const visible = Object.values(state.windows).filter(
+      (w) => w.visualState !== "minimized",
+    );
     if (visible.length === 0) return;
 
-    const layoutFn = { tile: tileLayout, cascade: cascadeLayout, horizontal: horizontalLayout, vertical: verticalLayout }[mode];
+    const layoutFn = {
+      tile: tileLayout,
+      cascade: cascadeLayout,
+      horizontal: horizontalLayout,
+      vertical: verticalLayout,
+    }[mode];
     const positions = layoutFn(visible.length, viewport.width, viewport.height);
 
     const updated = { ...state.windows };

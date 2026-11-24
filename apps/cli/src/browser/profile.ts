@@ -47,7 +47,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { defaultConfigDir } from "../config/configDir.js";
-import { OWN_LOGIN_HOSTS, keepsOwnLogin } from "@codecast/shared/contracts/secrets";
+import {
+  OWN_LOGIN_HOSTS,
+  keepsOwnLogin,
+} from "@codecast/shared/contracts/secrets";
 
 /** Where managed clones live. Mode 0700 — these hold live session cookies. */
 export function browserHome(): string {
@@ -69,12 +72,20 @@ export { OWN_LOGIN_HOSTS, keepsOwnLogin };
 
 /** SQL predicate selecting the cookie rows of the own-login hosts. */
 function ownLoginCookieWhere(): string {
-  return OWN_LOGIN_HOSTS.map((s) => `host_key = '${s}' OR host_key LIKE '%.${s}'`).join(" OR ");
+  return OWN_LOGIN_HOSTS.map(
+    (s) => `host_key = '${s}' OR host_key LIKE '%.${s}'`,
+  ).join(" OR ");
 }
 
 /** Where a Chrome profile keeps its cookie database (moved across versions). */
-export function cookieDbPath(userDataDir: string, profileDir = "Default"): string | null {
-  for (const rel of [[profileDir, "Network", "Cookies"], [profileDir, "Cookies"]]) {
+export function cookieDbPath(
+  userDataDir: string,
+  profileDir = "Default",
+): string | null {
+  for (const rel of [
+    [profileDir, "Network", "Cookies"],
+    [profileDir, "Cookies"],
+  ]) {
     const p = path.join(userDataDir, ...rel);
     if (fs.existsSync(p)) return p;
   }
@@ -95,8 +106,12 @@ function sqlite(db: string, sql: string): string {
   } finally {
     fs.closeSync(fd);
   }
-  if (head.toString("latin1") !== "SQLite format 3\0") throw new Error(`${path.basename(db)} is not a SQLite database`);
-  return execFileSync("sqlite3", [db, sql], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  if (head.toString("latin1") !== "SQLite format 3\0")
+    throw new Error(`${path.basename(db)} is not a SQLite database`);
+  return execFileSync("sqlite3", [db, sql], {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
 /**
@@ -125,17 +140,32 @@ export interface SeparateReport {
  * found to be distinct already. Best effort: an unreadable store loses the
  * strip, not the launch.
  */
-export function separateGoogleSession(userDataDir: string, opts: { dropCookies?: boolean } = {}): SeparateReport {
+export function separateGoogleSession(
+  userDataDir: string,
+  opts: { dropCookies?: boolean } = {},
+): SeparateReport {
   const report: SeparateReport = { cookies: null, notes: [] };
   const db = opts.dropCookies === false ? null : cookieDbPath(userDataDir);
   if (db) {
     try {
-      report.cookies = parseInt(sqlite(db, `DELETE FROM cookies WHERE ${ownLoginCookieWhere()}; SELECT changes();`), 10) || 0;
+      report.cookies =
+        parseInt(
+          sqlite(
+            db,
+            `DELETE FROM cookies WHERE ${ownLoginCookieWhere()}; SELECT changes();`,
+          ),
+          10,
+        ) || 0;
     } catch (err) {
-      report.notes.push(`could not drop the shared Google cookies: ${(err as Error).message.split("\n")[0]}`);
+      report.notes.push(
+        `could not drop the shared Google cookies: ${(err as Error).message.split("\n")[0]}`,
+      );
     }
   }
-  fs.writeFileSync(path.join(userDataDir, OWN_SESSION_STAMP), JSON.stringify({ version: 1, separated_at: Date.now() }));
+  fs.writeFileSync(
+    path.join(userDataDir, OWN_SESSION_STAMP),
+    JSON.stringify({ version: 1, separated_at: Date.now() }),
+  );
   return report;
 }
 
@@ -156,13 +186,19 @@ function preserveOwnLogins(fromDb: string, toDb: string): number {
 }
 
 /** Root of a real Chrome install's user data, by channel. */
-export function chromeUserDataRoot(channel: ChromeChannel = "chrome"): string | null {
+export function chromeUserDataRoot(
+  channel: ChromeChannel = "chrome",
+): string | null {
   const home = os.homedir();
   const roots: Record<ChromeChannel, string[]> =
     process.platform === "darwin"
       ? {
-          chrome: [path.join(home, "Library/Application Support/Google/Chrome")],
-          canary: [path.join(home, "Library/Application Support/Google/Chrome Canary")],
+          chrome: [
+            path.join(home, "Library/Application Support/Google/Chrome"),
+          ],
+          canary: [
+            path.join(home, "Library/Application Support/Google/Chrome Canary"),
+          ],
           chromium: [path.join(home, "Library/Application Support/Chromium")],
         }
       : {
@@ -193,11 +229,16 @@ export interface RealProfile {
  * Read Chrome's `Local State` to enumerate profiles with their human names.
  * The directory names alone ("Profile 7") are useless for choosing.
  */
-export function listRealProfiles(channel: ChromeChannel = "chrome", rootOverride?: string): RealProfile[] {
+export function listRealProfiles(
+  channel: ChromeChannel = "chrome",
+  rootOverride?: string,
+): RealProfile[] {
   const root = rootOverride ?? chromeUserDataRoot(channel);
   if (!root) return [];
   try {
-    return parseLocalState(fs.readFileSync(path.join(root, "Local State"), "utf-8"));
+    return parseLocalState(
+      fs.readFileSync(path.join(root, "Local State"), "utf-8"),
+    );
   } catch {
     return [];
   }
@@ -220,7 +261,9 @@ export function parseLocalState(raw: string): RealProfile[] {
       email: info?.user_name || null,
       lastUsed: dir === lastUsed,
     }))
-    .sort((a, b) => (a.lastUsed ? -1 : b.lastUsed ? 1 : a.dir.localeCompare(b.dir)));
+    .sort((a, b) =>
+      a.lastUsed ? -1 : b.lastUsed ? 1 : a.dir.localeCompare(b.dir),
+    );
 }
 
 // Files at the user-data root that the clone needs. `Local State` carries the
@@ -318,7 +361,10 @@ export function cloneProfile(opts: {
   sourceRoot?: string;
 }): CloneResult {
   const root = opts.sourceRoot ?? chromeUserDataRoot(opts.channel ?? "chrome");
-  if (!root) throw new Error(`No Chrome user data found for channel '${opts.channel ?? "chrome"}'`);
+  if (!root)
+    throw new Error(
+      `No Chrome user data found for channel '${opts.channel ?? "chrome"}'`,
+    );
   const src = path.join(root, opts.sourceDir);
   if (!fs.existsSync(src)) {
     throw new Error(`Chrome profile '${opts.sourceDir}' not found at ${src}`);
@@ -334,9 +380,13 @@ export function cloneProfile(opts: {
   let keep: string | null = null;
   const oldDb = googleSessionSeparated(dest) ? cookieDbPath(dest) : null;
   if (oldDb) {
-    keep = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "cast-own-logins-")), "Cookies");
+    keep = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "cast-own-logins-")),
+      "Cookies",
+    );
     for (const suffix of SQLITE_SIDECARS) {
-      if (fs.existsSync(oldDb + suffix)) fs.copyFileSync(oldDb + suffix, keep + suffix);
+      if (fs.existsSync(oldDb + suffix))
+        fs.copyFileSync(oldDb + suffix, keep + suffix);
     }
   }
 
@@ -379,9 +429,15 @@ export function cloneProfile(opts: {
       continue;
     }
     try {
-      fs.cpSync(from, path.join(destProfile, d), { recursive: true, force: true });
+      fs.cpSync(from, path.join(destProfile, d), {
+        recursive: true,
+        force: true,
+      });
       files++;
-      if (d === "Network" && fs.existsSync(path.join(destProfile, d, "Cookies"))) {
+      if (
+        d === "Network" &&
+        fs.existsSync(path.join(destProfile, d, "Cookies"))
+      ) {
         cookiesFound = true;
       }
     } catch {
@@ -395,7 +451,11 @@ export function cloneProfile(opts: {
     const prefsPath = path.join(destProfile, "Preferences");
     if (fs.existsSync(prefsPath)) {
       const prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8"));
-      prefs.profile = { ...(prefs.profile ?? {}), exit_type: "Normal", exited_cleanly: true };
+      prefs.profile = {
+        ...(prefs.profile ?? {}),
+        exit_type: "Normal",
+        exited_cleanly: true,
+      };
       prefs.browser = { ...(prefs.browser ?? {}), has_seen_welcome_page: true };
       // A restore bubble on launch covers the page an agent just opened.
       if (prefs.session) prefs.session.restore_on_startup = 5;
@@ -413,13 +473,23 @@ export function cloneProfile(opts: {
       try {
         ownLoginsKept = preserveOwnLogins(keep, newDb);
       } catch (err) {
-        separate.notes.push(`could not keep the agent browser's own logins: ${(err as Error).message.split("\n")[0]}`);
+        separate.notes.push(
+          `could not keep the agent browser's own logins: ${(err as Error).message.split("\n")[0]}`,
+        );
       }
     }
     fs.rmSync(path.dirname(keep), { recursive: true, force: true });
   }
 
-  return { dest, bytes: dirSize(dest), files, missing, cookiesFound, separate, ownLoginsKept };
+  return {
+    dest,
+    bytes: dirSize(dest),
+    files,
+    missing,
+    cookiesFound,
+    separate,
+    ownLoginsKept,
+  };
 }
 
 export { formatBytes } from "./formatBytes.js";

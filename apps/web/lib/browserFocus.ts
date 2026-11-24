@@ -18,7 +18,11 @@
 // typed, so the pill can say what happened and offer the reopen.
 
 import type { ConvexReactClient } from "convex/react";
-import { getTerminalEndpoint, termHttpBase, type TerminalEndpoint } from "./terminal/endpoint";
+import {
+  getTerminalEndpoint,
+  termHttpBase,
+  type TerminalEndpoint,
+} from "./terminal/endpoint";
 
 // Outlasts the daemon's own patience with a busy bridge (focusHttp.ts
 // BRIDGE_FOCUS_TIMEOUT_MS, 30s) so a slow answer is still an answer.
@@ -58,20 +62,36 @@ export function prefetchBrowserFocusEndpoint(convex: ConvexReactClient): void {
  *  - "open-failed": the reopen ran and the CLI refused or failed; `detail`
  *    carries its last line.
  */
-export type BrowserTabFailure = "no-daemon" | "tab-gone" | "browser-stopped" | "unreachable" | "open-failed";
+export type BrowserTabFailure =
+  | "no-daemon"
+  | "tab-gone"
+  | "browser-stopped"
+  | "unreachable"
+  | "open-failed";
 
-export type FocusOutcome = { ok: true; pid?: number } | { ok: false; reason: BrowserTabFailure; detail?: string };
-export type ReopenOutcome = { ok: true; tabId: string; pid?: number } | { ok: false; reason: BrowserTabFailure; detail?: string };
+export type FocusOutcome =
+  | { ok: true; pid?: number }
+  | { ok: false; reason: BrowserTabFailure; detail?: string };
+export type ReopenOutcome =
+  | { ok: true; tabId: string; pid?: number }
+  | { ok: false; reason: BrowserTabFailure; detail?: string };
 
 /** Injectable for tests; the defaults are the real thing. */
 export interface FocusTabDeps {
-  getEndpoint: (opts: { trustCache?: boolean; force?: boolean }) => Promise<TerminalEndpoint | null>;
+  getEndpoint: (opts: {
+    trustCache?: boolean;
+    force?: boolean;
+  }) => Promise<TerminalEndpoint | null>;
   fetchImpl: typeof fetch;
 }
 
-function realDeps(convex: ConvexReactClient, deps?: Partial<FocusTabDeps>): FocusTabDeps {
+function realDeps(
+  convex: ConvexReactClient,
+  deps?: Partial<FocusTabDeps>,
+): FocusTabDeps {
   return {
-    getEndpoint: deps?.getEndpoint ?? ((opts) => getTerminalEndpoint(convex, opts)),
+    getEndpoint:
+      deps?.getEndpoint ?? ((opts) => getTerminalEndpoint(convex, opts)),
     fetchImpl: deps?.fetchImpl ?? fetch,
   };
 }
@@ -83,12 +103,20 @@ type Sent = { res: Response; body: any } | { transport: "failed" | "timeout" };
  * after a forced discovery when the cached endpoint was dead (connection
  * refused, or a 403 from a token an older daemon boot issued).
  */
-async function sendToDaemon(deps: FocusTabDeps, path: string, init: RequestInit, timeoutMs: number): Promise<Sent | "no-daemon"> {
+async function sendToDaemon(
+  deps: FocusTabDeps,
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Sent | "no-daemon"> {
   const attempt = async (endpoint: TerminalEndpoint): Promise<Sent> => {
     try {
       const res = await deps.fetchImpl(`${termHttpBase(endpoint)}${path}`, {
         ...init,
-        headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${endpoint.token}` },
+        headers: {
+          ...(init.headers as Record<string, string> | undefined),
+          Authorization: `Bearer ${endpoint.token}`,
+        },
         signal: AbortSignal.timeout(timeoutMs),
       });
       let body: any = null;
@@ -100,14 +128,21 @@ async function sendToDaemon(deps: FocusTabDeps, path: string, init: RequestInit,
       return { res, body };
     } catch (e) {
       const name = (e as { name?: unknown } | null)?.name;
-      return { transport: name === "TimeoutError" || name === "AbortError" ? "timeout" : "failed" };
+      return {
+        transport:
+          name === "TimeoutError" || name === "AbortError"
+            ? "timeout"
+            : "failed",
+      };
     }
   };
 
   const cached = await deps.getEndpoint({ trustCache: true }).catch(() => null);
   if (cached) {
     const first = await attempt(cached);
-    const stale = ("transport" in first && first.transport === "failed") || (!("transport" in first) && first.res.status === 403);
+    const stale =
+      ("transport" in first && first.transport === "failed") ||
+      (!("transport" in first) && first.res.status === 403);
     if (!stale) return first;
   }
   const fresh = await deps.getEndpoint({ force: true }).catch(() => null);
@@ -115,13 +150,21 @@ async function sendToDaemon(deps: FocusTabDeps, path: string, init: RequestInit,
   return attempt(fresh);
 }
 
-function failureOf(sent: Sent | "no-daemon"): { reason: BrowserTabFailure; detail?: string } {
+function failureOf(sent: Sent | "no-daemon"): {
+  reason: BrowserTabFailure;
+  detail?: string;
+} {
   if (sent === "no-daemon") return { reason: "no-daemon" };
   if ("transport" in sent) return { reason: "unreachable" };
   const daemonReason = sent.body?.reason;
   if (daemonReason === "tab-not-found") return { reason: "tab-gone" };
   if (daemonReason === "browser-stopped") return { reason: "browser-stopped" };
-  if (daemonReason === "open-failed") return { reason: "open-failed", detail: typeof sent.body?.detail === "string" ? sent.body.detail : undefined };
+  if (daemonReason === "open-failed")
+    return {
+      reason: "open-failed",
+      detail:
+        typeof sent.body?.detail === "string" ? sent.body.detail : undefined,
+    };
   return { reason: "unreachable" };
 }
 
@@ -129,10 +172,13 @@ function failureOf(sent: Sent | "no-daemon"): { reason: BrowserTabFailure; detai
  * A tab a row named, the session it ran in, or both. With both, the daemon
  * falls back to the session's current tab when the row's is gone.
  */
-export type BrowserTabTarget = string | ({ tabId?: string | null } & BrowserSessionRef);
+export type BrowserTabTarget =
+  | string
+  | ({ tabId?: string | null } & BrowserSessionRef);
 
 function tabQuery(target: BrowserTabTarget): URLSearchParams {
-  const t: Exclude<BrowserTabTarget, string> = typeof target === "string" ? { tabId: target } : target;
+  const t: Exclude<BrowserTabTarget, string> =
+    typeof target === "string" ? { tabId: target } : target;
   return new URLSearchParams({
     ...(t.tabId ? { tab: t.tabId } : {}),
     ...(t.sessionUuid ? { session_uuid: t.sessionUuid } : {}),
@@ -140,8 +186,18 @@ function tabQuery(target: BrowserTabTarget): URLSearchParams {
   });
 }
 
-async function askAboutTab(convex: ConvexReactClient, route: "focus" | "probe", target: BrowserTabTarget, deps?: Partial<FocusTabDeps>): Promise<FocusOutcome> {
-  const sent = await sendToDaemon(realDeps(convex, deps), `/browser/${route}?${tabQuery(target)}`, { method: "POST" }, FOCUS_REQUEST_TIMEOUT_MS);
+async function askAboutTab(
+  convex: ConvexReactClient,
+  route: "focus" | "probe",
+  target: BrowserTabTarget,
+  deps?: Partial<FocusTabDeps>,
+): Promise<FocusOutcome> {
+  const sent = await sendToDaemon(
+    realDeps(convex, deps),
+    `/browser/${route}?${tabQuery(target)}`,
+    { method: "POST" },
+    FOCUS_REQUEST_TIMEOUT_MS,
+  );
   if (sent !== "no-daemon" && !("transport" in sent) && sent.res.ok) {
     const pid = sent.body?.pid;
     return { ok: true, ...(Number.isInteger(pid) ? { pid } : {}) };
@@ -154,7 +210,11 @@ async function askAboutTab(convex: ConvexReactClient, route: "focus" | "probe", 
  * named none or that tab is gone, the one the session drives now (the tab
  * "watch live" shows). Never throws.
  */
-export function focusBrowserTab(convex: ConvexReactClient, target: BrowserTabTarget, deps?: Partial<FocusTabDeps>): Promise<FocusOutcome> {
+export function focusBrowserTab(
+  convex: ConvexReactClient,
+  target: BrowserTabTarget,
+  deps?: Partial<FocusTabDeps>,
+): Promise<FocusOutcome> {
   return askAboutTab(convex, "focus", target, deps);
 }
 
@@ -164,7 +224,11 @@ export function focusBrowserTab(convex: ConvexReactClient, target: BrowserTabTar
  * bare 404, which reads as "unreachable": callers act only on "tab-gone" and
  * "browser-stopped". Never throws.
  */
-export function probeBrowserTab(convex: ConvexReactClient, target: BrowserTabTarget, deps?: Partial<FocusTabDeps>): Promise<FocusOutcome> {
+export function probeBrowserTab(
+  convex: ConvexReactClient,
+  target: BrowserTabTarget,
+  deps?: Partial<FocusTabDeps>,
+): Promise<FocusOutcome> {
   return askAboutTab(convex, "probe", target, deps);
 }
 
@@ -196,9 +260,18 @@ export async function reopenBrowserTab(
     { method: "POST", headers: { "Content-Type": "application/json" }, body },
     REOPEN_REQUEST_TIMEOUT_MS,
   );
-  if (sent !== "no-daemon" && !("transport" in sent) && sent.res.ok && typeof sent.body?.tabId === "string") {
+  if (
+    sent !== "no-daemon" &&
+    !("transport" in sent) &&
+    sent.res.ok &&
+    typeof sent.body?.tabId === "string"
+  ) {
     const pid = sent.body.pid;
-    return { ok: true, tabId: sent.body.tabId, ...(Number.isInteger(pid) ? { pid } : {}) };
+    return {
+      ok: true,
+      tabId: sent.body.tabId,
+      ...(Number.isInteger(pid) ? { pid } : {}),
+    };
   }
   return { ok: false, ...failureOf(sent) };
 }

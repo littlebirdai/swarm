@@ -94,7 +94,8 @@ function AgentMessageCard({
         router.push(`/conversation/${message.conversation_id}`);
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") router.push(`/conversation/${message.conversation_id}`);
+        if (e.key === "Enter")
+          router.push(`/conversation/${message.conversation_id}`);
       }}
       className="group relative cursor-pointer rounded-lg border border-l-[3px] border-l-sol-cyan/60 border-sol-border/20 bg-sol-cyan/[0.04] px-4 py-3 transition-all duration-150 hover:border-l-sol-cyan hover:bg-sol-cyan/[0.07]"
     >
@@ -131,7 +132,13 @@ function AgentMessageCard({
 // A real human prompt. `text` is already cleaned of system wrappers by
 // classifyFeedMessage, so the card never shows raw <task-notification>/<command>
 // noise. The "you" label gets the author's name appended for teammates' messages.
-function MessageCard({ message, text }: { message: FeedMessage; text: string }) {
+function MessageCard({
+  message,
+  text,
+}: {
+  message: FeedMessage;
+  text: string;
+}) {
   return (
     <Link
       href={`/conversation/${message.conversation_id}`}
@@ -190,7 +197,13 @@ interface MessageFeedProps {
 // subagent or a spawned session (provenance on the row, plain text in the
 // content). Both render through AgentMessageCard; only "text" is a human.
 type FeedItem =
-  | { kind: "agent"; msg: FeedMessage; label: string; from: string; body: string }
+  | {
+      kind: "agent";
+      msg: FeedMessage;
+      label: string;
+      from: string;
+      body: string;
+    }
   | { kind: "text"; msg: FeedMessage; text: string };
 
 // "Mine" is what the viewer typed (components/messages/MyMessages, from the
@@ -208,8 +221,17 @@ function TeamMessageFeed() {
   // Store-fed (hooks/useMessageFeed): the feed paints from cached rows on
   // the first frame; the live newest page and one-shot older pages overlay
   // the store, and the continuation cursor survives a reload.
-  const { messages: allMessages, ready, hasMore, isLoadingMore, loadMore } = useMessageFeed(filter);
-  const result = ready || allMessages.length > 0 ? { nextCursor: hasMore ? 1 : null } : undefined;
+  const {
+    messages: allMessages,
+    ready,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+  } = useMessageFeed(filter);
+  const result =
+    ready || allMessages.length > 0
+      ? { nextCursor: hasMore ? 1 : null }
+      : undefined;
   const loadedMessages = allMessages;
 
   // Classify every user-role message once. Session→session cross-talk gets its
@@ -256,7 +278,8 @@ function TeamMessageFeed() {
   // agent-written prompts included.
   const visibleItems = useMemo(() => {
     if (mode === "all") return displayItems;
-    if (mode === "mine") return displayItems.filter((it) => it.kind === "text" && it.msg.is_own);
+    if (mode === "mine")
+      return displayItems.filter((it) => it.kind === "text" && it.msg.is_own);
     return displayItems.filter((it) => it.kind === "text");
   }, [displayItems, mode]);
 
@@ -264,7 +287,11 @@ function TeamMessageFeed() {
   // real messages on screen. Keep pulling until MIN_VISIBLE survive the filter
   // (or history runs out). Bounded by nextCursor, so it can't run away.
   useWatchEffect(() => {
-    if (visibleItems.length < MIN_VISIBLE && result?.nextCursor && !isLoadingMore) {
+    if (
+      visibleItems.length < MIN_VISIBLE &&
+      result?.nextCursor &&
+      !isLoadingMore
+    ) {
       loadMore();
     }
   }, [visibleItems.length, result?.nextCursor, isLoadingMore, loadMore]);
@@ -320,11 +347,23 @@ function TeamMessageFeed() {
     <div className="space-y-5 scroll-mt-20">
       <div className="flex items-center justify-between">
         <div className="inline-flex items-center gap-0.5 rounded-lg border border-sol-border/40 p-0.5">
-          {([
-            { key: "humans", label: "People", title: "Only what people typed — no agent prompts or session-to-session traffic" },
-            { key: "mine", label: "Mine", title: "Only what I typed" },
-            { key: "all", label: "All", title: "Everything, including the prompts agents write for each other" },
-          ] as const).map((opt) => (
+          {(
+            [
+              {
+                key: "humans",
+                label: "People",
+                title:
+                  "Only what people typed — no agent prompts or session-to-session traffic",
+              },
+              { key: "mine", label: "Mine", title: "Only what I typed" },
+              {
+                key: "all",
+                label: "All",
+                title:
+                  "Everything, including the prompts agents write for each other",
+              },
+            ] as const
+          ).map((opt) => (
             <button
               key={opt.key}
               onClick={() => setMode(opt.key)}
@@ -362,7 +401,11 @@ function TeamMessageFeed() {
                   body={item.body}
                 />
               ) : (
-                <MessageCard key={item.msg._id} message={item.msg} text={item.text} />
+                <MessageCard
+                  key={item.msg._id}
+                  message={item.msg}
+                  text={item.text}
+                />
               ),
             )}
           </div>

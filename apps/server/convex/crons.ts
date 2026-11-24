@@ -3,51 +3,106 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-crons.interval("recover pending sync delivery", { minutes: 1 }, (internal as any).syncOutbox.recover, {});
+crons.interval(
+  "recover pending sync delivery",
+  { minutes: 1 },
+  (internal as any).syncOutbox.recover,
+  {},
+);
 
 // Read Expo push receipts, where a revoked APNs key shows (pushReceipts.ts).
-crons.interval("check push receipts", { minutes: 30 }, (internal as any).pushReceipts.sweep, {});
+crons.interval(
+  "check push receipts",
+  { minutes: 30 },
+  (internal as any).pushReceipts.sweep,
+  {},
+);
 // Outside agents over MCP: expired codes, unapproved clients, lapsed grants (mcpAuth.sweep).
-crons.interval("mcp grant sweep", { hours: 1 }, (internal as any).mcpAuth.sweep, {});
+crons.interval(
+  "mcp grant sweep",
+  { hours: 1 },
+  (internal as any).mcpAuth.sweep,
+  {},
+);
 // Sign-in requests filled from a person's Chrome: laptops back online, signed-out sites due again (signinAutofill.ts).
-crons.interval("sign-in autofill", { minutes: 10 }, (internal as any).signinAutofill.sweep, {});
+crons.interval(
+  "sign-in autofill",
+  { minutes: 10 },
+  (internal as any).signinAutofill.sweep,
+  {},
+);
 // Meeting bots from connected calendars: read each a week ahead, schedule
 // the bots people switched on (meetingCalendar.ts).
-crons.interval("meeting bot calendars", { minutes: 10 }, (internal as any).meetingCalendar.syncAll, {});
+crons.interval(
+  "meeting bot calendars",
+  { minutes: 10 },
+  (internal as any).meetingCalendar.syncAll,
+  {},
+);
 
 // The session lifecycle trail keeps 60 days (conversationEvents.ts).
-crons.interval("prune conversation events", { hours: 6 }, (internal as any).conversationEvents.prune, {});
+crons.interval(
+  "prune conversation events",
+  { hours: 6 },
+  (internal as any).conversationEvents.prune,
+  {},
+);
 // Weekly card (weeklyCards.ts): once a person's local Monday begins, last
 // week's card is built and a quiet bell row says it is ready. Reads only the
 // people who turned it on.
-crons.interval("weekly card sweep", { hours: 1 }, (internal as any).weeklyCards.mondaySweep, {});
+crons.interval(
+  "weekly card sweep",
+  { hours: 1 },
+  (internal as any).weeklyCards.mondaySweep,
+  {},
+);
 
 // Summarize hosted conversations' history past the replayed window
 // (assistant/longHistory.ts): bounded by its own deadline and spend caps.
 // Keep agent-review problem scores current: every 6 hours a batch of the
 // problems with no score or a newer finding, under a $2 daily cap
 // (problemScores.ts). The 15-minute tick collects a batch soon after it ends.
-crons.interval("score agent-review problems", { minutes: 15 }, internal.problemScores.tick, {});
+crons.interval(
+  "score agent-review problems",
+  { minutes: 15 },
+  internal.problemScores.tick,
+  {},
+);
 // Group the findings that came in while grouping could not compare them (the budget refused, or the embedding failed):
 // they wait held instead of opening a problem each (findingRegroup.ts).
-crons.interval("group findings grouping refused", { minutes: 10 }, internal.findingRegroup.groupAwaiting, {});
+crons.interval(
+  "group findings grouping refused",
+  { minutes: 10 },
+  internal.findingRegroup.groupAwaiting,
+  {},
+);
 // A problem under a live flow's bar that got no new finding in the bar's days closes; a new one reopens it (sd-1700).
-crons.interval("close quiet problems under a live flow bar", { hours: 6 }, internal.liveFlowQuiet.sweepAll, {});
+crons.interval(
+  "close quiet problems under a live flow bar",
+  { hours: 6 },
+  internal.liveFlowQuiet.sweepAll,
+  {},
+);
 
-crons.interval("summarize long assistant conversations", { minutes: 10 }, internal.assistant.longHistory.compress, {});
+crons.interval(
+  "summarize long assistant conversations",
+  { minutes: 10 },
+  internal.assistant.longHistory.compress,
+  {},
+);
 
 crons.interval(
   "fill short titles for tasks and plans",
   { minutes: 2 },
   internal.titleGeneration.fillShortTitles,
-  {}
+  {},
 );
 
 crons.interval(
   "process github comment webhooks",
   { minutes: 1 },
   internal.githubWebhooks.processCommentWebhooks,
-  { limit: 50 }
+  { limit: 50 },
 );
 
 // Fit the tokens-per-percent rate against the slot that just closed. Runs on
@@ -57,18 +112,13 @@ crons.interval(
   "sample usage calibration",
   { minutes: 20 },
   internal.usageCalibration.sample,
-  {}
+  {},
 );
 
 // The area watch (docs/architecture/org-staffing.md S29): read each watched
 // workspace's health, remember every area's status, and tell the Head of
 // People once per episode about a change that lasted two passes.
-crons.interval(
-  "watch org areas",
-  { hours: 6 },
-  internal.orgWatch.sweep,
-  {}
-);
+crons.interval("watch org areas", { hours: 6 }, internal.orgWatch.sweep, {});
 
 // Knowledge handoffs (org-staffing.md S32): one past its deadline closes with
 // what was written, and a retire that waited on it runs.
@@ -76,7 +126,7 @@ crons.interval(
   "close org handoffs past deadline",
   { minutes: 15 },
   internal.orgHandoff.sweep,
-  {}
+  {},
 );
 
 // Changes editions (docs/proposals/changes-page.md 7.7): days of the last
@@ -86,13 +136,13 @@ crons.interval(
   "reconcile changes days",
   { hours: 6 },
   internal.changesSchedule.reconcile,
-  {}
+  {},
 );
 
 crons.interval(
   "reclaim stale agent tasks",
   { minutes: 5 },
-  internal.agentTasks.reclaimStaleTasks
+  internal.agentTasks.reclaimStaleTasks,
 );
 
 // Decision stacks with an auto default policy: answer advisory members whose
@@ -101,21 +151,21 @@ crons.interval(
   "apply decision stack auto defaults",
   { minutes: 5 },
   internal.decisionStacks.applyAutoDefaults,
-  {}
+  {},
 );
 
 crons.interval(
   "reconcile cloud wake requests",
   { seconds: 60 },
   (internal as any).cloudWake.reconcile,
-  {}
+  {},
 );
 
 crons.interval(
   "dispatch due cloud triggers",
   { seconds: 60 },
   internal.agentTasks.dispatchCloudTriggers,
-  {}
+  {},
 );
 
 crons.interval(
@@ -127,13 +177,13 @@ crons.interval(
   // needlessly aggressive and (with the old full-table scan) drove a scheduler
   // pileup. 60s keeps just-idle messages responsive while halving revive churn.
   { seconds: 60 },
-  internal.pendingMessages.retryStuckMessages
+  internal.pendingMessages.retryStuckMessages,
 );
 
 crons.interval(
   "check daemon health",
   { minutes: 5 },
-  internal.daemonLogs.checkDaemonHealth
+  internal.daemonLogs.checkDaemonHealth,
 );
 
 // Separate entry from "check daemon health" so a failure in one alert never
@@ -143,13 +193,13 @@ crons.interval(
 crons.interval(
   "expire offline device permissions",
   { minutes: 5 },
-  internal.permissions.expireOfflinePermissions
+  internal.permissions.expireOfflinePermissions,
 );
 
 crons.interval(
   "check daemon loop freeze",
   { minutes: 5 },
-  internal.daemonLogs.checkDeviceLoopFreeze
+  internal.daemonLogs.checkDeviceLoopFreeze,
 );
 
 crons.interval(
@@ -158,38 +208,38 @@ crons.interval(
   // the table (and every reader's scan) small.
   "prune resolved pending_permissions",
   { hours: 1 },
-  internal.permissions.prunePendingPermissions
+  internal.permissions.prunePendingPermissions,
 );
 
 crons.interval(
   "prune expired ip_rate_limits windows",
   { hours: 1 },
-  internal.ipRateLimit.pruneIpRateLimits
+  internal.ipRateLimit.pruneIpRateLimits,
 );
 
 crons.interval(
   "prune stale remote terminal frames",
   { hours: 6 },
-  internal.terminalStream.pruneStaleFrames
+  internal.terminalStream.pruneStaleFrames,
 );
 
 crons.interval(
   "prune stale remote browser frames",
   { hours: 6 },
-  internal.browserStream.pruneStaleFrames
+  internal.browserStream.pruneStaleFrames,
 );
 
 crons.interval(
   "refresh plan timestamps from session insights",
   { hours: 6 },
-  internal.taskMining.refreshPlanTimestamps
+  internal.taskMining.refreshPlanTimestamps,
 );
 
 crons.interval(
   "reap stale managed sessions",
   { minutes: 10 },
   internal.managedSessions.reapStaleManagedSessions,
-  {}
+  {},
 );
 
 crons.interval(
@@ -205,7 +255,7 @@ crons.interval(
   "advance search mirror",
   { seconds: 15 },
   internal.searchMirror.advance,
-  { batch: 1200 }
+  { batch: 1200 },
 );
 
 crons.interval(
@@ -214,7 +264,7 @@ crons.interval(
   "prune old daemon logs",
   { minutes: 30 },
   internal.daemonLogs.pruneOldLogs,
-  {}
+  {},
 );
 
 crons.interval(
@@ -224,7 +274,7 @@ crons.interval(
   "gc abandoned empty conversations",
   { hours: 1 },
   internal.cleanup.gcEmptyConversations,
-  {}
+  {},
 );
 
 crons.interval(
@@ -233,7 +283,7 @@ crons.interval(
   "sweep expired cli auth relays",
   { minutes: 15 },
   internal.cliAuth.sweepExpired,
-  {}
+  {},
 );
 
 crons.interval(
@@ -243,7 +293,7 @@ crons.interval(
   "close quiet watches",
   { hours: 1 },
   internal.signals.sweepWatches,
-  {}
+  {},
 );
 
 crons.interval(
@@ -253,7 +303,7 @@ crons.interval(
   "read predicted effects",
   { hours: 1 },
   internal.predictions.sweep,
-  {}
+  {},
 );
 
 crons.interval(
@@ -264,7 +314,7 @@ crons.interval(
   "diagnose wrong findings",
   { minutes: 5 },
   (internal as any).judgeReview.sweep,
-  {}
+  {},
 );
 
 crons.interval(
@@ -274,7 +324,7 @@ crons.interval(
   "overdue promises",
   { hours: 1 },
   internal.reviewNotes.sweepOverduePromises,
-  {}
+  {},
 );
 
 crons.interval(
@@ -284,7 +334,7 @@ crons.interval(
   "sweep stale api-error flags",
   { hours: 1 },
   internal.accountSwitch.sweepStaleApiErrorFlags,
-  {}
+  {},
 );
 
 crons.interval(
@@ -293,7 +343,7 @@ crons.interval(
   "sweep slack dedup events",
   { hours: 6 },
   internal.slack.sweepSlackEvents,
-  {}
+  {},
 );
 
 // Slack mirror job ledger (slackSync): drop processed rows, requeue anything
@@ -302,7 +352,7 @@ crons.interval(
   "sweep slack sync events",
   { hours: 1 },
   internal.slackSync.sweepSyncEvents,
-  {}
+  {},
 );
 
 crons.interval(
@@ -312,7 +362,7 @@ crons.interval(
   "catch up mirrored slack channels",
   { minutes: 10 },
   internal.slackCatchUp.catchUpAll,
-  {}
+  {},
 );
 
 crons.interval(
@@ -322,7 +372,7 @@ crons.interval(
   "refresh slack workspace people",
   { hours: 24 },
   internal.slackSync.refreshAllWorkspacePeople,
-  {}
+  {},
 );
 
 crons.interval(
@@ -331,7 +381,7 @@ crons.interval(
   "sweep dead-device capability state",
   { hours: 24 },
   internal.capabilities.sweepCapabilityState,
-  {}
+  {},
 );
 
 crons.interval(
@@ -340,7 +390,7 @@ crons.interval(
   "sweep capability events",
   { hours: 24 },
   internal.capabilities.sweepCapabilityEvents,
-  {}
+  {},
 );
 
 crons.interval(
@@ -350,7 +400,7 @@ crons.interval(
   "refresh mcp registry catalog",
   { hours: 6 },
   internal.capabilities.refreshMcpRegistry,
-  {}
+  {},
 );
 
 crons.interval(
@@ -360,7 +410,7 @@ crons.interval(
   "email notification digest sweep",
   { minutes: 10 },
   internal.emails.digest.sweep,
-  {}
+  {},
 );
 
 crons.interval(
@@ -370,7 +420,7 @@ crons.interval(
   "end orphaned live transcripts",
   { minutes: 2 },
   internal.transcripts.sweepOrphanedLive,
-  {}
+  {},
 );
 
 crons.interval(
@@ -381,7 +431,7 @@ crons.interval(
   "settle call guests",
   { minutes: 1 },
   internal.callGuests.sweepGuestRooms,
-  {}
+  {},
 );
 
 crons.interval(
@@ -393,7 +443,7 @@ crons.interval(
   "restart stalled call recording loops",
   { minutes: 2 },
   internal.callRecordings.sweepRecordings,
-  {}
+  {},
 );
 
 crons.interval(
@@ -403,7 +453,7 @@ crons.interval(
   "sweep orphaned call recording objects",
   { hours: 24 },
   internal.callRecordings.sweepRecordingObjects,
-  {}
+  {},
 );
 
 crons.cron(
@@ -417,7 +467,7 @@ crons.cron(
   "prune sync log actions",
   "45 2-22 * * *",
   internal.syncLogPrune.pruneSyncActions,
-  {}
+  {},
 );
 
 crons.interval(
@@ -426,7 +476,7 @@ crons.interval(
   "prune repository content cache",
   { hours: 12 },
   internal.repos.pruneRepoCache,
-  {}
+  {},
 );
 
 crons.interval(
@@ -438,7 +488,7 @@ crons.interval(
   "reconcile issue sync sources",
   { minutes: 15 },
   internal.issueSync.reconcileSources,
-  {}
+  {},
 );
 
 crons.interval(
@@ -448,52 +498,107 @@ crons.interval(
   "reap stale session migrations",
   { minutes: 5 },
   (internal as any).sessionMigrations.reapStale,
-  {}
+  {},
 );
 
 // The line sweep (the-line.md L9): starts the top problems of every line whose
 // start switch is on (learning-loop.md LL5, caps.line_on on the role that leads
 // it), within its slots. Always registered; a line that is off starts nothing.
-crons.interval("start the line for scoped tasks", { minutes: 2 }, (internal as any).orgLine.sweep, {});
+crons.interval(
+  "start the line for scoped tasks",
+  { minutes: 2 },
+  (internal as any).orgLine.sweep,
+  {},
+);
 
 // The deploy stage's role trigger (deploys.md DP4): a role holding a deploy
 // grant asks for a deploy of its project's waiting fixes, within the grant's
 // daily limit. Reads only roles with a live deploy grant.
-crons.interval("deploy waiting fixes as the line's role", { minutes: 10 }, (internal as any).deploys.autoDeploy, {});
+crons.interval(
+  "deploy waiting fixes as the line's role",
+  { minutes: 10 },
+  (internal as any).deploys.autoDeploy,
+  {},
+);
 // Deploy targets (deploys.md DP11, DP13): read each json live reader (a release's latest.json), and send the targets that go out by themselves when CI on main is green.
-crons.interval("read deploy targets' live readers", { minutes: 5 }, (internal as any).deployTargets.pollLiveReaders, {});
-crons.interval("deploy targets that go out on green CI", { minutes: 10 }, (internal as any).deployTargets.autoDeployTargets, {});
+crons.interval(
+  "read deploy targets' live readers",
+  { minutes: 5 },
+  (internal as any).deployTargets.pollLiveReaders,
+  {},
+);
+crons.interval(
+  "deploy targets that go out on green CI",
+  { minutes: 10 },
+  (internal as any).deployTargets.autoDeployTargets,
+  {},
+);
 
 // Promotions a source's hourly cap held back (ingest.promoteDue): filed as the
 // window has room, so a burst of new groups reaches the line late, never not at all.
-crons.interval("file held-back promotions", { minutes: 10 }, (internal as any).ingest.promoteDue, {});
+crons.interval(
+  "file held-back promotions",
+  { minutes: 10 },
+  (internal as any).ingest.promoteDue,
+  {},
+);
 // Exact issue counts per source and status (ingest.recountGroups): only sources that took something since their last count are read.
-crons.interval("recount ops issue statuses", { minutes: 30 }, (internal as any).ingest.recountGroups, {});
+crons.interval(
+  "recount ops issue statuses",
+  { minutes: 30 },
+  (internal as any).ingest.recountGroups,
+  {},
+);
 
 // A trial project that dispatches (lineTrial.dispatch) starts its own runs:
 // the problems with the most live findings first, three at a time at most,
 // under its spend cap. One empty index read when no trial dispatches.
-crons.interval("dispatch trial runs", { minutes: 10 }, (internal as any).lineTrial.dispatchTick, {});
+crons.interval(
+  "dispatch trial runs",
+  { minutes: 10 },
+  (internal as any).lineTrial.dispatchTick,
+  {},
+);
 
 // Each trial run's price row (trial_run_prices), which the trial's
 // spend sums: only live, recently ended or moved runs are priced again.
-crons.interval("price trial runs", { minutes: 2 }, (internal as any).lineTrial.priceRunsTick, {});
+crons.interval(
+  "price trial runs",
+  { minutes: 2 },
+  (internal as any).lineTrial.priceRunsTick,
+  {},
+);
 // Per-day activity counters for the profile graph, the punchcard and the team
 // charts (lib/activityDaily.ts). Each run re-rolls only the days still inside
 // (or just outside) the live window, for the accounts active in them, so a day
 // settles within an hour of leaving the window and a late transcript sync
 // corrects the day it belongs to. One small transaction per (user, day).
-crons.interval("roll up activity days", { hours: 1 }, internal.activityDays.sweep, {});
+crons.interval(
+  "roll up activity days",
+  { hours: 1 },
+  internal.activityDays.sweep,
+  {},
+);
 
 // The flow map's counts (flowMap.ts): per workspace with a live flow, findings
 // per source and day (yesterday and today recounted), where each source's
 // problems stand, and open event groups no problem took.
-crons.interval("roll up the flow map", { hours: 1 }, (internal as any).flowMap.rollup, {});
+crons.interval(
+  "roll up the flow map",
+  { hours: 1 },
+  (internal as any).flowMap.rollup,
+  {},
+);
 
 // A problem whose title was written from findings that have all left it is
 // renamed from the findings on it now (lineRetitle.ts). One index read per
 // open problem; a rename is one cheap call on the team's grouping budget.
-crons.interval("rename problems whose findings left", { minutes: 10 }, (internal as any).lineRetitle.sweep, {});
+crons.interval(
+  "rename problems whose findings left",
+  { minutes: 10 },
+  (internal as any).lineRetitle.sweep,
+  {},
+);
 
 crons.interval(
   // A new cause names its goal, category, risk and readiness before the line
@@ -501,7 +606,7 @@ crons.interval(
   "ground new causes",
   { minutes: 2 },
   (internal as any).lineGround.sweep,
-  {}
+  {},
 );
 
 crons.interval(
@@ -510,7 +615,7 @@ crons.interval(
   "tell people about stalled goals",
   { hours: 1 },
   (internal as any).orgGoals.sweep,
-  {}
+  {},
 );
 
 crons.cron(
@@ -519,7 +624,7 @@ crons.cron(
   "trace fixes to the changes they repaired",
   "30 3 * * *",
   (internal as any).landedChanges.nightly,
-  {}
+  {},
 );
 
 crons.cron(
@@ -531,7 +636,7 @@ crons.cron(
   "reset ingest counters and buckets",
   "15 2 * * *",
   internal.ingest.dailyUpkeep,
-  {}
+  {},
 );
 
 crons.cron(
@@ -540,7 +645,7 @@ crons.cron(
   "prune moments",
   "35 2 * * *",
   internal.moments.prune,
-  {}
+  {},
 );
 
 crons.interval(
@@ -548,7 +653,7 @@ crons.interval(
   "prune old event samples",
   { hours: 6 },
   internal.ingest.pruneSamples,
-  {}
+  {},
 );
 
 crons.interval(
@@ -558,7 +663,7 @@ crons.interval(
   "poll metric watches",
   { minutes: 1 },
   internal.metrics.pollDue,
-  {}
+  {},
 );
 
 crons.interval(
@@ -568,7 +673,7 @@ crons.interval(
   "poll app connector watches",
   { minutes: 5 },
   internal.sources.app.pollWatches,
-  {}
+  {},
 );
 
 crons.interval(
@@ -576,7 +681,7 @@ crons.interval(
   "refresh app connector manifests",
   { hours: 24 },
   internal.sources.app.refreshManifests,
-  {}
+  {},
 );
 
 crons.interval(
@@ -585,7 +690,7 @@ crons.interval(
   "poll sentry sources",
   { minutes: 2 },
   internal.sources.sentry.schedulePolls,
-  {}
+  {},
 );
 
 crons.interval(
@@ -594,7 +699,7 @@ crons.interval(
   "tend replay imports",
   { minutes: 15 },
   internal.sources.replayBackfill.tend,
-  {}
+  {},
 );
 
 crons.interval(
@@ -602,7 +707,7 @@ crons.interval(
   "prune webhook deliveries",
   { hours: 24 },
   internal.ingest.pruneWebhookDeliveries,
-  {}
+  {},
 );
 
 crons.interval(
@@ -612,7 +717,7 @@ crons.interval(
   "prune github webhook events",
   { hours: 1 },
   internal.githubWebhooks.pruneWebhookEvents,
-  {}
+  {},
 );
 
 crons.interval(
@@ -620,7 +725,7 @@ crons.interval(
   "purge expired secret versions",
   { hours: 6 },
   internal.secrets.purgeExpiredVersions,
-  {}
+  {},
 );
 
 crons.interval(
@@ -628,7 +733,7 @@ crons.interval(
   "purge expired passkey challenges",
   { hours: 1 },
   internal.passkeys.purgeExpiredChallenges,
-  {}
+  {},
 );
 
 crons.interval(
@@ -637,24 +742,49 @@ crons.interval(
   "reconcile wallet holds",
   { hours: 1 },
   internal.wallet.reconcile,
-  {}
+  {},
 );
 
 // A role's standing session whose host went quiet or unhealthy with work
 // waiting moves to an always-on machine on its own (roleFailover.ts). Every
 // 5 minutes, so a move lands within the 1 hour threshold plus one tick.
-crons.interval("fail over standing sessions off dead hosts", { minutes: 5 }, (internal as any).roleFailover.sweep, {});
+crons.interval(
+  "fail over standing sessions off dead hosts",
+  { minutes: 5 },
+  (internal as any).roleFailover.sweep,
+  {},
+);
 
 // A role hired while its drawing failed (no model credit) gets drawn later.
-crons.interval("redraw recent roles without an icon", { hours: 6 }, internal.roleIcons.redrawMissing, {});
+crons.interval(
+  "redraw recent roles without an icon",
+  { hours: 6 },
+  internal.roleIcons.redrawMissing,
+  {},
+);
 
 // Bundle files uploaded for a publish that never attached them (artifacts.ts).
-crons.interval("sweep unattached page uploads", { hours: 6 }, internal.artifacts.sweepUploads, {});
+crons.interval(
+  "sweep unattached page uploads",
+  { hours: 6 },
+  internal.artifacts.sweepUploads,
+  {},
+);
 
 // A regulated team's permanent delete whose chain of passes stopped picks up where it left off (regulatedDeletion.ts).
-crons.interval("resume stalled data deletions", { minutes: 15 }, internal.regulatedDeletion.resumeStalledDeletions, {});
+crons.interval(
+  "resume stalled data deletions",
+  { minutes: 15 },
+  internal.regulatedDeletion.resumeStalledDeletions,
+  {},
+);
 
 // Dashboards with a refresh schedule read their queries while nobody has them open, so KPI alerts can fire (dataQueries.ts).
-crons.interval("refresh scheduled dashboards", { minutes: 10 }, internal.dataQueries.runSchedules, {});
+crons.interval(
+  "refresh scheduled dashboards",
+  { minutes: 10 },
+  internal.dataQueries.runSchedules,
+  {},
+);
 
 export default crons;

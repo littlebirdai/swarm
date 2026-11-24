@@ -139,7 +139,10 @@ export function isValidEntityHandle(type: EntityRefType, id: string): boolean {
 
 /** A reference, or null when `id` cannot name an object of that type. The only
  *  way to build one — so an unusable handle can never reach a pill. */
-export function makeEntityRef(type: EntityRefType, id: string): VaultEntityRef | null {
+export function makeEntityRef(
+  type: EntityRefType,
+  id: string,
+): VaultEntityRef | null {
   const trimmed = (id || "").trim();
   if (!isValidEntityHandle(type, trimmed)) return null;
   return { type, id: trimmed, key: entityRefKey(type, trimmed) };
@@ -170,7 +173,8 @@ function parsePersonHref(href: string): VaultEntityRef | null {
   const path = appPath(href);
   if (!path) return null;
   const segs = path.split("/").filter(Boolean);
-  if (segs.length !== 2 || !PERSON_SEGMENTS.has(segs[0].toLowerCase())) return null;
+  if (segs.length !== 2 || !PERSON_SEGMENTS.has(segs[0].toLowerCase()))
+    return null;
   let name: string;
   try {
     name = decodeURIComponent(segs[1]);
@@ -190,7 +194,9 @@ function parsePersonHref(href: string): VaultEntityRef | null {
  * all ask this one question, so a link can never be a pill in one view and
  * plain text in another.
  */
-export function parseEntityRefHref(href: string | null | undefined): VaultEntityRef | null {
+export function parseEntityRefHref(
+  href: string | null | undefined,
+): VaultEntityRef | null {
   if (!href || typeof href !== "string") return null;
   const entity = parseEntityUrl(href);
   if (entity) return makeEntityRef(entity.type, entity.id);
@@ -203,8 +209,13 @@ export function entityRefRoute(ref: VaultEntityRef): string | null {
 }
 
 /** The public URL that addresses a reference — the inverse of the parse. */
-export function entityRefUrl(ref: VaultEntityRef, base?: string): string | null {
-  return base ? buildEntityUrl(ref.type, ref.id, base) : buildEntityUrl(ref.type, ref.id);
+export function entityRefUrl(
+  ref: VaultEntityRef,
+  base?: string,
+): string | null {
+  return base
+    ? buildEntityUrl(ref.type, ref.id, base)
+    : buildEntityUrl(ref.type, ref.id);
 }
 
 /**
@@ -236,7 +247,8 @@ export function sanitizeLinkText(text: string): string {
 // ---------------------------------------------------------------------------
 
 // `[text](url)` with an optional angle-bracketed url and an optional title.
-const INLINE_LINK = /\[([^\]\n]*)\]\(\s*<?([^\s)<>]+)>?(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
+const INLINE_LINK =
+  /\[([^\]\n]*)\]\(\s*<?([^\s)<>]+)>?(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
 // A bare URL, which remark-gfm's autolink literals turn into a link too.
 const BARE_URL = /https?:\/\/[^\s<>()\[\]]+/g;
 // Inline code is literal: an example URL in backticks is not a reference.

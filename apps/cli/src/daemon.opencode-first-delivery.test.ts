@@ -4,7 +4,11 @@ import {
   extractTmuxLiveRegion,
   mayReconstituteResumeTranscript,
 } from "./daemon.js";
-import { classifyGlyphlessClientPaneState, classifyLivePaneFor, classifyTmuxLiveState } from "./tmuxPaneState.js";
+import {
+  classifyGlyphlessClientPaneState,
+  classifyLivePaneFor,
+  classifyTmuxLiveState,
+} from "./tmuxPaneState.js";
 import { AGENT_CLIENTS } from "@codecast/shared/contracts";
 
 // Real settled opencode 1.18.3 TUI (captured from a live pane, whitespace trimmed
@@ -45,23 +49,40 @@ const PI_READY = AGENT_CLIENTS.pi.promptReadyPattern;
 
 describe("classifyGlyphlessClientPaneState (ct-39174 first-message readiness)", () => {
   test("a settled opencode pane is idle (ready to inject), not unknown", () => {
-    expect(classifyGlyphlessClientPaneState(OPENCODE_IDLE_PANE, OC_READY)).toBe("idle");
+    expect(classifyGlyphlessClientPaneState(OPENCODE_IDLE_PANE, OC_READY)).toBe(
+      "idle",
+    );
   });
 
   test("a settled pi pane is idle (ready to inject)", () => {
-    expect(classifyGlyphlessClientPaneState(PI_IDLE_PANE, PI_READY)).toBe("idle");
+    expect(classifyGlyphlessClientPaneState(PI_IDLE_PANE, PI_READY)).toBe(
+      "idle",
+    );
   });
 
   test("a dead shell reads exited (refuse to paste into a bare prompt)", () => {
-    expect(classifyGlyphlessClientPaneState("-bash: opencode: command not found\n$ ", OC_READY)).toBe("exited");
+    expect(
+      classifyGlyphlessClientPaneState(
+        "-bash: opencode: command not found\n$ ",
+        OC_READY,
+      ),
+    ).toBe("exited");
   });
 
   test("a still-booting pane (marker not yet rendered) defers as unknown", () => {
-    expect(classifyGlyphlessClientPaneState("   \n  loading model catalog…\n", OC_READY)).toBe("unknown");
+    expect(
+      classifyGlyphlessClientPaneState(
+        "   \n  loading model catalog…\n",
+        OC_READY,
+      ),
+    ).toBe("unknown");
   });
 
   test("an active spinner reads busy so the interrupting Escape is skipped", () => {
-    const busy = OPENCODE_IDLE_PANE.replace("● Tip Add", "⠙ working  ● Tip Add");
+    const busy = OPENCODE_IDLE_PANE.replace(
+      "● Tip Add",
+      "⠙ working  ● Tip Add",
+    );
     expect(classifyGlyphlessClientPaneState(busy, OC_READY)).toBe("busy");
   });
 
@@ -69,7 +90,9 @@ describe("classifyGlyphlessClientPaneState (ct-39174 first-message readiness)", 
   // pre-flight (ensureTmuxReady) reads the SAME settled opencode pane as
   // "unknown" and threw AGENT_UNKNOWN_STATE, so the first message never injected.
   test("the ❯/›-glyph classifier misreads the opencode pane as unknown (the bug this fixes)", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(OPENCODE_IDLE_PANE))).toBe("unknown");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(OPENCODE_IDLE_PANE)),
+    ).toBe("unknown");
   });
 });
 

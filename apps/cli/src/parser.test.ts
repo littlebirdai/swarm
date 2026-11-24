@@ -1,6 +1,22 @@
 import { describe, test, expect, mock } from "bun:test";
-import { parseSessionLine, parseLine, parseCodexLine, extractMessages, parseSessionFile, parseCodexSessionFile, extractTeamInfo, extractSummaryTitle, claudeBannerText, type ClaudeSessionEntry } from "./parser.js";
-import { extractCodexForkRoot, extractCodexSessionMetadata, isCompletedStandaloneCodexReview, isCompletedNativeCodexReviewChild } from "./codexSessionMeta.js";
+import {
+  parseSessionLine,
+  parseLine,
+  parseCodexLine,
+  extractMessages,
+  parseSessionFile,
+  parseCodexSessionFile,
+  extractTeamInfo,
+  extractSummaryTitle,
+  claudeBannerText,
+  type ClaudeSessionEntry,
+} from "./parser.js";
+import {
+  extractCodexForkRoot,
+  extractCodexSessionMetadata,
+  isCompletedStandaloneCodexReview,
+  isCompletedNativeCodexReviewChild,
+} from "./codexSessionMeta.js";
 import { classifyApiErrorBanner } from "@codecast/shared/contracts";
 
 describe("Parser malformed JSON handling", () => {
@@ -9,20 +25,21 @@ describe("Parser malformed JSON handling", () => {
     const originalWarn = console.warn;
     console.warn = consoleWarnSpy;
 
-    const result = parseSessionLine('this is not valid json');
+    const result = parseSessionLine("this is not valid json");
 
     expect(result).toBeNull();
     expect(consoleWarnSpy).toHaveBeenCalled();
     const calls = consoleWarnSpy.mock.calls as unknown[][];
     expect(calls.length).toBeGreaterThanOrEqual(2);
-    expect(calls[0][0]).toContain('[parser] Failed to parse session line');
-    expect(calls[1][0]).toContain('[parser] Line content:');
+    expect(calls[0][0]).toContain("[parser] Failed to parse session line");
+    expect(calls[1][0]).toContain("[parser] Line content:");
 
     console.warn = originalWarn;
   });
 
   test("parseSessionLine handles valid JSON correctly", () => {
-    const validJson = '{"type":"user","message":{"role":"user","content":"test"},"timestamp":"2025-12-24T00:00:00.000Z"}';
+    const validJson =
+      '{"type":"user","message":{"role":"user","content":"test"},"timestamp":"2025-12-24T00:00:00.000Z"}';
     const result = parseSessionLine(validJson);
 
     expect(result).not.toBeNull();
@@ -34,7 +51,7 @@ describe("Parser malformed JSON handling", () => {
     const originalWarn = console.warn;
     console.warn = consoleWarnSpy;
 
-    const result = parseSessionLine('   ');
+    const result = parseSessionLine("   ");
 
     expect(result).toBeNull();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
@@ -47,7 +64,7 @@ describe("Parser malformed JSON handling", () => {
     const originalWarn = console.warn;
     console.warn = consoleWarnSpy;
 
-    const result = parseLine('invalid json {{{');
+    const result = parseLine("invalid json {{{");
 
     expect(result).toBeNull();
     expect(consoleWarnSpy).toHaveBeenCalled();
@@ -60,7 +77,7 @@ describe("Parser malformed JSON handling", () => {
     const originalWarn = console.warn;
     console.warn = consoleWarnSpy;
 
-    const result = parseCodexLine('not valid json');
+    const result = parseCodexLine("not valid json");
 
     expect(result).toBeNull();
     expect(consoleWarnSpy).toHaveBeenCalled();
@@ -73,14 +90,14 @@ describe("Parser malformed JSON handling", () => {
     const originalWarn = console.warn;
     console.warn = consoleWarnSpy;
 
-    const longLine = 'x'.repeat(200);
+    const longLine = "x".repeat(200);
     parseSessionLine(longLine);
 
     expect(consoleWarnSpy).toHaveBeenCalled();
     const calls = consoleWarnSpy.mock.calls as unknown[][];
     const contentWarning = calls[1][0] as string;
     expect(contentWarning.length).toBeLessThan(longLine.length + 50);
-    expect(contentWarning).toContain('...');
+    expect(contentWarning).toContain("...");
 
     console.warn = originalWarn;
   });
@@ -95,7 +112,10 @@ describe("parser - codex images", () => {
         type: "message",
         role: "user",
         content: [
-          { type: "input_text", text: "<image name=[Image #1]>\n</image>\nPlease inspect this" },
+          {
+            type: "input_text",
+            text: "<image name=[Image #1]>\n</image>\nPlease inspect this",
+          },
           { type: "input_image", image_url: "data:image/png;base64,QUJDRA==" },
         ],
       },
@@ -122,7 +142,7 @@ describe("parser - codex images", () => {
           type: "function_call",
           name: "browser-tools.screenshot",
           call_id: "call_1",
-          arguments: "{\"fullPage\":true}",
+          arguments: '{"fullPage":true}',
         },
       }),
       JSON.stringify({
@@ -171,7 +191,8 @@ describe("parser - codex images", () => {
   });
 
   test("preserves raw function_call arguments for apply_patch", () => {
-    const rawPatch = "*** Begin Patch\n*** Update File: src/test.ts\n@@\n-foo\n+bar\n*** End Patch";
+    const rawPatch =
+      "*** Begin Patch\n*** Update File: src/test.ts\n@@\n-foo\n+bar\n*** End Patch";
     const lines = [
       JSON.stringify({
         timestamp: "2026-02-25T00:00:01.000Z",
@@ -189,7 +210,7 @@ describe("parser - codex images", () => {
         payload: {
           type: "function_call_output",
           call_id: "call_patch_1",
-          output: "{\"output\":\"Success\"}",
+          output: '{"output":"Success"}',
         },
       }),
       JSON.stringify({
@@ -221,7 +242,9 @@ describe("parser - codex images", () => {
         payload: {
           type: "message",
           role: "assistant",
-          content: [{ type: "output_text", text: "I’m checking the docs first." }],
+          content: [
+            { type: "output_text", text: "I’m checking the docs first." },
+          ],
         },
       }),
       JSON.stringify({
@@ -231,7 +254,7 @@ describe("parser - codex images", () => {
           type: "function_call",
           name: "exec_command",
           call_id: "call_docs",
-          arguments: "{\"cmd\":\"rg README.md\"}",
+          arguments: '{"cmd":"rg README.md"}',
         },
       }),
       JSON.stringify({
@@ -249,7 +272,9 @@ describe("parser - codex images", () => {
         payload: {
           type: "message",
           role: "assistant",
-          content: [{ type: "output_text", text: "The main overview is in README.md." }],
+          content: [
+            { type: "output_text", text: "The main overview is in README.md." },
+          ],
         },
       }),
     ];
@@ -257,7 +282,12 @@ describe("parser - codex images", () => {
     const messages = parseCodexSessionFile(lines.join("\n"));
 
     expect(messages).toHaveLength(4);
-    expect(messages.map((msg) => msg.role)).toEqual(["assistant", "assistant", "assistant", "assistant"]);
+    expect(messages.map((msg) => msg.role)).toEqual([
+      "assistant",
+      "assistant",
+      "assistant",
+      "assistant",
+    ]);
     expect(messages[0].content).toBe("I’m checking the docs first.");
     expect(messages[1].toolCalls?.[0].name).toBe("exec_command");
     expect(messages[2].toolResults?.[0]).toEqual({
@@ -296,7 +326,7 @@ describe("parser - codex images", () => {
           type: "function_call",
           name: "exec_command",
           call_id: "call_1",
-          arguments: "{\"cmd\":\"bun test\"}",
+          arguments: '{"cmd":"bun test"}',
         },
       }),
       JSON.stringify({
@@ -335,18 +365,20 @@ describe("parser - codex images", () => {
 
     const first = parseCodexSessionFile(jsonl);
     const second = parseCodexSessionFile(jsonl);
-    const withEarlierLine = parseCodexSessionFile([
-      JSON.stringify({
-        timestamp: "2026-02-24T23:59:59.000Z",
-        type: "response_item",
-        payload: {
-          type: "message",
-          role: "user",
-          content: [{ type: "input_text", text: "Earlier item" }],
-        },
-      }),
-      jsonl,
-    ].join("\n"));
+    const withEarlierLine = parseCodexSessionFile(
+      [
+        JSON.stringify({
+          timestamp: "2026-02-24T23:59:59.000Z",
+          type: "response_item",
+          payload: {
+            type: "message",
+            role: "user",
+            content: [{ type: "input_text", text: "Earlier item" }],
+          },
+        }),
+        jsonl,
+      ].join("\n"),
+    );
 
     expect(first).toHaveLength(1);
     expect(first[0].uuid).toMatch(/^codex-message-/);
@@ -431,13 +463,38 @@ describe("extractCodexForkRoot - collapsing resume/fork chains", () => {
     const spawned = (id: string, parentId: string, source: unknown) =>
       JSON.stringify({
         type: "session_meta",
-        payload: { id, forked_from_id: parentId, parent_thread_id: parentId, source },
+        payload: {
+          id,
+          forked_from_id: parentId,
+          parent_thread_id: parentId,
+          source,
+        },
       });
-    const threadSpawn = { subagent: { thread_spawn: { parent_thread_id: "main", depth: 1 } } };
-    expect(extractCodexForkRoot([spawned("child", "main", threadSpawn), meta("main")].join("\n"))).toBe("child");
-    expect(extractCodexForkRoot([spawned("rev", "main", { subagent: "review" }), meta("main")].join("\n"))).toBe("rev");
+    const threadSpawn = {
+      subagent: { thread_spawn: { parent_thread_id: "main", depth: 1 } },
+    };
+    expect(
+      extractCodexForkRoot(
+        [spawned("child", "main", threadSpawn), meta("main")].join("\n"),
+      ),
+    ).toBe("child");
+    expect(
+      extractCodexForkRoot(
+        [spawned("rev", "main", { subagent: "review" }), meta("main")].join(
+          "\n",
+        ),
+      ),
+    ).toBe("rev");
     // A resume of the spawned child still collapses onto the child.
-    expect(extractCodexForkRoot([meta("child2", "child"), spawned("child", "main", threadSpawn), meta("main")].join("\n"))).toBe("child");
+    expect(
+      extractCodexForkRoot(
+        [
+          meta("child2", "child"),
+          spawned("child", "main", threadSpawn),
+          meta("main"),
+        ].join("\n"),
+      ),
+    ).toBe("child");
   });
 });
 
@@ -467,14 +524,32 @@ describe("Codex review lifecycle metadata", () => {
       source: "exec" as const,
     };
     const terminal = [
-      JSON.stringify({ type: "event_msg", payload: { type: "exited_review_mode" } }),
+      JSON.stringify({
+        type: "event_msg",
+        payload: { type: "exited_review_mode" },
+      }),
       JSON.stringify({ type: "event_msg", payload: { type: "task_complete" } }),
     ].join("\n");
 
     expect(isCompletedStandaloneCodexReview(metadata, terminal)).toBe(true);
-    expect(isCompletedStandaloneCodexReview(metadata, terminal.replace("task_complete", "agent_message"))).toBe(false);
-    expect(isCompletedStandaloneCodexReview({ ...metadata, source: "cli" }, terminal)).toBe(false);
-    expect(isCompletedStandaloneCodexReview({ ...metadata, originator: "codecast" }, terminal)).toBe(false);
+    expect(
+      isCompletedStandaloneCodexReview(
+        metadata,
+        terminal.replace("task_complete", "agent_message"),
+      ),
+    ).toBe(false);
+    expect(
+      isCompletedStandaloneCodexReview(
+        { ...metadata, source: "cli" },
+        terminal,
+      ),
+    ).toBe(false);
+    expect(
+      isCompletedStandaloneCodexReview(
+        { ...metadata, originator: "codecast" },
+        terminal,
+      ),
+    ).toBe(false);
   });
 
   test("recognizes a terminal native review child", () => {
@@ -484,11 +559,24 @@ describe("Codex review lifecycle metadata", () => {
       originator: "codex_exec",
       source: { subagent: "review" },
     };
-    const terminal = JSON.stringify({ type: "event_msg", payload: { type: "task_complete" } });
+    const terminal = JSON.stringify({
+      type: "event_msg",
+      payload: { type: "task_complete" },
+    });
 
     expect(isCompletedNativeCodexReviewChild(metadata, terminal)).toBe(true);
-    expect(isCompletedNativeCodexReviewChild(metadata, terminal.replace("task_complete", "agent_message"))).toBe(false);
-    expect(isCompletedNativeCodexReviewChild({ ...metadata, source: { subagent: "worker" } }, terminal)).toBe(false);
+    expect(
+      isCompletedNativeCodexReviewChild(
+        metadata,
+        terminal.replace("task_complete", "agent_message"),
+      ),
+    ).toBe(false);
+    expect(
+      isCompletedNativeCodexReviewChild(
+        { ...metadata, source: { subagent: "worker" } },
+        terminal,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -519,7 +607,9 @@ describe("parser - thinking content extraction", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe("assistant");
-    expect(messages[0].thinking).toBe("Let me analyze this problem step by step.");
+    expect(messages[0].thinking).toBe(
+      "Let me analyze this problem step by step.",
+    );
     expect(messages[0].content).toBe("Here's my response.");
   });
 
@@ -783,7 +873,9 @@ describe("parser - thinking content extraction", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe("assistant");
-    expect(messages[0].thinking).toContain("should check the current implementation");
+    expect(messages[0].thinking).toContain(
+      "should check the current implementation",
+    );
     expect(messages[0].content).toContain("examine the parser");
     expect(messages[0].toolCalls).toHaveLength(1);
     expect(messages[0].toolCalls?.[0].name).toBe("Read");
@@ -808,7 +900,12 @@ describe("parser - thinking content extraction", () => {
         timestamp: "2024-01-01T00:00:01Z",
         message: {
           role: "user",
-          content: [{ type: "text", text: "# /learn\n\nPurpose: Deeply analyze a codebase." }],
+          content: [
+            {
+              type: "text",
+              text: "# /learn\n\nPurpose: Deeply analyze a codebase.",
+            },
+          ],
         },
       },
     ];
@@ -816,8 +913,12 @@ describe("parser - thinking content extraction", () => {
     const messages = extractMessages(entries);
 
     expect(messages).toHaveLength(2);
-    expect(messages[0].content).toContain("<command-name>/learn</command-name>");
-    expect(messages[1].content).toContain("Purpose: Deeply analyze a codebase.");
+    expect(messages[0].content).toContain(
+      "<command-name>/learn</command-name>",
+    );
+    expect(messages[1].content).toContain(
+      "Purpose: Deeply analyze a codebase.",
+    );
   });
 
   test("still skips an isMeta message that does not follow a command invocation", () => {
@@ -833,7 +934,10 @@ describe("parser - thinking content extraction", () => {
         uuid: "stray-meta",
         isMeta: true,
         timestamp: "2024-01-01T00:00:01Z",
-        message: { role: "user", content: [{ type: "text", text: "internal meta noise" }] },
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "internal meta noise" }],
+        },
       },
     ];
 
@@ -865,7 +969,10 @@ describe("parser - thinking content extraction", () => {
         type: "assistant",
         uuid: "a1",
         timestamp: "2024-01-01T00:00:02Z",
-        message: { role: "assistant", content: [{ type: "text", text: "on it" }] },
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "on it" }],
+        },
       },
     ];
 
@@ -950,7 +1057,12 @@ describe("API-error banner rewrite (burst throttle vs quota park)", () => {
     message: {
       role: "assistant" as const,
       model: "<synthetic>",
-      content: [{ type: "text" as const, text: "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model." }],
+      content: [
+        {
+          type: "text" as const,
+          text: "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+        },
+      ],
     },
     isApiErrorMessage: true,
     ...extra,
@@ -958,32 +1070,62 @@ describe("API-error banner rewrite (burst throttle vs quota park)", () => {
   const transient = `429 {"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed your account's rate limit. Please try again later."},"request_id":"req_011Ceiw6MEu34wgEmTDQ8e2Y"}`;
 
   test("a transient 429 is synced as the marked throttle banner", () => {
-    const [msg] = extractMessages([banner({ apiErrorStatus: 429, errorDetails: transient })]);
+    const [msg] = extractMessages([
+      banner({ apiErrorStatus: 429, errorDetails: transient }),
+    ]);
     expect(msg.content.startsWith("Rate limited ·")).toBe(true);
-    expect(msg.content).toContain("Claude Code showed: You've reached your Fable limit.");
+    expect(msg.content).toContain(
+      "Claude Code showed: You've reached your Fable limit.",
+    );
     expect(msg.model).toBeUndefined();
   });
 
   test("a quota park keeps the CLI's own words", () => {
     // A real weekly exhaustion writes the same line with no transient body.
     const [plain] = extractMessages([banner({ apiErrorStatus: 429 })]);
-    expect(plain.content).toBe("You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.");
-    const [quota] = extractMessages([banner({ apiErrorStatus: 429, errorDetails: `429 {"type":"error","error":{"type":"exceeded_limit"}}` })]);
-    expect(quota.content).toBe("You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.");
+    expect(plain.content).toBe(
+      "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+    );
+    const [quota] = extractMessages([
+      banner({
+        apiErrorStatus: 429,
+        errorDetails: `429 {"type":"error","error":{"type":"exceeded_limit"}}`,
+      }),
+    ]);
+    expect(quota.content).toBe(
+      "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+    );
   });
 
   test("a 429 Claude Code marks model_requires_usage_credits is a quota park, not a burst", () => {
     // Real 2.1.281 entry (2026-09-24): transient wording in errorDetails, but
     // the CLI's own apiError says the Fable window is spent. Rewritten as a
     // throttle, the session retried on the spent account and never switched.
-    const [msg] = extractMessages([banner({ apiErrorStatus: 429, errorDetails: transient, apiError: "model_requires_usage_credits" })]);
-    expect(msg.content).toBe("You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.");
+    const [msg] = extractMessages([
+      banner({
+        apiErrorStatus: 429,
+        errorDetails: transient,
+        apiError: "model_requires_usage_credits",
+      }),
+    ]);
+    expect(msg.content).toBe(
+      "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+    );
     expect(classifyApiErrorBanner(msg.content)).toBe("limit");
   });
 
   test("claudeBannerText leaves ordinary assistant text alone", () => {
     expect(claudeBannerText({}, "hello")).toBe("hello");
-    expect(claudeBannerText({ isApiErrorMessage: true, apiErrorStatus: 429, errorDetails: transient }, "x").startsWith("Rate limited ·")).toBe(true);
+    expect(
+      claudeBannerText(
+        {
+          isApiErrorMessage: true,
+          apiErrorStatus: 429,
+          errorDetails: transient,
+        },
+        "x",
+      ).startsWith("Rate limited ·"),
+    ).toBe(true);
   });
 
   test("the short /model-switch form keeps the CLI's own words despite a transient-looking 429", () => {
@@ -991,17 +1133,25 @@ describe("API-error banner rewrite (burst throttle vs quota park)", () => {
     // to switch models." with the same rate_limit_error payload as a burst
     // (real JSONL 2026-09-15/18) — the words alone decide, so no rewrite.
     const short = "You've reached your Fable limit. /model to switch models.";
-    const [msg] = extractMessages([banner({ apiErrorStatus: 429, errorDetails: transient })]);
+    const [msg] = extractMessages([
+      banner({ apiErrorStatus: 429, errorDetails: transient }),
+    ]);
     expect(msg.content.startsWith("Rate limited ·")).toBe(true); // long-form control still rewrites
-    const [kept] = extractMessages([{
-      type: "assistant" as const,
-      uuid: "b2",
-      timestamp: "2026-09-18T19:02:43.993Z",
-      message: { role: "assistant" as const, model: "<synthetic>", content: [{ type: "text" as const, text: short }] },
-      isApiErrorMessage: true,
-      apiErrorStatus: 429,
-      errorDetails: transient,
-    }]);
+    const [kept] = extractMessages([
+      {
+        type: "assistant" as const,
+        uuid: "b2",
+        timestamp: "2026-09-18T19:02:43.993Z",
+        message: {
+          role: "assistant" as const,
+          model: "<synthetic>",
+          content: [{ type: "text" as const, text: short }],
+        },
+        isApiErrorMessage: true,
+        apiErrorStatus: 429,
+        errorDetails: transient,
+      },
+    ]);
     expect(kept.content).toBe(short);
   });
 });
@@ -1016,7 +1166,10 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
         type: "assistant",
         uuid: "a1",
         timestamp: "2026-06-18T20:15:00Z",
-        message: { role: "assistant", content: [{ type: "text", text: "working on it" }] },
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "working on it" }],
+        },
       },
       {
         type: "attachment",
@@ -1047,23 +1200,73 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
   // my latest" delta reader skipped it — a mid-turn task notification became a
   // background watch the web never saw close (2026-08-17).
   test("stamps a queued turn with its delivery time (the matching dequeue), not its enqueue time", () => {
-    const notice = "<task-notification>\n<task-id>bm01pn6rk</task-id>\n<status>completed</status>\n</task-notification>";
+    const notice =
+      "<task-notification>\n<task-id>bm01pn6rk</task-id>\n<status>completed</status>\n</task-notification>";
     const entries: ClaudeSessionEntry[] = [
-      { type: "assistant", uuid: "a1", timestamp: "2026-08-17T17:35:03Z", message: { role: "assistant", content: [{ type: "text", text: "still working" }] } },
-      { type: "queue-operation", operation: "enqueue", timestamp: "2026-08-17T17:35:04.083Z", content: notice },
-      { type: "queue-operation", operation: "remove", timestamp: "2026-08-17T17:35:10.393Z", content: notice },
-      { type: "attachment", uuid: "queued-n", timestamp: "2026-08-17T17:35:04.083Z", attachment: { type: "queued_command", prompt: notice, commandMode: "task-notification" } },
+      {
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2026-08-17T17:35:03Z",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "still working" }],
+        },
+      },
+      {
+        type: "queue-operation",
+        operation: "enqueue",
+        timestamp: "2026-08-17T17:35:04.083Z",
+        content: notice,
+      },
+      {
+        type: "queue-operation",
+        operation: "remove",
+        timestamp: "2026-08-17T17:35:10.393Z",
+        content: notice,
+      },
+      {
+        type: "attachment",
+        uuid: "queued-n",
+        timestamp: "2026-08-17T17:35:04.083Z",
+        attachment: {
+          type: "queued_command",
+          prompt: notice,
+          commandMode: "task-notification",
+        },
+      },
     ];
     const messages = extractMessages(entries);
     expect(messages).toHaveLength(2);
-    expect(messages[1]).toMatchObject({ uuid: "queued-n", role: "user", content: notice });
+    expect(messages[1]).toMatchObject({
+      uuid: "queued-n",
+      role: "user",
+      content: notice,
+    });
     expect(messages[1].timestamp).toBe(Date.parse("2026-08-17T17:35:10.393Z"));
   });
 
   test("without a matching dequeue a queued turn is never stamped earlier than the turn already emitted", () => {
     const entries: ClaudeSessionEntry[] = [
-      { type: "assistant", uuid: "a1", timestamp: "2026-08-17T17:35:09Z", message: { role: "assistant", content: [{ type: "text", text: "still working" }] } },
-      { type: "attachment", uuid: "queued-p", timestamp: "2026-08-17T17:35:04Z", attachment: { type: "queued_command", prompt: "next, do X", commandMode: "prompt", origin: { kind: "human" } } },
+      {
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2026-08-17T17:35:09Z",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "still working" }],
+        },
+      },
+      {
+        type: "attachment",
+        uuid: "queued-p",
+        timestamp: "2026-08-17T17:35:04Z",
+        attachment: {
+          type: "queued_command",
+          prompt: "next, do X",
+          commandMode: "prompt",
+          origin: { kind: "human" },
+        },
+      },
     ];
     const messages = extractMessages(entries);
     expect(messages[1].timestamp).toBe(Date.parse("2026-08-17T17:35:09Z"));
@@ -1071,10 +1274,29 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
 
   test("a queued turn newer than everything before it keeps its own stamp", () => {
     const entries: ClaudeSessionEntry[] = [
-      { type: "assistant", uuid: "a1", timestamp: "2026-08-17T17:35:03Z", message: { role: "assistant", content: [{ type: "text", text: "done" }] } },
-      { type: "attachment", uuid: "queued-q", timestamp: "2026-08-17T17:36:00Z", attachment: { type: "queued_command", prompt: "thanks", commandMode: "prompt" } },
+      {
+        type: "assistant",
+        uuid: "a1",
+        timestamp: "2026-08-17T17:35:03Z",
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "done" }],
+        },
+      },
+      {
+        type: "attachment",
+        uuid: "queued-q",
+        timestamp: "2026-08-17T17:36:00Z",
+        attachment: {
+          type: "queued_command",
+          prompt: "thanks",
+          commandMode: "prompt",
+        },
+      },
     ];
-    expect(extractMessages(entries)[1].timestamp).toBe(Date.parse("2026-08-17T17:36:00Z"));
+    expect(extractMessages(entries)[1].timestamp).toBe(
+      Date.parse("2026-08-17T17:36:00Z"),
+    );
   });
 
   test("strips leading terminal control bytes from the queued prompt", () => {
@@ -1084,14 +1306,17 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
         uuid: "queued-2",
         timestamp: "2026-06-18T20:15:05Z",
         // \x01\x0b are bracketed-paste markers captured with the keystrokes.
-        attachment: { type: "queued_command", prompt: "\x01\x0b<session-message from=\"jx75ema\"> hi" },
+        attachment: {
+          type: "queued_command",
+          prompt: '\x01\x0b<session-message from="jx75ema"> hi',
+        },
       },
     ];
 
     const messages = extractMessages(entries);
 
     expect(messages).toHaveLength(1);
-    expect(messages[0].content).toBe("<session-message from=\"jx75ema\"> hi");
+    expect(messages[0].content).toBe('<session-message from="jx75ema"> hi');
   });
 
   test("skips an empty queued prompt and non-queued attachment types", () => {
@@ -1126,8 +1351,18 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
         attachment: {
           type: "queued_command",
           prompt: [
-            { type: "text", text: "[Image #1] literally right now its fine and not injecting WHY?" },
-            { type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORabc==" } },
+            {
+              type: "text",
+              text: "[Image #1] literally right now its fine and not injecting WHY?",
+            },
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/png",
+                data: "iVBORabc==",
+              },
+            },
           ],
           commandMode: "prompt",
           origin: { kind: "human" },
@@ -1143,7 +1378,9 @@ describe("queued-command attachments (Ctrl+Enter / busy-agent delivery)", () => 
       role: "user",
       content: "[Image #1] literally right now its fine and not injecting WHY?",
     });
-    expect(messages[0].images).toEqual([{ mediaType: "image/png", data: "iVBORabc==" }]);
+    expect(messages[0].images).toEqual([
+      { mediaType: "image/png", data: "iVBORabc==" },
+    ]);
   });
 
   // Belt-and-suspenders: any unexpected non-string, non-array prompt must not throw
@@ -1170,17 +1407,38 @@ describe("extractTeamInfo - agent-team teammate stamps", () => {
   // lead transcripts and setup lines (agent-setting/mode) carry neither.
   test("finds team stamps past unstamped setup lines", () => {
     const content = [
-      JSON.stringify({ type: "agent-setting", agentSetting: "Explore", sessionId: "c57f0264" }),
+      JSON.stringify({
+        type: "agent-setting",
+        agentSetting: "Explore",
+        sessionId: "c57f0264",
+      }),
       JSON.stringify({ type: "mode", mode: "normal", sessionId: "c57f0264" }),
-      JSON.stringify({ type: "user", uuid: "u1", teamName: "session-aafd7be1", agentName: "web-audit", message: { role: "user", content: "hi" } }),
+      JSON.stringify({
+        type: "user",
+        uuid: "u1",
+        teamName: "session-aafd7be1",
+        agentName: "web-audit",
+        message: { role: "user", content: "hi" },
+      }),
     ].join("\n");
-    expect(extractTeamInfo(content)).toEqual({ teamName: "session-aafd7be1", agentName: "web-audit" });
+    expect(extractTeamInfo(content)).toEqual({
+      teamName: "session-aafd7be1",
+      agentName: "web-audit",
+    });
   });
 
   test("returns undefined for a lead/plain transcript (no stamps)", () => {
     const content = [
-      JSON.stringify({ type: "user", uuid: "u1", message: { role: "user", content: "hi" } }),
-      JSON.stringify({ type: "assistant", uuid: "a1", message: { role: "assistant", content: "yo" } }),
+      JSON.stringify({
+        type: "user",
+        uuid: "u1",
+        message: { role: "user", content: "hi" },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        uuid: "a1",
+        message: { role: "assistant", content: "yo" },
+      }),
     ].join("\n");
     expect(extractTeamInfo(content)).toBeUndefined();
   });
@@ -1188,10 +1446,23 @@ describe("extractTeamInfo - agent-team teammate stamps", () => {
   test("requires BOTH stamps on one line and skips malformed lines", () => {
     const content = [
       "not json at all",
-      JSON.stringify({ type: "user", uuid: "u1", teamName: "session-x", message: { role: "user", content: "half-stamped" } }),
-      JSON.stringify({ type: "assistant", uuid: "a1", teamName: "session-x", agentName: "convex-audit" }),
+      JSON.stringify({
+        type: "user",
+        uuid: "u1",
+        teamName: "session-x",
+        message: { role: "user", content: "half-stamped" },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        uuid: "a1",
+        teamName: "session-x",
+        agentName: "convex-audit",
+      }),
     ].join("\n");
-    expect(extractTeamInfo(content)).toEqual({ teamName: "session-x", agentName: "convex-audit" });
+    expect(extractTeamInfo(content)).toEqual({
+      teamName: "session-x",
+      agentName: "convex-audit",
+    });
   });
 });
 
@@ -1203,95 +1474,187 @@ describe("parser - multi-block tool results", () => {
       timestamp: "2026-08-17T17:21:26.620Z",
       message: {
         role: "user",
-        content: [{
-          type: "tool_result",
-          tool_use_id: "toolu_batch",
-          content: [
-            { type: "text", text: "[computer:left_click] Clicked at (660, 178)" },
-            { type: "text", text: "[computer:wait] Waited for 3 seconds" },
-            { type: "text", text: "[computer:screenshot] Successfully captured screenshot (1568x762, jpeg) - ID: ss_1" },
-            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "/9j/AAAA" } },
-            { type: "text", text: "\n\nTab Context:\n- Executed on tabId: 1" },
-          ],
-        }],
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_batch",
+            content: [
+              {
+                type: "text",
+                text: "[computer:left_click] Clicked at (660, 178)",
+              },
+              { type: "text", text: "[computer:wait] Waited for 3 seconds" },
+              {
+                type: "text",
+                text: "[computer:screenshot] Successfully captured screenshot (1568x762, jpeg) - ID: ss_1",
+              },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: "image/jpeg",
+                  data: "/9j/AAAA",
+                },
+              },
+              {
+                type: "text",
+                text: "\n\nTab Context:\n- Executed on tabId: 1",
+              },
+            ],
+          },
+        ],
       },
     });
     const [msg] = parseSessionFile(line);
     expect(msg.toolResults?.[0].content).toBe(
       "[computer:left_click] Clicked at (660, 178)\n[computer:wait] Waited for 3 seconds\n[computer:screenshot] Successfully captured screenshot (1568x762, jpeg) - ID: ss_1\n\nTab Context:\n- Executed on tabId: 1",
     );
-    expect(msg.images?.[0]).toMatchObject({ mediaType: "image/jpeg", toolUseId: "toolu_batch" });
+    expect(msg.images?.[0]).toMatchObject({
+      mediaType: "image/jpeg",
+      toolUseId: "toolu_batch",
+    });
   });
 });
 
 describe("parser - harness text riding a tool_result row", () => {
-  const carrierRow = (text: string, resultText: string) => JSON.stringify({
-    type: "user",
-    uuid: "u-carrier",
-    timestamp: "2026-09-07T15:36:46.786Z",
-    message: {
-      role: "user",
-      content: [
-        { type: "tool_result", tool_use_id: "toolu_1", content: [{ type: "text", text: resultText }] },
-        { type: "text", text },
-      ],
-    },
-  });
+  const carrierRow = (text: string, resultText: string) =>
+    JSON.stringify({
+      type: "user",
+      uuid: "u-carrier",
+      timestamp: "2026-09-07T15:36:46.786Z",
+      message: {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "toolu_1",
+            content: [{ type: "text", text: resultText }],
+          },
+          { type: "text", text },
+        ],
+      },
+    });
 
   test("folds the ToolSearch postscript into the result instead of emitting a user prompt", () => {
     const [msg] = parseSessionFile(carrierRow("Tool loaded.", "schemas…"));
     expect(msg.role).toBe("user");
     expect(msg.content).toBe("");
-    expect(msg.toolResults).toEqual([{ toolUseId: "toolu_1", content: "schemas…\n\nTool loaded.", isError: undefined }]);
+    expect(msg.toolResults).toEqual([
+      {
+        toolUseId: "toolu_1",
+        content: "schemas…\n\nTool loaded.",
+        isError: undefined,
+      },
+    ]);
   });
 
   test("keeps the fork directive with the Agent result it followed", () => {
-    const directive = "<fork-boilerplate>\nYou are a worker fork.\n</fork-boilerplate>\n\nYour directive: say ok.";
-    const [msg] = parseSessionFile(carrierRow(directive, "Fork started — processing in background"));
+    const directive =
+      "<fork-boilerplate>\nYou are a worker fork.\n</fork-boilerplate>\n\nYour directive: say ok.";
+    const [msg] = parseSessionFile(
+      carrierRow(directive, "Fork started — processing in background"),
+    );
     expect(msg.content).toBe("");
-    expect(msg.toolResults?.[0].content).toBe(`Fork started — processing in background\n\n${directive}`);
+    expect(msg.toolResults?.[0].content).toBe(
+      `Fork started — processing in background\n\n${directive}`,
+    );
   });
 
   test("a ToolSearch result names the tools it loaded", () => {
-    const [msg] = parseSessionFile(JSON.stringify({
-      type: "user", uuid: "u-search", timestamp: "2026-11-05T12:42:00.000Z",
-      message: { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_s", content: [
-        { type: "tool_reference", tool_name: "Monitor" },
-        { type: "tool_reference", tool_name: "WebFetch" },
-      ] }] },
-      toolUseResult: { matches: ["Monitor", "WebFetch"], query: "select:Monitor,WebFetch", total_deferred_tools: 58 },
-    }));
-    expect(msg.toolResults?.[0].content).toBe("Loaded tool: Monitor\nLoaded tool: WebFetch");
+    const [msg] = parseSessionFile(
+      JSON.stringify({
+        type: "user",
+        uuid: "u-search",
+        timestamp: "2026-11-05T12:42:00.000Z",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_s",
+              content: [
+                { type: "tool_reference", tool_name: "Monitor" },
+                { type: "tool_reference", tool_name: "WebFetch" },
+              ],
+            },
+          ],
+        },
+        toolUseResult: {
+          matches: ["Monitor", "WebFetch"],
+          query: "select:Monitor,WebFetch",
+          total_deferred_tools: 58,
+        },
+      }),
+    );
+    expect(msg.toolResults?.[0].content).toBe(
+      "Loaded tool: Monitor\nLoaded tool: WebFetch",
+    );
   });
 
   test("a typed prompt in its own row is untouched", () => {
-    const [msg] = parseSessionFile(JSON.stringify({
-      type: "user", uuid: "u-typed", timestamp: "2026-09-07T15:36:46.786Z",
-      message: { role: "user", content: [{ type: "text", text: "Tool loaded." }] },
-    }));
+    const [msg] = parseSessionFile(
+      JSON.stringify({
+        type: "user",
+        uuid: "u-typed",
+        timestamp: "2026-09-07T15:36:46.786Z",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "Tool loaded." }],
+        },
+      }),
+    );
     expect(msg.content).toBe("Tool loaded.");
     expect(msg.toolResults).toBeUndefined();
   });
 });
 
 describe("per-message usage extraction (org-roles-standing.md T4)", () => {
-  const line = (message: any, extra: Record<string, any> = {}) => JSON.stringify({
-    type: "assistant", uuid: "u1", timestamp: "2026-09-12T10:00:00.000Z",
-    message: { role: "assistant", model: "claude-opus-4-8", content: [{ type: "text", text: "hello" }], ...message },
-    ...extra,
-  });
+  const line = (message: any, extra: Record<string, any> = {}) =>
+    JSON.stringify({
+      type: "assistant",
+      uuid: "u1",
+      timestamp: "2026-09-12T10:00:00.000Z",
+      message: {
+        role: "assistant",
+        model: "claude-opus-4-8",
+        content: [{ type: "text", text: "hello" }],
+        ...message,
+      },
+      ...extra,
+    });
 
   test("an assistant record's usage rides the parsed message", () => {
-    const [msg] = parseSessionFile(line({ usage: { input_tokens: 12, output_tokens: 34, cache_read_input_tokens: 5, cache_creation_input_tokens: 0 } }));
-    expect(msg.usage).toEqual({ input_tokens: 12, output_tokens: 34, cache_read_input_tokens: 5, cache_creation_input_tokens: 0 });
+    const [msg] = parseSessionFile(
+      line({
+        usage: {
+          input_tokens: 12,
+          output_tokens: 34,
+          cache_read_input_tokens: 5,
+          cache_creation_input_tokens: 0,
+        },
+      }),
+    );
+    expect(msg.usage).toEqual({
+      input_tokens: 12,
+      output_tokens: 34,
+      cache_read_input_tokens: 5,
+      cache_creation_input_tokens: 0,
+    });
   });
 
   test("a synthetic banner or a record without usage carries none", () => {
     const [noUsage] = parseSessionFile(line({}));
     expect(noUsage.usage).toBeUndefined();
-    const [synthetic] = parseSessionFile(line({ model: "<synthetic>", usage: { input_tokens: 1, output_tokens: 1 } }));
+    const [synthetic] = parseSessionFile(
+      line({
+        model: "<synthetic>",
+        usage: { input_tokens: 1, output_tokens: 1 },
+      }),
+    );
     expect(synthetic.usage).toBeUndefined();
-    const [malformed] = parseSessionFile(line({ usage: { input_tokens: "12" } }));
+    const [malformed] = parseSessionFile(
+      line({ usage: { input_tokens: "12" } }),
+    );
     expect(malformed.usage).toBeUndefined();
   });
 });
@@ -1301,34 +1664,64 @@ describe("parser - Claude Code auto-continue limit wait", () => {
   // that limit park.
   test("syncs as a limit banner, other informational lines stay system", () => {
     const entries = [
-      { type: "system", subtype: "informational", uuid: "u1", timestamp: "2026-09-30T19:44:04.449Z", content: "Usage limit reached · continuing automatically at 6:10pm · esc to cancel" },
-      { type: "system", subtype: "informational", uuid: "u2", timestamp: "2026-09-30T19:48:07.837Z", content: "Automatic continue cancelled · /rate-limit-options to re-arm" },
+      {
+        type: "system",
+        subtype: "informational",
+        uuid: "u1",
+        timestamp: "2026-09-30T19:44:04.449Z",
+        content:
+          "Usage limit reached · continuing automatically at 6:10pm · esc to cancel",
+      },
+      {
+        type: "system",
+        subtype: "informational",
+        uuid: "u2",
+        timestamp: "2026-09-30T19:48:07.837Z",
+        content: "Automatic continue cancelled · /rate-limit-options to re-arm",
+      },
     ] as unknown as ClaudeSessionEntry[];
     const [park, cancelled] = extractMessages(entries);
     expect(park.role).toBe("assistant");
     expect(park.uuid).toBe("u1");
     expect(classifyApiErrorBanner(park.content)).toBe("limit");
     expect(cancelled.role).toBe("system");
-    expect(cancelled.content).toBe("Automatic continue cancelled · /rate-limit-options to re-arm");
+    expect(cancelled.content).toBe(
+      "Automatic continue cancelled · /rate-limit-options to re-arm",
+    );
   });
 });
 
 describe("extractSummaryTitle - the agent's own session name", () => {
   const line = (o: object) => JSON.stringify(o);
-  const user = line({ type: "user", message: { role: "user", content: 'mentions "type":"ai-title" in text' } });
+  const user = line({
+    type: "user",
+    message: { role: "user", content: 'mentions "type":"ai-title" in text' },
+  });
 
   test("reads the latest ai-title", () => {
-    const content = [user, line({ type: "ai-title", aiTitle: "First guess", sessionId: "s" }), user, line({ type: "ai-title", aiTitle: "Better guess", sessionId: "s" })].join("\n");
+    const content = [
+      user,
+      line({ type: "ai-title", aiTitle: "First guess", sessionId: "s" }),
+      user,
+      line({ type: "ai-title", aiTitle: "Better guess", sessionId: "s" }),
+    ].join("\n");
     expect(extractSummaryTitle(content)).toBe("Better guess");
   });
 
   test("a /rename beats the ai-title", () => {
-    const content = [line({ type: "custom-title", customTitle: "Mine", sessionId: "s" }), line({ type: "ai-title", aiTitle: "Guess", sessionId: "s" })].join("\n");
+    const content = [
+      line({ type: "custom-title", customTitle: "Mine", sessionId: "s" }),
+      line({ type: "ai-title", aiTitle: "Guess", sessionId: "s" }),
+    ].join("\n");
     expect(extractSummaryTitle(content)).toBe("Mine");
   });
 
   test("falls back to the legacy summary entry", () => {
-    expect(extractSummaryTitle([user, line({ type: "summary", summary: "Old style" })].join("\n"))).toBe("Old style");
+    expect(
+      extractSummaryTitle(
+        [user, line({ type: "summary", summary: "Old style" })].join("\n"),
+      ),
+    ).toBe("Old style");
     expect(extractSummaryTitle(user)).toBeUndefined();
   });
 });

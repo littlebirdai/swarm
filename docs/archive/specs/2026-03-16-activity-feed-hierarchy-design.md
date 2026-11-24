@@ -11,15 +11,15 @@ The ActivityFeed component renders all text at similar visual weight. Titles, he
 
 ### Typography Hierarchy (7 tiers)
 
-| Tier | Element | Size | Weight | Color | Purpose |
-|------|---------|------|--------|-------|---------|
-| 1 | Day label | 18px | bold | `text-sol-text` | Temporal anchor |
-| 2 | Narrative bullets | 13px | regular | `text-sol-text-secondary` | Cross-session synthesis |
-| 3 | Session title | 14px | bold | `text-sol-text` | Session identity |
-| 4 | Headline/summary | 12px | regular | `text-sol-text-muted` | What happened (one line) |
-| 5 | User ask | 12px | medium | `text-sol-blue` | User intent (with profile pic) |
-| 6 | Did items | 11px | regular | `text-sol-text-dim` | Agent work detail |
-| 7 | Metadata | 10px | mono | `text-sol-text-dim/50` | Duration, msg count, time |
+| Tier | Element           | Size | Weight  | Color                     | Purpose                        |
+| ---- | ----------------- | ---- | ------- | ------------------------- | ------------------------------ |
+| 1    | Day label         | 18px | bold    | `text-sol-text`           | Temporal anchor                |
+| 2    | Narrative bullets | 13px | regular | `text-sol-text-secondary` | Cross-session synthesis        |
+| 3    | Session title     | 14px | bold    | `text-sol-text`           | Session identity               |
+| 4    | Headline/summary  | 12px | regular | `text-sol-text-muted`     | What happened (one line)       |
+| 5    | User ask          | 12px | medium  | `text-sol-blue`           | User intent (with profile pic) |
+| 6    | Did items         | 11px | regular | `text-sol-text-dim`       | Agent work detail              |
+| 7    | Metadata          | 10px | mono    | `text-sol-text-dim/50`    | Duration, msg count, time      |
 
 No two adjacent tiers should look the same.
 
@@ -33,12 +33,14 @@ No two adjacent tiers should look the same.
 ### Session Cards
 
 **Collapsed (default)**:
+
 - Title: bold, 14px, `text-sol-text`
 - Project badge: monospace, small, dim (quaternary)
 - Headline: `text-sol-text-muted`, 12px, regular weight, one line truncated
 - Metadata (duration, msg count, time): `text-sol-text-dim/50`, 10px mono, right-aligned
 
 **Expanded (click to toggle)**:
+
 - Title stays
 - Headline SWAPS to longer bulleted summary (from `key_changes` or expanded summary text) in `text-sol-text-muted`
 - Below the bullets: turns section
@@ -73,6 +75,7 @@ No two adjacent tiers should look the same.
 ### Frontend: `packages/web/components/ActivityFeed.tsx`
 
 Rewrite `DaySection`, `SessionCard`, `SessionTurns` components:
+
 - DaySection: large date header, narrative bullets at secondary weight, collapse/expand
 - SessionCard: strict tier separation, headline-to-bullets swap on expand
 - SessionTurns: profile pic avatar + blue text for asks, dim text for did items

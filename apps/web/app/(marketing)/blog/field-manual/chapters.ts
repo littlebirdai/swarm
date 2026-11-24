@@ -13,7 +13,10 @@ export const SERIES_TITLE = "The codecast field manual";
 
 export type ChapterPart = "operating-model" | "features";
 
-export const PARTS: Record<ChapterPart, { label: string; title: string; dek: string }> = {
+export const PARTS: Record<
+  ChapterPart,
+  { label: string; title: string; dek: string }
+> = {
   "operating-model": {
     label: "Part one",
     title: "The operating model",
@@ -76,7 +79,8 @@ export const CHAPTERS: Chapter[] = [
     slug: "team-memory",
     part: "features",
     kicker: "Team memory",
-    title: "Team memory: every line of code sits on the conversation that wrote it",
+    title:
+      "Team memory: every line of code sits on the conversation that wrote it",
     dek: "Every agent searches what every other agent learned, and the repo view names the session behind each line of code.",
     readingMinutes: 7,
     color: "violet",
@@ -146,7 +150,8 @@ export const CHAPTERS: Chapter[] = [
     slug: "cloud-hosts",
     part: "features",
     kicker: "Cloud hosts",
-    title: "Cloud hosts: start it on your laptop, let it run on your own cloud box",
+    title:
+      "Cloud hosts: start it on your laptop, let it run on your own cloud box",
     dek: "Send a session to your own EC2 host from the checkout you are in, uncommitted work included, mirror it back live, and move it home mid-turn.",
     readingMinutes: 6,
     color: "blue",

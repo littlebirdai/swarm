@@ -40,7 +40,11 @@ describe("isAgentChromeCommand", () => {
   });
 
   test("a non-Chrome app is not", () => {
-    expect(isAgentChromeCommand("/Applications/Codecast.app/Contents/MacOS/Codecast")).toBe(false);
+    expect(
+      isAgentChromeCommand(
+        "/Applications/Codecast.app/Contents/MacOS/Codecast",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -62,20 +66,51 @@ describe("shouldRestoreFocus", () => {
 
   test("a recent keyboard app switch means the human did it — spared", () => {
     expect(shouldRestoreFocus({ ...steal, msSinceAppSwitch: 50 })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, msSinceAppSwitch: HUMAN_APP_SWITCH_GRACE_MS })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, msSinceAppSwitch: HUMAN_APP_SWITCH_GRACE_MS + 1 })).toBe(true);
+    expect(
+      shouldRestoreFocus({
+        ...steal,
+        msSinceAppSwitch: HUMAN_APP_SWITCH_GRACE_MS,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRestoreFocus({
+        ...steal,
+        msSinceAppSwitch: HUMAN_APP_SWITCH_GRACE_MS + 1,
+      }),
+    ).toBe(true);
   });
 
   test("a deliberate raise (login, web open-tab) is spared for the grace window", () => {
-    expect(shouldRestoreFocus({ ...steal, msSinceDeliberateRaise: 1_000 })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, msSinceDeliberateRaise: DELIBERATE_RAISE_GRACE_MS - 1 })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, msSinceDeliberateRaise: DELIBERATE_RAISE_GRACE_MS + 1 })).toBe(true);
+    expect(
+      shouldRestoreFocus({ ...steal, msSinceDeliberateRaise: 1_000 }),
+    ).toBe(false);
+    expect(
+      shouldRestoreFocus({
+        ...steal,
+        msSinceDeliberateRaise: DELIBERATE_RAISE_GRACE_MS - 1,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRestoreFocus({
+        ...steal,
+        msSinceDeliberateRaise: DELIBERATE_RAISE_GRACE_MS + 1,
+      }),
+    ).toBe(true);
   });
 
   test("a recent mouse click means the human did it — spared", () => {
-    expect(shouldRestoreFocus({ ...steal, secondsSinceClick: 0.3 })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, secondsSinceClick: HUMAN_CLICK_GRACE_S })).toBe(false);
-    expect(shouldRestoreFocus({ ...steal, secondsSinceClick: HUMAN_CLICK_GRACE_S + 0.5 })).toBe(true);
+    expect(shouldRestoreFocus({ ...steal, secondsSinceClick: 0.3 })).toBe(
+      false,
+    );
+    expect(
+      shouldRestoreFocus({ ...steal, secondsSinceClick: HUMAN_CLICK_GRACE_S }),
+    ).toBe(false);
+    expect(
+      shouldRestoreFocus({
+        ...steal,
+        secondsSinceClick: HUMAN_CLICK_GRACE_S + 0.5,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -96,11 +131,21 @@ describe("stampAt", () => {
   test("passes a real stamp through", () => {
     const now = Date.now();
     expect(stampAt(now)).toBe(now);
-    expect(stampAt(now - DELIBERATE_RAISE_GRACE_MS * 10)).toBe(now - DELIBERATE_RAISE_GRACE_MS * 10);
+    expect(stampAt(now - DELIBERATE_RAISE_GRACE_MS * 10)).toBe(
+      now - DELIBERATE_RAISE_GRACE_MS * 10,
+    );
   });
 
   test("a missing or malformed field reads as no stamp", () => {
-    for (const value of [undefined, null, "1788800000000", NaN, Infinity, -1, {}]) {
+    for (const value of [
+      undefined,
+      null,
+      "1788800000000",
+      NaN,
+      Infinity,
+      -1,
+      {},
+    ]) {
       expect(stampAt(value)).toBe(0);
     }
   });
@@ -119,7 +164,12 @@ describe("stampAt", () => {
     const old = Date.now() - DELIBERATE_RAISE_GRACE_MS - 1;
     expect(stampAt(old)).toBe(old);
     expect(
-      shouldRestoreFocus({ agentChrome: true, msSinceDeliberateRaise: Date.now() - old, msSinceAppSwitch: 60_000, secondsSinceClick: 60 }),
+      shouldRestoreFocus({
+        agentChrome: true,
+        msSinceDeliberateRaise: Date.now() - old,
+        msSinceAppSwitch: 60_000,
+        secondsSinceClick: 60,
+      }),
     ).toBe(true);
   });
 });
@@ -132,7 +182,8 @@ test("a cloud host never arms the sentinel: its daemon has no window-server sess
     expect(await startFocusSentinel((l) => lines.push(l))).toBeNull();
     expect(lines).toEqual([]);
   } finally {
-    if (prev === undefined) delete process.env.CODECAST_REMOTE_DEVICE; else process.env.CODECAST_REMOTE_DEVICE = prev;
+    if (prev === undefined) delete process.env.CODECAST_REMOTE_DEVICE;
+    else process.env.CODECAST_REMOTE_DEVICE = prev;
   }
 });
 
@@ -141,5 +192,6 @@ test("only an Aqua session counts as a window-server session; SSH, background an
   // login's processes say Aqua; an SSH shell says System; a user who never
   // logged in at the screen says Background. The input probe hung in both.
   expect(await inWindowServerSession(async () => "Aqua")).toBe(true);
-  for (const name of ["System", "Background", "LoginWindow", ""]) expect(await inWindowServerSession(async () => name)).toBe(false);
+  for (const name of ["System", "Background", "LoginWindow", ""])
+    expect(await inWindowServerSession(async () => name)).toBe(false);
 });

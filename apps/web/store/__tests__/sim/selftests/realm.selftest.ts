@@ -21,9 +21,18 @@ import {
   uninstallRealm,
   type RealmWindow,
 } from "../realm";
-import { freshSlots, restoreSlots, saveSlots, WINDOW_SLOTS, type SlotSnapshot } from "../windowSlots";
+import {
+  freshSlots,
+  restoreSlots,
+  saveSlots,
+  WINDOW_SLOTS,
+  type SlotSnapshot,
+} from "../windowSlots";
 
-const win = (name: string): RealmWindow => ({ name, store: createWindowStore(name) });
+const win = (name: string): RealmWindow => ({
+  name,
+  store: createWindowStore(name),
+});
 
 function attachNet(): Net {
   const net = new Net({ rng: stream("net"), writes: () => 0, now, advance });
@@ -55,7 +64,9 @@ function marker(tag: string): SlotSnapshot {
   let i = 0;
   const out: SlotSnapshot = {};
   for (const [file, slots] of Object.entries(freshSlots())) {
-    out[file] = Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, markValue(v, tag, i++)]));
+    out[file] = Object.fromEntries(
+      Object.entries(slots).map(([k, v]) => [k, markValue(v, tag, i++)]),
+    );
   }
   return out;
 }
@@ -71,7 +82,9 @@ describe("realm", () => {
     const b = win("B");
 
     await runInWindow(a, () => {
-      useInboxStore.setState({ sessions: { s1: { _id: "s1", title: "in A" } } } as any);
+      useInboxStore.setState({
+        sessions: { s1: { _id: "s1", title: "in A" } },
+      } as any);
       expect(store.sessions).toHaveProperty("s1"); // the store proxy routes through the facade too
       restoreSlots(marker("A"));
     });
@@ -88,7 +101,9 @@ describe("realm", () => {
 
     // Every window binding the table names took part in the round trip.
     const marked = Object.values(marker("A")).flatMap((s) => Object.keys(s));
-    const windowBindings = Object.keys(WINDOW_SLOTS).filter((k) => WINDOW_SLOTS[k] === "window");
+    const windowBindings = Object.keys(WINDOW_SLOTS).filter(
+      (k) => WINDOW_SLOTS[k] === "window",
+    );
     expect(marked.length).toBe(windowBindings.length);
 
     uninstallRealm();
@@ -102,7 +117,9 @@ describe("realm", () => {
     const b = win("B");
     const tokenA = await runInWindow(a, () => gestureSourceToken());
     const tokenB = await runInWindow(b, () => gestureSourceToken());
-    expect(tokenA).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(tokenA).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(tokenB).not.toBe(tokenA);
     expect(await runInWindow(a, () => gestureSourceToken())).toBe(tokenA);
   });
@@ -150,8 +167,12 @@ describe("realm", () => {
     calling = true;
     expect(Math.random()).toBe(stream("call:1")());
     calling = false;
-    expect(await runInWindow(a, () => Math.random())).toBe(stream("window:A")());
-    expect<string>(await runInWindow(b, () => crypto.randomUUID())).toBe(uuidFrom(stream("window:B")));
+    expect(await runInWindow(a, () => Math.random())).toBe(
+      stream("window:A")(),
+    );
+    expect<string>(await runInWindow(b, () => crypto.randomUUID())).toBe(
+      uuidFrom(stream("window:B")),
+    );
   });
 
   test("a setTimeout(fn, 0) armed inside A runs inside A; a delayed one moves the clock", async () => {
@@ -164,14 +185,21 @@ describe("realm", () => {
       setTimeout(() => ran.push(`0:${activeWindow()?.name}`), 0);
     });
     await runInWindow(b, () => {
-      setTimeout(() => ran.push(`500:${activeWindow()?.name}@${now() - T0}`), 500);
+      setTimeout(
+        () => ran.push(`500:${activeWindow()?.name}@${now() - T0}`),
+        500,
+      );
       const cancelled = setTimeout(() => ran.push("cancelled"), 10);
       clearTimeout(cancelled);
     });
     setTimeout(() => ran.push(`global:${activeWindow()?.name ?? "none"}`), 0);
     await net.drain();
     expect(ran).toEqual(["0:A", "global:none", "500:B@500"]);
-    expect(net.ring.map((d) => d.channel)).toEqual(["timer:A", "timer:global", "timer:B"]);
+    expect(net.ring.map((d) => d.channel)).toEqual([
+      "timer:A",
+      "timer:global",
+      "timer:B",
+    ]);
   });
 
   test("setInterval repeats inside its window until cleared", async () => {
@@ -192,7 +220,9 @@ describe("realm", () => {
 
   test("a store read outside any window throws in strict facade mode", () => {
     installRealm(6, { strictFacade: true });
-    expect(() => useInboxStore.getState()).toThrow("sim: store read outside a window");
+    expect(() => useInboxStore.getState()).toThrow(
+      "sim: store read outside a window",
+    );
   });
 
   test("uninstallRealm restores Date.now, Math.random, setTimeout, the facade and crypto.randomUUID", async () => {
@@ -213,7 +243,9 @@ describe("realm", () => {
     expect(Date.now()).toBe(T0);
     expect(performance.now()).toBe(mono());
     expect(Math.random).not.toBe(originals.random);
-    await runInWindow(win("A"), () => expect(useInboxStore.getState).not.toBe(originals.getState));
+    await runInWindow(win("A"), () =>
+      expect(useInboxStore.getState).not.toBe(originals.getState),
+    );
     uninstallRealm();
     const after = {
       dateNow: Date.now,
@@ -228,14 +260,17 @@ describe("realm", () => {
       subscribe: useInboxStore.subscribe,
       getInitialState: useInboxStore.getInitialState,
     };
-    for (const k of Object.keys(originals) as (keyof typeof originals)[]) expect(after[k], k).toBe(originals[k]);
+    for (const k of Object.keys(originals) as (keyof typeof originals)[])
+      expect(after[k], k).toBe(originals[k]);
   });
 
   test("a turn for one window cannot start inside another's", async () => {
     installRealm(9);
     const a = win("A");
     const b = win("B");
-    await expect(runInWindow(a, () => runInWindow(b, () => 1))).rejects.toThrow('runInWindow("B") while "A" is running');
+    await expect(runInWindow(a, () => runInWindow(b, () => 1))).rejects.toThrow(
+      'runInWindow("B") while "A" is running',
+    );
     // The same window joins its own turn.
     expect(await runInWindow(a, () => runInWindow(a, () => 2))).toBe(2);
   });

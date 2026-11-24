@@ -19,7 +19,13 @@ import {
   WATCHDOG_HEARTBEAT_STALE_MS,
 } from "./supervision.js";
 import { watchdogSupervisionAction } from "./daemon.js";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,7 +38,10 @@ import { join } from "node:path";
 // whether launchd lists it as loaded.
 
 describe("watchdog plist is a resident KeepAlive job, not a StartInterval one-shot", () => {
-  const plist = buildWatchdogPlistXml({ scriptPath: "/Users/x/.codecast/watchdog.sh", configDir: "/Users/x/.codecast" });
+  const plist = buildWatchdogPlistXml({
+    scriptPath: "/Users/x/.codecast/watchdog.sh",
+    configDir: "/Users/x/.codecast",
+  });
 
   test("uses KeepAlive so launchd relaunches the loop if it ever exits", () => {
     expect(plist).toContain("<key>KeepAlive</key>");
@@ -50,8 +59,14 @@ describe("watchdog plist is a resident KeepAlive job, not a StartInterval one-sh
 });
 
 describe("watchdog shell script is a resident loop that stamps a heartbeat", () => {
-  const dev = buildWatchdogShellScript({ isBinary: false, watchdogCommand: "" });
-  const bin = buildWatchdogShellScript({ isBinary: true, watchdogCommand: "/Users/x/.local/bin/codecast -- _watchdog" });
+  const dev = buildWatchdogShellScript({
+    isBinary: false,
+    watchdogCommand: "",
+  });
+  const bin = buildWatchdogShellScript({
+    isBinary: true,
+    watchdogCommand: "/Users/x/.local/bin/codecast -- _watchdog",
+  });
 
   test("dev form loops forever and sleeps between checks (survives sleep via resume)", () => {
     expect(dev).toContain("while :;");
@@ -124,11 +139,15 @@ describe("daemonTickStale: wedged event loop vs the machine just slept", () => {
   // runs no JS and cannot log, so fresh log writes prove busy-not-dead.
   test("stale tick but fresh daemon.log writes = busy boot, not wedged — spare it", () => {
     expect(daemonTickStale(STALE, 62_000, 10_000)).toBe(false);
-    expect(daemonTickStale(STALE, 62_000, DAEMON_HEARTBEAT_STALE_MS)).toBe(false); // boundary inclusive
+    expect(daemonTickStale(STALE, 62_000, DAEMON_HEARTBEAT_STALE_MS)).toBe(
+      false,
+    ); // boundary inclusive
   });
 
   test("stale tick + silent daemon.log = genuinely wedged, restart", () => {
-    expect(daemonTickStale(STALE, 62_000, DAEMON_HEARTBEAT_STALE_MS + 1)).toBe(true);
+    expect(daemonTickStale(STALE, 62_000, DAEMON_HEARTBEAT_STALE_MS + 1)).toBe(
+      true,
+    );
   });
 
   test("unknown log age (stat failed) falls back to tick-only judgment", () => {
@@ -143,11 +162,18 @@ describe("watchdogPlistNeedsUpgrade migrates legacy installs", () => {
   });
 
   test("flags a pre-/bin/sh direct-binary plist", () => {
-    expect(watchdogPlistNeedsUpgrade("<string>/Users/x/.local/bin/codecast</string>")).toBe(true);
+    expect(
+      watchdogPlistNeedsUpgrade(
+        "<string>/Users/x/.local/bin/codecast</string>",
+      ),
+    ).toBe(true);
   });
 
   test("leaves the current resident KeepAlive plist alone", () => {
-    const current = buildWatchdogPlistXml({ scriptPath: "/Users/x/.codecast/watchdog.sh", configDir: "/Users/x/.codecast" });
+    const current = buildWatchdogPlistXml({
+      scriptPath: "/Users/x/.codecast/watchdog.sh",
+      configDir: "/Users/x/.codecast",
+    });
     expect(watchdogPlistNeedsUpgrade(current)).toBe(false);
   });
 });
@@ -160,7 +186,12 @@ describe("watchdogHeartbeatStale: liveness, not loaded-ness", () => {
   });
 
   test("a stamp older than the threshold is stale (loop wedged)", () => {
-    expect(watchdogHeartbeatStale(String(now - WATCHDOG_HEARTBEAT_STALE_MS - 1), now)).toBe(true);
+    expect(
+      watchdogHeartbeatStale(
+        String(now - WATCHDOG_HEARTBEAT_STALE_MS - 1),
+        now,
+      ),
+    ).toBe(true);
   });
 
   test("missing stamp is NOT treated as stale — a fresh install has not stamped yet", () => {
@@ -180,7 +211,10 @@ describe("watchdogHeartbeatStale: liveness, not loaded-ness", () => {
 // notifications on each release. The plist must run /bin/sh (stable Apple-signed
 // identity) exec'ing a launcher script that holds the mutable command.
 describe("daemon plist has a stable BTM identity via the /bin/sh launcher", () => {
-  const plist = buildDaemonPlistXml({ scriptPath: "/Users/x/.codecast/daemon-launcher.sh", configDir: "/Users/x/.codecast" });
+  const plist = buildDaemonPlistXml({
+    scriptPath: "/Users/x/.codecast/daemon-launcher.sh",
+    configDir: "/Users/x/.codecast",
+  });
 
   test("daemon stays KeepAlive + fast throttle", () => {
     expect(plist).toContain("<key>KeepAlive</key>");
@@ -189,24 +223,35 @@ describe("daemon plist has a stable BTM identity via the /bin/sh launcher", () =
 
   test("runs via /bin/sh + launcher script, never the binary directly", () => {
     expect(plist).toContain("<string>/bin/sh</string>");
-    expect(plist).toContain("<string>/Users/x/.codecast/daemon-launcher.sh</string>");
+    expect(plist).toContain(
+      "<string>/Users/x/.codecast/daemon-launcher.sh</string>",
+    );
     expect(daemonPlistNeedsUpgrade(plist)).toBe(false);
   });
 
   test("launcher execs the daemon command so launchd tracks the daemon's pid", () => {
-    const script = buildDaemonLauncherScript({ daemonCommand: "'/Users/x/.local/bin/codecast' '--' '_daemon'" });
-    expect(script).toContain("exec '/Users/x/.local/bin/codecast' '--' '_daemon'");
+    const script = buildDaemonLauncherScript({
+      daemonCommand: "'/Users/x/.local/bin/codecast' '--' '_daemon'",
+    });
+    expect(script).toContain(
+      "exec '/Users/x/.local/bin/codecast' '--' '_daemon'",
+    );
     expect(script.startsWith("#!/bin/sh")).toBe(true);
   });
 });
 
 describe("daemonPlistNeedsUpgrade migrates legacy direct-binary installs", () => {
   test("flags the legacy form that re-notified on every binary self-update", () => {
-    expect(daemonPlistNeedsUpgrade(buildLegacyDirectBinaryDaemonPlist())).toBe(true);
+    expect(daemonPlistNeedsUpgrade(buildLegacyDirectBinaryDaemonPlist())).toBe(
+      true,
+    );
   });
 
   test("leaves the /bin/sh launcher form alone (migration runs once)", () => {
-    const current = buildDaemonPlistXml({ scriptPath: "/Users/x/.codecast/daemon-launcher.sh", configDir: "/Users/x/.codecast" });
+    const current = buildDaemonPlistXml({
+      scriptPath: "/Users/x/.codecast/daemon-launcher.sh",
+      configDir: "/Users/x/.codecast",
+    });
     expect(daemonPlistNeedsUpgrade(current)).toBe(false);
   });
 });
@@ -218,15 +263,25 @@ describe("daemonPlistNeedsUpgrade migrates legacy direct-binary installs", () =>
 // keep its launcher: reading its ProgramArguments as the daemon command would
 // write a launcher that execs itself.
 describe("daemon plist runs the agent fleet unclamped", () => {
-  const current = buildDaemonPlistXml({ scriptPath: "/Users/x/.codecast/daemon-launcher.sh", configDir: "/Users/x/.codecast" });
-  const beforeProcessType = current.replace(/  <key>ProcessType<\/key>\n  <string>Interactive<\/string>\n/, "");
+  const current = buildDaemonPlistXml({
+    scriptPath: "/Users/x/.codecast/daemon-launcher.sh",
+    configDir: "/Users/x/.codecast",
+  });
+  const beforeProcessType = current.replace(
+    /  <key>ProcessType<\/key>\n  <string>Interactive<\/string>\n/,
+    "",
+  );
 
   test("declares ProcessType Interactive", () => {
-    expect(current).toMatch(/<key>ProcessType<\/key>\s*<string>Interactive<\/string>/);
+    expect(current).toMatch(
+      /<key>ProcessType<\/key>\s*<string>Interactive<\/string>/,
+    );
   });
 
   test.if(process.platform === "darwin")("the plist lints as valid", () => {
-    expect(spawnSync("plutil", ["-lint", "-"], { input: current }).status).toBe(0);
+    expect(spawnSync("plutil", ["-lint", "-"], { input: current }).status).toBe(
+      0,
+    );
   });
 
   test("a launcher-form plist without it is upgraded, but not as a legacy command", () => {
@@ -236,27 +291,35 @@ describe("daemon plist runs the agent fleet unclamped", () => {
   });
 
   test("the legacy direct-binary form is still a legacy command", () => {
-    expect(daemonPlistRunsLegacyCommand(buildLegacyDirectBinaryDaemonPlist())).toBe(true);
+    expect(
+      daemonPlistRunsLegacyCommand(buildLegacyDirectBinaryDaemonPlist()),
+    ).toBe(true);
   });
 });
 
 describe("extractPlistProgramArguments preserves the install's exact command", () => {
   test("round-trips a compiled-binary plist", () => {
-    expect(extractPlistProgramArguments(buildLegacyDirectBinaryDaemonPlist())).toEqual([
-      "/Users/x/.local/bin/codecast",
-      "--",
-      "_daemon",
-    ]);
+    expect(
+      extractPlistProgramArguments(buildLegacyDirectBinaryDaemonPlist()),
+    ).toEqual(["/Users/x/.local/bin/codecast", "--", "_daemon"]);
   });
 
   test("returns [] when there is no ProgramArguments array to vouch for", () => {
-    expect(extractPlistProgramArguments("<plist><dict></dict></plist>")).toEqual([]);
+    expect(
+      extractPlistProgramArguments("<plist><dict></dict></plist>"),
+    ).toEqual([]);
   });
 
   test("extracted args shell-escape safely into a launcher command", () => {
-    const args = extractPlistProgramArguments(buildLegacyDirectBinaryDaemonPlist());
-    const script = buildDaemonLauncherScript({ daemonCommand: args.map(shellEscapeForSh).join(" ") });
-    expect(script).toContain("exec '/Users/x/.local/bin/codecast' '--' '_daemon'");
+    const args = extractPlistProgramArguments(
+      buildLegacyDirectBinaryDaemonPlist(),
+    );
+    const script = buildDaemonLauncherScript({
+      daemonCommand: args.map(shellEscapeForSh).join(" "),
+    });
+    expect(script).toContain(
+      "exec '/Users/x/.local/bin/codecast' '--' '_daemon'",
+    );
   });
 });
 
@@ -308,21 +371,56 @@ describe("watchdogSupervisionAction", () => {
   const stale = String(now - WATCHDOG_HEARTBEAT_STALE_MS - 60_000);
 
   test("not loaded with a plist bootstraps; without one it can only ask for cast setup", () => {
-    expect(watchdogSupervisionAction({ loaded: false, plistExists: true, heartbeat: null, now })).toBe("bootstrap");
-    expect(watchdogSupervisionAction({ loaded: false, plistExists: false, heartbeat: null, now })).toBe("plist_missing");
+    expect(
+      watchdogSupervisionAction({
+        loaded: false,
+        plistExists: true,
+        heartbeat: null,
+        now,
+      }),
+    ).toBe("bootstrap");
+    expect(
+      watchdogSupervisionAction({
+        loaded: false,
+        plistExists: false,
+        heartbeat: null,
+        now,
+      }),
+    ).toBe("plist_missing");
   });
 
   test("loaded with a fresh heartbeat needs nothing", () => {
     expect(watchdogHeartbeatStale(fresh, now)).toBe(false);
-    expect(watchdogSupervisionAction({ loaded: true, plistExists: true, heartbeat: fresh, now })).toBe("none");
+    expect(
+      watchdogSupervisionAction({
+        loaded: true,
+        plistExists: true,
+        heartbeat: fresh,
+        now,
+      }),
+    ).toBe("none");
   });
 
   test("loaded with a stale heartbeat kickstarts the loop; a missing stamp is not stale", () => {
-    expect(watchdogSupervisionAction({ loaded: true, plistExists: true, heartbeat: stale, now })).toBe("kickstart");
+    expect(
+      watchdogSupervisionAction({
+        loaded: true,
+        plistExists: true,
+        heartbeat: stale,
+        now,
+      }),
+    ).toBe("kickstart");
     // No stamp yet (a watchdog that just loaded) must not be kickstarted in a
     // loop; watchdogHeartbeatStale answers false for a missing stamp.
     expect(watchdogHeartbeatStale(null, now)).toBe(false);
-    expect(watchdogSupervisionAction({ loaded: true, plistExists: true, heartbeat: null, now })).toBe("none");
+    expect(
+      watchdogSupervisionAction({
+        loaded: true,
+        plistExists: true,
+        heartbeat: null,
+        now,
+      }),
+    ).toBe("none");
   });
 });
 
@@ -337,9 +435,14 @@ describe("exit 78: do not restart", () => {
   });
 
   test("the dev shell watchdog checks the stamp BEFORE it revives anything", () => {
-    const dev = buildWatchdogShellScript({ isBinary: false, watchdogCommand: "" });
+    const dev = buildWatchdogShellScript({
+      isBinary: false,
+      watchdogCommand: "",
+    });
     expect(dev).toContain(DAEMON_EXIT_STAMP_FILE);
-    expect(dev).toContain(`grep -q '"code"[[:space:]]*:[[:space:]]*${EXIT_DO_NOT_RESTART}'`);
+    expect(dev).toContain(
+      `grep -q '"code"[[:space:]]*:[[:space:]]*${EXIT_DO_NOT_RESTART}'`,
+    );
     // Order is the whole point: a guard after the kickstart would restart the
     // daemon and only then decide it should not have.
     const guardAt = dev.indexOf(DAEMON_EXIT_STAMP_FILE);
@@ -352,13 +455,21 @@ describe("exit 78: do not restart", () => {
   });
 
   test("the binary form delegates the decision to the compiled pass, which makes the same check", () => {
-    const bin = buildWatchdogShellScript({ isBinary: true, watchdogCommand: "/Users/x/.local/bin/codecast -- _watchdog" });
+    const bin = buildWatchdogShellScript({
+      isBinary: true,
+      watchdogCommand: "/Users/x/.local/bin/codecast -- _watchdog",
+    });
     // The binary loop never restarts the daemon itself — runWatchdog does, and
     // it calls noRestartReason (daemonMarkers.ts) before spawning.
     expect(bin).toContain("_watchdog");
     expect(bin).not.toContain("launchctl kickstart");
-    const source = readFileSync(new URL("./daemon.ts", import.meta.url), "utf-8");
-    const restartAt = source.indexOf('logLine("Daemon not running, restarting...")');
+    const source = readFileSync(
+      new URL("./daemon.ts", import.meta.url),
+      "utf-8",
+    );
+    const restartAt = source.indexOf(
+      'logLine("Daemon not running, restarting...")',
+    );
     const guardAt = source.indexOf("noRestartReason(CONFIG_DIR)");
     expect(guardAt).toBeGreaterThan(-1);
     expect(guardAt).toBeLessThan(restartAt);
@@ -367,7 +478,10 @@ describe("exit 78: do not restart", () => {
   test("the daemon's own crash-backoff respawn honours it too", () => {
     // Otherwise the daemon relaunches itself into the same config failure and
     // records it as a crash loop.
-    const source = readFileSync(new URL("./daemon.ts", import.meta.url), "utf-8");
+    const source = readFileSync(
+      new URL("./daemon.ts", import.meta.url),
+      "utf-8",
+    );
     expect(source).toContain("if (code === EXIT_DO_NOT_RESTART) return;");
   });
 
@@ -386,14 +500,27 @@ describe("exit 78: do not restart", () => {
         `#!/bin/sh\nprintf '%s\\n' "$*" >> "$HOME/launchctl.calls"\nexit 1\n`,
         { mode: 0o755 },
       );
-      if (stamp) writeFileSync(join(home, ".codecast", DAEMON_EXIT_STAMP_FILE), stamp);
-      const script = buildWatchdogShellScript({ isBinary: false, watchdogCommand: "" })
+      if (stamp)
+        writeFileSync(join(home, ".codecast", DAEMON_EXIT_STAMP_FILE), stamp);
+      const script = buildWatchdogShellScript({
+        isBinary: false,
+        watchdogCommand: "",
+      })
         // The resident loop would never return; run its body exactly once.
         .replace(/while :;[\s\S]*$/, "check_once\n");
       const scriptPath = join(home, "watchdog.sh");
       writeFileSync(scriptPath, script);
-      spawnSync("sh", [scriptPath], { env: { HOME: home, PATH: `${bin}:/usr/bin:/bin` }, encoding: "utf-8" });
-      const read = (p: string) => { try { return readFileSync(p, "utf-8"); } catch { return ""; } };
+      spawnSync("sh", [scriptPath], {
+        env: { HOME: home, PATH: `${bin}:/usr/bin:/bin` },
+        encoding: "utf-8",
+      });
+      const read = (p: string) => {
+        try {
+          return readFileSync(p, "utf-8");
+        } catch {
+          return "";
+        }
+      };
       const result = {
         launchctl: read(join(home, "launchctl.calls")),
         log: read(join(home, ".codecast", "watchdog-shell.log")),
@@ -408,7 +535,9 @@ describe("exit 78: do not restart", () => {
     });
 
     test("with an exit-78 stamp it revives nothing and says why", () => {
-      const { launchctl, log } = runOnce(JSON.stringify({ code: 78, at: 1, reason: "HOME is not set" }));
+      const { launchctl, log } = runOnce(
+        JSON.stringify({ code: 78, at: 1, reason: "HOME is not set" }),
+      );
       expect(launchctl).not.toContain("kickstart");
       expect(launchctl).not.toContain("bootstrap");
       expect(log).toContain("do not restart");
@@ -416,7 +545,9 @@ describe("exit 78: do not restart", () => {
     });
 
     test("a stamp from an ordinary crash still revives it", () => {
-      const { launchctl } = runOnce(JSON.stringify({ code: 1, at: 1, reason: "crashed" }));
+      const { launchctl } = runOnce(
+        JSON.stringify({ code: 1, at: 1, reason: "crashed" }),
+      );
       expect(launchctl).toContain("kickstart");
     });
   });

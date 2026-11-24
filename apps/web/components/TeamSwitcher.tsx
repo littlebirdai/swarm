@@ -1,6 +1,9 @@
 import { useRouter } from "next/navigation";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
-import { useSwitchWorkspace, workspaceSeenKey } from "../hooks/useSwitchWorkspace";
+import {
+  useSwitchWorkspace,
+  workspaceSeenKey,
+} from "../hooks/useSwitchWorkspace";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   DropdownMenu,
@@ -10,8 +13,22 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from "./ui/dropdown-menu";
-import { Check, CheckCheck, ChevronDown, LogIn, Plus, User, UserPlus } from "lucide-react";
-import { useState, Suspense, forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  Check,
+  CheckCheck,
+  ChevronDown,
+  LogIn,
+  Plus,
+  User,
+  UserPlus,
+} from "lucide-react";
+import {
+  useState,
+  Suspense,
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { TeamCrest } from "./team/TeamCrest";
 import { lazyNamed } from "../lib/lazyNamed";
@@ -32,26 +49,55 @@ export const TeamSwitcherButton = forwardRef<
     variant?: "bar" | "rail";
     isNarrow?: boolean;
   }
->(function TeamSwitcherButton({ team, label, elsewhereNew = 0, variant = "bar", isNarrow = false, ...props }, ref) {
+>(function TeamSwitcherButton(
+  {
+    team,
+    label,
+    elsewhereNew = 0,
+    variant = "bar",
+    isNarrow = false,
+    ...props
+  },
+  ref,
+) {
   const rail = variant === "rail";
   const crest = team ? (
-    <TeamCrest icon={team.icon} color={team.icon_color} size="sm" className="w-5 h-5 rounded" />
+    <TeamCrest
+      icon={team.icon}
+      color={team.icon_color}
+      size="sm"
+      className="w-5 h-5 rounded"
+    />
   ) : (
-    <span className="flex h-5 w-5 items-center justify-center"><User className="w-4 h-4 text-sol-text-muted" /></span>
+    <span className="flex h-5 w-5 items-center justify-center">
+      <User className="w-4 h-4 text-sol-text-muted" />
+    </span>
   );
   // New for you in a workspace NOT on screen: a dot, so it never reads as
   // this workspace's own count. The menu names where.
   const dot = elsewhereNew > 0 && (
     <span
       data-cc-team-elsewhere
-      title={elsewhereNew === 1 ? "New for you in another workspace" : `New for you in ${elsewhereNew} other workspaces`}
+      title={
+        elsewhereNew === 1
+          ? "New for you in another workspace"
+          : `New for you in ${elsewhereNew} other workspaces`
+      }
       className="absolute -right-0.5 -top-1 h-2 w-2 rounded-full bg-sol-red ring-2 ring-sol-bg"
     />
   );
   if (rail && isNarrow) {
     return (
-      <button ref={ref} {...props} title={label} className="relative flex w-full justify-center py-2.5 transition-colors hover:bg-sol-bg-alt data-[state=open]:bg-sol-bg-alt">
-        <span className="relative flex">{crest}{dot}</span>
+      <button
+        ref={ref}
+        {...props}
+        title={label}
+        className="relative flex w-full justify-center py-2.5 transition-colors hover:bg-sol-bg-alt data-[state=open]:bg-sol-bg-alt"
+      >
+        <span className="relative flex">
+          {crest}
+          {dot}
+        </span>
       </button>
     );
   }
@@ -60,12 +106,19 @@ export const TeamSwitcherButton = forwardRef<
       ref={ref}
       {...props}
       data-cc-team-trigger={variant}
-      className={rail
-        ? "flex w-full items-center gap-3 px-4 py-2 text-sm text-left transition-colors hover:bg-sol-bg-alt/70 data-[state=open]:bg-sol-bg-alt/70"
-        : "flex h-7 items-center gap-1.5 pl-1 pr-1.5 rounded-md text-sm transition-colors hover:bg-sol-bg-alt data-[state=open]:bg-sol-bg-alt modern:h-control-sm modern:rounded-control modern:text-ui modern:font-medium modern:hover:bg-sol-text/[0.06] modern:data-[state=open]:bg-sol-text/[0.06]"}
+      className={
+        rail
+          ? "flex w-full items-center gap-3 px-4 py-2 text-sm text-left transition-colors hover:bg-sol-bg-alt/70 data-[state=open]:bg-sol-bg-alt/70"
+          : "flex h-7 items-center gap-1.5 pl-1 pr-1.5 rounded-md text-sm transition-colors hover:bg-sol-bg-alt data-[state=open]:bg-sol-bg-alt modern:h-control-sm modern:rounded-control modern:text-ui modern:font-medium modern:hover:bg-sol-text/[0.06] modern:data-[state=open]:bg-sol-text/[0.06]"
+      }
     >
       {crest}
-      <span data-cc-team-label className={`text-sol-text font-semibold truncate ${rail ? "flex-1" : "max-w-[120px]"}`}>{label}</span>
+      <span
+        data-cc-team-label
+        className={`text-sol-text font-semibold truncate ${rail ? "flex-1" : "max-w-[120px]"}`}
+      >
+        {label}
+      </span>
       <span className="relative flex">
         <ChevronDown className="w-3.5 h-3.5 text-sol-text-muted" />
         {dot}
@@ -98,14 +151,19 @@ export function TeamSwitcher({
   const { user } = useCurrentUser();
   const teams = useInboxStore((s) => s.teams);
   const switchWorkspace = useSwitchWorkspace();
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const [inviteOpen, setInviteOpen] = useState(false);
   const unreadElsewhere = useInboxStore((s) => s.threadUnreadByWorkspace);
   const seenAt = useInboxStore((s) => s.clientState.ui?.workspace_seen_at);
   const badgeFor = (teamId: string | null) => {
     const w = unreadElsewhere?.find((x) => x.team_id === teamId);
     if (!w) return { count: 0, isNew: false };
-    return { count: w.count, isNew: (w.newest_at ?? 0) > (seenAt?.[workspaceSeenKey(teamId)] ?? 0) };
+    return {
+      count: w.count,
+      isNew: (w.newest_at ?? 0) > (seenAt?.[workspaceSeenKey(teamId)] ?? 0),
+    };
   };
   const markAllThreadsRead = useInboxStore((s) => s.markAllThreadsRead);
 
@@ -116,17 +174,25 @@ export function TeamSwitcher({
   const shownTeamId = value === undefined ? activeTeamId : (value ?? undefined);
   // The server already leaves the active workspace out; the filter covers the
   // moment after a switch, before its answer for the new one lands.
-  const elsewhereNew = (unreadElsewhere ?? [])
-    .filter((w) => w.team_id !== (activeTeamId ? String(activeTeamId) : null) && badgeFor(w.team_id).isNew)
-    .length;
-  const activeTeam = teams?.find(t => t?._id === shownTeamId);
+  const elsewhereNew = (unreadElsewhere ?? []).filter(
+    (w) =>
+      w.team_id !== (activeTeamId ? String(activeTeamId) : null) &&
+      badgeFor(w.team_id).isNew,
+  ).length;
+  const activeTeam = teams?.find((t) => t?._id === shownTeamId);
   // Invite targets the ACTIVE team; only its admins see the item.
   // A just-created team carries an optimistic stub id until the server row
   // lands; inviting against it would 404 (or fall back to the previous team).
-  const canInvite = !!activeTeam && activeTeam.role === "admin" && isConvexId(String(activeTeam._id));
+  const canInvite =
+    !!activeTeam &&
+    activeTeam.role === "admin" &&
+    isConvexId(String(activeTeam._id));
 
   // The unread count opens what it counts: that workspace's Threads.
-  const handleTeamChange = async (teamId: Id<"teams"> | null, openThreads = false) => {
+  const handleTeamChange = async (
+    teamId: Id<"teams"> | null,
+    openThreads = false,
+  ) => {
     await switchWorkspace(teamId);
     if (openThreads) router.push("/threads");
   };
@@ -154,12 +220,22 @@ export function TeamSwitcher({
           isNarrow={isNarrow}
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side={variant === "rail" && isNarrow ? "right" : "bottom"} className="w-80 bg-sol-bg border-sol-border p-1">
-        <DropdownMenuLabel className="text-sol-text-muted text-xs px-2 pt-1.5 pb-1">{teamsOnly ? "Team" : "Workspace"}</DropdownMenuLabel>
+      <DropdownMenuContent
+        align="start"
+        side={variant === "rail" && isNarrow ? "right" : "bottom"}
+        className="w-80 bg-sol-bg border-sol-border p-1"
+      >
+        <DropdownMenuLabel className="text-sol-text-muted text-xs px-2 pt-1.5 pb-1">
+          {teamsOnly ? "Team" : "Workspace"}
+        </DropdownMenuLabel>
         {!teamsOnly && (
           <WorkspaceRow
             selected={!shownTeamId}
-            icon={<span className="flex h-6 w-6 items-center justify-center rounded bg-sol-bg-alt"><User className="w-3.5 h-3.5 text-sol-text-muted" /></span>}
+            icon={
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-sol-bg-alt">
+                <User className="w-3.5 h-3.5 text-sol-text-muted" />
+              </span>
+            }
             name="Personal"
             detail="Just you"
             badge={shownTeamId ? badgeFor(null) : NO_BADGE}
@@ -174,12 +250,27 @@ export function TeamSwitcher({
             <WorkspaceRow
               key={team._id}
               selected={shownTeamId === team._id}
-              icon={<TeamCrest icon={team.icon} color={team.icon_color} size="sm" className="w-6 h-6 rounded" />}
+              icon={
+                <TeamCrest
+                  icon={team.icon}
+                  color={team.icon_color}
+                  size="sm"
+                  className="w-6 h-6 rounded"
+                />
+              }
               name={team.name}
-              detail={members ? `${members} ${members === 1 ? "member" : "members"}` : ""}
-              badge={shownTeamId === team._id ? NO_BADGE : badgeFor(String(team._id))}
+              detail={
+                members
+                  ? `${members} ${members === 1 ? "member" : "members"}`
+                  : ""
+              }
+              badge={
+                shownTeamId === team._id ? NO_BADGE : badgeFor(String(team._id))
+              }
               onClear={() => markAllThreadsRead(String(team._id), "all")}
-              onSelect={(openThreads) => handleTeamChange(team._id, openThreads)}
+              onSelect={(openThreads) =>
+                handleTeamChange(team._id, openThreads)
+              }
             />
           );
         })}
@@ -212,7 +303,11 @@ export function TeamSwitcher({
       </DropdownMenuContent>
       {canInvite && (
         <Suspense fallback={null}>
-          <InviteModal teamId={activeTeam._id} open={inviteOpen} onOpenChange={setInviteOpen} />
+          <InviteModal
+            teamId={activeTeam._id}
+            open={inviteOpen}
+            onOpenChange={setInviteOpen}
+          />
         </Suspense>
       )}
     </DropdownMenu>
@@ -224,7 +319,15 @@ const NO_BADGE = { count: 0, isNew: false };
 /** One workspace in the picker: its mark, name, who is in it, and how many
  *  threads in it wait on you: red when some arrived since your last visit,
  *  muted once you have been there since. */
-function WorkspaceRow({ selected, icon, name, detail, badge, onClear, onSelect }: {
+function WorkspaceRow({
+  selected,
+  icon,
+  name,
+  detail,
+  badge,
+  onClear,
+  onSelect,
+}: {
   selected: boolean;
   icon: ReactNode;
   name: string;
@@ -237,14 +340,20 @@ function WorkspaceRow({ selected, icon, name, detail, badge, onClear, onSelect }
   const unread = badge.count;
   return (
     <DropdownMenuItem
-      onClick={(e) => onSelect(!!(e.target as Element).closest("[data-cc-workspace-unread]"))}
+      onClick={(e) =>
+        onSelect(!!(e.target as Element).closest("[data-cc-workspace-unread]"))
+      }
       data-selected={selected || undefined}
       className="group/row flex items-center gap-2.5 px-2 py-1.5 cursor-pointer text-sol-text hover:bg-sol-bg-highlight data-[selected]:bg-sol-bg-alt"
     >
       {icon}
       <span className="flex min-w-0 flex-1 flex-col leading-tight">
-        <span className={`truncate ${selected ? "font-medium" : ""}`}>{name}</span>
-        {detail && <span className="truncate text-meta text-sol-text-dim">{detail}</span>}
+        <span className={`truncate ${selected ? "font-medium" : ""}`}>
+          {name}
+        </span>
+        {detail && (
+          <span className="truncate text-meta text-sol-text-dim">{detail}</span>
+        )}
       </span>
       {unread > 0 && (
         <button
@@ -252,7 +361,11 @@ function WorkspaceRow({ selected, icon, name, detail, badge, onClear, onSelect }
           data-cc-workspace-clear
           title="Mark all read"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClear(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onClear();
+          }}
           className="flex h-5 w-5 items-center justify-center rounded text-sol-text-muted opacity-0 transition-opacity hover:bg-sol-bg-highlight hover:text-sol-green focus-visible:opacity-100 group-hover/row:opacity-100 group-data-[highlighted]/row:opacity-100"
         >
           <CheckCheck className="h-3.5 w-3.5" />
@@ -262,9 +375,11 @@ function WorkspaceRow({ selected, icon, name, detail, badge, onClear, onSelect }
         <span
           data-cc-workspace-unread
           title={`Open ${unread} ${unread === 1 ? "thread" : "threads"} waiting on you`}
-          className={`min-w-[18px] rounded-full px-1.5 text-center text-meta font-semibold leading-[18px] transition-shadow hover:ring-2 ${badge.isNew
-            ? "bg-sol-red text-sol-bg hover:ring-sol-red/40"
-            : "bg-sol-bg-alt text-sol-text-muted hover:ring-sol-border"}`}
+          className={`min-w-[18px] rounded-full px-1.5 text-center text-meta font-semibold leading-[18px] transition-shadow hover:ring-2 ${
+            badge.isNew
+              ? "bg-sol-red text-sol-bg hover:ring-sol-red/40"
+              : "bg-sol-bg-alt text-sol-text-muted hover:ring-sol-border"
+          }`}
         >
           {unread > 99 ? "99+" : unread}
         </span>

@@ -11,7 +11,10 @@ import { Button } from "./ui/button";
 
 /** The daemon answered, but what it serves cannot: the evals' two reasons
  *  (the bridge found no checkout to run, or the process it ran crashed). */
-export type LocalUnreachableReason = LoopbackUnreachableReason | "no-checkout" | "child-crashed";
+export type LocalUnreachableReason =
+  | LoopbackUnreachableReason
+  | "no-checkout"
+  | "child-crashed";
 
 export function LocalDaemonUnreachable({
   reason,
@@ -43,28 +46,30 @@ export function LocalDaemonUnreachable({
       title: "The daemon is running, but slow to answer",
       body: (
         <>
-          It&apos;s registered as live, but didn&apos;t respond within the time limit —
-          usually a daemon busy with many sessions or a slow tmux. That is load, not a
-          browser problem: retry in a moment, and{" "}
+          It&apos;s registered as live, but didn&apos;t respond within the time
+          limit — usually a daemon busy with many sessions or a slow tmux. That
+          is load, not a browser problem: retry in a moment, and{" "}
           <code className="text-sol-text">cast doctor</code> shows its health.
         </>
       ),
     },
     "probe-failed": {
-      title: desktop ? "No daemon answered on this machine" : "This page can't reach the daemon",
+      title: desktop
+        ? "No daemon answered on this machine"
+        : "This page can't reach the daemon",
       body: desktop ? (
         <>
-          A daemon answered, but not one this app can reach — the files live on another
-          machine, or the daemon here isn&apos;t running. Start it with{" "}
+          A daemon answered, but not one this app can reach — the files live on
+          another machine, or the daemon here isn&apos;t running. Start it with{" "}
           <code className="text-sol-text">cast daemon</code> or check{" "}
           <code className="text-sol-text">cast doctor</code>, then retry.
         </>
       ) : (
         <>
-          A daemon answered, but the request to it was refused. Either it runs on another
-          machine, or the browser blocked the local connection — Chrome asks permission the
-          first time a site connects to your local network; allow it from the address-bar
-          icon, then retry.
+          A daemon answered, but the request to it was refused. Either it runs
+          on another machine, or the browser blocked the local connection —
+          Chrome asks permission the first time a site connects to your local
+          network; allow it from the address-bar icon, then retry.
         </>
       ),
     },
@@ -72,10 +77,11 @@ export function LocalDaemonUnreachable({
       title: "Can't reach the local daemon",
       body: (
         <>
-          {what} are read straight from this machine, which needs the codecast daemon
-          running. Start it with <code className="text-sol-text">cast daemon</code> or check{" "}
-          <code className="text-sol-text">cast doctor</code>. If it IS running, make sure
-          you&apos;re signed in as the same account it belongs to.
+          {what} are read straight from this machine, which needs the codecast
+          daemon running. Start it with{" "}
+          <code className="text-sol-text">cast daemon</code> or check{" "}
+          <code className="text-sol-text">cast doctor</code>. If it IS running,
+          make sure you&apos;re signed in as the same account it belongs to.
         </>
       ),
     },
@@ -92,9 +98,8 @@ export function LocalDaemonUnreachable({
       title: "The daemon refused this request",
       body: (
         <>
-          It answered, but turned the request away — usually a stale
-          connection token after a restart. Retry; if it persists, restart the
-          daemon.
+          It answered, but turned the request away — usually a stale connection
+          token after a restart. Retry; if it persists, restart the daemon.
         </>
       ),
     },
@@ -111,8 +116,8 @@ export function LocalDaemonUnreachable({
       title: `Those ${what.toLowerCase()} are on another machine`,
       body: (
         <>
-          They are read straight off the disk they live on, so only that machine can
-          serve them. Open this page there.
+          They are read straight off the disk they live on, so only that machine
+          can serve them. Open this page there.
         </>
       ),
     },
@@ -121,8 +126,9 @@ export function LocalDaemonUnreachable({
       body: (
         <>
           {what} live on the laptop that ran them, read off its disk by the eval
-          tool in that checkout. Run <code className="text-sol-text">./evals</code> once
-          from your codecast checkout here, or open this page on the machine that ran them.
+          tool in that checkout. Run{" "}
+          <code className="text-sol-text">./evals</code> once from your codecast
+          checkout here, or open this page on the machine that ran them.
         </>
       ),
     },
@@ -130,8 +136,9 @@ export function LocalDaemonUnreachable({
       title: "The evals process crashed",
       body: (
         <>
-          The daemon started the eval tool from your checkout and it exited. A checkout
-          that is mid-edit does this; its own error is below. Fix it, then retry.
+          The daemon started the eval tool from your checkout and it exited. A
+          checkout that is mid-edit does this; its own error is below. Fix it,
+          then retry.
         </>
       ),
     },
@@ -139,8 +146,8 @@ export function LocalDaemonUnreachable({
       title: "Can't reach the local daemon",
       body: (
         <>
-          Start it with <code className="text-sol-text">cast daemon</code> or check{" "}
-          <code className="text-sol-text">cast doctor</code>.
+          Start it with <code className="text-sol-text">cast daemon</code> or
+          check <code className="text-sol-text">cast doctor</code>.
         </>
       ),
     },
@@ -152,7 +159,9 @@ export function LocalDaemonUnreachable({
       <div className="text-sol-text font-medium">{copy.title}</div>
       <div className="text-sm text-sol-text-muted max-w-md">{copy.body}</div>
       {detail && (
-        <code className="text-meta text-sol-text-dim max-w-md [overflow-wrap:anywhere]">{detail}</code>
+        <code className="text-meta text-sol-text-dim max-w-md [overflow-wrap:anywhere]">
+          {detail}
+        </code>
       )}
       {stderr && stderr.length > 0 && (
         <pre
@@ -162,7 +171,13 @@ export function LocalDaemonUnreachable({
           {stderr.join("\n")}
         </pre>
       )}
-      <Button type="button" variant="outline" size="sm" className="mt-1" onClick={onRetry}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-1"
+        onClick={onRetry}
+      >
         Retry connection
       </Button>
       {children}

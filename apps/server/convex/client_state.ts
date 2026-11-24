@@ -27,14 +27,18 @@ export const pruneDeadDrafts = mutation({
       .first();
     if (!cs) return { drafts: 0, kept: 0, dropped: 0 };
     const drafts = (cs as any).drafts;
-    if (!drafts || typeof drafts !== "object") return { drafts: 0, kept: 0, dropped: 0 };
+    if (!drafts || typeof drafts !== "object")
+      return { drafts: 0, kept: 0, dropped: 0 };
 
     const ids = Object.keys(drafts);
     const kept: Record<string, any> = {};
     let dropped = 0;
     for (const id of ids) {
       // Convex ids are 32 chars; anything shorter is a stub that never made it.
-      if (!/^[a-z0-9]{32}$/.test(id)) { dropped++; continue; }
+      if (!/^[a-z0-9]{32}$/.test(id)) {
+        dropped++;
+        continue;
+      }
       const conv = await ctx.db.get(id as any);
       if (conv) kept[id] = drafts[id];
       else dropped++;

@@ -41,7 +41,9 @@ export interface CopyOptions {
  * COPYFILE_FICLONE asks for a reflink and silently writes bytes when the
  * filesystem has none, so it is safe on a non-APFS Mac volume too.
  */
-export function copyFileMode(platform: NodeJS.Platform = process.platform): number {
+export function copyFileMode(
+  platform: NodeJS.Platform = process.platform,
+): number {
   return platform === "darwin" ? fs.constants.COPYFILE_FICLONE : 0;
 }
 
@@ -58,7 +60,8 @@ export function copyFiles(
   toWorktree: string,
   opts: CopyOptions = {},
 ): CopyResult {
-  const log = opts.log ?? ((m: string) => console.warn(`[workspace.copy] ${m}`));
+  const log =
+    opts.log ?? ((m: string) => console.warn(`[workspace.copy] ${m}`));
   const result: CopyResult = {
     copied: [],
     skippedMissing: [],
@@ -126,7 +129,9 @@ function copyFileCloning(src: string, dest: string, mode: number): void {
 function copyDirRecursive(src: string, dest: string, mode = 0): void {
   if (typeof fs.cpSync !== "function") {
     // Older Node — shell out.
-    execSync(`cp -R ${JSON.stringify(src)} ${JSON.stringify(dest)}`, { stdio: "ignore" });
+    execSync(`cp -R ${JSON.stringify(src)} ${JSON.stringify(dest)}`, {
+      stdio: "ignore",
+    });
     return;
   }
   const opts = { recursive: true, dereference: false, mode };

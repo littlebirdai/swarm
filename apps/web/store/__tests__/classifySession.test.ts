@@ -52,7 +52,11 @@ describe("classifySession is a thin adapter over the shared classifier (no secon
       sess({ settle_verdict: "done" }),
       sess({ thread_state_status: "blocked", settle_verdict: "done" }),
       sess({ inbox_killed_at: 5, agent_status: "working", is_idle: false }),
-      sess({ pending_api_error: true, agent_status: "working", is_idle: false }),
+      sess({
+        pending_api_error: true,
+        agent_status: "working",
+        is_idle: false,
+      }),
     ]) {
       const c = classifySession(s);
       expect(c).toEqual(verdictOfWorkState(sharedWorkState(s)));
@@ -64,7 +68,14 @@ describe("classifySession is a thin adapter over the shared classifier (no secon
     // message_count 12, is_idle false, has_pending true, no status: the
     // legacy isSessionWaitingForInput read `canDeliver && has_pending` as
     // working; the shared rule files a dead daemon's queue as a hard block.
-    const c = classifySession(sess({ message_count: 12, is_idle: false, has_pending: true, is_unresponsive: true }));
+    const c = classifySession(
+      sess({
+        message_count: 12,
+        is_idle: false,
+        has_pending: true,
+        is_unresponsive: true,
+      }),
+    );
     expect(c).toEqual({ idle: true, waiting: true, rest: "needs_input" });
   });
 

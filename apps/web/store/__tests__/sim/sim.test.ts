@@ -15,7 +15,11 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const GROUPS: { dir: string; pattern: string; on: boolean }[] = [
-  { dir: "selftests", pattern: "*.selftest.ts", on: process.env.SIM_SELFTEST !== "0" },
+  {
+    dir: "selftests",
+    pattern: "*.selftest.ts",
+    on: process.env.SIM_SELFTEST !== "0",
+  },
   { dir: "scenarios", pattern: "*.scenario.ts", on: true },
 ];
 
@@ -39,6 +43,9 @@ for (const { dir, pattern, on } of GROUPS) {
 test(`sim files loaded: ${loaded.length ? loaded.join(", ") : "none"}`, () => {
   if (filter) return;
   for (const { dir, on } of GROUPS) {
-    if (on) expect(loaded.filter((f) => f.startsWith(`${dir}/`)).length).toBeGreaterThan(0);
+    if (on)
+      expect(
+        loaded.filter((f) => f.startsWith(`${dir}/`)).length,
+      ).toBeGreaterThan(0);
   }
 });

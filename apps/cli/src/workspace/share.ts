@@ -171,7 +171,10 @@ function pathExists(target: string): boolean {
 }
 
 /** The subset of `rels` git ignores in `repoRoot`. Empty when git can't say. */
-function gitIgnoredPaths(repoRoot: string, rels: readonly string[]): Set<string> {
+function gitIgnoredPaths(
+  repoRoot: string,
+  rels: readonly string[],
+): Set<string> {
   let out = "";
   try {
     out = execFileSync("git", ["check-ignore", "--stdin"], {

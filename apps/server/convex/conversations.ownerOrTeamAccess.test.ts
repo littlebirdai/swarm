@@ -14,24 +14,40 @@ const CONV = "conversations_1";
 
 function fixture() {
   return makeFakeDb({
-    conversations: [{
-      _id: CONV,
-      user_id: "users_primary",
-      is_private: true,
-      title: "Private session",
-      status: "active",
-    }],
-    session_owners: [{
-      _id: "session_owners_1",
-      conversation_id: CONV,
-      user_id: "users_second",
-      added_by: "users_primary",
-      added_at: 1,
-    }],
+    conversations: [
+      {
+        _id: CONV,
+        user_id: "users_primary",
+        is_private: true,
+        title: "Private session",
+        status: "active",
+      },
+    ],
+    session_owners: [
+      {
+        _id: "session_owners_1",
+        conversation_id: CONV,
+        user_id: "users_second",
+        added_by: "users_primary",
+        added_at: 1,
+      },
+    ],
     team_memberships: [],
     messages: [
-      { _id: "messages_1", conversation_id: CONV, timestamp: 10, role: "user", content: "hi" },
-      { _id: "messages_2", conversation_id: CONV, timestamp: 20, role: "assistant", content: "hello" },
+      {
+        _id: "messages_1",
+        conversation_id: CONV,
+        timestamp: 10,
+        role: "user",
+        content: "hi",
+      },
+      {
+        _id: "messages_2",
+        conversation_id: CONV,
+        timestamp: 20,
+        role: "assistant",
+        content: "hello",
+      },
     ],
   });
 }
@@ -48,7 +64,10 @@ describe("getMoreMessages — secondary session owner reads like an owner", () =
       { conversation_id: CONV, cursor: 0 },
     );
     expect(result).not.toBeNull();
-    expect(result.messages.map((m: any) => m._id)).toEqual(["messages_1", "messages_2"]);
+    expect(result.messages.map((m: any) => m._id)).toEqual([
+      "messages_1",
+      "messages_2",
+    ]);
   });
 
   test("the primary owner still gets the page", async () => {

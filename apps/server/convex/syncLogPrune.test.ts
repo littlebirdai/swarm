@@ -15,48 +15,103 @@ const OLD = CUTOFF - 1000;
 const YOUNG = CUTOFF + 1000;
 const SCOPE = "user:u1";
 
-function makeDb(rows: Array<{ position: number; ts: number }>, head: { position: number; floor?: number }) {
+function makeDb(
+  rows: Array<{ position: number; ts: number }>,
+  head: { position: number; floor?: number },
+) {
   const actions = new Map<string, any>();
   for (const r of rows) {
-    actions.set(`a:${r.position}`, { _id: `a:${r.position}`, scope_key: SCOPE, position: r.position, ts: r.ts, entity_type: "tasks", entity_id: `e${r.position}`, op: "upsert" });
+    actions.set(`a:${r.position}`, {
+      _id: `a:${r.position}`,
+      scope_key: SCOPE,
+      position: r.position,
+      ts: r.ts,
+      entity_type: "tasks",
+      entity_id: `e${r.position}`,
+      op: "upsert",
+    });
   }
-  const heads = new Map<string, any>([["h:1", { _id: "h:1", scope_key: SCOPE, position: head.position, floor: head.floor ?? 0 }]]);
+  const heads = new Map<string, any>([
+    [
+      "h:1",
+      {
+        _id: "h:1",
+        scope_key: SCOPE,
+        position: head.position,
+        floor: head.floor ?? 0,
+      },
+    ],
+  ]);
   const table = (t: string) => (t === "sync_actions" ? actions : heads);
   const db: any = {
-    async get(id: any) { return table(String(id).startsWith("a:") ? "sync_actions" : "sync_heads").get(String(id)) ?? null; },
+    async get(id: any) {
+      return (
+        table(String(id).startsWith("a:") ? "sync_actions" : "sync_heads").get(
+          String(id),
+        ) ?? null
+      );
+    },
     async patch(id: any, fields: any) {
-      const m = table(String(id).startsWith("a:") ? "sync_actions" : "sync_heads");
+      const m = table(
+        String(id).startsWith("a:") ? "sync_actions" : "sync_heads",
+      );
       const cur = m.get(String(id));
       if (cur) m.set(String(id), { ...cur, ...fields });
     },
-    async delete(id: any) { actions.delete(String(id)); },
+    async delete(id: any) {
+      actions.delete(String(id));
+    },
     query(t: string) {
       let rows = [...table(t).values()];
       const api: any = {
         withIndex(_n: string, fn: (q: any) => any) {
           const preds: Array<(r: any) => boolean> = [];
           const q: any = {
-            eq: (f: string, v: any) => { preds.push((r) => r[f] === v); return q; },
-            gt: (f: string, v: any) => { preds.push((r) => r[f] > v); return q; },
-            lt: (f: string, v: any) => { preds.push((r) => r[f] < v); return q; },
+            eq: (f: string, v: any) => {
+              preds.push((r) => r[f] === v);
+              return q;
+            },
+            gt: (f: string, v: any) => {
+              preds.push((r) => r[f] > v);
+              return q;
+            },
+            lt: (f: string, v: any) => {
+              preds.push((r) => r[f] < v);
+              return q;
+            },
           };
           fn(q);
           rows = rows.filter((r) => preds.every((p) => p(r)));
           return api;
         },
         order(dir?: string) {
-          rows = [...rows].sort((a, b) => (dir === "desc" ? b.position - a.position : a.position - b.position));
+          rows = [...rows].sort((a, b) =>
+            dir === "desc" ? b.position - a.position : a.position - b.position,
+          );
           return api;
         },
-        async first() { return rows[0] ?? null; },
-        async unique() { return rows[0] ?? null; },
-        async take(n: number) { return rows.slice(0, n); },
-        async collect() { return rows; },
+        async first() {
+          return rows[0] ?? null;
+        },
+        async unique() {
+          return rows[0] ?? null;
+        },
+        async take(n: number) {
+          return rows.slice(0, n);
+        },
+        async collect() {
+          return rows;
+        },
       };
       return api;
     },
   };
-  return { db, head: () => heads.get("h:1")!, positions: () => [...actions.values()].map((r) => r.position).sort((a, b) => a - b) };
+  return {
+    db,
+    head: () => heads.get("h:1")!,
+    positions: () =>
+      [...actions.values()].map((r) => r.position).sort((a, b) => a - b),
+  };
 }
 
 describe("pruneScope — floor branches", () => {
@@ -80,7 +135,13 @@ describe("pruneScope — floor branches", () => {
   });
 
   test("young oldest row: one probe, nothing pruned, floor untouched", async () => {
-    const { db, head, positions } = makeDb([{ position: 1, ts: YOUNG }, { position: 2, ts: OLD }], { position: 2 });
+    const { db, head, positions } = makeDb(
+      [
+        { position: 1, ts: YOUNG },
+        { position: 2, ts: OLD },
+      ],
+      { position: 2 },
+    );
     const r = await pruneScope(db, head(), CUTOFF, 100);
     expect(r.pruned).toBe(0);
     expect(head().floor).toBe(0);
@@ -90,7 +151,13 @@ describe("pruneScope — floor branches", () => {
   test("sawEnd: a fully old scope with holes advances the floor to the head", async () => {
     // Positions 1 and 2 are old; 3 is a hole left by a coalesced move whose
     // row (at 4) was itself pruned earlier — the head is 4.
-    const { db, head, positions } = makeDb([{ position: 1, ts: OLD }, { position: 2, ts: OLD }], { position: 4, floor: 0 });
+    const { db, head, positions } = makeDb(
+      [
+        { position: 1, ts: OLD },
+        { position: 2, ts: OLD },
+      ],
+      { position: 4, floor: 0 },
+    );
     const r = await pruneScope(db, head(), CUTOFF, 100);
     expect(r.pruned).toBe(2);
     expect(r.done).toBe(true);
@@ -104,7 +171,12 @@ describe("pruneScope — floor branches", () => {
 
   test("prefix walk stops at the first young row and floors at the last deleted position", async () => {
     const { db, head, positions } = makeDb(
-      [{ position: 1, ts: OLD }, { position: 2, ts: OLD }, { position: 3, ts: YOUNG }, { position: 4, ts: OLD }],
+      [
+        { position: 1, ts: OLD },
+        { position: 2, ts: OLD },
+        { position: 3, ts: YOUNG },
+        { position: 4, ts: OLD },
+      ],
       { position: 4 },
     );
     const r = await pruneScope(db, head(), CUTOFF, 100);
@@ -119,7 +191,12 @@ describe("pruneScope — floor branches", () => {
 
   test("partial prune (budget exhausted) floors at the last deleted row and leaves the rest readable", async () => {
     const { db, head, positions } = makeDb(
-      [{ position: 1, ts: OLD }, { position: 2, ts: OLD }, { position: 3, ts: OLD }, { position: 4, ts: YOUNG }],
+      [
+        { position: 1, ts: OLD },
+        { position: 2, ts: OLD },
+        { position: 3, ts: OLD },
+        { position: 4, ts: YOUNG },
+      ],
       { position: 4 },
     );
     const r = await pruneScope(db, head(), CUTOFF, 2);
@@ -136,38 +213,66 @@ describe("pruneScope — floor branches", () => {
     const r2 = await pruneScope(db, head(), CUTOFF, 100);
     expect(r2.pruned).toBe(1);
     expect(head().floor).toBe(3);
-    expect((await readRangePage(db, SCOPE, 3, 10)).actions.map((a) => a.position)).toEqual([4]);
+    expect(
+      (await readRangePage(db, SCOPE, 3, 10)).actions.map((a) => a.position),
+    ).toEqual([4]);
   });
 });
 
 describe("churn exemption — the projection's semantic fields ride the log", () => {
   test("armed_trigger_kind is not churn-only", () => {
-    expect(CHURN_ONLY_FIELDS.conversations.has("armed_trigger_kind")).toBe(false);
+    expect(CHURN_ONLY_FIELDS.conversations.has("armed_trigger_kind")).toBe(
+      false,
+    );
   });
 });
 
 describe("pruneScope — rows at or below the floor are dead regardless of age (review)", () => {
   test("a resync sweep's rows are reaped young, then the drained scope floors at head", async () => {
     // markResyncAll set floor = head + 1 = 4 over three young rows.
-    const { db, head, positions } = makeDb([{ position: 1, ts: YOUNG }, { position: 2, ts: YOUNG }, { position: 3, ts: YOUNG }], { position: 4, floor: 4 });
+    const { db, head, positions } = makeDb(
+      [
+        { position: 1, ts: YOUNG },
+        { position: 2, ts: YOUNG },
+        { position: 3, ts: YOUNG },
+      ],
+      { position: 4, floor: 4 },
+    );
     const r = await pruneScope(db, head(), CUTOFF, 100);
     expect(r).toEqual({ pruned: 3, budget: 97, done: true });
     expect(positions()).toEqual([]);
     expect(head().floor).toBe(4);
   });
   test("reaping respects the budget and re-enters the scope next run", async () => {
-    const { db, head, positions } = makeDb([{ position: 1, ts: YOUNG }, { position: 2, ts: YOUNG }, { position: 3, ts: YOUNG }], { position: 3, floor: 3 });
+    const { db, head, positions } = makeDb(
+      [
+        { position: 1, ts: YOUNG },
+        { position: 2, ts: YOUNG },
+        { position: 3, ts: YOUNG },
+      ],
+      { position: 3, floor: 3 },
+    );
     const r = await pruneScope(db, head(), CUTOFF, 2);
     expect(r.pruned).toBe(2);
     expect(r.done).toBe(false);
     expect(positions()).toHaveLength(1);
   });
   test("rows above the floor are untouched by the reap", async () => {
-    const { db, head, positions } = makeDb([{ position: 1, ts: YOUNG }, { position: 2, ts: YOUNG }], { position: 2, floor: 1 });
+    const { db, head, positions } = makeDb(
+      [
+        { position: 1, ts: YOUNG },
+        { position: 2, ts: YOUNG },
+      ],
+      { position: 2, floor: 1 },
+    );
     const r = await pruneScope(db, head(), CUTOFF, 100);
     expect(r.pruned).toBe(1);
     expect(positions()).toEqual([2]);
     expect(head().floor).toBe(1);
-    expect((await readRangePage(db, SCOPE, 1, 10)).actions.map((a: any) => a.position)).toEqual([2]);
+    expect(
+      (await readRangePage(db, SCOPE, 1, 10)).actions.map(
+        (a: any) => a.position,
+      ),
+    ).toEqual([2]);
   });
 });

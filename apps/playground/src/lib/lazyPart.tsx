@@ -5,9 +5,13 @@
 // more on a fresh mount and hold its fallback for 300ms.
 import { useEffect, useState, type ComponentType } from "react";
 
-export type LazyPart<P> = ComponentType<P> & { preload: () => Promise<unknown> };
+export type LazyPart<P> = ComponentType<P> & {
+  preload: () => Promise<unknown>;
+};
 
-export function lazyPart<P extends object>(load: () => Promise<ComponentType<P>>): LazyPart<P> {
+export function lazyPart<P extends object>(
+  load: () => Promise<ComponentType<P>>,
+): LazyPart<P> {
   let loaded: ComponentType<P> | null = null;
   let loading: Promise<ComponentType<P>> | null = null;
   const preload = () =>
@@ -22,7 +26,11 @@ export function lazyPart<P extends object>(load: () => Promise<ComponentType<P>>
   function Part(props: P) {
     const [Loaded, setLoaded] = useState(() => loaded);
     useEffect(() => {
-      if (!Loaded) preload().then((part) => setLoaded(() => part), () => {});
+      if (!Loaded)
+        preload().then(
+          (part) => setLoaded(() => part),
+          () => {},
+        );
     }, [Loaded]);
     return Loaded ? <Loaded {...props} /> : null;
   }

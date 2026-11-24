@@ -6,7 +6,10 @@ import { BOARD_ART_URLS } from "./boardArtUrls";
 
 describe("board illustrations", () => {
   test("every name has a file and a url, and every file has a name", () => {
-    const files = readdirSync(join(import.meta.dir, "art")).filter((f) => f.endsWith(".webp")).map((f) => f.slice(0, -5)).sort();
+    const files = readdirSync(join(import.meta.dir, "art"))
+      .filter((f) => f.endsWith(".webp"))
+      .map((f) => f.slice(0, -5))
+      .sort();
     expect(files).toEqual([...BOARD_ART].sort());
     expect(Object.keys(BOARD_ART_URLS).sort()).toEqual([...BOARD_ART].sort());
   });

@@ -5,7 +5,12 @@
 // scheduler. `now` is a parameter so a frame can be rebuilt at a captured
 // moment.
 import { SAFE_MODE_MANDATE } from "./agentLaunch.js";
-import { pendingEventsBlock, precheckMessageBlock, triggerLifecycleInstructions, runResultThreadOf } from "@codecast/shared/contracts";
+import {
+  pendingEventsBlock,
+  precheckMessageBlock,
+  triggerLifecycleInstructions,
+  runResultThreadOf,
+} from "@codecast/shared/contracts";
 
 export function buildTriggerFrame(task: any, now: number): string {
   const parts: string[] = [];
@@ -47,7 +52,9 @@ export function buildTriggerFrame(task: any, now: number): string {
     const convId = task.originating_conversation_id;
     // A session's short id is the first 7 chars of its Convex id: the handle
     // that resolves in `cast read` and renders as a session reference.
-    parts.push(`Context from originating session${convId ? ` (${convId.toString().slice(0, 7)})` : ""}:`);
+    parts.push(
+      `Context from originating session${convId ? ` (${convId.toString().slice(0, 7)})` : ""}:`,
+    );
     parts.push(task.context_summary);
   }
 
@@ -70,24 +77,42 @@ export function buildTriggerFrame(task: any, now: number): string {
     parts.push(`- ${SAFE_MODE_MANDATE}`);
   }
   if (runResultThreadOf(task)) {
-    parts.push(`- Your summary will be posted as a message in the originating conversation thread.`);
-    parts.push(`- When done, run: cast trigger complete ${handle} --summary - <<'EOF'   (your full response to post in the thread on the lines after it, then EOF alone on a line)`);
-    parts.push(`- Write the summary as if you are replying directly to the user in their conversation.`);
+    parts.push(
+      `- Your summary will be posted as a message in the originating conversation thread.`,
+    );
+    parts.push(
+      `- When done, run: cast trigger complete ${handle} --summary - <<'EOF'   (your full response to post in the thread on the lines after it, then EOF alone on a line)`,
+    );
+    parts.push(
+      `- Write the summary as if you are replying directly to the user in their conversation.`,
+    );
   } else {
-    parts.push(`- When done, run: cast trigger complete ${handle} --summary - <<'EOF'   (what was done on the lines after it, then EOF alone on a line)`);
+    parts.push(
+      `- When done, run: cast trigger complete ${handle} --summary - <<'EOF'   (what was done on the lines after it, then EOF alone on a line)`,
+    );
   }
   // Only when a real short id exists: telling an agent to quote a 32-char id
   // and to never paste one in the same breath would be nonsense.
   if (task.short_id) {
-    parts.push(`- Refer to this trigger as ${task.short_id} in anything you write — that renders as a rich trigger reference. Never paste its 32-char id into prose.`);
+    parts.push(
+      `- Refer to this trigger as ${task.short_id} in anything you write — that renders as a rich trigger reference. Never paste its 32-char id into prose.`,
+    );
   }
-  parts.push(`- To look again later (a check that is not ready yet), add --again-in 30m (or --again-at 06:00) to the completion: the trigger fires once more then. A running trigger cannot be rescheduled with cast trigger update.`);
-  parts.push(`- The completion is this run's declaration of who acts next. A clean one says nobody: the run stays out of the user's inbox and the summary carries the outcome. If a human must act, add --needs-attention: for a spawned worker this wakes its parent, which handles the ask. The worker stays nested under that parent; do not create an independent inbox thread.`);
+  parts.push(
+    `- To look again later (a check that is not ready yet), add --again-in 30m (or --again-at 06:00) to the completion: the trigger fires once more then. A running trigger cannot be rescheduled with cast trigger update.`,
+  );
+  parts.push(
+    `- The completion is this run's declaration of who acts next. A clean one says nobody: the run stays out of the user's inbox and the summary carries the outcome. If a human must act, add --needs-attention: for a spawned worker this wakes its parent, which handles the ask. The worker stays nested under that parent; do not create an independent inbox thread.`,
+  );
   const lifecycle = triggerLifecycleInstructions(task);
   if (lifecycle) parts.push(lifecycle);
-  parts.push('- To set a follow-up trigger: cast trigger add "..." --in <time>');
+  parts.push(
+    '- To set a follow-up trigger: cast trigger add "..." --in <time>',
+  );
   if (task.originating_conversation_id) {
-    parts.push(`- Run \`cast read ${task.originating_conversation_id.toString().slice(0, 7)}\` for full original context`);
+    parts.push(
+      `- Run \`cast read ${task.originating_conversation_id.toString().slice(0, 7)}\` for full original context`,
+    );
   }
 
   return parts.join("\n");

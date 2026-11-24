@@ -4,7 +4,11 @@ const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 const { createEditUndo, APP_EDIT_COMMAND } = require("./editUndo");
 
-function fakeContents({ editable = false, shell = true, probeThrows = false } = {}) {
+function fakeContents({
+  editable = false,
+  shell = true,
+  probeThrows = false,
+} = {}) {
   const wc = new EventEmitter();
   wc.calls = [];
   wc.shell = shell;
@@ -20,20 +24,31 @@ function fakeContents({ editable = false, shell = true, probeThrows = false } = 
 }
 
 function setup(wc, keyRunsApp) {
-  const edit = createEditUndo({ focusedContents: () => wc, isShell: (c) => c.shell, keyRunsApp });
+  const edit = createEditUndo({
+    focusedContents: () => wc,
+    isShell: (c) => c.shell,
+    keyRunsApp,
+  });
   edit.observe(wc);
   return edit;
 }
 
 const key = (wc, { repeat = false, key = "z", meta = true } = {}) =>
-  wc.emit("before-input-event", {}, { type: "keyDown", key, meta, control: false, isAutoRepeat: repeat });
+  wc.emit(
+    "before-input-event",
+    {},
+    { type: "keyDown", key, meta, control: false, isAutoRepeat: repeat },
+  );
 
 test("outside a text field, Undo and Redo go to the web app", async () => {
   const wc = fakeContents();
   const edit = setup(wc);
   assert.equal(await edit.run("undo", true), "app");
   assert.equal(await edit.run("redo", true), "app");
-  assert.deepEqual(wc.calls, [`${APP_EDIT_COMMAND}:undo`, `${APP_EDIT_COMMAND}:redo`]);
+  assert.deepEqual(wc.calls, [
+    `${APP_EDIT_COMMAND}:undo`,
+    `${APP_EDIT_COMMAND}:redo`,
+  ]);
 });
 
 test("a focused text field keeps its own undo", async () => {
@@ -71,7 +86,10 @@ test("holding the key is one app undo, while text undo still repeats", async () 
   // A fresh press steps again.
   key(wc);
   assert.equal(await edit.run("undo", true), "app");
-  assert.equal(wc.calls.filter((c) => c.startsWith(APP_EDIT_COMMAND)).length, 3);
+  assert.equal(
+    wc.calls.filter((c) => c.startsWith(APP_EDIT_COMMAND)).length,
+    3,
+  );
 
   const field = fakeContents({ editable: true });
   const fieldEdit = setup(field);
@@ -87,7 +105,17 @@ test("the repeat flag only follows the edit chords", async () => {
   assert.equal(await edit.run("undo", true), "repeat");
   key(wc, { key: "y", meta: false, repeat: false });
   // Ctrl+Y counts too (off mac it is redo).
-  wc.emit("before-input-event", {}, { type: "keyDown", key: "y", meta: false, control: true, isAutoRepeat: false });
+  wc.emit(
+    "before-input-event",
+    {},
+    {
+      type: "keyDown",
+      key: "y",
+      meta: false,
+      control: true,
+      isAutoRepeat: false,
+    },
+  );
   assert.equal(await edit.run("redo", true), "app");
 });
 
@@ -101,11 +129,17 @@ test("the menu items carry the accelerators and route through run", async () => 
   undo.click({}, null, { triggeredByAccelerator: true });
   redo.click({}, null, {});
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(wc.calls, [`${APP_EDIT_COMMAND}:undo`, `${APP_EDIT_COMMAND}:redo`]);
+  assert.deepEqual(wc.calls, [
+    `${APP_EDIT_COMMAND}:undo`,
+    `${APP_EDIT_COMMAND}:redo`,
+  ]);
 });
 
 test("nothing focused does nothing", async () => {
-  const edit = createEditUndo({ focusedContents: () => null, isShell: () => true });
+  const edit = createEditUndo({
+    focusedContents: () => null,
+    isShell: () => true,
+  });
   assert.equal(await edit.run("undo", true), "none");
 });
 

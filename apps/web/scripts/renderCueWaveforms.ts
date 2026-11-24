@@ -17,7 +17,12 @@ import { join } from "node:path";
 import { cueDuration, cuePeak, renderCue } from "../lib/cueRender";
 import type { CueSpec } from "../lib/cueSpec";
 import {
-  WALKIE_AWAY, WALKIE_JOINED, WALKIE_KEY_UP, WALKIE_OPEN, WALKIE_ROGER, WALKIE_SQUELCH,
+  WALKIE_AWAY,
+  WALKIE_JOINED,
+  WALKIE_KEY_UP,
+  WALKIE_OPEN,
+  WALKIE_ROGER,
+  WALKIE_SQUELCH,
 } from "../lib/cueSpec";
 
 // ── a bitmap of RGB pixels, and the few marks we make on it ───────────────
@@ -33,7 +38,11 @@ const COOL: Rgb = [42, 161, 152];
 
 class Bitmap {
   data: Uint8Array;
-  constructor(readonly w: number, readonly h: number, fill: Rgb) {
+  constructor(
+    readonly w: number,
+    readonly h: number,
+    fill: Rgb,
+  ) {
     this.data = new Uint8Array(w * h * 3);
     for (let i = 0; i < w * h; i++) this.data.set(fill, i * 3);
   }
@@ -45,7 +54,8 @@ class Bitmap {
     for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) this.px(x, y, c);
   }
   hline(y: number, x0: number, x1: number, c: Rgb, dash = 0) {
-    for (let x = x0; x <= x1; x++) if (!dash || Math.floor(x / dash) % 2 === 0) this.px(x, y, c);
+    for (let x = x0; x <= x1; x++)
+      if (!dash || Math.floor(x / dash) % 2 === 0) this.px(x, y, c);
   }
 }
 
@@ -94,7 +104,14 @@ const GLYPHS: Record<string, string[]> = {
   " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
 };
 
-function text(bmp: Bitmap, s: string, x0: number, y0: number, c: Rgb, scale = 1) {
+function text(
+  bmp: Bitmap,
+  s: string,
+  x0: number,
+  y0: number,
+  c: Rgb,
+  scale = 1,
+) {
   let x = x0;
   for (const ch of s.toUpperCase()) {
     const g = GLYPHS[ch] ?? GLYPHS[" "];
@@ -102,7 +119,8 @@ function text(bmp: Bitmap, s: string, x0: number, y0: number, c: Rgb, scale = 1)
       for (let col = 0; col < 5; col++) {
         if (g[r][col] !== "#") continue;
         for (let dy = 0; dy < scale; dy++) {
-          for (let dx = 0; dx < scale; dx++) bmp.px(x + col * scale + dx, y0 + r * scale + dy, c);
+          for (let dx = 0; dx < scale; dx++)
+            bmp.px(x + col * scale + dx, y0 + r * scale + dy, c);
         }
       }
     }
@@ -124,7 +142,8 @@ const CRC_TABLE = (() => {
 
 function crc32(buf: Uint8Array): number {
   let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  for (let i = 0; i < buf.length; i++)
+    c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 
@@ -165,7 +184,10 @@ function encodePng(bmp: Bitmap): Uint8Array {
   ];
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
-  for (const p of parts) { out.set(p, at); at += p.length; }
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
   return out;
 }
 
@@ -179,28 +201,77 @@ const RING_PEAK = 0.0458;
 /** The longest cue, so the time axis is shared too and a short cue looks short. */
 const FULL_SECONDS = 0.32;
 
-const CUES: Array<{ name: string; spec: CueSpec; side: "send" | "receive"; says: string }> = [
-  { name: "joined", spec: WALKIE_JOINED, side: "send", says: "THEY STEPPED IN - A CALL NOW" },
-  { name: "keyup", spec: WALKIE_KEY_UP, side: "send", says: "YOUR MIC IS OPEN - SPEAK" },
+const CUES: Array<{
+  name: string;
+  spec: CueSpec;
+  side: "send" | "receive";
+  says: string;
+}> = [
+  {
+    name: "joined",
+    spec: WALKIE_JOINED,
+    side: "send",
+    says: "THEY STEPPED IN - A CALL NOW",
+  },
+  {
+    name: "keyup",
+    spec: WALKIE_KEY_UP,
+    side: "send",
+    says: "YOUR MIC IS OPEN - SPEAK",
+  },
   { name: "roger", spec: WALKIE_ROGER, side: "send", says: "CLOSED AND SENT" },
-  { name: "open", spec: WALKIE_OPEN, side: "receive", says: "A BURST IS ARRIVING" },
-  { name: "away", spec: WALKIE_AWAY, side: "send", says: "NOBODY LIVE - GOES AS A MESSAGE" },
-  { name: "squelch", spec: WALKIE_SQUELCH, side: "receive", says: "THAT BURST ENDED" },
+  {
+    name: "open",
+    spec: WALKIE_OPEN,
+    side: "receive",
+    says: "A BURST IS ARRIVING",
+  },
+  {
+    name: "away",
+    spec: WALKIE_AWAY,
+    side: "send",
+    says: "NOBODY LIVE - GOES AS A MESSAGE",
+  },
+  {
+    name: "squelch",
+    spec: WALKIE_SQUELCH,
+    side: "receive",
+    says: "THAT BURST ENDED",
+  },
 ];
 
-function drawLane(bmp: Bitmap, spec: CueSpec, colour: Rgb, x0: number, y0: number, w: number, h: number) {
+function drawLane(
+  bmp: Bitmap,
+  spec: CueSpec,
+  colour: Rgb,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+) {
   const mid = y0 + Math.floor(h / 2);
   const samples = renderCue(spec);
   const perColumn = (FULL_SECONDS * 48_000) / w;
 
   bmp.hline(mid, x0, x0 + w, GRID);
   for (const level of [RING_PEAK, -RING_PEAK]) {
-    bmp.hline(mid - Math.round((level / FULL_SCALE) * (h / 2)), x0, x0 + w, DIM, 4);
+    bmp.hline(
+      mid - Math.round((level / FULL_SCALE) * (h / 2)),
+      x0,
+      x0 + w,
+      DIM,
+      4,
+    );
   }
 
   for (let x = 0; x < w; x++) {
-    let lo = 0, hi = 0;
-    for (let i = Math.floor(x * perColumn); i < Math.floor((x + 1) * perColumn); i++) {
+    let lo = 0,
+      hi = 0;
+    for (
+      let i = Math.floor(x * perColumn);
+      i < Math.floor((x + 1) * perColumn);
+      i++
+    ) {
       const v = samples[i] ?? 0;
       if (v < lo) lo = v;
       if (v > hi) hi = v;
@@ -219,7 +290,14 @@ function single(cue: (typeof CUES)[number]): Bitmap {
   text(bmp, label(cue.name, cue.spec), 20, 18, colour, 2);
   text(bmp, cue.says, 20, 44, TEXT, 1);
   drawLane(bmp, cue.spec, colour, 20, 66, 720, 130);
-  text(bmp, `DASHED - SOUNDCALLRING PEAK ${RING_PEAK.toFixed(4)}   FULL HEIGHT ${FULL_SCALE.toFixed(2)}   0 TO ${Math.round(FULL_SECONDS * 1000)} MS`, 20, 208, DIM, 1);
+  text(
+    bmp,
+    `DASHED - SOUNDCALLRING PEAK ${RING_PEAK.toFixed(4)}   FULL HEIGHT ${FULL_SCALE.toFixed(2)}   0 TO ${Math.round(FULL_SECONDS * 1000)} MS`,
+    20,
+    208,
+    DIM,
+    1,
+  );
   return bmp;
 }
 
@@ -233,7 +311,14 @@ function combined(): Bitmap {
     text(bmp, label(cue.name, cue.spec), 20, y + 2, colour, 1);
     drawLane(bmp, cue.spec, colour, 20, y + 12, 720, 56);
   });
-  text(bmp, `WARM - YOUR OWN BURST   COOL - A TEAMMATES   DASHED - SOUNDCALLRING PEAK ${RING_PEAK.toFixed(4)}`, 20, 44 + CUES.length * laneH + 8, DIM, 1);
+  text(
+    bmp,
+    `WARM - YOUR OWN BURST   COOL - A TEAMMATES   DASHED - SOUNDCALLRING PEAK ${RING_PEAK.toFixed(4)}`,
+    20,
+    44 + CUES.length * laneH + 8,
+    DIM,
+    1,
+  );
   return bmp;
 }
 

@@ -12,7 +12,11 @@ export function remarkEmojiShortcodes() {
   return (tree: any) => {
     const walk = (node: any) => {
       if (!node || node.type === "link") return;
-      if (node.type === "text" && typeof node.value === "string" && node.value.includes(":")) {
+      if (
+        node.type === "text" &&
+        typeof node.value === "string" &&
+        node.value.includes(":")
+      ) {
         node.value = replaceShortcodes(node.value);
       }
       if (Array.isArray(node.children)) node.children.forEach(walk);

@@ -12,7 +12,15 @@ describe("removeRoute", () => {
     started_by: "ua",
     status: "live",
     started_at: 1_000,
-    routes: [{ kind: "session", target: "conv1", mode: "live", sent_seq: 0, added_by: "ua" }],
+    routes: [
+      {
+        kind: "session",
+        target: "conv1",
+        mode: "live",
+        sent_seq: 0,
+        added_by: "ua",
+      },
+    ],
     last_seq: 0,
     ...over,
   });
@@ -29,10 +37,19 @@ describe("removeRoute", () => {
       call_invites: [],
       conversations: [],
     }),
-    auth: { async getUserIdentity() { return { subject: `${as}|session` }; } },
+    auth: {
+      async getUserIdentity() {
+        return { subject: `${as}|session` };
+      },
+    },
     scheduler: { async runAfter() {} },
   });
-  const remove = (c: any) => (removeRoute as any)._handler(c, { transcript_id: "t1", kind: "session", target: "conv1" });
+  const remove = (c: any) =>
+    (removeRoute as any)._handler(c, {
+      transcript_id: "t1",
+      kind: "session",
+      target: "conv1",
+    });
   const routesAfter = async (c: any) => (await c.db.get("t1")).routes;
 
   test("someone else in the huddle can remove an agent they did not add", async () => {
@@ -46,7 +63,9 @@ describe("removeRoute", () => {
   });
 
   test("after the huddle ends only the scribe or the adder can", async () => {
-    await expect(remove(ctx("ub", live({ status: "ended" })))).rejects.toThrow("Not your route");
+    await expect(remove(ctx("ub", live({ status: "ended" })))).rejects.toThrow(
+      "Not your route",
+    );
     const c = ctx("ua", live({ status: "ended" }));
     await remove(c);
     expect(await routesAfter(c)).toEqual([]);

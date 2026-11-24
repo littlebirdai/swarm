@@ -3,7 +3,8 @@
 // proves the caller with it, so a visitor id alone (which appears on every
 // message and presence row) grants nothing.
 
-const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const TOKEN_ALPHABET =
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 export const SECRET_LENGTH = 32; // ~190 bits
 
@@ -14,7 +15,8 @@ export function randomToken(length: number, alphabet = TOKEN_ALPHABET): string {
   let out = "";
   while (out.length < length) {
     for (const b of crypto.getRandomValues(new Uint8Array(length * 2))) {
-      if (b < limit && out.length < length) out += alphabet[b % alphabet.length];
+      if (b < limit && out.length < length)
+        out += alphabet[b % alphabet.length];
     }
   }
   return out;
@@ -26,24 +28,42 @@ export function newSecret(): string {
 
 /** SHA-256 as lowercase hex; strings hash as UTF-8. */
 export async function sha256Hex(input: string | Uint8Array): Promise<string> {
-  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>));
+  const bytes =
+    typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>),
+  );
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Shape first, so junk never reaches the hash. */
 export function isSecretShaped(secret: unknown): secret is string {
-  return typeof secret === "string" && secret.length === SECRET_LENGTH && /^[A-Za-z0-9]+$/.test(secret);
+  return (
+    typeof secret === "string" &&
+    secret.length === SECRET_LENGTH &&
+    /^[A-Za-z0-9]+$/.test(secret)
+  );
 }
 
-export async function secretMatches(secretHash: string, secret: unknown): Promise<boolean> {
+export async function secretMatches(
+  secretHash: string,
+  secret: unknown,
+): Promise<boolean> {
   return isSecretShaped(secret) && (await sha256Hex(secret)) === secretHash;
 }
 
 async function hmacSha256Hex(key: string, message: string): Promise<string> {
   const enc = new TextEncoder();
-  const k = await crypto.subtle.importKey("raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(message)));
+  const k = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = new Uint8Array(
+    await crypto.subtle.sign("HMAC", k, enc.encode(message)),
+  );
   return Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -69,24 +89,52 @@ export const RUNTIME_TOKEN_RENEW_MS = 10 * 60_000;
  *  leading "w" for watching. */
 export type TokenScope = "use" | "watch";
 
-export async function runtimeToken(secretHash: string, appId: string, version: number, expires: number, scope: TokenScope = "use"): Promise<string> {
+export async function runtimeToken(
+  secretHash: string,
+  appId: string,
+  version: number,
+  expires: number,
+  scope: TokenScope = "use",
+): Promise<string> {
   const domain = scope === "watch" ? "watch" : "runtime";
   return `${scope === "watch" ? "w" : ""}${version}.${expires}.${await hmacSha256Hex(secretHash, `${domain}:${appId}:${version}:${expires}`)}`;
 }
 
 /** The shell's side: a fresh runtime token for a secret it holds. */
-export async function runtimeTokenForSecret(secret: string, appId: string, version: number, now = Date.now(), scope: TokenScope = "use"): Promise<string> {
-  return runtimeToken(await sha256Hex(secret), appId, version, now + RUNTIME_TOKEN_TTL_MS, scope);
+export async function runtimeTokenForSecret(
+  secret: string,
+  appId: string,
+  version: number,
+  now = Date.now(),
+  scope: TokenScope = "use",
+): Promise<string> {
+  return runtimeToken(
+    await sha256Hex(secret),
+    appId,
+    version,
+    now + RUNTIME_TOKEN_TTL_MS,
+    scope,
+  );
 }
 
 /** What a live runtime token for this visitor and app allows, or null. */
-export async function runtimeTokenScope(secretHash: string, appId: string, token: string, now: number): Promise<TokenScope | null> {
+export async function runtimeTokenScope(
+  secretHash: string,
+  appId: string,
+  token: string,
+  now: number,
+): Promise<TokenScope | null> {
   const m = /^(w?)(\d{1,6})\.(\d{13})\.[0-9a-f]{64}$/.exec(token);
   if (!m) return null;
   const expires = Number(m[3]);
   if (expires <= now || expires > now + RUNTIME_TOKEN_TTL_MS) return null;
   const scope: TokenScope = m[1] ? "watch" : "use";
-  return sameToken(await runtimeToken(secretHash, appId, Number(m[2]), expires, scope), token) ? scope : null;
+  return sameToken(
+    await runtimeToken(secretHash, appId, Number(m[2]), expires, scope),
+    token,
+  )
+    ? scope
+    : null;
 }
 
 /** Constant-time string comparison, for comparing tokens. */

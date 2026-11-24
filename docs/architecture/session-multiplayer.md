@@ -6,11 +6,11 @@ Two or more people in one session see each other's words before they land, send 
 
 One row per person, written by `docSync.updatePresence` only while someone else is present (`hooks/useDocPresence.ts`; a link collaborator always announces). Besides `draft_text` the row now carries:
 
-| field | written by | read by |
-|---|---|---|
-| `user_image` | server, from the user | faces everywhere (`PresenceAvatar`) |
-| `can_send` | server, `canSendProductMessage` (the same gate a send checks) | ghost drafts: `false` makes the draft a suggestion |
-| `anchor` `{message_id, offset}` | the client, at most twice a second, only when `hasCoPresent` | `ReadingMarks` in the scroll gutter |
+| field                                 | written by                                                         | read by                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `user_image`                          | server, from the user                                              | faces everywhere (`PresenceAvatar`)                                                         |
+| `can_send`                            | server, `canSendProductMessage` (the same gate a send checks)      | ghost drafts: `false` makes the draft a suggestion                                          |
+| `anchor` `{message_id, offset}`       | the client, at most twice a second, only when `hasCoPresent`       | `ReadingMarks` in the scroll gutter                                                         |
 | `claims` `[{user_id, text, at, how}]` | `docSync.claimDrafts` by whoever sent or took someone else's draft | that author's composer clears the claimed words and says who took them (`useJointComposer`) |
 
 Surfaces reading presence: `CollabPresenceBar` (one-line strip, "Send together" button), `GhostDrafts` (each other person's full draft at the transcript tail, with accept buttons on suggestions), `ReadingMarks`. Only `useComposerPresence` broadcasts; the others use the read-only `usePresenceRows`.

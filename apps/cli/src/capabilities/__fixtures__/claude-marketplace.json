@@ -77,9 +77,7 @@
       "lspServers": {
         "typescript": {
           "command": "typescript-language-server",
-          "args": [
-            "--stdio"
-          ],
+          "args": ["--stdio"],
           "extensionToLanguage": {
             ".ts": "typescript",
             ".tsx": "typescriptreact",
@@ -127,9 +125,7 @@
         "sha": "b15ca449a81278b1c92666bdf9a2e57a817dcacd"
       },
       "homepage": "https://github.com/BrainBlend-AI/atomic-agents",
-      "tags": [
-        "community-managed"
-      ]
+      "tags": ["community-managed"]
     },
     {
       "name": "box",

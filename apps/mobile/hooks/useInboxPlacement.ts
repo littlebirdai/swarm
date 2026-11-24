@@ -1,9 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import {
-  useInboxStore, placeInboxRows, sessionsWakeSig, pendingSendWakeSig, resolveShowOld,
+  useInboxStore,
+  placeInboxRows,
+  sessionsWakeSig,
+  pendingSendWakeSig,
+  resolveShowOld,
   teamInboxIdsOf,
-} from '@codecast/web/store/inboxStore';
-import { useCoarseNow } from '@codecast/web/hooks/useCoarseNow';
+} from "@codecast/web/store/inboxStore";
+import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 
 /** The inbox's rows as the shared chokepoint places them (store
  *  placeInboxRows): the exact computation web runs, so the inbox, its
@@ -18,24 +22,53 @@ import { useCoarseNow } from '@codecast/web/hooks/useCoarseNow';
  *  times are time-driven, so a coarse clock re-runs it too. */
 export function useInboxPlacement() {
   const sessionsSig = useInboxStore((s) => sessionsWakeSig(s.sessions));
-  const pendingSendSig = useInboxStore((s) => pendingSendWakeSig(s.pendingMessages));
+  const pendingSendSig = useInboxStore((s) =>
+    pendingSendWakeSig(s.pendingMessages),
+  );
   const coarseNow = useCoarseNow(15_000);
   const currentSessionId = useInboxStore((s) => s.currentSessionId);
   const pendingSessionCreates = useInboxStore((s) => s.pendingSessionCreates);
-  const sessionsWithQueuedMessages = useInboxStore((s) => s.sessionsWithQueuedMessages);
+  const sessionsWithQueuedMessages = useInboxStore(
+    (s) => s.sessionsWithQueuedMessages,
+  );
   // Same synced per-user flag web reads (clientState.ui.inbox_show_old), so
   // the phone and desktop hide the same old rows.
   const showOld = useInboxStore((s) => resolveShowOld(s.clientState.ui));
   // Scope pre-filter before the old-session partition, like web: the
   // never-prune cache holds rows from other inbox scopes and teams.
-  const inboxScope = useInboxStore((s) => s.clientState.ui?.inbox_scope ?? "mine");
+  const inboxScope = useInboxStore(
+    (s) => s.clientState.ui?.inbox_scope ?? "mine",
+  );
   const teamInboxIds = useInboxStore(teamInboxIdsOf);
   const meId = useInboxStore((s) => s.currentUser?._id?.toString?.() ?? null);
   const livenessHeldAt = useInboxStore((s) => s.livenessHeldAt);
   const placed = useMemo(
-    () => placeInboxRows(useInboxStore.getState(), { focusedId: currentSessionId, now: coarseNow }),
+    () =>
+      placeInboxRows(useInboxStore.getState(), {
+        focusedId: currentSessionId,
+        now: coarseNow,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sessionsSig/pendingSendSig stand in for the churny refs; coarseNow drives the deadline signature
-    [sessionsSig, pendingSendSig, inboxScope, meId, teamInboxIds, showOld, currentSessionId, pendingSessionCreates, sessionsWithQueuedMessages, coarseNow, livenessHeldAt],
+    [
+      sessionsSig,
+      pendingSendSig,
+      inboxScope,
+      meId,
+      teamInboxIds,
+      showOld,
+      currentSessionId,
+      pendingSessionCreates,
+      sessionsWithQueuedMessages,
+      coarseNow,
+      livenessHeldAt,
+    ],
   );
-  return { placed, sessionsSig, pendingSendSig, coarseNow, currentSessionId, sessionsWithQueuedMessages };
+  return {
+    placed,
+    sessionsSig,
+    pendingSendSig,
+    coarseNow,
+    currentSessionId,
+    sessionsWithQueuedMessages,
+  };
 }

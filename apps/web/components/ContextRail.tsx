@@ -18,9 +18,18 @@ export function ContextRail({ children }: { children: ReactNode }) {
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   return (
     <RailBody.Provider value={slot}>
-      <div data-cc-context-row className="flex-shrink-0 border-b border-sol-border/30 bg-sol-bg-alt/20 [&:not(:has([data-cc-rail-item]))]:hidden">
-        <div className="flex items-center gap-1.5 px-3 py-1 overflow-x-auto cq-no-scrollbar">{children}</div>
-        <div ref={setSlot} data-cc-context-body className="empty:hidden border-t border-sol-border/20" />
+      <div
+        data-cc-context-row
+        className="flex-shrink-0 border-b border-sol-border/30 bg-sol-bg-alt/20 [&:not(:has([data-cc-rail-item]))]:hidden"
+      >
+        <div className="flex items-center gap-1.5 px-3 py-1 overflow-x-auto cq-no-scrollbar">
+          {children}
+        </div>
+        <div
+          ref={setSlot}
+          data-cc-context-body
+          className="empty:hidden border-t border-sol-border/20"
+        />
       </div>
     </RailBody.Provider>
   );
@@ -29,9 +38,16 @@ export function ContextRail({ children }: { children: ReactNode }) {
 /** Detail for a rail item: below the row when inside a rail, in place
  *  otherwise. Carries the item's own data attributes along, so a rule that
  *  hides the item (minimal style) hides its detail too. */
-export function RailDetail({ children, ...attrs }: { children: ReactNode } & Record<`data-${string}`, string | undefined>) {
+export function RailDetail({
+  children,
+  ...attrs
+}: { children: ReactNode } & Record<`data-${string}`, string | undefined>) {
   const slot = useContext(RailBody);
-  const body = <div {...attrs} className="min-w-0">{children}</div>;
+  const body = (
+    <div {...attrs} className="min-w-0">
+      {children}
+    </div>
+  );
   if (slot === undefined) return body;
   return slot ? createPortal(body, slot) : null;
 }
@@ -51,13 +67,26 @@ export function railChipClass(open: boolean, extra = "") {
 }
 
 /** Done of total as a bar and a count: the same numbers on every chip. */
-export function RailProgress({ done, total, bar }: { done: number; total: number; bar: string }) {
+export function RailProgress({
+  done,
+  total,
+  bar,
+}: {
+  done: number;
+  total: number;
+  bar: string;
+}) {
   return (
     <>
       <span className="w-10 h-1 rounded-full bg-sol-bg-highlight overflow-hidden flex-shrink-0">
-        <span className={`block h-full rounded-full ${bar} transition-all`} style={{ width: total > 0 ? `${(done / total) * 100}%` : "0%" }} />
+        <span
+          className={`block h-full rounded-full ${bar} transition-all`}
+          style={{ width: total > 0 ? `${(done / total) * 100}%` : "0%" }}
+        />
       </span>
-      <span className="text-sol-text-dim tabular-nums flex-shrink-0">{done}/{total}</span>
+      <span className="text-sol-text-dim tabular-nums flex-shrink-0">
+        {done}/{total}
+      </span>
     </>
   );
 }
@@ -79,7 +108,14 @@ export function RailChip({
   children: ReactNode;
 } & Record<`data-${string}`, string | undefined>) {
   return (
-    <button type="button" {...attrs} aria-expanded={open} onClick={onToggle} title={title} className={railChipClass(open, floor)}>
+    <button
+      type="button"
+      {...attrs}
+      aria-expanded={open}
+      onClick={onToggle}
+      title={title}
+      className={railChipClass(open, floor)}
+    >
       {children}
     </button>
   );

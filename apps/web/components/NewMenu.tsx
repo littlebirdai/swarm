@@ -8,14 +8,23 @@
 import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, SquarePen } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { KeyCap } from "./KeyCap";
 import { TopbarButton } from "./TopbarButton";
 import { inAppCreateEnv, useCreateKinds } from "../hooks/useCreateKinds";
 import { modernButton } from "./ui/modernLook";
 
 /** `compact`: the phone bar's icon button, where the pill has no room. */
-export const NewMenu = memo(function NewMenu({ compact = false }: { compact?: boolean }) {
+export const NewMenu = memo(function NewMenu({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const kinds = useCreateKinds().filter((k) => !k.variant);
@@ -31,15 +40,18 @@ export const NewMenu = memo(function NewMenu({ compact = false }: { compact?: bo
             <SquarePen />
           </TopbarButton>
         ) : (
-        <button
-          type="button"
-          aria-label="New"
-          className={`group flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-sol-bg-alt pl-2.5 pr-2 text-[13px] text-sol-text transition-colors hover:bg-sol-bg-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-cyan/60 data-[state=open]:bg-sol-bg-highlight ${modernButton({ variant: "outline", size: "sm" }, "modern:pl-2 modern:pr-1.5 modern:data-[state=open]:bg-sol-bg-alt")}`}
-        >
-          <SquarePen className="h-3.5 w-3.5 text-sol-cyan" strokeWidth={1.75} />
-          New
-          <ChevronDown className="h-3 w-3 text-sol-text-dim transition-transform duration-150 group-data-[state=open]:rotate-180" />
-        </button>
+          <button
+            type="button"
+            aria-label="New"
+            className={`group flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-sol-bg-alt pl-2.5 pr-2 text-[13px] text-sol-text transition-colors hover:bg-sol-bg-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-cyan/60 data-[state=open]:bg-sol-bg-highlight ${modernButton({ variant: "outline", size: "sm" }, "modern:pl-2 modern:pr-1.5 modern:data-[state=open]:bg-sol-bg-alt")}`}
+          >
+            <SquarePen
+              className="h-3.5 w-3.5 text-sol-cyan"
+              strokeWidth={1.75}
+            />
+            New
+            <ChevronDown className="h-3 w-3 text-sol-text-dim transition-transform duration-150 group-data-[state=open]:rotate-180" />
+          </button>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent

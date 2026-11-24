@@ -26,7 +26,8 @@ export interface CliFetchOptions {
 
 export const DEFAULT_CLI_TIMEOUT_MS = 45_000;
 
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
  * A Convex write that lost an optimistic-concurrency race on every server
@@ -36,7 +37,9 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  */
 export function isWriteConflict(err: unknown): boolean {
   const text = err instanceof Error ? err.message : String(err);
-  return /OptimisticConcurrencyControlFailure|changed while this mutation was being run/.test(text);
+  return /OptimisticConcurrencyControlFailure|changed while this mutation was being run/.test(
+    text,
+  );
 }
 const WRITE_CONFLICT_RETRIES = 5;
 const backoffMs = (attempt: number) => 400 * (attempt + 1);
@@ -58,15 +61,28 @@ export async function cliFetch(
   opts: CliFetchOptions = {},
 ): Promise<Response> {
   const envTimeout = Number(process.env.CAST_HTTP_TIMEOUT_MS);
-  const timeoutMs = opts.timeoutMs ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : DEFAULT_CLI_TIMEOUT_MS);
+  const timeoutMs =
+    opts.timeoutMs ??
+    (Number.isFinite(envTimeout) && envTimeout > 0
+      ? envTimeout
+      : DEFAULT_CLI_TIMEOUT_MS);
   const retries = opts.retries ?? 0;
   const notifyRetry = (attempt: number, reason: string) => {
     opts.onRetry?.({ url, attempt, reason });
-    if (process.env.CAST_DEBUG) console.error(`[cast] ${url} ${reason}; retrying (${attempt + 1}/${retries})`);
+    if (process.env.CAST_DEBUG)
+      console.error(
+        `[cast] ${url} ${reason}; retrying (${attempt + 1}/${retries})`,
+      );
   };
 
   // A slow backend otherwise looks like a hung command: say once that the CLI is waiting on it.
-  const waitNote = setTimeout(() => process.stderr.write(`waiting on the codecast backend (${new URL(url).pathname})…\n`), WAIT_NOTE_MS);
+  const waitNote = setTimeout(
+    () =>
+      process.stderr.write(
+        `waiting on the codecast backend (${new URL(url).pathname})…\n`,
+      ),
+    WAIT_NOTE_MS,
+  );
   waitNote.unref?.();
   try {
     return await fetchWithRetries(url, init, timeoutMs, retries, notifyRetry);
@@ -88,13 +104,30 @@ async function fetchWithRetries(
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      let response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      let response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
       // A lost write race applied nothing: send it again, whatever the request.
-      for (let conflict = 0; !response.ok && conflict < WRITE_CONFLICT_RETRIES && isWriteConflict(await response.clone().text().catch(() => "")); conflict++) {
+      for (
+        let conflict = 0;
+        !response.ok &&
+        conflict < WRITE_CONFLICT_RETRIES &&
+        isWriteConflict(
+          await response
+            .clone()
+            .text()
+            .catch(() => ""),
+        );
+        conflict++
+      ) {
         await response.body?.cancel().catch(() => {});
         notifyRetry(attempt, "write conflict");
         await delay(500 * 2 ** conflict);
-        response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+        response = await fetch(url, {
+          ...init,
+          signal: AbortSignal.timeout(timeoutMs),
+        });
       }
       // Retry server-side faults (overloaded/contended backend), not 4xx.
       if (response.status >= 500 && attempt < retries) {
@@ -107,13 +140,18 @@ async function fetchWithRetries(
     } catch (err) {
       lastError = err;
       if (attempt < retries) {
-        notifyRetry(attempt, isTimeoutError(err) ? "timed out" : "network error");
+        notifyRetry(
+          attempt,
+          isTimeoutError(err) ? "timed out" : "network error",
+        );
         await delay(backoffMs(attempt));
         continue;
       }
       // Surface a legible message instead of a raw AbortError stack trace.
       if (isTimeoutError(err)) {
-        throw new Error(`The codecast backend timed out after ${timeoutMs}ms on ${new URL(url).pathname}; it may be overloaded. A read can be retried as is; a write may still have landed, so read it back before sending it again.`);
+        throw new Error(
+          `The codecast backend timed out after ${timeoutMs}ms on ${new URL(url).pathname}; it may be overloaded. A read can be retried as is; a write may still have landed, so read it back before sending it again.`,
+        );
       }
       throw err;
     }
@@ -163,17 +201,21 @@ export async function cliSearchRequest(
   } catch (err) {
     transportError = err;
   }
-  const contentSearchDied = transportError !== undefined || result?.error === "Internal error";
+  const contentSearchDied =
+    transportError !== undefined || result?.error === "Internal error";
   if (contentSearchDied && !body.titles_only) {
-    const detail = transportError instanceof Error
-      ? transportError.message
-      : result?.details || result?.error;
+    const detail =
+      transportError instanceof Error
+        ? transportError.message
+        : result?.details || result?.error;
     try {
       const fallback = await post({ ...body, titles_only: true });
       if (!fallback?.error) {
         return { ...fallback, content_search_error: detail };
       }
-    } catch { /* fall through to the original failure */ }
+    } catch {
+      /* fall through to the original failure */
+    }
   }
   if (transportError !== undefined) throw transportError;
   return result;

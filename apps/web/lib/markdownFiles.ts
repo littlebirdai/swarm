@@ -1,14 +1,14 @@
 export function isMarkdownFile(filePath: string): boolean {
-  const ext = filePath.split('.').pop()?.toLowerCase();
-  return ext === 'md' || ext === 'mdx';
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  return ext === "md" || ext === "mdx";
 }
 
 export function isPlanFile(filePath: string, content: string): boolean {
-  const fileName = filePath.split('/').pop()?.toLowerCase() || '';
-  if (fileName.includes('plan') || fileName === 'plan.md') {
+  const fileName = filePath.split("/").pop()?.toLowerCase() || "";
+  if (fileName.includes("plan") || fileName === "plan.md") {
     return true;
   }
-  if (filePath.includes('.claude/plans/')) {
+  if (filePath.includes(".claude/plans/")) {
     return true;
   }
   const planPatterns = [
@@ -27,4 +27,3 @@ export function isPlanFile(filePath: string, content: string): boolean {
   }
   return false;
 }
-

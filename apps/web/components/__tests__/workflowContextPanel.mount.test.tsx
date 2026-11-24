@@ -9,7 +9,11 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // click. Run: bun test components/__tests__/workflowContextPanel.mount.test.tsx
 
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={String(href)} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={String(href)} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const { useInboxStore } = await import("../../store/inboxStore");
@@ -17,14 +21,23 @@ const { useInboxStore } = await import("../../store/inboxStore");
 const realWorkflows = { ...(await import("../../hooks/useSyncWorkflows")) };
 mock.module("../../hooks/useSyncWorkflows", () => ({
   ...realWorkflows,
-  useWorkflowRun: (id: string | null | undefined) => useInboxStore((s: any) => (id ? s.workflowRuns[id] ?? null : undefined)),
-  useRunWorkflow: (run: any) => useInboxStore((s: any) => (run?.workflow_id ? s.workflows[run.workflow_id] ?? null : undefined)),
+  useWorkflowRun: (id: string | null | undefined) =>
+    useInboxStore((s: any) => (id ? (s.workflowRuns[id] ?? null) : undefined)),
+  useRunWorkflow: (run: any) =>
+    useInboxStore((s: any) =>
+      run?.workflow_id ? (s.workflows[run.workflow_id] ?? null) : undefined,
+    ),
 }));
-afterAll(() => { mock.module("../../hooks/useSyncWorkflows", () => realWorkflows); });
+afterAll(() => {
+  mock.module("../../hooks/useSyncWorkflows", () => realWorkflows);
+});
 
 const { WorkflowContextPanel } = await import("../WorkflowContextPanel");
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/inbox",
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400 }),
   document: dom.window.document,
@@ -34,11 +47,14 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { TooltipProvider } = await import("../ui/tooltip");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const RUN_ID = "kw1abcdefabcdefabcdefabcdefabcde";
 const WF_ID = "kf1abcdefabcdefabcdefabcdefabcde";
@@ -51,7 +67,11 @@ const run = {
   current_node_id: "polish",
   node_statuses: [
     { node_id: "squash-rebase", status: "completed", label: "squash-rebase" },
-    { node_id: "closeout-mirror", status: "completed", label: "closeout-mirror" },
+    {
+      node_id: "closeout-mirror",
+      status: "completed",
+      label: "closeout-mirror",
+    },
     { node_id: "polish", status: "pending", label: "polish" },
   ],
 };
@@ -67,7 +87,11 @@ const workflow = {
 };
 
 beforeEach(() => {
-  useInboxStore.setState({ workflowRuns: { [RUN_ID]: run }, workflows: { [WF_ID]: workflow }, sessionDecisions: {} } as any);
+  useInboxStore.setState({
+    workflowRuns: { [RUN_ID]: run },
+    workflows: { [WF_ID]: workflow },
+    sessionDecisions: {},
+  } as any);
 });
 
 async function mount() {
@@ -76,11 +100,15 @@ async function mount() {
   const root = createRoot(container);
   // The node rows open sessions through the router, so the panel mounts
   // inside one, the way the pages that host it do.
-  await act(() => root.render(
-    <MemoryRouter>
-      <TooltipProvider><WorkflowContextPanel workflowRunId={RUN_ID as any} /></TooltipProvider>
-    </MemoryRouter>,
-  ));
+  await act(() =>
+    root.render(
+      <MemoryRouter>
+        <TooltipProvider>
+          <WorkflowContextPanel workflowRunId={RUN_ID as any} />
+        </TooltipProvider>
+      </MemoryRouter>,
+    ),
+  );
   return {
     container,
     unmount: () => act(() => root.unmount()),
@@ -94,7 +122,9 @@ describe("WorkflowContextPanel", () => {
       expect(container.textContent).toContain("cloud-seamless-land");
       expect(container.textContent).toContain("running");
       expect(container.textContent).toContain("2/3");
-      expect(container.querySelector("button")?.getAttribute("aria-expanded")).toBe("false");
+      expect(
+        container.querySelector("button")?.getAttribute("aria-expanded"),
+      ).toBe("false");
       expect(container.textContent).not.toContain("squash-rebase");
       expect(container.textContent).not.toContain("Open the run");
       // The aggregate header still says where the run is.
@@ -107,12 +137,18 @@ describe("WorkflowContextPanel", () => {
   test("a click on the header reveals the nodes", async () => {
     const { container, unmount } = await mount();
     try {
-      await act(() => { container.querySelector("button")!.click(); });
-      expect(container.querySelector("button")?.getAttribute("aria-expanded")).toBe("true");
+      await act(() => {
+        container.querySelector("button")!.click();
+      });
+      expect(
+        container.querySelector("button")?.getAttribute("aria-expanded"),
+      ).toBe("true");
       expect(container.textContent).toContain("squash-rebase");
       expect(container.textContent).toContain("polish");
       expect(container.textContent).toContain("Open the run");
-      expect(container.querySelector(`a[href="/workflows/runs/${RUN_ID}"]`)).not.toBeNull();
+      expect(
+        container.querySelector(`a[href="/workflows/runs/${RUN_ID}"]`),
+      ).not.toBeNull();
     } finally {
       unmount();
     }

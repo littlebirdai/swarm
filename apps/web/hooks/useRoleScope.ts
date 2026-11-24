@@ -10,46 +10,85 @@
 // this subscribes to signatures of the fields the view shows and never to a
 // collection or the tree itself.
 import { useMemo } from "react";
-import { useInboxStore, type PlanItem, type ProjectItem, type TaskItem } from "../store/inboxStore";
+import {
+  useInboxStore,
+  type PlanItem,
+  type ProjectItem,
+  type TaskItem,
+} from "../store/inboxStore";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 import { useOrgRoles } from "./useOrgRoles";
 import { useInitiatives } from "./useInitiatives";
-import { buildRoleScope, sourceFromCard, sourceFromTree, type RoleCardAnswer, type RoleScopeModel } from "../lib/roleScope";
+import {
+  buildRoleScope,
+  sourceFromCard,
+  sourceFromTree,
+  type RoleCardAnswer,
+  type RoleScopeModel,
+} from "../lib/roleScope";
 import { boundTaskOf } from "../lib/scopePage";
 import type { OrgRole, OrgTree } from "../components/org/orgTypes";
 import { windowOrgTree } from "../store/orgSlice";
 
-const projectSig = (p: ProjectItem) => `${p.title}|${p.status}|${p.owner_role_id ?? ""}`;
-const planSig = (p: PlanItem) => `${p.title}|${p.status}|${(p as any).project_id ?? ""}`;
-const taskSig = (t: TaskItem) => `${t.status}|${(t as any).project_id ?? ""}|${(t as any).plan_id ?? ""}|${t.assignee ?? ""}|${(t as any).source ?? ""}|${(t as any).promoted ?? ""}|${t.triage_status ?? ""}|${(t.conversation_ids ?? []).join(",")}`;
+const projectSig = (p: ProjectItem) =>
+  `${p.title}|${p.status}|${p.owner_role_id ?? ""}`;
+const planSig = (p: PlanItem) =>
+  `${p.title}|${p.status}|${(p as any).project_id ?? ""}`;
+const taskSig = (t: TaskItem) =>
+  `${t.status}|${(t as any).project_id ?? ""}|${(t as any).plan_id ?? ""}|${t.assignee ?? ""}|${(t as any).source ?? ""}|${(t as any).promoted ?? ""}|${t.triage_status ?? ""}|${(t.conversation_ids ?? []).join(",")}`;
 
 /** The workspace rows every scope rollup reads (lib/roleScope buildRoleScope),
  *  each through a signature of the fields the rollup uses. A role's scope and
  *  an initiative's project list both build from these. */
-export function useScopeRows(): { projects: ProjectItem[]; plans: PlanItem[]; tasks: TaskItem[]; roles: OrgRole[] } {
+export function useScopeRows(): {
+  projects: ProjectItem[];
+  plans: PlanItem[];
+  tasks: TaskItem[];
+  roles: OrgRole[];
+} {
   const { roles } = useOrgRoles();
   const projects = useWorkspaceCollection<ProjectItem>("projects", projectSig);
   const plans = useWorkspaceCollection<PlanItem>("plans", planSig);
   const tasks = useWorkspaceCollection<TaskItem>("tasks", taskSig);
-  return useMemo(() => ({ projects, plans, tasks, roles }), [projects, plans, tasks, roles]);
+  return useMemo(
+    () => ({ projects, plans, tasks, roles }),
+    [projects, plans, tasks, roles],
+  );
 }
 
-const findRole = (tree: OrgTree | null | undefined, ref: string): OrgRole | null =>
+const findRole = (
+  tree: OrgTree | null | undefined,
+  ref: string,
+): OrgRole | null =>
   tree?.roles.find((r) => r.short_id === ref || r._id === ref) ?? null;
 
-export function useRoleScope(roleRef: string, card?: RoleCardAnswer | null): { model: RoleScopeModel | null; role: OrgRole | null } {
+export function useRoleScope(
+  roleRef: string,
+  card?: RoleCardAnswer | null,
+): { model: RoleScopeModel | null; role: OrgRole | null } {
   // The role's own facts as one string: the normalized source (names, scope,
   // counts, limits, who it reports to) plus each top session's state and task.
   const sig = useInboxStore((s) => {
     const tree = windowOrgTree(s);
     const role = findRole(tree, roleRef);
     if (!role || !tree) return "";
-    return JSON.stringify(sourceFromTree(tree, role)) + "\n" + role.sessions.map((x) => `${x._id}|${x.state}|${x.title}|${(s.sessions[x._id] as any)?.active_task_id ?? ""}`).join("\n");
+    return (
+      JSON.stringify(sourceFromTree(tree, role)) +
+      "\n" +
+      role.sessions
+        .map(
+          (x) =>
+            `${x._id}|${x.state}|${x.title}|${(s.sessions[x._id] as any)?.active_task_id ?? ""}`,
+        )
+        .join("\n")
+    );
   });
   // The charter document's text, when the store holds the document.
   const charterDoc = useInboxStore((s) => {
     const id = findRole(windowOrgTree(s), roleRef)?.charter_doc_id;
-    return id ? ((s.docs[id] as any)?.content as string | undefined) ?? null : null;
+    return id
+      ? (((s.docs[id] as any)?.content as string | undefined) ?? null)
+      : null;
   });
   const { projects, plans, tasks, roles } = useScopeRows();
   const initiatives = useInitiatives();
@@ -59,7 +98,12 @@ export function useRoleScope(roleRef: string, card?: RoleCardAnswer | null): { m
     const st = useInboxStore.getState();
     const tree = windowOrgTree(st);
     const role = findRole(tree, roleRef);
-    const source = role && tree ? sourceFromTree(tree, role) : card ? sourceFromCard(card) : null;
+    const source =
+      role && tree
+        ? sourceFromTree(tree, role)
+        : card
+          ? sourceFromCard(card)
+          : null;
     if (!source) return { model: null, role };
     if (charterDoc) source.charter = charterDoc;
     else if (!source.charter && card?.charter) source.charter = card.charter;
@@ -68,8 +112,32 @@ export function useRoleScope(roleRef: string, card?: RoleCardAnswer | null): { m
     // them are at work inside it.
     const sessions = (role?.sessions ?? []).map((x) => ({
       state: x.state,
-      task_id: boundTaskOf(x._id, (st.sessions[x._id] as any)?.active_task_id ?? null, tasks)?._id ?? null,
+      task_id:
+        boundTaskOf(
+          x._id,
+          (st.sessions[x._id] as any)?.active_task_id ?? null,
+          tasks,
+        )?._id ?? null,
     }));
-    return { model: buildRoleScope(source, { projects, plans, tasks, roles, sessions, initiatives } as any, today), role };
-  }, [sig, charterDoc, card, roles, projects, plans, tasks, initiatives, today, roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+    return {
+      model: buildRoleScope(
+        source,
+        { projects, plans, tasks, roles, sessions, initiatives } as any,
+        today,
+      ),
+      role,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    sig,
+    charterDoc,
+    card,
+    roles,
+    projects,
+    plans,
+    tasks,
+    initiatives,
+    today,
+    roleRef,
+  ]);
 }

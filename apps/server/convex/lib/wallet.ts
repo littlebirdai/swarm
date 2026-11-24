@@ -18,7 +18,12 @@
 // This module keeps the reads and writes of the wallet rows and the ledger.
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { PLAN_CATALOG, planOf, type PlanId, type PlanSpec } from "@codecast/shared/contracts/assistant";
+import {
+  PLAN_CATALOG,
+  planOf,
+  type PlanId,
+  type PlanSpec,
+} from "@codecast/shared/contracts/assistant";
 import {
   addMonths,
   money,
@@ -33,7 +38,15 @@ import {
   type WalletSummaryFigures,
 } from "@platform/assistant/wallet";
 
-export { addMonths, money, periodAt, proratedCap, repayDebt, splitCharge, walletRoom };
+export {
+  addMonths,
+  money,
+  periodAt,
+  proratedCap,
+  repayDebt,
+  splitCharge,
+  walletRoom,
+};
 
 const EPSILON = 1e-9;
 
@@ -54,33 +67,70 @@ export const allowancePlan = rules.allowancePlan;
 
 /** The patch that moves a wallet into the period holding `now`, or null when
  *  it is already there. */
-export function rolledOver(wallet: Doc<"wallets">, now: number): PeriodFigures | null {
-  return nextPeriod(periodAnchor(wallet), wallet, wallet.period_end, wallet.topup_usd, now);
+export function rolledOver(
+  wallet: Doc<"wallets">,
+  now: number,
+): PeriodFigures | null {
+  return nextPeriod(
+    periodAnchor(wallet),
+    wallet,
+    wallet.period_end,
+    wallet.topup_usd,
+    now,
+  );
 }
 
 /** The moment a wallet's periods count from: the start of the paid billing
  *  cycle once `alignPeriod` set one, the wallet's creation before that. */
-export function periodAnchor(wallet: Pick<Doc<"wallets">, "_creationTime" | "period_anchor">): number {
+export function periodAnchor(
+  wallet: Pick<Doc<"wallets">, "_creationTime" | "period_anchor">,
+): number {
   return wallet.period_anchor ?? wallet._creationTime;
 }
 
 /** The person's stored wallet row, as written (no rollover), or null. */
-export function walletRow(ctx: Pick<QueryCtx, "db">, userId: Id<"users">): Promise<Doc<"wallets"> | null> {
-  return ctx.db.query("wallets").withIndex("by_user", (q) => q.eq("user_id", userId)).first();
+export function walletRow(
+  ctx: Pick<QueryCtx, "db">,
+  userId: Id<"users">,
+): Promise<Doc<"wallets"> | null> {
+  return ctx.db
+    .query("wallets")
+    .withIndex("by_user", (q) => q.eq("user_id", userId))
+    .first();
 }
 
 /** The wallet holding a Stripe customer, as written, or null. */
-export function walletByCustomer(ctx: Pick<QueryCtx, "db">, customer: string): Promise<Doc<"wallets"> | null> {
-  return ctx.db.query("wallets").withIndex("by_stripe_customer", (q) => q.eq("stripe_customer_id", customer)).first();
+export function walletByCustomer(
+  ctx: Pick<QueryCtx, "db">,
+  customer: string,
+): Promise<Doc<"wallets"> | null> {
+  return ctx.db
+    .query("wallets")
+    .withIndex("by_stripe_customer", (q) =>
+      q.eq("stripe_customer_id", customer),
+    )
+    .first();
 }
 
 /** The plan a person is on; no wallet is the free plan. Readable from a query. */
-export async function walletPlan(ctx: Pick<QueryCtx, "db">, userId: Id<"users">): Promise<PlanSpec> {
+export async function walletPlan(
+  ctx: Pick<QueryCtx, "db">,
+  userId: Id<"users">,
+): Promise<PlanSpec> {
   return planOf((await walletRow(ctx, userId))?.plan);
 }
 
-async function ledger(ctx: MutationCtx, row: Omit<Doc<"wallet_ledger">, "_id" | "_creationTime" | "at"> & { at?: number }): Promise<void> {
-  await ctx.db.insert("wallet_ledger", { ...row, amount_usd: money(row.amount_usd), at: row.at ?? Date.now() });
+async function ledger(
+  ctx: MutationCtx,
+  row: Omit<Doc<"wallet_ledger">, "_id" | "_creationTime" | "at"> & {
+    at?: number;
+  },
+): Promise<void> {
+  await ctx.db.insert("wallet_ledger", {
+    ...row,
+    amount_usd: money(row.amount_usd),
+    at: row.at ?? Date.now(),
+  });
 }
 
 /** The person's wallet, made on first use (free plan, a monthly period from
@@ -90,7 +140,11 @@ async function ledger(ctx: MutationCtx, row: Omit<Doc<"wallet_ledger">, "_id" | 
  *  every later rollover counts from (`periodAnchor`), never from `now`, so the
  *  second period starts where the first ended even when a caller passes a
  *  `now` that is not the real time. */
-export async function ensureWallet(ctx: MutationCtx, userId: Id<"users">, now = Date.now()): Promise<Doc<"wallets">> {
+export async function ensureWallet(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  now = Date.now(),
+): Promise<Doc<"wallets">> {
   const wallet = await walletRow(ctx, userId);
   if (!wallet) {
     const free = planOf("free");
@@ -106,7 +160,10 @@ export async function ensureWallet(ctx: MutationCtx, userId: Id<"users">, now = 
     });
     const made = (await ctx.db.get(id))!;
     const first = periodAt(made._creationTime, made._creationTime);
-    await ctx.db.patch(id, { period_start: first.start, period_end: first.end });
+    await ctx.db.patch(id, {
+      period_start: first.start,
+      period_end: first.end,
+    });
     return { ...made, period_start: first.start, period_end: first.end };
   }
   const patch = rolledOver(wallet, now);
@@ -116,15 +173,34 @@ export async function ensureWallet(ctx: MutationCtx, userId: Id<"users">, now = 
 /** Writes a fresh period onto the wallet, with the `period_reset` row that
  *  records the usage it forgave and a `repay` row for any debt the new
  *  allowance paid, so the ledger explains the meter's drop. */
-async function openPeriod(ctx: MutationCtx, wallet: Doc<"wallets">, patch: Partial<Doc<"wallets">> & PeriodFigures, now: number): Promise<Doc<"wallets">> {
+async function openPeriod(
+  ctx: MutationCtx,
+  wallet: Doc<"wallets">,
+  patch: Partial<Doc<"wallets">> & PeriodFigures,
+  now: number,
+): Promise<Doc<"wallets">> {
   await ctx.db.patch(wallet._id, patch);
-  await ledger(ctx, { user_id: wallet.user_id, kind: "period_reset", amount_usd: wallet.period_cost_usd, at: now });
+  await ledger(ctx, {
+    user_id: wallet.user_id,
+    kind: "period_reset",
+    amount_usd: wallet.period_cost_usd,
+    at: now,
+  });
   const repaid = money(patch.topup_usd - wallet.topup_usd);
-  if (repaid > 0) await ledger(ctx, { user_id: wallet.user_id, kind: "repay", amount_usd: repaid, at: now });
+  if (repaid > 0)
+    await ledger(ctx, {
+      user_id: wallet.user_id,
+      kind: "repay",
+      amount_usd: repaid,
+      at: now,
+    });
   return { ...wallet, ...patch };
 }
 
-async function turnOf(ctx: MutationCtx, turnId: Id<"assistant_turns">): Promise<Doc<"assistant_turns">> {
+async function turnOf(
+  ctx: MutationCtx,
+  turnId: Id<"assistant_turns">,
+): Promise<Doc<"assistant_turns">> {
   const turn = await ctx.db.get(turnId);
   if (!turn) throw new Error(`wallet: no turn ${turnId}`);
   return turn;
@@ -132,8 +208,14 @@ async function turnOf(ctx: MutationCtx, turnId: Id<"assistant_turns">): Promise<
 
 /** What a turn still holds (its reservations less its releases) and its
  *  first reserve row, which names the owner even if the turn row is gone. */
-async function holdOf(ctx: QueryCtx, turnId: Id<"assistant_turns">): Promise<{ held: number; reserved: Doc<"wallet_ledger"> | null }> {
-  const rows = await ctx.db.query("wallet_ledger").withIndex("by_turn", (q) => q.eq("turn_id", turnId)).collect();
+async function holdOf(
+  ctx: QueryCtx,
+  turnId: Id<"assistant_turns">,
+): Promise<{ held: number; reserved: Doc<"wallet_ledger"> | null }> {
+  const rows = await ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_turn", (q) => q.eq("turn_id", turnId))
+    .collect();
   let held = 0;
   let reserved: Doc<"wallet_ledger"> | null = null;
   for (const row of rows) {
@@ -149,20 +231,36 @@ async function holdOf(ctx: QueryCtx, turnId: Id<"assistant_turns">): Promise<{ h
  *  a turn that already released holds nothing, so a second call moves no
  *  money. Every way out of a reserved turn calls it. Reads the owner from
  *  the ledger, so a hold whose turn row was deleted is still returned. */
-export async function releaseTurn(ctx: MutationCtx, turnId: Id<"assistant_turns">): Promise<number> {
+export async function releaseTurn(
+  ctx: MutationCtx,
+  turnId: Id<"assistant_turns">,
+): Promise<number> {
   const { held, reserved } = await holdOf(ctx, turnId);
   if (held <= EPSILON || !reserved) return 0;
   const wallet = await ensureWallet(ctx, reserved.user_id);
-  await ctx.db.patch(wallet._id, { period_reserved_usd: money(Math.max(0, wallet.period_reserved_usd - held)) });
-  if (await ctx.db.get(turnId)) await ctx.db.patch(turnId, { holding: undefined });
-  await ledger(ctx, { user_id: reserved.user_id, kind: "release", amount_usd: held, turn_id: turnId, conversation_id: reserved.conversation_id, model: reserved.model });
+  await ctx.db.patch(wallet._id, {
+    period_reserved_usd: money(Math.max(0, wallet.period_reserved_usd - held)),
+  });
+  if (await ctx.db.get(turnId))
+    await ctx.db.patch(turnId, { holding: undefined });
+  await ledger(ctx, {
+    user_id: reserved.user_id,
+    kind: "release",
+    amount_usd: held,
+    turn_id: turnId,
+    conversation_id: reserved.conversation_id,
+    model: reserved.model,
+  });
   return held;
 }
 
 /** Turns whose run may still spend. A `waiting` turn is not one: it ended for
  *  an approval and the answer wakes a new turn, so what it still holds is a
  *  hold its finish failed to give back. */
-const LIVE_TURN = new Set<Doc<"assistant_turns">["status"]>(["queued", "running"]);
+const LIVE_TURN = new Set<Doc<"assistant_turns">["status"]>([
+  "queued",
+  "running",
+]);
 /** The newest ledger rows reconcileWallet also reads, for holds whose turn
  *  row was deleted (and so carries no `holding` flag to find it by). */
 const LEAK_SCAN_ROWS = 1000;
@@ -178,17 +276,34 @@ export const LEAK_GRACE_MS = 10 * 60_000;
  *  running) more than LEAK_GRACE_MS ago. */
 function holdLeaked(turn: Doc<"assistant_turns">, now: number): boolean {
   if (LIVE_TURN.has(turn.status)) return false;
-  return now - (turn.ended_at ?? turn.started_at ?? turn._creationTime) >= LEAK_GRACE_MS;
+  return (
+    now - (turn.ended_at ?? turn.started_at ?? turn._creationTime) >=
+    LEAK_GRACE_MS
+  );
 }
 
 /** The turns flagged `holding` whose hold has leaked. Reads only
  *  by_user_holding, so it is cheap enough for the lease mutation. */
-async function leakedHolding(ctx: MutationCtx, userId: Id<"users">, now: number): Promise<Id<"assistant_turns">[]> {
-  const holding = await ctx.db.query("assistant_turns").withIndex("by_user_holding", (q) => q.eq("user_id", userId).eq("holding", true)).take(LEAK_SCAN_TURNS);
-  return holding.filter((turn) => holdLeaked(turn, now)).map((turn) => turn._id);
+async function leakedHolding(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  now: number,
+): Promise<Id<"assistant_turns">[]> {
+  const holding = await ctx.db
+    .query("assistant_turns")
+    .withIndex("by_user_holding", (q) =>
+      q.eq("user_id", userId).eq("holding", true),
+    )
+    .take(LEAK_SCAN_TURNS);
+  return holding
+    .filter((turn) => holdLeaked(turn, now))
+    .map((turn) => turn._id);
 }
 
-async function releaseAll(ctx: MutationCtx, turns: Iterable<Id<"assistant_turns">>): Promise<number> {
+async function releaseAll(
+  ctx: MutationCtx,
+  turns: Iterable<Id<"assistant_turns">>,
+): Promise<number> {
   let released = 0;
   for (const turnId of turns) released += await releaseTurn(ctx, turnId);
   return money(released);
@@ -205,7 +320,11 @@ async function releaseAll(ctx: MutationCtx, turns: Iterable<Id<"assistant_turns"
  *  carries no flag, so a lease near the end of an allowance stays a few
  *  reads. Holds whose turn row was deleted carry no flag to find them by;
  *  reconcileWallet catches those on its hourly pass. */
-async function releaseLeaks(ctx: MutationCtx, userId: Id<"users">, now = Date.now()): Promise<number> {
+async function releaseLeaks(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  now = Date.now(),
+): Promise<number> {
   return releaseAll(ctx, await leakedHolding(ctx, userId, now));
 }
 
@@ -216,19 +335,35 @@ async function releaseLeaks(ctx: MutationCtx, userId: Id<"users">, now = Date.no
  *  Heavier than the lease's pass, so it runs from the scheduled sweep
  *  (wallet.reconcile), never on a turn start.
  *  Idempotent: a released turn holds nothing. Returns what it gave back. */
-export async function reconcileWallet(ctx: MutationCtx, userId: Id<"users">, now = Date.now()): Promise<number> {
+export async function reconcileWallet(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  now = Date.now(),
+): Promise<number> {
   const candidates = new Set(await leakedHolding(ctx, userId, now));
-  const rows = await ctx.db.query("wallet_ledger").withIndex("by_user_at", (q) => q.eq("user_id", userId)).order("desc").take(LEAK_SCAN_ROWS);
+  const rows = await ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_user_at", (q) => q.eq("user_id", userId))
+    .order("desc")
+    .take(LEAK_SCAN_ROWS);
   for (const row of rows) {
-    if (row.kind !== "reserve" || !row.turn_id || candidates.has(row.turn_id)) continue;
+    if (row.kind !== "reserve" || !row.turn_id || candidates.has(row.turn_id))
+      continue;
     if (!(await ctx.db.get(row.turn_id))) candidates.add(row.turn_id);
   }
   return releaseAll(ctx, candidates);
 }
 
 /** A turn's charge row, the mark that it was settled. */
-function chargeOf(ctx: QueryCtx, turnId: Id<"assistant_turns">): Promise<Doc<"wallet_ledger"> | null> {
-  return ctx.db.query("wallet_ledger").withIndex("by_turn", (q) => q.eq("turn_id", turnId)).filter((q) => q.eq(q.field("kind"), "charge")).first();
+function chargeOf(
+  ctx: QueryCtx,
+  turnId: Id<"assistant_turns">,
+): Promise<Doc<"wallet_ledger"> | null> {
+  return ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_turn", (q) => q.eq("turn_id", turnId))
+    .filter((q) => q.eq(q.field("kind"), "charge"))
+    .first();
 }
 
 /** Reserves `amountUsd` for a turn if the wallet has room for all of it, in
@@ -237,21 +372,41 @@ function chargeOf(ctx: QueryCtx, turnId: Id<"assistant_turns">): Promise<Doc<"wa
  *  so a turn may reserve more than once (a ceiling raised mid-run). A turn
  *  that can no longer spend (ended, or already settled) is refused, so a
  *  ceiling raise landing after the finish leaves no hold behind. */
-export async function reserve(ctx: MutationCtx, userId: Id<"users">, turnId: Id<"assistant_turns">, amountUsd: number): Promise<boolean> {
+export async function reserve(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  turnId: Id<"assistant_turns">,
+  amountUsd: number,
+): Promise<boolean> {
   const amount = money(amountUsd);
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error(`wallet: cannot reserve ${amountUsd}`);
+  if (!Number.isFinite(amount) || amount <= 0)
+    throw new Error(`wallet: cannot reserve ${amountUsd}`);
   const turn = await turnOf(ctx, turnId);
-  if (turn.user_id !== userId) throw new Error(`wallet: turn ${turnId} is not this person's`);
-  if (!LIVE_TURN.has(turn.status) || (await chargeOf(ctx, turnId))) return false;
+  if (turn.user_id !== userId)
+    throw new Error(`wallet: turn ${turnId} is not this person's`);
+  if (!LIVE_TURN.has(turn.status) || (await chargeOf(ctx, turnId)))
+    return false;
   let wallet = await ensureWallet(ctx, userId);
   if (walletRoom(wallet) + EPSILON < amount) {
     if ((await releaseLeaks(ctx, userId)) <= 0) return false;
     wallet = (await ctx.db.get(wallet._id))!;
     if (walletRoom(wallet) + EPSILON < amount) return false;
   }
-  await ctx.db.patch(wallet._id, { period_reserved_usd: money(wallet.period_reserved_usd + amount) });
-  await ctx.db.patch(turnId, { cost_reserved_usd: money(turn.cost_reserved_usd + amount), holding: true });
-  await ledger(ctx, { user_id: userId, kind: "reserve", amount_usd: amount, turn_id: turnId, conversation_id: turn.conversation_id, model: turn.model });
+  await ctx.db.patch(wallet._id, {
+    period_reserved_usd: money(wallet.period_reserved_usd + amount),
+  });
+  await ctx.db.patch(turnId, {
+    cost_reserved_usd: money(turn.cost_reserved_usd + amount),
+    holding: true,
+  });
+  await ledger(ctx, {
+    user_id: userId,
+    kind: "reserve",
+    amount_usd: amount,
+    turn_id: turnId,
+    conversation_id: turn.conversation_id,
+    model: turn.model,
+  });
   return true;
 }
 
@@ -281,11 +436,19 @@ export async function settleTurn(
   model?: string,
 ): Promise<TurnSettlement> {
   const charged = await chargeOf(ctx, turnId);
-  if (charged) return { chargedUsd: charged.amount_usd, releasedUsd: await releaseTurn(ctx, turnId), topupUsd: 0, repeat: true };
+  if (charged)
+    return {
+      chargedUsd: charged.amount_usd,
+      releasedUsd: await releaseTurn(ctx, turnId),
+      topupUsd: 0,
+      repeat: true,
+    };
 
   const releasedUsd = await releaseTurn(ctx, turnId);
   const turn = await turnOf(ctx, turnId);
-  const cost = money(Number.isFinite(costUsd) ? Math.max(0, costUsd) : releasedUsd);
+  const cost = money(
+    Number.isFinite(costUsd) ? Math.max(0, costUsd) : releasedUsd,
+  );
   const wallet = await ensureWallet(ctx, turn.user_id);
   const split = splitCharge(wallet, cost);
   await ctx.db.patch(wallet._id, {
@@ -294,8 +457,20 @@ export async function settleTurn(
   });
   await ctx.db.patch(turnId, { cost_usd: cost });
   // Written even at zero cost: the row is what makes the settle idempotent.
-  await ledger(ctx, { user_id: turn.user_id, kind: "charge", amount_usd: cost, turn_id: turnId, conversation_id: turn.conversation_id, model: model ?? turn.model });
-  return { chargedUsd: cost, releasedUsd, topupUsd: split.topupUsd, repeat: false };
+  await ledger(ctx, {
+    user_id: turn.user_id,
+    kind: "charge",
+    amount_usd: cost,
+    turn_id: turnId,
+    conversation_id: turn.conversation_id,
+    model: model ?? turn.model,
+  });
+  return {
+    chargedUsd: cost,
+    releasedUsd,
+    topupUsd: split.topupUsd,
+    repeat: false,
+  };
 }
 
 /** Adds to the top-up balance: a purchase (`topup`) or credit given by hand
@@ -311,15 +486,27 @@ export async function credit(
   externalId?: string,
 ): Promise<boolean> {
   const amount = money(amountUsd);
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error(`wallet: cannot credit ${amountUsd}`);
-  if (kind === "topup" && !externalId) throw new Error("wallet: a topup needs the Stripe id it came from");
+  if (!Number.isFinite(amount) || amount <= 0)
+    throw new Error(`wallet: cannot credit ${amountUsd}`);
+  if (kind === "topup" && !externalId)
+    throw new Error("wallet: a topup needs the Stripe id it came from");
   if (externalId) {
-    const seen = await ctx.db.query("wallet_ledger").withIndex("by_external_id", (q) => q.eq("external_id", externalId)).first();
+    const seen = await ctx.db
+      .query("wallet_ledger")
+      .withIndex("by_external_id", (q) => q.eq("external_id", externalId))
+      .first();
     if (seen) return false;
   }
   const wallet = await ensureWallet(ctx, userId);
-  await ctx.db.patch(wallet._id, { topup_usd: money(wallet.topup_usd + amount) });
-  await ledger(ctx, { user_id: userId, kind, amount_usd: amount, external_id: externalId });
+  await ctx.db.patch(wallet._id, {
+    topup_usd: money(wallet.topup_usd + amount),
+  });
+  await ledger(ctx, {
+    user_id: userId,
+    kind,
+    amount_usd: amount,
+    external_id: externalId,
+  });
   return true;
 }
 
@@ -339,13 +526,24 @@ export interface WalletSubscription {
 
 /** The wallet fields `subscription` changes. `paidInFull` says the
  *  subscription has paid for the wallet's current period. */
-function subscriptionPatch(wallet: Doc<"wallets">, subscription: WalletSubscription, paidInFull: boolean): Partial<Doc<"wallets">> {
+function subscriptionPatch(
+  wallet: Doc<"wallets">,
+  subscription: WalletSubscription,
+  paidInFull: boolean,
+): Partial<Doc<"wallets">> {
   const patch: Partial<Doc<"wallets">> = {};
-  for (const key of ["stripe_customer_id", "stripe_subscription_id", "subscription_status", "subscription_read_at"] as const) {
-    if (subscription[key] !== undefined) (patch as Record<string, unknown>)[key] = subscription[key];
+  for (const key of [
+    "stripe_customer_id",
+    "stripe_subscription_id",
+    "subscription_status",
+    "subscription_read_at",
+  ] as const) {
+    if (subscription[key] !== undefined)
+      (patch as Record<string, unknown>)[key] = subscription[key];
   }
   if (subscription.billed === false) patch.paid_through = undefined;
-  else if (subscription.billed && paidInFull) patch.paid_through = Math.max(wallet.paid_through ?? 0, wallet.period_end);
+  else if (subscription.billed && paidInFull)
+    patch.paid_through = Math.max(wallet.paid_through ?? 0, wallet.period_end);
   return patch;
 }
 
@@ -356,10 +554,21 @@ function subscriptionPatch(wallet: Doc<"wallets">, subscription: WalletSubscript
  *  for a plan whose payment was refunded or disputed: that one keeps nothing
  *  of its allowance, whichever Stripe event landed first, so billing ends it
  *  here. */
-export async function setPlan(ctx: MutationCtx, userId: Id<"users">, plan: PlanId, subscription: WalletSubscription = {}): Promise<Doc<"wallets">> {
+export async function setPlan(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  plan: PlanId,
+  subscription: WalletSubscription = {},
+): Promise<Doc<"wallets">> {
   const wallet = await ensureWallet(ctx, userId);
-  const facts: Partial<Doc<"wallets">> = { plan, ...subscriptionPatch(wallet, subscription, false) };
-  const patch: Partial<Doc<"wallets">> = { ...facts, period_cap_usd: allowanceUsd({ ...wallet, ...facts }, wallet.period_end) };
+  const facts: Partial<Doc<"wallets">> = {
+    plan,
+    ...subscriptionPatch(wallet, subscription, false),
+  };
+  const patch: Partial<Doc<"wallets">> = {
+    ...facts,
+    period_cap_usd: allowanceUsd({ ...wallet, ...facts }, wallet.period_end),
+  };
   await ctx.db.patch(wallet._id, patch);
   return { ...wallet, ...patch };
 }
@@ -381,10 +590,16 @@ export async function moveSubscription(
 ): Promise<Doc<"wallets">> {
   const now = options.now ?? Date.now();
   const wallet = await ensureWallet(ctx, userId, now);
-  const patch: Partial<Doc<"wallets">> = { plan, ...subscriptionPatch(wallet, subscription, !options.prorate) };
+  const patch: Partial<Doc<"wallets">> = {
+    plan,
+    ...subscriptionPatch(wallet, subscription, !options.prorate),
+  };
   const from = allowanceUsd(wallet, wallet.period_end);
   const to = allowanceUsd({ ...wallet, ...patch }, wallet.period_end);
-  if (from !== to) patch.period_cap_usd = options.prorate ? proratedCap(wallet, from, to, now) : to;
+  if (from !== to)
+    patch.period_cap_usd = options.prorate
+      ? proratedCap(wallet, from, to, now)
+      : to;
   await ctx.db.patch(wallet._id, patch);
   return { ...wallet, ...patch };
 }
@@ -401,24 +616,54 @@ export async function moveSubscription(
  *  (`repayDebt`), or by the next top-up, so a chargeback on spent credit does
  *  not keep the usage and is paid once. Returns the amount taken back, or
  *  null when no top-up has that source. */
-export async function refundTopup(ctx: MutationCtx, source: string, share: number, externalId: string): Promise<number | null> {
-  if (!externalId.startsWith(`${source}:`)) throw new Error(`wallet: refund id ${externalId} does not name its top-up ${source}`);
-  const topup = await ctx.db.query("wallet_ledger").withIndex("by_external_id", (q) => q.eq("external_id", source)).first();
+export async function refundTopup(
+  ctx: MutationCtx,
+  source: string,
+  share: number,
+  externalId: string,
+): Promise<number | null> {
+  if (!externalId.startsWith(`${source}:`))
+    throw new Error(
+      `wallet: refund id ${externalId} does not name its top-up ${source}`,
+    );
+  const topup = await ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_external_id", (q) => q.eq("external_id", source))
+    .first();
   if (!topup || topup.kind !== "topup") return null;
-  const earlier = await ctx.db.query("wallet_ledger")
-    .withIndex("by_external_id", (q) => q.gt("external_id", `${source}:`).lt("external_id", `${source};`))
+  const earlier = await ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_external_id", (q) =>
+      q.gt("external_id", `${source}:`).lt("external_id", `${source};`),
+    )
     .collect();
   if (earlier.some((row) => row.external_id === externalId)) return 0;
-  const already = earlier.reduce((sum, row) => sum + (row.kind === "refund" ? row.amount_usd : 0), 0);
+  const already = earlier.reduce(
+    (sum, row) => sum + (row.kind === "refund" ? row.amount_usd : 0),
+    0,
+  );
   const target = topup.amount_usd * Math.min(1, Math.max(0, share));
   const amount = money(Math.max(0, target - already));
   const wallet = await ensureWallet(ctx, topup.user_id);
   // Written even at zero: the row is what makes the event land once.
-  await ledger(ctx, { user_id: topup.user_id, kind: "refund", amount_usd: amount, external_id: externalId });
+  await ledger(ctx, {
+    user_id: topup.user_id,
+    kind: "refund",
+    amount_usd: amount,
+    external_id: externalId,
+  });
   if (amount > 0) {
-    const { repaid, ...figures } = repayDebt({ ...wallet, topup_usd: money(wallet.topup_usd - amount) });
+    const { repaid, ...figures } = repayDebt({
+      ...wallet,
+      topup_usd: money(wallet.topup_usd - amount),
+    });
     await ctx.db.patch(wallet._id, figures);
-    if (repaid > 0) await ledger(ctx, { user_id: topup.user_id, kind: "repay", amount_usd: repaid });
+    if (repaid > 0)
+      await ledger(ctx, {
+        user_id: topup.user_id,
+        kind: "repay",
+        amount_usd: repaid,
+      });
   }
   return amount;
 }
@@ -433,18 +678,45 @@ export async function refundTopup(ctx: MutationCtx, source: string, share: numbe
  *  paid, gets the plan's whole allowance now that it is. A period the wallet
  *  already holds as paid changes nothing, so a redelivered invoice moves no
  *  money; a period already over is ignored. Returns whether the wallet moved. */
-export async function alignPeriod(ctx: MutationCtx, userId: Id<"users">, period: { start: number; end: number }, now = Date.now()): Promise<boolean> {
+export async function alignPeriod(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  period: { start: number; end: number },
+  now = Date.now(),
+): Promise<boolean> {
   if (!(period.end > period.start) || period.end <= now) return false;
   const wallet = await ensureWallet(ctx, userId, now);
-  const paid = { period_start: period.start, period_end: period.end, period_anchor: period.start, paid_through: Math.max(wallet.paid_through ?? 0, period.end) };
-  if (wallet.period_start === period.start && wallet.period_end === period.end && wallet.period_anchor === period.start && wallet.paid_through === paid.paid_through) return false;
+  const paid = {
+    period_start: period.start,
+    period_end: period.end,
+    period_anchor: period.start,
+    paid_through: Math.max(wallet.paid_through ?? 0, period.end),
+  };
+  if (
+    wallet.period_start === period.start &&
+    wallet.period_end === period.end &&
+    wallet.period_anchor === period.start &&
+    wallet.paid_through === paid.paid_through
+  )
+    return false;
   const next = { ...wallet, ...paid };
   if (period.start > wallet.period_start) {
-    await openPeriod(ctx, wallet, { ...freshPeriod(next, period.start, period.end, wallet.topup_usd), ...paid }, now);
+    await openPeriod(
+      ctx,
+      wallet,
+      {
+        ...freshPeriod(next, period.start, period.end, wallet.topup_usd),
+        ...paid,
+      },
+      now,
+    );
   } else {
     const from = allowanceUsd(wallet, wallet.period_end);
     const to = allowanceUsd(next, period.end);
-    await ctx.db.patch(wallet._id, from !== to ? { ...paid, period_cap_usd: to } : paid);
+    await ctx.db.patch(
+      wallet._id,
+      from !== to ? { ...paid, period_cap_usd: to } : paid,
+    );
   }
   return true;
 }
@@ -490,12 +762,25 @@ export function summaryAt(summary: WalletSummary, now: number): WalletSummary {
 }
 
 /** The plan screen's numbers for one person. */
-export async function walletSummary(ctx: QueryCtx, userId: Id<"users">, now = Date.now()): Promise<WalletSummary> {
+export async function walletSummary(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  now = Date.now(),
+): Promise<WalletSummary> {
   const wallet = await walletRow(ctx, userId);
   const plan = planOf(wallet?.plan);
-  const figures = wallet ?? { period_cap_usd: plan.included_usd, period_cost_usd: 0, period_reserved_usd: 0, topup_usd: 0 };
+  const figures = wallet ?? {
+    period_cap_usd: plan.included_usd,
+    period_cost_usd: 0,
+    period_reserved_usd: 0,
+    topup_usd: 0,
+  };
 
-  const rows = await ctx.db.query("wallet_ledger").withIndex("by_user_at", (q) => q.eq("user_id", userId)).order("desc").take(SUMMARY_LEDGER_ROWS);
+  const rows = await ctx.db
+    .query("wallet_ledger")
+    .withIndex("by_user_at", (q) => q.eq("user_id", userId))
+    .order("desc")
+    .take(SUMMARY_LEDGER_ROWS);
   const byConversation = new Map<string, WalletConversationLine>();
   const account: WalletAccountLine[] = [];
   for (const row of rows) {
@@ -505,27 +790,42 @@ export async function walletSummary(ctx: QueryCtx, userId: Id<"users">, now = Da
         line.cost_usd = money(line.cost_usd + row.amount_usd);
         line.turns += 1;
       } else if (byConversation.size < SUMMARY_CONVERSATIONS) {
-        byConversation.set(row.conversation_id, { conversation_id: row.conversation_id, cost_usd: row.amount_usd, turns: 1, last_at: row.at });
+        byConversation.set(row.conversation_id, {
+          conversation_id: row.conversation_id,
+          cost_usd: row.amount_usd,
+          turns: 1,
+          last_at: row.at,
+        });
       }
-    } else if ((row.kind === "grant" || row.kind === "topup" || row.kind === "period_reset" || row.kind === "refund" || row.kind === "repay") && account.length < SUMMARY_ACCOUNT_LINES) {
+    } else if (
+      (row.kind === "grant" ||
+        row.kind === "topup" ||
+        row.kind === "period_reset" ||
+        row.kind === "refund" ||
+        row.kind === "repay") &&
+      account.length < SUMMARY_ACCOUNT_LINES
+    ) {
       account.push({ kind: row.kind, amount_usd: row.amount_usd, at: row.at });
     }
   }
 
-  return summaryAt({
-    plan: plan.id,
-    cap_usd: figures.period_cap_usd,
-    used_usd: money(figures.period_cost_usd),
-    reserved_usd: money(figures.period_reserved_usd),
-    remaining_usd: walletRoom(figures),
-    topup_usd: money(figures.topup_usd),
-    period_anchor: wallet ? periodAnchor(wallet) : null,
-    period_start: wallet?.period_start ?? null,
-    period_end: wallet?.period_end ?? null,
-    subscription_status: wallet?.subscription_status ?? null,
-    paid_through: wallet?.paid_through ?? null,
-    billing_account: !!wallet?.stripe_customer_id,
-    conversations: [...byConversation.values()],
-    account,
-  }, now);
+  return summaryAt(
+    {
+      plan: plan.id,
+      cap_usd: figures.period_cap_usd,
+      used_usd: money(figures.period_cost_usd),
+      reserved_usd: money(figures.period_reserved_usd),
+      remaining_usd: walletRoom(figures),
+      topup_usd: money(figures.topup_usd),
+      period_anchor: wallet ? periodAnchor(wallet) : null,
+      period_start: wallet?.period_start ?? null,
+      period_end: wallet?.period_end ?? null,
+      subscription_status: wallet?.subscription_status ?? null,
+      paid_through: wallet?.paid_through ?? null,
+      billing_account: !!wallet?.stripe_customer_id,
+      conversations: [...byConversation.values()],
+      account,
+    },
+    now,
+  );
 }

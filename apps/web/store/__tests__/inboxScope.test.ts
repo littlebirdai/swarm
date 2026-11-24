@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { filterInboxScope, filterInboxScopeFromState, type InboxSession } from "../inboxStore";
+import {
+  filterInboxScope,
+  filterInboxScopeFromState,
+  type InboxSession,
+} from "../inboxStore";
 
 // filterInboxScope is the gate that keeps the two inbox scopes coherent even
 // though both read the SAME never-prune sessions cache:
@@ -28,20 +32,40 @@ const mk = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
 });
 
 const byId = (rows: InboxSession[]) =>
-  Object.fromEntries(rows.map((r) => [r._id, r])) as Record<string, InboxSession>;
+  Object.fromEntries(rows.map((r) => [r._id, r])) as Record<
+    string,
+    InboxSession
+  >;
 
 const ids = (r: Record<string, InboxSession>) => Object.keys(r).sort();
 
 describe("filterInboxScope — mine", () => {
   it("reuses one snapshot but invalidates on viewer, focus, team membership and rows", () => {
-    const sessions = byId([mk(cid(1), { user_id: ME }), mk(cid(2), { user_id: THEM })]);
+    const sessions = byId([
+      mk(cid(1), { user_id: ME }),
+      mk(cid(2), { user_id: THEM }),
+    ]);
     const first = filterInboxScope(sessions, "mine", ME);
     expect(filterInboxScope(sessions, "mine", ME)).toBe(first);
     expect(ids(filterInboxScope(sessions, "mine", THEM))).toEqual([cid(2)]);
-    expect(ids(filterInboxScope(sessions, "mine", ME, undefined, cid(2)))).toEqual([cid(1), cid(2)]);
-    expect(ids(filterInboxScope(sessions, "team", ME, new Set([cid(2)])))).toEqual([cid(2)]);
-    expect(ids(filterInboxScope(sessions, "team", ME, new Set([cid(1)])))).toEqual([cid(1)]);
-    expect(ids(filterInboxScope({ ...sessions, [cid(2)]: { ...sessions[cid(2)], user_id: ME } }, "mine", ME))).toEqual([cid(1), cid(2)]);
+    expect(
+      ids(filterInboxScope(sessions, "mine", ME, undefined, cid(2))),
+    ).toEqual([cid(1), cid(2)]);
+    expect(
+      ids(filterInboxScope(sessions, "team", ME, new Set([cid(2)]))),
+    ).toEqual([cid(2)]);
+    expect(
+      ids(filterInboxScope(sessions, "team", ME, new Set([cid(1)]))),
+    ).toEqual([cid(1)]);
+    expect(
+      ids(
+        filterInboxScope(
+          { ...sessions, [cid(2)]: { ...sessions[cid(2)], user_id: ME } },
+          "mine",
+          ME,
+        ),
+      ),
+    ).toEqual([cid(1), cid(2)]);
   });
   it("drops a teammate's row and keeps my own", () => {
     const mine = mk(cid(1), { user_id: ME });
@@ -53,13 +77,21 @@ describe("filterInboxScope — mine", () => {
   it("keeps a foreign-run session that is routed to me to steer (owner)", () => {
     // A Mr-Bot-style session: run by another account, assigned to me. It belongs
     // in my inbox and IS mine to triage.
-    const owned = mk(cid(3), { user_id: THEM, owner_user_id: ME, owned_by_me: true });
+    const owned = mk(cid(3), {
+      user_id: THEM,
+      owner_user_id: ME,
+      owned_by_me: true,
+    });
     const out = filterInboxScope(byId([owned]), "mine", ME);
     expect(ids(out)).toEqual([cid(3)]);
   });
 
   it("drops a session I run that is assigned to someone else", () => {
-    const handed = mk(cid(10), { user_id: ME, owner_user_id: THEM, owned_by_me: false });
+    const handed = mk(cid(10), {
+      user_id: ME,
+      owner_user_id: THEM,
+      owned_by_me: false,
+    });
     const stillMine = mk(cid(11), { user_id: ME, owner_user_id: ME });
     const out = filterInboxScope(byId([handed, stillMine]), "mine", ME);
     expect(ids(out)).toEqual([cid(11)]);
@@ -96,7 +128,12 @@ describe("filterInboxScope — team", () => {
     const theirs = mk(cid(2), { user_id: THEM });
     const staleForeign = mk(cid(3), { user_id: THEM }); // cached, not in the team set
     const teamIds = new Set([cid(1), cid(2)]);
-    const out = filterInboxScope(byId([mine, theirs, staleForeign]), "team", ME, teamIds);
+    const out = filterInboxScope(
+      byId([mine, theirs, staleForeign]),
+      "team",
+      ME,
+      teamIds,
+    );
     expect(ids(out)).toEqual([cid(1), cid(2)]);
   });
 
@@ -129,7 +166,10 @@ describe("filterInboxScopeFromState", () => {
   // shared cache. It must read the SAME canonical arguments the inbox panel
   // uses, so a picker can never disagree with the inbox about what is visible.
   const state = (over: Record<string, unknown> = {}) => ({
-    sessions: byId([mk(cid(1), { user_id: ME }), mk(cid(2), { user_id: THEM })]),
+    sessions: byId([
+      mk(cid(1), { user_id: ME }),
+      mk(cid(2), { user_id: THEM }),
+    ]),
     clientState: { ui: {} as { inbox_scope?: "mine" | "team" } },
     currentUser: { _id: ME },
     teamInboxIds: new Set<string>(),
@@ -143,10 +183,12 @@ describe("filterInboxScopeFromState", () => {
   });
 
   it("honors the team scope with the reported team set", () => {
-    const out = filterInboxScopeFromState(state({
-      clientState: { ui: { inbox_scope: "team" as const } },
-      teamInboxIds: new Set([cid(2)]),
-    }));
+    const out = filterInboxScopeFromState(
+      state({
+        clientState: { ui: { inbox_scope: "team" as const } },
+        teamInboxIds: new Set([cid(2)]),
+      }),
+    );
     expect(ids(out)).toEqual([cid(2)]);
   });
 

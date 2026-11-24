@@ -2,14 +2,27 @@ import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useState } from "react";
 import { Pin, Shield, SlidersHorizontal, SquareTerminal } from "lucide-react";
-import { AGENT_CLIENTS, CLAUDE_BACKEND_LABELS, DEFAULT_CLAUDE_BACKEND, asClaudeBackend, isHostedAgentType, type AgentClientId, type ClaudeBackend } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  CLAUDE_BACKEND_LABELS,
+  DEFAULT_CLAUDE_BACKEND,
+  asClaudeBackend,
+  isHostedAgentType,
+  type AgentClientId,
+  type ClaudeBackend,
+} from "@codecast/shared/contracts";
 import { usePinnedAgentIds } from "../../../hooks/usePinnedAgents";
 import { NewSessionDefaultsSection } from "../../../components/settings/NewSessionDefaults";
 import { AgentTypeIcon } from "../../../components/AgentTypeIcon";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { SettingsOptionGroup, SettingsPanel, SettingsRow, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsOptionGroup,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { toast } from "sonner";
 import { SwitchReview } from "../../../components/consequential/ConsequentialSwitch";
 import { agentFullAccessLedger } from "../../../components/consequential/ledgers";
@@ -19,25 +32,91 @@ type CodexMode = "default" | "full_auto" | "bypass";
 type GeminiMode = "default" | "bypass";
 type MuseMode = "default" | "bypass";
 
-const claudeOptions: { value: ClaudeMode; label: string; description: string; flag: string }[] = [
-  { value: "default", label: "Default", description: "Prompts for dangerous operations", flag: "(no extra flags)" },
-  { value: "bypass", label: "Full access", description: "Every permission prompt is skipped", flag: "--permission-mode bypassPermissions" },
+const claudeOptions: {
+  value: ClaudeMode;
+  label: string;
+  description: string;
+  flag: string;
+}[] = [
+  {
+    value: "default",
+    label: "Default",
+    description: "Prompts for dangerous operations",
+    flag: "(no extra flags)",
+  },
+  {
+    value: "bypass",
+    label: "Full access",
+    description: "Every permission prompt is skipped",
+    flag: "--permission-mode bypassPermissions",
+  },
 ];
 
-const codexOptions: { value: CodexMode; label: string; description: string; flag: string }[] = [
-  { value: "default", label: "Default", description: "Prompts for every command", flag: "(no extra flags)" },
-  { value: "full_auto", label: "Full auto", description: "Sandboxed, model decides when to escalate", flag: "--full-auto" },
-  { value: "bypass", label: "Full access", description: "No approval prompts, no sandbox — full file and network access", flag: "-a never -s danger-full-access" },
+const codexOptions: {
+  value: CodexMode;
+  label: string;
+  description: string;
+  flag: string;
+}[] = [
+  {
+    value: "default",
+    label: "Default",
+    description: "Prompts for every command",
+    flag: "(no extra flags)",
+  },
+  {
+    value: "full_auto",
+    label: "Full auto",
+    description: "Sandboxed, model decides when to escalate",
+    flag: "--full-auto",
+  },
+  {
+    value: "bypass",
+    label: "Full access",
+    description:
+      "No approval prompts, no sandbox — full file and network access",
+    flag: "-a never -s danger-full-access",
+  },
 ];
 
-const geminiOptions: { value: GeminiMode; label: string; description: string; flag: string }[] = [
-  { value: "default", label: "Default", description: "Standard permission model", flag: "(no extra flags)" },
-  { value: "bypass", label: "Full access", description: "Every permission prompt is skipped", flag: "(bypass flags)" },
+const geminiOptions: {
+  value: GeminiMode;
+  label: string;
+  description: string;
+  flag: string;
+}[] = [
+  {
+    value: "default",
+    label: "Default",
+    description: "Standard permission model",
+    flag: "(no extra flags)",
+  },
+  {
+    value: "bypass",
+    label: "Full access",
+    description: "Every permission prompt is skipped",
+    flag: "(bypass flags)",
+  },
 ];
 
-const museOptions: { value: MuseMode; label: string; description: string; flag: string }[] = [
-  { value: "default", label: "Default", description: "Standard approval prompts for dangerous operations", flag: "(no extra flags)" },
-  { value: "bypass", label: "Yolo", description: "No approval prompts, no sandbox, workspace trusted", flag: "--yolo" },
+const museOptions: {
+  value: MuseMode;
+  label: string;
+  description: string;
+  flag: string;
+}[] = [
+  {
+    value: "default",
+    label: "Default",
+    description: "Standard approval prompts for dangerous operations",
+    flag: "(no extra flags)",
+  },
+  {
+    value: "bypass",
+    label: "Yolo",
+    description: "No approval prompts, no sandbox, workspace trusted",
+    flag: "--yolo",
+  },
 ];
 
 export default function AgentsPage() {
@@ -69,7 +148,10 @@ export default function AgentsPage() {
     });
   };
 
-  const updateDefaultParams = (args: { agent: string; params: Record<string, string> }) => {
+  const updateDefaultParams = (args: {
+    agent: string;
+    params: Record<string, string>;
+  }) => {
     useInboxStore.getState().setAgentDefaultParams(args.agent, args.params);
   };
 
@@ -77,7 +159,11 @@ export default function AgentsPage() {
     <SettingsPanel>
       <NewSessionDefaultsSection />
       <PinnedAgentsSection />
-      <ClaudeBackendSection current={asClaudeBackend(user?.claude_backend) ?? DEFAULT_CLAUDE_BACKEND} />
+      <ClaudeBackendSection
+        current={
+          asClaudeBackend(user?.claude_backend) ?? DEFAULT_CLAUDE_BACKEND
+        }
+      />
 
       <SettingsSection
         title="Permissions"
@@ -159,7 +245,9 @@ function PinnedAgentsSection() {
   const pinned = usePinnedAgentIds();
   const clients = Object.values(AGENT_CLIENTS);
   const toggle = (id: AgentClientId, on: boolean) => {
-    const next = clients.map((d) => d.id).filter((x) => (x === id ? on : pinned.includes(x)));
+    const next = clients
+      .map((d) => d.id)
+      .filter((x) => (x === id ? on : pinned.includes(x)));
     useInboxStore.getState().setPinnedAgents(next);
   };
   return (
@@ -172,14 +260,29 @@ function PinnedAgentsSection() {
         const on = pinned.includes(d.id);
         // Switch, fork and hand-off offer local agents only, so the last
         // pinned LOCAL agent stays pinned; the hosted assistant never counts.
-        const last = on && !isHostedAgentType(d.id) && pinned.filter((id) => !isHostedAgentType(id)).length === 1;
+        const last =
+          on &&
+          !isHostedAgentType(d.id) &&
+          pinned.filter((id) => !isHostedAgentType(id)).length === 1;
         return (
           <SettingsRow
             key={d.id}
-            label={<span className="flex items-center gap-2"><AgentTypeIcon agentType={d.convexId} className="h-4 w-4" />{d.displayName}</span>}
-            description={last ? "At least one local agent stays pinned." : undefined}
+            label={
+              <span className="flex items-center gap-2">
+                <AgentTypeIcon agentType={d.convexId} className="h-4 w-4" />
+                {d.displayName}
+              </span>
+            }
+            description={
+              last ? "At least one local agent stays pinned." : undefined
+            }
           >
-            <Switch checked={on} disabled={last} onCheckedChange={(v) => toggle(d.id, v)} aria-label={`Pin ${d.displayName}`} />
+            <Switch
+              checked={on}
+              disabled={last}
+              onCheckedChange={(v) => toggle(d.id, v)}
+              aria-label={`Pin ${d.displayName}`}
+            />
           </SettingsRow>
         );
       })}
@@ -188,20 +291,34 @@ function PinnedAgentsSection() {
 }
 
 const claudeBackendOptions: { value: ClaudeBackend; description: string }[] = [
-  { value: "sdk", description: "No terminal to watch; prompts and status come from Claude itself" },
+  {
+    value: "sdk",
+    description:
+      "No terminal to watch; prompts and status come from Claude itself",
+  },
   { value: "tmux", description: "A terminal you can watch and attach to" },
 ];
 
 /** Where new Claude sessions run. A running session switches from its ⋮ menu. */
 export function ClaudeBackendSection({ current }: { current: ClaudeBackend }) {
   return (
-    <SettingsSection title="Claude sessions run in" icon={SquareTerminal} description="For new sessions. A running session switches from its ⋮ menu.">
+    <SettingsSection
+      title="Claude sessions run in"
+      icon={SquareTerminal}
+      description="For new sessions. A running session switches from its ⋮ menu."
+    >
       <div className="px-4 py-3.5 sm:px-5" data-claude-backend-setting>
         <SettingsOptionGroup
           label="Claude sessions run in"
           value={current}
-          onChange={(v) => useInboxStore.getState().setClaudeBackend(v as ClaudeBackend)}
-          options={claudeBackendOptions.map((o) => ({ value: o.value, label: CLAUDE_BACKEND_LABELS[o.value], description: o.description }))}
+          onChange={(v) =>
+            useInboxStore.getState().setClaudeBackend(v as ClaudeBackend)
+          }
+          options={claudeBackendOptions.map((o) => ({
+            value: o.value,
+            label: CLAUDE_BACKEND_LABELS[o.value],
+            description: o.description,
+          }))}
         />
       </div>
     </SettingsSection>
@@ -218,23 +335,39 @@ function AgentSection({
 }: {
   name: string;
   current: string;
-  options: { value: string; label: string; description: string; flag: string }[];
+  options: {
+    value: string;
+    label: string;
+    description: string;
+    flag: string;
+  }[];
   onChange: (value: string) => void;
   disabled?: boolean;
   note?: string;
 }) {
   // Skipping every prompt opens the review first; any other mode is one press, since it asks more, not less.
   const [asking, setAsking] = useState<string | null>(null);
-  const pick = (value: string) => (value === "bypass" && current !== "bypass" ? setAsking(value) : onChange(value));
+  const pick = (value: string) =>
+    value === "bypass" && current !== "bypass"
+      ? setAsking(value)
+      : onChange(value);
   const target = options.find((o) => o.value === asking);
   return (
     <div className="px-4 py-3.5 sm:px-5" data-agent-mode={name}>
       <h3 className="text-sm font-semibold text-sol-text mb-2">{name}</h3>
       {target && (
         <SwitchReview
-          ledger={agentFullAccessLedger({ agent: name, label: target.label, from: options.find((o) => o.value === current)?.label ?? "Default", sandbox: false })}
+          ledger={agentFullAccessLedger({
+            agent: name,
+            label: target.label,
+            from: options.find((o) => o.value === current)?.label ?? "Default",
+            sandbox: false,
+          })}
           onClose={() => setAsking(null)}
-          onConfirm={() => { setAsking(null); onChange(target.value); }}
+          onConfirm={() => {
+            setAsking(null);
+            onChange(target.value);
+          }}
         />
       )}
       <SettingsOptionGroup
@@ -242,7 +375,12 @@ function AgentSection({
         value={current}
         onChange={pick}
         disabled={disabled}
-        options={options.map((o) => ({ value: o.value, label: o.label, description: o.description, mono: o.flag }))}
+        options={options.map((o) => ({
+          value: o.value,
+          label: o.label,
+          description: o.description,
+          mono: o.flag,
+        }))}
       />
       {note && <p className="mt-2 text-xs text-sol-text-muted">{note}</p>}
     </div>
@@ -318,11 +456,7 @@ function AgentParams({
           className="h-8 w-40 font-mono text-sm bg-sol-bg-alt border-sol-border text-sol-text"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         />
-        <Button
-          size="sm"
-          onClick={handleAdd}
-          variant="cyan" className="h-8"
-        >
+        <Button size="sm" onClick={handleAdd} variant="cyan" className="h-8">
           Add
         </Button>
       </div>

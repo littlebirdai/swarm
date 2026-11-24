@@ -51,7 +51,10 @@ function stamp(): string {
 }
 
 /** Two origins name the same repository: ignore protocol, user, .git and case. */
-export function sameOrigin(a: string | null | undefined, b: string | null | undefined): boolean {
+export function sameOrigin(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
   const norm = (s: string) =>
     s
       .trim()
@@ -97,19 +100,39 @@ export function resolveLocalDestination(opts: {
   exists: (p: string) => boolean;
   homes?: { remote: string; local: string };
 }): { localCwd: string; worktree?: string; createIn?: string } {
-  if (opts.recordedLocalCwd && opts.exists(opts.recordedLocalCwd)) return { localCwd: opts.recordedLocalCwd };
-  if (!opts.remoteRoot && opts.homes && opts.remoteCwd.startsWith(`${opts.homes.remote}/`)) {
-    const same = path.join(opts.homes.local, opts.remoteCwd.slice(opts.homes.remote.length + 1));
+  if (opts.recordedLocalCwd && opts.exists(opts.recordedLocalCwd))
+    return { localCwd: opts.recordedLocalCwd };
+  if (
+    !opts.remoteRoot &&
+    opts.homes &&
+    opts.remoteCwd.startsWith(`${opts.homes.remote}/`)
+  ) {
+    const same = path.join(
+      opts.homes.local,
+      opts.remoteCwd.slice(opts.homes.remote.length + 1),
+    );
     if (opts.exists(same)) return { localCwd: same };
   }
-  const top = opts.remoteRoot && opts.remoteCwd.startsWith(`${opts.remoteRoot}/`) ? opts.remoteRoot : opts.remoteCwd;
-  const sub = top === opts.remoteCwd ? "" : opts.remoteCwd.slice(top.length + 1);
+  const top =
+    opts.remoteRoot && opts.remoteCwd.startsWith(`${opts.remoteRoot}/`)
+      ? opts.remoteRoot
+      : opts.remoteCwd;
+  const sub =
+    top === opts.remoteCwd ? "" : opts.remoteCwd.slice(top.length + 1);
   const remoteBase = path.posix.basename(top);
   const wtMatch = /^(.*)\/\.codecast\/worktrees\/([^/]+)$/.exec(top);
   const remoteRepoBase = wtMatch ? path.posix.basename(wtMatch[1]) : remoteBase;
-  const byOrigin = opts.localRoots.filter((r) => sameOrigin(r.origin, opts.remoteOrigin));
-  const byName = opts.localRoots.filter((r) => path.basename(r.root) === remoteRepoBase);
-  const root = (byOrigin.find((r) => path.basename(r.root) === remoteRepoBase) ?? byOrigin[0] ?? byName[0])?.root;
+  const byOrigin = opts.localRoots.filter((r) =>
+    sameOrigin(r.origin, opts.remoteOrigin),
+  );
+  const byName = opts.localRoots.filter(
+    (r) => path.basename(r.root) === remoteRepoBase,
+  );
+  const root = (
+    byOrigin.find((r) => path.basename(r.root) === remoteRepoBase) ??
+    byOrigin[0] ??
+    byName[0]
+  )?.root;
   if (!root) {
     throw new Error(
       `no local checkout of ${opts.remoteOrigin ?? remoteRepoBase} on this machine — clone it into a synced project root, then retry`,
@@ -117,10 +140,17 @@ export function resolveLocalDestination(opts: {
   }
   // The session ran in the main checkout on the host (a repo pushed whole by
   // `cast remote move`, or a cloud session placed on the host's main clone).
-  if (!wtMatch && path.basename(root) === remoteBase) return { localCwd: path.join(root, sub) };
+  if (!wtMatch && path.basename(root) === remoteBase)
+    return { localCwd: path.join(root, sub) };
   const name = opts.worktreeName || (wtMatch ? wtMatch[2] : remoteBase);
   const worktree = path.join(root, ".codecast", "worktrees", name);
-  return opts.exists(worktree) ? { localCwd: path.join(worktree, sub) } : { localCwd: path.join(worktree, sub), ...(sub ? { worktree } : {}), createIn: root };
+  return opts.exists(worktree)
+    ? { localCwd: path.join(worktree, sub) }
+    : {
+        localCwd: path.join(worktree, sub),
+        ...(sub ? { worktree } : {}),
+        createIn: root,
+      };
 }
 
 /**
@@ -129,13 +159,28 @@ export function resolveLocalDestination(opts: {
  * idempotent call may be sent again.
  */
 function isTransientNetworkError(err: unknown): boolean {
-  const e = err as { code?: string; cause?: { code?: string }; message?: string } | null;
+  const e = err as {
+    code?: string;
+    cause?: { code?: string };
+    message?: string;
+  } | null;
   const code = e?.cause?.code ?? e?.code;
-  if (code && /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ENETUNREACH|EHOSTUNREACH|ENOTFOUND|EAI_AGAIN|ConnectionClosed|ConnectionRefused)$/.test(code)) return true;
-  return /ECONNRESET|socket connection was closed unexpectedly|fetch failed|network (?:error|connection was lost)/i.test(e?.message ?? String(err));
+  if (
+    code &&
+    /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ENETUNREACH|EHOSTUNREACH|ENOTFOUND|EAI_AGAIN|ConnectionClosed|ConnectionRefused)$/.test(
+      code,
+    )
+  )
+    return true;
+  return /ECONNRESET|socket connection was closed unexpectedly|fetch failed|network (?:error|connection was lost)/i.test(
+    e?.message ?? String(err),
+  );
 }
 
-export function createRunnerIo(batchId: string, opts: { out?: (line: string) => void } = {}): RunnerIo & { ready(): Promise<void> } {
+export function createRunnerIo(
+  batchId: string,
+  opts: { out?: (line: string) => void } = {},
+): RunnerIo & { ready(): Promise<void> } {
   const out = opts.out ?? ((line: string) => process.stdout.write(`${line}\n`));
   const log = (line: string) => out(`[${stamp()}] ${line}`);
   let client: any;
@@ -153,7 +198,8 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
     api = c.api;
   };
 
-  const listDevices = async (): Promise<any[]> => client.query(api.devices.listDevices, { api_token: token });
+  const listDevices = async (): Promise<any[]> =>
+    client.query(api.devices.listDevices, { api_token: token });
 
   const resolveHost = hostResolver(log);
   const hosts = new Map<string, { cloud: CloudHost; host: RemoteHost }>();
@@ -171,14 +217,19 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
   // (the per-user sync head), and under a busy fleet Convex gives up on the
   // conflict. A conflicted write rolled back whole, so trying it again is safe;
   // failing the move for it left a transferred session stranded.
-  const mutate = async (ref: any, args: Record<string, unknown>): Promise<any> => {
+  const mutate = async (
+    ref: any,
+    args: Record<string, unknown>,
+  ): Promise<any> => {
     for (let attempt = 0; ; attempt++) {
       try {
         return await client.mutation(ref, args);
       } catch (err) {
         const network = isTransientNetworkError(err);
         if (attempt >= 5 || !(network || isWriteConflict(err))) throw err;
-        await new Promise((r) => setTimeout(r, (network ? 2_000 : 500) * 2 ** attempt));
+        await new Promise((r) =>
+          setTimeout(r, (network ? 2_000 : 500) * 2 ** attempt),
+        );
       }
     }
   };
@@ -190,29 +241,76 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
     log,
     deviceId: () => myDeviceId,
 
-    loadBatch: () => client.query(api.sessionMigrations.runnerBatch, { api_token: token, batch_id: batchId, device_id: myDeviceId }),
-    begin: (migrationId) => mutate(api.sessionMigrations.beginSession, { api_token: token, migration_id: migrationId, device_id: myDeviceId }),
-    facts: (migrationId) => client.query(api.sessionMigrations.sessionFacts, { api_token: token, migration_id: migrationId }),
+    loadBatch: () =>
+      client.query(api.sessionMigrations.runnerBatch, {
+        api_token: token,
+        batch_id: batchId,
+        device_id: myDeviceId,
+      }),
+    begin: (migrationId) =>
+      mutate(api.sessionMigrations.beginSession, {
+        api_token: token,
+        migration_id: migrationId,
+        device_id: myDeviceId,
+      }),
+    facts: (migrationId) =>
+      client.query(api.sessionMigrations.sessionFacts, {
+        api_token: token,
+        migration_id: migrationId,
+      }),
     report: async (migrationId, patch) => {
-      await mutate(api.sessionMigrations.reportSession, { api_token: token, migration_id: migrationId, ...patch });
+      await mutate(api.sessionMigrations.reportSession, {
+        api_token: token,
+        migration_id: migrationId,
+        ...patch,
+      });
     },
-    enqueueQuiesce: (migrationId, mode) => mutate(api.sessionMigrations.enqueueQuiesce, { api_token: token, migration_id: migrationId, mode }),
-    commandStatus: (commandId) => client.query(api.sessionMigrations.commandStatus, { api_token: token, command_id: commandId }),
-    finish: (migrationId, args) => mutate(api.sessionMigrations.finishSession, { api_token: token, migration_id: migrationId, ...args }),
+    enqueueQuiesce: (migrationId, mode) =>
+      mutate(api.sessionMigrations.enqueueQuiesce, {
+        api_token: token,
+        migration_id: migrationId,
+        mode,
+      }),
+    commandStatus: (commandId) =>
+      client.query(api.sessionMigrations.commandStatus, {
+        api_token: token,
+        command_id: commandId,
+      }),
+    finish: (migrationId, args) =>
+      mutate(api.sessionMigrations.finishSession, {
+        api_token: token,
+        migration_id: migrationId,
+        ...args,
+      }),
     confirm: async (migrationId, ok, detail) => {
-      await mutate(api.sessionMigrations.confirmSession, { api_token: token, migration_id: migrationId, ok, ...(detail ?? {}) });
+      await mutate(api.sessionMigrations.confirmSession, {
+        api_token: token,
+        migration_id: migrationId,
+        ok,
+        ...(detail ?? {}),
+      });
     },
     fail: async (migrationId, error, cancelled, restore) => {
-      await mutate(api.sessionMigrations.failSession, { api_token: token, migration_id: migrationId, error, ...(cancelled ? { cancelled: true } : {}), ...(restore ? { restore: true } : {}) });
+      await mutate(api.sessionMigrations.failSession, {
+        api_token: token,
+        migration_id: migrationId,
+        error,
+        ...(cancelled ? { cancelled: true } : {}),
+        ...(restore ? { restore: true } : {}),
+      });
     },
-    sendNotice: (conversationId, text) => sendMoveNotice(client, api, token, conversationId, text),
+    sendNotice: (conversationId, text) =>
+      sendMoveNotice(client, api, token, conversationId, text),
     deviceOnline: async (deviceId) => {
       const devices = await listDevices();
       return !!devices.find((d: any) => d.device_id === deviceId)?.online;
     },
 
-    prepareHost: async (deviceId) => { await prepareHost(deviceId); },
-    hostLoginGap: (deviceId) => hostLoginGap(async () => (await prepareHost(deviceId)).host),
+    prepareHost: async (deviceId) => {
+      await prepareHost(deviceId);
+    },
+    hostLoginGap: (deviceId) =>
+      hostLoginGap(async () => (await prepareHost(deviceId)).host),
     hostCastGap: async (deviceId) => {
       if (castReady.has(deviceId)) return null;
       const { cloud, host } = await prepareHost(deviceId);
@@ -227,13 +325,24 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
       return null;
     },
 
-    hostRoom: async (deviceId, facts) => hostRoom((await prepareHost(deviceId)).cloud, facts.git_root ?? facts.project_path ?? undefined),
+    hostRoom: async (deviceId, facts) =>
+      hostRoom(
+        (await prepareHost(deviceId)).cloud,
+        facts.git_root ?? facts.project_path ?? undefined,
+      ),
 
     rehearse: async (facts: Facts, bring) => {
       const { cloud, host } = await prepareHost(facts.to_device_id);
       return rehearseMove(facts.session_id, {
-        host, cloud, destinationId: facts.to_device_id, bring,
-        footprint: (jsonl, root) => { const fp = sessionFootprint(jsonl, root); footprints.set(facts.session_id, fp); return fp; },
+        host,
+        cloud,
+        destinationId: facts.to_device_id,
+        bring,
+        footprint: (jsonl, root) => {
+          const fp = sessionFootprint(jsonl, root);
+          footprints.set(facts.session_id, fp);
+          return fp;
+        },
       });
     },
 
@@ -241,12 +350,21 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
       const { cloud, host } = await prepareHost(facts.to_device_id);
       // The move merges into the host's checkout of the repository, beside
       // whatever sessions already work there (gitPushWorktree).
-      const move = await pushSession(facts.session_id, host, { skipTree: o.skipTree, pushedHead: o.pushedHead, bring: o.bring });
-      for (const b of move.brought ?? []) log(`  brought ${b.local} → ${b.remote}${b.error ? ` FAILED: ${b.error}` : ""}`);
+      const move = await pushSession(facts.session_id, host, {
+        skipTree: o.skipTree,
+        pushedHead: o.pushedHead,
+        bring: o.bring,
+      });
+      for (const b of move.brought ?? [])
+        log(
+          `  brought ${b.local} → ${b.remote}${b.error ? ` FAILED: ${b.error}` : ""}`,
+        );
       // Resuming on a tree that is not this session's (a stale checkout, a push
       // that never landed) hands over the conversation without its work.
       if (move.verification && !move.verification.headsMatch) {
-        throw new Error(`the host checkout ${move.remoteCwd} is at ${move.verification.remoteHead?.slice(0, 8) ?? "an unknown commit"}, not this session's ${move.verification.localHead.slice(0, 8)}; nothing was handed over`);
+        throw new Error(
+          `the host checkout ${move.remoteCwd} is at ${move.verification.remoteHead?.slice(0, 8) ?? "an unknown commit"}, not this session's ${move.verification.localHead.slice(0, 8)}; nothing was handed over`,
+        );
       }
       ensureRemoteClaudeReady(host, move.remoteCwd);
       // A moved checkout must run its tools where it lands, not just hold the
@@ -265,11 +383,21 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
             const used = footprints.get(facts.session_id)?.tools ?? [];
             // The git step already ran in pushSession, with the moved repo in hand.
             await readyHostHome(host, {
-              localGitRoot: localRoot, repoPath, cloudId: cloud.id, skipGit: true, onProgress: (m) => log(`  ${m}`),
-              extraTools: used.map((t) => ({ tool: t.tool, referenced_by: "this session ran it", ...(t.install ? { install: t.install } : {}) })),
+              localGitRoot: localRoot,
+              repoPath,
+              cloudId: cloud.id,
+              skipGit: true,
+              onProgress: (m) => log(`  ${m}`),
+              extraTools: used.map((t) => ({
+                tool: t.tool,
+                referenced_by: "this session ran it",
+                ...(t.install ? { install: t.install } : {}),
+              })),
             });
           } catch (err) {
-            log(`  host home steps failed: ${err instanceof Error ? err.message : String(err)}`);
+            log(
+              `  host home steps failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
       }
@@ -290,39 +418,79 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
         destinationPath: move.remoteCwd,
         gitRoot: move.remoteRoot,
         sourcePath: `${move.localCwd}`,
-        verification: [describeVerification(move.verification), readiness].filter(Boolean).join("; "),
+        verification: [describeVerification(move.verification), readiness]
+          .filter(Boolean)
+          .join("; "),
         localCwd: move.localCwd,
         ...(move.brought ? { brought: move.brought } : {}),
       };
     },
 
     transferToLocal: async (facts: Facts) => {
-      if (!facts.owner_device_id) throw new Error("the session has no owner device to pull from");
+      if (!facts.owner_device_id)
+        throw new Error("the session has no owner device to pull from");
       const { host } = await prepareHost(facts.owner_device_id);
       // A path outside the host's home is not where the session runs there (a
       // stale copy of the transcript on this machine once rewrote it to this
       // folder); this machine's own record of where it put the session wins then.
       const recorded = readMoves()[facts.session_id]?.remoteCwd;
-      const remoteCwd = facts.project_path?.startsWith(`${remoteHome(host)}/`) || !recorded ? facts.project_path : recorded;
-      if (!remoteCwd || !remoteCwd.startsWith("/")) throw new Error(`the session's path on the host is unknown (${remoteCwd ?? "none"})`);
-      const remoteProjectDir = path.posix.join(remoteHome(host), ".claude", "projects", claudeProjectDirName(remoteCwd));
+      const remoteCwd =
+        facts.project_path?.startsWith(`${remoteHome(host)}/`) || !recorded
+          ? facts.project_path
+          : recorded;
+      if (!remoteCwd || !remoteCwd.startsWith("/"))
+        throw new Error(
+          `the session's path on the host is unknown (${remoteCwd ?? "none"})`,
+        );
+      const remoteProjectDir = path.posix.join(
+        remoteHome(host),
+        ".claude",
+        "projects",
+        claudeProjectDirName(remoteCwd),
+      );
       let remoteOrigin: string | null = null;
       let remoteBranch: string | null = null;
       let remoteRoot: string | undefined;
       let probedHost = false;
       try {
-        remoteOrigin = ssh(host, `git -C ${shq(remoteCwd)} remote get-url origin 2>/dev/null || true`).trim() || null;
-        remoteBranch = ssh(host, `git -C ${shq(remoteCwd)} rev-parse --abbrev-ref HEAD 2>/dev/null || true`).trim() || null;
-        remoteRoot = ssh(host, `git -C ${shq(remoteCwd)} rev-parse --show-toplevel 2>/dev/null || true`).trim() || undefined;
+        remoteOrigin =
+          ssh(
+            host,
+            `git -C ${shq(remoteCwd)} remote get-url origin 2>/dev/null || true`,
+          ).trim() || null;
+        remoteBranch =
+          ssh(
+            host,
+            `git -C ${shq(remoteCwd)} rev-parse --abbrev-ref HEAD 2>/dev/null || true`,
+          ).trim() || null;
+        remoteRoot =
+          ssh(
+            host,
+            `git -C ${shq(remoteCwd)} rev-parse --show-toplevel 2>/dev/null || true`,
+          ).trim() || undefined;
         probedHost = true;
-      } catch { /* not a repo on the host: rsync fallback below */ }
-      const me = (await listDevices()).find((d: any) => d.device_id === myDeviceId);
-      const roots: string[] = Array.isArray(me?.local_project_roots) ? me.local_project_roots : [];
+      } catch {
+        /* not a repo on the host: rsync fallback below */
+      }
+      const me = (await listDevices()).find(
+        (d: any) => d.device_id === myDeviceId,
+      );
+      const roots: string[] = Array.isArray(me?.local_project_roots)
+        ? me.local_project_roots
+        : [];
       const localRoots = roots
         .filter((r) => fs.existsSync(r))
         .map((root) => {
           let origin: string | null = null;
-          try { origin = execFileSync("git", ["-C", root, "remote", "get-url", "origin"], { encoding: "utf-8", stdio: "pipe" }).trim() || null; } catch { /* no origin */ }
+          try {
+            origin =
+              execFileSync("git", ["-C", root, "remote", "get-url", "origin"], {
+                encoding: "utf-8",
+                stdio: "pipe",
+              }).trim() || null;
+          } catch {
+            /* no origin */
+          }
           return { root, origin };
         });
       const dest = resolveLocalDestination({
@@ -337,40 +505,124 @@ export function createRunnerIo(batchId: string, opts: { out?: (line: string) => 
         homes: { remote: remoteHome(host), local: os.homedir() },
       });
       if (dest.createIn) {
-        if (!remoteBranch || remoteBranch === "HEAD") throw new Error("the session's worktree on the host is not on a branch; check it out there first");
-        log(`  creating local worktree ${dest.localCwd} on ${remoteBranch} from the host`);
+        if (!remoteBranch || remoteBranch === "HEAD")
+          throw new Error(
+            "the session's worktree on the host is not on a branch; check it out there first",
+          );
+        log(
+          `  creating local worktree ${dest.localCwd} on ${remoteBranch} from the host`,
+        );
         const ref = `refs/codecast/migrate/${remoteBranch}`;
-        execFileSync("git", ["-C", dest.createIn, "fetch", "--force", gitSshUrl(host, remoteRoot ?? remoteCwd), `+refs/heads/${remoteBranch}:${ref}`], { env: gitEnv(host), stdio: "pipe" });
+        execFileSync(
+          "git",
+          [
+            "-C",
+            dest.createIn,
+            "fetch",
+            "--force",
+            gitSshUrl(host, remoteRoot ?? remoteCwd),
+            `+refs/heads/${remoteBranch}:${ref}`,
+          ],
+          { env: gitEnv(host), stdio: "pipe" },
+        );
         const worktree = dest.worktree ?? dest.localCwd;
         fs.mkdirSync(path.dirname(worktree), { recursive: true });
         try {
-          execFileSync("git", ["-C", dest.createIn, "worktree", "add", "-B", remoteBranch, worktree, ref], { stdio: "pipe" });
+          execFileSync(
+            "git",
+            [
+              "-C",
+              dest.createIn,
+              "worktree",
+              "add",
+              "-B",
+              remoteBranch,
+              worktree,
+              ref,
+            ],
+            { stdio: "pipe" },
+          );
         } catch {
           // The branch is checked out elsewhere locally: detach at the same commit.
-          execFileSync("git", ["-C", dest.createIn, "worktree", "add", "--detach", worktree, ref], { stdio: "pipe" });
+          execFileSync(
+            "git",
+            ["-C", dest.createIn, "worktree", "add", "--detach", worktree, ref],
+            { stdio: "pipe" },
+          );
         }
       }
       const recordedMove = readMoves()[facts.session_id];
-      const move: MoveResult = { sessionId: facts.session_id, localCwd: dest.localCwd, remoteCwd, remoteRoot, remoteProjectDir, pushedHead: recordedMove?.pushedHead ?? recordedMove?.verification?.remoteHead ?? undefined, ...(recordedMove?.brought ? { brought: recordedMove.brought } : {}) };
+      const move: MoveResult = {
+        sessionId: facts.session_id,
+        localCwd: dest.localCwd,
+        remoteCwd,
+        remoteRoot,
+        remoteProjectDir,
+        pushedHead:
+          recordedMove?.pushedHead ??
+          recordedMove?.verification?.remoteHead ??
+          undefined,
+        ...(recordedMove?.brought ? { brought: recordedMove.brought } : {}),
+      };
       const { checkoutAloneProbe } = await import("../cloud/prepare.js");
-      const pulled = await pullSession(facts.session_id, host, move, { hostFolderInRepo: probedHost ? !!remoteRoot : undefined, aloneInCheckout: checkoutAloneProbe(client, api, token, facts.owner_device_id, facts.conversation_id) });
+      const pulled = await pullSession(facts.session_id, host, move, {
+        hostFolderInRepo: probedHost ? !!remoteRoot : undefined,
+        aloneInCheckout: checkoutAloneProbe(
+          client,
+          api,
+          token,
+          facts.owner_device_id,
+          facts.conversation_id,
+        ),
+      });
       if (!pulled.ff) throw new Error(`CONFLICT: ${pulled.reason}`);
       let verification = FOLDER_COPY_VERIFICATION;
       let gitRoot: string | undefined;
       if (isWorktree(dest.localCwd)) {
         verification = describeBackSync(pulled);
-        try { gitRoot = execFileSync("git", ["-C", dest.localCwd, "rev-parse", "--show-toplevel"], { encoding: "utf-8", stdio: "pipe" }).trim() || undefined; } catch { /* leave unset */ }
+        try {
+          gitRoot =
+            execFileSync(
+              "git",
+              ["-C", dest.localCwd, "rev-parse", "--show-toplevel"],
+              { encoding: "utf-8", stdio: "pipe" },
+            ).trim() || undefined;
+        } catch {
+          /* leave unset */
+        }
       }
-      return { destinationPath: dest.localCwd, gitRoot, sourcePath: remoteCwd, verification };
+      return {
+        destinationPath: dest.localCwd,
+        gitRoot,
+        sourcePath: remoteCwd,
+        verification,
+      };
     },
 
-    notice: (facts: Facts, transfer: TransferResult, stoppedOnSource, rehearsal) => {
-      const entry = hosts.get(facts.direction === "to_cloud" ? facts.to_device_id : (facts.owner_device_id ?? ""));
-      const hostName = entry ? `${entry.host.user}@${entry.host.address}` : null;
+    notice: (
+      facts: Facts,
+      transfer: TransferResult,
+      stoppedOnSource,
+      rehearsal,
+    ) => {
+      const entry = hosts.get(
+        facts.direction === "to_cloud"
+          ? facts.to_device_id
+          : (facts.owner_device_id ?? ""),
+      );
+      const hostName = entry
+        ? `${entry.host.user}@${entry.host.address}`
+        : null;
       return moveNotice({
-        destination: facts.direction === "to_cloud" ? (hostName ?? facts.to_label ?? "the cloud host") : `${os.hostname()} (back on a local machine)`,
+        destination:
+          facts.direction === "to_cloud"
+            ? (hostName ?? facts.to_label ?? "the cloud host")
+            : `${os.hostname()} (back on a local machine)`,
         newCwd: transfer.destinationPath,
-        oldCwd: facts.direction === "to_cloud" ? `${transfer.sourcePath} on ${os.hostname()}` : `${transfer.sourcePath} on ${hostName ?? facts.owner_label ?? "the cloud host"}`,
+        oldCwd:
+          facts.direction === "to_cloud"
+            ? `${transfer.sourcePath} on ${os.hostname()}`
+            : `${transfer.sourcePath} on ${hostName ?? facts.owner_label ?? "the cloud host"}`,
         verification: transfer.verification,
         stoppedOnSource,
         brought: transfer.brought,

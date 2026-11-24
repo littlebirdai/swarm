@@ -8,6 +8,8 @@ export default function LineSettingsRoute() {
   const search = useSearchParams();
   const q = search?.toString() ?? "";
   const to = `/flows/settings${q ? `?${q}` : ""}`;
-  useWatchEffect(() => { router.replace(to); }, [router, to]);
+  useWatchEffect(() => {
+    router.replace(to);
+  }, [router, to]);
   return null;
 }

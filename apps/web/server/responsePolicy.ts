@@ -7,8 +7,10 @@ const CONVEX_WS = `wss://${CONVEX.host}`;
 const LOOPBACK = "http://127.0.0.1:* http://localhost:*";
 const LOOPBACK_WS = "ws://127.0.0.1:* ws://localhost:*";
 const POSTHOG = "https://us.i.posthog.com https://us-assets.i.posthog.com";
-const GOOGLE_ADS = "https://www.googletagmanager.com https://www.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com";
-const AVATARS = "https://avatars.githubusercontent.com https://*.googleusercontent.com https://avatars.slack-edge.com https://a.slack-edge.com https://*.gravatar.com";
+const GOOGLE_ADS =
+  "https://www.googletagmanager.com https://www.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com";
+const AVATARS =
+  "https://avatars.githubusercontent.com https://*.googleusercontent.com https://avatars.slack-edge.com https://a.slack-edge.com https://*.gravatar.com";
 
 // The document policy, sent REPORT-ONLY (PARENT-10). It is the draft of the
 // policy we would enforce, so the reports it collects say exactly what
@@ -42,7 +44,9 @@ export const HSTS = "max-age=86400";
 // report-only draft above. The agent consent page (/oauth/authorize) grants an
 // outside agent read access as the person (docs/architecture/agent-mcp.md).
 export function isUnframeablePath(pathname: string): boolean {
-  return pathname === "/oauth/authorize" || pathname.startsWith("/oauth/authorize/");
+  return (
+    pathname === "/oauth/authorize" || pathname.startsWith("/oauth/authorize/")
+  );
 }
 
 // Sentry's CSP security endpoint for a DSN, or null when the DSN is missing or
@@ -59,10 +63,12 @@ export function cspReportEndpoint(
     return null;
   }
   const project = url.pathname.replace(/^\/+|\/+$/g, "");
-  if (url.protocol !== "https:" || !url.username || !/^\d+$/.test(project)) return null;
+  if (url.protocol !== "https:" || !url.username || !/^\d+$/.test(project))
+    return null;
   const endpoint = new URL(`https://${url.host}/api/${project}/security/`);
   endpoint.searchParams.set("sentry_key", url.username);
-  if (tags.environment) endpoint.searchParams.set("sentry_environment", tags.environment);
+  if (tags.environment)
+    endpoint.searchParams.set("sentry_environment", tags.environment);
   if (tags.release) endpoint.searchParams.set("sentry_release", tags.release);
   return endpoint.toString();
 }
@@ -93,8 +99,15 @@ export function isUnindexedPath(pathname: string): boolean {
   return /^\/(meet|share\/call)(\/|$)/.test(pathname);
 }
 
-export function createResponsePolicy(options: ResponsePolicyOptions = {}): MiddlewareHandler {
-  const { sampleRate = 0.1, maxReportingPerHour = 120, random = Math.random, now = Date.now } = options;
+export function createResponsePolicy(
+  options: ResponsePolicyOptions = {},
+): MiddlewareHandler {
+  const {
+    sampleRate = 0.1,
+    maxReportingPerHour = 120,
+    random = Math.random,
+    now = Date.now,
+  } = options;
   const endpoint = cspReportEndpoint(options.sentryDsn, options);
   let windowStart = -Infinity;
   let reportedInWindow = 0;
@@ -115,7 +128,10 @@ export function createResponsePolicy(options: ResponsePolicyOptions = {}): Middl
     await next();
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-    c.header("Permissions-Policy", "camera=(self), microphone=(self), display-capture=(self), clipboard-read=(self), clipboard-write=(self)");
+    c.header(
+      "Permissions-Policy",
+      "camera=(self), microphone=(self), display-capture=(self), clipboard-read=(self), clipboard-write=(self)",
+    );
     c.header("Strict-Transport-Security", HSTS);
     // A guest link is a door into a live meeting, and a call's public page
     // is its people's words: one pasted somewhere public must not become a
@@ -123,7 +139,8 @@ export function createResponsePolicy(options: ResponsePolicyOptions = {}): Middl
     // Disallow: unfurl bots honor robots.txt too, and the card is how the
     // link is meant to travel.
     const pathname = new URL(c.req.url).pathname;
-    if (isUnindexedPath(pathname)) c.header("X-Robots-Tag", "noindex, nofollow");
+    if (isUnindexedPath(pathname))
+      c.header("X-Robots-Tag", "noindex, nofollow");
     if (isUnframeablePath(pathname)) {
       c.header("X-Frame-Options", "DENY");
       c.header("Content-Security-Policy", "frame-ancestors 'none'");
@@ -134,7 +151,10 @@ export function createResponsePolicy(options: ResponsePolicyOptions = {}): Middl
       // named endpoint exists. Reporting-Endpoints, not Report-To: Cloudflare
       // sets its own Report-To for network error logging.
       c.header("Reporting-Endpoints", `csp="${endpoint}"`);
-      c.header("Content-Security-Policy-Report-Only", `${DOCUMENT_POLICY}; report-uri ${endpoint}; report-to csp`);
+      c.header(
+        "Content-Security-Policy-Report-Only",
+        `${DOCUMENT_POLICY}; report-uri ${endpoint}; report-to csp`,
+      );
     } else {
       c.header("Content-Security-Policy-Report-Only", DOCUMENT_POLICY);
     }

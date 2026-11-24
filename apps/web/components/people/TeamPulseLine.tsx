@@ -1,6 +1,5 @@
 import { pulseText, type PulseTone, type TeamPulse } from "./teamPulse";
 
-
 /** Same colour language as the rest of the app: presence cyan for here,
  *  yellow for idle, the fleet's green for running agents, its orange for a
  *  session waiting on a person, the huddle's violet. */
@@ -49,13 +48,19 @@ export function TeamPulseLine({
       aria-label={`Team: ${pulseText(pulse)}`}
     >
       {pulse.segments.map((seg) => (
-        <span key={seg.key} className="flex shrink-0 items-center gap-1" aria-hidden="true">
+        <span
+          key={seg.key}
+          className="flex shrink-0 items-center gap-1"
+          aria-hidden="true"
+        >
           <span
             className={`people-pulse-dot h-1.5 w-1.5 rounded-full ${TONE[seg.tone].dot}`}
             data-live={seg.tone === "needsInput" ? "1" : undefined}
           />
           {seg.n > 0 && (
-            <span className={`text-[1.15em] font-semibold tabular-nums ${TONE[seg.tone].text}`}>
+            <span
+              className={`text-[1.15em] font-semibold tabular-nums ${TONE[seg.tone].text}`}
+            >
               {seg.n}
             </span>
           )}

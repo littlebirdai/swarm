@@ -1,5 +1,8 @@
 import { parseInsightBlocks } from "../components/insightBlocks";
-import { MessageMarkdown, InsightCard } from "../components/conversation/markdown";
+import {
+  MessageMarkdown,
+  InsightCard,
+} from "../components/conversation/markdown";
 import { structuredMessageInput } from "@codecast/shared/render";
 import { StructuredResultBlock } from "../components/conversation/blocks/toolBlocks";
 
@@ -11,9 +14,15 @@ import { StructuredResultBlock } from "../components/conversation/blocks/toolBlo
 // memo holds (a fresh inline arrow at the call site would defeat it).
 export const renderAssistantBody = (content: string) => {
   const input = structuredMessageInput(content);
-  if (input) return <StructuredResultBlock tool={{ id: "message-result", name: "StructuredOutput", input }} />;
+  if (input)
+    return (
+      <StructuredResultBlock
+        tool={{ id: "message-result", name: "StructuredOutput", input }}
+      />
+    );
   const parts = parseInsightBlocks(content);
-  if (!parts.some((p) => p.type === "insight")) return <MessageMarkdown content={content} />;
+  if (!parts.some((p) => p.type === "insight"))
+    return <MessageMarkdown content={content} />;
   return (
     <>
       {parts.map((part, i) =>

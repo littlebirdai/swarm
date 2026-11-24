@@ -15,7 +15,9 @@ export function threadsMissingReplies(
   summaries: Record<string, ChatThreadSummaryRow | undefined>,
   messages: Record<string, ChatMessageRow>,
 ): string[] {
-  const wanted = new Set(rootIds.filter((id) => (summaries[id]?.reply_count ?? 0) > 0));
+  const wanted = new Set(
+    rootIds.filter((id) => (summaries[id]?.reply_count ?? 0) > 0),
+  );
   if (wanted.size === 0) return [];
   const held = new Map<string, { count: number; newest: number }>();
   for (const id in messages) {

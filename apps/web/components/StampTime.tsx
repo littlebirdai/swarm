@@ -6,6 +6,12 @@ import { useStampNow } from "../lib/conversationFormat";
  * under a film, so a film's frames never depend on how long the page has been
  * open.
  */
-export function StampTime({ ts, format }: { ts: number; format: (ts: number, now: number) => string }) {
+export function StampTime({
+  ts,
+  format,
+}: {
+  ts: number;
+  format: (ts: number, now: number) => string;
+}) {
   return <>{format(ts, useStampNow())}</>;
 }

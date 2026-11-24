@@ -30,39 +30,58 @@ export function AssignedPingStrip({
   const [pingExpanded, setPingExpanded] = useState(false);
   if (!session.assigned_ping) return null;
   return (
-          /* mr-5 keeps the strip — and its "Got it" button — clear of the
+    /* mr-5 keeps the strip — and its "Got it" button — clear of the
              hover toolbar's column on the right, whose gradient would
              otherwise wash over the button. */
-          <div data-sv-ping className="flex items-start gap-1.5 mt-1 mr-5 px-1.5 py-1 rounded-md bg-sol-violet/15 border border-sol-violet/30">
-            <UserCheck className="w-3 h-3 text-sol-violet flex-shrink-0 mt-0.5" />
-            {/* The note is the REASON for the handoff — clamped for the list,
+    <div
+      data-sv-ping
+      className="flex items-start gap-1.5 mt-1 mr-5 px-1.5 py-1 rounded-md bg-sol-violet/15 border border-sol-violet/30"
+    >
+      <UserCheck className="w-3 h-3 text-sol-violet flex-shrink-0 mt-0.5" />
+      {/* The note is the REASON for the handoff — clamped for the list,
                 tap the body to read all of it without opening the session. */}
-            <div
-              className={`min-w-0 flex-1 text-meta leading-snug ${session.assigned_ping.note ? "cursor-pointer" : ""}`}
-              onClick={session.assigned_ping.note ? (e) => { e.stopPropagation(); setPingExpanded((v) => !v); } : undefined}
-            >
-              <span className="font-semibold text-sol-violet">
-                {session.assigned_ping.by_name} assigned this to you
-              </span>
-              <span className="text-sol-text-dim whitespace-nowrap" title={formatDateFull(session.assigned_ping.at)}>
-                {" · "}{formatRelative(session.assigned_ping.at, now)}
-              </span>
-              {session.assigned_ping.note && (
-                <div className={`text-sol-text-muted whitespace-pre-wrap break-words ${pingExpanded ? "" : "line-clamp-2"}`}>
-                  “{session.assigned_ping.note}”
-                </div>
-              )}
-            </div>
-            {/* Accept right here — the handoff shouldn't require opening the
-                conversation and finding the banner to retire. */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onAckAssignment?.(session._id); }}
-              className="flex-shrink-0 px-1.5 py-0.5 rounded text-meta font-medium bg-sol-violet/20 text-sol-violet border border-sol-violet/40 hover:bg-sol-violet/30 transition-colors"
-            >
-              Got it
-            </button>
+      <div
+        className={`min-w-0 flex-1 text-meta leading-snug ${session.assigned_ping.note ? "cursor-pointer" : ""}`}
+        onClick={
+          session.assigned_ping.note
+            ? (e) => {
+                e.stopPropagation();
+                setPingExpanded((v) => !v);
+              }
+            : undefined
+        }
+      >
+        <span className="font-semibold text-sol-violet">
+          {session.assigned_ping.by_name} assigned this to you
+        </span>
+        <span
+          className="text-sol-text-dim whitespace-nowrap"
+          title={formatDateFull(session.assigned_ping.at)}
+        >
+          {" · "}
+          {formatRelative(session.assigned_ping.at, now)}
+        </span>
+        {session.assigned_ping.note && (
+          <div
+            className={`text-sol-text-muted whitespace-pre-wrap break-words ${pingExpanded ? "" : "line-clamp-2"}`}
+          >
+            “{session.assigned_ping.note}”
           </div>
+        )}
+      </div>
+      {/* Accept right here — the handoff shouldn't require opening the
+                conversation and finding the banner to retire. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAckAssignment?.(session._id);
+        }}
+        className="flex-shrink-0 px-1.5 py-0.5 rounded text-meta font-medium bg-sol-violet/20 text-sol-violet border border-sol-violet/40 hover:bg-sol-violet/30 transition-colors"
+      >
+        Got it
+      </button>
+    </div>
   );
 }
 
@@ -74,7 +93,9 @@ export function CardStartupLine({ session }: { session: InboxSession }) {
   // A hosted conversation has no machine to connect: it is getting started
   // until its first reply, in the words its status line uses.
   if (isHostedAgentType(session.agent_type)) {
-    return <div className="mt-0.5 text-meta text-sol-text-dim">Getting started…</div>;
+    return (
+      <div className="mt-0.5 text-meta text-sol-text-dim">Getting started…</div>
+    );
   }
   const startup = sessionStartupState({
     isConnected: session.is_connected,
@@ -92,8 +113,19 @@ export function CardStartupLine({ session }: { session: InboxSession }) {
     return (
       <div className="flex items-center gap-1.5 mt-0.5 text-meta text-sol-cyan/60">
         <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
         </svg>
         <span>Starting…</span>
       </div>
@@ -120,8 +152,9 @@ export function CommentThreadsChip({
   onOpenComments?: (id: string) => void;
 }) {
   if ((session.open_comment_threads ?? 0) <= 0) return null;
-  const waitingOnViewer = !!session.last_comment_author_id
-    && session.last_comment_author_id !== viewerId;
+  const waitingOnViewer =
+    !!session.last_comment_author_id &&
+    session.last_comment_author_id !== viewerId;
   const who = session.last_comment_author;
   return (
     <button
@@ -132,15 +165,27 @@ export function CommentThreadsChip({
           : "bg-sol-bg-alt/60 text-sol-text-dim border-sol-border/40 hover:bg-sol-bg-alt"
       }`}
       title={`${session.open_comment_threads} open comment thread${session.open_comment_threads === 1 ? "" : "s"}${
-        who && session.last_comment_excerpt ? ` — ${who}: ${session.last_comment_excerpt}` : ""
+        who && session.last_comment_excerpt
+          ? ` — ${who}: ${session.last_comment_excerpt}`
+          : ""
       } — open with the comment rail`}
       onClick={(e) => {
         e.stopPropagation();
         onOpenComments?.(session._id);
       }}
     >
-      <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7.9 20A9 9 0 104 16.1L2 22z" />
+      <svg
+        className="w-2.5 h-2.5 shrink-0"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7.9 20A9 9 0 104 16.1L2 22z"
+        />
       </svg>
       {session.open_comment_threads}
       {waitingOnViewer && who && (
@@ -176,46 +221,90 @@ export function CardStatusSignals({
   const hosted = isHostedAgentType(session.agent_type);
   return (
     <>
-            {showBlockedBadge && <AuthErrorBadge kind={session.pending_api_error_kind} agentType={session.agent_type} />}
-            {session.session_error && session.pending_api_error_kind !== "safety" && (
-              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-red" title={session.session_error} />
-            )}
-            {session.is_unresponsive && !session.session_error && (
-              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-orange" title="Session unresponsive" />
-            )}
-            {session.has_pending && !session.is_unresponsive && !isPendingWorking && !isRowRestarting && (
-              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-yellow" title="Message pending" />
-            )}
-            {/* Settled with content gets the gray idle dot. Keyed on !isLive (now
+      {showBlockedBadge && (
+        <AuthErrorBadge
+          kind={session.pending_api_error_kind}
+          agentType={session.agent_type}
+        />
+      )}
+      {session.session_error && session.pending_api_error_kind !== "safety" && (
+        <span
+          className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-red"
+          title={session.session_error}
+        />
+      )}
+      {session.is_unresponsive && !session.session_error && (
+        <span
+          className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-orange"
+          title="Session unresponsive"
+        />
+      )}
+      {session.has_pending &&
+        !session.is_unresponsive &&
+        !isPendingWorking &&
+        !isRowRestarting && (
+          <span
+            className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-yellow"
+            title="Message pending"
+          />
+        )}
+      {/* Settled with content gets the gray idle dot. Keyed on !isLive (now
                 staleness-aware) rather than the raw is_idle flag, so a frozen
                 is_idle:false row that's really finished shows idle, not nothing. */}
-            {!isWorking && !isLive && !dismissed && !showBlockedBadge && !session.session_error && !session.is_unresponsive && !session.has_pending && !isPendingWorking && !isRowRestarting && session.message_count > 0 && (
-              <span data-sv-idle-dot className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-text-dim/40 ring-1 ring-sol-text-dim/20" title="Idle" />
-            )}
-            {/* A kill+restart owns the row's signal while it runs: the re-pended
+      {!isWorking &&
+        !isLive &&
+        !dismissed &&
+        !showBlockedBadge &&
+        !session.session_error &&
+        !session.is_unresponsive &&
+        !session.has_pending &&
+        !isPendingWorking &&
+        !isRowRestarting &&
+        session.message_count > 0 && (
+          <span
+            data-sv-idle-dot
+            className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-sol-text-dim/40 ring-1 ring-sol-text-dim/20"
+            title="Idle"
+          />
+        )}
+      {/* A kill+restart owns the row's signal while it runs: the re-pended
                 message and the not-yet-live status are both part of the restart,
                 so the pending chip and dots yield to this one. isLive flipping
                 true retires it in favor of the green working dot. */}
-            {isRowRestarting && (
-              <span className="inline-flex flex-shrink-0 items-center gap-0.5 px-1 py-0 rounded text-meta font-semibold bg-sol-orange/10 text-sol-orange border border-sol-orange/30" title="Kill & restart in flight">
-                <span className="w-1 h-1 rounded-full bg-sol-orange" />
-                restarting
-              </span>
-            )}
-            {isPendingWorking && !isRowRestarting && !hosted && (
-              <span className="inline-flex flex-shrink-0 items-center gap-0.5 px-1 py-0 rounded text-meta font-semibold bg-sol-yellow/10 text-sol-yellow border border-sol-yellow/30" title="Sent — waiting to confirm delivery">
-                <span className="w-1 h-1 rounded-full bg-sol-yellow" />
-                pending
-              </span>
-            )}
-            {(hosted ? isWorking || isPendingWorking : (isWorking || isLive) && !isPendingWorking) && !isRowRestarting && !showBlockedBadge && (
-              // A solid dot, no ping halo: a card is one of many, and one running
-              // halo per working agent makes the browser re-layer the page on
-              // every frame, keystrokes included.
-              <span data-sv-working-dot className="relative flex flex-shrink-0 h-2 w-2" title="Working">
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sol-green" />
-              </span>
-            )}
+      {isRowRestarting && (
+        <span
+          className="inline-flex flex-shrink-0 items-center gap-0.5 px-1 py-0 rounded text-meta font-semibold bg-sol-orange/10 text-sol-orange border border-sol-orange/30"
+          title="Kill & restart in flight"
+        >
+          <span className="w-1 h-1 rounded-full bg-sol-orange" />
+          restarting
+        </span>
+      )}
+      {isPendingWorking && !isRowRestarting && !hosted && (
+        <span
+          className="inline-flex flex-shrink-0 items-center gap-0.5 px-1 py-0 rounded text-meta font-semibold bg-sol-yellow/10 text-sol-yellow border border-sol-yellow/30"
+          title="Sent — waiting to confirm delivery"
+        >
+          <span className="w-1 h-1 rounded-full bg-sol-yellow" />
+          pending
+        </span>
+      )}
+      {(hosted
+        ? isWorking || isPendingWorking
+        : (isWorking || isLive) && !isPendingWorking) &&
+        !isRowRestarting &&
+        !showBlockedBadge && (
+          // A solid dot, no ping halo: a card is one of many, and one running
+          // halo per working agent makes the browser re-layer the page on
+          // every frame, keystrokes included.
+          <span
+            data-sv-working-dot
+            className="relative flex flex-shrink-0 h-2 w-2"
+            title="Working"
+          >
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-sol-green" />
+          </span>
+        )}
     </>
   );
 }
@@ -239,52 +328,88 @@ export function CardParentLinks({
 }) {
   return (
     <>
-        {spawnedById && (
-          // Click-through to the session that spawned this one (its agent-team
-          // lead) — same affordance shape as the implementation-session row.
-          <div
-            data-sv-spawned
-            className="mt-1 flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-cyan cursor-pointer transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenParent?.(spawnedById);
-            }}
-            title={spawnedIsHandoff ? "View the session this one continues" : "View the session that spawned this one"}
+      {spawnedById && (
+        // Click-through to the session that spawned this one (its agent-team
+        // lead) — same affordance shape as the implementation-session row.
+        <div
+          data-sv-spawned
+          className="mt-1 flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-cyan cursor-pointer transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenParent?.(spawnedById);
+          }}
+          title={
+            spawnedIsHandoff
+              ? "View the session this one continues"
+              : "View the session that spawned this one"
+          }
+        >
+          <svg
+            className="w-3 h-3 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-            </svg>
-            <span className="flex-shrink-0">{spawnedIsHandoff ? "handed off from" : "spawned by"}</span>
-            <span className="truncate underline underline-offset-2">
-              {cleanTitle(spawnedByTitle || "parent session")}
-            </span>
-          </div>
-        )}
-        {session.implementation_session && (
-          <div
-            className="mt-1 flex items-center gap-1 text-meta text-sol-cyan hover:text-sol-cyan/80 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onNavigateToSession) onNavigateToSession(session.implementation_session!._id);
-            }}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+            />
+          </svg>
+          <span className="flex-shrink-0">
+            {spawnedIsHandoff ? "handed off from" : "spawned by"}
+          </span>
+          <span className="truncate underline underline-offset-2">
+            {cleanTitle(spawnedByTitle || "parent session")}
+          </span>
+        </div>
+      )}
+      {session.implementation_session && (
+        <div
+          className="mt-1 flex items-center gap-1 text-meta text-sol-cyan hover:text-sol-cyan/80 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onNavigateToSession)
+              onNavigateToSession(session.implementation_session!._id);
+          }}
+        >
+          <svg
+            className="w-3 h-3 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-            <span className="truncate underline underline-offset-2">
-              {sessionCardTitle(session.implementation_session)}
-            </span>
-          </div>
-        )}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 7l5 5m0 0l-5 5m5-5H6"
+            />
+          </svg>
+          <span className="truncate underline underline-offset-2">
+            {sessionCardTitle(session.implementation_session)}
+          </span>
+        </div>
+      )}
     </>
   );
 }
 
-const PIN_PATH = "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z";
+const PIN_PATH =
+  "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76z";
 
 function PinGlyph({ filled }: { filled: boolean }) {
   return (
-    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className="w-3.5 h-3.5"
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 17v5" />
       <path d={PIN_PATH} />
     </svg>
@@ -294,8 +419,18 @@ function PinGlyph({ filled }: { filled: boolean }) {
 /** The row-action glyphs, one path each, all drawn the same way. */
 function ActionGlyph({ d }: { d: string }) {
   return (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d={d}
+      />
     </svg>
   );
 }
@@ -306,14 +441,23 @@ const RESTORE_PATH = "M17 17L7 7M7 7h6M7 7v6";
 /** A pinned session's pin, beside its time on the meta row: it says the row
  *  is pinned and unpins on press. The hover toolbar's pin slot does the same
  *  for a pinned row, so the pin never moves under the pointer. */
-export function CardPinMark({ session, onPin }: { session: InboxSession; onPin?: (id: string, e: React.MouseEvent) => void }) {
+export function CardPinMark({
+  session,
+  onPin,
+}: {
+  session: InboxSession;
+  onPin?: (id: string, e: React.MouseEvent) => void;
+}) {
   if (!onPin || !session.is_pinned) return null;
   return (
     <ShortcutTooltip label="Unpin" action="session.pin" side="left">
       <button
         data-sv-pin
         aria-label="Unpin"
-        onClick={(e) => { e.stopPropagation(); onPin(session._id, e); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPin(session._id, e);
+        }}
         className="flex-shrink-0 -my-0.5 text-sol-magenta/80 transition-opacity hover:opacity-70 [&>svg]:w-3 [&>svg]:h-3"
       >
         <PinGlyph filled />
@@ -341,47 +485,75 @@ export function CardHoverToolbar({
   onClose?: (id: string) => void;
 }) {
   return (
-        <div data-sv-fade className={`absolute top-0 bottom-0 right-0 flex flex-col flex-wrap-reverse content-start items-center justify-between py-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity pl-10 pr-2 pointer-events-none ${fadeGround ? '' : 'bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--sol-bg-alt)_50%,transparent)] to-[color-mix(in_srgb,var(--sol-bg-alt)_85%,transparent)]'}`} style={fadeGround ? { background: `linear-gradient(to right, transparent, color-mix(in srgb, ${fadeGround} 50%, transparent), color-mix(in srgb, ${fadeGround} 85%, transparent))` } : undefined}>
-          {/* Pin first, so it anchors the top of the toolbar: Pin on a free
+    <div
+      data-sv-fade
+      className={`absolute top-0 bottom-0 right-0 flex flex-col flex-wrap-reverse content-start items-center justify-between py-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity pl-10 pr-2 pointer-events-none ${fadeGround ? "" : "bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--sol-bg-alt)_50%,transparent)] to-[color-mix(in_srgb,var(--sol-bg-alt)_85%,transparent)]"}`}
+      style={
+        fadeGround
+          ? {
+              background: `linear-gradient(to right, transparent, color-mix(in srgb, ${fadeGround} 50%, transparent), color-mix(in srgb, ${fadeGround} 85%, transparent))`,
+            }
+          : undefined
+      }
+    >
+      {/* Pin first, so it anchors the top of the toolbar: Pin on a free
               row, Unpin (filled) on a pinned one. */}
-          {onPin && (
-            <ShortcutTooltip label={session.is_pinned ? "Unpin" : "Pin"} action="session.pin" side="left">
-              <button
-                aria-label={session.is_pinned ? "Unpin" : "Pin"}
-                onClick={(e) => { e.stopPropagation(); onPin(session._id, e); }}
-                className={`p-1 rounded transition-colors pointer-events-auto ${session.is_pinned ? "text-sol-magenta hover:opacity-70" : "text-sol-text-dim hover:text-sol-magenta"}`}
-              >
-                <PinGlyph filled={!!session.is_pinned} />
-              </button>
-            </ShortcutTooltip>
-          )}
-          {labels && (
-            <ShortcutTooltip label="Label session" action="session.moveToBucket" side="left">
-              <button
-                aria-label="Label session"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenLabels?.(session);
-                }}
-                className="p-1 rounded text-sol-text-dim hover:text-sol-blue transition-colors pointer-events-auto"
-              >
-                <Tag className="w-3.5 h-3.5" />
-              </button>
-            </ShortcutTooltip>
-          )}
-          {/* Close last: done looking at it. Its tooltip says what it does to this session. */}
-          {onClose && (
-            <ShortcutTooltip label={<SessionCloseTip session={session} />} action="session.close" side="left">
-              <button
-                aria-label="Close"
-                onClick={(e) => { e.stopPropagation(); onClose(session._id); }}
-                className="p-1 rounded text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-highlight transition-colors pointer-events-auto"
-              >
-                <ActionGlyph d={CLOSE_PATH} />
-              </button>
-            </ShortcutTooltip>
-          )}
-        </div>
+      {onPin && (
+        <ShortcutTooltip
+          label={session.is_pinned ? "Unpin" : "Pin"}
+          action="session.pin"
+          side="left"
+        >
+          <button
+            aria-label={session.is_pinned ? "Unpin" : "Pin"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPin(session._id, e);
+            }}
+            className={`p-1 rounded transition-colors pointer-events-auto ${session.is_pinned ? "text-sol-magenta hover:opacity-70" : "text-sol-text-dim hover:text-sol-magenta"}`}
+          >
+            <PinGlyph filled={!!session.is_pinned} />
+          </button>
+        </ShortcutTooltip>
+      )}
+      {labels && (
+        <ShortcutTooltip
+          label="Label session"
+          action="session.moveToBucket"
+          side="left"
+        >
+          <button
+            aria-label="Label session"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenLabels?.(session);
+            }}
+            className="p-1 rounded text-sol-text-dim hover:text-sol-blue transition-colors pointer-events-auto"
+          >
+            <Tag className="w-3.5 h-3.5" />
+          </button>
+        </ShortcutTooltip>
+      )}
+      {/* Close last: done looking at it. Its tooltip says what it does to this session. */}
+      {onClose && (
+        <ShortcutTooltip
+          label={<SessionCloseTip session={session} />}
+          action="session.close"
+          side="left"
+        >
+          <button
+            aria-label="Close"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose(session._id);
+            }}
+            className="p-1 rounded text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-highlight transition-colors pointer-events-auto"
+          >
+            <ActionGlyph d={CLOSE_PATH} />
+          </button>
+        </ShortcutTooltip>
+      )}
+    </div>
   );
 }
 
@@ -400,30 +572,54 @@ export function CardRestoreCluster({
   onRestore?: (id: string) => void;
 }) {
   return (
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-[4]">
-          {onKill && (
-            <ShortcutTooltip label={isStashed || isClosedSession(session) ? "Kill" : "Remove from list"} side="left">
-              <button
-                aria-label={isStashed || isClosedSession(session) ? "Kill" : "Remove from list"}
-                onClick={(e) => { e.stopPropagation(); onKill(session._id); }}
-                className="p-1 rounded-md text-sol-text-dim hover:text-sol-red bg-sol-bg/95 shadow-sm border border-sol-border/30"
-              >
-                {isStashed || isClosedSession(session) ? <Square aria-hidden data-kill-glyph className="w-3.5 h-3.5" /> : <ActionGlyph d={CLOSE_PATH} />}
-              </button>
-            </ShortcutTooltip>
-          )}
-          {onRestore && (
-            <ShortcutTooltip label={variant === "snoozed" ? "Move to Needs You now" : "Restore"} side="left">
-              <button
-                aria-label={variant === "snoozed" ? "Move to Needs You now" : "Restore"}
-                onClick={(e) => { e.stopPropagation(); onRestore(session._id); }}
-                className="p-1 rounded-md text-sol-text-dim hover:text-sol-cyan bg-sol-bg/95 shadow-sm border border-sol-border/30"
-              >
-                <ActionGlyph d={RESTORE_PATH} />
-              </button>
-            </ShortcutTooltip>
-          )}
-        </div>
+    <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-[4]">
+      {onKill && (
+        <ShortcutTooltip
+          label={
+            isStashed || isClosedSession(session) ? "Kill" : "Remove from list"
+          }
+          side="left"
+        >
+          <button
+            aria-label={
+              isStashed || isClosedSession(session)
+                ? "Kill"
+                : "Remove from list"
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onKill(session._id);
+            }}
+            className="p-1 rounded-md text-sol-text-dim hover:text-sol-red bg-sol-bg/95 shadow-sm border border-sol-border/30"
+          >
+            {isStashed || isClosedSession(session) ? (
+              <Square aria-hidden data-kill-glyph className="w-3.5 h-3.5" />
+            ) : (
+              <ActionGlyph d={CLOSE_PATH} />
+            )}
+          </button>
+        </ShortcutTooltip>
+      )}
+      {onRestore && (
+        <ShortcutTooltip
+          label={variant === "snoozed" ? "Move to Needs You now" : "Restore"}
+          side="left"
+        >
+          <button
+            aria-label={
+              variant === "snoozed" ? "Move to Needs You now" : "Restore"
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onRestore(session._id);
+            }}
+            className="p-1 rounded-md text-sol-text-dim hover:text-sol-cyan bg-sol-bg/95 shadow-sm border border-sol-border/30"
+          >
+            <ActionGlyph d={RESTORE_PATH} />
+          </button>
+        </ShortcutTooltip>
+      )}
+    </div>
   );
 }
 
@@ -432,7 +628,8 @@ const FORK_HUES = [30, 60, 120, 180, 200, 220, 260, 45, 90, 160, 240, 280];
 function getForkColor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
-  const hue = FORK_HUES[((h % FORK_HUES.length) + FORK_HUES.length) % FORK_HUES.length];
+  const hue =
+    FORK_HUES[((h % FORK_HUES.length) + FORK_HUES.length) % FORK_HUES.length];
   return `hsl(${hue}, 65%, 55%)`;
 }
 
@@ -466,7 +663,17 @@ export function UnreadDot() {
 /** The card's tick while a selection is live: every card shows its box, so
  *  the mode is visible, and the box itself toggles the card. */
 
-export function SelectTick({ sessionId, isSelected, selecting, onToggle }: { sessionId: string; isSelected: boolean; selecting: boolean; onToggle?: (id: string) => void }) {
+export function SelectTick({
+  sessionId,
+  isSelected,
+  selecting,
+  onToggle,
+}: {
+  sessionId: string;
+  isSelected: boolean;
+  selecting: boolean;
+  onToggle?: (id: string) => void;
+}) {
   if (!selecting) return null;
   const Icon = isSelected ? CheckSquare : Square;
   return (
@@ -475,7 +682,10 @@ export function SelectTick({ sessionId, isSelected, selecting, onToggle }: { ses
       data-sv-check
       aria-label={isSelected ? "Remove from selection" : "Add to selection"}
       aria-pressed={isSelected}
-      onClick={(e) => { e.stopPropagation(); onToggle?.(sessionId); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle?.(sessionId);
+      }}
       className={`absolute right-1 top-1 z-10 rounded bg-sol-bg-alt/80 p-0.5 ${isSelected ? "text-sol-text" : "text-sol-text-dim/60 hover:text-sol-text"}`}
     >
       <Icon className="h-4 w-4" />
@@ -488,7 +698,14 @@ export function SelectTick({ sessionId, isSelected, selecting, onToggle }: { ses
  *  then the label in its own color). Hover names the directory. Nothing for a
  *  session with neither. With a handler, a name is a button that filters the
  *  list to it, by the chip row's own gestures. */
-export function SessionProjectChip({ project, label, directory, className = "", onFilterProject, onFilterLabel }: {
+export function SessionProjectChip({
+  project,
+  label,
+  directory,
+  className = "",
+  onFilterProject,
+  onFilterLabel,
+}: {
   /** getProjectName's answer; "unknown" when the session has no directory. */
   project: string;
   label?: string | null;
@@ -500,16 +717,29 @@ export function SessionProjectChip({ project, label, directory, className = "", 
   const getLabelColor = useLabelColor();
   if (project === "unknown" && !label) return null;
   const known = project !== "unknown";
-  const dot = known && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getLabelColor(project).dot}`} />;
-  const nested = !!label && known && label.toLowerCase() !== project.toLowerCase();
+  const dot = known && (
+    <span
+      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getLabelColor(project).dot}`}
+    />
+  );
+  const nested =
+    !!label && known && label.toLowerCase() !== project.toLowerCase();
   // One name, or two under a path: each is its own target when it can filter.
-  const part = (name: string, cls: string, children: React.ReactNode, onFilter?: (e: React.MouseEvent) => void) =>
+  const part = (
+    name: string,
+    cls: string,
+    children: React.ReactNode,
+    onFilter?: (e: React.MouseEvent) => void,
+  ) =>
     onFilter ? (
       <button
         type="button"
         data-sv-filter={name}
         className={`${cls} group/part -m-0.5 p-0.5 rounded-sm cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,currentColor_14%,transparent)]`}
-        onClick={(e) => { e.stopPropagation(); onFilter(e); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onFilter(e);
+        }}
       >
         {children}
       </button>
@@ -525,11 +755,29 @@ export function SessionProjectChip({ project, label, directory, className = "", 
         <>
           {/* The faded prefix gives its width up first; the label then
               truncates rather than spilling over its neighbours. */}
-          {part(project, `flex items-center gap-1 min-w-0 shrink-[100] font-normal ${getLabelColor(project).text}`, <>{dot}<span className="truncate opacity-60 transition-opacity group-hover/part:opacity-100">{project}/</span></>, onFilterProject)}
+          {part(
+            project,
+            `flex items-center gap-1 min-w-0 shrink-[100] font-normal ${getLabelColor(project).text}`,
+            <>
+              {dot}
+              <span className="truncate opacity-60 transition-opacity group-hover/part:opacity-100">
+                {project}/
+              </span>
+            </>,
+            onFilterProject,
+          )}
           {part(label!, "min-w-0 max-w-[10rem] truncate", label, onFilterLabel)}
         </>
       ) : (
-        part(label ?? project, "flex items-center gap-1 min-w-0", <>{dot}<span className="truncate">{label ?? project}</span></>, label ? onFilterLabel : onFilterProject)
+        part(
+          label ?? project,
+          "flex items-center gap-1 min-w-0",
+          <>
+            {dot}
+            <span className="truncate">{label ?? project}</span>
+          </>,
+          label ? onFilterLabel : onFilterProject,
+        )
       )}
     </span>
   );
@@ -552,8 +800,13 @@ export function CardWorkersLine({
   if (count <= 0) return null;
   const first = needsYou[0];
   return (
-    <div data-sv-workers={count} className="pl-[26px] pr-2 pb-1 text-[12px] leading-tight text-sol-text-muted tabular-nums">
-      <span title={`${count} ${count === 1 ? "session" : "sessions"} this agent spawned; View options › Sub-agents and workers lists them`}>
+    <div
+      data-sv-workers={count}
+      className="pl-[26px] pr-2 pb-1 text-[12px] leading-tight text-sol-text-muted tabular-nums"
+    >
+      <span
+        title={`${count} ${count === 1 ? "session" : "sessions"} this agent spawned; View options › Sub-agents and workers lists them`}
+      >
         {count} {count === 1 ? "worker" : "workers"}
       </span>
       {first && (
@@ -562,9 +815,16 @@ export function CardWorkersLine({
           <button
             type="button"
             data-sv-workers-needs-you={needsYou.length}
-            onClick={(e) => { e.stopPropagation(); onOpen(first, e); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(first, e);
+            }}
             className="text-sol-cyan hover:underline underline-offset-2"
-            title={needsYou.length === 1 ? "Open the worker waiting on you" : `Open the first of ${needsYou.length} workers waiting on you`}
+            title={
+              needsYou.length === 1
+                ? "Open the worker waiting on you"
+                : `Open the first of ${needsYou.length} workers waiting on you`
+            }
           >
             {needsYou.length} {needsYou.length === 1 ? "needs" : "need"} you
           </button>
@@ -578,20 +838,45 @@ export function CardWorkersLine({
  *  running now, in the subagent rows' violet and arrow. Opens the most
  *  recently active.
  *  Silent at zero. */
-export function FoldedSubagentsMark({ count, onOpen, className = "" }: { count: number; onOpen?: () => void; className?: string }) {
+export function FoldedSubagentsMark({
+  count,
+  onOpen,
+  className = "",
+}: {
+  count: number;
+  onOpen?: () => void;
+  className?: string;
+}) {
   if (count <= 0) return null;
   const words = `${count} ${count === 1 ? "subagent" : "subagents"} running`;
   const look = `inline-flex items-center gap-0.5 shrink-0 px-0.5 rounded text-meta font-semibold tabular-nums text-sol-violet ${className}`;
   const body = (
     <>
-      <svg aria-hidden className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.6}>
+      <svg
+        aria-hidden
+        className="w-2.5 h-2.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.6}
+      >
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 4v12h12" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M14 12l4 4-4 4" />
       </svg>
       {count}
     </>
   );
-  if (!onOpen) return <span data-sv-folded-subagents={count} title={words} aria-label={words} className={look}>{body}</span>;
+  if (!onOpen)
+    return (
+      <span
+        data-sv-folded-subagents={count}
+        title={words}
+        aria-label={words}
+        className={look}
+      >
+        {body}
+      </span>
+    );
   return (
     <button
       type="button"
@@ -599,7 +884,10 @@ export function FoldedSubagentsMark({ count, onOpen, className = "" }: { count: 
       title={`${words}; open the most recently active`}
       aria-label={`${words}; open the most recently active`}
       {...KEEP_DRAG_OFF_CARD}
-      onClick={(e) => { e.stopPropagation(); onOpen(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
       className={`${look} hover:bg-sol-violet/10`}
     >
       {body}

@@ -12,21 +12,44 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { RUN_LIMIT_HOLD_MINUTES, loginIdForHostPath, runEndsAt, runMinutesLeft, type HostReadiness } from "@codecast/shared/contracts";
+import {
+  RUN_LIMIT_HOLD_MINUTES,
+  loginIdForHostPath,
+  runEndsAt,
+  runMinutesLeft,
+  type HostReadiness,
+} from "@codecast/shared/contracts";
 import { RunLimitHoldError } from "../terminalHold.js";
 
-const FILES = ["mirror.json", "host-tools.json", "host-setup.json", "host-setup-last.json", "agent-auth-origin.json"] as const;
+const FILES = [
+  "mirror.json",
+  "host-tools.json",
+  "host-setup.json",
+  "host-setup-last.json",
+  "agent-auth-origin.json",
+] as const;
 
-export const RUN_LIMIT_FILES = { max: "/etc/cast-max-run-minutes", uptime: "/proc/uptime" };
+export const RUN_LIMIT_FILES = {
+  max: "/etc/cast-max-run-minutes",
+  uptime: "/proc/uptime",
+};
 
 const bootInstants = new Map<string, number>();
 const overrunLogged = new Set<string>();
 
-export function readRunLimit(now = Date.now(), files = RUN_LIMIT_FILES): { maxMinutes: number; endsAt: number } | undefined {
+export function readRunLimit(
+  now = Date.now(),
+  files = RUN_LIMIT_FILES,
+): { maxMinutes: number; endsAt: number } | undefined {
   try {
     const maxMinutes = Number(fs.readFileSync(files.max, "utf-8").trim());
     const uptime = Number.parseFloat(fs.readFileSync(files.uptime, "utf-8"));
-    if (!Number.isInteger(maxMinutes) || maxMinutes <= 0 || !Number.isFinite(uptime)) return undefined;
+    if (
+      !Number.isInteger(maxMinutes) ||
+      maxMinutes <= 0 ||
+      !Number.isFinite(uptime)
+    )
+      return undefined;
     let boot = bootInstants.get(files.uptime);
     if (boot === undefined) {
       boot = Math.round((now - uptime * 1000) / 60_000) * 60_000;
@@ -38,28 +61,48 @@ export function readRunLimit(now = Date.now(), files = RUN_LIMIT_FILES): { maxMi
   }
 }
 
-export function runLimitHold(now = Date.now(), files = RUN_LIMIT_FILES, log: (message: string) => void = () => {}): RunLimitHoldError | null {
+export function runLimitHold(
+  now = Date.now(),
+  files = RUN_LIMIT_FILES,
+  log: (message: string) => void = () => {},
+): RunLimitHoldError | null {
   const limit = readRunLimit(now, files);
   if (!limit) return null;
   if (limit.endsAt <= now) {
     const key = `${files.max}:${limit.endsAt}`;
     if (!overrunLogged.has(key)) {
       overrunLogged.add(key);
-      log(`[RUN-LIMIT] this host is ${Math.floor((now - limit.endsAt) / 60_000)} min past its declared ${limit.maxMinutes} min run limit and still up: the limit is wrong, delivering messages without a hold`);
+      log(
+        `[RUN-LIMIT] this host is ${Math.floor((now - limit.endsAt) / 60_000)} min past its declared ${limit.maxMinutes} min run limit and still up: the limit is wrong, delivering messages without a hold`,
+      );
     }
     return null;
   }
   const left = runMinutesLeft(limit.endsAt, now);
-  return left < RUN_LIMIT_HOLD_MINUTES ? new RunLimitHoldError(limit.maxMinutes, left) : null;
+  return left < RUN_LIMIT_HOLD_MINUTES
+    ? new RunLimitHoldError(limit.maxMinutes, left)
+    : null;
 }
 
 function readJson(file: string): any {
-  try { return JSON.parse(fs.readFileSync(file, "utf-8")); } catch { return null; }
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch {
+    return null;
+  }
 }
 
-export function readHostReadiness(codecastDir: string, castVersion?: string, now = Date.now(), runFiles = RUN_LIMIT_FILES): HostReadiness {
+export function readHostReadiness(
+  codecastDir: string,
+  castVersion?: string,
+  now = Date.now(),
+  runFiles = RUN_LIMIT_FILES,
+): HostReadiness {
   const at = (name: string) => path.join(codecastDir, name);
-  const out: HostReadiness = { at: now, ...(castVersion ? { cast_version: castVersion } : {}) };
+  const out: HostReadiness = {
+    at: now,
+    ...(castVersion ? { cast_version: castVersion } : {}),
+  };
   const runLimit = readRunLimit(now, runFiles);
   if (runLimit) out.run_ends_at = runLimit.endsAt;
   const stamp = readJson(at("mirror.json"));
@@ -69,7 +112,10 @@ export function readHostReadiness(codecastDir: string, castVersion?: string, now
       complete: stamp.complete === true,
       files: entries.filter(([, f]) => !f?.removed).length,
       ...(stamp.applied_at ? { applied_at: String(stamp.applied_at) } : {}),
-      host_edited: entries.filter(([, f]) => f?.host_edited).map(([p]) => p).slice(0, 20),
+      host_edited: entries
+        .filter(([, f]) => f?.host_edited)
+        .map(([p]) => p)
+        .slice(0, 20),
     };
   }
   const tools = readJson(at("host-tools.json"));
@@ -77,7 +123,14 @@ export function readHostReadiness(codecastDir: string, castVersion?: string, now
     out.tools = {
       ok: tools.ok.length,
       installed: Array.isArray(tools.installed) ? tools.installed.length : 0,
-      missing: (Array.isArray(tools.missing) ? tools.missing : []).slice(0, 30).map((m: any) => ({ tool: String(m.tool), ...(m.referenced_by ? { referenced_by: String(m.referenced_by).slice(0, 120) } : {}) })),
+      missing: (Array.isArray(tools.missing) ? tools.missing : [])
+        .slice(0, 30)
+        .map((m: any) => ({
+          tool: String(m.tool),
+          ...(m.referenced_by
+            ? { referenced_by: String(m.referenced_by).slice(0, 120) }
+            : {}),
+        })),
       ...(tools.at ? { at: String(tools.at) } : {}),
     };
   }
@@ -90,14 +143,28 @@ export function readHostReadiness(codecastDir: string, castVersion?: string, now
       ...(last?.step ? { step: String(last.step).slice(0, 120) } : {}),
       ...(last?.error ? { error: String(last.error).slice(-600) } : {}),
       ...(last?.at ? { at: String(last.at) } : {}),
-      ...(Array.isArray(last?.packages) ? { packages: last.packages.slice(0, 30).map(String) } : {}),
-      ...(Array.isArray(last?.services) ? { services: last.services.slice(0, 30).map(String) } : {}),
-      ...(typeof last?.commands === "number" ? { commands: last.commands } : {}),
+      ...(Array.isArray(last?.packages)
+        ? { packages: last.packages.slice(0, 30).map(String) }
+        : {}),
+      ...(Array.isArray(last?.services)
+        ? { services: last.services.slice(0, 30).map(String) }
+        : {}),
+      ...(typeof last?.commands === "number"
+        ? { commands: last.commands }
+        : {}),
     };
   }
   const origin = readJson(at("agent-auth-origin.json"));
-  const files = origin?.files && typeof origin.files === "object" ? Object.keys(origin.files) : Array.isArray(origin?.files) ? origin.files : [];
-  if (files.length) out.logins = [...new Set(files.map((f: string) => loginIdForHostPath(f)))].sort() as string[];
+  const files =
+    origin?.files && typeof origin.files === "object"
+      ? Object.keys(origin.files)
+      : Array.isArray(origin?.files)
+        ? origin.files
+        : [];
+  if (files.length)
+    out.logins = [
+      ...new Set(files.map((f: string) => loginIdForHostPath(f))),
+    ].sort() as string[];
   return out;
 }
 
@@ -112,14 +179,34 @@ export class HostReadinessReporter {
   private sentHash = "";
   private sentAt = 0;
 
-  constructor(private codecastDir: string, private castVersion?: string) {}
+  constructor(
+    private codecastDir: string,
+    private castVersion?: string,
+  ) {}
 
   next(now = Date.now()): HostReadiness | undefined {
-    const mtimes = [...FILES.map((f) => path.join(this.codecastDir, f)), RUN_LIMIT_FILES.max].map((f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } }).join(",");
-    if (mtimes !== this.mtimes || !this.cached) { this.cached = readHostReadiness(this.codecastDir, this.castVersion, now); this.mtimes = mtimes; }
+    const mtimes = [
+      ...FILES.map((f) => path.join(this.codecastDir, f)),
+      RUN_LIMIT_FILES.max,
+    ]
+      .map((f) => {
+        try {
+          return fs.statSync(f).mtimeMs;
+        } catch {
+          return 0;
+        }
+      })
+      .join(",");
+    if (mtimes !== this.mtimes || !this.cached) {
+      this.cached = readHostReadiness(this.codecastDir, this.castVersion, now);
+      this.mtimes = mtimes;
+    }
     const { at: _, ...content } = this.cached;
-    const hash = createHash("sha256").update(JSON.stringify(content)).digest("hex");
-    if (hash === this.sentHash && now - this.sentAt < 30 * 60_000) return undefined;
+    const hash = createHash("sha256")
+      .update(JSON.stringify(content))
+      .digest("hex");
+    if (hash === this.sentHash && now - this.sentAt < 30 * 60_000)
+      return undefined;
     this.sentHash = hash;
     this.sentAt = now;
     return { ...content, at: now };

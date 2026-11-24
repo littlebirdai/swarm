@@ -16,11 +16,15 @@ export function messageDecisionRefs(text: string | undefined): string[] {
 // belongs to the review of the latest assistant message that names it, so
 // the same asks never draw a bar on every message. One map per messages ref.
 const latestByMessages = new WeakMap<object, Map<string, string>>();
-export function latestDecisionNamers(messages: ReadonlyArray<{ _id: string; role?: string; content?: string }>): Map<string, string> {
+export function latestDecisionNamers(
+  messages: ReadonlyArray<{ _id: string; role?: string; content?: string }>,
+): Map<string, string> {
   let map = latestByMessages.get(messages);
   if (!map) {
     map = new Map();
-    for (const m of messages) if (m.role === "assistant") for (const id of messageDecisionRefs(m.content)) map.set(id, m._id);
+    for (const m of messages)
+      if (m.role === "assistant")
+        for (const id of messageDecisionRefs(m.content)) map.set(id, m._id);
     latestByMessages.set(messages, map);
   }
   return map;

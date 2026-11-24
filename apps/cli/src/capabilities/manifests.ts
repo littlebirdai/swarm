@@ -98,7 +98,9 @@ function readFileTotal(file: string): string | undefined {
 function stringList(v: unknown): string[] | undefined {
   if (typeof v === "string") return text(v) ? [v.trim()] : undefined;
   if (!Array.isArray(v)) return undefined;
-  const out = v.map((item) => text(item)).filter((s): s is string => s !== undefined);
+  const out = v
+    .map((item) => text(item))
+    .filter((s): s is string => s !== undefined);
   return out.length > 0 ? out : undefined;
 }
 
@@ -136,7 +138,9 @@ const PROVIDED_VARS = new Set([
 ]);
 
 function envRefs(value: string, into: Set<string>): void {
-  for (const match of value.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}/g)) {
+  for (const match of value.matchAll(
+    /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}/g,
+  )) {
     if (!PROVIDED_VARS.has(match[1])) into.add(match[1]);
   }
 }
@@ -200,7 +204,10 @@ function parseInlineScalar(raw: string): unknown {
 }
 
 function stripQuotes(s: string): string {
-  if (s.length >= 2 && ((s[0] === '"' && s.endsWith('"')) || (s[0] === "'" && s.endsWith("'")))) {
+  if (
+    s.length >= 2 &&
+    ((s[0] === '"' && s.endsWith('"')) || (s[0] === "'" && s.endsWith("'")))
+  ) {
     return s.slice(1, -1);
   }
   return s;
@@ -212,9 +219,14 @@ interface Frontmatter {
 }
 
 export function extractFrontmatter(content: string): Frontmatter {
-  const lines = content.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
+  const lines = content
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
   if (lines[0]?.trim() !== "---") return { present: false, fields: {} };
-  const end = lines.findIndex((line, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(line));
+  const end = lines.findIndex(
+    (line, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(line),
+  );
   if (end < 0) return { present: false, fields: {} };
 
   const fields: Record<string, unknown> = {};
@@ -378,11 +390,17 @@ function canon(key: string): string {
   return key.replace(/_/g, "-").toLowerCase();
 }
 
-export function parseSkillMd(content: string, identity: string): SkillObservation {
+export function parseSkillMd(
+  content: string,
+  identity: string,
+): SkillObservation {
   const issues: ManifestIssue[] = [];
   const { present, fields } = extractFrontmatter(content);
   if (!present) {
-    issues.push({ code: "missing_frontmatter", detail: "no YAML frontmatter block at the top of the file" });
+    issues.push({
+      code: "missing_frontmatter",
+      detail: "no YAML frontmatter block at the top of the file",
+    });
   }
 
   const portableKeys = new Map(PORTABLE_SKILL_FIELDS.map((f) => [canon(f), f]));
@@ -402,7 +420,8 @@ export function parseSkillMd(content: string, identity: string): SkillObservatio
         case "description":
           // Preserved raw even when overlength — truncating here would make
           // the observation lie about the file.
-          portable.description = typeof value === "string" ? value : text(value);
+          portable.description =
+            typeof value === "string" ? value : text(value);
           break;
         case "license":
           portable.license = text(value);
@@ -437,15 +456,23 @@ export function parseSkillMd(content: string, identity: string): SkillObservatio
     });
   }
   const effectiveName = portable.name ?? identity;
-  if (!SKILL_NAME_PATTERN.test(effectiveName) || effectiveName.length > MAX_SKILL_NAME_LENGTH) {
+  if (
+    !SKILL_NAME_PATTERN.test(effectiveName) ||
+    effectiveName.length > MAX_SKILL_NAME_LENGTH
+  ) {
     issues.push({
       code: "name_invalid",
       detail: `"${effectiveName}" breaks the spec's name rule (max 64 chars; lowercase letters, digits and single hyphens)`,
     });
   }
   if (present && !portable.description) {
-    issues.push({ code: "description_missing", detail: "description is required and must be non-empty" });
-  } else if ((portable.description?.length ?? 0) > MAX_SKILL_DESCRIPTION_LENGTH) {
+    issues.push({
+      code: "description_missing",
+      detail: "description is required and must be non-empty",
+    });
+  } else if (
+    (portable.description?.length ?? 0) > MAX_SKILL_DESCRIPTION_LENGTH
+  ) {
     issues.push({
       code: "description_overlength",
       detail: `description is ${portable.description!.length} chars; the spec caps it at ${MAX_SKILL_DESCRIPTION_LENGTH}. Preserved unmodified.`,
@@ -453,11 +480,20 @@ export function parseSkillMd(content: string, identity: string): SkillObservatio
   }
 
   const manifest: CapabilityManifest = {};
-  if (portable.allowedTools?.length) manifest.allowedTools = portable.allowedTools;
+  if (portable.allowedTools?.length)
+    manifest.allowedTools = portable.allowedTools;
   const hooks = hookNames(claudeOnly["hooks"]);
   if (hooks?.length) manifest.hooks = hooks;
 
-  return { kind: "skill", name: identity, portable, claudeOnly, unknown, manifest, issues };
+  return {
+    kind: "skill",
+    name: identity,
+    portable,
+    claudeOnly,
+    unknown,
+    manifest,
+    issues,
+  };
 }
 
 /**
@@ -469,7 +505,9 @@ export function parseSkillMd(content: string, identity: string): SkillObservatio
  * `deriveExecutionSurfaces` sees the real structure: a skill shipping
  * `scripts/` is code whatever its prose says.
  */
-export function readSkillObservation(entryPath: string): SkillObservation | null {
+export function readSkillObservation(
+  entryPath: string,
+): SkillObservation | null {
   let stat: fs.Stats;
   try {
     stat = fs.statSync(entryPath);
@@ -483,7 +521,9 @@ export function readSkillObservation(entryPath: string): SkillObservation | null
     // work locally and then vanish on a case-sensitive disk.
     let manifestFile: string | undefined;
     try {
-      manifestFile = fs.readdirSync(entryPath).find((f) => /^skill\.md$/i.test(f));
+      manifestFile = fs
+        .readdirSync(entryPath)
+        .find((f) => /^skill\.md$/i.test(f));
     } catch {
       return null;
     }
@@ -492,7 +532,9 @@ export function readSkillObservation(entryPath: string): SkillObservation | null
     if (content === undefined) return null;
 
     const observation = parseSkillMd(content, path.basename(entryPath));
-    const scripts = walkFiles(path.join(entryPath, "scripts")).map((f) => `scripts/${f}`);
+    const scripts = walkFiles(path.join(entryPath, "scripts")).map(
+      (f) => `scripts/${f}`,
+    );
     const bin = walkFiles(path.join(entryPath, "bin")).map((f) => `bin/${f}`);
     if (scripts.length) observation.manifest.scripts = scripts;
     if (bin.length) observation.manifest.bin = bin;
@@ -564,19 +606,33 @@ export interface PluginJsonObservation {
   issues: ManifestIssue[];
 }
 
-export function parsePluginJson(input: string | unknown): PluginJsonObservation {
+export function parsePluginJson(
+  input: string | unknown,
+): PluginJsonObservation {
   const issues: ManifestIssue[] = [];
   const doc = parseJsonTotal(input);
   if (!isRecord(doc)) {
-    return { componentPaths: {}, issues: [{ code: "unparseable", detail: "plugin.json is not a JSON object" }] };
+    return {
+      componentPaths: {},
+      issues: [
+        { code: "unparseable", detail: "plugin.json is not a JSON object" },
+      ],
+    };
   }
 
   const name = text(doc.name);
-  if (!name) issues.push({ code: "missing_name", detail: "plugin.json declares no name, the one required field" });
+  if (!name)
+    issues.push({
+      code: "missing_name",
+      detail: "plugin.json declares no name, the one required field",
+    });
 
   const componentPaths: Partial<Record<ComponentPathField, string[]>> = {};
-  const inlineServers: Partial<Record<"mcpServers" | "lspServers", string[]>> = {};
-  for (const field of Object.keys(COMPONENT_PATH_SEMANTICS) as ComponentPathField[]) {
+  const inlineServers: Partial<Record<"mcpServers" | "lspServers", string[]>> =
+    {};
+  for (const field of Object.keys(
+    COMPONENT_PATH_SEMANTICS,
+  ) as ComponentPathField[]) {
     const value = doc[field];
     if (value === undefined) continue;
     if ((field === "mcpServers" || field === "lspServers") && isRecord(value)) {
@@ -589,7 +645,10 @@ export function parsePluginJson(input: string | unknown): PluginJsonObservation 
     componentPaths[field] = paths;
     for (const p of paths) {
       if (!p.startsWith("./")) {
-        issues.push({ code: "component_path_invalid", detail: `${field} path "${p}" must start with "./"` });
+        issues.push({
+          code: "component_path_invalid",
+          detail: `${field} path "${p}" must start with "./"`,
+        });
       }
     }
   }
@@ -602,10 +661,16 @@ export function parsePluginJson(input: string | unknown): PluginJsonObservation 
       userConfig[key] = {
         ...(text(raw.type) ? { type: text(raw.type) } : {}),
         ...(text(raw.title) ? { title: text(raw.title) } : {}),
-        ...(text(raw.description) ? { description: text(raw.description) } : {}),
+        ...(text(raw.description)
+          ? { description: text(raw.description) }
+          : {}),
         sensitive: raw.sensitive === true,
-        ...(typeof raw.required === "boolean" ? { required: raw.required } : {}),
-        ...(typeof raw.multiple === "boolean" ? { multiple: raw.multiple } : {}),
+        ...(typeof raw.required === "boolean"
+          ? { required: raw.required }
+          : {}),
+        ...(typeof raw.multiple === "boolean"
+          ? { multiple: raw.multiple }
+          : {}),
       };
     }
   }
@@ -629,7 +694,9 @@ export function parsePluginJson(input: string | unknown): PluginJsonObservation 
     ...(text(doc.license) ? { license: text(doc.license) } : {}),
     ...(stringList(doc.keywords) ? { keywords: stringList(doc.keywords) } : {}),
     ...(isRecord(doc.metadata) ? { metadata: doc.metadata } : {}),
-    ...(typeof doc.defaultEnabled === "boolean" ? { defaultEnabled: doc.defaultEnabled } : {}),
+    ...(typeof doc.defaultEnabled === "boolean"
+      ? { defaultEnabled: doc.defaultEnabled }
+      : {}),
     componentPaths,
     ...(Object.keys(inlineServers).length > 0 ? { inlineServers } : {}),
     ...(userConfig && Object.keys(userConfig).length > 0 ? { userConfig } : {}),
@@ -674,7 +741,12 @@ export function parseMcpJson(input: string | unknown): McpDocumentObservation {
   const issues: ManifestIssue[] = [];
   const doc = parseJsonTotal(input);
   if (!isRecord(doc)) {
-    return { servers: [], issues: [{ code: "unparseable", detail: ".mcp.json is not a JSON object" }] };
+    return {
+      servers: [],
+      issues: [
+        { code: "unparseable", detail: ".mcp.json is not a JSON object" },
+      ],
+    };
   }
   const map = isRecord(doc.mcpServers) ? doc.mcpServers : doc;
 
@@ -735,7 +807,9 @@ export function parseMcpJson(input: string | unknown): McpDocumentObservation {
  *  line is joined with its args — same convention `readMcpFrom`
  *  (inventory.ts:425) uses, because the exact command line is the thing a
  *  consent screen shows. */
-export function toManifestMcp(servers: readonly McpServerObservation[]): CapabilityManifest["mcp"] {
+export function toManifestMcp(
+  servers: readonly McpServerObservation[],
+): CapabilityManifest["mcp"] {
   return servers.map((s) => ({
     name: s.name,
     ...(s.command ? { command: [s.command, ...(s.args ?? [])].join(" ") } : {}),
@@ -766,10 +840,14 @@ export interface PluginObservation {
 /** A declared path resolved inside the plugin, or undefined when it escapes —
  *  a `../` in a component path reaches outside the trust unit the plugin is,
  *  and reading there would attribute someone else's files to it. */
-function resolveInside(pluginDir: string, declared: string): string | undefined {
+function resolveInside(
+  pluginDir: string,
+  declared: string,
+): string | undefined {
   const resolved = path.resolve(pluginDir, declared);
   const root = path.resolve(pluginDir);
-  const inside = (child: string, parent: string) => child === parent || child.startsWith(parent + path.sep);
+  const inside = (child: string, parent: string) =>
+    child === parent || child.startsWith(parent + path.sep);
   if (!inside(resolved, root)) return undefined;
   // The lexical check alone is defeated by a symlink: `./link` resolves inside
   // the plugin as a string while the link points anywhere on disk — and plugin
@@ -777,7 +855,9 @@ function resolveInside(pluginDir: string, declared: string): string | undefined 
   // A target that does not exist has nothing to attribute either way, so
   // ENOENT falls back to the lexical answer (the caller reports absence).
   try {
-    return inside(fs.realpathSync(resolved), fs.realpathSync(root)) ? resolved : undefined;
+    return inside(fs.realpathSync(resolved), fs.realpathSync(root))
+      ? resolved
+      : undefined;
   } catch {
     return resolved;
   }
@@ -840,7 +920,9 @@ function hookEventsFromFile(file: string): string[] {
  * and `scripts/` walked. Returns null only when the directory itself is
  * unreadable — a plugin with no plugin.json is a real, loadable plugin.
  */
-export function readPluginObservation(pluginDir: string): PluginObservation | null {
+export function readPluginObservation(
+  pluginDir: string,
+): PluginObservation | null {
   try {
     if (!fs.statSync(pluginDir).isDirectory()) return null;
   } catch {
@@ -850,7 +932,8 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
   const issues: ManifestIssue[] = [];
   const manifestPath = path.join(pluginDir, ".claude-plugin", "plugin.json");
   const manifestRaw = readFileTotal(manifestPath);
-  const pluginJson = manifestRaw !== undefined ? parsePluginJson(manifestRaw) : undefined;
+  const pluginJson =
+    manifestRaw !== undefined ? parsePluginJson(manifestRaw) : undefined;
   if (pluginJson) issues.push(...pluginJson.issues);
   const name = pluginJson?.name ?? path.basename(pluginDir);
 
@@ -889,7 +972,8 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
   // Skills: the default scan PLUS declared paths. A root SKILL.md is a real
   // shape too (a plugin that is one skill).
   const skillDirs = new Set<string>();
-  for (const dir of scanSkillDirs(path.join(pluginDir, "skills"))) skillDirs.add(dir);
+  for (const dir of scanSkillDirs(path.join(pluginDir, "skills")))
+    skillDirs.add(dir);
   for (const declared of declaredPaths("skills")) {
     for (const dir of scanSkillDirs(declared)) skillDirs.add(dir);
   }
@@ -906,7 +990,9 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
 
   // Commands and agents: declared paths REPLACE the default directory.
   const markdownComponents = (field: "commands" | "agents"): string[] => {
-    const roots = declaredAny(field) ? declaredPaths(field) : [path.join(pluginDir, field)];
+    const roots = declaredAny(field)
+      ? declaredPaths(field)
+      : [path.join(pluginDir, field)];
     const names = new Set<string>();
     for (const root of roots) {
       // declaredPaths already proved a declared root exists, so a `.md` root
@@ -923,7 +1009,9 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
   const agents = markdownComponents("agents");
 
   // Hooks: a declared config path, else the default hooks/hooks.json.
-  const hookFiles = declaredAny("hooks") ? declaredPaths("hooks") : [path.join(pluginDir, "hooks", "hooks.json")];
+  const hookFiles = declaredAny("hooks")
+    ? declaredPaths("hooks")
+    : [path.join(pluginDir, "hooks", "hooks.json")];
   const hookEvents = new Set<string>();
   for (const file of hookFiles) {
     for (const event of hookEventsFromFile(file)) hookEvents.add(event);
@@ -931,7 +1019,9 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
 
   // MCP: a declared config path or inline map, else the default .mcp.json.
   const mcpServers: McpServerObservation[] = [];
-  const mcpFiles = declaredAny("mcpServers") ? declaredPaths("mcpServers") : [path.join(pluginDir, ".mcp.json")];
+  const mcpFiles = declaredAny("mcpServers")
+    ? declaredPaths("mcpServers")
+    : [path.join(pluginDir, ".mcp.json")];
   for (const file of mcpFiles) {
     const raw = readFileTotal(file);
     if (raw === undefined) continue;
@@ -941,10 +1031,13 @@ export function readPluginObservation(pluginDir: string): PluginObservation | nu
   }
 
   const bin = walkFiles(path.join(pluginDir, "bin")).map((f) => `bin/${f}`);
-  const scripts = walkFiles(path.join(pluginDir, "scripts")).map((f) => `scripts/${f}`);
+  const scripts = walkFiles(path.join(pluginDir, "scripts")).map(
+    (f) => `scripts/${f}`,
+  );
 
   const envKeys = new Set<string>();
-  for (const server of mcpServers) for (const key of server.envKeys ?? []) envKeys.add(key);
+  for (const server of mcpServers)
+    for (const key of server.envKeys ?? []) envKeys.add(key);
 
   const manifest: CapabilityManifest = {};
   const components: NonNullable<CapabilityManifest["components"]> = {};
@@ -1015,10 +1108,15 @@ export function parseMarketplaceManifest(
       const strict = raw.strict !== false;
 
       const components: Partial<Record<ComponentPathField, string[]>> = {};
-      for (const field of Object.keys(COMPONENT_PATH_SEMANTICS) as ComponentPathField[]) {
+      for (const field of Object.keys(
+        COMPONENT_PATH_SEMANTICS,
+      ) as ComponentPathField[]) {
         const value = raw[field];
         if (value === undefined) continue;
-        if ((field === "mcpServers" || field === "lspServers") && isRecord(value)) {
+        if (
+          (field === "mcpServers" || field === "lspServers") &&
+          isRecord(value)
+        ) {
           const names = Object.keys(value);
           if (names.length > 0) components[field] = names;
           continue;
@@ -1029,7 +1127,11 @@ export function parseMarketplaceManifest(
 
       const hasComponents = Object.keys(components).length > 0;
       if (!strict || hasComponents) {
-        extras[name] = { name, strict, ...(hasComponents ? { components } : {}) };
+        extras[name] = {
+          name,
+          strict,
+          ...(hasComponents ? { components } : {}),
+        };
       }
     }
   }
@@ -1063,13 +1165,23 @@ export interface InstalledPluginObservation {
  * `readInstalledPluginPins` ever surfaces `installPath` directly, prefer it
  * here and delete the derivation.
  */
-export function readInstalledPluginObservations(home: string): InstalledPluginObservation[] {
+export function readInstalledPluginObservations(
+  home: string,
+): InstalledPluginObservation[] {
   const out: InstalledPluginObservation[] = [];
   for (const [pluginId, pin] of Object.entries(readInstalledPluginPins(home))) {
     const { name, marketplace } = splitPluginId(pluginId);
     const dir =
       marketplace && pin.version
-        ? path.join(home, ".claude", "plugins", "cache", marketplace, name, pin.version)
+        ? path.join(
+            home,
+            ".claude",
+            "plugins",
+            "cache",
+            marketplace,
+            name,
+            pin.version,
+          )
         : undefined;
     out.push({
       pluginId,
@@ -1083,14 +1195,23 @@ export function readInstalledPluginObservations(home: string): InstalledPluginOb
   return out;
 }
 
-export async function readInstalledPluginObservationsAsync(home: string): Promise<InstalledPluginObservation[]> {
-  const { scanWorkerHost } = await import('../workers/bridge.js');
+export async function readInstalledPluginObservationsAsync(
+  home: string,
+): Promise<InstalledPluginObservation[]> {
+  const { scanWorkerHost } = await import("../workers/bridge.js");
   if (scanWorkerHost()) {
-    const { collectScan, scanCanFallback } = await import('../workers/scanClient.js');
+    const { collectScan, scanCanFallback } =
+      await import("../workers/scanClient.js");
     try {
-      const rows = await collectScan({ name: 'manifests', home });
-      return rows.map(row => { if (row.type !== 'manifest') throw new Error('invalid manifest observation'); return row.value as InstalledPluginObservation; });
-    } catch (error) { if (!scanCanFallback(error)) throw error; }
+      const rows = await collectScan({ name: "manifests", home });
+      return rows.map((row) => {
+        if (row.type !== "manifest")
+          throw new Error("invalid manifest observation");
+        return row.value as InstalledPluginObservation;
+      });
+    } catch (error) {
+      if (!scanCanFallback(error)) throw error;
+    }
   }
   return readInstalledPluginObservations(home);
 }

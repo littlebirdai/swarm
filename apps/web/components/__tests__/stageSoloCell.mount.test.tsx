@@ -13,7 +13,9 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // — the cell element and the wrapper the page renders into must be the SAME
 // nodes before and after an Option-click opens a pane beside them.
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400 }),
   document: dom.window.document,
@@ -23,15 +25,21 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
   restoreGlobals();
 });
 
-const tab = (): AppTab => ({ id: "t1", title: "A", path: "/tasks/nowhere/deep", createdAt: 0 });
-const activeTab = () => useInboxStore.getState().tabs.find((t) => t.id === "t1")!;
+const tab = (): AppTab => ({
+  id: "t1",
+  title: "A",
+  path: "/tasks/nowhere/deep",
+  createdAt: 0,
+});
+const activeTab = () =>
+  useInboxStore.getState().tabs.find((t) => t.id === "t1")!;
 
 beforeEach(() => {
   useInboxStore.setState({ tabs: [tab()], activeTabId: "t1" } as any);
@@ -39,7 +47,9 @@ beforeEach(() => {
 
 function Stage() {
   const t = useInboxStore((s) => s.tabs.find((x) => x.id === "t1")!);
-  return <StageSplitView tab={t} layout={stageRenderLayout(t, false)} isTabActive />;
+  return (
+    <StageSplitView tab={t} layout={stageRenderLayout(t, false)} isTabActive />
+  );
 }
 
 // In flight (release sweep 2026-09-14): the pane opens beside the seed cell, but
@@ -51,7 +61,10 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
   const root = createRoot(container);
   try {
     await act(() => root.render(<Stage />));
-    const cells = () => Array.from(container.querySelectorAll("[data-stage-leaf]")) as HTMLElement[];
+    const cells = () =>
+      Array.from(
+        container.querySelectorAll("[data-stage-leaf]"),
+      ) as HTMLElement[];
     expect(cells().map((c) => c.dataset.stageLeaf)).toEqual([seedLeafId("t1")]);
     const origin = cells()[0];
     // Solo: no strip, no focus ring, the whole stage.
@@ -61,9 +74,14 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
     expect(pageSlot).not.toBeNull();
     expect(origin.querySelector("[draggable]")).toBeNull();
 
-    await act(() => { openBeside("/docs/elsewhere/deep", { reuse: true }); });
+    await act(() => {
+      openBeside("/docs/elsewhere/deep", { reuse: true });
+    });
 
-    expect(cells().map((c) => c.dataset.stageLeaf)).toEqual([seedLeafId("t1"), besideLeafId("t1")]);
+    expect(cells().map((c) => c.dataset.stageLeaf)).toEqual([
+      seedLeafId("t1"),
+      besideLeafId("t1"),
+    ]);
     // Same element, same page wrapper: nothing remounted.
     expect(cells()[0]).toBe(origin);
     expect(origin.querySelector(".flex-1")).toBe(pageSlot);
@@ -73,11 +91,15 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
     expect(activeTab().path).toBe("/tasks/nowhere/deep");
 
     // A second Option-click re-points the target pane; still the same origin.
-    await act(() => { openBeside("/plans/third/deep", { reuse: true }); });
+    await act(() => {
+      openBeside("/plans/third/deep", { reuse: true });
+    });
     expect(cells().length).toBe(2);
     expect(cells()[0]).toBe(origin);
     expect(origin.querySelector(".flex-1")).toBe(pageSlot);
-    expect(activeTab().layout && (activeTab().layout as any).children[1].path).toBe("/plans/third/deep");
+    expect(
+      activeTab().layout && (activeTab().layout as any).children[1].path,
+    ).toBe("/plans/third/deep");
   } finally {
     await act(() => root.unmount());
   }

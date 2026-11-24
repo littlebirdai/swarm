@@ -11,8 +11,15 @@ import { afterAll, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { SNIPPET_CATALOG, snippetContentHash } from "@codecast/shared/contracts";
-import { installSectionToFile, snippetStale, stampSnippet } from "./snippets.js";
+import {
+  SNIPPET_CATALOG,
+  snippetContentHash,
+} from "@codecast/shared/contracts";
+import {
+  installSectionToFile,
+  snippetStale,
+  stampSnippet,
+} from "./snippets.js";
 
 const memory = SNIPPET_CATALOG.find((s) => s.slug === "memory")!;
 const section = memory.section!;
@@ -97,7 +104,12 @@ describe("the upgrade path over real files", () => {
   };
 
   /** The refresh gate as index.ts runs it: reinstall only when stale. */
-  const refresh = (config: Record<string, unknown>, file: string, dir: string, version: string) => {
+  const refresh = (
+    config: Record<string, unknown>,
+    file: string,
+    dir: string,
+    version: string,
+  ) => {
     if (snippetStale(config, "memory")) {
       installSectionToFile(file, dir, section.spec, section.body, true);
     }

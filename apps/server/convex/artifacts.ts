@@ -20,9 +20,34 @@
 
 import { currentMembershipVisibility } from "./teamVisibility";
 import { v } from "convex/values";
-import { MAX_ARTIFACT_BYTES, MAX_ARTIFACT_MB, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_MB, accessSummary, artifactUrl, lineDiff, teamGateRefusal, type DiffOp } from "./lib/artifactRules";
-export { MAX_ARTIFACT_BYTES, MAX_ARTIFACT_MB, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_MB, accessSummary, artifactUrl, lineDiff, teamGateRefusal, type DiffOp };
-import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import {
+  MAX_ARTIFACT_BYTES,
+  MAX_ARTIFACT_MB,
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_MB,
+  accessSummary,
+  artifactUrl,
+  lineDiff,
+  teamGateRefusal,
+  type DiffOp,
+} from "./lib/artifactRules";
+export {
+  MAX_ARTIFACT_BYTES,
+  MAX_ARTIFACT_MB,
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_MB,
+  accessSummary,
+  artifactUrl,
+  lineDiff,
+  teamGateRefusal,
+  type DiffOp,
+};
+import {
+  query,
+  mutation,
+  internalQuery,
+  internalMutation,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
@@ -30,22 +55,47 @@ import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { performSessionSend } from "./pendingMessages";
 import { classifyNamedWorkState } from "./conversations";
-import { describePageAnchor, pageAgentChip, parsePageAnchor } from "@codecast/shared/contracts";
-import { deliveredOutcome, failedOutcome, type SendWaiting } from "@codecast/shared/comments";
+import {
+  describePageAnchor,
+  pageAgentChip,
+  parsePageAnchor,
+} from "@codecast/shared/contracts";
+import {
+  deliveredOutcome,
+  failedOutcome,
+  type SendWaiting,
+} from "@codecast/shared/comments";
 import { sessionWaiting } from "./lib/sendOutcome";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { isTeamMember, isVisibilityShareable } from "./privacy";
-import { computeWorkspaceKey, resolveWorkspaceKey, type WorkspaceKey } from "./lib/accessKeys";
+import {
+  computeWorkspaceKey,
+  resolveWorkspaceKey,
+  type WorkspaceKey,
+} from "./lib/accessKeys";
 import { pageThreadParticipants, touchThread } from "./threadReads";
 import { evidencePatch, resolveEvidenceBinding } from "./taskEvidence";
-import { eTokenFor, gateFailure, isExpired, isGated, kTokenFor, mTokenFor, mTokenHolder, teamGateMessage } from "./lib/artifactGates";
+import {
+  eTokenFor,
+  gateFailure,
+  isExpired,
+  isGated,
+  kTokenFor,
+  mTokenFor,
+  mTokenHolder,
+  teamGateMessage,
+} from "./lib/artifactGates";
 import { regulatedTeamFor, teamPolicyRefusal } from "./lib/teamPolicyGuard";
 import { isRegulatedTeam } from "./lib/accessLog";
 import { purgeRow } from "./lib/purgeTree";
 import { artifactPlan } from "./lib/deletionPlans";
 import { mayDeleteRegulated, startDeletion } from "./regulatedDeletion";
 import { recordRowAccess } from "./lib/accessLog";
-import { decisionPageSlugs, findDecision, userMayRead } from "./lib/decisionAccess";
+import {
+  decisionPageSlugs,
+  findDecision,
+  userMayRead,
+} from "./lib/decisionAccess";
 import { bumpWindow } from "./ipRateLimit";
 
 // Superseded versions kept per artifact (beyond the current one). Old blobs
@@ -116,7 +166,8 @@ function toCliRow(a: Doc<"artifacts">) {
     updated_at: a.updated_at,
     url,
     manage_url: a.owner_key ? `${url}#o=${a.owner_key}` : url,
-    edit_url: a.edit_mode === "link" && a.edit_key ? `${url}#ed=${a.edit_key}` : null,
+    edit_url:
+      a.edit_mode === "link" && a.edit_key ? `${url}#ed=${a.edit_key}` : null,
     ...accessSummary(a),
   };
 }
@@ -144,7 +195,10 @@ const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 export const recordUpload = internalMutation({
   args: { user_id: v.id("users"), storage_id: v.id("_storage") },
   handler: async (ctx, args) => {
-    await ctx.db.insert("artifact_uploads", { ...args, created_at: Date.now() });
+    await ctx.db.insert("artifact_uploads", {
+      ...args,
+      created_at: Date.now(),
+    });
   },
 });
 
@@ -152,12 +206,22 @@ export const recordUpload = internalMutation({
 export const uploadsOwned = internalQuery({
   args: { user_id: v.id("users"), storage_ids: v.array(v.id("_storage")) },
   handler: async (ctx, args) => {
-    const out: Array<{ storage_id: Id<"_storage">; size: number; sha256: string }> = [];
+    const out: Array<{
+      storage_id: Id<"_storage">;
+      size: number;
+      sha256: string;
+    }> = [];
     for (const id of args.storage_ids) {
-      const row = await ctx.db.query("artifact_uploads").withIndex("by_storage_id", (q) => q.eq("storage_id", id)).first();
-      const meta = row?.user_id === args.user_id ? await ctx.db.system.get(id) : null;
+      const row = await ctx.db
+        .query("artifact_uploads")
+        .withIndex("by_storage_id", (q) => q.eq("storage_id", id))
+        .first();
+      const meta =
+        row?.user_id === args.user_id ? await ctx.db.system.get(id) : null;
       if (!meta) return null;
-      const hex = Array.from(atob(meta.sha256), (c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+      const hex = Array.from(atob(meta.sha256), (c) =>
+        c.charCodeAt(0).toString(16).padStart(2, "0"),
+      ).join("");
       out.push({ storage_id: id, size: meta.size, sha256: hex });
     }
     return out;
@@ -169,7 +233,10 @@ export const settleUploads = internalMutation({
   args: { storage_ids: v.array(v.id("_storage")), attached: v.boolean() },
   handler: async (ctx, args) => {
     for (const id of args.storage_ids) {
-      const row = await ctx.db.query("artifact_uploads").withIndex("by_storage_id", (q) => q.eq("storage_id", id)).first();
+      const row = await ctx.db
+        .query("artifact_uploads")
+        .withIndex("by_storage_id", (q) => q.eq("storage_id", id))
+        .first();
       if (!row) continue;
       await ctx.db.delete(row._id);
       if (!args.attached) await ctx.storage.delete(id).catch(() => {});
@@ -182,7 +249,9 @@ export const sweepUploads = internalMutation({
   handler: async (ctx) => {
     const stale = await ctx.db
       .query("artifact_uploads")
-      .withIndex("by_created_at", (q) => q.lt("created_at", Date.now() - UPLOAD_TTL_MS))
+      .withIndex("by_created_at", (q) =>
+        q.lt("created_at", Date.now() - UPLOAD_TTL_MS),
+      )
       .take(200);
     for (const row of stale) {
       await ctx.db.delete(row._id);
@@ -208,10 +277,14 @@ export const bySlug = internalQuery({
       .query("artifact_comments")
       .withIndex("by_artifact", (q) => q.eq("artifact_id", artifact._id))
       .collect();
-    const open = comments.filter((c) => c.status === "open").sort((a, b) => a.created_at - b.created_at);
+    const open = comments
+      .filter((c) => c.status === "open")
+      .sort((a, b) => a.created_at - b.created_at);
     // Roles derive the way "Send all" reads them; the team read happens only
     // when a non-owner account commented.
-    const teammates = open.some((c) => c.author_user_id && c.author_user_id !== artifact.user_id)
+    const teammates = open.some(
+      (c) => c.author_user_id && c.author_user_id !== artifact.user_id,
+    )
       ? await teammatesWhoCanSee(ctx, artifact)
       : new Set<string>();
     // Session TITLE for the bar chip — a short id means nothing to viewers.
@@ -223,7 +296,9 @@ export const bySlug = internalQuery({
       session_title = conv?.title ?? null;
       session_short_title = conv?.short_title ?? null;
     }
-    const gateTeam = artifact.team_gate ? await ctx.db.get(artifact.team_gate) : null;
+    const gateTeam = artifact.team_gate
+      ? await ctx.db.get(artifact.team_gate)
+      : null;
     return {
       ...artifact,
       team_gate_name: gateTeam?.name ?? null,
@@ -249,7 +324,9 @@ export const bySlug = internalQuery({
         delivered_at: c.delivered_at ?? null,
         // The current version when it went to the agent; the first version
         // above it answered the comment.
-        delivered_version: c.delivered ? (c.delivered_version ?? c.version) : null,
+        delivered_version: c.delivered
+          ? (c.delivered_version ?? c.version)
+          : null,
         // "owner" | "teammate" | null: whether the author may steer the
         // agent. Tells the bar which unsent comments "Send all" can carry.
         role: sendableRole(c, artifact.user_id, teammates) ?? null,
@@ -272,13 +349,22 @@ export const agentStateBySlug = internalQuery({
     if (!artifact?.session_conversation_id) return null;
     const conv = await ctx.db.get(artifact.session_conversation_id);
     if (!conv) return null;
-    const { state, since } = await classifyNamedWorkState(ctx, conv, Date.now());
+    const { state, since } = await classifyNamedWorkState(
+      ctx,
+      conv,
+      Date.now(),
+    );
     const comments = await ctx.db
       .query("artifact_comments")
       .withIndex("by_artifact", (q) => q.eq("artifact_id", artifact._id))
       .collect();
     const awaiting = awaitingSince(comments, artifact.version);
-    return { state, since, awaiting_since: awaiting, chip: pageAgentChip(state, awaiting, Date.now()) };
+    return {
+      state,
+      since,
+      awaiting_since: awaiting,
+      chip: pageAgentChip(state, awaiting, Date.now()),
+    };
   },
 });
 
@@ -286,7 +372,12 @@ export const agentStateBySlug = internalQuery({
 // while the current version was already current. null once a newer version
 // lands. Keyed off versions, never timestamps: only a new version answers.
 export function awaitingSince(
-  comments: Array<{ delivered?: boolean; delivered_at?: number; delivered_version?: number; version: number }>,
+  comments: Array<{
+    delivered?: boolean;
+    delivered_at?: number;
+    delivered_version?: number;
+    version: number;
+  }>,
   currentVersion: number,
 ): number | null {
   let newest: number | null = null;
@@ -305,7 +396,9 @@ export const byUserPath = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artifacts")
-      .withIndex("by_user_path", (q) => q.eq("user_id", args.user_id).eq("source_path", args.source_path))
+      .withIndex("by_user_path", (q) =>
+        q.eq("user_id", args.user_id).eq("source_path", args.source_path),
+      )
       .first();
   },
 });
@@ -313,7 +406,10 @@ export const byUserPath = internalQuery({
 export const slugTaken = internalQuery({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
-    return !!(await ctx.db.query("artifacts").withIndex("by_slug", (q) => q.eq("slug", args.slug)).first());
+    return !!(await ctx.db
+      .query("artifacts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first());
   },
 });
 
@@ -360,12 +456,19 @@ export const historyBySlug = internalQuery({
 });
 
 export const assetByPath = internalQuery({
-  args: { artifact_id: v.id("artifacts"), version: v.number(), path: v.string() },
+  args: {
+    artifact_id: v.id("artifacts"),
+    version: v.number(),
+    path: v.string(),
+  },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artifact_assets")
       .withIndex("by_artifact_version", (q) =>
-        q.eq("artifact_id", args.artifact_id).eq("version", args.version).eq("path", args.path),
+        q
+          .eq("artifact_id", args.artifact_id)
+          .eq("version", args.version)
+          .eq("path", args.path),
       )
       .first();
   },
@@ -376,7 +479,9 @@ export const assetsForVersion = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("artifact_assets")
-      .withIndex("by_artifact_version", (q) => q.eq("artifact_id", args.artifact_id).eq("version", args.version))
+      .withIndex("by_artifact_version", (q) =>
+        q.eq("artifact_id", args.artifact_id).eq("version", args.version),
+      )
       .collect();
   },
 });
@@ -386,10 +491,15 @@ export const resolveSessionRef = internalQuery({
   args: { ref: v.string(), user_id: v.id("users") },
   handler: async (ctx, args) => {
     try {
-      const conversation = await findConversationByAnyRef(ctx, args.ref, args.user_id);
+      const conversation = await findConversationByAnyRef(
+        ctx,
+        args.ref,
+        args.user_id,
+      );
       if (!conversation) return null;
       return {
-        short_id: conversation.short_id ?? conversation._id.toString().slice(0, 7),
+        short_id:
+          conversation.short_id ?? conversation._id.toString().slice(0, 7),
         conversation_id: conversation._id,
       };
     } catch {
@@ -422,7 +532,10 @@ export const editTarget = internalQuery({
       .first();
     if (!artifact) return null;
     const isOwner = !!artifact.owner_key && args.key === artifact.owner_key;
-    const isEditor = artifact.edit_mode === "link" && !!artifact.edit_key && args.key === artifact.edit_key;
+    const isEditor =
+      artifact.edit_mode === "link" &&
+      !!artifact.edit_key &&
+      args.key === artifact.edit_key;
     if (!isOwner && !isEditor) return null;
     return { artifact, is_owner: isOwner };
   },
@@ -473,10 +586,21 @@ export const ownerPanel = internalQuery({
       // Lets the manage sheet offer the session-link toggle only when there is
       // a publishing session to link to.
       session_short_id: artifact.session_short_id ?? null,
-      edit_url: artifact.edit_mode === "link" && artifact.edit_key ? `${artifactUrl(artifact.slug)}#ed=${artifact.edit_key}` : null,
-      stats: { views: stats?.view_count ?? 0, last_viewed_at: stats?.last_viewed_at ?? null },
+      edit_url:
+        artifact.edit_mode === "link" && artifact.edit_key
+          ? `${artifactUrl(artifact.slug)}#ed=${artifact.edit_key}`
+          : null,
+      stats: {
+        views: stats?.view_count ?? 0,
+        last_viewed_at: stats?.last_viewed_at ?? null,
+      },
       viewers: viewers
-        .map((w) => ({ email: w.email, first_seen: w.first_seen, last_seen: w.last_seen, view_count: w.view_count }))
+        .map((w) => ({
+          email: w.email,
+          first_seen: w.first_seen,
+          last_seen: w.last_seen,
+          view_count: w.view_count,
+        }))
         .sort((a, b) => b.last_seen - a.last_seen),
       comments: comments
         .map((c) => ({
@@ -530,15 +654,20 @@ type AccessPatch = {
 function buildAccessPatch(set: AccessPatch): Partial<Doc<"artifacts">> {
   const patch: Record<string, unknown> = {};
   if (set.team_gate) patch.team_gate = set.team_gate;
-  if (set.password_hash !== undefined) patch.password_hash = set.password_hash ?? undefined;
-  if (set.email_gate !== undefined) patch.email_gate = set.email_gate || undefined;
-  if (set.expires_at !== undefined) patch.expires_at = set.expires_at ?? undefined;
+  if (set.password_hash !== undefined)
+    patch.password_hash = set.password_hash ?? undefined;
+  if (set.email_gate !== undefined)
+    patch.email_gate = set.email_gate || undefined;
+  if (set.expires_at !== undefined)
+    patch.expires_at = set.expires_at ?? undefined;
   if (set.edit_mode !== undefined) {
     patch.edit_mode = set.edit_mode === "owner" ? undefined : set.edit_mode;
     if (set.edit_key !== undefined) patch.edit_key = set.edit_key;
   }
-  if (set.hide_session !== undefined) patch.hide_session = set.hide_session || undefined;
-  if (set.comments_disabled !== undefined) patch.comments_disabled = set.comments_disabled || undefined;
+  if (set.hide_session !== undefined)
+    patch.hide_session = set.hide_session || undefined;
+  if (set.comments_disabled !== undefined)
+    patch.comments_disabled = set.comments_disabled || undefined;
   return patch as Partial<Doc<"artifacts">>;
 }
 
@@ -548,25 +677,45 @@ function buildAccessPatch(set: AccessPatch): Partial<Doc<"artifacts">> {
  * publishes it. A page already gated keeps its gate. */
 export async function teamGateFor(
   ctx: { db: QueryCtx["db"] },
-  row: Pick<Doc<"artifacts">, "user_id" | "task_id" | "plan_id" | "session_conversation_id" | "team_gate">,
-  scope: { apiToken?: string | null; workspaces?: Array<string | null | undefined> } = {},
+  row: Pick<
+    Doc<"artifacts">,
+    "user_id" | "task_id" | "plan_id" | "session_conversation_id" | "team_gate"
+  >,
+  scope: {
+    apiToken?: string | null;
+    workspaces?: Array<string | null | undefined>;
+  } = {},
 ): Promise<{ team_id: Id<"teams">; team_name: string } | null> {
   if (row.team_gate) {
     const team = await ctx.db.get(row.team_gate);
     return { team_id: row.team_gate, team_name: team?.name ?? "this team" };
   }
-  const workspaces = [await pageWorkspace(ctx, row as Doc<"artifacts">, new Map()), ...(scope.workspaces ?? [])];
+  const workspaces = [
+    await pageWorkspace(ctx, row as Doc<"artifacts">, new Map()),
+    ...(scope.workspaces ?? []),
+  ];
   for (const workspace of workspaces) {
-    const team = await regulatedTeamFor(ctx, { workspace, apiToken: scope.apiToken });
+    const team = await regulatedTeamFor(ctx, {
+      workspace,
+      apiToken: scope.apiToken,
+    });
     if (team) return team;
   }
   return null;
 }
 
 /** The fields a page takes on when it is gated to a team: the gate, and no public edit link. */
-function gatePatch(row: Pick<Doc<"artifacts">, "team_gate" | "edit_mode"> | null, teamId: Id<"teams"> | undefined): Record<string, unknown> {
+function gatePatch(
+  row: Pick<Doc<"artifacts">, "team_gate" | "edit_mode"> | null,
+  teamId: Id<"teams"> | undefined,
+): Record<string, unknown> {
   if (!teamId || row?.team_gate) return {};
-  return { team_gate: teamId, ...(row?.edit_mode === "link" ? { edit_mode: undefined, edit_key: undefined } : {}) };
+  return {
+    team_gate: teamId,
+    ...(row?.edit_mode === "link"
+      ? { edit_mode: undefined, edit_key: undefined }
+      : {}),
+  };
 }
 
 export const publishGate = internalQuery({
@@ -580,7 +729,9 @@ export const publishGate = internalQuery({
     data_workspace: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = args.existing_id ? await ctx.db.get(args.existing_id) : null;
+    const existing = args.existing_id
+      ? await ctx.db.get(args.existing_id)
+      : null;
     return await teamGateFor(
       ctx,
       {
@@ -588,7 +739,8 @@ export const publishGate = internalQuery({
         team_gate: existing?.team_gate,
         task_id: args.task_id ?? existing?.task_id,
         plan_id: args.plan_id ?? existing?.plan_id,
-        session_conversation_id: args.session_conversation_id ?? existing?.session_conversation_id,
+        session_conversation_id:
+          args.session_conversation_id ?? existing?.session_conversation_id,
       },
       { apiToken: args.api_token, workspaces: [args.data_workspace] },
     );
@@ -604,7 +756,12 @@ const assetInputValidator = v.array(
   }),
 );
 
-type AssetInput = { path: string; storage_id: Id<"_storage">; content_type: string; size: number }[];
+type AssetInput = {
+  path: string;
+  storage_id: Id<"_storage">;
+  content_type: string;
+  size: number;
+}[];
 
 /** Snapshot the artifact's current state into artifact_versions, patch it to
  * the new content, write the new version's asset rows, prune history past the
@@ -652,13 +809,15 @@ async function bumpVersion(
     last_edited_by: next.edited_by,
     updated_at: Date.now(),
   };
-  if (next.kind !== undefined) patch.kind = next.kind === "html" ? undefined : next.kind;
+  if (next.kind !== undefined)
+    patch.kind = next.kind === "html" ? undefined : next.kind;
   if (next.session_short_id) {
     patch.session_short_id = next.session_short_id;
     patch.session_conversation_id = next.session_conversation_id;
   }
   if (next.thumb_storage_id) {
-    if (artifact.thumb_storage_id) await ctx.storage.delete(artifact.thumb_storage_id).catch(() => {});
+    if (artifact.thumb_storage_id)
+      await ctx.storage.delete(artifact.thumb_storage_id).catch(() => {});
     patch.thumb_storage_id = next.thumb_storage_id;
   }
   await ctx.db.patch(artifact._id, patch as Partial<Doc<"artifacts">>);
@@ -676,23 +835,35 @@ async function bumpVersion(
   return version;
 }
 
-async function pruneHistory(ctx: MutationCtx, artifactId: Id<"artifacts">): Promise<void> {
+async function pruneHistory(
+  ctx: MutationCtx,
+  artifactId: Id<"artifacts">,
+): Promise<void> {
   const history = await ctx.db
     .query("artifact_versions")
     .withIndex("by_artifact", (q) => q.eq("artifact_id", artifactId))
     .collect();
-  const excess = history.slice(0, Math.max(0, history.length - MAX_ARTIFACT_HISTORY));
+  const excess = history.slice(
+    0,
+    Math.max(0, history.length - MAX_ARTIFACT_HISTORY),
+  );
   for (const old of excess) {
     await deleteVersionRow(ctx, old);
   }
 }
 
-async function deleteVersionRow(ctx: MutationCtx, row: Doc<"artifact_versions">): Promise<void> {
+async function deleteVersionRow(
+  ctx: MutationCtx,
+  row: Doc<"artifact_versions">,
+): Promise<void> {
   await ctx.storage.delete(row.storage_id).catch(() => {});
-  if (row.source_storage_id) await ctx.storage.delete(row.source_storage_id).catch(() => {});
+  if (row.source_storage_id)
+    await ctx.storage.delete(row.source_storage_id).catch(() => {});
   const assets = await ctx.db
     .query("artifact_assets")
-    .withIndex("by_artifact_version", (q) => q.eq("artifact_id", row.artifact_id).eq("version", row.version))
+    .withIndex("by_artifact_version", (q) =>
+      q.eq("artifact_id", row.artifact_id).eq("version", row.version),
+    )
     .collect();
   for (const asset of assets) {
     await ctx.storage.delete(asset.storage_id).catch(() => {});
@@ -705,12 +876,20 @@ async function deleteVersionRow(ctx: MutationCtx, row: Doc<"artifact_versions">)
  * (or a failed create). */
 async function deleteIncomingBlobs(
   ctx: MutationCtx,
-  next: { storage_id: Id<"_storage">; source_storage_id?: Id<"_storage">; assets?: AssetInput; thumb_storage_id?: Id<"_storage"> },
+  next: {
+    storage_id: Id<"_storage">;
+    source_storage_id?: Id<"_storage">;
+    assets?: AssetInput;
+    thumb_storage_id?: Id<"_storage">;
+  },
 ): Promise<void> {
   await ctx.storage.delete(next.storage_id).catch(() => {});
-  if (next.source_storage_id) await ctx.storage.delete(next.source_storage_id).catch(() => {});
-  if (next.thumb_storage_id) await ctx.storage.delete(next.thumb_storage_id).catch(() => {});
-  for (const asset of next.assets ?? []) await ctx.storage.delete(asset.storage_id).catch(() => {});
+  if (next.source_storage_id)
+    await ctx.storage.delete(next.source_storage_id).catch(() => {});
+  if (next.thumb_storage_id)
+    await ctx.storage.delete(next.thumb_storage_id).catch(() => {});
+  for (const asset of next.assets ?? [])
+    await ctx.storage.delete(asset.storage_id).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------
@@ -760,7 +939,10 @@ export const upsertFromPublish = internalMutation({
     const now = Date.now();
 
     if (existing) {
-      const accessPatch = { ...(args.access ? buildAccessPatch(args.access) : {}), ...gatePatch(existing, args.access?.team_gate) };
+      const accessPatch = {
+        ...(args.access ? buildAccessPatch(args.access) : {}),
+        ...gatePatch(existing, args.access?.team_gate),
+      };
       // Identical bytes → no version bump: drop the freshly stored blobs, but
       // still apply access changes and provenance so `--password x` on an
       // unchanged file works.
@@ -770,14 +952,19 @@ export const upsertFromPublish = internalMutation({
         // content stopped changing. Adopt it, drop the superseded one.
         const merged: Record<string, unknown> = { ...accessPatch, ...evidence };
         if (args.thumb_storage_id) {
-          if (existing.thumb_storage_id) await ctx.storage.delete(existing.thumb_storage_id).catch(() => {});
+          if (existing.thumb_storage_id)
+            await ctx.storage.delete(existing.thumb_storage_id).catch(() => {});
           merged.thumb_storage_id = args.thumb_storage_id;
         }
         // Everything else the caller stored for this no-op publish is garbage;
         // the adopted thumbnail is excluded so it isn't deleted out from under
         // the patch above.
-        await deleteIncomingBlobs(ctx, { ...args, thumb_storage_id: undefined });
-        if (Object.keys(merged).length) await ctx.db.patch(existing._id, merged as Partial<Doc<"artifacts">>);
+        await deleteIncomingBlobs(ctx, {
+          ...args,
+          thumb_storage_id: undefined,
+        });
+        if (Object.keys(merged).length)
+          await ctx.db.patch(existing._id, merged as Partial<Doc<"artifacts">>);
         const fresh = (await ctx.db.get(existing._id))!;
         return {
           slug: fresh.slug,
@@ -786,12 +973,16 @@ export const upsertFromPublish = internalMutation({
           updated: true,
           unchanged: true,
           owner_key: fresh.owner_key ?? null,
-          edit_url: fresh.edit_mode === "link" && fresh.edit_key ? `${artifactUrl(fresh.slug)}#ed=${fresh.edit_key}` : null,
+          edit_url:
+            fresh.edit_mode === "link" && fresh.edit_key
+              ? `${artifactUrl(fresh.slug)}#ed=${fresh.edit_key}`
+              : null,
         };
       }
 
       const rowPatch = { ...accessPatch, ...evidence };
-      if (Object.keys(rowPatch).length) await ctx.db.patch(existing._id, rowPatch);
+      if (Object.keys(rowPatch).length)
+        await ctx.db.patch(existing._id, rowPatch);
       const base = (await ctx.db.get(existing._id))!;
       const version = await bumpVersion(ctx, base, {
         storage_id: args.storage_id,
@@ -812,18 +1003,29 @@ export const upsertFromPublish = internalMutation({
         version,
         updated: true,
         owner_key: fresh.owner_key ?? null,
-        edit_url: fresh.edit_mode === "link" && fresh.edit_key ? `${artifactUrl(fresh.slug)}#ed=${fresh.edit_key}` : null,
+        edit_url:
+          fresh.edit_mode === "link" && fresh.edit_key
+            ? `${artifactUrl(fresh.slug)}#ed=${fresh.edit_key}`
+            : null,
       };
     }
 
     // Create. The action pre-mints slug/owner_key (it needed them for
     // hashing); fall back to minting here for direct callers.
     let slug = args.slug ?? newSlug();
-    while (await ctx.db.query("artifacts").withIndex("by_slug", (q) => q.eq("slug", slug)).first()) {
+    while (
+      await ctx.db
+        .query("artifacts")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first()
+    ) {
       slug = newSlug();
     }
     const ownerKey = args.owner_key ?? newSecret();
-    const accessPatch = { ...(args.access ? buildAccessPatch(args.access) : {}), ...gatePatch(null, args.access?.team_gate) };
+    const accessPatch = {
+      ...(args.access ? buildAccessPatch(args.access) : {}),
+      ...gatePatch(null, args.access?.team_gate),
+    };
 
     const id = await ctx.db.insert("artifacts", {
       slug,
@@ -862,7 +1064,10 @@ export const upsertFromPublish = internalMutation({
       version: 1,
       updated: false,
       owner_key: ownerKey,
-      edit_url: fresh.edit_mode === "link" && fresh.edit_key ? `${artifactUrl(slug)}#ed=${fresh.edit_key}` : null,
+      edit_url:
+        fresh.edit_mode === "link" && fresh.edit_key
+          ? `${artifactUrl(slug)}#ed=${fresh.edit_key}`
+          : null,
     };
   },
 });
@@ -922,16 +1127,27 @@ export const applyManage = internalMutation({
       const { title, ...access } = args.set;
       const row = await ctx.db.get(args.artifact_id);
       if (!row) throw new Error("Page not found");
-      const gate = await teamGateFor(ctx, { ...row, team_gate: row.team_gate ?? access.team_gate });
+      const gate = await teamGateFor(ctx, {
+        ...row,
+        team_gate: row.team_gate ?? access.team_gate,
+      });
       const refusal = gate ? teamGateRefusal(gate.team_name, access) : null;
       if (refusal) throw new Error(refusal);
-      const patch: Record<string, unknown> = { ...buildAccessPatch(access), ...gatePatch(row, gate?.team_id) };
+      const patch: Record<string, unknown> = {
+        ...buildAccessPatch(access),
+        ...gatePatch(row, gate?.team_id),
+      };
       if (title !== undefined) patch.title = title.slice(0, 200);
-      if (Object.keys(patch).length) await ctx.db.patch(args.artifact_id, patch as Partial<Doc<"artifacts">>);
+      if (Object.keys(patch).length)
+        await ctx.db.patch(
+          args.artifact_id,
+          patch as Partial<Doc<"artifacts">>,
+        );
     }
     if (args.resolve_comment_id) {
       const c = await ctx.db.get(args.resolve_comment_id);
-      if (c && c.artifact_id === args.artifact_id) await ctx.db.patch(c._id, { status: "resolved" });
+      if (c && c.artifact_id === args.artifact_id)
+        await ctx.db.patch(c._id, { status: "resolved" });
     }
     if (args.delete_comment_id) {
       const c = await ctx.db.get(args.delete_comment_id);
@@ -965,16 +1181,32 @@ export const recordView = mutation({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
     if (!artifact) return { ok: false };
-    if (await gateFailure(artifact, { k: args.k, e: args.e, m: args.m }, (h) => teamGateAdmitsHolder(ctx, artifact, h))) return { ok: false };
+    if (
+      await gateFailure(artifact, { k: args.k, e: args.e, m: args.m }, (h) =>
+        teamGateAdmitsHolder(ctx, artifact, h),
+      )
+    )
+      return { ok: false };
     // A regulated team's page: one audit entry per reader per open (lib/accessLog),
     // ahead of the view budget: repeats collapse there, so an over-budget open is still recorded.
-    const reader = await resolveCommentIdentity(ctx, artifact._id, args.identity_token);
+    const reader = await resolveCommentIdentity(
+      ctx,
+      artifact._id,
+      args.identity_token,
+    );
     await recordRowAccess(ctx, "artifacts", artifact, {
-      actor: reader ? { userId: reader.user._id } : { label: "Page link holder" },
+      actor: reader
+        ? { userId: reader.user._id }
+        : { label: "Page link holder" },
       action: "open",
       client: "page",
     });
-    const budget = await bumpWindow(ctx.db, `artifact-view:${artifact._id}`, MAX_VIEWS_PER_MINUTE, 60_000);
+    const budget = await bumpWindow(
+      ctx.db,
+      `artifact-view:${artifact._id}`,
+      MAX_VIEWS_PER_MINUTE,
+      60_000,
+    );
     if (!budget.ok) return { ok: false };
     const now = Date.now();
     const stats = await ctx.db
@@ -982,18 +1214,30 @@ export const recordView = mutation({
       .withIndex("by_artifact", (q) => q.eq("artifact_id", artifact._id))
       .first();
     if (stats) {
-      await ctx.db.patch(stats._id, { view_count: stats.view_count + 1, last_viewed_at: now });
+      await ctx.db.patch(stats._id, {
+        view_count: stats.view_count + 1,
+        last_viewed_at: now,
+      });
     } else {
-      await ctx.db.insert("artifact_stats", { artifact_id: artifact._id, view_count: 1, last_viewed_at: now });
+      await ctx.db.insert("artifact_stats", {
+        artifact_id: artifact._id,
+        view_count: 1,
+        last_viewed_at: now,
+      });
     }
     const email = args.email?.trim().toLowerCase();
     if (email && email.includes("@") && email.length <= 254) {
       const viewer = await ctx.db
         .query("artifact_viewers")
-        .withIndex("by_artifact_email", (q) => q.eq("artifact_id", artifact._id).eq("email", email))
+        .withIndex("by_artifact_email", (q) =>
+          q.eq("artifact_id", artifact._id).eq("email", email),
+        )
         .first();
       if (viewer) {
-        await ctx.db.patch(viewer._id, { last_seen: now, view_count: viewer.view_count + 1 });
+        await ctx.db.patch(viewer._id, {
+          last_seen: now,
+          view_count: viewer.view_count + 1,
+        });
       } else {
         await ctx.db.insert("artifact_viewers", {
           artifact_id: artifact._id,
@@ -1021,7 +1265,9 @@ export const recordViewerEmail = internalMutation({
     const now = Date.now();
     const viewer = await ctx.db
       .query("artifact_viewers")
-      .withIndex("by_artifact_email", (q) => q.eq("artifact_id", artifact._id).eq("email", email))
+      .withIndex("by_artifact_email", (q) =>
+        q.eq("artifact_id", artifact._id).eq("email", email),
+      )
       .first();
     if (!viewer) {
       await ctx.db.insert("artifact_viewers", {
@@ -1042,7 +1288,11 @@ export const recordViewerEmail = internalMutation({
 // session. The fence is defense in depth, not the whole defense (inbound
 // session messages are never unconditionally-followable instructions),
 // but it should at least be unforgeable.
-const defuseFence = (s: string) => s.replace(/-{2,}\s*(BEGIN|END)\s+UNTRUSTED[^\n]*/gi, "[fence marker removed]");
+const defuseFence = (s: string) =>
+  s.replace(
+    /-{2,}\s*(BEGIN|END)\s+UNTRUSTED[^\n]*/gi,
+    "[fence marker removed]",
+  );
 
 // Who may steer the page's agent: the owner (owner_key or the owning account)
 // and verified teammates who can see the page. Everyone else's comments are
@@ -1069,9 +1319,15 @@ function anchorNote(anchor?: string): string {
 // that the owner did not write: the agent hears who sent them and weighs them
 // against what the owner asked for, and the text is fenced so nothing inside
 // it can pass as narration. Anonymous text never gets here.
-export function commentDeliveryBody(artifact: Doc<"artifacts">, list: DeliverableComment[]): string {
+export function commentDeliveryBody(
+  artifact: Doc<"artifacts">,
+  list: DeliverableComment[],
+): string {
   const numbered = (items: DeliverableComment[]) =>
-    items.map((c, i) => `${items.length > 1 ? `${i + 1}. ` : ""}${c.text}${anchorNote(c.anchor)}`);
+    items.map(
+      (c, i) =>
+        `${items.length > 1 ? `${i + 1}. ` : ""}${c.text}${anchorNote(c.anchor)}`,
+    );
   const own = list.filter((c) => c.author_role === "owner");
   const byTeammate = new Map<string, DeliverableComment[]>();
   for (const c of list) {
@@ -1124,8 +1380,11 @@ async function sendCommentsToSession(
   ctx: MutationCtx,
   artifact: Doc<"artifacts">,
   list: DeliverableComment[],
-): Promise<{ ok: true; waiting: SendWaiting | null } | { ok: false; reason: string }> {
-  if (!artifact.session_conversation_id) return { ok: false, reason: "The page has no session" };
+): Promise<
+  { ok: true; waiting: SendWaiting | null } | { ok: false; reason: string }
+> {
+  if (!artifact.session_conversation_id)
+    return { ok: false, reason: "The page has no session" };
   if (!list.length) return { ok: false, reason: "Nothing to send" };
   const body = commentDeliveryBody(artifact, list);
   try {
@@ -1136,7 +1395,10 @@ async function sendCommentsToSession(
     });
     return { ok: true, waiting };
   } catch (error) {
-    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -1147,7 +1409,9 @@ async function sendCommentsToSession(
 // name/avatar/user_id are stamped from the users table, never from the page.
 
 function commenterDisplayName(user: Doc<"users">): string {
-  return user.name || user.github_username || user.email?.split("@")[0] || "teammate";
+  return (
+    user.name || user.github_username || user.email?.split("@")[0] || "teammate"
+  );
 }
 
 function commenterAvatar(user: Doc<"users">): string | undefined {
@@ -1169,7 +1433,11 @@ async function resolveCommentIdentity(
   if (!row || row.artifact_id !== artifactId) return null;
   const user = await ctx.db.get(row.user_id);
   if (!user) return null;
-  return { user, name: commenterDisplayName(user), avatar: commenterAvatar(user) };
+  return {
+    user,
+    name: commenterDisplayName(user),
+    avatar: commenterAvatar(user),
+  };
 }
 
 export type PageAdmission = {
@@ -1196,14 +1464,31 @@ export type PageAdmission = {
 export async function pageAdmission(
   ctx: { db: QueryCtx["db"]; auth: QueryCtx["auth"] },
   artifact: Doc<"artifacts">,
-  presented: { owner_key?: string; edit_key?: string; identity_token?: string; k?: string; e?: string; m?: string },
+  presented: {
+    owner_key?: string;
+    edit_key?: string;
+    identity_token?: string;
+    k?: string;
+    e?: string;
+    m?: string;
+  },
 ): Promise<PageAdmission> {
-  const isOwner = !!artifact.owner_key && presented.owner_key === artifact.owner_key;
-  let identity = await resolveCommentIdentity(ctx, artifact._id, presented.identity_token);
+  const isOwner =
+    !!artifact.owner_key && presented.owner_key === artifact.owner_key;
+  let identity = await resolveCommentIdentity(
+    ctx,
+    artifact._id,
+    presented.identity_token,
+  );
   if (!identity && !presented.identity_token) {
     const userId = await getAuthUserId(ctx as never).catch(() => null);
     const user = userId ? await ctx.db.get(userId) : null;
-    if (user) identity = { user, name: commenterDisplayName(user), avatar: commenterAvatar(user) };
+    if (user)
+      identity = {
+        user,
+        name: commenterDisplayName(user),
+        avatar: commenterAvatar(user),
+      };
   }
   return await admissionFor(ctx, artifact, identity, isOwner, presented);
 }
@@ -1220,14 +1505,34 @@ export async function pageAdmission(
 export async function commentAdmission(
   ctx: { db: QueryCtx["db"]; auth: QueryCtx["auth"] },
   artifact: Doc<"artifacts">,
-  presented: { owner_key?: string; edit_key?: string; identity_token?: string; k?: string; e?: string; m?: string; from_app?: boolean },
+  presented: {
+    owner_key?: string;
+    edit_key?: string;
+    identity_token?: string;
+    k?: string;
+    e?: string;
+    m?: string;
+    from_app?: boolean;
+  },
 ): Promise<PageAdmission> {
   const admission = await pageAdmission(ctx, artifact, presented);
-  if (!admission.blocked || !presented.from_app || presented.identity_token || !admission.identity) return admission;
-  const inApp = admission.role === "owner"
-    || (admission.role === "teammate"
-      && !isExpired(artifact)
-      && (!artifact.team_gate || (await isTeamMember(ctx, admission.identity.user._id, artifact.team_gate))));
+  if (
+    !admission.blocked ||
+    !presented.from_app ||
+    presented.identity_token ||
+    !admission.identity
+  )
+    return admission;
+  const inApp =
+    admission.role === "owner" ||
+    (admission.role === "teammate" &&
+      !isExpired(artifact) &&
+      (!artifact.team_gate ||
+        (await isTeamMember(
+          ctx,
+          admission.identity.user._id,
+          artifact.team_gate,
+        ))));
   return inApp ? { ...admission, blocked: null } : admission;
 }
 
@@ -1237,19 +1542,33 @@ export async function commentAdmission(
  * may read and write. The same rule as a browser, so an agent never sees more
  * of a page than its person would in the app.
  */
-export async function accountAdmission(ctx: { db: QueryCtx["db"] }, artifact: Doc<"artifacts">, userId: Id<"users">): Promise<PageAdmission> {
+export async function accountAdmission(
+  ctx: { db: QueryCtx["db"] },
+  artifact: Doc<"artifacts">,
+  userId: Id<"users">,
+): Promise<PageAdmission> {
   const user = await ctx.db.get(userId);
-  const identity = user ? { user, name: commenterDisplayName(user), avatar: commenterAvatar(user) } : null;
+  const identity = user
+    ? { user, name: commenterDisplayName(user), avatar: commenterAvatar(user) }
+    : null;
   return await admissionFor(ctx, artifact, identity, false, {});
 }
 
 /** The gate tokens for a page as `holder` would hold them: k for the password
  *  wall, e for the email wall, m for the team gate. Who may be HANDED them is
  *  the caller's rule (unlockKeys, keysHandedTo). */
-async function gateKeysFor(artifact: Doc<"artifacts">, holder: string): Promise<{ k: string | null; e: string | null; m: string | null }> {
+async function gateKeysFor(
+  artifact: Doc<"artifacts">,
+  holder: string,
+): Promise<{ k: string | null; e: string | null; m: string | null }> {
   return {
-    k: artifact.password_hash ? await kTokenFor(artifact.password_hash, artifact.slug) : null,
-    e: artifact.email_gate && artifact.owner_key ? await eTokenFor(artifact.owner_key, artifact.slug) : null,
+    k: artifact.password_hash
+      ? await kTokenFor(artifact.password_hash, artifact.slug)
+      : null,
+    e:
+      artifact.email_gate && artifact.owner_key
+        ? await eTokenFor(artifact.owner_key, artifact.slug)
+        : null,
     m: await mTokenFor(artifact, holder),
   };
 }
@@ -1263,8 +1582,13 @@ async function keysHandedTo(
   role: SteerRole | undefined,
   identity: CommentIdentity | null,
 ): Promise<{ k: string | null; e: string | null; m: string | null } | null> {
-  if (role === "owner") return await gateKeysFor(artifact, String(artifact.user_id));
-  if (identity && artifact.team_gate && (await isTeamMember(ctx, identity.user._id, artifact.team_gate))) {
+  if (role === "owner")
+    return await gateKeysFor(artifact, String(artifact.user_id));
+  if (
+    identity &&
+    artifact.team_gate &&
+    (await isTeamMember(ctx, identity.user._id, artifact.team_gate))
+  ) {
     return await gateKeysFor(artifact, String(identity.user._id));
   }
   return null;
@@ -1280,7 +1604,10 @@ async function admissionFor(
   const role: SteerRole | undefined =
     isOwner || identity?.user._id === artifact.user_id
       ? "owner"
-      : identity && (await teammatesWhoCanSee(ctx, artifact)).has(identity.user._id.toString())
+      : identity &&
+          (await teammatesWhoCanSee(ctx, artifact)).has(
+            identity.user._id.toString(),
+          )
         ? "teammate"
         : undefined;
   // Every gate applies to everyone, as the serve route applies it: an expired
@@ -1290,12 +1617,20 @@ async function admissionFor(
   const handed = await keysHandedTo(ctx, artifact, role, identity);
   const blocked = await gateFailure(
     artifact,
-    { k: presented.k ?? handed?.k ?? undefined, e: presented.e ?? handed?.e ?? undefined, m: presented.m ?? handed?.m ?? undefined },
+    {
+      k: presented.k ?? handed?.k ?? undefined,
+      e: presented.e ?? handed?.e ?? undefined,
+      m: presented.m ?? handed?.m ?? undefined,
+    },
     (h) => teamGateAdmitsHolder(ctx, artifact, h),
   );
-  const editor = !blocked && (role === "owner"
-    || (artifact.edit_mode === "link" && !!artifact.edit_key && presented.edit_key === artifact.edit_key)
-    || (artifact.edit_mode === "team" && role === "teammate"));
+  const editor =
+    !blocked &&
+    (role === "owner" ||
+      (artifact.edit_mode === "link" &&
+        !!artifact.edit_key &&
+        presented.edit_key === artifact.edit_key) ||
+      (artifact.edit_mode === "team" && role === "teammate"));
   return { identity, role, editor, blocked };
 }
 
@@ -1314,13 +1649,21 @@ export const mintCommentIdentity = mutation({
     if (!artifact) return { error: "Not found" };
     const user = await ctx.db.get(userId);
     if (!user) return { error: "Sign in required" };
-    if (artifact.team_gate && artifact.user_id !== userId && !(await isTeamMember(ctx, userId, artifact.team_gate))) {
+    if (
+      artifact.team_gate &&
+      artifact.user_id !== userId &&
+      !(await isTeamMember(ctx, userId, artifact.team_gate))
+    ) {
       const team = await ctx.db.get(artifact.team_gate);
-      return { error: `${teamGateMessage(team?.name)}. Your account is not in ${team?.name ?? "that team"}.` };
+      return {
+        error: `${teamGateMessage(team?.name)}. Your account is not in ${team?.name ?? "that team"}.`,
+      };
     }
     const existing = await ctx.db
       .query("artifact_identities")
-      .withIndex("by_user_artifact", (q) => q.eq("user_id", userId).eq("artifact_id", artifact._id))
+      .withIndex("by_user_artifact", (q) =>
+        q.eq("user_id", userId).eq("artifact_id", artifact._id),
+      )
       .first();
     const token = existing?.token ?? newSecret();
     if (!existing) {
@@ -1331,7 +1674,11 @@ export const mintCommentIdentity = mutation({
         created_at: Date.now(),
       });
     }
-    return { token, name: commenterDisplayName(user), avatar: commenterAvatar(user) ?? null };
+    return {
+      token,
+      name: commenterDisplayName(user),
+      avatar: commenterAvatar(user) ?? null,
+    };
   },
 });
 
@@ -1347,12 +1694,24 @@ export const commenterContext = internalQuery({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
     if (!artifact) return null;
-    const identity = await resolveCommentIdentity(ctx, artifact._id, args.token);
+    const identity = await resolveCommentIdentity(
+      ctx,
+      artifact._id,
+      args.token,
+    );
     if (!identity) return null;
     const teammates = await teammatesWhoCanSee(ctx, artifact);
     const isOwner = identity.user._id === artifact.user_id;
-    const steer: SteerRole | null = isOwner ? "owner" : teammates.has(identity.user._id.toString()) ? "teammate" : null;
-    const roster: Array<{ name: string; username: string | null; avatar: string | null }> = [];
+    const steer: SteerRole | null = isOwner
+      ? "owner"
+      : teammates.has(identity.user._id.toString())
+        ? "teammate"
+        : null;
+    const roster: Array<{
+      name: string;
+      username: string | null;
+      avatar: string | null;
+    }> = [];
     if (steer) {
       const ids = [artifact.user_id.toString(), ...teammates];
       for (const id of ids) {
@@ -1420,10 +1779,13 @@ async function emitCommentNotifications(
   };
   if (o.actor) {
     const teammates = await teammatesWhoCanSee(ctx, artifact);
-    const actorInTeam = actorId === artifact.user_id.toString() || teammates.has(actorId!);
+    const actorInTeam =
+      actorId === artifact.user_id.toString() || teammates.has(actorId!);
     if (actorInTeam) {
       const mentions = new Set(
-        o.texts.flatMap((t) => [...t.matchAll(/@([A-Za-z0-9_.-]+)/g)].map((m) => m[1].toLowerCase())),
+        o.texts.flatMap((t) =>
+          [...t.matchAll(/@([A-Za-z0-9_.-]+)/g)].map((m) => m[1].toLowerCase()),
+        ),
       );
       if (mentions.size) {
         const rosterIds = [artifact.user_id.toString(), ...teammates];
@@ -1431,9 +1793,15 @@ async function emitCommentNotifications(
           if (notified.has(id)) continue;
           const u = await ctx.db.get(id as Id<"users">);
           if (!u) continue;
-          const handles = [u.github_username, u.name].filter(Boolean).map((s) => String(s).toLowerCase());
+          const handles = [u.github_username, u.name]
+            .filter(Boolean)
+            .map((s) => String(s).toLowerCase());
           if (handles.some((h) => mentions.has(h))) {
-            await emit("mention", u._id, `${o.actorName} mentioned you on "${title}"`);
+            await emit(
+              "mention",
+              u._id,
+              `${o.actorName} mentioned you on "${title}"`,
+            );
             mentioned.push(u._id);
           }
         }
@@ -1441,10 +1809,18 @@ async function emitCommentNotifications(
     }
   }
   if (o.parentAuthorId && !notified.has(o.parentAuthorId.toString())) {
-    await emit("comment_reply", o.parentAuthorId, `${o.actorName} replied to your comment on "${title}"`);
+    await emit(
+      "comment_reply",
+      o.parentAuthorId,
+      `${o.actorName} replied to your comment on "${title}"`,
+    );
   }
   if (!o.actedAsOwner && !notified.has(artifact.user_id.toString())) {
-    await emit("artifact_commented", artifact.user_id, `${o.actorName} commented on "${title}"`);
+    await emit(
+      "artifact_commented",
+      artifact.user_id,
+      `${o.actorName} commented on "${title}"`,
+    );
   }
   return mentioned;
 }
@@ -1489,33 +1865,47 @@ export const submitComments = mutation({
     // ?m= for a team-gated page (lib/artifactGates mTokenFor).
     m: v.optional(v.string()),
     // Per-comment "Send to agent"; absent falls back to the batch's deliver.
-    comments: v.array(v.object({ text: v.string(), anchor: v.optional(v.string()), deliver: v.optional(v.boolean()) })),
+    comments: v.array(
+      v.object({
+        text: v.string(),
+        anchor: v.optional(v.string()),
+        deliver: v.optional(v.boolean()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const artifact = args.slug
       ? await ctx.db
-        .query("artifacts")
-        .withIndex("by_slug", (q) => q.eq("slug", args.slug!))
-        .first()
+          .query("artifacts")
+          .withIndex("by_slug", (q) => q.eq("slug", args.slug!))
+          .first()
       : args.artifact_id
         ? await ctx.db.get(args.artifact_id)
         : null;
     if (!artifact) return { error: "Not found" };
-    if (artifact.comments_disabled) return { error: "Comments are off on this page" };
-    const { identity, role, blocked } = await commentAdmission(ctx, artifact, args);
+    if (artifact.comments_disabled)
+      return { error: "Comments are off on this page" };
+    const { identity, role, blocked } = await commentAdmission(
+      ctx,
+      artifact,
+      args,
+    );
     if (blocked) return { error: blocked };
     if (args.client_id) {
       const dupe = await ctx.db
         .query("artifact_comments")
         .withIndex("by_artifact_client_id", (q) =>
-          q.eq("artifact_id", artifact._id).eq("client_id", args.client_id))
+          q.eq("artifact_id", artifact._id).eq("client_id", args.client_id),
+        )
         .first();
       if (dupe) {
         return {
           delivered: dupe.delivered,
           count: 1,
           ids: [dupe._id],
-          as: identity ? { name: identity.name, avatar: identity.avatar ?? null } : null,
+          as: identity
+            ? { name: identity.name, avatar: identity.avatar ?? null }
+            : null,
         };
       }
     }
@@ -1523,8 +1913,11 @@ export const submitComments = mutation({
     if (args.parent_id) {
       const pid = ctx.db.normalizeId("artifact_comments", args.parent_id);
       const target = pid ? await ctx.db.get(pid) : null;
-      if (!target || target.artifact_id !== artifact._id) return { error: "That comment is gone" };
-      parent = target.parent_comment_id ? ((await ctx.db.get(target.parent_comment_id)) ?? target) : target;
+      if (!target || target.artifact_id !== artifact._id)
+        return { error: "That comment is gone" };
+      parent = target.parent_comment_id
+        ? ((await ctx.db.get(target.parent_comment_id)) ?? target)
+        : target;
     }
     const wantsAgent = (d: boolean | undefined) =>
       role === "owner" ? d !== false : role === "teammate" ? d === true : false;
@@ -1544,9 +1937,17 @@ export const submitComments = mutation({
     // client address rotates per request, and the page is the honest unit of
     // abuse anyway. Last of the checks, so nothing a request gets rejected for
     // costs it budget.
-    const budget = await bumpWindow(ctx.db, `artifact-comment:${artifact._id}`, MAX_COMMENTS_PER_MINUTE, 60_000);
-    if (!budget.ok) return { error: "Too many comments on this page — try again shortly." };
-    const author = identity ? identity.name : args.author_name.trim().slice(0, 80) || "anonymous";
+    const budget = await bumpWindow(
+      ctx.db,
+      `artifact-comment:${artifact._id}`,
+      MAX_COMMENTS_PER_MINUTE,
+      60_000,
+    );
+    if (!budget.ok)
+      return { error: "Too many comments on this page — try again shortly." };
+    const author = identity
+      ? identity.name
+      : args.author_name.trim().slice(0, 80) || "anonymous";
     const email = identity
       ? identity.user.email?.toLowerCase()
       : args.author_email?.trim().toLowerCase().slice(0, 254);
@@ -1563,7 +1964,13 @@ export const submitComments = mutation({
       (await deliverCommentsToSession(
         ctx,
         artifact,
-        outgoing.map((c) => ({ text: c.text, anchor: c.anchor, author_name: author, author_email: email, author_role: role })),
+        outgoing.map((c) => ({
+          text: c.text,
+          anchor: c.anchor,
+          author_name: author,
+          author_email: email,
+          author_role: role,
+        })),
       ));
 
     const insertedIds: Id<"artifact_comments">[] = [];
@@ -1609,7 +2016,10 @@ export const submitComments = mutation({
       kind: "page",
       rootKey: String(artifact._id),
       refs: { artifact_id: artifact._id },
-      participants: [...(await pageThreadParticipants(ctx, artifact)), ...mentioned],
+      participants: [
+        ...(await pageThreadParticipants(ctx, artifact)),
+        ...mentioned,
+      ],
       actorId: identity?.user._id,
       activityAt: now,
     });
@@ -1617,7 +2027,9 @@ export const submitComments = mutation({
       delivered,
       count: list.length,
       ids: insertedIds,
-      as: identity ? { name: identity.name, avatar: identity.avatar ?? null } : null,
+      as: identity
+        ? { name: identity.name, avatar: identity.avatar ?? null }
+        : null,
     };
   },
 });
@@ -1631,21 +2043,37 @@ export const submitComments = mutation({
 // teammate's only while they can still see the page. Comments from before
 // author_role existed derive it from the verified account they carry; one
 // posted with only the owner key carries none and stays discussion.
-function sendableRole(c: Doc<"artifact_comments">, ownerId: Id<"users">, teammates: Set<string>): SteerRole | undefined {
-  if (c.author_role === "owner" || (!c.author_role && c.author_user_id === ownerId)) return "owner";
-  if (c.author_user_id && teammates.has(c.author_user_id.toString())) return "teammate";
+function sendableRole(
+  c: Doc<"artifact_comments">,
+  ownerId: Id<"users">,
+  teammates: Set<string>,
+): SteerRole | undefined {
+  if (
+    c.author_role === "owner" ||
+    (!c.author_role && c.author_user_id === ownerId)
+  )
+    return "owner";
+  if (c.author_user_id && teammates.has(c.author_user_id.toString()))
+    return "teammate";
   return undefined;
 }
 
 export const deliverPendingComments = mutation({
   // `resolve`: resolve exactly the comments sent, once the session has them.
-  args: { slug: v.string(), owner_key: v.optional(v.string()), resolve: v.optional(v.boolean()) },
+  args: {
+    slug: v.string(),
+    owner_key: v.optional(v.string()),
+    resolve: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const artifact = await ctx.db
       .query("artifacts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
-    const refuse = (error: string) => ({ error, outcome: failedOutcome(error) });
+    const refuse = (error: string) => ({
+      error,
+      outcome: failedOutcome(error),
+    });
     if (!artifact) return refuse("Not found");
     if (!artifact.owner_key || args.owner_key !== artifact.owner_key) {
       return refuse("Only the page owner can send comments to the session");
@@ -1656,7 +2084,12 @@ export const deliverPendingComments = mutation({
       .collect();
     const teammates = await teammatesWhoCanSee(ctx, artifact);
     const pending = rows
-      .filter((c) => c.status === "open" && !c.delivered && sendableRole(c, artifact.user_id, teammates))
+      .filter(
+        (c) =>
+          c.status === "open" &&
+          !c.delivered &&
+          sendableRole(c, artifact.user_id, teammates),
+      )
       .sort((a, b) => a.created_at - b.created_at)
       // Cap one delivery's message size; anything past the cap stays pending
       // for the next send.
@@ -1665,10 +2098,19 @@ export const deliverPendingComments = mutation({
     const sent = await sendCommentsToSession(
       ctx,
       artifact,
-      pending.map((c) => ({ text: c.text, anchor: c.anchor, author_name: c.author_name, author_email: c.author_email, author_role: sendableRole(c, artifact.user_id, teammates)! })),
+      pending.map((c) => ({
+        text: c.text,
+        anchor: c.anchor,
+        author_name: c.author_name,
+        author_email: c.author_email,
+        author_role: sendableRole(c, artifact.user_id, teammates)!,
+      })),
     );
     if (!sent.ok) {
-      return { error: "Could not reach the author's session — comments stay pending", outcome: failedOutcome(`${sent.reason}; the comments stay pending`) };
+      return {
+        error: "Could not reach the author's session — comments stay pending",
+        outcome: failedOutcome(`${sent.reason}; the comments stay pending`),
+      };
     }
     const now = Date.now();
     for (const c of pending) {
@@ -1681,7 +2123,11 @@ export const deliverPendingComments = mutation({
     }
     // The resolve rides the same write as the delivery stamp, so it cannot
     // half land: nothing stays open that was sent.
-    const outcome = deliveredOutcome(pending.map((c) => String(c._id)), sent.waiting, args.resolve ? { open_ids: [] } : undefined);
+    const outcome = deliveredOutcome(
+      pending.map((c) => String(c._id)),
+      sent.waiting,
+      args.resolve ? { open_ids: [] } : undefined,
+    );
     return { delivered: true, count: pending.length, outcome };
   },
 });
@@ -1732,17 +2178,22 @@ async function resolveTarget(
     .query("artifacts")
     .withIndex("by_slug", (q) => q.eq("slug", target))
     .first();
-  if (bySlugMatch && bySlugMatch.user_id === userId) return { match: bySlugMatch };
+  if (bySlugMatch && bySlugMatch.user_id === userId)
+    return { match: bySlugMatch };
 
   const mine = await ctx.db
     .query("artifacts")
     .withIndex("by_user", (q) => q.eq("user_id", userId))
     .collect();
   const suffix = target.startsWith("/") ? target : `/${target}`;
-  const candidates = mine.filter((a) => a.source_path === target || a.source_path?.endsWith(suffix));
+  const candidates = mine.filter(
+    (a) => a.source_path === target || a.source_path?.endsWith(suffix),
+  );
   if (candidates.length > 1) {
     const listing = candidates.map((a) => `  ${a.slug}  ${a.title}`).join("\n");
-    return { error: `"${target}" matches ${candidates.length} artifacts — use a slug:\n${listing}` };
+    return {
+      error: `"${target}" matches ${candidates.length} artifacts — use a slug:\n${listing}`,
+    };
   }
   if (!candidates.length) return { error: `No page matches "${target}"` };
   return { match: candidates[0] };
@@ -1767,7 +2218,8 @@ export const deleteFromCLI = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { error: "Unauthorized" };
     const r = await resolveTarget(ctx, auth.userId, args.target);
-    if (r.error || !r.match) return { error: r.error ?? `No page matches "${args.target}"` };
+    if (r.error || !r.match)
+      return { error: r.error ?? `No page matches "${args.target}"` };
     const match = r.match;
     const out = await deletePage(ctx, auth.userId, match);
     if ("error" in out) return out;
@@ -1780,38 +2232,78 @@ export const deleteFromCLI = mutation({
 // the page must be theirs or a teammate's they may see (the same rule the
 // team artifact list applies), so a hand cannot claim a stranger's page.
 export const attachFromCLI = mutation({
-  args: { api_token: v.string(), slug: v.string(), task: v.string(), station: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    slug: v.string(),
+    task: v.string(),
+    station: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { error: "Unauthorized" };
-    const artifact = await ctx.db.query("artifacts").withIndex("by_slug", (q) => q.eq("slug", args.slug)).first();
+    const artifact = await ctx.db
+      .query("artifacts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
     if (!artifact) return { error: `No page with slug ${args.slug}` };
-    if (artifact.user_id !== auth.userId && !(await teammatesWhoCanSee(ctx, artifact)).has(auth.userId.toString())) {
+    if (
+      artifact.user_id !== auth.userId &&
+      !(await teammatesWhoCanSee(ctx, artifact)).has(auth.userId.toString())
+    ) {
       return { error: `No page with slug ${args.slug}` };
     }
-    const resolved = await resolveEvidenceBinding(ctx, auth.userId, { task: args.task, station: args.station });
-    if (resolved.error || !resolved.binding) return { error: resolved.error ?? "Could not resolve task" };
+    const resolved = await resolveEvidenceBinding(ctx, auth.userId, {
+      task: args.task,
+      station: args.station,
+    });
+    if (resolved.error || !resolved.binding)
+      return { error: resolved.error ?? "Could not resolve task" };
     const bound = { ...artifact, ...evidencePatch(resolved.binding) };
     const gate = await teamGateFor(ctx, bound, { apiToken: args.api_token });
-    await ctx.db.patch(artifact._id, { ...evidencePatch(resolved.binding), ...gatePatch(artifact, gate?.team_id) });
-    return { ok: true, slug: artifact.slug, url: artifactUrl(artifact.slug), task: resolved.binding.task_short_id, station: resolved.binding.station };
+    await ctx.db.patch(artifact._id, {
+      ...evidencePatch(resolved.binding),
+      ...gatePatch(artifact, gate?.team_id),
+    });
+    return {
+      ok: true,
+      slug: artifact.slug,
+      url: artifactUrl(artifact.slug),
+      task: resolved.binding.task_short_id,
+      station: resolved.binding.station,
+    };
   },
 });
 
 /** A page and everything it owns, stored files included (lib/deletionPlans artifactPlan, the one list). */
-async function deleteArtifactCascade(ctx: MutationCtx, artifact: Doc<"artifacts">): Promise<void> {
+async function deleteArtifactCascade(
+  ctx: MutationCtx,
+  artifact: Doc<"artifacts">,
+): Promise<void> {
   await purgeRow(ctx, artifactPlan(), artifact, { left: Infinity }, {});
 }
 
 /** Delete a page for `userId`: its owner may; in a team whose data is
  * regulated (the page's team gate) a team admin may too, and the delete runs
  * as a logged permanent delete (regulatedDeletion.ts). */
-async function deletePage(ctx: MutationCtx, userId: Id<"users">, artifact: Doc<"artifacts">): Promise<{ ok: true } | { error: string }> {
-  const team = artifact.team_gate && (await isRegulatedTeam(ctx, artifact.team_gate)) ? await ctx.db.get(artifact.team_gate) : null;
+async function deletePage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  artifact: Doc<"artifacts">,
+): Promise<{ ok: true } | { error: string }> {
+  const team =
+    artifact.team_gate && (await isRegulatedTeam(ctx, artifact.team_gate))
+      ? await ctx.db.get(artifact.team_gate)
+      : null;
   if (team) {
-    if (!(await mayDeleteRegulated(ctx, userId, artifact.user_id, team._id))) return { error: "Not found" };
+    if (!(await mayDeleteRegulated(ctx, userId, artifact.user_id, team._id)))
+      return { error: "Not found" };
     await startDeletion(ctx, {
-      team, actorId: userId, kind: "page", targetId: String(artifact._id), targetLabel: artifact.title, shortId: artifact.slug,
+      team,
+      actorId: userId,
+      kind: "page",
+      targetId: String(artifact._id),
+      targetLabel: artifact.title,
+      shortId: artifact.slug,
       roots: [{ plan: "artifact", id: String(artifact._id) }],
     });
     return { ok: true };
@@ -1837,16 +2329,25 @@ async function deletePage(ctx: MutationCtx, userId: Id<"users">, artifact: Doc<"
  * applies to the gallery, so a teammate's rights reach exactly the pages they
  * can see there: a page in the owner's personal space, or in another team the
  * owner belongs to, has no teammates here. Excludes the owner. */
-async function teammatesWhoCanSee(ctx: { db: QueryCtx["db"] }, artifact: Doc<"artifacts">): Promise<Set<string>> {
+async function teammatesWhoCanSee(
+  ctx: { db: QueryCtx["db"] },
+  artifact: Doc<"artifacts">,
+): Promise<Set<string>> {
   const seen = new Set<string>();
   const workspace = await pageWorkspace(ctx, artifact, new Map());
   if (!workspace.startsWith("team:")) return seen;
   const teamId = workspace.slice("team:".length) as Id<"teams">;
   const ownerMembership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q) => q.eq("user_id", artifact.user_id).eq("team_id", teamId))
+    .withIndex("by_user_team", (q) =>
+      q.eq("user_id", artifact.user_id).eq("team_id", teamId),
+    )
     .first();
-  if (!ownerMembership || !isVisibilityShareable(currentMembershipVisibility(ownerMembership))) return seen;
+  if (
+    !ownerMembership ||
+    !isVisibilityShareable(currentMembershipVisibility(ownerMembership))
+  )
+    return seen;
   const teamMembers = await ctx.db
     .query("team_memberships")
     .withIndex("by_team_id", (q) => q.eq("team_id", teamId))
@@ -1859,7 +2360,11 @@ async function teammatesWhoCanSee(ctx: { db: QueryCtx["db"] }, artifact: Doc<"ar
 
 /** Whether `viewerId` sees this page in their gallery: its owner, or a teammate
  * by teammatesWhoCanSee. Surfaces that list pages beside other work use this. */
-export async function viewerSeesPage(ctx: { db: QueryCtx["db"] }, viewerId: Id<"users">, artifact: Doc<"artifacts">): Promise<boolean> {
+export async function viewerSeesPage(
+  ctx: { db: QueryCtx["db"] },
+  viewerId: Id<"users">,
+  artifact: Doc<"artifacts">,
+): Promise<boolean> {
   if (artifact.user_id === viewerId) return true;
   return (await teammatesWhoCanSee(ctx, artifact)).has(viewerId.toString());
 }
@@ -1867,11 +2372,18 @@ export async function viewerSeesPage(ctx: { db: QueryCtx["db"] }, viewerId: Id<"
 /** Whether a team-gated page's member token admits whoever presents it: it
  * must be a genuine token for this page, and the person it was handed to must
  * still be the owner or a member of the gate team today. */
-export async function teamGateAdmitsHolder(ctx: { db: QueryCtx["db"] }, artifact: Doc<"artifacts">, holder: string): Promise<boolean> {
+export async function teamGateAdmitsHolder(
+  ctx: { db: QueryCtx["db"] },
+  artifact: Doc<"artifacts">,
+  holder: string,
+): Promise<boolean> {
   if (!artifact.team_gate) return false;
   const userId = ctx.db.normalizeId("users", holder);
   if (!userId) return false;
-  return userId === artifact.user_id || (await isTeamMember(ctx, userId, artifact.team_gate));
+  return (
+    userId === artifact.user_id ||
+    (await isTeamMember(ctx, userId, artifact.team_gate))
+  );
 }
 
 /** For the serve route: why this page's live data may not be served on an
@@ -1879,8 +2391,17 @@ export async function teamGateAdmitsHolder(ctx: { db: QueryCtx["db"] }, artifact
 export const pageDataRefusal = internalQuery({
   args: { artifact_id: v.id("artifacts") },
   handler: async (ctx, args): Promise<string | null> => {
-    const row = await ctx.db.query("page_queries").withIndex("by_artifact", (q) => q.eq("artifact_id", args.artifact_id)).first();
-    return row ? await teamPolicyRefusal(ctx, { workspace: row.workspace }, "public_sharing_disabled") : null;
+    const row = await ctx.db
+      .query("page_queries")
+      .withIndex("by_artifact", (q) => q.eq("artifact_id", args.artifact_id))
+      .first();
+    return row
+      ? await teamPolicyRefusal(
+          ctx,
+          { workspace: row.workspace },
+          "public_sharing_disabled",
+        )
+      : null;
   },
 });
 
@@ -1901,7 +2422,10 @@ export const teamGateAdmits = internalQuery({
 // their membership allows it. A page reaches the viewer only when its own
 // workspace is one of those teams: a teammate's page from another team, or
 // from their personal space, stays theirs.
-async function visibleOwnersFor(ctx: { db: QueryCtx["db"] }, viewerId: Id<"users">): Promise<Map<Id<"users">, Set<string>>> {
+async function visibleOwnersFor(
+  ctx: { db: QueryCtx["db"] },
+  viewerId: Id<"users">,
+): Promise<Map<Id<"users">, Set<string>>> {
   const myTeams = await ctx.db
     .query("team_memberships")
     .withIndex("by_user_id", (q) => q.eq("user_id", viewerId))
@@ -1918,7 +2442,10 @@ async function visibleOwnersFor(ctx: { db: QueryCtx["db"] }, viewerId: Id<"users
       // this shared team is what governs.
       if (!isVisibilityShareable(currentMembershipVisibility(tm))) continue;
       const key = tm.user_id.toString();
-      const entry = owners.get(key) ?? { id: tm.user_id, teams: new Set<string>() };
+      const entry = owners.get(key) ?? {
+        id: tm.user_id,
+        teams: new Set<string>(),
+      };
       entry.teams.add(`team:${mine.team_id}`);
       owners.set(key, entry);
     }
@@ -1941,13 +2468,24 @@ async function pageWorkspace(
     if (!seen.has(id)) seen.set(id, await ctx.db.get(id as any));
     return seen.get(id) ?? null;
   };
-  const bound = row.task_id ? await read(row.task_id) : row.plan_id ? await read(row.plan_id) : null;
+  const bound = row.task_id
+    ? await read(row.task_id)
+    : row.plan_id
+      ? await read(row.plan_id)
+      : null;
   if (bound) return resolveWorkspaceKey(ctx, bound);
-  const conv: Doc<"conversations"> | null = await read(row.session_conversation_id);
+  const conv: Doc<"conversations"> | null = await read(
+    row.session_conversation_id,
+  );
   return computeWorkspaceKey({ user_id: row.user_id }, conv);
 }
 
-export type VisiblePage = { row: Doc<"artifacts">; workspace: WorkspaceKey; author: { name: string | null; image: string | null }; mine: boolean };
+export type VisiblePage = {
+  row: Doc<"artifacts">;
+  workspace: WorkspaceKey;
+  author: { name: string | null; image: string | null };
+  mine: boolean;
+};
 
 /** The pages a viewer's gallery holds: their own, and teammates' pages whose
  *  workspace is a team they share, each owner's newest first. The one
@@ -1972,7 +2510,12 @@ export async function pagesVisibleTo(
   const viewer = await ctx.db.get(userId);
   const me = { name: viewer?.name ?? null, image: viewer?.image ?? null };
   for (const row of await newestOf(userId)) {
-    rows.push({ row, workspace: await pageWorkspace(ctx, row, seen), author: me, mine: true });
+    rows.push({
+      row,
+      workspace: await pageWorkspace(ctx, row, seen),
+      author: me,
+      mine: true,
+    });
   }
 
   // Teammates' artifacts: visible in the gallery, but WITHOUT the secrets —
@@ -1985,7 +2528,8 @@ export async function pagesVisibleTo(
     const author = { name: user?.name ?? null, image: user?.image ?? null };
     for (const row of theirs) {
       const workspace = await pageWorkspace(ctx, row, seen);
-      if (teams.has(workspace)) rows.push({ row, workspace, author, mine: false });
+      if (teams.has(workspace))
+        rows.push({ row, workspace, author, mine: false });
     }
   }
   return rows;
@@ -2005,7 +2549,9 @@ export const listForWeb = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return { artifacts: [] };
 
-    const rows = (await pagesVisibleTo(ctx, userId, { perOwner: GALLERY_SCAN_PER_OWNER }))
+    const rows = (
+      await pagesVisibleTo(ctx, userId, { perOwner: GALLERY_SCAN_PER_OWNER })
+    )
       .sort((a, b) => b.row.updated_at - a.row.updated_at)
       .slice(0, GALLERY_LIMIT);
     const out = [];
@@ -2069,7 +2615,11 @@ export const teamEditAuth = internalQuery({
       if (artifact.edit_mode !== "team") return null;
       const allowed = await teammatesWhoCanSee(ctx, artifact);
       if (!allowed.has(args.editor_user_id.toString())) return null;
-      if (artifact.team_gate && !(await isTeamMember(ctx, args.editor_user_id, artifact.team_gate))) return null;
+      if (
+        artifact.team_gate &&
+        !(await isTeamMember(ctx, args.editor_user_id, artifact.team_gate))
+      )
+        return null;
     }
     const editor = await ctx.db.get(args.editor_user_id);
     return {
@@ -2103,7 +2653,9 @@ export const ownerUnlock = query({
       .first();
     if (!artifact) return null;
     const keys = await unlockKeys(ctx, userId, artifact, args.decision);
-    return keys ? { ...keys, title: artifact.title, version: artifact.version } : null;
+    return keys
+      ? { ...keys, title: artifact.title, version: artifact.version }
+      : null;
   },
 });
 
@@ -2117,8 +2669,12 @@ async function unlockKeys(
   if (isExpired(artifact)) return null;
   const owner = artifact.user_id === userId;
   if (artifact.team_gate) {
-    if (!owner && !(await isTeamMember(ctx, userId, artifact.team_gate))) return null;
-  } else if (!owner && !(await readsDecisionFiling(ctx, userId, artifact.slug, decision))) {
+    if (!owner && !(await isTeamMember(ctx, userId, artifact.team_gate)))
+      return null;
+  } else if (
+    !owner &&
+    !(await readsDecisionFiling(ctx, userId, artifact.slug, decision))
+  ) {
     return null;
   }
   return await gateKeysFor(artifact, userId);
@@ -2130,7 +2686,11 @@ async function unlockKeys(
 // page's title and version with `k`/`e` when its gates need them. The client keeps these rows (store pageEmbeds),
 // so a page seen before frames at once on the next mount, and a surface can warm the pages it is about to show.
 export const embedInfo = query({
-  args: { pages: v.array(v.object({ slug: v.string(), decision: v.optional(v.string()) })) },
+  args: {
+    pages: v.array(
+      v.object({ slug: v.string(), decision: v.optional(v.string()) }),
+    ),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     const seen = new Set<string>();
@@ -2138,32 +2698,65 @@ export const embedInfo = query({
     for (const { slug, decision } of args.pages.slice(0, 50)) {
       if (seen.has(slug)) continue;
       seen.add(slug);
-      const artifact = await ctx.db.query("artifacts").withIndex("by_slug", (q) => q.eq("slug", slug)).first();
+      const artifact = await ctx.db
+        .query("artifacts")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first();
       if (!artifact) {
         rows.push({ slug, missing: true as const });
         continue;
       }
       if (isGated(artifact)) {
-        const keys = userId ? await unlockKeys(ctx, userId, artifact, decision) : null;
+        const keys = userId
+          ? await unlockKeys(ctx, userId, artifact, decision)
+          : null;
         if (!keys) {
-          rows.push({ slug, gated: true as const, locked: true as const, kind: artifact.kind ?? "html" });
+          rows.push({
+            slug,
+            gated: true as const,
+            locked: true as const,
+            kind: artifact.kind ?? "html",
+          });
           continue;
         }
-        rows.push({ slug, gated: true as const, title: artifact.title, version: artifact.version, kind: artifact.kind ?? "html", ...keys });
+        rows.push({
+          slug,
+          gated: true as const,
+          title: artifact.title,
+          version: artifact.version,
+          kind: artifact.kind ?? "html",
+          ...keys,
+        });
         continue;
       }
       // Nothing beyond the artifact row: an embed subscribes per page, and every row read is a re-run on its writes.
-      rows.push({ slug, gated: false as const, title: artifact.title, version: artifact.version, kind: artifact.kind ?? "html", thumb: !!artifact.thumb_storage_id });
+      rows.push({
+        slug,
+        gated: false as const,
+        title: artifact.title,
+        version: artifact.version,
+        kind: artifact.kind ?? "html",
+        thumb: !!artifact.thumb_storage_id,
+      });
     }
     return rows;
   },
 });
 
 /** Whether the viewer may read the decision `ref` names and that decision filed the page `slug`. */
-async function readsDecisionFiling(ctx: QueryCtx, userId: Id<"users">, slug: string, ref: string | undefined): Promise<boolean> {
+async function readsDecisionFiling(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  slug: string,
+  ref: string | undefined,
+): Promise<boolean> {
   if (!ref) return false;
   const row = await findDecision(ctx, ref);
-  return !!row && decisionPageSlugs(row).includes(slug) && (await userMayRead(ctx, userId, row));
+  return (
+    !!row &&
+    decisionPageSlugs(row).includes(slug) &&
+    (await userMayRead(ctx, userId, row))
+  );
 }
 
 // Viewer metadata for link unfurls and the (legacy) wrapper page. Exposes no
@@ -2216,9 +2809,16 @@ export const discussionForApp = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    const artifact = await ctx.db.query("artifacts").withIndex("by_slug", (q) => q.eq("slug", args.slug)).first();
+    const artifact = await ctx.db
+      .query("artifacts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
     if (!artifact || isExpired(artifact)) return null;
-    if (isGated(artifact) && !(await unlockKeys(ctx, userId, artifact, args.decision))) return null;
+    if (
+      isGated(artifact) &&
+      !(await unlockKeys(ctx, userId, artifact, args.decision))
+    )
+      return null;
     const { role } = await accountAdmission(ctx, artifact, userId);
     const rows = await ctx.db
       .query("artifact_comments")
@@ -2251,8 +2851,11 @@ export const setCommentStatusForApp = mutation({
     const comment = await ctx.db.get(args.comment_id);
     if (!comment) return { ok: false as const };
     const artifact = await ctx.db.get(comment.artifact_id);
-    if (!artifact || artifact.user_id !== userId) throw new Error("Only the page owner can resolve comments");
-    await ctx.db.patch(comment._id, { status: args.resolved ? "resolved" : "open" });
+    if (!artifact || artifact.user_id !== userId)
+      throw new Error("Only the page owner can resolve comments");
+    await ctx.db.patch(comment._id, {
+      status: args.resolved ? "resolved" : "open",
+    });
     return { ok: true as const };
   },
 });

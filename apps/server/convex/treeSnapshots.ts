@@ -53,15 +53,28 @@ export const record = mutation({
     let written = 0;
     for (const row of args.rows.slice(0, 50)) {
       const conversation = await ctx.db.get(row.conversation_id);
-      if (!conversation || conversation.user_id.toString() !== userId.toString()) continue;
+      if (
+        !conversation ||
+        conversation.user_id.toString() !== userId.toString()
+      )
+        continue;
       const existing = await ctx.db
         .query("tree_snapshots")
-        .withIndex("by_conversation_sha", (q) => q.eq("conversation_id", row.conversation_id).eq("sha", row.sha))
+        .withIndex("by_conversation_sha", (q) =>
+          q.eq("conversation_id", row.conversation_id).eq("sha", row.sha),
+        )
         .collect();
       // A prompt snapshot of an unchanged tree repeats the sha of the turn
       // before it; each prompt still needs its own row, as a rewind's boundary.
-      const same = (e: { source: string; taken_at: number; turn_completed_at?: number }) =>
-        row.source === "prompt" ? e.source === "prompt" && e.taken_at === row.taken_at : e.source !== "prompt" && (e.turn_completed_at ?? null) === (row.turn_completed_at ?? null);
+      const same = (e: {
+        source: string;
+        taken_at: number;
+        turn_completed_at?: number;
+      }) =>
+        row.source === "prompt"
+          ? e.source === "prompt" && e.taken_at === row.taken_at
+          : e.source !== "prompt" &&
+            (e.turn_completed_at ?? null) === (row.turn_completed_at ?? null);
       if (existing.some(same)) continue;
       await ctx.db.insert("tree_snapshots", {
         ...row,
@@ -83,7 +96,11 @@ export const listForConversation = query({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return [];
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return [];
     // Prompt rows (a rewind's boundaries) have a cap of their own, so they do
     // not halve how far back the turns reach.
     const turns: Doc<"tree_snapshots">[] = [];
@@ -91,7 +108,9 @@ export const listForConversation = query({
     let scanned = 0;
     for await (const row of ctx.db
       .query("tree_snapshots")
-      .withIndex("by_conversation_taken", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_taken", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")) {
       if (++scanned > LIST_CAP * 3) break;
       const into = row.source === "prompt" ? prompts : turns;
@@ -102,10 +121,16 @@ export const listForConversation = query({
     // row returned point at a stretch with no turns, and turn rows older than
     // the oldest prompt row would let an old message start without its prompt
     // (a rewind refuses an older message as cut instead).
-    const oldestTurn = turns.length >= LIST_CAP ? turns[turns.length - 1].taken_at : -Infinity;
-    const oldestPrompt = prompts.length >= LIST_CAP ? prompts[prompts.length - 1].taken_at : -Infinity;
+    const oldestTurn =
+      turns.length >= LIST_CAP ? turns[turns.length - 1].taken_at : -Infinity;
+    const oldestPrompt =
+      prompts.length >= LIST_CAP
+        ? prompts[prompts.length - 1].taken_at
+        : -Infinity;
     const floor = Math.max(oldestTurn, oldestPrompt);
-    return [...turns, ...prompts].filter((r) => r.taken_at >= floor).sort((a, b) => a.taken_at - b.taken_at);
+    return [...turns, ...prompts]
+      .filter((r) => r.taken_at >= floor)
+      .sort((a, b) => a.taken_at - b.taken_at);
   },
 });
 
@@ -119,12 +144,22 @@ const SIBLING_SCAN_CAP = 1_000;
 /** Rows one editedPaths call may read across all its scans, well inside Convex's per-function read limits. */
 const READ_BUDGET = 16_000;
 
-async function editsAfter(ctx: any, conversationId: Id<"conversations">, after: number, budget: { left: number }): Promise<{ edits: Array<{ path: string; at: number[] }>; complete: boolean }> {
+async function editsAfter(
+  ctx: any,
+  conversationId: Id<"conversations">,
+  after: number,
+  budget: { left: number },
+): Promise<{
+  edits: Array<{ path: string; at: number[] }>;
+  complete: boolean;
+}> {
   const out = new Map<string, number[]>();
   let complete = true;
   for await (const row of ctx.db
     .query("file_changes")
-    .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conversationId).gt("timestamp", after))) {
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conversationId).gt("timestamp", after),
+    )) {
     if (--budget.left < 0 || out.size > EDITED_PATHS_CAP) {
       complete = false;
       break;
@@ -160,71 +195,140 @@ export const editedPaths = query({
     const userId = await requireUserOrToken(ctx, args.api_token);
     const conversation = await ctx.db.get(args.conversation_id);
     // The runner only: `others` reads every session of theirs in the checkout, private ones included.
-    if (!conversation || String(conversation.user_id) !== String(userId)) return { edits: [], complete: false, others: [], others_complete: false, synced_at: 0 };
+    if (!conversation || String(conversation.user_id) !== String(userId))
+      return {
+        edits: [],
+        complete: false,
+        others: [],
+        others_complete: false,
+        synced_at: 0,
+      };
     // The session's own edits include its subagents' (workers it ran in its
     // turns), newest first and only those active since the message. Forks and
     // agent-switch continuations share the parent pointer but are sessions of
     // their own, so they stay "others".
     const childRows = await ctx.db
       .query("conversations")
-      .withIndex("by_parent_conversation_id", (q) => q.eq("parent_conversation_id", args.conversation_id))
+      .withIndex("by_parent_conversation_id", (q) =>
+        q.eq("parent_conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(SIBLING_SCAN_CAP);
     // A subagent row without a git_root still writes here; an isolated worker's own paths resolve outside the checkout and drop out on the daemon.
-    const subagents = childRows.filter((c) => c.is_subagent && (c.updated_at ?? 0) > args.after && (!conversation.git_root || !c.git_root || c.git_root === conversation.git_root));
+    const subagents = childRows.filter(
+      (c) =>
+        c.is_subagent &&
+        (c.updated_at ?? 0) > args.after &&
+        (!conversation.git_root ||
+          !c.git_root ||
+          c.git_root === conversation.git_root),
+    );
     // An isolated worker edits its own worktree, and the daemon merges its
     // files into this checkout when it is done (subagentFleet merge_back). Its
     // own edit times, moved into this checkout, say when the content was made;
     // the merge's time (another clock, after the write) closes the stretch.
-    const merged = childRows.filter((c) => c.is_subagent && c.merge_back?.state === "merged" && c.merge_back.at > args.after && c.git_root && conversation.git_root && c.git_root !== conversation.git_root);
+    const merged = childRows.filter(
+      (c) =>
+        c.is_subagent &&
+        c.merge_back?.state === "merged" &&
+        c.merge_back.at > args.after &&
+        c.git_root &&
+        conversation.git_root &&
+        c.git_root !== conversation.git_root,
+    );
     let mergedComplete = true;
     const mergedBack: Array<{ path: string; at: number[] }> = [];
     const children = subagents.slice(0, OTHER_SESSIONS_CAP);
-    const childrenComplete = subagents.length <= OTHER_SESSIONS_CAP && childRows.length < SIBLING_SCAN_CAP;
-    const mine = new Set<string>([String(args.conversation_id), ...children.map((c) => String(c._id))]);
+    const childrenComplete =
+      subagents.length <= OTHER_SESSIONS_CAP &&
+      childRows.length < SIBLING_SCAN_CAP;
+    const mine = new Set<string>([
+      String(args.conversation_id),
+      ...children.map((c) => String(c._id)),
+    ]);
     const budget = { left: READ_BUDGET };
-    const parts: Array<{ edits: Array<{ path: string; at: number[] }>; complete: boolean }> = [];
-    for (const id of [args.conversation_id, ...children.map((c) => c._id)]) parts.push(await editsAfter(ctx, id, args.after, budget));
+    const parts: Array<{
+      edits: Array<{ path: string; at: number[] }>;
+      complete: boolean;
+    }> = [];
+    for (const id of [args.conversation_id, ...children.map((c) => c._id)])
+      parts.push(await editsAfter(ctx, id, args.after, budget));
     for (const c of merged.slice(0, OTHER_SESSIONS_CAP)) {
       const files = c.merge_back!.files ?? [];
       // subagentFleet keeps at most 200 names of a merge: a longer one is cut.
       if (files.length >= 200) mergedComplete = false;
       const worker = await editsAfter(ctx, c._id, args.after, budget);
       if (!worker.complete) mergedComplete = false;
-      const times = new Map(worker.edits.map((e) => [e.path.startsWith(`${c.git_root}/`) ? e.path.slice(c.git_root!.length + 1) : e.path, e.at]));
-      for (const f of files) mergedBack.push({ path: `${conversation.git_root}/${f}`, at: [...(times.get(f) ?? []), c.merge_back!.at] });
+      const times = new Map(
+        worker.edits.map((e) => [
+          e.path.startsWith(`${c.git_root}/`)
+            ? e.path.slice(c.git_root!.length + 1)
+            : e.path,
+          e.at,
+        ]),
+      );
+      for (const f of files)
+        mergedBack.push({
+          path: `${conversation.git_root}/${f}`,
+          at: [...(times.get(f) ?? []), c.merge_back!.at],
+        });
     }
     if (merged.length > OTHER_SESSIONS_CAP) mergedComplete = false;
     const own = new Map<string, number[]>();
-    for (const e of [...parts.flatMap((p) => p.edits), ...mergedBack]) own.set(e.path, [...(own.get(e.path) ?? []), ...e.at].sort((x, y) => x - y));
+    for (const e of [...parts.flatMap((p) => p.edits), ...mergedBack])
+      own.set(
+        e.path,
+        [...(own.get(e.path) ?? []), ...e.at].sort((x, y) => x - y),
+      );
     const others: Array<{ path: string; at: number[] }> = [];
     let othersComplete = true;
     if (conversation.git_root) {
       // Every session of the person's that moved since the message, whenever it started.
       const moved = await ctx.db
         .query("conversations")
-        .withIndex("by_user_updated", (q) => q.eq("user_id", conversation.user_id).gt("updated_at", args.after))
+        .withIndex("by_user_updated", (q) =>
+          q.eq("user_id", conversation.user_id).gt("updated_at", args.after),
+        )
         .take(SIBLING_SCAN_CAP);
       if (moved.length >= SIBLING_SCAN_CAP) othersComplete = false;
       // Everything that moved and is not the session or one of its own subagents (a fork is a session of its own).
-      const theirs = moved.filter((c) => !mine.has(String(c._id)) && !(c.is_subagent && c.parent_conversation_id && String(c.parent_conversation_id) === String(args.conversation_id)));
+      const theirs = moved.filter(
+        (c) =>
+          !mine.has(String(c._id)) &&
+          !(
+            c.is_subagent &&
+            c.parent_conversation_id &&
+            String(c.parent_conversation_id) === String(args.conversation_id)
+          ),
+      );
       // Another session of the person's writes here when it runs in this checkout, or when it is a
       // subagent of one that does: with no git_root of its own, or as an isolated worker merged back.
       const parentRoot = new Map<string, string | undefined>();
       const rootOfParent = async (id: Id<"conversations">) => {
-        if (!parentRoot.has(String(id))) parentRoot.set(String(id), (await ctx.db.get(id))?.git_root);
+        if (!parentRoot.has(String(id)))
+          parentRoot.set(String(id), (await ctx.db.get(id))?.git_root);
         return parentRoot.get(String(id));
       };
       const siblings: typeof moved = [];
       const mergedElsewhere: typeof moved = [];
       for (const c of theirs) {
         if (c.git_root === conversation.git_root) siblings.push(c);
-        else if (c.is_subagent && c.parent_conversation_id && (await rootOfParent(c.parent_conversation_id)) === conversation.git_root) {
+        else if (
+          c.is_subagent &&
+          c.parent_conversation_id &&
+          (await rootOfParent(c.parent_conversation_id)) ===
+            conversation.git_root
+        ) {
           if (!c.git_root) siblings.push(c);
-          else if (c.merge_back?.state === "merged" && c.merge_back.at > args.after) mergedElsewhere.push(c);
+          else if (
+            c.merge_back?.state === "merged" &&
+            c.merge_back.at > args.after
+          )
+            mergedElsewhere.push(c);
         }
       }
-      if (siblings.length + mergedElsewhere.length > OTHER_SESSIONS_CAP) othersComplete = false;
+      if (siblings.length + mergedElsewhere.length > OTHER_SESSIONS_CAP)
+        othersComplete = false;
       for (const c of siblings.slice(0, OTHER_SESSIONS_CAP)) {
         const part = await editsAfter(ctx, c._id, args.after, budget);
         if (!part.complete) othersComplete = false;
@@ -235,21 +339,41 @@ export const editedPaths = query({
         if (files.length >= 200) othersComplete = false;
         const worker = await editsAfter(ctx, c._id, args.after, budget);
         if (!worker.complete) othersComplete = false;
-        const times = new Map(worker.edits.map((e) => [e.path.startsWith(`${c.git_root}/`) ? e.path.slice(c.git_root!.length + 1) : e.path, e.at]));
-        for (const f of files) others.push({ path: `${conversation.git_root}/${f}`, at: [...(times.get(f) ?? []), c.merge_back!.at] });
+        const times = new Map(
+          worker.edits.map((e) => [
+            e.path.startsWith(`${c.git_root}/`)
+              ? e.path.slice(c.git_root!.length + 1)
+              : e.path,
+            e.at,
+          ]),
+        );
+        for (const f of files)
+          others.push({
+            path: `${conversation.git_root}/${f}`,
+            at: [...(times.get(f) ?? []), c.merge_back!.at],
+          });
       }
     }
     return {
       edits: [...own].map(([path, at]) => ({ path, at })),
-      complete: childrenComplete && mergedComplete && parts.every((p) => p.complete),
+      complete:
+        childrenComplete && mergedComplete && parts.every((p) => p.complete),
       others,
       others_complete: othersComplete,
       // The newest message that reached the server: the last turn's edits ride on it.
-      synced_at: (await ctx.db.query("messages").withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", args.conversation_id)).order("desc").first())?.timestamp ?? 0,
+      synced_at:
+        (
+          await ctx.db
+            .query("messages")
+            .withIndex("by_conversation_timestamp", (q) =>
+              q.eq("conversation_id", args.conversation_id),
+            )
+            .order("desc")
+            .first()
+        )?.timestamp ?? 0,
     };
   },
 });
-
 
 /**
  * The daemon that holds a session's checkout says what rewind is staged there
@@ -261,7 +385,15 @@ export const reportRewindStaged = mutation({
   args: {
     api_token: v.string(),
     conversation_id: v.id("conversations"),
-    staged: v.union(v.null(), v.object({ id: v.string(), files: v.number(), staged_at: v.number(), at: v.number() })),
+    staged: v.union(
+      v.null(),
+      v.object({
+        id: v.string(),
+        files: v.number(),
+        staged_at: v.number(),
+        at: v.number(),
+      }),
+    ),
     /** With `staged: null`: the id being cleared. A clear without it, or for another id, writes nothing. */
     clear_id: v.optional(v.string()),
     /** The reporting machine: a mark is set with it, and only it may clear the mark (a session moved elsewhere finds nothing staged there). */
@@ -271,11 +403,24 @@ export const reportRewindStaged = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication failed");
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || conversation.user_id.toString() !== userId.toString()) return { written: false };
+    if (!conversation || conversation.user_id.toString() !== userId.toString())
+      return { written: false };
     const prev = conversation.rewind_staged ?? null;
-    const next = args.staged ? { ...args.staged, ...(args.device_id ? { device_id: args.device_id } : {}) } : null;
-    if (JSON.stringify(prev) === JSON.stringify(next)) return { written: false };
-    if (args.staged === null && prev && (prev.id !== args.clear_id || (prev.device_id && prev.device_id !== args.device_id))) return { written: false };
+    const next = args.staged
+      ? {
+          ...args.staged,
+          ...(args.device_id ? { device_id: args.device_id } : {}),
+        }
+      : null;
+    if (JSON.stringify(prev) === JSON.stringify(next))
+      return { written: false };
+    if (
+      args.staged === null &&
+      prev &&
+      (prev.id !== args.clear_id ||
+        (prev.device_id && prev.device_id !== args.device_id))
+    )
+      return { written: false };
     await ctx.db.patch(args.conversation_id, { rewind_staged: next });
     return { written: true };
   },

@@ -35,7 +35,10 @@ import {
   type CodexUsageSnapshot,
 } from "./codexUsage.js";
 import { defaultConfigDir } from "./config/configDir.js";
-import { fetchCodexBackendUsage, mergeCodexUsage } from "./codexBackendUsage.js";
+import {
+  fetchCodexBackendUsage,
+  mergeCodexUsage,
+} from "./codexBackendUsage.js";
 import { nextUsageRetry, type UsageRetryState } from "./usageRetry.js";
 
 export class CodexAccountError extends Error {}
@@ -110,7 +113,9 @@ const VALID_PROFILE_NAME = /^[a-z0-9][a-z0-9._-]{0,40}$/i;
 
 /** Snapshot the active login into a named profile dir. Refuses unusable blobs
  * (API-key-only or logged out) so a bad save can't poison a good profile. */
-export function saveCodexProfile(name: string): CodexProfileMeta & { name: string } {
+export function saveCodexProfile(
+  name: string,
+): CodexProfileMeta & { name: string } {
   if (!VALID_PROFILE_NAME.test(name)) {
     throw new CodexAccountError(`Invalid profile name "${name}"`);
   }
@@ -176,14 +181,17 @@ export function resolveCodexAccount(name?: string): CodexAccountTarget {
   const index = readProfileIndex();
   const usage = readUsageCache().accounts;
   const isActive = (meta: CodexProfileMeta): boolean =>
-    !!((active.account_id && meta.account_id === active.account_id) ||
-      (active.email && meta.email === active.email));
+    !!(
+      (active.account_id && meta.account_id === active.account_id) ||
+      (active.email && meta.email === active.email)
+    );
 
   if (name) {
     const meta = index.profiles[name];
     if (!meta) throw new CodexAccountError(`No saved Codex profile "${name}"`);
     const account = meta.account_id || meta.email;
-    if (!account) throw new CodexAccountError(`Profile "${name}" has no account identity`);
+    if (!account)
+      throw new CodexAccountError(`Profile "${name}" has no account identity`);
     const activeHere = isActive(meta);
     return {
       name,
@@ -195,11 +203,19 @@ export function resolveCodexAccount(name?: string): CodexAccountTarget {
     };
   }
 
-  if (!active.usable) throw new CodexAccountError("No Codex account is signed in here (run `codex login`)");
+  if (!active.usable)
+    throw new CodexAccountError(
+      "No Codex account is signed in here (run `codex login`)",
+    );
   const account = active.account_id || active.email;
-  if (!account) throw new CodexAccountError("The active Codex login carries no account identity");
+  if (!account)
+    throw new CodexAccountError(
+      "The active Codex login carries no account identity",
+    );
   return {
-    name: Object.entries(index.profiles).find(([, meta]) => isActive(meta))?.[0],
+    name: Object.entries(index.profiles).find(([, meta]) =>
+      isActive(meta),
+    )?.[0],
     account,
     email: active.email,
     home: codexHome(),
@@ -216,7 +232,8 @@ function profileCovering(
   index: ProfileIndex,
   summary: CodexAuthSummary,
 ): [string, CodexProfileMeta] | undefined {
-  if (!summary.usable || (!summary.account_id && !summary.email)) return undefined;
+  if (!summary.usable || (!summary.account_id && !summary.email))
+    return undefined;
   return Object.entries(index.profiles).find(
     ([, meta]) =>
       (summary.account_id && meta.account_id === summary.account_id) ||
@@ -235,19 +252,26 @@ export function activeCodexProfileName(): string | undefined {
 /** Enroll the active login as a profile iff none covers it yet (matched by
  * account_id, email fallback) — the daemon calls this so `codex login` is the
  * only manual step, ever. Mirrors autoSaveActiveProfile. */
-export function autoSaveActiveCodexProfile(): (CodexProfileMeta & { name: string }) | null {
+export function autoSaveActiveCodexProfile():
+  | (CodexProfileMeta & { name: string })
+  | null {
   const active = activeCodexSummary();
   if (!active.usable || (!active.account_id && !active.email)) return null;
   const index = readProfileIndex();
   if (profileCovering(index, active)) return null;
-  return saveCodexProfile(deriveProfileName(active.email, Object.keys(index.profiles)));
+  return saveCodexProfile(
+    deriveProfileName(active.email, Object.keys(index.profiles)),
+  );
 }
 
 /** Codex twin of ccAccounts' migrateLegacyProfileNames: rename profiles still
  * carrying the old auto-derived form (email domain's org part) to the current
  * derivation (the local part). A profile is a directory, so the snapshot moves
  * with one rename. Returns the renames performed. */
-export function migrateLegacyCodexProfileNames(): Array<{ from: string; to: string }> {
+export function migrateLegacyCodexProfileNames(): Array<{
+  from: string;
+  to: string;
+}> {
   const index = readProfileIndex();
   const renames: Array<{ from: string; to: string }> = [];
   for (const [name, meta] of Object.entries(index.profiles)) {
@@ -312,7 +336,8 @@ export function readUsageCache(): UsageCache {
   try {
     const parsed = JSON.parse(fs.readFileSync(usageCachePath(), "utf-8"));
     if (parsed && typeof parsed.accounts === "object") {
-      if (!parsed.backend_retries || typeof parsed.backend_retries !== "object") delete parsed.backend_retries;
+      if (!parsed.backend_retries || typeof parsed.backend_retries !== "object")
+        delete parsed.backend_retries;
       return parsed;
     }
   } catch {}
@@ -360,13 +385,19 @@ export async function refreshCodexUsageSnapshots(
     // Test seam for the ChatGPT-backend supplement. Receives the same home, so
     // each account is read through its own auth.json. Throwing a
     // CloudApiError here is what drives the per-account backoff.
-    backendFetch?: (codexHomeDir: string) => Promise<Omit<CodexUsageSnapshot, "models"> | null>;
+    backendFetch?: (
+      codexHomeDir: string,
+    ) => Promise<Omit<CodexUsageSnapshot, "models"> | null>;
   } = {},
 ): Promise<CodexUsageRefreshSummary> {
   const now = opts.now ?? Date.now();
   const minInterval = opts.minIntervalMs ?? 4 * 60 * 1000;
-  const rpcFetch = opts.rpcFetch ?? ((home?: string) => fetchRateLimitsViaAppServer({ codexHome: home }));
-  const backendFetch = opts.backendFetch ?? ((home: string) => fetchCodexBackendUsage(home, { now }));
+  const rpcFetch =
+    opts.rpcFetch ??
+    ((home?: string) => fetchRateLimitsViaAppServer({ codexHome: home }));
+  const backendFetch =
+    opts.backendFetch ??
+    ((home: string) => fetchCodexBackendUsage(home, { now }));
   const summary: CodexUsageRefreshSummary = {
     probed: [],
     skipped: [],
@@ -393,7 +424,12 @@ export async function refreshCodexUsageSnapshots(
   const knownKeys = new Set<string>();
   let wrote = false;
 
-  const probe = async (label: string, key: string, home?: string, models?: boolean) => {
+  const probe = async (
+    label: string,
+    key: string,
+    home?: string,
+    models?: boolean,
+  ) => {
     knownKeys.add(key);
     const prev = cache.accounts[key];
     if (prev && now - prev.fetched_at < minInterval) {
@@ -418,13 +454,21 @@ export async function refreshCodexUsageSnapshots(
     // every cycle forever.
     const sessionFilled = isCodexWindowFilled(snap?.session);
     const weeklyFilled = isCodexWindowFilled(snap?.weekly);
-    const needsBackend = !!(home && (!snap || !sessionFilled || !snap.plan_type || !weeklyFilled));
+    const needsBackend = !!(
+      home &&
+      (!snap || !sessionFilled || !snap.plan_type || !weeklyFilled)
+    );
     if (needsBackend) {
       const retry = cache.backend_retries?.[key];
       // Cooloff is only for "this plan has no 5h window". A missing weekly
       // still has to go to the backend — otherwise a placeholder 0% from
       // rollout logs (or a missed RPC) freezes the week bar empty.
-      const onlySessionHole = !!(snap && snap.plan_type && weeklyFilled && !sessionFilled);
+      const onlySessionHole = !!(
+        snap &&
+        snap.plan_type &&
+        weeklyFilled &&
+        !sessionFilled
+      );
       if (retry && now < retry.retry_at && onlySessionHole) {
         summary.backend_deferred.push(label);
       } else {
@@ -436,7 +480,10 @@ export async function refreshCodexUsageSnapshots(
           // sources report the weekly bucket alone). Asking again every tick
           // would buy nothing, so rest — the app-server keeps the meters fresh
           // meanwhile, and an upgraded plan is picked up within the hour.
-          const next = backend && !isCodexWindowFilled(snap?.session) ? agreedNoSessionWindow(now) : undefined;
+          const next =
+            backend && !isCodexWindowFilled(snap?.session)
+              ? agreedNoSessionWindow(now)
+              : undefined;
           if (next) {
             (cache.backend_retries ??= {})[key] = next;
             wrote = true;
@@ -475,7 +522,11 @@ export async function refreshCodexUsageSnapshots(
         if (merged) {
           snap = {
             ...merged,
-            ...(snap.models ? { models: snap.models } : prev.models ? { models: prev.models } : {}),
+            ...(snap.models
+              ? { models: snap.models }
+              : prev.models
+                ? { models: prev.models }
+                : {}),
           };
         }
       }
@@ -483,7 +534,10 @@ export async function refreshCodexUsageSnapshots(
       summary.probed.push(label);
       wrote = true;
     } else {
-      summary.failed.push({ name: label, reason: "rate-limits probe returned nothing" });
+      summary.failed.push({
+        name: label,
+        reason: "rate-limits probe returned nothing",
+      });
     }
   };
 
@@ -514,7 +568,9 @@ export async function refreshCodexUsageSnapshots(
     for (const key of Object.keys(cache.backend_retries ?? {})) {
       if (!knownKeys.has(key)) delete cache.backend_retries![key];
     }
-    atomicWriteFile(usageCachePath(), JSON.stringify(cache, null, 2), { mode: 0o644 });
+    atomicWriteFile(usageCachePath(), JSON.stringify(cache, null, 2), {
+      mode: 0o644,
+    });
     invalidateCodexAccountsCache();
   }
   return summary;
@@ -537,37 +593,50 @@ export interface CodexAccountsHeartbeatPayload {
   }>;
 }
 
-const payloadCache = createMtimeGatedCache<CodexAccountsHeartbeatPayload | null>(
-  () => [indexPath(), activeAuthPath(), usageCachePath()],
-  () => {
-    let value: CodexAccountsHeartbeatPayload | null = null;
-    try {
-      const active = activeCodexSummary();
-      const usage = readUsageCache().accounts;
-      const profiles = Object.entries(readProfileIndex().profiles)
-        .map(([name, meta]) => {
-          const snap = usage[meta.account_id || meta.email || ""];
-          let usageOut: CodexAccountsHeartbeatPayload["profiles"][number]["usage"];
-          let plan = meta.plan;
-          if (snap) {
-            const { plan_type, ...rest } = snap;
-            usageOut = rest;
-            // The RPC's live plan reading beats the id_token claim saved at
-            // snapshot time (upgrades/downgrades show without a re-login).
-            if (plan_type) plan = plan_type;
-          }
-          return { name, email: meta.email, subscription: plan, usage: usageOut };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-      if (active.email || active.account_id || profiles.length > 0) {
-        value = { active_email: active.email, active_uuid: active.account_id, ...(active.access_expires_at ? { active_expires_at: active.access_expires_at } : {}), profiles };
+const payloadCache =
+  createMtimeGatedCache<CodexAccountsHeartbeatPayload | null>(
+    () => [indexPath(), activeAuthPath(), usageCachePath()],
+    () => {
+      let value: CodexAccountsHeartbeatPayload | null = null;
+      try {
+        const active = activeCodexSummary();
+        const usage = readUsageCache().accounts;
+        const profiles = Object.entries(readProfileIndex().profiles)
+          .map(([name, meta]) => {
+            const snap = usage[meta.account_id || meta.email || ""];
+            let usageOut: CodexAccountsHeartbeatPayload["profiles"][number]["usage"];
+            let plan = meta.plan;
+            if (snap) {
+              const { plan_type, ...rest } = snap;
+              usageOut = rest;
+              // The RPC's live plan reading beats the id_token claim saved at
+              // snapshot time (upgrades/downgrades show without a re-login).
+              if (plan_type) plan = plan_type;
+            }
+            return {
+              name,
+              email: meta.email,
+              subscription: plan,
+              usage: usageOut,
+            };
+          })
+          .sort((a, b) => a.name.localeCompare(b.name));
+        if (active.email || active.account_id || profiles.length > 0) {
+          value = {
+            active_email: active.email,
+            active_uuid: active.account_id,
+            ...(active.access_expires_at
+              ? { active_expires_at: active.access_expires_at }
+              : {}),
+            profiles,
+          };
+        }
+      } catch {
+        value = null;
       }
-    } catch {
-      value = null;
-    }
-    return value;
-  },
-);
+      return value;
+    },
+  );
 
 export function invalidateCodexAccountsCache(): void {
   payloadCache.invalidate();

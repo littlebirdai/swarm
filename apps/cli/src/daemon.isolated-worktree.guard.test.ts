@@ -15,18 +15,27 @@ const legacy = fs.readFileSync(path.join(here, "worktreeLegacy.ts"), "utf8");
 
 describe("an isolated start never falls back to the main checkout", () => {
   test("a worktree that cannot be made fails the start, latching a full disk", () => {
-    const at = daemon.indexOf("const made = await createWorktree(gitRoot, wtName);");
+    const at = daemon.indexOf(
+      "const made = await createWorktree(gitRoot, wtName);",
+    );
     expect(at).toBeGreaterThan(0);
-    const failure = daemon.slice(at, daemon.indexOf("worktreeResult = made;", at));
+    const failure = daemon.slice(
+      at,
+      daemon.indexOf("worktreeResult = made;", at),
+    );
     expect(failure).toContain(`if ("error" in made)`);
-    expect(failure).toContain("diskFullFailReason(gitRoot,");
+    expect(failure).toMatch(/diskFullFailReason\(\s*gitRoot,/);
     expect(failure).toContain("setSessionError(conversationId, error)");
     expect(failure).toMatch(/\n\s*break;\n/);
     expect(daemon).not.toContain("falling back to repo root");
   });
 
   test("createWorktree reports why it failed instead of null", () => {
-    expect(functionBlock(daemon, "createWorktree").text).toContain("Promise<WorktreeResult | { error: string }>");
-    expect(functionBlock(legacy, "createWorktreeLegacy").text).not.toMatch(/return null;/);
+    expect(functionBlock(daemon, "createWorktree").text).toContain(
+      "Promise<WorktreeResult | { error: string }>",
+    );
+    expect(functionBlock(legacy, "createWorktreeLegacy").text).not.toMatch(
+      /return null;/,
+    );
   });
 });

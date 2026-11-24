@@ -22,11 +22,16 @@ export type FrontierTask = {
 
 /** Untouched for `STALE_TASK_MS`: the frontier folds it into a count. */
 export function isStaleTask(t: FrontierTask, now: number): boolean {
-  return now - (t.updated_at ?? t.created_at ?? t._creationTime ?? now) >= STALE_TASK_MS;
+  return (
+    now - (t.updated_at ?? t.created_at ?? t._creationTime ?? now) >=
+    STALE_TASK_MS
+  );
 }
 
 const rank = (priority: string | null | undefined): number => {
-  const i = TASK_PRIORITIES.indexOf((priority ?? "none") as (typeof TASK_PRIORITIES)[number]);
+  const i = TASK_PRIORITIES.indexOf(
+    (priority ?? "none") as (typeof TASK_PRIORITIES)[number],
+  );
   return i < 0 ? TASK_PRIORITIES.length : i;
 };
 
@@ -47,7 +52,8 @@ export function frontierOrder<T extends FrontierTask>(
   ];
   const keyed = tasks.map((t) => ({ t, k: key(t) }));
   keyed.sort((a, b) => {
-    for (let i = 0; i < a.k.length; i++) if (a.k[i] !== b.k[i]) return a.k[i] - b.k[i];
+    for (let i = 0; i < a.k.length; i++)
+      if (a.k[i] !== b.k[i]) return a.k[i] - b.k[i];
     return 0;
   });
   return keyed.map((x) => x.t);

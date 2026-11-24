@@ -5,8 +5,16 @@
 // cannot merge stale rows over it.
 
 import { deriveLiveActivityState } from "@codecast/shared/contracts";
-import { placeAcmeInbox, seedAcmeWorld } from "@codecast/web/lib/acmeWorld/seed";
-import { ASK, HUDDLE_PARTICIPANTS, HUDDLE_ROOM, INBOX } from "@codecast/web/lib/acmeWorld/world";
+import {
+  placeAcmeInbox,
+  seedAcmeWorld,
+} from "@codecast/web/lib/acmeWorld/seed";
+import {
+  ASK,
+  HUDDLE_PARTICIPANTS,
+  HUDDLE_ROOM,
+  INBOX,
+} from "@codecast/web/lib/acmeWorld/world";
 import { liveActivityNative } from "../../modules/codecast-live-activity";
 import { seedHeavy } from "./heavy";
 
@@ -44,10 +52,26 @@ export function seedStoreShots(now = Date.now()) {
     const rows = INBOX(now);
     const pick = (title: string) => rows.find((r) => r.title === title)!;
     const strip = [
-      { row: pick("Webhook API half"), status: "waiting" as const, detail: ASK.question },
-      { row: pick("Retry failed webhooks"), status: "working" as const, detail: "14 of 16 tests green" },
-      { row: pick("Dashboard retry UI"), status: "working" as const, detail: "Wiring the endpoint's states" },
-      { row: pick("Rate limiter for the public API"), status: "working" as const, detail: "4,000 req/s holds on one node" },
+      {
+        row: pick("Webhook API half"),
+        status: "waiting" as const,
+        detail: ASK.question,
+      },
+      {
+        row: pick("Retry failed webhooks"),
+        status: "working" as const,
+        detail: "14 of 16 tests green",
+      },
+      {
+        row: pick("Dashboard retry UI"),
+        status: "working" as const,
+        detail: "Wiring the endpoint's states",
+      },
+      {
+        row: pick("Rate limiter for the public API"),
+        status: "working" as const,
+        detail: "4,000 req/s holds on one node",
+      },
     ].map(({ row, status, detail }) => ({
       id: row._id,
       title: row.title,
@@ -62,4 +86,3 @@ export function seedStoreShots(now = Date.now()) {
   },
   place: placeAcmeInbox,
 };
-

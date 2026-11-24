@@ -11,7 +11,16 @@ let act: typeof import("react").act;
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
   dom = new JSDOM("<!doctype html><html><body></body></html>");
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "getComputedStyle"]) {
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "MutationObserver",
+    "getComputedStyle",
+  ]) {
     (globalThis as Record<string, unknown>)[key] = dom.window[key];
   }
   (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -29,18 +38,33 @@ async function mount() {
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(React.createElement(ImageUrlForm, { onSubmit: (u: string) => calls.push(`submit:${u}`), onCancel: () => calls.push("cancel") }));
+    root.render(
+      React.createElement(ImageUrlForm, {
+        onSubmit: (u: string) => calls.push(`submit:${u}`),
+        onCancel: () => calls.push("cancel"),
+      }),
+    );
   });
-  const form = host.querySelector("form[data-image-url-form]") as HTMLFormElement;
+  const form = host.querySelector(
+    "form[data-image-url-form]",
+  ) as HTMLFormElement;
   const input = host.querySelector("input") as HTMLInputElement;
   const type = async (value: string) => {
-    const set = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!;
+    const set = Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    )!.set!;
     await act(async () => {
       set.call(input, value);
       input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
     });
   };
-  const submit = () => act(async () => { form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })); });
+  const submit = () =>
+    act(async () => {
+      form.dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
   return { calls, form, input, type, submit };
 }
 
@@ -54,6 +78,10 @@ test("a typed URL is handed on, trimmed", async () => {
 test("an empty submit and Escape both cancel", async () => {
   const m = await mount();
   await m.submit();
-  await act(async () => { m.input.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await act(async () => {
+    m.input.dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
   expect(m.calls).toEqual(["cancel", "cancel"]);
 });

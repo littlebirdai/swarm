@@ -33,13 +33,24 @@ export type Actor = {
 };
 
 /** The run a run's primary session speaks for, when the run still names it as its primary. */
-async function runOfPrimary(ctx: Ctx, conversation: any): Promise<Doc<"workflow_runs"> | null> {
-  const run = conversation?.workflow_run_id ? await ctx.db.get(conversation.workflow_run_id) : null;
-  return run && String(run.primary_conversation_id ?? "") === String(conversation._id) ? run : null;
+async function runOfPrimary(
+  ctx: Ctx,
+  conversation: any,
+): Promise<Doc<"workflow_runs"> | null> {
+  const run = conversation?.workflow_run_id
+    ? await ctx.db.get(conversation.workflow_run_id)
+    : null;
+  return run &&
+    String(run.primary_conversation_id ?? "") === String(conversation._id)
+    ? run
+    : null;
 }
 
 /** How a run signs what it writes: its flow's name ("Change run"). */
-export async function runVoiceName(ctx: Ctx, run: { workflow_id?: Id<"workflows"> | null; workflow_name?: string | null }): Promise<string> {
+export async function runVoiceName(
+  ctx: Ctx,
+  run: { workflow_id?: Id<"workflows"> | null; workflow_name?: string | null },
+): Promise<string> {
   const flow = run.workflow_id ? await ctx.db.get(run.workflow_id) : null;
   const name = String(flow?.label || run.workflow_name || "Workflow").trim();
   return `${name.charAt(0).toUpperCase()}${name.slice(1)} run`;
@@ -47,13 +58,22 @@ export async function runVoiceName(ctx: Ctx, run: { workflow_id?: Id<"workflows"
 
 // The role a conversation belongs to: the one it IS (standing session) or the
 // one it reports to (hand). Null for an ordinary session.
-export async function roleOfConversation(ctx: Ctx, conversation: any): Promise<Doc<"org_roles"> | null> {
+export async function roleOfConversation(
+  ctx: Ctx,
+  conversation: any,
+): Promise<Doc<"org_roles"> | null> {
   const roleId = conversation?.standing_role_id ?? conversation?.org_role_id;
   return roleId ? await ctx.db.get(roleId) : null;
 }
 
 /** The role behind a run: its spawner is the role's standing session (L9). */
-export async function roleOfRun(ctx: { db: any }, run: { spawner_conversation_id?: Id<"conversations"> | null; primary_conversation_id?: Id<"conversations"> | null }): Promise<any | null> {
+export async function roleOfRun(
+  ctx: { db: any },
+  run: {
+    spawner_conversation_id?: Id<"conversations"> | null;
+    primary_conversation_id?: Id<"conversations"> | null;
+  },
+): Promise<any | null> {
   for (const id of [run.spawner_conversation_id, run.primary_conversation_id]) {
     if (!id) continue;
     const conv = await ctx.db.get(id);
@@ -67,16 +87,29 @@ export async function roleOfRun(ctx: { db: any }, run: { spawner_conversation_id
 // The role a session works for: the one it is or reports to, else the role
 // behind the workflow run it is a station of (a station has no role pointer
 // of its own; its run's spawner or primary does).
-export async function roleWorkedFor(ctx: Ctx, conversation: any): Promise<Doc<"org_roles"> | null> {
+export async function roleWorkedFor(
+  ctx: Ctx,
+  conversation: any,
+): Promise<Doc<"org_roles"> | null> {
   const own = await roleOfConversation(ctx, conversation);
   if (own) return own;
-  const run = conversation?.workflow_run_id ? await ctx.db.get(conversation.workflow_run_id) : null;
+  const run = conversation?.workflow_run_id
+    ? await ctx.db.get(conversation.workflow_run_id)
+    : null;
   if (!run) return null;
-  return (run.org_role_id ? await ctx.db.get(run.org_role_id) : null) ?? await roleOfRun(ctx, run);
+  return (
+    (run.org_role_id ? await ctx.db.get(run.org_role_id) : null) ??
+    (await roleOfRun(ctx, run))
+  );
 }
 
 function displayName(user: any): string | undefined {
-  return user?.name || user?.github_username || user?.email?.split("@")[0] || undefined;
+  return (
+    user?.name ||
+    user?.github_username ||
+    user?.email?.split("@")[0] ||
+    undefined
+  );
 }
 
 export async function resolveActor(
@@ -91,7 +124,14 @@ export async function resolveActor(
   // its host's token, so the role's own writes pass; a teammate naming the
   // standing session's id does not get to sign as the role.
   if (conversation && String(conversation.user_id) !== String(callerUserId)) {
-    return { user_id: callerUserId, name: displayName(caller), kind: "user", role: null, anchor: null, conversation };
+    return {
+      user_id: callerUserId,
+      name: displayName(caller),
+      kind: "user",
+      role: null,
+      anchor: null,
+      conversation,
+    };
   }
   if (conversation?.standing_role_id) {
     const role = await ctx.db.get(conversation.standing_role_id);
@@ -112,18 +152,47 @@ export async function resolveActor(
   // names the flow, never the person whose account and machine run it.
   if (conversation?.is_workflow_primary) {
     const run = await runOfPrimary(ctx, conversation);
-    if (run) return { user_id: callerUserId, name: await runVoiceName(ctx, run), kind: "run", role: null, anchor: null, conversation, run };
+    if (run)
+      return {
+        user_id: callerUserId,
+        name: await runVoiceName(ctx, run),
+        kind: "run",
+        role: null,
+        anchor: null,
+        conversation,
+        run,
+      };
   }
   if (conversation?.org_role_id) {
     const role = await ctx.db.get(conversation.org_role_id);
-    return { user_id: callerUserId, name: displayName(caller), kind: "hand", role: role ?? null, anchor: null, conversation };
+    return {
+      user_id: callerUserId,
+      name: displayName(caller),
+      kind: "hand",
+      role: role ?? null,
+      anchor: null,
+      conversation,
+    };
   }
-  return { user_id: callerUserId, name: displayName(caller), kind: "user", role: null, anchor: null, conversation: conversation ?? null };
+  return {
+    user_id: callerUserId,
+    name: displayName(caller),
+    kind: "user",
+    role: null,
+    anchor: null,
+    conversation: conversation ?? null,
+  };
 }
 
 // Does `conversation` act for `roleId`: it is the role's standing session or
 // one of its hands. The wake rail's first loop rule.
-export function conversationActsForRole(conversation: any, roleId: string): boolean {
+export function conversationActsForRole(
+  conversation: any,
+  roleId: string,
+): boolean {
   if (!conversation) return false;
-  return String(conversation.standing_role_id ?? "") === roleId || String(conversation.org_role_id ?? "") === roleId;
+  return (
+    String(conversation.standing_role_id ?? "") === roleId ||
+    String(conversation.org_role_id ?? "") === roleId
+  );
 }

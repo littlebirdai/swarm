@@ -59,7 +59,10 @@ function trayIconState(count, platform = process.platform) {
     file: n > 0 ? set.attention : set.idle,
     // Only the macOS idle mark is a mask. See the note above.
     template: platform === "darwin" && n === 0,
-    tooltip: n > 0 ? `Codecast · ${n} session${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} input` : "Codecast",
+    tooltip:
+      n > 0
+        ? `Codecast · ${n} session${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} input`
+        : "Codecast",
   };
 }
 

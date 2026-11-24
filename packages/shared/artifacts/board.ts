@@ -3,7 +3,16 @@
 // boardGeometry.ts, layouts in boardLayout.ts, CLI verbs in boardVerbs.ts.
 import type { ArtifactElement } from "./core";
 import type { ArtifactSpec, ArtifactView } from "./spec";
-import { center, connectorGeometry, contains, elementBox, stickyFitHeight, stickyIconHeight, unionBox, type Box } from "./boardGeometry";
+import {
+  center,
+  connectorGeometry,
+  contains,
+  elementBox,
+  stickyFitHeight,
+  stickyIconHeight,
+  unionBox,
+  type Box,
+} from "./boardGeometry";
 import { boardArtFor } from "./boardArt";
 import { BOARD_VERBS } from "./boardVerbs";
 import { BOARD_ART } from "./boardArt";
@@ -13,13 +22,31 @@ export * from "./boardGeometry";
 export * from "./boardLayout";
 export * from "./boardArt";
 export * from "./boardTemplates";
-export { BOARD_VERBS, besideSpot, pageSlugOf, parseVerbArgs } from "./boardVerbs";
+export {
+  BOARD_VERBS,
+  besideSpot,
+  pageSlugOf,
+  parseVerbArgs,
+} from "./boardVerbs";
 
 // "session" is the board's workshop state (dot vote, timer): one undrawn element, key el_session.
-export const BOARD_KINDS = ["sticky", "text", "shape", "connector", "frame", "pen", "image", "stamp", "card", "page", "session"] as const;
+export const BOARD_KINDS = [
+  "sticky",
+  "text",
+  "shape",
+  "connector",
+  "frame",
+  "pen",
+  "image",
+  "stamp",
+  "card",
+  "page",
+  "session",
+] as const;
 export type BoardKind = (typeof BOARD_KINDS)[number];
 
-const fmtBox = (b: Box) => `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;
+const fmtBox = (b: Box) =>
+  `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`;
 
 function quote(v: unknown, max = 140): string {
   const s = typeof v === "string" ? v : "";
@@ -28,19 +55,28 @@ function quote(v: unknown, max = 140): string {
 }
 
 /** Elements in reading order: frames first, then top-to-bottom bands, left to right. */
-export function readingOrder(els: readonly ArtifactElement[]): ArtifactElement[] {
+export function readingOrder(
+  els: readonly ArtifactElement[],
+): ArtifactElement[] {
   const boxes = new Map(els.map((e) => [e.key, elementBox(e)]));
   const band = (e: ArtifactElement) => Math.floor(boxes.get(e.key)!.y / 80);
   return [...els].sort((a, b) => {
     const fa = a.kind === "frame" ? 0 : a.kind === "connector" ? 2 : 1;
     const fb = b.kind === "frame" ? 0 : b.kind === "connector" ? 2 : 1;
     if (fa !== fb) return fa - fb;
-    return band(a) - band(b) || boxes.get(a.key)!.x - boxes.get(b.key)!.x || (a.key < b.key ? -1 : 1);
+    return (
+      band(a) - band(b) ||
+      boxes.get(a.key)!.x - boxes.get(b.key)!.x ||
+      (a.key < b.key ? -1 : 1)
+    );
   });
 }
 
 /** One element as a describe line. */
-export function describeElement(el: ArtifactElement, view: Pick<ArtifactView, "get" | "elements">): string {
+export function describeElement(
+  el: ArtifactElement,
+  view: Pick<ArtifactView, "get" | "elements">,
+): string {
   const b = elementBox(el);
   const parts: string[] = [el.key, el.kind];
   switch (el.kind) {
@@ -49,25 +85,47 @@ export function describeElement(el: ArtifactElement, view: Pick<ArtifactView, "g
       if (el.icon) parts.push(String(el.icon));
       parts.push(quote(el.text));
       // Say when the words no longer fit, so an agent fixes it without a screenshot.
-      const need = stickyFitHeight(String(el.text ?? ""), b.w, b.h, stickyIconHeight(el.icon, boardArtFor(el.icon) !== null, b.w, b.h));
+      const need = stickyFitHeight(
+        String(el.text ?? ""),
+        b.w,
+        b.h,
+        stickyIconHeight(el.icon, boardArtFor(el.icon) !== null, b.w, b.h),
+      );
       if (need > b.h + 2) parts.push(`OVERFLOWS: needs h${need}`);
       break;
     }
     case "text":
-      parts.push(`${el.size ?? 20}px${el.weight === "bold" ? " bold" : ""}`, fmtBox(b), quote(el.text));
+      parts.push(
+        `${el.size ?? 20}px${el.weight === "bold" ? " bold" : ""}`,
+        fmtBox(b),
+        quote(el.text),
+      );
       break;
     case "shape":
-      parts.push(String(el.shape ?? "rect"), String(el.color ?? "blue"), fmtBox(b));
+      parts.push(
+        String(el.shape ?? "rect"),
+        String(el.color ?? "blue"),
+        fmtBox(b),
+      );
       if (el.text) parts.push(quote(el.text));
       break;
     case "frame": {
-      const holds = view.elements.filter((o) => o.key !== el.key && o.kind !== "frame" && o.kind !== "connector" && contains(b, elementBox(o))).map((o) => o.key);
+      const holds = view.elements
+        .filter(
+          (o) =>
+            o.key !== el.key &&
+            o.kind !== "frame" &&
+            o.kind !== "connector" &&
+            contains(b, elementBox(o)),
+        )
+        .map((o) => o.key);
       parts.push(quote(el.title), fmtBox(b));
       if (holds.length) parts.push(`holds ${holds.join(" ")}`);
       break;
     }
     case "connector": {
-      const from = typeof el.from === "string" ? el.from : `(${el.x1},${el.y1})`;
+      const from =
+        typeof el.from === "string" ? el.from : `(${el.x1},${el.y1})`;
       const to = typeof el.to === "string" ? el.to : `(${el.x2},${el.y2})`;
       parts.push(`${from} → ${to}`);
       if (el.curve === "curved") parts.push("curved");
@@ -77,13 +135,25 @@ export function describeElement(el: ArtifactElement, view: Pick<ArtifactView, "g
     }
     case "pen": {
       const n = Array.isArray(el.points) ? el.points.length / 2 : 0;
-      parts.push(fmtBox(b), `${n} pts`, String(el.color ?? "gray"), `w${el.width ?? 4}`);
+      parts.push(
+        fmtBox(b),
+        `${n} pts`,
+        String(el.color ?? "gray"),
+        `w${el.width ?? 4}`,
+      );
       break;
     }
     case "stamp": {
       parts.push(String(el.emoji ?? "👍"), fmtBox(b));
       const c = center(b);
-      const on = view.elements.find((o) => o.key !== el.key && o.kind !== "frame" && o.kind !== "connector" && o.kind !== "stamp" && contains(elementBox(o), { ...c, w: 0, h: 0 }));
+      const on = view.elements.find(
+        (o) =>
+          o.key !== el.key &&
+          o.kind !== "frame" &&
+          o.kind !== "connector" &&
+          o.kind !== "stamp" &&
+          contains(elementBox(o), { ...c, w: 0, h: 0 }),
+      );
       if (on) parts.push(`on ${on.key}`);
       break;
     }
@@ -100,22 +170,34 @@ export function describeElement(el: ArtifactElement, view: Pick<ArtifactView, "g
     default:
       parts.push(fmtBox(b));
   }
-  if (typeof el.rot === "number" && el.rot) parts.push(`rot=${Math.round(el.rot)}`);
+  if (typeof el.rot === "number" && el.rot)
+    parts.push(`rot=${Math.round(el.rot)}`);
   return parts.join("  ");
 }
 
 /** Pairs of cards, shapes and text that cover each other (stamps, pens, frames and arrows sit on things on purpose). */
 function overlaps(els: readonly ArtifactElement[], max = 20): string[] {
-  const solid = els.filter((e) => e.kind === "sticky" || e.kind === "shape" || e.kind === "text" || e.kind === "card" || e.kind === "page" || e.kind === "image");
+  const solid = els.filter(
+    (e) =>
+      e.kind === "sticky" ||
+      e.kind === "shape" ||
+      e.kind === "text" ||
+      e.kind === "card" ||
+      e.kind === "page" ||
+      e.kind === "image",
+  );
   const boxes = solid.map((e) => elementBox(e));
   const out: string[] = [];
   for (let i = 0; i < solid.length && out.length < max; i++) {
     for (let j = i + 1; j < solid.length && out.length < max; j++) {
-      const a = boxes[i], b = boxes[j];
-      const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      const a = boxes[i],
+        b = boxes[j];
+      const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x),
+        oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
       // A few pixels of touch is layout, not a clash.
       // One holding the other whole is a backdrop (a band, a panel), not a clash.
-      if (ox > 4 && oy > 4 && !contains(a, b) && !contains(b, a)) out.push(`${solid[i].key}×${solid[j].key}`);
+      if (ox > 4 && oy > 4 && !contains(a, b) && !contains(b, a))
+        out.push(`${solid[i].key}×${solid[j].key}`);
     }
   }
   return out;
@@ -124,21 +206,43 @@ function overlaps(els: readonly ArtifactElement[], max = 20): string[] {
 export function describeBoard(whole: ArtifactView): string {
   // The workshop state (a dot vote, a timer) is one undrawn element; it reads as a line, never as content.
   const session = whole.elements.find((e) => e.kind === "session");
-  const view = session ? { ...whole, elements: whole.elements.filter((e) => e !== session) } : whole;
-  if (view.elements.length === 0) return `board "${view.title}": empty. Start anywhere; 0,0 is a fine top-left.`;
-  const content = unionBox(view.elements.filter((e) => e.kind !== "connector").map(elementBox));
-  const head = `board "${view.title}" · ${view.elements.length} elements` +
-    (content ? ` · content ${Math.round(content.x)},${Math.round(content.y)} → ${Math.round(content.x + content.w)},${Math.round(content.y + content.h)}` : "") +
+  const view = session
+    ? { ...whole, elements: whole.elements.filter((e) => e !== session) }
+    : whole;
+  if (view.elements.length === 0)
+    return `board "${view.title}": empty. Start anywhere; 0,0 is a fine top-left.`;
+  const content = unionBox(
+    view.elements.filter((e) => e.kind !== "connector").map(elementBox),
+  );
+  const head =
+    `board "${view.title}" · ${view.elements.length} elements` +
+    (content
+      ? ` · content ${Math.round(content.x)},${Math.round(content.y)} → ${Math.round(content.x + content.w)},${Math.round(content.y + content.h)}`
+      : "") +
     " · x right, y down, boxes are x,y wxh";
-  const lines = readingOrder(view.elements).map((e) => describeElement(e, view));
+  const lines = readingOrder(view.elements).map((e) =>
+    describeElement(e, view),
+  );
   const groups = new Map<string, string[]>();
-  for (const e of view.elements) if (typeof e.group === "string") groups.set(e.group, [...(groups.get(e.group) ?? []), e.key]);
+  for (const e of view.elements)
+    if (typeof e.group === "string")
+      groups.set(e.group, [...(groups.get(e.group) ?? []), e.key]);
   for (const [g, keys] of groups) lines.push(`group ${g}: ${keys.join(" ")}`);
   const clashes = overlaps(view.elements);
-  if (clashes.length) lines.push(`OVERLAPPING (move apart, or ignore if meant): ${clashes.join("  ")}`);
-  const votes = view.elements.filter((e) => Array.isArray(e.votes) && e.votes.length).sort((x, y) => (y.votes as unknown[]).length - (x.votes as unknown[]).length);
+  if (clashes.length)
+    lines.push(
+      `OVERLAPPING (move apart, or ignore if meant): ${clashes.join("  ")}`,
+    );
+  const votes = view.elements
+    .filter((e) => Array.isArray(e.votes) && e.votes.length)
+    .sort(
+      (x, y) => (y.votes as unknown[]).length - (x.votes as unknown[]).length,
+    );
   const voting = session?.voting as { open?: boolean } | null | undefined;
-  if (voting || votes.length) lines.push(`${voting?.open ? "dot vote open" : "dot vote"}: ${votes.length ? votes.map((e) => `${e.key} ${(e.votes as unknown[]).length}`).join(", ") : "no votes yet"}`);
+  if (voting || votes.length)
+    lines.push(
+      `${voting?.open ? "dot vote open" : "dot vote"}: ${votes.length ? votes.map((e) => `${e.key} ${(e.votes as unknown[]).length}`).join(", ") : "no votes yet"}`,
+    );
   return [head, ...lines].join("\n");
 }
 
@@ -162,7 +266,9 @@ export const boardSpec: ArtifactSpec = {
     // sees it move with the work without covering what it wrote.
     const last = boxes[boxes.length - 1];
     if (!last) return undefined;
-    return { point: { x: Math.round(last.x + last.w), y: Math.round(last.y + last.h) } };
+    return {
+      point: { x: Math.round(last.x + last.w), y: Math.round(last.y + last.h) },
+    };
   },
   verbs: BOARD_VERBS,
   agentGuide: [
@@ -172,7 +278,7 @@ export const boardSpec: ArtifactSpec = {
     "  Lock flavor | Huckleberry it is        sticky:green :berries: Lock flavor        shape:diamond:blue Ship?        text:36 Heading        card ct-4102        stamp 🎉",
     `Illustrations (use them on cards a person should scan; one per card, matching its subject): ${BOARD_ART.join(" ")}.`,
     "Timeline stops: `label | title | body | illustration | color`, e.g. `Day 1 | Lock flavor | Huckleberry it is | berries | yellow`. One call draws the title, road, pills and stemmed cards; the last stop is drawn as the goal (a larger card at the road's end).",
-    "Rows by columns (journey map, comparison, swimlanes): `cast board matrix <doc> --cols \"A,B,C\" --cell 200x160` with `Row label :: item :: item :: item` per stdin line. Size any item with `:w240:h120` variants or --w/--h.",
+    'Rows by columns (journey map, comparison, swimlanes): `cast board matrix <doc> --cols "A,B,C" --cell 200x160` with `Row label :: item :: item :: item` per stdin line. Size any item with `:w240:h120` variants or --w/--h.',
     "Change words without losing a key or its arrows: `cast board edit <doc> <key> New title | body` (--icon, --color). Start over: `cast board clear <doc>`.",
     "A sticky marked OVERFLOWS in `read` has more words than room: shorten it or `edit` it (edit grows it to fit).",
     "Starting a retro, kanban, roadmap, timeline or brainstorm: `cast board template <doc> <name>`, then fill its stickies by key.",

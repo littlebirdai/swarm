@@ -83,14 +83,19 @@ export function createRecoveryController(opts: {
       nextAttemptAt = 0;
     }
     if (now() < nextAttemptAt) return;
-    if (!shouldRecover(now(), opts.getLastSync(), requiredStaleMs(), inFlight)) return;
+    if (!shouldRecover(now(), opts.getLastSync(), requiredStaleMs(), inFlight))
+      return;
     inFlight = true;
     const controller = new AbortController();
     active = controller;
     // The digest compare's quiescence gate sees every recovery fetch.
     const releaseActivity = beginSyncInflight("poll");
     const aborted = new Promise<never>((_, reject) => {
-      controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
+      controller.signal.addEventListener(
+        "abort",
+        () => reject(controller.signal.reason),
+        { once: true },
+      );
     });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {

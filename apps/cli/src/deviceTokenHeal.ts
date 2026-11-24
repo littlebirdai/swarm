@@ -13,11 +13,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { presentToken, splitPresentedToken } from "@platform/auth/tokenFormat";
-import { fingerprint, healRecordFile, readHealRecord, type HealRecord } from "./bearerToken.js";
+import {
+  fingerprint,
+  healRecordFile,
+  readHealRecord,
+  type HealRecord,
+} from "./bearerToken.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import { mintTokenForDevice } from "./remote/convexClient.js";
 import { deviceLabel } from "./remote/device.js";
-import { decryptToken, encryptToken, isEncryptedToken } from "./tokenEncryption.js";
+import {
+  decryptToken,
+  encryptToken,
+  isEncryptedToken,
+} from "./tokenEncryption.js";
 
 /** A mint the server has not answered by now is abandoned: no record, so a later load retries. */
 const MINT_TIMEOUT_MS = 5_000;
@@ -27,7 +36,11 @@ const STALE_LOCK_MS = 60_000;
 
 export type HealOutcome = "healed" | "already" | "busy" | "refused" | "failed";
 
-export async function healDeviceToken(input: { secret: string; minted: string; current: string }): Promise<HealOutcome> {
+export async function healDeviceToken(input: {
+  secret: string;
+  minted: string;
+  current: string;
+}): Promise<HealOutcome> {
   const lock = path.join(defaultConfigDir(), ".device_token_heal.lock");
   if (!takeLock(lock)) return "busy";
   try {
@@ -42,13 +55,23 @@ export async function healDeviceToken(input: { secret: string; minted: string; c
 
     let token: string;
     try {
-      token = await mintTokenForDevice(input.current, `${deviceLabel()} (moved)`, {
-        apiToken: presentToken(input.secret, input.minted),
-        timeoutMs: MINT_TIMEOUT_MS,
-      });
+      token = await mintTokenForDevice(
+        input.current,
+        `${deviceLabel()} (moved)`,
+        {
+          apiToken: presentToken(input.secret, input.minted),
+          timeoutMs: MINT_TIMEOUT_MS,
+        },
+      );
     } catch (err) {
-      if (!/Unauthorized/.test(err instanceof Error ? err.message : String(err))) return "failed";
-      writeAtomic(healRecordFile(), { from, refused: true } satisfies HealRecord);
+      if (
+        !/Unauthorized/.test(err instanceof Error ? err.message : String(err))
+      )
+        return "failed";
+      writeAtomic(healRecordFile(), {
+        from,
+        refused: true,
+      } satisfies HealRecord);
       return "refused";
     }
     const to = encryptToken(presentToken(token, input.current));
@@ -70,7 +93,8 @@ function takeLock(lock: string): boolean {
       return true;
     } catch {
       try {
-        if (Date.now() - fs.statSync(lock).mtimeMs < STALE_LOCK_MS) return false;
+        if (Date.now() - fs.statSync(lock).mtimeMs < STALE_LOCK_MS)
+          return false;
         fs.rmSync(lock, { force: true });
       } catch {}
     }

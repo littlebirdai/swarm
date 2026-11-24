@@ -8,5 +8,7 @@ test("a more button names what one press shows, and what is left only when some 
 });
 
 test("a finder's kinds read as words, Union's escalation kinds included", () => {
-  expect(watchesFor(["prompt_miss", "bug", "request"])).toBe("agents not doing what they should, bugs and requests for the team");
+  expect(watchesFor(["prompt_miss", "bug", "request"])).toBe(
+    "agents not doing what they should, bugs and requests for the team",
+  );
 });

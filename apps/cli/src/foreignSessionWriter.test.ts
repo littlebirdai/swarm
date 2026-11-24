@@ -3,7 +3,13 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { foreignSessionWriter, foreignWriterScreen, ForeignWriterHoldError, parsePsRows, PS_ROWS_ARGS } from "./foreignSessionWriter.js";
+import {
+  foreignSessionWriter,
+  foreignWriterScreen,
+  ForeignWriterHoldError,
+  parsePsRows,
+  PS_ROWS_ARGS,
+} from "./foreignSessionWriter.js";
 import { functionBlock } from "./test-helpers/sourceRegion.js";
 
 const SID = "0a671390-b53d-4050-9ab0-c17416ea0f7a";
@@ -44,16 +50,43 @@ describe("another program running the session (GitHub #88)", () => {
   });
 
   test("--session-id and a person's own terminal count; another session, a fork child, or a non-agent do not", () => {
-    const row = (args: string, tty = "ttys009") => parsePsRows(` 700     1 ${tty}  ${args}`);
-    expect(foreignSessionWriter(row(`claude --session-id ${SID}`), SID, DAEMON)?.pid).toBe(700);
-    expect(foreignSessionWriter(row(`claude --resume ${SID}`), SID, DAEMON)?.pid).toBe(700);
-    expect(foreignSessionWriter(row(`claude --resume 11111111-2222-3333-4444-555555555555`), SID, DAEMON)).toBeNull();
-    expect(foreignSessionWriter(row(`claude --resume ${SID} --fork-session --session-id 11111111-2222-3333-4444-555555555555`), SID, DAEMON)).toBeNull();
-    expect(foreignSessionWriter(row(`grep --resume ${SID}`), SID, DAEMON)).toBeNull();
+    const row = (args: string, tty = "ttys009") =>
+      parsePsRows(` 700     1 ${tty}  ${args}`);
+    expect(
+      foreignSessionWriter(row(`claude --session-id ${SID}`), SID, DAEMON)?.pid,
+    ).toBe(700);
+    expect(
+      foreignSessionWriter(row(`claude --resume ${SID}`), SID, DAEMON)?.pid,
+    ).toBe(700);
+    expect(
+      foreignSessionWriter(
+        row(`claude --resume 11111111-2222-3333-4444-555555555555`),
+        SID,
+        DAEMON,
+      ),
+    ).toBeNull();
+    expect(
+      foreignSessionWriter(
+        row(
+          `claude --resume ${SID} --fork-session --session-id 11111111-2222-3333-4444-555555555555`,
+        ),
+        SID,
+        DAEMON,
+      ),
+    ).toBeNull();
+    expect(
+      foreignSessionWriter(row(`grep --resume ${SID}`), SID, DAEMON),
+    ).toBeNull();
   });
 
   test("an agent the daemon itself spawned is not foreign", () => {
-    expect(foreignSessionWriter(parsePsRows(` 701   ${DAEMON} ??  claude -p --resume ${SID}`), SID, DAEMON)).toBeNull();
+    expect(
+      foreignSessionWriter(
+        parsePsRows(` 701   ${DAEMON} ??  claude -p --resume ${SID}`),
+        SID,
+        DAEMON,
+      ),
+    ).toBeNull();
   });
 
   test("the hold names the process and is not a failure", () => {
@@ -74,11 +107,20 @@ describe("found on the live process table", () => {
     // `bun …/claude`, the shape of a script-installed agent. Started in the
     // background of a shell that exits at once, so it runs under launchd with
     // no terminal, as another app's agent does, not under this test's tmux.
-    const out = execFileSync("/bin/sh", ["-c", `"${process.execPath}" "${bin}" --output-format stream-json --resume=${SID} </dev/null >/dev/null 2>&1 & echo $!`], { encoding: "utf8" });
+    const out = execFileSync(
+      "/bin/sh",
+      [
+        "-c",
+        `"${process.execPath}" "${bin}" --output-format stream-json --resume=${SID} </dev/null >/dev/null 2>&1 & echo $!`,
+      ],
+      { encoding: "utf8" },
+    );
     const pid = Number(out.trim());
     try {
       await new Promise((r) => setTimeout(r, 300));
-      const rows = parsePsRows(execFileSync("ps", PS_ROWS_ARGS, { encoding: "utf8" }));
+      const rows = parsePsRows(
+        execFileSync("ps", PS_ROWS_ARGS, { encoding: "utf8" }),
+      );
       // No controlling terminal: "??" on macOS, "?" on Linux.
       expect(rows.find((r) => r.pid === pid)?.tty).toMatch(/^\?\??$/);
       expect(foreignSessionWriter(rows, SID, process.pid)?.pid).toBe(pid);
@@ -89,15 +131,24 @@ describe("found on the live process table", () => {
 });
 
 describe("the resume path checks before it touches the transcript or a pane", () => {
-  const inner = functionBlock(readFileSync(new URL("./daemon.ts", import.meta.url), "utf8"), "autoResumeSessionInner").text;
+  const inner = functionBlock(
+    readFileSync(new URL("./daemon.ts", import.meta.url), "utf8"),
+    "autoResumeSessionInner",
+  ).text;
   test("held with the process as its screen, ahead of transcript repair and tmux", () => {
-    const at = inner.indexOf("foreignSessionWriter(rows, sessionId, process.pid)");
+    const at = inner.indexOf(
+      "foreignSessionWriter(rows, sessionId, process.pid)",
+    );
     expect(at).toBeGreaterThan(0);
     expect(at).toBeLessThan(inner.indexOf("awaitRecentSessionFile"));
     expect(at).toBeLessThan(inner.indexOf('"new-session"'));
-    expect(inner).toContain("if (opts?.delivery) throw new ForeignWriterHoldError(writer, foreignWriterScreen(writer, rows));");
+    expect(inner).toContain(
+      "if (opts?.delivery)\n        throw new ForeignWriterHoldError(\n          writer,\n          foreignWriterScreen(writer, rows),\n        );",
+    );
   });
   test("Send anyway and a resume the person asked for go ahead", () => {
-    expect(inner).toContain("if (!opts?.userInitiated && !isForcedPastDialog(opts?.delivery?.messageId)) {");
+    expect(inner).toContain(
+      "if (!opts?.userInitiated && !isForcedPastDialog(opts?.delivery?.messageId)) {",
+    );
   });
 });

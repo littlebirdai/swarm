@@ -30,13 +30,72 @@ export type ParsedTerms = {
 // Function words common in natural-language task descriptions. Deliberately
 // moderate: only words that are near-certain noise for retrieval.
 const SEARCH_STOPWORDS = new Set([
-  "a", "an", "the", "to", "of", "in", "on", "for", "and", "or", "with",
-  "from", "into", "at", "by", "as", "is", "are", "was", "were", "be",
-  "been", "it", "its", "this", "that", "these", "those", "my", "our",
-  "your", "their", "we", "i", "you", "they", "do", "does", "did", "can",
-  "could", "should", "would", "will", "may", "might", "must", "not", "no",
-  "so", "if", "then", "than", "when", "where", "which", "who", "how",
-  "what", "why", "about", "up", "out", "also", "just", "via",
+  "a",
+  "an",
+  "the",
+  "to",
+  "of",
+  "in",
+  "on",
+  "for",
+  "and",
+  "or",
+  "with",
+  "from",
+  "into",
+  "at",
+  "by",
+  "as",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "it",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "our",
+  "your",
+  "their",
+  "we",
+  "i",
+  "you",
+  "they",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "should",
+  "would",
+  "will",
+  "may",
+  "might",
+  "must",
+  "not",
+  "no",
+  "so",
+  "if",
+  "then",
+  "than",
+  "when",
+  "where",
+  "which",
+  "who",
+  "how",
+  "what",
+  "why",
+  "about",
+  "up",
+  "out",
+  "also",
+  "just",
+  "via",
 ]);
 
 // A token index takes at most this many terms in one query.
@@ -64,7 +123,9 @@ export function parseQueryTerms(query: string): ParsedTerms {
   }
   const typed = rawWords.filter(Boolean);
   const deduped = [...new Set(typed)];
-  const meaningful = deduped.filter((w) => w.length >= 2 && !SEARCH_STOPWORDS.has(w));
+  const meaningful = deduped.filter(
+    (w) => w.length >= 2 && !SEARCH_STOPWORDS.has(w),
+  );
   // A query made entirely of stop-words ("how to do it") still has to search
   // for something: keep the originals in that case.
   const words = meaningful.length > 0 ? meaningful : deduped;
@@ -72,11 +133,14 @@ export function parseQueryTerms(query: string): ParsedTerms {
   // Neighbours as typed. A lone letter is no word of its own, but beside its
   // neighbour it names something ("k pop", "plan b"), so it joins too.
   const kept = new Set(words);
-  const joinable = (w: string) => kept.has(w) || (w.length === 1 && /[a-z0-9]/.test(w) && !SEARCH_STOPWORDS.has(w));
+  const joinable = (w: string) =>
+    kept.has(w) ||
+    (w.length === 1 && /[a-z0-9]/.test(w) && !SEARCH_STOPWORDS.has(w));
   const joins: string[] = [];
   for (let i = 0; i + 1 < rawWords.length; i++) {
     const [a, b] = [rawWords[i], rawWords[i + 1]];
-    if (a !== b && joinable(a) && joinable(b) && (kept.has(a) || kept.has(b))) joins.push(`${a}-${b}`);
+    if (a !== b && joinable(a) && joinable(b) && (kept.has(a) || kept.has(b)))
+      joins.push(`${a}-${b}`);
   }
 
   const squash = (w: string) => w.split(WORD_SEPARATORS).join("");
@@ -84,10 +148,23 @@ export function parseQueryTerms(query: string): ParsedTerms {
   const base = [...new Set([...phrases, ...parts])];
   // Joined forms go first: a token index prefix-matches its last term, which
   // should stay the last word the person typed.
-  const joined = [...words.filter((w) => squash(w) !== w), ...joins].map(squash);
-  const lookup = [...new Set([...joined.slice(0, Math.max(0, LOOKUP_TERM_CAP - base.length)), ...base])].join(" ");
+  const joined = [...words.filter((w) => squash(w) !== w), ...joins].map(
+    squash,
+  );
+  const lookup = [
+    ...new Set([
+      ...joined.slice(0, Math.max(0, LOOKUP_TERM_CAP - base.length)),
+      ...base,
+    ]),
+  ].join(" ");
 
-  return { phrases, words, all: [...phrases, ...words], joins: [...new Set(joins)], lookup };
+  return {
+    phrases,
+    words,
+    all: [...phrases, ...words],
+    joins: [...new Set(joins)],
+    lookup,
+  };
 }
 
 /** The query as the search read it, phrases quoted again: what a transcript
@@ -114,13 +191,21 @@ function cachedPattern(source: string): RegExp {
  *  spaced. */
 export function termSource(term: string): string {
   if (/\s/.test(term)) return escapeRegex(term);
-  return term.split(WORD_SEPARATORS).filter(Boolean).map(escapeRegex).join(SEPARATOR_RUN);
+  return term
+    .split(WORD_SEPARATORS)
+    .filter(Boolean)
+    .map(escapeRegex)
+    .join(SEPARATOR_RUN);
 }
 
 const isPlain = (term: string) => /\s/.test(term) || !/[\-_]/.test(term);
 
 /** Where `term` first occurs in lowercase text at or after `from`: [start, end), or null. */
-export function findTerm(lower: string, term: string, from = 0): [number, number] | null {
+export function findTerm(
+  lower: string,
+  term: string,
+  from = 0,
+): [number, number] | null {
   if (!term) return null;
   if (isPlain(term)) {
     const at = lower.indexOf(term, from);
@@ -132,12 +217,21 @@ export function findTerm(lower: string, term: string, from = 0): [number, number
   return m && m[0].length > 0 ? [m.index, m.index + m[0].length] : null;
 }
 
-export function contentMatchesSearch(content: string, terms: { phrases: string[]; words: string[] }): boolean {
+export function contentMatchesSearch(
+  content: string,
+  terms: { phrases: string[]; words: string[] },
+): boolean {
   const lower = content.toLowerCase();
-  return terms.phrases.every((p) => lower.includes(p)) && terms.words.every((w) => findTerm(lower, w) !== null);
+  return (
+    terms.phrases.every((p) => lower.includes(p)) &&
+    terms.words.every((w) => findTerm(lower, w) !== null)
+  );
 }
 
-export function contentMatchesAnyTerm(content: string, terms: { all: string[] }): boolean {
+export function contentMatchesAnyTerm(
+  content: string,
+  terms: { all: string[] },
+): boolean {
   const lower = content.toLowerCase();
   return terms.all.some((t) => findTerm(lower, t) !== null);
 }
@@ -153,7 +247,8 @@ const INFLECTION = /^(?:'s|s|es|ed|ing)(?![a-z0-9])/;
 // Occurrences examined per term per text before settling for the best seen.
 const QUALITY_PROBES = 6;
 
-const isWordChar = (code: number) => (code >= 48 && code <= 57) || (code >= 97 && code <= 122);
+const isWordChar = (code: number) =>
+  (code >= 48 && code <= 57) || (code >= 97 && code <= 122);
 
 function hitQuality(lower: string, start: number, end: number): number {
   const left = start === 0 || !isWordChar(lower.charCodeAt(start - 1));
@@ -178,24 +273,40 @@ function bestQuality(lower: string, term: string): number {
 
 /** How one text answers the query: a quality per word (0 = absent), which of
  *  the query's joins sit side by side in it, and which phrases it holds. */
-export type TextSignal = { quality: number[]; pairs: boolean[]; phrases: boolean[]; score: number };
+export type TextSignal = {
+  quality: number[];
+  pairs: boolean[];
+  phrases: boolean[];
+  score: number;
+};
 
 /** null when the text holds none of the query. */
-export function signalOf(content: string, terms: ParsedTerms): TextSignal | null {
+export function signalOf(
+  content: string,
+  terms: ParsedTerms,
+): TextSignal | null {
   const lower = content.toLowerCase();
   const phrases = terms.phrases.map((p) => lower.includes(p));
   const quality = terms.words.map((w) => bestQuality(lower, w));
   if (!phrases.some(Boolean) && !quality.some((q) => q > 0)) return null;
   const pairs = terms.joins.map((join) => {
-    const members = terms.words.map((w, i) => (join.startsWith(`${w}-`) || join.endsWith(`-${w}`) ? i : -1)).filter((i) => i >= 0);
+    const members = terms.words
+      .map((w, i) =>
+        join.startsWith(`${w}-`) || join.endsWith(`-${w}`) ? i : -1,
+      )
+      .filter((i) => i >= 0);
     // Both words must be here before it is worth looking for them together.
-    if (members.some((i) => quality[i] === 0) || findTerm(lower, join) === null) return false;
+    if (members.some((i) => quality[i] === 0) || findTerm(lower, join) === null)
+      return false;
     // Two query words written as one ("warmintro") are each the whole word
     // the person meant.
     for (const i of members) quality[i] = WHOLE;
     return true;
   });
-  const score = quality.reduce((a, b) => a + b, 0) + phrases.filter(Boolean).length + 0.5 * pairs.filter(Boolean).length;
+  const score =
+    quality.reduce((a, b) => a + b, 0) +
+    phrases.filter(Boolean).length +
+    0.5 * pairs.filter(Boolean).length;
   return { quality, pairs, phrases, score };
 }
 
@@ -239,8 +350,12 @@ export function addEvidence(
     if (q > ev.best[i]) ev.best[i] = q;
     if (opts.own && q > ev.own[i]) ev.own[i] = q;
   });
-  signal.pairs.forEach((p, i) => { if (p) ev.pairs[i] = true; });
-  signal.phrases.forEach((p, i) => { if (p) ev.phrases[i] = true; });
+  signal.pairs.forEach((p, i) => {
+    if (p) ev.pairs[i] = true;
+  });
+  signal.phrases.forEach((p, i) => {
+    if (p) ev.phrases[i] = true;
+  });
   if (opts.message) ev.depth++;
   // A person's own words are the likelier thing they remember the session by.
   if (opts.own) signal.score *= 1.25;
@@ -259,7 +374,8 @@ export function coverageOf(ev: Evidence, terms: ParsedTerms): number | null {
   return matched < required ? null : matched / total;
 }
 
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1);
+const mean = (xs: number[]) =>
+  xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1;
 const DEPTH_FULL = 16;
 
 /** 0..1: how well the session answers the query. Half is how many words it
@@ -267,26 +383,39 @@ const DEPTH_FULL = 16;
  *  being in the person's own text, and how much of the session is about them. */
 export function relevanceOf(ev: Evidence, terms: ParsedTerms): number {
   const quality = mean(ev.best);
-  const together = ev.pairs.length ? ev.pairs.filter(Boolean).length / ev.pairs.length : quality;
+  const together = ev.pairs.length
+    ? ev.pairs.filter(Boolean).length / ev.pairs.length
+    : quality;
   const own = mean(ev.own);
-  const depth = Math.min(1, Math.log2(1 + ev.depth) / Math.log2(1 + DEPTH_FULL));
+  const depth = Math.min(
+    1,
+    Math.log2(1 + ev.depth) / Math.log2(1 + DEPTH_FULL),
+  );
   return 0.5 * quality + 0.2 * together + 0.2 * own + 0.1 * depth;
 }
 
 /** Relevance in five steps: a sort by newest first ranks within a step, so a
  *  near tie goes to the recent session and a clear win does not. */
-export const relevanceTier = (relevance: number) => Math.min(4, Math.floor(relevance * 5));
+export const relevanceTier = (relevance: number) =>
+  Math.min(4, Math.floor(relevance * 5));
 
 // ---------------------------------------------------------------------------
 // Snippets and marks
 
 /** Every [start, end) the query occupies in `text`, merged and in order. */
-export function termSpans(text: string, terms: { all: string[]; joins?: string[] }): Array<[number, number]> {
+export function termSpans(
+  text: string,
+  terms: { all: string[]; joins?: string[] },
+): Array<[number, number]> {
   const lower = text.toLowerCase();
   const spans: Array<[number, number]> = [];
   for (const term of [...terms.all, ...(terms.joins ?? [])]) {
     let from = 0;
-    for (let hit = findTerm(lower, term, from); hit; hit = findTerm(lower, term, from)) {
+    for (
+      let hit = findTerm(lower, term, from);
+      hit;
+      hit = findTerm(lower, term, from)
+    ) {
       spans.push(hit);
       from = hit[1];
     }
@@ -304,7 +433,8 @@ export function termSpans(text: string, terms: { all: string[]; joins?: string[]
 /** Machine wrappers a message can carry (a session message, a reminder, a
  *  command tag): a tag-shaped name, lower case, its attributes, or the cut
  *  tail of one at either edge of a stored snippet (`…98fq7bh">Run`). */
-const WRAPPER_TAG = /<\/?[a-z][a-z0-9]*(?:[-:_][a-z0-9]+)+(?:\s[^<>]*)?>|^(?:\.\.\.)?[^\s<>"]*"\s*>|^(?:\.\.\.)?[a-z0-9-]*(?:\s[a-z_]+="[^"]*")+\s*>|<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?$/g;
+const WRAPPER_TAG =
+  /<\/?[a-z][a-z0-9]*(?:[-:_][a-z0-9]+)+(?:\s[^<>]*)?>|^(?:\.\.\.)?[^\s<>"]*"\s*>|^(?:\.\.\.)?[a-z0-9-]*(?:\s[a-z_]+="[^"]*")+\s*>|<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?$/g;
 
 /** Message text as a person reads it in a search hit: machine wrappers
  *  (`<session-message from="…">`, `<system-reminder>`) go and the words
@@ -322,7 +452,11 @@ export function stripWrapperTags(text: string): string {
 /** The stretch of `content` that shows the most of the query: the window is
  *  anchored on the hit with the most other terms inside it, with a quarter of
  *  the budget as lead-in. No hit: the opening of the text. */
-export function snippetAround(content: string, terms: { all: string[] }, maxLen = 300): string {
+export function snippetAround(
+  content: string,
+  terms: { all: string[] },
+  maxLen = 300,
+): string {
   if (content.length <= maxLen) return content;
   const lower = content.toLowerCase();
   const lead = Math.round(maxLen / 4);
@@ -340,7 +474,11 @@ export function snippetAround(content: string, terms: { all: string[] }, maxLen 
   let anchor = firsts[0].at;
   let most = 0;
   for (const f of firsts) {
-    const inWindow = new Set(firsts.filter((o) => o.at >= f.at - lead && o.at < f.at - lead + maxLen).map((o) => o.term)).size;
+    const inWindow = new Set(
+      firsts
+        .filter((o) => o.at >= f.at - lead && o.at < f.at - lead + maxLen)
+        .map((o) => o.term),
+    ).size;
     if (inWindow > most || (inWindow === most && f.at < anchor)) {
       most = inWindow;
       anchor = f.at;
@@ -348,5 +486,9 @@ export function snippetAround(content: string, terms: { all: string[] }, maxLen 
   }
   const start = Math.max(0, anchor - lead);
   const end = Math.min(content.length, start + maxLen);
-  return (start > 0 ? "..." : "") + content.slice(start, end) + (end < content.length ? "..." : "");
+  return (
+    (start > 0 ? "..." : "") +
+    content.slice(start, end) +
+    (end < content.length ? "..." : "")
+  );
 }

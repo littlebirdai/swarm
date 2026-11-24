@@ -9,24 +9,46 @@ import path from "node:path";
 import { parseLineProfileText } from "../apps/cli/src/lineProfile";
 import { evalSignals, signalArgv } from "../apps/evals/src/signals";
 import { insightBlockerSignals } from "../apps/server/convex/signals";
-import { LESSON_SIGNAL, lessonFingerprint } from "../apps/server/convex/lineLearn";
+import {
+  LESSON_SIGNAL,
+  lessonFingerprint,
+} from "../apps/server/convex/lineLearn";
 
 const root = path.join(import.meta.dir, "..");
 const read = (rel: string) => readFileSync(path.join(root, rel), "utf8");
-const profile = parseLineProfileText(read(".codecast/line.toml"), ".codecast/line.toml").values;
+const profile = parseLineProfileText(
+  read(".codecast/line.toml"),
+  ".codecast/line.toml",
+).values;
 
 type Filed = { source: string; kind: string; fingerprint: string };
 
 /** What each declared finder files, from its real code path. */
 const producers: Record<string, () => Filed[]> = {
   "eval-drift": () => {
-    const out = evalSignals({ surface: "title", regression: true, gatesFailed: ["lengths"], failingFreezes: ["e22b47f0aa"], summary: [] });
+    const out = evalSignals({
+      surface: "title",
+      regression: true,
+      gatesFailed: ["lengths"],
+      failingFreezes: ["e22b47f0aa"],
+      summary: [],
+    });
     return out.map((s) => {
       const argv = signalArgv(s);
-      return { source: argv[argv.indexOf("--source") + 1], kind: argv[argv.indexOf("--kind") + 1], fingerprint: argv[argv.indexOf("--fingerprint") + 1] };
+      return {
+        source: argv[argv.indexOf("--source") + 1],
+        kind: argv[argv.indexOf("--kind") + 1],
+        fingerprint: argv[argv.indexOf("--fingerprint") + 1],
+      };
     });
   },
-  "insight-blockers": () => insightBlockerSignals("jx7c6zk", ["Deploy fails on schema"], undefined, undefined),
+  "insight-blockers": () =>
+    insightBlockerSignals(
+      "jx7c6zk",
+      ["Deploy fails on schema"],
+      undefined,
+      undefined,
+    ),
   lessons: () => {
     // The card's Revise or Drop note (lineLearn), and the weekly harvest the
     // cast-lessons skill files by hand: its command block is what an agent runs.
@@ -36,7 +58,10 @@ const producers: Record<string, () => Filed[]> = {
     expect(skill).toMatch(/--fingerprint lesson:<rule-slug>/);
     expect(skill).toMatch(/--project /);
     return [
-      { ...LESSON_SIGNAL, fingerprint: lessonFingerprint("ct-7", "add a test") },
+      {
+        ...LESSON_SIGNAL,
+        fingerprint: lessonFingerprint("ct-7", "add a test"),
+      },
       { source, kind, fingerprint: "lesson:PR-code-4" },
     ];
   },
@@ -60,13 +85,19 @@ function fingerprintPattern(declared: string): RegExp {
     } else current += ch;
   }
   alternatives.push(current.trim());
-  const one = (alt: string) => alt.split(/<[^>]*>/).map((lit) => lit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\S+");
+  const one = (alt: string) =>
+    alt
+      .split(/<[^>]*>/)
+      .map((lit) => lit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("\\S+");
   return new RegExp(`^(?:${alternatives.filter(Boolean).map(one).join("|")})$`);
 }
 
 describe("codecast's declared finders", () => {
   test("every declared finder has a producer, and every producer is declared", () => {
-    expect((profile.finders ?? []).map((f) => f.id).sort()).toEqual(Object.keys(producers).sort());
+    expect((profile.finders ?? []).map((f) => f.id).sort()).toEqual(
+      Object.keys(producers).sort(),
+    );
   });
 
   for (const finder of profile.finders ?? []) {
@@ -83,10 +114,14 @@ describe("codecast's declared finders", () => {
   }
 
   test("the declared shape is read the way it is written", () => {
-    const p = fingerprintPattern("evals:<surface>:<gate, freeze or separated-worse>");
+    const p = fingerprintPattern(
+      "evals:<surface>:<gate, freeze or separated-worse>",
+    );
     expect("evals:title:lengths").toMatch(p);
     expect("evals:title").not.toMatch(p);
-    const lessons = fingerprintPattern("lesson:<task>:<note hash> (a card's note), lesson:<rule slug> (cast-lessons)");
+    const lessons = fingerprintPattern(
+      "lesson:<task>:<note hash> (a card's note), lesson:<rule slug> (cast-lessons)",
+    );
     expect("lesson:ct-7:0a1b2c3d").toMatch(lessons);
     expect("lesson:PR-code-4").toMatch(lessons);
     expect("insight:jx7:abc").not.toMatch(lessons);

@@ -42,6 +42,7 @@ The gap manifests in several ways:
 ### The Goal
 
 Build a parallel, stable plan/project/task structure that:
+
 - Both humans and agents can read, write, and collaborate on
 - Lives in parallel with and connects to sessions
 - Supports both top-down planning (human defines, agents execute) and bottom-up emergence (agent works, plan crystallizes)
@@ -80,6 +81,7 @@ Plans should not require rigid structure from the start. They grow organically: 
 ### 7. Fluid Entry Points
 
 Starting work should not require a specific ceremony. You can start from:
+
 - A task in the web UI ("Start" button spawns a session)
 - A CLI command (`cast task start ct-a3f8`)
 - Within an existing session ("this is getting complex, let me create a plan")
@@ -145,11 +147,13 @@ Three independent projects converged on this:
 **The Collaboration Paradox (Anthropic Research):** While engineers use AI in roughly 60% of their work, they report being able to "fully delegate" only 0-20% of tasks. AI serves as a constant collaborator, not an autonomous replacement. The shift is from writing code to reviewing, directing, and validating AI-generated code.
 
 **What's Actually Working:**
+
 - Plan-first workflows: explore files, request comprehensive plan, document in markdown before implementation. One practitioner called this "waterfall in 15 minutes."
 - Quality gates with hooks: Claude Code's `TeammateIdle` and `TaskCompleted` hooks enforce rules when teammates finish work.
 - Clear delegation criteria: easily verifiable + low-stakes = delegate. Conceptually difficult + design-dependent = collaborate or keep.
 
 **What's Failing:**
+
 - 67.3% of AI-generated PRs get rejected vs 15.6% for manually written code (LinearB data)
 - METR study: experienced maintainers were 19% slower with AI tools while believing they were 20% faster -- a 39-percentage-point perception gap
 - Google DORA Report 2025: 90% AI adoption correlates with 9% rises in bug rates, 91% increases in code review time, 154% increases in PR size
@@ -184,6 +188,7 @@ The OpenAI team built and shipped an internal beta product with 0 lines of manua
 #### Repository Knowledge as System of Record
 
 They tried the "one big AGENTS.md" approach and it failed:
+
 - Context is scarce. Giant instruction files crowd out the task and code.
 - Too much guidance becomes non-guidance. When everything is "important," nothing is.
 - It rots instantly. Monolithic manuals become graveyards of stale rules.
@@ -209,6 +214,7 @@ docs/
 #### Exec-Plans as First-Class Artifacts
 
 Ephemeral lightweight plans for small changes. Complex work captured in **execution plans** with:
+
 - Progress log (timestamped checkboxes)
 - Surprises & Discoveries (with evidence)
 - Decision Log (rationale + date)
@@ -285,6 +291,7 @@ hooks:
 #### The Single Persistent Workpad Pattern
 
 Each agent maintains one comment on the Linear issue as its running log. Agent posture:
+
 1. Determine ticket state, route to matching flow
 2. Move Todo -> In Progress immediately
 3. Create/find `## Codex Workpad` comment (single persistent comment per issue)
@@ -317,32 +324,38 @@ Symphony treats Linear as the external source of truth and the agent reads/write
 ### What Exists and Works
 
 **Convex Tables (fully defined, mature schemas):**
+
 - `tasks` table: short hash IDs (`ct-a3f8`), task_type, status (draft/open/in_progress/in_review/done/dropped), priority, assignee, `blocked_by`/`blocks` arrays, session linkage (conversations array, created_from_conversation, attempt_count), drive state (current_round, rounds array), `source` field (human/agent/insight/import), team_id
 - `docs` table: doc_type (doc/plan/decision/spec), content, team_id, project_id
 - `projects` table: title, description, status, project_path, team_id, lead
 
 **CLI Commands (complete):**
+
 - `codecast task create/ls/show/start/done/comment/ready/context`
 - `codecast project ls/create`
 - `codecast doc create/ls/show`
 
 **Task Mining Pipeline:**
+
 - `taskMining.ts` mines tasks from session insights
 - Runs via cron, creates draft tasks from blockers/next_actions in insights
 - Currently creates disconnected tasks (the noise problem)
 
 **Web Pages:**
+
 - `/docs`, `/docs/[id]` -- document list and detail
 - `/tasks`, `/tasks/[id]` -- task list and detail
 - Basic list+detail UI, functional but not a planning surface
 
 **Slash Commands:**
+
 - `/drive` -- persistent plan file + iterative polish loop (writes to local `.claude/drive.md`)
 - `/orchestrate` -- multi-agent coordinator, spawns implementers via tmux
 - `/start` -- project initializer, creates spec, decomposes into features
 - All operate on local files, not connected to Convex
 
 **Agent Infrastructure:**
+
 - tmux-based agent spawning (`agent-spawn.sh`, `agent-status.sh`, etc.)
 - Worktree management (`wt`, `wtl`, `wtm`, `wtd`, `wts`, `wtc`)
 - Resource locking (sim-acquire/release, port allocation by agent index)
@@ -361,6 +374,7 @@ Symphony treats Linear as the external source of truth and the agent reads/write
 ### Earlier Design Work (Session jx7dkxt)
 
 A massive 5600+ message session designed the task/doc/project system. Key outputs:
+
 - Renamed `codecast task` (old scheduler) to `codecast schedule`
 - Created new `task`, `project`, `doc` CLI commands
 - Created `tasks` and `docs` Convex tables
@@ -368,6 +382,7 @@ A massive 5600+ message session designed the task/doc/project system. Key output
 - Built web pages for docs, tasks, roadmap
 
 User feedback from that session:
+
 - Tasks/docs need team segregation (achieved later)
 - Should use plan titles in UI
 - Should be local-first across tasks and docs
@@ -396,6 +411,7 @@ The `/roadmap` page was later replaced with a redirect to `/team/activity` (sess
 **Rationale**: Claude Code agents already generate plan documents organically during sessions. The agent thinks through a problem, writes a plan, executes against it. This behavior is valuable and shouldn't be replaced. Instead, the system captures and promotes these organic plans into durable plan objects.
 
 The lifecycle:
+
 ```
 Ad-hoc agent plan (ephemeral, in session context)
     |  cast plan promote  or  cast plan create --from-session
@@ -434,6 +450,7 @@ These accumulate naturally as agents and humans add comments via `cast plan comm
 **Rationale**: This is the core architectural principle. If the UI shows one state and the CLI shows another, the system is broken. Convex provides real-time sync and subscriptions, making this natural.
 
 Entry points:
+
 - **Web UI**: Click "Start" on a task -> spawns a new agent session bound to that task's plan
 - **CLI**: `cast task start ct-a3f8` -> current session binds to the task and its plan
 - **Within a session**: Agent realizes work is complex, creates plan mid-stream
@@ -529,7 +546,7 @@ Entry points:
 ```typescript
 plans: defineTable({
   // Identity
-  short_id: v.string(),        // ct-xxx format, human-friendly
+  short_id: v.string(), // ct-xxx format, human-friendly
   title: v.string(),
 
   // Content
@@ -538,19 +555,19 @@ plans: defineTable({
 
   // Status
   status: v.union(
-    v.literal("draft"),       // Created but not yet activated
-    v.literal("active"),      // Being worked on
-    v.literal("paused"),      // Temporarily stopped
-    v.literal("done"),        // All criteria met
-    v.literal("abandoned"),   // Won't complete
+    v.literal("draft"), // Created but not yet activated
+    v.literal("active"), // Being worked on
+    v.literal("paused"), // Temporarily stopped
+    v.literal("done"), // All criteria met
+    v.literal("abandoned"), // Won't complete
   ),
 
   // Provenance
   source: v.union(
-    v.literal("human"),       // Created by human in UI or CLI
-    v.literal("agent"),       // Created by agent mid-session
-    v.literal("insight"),     // Auto-created from session insight mining
-    v.literal("promoted"),    // Promoted from ad-hoc session plan
+    v.literal("human"), // Created by human in UI or CLI
+    v.literal("agent"), // Created by agent mid-session
+    v.literal("insight"), // Auto-created from session insight mining
+    v.literal("promoted"), // Promoted from ad-hoc session plan
   ),
 
   // Ownership
@@ -559,7 +576,7 @@ plans: defineTable({
   project_id: v.optional(v.id("projects")),
 
   // Task ordering
-  task_ids: v.array(v.string()),  // Ordered list of task short_ids
+  task_ids: v.array(v.string()), // Ordered list of task short_ids
 
   // Progress (auto-calculated from linked tasks)
   progress: v.object({
@@ -570,32 +587,40 @@ plans: defineTable({
   }),
 
   // Structured logs (the exec-plan sections)
-  progress_log: v.array(v.object({
-    timestamp: v.number(),
-    entry: v.string(),
-    session_id: v.optional(v.string()),
-  })),
+  progress_log: v.array(
+    v.object({
+      timestamp: v.number(),
+      entry: v.string(),
+      session_id: v.optional(v.string()),
+    }),
+  ),
 
-  decision_log: v.array(v.object({
-    timestamp: v.number(),
-    decision: v.string(),
-    rationale: v.string(),
-    session_id: v.optional(v.string()),
-  })),
+  decision_log: v.array(
+    v.object({
+      timestamp: v.number(),
+      decision: v.string(),
+      rationale: v.string(),
+      session_id: v.optional(v.string()),
+    }),
+  ),
 
-  discoveries: v.array(v.object({
-    timestamp: v.number(),
-    finding: v.string(),
-    session_id: v.optional(v.string()),
-  })),
+  discoveries: v.array(
+    v.object({
+      timestamp: v.number(),
+      finding: v.string(),
+      session_id: v.optional(v.string()),
+    }),
+  ),
 
-  context_pointers: v.array(v.object({
-    label: v.string(),
-    path_or_url: v.string(),
-  })),
+  context_pointers: v.array(
+    v.object({
+      label: v.string(),
+      path_or_url: v.string(),
+    }),
+  ),
 
   // Session linkage
-  session_ids: v.array(v.string()),        // All conversations that worked on this
+  session_ids: v.array(v.string()), // All conversations that worked on this
   current_session_id: v.optional(v.string()), // Currently active session
 
   // Provenance links
@@ -606,17 +631,19 @@ plans: defineTable({
   .index("by_project_id", ["project_id"])
   .index("by_status", ["status"])
   .index("by_short_id", ["short_id"])
-  .index("by_team_and_status", ["team_id", "status"])
+  .index("by_team_and_status", ["team_id", "status"]);
 ```
 
 ### Modifications to Existing Tables
 
 **tasks table -- add field:**
+
 ```typescript
 plan_id: v.optional(v.id("plans")),  // Links task to parent plan
 ```
 
 **conversations table -- add fields:**
+
 ```typescript
 active_plan_id: v.optional(v.id("plans")),   // Plan this session is working on
 active_task_id: v.optional(v.string()),       // Specific task (short_id)
@@ -707,8 +734,8 @@ When a session binds to a plan (via `cast plan bind`, `cast task start`, or orch
 3. **Plan context injected** into the agent's context via the existing snippet mechanism (the same way session insights are injected today). This includes: title, goal, acceptance criteria, task list with statuses, recent comments, references.
 4. **Agent can read full plan** via `cast plan show` at any time
 5. **Comments** via `cast plan comment "..."` -- the agent calls this naturally as it works (progress, decisions with `-d`, discoveries with `-f`, references with `--ref`)
-7. **When session ends**, `plan.current_session_id` clears but the session is retained in `plan.session_ids`
-8. **Next session** can bind to same plan and pick up with full context from Convex
+6. **When session ends**, `plan.current_session_id` clears but the session is retained in `plan.session_ids`
+7. **Next session** can bind to same plan and pick up with full context from Convex
 
 ### Context Injection Format
 
@@ -743,6 +770,7 @@ This follows the progressive disclosure principle -- enough context to orient th
 ### Plan as Continuation State
 
 This is the key insight from Symphony applied to our architecture. When a session ends (crashes, compacts, user closes it), the plan retains:
+
 - What tasks are done vs. in progress vs. blocked
 - The progress log of what happened
 - Decisions that were made and why
@@ -760,17 +788,20 @@ The next session that binds to this plan gets all of this injected as context. T
 Column-based view (not kanban -- simpler):
 
 **Left sidebar**: Plan list grouped by status
+
 - Active plans (sorted by last activity)
 - Draft plans (needs triage badge)
 - Paused plans
 - Done plans (collapsed by default)
 
 **Main area**: Selected plan detail
+
 - Header: title, status badge, progress bar, owner, project
 - Action buttons: Activate/Pause/Done, Spawn Agent, Edit
 - Tabbed content:
 
 **Tasks Tab:**
+
 - Ordered task list with inline status indicators
 - Drag to reorder
 - Add new task inline
@@ -779,15 +810,18 @@ Column-based view (not kanban -- simpler):
 - "Start" button per task (spawns agent session)
 
 **Progress Tab:**
+
 - Timestamped log entries (the workpad)
 - Session links on entries (click to jump to the session message)
 - Newest first, with date separators
 
 **Decisions Tab:**
+
 - Decision + rationale pairs
 - Timestamped, with session links
 
 **Sessions Tab:**
+
 - All sessions that worked on this plan
 - Active session highlighted
 - Session summary/title with link to session view
@@ -799,6 +833,7 @@ Same content as the main area in the board view, but standalone. Useful for deep
 ### Inbox Enhancement
 
 The existing inbox should show plan context:
+
 - Sessions display their bound plan name as a tag/badge
 - "Draft Plans" section appears when there are plans needing triage
 - Each draft plan shows: title, source (agent/insight), creation context
@@ -807,6 +842,7 @@ The existing inbox should show plan context:
 ### Session View Enhancement
 
 When viewing a session that has `active_plan_id`:
+
 - Plan context panel (collapsible) showing current plan state
 - Link to plan detail
 - If session created an ad-hoc plan (detected from session content), show "Promote to Plan" button
@@ -814,6 +850,7 @@ When viewing a session that has `active_plan_id`:
 ### Task Detail Enhancement
 
 When viewing a task that has `plan_id`:
+
 - Link to parent plan
 - Plan progress context (where this task sits in the overall plan)
 - Other tasks in the plan listed as related items
@@ -831,20 +868,24 @@ Session ends -> `taskMining.ts` runs -> creates 1-3 draft tasks from insight fie
 The mining pipeline should create plans when appropriate:
 
 **Step 1: Analyze the insight**
+
 - Does it have a coherent goal (from `plan_title` or `summary`)?
 - Does it have multiple related action items (blockers + next_actions)?
 - Is the work multi-step (more than one task)?
 
 **Step 2: Check existing plans**
+
 - Do any active plans relate to this insight's topic?
 - Would these tasks fit naturally into an existing plan?
 
 **Step 3: Route appropriately**
+
 - **Single atomic task**: Create standalone draft task (current behavior)
 - **Multi-step effort, no existing plan**: Create draft plan with grouped tasks
 - **Related to existing plan**: Add tasks to existing plan, append to progress log
 
 **Step 4: Reduce noise**
+
 - Draft plans appear as a single triage item, not N disconnected tasks
 - Human sees "Draft Plan: Refactor auth (3 tasks)" instead of 3 unrelated items
 - One-click to activate, drop, or merge
@@ -852,6 +893,7 @@ The mining pipeline should create plans when appropriate:
 ### Implementation Notes
 
 The mining logic in `taskMining.ts` needs to:
+
 1. Check for existing plans by team + project before creating new ones (fuzzy match on title/goal)
 2. Group related tasks from the same insight into a plan
 3. Set `source: "insight"` on auto-created plans
@@ -890,6 +932,7 @@ cast plan orchestrate ct-a3f8
 ### From-UI Orchestration (Future)
 
 "Start All" button on a plan. Creates a daemon process that:
+
 - Spawns agent sessions for ready tasks
 - Monitors progress
 - Reports back to the UI in real-time
@@ -897,6 +940,7 @@ cast plan orchestrate ct-a3f8
 ### Daemon Mode (Future, Symphony-Style)
 
 A background process that continuously:
+
 1. Polls Convex every 5s for plans with ready tasks
 2. Spawns agents up to configured concurrency limit
 3. Handles turn continuation when agents hit max turns
@@ -921,6 +965,7 @@ This is essentially Symphony but with Convex as the tracker instead of Linear. T
 **Goal**: Plans are a first-class entity that agents and humans can create, read, and update.
 
 **Deliverables:**
+
 1. Add `plans` table to Convex schema (done: packages/convex/convex/schema.ts)
 2. Add `plan_id` to `tasks` table (done)
 3. Add `active_plan_id` and `active_task_id` to `conversations` table (done)
@@ -938,6 +983,7 @@ This is essentially Symphony but with Convex as the tracker instead of Linear. T
 **Goal**: Humans can see, manage, and interact with plans in the web interface.
 
 **Deliverables:**
+
 1. Plan board page (`/plans`) with column view (done: packages/web/app/plans/page.tsx)
 2. Plan detail page (`/plans/[id]`) with tabs (done: packages/web/app/plans/[id]/page.tsx)
 3. Inbox integration (plan name on sessions, draft plans section) (partly: plan badge in components/inbox/SessionCardView.tsx, no draft plans section)
@@ -954,6 +1000,7 @@ This is essentially Symphony but with Convex as the tracker instead of Linear. T
 **Goal**: Session insights produce coherent plans instead of disconnected task noise.
 
 **Deliverables:**
+
 1. Mining pipeline checks existing plans before creating new tasks (done: taskMining.ts findSimilarPlan)
 2. Multi-step insights create draft plans with grouped tasks (done: theme grouping of 3+ tasks)
 3. Single-step insights create standalone tasks (current behavior) (done)
@@ -967,6 +1014,7 @@ This is essentially Symphony but with Convex as the tracker instead of Linear. T
 **Goal**: Spawn and manage parallel agent workers from within a session, via CLI, or from the UI.
 
 **Deliverables:**
+
 1. `cast plan orchestrate <plan_id>` command (done)
 2. Integration with existing tmux agent infrastructure (done)
 3. Worktree-per-task isolation (not done in `cast plan orchestrate`; `cast ws` exists separately)
@@ -983,6 +1031,7 @@ This is essentially Symphony but with Convex as the tracker instead of Linear. T
 **Goal**: Continuous autonomous orchestration loop, Symphony-style.
 
 **Deliverables:**
+
 1. Background polling daemon (integrated into `codecast schedule` or standalone)
 2. Polls Convex for plans with ready tasks
 3. Spawns agents up to concurrency limit

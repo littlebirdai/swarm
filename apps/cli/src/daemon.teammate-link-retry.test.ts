@@ -23,14 +23,32 @@ const LEAD_CONV = "convLeadJx788p3";
 const TEAMMATE_SESSION = "7e57a0e0-0000-4000-8000-0000000e5e1d";
 const TEAMMATE_CONV = "convTeammateJx7akcgc";
 
-function teammateLine(uuid: string, parentUuid: string | null, role: "user" | "assistant", cwd: string, ts: string): string {
+function teammateLine(
+  uuid: string,
+  parentUuid: string | null,
+  role: "user" | "assistant",
+  cwd: string,
+  ts: string,
+): string {
   return JSON.stringify({
-    parentUuid, isSidechain: false, type: role, cwd, sessionId: TEAMMATE_SESSION,
-    teamName: TEAM, agentName: AGENT, version: "2.1.259",
-    message: role === "user"
-      ? { role, content: "Read /tmp/featmap/BRIEF.md first." }
-      : { role, stop_reason: "end_turn", content: [{ type: "text", text: "Working." }] },
-    uuid, timestamp: ts,
+    parentUuid,
+    isSidechain: false,
+    type: role,
+    cwd,
+    sessionId: TEAMMATE_SESSION,
+    teamName: TEAM,
+    agentName: AGENT,
+    version: "2.1.259",
+    message:
+      role === "user"
+        ? { role, content: "Read /tmp/featmap/BRIEF.md first." }
+        : {
+            role,
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: "Working." }],
+          },
+    uuid,
+    timestamp: ts,
   });
 }
 
@@ -40,26 +58,51 @@ let filePath: string;
 let savedHome: string | undefined;
 
 beforeAll(() => {
-  base = fs.mkdtempSync(path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-teammate-link-"));
+  base = fs.mkdtempSync(
+    path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-teammate-link-"),
+  );
   projDir = path.join(base, "cwd-project");
   fs.mkdirSync(projDir, { recursive: true });
   fs.mkdirSync(path.join(base, "proj"), { recursive: true });
   filePath = path.join(base, "proj", `${TEAMMATE_SESSION}.jsonl`);
-  fs.writeFileSync(filePath, [
-    teammateLine("u1", null, "user", projDir, "2026-09-02T22:21:56.049Z"),
-    teammateLine("a1", "u1", "assistant", projDir, "2026-09-02T22:21:58.000Z"),
-  ].join("\n") + "\n");
+  fs.writeFileSync(
+    filePath,
+    [
+      teammateLine("u1", null, "user", projDir, "2026-09-02T22:21:56.049Z"),
+      teammateLine(
+        "a1",
+        "u1",
+        "assistant",
+        projDir,
+        "2026-09-02T22:21:58.000Z",
+      ),
+    ].join("\n") + "\n",
+  );
   // The resolver's fast path: ~/.claude/teams/<team>/config.json names a lead
   // session id that the conversation cache resolves.
   const teamDir = path.join(base, ".claude", "teams", TEAM);
   fs.mkdirSync(teamDir, { recursive: true });
-  fs.writeFileSync(path.join(teamDir, "config.json"), JSON.stringify({
-    name: TEAM, leadSessionId: LEAD_SESSION,
-    members: [
-      { agentId: `team-lead@${TEAM}`, name: "team-lead", backendType: "in-process", tmuxPaneId: "leader" },
-      { agentId: `${AGENT}@${TEAM}`, name: AGENT, backendType: "tmux", tmuxPaneId: "%328" },
-    ],
-  }));
+  fs.writeFileSync(
+    path.join(teamDir, "config.json"),
+    JSON.stringify({
+      name: TEAM,
+      leadSessionId: LEAD_SESSION,
+      members: [
+        {
+          agentId: `team-lead@${TEAM}`,
+          name: "team-lead",
+          backendType: "in-process",
+          tmuxPaneId: "leader",
+        },
+        {
+          agentId: `${AGENT}@${TEAM}`,
+          name: AGENT,
+          backendType: "tmux",
+          tmuxPaneId: "%328",
+        },
+      ],
+    }),
+  );
   savedHome = process.env.HOME;
   process.env.HOME = base;
 });
@@ -78,11 +121,17 @@ describe("teammate lead link survives a create that fell to the retry queue", ()
     let createCalls = 0;
     const syncService = new Proxy({} as Record<string, unknown>, {
       get: (_t, prop) => {
-        if (prop === "createConversation") return async () => {
-          createCalls++;
-          throw new Error('{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"sync_heads\\" table changed"}');
-        };
-        if (prop === "linkSpawnedBy") return async (...args: unknown[]) => { links.push(args); };
+        if (prop === "createConversation")
+          return async () => {
+            createCalls++;
+            throw new Error(
+              '{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"sync_heads\\" table changed"}',
+            );
+          };
+        if (prop === "linkSpawnedBy")
+          return async (...args: unknown[]) => {
+            links.push(args);
+          };
         return async () => undefined;
       },
     }) as unknown as SyncService;
@@ -94,25 +143,55 @@ describe("teammate lead link survives a create that fell to the retry queue", ()
         return () => undefined;
       },
     }) as unknown as RetryQueue;
-    const conversationCache: Record<string, string> = { [LEAD_SESSION]: LEAD_CONV };
+    const conversationCache: Record<string, string> = {
+      [LEAD_SESSION]: LEAD_CONV,
+    };
     const pendingMessages: Record<string, unknown[]> = {};
 
     // Pass 1: the direct create throws → queued for retry. No conversation
     // exists yet, so no link may be attempted (an attempt here would burn one
     // of the bounded tries against a row that does not exist).
-    await expect(processSessionFile(filePath, TEAMMATE_SESSION, projDir, syncService, "user123", undefined,
-      conversationCache, retryQueue, pendingMessages as any, {}, () => {})).rejects.toThrow("retains unread data");
+    await expect(
+      processSessionFile(
+        filePath,
+        TEAMMATE_SESSION,
+        projDir,
+        syncService,
+        "user123",
+        undefined,
+        conversationCache,
+        retryQueue,
+        pendingMessages as any,
+        {},
+        () => {},
+      ),
+    ).rejects.toThrow("retains unread data");
     expect(createCalls).toBe(1);
     expect(links).toEqual([]);
 
     // The retry executor mints the row and caches it (daemon retry path).
     conversationCache[TEAMMATE_SESSION] = TEAMMATE_CONV;
     // The teammate keeps writing; every line carries the team stamp.
-    fs.appendFileSync(filePath, teammateLine("u2", "a1", "user", projDir, "2026-09-02T22:22:20.000Z") + "\n");
+    fs.appendFileSync(
+      filePath,
+      teammateLine("u2", "a1", "user", projDir, "2026-09-02T22:22:20.000Z") +
+        "\n",
+    );
 
     // Pass 2: a cached conversation + the stamp → link to the resolved lead.
-    await processSessionFile(filePath, TEAMMATE_SESSION, projDir, syncService, "user123", undefined,
-      conversationCache, retryQueue, pendingMessages as any, {}, () => {});
+    await processSessionFile(
+      filePath,
+      TEAMMATE_SESSION,
+      projDir,
+      syncService,
+      "user123",
+      undefined,
+      conversationCache,
+      retryQueue,
+      pendingMessages as any,
+      {},
+      () => {},
+    );
     await new Promise((r) => setTimeout(r, 50)); // the link is fire-and-forget
     expect(createCalls).toBe(1);
     expect(links).toEqual([[LEAD_CONV, TEAMMATE_CONV, TEAM, AGENT]]);

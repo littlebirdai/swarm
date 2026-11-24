@@ -3,12 +3,22 @@
 // never answers is a skip too rather than a stalled trigger.
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runTriggerPrecheck } from "./precheckRunner.js";
 import { pollUntil } from "./test-helpers/pollUntil.js";
-import { triggerPrecheckPassed, describeTriggerPrecheckFailure } from "@codecast/shared/contracts";
+import {
+  triggerPrecheckPassed,
+  describeTriggerPrecheckFailure,
+} from "@codecast/shared/contracts";
 
 function withCwd(run: (cwd: string) => Promise<void>): () => Promise<void> {
   return async () => {
@@ -22,7 +32,6 @@ function withCwd(run: (cwd: string) => Promise<void>): () => Promise<void> {
 }
 
 describe("runTriggerPrecheck", () => {
-
   test(
     "a gate finds the CLIs an agent would, even under launchd's bare PATH",
     withCwd(async (cwd) => {
@@ -105,12 +114,23 @@ describe("runTriggerPrecheck", () => {
         timeoutMs: 300,
       });
       const child = Number(readFileSync(pidFile, "utf8"));
-      const alive = () => { try { process.kill(child, 0); return true; } catch { return false; } };
+      const alive = () => {
+        try {
+          process.kill(child, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      };
       try {
         expect(result.timedOut).toBe(true);
-        await pollUntil(() => !alive(), "the setsid child to end", { ms: 5000 });
+        await pollUntil(() => !alive(), "the setsid child to end", {
+          ms: 5000,
+        });
       } finally {
-        try { process.kill(child, "SIGKILL"); } catch {}
+        try {
+          process.kill(child, "SIGKILL");
+        } catch {}
       }
     }),
     30_000,

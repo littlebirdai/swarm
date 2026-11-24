@@ -37,7 +37,10 @@ const shortIdKeys = new Map<string, string>();
  *  minted by agents do. Try the key, then the learned short-id key; scan only
  *  when both miss: the row has not synced yet, or its key changed (a stub
  *  superseded by its server row). */
-function findRow(rows: Record<string, any> | undefined, id: string | undefined): any {
+function findRow(
+  rows: Record<string, any> | undefined,
+  id: string | undefined,
+): any {
   if (!rows || !id) return undefined;
   const direct = rows[id];
   if (direct) return direct;
@@ -74,19 +77,34 @@ function ClassicBreadcrumbBar() {
   // One narrow selector per surface, each returning a string. Every one is
   // inert unless the route actually names that kind of thing.
   const projectId = head === "projects" ? first : undefined;
-  const projectTitle = useInboxStore((s) => (projectId ? findRow(s.projects, projectId)?.title : undefined));
-  const projectColor = useInboxStore((s) => (projectId ? findRow(s.projects, projectId)?.color : undefined));
+  const projectTitle = useInboxStore((s) =>
+    projectId ? findRow(s.projects, projectId)?.title : undefined,
+  );
+  const projectColor = useInboxStore((s) =>
+    projectId ? findRow(s.projects, projectId)?.color : undefined,
+  );
 
-  const taskId = head === "projects" ? second : head === "tasks" ? first : undefined;
-  const taskTitle = useInboxStore((s) => (taskId ? findRow(s.tasks, taskId)?.title : undefined));
-  const taskShortId = useInboxStore((s) => (taskId ? findRow(s.tasks, taskId)?.short_id : undefined));
+  const taskId =
+    head === "projects" ? second : head === "tasks" ? first : undefined;
+  const taskTitle = useInboxStore((s) =>
+    taskId ? findRow(s.tasks, taskId)?.title : undefined,
+  );
+  const taskShortId = useInboxStore((s) =>
+    taskId ? findRow(s.tasks, taskId)?.short_id : undefined,
+  );
 
   const docId = head === "docs" ? first : undefined;
-  const docTitle = useInboxStore((s) => (docId ? findRow(s.docs, docId)?.title : undefined));
+  const docTitle = useInboxStore((s) =>
+    docId ? findRow(s.docs, docId)?.title : undefined,
+  );
 
   const planId = head === "plans" ? first : undefined;
-  const planTitle = useInboxStore((s) => (planId ? findRow(s.plans, planId)?.title : undefined));
-  const planShortId = useInboxStore((s) => (planId ? findRow(s.plans, planId)?.short_id : undefined));
+  const planTitle = useInboxStore((s) =>
+    planId ? findRow(s.plans, planId)?.title : undefined,
+  );
+  const planShortId = useInboxStore((s) =>
+    planId ? findRow(s.plans, planId)?.short_id : undefined,
+  );
 
   const channelId = head === "chat" ? first : undefined;
   // A DM's crumb is the other side's names — same derivation as every chat
@@ -97,7 +115,14 @@ function ClassicBreadcrumbBar() {
     if (!row) return undefined;
     if ((row as any).kind === "dm") {
       return channelDisplayName(
-        { name: "", kind: "dm", dmMemberIds: dmOtherIds((row as any).dm_key, String((s as any).currentUser?._id ?? "")) },
+        {
+          name: "",
+          kind: "dm",
+          dmMemberIds: dmOtherIds(
+            (row as any).dm_key,
+            String((s as any).currentUser?._id ?? ""),
+          ),
+        },
         teamMembersOf(s),
       );
     }
@@ -113,7 +138,16 @@ function ClassicBreadcrumbBar() {
       channel: () => ({ name: channelName }),
     };
     return buildBreadcrumbs(pathname, lookups);
-  }, [pathname, projectTitle, taskTitle, taskShortId, docTitle, planTitle, planShortId, channelName]);
+  }, [
+    pathname,
+    projectTitle,
+    taskTitle,
+    taskShortId,
+    docTitle,
+    planTitle,
+    planShortId,
+    channelName,
+  ]);
 
   // A SPLIT stage has no single trail: the bar spans every pane while its
   // crumbs describe only the focused one, and each pane already names itself
@@ -133,12 +167,17 @@ function ClassicBreadcrumbBar() {
     shortId: spec.shortId,
     icon:
       spec.kind === "project" ? (
-        <span className={`w-2 h-2 rotate-45 rounded-[2px] flex-shrink-0 ${projectDotClass({ color: projectColor, title: projectTitle })}`} />
+        <span
+          className={`w-2 h-2 rotate-45 rounded-[2px] flex-shrink-0 ${projectDotClass({ color: projectColor, title: projectTitle })}`}
+        />
       ) : undefined,
   }));
 
   return (
-    <div ref={titlebarRef} className="flex items-center gap-2 px-6 h-10 border-b border-sol-border/20 flex-shrink-0 min-w-0">
+    <div
+      ref={titlebarRef}
+      className="flex items-center gap-2 px-6 h-10 border-b border-sol-border/20 flex-shrink-0 min-w-0"
+    >
       <Breadcrumbs items={items} className="min-w-0" />
     </div>
   );

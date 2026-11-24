@@ -10,9 +10,17 @@
 
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { resolveQuoteSelection, quoteSelectionIntoReply, type QuoteSelection } from "../lib/quoteSelection";
+import {
+  resolveQuoteSelection,
+  quoteSelectionIntoReply,
+  type QuoteSelection,
+} from "../lib/quoteSelection";
 import { MenuKeyCaps } from "./KeyboardShortcutsHelp";
-import { FilePathContext, filePathHref, filePathMention } from "../lib/filePathLinks";
+import {
+  FilePathContext,
+  filePathHref,
+  filePathMention,
+} from "../lib/filePathLinks";
 import { openFiles } from "../lib/filesPane";
 
 // A selection that names a file the auto-linker left alone (`apps/web`,
@@ -24,11 +32,16 @@ function selectedPath(quote: string): { path: string; line?: number } | null {
   if (!text || /\s/.test(text)) return null;
   const mention = filePathMention(text);
   if (mention) return { path: mention.path, line: mention.line };
-  if (text.includes("/") || /\.[A-Za-z][A-Za-z0-9]{0,9}$/.test(text)) return { path: text.replace(/[.,;:!?)]+$/, "") };
+  if (text.includes("/") || /\.[A-Za-z][A-Za-z0-9]{0,9}$/.test(text))
+    return { path: text.replace(/[.,;:!?)]+$/, "") };
   return null;
 }
 
-export function SelectionQuoteToolbar({ conversationId }: { conversationId: string }) {
+export function SelectionQuoteToolbar({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
   const [anchor, setAnchor] = useState<QuoteSelection | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,7 +112,12 @@ export function SelectionQuoteToolbar({ conversationId }: { conversationId: stri
         <MenuKeyCaps action="conv.review" className="contents" />
       </button>
       {asPath && (
-        <button type="button" className="cc-sel-btn" onClick={doOpenFile} title={`Open ${asPath.path} in Files`}>
+        <button
+          type="button"
+          className="cc-sel-btn"
+          onClick={doOpenFile}
+          title={`Open ${asPath.path} in Files`}
+        >
           Open in Files
         </button>
       )}

@@ -69,15 +69,21 @@ export function deviceKeyComment(deviceLabel: string): string {
 /**
  * Mint the device keypair if absent; returns the public key.
  */
-export async function ensureDeviceGitKey(deviceLabel: string): Promise<string | undefined> {
+export async function ensureDeviceGitKey(
+  deviceLabel: string,
+): Promise<string | undefined> {
   const existing = deviceGitPubkey();
   if (existing) return existing;
   try {
     fs.mkdirSync(GIT_DIR, { recursive: true, mode: 0o700 });
     const comment = deviceKeyComment(deviceLabel);
-    await execFileAsync("ssh-keygen", ["-t", "ed25519", "-N", "", "-C", comment, "-f", KEY_PATH, "-q"], {
-      timeout: 20_000,
-    });
+    await execFileAsync(
+      "ssh-keygen",
+      ["-t", "ed25519", "-N", "", "-C", comment, "-f", KEY_PATH, "-q"],
+      {
+        timeout: 20_000,
+      },
+    );
     return deviceGitPubkey();
   } catch {
     // A machine without ssh-keygen simply reports no pubkey; the web card

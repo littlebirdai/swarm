@@ -17,26 +17,55 @@ import { execFileSync } from "../proc.js";
 export type RunWorktreeRestore = "present" | "restored" | "no_branch";
 
 /** A run's checkout, from the context it runs with, back before a station (runner.ts driveRun and runNodeLoop). */
-export async function restoreRunTree(cwd: string, context: Record<string, string>): Promise<void> {
+export async function restoreRunTree(
+  cwd: string,
+  context: Record<string, string>,
+): Promise<void> {
   const worktree = context["worktree"];
   if (!worktree) return;
   const branch = context["branch"] || `codecast/${worktree}`;
   try {
-    if (await restoreRunWorktree(cwd, worktree, branch) === "restored") console.log(`${c.dim}Put worktree ${worktree} back on ${branch}${c.reset}`);
+    if ((await restoreRunWorktree(cwd, worktree, branch)) === "restored")
+      console.log(
+        `${c.dim}Put worktree ${worktree} back on ${branch}${c.reset}`,
+      );
   } catch (err) {
     // The station that needs it still fails with its own error; the run is not stopped here.
-    console.error(`${c.yellow}Could not put worktree ${worktree} back on ${branch}: ${(err as Error).message}${c.reset}`);
+    console.error(
+      `${c.yellow}Could not put worktree ${worktree} back on ${branch}: ${(err as Error).message}${c.reset}`,
+    );
   }
 }
 
 /** Put the run's worktree `name` back on `branch` when its directory is gone; `cwd` is the run's checkout. */
-export async function restoreRunWorktree(cwd: string, name: string, branch: string): Promise<RunWorktreeRestore> {
-  const git = (...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+export async function restoreRunWorktree(
+  cwd: string,
+  name: string,
+  branch: string,
+): Promise<RunWorktreeRestore> {
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-C", cwd, ...args], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   // The root `cast ws path` resolves from a station's directory, so the checkout lands where it looks.
   const repoRoot = git("rev-parse", "--show-toplevel");
   const { readState } = await import("../workspace/contract.js");
-  if (fs.existsSync(readState(repoRoot, name)?.path ?? path.join(repoRoot, ".codecast", "worktrees", name))) return "present";
-  const has = (ref: string) => { try { git("show-ref", "--verify", "--quiet", ref); return true; } catch { return false; } };
+  if (
+    fs.existsSync(
+      readState(repoRoot, name)?.path ??
+        path.join(repoRoot, ".codecast", "worktrees", name),
+    )
+  )
+    return "present";
+  const has = (ref: string) => {
+    try {
+      git("show-ref", "--verify", "--quiet", ref);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   if (!has(`refs/heads/${branch}`)) {
     const { ARCHIVE_REF_PREFIX } = await import("../land/prune.js");
     if (!has(`${ARCHIVE_REF_PREFIX}${branch}`)) return "no_branch";
@@ -58,18 +87,29 @@ export async function restoreRunWorktree(cwd: string, name: string, branch: stri
  * lacks, is left to the daemon's sweep (land/sweep.ts), which shows the
  * latter to the run's task.
  */
-export async function releaseEndedRunTree(cwd: string, context: Record<string, string>): Promise<void> {
+export async function releaseEndedRunTree(
+  cwd: string,
+  context: Record<string, string>,
+): Promise<void> {
   const name = context["worktree"];
   if (!name) return;
   try {
-    const repoRoot = execFileSync("git", ["-C", cwd, "rev-parse", "--show-toplevel"], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const repoRoot = execFileSync(
+      "git",
+      ["-C", cwd, "rev-parse", "--show-toplevel"],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
     const { readState } = await import("../workspace/contract.js");
-    const tree = readState(repoRoot, name)?.path ?? path.join(repoRoot, ".codecast", "worktrees", name);
+    const tree =
+      readState(repoRoot, name)?.path ??
+      path.join(repoRoot, ".codecast", "worktrees", name);
     if (!fs.existsSync(tree)) return;
     const { readProcessCwds } = await import("../land/scan.js");
     const cwds = await readProcessCwds();
     if (!cwds || cwds.some((p) => p === tree || p.startsWith(`${tree}/`))) {
-      console.log(`${c.dim}Kept worktree ${name}: ${cwds ? "a running process sits in it" : "could not read which processes sit in it"}${c.reset}`);
+      console.log(
+        `${c.dim}Kept worktree ${name}: ${cwds ? "a running process sits in it" : "could not read which processes sit in it"}${c.reset}`,
+      );
       return;
     }
     const { contentKeepReason, releaseTree } = await import("../worktreeGc.js");
@@ -79,9 +119,13 @@ export async function releaseEndedRunTree(cwd: string, context: Record<string, s
       return;
     }
     await releaseTree(repoRoot, tree);
-    console.log(`${c.dim}Released worktree ${name}; its branch stays${c.reset}`);
+    console.log(
+      `${c.dim}Released worktree ${name}; its branch stays${c.reset}`,
+    );
   } catch (err) {
-    console.error(`${c.yellow}Could not release worktree ${name}: ${(err as Error).message.split("\n")[0]}${c.reset}`);
+    console.error(
+      `${c.yellow}Could not release worktree ${name}: ${(err as Error).message.split("\n")[0]}${c.reset}`,
+    );
   }
 }
 
@@ -92,12 +136,19 @@ export async function releaseEndedRunTree(cwd: string, context: Record<string, s
  * none. Six parked change runs each held one at ~460% CPU on Nov 21 (ct-98941).
  * Reads the state file first, so a run with no browser pays one file read.
  */
-export async function stopRunBrowser(cwd: string, context: Record<string, string>): Promise<boolean> {
+export async function stopRunBrowser(
+  cwd: string,
+  context: Record<string, string>,
+): Promise<boolean> {
   const worktree = context["worktree"];
   if (!worktree) return false;
   let repoRoot: string;
   try {
-    repoRoot = execFileSync("git", ["-C", cwd, "rev-parse", "--show-toplevel"], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    repoRoot = execFileSync(
+      "git",
+      ["-C", cwd, "rev-parse", "--show-toplevel"],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
   } catch {
     return false; // not a checkout: no workspace, so no browser
   }
@@ -106,10 +157,13 @@ export async function stopRunBrowser(cwd: string, context: Record<string, string
   try {
     const { stopWorkspaceBrowser } = await import("../workspace/lifecycle.js");
     const stopped = await stopWorkspaceBrowser(repoRoot, worktree);
-    if (stopped) console.log(`${c.dim}Stopped worktree ${worktree}'s Chrome${c.reset}`);
+    if (stopped)
+      console.log(`${c.dim}Stopped worktree ${worktree}'s Chrome${c.reset}`);
     return stopped;
   } catch (err) {
-    console.error(`${c.yellow}Could not stop worktree ${worktree}'s Chrome: ${(err as Error).message}${c.reset}`);
+    console.error(
+      `${c.yellow}Could not stop worktree ${worktree}'s Chrome: ${(err as Error).message}${c.reset}`,
+    );
     return false;
   }
 }

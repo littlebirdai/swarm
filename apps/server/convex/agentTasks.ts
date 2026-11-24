@@ -3,7 +3,14 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { normalizeRepository } from "./lib/gitRefs";
-import { mutation, query, internalMutation, internalAction, internalQuery, type MutationCtx } from "./functions";
+import {
+  mutation,
+  query,
+  internalMutation,
+  internalAction,
+  internalQuery,
+  type MutationCtx,
+} from "./functions";
 import { internal } from "./_generated/api";
 import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -15,37 +22,118 @@ import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { enqueuePush } from "./pushRouter";
 import { isTeamMember } from "./privacy";
 import { nextShortId } from "./counters";
-import { eventFilterValidator, type EventFilter, type PendingEvent } from "./lib/eventFilterValidator";
-import { PENDING_EVENTS_CAP, sourceFilterAdmits } from "@codecast/shared/contracts/ingest";
-import { canAccessConversation, canAccessProject, workspaceGrantsAccess } from "./lib/access";
+import {
+  eventFilterValidator,
+  type EventFilter,
+  type PendingEvent,
+} from "./lib/eventFilterValidator";
+import {
+  PENDING_EVENTS_CAP,
+  sourceFilterAdmits,
+} from "@codecast/shared/contracts/ingest";
+import {
+  canAccessConversation,
+  canAccessProject,
+  workspaceGrantsAccess,
+} from "./lib/access";
 import { canAccessChannel } from "./chatAccess";
 import { projectChannelRefusal } from "@codecast/shared/contracts";
 import { mainSessionFor, mainSessionRefusal } from "./lib/projectMainSession";
 import { restoreToInbox } from "./inboxFilters";
-import { configuredCloudWakeHosts, getCloudWakeHostForConversation } from "./cloudWake";
+import {
+  configuredCloudWakeHosts,
+  getCloudWakeHostForConversation,
+} from "./cloudWake";
 import { enqueuePendingMessage, reachableRole } from "./pendingMessages";
-import { isHostedAgentType, triggerFiringSource, triggerFiringContinues, TRIGGER_PRECHECK_MESSAGE_CHARS, normalizeThreadState, runOwnerWakeOf, runParentOf, runResultThreadOf, triggerRunFrame, formatScheduledTask, isChatTriggerEvent, isPageTriggerEvent, type RoleCard, type RunOutcome, type WaitingSession } from "@codecast/shared/contracts";
+import {
+  isHostedAgentType,
+  triggerFiringSource,
+  triggerFiringContinues,
+  TRIGGER_PRECHECK_MESSAGE_CHARS,
+  normalizeThreadState,
+  runOwnerWakeOf,
+  runParentOf,
+  runResultThreadOf,
+  triggerRunFrame,
+  formatScheduledTask,
+  isChatTriggerEvent,
+  isPageTriggerEvent,
+  type RoleCard,
+  type RunOutcome,
+  type WaitingSession,
+} from "@codecast/shared/contracts";
 import type { AreaChange } from "@codecast/shared/contracts/orgAreas";
-import { isOrgReviewFocusKey, type OrgReviewFocusKey } from "@codecast/shared/contracts/orgReview";
-import { findRoleEventTrigger, ROLE_NEEDS_INPUT_SPEC, roleEventSpecsFor, roleMachineAway, type RoleEventSpec } from "./lib/orgRoutine";
+import {
+  isOrgReviewFocusKey,
+  type OrgReviewFocusKey,
+} from "@codecast/shared/contracts/orgReview";
+import {
+  findRoleEventTrigger,
+  ROLE_NEEDS_INPUT_SPEC,
+  roleEventSpecsFor,
+  roleMachineAway,
+  type RoleEventSpec,
+} from "./lib/orgRoutine";
 import { runnerDeviceOf } from "./lib/runnerDevice";
-import { roleServedInitiatives, servedMetricLines } from "./lib/roleInitiatives";
-import { listOnlineDevices, parkedAccountResetAt, recoveryModeOf } from "./ccAccountsShared";
+import {
+  roleServedInitiatives,
+  servedMetricLines,
+} from "./lib/roleInitiatives";
+import {
+  listOnlineDevices,
+  parkedAccountResetAt,
+  recoveryModeOf,
+} from "./ccAccountsShared";
 import { performSetThreadState } from "./conversations";
 import { createDataContext } from "./data";
 import { triggerSourceName } from "./ingest";
 import { canReadCall } from "./transcripts";
-import { armedTriggers, channelTriggers, pageTriggers } from "./lib/triggerMatch";
+import {
+  armedTriggers,
+  channelTriggers,
+  pageTriggers,
+} from "./lib/triggerMatch";
 import { watchedPageFilter, watcherMayRead } from "./pageState";
-import { hostedHomeStamp, hostedOwnerRefusal, hostedRoutineRefusal, hostedWallCadence, type HostedRoutine } from "./assistant/routines";
+import {
+  hostedHomeStamp,
+  hostedOwnerRefusal,
+  hostedRoutineRefusal,
+  hostedWallCadence,
+  type HostedRoutine,
+} from "./assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
 import { startHostedConversationFor } from "./assistant/start";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { HOSTED_TITLE_MAX_CHARS } from "@codecast/shared/contracts/assistant";
 import { isSpawnedWorker } from "./lib/workerSettleTrigger";
 import { roleCharterOf } from "./lib/roleCharter";
-import { type TaskCtx, rewriterOf, roleTriggerRunnerOf, handRoleTriggersToRunner, projectQuiet, refreshArmedTriggerKind, patchTask, nextRecurringRun, applyReactivate, stampRunConversation, cancelTasksBoundToConversation, tasksOriginatedBy, cancelTasksOriginatingFrom, reactivateTasksCanceledOnKill, projectRunsInline, scheduleProjectFire } from "./lib/agentTaskRows";
-export { refreshArmedTriggerKind, patchTask, applyReactivate, stampRunConversation, cancelTasksBoundToConversation, cancelTasksOriginatingFrom, reactivateTasksCanceledOnKill };
+import {
+  type TaskCtx,
+  rewriterOf,
+  roleTriggerRunnerOf,
+  handRoleTriggersToRunner,
+  projectQuiet,
+  refreshArmedTriggerKind,
+  patchTask,
+  nextRecurringRun,
+  applyReactivate,
+  stampRunConversation,
+  cancelTasksBoundToConversation,
+  tasksOriginatedBy,
+  cancelTasksOriginatingFrom,
+  reactivateTasksCanceledOnKill,
+  projectRunsInline,
+  scheduleProjectFire,
+} from "./lib/agentTaskRows";
+export {
+  refreshArmedTriggerKind,
+  patchTask,
+  applyReactivate,
+  stampRunConversation,
+  cancelTasksBoundToConversation,
+  cancelTasksOriginatingFrom,
+  reactivateTasksCanceledOnKill,
+};
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_RUNTIME_MS = 10 * 60 * 1000; // 10 min
@@ -54,7 +142,10 @@ const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min
 // --- Shared core: CLI (api_token) and web (session auth) entry points resolve
 // to a userId, then go through these so the two surfaces can't drift. ---
 
-function offCadence(task: Doc<"agent_tasks">, runAt: number): { run_at: number; cadence_slot_at?: number } {
+function offCadence(
+  task: Doc<"agent_tasks">,
+  runAt: number,
+): { run_at: number; cadence_slot_at?: number } {
   return task.schedule_type === "recurring"
     ? { run_at: runAt, cadence_slot_at: task.cadence_slot_at ?? task.run_at }
     : { run_at: runAt };
@@ -63,7 +154,7 @@ function offCadence(task: Doc<"agent_tasks">, runAt: number): { run_at: number; 
 async function getOwnedTask(
   ctx: TaskCtx,
   taskId: Id<"agent_tasks">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ): Promise<Doc<"agent_tasks"> | null> {
   const task = await ctx.db.get(taskId);
   if (!task || task.user_id !== userId) return null;
@@ -77,10 +168,11 @@ async function getOwnedTask(
 export async function getManageableTask(
   ctx: TaskCtx,
   taskId: Id<"agent_tasks">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ): Promise<Doc<"agent_tasks"> | null> {
   const task = await ctx.db.get(taskId);
-  if (!task || !(await canViewTask(ctx as { db: any }, userId, task))) return null;
+  if (!task || !(await canViewTask(ctx as { db: any }, userId, task)))
+    return null;
   return task;
 }
 
@@ -88,8 +180,18 @@ export async function getManageableTask(
 // is that conversation's owner's (getArmableTask, applyTaskUpdate, through
 // hostedOwnerRefusal); anyone who may manage it keeps pause and cancel, the
 // off switches.
-const taskAnchors = (task: Pick<Doc<"agent_tasks">, "originating_conversation_id" | "created_by_conversation_id" | "target_conversation_id">) =>
-  [task.originating_conversation_id, task.created_by_conversation_id, task.target_conversation_id];
+const taskAnchors = (
+  task: Pick<
+    Doc<"agent_tasks">,
+    | "originating_conversation_id"
+    | "created_by_conversation_id"
+    | "target_conversation_id"
+  >,
+) => [
+  task.originating_conversation_id,
+  task.created_by_conversation_id,
+  task.target_conversation_id,
+];
 
 /** getManageableTask for a verb that arms a routine or feeds it input
  *  (resume, activate, reactivate, run now): throws for anyone but the owner
@@ -97,7 +199,7 @@ const taskAnchors = (task: Pick<Doc<"agent_tasks">, "originating_conversation_id
 export async function getArmableTask(
   ctx: TaskCtx,
   taskId: Id<"agent_tasks">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ): Promise<Doc<"agent_tasks"> | null> {
   const task = await getManageableTask(ctx, taskId, userId);
   if (!task) return null;
@@ -111,8 +213,13 @@ export async function getArmableTask(
 // conversation does not allow: a routine its owner did not set, or one the
 // owner's plan does not cover (assistant/routines.ts). Arming paths pass the
 // status the routine is moving to.
-async function assertRoutineAllowed(ctx: TaskCtx, routine: HostedRoutine & HostedThreads) {
-  const refusal = await hostedRoutineRefusal(ctx, routine) ?? await hostedThreadRefusal(ctx, routine);
+async function assertRoutineAllowed(
+  ctx: TaskCtx,
+  routine: HostedRoutine & HostedThreads,
+) {
+  const refusal =
+    (await hostedRoutineRefusal(ctx, routine)) ??
+    (await hostedThreadRefusal(ctx, routine));
   if (refusal) throw new Error(refusal);
 }
 
@@ -125,18 +232,29 @@ type HostedThreads = {
 // (messages.refuseHostedTranscriptWrite), so a trigger never names one as the
 // thread its results are posted to, and names one as its creator (whose run
 // outcomes it is woken with) only when the trigger's owner owns it.
-async function hostedThreadRefusal(ctx: TaskCtx, routine: HostedThreads & { user_id: Id<"users"> }): Promise<string | null> {
-  const target = routine.target_conversation_id ? await ctx.db.get(routine.target_conversation_id as Id<"conversations">) : null;
+async function hostedThreadRefusal(
+  ctx: TaskCtx,
+  routine: HostedThreads & { user_id: Id<"users"> },
+): Promise<string | null> {
+  const target = routine.target_conversation_id
+    ? await ctx.db.get(routine.target_conversation_id as Id<"conversations">)
+    : null;
   if (target && isHostedAgentType(target.agent_type)) {
     return "A run's result cannot be posted into a hosted assistant conversation";
   }
-  return hostedOwnerRefusal(ctx, routine.user_id, [routine.created_by_conversation_id]);
+  return hostedOwnerRefusal(ctx, routine.user_id, [
+    routine.created_by_conversation_id,
+  ]);
 }
 
 export async function applyPause(ctx: TaskCtx, task: Doc<"agent_tasks">) {
   if (task.status !== "scheduled" && task.status !== "running") return false;
   // A pause by hand clears any role's or project's stamp; a role pause stamps after this.
-  await patchTask(ctx, task, { status: "paused", paused_by_role_id: undefined, paused_by_project_id: undefined });
+  await patchTask(ctx, task, {
+    status: "paused",
+    paused_by_role_id: undefined,
+    paused_by_project_id: undefined,
+  });
   return true;
 }
 
@@ -147,7 +265,8 @@ export async function applyResume(ctx: TaskCtx, task: Doc<"agent_tasks">) {
   // fire it once on resume with nothing behind it.
   await patchTask(ctx, task, {
     status: "scheduled",
-    run_at: task.schedule_type === "event" ? task.run_at : task.run_at || Date.now(),
+    run_at:
+      task.schedule_type === "event" ? task.run_at : task.run_at || Date.now(),
     paused_by_project_id: undefined,
   });
   return true;
@@ -166,7 +285,10 @@ export async function applyActivate(ctx: TaskCtx, task: Doc<"agent_tasks">) {
   const interval = task.interval_ms;
   await patchTask(ctx, task, {
     status: "scheduled",
-    run_at: task.schedule_type === "recurring" && interval ? nextRecurringRun(task, Date.now()) : Date.now(),
+    run_at:
+      task.schedule_type === "recurring" && interval
+        ? nextRecurringRun(task, Date.now())
+        : Date.now(),
     cadence_slot_at: undefined,
     ...(task.precheck === "exit 1" ? { precheck: undefined } : {}),
   });
@@ -176,16 +298,32 @@ export async function applyActivate(ctx: TaskCtx, task: Doc<"agent_tasks">) {
 /** Run now. `focus` narrows this one run (ORG_REVIEW_FOCUSES): it rides the
  *  row into the run's frame and clears when the run completes; a plain run
  *  now clears a focus still waiting. */
-export async function applyRunNow(ctx: TaskCtx, task: Doc<"agent_tasks">, focus?: OrgReviewFocusKey) {
-  if (task.status === "paused") await assertRoutineAllowed(ctx, { ...task, status: "scheduled" });
-  await patchTask(ctx, task, { status: "scheduled", ...offCadence(task, Date.now()), requested_run_source: "manual", requested_run_focus: focus });
+export async function applyRunNow(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  focus?: OrgReviewFocusKey,
+) {
+  if (task.status === "paused")
+    await assertRoutineAllowed(ctx, { ...task, status: "scheduled" });
+  await patchTask(ctx, task, {
+    status: "scheduled",
+    ...offCadence(task, Date.now()),
+    requested_run_source: "manual",
+    requested_run_focus: focus,
+  });
   return true;
 }
 
-export function claimRunSourceFields(task: { schedule_type?: string; requested_run_source?: string }) {
+export function claimRunSourceFields(task: {
+  schedule_type?: string;
+  requested_run_source?: string;
+}) {
   return {
     requested_run_source: undefined,
-    last_run_source: triggerFiringSource(task.schedule_type, task.requested_run_source),
+    last_run_source: triggerFiringSource(
+      task.schedule_type,
+      task.requested_run_source,
+    ),
   };
 }
 
@@ -199,13 +337,24 @@ export async function applyCancel(ctx: TaskCtx, task: Doc<"agent_tasks">) {
 // is hidden (stampRunConversation). Pages through agent_tasks and schedules
 // itself; `dry` reports what one page would change and writes nothing.
 export const nestLooseTriggerRuns = internalMutation({
-  args: { cursor: v.optional(v.string()), dry: v.optional(v.boolean()), numItems: v.optional(v.number()), user_id: v.optional(v.id("users")) },
+  args: {
+    cursor: v.optional(v.string()),
+    dry: v.optional(v.boolean()),
+    numItems: v.optional(v.number()),
+    user_id: v.optional(v.id("users")),
+  },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("agent_tasks").paginate({ cursor: args.cursor ?? null, numItems: args.numItems ?? 50 });
+    const page = await ctx.db
+      .query("agent_tasks")
+      .paginate({ cursor: args.cursor ?? null, numItems: args.numItems ?? 50 });
     let loose = 0;
     let nested = 0;
     let hidden = 0;
-    const sample: { run: Id<"conversations">; task: string; parent: Id<"conversations"> | null }[] = [];
+    const sample: {
+      run: Id<"conversations">;
+      task: string;
+      parent: Id<"conversations"> | null;
+    }[] = [];
     for (const task of page.page) {
       if (task.originating_conversation_id) continue;
       if (args.user_id && task.user_id !== args.user_id) continue;
@@ -217,26 +366,55 @@ export const nestLooseTriggerRuns = internalMutation({
         if (run.parent_conversation_id) continue;
         loose++;
         if (args.dry) {
-          if (sample.length < 20) sample.push({ run: run._id, task: task.short_id ?? task._id, parent: runParentOf(task) ?? null });
+          if (sample.length < 20)
+            sample.push({
+              run: run._id,
+              task: task.short_id ?? task._id,
+              parent: runParentOf(task) ?? null,
+            });
           continue;
         }
         const wasStashed = !!run.inbox_stashed_at;
-        const after = await stampRunConversation(ctx, task.user_id, task, run.session_id, { backfill: true });
+        const after = await stampRunConversation(
+          ctx,
+          task.user_id,
+          task,
+          run.session_id,
+          { backfill: true },
+        );
         if (after?.parent_conversation_id) nested++;
         else if (after?.inbox_stashed_at && !wasStashed) hidden++;
       }
     }
     if (!args.dry && !page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.agentTasks.nestLooseTriggerRuns, { cursor: page.continueCursor, numItems: args.numItems, user_id: args.user_id });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.agentTasks.nestLooseTriggerRuns,
+        {
+          cursor: page.continueCursor,
+          numItems: args.numItems,
+          user_id: args.user_id,
+        },
+      );
     }
-    return { loose, nested, hidden, sample, isDone: page.isDone, cursor: page.continueCursor };
+    return {
+      loose,
+      nested,
+      hidden,
+      sample,
+      isDone: page.isDone,
+      cursor: page.continueCursor,
+    };
   },
 });
 
 // The newest conversation stamped as a run of this task (linkRunConversation
 // stamps agent_task_id within seconds of the spawn), for callers that hold
 // no run uuid: the reclaim sweep judging a lapsed lease.
-async function latestRunConversation(ctx: TaskCtx, task: Doc<"agent_tasks">): Promise<Doc<"conversations"> | null> {
+async function latestRunConversation(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<Doc<"conversations"> | null> {
   if (task.originating_conversation_id) return null;
   const runs: Doc<"conversations">[] = await ctx.db
     .query("conversations")
@@ -244,16 +422,25 @@ async function latestRunConversation(ctx: TaskCtx, task: Doc<"agent_tasks">): Pr
     .collect();
   const latest = runs.sort((a, b) => b._creationTime - a._creationTime)[0];
   // Through the stamp, so the run nests under its owner like every other path.
-  return latest ? stampRunConversation(ctx, task.user_id, task, latest.session_id) : null;
+  return latest
+    ? stampRunConversation(ctx, task.user_id, task, latest.session_id)
+    : null;
 }
 
 export function isUnansweredClaimRetry(
-  task: Pick<Doc<"agent_tasks">, "status" | "lease_holder" | "firing_claimed_at">,
+  task: Pick<
+    Doc<"agent_tasks">,
+    "status" | "lease_holder" | "firing_claimed_at"
+  >,
   daemonId: string,
   now: number,
 ): boolean {
-  return task.status === "running" && task.lease_holder === daemonId && task.firing_claimed_at !== undefined
-    && now - task.firing_claimed_at < LEASE_DURATION_MS;
+  return (
+    task.status === "running" &&
+    task.lease_holder === daemonId &&
+    task.firing_claimed_at !== undefined &&
+    now - task.firing_claimed_at < LEASE_DURATION_MS
+  );
 }
 
 /** How long a bound device may go without a heartbeat before the sweep stops waiting for it. */
@@ -261,17 +448,26 @@ export const AWAY_DEVICE_WAIT_MS = 24 * 3_600_000;
 
 /** Whether the device a trigger is bound to is away now (no heartbeat within DEVICE_ONLINE_MS) but was seen within
  *  AWAY_DEVICE_WAIT_MS. A trigger with no bound device, or a device gone longer, is judged as before. */
-export function isAwayDevice(lastSeen: number | undefined, now: number): boolean {
+export function isAwayDevice(
+  lastSeen: number | undefined,
+  now: number,
+): boolean {
   if (lastSeen === undefined) return false;
   const quiet = now - lastSeen;
   return quiet >= DEVICE_ONLINE_MS && quiet < AWAY_DEVICE_WAIT_MS;
 }
 
-async function boundDeviceAway(ctx: TaskCtx, task: Doc<"agent_tasks">, now: number): Promise<boolean> {
+async function boundDeviceAway(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  now: number,
+): Promise<boolean> {
   if (!task.created_device_id) return false;
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", task.user_id).eq("device_id", task.created_device_id))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", task.user_id).eq("device_id", task.created_device_id),
+    )
     .first();
   return isAwayDevice(device?.last_seen, now);
 }
@@ -280,24 +476,37 @@ async function boundDeviceAway(ctx: TaskCtx, task: Doc<"agent_tasks">, now: numb
  *  to an earlier firing: judging a lapsed lease by it retired healthy triggers on a two-day-old run (ct-92447). A row
  *  claimed before firing_claimed_at existed falls back to when the previous firing ended. */
 export function runOfCurrentFiring<T extends { _creationTime: number }>(
-  task: Pick<Doc<"agent_tasks">, "firing_claimed_at" | "last_run_at" | "last_precheck_skip_at">,
+  task: Pick<
+    Doc<"agent_tasks">,
+    "firing_claimed_at" | "last_run_at" | "last_precheck_skip_at"
+  >,
   latest: T | null,
 ): T | null {
-  const firingBegan = task.firing_claimed_at ?? Math.max(task.last_run_at ?? 0, task.last_precheck_skip_at ?? 0);
+  const firingBegan =
+    task.firing_claimed_at ??
+    Math.max(task.last_run_at ?? 0, task.last_precheck_skip_at ?? 0);
   return latest && latest._creationTime >= firingBegan ? latest : null;
 }
 
-async function firingRunConversation(ctx: TaskCtx, task: Doc<"agent_tasks">): Promise<Doc<"conversations"> | null> {
+async function firingRunConversation(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<Doc<"conversations"> | null> {
   return runOfCurrentFiring(task, await latestRunConversation(ctx, task));
 }
 
 // The run's agent process is gone: the daemon stamps the managed session
 // "stopped" when the process it registered exits (its conversation row keeps
 // no such field). A run never registered is not known to be over.
-async function runAgentStopped(ctx: TaskCtx, runConv: Doc<"conversations">): Promise<boolean> {
+async function runAgentStopped(
+  ctx: TaskCtx,
+  runConv: Doc<"conversations">,
+): Promise<boolean> {
   const managed = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_session_id", (q: any) => q.eq("session_id", runConv.session_id))
+    .withIndex("by_session_id", (q: any) =>
+      q.eq("session_id", runConv.session_id),
+    )
     .first();
   return managed?.agent_status === "stopped";
 }
@@ -330,15 +539,29 @@ async function notifyRunAttention(
 ): Promise<void> {
   const user = await ctx.db.get(task.user_id);
   if (!user || user.notification_preferences?.task_activity === false) return;
-  const link = conversationId ? undefined : `${process.env.SITE_URL || "https://codecast.sh"}/triggers/${task._id}`;
+  const link = conversationId
+    ? undefined
+    : `${process.env.SITE_URL || "https://codecast.sh"}/triggers/${task._id}`;
   const message = `${detail.trim() || "Review this run and decide the next step."} — ${task.title}`;
-  const unread = await ctx.db.query("notifications")
-    .withIndex("by_recipient_read", (q: any) => q.eq("recipient_user_id", task.user_id).eq("read", false))
+  const unread = await ctx.db
+    .query("notifications")
+    .withIndex("by_recipient_read", (q: any) =>
+      q.eq("recipient_user_id", task.user_id).eq("read", false),
+    )
     .collect();
-  const existing = unread.find((n: any) => n.entity_id === String(task._id) &&
-    (n.type === "task_completed" || n.type === "task_failed"));
+  const existing = unread.find(
+    (n: any) =>
+      n.entity_id === String(task._id) &&
+      (n.type === "task_completed" || n.type === "task_failed"),
+  );
   if (existing) {
-    await ctx.db.patch(existing._id, { type, message, conversation_id: conversationId, link, created_at: now });
+    await ctx.db.patch(existing._id, {
+      type,
+      message,
+      conversation_id: conversationId,
+      link,
+      created_at: now,
+    });
     return;
   }
   const notificationId = await ctx.db.insert("notifications", {
@@ -356,9 +579,17 @@ async function notifyRunAttention(
       user,
       notification_id: notificationId,
       type,
-      title: type === "task_failed" ? "Run stopped — needs attention" : "Needs attention",
+      title:
+        type === "task_failed"
+          ? "Run stopped — needs attention"
+          : "Needs attention",
       body: message,
-      data: { type, taskId: task._id, conversationId, ...(link ? { url: link } : {}) },
+      data: {
+        type,
+        taskId: task._id,
+        conversationId,
+        ...(link ? { url: link } : {}),
+      },
     });
   }
 }
@@ -390,11 +621,17 @@ async function parkRunAtLimit(
   // pegged window names the wait, and a booked recovery check is a floor:
   // the earliest reset across every account woke runs on a rolled 5h session
   // inside a still-spent week.
-  const owner = (runConv.owner_device_id && online.find((d) => d.device_id === runConv.owner_device_id)) || primary;
+  const owner =
+    (runConv.owner_device_id &&
+      online.find((d) => d.device_id === runConv.owner_device_id)) ||
+    primary;
   const resetAt = parkedAccountResetAt(
     owner && {
       cc_accounts: owner.cc_accounts,
-      cc_auto_switch_state: recoveryModeOf(owner) === "off" ? undefined : owner.cc_auto_switch_state,
+      cc_auto_switch_state:
+        recoveryModeOf(owner) === "off"
+          ? undefined
+          : owner.cc_auto_switch_state,
     },
     runConv,
     now,
@@ -411,7 +648,8 @@ async function parkRunAtLimit(
     last_run_session_uuid: runConv.session_id,
     last_run_conversation_id: runConv._id,
     parked_run_session_uuid: runConv.session_id,
-    requested_run_source: task.last_run_source === "manual" ? "manual" : undefined,
+    requested_run_source:
+      task.last_run_source === "manual" ? "manual" : undefined,
   });
 }
 
@@ -436,11 +674,14 @@ async function wakeRunOwner(
   if (!owner || owner.user_id !== task.user_id) {
     // Nobody to wake: a run born hidden for want of a parent (stampRunConversation)
     // is the only place this outcome can be read, so it comes back.
-    if (outcome !== "reported" && runConv && !runConv.parent_conversation_id) await restoreToInbox(ctx, runConv);
+    if (outcome !== "reported" && runConv && !runConv.parent_conversation_id)
+      await restoreToInbox(ctx, runConv);
     return false;
   }
   const handle = task.short_id ?? task.title;
-  const runRef = runConv ? runConv.short_id ?? runConv._id.toString().slice(0, 7) : null;
+  const runRef = runConv
+    ? (runConv.short_id ?? runConv._id.toString().slice(0, 7))
+    : null;
   const run = runRef ? `Run ${runRef} of ${handle}` : `A run of ${handle}`;
   const read = runRef ? ` Read it with cast read ${runRef}.` : "";
   const body =
@@ -454,9 +695,19 @@ async function wakeRunOwner(
           ? `${run} finished and needs attention:\n\n${detail ?? ""}`
           : `${run} finished:\n\n${detail ?? ""}`;
   const label =
-    outcome === "failed" ? "failed" : outcome === "unreported_exit" ? "ended without reporting" : outcome === "attention" ? "needs attention" : "finished";
+    outcome === "failed"
+      ? "failed"
+      : outcome === "unreported_exit"
+        ? "ended without reporting"
+        : outcome === "attention"
+          ? "needs attention"
+          : "finished";
   await enqueuePendingMessage(ctx, owner, task.user_id, {
-    content: formatScheduledTask({ title: `${handle} run ${label}`, task_id: String(task._id), body }),
+    content: formatScheduledTask({
+      title: `${handle} run ${label}`,
+      task_id: String(task._id),
+      body,
+    }),
     origin: "scheduler",
     client_id: `run-outcome:${task._id}:${task.run_count}:${outcome}:${now}`,
   });
@@ -504,8 +755,15 @@ interface NewTaskArgs {
   display_summary?: string;
 }
 
-export async function insertTask(ctx: TaskCtx, userId: Id<"users">, args: NewTaskArgs) {
-  assertPrecheckModeFits(args.schedule_type, args.precheck?.trim() ? args.precheck_mode : undefined);
+export async function insertTask(
+  ctx: TaskCtx,
+  userId: Id<"users">,
+  args: NewTaskArgs,
+) {
+  assertPrecheckModeFits(
+    args.schedule_type,
+    args.precheck?.trim() ? args.precheck_mode : undefined,
+  );
   if (args.schedule_type === "recurring" && !args.interval_ms) {
     throw new Error("interval_ms required for recurring tasks");
   }
@@ -521,12 +779,25 @@ export async function insertTask(ctx: TaskCtx, userId: Id<"users">, args: NewTas
   // A row created paused carries no run_at: activation (applyActivate) sets
   // the first run one interval out, so nothing fires until a person acts.
   const paused = args.status === "paused";
-  const hosted = !!(await hostedHomeStamp(ctx, args.originating_conversation_id));
+  const hosted = !!(await hostedHomeStamp(
+    ctx,
+    args.originating_conversation_id,
+  ));
   // A routine said as a time of day keeps it; its first run is the first slot
   // on or after the one asked for (a weekdays routine asked for on a Saturday
   // starts Monday).
-  const wall = await hostedWallCadence(ctx, { user_id: userId, hosted, schedule_type: args.schedule_type, interval_ms: args.interval_ms, run_at: args.run_at || now, weekdays: args.weekdays });
-  const run_at = args.schedule_type === "event" || paused ? undefined : (wall?.run_at ?? (args.run_at || now));
+  const wall = await hostedWallCadence(ctx, {
+    user_id: userId,
+    hosted,
+    schedule_type: args.schedule_type,
+    interval_ms: args.interval_ms,
+    run_at: args.run_at || now,
+    weekdays: args.weekdays,
+  });
+  const run_at =
+    args.schedule_type === "event" || paused
+      ? undefined
+      : (wall?.run_at ?? (args.run_at || now));
   await assertRoutineAllowed(ctx, {
     user_id: userId,
     originating_conversation_id: args.originating_conversation_id,
@@ -537,16 +808,34 @@ export async function insertTask(ctx: TaskCtx, userId: Id<"users">, args: NewTas
     status: paused ? "paused" : "scheduled",
   });
 
-  const event_filter = await storedEventFilter(ctx, userId, args.project_path, args.event_filter);
+  const event_filter = await storedEventFilter(
+    ctx,
+    userId,
+    args.project_path,
+    args.event_filter,
+  );
   const project = args.project_id ? await ctx.db.get(args.project_id) : null;
-  if (args.project_id && !(project && (await canAccessProject(ctx as any, userId, project)))) throw new Error("Project not found");
+  if (
+    args.project_id &&
+    !(project && (await canAccessProject(ctx as any, userId, project)))
+  )
+    throw new Error("Project not found");
   if (project) await requireProjectMayWatch(ctx, project, event_filter);
   // A project trigger's inline runs are found at each firing, so it binds no session.
   const projectInline = !!project && !args.project_spawn;
   if (project && projectInline) {
-    if (args.mode === "propose") throw new Error("A project trigger's runs are turns in its main session, with that session's permissions, so it cannot be read-only: use --spawn for read-only runs");
-    const refusal = mainSessionRefusal(await mainSessionFor(ctx, project), userId);
-    if (refusal) throw new Error(`${refusal}. Its runner can add this source, or --spawn runs fresh sessions instead`);
+    if (args.mode === "propose")
+      throw new Error(
+        "A project trigger's runs are turns in its main session, with that session's permissions, so it cannot be read-only: use --spawn for read-only runs",
+      );
+    const refusal = mainSessionRefusal(
+      await mainSessionFor(ctx, project),
+      userId,
+    );
+    if (refusal)
+      throw new Error(
+        `${refusal}. Its runner can add this source, or --spawn runs fresh sessions instead`,
+      );
   }
   const short_id = await nextShortId(ctx.db, "tr");
 
@@ -556,15 +845,16 @@ export async function insertTask(ctx: TaskCtx, userId: Id<"users">, args: NewTas
     title: args.title,
     prompt: args.prompt,
     context_summary: args.context_summary,
-    originating_conversation_id: args.originating_conversation_id && !projectInline
-      ? args.originating_conversation_id as Id<"conversations">
-      : undefined,
+    originating_conversation_id:
+      args.originating_conversation_id && !projectInline
+        ? (args.originating_conversation_id as Id<"conversations">)
+        : undefined,
     hosted_home: hosted || undefined,
     target_conversation_id: args.target_conversation_id
-      ? args.target_conversation_id as Id<"conversations">
+      ? (args.target_conversation_id as Id<"conversations">)
       : undefined,
     created_by_conversation_id: args.created_by_conversation_id
-      ? args.created_by_conversation_id as Id<"conversations">
+      ? (args.created_by_conversation_id as Id<"conversations">)
       : undefined,
     created_by_session_uuid: args.created_by_session_uuid,
     project_path: args.project_path,
@@ -580,42 +870,69 @@ export async function insertTask(ctx: TaskCtx, userId: Id<"users">, args: NewTas
     // Permissive by default: a schedule can act unless it explicitly opts into
     // safe (read-only) mode. Only an explicit "propose" restricts. Existing
     // tasks keep their stored mode, so nothing already armed changes.
-    mode: (args.mode === "propose" ? "propose" : "apply") as "propose" | "apply",
+    mode: (args.mode === "propose" ? "propose" : "apply") as
+      | "propose"
+      | "apply",
     max_runtime_ms: args.max_runtime_ms || DEFAULT_MAX_RUNTIME_MS,
     precheck: args.precheck?.trim() || undefined,
     precheck_mode: args.precheck?.trim() ? args.precheck_mode : undefined,
     wake_creator: args.wake_creator || undefined,
     role_id: args.role_id,
-    ...(project ? { project_id: project._id, ...(args.project_spawn ? { project_spawn: true } : {}) } : {}),
+    ...(project
+      ? {
+          project_id: project._id,
+          ...(args.project_spawn ? { project_spawn: true } : {}),
+        }
+      : {}),
     status: paused ? ("paused" as const) : ("scheduled" as const),
     retry_count: 0,
     max_retries: args.max_retries ?? DEFAULT_MAX_RETRIES,
     run_count: 0,
     created_at: now,
-    ...(args.display_summary ? { display_summary: args.display_summary, summary_for_person: true } : {}),
+    ...(args.display_summary
+      ? { display_summary: args.display_summary, summary_for_person: true }
+      : {}),
   });
   if (args.originating_conversation_id && !projectInline) {
-    await refreshArmedTriggerKind(ctx, args.originating_conversation_id as Id<"conversations">);
+    await refreshArmedTriggerKind(
+      ctx,
+      args.originating_conversation_id as Id<"conversations">,
+    );
   }
   if (project && !paused) {
     // Born into a quiet project, it waits with the project's others.
     const row = await ctx.db.get(taskId);
-    if (row && projectQuiet(project.status)) await patchTask(ctx, row, { status: "paused", paused_by_project_id: project._id });
+    if (row && projectQuiet(project.status))
+      await patchTask(ctx, row, {
+        status: "paused",
+        paused_by_project_id: project._id,
+      });
     else if (row) await scheduleProjectFire(ctx, row, run_at);
   }
   // Distill a readable display_title/display_summary from the prompt (the
   // summarizer section below) — the stored title is usually prompt.slice(0,60).
   // A description written for the person already reads; it is kept as is.
-  if (!args.display_summary) await ctx.scheduler?.runAfter(0, internal.agentTasks.generateDisplaySummary, { task_id: taskId });
+  if (!args.display_summary)
+    await ctx.scheduler?.runAfter(
+      0,
+      internal.agentTasks.generateDisplaySummary,
+      { task_id: taskId },
+    );
   return { id: taskId, short_id };
 }
 
 // Single-task action exposed under both auth schemes.
 // A verb that moves a trigger's status is written to its history.
-export async function logVerb(ctx: TaskCtx, task: Doc<"agent_tasks">, actor: { userId: Id<"users">; source: "cli" | "web" }, apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>): Promise<boolean> {
+export async function logVerb(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  actor: { userId: Id<"users">; source: "cli" | "web" },
+  apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>,
+): Promise<boolean> {
   const ok = await apply(ctx, task);
   const after = await ctx.db.get(task._id);
-  if (after && after.status !== task.status) await appendRevision(ctx, task, actor, ["status"]);
+  if (after && after.status !== task.status)
+    await appendRevision(ctx, task, actor, ["status"]);
   return ok;
 }
 
@@ -623,7 +940,10 @@ export async function logVerb(ctx: TaskCtx, task: Doc<"agent_tasks">, actor: { u
 // switch (pause, cancel).
 type TaskGetter = typeof getManageableTask;
 
-const cliTaskAction = (apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>, get: TaskGetter) =>
+const cliTaskAction = (
+  apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>,
+  get: TaskGetter,
+) =>
   mutation({
     args: { api_token: v.string(), task_id: v.id("agent_tasks") },
     handler: async (ctx, args) => {
@@ -635,7 +955,10 @@ const cliTaskAction = (apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promis
     },
   });
 
-const webTaskAction = (apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>, get: TaskGetter) =>
+const webTaskAction = (
+  apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promise<boolean>,
+  get: TaskGetter,
+) =>
   mutation({
     args: { task_id: v.id("agent_tasks") },
     handler: async (ctx, args) => {
@@ -650,19 +973,32 @@ const webTaskAction = (apply: (ctx: TaskCtx, task: Doc<"agent_tasks">) => Promis
 // A trigger names conversations by raw id (the inject home, the post target,
 // the creator). Each one must be a conversation the caller can read: a
 // trigger writes its armed state onto its home and posts into its target.
-async function accessibleConversationId(ctx: { db: any }, userId: Id<"users">, id: string): Promise<Id<"conversations"> | null> {
+async function accessibleConversationId(
+  ctx: { db: any },
+  userId: Id<"users">,
+  id: string,
+): Promise<Id<"conversations"> | null> {
   const convId = ctx.db.normalizeId("conversations", id);
   const conv = convId ? await ctx.db.get(convId) : null;
-  return conv && (await canAccessConversation(ctx, userId, conv)) ? convId : null;
+  return conv && (await canAccessConversation(ctx, userId, conv))
+    ? convId
+    : null;
 }
 
 async function requireTriggerConversations(
   ctx: { db: any },
   userId: Id<"users">,
-  ids: { originating_conversation_id?: string | null; target_conversation_id?: string | null },
+  ids: {
+    originating_conversation_id?: string | null;
+    target_conversation_id?: string | null;
+  },
 ): Promise<void> {
-  for (const id of [ids.originating_conversation_id, ids.target_conversation_id]) {
-    if (id && !(await accessibleConversationId(ctx, userId, id))) throw new Error(`No session of yours matches "${id}"`);
+  for (const id of [
+    ids.originating_conversation_id,
+    ids.target_conversation_id,
+  ]) {
+    if (id && !(await accessibleConversationId(ctx, userId, id)))
+      throw new Error(`No session of yours matches "${id}"`);
   }
 }
 
@@ -680,7 +1016,11 @@ export const createTask = mutation({
     model: v.optional(v.string()),
     agent_definition: v.optional(v.string()),
     created_device_id: v.optional(v.string()),
-    schedule_type: v.union(v.literal("once"), v.literal("recurring"), v.literal("event")),
+    schedule_type: v.union(
+      v.literal("once"),
+      v.literal("recurring"),
+      v.literal("event"),
+    ),
     run_at: v.optional(v.number()),
     interval_ms: v.optional(v.number()),
     event_filter: v.optional(eventFilterValidator),
@@ -710,22 +1050,48 @@ export const createTask = mutation({
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const { api_token: _token, originating_session_ref, created_by_session_ref, ...rest } = args;
+    const {
+      api_token: _token,
+      originating_session_ref,
+      created_by_session_ref,
+      ...rest
+    } = args;
     const taskArgs: NewTaskArgs = rest;
     await requireTriggerConversations(ctx, auth.userId, rest);
-    if (rest.created_by_conversation_id && !(await accessibleConversationId(ctx, auth.userId, rest.created_by_conversation_id))) {
+    if (
+      rest.created_by_conversation_id &&
+      !(await accessibleConversationId(
+        ctx,
+        auth.userId,
+        rest.created_by_conversation_id,
+      ))
+    ) {
       delete taskArgs.created_by_conversation_id;
     }
     if (originating_session_ref) {
-      const conv = await findConversationByAnyRef(ctx, originating_session_ref, auth.userId);
-      if (!conv) throw new Error(`No session of yours matches "${originating_session_ref}"`);
+      const conv = await findConversationByAnyRef(
+        ctx,
+        originating_session_ref,
+        auth.userId,
+      );
+      if (!conv)
+        throw new Error(
+          `No session of yours matches "${originating_session_ref}"`,
+        );
       taskArgs.originating_conversation_id = conv._id.toString();
     }
     if (created_by_session_ref) {
-      const conv = await findConversationByAnyRef(ctx, created_by_session_ref, auth.userId);
+      const conv = await findConversationByAnyRef(
+        ctx,
+        created_by_session_ref,
+        auth.userId,
+      );
       if (conv) taskArgs.created_by_conversation_id = conv._id.toString();
       // A codecast id (`--parent jx7c4n2`) names a session that must exist.
-      else if (/^jx[a-z0-9]+$/.test(created_by_session_ref)) throw new Error(`No session of yours matches "${created_by_session_ref}"`);
+      else if (/^jx[a-z0-9]+$/.test(created_by_session_ref))
+        throw new Error(
+          `No session of yours matches "${created_by_session_ref}"`,
+        );
       // An agent's own session id not synced yet: keep it raw so the read
       // path can resolve it once the conversation row exists. Dropping it
       // here is how a spawn trigger lost its parent for good.
@@ -742,19 +1108,54 @@ export const createTask = mutation({
 export const adminRestoreCopiedParents = internalMutation({
   args: { short_ids: v.array(v.string()), dry_run: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    const out: Array<{ short_id: string; parent?: string; from?: string; note?: string }> = [];
+    const out: Array<{
+      short_id: string;
+      parent?: string;
+      from?: string;
+      note?: string;
+    }> = [];
     for (const short_id of args.short_ids) {
-      const copy = await ctx.db.query("agent_tasks").withIndex("by_short_id", (q) => q.eq("short_id", short_id)).first();
-      if (!copy) { out.push({ short_id, note: "not found" }); continue; }
-      if (copy.created_by_conversation_id || copy.created_by_session_uuid) { out.push({ short_id, note: "has a parent" }); continue; }
-      const originals = (await ctx.db.query("agent_tasks").withIndex("by_user_status", (q) => q.eq("user_id", copy.user_id)).collect())
-        .filter((t) => t._id !== copy._id && t.created_at < copy.created_at && t.prompt === copy.prompt && (t.originating_conversation_id || t.created_by_conversation_id))
+      const copy = await ctx.db
+        .query("agent_tasks")
+        .withIndex("by_short_id", (q) => q.eq("short_id", short_id))
+        .first();
+      if (!copy) {
+        out.push({ short_id, note: "not found" });
+        continue;
+      }
+      if (copy.created_by_conversation_id || copy.created_by_session_uuid) {
+        out.push({ short_id, note: "has a parent" });
+        continue;
+      }
+      const originals = (
+        await ctx.db
+          .query("agent_tasks")
+          .withIndex("by_user_status", (q) => q.eq("user_id", copy.user_id))
+          .collect()
+      )
+        .filter(
+          (t) =>
+            t._id !== copy._id &&
+            t.created_at < copy.created_at &&
+            t.prompt === copy.prompt &&
+            (t.originating_conversation_id || t.created_by_conversation_id),
+        )
         .sort((a, b) => b.created_at - a.created_at);
       const original = originals[0];
-      const parent = original?.originating_conversation_id ?? original?.created_by_conversation_id;
-      if (!parent) { out.push({ short_id, note: "no original with a session" }); continue; }
-      out.push({ short_id, parent: (await ctx.db.get(parent))?.short_id ?? parent, from: original.short_id });
-      if (!args.dry_run) await ctx.db.patch(copy._id, { created_by_conversation_id: parent });
+      const parent =
+        original?.originating_conversation_id ??
+        original?.created_by_conversation_id;
+      if (!parent) {
+        out.push({ short_id, note: "no original with a session" });
+        continue;
+      }
+      out.push({
+        short_id,
+        parent: (await ctx.db.get(parent))?.short_id ?? parent,
+        from: original.short_id,
+      });
+      if (!args.dry_run)
+        await ctx.db.patch(copy._id, { created_by_conversation_id: parent });
     }
     return out;
   },
@@ -792,30 +1193,47 @@ export const adminBackfillCreatedBy = internalMutation({
         !t.originating_conversation_id &&
         !t.created_by_session_uuid &&
         t.created_at >= since &&
-        t.created_at < (args.before_ms ?? Infinity)
+        t.created_at < (args.before_ms ?? Infinity),
     );
     const targets = orphans
       .sort((a, b) => b.created_at - a.created_at)
       .slice(0, args.limit ?? 10);
 
-    const out: Array<{ short_id?: string; title: string; creator?: string; creator_title?: string; via?: string }> = [];
+    const out: Array<{
+      short_id?: string;
+      title: string;
+      creator?: string;
+      creator_title?: string;
+      via?: string;
+    }> = [];
     for (const t of targets) {
       const T = t.created_at;
       const window = await ctx.db
         .query("messages")
-        .withIndex("by_timestamp", (q) => q.gte("timestamp", T - 120_000).lte("timestamp", T + 300_000))
+        .withIndex("by_timestamp", (q) =>
+          q.gte("timestamp", T - 120_000).lte("timestamp", T + 300_000),
+        )
         .collect();
       const suffix = t._id.toString().slice(-8);
-      const needles = [t.short_id ? `Trigger ${t.short_id}` : null, `Trigger ${suffix}`].filter(Boolean) as string[];
+      const needles = [
+        t.short_id ? `Trigger ${t.short_id}` : null,
+        `Trigger ${suffix}`,
+      ].filter(Boolean) as string[];
       const textOf = (m: Doc<"messages">) =>
-        [m.content ?? "", ...(m.tool_results ?? []).map((r) => r.content)].join("\n");
-      let hit = window.find((m) => !m.is_encrypted && needles.some((n) => textOf(m).includes(n)));
+        [m.content ?? "", ...(m.tool_results ?? []).map((r) => r.content)].join(
+          "\n",
+        );
+      let hit = window.find(
+        (m) => !m.is_encrypted && needles.some((n) => textOf(m).includes(n)),
+      );
       let via = hit ? "printed id" : undefined;
       if (!hit) {
         const calls = window.filter(
           (m) =>
             m.timestamp <= T + 30_000 &&
-            (m.tool_calls ?? []).some((c) => /cast\s+(trigger|schedule)\s+add/.test(c.input))
+            (m.tool_calls ?? []).some((c) =>
+              /cast\s+(trigger|schedule)\s+add/.test(c.input),
+            ),
         );
         // Only an unambiguous single caller counts: two sessions arming
         // triggers in the same window would otherwise cross-stamp.
@@ -841,7 +1259,9 @@ export const adminBackfillCreatedBy = internalMutation({
     return {
       scanned: targets.length,
       remaining: orphans.length - targets.length,
-      next_before_ms: targets.length ? targets[targets.length - 1].created_at : null,
+      next_before_ms: targets.length
+        ? targets[targets.length - 1].created_at
+        : null,
       results: out,
     };
   },
@@ -861,18 +1281,31 @@ export const listTasks = query({
 
     if (args.project_id) {
       const project = await ctx.db.get(args.project_id);
-      if (!project || !(await canAccessProject(ctx, auth.userId, project))) throw new Error("Project not found");
-      const rows = await ctx.db.query("agent_tasks").withIndex("by_project", (q) => q.eq("project_id", args.project_id)).collect();
+      if (!project || !(await canAccessProject(ctx, auth.userId, project)))
+        throw new Error("Project not found");
+      const rows = await ctx.db
+        .query("agent_tasks")
+        .withIndex("by_project", (q) => q.eq("project_id", args.project_id))
+        .collect();
       const visible: Doc<"agent_tasks">[] = [];
-      for (const t of rows) if ((!args.status || t.status === args.status) && (await canViewTask(ctx, auth.userId, t))) visible.push(t);
-      return await withChannelNames(ctx, auth.userId, await withResolvedRunConversations(ctx, auth.userId, visible));
+      for (const t of rows)
+        if (
+          (!args.status || t.status === args.status) &&
+          (await canViewTask(ctx, auth.userId, t))
+        )
+          visible.push(t);
+      return await withChannelNames(
+        ctx,
+        auth.userId,
+        await withResolvedRunConversations(ctx, auth.userId, visible),
+      );
     }
 
     const tasks = args.status
       ? await ctx.db
           .query("agent_tasks")
           .withIndex("by_user_status", (q) =>
-            q.eq("user_id", auth.userId).eq("status", args.status as any)
+            q.eq("user_id", auth.userId).eq("status", args.status as any),
           )
           .collect()
       : await ctx.db
@@ -880,18 +1313,32 @@ export const listTasks = query({
           .withIndex("by_user_status", (q) => q.eq("user_id", auth.userId))
           .collect();
 
-    return await withChannelNames(ctx, auth.userId, await withResolvedRunConversations(ctx, auth.userId, tasks));
+    return await withChannelNames(
+      ctx,
+      auth.userId,
+      await withResolvedRunConversations(ctx, auth.userId, tasks),
+    );
   },
 });
 
 /** A chat trigger's channel, named for the reader when they can read it, so
  *  `cast trigger ls` says which channel it watches. Joined at read, never stored. */
-async function withChannelNames<T extends { event_filter?: EventFilter }>(ctx: TaskCtx, userId: Id<"users">, tasks: T[]): Promise<Array<T & { channel_name?: string }>> {
-  return await Promise.all(tasks.map(async (t) => {
-    const id = t.event_filter?.channel_id ? ctx.db.normalizeId("chat_channels", t.event_filter.channel_id) : null;
-    const channel = id ? await ctx.db.get(id) : null;
-    return channel && (await canAccessChannel(ctx as any, userId, channel)) ? { ...t, channel_name: channel.name } : t;
-  }));
+async function withChannelNames<T extends { event_filter?: EventFilter }>(
+  ctx: TaskCtx,
+  userId: Id<"users">,
+  tasks: T[],
+): Promise<Array<T & { channel_name?: string }>> {
+  return await Promise.all(
+    tasks.map(async (t) => {
+      const id = t.event_filter?.channel_id
+        ? ctx.db.normalizeId("chat_channels", t.event_filter.channel_id)
+        : null;
+      const channel = id ? await ctx.db.get(id) : null;
+      return channel && (await canAccessChannel(ctx as any, userId, channel))
+        ? { ...t, channel_name: channel.name }
+        : t;
+    }),
+  );
 }
 
 export const getTask = query({
@@ -943,7 +1390,10 @@ export const resolveTask = query({
 // daemon: a hosted conversation (agent_type "codecast", whose turn engine the
 // enqueue wakes), or one a configured cloud wake host serves. Null leaves the
 // trigger to the owner's daemon (getDueTasks / claimTask).
-async function cloudTriggerConversation(ctx: TaskCtx, task: Doc<"agent_tasks">) {
+async function cloudTriggerConversation(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+) {
   if (!task.originating_conversation_id) return null;
   const conversation = await ctx.db.get(task.originating_conversation_id);
   if (!conversation) return null;
@@ -952,7 +1402,9 @@ async function cloudTriggerConversation(ctx: TaskCtx, task: Doc<"agent_tasks">) 
   if (isHostedAgentType(conversation.agent_type)) return conversation;
   if (task.user_id !== conversation.user_id) return null;
   if (configuredCloudWakeHosts().length === 0) return null;
-  return await getCloudWakeHostForConversation(ctx, conversation) ? conversation : null;
+  return (await getCloudWakeHostForConversation(ctx, conversation))
+    ? conversation
+    : null;
 }
 
 // The frame a trigger run arrives in, built in one place for every writer (the
@@ -961,18 +1413,41 @@ async function cloudTriggerConversation(ctx: TaskCtx, task: Doc<"agent_tasks">) 
 // card when the trigger belongs to a role, the waiting session when one fired
 // it, and a note when the session is stashed out of the person's sight.
 
-export async function roleCardOf(ctx: TaskCtx, roleId: Id<"org_roles"> | undefined): Promise<RoleCard | null> {
+export async function roleCardOf(
+  ctx: TaskCtx,
+  roleId: Id<"org_roles"> | undefined,
+): Promise<RoleCard | null> {
   const role: any = roleId ? await ctx.db.get(roleId) : null;
   if (!role || role.status === "retired") return null;
   const to = role.reports_to;
-  const parent: any = to?.kind === "role" ? await ctx.db.get(to.role_id) : to?.kind === "user" ? await ctx.db.get(to.user_id) : null;
-  const reports_to = to?.kind === "role" ? (parent ? `@${parent.handle}` : "") : (parent?.name ?? "");
+  const parent: any =
+    to?.kind === "role"
+      ? await ctx.db.get(to.role_id)
+      : to?.kind === "user"
+        ? await ctx.db.get(to.user_id)
+        : null;
+  const reports_to =
+    to?.kind === "role"
+      ? parent
+        ? `@${parent.handle}`
+        : ""
+      : (parent?.name ?? "");
   const charter = await roleCharterOf(ctx, role);
-  const projects: any[] = (await Promise.all((role.scope?.project_ids ?? []).map((id: any) => ctx.db.get(id)))).filter(Boolean);
-  const plans: any[] = (await Promise.all((role.scope?.plan_ids ?? []).map((id: any) => ctx.db.get(id)))).filter(Boolean);
+  const projects: any[] = (
+    await Promise.all(
+      (role.scope?.project_ids ?? []).map((id: any) => ctx.db.get(id)),
+    )
+  ).filter(Boolean);
+  const plans: any[] = (
+    await Promise.all(
+      (role.scope?.plan_ids ?? []).map((id: any) => ctx.db.get(id)),
+    )
+  ).filter(Boolean);
   const served = await roleServedInitiatives(ctx, role);
   const firstLine = (t: unknown, n: number) => {
-    const line = String(t ?? "").split("\n")[0].trim();
+    const line = String(t ?? "")
+      .split("\n")[0]
+      .trim();
     if (line.length <= n) return line;
     const cut = line.slice(0, n);
     return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), n / 2)).replace(/[\s,;:.]+$/, "")}…`;
@@ -983,16 +1458,42 @@ export async function roleCardOf(ctx: TaskCtx, roleId: Id<"org_roles"> | undefin
     reports_to,
     scope: [...projects, ...plans].map((r) => r.title).filter(Boolean),
     ...(firstLine(charter, 240) ? { charter: firstLine(charter, 240) } : {}),
-    goals: projects.map((p) => firstLine(p.goal, 160)).filter(Boolean).slice(0, 3),
+    goals: projects
+      .map((p) => firstLine(p.goal, 160))
+      .filter(Boolean)
+      .slice(0, 3),
     // What the area feeds, up to the top level goal, with each number read
     // against its target: the link from a role's day to the company's goals.
-    ...(served.length ? { initiatives: served.map((i) => ({ short_id: i.short_id, title: i.title, metrics: servedMetricLines(i), chain: i.chain.map((c) => c.title) })) } : {}),
+    ...(served.length
+      ? {
+          initiatives: served.map((i) => ({
+            short_id: i.short_id,
+            title: i.title,
+            metrics: servedMetricLines(i),
+            chain: i.chain.map((c) => c.title),
+          })),
+        }
+      : {}),
   };
 }
 
-export async function triggerFrameFor(ctx: TaskCtx, task: Doc<"agent_tasks">, conversation: Doc<"conversations"> | null, waiting?: WaitingSession, change?: AreaChange): Promise<string> {
-  const stashed = !!conversation && !conversation.inbox_killed_at && !!conversation.inbox_stashed_at;
-  return triggerRunFrame(task, { role: await roleCardOf(ctx, task.role_id), waiting, change, stashed });
+export async function triggerFrameFor(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  conversation: Doc<"conversations"> | null,
+  waiting?: WaitingSession,
+  change?: AreaChange,
+): Promise<string> {
+  const stashed =
+    !!conversation &&
+    !conversation.inbox_killed_at &&
+    !!conversation.inbox_stashed_at;
+  return triggerRunFrame(task, {
+    role: await roleCardOf(ctx, task.role_id),
+    waiting,
+    change,
+    stashed,
+  });
 }
 
 // The route up (org-staffing.md S28): a session that reports to a role needs
@@ -1006,27 +1507,52 @@ export async function triggerFrameFor(ctx: TaskCtx, task: Doc<"agent_tasks">, co
  *  when nothing can: no standing session, the org off, the role's machine
  *  away (roleMachineAway), or the person paused or cancelled the trigger. A
  *  seat from before the trigger existed is armed here, on its first event. */
-async function roleHearing(ctx: TaskCtx, roleId: Id<"org_roles">, spec: RoleEventSpec = ROLE_NEEDS_INPUT_SPEC): Promise<{ standing: Doc<"conversations">; task: Doc<"agent_tasks"> } | null> {
+async function roleHearing(
+  ctx: TaskCtx,
+  roleId: Id<"org_roles">,
+  spec: RoleEventSpec = ROLE_NEEDS_INPUT_SPEC,
+): Promise<{
+  standing: Doc<"conversations">;
+  task: Doc<"agent_tasks">;
+} | null> {
   const reached = await reachableRole(ctx, roleId);
   if (!reached) return null;
-  if (roleMachineAway(await runnerDeviceOf(ctx, reached.standing), Date.now())) return null;
-  const task = await ctx.db.get((await ensureRoleEventTrigger(ctx, reached.role, reached.standing, spec)).id);
-  return task && task.status === "scheduled" ? { standing: reached.standing, task } : null;
+  if (roleMachineAway(await runnerDeviceOf(ctx, reached.standing), Date.now()))
+    return null;
+  const task = await ctx.db.get(
+    (await ensureRoleEventTrigger(ctx, reached.role, reached.standing, spec))
+      .id,
+  );
+  return task && task.status === "scheduled"
+    ? { standing: reached.standing, task }
+    : null;
 }
 
 /** The role that hears for a waiting session: its role for a session under
  *  one, the parent role for a role's own standing session, null otherwise. A
  *  worker nested under the session that started it tells that session instead
  *  (workerSettle.tellParent), so no role hears for it. */
-async function routeUpTarget(ctx: TaskCtx, conv: Doc<"conversations">): Promise<{ target: Id<"org_roles"> | null; standingRole: any }> {
+async function routeUpTarget(
+  ctx: TaskCtx,
+  conv: Doc<"conversations">,
+): Promise<{ target: Id<"org_roles"> | null; standingRole: any }> {
   if (isSpawnedWorker(conv as any)) return { target: null, standingRole: null };
-  const standingRole = conv.standing_role_id ? await ctx.db.get(conv.standing_role_id) : null;
-  const target = standingRole ? (standingRole.reports_to?.kind === "role" ? standingRole.reports_to.role_id : null) : conv.org_role_id ?? null;
+  const standingRole = conv.standing_role_id
+    ? await ctx.db.get(conv.standing_role_id)
+    : null;
+  const target = standingRole
+    ? standingRole.reports_to?.kind === "role"
+      ? standingRole.reports_to.role_id
+      : null
+    : (conv.org_role_id ?? null);
   return { target, standingRole };
 }
 
 /** Whether a waiting session's route up has a listener, without firing it. */
-export async function routeUpHears(ctx: TaskCtx, conv: Doc<"conversations">): Promise<"hears" | "nobody" | "unreachable"> {
+export async function routeUpHears(
+  ctx: TaskCtx,
+  conv: Doc<"conversations">,
+): Promise<"hears" | "nobody" | "unreachable"> {
   const { target } = await routeUpTarget(ctx, conv);
   if (!target) return "nobody";
   return (await roleHearing(ctx, target)) ? "hears" : "unreachable";
@@ -1038,7 +1564,13 @@ export async function fireRoleNeedsInput(
   waiting: WaitingSession,
   clientId: string,
 ): Promise<Id<"pending_messages"> | null> {
-  return fireRoleEvent(ctx, roleId, ROLE_NEEDS_INPUT_SPEC, { waiting }, clientId);
+  return fireRoleEvent(
+    ctx,
+    roleId,
+    ROLE_NEEDS_INPUT_SPEC,
+    { waiting },
+    clientId,
+  );
 }
 
 /** One firing of a role's event trigger (S28, S29): the run is written into
@@ -1053,7 +1585,13 @@ export async function fireRoleEvent(
 ): Promise<Id<"pending_messages"> | null> {
   const hearing = await roleHearing(ctx, roleId, spec);
   if (!hearing) return null;
-  return deliverTriggerRun(ctx, hearing.task, hearing.standing, clientId, about);
+  return deliverTriggerRun(
+    ctx,
+    hearing.task,
+    hearing.standing,
+    clientId,
+    about,
+  );
 }
 
 /** One run written straight into a session by the server (a role's event, a
@@ -1065,23 +1603,54 @@ export async function deliverTriggerRun(
   task: Doc<"agent_tasks">,
   conversation: Doc<"conversations">,
   clientId: string,
-  about: { waiting?: WaitingSession; change?: AreaChange; pending_events?: PendingEvent[] } = {},
+  about: {
+    waiting?: WaitingSession;
+    change?: AreaChange;
+    pending_events?: PendingEvent[];
+  } = {},
 ): Promise<Id<"pending_messages">> {
-  const frameTask = about.pending_events ? { ...task, pending_events: about.pending_events } : task;
-  const id = await enqueuePendingMessage(ctx as any, conversation, task.user_id, {
-    content: await triggerFrameFor(ctx, frameTask, conversation, about.waiting, about.change),
-    origin: "scheduler",
-    client_id: clientId,
+  const frameTask = about.pending_events
+    ? { ...task, pending_events: about.pending_events }
+    : task;
+  const id = await enqueuePendingMessage(
+    ctx as any,
+    conversation,
+    task.user_id,
+    {
+      content: await triggerFrameFor(
+        ctx,
+        frameTask,
+        conversation,
+        about.waiting,
+        about.change,
+      ),
+      origin: "scheduler",
+      client_id: clientId,
+    },
+  );
+  await patchTask(ctx, task, {
+    ...completedTaskRunFields(task, Date.now(), {
+      conversation_id: String(conversation._id),
+    }),
+    ...claimRunSourceFields(task),
   });
-  await patchTask(ctx, task, { ...completedTaskRunFields(task, Date.now(), { conversation_id: String(conversation._id) }), ...claimRunSourceFields(task) });
   return id;
 }
 
 /** A firing that could not run (a project trigger with nowhere it may land):
  *  settled as a failed run naming why, and re-armed for its next event. */
-export async function failTriggerFiring(ctx: TaskCtx, task: Doc<"agent_tasks">, why: string): Promise<void> {
+export async function failTriggerFiring(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  why: string,
+): Promise<void> {
   const now = Date.now();
-  await patchTask(ctx, task, { ...completedTaskRunFields(task, now, {}), ...claimRunSourceFields(task), last_run_failed: true, last_run_summary: why });
+  await patchTask(ctx, task, {
+    ...completedTaskRunFields(task, now, {}),
+    ...claimRunSourceFields(task),
+    last_run_failed: true,
+    last_run_summary: why,
+  });
 }
 
 // A session under a role waits: fire the trigger of the role that hears for
@@ -1104,10 +1673,18 @@ export async function routeUpWaitingSession(
 ): Promise<"told" | "already" | "nobody" | "unreachable"> {
   // A killed or closed session's settle is its teardown, not a wait to raise.
   if (conv.inbox_killed_at || isClosedSession(conv)) return "nobody";
-  const state = String(conv.thread_state ?? "").split("\n")[0].slice(0, 200);
+  const state = String(conv.thread_state ?? "")
+    .split("\n")[0]
+    .slice(0, 200);
   const count = conv.message_count ?? 0;
-  const [toldAt, ...toldState] = String(conv.hand_wake_notified_key ?? "").split(":");
-  const sameLine = !wait.stuck && conv.thread_state_status === "blocked" && !!state && toldState.join(":") === state;
+  const [toldAt, ...toldState] = String(
+    conv.hand_wake_notified_key ?? "",
+  ).split(":");
+  const sameLine =
+    !wait.stuck &&
+    conv.thread_state_status === "blocked" &&
+    !!state &&
+    toldState.join(":") === state;
   if ((toldAt !== "" && Number(toldAt) === count) || sameLine) return "already";
   // A session waiting on its own open decision is one ask: posting the
   // decision told the role (sessionDecisions.tellHearingRole), so the block or
@@ -1116,21 +1693,28 @@ export async function routeUpWaitingSession(
   if (wait.why !== "question") {
     const openDecision = await ctx.db
       .query("session_decisions")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conv._id).eq("status", "pending"))
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conv._id).eq("status", "pending"),
+      )
       .first();
     if (openDecision) return "already";
   }
   const { target, standingRole } = await routeUpTarget(ctx, conv);
   if (!target) return "nobody";
   const episode = `${count}:${state}`;
-  const id = await fireRoleNeedsInput(ctx, target, {
-    short_id: conv.short_id ?? String(conv._id).slice(0, 7),
-    title: (conv.title ?? "").slice(0, 80),
-    why: wait.why,
-    since: wait.since,
-    ...(standingRole ? { role: standingRole.handle } : {}),
-    state,
-  }, `session-waits:${conv._id}:${episode}`);
+  const id = await fireRoleNeedsInput(
+    ctx,
+    target,
+    {
+      short_id: conv.short_id ?? String(conv._id).slice(0, 7),
+      title: (conv.title ?? "").slice(0, 80),
+      why: wait.why,
+      since: wait.since,
+      ...(standingRole ? { role: standingRole.handle } : {}),
+      state,
+    },
+    `session-waits:${conv._id}:${episode}`,
+  );
   if (!id) return "unreachable";
   await ctx.db.patch(conv._id, { hand_wake_notified_key: episode });
   return "told";
@@ -1140,12 +1724,21 @@ export async function routeUpWaitingSession(
  *  trigger of this role that exists in any status is left exactly as the
  *  person has it: their prompt, their pause, their cancel. A dead one that an
  *  earlier role left in the same session is not this role's (orgRoutine). */
-export async function ensureRoleNeedsInputTrigger(ctx: TaskCtx, role: { _id: Id<"org_roles"> }, standing: Doc<"conversations">): Promise<{ id: Id<"agent_tasks">; short_id?: string; created: boolean }> {
+export async function ensureRoleNeedsInputTrigger(
+  ctx: TaskCtx,
+  role: { _id: Id<"org_roles"> },
+  standing: Doc<"conversations">,
+): Promise<{ id: Id<"agent_tasks">; short_id?: string; created: boolean }> {
   return ensureRoleEventTrigger(ctx, role, standing, ROLE_NEEDS_INPUT_SPEC);
 }
 
 /** Arm one of a role's event triggers, by the same rule. */
-export async function ensureRoleEventTrigger(ctx: TaskCtx, role: { _id: Id<"org_roles"> }, standing: Doc<"conversations">, spec: RoleEventSpec): Promise<{ id: Id<"agent_tasks">; short_id?: string; created: boolean }> {
+export async function ensureRoleEventTrigger(
+  ctx: TaskCtx,
+  role: { _id: Id<"org_roles"> },
+  standing: Doc<"conversations">,
+  spec: RoleEventSpec,
+): Promise<{ id: Id<"agent_tasks">; short_id?: string; created: boolean }> {
   const found = await findRoleEventTrigger(ctx, standing, spec.event, role);
   if (found) return { id: found._id, short_id: found.short_id, created: false };
   const created = await insertTask(ctx, standing.user_id, {
@@ -1162,8 +1755,13 @@ export async function ensureRoleEventTrigger(ctx: TaskCtx, role: { _id: Id<"org_
 }
 
 /** Every event trigger the role should have (roleEventSpecsFor), armed. */
-export async function ensureRoleEventTriggers(ctx: TaskCtx, role: { _id: Id<"org_roles">; handle: string }, standing: Doc<"conversations">): Promise<void> {
-  for (const spec of roleEventSpecsFor(role)) await ensureRoleEventTrigger(ctx, role, standing, spec);
+export async function ensureRoleEventTriggers(
+  ctx: TaskCtx,
+  role: { _id: Id<"org_roles">; handle: string },
+  standing: Doc<"conversations">,
+): Promise<void> {
+  for (const spec of roleEventSpecsFor(role))
+    await ensureRoleEventTrigger(ctx, role, standing, spec);
 }
 
 export const dispatchCloudTriggers = internalMutation({
@@ -1171,24 +1769,40 @@ export const dispatchCloudTriggers = internalMutation({
   // for the exact query that issued it, so a fresh Date.now() bound would
   // refuse it and strand every due row past the first page.
   args: { cursor: v.optional(v.string()), due_before: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ scanned: number; dispatched: number; done: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ scanned: number; dispatched: number; done: boolean }> => {
     // Hosted conversations take their routines through this path on every
     // deployment. With no cloud wake host configured they are the only rows
     // it can fire, so it reads just those (hosted_home); otherwise it reads
     // every due row, the hosted ones included.
     const now = Date.now();
-    const dueBefore = args.cursor && args.due_before !== undefined ? args.due_before : now;
-    const page = configuredCloudWakeHosts().length === 0
-      ? await ctx.db
-        .query("agent_tasks")
-        .withIndex("by_hosted_status_run_at", (q) => q.eq("hosted_home", true).eq("status", "scheduled").gt("run_at", 0).lte("run_at", dueBefore))
-        .order("asc")
-        .paginate({ cursor: args.cursor ?? null, numItems: 50 })
-      : await ctx.db
-        .query("agent_tasks")
-        .withIndex("by_status_run_at", (q) => q.eq("status", "scheduled").gt("run_at", 0).lte("run_at", dueBefore))
-        .order("asc")
-        .paginate({ cursor: args.cursor ?? null, numItems: 50 });
+    const dueBefore =
+      args.cursor && args.due_before !== undefined ? args.due_before : now;
+    const page =
+      configuredCloudWakeHosts().length === 0
+        ? await ctx.db
+            .query("agent_tasks")
+            .withIndex("by_hosted_status_run_at", (q) =>
+              q
+                .eq("hosted_home", true)
+                .eq("status", "scheduled")
+                .gt("run_at", 0)
+                .lte("run_at", dueBefore),
+            )
+            .order("asc")
+            .paginate({ cursor: args.cursor ?? null, numItems: 50 })
+        : await ctx.db
+            .query("agent_tasks")
+            .withIndex("by_status_run_at", (q) =>
+              q
+                .eq("status", "scheduled")
+                .gt("run_at", 0)
+                .lte("run_at", dueBefore),
+            )
+            .order("asc")
+            .paginate({ cursor: args.cursor ?? null, numItems: 50 });
     let dispatched = 0;
     for (const task of page.page) {
       const conversation = await cloudTriggerConversation(ctx, task);
@@ -1197,19 +1811,34 @@ export const dispatchCloudTriggers = internalMutation({
       // Armed before the owner's plan shrank, before limits existed, or by
       // someone other than the owner: the routine pauses instead of waking a
       // turn. Only older routines count, so the newest pause first.
-      const refusal = await hostedRoutineRefusal(ctx, task, { olderOnly: true });
+      const refusal = await hostedRoutineRefusal(ctx, task, {
+        olderOnly: true,
+      });
       if (refusal) {
         await applyPause(ctx, task);
-        console.warn("hosted_routine_paused", { task_id: task._id, reason: refusal });
+        console.warn("hosted_routine_paused", {
+          task_id: task._id,
+          reason: refusal,
+        });
         continue;
       }
       const clientId = `cloud-trigger:${task._id}:${task.run_count}`;
-      const updates: Record<string, any> = { ...completedTaskRunFields(task, now, { conversation_id: conversation._id }), ...claimRunSourceFields(task) };
-      const pendingMessageId = await enqueuePendingMessage(ctx, conversation, task.user_id, {
-        content: await triggerFrameFor(ctx, task, conversation),
-        origin: "scheduler",
-        client_id: clientId,
-      });
+      const updates: Record<string, any> = {
+        ...completedTaskRunFields(task, now, {
+          conversation_id: conversation._id,
+        }),
+        ...claimRunSourceFields(task),
+      };
+      const pendingMessageId = await enqueuePendingMessage(
+        ctx,
+        conversation,
+        task.user_id,
+        {
+          content: await triggerFrameFor(ctx, task, conversation),
+          origin: "scheduler",
+          client_id: clientId,
+        },
+      );
       await patchTask(ctx, task, updates);
       dispatched++;
       console.info("cloud_trigger_dispatched", {
@@ -1221,7 +1850,11 @@ export const dispatchCloudTriggers = internalMutation({
       });
     }
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.agentTasks.dispatchCloudTriggers, { cursor: page.continueCursor, due_before: dueBefore });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.agentTasks.dispatchCloudTriggers,
+        { cursor: page.continueCursor, due_before: dueBefore },
+      );
     }
     return { scanned: page.page.length, dispatched, done: page.isDone };
   },
@@ -1236,7 +1869,9 @@ export const injectFrame = query({
     if (!auth) throw new Error("Unauthorized");
     const task = await ctx.db.get(args.task_id);
     if (!task || task.user_id !== auth.userId) return null;
-    const conversation = task.originating_conversation_id ? await ctx.db.get(task.originating_conversation_id) : null;
+    const conversation = task.originating_conversation_id
+      ? await ctx.db.get(task.originating_conversation_id)
+      : null;
     return await triggerFrameFor(ctx, task, conversation);
   },
 });
@@ -1244,11 +1879,18 @@ export const injectFrame = query({
 /** A role's trigger waits while its workspace has the Org feature off: off
  *  means no role wakes, and turning Org back on resumes the same triggers
  *  where they were, with nothing to restore. */
-async function roleTriggerHeld(ctx: TaskCtx, task: Doc<"agent_tasks">): Promise<boolean> {
+async function roleTriggerHeld(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<boolean> {
   if (!task.role_id) return false;
   const role = await ctx.db.get(task.role_id);
   if (!role) return false;
-  return !(await workspaceHasFeature(ctx, { team_id: role.team_id, user_id: role.scope_user_id }, "org"));
+  return !(await workspaceHasFeature(
+    ctx,
+    { team_id: role.team_id, user_id: role.scope_user_id },
+    "org",
+  ));
 }
 
 export const getDueTasks = query({
@@ -1265,14 +1907,22 @@ export const getDueTasks = query({
     // index gave), without reading every other user's schedule on each poll.
     const tasks = await ctx.db
       .query("agent_tasks")
-      .withIndex("by_user_run_at", (q) => q.eq("user_id", auth.userId).lte("run_at", now))
+      .withIndex("by_user_run_at", (q) =>
+        q.eq("user_id", auth.userId).lte("run_at", now),
+      )
       .collect();
 
     const limit = args.limit || 5;
     const perDevice = new Map<string, number>();
     const dueTasks = [];
     for (const task of tasks) {
-      if (task.status !== "scheduled" || task.user_id !== auth.userId || task.run_at === undefined || !(task.run_at <= now)) continue;
+      if (
+        task.status !== "scheduled" ||
+        task.user_id !== auth.userId ||
+        task.run_at === undefined ||
+        !(task.run_at <= now)
+      )
+        continue;
       const device = task.created_device_id ?? "";
       const taken = perDevice.get(device) ?? 0;
       if (taken >= limit) continue;
@@ -1300,7 +1950,8 @@ export const claimTask = mutation({
     if (!task || task.user_id !== auth.userId) return null;
     // The lease holder claiming again inside its first lease is retrying a claim whose answer it never got (a bad
     // link): the claim landed, so hand it the firing it holds, unchanged (ct-92447).
-    if (isUnansweredClaimRetry(task, args.daemon_id, Date.now())) return { ...task };
+    if (isUnansweredClaimRetry(task, args.daemon_id, Date.now()))
+      return { ...task };
     if (task.status !== "scheduled") return null;
     if (await cloudTriggerConversation(ctx, task)) return null;
     if (await roleTriggerHeld(ctx, task)) return null;
@@ -1308,7 +1959,10 @@ export const claimTask = mutation({
     // A role trigger whose session another account now runs: whatever moved
     // the session, the firing is that account's, so the trigger goes to it
     // and its daemon claims it on its next poll (roleTriggerRunnerOf).
-    if (task.originating_conversation_id && await roleTriggerRunnerOf(ctx, task)) {
+    if (
+      task.originating_conversation_id &&
+      (await roleTriggerRunnerOf(ctx, task))
+    ) {
       await handRoleTriggersToRunner(ctx, task.originating_conversation_id);
       return null;
     }
@@ -1334,12 +1988,21 @@ export const claimTask = mutation({
       // This run sees every pending event, including ones a previous run
       // missed, so none is still owed a run of its own.
       ...(task.pending_events?.some((e) => e.after_claim)
-        ? { pending_events: task.pending_events!.map(({ after_claim: _late, ...e }) => e) }
+        ? {
+            pending_events: task.pending_events!.map(
+              ({ after_claim: _late, ...e }) => e,
+            ),
+          }
         : {}),
       ...sourceFields,
     });
 
-    return { ...task, status: "running" as const, ...(continues ? {} : { precheck_message: undefined }), ...sourceFields };
+    return {
+      ...task,
+      status: "running" as const,
+      ...(continues ? {} : { precheck_message: undefined }),
+      ...sourceFields,
+    };
   },
 });
 
@@ -1355,7 +2018,8 @@ export const renewLease = mutation({
 
     const task = await ctx.db.get(args.task_id);
     if (!task || task.user_id !== auth.userId) return false;
-    if (task.status !== "running" || task.lease_holder !== args.daemon_id) return false;
+    if (task.status !== "running" || task.lease_holder !== args.daemon_id)
+      return false;
 
     await ctx.db.patch(args.task_id, {
       lease_expires_at: Date.now() + LEASE_DURATION_MS,
@@ -1383,7 +2047,7 @@ function completedTaskRunFields(
     retry_count: 0,
     failed_slots: undefined,
     last_run_conversation_id: args.conversation_id
-      ? args.conversation_id as Id<"conversations">
+      ? (args.conversation_id as Id<"conversations">)
       : undefined,
     last_run_session_uuid: args.run_session_uuid || undefined,
     last_run_needs_attention: !!args.needs_attention,
@@ -1397,11 +2061,21 @@ function completedTaskRunFields(
   };
   if (!isLateSummary) {
     updates.run_count = task.run_count + 1;
-    Object.assign(updates, rearmedAfterRun(task, nextArmingAfterRun(task, now), args.rearm_at));
+    Object.assign(
+      updates,
+      rearmedAfterRun(task, nextArmingAfterRun(task, now), args.rearm_at),
+    );
   } else if (args.rearm_at !== undefined) {
     // An inject run reports after the daemon already completed and re-armed
     // the row at injection; its recheck moves that arming.
-    Object.assign(updates, rearmedAfterRun(task, { status: task.status, run_at: task.run_at }, args.rearm_at));
+    Object.assign(
+      updates,
+      rearmedAfterRun(
+        task,
+        { status: task.status, run_at: task.run_at },
+        args.rearm_at,
+      ),
+    );
   }
   return updates;
 }
@@ -1411,9 +2085,19 @@ function completedTaskRunFields(
 // keeps the slot it would have taken, so the run after the recheck returns to
 // the cadence; a one-shot stays armed instead of finishing; an event trigger
 // with events still waiting takes them at once, as it would have.
-export function rearmedAfterRun(task: Pick<Doc<"agent_tasks">, "schedule_type">, next: Record<string, any>, rearmAt: number | undefined): Record<string, any> {
+export function rearmedAfterRun(
+  task: Pick<Doc<"agent_tasks">, "schedule_type">,
+  next: Record<string, any>,
+  rearmAt: number | undefined,
+): Record<string, any> {
   if (rearmAt === undefined) return next;
-  if (task.schedule_type === "recurring") return { ...next, status: "scheduled", run_at: rearmAt, cadence_slot_at: next.run_at };
+  if (task.schedule_type === "recurring")
+    return {
+      ...next,
+      status: "scheduled",
+      run_at: rearmAt,
+      cadence_slot_at: next.run_at,
+    };
   if (task.schedule_type === "event" && next.run_at !== undefined) return next;
   return { ...next, status: "scheduled", run_at: rearmAt };
 }
@@ -1428,15 +2112,31 @@ export function rearmedAfterRun(task: Pick<Doc<"agent_tasks">, "schedule_type">,
 // day, until it landed just past the 24 hour window its evidence had to fall
 // in. A run that outlasts its interval skips the slots it missed, and a manual
 // run ahead of the next slot leaves that slot standing.
-export function nextArmingAfterRun(task: Pick<Doc<"agent_tasks">, "schedule_type" | "interval_ms" | "run_at" | "cadence_slot_at"> & Partial<Pick<Doc<"agent_tasks">, "pending_events" | "cadence">>, now: number): Record<string, any> {
+export function nextArmingAfterRun(
+  task: Pick<
+    Doc<"agent_tasks">,
+    "schedule_type" | "interval_ms" | "run_at" | "cadence_slot_at"
+  > &
+    Partial<Pick<Doc<"agent_tasks">, "pending_events" | "cadence">>,
+  now: number,
+): Record<string, any> {
   if (task.schedule_type === "recurring" && task.cadence) {
     const slot = task.cadence_slot_at ?? task.run_at ?? now;
-    return { status: "scheduled", run_at: slot > now ? slot : nextCadenceRun(task.cadence, now), cadence_slot_at: undefined };
+    return {
+      status: "scheduled",
+      run_at: slot > now ? slot : nextCadenceRun(task.cadence, now),
+      cadence_slot_at: undefined,
+    };
   }
   if (task.schedule_type === "recurring" && task.interval_ms) {
     const slot = task.cadence_slot_at ?? task.run_at ?? now;
-    const elapsed = slot > now ? 0 : Math.floor((now - slot) / task.interval_ms) + 1;
-    return { status: "scheduled", run_at: slot + elapsed * task.interval_ms, cadence_slot_at: undefined };
+    const elapsed =
+      slot > now ? 0 : Math.floor((now - slot) / task.interval_ms) + 1;
+    return {
+      status: "scheduled",
+      run_at: slot + elapsed * task.interval_ms,
+      cadence_slot_at: undefined,
+    };
   }
   // Disarmed until the next webhook, which sets run_at again. The events this
   // run was told about are spent here rather than at the claim: an inject run
@@ -1465,20 +2165,53 @@ export function nextArmingAfterRun(task: Pick<Doc<"agent_tasks">, "schedule_type
 // of a streak and the stop, nothing between.
 export const FAILED_SLOTS_TO_STOP = 3;
 export type SpentNotice = "stopped" | "first_slot" | null;
-export function retriesSpentFields(task: Pick<Doc<"agent_tasks">, "schedule_type" | "interval_ms" | "run_at" | "cadence_slot_at" | "run_count"> & Partial<Pick<Doc<"agent_tasks">, "cadence" | "failed_slots">>, now: number): { fields: Record<string, any>; notice: SpentNotice } {
-  if (task.schedule_type !== "recurring") return { fields: { status: "failed", precheck_message: undefined }, notice: "stopped" };
+export function retriesSpentFields(
+  task: Pick<
+    Doc<"agent_tasks">,
+    "schedule_type" | "interval_ms" | "run_at" | "cadence_slot_at" | "run_count"
+  > &
+    Partial<Pick<Doc<"agent_tasks">, "cadence" | "failed_slots">>,
+  now: number,
+): { fields: Record<string, any>; notice: SpentNotice } {
+  if (task.schedule_type !== "recurring")
+    return {
+      fields: { status: "failed", precheck_message: undefined },
+      notice: "stopped",
+    };
   const failed_slots = (task.failed_slots ?? 0) + 1;
-  if (failed_slots >= FAILED_SLOTS_TO_STOP) return { fields: { status: "failed", failed_slots, last_run_at: now, precheck_message: undefined }, notice: "stopped" };
+  if (failed_slots >= FAILED_SLOTS_TO_STOP)
+    return {
+      fields: {
+        status: "failed",
+        failed_slots,
+        last_run_at: now,
+        precheck_message: undefined,
+      },
+      notice: "stopped",
+    };
   return {
-    fields: { ...nextArmingAfterRun(task, now), retry_count: 0, run_count: task.run_count + 1, last_run_at: now, failed_slots, precheck_message: undefined },
+    fields: {
+      ...nextArmingAfterRun(task, now),
+      retry_count: 0,
+      run_count: task.run_count + 1,
+      last_run_at: now,
+      failed_slots,
+      precheck_message: undefined,
+    },
     notice: failed_slots === 1 ? "first_slot" : null,
   };
 }
 
 /** The first words of the notice a spent firing sends its owner. */
-function retriesSpentLead(task: Pick<Doc<"agent_tasks">, "schedule_type">, notice: Exclude<SpentNotice, null>): string {
-  if (notice === "first_slot") return "This run failed after its retries; the trigger stays armed and runs again at its next slot.";
-  return task.schedule_type === "recurring" ? `Stopped after ${FAILED_SLOTS_TO_STOP} failed runs in a row.` : "Stopped after retries.";
+function retriesSpentLead(
+  task: Pick<Doc<"agent_tasks">, "schedule_type">,
+  notice: Exclude<SpentNotice, null>,
+): string {
+  if (notice === "first_slot")
+    return "This run failed after its retries; the trigger stays armed and runs again at its next slot.";
+  return task.schedule_type === "recurring"
+    ? `Stopped after ${FAILED_SLOTS_TO_STOP} failed runs in a row.`
+    : "Stopped after retries.";
 }
 
 // What a finished run does to the conversations around it.
@@ -1515,11 +2248,27 @@ export async function settleRunConversation(
   const reported = !args.daemon_id && !!summary;
   const selfReported = !!runConv && reported;
   if (runConv && selfReported) {
-    await performSetThreadState(ctx as MutationCtx, runConv, summary, args.needs_attention ? "blocked" : "done");
+    await performSetThreadState(
+      ctx as MutationCtx,
+      runConv,
+      summary,
+      args.needs_attention ? "blocked" : "done",
+    );
   }
 
-  const outcome: RunOutcome = reported ? (args.needs_attention ? "attention" : "reported") : "unreported_exit";
-  const ownerNotified = await wakeRunOwner(ctx, task, runConv, outcome, reported ? args.summary : undefined, now);
+  const outcome: RunOutcome = reported
+    ? args.needs_attention
+      ? "attention"
+      : "reported"
+    : "unreported_exit";
+  const ownerNotified = await wakeRunOwner(
+    ctx,
+    task,
+    runConv,
+    outcome,
+    reported ? args.summary : undefined,
+    now,
+  );
   let posted = ownerNotified;
   const threadId = posted ? undefined : runResultThreadOf(task);
   const thread = threadId && args.summary ? await ctx.db.get(threadId) : null;
@@ -1530,7 +2279,9 @@ export async function settleRunConversation(
   if (thread && !isHostedAgentType(thread.agent_type)) {
     // A spawned run names its trigger and its own session, so the line in the
     // thread is one click from the transcript behind it.
-    const runRef = runConv ? runConv.short_id ?? runConv._id.toString().slice(0, 7) : null;
+    const runRef = runConv
+      ? (runConv.short_id ?? runConv._id.toString().slice(0, 7))
+      : null;
     const content = runRef
       ? `${task.short_id ?? task.title} ran in ${runRef}${args.needs_attention ? " and needs attention" : ""}:\n\n${args.summary}`
       : args.summary!;
@@ -1541,7 +2292,10 @@ export async function settleRunConversation(
       subtype: "scheduled_task_result",
       timestamp: now,
     });
-    await ctx.db.patch(thread._id, { updated_at: now, message_count: thread.message_count + 1 });
+    await ctx.db.patch(thread._id, {
+      updated_at: now,
+      message_count: thread.message_count + 1,
+    });
     posted = true;
   }
 
@@ -1599,9 +2353,7 @@ export const completeTaskRun = mutation({
     // originating conversation calls this later with --summary; allow it
     // through so the summary still posts to target_conversation.
     const isLateSummary =
-      task.status === "completed" &&
-      !task.last_run_summary &&
-      !!args.summary;
+      task.status === "completed" && !task.last_run_summary && !!args.summary;
 
     if (
       task.status !== "running" &&
@@ -1624,17 +2376,33 @@ export const completeTaskRun = mutation({
     // conversation — which is the schedule's home, not a run of it.
     let runConv: Doc<"conversations"> | null = null;
     if (args.run_session_uuid && !task.originating_conversation_id) {
-      runConv = await stampRunConversation(ctx, auth.userId, task, args.run_session_uuid);
+      runConv = await stampRunConversation(
+        ctx,
+        auth.userId,
+        task,
+        args.run_session_uuid,
+      );
     }
 
     // The daemon reporting the process gone while the run's transcript ends
     // on a limit banner is a park, not a completion: nothing ran.
-    if (args.daemon_id && runConv && runIsLimitParked(runConv) && task.status === "running") {
+    if (
+      args.daemon_id &&
+      runConv &&
+      runIsLimitParked(runConv) &&
+      task.status === "running"
+    ) {
       await parkRunAtLimit(ctx, task, runConv, now);
       return true;
     }
 
-    const ownerNotified = await settleRunConversation(ctx, task, runConv, args, now);
+    const ownerNotified = await settleRunConversation(
+      ctx,
+      task,
+      runConv,
+      args,
+      now,
+    );
 
     // --needs-attention is the agent's claim on the user's eyes, and stash/kill
     // must not swallow it: if the conversation the flag points at (the inject
@@ -1660,7 +2428,14 @@ export const completeTaskRun = mutation({
     await patchTask(ctx, task, updates);
 
     if (!isLateSummary && args.needs_attention && !ownerNotified) {
-      await notifyRunAttention(ctx, task, attentionConvId, "task_completed", args.summary ?? "", now);
+      await notifyRunAttention(
+        ctx,
+        task,
+        attentionConvId,
+        "task_completed",
+        args.summary ?? "",
+        now,
+      );
     }
 
     return true;
@@ -1708,7 +2483,8 @@ export const failTaskRun = mutation({
         status: "scheduled",
         retry_count: newRetryCount,
         ...offCadence(task, Date.now() + 60_000 * newRetryCount), // backoff
-        requested_run_source: task.last_run_source === "manual" ? "manual" : undefined,
+        requested_run_source:
+          task.last_run_source === "manual" ? "manual" : undefined,
         lease_holder: undefined,
         lease_expires_at: undefined,
         last_run_summary: args.error ? `Failed: ${args.error}` : "Failed",
@@ -1721,7 +2497,9 @@ export const failTaskRun = mutation({
         retry_count: newRetryCount,
         lease_holder: undefined,
         lease_expires_at: undefined,
-        last_run_summary: args.error ? `Failed: ${args.error}` : "Failed (max retries)",
+        last_run_summary: args.error
+          ? `Failed: ${args.error}`
+          : "Failed (max retries)",
         last_run_failed: true,
         last_run_session_uuid: runUuid,
         ...spent.fields,
@@ -1739,10 +2517,24 @@ export const failTaskRun = mutation({
       // A fresh run's death is its owner's to act on: the run is nested under
       // it and out of the inbox, so the owner is told, not the human.
       if (spent.notice) {
-        const ownerNotified = await wakeRunOwner(ctx, task, runConv, "failed", args.error, Date.now(), spent.notice);
+        const ownerNotified = await wakeRunOwner(
+          ctx,
+          task,
+          runConv,
+          "failed",
+          args.error,
+          Date.now(),
+          spent.notice,
+        );
         if (!ownerNotified) {
-          await notifyRunAttention(ctx, task, runNoticeConversationId(task, runConv), "task_failed",
-            `${retriesSpentLead(task, spent.notice)} ${args.error || "Review the run before restarting it."}`, Date.now());
+          await notifyRunAttention(
+            ctx,
+            task,
+            runNoticeConversationId(task, runConv),
+            "task_failed",
+            `${retriesSpentLead(task, spent.notice)} ${args.error || "Review the run before restarting it."}`,
+            Date.now(),
+          );
         }
       }
     }
@@ -1784,7 +2576,8 @@ export const skipTaskRun = mutation({
 
     const task = await ctx.db.get(args.task_id);
     if (!task || task.user_id !== auth.userId) return false;
-    if (task.status !== "running" || task.lease_holder !== args.daemon_id) return false;
+    if (task.status !== "running" || task.lease_holder !== args.daemon_id)
+      return false;
 
     const now = Date.now();
     await ctx.db.insert("agent_task_precheck_skips", {
@@ -1796,7 +2589,10 @@ export const skipTaskRun = mutation({
       duration_ms: args.duration_ms,
       output: args.output,
       reason: args.reason,
-      source: task.last_run_source ?? args.source ?? triggerFiringSource(task.schedule_type),
+      source:
+        task.last_run_source ??
+        args.source ??
+        triggerFiringSource(task.schedule_type),
       created_at: now,
     });
 
@@ -1809,7 +2605,10 @@ export const skipTaskRun = mutation({
       // about the last real run: failed_slots and last_run_failed stand until a
       // clean run or a re-arm (ct-95585).
       retry_count: 0,
-      ...(args.precheck_state !== undefined && sameGate(task, args.command, args.precheck_mode) ? { precheck_state: args.precheck_state } : {}),
+      ...(args.precheck_state !== undefined &&
+      sameGate(task, args.command, args.precheck_mode)
+        ? { precheck_state: args.precheck_state }
+        : {}),
       lease_holder: undefined,
       lease_expires_at: undefined,
     });
@@ -1819,18 +2618,30 @@ export const skipTaskRun = mutation({
 
 /** A `changes` gate spends its first firing recording what it watches, so a
  *  trigger that fires once would never run. */
-function assertPrecheckModeFits(scheduleType: string | undefined, mode: string | undefined): void {
+function assertPrecheckModeFits(
+  scheduleType: string | undefined,
+  mode: string | undefined,
+): void {
   if (mode === "changes" && scheduleType === "once") {
-    throw new Error("--precheck-mode changes needs a trigger that fires more than once (--every): its first firing only records what the command prints");
+    throw new Error(
+      "--precheck-mode changes needs a trigger that fires more than once (--every): its first firing only records what the command prints",
+    );
   }
 }
 
 /** Whether the gate a daemon ran is still the trigger's: an edit during the
  *  firing reset the state for a new gate, which the old gate's answer must
  *  not overwrite. A daemon that does not say which gate it ran is believed. */
-function sameGate(task: Doc<"agent_tasks">, command: string | undefined, mode: string | undefined): boolean {
+function sameGate(
+  task: Doc<"agent_tasks">,
+  command: string | undefined,
+  mode: string | undefined,
+): boolean {
   if (command === undefined) return true;
-  return command === task.precheck && (mode ?? "exit") === (task.precheck_mode ?? "exit");
+  return (
+    command === task.precheck &&
+    (mode ?? "exit") === (task.precheck_mode ?? "exit")
+  );
 }
 
 // A `changes` or `state` precheck woke the firing this daemon holds: keep the
@@ -1853,9 +2664,13 @@ export const passTaskPrecheck = mutation({
     if (!auth) throw new Error("Unauthorized");
     const task = await ctx.db.get(args.task_id);
     if (!task || task.user_id !== auth.userId) return false;
-    if (task.status !== "running" || task.lease_holder !== args.daemon_id) return false;
+    if (task.status !== "running" || task.lease_holder !== args.daemon_id)
+      return false;
     await patchTask(ctx, task, {
-      ...(args.precheck_state !== undefined && sameGate(task, args.command, args.precheck_mode) ? { precheck_state: args.precheck_state } : {}),
+      ...(args.precheck_state !== undefined &&
+      sameGate(task, args.command, args.precheck_mode)
+        ? { precheck_state: args.precheck_state }
+        : {}),
       precheck_message: args.message?.slice(0, TRIGGER_PRECHECK_MESSAGE_CHARS),
     });
     return true;
@@ -1888,7 +2703,12 @@ export const linkRunConversation = mutation({
     const task = await getOwnedTask(ctx, args.task_id, auth.userId);
     if (!task) return { linked: false, retry: false };
 
-    const conv = await stampRunConversation(ctx, auth.userId, task, args.run_session_uuid);
+    const conv = await stampRunConversation(
+      ctx,
+      auth.userId,
+      task,
+      args.run_session_uuid,
+    );
     if (!conv) return { linked: false, retry: true }; // not synced yet — daemon retries
 
     const repeatingSpawn =
@@ -1896,14 +2716,24 @@ export const linkRunConversation = mutation({
       !task.originating_conversation_id;
     // A run that asked for attention declared itself blocked on the human
     // (settleRunConversation); the next firing must not fold the ask away.
-    if (repeatingSpawn && !task.last_run_failed && !task.last_run_needs_attention) {
+    if (
+      repeatingSpawn &&
+      !task.last_run_failed &&
+      !task.last_run_needs_attention
+    ) {
       let prev: Doc<"conversations"> | null = task.last_run_conversation_id
         ? await ctx.db.get(task.last_run_conversation_id)
         : null;
-      if (!prev && task.last_run_session_uuid && task.last_run_session_uuid !== args.run_session_uuid) {
+      if (
+        !prev &&
+        task.last_run_session_uuid &&
+        task.last_run_session_uuid !== args.run_session_uuid
+      ) {
         prev = await ctx.db
           .query("conversations")
-          .withIndex("by_session_id", (q: any) => q.eq("session_id", task.last_run_session_uuid))
+          .withIndex("by_session_id", (q: any) =>
+            q.eq("session_id", task.last_run_session_uuid),
+          )
           .filter((q: any) => q.eq(q.field("user_id"), auth.userId))
           .first();
       }
@@ -1938,15 +2768,22 @@ export const resumeTask = cliTaskAction(applyResume, getArmableTask);
 // web's webRunNow, so `cast trigger run --focus goal_tree` and the Head of
 // People's "Plan the goal tree" button fire one trigger the same way.
 export const runTaskNow = mutation({
-  args: { api_token: v.string(), task_id: v.id("agent_tasks"), focus: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    task_id: v.id("agent_tasks"),
+    focus: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    if (args.focus !== undefined && !isOrgReviewFocusKey(args.focus)) throw new Error(`Unknown review focus: ${args.focus}`);
+    if (args.focus !== undefined && !isOrgReviewFocusKey(args.focus))
+      throw new Error(`Unknown review focus: ${args.focus}`);
     const task = await getArmableTask(ctx, args.task_id, auth.userId);
     if (!task) return false;
     const focus = args.focus as OrgReviewFocusKey | undefined;
-    return logVerb(ctx, task, { userId: auth.userId, source: "cli" }, (c, t) => applyRunNow(c, t, focus));
+    return logVerb(ctx, task, { userId: auth.userId, source: "cli" }, (c, t) =>
+      applyRunNow(c, t, focus),
+    );
   },
 });
 
@@ -1961,14 +2798,15 @@ export const runTaskNow = mutation({
 async function withResolvedRunConversations(
   ctx: TaskCtx,
   userId: Id<"users">,
-  tasks: Doc<"agent_tasks">[]
+  tasks: Doc<"agent_tasks">[],
 ) {
   // Enrich with conversation titles so rows can link to the last run and
   // the originating session without N client queries.
   const convIds = new Set<Id<"conversations">>();
   for (const t of tasks) {
     if (t.last_run_conversation_id) convIds.add(t.last_run_conversation_id);
-    if (t.originating_conversation_id) convIds.add(t.originating_conversation_id);
+    if (t.originating_conversation_id)
+      convIds.add(t.originating_conversation_id);
     if (t.created_by_conversation_id) convIds.add(t.created_by_conversation_id);
   }
   const titles = new Map<string, string>();
@@ -1976,19 +2814,26 @@ async function withResolvedRunConversations(
     [...convIds].map(async (id) => {
       const conv = await ctx.db.get(id);
       if (conv) titles.set(id, conv.title || "Untitled");
-    })
+    }),
   );
 
   // Raw session uuids stored because the conversation had not synced at
   // write time: the last run (the --context-current path) and the creator
   // (a trigger armed before its own session's row existed).
-  const uuidToConv = new Map<string, { id: Id<"conversations">; title: string }>();
+  const uuidToConv = new Map<
+    string,
+    { id: Id<"conversations">; title: string }
+  >();
   const pendingUuids = [
     ...new Set(
       tasks.flatMap((t) => [
-        ...(t.last_run_session_uuid && !t.last_run_conversation_id ? [t.last_run_session_uuid] : []),
-        ...(t.created_by_session_uuid && !t.created_by_conversation_id ? [t.created_by_session_uuid] : []),
-      ])
+        ...(t.last_run_session_uuid && !t.last_run_conversation_id
+          ? [t.last_run_session_uuid]
+          : []),
+        ...(t.created_by_session_uuid && !t.created_by_conversation_id
+          ? [t.created_by_session_uuid]
+          : []),
+      ]),
     ),
   ];
   await Promise.all(
@@ -1998,8 +2843,9 @@ async function withResolvedRunConversations(
         .withIndex("by_session_id", (q: any) => q.eq("session_id", uuid))
         .filter((q: any) => q.eq(q.field("user_id"), userId))
         .first();
-      if (conv) uuidToConv.set(uuid, { id: conv._id, title: conv.title || "Untitled" });
-    })
+      if (conv)
+        uuidToConv.set(uuid, { id: conv._id, title: conv.title || "Untitled" });
+    }),
   );
 
   return tasks.map((t) => {
@@ -2042,7 +2888,11 @@ export const webList = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    const tasks = await armedAndRecentlyFinished(ctx, userId, args.recent_finished ?? DEFAULT_RECENT_FINISHED);
+    const tasks = await armedAndRecentlyFinished(
+      ctx,
+      userId,
+      args.recent_finished ?? DEFAULT_RECENT_FINISHED,
+    );
     return await withResolvedRunConversations(ctx, userId, tasks);
   },
 });
@@ -2059,18 +2909,38 @@ export const webListHistory = query({
       .withIndex("by_user_status", (q) => q.eq("user_id", userId))
       .order("desc")
       .paginate(paginationOpts);
-    return { ...result, page: await withResolvedRunConversations(ctx, userId, result.page) };
+    return {
+      ...result,
+      page: await withResolvedRunConversations(ctx, userId, result.page),
+    };
   },
 });
 
-export async function armedAndRecentlyFinished(ctx: { db: any }, userId: Id<"users">, finished: number): Promise<Doc<"agent_tasks">[]> {
+export async function armedAndRecentlyFinished(
+  ctx: { db: any },
+  userId: Id<"users">,
+  finished: number,
+): Promise<Doc<"agent_tasks">[]> {
   const byStatus = (status: string) =>
-    ctx.db.query("agent_tasks").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", status));
-  const armed = (await Promise.all(ARMED_TASK_STATUSES.map((s) => byStatus(s).collect()))).flat();
+    ctx.db
+      .query("agent_tasks")
+      .withIndex("by_user_status", (q: any) =>
+        q.eq("user_id", userId).eq("status", status),
+      );
+  const armed = (
+    await Promise.all(ARMED_TASK_STATUSES.map((s) => byStatus(s).collect()))
+  ).flat();
   const limit = Math.max(0, Math.floor(finished));
   if (limit === 0) return armed;
-  const recent = (await Promise.all(FINISHED_TASK_STATUSES.map((s) => byStatus(s).order("desc").take(limit)))).flat();
-  recent.sort((a: Doc<"agent_tasks">, b: Doc<"agent_tasks">) => b._creationTime - a._creationTime);
+  const recent = (
+    await Promise.all(
+      FINISHED_TASK_STATUSES.map((s) => byStatus(s).order("desc").take(limit)),
+    )
+  ).flat();
+  recent.sort(
+    (a: Doc<"agent_tasks">, b: Doc<"agent_tasks">) =>
+      b._creationTime - a._creationTime,
+  );
   return [...armed, ...recent.slice(0, limit)];
 }
 
@@ -2086,7 +2956,7 @@ export async function armedAndRecentlyFinished(ctx: { db: any }, userId: Id<"use
 export async function canViewTask(
   ctx: { db: any },
   userId: Id<"users">,
-  task: Doc<"agent_tasks">
+  task: Doc<"agent_tasks">,
 ): Promise<boolean> {
   if (task.user_id.toString() === userId.toString()) return true;
   const anchors = [
@@ -2097,7 +2967,8 @@ export async function canViewTask(
   ].filter(Boolean) as Id<"conversations">[];
   for (const id of anchors) {
     const conv = await ctx.db.get(id);
-    if (conv && (await canAccessConversation(ctx as any, userId, conv))) return true;
+    if (conv && (await canAccessConversation(ctx as any, userId, conv)))
+      return true;
   }
   return false;
 }
@@ -2110,18 +2981,19 @@ export async function canViewTask(
 async function tasksAnchoredToConversations(
   ctx: TaskCtx,
   userId: Id<"users">,
-  conversationIds: Id<"conversations">[]
+  conversationIds: Id<"conversations">[],
 ) {
   const seen = new Set<string>();
   const tasks: Doc<"agent_tasks">[] = [];
   for (const convId of conversationIds) {
     const conv = await ctx.db.get(convId);
-    if (!conv || !(await canAccessConversation(ctx as any, userId, conv))) continue;
+    if (!conv || !(await canAccessConversation(ctx as any, userId, conv)))
+      continue;
     const [created, originating] = await Promise.all([
       ctx.db
         .query("agent_tasks")
         .withIndex("by_created_by_conversation", (q: any) =>
-          q.eq("created_by_conversation_id", convId)
+          q.eq("created_by_conversation_id", convId),
         )
         .collect(),
       tasksOriginatedBy(ctx, convId),
@@ -2138,7 +3010,7 @@ async function tasksAnchoredToConversations(
       const is_own = t.user_id.toString() === userId.toString();
       const owner = is_own ? null : await ctx.db.get(t.user_id);
       return { ...t, is_own, owner_name: owner?.name ?? owner?.email };
-    })
+    }),
   );
 }
 
@@ -2152,7 +3024,9 @@ export const webListForConversation = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    return await tasksAnchoredToConversations(ctx, userId, [args.conversation_id]);
+    return await tasksAnchoredToConversations(ctx, userId, [
+      args.conversation_id,
+    ]);
   },
 });
 
@@ -2174,7 +3048,7 @@ export const webListForConversations = query({
     return await tasksAnchoredToConversations(
       ctx,
       userId,
-      args.conversation_ids.slice(0, MAX_ANCHOR_CONVERSATIONS)
+      args.conversation_ids.slice(0, MAX_ANCHOR_CONVERSATIONS),
     );
   },
 });
@@ -2198,7 +3072,9 @@ export const webGet = query({
     } else if (args.short_id) {
       task = await ctx.db
         .query("agent_tasks")
-        .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id!.toLowerCase()))
+        .withIndex("by_short_id", (q) =>
+          q.eq("short_id", args.short_id!.toLowerCase()),
+        )
         .unique();
     }
     if (!task || !(await canViewTask(ctx, userId, task))) return null;
@@ -2227,7 +3103,9 @@ export const backfillShortIds = internalMutation({
       .take(limit + 1);
     const batch = missing.slice(0, limit);
     for (const task of batch) {
-      await ctx.db.patch(task._id, { short_id: await nextShortId(ctx.db, "tr") });
+      await ctx.db.patch(task._id, {
+        short_id: await nextShortId(ctx.db, "tr"),
+      });
     }
     return { filled: batch.length, more: missing.length > limit };
   },
@@ -2240,18 +3118,33 @@ export const backfillShortIds = internalMutation({
 // writes nothing new.
 export const backfillHostedHome = internalMutation({
   args: { cursor: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ scanned: number; stamped: number; done: boolean }> => {
-    const page = await ctx.db.query("agent_tasks").paginate({ cursor: args.cursor ?? null, numItems: 200 });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ scanned: number; stamped: number; done: boolean }> => {
+    const page = await ctx.db
+      .query("agent_tasks")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
     let stamped = 0;
     for (const task of page.page) {
       if (!task.originating_conversation_id) continue;
-      const stamp = await hostedHomeStamp(ctx, task.originating_conversation_id);
+      const stamp = await hostedHomeStamp(
+        ctx,
+        task.originating_conversation_id,
+      );
       if (task.hosted_home === stamp) continue;
       await ctx.db.patch(task._id, { hosted_home: stamp });
       stamped++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.agentTasks.backfillHostedHome, { cursor: page.continueCursor });
-    if (stamped > 0) console.log("backfill_hosted_home", { scanned: page.page.length, stamped });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.agentTasks.backfillHostedHome, {
+        cursor: page.continueCursor,
+      });
+    if (stamped > 0)
+      console.log("backfill_hosted_home", {
+        scanned: page.page.length,
+        stamped,
+      });
     return { scanned: page.page.length, stamped, done: page.isDone };
   },
 });
@@ -2325,7 +3218,7 @@ export const webListRuns = query({
       const userTurns = await ctx.db
         .query("messages")
         .withIndex("by_conversation_role_timestamp", (q) =>
-          q.eq("conversation_id", convId).eq("role", "user")
+          q.eq("conversation_id", convId).eq("role", "user"),
         )
         .order("desc")
         .take(1000);
@@ -2351,13 +3244,15 @@ export const webListRuns = query({
       .query("conversations")
       .withIndex("by_agent_task", (q) => q.eq("agent_task_id", args.task_id))
       .collect();
-    const newest = runs.sort((a, b) => b._creationTime - a._creationTime).slice(0, 100);
+    const newest = runs
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .slice(0, 100);
     const spawned = await Promise.all(
       newest.map(async (c) => {
         const trigger = await ctx.db
           .query("messages")
           .withIndex("by_conversation_role_timestamp", (q) =>
-            q.eq("conversation_id", c._id).eq("role", "user")
+            q.eq("conversation_id", c._id).eq("role", "user"),
           )
           .order("asc")
           .first();
@@ -2373,7 +3268,7 @@ export const webListRuns = query({
           trigger_message_id: trigger?._id,
           trigger_message_timestamp: trigger?.timestamp,
         };
-      })
+      }),
     );
     return newestRunsFirst([...spawned, ...skipped]);
   },
@@ -2383,7 +3278,11 @@ export const webCreate = mutation({
   args: {
     title: v.optional(v.string()),
     prompt: v.string(),
-    schedule_type: v.union(v.literal("once"), v.literal("recurring"), v.literal("event")),
+    schedule_type: v.union(
+      v.literal("once"),
+      v.literal("recurring"),
+      v.literal("event"),
+    ),
     run_at: v.optional(v.number()),
     interval_ms: v.optional(v.number()),
     event_filter: v.optional(eventFilterValidator),
@@ -2404,7 +3303,9 @@ export const webCreate = mutation({
     // starts that conversation as the routine's home. One transaction: a
     // routine the plan refuses leaves no empty conversation behind.
     if (isHostedAgentType(args.agent_type)) {
-      const home = await startHostedConversationFor(ctx, userId, { title: title.slice(0, HOSTED_TITLE_MAX_CHARS) });
+      const home = await startHostedConversationFor(ctx, userId, {
+        title: title.slice(0, HOSTED_TITLE_MAX_CHARS),
+      });
       return await insertTask(ctx, userId, {
         ...args,
         title,
@@ -2426,11 +3327,14 @@ export const webRunNow = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    if (args.focus !== undefined && !isOrgReviewFocusKey(args.focus)) throw new Error(`Unknown review focus: ${args.focus}`);
+    if (args.focus !== undefined && !isOrgReviewFocusKey(args.focus))
+      throw new Error(`Unknown review focus: ${args.focus}`);
     const task = await getArmableTask(ctx, args.task_id, userId);
     if (!task) return false;
     const focus = args.focus as OrgReviewFocusKey | undefined;
-    return logVerb(ctx, task, { userId, source: "web" }, (c, t) => applyRunNow(c, t, focus));
+    return logVerb(ctx, task, { userId, source: "web" }, (c, t) =>
+      applyRunNow(c, t, focus),
+    );
   },
 });
 export const webCancel = webTaskAction(applyCancel, getManageableTask);
@@ -2440,7 +3344,10 @@ export const webCancel = webTaskAction(applyCancel, getManageableTask);
 // home's denormalized armed_trigger_kind must not keep parking a session whose
 // wake no longer exists (sync-convergence C1). Exported so the restamp-on-
 // delete contract is unit-testable without the mutation wrapper.
-export async function deleteTaskCascade(ctx: TaskCtx, task: Doc<"agent_tasks">): Promise<void> {
+export async function deleteTaskCascade(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+): Promise<void> {
   // Delete erases history (see getManageableTask's note) — the edit log
   // goes with the row rather than orphaning.
   const revisions = await ctx.db
@@ -2454,7 +3361,8 @@ export async function deleteTaskCascade(ctx: TaskCtx, task: Doc<"agent_tasks">):
     .collect();
   for (const skip of skips) await ctx.db.delete(skip._id);
   await ctx.db.delete(task._id);
-  if (task.originating_conversation_id) await refreshArmedTriggerKind(ctx, task.originating_conversation_id);
+  if (task.originating_conversation_id)
+    await refreshArmedTriggerKind(ctx, task.originating_conversation_id);
 }
 
 export const webDelete = mutation({
@@ -2478,7 +3386,11 @@ export const webRegenerateSummary = mutation({
     if (!userId) throw new Error("Unauthorized");
     const task = await getManageableTask(ctx, args.task_id, userId);
     if (!task) return false;
-    await ctx.scheduler.runAfter(0, internal.agentTasks.generateDisplaySummary, { task_id: args.task_id });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.agentTasks.generateDisplaySummary,
+      { task_id: args.task_id },
+    );
     return true;
   },
 });
@@ -2583,8 +3495,21 @@ function snapshotEditable(task: Doc<"agent_tasks">) {
 // interval.
 // The edits assertRoutineAllowed rechecks: the ones that can take an armed
 // routine past its plan's limits, and a result thread that may be hosted.
-const ROUTINE_LIMIT_FIELDS: ReadonlySet<string> = new Set(["originating_conversation_id", "target_conversation_id", "schedule_type", "interval_ms"]);
-const RUNNING_SAFE_FIELDS: ReadonlySet<string> = new Set(["interval_ms", "precheck", "precheck_mode", "role_focus", "tune_why", "prompt", "title"]);
+const ROUTINE_LIMIT_FIELDS: ReadonlySet<string> = new Set([
+  "originating_conversation_id",
+  "target_conversation_id",
+  "schedule_type",
+  "interval_ms",
+]);
+const RUNNING_SAFE_FIELDS: ReadonlySet<string> = new Set([
+  "interval_ms",
+  "precheck",
+  "precheck_mode",
+  "role_focus",
+  "tune_why",
+  "prompt",
+  "title",
+]);
 
 // What a trigger runs and where are one account's (ct-96220): the precheck is
 // a shell command its daemon runs, the home and target are the sessions it
@@ -2593,20 +3518,43 @@ const RUNNING_SAFE_FIELDS: ReadonlySet<string> = new Set(["interval_ms", "preche
 // reschedules and retitles it; a person changing what it runs must be the
 // account rewriterOf names. The server's own rewrites of a role's routines
 // (a prompt brought up to date) are not a person's and pass.
-const RUN_FIELD_WORDS: Partial<Record<(typeof EDITABLE_FIELDS)[number], string>> = {
-  precheck: "precheck", precheck_mode: "precheck", originating_conversation_id: "the session it runs in", target_conversation_id: "the thread it posts to",
-  prompt: "prompt", agent_type: "agent", model: "model", agent_definition: "agent definition", project_path: "checkout", mode: "permissions",
+const RUN_FIELD_WORDS: Partial<
+  Record<(typeof EDITABLE_FIELDS)[number], string>
+> = {
+  precheck: "precheck",
+  precheck_mode: "precheck",
+  originating_conversation_id: "the session it runs in",
+  target_conversation_id: "the thread it posts to",
+  prompt: "prompt",
+  agent_type: "agent",
+  model: "model",
+  agent_definition: "agent definition",
+  project_path: "checkout",
+  mode: "permissions",
 };
 
-async function assertMayRewrite(ctx: TaskCtx, task: Doc<"agent_tasks">, changed: string[], userId: Id<"users">): Promise<void> {
-  const words = [...new Set(changed.map((k) => RUN_FIELD_WORDS[k as keyof typeof RUN_FIELD_WORDS]).filter(Boolean))];
+async function assertMayRewrite(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  changed: string[],
+  userId: Id<"users">,
+): Promise<void> {
+  const words = [
+    ...new Set(
+      changed
+        .map((k) => RUN_FIELD_WORDS[k as keyof typeof RUN_FIELD_WORDS])
+        .filter(Boolean),
+    ),
+  ];
   if (!words.length) return;
   const rewriter = await rewriterOf(ctx, task);
   if (String(rewriter.userId) === String(userId)) return;
   const what = words.join(", ");
-  throw new Error(rewriter.seat
-    ? `Only the account running this role's session can change its ${what}: it runs on that machine`
-    : `Only the trigger's owner can change its ${what}: it runs on their machine`);
+  throw new Error(
+    rewriter.seat
+      ? `Only the account running this role's session can change its ${what}: it runs on that machine`
+      : `Only the trigger's owner can change its ${what}: it runs on their machine`,
+  );
 }
 
 export async function applyTaskUpdate(
@@ -2618,14 +3566,23 @@ export async function applyTaskUpdate(
   actor: { userId: Id<"users">; source: "cli" | "web"; person?: boolean },
 ): Promise<{ ok: boolean; changed: string[] }> {
   // `--every` restates the schedule type; one equal to the current one changes nothing.
-  const whileRunning = task.status === "running" && Object.entries(args).every(([k, value]) =>
-    value === undefined || RUNNING_SAFE_FIELDS.has(k) || (k === "schedule_type" && value === task.schedule_type));
-  if (task.status !== "scheduled" && task.status !== "paused" && !whileRunning) return { ok: false, changed: [] };
+  const whileRunning =
+    task.status === "running" &&
+    Object.entries(args).every(
+      ([k, value]) =>
+        value === undefined ||
+        RUNNING_SAFE_FIELDS.has(k) ||
+        (k === "schedule_type" && value === task.schedule_type),
+    );
+  if (task.status !== "scheduled" && task.status !== "paused" && !whileRunning)
+    return { ok: false, changed: [] };
 
   const patch: Record<string, unknown> = {};
   if (args.title !== undefined) patch.title = args.title.trim() || task.title;
   const promptChanged =
-    args.prompt !== undefined && !!args.prompt.trim() && args.prompt.trim() !== task.prompt;
+    args.prompt !== undefined &&
+    !!args.prompt.trim() &&
+    args.prompt.trim() !== task.prompt;
   if (promptChanged) {
     patch.prompt = args.prompt!.trim();
     // Stale distillations must not describe the old prompt.
@@ -2633,34 +3590,61 @@ export async function applyTaskUpdate(
     patch.display_summary = undefined;
     patch.summary_for_person = undefined;
   }
-  if (args.mode !== undefined) patch.mode = args.mode === "apply" ? "apply" : "propose";
-  if (patch.mode === "propose" && projectRunsInline(task)) throw new Error("A project trigger's runs are turns in its main session, with that session's permissions, so it cannot be read-only");
-  if (args.agent_type !== undefined) patch.agent_type = args.agent_type || "claude";
+  if (args.mode !== undefined)
+    patch.mode = args.mode === "apply" ? "apply" : "propose";
+  if (patch.mode === "propose" && projectRunsInline(task))
+    throw new Error(
+      "A project trigger's runs are turns in its main session, with that session's permissions, so it cannot be read-only",
+    );
+  if (args.agent_type !== undefined)
+    patch.agent_type = args.agent_type || "claude";
   // "" or "default" clears the pin — the run goes back to the agent's saved default.
-  if (args.model !== undefined) patch.model = args.model && args.model !== "default" ? args.model : undefined;
-  if (args.agent_definition !== undefined) patch.agent_definition = args.agent_definition || undefined;
-  if (args.project_path !== undefined) patch.project_path = args.project_path || undefined;
-  if (args.max_runtime_ms !== undefined) patch.max_runtime_ms = args.max_runtime_ms;
+  if (args.model !== undefined)
+    patch.model =
+      args.model && args.model !== "default" ? args.model : undefined;
+  if (args.agent_definition !== undefined)
+    patch.agent_definition = args.agent_definition || undefined;
+  if (args.project_path !== undefined)
+    patch.project_path = args.project_path || undefined;
+  if (args.max_runtime_ms !== undefined)
+    patch.max_runtime_ms = args.max_runtime_ms;
   // "" removes the gate — `cast trigger update tr-42 --precheck ""`.
-  if (args.precheck !== undefined) patch.precheck = args.precheck.trim() || undefined;
+  if (args.precheck !== undefined)
+    patch.precheck = args.precheck.trim() || undefined;
   // Removing the gate removes how it was read, and a trigger with no gate has no mode to set.
-  const gateAfter = args.precheck !== undefined ? args.precheck.trim() : task.precheck;
+  const gateAfter =
+    args.precheck !== undefined ? args.precheck.trim() : task.precheck;
   if (!gateAfter) {
     if (task.precheck_mode !== undefined) patch.precheck_mode = undefined;
-  } else if (args.precheck_mode !== undefined) patch.precheck_mode = args.precheck_mode === "changes" || args.precheck_mode === "state" ? args.precheck_mode : undefined;
+  } else if (args.precheck_mode !== undefined)
+    patch.precheck_mode =
+      args.precheck_mode === "changes" || args.precheck_mode === "state"
+        ? args.precheck_mode
+        : undefined;
   assertPrecheckModeFits(
     (args.schedule_type ?? task.schedule_type) as string,
-    ("precheck_mode" in patch ? patch.precheck_mode : task.precheck_mode) as string | undefined,
+    ("precheck_mode" in patch ? patch.precheck_mode : task.precheck_mode) as
+      | string
+      | undefined,
   );
   // A new gate, or the gate read another way, starts from nothing: the stored
   // state answered the old question.
-  const gate = (t: { precheck?: string; precheck_mode?: string }) => `${t.precheck ?? ""}\u0000${t.precheck_mode ?? ""}`;
-  if (gate({ precheck: task.precheck, precheck_mode: task.precheck_mode, ...patch } as any) !== gate(task)) {
+  const gate = (t: { precheck?: string; precheck_mode?: string }) =>
+    `${t.precheck ?? ""}\u0000${t.precheck_mode ?? ""}`;
+  if (
+    gate({
+      precheck: task.precheck,
+      precheck_mode: task.precheck_mode,
+      ...patch,
+    } as any) !== gate(task)
+  ) {
     patch.precheck_state = undefined;
     patch.precheck_message = undefined;
   }
-  if (args.role_focus !== undefined) patch.role_focus = args.role_focus.trim() || undefined;
-  if (args.tune_why !== undefined) patch.tune_why = args.tune_why.trim() || undefined;
+  if (args.role_focus !== undefined)
+    patch.role_focus = args.role_focus.trim() || undefined;
+  if (args.tune_why !== undefined)
+    patch.tune_why = args.tune_why.trim() || undefined;
 
   // Routing. Clearing the binding (null) turns an inject trigger into a spawn
   // trigger and back; --wake rides along. The old home's armed_trigger_kind is
@@ -2670,36 +3654,60 @@ export async function applyTaskUpdate(
   if (args.originating_conversation_id !== undefined) {
     // A role's trigger lives on its seat and follows whoever runs it
     // (roleTriggerRunnerOf); moving it would take it out of the role.
-    if (task.role_id && String(args.originating_conversation_id ?? "") !== String(task.originating_conversation_id ?? "")) {
-      throw new Error("This trigger belongs to a role and runs in the role's own session; it cannot move to another one");
+    if (
+      task.role_id &&
+      String(args.originating_conversation_id ?? "") !==
+        String(task.originating_conversation_id ?? "")
+    ) {
+      throw new Error(
+        "This trigger belongs to a role and runs in the role's own session; it cannot move to another one",
+      );
     }
-    patch.originating_conversation_id = args.originating_conversation_id ?? undefined;
+    patch.originating_conversation_id =
+      args.originating_conversation_id ?? undefined;
   }
   // Every trigger keeps its parent. The session a trigger was bound to is the
   // one it reports to, so unbinding it (--spawn) keeps that session as the
   // parent when the row has none of its own.
   if (args.created_by_conversation_id) {
     patch.created_by_conversation_id = args.created_by_conversation_id;
-  } else if (args.originating_conversation_id === null && !task.created_by_conversation_id && task.originating_conversation_id) {
+  } else if (
+    args.originating_conversation_id === null &&
+    !task.created_by_conversation_id &&
+    task.originating_conversation_id
+  ) {
     patch.created_by_conversation_id = task.originating_conversation_id;
   }
   if (args.target_conversation_id !== undefined) {
     patch.target_conversation_id = args.target_conversation_id ?? undefined;
   }
-  if (args.wake_creator !== undefined) patch.wake_creator = args.wake_creator || undefined;
+  if (args.wake_creator !== undefined)
+    patch.wake_creator = args.wake_creator || undefined;
 
   if (args.schedule_type !== undefined) {
     patch.schedule_type = args.schedule_type;
     if (args.schedule_type === "recurring") {
-      if (!args.interval_ms) throw new Error("interval_ms required for recurring tasks");
+      if (!args.interval_ms)
+        throw new Error("interval_ms required for recurring tasks");
       patch.interval_ms = args.interval_ms;
       patch.run_at = args.run_at ?? Date.now() + args.interval_ms;
       patch.event_filter = undefined;
     } else if (args.schedule_type === "event") {
-      if (!args.event_filter) throw new Error("event_filter required for event tasks");
-      const project_path = args.project_path !== undefined ? args.project_path || undefined : task.project_path;
-      const event_filter = await storedEventFilter(ctx, task.user_id, project_path, args.event_filter);
-      const project = task.project_id ? await ctx.db.get(task.project_id) : null;
+      if (!args.event_filter)
+        throw new Error("event_filter required for event tasks");
+      const project_path =
+        args.project_path !== undefined
+          ? args.project_path || undefined
+          : task.project_path;
+      const event_filter = await storedEventFilter(
+        ctx,
+        task.user_id,
+        project_path,
+        args.event_filter,
+      );
+      const project = task.project_id
+        ? await ctx.db.get(task.project_id)
+        : null;
       if (project) await requireProjectMayWatch(ctx, project, event_filter);
       patch.event_filter = event_filter;
       patch.run_at = undefined;
@@ -2720,8 +3728,22 @@ export async function applyTaskUpdate(
   // daily or weekly routine keeps its time of day, and a daily one keeps the
   // weekdays it had while its interval is unchanged. An interval edit drops it.
   if ("run_at" in patch || "interval_ms" in patch || "schedule_type" in patch) {
-    const next = { schedule_type: (patch.schedule_type as string | undefined) ?? task.schedule_type, interval_ms: "interval_ms" in patch ? (patch.interval_ms as number | undefined) : task.interval_ms, run_at: "run_at" in patch ? (patch.run_at as number | undefined) : task.run_at };
-    const wall = await hostedWallCadence(ctx, { user_id: task.user_id, hosted: !!task.hosted_home, ...next, kept: next.interval_ms === task.interval_ms ? task.cadence : undefined });
+    const next = {
+      schedule_type:
+        (patch.schedule_type as string | undefined) ?? task.schedule_type,
+      interval_ms:
+        "interval_ms" in patch
+          ? (patch.interval_ms as number | undefined)
+          : task.interval_ms,
+      run_at:
+        "run_at" in patch ? (patch.run_at as number | undefined) : task.run_at,
+    };
+    const wall = await hostedWallCadence(ctx, {
+      user_id: task.user_id,
+      hosted: !!task.hosted_home,
+      ...next,
+      kept: next.interval_ms === task.interval_ms ? task.cadence : undefined,
+    });
     patch.cadence = wall?.cadence;
     if (wall && "run_at" in patch) patch.run_at = wall.run_at;
   }
@@ -2732,7 +3754,8 @@ export async function applyTaskUpdate(
   const changed = (EDITABLE_FIELDS as readonly string[]).filter(
     (k) =>
       k in patch &&
-      JSON.stringify((patch as any)[k] ?? null) !== JSON.stringify((task as any)[k] ?? null)
+      JSON.stringify((patch as any)[k] ?? null) !==
+        JSON.stringify((task as any)[k] ?? null),
   );
   if (changed.length === 0) return { ok: true, changed };
   if (actor.person) await assertMayRewrite(ctx, task, changed, actor.userId);
@@ -2745,18 +3768,28 @@ export async function applyTaskUpdate(
   ]);
   if (anchorRefusal) throw new Error(anchorRefusal);
   if (changed.some((k) => ROUTINE_LIMIT_FIELDS.has(k))) {
-    await assertRoutineAllowed(ctx, { ...task, ...patch } as HostedRoutine & HostedThreads);
+    await assertRoutineAllowed(ctx, { ...task, ...patch } as HostedRoutine &
+      HostedThreads);
   }
 
   await appendRevision(ctx, task, actor, changed);
 
   await patchTask(ctx, task, patch);
-  const newHome = patch.originating_conversation_id as Id<"conversations"> | undefined;
-  if (newHome && newHome.toString() !== task.originating_conversation_id?.toString()) {
+  const newHome = patch.originating_conversation_id as
+    | Id<"conversations">
+    | undefined;
+  if (
+    newHome &&
+    newHome.toString() !== task.originating_conversation_id?.toString()
+  ) {
     await refreshArmedTriggerKind(ctx, newHome);
   }
   if (promptChanged) {
-    await ctx.scheduler?.runAfter(0, internal.agentTasks.generateDisplaySummary, { task_id: task._id });
+    await ctx.scheduler?.runAfter(
+      0,
+      internal.agentTasks.generateDisplaySummary,
+      { task_id: task._id },
+    );
   }
   return { ok: true, changed };
 }
@@ -2764,7 +3797,9 @@ export async function applyTaskUpdate(
 const TASK_UPDATE_ARG_VALIDATORS = {
   title: v.optional(v.string()),
   prompt: v.optional(v.string()),
-  schedule_type: v.optional(v.union(v.literal("once"), v.literal("recurring"), v.literal("event"))),
+  schedule_type: v.optional(
+    v.union(v.literal("once"), v.literal("recurring"), v.literal("event")),
+  ),
   run_at: v.optional(v.number()),
   interval_ms: v.optional(v.number()),
   event_filter: v.optional(eventFilterValidator),
@@ -2778,7 +3813,9 @@ const TASK_UPDATE_ARG_VALIDATORS = {
   precheck_mode: v.optional(v.string()),
   // null clears; absent keeps. The CLI sends refs (--for/--thread) and the
   // mutation resolves them to ids before calling applyTaskUpdate.
-  originating_conversation_id: v.optional(v.union(v.id("conversations"), v.null())),
+  originating_conversation_id: v.optional(
+    v.union(v.id("conversations"), v.null()),
+  ),
   target_conversation_id: v.optional(v.union(v.id("conversations"), v.null())),
   wake_creator: v.optional(v.boolean()),
 };
@@ -2792,7 +3829,11 @@ export const webUpdate = mutation({
     if (!task) return false;
     const { task_id: _id, ...rest } = args;
     await requireTriggerConversations(ctx, userId, rest);
-    const result = await applyTaskUpdate(ctx, task, rest, { userId, source: "web", person: true });
+    const result = await applyTaskUpdate(ctx, task, rest, {
+      userId,
+      source: "web",
+      person: true,
+    });
     return result.ok;
   },
 });
@@ -2818,25 +3859,55 @@ export const updateTask = mutation({
     if (!auth) throw new Error("Unauthorized");
     const task = await getManageableTask(ctx, args.task_id, auth.userId);
     if (!task) return { ok: false, changed: [] };
-    const { api_token: _token, task_id: _id, originating_session_ref, target_session_ref, created_by_session_ref, ...rest } = args;
+    const {
+      api_token: _token,
+      task_id: _id,
+      originating_session_ref,
+      target_session_ref,
+      created_by_session_ref,
+      ...rest
+    } = args;
     const update: TaskUpdateArgs = { ...rest };
     await requireTriggerConversations(ctx, auth.userId, rest);
     if (originating_session_ref) {
-      const conv = await findConversationByAnyRef(ctx, originating_session_ref, auth.userId);
-      if (!conv) throw new Error(`No session of yours matches "${originating_session_ref}"`);
+      const conv = await findConversationByAnyRef(
+        ctx,
+        originating_session_ref,
+        auth.userId,
+      );
+      if (!conv)
+        throw new Error(
+          `No session of yours matches "${originating_session_ref}"`,
+        );
       update.originating_conversation_id = conv._id;
     }
     if (target_session_ref) {
-      const conv = await findConversationByAnyRef(ctx, target_session_ref, auth.userId);
-      if (!conv) throw new Error(`No session of yours matches "${target_session_ref}"`);
+      const conv = await findConversationByAnyRef(
+        ctx,
+        target_session_ref,
+        auth.userId,
+      );
+      if (!conv)
+        throw new Error(`No session of yours matches "${target_session_ref}"`);
       update.target_conversation_id = conv._id;
     }
     if (created_by_session_ref) {
-      const conv = await findConversationByAnyRef(ctx, created_by_session_ref, auth.userId);
-      if (!conv) throw new Error(`No session of yours matches "${created_by_session_ref}"`);
+      const conv = await findConversationByAnyRef(
+        ctx,
+        created_by_session_ref,
+        auth.userId,
+      );
+      if (!conv)
+        throw new Error(
+          `No session of yours matches "${created_by_session_ref}"`,
+        );
       update.created_by_conversation_id = conv._id;
     }
-    return await applyTaskUpdate(ctx, task, update, { userId: auth.userId, source: "cli", person: true });
+    return await applyTaskUpdate(ctx, task, update, {
+      userId: auth.userId,
+      source: "cli",
+      person: true,
+    });
   },
 });
 
@@ -2844,7 +3915,11 @@ export const updateTask = mutation({
 // and the task's current editable fields appended — revision N's "after" is
 // revision N+1's before, or `current` for the newest. Shared by the CLI
 // (`cast trigger history`, via /cli/tasks/history) and the web.
-async function listTaskRevisions(ctx: { db: any }, userId: Id<"users">, taskId: Id<"agent_tasks">) {
+async function listTaskRevisions(
+  ctx: { db: any },
+  userId: Id<"users">,
+  taskId: Id<"agent_tasks">,
+) {
   const task = await getManageableTask(ctx, taskId, userId);
   if (!task) return null;
   const revisions = await ctx.db
@@ -2854,26 +3929,36 @@ async function listTaskRevisions(ctx: { db: any }, userId: Id<"users">, taskId: 
   revisions.sort((a: any, b: any) => a.revision - b.revision);
   const actorNames = new Map<string, string>();
   await Promise.all(
-    [...new Set(revisions.map((r: any) => r.actor_user_id.toString()))].map(async (id) => {
-      const user = await ctx.db.get(id);
-      if (user) actorNames.set(id as string, user.name || user.email || "unknown");
-    })
+    [...new Set(revisions.map((r: any) => r.actor_user_id.toString()))].map(
+      async (id) => {
+        const user = await ctx.db.get(id);
+        if (user)
+          actorNames.set(id as string, user.name || user.email || "unknown");
+      },
+    ),
   );
   // Routing fields are conversation ids, and a 32-char id in a history line is
   // an unreadable blob. Resolve every id any revision touched to its session
   // short id, once each, so the CLI can print "jx7bcgr" where the row stores a
   // document id. Same shape as the actor-name map above.
-  const snapshots = [snapshotEditable(task), ...revisions.map((r: any) => r.before)];
+  const snapshots = [
+    snapshotEditable(task),
+    ...revisions.map((r: any) => r.before),
+  ];
   const conversationShortIds: Record<string, string> = {};
   await Promise.all(
-    [...new Set(
-      snapshots.flatMap((snap: any) =>
-        [snap?.originating_conversation_id, snap?.target_conversation_id].filter(Boolean).map(String)
-      )
-    )].map(async (id) => {
+    [
+      ...new Set(
+        snapshots.flatMap((snap: any) =>
+          [snap?.originating_conversation_id, snap?.target_conversation_id]
+            .filter(Boolean)
+            .map(String),
+        ),
+      ),
+    ].map(async (id) => {
       const conv = await ctx.db.get(id);
       if (conv?.short_id) conversationShortIds[id] = conv.short_id;
-    })
+    }),
   );
 
   return {
@@ -2921,9 +4006,17 @@ export const webListRevisions = query({
  * errors never reach a session the other team can read (external-data.md X4).
  * A path mapped to a team the owner has left resolves to nothing.
  */
-async function triggerWorkspaceKey(ctx: { db: any }, task: Pick<Doc<"agent_tasks">, "user_id" | "project_path">): Promise<string | null> {
+async function triggerWorkspaceKey(
+  ctx: { db: any },
+  task: Pick<Doc<"agent_tasks">, "user_id" | "project_path">,
+): Promise<string | null> {
   try {
-    return (await createDataContext(ctx, { userId: task.user_id, project_path: task.project_path })).workspaceKey;
+    return (
+      await createDataContext(ctx, {
+        userId: task.user_id,
+        project_path: task.project_path,
+      })
+    ).workspaceKey;
   } catch {
     return null;
   }
@@ -2935,27 +4028,66 @@ async function triggerWorkspaceKey(ctx: { db: any }, task: Pick<Doc<"agent_tasks
  * triggerSourceName), so `--source src-5` works and a typo is refused at save
  * instead of arming a trigger that never fires. Create and edit both run it.
  */
-export async function storedEventFilter(ctx: TaskCtx, userId: Id<"users">, project_path: string | undefined, filter: EventFilter | undefined): Promise<EventFilter | undefined> {
+export async function storedEventFilter(
+  ctx: TaskCtx,
+  userId: Id<"users">,
+  project_path: string | undefined,
+  filter: EventFilter | undefined,
+): Promise<EventFilter | undefined> {
   if (filter && isChatTriggerEvent(filter.event_type)) {
-    if (!filter.channel_id?.trim()) throw new Error("A chat_message trigger watches one channel: name it with --channel <#name|id>");
-    filter = { ...filter, channel_id: String((await triggerChannel(ctx, userId, filter.channel_id))._id) };
+    if (!filter.channel_id?.trim())
+      throw new Error(
+        "A chat_message trigger watches one channel: name it with --channel <#name|id>",
+      );
+    filter = {
+      ...filter,
+      channel_id: String(
+        (await triggerChannel(ctx, userId, filter.channel_id))._id,
+      ),
+    };
   }
   if (filter && isPageTriggerEvent(filter.event_type)) {
-    if (!filter.page_id?.trim()) throw new Error("A page_state trigger watches one page: name it by slug, URL or path (cast publish watch <page>)");
-    filter = { ...filter, ...(await watchedPageFilter(ctx, userId, filter.page_id, filter.collections)) };
+    if (!filter.page_id?.trim())
+      throw new Error(
+        "A page_state trigger watches one page: name it by slug, URL or path (cast publish watch <page>)",
+      );
+    filter = {
+      ...filter,
+      ...(await watchedPageFilter(
+        ctx,
+        userId,
+        filter.page_id,
+        filter.collections,
+      )),
+    };
   }
   if (!filter || filter.source === undefined) return filter;
   if (!filter.source.trim()) {
     const { source: _blank, ...rest } = filter;
     return rest;
   }
-  const workspaceKey = await triggerWorkspaceKey(ctx, { user_id: userId, project_path });
-  if (!workspaceKey) throw new Error("Could not resolve the workspace this trigger fires in, so its --source cannot be checked");
-  return { ...filter, source: await triggerSourceName(ctx, userId, workspaceKey, filter.source) };
+  const workspaceKey = await triggerWorkspaceKey(ctx, {
+    user_id: userId,
+    project_path,
+  });
+  if (!workspaceKey)
+    throw new Error(
+      "Could not resolve the workspace this trigger fires in, so its --source cannot be checked",
+    );
+  return {
+    ...filter,
+    source: await triggerSourceName(ctx, userId, workspaceKey, filter.source),
+  };
 }
 
-async function requireProjectMayWatch(ctx: TaskCtx, project: Doc<"projects">, filter: EventFilter | undefined): Promise<void> {
-  const id = filter?.channel_id ? ctx.db.normalizeId("chat_channels", filter.channel_id) : null;
+async function requireProjectMayWatch(
+  ctx: TaskCtx,
+  project: Doc<"projects">,
+  filter: EventFilter | undefined,
+): Promise<void> {
+  const id = filter?.channel_id
+    ? ctx.db.normalizeId("chat_channels", filter.channel_id)
+    : null;
   const channel = id ? await ctx.db.get(id) : null;
   const refusal = channel ? projectChannelRefusal(project, channel) : null;
   if (refusal) throw new Error(refusal);
@@ -2966,14 +4098,26 @@ async function requireProjectMayWatch(ctx: TaskCtx, project: Doc<"projects">, fi
  * any team the owner is on; a name two of them hold must be given by id).
  * Only a channel the owner can read; never a direct message room.
  */
-async function triggerChannel(ctx: TaskCtx, userId: Id<"users">, ref: string): Promise<Doc<"chat_channels">> {
+async function triggerChannel(
+  ctx: TaskCtx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<Doc<"chat_channels">> {
   const trimmed = ref.trim();
   let found: Doc<"chat_channels">[] = [];
   if (trimmed.startsWith("#")) {
     const name = trimmed.slice(1).toLowerCase();
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
     for (const m of memberships) {
-      const ch = await ctx.db.query("chat_channels").withIndex("by_team_name", (q: any) => q.eq("team_id", m.team_id).eq("name", name)).first();
+      const ch = await ctx.db
+        .query("chat_channels")
+        .withIndex("by_team_name", (q: any) =>
+          q.eq("team_id", m.team_id).eq("name", name),
+        )
+        .first();
       if (ch) found.push(ch);
     }
   } else {
@@ -2982,9 +4126,21 @@ async function triggerChannel(ctx: TaskCtx, userId: Id<"users">, ref: string): P
     if (ch) found = [ch];
   }
   const readable: Doc<"chat_channels">[] = [];
-  for (const ch of found) if (ch.kind !== "dm" && !ch.archived_at && (await canAccessChannel(ctx as any, userId, ch))) readable.push(ch);
-  if (readable.length === 0) throw new Error(`No channel you can read matches "${trimmed}" (cast chat channels lists them)`);
-  if (readable.length > 1) throw new Error(`"${trimmed}" names a channel in ${readable.length} of your teams: pass its id (cast chat channels)`);
+  for (const ch of found)
+    if (
+      ch.kind !== "dm" &&
+      !ch.archived_at &&
+      (await canAccessChannel(ctx as any, userId, ch))
+    )
+      readable.push(ch);
+  if (readable.length === 0)
+    throw new Error(
+      `No channel you can read matches "${trimmed}" (cast chat channels lists them)`,
+    );
+  if (readable.length > 1)
+    throw new Error(
+      `"${trimmed}" names a channel in ${readable.length} of your teams: pass its id (cast chat channels)`,
+    );
   return readable[0];
 }
 
@@ -3037,12 +4193,14 @@ export const matchTaskTriggers = internalMutation({
     // What fired, appended to each matched trigger's pending_events so the
     // run knows what woke it. Omitted by the git events, which carry their
     // context in the session they wake.
-    event_ref: v.optional(v.object({
-      external_event_id: v.optional(v.id("external_events")),
-      group_short_id: v.optional(v.string()),
-      title: v.string(),
-      url: v.optional(v.string()),
-    })),
+    event_ref: v.optional(
+      v.object({
+        external_event_id: v.optional(v.id("external_events")),
+        group_short_id: v.optional(v.string()),
+        title: v.string(),
+        url: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     // Only the triggers armed on this name: a firing used to read every
@@ -3050,13 +4208,30 @@ export const matchTaskTriggers = internalMutation({
     // firing carries an event: its run never sees it, so it is held for the
     // run after (nextArmingAfterRun) rather than lost.
     // A chat line reads only the triggers watching its channel.
-    const armed = async (status: "scheduled" | "running"): Promise<Doc<"agent_tasks">[]> =>
+    const armed = async (
+      status: "scheduled" | "running",
+    ): Promise<Doc<"agent_tasks">[]> =>
       args.channel_id
-        ? ((await channelTriggers(ctx, status, String(args.channel_id)).collect()) as Doc<"agent_tasks">[]).filter((t) => t.event_filter?.event_type === args.event_type)
+        ? (
+            (await channelTriggers(
+              ctx,
+              status,
+              String(args.channel_id),
+            ).collect()) as Doc<"agent_tasks">[]
+          ).filter((t) => t.event_filter?.event_type === args.event_type)
         : args.page_id
-          ? ((await pageTriggers(ctx, status, String(args.page_id)).collect()) as Doc<"agent_tasks">[]).filter((t) => t.event_filter?.event_type === args.event_type)
+          ? (
+              (await pageTriggers(
+                ctx,
+                status,
+                String(args.page_id),
+              ).collect()) as Doc<"agent_tasks">[]
+            ).filter((t) => t.event_filter?.event_type === args.event_type)
           : armedTriggers(ctx, status, args.event_type).collect();
-    const tasks = [...(await armed("scheduled")), ...(args.event_ref ? await armed("running") : [])];
+    const tasks = [
+      ...(await armed("scheduled")),
+      ...(args.event_ref ? await armed("running") : []),
+    ];
 
     // A call event whose call is gone wakes nobody.
     const call = args.call_id ? await ctx.db.get(args.call_id) : null;
@@ -3070,13 +4245,15 @@ export const matchTaskTriggers = internalMutation({
     // triggers is the normal case.
     const ownerVerdicts = new Map<string, boolean>();
     const ownerMayBeWoken = async (userId: Id<"users">): Promise<boolean> => {
-      if (!args.team_id && !args.workspace && !call && !channel && !page) return true;
+      if (!args.team_id && !args.workspace && !call && !channel && !page)
+        return true;
       const key = String(userId);
       const known = ownerVerdicts.get(key);
       if (known !== undefined) return known;
       const verdict =
         (!args.team_id || (await isTeamMember(ctx, userId, args.team_id))) &&
-        (!args.workspace || (await workspaceGrantsAccess(ctx, userId, args.workspace))) &&
+        (!args.workspace ||
+          (await workspaceGrantsAccess(ctx, userId, args.workspace))) &&
         (!call || (await canReadCall(ctx, userId, call))) &&
         (!channel || (await canAccessChannel(ctx as any, userId, channel))) &&
         (!page || (await watcherMayRead(ctx, page, userId, args.collection)));
@@ -3088,18 +4265,43 @@ export const matchTaskTriggers = internalMutation({
     let matched = 0;
     for (const task of tasks) {
       if (!task.event_filter) continue;
-      if (task.event_filter.action && task.event_filter.action !== args.action) continue;
+      if (task.event_filter.action && task.event_filter.action !== args.action)
+        continue;
       // Both sides canonical: the filter is what a person typed, the event is what GitHub sent.
-      if (task.event_filter.repository && normalizeRepository(task.event_filter.repository) !== normalizeRepository(args.repository)) continue;
-      if (task.event_filter.pr_number != null && task.event_filter.pr_number !== args.pr_number) continue;
+      if (
+        task.event_filter.repository &&
+        normalizeRepository(task.event_filter.repository) !==
+          normalizeRepository(args.repository)
+      )
+        continue;
+      if (
+        task.event_filter.pr_number != null &&
+        task.event_filter.pr_number !== args.pr_number
+      )
+        continue;
       if (!sourceFilterAdmits(task.event_filter.source, args.source)) continue;
-      if (channel && task.event_filter.channel_id !== String(channel._id)) continue;
+      if (channel && task.event_filter.channel_id !== String(channel._id))
+        continue;
       if (page && task.event_filter.page_id !== String(page._id)) continue;
-      if (page && task.event_filter.collections?.length && !task.event_filter.collections.includes(args.collection ?? "")) continue;
-      if (args.origin_conversation_id && String(task.originating_conversation_id ?? "") === args.origin_conversation_id) continue;
+      if (
+        page &&
+        task.event_filter.collections?.length &&
+        !task.event_filter.collections.includes(args.collection ?? "")
+      )
+        continue;
+      if (
+        args.origin_conversation_id &&
+        String(task.originating_conversation_id ?? "") ===
+          args.origin_conversation_id
+      )
+        continue;
       // Last, because they are the only checks that read the database.
       if (!(await ownerMayBeWoken(task.user_id))) continue;
-      if (args.workspace && (await triggerWorkspaceKey(ctx, task)) !== args.workspace) continue;
+      if (
+        args.workspace &&
+        (await triggerWorkspaceKey(ctx, task)) !== args.workspace
+      )
+        continue;
 
       const running = task.status === "running";
       // A chat line opens a window the rest of its burst joins; an open
@@ -3108,19 +4310,40 @@ export const matchTaskTriggers = internalMutation({
       // firing runs late: a line landing then joins it instead of moving it.
       // A page's writes coalesce the same way, on a shorter window: a person
       // who just pressed a button on the page is watching for the answer.
-      const coalesceMs = channel ? CHAT_COALESCE_MS : page ? PAGE_COALESCE_MS : 0;
-      const windowOpen = coalesceMs > 0 && task.run_at !== undefined && (task.run_at > now || (task.pending_events?.length ?? 0) > 0);
-      const runAt = coalesceMs > 0 ? (windowOpen ? task.run_at! : now + coalesceMs) : now;
-      const patch: Partial<Doc<"agent_tasks">> = running ? {} : { run_at: runAt };
+      const coalesceMs = channel
+        ? CHAT_COALESCE_MS
+        : page
+          ? PAGE_COALESCE_MS
+          : 0;
+      const windowOpen =
+        coalesceMs > 0 &&
+        task.run_at !== undefined &&
+        (task.run_at > now || (task.pending_events?.length ?? 0) > 0);
+      const runAt =
+        coalesceMs > 0 ? (windowOpen ? task.run_at! : now + coalesceMs) : now;
+      const patch: Partial<Doc<"agent_tasks">> = running
+        ? {}
+        : { run_at: runAt };
       if (args.event_ref) {
-        const event: PendingEvent = { ...args.event_ref, event_type: args.event_type, at: now, ...(running ? { after_claim: true } : {}), ...(args.origin_conversation_id ? { origin_conversation_id: args.origin_conversation_id } : {}) };
-        patch.pending_events = [...(task.pending_events ?? []), event].slice(-PENDING_EVENTS_CAP);
+        const event: PendingEvent = {
+          ...args.event_ref,
+          event_type: args.event_type,
+          at: now,
+          ...(running ? { after_claim: true } : {}),
+          ...(args.origin_conversation_id
+            ? { origin_conversation_id: args.origin_conversation_id }
+            : {}),
+        };
+        patch.pending_events = [...(task.pending_events ?? []), event].slice(
+          -PENDING_EVENTS_CAP,
+        );
       }
       await ctx.db.patch(task._id, patch);
       // A window already past its end means its firing never took the events
       // (it threw and rolled back): this line wakes it again rather than
       // joining a window nothing will close.
-      if (!running && (!windowOpen || runAt <= now)) await scheduleProjectFire(ctx, task, Math.max(runAt, now));
+      if (!running && (!windowOpen || runAt <= now))
+        await scheduleProjectFire(ctx, task, Math.max(runAt, now));
       matched++;
     }
 
@@ -3158,7 +4381,8 @@ export const reclaimStaleTasks = internalMutation({
           await patchTask(ctx, task, {
             status: "scheduled",
             ...offCadence(task, now),
-            requested_run_source: task.last_run_source === "manual" ? "manual" : undefined,
+            requested_run_source:
+              task.last_run_source === "manual" ? "manual" : undefined,
             lease_holder: undefined,
             lease_expires_at: undefined,
           });
@@ -3171,8 +4395,18 @@ export const reclaimStaleTasks = internalMutation({
           continue;
         }
         if (await runAgentStopped(ctx, runConv)) {
-          await settleRunConversation(ctx, task, runConv, { daemon_id: "reclaim" }, now);
-          await patchTask(ctx, task, completedTaskRunFields(task, now, {}, false));
+          await settleRunConversation(
+            ctx,
+            task,
+            runConv,
+            { daemon_id: "reclaim" },
+            now,
+          );
+          await patchTask(
+            ctx,
+            task,
+            completedTaskRunFields(task, now, {}, false),
+          );
           reclaimed++;
           continue;
         }
@@ -3182,7 +4416,8 @@ export const reclaimStaleTasks = internalMutation({
             status: "scheduled",
             ...offCadence(task, now),
             retry_count: task.retry_count + 1,
-            requested_run_source: task.last_run_source === "manual" ? "manual" : undefined,
+            requested_run_source:
+              task.last_run_source === "manual" ? "manual" : undefined,
             lease_holder: undefined,
             lease_expires_at: undefined,
           });
@@ -3199,9 +4434,24 @@ export const reclaimStaleTasks = internalMutation({
 
           if (spent.notice) {
             const detail = `${retriesSpentLead(task, spent.notice)} The runner stopped responding after ${task.retry_count} retries. Review the run before restarting it.`;
-            const ownerNotified = await wakeRunOwner(ctx, task, runConv, "failed", detail, now, spent.notice);
+            const ownerNotified = await wakeRunOwner(
+              ctx,
+              task,
+              runConv,
+              "failed",
+              detail,
+              now,
+              spent.notice,
+            );
             if (!ownerNotified) {
-              await notifyRunAttention(ctx, task, runNoticeConversationId(task, runConv), "task_failed", detail, now);
+              await notifyRunAttention(
+                ctx,
+                task,
+                runNoticeConversationId(task, runConv),
+                "task_failed",
+                detail,
+                now,
+              );
             }
           }
         }
@@ -3228,10 +4478,15 @@ export const reclaimStaleTasks = internalMutation({
 // generated display_title; an explicit human title always wins in the UI.
 export function isPromptDerivedTitle(title: string, prompt: string): boolean {
   const t = title.trim();
-  return t.length === 0 || t === prompt.slice(0, 60).trim() || t === prompt.trim();
+  return (
+    t.length === 0 || t === prompt.slice(0, 60).trim() || t === prompt.trim()
+  );
 }
 
-export function buildTaskSummaryPrompt(input: { prompt: string; scheduleLine: string }): string {
+export function buildTaskSummaryPrompt(input: {
+  prompt: string;
+  scheduleLine: string;
+}): string {
   return `A user scheduled a recurring/automated agent task. Distill its instruction prompt so a dashboard row is readable at a glance.
 
 Title: 2-5 words naming what the task does. Short noun/verb phrase, like a git branch name but readable. No trailing period.
@@ -3301,7 +4556,11 @@ export const getTaskForSummary = internalQuery({
       event_filter: task.event_filter,
       hosted_home: task.hosted_home === true,
       // The session whose team the trigger's prompt belongs to (lib/vendorGuard).
-      conversation_id: task.target_conversation_id ?? task.originating_conversation_id ?? task.created_by_conversation_id ?? null,
+      conversation_id:
+        task.target_conversation_id ??
+        task.originating_conversation_id ??
+        task.created_by_conversation_id ??
+        null,
     };
   },
 });
@@ -3334,7 +4593,9 @@ export const generateDisplaySummary = internalAction({
       // A hosted routine's summary is said to its person (Routines shows it
       // as the description); any other schedule's is a developer's gist.
       const reply = await callModel({
-        prompt: task.hosted_home ? buildRoutineSummaryPrompt({ prompt: task.prompt }) : buildTaskSummaryPrompt({ prompt: task.prompt, scheduleLine }),
+        prompt: task.hosted_home
+          ? buildRoutineSummaryPrompt({ prompt: task.prompt })
+          : buildTaskSummaryPrompt({ prompt: task.prompt, scheduleLine }),
         max_tokens: 300,
         label: "Task summary Haiku",
         gate: { ctx, scope: { conversationId: task.conversation_id } },
@@ -3349,14 +4610,19 @@ export const generateDisplaySummary = internalAction({
       // value ("I don't see a recent conversation…") — same guard as the
       // conversation subtitle writer in titleGeneration.
       if (!summary || summary.length > 400 || isRefusalProse(summary)) {
-        console.error("Task summary returned no usable JSON:", text.slice(0, 120));
+        console.error(
+          "Task summary returned no usable JSON:",
+          text.slice(0, 120),
+        );
         return;
       }
 
       await ctx.runMutation(internal.agentTasks.setDisplaySummary, {
         task_id: args.task_id,
         display_title:
-          title && title.length < 80 && isPromptDerivedTitle(task.title, task.prompt)
+          title &&
+          title.length < 80 &&
+          isPromptDerivedTitle(task.title, task.prompt)
             ? title
             : undefined,
         display_summary: summary,
@@ -3378,14 +4644,26 @@ export const backfillHostedRoutineSummaries = internalMutation({
   args: {},
   handler: async (ctx) => {
     let scheduled = 0;
-    for (const status of ["scheduled", "running", "paused", "completed", "failed"] as const) {
+    for (const status of [
+      "scheduled",
+      "running",
+      "paused",
+      "completed",
+      "failed",
+    ] as const) {
       const tasks = await ctx.db
         .query("agent_tasks")
-        .withIndex("by_hosted_status_run_at", (q) => q.eq("hosted_home", true).eq("status", status))
+        .withIndex("by_hosted_status_run_at", (q) =>
+          q.eq("hosted_home", true).eq("status", status),
+        )
         .collect();
       for (const task of tasks) {
         if (task.summary_for_person) continue;
-        await ctx.scheduler.runAfter(scheduled * 500, internal.agentTasks.generateDisplaySummary, { task_id: task._id });
+        await ctx.scheduler.runAfter(
+          scheduled * 500,
+          internal.agentTasks.generateDisplaySummary,
+          { task_id: task._id },
+        );
         scheduled++;
       }
     }
@@ -3397,12 +4675,18 @@ export const backfillHostedRoutineSummaries = internalMutation({
 // the editable surface as it stood before. Edits and the verbs (pause,
 // resume, run now, cancel) both write it, so a trigger never changes state
 // without the history saying who did it.
-async function appendRevision(ctx: TaskCtx, task: Doc<"agent_tasks">, actor: { userId: Id<"users">; source: "cli" | "web" }, changed: string[]) {
+async function appendRevision(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  actor: { userId: Id<"users">; source: "cli" | "web" },
+  changed: string[],
+) {
   const prior = await ctx.db
     .query("agent_task_revisions")
     .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
     .collect();
-  const revision = prior.reduce((max: number, r: any) => Math.max(max, r.revision), 0) + 1;
+  const revision =
+    prior.reduce((max: number, r: any) => Math.max(max, r.revision), 0) + 1;
   await ctx.db.insert("agent_task_revisions", {
     task_id: task._id,
     revision,

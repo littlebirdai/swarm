@@ -9,7 +9,10 @@ import { track } from "../../../lib/analytics";
 import { AppLoader } from "../../../components/AppLoader";
 import { Button } from "../../../components/ui/button";
 import { SegmentedToggle } from "../../../components/SegmentedToggle";
-import { SettingsPanel, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsPanel,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { BrowserExtensionSetup } from "../../../components/settings/BrowserExtensionSetup";
 import { detectInstallOs, type InstallOs } from "../../../lib/visitorPlatform";
 
@@ -41,7 +44,11 @@ export default function CliSettingsPage() {
   const handleCopy = async (text: string, label: string) => {
     await copyToClipboard(text);
     if (label === "install") {
-      track("install_command_copied", { location: "settings_cli", platform: os, with_token: true });
+      track("install_command_copied", {
+        location: "settings_cli",
+        platform: os,
+        with_token: true,
+      });
     }
     setCopied(label);
     setTimeout(() => setCopied(null), 2000);
@@ -99,10 +106,13 @@ export default function CliSettingsPage() {
                 { key: "windows", label: "Windows" },
               ]}
             />
-            <p className="text-xs text-sol-text-dim">Token expires in 60 minutes:</p>
+            <p className="text-xs text-sol-text-dim">
+              Token expires in 60 minutes:
+            </p>
             {os === "windows" && (
               <p className="text-xs text-sol-text-dim">
-                Runs in PowerShell. Installs codecast into WSL (Windows Subsystem for Linux) and sets WSL up first if needed.
+                Runs in PowerShell. Installs codecast into WSL (Windows
+                Subsystem for Linux) and sets WSL up first if needed.
               </p>
             )}
             <div className="relative">
@@ -112,7 +122,9 @@ export default function CliSettingsPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handleCopy(installCommand(os, setupToken), "install")}
+                onClick={() =>
+                  handleCopy(installCommand(os, setupToken), "install")
+                }
                 className="absolute right-2 top-2 h-7 px-2.5 text-xs"
               >
                 {copied === "install" ? "Copied!" : "Copy"}

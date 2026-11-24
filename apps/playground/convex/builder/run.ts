@@ -9,13 +9,27 @@ import { BUILD_INLINE_FILES_BYTES } from "../lib/limits";
 import { BUILDER_EFFORT, buildPrompt } from "../prompts";
 import { runBuilder } from "./agent";
 import { Draft } from "./draft";
-import { Narration, Throttle, failureFor, openingLine, type Refusal } from "./rules";
+import {
+  Narration,
+  Throttle,
+  failureFor,
+  openingLine,
+  type Refusal,
+} from "./rules";
 
 /** How often the card's narration is written while Clay works. */
 const NARRATE_EVERY_MS = 250;
 
 type Report =
-  | { ok: true; summary: string; name?: string; ideas?: string[]; spotlight?: string; try?: string; files: { path: string; text: string }[] }
+  | {
+      ok: true;
+      summary: string;
+      name?: string;
+      ideas?: string[];
+      spotlight?: string;
+      try?: string;
+      files: { path: string; text: string }[];
+    }
   | ({ ok: false } & Refusal);
 
 export const build = internalAction({
@@ -28,7 +42,8 @@ export const build = internalAction({
     // model's run (validation inside it), and the commit.
     const began = Date.now();
     const stages: Record<string, number> = {};
-    const mark = (stage: string, since: number) => (stages[stage] = Date.now() - since);
+    const mark = (stage: string, since: number) =>
+      (stages[stage] = Date.now() - since);
     const report = async (result: Report) => {
       const committing = Date.now();
       await ctx.runMutation(internal.builder.queue.finish, {
@@ -39,13 +54,24 @@ export const build = internalAction({
         result,
       });
       mark("commit", committing);
-      console.log(`build ${build_id} ${result.ok ? "live" : "failed"}: ${Object.entries(stages).map(([k, ms]) => `${k} ${ms}ms`).join(", ")}, total ${Date.now() - began}ms, $${cost.toFixed(3)}`);
+      console.log(
+        `build ${build_id} ${result.ok ? "live" : "failed"}: ${Object.entries(
+          stages,
+        )
+          .map(([k, ms]) => `${k} ${ms}ms`)
+          .join(", ")}, total ${Date.now() - began}ms, $${cost.toFixed(3)}`,
+      );
     };
 
     try {
       const job = await ctx.runQuery(internal.builder.queue.job, { build_id });
       if (!job) return null;
-      draft = new Draft(await ctx.runQuery(internal.versions.draft, { app_id: job.app_id, number: job.base }));
+      draft = new Draft(
+        await ctx.runQuery(internal.versions.draft, {
+          app_id: job.app_id,
+          number: job.base,
+        }),
+      );
       narration.now(openingLine(job.request));
       mark("setup", began);
 
@@ -61,12 +87,19 @@ export const build = internalAction({
       card.poke();
 
       const files = draft.snapshot();
-      const inline = files.reduce((n, f) => n + byteLength(f.text), 0) <= BUILD_INLINE_FILES_BYTES;
+      const inline =
+        files.reduce((n, f) => n + byteLength(f.text), 0) <=
+        BUILD_INLINE_FILES_BYTES;
       const modelStart = Date.now();
       const { outcome, costUsd, checkMs } = await runBuilder({
         draft,
         narration,
-        prompt: buildPrompt({ ...job, app: job.app_name, files: inline ? files : null, listing: draft.list() }),
+        prompt: buildPrompt({
+          ...job,
+          app: job.app_name,
+          files: inline ? files : null,
+          listing: draft.list(),
+        }),
         effort: job.first ? BUILDER_EFFORT.first : BUILDER_EFFORT.change,
         onStep: () => card.poke(),
         controller,
@@ -81,12 +114,19 @@ export const build = internalAction({
       if (outcome.kind === "finished") {
         // Only a new app's first build names it; a later change keeps the name.
         const { kind: _, name, ...said } = outcome;
-        await report({ ok: true, ...said, ...(job.first && name ? { name } : {}), files: draft.snapshot() });
-      }
-      else await report({ ok: false, ...failureFor(outcome) });
+        await report({
+          ok: true,
+          ...said,
+          ...(job.first && name ? { name } : {}),
+          files: draft.snapshot(),
+        });
+      } else await report({ ok: false, ...failureFor(outcome) });
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
-      await report({ ok: false, ...failureFor({ kind: "stopped", reason: "error", error: detail }) });
+      await report({
+        ok: false,
+        ...failureFor({ kind: "stopped", reason: "error", error: detail }),
+      });
     }
     return null;
   },

@@ -18,7 +18,9 @@ import {
 
 const NOW = 1_700_000_000_000;
 
-function session(over: Partial<LiveActivitySessionInput> & { id: string }): LiveActivitySessionInput {
+function session(
+  over: Partial<LiveActivitySessionInput> & { id: string },
+): LiveActivitySessionInput {
   return {
     title: `Session ${over.id}`,
     agent: "claude",
@@ -33,7 +35,9 @@ describe("liveActivityStatusOf", () => {
   test("maps the inbox buckets onto the strip", () => {
     expect(liveActivityStatusOf("working")).toBe("working");
     expect(liveActivityStatusOf("needs_input")).toBe("waiting");
-    expect(liveActivityStatusOf("needs_input", { failed: true })).toBe("failed");
+    expect(liveActivityStatusOf("needs_input", { failed: true })).toBe(
+      "failed",
+    );
     expect(liveActivityStatusOf("done")).toBe("done");
   });
   test("parked and blank rows have no place on the Lock Screen", () => {
@@ -55,20 +59,38 @@ describe("deriveLiveActivityState", () => {
 
   test("one session shows its own title and detail", () => {
     const state = deriveLiveActivityState(
-      [session({ id: "a", title: "Running migrations", detail: "3 of 7 applied", project: "codecast" })],
+      [
+        session({
+          id: "a",
+          title: "Running migrations",
+          detail: "3 of 7 applied",
+          project: "codecast",
+        }),
+      ],
       NOW,
     );
     expect(state.headline).toBe("Running migrations");
     expect(state.detail).toBe("3 of 7 applied");
-    expect(state.sessions[0]).toMatchObject({ id: "a", project: "codecast", status: "working" });
-    expect(state.sessions[0].startedAt).toBe(new Date(NOW - 60_000).toISOString());
+    expect(state.sessions[0]).toMatchObject({
+      id: "a",
+      project: "codecast",
+      status: "working",
+    });
+    expect(state.sessions[0].startedAt).toBe(
+      new Date(NOW - 60_000).toISOString(),
+    );
   });
 
   test("waiting floats to the top and leads the headline", () => {
     const state = deriveLiveActivityState(
       [
         session({ id: "w1", status: "working", startedAt: NOW - 300_000 }),
-        session({ id: "q", status: "waiting", title: "Approve the migration?", project: "api" }),
+        session({
+          id: "q",
+          status: "waiting",
+          title: "Approve the migration?",
+          project: "api",
+        }),
         session({ id: "w2", status: "working", startedAt: NOW - 100_000 }),
       ],
       NOW,
@@ -83,7 +105,10 @@ describe("deriveLiveActivityState", () => {
 
   test("two waiting sessions count in the headline", () => {
     const state = deriveLiveActivityState(
-      [session({ id: "a", status: "waiting" }), session({ id: "b", status: "waiting" })],
+      [
+        session({ id: "a", status: "waiting" }),
+        session({ id: "b", status: "waiting" }),
+      ],
       NOW,
     );
     expect(state.headline).toBe("2 waiting on you");
@@ -91,7 +116,11 @@ describe("deriveLiveActivityState", () => {
 
   test("a failure outranks working in the headline even while others run", () => {
     const state = deriveLiveActivityState(
-      [session({ id: "a" }), session({ id: "b", status: "failed" }), session({ id: "c" })],
+      [
+        session({ id: "a" }),
+        session({ id: "b", status: "failed" }),
+        session({ id: "c" }),
+      ],
       NOW,
     );
     expect(state.headline).toBe("1 failed");
@@ -102,7 +131,11 @@ describe("deriveLiveActivityState", () => {
     const state = deriveLiveActivityState(
       [
         session({ id: "late", startedAt: NOW - 10_000, updatedAt: NOW }),
-        session({ id: "early", startedAt: NOW - 90_000, updatedAt: NOW - 50_000 }),
+        session({
+          id: "early",
+          startedAt: NOW - 90_000,
+          updatedAt: NOW - 50_000,
+        }),
       ],
       NOW,
     );
@@ -123,15 +156,30 @@ describe("deriveLiveActivityState", () => {
   });
 
   test("a finished session lingers, then leaves", () => {
-    const rows = [session({ id: "d", status: "done", updatedAt: NOW - LIVE_ACTIVITY_DONE_LINGER_MS + 1 })];
+    const rows = [
+      session({
+        id: "d",
+        status: "done",
+        updatedAt: NOW - LIVE_ACTIVITY_DONE_LINGER_MS + 1,
+      }),
+    ];
     expect(deriveLiveActivityState(rows, NOW).sessions).toHaveLength(1);
     expect(deriveLiveActivityState(rows, NOW + 1).sessions).toHaveLength(0);
   });
 
   test("a failure lingers longer than a finish", () => {
-    const rows = [session({ id: "f", status: "failed", updatedAt: NOW - LIVE_ACTIVITY_DONE_LINGER_MS })];
+    const rows = [
+      session({
+        id: "f",
+        status: "failed",
+        updatedAt: NOW - LIVE_ACTIVITY_DONE_LINGER_MS,
+      }),
+    ];
     expect(deriveLiveActivityState(rows, NOW).sessions).toHaveLength(1);
-    expect(deriveLiveActivityState(rows, NOW + LIVE_ACTIVITY_FAILED_LINGER_MS).sessions).toHaveLength(0);
+    expect(
+      deriveLiveActivityState(rows, NOW + LIVE_ACTIVITY_FAILED_LINGER_MS)
+        .sessions,
+    ).toHaveLength(0);
   });
 
   test("a fresh wait is on the strip; a long parked one is inbox material and leaves", () => {
@@ -139,7 +187,11 @@ describe("deriveLiveActivityState", () => {
       [
         session({ id: "fresh", status: "waiting", updatedAt: NOW - 60_000 }),
         ...Array.from({ length: 11 }, (_, i) =>
-          session({ id: `parked${i}`, status: "waiting", updatedAt: NOW - LIVE_ACTIVITY_WAITING_LINGER_MS - i * 60_000 }),
+          session({
+            id: `parked${i}`,
+            status: "waiting",
+            updatedAt: NOW - LIVE_ACTIVITY_WAITING_LINGER_MS - i * 60_000,
+          }),
         ),
       ],
       NOW,
@@ -150,13 +202,20 @@ describe("deriveLiveActivityState", () => {
   });
 
   test("only parked waits leave the strip quiet, so the activity ends", () => {
-    const rows = [session({ id: "w", status: "waiting", updatedAt: NOW - LIVE_ACTIVITY_WAITING_LINGER_MS })];
+    const rows = [
+      session({
+        id: "w",
+        status: "waiting",
+        updatedAt: NOW - LIVE_ACTIVITY_WAITING_LINGER_MS,
+      }),
+    ];
     expect(isLiveActivityQuiet(deriveLiveActivityState(rows, NOW))).toBe(true);
   });
 
   test("rows past the display cap fold into overflow", () => {
-    const rows = Array.from({ length: LIVE_ACTIVITY_DISPLAYED_SESSIONS + 3 }, (_, i) =>
-      session({ id: `s${i}`, startedAt: NOW - i * 1000 }),
+    const rows = Array.from(
+      { length: LIVE_ACTIVITY_DISPLAYED_SESSIONS + 3 },
+      (_, i) => session({ id: `s${i}`, startedAt: NOW - i * 1000 }),
     );
     const state = deriveLiveActivityState(rows, NOW);
     expect(state.sessions).toHaveLength(LIVE_ACTIVITY_DISPLAYED_SESSIONS);
@@ -166,14 +225,24 @@ describe("deriveLiveActivityState", () => {
 
   test("titles and details are clipped for the payload", () => {
     const long = "x".repeat(200);
-    const state = deriveLiveActivityState([session({ id: "a", title: long, detail: long })], NOW);
-    expect(state.headline.length).toBeLessThanOrEqual(LIVE_ACTIVITY_TITLE_LIMIT);
-    expect(state.sessions[0].title.length).toBeLessThanOrEqual(LIVE_ACTIVITY_TITLE_LIMIT);
+    const state = deriveLiveActivityState(
+      [session({ id: "a", title: long, detail: long })],
+      NOW,
+    );
+    expect(state.headline.length).toBeLessThanOrEqual(
+      LIVE_ACTIVITY_TITLE_LIMIT,
+    );
+    expect(state.sessions[0].title.length).toBeLessThanOrEqual(
+      LIVE_ACTIVITY_TITLE_LIMIT,
+    );
     expect(state.headline.endsWith("…")).toBe(true);
   });
 
   test("optional fields are omitted, never null, so the Swift decoder stays plain", () => {
-    const state = deriveLiveActivityState([session({ id: "a", detail: null, project: null })], NOW);
+    const state = deriveLiveActivityState(
+      [session({ id: "a", detail: null, project: null })],
+      NOW,
+    );
     expect("detail" in state.sessions[0]).toBe(false);
     expect("project" in state.sessions[0]).toBe(false);
   });
@@ -193,14 +262,29 @@ describe("state keys", () => {
     expect(liveActivityStateKey(a)).toBe(liveActivityStateKey(b));
   });
   test("the state key sees a title change", () => {
-    const a = deriveLiveActivityState([session({ id: "a", title: "one" })], NOW);
-    const b = deriveLiveActivityState([session({ id: "a", title: "two" })], NOW);
+    const a = deriveLiveActivityState(
+      [session({ id: "a", title: "one" })],
+      NOW,
+    );
+    const b = deriveLiveActivityState(
+      [session({ id: "a", title: "two" })],
+      NOW,
+    );
     expect(liveActivityStateKey(a)).not.toBe(liveActivityStateKey(b));
   });
   test("the status key sees only membership and status", () => {
-    const a = deriveLiveActivityState([session({ id: "a", title: "one" })], NOW);
-    const b = deriveLiveActivityState([session({ id: "a", title: "two" })], NOW);
-    const c = deriveLiveActivityState([session({ id: "a", status: "waiting" })], NOW);
+    const a = deriveLiveActivityState(
+      [session({ id: "a", title: "one" })],
+      NOW,
+    );
+    const b = deriveLiveActivityState(
+      [session({ id: "a", title: "two" })],
+      NOW,
+    );
+    const c = deriveLiveActivityState(
+      [session({ id: "a", status: "waiting" })],
+      NOW,
+    );
     expect(liveActivityStatusKey(a)).toBe(liveActivityStatusKey(b));
     expect(liveActivityStatusKey(a)).not.toBe(liveActivityStatusKey(c));
   });
@@ -219,9 +303,13 @@ describe("nextLiveActivityExpiry", () => {
     expect(at).toBe(NOW - 10_000 + LIVE_ACTIVITY_DONE_LINGER_MS);
   });
   test("a wait wakes the sweep when it goes stale", () => {
-    expect(nextLiveActivityExpiry([{ status: "waiting", updatedAt: NOW }], NOW)).toBe(NOW + LIVE_ACTIVITY_WAITING_LINGER_MS);
+    expect(
+      nextLiveActivityExpiry([{ status: "waiting", updatedAt: NOW }], NOW),
+    ).toBe(NOW + LIVE_ACTIVITY_WAITING_LINGER_MS);
   });
   test("nothing lingering means no wake", () => {
-    expect(nextLiveActivityExpiry([{ status: "working", updatedAt: NOW }], NOW)).toBeNull();
+    expect(
+      nextLiveActivityExpiry([{ status: "working", updatedAt: NOW }], NOW),
+    ).toBeNull();
   });
 });

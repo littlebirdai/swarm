@@ -5,7 +5,13 @@ import { useQuery, useMutation } from "convex/react";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "sonner";
 import {
-  Activity, Globe, LayoutList, MonitorDot, Palette, User, Volume2,
+  Activity,
+  Globe,
+  LayoutList,
+  MonitorDot,
+  Palette,
+  User,
+  Volume2,
 } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Input } from "../../../components/ui/input";
@@ -13,13 +19,35 @@ import { Button } from "../../../components/ui/button";
 import { Textarea } from "../../../components/ui/textarea";
 import { Switch } from "../../../components/ui/switch";
 import { SelectBox } from "../../../components/ui/select-box";
-import { useInboxStore, resolveSimpleView, resolveInboxCompact, resolveVisualStyle, type ClientUI } from "../../../store/inboxStore";
-import { BUBBLE_HUE_VAR, BUBBLE_PRESETS, DEFAULT_BUBBLE_PRESET, isCustomBubbleColor, resolveBubbleHue } from "../../../lib/bubbleColor";
+import {
+  useInboxStore,
+  resolveSimpleView,
+  resolveInboxCompact,
+  resolveVisualStyle,
+  type ClientUI,
+} from "../../../store/inboxStore";
+import {
+  BUBBLE_HUE_VAR,
+  BUBBLE_PRESETS,
+  DEFAULT_BUBBLE_PRESET,
+  isCustomBubbleColor,
+  resolveBubbleHue,
+} from "../../../lib/bubbleColor";
 import { useTheme, type VisualStyle } from "../../../components/ThemeProvider";
 import { ThemePicker } from "../../../components/theme/ThemePicker";
-import { resolveCommentsEnabled, resolveImageThumbs, resolveShowBranchPill, resolveShowCharacters } from "../../../lib/uiPrefDefaults";
 import {
-  SettingsField, SettingsLinkRow, SettingsOptionGroup, SettingsPanel, SettingsRow, SettingsSection,
+  resolveCommentsEnabled,
+  resolveImageThumbs,
+  resolveShowBranchPill,
+  resolveShowCharacters,
+} from "../../../lib/uiPrefDefaults";
+import {
+  SettingsField,
+  SettingsLinkRow,
+  SettingsOptionGroup,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
 } from "../../../components/settings/ui";
 
 export default function ProfilePage() {
@@ -44,11 +72,15 @@ export default function ProfilePage() {
 function ProfileSection({ user }: { user: any }) {
   const updateMyProfile = useInboxStore((s) => s.updateMyProfile);
   const [form, setForm] = useState({
-    name: user.name ?? "", bio: user.bio ?? "", title: user.title ?? "",
-    status: user.status ?? "available", timezone: user.timezone ?? "",
+    name: user.name ?? "",
+    bio: user.bio ?? "",
+    title: user.title ?? "",
+    status: user.status ?? "available",
+    timezone: user.timezone ?? "",
   });
 
-  const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const set = (key: keyof typeof form) => (value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
   const dirty =
     form.name !== (user.name ?? "") ||
     form.bio !== (user.bio ?? "") ||
@@ -72,40 +104,75 @@ function ProfileSection({ user }: { user: any }) {
 
   const inputClass = "bg-sol-bg border-sol-border text-sol-text";
   return (
-    <SettingsSection title="Profile" icon={User} description="How you appear to your team.">
+    <SettingsSection
+      title="Profile"
+      icon={User}
+      description="How you appear to your team."
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-sol-border/40">
         <SettingsField label="Display name" htmlFor="name">
-          <Input id="name" value={form.name} onChange={(e) => set("name")(e.target.value)} placeholder="Your name" className={inputClass} />
+          <Input
+            id="name"
+            value={form.name}
+            onChange={(e) => set("name")(e.target.value)}
+            placeholder="Your name"
+            className={inputClass}
+          />
         </SettingsField>
         <SettingsField label="Title / role" htmlFor="title">
-          <Input id="title" value={form.title} onChange={(e) => set("title")(e.target.value)} placeholder="e.g. Senior Developer" className={inputClass} />
+          <Input
+            id="title"
+            value={form.title}
+            onChange={(e) => set("title")(e.target.value)}
+            placeholder="e.g. Senior Developer"
+            className={inputClass}
+          />
         </SettingsField>
       </div>
       <SettingsField label="Bio" htmlFor="bio">
-        <Textarea id="bio" rows={2} value={form.bio} onChange={(e) => set("bio")(e.target.value)} placeholder="A line about yourself" className={inputClass} />
+        <Textarea
+          id="bio"
+          rows={2}
+          value={form.bio}
+          onChange={(e) => set("bio")(e.target.value)}
+          placeholder="A line about yourself"
+          className={inputClass}
+        />
       </SettingsField>
       <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-sol-border/40">
         <SettingsField label="Status" htmlFor="status">
           {/* Sized to sit beside the Input fields: same height, text size and surface. */}
-          <SelectBox id="status" value={form.status} onChange={(e) => set("status")(e.target.value)} wrapperClassName="w-full" className="h-9 rounded-md bg-sol-bg text-sm">
+          <SelectBox
+            id="status"
+            value={form.status}
+            onChange={(e) => set("status")(e.target.value)}
+            wrapperClassName="w-full"
+            className="h-9 rounded-md bg-sol-bg text-sm"
+          >
             <option value="available">Available</option>
             <option value="busy">Busy</option>
             <option value="away">Away</option>
           </SelectBox>
         </SettingsField>
         <SettingsField label="Timezone" htmlFor="timezone">
-          <Input id="timezone" value={form.timezone} onChange={(e) => set("timezone")(e.target.value)} placeholder="e.g. America/Los_Angeles" className={inputClass} />
+          <Input
+            id="timezone"
+            value={form.timezone}
+            onChange={(e) => set("timezone")(e.target.value)}
+            placeholder="e.g. America/Los_Angeles"
+            className={inputClass}
+          />
         </SettingsField>
       </div>
       <SettingsRow
-        label={<span className="text-xs text-sol-text-muted">Signed in as {user.email}{user.github_username ? ` · @${user.github_username}` : ""}</span>}
+        label={
+          <span className="text-xs text-sol-text-muted">
+            Signed in as {user.email}
+            {user.github_username ? ` · @${user.github_username}` : ""}
+          </span>
+        }
       >
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!dirty}
-          variant="cyan"
-        >
+        <Button size="sm" onClick={handleSave} disabled={!dirty} variant="cyan">
           Save changes
         </Button>
       </SettingsRow>
@@ -117,15 +184,58 @@ function ProfileSection({ user }: { user: any }) {
 
 function AppearanceSection() {
   const { theme, toggleTheme, visualStyle, setVisualStyle } = useTheme();
-  const options = ([
-    { value: "modern", label: "Modern", description: <StyleOptionPreview variant="modern" caption="Sans type, grouped navigation, one page header" /> },
-    { value: "classic", label: "Mono", description: <StyleOptionPreview variant="classic" caption="Monospace, compact, information-dense" /> },
-    { value: "minimal", label: "Minimal", description: <StyleOptionPreview variant="minimal" caption="Neutral, spacious, reading-first" /> },
-  ] satisfies Array<{ value: VisualStyle; label: string; description: ReactNode }>);
+  const options = [
+    {
+      value: "modern",
+      label: "Modern",
+      description: (
+        <StyleOptionPreview
+          variant="modern"
+          caption="Sans type, grouped navigation, one page header"
+        />
+      ),
+    },
+    {
+      value: "classic",
+      label: "Mono",
+      description: (
+        <StyleOptionPreview
+          variant="classic"
+          caption="Monospace, compact, information-dense"
+        />
+      ),
+    },
+    {
+      value: "minimal",
+      label: "Minimal",
+      description: (
+        <StyleOptionPreview
+          variant="minimal"
+          caption="Neutral, spacious, reading-first"
+        />
+      ),
+    },
+  ] satisfies Array<{
+    value: VisualStyle;
+    label: string;
+    description: ReactNode;
+  }>;
   return (
-    <SettingsSection title="Appearance" icon={Palette} description="Choose the visual language for every Codecast surface.">
-      <SettingsRow label={<label htmlFor="dark-mode">Dark mode</label>} description="Applies to all your windows and popups, on every device.">
-        <Switch id="dark-mode" checked={theme === "dark"} onCheckedChange={toggleTheme} aria-label="Dark mode" />
+    <SettingsSection
+      title="Appearance"
+      icon={Palette}
+      description="Choose the visual language for every Codecast surface."
+    >
+      <SettingsRow
+        label={<label htmlFor="dark-mode">Dark mode</label>}
+        description="Applies to all your windows and popups, on every device."
+      >
+        <Switch
+          id="dark-mode"
+          checked={theme === "dark"}
+          onCheckedChange={toggleTheme}
+          aria-label="Dark mode"
+        />
       </SettingsRow>
       <SettingsField label="Interface style">
         <SettingsOptionGroup
@@ -153,7 +263,12 @@ function ModernFocusedField() {
       label={<label htmlFor="modern-focused">Focused</label>}
       description="A shorter rail, one Filter menu in place of the chips, spawned workers folded under the agent that started them, one banner at a time, and no session list beside the inbox board."
     >
-      <Switch id="modern-focused" checked={on} onCheckedChange={(v) => updateUI({ modern_focused: v })} aria-label="Modern focused" />
+      <Switch
+        id="modern-focused"
+        checked={on}
+        onCheckedChange={(v) => updateUI({ modern_focused: v })}
+        aria-label="Modern focused"
+      />
     </SettingsRow>
   );
 }
@@ -175,11 +290,21 @@ function BubbleColorField() {
   const stored = useInboxStore((s) => s.clientState?.ui?.user_bubble_color);
   const updateUI = useInboxStore((s) => s.updateClientUI);
   const custom = isCustomBubbleColor(stored);
-  const activePreset = custom ? null : (BUBBLE_PRESETS.find((p) => p.id === stored)?.id ?? DEFAULT_BUBBLE_PRESET);
+  const activePreset = custom
+    ? null
+    : (BUBBLE_PRESETS.find((p) => p.id === stored)?.id ??
+      DEFAULT_BUBBLE_PRESET);
   return (
-    <SettingsField label="Your message color" hint="The bubble behind the messages you send. It follows you to every device.">
+    <SettingsField
+      label="Your message color"
+      hint="The bubble behind the messages you send. It follows you to every device."
+    >
       <div className="cc-bubble-scope flex flex-wrap items-center gap-x-5 gap-y-3">
-        <div role="radiogroup" aria-label="Your message color" className="flex items-center gap-2">
+        <div
+          role="radiogroup"
+          aria-label="Your message color"
+          className="flex items-center gap-2"
+        >
           {BUBBLE_PRESETS.map((p) => (
             <button
               key={p.id}
@@ -193,7 +318,16 @@ function BubbleColorField() {
               style={{ "--swatch": p.hue } as CSSProperties}
             />
           ))}
-          <label className="cc-bubble-swatch cc-bubble-swatch--custom" data-checked={custom ? "" : undefined} title="Custom color" style={custom ? ({ "--swatch": resolveBubbleHue(stored) } as CSSProperties) : undefined}>
+          <label
+            className="cc-bubble-swatch cc-bubble-swatch--custom"
+            data-checked={custom ? "" : undefined}
+            title="Custom color"
+            style={
+              custom
+                ? ({ "--swatch": resolveBubbleHue(stored) } as CSSProperties)
+                : undefined
+            }
+          >
             <span className="sr-only">Custom color</span>
             {/* A color well fires `input` for every pixel of a drag and `change`
                 once when it closes. The drag previews on this field alone
@@ -204,12 +338,22 @@ function BubbleColorField() {
               type="color"
               defaultValue={resolveBubbleHue(stored)}
               key={resolveBubbleHue(stored)}
-              onInput={(e) => e.currentTarget.closest<HTMLElement>(".cc-bubble-scope")?.style.setProperty(BUBBLE_HUE_VAR, e.currentTarget.value)}
-              onBlur={(e) => e.currentTarget.closest<HTMLElement>(".cc-bubble-scope")?.style.removeProperty(BUBBLE_HUE_VAR)}
+              onInput={(e) =>
+                e.currentTarget
+                  .closest<HTMLElement>(".cc-bubble-scope")
+                  ?.style.setProperty(BUBBLE_HUE_VAR, e.currentTarget.value)
+              }
+              onBlur={(e) =>
+                e.currentTarget
+                  .closest<HTMLElement>(".cc-bubble-scope")
+                  ?.style.removeProperty(BUBBLE_HUE_VAR)
+              }
               ref={(el) => {
                 if (!el) return;
                 const commit = () => {
-                  el.closest<HTMLElement>(".cc-bubble-scope")?.style.removeProperty(BUBBLE_HUE_VAR);
+                  el.closest<HTMLElement>(
+                    ".cc-bubble-scope",
+                  )?.style.removeProperty(BUBBLE_HUE_VAR);
                   updateUI({ user_bubble_color: el.value });
                 };
                 el.addEventListener("change", commit);
@@ -219,19 +363,41 @@ function BubbleColorField() {
             />
           </label>
         </div>
-        <span aria-hidden className="cc-bubble-sample">Sounds good, ship it</span>
+        <span aria-hidden className="cc-bubble-sample">
+          Sounds good, ship it
+        </span>
       </div>
     </SettingsField>
   );
 }
 
-function StyleOptionPreview({ variant, caption }: { variant: VisualStyle; caption: string }) {
+function StyleOptionPreview({
+  variant,
+  caption,
+}: {
+  variant: VisualStyle;
+  caption: string;
+}) {
   return (
     <span className="mt-2 block">
-      <span aria-hidden="true" className={`cc-style-preview cc-style-preview--${variant}`}>
-        <span className="cc-style-preview__nav"><i /><i /><i /></span>
-        <span className="cc-style-preview__body"><i /><i /><i /></span>
-        <span className="cc-style-preview__rail"><i /><i /></span>
+      <span
+        aria-hidden="true"
+        className={`cc-style-preview cc-style-preview--${variant}`}
+      >
+        <span className="cc-style-preview__nav">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="cc-style-preview__body">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="cc-style-preview__rail">
+          <i />
+          <i />
+        </span>
       </span>
       <span className="mt-1.5 block">{caption}</span>
     </span>
@@ -246,28 +412,99 @@ const INTERFACE_TOGGLES: Array<{
   defaultOn?: boolean;
   /** The preference is decided elsewhere right now: the row shows that value,
    *  cannot be switched, and says why. The stored value is kept for when that ends. */
-  locked?: (ui: ClientUI | undefined) => { on: boolean; why: string } | undefined;
+  locked?: (
+    ui: ClientUI | undefined,
+  ) => { on: boolean; why: string } | undefined;
   /** The value when it is not a plain stored boolean (a default that depends
    *  on the style). Overrides `defaultOn`. */
   resolve?: (ui: ClientUI | undefined) => boolean;
 }> = [
-  { prefKey: "simple_view", label: "Simple view", desc: "Calmer conversations and inbox cards — secondary badges, counts and meta rows drop away", defaultOn: true, locked: (ui) => (resolveVisualStyle(ui) === "minimal" && resolveSimpleView(ui) ? { on: true, why: "Always on in the Minimal style" } : undefined) },
-  { prefKey: "inbox_compact", label: "Compact session list", desc: "One line per session in the inbox: the title, its state and when it last moved. Works in every style, and is how Minimal lists sessions unless you turn it off", resolve: resolveInboxCompact },
-  { prefKey: "inbox_image_thumbs", label: "Image thumbnails", desc: "Show a small thumbnail on inbox session rows when a session contains images", resolve: resolveImageThumbs },
-  { prefKey: "show_agent_icon", label: "Agent icon", desc: "Show each session's agent client (Claude Code, opencode, …) next to its title in the inbox", defaultOn: true },
-  { prefKey: "show_characters", label: "Characters", desc: "Roles wear a portrait and a name. Off, each role shows an icon of what it looks after and its title, and no session wears a character", resolve: resolveShowCharacters },
-  { prefKey: "personify_sessions", label: "Personify every session", desc: "Give every session a portrait and a name, not just the ones you name yourself. Roles always have one", defaultOn: false, locked: (ui) => (!resolveShowCharacters(ui) ? { on: false, why: "Off while Characters is off" } : undefined) },
-  { prefKey: "show_model_badge", label: "Model badge", desc: "Show each session's model in the inbox session list" },
-  { prefKey: "show_device_icon", label: "Machine icon", desc: "Mark inbox sessions that run somewhere else: a cloud icon for a cloud machine, a small device icon for another of your machines", defaultOn: true },
-  { prefKey: "show_branch_pill", label: "Branch pill", desc: "Show a pill on inbox cards when a session sits off the default branch: its branch, or the short commit when its checkout is detached", resolve: resolveShowBranchPill },
-  { prefKey: "comments_enabled", label: "Comments", desc: "Show the tools to leave comments on conversations. You can always read and reply to comments others leave, even with this off.", resolve: resolveCommentsEnabled },
-  { prefKey: "auto_open_browser_panes", label: "Open agent pane offers", desc: "When an agent offers a page (cast browser pane), open it beside the conversation you are reading instead of waiting for a click" },
-  { prefKey: "composer_suggestions", label: "Suggested replies", desc: "One-tap reply suggestions above the composer when a session waits on you, predicted from the session and how you usually reply" },
+  {
+    prefKey: "simple_view",
+    label: "Simple view",
+    desc: "Calmer conversations and inbox cards — secondary badges, counts and meta rows drop away",
+    defaultOn: true,
+    locked: (ui) =>
+      resolveVisualStyle(ui) === "minimal" && resolveSimpleView(ui)
+        ? { on: true, why: "Always on in the Minimal style" }
+        : undefined,
+  },
+  {
+    prefKey: "inbox_compact",
+    label: "Compact session list",
+    desc: "One line per session in the inbox: the title, its state and when it last moved. Works in every style, and is how Minimal lists sessions unless you turn it off",
+    resolve: resolveInboxCompact,
+  },
+  {
+    prefKey: "inbox_image_thumbs",
+    label: "Image thumbnails",
+    desc: "Show a small thumbnail on inbox session rows when a session contains images",
+    resolve: resolveImageThumbs,
+  },
+  {
+    prefKey: "show_agent_icon",
+    label: "Agent icon",
+    desc: "Show each session's agent client (Claude Code, opencode, …) next to its title in the inbox",
+    defaultOn: true,
+  },
+  {
+    prefKey: "show_characters",
+    label: "Characters",
+    desc: "Roles wear a portrait and a name. Off, each role shows an icon of what it looks after and its title, and no session wears a character",
+    resolve: resolveShowCharacters,
+  },
+  {
+    prefKey: "personify_sessions",
+    label: "Personify every session",
+    desc: "Give every session a portrait and a name, not just the ones you name yourself. Roles always have one",
+    defaultOn: false,
+    locked: (ui) =>
+      !resolveShowCharacters(ui)
+        ? { on: false, why: "Off while Characters is off" }
+        : undefined,
+  },
+  {
+    prefKey: "show_model_badge",
+    label: "Model badge",
+    desc: "Show each session's model in the inbox session list",
+  },
+  {
+    prefKey: "show_device_icon",
+    label: "Machine icon",
+    desc: "Mark inbox sessions that run somewhere else: a cloud icon for a cloud machine, a small device icon for another of your machines",
+    defaultOn: true,
+  },
+  {
+    prefKey: "show_branch_pill",
+    label: "Branch pill",
+    desc: "Show a pill on inbox cards when a session sits off the default branch: its branch, or the short commit when its checkout is detached",
+    resolve: resolveShowBranchPill,
+  },
+  {
+    prefKey: "comments_enabled",
+    label: "Comments",
+    desc: "Show the tools to leave comments on conversations. You can always read and reply to comments others leave, even with this off.",
+    resolve: resolveCommentsEnabled,
+  },
+  {
+    prefKey: "auto_open_browser_panes",
+    label: "Open agent pane offers",
+    desc: "When an agent offers a page (cast browser pane), open it beside the conversation you are reading instead of waiting for a click",
+  },
+  {
+    prefKey: "composer_suggestions",
+    label: "Suggested replies",
+    desc: "One-tap reply suggestions above the composer when a session waits on you, predicted from the session and how you usually reply",
+  },
 ];
 
 function InterfaceSection() {
   return (
-    <SettingsSection title="Interface" icon={LayoutList} description="What the inbox and conversations show.">
+    <SettingsSection
+      title="Interface"
+      icon={LayoutList}
+      description="What the inbox and conversations show."
+    >
       {INTERFACE_TOGGLES.map((t) => (
         <PrefToggleRow key={t.prefKey} {...t} />
       ))}
@@ -282,17 +519,32 @@ function PrefToggleRow(t: (typeof INTERFACE_TOGGLES)[number]) {
     const v = s.clientState?.ui?.[t.prefKey];
     return t.defaultOn ? v !== false : v === true;
   });
-  const locked = useInboxStore(useShallow((s) => t.locked?.(s.clientState?.ui)));
+  const locked = useInboxStore(
+    useShallow((s) => t.locked?.(s.clientState?.ui)),
+  );
   const updateUI = useInboxStore((s) => s.updateClientUI);
   return (
-    <SettingsRow label={t.label} description={locked ? `${t.desc}. ${locked.why}.` : t.desc} disabled={!!locked}>
-      <Switch checked={locked ? locked.on : enabled} disabled={!!locked} onCheckedChange={(v) => updateUI({ [t.prefKey]: v } as Partial<ClientUI>)} aria-label={t.label} />
+    <SettingsRow
+      label={t.label}
+      description={locked ? `${t.desc}. ${locked.why}.` : t.desc}
+      disabled={!!locked}
+    >
+      <Switch
+        checked={locked ? locked.on : enabled}
+        disabled={!!locked}
+        onCheckedChange={(v) =>
+          updateUI({ [t.prefKey]: v } as Partial<ClientUI>)
+        }
+        aria-label={t.label}
+      />
     </SettingsRow>
   );
 }
 
 function SoundsLinkRow() {
-  const soundsOn = useInboxStore((s) => s.clientState?.ui?.sounds_enabled !== false);
+  const soundsOn = useInboxStore(
+    (s) => s.clientState?.ui?.sounds_enabled !== false,
+  );
   return (
     <SettingsLinkRow
       icon={Volume2}
@@ -322,17 +574,26 @@ function DaemonSection({ user }: { user: any }) {
   // A clock the section ticks on, so "Connected" turns to "Not connected"
   // when the daemon stops, not only when something else redraws the panel.
   const now = useCoarseNow(15_000);
-  const connected = user.daemon_last_seen && now - user.daemon_last_seen < 60000;
+  const connected =
+    user.daemon_last_seen && now - user.daemon_last_seen < 60000;
   return (
-    <SettingsSection title="Daemon" icon={Activity} description="The background process that connects your machines.">
+    <SettingsSection
+      title="Daemon"
+      icon={Activity}
+      description="The background process that connects your machines."
+    >
       <SettingsRow label="Status">
-        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${connected ? "text-sol-green" : "text-sol-orange"}`}>
+        <span
+          className={`inline-flex items-center gap-1.5 text-sm font-medium ${connected ? "text-sol-green" : "text-sol-orange"}`}
+        >
           <MonitorDot className="h-3.5 w-3.5" />
           {connected ? "Connected" : "Not connected"}
         </span>
       </SettingsRow>
       <SettingsRow label="Last seen">
-        {user.daemon_last_seen ? `${relativeTime(user.daemon_last_seen, now)} · ${new Date(user.daemon_last_seen).toLocaleString()}` : "Never"}
+        {user.daemon_last_seen
+          ? `${relativeTime(user.daemon_last_seen, now)} · ${new Date(user.daemon_last_seen).toLocaleString()}`
+          : "Never"}
       </SettingsRow>
     </SettingsSection>
   );
@@ -356,9 +617,12 @@ function PublicProfileSection({ user }: { user: any }) {
   // Only probe availability for a changed, non-trivial candidate.
   const check = useQuery(
     api.users.isUsernameAvailable,
-    dirty && trimmed.length >= 3 ? { username: trimmed } : "skip"
+    dirty && trimmed.length >= 3 ? { username: trimmed } : "skip",
   );
-  const suggestion = user.github_username && !user.username ? user.github_username.toLowerCase() : null;
+  const suggestion =
+    user.github_username && !user.username
+      ? user.github_username.toLowerCase()
+      : null;
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -366,7 +630,9 @@ function PublicProfileSection({ user }: { user: any }) {
     try {
       await claimUsername({ username: trimmed });
     } catch (e: any) {
-      setError(e?.message?.replace(/^.*Error:\s*/, "") || "Could not claim username");
+      setError(
+        e?.message?.replace(/^.*Error:\s*/, "") || "Could not claim username",
+      );
     } finally {
       setClaiming(false);
     }
@@ -381,9 +647,13 @@ function PublicProfileSection({ user }: { user: any }) {
       icon={Globe}
       description={
         <>
-          When on, anyone can view <span className="font-mono text-sol-text-muted">{origin}/{user.username || "your-handle"}</span> —
-          your identity, an anonymized activity graph, and the sessions you&apos;ve pinned. Off by default;
-          nothing is public until you turn this on.
+          When on, anyone can view{" "}
+          <span className="font-mono text-sol-text-muted">
+            {origin}/{user.username || "your-handle"}
+          </span>{" "}
+          — your identity, an anonymized activity graph, and the sessions
+          you&apos;ve pinned. Off by default; nothing is public until you turn
+          this on.
         </>
       }
       actions={
@@ -402,7 +672,10 @@ function PublicProfileSection({ user }: { user: any }) {
           error ? (
             <span className="text-sol-red">{error}</span>
           ) : suggestion && !user.username && !dirty ? (
-            <button onClick={() => setHandle(suggestion)} className="text-sol-cyan hover:underline">
+            <button
+              onClick={() => setHandle(suggestion)}
+              className="text-sol-cyan hover:underline"
+            >
               Use @{suggestion} from GitHub
             </button>
           ) : dirty && trimmed.length >= 3 && check ? (
@@ -414,7 +687,12 @@ function PublicProfileSection({ user }: { user: any }) {
           ) : user.username ? (
             <span>
               Your profile lives at{" "}
-              <a href={`/${user.username}`} target="_blank" rel="noreferrer" className="text-sol-cyan hover:underline">
+              <a
+                href={`/${user.username}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sol-cyan hover:underline"
+              >
                 /{user.username}
               </a>
             </span>
@@ -439,7 +717,12 @@ function PublicProfileSection({ user }: { user: any }) {
           <Button
             size="sm"
             onClick={handleClaim}
-            disabled={!dirty || claiming || trimmed.length < 3 || (check && !check.available)}
+            disabled={
+              !dirty ||
+              claiming ||
+              trimmed.length < 3 ||
+              (check && !check.available)
+            }
             variant="cyan"
           >
             {claiming ? "Saving…" : user.username ? "Update" : "Claim"}

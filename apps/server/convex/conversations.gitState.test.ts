@@ -9,12 +9,33 @@ import { makeFakeDb } from "./testDb";
 
 function context(user: string, overrides: Record<string, any[]> = {}) {
   return {
-    auth: { getUserIdentity: async () => ({ subject: `${user}|sess`, tokenIdentifier: "test" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: `${user}|sess`,
+        tokenIdentifier: "test",
+      }),
+    },
     db: makeFakeDb({
       users: [{ _id: "owner", active_team_id: "team" }, { _id: "other" }],
       team_memberships: [{ _id: "m", user_id: "owner", team_id: "team" }],
-      conversations: [{ _id: "conv", user_id: "owner", git_branch: "main", git_commit_hash: "aaaaaaa" }],
-      directory_team_mappings: [{ _id: "map", user_id: "owner", path_prefix: "/src", team_id: "team", auto_share: true, created_at: 1 }],
+      conversations: [
+        {
+          _id: "conv",
+          user_id: "owner",
+          git_branch: "main",
+          git_commit_hash: "aaaaaaa",
+        },
+      ],
+      directory_team_mappings: [
+        {
+          _id: "map",
+          user_id: "owner",
+          path_prefix: "/src",
+          team_id: "team",
+          auto_share: true,
+          created_at: 1,
+        },
+      ],
       repo_sources: [],
       repo_cache: [],
       commits: [],
@@ -26,51 +47,128 @@ function context(user: string, overrides: Record<string, any[]> = {}) {
 describe("conversations.updateGitState", () => {
   test("writes what moved, stamps the time, and skips a no-op", async () => {
     const ctx = context("owner");
-    expect(await (updateGitState as any)._handler(ctx, { conversation_id: "conv", git_commit_hash: "bbbbbbb", git_branch: "main", git_remote_url: "git@github.com:acme/demo.git", git_ahead: 2, git_behind: 0, git_dirty: true })).toEqual({ updated: true });
+    expect(
+      await (updateGitState as any)._handler(ctx, {
+        conversation_id: "conv",
+        git_commit_hash: "bbbbbbb",
+        git_branch: "main",
+        git_remote_url: "git@github.com:acme/demo.git",
+        git_ahead: 2,
+        git_behind: 0,
+        git_dirty: true,
+      }),
+    ).toEqual({ updated: true });
     const conv = ctx.db._tables.conversations[0];
-    expect(conv).toMatchObject({ git_commit_hash: "bbbbbbb", git_branch: "main", git_remote_url: "git@github.com:acme/demo.git", git_ahead: 2, git_behind: 0, git_dirty: true });
+    expect(conv).toMatchObject({
+      git_commit_hash: "bbbbbbb",
+      git_branch: "main",
+      git_remote_url: "git@github.com:acme/demo.git",
+      git_ahead: 2,
+      git_behind: 0,
+      git_dirty: true,
+    });
     expect(typeof conv.git_state_at).toBe("number");
-    expect(await (updateGitState as any)._handler(ctx, { conversation_id: "conv", git_commit_hash: "bbbbbbb", git_ahead: 2, git_dirty: true })).toEqual({ updated: false });
+    expect(
+      await (updateGitState as any)._handler(ctx, {
+        conversation_id: "conv",
+        git_commit_hash: "bbbbbbb",
+        git_ahead: 2,
+        git_dirty: true,
+      }),
+    ).toEqual({ updated: false });
   });
   test("clears the fields asked for, unless the same call sets them", async () => {
     const ctx = context("owner");
-    expect(await (updateGitState as any)._handler(ctx, { conversation_id: "conv", git_branch: "codex/fix", clear: ["git_branch", "git_commit_hash", "git_dirty"] })).toEqual({ updated: true });
+    expect(
+      await (updateGitState as any)._handler(ctx, {
+        conversation_id: "conv",
+        git_branch: "codex/fix",
+        clear: ["git_branch", "git_commit_hash", "git_dirty"],
+      }),
+    ).toEqual({ updated: true });
     const conv = ctx.db._tables.conversations[0];
     expect(conv.git_branch).toBe("codex/fix");
     expect(conv.git_commit_hash).toBeUndefined();
-    expect(await (updateGitState as any)._handler(ctx, { conversation_id: "conv", git_branch: "codex/fix", clear: ["git_commit_hash"] })).toEqual({ updated: false });
+    expect(
+      await (updateGitState as any)._handler(ctx, {
+        conversation_id: "conv",
+        git_branch: "codex/fix",
+        clear: ["git_commit_hash"],
+      }),
+    ).toEqual({ updated: false });
   });
   test("another user's session is left alone", async () => {
     const ctx = context("other");
-    expect(await (updateGitState as any)._handler(ctx, { conversation_id: "conv", git_commit_hash: "ccccccc" })).toEqual({ updated: false });
+    expect(
+      await (updateGitState as any)._handler(ctx, {
+        conversation_id: "conv",
+        git_commit_hash: "ccccccc",
+      }),
+    ).toEqual({ updated: false });
     expect(ctx.db._tables.conversations[0].git_commit_hash).toBe("aaaaaaa");
   });
 });
 
 describe("local commit session stamps", () => {
-  const commit = (sha: string, conversation_id?: string) => ({ sha, message: "m", author_name: "a", author_email: "e", timestamp: 1, files_changed: 1, insertions: 1, deletions: 0, conversation_id });
-  const unstamped = () => ({ commits: [{ _id: "c0", sha: "0".repeat(40), repository: "acme/demo", team_id: "team", message: "m", author_name: "a", author_email: "e", timestamp: 1, files_changed: 0, insertions: 0, deletions: 0 }] });
+  const commit = (sha: string, conversation_id?: string) => ({
+    sha,
+    message: "m",
+    author_name: "a",
+    author_email: "e",
+    timestamp: 1,
+    files_changed: 1,
+    insertions: 1,
+    deletions: 0,
+    conversation_id,
+  });
+  const unstamped = () => ({
+    commits: [
+      {
+        _id: "c0",
+        sha: "0".repeat(40),
+        repository: "acme/demo",
+        team_id: "team",
+        message: "m",
+        author_name: "a",
+        author_email: "e",
+        timestamp: 1,
+        files_changed: 0,
+        insertions: 0,
+        deletions: 0,
+      },
+    ],
+  });
   // CLIs up to 1.1.198 named the checkout's live session for pulled commits
   // too, so the publish pass writes no claimed session; the reflog path does.
   test("the publish pass ignores a claimed session", async () => {
     const ctx = context("owner", unstamped());
     await (ingestLocal as any)._handler(ctx, {
-      root: "/src/demo", repository: "acme/demo", rows: [],
+      root: "/src/demo",
+      repository: "acme/demo",
+      rows: [],
       commits: [commit("1".repeat(40), "conv"), commit("0".repeat(40), "conv")],
     });
-    for (const row of ctx.db._tables.commits) expect(row.conversation_id).toBeUndefined();
+    for (const row of ctx.db._tables.commits)
+      expect(row.conversation_id).toBeUndefined();
   });
   test("a claimed session is written only when it belongs to the caller, and fills a row that had none", async () => {
     const ctx = context("owner", unstamped());
     ctx.db._tables.conversations.push({ _id: "foreign", user_id: "other" });
-    const upsert = (sha: string, claimed: string) => upsertLocalCommit(ctx, {
-      userId: "owner" as any, teamId: "team" as any, repository: "acme/demo", root: "/src/demo",
-      commit: commit(sha), claimedConversationId: claimed,
-    });
+    const upsert = (sha: string, claimed: string) =>
+      upsertLocalCommit(ctx, {
+        userId: "owner" as any,
+        teamId: "team" as any,
+        repository: "acme/demo",
+        root: "/src/demo",
+        commit: commit(sha),
+        claimedConversationId: claimed,
+      });
     await upsert("1".repeat(40), "conv");
     await upsert("2".repeat(40), "foreign");
     await upsert("0".repeat(40), "conv");
-    const bySha = Object.fromEntries(ctx.db._tables.commits.map((c: any) => [c.sha[0], c]));
+    const bySha = Object.fromEntries(
+      ctx.db._tables.commits.map((c: any) => [c.sha[0], c]),
+    );
     expect(bySha["1"].conversation_id).toBe("conv");
     expect(bySha["2"].conversation_id).toBeUndefined();
     expect(bySha["0"].conversation_id).toBe("conv");

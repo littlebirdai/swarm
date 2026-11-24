@@ -53,7 +53,9 @@ export const run = internalMutation({
       .query("call_chat_messages")
       .withIndex("by_room", (q) => q.eq("room_key", args.room_key))
       .collect();
-    const offAt = lines.filter((l) => l.event === "transcribe_off").map((l) => l._creationTime);
+    const offAt = lines
+      .filter((l) => l.event === "transcribe_off")
+      .map((l) => l._creationTime);
 
     const groups: Group[] = [];
     const skipped: { id: string; started_at: number; reason: string }[] = [];
@@ -63,16 +65,32 @@ export const run = internalMutation({
       // its own: it starts a group rather than folding into one.
       const pinned = last ? await foldBlocker(ctx, t) : null;
       if (pinned) {
-        skipped.push({ id: String(t._id), started_at: t.started_at, reason: pinned });
+        skipped.push({
+          id: String(t._id),
+          started_at: t.started_at,
+          reason: pinned,
+        });
         groups.push({ keep: t, fold: [] });
         continue;
       }
-      const prev = last ? [last.keep, ...last.fold].reduce((a, b) => ((a.ended_at ?? 0) >= (b.ended_at ?? 0) ? a : b)) : null;
+      const prev = last
+        ? [last.keep, ...last.fold].reduce((a, b) =>
+            (a.ended_at ?? 0) >= (b.ended_at ?? 0) ? a : b,
+          )
+        : null;
       const prevEnd = prev?.ended_at;
-      if (prev && prev.status === "ended" && t.status === "ended" && prevEnd !== undefined) {
+      if (
+        prev &&
+        prev.status === "ended" &&
+        t.status === "ended" &&
+        prevEnd !== undefined
+      ) {
         const gap = t.started_at - prevEnd;
         const switchedOff = offAt.some((at) => Math.abs(at - prevEnd) < 5_000);
-        if (gap >= 0 && (gap <= HUDDLE_GRACE_MS || (switchedOff && gap <= OFF_GAP_MS))) {
+        if (
+          gap >= 0 &&
+          (gap <= HUDDLE_GRACE_MS || (switchedOff && gap <= OFF_GAP_MS))
+        ) {
           last.fold.push(t);
           continue;
         }
@@ -85,7 +103,12 @@ export const run = internalMutation({
       .map((g) => ({
         keep: String(g.keep._id),
         title: g.keep.title ?? null,
-        fold: g.fold.map((t) => ({ id: String(t._id), started_at: t.started_at, segments: t.last_seq, title: t.title ?? null })),
+        fold: g.fold.map((t) => ({
+          id: String(t._id),
+          started_at: t.started_at,
+          segments: t.last_seq,
+          title: t.title ?? null,
+        })),
       }));
     if (!dryRun) {
       for (const g of groups) if (g.fold.length > 0) await fold(ctx, g);
@@ -98,7 +121,9 @@ export const run = internalMutation({
       return {
         id: g.keep._id,
         from: g.keep.started_at - HUDDLE_GRACE_MS,
-        to: Math.max(...all.map((t) => t.ended_at ?? Date.now())) + HUDDLE_GRACE_MS,
+        to:
+          Math.max(...all.map((t) => t.ended_at ?? Date.now())) +
+          HUDDLE_GRACE_MS,
         live: all.some((t) => t.status === "live"),
         folded: new Set(g.fold.map((t) => String(t._id))),
       };
@@ -107,12 +132,21 @@ export const run = internalMutation({
     for (const l of lines) {
       const owner = l.transcript_id
         ? spans.find((s) => s.folded.has(String(l.transcript_id)))
-        : spans.find((s) => !s.live && l._creationTime >= s.from && l._creationTime <= s.to);
+        : spans.find(
+            (s) =>
+              !s.live && l._creationTime >= s.from && l._creationTime <= s.to,
+          );
       if (!owner) continue;
       stamped++;
       if (!dryRun) await ctx.db.patch(l._id, { transcript_id: owner.id });
     }
-    return { dryRun, records: records.length, groups: report, skipped, stamped };
+    return {
+      dryRun,
+      records: records.length,
+      groups: report,
+      skipped,
+      stamped,
+    };
   },
 });
 
@@ -122,7 +156,10 @@ export const run = internalMutation({
  *  fragment holding any of them is left whole rather than half moved. A
  *  recording left on a deleted call could be neither watched nor deleted,
  *  and its video would stay in the bucket for good. */
-async function foldBlocker(ctx: any, t: Doc<"transcripts">): Promise<string | null> {
+async function foldBlocker(
+  ctx: any,
+  t: Doc<"transcripts">,
+): Promise<string | null> {
   const byTranscript = (table: string) =>
     ctx.db
       .query(table)
@@ -151,10 +188,16 @@ async function fold(ctx: any, g: Group): Promise<void> {
       .withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id))
       .collect();
     for (const s of segs) {
-      await ctx.db.patch(s._id, { transcript_id: keep._id, seq: s.seq + shiftSeq, t0: s.t0 + shiftMs, t1: s.t1 + shiftMs });
+      await ctx.db.patch(s._id, {
+        transcript_id: keep._id,
+        seq: s.seq + shiftSeq,
+        t0: s.t0 + shiftMs,
+        t1: s.t1 + shiftMs,
+      });
     }
     for (const r of t.routes) {
-      if (routes.some((k) => k.kind === r.kind && k.target === r.target)) continue;
+      if (routes.some((k) => k.kind === r.kind && k.target === r.target))
+        continue;
       routes.push({ ...r, sent_seq: r.sent_seq + shiftSeq });
     }
     const links = await ctx.db
@@ -162,11 +205,17 @@ async function fold(ctx: any, g: Group): Promise<void> {
       .withIndex("by_transcript", (q: any) => q.eq("transcript_id", t._id))
       .collect();
     for (const link of links) {
-      const excerpts = (link.excerpts ?? []).map((e: any) => ({ ...e, from_seq: e.from_seq + shiftSeq, to_seq: e.to_seq + shiftSeq }));
+      const excerpts = (link.excerpts ?? []).map((e: any) => ({
+        ...e,
+        from_seq: e.from_seq + shiftSeq,
+        to_seq: e.to_seq + shiftSeq,
+      }));
       const twin = await ctx.db
         .query("call_session_links")
         .withIndex("by_transcript", (q: any) => q.eq("transcript_id", keep._id))
-        .filter((q: any) => q.eq(q.field("conversation_id"), link.conversation_id))
+        .filter((q: any) =>
+          q.eq(q.field("conversation_id"), link.conversation_id),
+        )
         .first();
       if (twin) {
         await ctx.db.patch(twin._id, {
@@ -179,7 +228,8 @@ async function fold(ctx: any, g: Group): Promise<void> {
         await ctx.db.patch(link._id, { transcript_id: keep._id, excerpts });
       }
     }
-    for (const p of t.participants ?? []) if (!participants.has(p.id)) participants.set(p.id, p);
+    for (const p of t.participants ?? [])
+      if (!participants.has(p.id)) participants.set(p.id, p);
     lastSeq += t.last_seq;
     endedAt = Math.max(endedAt, t.ended_at ?? t.started_at);
     await retireCallDigest(ctx, t);
@@ -192,5 +242,7 @@ async function fold(ctx: any, g: Group): Promise<void> {
     routes,
     summary_status: "pending",
   });
-  await ctx.scheduler.runAfter(0, internal.transcripts.generateSummary, { transcript_id: keep._id });
+  await ctx.scheduler.runAfter(0, internal.transcripts.generateSummary, {
+    transcript_id: keep._id,
+  });
 }

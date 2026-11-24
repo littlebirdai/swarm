@@ -1,14 +1,14 @@
 import { stripTitleHeading } from "@codecast/shared/docs";
-import { useTextSize } from '@/hooks/useTextSize';
-import { sizeStyle } from '@/lib/textSize';
+import { useTextSize } from "@/hooks/useTextSize";
+import { sizeStyle } from "@/lib/textSize";
 import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   View as RNView,
   ActivityIndicator,
-} from 'react-native';
-import { Text as RNText } from '@/components/Themed';
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { api } from "@codecast/convex/convex/_generated/api";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -39,7 +39,9 @@ export default function DocDetailScreen() {
   // query refreshes it.
   const docKey = id && isConvexId(id) ? id : undefined;
   const liveDetail = useSyncDocDetail(docKey);
-  const cachedDetail = useInboxStore((s) => (docKey ? s.docDetails[docKey] : undefined)) as any;
+  const cachedDetail = useInboxStore((s) =>
+    docKey ? s.docDetails[docKey] : undefined,
+  ) as any;
 
   // A share link carries the token along (?share=). When the doc isn't in the
   // viewer's store — a guest, or a teammate before docs sync — the public
@@ -52,7 +54,9 @@ export default function DocDetailScreen() {
   const docDetail = cachedDetail;
 
   // With a token present, "not found" is only true once ITS query settled.
-  const resolved = share ? sharedDoc !== undefined : !docsLoading && liveDetail !== undefined;
+  const resolved = share
+    ? sharedDoc !== undefined
+    : !docsLoading && liveDetail !== undefined;
 
   if (!doc) {
     return (
@@ -61,9 +65,16 @@ export default function DocDetailScreen() {
         <RNView style={styles.loading}>
           {resolved ? (
             <>
-              <FontAwesome name="exclamation-circle" size={28} color={Theme.textMuted0} />
+              <FontAwesome
+                name="exclamation-circle"
+                size={28}
+                color={Theme.textMuted0}
+              />
               <RNText style={styles.loadingText}>Document not found</RNText>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backBtn}
+              >
                 <RNText style={styles.backBtnText}>Go back</RNText>
               </TouchableOpacity>
             </>
@@ -90,16 +101,30 @@ export default function DocDetailScreen() {
           title: cfg.label,
           headerStyle: { backgroundColor: Theme.bgAlt },
           headerTintColor: Theme.text,
-          headerTitleStyle: sizeStyle({ fontSize: 14, fontFamily: uiFace(Mono.semiBold), color: Theme.textMuted }, textSize),
+          headerTitleStyle: sizeStyle(
+            {
+              fontSize: 14,
+              fontFamily: uiFace(Mono.semiBold),
+              color: Theme.textMuted,
+            },
+            textSize,
+          ),
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
         <RNText style={styles.title}>{doc.title || "Untitled"}</RNText>
 
         {(doc.created_at || doc.pinned) && (
           <RNView style={styles.metaRow}>
-            {doc.pinned && <FontAwesome name="star" size={11} color={Theme.accent} />}
-            {doc.created_at && <RNText style={styles.dates}>{describeDates(doc)}</RNText>}
+            {doc.pinned && (
+              <FontAwesome name="star" size={11} color={Theme.accent} />
+            )}
+            {doc.created_at && (
+              <RNText style={styles.dates}>{describeDates(doc)}</RNText>
+            )}
           </RNView>
         )}
 
@@ -120,8 +145,14 @@ export default function DocDetailScreen() {
             activeOpacity={0.7}
           >
             <FontAwesome name="map-o" size={11} color={Theme.cyan} />
-            <RNText style={styles.planLinkText}>Plan: {doc.plan_short_id}</RNText>
-            <FontAwesome name="chevron-right" size={10} color={Theme.textMuted0} />
+            <RNText style={styles.planLinkText}>
+              Plan: {doc.plan_short_id}
+            </RNText>
+            <FontAwesome
+              name="chevron-right"
+              size={10}
+              color={Theme.textMuted0}
+            />
           </TouchableOpacity>
         )}
 
@@ -134,8 +165,14 @@ export default function DocDetailScreen() {
             accessibilityRole="link"
           >
             <FontAwesome name={cfg.icon as any} size={18} color={cfg.color} />
-            <RNText style={styles.webOnlyText}>Open {cfg.label.toLowerCase()} on the web</RNText>
-            <FontAwesome name="external-link" size={12} color={Theme.textMuted0} />
+            <RNText style={styles.webOnlyText}>
+              Open {cfg.label.toLowerCase()} on the web
+            </RNText>
+            <FontAwesome
+              name="external-link"
+              size={12}
+              color={Theme.textMuted0}
+            />
           </TouchableOpacity>
         ) : content ? (
           <RNView style={styles.section}>
@@ -143,28 +180,42 @@ export default function DocDetailScreen() {
           </RNView>
         ) : (
           <RNView style={styles.emptyContent}>
-            <FontAwesome name="file-text-o" size={24} color={Theme.textMuted0} />
+            <FontAwesome
+              name="file-text-o"
+              size={24}
+              color={Theme.textMuted0}
+            />
             <RNText style={styles.emptyText}>No content</RNText>
           </RNView>
         )}
 
         {docDetail?.related_conversations?.length > 0 && (
           <RNView style={styles.section}>
-            <RNText style={styles.sectionLabel}>
-              Sessions
-            </RNText>
+            <RNText style={styles.sectionLabel}>Sessions</RNText>
             {docDetail.related_conversations.map((conv: any) => (
               <TouchableOpacity
                 key={conv._id}
                 style={styles.convRow}
-                onPress={() => router.push(`/session/${conv.short_id || conv.session_id}` as any)}
+                onPress={() =>
+                  router.push(
+                    `/session/${conv.short_id || conv.session_id}` as any,
+                  )
+                }
                 activeOpacity={0.7}
               >
-                <FontAwesome name="terminal" size={11} color={Theme.textMuted0} />
+                <FontAwesome
+                  name="terminal"
+                  size={11}
+                  color={Theme.textMuted0}
+                />
                 <RNText style={styles.convTitle} numberOfLines={1}>
                   {conv.title || conv.short_id || "Session"}
                 </RNText>
-                <FontAwesome name="chevron-right" size={10} color={Theme.textMuted0} />
+                <FontAwesome
+                  name="chevron-right"
+                  size={10}
+                  color={Theme.textMuted0}
+                />
               </TouchableOpacity>
             ))}
           </RNView>
@@ -176,134 +227,136 @@ export default function DocDetailScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  content: { padding: Spacing.lg },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: Theme.bg,
-  },
-  loadingText: { fontSize: 14, color: Theme.textMuted },
-  backBtn: {
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  backBtnText: { fontSize: 14, fontWeight: "500", color: Theme.accent },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 26,
-    color: Theme.text,
-    marginBottom: Spacing.md,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: Spacing.md,
-  },
-  dates: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontVariant: ["tabular-nums"],
-  },
-  labelRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: Spacing.lg,
-  },
-  labelBadge: {
-    backgroundColor: Theme.bgHighlight,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  labelText: {
-    fontSize: 12,
-    color: Theme.textMuted,
-    fontWeight: "500",
-  },
-  planLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: Theme.bgAlt,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    marginBottom: Spacing.lg,
-  },
-  planLinkText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    color: Theme.cyan,
-  },
-  section: {
-    marginBottom: Spacing.lg,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Theme.textMuted0,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  bodyText: {
-    fontSize: 14,
-    color: Theme.text,
-    lineHeight: 21,
-  },
-  webOnly: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: Theme.bgAlt,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-    marginTop: Spacing.sm,
-  },
-  webOnlyText: {
-    flex: 1,
-    fontSize: 15,
-    color: Theme.text,
-  },
-  emptyContent: {
-    alignItems: "center",
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Theme.textMuted0,
-  },
-  convRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.bgHighlight,
-  },
-  convTitle: {
-    flex: 1,
-    fontSize: 14,
-    color: Theme.text,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    content: { padding: Spacing.lg },
+    loading: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: Theme.bg,
+    },
+    loadingText: { fontSize: 14, color: Theme.textMuted },
+    backBtn: {
+      marginTop: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    backBtnText: { fontSize: 14, fontWeight: "500", color: Theme.accent },
+    title: {
+      fontSize: 20,
+      fontWeight: "700",
+      lineHeight: 26,
+      color: Theme.text,
+      marginBottom: Spacing.md,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: Spacing.md,
+    },
+    dates: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    labelRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      marginBottom: Spacing.lg,
+    },
+    labelBadge: {
+      backgroundColor: Theme.bgHighlight,
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    labelText: {
+      fontSize: 12,
+      color: Theme.textMuted,
+      fontWeight: "500",
+    },
+    planLink: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: Theme.bgAlt,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      marginBottom: Spacing.lg,
+    },
+    planLinkText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.cyan,
+    },
+    section: {
+      marginBottom: Spacing.lg,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.textMuted0,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 8,
+    },
+    bodyText: {
+      fontSize: 14,
+      color: Theme.text,
+      lineHeight: 21,
+    },
+    webOnly: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      backgroundColor: Theme.bgAlt,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+      marginTop: Spacing.sm,
+    },
+    webOnlyText: {
+      flex: 1,
+      fontSize: 15,
+      color: Theme.text,
+    },
+    emptyContent: {
+      alignItems: "center",
+      paddingVertical: 40,
+      gap: 8,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: Theme.textMuted0,
+    },
+    convRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.bgHighlight,
+    },
+    convTitle: {
+      flex: 1,
+      fontSize: 14,
+      color: Theme.text,
+    },
+  }),
+);

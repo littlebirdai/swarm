@@ -61,7 +61,9 @@ export function EntryTimeline({
       <div className="space-y-2">
         {[...entries].reverse().map((entry, i) => (
           <div key={i} className="flex items-start gap-2 text-sm">
-            <span className={`text-xs mt-0.5 ${TYPE_STYLES[entry.type ?? "note"] || TYPE_STYLES.note}`}>
+            <span
+              className={`text-xs mt-0.5 ${TYPE_STYLES[entry.type ?? "note"] || TYPE_STYLES.note}`}
+            >
               {TYPE_ICONS[entry.type ?? "note"] || "·"}
             </span>
             <span className="text-meta text-sol-text-dim tabular-nums whitespace-nowrap mt-0.5">
@@ -70,10 +72,14 @@ export function EntryTimeline({
             <div className="flex-1 min-w-0">
               <span className="text-sol-text-muted">{entry.content}</span>
               {entry.rationale && (
-                <p className="text-xs text-sol-text-dim mt-0.5">{entry.rationale}</p>
+                <p className="text-xs text-sol-text-dim mt-0.5">
+                  {entry.rationale}
+                </p>
               )}
               {entry.path_or_url && (
-                <p className="text-xs text-sol-text-dim font-mono mt-0.5">→ {entry.path_or_url}</p>
+                <p className="text-xs text-sol-text-dim font-mono mt-0.5">
+                  → {entry.path_or_url}
+                </p>
               )}
             </div>
           </div>

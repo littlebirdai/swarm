@@ -13,32 +13,96 @@ import { AssigneeFace } from "./AssigneeFace";
 import { ObjectCardBody } from "./objectCard";
 
 /** Whom the card is about: their user id or handle, and what the caller already shows. */
-export type PersonRef = { userId?: string | null; handle?: string | null; name?: string; image?: string };
+export type PersonRef = {
+  userId?: string | null;
+  handle?: string | null;
+  name?: string;
+  image?: string;
+};
 
-export function PersonHoverContent({ person, onOpen }: { person: PersonRef; onOpen?: (e: React.MouseEvent) => void }) {
+export function PersonHoverContent({
+  person,
+  onOpen,
+}: {
+  person: PersonRef;
+  onOpen?: (e: React.MouseEvent) => void;
+}) {
   const ref = person.userId || person.handle || null;
   const head = usePersonHead(ref);
   const name = head?.name ?? person.name ?? person.handle ?? "Someone";
   const image = head?.image ?? person.image;
-  const refId = head?.line.ref ?? (person.handle || (person.userId ? personRefOf({ _id: person.userId }) : null));
+  const refId =
+    head?.line.ref ??
+    (person.handle ||
+      (person.userId ? personRefOf({ _id: person.userId }) : null));
   // Their handle sits beside their name; someone without one keeps their id in the address only.
   const handle = head ? head.handle : person.handle || null;
   const glyph = <AssigneeFace info={{ name, image }} size={18} hover={false} />;
-  const summary = head
-    ? <SummaryFrame kind="person" glyph={glyph} title={head.line.me ? `${name} (you)` : name} idRef={handle ? `@${handle}` : null} facts={head.facts} serves={head.serves} carried={head.carried} />
-    : <SummaryFrame kind="person" glyph={glyph} title={name} idRef={handle ? `@${handle}` : null} facts={{ owner: null, state: null, measure: null, date: null }} serves={[]} carried={null} />;
-  if (!refId) return <div className="p-3 text-xs" data-person-card="">{summary}</div>;
+  const summary = head ? (
+    <SummaryFrame
+      kind="person"
+      glyph={glyph}
+      title={head.line.me ? `${name} (you)` : name}
+      idRef={handle ? `@${handle}` : null}
+      facts={head.facts}
+      serves={head.serves}
+      carried={head.carried}
+    />
+  ) : (
+    <SummaryFrame
+      kind="person"
+      glyph={glyph}
+      title={name}
+      idRef={handle ? `@${handle}` : null}
+      facts={{ owner: null, state: null, measure: null, date: null }}
+      serves={[]}
+      carried={null}
+    />
+  );
+  if (!refId)
+    return (
+      <div className="p-3 text-xs" data-person-card="">
+        {summary}
+      </div>
+    );
   return (
-    <ObjectCardBody kind="person" refId={refId} label="Open person" onOpen={onOpen} data-person-card={refId}>
+    <ObjectCardBody
+      kind="person"
+      refId={refId}
+      label="Open person"
+      onOpen={onOpen}
+      data-person-card={refId}
+    >
       {summary}
     </ObjectCardBody>
   );
 }
 
 /** Wraps anything that names a person (their face, their name); the card opens on hover. */
-export function PersonHoverCard({ person, children, side, align, disabled, triggerClassName }: { person: PersonRef; children: React.ReactNode; side?: "top" | "bottom" | "left" | "right"; align?: "start" | "center" | "end"; disabled?: boolean; triggerClassName?: string }) {
+export function PersonHoverCard({
+  person,
+  children,
+  side,
+  align,
+  disabled,
+  triggerClassName,
+}: {
+  person: PersonRef;
+  children: React.ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  disabled?: boolean;
+  triggerClassName?: string;
+}) {
   return (
-    <HoverCard card={<PersonHoverContent person={person} />} side={side} align={align} disabled={disabled || !(person.userId || person.handle)} className="w-[22rem]" triggerClassName={triggerClassName}>
+    <HoverCard
+      card={<PersonHoverContent person={person} />}
+      side={side}
+      align={align}
+      disabled={disabled || !(person.userId || person.handle)}
+      className="w-[22rem]"
+      triggerClassName={triggerClassName}
+    >
       {children}
     </HoverCard>
   );

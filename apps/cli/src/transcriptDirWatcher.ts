@@ -59,7 +59,10 @@ export interface TranscriptDirWatcherEvents {
  *  generic jsonl-dir TranscriptDirWatcher and the opencode json-store watcher
  *  satisfy it, so `registerJsonlDirWatcher` can drive either. */
 export interface DirEventWatcher {
-  on<K extends keyof TranscriptDirWatcherEvents>(event: K, listener: TranscriptDirWatcherEvents[K]): this;
+  on<K extends keyof TranscriptDirWatcherEvents>(
+    event: K,
+    listener: TranscriptDirWatcherEvents[K],
+  ): this;
   /** May resolve when priming completes; a caller that only needs the watch
    *  open ignores the value. */
   start(): void | Promise<void>;
@@ -67,8 +70,14 @@ export interface DirEventWatcher {
 }
 
 export declare interface TranscriptDirWatcher {
-  on<K extends keyof TranscriptDirWatcherEvents>(event: K, listener: TranscriptDirWatcherEvents[K]): this;
-  emit<K extends keyof TranscriptDirWatcherEvents>(event: K, ...args: Parameters<TranscriptDirWatcherEvents[K]>): boolean;
+  on<K extends keyof TranscriptDirWatcherEvents>(
+    event: K,
+    listener: TranscriptDirWatcherEvents[K],
+  ): this;
+  emit<K extends keyof TranscriptDirWatcherEvents>(
+    event: K,
+    ...args: Parameters<TranscriptDirWatcherEvents[K]>
+  ): boolean;
 }
 
 export class TranscriptDirWatcher extends EventEmitter {
@@ -93,7 +102,9 @@ export class TranscriptDirWatcher extends EventEmitter {
       scanPolicy: this.cfg.scanPolicy,
       filter: this.cfg.watchFilter,
       dirFilter: this.cfg.dirFilter,
-      callback: (filePath, eventType) => { if (eventType !== "unlink") this.handleFileEvent(filePath, eventType); },
+      callback: (filePath, eventType) => {
+        if (eventType !== "unlink") this.handleFileEvent(filePath, eventType);
+      },
       onExisting: (files) => this.emitExistingFilesSorted(files),
       maxDepth: this.cfg.maxDepth,
       debounceMs: this.cfg.debounceMs,
@@ -113,10 +124,13 @@ export class TranscriptDirWatcher extends EventEmitter {
   // scanMatch and emitted newest first.
   private async emitExistingFilesSorted(files: WalkFile[]): Promise<void> {
     const watcher = this.watcher;
-    const matched = files.filter((f) => this.cfg.scanMatch(path.dirname(f.path), path.basename(f.path)));
+    const matched = files.filter((f) =>
+      this.cfg.scanMatch(path.dirname(f.path), path.basename(f.path)),
+    );
     matched.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     for (let i = 0; i < matched.length; i++) {
-      if (i % 128 === 0) await new Promise<void>(resolve => setImmediate(resolve));
+      if (i % 128 === 0)
+        await new Promise<void>((resolve) => setImmediate(resolve));
       if (this.watcher !== watcher) return;
       const file = matched[i];
       this.handleFileEvent(file.path, "add");
@@ -135,11 +149,14 @@ export class TranscriptDirWatcher extends EventEmitter {
     if (sessionId == null) {
       // Malformed filename → the "id" would be the raw filename (attacker text).
       // Skip it: don't track it, don't push it to convex. Never crash the watcher.
-      console.warn(`[SECURITY] skipping transcript with a malformed session id: ${path.basename(filePath)}`);
+      console.warn(
+        `[SECURITY] skipping transcript with a malformed session id: ${path.basename(filePath)}`,
+      );
       return;
     }
     const event: TranscriptDirEvent = { sessionId, filePath, eventType };
-    if (this.cfg.extractProjectHash) event.projectHash = this.cfg.extractProjectHash(filePath);
+    if (this.cfg.extractProjectHash)
+      event.projectHash = this.cfg.extractProjectHash(filePath);
     this.emit("session", event);
   }
 }
@@ -147,15 +164,19 @@ export class TranscriptDirWatcher extends EventEmitter {
 /** Expand a home-relative descriptor transcript root ("~/.codex/sessions") to an
  *  absolute path, matching the old watchers' `path.join(HOME, ...)` default. */
 export function expandTranscriptRoot(root: string): string {
-  return root.startsWith("~/") ? path.join(process.env.HOME || "", root.slice(2)) : root;
+  return root.startsWith("~/")
+    ? path.join(process.env.HOME || "", root.slice(2))
+    : root;
 }
 
-const CODEX_UUID_SUFFIX_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const CODEX_UUID_SUFFIX_RE =
+  /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 // pi stores sessions at ~/.pi/agent/sessions/<cwd-slug>/<ISO-ts>_<uuid>.jsonl. The
 // filename's trailing uuid is the session id (== the header's `id`), and the ISO
 // timestamp before it also carries hyphens, so we anchor the uuid at the end.
-const PI_UUID_SUFFIX_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const PI_UUID_SUFFIX_RE =
+  /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 /**
  * Encode a working directory into grok's session-directory name, verbatim to
@@ -174,7 +195,9 @@ export function encodeGrokCwdSlug(cwd: string): string {
   let out = "";
   for (const byte of Buffer.from(cwd, "utf8")) {
     const ch = String.fromCharCode(byte);
-    out += /[A-Za-z0-9_.~-]/.test(ch) ? ch : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
+    out += /[A-Za-z0-9_.~-]/.test(ch)
+      ? ch
+      : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
   }
   return out;
 }
@@ -204,10 +227,15 @@ export function decodeGrokCwdSlug(slug: string): string | null {
  * sessionWatcher and cursor a SQLite watcher (different watcherKinds).
  */
 export function transcriptDirWatcherConfig(
-  clientId: Extract<AgentClientId, "codex" | "gemini" | "pi" | "grok" | "muse" | "antigravity">,
+  clientId: Extract<
+    AgentClientId,
+    "codex" | "gemini" | "pi" | "grok" | "muse" | "antigravity"
+  >,
   basePathOverride?: string,
 ): TranscriptDirWatcherConfig {
-  const basePath = basePathOverride ?? expandTranscriptRoot(AGENT_CLIENTS[clientId].transcriptRoots[0]);
+  const basePath =
+    basePathOverride ??
+    expandTranscriptRoot(AGENT_CLIENTS[clientId].transcriptRoots[0]);
 
   if (clientId === "antigravity") {
     // agy keeps one directory per conversation under brain/:
@@ -221,8 +249,10 @@ export function transcriptDirWatcherConfig(
     return {
       basePath,
       scanPolicy: { dirs: "antigravityWatch", files: "antigravityWatch" },
-      watchFilter: (rel) => antigravitySessionIdFromPath(path.join(basePath, rel)) !== null,
-      scanMatch: (dir, name) => name === "transcript_full.jsonl" && path.basename(dir) === "logs",
+      watchFilter: (rel) =>
+        antigravitySessionIdFromPath(path.join(basePath, rel)) !== null,
+      scanMatch: (dir, name) =>
+        name === "transcript_full.jsonl" && path.basename(dir) === "logs",
       extractSessionId: (filePath) => antigravitySessionIdFromPath(filePath),
       dirFilter: dirFilterByDepth(
         (seg) => CLAUDE_UUID_RE.test(seg),
@@ -247,7 +277,8 @@ export function transcriptDirWatcherConfig(
     return {
       basePath,
       scanPolicy: { dirs: "museWatch", files: "museWatch" },
-      watchFilter: (rel) => rel.endsWith(`${path.sep}session.jsonl`) || rel === "session.jsonl",
+      watchFilter: (rel) =>
+        rel.endsWith(`${path.sep}session.jsonl`) || rel === "session.jsonl",
       scanMatch: (_dir, name) => name === "session.jsonl",
       extractSessionId: (filePath) => {
         // A real muse session is sessions/YYYY/MM/DD/<uuid>/session.jsonl.
@@ -262,7 +293,8 @@ export function transcriptDirWatcherConfig(
         const segs = dir.split(path.sep).slice(-4);
         if (segs.length !== 4) return null;
         const [yyyy, mm, dd, uuid] = segs;
-        if (!/^\d{4}$/.test(yyyy) || !/^\d{2}$/.test(mm) || !/^\d{2}$/.test(dd)) return null;
+        if (!/^\d{4}$/.test(yyyy) || !/^\d{2}$/.test(mm) || !/^\d{2}$/.test(dd))
+          return null;
         return CLAUDE_UUID_RE.test(uuid) ? uuid : null;
       },
       // Date dirs then the session uuid dir only; dot segments (the
@@ -302,7 +334,10 @@ export function transcriptDirWatcherConfig(
       },
       // Enter a cwd dir and a session uuid dir only; `.cwd` and friends are
       // files, and any other dir at depth 2 cannot hold a session.
-      dirFilter: dirFilterByDepth(() => true, (seg) => CLAUDE_UUID_RE.test(seg)),
+      dirFilter: dirFilterByDepth(
+        () => true,
+        (seg) => CLAUDE_UUID_RE.test(seg),
+      ),
       maxDepth: 3,
       debounceMs: 100,
     };
@@ -345,7 +380,11 @@ export function transcriptDirWatcherConfig(
       },
       // Rollouts live under sessions/YYYY/MM/DD. Anything else at the root
       // (leftover `watcher-test-*` dirs, an editor's scratch dir) is skipped.
-      dirFilter: dirFilterByDepth((seg) => /^\d{4}$/.test(seg), (seg) => /^\d{2}$/.test(seg), (seg) => /^\d{2}$/.test(seg)),
+      dirFilter: dirFilterByDepth(
+        (seg) => /^\d{4}$/.test(seg),
+        (seg) => /^\d{2}$/.test(seg),
+        (seg) => /^\d{2}$/.test(seg),
+      ),
       maxDepth: 4,
       debounceMs: 100,
     };
@@ -356,8 +395,10 @@ export function transcriptDirWatcherConfig(
   return {
     basePath,
     scanPolicy: { dirs: "gemini", files: "geminiWatch" },
-    watchFilter: (rel) => rel.endsWith(".json") && rel.split(/[\\/]/).includes("chats"),
-    scanMatch: (dir, name) => name.endsWith(".json") && path.basename(dir) === "chats",
+    watchFilter: (rel) =>
+      rel.endsWith(".json") && rel.split(/[\\/]/).includes("chats"),
+    scanMatch: (dir, name) =>
+      name.endsWith(".json") && path.basename(dir) === "chats",
     extractSessionId: (filePath) => path.basename(filePath, ".json"),
     extractProjectHash: (filePath) => {
       const parts = filePath.split(path.sep);
@@ -366,7 +407,10 @@ export function transcriptDirWatcherConfig(
     },
     // Layout is <project-hash>/chats/<id>.json; a project dir also holds
     // checkpoints and other state that never carry a transcript.
-    dirFilter: dirFilterByDepth(() => true, (seg) => seg === "chats"),
+    dirFilter: dirFilterByDepth(
+      () => true,
+      (seg) => seg === "chats",
+    ),
     maxDepth: 3,
     debounceMs: 200,
   };
@@ -378,7 +422,15 @@ export function transcriptDirWatcherConfig(
  *  handle on that store says "an agent", never "which session". For grok the
  *  per-session identity is the uuid DIRECTORY holding updates.jsonl, which its
  *  extractSessionId already returns from the file path. */
-const FILE_PER_SESSION_CLIENTS = ["claude", "codex", "gemini", "pi", "grok", "muse", "antigravity"] as const;
+const FILE_PER_SESSION_CLIENTS = [
+  "claude",
+  "codex",
+  "gemini",
+  "pi",
+  "grok",
+  "muse",
+  "antigravity",
+] as const;
 
 /**
  * Which agent session (if any) a transcript path belongs to — the registry-driven
@@ -394,7 +446,9 @@ export function agentSessionFromTranscriptPath(
   filePath: string,
 ): { agentType: AgentClientId; sessionId: string } | null {
   for (const clientId of FILE_PER_SESSION_CLIENTS) {
-    const root = expandTranscriptRoot(AGENT_CLIENTS[clientId].transcriptRoots[0]);
+    const root = expandTranscriptRoot(
+      AGENT_CLIENTS[clientId].transcriptRoots[0],
+    );
     if (!filePath.startsWith(root + path.sep)) continue;
     const relativePath = path.relative(root, filePath);
     if (clientId === "claude") {
@@ -402,8 +456,15 @@ export function agentSessionFromTranscriptPath(
       // filename. A live claude process holds its SUBAGENTS' transcripts open next
       // to its own, and those name the child rather than the session running the
       // process — skipping them keeps the wrong id out of the lookup.
-      if (!filePath.endsWith(".jsonl") || relativePath.split(path.sep).length !== 2) return null;
-      return { agentType: "claude", sessionId: path.basename(filePath, ".jsonl") };
+      if (
+        !filePath.endsWith(".jsonl") ||
+        relativePath.split(path.sep).length !== 2
+      )
+        return null;
+      return {
+        agentType: "claude",
+        sessionId: path.basename(filePath, ".jsonl"),
+      };
     }
     const config = transcriptDirWatcherConfig(clientId);
     if (!config.watchFilter(relativePath)) continue;

@@ -8,8 +8,23 @@
 import { openBrowserPane } from "./stage";
 
 /** A machine whose screen the host serves: a remote Linux box (a provisioned cloud host) you can reach. */
-export function hasHostScreen(machine: { is_remote?: boolean; platform?: string; is_mine?: boolean; via_bot?: boolean } | null | undefined): boolean {
-  return !!machine?.is_remote && machine.platform === "linux" && !!machine.is_mine && !machine.via_bot;
+export function hasHostScreen(
+  machine:
+    | {
+        is_remote?: boolean;
+        platform?: string;
+        is_mine?: boolean;
+        via_bot?: boolean;
+      }
+    | null
+    | undefined,
+): boolean {
+  return (
+    !!machine?.is_remote &&
+    machine.platform === "linux" &&
+    !!machine.is_mine &&
+    !machine.via_bot
+  );
 }
 
 /** Open the host's screen beside this pane; the pane says itself when it cannot reach it. */

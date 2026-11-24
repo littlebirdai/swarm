@@ -5,7 +5,10 @@
  * final word on each removal (devices.performRemoveDevices refuses an online
  * machine); this only decides what the page offers.
  */
-import { machineOutOfService, type CloudHostReport } from "@codecast/shared/contracts";
+import {
+  machineOutOfService,
+  type CloudHostReport,
+} from "@codecast/shared/contracts";
 
 export { STALE_MACHINE_MS } from "@codecast/shared/contracts";
 
@@ -30,13 +33,21 @@ export function canRemoveMachine(d: RemovableMachine): boolean {
  * host whose instance is gone. A cloud box that is merely asleep is never
  * swept up with the dead laptops.
  */
-export function isStaleMachine<T extends RemovableMachine>(d: T, now: number, roster: T[] = [d]): boolean {
+export function isStaleMachine<T extends RemovableMachine>(
+  d: T,
+  now: number,
+  roster: T[] = [d],
+): boolean {
   return canRemoveMachine(d) && machineOutOfService(d, roster, now);
 }
 
-export function splitStaleMachines<T extends RemovableMachine>(devices: T[], now: number): { current: T[]; stale: T[] } {
+export function splitStaleMachines<T extends RemovableMachine>(
+  devices: T[],
+  now: number,
+): { current: T[]; stale: T[] } {
   const current: T[] = [];
   const stale: T[] = [];
-  for (const d of devices) (isStaleMachine(d, now, devices) ? stale : current).push(d);
+  for (const d of devices)
+    (isStaleMachine(d, now, devices) ? stale : current).push(d);
   return { current, stale };
 }

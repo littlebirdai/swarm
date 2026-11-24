@@ -10,7 +10,11 @@ import { inboxFloorStamped } from "../hooks/syncMetaKeys";
 export type FirstRun = "unknown" | "yes" | "no";
 
 export type FirstRunState = {
-  currentUser?: (Parameters<typeof cliNeverConnected>[0] & { _id?: { toString(): string } }) | null;
+  currentUser?:
+    | (Parameters<typeof cliNeverConnected>[0] & {
+        _id?: { toString(): string };
+      })
+    | null;
   sessions: Record<string, unknown>;
   pendingSessionCreates: Record<string, unknown>;
   syncMeta: Parameters<typeof inboxFloorStamped>[0]["syncMeta"];
@@ -23,6 +27,9 @@ export type FirstRunState = {
 export function firstRun(s: FirstRunState): FirstRun {
   if (s.currentUser == null) return "unknown";
   if (!cliNeverConnected(s.currentUser)) return "no";
-  for (const id in s.sessions) if (isConvexId(id) || s.pendingSessionCreates[id]) return "no";
-  return inboxFloorStamped(s, s.currentUser._id?.toString()) ? "yes" : "unknown";
+  for (const id in s.sessions)
+    if (isConvexId(id) || s.pendingSessionCreates[id]) return "no";
+  return inboxFloorStamped(s, s.currentUser._id?.toString())
+    ? "yes"
+    : "unknown";
 }

@@ -55,7 +55,10 @@ export const BOOT_TROUBLE_WINDOW_MS = 60 * 60 * 1000;
 export const BOOT_LOAD_RATIO_CAUTIOUS = 2;
 export const BOOT_LOAD_RATIO_SEVERE = 6;
 
-const PLAN_BY_TIER: Record<BootPacingTier, Omit<BootPacingPlan, "tier" | "reason">> = {
+const PLAN_BY_TIER: Record<
+  BootPacingTier,
+  Omit<BootPacingPlan, "tier" | "reason">
+> = {
   // The numbers main() used before pacing existed. Changing one here changes a
   // quiet boot; the tiers below are the only place a troubled boot differs.
   normal: {
@@ -102,13 +105,23 @@ export function planBootPacing(signals: BootPacingSignals): BootPacingPlan {
     );
   }
   const crashes = finite(signals.crashCount);
-  if (crashes !== undefined && crashes > 0) trouble.push(`${crashes} crash${crashes === 1 ? "" : "es"} in the last 30m`);
+  if (crashes !== undefined && crashes > 0)
+    trouble.push(
+      `${crashes} crash${crashes === 1 ? "" : "es"} in the last 30m`,
+    );
 
   const load1 = finite(signals.load1);
   const cpus = finite(signals.cpuCount);
-  const ratio = load1 !== undefined && cpus !== undefined && cpus > 0 ? load1 / cpus : undefined;
-  const loadText = ratio === undefined ? "" : `load ${load1!.toFixed(1)} on ${cpus} cpus`;
-  const loadCautious = ratio !== undefined && ratio >= BOOT_LOAD_RATIO_CAUTIOUS && ratio < BOOT_LOAD_RATIO_SEVERE;
+  const ratio =
+    load1 !== undefined && cpus !== undefined && cpus > 0
+      ? load1 / cpus
+      : undefined;
+  const loadText =
+    ratio === undefined ? "" : `load ${load1!.toFixed(1)} on ${cpus} cpus`;
+  const loadCautious =
+    ratio !== undefined &&
+    ratio >= BOOT_LOAD_RATIO_CAUTIOUS &&
+    ratio < BOOT_LOAD_RATIO_SEVERE;
   const loadSevere = ratio !== undefined && ratio >= BOOT_LOAD_RATIO_SEVERE;
   const memoryCritical = signals.memoryPressure === "critical";
 
@@ -133,7 +146,10 @@ export function planBootPacing(signals: BootPacingSignals): BootPacingPlan {
 /** The plan that binds repeating work `sinceBootMs` after boot: the boot plan
  * inside its hold, the normal bounds (with the boot tier and reason kept for
  * reporting) once the hold has passed. */
-export function bootPacingAfter(plan: BootPacingPlan, sinceBootMs: number): BootPacingPlan {
+export function bootPacingAfter(
+  plan: BootPacingPlan,
+  sinceBootMs: number,
+): BootPacingPlan {
   if (sinceBootMs < plan.holdMs) return plan;
   return { ...plan, ...PLAN_BY_TIER.normal, holdMs: plan.holdMs };
 }

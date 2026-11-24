@@ -11,20 +11,37 @@ import type { ArtifactOp } from "@codecast/shared/artifacts";
 export type FilterScope = "shared" | "mine";
 export type SetFilter = (f: TabFilter | null, scope?: FilterScope) => void;
 
-export function useSheetFilter(docId: string, tabId: string, shared: TabFilter | undefined, model: () => SheetModel, apply: (ops: ArtifactOp[]) => void) {
+export function useSheetFilter(
+  docId: string,
+  tabId: string,
+  shared: TabFilter | undefined,
+  model: () => SheetModel,
+  apply: (ops: ArtifactOp[]) => void,
+) {
   const key = `${docId}:${tabId}`;
-  const mine = useInboxStore((s) => (s.clientState.ui?.sheet_filters as Record<string, TabFilter | null> | undefined)?.[key] ?? null);
+  const mine = useInboxStore(
+    (s) =>
+      (
+        s.clientState.ui?.sheet_filters as
+          | Record<string, TabFilter | null>
+          | undefined
+      )?.[key] ?? null,
+  );
   const setFilter = useCallback<SetFilter>(
     (f, scope) => {
-      const all = (useInboxStore.getState().clientState.ui?.sheet_filters ?? {}) as Record<string, TabFilter | null>;
+      const all = (useInboxStore.getState().clientState.ui?.sheet_filters ??
+        {}) as Record<string, TabFilter | null>;
       const target = scope ?? (all[key] ? "mine" : "shared");
       const { [key]: _old, ...rest } = all;
       if (target === "mine") {
-        useInboxStore.getState().updateClientUI({ sheet_filters: f ? { ...rest, [key]: f } : rest });
+        useInboxStore
+          .getState()
+          .updateClientUI({ sheet_filters: f ? { ...rest, [key]: f } : rest });
         return;
       }
       // Sharing a personal view moves it onto the tab; the personal copy goes.
-      if (all[key]) useInboxStore.getState().updateClientUI({ sheet_filters: rest });
+      if (all[key])
+        useInboxStore.getState().updateClientUI({ sheet_filters: rest });
       apply(tabPatchOps(model(), tabId, { filter: f as never }));
     },
     [key, tabId, model, apply],

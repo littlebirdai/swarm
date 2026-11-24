@@ -3,7 +3,13 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { MESSAGING_SNIPPET, PUBLISH_SNIPPET } from "../snippets.js";
-import { apply, planSections, sectionMarker, type DesiredSection, type DriverLedger } from "./driver.js";
+import {
+  apply,
+  planSections,
+  sectionMarker,
+  type DesiredSection,
+  type DriverLedger,
+} from "./driver.js";
 
 // The markdown_section arm: one owned region per prose capability in each
 // agent instruction file, on the same engine `cast install` writes builtin
@@ -18,7 +24,8 @@ function home(): string {
   return h;
 }
 afterEach(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 const claudeMd = (h: string) => path.join(h, ".claude", "CLAUDE.md");
@@ -46,7 +53,9 @@ describe("markdown_section arm", () => {
     expect(text.split(sectionMarker(fragment.slug)).length).toBe(2);
     // A level-2 heading in the body would end the region early; it is demoted.
     expect(text).toContain("### Exceptions");
-    expect(r.ledger.sections?.[fragment.slug]?.[claudeMd(h)]?.wroteHash).toBeTruthy();
+    expect(
+      r.ledger.sections?.[fragment.slug]?.[claudeMd(h)]?.wroteHash,
+    ).toBeTruthy();
     // The region is not a file the driver owns: nothing lands in files.
     expect(r.ledger.files).toEqual({});
   });
@@ -63,7 +72,12 @@ describe("markdown_section arm", () => {
     expect(fs.statSync(claudeMd(h)).mtimeMs).toBe(before);
 
     // Trailing whitespace is not a change either.
-    fs.writeFileSync(claudeMd(h), fs.readFileSync(claudeMd(h), "utf-8").replace("second reader.", "second reader.   ") + "\n\n");
+    fs.writeFileSync(
+      claudeMd(h),
+      fs
+        .readFileSync(claudeMd(h), "utf-8")
+        .replace("second reader.", "second reader.   ") + "\n\n",
+    );
     expect(planSections([fragment], first.ledger, { home: h })).toEqual([]);
   });
 
@@ -71,29 +85,50 @@ describe("markdown_section arm", () => {
     const h = home();
     const first = run([fragment], { files: {} }, h);
     fs.appendFileSync(claudeMd(h), "\n## Mine\n\nafter\n");
-    const next = run([{ ...fragment, body: "Two readers now." }], first.ledger, h);
+    const next = run(
+      [{ ...fragment, body: "Two readers now." }],
+      first.ledger,
+      h,
+    );
     expect(next.wrote).toEqual([claudeMd(h)]);
     const text = fs.readFileSync(claudeMd(h), "utf-8");
     expect(text).toContain("Two readers now.");
     expect(text).not.toContain("second reader");
-    expect(text.indexOf("## Acme: Review rules")).toBeLessThan(text.indexOf("## Mine"));
+    expect(text.indexOf("## Acme: Review rules")).toBeLessThan(
+      text.indexOf("## Mine"),
+    );
   });
 
   test("a hand edit yields locally_modified and no write, also when the source changes", () => {
     const h = home();
     const first = run([fragment], { files: {} }, h);
-    const edited = fs.readFileSync(claudeMd(h), "utf-8").replace("second reader", "third reader");
+    const edited = fs
+      .readFileSync(claudeMd(h), "utf-8")
+      .replace("second reader", "third reader");
     fs.writeFileSync(claudeMd(h), edited);
 
-    for (const want of [fragment, { ...fragment, body: "New upstream text." }]) {
+    for (const want of [
+      fragment,
+      { ...fragment, body: "New upstream text." },
+    ]) {
       const r = run([want], first.ledger, h);
-      expect(r.ops).toEqual([{ op: "conflict", slug: fragment.slug, reason: "locally_modified", detail: claudeMd(h) }]);
+      expect(r.ops).toEqual([
+        {
+          op: "conflict",
+          slug: fragment.slug,
+          reason: "locally_modified",
+          detail: claudeMd(h),
+        },
+      ]);
       expect(r.wrote).toEqual([]);
       expect(fs.readFileSync(claudeMd(h), "utf-8")).toBe(edited);
     }
     // Removal respects the edit too: theirs now.
     const off = run([], first.ledger, h);
-    expect(off.ops[0]).toMatchObject({ op: "conflict", reason: "locally_modified" });
+    expect(off.ops[0]).toMatchObject({
+      op: "conflict",
+      reason: "locally_modified",
+    });
     expect(fs.readFileSync(claudeMd(h), "utf-8")).toBe(edited);
   });
 
@@ -105,13 +140,23 @@ describe("markdown_section arm", () => {
     expect(again.wrote).toEqual([claudeMd(h)]);
     fs.writeFileSync(claudeMd(h), "# My notes\n");
     const third = run([fragment], again.ledger, h);
-    expect(third.ops).toEqual([{ op: "conflict", slug: fragment.slug, reason: "locally_removed", detail: claudeMd(h) }]);
+    expect(third.ops).toEqual([
+      {
+        op: "conflict",
+        slug: fragment.slug,
+        reason: "locally_removed",
+        detail: claudeMd(h),
+      },
+    ]);
     expect(fs.readFileSync(claudeMd(h), "utf-8")).toBe("# My notes\n");
   });
 
   test("removal cuts exactly the region and keeps neighbouring codecast sections in place and order", () => {
     const h = home();
-    fs.writeFileSync(claudeMd(h), "# My notes\n\nkeep me\n" + MESSAGING_SNIPPET);
+    fs.writeFileSync(
+      claudeMd(h),
+      "# My notes\n\nkeep me\n" + MESSAGING_SNIPPET,
+    );
     const on = run([fragment], { files: {} }, h);
     fs.appendFileSync(claudeMd(h), PUBLISH_SNIPPET + "\n## Mine\n\nlast\n");
     const withKit = fs.readFileSync(claudeMd(h), "utf-8");
@@ -126,7 +171,12 @@ describe("markdown_section arm", () => {
     expect(off.removed).toEqual([claudeMd(h)]);
     expect(off.ledger.sections).toEqual({});
     const after = fs.readFileSync(claudeMd(h), "utf-8");
-    expect(after).toBe("# My notes\n\nkeep me\n" + MESSAGING_SNIPPET + PUBLISH_SNIPPET + "\n## Mine\n\nlast\n");
+    expect(after).toBe(
+      "# My notes\n\nkeep me\n" +
+        MESSAGING_SNIPPET +
+        PUBLISH_SNIPPET +
+        "\n## Mine\n\nlast\n",
+    );
   });
 
   test("a renamed heading replaces the old region instead of stacking a second", () => {
@@ -141,7 +191,11 @@ describe("markdown_section arm", () => {
 
   test("a slug that could break out of its marker is refused", () => {
     const h = home();
-    const ops = planSections([{ ...fragment, slug: "authored/x/instructions/a -->" }], { files: {} }, { home: h });
+    const ops = planSections(
+      [{ ...fragment, slug: "authored/x/instructions/a -->" }],
+      { files: {} },
+      { home: h },
+    );
     expect(ops).toMatchObject([{ op: "conflict", reason: "invalid_slug" }]);
   });
 
@@ -149,7 +203,9 @@ describe("markdown_section arm", () => {
     const h = home();
     const first = run([fragment], { files: {} }, h);
     const before = fs.readFileSync(claudeMd(h), "utf-8");
-    expect(planSections([], first.ledger, { home: h, hold: [fragment.slug] })).toEqual([]);
+    expect(
+      planSections([], first.ledger, { home: h, hold: [fragment.slug] }),
+    ).toEqual([]);
     expect(fs.readFileSync(claudeMd(h), "utf-8")).toBe(before);
   });
 });

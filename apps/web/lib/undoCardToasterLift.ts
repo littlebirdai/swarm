@@ -11,7 +11,10 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 const GAP_PX = 8;
 
 /** The toaster's bottom offset that clears a card whose top edge is `cardTop`. */
-export function toasterLiftFor(cardTop: number, viewportHeight: number): number {
+export function toasterLiftFor(
+  cardTop: number,
+  viewportHeight: number,
+): number {
   return Math.max(0, Math.ceil(viewportHeight - cardTop + GAP_PX));
 }
 
@@ -25,31 +28,51 @@ export function toasterLiftFor(cardTop: number, viewportHeight: number): number 
  */
 export function cardToasterLift(
   card: HTMLElement,
-  view: { innerHeight: number; getComputedStyle: (el: Element) => { bottom: string } },
+  view: {
+    innerHeight: number;
+    getComputedStyle: (el: Element) => { bottom: string };
+  },
 ): number {
   const inset = parseFloat(view.getComputedStyle(card).bottom) || 0;
-  return toasterLiftFor(view.innerHeight - inset - card.offsetHeight, view.innerHeight);
+  return toasterLiftFor(
+    view.innerHeight - inset - card.offsetHeight,
+    view.innerHeight,
+  );
 }
 
 /** Sonner offsets for the current card, or undefined while it is closed. */
 export function useUndoCardToasterLift(): { bottom: number } | undefined {
-  const open = useSyncExternalStore(undoTimeline.subscribe, () => undoTimeline.isOpen(), () => false);
+  const open = useSyncExternalStore(
+    undoTimeline.subscribe,
+    () => undoTimeline.isOpen(),
+    () => false,
+  );
   const [lift, setLift] = useState<number | null>(null);
   useWatchEffect(() => {
-    if (!open) { setLift(null); return; }
+    if (!open) {
+      setLift(null);
+      return;
+    }
     let observer: ResizeObserver | null = null;
     let frame = 0;
-    const measure = (card: Element) => setLift(cardToasterLift(card as HTMLElement, window));
+    const measure = (card: Element) =>
+      setLift(cardToasterLift(card as HTMLElement, window));
     const attach = () => {
       const card = document.querySelector("[data-undo-timeline]");
-      if (!card) { frame = requestAnimationFrame(attach); return; }
+      if (!card) {
+        frame = requestAnimationFrame(attach);
+        return;
+      }
       measure(card);
       if (typeof ResizeObserver !== "undefined") {
         observer = new ResizeObserver(() => measure(card));
         observer.observe(card);
       }
     };
-    const onResize = () => { const card = document.querySelector("[data-undo-timeline]"); if (card) measure(card); };
+    const onResize = () => {
+      const card = document.querySelector("[data-undo-timeline]");
+      if (card) measure(card);
+    };
     return whileWindowVisible(() => {
       attach();
       window.addEventListener("resize", onResize);

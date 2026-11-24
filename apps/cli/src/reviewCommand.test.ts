@@ -20,18 +20,33 @@ import {
 
 describe("parseReviewTarget", () => {
   test("a line, a range, a file, and a bare path", () => {
-    expect(parseReviewTarget("src/api.ts:42")).toEqual({ filePath: "src/api.ts", lineNumber: 42 });
-    expect(parseReviewTarget("src/api.ts:10-20")).toEqual({ filePath: "src/api.ts", lineNumber: 10, lineEnd: 20 });
-    expect(parseReviewTarget("src/api.ts:file")).toEqual({ filePath: "src/api.ts" });
+    expect(parseReviewTarget("src/api.ts:42")).toEqual({
+      filePath: "src/api.ts",
+      lineNumber: 42,
+    });
+    expect(parseReviewTarget("src/api.ts:10-20")).toEqual({
+      filePath: "src/api.ts",
+      lineNumber: 10,
+      lineEnd: 20,
+    });
+    expect(parseReviewTarget("src/api.ts:file")).toEqual({
+      filePath: "src/api.ts",
+    });
     expect(parseReviewTarget("src/api.ts")).toEqual({ filePath: "src/api.ts" });
   });
 
   test("a reversed range still reads low to high", () => {
-    expect(parseReviewTarget("a.ts:20-10")).toEqual({ filePath: "a.ts", lineNumber: 10, lineEnd: 20 });
+    expect(parseReviewTarget("a.ts:20-10")).toEqual({
+      filePath: "a.ts",
+      lineNumber: 10,
+      lineEnd: 20,
+    });
   });
 
   test("a suffix that is neither a line nor `file` belongs to the path", () => {
-    expect(parseReviewTarget("weird:name.ts")).toEqual({ filePath: "weird:name.ts" });
+    expect(parseReviewTarget("weird:name.ts")).toEqual({
+      filePath: "weird:name.ts",
+    });
   });
 });
 
@@ -50,7 +65,10 @@ describe("resolveNoteRef", () => {
   test("a reference that matches nothing, or too much, is an error", () => {
     expect(() => resolveNoteRef(notes, "9")).toThrow(/No review note/);
     expect(() => resolveNoteRef(notes, "zzz")).toThrow(/No review note/);
-    const twins = [{ _id: "ab1", content: "", created_at: 1 }, { _id: "ab2", content: "", created_at: 2 }] as ReviewNoteRow[];
+    const twins = [
+      { _id: "ab1", content: "", created_at: 1 },
+      { _id: "ab2", content: "", created_at: 2 },
+    ] as ReviewNoteRow[];
     expect(() => resolveNoteRef(twins, "ab")).toThrow(/matches 2 notes/);
   });
 });
@@ -68,8 +86,20 @@ describe("isStale", () => {
 describe("formatReviewList", () => {
   test("numbers the notes and flags stale and sent ones", () => {
     const notes = [
-      { _id: "a", file_path: "src/api.ts", line_number: 42, content: "leaks", created_at: 1 },
-      { _id: "b", file_path: "src/db.ts", content: "no test", created_at: 2, sent_at: 5 },
+      {
+        _id: "a",
+        file_path: "src/api.ts",
+        line_number: 42,
+        content: "leaks",
+        created_at: 1,
+      },
+      {
+        _id: "b",
+        file_path: "src/db.ts",
+        content: "no test",
+        created_at: 2,
+        sent_at: 5,
+      },
     ] as ReviewNoteRow[];
     expect(formatReviewList(notes, new Set(["a"]))).toBe(
       [
@@ -82,11 +112,34 @@ describe("formatReviewList", () => {
   });
 
   test("lists a note where its code moved, and quotes one whose code is gone", () => {
-    const file = ["function main() {", "  const result = run(config);", "  return result;", "}"];
-    const moved = { _id: "a", file_path: "src/api.ts", line_number: 2, content: "leaks", created_at: 1, anchor_lines: captureAnchor(file, 2) };
-    const gone = { _id: "b", file_path: "src/api.ts", line_number: 3, content: "check", created_at: 2, anchor_lines: { before: [], lines: ["return nothing;"], after: [] } };
+    const file = [
+      "function main() {",
+      "  const result = run(config);",
+      "  return result;",
+      "}",
+    ];
+    const moved = {
+      _id: "a",
+      file_path: "src/api.ts",
+      line_number: 2,
+      content: "leaks",
+      created_at: 1,
+      anchor_lines: captureAnchor(file, 2),
+    };
+    const gone = {
+      _id: "b",
+      file_path: "src/api.ts",
+      line_number: 3,
+      content: "check",
+      created_at: 2,
+      anchor_lines: { before: [], lines: ["return nothing;"], after: [] },
+    };
     const notes = [moved, gone] as ReviewNoteRow[];
-    const placements = placeComments(notes, () => ["// header", "// more", ...file]);
+    const placements = placeComments(notes, () => [
+      "// header",
+      "// more",
+      ...file,
+    ]);
     expect(formatReviewList(notes, new Set(["a", "b"]), placements)).toBe(
       [
         " 1. src/api.ts · Line: 4  [moved from line 2]",
@@ -131,15 +184,27 @@ function fakeBackend() {
       return new Response(JSON.stringify({ id }), { status: 200 });
     }
     if (route === "list") {
-      const mine = rows.filter((r) => r.git_root === body.git_root && (body.include_sent || !r.sent_at));
+      const mine = rows.filter(
+        (r) =>
+          r.git_root === body.git_root && (body.include_sent || !r.sent_at),
+      );
       return new Response(JSON.stringify(mine), { status: 200 });
     }
     if (route === "send") {
       sendBodies.push(body);
-      const mine = rows.filter((r) => r.git_root === body.git_root && !r.sent_at);
+      const mine = rows.filter(
+        (r) => r.git_root === body.git_root && !r.sent_at,
+      );
       for (const r of mine) r.sent_at = 99;
       const extra = sendExtra ? sendExtra(mine.map((r) => r._id)) : {};
-      return new Response(JSON.stringify({ sent: mine.length, stale_ids: body.stale_ids, ...extra }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          sent: mine.length,
+          stale_ids: body.stale_ids,
+          ...extra,
+        }),
+        { status: 200 },
+      );
     }
     if (route === "rm") {
       rows = rows.filter((r) => r._id !== body.comment_id);
@@ -147,21 +212,31 @@ function fakeBackend() {
     }
     if (route === "edit") {
       const row = rows.find((r) => r._id === body.comment_id);
-      if (row) { row.content = body.content; row.sent_at = undefined; }
+      if (row) {
+        row.content = body.content;
+        row.sent_at = undefined;
+      }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
-    return new Response(JSON.stringify({ error: `no route ${route}` }), { status: 404 });
+    return new Response(JSON.stringify({ error: `no route ${route}` }), {
+      status: 404,
+    });
   }) as unknown as typeof fetch;
 }
 
 async function run(...args: string[]) {
   logged = [];
-  console.log = (...parts: any[]) => { logged.push(parts.join(" ")); };
+  console.log = (...parts: any[]) => {
+    logged.push(parts.join(" "));
+  };
   try {
     const program = new Command();
     program.exitOverride();
     registerReviewCommand(program, {
-      getCliEndpoint: () => ({ siteUrl: "https://example.invalid", apiToken: "t" }),
+      getCliEndpoint: () => ({
+        siteUrl: "https://example.invalid",
+        apiToken: "t",
+      }),
       detectCurrentSessionId: () => "sess-current",
     });
     await program.parseAsync(["node", "cast", "review", ...args]);
@@ -173,7 +248,11 @@ async function run(...args: string[]) {
 
 beforeEach(() => {
   dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cast-review-")));
-  envBackup = { CODECAST_DIR: process.env.CODECAST_DIR, CODECAST_CWD: process.env.CODECAST_CWD, HOME: process.env.HOME };
+  envBackup = {
+    CODECAST_DIR: process.env.CODECAST_DIR,
+    CODECAST_CWD: process.env.CODECAST_CWD,
+    HOME: process.env.HOME,
+  };
   process.env.CODECAST_DIR = path.join(dir, ".codecast");
   process.env.HOME = dir;
   process.env.CODECAST_CWD = dir;
@@ -193,7 +272,8 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   console.log = realLog;
   for (const [k, v] of Object.entries(envBackup)) {
-    if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
   }
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -211,7 +291,9 @@ describe("cast review lifecycle", () => {
     expect(rows[1].line_number).toBeUndefined();
 
     // The confirmation names the place, not "Scope: file" for every note.
-    expect(await run("add", "api.ts:5-9", "and here")).toContain("· Lines: 5-9");
+    expect(await run("add", "api.ts:5-9", "and here")).toContain(
+      "· Lines: 5-9",
+    );
     await run("rm", "3");
 
     const listing = await run("ls");
@@ -236,24 +318,42 @@ describe("cast review lifecycle", () => {
   });
 
   test("--resolve asks for it and prints the outcome", async () => {
-    sendExtra = (ids) => ({ short_id: "jx7abcd", outcome: { kind: "sent_and_resolved", sent_ids: ids, waiting: "busy" } });
+    sendExtra = (ids) => ({
+      short_id: "jx7abcd",
+      outcome: { kind: "sent_and_resolved", sent_ids: ids, waiting: "busy" },
+    });
     await run("add", "api.ts:2", "one");
     await run("add", "api.ts:3", "two");
     const out = await run("send", "jx7abcd", "--resolve");
     expect(sendBodies[0].resolve).toBe(true);
-    expect(out).toBe("ok 2 notes sent to jx7abcd, queued until its turn ends and resolved");
+    expect(out).toBe(
+      "ok 2 notes sent to jx7abcd, queued until its turn ends and resolved",
+    );
   });
 
   test("--resolve that leaves notes open names them and exits non-zero", async () => {
-    sendExtra = (ids) => ({ outcome: { kind: "resolve_failed", sent_ids: ids, open_ids: [ids[0]], reason: "Comment not found" } });
+    sendExtra = (ids) => ({
+      outcome: {
+        kind: "resolve_failed",
+        sent_ids: ids,
+        open_ids: [ids[0]],
+        reason: "Comment not found",
+      },
+    });
     await run("add", "api.ts:2", "one");
     const errors: string[] = [];
     const realError = console.error;
     const realExit = process.exit;
-    console.error = (...parts: any[]) => { errors.push(parts.join(" ")); };
-    process.exit = ((code?: number) => { throw new Error(`exit ${code}`); }) as any;
+    console.error = (...parts: any[]) => {
+      errors.push(parts.join(" "));
+    };
+    process.exit = ((code?: number) => {
+      throw new Error(`exit ${code}`);
+    }) as any;
     try {
-      await expect(run("send", "jx7abcd", "--resolve")).rejects.toThrow("exit 1");
+      await expect(run("send", "jx7abcd", "--resolve")).rejects.toThrow(
+        "exit 1",
+      );
     } finally {
       console.error = realError;
       process.exit = realExit;
@@ -290,7 +390,9 @@ describe("cast review lifecycle", () => {
     expect(await run("ls")).toContain("[stale]");
 
     const preview = await run("send", "--dry-run");
-    expect(preview).toContain("Stale: the file changed after this note was written");
+    expect(preview).toContain(
+      "Stale: the file changed after this note was written",
+    );
     // A dry run sends nothing.
     expect(rows[0].sent_at).toBeUndefined();
 
@@ -300,11 +402,17 @@ describe("cast review lifecycle", () => {
   });
 
   test("ls follows the noted line by its text, and says when it is gone", async () => {
-    fs.writeFileSync(path.join(dir, "api.ts"), "import a\nconst result = run(config);\nreturn result;\n");
+    fs.writeFileSync(
+      path.join(dir, "api.ts"),
+      "import a\nconst result = run(config);\nreturn result;\n",
+    );
     await run("add", "api.ts:2", "check the error path");
     expect(rows[0].anchor_lines.lines).toEqual(["const result = run(config);"]);
 
-    fs.writeFileSync(path.join(dir, "api.ts"), "// header\nimport a\nimport b\nconst result = run(config);\nreturn result;\n");
+    fs.writeFileSync(
+      path.join(dir, "api.ts"),
+      "// header\nimport a\nimport b\nconst result = run(config);\nreturn result;\n",
+    );
     expect(await run("ls")).toContain("api.ts · Line: 4  [moved from line 2]");
 
     fs.writeFileSync(path.join(dir, "api.ts"), "import a\nreturn 0;\n");
@@ -339,8 +447,20 @@ describe("git helpers", () => {
 
   test("staleIdsOf hashes each file once", () => {
     const notes = [
-      { _id: "a", file_path: "api.ts", content: "x", created_at: 1, diff_identity: "blob:stale0000000" },
-      { _id: "b", file_path: "api.ts", content: "y", created_at: 2, diff_identity: fileDiffIdentity(dir, "api.ts") },
+      {
+        _id: "a",
+        file_path: "api.ts",
+        content: "x",
+        created_at: 1,
+        diff_identity: "blob:stale0000000",
+      },
+      {
+        _id: "b",
+        file_path: "api.ts",
+        content: "y",
+        created_at: 2,
+        diff_identity: fileDiffIdentity(dir, "api.ts"),
+      },
     ] as ReviewNoteRow[];
     expect([...staleIdsOf(dir, notes)]).toEqual(["a"]);
   });

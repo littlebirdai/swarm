@@ -50,7 +50,9 @@ export function parseStepLines(text: string): StepLine[][] {
  * yet numbering is how a person writes an order. A wave whose lines are all
  * numbered is refused rather than guessed, with how to say either.
  */
-export function numberedWaveError(waves: readonly (readonly StepLine[])[]): string | null {
+export function numberedWaveError(
+  waves: readonly (readonly StepLine[])[],
+): string | null {
   const wave = waves.find((w) => w.length > 1 && w.every((l) => l.numbered));
   if (!wave) return null;
   return `Numbered steps on consecutive lines run in parallel ("${wave[0].text}", "${wave[1].text}"). Put a blank line between steps that need the one before, or drop the numbers if they really are parallel.`;
@@ -68,11 +70,15 @@ function stepFromLine(line: string): Pick<PlanStep, "title" | "description"> {
 
 /** Waves as steps: every step of a wave is after every step of the one
  *  before. A line may carry its description after " :: ". */
-export function stepsFromWaves(waves: readonly (readonly string[])[]): PlanStep[] {
+export function stepsFromWaves(
+  waves: readonly (readonly string[])[],
+): PlanStep[] {
   const steps: PlanStep[] = [];
   let previous: number[] = [];
   for (const wave of waves) {
-    const current = wave.map((line) => steps.push({ ...stepFromLine(line), after: previous }) - 1);
+    const current = wave.map(
+      (line) => steps.push({ ...stepFromLine(line), after: previous }) - 1,
+    );
     previous = current;
   }
   return steps;
@@ -83,10 +89,16 @@ export function stepsFromWaves(waves: readonly (readonly string[])[]): PlanStep[
  * that no other open task of the plan waits on. Done and dropped tasks hold
  * nothing back, and backlog is parked, so neither is waited on.
  */
-export function planTail<T extends DepNode & { status?: string | null }>(tasks: readonly T[]): T[] {
-  const live = tasks.filter((t) => !isTerminalTaskStatus(t.status) && t.status !== "backlog");
+export function planTail<T extends DepNode & { status?: string | null }>(
+  tasks: readonly T[],
+): T[] {
+  const live = tasks.filter(
+    (t) => !isTerminalTaskStatus(t.status) && t.status !== "backlog",
+  );
   const needed = new Set(live.flatMap((t) => t.blocked_by ?? []));
-  return live.filter((t) => !needed.has(t.short_id) && !(t._id && needed.has(String(t._id))));
+  return live.filter(
+    (t) => !needed.has(t.short_id) && !(t._id && needed.has(String(t._id))),
+  );
 }
 
 /**
@@ -97,13 +109,19 @@ export function planTail<T extends DepNode & { status?: string | null }>(tasks: 
  * the list are dropped; tasks on a loop come last with the edges among them
  * dropped, so a template never holds a cycle.
  */
-export function templateSteps<T extends DepNode>(tasks: readonly T[], skip: (t: T) => boolean = () => false): Array<{ task: T; blocked_by_indices: number[] }> {
+export function templateSteps<T extends DepNode>(
+  tasks: readonly T[],
+  skip: (t: T) => boolean = () => false,
+): Array<{ task: T; blocked_by_indices: number[] }> {
   const byRef = new Map<string, T>();
   for (const t of tasks) {
     byRef.set(t.short_id, t);
     if (t._id) byRef.set(String(t._id), t);
   }
-  const through = (refs: readonly string[] | null | undefined, seen: Set<T>): string[] =>
+  const through = (
+    refs: readonly string[] | null | undefined,
+    seen: Set<T>,
+  ): string[] =>
     (refs ?? []).flatMap((ref) => {
       const t = byRef.get(ref);
       if (!t || !skip(t)) return [ref];
@@ -111,7 +129,14 @@ export function templateSteps<T extends DepNode>(tasks: readonly T[], skip: (t: 
       seen.add(t);
       return through(t.blocked_by, seen);
     });
-  const nodes = tasks.filter((t) => !skip(t)).map((task) => ({ short_id: task.short_id, _id: task._id, blocked_by: through(task.blocked_by, new Set()), task }));
+  const nodes = tasks
+    .filter((t) => !skip(t))
+    .map((task) => ({
+      short_id: task.short_id,
+      _id: task._id,
+      blocked_by: through(task.blocked_by, new Set()),
+      task,
+    }));
   const { layers, cyclic } = topoLayers(nodes);
   const ordered = [...layers.flat(), ...cyclic];
   const index = new Map<string, number>();
@@ -121,6 +146,8 @@ export function templateSteps<T extends DepNode>(tasks: readonly T[], skip: (t: 
   });
   return ordered.map((n, i) => ({
     task: n.task,
-    blocked_by_indices: [...new Set(n.blocked_by.map((ref) => index.get(ref)))].filter((j): j is number => j !== undefined && j < i),
+    blocked_by_indices: [
+      ...new Set(n.blocked_by.map((ref) => index.get(ref))),
+    ].filter((j): j is number => j !== undefined && j < i),
   }));
 }

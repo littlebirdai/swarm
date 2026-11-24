@@ -1,6 +1,10 @@
 import type { MentionItem } from "./mentionItem";
 import type { RecentVisit } from "../store/inboxStore";
-import { DEFAULT_IDENTITY_PREFS, identityLine, type IdentityPrefs } from "./sessionIdentity";
+import {
+  DEFAULT_IDENTITY_PREFS,
+  identityLine,
+  type IdentityPrefs,
+} from "./sessionIdentity";
 import { mentionContextPosition, type MentionContext } from "./mentionContext";
 
 // How the @-mention dropdown decides what to show first.
@@ -63,12 +67,16 @@ export function matchScore(text: string, query: string): number {
   for (const tok of tokens) {
     let best = Infinity;
     for (const w of words) {
-      if (w === tok) { best = 0; break; }
+      if (w === tok) {
+        best = 0;
+        break;
+      }
       if (w.startsWith(tok)) best = Math.min(best, 1);
       else if (w.includes(tok)) best = Math.min(best, 2);
     }
     if (best === Infinity) {
-      if (lower.includes(tok)) best = 3; // spans a word boundary; still a hit
+      if (lower.includes(tok))
+        best = 3; // spans a word boundary; still a hit
       else return Infinity; // a required word is absent → not a match
     }
     total += best;
@@ -89,13 +97,22 @@ export function matchScore(text: string, query: string): number {
  * An empty query returns the same rung for everything, so recency alone
  * orders the list.
  */
-export function mentionMatchRank(item: MentionItem, query: string, prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS): number {
+export function mentionMatchRank(
+  item: MentionItem,
+  query: string,
+  prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS,
+): number {
   const q = query.trim().toLowerCase();
   if (!q) return 0;
   // A personified session is named twice over: the character's name the row
   // shows and the title behind it. Whichever the reader typed leads.
-  const persona = item.identity ? identityLine(item.identity, item.label, prefs).name : null;
-  const name = Math.min(matchScore(item.label, q), persona ? matchScore(persona, q) : Infinity);
+  const persona = item.identity
+    ? identityLine(item.identity, item.label, prefs).name
+    : null;
+  const name = Math.min(
+    matchScore(item.label, q),
+    persona ? matchScore(persona, q) : Infinity,
+  );
   if (name <= 1) return item.type === "person" ? 0 : 1;
   // A session is named by any part of its title, as in ⌘K: "desk" finds
   // "Broker desk v3 build" as surely as "Desk v3 Polish".
@@ -111,21 +128,33 @@ export function mentionViewTimes(state: {
   _lastViewedAt?: Record<string, number>;
 }): Map<string, number> {
   const times = new Map<string, number>();
-  const add = (key: string, ts: number) => times.set(key, Math.max(times.get(key) ?? 0, ts));
-  for (const [id, ts] of Object.entries(state._lastViewedAt ?? {})) add(`session:${id}`, ts);
+  const add = (key: string, ts: number) =>
+    times.set(key, Math.max(times.get(key) ?? 0, ts));
+  for (const [id, ts] of Object.entries(state._lastViewedAt ?? {}))
+    add(`session:${id}`, ts);
   for (const visit of state.recentVisits ?? []) {
     if (visit.kind === "session") add(`session:${visit.key}`, visit.ts);
-    else if (visit.kind === "view" && visit.key.startsWith("label:")) add(visit.key, visit.ts);
+    else if (visit.kind === "view" && visit.key.startsWith("label:"))
+      add(visit.key, visit.ts);
     else if (visit.kind === "page") {
-      const match = (visit.path ?? visit.key.replace(/^page:/, "")).match(/^\/(tasks|docs|plans)\/([^/?#]+)/);
+      const match = (visit.path ?? visit.key.replace(/^page:/, "")).match(
+        /^\/(tasks|docs|plans)\/([^/?#]+)/,
+      );
       if (match) add(`${match[1].slice(0, -1)}:${match[2]}`, visit.ts);
     }
   }
   return times;
 }
 
-export function withMentionViewTime(item: MentionItem, times: Map<string, number>): MentionItem {
-  const viewedAt = Math.max(item.viewedAt ?? 0, times.get(`${item.type}:${item.id}`) ?? 0, times.get(`${item.type}:${item.shortId}`) ?? 0);
+export function withMentionViewTime(
+  item: MentionItem,
+  times: Map<string, number>,
+): MentionItem {
+  const viewedAt = Math.max(
+    item.viewedAt ?? 0,
+    times.get(`${item.type}:${item.id}`) ?? 0,
+    times.get(`${item.type}:${item.shortId}`) ?? 0,
+  );
   return item.viewedAt === viewedAt ? item : { ...item, viewedAt };
 }
 
@@ -138,13 +167,20 @@ const typeOrder = (type: string) => {
 };
 
 export function compareMentionRecency(a: MentionItem, b: MentionItem): number {
-  return (b.viewedAt ?? 0) - (a.viewedAt ?? 0) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+  return (
+    (b.viewedAt ?? 0) - (a.viewedAt ?? 0) ||
+    (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
 }
 
 /** Keep the first row per title (rows arrive best-first), so one name minted
  *  many times (a workflow task re-filed every run, a worker spawned per round)
  *  reads as one row. A row with no title key is always kept. */
-export function collapseSameTitle<T>(rows: Iterable<T>, keyOf: (row: T) => string | null | undefined, cap = Infinity): T[] {
+export function collapseSameTitle<T>(
+  rows: Iterable<T>,
+  keyOf: (row: T) => string | null | undefined,
+  cap = Infinity,
+): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const row of rows) {
@@ -166,7 +202,15 @@ export function collapseSameTitle<T>(rows: Iterable<T>, keyOf: (row: T) => strin
 // cited session still sits below a name hit on anything.
 const CONTEXT_LIFT = 1.5;
 
-export function mergeMentionSuggestions(local: MentionItem[], remote: MentionItem[], times: Map<string, number>, perTypeLimit = Infinity, query = "", prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS, context?: MentionContext): MentionItem[] {
+export function mergeMentionSuggestions(
+  local: MentionItem[],
+  remote: MentionItem[],
+  times: Map<string, number>,
+  perTypeLimit = Infinity,
+  query = "",
+  prefs: IdentityPrefs = DEFAULT_IDENTITY_PREFS,
+  context?: MentionContext,
+): MentionItem[] {
   const byId = new Map<string, MentionItem>();
   for (const item of [...local, ...remote]) {
     const key = `${item.type}:${item.id}`;
@@ -178,20 +222,33 @@ export function mergeMentionSuggestions(local: MentionItem[], remote: MentionIte
   const ranked = [...byId.values()];
   const hasQuery = query.trim().length > 0;
   const ranks = hasQuery ? new Map<MentionItem, number>() : null;
-  if (ranks) for (const item of ranked) ranks.set(item, mentionMatchRank(item, query, prefs) - (item.contextAt ? CONTEXT_LIFT : 0));
+  if (ranks)
+    for (const item of ranked)
+      ranks.set(
+        item,
+        mentionMatchRank(item, query, prefs) -
+          (item.contextAt ? CONTEXT_LIFT : 0),
+      );
   const counts = new Map<string, number>();
-  const sorted = ranked
-    .sort((a, b) => (ranks ? ranks.get(a)! - ranks.get(b)! : Number(Boolean(b.contextAt)) - Number(Boolean(a.contextAt))) || (b.contextAt ?? 0) - (a.contextAt ?? 0)
-      || Number(Boolean(b.awake)) - Number(Boolean(a.awake))
-      || (hasQuery ? typeOrder(a.type) - typeOrder(b.type) : 0) || compareMentionRecency(a, b));
+  const sorted = ranked.sort(
+    (a, b) =>
+      (ranks
+        ? ranks.get(a)! - ranks.get(b)!
+        : Number(Boolean(b.contextAt)) - Number(Boolean(a.contextAt))) ||
+      (b.contextAt ?? 0) - (a.contextAt ?? 0) ||
+      Number(Boolean(b.awake)) - Number(Boolean(a.awake)) ||
+      (hasQuery ? typeOrder(a.type) - typeOrder(b.type) : 0) ||
+      compareMentionRecency(a, b),
+  );
   // Workers spawned round after round share their brief's title: offer the
   // freshest one, not a page of copies.
-  return collapseSameTitle(sorted, (item) => (item.worker ? `worker:${item.label}` : null))
-    .filter((item) => {
-      const count = counts.get(item.type) ?? 0;
-      counts.set(item.type, count + 1);
-      return count < perTypeLimit;
-    });
+  return collapseSameTitle(sorted, (item) =>
+    item.worker ? `worker:${item.label}` : null,
+  ).filter((item) => {
+    const count = counts.get(item.type) ?? 0;
+    counts.set(item.type, count + 1);
+    return count < perTypeLimit;
+  });
 }
 
 // The popup reads as sections: what this conversation already names, then one
@@ -201,19 +258,37 @@ export function mergeMentionSuggestions(local: MentionItem[], remote: MentionIte
 // the popup the flattened order (orderMentionItems) so an index means the same
 // row to both.
 const GROUP_TITLES: Record<string, string> = {
-  person: "People", role: "Roles", session: "Sessions", task: "Tasks", doc: "Docs",
-  plan: "Plans", label: "Labels", file: "Files", skill: "Commands", channel: "Channels", date: "Dates",
+  person: "People",
+  role: "Roles",
+  session: "Sessions",
+  task: "Tasks",
+  doc: "Docs",
+  plan: "Plans",
+  label: "Labels",
+  file: "Files",
+  skill: "Commands",
+  channel: "Channels",
+  date: "Dates",
 };
 
 export type MentionGroup<T> = { key: string; title: string; items: T[] };
 
-export function groupMentionItems<T extends { type: string; contextAt?: number }>(items: T[], contextTitle = "Mentioned here"): MentionGroup<T>[] {
+export function groupMentionItems<
+  T extends { type: string; contextAt?: number },
+>(items: T[], contextTitle = "Mentioned here"): MentionGroup<T>[] {
   const groups = new Map<string, MentionGroup<T>>();
   for (const item of items) {
     const key = item.contextAt ? "context" : item.type;
     let group = groups.get(key);
     if (!group) {
-      group = { key, title: key === "context" ? contextTitle : GROUP_TITLES[item.type] ?? item.type, items: [] };
+      group = {
+        key,
+        title:
+          key === "context"
+            ? contextTitle
+            : (GROUP_TITLES[item.type] ?? item.type),
+        items: [],
+      };
       groups.set(key, group);
     }
     group.items.push(item);
@@ -221,6 +296,8 @@ export function groupMentionItems<T extends { type: string; contextAt?: number }
   return [...groups.values()];
 }
 
-export function orderMentionItems<T extends { type: string; contextAt?: number }>(items: T[]): T[] {
+export function orderMentionItems<
+  T extends { type: string; contextAt?: number },
+>(items: T[]): T[] {
   return groupMentionItems(items).flatMap((g) => g.items);
 }

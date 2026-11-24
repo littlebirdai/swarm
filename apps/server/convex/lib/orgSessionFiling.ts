@@ -1,5 +1,13 @@
 import { Id } from "../_generated/dataModel";
-import { labelsOf, noteOrgChange, recordSubject, rememberOrgRecord, sessionSubject, whereOfRecord, whereOfSession } from "./orgChangeLog";
+import {
+  labelsOf,
+  noteOrgChange,
+  recordSubject,
+  rememberOrgRecord,
+  sessionSubject,
+  whereOfRecord,
+  whereOfSession,
+} from "./orgChangeLog";
 import { workspaceForResource, workspaceKey } from "./access";
 import { checkConversationAccess } from "../privacy";
 import { addConversationToWorkItem } from "../conversationLinks";
@@ -8,7 +16,11 @@ import { filePlanUnderProject } from "./planFiling";
 import { findConversationByAnyRefWhere } from "../conversationSessionLookup";
 import { performReparentSession } from "../sessionOwnership";
 import { resolveScopeRef, rolesInBoundary } from "../orgRoles";
-import { sessionDestination, type OrgFileChange, type OrgFileSessionChange } from "@codecast/shared/contracts/orgProposal";
+import {
+  sessionDestination,
+  type OrgFileChange,
+  type OrgFileSessionChange,
+} from "@codecast/shared/contracts/orgProposal";
 import type { OrgScan } from "../org";
 import type { ApplyOpts, ApplyResult, Boundary } from "../orgInit";
 
@@ -18,18 +30,47 @@ import type { ApplyOpts, ApplyResult, Boundary } from "../orgInit";
 type Ctx = { db: any };
 const LOOSE_SESSIONS_CAP = 40;
 
-export async function applyFile(ctx: Ctx, _userId: Id<"users">, boundary: Boundary, p: OrgFileChange, _opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyFile(
+  ctx: Ctx,
+  _userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgFileChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
   const planRef = await resolveScopeRef(ctx, boundary, `plan:${p.plan}`);
-  const projectRef = await resolveScopeRef(ctx, boundary, `project:${p.project}`);
+  const projectRef = await resolveScopeRef(
+    ctx,
+    boundary,
+    `project:${p.project}`,
+  );
   const plan = planRef.kind === "plan" ? await ctx.db.get(planRef.id) : null;
-  const project = projectRef.kind === "project" ? await ctx.db.get(projectRef.id) : null;
-  if (!plan || !project) throw new Error(`No ${!plan ? `plan "${p.plan}"` : `project "${p.project}"`} in this workspace`);
+  const project =
+    projectRef.kind === "project" ? await ctx.db.get(projectRef.id) : null;
+  if (!plan || !project)
+    throw new Error(
+      `No ${!plan ? `plan "${p.plan}"` : `project "${p.project}"`} in this workspace`,
+    );
   const already = String(plan.project_id ?? "") === String(project._id);
   const { tasks_moved } = await filePlanUnderProject(ctx, plan, project._id);
-  const moved = tasks_moved ? ` with ${tasks_moved} open task${tasks_moved === 1 ? "" : "s"}` : "";
-  if (already) return { status: "applied", note: `${plan.short_id} is already under "${project.title}"${tasks_moved ? `; ${tasks_moved} of its open tasks joined it` : ""}` };
-  await noteOrgChange(ctx, _userId, whereOfRecord(plan), { kind: "file", subject: recordSubject("plan", plan), before: { project_id: plan.project_id ?? null }, after: { project_id: String(project._id) }, labels: await labelsOf(ctx, [plan.project_id, project._id]) });
-  return { status: "applied", note: `filed ${plan.short_id} "${plan.title}" under "${project.title}"${moved}` };
+  const moved = tasks_moved
+    ? ` with ${tasks_moved} open task${tasks_moved === 1 ? "" : "s"}`
+    : "";
+  if (already)
+    return {
+      status: "applied",
+      note: `${plan.short_id} is already under "${project.title}"${tasks_moved ? `; ${tasks_moved} of its open tasks joined it` : ""}`,
+    };
+  await noteOrgChange(ctx, _userId, whereOfRecord(plan), {
+    kind: "file",
+    subject: recordSubject("plan", plan),
+    before: { project_id: plan.project_id ?? null },
+    after: { project_id: String(project._id) },
+    labels: await labelsOf(ctx, [plan.project_id, project._id]),
+  });
+  return {
+    status: "applied",
+    note: `filed ${plan.short_id} "${plan.title}" under "${project.title}"${moved}`,
+  };
 }
 
 // ── The person's sessions, filed where they belong (org-staffing.md S43) ────
@@ -38,46 +79,117 @@ export async function applyFile(ctx: Ctx, _userId: Id<"users">, boundary: Bounda
 // door a person uses for the same act: the reparent core, the task binding,
 // the inbox's done. Only a session the deciding person owns is filed.
 
-export async function applyFileSession(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgFileSessionChange, _opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyFileSession(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgFileSessionChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
   const to = sessionDestination(p.to);
   if (!to) throw new Error(`"${p.to}" names no role, task or done`);
-  const conv: any = await findConversationByAnyRefWhere(ctx as any, p.session, async (c: any) => (await checkConversationAccess(ctx as any, userId, c)) === "owner");
+  const conv: any = await findConversationByAnyRefWhere(
+    ctx as any,
+    p.session,
+    async (c: any) =>
+      (await checkConversationAccess(ctx as any, userId, c)) === "owner",
+  );
   if (!conv) throw new Error(`No session ${p.session} of yours`);
   const short = conv.short_id ?? String(conv._id).slice(0, 7);
   const named = conv.title ? `${short} "${conv.title}"` : short;
   if (to.kind === "role") {
-    const role = (await rolesInBoundary(ctx, boundary)).find((r) => r.handle === to.handle);
+    const role = (await rolesInBoundary(ctx, boundary)).find(
+      (r) => r.handle === to.handle,
+    );
     if (!role) throw new Error(`No live role @${to.handle} in this workspace`);
-    if (String(conv.org_role_id ?? "") === String(role._id)) return { status: "applied", note: `${named} already reports to @${role.handle}` };
-    await performReparentSession(ctx as any, userId, { session_id: String(conv._id), target: { kind: "role", role_id: role._id } as any });
-    return { status: "applied", note: `${named} now reports to @${role.handle}` };
+    if (String(conv.org_role_id ?? "") === String(role._id))
+      return {
+        status: "applied",
+        note: `${named} already reports to @${role.handle}`,
+      };
+    await performReparentSession(ctx as any, userId, {
+      session_id: String(conv._id),
+      target: { kind: "role", role_id: role._id } as any,
+    });
+    return {
+      status: "applied",
+      note: `${named} now reports to @${role.handle}`,
+    };
   }
   rememberOrgRecord(ctx, conv);
   if (to.kind === "done") {
-    if (conv.inbox_dismissed_at) return { status: "applied", note: `${named} is already done` };
+    if (conv.inbox_dismissed_at)
+      return { status: "applied", note: `${named} is already done` };
     await ctx.db.patch(conv._id, { inbox_dismissed_at: Date.now() });
-    await noteOrgChange(ctx, userId, whereOfSession(conv), { kind: "file_session", subject: sessionSubject(conv), before: { done: null }, after: { done: true } });
+    await noteOrgChange(ctx, userId, whereOfSession(conv), {
+      kind: "file_session",
+      subject: sessionSubject(conv),
+      before: { done: null },
+      after: { done: true },
+    });
     return { status: "applied", note: `${named} closed as done` };
   }
-  const key = workspaceKey(boundary.team_id ? { type: "team", teamId: boundary.team_id } : { type: "personal", userId });
-  const task = await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", to.task)).first();
-  if (!task || workspaceKey(workspaceForResource(task)) !== key) throw new Error(`No task "${to.task}" in this workspace`);
-  if (String(conv.active_task_id ?? "") === String(task._id)) return { status: "applied", note: `${named} already works ${task.short_id}` };
+  const key = workspaceKey(
+    boundary.team_id
+      ? { type: "team", teamId: boundary.team_id }
+      : { type: "personal", userId },
+  );
+  const task = await ctx.db
+    .query("tasks")
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", to.task))
+    .first();
+  if (!task || workspaceKey(workspaceForResource(task)) !== key)
+    throw new Error(`No task "${to.task}" in this workspace`);
+  if (String(conv.active_task_id ?? "") === String(task._id))
+    return {
+      status: "applied",
+      note: `${named} already works ${task.short_id}`,
+    };
   await addConversationToWorkItem(ctx, userId, "task", task, conv._id);
   // A task another live session owns keeps its owner: the filing links the session to it and binds nothing.
-  const bound = await claimTaskOwnership(ctx, conv, task, { take: false }).then(() => true, () => false);
-  if (bound) await noteOrgChange(ctx, userId, whereOfSession(conv), { kind: "file_session", subject: sessionSubject(conv), before: { task_id: conv.active_task_id ? String(conv.active_task_id) : null }, after: { task_id: String(task._id) }, labels: { [String(task._id)]: task.short_id } });
-  return { status: "applied", note: bound ? `${named} now works ${task.short_id} "${task.title}"` : `${named} is linked to ${task.short_id} "${task.title}", which another live session owns` };
+  const bound = await claimTaskOwnership(ctx, conv, task, { take: false }).then(
+    () => true,
+    () => false,
+  );
+  if (bound)
+    await noteOrgChange(ctx, userId, whereOfSession(conv), {
+      kind: "file_session",
+      subject: sessionSubject(conv),
+      before: {
+        task_id: conv.active_task_id ? String(conv.active_task_id) : null,
+      },
+      after: { task_id: String(task._id) },
+      labels: { [String(task._id)]: task.short_id },
+    });
+  return {
+    status: "applied",
+    note: bound
+      ? `${named} now works ${task.short_id} "${task.title}"`
+      : `${named} is linked to ${task.short_id} "${task.title}", which another live session owns`,
+  };
 }
 
 /** A proposal that only files sessions, every one the caller's own: theirs
  *  to decide on the card without being an admin, since each filing moves
  *  nothing but where their own session sits. */
-export async function filesOnlyOwnSessions(ctx: Ctx, userId: Id<"users">, rows: ReadonlyArray<{ status: string; change: { kind: string; session?: string } }>): Promise<boolean> {
+export async function filesOnlyOwnSessions(
+  ctx: Ctx,
+  userId: Id<"users">,
+  rows: ReadonlyArray<{
+    status: string;
+    change: { kind: string; session?: string };
+  }>,
+): Promise<boolean> {
   const live = rows.filter((r) => r.status !== "removed");
-  if (!live.length || live.some((r) => r.change.kind !== "file_session")) return false;
+  if (!live.length || live.some((r) => r.change.kind !== "file_session"))
+    return false;
   for (const r of live) {
-    const own = await findConversationByAnyRefWhere(ctx as any, String(r.change.session), async (c: any) => (await checkConversationAccess(ctx as any, userId, c)) === "owner");
+    const own = await findConversationByAnyRefWhere(
+      ctx as any,
+      String(r.change.session),
+      async (c: any) =>
+        (await checkConversationAccess(ctx as any, userId, c)) === "owner",
+    );
     if (!own) return false;
   }
   return true;
@@ -89,10 +201,24 @@ export async function filesOnlyOwnSessions(ctx: Ctx, userId: Id<"users">, rows: 
 // trigger's run already belong to what started them, and a stashed session is
 // out of the inbox. Newest first, with the facts a filing needs; `cast read`
 // says the rest.
-export async function looseSessionsOf(_ctx: Ctx, scan: OrgScan, userId: Id<"users">) {
+export async function looseSessionsOf(
+  _ctx: Ctx,
+  scan: OrgScan,
+  userId: Id<"users">,
+) {
   const rows = (scan.byParent.get(`user:${String(userId)}`) ?? [])
     .map((s: any) => ({ s, raw: scan.sessions.get(String(s._id))?.raw }))
-    .filter(({ s, raw }) => raw && !s.is_anchor && !raw.standing_role_id && !raw.org_role_id && !raw.active_task_id && !raw.workflow_run_id && !raw.agent_task_id && !raw.inbox_stashed_at)
+    .filter(
+      ({ s, raw }) =>
+        raw &&
+        !s.is_anchor &&
+        !raw.standing_role_id &&
+        !raw.org_role_id &&
+        !raw.active_task_id &&
+        !raw.workflow_run_id &&
+        !raw.agent_task_id &&
+        !raw.inbox_stashed_at,
+    )
     .sort((a, b) => b.s.updated_at - a.s.updated_at);
   return {
     count: rows.length,

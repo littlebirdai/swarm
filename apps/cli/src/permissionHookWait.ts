@@ -24,7 +24,11 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { boundedRuleRequest, claudeToolRequest, type PermissionRuleRequest } from "@codecast/shared/contracts/permissionRules";
+import {
+  boundedRuleRequest,
+  claudeToolRequest,
+  type PermissionRuleRequest,
+} from "@codecast/shared/contracts/permissionRules";
 
 /** The checkout holding `dir`: the nearest directory with a `.git` (a
  *  worktree has a file there). A stat per level, on the hook's hot path. A
@@ -35,7 +39,11 @@ export function projectRootOf(dir: string | undefined): string | undefined {
   const home = os.homedir();
   let start = path.resolve(dir);
   // The real path, as git reports the conversation's root.
-  try { start = fs.realpathSync(start); } catch { /* keep the resolved path */ }
+  try {
+    start = fs.realpathSync(start);
+  } catch {
+    /* keep the resolved path */
+  }
   for (let d = start; ; d = path.dirname(d)) {
     if (d === home || d === "/") return undefined;
     if (fs.existsSync(path.join(d, ".git"))) return d;
@@ -82,39 +90,75 @@ export interface PermissionAnswer {
   remember?: boolean;
 }
 
-const PREVIEW_KEYS = ["command", "file_path", "pattern", "path", "url"] as const;
+const PREVIEW_KEYS = [
+  "command",
+  "file_path",
+  "pattern",
+  "path",
+  "url",
+] as const;
 const PREVIEW_MAX = 300;
 
 /** The PermissionRequest payload, or null when it is not one we can answer.
  *  The preview matches what codecast-status.sh builds for the status line. */
-export function parsePermissionHookInput(body: string): PermissionHookInput | null {
+export function parsePermissionHookInput(
+  body: string,
+): PermissionHookInput | null {
   let d: any;
-  try { d = JSON.parse(body); } catch { return null; }
-  if (!d || typeof d !== "object" || d.hook_event_name !== "PermissionRequest") return null;
+  try {
+    d = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (!d || typeof d !== "object" || d.hook_event_name !== "PermissionRequest")
+    return null;
   const sessionId = typeof d.session_id === "string" ? d.session_id : "";
   const toolName = typeof d.tool_name === "string" ? d.tool_name : "";
   if (!sessionId || !toolName) return null;
-  const input = d.tool_input && typeof d.tool_input === "object" ? d.tool_input : {};
-  const first = PREVIEW_KEYS.map((k) => input[k]).find((v) => typeof v === "string" && v);
+  const input =
+    d.tool_input && typeof d.tool_input === "object" ? d.tool_input : {};
+  const first = PREVIEW_KEYS.map((k) => input[k]).find(
+    (v) => typeof v === "string" && v,
+  );
   return {
     sessionId,
     toolName,
     preview: (first ?? "").slice(0, PREVIEW_MAX),
     glance: glanceCommand(first ?? ""),
-    ...(typeof d.permission_mode === "string" && { permissionMode: d.permission_mode }),
-    ...(typeof input.description === "string" && input.description.trim() && { intent: input.description.trim().slice(0, 200) }),
-    ...(typeof input.command === "string" && input.command && { command: input.command }),
-    ...(typeof d.cwd === "string" && d.cwd && { cwd: d.cwd }),
-    ...(typeof d.agent_id === "string" && d.agent_id && {
-      subagentType: typeof d.agent_type === "string" && d.agent_type ? d.agent_type : "subagent",
-      agentId: d.agent_id,
+    ...(typeof d.permission_mode === "string" && {
+      permissionMode: d.permission_mode,
     }),
+    ...(typeof input.description === "string" &&
+      input.description.trim() && {
+        intent: input.description.trim().slice(0, 200),
+      }),
+    ...(typeof input.command === "string" &&
+      input.command && { command: input.command }),
+    ...(typeof d.cwd === "string" && d.cwd && { cwd: d.cwd }),
+    ...(typeof d.agent_id === "string" &&
+      d.agent_id && {
+        subagentType:
+          typeof d.agent_type === "string" && d.agent_type
+            ? d.agent_type
+            : "subagent",
+        agentId: d.agent_id,
+      }),
     suggestions: Array.isArray(d.permission_suggestions)
-      ? d.permission_suggestions.filter((s: unknown) => s && typeof s === "object")
+      ? d.permission_suggestions.filter(
+          (s: unknown) => s && typeof s === "object",
+        )
       : [],
     // Bounded here as the row stores it, so the card, the server and the
     // waiter all read the same request.
-    ruleRequest: boundedRuleRequest(claudeToolRequest(toolName, input, typeof d.cwd === "string" && d.cwd ? { cwd: d.cwd, root: projectRootOf(d.cwd) } : {})),
+    ruleRequest: boundedRuleRequest(
+      claudeToolRequest(
+        toolName,
+        input,
+        typeof d.cwd === "string" && d.cwd
+          ? { cwd: d.cwd, root: projectRootOf(d.cwd) }
+          : {},
+      ),
+    ),
   };
 }
 
@@ -123,7 +167,9 @@ export function parsePermissionHookInput(body: string): PermissionHookInput | nu
  *  body folded to "…". A script body fills a short banner and pushes out what
  *  follows it, which is often the part Claude Code flagged. */
 export function glanceCommand(command: string): string {
-  const lines = command.replace(/^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*&&\s*/, "").split("\n");
+  const lines = command
+    .replace(/^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*&&\s*/, "")
+    .split("\n");
   const out: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     out.push(lines[i]);
@@ -139,14 +185,27 @@ export function glanceCommand(command: string): string {
 
 /** The hook's stdout for an answer. A denial without a reason stops the turn,
  *  as Escape in the terminal does; one with a reason lets the model act on it. */
-export function permissionDecisionOutput(answer: PermissionAnswer, suggestions: readonly unknown[]): string {
+export function permissionDecisionOutput(
+  answer: PermissionAnswer,
+  suggestions: readonly unknown[],
+): string {
   const reason = answer.message?.trim();
   const decision = answer.approved
-    ? { behavior: "allow", ...(answer.remember && suggestions.length > 0 && { updatedPermissions: suggestions }) }
+    ? {
+        behavior: "allow",
+        ...(answer.remember &&
+          suggestions.length > 0 && { updatedPermissions: suggestions }),
+      }
     : reason
       ? { behavior: "deny", message: reason }
-      : { behavior: "deny", message: "The user denied this from codecast.", interrupt: true };
-  return JSON.stringify({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision } });
+      : {
+          behavior: "deny",
+          message: "The user denied this from codecast.",
+          interrupt: true,
+        };
+  return JSON.stringify({
+    hookSpecificOutput: { hookEventName: "PermissionRequest", decision },
+  });
 }
 
 interface Waiter {
@@ -162,9 +221,15 @@ export class PermissionHookWaiters {
 
   /** Hold one hook. `done` resolves with its stdout, or null when the wait ends
    *  unanswered; it never rejects. */
-  wait(sessionId: string, suggestions: unknown[], timeoutMs = PERMISSION_HOOK_WAIT_MS) {
+  wait(
+    sessionId: string,
+    suggestions: unknown[],
+    timeoutMs = PERMISSION_HOOK_WAIT_MS,
+  ) {
     let resolve!: (output: string | null) => void;
-    const done = new Promise<string | null>((r) => { resolve = r; });
+    const done = new Promise<string | null>((r) => {
+      resolve = r;
+    });
     const waiter: Waiter = {
       sessionId,
       suggestions,
@@ -179,7 +244,9 @@ export class PermissionHookWaiters {
     this.waiters.add(waiter);
     return {
       done,
-      bind: (permissionId: string) => { waiter.permissionId = permissionId; },
+      bind: (permissionId: string) => {
+        waiter.permissionId = permissionId;
+      },
       cancel: () => waiter.settle(null),
     };
   }
@@ -204,13 +271,15 @@ export class PermissionHookWaiters {
 
   /** Is a hook waiting on this permission now? */
   holds(permissionId: string): boolean {
-    for (const w of this.waiters) if (w.permissionId === permissionId) return true;
+    for (const w of this.waiters)
+      if (w.permissionId === permissionId) return true;
     return false;
   }
 
   /** The session left its prompt (answered in the terminal, or moved on). */
   releaseSession(sessionId: string): void {
-    for (const w of [...this.waiters]) if (w.sessionId === sessionId) w.settle(null);
+    for (const w of [...this.waiters])
+      if (w.sessionId === sessionId) w.settle(null);
   }
 }
 

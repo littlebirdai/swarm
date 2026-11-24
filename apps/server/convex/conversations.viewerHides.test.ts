@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { cliSetSessionVisibility, scanInboxConversations } from "./conversations";
+import {
+  cliSetSessionVisibility,
+  scanInboxConversations,
+} from "./conversations";
 import { dispatch } from "./dispatch";
 import { makeFakeDb } from "./testDb";
 
@@ -28,8 +31,27 @@ describe("a viewer's hide of a teammate's session", () => {
         { _id: "tm_mate", team_id: TEAM, user_id: MATE },
       ],
       conversations: [
-        { _id: CONV, short_id: "conversations_mate".slice(0, 7), user_id: MATE, status: "completed", updated_at: NOW, message_count: 5, team_id: TEAM, is_private: false, title: "Mate's work" },
-        { _id: "conversations_mine", user_id: ME, status: "active", updated_at: NOW, message_count: 5, team_id: TEAM, is_private: false, title: "Mine" },
+        {
+          _id: CONV,
+          short_id: "conversations_mate".slice(0, 7),
+          user_id: MATE,
+          status: "completed",
+          updated_at: NOW,
+          message_count: 5,
+          team_id: TEAM,
+          is_private: false,
+          title: "Mate's work",
+        },
+        {
+          _id: "conversations_mine",
+          user_id: ME,
+          status: "active",
+          updated_at: NOW,
+          message_count: 5,
+          team_id: TEAM,
+          is_private: false,
+          title: "Mine",
+        },
       ],
       session_owners: [],
       inbox_hides: hides,
@@ -38,26 +60,51 @@ describe("a viewer's hide of a teammate's session", () => {
     });
   }
 
-  const auth = (user: string) => ({ getUserIdentity: async () => ({ subject: `${user}|session` }) });
+  const auth = (user: string) => ({
+    getUserIdentity: async () => ({ subject: `${user}|session` }),
+  });
   const teamIds = async (db: any) => {
-    const scan = await scanInboxConversations({ db }, ME as any, NOW, { includeLiveness: false, teamScope: TEAM as any });
+    const scan = await scanInboxConversations({ db }, ME as any, NOW, {
+      includeLiveness: false,
+      teamScope: TEAM as any,
+    });
     return scan.conversations.map((c: any) => c._id.toString()).sort();
   };
 
   test("the team board folds the teammate's row until I hide it", async () => {
-    expect(await teamIds(fixtures())).toEqual(["conversations_mine", CONV].sort());
-    const hidden = fixtures([{ _id: "ih_1", user_id: ME, conversation_id: CONV, kind: "dismiss", at: NOW }]);
+    expect(await teamIds(fixtures())).toEqual(
+      ["conversations_mine", CONV].sort(),
+    );
+    const hidden = fixtures([
+      {
+        _id: "ih_1",
+        user_id: ME,
+        conversation_id: CONV,
+        kind: "dismiss",
+        at: NOW,
+      },
+    ]);
     expect(await teamIds(hidden)).toEqual(["conversations_mine"]);
   });
 
   test("the web kill gesture records a hide for a viewer, nothing for the runner", async () => {
     const db = fixtures();
-    await (dispatch as any)._handler({ auth: auth(ME), db }, { action: "killSession", args: [CONV] });
+    await (dispatch as any)._handler(
+      { auth: auth(ME), db },
+      { action: "killSession", args: [CONV] },
+    );
     expect(db._tables.inbox_hides).toHaveLength(1);
-    expect(db._tables.inbox_hides[0]).toMatchObject({ user_id: ME, conversation_id: CONV, kind: "dismiss" });
+    expect(db._tables.inbox_hides[0]).toMatchObject({
+      user_id: ME,
+      conversation_id: CONV,
+      kind: "dismiss",
+    });
     // The runner's own kill rides the row's stamps; no viewer row.
     const own = fixtures();
-    await (dispatch as any)._handler({ auth: auth(MATE), db: own }, { action: "killSession", args: [CONV] });
+    await (dispatch as any)._handler(
+      { auth: auth(MATE), db: own },
+      { action: "killSession", args: [CONV] },
+    );
     expect(own._tables.inbox_hides).toHaveLength(0);
     // The runner's stamps stay clean: a viewer's hide never touches the row.
     expect(db._tables.conversations[0].inbox_dismissed_at).toBeUndefined();
@@ -65,11 +112,20 @@ describe("a viewer's hide of a teammate's session", () => {
 
   test("stash, bulk kill and restore keep one row per viewer and session", async () => {
     const db = fixtures();
-    await (dispatch as any)._handler({ auth: auth(ME), db }, { action: "stashSession", args: [CONV, { hidden: true }] });
-    await (dispatch as any)._handler({ auth: auth(ME), db }, { action: "killSessions", args: [[CONV]] });
+    await (dispatch as any)._handler(
+      { auth: auth(ME), db },
+      { action: "stashSession", args: [CONV, { hidden: true }] },
+    );
+    await (dispatch as any)._handler(
+      { auth: auth(ME), db },
+      { action: "killSessions", args: [[CONV]] },
+    );
     expect(db._tables.inbox_hides).toHaveLength(1);
     expect(db._tables.inbox_hides[0].kind).toBe("dismiss");
-    await (dispatch as any)._handler({ auth: auth(ME), db }, { action: "restoreSession", args: [CONV] });
+    await (dispatch as any)._handler(
+      { auth: auth(ME), db },
+      { action: "restoreSession", args: [CONV] },
+    );
     expect(db._tables.inbox_hides).toHaveLength(0);
   });
 
@@ -78,12 +134,23 @@ describe("a viewer's hide of a teammate's session", () => {
     // Convex throws "Unable to decode ID" when db.get sees a local stub id.
     const get = db.get.bind(db);
     db.get = async (id: any) => {
-      if (!String(id).startsWith("conversations_")) throw new Error("Invalid argument `id` for `db.get`: Unable to decode ID: Invalid ID length 22");
+      if (!String(id).startsWith("conversations_"))
+        throw new Error(
+          "Invalid argument `id` for `db.get`: Unable to decode ID: Invalid ID length 22",
+        );
       return get(id);
     };
     const stub = "k7x2m9p4q8r1s5t3v6w0yz";
-    for (const [action, args] of [["stashSession", [stub, undefined]], ["killSession", [stub]], ["killSessions", [[stub]]], ["restoreSession", [stub]]] as const) {
-      await (dispatch as any)._handler({ auth: auth(ME), db }, { action, args });
+    for (const [action, args] of [
+      ["stashSession", [stub, undefined]],
+      ["killSession", [stub]],
+      ["killSessions", [[stub]]],
+      ["restoreSession", [stub]],
+    ] as const) {
+      await (dispatch as any)._handler(
+        { auth: auth(ME), db },
+        { action, args },
+      );
     }
     expect(db._tables.inbox_hides).toHaveLength(0);
   });
@@ -91,19 +158,33 @@ describe("a viewer's hide of a teammate's session", () => {
   test("cast stash / cast restore fall back to a viewer hide for a session I can see but do not own", async () => {
     const db = fixtures();
     const ctx = { auth: auth(ME), db };
-    const hid = await (cliSetSessionVisibility as any)._handler(ctx, { session: CONV, action: "dismiss" });
+    const hid = await (cliSetSessionVisibility as any)._handler(ctx, {
+      session: CONV,
+      action: "dismiss",
+    });
     expect(hid).toMatchObject({ ok: true, outcome: "viewer_hide" });
     expect(db._tables.inbox_hides).toHaveLength(1);
     expect(await teamIds(db)).toEqual(["conversations_mine"]);
-    const back = await (cliSetSessionVisibility as any)._handler(ctx, { session: CONV, action: "undismiss" });
-    expect(back).toMatchObject({ ok: true, outcome: "viewer_hide", was_hidden: true });
+    const back = await (cliSetSessionVisibility as any)._handler(ctx, {
+      session: CONV,
+      action: "undismiss",
+    });
+    expect(back).toMatchObject({
+      ok: true,
+      outcome: "viewer_hide",
+      was_hidden: true,
+    });
     expect(db._tables.inbox_hides).toHaveLength(0);
   });
 
   test("a stranger to the team gets the old error, not a hide row", async () => {
     const db = fixtures();
-    await expect((cliSetSessionVisibility as any)._handler({ auth: auth("users_stranger"), db }, { session: CONV, action: "dismiss" }))
-      .rejects.toThrow(/No session found/);
+    await expect(
+      (cliSetSessionVisibility as any)._handler(
+        { auth: auth("users_stranger"), db },
+        { session: CONV, action: "dismiss" },
+      ),
+    ).rejects.toThrow(/No session found/);
     expect(db._tables.inbox_hides).toHaveLength(0);
   });
 });

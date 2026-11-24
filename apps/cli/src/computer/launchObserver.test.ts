@@ -35,7 +35,11 @@ async function settle(check: () => boolean, budgetMs = 5_000): Promise<void> {
 describe("spawnObserved", () => {
   test("a child that dies loudly is quoted, exit code and all", async () => {
     const log = path.join(scratch(), "helper.log");
-    const observed = spawnObserved("/bin/sh", ["-c", 'echo "dyld: Library not loaded" >&2; exit 3'], log);
+    const observed = spawnObserved(
+      "/bin/sh",
+      ["-c", 'echo "dyld: Library not loaded" >&2; exit 3'],
+      log,
+    );
     await settle(() => observed.exitReason() !== null);
     expect(observed.exitReason()).toBe("exited with code 3");
     expect(observed.explain()).toContain("exited with code 3");
@@ -45,7 +49,11 @@ describe("spawnObserved", () => {
 
   test("a binary that is not there reports the launch failure, not a timeout", async () => {
     const log = path.join(scratch(), "helper.log");
-    const observed = spawnObserved(path.join(dir, "no-such-helper"), ["--agent", "/tmp/x.sock"], log);
+    const observed = spawnObserved(
+      path.join(dir, "no-such-helper"),
+      ["--agent", "/tmp/x.sock"],
+      log,
+    );
     await settle(() => observed.exitReason() !== null);
     expect(observed.exitReason()).toContain("could not be launched");
     expect(observed.explain()).toContain("ENOENT");
@@ -63,7 +71,14 @@ describe("spawnObserved", () => {
 
   test("the tail is bounded and collapsed to one line", async () => {
     const log = path.join(scratch(), "helper.log");
-    const observed = spawnObserved("/bin/sh", ["-c", 'i=0; while [ $i -lt 400 ]; do echo "line $i noise" >&2; i=$((i+1)); done; exit 1'], log);
+    const observed = spawnObserved(
+      "/bin/sh",
+      [
+        "-c",
+        'i=0; while [ $i -lt 400 ]; do echo "line $i noise" >&2; i=$((i+1)); done; exit 1',
+      ],
+      log,
+    );
     await settle(() => observed.exitReason() !== null);
     const said = observed.said();
     expect(said.length).toBeLessThanOrEqual(1_500);

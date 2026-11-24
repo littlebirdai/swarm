@@ -18,7 +18,11 @@ interface Props extends HTMLAttributes<HTMLDivElement> {
   disabled?: boolean;
 }
 
-export function SplitResizeHandle({ disabled, className = "", ...rest }: Props) {
+export function SplitResizeHandle({
+  disabled,
+  className = "",
+  ...rest
+}: Props) {
   return (
     <div
       {...rest}

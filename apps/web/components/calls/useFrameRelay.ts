@@ -15,7 +15,13 @@ export const FRAME_INTERVAL_MS = 125;
 export function useFrameRelay(enabled: boolean): void {
   useWatchEffect(() => {
     if (!enabled || typeof document === "undefined") return;
-    const videos = new Map<string, { el: HTMLVideoElement; track: { detach: (el: HTMLMediaElement) => unknown } }>();
+    const videos = new Map<
+      string,
+      {
+        el: HTMLVideoElement;
+        track: { detach: (el: HTMLMediaElement) => unknown };
+      }
+    >();
     const canvas = document.createElement("canvas");
     canvas.width = FRAME_PX;
     canvas.height = FRAME_PX;
@@ -64,7 +70,17 @@ export function useFrameRelay(enabled: boolean): void {
         if (!w || !h) continue;
         // A centred square: the circle on the far side crops the rest.
         const side = Math.min(w, h);
-        ctx.drawImage(el, (w - side) / 2, (h - side) / 2, side, side, 0, 0, FRAME_PX, FRAME_PX);
+        ctx.drawImage(
+          el,
+          (w - side) / 2,
+          (h - side) / 2,
+          side,
+          side,
+          0,
+          0,
+          FRAME_PX,
+          FRAME_PX,
+        );
         out[id] = canvas.toDataURL("image/jpeg", 0.55);
       }
       if (Object.keys(out).length) publishVoiceFrames(out);

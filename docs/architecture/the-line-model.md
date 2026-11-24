@@ -35,15 +35,15 @@ listed; the pool of flows is listed across all of them.
 
 ## LM2. Objects, each with one home
 
-| Object | What it is | Home |
-|---|---|---|
-| Expectation | how the project should behave, with the sources it came from | the project's expectations doc (LM5) |
-| Signal | one observation from the world, typed where it was seen | `signals` |
-| Cause | a problem the line will fix: signals that share a root | a task (`source: signal`) |
-| Run | one pass of a cause through the line | `workflow_runs` |
-| Card | one change and its proof, put to a person | a decision (`session_decisions.card`) |
-| Ship | the change landing, the project's way | the run's ship record |
-| Watch | the days after ship when the cause's signals are counted again | the task's `watch_until` |
+| Object      | What it is                                                     | Home                                  |
+| ----------- | -------------------------------------------------------------- | ------------------------------------- |
+| Expectation | how the project should behave, with the sources it came from   | the project's expectations doc (LM5)  |
+| Signal      | one observation from the world, typed where it was seen        | `signals`                             |
+| Cause       | a problem the line will fix: signals that share a root         | a task (`source: signal`)             |
+| Run         | one pass of a cause through the line                           | `workflow_runs`                       |
+| Card        | one change and its proof, put to a person                      | a decision (`session_decisions.card`) |
+| Ship        | the change landing, the project's way                          | the run's ship record                 |
+| Watch       | the days after ship when the cause's signals are counted again | the task's `watch_until`              |
 
 Nothing the line knows lives in a second place. Every surface reads these
 homes.
@@ -54,14 +54,14 @@ The run is the truth of where work is. A cause's task status is the line's
 plain summary of it, written only by the line, only through the one task
 status path (so it has history and notifies like a person's change):
 
-| Where the work is | Task status | Also shown |
-|---|---|---|
-| waiting to be admitted | open | its place in the queue |
-| a run is building it | in progress | the station it is at |
-| a card waits on a person | in review | who holds the card |
-| shipped | done | "watching until <day>" |
-| its signal came back during the watch | open | "reopened" |
-| a person dropped it | dropped | the reason |
+| Where the work is                     | Task status | Also shown             |
+| ------------------------------------- | ----------- | ---------------------- |
+| waiting to be admitted                | open        | its place in the queue |
+| a run is building it                  | in progress | the station it is at   |
+| a card waits on a person              | in review   | who holds the card     |
+| shipped                               | done        | "watching until <day>" |
+| its signal came back during the watch | open        | "reopened"             |
+| a person dropped it                   | dropped     | the reason             |
 
 A person's own status change wins: dropping a cause stops its run, and the
 line never writes over a status a person set.

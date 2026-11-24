@@ -1,6 +1,10 @@
 import { test, expect, describe } from "bun:test";
 import { focusedActionSessionId } from "./actions";
-import { createWorkspace, showPane, type WorkspaceState } from "../store/workspace";
+import {
+  createWorkspace,
+  showPane,
+  type WorkspaceState,
+} from "../store/workspace";
 
 // Regression guard for "kill in Stashed killed a different session above it":
 // selecting a stashed/dismissed session on the inbox page opens it as a
@@ -12,7 +16,15 @@ import { createWorkspace, showPane, type WorkspaceState } from "../store/workspa
 // sessionListActiveId in DashboardLayout).
 describe("focusedActionSessionId", () => {
   const state = (
-    over: Partial<Record<"currentSessionId" | "viewingDismissedId" | "heldViewId" | "sidePanelSessionId", string | null>>,
+    over: Partial<
+      Record<
+        | "currentSessionId"
+        | "viewingDismissedId"
+        | "heldViewId"
+        | "sidePanelSessionId",
+        string | null
+      >
+    >,
     workspace: WorkspaceState = createWorkspace(),
   ) => ({
     currentSessionId: null,
@@ -25,17 +37,33 @@ describe("focusedActionSessionId", () => {
   // The fleet board's drill-in: a conversation in the secondary slot, overlay
   // presentation. A tile click fills the slot without moving currentSessionId.
   const drilledIn = (id: string) =>
-    showPane(createWorkspace(), "secondary", { kind: "conversation", ref: id }, { presentation: "overlay" });
+    showPane(
+      createWorkspace(),
+      "secondary",
+      { kind: "conversation", ref: id },
+      { presentation: "overlay" },
+    );
   const splitCompanion = (id: string) =>
-    showPane(createWorkspace(), "secondary", { kind: "conversation", ref: id }, { presentation: "split" });
+    showPane(
+      createWorkspace(),
+      "secondary",
+      { kind: "conversation", ref: id },
+      { presentation: "split" },
+    );
 
   test("inbox: the drill-in overlay is the target, not the stale current session behind the board", () => {
-    const s = state({ currentSessionId: "highlighted-tile" }, drilledIn("drilled"));
+    const s = state(
+      { currentSessionId: "highlighted-tile" },
+      drilledIn("drilled"),
+    );
     expect(focusedActionSessionId(s, true)).toBe("drilled");
   });
 
   test("inbox: a split companion is not a drill-in — the current session stays the target", () => {
-    const s = state({ currentSessionId: "primary" }, splitCompanion("companion"));
+    const s = state(
+      { currentSessionId: "primary" },
+      splitCompanion("companion"),
+    );
     expect(focusedActionSessionId(s, true)).toBe("primary");
   });
 
@@ -48,7 +76,10 @@ describe("focusedActionSessionId", () => {
   });
 
   test("inbox: peeking a stashed session targets the peek, not the live session behind it", () => {
-    const s = state({ currentSessionId: "live-working", viewingDismissedId: "stashed-peek" });
+    const s = state({
+      currentSessionId: "live-working",
+      viewingDismissedId: "stashed-peek",
+    });
     expect(focusedActionSessionId(s, true)).toBe("stashed-peek");
   });
 
@@ -62,17 +93,28 @@ describe("focusedActionSessionId", () => {
   // `sessions`) while currentSessionId stays on the session just created. The
   // kill chord pressed there tore down the hidden new session.
   test("inbox: a held link target is the target, not the session hidden behind it", () => {
-    const s = state({ currentSessionId: "new-session", heldViewId: "shared-link" });
+    const s = state({
+      currentSessionId: "new-session",
+      heldViewId: "shared-link",
+    });
     expect(focusedActionSessionId(s, true)).toBe("shared-link");
   });
 
   test("inbox: a held link target outranks a stashed peek it replaced on screen", () => {
-    const s = state({ currentSessionId: "live", viewingDismissedId: "stashed-peek", heldViewId: "shared-link" });
+    const s = state({
+      currentSessionId: "live",
+      viewingDismissedId: "stashed-peek",
+      heldViewId: "shared-link",
+    });
     expect(focusedActionSessionId(s, true)).toBe("shared-link");
   });
 
   test("off the inbox: targets the side panel selection", () => {
-    const s = state({ currentSessionId: "live-working", viewingDismissedId: "stashed-peek", sidePanelSessionId: "panel-sel" });
+    const s = state({
+      currentSessionId: "live-working",
+      viewingDismissedId: "stashed-peek",
+      sidePanelSessionId: "panel-sel",
+    });
     expect(focusedActionSessionId(s, false)).toBe("panel-sel");
   });
 

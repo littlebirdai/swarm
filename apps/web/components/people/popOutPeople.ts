@@ -1,5 +1,10 @@
 import { toast } from "sonner";
-import { PEOPLE_ROUTE, bridge, canOpenFacesOverlay, openFacesWindow } from "../../lib/desktop";
+import {
+  PEOPLE_ROUTE,
+  bridge,
+  canOpenFacesOverlay,
+  openFacesWindow,
+} from "../../lib/desktop";
 import { explainPopOut, popOutWindow } from "../../lib/popOut";
 
 /**
@@ -8,7 +13,9 @@ import { explainPopOut, popOutWindow } from "../../lib/popOut";
  * tab window → browser popup); explainPopOut adds the sentences a person needs
  * when a rung is missing.
  */
-export async function popOutPeople(opts: { list?: boolean } = {}): Promise<void> {
+export async function popOutPeople(
+  opts: { list?: boolean } = {},
+): Promise<void> {
   // THE FLOATING ROW IS THE DEFAULT. Popping the team out means "keep them
   // over my work", and the face row in the float is that with no window
   // around it: the header's row, sent to the voice host's see-through
@@ -19,6 +26,14 @@ export async function popOutPeople(opts: { list?: boolean } = {}): Promise<void>
     return;
   }
   const popup = { name: "codecast-people", width: 320, height: 640 };
-  const outcome = await popOutWindow(PEOPLE_ROUTE, bridge("openPeopleWindow"), popup);
-  explainPopOut(outcome, { thing: "the people window", route: PEOPLE_ROUTE, name: popup.name }, toast);
+  const outcome = await popOutWindow(
+    PEOPLE_ROUTE,
+    bridge("openPeopleWindow"),
+    popup,
+  );
+  explainPopOut(
+    outcome,
+    { thing: "the people window", route: PEOPLE_ROUTE, name: popup.name },
+    toast,
+  );
 }

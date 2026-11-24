@@ -21,9 +21,17 @@ import { taskFacePath, useSwitchFace } from "../../lib/workUnit";
 import { useInboxStore } from "../../store/inboxStore";
 import { subtaskTally } from "../../lib/subtaskTally";
 
-export function TaskContextPanel({ task: ref, sessionId }: {
+export function TaskContextPanel({
+  task: ref,
+  sessionId,
+}: {
   /** The session row's own snapshot of its task: paints before the store row lands. */
-  task: { _id: string; short_id?: string | null; title: string; status?: string | null };
+  task: {
+    _id: string;
+    short_id?: string | null;
+    title: string;
+    status?: string | null;
+  };
   sessionId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -33,33 +41,60 @@ export function TaskContextPanel({ task: ref, sessionId }: {
   const [done, total] = tally ? tally.split("/").map(Number) : [0, 0];
   // The session says it is finished while its task still reads as underway:
   // the next move is the task's, offered on the chip and in its detail.
-  const declared = useInboxStore((s) => (s.sessions[sessionId] as any)?.thread_state_status ?? null);
-  const finishedAhead = declared === "done" && (task.status === "in_progress" || task.status === "open") && !!task.short_id;
+  const declared = useInboxStore(
+    (s) => (s.sessions[sessionId] as any)?.thread_state_status ?? null,
+  );
+  const finishedAhead =
+    declared === "done" &&
+    (task.status === "in_progress" || task.status === "open") &&
+    !!task.short_id;
   const switchFace = useSwitchFace();
   const path = taskFacePath(task);
   const { icon: StatusIcon, color, label } = taskVisual(task.status);
 
   return (
     <div data-cc-context-panel className="contents">
-      <RailChip data-cc-rail-item="task" open={expanded} onToggle={() => setExpanded(!expanded)} title={`${task.title} · ${task.short_id ?? ""} · ${label}`}>
+      <RailChip
+        data-cc-rail-item="task"
+        open={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        title={`${task.title} · ${task.short_id ?? ""} · ${label}`}
+      >
         <StatusIcon className={`w-3.5 h-3.5 flex-shrink-0 ${color}`} />
-        <span className="min-w-0 truncate font-medium text-sol-text">{task.title}</span>
-        <span data-rail-full className="flex-shrink-0"><ShortId id={task.short_id} className="text-sol-text-dim" /></span>
+        <span className="min-w-0 truncate font-medium text-sol-text">
+          {task.title}
+        </span>
+        <span data-rail-full className="flex-shrink-0">
+          <ShortId id={task.short_id} className="text-sol-text-dim" />
+        </span>
         <span className="ml-auto" />
-        {finishedAhead && <span className="w-1.5 h-1.5 rounded-full bg-sol-violet flex-shrink-0" aria-label="Ready for review" />}
-        {total > 0 && <RailProgress done={done} total={total} bar="bg-sol-green" />}
+        {finishedAhead && (
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-sol-violet flex-shrink-0"
+            aria-label="Ready for review"
+          />
+        )}
+        {total > 0 && (
+          <RailProgress done={done} total={total} bar="bg-sol-green" />
+        )}
       </RailChip>
 
       {expanded && (
         <RailDetail data-cc-task-detail="">
           <div className="px-4 py-2.5 space-y-2.5 max-h-[60vh] overflow-y-auto">
             <div className="flex items-center gap-3 text-meta min-w-0">
-              <div className="-ml-2 flex-shrink-0"><TaskStatusPicker task={task as any} /></div>
+              <div className="-ml-2 flex-shrink-0">
+                <TaskStatusPicker task={task as any} />
+              </div>
               <span className="ml-auto flex items-center gap-1 flex-shrink-0">
                 {finishedAhead && (
                   <button
                     type="button"
-                    onClick={() => void useInboxStore.getState().updateTaskStatus(task.short_id!, "in_review")}
+                    onClick={() =>
+                      void useInboxStore
+                        .getState()
+                        .updateTaskStatus(task.short_id!, "in_review")
+                    }
                     className="h-5 px-2 rounded border border-sol-violet/40 bg-sol-violet/10 text-meta text-sol-violet hover:bg-sol-violet/20 transition-colors"
                     title="This session marked its work complete"
                   >
@@ -76,7 +111,9 @@ export function TaskContextPanel({ task: ref, sessionId }: {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { if (!openBeside(path)) switchFace(path); }}
+                  onClick={() => {
+                    if (!openBeside(path)) switchFace(path);
+                  }}
                   className="flex items-center gap-1 h-5 px-1.5 rounded text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors"
                   title="Open the task beside this session"
                 >
@@ -84,8 +121,16 @@ export function TaskContextPanel({ task: ref, sessionId }: {
                 </button>
               </span>
             </div>
-            <TaskInlineThread taskId={ref._id} owner={{ sessionId, here: true }}>
-              {task.short_id && <SubtasksSection task={task as any} onNavigate={(id) => switchFace(`/tasks/${id}`)} />}
+            <TaskInlineThread
+              taskId={ref._id}
+              owner={{ sessionId, here: true }}
+            >
+              {task.short_id && (
+                <SubtasksSection
+                  task={task as any}
+                  onNavigate={(id) => switchFace(`/tasks/${id}`)}
+                />
+              )}
             </TaskInlineThread>
           </div>
         </RailDetail>

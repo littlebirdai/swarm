@@ -25,17 +25,28 @@ let cached: DesktopSession | null = null;
 export function desktopSession(): DesktopSession {
   if (cached) return cached;
   if (process.platform !== "darwin") return (cached = "inside");
-  const manager = spawnSync("/bin/launchctl", ["managername"], { encoding: "utf8", timeout: 5_000 });
-  if (manager.status === 0 && manager.stdout.trim() === "Aqua") return (cached = "inside");
+  const manager = spawnSync("/bin/launchctl", ["managername"], {
+    encoding: "utf8",
+    timeout: 5_000,
+  });
+  if (manager.status === 0 && manager.stdout.trim() === "Aqua")
+    return (cached = "inside");
   const uid = process.getuid?.() ?? 0;
-  const gui = spawnSync("/bin/launchctl", ["print", `gui/${uid}`], { encoding: "utf8", timeout: 5_000 });
+  const gui = spawnSync("/bin/launchctl", ["print", `gui/${uid}`], {
+    encoding: "utf8",
+    timeout: 5_000,
+  });
   return (cached = gui.status === 0 ? "outside" : "none");
 }
 
 /** Launch through LaunchServices rather than spawning directly: forced by the
  *  env switches, or required because this process is outside Aqua. */
 export function launchesThroughOpen(): boolean {
-  if (process.env.CODECAST_COMPUTER_PERMISSION_ROUTE === "open" || process.env.CODECAST_NO_DISCLAIM === "1") return true;
+  if (
+    process.env.CODECAST_COMPUTER_PERMISSION_ROUTE === "open" ||
+    process.env.CODECAST_NO_DISCLAIM === "1"
+  )
+    return true;
   return desktopSession() === "outside";
 }
 
@@ -53,9 +64,25 @@ export function requireDesktopSession(): void {
 
 /** `open`, with its refusal turned into an error that names itself. */
 export function runOpen(args: string[], what: string): void {
-  const result = spawnSync("/usr/bin/open", args, { encoding: "utf8", timeout: 30_000 });
-  if (result.error) throw new ComputerError("accessibility_error", `could not ${what}: ${result.error.message}`);
+  const result = spawnSync("/usr/bin/open", args, {
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  if (result.error)
+    throw new ComputerError(
+      "accessibility_error",
+      `could not ${what}: ${result.error.message}`,
+    );
   if (result.status === 0) return;
-  const detail = (result.stderr || result.stdout || `exit ${result.status ?? "unknown"}`).replace(/\s+/g, " ").trim();
-  throw new ComputerError("accessibility_error", `could not ${what}: ${detail}`);
+  const detail = (
+    result.stderr ||
+    result.stdout ||
+    `exit ${result.status ?? "unknown"}`
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+  throw new ComputerError(
+    "accessibility_error",
+    `could not ${what}: ${detail}`,
+  );
 }

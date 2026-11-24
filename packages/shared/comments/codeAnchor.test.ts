@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { anchorFromDiffHunk, captureAnchor, placeAnchor, placementLabel, relocateAnchor } from "./codeAnchor";
+import {
+  anchorFromDiffHunk,
+  captureAnchor,
+  placeAnchor,
+  placementLabel,
+  relocateAnchor,
+} from "./codeAnchor";
 
 const FILE = [
   "import { run } from './run';",
@@ -21,7 +27,10 @@ const anchor = { line: 5, text: captureAnchor(FILE, 5)! };
 describe("captureAnchor", () => {
   test("keeps the commented lines trimmed with two lines either side", () => {
     expect(anchor.text).toEqual({
-      before: ["export function main(args: string[]) {", "const config = loadConfig(args);"],
+      before: [
+        "export function main(args: string[]) {",
+        "const config = loadConfig(args);",
+      ],
       lines: ["const result = run(config);"],
       after: ["return result.exitCode;", "}"],
     });
@@ -37,15 +46,24 @@ describe("captureAnchor", () => {
   test("context stops at a line the caller cannot see", () => {
     const sparse: (string | undefined)[] = [...FILE];
     sparse[2] = undefined;
-    expect(captureAnchor(sparse, 5)!.before).toEqual(["const config = loadConfig(args);"]);
+    expect(captureAnchor(sparse, 5)!.before).toEqual([
+      "const config = loadConfig(args);",
+    ]);
     expect(captureAnchor(sparse, 3)).toBeUndefined();
   });
 
   test("caps a long range at 12 lines and 2 KB", () => {
-    const big = Array.from({ length: 40 }, (_, i) => `line ${i} ${"x".repeat(300)}`);
+    const big = Array.from(
+      { length: 40 },
+      (_, i) => `line ${i} ${"x".repeat(300)}`,
+    );
     const text = captureAnchor(big, 5, 30)!;
-    expect(text.before.length + text.lines.length + text.after.length).toBeLessThanOrEqual(12);
-    expect(new TextEncoder().encode(JSON.stringify(text)).length).toBeLessThanOrEqual(2048);
+    expect(
+      text.before.length + text.lines.length + text.after.length,
+    ).toBeLessThanOrEqual(12);
+    expect(
+      new TextEncoder().encode(JSON.stringify(text)).length,
+    ).toBeLessThanOrEqual(2048);
     expect(text.lines[0]).toStartWith("line 4 ");
   });
 });
@@ -56,7 +74,12 @@ describe("relocateAnchor", () => {
   });
 
   test("moved down by lines added above", () => {
-    const file = [FILE[0], "import { log } from './log';", "import { env } from './env';", ...FILE.slice(1)];
+    const file = [
+      FILE[0],
+      "import { log } from './log';",
+      "import { env } from './env';",
+      ...FILE.slice(1),
+    ];
     expect(relocateAnchor(anchor, file)).toBe(7);
   });
 
@@ -73,7 +96,9 @@ describe("relocateAnchor", () => {
   });
 
   test("reindented: matches ignoring whitespace", () => {
-    const file = FILE.map((line) => line.replace("run(config)", "run( config )"));
+    const file = FILE.map((line) =>
+      line.replace("run(config)", "run( config )"),
+    );
     expect(relocateAnchor(anchor, file)).toBe(5);
   });
 
@@ -104,21 +129,45 @@ describe("relocateAnchor", () => {
 });
 
 describe("placeAnchor", () => {
-  const comment = { line_number: 5, line_end: 6, anchor_lines: captureAnchor(FILE, 5, 6) };
+  const comment = {
+    line_number: 5,
+    line_end: 6,
+    anchor_lines: captureAnchor(FILE, 5, 6),
+  };
 
   test("current, moved and outdated", () => {
-    expect(placeAnchor(comment, FILE)).toEqual({ state: "current", line: 5, lineEnd: 6 });
-    expect(placeAnchor(comment, ["// new", ...FILE])).toEqual({ state: "moved", line: 6, lineEnd: 7, from: 5 });
-    expect(placeAnchor(comment, FILE.slice(0, 4))).toEqual({ state: "outdated", line: 5, lineEnd: 6, from: 5 });
+    expect(placeAnchor(comment, FILE)).toEqual({
+      state: "current",
+      line: 5,
+      lineEnd: 6,
+    });
+    expect(placeAnchor(comment, ["// new", ...FILE])).toEqual({
+      state: "moved",
+      line: 6,
+      lineEnd: 7,
+      from: 5,
+    });
+    expect(placeAnchor(comment, FILE.slice(0, 4))).toEqual({
+      state: "outdated",
+      line: 5,
+      lineEnd: 6,
+      from: 5,
+    });
   });
 
   test("a comment written before anchors existed stays at its line", () => {
-    expect(placeAnchor({ line_number: 5 }, [])).toEqual({ state: "current", line: 5, lineEnd: undefined });
+    expect(placeAnchor({ line_number: 5 }, [])).toEqual({
+      state: "current",
+      line: 5,
+      lineEnd: undefined,
+    });
     expect(placeAnchor({}, FILE)).toBeNull();
   });
 
   test("labels", () => {
-    expect(placementLabel(placeAnchor(comment, ["// new", ...FILE]))).toBe("moved from line 5");
+    expect(placementLabel(placeAnchor(comment, ["// new", ...FILE]))).toBe(
+      "moved from line 5",
+    );
     expect(placementLabel(placeAnchor(comment, []))).toBe("outdated");
     expect(placementLabel(placeAnchor(comment, FILE))).toBe("");
   });
@@ -135,7 +184,10 @@ describe("anchorFromDiffHunk", () => {
 
   test("the right side ends at the commented line", () => {
     expect(anchorFromDiffHunk(hunk, "RIGHT")).toEqual({
-      before: ["export function main(args: string[]) {", "const config = loadConfig(args);"],
+      before: [
+        "export function main(args: string[]) {",
+        "const config = loadConfig(args);",
+      ],
       lines: ["const result = run(config);"],
       after: [],
     });
@@ -143,10 +195,17 @@ describe("anchorFromDiffHunk", () => {
 
   test("the left side reads the removed lines", () => {
     const left = hunk.split("\n").slice(0, 4).join("\n");
-    expect(anchorFromDiffHunk(left, "LEFT")!.lines).toEqual(["const out = run(config);"]);
+    expect(anchorFromDiffHunk(left, "LEFT")!.lines).toEqual([
+      "const out = run(config);",
+    ]);
   });
 
   test("relocates against the file as it is now", () => {
-    expect(relocateAnchor({ line: 3, text: anchorFromDiffHunk(hunk, "RIGHT")! }, FILE)).toBe(5);
+    expect(
+      relocateAnchor(
+        { line: 3, text: anchorFromDiffHunk(hunk, "RIGHT")! },
+        FILE,
+      ),
+    ).toBe(5);
   });
 });

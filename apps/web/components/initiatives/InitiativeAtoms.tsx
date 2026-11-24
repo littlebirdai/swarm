@@ -6,12 +6,57 @@
 // and no chip that is not health ever wears a health colour.
 import { useCallback } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, CheckCircle2, Circle, CircleDashed, CircleDot, Flag, Minus, XCircle, type LucideIcon } from "lucide-react";
-import { mdeWords, periodsWords, pointDay, STANDING_WORD, standingWord, type WindowRead } from "@codecast/shared/contracts/metricStanding";
-import { INITIATIVE_HEALTH_LABEL, INITIATIVE_STATUS_LABEL, formatMetricNumber, formatSeriesValue, intentSourceLabel, metricAgainst, metricLine, metricNumber, metricReaches, trendWords, type InitiativeHealth, type InitiativeMilestone, type InitiativeOwner, type InitiativeStatus, type InitiativeUpdateHealth, type IntentSource, type MetricReading, type MetricStanding, type MetricTrend } from "@codecast/shared/contracts/initiative";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CheckCircle2,
+  Circle,
+  CircleDashed,
+  CircleDot,
+  Flag,
+  Minus,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  mdeWords,
+  periodsWords,
+  pointDay,
+  STANDING_WORD,
+  standingWord,
+  type WindowRead,
+} from "@codecast/shared/contracts/metricStanding";
+import {
+  INITIATIVE_HEALTH_LABEL,
+  INITIATIVE_STATUS_LABEL,
+  formatMetricNumber,
+  formatSeriesValue,
+  intentSourceLabel,
+  metricAgainst,
+  metricLine,
+  metricNumber,
+  metricReaches,
+  trendWords,
+  type InitiativeHealth,
+  type InitiativeMilestone,
+  type InitiativeOwner,
+  type InitiativeStatus,
+  type InitiativeUpdateHealth,
+  type IntentSource,
+  type MetricReading,
+  type MetricStanding,
+  type MetricTrend,
+} from "@codecast/shared/contracts/initiative";
 import { memberHandle } from "@codecast/shared/chat";
-import { stripMachineText, stripMarkdown } from "@codecast/shared/contracts/plainText";
-import { formatShortDate, formatTargetDay, targetDayPassed } from "@codecast/shared/time";
+import {
+  stripMachineText,
+  stripMarkdown,
+} from "@codecast/shared/contracts/plainText";
+import {
+  formatShortDate,
+  formatTargetDay,
+  targetDayPassed,
+} from "@codecast/shared/time";
 import { intentSourceHref } from "../../lib/intentSources";
 import { SparkLine } from "../Spark";
 import { useTrackedStore } from "../../store/inboxStore";
@@ -24,7 +69,10 @@ import { cn } from "../../lib/utils";
 import { AssigneeFace } from "../identity/AssigneeFace";
 import { INITIATIVE_ACCENT, HEALTH_COLOR } from "../../lib/initiativeColors";
 
-const STATUS_VISUAL: Record<InitiativeStatus, { icon: LucideIcon; color: string }> = {
+const STATUS_VISUAL: Record<
+  InitiativeStatus,
+  { icon: LucideIcon; color: string }
+> = {
   proposed: { icon: CircleDashed, color: "var(--sol-text-dim)" },
   planned: { icon: Circle, color: "var(--sol-text-muted)" },
   active: { icon: CircleDot, color: INITIATIVE_ACCENT },
@@ -32,10 +80,22 @@ const STATUS_VISUAL: Record<InitiativeStatus, { icon: LucideIcon; color: string 
   cancelled: { icon: XCircle, color: "var(--sol-text-dim)" },
 };
 
-export function StatusGlyph({ status, className }: { status: InitiativeStatus; className?: string }) {
+export function StatusGlyph({
+  status,
+  className,
+}: {
+  status: InitiativeStatus;
+  className?: string;
+}) {
   const v = STATUS_VISUAL[status];
   const Icon = v.icon;
-  return <Icon className={cn("w-3.5 h-3.5 shrink-0", className)} style={{ color: v.color }} aria-label={INITIATIVE_STATUS_LABEL[status]} />;
+  return (
+    <Icon
+      className={cn("w-3.5 h-3.5 shrink-0", className)}
+      style={{ color: v.color }}
+      aria-label={INITIATIVE_STATUS_LABEL[status]}
+    />
+  );
 }
 
 /** A moment (when something was said, read or reached) as a short date where
@@ -44,13 +104,50 @@ export function StatusGlyph({ status, className }: { status: InitiativeStatus; c
 export const shortDate: (ts: number, now: number) => string = formatShortDate;
 
 /** Health is whatever the owner said last, with the date it was said. */
-export function HealthChip({ health, at, now, bare, lower, className }: { health: InitiativeHealth; at?: number; now: number; /** The dot alone, its word as the title (a far card on the org chart). */ bare?: boolean; /** The word in lowercase, as every state cell of a line and a sheet's facts says it. */ lower?: boolean; className?: string }) {
+export function HealthChip({
+  health,
+  at,
+  now,
+  bare,
+  lower,
+  className,
+}: {
+  health: InitiativeHealth;
+  at?: number;
+  now: number;
+  /** The dot alone, its word as the title (a far card on the org chart). */ bare?: boolean;
+  /** The word in lowercase, as every state cell of a line and a sheet's facts says it. */ lower?: boolean;
+  className?: string;
+}) {
   const color = HEALTH_COLOR[health];
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-meta whitespace-nowrap", className)} style={{ color: health === "none" ? color : "var(--sol-text-secondary)" }} title={bare ? INITIATIVE_HEALTH_LABEL[health] : undefined} data-initiative-health={health}>
-      <span className="w-[7px] h-[7px] rounded-full shrink-0" style={health === "none" ? { border: `1px solid ${color}` } : { background: color }} aria-hidden />
-      {!bare && (lower ? INITIATIVE_HEALTH_LABEL[health].toLowerCase() : INITIATIVE_HEALTH_LABEL[health])}
-      {!bare && health !== "none" && at ? <span style={{ color: "var(--sol-text-dim)" }} data-health-date>{shortDate(at, now)}</span> : null}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-meta whitespace-nowrap",
+        className,
+      )}
+      style={{ color: health === "none" ? color : "var(--sol-text-secondary)" }}
+      title={bare ? INITIATIVE_HEALTH_LABEL[health] : undefined}
+      data-initiative-health={health}
+    >
+      <span
+        className="w-[7px] h-[7px] rounded-full shrink-0"
+        style={
+          health === "none"
+            ? { border: `1px solid ${color}` }
+            : { background: color }
+        }
+        aria-hidden
+      />
+      {!bare &&
+        (lower
+          ? INITIATIVE_HEALTH_LABEL[health].toLowerCase()
+          : INITIATIVE_HEALTH_LABEL[health])}
+      {!bare && health !== "none" && at ? (
+        <span style={{ color: "var(--sol-text-dim)" }} data-health-date>
+          {shortDate(at, now)}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -59,17 +156,71 @@ export function HealthChip({ health, at, now, bare, lower, className }: { health
  *  `partial` says the task store is still filling (useTasksBackfilled): the
  *  bar dims and "counting" stands where the number would, so a low count on a
  *  cold cache never reads as the truth. */
-export function ProgressBar({ progress, partial, bare, className }: { progress: Progress; partial?: boolean; /** The bar alone, for a card that prints its own counts. */ bare?: boolean; className?: string }) {
+export function ProgressBar({
+  progress,
+  partial,
+  bare,
+  className,
+}: {
+  progress: Progress;
+  partial?: boolean;
+  /** The bar alone, for a card that prints its own counts. */ bare?: boolean;
+  className?: string;
+}) {
   const pct = progressPercent(progress);
-  const moving = progress.total === 0 ? 0 : Math.round(((progress.done + progress.in_progress) / progress.total) * 100);
-  const title = partial ? "Counting: the task cache is still filling" : progress.total === 0 ? "No tasks yet" : `${progress.done} of ${progress.total} tasks done, ${progress.in_progress} in progress`;
+  const moving =
+    progress.total === 0
+      ? 0
+      : Math.round(
+          ((progress.done + progress.in_progress) / progress.total) * 100,
+        );
+  const title = partial
+    ? "Counting: the task cache is still filling"
+    : progress.total === 0
+      ? "No tasks yet"
+      : `${progress.done} of ${progress.total} tasks done, ${progress.in_progress} in progress`;
   return (
-    <span className={cn("inline-flex items-center gap-2 min-w-0", className)} data-initiative-progress={partial ? "counting" : `${progress.done}/${progress.total}`} title={title}>
-      <span className={cn("relative flex-1 min-w-[48px] h-[4px] rounded-full overflow-hidden", partial && "opacity-40")} style={{ background: "color-mix(in srgb, var(--sol-border) 35%, transparent)" }} aria-hidden>
-        <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300" style={{ width: `${moving}%`, background: `color-mix(in srgb, ${INITIATIVE_ACCENT} 30%, transparent)` }} />
-        <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300" style={{ width: `${pct}%`, background: INITIATIVE_ACCENT }} />
+    <span
+      className={cn("inline-flex items-center gap-2 min-w-0", className)}
+      data-initiative-progress={
+        partial ? "counting" : `${progress.done}/${progress.total}`
+      }
+      title={title}
+    >
+      <span
+        className={cn(
+          "relative flex-1 min-w-[48px] h-[4px] rounded-full overflow-hidden",
+          partial && "opacity-40",
+        )}
+        style={{
+          background: "color-mix(in srgb, var(--sol-border) 35%, transparent)",
+        }}
+        aria-hidden
+      >
+        <span
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
+          style={{
+            width: `${moving}%`,
+            background: `color-mix(in srgb, ${INITIATIVE_ACCENT} 30%, transparent)`,
+          }}
+        />
+        <span
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
+          style={{ width: `${pct}%`, background: INITIATIVE_ACCENT }}
+        />
       </span>
-      {!bare && <span className={cn("shrink-0 text-meta tabular-nums", partial && "italic")} style={{ color: "var(--sol-text-dim)" }}>{partial ? "counting" : progress.total === 0 ? "no tasks" : `${progress.done}/${progress.total}`}</span>}
+      {!bare && (
+        <span
+          className={cn("shrink-0 text-meta tabular-nums", partial && "italic")}
+          style={{ color: "var(--sol-text-dim)" }}
+        >
+          {partial
+            ? "counting"
+            : progress.total === 0
+              ? "no tasks"
+              : `${progress.done}/${progress.total}`}
+        </span>
+      )}
     </span>
   );
 }
@@ -77,14 +228,46 @@ export function ProgressBar({ progress, partial, bare, className }: { progress: 
 /** The owner's face and name, resolved at render from the roster and the org
  *  roles, so a rename or a new face shows at once. A role's face carries the
  *  role hover card. Nobody driving it is said in words. */
-export function OwnerChip({ owner, size = 16, nameless, className }: { owner: InitiativeOwner | undefined; size?: number; nameless?: boolean; className?: string }) {
+export function OwnerChip({
+  owner,
+  size = 16,
+  nameless,
+  className,
+}: {
+  owner: InitiativeOwner | undefined;
+  size?: number;
+  nameless?: boolean;
+  className?: string;
+}) {
   const { roles } = useOrgRoles();
   const roster = useTeamRosterIdentity();
   const s = useTrackedStore([(st) => st.currentUser?._id]);
-  const info = resolveAssigneeInfo(ownerId(owner), undefined, roster as any, s.currentUser as any, roles as any);
-  if (!info) return <span className={cn("text-meta italic", className)} style={{ color: "var(--sol-text-dim)" }} data-initiative-owner="none">No owner</span>;
+  const info = resolveAssigneeInfo(
+    ownerId(owner),
+    undefined,
+    roster as any,
+    s.currentUser as any,
+    roles as any,
+  );
+  if (!info)
+    return (
+      <span
+        className={cn("text-meta italic", className)}
+        style={{ color: "var(--sol-text-dim)" }}
+        data-initiative-owner="none"
+      >
+        No owner
+      </span>
+    );
   return (
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0 text-meta", className)} style={{ color: "var(--sol-text-secondary)" }} data-initiative-owner={owner?.kind}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 min-w-0 text-meta",
+        className,
+      )}
+      style={{ color: "var(--sol-text-secondary)" }}
+      data-initiative-owner={owner?.kind}
+    >
       <AssigneeFace info={info} size={size} />
       {!nameless && <span className="truncate">{info.name}</span>}
     </span>
@@ -95,11 +278,28 @@ export function OwnerChip({ owner, size = 16, nameless, className }: { owner: In
  *  (shared/time targetDayStamp), the same day for every viewer and late only
  *  when their own calendar is past it. `local` is for a stamp that is the end
  *  of the viewer's own day instead (a project's deadline). */
-export function TargetDate({ ts, now, done, local, className }: { ts?: number; now: number; done?: boolean; local?: boolean; className?: string }) {
+export function TargetDate({
+  ts,
+  now,
+  done,
+  local,
+  className,
+}: {
+  ts?: number;
+  now: number;
+  done?: boolean;
+  local?: boolean;
+  className?: string;
+}) {
   if (!ts) return null;
   const late = !done && (local ? ts < now : targetDayPassed(ts, now));
   return (
-    <span className={cn("text-meta tabular-nums whitespace-nowrap", className)} style={{ color: late ? "var(--sol-red)" : "var(--sol-text-dim)" }} title={late ? "Past its target" : "Target"} data-initiative-target={late ? "late" : "ahead"}>
+    <span
+      className={cn("text-meta tabular-nums whitespace-nowrap", className)}
+      style={{ color: late ? "var(--sol-red)" : "var(--sol-text-dim)" }}
+      title={late ? "Past its target" : "Target"}
+      data-initiative-target={late ? "late" : "ahead"}
+    >
       {local ? shortDate(ts, now) : formatTargetDay(ts, now)}
     </span>
   );
@@ -109,35 +309,124 @@ export function TargetDate({ ts, now, done, local, className }: { ts?: number; n
  *  behind, and a hollow dot while nobody has reported a value. Beside the
  *  owner's word so the two can disagree visibly. */
 /** Within noise is its own colour, never the met green: the band still holds the target. */
-export const STANDING_COLOR: Record<MetricStanding, string> = { met: HEALTH_COLOR.on_track, within_noise: "var(--sol-blue)", behind: HEALTH_COLOR.at_risk, unknown: "var(--sol-text-dim)" };
-export function MetricStandingDot({ standing, className }: { standing: MetricStanding; className?: string }) {
+export const STANDING_COLOR: Record<MetricStanding, string> = {
+  met: HEALTH_COLOR.on_track,
+  within_noise: "var(--sol-blue)",
+  behind: HEALTH_COLOR.at_risk,
+  unknown: "var(--sol-text-dim)",
+};
+export function MetricStandingDot({
+  standing,
+  className,
+}: {
+  standing: MetricStanding;
+  className?: string;
+}) {
   const color = STANDING_COLOR[standing];
-  const style = standing === "unknown" ? { border: `1px solid ${color}` } : standing === "within_noise" ? { border: `1px solid ${color}`, background: `linear-gradient(90deg, ${color} 50%, transparent 50%)` } : { background: color };
-  return <span className={cn("inline-block w-[7px] h-[7px] rounded-full shrink-0", className)} style={style} aria-label={STANDING_WORD[standing] || "unread"} data-metric-standing={standing} />;
+  const style =
+    standing === "unknown"
+      ? { border: `1px solid ${color}` }
+      : standing === "within_noise"
+        ? {
+            border: `1px solid ${color}`,
+            background: `linear-gradient(90deg, ${color} 50%, transparent 50%)`,
+          }
+        : { background: color };
+  return (
+    <span
+      className={cn(
+        "inline-block w-[7px] h-[7px] rounded-full shrink-0",
+        className,
+      )}
+      style={style}
+      aria-label={STANDING_WORD[standing] || "unread"}
+      data-metric-standing={standing}
+    />
+  );
 }
 
 /** A metric as one row where the caller holds no history: MetricTile's line, which draws the bar toward a reach target in the sparkline's place. */
-export function MetricReadingLine({ reading, now, className }: { reading: MetricReading; now: number; className?: string }) {
-  return <MetricTile size="line" reading={reading} now={now} className={className} />;
+export function MetricReadingLine({
+  reading,
+  now,
+  className,
+}: {
+  reading: MetricReading;
+  now: number;
+  className?: string;
+}) {
+  return (
+    <MetricTile size="line" reading={reading} now={now} className={className} />
+  );
 }
 
 /** Which way the number moved, as one glyph: up, down, flat, or nothing before two reports. Green when toward the target, yellow when away. */
-export function TrendGlyph({ trend, className }: { trend: MetricTrend; className?: string }) {
+export function TrendGlyph({
+  trend,
+  className,
+}: {
+  trend: MetricTrend;
+  className?: string;
+}) {
   if (trend.direction === "unknown") return null;
-  const Icon = trend.direction === "up" ? ArrowUpRight : trend.direction === "down" ? ArrowDownRight : Minus;
-  const color = trend.toward === null ? "var(--sol-text-dim)" : trend.toward ? HEALTH_COLOR.on_track : HEALTH_COLOR.at_risk;
+  const Icon =
+    trend.direction === "up"
+      ? ArrowUpRight
+      : trend.direction === "down"
+        ? ArrowDownRight
+        : Minus;
+  const color =
+    trend.toward === null
+      ? "var(--sol-text-dim)"
+      : trend.toward
+        ? HEALTH_COLOR.on_track
+        : HEALTH_COLOR.at_risk;
   // The contract's words, so the direction and the number it names are read over the same span.
   const words = trendWords(trend);
   const title = words.charAt(0).toUpperCase() + words.slice(1);
-  return <Icon className={cn("w-3 h-3 shrink-0", className)} style={{ color }} aria-label={title} data-metric-trend={trend.direction} data-metric-toward={trend.toward === null ? "none" : trend.toward ? "yes" : "no"}><title>{title}</title></Icon>;
+  return (
+    <Icon
+      className={cn("w-3 h-3 shrink-0", className)}
+      style={{ color }}
+      aria-label={title}
+      data-metric-trend={trend.direction}
+      data-metric-toward={
+        trend.toward === null ? "none" : trend.toward ? "yes" : "no"
+      }
+    >
+      <title>{title}</title>
+    </Icon>
+  );
 }
 
 /** How far toward a reach target, as a thin bar. */
-function MetricBar({ reading, className }: { reading: MetricReading; className?: string }) {
+function MetricBar({
+  reading,
+  className,
+}: {
+  reading: MetricReading;
+  className?: string;
+}) {
   if (reading.progress === null) return null;
   return (
-    <span className={cn("h-[4px] rounded-full overflow-hidden", className)} style={{ background: "color-mix(in srgb, var(--sol-border) 40%, transparent)" }} aria-hidden data-metric-bar>
-      <span className="block h-full rounded-full" style={{ width: `${Math.round(reading.progress * 100)}%`, background: reading.standing === "met" || reading.standing === "within_noise" ? STANDING_COLOR[reading.standing] : INITIATIVE_ACCENT }} />
+    <span
+      className={cn("h-[4px] rounded-full overflow-hidden", className)}
+      style={{
+        background: "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+      }}
+      aria-hidden
+      data-metric-bar
+    >
+      <span
+        className="block h-full rounded-full"
+        style={{
+          width: `${Math.round(reading.progress * 100)}%`,
+          background:
+            reading.standing === "met" || reading.standing === "within_noise"
+              ? STANDING_COLOR[reading.standing]
+              : INITIATIVE_ACCENT,
+        }}
+      />
     </span>
   );
 }
@@ -153,62 +442,216 @@ function MetricBar({ reading, className }: { reading: MetricReading; className?:
  * a number to stay under or a target that is not a number is named as the
  * target.
  */
-export function MetricTile({ reading, trend, now, size = "tile", named = true, className }: { reading: MetricReading; trend?: MetricTrend; now: number; size?: "tile" | "line" | "chip"; named?: boolean; className?: string }) {
+export function MetricTile({
+  reading,
+  trend,
+  now,
+  size = "tile",
+  named = true,
+  className,
+}: {
+  reading: MetricReading;
+  trend?: MetricTrend;
+  now: number;
+  size?: "tile" | "line" | "chip";
+  named?: boolean;
+  className?: string;
+}) {
   const standingColor = STANDING_COLOR[reading.standing];
   const unreported = reading.value === null;
   const traj = reading.trajectory;
-  const reaches = !traj && !reading.target_unread && metricReaches(reading.target);
+  const reaches =
+    !traj && !reading.target_unread && metricReaches(reading.target);
   // The target a value is read against now: a trajectory's number in force, else the target's own.
-  const targetNow = traj ? traj.in_force : reading.target_unread ? null : metricNumber(reading.target);
-  const targetWords = traj ? `${formatSeriesValue(traj.in_force, traj.unit)} now, ${formatSeriesValue(traj.final.value, traj.unit)} by ${pointDay(traj.final.at)}` : reading.target;
+  const targetNow = traj
+    ? traj.in_force
+    : reading.target_unread
+      ? null
+      : metricNumber(reading.target);
+  const targetWords = traj
+    ? `${formatSeriesValue(traj.in_force, traj.unit)} now, ${formatSeriesValue(traj.final.value, traj.unit)} by ${pointDay(traj.final.at)}`
+    : reading.target;
   const series = trend?.series.map((p) => p.n) ?? [];
   if (size === "chip") {
     return (
-      <span className={cn("inline-flex items-center gap-1 min-w-0 max-w-full text-meta tabular-nums whitespace-nowrap", className)} title={metricLine(reading, now)} data-metric={reading.key} data-metric-size="chip">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 min-w-0 max-w-full text-meta tabular-nums whitespace-nowrap",
+          className,
+        )}
+        title={metricLine(reading, now)}
+        data-metric={reading.key}
+        data-metric-size="chip"
+      >
         <MetricStandingDot standing={reading.standing} />
-        {named && <span className="truncate max-w-[18ch]" style={{ color: "var(--sol-text-muted)" }} data-metric-name>{reading.name}</span>}
-        {unreported
-          ? <span style={{ color: "var(--sol-text-dim)" }}>{metricAgainst(reading)}</span>
-          : <><span style={{ color: "var(--sol-text)" }}>{reading.value}</span><span style={{ color: "var(--sol-text-dim)" }}>{reaches ? "/" : "·"} {traj ? formatSeriesValue(traj.in_force, traj.unit) : reading.target}</span></>}
+        {named && (
+          <span
+            className="truncate max-w-[18ch]"
+            style={{ color: "var(--sol-text-muted)" }}
+            data-metric-name
+          >
+            {reading.name}
+          </span>
+        )}
+        {unreported ? (
+          <span style={{ color: "var(--sol-text-dim)" }}>
+            {metricAgainst(reading)}
+          </span>
+        ) : (
+          <>
+            <span style={{ color: "var(--sol-text)" }}>{reading.value}</span>
+            <span style={{ color: "var(--sol-text-dim)" }}>
+              {reaches ? "/" : "·"}{" "}
+              {traj
+                ? formatSeriesValue(traj.in_force, traj.unit)
+                : reading.target}
+            </span>
+          </>
+        )}
         {trend && <TrendGlyph trend={trend} />}
       </span>
     );
   }
   if (size === "line") {
     return (
-      <span className={cn("inline-flex items-center gap-2 min-w-0 text-[12px]", className)} title={named ? undefined : metricLine(reading, now)} data-metric={reading.key} data-metric-size="line">
+      <span
+        className={cn(
+          "inline-flex items-center gap-2 min-w-0 text-[12px]",
+          className,
+        )}
+        title={named ? undefined : metricLine(reading, now)}
+        data-metric={reading.key}
+        data-metric-size="line"
+      >
         <MetricStandingDot standing={reading.standing} />
-        {named && <span className="truncate" style={{ color: "var(--sol-text)" }}>{reading.name}</span>}
-        <span className="tabular-nums whitespace-nowrap" style={{ color: unreported ? "var(--sol-text-dim)" : "var(--sol-text-secondary)" }}>{metricAgainst(reading)}</span>
+        {named && (
+          <span className="truncate" style={{ color: "var(--sol-text)" }}>
+            {reading.name}
+          </span>
+        )}
+        <span
+          className="tabular-nums whitespace-nowrap"
+          style={{
+            color: unreported
+              ? "var(--sol-text-dim)"
+              : "var(--sol-text-secondary)",
+          }}
+        >
+          {metricAgainst(reading)}
+        </span>
         {trend && <TrendGlyph trend={trend} />}
-        {series.length >= 2
-          ? <SparkLine values={series} target={targetNow} width={48} height={14} tone={standingColor} className="text-sol-text-dim" />
-          : <MetricBar reading={reading} className="w-[56px] shrink-0" />}
+        {series.length >= 2 ? (
+          <SparkLine
+            values={series}
+            target={targetNow}
+            width={48}
+            height={14}
+            tone={standingColor}
+            className="text-sol-text-dim"
+          />
+        ) : (
+          <MetricBar reading={reading} className="w-[56px] shrink-0" />
+        )}
         {reading.guardrail && <GuardrailMark />}
-        {reading.live ? <LiveMark reading={reading} now={now} /> : named && reading.observed_at ? <span className="whitespace-nowrap text-meta" style={{ color: "var(--sol-text-dim)" }}>{shortDate(reading.observed_at, now)}</span> : null}
+        {reading.live ? (
+          <LiveMark reading={reading} now={now} />
+        ) : named && reading.observed_at ? (
+          <span
+            className="whitespace-nowrap text-meta"
+            style={{ color: "var(--sol-text-dim)" }}
+          >
+            {shortDate(reading.observed_at, now)}
+          </span>
+        ) : null}
       </span>
     );
   }
   return (
-    <div className={cn("min-w-0 rounded-xl border px-3 py-2.5", className)} style={{ borderColor: "color-mix(in srgb, var(--sol-border) 26%, transparent)" }} data-metric={reading.key} data-metric-size="tile" data-metric-standing={reading.standing}>
-      <div className="flex items-center gap-1.5 text-meta min-w-0" style={{ color: "var(--sol-text-muted)" }}>
+    <div
+      className={cn("min-w-0 rounded-xl border px-3 py-2.5", className)}
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 26%, transparent)",
+      }}
+      data-metric={reading.key}
+      data-metric-size="tile"
+      data-metric-standing={reading.standing}
+    >
+      <div
+        className="flex items-center gap-1.5 text-meta min-w-0"
+        style={{ color: "var(--sol-text-muted)" }}
+      >
         <MetricStandingDot standing={reading.standing} />
         <span className="truncate">{reading.name}</span>
         {reading.guardrail && <GuardrailMark />}
-        {reading.live && <><span className="flex-1" /><LiveMark reading={reading} now={now} /></>}
+        {reading.live && (
+          <>
+            <span className="flex-1" />
+            <LiveMark reading={reading} now={now} />
+          </>
+        )}
       </div>
       <div className="mt-1 flex items-end gap-2 min-w-0">
-        <span className="text-[22px] leading-none font-semibold tabular-nums tracking-tight" style={{ color: unreported ? "var(--sol-text-dim)" : "var(--sol-text)" }} data-metric-now>{unreported ? "not reported" : reading.value}</span>
-        <span className="text-[12px] pb-[2px] tabular-nums whitespace-nowrap" style={{ color: "var(--sol-text-dim)" }} data-metric-target>{traj ? "trajectory" : !unreported && reaches ? "of" : "target"} {targetWords}</span>
+        <span
+          className="text-[22px] leading-none font-semibold tabular-nums tracking-tight"
+          style={{
+            color: unreported ? "var(--sol-text-dim)" : "var(--sol-text)",
+          }}
+          data-metric-now
+        >
+          {unreported ? "not reported" : reading.value}
+        </span>
+        <span
+          className="text-[12px] pb-[2px] tabular-nums whitespace-nowrap"
+          style={{ color: "var(--sol-text-dim)" }}
+          data-metric-target
+        >
+          {traj ? "trajectory" : !unreported && reaches ? "of" : "target"}{" "}
+          {targetWords}
+        </span>
         {trend && <TrendGlyph trend={trend} className="mb-[3px]" />}
         <span className="flex-1" />
-        {series.length >= 2 && <SparkLine values={series} target={targetNow} width={72} height={20} tone={standingColor} className="text-sol-text-dim" />}
+        {series.length >= 2 && (
+          <SparkLine
+            values={series}
+            target={targetNow}
+            width={72}
+            height={20}
+            tone={standingColor}
+            className="text-sol-text-dim"
+          />
+        )}
       </div>
       <MetricBar reading={reading} className="mt-2 block w-full" />
-      <div className="mt-1.5 text-meta flex items-center gap-2" style={{ color: "var(--sol-text-dim)" }}>
-        <span style={reading.band ? { color: standingColor } : undefined} data-metric-verdict>{reading.target_unread ? "Unknown: target isn't a number" : reading.standing !== "unknown" ? capitalize(standingWord(reading.standing, traj)) : unreported ? "Not reported yet" : metricNumber(reading.value) === null ? "Not a number" : "No number in the target"}</span>
-        {reading.observed_at && !reading.live ? <span>read {shortDate(reading.observed_at, now)}</span> : null}
-        {!reading.band && trend?.delta !== null && trend?.delta !== undefined && trend.direction !== "flat" && <span className="tabular-nums">{trend.delta > 0 ? "+" : ""}{formatMetricNumber(trend.delta)} since last</span>}
+      <div
+        className="mt-1.5 text-meta flex items-center gap-2"
+        style={{ color: "var(--sol-text-dim)" }}
+      >
+        <span
+          style={reading.band ? { color: standingColor } : undefined}
+          data-metric-verdict
+        >
+          {reading.target_unread
+            ? "Unknown: target isn't a number"
+            : reading.standing !== "unknown"
+              ? capitalize(standingWord(reading.standing, traj))
+              : unreported
+                ? "Not reported yet"
+                : metricNumber(reading.value) === null
+                  ? "Not a number"
+                  : "No number in the target"}
+        </span>
+        {reading.observed_at && !reading.live ? (
+          <span>read {shortDate(reading.observed_at, now)}</span>
+        ) : null}
+        {!reading.band &&
+          trend?.delta !== null &&
+          trend?.delta !== undefined &&
+          trend.direction !== "flat" && (
+            <span className="tabular-nums">
+              {trend.delta > 0 ? "+" : ""}
+              {formatMetricNumber(trend.delta)} since last
+            </span>
+          )}
       </div>
       {reading.band && <MetricBandLine reading={reading} band={reading.band} />}
     </div>
@@ -223,26 +666,67 @@ const rangeWords = (low: string, high: string): string => {
 };
 
 /** A number read over a window: the window's mean and its 80% band, and the smallest change it can show in 4 weeks. */
-function MetricBandLine({ reading, band }: { reading: MetricReading; band: WindowRead }) {
-  const say = (n: number) => (reading.unit ? formatSeriesValue(n, reading.unit) : formatMetricNumber(Math.round(n * 100) / 100));
-  const span = band.periods < band.of ? `${band.periods} of ${band.of} ${band.period}s` : `${band.of} ${band.period}${band.of === 1 ? "" : "s"}`;
+function MetricBandLine({
+  reading,
+  band,
+}: {
+  reading: MetricReading;
+  band: WindowRead;
+}) {
+  const say = (n: number) =>
+    reading.unit
+      ? formatSeriesValue(n, reading.unit)
+      : formatMetricNumber(Math.round(n * 100) / 100);
+  const span =
+    band.periods < band.of
+      ? `${band.periods} of ${band.of} ${band.period}s`
+      : `${band.of} ${band.period}${band.of === 1 ? "" : "s"}`;
   const mde = mdeWords(band.mde);
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-2 text-meta tabular-nums" style={{ color: "var(--sol-text-dim)" }} title={`${metricLine(reading, Date.now())}\nPeriods read (UTC): ${periodsWords(band, say)}`} data-metric-band>
-      <span>{span}: {band.pooling === "pooled" ? "pooled" : "mean"} {say(band.mean)}</span>
-      {band.low !== null && band.high !== null && <span data-metric-band-range>80% {rangeWords(say(band.low), say(band.high))}</span>}
+    <div
+      className="mt-1 flex flex-wrap items-center gap-x-2 text-meta tabular-nums"
+      style={{ color: "var(--sol-text-dim)" }}
+      title={`${metricLine(reading, Date.now())}\nPeriods read (UTC): ${periodsWords(band, say)}`}
+      data-metric-band
+    >
+      <span>
+        {span}: {band.pooling === "pooled" ? "pooled" : "mean"} {say(band.mean)}
+      </span>
+      {band.low !== null && band.high !== null && (
+        <span data-metric-band-range>
+          80% {rangeWords(say(band.low), say(band.high))}
+        </span>
+      )}
       {mde && <span data-metric-mde>detects {mde} in 4 wk</span>}
-      {band.failing && <span style={{ color: "var(--sol-red)" }} title={band.failing} data-metric-failing>from polls, source failing</span>}
+      {band.failing && (
+        <span
+          style={{ color: "var(--sol-red)" }}
+          title={band.failing}
+          data-metric-failing
+        >
+          from polls, source failing
+        </span>
+      )}
     </div>
   );
 }
 
 /** A number read live from a series: when its source last answered, and which series it is. */
 function LiveMark({ reading, now }: { reading: MetricReading; now: number }) {
-  const age = reading.observed_at ? compactAge(Math.max(0, now - reading.observed_at)) : null;
+  const age = reading.observed_at
+    ? compactAge(Math.max(0, now - reading.observed_at))
+    : null;
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap text-meta tabular-nums" style={{ color: "var(--sol-text-dim)" }} title={reading.source ?? reading.series} data-metric-live={reading.series}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--sol-cyan)" }} />
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap text-meta tabular-nums"
+      style={{ color: "var(--sol-text-dim)" }}
+      title={reading.source ?? reading.series}
+      data-metric-live={reading.series}
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: "var(--sol-cyan)" }}
+      />
       live{age ? ` · ${age}` : ""}
     </span>
   );
@@ -250,40 +734,113 @@ function LiveMark({ reading, now }: { reading: MetricReading; now: number }) {
 
 /** A number the work must not make worse while it moves the others. */
 function GuardrailMark() {
-  return <span className="whitespace-nowrap rounded px-1 text-meta" style={{ color: "var(--sol-text-muted)", background: "color-mix(in srgb, var(--sol-border) 22%, transparent)" }} data-metric-guardrail>guardrail</span>;
+  return (
+    <span
+      className="whitespace-nowrap rounded px-1 text-meta"
+      style={{
+        color: "var(--sol-text-muted)",
+        background: "color-mix(in srgb, var(--sol-border) 22%, transparent)",
+      }}
+      data-metric-guardrail
+    >
+      guardrail
+    </span>
+  );
 }
 
 /** The next milestone and its day: red when its day has passed and it is not reached; "no milestone" when none is set. */
-export function NextMilestoneChip({ milestone, now, counts, className }: { milestone: InitiativeMilestone | null; now: number; counts?: { done: number; total: number }; className?: string }) {
+export function NextMilestoneChip({
+  milestone,
+  now,
+  counts,
+  className,
+}: {
+  milestone: InitiativeMilestone | null;
+  now: number;
+  counts?: { done: number; total: number };
+  className?: string;
+}) {
   if (!milestone) {
-    return counts?.total ? <span className={cn("text-meta", className)} style={{ color: "var(--sol-text-dim)" }} data-initiative-milestone="all-reached">{counts.total === 1 ? "Its milestone is reached" : `All ${counts.total} milestones reached`}</span> : null;
+    return counts?.total ? (
+      <span
+        className={cn("text-meta", className)}
+        style={{ color: "var(--sol-text-dim)" }}
+        data-initiative-milestone="all-reached"
+      >
+        {counts.total === 1
+          ? "Its milestone is reached"
+          : `All ${counts.total} milestones reached`}
+      </span>
+    ) : null;
   }
   const late = !!milestone.date && targetDayPassed(milestone.date, now);
   return (
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0 text-meta", className)} title={`Next milestone${counts ? `, ${counts.done} of ${counts.total} reached` : ""}`} data-initiative-milestone={late ? "late" : "next"}>
-      <Flag className="w-3 h-3 shrink-0" style={{ color: late ? HEALTH_COLOR.off_track : INITIATIVE_ACCENT }} />
-      <span className="truncate" style={{ color: "var(--sol-text-secondary)" }}>{milestone.title}</span>
-      {milestone.date ? <span className="tabular-nums whitespace-nowrap" style={{ color: late ? HEALTH_COLOR.off_track : "var(--sol-text-dim)" }}>{formatTargetDay(milestone.date, now)}</span> : null}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 min-w-0 text-meta",
+        className,
+      )}
+      title={`Next milestone${counts ? `, ${counts.done} of ${counts.total} reached` : ""}`}
+      data-initiative-milestone={late ? "late" : "next"}
+    >
+      <Flag
+        className="w-3 h-3 shrink-0"
+        style={{ color: late ? HEALTH_COLOR.off_track : INITIATIVE_ACCENT }}
+      />
+      <span className="truncate" style={{ color: "var(--sol-text-secondary)" }}>
+        {milestone.title}
+      </span>
+      {milestone.date ? (
+        <span
+          className="tabular-nums whitespace-nowrap"
+          style={{
+            color: late ? HEALTH_COLOR.off_track : "var(--sol-text-dim)",
+          }}
+        >
+          {formatTargetDay(milestone.date, now)}
+        </span>
+      ) : null}
     </span>
   );
 }
 
 /** Who asked, decided or said it, read off the roster: the face when `by`
  *  names a person or a role here (an @handle, or a name), null when not. */
-function useWho(): (by: string | undefined) => ReturnType<typeof resolveAssigneeInfo> {
+function useWho(): (
+  by: string | undefined,
+) => ReturnType<typeof resolveAssigneeInfo> {
   const { roles } = useOrgRoles();
   const roster = useTeamRosterIdentity();
   const s = useTrackedStore([(st) => st.currentUser?._id]);
-  return useCallback((by) => {
-    const text = (by ?? "").trim();
-    if (!text) return null;
-    const handle = text.startsWith("@") ? text.slice(1).toLowerCase() : null;
-    const name = text.toLowerCase();
-    const person = roster.find((m) => (handle ? memberHandle(m) === handle : memberDisplayName(m, "").toLowerCase() === name));
-    const role = person ? undefined : roles.find((r) => (handle ? r.handle === handle : r.name.toLowerCase() === name));
-    const id = person?._id ?? role?._id;
-    return id ? resolveAssigneeInfo(String(id), undefined, roster as any, s.currentUser as any, roles as any) : null;
-  }, [roles, roster, s.currentUser]);
+  return useCallback(
+    (by) => {
+      const text = (by ?? "").trim();
+      if (!text) return null;
+      const handle = text.startsWith("@") ? text.slice(1).toLowerCase() : null;
+      const name = text.toLowerCase();
+      const person = roster.find((m) =>
+        handle
+          ? memberHandle(m) === handle
+          : memberDisplayName(m, "").toLowerCase() === name,
+      );
+      const role = person
+        ? undefined
+        : roles.find((r) =>
+            handle ? r.handle === handle : r.name.toLowerCase() === name,
+          );
+      const id = person?._id ?? role?._id;
+      return id
+        ? resolveAssigneeInfo(
+            String(id),
+            undefined,
+            roster as any,
+            s.currentUser as any,
+            roles as any,
+          )
+        : null;
+    },
+    [roles, roster, s.currentUser],
+  );
 }
 
 /** `by` as a face and a name when the roster knows it, and the words as written when not. */
@@ -292,7 +849,11 @@ export function ByChip({ by, className }: { by?: string; className?: string }) {
   if (!by) return null;
   const info = who(by);
   return (
-    <span className={cn("inline-flex items-center gap-1 min-w-0", className)} style={{ color: "var(--sol-text-muted)" }} data-initiative-by={info ? "face" : "text"}>
+    <span
+      className={cn("inline-flex items-center gap-1 min-w-0", className)}
+      style={{ color: "var(--sol-text-muted)" }}
+      data-initiative-by={info ? "face" : "text"}
+    >
       {info && <AssigneeFace info={info} size={13} />}
       <span className="truncate">{info?.name ?? by}</span>
     </span>
@@ -303,32 +864,116 @@ export function ByChip({ by, className }: { by?: string; className?: string }) {
  *  session, task or plan, then who said it and when. A note has no address,
  *  so it shows its words. `bare` is the address alone, for a row that prints
  *  who and when itself. */
-export function SourceLink({ source, now, bare, className }: { source: IntentSource; now: number; bare?: boolean; className?: string }) {
+export function SourceLink({
+  source,
+  now,
+  bare,
+  className,
+}: {
+  source: IntentSource;
+  now: number;
+  bare?: boolean;
+  className?: string;
+}) {
   const href = intentSourceHref(source);
   const words = source.kind === "note" ? source.quote : undefined;
   const body = (
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0 max-w-full text-meta", className)} style={{ color: "var(--sol-text-dim)" }} data-intent-source={source.kind}>
-      <span className={cn(words ? "truncate max-w-[40ch]" : "shrink-0", href && "underline decoration-dotted underline-offset-2")} title={href ? undefined : source.quote} data-intent-source-label>{words ?? intentSourceLabel(source)}</span>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 min-w-0 max-w-full text-meta",
+        className,
+      )}
+      style={{ color: "var(--sol-text-dim)" }}
+      data-intent-source={source.kind}
+    >
+      <span
+        className={cn(
+          words ? "truncate max-w-[40ch]" : "shrink-0",
+          href && "underline decoration-dotted underline-offset-2",
+        )}
+        title={href ? undefined : source.quote}
+        data-intent-source-label
+      >
+        {words ?? intentSourceLabel(source)}
+      </span>
       {!bare && <ByChip by={source.by} />}
-      {!bare && source.at ? <span className="tabular-nums whitespace-nowrap">{shortDate(source.at, now)}</span> : null}
+      {!bare && source.at ? (
+        <span className="tabular-nums whitespace-nowrap">
+          {shortDate(source.at, now)}
+        </span>
+      ) : null}
     </span>
   );
   if (!href) return body;
-  return /^https?:/.test(href)
-    ? <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:text-sol-text" title={source.quote}>{body}</a>
-    : <Link href={href} className="no-underline hover:text-sol-text" title={source.quote}>{body}</Link>;
+  return /^https?:/.test(href) ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="no-underline hover:text-sol-text"
+      title={source.quote}
+    >
+      {body}
+    </a>
+  ) : (
+    <Link
+      href={href}
+      className="no-underline hover:text-sol-text"
+      title={source.quote}
+    >
+      {body}
+    </Link>
+  );
 }
 
 /** The latest update as one line: the health it said, how long ago, and its first words. Nothing before an update exists. */
-export function UpdateLine({ update, now, className }: { update: { health: InitiativeUpdateHealth; at: number; body: string } | null | undefined; now: number; className?: string }) {
+export function UpdateLine({
+  update,
+  now,
+  className,
+}: {
+  update:
+    | { health: InitiativeUpdateHealth; at: number; body: string }
+    | null
+    | undefined;
+  now: number;
+  className?: string;
+}) {
   if (!update) return null;
-  const first = stripMachineText(update.body).split("\n").map((l) => stripMarkdown(l)).find(Boolean) ?? "";
+  const first =
+    stripMachineText(update.body)
+      .split("\n")
+      .map((l) => stripMarkdown(l))
+      .find(Boolean) ?? "";
   return (
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0 text-meta", className)} title={first} data-initiative-update-line={update.health}>
-      <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: HEALTH_COLOR[update.health] }} aria-hidden />
-      <span className="whitespace-nowrap" style={{ color: "var(--sol-text-secondary)" }}>{INITIATIVE_HEALTH_LABEL[update.health]}</span>
-      <span className="tabular-nums whitespace-nowrap" style={{ color: "var(--sol-text-dim)" }}>{compactAge(Math.max(0, now - update.at))}</span>
-      <span className="truncate" style={{ color: "var(--sol-text-muted)" }}>{first}</span>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 min-w-0 text-meta",
+        className,
+      )}
+      title={first}
+      data-initiative-update-line={update.health}
+    >
+      <span
+        className="w-[7px] h-[7px] rounded-full shrink-0"
+        style={{ background: HEALTH_COLOR[update.health] }}
+        aria-hidden
+      />
+      <span
+        className="whitespace-nowrap"
+        style={{ color: "var(--sol-text-secondary)" }}
+      >
+        {INITIATIVE_HEALTH_LABEL[update.health]}
+      </span>
+      <span
+        className="tabular-nums whitespace-nowrap"
+        style={{ color: "var(--sol-text-dim)" }}
+      >
+        {compactAge(Math.max(0, now - update.at))}
+      </span>
+      <span className="truncate" style={{ color: "var(--sol-text-muted)" }}>
+        {first}
+      </span>
     </span>
   );
 }

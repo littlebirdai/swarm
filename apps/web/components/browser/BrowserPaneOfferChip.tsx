@@ -21,14 +21,21 @@ import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { openBrowserPane, stageHasRoom } from "../../lib/stage";
 import { isLoopbackUrl } from "../../lib/browserPane";
-import { paneOfferDecision, paneOfferHint, paneOfferLabel } from "../../lib/browserPaneOffer";
+import {
+  paneOfferDecision,
+  paneOfferHint,
+  paneOfferLabel,
+} from "../../lib/browserPaneOffer";
 
 /** The offer this conversation is carrying, from whichever row holds it: the
  *  meta row once the session has been opened, the inbox row before that. */
 function usePaneOffer(conversationId: string): BrowserPaneOffer | null {
   return useInboxStore((s) => {
-    const row: any = s.conversations[conversationId] ?? s.sessions[conversationId];
-    return (row?.browser_pane_offer as BrowserPaneOffer | null | undefined) ?? null;
+    const row: any =
+      s.conversations[conversationId] ?? s.sessions[conversationId];
+    return (
+      (row?.browser_pane_offer as BrowserPaneOffer | null | undefined) ?? null
+    );
   });
 }
 
@@ -36,8 +43,11 @@ function usePaneOffer(conversationId: string): BrowserPaneOffer | null {
  *  native view knows which session may drive it (lib/browserPane.ts). */
 function usePaneOfferSession(conversationId: string): string | undefined {
   return useInboxStore((s) => {
-    const row: any = s.conversations[conversationId] ?? s.sessions[conversationId];
-    return typeof row?.session_id === "string" && row.session_id ? row.session_id : undefined;
+    const row: any =
+      s.conversations[conversationId] ?? s.sessions[conversationId];
+    return typeof row?.session_id === "string" && row.session_id
+      ? row.session_id
+      : undefined;
   });
 }
 
@@ -45,11 +55,17 @@ function usePaneOfferSession(conversationId: string): string | undefined {
  * The header chip. Renders nothing at all for the great majority of sessions,
  * which is why it subscribes to one field rather than the row.
  */
-export function BrowserPaneOfferChip({ conversationId }: { conversationId: string }) {
+export function BrowserPaneOfferChip({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
   const offer = usePaneOffer(conversationId);
   const session = usePaneOfferSession(conversationId);
   const attended = useInboxStore((s) => s.currentSessionId === conversationId);
-  const autoOpenPref = useInboxStore((s) => s.clientState.ui?.auto_open_browser_panes === true);
+  const autoOpenPref = useInboxStore(
+    (s) => s.clientState.ui?.auto_open_browser_panes === true,
+  );
   const dismiss = useInboxStore((s) => s.dismissBrowserPaneOffer);
 
   // Only a loopback address needs a machine name, so only a loopback address
@@ -61,7 +77,9 @@ export function BrowserPaneOfferChip({ conversationId }: { conversationId: strin
     api.devices.getConversationMachine,
     loopback ? ({ conversation_id: conversationId as any } as any) : "skip",
   );
-  const machine = machineQuery.data ? deviceDisplayName(machineQuery.data as any) : null;
+  const machine = machineQuery.data
+    ? deviceDisplayName(machineQuery.data as any)
+    : null;
 
   const decision = paneOfferDecision({
     offer,
@@ -86,7 +104,12 @@ export function BrowserPaneOfferChip({ conversationId }: { conversationId: strin
   // a re-render or a second window from opening the same pane twice.
   useWatchEffect(() => {
     if (!decision.autoOpen || !offer) return;
-    if (openBrowserPane({ kind: "url", url: offer.url, session }, { beside: "only" })) {
+    if (
+      openBrowserPane(
+        { kind: "url", url: offer.url, session },
+        { beside: "only" },
+      )
+    ) {
       dismiss(conversationId, Date.now());
     }
   }, [decision.autoOpen, offer, session, conversationId, dismiss]);
@@ -122,7 +145,11 @@ export function BrowserPaneOfferChip({ conversationId }: { conversationId: strin
  * The inbox card's version: the same fact, one glyph wide. It renders from the
  * row the card already holds, so a list of 300 cards adds no subscriptions.
  */
-export function BrowserPaneOfferGlyph({ offer }: { offer: BrowserPaneOffer | null | undefined }) {
+export function BrowserPaneOfferGlyph({
+  offer,
+}: {
+  offer: BrowserPaneOffer | null | undefined;
+}) {
   const decision = paneOfferDecision({
     offer,
     now: Date.now(),

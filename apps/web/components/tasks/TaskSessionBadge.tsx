@@ -5,9 +5,24 @@ import { useTaskActiveSession } from "./taskActiveSession";
 
 // The one session a task row points at: the live one when a session is
 // working it, else the session the task came from. Clicking opens it beside.
-export function TaskSessionBadge({ task, compact, className }: { task: TaskItem; compact?: boolean; className?: string }) {
+export function TaskSessionBadge({
+  task,
+  compact,
+  className,
+}: {
+  task: TaskItem;
+  compact?: boolean;
+  className?: string;
+}) {
   const activeSession = useTaskActiveSession(task._id);
-  if (activeSession) return <ActiveSessionBadge session={activeSession} compact={compact} className={className} />;
+  if (activeSession)
+    return (
+      <ActiveSessionBadge
+        session={activeSession}
+        compact={compact}
+        className={className}
+      />
+    );
   const origin = task.origin_session;
   if (!origin) return null;
   return (

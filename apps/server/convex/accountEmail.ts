@@ -42,7 +42,9 @@ function refuse(message: string): never {
 }
 
 function normalize(raw: string | undefined | null): string {
-  return String(raw ?? "").trim().toLowerCase();
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 async function me(ctx: MutationCtx): Promise<Doc<"users">> {
@@ -54,15 +56,26 @@ async function me(ctx: MutationCtx): Promise<Doc<"users">> {
 
 /** Throws the sentence to show unless `email` can become this person's
  *  sign-in address. */
-async function assertCanMoveTo(ctx: Pick<MutationCtx, "db">, user: Doc<"users">, email: string): Promise<void> {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) refuse("That does not look like an email address");
-  if (normalize(user.email) === email) refuse("That is already your sign-in address");
+async function assertCanMoveTo(
+  ctx: Pick<MutationCtx, "db">,
+  user: Doc<"users">,
+  email: string,
+): Promise<void> {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    refuse("That does not look like an email address");
+  if (normalize(user.email) === email)
+    refuse("That is already your sign-in address");
   const taken = "Another account already signs in with that address";
-  const owners = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).collect();
+  const owners = await ctx.db
+    .query("users")
+    .withIndex("email", (q) => q.eq("email", email))
+    .collect();
   if (owners.some((owner) => owner._id !== user._id)) refuse(taken);
   const login = await ctx.db
     .query("authAccounts")
-    .withIndex("providerAndAccountId", (q) => q.eq("provider", "password").eq("providerAccountId", email))
+    .withIndex("providerAndAccountId", (q) =>
+      q.eq("provider", "password").eq("providerAccountId", email),
+    )
     .first();
   if (login && login.userId !== user._id) refuse(taken);
 }
@@ -83,7 +96,12 @@ export const requestEmailChange = mutation({
  *  the try it cost is kept (lib/emailProof). */
 export const confirmEmailChange = mutation({
   args: { email: v.string(), code: v.string() },
-  handler: async (ctx, args): Promise<{ changed: true; email: string } | { changed: false; error: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    { changed: true; email: string } | { changed: false; error: string }
+  > => {
     const user = await me(ctx);
     const email = normalize(args.email);
     const check = await redeemEmailCode(ctx, user, email, args.code);
@@ -92,19 +110,30 @@ export const confirmEmailChange = mutation({
     await assertCanMoveTo(ctx, user, email);
 
     const previous = normalize(user.email);
-    const others = (user.alternate_emails ?? []).map(normalize).filter((other) => other && other !== email);
+    const others = (user.alternate_emails ?? [])
+      .map(normalize)
+      .filter((other) => other && other !== email);
     if (previous && !others.includes(previous)) others.push(previous);
     const now = Date.now();
-    await ctx.db.patch(user._id, { email, emailVerificationTime: now, alternate_emails: others });
+    await ctx.db.patch(user._id, {
+      email,
+      emailVerificationTime: now,
+      alternate_emails: others,
+    });
 
     if (previous) {
       const logins = await ctx.db
         .query("authAccounts")
-        .withIndex("userIdAndProvider", (q) => q.eq("userId", user._id).eq("provider", "password"))
+        .withIndex("userIdAndProvider", (q) =>
+          q.eq("userId", user._id).eq("provider", "password"),
+        )
         .collect();
       for (const login of logins) {
         if (normalize(login.providerAccountId) !== previous) continue;
-        await ctx.db.patch(login._id, { providerAccountId: email, emailVerified: email });
+        await ctx.db.patch(login._id, {
+          providerAccountId: email,
+          emailVerified: email,
+        });
       }
       await ctx.scheduler.runAfter(0, internal.emails.send.sendEmailChanged, {
         old_email: previous,

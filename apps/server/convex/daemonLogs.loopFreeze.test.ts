@@ -28,7 +28,9 @@ describe("shouldNotifyDeviceFreeze", () => {
 
   test("stays silent under the bar and with nothing reported", () => {
     expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 60_000 })).toBe(false);
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: undefined })).toBe(false);
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: undefined })).toBe(
+      false,
+    );
     expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 0 })).toBe(false);
   });
 
@@ -37,17 +39,26 @@ describe("shouldNotifyDeviceFreeze", () => {
   });
 
   test("an offline machine never notifies", () => {
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, online: false })).toBe(false);
+    expect(
+      shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, online: false }),
+    ).toBe(false);
   });
 
   test("the same hour total inside the cooldown is already covered", () => {
     const state = { last_notified_at: NOW - 60_000, last_hour_ms: 215_000 };
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, state })).toBe(false);
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, state })).toBe(
+      false,
+    );
   });
 
   test("a worse hour past the cooldown announces itself again", () => {
-    const state = { last_notified_at: NOW - FREEZE_NOTIFY_COOLDOWN_MS - 1, last_hour_ms: 215_000 };
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 400_000, state })).toBe(true);
+    const state = {
+      last_notified_at: NOW - FREEZE_NOTIFY_COOLDOWN_MS - 1,
+      last_hour_ms: 215_000,
+    };
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 400_000, state })).toBe(
+      true,
+    );
     // A worse hour INSIDE the cooldown still waits.
     expect(
       shouldNotifyDeviceFreeze({
@@ -61,8 +72,13 @@ describe("shouldNotifyDeviceFreeze", () => {
   test("an unchanged value past the cooldown stays silent forever", () => {
     // This is the case where a daemon stopped reporting and left the value
     // where it was. A number that never grows is never news again.
-    const state = { last_notified_at: NOW - 10 * FREEZE_NOTIFY_COOLDOWN_MS, last_hour_ms: 215_000 };
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, state })).toBe(false);
+    const state = {
+      last_notified_at: NOW - 10 * FREEZE_NOTIFY_COOLDOWN_MS,
+      last_hour_ms: 215_000,
+    };
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 215_000, state })).toBe(
+      false,
+    );
   });
 
   // The founder's own laptop: over the bar every hour of every day, and rarely
@@ -70,20 +86,35 @@ describe("shouldNotifyDeviceFreeze", () => {
   // after the first alert for the life of the row, because a value between the
   // bar and the peak is neither worse nor low enough to clear the stamp.
   test("a machine that keeps breaching without a new peak re-alerts on the long interval", () => {
-    const state = { last_notified_at: NOW - 3 * 24 * 60 * 60 * 1000, last_hour_ms: 400_000 };
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 300_000, state })).toBe(true);
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 399_000, state })).toBe(true);
+    const state = {
+      last_notified_at: NOW - 3 * 24 * 60 * 60 * 1000,
+      last_hour_ms: 400_000,
+    };
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 300_000, state })).toBe(
+      true,
+    );
+    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 399_000, state })).toBe(
+      true,
+    );
     // Inside the long interval it waits, so a chronic machine is heard from
     // every few hours, not every cron tick.
-    const recent = { last_notified_at: NOW - FREEZE_NOTIFY_COOLDOWN_MS - 1, last_hour_ms: 400_000 };
-    expect(shouldNotifyDeviceFreeze({ ...base, hourMs: 300_000, state: recent })).toBe(false);
+    const recent = {
+      last_notified_at: NOW - FREEZE_NOTIFY_COOLDOWN_MS - 1,
+      last_hour_ms: 400_000,
+    };
+    expect(
+      shouldNotifyDeviceFreeze({ ...base, hourMs: 300_000, state: recent }),
+    ).toBe(false);
     expect(FREEZE_RENOTIFY_MS).toBeGreaterThan(FREEZE_NOTIFY_COOLDOWN_MS);
   });
 });
 
 // Hand-rolled ctx in the style of artifacts.test.ts: enough db surface for the
 // handler, recording the sub-mutation calls and the order of writes.
-function makeCtx(rows: Array<Record<string, any>>, emitResult: { notified: number } = { notified: 1 }) {
+function makeCtx(
+  rows: Array<Record<string, any>>,
+  emitResult: { notified: number } = { notified: 1 },
+) {
   const calls: Array<{ fn: any; args: Record<string, any> }> = [];
   const writes: string[] = [];
   const query = (table: string) => {
@@ -93,14 +124,22 @@ function makeCtx(rows: Array<Record<string, any>>, emitResult: { notified: numbe
         const eqs: Record<string, any> = {};
         const gtes: Record<string, any> = {};
         const q = {
-          eq(field: string, value: any) { eqs[field] = value; return q; },
-          gte(field: string, value: any) { gtes[field] = value; return q; },
+          eq(field: string, value: any) {
+            eqs[field] = value;
+            return q;
+          },
+          gte(field: string, value: any) {
+            gtes[field] = value;
+            return q;
+          },
         };
         cb(q);
         filtered = filtered.filter(
           (r) =>
             Object.entries(eqs).every(([k, v]) => r[k] === v) &&
-            Object.entries(gtes).every(([k, v]) => (r[k] ?? 0) >= (v as number)),
+            Object.entries(gtes).every(
+              ([k, v]) => (r[k] ?? 0) >= (v as number),
+            ),
         );
         return {
           collect: async () => filtered,
@@ -116,7 +155,10 @@ function makeCtx(rows: Array<Record<string, any>>, emitResult: { notified: numbe
         get: async (id: string) => rows.find((r) => r._id === id) ?? null,
         patch: async (id: string, patch: Record<string, any>) => {
           writes.push(`patch:${id}`);
-          Object.assign(rows.find((r) => r._id === id)!, patch);
+          Object.assign(
+            rows.find((r) => r._id === id)!,
+            patch,
+          );
         },
         insert: async () => "x",
       },
@@ -132,7 +174,9 @@ function makeCtx(rows: Array<Record<string, any>>, emitResult: { notified: numbe
 }
 
 describe("checkDeviceLoopFreeze", () => {
-  const handler = (checkDeviceLoopFreeze as any)._handler ?? (checkDeviceLoopFreeze as any).handler;
+  const handler =
+    (checkDeviceLoopFreeze as any)._handler ??
+    (checkDeviceLoopFreeze as any).handler;
 
   function fixture(): Array<Record<string, any>> {
     return [
@@ -194,7 +238,8 @@ describe("checkDeviceLoopFreeze", () => {
 
     // Quiet past the cooldown: now the stamp is dropped and the next incident
     // is judged on its own.
-    rows[1].freeze_notify_state.last_notified_at = Date.now() - FREEZE_NOTIFY_COOLDOWN_MS - 1;
+    rows[1].freeze_notify_state.last_notified_at =
+      Date.now() - FREEZE_NOTIFY_COOLDOWN_MS - 1;
     expect((await handler(ctx, {})).notified).toBe(0);
     expect(rows[1].freeze_notify_state).toBeUndefined();
 
@@ -234,7 +279,8 @@ describe("checkDeviceLoopFreeze", () => {
 
     // A few hours later the same breach is news again, and the stamp follows
     // the number down so the next comparison is against what we just said.
-    rows[1].freeze_notify_state.last_notified_at = Date.now() - FREEZE_RENOTIFY_MS - 1;
+    rows[1].freeze_notify_state.last_notified_at =
+      Date.now() - FREEZE_RENOTIFY_MS - 1;
     expect((await handler(ctx, {})).notified).toBe(1);
     expect(rows[1].freeze_notify_state.last_hour_ms).toBe(300_000);
     expect(calls).toHaveLength(2);

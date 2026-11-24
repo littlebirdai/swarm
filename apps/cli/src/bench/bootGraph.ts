@@ -51,7 +51,11 @@ export interface GraphOptions {
 export function repoRootFrom(start: string): string {
   let dir = path.dirname(start);
   for (;;) {
-    if (fs.existsSync(path.join(dir, "bun.lock")) || fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
+    if (
+      fs.existsSync(path.join(dir, "bun.lock")) ||
+      fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))
+    )
+      return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return path.dirname(start);
     dir = parent;
@@ -75,7 +79,8 @@ export function staticImportSpecifiers(source: string): string[] {
   // open paren) and a 100 KB `export const CATALOG = {…}` from being scanned
   // as statements; an unbounded lazy clause both invented edges and ran
   // quadratically over the string catalogs.
-  const stmt = /(^|[\n;])[ \t]*(import|export)\s+([\w$*{},\s]*?)from\s*["']([^"']+)["']/g;
+  const stmt =
+    /(^|[\n;])[ \t]*(import|export)\s+([\w$*{},\s]*?)from\s*["']([^"']+)["']/g;
   for (let m = stmt.exec(source); m; m = stmt.exec(source)) {
     const clause = m[3];
     const spec = m[4];
@@ -92,8 +97,15 @@ function isAllTypeSpecifiers(clause: string): boolean {
   const braces = clause.match(/\{([\s\S]*)\}/);
   if (!braces) return false;
   // A default or namespace binding outside the braces is a value import.
-  if (clause.slice(0, clause.indexOf("{")).trim().replace(/,$/, "").trim().length > 0) return false;
-  const names = braces[1].split(",").map((s) => s.trim()).filter(Boolean);
+  if (
+    clause.slice(0, clause.indexOf("{")).trim().replace(/,$/, "").trim()
+      .length > 0
+  )
+    return false;
+  const names = braces[1]
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return names.length > 0 && names.every((n) => /^type\s/.test(n));
 }
 
@@ -106,17 +118,32 @@ export function callImportSpecifiers(source: string): string[] {
 }
 
 /** Resolves an import specifier to a repo source file, or null when it is a package. */
-export function resolveSpecifier(spec: string, fromFile: string, root: string, opts: GraphOptions = {}): string | null {
+export function resolveSpecifier(
+  spec: string,
+  fromFile: string,
+  root: string,
+  opts: GraphOptions = {},
+): string | null {
   let base: string;
   if (spec.startsWith(".")) {
     base = path.resolve(path.dirname(fromFile), spec);
   } else if (spec.startsWith("@codecast/shared")) {
-    base = path.join(root, "packages/shared", spec.slice("@codecast/shared".length) || "index");
+    base = path.join(
+      root,
+      "packages/shared",
+      spec.slice("@codecast/shared".length) || "index",
+    );
   } else if (spec.startsWith("@platform/")) {
     const rest = spec.slice("@platform/".length);
     const slash = rest.indexOf("/");
     const pkg = slash === -1 ? rest : rest.slice(0, slash);
-    base = path.join(root, "platform/packages", pkg, "src", slash === -1 ? "index" : rest.slice(slash + 1));
+    base = path.join(
+      root,
+      "platform/packages",
+      pkg,
+      "src",
+      slash === -1 ? "index" : rest.slice(slash + 1),
+    );
   } else {
     const aliased = opts.alias?.(spec, fromFile, root);
     if (!aliased) return null;
@@ -124,27 +151,46 @@ export function resolveSpecifier(spec: string, fromFile: string, root: string, o
   }
   // "./x.js" in TypeScript ESM means "./x.ts" on disk.
   const stripped = base.replace(/\.(js|mjs|jsx)$/, "");
-  const exts = [...(opts.platforms ?? []).flatMap((p) => SOURCE_EXTS.map((e) => `.${p}${e}`)), ...SOURCE_EXTS];
-  for (const candidate of [base, ...exts.map((e) => stripped + e), ...exts.map((e) => path.join(stripped, "index" + e))]) {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+  const exts = [
+    ...(opts.platforms ?? []).flatMap((p) =>
+      SOURCE_EXTS.map((e) => `.${p}${e}`),
+    ),
+    ...SOURCE_EXTS,
+  ];
+  for (const candidate of [
+    base,
+    ...exts.map((e) => stripped + e),
+    ...exts.map((e) => path.join(stripped, "index" + e)),
+  ]) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile())
+      return candidate;
   }
   return null;
 }
 
 /** Walks every static import edge from `entry`, breadth first. */
-export function buildBootGraph(entry: string | string[], rootArg?: string, opts: GraphOptions = {}): BootGraph {
+export function buildBootGraph(
+  entry: string | string[],
+  rootArg?: string,
+  opts: GraphOptions = {},
+): BootGraph {
   // Resolve before finding the root: repoRootFrom walks parent directories, and
   // a relative entry walks a relative path that never reaches the workspace
   // root, which silently turns every @codecast/shared file into an "external"
   // and hides a third of the graph.
-  const entries = (Array.isArray(entry) ? entry : [entry]).map((e) => path.resolve(e));
+  const entries = (Array.isArray(entry) ? entry : [entry]).map((e) =>
+    path.resolve(e),
+  );
   const root = rootArg ?? repoRootFrom(entries[0]);
   const nodes = new Map<string, GraphNode>();
   const externals = new Set<string>();
   // Several entries (a router that requires a whole directory) hang off one
   // virtual root, so importChain still reports a chain from a real entry.
-  const entryAbs = Array.isArray(entry) ? path.join(root, "<entries>") : entries[0];
-  if (Array.isArray(entry)) nodes.set(entryAbs, { file: entryAbs, imports: entries, bytes: 0 });
+  const entryAbs = Array.isArray(entry)
+    ? path.join(root, "<entries>")
+    : entries[0];
+  if (Array.isArray(entry))
+    nodes.set(entryAbs, { file: entryAbs, imports: entries, bytes: 0 });
   const queue = [...entries];
   while (queue.length) {
     const file = queue.shift()!;
@@ -210,7 +256,9 @@ export function exclusiveTo(graph: BootGraph, via: string): Set<string> {
 }
 
 if (import.meta.main) {
-  const entry = process.argv[2] ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "main.ts");
+  const entry =
+    process.argv[2] ??
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "main.ts");
   const graph = buildBootGraph(entry);
   const root = repoRootFrom(path.resolve(entry));
   const rel = (f: string) => path.relative(root, f);
@@ -225,6 +273,7 @@ if (import.meta.main) {
       .filter((r) => r.exclusive > 0)
       .sort((a, b) => b.exclusive - a.exclusive);
     console.log("\ndirect imports of the entry, by modules only they pull in:");
-    for (const r of rows.slice(0, 40)) console.log(`  ${String(r.exclusive).padStart(4)}  ${r.file}`);
+    for (const r of rows.slice(0, 40))
+      console.log(`  ${String(r.exclusive).padStart(4)}  ${r.file}`);
   }
 }

@@ -12,11 +12,24 @@ export const MOBILE_EVENTS = defineCatalog({
   // where the time went. Durations are ms from the return; -1 means the step
   // never happened.
   mobile_foreground_sync: {
-    outcome: { type: "string", values: ["caught_up", "up_to_date", "backgrounded", "timeout"] },
+    outcome: {
+      type: "string",
+      values: ["caught_up", "up_to_date", "backgrounded", "timeout"],
+    },
     on_session: { type: "boolean" },
     away_ms: COUNT,
     ws_up_at_start: { type: "boolean" },
-    ws_state_at_start: { type: "string", values: ["ready", "connecting", "disconnected", "stopped", "terminated", "unknown"] },
+    ws_state_at_start: {
+      type: "string",
+      values: [
+        "ready",
+        "connecting",
+        "disconnected",
+        "stopped",
+        "terminated",
+        "unknown",
+      ],
+    },
     socket_idle_ms: COUNT,
     reconnect_ms: COUNT,
     first_msg_ms: COUNT,

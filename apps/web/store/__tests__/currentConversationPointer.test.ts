@@ -77,7 +77,9 @@ describe("conversation position foreground write gate", () => {
 
   it("never moves either value from the palette popup window", () => {
     (globalThis as any).document = { hasFocus: () => true };
-    (globalThis as any).window = { location: { pathname: "/palette", search: "" } };
+    (globalThis as any).window = {
+      location: { pathname: "/palette", search: "" },
+    };
     useInboxStore.getState().setCurrentSession("convA");
     const s = useInboxStore.getState();
     expect(s.clientState.current_conversation_id).toBe("convB");
@@ -103,7 +105,9 @@ describe("clientState server sync never navigates", () => {
   });
 
   const firstSync = () =>
-    useInboxStore.getState().syncTable("clientState", { current_conversation_id: "convZ" });
+    useInboxStore
+      .getState()
+      .syncTable("clientState", { current_conversation_id: "convZ" });
 
   it("does not navigate on a first sync at the app root (no URL — native shape)", () => {
     firstSync();
@@ -113,7 +117,9 @@ describe("clientState server sync never navigates", () => {
   });
 
   it("does not navigate on a first sync on /inbox", () => {
-    (globalThis as any).window = { location: { pathname: "/inbox", search: "" } };
+    (globalThis as any).window = {
+      location: { pathname: "/inbox", search: "" },
+    };
     firstSync();
     expect(useInboxStore.getState().pendingNavigateId).toBeNull();
   });
@@ -132,7 +138,10 @@ describe("sessions-sync restore fallback", () => {
 
   beforeEach(() => {
     resetStore();
-    useInboxStore.setState({ sessions: {}, clientState: { current_conversation_id: "convB", ...feedUi } });
+    useInboxStore.setState({
+      sessions: {},
+      clientState: { current_conversation_id: "convB", ...feedUi },
+    });
   });
 
   const syncSessions = () =>
@@ -181,17 +190,23 @@ describe("sessions-sync restore fallback", () => {
     // /conversation/<id> for a session this viewer cannot read (another
     // person's private one): boot used to land on the client's last position,
     // and the inbox then painted it in place of the unavailable note.
-    (globalThis as any).window = { location: { pathname: `/conversation/${"d".repeat(32)}`, search: "" } };
+    (globalThis as any).window = {
+      location: { pathname: `/conversation/${"d".repeat(32)}`, search: "" },
+    };
     useInboxStore.setState({ lastFocusedConversationId: "convB" });
     syncSessions();
     expect(useInboxStore.getState().currentSessionId).toBeNull();
-    (globalThis as any).window = { location: { pathname: "/conversation/jx7dwyv", search: "" } };
+    (globalThis as any).window = {
+      location: { pathname: "/conversation/jx7dwyv", search: "" },
+    };
     syncSessions();
     expect(useInboxStore.getState().currentSessionId).toBeNull();
   });
 
   it("a URL naming a cached conversation lands on it, over the client's own position", () => {
-    (globalThis as any).window = { location: { pathname: "/inbox", search: "?s=convA" } };
+    (globalThis as any).window = {
+      location: { pathname: "/inbox", search: "?s=convA" },
+    };
     useInboxStore.setState({ lastFocusedConversationId: "convB" });
     syncSessions();
     expect(useInboxStore.getState().currentSessionId).toBe("convA");
@@ -211,7 +226,9 @@ describe("sessions-sync restore fallback", () => {
 describe("stripStalePointerFromReplay (outbox boot replay)", () => {
   it("drops a stale pointer but keeps sibling clientState fields", () => {
     const out = stripStalePointerFromReplay({
-      client_state: { _: { current_conversation_id: "convOld", show_dismissed: true } },
+      client_state: {
+        _: { current_conversation_id: "convOld", show_dismissed: true },
+      },
     });
     expect(out).toEqual({ client_state: { _: { show_dismissed: true } } });
   });
@@ -228,7 +245,9 @@ describe("stripStalePointerFromReplay (outbox boot replay)", () => {
       client_state: { _: { current_conversation_id: "convOld" } },
       conversations: { c1: { inbox_dismissed_at: null } },
     });
-    expect(out).toEqual({ conversations: { c1: { inbox_dismissed_at: null } } });
+    expect(out).toEqual({
+      conversations: { c1: { inbox_dismissed_at: null } },
+    });
   });
 
   it("passes through patches that don't touch the pointer", () => {

@@ -29,12 +29,17 @@ import {
   type TaskStatusCategory,
   type TeamTaskStatus,
 } from "@codecast/shared/tasks";
-import { STATUS_COLOR_CLASSES, statusVisual, taskStatusKey } from "../../lib/taskStatuses";
+import {
+  STATUS_COLOR_CLASSES,
+  statusVisual,
+  taskStatusKey,
+} from "../../lib/taskStatuses";
 import { useInboxStore } from "../../store/inboxStore";
 import { filterByWorkspace } from "../../lib/workspaceScope";
 import { SettingsSection } from "./ui";
 
-const mintId = () => `st_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const mintId = () =>
+  `st_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // Unsaved drafts survive the editor unmounting (modal close, section switch,
 // backdrop click) so a half-finished edit is recoverable instead of silently
@@ -68,7 +73,10 @@ export function TeamTaskStatusEditor({
     () => pendingDrafts.get(draftKey) ?? null,
   );
   const setDraft = (
-    updater: TeamTaskStatus[] | null | ((cur: TeamTaskStatus[] | null) => TeamTaskStatus[] | null),
+    updater:
+      | TeamTaskStatus[]
+      | null
+      | ((cur: TeamTaskStatus[] | null) => TeamTaskStatus[] | null),
   ) =>
     setDraftState((cur) => {
       const next = typeof updater === "function" ? updater(cur) : updater;
@@ -79,7 +87,8 @@ export function TeamTaskStatusEditor({
   const [saving, setSaving] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const statuses = draft ?? saved;
-  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(saved);
+  const dirty =
+    draft !== null && JSON.stringify(draft) !== JSON.stringify(saved);
 
   // Live task counts per status, from this team's active tasks. Counted
   // against the SAVED list (what tasks currently resolve to), so a renamed
@@ -87,7 +96,10 @@ export function TeamTaskStatusEditor({
   const tasks = useInboxStore((s) => s.tasks);
   const counts = useMemo(() => {
     const out = new Map<string, number>();
-    for (const t of filterByWorkspace(Object.values(tasks) as any[], `team:${String(teamId)}`)) {
+    for (const t of filterByWorkspace(
+      Object.values(tasks) as any[],
+      `team:${String(teamId)}`,
+    )) {
       if (!isActiveTask(t)) continue;
       const key = taskStatusKey(t, saved);
       out.set(key, (out.get(key) ?? 0) + 1);
@@ -101,7 +113,9 @@ export function TeamTaskStatusEditor({
   const rename = (id: string, name: string) =>
     edit((list) => list.map((s) => (s.id === id ? { ...s, name } : s)));
   const recolor = (id: string, color?: string) =>
-    edit((list) => list.map((s) => (s.id === id ? { ...s, color: color as any } : s)));
+    edit((list) =>
+      list.map((s) => (s.id === id ? { ...s, color: color as any } : s)),
+    );
   const remove = (id: string) => {
     edit((list) => list.filter((s) => s.id !== id));
     setOpenId(null);
@@ -164,7 +178,9 @@ export function TeamTaskStatusEditor({
           return (
             <div key={category}>
               <div className="flex items-center justify-between rounded-md bg-sol-bg-alt/70 px-3 py-2">
-                <span className="text-sm text-sol-text-muted">{CATEGORY_LABEL[category]}</span>
+                <span className="text-sm text-sol-text-muted">
+                  {CATEGORY_LABEL[category]}
+                </span>
                 {isAdmin && (
                   <button
                     onClick={() => add(category)}
@@ -189,18 +205,35 @@ export function TeamTaskStatusEditor({
                         role={canOpen ? "button" : undefined}
                         tabIndex={canOpen ? 0 : undefined}
                         onClick={() => canOpen && setOpenId(open ? null : s.id)}
-                        onKeyDown={(e) => { if (canOpen && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpenId(open ? null : s.id); } }}
+                        onKeyDown={(e) => {
+                          if (canOpen && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault();
+                            setOpenId(open ? null : s.id);
+                          }
+                        }}
                         className={`flex items-center gap-3 rounded-md px-2 py-2.5 transition-colors ${
                           canOpen ? "cursor-pointer hover:bg-sol-bg-alt/40" : ""
                         } ${open ? "bg-sol-bg-alt/40" : ""}`}
                       >
-                        <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${v.bg}`}>
+                        <span
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${v.bg}`}
+                        >
                           <Icon className={`w-4 h-4 ${v.color}`} />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5 text-sm text-sol-text">
-                            <span className="truncate">{s.name || <span className="text-sol-text-dim italic">Unnamed</span>}</span>
-                            {isDefault && <span className="text-sol-text-dim">· Default</span>}
+                            <span className="truncate">
+                              {s.name || (
+                                <span className="text-sol-text-dim italic">
+                                  Unnamed
+                                </span>
+                              )}
+                            </span>
+                            {isDefault && (
+                              <span className="text-sol-text-dim">
+                                · Default
+                              </span>
+                            )}
                           </span>
                           <span className="block text-xs text-sol-text-muted mt-0.5">
                             {count === 1 ? "1 task" : `${count} tasks`}
@@ -209,13 +242,18 @@ export function TeamTaskStatusEditor({
                       </div>
 
                       {open && (
-                        <div className="ml-14 mr-2 mb-3 mt-1 flex flex-wrap items-center gap-x-4 gap-y-2" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="ml-14 mr-2 mb-3 mt-1 flex flex-wrap items-center gap-x-4 gap-y-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Input
                             autoFocus
                             value={s.name}
                             placeholder="Status name"
                             onChange={(e) => rename(s.id, e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") setOpenId(null); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") setOpenId(null);
+                            }}
                             className="h-8 min-w-[10rem] flex-1 bg-sol-bg border-sol-border text-sm text-sol-text"
                           />
                           <div className="flex items-center gap-1.5">
@@ -223,14 +261,20 @@ export function TeamTaskStatusEditor({
                               <button
                                 key={c}
                                 title={c}
-                                onClick={() => recolor(s.id, s.color === c ? undefined : c)}
+                                onClick={() =>
+                                  recolor(s.id, s.color === c ? undefined : c)
+                                }
                                 className={`w-4 h-4 rounded-full border transition-transform hover:scale-125 ${
                                   STATUS_COLOR_CLASSES[c].bg
                                 } ${STATUS_COLOR_CLASSES[c].border} ${
-                                  s.color === c ? "ring-2 ring-sol-text/60 ring-offset-1 ring-offset-sol-bg" : ""
+                                  s.color === c
+                                    ? "ring-2 ring-sol-text/60 ring-offset-1 ring-offset-sol-bg"
+                                    : ""
                                 }`}
                               >
-                                <span className={`block w-2 h-2 m-auto rounded-full ${STATUS_COLOR_CLASSES[c].color.replace("text-", "bg-")}`} />
+                                <span
+                                  className={`block w-2 h-2 m-auto rounded-full ${STATUS_COLOR_CLASSES[c].color.replace("text-", "bg-")}`}
+                                />
                               </button>
                             ))}
                           </div>
@@ -254,7 +298,11 @@ export function TeamTaskStatusEditor({
                             <button
                               onClick={() => remove(s.id)}
                               disabled={rows.length === 1}
-                              title={rows.length === 1 ? "Each category keeps at least one status" : "Delete status"}
+                              title={
+                                rows.length === 1
+                                  ? "Each category keeps at least one status"
+                                  : "Delete status"
+                              }
                               className="w-6 h-6 flex items-center justify-center rounded hover:bg-sol-red/10 text-sol-text-dim hover:text-sol-red disabled:opacity-20 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -271,27 +319,38 @@ export function TeamTaskStatusEditor({
         })}
       </div>
       {!isAdmin && (
-        <p className="text-meta text-sol-text-dim mt-3">Only team admins can edit statuses.</p>
+        <p className="text-meta text-sol-text-dim mt-3">
+          Only team admins can edit statuses.
+        </p>
       )}
-      {isAdmin && dirty && (
-        // Floating save pill: sticky keeps it in view however far the list
-        // scrolls; its own tinted surface, border and shadow separate it from
-        // the card, so content passing beneath reads as elevation, not a seam.
-        <div className="sticky bottom-2 z-10 mt-5 flex items-center justify-between gap-3 rounded-lg border border-sol-yellow/40 bg-[color-mix(in_srgb,var(--sol-yellow)_10%,var(--sol-bg))] py-2 pl-4 pr-2 shadow-lg shadow-black/15">
-          <span className="flex items-center gap-2 text-xs font-medium text-sol-yellow">
-            <span className="w-1.5 h-1.5 rounded-full bg-sol-yellow animate-pulse" />
-            Unsaved changes
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => { setDraft(null); setOpenId(null); }} disabled={saving}>
-              Discard
-            </Button>
-            <Button size="sm" onClick={save} disabled={saving} variant="cyan">
-              {saving ? "Saving…" : "Save"}
-            </Button>
+      {isAdmin &&
+        dirty && (
+          // Floating save pill: sticky keeps it in view however far the list
+          // scrolls; its own tinted surface, border and shadow separate it from
+          // the card, so content passing beneath reads as elevation, not a seam.
+          <div className="sticky bottom-2 z-10 mt-5 flex items-center justify-between gap-3 rounded-lg border border-sol-yellow/40 bg-[color-mix(in_srgb,var(--sol-yellow)_10%,var(--sol-bg))] py-2 pl-4 pr-2 shadow-lg shadow-black/15">
+            <span className="flex items-center gap-2 text-xs font-medium text-sol-yellow">
+              <span className="w-1.5 h-1.5 rounded-full bg-sol-yellow animate-pulse" />
+              Unsaved changes
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDraft(null);
+                  setOpenId(null);
+                }}
+                disabled={saving}
+              >
+                Discard
+              </Button>
+              <Button size="sm" onClick={save} disabled={saving} variant="cyan">
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </SettingsSection>
   );
 }

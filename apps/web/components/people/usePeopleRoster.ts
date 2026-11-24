@@ -83,7 +83,9 @@ export function usePeopleRoster(): PeopleRosterData {
 
   // One walk of the roster: the viewer's own row out, everyone else in.
   const { members, me } = useMemo(() => {
-    const all = peopleOf(teamMembersOf(useInboxStore.getState()) as any[]).filter((m: any) => m._id);
+    const all = peopleOf(
+      teamMembersOf(useInboxStore.getState()) as any[],
+    ).filter((m: any) => m._id);
     return {
       members: all.filter((m: any) => String(m._id) !== viewerId),
       me: all.find((m: any) => String(m._id) === viewerId) ?? user ?? null,
@@ -122,6 +124,18 @@ export function usePeopleRoster(): PeopleRosterData {
       strayWorkspace,
       huddles: rooms.length,
     }),
-    [now, viewerId, members, me, fleets, roomFor, dmFor, rooms, row, sendingRoomKey, strayWorkspace],
+    [
+      now,
+      viewerId,
+      members,
+      me,
+      fleets,
+      roomFor,
+      dmFor,
+      rooms,
+      row,
+      sendingRoomKey,
+      strayWorkspace,
+    ],
   );
 }

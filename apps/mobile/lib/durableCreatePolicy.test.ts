@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { DispatchNotWiredError, StaleDispatchBindingError } from "@codecast/web/store/mutativeMiddleware";
+import {
+  DispatchNotWiredError,
+  StaleDispatchBindingError,
+} from "@codecast/web/store/mutativeMiddleware";
 import { mobileCreateFailureDisposition } from "./durableCreatePolicy";
 
 describe("mobile create failure policy", () => {
@@ -28,6 +31,8 @@ describe("mobile create failure policy", () => {
   });
 
   test("a transient failure stays queued, not refused", () => {
-    expect(mobileCreateFailureDisposition(new Error("offline"))).toBe("accepted-pending");
+    expect(mobileCreateFailureDisposition(new Error("offline"))).toBe(
+      "accepted-pending",
+    );
   });
 });

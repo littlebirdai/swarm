@@ -45,7 +45,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { PageSession } from "./instance.js";
 import { CdpConnection } from "./cdp.js";
-import { chromeUserDataRoot, cookieDbPath, keepsOwnLogin, type ChromeChannel } from "./profile.js";
+import {
+  chromeUserDataRoot,
+  cookieDbPath,
+  keepsOwnLogin,
+  type ChromeChannel,
+} from "./profile.js";
 
 export { cookieDbPath };
 
@@ -72,8 +77,13 @@ const AES_IV = Buffer.alloc(16, 0x20); // sixteen spaces
 const cachedKeys = new Map<string, Buffer>();
 
 /** Chromium keeps its key under its own name; every Google Chrome channel shares one. */
-function safeStorageEntry(channel: ChromeChannel): { service: string; account: string } {
-  return channel === "chromium" ? { service: "Chromium Safe Storage", account: "Chromium" } : { service: "Chrome Safe Storage", account: "Chrome" };
+function safeStorageEntry(channel: ChromeChannel): {
+  service: string;
+  account: string;
+} {
+  return channel === "chromium"
+    ? { service: "Chromium Safe Storage", account: "Chromium" }
+    : { service: "Chrome Safe Storage", account: "Chrome" };
 }
 
 /**
@@ -83,7 +93,13 @@ function safeStorageEntry(channel: ChromeChannel): { service: string; account: s
  * already trusted for this binary. Cached for the life of the process so a
  * batch of navigations asks once.
  */
-export function chromeEncryptionKey(deps: { platform?: NodeJS.Platform; exec?: typeof execFileSync; channel?: ChromeChannel } = {}): Buffer | null {
+export function chromeEncryptionKey(
+  deps: {
+    platform?: NodeJS.Platform;
+    exec?: typeof execFileSync;
+    channel?: ChromeChannel;
+  } = {},
+): Buffer | null {
   const { service, account } = safeStorageEntry(deps.channel ?? "chrome");
   const cached = cachedKeys.get(service);
   if (cached) return cached;
@@ -96,10 +112,20 @@ export function chromeEncryptionKey(deps: { platform?: NodeJS.Platform; exec?: t
       // nobody answers (or fail at once with no GUI session); an unanswered
       // prompt would otherwise wedge the child until its hard kill, and the
       // caller would see a bare exit code instead of the Keychain reason.
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 45_000 },
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 45_000,
+      },
     ).trim();
     if (!secret) return null;
-    const key = crypto.pbkdf2Sync(secret, KDF_SALT, KDF_ROUNDS, KDF_LEN, "sha1");
+    const key = crypto.pbkdf2Sync(
+      secret,
+      KDF_SALT,
+      KDF_ROUNDS,
+      KDF_LEN,
+      "sha1",
+    );
     cachedKeys.set(service, key);
     return key;
   } catch {
@@ -124,7 +150,8 @@ export function decryptCookieValue(blob: Buffer, key: Buffer): string | null {
     const pad = out[out.length - 1];
     if (pad > 0 && pad <= 16) out = out.subarray(0, out.length - pad);
     const printable = (b: Buffer) => b.every((c) => c >= 0x20 && c < 0x7f);
-    if (out.length > 32 && !printable(out.subarray(0, 32))) out = out.subarray(32);
+    if (out.length > 32 && !printable(out.subarray(0, 32)))
+      out = out.subarray(32);
     if (!printable(out)) return null;
     return out.toString("utf-8");
   } catch {
@@ -171,11 +198,21 @@ export interface ReadCookiesResult {
  * The database is copied before reading: Chrome holds it open with WAL, and
  * querying the live file risks both a lock error and a torn read.
  */
-export function localCookiesForHost(userDataDir: string, host: string | null, profileDir = "Default", channel: ChromeChannel = "chrome"): ReadCookiesResult {
+export function localCookiesForHost(
+  userDataDir: string,
+  host: string | null,
+  profileDir = "Default",
+  channel: ChromeChannel = "chrome",
+): ReadCookiesResult {
   const db = cookieDbPath(userDataDir, profileDir);
-  if (!db) return { cookies: [], reason: `no cookie database under ${userDataDir}` };
+  if (!db)
+    return { cookies: [], reason: `no cookie database under ${userDataDir}` };
   const key = chromeEncryptionKey({ channel });
-  if (!key) return { cookies: [], reason: "could not read the Chrome key from the login Keychain" };
+  if (!key)
+    return {
+      cookies: [],
+      reason: "could not read the Chrome key from the login Keychain",
+    };
 
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "cast-cred-"));
   try {
@@ -189,7 +226,9 @@ export function localCookiesForHost(userDataDir: string, host: string | null, pr
 
     // `host` null reads the whole jar (the manual `sync` with no site).
     const where = host
-      ? `WHERE host_key IN (${cookieHostKeys(host).map((h) => `'${h.replace(/'/g, "''")}'`).join(",")})`
+      ? `WHERE host_key IN (${cookieHostKeys(host)
+          .map((h) => `'${h.replace(/'/g, "''")}'`)
+          .join(",")})`
       : "";
     const raw = execFileSync(
       "sqlite3",
@@ -201,7 +240,11 @@ export function localCookiesForHost(userDataDir: string, host: string | null, pr
          FROM cookies ${where}`,
       ],
       // The whole jar runs to several MB of hex; the default 1MB buffer throws ENOBUFS.
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024 },
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 256 * 1024 * 1024,
+      },
     ).trim();
     if (!raw) return { cookies: [] };
 
@@ -226,7 +269,9 @@ export function localCookiesForHost(userDataDir: string, host: string | null, pr
         sameSite: sameSite(r.samesite),
         // Chrome counts microseconds from 1601; CDP wants seconds from 1970.
         // Zero means a session cookie, which CDP expects as an absent field.
-        ...(r.expires_utc ? { expires: r.expires_utc / 1e6 - 11644473600 } : {}),
+        ...(r.expires_utc
+          ? { expires: r.expires_utc / 1e6 - 11644473600 }
+          : {}),
       });
     }
     return { cookies };
@@ -245,7 +290,11 @@ export function localCookiesForHost(userDataDir: string, host: string | null, pr
  * person is not asked to sign in for nothing. Unreadable is treated as
  * shared — stripping costs one sign-in, keeping a shared session costs both.
  */
-export function sharesGoogleSession(realRoot: string, cloneRoot: string, profileDir = "Default"): boolean {
+export function sharesGoogleSession(
+  realRoot: string,
+  cloneRoot: string,
+  profileDir = "Default",
+): boolean {
   const SESSION = new Set(["SID", "__Secure-1PSID", "__Secure-3PSID", "LSID"]);
   const clone = localCookiesForHost(cloneRoot, "accounts.google.com");
   if (clone.reason) return true;
@@ -253,16 +302,27 @@ export function sharesGoogleSession(realRoot: string, cloneRoot: string, profile
   if (!mine.length) return false;
   const real = localCookiesForHost(realRoot, "accounts.google.com", profileDir);
   if (real.reason) return true;
-  const theirs = new Map(real.cookies.map((c) => [`${c.name}\u0000${c.domain}`, c.value]));
+  const theirs = new Map(
+    real.cookies.map((c) => [`${c.name}\u0000${c.domain}`, c.value]),
+  );
   return mine.some((c) => theirs.get(`${c.name}\u0000${c.domain}`) === c.value);
 }
 
 /** Cookies the target browser already holds for this host, keyed name+domain. */
-async function remoteCookies(page: PageSession, url: string): Promise<Map<string, string>> {
+async function remoteCookies(
+  page: PageSession,
+  url: string,
+): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   try {
-    const r = await page.conn.send<any>("Network.getCookies", { urls: [url] }, page.sessionId, 8000);
-    for (const c of r.cookies ?? []) map.set(`${c.name}\u0000${c.domain}`, c.value);
+    const r = await page.conn.send<any>(
+      "Network.getCookies",
+      { urls: [url] },
+      page.sessionId,
+      8000,
+    );
+    for (const c of r.cookies ?? [])
+      map.set(`${c.name}\u0000${c.domain}`, c.value);
   } catch {
     /* treat as empty; injecting is the safe direction */
   }
@@ -274,7 +334,9 @@ async function remoteCookies(page: PageSession, url: string): Promise<Map<string
  * domain), in the shape `Storage.setCookies` takes back. A session cookie
  * comes back with expires -1, which the setCookies shape spells as no field.
  */
-export async function browserCookies(conn: Pick<CdpConnection, "send">): Promise<Cookie[]> {
+export async function browserCookies(
+  conn: Pick<CdpConnection, "send">,
+): Promise<Cookie[]> {
   const r = await conn.send<any>("Storage.getCookies", {}, undefined, 8_000);
   return (r.cookies ?? []).map((c: any) => ({
     name: c.name,
@@ -284,12 +346,15 @@ export async function browserCookies(conn: Pick<CdpConnection, "send">): Promise
     secure: !!c.secure,
     httpOnly: !!c.httpOnly,
     ...(c.sameSite ? { sameSite: c.sameSite } : {}),
-    ...(!c.session && typeof c.expires === "number" && c.expires > 0 ? { expires: c.expires } : {}),
+    ...(!c.session && typeof c.expires === "number" && c.expires > 0
+      ? { expires: c.expires }
+      : {}),
   }));
 }
 
 /** Why a carry was skipped for an own-login host — the message agents read. */
-export const OWN_LOGIN_REASON = "the agent browser keeps its own login for this site (a shared one signs both browsers out)";
+export const OWN_LOGIN_REASON =
+  "the agent browser keeps its own login for this site (a shared one signs both browsers out)";
 
 export interface ProvisionResult {
   /** How many cookies were injected. Zero means none were needed or available. */
@@ -323,10 +388,16 @@ export async function provisionCredentials(
   // Loopback hosts carry too: cookies ignore the port, so a dev server's
   // login on this laptop is the one an agent's browser elsewhere needs.
   if (!host) return { injected: 0, host, reason: "no host in the address" };
-  if (keepsOwnLogin(host)) return { injected: 0, host, reason: OWN_LOGIN_REASON };
+  if (keepsOwnLogin(host))
+    return { injected: 0, host, reason: OWN_LOGIN_REASON };
 
   const { cookies, reason } = localCookiesForHost(userDataDir, host);
-  if (!cookies.length) return { injected: 0, host, reason: reason ?? "no local cookies for this site" };
+  if (!cookies.length)
+    return {
+      injected: 0,
+      host,
+      reason: reason ?? "no local cookies for this site",
+    };
 
   // Skip only when every cookie we hold is ALREADY there with the same value.
   //
@@ -337,10 +408,18 @@ export async function provisionCredentials(
   // have done anything. Counting those as a session meant the login was never
   // carried over and the page stayed signed out, with nothing reported.
   const already = await remoteCookies(page, url);
-  const missing = cookies.filter((c) => already.get(`${c.name}\u0000${c.domain}`) !== c.value);
-  if (!missing.length) return { injected: 0, host, reason: "already has the same cookies" };
+  const missing = cookies.filter(
+    (c) => already.get(`${c.name}\u0000${c.domain}`) !== c.value,
+  );
+  if (!missing.length)
+    return { injected: 0, host, reason: "already has the same cookies" };
 
-  await page.conn.send("Network.setCookies", { cookies: missing }, page.sessionId, 10_000);
+  await page.conn.send(
+    "Network.setCookies",
+    { cookies: missing },
+    page.sessionId,
+    10_000,
+  );
   return { injected: missing.length, host };
 }
 
@@ -369,45 +448,94 @@ export async function provisionLocalLogins(
       return { injected: 0, host: url, reason: "not a url" };
     }
     if (!host) return { injected: 0, host, reason: "no host in the address" };
-    if (keepsOwnLogin(host)) return { injected: 0, host, reason: OWN_LOGIN_REASON };
+    if (keepsOwnLogin(host))
+      return { injected: 0, host, reason: OWN_LOGIN_REASON };
   }
   const label = host ?? "every site";
   const root = chromeUserDataRoot(source.channel ?? "chrome");
-  if (!root) return { injected: 0, host: label, reason: "no real Chrome profile on this machine" };
+  if (!root)
+    return {
+      injected: 0,
+      host: label,
+      reason: "no real Chrome profile on this machine",
+    };
 
-  const read = localCookiesForHost(root, host, source.profileDir, source.channel ?? "chrome");
+  const read = localCookiesForHost(
+    root,
+    host,
+    source.profileDir,
+    source.channel ?? "chrome",
+  );
   // The whole jar minus the sites whose login the agent browser owns.
-  const cookies = host ? read.cookies : read.cookies.filter((c) => !keepsOwnLogin(c.domain));
-  if (!cookies.length) return { injected: 0, host: label, reason: read.reason ?? "no local cookies for this site" };
+  const cookies = host
+    ? read.cookies
+    : read.cookies.filter((c) => !keepsOwnLogin(c.domain));
+  if (!cookies.length)
+    return {
+      injected: 0,
+      host: label,
+      reason: read.reason ?? "no local cookies for this site",
+    };
 
   const conn = await CdpConnection.fromPort(port, 5_000);
   try {
     const already = new Map<string, string>();
     try {
-      const r = await conn.send<any>("Storage.getCookies", {}, undefined, 8_000);
-      for (const c of r.cookies ?? []) already.set(`${c.name}\u0000${c.domain}`, c.value);
+      const r = await conn.send<any>(
+        "Storage.getCookies",
+        {},
+        undefined,
+        8_000,
+      );
+      for (const c of r.cookies ?? [])
+        already.set(`${c.name}\u0000${c.domain}`, c.value);
     } catch {
       /* treat as empty; injecting is the safe direction */
     }
-    const missing = cookies.filter((c) => already.get(`${c.name}\u0000${c.domain}`) !== c.value);
-    if (!missing.length) return { injected: 0, host: label, reason: "already has the same cookies" };
-    await conn.send("Storage.setCookies", { cookies: missing }, undefined, 10_000);
+    const missing = cookies.filter(
+      (c) => already.get(`${c.name}\u0000${c.domain}`) !== c.value,
+    );
+    if (!missing.length)
+      return {
+        injected: 0,
+        host: label,
+        reason: "already has the same cookies",
+      };
+    await conn.send(
+      "Storage.setCookies",
+      { cookies: missing },
+      undefined,
+      10_000,
+    );
     // Count what Chrome actually kept — it silently drops a cookie it will not
     // store (a `__Secure-` name without Secure, an over-long value), and the
     // whole-jar carry always has a few of those.
     let landed = missing.length;
     try {
-      const r = await conn.send<any>("Storage.getCookies", {}, undefined, 8_000);
+      const r = await conn.send<any>(
+        "Storage.getCookies",
+        {},
+        undefined,
+        8_000,
+      );
       const now = new Map<string, string>();
-      for (const c of r.cookies ?? []) now.set(`${c.name}\u0000${c.domain}`, c.value);
-      landed = missing.filter((c) => now.get(`${c.name}\u0000${c.domain}`) === c.value).length;
+      for (const c of r.cookies ?? [])
+        now.set(`${c.name}\u0000${c.domain}`, c.value);
+      landed = missing.filter(
+        (c) => now.get(`${c.name}\u0000${c.domain}`) === c.value,
+      ).length;
     } catch {
       /* report the attempt */
     }
     return {
       injected: landed,
       host: label,
-      ...(host ? {} : { sites: new Set(missing.map((c) => c.domain.replace(/^\./, ""))).size }),
+      ...(host
+        ? {}
+        : {
+            sites: new Set(missing.map((c) => c.domain.replace(/^\./, "")))
+              .size,
+          }),
       ...(landed < missing.length ? { rejected: missing.length - landed } : {}),
     };
   } finally {

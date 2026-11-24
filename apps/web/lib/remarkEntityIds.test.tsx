@@ -10,7 +10,8 @@ const FAKE_DOC = {
   _id: FAKE_DOC_ID,
   title: "Retro Notes",
   doc_type: "note",
-  content: "The **workout circuit** was great.\n\n- bring clothes\n- takeout for dinner",
+  content:
+    "The **workout circuit** was great.\n\n- bring clothes\n- takeout for dinner",
   updated_at: Date.now(),
 };
 
@@ -25,13 +26,18 @@ const { getFunctionName } = await import("convex/server");
 let currentDoc: unknown = FAKE_DOC;
 mock.module("convex/react", () => ({
   ...convexReact,
-  useQuery: (_fn: unknown, args: unknown) => (args === "skip" ? undefined : currentDoc),
+  useQuery: (_fn: unknown, args: unknown) =>
+    args === "skip" ? undefined : currentDoc,
   // useQueryNoThrow's transport. Only the doc lookup answers; nothing else
   // resolves here, which is the honest answer for resolveIdType without a
   // backend: the pill falls back to its plain-text rendering, exactly as it
   // does when the query is in flight.
   useQueries: (queries: Record<string, { query: any }>) =>
-    Object.fromEntries(Object.entries(queries).filter(([, q]) => getFunctionName(q.query) === "docs:webGet").map(([k]) => [k, currentDoc])),
+    Object.fromEntries(
+      Object.entries(queries)
+        .filter(([, q]) => getFunctionName(q.query) === "docs:webGet")
+        .map(([k]) => [k, currentDoc]),
+    ),
   // A link preview card asks the server to read its page; nothing to read here.
   useMutation: () => async () => {},
 }));
@@ -40,7 +46,9 @@ mock.module("convex/react", () => ({
 // requires a <Router> — irrelevant to what these tests assert.
 mock.module("next/link", () => ({
   default: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>{children}</a>
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -48,7 +56,8 @@ const { renderToStaticMarkup } = await import("react-dom/server");
 const { MemoryRouter } = await import("react-router");
 const { default: ReactMarkdown } = await import("react-markdown");
 const { entityRemarkPlugins } = await import("./remarkEntityIds");
-const { EntityAwareLink, EntityAwareCode } = await import("../components/EntityIdPill");
+const { EntityAwareLink, EntityAwareCode } =
+  await import("../components/EntityIdPill");
 const { JSDOM } = await import("jsdom");
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
@@ -63,7 +72,10 @@ const MD_COMPONENTS = { a: EntityAwareLink, code: EntityAwareCode } as const;
 function render(markdown: string): string {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS as any}>
+      <ReactMarkdown
+        remarkPlugins={entityRemarkPlugins}
+        components={MD_COMPONENTS as any}
+      >
         {markdown}
       </ReactMarkdown>
     </MemoryRouter>,
@@ -72,30 +84,47 @@ function render(markdown: string): string {
 
 describe("authored local file links", () => {
   test("the reported browser instructions link renders through FilePathLink", () => {
-    const html = render("[browser instructions](/Users/ashot/.codex/AGENTS.md:1042)");
-    expect(html).toContain('href="/files?path=%2FUsers%2Fashot%2F.codex%2FAGENTS.md&amp;l=1042"');
+    const html = render(
+      "[browser instructions](/Users/ashot/.codex/AGENTS.md:1042)",
+    );
+    expect(html).toContain(
+      'href="/files?path=%2FUsers%2Fashot%2F.codex%2FAGENTS.md&amp;l=1042"',
+    );
     expect(html).toContain('class="fs-link"');
-    expect(html).toContain('title="Open /Users/ashot/.codex/AGENTS.md in Files"');
-    expect(html).toContain('>browser instructions</a>');
+    expect(html).toContain(
+      'title="Open /Users/ashot/.codex/AGENTS.md in Files"',
+    );
+    expect(html).toContain(">browser instructions</a>");
   });
 
   test("angle-bracket and encoded space destinations keep the path and label", () => {
-    for (const destination of ["</Users/ashot/My Project/My Report.md:3>", "/Users/ashot/My%20Project/My%20Report.md:3"]) {
+    for (const destination of [
+      "</Users/ashot/My Project/My Report.md:3>",
+      "/Users/ashot/My%20Project/My%20Report.md:3",
+    ]) {
       const html = render(`[My Report](${destination})`);
-      expect(html).toContain('href="/files?path=%2FUsers%2Fashot%2FMy+Project%2FMy+Report.md&amp;l=3"');
-      expect(html).toContain('>My Report</a>');
+      expect(html).toContain(
+        'href="/files?path=%2FUsers%2Fashot%2FMy+Project%2FMy+Report.md&amp;l=3"',
+      );
+      expect(html).toContain(">My Report</a>");
     }
   });
 
   test("remote links retain their URL and external-link behavior", () => {
-    const html = render("[instructions](https://example.com/Users/ashot/AGENTS.md:1042)");
-    expect(html).toContain('href="https://example.com/Users/ashot/AGENTS.md:1042"');
+    const html = render(
+      "[instructions](https://example.com/Users/ashot/AGENTS.md:1042)",
+    );
+    expect(html).toContain(
+      'href="https://example.com/Users/ashot/AGENTS.md:1042"',
+    );
     expect(html).toContain('target="_blank"');
     expect(html).not.toContain('class="fs-link"');
   });
 
   test("clicking the reported link opens Files beside the conversation with its line", async () => {
-    const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "https://codecast.test/conversation/jx707h3" });
+    const dom = new JSDOM("<!doctype html><div id='root'></div>", {
+      url: "https://codecast.test/conversation/jx707h3",
+    });
     const restore = replaceGlobals({
       window: Object.assign(dom.window, { innerWidth: 1400 }),
       document: dom.window.document,
@@ -105,16 +134,35 @@ describe("authored local file links", () => {
     const container = dom.window.document.getElementById("root")!;
     const root = createRoot(container);
     try {
-      useInboxStore.setState({ tabs: [{ id: "file-link-test", title: "Conversation", path: "/conversation/jx707h3", createdAt: 0 }], activeTabId: "file-link-test" });
-      await act(() => root.render(
-        <MemoryRouter>
-          <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS}>
-            {"[browser instructions](/Users/ashot/.codex/AGENTS.md:1042)"}
-          </ReactMarkdown>
-        </MemoryRouter>,
-      ));
+      useInboxStore.setState({
+        tabs: [
+          {
+            id: "file-link-test",
+            title: "Conversation",
+            path: "/conversation/jx707h3",
+            createdAt: 0,
+          },
+        ],
+        activeTabId: "file-link-test",
+      });
+      await act(() =>
+        root.render(
+          <MemoryRouter>
+            <ReactMarkdown
+              remarkPlugins={entityRemarkPlugins}
+              components={MD_COMPONENTS}
+            >
+              {"[browser instructions](/Users/ashot/.codex/AGENTS.md:1042)"}
+            </ReactMarkdown>
+          </MemoryRouter>,
+        ),
+      );
       await act(() => container.querySelector<HTMLAnchorElement>("a")!.click());
-      expect(leavesOf(useInboxStore.getState().tabs[0].layout!).map((leaf) => leaf.path)).toEqual([
+      expect(
+        leavesOf(useInboxStore.getState().tabs[0].layout!).map(
+          (leaf) => leaf.path,
+        ),
+      ).toEqual([
         "/conversation/jx707h3",
         "/files?path=%2FUsers%2Fashot%2F.codex%2FAGENTS.md&l=1042",
       ]);
@@ -129,7 +177,9 @@ describe("authored local file links", () => {
 
 describe("doc transclusion (![[doc:…]])", () => {
   test("standalone embed renders the doc body in full", () => {
-    const html = render(`Here is the note:\n\n![[doc:${FAKE_DOC_ID}]]\n\nThat is all.`);
+    const html = render(
+      `Here is the note:\n\n![[doc:${FAKE_DOC_ID}]]\n\nThat is all.`,
+    );
     expect(html).toContain("Retro Notes");
     // The doc's own markdown is rendered (bold → <strong>), not shown as raw text.
     expect(html).toMatch(/<strong[^>]*>workout circuit<\/strong>/);
@@ -174,7 +224,10 @@ describe("doc transclusion (![[doc:…]])", () => {
   test("recursive embeds terminate via the depth cap", () => {
     // FAKE_DOC embeds itself: every doc query returns FAKE_DOC, so without the
     // depth cap this recurses forever and the test never completes.
-    const selfRef = { ...FAKE_DOC, content: `self:\n\n![[doc:${FAKE_DOC_ID}]]` };
+    const selfRef = {
+      ...FAKE_DOC,
+      content: `self:\n\n![[doc:${FAKE_DOC_ID}]]`,
+    };
     currentDoc = selfRef;
     try {
       const html = render(`![[doc:${FAKE_DOC_ID}]]`);
@@ -225,23 +278,31 @@ describe("authored conversation message deep links", () => {
   });
 
   test("clicking the link on a thread jumps to the message", async () => {
-    const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: `https://codecast.test/inbox?s=${CONV}` });
+    const dom = new JSDOM("<!doctype html><div id='root'></div>", {
+      url: `https://codecast.test/inbox?s=${CONV}`,
+    });
     const restore = replaceGlobals({
       window: Object.assign(dom.window, { innerWidth: 1400 }),
       document: dom.window.document,
       IS_REACT_ACT_ENVIRONMENT: true,
     });
-    const { pendingNavigateId, pendingScrollToMessageId } = useInboxStore.getState();
+    const { pendingNavigateId, pendingScrollToMessageId } =
+      useInboxStore.getState();
     const container = dom.window.document.getElementById("root")!;
     const root = createRoot(container);
     try {
-      await act(() => root.render(
-        <MemoryRouter>
-          <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS}>
-            {`[See the conversation](${href})`}
-          </ReactMarkdown>
-        </MemoryRouter>,
-      ));
+      await act(() =>
+        root.render(
+          <MemoryRouter>
+            <ReactMarkdown
+              remarkPlugins={entityRemarkPlugins}
+              components={MD_COMPONENTS}
+            >
+              {`[See the conversation](${href})`}
+            </ReactMarkdown>
+          </MemoryRouter>,
+        ),
+      );
       await act(() => container.querySelector<HTMLAnchorElement>("a")!.click());
       const s = useInboxStore.getState();
       expect(s.pendingNavigateId).toBe(CONV);

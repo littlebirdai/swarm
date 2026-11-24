@@ -2,7 +2,13 @@
 // creates things (the header's New, the palette's Create group) calls this, so
 // a new artifact always gets its product's seed (a sheet's first tab) and a
 // title the person can rename in place.
-import { artifactSpec, fromElement, type ArtifactElement, type ArtifactOp, type ArtifactType } from "@codecast/shared/artifacts";
+import {
+  artifactSpec,
+  fromElement,
+  type ArtifactElement,
+  type ArtifactOp,
+  type ArtifactType,
+} from "@codecast/shared/artifacts";
 import { docRows, sendLiveOps } from "../components/live/useLiveArtifact";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
@@ -10,7 +16,10 @@ import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 import { newStubDocId } from "../components/live/liveStub";
 import { noteStubDoc, promoteStubDoc } from "../components/live/liveStubDocs";
 
-export type WorkspaceStamp = { workspace: "team"; team_id: string } | { workspace: "personal" } | Record<string, never>;
+export type WorkspaceStamp =
+  | { workspace: "team"; team_id: string }
+  | { workspace: "personal" }
+  | Record<string, never>;
 
 /** What a new artifact starts from: its product's seed, or a template's title and elements. */
 export type LiveStart = { title?: string; ops?: ArtifactOp[] };
@@ -24,14 +33,25 @@ export type LiveStart = { title?: string; ops?: ArtifactOp[] };
 let lastPressAt = 0;
 const SAME_PRESS_MS = 1000;
 
-export function createLiveArtifact(type: ArtifactType, stamp: WorkspaceStamp, navigate: (href: string) => void, start?: LiveStart): Promise<string | null> {
+export function createLiveArtifact(
+  type: ArtifactType,
+  stamp: WorkspaceStamp,
+  navigate: (href: string) => void,
+  start?: LiveStart,
+): Promise<string | null> {
   if (Date.now() - lastPressAt < SAME_PRESS_MS) return Promise.resolve(null);
   lastPressAt = Date.now();
   const spec = artifactSpec(type);
   const title = start?.title ?? `Untitled ${spec.label.toLowerCase()}`;
   const stubId = newStubDocId();
   const store = useInboxStore.getState() as any;
-  const created = store.createDoc({ title, content: "", doc_type: type, client_key: stubId, ...stamp });
+  const created = store.createDoc({
+    title,
+    content: "",
+    doc_type: type,
+    client_key: stubId,
+    ...stamp,
+  });
   noteStubDoc(stubId);
   const ops = start?.ops ?? spec.seed?.() ?? [];
   if (ops.length) sendLiveOps(stubId, "main", ops);
@@ -40,7 +60,8 @@ export function createLiveArtifact(type: ArtifactType, stamp: WorkspaceStamp, na
     .then((res: any) => {
       const id: string | undefined = res?.row?._id ?? res?.id ?? res?._id;
       if (!id) throw new Error("no id");
-      if (res?.row && !(useInboxStore.getState() as any).docs?.[id]) (useInboxStore.getState() as any).syncRecord("docs", id, res.row);
+      if (res?.row && !(useInboxStore.getState() as any).docs?.[id])
+        (useInboxStore.getState() as any).syncRecord("docs", id, res.row);
       promoteStubDoc(stubId, id);
       return id;
     })
@@ -58,21 +79,33 @@ export function createLiveArtifact(type: ArtifactType, stamp: WorkspaceStamp, na
  * when it exists.
  */
 export function duplicateLiveArtifact(
-  doc: { _id: string; title: string; doc_type: ArtifactType; team_id?: string; workspace?: string },
+  doc: {
+    _id: string;
+    title: string;
+    doc_type: ArtifactType;
+    team_id?: string;
+    workspace?: string;
+  },
   navigate: (href: string) => void,
   /** The elements to copy, when not the saved layer as it is now (a version that is open). */
   from?: ArtifactElement[],
 ): Promise<string | null> {
-  const stamp: WorkspaceStamp = String(doc.workspace ?? "").startsWith("team:") && doc.team_id
-    ? { workspace: "team", team_id: doc.team_id }
-    : { workspace: "personal" };
+  const stamp: WorkspaceStamp =
+    String(doc.workspace ?? "").startsWith("team:") && doc.team_id
+      ? { workspace: "team", team_id: doc.team_id }
+      : { workspace: "personal" };
   const ops: ArtifactOp[] = [];
-  const source: Iterable<[string, any]> = from ? from.map((e) => [e.key, e] as [string, any]) : docRows(doc._id).main;
+  const source: Iterable<[string, any]> = from
+    ? from.map((e) => [e.key, e] as [string, any])
+    : docRows(doc._id).main;
   for (const [key, row] of source) {
     if (row.deleted) continue;
     const { kind, fields } = fromElement(row);
     ops.push({ k: key, put: { kind, ...fields } });
   }
   // The one guarded create: the press shows at once, a second press makes no second copy, a failure says so.
-  return createLiveArtifact(doc.doc_type, stamp, navigate, { title: `${doc.title || "Untitled"} (copy)`, ops });
+  return createLiveArtifact(doc.doc_type, stamp, navigate, {
+    title: `${doc.title || "Untitled"} (copy)`,
+    ops,
+  });
 }

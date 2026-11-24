@@ -22,16 +22,27 @@ const MAX_SUGGESTIONS = 5;
  * @returns {Electron.MenuItemConstructorOptions[] | null} null shows nothing
  */
 function contextMenuTemplate(params, act) {
-  const { isEditable, misspelledWord, dictionarySuggestions = [], selectionText = "", editFlags = {} } = params;
+  const {
+    isEditable,
+    misspelledWord,
+    dictionarySuggestions = [],
+    selectionText = "",
+    editFlags = {},
+  } = params;
   const hasSelection = selectionText.trim().length > 0;
   if (!isEditable && !hasSelection) return null;
 
   const items = [];
   if (isEditable && misspelledWord) {
     const guesses = dictionarySuggestions.slice(0, MAX_SUGGESTIONS);
-    if (guesses.length === 0) items.push({ label: "No Guesses Found", enabled: false });
-    for (const word of guesses) items.push({ label: word, click: () => act.replace(word) });
-    items.push({ label: "Learn Spelling", click: () => act.learn(misspelledWord) });
+    if (guesses.length === 0)
+      items.push({ label: "No Guesses Found", enabled: false });
+    for (const word of guesses)
+      items.push({ label: word, click: () => act.replace(word) });
+    items.push({
+      label: "Learn Spelling",
+      click: () => act.learn(misspelledWord),
+    });
     items.push({ type: "separator" });
   }
   if (isEditable) {

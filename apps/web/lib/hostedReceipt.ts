@@ -4,7 +4,14 @@
 // a reply to Dana" rather than a developer's count of tool names. A busy
 // segment says its first steps and how many more there are; open, the
 // header just counts them, since the steps themselves sit below it.
-import { resultText, stepCount, stepText, visibleSteps, type ToolCallLike, type ToolResultLike } from "@platform/assistant/steps";
+import {
+  resultText,
+  stepCount,
+  stepText,
+  visibleSteps,
+  type ToolCallLike,
+  type ToolResultLike,
+} from "@platform/assistant/steps";
 import { parseSources, type Source } from "@platform/assistant/sources";
 
 /** How many sources the line under a search shows. */
@@ -21,9 +28,20 @@ export function hostedReceipt<C extends ToolCallLike>(
   calls: C[],
   resultFor: (call: C) => ToolResultLike | undefined,
   opts: { asking?: boolean; cardShown?: boolean } = {},
-): { summary: string; counted: string; created: string[]; steps: number; sources: Source[] } {
-  const said = opts.asking && opts.cardShown ? calls.filter((call) => resultFor(call) !== undefined) : calls;
-  const lines = said.map((call) => stepText(call, resultFor(call), { asking: opts.asking }));
+): {
+  summary: string;
+  counted: string;
+  created: string[];
+  steps: number;
+  sources: Source[];
+} {
+  const said =
+    opts.asking && opts.cardShown
+      ? calls.filter((call) => resultFor(call) !== undefined)
+      : calls;
+  const lines = said.map((call) =>
+    stepText(call, resultFor(call), { asking: opts.asking }),
+  );
   const { shown, more } = visibleSteps(lines, false, RECEIPT_STEPS);
   return {
     summary: (more ? [...shown, stepCount(more, true)] : shown).join(" · "),
@@ -37,7 +55,10 @@ export function hostedReceipt<C extends ToolCallLike>(
 /** The pages the segment's web searches drew on, one per site, in the order
  *  the searches cited them, up to SOURCES_SHOWN: read from each search_web
  *  result through the one parser of its list (@platform/assistant/sources). */
-export function searchedSources<C extends ToolCallLike>(calls: C[], resultFor: (call: C) => ToolResultLike | undefined): Source[] {
+export function searchedSources<C extends ToolCallLike>(
+  calls: C[],
+  resultFor: (call: C) => ToolResultLike | undefined,
+): Source[] {
   const bySite = new Map<string, Source>();
   for (const call of calls) {
     if (call.name !== "search_web") continue;
@@ -66,21 +87,32 @@ export function siteOf(url: string): string | null {
  *  carrying the object's title, so it opens from the conversation whichever
  *  workspace the person has open: the assistant writes to their own. */
 const MADE: { tool: RegExp; ref: (text: string) => string | undefined }[] = [
-  { tool: /(create|add).*(task|todo|to_do)/i, ref: (text) => text.match(/\bct-\d+\b/)?.[0] },
+  {
+    tool: /(create|add).*(task|todo|to_do)/i,
+    ref: (text) => text.match(/\bct-\d+\b/)?.[0],
+  },
   { tool: /schedule.*routine/i, ref: (text) => text.match(/\btr-\d+\b/)?.[0] },
-  { tool: /(write|replace).*doc/i, ref: (text) => {
-    const id = text.match(/\bdoc ([a-z0-9]{32})\b/)?.[1];
-    return id ? `doc:${id}` : undefined;
-  } },
+  {
+    tool: /(write|replace).*doc/i,
+    ref: (text) => {
+      const id = text.match(/\bdoc ([a-z0-9]{32})\b/)?.[1];
+      return id ? `doc:${id}` : undefined;
+    },
+  },
 ];
 
-export function createdRefs<C extends ToolCallLike>(calls: C[], resultFor: (call: C) => ToolResultLike | undefined): string[] {
+export function createdRefs<C extends ToolCallLike>(
+  calls: C[],
+  resultFor: (call: C) => ToolResultLike | undefined,
+): string[] {
   const refs = new Set<string>();
   for (const call of calls) {
     const made = MADE.find((m) => m.tool.test(call.name ?? ""));
     if (!made) continue;
     const content = resultFor(call)?.content;
-    const ref = made.ref(typeof content === "string" ? content : JSON.stringify(content ?? ""));
+    const ref = made.ref(
+      typeof content === "string" ? content : JSON.stringify(content ?? ""),
+    );
     if (ref) refs.add(ref);
   }
   return [...refs];

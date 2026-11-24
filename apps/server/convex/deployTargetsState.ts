@@ -3,12 +3,24 @@
 // upserted in order from GitHub or a reporting checkout (DP14).
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { conversationFromSessionTrailer, normalizeRepository, resolveTaskLinksFromText } from "./lib/gitRefs";
+import {
+  conversationFromSessionTrailer,
+  normalizeRepository,
+  resolveTaskLinksFromText,
+} from "./lib/gitRefs";
 import { afterFor, deployStepsOf } from "./deploysView";
 import { ciOf } from "./deployTargetsCi";
-import { canRedeploySha, commitTouchesTarget, groupQueueBySession, type QueueCommit } from "@codecast/shared/contracts/deployTargets";
+import {
+  canRedeploySha,
+  commitTouchesTarget,
+  groupQueueBySession,
+  type QueueCommit,
+} from "@codecast/shared/contracts/deployTargets";
 import { parseOwnerRepo } from "@codecast/shared/contracts";
-import { liveDeployOf, type DeployPushSummary } from "@codecast/shared/contracts/deploys";
+import {
+  liveDeployOf,
+  type DeployPushSummary,
+} from "@codecast/shared/contracts/deploys";
 import type { TargetDevPush } from "@codecast/shared/contracts/deployTargets";
 
 const DAY = 86_400_000;
@@ -21,28 +33,54 @@ const HISTORY = 12;
 
 // ── the waiting queue and each target's state ────────────────────────────────
 
-export async function commitBySha(ctx: any, repository: string, sha: string): Promise<Doc<"commits"> | null> {
+export async function commitBySha(
+  ctx: any,
+  repository: string,
+  sha: string,
+): Promise<Doc<"commits"> | null> {
   const s = sha.toLowerCase();
   if (s.length === 40) {
-    const rows: Doc<"commits">[] = await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.eq("sha", s)).take(10);
+    const rows: Doc<"commits">[] = await ctx.db
+      .query("commits")
+      .withIndex("by_sha", (q: any) => q.eq("sha", s))
+      .take(10);
     return rows.find((c) => c.repository === repository) ?? null;
   }
   // A short sha (a source's marker names a release by its first 9 characters): the commit it is a prefix of.
   if (!/^[0-9a-f]{7,39}$/.test(s)) return null;
-  const rows: Doc<"commits">[] = await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.gte("sha", s).lt("sha", `${s}~`)).take(20);
-  const mine = rows.filter((c) => c.repository === repository && c.sha.startsWith(s));
+  const rows: Doc<"commits">[] = await ctx.db
+    .query("commits")
+    .withIndex("by_sha", (q: any) => q.gte("sha", s).lt("sha", `${s}~`))
+    .take(20);
+  const mine = rows.filter(
+    (c) => c.repository === repository && c.sha.startsWith(s),
+  );
   return mine.find((c) => c.main_at != null) ?? mine[0] ?? null;
 }
 
 /** A commit's place in main's order (commits.main_at), in its repository when named, else in whichever repository put it on main. */
-export async function mainAtOf(ctx: any, repository: string | null | undefined, sha: string): Promise<number | null> {
-  if (repository) return (await commitBySha(ctx, repository, sha))?.main_at ?? null;
+export async function mainAtOf(
+  ctx: any,
+  repository: string | null | undefined,
+  sha: string,
+): Promise<number | null> {
+  if (repository)
+    return (await commitBySha(ctx, repository, sha))?.main_at ?? null;
   const s = sha.toLowerCase();
   if (s.length < 7) return null;
-  const rows: Doc<"commits">[] = s.length === 40
-    ? await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.eq("sha", s)).take(10)
-    : await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.gte("sha", s).lt("sha", `${s}~`)).take(20);
-  const ordered = rows.filter((c) => c.sha.startsWith(s) && c.main_at != null).map((c) => c.main_at!);
+  const rows: Doc<"commits">[] =
+    s.length === 40
+      ? await ctx.db
+          .query("commits")
+          .withIndex("by_sha", (q: any) => q.eq("sha", s))
+          .take(10)
+      : await ctx.db
+          .query("commits")
+          .withIndex("by_sha", (q: any) => q.gte("sha", s).lt("sha", `${s}~`))
+          .take(20);
+  const ordered = rows
+    .filter((c) => c.sha.startsWith(s) && c.main_at != null)
+    .map((c) => c.main_at!);
   // Two repositories holding the same sha prefix is no answer.
   return new Set(ordered).size === 1 ? ordered[0] : null;
 }
@@ -51,24 +89,41 @@ export async function mainAtOf(ctx: any, repository: string | null | undefined, 
  * The session behind a commit: its Codecast-Session trailer, else the newest session that worked the task it names.
  * A line run's commits and a plain `(ct-N)` subject carry no trailer, but name their task.
  */
-export async function commitSession(ctx: any, c: Doc<"commits">, taskCache: Map<string, any>): Promise<{ conversation_id: Id<"conversations">; via: "trailer" | "task" } | null> {
-  if (c.conversation_id) return { conversation_id: c.conversation_id, via: "trailer" };
+export async function commitSession(
+  ctx: any,
+  c: Doc<"commits">,
+  taskCache: Map<string, any>,
+): Promise<{
+  conversation_id: Id<"conversations">;
+  via: "trailer" | "task";
+} | null> {
+  if (c.conversation_id)
+    return { conversation_id: c.conversation_id, via: "trailer" };
   for (const id of c.task_ids ?? []) {
     const key = String(id);
     if (!taskCache.has(key)) taskCache.set(key, await ctx.db.get(id));
     const t = taskCache.get(key);
-    const conv = t?.conversation_ids?.[t.conversation_ids.length - 1] ?? t?.created_from_conversation;
+    const conv =
+      t?.conversation_ids?.[t.conversation_ids.length - 1] ??
+      t?.created_from_conversation;
     if (conv) return { conversation_id: conv, via: "task" };
   }
   return null;
 }
 
 /** The commits on main after `fromSha` (exclusive), up to `toSha` when named, oldest first; past QUEUE_SCAN the oldest drop (truncated). */
-export async function mainCommitsAfter(ctx: any, repository: string, fromSha: string | null, toSha?: string | null): Promise<{ commits: Doc<"commits">[]; known: boolean; truncated: boolean }> {
+export async function mainCommitsAfter(
+  ctx: any,
+  repository: string,
+  fromSha: string | null,
+  toSha?: string | null,
+): Promise<{ commits: Doc<"commits">[]; known: boolean; truncated: boolean }> {
   const from = fromSha ? await commitBySha(ctx, repository, fromSha) : null;
-  if (fromSha && from?.main_at == null) return { commits: [], known: false, truncated: false };
+  if (fromSha && from?.main_at == null)
+    return { commits: [], known: false, truncated: false };
   const to = toSha ? await commitBySha(ctx, repository, toSha) : null;
-  if (toSha && to?.main_at == null) return { commits: [], known: false, truncated: false };
+  if (toSha && to?.main_at == null)
+    return { commits: [], known: false, truncated: false };
   const lo = from?.main_at ?? Date.now() - 14 * DAY;
   const rows: Doc<"commits">[] = await ctx.db
     .query("commits")
@@ -78,27 +133,50 @@ export async function mainCommitsAfter(ctx: any, repository: string, fromSha: st
     })
     .order("desc")
     .take(QUEUE_SCAN + 1);
-  return { commits: rows.slice(0, QUEUE_SCAN).reverse(), known: true, truncated: rows.length > QUEUE_SCAN };
+  return {
+    commits: rows.slice(0, QUEUE_SCAN).reverse(),
+    known: true,
+    truncated: rows.length > QUEUE_SCAN,
+  };
 }
 
-export async function queueCommitOf(ctx: any, c: Doc<"commits">, convCache: Map<string, any>, taskCache: Map<string, any>): Promise<QueueCommit> {
+export async function queueCommitOf(
+  ctx: any,
+  c: Doc<"commits">,
+  convCache: Map<string, any>,
+  taskCache: Map<string, any>,
+): Promise<QueueCommit> {
   let session: QueueCommit["session"] = null;
   const owner = await commitSession(ctx, c, taskCache);
   if (owner) {
     const key = String(owner.conversation_id);
-    if (!convCache.has(key)) convCache.set(key, await ctx.db.get(owner.conversation_id));
+    if (!convCache.has(key))
+      convCache.set(key, await ctx.db.get(owner.conversation_id));
     const conv = convCache.get(key);
-    session = { conversation_id: key, short_id: key.slice(0, 7), title: conv?.title ?? null, ...(owner.via === "task" ? { via: "task" as const } : {}) };
+    session = {
+      conversation_id: key,
+      short_id: key.slice(0, 7),
+      title: conv?.title ?? null,
+      ...(owner.via === "task" ? { via: "task" as const } : {}),
+    };
   }
   const tasks = [];
   for (const id of c.task_ids ?? []) {
     const key = String(id);
     if (!taskCache.has(key)) taskCache.set(key, await ctx.db.get(id));
     const t = taskCache.get(key);
-    tasks.push({ task_id: key, short_id: t?.short_id ?? null, title: t?.title ?? null });
+    tasks.push({
+      task_id: key,
+      short_id: t?.short_id ?? null,
+      title: t?.title ?? null,
+    });
   }
   const ci = await ciOf(ctx, c.repository!, c.sha);
-  const branch = await commitBranch(ctx, c, session ? convCache.get(session.conversation_id) : null);
+  const branch = await commitBranch(
+    ctx,
+    c,
+    session ? convCache.get(session.conversation_id) : null,
+  );
   return {
     sha: c.sha,
     subject: c.message.split("\n")[0].slice(0, 200),
@@ -117,12 +195,23 @@ export async function queueCommitOf(ctx: any, c: Doc<"commits">, convCache: Map<
  * its pull request's head (linked, else the "(#N)" its subject names), else the branch its session worked on. The
  * default branch names nothing.
  */
-export async function commitBranch(ctx: any, c: Doc<"commits">, conv: { git_branch?: string } | null): Promise<string | null> {
+export async function commitBranch(
+  ctx: any,
+  c: Doc<"commits">,
+  conv: { git_branch?: string } | null,
+): Promise<string | null> {
   const prNumber = /\(#(\d+)\)\s*$/.exec(c.message.split("\n")[0])?.[1];
   const pr: Doc<"pull_requests"> | null = c.pr_id
     ? await ctx.db.get(c.pr_id)
     : prNumber && c.repository
-      ? await ctx.db.query("pull_requests").withIndex("by_repository_number", (q: any) => q.eq("repository", normalizeRepository(c.repository!)).eq("number", Number(prNumber))).first()
+      ? await ctx.db
+          .query("pull_requests")
+          .withIndex("by_repository_number", (q: any) =>
+            q
+              .eq("repository", normalizeRepository(c.repository!))
+              .eq("number", Number(prNumber)),
+          )
+          .first()
       : null;
   const branch = pr?.head_ref ?? conv?.git_branch ?? null;
   return branch && !DEFAULT_BRANCHES.has(branch) ? branch : null;
@@ -138,7 +227,9 @@ export async function deployCommitsOf(ctx: any, rows: Doc<"commits">[]) {
     out.push({
       sha: c.sha,
       subject: c.message.split("\n")[0].slice(0, 200),
-      ...(c.author_login || c.author_name ? { author: c.author_login ?? c.author_name } : {}),
+      ...(c.author_login || c.author_name
+        ? { author: c.author_login ?? c.author_name }
+        : {}),
       ...(owner ? { conversation_id: owner.conversation_id } : {}),
       ...(c.task_ids?.length ? { task_ids: c.task_ids } : {}),
     });
@@ -147,26 +238,61 @@ export async function deployCommitsOf(ctx: any, rows: Doc<"commits">[]) {
 }
 
 export function pushSummary(d: Doc<"deploys">): DeployPushSummary {
-  return { dirty: d.dirty ?? null, machine: d.machine ?? null, pushed_via: d.pushed_via ?? null, adds_count: d.adds?.length ?? 0, drops_count: d.drops?.length ?? 0 };
+  return {
+    dirty: d.dirty ?? null,
+    machine: d.machine ?? null,
+    pushed_via: d.pushed_via ?? null,
+    adds_count: d.adds?.length ?? 0,
+    drops_count: d.drops?.length ?? 0,
+  };
 }
 
-type DeployAfterCounts = { new_errors: number; regressions: number; reopened: number; quiet: boolean; open: boolean };
+type DeployAfterCounts = {
+  new_errors: number;
+  regressions: number;
+  reopened: number;
+  quiet: boolean;
+  open: boolean;
+};
 
 /**
  * A deploy as the targets view lists it: the sessions and tasks behind the commits it carried (and the tasks a line
  * deploy carries), and what happened after it went live, in counts (deploysView.afterFor).
  */
-export async function deployLine(ctx: any, d: Doc<"deploys">, caches: { conv: Map<string, any>; task: Map<string, any> }, after?: DeployAfterCounts | null) {
+export async function deployLine(
+  ctx: any,
+  d: Doc<"deploys">,
+  caches: { conv: Map<string, any>; task: Map<string, any> },
+  after?: DeployAfterCounts | null,
+) {
   const sessions = [];
-  for (const id of new Set((d.commits ?? []).flatMap((c) => (c.conversation_id ? [String(c.conversation_id)] : [])))) {
-    if (!caches.conv.has(id)) caches.conv.set(id, await ctx.db.get(id as Id<"conversations">));
-    sessions.push({ conversation_id: id, short_id: id.slice(0, 7), title: caches.conv.get(id)?.title ?? null });
+  for (const id of new Set(
+    (d.commits ?? []).flatMap((c) =>
+      c.conversation_id ? [String(c.conversation_id)] : [],
+    ),
+  )) {
+    if (!caches.conv.has(id))
+      caches.conv.set(id, await ctx.db.get(id as Id<"conversations">));
+    sessions.push({
+      conversation_id: id,
+      short_id: id.slice(0, 7),
+      title: caches.conv.get(id)?.title ?? null,
+    });
   }
   const tasks = [];
-  for (const id of new Set([...(d.commits ?? []).flatMap((c) => (c.task_ids ?? []).map(String)), ...d.carries.map((c) => String(c.task_id))])) {
-    if (!caches.task.has(id)) caches.task.set(id, await ctx.db.get(id as Id<"tasks">));
+  for (const id of new Set([
+    ...(d.commits ?? []).flatMap((c) => (c.task_ids ?? []).map(String)),
+    ...d.carries.map((c) => String(c.task_id)),
+  ])) {
+    if (!caches.task.has(id))
+      caches.task.set(id, await ctx.db.get(id as Id<"tasks">));
     const t = caches.task.get(id);
-    if (t) tasks.push({ task_id: id, short_id: t.short_id ?? null, title: t.title ?? null });
+    if (t)
+      tasks.push({
+        task_id: id,
+        short_id: t.short_id ?? null,
+        title: t.title ?? null,
+      });
   }
   return {
     _id: String(d._id),
@@ -198,16 +324,29 @@ export async function deployLine(ctx: any, d: Doc<"deploys">, caches: { conv: Ma
   };
 }
 
-export async function targetDeploys(ctx: any, workspace: string, target: string, take = 60): Promise<Doc<"deploys">[]> {
+export async function targetDeploys(
+  ctx: any,
+  workspace: string,
+  target: string,
+  take = 60,
+): Promise<Doc<"deploys">[]> {
   return await ctx.db
     .query("deploys")
-    .withIndex("by_workspace_target_created", (q: any) => q.eq("workspace", workspace).eq("target", target))
+    .withIndex("by_workspace_target_created", (q: any) =>
+      q.eq("workspace", workspace).eq("target", target),
+    )
     .order("desc")
     .take(take);
 }
 
 /** A target's dev pushes, the one saved last first; `after` keeps those saved since then. */
-export async function targetDevPushes(ctx: any, workspace: string, target: string, take: number, after?: number): Promise<Doc<"dev_pushes">[]> {
+export async function targetDevPushes(
+  ctx: any,
+  workspace: string,
+  target: string,
+  take: number,
+  after?: number,
+): Promise<Doc<"dev_pushes">[]> {
   return await ctx.db
     .query("dev_pushes")
     .withIndex("by_workspace_target_live", (q: any) => {
@@ -219,45 +358,102 @@ export async function targetDevPushes(ctx: any, workspace: string, target: strin
 }
 
 /** Whether a dev push of the repository saved after a deploy went live: prod runs someone's working tree on top of it. */
-export async function devPushedOver(ctx: any, d: Doc<"deploys">): Promise<boolean> {
-  const rows = await targetDevPushes(ctx, d.workspace, d.target, 5, d.live_at ?? d.created_at);
-  return rows.some((p) => !p.repository || !d.repository || p.repository === d.repository);
+export async function devPushedOver(
+  ctx: any,
+  d: Doc<"deploys">,
+): Promise<boolean> {
+  const rows = await targetDevPushes(
+    ctx,
+    d.workspace,
+    d.target,
+    5,
+    d.live_at ?? d.created_at,
+  );
+  return rows.some(
+    (p) => !p.repository || !d.repository || p.repository === d.repository,
+  );
 }
 
 /**
  * Uncommitted work prod runs on top of a target's live deploy: the dev push saved last after the deploy went live, or
  * null when there is none (a deploy since put the committed tree back).
  */
-export async function devPushOver(ctx: any, t: Pick<Doc<"deploy_targets">, "workspace" | "name" | "repository">, live: Doc<"deploys"> | null): Promise<TargetDevPush | null> {
-  const rows = await targetDevPushes(ctx, t.workspace, t.name, 10, live ? live.live_at ?? live.created_at : undefined);
+export async function devPushOver(
+  ctx: any,
+  t: Pick<Doc<"deploy_targets">, "workspace" | "name" | "repository">,
+  live: Doc<"deploys"> | null,
+): Promise<TargetDevPush | null> {
+  const rows = await targetDevPushes(
+    ctx,
+    t.workspace,
+    t.name,
+    10,
+    live ? (live.live_at ?? live.created_at) : undefined,
+  );
   const p = rows.find((x) => !x.repository || x.repository === t.repository);
   if (!p) return null;
-  return { sha: p.sha, machine: p.machine ?? null, by: p.started_by?.name ?? null, at: p.live_at, dirty: p.dirty, adds_count: p.adds.length, drops_count: p.drops.length };
+  return {
+    sha: p.sha,
+    machine: p.machine ?? null,
+    by: p.started_by?.name ?? null,
+    at: p.live_at,
+    dirty: p.dirty,
+    adds_count: p.adds.length,
+    drops_count: p.drops.length,
+  };
 }
 
 /** One target's state: live, going out, recent history, and what waits on main. */
 export async function targetState(ctx: any, t: Doc<"deploy_targets">) {
   const deploys = await targetDeploys(ctx, t.workspace, t.name);
-  const deploysHere = deploys.filter((d) => !d.repository || d.repository === t.repository);
+  const deploysHere = deploys.filter(
+    (d) => !d.repository || d.repository === t.repository,
+  );
   const live = liveDeployOf(deploysHere) ?? null;
-  const open = deploysHere.find((d) => d.status === "requested" || d.status === "running") ?? null;
+  const open =
+    deploysHere.find(
+      (d) => d.status === "requested" || d.status === "running",
+    ) ?? null;
   const convCache = new Map<string, any>();
   const taskCache = new Map<string, any>();
   const caches = { conv: convCache, task: taskCache };
   const history = deploysHere.slice(0, HISTORY);
-  const aftermath = await afterFor(ctx, t.workspace, live && !history.includes(live) ? [...history, live] : history, Date.now());
+  const aftermath = await afterFor(
+    ctx,
+    t.workspace,
+    live && !history.includes(live) ? [...history, live] : history,
+    Date.now(),
+  );
   const countsOf = (d: Doc<"deploys">): DeployAfterCounts | null => {
     const a = aftermath.get(String(d._id));
-    return a ? { new_errors: a.new_errors, regressions: a.regressions, reopened: a.reopened, quiet: a.quiet, open: a.open } : null;
+    return a
+      ? {
+          new_errors: a.new_errors,
+          regressions: a.regressions,
+          reopened: a.reopened,
+          quiet: a.quiet,
+          open: a.open,
+        }
+      : null;
   };
   const after = await mainCommitsAfter(ctx, t.repository, live?.sha ?? null);
-  const touching = after.commits.filter((c) => commitTouchesTarget(t.paths, (c.files ?? []).map((f) => f.filename)));
+  const touching = after.commits.filter((c) =>
+    commitTouchesTarget(
+      t.paths,
+      (c.files ?? []).map((f) => f.filename),
+    ),
+  );
   const skipped = after.commits.length - touching.length;
   const head = after.commits[after.commits.length - 1] ?? null;
-  const headCi = head ? await ciOf(ctx, t.repository, head.sha) : live?.sha ? await ciOf(ctx, t.repository, live.sha) : null;
+  const headCi = head
+    ? await ciOf(ctx, t.repository, head.sha)
+    : live?.sha
+      ? await ciOf(ctx, t.repository, live.sha)
+      : null;
   // The newest commits are shown whole, with their session, tasks and CI; the rest are counted.
   const shown: QueueCommit[] = [];
-  for (const c of touching.slice(-QUEUE_SHOWN).reverse()) shown.push(await queueCommitOf(ctx, c, convCache, taskCache));
+  for (const c of touching.slice(-QUEUE_SHOWN).reverse())
+    shown.push(await queueCommitOf(ctx, c, convCache, taskCache));
   return {
     name: t.name,
     repository: t.repository,
@@ -274,8 +470,15 @@ export async function targetState(ctx: any, t: Doc<"deploy_targets">) {
     publisher_user_id: String(t.publisher_user_id),
     live: live ? await deployLine(ctx, live, caches, countsOf(live)) : null,
     dev_push: await devPushOver(ctx, t, live),
-    open: open ? { ...(await deployLine(ctx, open, caches)), steps: open.run_id ? await deployStepsOf(ctx, open.run_id) : [] } : null,
-    history: await Promise.all(history.map((d) => deployLine(ctx, d, caches, countsOf(d)))),
+    open: open
+      ? {
+          ...(await deployLine(ctx, open, caches)),
+          steps: open.run_id ? await deployStepsOf(ctx, open.run_id) : [],
+        }
+      : null,
+    history: await Promise.all(
+      history.map((d) => deployLine(ctx, d, caches, countsOf(d))),
+    ),
     last_read: t.last_read ?? null,
     queue: {
       // False when the live sha is not on main as codecast knows it (no deploy yet, or main's order not backfilled).
@@ -294,9 +497,23 @@ export async function targetState(ctx: any, t: Doc<"deploy_targets">) {
   };
 }
 
-
-
-export async function upsertMainCommits(ctx: any, args: { repository: string; team_id: Id<"teams">; branch: string; commits: Array<{ sha: string; message: string; author_name: string; author_email: string; author_login?: string; at: number; files?: string[] }> }) {
+export async function upsertMainCommits(
+  ctx: any,
+  args: {
+    repository: string;
+    team_id: Id<"teams">;
+    branch: string;
+    commits: Array<{
+      sha: string;
+      message: string;
+      author_name: string;
+      author_email: string;
+      author_login?: string;
+      at: number;
+      files?: string[];
+    }>;
+  },
+) {
   {
     const repository = normalizeRepository(args.repository);
     let inserted = 0;
@@ -305,21 +522,46 @@ export async function upsertMainCommits(ctx: any, args: { repository: string; te
     let at = 0;
     for (const c of args.commits) {
       at = Math.max(at + 1, c.at);
-      const existing = (await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.eq("sha", c.sha)).take(10)).find((r: Doc<"commits">) => r.repository === repository);
-      const files = c.files?.map((filename) => ({ filename, status: "modified", additions: 0, deletions: 0, changes: 0 }));
+      const existing = (
+        await ctx.db
+          .query("commits")
+          .withIndex("by_sha", (q: any) => q.eq("sha", c.sha))
+          .take(10)
+      ).find((r: Doc<"commits">) => r.repository === repository);
+      const files = c.files?.map((filename) => ({
+        filename,
+        status: "modified",
+        additions: 0,
+        deletions: 0,
+        changes: 0,
+      }));
       if (existing) {
         const patch: Partial<Doc<"commits">> = {};
-        if (existing.main_at == null) { patch.main_at = at; ordered++; }
+        if (existing.main_at == null) {
+          patch.main_at = at;
+          ordered++;
+        }
         if (!existing.files?.length && files?.length) patch.files = files;
         if (!existing.conversation_id) {
-          const conv = await conversationFromSessionTrailer(ctx, c.message, { teamId: args.team_id, current: undefined });
+          const conv = await conversationFromSessionTrailer(ctx, c.message, {
+            teamId: args.team_id,
+            current: undefined,
+          });
           if (conv) patch.conversation_id = conv;
         }
         if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch);
         continue;
       }
-      const conv = await conversationFromSessionTrailer(ctx, c.message, { teamId: args.team_id, current: undefined });
-      const links = await resolveTaskLinksFromText(ctx, { teamId: args.team_id }, c.message, args.branch);
+      const conv = await conversationFromSessionTrailer(ctx, c.message, {
+        teamId: args.team_id,
+        current: undefined,
+      });
+      const links = await resolveTaskLinksFromText(
+        ctx,
+        { teamId: args.team_id },
+        c.message,
+        args.branch,
+      );
       await ctx.db.insert("commits", {
         sha: c.sha,
         message: c.message,
@@ -354,10 +596,18 @@ export function repositoryArg(raw: string): string {
   return normalizeRepository(repository);
 }
 
-export async function targetRows(ctx: any, workspace: string, repository?: string): Promise<Doc<"deploy_targets">[]> {
+export async function targetRows(
+  ctx: any,
+  workspace: string,
+  repository?: string,
+): Promise<Doc<"deploy_targets">[]> {
   const rows: Doc<"deploy_targets">[] = await ctx.db
     .query("deploy_targets")
-    .withIndex("by_workspace_repository", (q: any) => (repository ? q.eq("workspace", workspace).eq("repository", repository) : q.eq("workspace", workspace)))
+    .withIndex("by_workspace_repository", (q: any) =>
+      repository
+        ? q.eq("workspace", workspace).eq("repository", repository)
+        : q.eq("workspace", workspace),
+    )
     .take(200);
   return rows.filter((r) => !r.retired_at);
 }

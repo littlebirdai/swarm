@@ -47,7 +47,8 @@ function nonEmpty(value: unknown, label: string): string {
 }
 
 function stringValue(value: unknown, label: string): string {
-  if (typeof value !== "string") throw new TypeError(`Invalid ${label}: expected a string`);
+  if (typeof value !== "string")
+    throw new TypeError(`Invalid ${label}: expected a string`);
   return value;
 }
 
@@ -62,7 +63,9 @@ function parseFailure(value: unknown): StructuredFailure {
   const input = record(value, "structured failure");
   const retryable = input.retryable;
   if (retryable !== undefined && typeof retryable !== "boolean") {
-    throw new TypeError("Invalid structured failure: retryable must be boolean");
+    throw new TypeError(
+      "Invalid structured failure: retryable must be boolean",
+    );
   }
   return {
     code: nonEmpty(input.code, "structured failure code"),
@@ -94,7 +97,9 @@ function targetWire(request: EnsureBindingRequest): Record<string, unknown> {
   };
 }
 
-function startFenceWire(request: EnsureBindingRequest): Record<string, unknown> {
+function startFenceWire(
+  request: EnsureBindingRequest,
+): Record<string, unknown> {
   return {
     conversation_id: request.target.conversationId,
     epoch: request.target.epoch,
@@ -104,7 +109,9 @@ function startFenceWire(request: EnsureBindingRequest): Record<string, unknown> 
   };
 }
 
-function permitWire(permit: StartedDeliveryPermit | ClaimedDeliveryPermit): Record<string, unknown> {
+function permitWire(
+  permit: StartedDeliveryPermit | ClaimedDeliveryPermit,
+): Record<string, unknown> {
   return {
     message_id: permit.messageId,
     delivery_id: permit.deliveryId,
@@ -196,17 +203,25 @@ export interface ClaimedDelivery {
 function parseClaimedPermit(value: unknown): ClaimedDeliveryPermit {
   const input = record(value, "claimed delivery permit");
   if (input.state !== "claimed") {
-    throw new TypeError("Invalid claimed delivery permit: state must be claimed");
+    throw new TypeError(
+      "Invalid claimed delivery permit: state must be claimed",
+    );
   }
   return {
     state: "claimed",
     messageId: nonEmpty(input.messageId, "claimed message id"),
     deliveryId: nonEmpty(input.deliveryId, "claimed delivery id"),
-    conversationSequence: nonEmpty(input.conversationSequence, "claimed conversation sequence"),
+    conversationSequence: nonEmpty(
+      input.conversationSequence,
+      "claimed conversation sequence",
+    ),
     attemptId: nonEmpty(input.attemptId, "claimed attempt id"),
     conversationId: nonEmpty(input.conversationId, "claimed conversation id"),
     executionEpoch: positive(input.executionEpoch, "claimed execution epoch"),
-    configurationRevision: positive(input.configurationRevision, "claimed configuration revision"),
+    configurationRevision: positive(
+      input.configurationRevision,
+      "claimed configuration revision",
+    ),
     ownerDeviceId: nonEmpty(input.ownerDeviceId, "claimed owner device id"),
     daemonBootId: nonEmpty(input.daemonBootId, "claimed daemon boot id"),
     runtimeId: nonEmpty(input.runtimeId, "claimed runtime id"),
@@ -217,40 +232,53 @@ function parseClaimedPermit(value: unknown): ClaimedDeliveryPermit {
 export class ConvexExecutionControlPlane implements ExecutionControlPlane {
   constructor(private readonly transport: ExecutionConvexTransport) {}
 
-  async registerBoot(input: { ownerDeviceId: string; daemonBootId: string }): Promise<void> {
-    await this.transport.executionControlMutation("registerExecutionDaemonBoot", {
-      owner_device_id: input.ownerDeviceId,
-      daemon_boot_id: input.daemonBootId,
-    });
+  async registerBoot(input: {
+    ownerDeviceId: string;
+    daemonBootId: string;
+  }): Promise<void> {
+    await this.transport.executionControlMutation(
+      "registerExecutionDaemonBoot",
+      {
+        owner_device_id: input.ownerDeviceId,
+        daemon_boot_id: input.daemonBootId,
+      },
+    );
   }
 
   async claimStart(request: ClaimStartRequest): Promise<StartClaimResult> {
-    return parseStartClaim(await this.transport.executionControlMutation("claimExecutionStart", {
-      ...startFenceWire(request),
-      protocol_version: request.protocolVersion,
-      required_capabilities: [...request.requiredCapabilities],
-      proposed_operation_id: request.proposedOperationId,
-    }));
+    return parseStartClaim(
+      await this.transport.executionControlMutation("claimExecutionStart", {
+        ...startFenceWire(request),
+        protocol_version: request.protocolVersion,
+        required_capabilities: [...request.requiredCapabilities],
+        proposed_operation_id: request.proposedOperationId,
+      }),
+    );
   }
 
   async publishReady(binding: ReadyBinding): Promise<{ accepted: boolean }> {
-    const result = record(await this.transport.executionControlMutation("publishReadyBinding", {
-      conversation_id: binding.conversationId,
-      epoch: binding.epoch,
-      requested_agent: binding.requestedAgent,
-      actual_agent: binding.actualAgent,
-      transport: binding.transport,
-      handle: binding.handle,
-      owner_device_id: binding.ownerDeviceId,
-      daemon_boot_id: binding.daemonBootId,
-      runtime_id: binding.runtimeId,
-      operation_id: binding.operationId,
-      applied_configuration_revision: binding.appliedConfigurationRevision,
-      protocol_version: binding.protocolVersion,
-      capabilities: [...binding.capabilities],
-    }), "ready publication");
+    const result = record(
+      await this.transport.executionControlMutation("publishReadyBinding", {
+        conversation_id: binding.conversationId,
+        epoch: binding.epoch,
+        requested_agent: binding.requestedAgent,
+        actual_agent: binding.actualAgent,
+        transport: binding.transport,
+        handle: binding.handle,
+        owner_device_id: binding.ownerDeviceId,
+        daemon_boot_id: binding.daemonBootId,
+        runtime_id: binding.runtimeId,
+        operation_id: binding.operationId,
+        applied_configuration_revision: binding.appliedConfigurationRevision,
+        protocol_version: binding.protocolVersion,
+        capabilities: [...binding.capabilities],
+      }),
+      "ready publication",
+    );
     if (typeof result.accepted !== "boolean") {
-      throw new TypeError("Invalid ready publication: accepted must be boolean");
+      throw new TypeError(
+        "Invalid ready publication: accepted must be boolean",
+      );
     }
     if (result.binding !== undefined) parseReadyBinding(result.binding);
     return { accepted: result.accepted };
@@ -331,18 +359,28 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     policy: "drain-current" | "cancel-unstarted";
     request: EnsureBindingRequest;
   }): Promise<{ created: boolean; epoch: number; admissionBoundary: number }> {
-    const result = record(await this.transport.executionControlMutation("requestExecutionSuccessor", {
-      conversation_id: input.conversationId,
-      intent_id: input.intentId,
-      expected_current_epoch: input.expectedCurrentEpoch,
-      policy: input.policy,
-      target: targetWire(input.request),
-    }), "successor proposal");
-    if (typeof result.created !== "boolean") throw new TypeError("Invalid successor proposal: created");
+    const result = record(
+      await this.transport.executionControlMutation(
+        "requestExecutionSuccessor",
+        {
+          conversation_id: input.conversationId,
+          intent_id: input.intentId,
+          expected_current_epoch: input.expectedCurrentEpoch,
+          policy: input.policy,
+          target: targetWire(input.request),
+        },
+      ),
+      "successor proposal",
+    );
+    if (typeof result.created !== "boolean")
+      throw new TypeError("Invalid successor proposal: created");
     return {
       created: result.created,
       epoch: positive(result.epoch, "successor epoch"),
-      admissionBoundary: positive(result.admissionBoundary, "successor admission boundary"),
+      admissionBoundary: positive(
+        result.admissionBoundary,
+        "successor admission boundary",
+      ),
     };
   }
 
@@ -350,29 +388,41 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     binding: ReadyBinding,
     expectedMessageId?: string,
   ): Promise<ClaimedDelivery | { state: "empty" | "busy" | "waiting" }> {
-    const result = record(await this.transport.executionControlMutation("claimNextDelivery", {
-      conversation_id: binding.conversationId,
-      expected_message_id: expectedMessageId,
-      execution_epoch: binding.epoch,
-      configuration_revision: binding.appliedConfigurationRevision,
-      owner_device_id: binding.ownerDeviceId,
-      daemon_boot_id: binding.daemonBootId,
-      runtime_id: binding.runtimeId,
-    }), "delivery claim");
+    const result = record(
+      await this.transport.executionControlMutation("claimNextDelivery", {
+        conversation_id: binding.conversationId,
+        expected_message_id: expectedMessageId,
+        execution_epoch: binding.epoch,
+        configuration_revision: binding.appliedConfigurationRevision,
+        owner_device_id: binding.ownerDeviceId,
+        daemon_boot_id: binding.daemonBootId,
+        runtime_id: binding.runtimeId,
+      }),
+      "delivery claim",
+    );
     if (result.state === "empty") return { state: "empty" };
     if (result.state === "busy") return { state: "busy" };
-    if (result.state === "waiting-for-earlier-message" || result.state === "waiting-for-successor") {
+    if (
+      result.state === "waiting-for-earlier-message" ||
+      result.state === "waiting-for-successor"
+    ) {
       return { state: "waiting" };
     }
     if (result.state !== "claimed") {
-      throw new TypeError(`Invalid delivery claim state: ${String(result.state)}`);
+      throw new TypeError(
+        `Invalid delivery claim state: ${String(result.state)}`,
+      );
     }
     const permit = parseClaimedPermit(result.permit);
     const message = record(result.message, "claimed delivery message");
     const imageStorageIds = [
-      ...(typeof message.image_storage_id === "string" ? [message.image_storage_id] : []),
+      ...(typeof message.image_storage_id === "string"
+        ? [message.image_storage_id]
+        : []),
       ...(Array.isArray(message.image_storage_ids)
-        ? message.image_storage_ids.map((value) => nonEmpty(value, "image storage id"))
+        ? message.image_storage_ids.map((value) =>
+            nonEmpty(value, "image storage id"),
+          )
         : []),
     ];
     return {
@@ -388,10 +438,14 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     };
   }
 
-  async startDelivery(permit: ClaimedDeliveryPermit): Promise<StartedDeliveryPermit> {
-    return parseStartedDeliveryPermit(await this.transport.executionControlMutation("startDelivery", {
-      permit: permitWire(permit),
-    }));
+  async startDelivery(
+    permit: ClaimedDeliveryPermit,
+  ): Promise<StartedDeliveryPermit> {
+    return parseStartedDeliveryPermit(
+      await this.transport.executionControlMutation("startDelivery", {
+        permit: permitWire(permit),
+      }),
+    );
   }
 
   async releaseClaimBeforeEffect(
@@ -411,18 +465,26 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     disposition: "stopped" | "quarantined",
     reason: string,
   ): Promise<{ accepted: boolean }> {
-    const result = record(await this.transport.executionControlMutation("publishRuntimeDisposition", {
-      conversation_id: binding.conversationId,
-      epoch: binding.epoch,
-      configuration_revision: binding.appliedConfigurationRevision,
-      owner_device_id: binding.ownerDeviceId,
-      daemon_boot_id: binding.daemonBootId,
-      runtime_id: binding.runtimeId,
-      disposition,
-      reason,
-    }), "runtime disposition");
+    const result = record(
+      await this.transport.executionControlMutation(
+        "publishRuntimeDisposition",
+        {
+          conversation_id: binding.conversationId,
+          epoch: binding.epoch,
+          configuration_revision: binding.appliedConfigurationRevision,
+          owner_device_id: binding.ownerDeviceId,
+          daemon_boot_id: binding.daemonBootId,
+          runtime_id: binding.runtimeId,
+          disposition,
+          reason,
+        },
+      ),
+      "runtime disposition",
+    );
     if (typeof result.accepted !== "boolean") {
-      throw new TypeError("Invalid runtime disposition: accepted must be boolean");
+      throw new TypeError(
+        "Invalid runtime disposition: accepted must be boolean",
+      );
     }
     return { accepted: result.accepted };
   }
@@ -431,28 +493,43 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     current: ReadyBinding;
     successor: ReadyBinding;
   }): Promise<{ activated: boolean; remainingCancellations?: number }> {
-    const result = record(await this.transport.executionControlMutation("activateExecutionSuccessor", {
-      conversation_id: input.current.conversationId,
-      expected_current_epoch: input.current.epoch,
-      successor_epoch: input.successor.epoch,
-      current_configuration_revision: input.current.appliedConfigurationRevision,
-      current_owner_device_id: input.current.ownerDeviceId,
-      current_daemon_boot_id: input.current.daemonBootId,
-      current_operation_id: input.current.operationId,
-      current_runtime_id: input.current.runtimeId,
-      successor_configuration_revision: input.successor.appliedConfigurationRevision,
-      successor_owner_device_id: input.successor.ownerDeviceId,
-      successor_daemon_boot_id: input.successor.daemonBootId,
-      successor_runtime_id: input.successor.runtimeId,
-    }), "successor activation");
+    const result = record(
+      await this.transport.executionControlMutation(
+        "activateExecutionSuccessor",
+        {
+          conversation_id: input.current.conversationId,
+          expected_current_epoch: input.current.epoch,
+          successor_epoch: input.successor.epoch,
+          current_configuration_revision:
+            input.current.appliedConfigurationRevision,
+          current_owner_device_id: input.current.ownerDeviceId,
+          current_daemon_boot_id: input.current.daemonBootId,
+          current_operation_id: input.current.operationId,
+          current_runtime_id: input.current.runtimeId,
+          successor_configuration_revision:
+            input.successor.appliedConfigurationRevision,
+          successor_owner_device_id: input.successor.ownerDeviceId,
+          successor_daemon_boot_id: input.successor.daemonBootId,
+          successor_runtime_id: input.successor.runtimeId,
+        },
+      ),
+      "successor activation",
+    );
     if (typeof result.activated !== "boolean") {
-      throw new TypeError("Invalid successor activation: activated must be boolean");
+      throw new TypeError(
+        "Invalid successor activation: activated must be boolean",
+      );
     }
     return {
       activated: result.activated,
       ...(result.remainingCancellations === undefined
         ? {}
-        : { remainingCancellations: positive(result.remainingCancellations, "remaining cancellations") }),
+        : {
+            remainingCancellations: positive(
+              result.remainingCancellations,
+              "remaining cancellations",
+            ),
+          }),
     };
   }
 
@@ -480,13 +557,19 @@ export class ConvexExecutionControlPlane implements ExecutionControlPlane {
     onUpdate: (value: unknown) => void,
   ): () => void {
     if (!this.transport.subscribeExecutionControlQuery) {
-      throw new TypeError("Execution transport does not support reactive queries");
+      throw new TypeError(
+        "Execution transport does not support reactive queries",
+      );
     }
-    return this.transport.subscribeExecutionControlQuery("listExecutionWork", {
-      owner_device_id: handshake.ownerDeviceId,
-      daemon_boot_id: handshake.daemonBootId,
-      protocol_version: handshake.protocolVersion,
-      capabilities: [...handshake.capabilities],
-    }, onUpdate);
+    return this.transport.subscribeExecutionControlQuery(
+      "listExecutionWork",
+      {
+        owner_device_id: handshake.ownerDeviceId,
+        daemon_boot_id: handshake.daemonBootId,
+        protocol_version: handshake.protocolVersion,
+        capabilities: [...handshake.capabilities],
+      },
+      onUpdate,
+    );
   }
 }

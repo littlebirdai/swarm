@@ -2,7 +2,11 @@ import { mutation } from "./functions";
 import { v } from "convex/values";
 import { verifyApiToken } from "./apiTokens";
 import { teamVisibleConvTeam } from "./privacy";
-import { activeTeamMembershipFor, canAccessConversation, computeWorkspaceKey } from "./lib/access";
+import {
+  activeTeamMembershipFor,
+  canAccessConversation,
+  computeWorkspaceKey,
+} from "./lib/access";
 
 export const create = mutation({
   args: {
@@ -28,7 +32,7 @@ export const create = mutation({
     const existing = await ctx.db
       .query("patterns")
       .withIndex("by_user_name", (q) =>
-        q.eq("user_id", result.userId).eq("name", args.name)
+        q.eq("user_id", result.userId).eq("name", args.name),
       )
       .first();
 
@@ -40,7 +44,9 @@ export const create = mutation({
     if (args.source_session_id) {
       const conv = await ctx.db
         .query("conversations")
-        .withIndex("by_session_id", (q) => q.eq("session_id", args.source_session_id!))
+        .withIndex("by_session_id", (q) =>
+          q.eq("session_id", args.source_session_id!),
+        )
         .first();
       // A session the caller cannot read donates nothing: neither a link nor
       // its team (session ids are not secrets).
@@ -108,7 +114,7 @@ export const list = mutation({
       const searchResults = await ctx.db
         .query("patterns")
         .withSearchIndex("search_patterns_v2", (q) =>
-          q.search("name", args.search!).eq("user_id", result.userId)
+          q.search("name", args.search!).eq("user_id", result.userId),
         )
         .take(limit + offset);
       patterns = searchResults.slice(offset, offset + limit);
@@ -123,7 +129,7 @@ export const list = mutation({
 
     if (args.tags && args.tags.length > 0) {
       patterns = patterns.filter((p) =>
-        args.tags!.some((tag) => p.tags?.includes(tag))
+        args.tags!.some((tag) => p.tags?.includes(tag)),
       );
     }
 
@@ -156,7 +162,7 @@ export const get = mutation({
     const pattern = await ctx.db
       .query("patterns")
       .withIndex("by_user_name", (q) =>
-        q.eq("user_id", result.userId).eq("name", args.name)
+        q.eq("user_id", result.userId).eq("name", args.name),
       )
       .first();
 
@@ -199,7 +205,7 @@ export const update = mutation({
     const pattern = await ctx.db
       .query("patterns")
       .withIndex("by_user_name", (q) =>
-        q.eq("user_id", result.userId).eq("name", args.name)
+        q.eq("user_id", result.userId).eq("name", args.name),
       )
       .first();
 
@@ -231,7 +237,7 @@ export const remove = mutation({
     const pattern = await ctx.db
       .query("patterns")
       .withIndex("by_user_name", (q) =>
-        q.eq("user_id", result.userId).eq("name", args.name)
+        q.eq("user_id", result.userId).eq("name", args.name),
       )
       .first();
 

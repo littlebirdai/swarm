@@ -6,7 +6,10 @@
 
 import { useMemo } from "react";
 import { useInboxStore } from "../../store/inboxStore";
-import { useWorkspaceCollection, useActiveWorkspaceKey } from "../../hooks/useWorkspaceCollection";
+import {
+  useWorkspaceCollection,
+  useActiveWorkspaceKey,
+} from "../../hooks/useWorkspaceCollection";
 
 /** The join between a kit item and what machines report: kind plus name. */
 export function kitKeyOf(kind: string, name: string): string {
@@ -51,7 +54,8 @@ export function useKitWorkspace(override?: string | null): KitWorkspace {
   const key = override ?? active;
   const teams = useInboxStore((s) => s.teams);
   return useMemo(() => {
-    if (!key) return { key: null, kind: null, name: "Your kit", isAdmin: false };
+    if (!key)
+      return { key: null, kind: null, name: "Your kit", isAdmin: false };
     if (key.startsWith("team:")) {
       const teamId = key.slice("team:".length);
       const team = (teams ?? []).find((t: any) => String(t?._id) === teamId);
@@ -64,7 +68,13 @@ export function useKitWorkspace(override?: string | null): KitWorkspace {
         isAdmin: team?.role === "admin" || team?.role === "owner",
       };
     }
-    return { key, kind: "user", ownerId: key.slice("user:".length), name: "Your kit", isAdmin: true };
+    return {
+      key,
+      kind: "user",
+      ownerId: key.slice("user:".length),
+      name: "Your kit",
+      isAdmin: true,
+    };
   }, [key, teams]);
 }
 
@@ -72,26 +82,47 @@ const kitSig = (r: KitItem) =>
   `${r.updated_at ?? 0}|${r.current_version ?? 0}|${r.publishing ? 1 : 0}|${r.removed_at ?? 0}`;
 
 export function useKitItems(workspace?: string | null): KitItem[] {
-  const rows = useWorkspaceCollection("teamKitItems", kitSig, workspace) as unknown as KitItem[];
+  const rows = useWorkspaceCollection(
+    "teamKitItems",
+    kitSig,
+    workspace,
+  ) as unknown as KitItem[];
   return useMemo(
-    () => rows.filter((r) => !r.removed_at).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)),
+    () =>
+      rows
+        .filter((r) => !r.removed_at)
+        .sort(
+          (a, b) =>
+            a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name),
+        ),
     [rows],
   );
 }
 
 /** Each kit slug's reach for the viewer, from the binding rows. */
-export function useKitReach(slugs: string[]): Record<string, { reach: KitReach; teamOn: boolean }> {
+export function useKitReach(
+  slugs: string[],
+): Record<string, { reach: KitReach; teamOn: boolean }> {
   const bindings = useInboxStore((s) => s.capabilityBindings);
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   return useMemo(() => {
     const out: Record<string, { reach: KitReach; teamOn: boolean }> = {};
     const want = new Set(slugs);
-    const rows = Object.values(bindings ?? {}).filter((b) => want.has(b.capability_slug));
+    const rows = Object.values(bindings ?? {}).filter((b) =>
+      want.has(b.capability_slug),
+    );
     for (const slug of slugs) {
       const mine = rows.find(
-        (b) => b.capability_slug === slug && b.scope_kind === "user" && (!b.user_id || String(b.user_id) === meId),
+        (b) =>
+          b.capability_slug === slug &&
+          b.scope_kind === "user" &&
+          (!b.user_id || String(b.user_id) === meId),
       );
-      const team = rows.find((b) => b.capability_slug === slug && b.scope_kind === "team");
+      const team = rows.find(
+        (b) => b.capability_slug === slug && b.scope_kind === "team",
+      );
       const teamOn = !!team?.enabled;
       // A person's own row wins over the team's: the resolver ranks user scope
       // narrower than team, so "off for me" holds under a team-wide on.
@@ -112,18 +143,45 @@ export function setKitReach(
   const set = useInboxStore.getState().setCapabilityBinding;
   const teamWide = ws.kind === "team" && ws.isAdmin;
   if (teamWide && reach === "team") {
-    set({ capability_slug: item.slug, scope_kind: "team", scope_key: "", enabled: true, team_id: ws.teamId });
-    set({ capability_slug: item.slug, scope_kind: "user", scope_key: "", enabled: true });
+    set({
+      capability_slug: item.slug,
+      scope_kind: "team",
+      scope_key: "",
+      enabled: true,
+      team_id: ws.teamId,
+    });
+    set({
+      capability_slug: item.slug,
+      scope_kind: "user",
+      scope_key: "",
+      enabled: true,
+    });
     return;
   }
   if (teamWide && current.teamOn) {
-    set({ capability_slug: item.slug, scope_kind: "team", scope_key: "", enabled: false, team_id: ws.teamId });
+    set({
+      capability_slug: item.slug,
+      scope_kind: "team",
+      scope_key: "",
+      enabled: false,
+      team_id: ws.teamId,
+    });
   }
-  set({ capability_slug: item.slug, scope_kind: "user", scope_key: "", enabled: reach !== "off" });
+  set({
+    capability_slug: item.slug,
+    scope_kind: "user",
+    scope_key: "",
+    enabled: reach !== "off",
+  });
 }
 
 /** Machines waiting for a person's OK before a kit version that runs code installs. */
 export type PendingConsent = { device_id: string; slug: string; hash: string };
 
 /** A machine where the kit's copy collides with a file a person made by hand. */
-export type KitConflict = { device_id: string; slug: string; hash: string; detail?: string };
+export type KitConflict = {
+  device_id: string;
+  slug: string;
+  hash: string;
+  detail?: string;
+};

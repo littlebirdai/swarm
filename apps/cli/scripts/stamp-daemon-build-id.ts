@@ -48,4 +48,6 @@ if (check) {
 }
 
 fs.writeFileSync(target, renderBuildIdFile(id));
-console.log(`daemon build id ${current ?? "none"} -> ${id} (${files.length} files)`);
+console.log(
+  `daemon build id ${current ?? "none"} -> ${id} (${files.length} files)`,
+);

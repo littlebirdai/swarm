@@ -10,7 +10,12 @@ import {
   expireExcludeTombstones as engineExpireExcludeTombstones,
 } from "@platform/engine";
 import { isConvexId } from "../lib/entityLinks";
-import { PR_STATE_OF_KIND, SESSION_COMMIT_KINDS, SESSION_PUSH_KIND, prThreadKey } from "../lib/externalEventOutcomes";
+import {
+  PR_STATE_OF_KIND,
+  SESSION_COMMIT_KINDS,
+  SESSION_PUSH_KIND,
+  prThreadKey,
+} from "../lib/externalEventOutcomes";
 import { CLIENT_SYNC_REGISTRY } from "./clientSyncRegistry";
 import { DETAIL_ROW_CAPS } from "../lib/detailRows";
 import { isRetiredSettingsKey } from "../lib/settingsData";
@@ -29,8 +34,12 @@ export function persistedMessageTail<T>(
   messages: readonly T[],
   pagination: Record<string, unknown> | undefined,
 ): { messages: T[]; pagination: Record<string, unknown> | undefined } {
-  if (messages.length <= MESSAGE_PAGE_SIZE) return { messages: messages as T[], pagination };
-  return { messages: messages.slice(-MESSAGE_PAGE_SIZE), pagination: { ...(pagination ?? {}), hasMoreAbove: true } };
+  if (messages.length <= MESSAGE_PAGE_SIZE)
+    return { messages: messages as T[], pagination };
+  return {
+    messages: messages.slice(-MESSAGE_PAGE_SIZE),
+    pagination: { ...(pagination ?? {}), hasMoreAbove: true },
+  };
 }
 
 // Retention for the persisted sessions collection, applied at hydration. The
@@ -56,7 +65,12 @@ export const SESSION_CACHE_TTL_MS = WORKING_SET_RECENCY_MS; // the shared recenc
 export const MAX_CACHED_SESSIONS = 1200;
 
 const sessionStampedAt = (row: any): number =>
-  Math.max(row.updated_at ?? 0, row._creationTime ?? 0, row.inbox_stashed_at ?? 0, row.inbox_dismissed_at ?? 0);
+  Math.max(
+    row.updated_at ?? 0,
+    row._creationTime ?? 0,
+    row.inbox_stashed_at ?? 0,
+    row.inbox_dismissed_at ?? 0,
+  );
 
 /**
  * The session rows a change stream may add to a replica that does not hold
@@ -76,7 +90,12 @@ export function admitUnheldSessions<T extends { _id: string }>(
 ): T[] {
   if (!candidates.length) return candidates;
   const kept = new Set(
-    partitionSessionRetention([...held, ...candidates], liveInboxIdList, lastFocusedId, now).keep.map((r) => r._id),
+    partitionSessionRetention(
+      [...held, ...candidates],
+      liveInboxIdList,
+      lastFocusedId,
+      now,
+    ).keep.map((r) => r._id),
   );
   return candidates.filter((r) => sessionStampedAt(r) === 0 || kept.has(r._id));
 }
@@ -92,7 +111,10 @@ export function partitionSessionRetention(
     ttlMs: SESSION_CACHE_TTL_MS,
     maxRows: MAX_CACHED_SESSIONS,
     alwaysKeep: (row) =>
-      liveIds.has(row._id) || row._id === lastFocusedId || !isConvexId(row._id) || !!row.is_pinned,
+      liveIds.has(row._id) ||
+      row._id === lastFocusedId ||
+      !isConvexId(row._id) ||
+      !!row.is_pinned,
     stampedAt: sessionStampedAt,
     sortStamp: (row) => row.updated_at ?? 0,
   });
@@ -131,16 +153,19 @@ export function partitionDocDetailRetention(
 // the surface that shows it fetches it again.
 export const DETAIL_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_CACHED_TASK_THREADS = DETAIL_ROW_CAPS.taskComments;
-export const MAX_CACHED_PULL_REQUEST_DETAILS = DETAIL_ROW_CAPS.pullRequestDetails;
+export const MAX_CACHED_PULL_REQUEST_DETAILS =
+  DETAIL_ROW_CAPS.pullRequestDetails;
 
-const detailRetention = (maxRows: number) => (rows: any[], now: number): { keep: any[]; drop: string[] } =>
-  partitionCacheRetention(rows, now, {
-    ttlMs: DETAIL_CACHE_TTL_MS,
-    maxRows,
-    alwaysKeep: () => false,
-    stampedAt: (row) => row._cachedAt ?? 0,
-    sortStamp: (row) => row._cachedAt ?? 0,
-  });
+const detailRetention =
+  (maxRows: number) =>
+  (rows: any[], now: number): { keep: any[]; drop: string[] } =>
+    partitionCacheRetention(rows, now, {
+      ttlMs: DETAIL_CACHE_TTL_MS,
+      maxRows,
+      alwaysKeep: () => false,
+      stampedAt: (row) => row._cachedAt ?? 0,
+      sortStamp: (row) => row._cachedAt ?? 0,
+    });
 
 // Exclude tombstones never clear for delta tables (absence ≠ deletion in
 // applySyncTable), so every kill/dismiss adds a permanent `pending` entry —
@@ -159,7 +184,12 @@ export function expireExcludeTombstones(
   pending: Record<string, any>,
   now: number,
 ): Record<string, any> {
-  return engineExpireExcludeTombstones(pending, now, SESSION_CACHE_TTL_MS, isUnprotectedField);
+  return engineExpireExcludeTombstones(
+    pending,
+    now,
+    SESSION_CACHE_TTL_MS,
+    isUnprotectedField,
+  );
 }
 
 // The Messages feed's own sends (mySends): the newest rows, contiguous from
@@ -220,20 +250,32 @@ export const MAX_CACHED_MY_SENDS = 10_000;
 export const MAX_CACHED_EXTERNAL_EVENTS = 2_000;
 export const EXTERNAL_EVENT_OUTCOME_TTL_MS = WORKING_SET_RECENCY_MS;
 
-const externalEventStampedAt = (row: any): number => row.created_at ?? row._creationTime ?? 0;
+const externalEventStampedAt = (row: any): number =>
+  row.created_at ?? row._creationTime ?? 0;
 /** Names a plan, a project or a list of tasks: read by views whose feeders only filter a window of the team's newest rows. */
 const externalEventNamesWork = (row: any): boolean =>
-  !!(row.plan_ids?.length || row.project_ids?.length || row.task_ids?.length || row.plan_id || row.project_id);
+  !!(
+    row.plan_ids?.length ||
+    row.project_ids?.length ||
+    row.task_ids?.length ||
+    row.plan_id ||
+    row.project_id
+  );
 const externalEventPr = (row: any): string | null =>
-  row.repository && row.pr_number !== undefined ? prThreadKey(row.repository, row.pr_number) : null;
+  row.repository && row.pr_number !== undefined
+    ? prThreadKey(row.repository, row.pr_number)
+    : null;
 
 export function partitionExternalEventRetention(
   rows: any[],
   now: number,
 ): { keep: any[]; drop: string[] } {
   // Under one team's window nothing can be past it: skip the sort.
-  if (rows.length <= MAX_CACHED_EXTERNAL_EVENTS) return { keep: rows, drop: [] };
-  const newestFirst = [...rows].sort((a, b) => externalEventStampedAt(b) - externalEventStampedAt(a));
+  if (rows.length <= MAX_CACHED_EXTERNAL_EVENTS)
+    return { keep: rows, drop: [] };
+  const newestFirst = [...rows].sort(
+    (a, b) => externalEventStampedAt(b) - externalEventStampedAt(a),
+  );
   const horizon = now - EXTERNAL_EVENT_OUTCOME_TTL_MS;
 
   // First pass, newest first: the rows kept for themselves (a team's window, a
@@ -255,20 +297,33 @@ export function partitionExternalEventRetention(
     const team = String(row.team_id ?? "");
     const seenInTeam = perTeam.get(team) ?? 0;
     perTeam.set(team, seenInTeam + 1);
-    const lastOfRepository = !!row.repository && !repositories.has(row.repository);
+    const lastOfRepository =
+      !!row.repository && !repositories.has(row.repository);
     if (row.repository) repositories.add(row.repository);
-    const inWindow = seenInTeam < MAX_CACHED_EXTERNAL_EVENTS || lastOfRepository || externalEventNamesWork(row) || !isConvexId(row._id);
+    const inWindow =
+      seenInTeam < MAX_CACHED_EXTERNAL_EVENTS ||
+      lastOfRepository ||
+      externalEventNamesWork(row) ||
+      !isConvexId(row._id);
     if (inWindow) kept.add(row);
 
     const pr = externalEventPr(row);
-    const session: string | null = row.conversation_id ? String(row.conversation_id) : null;
+    const session: string | null = row.conversation_id
+      ? String(row.conversation_id)
+      : null;
     const live = inWindow || externalEventStampedAt(row) >= horizon;
     if (pr) {
-      if (!prsSeen.has(pr)) { prsSeen.add(pr); newestOfPrOrTie.add(row); }
+      if (!prsSeen.has(pr)) {
+        prsSeen.add(pr);
+        newestOfPrOrTie.add(row);
+      }
       if (live) livePrs.add(pr);
     }
     if (session) {
-      if (!sessionsSeen.has(session)) { sessionsSeen.add(session); newestOfSession.add(row); }
+      if (!sessionsSeen.has(session)) {
+        sessionsSeen.add(session);
+        newestOfSession.add(row);
+      }
       if (live) liveSessions.add(session);
     }
     if (pr && session) {
@@ -294,13 +349,19 @@ export function partitionExternalEventRetention(
     const pr = prQueue.pop();
     if (pr !== undefined) {
       for (const session of sessionsOfPr.get(pr) ?? []) {
-        if (!liveSessions.has(session)) { liveSessions.add(session); sessionQueue.push(session); }
+        if (!liveSessions.has(session)) {
+          liveSessions.add(session);
+          sessionQueue.push(session);
+        }
       }
     }
     const session = sessionQueue.pop();
     if (session !== undefined) {
       for (const tied of prsOfSession.get(session) ?? []) {
-        if (!livePrs.has(tied)) { livePrs.add(tied); prQueue.push(tied); }
+        if (!livePrs.has(tied)) {
+          livePrs.add(tied);
+          prQueue.push(tied);
+        }
       }
     }
   }
@@ -312,8 +373,14 @@ export function partitionExternalEventRetention(
     const pr = externalEventPr(row);
     const session = row.conversation_id ? String(row.conversation_id) : null;
     const outcome =
-      (!!pr && livePrs.has(pr) && (kind in PR_STATE_OF_KIND || newestOfPrOrTie.has(row))) ||
-      (!!session && liveSessions.has(session) && (SESSION_COMMIT_KINDS.has(kind) || kind === SESSION_PUSH_KIND || newestOfSession.has(row)));
+      (!!pr &&
+        livePrs.has(pr) &&
+        (kind in PR_STATE_OF_KIND || newestOfPrOrTie.has(row))) ||
+      (!!session &&
+        liveSessions.has(session) &&
+        (SESSION_COMMIT_KINDS.has(kind) ||
+          kind === SESSION_PUSH_KIND ||
+          newestOfSession.has(row)));
     if (kept.has(row) || outcome) keep.push(row);
     else drop.push(row._id);
   }
@@ -323,7 +390,10 @@ export function partitionExternalEventRetention(
 // Hydration retention per persisted collection, applied by every cache
 // engine (idbCache, idbCache.native). Sessions take the live inbox and the
 // focused id as well, so they keep their own call.
-export const COLLECTION_RETENTION: Record<string, (rows: any[], now: number) => { keep: any[]; drop: string[] }> = {
+export const COLLECTION_RETENTION: Record<
+  string,
+  (rows: any[], now: number) => { keep: any[]; drop: string[] }
+> = {
   docDetails: partitionDocDetailRetention,
   taskComments: detailRetention(MAX_CACHED_TASK_THREADS),
   pullRequestDetails: detailRetention(MAX_CACHED_PULL_REQUEST_DETAILS),
@@ -334,13 +404,17 @@ export const COLLECTION_RETENTION: Record<string, (rows: any[], now: number) => 
   settingsData: (rows) => {
     const keep: any[] = [];
     const drop: string[] = [];
-    for (const row of rows) (isRetiredSettingsKey(String(row?._id ?? "")) ? drop.push(String(row._id)) : keep.push(row));
+    for (const row of rows)
+      isRetiredSettingsKey(String(row?._id ?? ""))
+        ? drop.push(String(row._id))
+        : keep.push(row);
     return { keep, drop };
   },
-  mySends: (rows, now) => partitionCacheRetention(rows, now, {
-    ttlMs: Number.POSITIVE_INFINITY,
-    maxRows: MAX_CACHED_MY_SENDS,
-    alwaysKeep: () => false,
-    stampedAt: (row) => row.timestamp ?? 0,
-  }),
+  mySends: (rows, now) =>
+    partitionCacheRetention(rows, now, {
+      ttlMs: Number.POSITIVE_INFINITY,
+      maxRows: MAX_CACHED_MY_SENDS,
+      alwaysKeep: () => false,
+      stampedAt: (row) => row.timestamp ?? 0,
+    }),
 };

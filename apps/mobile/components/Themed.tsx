@@ -13,13 +13,24 @@ import {
   Text as DefaultText,
   TextInput as DefaultTextInput,
   View as DefaultView,
-} from 'react-native';
-import { createContext, forwardRef, useContext } from 'react';
+} from "react-native";
+import { createContext, forwardRef, useContext } from "react";
 
-import { Theme, getActiveLook, useActiveScheme, useTheme } from '@/constants/Theme';
-import { TextSizeContext } from '@/lib/textSizeContext';
-import { sizeStyle } from '@/lib/textSize';
-import { isCapsText, monoStyle, namedFaceGroup, useLateFacesLoaded, type FaceGroup } from '@/constants/fonts';
+import {
+  Theme,
+  getActiveLook,
+  useActiveScheme,
+  useTheme,
+} from "@/constants/Theme";
+import { TextSizeContext } from "@/lib/textSizeContext";
+import { sizeStyle } from "@/lib/textSize";
+import {
+  isCapsText,
+  monoStyle,
+  namedFaceGroup,
+  useLateFacesLoaded,
+  type FaceGroup,
+} from "@/constants/fonts";
 
 // Under Modern, the face group a Text names outright, handed to the Text
 // nested in it: RN nests Text the way the DOM nests spans, and a span that
@@ -32,54 +43,88 @@ type ThemeProps = {
   darkColor?: string;
 };
 
-export type TextProps = ThemeProps & DefaultText['props'];
-export type ViewProps = ThemeProps & DefaultView['props'];
-export type TextInputProps = ThemeProps & React.ComponentProps<typeof DefaultTextInput>;
+export type TextProps = ThemeProps & DefaultText["props"];
+export type ViewProps = ThemeProps & DefaultView["props"];
+export type TextInputProps = ThemeProps &
+  React.ComponentProps<typeof DefaultTextInput>;
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
-  colorName: 'text' | 'background'
+  colorName: "text" | "background",
 ) {
   // Subscribes the wrapper to scheme flips; Theme itself reads live.
   const scheme = useActiveScheme();
-  return props[scheme] ?? (colorName === 'text' ? Theme.text : Theme.bg);
+  return props[scheme] ?? (colorName === "text" ? Theme.text : Theme.bg);
 }
 
-export const Text = forwardRef<DefaultText, TextProps>(function Text(props, ref) {
-  const { style, lightColor, darkColor, ...otherProps } = props;
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const late = useLateFacesLoaded();
-  // useThemeColor's subscription is to look and scheme together, so this
-  // render already follows a look flip; no second subscription per Text.
-  const look = getActiveLook();
-  const inherited = useContext(InheritedFace);
-  const size = useContext(TextSizeContext);
-  if (look !== 'modern') return <DefaultText ref={ref} {...otherProps} style={sizeStyle(monoStyle([{ color }, style], late, look), size)} />;
-  const text = <DefaultText ref={ref} {...otherProps} style={sizeStyle(monoStyle([{ color }, style], late, look, inherited, isCapsText(otherProps.children)), size)} />;
-  const named = namedFaceGroup(style);
-  return named && named !== inherited ? <InheritedFace.Provider value={named}>{text}</InheritedFace.Provider> : text;
-});
+export const Text = forwardRef<DefaultText, TextProps>(
+  function Text(props, ref) {
+    const { style, lightColor, darkColor, ...otherProps } = props;
+    const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
+    const late = useLateFacesLoaded();
+    // useThemeColor's subscription is to look and scheme together, so this
+    // render already follows a look flip; no second subscription per Text.
+    const look = getActiveLook();
+    const inherited = useContext(InheritedFace);
+    const size = useContext(TextSizeContext);
+    if (look !== "modern")
+      return (
+        <DefaultText
+          ref={ref}
+          {...otherProps}
+          style={sizeStyle(monoStyle([{ color }, style], late, look), size)}
+        />
+      );
+    const text = (
+      <DefaultText
+        ref={ref}
+        {...otherProps}
+        style={sizeStyle(
+          monoStyle(
+            [{ color }, style],
+            late,
+            look,
+            inherited,
+            isCapsText(otherProps.children),
+          ),
+          size,
+        )}
+      />
+    );
+    const named = namedFaceGroup(style);
+    return named && named !== inherited ? (
+      <InheritedFace.Provider value={named}>{text}</InheritedFace.Provider>
+    ) : (
+      text
+    );
+  },
+);
 
-export const TextInput = forwardRef<DefaultTextInput, TextInputProps>(function TextInput(props, ref) {
-  const Theme = useTheme();
-  const { style, lightColor, darkColor, ...otherProps } = props;
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const late = useLateFacesLoaded();
-  const look = getActiveLook();
-  const size = useContext(TextSizeContext);
-  return (
-    <DefaultTextInput
-      ref={ref}
-      placeholderTextColor={Theme.inputPlaceholder}
-      {...otherProps}
-      style={sizeStyle(monoStyle([{ color }, style], late, look), size)}
-    />
-  );
-});
+export const TextInput = forwardRef<DefaultTextInput, TextInputProps>(
+  function TextInput(props, ref) {
+    const Theme = useTheme();
+    const { style, lightColor, darkColor, ...otherProps } = props;
+    const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
+    const late = useLateFacesLoaded();
+    const look = getActiveLook();
+    const size = useContext(TextSizeContext);
+    return (
+      <DefaultTextInput
+        ref={ref}
+        placeholderTextColor={Theme.inputPlaceholder}
+        {...otherProps}
+        style={sizeStyle(monoStyle([{ color }, style], late, look), size)}
+      />
+    );
+  },
+);
 
 export function View(props: ViewProps) {
   const { style, lightColor, darkColor, ...otherProps } = props;
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const backgroundColor = useThemeColor(
+    { light: lightColor, dark: darkColor },
+    "background",
+  );
 
   return <DefaultView style={[{ backgroundColor }, style]} {...otherProps} />;
 }

@@ -8,5 +8,9 @@ export function keepEnds(text: string, cap: number): string {
   if (room <= 0) return text.slice(0, cap);
   const head = Math.floor(room / 4);
   const tail = room - head;
-  return text.slice(0, head) + marker(text.length - head - tail) + text.slice(text.length - tail);
+  return (
+    text.slice(0, head) +
+    marker(text.length - head - tail) +
+    text.slice(text.length - tail)
+  );
 }

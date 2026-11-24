@@ -29,7 +29,10 @@ export type CollectionRowsOpts<T> = {
 // passes a fresh `where` or `sig` each render pays a full pass per render
 // (hoist those to module scope or a memo), but no longer leaks an entry each.
 const NO_FN = {};
-const sliceSigs = new WeakMap<object, WeakMap<object, (collection: Record<string, unknown>) => string>>();
+const sliceSigs = new WeakMap<
+  object,
+  WeakMap<object, (collection: Record<string, unknown>) => string>
+>();
 function sliceSig<T>(
   collection: Record<string, T> | undefined,
   where: ((row: T) => boolean) | undefined,
@@ -37,18 +40,32 @@ function sliceSig<T>(
 ): string {
   if (!collection) return "";
   let bySig = sliceSigs.get(where ?? NO_FN);
-  if (!bySig) { bySig = new WeakMap(); sliceSigs.set(where ?? NO_FN, bySig); }
+  if (!bySig) {
+    bySig = new WeakMap();
+    sliceSigs.set(where ?? NO_FN, bySig);
+  }
   let fn = bySig.get(sig ?? NO_FN);
   if (!fn) {
-    fn = makeCollectionSig<any>((row) => (!row || (where && !where(row)) ? null : sig ? sig(row) : ""));
+    fn = makeCollectionSig<any>((row) =>
+      !row || (where && !where(row)) ? null : sig ? sig(row) : "",
+    );
     bySig.set(sig ?? NO_FN, fn);
   }
   return fn(collection as Record<string, unknown>);
 }
 
-export function useCollectionRows<T = any>(key: string, opts: CollectionRowsOpts<T> = {}): T[] {
+export function useCollectionRows<T = any>(
+  key: string,
+  opts: CollectionRowsOpts<T> = {},
+): T[] {
   const { where, sig, sort } = opts;
-  const dep = useMemo(() => Object.assign((st: any) => sliceSig<T>(st[key], where, sig), { label: `sliceSig(${key})` }), [key, where, sig]);
+  const dep = useMemo(
+    () =>
+      Object.assign((st: any) => sliceSig<T>(st[key], where, sig), {
+        label: `sliceSig(${key})`,
+      }),
+    [key, where, sig],
+  );
   const s = useTrackedStore([dep]);
   const coll = (s as any)[key] as Record<string, T> | undefined;
   const signature = sliceSig<T>(coll, where, sig);

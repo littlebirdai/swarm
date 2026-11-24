@@ -26,28 +26,56 @@ const KEY = "externalEvents";
  *  server answered with the viewer's server-side team, whatever this window shows. */
 export function useSyncTeamExternalEvents(limit = 200) {
   const teamId = useInboxStore(activeTeamIdOf);
-  const args = useMemo(() => (teamId && isConvexId(teamId) ? { team_id: teamId, limit } : "skip" as const), [teamId, limit]);
+  const args = useMemo(
+    () =>
+      teamId && isConvexId(teamId)
+        ? { team_id: teamId, limit }
+        : ("skip" as const),
+    [teamId, limit],
+  );
   return useSyncCollection(KEY, api.externalEvents.listForTeam, args);
 }
 
-export function useSyncConversationExternalEvents(conversationId: string | undefined) {
-  return useSyncCollection(KEY, api.externalEvents.listForConversation, entityIdArgs("conversation_id", conversationId));
+export function useSyncConversationExternalEvents(
+  conversationId: string | undefined,
+) {
+  return useSyncCollection(
+    KEY,
+    api.externalEvents.listForConversation,
+    entityIdArgs("conversation_id", conversationId),
+  );
 }
 
 export function useSyncTaskExternalEvents(taskId: string | undefined) {
-  return useSyncCollection(KEY, api.externalEvents.listForTask, entityIdArgs("task_id", taskId));
+  return useSyncCollection(
+    KEY,
+    api.externalEvents.listForTask,
+    entityIdArgs("task_id", taskId),
+  );
 }
 
 export function useSyncPlanExternalEvents(planId: string | undefined) {
-  return useSyncCollection(KEY, api.externalEvents.listForPlan, entityIdArgs("plan_id", planId));
+  return useSyncCollection(
+    KEY,
+    api.externalEvents.listForPlan,
+    entityIdArgs("plan_id", planId),
+  );
 }
 
 export function useSyncProjectExternalEvents(projectId: string | undefined) {
-  return useSyncCollection(KEY, api.externalEvents.listForProject, entityIdArgs("project_id", projectId));
+  return useSyncCollection(
+    KEY,
+    api.externalEvents.listForProject,
+    entityIdArgs("project_id", projectId),
+  );
 }
 
 export function useSyncPRExternalEvents(prId: string | undefined) {
-  return useSyncCollection(KEY, api.externalEvents.listForPR, entityIdArgs("pr_id", prId));
+  return useSyncCollection(
+    KEY,
+    api.externalEvents.listForPR,
+    entityIdArgs("pr_id", prId),
+  );
 }
 
 export function useSyncRepositoryExternalEvents(
@@ -61,15 +89,24 @@ export function useSyncRepositoryExternalEvents(
 const externalEventSig = (e: ExternalEventRecord) =>
   `${e.kind}|${e.title}|${e.created_at}|${e.meta?.conclusion ?? ""}|${e.meta?.status ?? ""}|${e.meta?.review_state ?? ""}|${e.meta?.shepherd_state ?? ""}`;
 
-const byCreatedDesc = (a: ExternalEventRecord, b: ExternalEventRecord) => (b.created_at ?? 0) - (a.created_at ?? 0);
-const byCreatedAsc = (a: ExternalEventRecord, b: ExternalEventRecord) => (a.created_at ?? 0) - (b.created_at ?? 0);
+const byCreatedDesc = (a: ExternalEventRecord, b: ExternalEventRecord) =>
+  (b.created_at ?? 0) - (a.created_at ?? 0);
+const byCreatedAsc = (a: ExternalEventRecord, b: ExternalEventRecord) =>
+  (a.created_at ?? 0) - (b.created_at ?? 0);
 
 export const externalEventsNewestFirst = byCreatedDesc;
 export const externalEventsOldestFirst = byCreatedAsc;
 
 export function useExternalEvents(
   where?: (row: ExternalEventRecord) => boolean,
-  sort: (a: ExternalEventRecord, b: ExternalEventRecord) => number = byCreatedDesc,
+  sort: (
+    a: ExternalEventRecord,
+    b: ExternalEventRecord,
+  ) => number = byCreatedDesc,
 ): ExternalEventRecord[] {
-  return useCollectionRows<ExternalEventRecord>(KEY, { where, sig: externalEventSig, sort });
+  return useCollectionRows<ExternalEventRecord>(KEY, {
+    where,
+    sig: externalEventSig,
+    sort,
+  });
 }

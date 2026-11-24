@@ -6,13 +6,24 @@ import { isStubDoc } from "../components/live/liveStub";
 import { useInboxStore, DocDetail } from "../store/inboxStore";
 import { useConvexSync } from "./useConvexSync";
 import { useBootstrapCollection } from "./useBootstrapCollection";
-import { countLogMissedRows, crawlResetsFor, runReconcileCrawl, syncMetaKey } from "./reconcileCrawl";
+import {
+  countLogMissedRows,
+  crawlResetsFor,
+  runReconcileCrawl,
+  syncMetaKey,
+} from "./reconcileCrawl";
 import { track } from "../lib/analytics";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { useWorkspaceArgs, type WorkspaceArgs as StoreWorkspaceArgs } from "./useWorkspaceArgs";
+import {
+  useWorkspaceArgs,
+  type WorkspaceArgs as StoreWorkspaceArgs,
+} from "./useWorkspaceArgs";
 
 import { useMountEffect } from "./useMountEffect";
-import { conversationProjectRoot, knownCheckoutRoots } from "@codecast/convex/convex/projectPaths";
+import {
+  conversationProjectRoot,
+  knownCheckoutRoots,
+} from "@codecast/convex/convex/projectPaths";
 import { useWatchEffect } from "./useWatchEffect";
 const api = _api as any;
 
@@ -21,7 +32,8 @@ const api = _api as any;
 function dedupeProjectPaths(paths: string[], checkouts: Set<string>): string[] {
   const byName = new Map<string, string>();
   for (const path of paths) {
-    const root = conversationProjectRoot({ project_path: path }, checkouts) ?? path;
+    const root =
+      conversationProjectRoot({ project_path: path }, checkouts) ?? path;
     const name = root.split("/").filter(Boolean).pop() || path;
     const existing = byName.get(name);
     if (!existing || (path.includes("/src/") && !existing.includes("/src/"))) {
@@ -77,8 +89,17 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
   const { ready } = useBootstrapCollection(
     "docs",
     api.docs.webListPaginated,
-    wsArgs === "skip" ? "skip" : { ...(wsArgs as object), paginationOpts: { numItems: BOOTSTRAP_PAGE_SIZE, cursor: null } },
-    { select: (r: any) => r?.page, liveLoadingScope: "docs", onRows: setResults },
+    wsArgs === "skip"
+      ? "skip"
+      : {
+          ...(wsArgs as object),
+          paginationOpts: { numItems: BOOTSTRAP_PAGE_SIZE, cursor: null },
+        },
+    {
+      select: (r: any) => r?.page,
+      liveLoadingScope: "docs",
+      onRows: setResults,
+    },
   );
 
   // BODY PREFETCH for the recent page: the list channels are thin (bodies
@@ -98,19 +119,26 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
     const rowById = new Map<string, any>();
     for (const row of results as any[]) {
       const cached = docDetails[row._id];
-      if (cached?.content !== undefined && (cached.updated_at ?? 0) >= row.updated_at) continue;
+      if (
+        cached?.content !== undefined &&
+        (cached.updated_at ?? 0) >= row.updated_at
+      )
+        continue;
       if (attemptedRef.current.get(row._id) === row.updated_at) continue;
       rowById.set(row._id, row);
     }
     if (rowById.size === 0) return;
-    for (const [id, row] of rowById) attemptedRef.current.set(id, row.updated_at);
+    for (const [id, row] of rowById)
+      attemptedRef.current.set(id, row.updated_at);
     let cancelled = false;
     (async () => {
       const ids = [...rowById.keys()];
       for (let i = 0; i < ids.length && !cancelled; i += 6) {
         const batch = ids.slice(i, i + 6);
         try {
-          const { bodies } = await convex.query(api.docs.webGetBodies, { ids: batch });
+          const { bodies } = await convex.query(api.docs.webGetBodies, {
+            ids: batch,
+          });
           if (cancelled) return;
           const store = useInboxStore.getState();
           for (const body of bodies ?? []) {
@@ -130,7 +158,9 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
         if (i + 6 < ids.length) await new Promise((r) => setTimeout(r, 150));
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [convex, results, prefetchHydrated, wsSkip]);
 
   // 2) BACKGROUND RECONCILE: crawl every page once (one-shot queries, NOT live
@@ -146,16 +176,23 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
   const [reconcileNonce, setReconcileNonce] = useState(0);
   // A resync cleared this watermark: relaunch (see useSyncTasks).
-  const crawlReset = useInboxStore((s) => crawlResetsFor(s, syncMetaKey("docs", wsKey)));
+  const crawlReset = useInboxStore((s) =>
+    crawlResetsFor(s, syncMetaKey("docs", wsKey)),
+  );
   useMountEffect(() => {
-    const id = setInterval(() => setReconcileNonce((n) => n + 1), RECONCILE_THROTTLE_MS);
+    const id = setInterval(
+      () => setReconcileNonce((n) => n + 1),
+      RECONCILE_THROTTLE_MS,
+    );
     return () => clearInterval(id);
   });
   useWatchEffect(() => {
     if (!hydrated) return;
     // Healed-rows metric (sync-log-migration.md D12): only meaningful after the
     // first full backfill — a cold crawl would count every row as "missed".
-    const docsWarm = !!useInboxStore.getState().syncMeta[syncMetaKey("docs", wsKey)]?.backfilledAt;
+    const docsWarm =
+      !!useInboxStore.getState().syncMeta[syncMetaKey("docs", wsKey)]
+        ?.backfilledAt;
     const healedRef = { count: 0 };
     runReconcileCrawl({
       namespace: "docs",
@@ -168,28 +205,48 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
           ...(wsArgs as object),
           paginationOpts: { numItems: RECONCILE_PAGE_SIZE, cursor },
         });
-        return { rows: page.page ?? [], isDone: page.isDone, continueCursor: page.continueCursor };
+        return {
+          rows: page.page ?? [],
+          isDone: page.isDone,
+          continueCursor: page.continueCursor,
+        };
       },
       onPage: (rows) => {
-        if (docsWarm) healedRef.count += countLogMissedRows(useInboxStore.getState().docs, rows);
+        if (docsWarm)
+          healedRef.count += countLogMissedRows(
+            useInboxStore.getState().docs,
+            rows,
+          );
         // Authorized crawl rows are visible by definition — lift excludes
         // (feed prunes, team-revocation purges) before the delta merge, or the
         // engine drops them forever. Heals team rejoin (review C7).
-        useInboxStore.getState().clearFeedExcludes("docs", rows.map((r: any) => String(r._id)));
+        useInboxStore.getState().clearFeedExcludes(
+          "docs",
+          rows.map((r: any) => String(r._id)),
+        );
         syncTable("docs", rows, { isDelta: true });
       },
       onComplete: (all, complete) => {
         if (docsWarm) {
           // Removal-condition metric — zeros included (see useSyncTasks).
-          track("synclog_crawl_healed", { namespace: "docs", count: healedRef.count });
-          console.info(`[synclog] docs safety-net crawl healed ${healedRef.count} row(s)`);
+          track("synclog_crawl_healed", {
+            namespace: "docs",
+            count: healedRef.count,
+          });
+          console.info(
+            `[synclog] docs safety-net crawl healed ${healedRef.count} row(s)`,
+          );
         }
         // `complete` is false when the crawl stopped early OR resumed from a
         // mid-crawl checkpoint (reconcileCrawl's reload-resume): `all` is then
         // only the tail of the table, and neither the derived project paths nor
         // the absent-prune below may treat it as the whole workspace.
         const projectPaths = dedupeProjectPaths(
-          [...new Set(all.map((d) => d.project_path).filter(Boolean) as string[])],
+          [
+            ...new Set(
+              all.map((d) => d.project_path).filter(Boolean) as string[],
+            ),
+          ],
           knownCheckoutRoots(Object.values(useInboxStore.getState().sessions)),
         );
         // Only attach `extra` when the derived paths actually changed. `extra`
@@ -213,7 +270,11 @@ export function useSyncDocsPaginated(wsArgs: WorkspaceArgs) {
               ? (d: any) => d.team_id === (wsArgs as any).team_id
               : (d: any) => !d.team_id;
         const opts = pathsChanged
-          ? { isDelta: true, pruneAbsentScope, extra: { docProjectPaths: projectPaths } }
+          ? {
+              isDelta: true,
+              pruneAbsentScope,
+              extra: { docProjectPaths: projectPaths },
+            }
           : { isDelta: true, pruneAbsentScope };
         useInboxStore.getState().syncTable("docs", all, opts);
       },
@@ -235,11 +296,19 @@ export function useSyncDocs() {
  */
 export function useSyncMentionDocs() {
   const syncMentionIndex = useInboxStore((s) => s.syncMentionIndex);
-  const result = useQueryNoThrow(api.docs.webMentionList, { workspace: "all" } as any).data;
+  const result = useQueryNoThrow(api.docs.webMentionList, {
+    workspace: "all",
+  } as any).data;
 
-  useConvexSync(result, useCallback((data: any) => {
-    syncMentionIndex("docs", data?.items ?? []);
-  }, [syncMentionIndex]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        syncMentionIndex("docs", data?.items ?? []);
+      },
+      [syncMentionIndex],
+    ),
+  );
 }
 
 // Returns the raw query result so callers can tell the three states apart:
@@ -256,26 +325,33 @@ export function useSyncDocDetail(id?: string) {
   const data = useQueryNoThrow(
     api.taskMining.webGetDocDetail,
     // A placeholder doc (a new artifact the server hasn't made yet) has no detail to ask for.
-    id && !isStubDoc(id) ? { id: id as any } : "skip"
+    id && !isStubDoc(id) ? { id: id as any } : "skip",
   ).data;
   const syncRecord = useInboxStore((s) => s.syncRecord);
 
-  useConvexSync(data, useCallback((d: any) => {
-    if (!id) return;
-    if (d) {
-      // The detail row spreads the whole doc, embedding included — dead weight
-      // for a cache that now persists (the registry hydrateRow sheds it at
-      // boot; shedding here keeps it out of memory and disk in the first place).
-      const { embedding: _m, ...row } = d;
-      const prev = useInboxStore.getState().docDetails[id]?._cachedAt ?? 0;
-      row._cachedAt = Date.now() - prev < CACHED_AT_GRAIN_MS ? prev : Date.now();
-      syncRecord("docDetails", id, row as unknown as DocDetail);
-    } else if (d === null && useInboxStore.getState().docDetails[id]) {
-      // Deleted or access revoked — a persisted body must not outlive the
-      // server's answer, or the page renders stale content forever.
-      useInboxStore.getState().dropDocDetail(id);
-    }
-  }, [id, syncRecord]));
+  useConvexSync(
+    data,
+    useCallback(
+      (d: any) => {
+        if (!id) return;
+        if (d) {
+          // The detail row spreads the whole doc, embedding included — dead weight
+          // for a cache that now persists (the registry hydrateRow sheds it at
+          // boot; shedding here keeps it out of memory and disk in the first place).
+          const { embedding: _m, ...row } = d;
+          const prev = useInboxStore.getState().docDetails[id]?._cachedAt ?? 0;
+          row._cachedAt =
+            Date.now() - prev < CACHED_AT_GRAIN_MS ? prev : Date.now();
+          syncRecord("docDetails", id, row as unknown as DocDetail);
+        } else if (d === null && useInboxStore.getState().docDetails[id]) {
+          // Deleted or access revoked — a persisted body must not outlive the
+          // server's answer, or the page renders stale content forever.
+          useInboxStore.getState().dropDocDetail(id);
+        }
+      },
+      [id, syncRecord],
+    ),
+  );
 
   return data as DocDetail | null | undefined;
 }

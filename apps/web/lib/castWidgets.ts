@@ -30,9 +30,13 @@ export const WIDGET_BASE_CSS =
   "white-space:pre;max-width:280px;z-index:10;pointer-events:none}";
 
 function hydrateTabs(root: ParentNode): void {
-  for (const tabs of Array.from(root.querySelectorAll<HTMLElement>(".cast-tabs"))) {
+  for (const tabs of Array.from(
+    root.querySelectorAll<HTMLElement>(".cast-tabs"),
+  )) {
     if (tabs.querySelector(":scope > .cast-tabs-bar")) continue; // already hydrated
-    const panels = Array.from(tabs.querySelectorAll<HTMLElement>(":scope > section[data-tab]"));
+    const panels = Array.from(
+      tabs.querySelectorAll<HTMLElement>(":scope > section[data-tab]"),
+    );
     if (panels.length < 2) continue;
     const bar = tabs.ownerDocument.createElement("div");
     bar.className = "cast-tabs-bar";
@@ -50,7 +54,12 @@ function hydrateTabs(root: ParentNode): void {
       bar.appendChild(btn);
     });
     tabs.prepend(bar);
-    select(Math.max(0, panels.findIndex((p) => p.hasAttribute("data-active"))));
+    select(
+      Math.max(
+        0,
+        panels.findIndex((p) => p.hasAttribute("data-active")),
+      ),
+    );
   }
 }
 
@@ -64,10 +73,14 @@ function asNumber(s: string): number {
 }
 
 function hydrateTables(root: ParentNode): void {
-  for (const table of Array.from(root.querySelectorAll<HTMLTableElement>("table.cast-table"))) {
+  for (const table of Array.from(
+    root.querySelectorAll<HTMLTableElement>("table.cast-table"),
+  )) {
     if (table.dataset.hydrated) continue;
     table.dataset.hydrated = "1";
-    const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th"));
+    const headers = Array.from(
+      table.querySelectorAll<HTMLTableCellElement>("thead th"),
+    );
     const body = table.tBodies[0];
     if (!headers.length || !body) continue;
     headers.forEach((th, col) => {
@@ -76,10 +89,16 @@ function hydrateTables(root: ParentNode): void {
         headers.forEach((h) => h.removeAttribute("data-sort"));
         th.setAttribute("data-sort", dir);
         const rows = Array.from(body.rows);
-        const numeric = rows.every((r) => !Number.isNaN(asNumber(cellValue(r, col))) || !cellValue(r, col));
+        const numeric = rows.every(
+          (r) =>
+            !Number.isNaN(asNumber(cellValue(r, col))) || !cellValue(r, col),
+        );
         rows.sort((a, b) => {
-          const av = cellValue(a, col), bv = cellValue(b, col);
-          const cmp = numeric ? asNumber(av) - asNumber(bv) : av.localeCompare(bv);
+          const av = cellValue(a, col),
+            bv = cellValue(b, col);
+          const cmp = numeric
+            ? asNumber(av) - asNumber(bv)
+            : av.localeCompare(bv);
           return dir === "asc" ? cmp : -cmp;
         });
         body.append(...rows);

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { parseFileChangeSummary, parseUnifiedDiffSections } from "../unifiedDiffParser";
+import {
+  parseFileChangeSummary,
+  parseUnifiedDiffSections,
+} from "../unifiedDiffParser";
 
 describe("parseFileChangeSummary", () => {
   it("extracts file paths from codex file change summaries", () => {
-    expect(parseFileChangeSummary("updated: /src/a.ts\ncreated: /src/b.ts")).toEqual([
-      "/src/a.ts",
-      "/src/b.ts",
-    ]);
+    expect(
+      parseFileChangeSummary("updated: /src/a.ts\ncreated: /src/b.ts"),
+    ).toEqual(["/src/a.ts", "/src/b.ts"]);
   });
 });
 

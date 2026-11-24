@@ -17,14 +17,21 @@ import { useInboxStore } from "../store/inboxStore";
 
 export function TeamFeatureOff({ feature }: { feature: TeamFeatureKey }) {
   // A feature with a guide gets its landing: what it is, the guide, the switch.
-  if (GUIDE_FOR[feature]) return <Suspense fallback={null}><FeatureLanding feature={feature} /></Suspense>;
+  if (GUIDE_FOR[feature])
+    return (
+      <Suspense fallback={null}>
+        <FeatureLanding feature={feature} />
+      </Suspense>
+    );
   return <FeatureOffLine feature={feature} />;
 }
 
 function FeatureOffLine({ feature }: { feature: TeamFeatureKey }) {
   const isAdmin = useInboxStore((s) => {
     const teamId = s.clientState.ui?.active_team_id;
-    const team = (s.teams || []).find((t: any) => String(t._id) === String(teamId));
+    const team = (s.teams || []).find(
+      (t: any) => String(t._id) === String(teamId),
+    );
     return team?.role === "admin";
   });
   const copy = featureOffCopy(TEAM_FEATURE_CATALOG, feature, isAdmin);

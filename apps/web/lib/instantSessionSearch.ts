@@ -8,7 +8,10 @@
 // return, so a surface renders one list and never branches on where a row came
 // from — except to say, honestly, that content search is still running.
 import { useDeferredValue, useMemo } from "react";
-import { normalizeQueryQuotes, parseSessionQuery } from "@codecast/shared/search";
+import {
+  normalizeQueryQuotes,
+  parseSessionQuery,
+} from "@codecast/shared/search";
 import type { WorkState } from "@codecast/shared/contracts";
 import {
   useInboxStore,
@@ -24,13 +27,24 @@ import { ownTitle } from "./conversationTitle";
 import { cleanTitle } from "./conversationProcessor";
 import { sessionCardTitle, sessionTitleText } from "./sessionCard";
 import { matchScore, textWords } from "./mentionRanking";
-import { identityLine, identityRowOf, identitySig, type IdentityPrefs, type IdentityRow } from "./sessionIdentity";
+import {
+  identityLine,
+  identityRowOf,
+  identitySig,
+  type IdentityPrefs,
+  type IdentityRow,
+} from "./sessionIdentity";
 import { identityPrefsNow } from "../hooks/useIdentityPrefs";
 
 export type SessionSearchRow = {
   conversationId: string;
   title: string;
-  matches: Array<{ messageId: string; content: string; role: string; timestamp: number }>;
+  matches: Array<{
+    messageId: string;
+    content: string;
+    role: string;
+    timestamp: number;
+  }>;
   matchCount: number;
   updatedAt: number;
   authorName: string;
@@ -80,14 +94,22 @@ type HaystackRow = Partial<IdentityRow> & {
  *  it by, lib/conversationTitle). Never a placeholder, which would match
  *  "new". */
 function searchTitle(conv: HaystackRow): string {
-  if (isHostedAgentType(conv.agent_type)) return ownTitle(conv) || promptTitle(conv.last_user_message);
+  if (isHostedAgentType(conv.agent_type))
+    return ownTitle(conv) || promptTitle(conv.last_user_message);
   return cleanTitle(sessionTitleText(conv));
 }
 
 // Per row object: a search re-reads the same rows on every keystroke, and a row
 // that changed arrives as a new object.
-const _haystackCache = new WeakMap<object, { personify: IdentityPrefs; text: string; words?: string[] }>();
-function haystackEntry(conv: HaystackRow): { personify: IdentityPrefs; text: string; words?: string[] } {
+const _haystackCache = new WeakMap<
+  object,
+  { personify: IdentityPrefs; text: string; words?: string[] }
+>();
+function haystackEntry(conv: HaystackRow): {
+  personify: IdentityPrefs;
+  text: string;
+  words?: string[];
+} {
   const personify = identityPrefsNow();
   const hit = _haystackCache.get(conv);
   if (hit && hit.personify === personify) return hit;
@@ -104,7 +126,9 @@ function sessionSearchWords(conv: HaystackRow): string[] {
   return (entry.words ??= textWords(entry.text));
 }
 function buildHaystack(conv: HaystackRow, personify: IdentityPrefs): string {
-  const who = conv._id ? identityLine(identityRowOf(conv as IdentityRow), null, personify) : null;
+  const who = conv._id
+    ? identityLine(identityRowOf(conv as IdentityRow), null, personify)
+    : null;
   return [
     who?.name || "",
     who?.handle || "",
@@ -121,7 +145,10 @@ function buildHaystack(conv: HaystackRow, personify: IdentityPrefs): string {
 }
 
 /** Substring test over that haystack — the ⌘K recents filter and the instant tier share it. */
-export function sessionMatchesQuery(conv: HaystackRow, lowerQuery: string): boolean {
+export function sessionMatchesQuery(
+  conv: HaystackRow,
+  lowerQuery: string,
+): boolean {
   if (!lowerQuery) return true;
   return sessionSearchHaystack(conv).includes(lowerQuery);
 }
@@ -158,34 +185,52 @@ export function sessionStanding(
   meId: string | null,
   live?: { bucket: string; work_state: WorkState } | InboxSession | null,
 ): SessionStanding {
-  const placed = !live ? null : "bucket" in live ? live : sessionPlacement(live);
+  const placed = !live
+    ? null
+    : "bucket" in live
+      ? live
+      : sessionPlacement(live);
   const bucket = placed?.bucket;
   const shelf: SessionStanding["shelf"] = row.inbox_killed_at
     ? "killed"
     : bucket === "dismissed" || (!placed && row.inbox_dismissed_at)
-    ? "dismissed"
-    : bucket === "stashed" || (!placed && row.inbox_stashed_at)
-    ? "stashed"
-    : bucket === "snoozed"
-    ? "snoozed"
-    : null;
-  const mine = row.isOwn ?? (!row.user_id || !meId || row.user_id === meId || !!row.owned_by_me);
+      ? "dismissed"
+      : bucket === "stashed" || (!placed && row.inbox_stashed_at)
+        ? "stashed"
+        : bucket === "snoozed"
+          ? "snoozed"
+          : null;
+  const mine =
+    row.isOwn ??
+    (!row.user_id || !meId || row.user_id === meId || !!row.owned_by_me);
   return { state: placed?.work_state ?? null, shelf, sub: isSub(row), mine };
 }
 
 const TIER_SPAN = 10;
-const STATE_LIFT: Partial<Record<WorkState, number>> = { needs_input: 3, working: 2 };
-const SHELF_COST: Record<NonNullable<SessionStanding["shelf"]>, number> = { snoozed: 2, stashed: 2.5, dismissed: 4, killed: 4 };
+const STATE_LIFT: Partial<Record<WorkState, number>> = {
+  needs_input: 3,
+  working: 2,
+};
+const SHELF_COST: Record<NonNullable<SessionStanding["shelf"]>, number> = {
+  snoozed: 2,
+  stashed: 2.5,
+  dismissed: 4,
+  killed: 4,
+};
 const SUB_COST = 4;
 const TEAMMATE_COST = 1.5;
 
 /** The state a row surfaces, for its mark and its lift: an ask or live work
  *  only, never on a row set aside, and never a worker's ask (it reports to the
  *  session above it, which is why the inbox chime stands down on it too). */
-export function standingMark(standing: SessionStanding | undefined): "needs_input" | "working" | null {
+export function standingMark(
+  standing: SessionStanding | undefined,
+): "needs_input" | "working" | null {
   if (!standing?.state || standing.shelf) return null;
   if (standing.state === "working") return "working";
-  return standing.state === "needs_input" && !standing.sub ? "needs_input" : null;
+  return standing.state === "needs_input" && !standing.sub
+    ? "needs_input"
+    : null;
 }
 
 // How well the typed words name a text: 0 it starts with them, 1 every word
@@ -196,14 +241,19 @@ function nameScore(text: string, q: string): number {
   const m = matchScore(lower, q);
   if (m === Infinity) return m;
   const words = textWords(lower);
-  return q.split(/\s+/).every((tok) => words.some((w) => w.startsWith(tok))) ? 1 : 2;
+  return q.split(/\s+/).every((tok) => words.some((w) => w.startsWith(tok)))
+    ? 1
+    : 2;
 }
 
 /** 0: title or worn name starts with the typed words, or each starts one of
  *  its words · 1: contains them · 2: each typed word starts a word of a
  *  secondary field (a summary, a path) · 3: only inside a secondary word
  *  ("dent" in "identified") · null: no match. An empty query is tier 0. */
-export function sessionMatchTier(conv: HaystackRow & { title?: string }, lowerQuery: string): { tier: 0 | 1 | 2 | 3; exact: number } | null {
+export function sessionMatchTier(
+  conv: HaystackRow & { title?: string },
+  lowerQuery: string,
+): { tier: 0 | 1 | 2 | 3; exact: number } | null {
   const q = lowerQuery.trim();
   if (!q) return { tier: 0, exact: 0 };
   // The cached haystack holds the title and the worn name, so a typed word
@@ -211,14 +261,25 @@ export function sessionMatchTier(conv: HaystackRow & { title?: string }, lowerQu
   // search scan the whole cache rather than only its most recent rows.
   const hay = sessionSearchHaystack(conv);
   if (!q.split(/\s+/).every((tok) => hay.includes(tok))) return null;
-  const name =conv._id ? identityLine(identityRowOf(conv as IdentityRow), null, identityPrefsNow()).name : null;
-  const best = Math.min(nameScore(searchTitle(conv), q), name ? nameScore(name, q) : Infinity);
+  const name = conv._id
+    ? identityLine(identityRowOf(conv as IdentityRow), null, identityPrefsNow())
+        .name
+    : null;
+  const best = Math.min(
+    nameScore(searchTitle(conv), q),
+    name ? nameScore(name, q) : Infinity,
+  );
   if (best <= 1) return { tier: 0, exact: best };
   if (best !== Infinity) return { tier: 1, exact: 0 };
   // Every typed word is somewhere in what the session is about (the reject
   // above): starting a word there, or only inside one.
   const words = sessionSearchWords(conv);
-  return { tier: q.split(/\s+/).every((tok) => words.some((w) => w.startsWith(tok))) ? 2 : 3, exact: 0 };
+  return {
+    tier: q.split(/\s+/).every((tok) => words.some((w) => w.startsWith(tok)))
+      ? 2
+      : 3,
+    exact: 0,
+  };
 }
 
 /** Hits this many or more at a stronger tier leave the mid-word ones out. */
@@ -252,7 +313,9 @@ export function sessionRankScore(
 }
 
 /** Match and rank rows best first, keeping at most `cap`. */
-export function rankSessions<T extends HaystackRow & { title?: string; updated_at?: number }>(
+export function rankSessions<
+  T extends HaystackRow & { title?: string; updated_at?: number },
+>(
   rows: Iterable<T>,
   lowerQuery: string,
   standingOf: (row: T) => SessionStanding,
@@ -263,10 +326,17 @@ export function rankSessions<T extends HaystackRow & { title?: string; updated_a
   for (const row of rows) {
     const match = sessionMatchTier(row, lowerQuery);
     if (!match) continue;
-    ranked.push({ row, tier: match.tier, score: sessionRankScore(match, standingOf(row), row.updated_at ?? 0, now) });
+    ranked.push({
+      row,
+      tier: match.tier,
+      score: sessionRankScore(match, standingOf(row), row.updated_at ?? 0, now),
+    });
   }
   const kept = dropWeakHits(ranked);
-  kept.sort((a, b) => a.score - b.score || (b.row.updated_at ?? 0) - (a.row.updated_at ?? 0));
+  kept.sort(
+    (a, b) =>
+      a.score - b.score || (b.row.updated_at ?? 0) - (a.row.updated_at ?? 0),
+  );
   return kept.slice(0, cap).map((r) => r.row);
 }
 
@@ -281,8 +351,16 @@ export const searchableSessionsSig = makeCollectionSig<InboxSession>(
 );
 
 /** The preview line for an instant row: where in the session the query landed. */
-function instantSnippetFor(conv: InboxSession, lowerQuery: string): string | null {
-  const candidates = [conv.idle_summary, conv.subtitle, conv.thread_state, conv.project_path];
+function instantSnippetFor(
+  conv: InboxSession,
+  lowerQuery: string,
+): string | null {
+  const candidates = [
+    conv.idle_summary,
+    conv.subtitle,
+    conv.thread_state,
+    conv.project_path,
+  ];
   for (const text of candidates) {
     if (text && text.toLowerCase().includes(lowerQuery)) return text;
   }
@@ -295,27 +373,40 @@ export type InstantSearchOpts = {
 };
 
 export function instantSessionRows(
-  state: Parameters<typeof filterInboxScopeFromState>[0] & { currentUser?: { _id: unknown } | null },
+  state: Parameters<typeof filterInboxScopeFromState>[0] & {
+    currentUser?: { _id: unknown } | null;
+  },
   query: string,
   cap = 12,
   opts: InstantSearchOpts = {},
 ): SessionSearchRow[] {
   // Cached fields are matched word by word, so a "quoted phrase" is its words.
-  const q = normalizeQueryQuotes(query).replace(/"/g, " ").trim().replace(/\s+/g, " ").toLowerCase();
+  const q = normalizeQueryQuotes(query)
+    .replace(/"/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
   if (q.length < 2) return [];
   const meId = state.currentUser?._id?.toString?.() ?? null;
 
   const now = Date.now();
-  const ranked: Array<{ row: SessionSearchRow; rank: number; tier: number }> = [];
+  const ranked: Array<{ row: SessionSearchRow; rank: number; tier: number }> =
+    [];
   for (const conv of Object.values(filterInboxScopeFromState(state))) {
     if (conv.is_subagent) continue;
-    if (opts.mineOnly && meId && conv.user_id && conv.user_id !== meId) continue;
+    if (opts.mineOnly && meId && conv.user_id && conv.user_id !== meId)
+      continue;
     const match = sessionMatchTier(conv, q);
     if (!match) continue;
     const title = sessionCardTitle(conv);
     ranked.push({
       tier: match.tier,
-      rank: sessionRankScore(match, sessionStanding(conv, meId, conv), conv.updated_at || 0, now),
+      rank: sessionRankScore(
+        match,
+        sessionStanding(conv, meId, conv),
+        conv.updated_at || 0,
+        now,
+      ),
       row: {
         conversationId: conv._id,
         title,
@@ -345,7 +436,11 @@ export function instantSessionRows(
  * nothing: the selector returns a constant, so neither the signature pass nor a
  * re-render happens while the search is closed.
  */
-export function useInstantSessionRows(typed: string, cap = 12, opts: InstantSearchOpts = {}): SessionSearchRow[] {
+export function useInstantSessionRows(
+  typed: string,
+  cap = 12,
+  opts: InstantSearchOpts = {},
+): SessionSearchRow[] {
   // Matching scans every cached session, so it runs on a deferred copy of
   // the query: the box takes each key at once and the scan re-runs in a
   // background render the next key interrupts.
@@ -353,12 +448,20 @@ export function useInstantSessionRows(typed: string, cap = 12, opts: InstantSear
   // A cached row cannot say which files, commits or pull requests its session
   // touched, so an operator query (file:, pr:, ...) has no instant answer; the
   // server tier answers it alone.
-  const active = query.trim().length >= 2 && !parseSessionQuery(query).hasFilters;
+  const active =
+    query.trim().length >= 2 && !parseSessionQuery(query).hasFilters;
   const mineOnly = !!opts.mineOnly;
-  const sig = useInboxStore((s) => (active ? searchableSessionsSig(s.sessions) : ""));
+  const sig = useInboxStore((s) =>
+    active ? searchableSessionsSig(s.sessions) : "",
+  );
   const scope = useInboxStore((s) => s.clientState.ui?.inbox_scope ?? "mine");
   return useMemo(
-    () => (active ? instantSessionRows(useInboxStore.getState() as any, query, cap, { mineOnly }) : []),
+    () =>
+      active
+        ? instantSessionRows(useInboxStore.getState() as any, query, cap, {
+            mineOnly,
+          })
+        : [],
     // sig/scope stand in for the store read inside; query drives the match.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [active, sig, scope, query, cap, mineOnly],
@@ -370,7 +473,9 @@ export function useInstantSessionRows(typed: string, cap = 12, opts: InstantSear
  * conversation outright; a later tier only fills in what the winner lacks, so a
  * server row that arrives with no snippet keeps the preview the instant row had.
  */
-export function mergeSearchRows(...tiers: Array<SessionSearchRow[] | undefined>): SessionSearchRow[] {
+export function mergeSearchRows(
+  ...tiers: Array<SessionSearchRow[] | undefined>
+): SessionSearchRow[] {
   const byId = new Map<string, SessionSearchRow>();
   const order: string[] = [];
   for (const tier of tiers) {

@@ -38,36 +38,66 @@ function refused(fallback: string, onRefused: OnRefused, undo?: () => void) {
 }
 
 /** Let a guest in, under the name the door showed whoever pressed. */
-export function admitGuest(guestId: string, name: string, onRefused: OnRefused): Promise<void> {
-  return useInboxStore.getState().admitGuestKnock(guestId, name).then(() => {}, refused("Could not let them in", onRefused));
+export function admitGuest(
+  guestId: string,
+  name: string,
+  onRefused: OnRefused,
+): Promise<void> {
+  return useInboxStore
+    .getState()
+    .admitGuestKnock(guestId, name)
+    .then(() => {}, refused("Could not let them in", onRefused));
 }
 
 /** Turn a guest away at the door, optionally closing the link they came on. */
-export function denyGuest(guestId: string, revokeLink: boolean, onRefused: OnRefused): Promise<void> {
-  return useInboxStore.getState().denyGuestKnock(guestId, revokeLink).then(() => {}, refused("Could not turn them away", onRefused));
+export function denyGuest(
+  guestId: string,
+  revokeLink: boolean,
+  onRefused: OnRefused,
+): Promise<void> {
+  return useInboxStore
+    .getState()
+    .denyGuestKnock(guestId, revokeLink)
+    .then(() => {}, refused("Could not turn them away", onRefused));
 }
 
 /** Put a guest out of the call, optionally closing the link they came on.
  *  The store's action takes them off the faces and restores nothing itself
  *  (liveRooms is server truth, so it holds no lock to lift), so a refusal
  *  puts back the row this press took. */
-export function removeGuest(roomKey: string, guestId: string, revokeLink: boolean, onRefused: OnRefused): Promise<void> {
+export function removeGuest(
+  roomKey: string,
+  guestId: string,
+  revokeLink: boolean,
+  onRefused: OnRefused,
+): Promise<void> {
   const st = useInboxStore.getState();
   const identity = guestIdentity(guestId);
-  const was = (st.liveRooms ?? []).find((r: any) => r?.room_key === roomKey)?.guests?.find((g: any) => g.identity === identity);
+  const was = (st.liveRooms ?? [])
+    .find((r: any) => r?.room_key === roomKey)
+    ?.guests?.find((g: any) => g.identity === identity);
   const snapshot = was ? JSON.parse(JSON.stringify(was)) : null;
   return st
     .removeCallGuest(roomKey, guestId, revokeLink)
     .then(
       () => {},
-      refused("Could not remove them", onRefused, snapshot ? () => useInboxStore.getState().restoreCallGuest(roomKey, snapshot) : undefined),
+      refused(
+        "Could not remove them",
+        onRefused,
+        snapshot
+          ? () => useInboxStore.getState().restoreCallGuest(roomKey, snapshot)
+          : undefined,
+      ),
     );
 }
 
 /** The room's link gestures, bound to a client: each one mutation, each with
  *  its own failure words, said through `onFailed`. */
 export function guestDoorActions(convex: Convex, onFailed: OnRefused) {
-  const attempt = async <T,>(fallback: string, run: () => Promise<T>): Promise<T | null> => {
+  const attempt = async <T>(
+    fallback: string,
+    run: () => Promise<T>,
+  ): Promise<T | null> => {
     try {
       return await run();
     } catch (err) {
@@ -85,7 +115,11 @@ export function guestDoorActions(convex: Convex, onFailed: OnRefused) {
         }),
       ),
     revokeLink: (linkId: string) =>
-      attempt("Could not turn the link off", () => convex.mutation(api.callGuests.revokeGuestLink, { link_id: linkId as any })),
+      attempt("Could not turn the link off", () =>
+        convex.mutation(api.callGuests.revokeGuestLink, {
+          link_id: linkId as any,
+        }),
+      ),
   };
 }
 

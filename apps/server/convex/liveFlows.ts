@@ -17,13 +17,31 @@ import { atCap } from "@codecast/shared/contracts/orgCapacity";
 import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
 import { utcDay } from "./lib/orgCaps";
 import { flowAgents, WORKING_RUN_STATUSES } from "./lib/linePlacement";
-import { barWords, byStartOrder, clearsBar, startValue, type FlowBar } from "./lib/linePriority";
+import {
+  barWords,
+  byStartOrder,
+  clearsBar,
+  startValue,
+  type FlowBar,
+} from "./lib/linePriority";
 import { problemSourceOf } from "./workflows";
 import { isJudgeProblem } from "@codecast/shared/contracts/judgeReview";
 import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
 import { flowRouteFor } from "./lib/flowRoute";
 import { graphOfVersion, versionToPin } from "./lib/runGraph";
-import { agentAssignee, claimSlot, freeSlots, isReadyCause, lineLoadFor, lineOwnerOf, loadWorking, takeAdmissible, type LineLoad, type LineLoads, type RunPlace } from "./orgLine";
+import {
+  agentAssignee,
+  claimSlot,
+  freeSlots,
+  isReadyCause,
+  lineLoadFor,
+  lineOwnerOf,
+  loadWorking,
+  takeAdmissible,
+  type LineLoad,
+  type LineLoads,
+  type RunPlace,
+} from "./orgLine";
 
 type Ctx = { db: any };
 
@@ -44,21 +62,38 @@ export const LIVE_FLOW_SHOWN = 50;
 
 export type LiveCandidate = { task: any; role: any };
 
-export const flowHands = (flow: any, now: number): number => (flow.counters?.day === utcDay(now) ? flow.counters.hands : 0);
-export const flowAtHandsCap = (flow: any, now: number): boolean => atCap(flowHands(flow, now), flow.caps?.hands_per_day);
+export const flowHands = (flow: any, now: number): number =>
+  flow.counters?.day === utcDay(now) ? flow.counters.hands : 0;
+export const flowAtHandsCap = (flow: any, now: number): boolean =>
+  atCap(flowHands(flow, now), flow.caps?.hands_per_day);
 /** The flow's hold while it stands, else null. */
-export const flowHold = (flow: any, now: number): { why: string; until: number; by: string; at: number } | null => (flow.hold && flow.hold.until > now ? flow.hold : null);
+export const flowHold = (
+  flow: any,
+  now: number,
+): { why: string; until: number; by: string; at: number } | null =>
+  flow.hold && flow.hold.until > now ? flow.hold : null;
 /** Whether a live flow may start a run now: on, not held, hands left today. */
-export const flowAdmits = (flow: any, now: number): boolean => !!flow?.on && !flowHold(flow, now) && !flowAtHandsCap(flow, now);
-const holdWords = (hold: { why: string; until: number }) => `held until ${new Date(hold.until).toISOString().slice(0, 16).replace("T", " ")} UTC: ${hold.why}`;
+export const flowAdmits = (flow: any, now: number): boolean =>
+  !!flow?.on && !flowHold(flow, now) && !flowAtHandsCap(flow, now);
+const holdWords = (hold: { why: string; until: number }) =>
+  `held until ${new Date(hold.until).toISOString().slice(0, 16).replace("T", " ")} UTC: ${hold.why}`;
 
 /** The team's roles a live flow runs as: each problem goes to the one whose area holds it. */
-export const flowRoles = (flow: { team_id?: any }, roles: any[]): any[] => roles.filter((r) => String(r.team_id ?? "") === String(flow.team_id ?? "") && r.team_id);
+export const flowRoles = (flow: { team_id?: any }, roles: any[]): any[] =>
+  roles.filter(
+    (r) => String(r.team_id ?? "") === String(flow.team_id ?? "") && r.team_id,
+  );
 
 /** Whether a live flow, on or off, holds the team's line: its leads then admit nothing on their own. */
-export async function liveFlowFor(ctx: Ctx, teamId: string | null | undefined): Promise<any | null> {
+export async function liveFlowFor(
+  ctx: Ctx,
+  teamId: string | null | undefined,
+): Promise<any | null> {
   if (!teamId) return null;
-  return ctx.db.query("live_flows").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).first();
+  return ctx.db
+    .query("live_flows")
+    .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+    .first();
 }
 
 /**
@@ -71,25 +106,63 @@ export async function liveFlowFor(ctx: Ctx, teamId: string | null | undefined): 
  * to a person or to a role that does not own it, one from a source the flow
  * does not take, a trial problem, and one with a blocker open.
  */
-export async function liveFlowCandidates(ctx: Ctx, flow: any, roles: any[], limit: number): Promise<LiveCandidate[]> {
+export async function liveFlowCandidates(
+  ctx: Ctx,
+  flow: any,
+  roles: any[],
+  limit: number,
+): Promise<LiveCandidate[]> {
   if (limit <= 0) return [];
   const team = flowRoles(flow, roles);
   const window = LIVE_FLOW_WINDOW;
-  const head = (q: any) => q.eq("workspace", flow.workspace).eq("source", "signal").eq("status", "open").eq("readiness", "ready");
+  const head = (q: any) =>
+    q
+      .eq("workspace", flow.workspace)
+      .eq("source", "signal")
+      .eq("status", "open")
+      .eq("readiness", "ready");
   const rows: any[] = [
-    ...await ctx.db.query("tasks").withIndex("by_workspace_source_status_readiness_score", head).order("desc").take(window),
-    ...await ctx.db.query("tasks").withIndex("by_workspace_source_status_readiness_score", (q: any) => head(q).eq("cause.scored.score", undefined)).take(window),
+    ...(await ctx.db
+      .query("tasks")
+      .withIndex("by_workspace_source_status_readiness_score", head)
+      .order("desc")
+      .take(window)),
+    ...(await ctx.db
+      .query("tasks")
+      .withIndex("by_workspace_source_status_readiness_score", (q: any) =>
+        head(q).eq("cause.scored.score", undefined),
+      )
+      .take(window)),
   ];
   // Each project a flow lead leads, as lineOwnerOf decides it, read the way that lead's own line reads it.
-  for (const p of await ctx.db.query("projects").withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace)).collect()) {
+  for (const p of await ctx.db
+    .query("projects")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace))
+    .collect()) {
     if (projectLeadOf(p, team).kind !== "lead") continue;
-    rows.push(...await ctx.db.query("tasks")
-      .withIndex("by_project_source_status_readiness", (q: any) => q.eq("project_id", p._id).eq("source", "signal").eq("status", "open").eq("readiness", "ready"))
-      .take(LIVE_FLOW_PER_PROJECT));
+    rows.push(
+      ...(await ctx.db
+        .query("tasks")
+        .withIndex("by_project_source_status_readiness", (q: any) =>
+          q
+            .eq("project_id", p._id)
+            .eq("source", "signal")
+            .eq("status", "open")
+            .eq("readiness", "ready"),
+        )
+        .take(LIVE_FLOW_PER_PROJECT)),
+    );
   }
   for (const r of team) {
     for (const a of [agentAssignee(r), String(r._id)]) {
-      rows.push(...await ctx.db.query("tasks").withIndex("by_assignee_status", (q: any) => q.eq("assignee", a).eq("status", "open")).collect());
+      rows.push(
+        ...(await ctx.db
+          .query("tasks")
+          .withIndex("by_assignee_status", (q: any) =>
+            q.eq("assignee", a).eq("status", "open"),
+          )
+          .collect()),
+      );
     }
   }
   const seen = new Set<string>();
@@ -97,16 +170,34 @@ export async function liveFlowCandidates(ctx: Ctx, flow: any, roles: any[], limi
   for (const task of rows) {
     if (seen.has(String(task._id))) continue;
     seen.add(String(task._id));
-    if (task.status !== "open" || task.workflow_run_id || task.ephemeral || task.workspace !== flow.workspace) continue;
-    if (!task.assignee && (!isReadyCause(task) || !clearsBar(task, flow.bar))) continue;
+    if (
+      task.status !== "open" ||
+      task.workflow_run_id ||
+      task.ephemeral ||
+      task.workspace !== flow.workspace
+    )
+      continue;
+    if (!task.assignee && (!isReadyCause(task) || !clearsBar(task, flow.bar)))
+      continue;
     ranked.push({ task, role: null });
   }
   ranked.sort((a, b) => byStartOrder(a.task, b.task));
   return takeAdmissible(ctx, ranked, limit, async (c) => {
     const owner = await lineOwnerOf(ctx, c.task, team);
-    if (!owner || owner.status !== "active" || owner.handing_over?.retire) return false;
-    if (c.task.assignee && c.task.assignee !== agentAssignee(owner) && c.task.assignee !== String(owner._id)) return false;
-    if (flow.sources?.length && c.task.source === "signal" && !flow.sources.includes((await problemSourceOf(ctx, c.task)) ?? "")) return false;
+    if (!owner || owner.status !== "active" || owner.handing_over?.retire)
+      return false;
+    if (
+      c.task.assignee &&
+      c.task.assignee !== agentAssignee(owner) &&
+      c.task.assignee !== String(owner._id)
+    )
+      return false;
+    if (
+      flow.sources?.length &&
+      c.task.source === "signal" &&
+      !flow.sources.includes((await problemSourceOf(ctx, c.task)) ?? "")
+    )
+      return false;
     c.role = owner;
     return true;
   });
@@ -114,11 +205,25 @@ export async function liveFlowCandidates(ctx: Ctx, flow: any, roles: any[], limi
 
 /** The route a judge problem takes under this flow: its family's judge member, or the words it waits on. */
 async function judgeRouteOf(ctx: Ctx, flow: any) {
-  const rows: any[] = await ctx.db.query("workflows").withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace)).collect();
-  return flowRouteFor({ flow: { ...flow, on: true }, spine: await ctx.db.get(flow.workflow_id), rows, source: null, judge: true });
+  const rows: any[] = await ctx.db
+    .query("workflows")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace))
+    .collect();
+  return flowRouteFor({
+    flow: { ...flow, on: true },
+    spine: await ctx.db.get(flow.workflow_id),
+    rows,
+    source: null,
+    judge: true,
+  });
 }
 
-export type LivePlanned = { role_id: string; task_id: string; place?: RunPlace; live_flow_id: string };
+export type LivePlanned = {
+  role_id: string;
+  task_id: string;
+  place?: RunPlace;
+  live_flow_id: string;
+};
 
 /**
  * What one sweep pass starts from a live flow: its queue in order while
@@ -128,37 +233,76 @@ export type LivePlanned = { role_id: string; task_id: string; place?: RunPlace; 
  * laptop never holds back problems the pool can take. `waiting` says why the
  * head did not start.
  */
-export async function planLiveFlow(ctx: Ctx, flow: any, roles: any[], now: number, room: number, loads: LineLoads): Promise<{ starts: LivePlanned[]; waiting: string | null; queue: Array<LiveCandidate & { waiting: string | null }> }> {
+export async function planLiveFlow(
+  ctx: Ctx,
+  flow: any,
+  roles: any[],
+  now: number,
+  room: number,
+  loads: LineLoads,
+): Promise<{
+  starts: LivePlanned[];
+  waiting: string | null;
+  queue: Array<LiveCandidate & { waiting: string | null }>;
+}> {
   const handsCap = flow.caps?.hands_per_day;
-  const handsLeft = handsCap == null ? Infinity : handsCap - flowHands(flow, now);
+  const handsLeft =
+    handsCap == null ? Infinity : handsCap - flowHands(flow, now);
   const take = Math.min(room, handsLeft);
   const hold = flowHold(flow, now);
-  const offWords = !flow.on ? "the flow is off" : hold ? holdWords(hold) : handsLeft <= 0 ? "hands cap reached" : null;
-  const candidates = await liveFlowCandidates(ctx, flow, roles, Math.max(take, 0) + 16);
+  const offWords = !flow.on
+    ? "the flow is off"
+    : hold
+      ? holdWords(hold)
+      : handsLeft <= 0
+        ? "hands cap reached"
+        : null;
+  const candidates = await liveFlowCandidates(
+    ctx,
+    flow,
+    roles,
+    Math.max(take, 0) + 16,
+  );
   // Only machines that can start every agent the flow's stations run take its problems (linePoolFor): the stations of
   // the version its runs pin when they start (lib/runGraph.ts), never the row as another checkout last pushed it.
   const pin = await versionToPin(ctx, flow.workflow_id);
-  const needs = flowAgents((await graphOfVersion(ctx, pin))?.nodes ?? (flow.workflow_id ? (await ctx.db.get(flow.workflow_id))?.nodes : null));
+  const needs = flowAgents(
+    (await graphOfVersion(ctx, pin))?.nodes ??
+      (flow.workflow_id ? (await ctx.db.get(flow.workflow_id))?.nodes : null),
+  );
   // A judge problem waits while the flow's family has no judge route (lib/flowRoute); every other problem has a graph.
-  const judgeRoute = candidates.some((c) => isJudgeProblem(c.task.cause)) ? await judgeRouteOf(ctx, flow) : null;
+  const judgeRoute = candidates.some((c) => isJudgeProblem(c.task.cause))
+    ? await judgeRouteOf(ctx, flow)
+    : null;
   const starts: LivePlanned[] = [];
   const queue: Array<LiveCandidate & { waiting: string | null }> = [];
   for (const c of candidates) {
     let waiting = offWords;
-    if (!waiting && isJudgeProblem(c.task.cause)) waiting = judgeRoute?.waiting ?? null;
+    if (!waiting && isJudgeProblem(c.task.cause))
+      waiting = judgeRoute?.waiting ?? null;
     if (!waiting && starts.length >= take) waiting = "waits for the next pass";
     let load: LineLoad | null = null;
     if (!waiting) {
       load = await lineLoadFor(ctx, c.role, now, loads, roles, needs);
-      if (freeSlots(load) <= 0) waiting = `${loadWorking(load)} run${loadWorking(load) === 1 ? " is" : "s are"} working on @${c.role.handle}'s machine${load.pool ? "s" : ""}`;
+      if (freeSlots(load) <= 0)
+        waiting = `${loadWorking(load)} run${loadWorking(load) === 1 ? " is" : "s are"} working on @${c.role.handle}'s machine${load.pool ? "s" : ""}`;
     }
     if (!waiting && load) {
       const place = claimSlot(load);
-      starts.push({ role_id: String(c.role._id), task_id: String(c.task._id), live_flow_id: String(flow._id), ...(place ? { place } : {}) });
+      starts.push({
+        role_id: String(c.role._id),
+        task_id: String(c.task._id),
+        live_flow_id: String(flow._id),
+        ...(place ? { place } : {}),
+      });
     }
     queue.push({ ...c, waiting });
   }
-  return { starts, waiting: offWords ?? queue.find((q) => q.waiting)?.waiting ?? null, queue };
+  return {
+    starts,
+    waiting: offWords ?? queue.find((q) => q.waiting)?.waiting ?? null,
+    queue,
+  };
 }
 
 export type LiveFlowRow = {
@@ -187,33 +331,79 @@ export type LiveFlowRow = {
 };
 
 /** One live flow as the web and the CLI read it: its row, its machines' load, its runs and the head of its queue. */
-export async function liveFlowView(ctx: Ctx, flow: any, now = Date.now()): Promise<LiveFlowRow & { entries: Array<LiveCandidate & { waiting: string | null }> }> {
+export async function liveFlowView(
+  ctx: Ctx,
+  flow: any,
+  now = Date.now(),
+): Promise<
+  LiveFlowRow & { entries: Array<LiveCandidate & { waiting: string | null }> }
+> {
   const roles: any[] = await ctx.db.query("org_roles").collect();
   const team = flowRoles(flow, roles);
   const loads: LineLoads = new Map();
   // Every machine the flow's leads run on, counted once.
-  for (const r of team) if (r.status === "active") await lineLoadFor(ctx, r, now, loads, roles);
+  for (const r of team)
+    if (r.status === "active") await lineLoadFor(ctx, r, now, loads, roles);
   // Leads seated in different folders of one checkout share its pool: count each pool, and each runner's own machine, once.
-  const distinct = new Map([...loads.values()].map((l) => [l.pool ? l.pool.slots.map((sl) => sl.device).sort().join(",") : `runner:${l.runner}`, l]));
-  const totals = [...distinct.values()].reduce((t, l) => ({ working: t.working + loadWorking(l), cap: t.cap + l.cap }), { working: 0, cap: 0 });
-  const online = [...distinct.values()].reduce((n, l) => n + (l.pool?.slots.length ?? 0), 0);
-  const machines = { online, total: online + [...distinct.values()].reduce((n, l) => n + (l.pool?.offline ?? 0), 0) };
-  const plan = await planLiveFlow(ctx, flow, roles, now, LIVE_FLOW_SHOWN, loads);
+  const distinct = new Map(
+    [...loads.values()].map((l) => [
+      l.pool
+        ? l.pool.slots
+            .map((sl) => sl.device)
+            .sort()
+            .join(",")
+        : `runner:${l.runner}`,
+      l,
+    ]),
+  );
+  const totals = [...distinct.values()].reduce(
+    (t, l) => ({ working: t.working + loadWorking(l), cap: t.cap + l.cap }),
+    { working: 0, cap: 0 },
+  );
+  const online = [...distinct.values()].reduce(
+    (n, l) => n + (l.pool?.slots.length ?? 0),
+    0,
+  );
+  const machines = {
+    online,
+    total:
+      online +
+      [...distinct.values()].reduce((n, l) => n + (l.pool?.offline ?? 0), 0),
+  };
+  const plan = await planLiveFlow(
+    ctx,
+    flow,
+    roles,
+    now,
+    LIVE_FLOW_SHOWN,
+    loads,
+  );
   const running: string[] = [];
   for (const r of team) {
     for (const status of WORKING_RUN_STATUSES) {
-      const runs: any[] = await ctx.db.query("workflow_runs").withIndex("by_org_role_status", (q: any) => q.eq("org_role_id", r._id).eq("status", status)).collect();
+      const runs: any[] = await ctx.db
+        .query("workflow_runs")
+        .withIndex("by_org_role_status", (q: any) =>
+          q.eq("org_role_id", r._id).eq("status", status),
+        )
+        .collect();
       running.push(...runs.map((run) => String(run._id)));
     }
   }
   const workflow = await ctx.db.get(flow.workflow_id);
-  const watcher = flow.watcher_role_id ? await ctx.db.get(flow.watcher_role_id) : null;
+  const watcher = flow.watcher_role_id
+    ? await ctx.db.get(flow.watcher_role_id)
+    : null;
   const entries = plan.queue.slice(0, LIVE_FLOW_SHOWN);
   return {
     _id: String(flow._id),
     workspace: flow.workspace,
     team_id: flow.team_id ? String(flow.team_id) : null,
-    flow: { id: String(flow.workflow_id), slug: workflow?.slug ?? null, label: workflow?.label ?? workflow?.name ?? "" },
+    flow: {
+      id: String(flow.workflow_id),
+      slug: workflow?.slug ?? null,
+      label: workflow?.label ?? workflow?.name ?? "",
+    },
     sources: flow.sources?.length ? flow.sources : null,
     on: flow.on,
     caps: { hands_per_day: flow.caps?.hands_per_day ?? null },
@@ -223,21 +413,38 @@ export async function liveFlowView(ctx: Ctx, flow: any, now = Date.now()): Promi
     load: totals,
     machines,
     waiting: plan.waiting,
-    watcher: watcher ? { role_id: String(watcher._id), handle: watcher.handle } : null,
+    watcher: watcher
+      ? { role_id: String(watcher._id), handle: watcher.handle }
+      : null,
     changed_by: String(flow.changed_by),
     changed_at: flow.changed_at,
     client_key: flow.client_key ?? null,
     running,
-    queue: entries.map((e) => ({ task_id: String(e.task._id), waiting: e.waiting })),
+    queue: entries.map((e) => ({
+      task_id: String(e.task._id),
+      waiting: e.waiting,
+    })),
     entries,
   };
 }
 
-const plainRow = ({ entries: _e, ...row }: Awaited<ReturnType<typeof liveFlowView>>): LiveFlowRow => row;
+const plainRow = ({
+  entries: _e,
+  ...row
+}: Awaited<ReturnType<typeof liveFlowView>>): LiveFlowRow => row;
 
-async function isMember(ctx: Ctx, userId: Id<"users">, teamId: string | null | undefined): Promise<boolean> {
+async function isMember(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: string | null | undefined,
+): Promise<boolean> {
   if (!teamId) return false;
-  return !!(await ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId)).first());
+  return !!(await ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
+    .first());
 }
 
 /** The live flows a member of `team_id` reads (the web's liveFlows collection); [] for anyone else. */
@@ -247,17 +454,32 @@ export const forTeam = query({
     const userId = await getAuthUserId(ctx as any);
     if (!userId || !(await isMember(ctx, userId, team_id))) return [];
     // Read by the workspace key, never team_id: team_id routes and grants nothing.
-    const flows: any[] = await ctx.db.query("live_flows").withIndex("by_workspace", (q: any) => q.eq("workspace", `team:${team_id}`)).collect();
+    const flows: any[] = await ctx.db
+      .query("live_flows")
+      .withIndex("by_workspace", (q: any) =>
+        q.eq("workspace", `team:${team_id}`),
+      )
+      .collect();
     const now = Date.now();
-    return Promise.all(flows.map(async (f) => plainRow(await liveFlowView(ctx, f, now))));
+    return Promise.all(
+      flows.map(async (f) => plainRow(await liveFlowView(ctx, f, now))),
+    );
   },
 });
 
 /** Switches a live flow on or off: a team admin's act, since it starts or stops the team's runs. */
-export async function setOnCore(ctx: Ctx, userId: Id<"users">, flow: any, on: boolean, now = Date.now()): Promise<void> {
-  if (!flow || !(await isMember(ctx, userId, flow.team_id))) throw new ConvexError("no such live flow");
+export async function setOnCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  flow: any,
+  on: boolean,
+  now = Date.now(),
+): Promise<void> {
+  if (!flow || !(await isMember(ctx, userId, flow.team_id)))
+    throw new ConvexError("no such live flow");
   await requireTeamAdmin(ctx as any, userId, flow.team_id);
-  if (flow.on !== on) await ctx.db.patch(flow._id, { on, changed_by: userId, changed_at: now });
+  if (flow.on !== on)
+    await ctx.db.patch(flow._id, { on, changed_by: userId, changed_at: now });
 }
 
 /** The web's switch: a person signed in, never an API token (the web turns it on through the confirm flow). */
@@ -272,10 +494,17 @@ export const setOn = mutation({
 
 // A team's live flows for the CLI, the team named by id (the CLI resolves
 // --team); null for no team, which is the personal workspace and has none.
-async function teamFlows(ctx: Ctx, userId: Id<"users">, teamId?: string): Promise<any[] | null> {
+async function teamFlows(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId?: string,
+): Promise<any[] | null> {
   const team = teamId ? ctx.db.normalizeId("teams", teamId) : null;
   if (!team || !(await isMember(ctx, userId, team))) return null;
-  return ctx.db.query("live_flows").withIndex("by_team", (q: any) => q.eq("team_id", team)).collect();
+  return ctx.db
+    .query("live_flows")
+    .withIndex("by_team", (q: any) => q.eq("team_id", team))
+    .collect();
 }
 
 // One of them by the flow's slug, its label, its workflow id or the live
@@ -284,13 +513,28 @@ async function pickFlow(ctx: Ctx, flows: any[], ref?: string): Promise<any> {
   const want = ref?.trim();
   if (!want) {
     if (flows.length === 1) return flows[0];
-    throw new ConvexError(flows.length ? `The team has ${flows.length} live flows: name one by its slug` : "The team has no live flow");
+    throw new ConvexError(
+      flows.length
+        ? `The team has ${flows.length} live flows: name one by its slug`
+        : "The team has no live flow",
+    );
   }
   for (const f of flows) {
     const wf = await ctx.db.get(f.workflow_id);
-    if ([String(f._id), String(f.workflow_id), wf?.slug, wf?.label, wf?.name].includes(want)) return f;
+    if (
+      [
+        String(f._id),
+        String(f.workflow_id),
+        wf?.slug,
+        wf?.label,
+        wf?.name,
+      ].includes(want)
+    )
+      return f;
   }
-  throw new ConvexError(`No live flow of the team runs "${want}" (looked for a flow slug, label or id, or a live flow id)`);
+  throw new ConvexError(
+    `No live flow of the team runs "${want}" (looked for a flow slug, label or id, or a live flow id)`,
+  );
 }
 
 async function cliRow(ctx: Ctx, flow: any) {
@@ -305,7 +549,9 @@ async function cliRow(ctx: Ctx, flow: any) {
       scored: !!e.task.cause?.scored,
       findings: e.task.cause?.signal_count ?? 0,
       family: e.task.cause?.scored?.cluster_name ?? null,
-      area: e.role ? { role_id: String(e.role._id), handle: e.role.handle } : null,
+      area: e.role
+        ? { role_id: String(e.role._id), handle: e.role.handle }
+        : null,
       waiting: e.waiting,
     })),
   };
@@ -313,24 +559,41 @@ async function cliRow(ctx: Ctx, flow: any) {
 
 /** `cast flow show` on live flows: the team's, or null when it has none (and for the personal workspace). */
 export const showFromCli = query({
-  args: { api_token: v.string(), team_id: v.optional(v.string()), flow: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    team_id: v.optional(v.string()),
+    flow: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new ConvexError("Unauthorized");
     const flows = await teamFlows(ctx, auth.userId, args.team_id);
     if (!flows?.length) return null;
-    return Promise.all((args.flow ? [await pickFlow(ctx, flows, args.flow)] : flows).map((f) => cliRow(ctx, f)));
+    return Promise.all(
+      (args.flow ? [await pickFlow(ctx, flows, args.flow)] : flows).map((f) =>
+        cliRow(ctx, f),
+      ),
+    );
   },
 });
 
 /** `cast flow on|off`: a team admin's switch, the same act as the Flows page's. */
 export const setOnFromCli = mutation({
-  args: { api_token: v.string(), from_session: v.optional(v.string()), on: v.boolean(), team_id: v.optional(v.string()), flow: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    from_session: v.optional(v.string()),
+    on: v.boolean(),
+    team_id: v.optional(v.string()),
+    flow: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new ConvexError("Unauthorized");
     const flows = await teamFlows(ctx, auth.userId, args.team_id);
-    if (!flows) throw new ConvexError("Your personal workspace has no live flow: name a team");
+    if (!flows)
+      throw new ConvexError(
+        "Your personal workspace has no live flow: name a team",
+      );
     const flow = await pickFlow(ctx, flows, args.flow);
     await setOnCore(ctx, auth.userId, flow, args.on);
     return cliRow(ctx, await ctx.db.get(flow._id));
@@ -339,12 +602,20 @@ export const setOnFromCli = mutation({
 
 /** `cast flow hold --clear`: a team admin clears the hold, as on the Flows page. */
 export const clearHoldFromCli = mutation({
-  args: { api_token: v.string(), from_session: v.optional(v.string()), team_id: v.optional(v.string()), flow: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    from_session: v.optional(v.string()),
+    team_id: v.optional(v.string()),
+    flow: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new ConvexError("Unauthorized");
     const flows = await teamFlows(ctx, auth.userId, args.team_id);
-    if (!flows) throw new ConvexError("Your personal workspace has no live flow: name a team");
+    if (!flows)
+      throw new ConvexError(
+        "Your personal workspace has no live flow: name a team",
+      );
     const flow = await pickFlow(ctx, flows, args.flow);
     await clearHoldCore(ctx, auth.userId, flow);
     return cliRow(ctx, await ctx.db.get(flow._id));
@@ -359,21 +630,40 @@ export const MAX_HOLD_MS = 48 * 3_600_000;
  * meanwhile, and the flow says why. A second hold keeps the later end and
  * the newest reason.
  */
-export async function holdCore(ctx: Ctx, flow: any, o: { why: string; until: number; by: string }, now = Date.now()) {
+export async function holdCore(
+  ctx: Ctx,
+  flow: any,
+  o: { why: string; until: number; by: string },
+  now = Date.now(),
+) {
   const why = o.why.trim().replace(/\s+/g, " ");
   if (!why) throw new ConvexError("Say why the live flow holds");
-  if (why.length > 300) throw new ConvexError("Keep the hold's reason under 300 characters");
+  if (why.length > 300)
+    throw new ConvexError("Keep the hold's reason under 300 characters");
   if (!(o.until > now)) throw new ConvexError("A hold ends in the future");
-  if (o.until - now > MAX_HOLD_MS) throw new ConvexError("A hold lasts at most 48 hours; a longer stop is the switch");
+  if (o.until - now > MAX_HOLD_MS)
+    throw new ConvexError(
+      "A hold lasts at most 48 hours; a longer stop is the switch",
+    );
   const standing = flowHold(flow, now);
-  const hold = { why, until: Math.max(o.until, standing?.until ?? 0), by: o.by, at: now };
+  const hold = {
+    why,
+    until: Math.max(o.until, standing?.until ?? 0),
+    by: o.by,
+    at: now,
+  };
   await ctx.db.patch(flow._id, { hold });
   return hold;
 }
 
 /** Clears a live flow's hold: a team admin's, as the switch is. */
-export async function clearHoldCore(ctx: Ctx, userId: Id<"users">, flow: any): Promise<void> {
-  if (!flow || !(await isMember(ctx, userId, flow.team_id))) throw new ConvexError("no such live flow");
+export async function clearHoldCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  flow: any,
+): Promise<void> {
+  if (!flow || !(await isMember(ctx, userId, flow.team_id)))
+    throw new ConvexError("no such live flow");
   await requireTeamAdmin(ctx as any, userId, flow.team_id);
   if (flow.hold) await ctx.db.patch(flow._id, { hold: undefined });
 }
@@ -393,25 +683,44 @@ export const clearHold = mutation({
  * bar admits more at the next sweep; a higher one starts fewer and closes
  * nothing by itself.
  */
-export async function setBarCore(ctx: Ctx, userId: Id<"users">, flow: any, bar: FlowBar | null, by: string, now = Date.now()) {
-  if (!flow || !(await isMember(ctx, userId, flow.team_id))) throw new ConvexError("no such live flow");
+export async function setBarCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  flow: any,
+  bar: FlowBar | null,
+  by: string,
+  now = Date.now(),
+) {
+  if (!flow || !(await isMember(ctx, userId, flow.team_id)))
+    throw new ConvexError("no such live flow");
   await requireTeamAdmin(ctx as any, userId, flow.team_id);
   if (!bar) {
     if (flow.bar) await ctx.db.patch(flow._id, { bar: undefined });
     return null;
   }
   const whole = (n: number, lo: number, hi: number, what: string) => {
-    if (!Number.isInteger(n) || n < lo || n > hi) throw new ConvexError(`${what} is a whole number from ${lo} to ${hi}`);
+    if (!Number.isInteger(n) || n < lo || n > hi)
+      throw new ConvexError(`${what} is a whole number from ${lo} to ${hi}`);
   };
   whole(bar.score, 0, 100, "The bar's score");
   whole(bar.findings, 1, 1000, "The bar's findings");
   whole(bar.quiet_days, 1, 365, "The days a waiting problem stays open");
-  const next = { score: bar.score, findings: bar.findings, quiet_days: bar.quiet_days, by, at: now };
+  const next = {
+    score: bar.score,
+    findings: bar.findings,
+    quiet_days: bar.quiet_days,
+    by,
+    at: now,
+  };
   await ctx.db.patch(flow._id, { bar: next });
   return next;
 }
 
-const barArgs = { score: v.number(), findings: v.number(), quiet_days: v.number() };
+const barArgs = {
+  score: v.number(),
+  findings: v.number(),
+  quiet_days: v.number(),
+};
 
 /** The web's bar control: a signed-in team admin. */
 export const setBar = mutation({
@@ -425,17 +734,45 @@ export const setBar = mutation({
 
 /** `cast flow bar`: a team admin sets the bar, or takes it off with `off`. */
 export const barFromCli = mutation({
-  args: { api_token: v.string(), from_session: v.optional(v.string()), team_id: v.optional(v.string()), flow: v.optional(v.string()), off: v.optional(v.boolean()), ...barArgs },
+  args: {
+    api_token: v.string(),
+    from_session: v.optional(v.string()),
+    team_id: v.optional(v.string()),
+    flow: v.optional(v.string()),
+    off: v.optional(v.boolean()),
+    ...barArgs,
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new ConvexError("Unauthorized");
     const flows = await teamFlows(ctx, auth.userId, args.team_id);
-    if (!flows) throw new ConvexError("Your personal workspace has no live flow: name a team");
+    if (!flows)
+      throw new ConvexError(
+        "Your personal workspace has no live flow: name a team",
+      );
     const flow = await pickFlow(ctx, flows, args.flow);
     const from = args.from_session;
-    const conv: any = from && !SESSION_SHORT_ID_RE.test(from) ? await resolveSessionConversation(ctx as any, auth.userId, from) : null;
-    const by = from && SESSION_SHORT_ID_RE.test(from) ? from : conv?.short_id ?? `user:${auth.userId}`;
-    const bar = await setBarCore(ctx, auth.userId, flow, args.off ? null : { score: args.score, findings: args.findings, quiet_days: args.quiet_days }, by);
+    const conv: any =
+      from && !SESSION_SHORT_ID_RE.test(from)
+        ? await resolveSessionConversation(ctx as any, auth.userId, from)
+        : null;
+    const by =
+      from && SESSION_SHORT_ID_RE.test(from)
+        ? from
+        : (conv?.short_id ?? `user:${auth.userId}`);
+    const bar = await setBarCore(
+      ctx,
+      auth.userId,
+      flow,
+      args.off
+        ? null
+        : {
+            score: args.score,
+            findings: args.findings,
+            quiet_days: args.quiet_days,
+          },
+      by,
+    );
     return { _id: String(flow._id), bar, words: bar ? barWords(bar) : null };
   },
 });
@@ -446,18 +783,38 @@ export const barFromCli = mutation({
  * the flow so it stops starting runs that would park on the same wait.
  */
 export const holdFromCli = mutation({
-  args: { api_token: v.string(), from_session: v.optional(v.string()), team_id: v.optional(v.string()), flow: v.optional(v.string()), why: v.string(), until: v.number() },
+  args: {
+    api_token: v.string(),
+    from_session: v.optional(v.string()),
+    team_id: v.optional(v.string()),
+    flow: v.optional(v.string()),
+    why: v.string(),
+    until: v.number(),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new ConvexError("Unauthorized");
     const flows = await teamFlows(ctx, auth.userId, args.team_id);
-    if (!flows) throw new ConvexError("Your personal workspace has no live flow: name a team");
+    if (!flows)
+      throw new ConvexError(
+        "Your personal workspace has no live flow: name a team",
+      );
     const flow = await pickFlow(ctx, flows, args.flow);
     // The hold names its session by short id, the way every surface shows one; a session the caller cannot read names its user.
     const from = args.from_session;
-    const conv: any = from && !SESSION_SHORT_ID_RE.test(from) ? await resolveSessionConversation(ctx as any, auth.userId, from) : null;
-    const by = from && SESSION_SHORT_ID_RE.test(from) ? from : conv?.short_id ?? `user:${auth.userId}`;
-    const hold = await holdCore(ctx, flow, { why: args.why, until: args.until, by });
+    const conv: any =
+      from && !SESSION_SHORT_ID_RE.test(from)
+        ? await resolveSessionConversation(ctx as any, auth.userId, from)
+        : null;
+    const by =
+      from && SESSION_SHORT_ID_RE.test(from)
+        ? from
+        : (conv?.short_id ?? `user:${auth.userId}`);
+    const hold = await holdCore(ctx, flow, {
+      why: args.why,
+      until: args.until,
+      by,
+    });
     return { _id: String(flow._id), hold, waiting: holdWords(hold) };
   },
 });
@@ -470,10 +827,28 @@ export const holdFromCli = mutation({
  * one commit moves admission over and nothing pauses between. Refused when
  * the team has one.
  */
-export async function createLiveFlowCore(ctx: Ctx, args: { team_id: Id<"teams">; workflow_id: Id<"workflows">; by: Id<"users">; sources?: string[]; watcher_role_id?: Id<"org_roles">; client_key?: string }, now = Date.now()) {
-  if (await liveFlowFor(ctx, args.team_id)) throw new ConvexError("the team already has a live flow");
-  const roles: any[] = await ctx.db.query("org_roles").withIndex("by_team", (q: any) => q.eq("team_id", args.team_id)).collect();
-  const linesOn = flowRoles({ team_id: args.team_id }, roles).filter((r) => r.status === "active" && lineStartsOn(r)).map((r) => r.handle as string).sort();
+export async function createLiveFlowCore(
+  ctx: Ctx,
+  args: {
+    team_id: Id<"teams">;
+    workflow_id: Id<"workflows">;
+    by: Id<"users">;
+    sources?: string[];
+    watcher_role_id?: Id<"org_roles">;
+    client_key?: string;
+  },
+  now = Date.now(),
+) {
+  if (await liveFlowFor(ctx, args.team_id))
+    throw new ConvexError("the team already has a live flow");
+  const roles: any[] = await ctx.db
+    .query("org_roles")
+    .withIndex("by_team", (q: any) => q.eq("team_id", args.team_id))
+    .collect();
+  const linesOn = flowRoles({ team_id: args.team_id }, roles)
+    .filter((r) => r.status === "active" && lineStartsOn(r))
+    .map((r) => r.handle as string)
+    .sort();
   const id = await ctx.db.insert("live_flows", {
     workspace: `team:${args.team_id}`,
     team_id: args.team_id,
@@ -487,24 +862,38 @@ export async function createLiveFlowCore(ctx: Ctx, args: { team_id: Id<"teams">;
     changed_at: now,
     created_at: now,
   });
-  console.log(`live flow ${id} for team ${args.team_id}: ${linesOn.length ? `on, carried from the lines of ${linesOn.map((h) => "@" + h).join(", ")}` : "off, no lead's line was on"}; its leads admit nothing on their own from now`);
+  console.log(
+    `live flow ${id} for team ${args.team_id}: ${linesOn.length ? `on, carried from the lines of ${linesOn.map((h) => "@" + h).join(", ")}` : "off, no lead's line was on"}; its leads admit nothing on their own from now`,
+  );
   return { id: String(id), on: linesOn.length > 0, carried_lines_on: linesOn };
 }
 
 /** A library flow as the web's start and move send it: the store's action carries the flow it paints ({ id, slug, label }), so the server reads its id. */
 export type LibraryFlowRef = string | { id: string };
-export const libraryFlowId = (flow: LibraryFlowRef): string => (typeof flow === "string" ? flow : flow?.id ?? "");
+export const libraryFlowId = (flow: LibraryFlowRef): string =>
+  typeof flow === "string" ? flow : (flow?.id ?? "");
 
 /** The web's start (the Flows stage of a team with none): a team admin makes one of the team's library flows its live
  *  flow, on the same terms as createLiveFlowCore. Dispatch runs it as the signed-in person only. */
-export async function startLiveFlowCore(ctx: Ctx, userId: Id<"users">, args: { team_id: string; workflow_id: string; client_key?: string }) {
+export async function startLiveFlowCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: { team_id: string; workflow_id: string; client_key?: string },
+) {
   const team = ctx.db.normalizeId("teams", args.team_id);
   const workflow = ctx.db.normalizeId("workflows", args.workflow_id);
-  if (!team || !(await isMember(ctx, userId, team))) throw new ConvexError("no such team");
+  if (!team || !(await isMember(ctx, userId, team)))
+    throw new ConvexError("no such team");
   await requireTeamAdmin(ctx as any, userId, team);
   const wf: any = workflow ? await ctx.db.get(workflow) : null;
-  if (!wf || (wf.team_id && String(wf.team_id) !== String(team))) throw new ConvexError("that flow is not in the team's library");
-  return createLiveFlowCore(ctx, { team_id: team, workflow_id: wf._id, by: userId, ...(args.client_key ? { client_key: args.client_key } : {}) });
+  if (!wf || (wf.team_id && String(wf.team_id) !== String(team)))
+    throw new ConvexError("that flow is not in the team's library");
+  return createLiveFlowCore(ctx, {
+    team_id: team,
+    workflow_id: wf._id,
+    by: userId,
+    ...(args.client_key ? { client_key: args.client_key } : {}),
+  });
 }
 
 /**
@@ -514,19 +903,43 @@ export async function startLiveFlowCore(ctx: Ctx, userId: Id<"users">, args: { t
  * over and nothing pauses; runs already going keep the version they started
  * on. Refused for a flow outside the team's library.
  */
-export async function moveLiveFlowCore(ctx: Ctx, userId: Id<"users">, flow: any, workflowId: string, now = Date.now()): Promise<void> {
-  if (!flow || !(await isMember(ctx, userId, flow.team_id))) throw new ConvexError("no such live flow");
+export async function moveLiveFlowCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  flow: any,
+  workflowId: string,
+  now = Date.now(),
+): Promise<void> {
+  if (!flow || !(await isMember(ctx, userId, flow.team_id)))
+    throw new ConvexError("no such live flow");
   await requireTeamAdmin(ctx as any, userId, flow.team_id);
   const id = ctx.db.normalizeId("workflows", workflowId);
   const wf: any = id ? await ctx.db.get(id) : null;
-  if (!wf || (wf.workspace ?? (wf.team_id ? `team:${wf.team_id}` : null)) !== flow.workspace) throw new ConvexError("that flow is not in the team's library");
+  if (
+    !wf ||
+    (wf.workspace ?? (wf.team_id ? `team:${wf.team_id}` : null)) !==
+      flow.workspace
+  )
+    throw new ConvexError("that flow is not in the team's library");
   if (String(flow.workflow_id) === String(wf._id)) return;
   const from = String(flow.workflow_id);
-  await ctx.db.patch(flow._id, { workflow_id: wf._id, changed_by: userId, changed_at: now });
-  console.log(`live flow ${flow._id} for team ${flow.team_id}: moved from ${from} to ${wf._id} (${wf.slug})`);
+  await ctx.db.patch(flow._id, {
+    workflow_id: wf._id,
+    changed_by: userId,
+    changed_at: now,
+  });
+  console.log(
+    `live flow ${flow._id} for team ${flow.team_id}: moved from ${from} to ${wf._id} (${wf.slug})`,
+  );
 }
 
 export const create = internalMutation({
-  args: { team_id: v.id("teams"), workflow_id: v.id("workflows"), by: v.id("users"), sources: v.optional(v.array(v.string())), watcher_role_id: v.optional(v.id("org_roles")) },
+  args: {
+    team_id: v.id("teams"),
+    workflow_id: v.id("workflows"),
+    by: v.id("users"),
+    sources: v.optional(v.array(v.string())),
+    watcher_role_id: v.optional(v.id("org_roles")),
+  },
   handler: async (ctx, args) => createLiveFlowCore(ctx, args),
 });

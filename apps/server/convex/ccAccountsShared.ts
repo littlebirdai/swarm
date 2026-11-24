@@ -30,7 +30,17 @@ import {
 // The usage snapshot type and its predicates live in @codecast/shared/contracts
 // (the CLI reads them too); re-exported here so existing web/convex imports keep
 // one path.
-export { isWindowRolled, livePercent, worstUsagePercent, isUsageExhausted, fallbackProfiles, switchUsagePercent, usageStanding, standingLabel, recoveryModeOf };
+export {
+  isWindowRolled,
+  livePercent,
+  worstUsagePercent,
+  isUsageExhausted,
+  fallbackProfiles,
+  switchUsagePercent,
+  usageStanding,
+  standingLabel,
+  recoveryModeOf,
+};
 export type { UsageStanding, RecoveryMode };
 export type { CcUsage };
 
@@ -64,7 +74,13 @@ export const ccUsageValidator = v.object({
     }),
   ),
   scoped: v.optional(
-    v.array(v.object({ label: v.string(), percent: v.number(), resets_at: v.optional(v.number()) })),
+    v.array(
+      v.object({
+        label: v.string(),
+        percent: v.number(),
+        resets_at: v.optional(v.number()),
+      }),
+    ),
   ),
   credits: v.optional(
     v.object({
@@ -123,11 +139,15 @@ export const ccAccountsValidator = v.object({
       // stores"): when it was provisioned and how long its grant lasts.
       // Metadata only — never a token. Absent when the profile cannot carry
       // a session (no store yet, or a login the endpoint refused).
-      token: v.optional(v.object({ stored_at: v.number(), expires_at: v.number() })),
+      token: v.optional(
+        v.object({ stored_at: v.number(), expires_at: v.number() }),
+      ),
       // A `claude setup-token` minted for this profile on request (Settings,
       // "mint a token"): a fixed one-year credential that outranks the store
       // at launch. Metadata only — never the token.
-      setup_token: v.optional(v.object({ stored_at: v.number(), expires_at: v.number() })),
+      setup_token: v.optional(
+        v.object({ stored_at: v.number(), expires_at: v.number() }),
+      ),
       // The daemon's token refresh was refused for this saved login
       // (invalid_grant): dead until the account signs in again. Never a
       // switch target (fallbackProfiles); the UI says "login expired".
@@ -149,7 +169,12 @@ export const ccAccountsValidator = v.object({
 // belongs to the profile, stores it → outcome). Same state-channel contract as
 // cc_login_flow: the web watches this field reactively.
 export const ccMintFlowValidator = v.object({
-  status: v.union(v.literal("pending"), v.literal("confirmed"), v.literal("rejected"), v.literal("cancelled")),
+  status: v.union(
+    v.literal("pending"),
+    v.literal("confirmed"),
+    v.literal("rejected"),
+    v.literal("cancelled"),
+  ),
   profile: v.optional(v.string()), // the profile the token is for
   // pending: the sign-in page the daemon opened, so the web can offer it
   // again when the browser tab was closed or never appeared.
@@ -176,7 +201,10 @@ export function profileHasSetupToken(
  *  minted token outranks the saved login at launch, so its expiry is moot
  *  until the token goes. What "login expired" / "sign in again" key on. */
 export function profileNeedsSignIn(
-  profile: { login_expired_at?: number | null; setup_token?: { expires_at: number } } | undefined | null,
+  profile:
+    | { login_expired_at?: number | null; setup_token?: { expires_at: number } }
+    | undefined
+    | null,
   now: number,
 ): boolean {
   return !!profile?.login_expired_at && !profileHasSetupToken(profile, now);
@@ -186,10 +214,16 @@ export function profileNeedsSignIn(
  *  past its lifetime: its own credential store, or a minted setup-token (which
  *  also covers a saved login that has expired). */
 export function profileHasToken(
-  profile: { token?: { expires_at: number }; setup_token?: { expires_at: number } } | undefined | null,
+  profile:
+    | { token?: { expires_at: number }; setup_token?: { expires_at: number } }
+    | undefined
+    | null,
   now: number,
 ): boolean {
-  return (!!profile?.token && profile.token.expires_at > now) || profileHasSetupToken(profile, now);
+  return (
+    (!!profile?.token && profile.token.expires_at > now) ||
+    profileHasSetupToken(profile, now)
+  );
 }
 
 /** The device-local profile name a session should be PINNED to (its
@@ -197,20 +231,41 @@ export function profileHasToken(
  * has a launch credential there. Undefined = don't pin; the session follows
  * the machine's keychain login. */
 export function tokenBackedProfile(
-  accounts: { profiles: Array<{ name: string; email?: string; token?: { expires_at: number }; setup_token?: { expires_at: number } }> } | undefined | null,
+  accounts:
+    | {
+        profiles: Array<{
+          name: string;
+          email?: string;
+          token?: { expires_at: number };
+          setup_token?: { expires_at: number };
+        }>;
+      }
+    | undefined
+    | null,
   target: { profile?: string; email?: string },
   now: number,
 ): string | undefined {
   const name = resolveDeviceProfile(accounts, target);
   if (!name) return undefined;
-  return profileHasToken(accounts?.profiles.find((p) => p.name === name), now) ? name : undefined;
+  return profileHasToken(
+    accounts?.profiles.find((p) => p.name === name),
+    now,
+  )
+    ? name
+    : undefined;
 }
 
 type FleetAccounts = {
   active_email?: string;
   launch_profile?: string;
   fleet_store?: boolean;
-  profiles: Array<{ name: string; email?: string; token?: { expires_at: number }; setup_token?: { expires_at: number }; usage?: CcUsage | null }>;
+  profiles: Array<{
+    name: string;
+    email?: string;
+    token?: { expires_at: number };
+    setup_token?: { expires_at: number };
+    usage?: CcUsage | null;
+  }>;
 };
 
 /** The account this machine's sessions run on. Normally the keychain login.
@@ -228,12 +283,18 @@ export function fleetAccount(
 ): { email?: string; profile?: string; viaToken: boolean } {
   if (!accounts) return { viaToken: false };
   if (accounts.fleet_store && accounts.launch_profile) {
-    const fleet = accounts.profiles.find((p) => p.name === accounts.launch_profile);
-    if (fleet) return { email: fleet.email, profile: fleet.name, viaToken: false };
+    const fleet = accounts.profiles.find(
+      (p) => p.name === accounts.launch_profile,
+    );
+    if (fleet)
+      return { email: fleet.email, profile: fleet.name, viaToken: false };
   }
   if (accounts.launch_profile) {
-    const launch = accounts.profiles.find((p) => p.name === accounts.launch_profile);
-    if (profileHasSetupToken(launch, now)) return { email: launch!.email, profile: launch!.name, viaToken: true };
+    const launch = accounts.profiles.find(
+      (p) => p.name === accounts.launch_profile,
+    );
+    if (profileHasSetupToken(launch, now))
+      return { email: launch!.email, profile: launch!.name, viaToken: true };
   }
   return { email: accounts.active_email, viaToken: false };
 }
@@ -251,17 +312,24 @@ export function isFleetProfile(
   const fleet = fleetAccount(accounts, now);
   if (fleet.profile) return profile.name === fleet.profile;
   if (!fleet.email) return false;
-  return profile.email ? profile.email === fleet.email : profile.name === fleet.email.split("@")[0];
+  return profile.email
+    ? profile.email === fleet.email
+    : profile.name === fleet.email.split("@")[0];
 }
 
 /** The pin for a NEW session: the profile covering the account the fleet
  * runs on (fleetAccount), if it has a launch credential. */
-export function activeTokenProfile(accounts: FleetAccounts | undefined | null, now: number): string | undefined {
+export function activeTokenProfile(
+  accounts: FleetAccounts | undefined | null,
+  now: number,
+): string | undefined {
   // On the fleet store no session is pinned: the store is the account.
   if (accounts?.fleet_store) return undefined;
   const fleet = fleetAccount(accounts, now);
   if (fleet.profile) return fleet.profile;
-  return fleet.email ? tokenBackedProfile(accounts, { email: fleet.email }, now) : undefined;
+  return fleet.email
+    ? tokenBackedProfile(accounts, { email: fleet.email }, now)
+    : undefined;
 }
 
 type ContinueDevice = {
@@ -273,14 +341,24 @@ type ContinueDevice = {
  *  switches on its own, and its parks are the laptop's account's. A host on a
  *  fleet store of its own (pool copies, accountPool.deviceMayHold) is
  *  none of that: it answers for its own account like a local machine. */
-export function runsPushedLogin(device: { is_remote?: boolean; cc_accounts?: { fleet_store?: boolean } | null } | undefined | null): boolean {
+export function runsPushedLogin(
+  device:
+    | { is_remote?: boolean; cc_accounts?: { fleet_store?: boolean } | null }
+    | undefined
+    | null,
+): boolean {
   return device?.is_remote === true && device.cc_accounts?.fleet_store !== true;
 }
 
 /** A cloud host whose sessions run on its own fleet store (line-pool copies).
  *  Recovery judges and moves it on its own accounts (autoSwitchCheck with a
  *  device_id), not through the laptop. */
-export function runsOwnFleet(device: { is_remote?: boolean; cc_accounts?: { fleet_store?: boolean } | null } | undefined | null): boolean {
+export function runsOwnFleet(
+  device:
+    | { is_remote?: boolean; cc_accounts?: { fleet_store?: boolean } | null }
+    | undefined
+    | null,
+): boolean {
   return device?.is_remote === true && device.cc_accounts?.fleet_store === true;
 }
 
@@ -288,7 +366,10 @@ export function runsOwnFleet(device: { is_remote?: boolean; cc_accounts?: { flee
  * this device: the profile covering the machine's current login when it has a
  * launch credential, otherwise none (the session follows the keychain).
  * Remotes on a pushed credential never pin. */
-export function continueTargetPin(device: ContinueDevice | undefined, now: number): string | undefined {
+export function continueTargetPin(
+  device: ContinueDevice | undefined,
+  now: number,
+): string | undefined {
   if (!device || runsPushedLogin(device)) return undefined;
   return activeTokenProfile(device.cc_accounts, now);
 }
@@ -311,7 +392,11 @@ export function continueNeedsRestart(
 ): boolean {
   if (conv.pending_api_error_kind === "auth") return true;
   if (runsPushedLogin(device)) return false;
-  if (conv.pending_api_error_kind === "limit" && device?.cc_accounts?.fleet_store === true) return true;
+  if (
+    conv.pending_api_error_kind === "limit" &&
+    device?.cc_accounts?.fleet_store === true
+  )
+    return true;
   // An unpinned process runs on the keychain login. That is the fleet account
   // unless a token switch moved the fleet elsewhere, in which case a plain
   // continue would retry the same spent (or dead) login.
@@ -339,7 +424,9 @@ export function parkedOnActiveAccount(
   // Unpinned = the keychain login, which is the fleet account unless a token
   // switch moved the fleet: then its park says nothing about the token account.
   if (!conv.cc_account) return !fleet.viaToken;
-  const pinned = device?.cc_accounts?.profiles.find((p) => p.name === conv.cc_account);
+  const pinned = device?.cc_accounts?.profiles.find(
+    (p) => p.name === conv.cc_account,
+  );
   return !!pinned?.email && !!fleet.email && pinned.email === fleet.email;
 }
 
@@ -347,14 +434,19 @@ export function parkedOnActiveAccount(
 // device answers for its own panes exactly like a local one — no is_remote
 // exemption here, unlike the Claude pin.
 type CodexDevice = {
-  codex_accounts?: { active_email?: string; profiles: Array<{ name: string; email?: string }> } | null;
+  codex_accounts?: {
+    active_email?: string;
+    profiles: Array<{ name: string; email?: string }>;
+  } | null;
 };
 
 /** The Codex profile covering a device's CURRENT ~/.codex login — the account a
  * pane launched on that machine right now would record. Undefined when the
  * device reports no Codex inventory, or none of its profiles matches the login:
  * a switch nobody can name orders no restarts. */
-export function activeCodexProfile(device: CodexDevice | undefined): string | undefined {
+export function activeCodexProfile(
+  device: CodexDevice | undefined,
+): string | undefined {
   const accounts = device?.codex_accounts;
   const activeEmail = accounts?.active_email;
   if (!activeEmail) return undefined;
@@ -412,19 +504,24 @@ export function resumePinFor(
   // A pin the machine chose follows the machine: after a switch (keychain or
   // token) the next resume lands on the account the fleet runs on now. A
   // pin a person chose (`--account`) is left alone below.
-  if (conv.cc_account_auto === true && !runsPushedLogin(device)) return continueTargetPin(device, now);
+  if (conv.cc_account_auto === true && !runsPushedLogin(device))
+    return continueTargetPin(device, now);
   const parked =
     conv.pending_api_error === true &&
-    (conv.pending_api_error_kind === "limit" || conv.pending_api_error_kind === "auth");
+    (conv.pending_api_error_kind === "limit" ||
+      conv.pending_api_error_kind === "auth");
   const pinnedSpent =
     !!conv.cc_account &&
     isUsageExhausted(
-      device?.cc_accounts?.profiles.find((p) => p.name === conv.cc_account)?.usage,
+      device?.cc_accounts?.profiles.find((p) => p.name === conv.cc_account)
+        ?.usage,
       now,
       conv.model ? [conv.model] : undefined,
     );
-  if ((parked || pinnedSpent) && continueNeedsRestart(conv, device, now)) return continueTargetPin(device, now);
-  if (!conv.cc_account && !runsPushedLogin(device)) return continueTargetPin(device, now);
+  if ((parked || pinnedSpent) && continueNeedsRestart(conv, device, now))
+    return continueTargetPin(device, now);
+  if (!conv.cc_account && !runsPushedLogin(device))
+    return continueTargetPin(device, now);
   return conv.cc_account ?? undefined;
 }
 
@@ -444,10 +541,26 @@ export function heldModelPin(
   now: number,
 ): string | undefined {
   const held = conv.cc_account_model_pin;
-  if (!held || !conv.cc_account || conv.cc_account !== held.profile || runsPushedLogin(device)) return undefined;
-  if (conv.pending_api_error === true && (conv.pending_api_error_at ?? 0) > held.at) return undefined;
-  const profile = device?.cc_accounts?.profiles.find((p) => p.name === conv.cc_account);
-  return profile && profileHasToken(profile, now) && hasModelRoom(profile.usage, held.family, now) ? conv.cc_account : undefined;
+  if (
+    !held ||
+    !conv.cc_account ||
+    conv.cc_account !== held.profile ||
+    runsPushedLogin(device)
+  )
+    return undefined;
+  if (
+    conv.pending_api_error === true &&
+    (conv.pending_api_error_at ?? 0) > held.at
+  )
+    return undefined;
+  const profile = device?.cc_accounts?.profiles.find(
+    (p) => p.name === conv.cc_account,
+  );
+  return profile &&
+    profileHasToken(profile, now) &&
+    hasModelRoom(profile.usage, held.family, now)
+    ? conv.cc_account
+    : undefined;
 }
 
 // Auto-switch bookkeeping, stored on the primary device row. `attempts` is the
@@ -457,7 +570,9 @@ export function heldModelPin(
 export const ccAutoSwitchStateValidator = v.object({
   last_action_at: v.optional(v.number()),
   last_action: v.optional(v.string()), // "switch:<profile>" | "continue"
-  attempts: v.optional(v.array(v.object({ profile: v.string(), at: v.number() }))),
+  attempts: v.optional(
+    v.array(v.object({ profile: v.string(), at: v.number() })),
+  ),
   exhausted_at: v.optional(v.number()),
   next_check_at: v.optional(v.number()),
   // A booked throttleContinueCheck (see accountSwitch.ts): a fresh throttle
@@ -516,7 +631,10 @@ export const ccAutoSwitchStateValidator = v.object({
 // dropped-connection park sat in the fleet banner until a human clicked
 // Continue. Both the wait and the pacing keep the retry from being the same
 // burst again.
-export const PACED_CONTINUE_KINDS: ReadonlySet<string> = new Set(["throttle", "connection"]);
+export const PACED_CONTINUE_KINDS: ReadonlySet<string> = new Set([
+  "throttle",
+  "connection",
+]);
 export const THROTTLE_CONTINUE_DELAY_MS = 60 * 1000;
 export const THROTTLE_CONTINUE_BATCH = RESUME_BURST_BATCH;
 export const THROTTLE_CONTINUE_SPACING_MS = RESUME_BURST_SPACING_MS;
@@ -540,7 +658,9 @@ export function throttleContinueDueAt(
 ): number {
   if (!conversationId) return parkedAt + THROTTLE_CONTINUE_DELAY_MS;
   const key = throttleContinueAttemptKey(conversationId);
-  const recent = attempts.filter((a) => a.profile === key && now - a.at < AUTO_SWITCH_SESSION_WINDOW_MS);
+  const recent = attempts.filter(
+    (a) => a.profile === key && now - a.at < AUTO_SWITCH_SESSION_WINDOW_MS,
+  );
   if (recent.length === 0) return parkedAt + THROTTLE_CONTINUE_DELAY_MS;
   const last = Math.max(...recent.map((a) => a.at));
   const delay = Math.min(
@@ -556,7 +676,12 @@ export function throttleContinueDueAt(
  * caller with nothing to send now but some waiting books the next tick for
  * the soonest of them. */
 export function pickThrottleContinueBatch<
-  T extends { _id?: string; pending_api_error_kind?: string | null; pending_api_error_at?: number | null; updated_at?: number },
+  T extends {
+    _id?: string;
+    pending_api_error_kind?: string | null;
+    pending_api_error_at?: number | null;
+    updated_at?: number;
+  },
 >(
   blocked: T[],
   now: number,
@@ -566,9 +691,17 @@ export function pickThrottleContinueBatch<
   // release (pickLimitReleaseBatch) has already waited for the reset and the
   // probe, so every row is due at once and only the batch size paces it.
   opts: { kinds?: ReadonlySet<string>; dueAt?: (c: T) => number } = {},
-): { batch: T[]; remaining: number; waiting: number; nextDueAt: number | null } {
+): {
+  batch: T[];
+  remaining: number;
+  waiting: number;
+  nextDueAt: number | null;
+} {
   const parkedAt = blockedAt;
-  const dueAt = opts.dueAt ?? ((c: T): number => throttleContinueDueAt(parkedAt(c), c._id, attempts, now));
+  const dueAt =
+    opts.dueAt ??
+    ((c: T): number =>
+      throttleContinueDueAt(parkedAt(c), c._id, attempts, now));
   const kinds = opts.kinds ?? PACED_CONTINUE_KINDS;
   const throttled = blocked
     .filter((c) => kinds.has(c.pending_api_error_kind ?? ""))
@@ -576,8 +709,14 @@ export function pickThrottleContinueBatch<
   const due = throttled.filter((c) => now >= dueAt(c));
   const waitingRows = throttled.filter((c) => now < dueAt(c));
   const batch = due.slice(0, THROTTLE_CONTINUE_BATCH);
-  const nextDueAt = waitingRows.length > 0 ? Math.min(...waitingRows.map(dueAt)) : null;
-  return { batch, remaining: due.length - batch.length, waiting: waitingRows.length, nextDueAt };
+  const nextDueAt =
+    waitingRows.length > 0 ? Math.min(...waitingRows.map(dueAt)) : null;
+  return {
+    batch,
+    remaining: due.length - batch.length,
+    waiting: waitingRows.length,
+    nextDueAt,
+  };
 }
 
 // Staged release after a usage-limit reset. The meter says the window rolled,
@@ -591,15 +730,32 @@ export function pickThrottleContinueBatch<
 // that fact has changed, and a session that stopped last has the warmest
 // context to resume. Heartbeat freshness says who is alive, not who was
 // refused, and liveness is already a precondition of being in `blocked`.
-export type LimitProbe = { conversation_id: string; at: number; kind: string; bucket: number };
+export type LimitProbe = {
+  conversation_id: string;
+  at: number;
+  kind: string;
+  bucket: number;
+};
 
 export function pickLimitProbe<
-  T extends { _id: string; pending_api_error_kind?: string | null; pending_api_error_at?: number | null; updated_at?: number },
+  T extends {
+    _id: string;
+    pending_api_error_kind?: string | null;
+    pending_api_error_at?: number | null;
+    updated_at?: number;
+  },
 >(blocked: T[], now: number): LimitProbe | null {
   if (blocked.length === 0) return null;
   const parkedAt = blockedAt;
-  const probe = blocked.reduce((best, c) => (parkedAt(c) > parkedAt(best) ? c : best));
-  return { conversation_id: probe._id, at: now, kind: probe.pending_api_error_kind ?? "limit", bucket: Math.floor(now / 60_000) };
+  const probe = blocked.reduce((best, c) =>
+    parkedAt(c) > parkedAt(best) ? c : best,
+  );
+  return {
+    conversation_id: probe._id,
+    at: now,
+    kind: probe.pending_api_error_kind ?? "limit",
+    bucket: Math.floor(now / 60_000),
+  };
 }
 
 // How long the probe's continue may take to be delivered and answered before
@@ -617,19 +773,33 @@ export const LIMIT_PROBE_SETTLE_MAX_MS = 5 * 60 * 1000;
  *  - release: the probe cleared (or settling timed out): the rows to send now
  *    and how many are left for the next tick. */
 export function limitProbeStep<
-  T extends { _id?: string; pending_api_error_kind?: string | null; pending_api_error_at?: number | null; updated_at?: number },
+  T extends {
+    _id?: string;
+    pending_api_error_kind?: string | null;
+    pending_api_error_at?: number | null;
+    updated_at?: number;
+  },
 >(
   blocked: T[],
   probe: LimitProbe,
   now: number,
-): { step: "reparked" } | { step: "settling" } | { step: "release"; batch: T[]; remaining: number } {
+):
+  | { step: "reparked" }
+  | { step: "settling" }
+  | { step: "release"; batch: T[]; remaining: number } {
   const parkedAt = blockedAt;
-  const sameKind = blocked.filter((c) => (c.pending_api_error_kind ?? "") === probe.kind);
+  const sameKind = blocked.filter(
+    (c) => (c.pending_api_error_kind ?? "") === probe.kind,
+  );
   if (sameKind.some((c) => parkedAt(c) > probe.at)) return { step: "reparked" };
   const probeRow = sameKind.find((c) => c._id === probe.conversation_id);
-  if (probeRow && now - probe.at < LIMIT_PROBE_SETTLE_MAX_MS) return { step: "settling" };
+  if (probeRow && now - probe.at < LIMIT_PROBE_SETTLE_MAX_MS)
+    return { step: "settling" };
   const rest = sameKind.filter((c) => c._id !== probe.conversation_id);
-  const { batch, remaining } = pickThrottleContinueBatch(rest, now, [], { kinds: new Set([probe.kind]), dueAt: () => 0 });
+  const { batch, remaining } = pickThrottleContinueBatch(rest, now, [], {
+    kinds: new Set([probe.kind]),
+    dueAt: () => 0,
+  });
   return { step: "release", batch, remaining };
 }
 
@@ -639,7 +809,11 @@ export function limitProbeStep<
 // the outcome (completeLoginFlow). The web watches this field reactively via
 // listAccountProfiles — it is the whole UI state channel for the flow.
 export const ccLoginFlowValidator = v.object({
-  status: v.union(v.literal("pending"), v.literal("confirmed"), v.literal("rejected")),
+  status: v.union(
+    v.literal("pending"),
+    v.literal("confirmed"),
+    v.literal("rejected"),
+  ),
   // pending: the account we asked the user to sign into (pre-filled in the
   // browser). confirmed: the account that actually signed in.
   email: v.optional(v.string()),
@@ -697,7 +871,13 @@ export function authRestartAttemptKey(conversationId: string): string {
   return `${AUTO_SWITCH_AUTH_RESTART_KEY}:${conversationId}`;
 }
 
-export function splitAuthParks<T extends { _id: string; updated_at?: number; pending_api_error_at?: number | null }>(
+export function splitAuthParks<
+  T extends {
+    _id: string;
+    updated_at?: number;
+    pending_api_error_at?: number | null;
+  },
+>(
   parks: T[],
   device:
     | {
@@ -722,18 +902,36 @@ export function splitAuthParks<T extends { _id: string; updated_at?: number; pen
   const accounts = device?.cc_accounts;
   const activeSince = accounts?.active_since ?? 0;
   const fleetEmail = fleetAccount(accounts, now).email;
-  const active = accounts?.profiles.find((p) => !!p.email && p.email === fleetEmail);
-  if (active?.login_expired_at && active.login_expired_at >= activeSince) return { restart: [], dead: parks };
-  if (!active?.usage || active.usage.fetched_at < activeSince) return { restart: [], dead: [] };
-  const parkedAt = blockedAt;
-  const lastRestart = (c: T): number => attempts.reduce(
-    (latest, a) => a.profile === authRestartAttemptKey(c._id) && a.at >= activeSince ? Math.max(latest, a.at) : latest,
-    0,
+  const active = accounts?.profiles.find(
+    (p) => !!p.email && p.email === fleetEmail,
   );
-  if (parks.some((c) => lastRestart(c) > 0 && c.pending_api_error_at != null && c.pending_api_error_at > lastRestart(c))) {
+  if (active?.login_expired_at && active.login_expired_at >= activeSince)
+    return { restart: [], dead: parks };
+  if (!active?.usage || active.usage.fetched_at < activeSince)
+    return { restart: [], dead: [] };
+  const parkedAt = blockedAt;
+  const lastRestart = (c: T): number =>
+    attempts.reduce(
+      (latest, a) =>
+        a.profile === authRestartAttemptKey(c._id) && a.at >= activeSince
+          ? Math.max(latest, a.at)
+          : latest,
+      0,
+    );
+  if (
+    parks.some(
+      (c) =>
+        lastRestart(c) > 0 &&
+        c.pending_api_error_at != null &&
+        c.pending_api_error_at > lastRestart(c),
+    )
+  ) {
     return { restart: [], dead: parks };
   }
-  return { restart: parks.filter((c) => lastRestart(c) === 0 && parkedAt(c) > 0), dead: [] };
+  return {
+    restart: parks.filter((c) => lastRestart(c) === 0 && parkedAt(c) > 0),
+    dead: [],
+  };
 }
 // Continue-only mode (auto-switch off) acts on limit parks no older than this:
 // a full session window plus slack for the reset-plus-settle wake-up. Older
@@ -744,7 +942,9 @@ export const AUTO_CONTINUE_WINDOW_MS = 6 * 60 * 60 * 1000;
  * window resets, no switch — runs only when the user turned it on. Codecast
  * types into a person's session only after they chose a recovery mode that
  * does (recoveryModeOf). */
-export function isAutoContinueEnabled(device: { cc_auto_continue?: boolean | null }): boolean {
+export function isAutoContinueEnabled(device: {
+  cc_auto_continue?: boolean | null;
+}): boolean {
   return device.cc_auto_continue === true;
 }
 
@@ -753,11 +953,17 @@ export function isAutoContinueEnabled(device: { cc_auto_continue?: boolean | nul
  * but "off" on the primary device row (see loadPrimaryForToggle); no primary
  * online means no one chose, so nothing is sent. */
 export function autoRecoveryEnabled(
-  primary: { cc_auto_switch?: boolean | null; cc_recovery_ask?: boolean | null; cc_auto_continue?: boolean | null } | undefined | null,
+  primary:
+    | {
+        cc_auto_switch?: boolean | null;
+        cc_recovery_ask?: boolean | null;
+        cc_auto_continue?: boolean | null;
+      }
+    | undefined
+    | null,
 ): boolean {
   return !!primary && recoveryModeOf(primary) !== "off";
 }
-
 
 /** Does the "every account is spent" stamp still describe NOW? Only a re-check
  * clears it, and that re-check may never run — auto-switch turned off, a lost
@@ -788,7 +994,8 @@ export function exhaustionBannerCopy(
   now: number,
 ): string {
   const allPegged =
-    profiles.length > 0 && profiles.every((p) => isUsageExhausted(p.usage, now));
+    profiles.length > 0 &&
+    profiles.every((p) => isUsageExhausted(p.usage, now));
   return allPegged
     ? "All accounts are at their limits — auto-switch will retry at the next window reset."
     : "Auto-switch tried every account and sessions still hit limits — it will retry at the next window reset.";
@@ -821,7 +1028,10 @@ export interface AutoSwitchProfile {
  * undefined when the device does not have the account — the caller must treat
  * that device as unable to switch, not send the foreign name anyway. */
 export function resolveDeviceProfile(
-  accounts: { profiles: Array<{ name: string; email?: string }> } | undefined | null,
+  accounts:
+    | { profiles: Array<{ name: string; email?: string }> }
+    | undefined
+    | null,
   target: { profile?: string; email?: string },
 ): string | undefined {
   const profiles = accounts?.profiles ?? [];
@@ -842,12 +1052,16 @@ export function resolveDeviceProfile(
  * primary device). Undefined when the name is unknown there too — resolution
  * then degrades to exact-name matching everywhere. */
 export function targetAccountEmail(
-  accounts: { profiles: Array<{ name: string; email?: string }> } | undefined | null,
+  accounts:
+    | { profiles: Array<{ name: string; email?: string }> }
+    | undefined
+    | null,
   target: { profile?: string; email?: string },
 ): string | undefined {
   if (target.email) return target.email;
   if (!target.profile) return undefined;
-  return (accounts?.profiles ?? []).find((p) => p.name === target.profile)?.email;
+  return (accounts?.profiles ?? []).find((p) => p.name === target.profile)
+    ?.email;
 }
 
 export type AutoSwitchDecision =
@@ -943,7 +1157,15 @@ export function decideAutoSwitch(input: {
   // ("Fable") is spent only for sessions on that model (limitWindows).
   models?: readonly string[];
 }): AutoSwitchDecision {
-  const { now, parkedAt, activeEmail, activeSince, profiles, attempts, models } = input;
+  const {
+    now,
+    parkedAt,
+    activeEmail,
+    activeSince,
+    profiles,
+    attempts,
+    models,
+  } = input;
   const allowSwitch = input.allowSwitch !== false;
   const lastAttemptAt = (profile: string): number | null =>
     attempts.reduce<number | null>(
@@ -963,17 +1185,29 @@ export function decideAutoSwitch(input: {
     return { action: "wait", retry_at: now + AUTO_SWITCH_PROBE_RETRY_MS };
   }
   const sessionResetAt = active?.usage?.session?.resets_at;
-  const lastContinue = lastAttemptAt(input.continueKey ?? AUTO_SWITCH_CONTINUE_KEY);
-  const activeParkedAt = input.activeParkedAt === undefined ? parkedAt : input.activeParkedAt;
+  const lastContinue = lastAttemptAt(
+    input.continueKey ?? AUTO_SWITCH_CONTINUE_KEY,
+  );
+  const activeParkedAt =
+    input.activeParkedAt === undefined ? parkedAt : input.activeParkedAt;
   // No park implicates the active account: its meters are the only evidence
   // needed, and a pegged one is caught by isUsageExhausted below.
   const noParkOnActive = activeParkedAt === null;
   const windowRolledSincePark =
-    !noParkOnActive && !!sessionResetAt && sessionResetAt > activeParkedAt && sessionResetAt <= now;
-  const parksPredateActivation = !noParkOnActive && activeSince !== undefined && activeSince > activeParkedAt;
+    !noParkOnActive &&
+    !!sessionResetAt &&
+    sessionResetAt > activeParkedAt &&
+    sessionResetAt <= now;
+  const parksPredateActivation =
+    !noParkOnActive &&
+    activeSince !== undefined &&
+    activeSince > activeParkedAt;
   const settledProbeShowsHeadroom =
     !noParkOnActive &&
-    activeFetchedAt >= (parksPredateActivation ? activeSince : activeParkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS);
+    activeFetchedAt >=
+      (parksPredateActivation
+        ? activeSince
+        : activeParkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS);
   // A continue already sent is spent until something NEW happens after it: the
   // window rolls, or a probe fetched after the continue settled shows headroom.
   // A refused continue stamps a fresh park, so `lastContinue < parkedAt` used
@@ -981,8 +1215,12 @@ export function decideAutoSwitch(input: {
   // was still spent (jx7dnat: hundreds of continues into a usage limit).
   const continueHasNewEvidence =
     !lastContinue ||
-    (activeSince !== undefined && activeSince > lastContinue && activeFetchedAt >= activeSince) ||
-    (!!sessionResetAt && sessionResetAt > lastContinue && sessionResetAt <= now) ||
+    (activeSince !== undefined &&
+      activeSince > lastContinue &&
+      activeFetchedAt >= activeSince) ||
+    (!!sessionResetAt &&
+      sessionResetAt > lastContinue &&
+      sessionResetAt <= now) ||
     activeFetchedAt >= lastContinue + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS;
   if (
     !input.activeDead &&
@@ -1013,14 +1251,21 @@ export function decideAutoSwitch(input: {
   // every session exactly as parked.
   const resetCredit = input.activeDead ? null : input.resetCredit;
   if (resetCredit && resetCredit.available > 0) {
-    const lastRedeem = lastAttemptAt(resetCreditAttemptKey(resetCredit.profile));
+    const lastRedeem = lastAttemptAt(
+      resetCreditAttemptKey(resetCredit.profile),
+    );
     if (!lastRedeem || lastRedeem < parkedAt) {
       return { action: "redeem_reset_credit", profile: resetCredit.profile };
     }
   }
 
   if (allowSwitch) {
-    const candidates = fallbackProfiles(profiles, activeEmail, now, models).filter((p) => {
+    const candidates = fallbackProfiles(
+      profiles,
+      activeEmail,
+      now,
+      models,
+    ).filter((p) => {
       const att = lastAttemptAt(p.name);
       if (att && att >= parkedAt) return false; // switch in flight — wait
       if (att && now - att < AUTO_SWITCH_SESSION_WINDOW_MS) {
@@ -1036,7 +1281,10 @@ export function decideAutoSwitch(input: {
     if (candidates[0]) return { action: "switch", profile: candidates[0].name };
   }
 
-  const earliestReset = earliestUsageResetAt(allowSwitch ? profiles : active ? [active] : [], now);
+  const earliestReset = earliestUsageResetAt(
+    allowSwitch ? profiles : active ? [active] : [],
+    now,
+  );
   const retryAt = (earliestReset ?? now + 60 * 60 * 1000) + 2 * 60 * 1000;
   return { action: "exhausted", retry_at: retryAt };
 }
@@ -1052,7 +1300,10 @@ export function isValidProfileName(name: string): boolean {
 // A device is live if it heartbeated within this window (daemon beats ~30s).
 export const DEVICE_ONLINE_MS = 2 * 60 * 1000;
 
-export function isDeviceOnline(device: { last_seen: number }, now: number): boolean {
+export function isDeviceOnline(
+  device: { last_seen: number },
+  now: number,
+): boolean {
   return now - device.last_seen < DEVICE_ONLINE_MS;
 }
 
@@ -1088,9 +1339,13 @@ export async function findFlowDevice(
 ): Promise<Doc<"devices"> | undefined> {
   const device: Doc<"devices"> | null = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .first();
-  return device && now - device.last_seen < LOGIN_FLOW_STALE_MS ? device : undefined;
+  return device && now - device.last_seen < LOGIN_FLOW_STALE_MS
+    ? device
+    : undefined;
 }
 
 // The earliest future reset among the given accounts' limit windows, or
@@ -1103,7 +1358,11 @@ export function earliestUsageResetAt(
 ): number | undefined {
   const resets: number[] = [];
   for (const p of profiles) {
-    for (const w of [p.usage?.session, p.usage?.weekly, p.usage?.weekly_scoped]) {
+    for (const w of [
+      p.usage?.session,
+      p.usage?.weekly,
+      p.usage?.weekly_scoped,
+    ]) {
       if (w?.resets_at && w.resets_at > now) resets.push(w.resets_at);
     }
   }
@@ -1119,19 +1378,32 @@ export function earliestUsageResetAt(
  *  A booked recovery check (`next_check_at`, the account loop's own next
  *  look) is a floor: the loop knows at least as much as this does. */
 export function parkedAccountResetAt(
-  device: { cc_accounts?: FleetAccounts | null; cc_auto_switch_state?: { next_check_at?: number } | null } | undefined,
+  device:
+    | {
+        cc_accounts?: FleetAccounts | null;
+        cc_auto_switch_state?: { next_check_at?: number } | null;
+      }
+    | undefined,
   conv: { cc_account?: string | null },
   now: number,
 ): number | undefined {
   const profiles = device?.cc_accounts?.profiles ?? [];
   const fleet = fleetAccount(device?.cc_accounts, now);
   const own = profiles.find((p) =>
-    conv.cc_account ? p.name === conv.cc_account : fleet.profile ? p.name === fleet.profile : !!p.email && p.email === fleet.email,
+    conv.cc_account
+      ? p.name === conv.cc_account
+      : fleet.profile
+        ? p.name === fleet.profile
+        : !!p.email && p.email === fleet.email,
   );
   const pegged = own ? peggedWindow(own.usage, now)?.resets_at : undefined;
-  const resetAt = pegged && pegged > now ? pegged : earliestUsageResetAt(own ? [own] : profiles, now);
+  const resetAt =
+    pegged && pegged > now
+      ? pegged
+      : earliestUsageResetAt(own ? [own] : profiles, now);
   const booked = device?.cc_auto_switch_state?.next_check_at;
-  if (booked && booked > now && (resetAt === undefined || booked > resetAt)) return booked;
+  if (booked && booked > now && (resetAt === undefined || booked > resetAt))
+    return booked;
   return resetAt;
 }
 
@@ -1154,12 +1426,13 @@ export function isBlockedConversation(conv: {
 }): boolean {
   return (
     conv.pending_api_error === true &&
-    blockedKindsForAgent(conv.agent_type).has(conv.pending_api_error_kind ?? "") &&
+    blockedKindsForAgent(conv.agent_type).has(
+      conv.pending_api_error_kind ?? "",
+    ) &&
     !conv.inbox_dismissed_at &&
     !isWorkflowRunLog(conv)
   );
 }
-
 
 // The revive window: a park older than this is the graveyard, not the current
 // incident. Measured from when the block landed (the banner's own timestamp),
@@ -1170,11 +1443,17 @@ export function isBlockedConversation(conv: {
 // its reset, plus a day of slack for the wake-up after it.
 export const BLOCKED_WINDOW_MS = 8 * 24 * 60 * 60 * 1000;
 
-export function blockedAt(conv: { pending_api_error_at?: number | null; updated_at?: number }): number {
+export function blockedAt(conv: {
+  pending_api_error_at?: number | null;
+  updated_at?: number;
+}): number {
   return conv.pending_api_error_at ?? conv.updated_at ?? 0;
 }
 
-export function isCurrentBlock(conv: { pending_api_error_at?: number | null; updated_at?: number }, now: number): boolean {
+export function isCurrentBlock(
+  conv: { pending_api_error_at?: number | null; updated_at?: number },
+  now: number,
+): boolean {
   return blockedAt(conv) > now - BLOCKED_WINDOW_MS;
 }
 
@@ -1184,7 +1463,10 @@ export function isCurrentBlock(conv: { pending_api_error_at?: number | null; upd
  * so limit-kind and local owners are out of scope). Callers pre-filter with
  * isBlockedConversation, which carries the dismissed/agent-type gates. */
 export function isRemoteAuthBlocked(
-  conv: { pending_api_error_kind?: string | null; owner_device_id?: string | null },
+  conv: {
+    pending_api_error_kind?: string | null;
+    owner_device_id?: string | null;
+  },
   remoteDeviceIds: ReadonlySet<string>,
 ): boolean {
   return (
@@ -1215,14 +1497,20 @@ export function isSubagentConversation(conv: {
 // reach it; the delivery rail resumes it as a standalone copy that runs its
 // brief again with nobody collecting the result. Shared by the server
 // selection and the web banner so the acted count is one number.
-export function actedBlockedConversations<T extends {
-  pending_api_error_kind?: string | null;
-  is_subagent?: boolean;
-  parent_conversation_id?: string | null;
-}>(blocked: T[], includeSubagents: boolean): T[] {
-  const recoverable = blocked.filter((c) => !UNREVIVABLE_BANNER_KINDS.has(c.pending_api_error_kind ?? ""));
+export function actedBlockedConversations<
+  T extends {
+    pending_api_error_kind?: string | null;
+    is_subagent?: boolean;
+    parent_conversation_id?: string | null;
+  },
+>(blocked: T[], includeSubagents: boolean): T[] {
+  const recoverable = blocked.filter(
+    (c) => !UNREVIVABLE_BANNER_KINDS.has(c.pending_api_error_kind ?? ""),
+  );
   const topLevel = recoverable.filter((c) => !isSubagentConversation(c));
-  return includeSubagents ? [...topLevel, ...recoverable.filter(isSubagentConversation)] : topLevel;
+  return includeSubagents
+    ? [...topLevel, ...recoverable.filter(isSubagentConversation)]
+    : topLevel;
 }
 
 // The complement of the acted set: the workers a revive leaves out when the
@@ -1234,13 +1522,19 @@ export function actedBlockedConversations<T extends {
 // Shared by the server (which clears the flag) and the web banner (which
 // paints the clear and names the count on the button), so both agree on
 // exactly which rows go.
-export function skippedBlockedWorkers<T extends {
-  pending_api_error_kind?: string | null;
-  is_subagent?: boolean;
-  parent_conversation_id?: string | null;
-}>(blocked: T[], includeSubagents: boolean): T[] {
+export function skippedBlockedWorkers<
+  T extends {
+    pending_api_error_kind?: string | null;
+    is_subagent?: boolean;
+    parent_conversation_id?: string | null;
+  },
+>(blocked: T[], includeSubagents: boolean): T[] {
   if (includeSubagents) return [];
-  return blocked.filter((c) => !UNREVIVABLE_BANNER_KINDS.has(c.pending_api_error_kind ?? "") && isSubagentConversation(c));
+  return blocked.filter(
+    (c) =>
+      !UNREVIVABLE_BANNER_KINDS.has(c.pending_api_error_kind ?? "") &&
+      isSubagentConversation(c),
+  );
 }
 
 // The one-line cause a blocked FLEET is reported on — the banner headline and
@@ -1254,8 +1548,11 @@ export function skippedBlockedWorkers<T extends {
 // and the label fell through to the first entry, "safety review". And the
 // order breaks ties toward the ordinary cause, so "safety review" leads only
 // when it is strictly the largest slice.
-export function blockedHeadlineCause<T extends { pending_api_error_kind?: string | null }>(blocked: T[]): string {
-  const of = (kind: string) => blocked.filter((c) => c.pending_api_error_kind === kind).length;
+export function blockedHeadlineCause<
+  T extends { pending_api_error_kind?: string | null },
+>(blocked: T[]): string {
+  const of = (kind: string) =>
+    blocked.filter((c) => c.pending_api_error_kind === kind).length;
   const auth = of("auth");
   const conn = of("connection");
   const fatal = of("fatal");
@@ -1263,16 +1560,19 @@ export function blockedHeadlineCause<T extends { pending_api_error_kind?: string
   const safety = of("safety");
   const context = of("context");
   // A park with no kind recorded is a usage limit — the original park shape.
-  const limit = blocked.length - auth - conn - fatal - throttle - safety - context;
-  return ([
-    [limit, "usage limits"],
-    [auth, "login"],
-    [throttle, "rate-limit bursts"],
-    [conn, "dropped connections"],
-    [fatal, "api errors"],
-    [context, "full context windows"],
-    [safety, "safety review"],
-  ] as const).reduce((best, cur) => (cur[0] > best[0] ? cur : best))[1];
+  const limit =
+    blocked.length - auth - conn - fatal - throttle - safety - context;
+  return (
+    [
+      [limit, "usage limits"],
+      [auth, "login"],
+      [throttle, "rate-limit bursts"],
+      [conn, "dropped connections"],
+      [fatal, "api errors"],
+      [context, "full context windows"],
+      [safety, "safety review"],
+    ] as const
+  ).reduce((best, cur) => (cur[0] > best[0] ? cur : best))[1];
 }
 
 /** The blocked-incident push: what parked, counted over top-level sessions
@@ -1283,11 +1583,19 @@ export function blockedHeadlineCause<T extends { pending_api_error_kind?: string
  *  "1 needs safety review (1 subagent)" on the lock screen). The inbox still
  *  lists parked workers under their parent. */
 export function blockedIncidentNotice<
-  T extends { pending_api_error_kind?: string | null; updated_at?: number; is_subagent?: boolean; parent_conversation_id?: string | null },
->(blocked: T[]): { title: string; message: string; anchor: T; newestPark: number } | null {
+  T extends {
+    pending_api_error_kind?: string | null;
+    updated_at?: number;
+    is_subagent?: boolean;
+    parent_conversation_id?: string | null;
+  },
+>(
+  blocked: T[],
+): { title: string; message: string; anchor: T; newestPark: number } | null {
   const owned = blocked.filter((c) => !isSubagentConversation(c));
   if (owned.length === 0) return null;
-  const of = (kind: string) => owned.filter((c) => c.pending_api_error_kind === kind).length;
+  const of = (kind: string) =>
+    owned.filter((c) => c.pending_api_error_kind === kind).length;
   const auth = of("auth");
   const safety = of("safety");
   const counts: Array<[number, string]> = [
@@ -1302,8 +1610,15 @@ export function blockedIncidentNotice<
   const parts = [[limit, "hit a usage limit"] as [number, string], ...counts]
     .filter(([n]) => n > 0)
     .map(([n, label]) => `${n} ${label}`);
-  const hint = safety > 0 ? "safety stops wait for you" : auth > 0 ? "sign in to revive them" : "revive them from the inbox";
-  const anchor = [...owned].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0];
+  const hint =
+    safety > 0
+      ? "safety stops wait for you"
+      : auth > 0
+        ? "sign in to revive them"
+        : "revive them from the inbox";
+  const anchor = [...owned].sort(
+    (a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
+  )[0];
   return {
     title: `${owned.length} session${owned.length === 1 ? "" : "s"} blocked on ${blockedHeadlineCause(owned)}`,
     message: `${parts.join(" · ")}. ${hint[0].toUpperCase()}${hint.slice(1)}.`,
@@ -1360,7 +1675,8 @@ export function nestParentIdOf(conv: {
   agent_team_name?: string | null;
   agent_name?: string | null;
 }): string | null {
-  if (conv.parent_conversation_id) return conv.parent_conversation_id.toString();
+  if (conv.parent_conversation_id)
+    return conv.parent_conversation_id.toString();
   if (isAgentTeamWorker(conv) && conv.spawned_by_conversation_id) {
     return conv.spawned_by_conversation_id.toString();
   }
@@ -1394,9 +1710,12 @@ export function isAgentSpawnedConversation(conv: {
 // Stale-flag sweep: past the revive window the flag stops meaning "current
 // incident" and just pollutes badges/selection — clear it.
 export function shouldSweepStaleFlag(
-  conv: { pending_api_error?: boolean; pending_api_error_at?: number | null; updated_at?: number },
+  conv: {
+    pending_api_error?: boolean;
+    pending_api_error_at?: number | null;
+    updated_at?: number;
+  },
   now: number,
 ): boolean {
   return conv.pending_api_error === true && !isCurrentBlock(conv, now);
 }
-

@@ -2,32 +2,45 @@
 // buttons, pills, callouts, list rows and the empty line. The approval card,
 // the routines, the plan and the mail connection are built from them
 // (hostedTheme.ts names their colours).
-import { type ReactNode } from 'react';
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import Feather from '@expo/vector-icons/Feather';
-import { MOTION_CURVE } from '@platform/design';
-import { Text } from '@/components/Themed';
-import { HOSTED_RADIUS_SM, useHostedTheme } from './hostedTheme';
+import { type ReactNode } from "react";
+import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated, { Easing, FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import Feather from "@expo/vector-icons/Feather";
+import { MOTION_CURVE } from "@platform/design";
+import { Text } from "@/components/Themed";
+import { HOSTED_RADIUS_SM, useHostedTheme } from "./hostedTheme";
 
 /** The family's curve (@platform/design MOTION_CURVE), shared with the web and Whisk. */
 const HOSTED_EASE = Easing.bezier(...MOTION_CURVE);
 
 /** One block entering: up and in, each a beat after the one before. */
-export function Rise({ i = 0, style, children }: { i?: number; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+export function Rise({
+  i = 0,
+  style,
+  children,
+}: {
+  i?: number;
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
   return (
-    <Animated.View entering={FadeInDown.duration(420).delay(Math.min(i, 8) * 60).easing(HOSTED_EASE)} style={style}>
+    <Animated.View
+      entering={FadeInDown.duration(420)
+        .delay(Math.min(i, 8) * 60)
+        .easing(HOSTED_EASE)}
+      style={style}
+    >
       {children}
     </Animated.View>
   );
 }
 
-export type ButtonTone = 'yes' | 'plain' | 'no' | 'danger';
+export type ButtonTone = "yes" | "plain" | "no" | "danger";
 
 export function HostedButton({
   label,
-  tone = 'plain',
+  tone = "plain",
   small = false,
   disabled = false,
   onPress,
@@ -43,15 +56,30 @@ export function HostedButton({
   /** Read aloud after the label: what the answer means. */
   hint?: string;
   /** A trailing stroke icon, as the web's link out to another app carries. */
-  icon?: React.ComponentProps<typeof Feather>['name'];
+  icon?: React.ComponentProps<typeof Feather>["name"];
   style?: StyleProp<ViewStyle>;
 }) {
   const { c } = useHostedTheme();
   const look = {
-    yes: { bg: c.accent, fg: c.onSolid, border: 'transparent', pressed: c.accentPressed },
+    yes: {
+      bg: c.accent,
+      fg: c.onSolid,
+      border: "transparent",
+      pressed: c.accentPressed,
+    },
     plain: { bg: c.sheet, fg: c.ink, border: c.lineStrong, pressed: c.hover },
-    no: { bg: 'transparent', fg: c.soft, border: 'transparent', pressed: c.wash },
-    danger: { bg: 'transparent', fg: c.danger, border: 'transparent', pressed: c.dangerWash },
+    no: {
+      bg: "transparent",
+      fg: c.soft,
+      border: "transparent",
+      pressed: c.wash,
+    },
+    danger: {
+      bg: "transparent",
+      fg: c.danger,
+      border: "transparent",
+      pressed: c.dangerWash,
+    },
   }[tone];
   return (
     <Pressable
@@ -61,7 +89,7 @@ export function HostedButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={() => {
-        if (tone === 'yes') void Haptics.selectionAsync().catch(() => {});
+        if (tone === "yes") void Haptics.selectionAsync().catch(() => {});
         onPress();
       }}
       style={({ pressed }) => [
@@ -72,20 +100,25 @@ export function HostedButton({
           borderWidth: 1,
           borderColor: look.border,
           backgroundColor: pressed ? look.pressed : look.bg,
-          flexDirection: 'row',
+          flexDirection: "row",
           gap: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           opacity: disabled ? 0.45 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         },
         style,
       ]}
     >
-      <Text style={{ color: look.fg, fontSize: small ? 13 : 14, fontWeight: '600' }} numberOfLines={1}>
+      <Text
+        style={{ color: look.fg, fontSize: small ? 13 : 14, fontWeight: "600" }}
+        numberOfLines={1}
+      >
         {label}
       </Text>
-      {icon ? <Feather name={icon} size={small ? 12 : 13} color={look.fg} /> : null}
+      {icon ? (
+        <Feather name={icon} size={small ? 12 : 13} color={look.fg} />
+      ) : null}
     </Pressable>
   );
 }
@@ -101,7 +134,17 @@ export function Pill({ label, off = false }: { label: string; off?: boolean }) {
 }
 
 /** A note on the page; `attention` when it needs the person. */
-export function Callout({ icon, attention = false, children, style }: { icon?: ReactNode; attention?: boolean; children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Callout({
+  icon,
+  attention = false,
+  children,
+  style,
+}: {
+  icon?: ReactNode;
+  attention?: boolean;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const { s } = useHostedTheme();
   return (
     <View style={[s.callout, attention && s.calloutAttention, style]}>
@@ -121,15 +164,30 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 /** A row in a list card: pressable, with a hairline above every row but the first. */
-export function HostedRow({ first, onPress, children, label }: { first: boolean; onPress?: () => void; children: ReactNode; label?: string }) {
+export function HostedRow({
+  first,
+  onPress,
+  children,
+  label,
+}: {
+  first: boolean;
+  onPress?: () => void;
+  children: ReactNode;
+  label?: string;
+}) {
   const { c, s } = useHostedTheme();
-  if (!onPress) return <View style={[s.row, !first && s.rowRule]}>{children}</View>;
+  if (!onPress)
+    return <View style={[s.row, !first && s.rowRule]}>{children}</View>;
   return (
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [s.row, !first && s.rowRule, pressed && { backgroundColor: c.hover }]}
+      style={({ pressed }) => [
+        s.row,
+        !first && s.rowRule,
+        pressed && { backgroundColor: c.hover },
+      ]}
     >
       {children}
     </Pressable>

@@ -6,9 +6,27 @@ import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test/settings/devices", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "sessionStorage", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test/settings/devices", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "sessionStorage",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,17 +34,37 @@ const { MachineTailnet } = await import("../MachineTailnet");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const realSetDirectLinks = useInboxStore.getState().setDeviceDirectLinks;
 
-const net = (name: string, extra: Record<string, unknown> = {}) => ({ ip: "100.64.0.1", name: `${name}.tail1.ts.net.`, tailnet: "tail1.ts.net", ts_user_id: "42", bindable: true, ...extra });
+const net = (name: string, extra: Record<string, unknown> = {}) => ({
+  ip: "100.64.0.1",
+  name: `${name}.tail1.ts.net.`,
+  tailnet: "tail1.ts.net",
+  ts_user_id: "42",
+  bindable: true,
+  ...extra,
+});
 const device = (id: string, extra: Record<string, unknown> = {}): any => ({
-  device_id: id, label: id, hostname: id, platform: "darwin", last_seen: Date.now(), is_remote: false, local_project_roots: [], online: true, cli_version: "1.1.221", ...extra,
+  device_id: id,
+  label: id,
+  hostname: id,
+  platform: "darwin",
+  last_seen: Date.now(),
+  is_remote: false,
+  local_project_roots: [],
+  online: true,
+  cli_version: "1.1.221",
+  ...extra,
 });
 
 let root: Root;
 let calls: Array<[string, boolean]> = [];
 let opened: unknown[] = [];
 const text = () => document.body.textContent ?? "";
-const pair = () => document.querySelector("[data-pair]")?.getAttribute("data-pair") ?? null;
-const links = () => [...document.querySelectorAll("a, button:not([role=switch])")].map((a) => a.textContent);
+const pair = () =>
+  document.querySelector("[data-pair]")?.getAttribute("data-pair") ?? null;
+const links = () =>
+  [...document.querySelectorAll("a, button:not([role=switch])")].map(
+    (a) => a.textContent,
+  );
 
 async function show(d: any, roster: any[], local: string | null = "laptop") {
   await act(async () => {
@@ -34,8 +72,12 @@ async function show(d: any, roster: any[], local: string | null = "laptop") {
       currentUser: { _id: "u1", name: "Ada" },
       machineRoster: roster,
       localDevice: local ? { viewer: "u1", deviceId: local } : null,
-      setDeviceDirectLinks: (id: string, on: boolean) => { calls.push([id, on]); },
-      openSettingsModal: (section: unknown) => { opened.push(section); },
+      setDeviceDirectLinks: (id: string, on: boolean) => {
+        calls.push([id, on]);
+      },
+      openSettingsModal: (section: unknown) => {
+        opened.push(section);
+      },
     } as any);
   });
   await act(async () => root.render(<MachineTailnet device={d} />));
@@ -47,7 +89,9 @@ beforeEach(() => {
   calls = [];
   opened = [];
 });
-afterEach(async () => { await act(async () => root.unmount()); });
+afterEach(async () => {
+  await act(async () => root.unmount());
+});
 
 const laptop = device("laptop", { tailnet: net("mbp") });
 
@@ -66,7 +110,10 @@ test("the machine you are on shows its tailnet name and no pair with itself", as
 });
 
 test("same account: Direct, proven once a direct transfer worked", async () => {
-  const desk = device("desk", { tailnet: net("desk", { ip: "100.64.0.2" }), peer_links: [{ to_device_id: "laptop", last_direct_ok_at: 5 }] });
+  const desk = device("desk", {
+    tailnet: net("desk", { ip: "100.64.0.2" }),
+    peer_links: [{ to_device_id: "laptop", last_direct_ok_at: 5 }],
+  });
   await show(desk, [laptop, desk]);
   expect(text()).toContain("Tailscale · desk");
   expect(pair()).toBe("direct");
@@ -84,11 +131,15 @@ test("another Tailscale account relays and points at switching accounts", async 
   expect(pair()).toBe("relay");
   expect(text()).toContain("Relay · Other account");
   expect(links()).toContain("Switch account");
-  expect(document.querySelector("a")!.getAttribute("href")).toContain("kb/1225");
+  expect(document.querySelector("a")!.getAttribute("href")).toContain(
+    "kb/1225",
+  );
 });
 
 test("another tailnet names both tailnets so the wrong one is visible", async () => {
-  const desk = device("desk", { tailnet: net("desk", { tailnet: "tail9.ts.net" }) });
+  const desk = device("desk", {
+    tailnet: net("desk", { tailnet: "tail9.ts.net" }),
+  });
   await show(desk, [laptop, desk]);
   expect(text()).toContain("Relay · Other tailnet");
   const both = document.querySelector("[data-tailnets]")!.textContent!;
@@ -98,11 +149,23 @@ test("another tailnet names both tailnets so the wrong one is visible", async ()
 });
 
 test("a failed direct try shows its reason inline and focusable", async () => {
-  const desk = device("desk", { tailnet: net("desk"), peer_links: [{ to_device_id: "laptop", last_direct_failure: { at: 5, reason: "connect ECONNREFUSED" } }] });
+  const desk = device("desk", {
+    tailnet: net("desk"),
+    peer_links: [
+      {
+        to_device_id: "laptop",
+        last_direct_failure: { at: 5, reason: "connect ECONNREFUSED" },
+      },
+    ],
+  });
   await show(desk, [laptop, desk]);
   expect(text()).toContain("Relay · Last try failed");
-  expect(document.querySelector("[data-reason]")!.textContent).toBe("connect ECONNREFUSED");
-  expect(document.querySelector("[data-pair]")!.getAttribute("tabindex")).toBe("0");
+  expect(document.querySelector("[data-reason]")!.textContent).toBe(
+    "connect ECONNREFUSED",
+  );
+  expect(document.querySelector("[data-pair]")!.getAttribute("tabindex")).toBe(
+    "0",
+  );
 });
 
 test("a CLI too old to report its tailnet asks for an update, not an install", async () => {
@@ -112,7 +175,9 @@ test("a CLI too old to report its tailnet asks for an update, not an install", a
   expect(text()).not.toContain("No Tailscale there");
   expect(links()).toContain("Update CLI on desk");
   expect(links()).not.toContain("Install Tailscale on desk");
-  const update = [...document.querySelectorAll("button")].find((b) => b.textContent === "Update CLI on desk")!;
+  const update = [...document.querySelectorAll("button")].find(
+    (b) => b.textContent === "Update CLI on desk",
+  )!;
   await act(async () => update.click());
   expect(opened).toEqual(["daemon"]);
 
@@ -124,20 +189,32 @@ test("a CLI too old to report its tailnet asks for an update, not an install", a
 
 test("links off on the machine you are on relays every pair and turns on here", async () => {
   const offHere = { ...laptop, direct_links_off: true };
-  const desk = device("desk", { tailnet: net("desk"), peer_links: [{ to_device_id: "laptop", last_direct_ok_at: 5 }] });
+  const desk = device("desk", {
+    tailnet: net("desk"),
+    peer_links: [{ to_device_id: "laptop", last_direct_ok_at: 5 }],
+  });
   await show(desk, [offHere, desk]);
   expect(text()).toContain("Relay · Links off");
-  expect(document.querySelector("[role=switch]")!.getAttribute("aria-checked")).toBe("true");
-  const turnOn = [...document.querySelectorAll("button")].find((b) => b.textContent === "Turn on here")!;
+  expect(
+    document.querySelector("[role=switch]")!.getAttribute("aria-checked"),
+  ).toBe("true");
+  const turnOn = [...document.querySelectorAll("button")].find(
+    (b) => b.textContent === "Turn on here",
+  )!;
   await act(async () => turnOn.click());
   expect(calls).toEqual([["laptop", true]]);
 
   const deskOff = { ...desk, direct_links_off: true };
   calls = [];
   await show(deskOff, [offHere, deskOff]);
-  const both = [...document.querySelectorAll("button")].find((b) => b.textContent === "Turn on both")!;
+  const both = [...document.querySelectorAll("button")].find(
+    (b) => b.textContent === "Turn on both",
+  )!;
   await act(async () => both.click());
-  expect(calls).toEqual([["desk", true], ["laptop", true]]);
+  expect(calls).toEqual([
+    ["desk", true],
+    ["laptop", true],
+  ]);
 });
 
 test("an offline peer relays; a peer without Tailscale offers the install there", async () => {
@@ -170,11 +247,18 @@ test("the switch writes through the store, off and back on", async () => {
 
   const off = { ...desk, direct_links_off: true };
   await show(off, [laptop, off]);
-  expect(document.querySelector("[role=switch]")!.getAttribute("aria-checked")).toBe("false");
+  expect(
+    document.querySelector("[role=switch]")!.getAttribute("aria-checked"),
+  ).toBe("false");
   expect(text()).toContain("Relay · Links off");
-  const turnOn = [...document.querySelectorAll("button")].find((b) => b.textContent === "Turn on")!;
+  const turnOn = [...document.querySelectorAll("button")].find(
+    (b) => b.textContent === "Turn on",
+  )!;
   await act(async () => turnOn.click());
-  expect(calls).toEqual([["desk", false], ["desk", true]]);
+  expect(calls).toEqual([
+    ["desk", false],
+    ["desk", true],
+  ]);
 });
 
 test("a plain browser shows the machine's state and switch, no pair", async () => {
@@ -186,9 +270,16 @@ test("a plain browser shows the machine's state and switch, no pair", async () =
 });
 
 test("the store action flips the roster row at once", async () => {
-  useInboxStore.setState({ machineRoster: [device("desk")], setDeviceDirectLinks: realSetDirectLinks } as any);
+  useInboxStore.setState({
+    machineRoster: [device("desk")],
+    setDeviceDirectLinks: realSetDirectLinks,
+  } as any);
   realSetDirectLinks("desk", false);
-  expect((useInboxStore.getState().machineRoster[0] as any).direct_links_off).toBe(true);
+  expect(
+    (useInboxStore.getState().machineRoster[0] as any).direct_links_off,
+  ).toBe(true);
   realSetDirectLinks("desk", true);
-  expect((useInboxStore.getState().machineRoster[0] as any).direct_links_off).toBeUndefined();
+  expect(
+    (useInboxStore.getState().machineRoster[0] as any).direct_links_off,
+  ).toBeUndefined();
 });

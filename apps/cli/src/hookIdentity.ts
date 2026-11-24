@@ -65,7 +65,10 @@ export function loadOrCreateHookToken(configDir: string): string {
 /** Constant-time compare. An empty expected token authenticates nobody: two
  *  zero-length buffers compare equal, and "no token loaded yet" is a state a
  *  caller can reach during boot. */
-export function hookTokenMatches(presented: unknown, expected: string): boolean {
+export function hookTokenMatches(
+  presented: unknown,
+  expected: string,
+): boolean {
   if (typeof presented !== "string" || !presented || !expected) return false;
   const a = Buffer.from(presented);
   const b = Buffer.from(expected);
@@ -77,7 +80,9 @@ export function hookTokenMatches(presented: unknown, expected: string): boolean 
  *  Authorization on a cross-origin request without a preflight, and these
  *  routes answer no preflight, so requiring it here shuts the page vector even
  *  before the secret is compared. */
-export function hookBearerToken(headers: { authorization?: string | string[] }): string {
+export function hookBearerToken(headers: {
+  authorization?: string | string[];
+}): string {
   const raw = headers.authorization;
   const auth = Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? "");
   return auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";

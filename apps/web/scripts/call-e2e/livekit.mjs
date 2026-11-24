@@ -13,7 +13,13 @@
 // source through Node's type stripping, so the grant shape a synthetic
 // participant carries cannot drift from a real member's.
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,12 +46,15 @@ function parseEnvLines(text) {
 const complete = (env) => KEYS.every((k) => env[k]);
 
 export function loadLivekitEnv({ refresh = false } = {}) {
-  if (complete(process.env)) return Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+  if (complete(process.env))
+    return Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
   if (!refresh && existsSync(ENV_CACHE)) {
     const cached = parseEnvLines(readFileSync(ENV_CACHE, "utf8"));
     if (complete(cached)) return cached;
   }
-  process.stderr.write("Reading LIVEKIT_* from the Convex prod env (cached afterwards)...\n");
+  process.stderr.write(
+    "Reading LIVEKIT_* from the Convex prod env (cached afterwards)...\n",
+  );
   // CONVEX_DEPLOYMENT is unset because the repo-root .env.local points it at
   // an anonymous local deployment, which would answer with an empty env.
   const env = { ...process.env };
@@ -61,17 +70,28 @@ export function loadLivekitEnv({ refresh = false } = {}) {
     });
   } catch (err) {
     throw new Error(
-      `Could not read the Convex env from ${CONVEX_DIR} (${String(err.stderr || err.message).trim().split("\n").pop()}). ` +
+      `Could not read the Convex env from ${CONVEX_DIR} (${String(
+        err.stderr || err.message,
+      )
+        .trim()
+        .split("\n")
+        .pop()}). ` +
         "Export LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET instead.",
     );
   }
   const found = parseEnvLines(text);
   if (!complete(found)) {
-    throw new Error(`The Convex env lacks ${KEYS.filter((k) => !found[k]).join(", ")}; calling is not configured there.`);
+    throw new Error(
+      `The Convex env lacks ${KEYS.filter((k) => !found[k]).join(", ")}; calling is not configured there.`,
+    );
   }
   mkdirSync(dirname(ENV_CACHE), { recursive: true, mode: 0o700 });
   chmodSync(dirname(ENV_CACHE), 0o700);
-  writeFileSync(ENV_CACHE, KEYS.map((k) => `${k}=${found[k]}`).join("\n") + "\n", { mode: 0o600 });
+  writeFileSync(
+    ENV_CACHE,
+    KEYS.map((k) => `${k}=${found[k]}`).join("\n") + "\n",
+    { mode: 0o600 },
+  );
   chmodSync(ENV_CACHE, 0o600);
   return found;
 }
@@ -85,7 +105,9 @@ async function sign(opts) {
     const listeners = process.listeners("warning");
     process.removeAllListeners("warning");
     try {
-      ({ signLivekitJwt: signer } = await import(join(CONVEX_DIR, "convex/lib/livekitJwt.ts")));
+      ({ signLivekitJwt: signer } = await import(
+        join(CONVEX_DIR, "convex/lib/livekitJwt.ts")
+      ));
       await new Promise((r) => setImmediate(r));
     } finally {
       for (const l of listeners) process.on("warning", l);
@@ -96,7 +118,10 @@ async function sign(opts) {
 
 // A participant's join token. `grant` defaults to signLivekitJwt's own
 // participant grant, the one mintAccessToken hands a real member.
-export function participantToken(env, { room, identity, name, metadata, ttlSeconds = 6 * 3600, grant }) {
+export function participantToken(
+  env,
+  { room, identity, name, metadata, ttlSeconds = 6 * 3600, grant },
+) {
   return sign({
     apiKey: env.LIVEKIT_API_KEY,
     apiSecret: env.LIVEKIT_API_SECRET,
@@ -109,7 +134,8 @@ export function participantToken(env, { room, identity, name, metadata, ttlSecon
   });
 }
 
-export const httpBase = (env) => env.LIVEKIT_URL.replace(/^ws/, "http").replace(/\/+$/, "");
+export const httpBase = (env) =>
+  env.LIVEKIT_URL.replace(/^ws/, "http").replace(/\/+$/, "");
 
 // One LiveKit server API call. The API is Twirp: a JSON POST per method, with
 // a short lived admin token carrying only the grant that method checks.
@@ -123,14 +149,22 @@ export async function twirp(env, service, method, body, grant, room = "") {
     ttlSeconds: 120,
     grant,
   });
-  const res = await fetch(`${httpBase(env)}/twirp/livekit.${service}/${method}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await fetch(
+    `${httpBase(env)}/twirp/livekit.${service}/${method}`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
   const text = await res.text();
   if (!res.ok) {
-    const err = new Error(`${service}.${method} answered ${res.status}: ${text.slice(0, 300)}`);
+    const err = new Error(
+      `${service}.${method} answered ${res.status}: ${text.slice(0, 300)}`,
+    );
     err.status = res.status;
     throw err;
   }

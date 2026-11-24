@@ -20,7 +20,9 @@ function liveSession(id: string) {
 
 function feedOrder(): string[] {
   if (typeof document === "undefined") return [];
-  return Array.from(document.querySelectorAll<HTMLElement>(`[${FEED_CARD_ATTR}]`))
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(`[${FEED_CARD_ATTR}]`),
+  )
     .map((el) => el.getAttribute(FEED_CARD_ATTR)!)
     .filter((id) => !!liveSession(id));
 }

@@ -28,16 +28,39 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installHostRelease, type CastRelease, type HostCastSource } from "../hosts/installRelease.js";
+import {
+  installHostRelease,
+  type CastRelease,
+  type HostCastSource,
+} from "../hosts/installRelease.js";
 import type { RemoteHost } from "../remote/session-move.js";
-import { copyCredentialToRemote, ensureRemoteClaudeReady, shq, sshDestination, sshIdentity } from "../remote/session-move.js";
+import {
+  copyCredentialToRemote,
+  ensureRemoteClaudeReady,
+  shq,
+  sshDestination,
+  sshIdentity,
+} from "../remote/session-move.js";
 import { readInstalledClientVersions } from "../remote/agentAuth.js";
 import { cwdGitRoot } from "../cloud/hostGit.js";
 import { REMOTE_DEVICE_MARKER_REL } from "../remote/device.js";
 import { REMOTE_BUNDLE_DIR } from "./castBundle.js";
-import { addUserRootScript, addUserSelfScript, enableUserDaemonScript, isLinuxUserName, sharedHostMarkScript, sharedHostSetupScript, teammateSteps, USER_DAEMON_UNIT, userToolPath } from "./sharedHost.js";
+import {
+  addUserRootScript,
+  addUserSelfScript,
+  enableUserDaemonScript,
+  isLinuxUserName,
+  sharedHostMarkScript,
+  sharedHostSetupScript,
+  teammateSteps,
+  USER_DAEMON_UNIT,
+  userToolPath,
+} from "./sharedHost.js";
 import { summarizeHostTools } from "../cloud/hostTools.js";
-import { agentCliInstallScript, parseAgentCliReport } from "./provisionAgents.js";
+import {
+  agentCliInstallScript,
+  parseAgentCliReport,
+} from "./provisionAgents.js";
 import { remoteExec, remoteExecAsync, scpTo } from "./remote.js";
 import { isDeviceBoundToken, secretFromStored } from "../bearerToken.js";
 import { presentToken } from "@platform/auth/tokenFormat";
@@ -48,8 +71,22 @@ import { cloudIdleProbeScript } from "../cloud/idleProbe.js";
 import announceA11yBusScript from "../computer/linux/announce-a11y-bus.py" with { type: "text" };
 import { SSHD_KEEPALIVE_SCRIPT } from "../cloud/reach.js";
 import { keychainSigningIdentity } from "../computer/helperApp.js";
-import { SCREEN_DISPLAY, SCREEN_SIZE, RTSP_PORT, HLS_PORT, VNC_PORT, NOVNC_PORT } from "./hostScreen.js";
-export { SCREEN_DISPLAY, SCREEN_SIZE, RTSP_PORT, HLS_PORT, VNC_PORT, NOVNC_PORT };
+import {
+  SCREEN_DISPLAY,
+  SCREEN_SIZE,
+  RTSP_PORT,
+  HLS_PORT,
+  VNC_PORT,
+  NOVNC_PORT,
+} from "./hostScreen.js";
+export {
+  SCREEN_DISPLAY,
+  SCREEN_SIZE,
+  RTSP_PORT,
+  HLS_PORT,
+  VNC_PORT,
+  NOVNC_PORT,
+};
 
 const MEDIAMTX_VERSION = "v1.20.1";
 
@@ -71,10 +108,16 @@ export interface IdleConfig {
   home?: string;
 }
 
-export function idleConfigScript(minutes: number, { action, home }: IdleConfig = {}): string {
+export function idleConfigScript(
+  minutes: number,
+  { action, home }: IdleConfig = {},
+): string {
   return Object.entries({ minutes, action, home })
     .filter(([, value]) => value !== undefined)
-    .map(([name, value]) => `echo "${value}" | sudo tee /etc/cast-idle-${name} >/dev/null`)
+    .map(
+      ([name, value]) =>
+        `echo "${value}" | sudo tee /etc/cast-idle-${name} >/dev/null`,
+    )
     .join("\n");
 }
 
@@ -162,7 +205,8 @@ sudo chmod 755 /usr/local/bin/cast-idle-check`;
 }
 
 /** Where provisioning installs announce-a11y-bus.py, which cast-display.service runs as Xvfb starts. */
-export const A11Y_ANNOUNCE_PATH = "/usr/local/lib/codecast/announce-a11y-bus.py";
+export const A11Y_ANNOUNCE_PATH =
+  "/usr/local/lib/codecast/announce-a11y-bus.py";
 
 /**
  * Everything that can be done with root and apt, in one shot. Idempotent:
@@ -369,7 +413,9 @@ export function remoteDeviceMarkerCommand(home: string): string {
  * holds no links into homes there.
  */
 export function daemonUnitScript(opts: { shared?: boolean } = {}): string {
-  const cast = opts.shared ? "/home/ubuntu/.local/bin/cast" : "/usr/local/bin/cast";
+  const cast = opts.shared
+    ? "/home/ubuntu/.local/bin/cast"
+    : "/usr/local/bin/cast";
   const marker = opts.shared
     ? `# A shared host's daemons are peers, never remote devices (docs/architecture/shared-hosts.md).
 install -d -m 700 /home/ubuntu/.codecast && rm -f /home/ubuntu/${REMOTE_DEVICE_MARKER_REL}`
@@ -381,7 +427,9 @@ ${remoteDeviceMarkerCommand("/home/ubuntu")}`;
 Environment=HOME=/home/ubuntu
 Environment=PATH=${userToolPath("/home/ubuntu")}
 EnvironmentFile=-/home/ubuntu/.codecast/claude.env`
-    : remoteDaemonEnv("/home/ubuntu").map(([name, value]) => `Environment=${name}=${value}`).join("\n");
+    : remoteDaemonEnv("/home/ubuntu")
+        .map(([name, value]) => `Environment=${name}=${value}`)
+        .join("\n");
   return `set -euo pipefail
 tmux_pids=$(bash -c ${shq(DAEMON_CGROUP_TMUX_SCRIPT)})
 if [ -n "$tmux_pids" ]; then
@@ -389,9 +437,13 @@ if [ -n "$tmux_pids" ]; then
   exit 1
 fi
 if sudo systemctl cat codecast-daemon.service >/dev/null 2>&1; then sudo systemctl stop codecast-daemon.service; fi
-${opts.shared ? `# This unit runs the owner's daemon, so a per-user one for the owner (a hand-built host) must not run beside it.
+${
+  opts.shared
+    ? `# This unit runs the owner's daemon, so a per-user one for the owner (a hand-built host) must not run beside it.
 sudo systemctl disable --now ${USER_DAEMON_UNIT}ubuntu.path ${USER_DAEMON_UNIT}ubuntu.service >/dev/null 2>&1 || true
-` : ""}CODECAST_NO_AUTO_UPDATE=1 ${cast} stop
+`
+    : ""
+}CODECAST_NO_AUTO_UPDATE=1 ${cast} stop
 ${marker}
 sudo tee /etc/systemd/system/codecast-daemon.service >/dev/null <<'UNIT'
 [Unit]
@@ -427,7 +479,9 @@ export function hasHostBuildSource(): boolean {
 
 /** The version the bundle built from this source will report. */
 export function cliSourceVersion(): string {
-  return JSON.parse(fs.readFileSync(path.join(cliSourceRoot(), "package.json"), "utf-8")).version;
+  return JSON.parse(
+    fs.readFileSync(path.join(cliSourceRoot(), "package.json"), "utf-8"),
+  ).version;
 }
 
 /**
@@ -438,9 +492,19 @@ export function cliSourceVersion(): string {
  */
 function describeSourceTree(dir: string): string {
   try {
-    const sha = execFileSync("git", ["-C", dir, "rev-parse", "--short", "HEAD"], { encoding: "utf-8" }).trim();
-    const dirty = execFileSync("git", ["-C", dir, "status", "--porcelain"], { encoding: "utf-8" }).split("\n").filter(Boolean).length;
-    return dirty ? `${sha} with ${dirty} uncommitted file${dirty === 1 ? "" : "s"}` : sha;
+    const sha = execFileSync(
+      "git",
+      ["-C", dir, "rev-parse", "--short", "HEAD"],
+      { encoding: "utf-8" },
+    ).trim();
+    const dirty = execFileSync("git", ["-C", dir, "status", "--porcelain"], {
+      encoding: "utf-8",
+    })
+      .split("\n")
+      .filter(Boolean).length;
+    return dirty
+      ? `${sha} with ${dirty} uncommitted file${dirty === 1 ? "" : "s"}`
+      : sha;
   } catch {
     return "a tree that is not a git checkout";
   }
@@ -458,7 +522,11 @@ function describeSourceTree(dir: string): string {
  *
  * Only possible when this cast runs from a source checkout.
  */
-export function buildLinuxCast(onProgress: (m: string) => void): { distDir: string; indexJs: string; daemonJs: string } {
+export function buildLinuxCast(onProgress: (m: string) => void): {
+  distDir: string;
+  indexJs: string;
+  daemonJs: string;
+} {
   return buildHostCast(onProgress, "linux");
 }
 
@@ -469,13 +537,18 @@ export function buildLinuxCast(onProgress: (m: string) => void): { distDir: stri
  * new app to TCC on each update and drives nothing until someone clicks
  * through System Settings on the box again.
  */
-function macHelperSigning(platform: "linux" | "darwin"): { CODECAST_SIGN_IDENTITY?: string } {
+function macHelperSigning(platform: "linux" | "darwin"): {
+  CODECAST_SIGN_IDENTITY?: string;
+} {
   if (platform !== "darwin" || process.env.CODECAST_SIGN_IDENTITY) return {};
   const identity = keychainSigningIdentity();
   return identity ? { CODECAST_SIGN_IDENTITY: identity } : {};
 }
 
-export function buildHostCast(onProgress: (m: string) => void, platform: "linux" | "darwin"): { distDir: string; indexJs: string; daemonJs: string } {
+export function buildHostCast(
+  onProgress: (m: string) => void,
+  platform: "linux" | "darwin",
+): { distDir: string; indexJs: string; daemonJs: string } {
   const cliRoot = cliSourceRoot();
   const entry = path.join(cliRoot, "src", "index.ts");
   if (!fs.existsSync(entry)) {
@@ -484,25 +557,46 @@ export function buildHostCast(onProgress: (m: string) => void, platform: "linux"
         "  Run provisioning from the dev checkout (bun src/index.ts).",
     );
   }
-  onProgress(`building cast ${cliSourceVersion()} bundles (dist) from ${describeSourceTree(cliRoot)}…`);
-  const distDir = fs.mkdtempSync(path.join(os.tmpdir(), `cast-${platform}-dist-`));
+  onProgress(
+    `building cast ${cliSourceVersion()} bundles (dist) from ${describeSourceTree(cliRoot)}…`,
+  );
+  const distDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), `cast-${platform}-dist-`),
+  );
   let built = false;
   try {
     // Through run-interactive: started from an agent shell, the build inherits
     // the daemon's utility QoS clamp and ran past its timeout under load.
-    execFileSync("bun", [path.join(cliRoot, "scripts", "run-interactive.ts"), "--", "bun", "run", "build", "--outdir", distDir], {
-      cwd: cliRoot,
-      env: { ...process.env, CODECAST_BUNDLE_PLATFORM: platform, ...macHelperSigning(platform) },
-      stdio: ["ignore", "ignore", "pipe"],
-      timeout: platform === "darwin" ? 900_000 : 300_000,
-    });
+    execFileSync(
+      "bun",
+      [
+        path.join(cliRoot, "scripts", "run-interactive.ts"),
+        "--",
+        "bun",
+        "run",
+        "build",
+        "--outdir",
+        distDir,
+      ],
+      {
+        cwd: cliRoot,
+        env: {
+          ...process.env,
+          CODECAST_BUNDLE_PLATFORM: platform,
+          ...macHelperSigning(platform),
+        },
+        stdio: ["ignore", "ignore", "pipe"],
+        timeout: platform === "darwin" ? 900_000 : 300_000,
+      },
+    );
     const bundles = {
       distDir,
       indexJs: path.join(distDir, "main.js"),
       daemonJs: path.join(distDir, "daemon.js"),
     };
     for (const entry of [bundles.indexJs, bundles.daemonJs]) {
-      if (!fs.existsSync(entry)) throw new Error(`cast build did not produce ${entry}`);
+      if (!fs.existsSync(entry))
+        throw new Error(`cast build did not produce ${entry}`);
     }
     built = true;
     return bundles;
@@ -516,8 +610,14 @@ export function uploadLinuxCast(host: RemoteHost, distDir: string): void {
   try {
     const archive = path.join(stage, "dist.tar.gz");
     // No extended attributes: macOS tags every file, and GNU tar on the host warns on each one.
-    execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", distDir, "."], { timeout: 60_000, env: { ...process.env, COPYFILE_DISABLE: "1" } });
-    const remoteStage = remoteExec(host, "mktemp -d /tmp/cast-linux-upload.XXXXXXXXXX");
+    execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", distDir, "."], {
+      timeout: 60_000,
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+    });
+    const remoteStage = remoteExec(
+      host,
+      "mktemp -d /tmp/cast-linux-upload.XXXXXXXXXX",
+    );
     try {
       scpTo(host, archive, `${remoteStage}/dist.tar.gz`);
       const stagedDist = shq(`${remoteStage}/dist`);
@@ -563,15 +663,29 @@ const REMOTE_BUNDLE_PREVIOUS = `${REMOTE_BUNDLE_DIR}.previous`;
  * The idle watchdog and probe are not part of the bundle: provisioning writes
  * them, so this leaves them as they are.
  */
-export function installLinuxCast(host: RemoteHost, onProgress: (m: string) => void = () => {}, source: HostCastSource = "release", release?: CastRelease): { version: string } {
-  if (source === "release" || !hasHostBuildSource()) return { version: installHostRelease(host, "linux", onProgress, release) };
+export function installLinuxCast(
+  host: RemoteHost,
+  onProgress: (m: string) => void = () => {},
+  source: HostCastSource = "release",
+  release?: CastRelease,
+): { version: string } {
+  if (source === "release" || !hasHostBuildSource())
+    return { version: installHostRelease(host, "linux", onProgress, release) };
   const want = cliSourceVersion();
   const bundles = buildLinuxCast(onProgress);
   const restore = () =>
-    remoteExec(host, `if [ -d ${REMOTE_BUNDLE_PREVIOUS} ]; then sudo rm -rf ${REMOTE_BUNDLE_DIR} && sudo mv ${REMOTE_BUNDLE_PREVIOUS} ${REMOTE_BUNDLE_DIR}; fi`, 120_000);
+    remoteExec(
+      host,
+      `if [ -d ${REMOTE_BUNDLE_PREVIOUS} ]; then sudo rm -rf ${REMOTE_BUNDLE_DIR} && sudo mv ${REMOTE_BUNDLE_PREVIOUS} ${REMOTE_BUNDLE_DIR}; fi`,
+      120_000,
+    );
   try {
     onProgress("keeping the current bundle for rollback…");
-    remoteExec(host, `sudo rm -rf ${REMOTE_BUNDLE_PREVIOUS}; if [ -d ${REMOTE_BUNDLE_DIR} ]; then sudo cp -a ${REMOTE_BUNDLE_DIR} ${REMOTE_BUNDLE_PREVIOUS}; fi`, 120_000);
+    remoteExec(
+      host,
+      `sudo rm -rf ${REMOTE_BUNDLE_PREVIOUS}; if [ -d ${REMOTE_BUNDLE_DIR} ]; then sudo cp -a ${REMOTE_BUNDLE_DIR} ${REMOTE_BUNDLE_PREVIOUS}; fi`,
+      120_000,
+    );
     let got: string;
     try {
       onProgress("uploading cast bundles…");
@@ -580,11 +694,15 @@ export function installLinuxCast(host: RemoteHost, onProgress: (m: string) => vo
       got = remoteExec(host, "/usr/local/bin/cast --version", 60_000);
     } catch (err) {
       restore();
-      throw new Error(`installing cast ${want} failed, and the previous bundle is back in place: ${(err as Error).message}`);
+      throw new Error(
+        `installing cast ${want} failed, and the previous bundle is back in place: ${(err as Error).message}`,
+      );
     }
     if (!got.split(/\s+/).includes(want)) {
       restore();
-      throw new Error(`the new bundle does not run on the host (expected ${want}, it printed ${JSON.stringify(got.slice(0, 200))}); the previous bundle is back in place`);
+      throw new Error(
+        `the new bundle does not run on the host (expected ${want}, it printed ${JSON.stringify(got.slice(0, 200))}); the previous bundle is back in place`,
+      );
     }
     return { version: want };
   } finally {
@@ -600,8 +718,13 @@ export function installLinuxCast(host: RemoteHost, onProgress: (m: string) => vo
  * how to tell whether its watchdog is this build's.
  */
 export function idleWatchdogScript(): string {
-  const body = baseProvisionScript(20).split("<<'IDLE'\n")[1]?.split("\nIDLE")[0];
-  if (!body) throw new Error("the provisioning script no longer writes an idle watchdog heredoc");
+  const body = baseProvisionScript(20)
+    .split("<<'IDLE'\n")[1]
+    ?.split("\nIDLE")[0];
+  if (!body)
+    throw new Error(
+      "the provisioning script no longer writes an idle watchdog heredoc",
+    );
   return `${body}\n`;
 }
 
@@ -614,7 +737,11 @@ export function idleWatchdogScript(): string {
 export function hostIdleWatchdogCurrent(host: RemoteHost): boolean | null {
   const want = createHash("sha256").update(idleWatchdogScript()).digest("hex");
   try {
-    return remoteExec(host, "sha256sum /usr/local/bin/cast-idle-check", 30_000).trim().split(/\s+/)[0] === want;
+    return (
+      remoteExec(host, "sha256sum /usr/local/bin/cast-idle-check", 30_000)
+        .trim()
+        .split(/\s+/)[0] === want
+    );
   } catch {
     return null;
   }
@@ -630,7 +757,10 @@ const WATCHDOG_REWRITE_MISSING_EXIT = 5;
  * at version 3 or later (cloud/browserLink.ts decides who qualifies), and the
  * caller records the version. Asynchronous because the daemon calls it.
  */
-export async function rewriteHostIdleWatchdog(host: RemoteHost, timeoutMs = 60_000): Promise<{ version: number } | { failed: string }> {
+export async function rewriteHostIdleWatchdog(
+  host: RemoteHost,
+  timeoutMs = 60_000,
+): Promise<{ version: number } | { failed: string }> {
   const script = idleWatchdogScript();
   const want = createHash("sha256").update(script).digest("hex");
   const cmd =
@@ -638,10 +768,17 @@ export async function rewriteHostIdleWatchdog(host: RemoteHost, timeoutMs = 60_0
     `t=$(mktemp) && cat > "$t" && sudo -n install -m 755 "$t" /usr/local/bin/cast-idle-check; r=$?; rm -f "$t"; [ $r = 0 ] || exit $r; ` +
     "sha256sum /usr/local/bin/cast-idle-check";
   try {
-    const got = (await remoteExecAsync(host, cmd, { input: script, timeoutMs })).split(/\s+/)[0];
-    return got === want ? { version: IDLE_WATCHDOG_VERSION } : { failed: "the rewritten watchdog does not match this build's" };
+    const got = (
+      await remoteExecAsync(host, cmd, { input: script, timeoutMs })
+    ).split(/\s+/)[0];
+    return got === want
+      ? { version: IDLE_WATCHDOG_VERSION }
+      : { failed: "the rewritten watchdog does not match this build's" };
   } catch (err) {
-    if ((err as { code?: number }).code === WATCHDOG_REWRITE_MISSING_EXIT) return { failed: "the host lacks the watchdog's threshold file or probe" };
+    if ((err as { code?: number }).code === WATCHDOG_REWRITE_MISSING_EXIT)
+      return {
+        failed: "the host lacks the watchdog's threshold file or probe",
+      };
     return { failed: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -649,7 +786,7 @@ export async function rewriteHostIdleWatchdog(host: RemoteHost, timeoutMs = 60_0
 /** Pids of tmux servers inside the daemon's control group, one per line. */
 export const DAEMON_CGROUP_TMUX_SCRIPT =
   "cat /sys/fs/cgroup/system.slice/codecast-daemon.service/cgroup.procs 2>/dev/null | " +
-  "while read p; do case \"$(cat /proc/$p/comm 2>/dev/null)\" in tmux*) echo $p;; esac; done";
+  'while read p; do case "$(cat /proc/$p/comm 2>/dev/null)" in tmux*) echo $p;; esac; done';
 
 /**
  * The drop-in that keeps sessions through a daemon restart. With systemd's
@@ -671,9 +808,17 @@ export const DAEMON_KEEP_SESSIONS_SCRIPT =
  * KillMode=process, a tmux server in the daemon's control group would die with
  * it, so then the restart refuses unless forced.
  */
-export function restartHostDaemon(host: RemoteHost, opts: { force?: boolean } = {}): { pid: string } {
+export function restartHostDaemon(
+  host: RemoteHost,
+  opts: { force?: boolean } = {},
+): { pid: string } {
   const killMode = remoteExec(host, DAEMON_KEEP_SESSIONS_SCRIPT, 60_000).trim();
-  const tmux = killMode === "process" ? [] : remoteExec(host, DAEMON_CGROUP_TMUX_SCRIPT, 30_000).split(/\s+/).filter(Boolean);
+  const tmux =
+    killMode === "process"
+      ? []
+      : remoteExec(host, DAEMON_CGROUP_TMUX_SCRIPT, 30_000)
+          .split(/\s+/)
+          .filter(Boolean);
   if (tmux.length && !opts.force) {
     throw new Error(
       `the daemon's control group holds tmux server ${tmux.join(", ")}, so restarting it would kill every session in that server. ` +
@@ -685,8 +830,14 @@ export function restartHostDaemon(host: RemoteHost, opts: { force?: boolean } = 
     "sudo systemctl restart codecast-daemon.service && sleep 5 && systemctl is-active codecast-daemon.service && " +
       "systemctl show -p MainPID --value codecast-daemon.service",
     90_000,
-  ).split("\n").map((l) => l.trim()).filter(Boolean);
-  if (out[0] !== "active") throw new Error(`the daemon did not come back after the restart: ${out.join(" ")}`);
+  )
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (out[0] !== "active")
+    throw new Error(
+      `the daemon did not come back after the restart: ${out.join(" ")}`,
+    );
   return { pid: out[1] ?? "?" };
 }
 
@@ -703,15 +854,26 @@ export interface PushCodecastConfigDeps {
 }
 
 const defaultPushDeps: PushCodecastConfigDeps = {
-  localConfig: () => JSON.parse(fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8")),
+  localConfig: () =>
+    JSON.parse(
+      fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8"),
+    ),
   hostDeviceId: (host) => readHostDeviceId(host),
   mintForHost: (deviceId, label) => mintTokenForDevice(deviceId, label),
   ship: (host, remoteCfg) => {
     execFileSync(
       "ssh",
-      [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-       "-o", "BatchMode=yes", sshDestination(host),
-       "umask 077; mkdir -p ~/.codecast; cat > ~/.codecast/config.json"],
+      [
+        ...sshIdentity(host),
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        "BatchMode=yes",
+        sshDestination(host),
+        "umask 077; mkdir -p ~/.codecast; cat > ~/.codecast/config.json",
+      ],
       { input: JSON.stringify(remoteCfg, null, 2), timeout: 30_000 },
     );
   },
@@ -731,10 +893,16 @@ const defaultPushDeps: PushCodecastConfigDeps = {
  * host so it is visible and revocable in the token list. It ships with the
  * device it was minted for, so the host reads it as bound to itself.
  */
-export async function pushCodecastConfig(host: RemoteHost, overrides: Partial<PushCodecastConfigDeps> = {}): Promise<void> {
+export async function pushCodecastConfig(
+  host: RemoteHost,
+  overrides: Partial<PushCodecastConfigDeps> = {},
+): Promise<void> {
   const deps = { ...defaultPushDeps, ...overrides };
   const cfg = deps.localConfig();
-  const secret = typeof cfg.auth_token === "string" ? secretFromStored(cfg.auth_token) : cfg.auth_token;
+  const secret =
+    typeof cfg.auth_token === "string"
+      ? secretFromStored(cfg.auth_token)
+      : cfg.auth_token;
   let token = secret;
   if (typeof secret === "string" && isDeviceBoundToken(secret)) {
     const hostDevice = deps.hostDeviceId(host);
@@ -744,7 +912,10 @@ export async function pushCodecastConfig(host: RemoteHost, overrides: Partial<Pu
           `Sign the host in on its own: ssh ${host.user}@${host.address} cast auth`,
       );
     }
-    token = presentToken(await deps.mintForHost(hostDevice, `${host.user}@${host.address}`), hostDevice);
+    token = presentToken(
+      await deps.mintForHost(hostDevice, `${host.user}@${host.address}`),
+      hostDevice,
+    );
   }
   const remoteCfg = {
     user_id: cfg.user_id,
@@ -782,7 +953,9 @@ export interface ProvisionReport {
 export async function provisionLinuxHost(
   host: RemoteHost,
   opts: {
-    idleStopMinutes: number; skipDaemon?: boolean; gitIdentity?: string;
+    idleStopMinutes: number;
+    skipDaemon?: boolean;
+    gitIdentity?: string;
     /** A host several people share (sharedHost.ts): no laptop logins go there and every daemon is a peer. */
     shared?: boolean;
     /** Called once the base stack (packages, idle watchdog) is on the host, whatever a later step does. */
@@ -790,28 +963,58 @@ export async function provisionLinuxHost(
   },
   onProgress: (m: string) => void = () => {},
 ): Promise<ProvisionReport> {
-  if (host.user !== "ubuntu") throw new Error("Linux provisioning requires an Ubuntu image and the ubuntu SSH user");
+  if (host.user !== "ubuntu")
+    throw new Error(
+      "Linux provisioning requires an Ubuntu image and the ubuntu SSH user",
+    );
   onProgress("base stack: packages, display, stream, idle watchdog…");
-  const base = runScript(host, baseProvisionScript(opts.idleStopMinutes), 600_000);
-  if (!base.includes("PROVISION-BASE-OK")) throw new Error(`base provisioning did not complete:\n${base.slice(-800)}`);
+  const base = runScript(
+    host,
+    baseProvisionScript(opts.idleStopMinutes),
+    600_000,
+  );
+  if (!base.includes("PROVISION-BASE-OK"))
+    throw new Error(`base provisioning did not complete:\n${base.slice(-800)}`);
   opts.onBaseInstalled?.();
   // Before any credential step: from here on the host itself refuses every laptop's pushes.
-  if (opts.shared && !runScript(host, sharedHostMarkScript(), 60_000).includes("SHARED-MARK-OK")) throw new Error("could not mark the host shared");
+  if (
+    opts.shared &&
+    !runScript(host, sharedHostMarkScript(), 60_000).includes("SHARED-MARK-OK")
+  )
+    throw new Error("could not mark the host shared");
 
-  const { agents, mirror, git, tools } = await provisionHostCast(host, opts, onProgress);
+  const { agents, mirror, git, tools } = await provisionHostCast(
+    host,
+    opts,
+    onProgress,
+  );
 
   let device = "daemon skipped";
   if (!opts.skipDaemon) {
     onProgress("starting the daemon service…");
-    const unit = runScript(host, daemonUnitScript({ shared: opts.shared }), 60_000);
-    if (!unit.includes("DAEMON-UNIT-OK")) throw new Error(`daemon unit install failed:\n${unit.slice(-400)}`);
-    device = remoteExec(host, "systemctl is-active codecast-daemon.service", 20_000);
+    const unit = runScript(
+      host,
+      daemonUnitScript({ shared: opts.shared }),
+      60_000,
+    );
+    if (!unit.includes("DAEMON-UNIT-OK"))
+      throw new Error(`daemon unit install failed:\n${unit.slice(-400)}`);
+    device = remoteExec(
+      host,
+      "systemctl is-active codecast-daemon.service",
+      20_000,
+    );
   }
 
   if (opts.shared) {
-    onProgress("shared host: per-user daemon units, no links into homes, claude first-run answered…");
+    onProgress(
+      "shared host: per-user daemon units, no links into homes, claude first-run answered…",
+    );
     const shared = runScript(host, sharedHostSetupScript(), 60_000);
-    if (!shared.includes("SHARED-HOST-OK")) throw new Error(`shared host setup did not complete:\n${shared.slice(-400)}`);
+    if (!shared.includes("SHARED-HOST-OK"))
+      throw new Error(
+        `shared host setup did not complete:\n${shared.slice(-400)}`,
+      );
   }
 
   const services = remoteExec(
@@ -820,10 +1023,17 @@ export async function provisionLinuxHost(
     20_000,
   );
   // novnc is the reason apt's node stays: say so when its service is not up.
-  if (!/\bcast-novnc=active\b/.test(services)) onProgress(`  (cast-novnc is not active: ${services.trim()} — the machine-level VNC view will not work until it is)`);
+  if (!/\bcast-novnc=active\b/.test(services))
+    onProgress(
+      `  (cast-novnc is not active: ${services.trim()} — the machine-level VNC view will not work until it is)`,
+    );
 
   return {
-    chrome: remoteExec(host, "google-chrome --version 2>/dev/null || echo \"none ($(dpkg --print-architecture): no host browser)\"", 20_000),
+    chrome: remoteExec(
+      host,
+      'google-chrome --version 2>/dev/null || echo "none ($(dpkg --print-architecture): no host browser)"',
+      20_000,
+    ),
     ...hostCastVersions(host),
     services,
     device,
@@ -858,8 +1068,17 @@ export async function provisionHostCast(
   // gemini, grok) and a user-local Node ≥ 20 that shadows apt's node 18 via
   // /usr/local/bin (browser/provisionAgents.ts).
   onProgress("installing agent CLIs (claude, codex, gemini, grok) + node…");
-  const agentsOut = runScript(host, agentCliInstallScript(readInstalledClientVersions(), { upgradeCodex: true }), 900_000);
-  if (!agentsOut.includes("AGENT-CLIS-OK")) throw new Error(`agent CLI install did not complete:\n${agentsOut.slice(-800)}`);
+  const agentsOut = runScript(
+    host,
+    agentCliInstallScript(readInstalledClientVersions(), {
+      upgradeCodex: true,
+    }),
+    900_000,
+  );
+  if (!agentsOut.includes("AGENT-CLIS-OK"))
+    throw new Error(
+      `agent CLI install did not complete:\n${agentsOut.slice(-800)}`,
+    );
   const agents = parseAgentCliReport(agentsOut);
   onProgress(`  ${agents}`);
 
@@ -868,9 +1087,14 @@ export async function provisionHostCast(
   onProgress("pushing codecast identity + claude credential…");
   await pushCodecastConfig(host);
   const cred = copyCredentialToRemote(host);
-  if (!cred.pushed) onProgress(`  (claude credential not pushed: ${cred.reason} — sessions there will need a healthy local login)`);
+  if (!cred.pushed)
+    onProgress(
+      `  (claude credential not pushed: ${cred.reason} — sessions there will need a healthy local login)`,
+    );
 
-  onProgress("agent logins + host tools + host git setup + mirroring instruction files and agent config…");
+  onProgress(
+    "agent logins + host tools + host git setup + mirroring instruction files and agent config…",
+  );
   const { readyHostHome, remoteRepoPath } = await import("../cloud/prepare.js");
   const localGitRoot = cwdGitRoot();
   const homeReport = await readyHostHome(host, {
@@ -883,7 +1107,9 @@ export async function provisionHostCast(
   });
   const mirror = homeReport.mirror;
   const git = homeReport.git?.pubkey ?? "no key (host git setup did not run)";
-  const tools = homeReport.tools ? summarizeHostTools(homeReport.tools) : "not checked";
+  const tools = homeReport.tools
+    ? summarizeHostTools(homeReport.tools)
+    : "not checked";
 
   // Accept claude's bypass-permissions dialog ONCE, so a moved session's
   // resume never parks on it. The acceptance is not a config flag any more
@@ -893,7 +1119,10 @@ export async function provisionHostCast(
   // launch claude in tmux, wait for the dialog, choose "Yes, I accept", quit.
   if (cred.pushed) {
     onProgress("pre-accepting claude's bypass-permissions dialog…");
-    ensureRemoteClaudeReady(host, `${host.homeDir ?? `/home/${host.user}`}/work`);
+    ensureRemoteClaudeReady(
+      host,
+      `${host.homeDir ?? `/home/${host.user}`}/work`,
+    );
     const accept = remoteExec(
       host,
       `mkdir -p ~/work && tmux kill-session -t cast-accept 2>/dev/null; tmux new -d -s cast-accept &&
@@ -912,15 +1141,23 @@ export async function provisionHostCast(
       120_000,
     );
     if (!accept.includes("accept=ready")) {
-      onProgress("  (could not confirm the acceptance — the first moved session may need one manual Enter)");
+      onProgress(
+        "  (could not confirm the acceptance — the first moved session may need one manual Enter)",
+      );
     }
   }
   return { agents, mirror, git, tools };
 }
 
-export function hostCastVersions(host: RemoteHost): Pick<ProvisionReport, "cast" | "claude"> {
+export function hostCastVersions(
+  host: RemoteHost,
+): Pick<ProvisionReport, "cast" | "claude"> {
   return {
-    cast: remoteExec(host, "cast --version 2>/dev/null || /usr/local/bin/cast --version", 60_000),
+    cast: remoteExec(
+      host,
+      "cast --version 2>/dev/null || /usr/local/bin/cast --version",
+      60_000,
+    ),
     claude: remoteExec(host, "claude --version", 60_000),
   };
 }
@@ -949,17 +1186,42 @@ export function addUserToHost(
   opts: { github?: string; address: string },
   onProgress: (m: string) => void = () => {},
 ): AddUserReport {
-  if (host.user !== "ubuntu") throw new Error("Linux provisioning requires an Ubuntu image and the ubuntu SSH user");
-  if (!isLinuxUserName(user)) throw new Error(`not a Linux user name: ${user} (lowercase letters, digits, - and _)`);
-  if (user === host.user) throw new Error(`${user} is the host's own login; it was set up by provisioning`);
-  onProgress(`creating ${user}${opts.github ? ` with github.com/${opts.github}'s ssh keys` : ""}…`);
+  if (host.user !== "ubuntu")
+    throw new Error(
+      "Linux provisioning requires an Ubuntu image and the ubuntu SSH user",
+    );
+  if (!isLinuxUserName(user))
+    throw new Error(
+      `not a Linux user name: ${user} (lowercase letters, digits, - and _)`,
+    );
+  if (user === host.user)
+    throw new Error(
+      `${user} is the host's own login; it was set up by provisioning`,
+    );
+  onProgress(
+    `creating ${user}${opts.github ? ` with github.com/${opts.github}'s ssh keys` : ""}…`,
+  );
   const root = runScript(host, addUserRootScript(user, opts.github), 120_000);
-  if (!root.includes("ADD-USER-ROOT-OK")) throw new Error(`adding ${user} did not complete:\n${root.slice(-400)}`);
-  onProgress(`installing ${user}'s own bun, cast, agent CLIs and node (a few minutes)…`);
-  const self = runScript(host, addUserSelfScript(readInstalledClientVersions()), 1_200_000, `sudo -u ${user} -H bash -s`);
-  if (!self.includes("ADD-USER-SELF-OK")) throw new Error(`${user}'s tools did not finish installing:\n${self.slice(-800)}`);
+  if (!root.includes("ADD-USER-ROOT-OK"))
+    throw new Error(`adding ${user} did not complete:\n${root.slice(-400)}`);
+  onProgress(
+    `installing ${user}'s own bun, cast, agent CLIs and node (a few minutes)…`,
+  );
+  const self = runScript(
+    host,
+    addUserSelfScript(readInstalledClientVersions()),
+    1_200_000,
+    `sudo -u ${user} -H bash -s`,
+  );
+  if (!self.includes("ADD-USER-SELF-OK"))
+    throw new Error(
+      `${user}'s tools did not finish installing:\n${self.slice(-800)}`,
+    );
   const units = runScript(host, enableUserDaemonScript(user), 60_000).trim();
-  if (!units.includes("path=active")) throw new Error(`${user}'s daemon could not be armed: ${units.slice(-300)}`);
+  if (!units.includes("path=active"))
+    throw new Error(
+      `${user}'s daemon could not be armed: ${units.slice(-300)}`,
+    );
   return {
     keys: root.match(/^keys=(.*)$/m)?.[1] ?? "unchanged",
     agents: parseAgentCliReport(self),
@@ -969,19 +1231,46 @@ export function addUserToHost(
 }
 
 /** Run a multi-line script on the box via `bash -s` over stdin (or `command`, e.g. as another user). */
-export function runScript(host: RemoteHost, script: string, timeoutMs: number, command = "bash -s"): string {
+export function runScript(
+  host: RemoteHost,
+  script: string,
+  timeoutMs: number,
+  command = "bash -s",
+): string {
   try {
     return execFileSync(
       "ssh",
-      [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-       "-o", "BatchMode=yes", sshDestination(host), command],
-      { input: script, encoding: "utf-8", timeout: timeoutMs, stdio: ["pipe", "pipe", "pipe"] },
+      [
+        ...sshIdentity(host),
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        "BatchMode=yes",
+        sshDestination(host),
+        command,
+      ],
+      {
+        input: script,
+        encoding: "utf-8",
+        timeout: timeoutMs,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
     );
   } catch (err) {
     const e = err as { stdout?: string; stderr?: string; message?: string };
     throw new Error(
-      `remote script failed: ${String(e.stderr ?? "").trim().split("\n").slice(-3).join(" | ") || e.message}` +
-        (e.stdout ? `\n  last output: ${String(e.stdout).trim().split("\n").slice(-3).join(" | ")}` : ""),
+      `remote script failed: ${
+        String(e.stderr ?? "")
+          .trim()
+          .split("\n")
+          .slice(-3)
+          .join(" | ") || e.message
+      }` +
+        (e.stdout
+          ? `\n  last output: ${String(e.stdout).trim().split("\n").slice(-3).join(" | ")}`
+          : ""),
     );
   }
 }

@@ -3,7 +3,16 @@
 import { useTaskHref } from "../../lib/taskHrefContext";
 import { answererNameOf } from "../../lib/decisionLinks";
 export { answererNameOf };
-import { Suspense, lazy, useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { Check, ChevronRight, GitPullRequest, Minus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -26,9 +35,17 @@ import {
   type ChangeCard,
   type ChangeVerdict,
 } from "@codecast/shared/contracts/changeCard";
-import { useInboxStore, type DecisionAnswerInput, type DecisionDetailItem, type SessionDecisionItem } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  type DecisionAnswerInput,
+  type DecisionDetailItem,
+  type SessionDecisionItem,
+} from "../../store/inboxStore";
 import { KeyCap } from "../KeyboardShortcutsHelp";
-import { useDecisionDraft, useDecisionDraftText } from "../../hooks/useDecisionDraft";
+import {
+  useDecisionDraft,
+  useDecisionDraftText,
+} from "../../hooks/useDecisionDraft";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { hasOpenModal } from "../../shortcuts";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
@@ -42,7 +59,10 @@ import "./changeCard.css";
 import { replyPieces, squash } from "../../lib/conversationFence";
 import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
 import { ChangeGuideWalkthrough } from "../tasks/ChangeGuideWalkthrough";
-import { keyScopeHasFocus, keysOwnedElsewhere } from "../../shortcuts/keyOwnership";
+import {
+  keyScopeHasFocus,
+  keysOwnedElsewhere,
+} from "../../shortcuts/keyOwnership";
 
 // The change card (docs/architecture/the-line-end-to-end.md LE10, LE11) drawn
 // natively, one component for every surface that shows a decision about a
@@ -53,10 +73,23 @@ import { keyScopeHasFocus, keysOwnedElsewhere } from "../../shortcuts/keyOwnersh
 
 export type ChangeCardDensity = "full" | "inline" | "line";
 
-const VERDICT_TONE: Record<ChangeVerdict, string> = { ship: "green", revise: "yellow", drop: "red" };
-const RISK_TONE: Record<ChangeCard["risk"]["class"], string> = { low: "green", review: "yellow", plan: "red" };
+const VERDICT_TONE: Record<ChangeVerdict, string> = {
+  ship: "green",
+  revise: "yellow",
+  drop: "red",
+};
+const RISK_TONE: Record<ChangeCard["risk"]["class"], string> = {
+  low: "green",
+  review: "yellow",
+  plan: "red",
+};
 
-const tokensLabel = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+const tokensLabel = (n: number) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1000
+      ? `${Math.round(n / 1000)}k`
+      : String(n);
 const prLabel = (url: string) => {
   const n = /\/pull\/(\d+)/.exec(url)?.[1];
   return n ? `PR #${n}` : "PR";
@@ -72,14 +105,62 @@ const prLabel = (url: string) => {
  * draws the head: the surface holding it does. `dots` is off where a full
  * proof strip reads on the same page.
  */
-export function ChangeCardView({ card, density = "full", recommend = true, change = true, outcome, story = false, summarized = false, folded, dots = true, diffAnchor, guide }: { card: ChangeCard; density?: ChangeCardDensity; recommend?: boolean; change?: boolean; outcome?: ReactNode; story?: boolean; summarized?: boolean; folded?: boolean; dots?: boolean; diffAnchor?: string; guide?: ChangeGuide | null }) {
+export function ChangeCardView({
+  card,
+  density = "full",
+  recommend = true,
+  change = true,
+  outcome,
+  story = false,
+  summarized = false,
+  folded,
+  dots = true,
+  diffAnchor,
+  guide,
+}: {
+  card: ChangeCard;
+  density?: ChangeCardDensity;
+  recommend?: boolean;
+  change?: boolean;
+  outcome?: ReactNode;
+  story?: boolean;
+  summarized?: boolean;
+  folded?: boolean;
+  dots?: boolean;
+  diffAnchor?: string;
+  guide?: ChangeGuide | null;
+}) {
   const animate = useFirstSight(card.cause.task);
-  if (density === "line") return <ChangeCardLine card={card} recommend={recommend && !outcome} story={story} folded={folded} dots={dots} />;
-  return <ChangeCardFull card={card} inline={density === "inline"} head={change} recommend={recommend} outcome={outcome} animate={animate} summarized={summarized} diffAnchor={diffAnchor} guide={guide} />;
+  if (density === "line")
+    return (
+      <ChangeCardLine
+        card={card}
+        recommend={recommend && !outcome}
+        story={story}
+        folded={folded}
+        dots={dots}
+      />
+    );
+  return (
+    <ChangeCardFull
+      card={card}
+      inline={density === "inline"}
+      head={change}
+      recommend={recommend}
+      outcome={outcome}
+      animate={animate}
+      summarized={summarized}
+      diffAnchor={diffAnchor}
+      guide={guide}
+    />
+  );
 }
 
 /** "evals, judges and users" */
-const listLabel = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+const listLabel = (xs: string[]) =>
+  xs.length <= 1
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 /**
  * A row of short facts that wraps without ever opening a line on a separator:
@@ -88,16 +169,40 @@ const listLabel = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(
  * spacer of the same width instead, so the rhythm holds. `end` pushes an item
  * to the right of its line; `row` gives an item a line of its own.
  */
-export function SepRow({ items, className = "" }: { items: { key: string; node: ReactNode; className?: string; title?: string; plain?: boolean; end?: boolean; row?: boolean }[]; className?: string }) {
+export function SepRow({
+  items,
+  className = "",
+}: {
+  items: {
+    key: string;
+    node: ReactNode;
+    className?: string;
+    title?: string;
+    plain?: boolean;
+    end?: boolean;
+    row?: boolean;
+  }[];
+  className?: string;
+}) {
   if (!items.length) return null;
   return (
     <div className={`cc-seprow ${className}`}>
       <div className="cc-seprow-inner">
         {/* An item whose body renders nothing hides, separator and all. */}
         {items.map((m) => (
-          <span key={m.key} className={["cc-seprow-item", m.end && "is-end", m.row && "is-row"].filter(Boolean).join(" ")} title={m.title}>
-            <span className="cc-sep" aria-hidden>{m.plain ? "" : "·"}</span>
-            <span className={`cc-seprow-body ${m.className ?? ""}`}>{m.node}</span>
+          <span
+            key={m.key}
+            className={["cc-seprow-item", m.end && "is-end", m.row && "is-row"]
+              .filter(Boolean)
+              .join(" ")}
+            title={m.title}
+          >
+            <span className="cc-sep" aria-hidden>
+              {m.plain ? "" : "·"}
+            </span>
+            <span className={`cc-seprow-body ${m.className ?? ""}`}>
+              {m.node}
+            </span>
           </span>
         ))}
       </div>
@@ -115,17 +220,37 @@ type SepItem = Parameters<typeof SepRow>[0]["items"][number];
  * the signals wait on the decision page, so a queue card reaches its proof
  * after one grey line.
  */
-function ChangeCardCause({ card, brief = false, facts = [] }: { card: ChangeCard; brief?: boolean; facts?: SepItem[] }) {
+function ChangeCardCause({
+  card,
+  brief = false,
+  facts = [],
+}: {
+  card: ChangeCard;
+  brief?: boolean;
+  facts?: SepItem[];
+}) {
   const taskHref = useTaskHref();
   const now = useCoarseNow(60_000);
   if (brief) {
     return (
       <div className="cc-cause">
-        <p className="cc-cause-head" data-card-cause title={`${card.cause.task}: ${card.cause.title}`}>
+        <p
+          className="cc-cause-head"
+          data-card-cause
+          title={`${card.cause.task}: ${card.cause.title}`}
+        >
           <span className="cc-cause-title">{card.cause.title}</span>
           {facts.map((f) => (
-            <span key={f.key} className={`cc-cause-fact ${f.className ?? ""}`} title={f.title}>
-              <span className="cc-sep-inline" aria-hidden> · </span>{f.node}
+            <span
+              key={f.key}
+              className={`cc-cause-fact ${f.className ?? ""}`}
+              title={f.title}
+            >
+              <span className="cc-sep-inline" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+              {f.node}
             </span>
           ))}
         </p>
@@ -136,35 +261,67 @@ function ChangeCardCause({ card, brief = false, facts = [] }: { card: ChangeCard
   // "signal" is the kind every signal filed task carries, not a source: it says nothing.
   const named = card.cause.sources.filter((src) => src !== "signal");
   const sources = named.length ? `from ${listLabel(named)}` : "";
-  const signals = card.cause.signals > 0 ? `${card.cause.signals} report${card.cause.signals === 1 ? "" : "s"}` : "";
-  const seen = card.cause.first_seen ? `first seen ${formatTimeAgo(card.cause.first_seen, now)}` : "";
+  const signals =
+    card.cause.signals > 0
+      ? `${card.cause.signals} report${card.cause.signals === 1 ? "" : "s"}`
+      : "";
+  const seen = card.cause.first_seen
+    ? `first seen ${formatTimeAgo(card.cause.first_seen, now)}`
+    : "";
   // A card written before its goal was named carries the key as the name.
-  const goalName = card.goal.name && card.goal.name !== card.goal.ref ? card.goal.name : null;
-  const goal = hasGoal ? <>serves <span className="text-sol-text-muted">{goalName ?? <GoalName goalRef={card.goal.ref} />}</span></> : null;
+  const goalName =
+    card.goal.name && card.goal.name !== card.goal.ref ? card.goal.name : null;
+  const goal = hasGoal ? (
+    <>
+      serves{" "}
+      <span className="text-sol-text-muted">
+        {goalName ?? <GoalName goalRef={card.goal.ref} />}
+      </span>
+    </>
+  ) : null;
   const meta: SepItem[] = [];
-  if (signals || sources) meta.push({ key: "signals", node: [signals, sources].filter(Boolean).join(" ") });
+  if (signals || sources)
+    meta.push({
+      key: "signals",
+      node: [signals, sources].filter(Boolean).join(" "),
+    });
   // Age and goal share one fact, so a narrow card spends one line on them.
   // Why it serves the goal waits on hover.
-  if (seen || goal) meta.push({
-    key: "seen",
-    className: goal ? "cc-goal" : "cc-nowrap",
-    title: hasGoal ? card.goal.why || undefined : undefined,
-    node: (
-      <span data-card-goal={goal ? "" : undefined}>
-        {seen && <span className="cc-nowrap">{seen}</span>}
-        {seen && goal && <span className="cc-sep-inline" aria-hidden> · </span>}
-        {goal}
-      </span>
-    ),
-  });
+  if (seen || goal)
+    meta.push({
+      key: "seen",
+      className: goal ? "cc-goal" : "cc-nowrap",
+      title: hasGoal ? card.goal.why || undefined : undefined,
+      node: (
+        <span data-card-goal={goal ? "" : undefined}>
+          {seen && <span className="cc-nowrap">{seen}</span>}
+          {seen && goal && (
+            <span className="cc-sep-inline" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
+          )}
+          {goal}
+        </span>
+      ),
+    });
   meta.push(...facts);
   return (
     <div className="cc-cause">
       <p className="cc-cause-head" data-card-cause>
-        <Link href={taskHref(card.cause.task)} className="cc-cause-ref">{card.cause.task}</Link>
+        <Link href={taskHref(card.cause.task)} className="cc-cause-ref">
+          {card.cause.task}
+        </Link>
         <span className="cc-cause-title">{card.cause.title}</span>
         {/* The problem's life on its line (line-workspace.md LW1 Timeline). */}
-        <Link href={lineRefHref(card.cause.task)} className="cc-cause-ref cc-cause-trace" title="This problem's life on its line: its reports, every attempt, ships, deploys and what came back" data-card-trace>timeline</Link>
+        <Link
+          href={lineRefHref(card.cause.task)}
+          className="cc-cause-ref cc-cause-trace"
+          title="This problem's life on its line: its reports, every attempt, ships, deploys and what came back"
+          data-card-trace
+        >
+          timeline
+        </Link>
       </p>
       <SepRow items={meta} className="cc-cause-facts" />
     </div>
@@ -179,7 +336,12 @@ function GoalName({ goalRef }: { goalRef: string }) {
 /** Why a change carries its risk, in a reader's words. Older cards stored
  *  the grounding agent's verdict as "Ground rated it review."; that reads as
  *  what it means. */
-const RATED: Record<string, string> = { review: "worth a human review", low: "low risk", medium: "medium risk", high: "high risk" };
+const RATED: Record<string, string> = {
+  review: "worth a human review",
+  low: "low risk",
+  medium: "medium risk",
+  high: "high risk",
+};
 export const riskReason = (risk: { reason?: string }) => {
   const r = risk.reason?.trim() ?? "";
   const m = r.match(/^Ground rated it (\w+)\.?$/i);
@@ -187,10 +349,18 @@ export const riskReason = (risk: { reason?: string }) => {
 };
 
 /** The asker's own question beside a card, or null when it only repeats the change. */
-export const cardAskedQuestion = (card: ChangeCard, question: string | undefined) => {
+export const cardAskedQuestion = (
+  card: ChangeCard,
+  question: string | undefined,
+) => {
   // A source's internal cluster key ("for C117") means nothing to a reader.
   const q = question?.trim().replace(/\s+(?:for|on|in)\s+[A-Z]{1,3}\d+\b/g, "");
-  if (!q || q === card.change.trim() || (card.headline && q.includes(card.headline.trim()))) return null;
+  if (
+    !q ||
+    q === card.change.trim() ||
+    (card.headline && q.includes(card.headline.trim()))
+  )
+    return null;
   return q;
 };
 
@@ -205,7 +375,25 @@ export const cardAskedQuestion = (card: ChangeCard, question: string | undefined
  */
 /** `questionFirst`: the decision page, where the question asked is the
  *  headline ("Ship the fix for C117?") and the change reads under it. */
-export function ChangeCardHeadline({ card, question, size = "title", facts, href, folded = false, questionFirst = false, className = "" }: { card: ChangeCard; question?: string; size?: "title" | "card" | "row"; facts?: SepItem[]; href?: string; folded?: boolean; questionFirst?: boolean; className?: string }) {
+export function ChangeCardHeadline({
+  card,
+  question,
+  size = "title",
+  facts,
+  href,
+  folded = false,
+  questionFirst = false,
+  className = "",
+}: {
+  card: ChangeCard;
+  question?: string;
+  size?: "title" | "card" | "row";
+  facts?: SepItem[];
+  href?: string;
+  folded?: boolean;
+  questionFirst?: boolean;
+  className?: string;
+}) {
   const asked = cardAskedQuestion(card, question);
   // A card written for a cold reader leads with its plain headline and the one
   // sentence saying what the affected part is; older cards lead with the change.
@@ -213,23 +401,51 @@ export function ChangeCardHeadline({ card, question, size = "title", facts, href
   if (questionFirst && asked && size === "title" && !folded) {
     return (
       <div className={`cc-head cc-head-title ${className}`}>
-        <h1 className="cc-change cc-change-title" data-card-question>{asked}</h1>
-        <p className="cc-change-sub" data-card-change>{title}</p>
-        {card.context && <p className="cc-context" data-card-context>{card.context}</p>}
+        <h1 className="cc-change cc-change-title" data-card-question>
+          {asked}
+        </h1>
+        <p className="cc-change-sub" data-card-change>
+          {title}
+        </p>
+        {card.context && (
+          <p className="cc-context" data-card-context>
+            {card.context}
+          </p>
+        )}
         <ChangeCardCause card={card} brief={false} facts={facts} />
       </div>
     );
   }
-  const change = size === "title" ? <h1 className="cc-change cc-change-title">{title}</h1>
-    : size === "card" ? <p className="cc-change">{title}</p>
-    : href ? <Link href={href} className="cc-line-change" title={title}>{title}</Link>
-    : <span className="cc-line-change">{title}</span>;
+  const change =
+    size === "title" ? (
+      <h1 className="cc-change cc-change-title">{title}</h1>
+    ) : size === "card" ? (
+      <p className="cc-change">{title}</p>
+    ) : href ? (
+      <Link href={href} className="cc-line-change" title={title}>
+        {title}
+      </Link>
+    ) : (
+      <span className="cc-line-change">{title}</span>
+    );
   return (
-    <div className={`cc-head cc-head-${size} ${folded ? "is-folded" : ""} ${className}`}>
+    <div
+      className={`cc-head cc-head-${size} ${folded ? "is-folded" : ""} ${className}`}
+    >
       {change}
-      {card.context && size !== "row" && !folded && <p className="cc-context" data-card-context>{card.context}</p>}
-      {asked && !folded && <p className="cc-asked" data-card-question title={asked}>{asked}</p>}
-      {!folded && <ChangeCardCause card={card} brief={size === "row"} facts={facts} />}
+      {card.context && size !== "row" && !folded && (
+        <p className="cc-context" data-card-context>
+          {card.context}
+        </p>
+      )}
+      {asked && !folded && (
+        <p className="cc-asked" data-card-question title={asked}>
+          {asked}
+        </p>
+      )}
+      {!folded && (
+        <ChangeCardCause card={card} brief={size === "row"} facts={facts} />
+      )}
     </div>
   );
 }
@@ -240,24 +456,49 @@ export function ChangeCardHeadline({ card, question, size = "title", facts, href
  * line, then Ship / Revise / Drop with the recommendation and its reason.
  * The proof's dots stay off here; the Proof section below draws it in full.
  */
-export function ChangeCardVerdictBar({ card, children }: { card: ChangeCard; children: ReactNode }) {
+export function ChangeCardVerdictBar({
+  card,
+  children,
+}: {
+  card: ChangeCard;
+  children: ReactNode;
+}) {
   return (
     <div className="cc-verdict-bar" data-verdict-bar>
-      <ChangeCardView card={card} density="line" recommend={false} dots={false} />
+      <ChangeCardView
+        card={card}
+        density="line"
+        recommend={false}
+        dots={false}
+      />
       {children}
     </div>
   );
 }
 
 /** A Ship answer approves the change; whether it has landed is the run's to say, never the answer's. */
-const VERDICT_DONE: Record<ChangeVerdict, string> = { ship: "Approved to ship", revise: "Sent back to revise", drop: "Dropped" };
+const VERDICT_DONE: Record<ChangeVerdict, string> = {
+  ship: "Approved to ship",
+  revise: "Sent back to revise",
+  drop: "Dropped",
+};
 /** A trial run's answer records what the person would have done and ships nothing: it is never worded as done. */
-const VERDICT_WOULD: Record<ChangeVerdict, string> = { ship: "Would ship", revise: "Would revise", drop: "Would drop" };
+const VERDICT_WOULD: Record<ChangeVerdict, string> = {
+  ship: "Would ship",
+  revise: "Would revise",
+  drop: "Would drop",
+};
 
 /** "5h ago", "just now", or "Sep 3": when something settled, in words. */
 export const settledAgo = (at: number | undefined, now: number) => {
   const ago = at ? formatTimeAgo(at, now) : "";
-  return !ago ? "" : ago === "now" ? "just now" : /^\d+[mhd]$/.test(ago) ? `${ago} ago` : ago;
+  return !ago
+    ? ""
+    : ago === "now"
+      ? "just now"
+      : /^\d+[mhd]$/.test(ago)
+        ? `${ago} ago`
+        : ago;
 };
 /** The same, as a tail: " · 5h ago". */
 const whenTail = (at: number | undefined, now: number) => {
@@ -273,25 +514,56 @@ const whenTail = (at: number | undefined, now: number) => {
  * trial run's decision (`trial`, else the row's own flag) reads "Would ship
  * ... recorded, nothing shipped": its answer starts nothing.
  */
-export function cardOutcome(decision: Pick<SessionDecisionItem, "status" | "options" | "answer_index" | "answer_text" | "resolved_at" | "answered_by" | "trial">, by: string, now: number, trial = !!decision.trial) {
+export function cardOutcome(
+  decision: Pick<
+    SessionDecisionItem,
+    | "status"
+    | "options"
+    | "answer_index"
+    | "answer_text"
+    | "resolved_at"
+    | "answered_by"
+    | "trial"
+  >,
+  by: string,
+  now: number,
+  trial = !!decision.trial,
+) {
   const when = whenTail(decision.resolved_at, now);
   if (decision.status === "withdrawn" || decision.status === "dismissed") {
     const head = decision.status === "withdrawn" ? "Withdrawn" : "Dismissed";
-    const tail = decision.status === "withdrawn" ? `with no answer${when}` : decision.answered_by ? `by ${by}${when}` : when.replace(/^ · /, "");
-    return { tone: "dim", verdict: head, pill: `${head} ${tail}`.trim(), line: outcomeLine("dim", head, tail) };
+    const tail =
+      decision.status === "withdrawn"
+        ? `with no answer${when}`
+        : decision.answered_by
+          ? `by ${by}${when}`
+          : when.replace(/^ · /, "");
+    return {
+      tone: "dim",
+      verdict: head,
+      pill: `${head} ${tail}`.trim(),
+      line: outcomeLine("dim", head, tail),
+    };
   }
-  if (decision.status !== "answered" || decision.answer_index === undefined) return null;
-  const verdict = verdictOfOption(decision.options[decision.answer_index]?.label);
+  if (decision.status !== "answered" || decision.answer_index === undefined)
+    return null;
+  const verdict = verdictOfOption(
+    decision.options[decision.answer_index]?.label,
+  );
   if (!verdict) return null;
   const note = decision.answer_text?.replace(/^revise:\s*/i, "").trim();
   // A default a policy applied is the agent's own course, never a person's answer.
   const wentAhead = decision.answered_by?.kind === "policy";
   const done = trial ? VERDICT_WOULD[verdict] : VERDICT_DONE[verdict];
-  const head = wentAhead && !trial ? `The agent went ahead with ${verdictLabel(verdict)}` : done;
+  const head =
+    wentAhead && !trial
+      ? `The agent went ahead with ${verdictLabel(verdict)}`
+      : done;
   const tail = `${wentAhead ? `no one answered${when}` : `by ${by}${when}`}${trial ? " · recorded, nothing shipped" : ""}`;
   return {
     tone: VERDICT_TONE[verdict],
-    verdict: wentAhead && !trial ? `Went ahead with ${verdictLabel(verdict)}` : done,
+    verdict:
+      wentAhead && !trial ? `Went ahead with ${verdictLabel(verdict)}` : done,
     pill: `${head} ${tail}`,
     line: outcomeLine(VERDICT_TONE[verdict], head, tail, note),
   };
@@ -314,7 +586,9 @@ function outcomeLine(tone: string, head: string, tail: string, note?: string) {
 const seenCards = new Set<string>();
 function useFirstSight(key: string) {
   const [first] = useState(() => !seenCards.has(key));
-  useWatchEffect(() => { seenCards.add(key); }, [key]);
+  useWatchEffect(() => {
+    seenCards.add(key);
+  }, [key]);
   return first;
 }
 
@@ -323,7 +597,11 @@ function useFirstSight(key: string) {
 /** Diff counts in neutral ink: red and green on the card mean pass and fail, never removed and added. */
 export function DiffCounts({ diff }: { diff: ChangeCard["diff"] }) {
   return (
-    <span className="cc-nowrap cc-diff"><span className="cc-diff-glyph">+</span>{diff.added} <span className="cc-diff-glyph">−</span>{diff.removed}</span>
+    <span className="cc-nowrap cc-diff">
+      <span className="cc-diff-glyph">+</span>
+      {diff.added} <span className="cc-diff-glyph">−</span>
+      {diff.removed}
+    </span>
   );
 }
 
@@ -333,22 +611,36 @@ export function DiffCounts({ diff }: { diff: ChangeCard["diff"] }) {
  * headline; otherwise each row keeps its group as a short dim prefix, a test
  * file without its ".test.ts".
  */
-export function proofNames(names: string[]): { group: string; split: (name: string) => { group: string; leaf: string } } {
+export function proofNames(names: string[]): {
+  group: string;
+  split: (name: string) => { group: string; leaf: string };
+} {
   const split = (name: string) => {
     const at = name.indexOf(" · ");
     if (at < 0) return { group: "", leaf: name };
-    return { group: name.slice(0, at).replace(/\.(test|spec)\.[cm]?[jt]sx?$/, ""), leaf: name.slice(at + 3) };
+    return {
+      group: name.slice(0, at).replace(/\.(test|spec)\.[cm]?[jt]sx?$/, ""),
+      leaf: name.slice(at + 3),
+    };
   };
   const groups = new Set(names.map((n) => split(n).group));
   const group = names.length > 1 && groups.size === 1 ? [...groups][0] : "";
   return { group, split };
 }
 
-function ProofName({ name, names }: { name: string; names: ReturnType<typeof proofNames> }) {
+function ProofName({
+  name,
+  names,
+}: {
+  name: string;
+  names: ReturnType<typeof proofNames>;
+}) {
   const { group, leaf } = names.split(name);
   return (
     <span className="cc-proof-name" title={name}>
-      {group && group !== names.group && <span className="cc-proof-prefix">{group}</span>}
+      {group && group !== names.group && (
+        <span className="cc-proof-prefix">{group}</span>
+      )}
       {leaf}
     </span>
   );
@@ -360,7 +652,10 @@ function ProofPair({ before, after }: { before: boolean; after: boolean }) {
     <span className="cc-proof-pair" aria-hidden>
       <span className="cc-proof-dot" data-ok={before ? "true" : undefined} />
       <span className="cc-proof-dots-rule" />
-      <span className="cc-proof-dot cc-proof-dot-after" data-ok={after ? "true" : undefined} />
+      <span
+        className="cc-proof-dot cc-proof-dot-after"
+        data-ok={after ? "true" : undefined}
+      />
     </span>
   );
 }
@@ -379,15 +674,24 @@ function ProofPair({ before, after }: { before: boolean; after: boolean }) {
  * theirs on hover.
  */
 /** A test runner's tally in its own output ("4 pass 2 fail", "6 passed, 0 failed"), the last one it printed. */
-export function runnerTally(text: string | undefined): { pass: number; fail: number } | null {
-  const all = [...(text ?? "").matchAll(/(\d+)\s+pass(?:ed)?\b[\s,]*(\d+)\s+fail(?:ed)?\b/gi)];
+export function runnerTally(
+  text: string | undefined,
+): { pass: number; fail: number } | null {
+  const all = [
+    ...(text ?? "").matchAll(
+      /(\d+)\s+pass(?:ed)?\b[\s,]*(\d+)\s+fail(?:ed)?\b/gi,
+    ),
+  ];
   const m = all[all.length - 1];
   return m ? { pass: Number(m[1]), fail: Number(m[2]) } : null;
 }
 
 /** A case whose before and after are a test runner's whole log reads as its
  *  counts ("2 failing → 6 of 6 passing"); null when either side is not one. */
-export function runnerChange(before: string | undefined, after: string | undefined): string | null {
+export function runnerChange(
+  before: string | undefined,
+  after: string | undefined,
+): string | null {
   const b = runnerTally(before);
   const a = runnerTally(after);
   if (!b || !a) return null;
@@ -398,11 +702,24 @@ export function runnerChange(before: string | undefined, after: string | undefin
  *  test tests/unit/repro-x.test.ts") reads as what it is ("Repro test"); the
  *  command moves into its Test output. Null when the name is already words. */
 export function commandCaseName(name: string): string | null {
-  if (!/(&&|\b(?:cd|bun|npm|npx|pnpm|yarn|pytest|go|cargo|make)\s)/.test(name)) return null;
-  return /^replay:/i.test(name) ? "Replay" : /\brepro/i.test(name) ? "Repro test" : /^unit:/i.test(name) ? "Unit tests" : "Tests";
+  if (!/(&&|\b(?:cd|bun|npm|npx|pnpm|yarn|pytest|go|cargo|make)\s)/.test(name))
+    return null;
+  return /^replay:/i.test(name)
+    ? "Replay"
+    : /\brepro/i.test(name)
+      ? "Repro test"
+      : /^unit:/i.test(name)
+        ? "Unit tests"
+        : "Tests";
 }
 
-export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized: boolean }) {
+export function ProofStrip({
+  card,
+  summarized,
+}: {
+  card: ChangeCard;
+  summarized: boolean;
+}) {
   const summary = proofSummary(card.proof);
   const after = new Map(card.proof.after.map((c) => [c.name, c]));
   const red = card.proof.before.filter((c) => !c.ok);
@@ -411,7 +728,10 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
   const broke = card.proof.after.filter((c) => summary.broke.includes(c.name));
   // The prefix (a test file, an eval surface) shows only where the failing
   // rows differ in it; a fixed case is settled news and reads as its name alone.
-  const names = proofNames([...still.map((b) => b.name), ...broke.map((a) => a.name)]);
+  const names = proofNames([
+    ...still.map((b) => b.name),
+    ...broke.map((a) => a.name),
+  ]);
   const values = (b: CardCheck) => {
     const a = after.get(b.name)?.detail ?? "";
     return b.detail && a ? `${b.detail} \u2192 ${a}` : "";
@@ -419,7 +739,10 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
   const empty = red.length === 0 && !broke.length;
   const bad = still.length + broke.length;
   // One fixed case whose runner counts show on its row says its count once there.
-  const soleCounts = fixed.length === 1 && !bad && !!runnerChange(fixed[0].detail, after.get(fixed[0].name)?.detail);
+  const soleCounts =
+    fixed.length === 1 &&
+    !bad &&
+    !!runnerChange(fixed[0].detail, after.get(fixed[0].name)?.detail);
   return (
     <section className="cc-section" data-cc-proof>
       <div className="cc-label-row">
@@ -427,7 +750,13 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
         {/* One case draws its before and after on its own row; the heading's dots would repeat it. */}
         {red.length + broke.length > 1 && <ProofDots card={card} />}
         {/* An empty strip has no dots to stand for it, so it always says so. */}
-        {(!summarized || empty) && !soleCounts && <span className={`cc-proof-label ${bad ? "cc-text-red" : summary.red ? "cc-text-green" : "text-sol-text-dim"}`}>{summary.evidence}</span>}
+        {(!summarized || empty) && !soleCounts && (
+          <span
+            className={`cc-proof-label ${bad ? "cc-text-red" : summary.red ? "cc-text-green" : "text-sol-text-dim"}`}
+          >
+            {summary.evidence}
+          </span>
+        )}
       </div>
       {!empty && (
         <ol className="cc-proof">
@@ -435,23 +764,63 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
             // A runner's log reads as its counts, the log itself one click away.
             const counts = runnerChange(b.detail, after.get(b.name)?.detail);
             // A run's log too long for a row (a replay's draws) opens behind the same toggle, its last line the row's words.
-            const long = !counts && (b.detail.length > 160 || (after.get(b.name)?.detail ?? "").length > 160);
-            const lastLine = (t: string | undefined) => (t ?? "").trim().split("\n").filter(Boolean).pop() ?? "";
+            const long =
+              !counts &&
+              (b.detail.length > 160 ||
+                (after.get(b.name)?.detail ?? "").length > 160);
+            const lastLine = (t: string | undefined) =>
+              (t ?? "").trim().split("\n").filter(Boolean).pop() ?? "";
             const command = counts || long ? commandCaseName(b.name) : null;
             return (
-              <li key={b.name} className="cc-proof-row is-fixed" style={{ ["--i" as any]: i }} data-cc-proof-fixed>
+              <li
+                key={b.name}
+                className="cc-proof-row is-fixed"
+                style={{ ["--i" as any]: i }}
+                data-cc-proof-fixed
+              >
                 <ProofPair before={false} after />
                 <span className="cc-proof-fixed-name">
-                  <span className="cc-proof-name" title={counts ? b.name : [b.name, values(b)].filter(Boolean).join(": ")}>{command ?? names.split(b.name).leaf}{command && ":"}</span>
-                  {counts ? <span className="cc-proof-fixed-vals" data-cc-proof-counts>{counts}</span>
-                    : long ? <span className="cc-proof-fixed-vals" data-cc-proof-last>{lastLine(after.get(b.name)?.detail)}</span>
-                    : fixed.length === 1 && values(b) && <span className="cc-proof-fixed-vals" data-cc-proof-values>{values(b)}</span>}
+                  <span
+                    className="cc-proof-name"
+                    title={
+                      counts
+                        ? b.name
+                        : [b.name, values(b)].filter(Boolean).join(": ")
+                    }
+                  >
+                    {command ?? names.split(b.name).leaf}
+                    {command && ":"}
+                  </span>
+                  {counts ? (
+                    <span className="cc-proof-fixed-vals" data-cc-proof-counts>
+                      {counts}
+                    </span>
+                  ) : long ? (
+                    <span className="cc-proof-fixed-vals" data-cc-proof-last>
+                      {lastLine(after.get(b.name)?.detail)}
+                    </span>
+                  ) : (
+                    fixed.length === 1 &&
+                    values(b) && (
+                      <span
+                        className="cc-proof-fixed-vals"
+                        data-cc-proof-values
+                      >
+                        {values(b)}
+                      </span>
+                    )
+                  )}
                 </span>
                 {(counts || long) && (
                   <details className="cc-proof-log" data-cc-proof-log>
                     <summary>Test output</summary>
                     <div className="cc-proof-log-body">
-                      {command && <><div className="cc-proof-log-head">Command</div><pre>{b.name.replace(/^\w+:\s*/, "")}</pre></>}
+                      {command && (
+                        <>
+                          <div className="cc-proof-log-head">Command</div>
+                          <pre>{b.name.replace(/^\w+:\s*/, "")}</pre>
+                        </>
+                      )}
                       <div className="cc-proof-log-head">Before the change</div>
                       <pre>{b.detail}</pre>
                       <div className="cc-proof-log-head">After</div>
@@ -466,20 +835,44 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
             const a = after.get(b.name);
             // A row still red says so once, in its own words: red to red
             // through an arrow repeats the failure.
-            const stillText = a ? `still fails${a.detail && !/^still fails/i.test(a.detail) ? `: ${a.detail}` : ""}` : "no after recorded";
+            const stillText = a
+              ? `still fails${a.detail && !/^still fails/i.test(a.detail) ? `: ${a.detail}` : ""}`
+              : "no after recorded";
             return (
-              <li key={b.name} className="cc-proof-row is-red" style={{ ["--i" as any]: fixed.length + i }}>
+              <li
+                key={b.name}
+                className="cc-proof-row is-red"
+                style={{ ["--i" as any]: fixed.length + i }}
+              >
                 <ProofPair before={false} after={false} />
                 <ProofName name={b.name} names={names} />
-                <span className="cc-proof-detail"><span className="cc-proof-after cc-proof-still cc-text-red" title={stillText}>{stillText}</span></span>
+                <span className="cc-proof-detail">
+                  <span
+                    className="cc-proof-after cc-proof-still cc-text-red"
+                    title={stillText}
+                  >
+                    {stillText}
+                  </span>
+                </span>
               </li>
             );
           })}
           {broke.map((a, i) => (
-            <li key={`broke-${a.name}`} className="cc-proof-row is-broke" style={{ ["--i" as any]: fixed.length + still.length + i }}>
+            <li
+              key={`broke-${a.name}`}
+              className="cc-proof-row is-broke"
+              style={{ ["--i" as any]: fixed.length + still.length + i }}
+            >
               <ProofPair before after={false} />
               <ProofName name={a.name} names={names} />
-              <span className="cc-proof-detail"><span className="cc-proof-after cc-text-red" title={a.detail || undefined}>broke: {a.detail || "fails after the change"}</span></span>
+              <span className="cc-proof-detail">
+                <span
+                  className="cc-proof-after cc-text-red"
+                  title={a.detail || undefined}
+                >
+                  broke: {a.detail || "fails after the change"}
+                </span>
+              </span>
             </li>
           ))}
         </ol>
@@ -491,19 +884,39 @@ export function ProofStrip({ card, summarized }: { card: ChangeCard; summarized:
 // ── the full card ────────────────────────────────────────────────────────────
 
 /** `detail` replaces the check's own words where a surface says them plainer. */
-export function CheckRow({ check, detail }: { check: CardCheck; detail?: string }) {
+export function CheckRow({
+  check,
+  detail,
+}: {
+  check: CardCheck;
+  detail?: string;
+}) {
   const notRun = checkNotRun(check);
   return (
-    <li className="cc-check" data-cc-check-state={notRun ? "not-run" : check.ok ? "pass" : "fail"}>
-      <span className={`cc-check-mark ${notRun ? "text-sol-text-dim" : check.ok ? "cc-tone-green" : "cc-tone-red"}`}>
-        {notRun ? <Minus className="w-3 h-3" /> : check.ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+    <li
+      className="cc-check"
+      data-cc-check-state={notRun ? "not-run" : check.ok ? "pass" : "fail"}
+    >
+      <span
+        className={`cc-check-mark ${notRun ? "text-sol-text-dim" : check.ok ? "cc-tone-green" : "cc-tone-red"}`}
+      >
+        {notRun ? (
+          <Minus className="w-3 h-3" />
+        ) : check.ok ? (
+          <Check className="w-3 h-3" />
+        ) : (
+          <X className="w-3 h-3" />
+        )}
       </span>
       <span className="text-sol-text shrink-0">{check.name}</span>
-      {(detail ?? check.detail) && <span className="text-sol-text-dim min-w-0">{detail ?? check.detail}</span>}
+      {(detail ?? check.detail) && (
+        <span className="text-sol-text-dim min-w-0">
+          {detail ?? check.detail}
+        </span>
+      )}
     </li>
   );
 }
-
 
 /** Whether an example's input says anything its Before does not: one whose Before is the input's opening (or any run of it) only repeats it, so it is dropped. */
 export function exampleInputAdds(input: string, before: string): boolean {
@@ -516,15 +929,44 @@ export function exampleInputAdds(input: string, before: string): boolean {
 export function wholeSentences(note: string): string {
   const t = note.trim();
   if (!t.endsWith("…")) return t;
-  const end = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
+  const end = Math.max(
+    t.lastIndexOf(". "),
+    t.lastIndexOf("! "),
+    t.lastIndexOf("? "),
+  );
   return end > 0 ? t.slice(0, end + 1) : t;
 }
 
 const NO_MARKS: string[] = [];
 /** A reply with what matters marked (see replyPieces). */
-function SideText({ text, other, tone, marks = NO_MARKS }: { text: string; other: string; tone: "before" | "after"; marks?: string[] }) {
-  const pieces = useMemo(() => replyPieces(text, other, marks), [text, other, marks]);
-  return <>{pieces.map((p, i) => (p.changed ? <mark key={i} className={`cc-changed cc-changed-${tone}`}>{p.text}</mark> : <span key={i}>{p.text}</span>))}</>;
+function SideText({
+  text,
+  other,
+  tone,
+  marks = NO_MARKS,
+}: {
+  text: string;
+  other: string;
+  tone: "before" | "after";
+  marks?: string[];
+}) {
+  const pieces = useMemo(
+    () => replyPieces(text, other, marks),
+    [text, other, marks],
+  );
+  return (
+    <>
+      {pieces.map((p, i) =>
+        p.changed ? (
+          <mark key={i} className={`cc-changed cc-changed-${tone}`}>
+            {p.text}
+          </mark>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
+  );
 }
 
 /** Long enough that four lines would cut it. */
@@ -532,7 +974,19 @@ const longSide = (t: string) => t.length > 220 || t.split("\n").length > 4;
 
 /** One before and after pair: two tiles of one height, the input as a small "for:" caption inside Before that opens in full, the note under both. What one side says that the other does not is marked. `clamp` holds each side to four lines with a toggle that opens both. The Evals pages show eval flips with it too. */
 /** `afterLabel`: "Expected" when the after side is what the fix should do, not what a replay observed. `marks`: phrases to mark on each side in place of the computed difference. */
-export function ExamplePair({ ex, clamp = false, beforeLabel = "Before", afterLabel = "After", marks }: { ex: ChangeCard["examples"][number]; clamp?: boolean; beforeLabel?: string; afterLabel?: string; marks?: { before: string[]; after: string[] } }) {
+export function ExamplePair({
+  ex,
+  clamp = false,
+  beforeLabel = "Before",
+  afterLabel = "After",
+  marks,
+}: {
+  ex: ChangeCard["examples"][number];
+  clamp?: boolean;
+  beforeLabel?: string;
+  afterLabel?: string;
+  marks?: { before: string[]; after: string[] };
+}) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -545,25 +999,60 @@ export function ExamplePair({ ex, clamp = false, beforeLabel = "Before", afterLa
           <span className="cc-side-label">{beforeLabel}</span>
           {/* What the pair answers belongs to the pair, not above it as a quote competing with the tiles. */}
           {exampleInputAdds(ex.input, ex.before) && (
-            <button type="button" className={`cc-example-input ${open ? "is-open" : ""}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} title={open ? undefined : "Show the full input"}>
+            <button
+              type="button"
+              className={`cc-example-input ${open ? "is-open" : ""}`}
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              title={open ? undefined : "Show the full input"}
+            >
               <span className="cc-example-for">for:</span> {ex.input}
             </button>
           )}
-          <span className={`cc-side-text ${clamped ? "is-clamped" : ""}`}><SideText text={ex.before} other={ex.after} tone="before" marks={marks?.before} /></span>
+          <span className={`cc-side-text ${clamped ? "is-clamped" : ""}`}>
+            <SideText
+              text={ex.before}
+              other={ex.after}
+              tone="before"
+              marks={marks?.before}
+            />
+          </span>
         </div>
         <div className="cc-side cc-after">
           <span className="cc-side-label">{afterLabel}</span>
-          <span className={`cc-side-text ${clamped ? "is-clamped" : ""}`}><SideText text={ex.after} other={ex.before} tone="after" marks={marks?.after} /></span>
+          <span className={`cc-side-text ${clamped ? "is-clamped" : ""}`}>
+            <SideText
+              text={ex.after}
+              other={ex.before}
+              tone="after"
+              marks={marks?.after}
+            />
+          </span>
         </div>
       </div>
       {clamp && (longSide(ex.before) || longSide(ex.after)) && (
-        <button type="button" className="cc-more" onClick={() => setAll((a) => !a)} aria-expanded={all} data-cc-example-all>
+        <button
+          type="button"
+          className="cc-more"
+          onClick={() => setAll((a) => !a)}
+          aria-expanded={all}
+          data-cc-example-all
+        >
           {all ? "Show less" : "Show all"}
-          <ChevronRight className={`w-3 h-3 transition-transform ${all ? "-rotate-90" : "rotate-90"}`} />
+          <ChevronRight
+            className={`w-3 h-3 transition-transform ${all ? "-rotate-90" : "rotate-90"}`}
+          />
         </button>
       )}
       {note && (
-        <button type="button" className={`cc-example-note ${noteOpen ? "is-open" : ""}`} onClick={() => setNoteOpen((o) => !o)} aria-expanded={noteOpen} title={noteOpen ? undefined : "Show the whole note"} data-cc-example-note>
+        <button
+          type="button"
+          className={`cc-example-note ${noteOpen ? "is-open" : ""}`}
+          onClick={() => setNoteOpen((o) => !o)}
+          aria-expanded={noteOpen}
+          title={noteOpen ? undefined : "Show the whole note"}
+          data-cc-example-note
+        >
           {note}
         </button>
       )}
@@ -580,14 +1069,35 @@ const LineFence = lazy(() => import("../line/widgets/LineFence"));
  *  project holds, the earlier shipped fixes the card carries stand in. */
 function CauseHistory({ card }: { card: ChangeCard }) {
   const ref = card.cause.task;
-  const projectId = useInboxStore((s) => (lookup(s.tasks, ref) as { project_id?: string | null } | undefined)?.project_id ?? null);
-  const earlier = card.earlier?.length ? <EarlierFixes earlier={card.earlier} /> : null;
-  const spec = useMemo(() => (projectId ? JSON.stringify({ widget: "problem", project: projectId, case: ref, title: "This problem so far" }) : null), [projectId, ref]);
+  const projectId = useInboxStore(
+    (s) =>
+      (lookup(s.tasks, ref) as { project_id?: string | null } | undefined)
+        ?.project_id ?? null,
+  );
+  const earlier = card.earlier?.length ? (
+    <EarlierFixes earlier={card.earlier} />
+  ) : null;
+  const spec = useMemo(
+    () =>
+      projectId
+        ? JSON.stringify({
+            widget: "problem",
+            project: projectId,
+            case: ref,
+            title: "This problem so far",
+          })
+        : null,
+    [projectId, ref],
+  );
   if (!spec) return earlier;
   return (
     <section className="cc-section" data-cc-history>
-      <div className="cc-label-row"><h3 className="cc-label">Tried before</h3></div>
-      <Suspense fallback={earlier}><LineFence code={spec} /></Suspense>
+      <div className="cc-label-row">
+        <h3 className="cc-label">Tried before</h3>
+      </div>
+      <Suspense fallback={earlier}>
+        <LineFence code={spec} />
+      </Suspense>
     </section>
   );
 }
@@ -595,18 +1105,37 @@ function CauseHistory({ card }: { card: ChangeCard }) {
 /** The cause's earlier shipped fixes beside this change (line-workspace.md
  *  LW5): what each changed, when it went live, and whether the problem came
  *  back after it, so a person never approves the same fix twice unknowingly. */
-export function EarlierFixes({ earlier }: { earlier: NonNullable<ChangeCard["earlier"]> }) {
+export function EarlierFixes({
+  earlier,
+}: {
+  earlier: NonNullable<ChangeCard["earlier"]>;
+}) {
   return (
     <section className="cc-section" data-cc-earlier>
-      <div className="cc-label-row"><h3 className="cc-label">Shipped before</h3></div>
+      <div className="cc-label-row">
+        <h3 className="cc-label">Shipped before</h3>
+      </div>
       <ol className="cc-earlier">
         {earlier.map((f) => (
-          <li key={f.attempt} className={f.back ? "is-back" : f.held ? "is-held" : undefined}>
-            <span className="cc-label">Attempt {f.attempt}{f.ref ? ` · ${f.ref}` : ""}</span>
+          <li
+            key={f.attempt}
+            className={f.back ? "is-back" : f.held ? "is-held" : undefined}
+          >
+            <span className="cc-label">
+              Attempt {f.attempt}
+              {f.ref ? ` · ${f.ref}` : ""}
+            </span>
             <p className="cc-wrong">{f.change}</p>
             <p className="cc-fact-sub">
               {f.live}
-              {f.back ? <> · <span className="cc-text-red">{f.back}</span></> : f.held ? ` · ${f.held}` : null}
+              {f.back ? (
+                <>
+                  {" "}
+                  · <span className="cc-text-red">{f.back}</span>
+                </>
+              ) : f.held ? (
+                ` · ${f.held}`
+              ) : null}
             </p>
           </li>
         ))}
@@ -615,7 +1144,27 @@ export function EarlierFixes({ earlier }: { earlier: NonNullable<ChangeCard["ear
   );
 }
 
-function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summarized, diffAnchor, guide }: { card: ChangeCard; inline: boolean; head: boolean; recommend: boolean; outcome?: ReactNode; animate: boolean; summarized: boolean; diffAnchor?: string; guide?: ChangeGuide | null }) {
+function ChangeCardFull({
+  card,
+  inline,
+  head,
+  recommend,
+  outcome,
+  animate,
+  summarized,
+  diffAnchor,
+  guide,
+}: {
+  card: ChangeCard;
+  inline: boolean;
+  head: boolean;
+  recommend: boolean;
+  outcome?: ReactNode;
+  animate: boolean;
+  summarized: boolean;
+  diffAnchor?: string;
+  guide?: ChangeGuide | null;
+}) {
   const [allExamples, setAllExamples] = useState(false);
   const [checksOpen, setChecksOpen] = useState(false);
   // Two pairs show at every width; the rest wait behind a toggle that names
@@ -635,24 +1184,41 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
   const ownChecks = summarized ? honestChecks(card.checks) : [];
   const cost = costParts(card.cost);
   return (
-    <article className={`change-card ${inline ? "cc-inline" : "cc-full"} ${animate ? "cc-animate" : ""}`} data-change-card={card.cause.task}>
+    <article
+      className={`change-card ${inline ? "cc-inline" : "cc-full"} ${animate ? "cc-animate" : ""}`}
+      data-change-card={card.cause.task}
+    >
       {/* The head every surface draws (ChangeCardHeadline): the change,
           then its cause, then its goal. A surface that titles the page with
           it turns it off here. */}
-      {head && <header><ChangeCardHeadline card={card} size="card" /></header>}
+      {head && (
+        <header>
+          <ChangeCardHeadline card={card} size="card" />
+        </header>
+      )}
 
       {/* What was wrong names itself like every later section. */}
       <div className="cc-sentences">
         <h3 className="cc-label cc-wrong-label">What is wrong</h3>
         <p className="cc-wrong">{card.wrong}</p>
-        {card.headline && <>
-          <h3 className="cc-label cc-change-label">What this changes</h3>
-          <p className="cc-wrong" data-card-change>{card.change}</p>
-        </>}
+        {card.headline && (
+          <>
+            <h3 className="cc-label cc-change-label">What this changes</h3>
+            <p className="cc-wrong" data-card-change>
+              {card.change}
+            </p>
+          </>
+        )}
       </div>
 
       {/* What was tried before, beside what is proposed now (LW5). */}
-      {inline ? (card.earlier?.length ? <EarlierFixes earlier={card.earlier} /> : null) : <CauseHistory card={card} />}
+      {inline ? (
+        card.earlier?.length ? (
+          <EarlierFixes earlier={card.earlier} />
+        ) : null
+      ) : (
+        <CauseHistory card={card} />
+      )}
 
       {/* Proof, then examples, stacked on every card at every width, so the
           examples are always in the same place. */}
@@ -660,12 +1226,21 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
 
       {card.examples.length > 0 && (
         <section className="cc-section">
-          <div className="cc-label-row"><h3 className="cc-label">Examples</h3></div>
+          <div className="cc-label-row">
+            <h3 className="cc-label">Examples</h3>
+          </div>
           <div className="space-y-4">
-            {examples.map((ex, i) => <ExamplePair key={i} ex={ex} clamp={inline} />)}
+            {examples.map((ex, i) => (
+              <ExamplePair key={i} ex={ex} clamp={inline} />
+            ))}
           </div>
           {hidden > 0 && (
-            <button type="button" onClick={() => setAllExamples(true)} className="cc-more" data-cc-more>
+            <button
+              type="button"
+              onClick={() => setAllExamples(true)}
+              className="cc-more"
+              data-cc-more
+            >
               {hidden} more example{hidden === 1 ? "" : "s"}
               <ChevronRight className="w-3 h-3" />
             </button>
@@ -676,16 +1251,28 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
       {/* The facts and, when open, the check list as a full width row right
           under them; on a narrow card the list sits under the short facts,
           above the risk (CSS orders them). */}
-      <div className={`cc-facts-block ${!summarized && checks.length ? "has-checks" : ""}`}>
+      <div
+        className={`cc-facts-block ${!summarized && checks.length ? "has-checks" : ""}`}
+      >
         <dl className="cc-facts">
           {!summarized && checks.length > 0 && (
             <div className="cc-fact">
               <dt className="cc-label">Checks</dt>
               <dd>
                 {/* A disclosure: the caret leads and turns as the list opens. */}
-                <button type="button" className={`cc-checks-toggle ${showChecks ? "is-open" : ""}`} onClick={() => setChecksOpen((o) => !o)} aria-expanded={showChecks} data-cc-checks>
+                <button
+                  type="button"
+                  className={`cc-checks-toggle ${showChecks ? "is-open" : ""}`}
+                  onClick={() => setChecksOpen((o) => !o)}
+                  aria-expanded={showChecks}
+                  data-cc-checks
+                >
                   <ChevronRight className="cc-caret w-3 h-3" aria-hidden />
-                  <span className={`cc-nowrap ${checksPassed < checks.length ? "cc-text-red" : ""}`}>{checksLabel(checks, true)}</span>
+                  <span
+                    className={`cc-nowrap ${checksPassed < checks.length ? "cc-text-red" : ""}`}
+                  >
+                    {checksLabel(checks, true)}
+                  </span>
                 </button>
               </dd>
             </div>
@@ -694,10 +1281,34 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
             <dt className="cc-label">Diff</dt>
             <dd>
               <DiffCounts diff={card.diff} />
-              <SepRow className="cc-fact-sub" items={[
-                { key: "files", className: "cc-nowrap", node: `${card.diff.files} file${card.diff.files === 1 ? "" : "s"}` },
-                ...(card.diff.pr ? [{ key: "pr", node: <a href={card.diff.pr} target="_blank" rel="noreferrer" className="cc-pr cc-nowrap"><GitPullRequest className="w-3 h-3" />{prLabel(card.diff.pr)}</a> }] : []),
-              ]} />
+              <SepRow
+                className="cc-fact-sub"
+                items={[
+                  {
+                    key: "files",
+                    className: "cc-nowrap",
+                    node: `${card.diff.files} file${card.diff.files === 1 ? "" : "s"}`,
+                  },
+                  ...(card.diff.pr
+                    ? [
+                        {
+                          key: "pr",
+                          node: (
+                            <a
+                              href={card.diff.pr}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="cc-pr cc-nowrap"
+                            >
+                              <GitPullRequest className="w-3 h-3" />
+                              {prLabel(card.diff.pr)}
+                            </a>
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             </dd>
           </div>
           <div className="cc-fact cc-fact-risk">
@@ -708,16 +1319,30 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
             <dd>
               {summarized && card.risk.reason ? (
                 <span className="cc-risk" title={riskLabel(card.risk)}>
-                  <span className={`cc-risk-dot cc-tone-${RISK_TONE[card.risk.class]}`} aria-hidden />
-                  <span className="cc-risk-reason is-only">{riskReason(card.risk)}</span>
+                  <span
+                    className={`cc-risk-dot cc-tone-${RISK_TONE[card.risk.class]}`}
+                    aria-hidden
+                  />
+                  <span className="cc-risk-reason is-only">
+                    {riskReason(card.risk)}
+                  </span>
                 </span>
               ) : (
                 <>
                   <span className="cc-risk">
-                    <span className={`cc-risk-dot cc-tone-${RISK_TONE[card.risk.class]}`} aria-hidden />
-                    <span className={`cc-text-${RISK_TONE[card.risk.class]}`}>{riskLabel(card.risk)}</span>
+                    <span
+                      className={`cc-risk-dot cc-tone-${RISK_TONE[card.risk.class]}`}
+                      aria-hidden
+                    />
+                    <span className={`cc-text-${RISK_TONE[card.risk.class]}`}>
+                      {riskLabel(card.risk)}
+                    </span>
                   </span>
-                  {card.risk.reason && <div className="cc-fact-sub cc-risk-reason">{riskReason(card.risk)}</div>}
+                  {card.risk.reason && (
+                    <div className="cc-fact-sub cc-risk-reason">
+                      {riskReason(card.risk)}
+                    </div>
+                  )}
                 </>
               )}
             </dd>
@@ -727,29 +1352,77 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
             <dt className="cc-label">Billed</dt>
             <dd>
               <span className="cc-nowrap">{costUsd(cost.billed_usd)}</span>
-              <SepRow className="cc-fact-sub" items={[
-                ...(cost.list_usd > 0 ? [{ key: "list", className: "cc-nowrap", node: `${costUsd(cost.list_usd)} at list price, not billed` }] : []),
-                // A card that recorded no tokens says nothing rather than "0 tokens".
-                ...(card.cost.tokens > 0 ? [{ key: "tokens", className: "cc-nowrap", node: `${tokensLabel(card.cost.tokens)} tokens` }] : []),
-                // Agent time is summed over the run's sessions, not the run's wall time.
-                { key: "minutes", className: "cc-nowrap", node: `${card.cost.minutes} agent min` },
-              ]} />
+              <SepRow
+                className="cc-fact-sub"
+                items={[
+                  ...(cost.list_usd > 0
+                    ? [
+                        {
+                          key: "list",
+                          className: "cc-nowrap",
+                          node: `${costUsd(cost.list_usd)} at list price, not billed`,
+                        },
+                      ]
+                    : []),
+                  // A card that recorded no tokens says nothing rather than "0 tokens".
+                  ...(card.cost.tokens > 0
+                    ? [
+                        {
+                          key: "tokens",
+                          className: "cc-nowrap",
+                          node: `${tokensLabel(card.cost.tokens)} tokens`,
+                        },
+                      ]
+                    : []),
+                  // Agent time is summed over the run's sessions, not the run's wall time.
+                  {
+                    key: "minutes",
+                    className: "cc-nowrap",
+                    node: `${card.cost.minutes} agent min`,
+                  },
+                ]}
+              />
             </dd>
           </div>
           {ownChecks.length > 0 && (
             <div className="cc-fact cc-fact-checks">
               <dt className="cc-label">Checks</dt>
-              <dd><ul className="cc-checks">{ownChecks.map((c) => <CheckRow key={c.name} check={c} />)}</ul></dd>
+              <dd>
+                <ul className="cc-checks">
+                  {ownChecks.map((c) => (
+                    <CheckRow key={c.name} check={c} />
+                  ))}
+                </ul>
+              </dd>
             </div>
           )}
         </dl>
-        {!summarized && showChecks && checks.length > 0 && <ul className="cc-checks">{checks.map((c) => <CheckRow key={c.name} check={c} />)}</ul>}
+        {!summarized && showChecks && checks.length > 0 && (
+          <ul className="cc-checks">
+            {checks.map((c) => (
+              <CheckRow key={c.name} check={c} />
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* The author's tour of the code (ct-57527), read just before the verdict. */}
-      {guide && guide.steps.length > 0 && <ChangeGuideWalkthrough guide={guide} compact={inline} className="cc-section" />}
+      {guide && guide.steps.length > 0 && (
+        <ChangeGuideWalkthrough
+          guide={guide}
+          compact={inline}
+          className="cc-section"
+        />
+      )}
 
-      {outcome ?? (recommend && <RecommendCaption verdict={card.recommend.verdict} why={card.recommend.why} confidence={card.recommend.confidence} />)}
+      {outcome ??
+        (recommend && (
+          <RecommendCaption
+            verdict={card.recommend.verdict}
+            why={card.recommend.why}
+            confidence={card.recommend.confidence}
+          />
+        ))}
     </article>
   );
 }
@@ -762,22 +1435,52 @@ function ChangeCardFull({ card, inline, head, recommend, outcome, animate, summa
  * not.
  */
 /** `afterEvals`: a Ship recommended while an eval the change owes is unscored reads "Ship after evals". */
-export function RecommendCaption({ verdict, why, reasons, afterEvals = false, confidence }: { verdict: ChangeVerdict; why?: string; reasons?: string[]; afterEvals?: boolean; confidence?: number }) {
-  const lead = verdict === "ship" && afterEvals ? "Ship after evals" : verdictLabel(verdict);
+export function RecommendCaption({
+  verdict,
+  why,
+  reasons,
+  afterEvals = false,
+  confidence,
+}: {
+  verdict: ChangeVerdict;
+  why?: string;
+  reasons?: string[];
+  afterEvals?: boolean;
+  confidence?: number;
+}) {
+  const lead =
+    verdict === "ship" && afterEvals
+      ? "Ship after evals"
+      : verdictLabel(verdict);
   const sure = confidenceLabel({ confidence });
   const recommended = `${lead} recommended${sure ? `, ${sure}` : ""}`;
   // A verdict against shipping reads as the checks that hold it back, its sentence a hover away.
   if (reasons?.length) {
     return (
-      <p className={`cc-why cc-tone-${VERDICT_TONE[verdict] ?? "blue"}`} data-cc-recommended title={why}>
+      <p
+        className={`cc-why cc-tone-${VERDICT_TONE[verdict] ?? "blue"}`}
+        data-cc-recommended
+        title={why}
+      >
         <span className="cc-why-lead">{recommended}</span>
-        {reasons.map((r) => <span key={r} className="cc-why-chip">{r}</span>)}
+        {reasons.map((r) => (
+          <span key={r} className="cc-why-chip">
+            {r}
+          </span>
+        ))}
       </p>
     );
   }
   return (
-    <p className={`cc-why cc-tone-${VERDICT_TONE[verdict] ?? "blue"}`} data-cc-recommended data-cc-after-evals={verdict === "ship" && afterEvals ? "" : undefined}>
-      <span className="cc-why-lead">{recommended}{why ? ":" : "."}</span>
+    <p
+      className={`cc-why cc-tone-${VERDICT_TONE[verdict] ?? "blue"}`}
+      data-cc-recommended
+      data-cc-after-evals={verdict === "ship" && afterEvals ? "" : undefined}
+    >
+      <span className="cc-why-lead">
+        {recommended}
+        {why ? ":" : "."}
+      </span>
       {why && <> {why}</>}
     </p>
   );
@@ -789,24 +1492,34 @@ export function checkShort(c: CardCheck): string {
   const d = c.detail.trim();
   const hand = /^handoff (?:status|marked) (\w+)$/.exec(d);
   if (hand) return `handoff ${hand[1]}`;
-  if (c.ok) return /^an independent reviewer approved/i.test(d) ? "approved" : d.split(/[.;:]/)[0].slice(0, 48);
+  if (c.ok)
+    return /^an independent reviewer approved/i.test(d)
+      ? "approved"
+      : d.split(/[.;:]/)[0].slice(0, 48);
   return d.split(/[.;]/)[0].slice(0, 60);
 }
 
 /** What holds a card back from Ship, as chips: each failing check ("Verify: handoff blocked"). An owed eval holds nothing back on its own; a Ship says "after evals". */
 export function holdReasons(card: ChangeCard): string[] {
-  return honestChecks(card.checks).filter((c) => !c.ok && !checkNotRun(c)).map((c) => `${c.name}: ${checkShort(c)}`);
+  return honestChecks(card.checks)
+    .filter((c) => !c.ok && !checkNotRun(c))
+    .map((c) => `${c.name}: ${checkShort(c)}`);
 }
 
 // ── the queue's line ─────────────────────────────────────────────────────────
 
 /** The first example whose output the change moved, for a card too small to hold them all. */
-const movedExample = (card: ChangeCard) => card.examples.find((ex) => ex.before.trim() !== ex.after.trim()) ?? null;
+const movedExample = (card: ChangeCard) =>
+  card.examples.find((ex) => ex.before.trim() !== ex.after.trim()) ?? null;
 
 /** A goal a cause serves, as a pill the shape of the line's project pills,
  *  so a goal reads the same on every cause row of the line. */
 export function GoalChip({ name, title }: { name: string; title?: string }) {
-  return <span className="cc-goal-chip" title={title} data-goal-chip>{name}</span>;
+  return (
+    <span className="cc-goal-chip" title={title} data-goal-chip>
+      {name}
+    </span>
+  );
 }
 
 /** The proof as evidence at a glance: one 8px dot per case, before then
@@ -818,21 +1531,46 @@ export function ProofDots({ card }: { card: ChangeCard }) {
   const summary = proofSummary(card.proof);
   const after = new Map(card.proof.after.map((c) => [c.name, c.ok]));
   const red = card.proof.before.filter((c) => !c.ok).map((c) => c.name);
-  const proven = red.map((n) => ({ n, before: false, after: after.get(n) === true }));
+  const proven = red.map((n) => ({
+    n,
+    before: false,
+    after: after.get(n) === true,
+  }));
   const broken = summary.broke.map((n) => ({ n, before: true, after: false }));
   const cases = [...proven, ...broken];
   if (!cases.length) return null;
-  const dot = (c: (typeof cases)[number], ok: boolean) => <span key={c.n} className="cc-proof-dot" data-ok={ok ? "true" : undefined} />;
+  const dot = (c: (typeof cases)[number], ok: boolean) => (
+    <span
+      key={c.n}
+      className="cc-proof-dot"
+      data-ok={ok ? "true" : undefined}
+    />
+  );
   const row = (pick: (c: (typeof cases)[number]) => boolean) => (
     <span className="cc-proof-dots-row">
       {proven.map((c) => dot(c, pick(c)))}
-      {proven.length > 0 && broken.length > 0 && <span className="cc-proof-dots-gap" />}
+      {proven.length > 0 && broken.length > 0 && (
+        <span className="cc-proof-dots-gap" />
+      )}
       {broken.map((c) => dot(c, pick(c)))}
     </span>
   );
   return (
-    <span className="cc-proof-dots" role="img" aria-label={summary.evidence} title={cases.map((c) => `${c.n}: ${c.before ? "passed" : "failed"} before, ${c.after ? "passes" : "fails"} after`).join("\n")} data-cc-proof-dots>
-      {row((c) => c.before)}<span className="cc-proof-dots-rule" aria-hidden />{row((c) => c.after)}
+    <span
+      className="cc-proof-dots"
+      role="img"
+      aria-label={summary.evidence}
+      title={cases
+        .map(
+          (c) =>
+            `${c.n}: ${c.before ? "passed" : "failed"} before, ${c.after ? "passes" : "fails"} after`,
+        )
+        .join("\n")}
+      data-cc-proof-dots
+    >
+      {row((c) => c.before)}
+      <span className="cc-proof-dots-rule" aria-hidden />
+      {row((c) => c.after)}
     </span>
   );
 }
@@ -845,7 +1583,19 @@ export function ProofDots({ card }: { card: ChangeCard }) {
  * `folded` is a card in the line's queue the cursor is not on: the proof
  * alone, so the queue reads as a list to work down.
  */
-function ChangeCardLine({ card, recommend, story, folded = false, dots = true }: { card: ChangeCard; recommend: boolean; story: boolean; folded?: boolean; dots?: boolean }) {
+function ChangeCardLine({
+  card,
+  recommend,
+  story,
+  folded = false,
+  dots = true,
+}: {
+  card: ChangeCard;
+  recommend: boolean;
+  story: boolean;
+  folded?: boolean;
+  dots?: boolean;
+}) {
   const summary = proofSummary(card.proof);
   // The same count the full card's Checks cell and the badge on Ship say (cardChecks).
   const checks = cardChecks(card);
@@ -854,11 +1604,17 @@ function ChangeCardLine({ card, recommend, story, folded = false, dots = true }:
   const riskTone = RISK_TONE[card.risk.class];
   const ex = story && !folded ? movedExample(card) : null;
   return (
-    <div className={`change-card cc-line ${story ? "cc-line-story" : ""} ${folded ? "cc-line-folded" : ""}`} data-change-card={card.cause.task} data-folded={folded ? "true" : undefined}>
+    <div
+      className={`change-card cc-line ${story ? "cc-line-story" : ""} ${folded ? "cc-line-folded" : ""}`}
+      data-change-card={card.cause.task}
+      data-folded={folded ? "true" : undefined}
+    >
       {ex && (
         <span className="cc-line-ex" data-cc-line-example title={ex.input}>
-          <span className="cc-line-ex-label cc-before-ink">Before</span><span className="cc-line-ex-text cc-line-ex-before">{ex.before}</span>
-          <span className="cc-line-ex-label cc-after-ink">After</span><span className="cc-line-ex-text">{ex.after}</span>
+          <span className="cc-line-ex-label cc-before-ink">Before</span>
+          <span className="cc-line-ex-text cc-line-ex-before">{ex.before}</span>
+          <span className="cc-line-ex-label cc-after-ink">After</span>
+          <span className="cc-line-ex-text">{ex.after}</span>
         </span>
       )}
       {/* SepRow, so a wrapped line never opens on a separator. A row has no
@@ -871,11 +1627,78 @@ function ChangeCardLine({ card, recommend, story, folded = false, dots = true }:
       <SepRow
         className="cc-line-row"
         items={[
-          { key: "proof", className: "items-center", node: <span className="cc-line-proof">{dots && <ProofDots card={card} />}<span className={!summary.red ? "text-sol-text" : summary.broke.length ? "cc-text-red" : summary.stillRed.length ? "cc-text-yellow" : "cc-text-green"} data-cc-line-proof>{folded && summary.red ? `${summary.fixed} of ${summary.red} fixed` : summary.evidence}</span></span> },
+          {
+            key: "proof",
+            className: "items-center",
+            node: (
+              <span className="cc-line-proof">
+                {dots && <ProofDots card={card} />}
+                <span
+                  className={
+                    !summary.red
+                      ? "text-sol-text"
+                      : summary.broke.length
+                        ? "cc-text-red"
+                        : summary.stillRed.length
+                          ? "cc-text-yellow"
+                          : "cc-text-green"
+                  }
+                  data-cc-line-proof
+                >
+                  {folded && summary.red
+                    ? `${summary.fixed} of ${summary.red} fixed`
+                    : summary.evidence}
+                </span>
+              </span>
+            ),
+          },
           // A folded card keeps the proof; checks and risk are said when it opens.
-          ...(checks.length && !folded ? [{ key: "checks", className: `cc-nowrap ${checksOk ? "text-sol-text-muted cc-line-quiet" : "cc-text-red"}`, node: checksLabel(checks) }] : []),
-          ...(folded ? [] : [{ key: "risk", className: `cc-nowrap ${card.risk.class === "low" ? "text-sol-text-dim" : `cc-text-${riskTone}`}`, title: card.risk.reason ? `${riskLabel(card.risk)}: ${riskReason(card.risk)}` : riskLabel(card.risk), node: <span className="cc-line-risk" data-cc-line-risk><span className={`cc-risk-dot cc-tone-${riskTone}`} aria-hidden />{riskLabel(card.risk, true)}</span> }]),
-          ...(recommend ? [{ key: "verdict", plain: true, end: true, node: <span className={`cc-line-verdict cc-tone-${tone}`}>recommends {verdictLabel(card.recommend.verdict)}{confidenceLabel(card.recommend) ? `, ${confidenceLabel(card.recommend)}` : ""}</span> }] : []),
+          ...(checks.length && !folded
+            ? [
+                {
+                  key: "checks",
+                  className: `cc-nowrap ${checksOk ? "text-sol-text-muted cc-line-quiet" : "cc-text-red"}`,
+                  node: checksLabel(checks),
+                },
+              ]
+            : []),
+          ...(folded
+            ? []
+            : [
+                {
+                  key: "risk",
+                  className: `cc-nowrap ${card.risk.class === "low" ? "text-sol-text-dim" : `cc-text-${riskTone}`}`,
+                  title: card.risk.reason
+                    ? `${riskLabel(card.risk)}: ${riskReason(card.risk)}`
+                    : riskLabel(card.risk),
+                  node: (
+                    <span className="cc-line-risk" data-cc-line-risk>
+                      <span
+                        className={`cc-risk-dot cc-tone-${riskTone}`}
+                        aria-hidden
+                      />
+                      {riskLabel(card.risk, true)}
+                    </span>
+                  ),
+                },
+              ]),
+          ...(recommend
+            ? [
+                {
+                  key: "verdict",
+                  plain: true,
+                  end: true,
+                  node: (
+                    <span className={`cc-line-verdict cc-tone-${tone}`}>
+                      recommends {verdictLabel(card.recommend.verdict)}
+                      {confidenceLabel(card.recommend)
+                        ? `, ${confidenceLabel(card.recommend)}`
+                        : ""}
+                    </span>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </div>
@@ -885,7 +1708,9 @@ function ChangeCardLine({ card, recommend, story, folded = false, dots = true }:
 // ── Ship / Revise / Drop ─────────────────────────────────────────────────────
 
 /** The card's answer controls, or null when the decision's options are not Ship, Revise and Drop. */
-export function cardAnswerIndexes(decision: Pick<SessionDecisionItem, "card" | "kind" | "options">) {
+export function cardAnswerIndexes(
+  decision: Pick<SessionDecisionItem, "card" | "kind" | "options">,
+) {
   if (!decision.card || (decision.kind ?? "single") !== "single") return null;
   return cardVerdictIndexes(decision.options);
 }
@@ -897,7 +1722,10 @@ export function cardAnswerIndexes(decision: Pick<SessionDecisionItem, "card" | "
  * shares a window with a transcript answers only while it is the thing in
  * focus, so a digit typed anywhere else never answers it.
  */
-export function answerKeyAllowed(e: KeyboardEvent, scope?: RefObject<HTMLElement | null>): boolean {
+export function answerKeyAllowed(
+  e: KeyboardEvent,
+  scope?: RefObject<HTMLElement | null>,
+): boolean {
   if (e.metaKey || e.ctrlKey || e.altKey || hasOpenModal()) return false;
   // Shift and a digit belongs to the page (the line jumps stations with it),
   // even on a layout where that chord still reports a bare digit.
@@ -950,17 +1778,25 @@ export function ChangeCardAnswer({
 }) {
   // The note and whether it is open live in the decision's draft, so a fold
   // or a page change never loses a half-written Revise.
-  const [draft, patchDraft] = useDecisionDraft<{ note: string; noteOpen: boolean }>(decision._id);
+  const [draft, patchDraft] = useDecisionDraft<{
+    note: string;
+    noteOpen: boolean;
+  }>(decision._id);
   const noteOpen = !!draft.noteOpen;
   const [note, setNote] = useDecisionDraftText(decision._id, "note");
-  const setNoteOpen = useCallback((open: boolean) => patchDraft({ noteOpen: open }), [patchDraft]);
+  const setNoteOpen = useCallback(
+    (open: boolean) => patchDraft({ noteOpen: open }),
+    [patchDraft],
+  );
   const [error, setError] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const line = size === "line";
   // The line's selected answer, waiting for return. It lets go when the
   // cursor leaves the card.
   const [armed, setArmed] = useState<ChangeVerdict | "dismiss" | null>(null);
-  useWatchEffect(() => { if (!keys) setArmed(null); }, [keys]);
+  useWatchEffect(() => {
+    if (!keys) setArmed(null);
+  }, [keys]);
   // A real Ship's confirm (components/consequential): open until the person ships or backs out.
   const [reviewing, setReviewing] = useState(false);
   const recommended = decision.card?.recommend.verdict;
@@ -975,10 +1811,16 @@ export function ChangeCardAnswer({
   // so it is plain which card the digits answer.
   const live = useFocusWithin(keyScope, keys);
   const showKeys = keys && live;
-  const verdictAt = (i: number | undefined) => (i === undefined ? undefined : (Object.keys(indexes) as ChangeVerdict[]).find((v) => indexes[v] === i));
+  const verdictAt = (i: number | undefined) =>
+    i === undefined
+      ? undefined
+      : (Object.keys(indexes) as ChangeVerdict[]).find((v) => indexes[v] === i);
   // An advisory ask's agent went on with its default before anyone answered.
   const pending = decision.status === "pending";
-  const wentAhead = pending && !decision.blocking ? verdictAt(decision.default_option) : undefined;
+  const wentAhead =
+    pending && !decision.blocking
+      ? verdictAt(decision.default_option)
+      : undefined;
   // An answer on record that a new pick replaces (advisoryAnswerOpen).
   const current = pending ? undefined : verdictAt(decision.answer_index);
 
@@ -991,36 +1833,61 @@ export function ChangeCardAnswer({
   }, [setNoteOpen, note, suggested, setNote]);
   const sendRevise = useCallback(() => {
     const t = note.trim();
-    if (!t) { setError(true); noteRef.current?.focus(); return; }
+    if (!t) {
+      setError(true);
+      noteRef.current?.focus();
+      return;
+    }
     onAnswer({ index: indexes.revise, text: `Revise: ${t}` });
   }, [note, onAnswer, indexes.revise]);
   // Ship on a real line run starts the ship itself (commit, push, PR, maybe merge), so it is never one press: every
   // Ship press, by click, digit or the line's return, opens the shared confirm, and only its confirm ships. The
   // review is modal, so the person cannot move to another decision with it half done.
   // A trial card's Ship only records the choice (the server refuses to ship a trial change).
-  const realShip = !!(decision.task_id && decision.workflow_run_id && !decision.trial);
+  const realShip = !!(
+    decision.task_id &&
+    decision.workflow_run_id &&
+    !decision.trial
+  );
   // The row leaves the list as it answers, so a toast says what was sent.
-  const sent = useCallback((v: ChangeVerdict) => {
-    if (line) toast.success(`${verdictLabel(v)} sent`, { description: decision.card?.cause.title });
-  }, [line, decision.card]);
-  const pick = useCallback((v: ChangeVerdict) => {
-    if (v === "revise") return openNote();
-    if (v === "ship" && realShip) return setReviewing(true);
-    onAnswer({ index: indexes[v] });
-    sent(v);
-  }, [onAnswer, indexes, openNote, realShip, sent]);
+  const sent = useCallback(
+    (v: ChangeVerdict) => {
+      if (line)
+        toast.success(`${verdictLabel(v)} sent`, {
+          description: decision.card?.cause.title,
+        });
+    },
+    [line, decision.card],
+  );
+  const pick = useCallback(
+    (v: ChangeVerdict) => {
+      if (v === "revise") return openNote();
+      if (v === "ship" && realShip) return setReviewing(true);
+      onAnswer({ index: indexes[v] });
+      sent(v);
+    },
+    [onAnswer, indexes, openNote, realShip, sent],
+  );
   // Ship on a line run's card is the One Ship control's press (ship.ts):
   // the same action the task, session and PR buttons run, which answers
   // the card on its own rail and records the ship run against it.
   const ship = useCallback(() => {
     setReviewing(false);
     if (!decision.task_id) return;
-    useInboxStore.getState().startShip({ kind: "task", id: decision.task_id }, `ship-${Date.now().toString(36)}`, decision._id);
+    useInboxStore
+      .getState()
+      .startShip(
+        { kind: "task", id: decision.task_id },
+        `ship-${Date.now().toString(36)}`,
+        decision._id,
+      );
     sent("ship");
   }, [decision.task_id, decision._id, sent]);
   const commit = useCallback(() => {
-    if (armed === "dismiss") { onDismiss?.(); toast(`Dismissed`, { description: decision.card?.cause.title }); }
-    else if (armed) pick(armed);
+    if (armed === "dismiss") {
+      onDismiss?.();
+      toast(`Dismissed`, { description: decision.card?.cause.title });
+    } else if (armed) pick(armed);
     setArmed(null);
   }, [armed, onDismiss, pick, decision.card]);
 
@@ -1030,58 +1897,153 @@ export function ChangeCardAnswer({
       if (!answerKeyAllowed(e, keyScope)) return;
       const target = e.target as HTMLElement | null;
       if (target === noteRef.current) {
-        if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); setNoteOpen(false); setError(false); }
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); sendRevise(); }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setNoteOpen(false);
+          setError(false);
+        }
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          sendRevise();
+        }
         return;
       }
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable || target.tagName === "SELECT")) return;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.tagName === "SELECT")
+      )
+        return;
       if (armed && line && (e.key === "Enter" || e.key === "Escape")) {
-        e.preventDefault(); e.stopImmediatePropagation();
-        if (e.key === "Enter") commit(); else setArmed(null);
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.key === "Enter") commit();
+        else setArmed(null);
         return;
       }
       const n = Number(e.key) - 1;
-      const verdict = (Object.keys(indexes) as ChangeVerdict[]).find((v) => indexes[v] === n);
+      const verdict = (Object.keys(indexes) as ChangeVerdict[]).find(
+        (v) => indexes[v] === n,
+      );
       if (verdict && verdict !== current) {
-        e.preventDefault(); e.stopImmediatePropagation();
-        if (line && verdict !== "revise") setArmed(verdict); else { setArmed(null); pick(verdict); }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (line && verdict !== "revise") setArmed(verdict);
+        else {
+          setArmed(null);
+          pick(verdict);
+        }
         return;
       }
       if ((e.key === "x" || e.key === "X") && onDismiss) {
-        e.preventDefault(); e.stopImmediatePropagation();
-        if (line) setArmed("dismiss"); else onDismiss();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (line) setArmed("dismiss");
+        else onDismiss();
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [keys, keyScope, indexes, current, pick, sendRevise, onDismiss, setNoteOpen, line, armed, commit]);
+  }, [
+    keys,
+    keyScope,
+    indexes,
+    current,
+    pick,
+    sendRevise,
+    onDismiss,
+    setNoteOpen,
+    line,
+    armed,
+    commit,
+  ]);
 
   const compact = size !== "full";
-  const order: ChangeVerdict[] = (["ship", "revise", "drop"] as ChangeVerdict[]).sort((a, b) => indexes[a] - indexes[b]);
+  const order: ChangeVerdict[] = (
+    ["ship", "revise", "drop"] as ChangeVerdict[]
+  ).sort((a, b) => indexes[a] - indexes[b]);
   // On a phone the full controls scroll away under the proof and examples; a
   // dock pinned to the screen's foot carries the three answers once they do.
   const rowRef = useRef<HTMLDivElement>(null);
   const offscreen = useScrolledPast(rowRef, size === "full");
-  const dockPick = useCallback((v: ChangeVerdict) => {
-    if (v === "revise") rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-    pick(v);
-  }, [pick]);
-  const showCaption = caption && !!recommended && !current && !noteOpen && !line;
+  const dockPick = useCallback(
+    (v: ChangeVerdict) => {
+      if (v === "revise")
+        rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      pick(v);
+    },
+    [pick],
+  );
+  const showCaption =
+    caption && !!recommended && !current && !noteOpen && !line;
   return (
-    <div className={`change-card-answer ${line ? "is-line" : ""}`} data-card-answer>
+    <div
+      className={`change-card-answer ${line ? "is-line" : ""}`}
+      data-card-answer
+    >
       {/* Which is recommended, and on a full surface why, in one muted line
           above the row; the button itself wears only a ring. */}
-      {showCaption && <RecommendCaption verdict={recommended!} why={compact ? undefined : why} reasons={recommended !== "ship" && decision.card && decision.card.recommend.source !== "evidence" ? holdReasons(decision.card) : undefined} afterEvals={!!decision.card && !decision.trial && evalsOwed(decision.card)} confidence={decision.card?.recommend.confidence} />}
+      {showCaption && (
+        <RecommendCaption
+          verdict={recommended!}
+          why={compact ? undefined : why}
+          reasons={
+            recommended !== "ship" &&
+            decision.card &&
+            decision.card.recommend.source !== "evidence"
+              ? holdReasons(decision.card)
+              : undefined
+          }
+          afterEvals={
+            !!decision.card && !decision.trial && evalsOwed(decision.card)
+          }
+          confidence={decision.card?.recommend.confidence}
+        />
+      )}
       {(wentAhead || current) && !line && (
         <p className="cc-course" data-cc-course>
-          {wentAhead ? <>The agent went ahead with <span className="cc-course-verdict">{verdictLabel(wentAhead)}</span>. Pick another to change course.</> : <>{record ? `${record}. ` : ""}Pick another to change course.</>}
+          {wentAhead ? (
+            <>
+              The agent went ahead with{" "}
+              <span className="cc-course-verdict">
+                {verdictLabel(wentAhead)}
+              </span>
+              . Pick another to change course.
+            </>
+          ) : (
+            <>{record ? `${record}. ` : ""}Pick another to change course.</>
+          )}
         </p>
       )}
-      <div ref={rowRef} className={`cc-verdicts ${compact ? "is-compact" : ""} ${line ? "is-line" : ""} ${describe && !line ? "is-described" : ""}`}>
+      <div
+        ref={rowRef}
+        className={`cc-verdicts ${compact ? "is-compact" : ""} ${line ? "is-line" : ""} ${describe && !line ? "is-described" : ""}`}
+      >
         {/* The row has no course line, so the course the agent took is said
             beside the chips, or the check on its chip reads as a verdict. */}
         {line && (wentAhead || current) && (
-          <span className="cc-course-short" data-cc-course-short>{wentAhead ? <>Agent goes with <span className="cc-course-verdict">{verdictLabel(wentAhead)}</span> unless you pick</> : <>on record: <span className="cc-course-verdict">{verdictLabel(current)}</span></>}</span>
+          <span className="cc-course-short" data-cc-course-short>
+            {wentAhead ? (
+              <>
+                Agent goes with{" "}
+                <span className="cc-course-verdict">
+                  {verdictLabel(wentAhead)}
+                </span>{" "}
+                unless you pick
+              </>
+            ) : (
+              <>
+                on record:{" "}
+                <span className="cc-course-verdict">
+                  {verdictLabel(current)}
+                </span>
+              </>
+            )}
+          </span>
         )}
         {order.map((v) => (
           <button
@@ -1092,42 +2054,113 @@ export function ChangeCardAnswer({
             disabled={current === v}
             data-verdict={v}
             className={`cc-verdict cc-tone-${VERDICT_TONE[v]} ${recommended === v && !current ? "is-recommended" : ""} ${current === v ? "is-current" : ""} ${wentAhead === v ? "is-taken" : ""} ${v === "revise" && noteOpen ? "is-open" : ""} ${armed === v ? "is-armed" : ""} ${v === "ship" && weakShip && !current ? "is-weak" : ""}`}
-            title={wentAhead === v ? `The agent went ahead with ${verdictLabel(v)}` : v === "ship" && weakShip ? `Not every failing case passes yet. ${decision.options[indexes[v]]?.description ?? ""}`.trim() : recommended === v && why ? `Suggested: ${why}` : decision.options[indexes[v]]?.description}
+            title={
+              wentAhead === v
+                ? `The agent went ahead with ${verdictLabel(v)}`
+                : v === "ship" && weakShip
+                  ? `Not every failing case passes yet. ${decision.options[indexes[v]]?.description ?? ""}`.trim()
+                  : recommended === v && why
+                    ? `Suggested: ${why}`
+                    : decision.options[indexes[v]]?.description
+            }
           >
-            {showKeys && indexes[v] < 9 && current !== v && <KeyCap size="xs">{String(indexes[v] + 1)}</KeyCap>}
+            {showKeys && indexes[v] < 9 && current !== v && (
+              <KeyCap size="xs">{String(indexes[v] + 1)}</KeyCap>
+            )}
             {describe && !line ? (
               <span className="cc-verdict-stack">
-                <span className="cc-verdict-word">{verdictLabel(v)}{recommended === v && !current && armed !== v && <span className="cc-verdict-rec">recommended</span>}</span>
-                {v === "revise" && suggested
-                  ? <span className="cc-verdict-desc cc-verdict-ask" title={suggested} data-cc-ask>{suggested}</span>
-                  : decision.options[indexes[v]]?.description && <span className="cc-verdict-desc">{decision.options[indexes[v]]?.description}</span>}
-                {v === "ship" && weakShip && !current && <span className="cc-verdict-desc cc-text-red" data-cc-fails>Ships with {failing} {failing === 1 ? "check" : "checks"} red</span>}
+                <span className="cc-verdict-word">
+                  {verdictLabel(v)}
+                  {recommended === v && !current && armed !== v && (
+                    <span className="cc-verdict-rec">recommended</span>
+                  )}
+                </span>
+                {v === "revise" && suggested ? (
+                  <span
+                    className="cc-verdict-desc cc-verdict-ask"
+                    title={suggested}
+                    data-cc-ask
+                  >
+                    {suggested}
+                  </span>
+                ) : (
+                  decision.options[indexes[v]]?.description && (
+                    <span className="cc-verdict-desc">
+                      {decision.options[indexes[v]]?.description}
+                    </span>
+                  )
+                )}
+                {v === "ship" && weakShip && !current && (
+                  <span className="cc-verdict-desc cc-text-red" data-cc-fails>
+                    Ships with {failing} {failing === 1 ? "check" : "checks"}{" "}
+                    red
+                  </span>
+                )}
               </span>
-            ) : <span>{verdictLabel(v)}</span>}
+            ) : (
+              <span>{verdictLabel(v)}</span>
+            )}
             {/* The row has no caption, so the tint and ring on the card's own
                 answer say it; the word stays for screen readers and the tooltip. */}
-            {line && recommended === v && !current && !wentAhead && <span className="sr-only" data-cc-suggested>suggested</span>}
+            {line && recommended === v && !current && !wentAhead && (
+              <span className="sr-only" data-cc-suggested>
+                suggested
+              </span>
+            )}
             {/* A weak Ship still works: it says why it is risky, in the button,
                 on every surface, with the Checks cell's own count. */}
-            {v === "ship" && weakShip && !current && !(describe && !line) && <span className="cc-verdict-fails" data-cc-fails>{failing} {failing === 1 ? "check fails" : "checks fail"}</span>}
+            {v === "ship" && weakShip && !current && !(describe && !line) && (
+              <span className="cc-verdict-fails" data-cc-fails>
+                {failing} {failing === 1 ? "check fails" : "checks fail"}
+              </span>
+            )}
             {/* The answer on record cannot be pressed again; a small check
                 marks why. The agent's own course is said once, in words. */}
-            {current === v && <Check className="cc-verdict-check w-3 h-3" aria-label="on record" />}
+            {current === v && (
+              <Check
+                className="cc-verdict-check w-3 h-3"
+                aria-label="on record"
+              />
+            )}
           </button>
         ))}
         {/* Closing with no verdict is not a fourth answer: it says what it
             does and sits at the row's far end, away from Drop. */}
         {onDismiss && !line && (
-          <button onClick={onDismiss} className="cc-dismiss" title="Close with no verdict: nothing goes back to the agent, and a flow run stops here" aria-label="Close without answering">
-            {showKeys ? <KeyCap size="xs">x</KeyCap> : null}<span>close without answering</span>
+          <button
+            onClick={onDismiss}
+            className="cc-dismiss"
+            title="Close with no verdict: nothing goes back to the agent, and a flow run stops here"
+            aria-label="Close without answering"
+          >
+            {showKeys ? <KeyCap size="xs">x</KeyCap> : null}
+            <span>close without answering</span>
           </button>
         )}
       </div>
-      {reviewing && <SwitchReview ledger={cardShipLedger({ title: decision.card?.cause.title ?? decision.question, failing })} onClose={() => setReviewing(false)} onConfirm={ship} />}
+      {reviewing && (
+        <SwitchReview
+          ledger={cardShipLedger({
+            title: decision.card?.cause.title ?? decision.question,
+            failing,
+          })}
+          onClose={() => setReviewing(false)}
+          onConfirm={ship}
+        />
+      )}
       {line && armed && (
-        <p className={`cc-armed cc-tone-${armed === "dismiss" ? "red" : VERDICT_TONE[armed]}`} data-cc-armed>
-          <KeyCap size="xs">return</KeyCap><span>{armed === "dismiss" ? "close without answering" : verdictLabel(armed)}</span>
-          <KeyCap size="xs">esc</KeyCap><span className="text-sol-text-dim">cancel</span>
+        <p
+          className={`cc-armed cc-tone-${armed === "dismiss" ? "red" : VERDICT_TONE[armed]}`}
+          data-cc-armed
+        >
+          <KeyCap size="xs">return</KeyCap>
+          <span>
+            {armed === "dismiss"
+              ? "close without answering"
+              : verdictLabel(armed)}
+          </span>
+          <KeyCap size="xs">esc</KeyCap>
+          <span className="text-sol-text-dim">cancel</span>
         </p>
       )}
       {noteOpen && (
@@ -1135,20 +2168,46 @@ export function ChangeCardAnswer({
           <textarea
             ref={noteRef}
             value={note}
-            onChange={(e) => { setNote(e.target.value); if (error) setError(false); }}
+            onChange={(e) => {
+              setNote(e.target.value);
+              if (error) setError(false);
+            }}
             rows={compact ? 2 : 3}
             placeholder="What should change? This goes back to build."
             className={`cc-note-field ${error ? "is-error" : ""}`}
             onKeyDown={(e) => {
               if (keys) return; // the window listener has it
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendRevise(); }
-              if (e.key === "Escape") { setNoteOpen(false); setError(false); }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendRevise();
+              }
+              if (e.key === "Escape") {
+                setNoteOpen(false);
+                setError(false);
+              }
             }}
           />
           <div className="flex items-center gap-3 mt-1 text-meta text-sol-text-dim">
-            <button onClick={sendRevise} className="flex items-center gap-1 hover:text-sol-text"><KeyCap size="xs">return</KeyCap><span>send Revise</span></button>
-            <button onClick={() => { setNoteOpen(false); setError(false); }} className="flex items-center gap-1 hover:text-sol-text"><KeyCap size="xs">esc</KeyCap><span>cancel</span></button>
-            {error && <span className="cc-text-red">Say what should change.</span>}
+            <button
+              onClick={sendRevise}
+              className="flex items-center gap-1 hover:text-sol-text"
+            >
+              <KeyCap size="xs">return</KeyCap>
+              <span>send Revise</span>
+            </button>
+            <button
+              onClick={() => {
+                setNoteOpen(false);
+                setError(false);
+              }}
+              className="flex items-center gap-1 hover:text-sol-text"
+            >
+              <KeyCap size="xs">esc</KeyCap>
+              <span>cancel</span>
+            </button>
+            {error && (
+              <span className="cc-text-red">Say what should change.</span>
+            )}
           </div>
         </div>
       )}
@@ -1162,7 +2221,9 @@ export function ChangeCardAnswer({
               className={`cc-verdict cc-tone-${VERDICT_TONE[v]} ${recommended === v && !current ? "is-recommended" : ""} ${current === v ? "is-current" : ""}`}
             >
               <span>{verdictLabel(v)}</span>
-              {current === v && <Check className="cc-verdict-check w-3 h-3" aria-hidden />}
+              {current === v && (
+                <Check className="cc-verdict-check w-3 h-3" aria-hidden />
+              )}
             </button>
           ))}
         </div>
@@ -1176,7 +2237,10 @@ export function ChangeCardAnswer({
  * `on` holds. The scope element carries data-keys-live meanwhile, so the
  * surface the keys answer draws a ring (changeCard.css).
  */
-function useFocusWithin(scope: RefObject<HTMLElement | null> | undefined, on: boolean) {
+function useFocusWithin(
+  scope: RefObject<HTMLElement | null> | undefined,
+  on: boolean,
+) {
   const [inside, setInside] = useState(false);
   useWatchEffect(() => {
     if (!scope || !on) return;
@@ -1206,13 +2270,24 @@ function useScrolledPast(ref: RefObject<HTMLElement | null>, on: boolean) {
   useWatchEffect(() => {
     const el = ref.current;
     if (!on || !el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([e]) => {
-      // Out of view in its upper half means it scrolled up past; a row still
-      // below the fold (a long card above it) is not news.
-      if (e) setPast(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.height ?? window.innerHeight) / 2);
-    }, { threshold: 0 });
+    const io = new IntersectionObserver(
+      ([e]) => {
+        // Out of view in its upper half means it scrolled up past; a row still
+        // below the fold (a long card above it) is not news.
+        if (e)
+          setPast(
+            !e.isIntersecting &&
+              e.boundingClientRect.top <
+                (e.rootBounds?.height ?? window.innerHeight) / 2,
+          );
+      },
+      { threshold: 0 },
+    );
     io.observe(el);
-    return () => { io.disconnect(); setPast(false); };
+    return () => {
+      io.disconnect();
+      setPast(false);
+    };
   }, [ref, on]);
   return past;
 }

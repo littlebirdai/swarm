@@ -15,7 +15,9 @@ export function sanitizeConvexObjectKeys<T>(value: T): T {
   }
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       if (!isValidConvexFieldName(key)) continue;
       out[key] = sanitizeConvexObjectKeys(child);
     }

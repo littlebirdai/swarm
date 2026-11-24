@@ -6,33 +6,79 @@
 // This file is the only place a lifecycle word or tone is chosen. Pure, with
 // relative imports only: the web's chip, grid and pills and the phone's pill all
 // read a change through it.
-import type { DeployReach, ReachState, TargetReach } from "@codecast/shared/contracts/deployReach";
+import type {
+  DeployReach,
+  ReachState,
+  TargetReach,
+} from "@codecast/shared/contracts/deployReach";
 import { deployElapsed } from "../deploys/deployPill";
 
-export const CHANGE_STAGES = ["work", "check", "land", "deploy", "live"] as const;
+export const CHANGE_STAGES = [
+  "work",
+  "check",
+  "land",
+  "deploy",
+  "live",
+] as const;
 export type ChangeStageId = (typeof CHANGE_STAGES)[number];
 
-export const STAGE_LABEL: Record<ChangeStageId, string> = { work: "Work", check: "Check", land: "Land", deploy: "Deploy", live: "Live" };
+export const STAGE_LABEL: Record<ChangeStageId, string> = {
+  work: "Work",
+  check: "Check",
+  land: "Land",
+  deploy: "Deploy",
+  live: "Live",
+};
 
 /**
  * A stage's state. `active`: in motion. `waiting`: its turn in a queue. `you`: a person must act. `back`: sent back to
  * the session that wrote it. `failed`: stopped on a failure. `done`: passed. `skipped`: this change does not pass
  * through it (nothing deploys a repo without targets). `idle`: not reached. `stopped`: closed without landing.
  */
-export type StageState = "idle" | "active" | "waiting" | "you" | "back" | "failed" | "done" | "skipped" | "stopped";
+export type StageState =
+  | "idle"
+  | "active"
+  | "waiting"
+  | "you"
+  | "back"
+  | "failed"
+  | "done"
+  | "skipped"
+  | "stopped";
 
 /** CH2: one palette for every surface. */
-export type ChangeTone = "yellow" | "muted" | "blue" | "orange" | "red" | "green" | "dim";
+export type ChangeTone =
+  | "yellow"
+  | "muted"
+  | "blue"
+  | "orange"
+  | "red"
+  | "green"
+  | "dim";
 
 /** What carries the change. Its glyph and name on the chip. */
 export type ChangeVehicle =
-  | { kind: "branch"; name: string; worktree?: string | null; pr?: number | null }
-  | { kind: "pr"; number: number; branch?: string | null; title?: string | null }
+  | {
+      kind: "branch";
+      name: string;
+      worktree?: string | null;
+      pr?: number | null;
+    }
+  | {
+      kind: "pr";
+      number: number;
+      branch?: string | null;
+      title?: string | null;
+    }
   | { kind: "commit"; sha: string; branch?: string | null }
   /** A shared checkout's bundle: every session's uncommitted work, shipped in one pass. */
   | { kind: "pass"; folder: string; sessions: number; files: number };
 
-export type ChangeWriter = { conversation_id: string | null; title: string | null; state: "working" | "idle" | "finished" };
+export type ChangeWriter = {
+  conversation_id: string | null;
+  title: string | null;
+  state: "working" | "idle" | "finished";
+};
 
 export type ChangeFacts = {
   vehicle: ChangeVehicle;
@@ -77,7 +123,13 @@ export type ChangeFacts = {
 };
 
 /** `line`: the stage's sentence on hover. `short`: two words at most, for a cell of the lifecycle grid. */
-export type LifecycleStage = { id: ChangeStageId; label: string; state: StageState; line: string | null; short: string | null };
+export type LifecycleStage = {
+  id: ChangeStageId;
+  label: string;
+  state: StageState;
+  line: string | null;
+  short: string | null;
+};
 
 export type LifecycleNow = {
   stage: ChangeStageId;
@@ -93,9 +145,14 @@ export type LifecycleNow = {
   since: number | null;
 };
 
-export type Lifecycle = { vehicle: ChangeVehicle; stages: LifecycleStage[]; now: LifecycleNow };
+export type Lifecycle = {
+  vehicle: ChangeVehicle;
+  stages: LifecycleStage[];
+  now: LifecycleNow;
+};
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 /** The stage state each tone reads as, for a now whose tone follows its state. */
 const STATE_TONE: Record<StageState, ChangeTone> = {
@@ -113,20 +170,29 @@ const STATE_TONE: Record<StageState, ChangeTone> = {
 /** The name a vehicle reads as on its chip. */
 export function vehicleName(v: ChangeVehicle): string {
   switch (v.kind) {
-    case "branch": return v.name;
-    case "pr": return `#${v.number}`;
-    case "commit": return v.sha.slice(0, 7);
-    case "pass": return `${v.folder.split("/").filter(Boolean).pop() ?? v.folder} checkout`;
+    case "branch":
+      return v.name;
+    case "pr":
+      return `#${v.number}`;
+    case "commit":
+      return v.sha.slice(0, 7);
+    case "pass":
+      return `${v.folder.split("/").filter(Boolean).pop() ?? v.folder} checkout`;
   }
 }
 
 function liveCount(targets: ReadonlyArray<TargetReach>) {
-  return { live: targets.filter((t) => t.state === "live").length, of: targets.length };
+  return {
+    live: targets.filter((t) => t.state === "live").length,
+    of: targets.length,
+  };
 }
 
 /** Each target's one line: `backend live · web deploying`. */
 function reachLine(reach: DeployReach): string {
-  return reach.targets.map((t) => `${t.target} ${REACH_WORD[t.state]}`).join(" · ");
+  return reach.targets
+    .map((t) => `${t.target} ${REACH_WORD[t.state]}`)
+    .join(" · ");
 }
 
 const REACH_WORD: Record<ReachState, string> = {
@@ -152,11 +218,25 @@ function checkLine(f: ChangeFacts): string | null {
   const c = f.check;
   if (!c) return null;
   const ci =
-    c.ci === "failure" ? (c.failing?.length ? `${c.failing.join(", ")} failed` : "CI failed")
-    : c.ci === "pending" ? "CI running"
-    : c.ci === "success" ? (c.passed ? `${plural(c.passed, "check")} passed` : "CI passed")
-    : null;
-  const review = c.review === "approved" ? "review passed" : c.review === "changes" ? "review asked for changes" : c.review === "required" ? "waiting for a reviewer" : null;
+    c.ci === "failure"
+      ? c.failing?.length
+        ? `${c.failing.join(", ")} failed`
+        : "CI failed"
+      : c.ci === "pending"
+        ? "CI running"
+        : c.ci === "success"
+          ? c.passed
+            ? `${plural(c.passed, "check")} passed`
+            : "CI passed"
+          : null;
+  const review =
+    c.review === "approved"
+      ? "review passed"
+      : c.review === "changes"
+        ? "review asked for changes"
+        : c.review === "required"
+          ? "waiting for a reviewer"
+          : null;
   const bits = [ci, review].filter(Boolean) as string[];
   if (c.after_land) bits.push("after it landed");
   return bits.join(" · ") || null;
@@ -166,35 +246,97 @@ function landLine(f: ChangeFacts): string | null {
   const l = f.land;
   if (!l) return null;
   if (l.state === "landed") {
-    const how = l.how === "pushed" ? "Pushed to main" : l.how === "pass" ? "Shipped with the checkout" : "Merged";
+    const how =
+      l.how === "pushed"
+        ? "Pushed to main"
+        : l.how === "pass"
+          ? "Shipped with the checkout"
+          : "Merged";
     return l.sha ? `${how} as ${l.sha.slice(0, 7)}` : how;
   }
-  return ({ none: null, conflict: "Conflicts with main", behind: "Behind main" } as const)[l.state];
+  return (
+    {
+      none: null,
+      conflict: "Conflicts with main",
+      behind: "Behind main",
+    } as const
+  )[l.state];
 }
 
-const parked = (l: Lifecycle): Lifecycle => ({ ...l, now: { ...l.now, parked: true } });
+const parked = (l: Lifecycle): Lifecycle => ({
+  ...l,
+  now: { ...l.now, parked: true },
+});
 
 /** Each stage's two words for a grid cell: what the change holds there. */
 function stageShorts(f: ChangeFacts): Record<ChangeStageId, string | null> {
-  const w = f.work, c = f.check, l = f.land, r = f.reach;
-  const work = !w ? null : w.uncommitted ? plural(w.uncommitted, "file") : w.ahead ? plural(w.ahead, "commit") : w.pushed ? "pushed" : null;
-  const check = !c ? null
-    : c.ci === "failure" ? (c.failing?.length === 1 ? c.failing[0] : "failed")
-    : c.review === "changes" ? "changes asked"
-    : c.ci === "pending" ? "running"
-    : c.ci === "success" ? (c.passed ? `${c.passed} passed` : "passed")
-    : c.review === "approved" ? "reviewed" : null;
-  const land = !l ? null : l.state === "landed" ? (l.sha ? l.sha.slice(0, 7) : "on main") : l.state === "none" ? null : landLine(f)?.toLowerCase() ?? null;
+  const w = f.work,
+    c = f.check,
+    l = f.land,
+    r = f.reach;
+  const work = !w
+    ? null
+    : w.uncommitted
+      ? plural(w.uncommitted, "file")
+      : w.ahead
+        ? plural(w.ahead, "commit")
+        : w.pushed
+          ? "pushed"
+          : null;
+  const check = !c
+    ? null
+    : c.ci === "failure"
+      ? c.failing?.length === 1
+        ? c.failing[0]
+        : "failed"
+      : c.review === "changes"
+        ? "changes asked"
+        : c.ci === "pending"
+          ? "running"
+          : c.ci === "success"
+            ? c.passed
+              ? `${c.passed} passed`
+              : "passed"
+            : c.review === "approved"
+              ? "reviewed"
+              : null;
+  const land = !l
+    ? null
+    : l.state === "landed"
+      ? l.sha
+        ? l.sha.slice(0, 7)
+        : "on main"
+      : l.state === "none"
+        ? null
+        : (landLine(f)?.toLowerCase() ?? null);
   const one = r?.targets.length === 1 ? r.targets[0].target : null;
-  const deploy = !r ? null : one ?? `${r.targets.length} targets`;
-  const live = !r ? null : one ? (r.targets[0].state === "live" ? one : null) : `${r.targets.filter((t) => t.state === "live").length} of ${r.targets.length}`;
+  const deploy = !r ? null : (one ?? `${r.targets.length} targets`);
+  const live = !r
+    ? null
+    : one
+      ? r.targets[0].state === "live"
+        ? one
+        : null
+      : `${r.targets.filter((t) => t.state === "live").length} of ${r.targets.length}`;
   return { work, check, land, deploy, live };
 }
 
 /** The change's stages and its now, at `now`. */
 export function changeLifecycle(f: ChangeFacts): Lifecycle {
-  const states: Record<ChangeStageId, StageState> = { work: "idle", check: "idle", land: "idle", deploy: "idle", live: "idle" };
-  const lines: Record<ChangeStageId, string | null> = { work: workLine(f), check: checkLine(f), land: landLine(f), deploy: null, live: null };
+  const states: Record<ChangeStageId, StageState> = {
+    work: "idle",
+    check: "idle",
+    land: "idle",
+    deploy: "idle",
+    live: "idle",
+  };
+  const lines: Record<ChangeStageId, string | null> = {
+    work: workLine(f),
+    check: checkLine(f),
+    land: landLine(f),
+    deploy: null,
+    live: null,
+  };
   const shorts = stageShorts(f);
   const set = (upTo: ChangeStageId) => {
     for (const id of CHANGE_STAGES) {
@@ -202,12 +344,25 @@ export function changeLifecycle(f: ChangeFacts): Lifecycle {
       states[id] = "done";
     }
   };
-  const result = (stage: ChangeStageId, state: StageState, word: string, since: number | null = null, tone: ChangeTone = STATE_TONE[state], detail: string | null = null): Lifecycle => {
+  const result = (
+    stage: ChangeStageId,
+    state: StageState,
+    word: string,
+    since: number | null = null,
+    tone: ChangeTone = STATE_TONE[state],
+    detail: string | null = null,
+  ): Lifecycle => {
     set(stage);
     states[stage] = state;
     return {
       vehicle: f.vehicle,
-      stages: CHANGE_STAGES.map((id) => ({ id, label: STAGE_LABEL[id], state: states[id], line: lines[id], short: shorts[id] })),
+      stages: CHANGE_STAGES.map((id) => ({
+        id,
+        label: STAGE_LABEL[id],
+        state: states[id],
+        line: lines[id],
+        short: shorts[id],
+      })),
       now: { stage, state, word, tone, since, detail },
     };
   };
@@ -231,12 +386,28 @@ export function changeLifecycle(f: ChangeFacts): Lifecycle {
     if (!reach) {
       states.deploy = "skipped";
       states.live = "skipped";
-      lines.deploy = f.deploys === false ? "This repository deploys nothing" : "Touches nothing a target deploys";
+      lines.deploy =
+        f.deploys === false
+          ? "This repository deploys nothing"
+          : "Touches nothing a target deploys";
       for (const id of ["work", "check", "land"] as const) states[id] = "done";
       return {
         vehicle: f.vehicle,
-        stages: CHANGE_STAGES.map((id) => ({ id, label: STAGE_LABEL[id], state: states[id], line: lines[id], short: shorts[id] })),
-        now: { stage: "land", state: "done", word: "landed", tone: "green", since: null, detail: null },
+        stages: CHANGE_STAGES.map((id) => ({
+          id,
+          label: STAGE_LABEL[id],
+          state: states[id],
+          line: lines[id],
+          short: shorts[id],
+        })),
+        now: {
+          stage: "land",
+          state: "done",
+          word: "landed",
+          tone: "green",
+          since: null,
+          detail: null,
+        },
       };
     }
     lines.deploy = reachLine(reach);
@@ -247,16 +418,30 @@ export function changeLifecycle(f: ChangeFacts): Lifecycle {
     switch (reach.state) {
       case "live":
         states.deploy = "done";
-        lines.live = of > 1 ? `Live on all ${of} targets` : `Live on ${reach.targets[0]?.target ?? "its target"}`;
+        lines.live =
+          of > 1
+            ? `Live on all ${of} targets`
+            : `Live on ${reach.targets[0]?.target ?? "its target"}`;
         return result("live", "done", "live");
-      case "going_out": return result("deploy", "active", "deploying", at, "yellow", partial);
-      case "queued": return result("deploy", "waiting", "deploy queued", at);
-      case "failed": return result("deploy", "failed", "deploy failed");
+      case "going_out":
+        return result("deploy", "active", "deploying", at, "yellow", partial);
+      case "queued":
+        return result("deploy", "waiting", "deploy queued", at);
+      case "failed":
+        return result("deploy", "failed", "deploy failed");
       case "rolled_back":
         states.deploy = "done";
         lines.live = "Was live, then rolled back";
         return result("live", "back", "rolled back");
-      case "waiting": return result("deploy", "waiting", "not live yet", null, "muted", partial);
+      case "waiting":
+        return result(
+          "deploy",
+          "waiting",
+          "not live yet",
+          null,
+          "muted",
+          partial,
+        );
     }
   }
 
@@ -268,22 +453,37 @@ export function changeLifecycle(f: ChangeFacts): Lifecycle {
 
   // On its way to main.
   if (land.state === "conflict") return result("land", "back", "conflicts");
-  if (land.state === "behind" && check?.ci !== "failure") return result("land", "back", "behind main");
+  if (land.state === "behind" && check?.ci !== "failure")
+    return result("land", "back", "behind main");
 
-  if (f.draft && check?.ci !== "failure") return result("check", "waiting", "draft");
+  if (f.draft && check?.ci !== "failure")
+    return result("check", "waiting", "draft");
   if (check && (check.ci !== "none" || check.review !== "none")) {
-    if (check.ci === "failure") return result("check", "failed", "checks failed", null, "red", check.failing?.length === 1 ? check.failing[0] : null);
-    if (check.review === "changes") return result("check", "back", "changes asked");
+    if (check.ci === "failure")
+      return result(
+        "check",
+        "failed",
+        "checks failed",
+        null,
+        "red",
+        check.failing?.length === 1 ? check.failing[0] : null,
+      );
+    if (check.review === "changes")
+      return result("check", "back", "changes asked");
     if (check.ci === "pending") return result("check", "active", "checking");
-    if (check.review === "required") return result("check", "you", "needs review");
+    if (check.review === "required")
+      return result("check", "you", "needs review");
     // Checks passed and nothing is landing it yet: auto-merge lands it on its own, else a person does.
-    return f.auto_merge ? result("land", "active", "landing") : result("land", "you", "ready to land");
+    return f.auto_merge
+      ? result("land", "active", "landing")
+      : result("land", "you", "ready to land");
   }
 
   if (work) {
     const working = work.writers.some((w) => w.state === "working");
     if (working) return result("work", "active", "editing");
-    if (work.pushed && !work.uncommitted) return parked(result("check", "idle", "not checked", null, "muted"));
+    if (work.pushed && !work.uncommitted)
+      return parked(result("check", "idle", "not checked", null, "muted"));
     if (work.uncommitted || work.ahead) {
       const idle = work.writers.some((w) => w.state === "idle");
       if (idle) return result("work", "waiting", "between turns");
@@ -296,8 +496,11 @@ export function changeLifecycle(f: ChangeFacts): Lifecycle {
 
 /** How long a now in motion or in a queue has lasted (`6m`), the chip's time after its word; null for any other. */
 export function nowElapsed(n: LifecycleNow, at: number): string | null {
-  return n.since != null && (n.state === "active" || n.state === "waiting") ? deployElapsed(at - n.since) : null;
+  return n.since != null && (n.state === "active" || n.state === "waiting")
+    ? deployElapsed(at - n.since)
+    : null;
 }
 
 /** Whether a change has stopped moving: live, landed with nothing to deploy, or closed. Settled chips stop ticking. */
-export const lifecycleSettled = (l: Lifecycle) => l.now.state === "done" || l.now.state === "stopped";
+export const lifecycleSettled = (l: Lifecycle) =>
+  l.now.state === "done" || l.now.state === "stopped";

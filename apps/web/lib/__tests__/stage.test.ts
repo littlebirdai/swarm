@@ -1,8 +1,21 @@
 import { replaceGlobals } from "../../test-helpers/globals";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
 import { useInboxStore, type AppTab } from "../../store/inboxStore";
 import { besideLeafId, leavesOf, seedLeafId } from "../../store/stageSplit";
-import { openBeside, openBrowserPane, paneSessionId, performStageDrop, stageRenderLayout } from "../stage";
+import {
+  openBeside,
+  openBrowserPane,
+  paneSessionId,
+  performStageDrop,
+  stageRenderLayout,
+} from "../stage";
 import { parseBrowserRoute } from "../browserPane";
 
 // performStageDrop is the one entry point every drag source funnels into;
@@ -74,7 +87,10 @@ describe("performStageDrop — dragged-in tabs", () => {
     expect(seed).toBe(true);
     const s = state();
     expect(s.tabs.map((t) => t.id)).toEqual(["t1"]);
-    expect(leavesOf(s.tabs[0].layout!).map((l) => l.path)).toEqual(["/tasks", "/docs"]);
+    expect(leavesOf(s.tabs[0].layout!).map((l) => l.path)).toEqual([
+      "/tasks",
+      "/docs",
+    ]);
   });
 
   it("dragging the ACTIVE tab into its own stage duplicates the view and keeps the tab", () => {
@@ -85,7 +101,10 @@ describe("performStageDrop — dragged-in tabs", () => {
     expect(ok).toBe(true);
     const s = state();
     expect(s.tabs.map((t) => t.id)).toEqual(["t1"]);
-    expect(leavesOf(s.tabs[0].layout!).map((l) => l.path)).toEqual(["/tasks", "/tasks"]);
+    expect(leavesOf(s.tabs[0].layout!).map((l) => l.path)).toEqual([
+      "/tasks",
+      "/tasks",
+    ]);
   });
 });
 
@@ -93,10 +112,20 @@ describe("performStageDrop — rearrange (edge/root moves)", () => {
   it("a 2-pane edge move swaps positions without respelling or remounting the stationary pane", () => {
     state().stageInsertLeaf("root", "right", "/conversation/bbb");
     useInboxStore.setState({
-      tabs: [{ ...activeTab(), layout: undefined, focusedLeafId: undefined, path: "/x" }],
+      tabs: [
+        {
+          ...activeTab(),
+          layout: undefined,
+          focusedLeafId: undefined,
+          path: "/x",
+        },
+      ],
     } as any);
     // Rebuild as two conversation panes to hit the collapse-respell trap.
-    useInboxStore.setState({ tabs: [tab({ path: "/conversation/aaa" })], activeTabId: "t1" } as any);
+    useInboxStore.setState({
+      tabs: [tab({ path: "/conversation/aaa" })],
+      activeTabId: "t1",
+    } as any);
     state().stageInsertLeaf("root", "right", "/conversation/bbb");
     const [a, b] = leavesOf(activeTab().layout!);
     const ok = performStageDrop(
@@ -107,7 +136,10 @@ describe("performStageDrop — rearrange (edge/root moves)", () => {
     const t = activeTab();
     // Both panes survive with their spellings intact; the stationary pane
     // keeps its IDENTITY (no sl_seed_* remount), the moved pane keeps its id.
-    expect(leavesOf(t.layout!).map((l) => l.path)).toEqual(["/conversation/bbb", "/conversation/aaa"]);
+    expect(leavesOf(t.layout!).map((l) => l.path)).toEqual([
+      "/conversation/bbb",
+      "/conversation/aaa",
+    ]);
     expect(leavesOf(t.layout!).map((l) => l.id)).toEqual([b.id, a.id]);
     expect(t.focusedLeafId).toBe(b.id);
   });
@@ -115,9 +147,17 @@ describe("performStageDrop — rearrange (edge/root moves)", () => {
   it("a move at the 4-pane cap rearranges instead of being refused", () => {
     state().stageInsertLeaf("root", "right", "/docs");
     let t = activeTab();
-    state().stageInsertLeaf({ leafId: leavesOf(t.layout!)[0].id }, "bottom", "/plans");
+    state().stageInsertLeaf(
+      { leafId: leavesOf(t.layout!)[0].id },
+      "bottom",
+      "/plans",
+    );
     t = activeTab();
-    state().stageInsertLeaf({ leafId: leavesOf(t.layout!)[2].id }, "bottom", "/feed");
+    state().stageInsertLeaf(
+      { leafId: leavesOf(t.layout!)[2].id },
+      "bottom",
+      "/feed",
+    );
     t = activeTab();
     expect(leavesOf(t.layout!)).toHaveLength(4);
     const [first, , , last] = leavesOf(t.layout!);
@@ -127,7 +167,9 @@ describe("performStageDrop — rearrange (edge/root moves)", () => {
     );
     expect(ok).toBe(true);
     // Still four panes, all four routes still present — nothing was discarded.
-    const paths = leavesOf(activeTab().layout!).map((l) => l.path).sort();
+    const paths = leavesOf(activeTab().layout!)
+      .map((l) => l.path)
+      .sort();
     expect(paths).toEqual(["/docs", "/feed", "/plans", "/tasks"]);
     expect(leavesOf(activeTab().layout!)).toHaveLength(4);
   });
@@ -159,18 +201,30 @@ describe("split-tab path invariants under shell writers", () => {
     // The promoted split tab keeps /conversation/<id> mirrored with its
     // focused leaf; the plain-tab heal must not have respelled it.
     expect(t.path).toBe("/conversation/abc");
-    expect(leavesOf(t.layout!).map((l) => l.path)).toContain("/conversation/abc");
+    expect(leavesOf(t.layout!).map((l) => l.path)).toContain(
+      "/conversation/abc",
+    );
   });
 
   it("openTab never seats a tab on the /conversation redirect route", () => {
-    const id = state().openTab({ path: "/conversation/jx7xyz00nvbf8jnk1234567890abcdef", title: "S", makeActive: false });
+    const id = state().openTab({
+      path: "/conversation/jx7xyz00nvbf8jnk1234567890abcdef",
+      title: "S",
+      makeActive: false,
+    });
     const opened = state().tabs.find((t) => t.id === id)!;
     expect(opened.path).toBe("/inbox?s=jx7xyz00nvbf8jnk1234567890abcdef");
   });
 
   it("a tab opened on a short id stays on the route until its resolver redirects", () => {
-    const id = state().openTab({ path: "/conversation/jx7etg8", title: "S", makeActive: false });
-    expect(state().tabs.find((t) => t.id === id)!.path).toBe("/conversation/jx7etg8");
+    const id = state().openTab({
+      path: "/conversation/jx7etg8",
+      title: "S",
+      makeActive: false,
+    });
+    expect(state().tabs.find((t) => t.id === id)!.path).toBe(
+      "/conversation/jx7etg8",
+    );
   });
 });
 
@@ -179,7 +233,10 @@ describe("performStageDrop — dedupe", () => {
     state().stageInsertLeaf("root", "right", "/docs");
     const layoutBefore = activeTab().layout;
     const [a] = leavesOf(layoutBefore!);
-    const ok = performStageDrop({ kind: "edge", leafId: a.id, edge: "bottom" }, { path: "/docs" });
+    const ok = performStageDrop(
+      { kind: "edge", leafId: a.id, edge: "bottom" },
+      { path: "/docs" },
+    );
     expect(ok).toBe(true);
     const t = activeTab();
     expect(leavesOf(t.layout!)).toHaveLength(2);
@@ -208,9 +265,15 @@ describe("openBrowserPane", () => {
   it("opens the page beside what is already on stage", () => {
     expect(openBrowserPane(source)).toBe(true);
     const leaves = leavesOf(activeTab().layout!);
-    expect(leaves.map((l) => l.path.split("?")[0])).toEqual(["/tasks", "/browser"]);
+    expect(leaves.map((l) => l.path.split("?")[0])).toEqual([
+      "/tasks",
+      "/browser",
+    ]);
     // The URL rides the path, which is what makes the pane survive a reload.
-    expect(parseBrowserRoute(leaves[1].path)).toEqual({ kind: "url", url: source.url });
+    expect(parseBrowserRoute(leaves[1].path)).toEqual({
+      kind: "url",
+      url: source.url,
+    });
   });
 
   it("beside:false navigates the tab to the page instead", () => {
@@ -233,7 +296,10 @@ describe("openBrowserPane", () => {
     expect(openBrowserPane(source)).toBe(false);
     // Still four panes — and the tab moved to the page, so nothing is lost.
     expect(leavesOf(activeTab().layout!)).toHaveLength(4);
-    expect(parseBrowserRoute(activeTab().path)).toEqual({ kind: "url", url: source.url });
+    expect(parseBrowserRoute(activeTab().path)).toEqual({
+      kind: "url",
+      url: source.url,
+    });
   });
 });
 
@@ -278,7 +344,11 @@ describe("openBeside — the reused Option-click target", () => {
     openBeside("/docs");
     openBeside("/plans");
     const t = activeTab();
-    expect(leavesOf(t.layout).map((l) => l.path)).toEqual(["/tasks", "/docs", "/plans"]);
+    expect(leavesOf(t.layout).map((l) => l.path)).toEqual([
+      "/tasks",
+      "/docs",
+      "/plans",
+    ]);
     expect(t.path).toBe("/plans");
   });
 });
@@ -286,7 +356,11 @@ describe("openBeside — the reused Option-click target", () => {
 describe("stageRenderLayout", () => {
   it("renders a plain tab as the leaf its first split will keep", () => {
     const plain = stageRenderLayout(activeTab(), false);
-    expect(plain).toEqual({ type: "leaf", id: seedLeafId("t1"), path: "/tasks" });
+    expect(plain).toEqual({
+      type: "leaf",
+      id: seedLeafId("t1"),
+      path: "/tasks",
+    });
     state().stageInsertLeaf("root", "right", "/docs", { focus: false });
     const split = stageRenderLayout(activeTab(), false);
     expect(leavesOf(split)[0]).toEqual(plain);
@@ -312,7 +386,11 @@ describe("paneSessionId", () => {
     // for the id, dropping the token, and getConversation denied the id-only
     // read (no redemption was ever recorded because ConversationPageClient
     // never mounted).
-    expect(paneSessionId(`/conversation/${id}?share=d20fc511-7b8d-4efc-b482-c62d2f32b76e`)).toBeNull();
+    expect(
+      paneSessionId(
+        `/conversation/${id}?share=d20fc511-7b8d-4efc-b482-c62d2f32b76e`,
+      ),
+    ).toBeNull();
     expect(paneSessionId(`/conversation/${id}?highlight=foo`)).toBeNull();
   });
   it("a message hash is the reveal band's business, not a pane match", () => {
@@ -322,6 +400,8 @@ describe("paneSessionId", () => {
     // SessionPane reads its id as a Convex id; handed a short id it showed
     // "no longer available" for a session the viewer could open.
     expect(paneSessionId("/conversation/jx7etg8")).toBeNull();
-    expect(paneSessionId("/conversation/3f2c9a1e-7b1d-4c55-9a0e-1c2d3e4f5a6b")).toBeNull();
+    expect(
+      paneSessionId("/conversation/3f2c9a1e-7b1d-4c55-9a0e-1c2d3e4f5a6b"),
+    ).toBeNull();
   });
 });

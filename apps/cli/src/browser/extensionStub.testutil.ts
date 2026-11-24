@@ -18,7 +18,10 @@ import { webcrypto } from "node:crypto";
 
 /** The extension file's source, read from apps/browser-extension. */
 export function extensionSource(name: string): string {
-  return readFileSync(new URL(`../../../../apps/browser-extension/${name}`, import.meta.url), "utf8");
+  return readFileSync(
+    new URL(`../../../../apps/browser-extension/${name}`, import.meta.url),
+    "utf8",
+  );
 }
 
 export interface ChromeEvent<A extends unknown[] = any[]> {
@@ -51,9 +54,12 @@ export function storageArea(data: Record<string, unknown> = {}) {
     get: async (keys?: string | string[] | null) => {
       if (keys == null) return { ...data };
       const list = Array.isArray(keys) ? keys : [keys];
-      return Object.fromEntries(list.filter((k) => k in data).map((k) => [k, data[k]]));
+      return Object.fromEntries(
+        list.filter((k) => k in data).map((k) => [k, data[k]]),
+      );
     },
-    set: async (items: Record<string, unknown>) => void Object.assign(data, items),
+    set: async (items: Record<string, unknown>) =>
+      void Object.assign(data, items),
     remove: async (keys: string | string[]) => {
       for (const k of Array.isArray(keys) ? keys : [keys]) delete data[k];
     },
@@ -62,50 +68,106 @@ export function storageArea(data: Record<string, unknown> = {}) {
 
 type Namespace = Record<string, any>;
 export type ChromeStub = Record<string, Namespace>;
-export type ChromeOverrides = { [ns: string]: Namespace | undefined } & { storage?: { local?: Namespace; session?: Namespace } };
+export type ChromeOverrides = { [ns: string]: Namespace | undefined } & {
+  storage?: { local?: Namespace; session?: Namespace };
+};
 
 /** Every chrome namespace the extension uses, as inert defaults. */
 function defaults(): ChromeStub {
   return {
-    storage: { local: storageArea(), session: storageArea(), onChanged: chromeEvent() },
-    action: { setTitle: async () => {}, setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, setIcon: async () => {} },
-    offscreen: { Reason: { WORKERS: "WORKERS" }, hasDocument: async () => false, createDocument: async () => {}, closeDocument: async () => {} },
+    storage: {
+      local: storageArea(),
+      session: storageArea(),
+      onChanged: chromeEvent(),
+    },
+    action: {
+      setTitle: async () => {},
+      setBadgeText: async () => {},
+      setBadgeBackgroundColor: async () => {},
+      setIcon: async () => {},
+    },
+    offscreen: {
+      Reason: { WORKERS: "WORKERS" },
+      hasDocument: async () => false,
+      createDocument: async () => {},
+      closeDocument: async () => {},
+    },
     runtime: {
-      onStartup: chromeEvent(), onInstalled: chromeEvent(), onMessage: chromeEvent(),
+      onStartup: chromeEvent(),
+      onInstalled: chromeEvent(),
+      onMessage: chromeEvent(),
       getManifest: () => ({ version: "0.1.0" }),
       getURL: (p: string) => `chrome-extension://ext/${p}`,
       sendMessage: async () => undefined,
       reload: () => {},
     },
-    alarms: { create: async () => {}, clear: async () => true, onAlarm: chromeEvent() },
+    alarms: {
+      create: async () => {},
+      clear: async () => true,
+      onAlarm: chromeEvent(),
+    },
     tabs: {
-      get: async (id: number) => ({ id, windowId: 1, groupId: -1, url: "about:blank", active: false }),
+      get: async (id: number) => ({
+        id,
+        windowId: 1,
+        groupId: -1,
+        url: "about:blank",
+        active: false,
+      }),
       query: async () => [],
-      create: async (p: Namespace) => ({ id: 1, windowId: 1, groupId: -1, url: p.url ?? "about:blank", active: !!p.active }),
-      update: async (id: number, p: Namespace) => ({ id, windowId: 1, groupId: -1, ...p }),
+      create: async (p: Namespace) => ({
+        id: 1,
+        windowId: 1,
+        groupId: -1,
+        url: p.url ?? "about:blank",
+        active: !!p.active,
+      }),
+      update: async (id: number, p: Namespace) => ({
+        id,
+        windowId: 1,
+        groupId: -1,
+        ...p,
+      }),
       remove: async () => {},
       group: async () => 1,
       ungroup: async () => {},
       getCurrent: async () => undefined,
-      onCreated: chromeEvent(), onUpdated: chromeEvent(), onRemoved: chromeEvent(), onActivated: chromeEvent(), onReplaced: chromeEvent(),
-      onDetached: chromeEvent(), onAttached: chromeEvent(),
+      onCreated: chromeEvent(),
+      onUpdated: chromeEvent(),
+      onRemoved: chromeEvent(),
+      onActivated: chromeEvent(),
+      onReplaced: chromeEvent(),
+      onDetached: chromeEvent(),
+      onAttached: chromeEvent(),
     },
     tabGroups: {
       query: async () => [],
-      get: async (id: number) => ({ id, windowId: 1, title: "", color: "grey" }),
+      get: async (id: number) => ({
+        id,
+        windowId: 1,
+        title: "",
+        color: "grey",
+      }),
       update: async (id: number, p: Namespace) => ({ id, windowId: 1, ...p }),
-      onCreated: chromeEvent(), onUpdated: chromeEvent(), onRemoved: chromeEvent(),
+      onCreated: chromeEvent(),
+      onUpdated: chromeEvent(),
+      onRemoved: chromeEvent(),
     },
     windows: {
       getAll: async () => [{ id: 1, type: "normal" }],
       get: async (id: number) => ({ id, type: "normal" }),
       getLastFocused: async () => ({ id: 1, type: "normal" }),
       create: async () => ({ id: 2, type: "normal" }),
-      onFocusChanged: chromeEvent(), onRemoved: chromeEvent(),
+      onFocusChanged: chromeEvent(),
+      onRemoved: chromeEvent(),
     },
     debugger: {
-      attach: async () => {}, detach: async () => {}, getTargets: async () => [], sendCommand: async () => ({}),
-      onEvent: chromeEvent(), onDetach: chromeEvent(),
+      attach: async () => {},
+      detach: async () => {},
+      getTargets: async () => [],
+      sendCommand: async () => ({}),
+      onEvent: chromeEvent(),
+      onDetach: chromeEvent(),
     },
   };
 }
@@ -116,7 +178,8 @@ export function chromeStub(overrides: ChromeOverrides = {}): ChromeStub {
   for (const [ns, value] of Object.entries(overrides)) {
     if (!value) continue;
     if (ns === "storage") {
-      for (const [area, impl] of Object.entries(value)) chrome.storage[area] = { ...(chrome.storage[area] ?? {}), ...impl };
+      for (const [area, impl] of Object.entries(value))
+        chrome.storage[area] = { ...(chrome.storage[area] ?? {}), ...impl };
     } else {
       chrome[ns] = { ...(chrome[ns] ?? {}), ...value };
     }
@@ -133,10 +196,22 @@ export interface LoadOptions {
 }
 
 /** Run status.js and then `main` from apps/browser-extension in a fresh vm context. */
-export function loadExtensionScript(main: string, opts: LoadOptions): vm.Context {
+export function loadExtensionScript(
+  main: string,
+  opts: LoadOptions,
+): vm.Context {
   const context = vm.createContext({
-    chrome: opts.chrome, crypto: webcrypto, TextEncoder, URL, URLSearchParams, navigator: { userAgent: "test" },
-    importScripts() {}, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
+    chrome: opts.chrome,
+    crypto: webcrypto,
+    TextEncoder,
+    URL,
+    URLSearchParams,
+    navigator: { userAgent: "test" },
+    importScripts() {},
+    setTimeout: () => 1,
+    clearTimeout() {},
+    setInterval: () => 1,
+    clearInterval() {},
     ...opts.globals,
   });
   vm.runInContext(extensionSource("status.js"), context);

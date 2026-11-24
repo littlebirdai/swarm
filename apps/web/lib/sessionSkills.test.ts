@@ -3,7 +3,9 @@ import { resolveSessionSkills } from "./sessionSkills";
 
 const map = JSON.stringify({
   global: [{ name: "peon-ping-toggle", description: "toggle" }],
-  "/Users/me/proj": [{ name: "mac-remote", description: "Connect to the remote Mac" }],
+  "/Users/me/proj": [
+    { name: "mac-remote", description: "Connect to the remote Mac" },
+  ],
 });
 
 describe("resolveSessionSkills", () => {
@@ -19,14 +21,18 @@ describe("resolveSessionSkills", () => {
   });
 
   test("project skills do not leak to other/absent projects (only global + built-ins)", () => {
-    const names = resolveSessionSkills({ availableSkills: map }).map((s) => s.name);
+    const names = resolveSessionSkills({ availableSkills: map }).map(
+      (s) => s.name,
+    );
     expect(names).not.toContain("mac-remote");
     expect(names).toContain("peon-ping-toggle");
   });
 
   test("a skill shadowing a built-in name appears once, keeping the skill's description", () => {
     const out = resolveSessionSkills({
-      availableSkills: JSON.stringify({ global: [{ name: "clear", description: "custom clear" }] }),
+      availableSkills: JSON.stringify({
+        global: [{ name: "clear", description: "custom clear" }],
+      }),
     });
     const clears = out.filter((s) => s.name.toLowerCase() === "clear");
     expect(clears).toHaveLength(1);
@@ -42,11 +48,15 @@ describe("resolveSessionSkills", () => {
 
   test("missing or malformed available_skills falls back to built-ins without throwing", () => {
     expect(resolveSessionSkills({}).map((s) => s.name)).toContain("compact");
-    expect(resolveSessionSkills({ availableSkills: "not json{" }).map((s) => s.name)).toContain("clear");
+    expect(
+      resolveSessionSkills({ availableSkills: "not json{" }).map((s) => s.name),
+    ).toContain("clear");
   });
 
   test("agent type selects the right built-in set", () => {
-    const gemini = resolveSessionSkills({ agentType: "gemini" }).map((s) => s.name);
+    const gemini = resolveSessionSkills({ agentType: "gemini" }).map(
+      (s) => s.name,
+    );
     expect(gemini).toContain("compress"); // gemini-only built-in
     expect(gemini).not.toContain("compact"); // claude/codex built-in
   });

@@ -13,7 +13,10 @@ describe("Permission Error Handling", () => {
     }
     fs.mkdirSync(testDir, { recursive: true });
 
-    fs.writeFileSync(testFile, '{"type":"session_meta","session_id":"test","timestamp":1734000000000}\n');
+    fs.writeFileSync(
+      testFile,
+      '{"type":"session_meta","session_id":"test","timestamp":1734000000000}\n',
+    );
   });
 
   afterAll(() => {
@@ -77,7 +80,7 @@ describe("Permission Error Handling", () => {
     try {
       fs.readFileSync(testFile, "utf-8");
     } catch (err: any) {
-      if (err.code === 'EACCES' || err.code === 'EPERM') {
+      if (err.code === "EACCES" || err.code === "EPERM") {
         errors.push(`Permission denied: ${testFile}`);
       } else {
         throw err;

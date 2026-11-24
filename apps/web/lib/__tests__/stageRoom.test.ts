@@ -1,5 +1,13 @@
 import { replaceGlobals } from "../../test-helpers/globals";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
 import { useInboxStore, type AppTab } from "../../store/inboxStore";
 import { leavesOf } from "../../store/stageSplit";
 import { openBrowserPane, stageHasRoom } from "../stage";
@@ -10,7 +18,13 @@ import { openBrowserPane, stageHasRoom } from "../stage";
 // count the pane cap, not just the window width, and `beside: "only"` has to
 // refuse the navigation fallback that the manual click is happy to take.
 
-const tab = (over?: Partial<AppTab>): AppTab => ({ id: "t1", title: "A", path: "/tasks", createdAt: 0, ...over });
+const tab = (over?: Partial<AppTab>): AppTab => ({
+  id: "t1",
+  title: "A",
+  path: "/tasks",
+  createdAt: 0,
+  ...over,
+});
 const state = () => useInboxStore.getState();
 const activeTab = () => state().tabs.find((t) => t.id === state().activeTabId)!;
 const source = { kind: "url", url: "http://localhost:8765/" } as const;
@@ -49,7 +63,9 @@ describe("stageHasRoom", () => {
   });
 
   it("says no in a window too narrow to show two panes", () => {
-    const narrow = replaceGlobals({ window: { innerWidth: 700, location: { pathname: "/tasks", search: "" } } });
+    const narrow = replaceGlobals({
+      window: { innerWidth: 700, location: { pathname: "/tasks", search: "" } },
+    });
     try {
       expect(stageHasRoom()).toBe(false);
     } finally {
@@ -61,7 +77,9 @@ describe("stageHasRoom", () => {
 describe('openBrowserPane beside: "only"', () => {
   it("opens beside when there is room, like the ordinary gesture", () => {
     expect(openBrowserPane(source, { beside: "only" })).toBe(true);
-    expect(leavesOf(activeTab().layout!).map((l) => l.path.split("?")[0])).toEqual(["/tasks", "/browser"]);
+    expect(
+      leavesOf(activeTab().layout!).map((l) => l.path.split("?")[0]),
+    ).toEqual(["/tasks", "/browser"]);
   });
 
   it("at the cap it gives up instead of moving the tab", () => {
@@ -70,7 +88,8 @@ describe('openBrowserPane beside: "only"', () => {
     expect(openBrowserPane(source, { beside: "only" })).toBe(false);
     // The reader's view is exactly where they left it: same tab path, same panes.
     expect(activeTab().path).toBe(before);
-    expect(leavesOf(activeTab().layout!).map((l) => l.path.split("?")[0]))
-      .toEqual(["/tasks", "/docs", "/plans", "/tasks/ct-1"]);
+    expect(
+      leavesOf(activeTab().layout!).map((l) => l.path.split("?")[0]),
+    ).toEqual(["/tasks", "/docs", "/plans", "/tasks/ct-1"]);
   });
 });

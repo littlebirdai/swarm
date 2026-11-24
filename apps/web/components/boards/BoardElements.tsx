@@ -44,7 +44,16 @@ type ViewProps = { el: BoardEl } & EditProps;
  * An uncontrolled textarea for in-place editing: React never rewrites its
  * text node, so a keystroke costs one preview write and nothing else.
  */
-function InlineEditor({ value, className, style, onInput, onDone, onNext, selectAll, singleLine }: {
+function InlineEditor({
+  value,
+  className,
+  style,
+  onInput,
+  onDone,
+  onNext,
+  selectAll,
+  singleLine,
+}: {
   value: string;
   className: string;
   style?: React.CSSProperties;
@@ -91,7 +100,11 @@ function InlineEditor({ value, className, style, onInput, onDone, onNext, select
           onNext(e.shiftKey ? -1 : 1);
           return;
         }
-        if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey || (singleLine && !e.shiftKey)))) {
+        if (
+          e.key === "Escape" ||
+          (e.key === "Enter" &&
+            (e.metaKey || e.ctrlKey || (singleLine && !e.shiftKey)))
+        ) {
           e.preventDefault();
           onDone();
         }
@@ -100,13 +113,30 @@ function InlineEditor({ value, className, style, onInput, onDone, onNext, select
   );
 }
 
-function boxStyle(el: BoardEl, extra?: React.CSSProperties): React.CSSProperties {
+function boxStyle(
+  el: BoardEl,
+  extra?: React.CSSProperties,
+): React.CSSProperties {
   const b = elementBox(el);
-  const rot = typeof el.rot === "number" && el.rot ? `rotate(${el.rot}deg)` : undefined;
-  return { left: b.x, top: b.y, width: b.w, height: b.h, transform: rot, ...extra };
+  const rot =
+    typeof el.rot === "number" && el.rot ? `rotate(${el.rot}deg)` : undefined;
+  return {
+    left: b.x,
+    top: b.y,
+    width: b.w,
+    height: b.h,
+    transform: rot,
+    ...extra,
+  };
 }
 
-const StickyView = memo(function StickyView({ el, editing, onEditInput, onEditDone, onEditNext }: ViewProps) {
+const StickyView = memo(function StickyView({
+  el,
+  editing,
+  onEditInput,
+  onEditDone,
+  onEditNext,
+}: ViewProps) {
   const b = elementBox(el);
   const icon = typeof el.icon === "string" ? el.icon : "";
   const art = boardArtFor(icon);
@@ -117,11 +147,27 @@ const StickyView = memo(function StickyView({ el, editing, onEditInput, onEditDo
   // A sticky holding a list reads left-aligned, as FigJam's do; centred lines beside left-hung bullets look ragged.
   const list = /^(- |• )/m.test(shown) || undefined;
   return (
-    <div data-key={el.key} className="board-el board-sticky" style={boxStyle(el, { background: stickyFill(el.color) })}>
+    <div
+      data-key={el.key}
+      className="board-el board-sticky"
+      style={boxStyle(el, { background: stickyFill(el.color) })}
+    >
       {art ? (
-        <img className="board-sticky-icon" src={BOARD_ART_URLS[art]} alt="" draggable={false} style={{ height: iconH, width: iconH, objectFit: "contain" }} />
+        <img
+          className="board-sticky-icon"
+          src={BOARD_ART_URLS[art]}
+          alt=""
+          draggable={false}
+          style={{ height: iconH, width: iconH, objectFit: "contain" }}
+        />
       ) : icon ? (
-        <div className="board-sticky-icon" style={{ fontSize: iconH * 0.82, height: iconH }} aria-hidden>{icon}</div>
+        <div
+          className="board-sticky-icon"
+          style={{ fontSize: iconH * 0.82, height: iconH }}
+          aria-hidden
+        >
+          {icon}
+        </div>
       ) : null}
       {editing ? (
         <RichEditor
@@ -129,13 +175,21 @@ const StickyView = memo(function StickyView({ el, editing, onEditInput, onEditDo
           className="board-sticky-text"
           data-list={list}
           style={{ fontSize: size }}
-          onInput={(t) => { setDraft(t); onEditInput(t); }}
+          onInput={(t) => {
+            setDraft(t);
+            onEditInput(t);
+          }}
           onDone={onEditDone}
           onNext={onEditNext}
         />
       ) : (
         // A long first line is not a title: the far-zoom view leaves it at its size rather than enlarging and cropping it.
-        <div className="board-sticky-text" data-list={list} data-long={shown.split("\n")[0].length > 28 || undefined} style={{ fontSize: size, ["--fs" as any]: `${size}px` }}>
+        <div
+          className="board-sticky-text"
+          data-list={list}
+          data-long={shown.split("\n")[0].length > 28 || undefined}
+          style={{ fontSize: size, ["--fs" as any]: `${size}px` }}
+        >
           <RichText text={shown} titleFirst />
         </div>
       )}
@@ -143,21 +197,54 @@ const StickyView = memo(function StickyView({ el, editing, onEditInput, onEditDo
   );
 });
 
-const TextView = memo(function TextView({ el, editing, onEditInput, onEditDone }: ViewProps) {
+const TextView = memo(function TextView({
+  el,
+  editing,
+  onEditInput,
+  onEditDone,
+}: ViewProps) {
   const size = typeof el.size === "number" ? el.size : 20;
   const style: React.CSSProperties = {
     fontSize: size,
     fontWeight: el.weight === "bold" ? 650 : 400,
     color: el.color ? colorToken(el.color) : "var(--sol-text)",
-    textAlign: el.align === "center" ? "center" : el.align === "right" ? "right" : "left",
+    textAlign:
+      el.align === "center"
+        ? "center"
+        : el.align === "right"
+          ? "right"
+          : "left",
     lineHeight: 1.3,
   };
   const text = typeof el.text === "string" ? el.text : "";
   // Text with no width set is as wide as its longest line in whatever face the theme uses; the box estimate is only a floor.
-  const auto = typeof el.w !== "number" ? { width: "max-content", minWidth: elementBox(el).w, whiteSpace: "pre" as const } : {};
+  const auto =
+    typeof el.w !== "number"
+      ? {
+          width: "max-content",
+          minWidth: elementBox(el).w,
+          whiteSpace: "pre" as const,
+        }
+      : {};
   return (
-    <div data-key={el.key} className="board-el board-text" style={boxStyle(el, { ...style, ...auto })}>
-      {editing ? <RichEditor value={text} className="board-text-edit" style={style} onInput={onEditInput} onDone={onEditDone} /> : text ? <RichText text={text} /> : <span className="board-placeholder">Text</span>}
+    <div
+      data-key={el.key}
+      className="board-el board-text"
+      style={boxStyle(el, { ...style, ...auto })}
+    >
+      {editing ? (
+        <RichEditor
+          value={text}
+          className="board-text-edit"
+          style={style}
+          onInput={onEditInput}
+          onDone={onEditDone}
+        />
+      ) : text ? (
+        <RichText text={text} />
+      ) : (
+        <span className="board-placeholder">Text</span>
+      )}
     </div>
   );
 });
@@ -166,11 +253,29 @@ const TextView = memo(function TextView({ el, editing, onEditInput, onEditDone }
 function ShapeIcon({ icon, size }: { icon: unknown; size: number }) {
   if (typeof icon !== "string" || !icon) return null;
   const art = boardArtFor(icon);
-  if (art) return <img src={BOARD_ART_URLS[art]} alt="" draggable={false} style={{ height: size, width: size, objectFit: "contain", flex: "none" }} />;
+  if (art)
+    return (
+      <img
+        src={BOARD_ART_URLS[art]}
+        alt=""
+        draggable={false}
+        style={{
+          height: size,
+          width: size,
+          objectFit: "contain",
+          flex: "none",
+        }}
+      />
+    );
   return <span aria-hidden>{icon} </span>;
 }
 
-const ShapeView = memo(function ShapeView({ el, editing, onEditInput, onEditDone }: ViewProps) {
+const ShapeView = memo(function ShapeView({
+  el,
+  editing,
+  onEditInput,
+  onEditDone,
+}: ViewProps) {
   const b = elementBox(el);
   const shape = typeof el.shape === "string" ? el.shape : "rect";
   const outline = shapeOutline(shape, b.w, b.h);
@@ -180,31 +285,104 @@ const ShapeView = memo(function ShapeView({ el, editing, onEditInput, onEditDone
   const stroke = solid ? "transparent" : color;
   const text = typeof el.text === "string" ? el.text : "";
   const fontSize = shapeFontSize(shape, b.h);
-  const textStyle: React.CSSProperties = { fontSize, color: solid ? "var(--board-on-solid)" : "var(--sol-text)", fontWeight: shape === "pill" ? 650 : 500 };
+  const textStyle: React.CSSProperties = {
+    fontSize,
+    color: solid ? "var(--board-on-solid)" : "var(--sol-text)",
+    fontWeight: shape === "pill" ? 650 : 500,
+  };
   return (
-    <div data-key={el.key} className="board-el board-shape" style={boxStyle(el)}>
+    <div
+      data-key={el.key}
+      className="board-el board-shape"
+      style={boxStyle(el)}
+    >
       {outline ? (
-        <svg className="board-shape-svg" width={b.w} height={b.h} viewBox={`0 0 ${b.w} ${b.h}`} aria-hidden>
-          <path d={outline} fill={fill} stroke={stroke} strokeWidth={1.5} strokeLinejoin="round" />
+        <svg
+          className="board-shape-svg"
+          width={b.w}
+          height={b.h}
+          viewBox={`0 0 ${b.w} ${b.h}`}
+          aria-hidden
+        >
+          <path
+            d={outline}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
         </svg>
       ) : (
-        <div className="board-shape-box" style={{ background: fill, border: `1.5px solid ${stroke}`, borderRadius: shape === "pill" ? b.h / 2 : 6 }} />
+        <div
+          className="board-shape-box"
+          style={{
+            background: fill,
+            border: `1.5px solid ${stroke}`,
+            borderRadius: shape === "pill" ? b.h / 2 : 6,
+          }}
+        />
       )}
       {editing ? (
-        <RichEditor value={text} className="board-shape-text" style={textStyle} onInput={onEditInput} onDone={onEditDone} />
+        <RichEditor
+          value={text}
+          className="board-shape-text"
+          style={textStyle}
+          onInput={onEditInput}
+          onDone={onEditDone}
+        />
       ) : (
-        text && <div className="board-shape-text" style={{ ...textStyle, gap: "0.4em" }}><ShapeIcon icon={el.icon} size={fontSize * 1.6} /><div><RichText text={text} /></div></div>
+        text && (
+          <div
+            className="board-shape-text"
+            style={{ ...textStyle, gap: "0.4em" }}
+          >
+            <ShapeIcon icon={el.icon} size={fontSize * 1.6} />
+            <div>
+              <RichText text={text} />
+            </div>
+          </div>
+        )
       )}
     </div>
   );
 });
 
-const FrameView = memo(function FrameView({ el, editing, onEditInput, onEditDone }: ViewProps) {
+const FrameView = memo(function FrameView({
+  el,
+  editing,
+  onEditInput,
+  onEditDone,
+}: ViewProps) {
   const title = typeof el.title === "string" ? el.title : "";
   return (
-    <div data-key={el.key} data-frame className="board-el board-frame" style={boxStyle(el, { background: tint(el.color ?? "gray", 7), borderColor: tint(el.color ?? "gray", 34) })}>
-      <div className="board-frame-title" data-part="frame-title" style={{ color: el.color ? colorToken(el.color) : "var(--sol-text-muted)" }}>
-        {editing ? <InlineEditor value={title} className="board-frame-title-edit" onInput={onEditInput} onDone={onEditDone} selectAll singleLine /> : title || "Frame"}
+    <div
+      data-key={el.key}
+      data-frame
+      className="board-el board-frame"
+      style={boxStyle(el, {
+        background: tint(el.color ?? "gray", 7),
+        borderColor: tint(el.color ?? "gray", 34),
+      })}
+    >
+      <div
+        className="board-frame-title"
+        data-part="frame-title"
+        style={{
+          color: el.color ? colorToken(el.color) : "var(--sol-text-muted)",
+        }}
+      >
+        {editing ? (
+          <InlineEditor
+            value={title}
+            className="board-frame-title-edit"
+            onInput={onEditInput}
+            onDone={onEditDone}
+            selectAll
+            singleLine
+          />
+        ) : (
+          title || "Frame"
+        )}
       </div>
     </div>
   );
@@ -214,22 +392,55 @@ const PenView = memo(function PenView({ el }: { el: BoardEl }) {
   const pts = unflatten(el.points);
   const width = typeof el.width === "number" ? el.width : 4;
   const d = smoothPath(pts);
-  const x = typeof el.x === "number" ? el.x : 0, y = typeof el.y === "number" ? el.y : 0;
+  const x = typeof el.x === "number" ? el.x : 0,
+    y = typeof el.y === "number" ? el.y : 0;
   return (
-    <svg data-key={el.key} className="board-el board-svg" style={{ left: x, top: y }} width={1} height={1} aria-hidden>
+    <svg
+      data-key={el.key}
+      className="board-el board-svg"
+      style={{ left: x, top: y }}
+      width={1}
+      height={1}
+      aria-hidden
+    >
       <path d={d} className="board-hit" strokeWidth={Math.max(width, 14)} />
-      <path d={d} fill="none" stroke={colorToken(el.color, "gray")} strokeOpacity={typeof el.opacity === "number" ? el.opacity : 1} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={d}
+        fill="none"
+        stroke={colorToken(el.color, "gray")}
+        strokeOpacity={typeof el.opacity === "number" ? el.opacity : 1}
+        strokeWidth={width}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 });
 
-function arrowHead(tip: { x: number; y: number }, angle: number, size: number): string {
-  const a1 = angle + Math.PI - 0.45, a2 = angle + Math.PI + 0.45;
+function arrowHead(
+  tip: { x: number; y: number },
+  angle: number,
+  size: number,
+): string {
+  const a1 = angle + Math.PI - 0.45,
+    a2 = angle + Math.PI + 0.45;
   return `${tip.x},${tip.y} ${tip.x + Math.cos(a1) * size},${tip.y + Math.sin(a1) * size} ${tip.x + Math.cos(a2) * size},${tip.y + Math.sin(a2) * size}`;
 }
 
-export const ConnectorView = memo(function ConnectorView({ el, from, to, obstacles, editing, onEditInput, onEditDone }: ViewProps & { from?: BoardEl; to?: BoardEl; obstacles?: readonly Box[] }) {
-  const g = connectorGeometry(el, (k) => (k === el.from ? from : k === el.to ? to : undefined), el.curve === "elbow" ? obstacles : undefined);
+export const ConnectorView = memo(function ConnectorView({
+  el,
+  from,
+  to,
+  obstacles,
+  editing,
+  onEditInput,
+  onEditDone,
+}: ViewProps & { from?: BoardEl; to?: BoardEl; obstacles?: readonly Box[] }) {
+  const g = connectorGeometry(
+    el,
+    (k) => (k === el.from ? from : k === el.to ? to : undefined),
+    el.curve === "elbow" ? obstacles : undefined,
+  );
   if (!g) return null;
   const color = colorToken(el.color, "gray");
   const width = typeof el.width === "number" ? el.width : 2;
@@ -239,16 +450,44 @@ export const ConnectorView = memo(function ConnectorView({ el, from, to, obstacl
   // While typing, the label stays where the line's middle is; drawn, it steps beside a leg too short to show past it.
   const spot = editing ? g.mid : labelSpot(g, label);
   return (
-    <div data-key={el.key} className="board-el board-connector" style={{ left: 0, top: 0 }}>
+    <div
+      data-key={el.key}
+      className="board-el board-connector"
+      style={{ left: 0, top: 0 }}
+    >
       <svg className="board-svg" width={1} height={1} aria-hidden>
         <path d={g.d} className="board-hit" strokeWidth={16} />
-        <path d={g.d} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeDasharray={el.dash ? `${width * 3} ${width * 3}` : undefined} />
-        {(arrow === "end" || arrow === "both") && <polygon points={arrowHead(g.b, g.angleEnd, head)} fill={color} />}
-        {arrow === "both" && <polygon points={arrowHead(g.a, g.angleStart, head)} fill={color} />}
+        <path
+          d={g.d}
+          fill="none"
+          stroke={color}
+          strokeWidth={width}
+          strokeLinecap="round"
+          strokeDasharray={el.dash ? `${width * 3} ${width * 3}` : undefined}
+        />
+        {(arrow === "end" || arrow === "both") && (
+          <polygon points={arrowHead(g.b, g.angleEnd, head)} fill={color} />
+        )}
+        {arrow === "both" && (
+          <polygon points={arrowHead(g.a, g.angleStart, head)} fill={color} />
+        )}
       </svg>
       {(label || editing) && (
-        <div className="board-connector-label" style={{ left: spot.x, top: spot.y }}>
-          {editing ? <InlineEditor value={label} className="board-connector-label-edit" onInput={onEditInput} onDone={onEditDone} singleLine /> : label}
+        <div
+          className="board-connector-label"
+          style={{ left: spot.x, top: spot.y }}
+        >
+          {editing ? (
+            <InlineEditor
+              value={label}
+              className="board-connector-label-edit"
+              onInput={onEditInput}
+              onDone={onEditDone}
+              singleLine
+            />
+          ) : (
+            label
+          )}
         </div>
       )}
     </div>
@@ -258,8 +497,20 @@ export const ConnectorView = memo(function ConnectorView({ el, from, to, obstacl
 const ImageView = memo(function ImageView({ el }: { el: BoardEl }) {
   const src = typeof el.src === "string" ? el.src : "";
   return (
-    <div data-key={el.key} className="board-el board-image" style={boxStyle(el)}>
-      {src ? <img src={src} alt={typeof el.alt === "string" ? el.alt : ""} draggable={false} /> : <div className="board-image-pending" />}
+    <div
+      data-key={el.key}
+      className="board-el board-image"
+      style={boxStyle(el)}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={typeof el.alt === "string" ? el.alt : ""}
+          draggable={false}
+        />
+      ) : (
+        <div className="board-image-pending" />
+      )}
     </div>
   );
 });
@@ -268,40 +519,76 @@ const StampView = memo(function StampView({ el }: { el: BoardEl }) {
   const b = elementBox(el);
   const art = boardArtFor(el.emoji);
   return (
-    <div data-key={el.key} className="board-el board-stamp" style={boxStyle(el, { fontSize: b.w * 0.78 })}>
-      {art ? <img src={BOARD_ART_URLS[art]} alt={art} draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : typeof el.emoji === "string" ? el.emoji : "👍"}
+    <div
+      data-key={el.key}
+      className="board-el board-stamp"
+      style={boxStyle(el, { fontSize: b.w * 0.78 })}
+    >
+      {art ? (
+        <img
+          src={BOARD_ART_URLS[art]}
+          alt={art}
+          draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        />
+      ) : typeof el.emoji === "string" ? (
+        el.emoji
+      ) : (
+        "👍"
+      )}
     </div>
   );
 });
 
 /** A live codecast object: the same card a conversation draws for its reference, in its current state. */
-const CardView = memo(function CardView({ el, interactive }: { el: BoardEl; interactive?: boolean }) {
+const CardView = memo(function CardView({
+  el,
+  interactive,
+}: {
+  el: BoardEl;
+  interactive?: boolean;
+}) {
   const ref = typeof el.ref === "string" ? el.ref : "";
   return (
-    <div data-key={el.key} className={`board-el board-card${interactive ? " is-interactive" : ""}`} style={boxStyle(el)}>
-      <div className="board-card-inner">{ref ? <EntityObjectCard refId={ref} count={1} /> : null}</div>
+    <div
+      data-key={el.key}
+      className={`board-el board-card${interactive ? " is-interactive" : ""}`}
+      style={boxStyle(el)}
+    >
+      <div className="board-card-inner">
+        {ref ? <EntityObjectCard refId={ref} count={1} /> : null}
+      </div>
     </div>
   );
 });
 
 /** Which page on the board is entered (taking the pointer), and how to change it: given by an editable board, which
  *  enters on a double-click or the selection bar. Without it the page keeps its own state (the shared view). */
-export type PageLiveProps = { pageLive?: boolean; onPageLive?(key: string | null): void };
+export type PageLiveProps = {
+  pageLive?: boolean;
+  onPageLive?(key: string | null): void;
+};
 
 /**
  * A published page, live: its header (title, caption, open in a new tab) over the page itself. The page takes no
  * pointer until it is entered, so the board pans, selects, drags and resizes it like any element; entered, people
  * scroll and click inside it, and Escape (in the page or on the board) or a press outside leaves.
  */
-const PageView = memo(function PageView({ el, pageLive, onPageLive }: { el: BoardEl } & PageLiveProps) {
+const PageView = memo(function PageView({
+  el,
+  pageLive,
+  onPageLive,
+}: { el: BoardEl } & PageLiveProps) {
   const slug = typeof el.slug === "string" ? el.slug : "";
   const caption = typeof el.caption === "string" ? el.caption : "";
   const info = usePageInfoRow(slug);
-  const title = (info && !info.missing && !info.locked && info.title) || "Published page";
+  const title =
+    (info && !info.missing && !info.locked && info.title) || "Published page";
   const controlled = !!onPageLive;
   const [own, setOwn] = useState(false);
   const live = controlled ? !!pageLive : own;
-  const setLive = (on: boolean) => (onPageLive ? onPageLive(on ? el.key : null) : setOwn(on));
+  const setLive = (on: boolean) =>
+    onPageLive ? onPageLive(on ? el.key : null) : setOwn(on);
   const setLiveRef = useRef(setLive);
   setLiveRef.current = setLive;
   const ref = useRef<HTMLDivElement | null>(null);
@@ -311,13 +598,24 @@ const PageView = memo(function PageView({ el, pageLive, onPageLive }: { el: Boar
     node?.querySelector("iframe")?.focus();
     const leave = () => setLiveRef.current(false);
     const onMessage = (e: MessageEvent) => {
-      if ((e.data as { type?: unknown } | null)?.type !== PAGE_ESCAPE_MESSAGE || !e.source || e.source !== node?.querySelector("iframe")?.contentWindow) return;
+      if (
+        (e.data as { type?: unknown } | null)?.type !== PAGE_ESCAPE_MESSAGE ||
+        !e.source ||
+        e.source !== node?.querySelector("iframe")?.contentWindow
+      )
+        return;
       leave();
-      (node.closest("[data-board]") as HTMLElement | null)?.focus({ preventScroll: true });
+      (node.closest("[data-board]") as HTMLElement | null)?.focus({
+        preventScroll: true,
+      });
     };
-    const onPress = (e: PointerEvent) => { if (!node?.contains(e.target as Node)) leave(); };
+    const onPress = (e: PointerEvent) => {
+      if (!node?.contains(e.target as Node)) leave();
+    };
     // An editable board backs out of the page on its own Escape, a layer before the selection.
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") leave(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") leave();
+    };
     window.addEventListener("message", onMessage);
     window.addEventListener("pointerdown", onPress, true);
     if (!controlled) window.addEventListener("keydown", onKey, true);
@@ -333,40 +631,91 @@ const PageView = memo(function PageView({ el, pageLive, onPageLive }: { el: Boar
       data-key={el.key}
       className={`board-el board-page${live ? " is-live" : ""}`}
       style={boxStyle(el)}
-      onDoubleClick={controlled ? undefined : (e) => { e.stopPropagation(); setLive(true); }}
+      onDoubleClick={
+        controlled
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              setLive(true);
+            }
+      }
     >
       <div className="board-page-head">
         <PageFavicon className="h-4 w-4" />
-        <span className="board-page-title" title={title}>{title}</span>
-        <span className="board-page-caption" title={caption || undefined}>{caption}</span>
+        <span className="board-page-title" title={title}>
+          {title}
+        </span>
+        <span className="board-page-caption" title={caption || undefined}>
+          {caption}
+        </span>
         {live ? (
-          <button type="button" data-page-action className="board-page-act" onClick={() => setLive(false)}>
+          <button
+            type="button"
+            data-page-action
+            className="board-page-act"
+            onClick={() => setLive(false)}
+          >
             Done <KeyCap size="xs">Esc</KeyCap>
           </button>
         ) : !controlled ? (
-          <button type="button" data-page-action className="board-page-act" onClick={() => setLive(true)}>Interact</button>
+          <button
+            type="button"
+            data-page-action
+            className="board-page-act"
+            onClick={() => setLive(true)}
+          >
+            Interact
+          </button>
         ) : null}
-        <a data-page-action className="board-page-act" href={pageShareUrl(slug)} target="_blank" rel="noopener noreferrer" title="Open in a new tab" aria-label="Open in a new tab">
+        <a
+          data-page-action
+          className="board-page-act"
+          href={pageShareUrl(slug)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open in a new tab"
+          aria-label="Open in a new tab"
+        >
           <ArrowUpRight size={15} strokeWidth={1.75} />
         </a>
       </div>
-      <div className="board-page-body">{slug ? <PublishedPageEmbed slug={slug} fill /> : null}</div>
+      <div className="board-page-body">
+        {slug ? <PublishedPageEmbed slug={slug} fill /> : null}
+      </div>
     </div>
   );
 });
 
 /** One element, dispatched by kind. Connectors are drawn by ConnectorView with their ends. */
-export const BoardElementView = memo(function BoardElementView(props: ViewProps & PageLiveProps & { interactive?: boolean }) {
+export const BoardElementView = memo(function BoardElementView(
+  props: ViewProps & PageLiveProps & { interactive?: boolean },
+) {
   switch (props.el.kind) {
-    case "sticky": return <StickyView {...props} />;
-    case "text": return <TextView {...props} />;
-    case "shape": return <ShapeView {...props} />;
-    case "frame": return <FrameView {...props} />;
-    case "pen": return <PenView el={props.el} />;
-    case "image": return <ImageView el={props.el} />;
-    case "stamp": return <StampView el={props.el} />;
-    case "card": return <CardView el={props.el} interactive={props.interactive} />;
-    case "page": return <PageView el={props.el} pageLive={props.pageLive} onPageLive={props.onPageLive} />;
-    default: return null;
+    case "sticky":
+      return <StickyView {...props} />;
+    case "text":
+      return <TextView {...props} />;
+    case "shape":
+      return <ShapeView {...props} />;
+    case "frame":
+      return <FrameView {...props} />;
+    case "pen":
+      return <PenView el={props.el} />;
+    case "image":
+      return <ImageView el={props.el} />;
+    case "stamp":
+      return <StampView el={props.el} />;
+    case "card":
+      return <CardView el={props.el} interactive={props.interactive} />;
+    case "page":
+      return (
+        <PageView
+          el={props.el}
+          pageLive={props.pageLive}
+          onPageLive={props.onPageLive}
+        />
+      );
+    default:
+      return null;
   }
 });

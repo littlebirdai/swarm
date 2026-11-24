@@ -6,7 +6,12 @@ import type { SwitchLedger } from "../components/consequential/ConsequentialSwit
 import { usd } from "../components/consequential/lineStartLedger";
 import { prettifyModelId } from "@codecast/shared/contracts/modelOptions";
 
-export type PrGuideFile = { filename: string; additions: number; deletions: number; patch?: string };
+export type PrGuideFile = {
+  filename: string;
+  additions: number;
+  deletions: number;
+  patch?: string;
+};
 export type PrGuideLedgerPr = { number: number; files?: PrGuideFile[] };
 
 const GUIDE_MODEL = "claude-sonnet-5-5";
@@ -18,12 +23,21 @@ const DAILY_CAP_USD = 5;
 
 /** A rough price for writing this PR's guide, from the diff text it would send. */
 export function estimateGuideCost(files: readonly PrGuideFile[]): number {
-  const chars = Math.min(DIFF_CHARS, files.reduce((n, f) => n + (f.patch?.length ?? 0) * 1.1, 0));
+  const chars = Math.min(
+    DIFF_CHARS,
+    files.reduce((n, f) => n + (f.patch?.length ?? 0) * 1.1, 0),
+  );
   const input = Math.round(chars / 3.5) + PROMPT_OVERHEAD_TOKENS;
-  return usageCost({ input, output: REPLY_TOKENS, cacheRead: 0, cacheWrite: 0 }, priceFor(GUIDE_MODEL));
+  return usageCost(
+    { input, output: REPLY_TOKENS, cacheRead: 0, cacheWrite: 0 },
+    priceFor(GUIDE_MODEL),
+  );
 }
 
-export function writeGuideLedger(pr: PrGuideLedgerPr, rewrite: boolean): SwitchLedger {
+export function writeGuideLedger(
+  pr: PrGuideLedgerPr,
+  rewrite: boolean,
+): SwitchLedger {
   const files = pr.files ?? [];
   const lines = files.reduce((n, f) => n + f.additions + f.deletions, 0);
   return {
@@ -31,8 +45,15 @@ export function writeGuideLedger(pr: PrGuideLedgerPr, rewrite: boolean): SwitchL
     subject: `PR #${pr.number}`,
     shift: null,
     figures: [
-      { value: `~${usd(estimateGuideCost(files))}`, label: "estimated", tone: "warn" },
-      { value: String(files.length), label: files.length === 1 ? "file" : "files" },
+      {
+        value: `~${usd(estimateGuideCost(files))}`,
+        label: "estimated",
+        tone: "warn",
+      },
+      {
+        value: String(files.length),
+        label: files.length === 1 ? "file" : "files",
+      },
       { value: lines.toLocaleString("en-US"), label: "lines changed" },
     ],
     rows: [
@@ -44,4 +65,3 @@ export function writeGuideLedger(pr: PrGuideLedgerPr, rewrite: boolean): SwitchL
     confirm: rewrite ? "Rewrite guide" : "Write guide",
   };
 }
-

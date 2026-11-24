@@ -13,7 +13,11 @@ import {
   type InboxTruncation,
   type ProjectableInboxRow,
 } from "./inboxProjection";
-import { expandFixtureRows, resolveEpochRelative, type FixtureRowSpec } from "./__fixtures__/inboxProjectionGen";
+import {
+  expandFixtureRows,
+  resolveEpochRelative,
+  type FixtureRowSpec,
+} from "./__fixtures__/inboxProjectionGen";
 
 // GOLDEN FIXTURES for the shared inbox projection (sync-convergence C3,
 // "Validation plan"). Each file holds input rows and the expected membership,
@@ -34,7 +38,11 @@ import { expandFixtureRows, resolveEpochRelative, type FixtureRowSpec } from "./
 // then bump the version, add its hash below, and show the fixture diff in
 // the same commit.
 
-const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "__fixtures__", "inboxProjection");
+const DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "__fixtures__",
+  "inboxProjection",
+);
 const REGEN = process.env.INBOX_GOLDEN_REGEN === "1";
 
 // The fixture epoch: minute-aligned, so "E" is a valid inboxEpoch.
@@ -116,9 +124,15 @@ const GOLDEN_HASH_BY_VERSION: Record<number, string> = {
 
 type Expected = {
   truncated: InboxTruncation[];
-  tally: { shown: Record<InboxBucket, number>; folded: Record<InboxBucket, number> };
+  tally: {
+    shown: Record<InboxBucket, number>;
+    folded: Record<InboxBucket, number>;
+  };
   set_digest: string;
-  placements: Record<string, [bucket: string, work_state: string, below_fold: boolean]>;
+  placements: Record<
+    string,
+    [bucket: string, work_state: string, below_fold: boolean]
+  >;
   // Each member's in-bucket sort stamp (shared inboxSortTimeOfRow, ct-49550),
   // written relative to the fixture epoch so the file reads as ages. Direction
   // free: a section the reader clears top-down orders by this ascending.
@@ -137,7 +151,14 @@ type Fixture = {
   expected?: Expected;
 };
 
-function loadCases(): Array<{ name: string; file: string; fixture: Fixture; rows: ProjectableInboxRow[]; epoch: number; asking: Set<string> }> {
+function loadCases(): Array<{
+  name: string;
+  file: string;
+  fixture: Fixture;
+  rows: ProjectableInboxRow[];
+  epoch: number;
+  asking: Set<string>;
+}> {
   return fs
     .readdirSync(DIR)
     .filter((f) => f.endsWith(".json"))
@@ -146,17 +167,29 @@ function loadCases(): Array<{ name: string; file: string; fixture: Fixture; rows
       const file = path.join(DIR, f);
       const fixture = JSON.parse(fs.readFileSync(file, "utf-8")) as Fixture;
       const epoch = Number(resolveEpochRelative(fixture.epoch, FIXTURE_EPOCH));
-      const rows = expandFixtureRows(fixture.rows, epoch) as unknown as ProjectableInboxRow[];
+      const rows = expandFixtureRows(
+        fixture.rows,
+        epoch,
+      ) as unknown as ProjectableInboxRow[];
       // Asking ids are written as fixture tags; resolve them like row ids.
       const tagToId = new Map(rows.map((r) => [String(r._id), String(r._id)]));
       const asking = new Set(
         fixture.asking.map((tag) => {
-          const resolved = expandFixtureRows([{ _id: tag }], epoch)[0]._id as string;
-          if (!tagToId.has(resolved)) throw new Error(`${f}: asking tag ${tag} names no row`);
+          const resolved = expandFixtureRows([{ _id: tag }], epoch)[0]
+            ._id as string;
+          if (!tagToId.has(resolved))
+            throw new Error(`${f}: asking tag ${tag} names no row`);
           return resolved;
         }),
       );
-      return { name: f.replace(/\.json$/, ""), file, fixture, rows, epoch, asking };
+      return {
+        name: f.replace(/\.json$/, ""),
+        file,
+        fixture,
+        rows,
+        epoch,
+        asking,
+      };
     });
 }
 
@@ -179,17 +212,30 @@ function actualFor(c: ReturnType<typeof loadCases>[number]): Expected {
   for (const bucket of [...inBucket.keys()].sort()) {
     const list = inBucket.get(bucket)!;
     if (list.length < 2) continue;
-    list.sort((a, b) => a.key - b.key || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    list.sort(
+      (a, b) => a.key - b.key || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
     sort_order[bucket] = list.map((x) => x.id);
   }
-  return { truncated: p.truncated, tally: p.tally, set_digest: p.set_digest, placements, sort_at, sort_order };
+  return {
+    truncated: p.truncated,
+    tally: p.tally,
+    set_digest: p.set_digest,
+    placements,
+    sort_at,
+    sort_order,
+  };
 }
 
 // One hash over every expected block, in file order: fnv1a32 over the
 // canonical JSON of (name, expected), folded through the digest lanes so a
 // change anywhere — a bucket, a fold bit, a tally, a truncation flag — moves it.
-function fixtureHash(cases: Array<{ name: string; expected: Expected }>): string {
-  return digestProjection(cases.map((c) => [c.name, JSON.stringify(c.expected), false] as const));
+function fixtureHash(
+  cases: Array<{ name: string; expected: Expected }>,
+): string {
+  return digestProjection(
+    cases.map((c) => [c.name, JSON.stringify(c.expected), false] as const),
+  );
 }
 
 const cases = loadCases();
@@ -199,8 +245,12 @@ if (REGEN) {
     const next = { ...c.fixture, expected: actualFor(c) };
     fs.writeFileSync(c.file, JSON.stringify(next, null, 2) + "\n");
   }
-  const hash = fixtureHash(cases.map((c) => ({ name: c.name, expected: actualFor(c) })));
-  console.log(`[inboxProjection golden] regenerated ${cases.length} fixtures; GOLDEN_HASH_BY_VERSION[${INBOX_PROJECTION_VERSION}] = "${hash}"`);
+  const hash = fixtureHash(
+    cases.map((c) => ({ name: c.name, expected: actualFor(c) })),
+  );
+  console.log(
+    `[inboxProjection golden] regenerated ${cases.length} fixtures; GOLDEN_HASH_BY_VERSION[${INBOX_PROJECTION_VERSION}] = "${hash}"`,
+  );
 }
 
 describe("inbox projection golden fixtures", () => {
@@ -216,7 +266,19 @@ describe("inbox projection golden fixtures", () => {
       }
       for (const t of a.truncated) truncated.add(t);
     }
-    for (const b of ["questions", "pinned", "new", "needs_input", "done", "dormant", "working", "snoozed", "stashed", "dismissed", "hidden"]) {
+    for (const b of [
+      "questions",
+      "pinned",
+      "new",
+      "needs_input",
+      "done",
+      "dormant",
+      "working",
+      "snoozed",
+      "stashed",
+      "dismissed",
+      "hidden",
+    ]) {
       expect(buckets.has(b), `no fixture places a row in ${b}`).toBe(true);
     }
     // `idle` is in the alphabet for placeInboxRow callers (a killed row, a
@@ -227,19 +289,25 @@ describe("inbox projection golden fixtures", () => {
     // Overflow of the two replicated-order windows is pinned here; the
     // dismissed, stashed and owned caps (cap and cap + 1) are owned by the
     // property suite (inboxProjection.property.test.ts, "every window cap").
-    for (const w of ["recent", "pinned"]) expect(truncated.has(w), `no fixture overflows ${w}`).toBe(true);
+    for (const w of ["recent", "pinned"])
+      expect(truncated.has(w), `no fixture overflows ${w}`).toBe(true);
     expect(folded).toBeGreaterThan(0);
   });
 
   for (const c of cases) {
     it(`byte-identical on ${c.name}`, () => {
       if (REGEN) return;
-      expect(c.fixture.expected, `${c.name} has no expected block; run with INBOX_GOLDEN_REGEN=1`).toBeDefined();
+      expect(
+        c.fixture.expected,
+        `${c.name} has no expected block; run with INBOX_GOLDEN_REGEN=1`,
+      ).toBeDefined();
       const actual = actualFor(c);
       expect(JSON.stringify(actual)).toBe(JSON.stringify(c.fixture.expected));
       // The digest in the file is the shared algorithm over the file's own
       // placements — a fixture cannot carry a digest its rows do not produce.
-      const entries = Object.entries(actual.placements).map(([id, [bucket, , fold]]) => [id, bucket, fold] as const);
+      const entries = Object.entries(actual.placements).map(
+        ([id, [bucket, , fold]]) => [id, bucket, fold] as const,
+      );
       expect(digestProjection(entries)).toBe(actual.set_digest);
     });
   }
@@ -249,7 +317,9 @@ describe("inbox projection golden fixtures", () => {
     const a = actualFor(c);
     expect(a.truncated).toEqual(["pinned"]);
     expect(Object.keys(a.placements).length).toBe(INBOX_WINDOW_CAPS.pinned + 1); // pins + fresh
-    const pinIds = c.rows.filter((r) => r.inbox_pinned_at).map((r) => String(r._id));
+    const pinIds = c.rows
+      .filter((r) => r.inbox_pinned_at)
+      .map((r) => String(r._id));
     const oldest = pinIds.reduce((a, b) => {
       const ra = c.rows.find((r) => String(r._id) === a)!;
       const rb = c.rows.find((r) => String(r._id) === b)!;
@@ -269,13 +339,20 @@ describe("inbox projection golden fixtures", () => {
 
   it("the fixture hash is pinned under the current projection version", () => {
     if (REGEN) return;
-    const hash = fixtureHash(cases.map((c) => ({ name: c.name, expected: c.fixture.expected! })));
+    const hash = fixtureHash(
+      cases.map((c) => ({ name: c.name, expected: c.fixture.expected! })),
+    );
     const pinned = GOLDEN_HASH_BY_VERSION[INBOX_PROJECTION_VERSION];
-    expect(pinned, `no golden hash for projection v${INBOX_PROJECTION_VERSION}: regenerate and pin it`).toBeDefined();
+    expect(
+      pinned,
+      `no golden hash for projection v${INBOX_PROJECTION_VERSION}: regenerate and pin it`,
+    ).toBeDefined();
     expect(hash).toBe(pinned);
     // The map never runs ahead of the constant: a hash for an unreleased
     // version means someone pinned fixtures without bumping the version.
-    expect(Math.max(...Object.keys(GOLDEN_HASH_BY_VERSION).map(Number))).toBe(INBOX_PROJECTION_VERSION);
+    expect(Math.max(...Object.keys(GOLDEN_HASH_BY_VERSION).map(Number))).toBe(
+      INBOX_PROJECTION_VERSION,
+    );
   });
 
   it("fnv1a32 is the reference FNV-1a over UTF-16 code units", () => {

@@ -39,7 +39,9 @@ function parseToolInput(input: unknown): Record<string, any> | null {
   if (typeof input !== "string" || !input) return null;
   try {
     const parsed = JSON.parse(input);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : null;
   } catch {
     return null;
   }
@@ -93,7 +95,10 @@ export function computeConversationTaskStats(
         if (inp?.taskId && inp.status) {
           const prev = taskStatusMap.get(String(inp.taskId));
           if (!prev || ts >= prev.ts) {
-            taskStatusMap.set(String(inp.taskId), { status: String(inp.status), ts });
+            taskStatusMap.set(String(inp.taskId), {
+              status: String(inp.status),
+              ts,
+            });
           }
         }
       }

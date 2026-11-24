@@ -2,7 +2,10 @@
 // desktop bridge's imports (the phone bundle reaches some of its callers).
 // Outside a browser every answer is the plain app window.
 
-export function shouldStartWindowStore(role: "spare" | "regular", claimed: boolean): boolean {
+export function shouldStartWindowStore(
+  role: "spare" | "regular",
+  claimed: boolean,
+): boolean {
   return role === "regular" || claimed;
 }
 
@@ -10,7 +13,9 @@ let warmSpareClaimed = false;
 const storeStartListeners = new Set<() => void>();
 
 export function isWindowStoreActive(): boolean {
-  const spare = typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isWarmSpare === true;
+  const spare =
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isWarmSpare === true;
   return shouldStartWindowStore(spare ? "spare" : "regular", warmSpareClaimed);
 }
 
@@ -24,23 +29,32 @@ export function applyWarmSpareRole(spare: unknown): void {
 
 export function subscribeWindowStoreStart(start: () => void): () => void {
   if (!isWindowStoreActive()) storeStartListeners.add(start);
-  return () => { storeStartListeners.delete(start); };
+  return () => {
+    storeStartListeners.delete(start);
+  };
 }
 
 /** This renderer IS the call panel: it hosts the call and draws the stage. */
 export function isCallPanelWindow(): boolean {
-  return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isCallPanelWindow === true;
+  return (
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isCallPanelWindow === true
+  );
 }
 
 /** This renderer is the command palette's window. */
 export function isPaletteWindow(): boolean {
-  return typeof window !== "undefined" && !!window.location?.pathname?.startsWith("/palette");
+  return (
+    typeof window !== "undefined" &&
+    !!window.location?.pathname?.startsWith("/palette")
+  );
 }
 
 export function getWindowRole() {
   if (isCallPanelWindow()) return "call_panel";
   if (isPaletteWindow()) return "palette";
-  const shell = typeof window === "undefined" ? undefined : window.__CODECAST_ELECTRON__;
+  const shell =
+    typeof window === "undefined" ? undefined : window.__CODECAST_ELECTRON__;
   if (shell?.isPeopleWindow) return "people";
   if (shell?.isTransparentWindow) return "auxiliary";
   if (shell?.isTabWindow) return "tab";
@@ -64,22 +78,36 @@ let shellShown: boolean | null = null;
 let shellVisibilityInstalled = false;
 
 export function applyShellVisibility(shown: boolean | null): void {
-  if (typeof document === "undefined" || shown === null || shown === shellShown) return;
+  if (typeof document === "undefined" || shown === null || shown === shellShown)
+    return;
   if (!shellVisibilityInstalled) {
     shellVisibilityInstalled = true;
     const proto = Object.getPrototypeOf(document);
-    const nativeState = Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState") ?? Object.getOwnPropertyDescriptor(proto, "visibilityState");
-    const nativeHidden = Object.getOwnPropertyDescriptor(Document.prototype, "hidden") ?? Object.getOwnPropertyDescriptor(proto, "hidden");
+    const nativeState =
+      Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState") ??
+      Object.getOwnPropertyDescriptor(proto, "visibilityState");
+    const nativeHidden =
+      Object.getOwnPropertyDescriptor(Document.prototype, "hidden") ??
+      Object.getOwnPropertyDescriptor(proto, "hidden");
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
-      get() { return shellShown === false ? "hidden" : nativeState?.get?.call(document) ?? "visible"; },
+      get() {
+        return shellShown === false
+          ? "hidden"
+          : (nativeState?.get?.call(document) ?? "visible");
+      },
     });
     Object.defineProperty(document, "hidden", {
       configurable: true,
-      get() { return shellShown === false ? true : nativeHidden?.get?.call(document) ?? false; },
+      get() {
+        return shellShown === false
+          ? true
+          : (nativeHidden?.get?.call(document) ?? false);
+      },
     });
   }
   const was = document.visibilityState;
   shellShown = shown;
-  if (document.visibilityState !== was) document.dispatchEvent(new Event("visibilitychange"));
+  if (document.visibilityState !== was)
+    document.dispatchEvent(new Event("visibilitychange"));
 }

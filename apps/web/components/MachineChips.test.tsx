@@ -7,7 +7,9 @@ import { MachineChips } from "./MachineChips";
 import { machineChipTitle, type SessionMachine } from "../lib/sessionMachines";
 
 import { closeDomWindow } from "../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -19,8 +21,33 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const laptop: SessionMachine = { device_id: "laptop", label: "macOS - MacBook", platform: "darwin", online: true, is_remote: false, last_seen: 1, local_project_roots: [] };
-const cloud: SessionMachine = { device_id: "cloud", label: "Linux - ip-172-31-40-243", platform: "linux", online: false, is_remote: true, last_seen: 0, local_project_roots: [], cloud_host: { managed_by: "laptop", instance_id: "i-1", provider: "aws", state: "stopped", images: [], logins_held: [], at: Date.now() } } as SessionMachine;
+const laptop: SessionMachine = {
+  device_id: "laptop",
+  label: "macOS - MacBook",
+  platform: "darwin",
+  online: true,
+  is_remote: false,
+  last_seen: 1,
+  local_project_roots: [],
+};
+const cloud: SessionMachine = {
+  device_id: "cloud",
+  label: "Linux - ip-172-31-40-243",
+  platform: "linux",
+  online: false,
+  is_remote: true,
+  last_seen: 0,
+  local_project_roots: [],
+  cloud_host: {
+    managed_by: "laptop",
+    instance_id: "i-1",
+    provider: "aws",
+    state: "stopped",
+    images: [],
+    logins_held: [],
+    at: Date.now(),
+  },
+} as SessionMachine;
 
 function mount(el: React.ReactElement) {
   const host = document.createElement("div");
@@ -33,11 +60,21 @@ function mount(el: React.ReactElement) {
 test("clicking the Cloud Linux chip hands that machine to onPick", () => {
   const picks: SessionMachine[] = [];
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, cloud]} selectedDeviceId="laptop" open onOpen={() => {}} onPick={(d) => picks.push(d)} />,
+    <MachineChips
+      machines={[laptop, cloud]}
+      selectedDeviceId="laptop"
+      open
+      onOpen={() => {}}
+      onPick={(d) => picks.push(d)}
+    />,
   );
-  const chip = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.includes("Cloud Linux"));
+  const chip = Array.from(host.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Cloud Linux"),
+  );
   expect(chip).toBeDefined();
-  act(() => chip!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+  act(() =>
+    chip!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+  );
   expect(picks).toEqual([cloud]);
   unmount();
 });
@@ -45,25 +82,73 @@ test("clicking the Cloud Linux chip hands that machine to onPick", () => {
 test("a sleeping cloud host says it boots on start, not that it falls back", () => {
   expect(machineChipTitle(cloud, [laptop, cloud])).toContain("asleep");
   expect(machineChipTitle(cloud, [laptop, cloud])).not.toContain("fall back");
-  expect(machineChipTitle({ ...laptop, online: false }, [laptop, cloud])).toContain("fall back");
+  expect(
+    machineChipTitle({ ...laptop, online: false }, [laptop, cloud]),
+  ).toContain("fall back");
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, cloud]} selectedDeviceId="cloud" open onOpen={() => {}} onPick={() => {}} />,
+    <MachineChips
+      machines={[laptop, cloud]}
+      selectedDeviceId="cloud"
+      open
+      onOpen={() => {}}
+      onPick={() => {}}
+    />,
   );
-  const chip = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.includes("Cloud Linux"));
+  const chip = Array.from(host.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Cloud Linux"),
+  );
   expect(chip?.getAttribute("title")).toContain("asleep");
   unmount();
 });
 
 test("same-named cloud hosts read apart: the sleeping one says how long, the dead one stays out of the row", () => {
-  const report = (at: number) => ({ managed_by: "laptop", instance_id: "i-1", provider: "aws" as const, state: "stopped" as const, images: [], logins_held: [], at });
+  const report = (at: number) => ({
+    managed_by: "laptop",
+    instance_id: "i-1",
+    provider: "aws" as const,
+    state: "stopped" as const,
+    images: [],
+    logins_held: [],
+    at,
+  });
   const now = Date.now();
-  const live = { ...cloud, device_id: "live", online: true, last_seen: now, cloud_host: { ...report(now), state: "running" as const, region: "us-west-2", instance_type: "m7i.4xlarge", instance_id: "i-087c7f5b1c9661f26" } };
-  const asleep = { ...cloud, device_id: "asleep", last_seen: now - 3 * 86_400_000, cloud_host: report(now) };
-  const dead = { ...cloud, device_id: "dead", last_seen: now - 14 * 86_400_000, cloud_host: report(now - 14 * 86_400_000) };
+  const live = {
+    ...cloud,
+    device_id: "live",
+    online: true,
+    last_seen: now,
+    cloud_host: {
+      ...report(now),
+      state: "running" as const,
+      region: "us-west-2",
+      instance_type: "m7i.4xlarge",
+      instance_id: "i-087c7f5b1c9661f26",
+    },
+  };
+  const asleep = {
+    ...cloud,
+    device_id: "asleep",
+    last_seen: now - 3 * 86_400_000,
+    cloud_host: report(now),
+  };
+  const dead = {
+    ...cloud,
+    device_id: "dead",
+    last_seen: now - 14 * 86_400_000,
+    cloud_host: report(now - 14 * 86_400_000),
+  };
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, live, asleep, dead]} selectedDeviceId="laptop" open onOpen={() => {}} onPick={() => {}} />,
+    <MachineChips
+      machines={[laptop, live, asleep, dead]}
+      selectedDeviceId="laptop"
+      open
+      onOpen={() => {}}
+      onPick={() => {}}
+    />,
   );
-  const labels = Array.from(host.querySelectorAll("button")).map((b) => b.textContent);
+  const labels = Array.from(host.querySelectorAll("button")).map(
+    (b) => b.textContent,
+  );
   expect(labels).toContain("Cloud Linux · m7i.4xlarge 1f26");
   expect(labels).toContain("Cloud Linux · asleep 3d");
   expect(labels.some((l) => l?.includes("gone"))).toBe(false);
@@ -71,18 +156,44 @@ test("same-named cloud hosts read apart: the sleeping one says how long, the dea
 
   // A session already on the dead host still sees its chip, and why it cannot run.
   const onDead = mount(
-    <MachineChips machines={[laptop, live, asleep, dead]} selectedDeviceId="dead" open onOpen={() => {}} onPick={() => {}} />,
+    <MachineChips
+      machines={[laptop, live, asleep, dead]}
+      selectedDeviceId="dead"
+      open
+      onOpen={() => {}}
+      onPick={() => {}}
+    />,
   );
-  const deadChip = Array.from(onDead.host.querySelectorAll("button")).find((b) => b.textContent?.includes("gone"));
+  const deadChip = Array.from(onDead.host.querySelectorAll("button")).find(
+    (b) => b.textContent?.includes("gone"),
+  );
   expect(deadChip?.getAttribute("title")).toContain("no longer exists");
   onDead.unmount();
 });
 
 test("a machine quiet for a day leaves the row unless the session runs there", () => {
-  const vm = { ...laptop, device_id: "vm", hostname: "grok-bot-vm", label: "Linux - grok-bot-vm", platform: "linux", online: false, last_seen: Date.now() - 9 * 86_400_000 };
+  const vm = {
+    ...laptop,
+    device_id: "vm",
+    hostname: "grok-bot-vm",
+    label: "Linux - grok-bot-vm",
+    platform: "linux",
+    online: false,
+    last_seen: Date.now() - 9 * 86_400_000,
+  };
   const listed = (selected: string) => {
-    const { host, unmount } = mount(<MachineChips machines={[laptop, cloud, vm]} selectedDeviceId={selected} open onOpen={() => {}} onPick={() => {}} />);
-    const labels = Array.from(host.querySelectorAll("button")).map((b) => b.textContent ?? "");
+    const { host, unmount } = mount(
+      <MachineChips
+        machines={[laptop, cloud, vm]}
+        selectedDeviceId={selected}
+        open
+        onOpen={() => {}}
+        onPick={() => {}}
+      />,
+    );
+    const labels = Array.from(host.querySelectorAll("button")).map(
+      (b) => b.textContent ?? "",
+    );
     unmount();
     return labels;
   };
@@ -93,36 +204,79 @@ test("a machine quiet for a day leaves the row unless the session runs there", (
 test("collapsed, the pill names the routed machine and opens on click", () => {
   let opened = 0;
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, cloud]} selectedDeviceId="cloud" open={false} onOpen={() => { opened++; }} onPick={() => {}} />,
+    <MachineChips
+      machines={[laptop, cloud]}
+      selectedDeviceId="cloud"
+      open={false}
+      onOpen={() => {
+        opened++;
+      }}
+      onPick={() => {}}
+    />,
   );
   const pill = host.querySelector("button")!;
   expect(pill.textContent).toContain("Cloud Linux");
-  act(() => pill.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+  act(() =>
+    pill.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+  );
   expect(opened).toBe(1);
   unmount();
 });
 
 test("a single machine renders nothing", () => {
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop]} selectedDeviceId="laptop" open onOpen={() => {}} onPick={() => {}} />,
+    <MachineChips
+      machines={[laptop]}
+      selectedDeviceId="laptop"
+      open
+      onOpen={() => {}}
+      onPick={() => {}}
+    />,
   );
   expect(host.innerHTML).toBe("");
   unmount();
 });
 
 test("a teammate's shared machine is announced on the pill and grouped under team with its owner", () => {
-  const anas: SessionMachine = { ...laptop, device_id: "anas", label: "macOS - Ana", bot_name: null, runner_name: "Ana" };
-  const closed = mount(<MachineChips machines={[laptop, anas]} selectedDeviceId="laptop" open={false} onOpen={() => {}} onPick={() => {}} />);
-  expect(closed.host.querySelector("button")!.title).toContain("your team shared 1 more");
+  const anas: SessionMachine = {
+    ...laptop,
+    device_id: "anas",
+    label: "macOS - Ana",
+    bot_name: null,
+    runner_name: "Ana",
+  };
+  const closed = mount(
+    <MachineChips
+      machines={[laptop, anas]}
+      selectedDeviceId="laptop"
+      open={false}
+      onOpen={() => {}}
+      onPick={() => {}}
+    />,
+  );
+  expect(closed.host.querySelector("button")!.title).toContain(
+    "your team shared 1 more",
+  );
   closed.unmount();
   let shared = 0;
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, anas]} selectedDeviceId="laptop" open onOpen={() => {}} onPick={() => {}} onShare={() => shared++} />,
+    <MachineChips
+      machines={[laptop, anas]}
+      selectedDeviceId="laptop"
+      open
+      onOpen={() => {}}
+      onPick={() => {}}
+      onShare={() => shared++}
+    />,
   );
   expect(host.textContent).toContain("team");
   expect(host.textContent).toContain("· Ana");
-  const link = Array.from(host.querySelectorAll("button")).find((b) => b.textContent === "share yours")!;
-  act(() => link.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+  const link = Array.from(host.querySelectorAll("button")).find(
+    (b) => b.textContent === "share yours",
+  )!;
+  act(() =>
+    link.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+  );
   expect(shared).toBe(1);
   unmount();
 });
@@ -131,12 +285,23 @@ test("a team that turned cloud hosting off locks the cloud chip and names why", 
   const picks: SessionMachine[] = [];
   const refusal = "Cloud hosting is turned off by Acme's admins.";
   const { host, unmount } = mount(
-    <MachineChips machines={[laptop, cloud]} selectedDeviceId="laptop" open onOpen={() => {}} onPick={(d) => picks.push(d)} cloudRefusal={refusal} />,
+    <MachineChips
+      machines={[laptop, cloud]}
+      selectedDeviceId="laptop"
+      open
+      onOpen={() => {}}
+      onPick={(d) => picks.push(d)}
+      cloudRefusal={refusal}
+    />,
   );
-  const chip = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.includes("Cloud Linux"))!;
+  const chip = Array.from(host.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Cloud Linux"),
+  )!;
   expect(chip.disabled).toBe(true);
   expect(chip.title).toBe(refusal);
-  act(() => chip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
+  act(() =>
+    chip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+  );
   expect(picks).toEqual([]);
   unmount();
 });

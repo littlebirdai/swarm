@@ -52,16 +52,22 @@ function requestWire(daemonBootId = "boot-1", epoch = 1) {
 }
 
 function work(daemonBootMatch = true) {
-  return [{
-    conversationId: "conversation-1",
-    currentEpoch: 1,
-    bindings: [{
-      state: "ready",
-      daemonBootMatch,
-      request: requestWire(daemonBootMatch ? "boot-1" : "old-boot"),
-      binding: daemonBootMatch ? binding() : { ...binding(), daemonBootId: "old-boot" },
-    }],
-  }];
+  return [
+    {
+      conversationId: "conversation-1",
+      currentEpoch: 1,
+      bindings: [
+        {
+          state: "ready",
+          daemonBootMatch,
+          request: requestWire(daemonBootMatch ? "boot-1" : "old-boot"),
+          binding: daemonBootMatch
+            ? binding()
+            : { ...binding(), daemonBootId: "old-boot" },
+        },
+      ],
+    },
+  ];
 }
 
 function fakeDriver(events: string[]): RuntimeDriver {
@@ -70,15 +76,30 @@ function fakeDriver(events: string[]): RuntimeDriver {
     transport: "app-server",
     supportedAgents: new Set(["codex"]),
     capabilities: [...FENCED_RUNTIME_CAPABILITIES],
-    async start() { events.push("start"); throw new Error("ready binding must not start"); },
-    async adopt() { return { state: "unknown", failure: { code: "NO", message: "no" } }; },
-    async deliver() { events.push("deliver"); return { state: "delivered" }; },
-    async stop() { events.push("stop"); },
-    async quarantine() { events.push("quarantine"); },
+    async start() {
+      events.push("start");
+      throw new Error("ready binding must not start");
+    },
+    async adopt() {
+      return { state: "unknown", failure: { code: "NO", message: "no" } };
+    },
+    async deliver() {
+      events.push("deliver");
+      return { state: "delivered" };
+    },
+    async stop() {
+      events.push("stop");
+    },
+    async quarantine() {
+      events.push("quarantine");
+    },
   };
 }
 
-function recoveringTransport(initialWork: unknown, calls: string[]): ExecutionConvexTransport {
+function recoveringTransport(
+  initialWork: unknown,
+  calls: string[],
+): ExecutionConvexTransport {
   let deliveryClaims = 0;
   return {
     async executionControlQuery(name, args) {
@@ -88,7 +109,8 @@ function recoveringTransport(initialWork: unknown, calls: string[]): ExecutionCo
     async executionControlMutation(name) {
       calls.push(`mutation:${name}`);
       if (name === "registerExecutionDaemonBoot") return { registered: true };
-      if (name === "claimExecutionStart") return { state: "ready", binding: binding() };
+      if (name === "claimExecutionStart")
+        return { state: "ready", binding: binding() };
       if (name === "claimNextDelivery") {
         deliveryClaims += 1;
         if (deliveryClaims > 1) return { state: "empty" };
@@ -138,8 +160,12 @@ function recoveringTransport(initialWork: unknown, calls: string[]): ExecutionCo
 describe("fenced daemon runtime rail", () => {
   test("is explicitly off by default", () => {
     expect(fencedExecutionEnabled({})).toBe(false);
-    expect(fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "true" })).toBe(false);
-    expect(fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "1" })).toBe(true);
+    expect(
+      fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "true" }),
+    ).toBe(false);
+    expect(fencedExecutionEnabled({ CODECAST_FENCED_EXECUTION_V1: "1" })).toBe(
+      true,
+    );
   });
 
   test("legacy choke rejects every fenced envelope marker", () => {
@@ -194,7 +220,9 @@ describe("fenced daemon runtime rail", () => {
     const logs: string[] = [];
     const claims: Array<Record<string, unknown>> = [];
     const transport: ExecutionConvexTransport = {
-      async executionControlQuery() { return []; },
+      async executionControlQuery() {
+        return [];
+      },
       async executionControlMutation(name, args) {
         if (name === "claimExecutionStart") {
           claims.push(args);
@@ -202,7 +230,8 @@ describe("fenced daemon runtime rail", () => {
             state: "rejected",
             failure: {
               code: "EXECUTION_BINDING_FENCE_MISMATCH",
-              message: "daemon boot differs and is not the device's registered current boot",
+              message:
+                "daemon boot differs and is not the device's registered current boot",
             },
           };
         }
@@ -224,7 +253,9 @@ describe("fenced daemon runtime rail", () => {
     expect(claims).toHaveLength(1);
     expect(claims[0].daemon_boot_id).toBe("boot-1");
     expect(events).toEqual([]);
-    expect(logs.join("\n")).toContain("recovering conversation-1 epoch 1 from terminated daemon boot");
+    expect(logs.join("\n")).toContain(
+      "recovering conversation-1 epoch 1 from terminated daemon boot",
+    );
   });
 
   test("startup recovery completes activation after predecessor disposition committed", async () => {
@@ -232,10 +263,13 @@ describe("fenced daemon runtime rail", () => {
     const events: string[] = [];
     const successor = binding(2);
     const transport: ExecutionConvexTransport = {
-      async executionControlQuery() { return []; },
+      async executionControlQuery() {
+        return [];
+      },
       async executionControlMutation(name) {
         calls.push(name);
-        if (name === "claimExecutionStart") return { state: "ready", binding: successor };
+        if (name === "claimExecutionStart")
+          return { state: "ready", binding: successor };
         if (name === "activateExecutionSuccessor") return { activated: true };
         if (name === "claimNextDelivery") return { state: "empty" };
         throw new Error(`unexpected mutation ${name}`);
@@ -249,26 +283,28 @@ describe("fenced daemon runtime rail", () => {
       journal: new InMemoryExecutionOperationJournal(),
     });
 
-    await runtime.processWorkUpdate([{
-      conversationId: "conversation-1",
-      currentEpoch: 1,
-      pendingEpoch: 2,
-      pendingPolicy: "drain-current",
-      bindings: [
-        {
-          state: "stopped",
-          daemonBootMatch: false,
-          request: requestWire("old-boot", 1),
-          binding: binding(1, "old-boot"),
-        },
-        {
-          state: "ready",
-          daemonBootMatch: true,
-          request: requestWire("boot-1", 2),
-          binding: successor,
-        },
-      ],
-    }]);
+    await runtime.processWorkUpdate([
+      {
+        conversationId: "conversation-1",
+        currentEpoch: 1,
+        pendingEpoch: 2,
+        pendingPolicy: "drain-current",
+        bindings: [
+          {
+            state: "stopped",
+            daemonBootMatch: false,
+            request: requestWire("old-boot", 1),
+            binding: binding(1, "old-boot"),
+          },
+          {
+            state: "ready",
+            daemonBootMatch: true,
+            request: requestWire("boot-1", 2),
+            binding: successor,
+          },
+        ],
+      },
+    ]);
 
     expect(events).toEqual([]);
     expect(calls).toEqual([
@@ -287,11 +323,15 @@ describe("fenced daemon runtime rail", () => {
       journal: new InMemoryExecutionOperationJournal(),
     });
     const malformed = work();
-    (malformed[0].bindings[0].request.target as Record<string, unknown>).isolation = {
+    (
+      malformed[0].bindings[0].request.target as Record<string, unknown>
+    ).isolation = {
       sandbox: "everything-write",
       isolated: "yes",
     };
-    expect(() => runtime.processWorkUpdate(malformed)).toThrow("unsupported value");
+    expect(() => runtime.processWorkUpdate(malformed)).toThrow(
+      "unsupported value",
+    );
   });
 
   test("process factory owns exactly one coordinator, registry, journal, and boot", () => {
@@ -312,17 +352,26 @@ describe("fenced daemon runtime rail", () => {
   });
 
   test("static guard keeps the fenced service out of generic daemon delivery", () => {
-    const executionSource = fs.readFileSync(path.join(import.meta.dir, "runtimeRail.ts"), "utf8");
+    const executionSource = fs.readFileSync(
+      path.join(import.meta.dir, "runtimeRail.ts"),
+      "utf8",
+    );
     expect(executionSource).not.toContain("claimPendingMessageForDelivery(");
     expect(executionSource).not.toContain("deliverMessage(");
     expect(executionSource).not.toContain("updateMessageStatus(");
 
-    const daemonSource = fs.readFileSync(path.join(import.meta.dir, "..", "daemon.ts"), "utf8");
-    const guard = daemonSource.indexOf("assertLegacyDeliveryEnvelope(pendingMsg)");
-    const legacyClaim = daemonSource.indexOf(
-      "claimPendingMessageForDelivery(pendingMsg._id)",
-      guard,
+    const daemonSource = fs.readFileSync(
+      path.join(import.meta.dir, "..", "daemon.ts"),
+      "utf8",
     );
+    const guard = daemonSource.indexOf(
+      "assertLegacyDeliveryEnvelope(pendingMsg)",
+    );
+    const legacyClaim =
+      daemonSource
+        .slice(guard)
+        .search(/claimPendingMessageForDelivery\(\s*pendingMsg\._id,?\s*\)/) +
+      guard;
     expect(guard).toBeGreaterThan(-1);
     expect(legacyClaim).toBeGreaterThan(guard);
   });

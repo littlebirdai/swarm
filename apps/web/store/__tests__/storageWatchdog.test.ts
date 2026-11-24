@@ -22,9 +22,15 @@ type Health = { healthy: boolean; elapsedMs: number };
 function makeHarness() {
   const health: Health[] = [];
   // Controllable enqueue: each call parks a resolver the test settles by hand.
-  const parked: Array<{ entry: any; resolve: () => void; reject: (e: unknown) => void }> = [];
+  const parked: Array<{
+    entry: any;
+    resolve: () => void;
+    reject: (e: unknown) => void;
+  }> = [];
   let state: any;
-  const set = (next: any) => { state = next; };
+  const set = (next: any) => {
+    state = next;
+  };
   const get = () => state;
   const wrapped = mutativeMiddleware(
     () => ({
@@ -42,7 +48,10 @@ function makeHarness() {
   )(set, get, {});
   state = wrapped;
   wrapped._setOutbox(
-    (entry: any) => new Promise<void>((resolve, reject) => { parked.push({ entry, resolve, reject }); }),
+    (entry: any) =>
+      new Promise<void>((resolve, reject) => {
+        parked.push({ entry, resolve, reject });
+      }),
     () => {},
     async () => [],
   );
@@ -68,7 +77,9 @@ async function waitFor(cond: () => boolean, timeoutMs = 2_000) {
 // fires immediately afterwards with overshoot well past MAX_LAG_MS.
 function blockEventLoop(ms: number) {
   const until = Date.now() + ms;
-  while (Date.now() < until) { /* busy-wait */ }
+  while (Date.now() < until) {
+    /* busy-wait */
+  }
 }
 
 const originalDocument = (globalThis as any).document;
@@ -110,7 +121,9 @@ describe("storage watchdog", () => {
       expect(warned).toEqual([]);
       parked[0]!.resolve();
       await waitFor(() => health.at(-1)?.healthy === true);
-      expect(warned).toEqual([expect.stringMatching(/committed after \d+ms — storage recovered/)]);
+      expect(warned).toEqual([
+        expect.stringMatching(/committed after \d+ms — storage recovered/),
+      ]);
       // A write that never tripped commits silently — the recovery line pairs
       // only with a preceding error line.
       wrapped.poke("b");

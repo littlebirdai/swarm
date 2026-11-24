@@ -17,19 +17,39 @@ import { verifyApiToken } from "./apiTokens";
 import { teamVisibleConvTeam } from "./privacy";
 import { nextShortId } from "./counters";
 import type { Doc, Id } from "./_generated/dataModel";
-import { liveRoleByHandle, userCanAccessRole, userCanAdminRole, type ScopedSeat } from "./lib/orgAccess";
+import {
+  liveRoleByHandle,
+  userCanAccessRole,
+  userCanAdminRole,
+  type ScopedSeat,
+} from "./lib/orgAccess";
 import { OPEN_CATEGORIES } from "./lib/decisionCategory";
-import { findDecision, findStack, finalizeAnswer, answerRefusal, refreshHolder, activeGrantFor, GRANT_TTL_MS } from "./sessionDecisions";
+import {
+  findDecision,
+  findStack,
+  finalizeAnswer,
+  answerRefusal,
+  refreshHolder,
+  activeGrantFor,
+  GRANT_TTL_MS,
+} from "./sessionDecisions";
 import { currentDecisions } from "./lib/superseded";
 
 type Ctx = { db: any };
 type StackRow = Doc<"decision_stacks">;
 
 function seatOf(stack: StackRow): ScopedSeat {
-  return { host_user_id: stack.owner_user_id, scope_user_id: stack.scope_user_id, team_id: stack.team_id };
+  return {
+    host_user_id: stack.owner_user_id,
+    scope_user_id: stack.scope_user_id,
+    team_id: stack.team_id,
+  };
 }
 
-async function authUser(ctx: any, apiToken?: string): Promise<Id<"users"> | null> {
+async function authUser(
+  ctx: any,
+  apiToken?: string,
+): Promise<Id<"users"> | null> {
   if (apiToken) return (await verifyApiToken(ctx, apiToken))?.userId ?? null;
   return getAuthUserId(ctx);
 }
@@ -38,7 +58,11 @@ async function authUser(ctx: any, apiToken?: string): Promise<Id<"users"> | null
 // delegate): owner, personal owner, or team admin; else any member may read
 // and add.
 /** May `userId` read this stack? The same rule accessibleStack applies by ref. */
-export async function canReadStack(ctx: Ctx, userId: Id<"users">, stack: StackRow): Promise<boolean> {
+export async function canReadStack(
+  ctx: Ctx,
+  userId: Id<"users">,
+  stack: StackRow,
+): Promise<boolean> {
   return userCanAccessRole(ctx, userId, seatOf(stack));
 }
 
@@ -50,22 +74,42 @@ async function accessibleStack(
 ): Promise<{ stack: StackRow } | { error: string }> {
   const stack = await findStack(ctx, ref);
   if (!stack) return { error: `Stack not found: ${ref}` };
-  const ok = admin ? await userCanAdminRole(ctx, userId, seatOf(stack)) : await userCanAccessRole(ctx, userId, seatOf(stack));
-  if (!ok) return { error: admin ? "Only the stack's owner or a team admin can change it" : `Stack not accessible: ${ref}` };
+  const ok = admin
+    ? await userCanAdminRole(ctx, userId, seatOf(stack))
+    : await userCanAccessRole(ctx, userId, seatOf(stack));
+  if (!ok)
+    return {
+      error: admin
+        ? "Only the stack's owner or a team admin can change it"
+        : `Stack not accessible: ${ref}`,
+    };
   return { stack };
 }
 
 // A role by handle or short id inside the stack's boundary (for --delegate).
-async function findRole(ctx: Ctx, stack: StackRow, ref: string): Promise<Doc<"org_roles"> | null> {
+async function findRole(
+  ctx: Ctx,
+  stack: StackRow,
+  ref: string,
+): Promise<Doc<"org_roles"> | null> {
   const handle = ref.replace(/^@/, "");
   if (/^or-\d+$/.test(handle)) {
     return (
-      (await ctx.db.query("org_roles").withIndex("by_short_id", (q: any) => q.eq("short_id", handle)).first()) ?? null
+      (await ctx.db
+        .query("org_roles")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", handle))
+        .first()) ?? null
     );
   }
   const id = ctx.db.normalizeId("org_roles", handle);
   if (id) return ctx.db.get(id);
-  return liveRoleByHandle(ctx, stack.team_id ? { team_id: stack.team_id } : { scope_user_id: stack.scope_user_id }, handle);
+  return liveRoleByHandle(
+    ctx,
+    stack.team_id
+      ? { team_id: stack.team_id }
+      : { scope_user_id: stack.scope_user_id },
+    handle,
+  );
 }
 
 const policyValidator = v.object({
@@ -73,8 +117,13 @@ const policyValidator = v.object({
   delegate_role_id: v.optional(v.id("org_roles")),
 });
 
-async function membersOf(ctx: Ctx, stack: StackRow): Promise<Doc<"session_decisions">[]> {
-  const rows = await Promise.all(stack.decision_ids.map((id) => ctx.db.get(id)));
+async function membersOf(
+  ctx: Ctx,
+  stack: StackRow,
+): Promise<Doc<"session_decisions">[]> {
+  const rows = await Promise.all(
+    stack.decision_ids.map((id) => ctx.db.get(id)),
+  );
   return rows.filter(Boolean) as Doc<"session_decisions">[];
 }
 
@@ -109,14 +158,22 @@ async function listRow(ctx: Ctx, stack: StackRow) {
 
 // Delegation (D5): one grant per open category, scope "stack:<id>", then the
 // pending members are re-resolved so the role holds them at once.
-export async function delegateStack(ctx: Ctx, userId: Id<"users">, stack: StackRow, roleId: Id<"org_roles">, now: number) {
+export async function delegateStack(
+  ctx: Ctx,
+  userId: Id<"users">,
+  stack: StackRow,
+  roleId: Id<"org_roles">,
+  now: number,
+) {
   const role = await ctx.db.get(roleId);
   if (!role) return { error: "Role not found" };
-  if (!(await userCanAdminRole(ctx, userId, role))) return { error: "Only the role's host or a team admin can delegate to it" };
+  if (!(await userCanAdminRole(ctx, userId, role)))
+    return { error: "Only the role's host or a team admin can delegate to it" };
   const scopeKey = `stack:${stack._id}`;
   let created = 0;
   for (const category of OPEN_CATEGORIES) {
-    if (await activeGrantFor(ctx, [roleId], category, [scopeKey], now)) continue;
+    if (await activeGrantFor(ctx, [roleId], category, [scopeKey], now))
+      continue;
     await ctx.db.insert("decision_grants", {
       role_id: roleId,
       category,
@@ -128,12 +185,20 @@ export async function delegateStack(ctx: Ctx, userId: Id<"users">, stack: StackR
     });
     created += 1;
   }
-  await ctx.db.patch(stack._id, { policy: { ...stack.policy, delegate_role_id: roleId }, updated_at: now });
+  await ctx.db.patch(stack._id, {
+    policy: { ...stack.policy, delegate_role_id: roleId },
+    updated_at: now,
+  });
   for (const m of await membersOf(ctx, stack)) {
     if (m.status !== "pending") continue;
     const keys = (m as any).scope_keys ?? [];
-    if (!keys.includes(scopeKey)) await ctx.db.patch(m._id, { scope_keys: [...keys, scopeKey] });
-    await refreshHolder(ctx, { ...m, scope_keys: [...keys, scopeKey] } as any, now);
+    if (!keys.includes(scopeKey))
+      await ctx.db.patch(m._id, { scope_keys: [...keys, scopeKey] });
+    await refreshHolder(
+      ctx,
+      { ...m, scope_keys: [...keys, scopeKey] } as any,
+      now,
+    );
   }
   return { grants_created: created, role: { id: roleId, name: role.name } };
 }
@@ -141,7 +206,17 @@ export async function delegateStack(ctx: Ctx, userId: Id<"users">, stack: StackR
 export async function createStackCore(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { title: string; session_id?: string; team_id?: Id<"teams">; policy?: { auto_default_after_ms?: number; delegate_role_id?: Id<"org_roles"> }; delegate?: string; client_key?: string },
+  args: {
+    title: string;
+    session_id?: string;
+    team_id?: Id<"teams">;
+    policy?: {
+      auto_default_after_ms?: number;
+      delegate_role_id?: Id<"org_roles">;
+    };
+    delegate?: string;
+    client_key?: string;
+  },
 ) {
   if (!args.title.trim()) return { error: "A stack needs a title" };
   const now = Date.now();
@@ -151,14 +226,18 @@ export async function createStackCore(
   if (!teamId && args.session_id) {
     const conversation = await ctx.db
       .query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
     if (conversation) teamId = teamVisibleConvTeam(conversation) ?? undefined;
   }
   if (teamId) {
     const m = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+      .withIndex("by_user_team", (q: any) =>
+        q.eq("user_id", userId).eq("team_id", teamId),
+      )
       .first();
     if (!m) return { error: "Not a member of that team" };
   }
@@ -178,7 +257,11 @@ export async function createStackCore(
   });
   const stack = await ctx.db.get(id);
   let delegated: any = undefined;
-  const delegateRef = args.delegate ?? (args.policy?.delegate_role_id ? String(args.policy.delegate_role_id) : undefined);
+  const delegateRef =
+    args.delegate ??
+    (args.policy?.delegate_role_id
+      ? String(args.policy.delegate_role_id)
+      : undefined);
   if (delegateRef) {
     const role = await findRole(ctx, stack, delegateRef);
     if (!role) return { error: `Role not found: ${delegateRef}`, id, short_id };
@@ -205,38 +288,82 @@ export const createStack = mutation({
   },
 });
 
-export async function addToStackCore(ctx: Ctx, userId: Id<"users">, stackRef: string, decisionRef: string) {
+export async function addToStackCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  stackRef: string,
+  decisionRef: string,
+) {
   const found = await accessibleStack(ctx, userId, stackRef);
   if ("error" in found) return found;
   const { stack } = found;
-  if (stack.status === "done") return { error: `Stack ${stack.short_id} is done` };
+  if (stack.status === "done")
+    return { error: `Stack ${stack.short_id} is done` };
   const row = await findDecision(ctx, decisionRef);
   if (!row) return { error: `Decision not found: ${decisionRef}` };
   const people = (row.asked_user_ids ?? [row.user_id]).map(String);
-  if (!people.includes(String(userId)) && row.user_id.toString() !== userId.toString()) {
-    return { error: "Only a person the decision was asked of can add it to a stack" };
+  if (
+    !people.includes(String(userId)) &&
+    row.user_id.toString() !== userId.toString()
+  ) {
+    return {
+      error: "Only a person the decision was asked of can add it to a stack",
+    };
   }
   if (row.stack_id && row.stack_id !== stack._id) {
     const old = await ctx.db.get(row.stack_id);
-    if (old) await ctx.db.patch(old._id, { decision_ids: old.decision_ids.filter((id: any) => id !== row._id), updated_at: Date.now() });
+    if (old)
+      await ctx.db.patch(old._id, {
+        decision_ids: old.decision_ids.filter((id: any) => id !== row._id),
+        updated_at: Date.now(),
+      });
   }
   const now = Date.now();
   if (!stack.decision_ids.includes(row._id)) {
-    await ctx.db.patch(stack._id, { decision_ids: [...stack.decision_ids, row._id], updated_at: now });
+    await ctx.db.patch(stack._id, {
+      decision_ids: [...stack.decision_ids, row._id],
+      updated_at: now,
+    });
   }
   const scopeKey = `stack:${stack._id}`;
   const keys: string[] = (row as any).scope_keys ?? [];
   const scope_keys = keys.includes(scopeKey) ? keys : [...keys, scopeKey];
-  await ctx.db.patch(row._id, { stack_id: stack._id, stack_joined_at: now, scope_keys, updated_at: now });
-  if (row.status === "pending") await refreshHolder(ctx, { ...row, stack_id: stack._id, scope_keys } as any, now);
-  return { stack: { id: stack._id, short_id: stack.short_id }, decision: { id: row._id, short_id: row.short_id } };
+  await ctx.db.patch(row._id, {
+    stack_id: stack._id,
+    stack_joined_at: now,
+    scope_keys,
+    updated_at: now,
+  });
+  if (row.status === "pending")
+    await refreshHolder(
+      ctx,
+      { ...row, stack_id: stack._id, scope_keys } as any,
+      now,
+    );
+  return {
+    stack: { id: stack._id, short_id: stack.short_id },
+    decision: { id: row._id, short_id: row.short_id },
+  };
 }
 
 // The queue's "group into a stack" (D5): create and add the members in one
 // call, so the web's optimistic stub reconciles to one server row and one
 // round trip instead of N + 1.
-export async function createStackWithCore(ctx: Ctx, userId: Id<"users">, args: { title: string; decision_ids: string[]; team_id?: Id<"teams">; client_key?: string }) {
-  const created = await createStackCore(ctx, userId, { title: args.title, team_id: args.team_id, client_key: args.client_key });
+export async function createStackWithCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: {
+    title: string;
+    decision_ids: string[];
+    team_id?: Id<"teams">;
+    client_key?: string;
+  },
+) {
+  const created = await createStackCore(ctx, userId, {
+    title: args.title,
+    team_id: args.team_id,
+    client_key: args.client_key,
+  });
   if ("error" in created && created.error) return created;
   const added: string[] = [];
   for (const ref of args.decision_ids) {
@@ -248,7 +375,12 @@ export async function createStackWithCore(ctx: Ctx, userId: Id<"users">, args: {
 }
 
 export const createStackWith = mutation({
-  args: { title: v.string(), decision_ids: v.array(v.string()), team_id: v.optional(v.id("teams")), client_key: v.optional(v.string()) },
+  args: {
+    title: v.string(),
+    decision_ids: v.array(v.string()),
+    team_id: v.optional(v.id("teams")),
+    client_key: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Unauthorized" };
@@ -257,7 +389,11 @@ export const createStackWith = mutation({
 });
 
 export const addToStack = mutation({
-  args: { api_token: v.optional(v.string()), stack: v.string(), decision: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    stack: v.string(),
+    decision: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await authUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
@@ -265,24 +401,51 @@ export const addToStack = mutation({
   },
 });
 
-export async function removeFromStackCore(ctx: Ctx, userId: Id<"users">, stackRef: string, decisionRef: string) {
+export async function removeFromStackCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  stackRef: string,
+  decisionRef: string,
+) {
   const found = await accessibleStack(ctx, userId, stackRef, true);
   if ("error" in found) return found;
   const row = await findDecision(ctx, decisionRef);
   if (!row) return { error: `Decision not found: ${decisionRef}` };
   // The admin check covers this stack only; the decision must be its member,
   // or an admin of one stack could detach another team's decision.
-  if (row.stack_id !== found.stack._id) return { error: `${row.short_id ?? row._id} is not in ${found.stack.short_id}` };
+  if (row.stack_id !== found.stack._id)
+    return {
+      error: `${row.short_id ?? row._id} is not in ${found.stack.short_id}`,
+    };
   const now = Date.now();
-  await ctx.db.patch(found.stack._id, { decision_ids: found.stack.decision_ids.filter((id) => id !== row._id), updated_at: now });
-  const scope_keys = ((row as any).scope_keys ?? []).filter((k: string) => k !== `stack:${found.stack._id}`);
-  await ctx.db.patch(row._id, { stack_id: undefined, stack_joined_at: undefined, scope_keys, updated_at: now });
-  if (row.status === "pending") await refreshHolder(ctx, { ...row, stack_id: undefined, scope_keys } as any, now);
+  await ctx.db.patch(found.stack._id, {
+    decision_ids: found.stack.decision_ids.filter((id) => id !== row._id),
+    updated_at: now,
+  });
+  const scope_keys = ((row as any).scope_keys ?? []).filter(
+    (k: string) => k !== `stack:${found.stack._id}`,
+  );
+  await ctx.db.patch(row._id, {
+    stack_id: undefined,
+    stack_joined_at: undefined,
+    scope_keys,
+    updated_at: now,
+  });
+  if (row.status === "pending")
+    await refreshHolder(
+      ctx,
+      { ...row, stack_id: undefined, scope_keys } as any,
+      now,
+    );
   return { removed: true };
 }
 
 export const removeFromStack = mutation({
-  args: { api_token: v.optional(v.string()), stack: v.string(), decision: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    stack: v.string(),
+    decision: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await authUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
@@ -291,20 +454,37 @@ export const removeFromStack = mutation({
 });
 
 // The new order must be a permutation of the current members.
-export async function reorderStackCore(ctx: Ctx, userId: Id<"users">, stackRef: string, decisionIds: Id<"session_decisions">[]) {
+export async function reorderStackCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  stackRef: string,
+  decisionIds: Id<"session_decisions">[],
+) {
   const found = await accessibleStack(ctx, userId, stackRef, true);
   if ("error" in found) return found;
   const before = [...found.stack.decision_ids].map(String).sort();
   const after = [...decisionIds].map(String).sort();
-  if (before.length !== after.length || before.some((id, i) => id !== after[i])) {
-    return { error: "decision_ids must be a permutation of the stack's members" };
+  if (
+    before.length !== after.length ||
+    before.some((id, i) => id !== after[i])
+  ) {
+    return {
+      error: "decision_ids must be a permutation of the stack's members",
+    };
   }
-  await ctx.db.patch(found.stack._id, { decision_ids: decisionIds, updated_at: Date.now() });
+  await ctx.db.patch(found.stack._id, {
+    decision_ids: decisionIds,
+    updated_at: Date.now(),
+  });
   return { reordered: true };
 }
 
 export const reorderStack = mutation({
-  args: { api_token: v.optional(v.string()), stack: v.string(), decision_ids: v.array(v.id("session_decisions")) },
+  args: {
+    api_token: v.optional(v.string()),
+    stack: v.string(),
+    decision_ids: v.array(v.id("session_decisions")),
+  },
   handler: async (ctx, args) => {
     const userId = await authUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
@@ -334,12 +514,14 @@ export const setStackPolicy = mutation({
     const policy = { ...stack.policy };
     if (args.clear_auto_default) policy.auto_default_after_ms = undefined;
     else if (args.auto_default_after_ms !== undefined) {
-      if (args.auto_default_after_ms <= 0) return { error: "auto_default_after_ms must be positive" };
+      if (args.auto_default_after_ms <= 0)
+        return { error: "auto_default_after_ms must be positive" };
       policy.auto_default_after_ms = args.auto_default_after_ms;
     }
     if (args.clear_due) policy.due_at = undefined;
     else if (args.due_at !== undefined) {
-      if (!Number.isFinite(args.due_at) || args.due_at <= 0) return { error: "due_at must be a unix time in milliseconds" };
+      if (!Number.isFinite(args.due_at) || args.due_at <= 0)
+        return { error: "due_at must be a unix time in milliseconds" };
       policy.due_at = args.due_at;
     }
     await ctx.db.patch(stack._id, { policy, updated_at: now });
@@ -347,16 +529,31 @@ export const setStackPolicy = mutation({
     if (args.delegate) {
       const role = await findRole(ctx, stack, args.delegate);
       if (!role) return { error: `Role not found: ${args.delegate}` };
-      delegated = await delegateStack(ctx, userId, { ...stack, policy }, role._id, now);
+      delegated = await delegateStack(
+        ctx,
+        userId,
+        { ...stack, policy },
+        role._id,
+        now,
+      );
       if (delegated?.error) return delegated;
     }
-    return { id: stack._id, short_id: stack.short_id, policy: (await ctx.db.get(stack._id))?.policy ?? policy, delegated };
+    return {
+      id: stack._id,
+      short_id: stack.short_id,
+      policy: (await ctx.db.get(stack._id))?.policy ?? policy,
+      delegated,
+    };
   },
 });
 
 // Every stack in the viewer's boundaries: their teams' stacks and their
 // personal ones, open first, newest first.
-export async function listStacksCore(ctx: Ctx, userId: Id<"users">, opts: { include_done?: boolean } = {}) {
+export async function listStacksCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  opts: { include_done?: boolean } = {},
+) {
   const out = new Map<string, StackRow>();
   const personal: StackRow[] = await ctx.db
     .query("decision_stacks")
@@ -374,8 +571,16 @@ export async function listStacksCore(ctx: Ctx, userId: Id<"users">, opts: { incl
       .collect();
     for (const s of rows) out.set(String(s._id), s);
   }
-  const stacks = Array.from(out.values()).filter((s) => opts.include_done || s.status === "open");
-  stacks.sort((a, b) => (a.status === b.status ? b.created_at - a.created_at : a.status === "open" ? -1 : 1));
+  const stacks = Array.from(out.values()).filter(
+    (s) => opts.include_done || s.status === "open",
+  );
+  stacks.sort((a, b) =>
+    a.status === b.status
+      ? b.created_at - a.created_at
+      : a.status === "open"
+        ? -1
+        : 1,
+  );
   return Promise.all(stacks.map((s) => listRow(ctx, s)));
 }
 
@@ -400,13 +605,25 @@ export const listStacksForCli = mutation({
 async function getStackCore(ctx: Ctx, userId: Id<"users">, ref: string) {
   const found = await accessibleStack(ctx, userId, ref);
   if ("error" in found) return found;
-  const members = await currentDecisions(ctx, await membersOf(ctx, found.stack));
-  const delegate = found.stack.policy.delegate_role_id ? await ctx.db.get(found.stack.policy.delegate_role_id) : null;
+  const members = await currentDecisions(
+    ctx,
+    await membersOf(ctx, found.stack),
+  );
+  const delegate = found.stack.policy.delegate_role_id
+    ? await ctx.db.get(found.stack.policy.delegate_role_id)
+    : null;
   return {
     stack: await listRow(ctx, found.stack),
     // Members in stack order, full rows: the checklist renders each as a card.
     decisions: members,
-    delegate_role: delegate ? { _id: delegate._id, short_id: delegate.short_id, name: delegate.name, handle: delegate.handle } : null,
+    delegate_role: delegate
+      ? {
+          _id: delegate._id,
+          short_id: delegate.short_id,
+          name: delegate.name,
+          handle: delegate.handle,
+        }
+      : null,
   };
 }
 
@@ -432,7 +649,10 @@ export const getStackForCli = mutation({
 // The auto default policy, as a plain function for the cron and the tests:
 // every open stack with a deadline answers its ADVISORY pending members whose
 // deadline passed with their default. Blocking members never auto answer.
-export async function applyAutoDefaultsCore(ctx: Ctx, now: number): Promise<{ answered: number }> {
+export async function applyAutoDefaultsCore(
+  ctx: Ctx,
+  now: number,
+): Promise<{ answered: number }> {
   const stacks: StackRow[] = await ctx.db
     .query("decision_stacks")
     .withIndex("by_status", (q: any) => q.eq("status", "open"))
@@ -450,7 +670,12 @@ export async function applyAutoDefaultsCore(ctx: Ctx, now: number): Promise<{ an
     const ms = stack.policy.auto_default_after_ms;
     if (!ms) continue;
     for (const m of members) {
-      if (m.status !== "pending" || m.blocking || m.default_option === undefined) continue;
+      if (
+        m.status !== "pending" ||
+        m.blocking ||
+        m.default_option === undefined
+      )
+        continue;
       // The deadline counts from when the decision joined the stack, not from
       // the ask: an old advisory added to a fresh stack still gets its window.
       const since = Math.max(m.created_at, (m as any).stack_joined_at ?? 0);
@@ -458,7 +683,13 @@ export async function applyAutoDefaultsCore(ctx: Ctx, now: number): Promise<{ an
       const by = { kind: "policy" as const, id: `stack:${stack._id}` };
       // A hosted assistant's question waits for its owner, an Ask first one for a person (answerRefusal).
       if (await answerRefusal(ctx, m, by)) continue;
-      const r = await finalizeAnswer(ctx, m, { status: "answered", answer_index: m.default_option }, by, { deliver: true, now });
+      const r = await finalizeAnswer(
+        ctx,
+        m,
+        { status: "answered", answer_index: m.default_option },
+        by,
+        { deliver: true, now },
+      );
       if (!r.already_resolved) answered += 1;
     }
   }

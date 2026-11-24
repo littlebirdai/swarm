@@ -14,7 +14,12 @@ export function progressStep(progress: number, trackPx: number): number {
  * The value to write for this scroll position, or null when the fill would not
  * move: the bar is not on screen, or it stays on the pixel it is on.
  */
-export function progressWrite(shown: boolean, progress: number, trackPx: number, lastStep: number): { step: number; value: number } | null {
+export function progressWrite(
+  shown: boolean,
+  progress: number,
+  trackPx: number,
+  lastStep: number,
+): { step: number; value: number } | null {
   if (!shown || !(trackPx > 0)) return null;
   const step = progressStep(progress, trackPx);
   return step === lastStep ? null : { step, value: step / trackPx };

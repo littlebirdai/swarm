@@ -10,7 +10,10 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import type { VisualStyle } from "../ThemeProvider";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/inbox",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -24,7 +27,8 @@ const restoreGlobals = replaceGlobals({
 const { createRoot } = await import("react-dom/client");
 const { ThemeContext } = await import("../ThemeProvider");
 const { useInboxStore } = await import("../../store/inboxStore");
-const { ListHeadNewSession, NewSessionButton } = await import("./NewSessionButton");
+const { ListHeadNewSession, NewSessionButton } =
+  await import("./NewSessionButton");
 
 const host = document.createElement("div");
 document.body.append(host);
@@ -33,25 +37,43 @@ afterEach(async () => {
   if (root) await act(() => root!.unmount());
   root = null;
 });
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 async function mount(style: VisualStyle, node: ReactNode) {
   root = createRoot(host);
-  await act(() => root!.render(
-    <ThemeContext.Provider value={{ theme: "light", toggleTheme: () => {}, visualStyle: style, setVisualStyle: () => {} }}>
-      {node}
-    </ThemeContext.Provider>,
-  ));
+  await act(() =>
+    root!.render(
+      <ThemeContext.Provider
+        value={{
+          theme: "light",
+          toggleTheme: () => {},
+          visualStyle: style,
+          setVisualStyle: () => {},
+        }}
+      >
+        {node}
+      </ThemeContext.Provider>,
+    ),
+  );
 }
 
 describe("the New session button", () => {
   test("heads the inbox list in Modern and opens the composer", async () => {
     const before = useInboxStore.getState().openCompose;
     let opened = 0;
-    useInboxStore.setState({ openCompose: (() => { opened++; }) as typeof before });
+    useInboxStore.setState({
+      openCompose: (() => {
+        opened++;
+      }) as typeof before,
+    });
     try {
       await mount("modern", <ListHeadNewSession />);
-      const button = host.querySelector<HTMLButtonElement>('button[data-new-session="icon"]')!;
+      const button = host.querySelector<HTMLButtonElement>(
+        'button[data-new-session="icon"]',
+      )!;
       expect(button.getAttribute("aria-label")).toBe("New session");
       await act(() => button.click());
       expect(opened).toBe(1);
@@ -71,7 +93,9 @@ describe("the New session button", () => {
 
   test("the rail's row says what it does in words", async () => {
     await mount("modern", <NewSessionButton variant="row" />);
-    const button = host.querySelector<HTMLButtonElement>('button[data-new-session="row"]')!;
+    const button = host.querySelector<HTMLButtonElement>(
+      'button[data-new-session="row"]',
+    )!;
     expect(button.textContent).toBe("New session");
   });
 });

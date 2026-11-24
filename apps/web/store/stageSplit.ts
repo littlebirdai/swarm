@@ -68,7 +68,10 @@ export function countLeaves(root: StageNode | null | undefined): number {
   return leavesOf(root).length;
 }
 
-export function findLeaf(root: StageNode | null | undefined, id: string): StageLeaf | null {
+export function findLeaf(
+  root: StageNode | null | undefined,
+  id: string,
+): StageLeaf | null {
   if (!root) return null;
   if (root.type === "leaf") return root.id === id ? root : null;
   for (const c of root.children) {
@@ -78,7 +81,10 @@ export function findLeaf(root: StageNode | null | undefined, id: string): StageL
   return null;
 }
 
-export function findBranch(root: StageNode | null | undefined, id: string): StageBranch | null {
+export function findBranch(
+  root: StageNode | null | undefined,
+  id: string,
+): StageBranch | null {
   if (!root || root.type === "leaf") return null;
   if (root.id === id) return root;
   for (const c of root.children) {
@@ -184,10 +190,15 @@ function insertNode(
   if (target === "root") {
     if (root.type === "split" && root.dir === dir) {
       const share = 100 / (root.children.length + 1);
-      const children = before ? [fresh, ...root.children] : [...root.children, fresh];
+      const children = before
+        ? [fresh, ...root.children]
+        : [...root.children, fresh];
       const scaled = root.sizes.map((s) => s * (1 - share / 100));
       const sizes = before ? [share, ...scaled] : [...scaled, share];
-      return { root: normalize({ ...root, children, sizes: renormalize(sizes) }), leafId: fresh.id };
+      return {
+        root: normalize({ ...root, children, sizes: renormalize(sizes) }),
+        leafId: fresh.id,
+      };
     }
     // Wrapping a whole arrangement: the newcomer takes a modest share of a
     // multi-pane stage, an even half of a single pane.
@@ -216,7 +227,11 @@ function insertNode(
     }
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
-      if (child.type === "leaf" && child.id === target.leafId && node.dir === dir) {
+      if (
+        child.type === "leaf" &&
+        child.id === target.leafId &&
+        node.dir === dir
+      ) {
         // Parent already runs this way: the pair shares the leaf's slot.
         const half = (node.sizes[i] ?? 100 / node.children.length) / 2;
         const children = [...node.children];
@@ -271,8 +286,13 @@ export function removeLeaf(root: StageNode, leafId: string): StageNode | null {
   return next ? normalize(next) : null;
 }
 
-export function setLeafPath(root: StageNode, leafId: string, path: string): StageNode {
-  if (root.type === "leaf") return root.id === leafId ? { ...root, path: tabSafePath(path) } : root;
+export function setLeafPath(
+  root: StageNode,
+  leafId: string,
+  path: string,
+): StageNode {
+  if (root.type === "leaf")
+    return root.id === leafId ? { ...root, path: tabSafePath(path) } : root;
   let changed = false;
   const children = root.children.map((c) => {
     const next = setLeafPath(c, leafId, path);
@@ -283,7 +303,11 @@ export function setLeafPath(root: StageNode, leafId: string, path: string): Stag
 }
 
 /** Replace one branch's sizes (a resize-handle drag). Values renormalize. */
-export function setBranchSizes(root: StageNode, branchId: string, sizes: number[]): StageNode {
+export function setBranchSizes(
+  root: StageNode,
+  branchId: string,
+  sizes: number[],
+): StageNode {
   if (root.type === "leaf") return root;
   if (root.id === branchId) {
     if (sizes.length !== root.children.length) return root;
@@ -307,7 +331,12 @@ export function setBranchSizes(root: StageNode, branchId: string, sizes: number[
 // over a predicted tree — layout and preview share one geometry.
 // ---------------------------------------------------------------------------
 
-export type PctRect = { left: number; top: number; width: number; height: number };
+export type PctRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 export type StageHandleGeom = {
   branchId: string;
@@ -360,8 +389,18 @@ export function stageGeometry(root: StageNode): StageGeometry {
           dir: node.dir,
           rect:
             node.dir === "row"
-              ? { left: rect.left + (rect.width * offset) / 100, top: rect.top, width: 0, height: rect.height }
-              : { left: rect.left, top: rect.top + (rect.height * offset) / 100, width: rect.width, height: 0 },
+              ? {
+                  left: rect.left + (rect.width * offset) / 100,
+                  top: rect.top,
+                  width: 0,
+                  height: rect.height,
+                }
+              : {
+                  left: rect.left,
+                  top: rect.top + (rect.height * offset) / 100,
+                  width: rect.width,
+                  height: 0,
+                },
           branchRect: rect,
         });
       }
@@ -395,16 +434,39 @@ export type StageWideCell = {
  * each `railPx` wide, and the leaf spans what is left. Null when the leaf is
  * not in the tree or has no sibling (nothing to fold).
  */
-export function stageWideCells(root: StageNode, leafId: string, railPx = STAGE_RAIL_PX): StageWideCell[] | null {
+export function stageWideCells(
+  root: StageNode,
+  leafId: string,
+  railPx = STAGE_RAIL_PX,
+): StageWideCell[] | null {
   const leaves = leavesOf(root);
   const at = leaves.findIndex((l) => l.id === leafId);
   if (at < 0 || leaves.length < 2) return null;
   const rails = leaves.length - 1;
   return leaves.map((l, i) => {
-    if (i === at) return { id: l.id, path: l.path, rail: null, style: { left: `${at * railPx}px`, top: "0%", width: `calc(100% - ${rails * railPx}px)`, height: "100%" } };
-    const rail = i < at ? "left" as const : "right" as const;
-    const left = rail === "left" ? `${i * railPx}px` : `calc(100% - ${(leaves.length - i) * railPx}px)`;
-    return { id: l.id, path: l.path, rail, style: { left, top: "0%", width: `${railPx}px`, height: "100%" } };
+    if (i === at)
+      return {
+        id: l.id,
+        path: l.path,
+        rail: null,
+        style: {
+          left: `${at * railPx}px`,
+          top: "0%",
+          width: `calc(100% - ${rails * railPx}px)`,
+          height: "100%",
+        },
+      };
+    const rail = i < at ? ("left" as const) : ("right" as const);
+    const left =
+      rail === "left"
+        ? `${i * railPx}px`
+        : `calc(100% - ${(leaves.length - i) * railPx}px)`;
+    return {
+      id: l.id,
+      path: l.path,
+      rail,
+      style: { left, top: "0%", width: `${railPx}px`, height: "100%" },
+    };
   });
 }
 
@@ -438,12 +500,17 @@ export function resolveDropZone(
     if (x < ROOT_BAND_PX) return { kind: "root", edge: "left" };
     if (x > stage.width - ROOT_BAND_PX) return { kind: "root", edge: "right" };
     if (y < ROOT_BAND_PX) return { kind: "root", edge: "top" };
-    if (y > stage.height - ROOT_BAND_PX) return { kind: "root", edge: "bottom" };
+    if (y > stage.height - ROOT_BAND_PX)
+      return { kind: "root", edge: "bottom" };
   }
   const px = (x / stage.width) * 100;
   const py = (y / stage.height) * 100;
   const leaf = geo.leaves.find(
-    (l) => px >= l.rect.left && px <= l.rect.left + l.rect.width && py >= l.rect.top && py <= l.rect.top + l.rect.height,
+    (l) =>
+      px >= l.rect.left &&
+      px <= l.rect.left + l.rect.width &&
+      py >= l.rect.top &&
+      py <= l.rect.top + l.rect.height,
   );
   if (!leaf) return null;
   // Position within the leaf, 0..1 per axis.
@@ -463,7 +530,8 @@ export function resolveDropZone(
   ];
   bands.sort((a, b) => a.depth - b.depth);
   for (const band of bands) {
-    if (band.rawDepth <= EDGE_BAND) return { kind: "edge", leafId: leaf.id, edge: band.edge };
+    if (band.rawDepth <= EDGE_BAND)
+      return { kind: "edge", leafId: leaf.id, edge: band.edge };
   }
   return { kind: "center", leafId: leaf.id };
 }
@@ -484,7 +552,12 @@ export function predictDrop(
     return { geometry: stageGeometry(root), newLeafId: zone.leafId };
   }
   if (countLeaves(root) >= MAX_STAGE_LEAVES) return null;
-  const res = insertLeaf(root, zone.kind === "root" ? "root" : { leafId: zone.leafId }, zone.edge, path);
+  const res = insertLeaf(
+    root,
+    zone.kind === "root" ? "root" : { leafId: zone.leafId },
+    zone.edge,
+    path,
+  );
   if (!res) return null;
   return { geometry: stageGeometry(res.root), newLeafId: res.leafId };
 }
@@ -498,20 +571,35 @@ export function predictDrop(
  * a normalized tree, or undefined for anything malformed — the tab then falls
  * back to its plain path, which is always present.
  */
-export function sanitizeLayout(raw: unknown, isValidPath?: (p: string) => boolean): StageNode | undefined {
+export function sanitizeLayout(
+  raw: unknown,
+  isValidPath?: (p: string) => boolean,
+): StageNode | undefined {
   const seen = new Set<string>();
   const valid = (node: unknown, depth: number): StageNode | null => {
     if (!node || typeof node !== "object" || depth > 6) return null;
     const n = node as Record<string, unknown>;
     if (n.type === "leaf") {
-      if (typeof n.id !== "string" || !n.id || typeof n.path !== "string" || !n.path) return null;
+      if (
+        typeof n.id !== "string" ||
+        !n.id ||
+        typeof n.path !== "string" ||
+        !n.path
+      )
+        return null;
       if (seen.has(n.id)) return null;
       if (isValidPath && !isValidPath(n.path)) return null;
       seen.add(n.id);
       return { type: "leaf", id: n.id, path: tabSafePath(n.path) };
     }
     if (n.type === "split") {
-      if (typeof n.id !== "string" || !n.id || (n.dir !== "row" && n.dir !== "col") || !Array.isArray(n.children)) return null;
+      if (
+        typeof n.id !== "string" ||
+        !n.id ||
+        (n.dir !== "row" && n.dir !== "col") ||
+        !Array.isArray(n.children)
+      )
+        return null;
       const children: StageNode[] = [];
       for (const c of n.children) {
         const cc = valid(c, depth + 1);
@@ -519,10 +607,19 @@ export function sanitizeLayout(raw: unknown, isValidPath?: (p: string) => boolea
         children.push(cc);
       }
       if (children.length < 1) return null;
-      const sizes = Array.isArray(n.sizes) && n.sizes.length === children.length && n.sizes.every((s) => typeof s === "number" && isFinite(s) && s >= 0)
-        ? (n.sizes as number[])
-        : children.map(() => 100 / children.length);
-      return { type: "split", id: n.id, dir: n.dir, children, sizes: renormalize(sizes) };
+      const sizes =
+        Array.isArray(n.sizes) &&
+        n.sizes.length === children.length &&
+        n.sizes.every((s) => typeof s === "number" && isFinite(s) && s >= 0)
+          ? (n.sizes as number[])
+          : children.map(() => 100 / children.length);
+      return {
+        type: "split",
+        id: n.id,
+        dir: n.dir,
+        children,
+        sizes: renormalize(sizes),
+      };
     }
     return null;
   };

@@ -35,8 +35,15 @@ import {
   type PlaceInboxState,
   type SessionsProjectionSlot,
 } from "./inboxStore";
-import { lastSyncApplyMono, monotonicNow, syncInflightCount } from "./syncActivity";
-import type { CodecastEventName, CodecastEventProps } from "@codecast/shared/analytics";
+import {
+  lastSyncApplyMono,
+  monotonicNow,
+  syncInflightCount,
+} from "./syncActivity";
+import type {
+  CodecastEventName,
+  CodecastEventProps,
+} from "@codecast/shared/analytics";
 
 // Simulation tracing is a bun only switch. The browser has no `process`, and
 // a bare read threw inside the compare tick, so the tick that should heal a
@@ -108,12 +115,20 @@ export type InboxDriftDiff = {
 };
 
 export function isDriftDiffEmpty(d: InboxDriftDiff): boolean {
-  return d.missing.length === 0 && d.extra.length === 0 && d.bucket_deltas.length === 0 && d.fold_deltas.length === 0;
+  return (
+    d.missing.length === 0 &&
+    d.extra.length === 0 &&
+    d.bucket_deltas.length === 0 &&
+    d.fold_deltas.length === 0
+  );
 }
 
 // The ids that appear in BOTH diffs under the same category — the part of a
 // diff that persisted from one payload epoch to the next.
-export function intersectDriftDiff(a: InboxDriftDiff, b: InboxDriftDiff): InboxDriftDiff {
+export function intersectDriftDiff(
+  a: InboxDriftDiff,
+  b: InboxDriftDiff,
+): InboxDriftDiff {
   const keep = (xs: string[], ys: string[]) => {
     const set = new Set(ys);
     return xs.filter((id) => set.has(id));
@@ -129,9 +144,25 @@ export function intersectDriftDiff(a: InboxDriftDiff, b: InboxDriftDiff): InboxD
 export type InboxCompareOutcome =
   /** Kill switch (C8): the payload carries no digest. Compare AND heal off. */
   | { kind: "disabled" }
-  | { kind: "skip"; reason: InboxCompareSkip; payload_v?: number; payload_age_ms?: number }
-  | { kind: "clean"; epoch: number; short_circuit: boolean; payload_age_ms: number }
-  | { kind: "diff"; epoch: number; diff: InboxDriftDiff; payload_age_ms: number; set_digest: string };
+  | {
+      kind: "skip";
+      reason: InboxCompareSkip;
+      payload_v?: number;
+      payload_age_ms?: number;
+    }
+  | {
+      kind: "clean";
+      epoch: number;
+      short_circuit: boolean;
+      payload_age_ms: number;
+    }
+  | {
+      kind: "diff";
+      epoch: number;
+      diff: InboxDriftDiff;
+      payload_age_ms: number;
+      set_digest: string;
+    };
 
 export type InboxCompareContext = {
   /** Wall clock: overlay bounds ONLY. The projection itself is evaluated at
@@ -159,7 +190,10 @@ function anyCrawlLoading(progress: InboxCompareState["syncProgress"]): boolean {
 // declared overlay is active; otherwise the per-row diff with the three
 // carve-outs (overlay-affected ids, rows whose every window overflowed,
 // foreign rows under a fired foreign_scan).
-export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompareContext): InboxCompareOutcome {
+export function evaluateInboxCompare(
+  state: InboxCompareState,
+  ctx: InboxCompareContext,
+): InboxCompareOutcome {
   const scopeKey = ctx.scopeKey ?? "mine";
   // Gate 6 first when the slot is not the personal one: team scope stamps
   // ship for rendering freshness but the replica lacks the visibility inputs
@@ -172,12 +206,18 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
   // Gate 1: the kill switch.
   if (slot.set_digest == null) return { kind: "disabled" };
   // Gate 2: the version gate — deploy skew is silence plus a metric.
-  if (slot.v !== INBOX_PROJECTION_VERSION) return { kind: "skip", reason: "version_skew", payload_v: slot.v };
+  if (slot.v !== INBOX_PROJECTION_VERSION)
+    return { kind: "skip", reason: "version_skew", payload_v: slot.v };
   // Gate 3: payload age on the receipt clock.
   const payload_age_ms = Math.max(0, ctx.nowMono - slot.receivedAtMono);
-  if (payload_age_ms > INBOX_COMPARE_MAX_PAYLOAD_AGE_MS) return { kind: "skip", reason: "stale_payload", payload_age_ms };
+  if (payload_age_ms > INBOX_COMPARE_MAX_PAYLOAD_AGE_MS)
+    return { kind: "skip", reason: "stale_payload", payload_age_ms };
   // Gate 4: applier quiescence.
-  if (ctx.inflight > 0 || ctx.nowMono - ctx.lastApplyMono < INBOX_COMPARE_QUIESCENT_MS || anyCrawlLoading(state.syncProgress)) {
+  if (
+    ctx.inflight > 0 ||
+    ctx.nowMono - ctx.lastApplyMono < INBOX_COMPARE_QUIESCENT_MS ||
+    anyCrawlLoading(state.syncProgress)
+  ) {
     return { kind: "skip", reason: "not_quiescent", payload_age_ms };
   }
   // Gate 5: the replica can honestly claim the set only after the
@@ -186,7 +226,10 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
     return { kind: "skip", reason: "cold_replica", payload_age_ms };
   }
   // A capped MEMBER set (team member caps) is dark as a whole, not per window.
-  if (slot.truncated.includes("members") || slot.truncated.includes("member_rows")) {
+  if (
+    slot.truncated.includes("members") ||
+    slot.truncated.includes("member_rows")
+  ) {
     return { kind: "skip", reason: "truncated_windows", payload_age_ms };
   }
 
@@ -194,7 +237,12 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
   // is the epoch too, so the trust decay is applied exactly where the server
   // applied it (see projectReplicaInbox).
   const focusedId = state.currentSessionId ?? null;
-  const { proj, rowById, adapted } = projectReplicaInbox(state, { scope: "mine", focusedId, epoch: slot.epoch, now: slot.epoch });
+  const { proj, rowById, adapted } = projectReplicaInbox(state, {
+    scope: "mine",
+    focusedId,
+    epoch: slot.epoch,
+    now: slot.epoch,
+  });
   const deps = collectInboxOverlayDeps(
     {
       sessions: state.sessions,
@@ -208,13 +256,20 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
     ctx.now,
   );
   if (!anyOverlayActive(deps) && proj.set_digest === slot.set_digest) {
-    return { kind: "clean", epoch: slot.epoch, short_circuit: true, payload_age_ms };
+    return {
+      kind: "clean",
+      epoch: slot.epoch,
+      short_circuit: true,
+      payload_age_ms,
+    };
   }
 
   // Per-row diff with the carve-outs.
   const truncatedWindows = new Set<WorkingSetWindow>();
-  for (const t of slot.truncated) if (isWorkingSetWindow(t)) truncatedWindows.add(t);
-  for (const t of proj.truncated) if (isWorkingSetWindow(t)) truncatedWindows.add(t);
+  for (const t of slot.truncated)
+    if (isWorkingSetWindow(t)) truncatedWindows.add(t);
+  for (const t of proj.truncated)
+    if (isWorkingSetWindow(t)) truncatedWindows.add(t);
   const foreignScan = slot.truncated.includes("foreign_scan");
   const meId = state.currentUser?._id?.toString?.() ?? null;
   // A truncated window excuses a MEMBERSHIP difference only (a row the cap cut
@@ -239,12 +294,24 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
       // Eligibility windows, not just the selected ones: a held row the cap
       // cut on one side only is exactly the overflow case the flag names.
       const row = adapted.get(id);
-      const windows = row ? inWorkingSet(row, slot.epoch) : proj.windows.get(id);
-      if (windows && windows.length > 0 && windows.every((w) => truncatedWindows.has(w))) return true;
+      const windows = row
+        ? inWorkingSet(row, slot.epoch)
+        : proj.windows.get(id);
+      if (
+        windows &&
+        windows.length > 0 &&
+        windows.every((w) => truncatedWindows.has(w))
+      )
+        return true;
     }
     return false;
   };
-  const diff: InboxDriftDiff = { missing: [], extra: [], bucket_deltas: [], fold_deltas: [] };
+  const diff: InboxDriftDiff = {
+    missing: [],
+    extra: [],
+    bucket_deltas: [],
+    fold_deltas: [],
+  };
   const stamps = slot.stamps;
   for (const id in stamps) {
     const local = proj.placements.get(id);
@@ -258,17 +325,54 @@ export function evaluateInboxCompare(state: InboxCompareState, ctx: InboxCompare
       diff.bucket_deltas.push(id);
       if (SIM_TRACE) {
         const a: any = adapted.get(id) ?? {};
-        console.info("[inboxDigest] delta", JSON.stringify({ id: id.slice(0, 8), stamp: stamp.bucket, stamp_ws: stamp.work_state, local: local.bucket, local_ws: local.work_state, asking: stamp.asking, epoch: slot.epoch, adapted: { agent_status: a.agent_status, is_idle: a.is_idle, awaiting: a.awaiting_input, verdict: a.settle_verdict, thread: a.thread_state_status, killed: a.inbox_killed_at, pinned: a.inbox_pinned_at, rest: a.inbox_rest, rest_at: a.inbox_rest_at, armed: a.armed_trigger_kind, has_pending: a.has_pending_messages, updated_at: a.updated_at, msgs: a.message_count } }));
+        console.info(
+          "[inboxDigest] delta",
+          JSON.stringify({
+            id: id.slice(0, 8),
+            stamp: stamp.bucket,
+            stamp_ws: stamp.work_state,
+            local: local.bucket,
+            local_ws: local.work_state,
+            asking: stamp.asking,
+            epoch: slot.epoch,
+            adapted: {
+              agent_status: a.agent_status,
+              is_idle: a.is_idle,
+              awaiting: a.awaiting_input,
+              verdict: a.settle_verdict,
+              thread: a.thread_state_status,
+              killed: a.inbox_killed_at,
+              pinned: a.inbox_pinned_at,
+              rest: a.inbox_rest,
+              rest_at: a.inbox_rest_at,
+              armed: a.armed_trigger_kind,
+              has_pending: a.has_pending_messages,
+              updated_at: a.updated_at,
+              msgs: a.message_count,
+            },
+          }),
+        );
       }
-    }
-    else if (local.below_fold !== stamp.below_fold) diff.fold_deltas.push(id);
+    } else if (local.below_fold !== stamp.below_fold) diff.fold_deltas.push(id);
   }
   for (const id of proj.placements.keys()) {
     if (id in stamps || droppedMembership(id)) continue;
     diff.extra.push(id);
   }
-  if (isDriftDiffEmpty(diff)) return { kind: "clean", epoch: slot.epoch, short_circuit: false, payload_age_ms };
-  return { kind: "diff", epoch: slot.epoch, diff, payload_age_ms, set_digest: slot.set_digest };
+  if (isDriftDiffEmpty(diff))
+    return {
+      kind: "clean",
+      epoch: slot.epoch,
+      short_circuit: false,
+      payload_age_ms,
+    };
+  return {
+    kind: "diff",
+    epoch: slot.epoch,
+    diff,
+    payload_age_ms,
+    set_digest: slot.set_digest,
+  };
 }
 
 // ── The stateful loop: persistence, heal, telemetry (C7) ────────────────────
@@ -290,7 +394,16 @@ export type InboxHeartbeatCounters = {
 export function emptyHeartbeatCounters(): InboxHeartbeatCounters {
   const skips = {} as Record<InboxCompareSkip, number>;
   for (const k of INBOX_COMPARE_SKIPS) skips[k] = 0;
-  return { checks: 0, mismatches: 0, heals: 0, heals_missing: 0, max_payload_age_ms: 0, skips, disabled: 0, probes: 0 };
+  return {
+    checks: 0,
+    mismatches: 0,
+    heals: 0,
+    heals_missing: 0,
+    max_payload_age_ms: 0,
+    skips,
+    disabled: 0,
+    probes: 0,
+  };
 }
 
 export type InboxDigestComparerIO = {
@@ -301,7 +414,10 @@ export type InboxDigestComparerIO = {
    *  itself so an event this file emits must exist in it with matching props
    *  (ct-49565); a looser signature here would silently opt the whole comparer
    *  out of that check. */
-  track: <N extends CodecastEventName>(event: N, properties: CodecastEventProps<N>) => void;
+  track: <N extends CodecastEventName>(
+    event: N,
+    properties: CodecastEventProps<N>,
+  ) => void;
   /** Hydrate exactly these ids into the store (the missing-bodies heal). */
   fetchByIds: (ids: string[]) => Promise<void>;
   /** One sessionsLiveness `_probe` applied through the overlay applier. */
@@ -329,12 +445,16 @@ function defaultSchedule(fn: () => void, ms: number): () => void {
   return () => clearTimeout(id);
 }
 
-export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDigestComparer {
+export function createInboxDigestComparer(
+  io: InboxDigestComparerIO,
+): InboxDigestComparer {
   const now = io.now ?? (() => Date.now());
   const nowMono = io.nowMono ?? monotonicNow;
   const random = io.random ?? Math.random;
   const schedule = io.schedule ?? defaultSchedule;
-  const onError = io.onError ?? ((err: unknown) => console.warn("[inboxDigest] heal failed", err));
+  const onError =
+    io.onError ??
+    ((err: unknown) => console.warn("[inboxDigest] heal failed", err));
   const base = { scope: "mine", platform: io.platform };
 
   let counters = emptyHeartbeatCounters();
@@ -366,14 +486,22 @@ export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDiges
     if (t - heartbeatAt < INBOX_HEARTBEAT_INTERVAL_MS) return;
     heartbeatAt = t;
     // Zeros included: "no drift" must be distinguishable from "never ran".
-    io.track("inbox_digest_heartbeat", { ...base, ...counters, skips: { ...counters.skips } });
+    io.track("inbox_digest_heartbeat", {
+      ...base,
+      ...counters,
+      skips: { ...counters.skips },
+    });
     counters = emptyHeartbeatCounters();
   }
 
   // The stale-payload probe scheduler (C2): a frozen payload is where time
   // driven reclassification accumulates, so force one fresh execution on a
   // slow budget. Off with the kill switch (probe is compare machinery).
-  function maybeProbeStale(state: InboxCompareState, t: number, tMono: number): void {
+  function maybeProbeStale(
+    state: InboxCompareState,
+    t: number,
+    tMono: number,
+  ): void {
     const slot = state.sessionsProjection["mine"];
     if (!slot || slot.set_digest == null || staleProbeInFlight) return;
     if (tMono - slot.receivedAtMono <= INBOX_PROBE_PAYLOAD_AGE_MS) return;
@@ -406,29 +534,41 @@ export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDiges
     // verdict filed it needs_input against a done stamp, and a probe-only
     // heal could never move it (prod, 2026-09-01). One byIds fetch per heal,
     // bounded by the heal budget.
-    const hydrate = [...diff.missing, ...diff.extra, ...diff.bucket_deltas, ...diff.fold_deltas];
-    cancelHeal = schedule(() => {
-      cancelHeal = null;
-      (async () => {
-        try {
-          if (hydrate.length) {
-            await io.fetchByIds(hydrate);
-            counters.heals_missing++;
+    const hydrate = [
+      ...diff.missing,
+      ...diff.extra,
+      ...diff.bucket_deltas,
+      ...diff.fold_deltas,
+    ];
+    cancelHeal = schedule(
+      () => {
+        cancelHeal = null;
+        (async () => {
+          try {
+            if (hydrate.length) {
+              await io.fetchByIds(hydrate);
+              counters.heals_missing++;
+            }
+            await io.probeOverlay();
+            counters.heals++;
+          } catch (err) {
+            onError(err);
+          } finally {
+            healInFlight = false;
           }
-          await io.probeOverlay();
-          counters.heals++;
-        } catch (err) {
-          onError(err);
-        } finally {
-          healInFlight = false;
-        }
-      })();
-    }, Math.floor(random() * INBOX_HEAL_JITTER_MS));
+        })();
+      },
+      Math.floor(random() * INBOX_HEAL_JITTER_MS),
+    );
   }
 
-  function onConfirmedDrift(outcome: Extract<InboxCompareOutcome, { kind: "diff" }>, t: number): void {
+  function onConfirmedDrift(
+    outcome: Extract<InboxCompareOutcome, { kind: "diff" }>,
+    t: number,
+  ): void {
     counters.mismatches++;
-    if (SIM_TRACE) console.info("[inboxDigest] drift", JSON.stringify(outcome.diff));
+    if (SIM_TRACE)
+      console.info("[inboxDigest] drift", JSON.stringify(outcome.diff));
     if (outcome.set_digest !== lastDriftDigest) {
       lastDriftDigest = outcome.set_digest;
       io.track("inbox_drift", {
@@ -450,7 +590,11 @@ export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDiges
       // The fourth heal in a window: a same-version computation bug costs one
       // event per client, never a fleet of synchronized refetch storms.
       latched = true;
-      io.track("inbox_drift_persistent", { ...base, heals_in_window: healsInWindow, window_ms: INBOX_HEAL_WINDOW_MS });
+      io.track("inbox_drift_persistent", {
+        ...base,
+        heals_in_window: healsInWindow,
+        window_ms: INBOX_HEAL_WINDOW_MS,
+      });
       return;
     }
     healsInWindow++;
@@ -482,20 +626,38 @@ export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDiges
         break;
       case "skip":
         counters.skips[outcome.reason]++;
-        if (outcome.reason === "version_skew" && outcome.payload_v !== undefined && !skewSeen.has(outcome.payload_v)) {
+        if (
+          outcome.reason === "version_skew" &&
+          outcome.payload_v !== undefined &&
+          !skewSeen.has(outcome.payload_v)
+        ) {
           skewSeen.add(outcome.payload_v);
-          io.track("inbox_digest_version_skew", { ...base, payload_v: outcome.payload_v, client_v: INBOX_PROJECTION_VERSION });
+          io.track("inbox_digest_version_skew", {
+            ...base,
+            payload_v: outcome.payload_v,
+            client_v: INBOX_PROJECTION_VERSION,
+          });
         }
-        if (outcome.payload_age_ms !== undefined) counters.max_payload_age_ms = Math.max(counters.max_payload_age_ms, outcome.payload_age_ms);
+        if (outcome.payload_age_ms !== undefined)
+          counters.max_payload_age_ms = Math.max(
+            counters.max_payload_age_ms,
+            outcome.payload_age_ms,
+          );
         break;
       case "clean":
         counters.checks++;
-        counters.max_payload_age_ms = Math.max(counters.max_payload_age_ms, outcome.payload_age_ms);
+        counters.max_payload_age_ms = Math.max(
+          counters.max_payload_age_ms,
+          outcome.payload_age_ms,
+        );
         pendingDiff = null;
         break;
       case "diff":
         counters.checks++;
-        counters.max_payload_age_ms = Math.max(counters.max_payload_age_ms, outcome.payload_age_ms);
+        counters.max_payload_age_ms = Math.max(
+          counters.max_payload_age_ms,
+          outcome.payload_age_ms,
+        );
         if (pendingDiff !== null && pendingDiff.epoch !== outcome.epoch) {
           // A later payload epoch: what persisted from the previous diff is
           // drift; anything that cleared in between was transient.
@@ -524,7 +686,6 @@ export function createInboxDigestComparer(io: InboxDigestComparerIO): InboxDiges
     },
   };
 }
-
 
 // ── Dev console handle (never production) ──────────────────────────────────
 // Attached as `window.__inboxDigest` by the hook, same convention as
@@ -565,9 +726,19 @@ export function createInboxDigestDevHandle(
   const replica = () => {
     const state = useInboxStore.getState();
     const slot = state.sessionsProjection?.mine;
-    return projectReplicaInbox(state, { scope: "mine", focusedId: null, epoch: slot?.epoch ?? 0, now: slot?.epoch ?? Date.now() });
+    return projectReplicaInbox(state, {
+      scope: "mine",
+      focusedId: null,
+      epoch: slot?.epoch ?? 0,
+      now: slot?.epoch ?? Date.now(),
+    });
   };
-  const place = (focusedId: string | null = null) => placeInboxRows(useInboxStore.getState(), { scope: "mine", focusedId, now: Date.now() });
+  const place = (focusedId: string | null = null) =>
+    placeInboxRows(useInboxStore.getState(), {
+      scope: "mine",
+      focusedId,
+      now: Date.now(),
+    });
   const renderVsStamp = () => {
     const state = useInboxStore.getState();
     const stamps = state.sessionsProjection?.mine?.stamps ?? {};
@@ -580,9 +751,35 @@ export function createInboxDigestDevHandle(
       const r: any = state.sessions[id] ?? {};
       const a: any = rep.adapted.get(id) ?? {};
       deltas.push({
-        id: id.slice(0, 7), stamp: stamp.bucket, render: p.bucket, replica: rep.proj.placements.get(id)?.bucket ?? null,
-        row: { agent_status: r.agent_status, is_idle: r.is_idle, awaiting: r.awaiting_input, thread: r.thread_state_status, verdict: r.settle_verdict, updated_at: r.updated_at, msgs: r.message_count, allows_park: r.last_turn_allows_park, rest: r.inbox_rest, rest_at: r.inbox_rest_at, user_rest: r.user_rest, armed: r.armed_trigger_kind, has_pending: r.has_pending_messages, api_err: r.pending_api_error },
-        adapted: { agent_status: a.agent_status, is_idle: a.is_idle, verdict: a.settle_verdict, verdict_at: a.settle_verdict_at, rest: a.inbox_rest, rest_at: a.inbox_rest_at, has_pending: a.has_pending_messages },
+        id: id.slice(0, 7),
+        stamp: stamp.bucket,
+        render: p.bucket,
+        replica: rep.proj.placements.get(id)?.bucket ?? null,
+        row: {
+          agent_status: r.agent_status,
+          is_idle: r.is_idle,
+          awaiting: r.awaiting_input,
+          thread: r.thread_state_status,
+          verdict: r.settle_verdict,
+          updated_at: r.updated_at,
+          msgs: r.message_count,
+          allows_park: r.last_turn_allows_park,
+          rest: r.inbox_rest,
+          rest_at: r.inbox_rest_at,
+          user_rest: r.user_rest,
+          armed: r.armed_trigger_kind,
+          has_pending: r.has_pending_messages,
+          api_err: r.pending_api_error,
+        },
+        adapted: {
+          agent_status: a.agent_status,
+          is_idle: a.is_idle,
+          verdict: a.settle_verdict,
+          verdict_at: a.settle_verdict_at,
+          rest: a.inbox_rest,
+          rest_at: a.inbox_rest_at,
+          has_pending: a.has_pending_messages,
+        },
       });
     }
     return deltas;
@@ -592,16 +789,26 @@ export function createInboxDigestDevHandle(
     const line = `${outcome.kind}${"reason" in outcome && outcome.reason ? ":" + outcome.reason : ""}`;
     if (line === lastLogged) return;
     lastLogged = line;
-    console.info(`[inboxDigest] ${line}`, "diff" in outcome && outcome.diff ? outcome.diff : "");
+    console.info(
+      `[inboxDigest] ${line}`,
+      "diff" in outcome && outcome.diff ? outcome.diff : "",
+    );
     if (outcome.kind === "skip" || outcome.kind === "disabled") return;
     const deltas = renderVsStamp();
-    if (deltas.length) console.info("[inboxDigest] render_vs_stamp", JSON.stringify(deltas));
+    if (deltas.length)
+      console.info("[inboxDigest] render_vs_stamp", JSON.stringify(deltas));
   };
   return {
-    evaluate, replica, place, renderVsStamp,
+    evaluate,
+    replica,
+    place,
+    renderVsStamp,
     counters: comparer.counters,
     healLatched: comparer.healLatched,
-    activity: () => ({ apply_age_ms: monotonicNow() - lastSyncApplyMono(), inflight: syncInflightCount() }),
+    activity: () => ({
+      apply_age_ms: monotonicNow() - lastSyncApplyMono(),
+      inflight: syncInflightCount(),
+    }),
     logOutcome,
   };
 }

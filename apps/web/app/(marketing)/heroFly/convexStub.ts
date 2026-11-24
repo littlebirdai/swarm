@@ -29,7 +29,16 @@ const methods: Record<string, unknown> = {
   mutation: async () => null,
   action: async () => null,
   prewarmQuery: noop,
-  connectionState: () => ({ hasInflightRequests: false, isWebSocketConnected: false, timeOfOldestInflightRequest: null, hasEverConnected: false, connectionCount: 0, connectionRetries: 0, inflightMutations: 0, inflightActions: 0 }),
+  connectionState: () => ({
+    hasInflightRequests: false,
+    isWebSocketConnected: false,
+    timeOfOldestInflightRequest: null,
+    hasEverConnected: false,
+    connectionCount: 0,
+    connectionRetries: 0,
+    inflightMutations: 0,
+    inflightActions: 0,
+  }),
   subscribeToConnectionState: () => noop,
   setAuth: noop,
   clearAuth: noop,
@@ -39,5 +48,10 @@ const methods: Record<string, unknown> = {
 
 export const heroConvexStub = new Proxy(methods, {
   // `then` stays undefined so the stub is never mistaken for a promise.
-  get: (target, key) => (typeof key !== "string" || key === "then" ? undefined : key in target ? target[key] : noop),
+  get: (target, key) =>
+    typeof key !== "string" || key === "then"
+      ? undefined
+      : key in target
+        ? target[key]
+        : noop,
 }) as unknown as ConvexReactClient;

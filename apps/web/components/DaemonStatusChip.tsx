@@ -9,7 +9,10 @@ import { beating } from "../lib/hostWake";
 import { useLocalDaemonHealth } from "../hooks/useLocalDaemonHealth";
 import { useLocalDeviceId } from "../hooks/useLocalDeviceId";
 import { useSyncDevices } from "../hooks/useSyncDevices";
-import { describeDaemonHealth, type DaemonHealthCopy } from "../lib/daemonHealthCopy";
+import {
+  describeDaemonHealth,
+  type DaemonHealthCopy,
+} from "../lib/daemonHealthCopy";
 import { useAppOffline } from "../hooks/useAppOffline";
 import { useInboxStore } from "../store/inboxStore";
 import { deviceDisplayName, isRemoteHost } from "@codecast/shared/contracts";
@@ -31,7 +34,15 @@ import { SessionHostWakeChip, SessionRunLimitChip } from "./HostWakeStatus";
 // name or the word "daemon": the header has no room for a sentence, and the
 // panel says both. Its width holds steady through a copy too: the check
 // replaces the dot, not the text.
-function DaemonHealthPill({ view, machine, quiet = false }: { view: DaemonHealthCopy; machine?: string; quiet?: boolean }) {
+function DaemonHealthPill({
+  view,
+  machine,
+  quiet = false,
+}: {
+  view: DaemonHealthCopy;
+  machine?: string;
+  quiet?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const color = `var(${view.colorVar})`;
   const label = machine ? `${machine}: ${view.label}` : view.label;
@@ -45,14 +56,27 @@ function DaemonHealthPill({ view, machine, quiet = false }: { view: DaemonHealth
 
   const panel = (
     <div className="min-w-0">
-      <StatusPanelHeader kicker="CLI daemon" color={color} headline={view.label} sub={machine} />
+      <StatusPanelHeader
+        kicker="CLI daemon"
+        color={color}
+        headline={view.label}
+        sub={machine}
+      />
       <StatusPanelSection>
         <p className="text-xs leading-snug text-sol-text-dim">{view.detail}</p>
       </StatusPanelSection>
       <StatusPanelSection className="p-0">
-        <button type="button" onClick={handleClick} className="group flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-sol-bg-alt/60">
-          <code className="rounded border border-sol-border/60 bg-sol-bg-alt px-1.5 py-px font-mono text-meta text-sol-text">{view.command}</code>
-          <span className="ml-auto shrink-0 text-meta text-sol-text-dim group-hover:text-sol-text">{copied ? "Copied" : "Copy"}</span>
+        <button
+          type="button"
+          onClick={handleClick}
+          className="group flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-sol-bg-alt/60"
+        >
+          <code className="rounded border border-sol-border/60 bg-sol-bg-alt px-1.5 py-px font-mono text-meta text-sol-text">
+            {view.command}
+          </code>
+          <span className="ml-auto shrink-0 text-meta text-sol-text-dim group-hover:text-sol-text">
+            {copied ? "Copied" : "Copy"}
+          </span>
         </button>
       </StatusPanelSection>
     </div>
@@ -60,8 +84,21 @@ function DaemonHealthPill({ view, machine, quiet = false }: { view: DaemonHealth
 
   if (quiet) {
     return (
-      <HoverCard card={panel} side="bottom" align="end" className="w-[280px]" focusable>
-        <TopbarButton desktopOnly data-daemon-pill="quiet" aria-label={label} onClick={handleClick} style={{ color }} className="h-6 w-6 rounded-full hover:text-current [&>svg]:h-3.5 [&>svg]:w-3.5">
+      <HoverCard
+        card={panel}
+        side="bottom"
+        align="end"
+        className="w-[280px]"
+        focusable
+      >
+        <TopbarButton
+          desktopOnly
+          data-daemon-pill="quiet"
+          aria-label={label}
+          onClick={handleClick}
+          style={{ color }}
+          className="h-6 w-6 rounded-full hover:text-current [&>svg]:h-3.5 [&>svg]:w-3.5"
+        >
           {copied ? <Check /> : <TriangleAlert />}
         </TopbarButton>
       </HoverCard>
@@ -69,7 +106,13 @@ function DaemonHealthPill({ view, machine, quiet = false }: { view: DaemonHealth
   }
 
   return (
-    <HoverCard card={panel} side="bottom" align="end" className="w-[280px]" focusable>
+    <HoverCard
+      card={panel}
+      side="bottom"
+      align="end"
+      className="w-[280px]"
+      focusable
+    >
       <TopbarChip
         data-daemon-pill="pill"
         aria-label={label}
@@ -78,7 +121,11 @@ function DaemonHealthPill({ view, machine, quiet = false }: { view: DaemonHealth
         alert
         className="hidden md:flex cursor-pointer"
       >
-        {copied ? <Check className="h-2.5 w-2.5 shrink-0" /> : <StatusDot color={color} ping />}
+        {copied ? (
+          <Check className="h-2.5 w-2.5 shrink-0" />
+        ) : (
+          <StatusDot color={color} ping />
+        )}
         <span className="max-w-[112px] truncate">{view.short}</span>
       </TopbarChip>
     </HoverCard>
@@ -107,23 +154,42 @@ export function DaemonStatusChip() {
 
   // The pill only while a message is late right now; the hour record gets the
   // quiet glyph. Same line blocksDelivery draws for the delivery note.
-  return <DaemonHealthPill view={view} machine={health.device} quiet={!blocksDelivery(health)} />;
+  return (
+    <DaemonHealthPill
+      view={view}
+      machine={health.device}
+      quiet={!blocksDelivery(health)}
+    />
+  );
 }
 
-export function SessionDaemonChip({ conversationId }: { conversationId?: string | null }) {
+export function SessionDaemonChip({
+  conversationId,
+}: {
+  conversationId?: string | null;
+}) {
   useSyncDevices();
   const localDeviceId = useLocalDeviceId(true);
   const ownerDeviceId = useConversationOwnerDevice(conversationId);
   const ownerName = useInboxStore((s) => {
     if (!ownerDeviceId) return "";
-    const d: ((typeof s.machineRoster)[number] & { label?: string }) | undefined = s.machineRoster.find((r) => r.device_id === ownerDeviceId);
+    const d:
+      | ((typeof s.machineRoster)[number] & { label?: string })
+      | undefined = s.machineRoster.find((r) => r.device_id === ownerDeviceId);
     if (!d) return "";
-    return deviceDisplayName({ label: d.label ?? "", platform: d.platform ?? "", is_remote: isRemoteHost(d) });
+    return deviceDisplayName({
+      label: d.label ?? "",
+      platform: d.platform ?? "",
+      is_remote: isRemoteHost(d),
+    });
   });
   const health = useDaemonHealth(ownerDeviceId);
   const wake = useHostWake(ownerDeviceId);
   const minutesLeft = useHostRunLimit(beating(health) ? ownerDeviceId : null);
-  const limitChip = minutesLeft === null ? null : <SessionRunLimitChip minutesLeft={minutesLeft} />;
+  const limitChip =
+    minutesLeft === null ? null : (
+      <SessionRunLimitChip minutesLeft={minutesLeft} />
+    );
   const { offline: appOffline } = useAppOffline();
   const [mounted, setMounted] = useState(false);
 
@@ -131,7 +197,8 @@ export function SessionDaemonChip({ conversationId }: { conversationId?: string 
     setMounted(true);
   });
 
-  if (!mounted || appOffline || !ownerName || ownerDeviceId === localDeviceId) return null;
+  if (!mounted || appOffline || !ownerName || ownerDeviceId === localDeviceId)
+    return null;
   // A cloud host asleep or waking is not a broken daemon: its own chip.
   if (wake) return <SessionHostWakeChip wake={wake} />;
   // blocksDelivery, not merely degraded: this chip sits on ONE session and says
@@ -142,7 +209,12 @@ export function SessionDaemonChip({ conversationId }: { conversationId?: string 
   const view = describeDaemonHealth(health);
   if (!view) return limitChip;
 
-  return <>{limitChip}<DaemonHealthPill view={view} machine={ownerName} /></>;
+  return (
+    <>
+      {limitChip}
+      <DaemonHealthPill view={view} machine={ownerName} />
+    </>
+  );
 }
 
 /**
@@ -152,12 +224,18 @@ export function SessionDaemonChip({ conversationId }: { conversationId?: string 
  * person may have turned them off on purpose, and they can hide the mark for
  * that machine in Settings > Harness.
  */
-export function SessionHooksOffChip({ conversationId }: { conversationId?: string | null }) {
+export function SessionHooksOffChip({
+  conversationId,
+}: {
+  conversationId?: string | null;
+}) {
   useSyncDevices();
   const deviceId = useConversationOwnerDevice(conversationId);
   const hooksOff = useInboxStore((s) => {
     if (!deviceId) return false;
-    const d = s.machineRoster.find((r) => r.device_id === deviceId) as { settings?: { hooks_enabled?: boolean } } | undefined;
+    const d = s.machineRoster.find((r) => r.device_id === deviceId) as
+      | { settings?: { hooks_enabled?: boolean } }
+      | undefined;
     return d?.settings?.hooks_enabled === false;
   });
   const hidden = useHooksReminderHidden(deviceId);
@@ -165,17 +243,28 @@ export function SessionHooksOffChip({ conversationId }: { conversationId?: strin
 
   const panel = (
     <div className="min-w-0">
-      <StatusPanelHeader kicker="Codecast hooks" color="var(--sol-text-muted)" headline="Off on this machine" />
+      <StatusPanelHeader
+        kicker="Codecast hooks"
+        color="var(--sol-text-muted)"
+        headline="Off on this machine"
+      />
       <StatusPanelSection>
         <p className="text-xs leading-snug text-sol-text-dim">
-          Status for this session comes from its transcript and terminal instead, so it can lag, and messages to a
-          session you started yourself may not arrive. Click to turn the hooks back on, or to hide this mark.
+          Status for this session comes from its transcript and terminal
+          instead, so it can lag, and messages to a session you started yourself
+          may not arrive. Click to turn the hooks back on, or to hide this mark.
         </p>
       </StatusPanelSection>
     </div>
   );
   return (
-    <HoverCard card={panel} side="bottom" align="end" className="w-[280px]" focusable>
+    <HoverCard
+      card={panel}
+      side="bottom"
+      align="end"
+      className="w-[280px]"
+      focusable
+    >
       <TopbarButton
         desktopOnly
         data-hooks-off

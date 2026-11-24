@@ -7,7 +7,10 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
-export const issueProviderValidator = v.union(v.literal("linear"), v.literal("github"));
+export const issueProviderValidator = v.union(
+  v.literal("linear"),
+  v.literal("github"),
+);
 
 /** S1.1 */
 export const taskExternalValidator = v.object({
@@ -58,7 +61,11 @@ export const issueSyncTables = {
     user_id: v.id("users"),
     team_id: v.optional(v.id("teams")),
     workspace: v.string(),
-    status: v.union(v.literal("active"), v.literal("paused"), v.literal("error")),
+    status: v.union(
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("error"),
+    ),
     last_synced_at: v.optional(v.number()),
     last_webhook_at: v.optional(v.number()),
     last_error: v.optional(v.string()),
@@ -86,6 +93,5 @@ export const issueSyncTables = {
     payload: v.string(),
     processed: v.boolean(),
     created_at: v.number(),
-  })
-    .index("by_delivery_id", ["delivery_id"]),
+  }).index("by_delivery_id", ["delivery_id"]),
 };

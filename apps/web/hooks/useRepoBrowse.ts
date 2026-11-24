@@ -4,15 +4,31 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useSyncCollection } from "./useSyncCollection";
 import { useInboxStore } from "../store/inboxStore";
 import { useRepoAccess, useRepoViewerScope } from "./useRepoAccess";
-import { repoBrowseKey, retainRepoBrowseRows, type RepoBrowseRow } from "../lib/repoBrowseCache";
+import {
+  repoBrowseKey,
+  retainRepoBrowseRows,
+  type RepoBrowseRow,
+} from "../lib/repoBrowseCache";
 import { useWatchEffect } from "./useWatchEffect";
 import { useLocalReadStatus } from "./useEnsureCommitFiles";
-import { pathSegments, type BlameSessionRef, type BlameSessionResolution, type RepoTreeEntry } from "../lib/repoView";
-import { publicRepoUrl, usePublicRepoRead, useRepoTransport } from "../lib/repoTransport";
+import {
+  pathSegments,
+  type BlameSessionRef,
+  type BlameSessionResolution,
+  type RepoTreeEntry,
+} from "../lib/repoView";
+import {
+  publicRepoUrl,
+  usePublicRepoRead,
+  useRepoTransport,
+} from "../lib/repoTransport";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useActiveWorkspaceKey } from "./useWorkspaceCollection";
 import { filterByWorkspace } from "../lib/workspaceScope";
-import { WORKTREES_KIND, type WorktreesPayload } from "@codecast/shared/contracts";
+import {
+  WORKTREES_KIND,
+  type WorktreesPayload,
+} from "@codecast/shared/contracts";
 
 // `api` is a proxy, so naming a function prod has not deployed yet still
 // produces a reference; the call then fails and the surface reports it as an
@@ -54,15 +70,23 @@ type ReadDescriptor = {
 function useEnsuredRead<T>(descriptor: ReadDescriptor): RepoRead<T> {
   const { ensureRef, queryRef, args, publicKind } = descriptor;
   const mode = useRepoTransport();
-  const repository = typeof args?.repository === "string" ? args.repository : undefined;
+  const repository =
+    typeof args?.repository === "string" ? args.repository : undefined;
   const access = useRepoAccess(repository, mode === "convex");
   const live = mode === "convex" && access.allowed === true ? args : null;
   const key = repoBrowseKey(access.scope, publicKind, args);
   // Hooks cannot be conditional, so a read with no ensure still binds one and never calls it.
-  const ensure = useAction((ensureRef ?? api.repos.ensureMeta) as never) as (a: unknown) => Promise<{ requested?: boolean } | undefined>;
+  const ensure = useAction((ensureRef ?? api.repos.ensureMeta) as never) as (
+    a: unknown,
+  ) => Promise<{ requested?: boolean } | undefined>;
   // What the ensure for this key is doing: still running, answered by GitHub
   // (nothing to note), handed to a checkout's daemon (`requested`), or failed.
-  const [failure, setFailure] = useState<{ key: string | null; ensuring?: boolean; requested?: boolean; error?: Error }>({ key: null });
+  const [failure, setFailure] = useState<{
+    key: string | null;
+    ensuring?: boolean;
+    requested?: boolean;
+    error?: Error;
+  }>({ key: null });
   const requestKey = live ? key : null;
   useWatchEffect(() => {
     if (!live || !ensureRef) return;
@@ -73,34 +97,64 @@ function useEnsuredRead<T>(descriptor: ReadDescriptor): RepoRead<T> {
         if (!cancelled) setFailure({ key, requested: !!result?.requested });
       })
       .catch((e: unknown) => {
-        if (!cancelled) setFailure({ key, error: e instanceof Error ? e : new Error(String(e)) });
+        if (!cancelled)
+          setFailure({
+            key,
+            error: e instanceof Error ? e : new Error(String(e)),
+          });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [requestKey, ensure]);
   // A read handed to a checkout answers through the cache row, and fails
   // through the request: watch it so a decline reaches the page instead of an
   // endless wait.
-  const requested = useLocalReadStatus(failure.key === key && failure.requested ? { repository, kind: publicKind, ...(args ?? {}) } : null);
-  const select = useCallback((value: unknown) => {
-    if (!key || !access.scope || !repository) return [];
-    return retainRepoBrowseRows(useInboxStore.getState().repoBrowse, {
-      _id: key, scope: access.scope, repository, kind: publicKind, value, updated_at: Date.now(),
-    });
-  }, [key, access.scope, repository, publicKind]);
-  const feed = useSyncCollection("repoBrowse", queryRef as never, (live ?? "skip") as never,
-    { select, syncOpts: REPO_SNAPSHOT });
-  const row = useInboxStore((s) => key ? s.repoBrowse[key] as RepoBrowseRow | undefined : undefined);
-  const params = descriptor.publicParams === undefined ? args : descriptor.publicParams;
-  const viaPublic = usePublicRepoRead<T>(mode === "public" ? publicRepoUrl(repository, publicKind, params) : null);
+  const requested = useLocalReadStatus(
+    failure.key === key && failure.requested
+      ? { repository, kind: publicKind, ...(args ?? {}) }
+      : null,
+  );
+  const select = useCallback(
+    (value: unknown) => {
+      if (!key || !access.scope || !repository) return [];
+      return retainRepoBrowseRows(useInboxStore.getState().repoBrowse, {
+        _id: key,
+        scope: access.scope,
+        repository,
+        kind: publicKind,
+        value,
+        updated_at: Date.now(),
+      });
+    },
+    [key, access.scope, repository, publicKind],
+  );
+  const feed = useSyncCollection(
+    "repoBrowse",
+    queryRef as never,
+    (live ?? "skip") as never,
+    { select, syncOpts: REPO_SNAPSHOT },
+  );
+  const row = useInboxStore((s) =>
+    key ? (s.repoBrowse[key] as RepoBrowseRow | undefined) : undefined,
+  );
+  const params =
+    descriptor.publicParams === undefined ? args : descriptor.publicParams;
+  const viaPublic = usePublicRepoRead<T>(
+    mode === "public" ? publicRepoUrl(repository, publicKind, params) : null,
+  );
   if (mode === "public") return viaPublic;
-  const failed = failure.key === key ? failure.error ?? requested.error : undefined;
+  const failed =
+    failure.key === key ? (failure.error ?? requested.error) : undefined;
   const visible = access.allowed === true && !feed.error && !failed;
   // An empty answer is "missing" only once nothing is still on its way: while
   // the ensure runs, or while a checkout's daemon holds the request, the
   // absence is a wait, not a verdict.
-  const inFlight = failure.key === key && (!!failure.ensuring || (!!failure.requested && !requested.error));
+  const inFlight =
+    failure.key === key &&
+    (!!failure.ensuring || (!!failure.requested && !requested.error));
   return {
-    data: visible && row?.value != null ? row.value as T : undefined,
+    data: visible && row?.value != null ? (row.value as T) : undefined,
     missing: visible && row?.value === null && !inFlight,
     pending: visible && row?.value == null && inFlight && !failure.ensuring,
     ready: visible && row !== undefined,
@@ -118,7 +172,9 @@ export type RepoBranches = {
   branches: { name: string; sha: string; protected: boolean }[];
 };
 
-export function useRepoBranches(repository: string | undefined): RepoRead<RepoBranches> {
+export function useRepoBranches(
+  repository: string | undefined,
+): RepoRead<RepoBranches> {
   return useEnsuredRead<RepoBranches>({
     ensureRef: api.repos.ensureBranches,
     queryRef: api.repos.getBranches,
@@ -141,7 +197,9 @@ export type RepoWorktrees = { checkouts: RepoCheckout[] };
  * worktrees. GitHub cannot answer this, so there is no ensure and no public
  * form: a signed out page reads nothing.
  */
-export function useRepoWorktrees(repository: string | undefined): RepoRead<RepoWorktrees> {
+export function useRepoWorktrees(
+  repository: string | undefined,
+): RepoRead<RepoWorktrees> {
   const mode = useRepoTransport();
   return useEnsuredRead<RepoWorktrees>({
     queryRef: api.repos.getWorktrees,
@@ -152,7 +210,11 @@ export function useRepoWorktrees(repository: string | undefined): RepoRead<RepoW
 
 // ── The source tree ──
 
-export type RepoTree = { sha: string; truncated: boolean; entries: RepoTreeEntry[] };
+export type RepoTree = {
+  sha: string;
+  truncated: boolean;
+  entries: RepoTreeEntry[];
+};
 
 /**
  * The directory at `path`, walked down one level at a time.
@@ -170,7 +232,12 @@ export function useRepoTree(
 ): RepoRead<RepoTree> & { notFound: boolean } {
   const segments = useMemo(() => pathSegments(path), [path]);
   const walkKey = `${repository ?? ""}@${ref ?? ""}:${segments.join("/")}`;
-  const [walk, setWalk] = useState<{ key: string; depth: number; treeRef: string; notFound: boolean }>({
+  const [walk, setWalk] = useState<{
+    key: string;
+    depth: number;
+    treeRef: string;
+    notFound: boolean;
+  }>({
     key: "",
     depth: 0,
     treeRef: "",
@@ -180,23 +247,39 @@ export function useRepoTree(
   // Derived, not stored: a new target starts the walk over on the render that
   // asks for it, so the query never spends a beat on the previous path's tree.
   const active =
-    walk.key === walkKey ? walk : { key: walkKey, depth: 0, treeRef: ref ?? "", notFound: false };
+    walk.key === walkKey
+      ? walk
+      : { key: walkKey, depth: 0, treeRef: ref ?? "", notFound: false };
 
   const read = useEnsuredRead<RepoTree>({
     ensureRef: api.repos.ensureTree,
     queryRef: api.repos.getTree,
-    args: repository && active.treeRef ? { repository, ref: active.treeRef } : null,
+    args:
+      repository && active.treeRef ? { repository, ref: active.treeRef } : null,
     publicKind: "tree",
   });
 
   useWatchEffect(() => {
-    if (!read.data || active.depth >= segments.length || active.notFound) return;
+    if (!read.data || active.depth >= segments.length || active.notFound)
+      return;
     const want = segments[active.depth];
-    const child = read.data.entries?.find((e) => e.path === want && e.type === "tree");
+    const child = read.data.entries?.find(
+      (e) => e.path === want && e.type === "tree",
+    );
     setWalk(
       child
-        ? { key: walkKey, depth: active.depth + 1, treeRef: child.sha, notFound: false }
-        : { key: walkKey, depth: active.depth, treeRef: active.treeRef, notFound: true },
+        ? {
+            key: walkKey,
+            depth: active.depth + 1,
+            treeRef: child.sha,
+            notFound: false,
+          }
+        : {
+            key: walkKey,
+            depth: active.depth,
+            treeRef: active.treeRef,
+            notFound: true,
+          },
     );
   }, [read.data, active.depth, active.notFound, walkKey, segments]);
 
@@ -213,7 +296,13 @@ export function useRepoTree(
 
 // ── One file ──
 
-export type RepoBlob = { base64?: string; content: string; size: number; truncated: boolean; sha: string };
+export type RepoBlob = {
+  base64?: string;
+  content: string;
+  size: number;
+  truncated: boolean;
+  sha: string;
+};
 
 export function useRepoBlob(
   repository: string | undefined,
@@ -254,7 +343,8 @@ export function useRepoBlame(
   return useEnsuredRead<RepoBlame>({
     ensureRef: api.repos.ensureBlame,
     queryRef: api.repos.getBlame,
-    args: enabled && repository && ref && path ? { repository, ref, path } : null,
+    args:
+      enabled && repository && ref && path ? { repository, ref, path } : null,
     publicKind: "blame",
   });
 }
@@ -274,14 +364,22 @@ export function useRepoBlameSessions(
   return useEnsuredRead<BlameSessionResolution>({
     ensureRef: api.repos.ensureBlame,
     queryRef: api.repos.getBlameSessions,
-    args: enabled && repository && ref && path ? { repository, ref, path } : null,
+    args:
+      enabled && repository && ref && path ? { repository, ref, path } : null,
     publicKind: "blamesessions",
   });
 }
 
 // ── Sessions ──
 
-export type RepoSessionCommit = { sha: string; subject: string; timestamp: number; insertions: number; deletions: number; files_changed: number };
+export type RepoSessionCommit = {
+  sha: string;
+  subject: string;
+  timestamp: number;
+  insertions: number;
+  deletions: number;
+  files_changed: number;
+};
 
 export type RepoSession = BlameSessionRef & {
   agent_type: string;
@@ -300,7 +398,9 @@ export type RepoSession = BlameSessionRef & {
  * it is only the sessions their owners made public. Nothing at GitHub can
  * answer this, so there is no ensure.
  */
-export function useRepoSessions(repository: string | undefined): RepoRead<RepoSession[]> {
+export function useRepoSessions(
+  repository: string | undefined,
+): RepoRead<RepoSession[]> {
   return useEnsuredRead<RepoSession[]>({
     queryRef: api.repoSessions.getSessions,
     args: repository ? { repository } : null,
@@ -323,7 +423,10 @@ export function useRepoCommitSessions(
   // descriptor is never asked; it is named because a read has to name one.
   return useEnsuredRead<{ by_sha: Record<string, BlameSessionRef> }>({
     queryRef: api.repoSessions.getSessions,
-    args: mode === "public" && repository && list ? { repository, shas: list } : null,
+    args:
+      mode === "public" && repository && list
+        ? { repository, shas: list }
+        : null,
     publicKind: "commitsessions",
   });
 }
@@ -373,7 +476,11 @@ export function useRepoLog(
   const mode = useRepoTransport();
   const access = useRepoAccess(repository, mode === "convex");
   const scope = `${mode}:${viewer}:${access.allowed}:${repository ?? ""}@${ref ?? ""}:${path ?? ""}:${author ?? ""}`;
-  const [state, setState] = useState<{ scope: string; page: number; older: RepoLogCommit[] }>({
+  const [state, setState] = useState<{
+    scope: string;
+    page: number;
+    older: RepoLogCommit[];
+  }>({
     scope: "",
     page: 1,
     older: [],
@@ -383,15 +490,16 @@ export function useRepoLog(
   const read = useEnsuredRead<{ commits: RepoLogCommit[] }>({
     ensureRef: api.repos.ensureLog,
     queryRef: api.repos.getLog,
-    args: repository && ref
-      ? {
-          repository,
-          ref,
-          ...(path ? { path } : {}),
-          ...(author ? { author } : {}),
-          page: active.page,
-        }
-      : null,
+    args:
+      repository && ref
+        ? {
+            repository,
+            ref,
+            ...(path ? { path } : {}),
+            ...(author ? { author } : {}),
+            page: active.page,
+          }
+        : null,
     publicKind: "log",
   });
 
@@ -400,8 +508,13 @@ export function useRepoLog(
   const page = useMemo(() => read.data?.commits ?? NO_COMMITS, [read.data]);
   const loadOlder = useCallback(() => {
     setState((prev) => {
-      const current = prev.scope === scope ? prev : { scope, page: 1, older: [] };
-      return { scope, page: current.page + 1, older: [...current.older, ...page] };
+      const current =
+        prev.scope === scope ? prev : { scope, page: 1, older: [] };
+      return {
+        scope,
+        page: current.page + 1,
+        older: [...current.older, ...page],
+      };
     });
   }, [scope, page]);
 
@@ -426,12 +539,18 @@ export function useRepoLog(
 
 // ── Which repositories this viewer may browse ──
 
-export type RepositoryRow = { repository: string; team_id: string; installed: boolean };
+export type RepositoryRow = {
+  repository: string;
+  team_id: string;
+  installed: boolean;
+};
 
 /** The team whose App installation covers a repository: the roster a
  *  comment on its code can name. Undefined until the list is known. Any of
  *  the viewer's teams answers, the one being looked at first. */
-export function useRepositoryTeamId(repository: string | undefined): string | undefined {
+export function useRepositoryTeamId(
+  repository: string | undefined,
+): string | undefined {
   const { rows } = useAllRepositories();
   const key = useActiveWorkspaceKey();
   const wanted = (repository ?? "").toLowerCase();
@@ -441,7 +560,11 @@ export function useRepositoryTeamId(repository: string | undefined): string | un
 
 /** The repositories of the workspace being looked at: one row per repository
  *  its team reaches. Another team's repositories belong to that team's view. */
-export function useRepositories(): { rows: RepositoryRow[]; ready: boolean; error: Error | undefined } {
+export function useRepositories(): {
+  rows: RepositoryRow[];
+  ready: boolean;
+  error: Error | undefined;
+} {
   const all = useAllRepositories();
   const key = useActiveWorkspaceKey();
   const rows = useMemo(() => filterByWorkspace(all.rows, key), [all.rows, key]);
@@ -449,15 +572,39 @@ export function useRepositories(): { rows: RepositoryRow[]; ready: boolean; erro
 }
 
 /** Every repository the viewer may browse, in any of their teams. */
-function useAllRepositories(): { rows: RepositoryRow[]; ready: boolean; error: Error | undefined } {
+function useAllRepositories(): {
+  rows: RepositoryRow[];
+  ready: boolean;
+  error: Error | undefined;
+} {
   const scope = useRepoViewerScope();
   const key = repoBrowseKey(scope, "repositories", {});
-  const select = useCallback((value: unknown) => !key || !scope ? [] : retainRepoBrowseRows(useInboxStore.getState().repoBrowse,
-    { _id: key, scope, repository: "", kind: "repositories", value, updated_at: Date.now() }), [key, scope]);
-  const feed = useSyncCollection("repoBrowse", api.repos.listRepositories, scope ? {} : "skip",
-    { select, syncOpts: REPO_SNAPSHOT });
-  const row = useInboxStore((s) => key ? s.repoBrowse[key] : undefined);
-  return { rows: feed.error ? [] : (row?.value as RepositoryRow[] ?? []), ready: !!row, error: feed.error };
+  const select = useCallback(
+    (value: unknown) =>
+      !key || !scope
+        ? []
+        : retainRepoBrowseRows(useInboxStore.getState().repoBrowse, {
+            _id: key,
+            scope,
+            repository: "",
+            kind: "repositories",
+            value,
+            updated_at: Date.now(),
+          }),
+    [key, scope],
+  );
+  const feed = useSyncCollection(
+    "repoBrowse",
+    api.repos.listRepositories,
+    scope ? {} : "skip",
+    { select, syncOpts: REPO_SNAPSHOT },
+  );
+  const row = useInboxStore((s) => (key ? s.repoBrowse[key] : undefined));
+  return {
+    rows: feed.error ? [] : ((row?.value as RepositoryRow[]) ?? []),
+    ready: !!row,
+    error: feed.error,
+  };
 }
 
 // ── The repository itself ──
@@ -480,7 +627,9 @@ export type RepoMeta = {
   languages: Record<string, number>;
 };
 
-export function useRepoMeta(repository: string | undefined): RepoRead<RepoMeta> {
+export function useRepoMeta(
+  repository: string | undefined,
+): RepoRead<RepoMeta> {
   return useEnsuredRead<RepoMeta>({
     ensureRef: api.repos.ensureMeta,
     queryRef: api.repos.getMeta,
@@ -491,9 +640,20 @@ export function useRepoMeta(repository: string | undefined): RepoRead<RepoMeta> 
 
 // ── Refs ──
 
-export type RepoTags = { truncated?: boolean; tags: { name: string; sha: string; subject?: string; committed_at?: number; author_login?: string }[] };
+export type RepoTags = {
+  truncated?: boolean;
+  tags: {
+    name: string;
+    sha: string;
+    subject?: string;
+    committed_at?: number;
+    author_login?: string;
+  }[];
+};
 
-export function useRepoTags(repository: string | undefined): RepoRead<RepoTags> {
+export function useRepoTags(
+  repository: string | undefined,
+): RepoRead<RepoTags> {
   return useEnsuredRead<RepoTags>({
     ensureRef: api.repos.ensureTags,
     queryRef: api.repos.getTags,
@@ -516,11 +676,17 @@ export type RepoBranchDetail = {
   open_pr: { number: number; title: string } | null;
 };
 
-export type RepoBranchDetails = { truncated?: boolean; default_branch: string; branches: RepoBranchDetail[] };
+export type RepoBranchDetails = {
+  truncated?: boolean;
+  default_branch: string;
+  branches: RepoBranchDetail[];
+};
 
 /** The branch table: tip commit, drift from the default branch, open pull
  *  request. Heavier than useRepoBranches, which is the picker's plain list. */
-export function useRepoBranchDetails(repository: string | undefined): RepoRead<RepoBranchDetails> {
+export function useRepoBranchDetails(
+  repository: string | undefined,
+): RepoRead<RepoBranchDetails> {
   return useEnsuredRead<RepoBranchDetails>({
     ensureRef: api.repos.ensureBranchDetails,
     queryRef: api.repos.getBranchDetails,
@@ -531,7 +697,12 @@ export function useRepoBranchDetails(repository: string | undefined): RepoRead<R
 
 // ── The README ──
 
-export type RepoReadme = { found: boolean; path?: string; content?: string; sha?: string };
+export type RepoReadme = {
+  found: boolean;
+  path?: string;
+  content?: string;
+  sha?: string;
+};
 
 export function useRepoReadme(
   repository: string | undefined,
@@ -575,9 +746,15 @@ export function useRepoLastCommits(
   return useEnsuredRead<RepoLastCommits>({
     ensureRef: api.repos.ensureLastCommits,
     queryRef: api.repos.getLastCommits,
-    args: repository && ref
-      ? { repository, ref, path: dirPath, ...(treeRef ? { tree_ref: treeRef } : {}) }
-      : null,
+    args:
+      repository && ref
+        ? {
+            repository,
+            ref,
+            path: dirPath,
+            ...(treeRef ? { tree_ref: treeRef } : {}),
+          }
+        : null,
     publicKind: "lastcommits",
     // tree_ref only tells the backend where to find the names; it is not part
     // of the cache key, and the public route resolves the directory itself.
@@ -714,7 +891,10 @@ export function useRepoFileIndex(
   return useEnsuredRead<RepoFileIndex>({
     ensureRef: api.repos.ensureTree,
     queryRef: api.repos.getTree,
-    args: enabled && repository && ref ? { repository, ref, recursive: true } : null,
+    args:
+      enabled && repository && ref
+        ? { repository, ref, recursive: true }
+        : null,
     publicKind: "tree",
   });
 }

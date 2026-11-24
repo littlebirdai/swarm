@@ -18,7 +18,10 @@ import { defaultConfigDir } from "./config/configDir.js";
 
 export type GitCapability = "merge-tree-write-tree";
 
-type CacheFile = { gitVersion: string; capabilities: Partial<Record<GitCapability, boolean>> };
+type CacheFile = {
+  gitVersion: string;
+  capabilities: Partial<Record<GitCapability, boolean>>;
+};
 
 export interface GitCapabilityStore {
   /**
@@ -34,10 +37,17 @@ export interface GitCapabilityStore {
 }
 
 function errorText(err: unknown): string {
-  if (typeof err !== "object" || err === null) return err instanceof Error ? err.message : String(err);
+  if (typeof err !== "object" || err === null)
+    return err instanceof Error ? err.message : String(err);
   return ["message", "stderr", "stdout"]
     .map((key) => (err as Record<string, unknown>)[key])
-    .map((value) => (typeof value === "string" ? value : Buffer.isBuffer(value) ? value.toString("utf8") : ""))
+    .map((value) =>
+      typeof value === "string"
+        ? value
+        : Buffer.isBuffer(value)
+          ? value.toString("utf8")
+          : "",
+    )
     .join("\n");
 }
 
@@ -45,8 +55,12 @@ function errorText(err: unknown): string {
 export function isUnsupportedMergeTreeWriteTreeError(err: unknown): boolean {
   const text = errorText(err);
   return (
-    /(?:unknown|invalid|unrecognized) option(?::|\s+)[`']?(?:--?)?write-tree[`']?(?:\s|$)/i.test(text) ||
-    /(?:unknown rev|not a valid object name)\s+[`']?--write-tree[`']?/i.test(text) ||
+    /(?:unknown|invalid|unrecognized) option(?::|\s+)[`']?(?:--?)?write-tree[`']?(?:\s|$)/i.test(
+      text,
+    ) ||
+    /(?:unknown rev|not a valid object name)\s+[`']?--write-tree[`']?/i.test(
+      text,
+    ) ||
     /usage:\s*git merge-tree\s+<base-tree>/i.test(text)
   );
 }
@@ -58,7 +72,10 @@ function defaultCachePath(): string {
 
 async function readGitVersion(): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", ["--version"], { encoding: "utf-8", timeout: 10_000 });
+    const { stdout } = await execFileAsync("git", ["--version"], {
+      encoding: "utf-8",
+      timeout: 10_000,
+    });
     return stdout.trim();
   } catch {
     return "unknown";
@@ -78,9 +95,13 @@ export function createGitCapabilityStore(
     cache ??= (async () => {
       const gitVersion = opts.gitVersion ?? (await readGitVersion());
       try {
-        const parsed = JSON.parse(await fs.promises.readFile(cachePath, "utf-8")) as CacheFile;
+        const parsed = JSON.parse(
+          await fs.promises.readFile(cachePath, "utf-8"),
+        ) as CacheFile;
         // A different git binary answers differently, so its answers are not ours.
-        return parsed.gitVersion === gitVersion ? parsed : { gitVersion, capabilities: {} };
+        return parsed.gitVersion === gitVersion
+          ? parsed
+          : { gitVersion, capabilities: {} };
       } catch {
         return { gitVersion, capabilities: {} };
       }
@@ -88,7 +109,10 @@ export function createGitCapabilityStore(
     return cache;
   };
 
-  const remember = async (capability: GitCapability, supported: boolean): Promise<void> => {
+  const remember = async (
+    capability: GitCapability,
+    supported: boolean,
+  ): Promise<void> => {
     const current = await load();
     if (current.capabilities[capability] === supported) return;
     current.capabilities[capability] = supported;

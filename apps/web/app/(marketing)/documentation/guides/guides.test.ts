@@ -14,7 +14,8 @@ describe("guide feature invariant", () => {
     const valid = new Set([...allSnippetSlugs(), "stable"]);
     for (const guide of GUIDES) {
       if (guide.feature === undefined) continue;
-      expect(valid.has(guide.feature),
+      expect(
+        valid.has(guide.feature),
         `${guide.slug} names feature "${guide.feature}", which is neither a catalog slug nor "stable"`,
       ).toBe(true);
     }
@@ -33,7 +34,10 @@ describe("guide feature invariant", () => {
 describe("guide registry integrity", () => {
   test("every guide has a body and a category the docs page renders", () => {
     for (const guide of GUIDES) {
-      expect(getGuideContent(guide.slug)?.length ?? 0, `${guide.slug} has no markdown body`).toBeGreaterThan(0);
+      expect(
+        getGuideContent(guide.slug)?.length ?? 0,
+        `${guide.slug} has no markdown body`,
+      ).toBeGreaterThan(0);
       expect(GUIDE_CATEGORIES as readonly string[]).toContain(guide.category);
     }
   });
@@ -43,7 +47,10 @@ describe("guide registry integrity", () => {
     for (const release of RELEASES) {
       for (const section of release.sections) {
         for (const doc of section.docs ?? []) {
-          expect(hrefs.has(doc.href), `${release.id} "${section.title}" links to ${doc.href}`).toBe(true);
+          expect(
+            hrefs.has(doc.href),
+            `${release.id} "${section.title}" links to ${doc.href}`,
+          ).toBe(true);
         }
       }
     }

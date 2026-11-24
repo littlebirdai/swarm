@@ -16,7 +16,10 @@ const originalWindow = (globalThis as any).window;
 const tick = () => new Promise((r) => setTimeout(r, 10));
 
 beforeEach(() => {
-  (globalThis as any).window = { addEventListener() {}, removeEventListener() {} };
+  (globalThis as any).window = {
+    addEventListener() {},
+    removeEventListener() {},
+  };
   resetAppWindowRegistryForTests();
 });
 afterEach(() => {
@@ -79,7 +82,11 @@ describe("app window registry", () => {
     let grants = 0;
     (globalThis as any).navigator = {
       locks: {
-        request: async (_name: string, _opts: unknown, cb: (lock: unknown) => unknown) => cb(grants++ === 0 ? {} : null),
+        request: async (
+          _name: string,
+          _opts: unknown,
+          cb: (lock: unknown) => unknown,
+        ) => cb(grants++ === 0 ? {} : null),
         query: async () => ({ held: [] }),
       },
     };

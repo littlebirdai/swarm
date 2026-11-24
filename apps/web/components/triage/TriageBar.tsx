@@ -2,15 +2,29 @@
 
 import { useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { EyeOff, Keyboard, MoreHorizontal, PinOff, Sparkles } from "lucide-react";
+import {
+  EyeOff,
+  Keyboard,
+  MoreHorizontal,
+  PinOff,
+  Sparkles,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 import { hasCollectionRows } from "../../lib/hasCollectionRows";
-import { useInboxStore, useTrackedStore, isModernFocused } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  isModernFocused,
+} from "../../store/inboxStore";
 import { startTour } from "../../tours/engine";
 import { isInboxSessionView } from "../../lib/inboxRouting";
 import { focusedActionSessionId } from "../../shortcuts/actions";
 import { KeyCap, MenuKeyCaps, ShortcutTooltip } from "../KeyboardShortcutsHelp";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+} from "../ui/dropdown-menu";
 import { CTX_SURFACE, CtxItem, CtxSeparator } from "../ui/context-menu";
 import { PRIMARY_VERBS, SECONDARY_VERBS, type TriageVerb } from "./verbs";
 import { useTriageActions } from "./useTriageActions";
@@ -29,10 +43,23 @@ import { useMountEffect } from "../../hooks/useMountEffect";
 
 type Flash = { verb: TriageVerb; key: number };
 
-function VerbButton({ verb, disabled, onRun }: { verb: TriageVerb; disabled: boolean; onRun: () => void }) {
+function VerbButton({
+  verb,
+  disabled,
+  onRun,
+}: {
+  verb: TriageVerb;
+  disabled: boolean;
+  onRun: () => void;
+}) {
   const Icon = verb.icon;
   return (
-    <ShortcutTooltip side="top" label={verb.label} action={verb.action} hint={verb.blurb}>
+    <ShortcutTooltip
+      side="top"
+      label={verb.label}
+      action={verb.action}
+      hint={verb.blurb}
+    >
       <button
         type="button"
         disabled={disabled}
@@ -46,7 +73,9 @@ function VerbButton({ verb, disabled, onRun }: { verb: TriageVerb; disabled: boo
         )}
       >
         <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
-        <span className="cq-triage-word text-meta leading-none">{verb.label}</span>
+        <span className="cq-triage-word text-meta leading-none">
+          {verb.label}
+        </span>
       </button>
     </ShortcutTooltip>
   );
@@ -80,9 +109,16 @@ export function TriageBar() {
   const pathname = usePathname();
   const s = useTrackedStore([
     (st) => isInboxSessionView(pathname, st.currentConversation?.source),
-    (st) => focusedActionSessionId(st, isInboxSessionView(pathname, st.currentConversation?.source)) ?? null,
+    (st) =>
+      focusedActionSessionId(
+        st,
+        isInboxSessionView(pathname, st.currentConversation?.source),
+      ) ?? null,
     (st) => {
-      const id = focusedActionSessionId(st, isInboxSessionView(pathname, st.currentConversation?.source));
+      const id = focusedActionSessionId(
+        st,
+        isInboxSessionView(pathname, st.currentConversation?.source),
+      );
       return id ? (st.sessions[id]?.is_pinned ?? false) : false;
     },
     // Raw prefs, un-normalized: `?? false` would erase the unset→false
@@ -93,15 +129,22 @@ export function TriageBar() {
     (st) => isModernFocused(st.clientState.ui),
     (st) => hasCollectionRows(st.sessions),
   ]);
-  const onInboxView = isInboxSessionView(pathname, s.currentConversation?.source);
+  const onInboxView = isInboxSessionView(
+    pathname,
+    s.currentConversation?.source,
+  );
   const activeId = focusedActionSessionId(s, onInboxView) ?? null;
-  const activePinned = activeId ? (s.sessions[activeId]?.is_pinned ?? false) : false;
+  const activePinned = activeId
+    ? (s.sessions[activeId]?.is_pinned ?? false)
+    : false;
 
   const triage = useTriageActions(onInboxView);
 
   const [flash, setFlash] = useState<Flash | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useMountEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); });
+  useMountEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+  });
 
   // Finishing the intro tour points here: a one-time glow that says "the
   // verbs you just practiced live on this row."
@@ -132,15 +175,19 @@ export function TriageBar() {
 
   const run = (verb: TriageVerb) => {
     if (!activeId) return;
-    if (verb.id === "defer" || verb.id === "dormant") triage.park(activeId, verb.id, "button");
-    else if (verb.id === "stash" || verb.id === "close") triage.hide(activeId, verb.id, "button");
-    else if (verb.id === "hide") triage.hide(activeId, "stash", "button", { hidden: true });
+    if (verb.id === "defer" || verb.id === "dormant")
+      triage.park(activeId, verb.id, "button");
+    else if (verb.id === "stash" || verb.id === "close")
+      triage.hide(activeId, verb.id, "button");
+    else if (verb.id === "hide")
+      triage.hide(activeId, "stash", "button", { hidden: true });
     else if (verb.id === "pin") triage.pin(activeId);
     else if (verb.id === "label") triage.label(activeId);
     // Label opens a picker; flashing "Labeled" before a label is chosen would
     // lie. Pin flashes its real direction.
     if (verb.id === "label") return;
-    const done = verb.id === "pin" && activePinned ? { ...verb, done: "Unpinned" } : verb;
+    const done =
+      verb.id === "pin" && activePinned ? { ...verb, done: "Unpinned" } : verb;
     setFlash({ verb: done, key: Date.now() });
     if (flashTimer.current) clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setFlash(null), 4000);
@@ -167,7 +214,12 @@ export function TriageBar() {
           )}
         >
           {PRIMARY_VERBS.map((v) => (
-            <VerbButton key={v.id} verb={v} disabled={disabled} onRun={() => run(v)} />
+            <VerbButton
+              key={v.id}
+              verb={v}
+              disabled={disabled}
+              onRun={() => run(v)}
+            />
           ))}
 
           <DropdownMenu>
@@ -189,7 +241,13 @@ export function TriageBar() {
                 </button>
               </DropdownMenuTrigger>
             </ShortcutTooltip>
-            <DropdownMenuContent align="start" side="top" sideOffset={6} collisionPadding={8} className={CTX_SURFACE}>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              sideOffset={6}
+              collisionPadding={8}
+              className={CTX_SURFACE}
+            >
               {SECONDARY_VERBS.map((v) => {
                 const pinned = v.id === "pin" && activePinned;
                 return (
@@ -205,7 +263,10 @@ export function TriageBar() {
                 );
               })}
               <CtxSeparator />
-              <CtxItem icon={Sparkles} onSelect={() => startTour("inbox", { replay: true })}>
+              <CtxItem
+                icon={Sparkles}
+                onSelect={() => startTour("inbox", { replay: true })}
+              >
                 How the inbox works
               </CtxItem>
               <CtxItem icon={EyeOff} onSelect={toggleTriageBarCompact}>
@@ -216,7 +277,11 @@ export function TriageBar() {
 
           {flash && <FlashLine flash={flash} />}
 
-          <ShortcutTooltip side="top" label="Shortcuts and the tour" action="ui.toggleShortcutsHelp">
+          <ShortcutTooltip
+            side="top"
+            label="Shortcuts and the tour"
+            action="ui.toggleShortcutsHelp"
+          >
             <button
               type="button"
               onClick={() => useInboxStore.getState().toggleShortcutsPanel()}

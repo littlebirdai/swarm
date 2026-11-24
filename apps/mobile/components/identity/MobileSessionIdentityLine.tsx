@@ -2,14 +2,23 @@
 // card: once personified the NAME leads at full weight and never truncates,
 // and what the session is working on follows, dimmer. Not personified: the
 // title alone, exactly as the row always read.
-import type { StyleProp, TextStyle } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { identityLine, type IdentityRow } from '@codecast/web/lib/sessionIdentity';
-import { useIdentityPrefs } from '@codecast/web/hooks/useIdentityPrefs';
-import { useTheme } from '@/constants/Theme';
-import { markedRuns } from '@/components/search/highlight';
+import type { StyleProp, TextStyle } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import {
+  identityLine,
+  type IdentityRow,
+} from "@codecast/web/lib/sessionIdentity";
+import { useIdentityPrefs } from "@codecast/web/hooks/useIdentityPrefs";
+import { useTheme } from "@/constants/Theme";
+import { markedRuns } from "@/components/search/highlight";
 
-export function MobileSessionIdentityLine({ row, title, style, maxFontSizeMultiplier, highlight }: {
+export function MobileSessionIdentityLine({
+  row,
+  title,
+  style,
+  maxFontSizeMultiplier,
+  highlight,
+}: {
   row: IdentityRow | null | undefined;
   /** The display title, already cleaned by the caller. */
   title: string;
@@ -21,13 +30,44 @@ export function MobileSessionIdentityLine({ row, title, style, maxFontSizeMultip
 }) {
   const Theme = useTheme();
   const prefs = useIdentityPrefs();
-  const line = row ? identityLine(row, title, prefs) : { name: null, title, handle: null };
-  if (!line.name) return <RNText style={style} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier}>{markedRuns(title, highlight)}</RNText>;
+  const line = row
+    ? identityLine(row, title, prefs)
+    : { name: null, title, handle: null };
+  if (!line.name)
+    return (
+      <RNText
+        style={style}
+        numberOfLines={1}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
+      >
+        {markedRuns(title, highlight)}
+      </RNText>
+    );
   return (
-    <RNText style={style} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier}>
-      {markedRuns(line.name, highlight, 'n')}
-      {line.handle ? <RNText style={{ color: Theme.textMuted0, fontWeight: '400' }}> @{line.handle}</RNText> : null}
-      {line.title ? <RNText style={{ color: Theme.textMuted0, fontWeight: '400' }}>{highlight ? <>{': '}{markedRuns(line.title, highlight, 't')}</> : `: ${line.title}`}</RNText> : null}
+    <RNText
+      style={style}
+      numberOfLines={1}
+      maxFontSizeMultiplier={maxFontSizeMultiplier}
+    >
+      {markedRuns(line.name, highlight, "n")}
+      {line.handle ? (
+        <RNText style={{ color: Theme.textMuted0, fontWeight: "400" }}>
+          {" "}
+          @{line.handle}
+        </RNText>
+      ) : null}
+      {line.title ? (
+        <RNText style={{ color: Theme.textMuted0, fontWeight: "400" }}>
+          {highlight ? (
+            <>
+              {": "}
+              {markedRuns(line.title, highlight, "t")}
+            </>
+          ) : (
+            `: ${line.title}`
+          )}
+        </RNText>
+      ) : null}
     </RNText>
   );
 }

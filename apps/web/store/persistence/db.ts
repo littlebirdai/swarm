@@ -3,12 +3,23 @@ import { DOCS_SHOTS } from "../../lib/docsShots/flag";
 import { recordCacheEvent } from "../cacheEvents";
 import { conversationsToRows } from "./migrations/conversationsToRows";
 import type { OutboxEntry } from "./outbox";
-import { CACHE_SCHEMA_VERSION, SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "./schema";
+import {
+  CACHE_SCHEMA_VERSION,
+  SYSTEM_TABLES,
+  WEB_COLLECTION_INDEXES,
+} from "./schema";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
-export const PERSISTENCE_AVAILABLE = typeof window !== "undefined" && !DOCS_SHOTS;
+export const PERSISTENCE_AVAILABLE =
+  typeof window !== "undefined" && !DOCS_SHOTS;
 
-export type ConversationMessageRow = { convId: string; messageKey: string; position: number; revision: string; message: any };
+export type ConversationMessageRow = {
+  convId: string;
+  messageKey: string;
+  position: number;
+  revision: string;
+  message: any;
+};
 type ConversationMessageMeta = {
   convId: string;
   pagination: Record<string, unknown> | undefined;
@@ -18,8 +29,14 @@ type ConversationMessageMeta = {
 class CacheDB extends Dexie {
   meta!: Dexie.Table<{ key: string; value: any }, string>;
   conversationMessageMeta!: Dexie.Table<ConversationMessageMeta, string>;
-  conversationMessageRows!: Dexie.Table<ConversationMessageRow, [string, string]>;
-  conversationUserMessages!: Dexie.Table<{ convId: string; userMessages: any[] }, string>;
+  conversationMessageRows!: Dexie.Table<
+    ConversationMessageRow,
+    [string, string]
+  >;
+  conversationUserMessages!: Dexie.Table<
+    { convId: string; userMessages: any[] },
+    string
+  >;
   dispatchOutbox!: Dexie.Table<OutboxEntry, string>;
 
   constructor() {
@@ -53,7 +70,9 @@ let upgradeBlockedListener: ((blocked: boolean) => void) | null = null;
 let closeExpected: "purge" | "versionchange" | null = null;
 let cacheServed = false;
 let purgeInProgress = false;
-export function setUpgradeBlockedListener(fn: ((blocked: boolean) => void) | null) {
+export function setUpgradeBlockedListener(
+  fn: ((blocked: boolean) => void) | null,
+) {
   upgradeBlockedListener = fn;
 }
 if (PERSISTENCE_AVAILABLE) {
@@ -65,7 +84,13 @@ if (PERSISTENCE_AVAILABLE) {
   });
   // "ready" fires once the open (and so the upgrade) went through; sticky so
   // it also fires for a reopen after a versionchange close.
-  db.on("ready", () => { upgradeBlockedListener?.(false); }, true);
+  db.on(
+    "ready",
+    () => {
+      upgradeBlockedListener?.(false);
+    },
+    true,
+  );
   // The other side (this tab is the holder) is Dexie's default versionchange
   // handler: it closes with auto-reopen so the upgrader can proceed.
 
@@ -76,7 +101,10 @@ if (PERSISTENCE_AVAILABLE) {
   // browser force-closing the store.
   db.on("versionchange", (ev: any) => {
     closeExpected = "versionchange";
-    recordCacheEvent("db-versionchange", { oldVersion: ev?.oldVersion ?? null, newVersion: ev?.newVersion ?? null });
+    recordCacheEvent("db-versionchange", {
+      oldVersion: ev?.oldVersion ?? null,
+      newVersion: ev?.newVersion ?? null,
+    });
   });
   db.on("close", () => {
     const expected = closeExpected;
@@ -92,13 +120,23 @@ if (PERSISTENCE_AVAILABLE) {
     // and a store lost before boot look the same here, so only a loss under
     // a window that was already reading the cache is reported.
     if (purgeInProgress) return;
-    recordCacheEvent("db-created", { servedCache: cacheServed }, { report: cacheServed });
+    recordCacheEvent(
+      "db-created",
+      { servedCache: cacheServed },
+      { report: cacheServed },
+    );
   });
 }
 
 const COLLECTION_STORE_KEYS = Object.keys(WEB_COLLECTION_INDEXES);
-export const COLLECTION_TABLES: Record<string, Dexie.Table<any, string>> = Object.fromEntries(
-  COLLECTION_STORE_KEYS.filter((key) => (db as any)[key]).map((key) => [key, (db as any)[key]])
+export const COLLECTION_TABLES: Record<
+  string,
+  Dexie.Table<any, string>
+> = Object.fromEntries(
+  COLLECTION_STORE_KEYS.filter((key) => (db as any)[key]).map((key) => [
+    key,
+    (db as any)[key],
+  ]),
 );
 
 // The schema is derived from the registry, so every registered collection has
@@ -106,11 +144,11 @@ export const COLLECTION_TABLES: Record<string, Dexie.Table<any, string>> = Objec
 // runtime guard (a registered collection with no table would reject
 // loadCache's Promise.all and silently disable the ENTIRE cache).
 export const MISSING_COLLECTION_TABLES: string[] = COLLECTION_STORE_KEYS.filter(
-  (key) => !(db as any)[key]
+  (key) => !(db as any)[key],
 );
 if (MISSING_COLLECTION_TABLES.length > 0) {
   console.error(
-    `[idbCache] registry collections missing Dexie tables: ${MISSING_COLLECTION_TABLES.join(", ")}`
+    `[idbCache] registry collections missing Dexie tables: ${MISSING_COLLECTION_TABLES.join(", ")}`,
   );
 }
 
@@ -118,7 +156,10 @@ if (MISSING_COLLECTION_TABLES.length > 0) {
 // and remembers a failed open, so a test running after another file already
 // touched the singleton (no IndexedDB in the process then) must hand the
 // instance fake-indexeddb and reopen it.
-export function _reopenForTests(deps: { indexedDB: unknown; IDBKeyRange: unknown }): Promise<unknown> {
+export function _reopenForTests(deps: {
+  indexedDB: unknown;
+  IDBKeyRange: unknown;
+}): Promise<unknown> {
   Object.assign((db as any)._deps, deps);
   db.close();
   return db.open();
@@ -143,5 +184,10 @@ export function reopenAfterPurge() {
   // throws DatabaseClosedError. A signed-out page navigates away, but a
   // window that purged on an account boundary keeps running for the next
   // account, so reopen (an empty database with the current schema) now.
-  return db.open().catch((error) => recordCacheEvent("db-open-failed", { step: "reopen-after-purge", error: String(error) }));
+  return db.open().catch((error) =>
+    recordCacheEvent("db-open-failed", {
+      step: "reopen-after-purge",
+      error: String(error),
+    }),
+  );
 }

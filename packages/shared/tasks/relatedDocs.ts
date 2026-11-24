@@ -32,9 +32,11 @@ export function docRelatesToTask(
   task: RelatedDocTaskInput,
   windowMs: number = RELATED_DOC_WINDOW_MS,
 ): boolean {
-  if (task.short_id && doc.content && doc.content.includes(task.short_id)) return true;
+  if (task.short_id && doc.content && doc.content.includes(task.short_id))
+    return true;
   const filedAt = task.created_at;
   if (typeof filedAt !== "number") return true;
-  const near = (ts: number | null | undefined) => typeof ts === "number" && Math.abs(ts - filedAt) <= windowMs;
+  const near = (ts: number | null | undefined) =>
+    typeof ts === "number" && Math.abs(ts - filedAt) <= windowMs;
   return near(doc.created_at) || near(doc.updated_at);
 }

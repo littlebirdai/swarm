@@ -17,9 +17,19 @@ const row = (id: string, over: Partial<InboxSession> = {}): InboxSession => ({
   ...over,
 });
 const parent = row("parent");
-const child = row("child", { parent_conversation_id: "parent", is_subagent: true, inbox_dismissed_at: now });
-const ids = (rows: InboxSession[]) => rows.map(row => row._id);
-const place = (rows: InboxSession[]) => placeSections(Object.fromEntries(rows.map(row => [row._id, row])), new Set(), undefined, { now });
+const child = row("child", {
+  parent_conversation_id: "parent",
+  is_subagent: true,
+  inbox_dismissed_at: now,
+});
+const ids = (rows: InboxSession[]) => rows.map((row) => row._id);
+const place = (rows: InboxSession[]) =>
+  placeSections(
+    Object.fromEntries(rows.map((row) => [row._id, row])),
+    new Set(),
+    undefined,
+    { now },
+  );
 
 describe("linked subagent nesting", () => {
   it("nests an automatically dismissed child without adding an inbox card or count", () => {
@@ -36,8 +46,14 @@ describe("linked subagent nesting", () => {
   });
 
   it("honors explicit stash, kill and snooze on a child", () => {
-    for (const stamp of [{ inbox_stashed_at: now }, { inbox_killed_at: now }, { inbox_snoozed_until: now + 60_000 }]) {
-      expect(sessionStructuralSig({ ...child, ...stamp })).not.toBe(sessionStructuralSig(child));
+    for (const stamp of [
+      { inbox_stashed_at: now },
+      { inbox_killed_at: now },
+      { inbox_snoozed_until: now + 60_000 },
+    ]) {
+      expect(sessionStructuralSig({ ...child, ...stamp })).not.toBe(
+        sessionStructuralSig(child),
+      );
       const placed = place([parent, { ...child, ...stamp }]);
       expect(placed.subsByParent.get("parent") ?? []).toEqual([]);
       expect(ids(placed.working)).toEqual(["parent"]);
@@ -45,7 +61,11 @@ describe("linked subagent nesting", () => {
   });
 
   it("never exposes children under an absent or hidden parent", () => {
-    for (const rows of [[child], [child, { ...parent, inbox_dismissed_at: now }], [child, { ...parent, inbox_stashed_at: now }]]) {
+    for (const rows of [
+      [child],
+      [child, { ...parent, inbox_dismissed_at: now }],
+      [child, { ...parent, inbox_stashed_at: now }],
+    ]) {
       const placed = place(rows);
       expect(placed.subsByParent.size).toBe(0);
       expect(placed.working).toEqual([]);
@@ -54,19 +74,30 @@ describe("linked subagent nesting", () => {
   });
 
   it("keeps a dismissed plan handoff dismissed", () => {
-    const placed = place([parent, { ...child, is_subagent: false, parent_message_uuid: "plan-handoff" }]);
+    const placed = place([
+      parent,
+      { ...child, is_subagent: false, parent_message_uuid: "plan-handoff" },
+    ]);
     expect(placed.subsByParent.size).toBe(0);
     expect(ids(placed.dismissed)).toEqual(["child"]);
   });
 
   it("keeps a snoozed parent and its child out of active sections until wake", () => {
     const until = now + 60_000;
-    const rows = [{ ...parent, inbox_snoozed_until: until }, { ...child, inbox_snoozed_until: until }];
+    const rows = [
+      { ...parent, inbox_snoozed_until: until },
+      { ...child, inbox_snoozed_until: until },
+    ];
     const placed = place(rows);
     expect(ids(placed.snoozed)).toEqual(["parent"]);
     expect(placed.working).toEqual([]);
     expect(placed.subsByParent.size).toBe(0);
-    const awake = placeSections(Object.fromEntries(rows.map(row => [row._id, row])), new Set(), undefined, { now: until + 60_000 });
+    const awake = placeSections(
+      Object.fromEntries(rows.map((row) => [row._id, row])),
+      new Set(),
+      undefined,
+      { now: until + 60_000 },
+    );
     expect(ids(awake.subsByParent.get("parent") ?? [])).toEqual(["child"]);
     expect(awake.snoozed).toEqual([]);
   });
@@ -74,36 +105,71 @@ describe("linked subagent nesting", () => {
 
 describe("set aside bucket rows", () => {
   const stashed = (id: string, parentId?: string) =>
-    row(id, { inbox_stashed_at: now, ...(parentId ? { parent_conversation_id: parentId, is_subagent: true } : {}) });
+    row(id, {
+      inbox_stashed_at: now,
+      ...(parentId
+        ? { parent_conversation_id: parentId, is_subagent: true }
+        : {}),
+    });
 
   it("draws a stashed child whose parent is outside the bucket as its own card", () => {
-    const { topLevel, subsByTop } = hiddenBucketTree([stashed("a"), stashed("orphan", "live-lead")]);
+    const { topLevel, subsByTop } = hiddenBucketTree([
+      stashed("a"),
+      stashed("orphan", "live-lead"),
+    ]);
     expect(ids(topLevel)).toEqual(["a", "orphan"]);
     expect(subsByTop.size).toBe(0);
   });
 
   it("nests every descendant under its outermost ancestor in the bucket", () => {
-    const { topLevel, subsByTop } = hiddenBucketTree([stashed("root"), stashed("kid", "root"), stashed("grandkid", "kid")]);
+    const { topLevel, subsByTop } = hiddenBucketTree([
+      stashed("root"),
+      stashed("kid", "root"),
+      stashed("grandkid", "kid"),
+    ]);
     expect(ids(topLevel)).toEqual(["root"]);
-    expect(ids(subsByTop.get("root") ?? []).sort()).toEqual(["grandkid", "kid"]);
+    expect(ids(subsByTop.get("root") ?? []).sort()).toEqual([
+      "grandkid",
+      "kid",
+    ]);
   });
 
   it("draws every row exactly once, so the header count matches", () => {
-    const items = [stashed("root"), stashed("kid", "root"), stashed("grandkid", "kid"), stashed("orphan", "elsewhere"), stashed("x", "y"), stashed("y", "x")];
+    const items = [
+      stashed("root"),
+      stashed("kid", "root"),
+      stashed("grandkid", "kid"),
+      stashed("orphan", "elsewhere"),
+      stashed("x", "y"),
+      stashed("y", "x"),
+    ];
     const { topLevel, subsByTop } = hiddenBucketTree(items);
-    const drawn = [...topLevel, ...topLevel.flatMap((top) => subsByTop.get(top._id) ?? [])];
+    const drawn = [
+      ...topLevel,
+      ...topLevel.flatMap((top) => subsByTop.get(top._id) ?? []),
+    ];
     expect(ids(drawn).sort()).toEqual(ids(items).sort());
   });
 });
 
 describe("kill all in a set aside bucket", () => {
   const stashed = (id: string, parentId?: string) =>
-    row(id, { inbox_stashed_at: now, ...(parentId ? { parent_conversation_id: parentId, is_subagent: true } : {}) });
+    row(id, {
+      inbox_stashed_at: now,
+      ...(parentId
+        ? { parent_conversation_id: parentId, is_subagent: true }
+        : {}),
+    });
 
   it("kills each row its parent's cascade does not reach", () => {
     // root cascades to kid; grandkid's parent (kid) is not killed explicitly, so
     // grandkid is; great-grandkid rides grandkid's cascade.
-    const items = [stashed("root"), stashed("kid", "root"), stashed("grandkid", "kid"), stashed("great", "grandkid")];
+    const items = [
+      stashed("root"),
+      stashed("kid", "root"),
+      stashed("grandkid", "kid"),
+      stashed("great", "grandkid"),
+    ];
     expect(killAllIds(items).sort()).toEqual(["grandkid", "root"]);
   });
 
@@ -117,7 +183,11 @@ describe("kill all in a set aside bucket", () => {
 // row it rides at read time, so a restore brings it back and a parent that
 // left the viewer's scope leaves no card behind.
 describe("children of a stashed parent", () => {
-  const sub = (id: string, parentId: string, over: Partial<InboxSession> = {}) =>
+  const sub = (
+    id: string,
+    parentId: string,
+    over: Partial<InboxSession> = {},
+  ) =>
     row(id, { parent_conversation_id: parentId, is_subagent: true, ...over });
   const stashedParent = row("parent", { inbox_stashed_at: now });
 
@@ -131,14 +201,24 @@ describe("children of a stashed parent", () => {
   });
 
   it("nests a grandchild under the stashed root", () => {
-    const placed = place([stashedParent, sub("kid", "parent"), sub("grandkid", "kid")]);
+    const placed = place([
+      stashedParent,
+      sub("kid", "parent"),
+      sub("grandkid", "kid"),
+    ]);
     const { topLevel, subsByTop } = hiddenBucketTree(placed.stashed);
     expect(ids(topLevel)).toEqual(["parent"]);
-    expect(ids(subsByTop.get("parent") ?? []).sort()).toEqual(["grandkid", "kid"]);
+    expect(ids(subsByTop.get("parent") ?? []).sort()).toEqual([
+      "grandkid",
+      "kid",
+    ]);
   });
 
   it("leaves a killed child out of Stashed", () => {
-    const placed = place([stashedParent, sub("child", "parent", { inbox_killed_at: now })]);
+    const placed = place([
+      stashedParent,
+      sub("child", "parent", { inbox_killed_at: now }),
+    ]);
     expect(ids(placed.stashed)).toEqual(["parent"]);
   });
 
@@ -146,19 +226,29 @@ describe("children of a stashed parent", () => {
     for (const over of [{}, { inbox_stashed_at: now }]) {
       const placed = place([sub("child", "moved-away", over), row("other")]);
       expect(ids(placed.sorted)).toEqual(["other"]);
-      expect([...placed.stashed, ...placed.dismissed, ...placed.snoozed]).toEqual([]);
+      expect([
+        ...placed.stashed,
+        ...placed.dismissed,
+        ...placed.snoozed,
+      ]).toEqual([]);
       expect(placed.subsByParent.size).toBe(0);
     }
   });
 
   it("keeps a stashed workflow sub with no parent pointer on its own card", () => {
-    const placed = place([row("wf", { is_workflow_sub: true, inbox_stashed_at: now })]);
+    const placed = place([
+      row("wf", { is_workflow_sub: true, inbox_stashed_at: now }),
+    ]);
     expect(ids(placed.stashed)).toEqual(["wf"]);
     expect(placed.sorted).toEqual([]);
   });
 
   it("kill all sends only the parent for its derived children", () => {
-    const placed = place([stashedParent, sub("kid", "parent"), sub("kid2", "parent")]);
+    const placed = place([
+      stashedParent,
+      sub("kid", "parent"),
+      sub("kid2", "parent"),
+    ]);
     expect(killAllIds(placed.stashed)).toEqual(["parent"]);
   });
 });

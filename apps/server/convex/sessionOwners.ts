@@ -10,10 +10,15 @@ import { Id } from "./_generated/dataModel";
 // policy) and sessionOwnership.ts (assignment workflow) can use them without an
 // import cycle.
 
-async function ownerRows(ctx: { db: any }, conversationId: Id<"conversations">): Promise<any[]> {
+async function ownerRows(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<any[]> {
   const rows = await ctx.db
     .query("session_owners")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   return rows.sort((a: any, b: any) => a.added_at - b.added_at);
 }
@@ -24,7 +29,9 @@ export async function listSessionOwnerIds(
   ctx: { db: any },
   conversationId: Id<"conversations">,
 ): Promise<Id<"users">[]> {
-  return (await ownerRows(ctx, conversationId)).map((r: any) => r.user_id as Id<"users">);
+  return (await ownerRows(ctx, conversationId)).map(
+    (r: any) => r.user_id as Id<"users">,
+  );
 }
 
 export async function isSessionOwner(
@@ -41,11 +48,14 @@ export async function sessionOwnerRow(
   conversationId: Id<"conversations">,
   userId: Id<"users">,
 ): Promise<any | null> {
-  return (await ctx.db
-    .query("session_owners")
-    .withIndex("by_conversation_user", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("user_id", userId))
-    .first()) ?? null;
+  return (
+    (await ctx.db
+      .query("session_owners")
+      .withIndex("by_conversation_user", (q: any) =>
+        q.eq("conversation_id", conversationId).eq("user_id", userId),
+      )
+      .first()) ?? null
+  );
 }
 
 // The person who started this session: the original author if the session
@@ -56,7 +66,9 @@ export async function humanStarterUser(
   ctx: { db: any },
   conversation: { user_id: Id<"users">; author_user_id?: Id<"users"> },
 ): Promise<any | null> {
-  const ids = [conversation.author_user_id, conversation.user_id].filter(Boolean) as Id<"users">[];
+  const ids = [conversation.author_user_id, conversation.user_id].filter(
+    Boolean,
+  ) as Id<"users">[];
   const seen = new Set<string>();
   for (const id of ids) {
     const key = id.toString();
@@ -91,11 +103,17 @@ export async function addSessionOwnerRow(
   const existing = await ctx.db
     .query("session_owners")
     .withIndex("by_conversation_user", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("user_id", userId))
+      q.eq("conversation_id", conversationId).eq("user_id", userId),
+    )
     .first();
   if (existing) {
     if (!note || userId.toString() === addedBy.toString()) return false;
-    await ctx.db.patch(existing._id, { added_by: addedBy, added_at: Date.now(), note, seen_at: undefined });
+    await ctx.db.patch(existing._id, {
+      added_by: addedBy,
+      added_at: Date.now(),
+      note,
+      seen_at: undefined,
+    });
     return true;
   }
   await ctx.db.insert("session_owners", {
@@ -105,7 +123,9 @@ export async function addSessionOwnerRow(
     added_at: Date.now(),
     ...(note ? { note } : {}),
     // Self-claims are pre-acknowledged — the ping is for handoffs from others.
-    ...(userId.toString() === addedBy.toString() ? { seen_at: Date.now() } : {}),
+    ...(userId.toString() === addedBy.toString()
+      ? { seen_at: Date.now() }
+      : {}),
   });
   return true;
 }
@@ -123,7 +143,8 @@ export async function ackAssignmentOnEngage(
   const row = await ctx.db
     .query("session_owners")
     .withIndex("by_conversation_user", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("user_id", userId))
+      q.eq("conversation_id", conversationId).eq("user_id", userId),
+    )
     .first();
   if (row && !row.seen_at && row.added_by?.toString() !== userId.toString()) {
     await ctx.db.patch(row._id, { seen_at: Date.now() });
@@ -139,7 +160,8 @@ export async function removeSessionOwnerRow(
   const existing = await ctx.db
     .query("session_owners")
     .withIndex("by_conversation_user", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("user_id", userId))
+      q.eq("conversation_id", conversationId).eq("user_id", userId),
+    )
     .first();
   if (!existing) return false;
   await ctx.db.delete(existing._id);
@@ -160,7 +182,10 @@ export async function syncPrimaryOwnerCache(
   preferred?: Id<"users">,
 ): Promise<Id<"users"> | undefined> {
   const owners = await listSessionOwnerIds(ctx, conversationId);
-  const primary = (preferred && owners.find((id) => id.toString() === preferred.toString())) || owners[0];
+  const primary =
+    (preferred &&
+      owners.find((id) => id.toString() === preferred.toString())) ||
+    owners[0];
   await ctx.db.patch(conversationId, { owner_user_id: primary ?? undefined });
   return primary;
 }
@@ -173,11 +198,20 @@ export async function syncPrimaryOwnerCache(
 export async function stampSeatOwners(
   ctx: { db: any },
   conversationId: Id<"conversations">,
-  reportsTo: { kind: "user"; user_id: Id<"users"> } | { kind: "role"; role_id: any } | null | undefined,
+  reportsTo:
+    | { kind: "user"; user_id: Id<"users"> }
+    | { kind: "role"; role_id: any }
+    | null
+    | undefined,
   addedBy: Id<"users">,
 ): Promise<boolean> {
   const boss = reportsTo?.kind === "user" ? reportsTo.user_id : null;
-  return setSessionOwnerRows(ctx, conversationId, boss ? [String(boss)] : [], addedBy);
+  return setSessionOwnerRows(
+    ctx,
+    conversationId,
+    boss ? [String(boss)] : [],
+    addedBy,
+  );
 }
 
 // A session's owner set as one comparable value: the primary (the
@@ -190,16 +224,29 @@ export async function ownerSetOf(
   loaded?: { owner_user_id?: unknown } | null,
 ): Promise<string[]> {
   const owners = (await listSessionOwnerIds(ctx, conversationId)).map(String);
-  const conversation = loaded === undefined ? await ctx.db.get(conversationId) : loaded;
+  const conversation =
+    loaded === undefined ? await ctx.db.get(conversationId) : loaded;
   const primary = String(conversation?.owner_user_id ?? "");
-  return [...owners.filter((id) => id === primary), ...owners.filter((id) => id !== primary).sort()];
+  return [
+    ...owners.filter((id) => id === primary),
+    ...owners.filter((id) => id !== primary).sort(),
+  ];
 }
 
 /** One owner row as the org change log keeps it, so an undo puts the row back
  *  as it was: who added it, when, and whether its owner had acknowledged it. */
-export type OwnerRowSnapshot = { user_id: string; added_by: string; added_at: number; seen_at?: number; note?: string };
+export type OwnerRowSnapshot = {
+  user_id: string;
+  added_by: string;
+  added_at: number;
+  seen_at?: number;
+  note?: string;
+};
 
-export async function ownerRowsOf(ctx: { db: any }, conversationId: Id<"conversations">): Promise<OwnerRowSnapshot[]> {
+export async function ownerRowsOf(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<OwnerRowSnapshot[]> {
   return (await ownerRows(ctx, conversationId)).map((r: any) => ({
     user_id: String(r.user_id),
     added_by: String(r.added_by),
@@ -229,21 +276,46 @@ export async function setSessionOwnerRows(
   const present = new Set<string>();
   for (const id of await listSessionOwnerIds(ctx, conversationId)) {
     present.add(String(id));
-    if (!keep.has(String(id)) && await removeSessionOwnerRow(ctx, conversationId, id)) changed = true;
+    if (
+      !keep.has(String(id)) &&
+      (await removeSessionOwnerRow(ctx, conversationId, id))
+    )
+      changed = true;
   }
   for (const id of owners) {
     if (!restore) {
-      if (await addSessionOwnerRow(ctx, conversationId, id as Id<"users">, addedBy)) changed = true;
+      if (
+        await addSessionOwnerRow(
+          ctx,
+          conversationId,
+          id as Id<"users">,
+          addedBy,
+        )
+      )
+        changed = true;
       continue;
     }
     if (present.has(id)) continue;
     const now = Date.now();
-    const row = restore.find((r) => r.user_id === id) ?? { user_id: id, added_by: String(addedBy), added_at: now, seen_at: now };
-    await ctx.db.insert("session_owners", { conversation_id: conversationId, ...row });
+    const row = restore.find((r) => r.user_id === id) ?? {
+      user_id: id,
+      added_by: String(addedBy),
+      added_at: now,
+      seen_at: now,
+    };
+    await ctx.db.insert("session_owners", {
+      conversation_id: conversationId,
+      ...row,
+    });
     changed = true;
   }
   const primary = owners[0] as Id<"users"> | undefined;
-  if (!changed && primary && String((await ctx.db.get(conversationId))?.owner_user_id ?? "") !== primary) changed = true;
+  if (
+    !changed &&
+    primary &&
+    String((await ctx.db.get(conversationId))?.owner_user_id ?? "") !== primary
+  )
+    changed = true;
   if (changed) await syncPrimaryOwnerCache(ctx, conversationId, primary);
   return changed;
 }

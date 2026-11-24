@@ -7,10 +7,15 @@ import { useRouteMeta } from "../pageMeta";
 import { SITE_LINKS } from "@/lib/siteLinks";
 import { SOL, BlogNav, Terminal, Cmd, Code } from "../blog/blogChrome";
 
-const { supportEmail: SUPPORT_EMAIL, community: COMMUNITY_URL, githubIssues: ISSUES_URL } = SITE_LINKS;
+const {
+  supportEmail: SUPPORT_EMAIL,
+  community: COMMUNITY_URL,
+  githubIssues: ISSUES_URL,
+} = SITE_LINKS;
 
 /** One shell line that collects everything a bug report needs. */
-const REPORT_COMMAND = "cast --version; cast status; cast doctor --no-e2e; cast logs -n 200";
+const REPORT_COMMAND =
+  "cast --version; cast status; cast doctor --no-e2e; cast logs -n 200";
 
 const CHANNELS = [
   {
@@ -60,8 +65,9 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "New sessions never show up in the inbox",
     fix: (
       <>
-        The daemon is not running. Start it with <Code>cast start</Code>, then run <Code>cast setup</Code> once so it
-        starts at login and you never think about it again.
+        The daemon is not running. Start it with <Code>cast start</Code>, then
+        run <Code>cast setup</Code> once so it starts at login and you never
+        think about it again.
       </>
     ),
   },
@@ -69,8 +75,9 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "The CLI says this machine is not authenticated",
     fix: (
       <>
-        Run <Code>cast auth</Code> to sign in through the browser. On a machine with no browser, create a setup token
-        under Settings, then CLI, and run <Code>cast login &lt;token&gt;</Code>.
+        Run <Code>cast auth</Code> to sign in through the browser. On a machine
+        with no browser, create a setup token under Settings, then CLI, and run{" "}
+        <Code>cast login &lt;token&gt;</Code>.
       </>
     ),
   },
@@ -78,8 +85,9 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "A message sent from the web never reaches the agent",
     fix: (
       <>
-        The agent&apos;s terminal pane is gone. Use Restart session in the conversation header, or run{" "}
-        <Code>cast restart &lt;session&gt;</Code>. The daemon resumes the transcript in a fresh pane.
+        The agent&apos;s terminal pane is gone. Use Restart session in the
+        conversation header, or run <Code>cast restart &lt;session&gt;</Code>.
+        The daemon resumes the transcript in a fresh pane.
       </>
     ),
   },
@@ -87,8 +95,8 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "The CLI is behind the dashboard",
     fix: (
       <>
-        Run <Code>cast update</Code>, then <Code>cast restart</Code>. The CLI updates itself on a schedule, and this
-        forces the update now.
+        Run <Code>cast update</Code>, then <Code>cast restart</Code>. The CLI
+        updates itself on a schedule, and this forces the update now.
       </>
     ),
   },
@@ -96,8 +104,13 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "The desktop app is stuck on an old version",
     fix: (
       <>
-        Run <Code>cast desktop-update</Code> from any terminal. It replaces the app outside the macOS updater. You can
-        also get the current build from the <Link href="/download" className="underline underline-offset-4">download page</Link>.
+        Run <Code>cast desktop-update</Code> from any terminal. It replaces the
+        app outside the macOS updater. You can also get the current build from
+        the{" "}
+        <Link href="/download" className="underline underline-offset-4">
+          download page
+        </Link>
+        .
       </>
     ),
   },
@@ -105,8 +118,9 @@ const PROBLEMS: { symptom: string; fix: ReactNode }[] = [
     symptom: "Remove Codecast from a machine",
     fix: (
       <>
-        Run <Code>cast uninstall</Code>. It removes the CLI, the daemon, and its login item. Add{" "}
-        <Code>--keep-config</Code> to keep <Code>~/.codecast</Code> for a later reinstall.
+        Run <Code>cast uninstall</Code>. It removes the CLI, the daemon, and its
+        login item. Add <Code>--keep-config</Code> to keep{" "}
+        <Code>~/.codecast</Code> for a later reinstall.
       </>
     ),
   },
@@ -133,10 +147,14 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "Who can see my sessions?",
     a: (
       <>
-        Only you, until you share. Every session starts private. You share one conversation at a time, with a
-        teammate or with a link. Secrets are redacted before anything leaves your machine, and you can self host the
-        backend. The <Link href="/security" className="underline underline-offset-4">security page</Link> has the full
-        answer.
+        Only you, until you share. Every session starts private. You share one
+        conversation at a time, with a teammate or with a link. Secrets are
+        redacted before anything leaves your machine, and you can self host the
+        backend. The{" "}
+        <Link href="/security" className="underline underline-offset-4">
+          security page
+        </Link>{" "}
+        has the full answer.
       </>
     ),
   },
@@ -144,9 +162,17 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "Where are the desktop and mobile apps?",
     a: (
       <>
-        The Mac app is on the <Link href="/download" className="underline underline-offset-4">download page</Link>, and
-        the iOS app is on the{" "}
-        <a href={SITE_LINKS.appStore} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+        The Mac app is on the{" "}
+        <Link href="/download" className="underline underline-offset-4">
+          download page
+        </Link>
+        , and the iOS app is on the{" "}
+        <a
+          href={SITE_LINKS.appStore}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-4"
+        >
           App Store
         </a>
         . Both sign in with the same account as the web.
@@ -157,8 +183,9 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "How do I delete my data?",
     a: (
       <>
-        Open Settings, then Accounts, and choose Delete account. That removes your account and everything under it, and
-        it cannot be undone. To clear one machine, run <Code>cast uninstall</Code>.
+        Open Settings, then Accounts, and choose Delete account. That removes
+        your account and everything under it, and it cannot be undone. To clear
+        one machine, run <Code>cast uninstall</Code>.
       </>
     ),
   },
@@ -167,8 +194,13 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: (
       <>
         Email{" "}
-        <a href={`mailto:${SITE_LINKS.securityEmail}`} className="underline underline-offset-4">{SITE_LINKS.securityEmail}</a>.
-        Please do not open a public issue for it.
+        <a
+          href={`mailto:${SITE_LINKS.securityEmail}`}
+          className="underline underline-offset-4"
+        >
+          {SITE_LINKS.securityEmail}
+        </a>
+        . Please do not open a public issue for it.
       </>
     ),
   },
@@ -177,29 +209,65 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: (
       <>
         Email{" "}
-        <a href={`mailto:${SITE_LINKS.enterpriseEmail}`} className="underline underline-offset-4">{SITE_LINKS.enterpriseEmail}</a>.
-        Plans and prices are on the <Link href="/pricing" className="underline underline-offset-4">pricing page</Link>.
+        <a
+          href={`mailto:${SITE_LINKS.enterpriseEmail}`}
+          className="underline underline-offset-4"
+        >
+          {SITE_LINKS.enterpriseEmail}
+        </a>
+        . Plans and prices are on the{" "}
+        <Link href="/pricing" className="underline underline-offset-4">
+          pricing page
+        </Link>
+        .
       </>
     ),
   },
 ];
 
 /** Staggered entrance: reuses the fadeSlideIn keyframe from tailwind.config. */
-function Reveal({ delay, className = "", children }: { delay: number; className?: string; children: ReactNode }) {
+function Reveal({
+  delay,
+  className = "",
+  children,
+}: {
+  delay: number;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className={`animate-fadeSlideIn ${className}`} style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}>
+    <div
+      className={`animate-fadeSlideIn ${className}`}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}
+    >
       {children}
     </div>
   );
 }
 
-function SectionTitle({ children, lede }: { children: ReactNode; lede?: ReactNode }) {
+function SectionTitle({
+  children,
+  lede,
+}: {
+  children: ReactNode;
+  lede?: ReactNode;
+}) {
   return (
     <div className="mb-8">
-      <h2 className="text-2xl md:text-3xl font-bold font-mono tracking-tight" style={{ color: SOL.base03 }}>
+      <h2
+        className="text-2xl md:text-3xl font-bold font-mono tracking-tight"
+        style={{ color: SOL.base03 }}
+      >
         {children}
       </h2>
-      {lede && <p className="mt-3 text-[17px] leading-8 max-w-2xl" style={{ color: SOL.base01 }}>{lede}</p>}
+      {lede && (
+        <p
+          className="mt-3 text-[17px] leading-8 max-w-2xl"
+          style={{ color: SOL.base01 }}
+        >
+          {lede}
+        </p>
+      )}
     </div>
   );
 }
@@ -230,7 +298,10 @@ export default function SupportPage() {
   useRouteMeta("/support");
 
   return (
-    <main className="min-h-screen w-full" style={{ backgroundColor: SOL.base3 }}>
+    <main
+      className="min-h-screen w-full"
+      style={{ backgroundColor: SOL.base3 }}
+    >
       <BlogNav active="/support" />
 
       {/* Hero: the promise on the left, proof it is checkable on the right */}
@@ -238,16 +309,23 @@ export default function SupportPage() {
         <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-start">
           <div>
             <Reveal delay={0}>
-              <h1 className="text-4xl md:text-5xl font-bold font-mono tracking-tight leading-[1.1]" style={{ color: SOL.base03 }}>
+              <h1
+                className="text-4xl md:text-5xl font-bold font-mono tracking-tight leading-[1.1]"
+                style={{ color: SOL.base03 }}
+              >
                 Stuck?
                 <br />
                 Start here.
               </h1>
             </Reveal>
             <Reveal delay={80}>
-              <p className="mt-6 text-lg md:text-xl leading-8" style={{ color: SOL.base01 }}>
-                Most problems are a daemon that stopped or a login that expired. Two commands tell you which one.
-                When they do not, a person answers.
+              <p
+                className="mt-6 text-lg md:text-xl leading-8"
+                style={{ color: SOL.base01 }}
+              >
+                Most problems are a daemon that stopped or a login that expired.
+                Two commands tell you which one. When they do not, a person
+                answers.
               </p>
             </Reveal>
             <Reveal delay={160} className="mt-8">
@@ -257,19 +335,48 @@ export default function SupportPage() {
                     <a
                       href={c.href}
                       target={c.href.startsWith("http") ? "_blank" : undefined}
-                      rel={c.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                      rel={
+                        c.href.startsWith("http")
+                          ? "noopener noreferrer"
+                          : undefined
+                      }
                       className="group flex items-center gap-4 rounded-xl px-4 py-3 transition-colors"
-                      style={{ border: `1px solid ${SOL.base2}`, backgroundColor: "rgba(255,255,255,0.35)" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = c.accent)}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = SOL.base2)}
+                      style={{
+                        border: `1px solid ${SOL.base2}`,
+                        backgroundColor: "rgba(255,255,255,0.35)",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor = c.accent)
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor = SOL.base2)
+                      }
                     >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.accent }} />
-                      <span className="font-mono text-sm w-16 shrink-0" style={{ color: SOL.base00 }}>{c.label}</span>
-                      <span className="flex flex-col min-w-0">
-                        <span className="font-medium text-sm truncate" style={{ color: SOL.base03 }}>{c.value}</span>
-                        <span className="text-xs" style={{ color: SOL.base0 }}>{c.note}</span>
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: c.accent }}
+                      />
+                      <span
+                        className="font-mono text-sm w-16 shrink-0"
+                        style={{ color: SOL.base00 }}
+                      >
+                        {c.label}
                       </span>
-                      <span className="ml-auto text-sm transition-transform group-hover:translate-x-0.5" style={{ color: c.accent }}>
+                      <span className="flex flex-col min-w-0">
+                        <span
+                          className="font-medium text-sm truncate"
+                          style={{ color: SOL.base03 }}
+                        >
+                          {c.value}
+                        </span>
+                        <span className="text-xs" style={{ color: SOL.base0 }}>
+                          {c.note}
+                        </span>
+                      </span>
+                      <span
+                        className="ml-auto text-sm transition-transform group-hover:translate-x-0.5"
+                        style={{ color: c.accent }}
+                      >
                         &rarr;
                       </span>
                     </a>
@@ -283,32 +390,59 @@ export default function SupportPage() {
             <Terminal label="first aid">
               <Cmd>cast status</Cmd>
               {"\n"}
-              <span style={{ color: SOL.base01 }}>  Version   </span>v1.1.132{"\n"}
-              <span style={{ color: SOL.base01 }}>  Auth      </span><span style={{ color: SOL.green }}>*</span> authenticated{"\n"}
-              <span style={{ color: SOL.base01 }}>  Daemon    </span><span style={{ color: SOL.green }}>*</span> running (PID 23887){"\n"}
-              <span style={{ color: SOL.base01 }}>  Last sync </span>0 seconds ago{"\n"}
-              <span style={{ color: SOL.base01 }}>  Queue     </span>empty{"\n"}
-              <span style={{ color: SOL.base01 }}>  Convex    </span><span style={{ color: SOL.green }}>*</span> connected{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Version   "}</span>
+              v1.1.132{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Auth      "}</span>
+              <span style={{ color: SOL.green }}>*</span> authenticated{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Daemon    "}</span>
+              <span style={{ color: SOL.green }}>*</span> running (PID 23887)
+              {"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Last sync "}</span>0
+              seconds ago{"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Queue     "}</span>empty
+              {"\n"}
+              <span style={{ color: SOL.base01 }}>{"  Convex    "}</span>
+              <span style={{ color: SOL.green }}>*</span> connected{"\n"}
               {"\n"}
               <Cmd>cast doctor</Cmd>
               {"\n"}
-              <span style={{ color: SOL.base01 }}>  Codecast Doctor  (v1.1.132)</span>{"\n"}
+              <span style={{ color: SOL.base01 }}>
+                {"  Codecast Doctor  (v1.1.132)"}
+              </span>
               {"\n"}
-              <span style={{ color: SOL.green }}>  ✓</span> auth          authenticated{"\n"}
-              <span style={{ color: SOL.green }}>  ✓</span> daemon        running, heartbeat 2s ago{"\n"}
-              <span style={{ color: SOL.green }}>  ✓</span> convex        connected (last sync 2s ago){"\n"}
-              <span style={{ color: SOL.green }}>  ✓</span> sync backlog  clear{"\n"}
-              <span style={{ color: SOL.yellow }}>  !</span> guidance      run `cast install --all`{"\n"}
-              <span style={{ color: SOL.green }}>  ✓</span> end-to-end    round trip 1.4s{"\n"}
               {"\n"}
-              <span style={{ color: SOL.green }}>  ✓ codecast is healthy</span>
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" auth          authenticated"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" daemon        running, heartbeat 2s ago"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" convex        connected (last sync 2s ago)"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" sync backlog  clear"}
+              {"\n"}
+              <span style={{ color: SOL.yellow }}>{"  !"}</span>
+              {" guidance      run `cast install --all`"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>{"  ✓"}</span>
+              {" end-to-end    round trip 1.4s"}
+              {"\n"}
+              {"\n"}
+              <span style={{ color: SOL.green }}>
+                {"  ✓ codecast is healthy"}
+              </span>
             </Terminal>
           </Reveal>
         </div>
       </section>
 
       {/* The ladder: four commands, in the order to run them */}
-      <section className="max-w-5xl mx-auto px-6 py-12 md:py-16" style={{ borderTop: `1px solid ${SOL.base2}` }}>
+      <section
+        className="max-w-5xl mx-auto px-6 py-12 md:py-16"
+        style={{ borderTop: `1px solid ${SOL.base2}` }}
+      >
         <SectionTitle lede="Run them in this order. Each one either fixes the problem or tells the next one where to look.">
           Four commands before you write in
         </SectionTitle>
@@ -317,66 +451,137 @@ export default function SupportPage() {
             <li
               key={step.cmd}
               className="relative rounded-xl p-5 flex flex-col gap-3"
-              style={{ backgroundColor: "rgba(255,255,255,0.45)", border: `1px solid ${SOL.base2}` }}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.45)",
+                border: `1px solid ${SOL.base2}`,
+              }}
             >
-              <span className="font-mono text-xs" style={{ color: SOL.orange }}>0{i + 1}</span>
-              <code className="font-mono text-[15px] font-semibold" style={{ color: SOL.base03 }}>{step.cmd}</code>
-              <p className="text-sm leading-6" style={{ color: SOL.base01 }}>{step.what}</p>
+              <span className="font-mono text-xs" style={{ color: SOL.orange }}>
+                0{i + 1}
+              </span>
+              <code
+                className="font-mono text-[15px] font-semibold"
+                style={{ color: SOL.base03 }}
+              >
+                {step.cmd}
+              </code>
+              <p className="text-sm leading-6" style={{ color: SOL.base01 }}>
+                {step.what}
+              </p>
             </li>
           ))}
         </ol>
       </section>
 
       {/* Symptom to fix */}
-      <section className="max-w-5xl mx-auto px-6 py-12 md:py-16" style={{ borderTop: `1px solid ${SOL.base2}` }}>
+      <section
+        className="max-w-5xl mx-auto px-6 py-12 md:py-16"
+        style={{ borderTop: `1px solid ${SOL.base2}` }}
+      >
         <SectionTitle>Common problems</SectionTitle>
         <div className="grid md:grid-cols-2 gap-x-10 gap-y-2">
           {PROBLEMS.map((p) => (
-            <div key={p.symptom} className="py-5" style={{ borderTop: `1px solid ${SOL.base2}` }}>
-              <h3 className="font-semibold text-[15px] mb-2" style={{ color: SOL.base03 }}>{p.symptom}</h3>
-              <p className="text-[15px] leading-7" style={{ color: SOL.base01 }}>{p.fix}</p>
+            <div
+              key={p.symptom}
+              className="py-5"
+              style={{ borderTop: `1px solid ${SOL.base2}` }}
+            >
+              <h3
+                className="font-semibold text-[15px] mb-2"
+                style={{ color: SOL.base03 }}
+              >
+                {p.symptom}
+              </h3>
+              <p
+                className="text-[15px] leading-7"
+                style={{ color: SOL.base01 }}
+              >
+                {p.fix}
+              </p>
             </div>
           ))}
         </div>
       </section>
 
       {/* A report we can act on */}
-      <section className="max-w-5xl mx-auto px-6 py-12 md:py-16" style={{ borderTop: `1px solid ${SOL.base2}` }}>
+      <section
+        className="max-w-5xl mx-auto px-6 py-12 md:py-16"
+        style={{ borderTop: `1px solid ${SOL.base2}` }}
+      >
         <SectionTitle lede="A report with these five things usually gets fixed on the first reply.">
           Send a report we can act on
         </SectionTitle>
         <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-12 items-start">
           <ol className="space-y-3">
             {REPORT_ITEMS.map((item, i) => (
-              <li key={item} className="flex gap-4 text-[15px] leading-7" style={{ color: SOL.base01 }}>
-                <span className="font-mono text-sm pt-0.5 shrink-0" style={{ color: SOL.orange }}>0{i + 1}</span>
+              <li
+                key={item}
+                className="flex gap-4 text-[15px] leading-7"
+                style={{ color: SOL.base01 }}
+              >
+                <span
+                  className="font-mono text-sm pt-0.5 shrink-0"
+                  style={{ color: SOL.orange }}
+                >
+                  0{i + 1}
+                </span>
                 <span>{item}</span>
               </li>
             ))}
           </ol>
-          <div className="rounded-xl overflow-hidden shadow-xl" style={{ backgroundColor: SOL.base03, border: "1px solid #094959" }}>
-            <div className="flex items-center justify-between px-4 py-2.5" style={{ backgroundColor: SOL.base02, borderBottom: "1px solid #094959" }}>
-              <span className="text-xs font-mono" style={{ color: SOL.base01 }}>diagnostics command</span>
+          <div
+            className="rounded-xl overflow-hidden shadow-xl"
+            style={{ backgroundColor: SOL.base03, border: "1px solid #094959" }}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-2.5"
+              style={{
+                backgroundColor: SOL.base02,
+                borderBottom: "1px solid #094959",
+              }}
+            >
+              <span className="text-xs font-mono" style={{ color: SOL.base01 }}>
+                diagnostics command
+              </span>
               <CopyButton text={REPORT_COMMAND} />
             </div>
-            <pre className="p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: SOL.base0 }}>
+            <pre
+              className="p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words"
+              style={{ color: SOL.base0 }}
+            >
               <Cmd>{REPORT_COMMAND}</Cmd>
             </pre>
-            <p className="px-4 pb-4 text-xs leading-5" style={{ color: SOL.base01 }}>
-              The logs describe what the daemon did, not what your agent said. Skim them before you send if your project names are sensitive.
+            <p
+              className="px-4 pb-4 text-xs leading-5"
+              style={{ color: SOL.base01 }}
+            >
+              The logs describe what the daemon did, not what your agent said.
+              Skim them before you send if your project names are sensitive.
             </p>
           </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="max-w-5xl mx-auto px-6 py-12 md:py-16" style={{ borderTop: `1px solid ${SOL.base2}` }}>
+      <section
+        className="max-w-5xl mx-auto px-6 py-12 md:py-16"
+        style={{ borderTop: `1px solid ${SOL.base2}` }}
+      >
         <SectionTitle>Questions we get</SectionTitle>
         <div className="max-w-3xl">
           {FAQ.map((item) => (
-            <details key={item.q} className="group" style={{ borderTop: `1px solid ${SOL.base2}` }}>
+            <details
+              key={item.q}
+              className="group"
+              style={{ borderTop: `1px solid ${SOL.base2}` }}
+            >
               <summary className="flex items-center justify-between gap-6 py-5 cursor-pointer list-none select-none">
-                <span className="font-semibold text-[15px]" style={{ color: SOL.base03 }}>{item.q}</span>
+                <span
+                  className="font-semibold text-[15px]"
+                  style={{ color: SOL.base03 }}
+                >
+                  {item.q}
+                </span>
                 <span
                   className="font-mono text-lg leading-none shrink-0 transition-transform group-open:rotate-45"
                   style={{ color: SOL.orange }}
@@ -385,7 +590,12 @@ export default function SupportPage() {
                   +
                 </span>
               </summary>
-              <p className="pb-6 -mt-1 text-[15px] leading-7 max-w-2xl" style={{ color: SOL.base01 }}>{item.a}</p>
+              <p
+                className="pb-6 -mt-1 text-[15px] leading-7 max-w-2xl"
+                style={{ color: SOL.base01 }}
+              >
+                {item.a}
+              </p>
             </details>
           ))}
         </div>
@@ -398,9 +608,18 @@ export default function SupportPage() {
           style={{ backgroundColor: SOL.base03 }}
         >
           <div className="flex-1">
-            <h2 className="text-2xl font-bold font-mono tracking-tight" style={{ color: SOL.base3 }}>Still stuck?</h2>
-            <p className="mt-2 text-[15px] leading-7" style={{ color: SOL.base1 }}>
-              Write to us with the output above. We read every message and reply from a real inbox.
+            <h2
+              className="text-2xl font-bold font-mono tracking-tight"
+              style={{ color: SOL.base3 }}
+            >
+              Still stuck?
+            </h2>
+            <p
+              className="mt-2 text-[15px] leading-7"
+              style={{ color: SOL.base1 }}
+            >
+              Write to us with the output above. We read every message and reply
+              from a real inbox.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

@@ -27,9 +27,18 @@ const mainAt = src.indexOf(MAIN);
 // In boot order. Each must appear inside main() after the one before it.
 const SEQUENCE: Array<{ anchor: string; why: string }> = [
   { anchor: 'logLifecycle("daemon_start"', why: "boot starts here" },
-  { anchor: "hookServer = startHookServer(", why: "the loopback server listens" },
-  { anchor: "bindConvexConnectionState(syncService.getSubscriptionClient()", why: "Convex WebSocket tracking starts before the warm restart" },
-  { anchor: "void checkForForcedUpdate(", why: "the update check runs in the background" },
+  {
+    anchor: "hookServer = startHookServer(",
+    why: "the loopback server listens",
+  },
+  {
+    anchor: "bindConvexConnectionState(syncService.getSubscriptionClient()",
+    why: "Convex WebSocket tracking starts before the warm restart",
+  },
+  {
+    anchor: "void checkForForcedUpdate(",
+    why: "the update check runs in the background",
+  },
   { anchor: "readAvailableSkills()", why: "the boot skills sweep" },
   { anchor: "setHookStatusSink(", why: "the hook status handler registers" },
 ];
@@ -41,7 +50,10 @@ describe("daemon boot order", () => {
     const found: Array<{ anchor: string; index: number }> = [];
     for (const { anchor, why } of SEQUENCE) {
       const i = src.indexOf(anchor, at);
-      expect(i, `${anchor} (${why}) not found in main() after the previous step`).toBeGreaterThan(-1);
+      expect(
+        i,
+        `${anchor} (${why}) not found in main() after the previous step`,
+      ).toBeGreaterThan(-1);
       found.push({ anchor, index: i });
       at = i + anchor.length;
     }
@@ -50,23 +62,50 @@ describe("daemon boot order", () => {
   });
 
   test("the window before the listen stays short", () => {
-    const slice = sliceBetween(src, 'logLifecycle("daemon_start"', "hookServer = startHookServer(", mainAt);
+    const slice = sliceBetween(
+      src,
+      'logLifecycle("daemon_start"',
+      "hookServer = startHookServer(",
+      mainAt,
+    );
     const lines = codeLines(slice.text).length;
-    expect(lines, `${lines} code lines run before the loopback server listens`).toBeLessThan(80);
+    expect(
+      lines,
+      `${lines} code lines run before the loopback server listens (80-column layout)`,
+    ).toBeLessThan(118);
   });
 
   test("Convex WebSocket tracking is not held behind the tmux warm restart", () => {
-    const bindAt = src.indexOf("bindConvexConnectionState(syncService.getSubscriptionClient()", mainAt);
-    const warmAt = src.indexOf("await runBounded(ccSessions", mainAt);
-    expect(bindAt, "bindConvexConnectionState not found in main()").toBeGreaterThan(-1);
-    expect(warmAt, "warm restart runBounded not found in main()").toBeGreaterThan(-1);
-    expect(bindAt, "Convex WebSocket tracking must start before the warm restart await").toBeLessThan(warmAt);
+    const bindAt = src.indexOf(
+      "bindConvexConnectionState(syncService.getSubscriptionClient()",
+      mainAt,
+    );
+    const warmAt = src.indexOf(
+      "await runBounded(\n          ccSessions,",
+      mainAt,
+    );
+    expect(
+      bindAt,
+      "bindConvexConnectionState not found in main()",
+    ).toBeGreaterThan(-1);
+    expect(
+      warmAt,
+      "warm restart runBounded not found in main()",
+    ).toBeGreaterThan(-1);
+    expect(
+      bindAt,
+      "Convex WebSocket tracking must start before the warm restart await",
+    ).toBeLessThan(warmAt);
   });
 
   test("updates and skill discovery cannot hold sync startup behind an unresolved promise", () => {
     const main = src.slice(mainAt);
     expect(main).not.toContain("await checkForForcedUpdate(");
-    const skills = sliceBetween(main, "const syncStartupSkills = async () => {", "const retryQueue = new RetryQueue(");
+    const skills = sliceBetween(
+      main,
+      "const syncStartupSkills = async () => {",
+      "const retryQueue = new RetryQueue(",
+    );
     expect(skills.text).toContain("setImmediate(() => {");
     expect(skills.text).toContain("void syncStartupSkills().catch(");
   });

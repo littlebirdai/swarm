@@ -31,7 +31,10 @@ import { agentSetupPageLink } from "../agentSetupPage.js";
 import { askYesNo } from "../terminalAsk.js";
 import { ComputerError } from "./errors.js";
 import type { ComputerPermissionApi } from "./run.js";
-import type { ComputerPermissionId, ComputerPermissionStatusResult } from "./types.js";
+import type {
+  ComputerPermissionId,
+  ComputerPermissionStatusResult,
+} from "./types.js";
 
 /** Between two silent reads while waiting for a grant. The read itself costs a
  *  helper launch (2 to 3 seconds, design 13), so the gap only has to keep the
@@ -83,13 +86,19 @@ export interface ComputerSetupDeps {
   pollTimeoutMs?: number;
 }
 
-function missingIds(status: ComputerPermissionStatusResult): ComputerPermissionId[] {
-  return status.permissions.filter((p) => p.status !== "granted").map((p) => p.id);
+function missingIds(
+  status: ComputerPermissionStatusResult,
+): ComputerPermissionId[] {
+  return status.permissions
+    .filter((p) => p.status !== "granted")
+    .map((p) => p.id);
 }
 
 function list(ids: ComputerPermissionId[]): string {
   const names = ids.map((id) => LABEL[id]);
-  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? "");
+  return names.length > 1
+    ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
+    : (names[0] ?? "");
 }
 
 /**
@@ -97,7 +106,10 @@ function list(ids: ComputerPermissionId[]): string {
  * when there was nobody to ask; throws only when the helper itself cannot be
  * put on the machine, which the caller renders as any other computer error.
  */
-export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSetupDeps): Promise<void> {
+export async function runComputerSetup(
+  opts: { yes?: boolean },
+  deps: ComputerSetupDeps,
+): Promise<void> {
   const out = deps.log ?? ((line: string) => console.log(line));
   // Tracked so the closing report is separated from what came before it,
   // without opening on a blank line on a granted machine or doubling the gap
@@ -113,28 +125,44 @@ export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSe
   if (status.helperUnavailableReason) {
     // The helper was just materialized, so a read that still cannot see it is
     // a real fault rather than a missing setup step.
-    throw new ComputerError("accessibility_error", status.helperUnavailableReason);
+    throw new ComputerError(
+      "accessibility_error",
+      status.helperUnavailableReason,
+    );
   }
   if (status.permissions.some((p) => p.status === "unsupported")) {
-    throw new ComputerError("unsupported_capability", `cast computer runs on macOS and on Linux (X11); this is ${status.platform}`);
+    throw new ComputerError(
+      "unsupported_capability",
+      `cast computer runs on macOS and on Linux (X11); this is ${status.platform}`,
+    );
   }
 
   const report = (verdict: string) => {
     if (last !== null && last !== "") say("");
-    for (const line of deps.permissions.formatPermissionsReport(status)) say(line);
+    for (const line of deps.permissions.formatPermissionsReport(status))
+      say(line);
     say(verdict);
   };
 
   let missing = missingIds(status);
   // Linux grants nothing: the report's next step names what is missing.
   if (status.platform === "linux") {
-    return report(missing.length ? "cast computer is not ready on this machine yet." : "cast computer is ready.");
+    return report(
+      missing.length
+        ? "cast computer is not ready on this machine yet."
+        : "cast computer is ready.",
+    );
   }
-  if (!missing.length) return report("cast computer is ready. Both permissions were already granted.");
+  if (!missing.length)
+    return report(
+      "cast computer is ready. Both permissions were already granted.",
+    );
 
   say("Setting up cast computer.");
   say("");
-  say(`Two macOS permissions make this work, and they go to the codecast computer helper, a small signed app at ${appPath}.`);
+  say(
+    `Two macOS permissions make this work, and they go to the codecast computer helper, a small signed app at ${appPath}.`,
+  );
   for (const id of missing) {
     say("");
     say(EXPLANATION[id]);
@@ -142,7 +170,9 @@ export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSe
   say("");
 
   if (!(await allowed(missing, opts, deps, say))) {
-    return report(`Nothing was opened. Run \`cast computer setup\` when you are ready to grant ${list(missing)}.`);
+    return report(
+      `Nothing was opened. Run \`cast computer setup\` when you are ready to grant ${list(missing)}.`,
+    );
   }
 
   let cancelled = false;
@@ -156,8 +186,12 @@ export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSe
       const target = missing[0]!;
       if (!opened.has(target)) {
         opened.add(target);
-        say(`Opening the ${LABEL[target]} pane. Grant it to "codecast computer" there.`);
-        say("  Waiting for the grant. Ctrl C stops the wait and keeps what you have already granted.");
+        say(
+          `Opening the ${LABEL[target]} pane. Grant it to "codecast computer" there.`,
+        );
+        say(
+          "  Waiting for the grant. Ctrl C stops the wait and keeps what you have already granted.",
+        );
         // The one raise in this verb, and it runs only past the confirm above.
         await deps.permissions.openPermissionSettings(target);
       }
@@ -169,7 +203,8 @@ export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSe
       if (cancelled) break;
       status = await deps.permissions.readPermissionStatus();
       const now = missingIds(status);
-      for (const id of missing) if (!now.includes(id)) say(`${LABEL[id]} granted.`);
+      for (const id of missing)
+        if (!now.includes(id)) say(`${LABEL[id]} granted.`);
       missing = now;
     }
   } finally {
@@ -177,7 +212,8 @@ export async function runComputerSetup(opts: { yes?: boolean }, deps: ComputerSe
   }
   // The setup window has done its job once every grant is in. A wait that
   // stopped short leaves it up: the human may still be about to grant.
-  if (opened.size && !missing.length) deps.permissions.closePermissionSettings?.();
+  if (opened.size && !missing.length)
+    deps.permissions.closePermissionSettings?.();
 
   if (cancelled) say("Stopped.");
   return report(
@@ -201,32 +237,40 @@ async function allowed(
 ): Promise<boolean> {
   if (opts.yes) return true;
   if (!deps.isTty()) {
-    say("This is not a terminal, so there is nobody here to confirm, and nothing will be opened.");
+    say(
+      "This is not a terminal, so there is nobody here to confirm, and nothing will be opened.",
+    );
     say("Pass --yes to open the panes without asking.");
-    if (deps.setupPage) say(`Or grant them from a browser: ${deps.setupPage()}`);
+    if (deps.setupPage)
+      say(`Or grant them from a browser: ${deps.setupPage()}`);
     for (const line of agentSetupLines("computer")) say(line);
     return false;
   }
-  return await deps.confirm(`Open System Settings so you can grant ${list(missing)}? [y/N] `);
+  return await deps.confirm(
+    `Open System Settings so you can grant ${list(missing)}? [y/N] `,
+  );
 }
 
 /**
  * What the flow talks to when it is not a test: the real materialization, a
  * readline prompt, the real clock, and the real Ctrl C.
  */
-export function defaultSetupDeps(permissions: ComputerPermissionApi, isTty: () => boolean): ComputerSetupDeps {
+export function defaultSetupDeps(
+  permissions: ComputerPermissionApi,
+  isTty: () => boolean,
+): ComputerSetupDeps {
   return {
     permissions,
     materialize: async () => {
       // Dynamic, like every other heavy edge of this feature: the embedded
       // helper payload is megabytes, and no other verb should carry it.
-      const [{ materializeHelperApp, withPrepareLock }, { getVersion }] = await Promise.all([
-        import("./helperApp.js"),
-        import("../update.js"),
-      ]);
+      const [{ materializeHelperApp, withPrepareLock }, { getVersion }] =
+        await Promise.all([import("./helperApp.js"), import("../update.js")]);
       // The swap and every helper launch share prepare.lock, so no concurrent
       // `cast computer` can see the fixed path half populated.
-      const result = await withPrepareLock(() => materializeHelperApp({ version: getVersion() }));
+      const result = await withPrepareLock(() =>
+        materializeHelperApp({ version: getVersion() }),
+      );
       return result.appPath;
     },
     confirm: askYesNo,

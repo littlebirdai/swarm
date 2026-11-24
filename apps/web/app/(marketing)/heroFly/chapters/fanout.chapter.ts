@@ -6,7 +6,14 @@
  * lifts as one; this chapter owns the pair and the flights between.
  */
 
-import { BootA, BootB, HeaderA, HeaderB, SpawnFlyerA, SpawnFlyerB } from "./fanout";
+import {
+  BootA,
+  BootB,
+  HeaderA,
+  HeaderB,
+  SpawnFlyerA,
+  SpawnFlyerB,
+} from "./fanout";
 import type { HeroChapter } from "./contract";
 
 export const chapter: HeroChapter = {

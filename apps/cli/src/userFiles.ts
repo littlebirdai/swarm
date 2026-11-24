@@ -71,15 +71,23 @@ export function extractSentFiles(
   cwd?: string,
 ): SyncFile[] {
   if (block.name !== SEND_USER_FILE_TOOL || !block.id) return [];
-  const input = block.input as { files?: unknown; caption?: unknown; display?: unknown } | undefined;
+  const input = block.input as
+    | { files?: unknown; caption?: unknown; display?: unknown }
+    | undefined;
   if (!input) return [];
   const raw = Array.isArray(input.files)
     ? input.files
     : typeof input.files === "string"
       ? [input.files]
       : [];
-  const caption = typeof input.caption === "string" && input.caption.trim() ? input.caption.trim() : undefined;
-  const display = input.display === "render" || input.display === "attach" ? input.display : undefined;
+  const caption =
+    typeof input.caption === "string" && input.caption.trim()
+      ? input.caption.trim()
+      : undefined;
+  const display =
+    input.display === "render" || input.display === "attach"
+      ? input.display
+      : undefined;
 
   const files: SyncFile[] = [];
   const seen = new Set<string>();
@@ -93,7 +101,13 @@ export function extractSentFiles(
         : null;
     if (!abs || seen.has(abs)) continue;
     seen.add(abs);
-    files.push({ localPath: abs, name: fileBasename(abs), toolUseId: block.id, caption, display });
+    files.push({
+      localPath: abs,
+      name: fileBasename(abs),
+      toolUseId: block.id,
+      caption,
+      display,
+    });
     if (files.length >= MAX_FILES_PER_CALL) break;
   }
   return files;

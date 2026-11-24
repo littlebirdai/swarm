@@ -1,11 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { SHIPPED_LINE_SNAPSHOT_PATH, renderShippedLineModule, shippedLineSnapshot } from "./shippedLine";
+import {
+  SHIPPED_LINE_SNAPSHOT_PATH,
+  renderShippedLineModule,
+  shippedLineSnapshot,
+} from "./shippedLine";
 
 describe("the web's snapshot of the shipped line", () => {
   test("matches the template (regenerate: bun apps/cli/scripts/gen-shipped-line.ts)", () => {
-    const file = path.resolve(import.meta.dir, "../../../..", SHIPPED_LINE_SNAPSHOT_PATH);
+    const file = path.resolve(
+      import.meta.dir,
+      "../../../..",
+      SHIPPED_LINE_SNAPSHOT_PATH,
+    );
     expect(fs.readFileSync(file, "utf-8")).toBe(renderShippedLineModule());
   });
 

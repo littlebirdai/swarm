@@ -54,7 +54,10 @@ describe("stable-context launch prefs", () => {
 
   it("createSessionFromStub folds stamped prefs into the createSession opts", async () => {
     seedStub();
-    useInboxStore.getState().setStableContextPrefs(STUB, { mode: "off", exclude: ["jx7bbbb", "jx7cccc"] });
+    useInboxStore.getState().setStableContextPrefs(STUB, {
+      mode: "off",
+      exclude: ["jx7bbbb", "jx7cccc"],
+    });
 
     const calls: any[] = [];
     const original = useInboxStore.getState().createSession;
@@ -76,8 +79,15 @@ describe("stable-context launch prefs", () => {
 
     // And a stub with no prefs sends none.
     calls.length = 0;
-    useInboxStore.getState().setStableContextPrefs(STUB, { mode: null, exclude: null });
-    useInboxStore.setState({ createSession: (async (opts: any) => { calls.push(opts); return STUB; }) as any } as any);
+    useInboxStore
+      .getState()
+      .setStableContextPrefs(STUB, { mode: null, exclude: null });
+    useInboxStore.setState({
+      createSession: (async (opts: any) => {
+        calls.push(opts);
+        return STUB;
+      }) as any,
+    } as any);
     try {
       await useInboxStore.getState().createSessionFromStub(STUB);
     } finally {

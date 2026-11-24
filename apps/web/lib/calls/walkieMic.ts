@@ -21,7 +21,9 @@ import { micConstraints, onChosenDevice, readJoinPrefs } from "./joinPrefs";
 /** The track already published into the room this client is sitting in —
  *  hold-to-reply inside a huddle borrows it rather than opening a second. */
 export function localMicTrack(): MediaStreamTrack | null {
-  const pub = getRoom()?.localParticipant.getTrackPublication(Track.Source.Microphone);
+  const pub = getRoom()?.localParticipant.getTrackPublication(
+    Track.Source.Microphone,
+  );
   const track = pub?.track?.mediaStreamTrack;
   return track && track.readyState === "live" ? track : null;
 }
@@ -57,7 +59,12 @@ let micGranted = false;
 // outlives each burst, and every hover pushes its release out again. A burst
 // in flight keeps its device until it ends.
 function heldMic(): MediaStreamTrack | null {
-  if (mic && mic.readyState === "live" && (inUse() || onChosenDevice(mic, "audioinput"))) return mic;
+  if (
+    mic &&
+    mic.readyState === "live" &&
+    (inUse() || onChosenDevice(mic, "audioinput"))
+  )
+    return mic;
   stopMic();
   return null;
 }
@@ -136,7 +143,9 @@ export function acquireMic(): Promise<MediaStreamTrack | null> {
 async function micAlreadyGranted(): Promise<boolean> {
   if (micGranted) return true;
   try {
-    const perm = await navigator.permissions.query({ name: "microphone" as PermissionName });
+    const perm = await navigator.permissions.query({
+      name: "microphone" as PermissionName,
+    });
     return perm.state === "granted";
   } catch {
     // A browser with no Permissions API entry for the microphone cannot tell us,
@@ -178,7 +187,6 @@ export async function warmMic(): Promise<void> {
 export function micFailureReason(): Promise<string> {
   return mediaFailureReason("microphone", lastMicError);
 }
-
 
 // THE PREWARM USES THIS DEVICE, not one of its own.
 //

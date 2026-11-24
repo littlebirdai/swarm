@@ -32,11 +32,20 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { whichBin } from "./proc.js";
-import { LOCAL_AGENT_CLIENTS, type AgentClientId, type LocalAgentClientId, type AgentClientDescriptor } from "@codecast/shared/contracts";
+import {
+  LOCAL_AGENT_CLIENTS,
+  type AgentClientId,
+  type LocalAgentClientId,
+  type AgentClientDescriptor,
+} from "@codecast/shared/contracts";
 import { parseTranscriptFor } from "./parser.js";
 import { SessionWatcher } from "./sessionWatcher.js";
-import { TranscriptDirWatcher, transcriptDirWatcherConfig, expandTranscriptRoot, encodeGrokCwdSlug } from "./transcriptDirWatcher.js";
-
+import {
+  TranscriptDirWatcher,
+  transcriptDirWatcherConfig,
+  expandTranscriptRoot,
+  encodeGrokCwdSlug,
+} from "./transcriptDirWatcher.js";
 
 // A synthetic, minimal transcript per client — the smallest input the client's own
 // parser accepts and returns a user+assistant pair for. Held inline (not read from a
@@ -90,8 +99,18 @@ export function clientFixture(id: LocalAgentClientId): ClientFixture {
           startTime: "2026-01-01T00:00:00.000Z",
           lastUpdated: "2026-01-01T00:00:01.000Z",
           messages: [
-            { id: "1", timestamp: "2026-01-01T00:00:00.000Z", type: "user", content: PROBE },
-            { id: "2", timestamp: "2026-01-01T00:00:01.000Z", type: "gemini", content: "pong" },
+            {
+              id: "1",
+              timestamp: "2026-01-01T00:00:00.000Z",
+              type: "user",
+              content: PROBE,
+            },
+            {
+              id: "2",
+              timestamp: "2026-01-01T00:00:01.000Z",
+              type: "gemini",
+              content: "pong",
+            },
           ],
         }),
         readySample: "gemini",
@@ -104,8 +123,19 @@ export function clientFixture(id: LocalAgentClientId): ClientFixture {
         transcript: JSON.stringify({
           info: { id: "ses_doctor" },
           messages: [
-            { info: { id: "m1", role: "user", time: { created: 1 } }, parts: [{ type: "text", text: PROBE }] },
-            { info: { id: "m2", role: "assistant", time: { created: 2 }, modelID: "big-pickle" }, parts: [{ type: "text", text: "pong" }] },
+            {
+              info: { id: "m1", role: "user", time: { created: 1 } },
+              parts: [{ type: "text", text: PROBE }],
+            },
+            {
+              info: {
+                id: "m2",
+                role: "assistant",
+                time: { created: 2 },
+                modelID: "big-pickle",
+              },
+              parts: [{ type: "text", text: "pong" }],
+            },
           ],
         }),
         readySample: "ctrl+p commands",
@@ -120,7 +150,10 @@ export function clientFixture(id: LocalAgentClientId): ClientFixture {
         readySample: "0.0%/200k",
         // pi: <cwd-slug>/<ISO-ts>_<uuid>.jsonl, exactly one dir deep; the trailing
         // uuid is the session id.
-        watchRelPath: path.join("--tmp-doctor--", `2026-01-01T00-00-00-000Z_${uuid()}.jsonl`),
+        watchRelPath: path.join(
+          "--tmp-doctor--",
+          `2026-01-01T00-00-00-000Z_${uuid()}.jsonl`,
+        ),
       };
     case "grok":
       return {
@@ -133,7 +166,11 @@ export function clientFixture(id: LocalAgentClientId): ClientFixture {
         readySample: "❯ ",
         // grok: <url-encoded-cwd>/<session-uuid>/updates.jsonl, two dirs deep; the
         // session id is the uuid DIRECTORY name.
-        watchRelPath: path.join(encodeGrokCwdSlug("/tmp/doctor"), uuid(), "updates.jsonl"),
+        watchRelPath: path.join(
+          encodeGrokCwdSlug("/tmp/doctor"),
+          uuid(),
+          "updates.jsonl",
+        ),
       };
     case "cursor":
       return {
@@ -179,7 +216,12 @@ export function clientFixture(id: LocalAgentClientId): ClientFixture {
           `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-01-01T00:00:01Z","model":"gemini-4-argon-high","content":"pong"}\n`,
         // The idle frame: a ─ rule, the `>` composer, the footer below.
         readySample: "────────────────\n> \n────────────────\n? for shortcuts",
-        watchRelPath: path.join(conversationId, ".system_generated", "logs", "transcript_full.jsonl"),
+        watchRelPath: path.join(
+          conversationId,
+          ".system_generated",
+          "logs",
+          "transcript_full.jsonl",
+        ),
       };
     }
   }
@@ -207,27 +249,43 @@ export function hasBin(name: string): boolean {
 /** The transcript root resolves to a directory that exists or could be created
  *  (its nearest existing ancestor is a directory). For sqlite clients the root is a
  *  .db FILE, so we test its containing directory. */
-function transcriptRootUsable(descriptor: AgentClientDescriptor): { ok: boolean; detail: string } {
+function transcriptRootUsable(descriptor: AgentClientDescriptor): {
+  ok: boolean;
+  detail: string;
+} {
   const raw = descriptor.transcriptRoots[0];
   if (!raw) return { ok: false, detail: "no transcript root in descriptor" };
   const expanded = expandTranscriptRoot(raw);
-  const target = descriptor.watcherKind === "sqlite" ? path.dirname(expanded) : expanded;
+  const target =
+    descriptor.watcherKind === "sqlite" ? path.dirname(expanded) : expanded;
   if (fs.existsSync(target)) {
     return { ok: fs.statSync(target).isDirectory(), detail: raw };
   }
   // Not present yet — creatable if an existing ancestor is a directory.
   let ancestor = path.dirname(target);
-  while (ancestor && ancestor !== path.dirname(ancestor) && !fs.existsSync(ancestor)) {
+  while (
+    ancestor &&
+    ancestor !== path.dirname(ancestor) &&
+    !fs.existsSync(ancestor)
+  ) {
     ancestor = path.dirname(ancestor);
   }
-  const creatable = fs.existsSync(ancestor) && fs.statSync(ancestor).isDirectory();
-  return { ok: creatable, detail: creatable ? `${raw} (creatable)` : `${raw} (unreachable)` };
+  const creatable =
+    fs.existsSync(ancestor) && fs.statSync(ancestor).isDirectory();
+  return {
+    ok: creatable,
+    detail: creatable ? `${raw} (creatable)` : `${raw} (unreachable)`,
+  };
 }
 
 /** Drive the client's REAL jsonl watcher against a throwaway root: start it, write
  *  the synthetic transcript, and resolve true if it emits a "session" event for that
  *  file within the timeout. Returns null for clients with no file-event watcher. */
-export async function watcherFires(id: AgentClientId, fixture: ClientFixture, timeoutMs = 4000): Promise<boolean | null> {
+export async function watcherFires(
+  id: AgentClientId,
+  fixture: ClientFixture,
+  timeoutMs = 4000,
+): Promise<boolean | null> {
   if (!fixture.watchRelPath) return null; // sqlite clients: no file-event watcher
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `doctor-watch-${id}-`));
   const filePath = path.join(root, fixture.watchRelPath);
@@ -239,7 +297,12 @@ export async function watcherFires(id: AgentClientId, fixture: ClientFixture, ti
   const watcher =
     id === "claude"
       ? new SessionWatcher(root)
-      : new TranscriptDirWatcher(transcriptDirWatcherConfig(id as "codex" | "gemini" | "pi" | "grok" | "muse" | "antigravity", root));
+      : new TranscriptDirWatcher(
+          transcriptDirWatcherConfig(
+            id as "codex" | "gemini" | "pi" | "grok" | "muse" | "antigravity",
+            root,
+          ),
+        );
 
   try {
     await watcher.start();
@@ -254,17 +317,29 @@ export async function watcherFires(id: AgentClientId, fixture: ClientFixture, ti
       fs.writeFileSync(filePath, fixture.transcript);
     });
   } finally {
-    try { (watcher as { stop?: () => void }).stop?.(); } catch {}
-    try { fs.rmSync(root, { recursive: true, force: true }); } catch {}
+    try {
+      (watcher as { stop?: () => void }).stop?.();
+    } catch {}
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+    } catch {}
   }
 }
 
 /** Run the full offline probe for one client. */
-export async function probeClient(id: LocalAgentClientId): Promise<ClientProbeResult> {
+export async function probeClient(
+  id: LocalAgentClientId,
+): Promise<ClientProbeResult> {
   const descriptor = LOCAL_AGENT_CLIENTS[id];
   const installed = hasBin(descriptor.binary);
   if (!installed) {
-    return { id, binary: descriptor.binary, installed: false, subChecks: [], ok: true };
+    return {
+      id,
+      binary: descriptor.binary,
+      installed: false,
+      subChecks: [],
+      ok: true,
+    };
   }
 
   const fixture = clientFixture(id);
@@ -275,30 +350,70 @@ export async function probeClient(id: LocalAgentClientId): Promise<ClientProbeRe
   subChecks.push({ label: "descriptor", ok: root.ok, detail: root.detail });
 
   // readiness: the pattern is a RegExp that matches a representative ready line.
-  const readyOk = descriptor.promptReadyPattern instanceof RegExp && descriptor.promptReadyPattern.test(fixture.readySample);
-  subChecks.push({ label: "readiness", ok: readyOk, detail: readyOk ? undefined : `pattern ${descriptor.promptReadyPattern} did not match ${JSON.stringify(fixture.readySample)}` });
+  const readyOk =
+    descriptor.promptReadyPattern instanceof RegExp &&
+    descriptor.promptReadyPattern.test(fixture.readySample);
+  subChecks.push({
+    label: "readiness",
+    ok: readyOk,
+    detail: readyOk
+      ? undefined
+      : `pattern ${descriptor.promptReadyPattern} did not match ${JSON.stringify(fixture.readySample)}`,
+  });
 
   // resume: constructs a non-empty command referencing the binary.
   let resumeCmd = "";
-  try { resumeCmd = descriptor.resumeCmd("doctor-probe-id"); } catch {}
-  const resumeOk = resumeCmd.trim().length > 0 && resumeCmd.includes(descriptor.binary);
-  subChecks.push({ label: "resume", ok: resumeOk, detail: resumeOk ? undefined : `resumeCmd = ${JSON.stringify(resumeCmd)}` });
+  try {
+    resumeCmd = descriptor.resumeCmd("doctor-probe-id");
+  } catch {}
+  const resumeOk =
+    resumeCmd.trim().length > 0 && resumeCmd.includes(descriptor.binary);
+  subChecks.push({
+    label: "resume",
+    ok: resumeOk,
+    detail: resumeOk ? undefined : `resumeCmd = ${JSON.stringify(resumeCmd)}`,
+  });
 
   // parser: round-trips the synthetic fixture to user/assistant messages.
   let parsedRoles: string[] = [];
-  try { parsedRoles = parseTranscriptFor(id, fixture.transcript).map((m) => (m as { role: string }).role); } catch {}
-  const parserOk = parsedRoles.includes("user") && parsedRoles.includes("assistant");
-  subChecks.push({ label: "parser", ok: parserOk, detail: parserOk ? `${parsedRoles.length} msgs` : `roles=[${parsedRoles.join(",")}]` });
+  try {
+    parsedRoles = parseTranscriptFor(id, fixture.transcript).map(
+      (m) => (m as { role: string }).role,
+    );
+  } catch {}
+  const parserOk =
+    parsedRoles.includes("user") && parsedRoles.includes("assistant");
+  subChecks.push({
+    label: "parser",
+    ok: parserOk,
+    detail: parserOk
+      ? `${parsedRoles.length} msgs`
+      : `roles=[${parsedRoles.join(",")}]`,
+  });
 
   // watcher: real file-event watcher fires (jsonl clients), or structural (sqlite).
   const fired = await watcherFires(id, fixture);
   if (fired === null) {
-    subChecks.push({ label: "watcher", ok: root.ok, detail: "sqlite poll (structural)" });
+    subChecks.push({
+      label: "watcher",
+      ok: root.ok,
+      detail: "sqlite poll (structural)",
+    });
   } else {
-    subChecks.push({ label: "watcher", ok: fired, detail: fired ? undefined : "no session event on synthetic write" });
+    subChecks.push({
+      label: "watcher",
+      ok: fired,
+      detail: fired ? undefined : "no session event on synthetic write",
+    });
   }
 
-  return { id, binary: descriptor.binary, installed: true, subChecks, ok: subChecks.every((c) => c.ok) };
+  return {
+    id,
+    binary: descriptor.binary,
+    installed: true,
+    subChecks,
+    ok: subChecks.every((c) => c.ok),
+  };
 }
 
 /** Probe every registered client. Installed clients run the full matrix; the rest

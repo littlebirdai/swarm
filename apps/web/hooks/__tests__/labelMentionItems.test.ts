@@ -2,7 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { labelMentionItems } from "../useMentionQuery";
 import type { BucketAssignmentItem, BucketItem } from "../../store/inboxStore";
 
-const bucket = (id: string, name: string, extra: Partial<BucketItem> = {}): BucketItem => ({
+const bucket = (
+  id: string,
+  name: string,
+  extra: Partial<BucketItem> = {},
+): BucketItem => ({
   _id: id,
   name,
   created_at: 1,
@@ -10,7 +14,12 @@ const bucket = (id: string, name: string, extra: Partial<BucketItem> = {}): Buck
   ...extra,
 });
 
-const assignment = (id: string, conv: string, bucketId: string | null, updated = 1): BucketAssignmentItem => ({
+const assignment = (
+  id: string,
+  conv: string,
+  bucketId: string | null,
+  updated = 1,
+): BucketAssignmentItem => ({
   _id: id,
   conversation_id: conv,
   bucket_id: bucketId,
@@ -20,7 +29,10 @@ const assignment = (id: string, conv: string, bucketId: string | null, updated =
 describe("labelMentionItems", () => {
   it("maps active buckets to label mention items with session counts", () => {
     const items = labelMentionItems({
-      buckets: { b1: bucket("b1", "Infra"), b2: bucket("b2", "Old", { archived_at: 5 }) },
+      buckets: {
+        b1: bucket("b1", "Infra"),
+        b2: bucket("b2", "Old", { archived_at: 5 }),
+      },
       bucketAssignments: {
         a1: assignment("a1", "c1", "b1"),
         a2: assignment("a2", "c2", "b1"),

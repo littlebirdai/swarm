@@ -31,37 +31,79 @@ export const PAGE_GATE_SIGNAL = `<script>try{if(window.parent!==window)window.pa
 
 /** The tokens a framed page receives, by name without the leading dashes. */
 export const PAGE_THEME_TOKENS = [
-  "sol-bg", "sol-bg-alt", "sol-bg-highlight", "sol-card", "sol-border",
-  "sol-text", "sol-text-secondary", "sol-text-muted", "sol-text-dim",
-  "sol-blue", "sol-green", "sol-yellow", "sol-orange", "sol-red",
-  "sol-magenta", "sol-violet", "sol-cyan",
+  "sol-bg",
+  "sol-bg-alt",
+  "sol-bg-highlight",
+  "sol-card",
+  "sol-border",
+  "sol-text",
+  "sol-text-secondary",
+  "sol-text-muted",
+  "sol-text-dim",
+  "sol-blue",
+  "sol-green",
+  "sol-yellow",
+  "sol-orange",
+  "sol-red",
+  "sol-magenta",
+  "sol-violet",
+  "sol-cyan",
 ] as const;
 
-export type PageThemeTokens = Partial<Record<(typeof PAGE_THEME_TOKENS)[number], string>>;
+export type PageThemeTokens = Partial<
+  Record<(typeof PAGE_THEME_TOKENS)[number], string>
+>;
 
 const ACCENTS = {
-  "sol-yellow": "#b58900", "sol-orange": "#cb4b16", "sol-red": "#dc322f", "sol-magenta": "#d33682",
-  "sol-violet": "#6c71c4", "sol-blue": "#268bd2", "sol-cyan": "#2aa198", "sol-green": "#859900",
+  "sol-yellow": "#b58900",
+  "sol-orange": "#cb4b16",
+  "sol-red": "#dc322f",
+  "sol-magenta": "#d33682",
+  "sol-violet": "#6c71c4",
+  "sol-blue": "#268bd2",
+  "sol-cyan": "#2aa198",
+  "sol-green": "#859900",
 };
 
 /** Classic Solarized, for a page opened on its own or before the host speaks. */
-export const PAGE_THEME_DEFAULTS: Record<"light" | "dark", Required<PageThemeTokens>> = {
+export const PAGE_THEME_DEFAULTS: Record<
+  "light" | "dark",
+  Required<PageThemeTokens>
+> = {
   light: {
-    "sol-bg": "#FBF5E2", "sol-bg-alt": "#eee8d5", "sol-bg-highlight": "#e4ddc8", "sol-card": "#ffffff",
-    "sol-border": "#93a1a1", "sol-text": "#002b36", "sol-text-secondary": "#073642",
-    "sol-text-muted": "#586e75", "sol-text-dim": "#657b83", ...ACCENTS,
+    "sol-bg": "#FBF5E2",
+    "sol-bg-alt": "#eee8d5",
+    "sol-bg-highlight": "#e4ddc8",
+    "sol-card": "#ffffff",
+    "sol-border": "#93a1a1",
+    "sol-text": "#002b36",
+    "sol-text-secondary": "#073642",
+    "sol-text-muted": "#586e75",
+    "sol-text-dim": "#657b83",
+    ...ACCENTS,
   },
   dark: {
-    "sol-bg": "#002b36", "sol-bg-alt": "#073642", "sol-bg-highlight": "#094959", "sol-card": "#08404e",
-    "sol-border": "#586e75", "sol-text": "#fdf6e3", "sol-text-secondary": "#eee8d5",
-    "sol-text-muted": "#93a1a1", "sol-text-dim": "#657b83", ...ACCENTS,
+    "sol-bg": "#002b36",
+    "sol-bg-alt": "#073642",
+    "sol-bg-highlight": "#094959",
+    "sol-card": "#08404e",
+    "sol-border": "#586e75",
+    "sol-text": "#fdf6e3",
+    "sol-text-secondary": "#eee8d5",
+    "sol-text-muted": "#93a1a1",
+    "sol-text-dim": "#657b83",
+    ...ACCENTS,
   },
 };
 
 const FONT_MONO = '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace';
 
 function declarations(tokens: PageThemeTokens): string {
-  return Object.entries(tokens).map(([name, value]) => `--${name}:${value};`).join("") + `--font-mono:${FONT_MONO};`;
+  return (
+    Object.entries(tokens)
+      .map(([name, value]) => `--${name}:${value};`)
+      .join("") + `--font-mono:${FONT_MONO};`
+  );
 }
 
 const DEFAULT_CSS =
@@ -101,10 +143,23 @@ const BOOTSTRAP = `<style id="cc-page-theme">${DEFAULT_CSS}</style><script>${BOO
 export function injectPageTheme(html: string): string {
   if (html.includes('id="cc-page-theme"')) return html;
   const head = /<head(?:\s[^>]*)?>/i.exec(html);
-  if (head) return html.slice(0, head.index + head[0].length) + BOOTSTRAP + html.slice(head.index + head[0].length);
+  if (head)
+    return (
+      html.slice(0, head.index + head[0].length) +
+      BOOTSTRAP +
+      html.slice(head.index + head[0].length)
+    );
   const root = /<html(?:\s[^>]*)?>/i.exec(html);
-  if (root) return html.slice(0, root.index + root[0].length) + `<head>${BOOTSTRAP}</head>` + html.slice(root.index + root[0].length);
+  if (root)
+    return (
+      html.slice(0, root.index + root[0].length) +
+      `<head>${BOOTSTRAP}</head>` +
+      html.slice(root.index + root[0].length)
+    );
   const doctype = /^\s*<!doctype[^>]*>/i.exec(html);
-  if (doctype) return doctype[0] + `<head>${BOOTSTRAP}</head>` + html.slice(doctype[0].length);
+  if (doctype)
+    return (
+      doctype[0] + `<head>${BOOTSTRAP}</head>` + html.slice(doctype[0].length)
+    );
   return BOOTSTRAP + html;
 }

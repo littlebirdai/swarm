@@ -5,7 +5,14 @@ import { Check, Plus } from "lucide-react";
 import type { ShareTeam } from "../../hooks/useDeviceSharing";
 import { TeamIcon } from "../TeamIcon";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import { modernChip } from "../ui/modernLook";
 
 export type ShareConfirm = {
@@ -55,8 +62,16 @@ export function TeamSharePills({
                 : "border-dashed border-sol-border text-sol-text-muted hover:border-sol-text-muted hover:text-sol-text"
             } ${modernChip({ active: on }, "modern:active:scale-100")}`}
           >
-            {!single && <TeamIcon icon={t.icon} color={t.icon_color} className="h-3 w-3 shrink-0" />}
-            <span className="truncate max-w-[10rem]">{single ? (on ? "Shared" : "Share") : t.name}</span>
+            {!single && (
+              <TeamIcon
+                icon={t.icon}
+                color={t.icon_color}
+                className="h-3 w-3 shrink-0"
+              />
+            )}
+            <span className="truncate max-w-[10rem]">
+              {single ? (on ? "Shared" : "Share") : t.name}
+            </span>
             {on ? (
               <Check className="h-3 w-3 shrink-0 text-sol-cyan animate-in zoom-in-50 duration-200" />
             ) : (
@@ -65,14 +80,25 @@ export function TeamSharePills({
           </button>
         );
       })}
-      <Dialog open={asking !== null} onOpenChange={(v) => !v && setAsking(null)}>
+      <Dialog
+        open={asking !== null}
+        onOpenChange={(v) => !v && setAsking(null)}
+      >
         <DialogContent className="bg-sol-bg border-sol-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sol-text">
-              {asking && <TeamIcon icon={asking.icon} color={asking.icon_color} className="h-4 w-4" />}
+              {asking && (
+                <TeamIcon
+                  icon={asking.icon}
+                  color={asking.icon_color}
+                  className="h-4 w-4"
+                />
+              )}
               {asking && confirm.title(asking)}
             </DialogTitle>
-            <DialogDescription className="text-sol-text-muted">{confirm.description}</DialogDescription>
+            <DialogDescription className="text-sol-text-muted">
+              {confirm.description}
+            </DialogDescription>
           </DialogHeader>
           <ul className="space-y-2 text-sm text-sol-text-secondary">
             {confirm.points.map((p, i) => (
@@ -83,7 +109,9 @@ export function TeamSharePills({
             ))}
           </ul>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAsking(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAsking(null)}>
+              Cancel
+            </Button>
             <Button
               variant="cyan"
               onClick={() => {

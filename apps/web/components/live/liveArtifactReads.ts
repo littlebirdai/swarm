@@ -6,7 +6,13 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 // Ids that only name writes and threads, never secrets: the non-secure
 // generator needs no crypto, which the phone's Hermes runtime lacks.
 import { nanoid } from "nanoid/non-secure";
-import { fromElement, isPresenceLive, type ArtifactElement, type ArtifactPresence, type ElementState } from "@codecast/shared/artifacts";
+import {
+  fromElement,
+  isPresenceLive,
+  type ArtifactElement,
+  type ArtifactPresence,
+  type ElementState,
+} from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import { liveRowId, type LiveLayer } from "../../store/liveArtifactsSlice";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
@@ -39,8 +45,19 @@ const elementOfRow = new WeakMap<object, ArtifactElement>();
  * field the write cleared is gone, never the row's old value showing through),
  * with the row's server stamps.
  */
-function overlaid(key: string, row: Record<string, any> | undefined, o: ElementState): ArtifactElement {
-  return { key, rev: row?.rev ?? 0, ...(row?.by ? { by: row.by } : {}), ...(row?.at ? { at: row.at } : {}), ...(o.fields as any), kind: o.kind } as ArtifactElement;
+function overlaid(
+  key: string,
+  row: Record<string, any> | undefined,
+  o: ElementState,
+): ArtifactElement {
+  return {
+    key,
+    rev: row?.rev ?? 0,
+    ...(row?.by ? { by: row.by } : {}),
+    ...(row?.at ? { at: row.at } : {}),
+    ...(o.fields as any),
+    kind: o.kind,
+  } as ArtifactElement;
 }
 
 /** A store row as the element a product reads. */
@@ -53,17 +70,27 @@ function rowElement(row: Record<string, any>): ArtifactElement {
   return el as ArtifactElement;
 }
 
-export type DocRows = { main: Map<string, any>; draft: Map<string, any>; comments: Map<string, any> };
+export type DocRows = {
+  main: Map<string, any>;
+  draft: Map<string, any>;
+  comments: Map<string, any>;
+};
 /** Per doc with a staged write: the rows the page reads until the write is all in the store (the send queue in useLiveArtifact fills it). */
 export const heldRows = new Map<string, DocRows>();
-const EMPTY_ROWS: DocRows = { main: new Map(), draft: new Map(), comments: new Map() };
+const EMPTY_ROWS: DocRows = {
+  main: new Map(),
+  draft: new Map(),
+  comments: new Map(),
+};
 
 // Rows grouped per doc, rebuilt only when the liveElements ref changes (any
 // element write anywhere), and each doc's group reused when none of its rows
 // changed, so a reader re-renders only for its own doc.
 let groupedFrom: Record<string, any> | null = null;
 let grouped = new Map<string, DocRows>();
-function rowsByDoc(coll: Record<string, any> | undefined): Map<string, DocRows> {
+function rowsByDoc(
+  coll: Record<string, any> | undefined,
+): Map<string, DocRows> {
   if (!coll) return grouped;
   if (coll === groupedFrom) return grouped;
   const next = new Map<string, DocRows>();
@@ -71,7 +98,11 @@ function rowsByDoc(coll: Record<string, any> | undefined): Map<string, DocRows> 
     const row = coll[id];
     if (!row) continue;
     let g = next.get(row.doc_id);
-    if (!g) next.set(row.doc_id, (g = { main: new Map(), draft: new Map(), comments: new Map() }));
+    if (!g)
+      next.set(
+        row.doc_id,
+        (g = { main: new Map(), draft: new Map(), comments: new Map() }),
+      );
     (g[row.layer as LiveLayer] ?? g.main).set(row.key, row);
   }
   for (const [docId, g] of next) {
@@ -89,7 +120,10 @@ function sameRows(a: DocRows, b: DocRows): boolean {
   }
   return true;
 }
-export const rowsOfDoc = (coll: Record<string, any> | undefined, docId: string): DocRows => rowsByDoc(coll).get(docId) ?? EMPTY_ROWS;
+export const rowsOfDoc = (
+  coll: Record<string, any> | undefined,
+  docId: string,
+): DocRows => rowsByDoc(coll).get(docId) ?? EMPTY_ROWS;
 
 export function docRows(docId: string): DocRows {
   return rowsOfDoc((useInboxStore.getState() as any).liveElements, docId);
@@ -98,16 +132,22 @@ export function docRows(docId: string): DocRows {
 function useDocRows(docId: string): DocRows {
   // While a big write is staged, the page reads the rows it had when the write began (the overlay shows the
   // write itself): the store takes the write a batch at a time, and the page redraws once, at the end.
-  return useInboxStore((s: any) => heldRows.get(docId) ?? rowsOfDoc(s.liveElements, docId));
+  return useInboxStore(
+    (s: any) => heldRows.get(docId) ?? rowsOfDoc(s.liveElements, docId),
+  );
 }
 
 /** A chunked restore that stopped partway (see liveArtifacts.restore), or null. */
-export function useLiveRestoring(docId: string): { to: number; from: number; by_name: string; at: number } | null {
+export function useLiveRestoring(
+  docId: string,
+): { to: number; from: number; by_name: string; at: number } | null {
   return useInboxStore((s: any) => s.liveHeads?.[docId]?.restoring ?? null);
 }
 
 /** The doc's pending draft, or null. */
-export function useLiveDraftState(docId: string): { by: string; by_name: string; at: number; label?: string } | null {
+export function useLiveDraftState(
+  docId: string,
+): { by: string; by_name: string; at: number; label?: string } | null {
   return useInboxStore((s: any) => s.liveHeads?.[docId]?.draft ?? null);
 }
 
@@ -126,7 +166,14 @@ const overlayListeners = new Map<string, Set<() => void>>();
 export function publishOverlay(docId: string) {
   const queued = queuedOverlays.get(docId);
   const gesture = gestureOverlays.get(docId);
-  overlays.set(docId, !queued?.size ? gesture ?? new Map() : !gesture?.size ? queued : new Map([...queued, ...gesture]));
+  overlays.set(
+    docId,
+    !queued?.size
+      ? (gesture ?? new Map())
+      : !gesture?.size
+        ? queued
+        : new Map([...queued, ...gesture]),
+  );
   for (const fn of overlayListeners.get(docId) ?? []) fn();
 }
 export function setOverlay(docId: string, next: Overlay) {
@@ -140,7 +187,10 @@ function subscribeOverlay(docId: string, fn: () => void) {
   return () => set!.delete(fn);
 }
 export const EMPTY_OVERLAY: Overlay = new Map();
-function useOverlay(docId: string, layer: "page" | "comments" = "page"): Overlay {
+function useOverlay(
+  docId: string,
+  layer: "page" | "comments" = "page",
+): Overlay {
   const from = layer === "comments" ? queuedComments : overlays;
   return useSyncExternalStore(
     useCallback((fn) => subscribeOverlay(docId, fn), [docId]),
@@ -154,7 +204,12 @@ function useOverlay(docId: string, layer: "page" | "comments" = "page"): Overlay
 export type LiveReadLayer = "merged" | "main" | "draft" | "comments";
 
 /** The visible state of one key: the gesture overlay, then the draft (when one is open), then main. */
-export function visibleState(rows: DocRows, overlay: Overlay, key: string, draftOpen: boolean): ElementState | undefined {
+export function visibleState(
+  rows: DocRows,
+  overlay: Overlay,
+  key: string,
+  draftOpen: boolean,
+): ElementState | undefined {
   const o = overlay.get(key);
   if (o) return o;
   const d = draftOpen ? rows.draft.get(key) : undefined;
@@ -163,7 +218,11 @@ export function visibleState(rows: DocRows, overlay: Overlay, key: string, draft
   return m ? fromElement(m) : undefined;
 }
 
-function mergedElements(rows: DocRows, overlay: Overlay, draftOpen: boolean): ArtifactElement[] {
+function mergedElements(
+  rows: DocRows,
+  overlay: Overlay,
+  draftOpen: boolean,
+): ArtifactElement[] {
   const out: ArtifactElement[] = [];
   const seen = new Set<string>();
   const take = (key: string, row: any | undefined) => {
@@ -186,7 +245,10 @@ function mergedElements(rows: DocRows, overlay: Overlay, draftOpen: boolean): Ar
  * The doc's elements. "merged" (default) is what the page shows: main with
  * the open draft and this tab's gesture laid over it.
  */
-export function useLiveElements(docId: string, opts: { kinds?: readonly string[]; layer?: LiveReadLayer } = {}): ArtifactElement[] {
+export function useLiveElements(
+  docId: string,
+  opts: { kinds?: readonly string[]; layer?: LiveReadLayer } = {},
+): ArtifactElement[] {
   const rows = useDocRows(docId);
   const overlay = useOverlay(docId);
   const commentsQueued = useOverlay(docId, "comments");
@@ -196,8 +258,10 @@ export function useLiveElements(docId: string, opts: { kinds?: readonly string[]
   return useMemo(() => {
     let els: ArtifactElement[];
     if (layer === "merged") els = mergedElements(rows, overlay, draftOpen);
-    else if (layer === "comments" && commentsQueued.size) els = layerElements(rows.comments, commentsQueued);
-    else els = [...rows[layer].values()].filter((r) => !r.deleted).map(rowElement);
+    else if (layer === "comments" && commentsQueued.size)
+      els = layerElements(rows.comments, commentsQueued);
+    else
+      els = [...rows[layer].values()].filter((r) => !r.deleted).map(rowElement);
     if (!kindsKey) return els;
     const kinds = new Set(kindsKey.split(","));
     return els.filter((e) => kinds.has(e.kind));
@@ -205,23 +269,36 @@ export function useLiveElements(docId: string, opts: { kinds?: readonly string[]
 }
 
 /** One layer's rows with queued writes laid over them. */
-export function layerElements(layerRows: Map<string, any>, overlay: Overlay): ArtifactElement[] {
+export function layerElements(
+  layerRows: Map<string, any>,
+  overlay: Overlay,
+): ArtifactElement[] {
   const out: ArtifactElement[] = [];
   for (const [k, r] of layerRows) {
     const o = overlay.get(k);
-    if (!o) { if (!r.deleted) out.push(rowElement(r)); continue; }
+    if (!o) {
+      if (!r.deleted) out.push(rowElement(r));
+      continue;
+    }
     if (!o.deleted) out.push(overlaid(k, r, o));
   }
-  for (const [k, o] of overlay) if (!layerRows.has(k) && !o.deleted) out.push(overlaid(k, undefined, o));
+  for (const [k, o] of overlay)
+    if (!layerRows.has(k) && !o.deleted) out.push(overlaid(k, undefined, o));
   return out;
 }
 
 /** One element as the page shows it. */
-export function useLiveElement(docId: string, key: string): ArtifactElement | undefined {
+export function useLiveElement(
+  docId: string,
+  key: string,
+): ArtifactElement | undefined {
   const draftOpen = !!useLiveDraftState(docId);
   const row = useInboxStore((s: any) => {
     const coll = s.liveElements;
-    return (draftOpen ? coll?.[liveRowId(docId, "draft", key)] : undefined) ?? coll?.[liveRowId(docId, "main", key)];
+    return (
+      (draftOpen ? coll?.[liveRowId(docId, "draft", key)] : undefined) ??
+      coll?.[liveRowId(docId, "main", key)]
+    );
   });
   const o = useOverlay(docId).get(key);
   return useMemo(() => {
@@ -239,28 +316,54 @@ export function useLivePresence(docId: string): ArtifactPresence[] {
     const mine = `:${LIVE_TAB_ID}`;
     for (const id in rows ?? {}) {
       const p = rows[id];
-      if (p?.doc_id !== docId || p.actor.endsWith(mine) || !isPresenceLive(p, now)) continue;
+      if (
+        p?.doc_id !== docId ||
+        p.actor.endsWith(mine) ||
+        !isPresenceLive(p, now)
+      )
+        continue;
       out.push(p);
     }
-    return out.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "agent" ? 1 : -1));
+    return out.sort((a, b) =>
+      a.kind === b.kind
+        ? a.name.localeCompare(b.name)
+        : a.kind === "agent"
+          ? 1
+          : -1,
+    );
   }, [rows, docId, now]);
 }
 
-export type LiveVersion = { _id: string; rev: number; label: string; reason: string; by: string; by_name: string; at: number; elements?: number };
+export type LiveVersion = {
+  _id: string;
+  rev: number;
+  label: string;
+  reason: string;
+  by: string;
+  by_name: string;
+  at: number;
+  elements?: number;
+};
 
 export function useLiveVersions(docId: string): LiveVersion[] {
   // Wakes on this doc's versions only, never another doc's.
   const sig = useInboxStore((s: any) => {
     let out = "";
-    for (const id in s.liveVersions ?? {}) { const r = s.liveVersions[id]; if (r?.doc_id === docId) out += `${id}:${r.label}:${r.at};`; }
+    for (const id in s.liveVersions ?? {}) {
+      const r = s.liveVersions[id];
+      if (r?.doc_id === docId) out += `${id}:${r.label}:${r.at};`;
+    }
     return out;
   });
   return useMemo(() => {
     const rows = (useInboxStore.getState() as any).liveVersions;
     const stubs = new Map<number, LiveVersion>();
-    for (const id in rows ?? {}) if (rows[id]?.doc_id === docId && rows[id].stub) stubs.set(rows[id].rev, rows[id]);
+    for (const id in rows ?? {})
+      if (rows[id]?.doc_id === docId && rows[id].stub)
+        stubs.set(rows[id].rev, rows[id]);
     const real: LiveVersion[] = [];
-    for (const id in rows ?? {}) if (rows[id]?.doc_id === docId && !rows[id].stub) real.push(rows[id]);
+    for (const id in rows ?? {})
+      if (rows[id]?.doc_id === docId && !rows[id].stub) real.push(rows[id]);
     // A stub (a version just saved here) stands until the server's row with its name arrives. A save at a
     // revision that already has a version renames it only as the server does (an autosave, or this person's
     // own named version); a restore or someone else's version keeps its name and the stub shows beside it.
@@ -270,8 +373,12 @@ export function useLiveVersions(docId: string): LiveVersion[] {
     for (const [rev, stub] of stubs) {
       const atRev = out.filter((v) => v.rev === rev);
       if (atRev.some((v) => v.label === stub.label)) continue;
-      const renamed = atRev.find((v: any) => v.reason === "auto" || (v.reason === "manual" && v.by === mine));
-      if (renamed && Date.now() - stub.at < 60_000) out[out.indexOf(renamed)] = { ...renamed, label: stub.label };
+      const renamed = atRev.find(
+        (v: any) =>
+          v.reason === "auto" || (v.reason === "manual" && v.by === mine),
+      );
+      if (renamed && Date.now() - stub.at < 60_000)
+        out[out.indexOf(renamed)] = { ...renamed, label: stub.label };
       else if (!renamed) out.push(stub);
     }
     return out.sort((a, b) => b.rev - a.rev || b.at - a.at);

@@ -8,7 +8,12 @@
 // did not cross.
 import { useState } from "react";
 import { AlertTriangle, Pause } from "lucide-react";
-import { DIRECTION_LABEL, MIRROR_STATE_LABEL, mirrorState as linkState, type SlackMirrorState } from "@codecast/convex/convex/lib/slackMirror";
+import {
+  DIRECTION_LABEL,
+  MIRROR_STATE_LABEL,
+  mirrorState as linkState,
+  type SlackMirrorState,
+} from "@codecast/convex/convex/lib/slackMirror";
 import { SlackLogo } from "../SlackLogo";
 import { SlackSyncDialog } from "./SlackSyncDialog";
 import type { ChatSlackLinkRow } from "../../store/chatSlice";
@@ -24,7 +29,8 @@ function titleFor(link: ChatSlackLinkRow | null): string {
   if (!link) return "Mirror this channel with Slack";
   const there = `#${link.slack_channel_name ?? link.slack_channel_id}`;
   const state = linkState(link);
-  if (state === "live") return `${MIRROR_STATE_LABEL.live} ${there} (${DIRECTION_LABEL[link.direction]})`;
+  if (state === "live")
+    return `${MIRROR_STATE_LABEL.live} ${there} (${DIRECTION_LABEL[link.direction]})`;
   return `${MIRROR_STATE_LABEL[state]} · ${there}`;
 }
 
@@ -33,13 +39,24 @@ function StateGlyph({ state }: { state: MirrorState }) {
     case "paused":
       return <Pause className="ch-head-slack-glyph" aria-hidden="true" />;
     case "error":
-      return <AlertTriangle className="ch-head-slack-glyph ch-head-slack-glyph-warn" aria-hidden="true" />;
+      return (
+        <AlertTriangle
+          className="ch-head-slack-glyph ch-head-slack-glyph-warn"
+          aria-hidden="true"
+        />
+      );
     default:
       return <span className="ch-head-slack-dot" aria-hidden="true" />;
   }
 }
 
-export function SlackMirrorPill({ channelId, link }: { channelId: string; link: ChatSlackLinkRow | null }) {
+export function SlackMirrorPill({
+  channelId,
+  link,
+}: {
+  channelId: string;
+  link: ChatSlackLinkRow | null;
+}) {
   const [open, setOpen] = useState(false);
   const state = mirrorState(link);
   const title = titleFor(link);
@@ -59,7 +76,9 @@ export function SlackMirrorPill({ channelId, link }: { channelId: string; link: 
           <span className="ch-head-slack-name ch-head-slack-quiet">Slack</span>
         )}
       </button>
-      {open && <SlackSyncDialog channelId={channelId} onClose={() => setOpen(false)} />}
+      {open && (
+        <SlackSyncDialog channelId={channelId} onClose={() => setOpen(false)} />
+      )}
     </>
   );
 }

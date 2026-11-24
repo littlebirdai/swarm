@@ -9,7 +9,9 @@ describe("the team a directory's work belongs to", () => {
     { path: "/src/secret", team_id: "codecast", private: true },
   ];
   test("the longest mapping covering the directory wins", () => {
-    expect(teamForDirectory(projects, "/src/union/outreach/backend")).toBe("outreach");
+    expect(teamForDirectory(projects, "/src/union/outreach/backend")).toBe(
+      "outreach",
+    );
     expect(teamForDirectory(projects, "/src/union/web")).toBe("union");
     expect(teamForDirectory(projects, "/src/codecast")).toBe("codecast");
   });

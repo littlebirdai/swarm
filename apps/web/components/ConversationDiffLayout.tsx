@@ -6,21 +6,52 @@ import { useEventListener } from "../hooks/useEventListener";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { ConversationView } from "./ConversationView";
 import { lazyNamed } from "../lib/lazyNamed";
-const CommentDock = lazyNamed(() => import("./comments/CommentDock"), "CommentDock");
-import type { ConversationData, ConversationViewHandle, ConversationViewProps } from "./conversation/types";
+const CommentDock = lazyNamed(
+  () => import("./comments/CommentDock"),
+  "CommentDock",
+);
+import type {
+  ConversationData,
+  ConversationViewHandle,
+  ConversationViewProps,
+} from "./conversation/types";
 import { useDiffViewerStore } from "../store/diffViewerStore";
-import { extractFileChanges, mergeFileChanges } from "../lib/fileChangeExtractor";
+import {
+  extractFileChanges,
+  mergeFileChanges,
+} from "../lib/fileChangeExtractor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import { FileDiffLayout } from "./FileDiffLayout";
 import { foldReadyFiles, lastPromptAt } from "../lib/conversationDiffFiles";
 import type { FileChangeEntry } from "../store/diffViewerStore";
-import { useInboxStore, useTrackedStore, isConvexId } from "../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  isConvexId,
+} from "../store/inboxStore";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useFileChangeBodies } from "../hooks/useFileChangeBodies";
-import { DIFF_BASES, diffBaseStart, lastChangeIds, selectRangeFoldInputs, selectReviewFoldInputs, type DiffBase } from "@codecast/shared/diff";
+import {
+  DIFF_BASES,
+  diffBaseStart,
+  lastChangeIds,
+  selectRangeFoldInputs,
+  selectReviewFoldInputs,
+  type DiffBase,
+} from "@codecast/shared/diff";
 import { SegmentedToggle } from "./SegmentedToggle";
-import { hasReviewBase, isSeen, reviewBaseId, toggleSeenFile } from "../lib/diffSeenMarks";
+import {
+  hasReviewBase,
+  isSeen,
+  reviewBaseId,
+  toggleSeenFile,
+} from "../lib/diffSeenMarks";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { getRelativePath } from "@codecast/shared/render";
 import { shareTokenArg } from "../lib/shareTokenScope";
@@ -143,11 +174,18 @@ export function ConversationDiffLayout({
   devRenderCount("ConversationDiffLayout");
   const heightClass = "h-full";
   const [isMobile, setIsMobile] = useState(false);
-  const layoutPref = useInboxStore(s => s.clientState.layouts?.conversation_diff ?? DEFAULT_DIFF_LAYOUT);
-  const updateLayout = useInboxStore(s => s.updateClientLayout);
-  const layout: Layout = { "content-panel": layoutPref.content, "diff-panel": layoutPref.diff };
+  const layoutPref = useInboxStore(
+    (s) => s.clientState.layouts?.conversation_diff ?? DEFAULT_DIFF_LAYOUT,
+  );
+  const updateLayout = useInboxStore((s) => s.updateClientLayout);
+  const layout: Layout = {
+    "content-panel": layoutPref.content,
+    "diff-panel": layoutPref.diff,
+  };
   const conversationRef = useRef<ConversationViewHandle>(null);
-  const commentRailW = useInboxStore((s) => (conversation ? s.commentRailWidth[conversation._id] ?? 0 : 0));
+  const commentRailW = useInboxStore((s) =>
+    conversation ? (s.commentRailWidth[conversation._id] ?? 0) : 0,
+  );
 
   const {
     changes,
@@ -159,7 +197,8 @@ export function ConversationDiffLayout({
     setChanges,
     diffPanelOpen,
   } = useDiffViewerStore();
-  const hideDiff = hideDiffProp || (!!diffOnlyWithChanges && changes.length === 0);
+  const hideDiff =
+    hideDiffProp || (!!diffOnlyWithChanges && changes.length === 0);
 
   // Every change of the session, materialized server-side at ingest and
   // independent of how many message pages are loaded. References only: the
@@ -170,7 +209,10 @@ export function ConversationDiffLayout({
   const { data: serverFileChanges } = useQueryNoThrow(
     api.messages.getConversationFileChangeIndex,
     conversation?._id && isConvexId(conversation._id)
-      ? { conversation_id: conversation._id, ...shareTokenArg(conversation._id) }
+      ? {
+          conversation_id: conversation._id,
+          ...shareTokenArg(conversation._id),
+        }
       : "skip",
   );
 
@@ -179,9 +221,19 @@ export function ConversationDiffLayout({
     // gives completeness without scrolling; the client backfills un-materialized
     // (pre-feature) conversations so nothing regresses to "scroll up to see it",
     // and its changes carry their text, which seeds the body cache.
-    const clientChanges: FileChangeEntry[] = conversation?.messages ? extractFileChanges(conversation.messages as any) : [];
-    setChanges(conversation?._id ?? null, mergeFileChanges<FileChangeEntry>(serverFileChanges ?? [], clientChanges));
-  }, [conversation?._id, conversation?.messages, serverFileChanges, setChanges]);
+    const clientChanges: FileChangeEntry[] = conversation?.messages
+      ? extractFileChanges(conversation.messages as any)
+      : [];
+    setChanges(
+      conversation?._id ?? null,
+      mergeFileChanges<FileChangeEntry>(serverFileChanges ?? [], clientChanges),
+    );
+  }, [
+    conversation?._id,
+    conversation?.messages,
+    serverFileChanges,
+    setChanges,
+  ]);
 
   // Follow mode (lib/follow.ts): the side panel beside the transcript is part
   // of a person's place, "diff" while it is open and "none" while it is not,
@@ -194,15 +246,30 @@ export function ConversationDiffLayout({
     {
       read: () => ({
         panel: diffPanelOpen ? "diff" : "none",
-        diff: diffPanelOpen ? { file: "", base: selectedChangeIndex === null ? "all" : `change:${selectedChangeIndex}` } : undefined,
+        diff: diffPanelOpen
+          ? {
+              file: "",
+              base:
+                selectedChangeIndex === null
+                  ? "all"
+                  : `change:${selectedChangeIndex}`,
+            }
+          : undefined,
       }),
       apply: (view) => {
         const dv = useDiffViewerStore.getState();
         const base = view.diff?.base;
-        if (base === "all" && dv.selectedChangeIndex !== null) dv.clearSelection();
+        if (base === "all" && dv.selectedChangeIndex !== null)
+          dv.clearSelection();
         else if (base?.startsWith("change:")) {
           const index = Number(base.slice(7));
-          if (Number.isInteger(index) && index >= 0 && index < dv.changes.length && index !== dv.selectedChangeIndex) dv.selectChange(index);
+          if (
+            Number.isInteger(index) &&
+            index >= 0 &&
+            index < dv.changes.length &&
+            index !== dv.selectedChangeIndex
+          )
+            dv.selectChange(index);
         }
         if (view.panel !== "diff" && view.panel !== "none") return [];
         dv.setDiffPanelOpen(view.panel === "diff");
@@ -258,19 +325,27 @@ export function ConversationDiffLayout({
 
   const groupElRef = useRef<HTMLDivElement | null>(null);
   const handleLayoutChange = useDragGatedLayoutPersist((newLayout) => {
-    updateLayout("conversation_diff", { content: newLayout["content-panel"] || 40, diff: newLayout["diff-panel"] || 60 });
+    updateLayout("conversation_diff", {
+      content: newLayout["content-panel"] || 40,
+      diff: newLayout["diff-panel"] || 60,
+    });
   }, groupElRef);
 
   // Element props handed to the memoized ConversationView must keep identity
   // across this component's own re-renders, or the memo never holds.
   const combinedHeaderExtra = useMemo(() => {
-    const changesOverlay = changes.length > 0 && !diffPanelOpen && !hideDiff ? <ChangesBar changes={changes} /> : null;
+    const changesOverlay =
+      changes.length > 0 && !diffPanelOpen && !hideDiff ? (
+        <ChangesBar changes={changes} />
+      ) : null;
     return changesOverlay ? (
       <>
         {headerExtra}
         {changesOverlay}
       </>
-    ) : headerExtra;
+    ) : (
+      headerExtra
+    );
   }, [changes, diffPanelOpen, hideDiff, headerExtra]);
 
   const conversationViewProps = {
@@ -326,13 +401,23 @@ export function ConversationDiffLayout({
       <div className={`${heightClass} w-full`}>
         <Tabs defaultValue="conversation" className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-2 shrink-0 h-9 sm:h-11">
-            <TabsTrigger value="conversation" className="py-1.5 sm:py-2 text-xs sm:text-sm">Conversation</TabsTrigger>
-            <TabsTrigger value="diff" className="py-1.5 sm:py-2 text-xs sm:text-sm">
+            <TabsTrigger
+              value="conversation"
+              className="py-1.5 sm:py-2 text-xs sm:text-sm"
+            >
+              Conversation
+            </TabsTrigger>
+            <TabsTrigger
+              value="diff"
+              className="py-1.5 sm:py-2 text-xs sm:text-sm"
+            >
               Diff {changes.length > 0 && `(${changes.length})`}
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="conversation" className="flex-1 overflow-auto m-0">
-
+          <TabsContent
+            value="conversation"
+            className="flex-1 overflow-auto m-0"
+          >
             <ConversationView {...conversationViewProps} />
           </TabsContent>
           <TabsContent value="diff" className="flex-1 overflow-auto m-0">
@@ -356,7 +441,10 @@ export function ConversationDiffLayout({
   // this layout's right edge, past the diff, rather than between the
   // conversation and the diff; the panels make room for it.
   return (
-    <div className={`${heightClass} w-full relative overflow-x-clip`} style={commentRailW ? { paddingRight: commentRailW } : undefined}>
+    <div
+      className={`${heightClass} w-full relative overflow-x-clip`}
+      style={commentRailW ? { paddingRight: commentRailW } : undefined}
+    >
       <Group
         orientation="horizontal"
         onLayoutChange={handleLayoutChange}
@@ -367,8 +455,10 @@ export function ConversationDiffLayout({
         {/* Conversation Panel */}
         <Panel id="content-panel" minSize="15%">
           <div className="h-full relative overflow-y-auto">
-
-            <ConversationView {...conversationViewProps} hostsCommentRail={false} />
+            <ConversationView
+              {...conversationViewProps}
+              hostsCommentRail={false}
+            />
           </div>
         </Panel>
 
@@ -391,7 +481,12 @@ export function ConversationDiffLayout({
       </Group>
       {conversation && (
         <Suspense fallback={null}>
-          <CommentDock conversationId={conversation._id.toString()} onJumpToMessage={(id) => conversationRef.current?.scrollToMessage(id)} />
+          <CommentDock
+            conversationId={conversation._id.toString()}
+            onJumpToMessage={(id) =>
+              conversationRef.current?.scrollToMessage(id)
+            }
+          />
         </Suspense>
       )}
     </div>
@@ -402,10 +497,17 @@ export function ConversationDiffLayout({
 // fits a narrow pane; the tooltip says what each one means here.
 const BASE_LABELS: Record<DiffBase, { label: string; title: string }> = {
   session: { label: "Session", title: "Every change this session made" },
-  branch: { label: "Branch", title: "Since the branch left the default branch, as far as this session's commits show" },
+  branch: {
+    label: "Branch",
+    title:
+      "Since the branch left the default branch, as far as this session's commits show",
+  },
   commit: { label: "Commit", title: "Changes since the session's last commit" },
   turn: { label: "Turn", title: "Changes since your last message" },
-  review: { label: "Review", title: "Each file since you last marked it viewed" },
+  review: {
+    label: "Review",
+    title: "Each file since you last marked it viewed",
+  },
 };
 const BASE_UNAVAILABLE: Partial<Record<DiffBase, string>> = {
   commit: "This session has not committed yet",
@@ -420,24 +522,61 @@ const BASE_EMPTY: Record<DiffBase, string> = {
   review: "Nothing changed since your review",
 };
 
-export function DiffPane({ conversation }: { conversation?: ConversationData }) {
+export function DiffPane({
+  conversation,
+}: {
+  conversation?: ConversationData;
+}) {
   const conversationId = conversation?._id;
   const gitRoot = conversation?.git_root;
-  const { selectedChangeIndex, rangeStart, rangeEnd, changes, selectedFile, focusNonce, bodies, missingBodies, setDiffBase } = useDiffViewerStore();
+  const {
+    selectedChangeIndex,
+    rangeStart,
+    rangeEnd,
+    changes,
+    selectedFile,
+    focusNonce,
+    bodies,
+    missingBodies,
+    setDiffBase,
+  } = useDiffViewerStore();
   const ui = useTrackedStore([
-    (s) => (conversationId ? s.clientState.ui?.diff_base?.[conversationId] : undefined),
-    (s) => (conversationId ? s.clientState.ui?.diff_seen_files?.[conversationId] : undefined),
+    (s) =>
+      conversationId
+        ? s.clientState.ui?.diff_base?.[conversationId]
+        : undefined,
+    (s) =>
+      conversationId
+        ? s.clientState.ui?.diff_seen_files?.[conversationId]
+        : undefined,
   ]).clientState.ui;
-  const chosenBase: DiffBase = (conversationId && ui?.diff_base?.[conversationId]) || "session";
-  const seenMarks = conversationId ? ui?.diff_seen_files?.[conversationId] : undefined;
+  const chosenBase: DiffBase =
+    (conversationId && ui?.diff_base?.[conversationId]) || "session";
+  const seenMarks = conversationId
+    ? ui?.diff_seen_files?.[conversationId]
+    : undefined;
 
   // Where each base starts in this session's changes. A base that names
   // nothing here (no commit yet) shows disabled, and a remembered choice that
   // names nothing falls back to the whole session.
-  const turnStartedAt = useMemo(() => lastPromptAt(conversation?.messages), [conversation?.messages]);
+  const turnStartedAt = useMemo(
+    () => lastPromptAt(conversation?.messages),
+    [conversation?.messages],
+  );
   const reviewable = hasReviewBase(seenMarks);
   const starts = useMemo(
-    () => Object.fromEntries(DIFF_BASES.map((b) => [b, b === "review" && !reviewable ? null : diffBaseStart(changes, b, { turnStartedAt, branch: conversation?.git_branch })])) as Record<DiffBase, number | null>,
+    () =>
+      Object.fromEntries(
+        DIFF_BASES.map((b) => [
+          b,
+          b === "review" && !reviewable
+            ? null
+            : diffBaseStart(changes, b, {
+                turnStartedAt,
+                branch: conversation?.git_branch,
+              }),
+        ]),
+      ) as Record<DiffBase, number | null>,
     [changes, turnStartedAt, conversation?.git_branch, reviewable],
   );
   const base: DiffBase = starts[chosenBase] === null ? "session" : chosenBase;
@@ -451,12 +590,18 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
   // The review base starts each file at the version its mark recorded.
   const byReview = base === "review" && rangeStart === null;
   const foldInputs = useMemo(
-    () => byReview
-      ? selectReviewFoldInputs(changes, to, (path, lastId) => reviewBaseId(seenMarks?.[path], lastId))
-      : selectRangeFoldInputs(changes, from, to),
+    () =>
+      byReview
+        ? selectReviewFoldInputs(changes, to, (path, lastId) =>
+            reviewBaseId(seenMarks?.[path], lastId),
+          )
+        : selectRangeFoldInputs(changes, from, to),
     [byReview, changes, from, to, seenMarks],
   );
-  const needed = useMemo(() => [...new Set([...foldInputs.base, ...foldInputs.head])], [foldInputs]);
+  const needed = useMemo(
+    () => [...new Set([...foldInputs.base, ...foldInputs.head])],
+    [foldInputs],
+  );
   useFileChangeBodies(conversationId, needed);
   const { files: diffFiles, pending: pendingFiles } = useMemo(
     () => foldReadyFiles(foldInputs, bodies, missingBodies),
@@ -465,17 +610,26 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
 
   // Viewed marks: live only while the file's text is the one marked. A mark
   // records the file's last change too, the version the review base diffs from.
-  const hashByPath = useMemo(() => new Map(diffFiles.map((f) => [f.filename, f.contentHash])), [diffFiles]);
+  const hashByPath = useMemo(
+    () => new Map(diffFiles.map((f) => [f.filename, f.contentHash])),
+    [diffFiles],
+  );
   const lastIdByPath = useMemo(() => lastChangeIds(changes, to), [changes, to]);
-  const fileMarks = useMemo(() => (path: string) => {
-    const hash = hashByPath.get(path);
-    return hash && isSeen(seenMarks, path, hash) ? { viewed: true } : undefined;
-  }, [hashByPath, seenMarks]);
+  const fileMarks = useMemo(
+    () => (path: string) => {
+      const hash = hashByPath.get(path);
+      return hash && isSeen(seenMarks, path, hash)
+        ? { viewed: true }
+        : undefined;
+    },
+    [hashByPath, seenMarks],
+  );
   const onToggleViewed = useMemo(() => {
     if (!conversationId) return undefined;
     return (path: string) => {
       const hash = hashByPath.get(path);
-      if (hash) toggleSeenFile(conversationId, path, hash, lastIdByPath.get(path));
+      if (hash)
+        toggleSeenFile(conversationId, path, hash, lastIdByPath.get(path));
     };
   }, [conversationId, hashByPath, lastIdByPath]);
 
@@ -493,17 +647,18 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
 
   const baseSwitch = conversationId ? (
     <div className="shrink-0">
-    <SegmentedToggle
-      size="sm"
-      value={rangeStart !== null ? "" : base}
-      onChange={(key) => setDiffBase(conversationId, key as DiffBase)}
-      items={DIFF_BASES.map((b) => ({
-        key: b,
-        label: BASE_LABELS[b].label,
-        title: starts[b] === null ? BASE_UNAVAILABLE[b] : BASE_LABELS[b].title,
-        disabled: starts[b] === null,
-      }))}
-    />
+      <SegmentedToggle
+        size="sm"
+        value={rangeStart !== null ? "" : base}
+        onChange={(key) => setDiffBase(conversationId, key as DiffBase)}
+        items={DIFF_BASES.map((b) => ({
+          key: b,
+          label: BASE_LABELS[b].label,
+          title:
+            starts[b] === null ? BASE_UNAVAILABLE[b] : BASE_LABELS[b].title,
+          disabled: starts[b] === null,
+        }))}
+      />
     </div>
   ) : null;
 
@@ -512,12 +667,24 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
       <div className="h-full w-full flex flex-col bg-background">
         <div className="flex items-center justify-end px-2 py-1.5 border-b border-sol-border/50">
           <button
-            onClick={() => useDiffViewerStore.getState().setDiffPanelOpen(false)}
+            onClick={() =>
+              useDiffViewerStore.getState().setDiffPanelOpen(false)
+            }
             className="p-1 rounded hover:bg-sol-bg-alt text-muted-foreground hover:text-foreground transition-colors"
             title="Close panel"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -534,34 +701,52 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
   }
 
   const lastShown = to ?? changes.length - 1;
-  const positionLabel = (rangeStart !== null
-    ? `Changes ${rangeStart + 1} to ${lastShown + 1} of ${changes.length}`
-    : byReview
-      ? `Since your review, to change ${lastShown + 1} of ${changes.length}`
-    : from > 0
-      ? `Changes ${Math.min(from + 1, changes.length)} to ${lastShown + 1} of ${changes.length}`
-      : selectedChangeIndex !== null
-        ? `Up to change ${selectedChangeIndex + 1} of ${changes.length}`
-        : `All ${changes.length} changes`)
-    + (pendingFiles > 0 ? ` · loading ${pendingFiles} ${pendingFiles === 1 ? "file" : "files"}` : "");
+  const positionLabel =
+    (rangeStart !== null
+      ? `Changes ${rangeStart + 1} to ${lastShown + 1} of ${changes.length}`
+      : byReview
+        ? `Since your review, to change ${lastShown + 1} of ${changes.length}`
+        : from > 0
+          ? `Changes ${Math.min(from + 1, changes.length)} to ${lastShown + 1} of ${changes.length}`
+          : selectedChangeIndex !== null
+            ? `Up to change ${selectedChangeIndex + 1} of ${changes.length}`
+            : `All ${changes.length} changes`) +
+    (pendingFiles > 0
+      ? ` · loading ${pendingFiles} ${pendingFiles === 1 ? "file" : "files"}`
+      : "");
 
   // A changed file's name (tree row or header) opens the same menu as a file
   // link in the transcript: open it, its folder, the sessions that touched it.
   const onFileContextMenu = (e: React.MouseEvent) => {
     if (e.shiftKey) return;
-    const path = (e.target as HTMLElement).closest<HTMLElement>("[data-diff-file]")?.dataset.diffFile;
+    const path = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-diff-file]",
+    )?.dataset.diffFile;
     if (!path) return;
     const ctx = { base: gitRoot ?? undefined, gitRoot };
-    requestFilePathMenu(e, { path, href: filePathHref(path, undefined, ctx), ctx });
+    requestFilePathMenu(e, {
+      path,
+      href: filePathHref(path, undefined, ctx),
+      ctx,
+    });
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-background" onContextMenu={onFileContextMenu}>
+    <div
+      className="h-full w-full flex flex-col bg-background"
+      onContextMenu={onFileContextMenu}
+    >
       <FileDiffLayout
         files={diffFiles}
         commentContextFor={commentContextFor}
         headerExtra={baseSwitch}
-        emptyState={<p>{rangeStart !== null ? "Nothing changed in the selected range" : BASE_EMPTY[base]}</p>}
+        emptyState={
+          <p>
+            {rangeStart !== null
+              ? "Nothing changed in the selected range"
+              : BASE_EMPTY[base]}
+          </p>
+        }
         fileMarks={fileMarks}
         onToggleViewed={onToggleViewed}
         focusFile={selectedFile}
@@ -571,14 +756,18 @@ export function DiffPane({ conversation }: { conversation?: ConversationData }) 
             <span className="text-xs text-sol-text-dim">{positionLabel}</span>
           </div>
         }
-        onCloseDiffPanel={() => useDiffViewerStore.getState().setDiffPanelOpen(false)}
+        onCloseDiffPanel={() =>
+          useDiffViewerStore.getState().setDiffPanelOpen(false)
+        }
       />
     </div>
   );
 }
 
 function ChangesBar({ changes }: { changes: FileChangeEntry[] }) {
-  const setDiffPanelOpen = useDiffViewerStore((state) => state.setDiffPanelOpen);
+  const setDiffPanelOpen = useDiffViewerStore(
+    (state) => state.setDiffPanelOpen,
+  );
 
   const uniqueFiles = useMemo(() => {
     const seen = new Set<string>();
@@ -625,10 +814,23 @@ function ChangesBar({ changes }: { changes: FileChangeEntry[] }) {
           covered that much more text. */}
       <span className="text-meta text-sol-text-dim group-hover:text-sol-text-secondary transition-colors">
         {uniqueFiles.length}
-        <span className="cc-changes-pill__label"> file{uniqueFiles.length !== 1 ? "s" : ""} changed</span>
+        <span className="cc-changes-pill__label">
+          {" "}
+          file{uniqueFiles.length !== 1 ? "s" : ""} changed
+        </span>
       </span>
-      <svg className="w-3 h-3 text-sol-text-dim/60 group-hover:text-sol-text-dim transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      <svg
+        className="w-3 h-3 text-sol-text-dim/60 group-hover:text-sol-text-dim transition-colors"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 5l7 7-7 7"
+        />
       </svg>
     </button>
   );
@@ -672,13 +874,29 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 function getFileName(filePath: string): string {
-  return filePath.split('/').pop() || filePath;
+  return filePath.split("/").pop() || filePath;
 }
 
-function TimelineStrip({ conversationRef }: { conversationRef: React.RefObject<ConversationViewHandle | null> }) {
-  const { changes, selectedChangeIndex, rangeStart, rangeEnd, selectChange, selectRange, syncScroll } = useDiffViewerStore();
+function TimelineStrip({
+  conversationRef,
+}: {
+  conversationRef: React.RefObject<ConversationViewHandle | null>;
+}) {
+  const {
+    changes,
+    selectedChangeIndex,
+    rangeStart,
+    rangeEnd,
+    selectChange,
+    selectRange,
+    syncScroll,
+  } = useDiffViewerStore();
 
-  const handleDotClick = (index: number, messageId: string, e: React.MouseEvent) => {
+  const handleDotClick = (
+    index: number,
+    messageId: string,
+    e: React.MouseEvent,
+  ) => {
     if (e.metaKey || e.ctrlKey) {
       if (selectedChangeIndex !== null && selectedChangeIndex !== index) {
         selectRange(selectedChangeIndex, index);
@@ -724,8 +942,15 @@ function TimelineStrip({ conversationRef }: { conversationRef: React.RefObject<C
                   style={{ backgroundColor: fileColor }}
                 />
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-popover text-popover-foreground border-border shadow-md">
-                <div className={isCommit ? "font-medium" : "modern:font-mono font-medium"}>
+              <TooltipContent
+                side="right"
+                className="bg-popover text-popover-foreground border-border shadow-md"
+              >
+                <div
+                  className={
+                    isCommit ? "font-medium" : "modern:font-mono font-medium"
+                  }
+                >
                   {isCommit ? "Git commit" : getFileName(change.filePath)}
                 </div>
                 <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5">

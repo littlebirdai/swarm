@@ -47,7 +47,10 @@ export class AccountLifecycleGate {
     };
   }
 
-  async resume<T>(agentType: string | undefined, launch: () => Promise<T>): Promise<T> {
+  async resume<T>(
+    agentType: string | undefined,
+    launch: () => Promise<T>,
+  ): Promise<T> {
     const release = await this.acquireResume(agentType);
     try {
       return await launch();

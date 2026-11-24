@@ -1,18 +1,35 @@
 // Read-side selectors over the chat slice's collections: a channel's
 // timeline, a thread, reactions, read markers and the channel rail.
 import { inActiveWorkspace } from "../lib/workspaceScope";
-import { dmOtherIds, isSettledLine, isThreadMuted, plainPreview } from "@codecast/shared/chat";
+import {
+  dmOtherIds,
+  isSettledLine,
+  isThreadMuted,
+  plainPreview,
+} from "@codecast/shared/chat";
 import { mirrorState } from "@codecast/convex/convex/lib/slackMirror";
 import { isConvexId } from "../lib/entityLinks";
 import { tallyUnread } from "../lib/chatTimeline";
 import { foldReactions } from "../lib/chatViews";
-import type { ChatChannelView, ChatReaction } from "../components/chat/chatTypes";
-import type { ChatMessageRow, ChatNotifyLevel, ChatReactionRow, ChatRailRow, ChatReadRow, ChatSliceData } from "./chatSlice";
+import type {
+  ChatChannelView,
+  ChatReaction,
+} from "../components/chat/chatTypes";
+import type {
+  ChatMessageRow,
+  ChatNotifyLevel,
+  ChatReactionRow,
+  ChatRailRow,
+  ChatReadRow,
+  ChatSliceData,
+} from "./chatSlice";
 
 const EMPTY_MESSAGES: ChatMessageRow[] = [];
 
 function byCreatedAsc(a: ChatMessageRow, b: ChatMessageRow): number {
-  return a.created_at - b.created_at || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0);
+  return (
+    a.created_at - b.created_at || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0)
+  );
 }
 
 /** A channel's timeline: roots only, oldest first. Thread replies live in the
@@ -98,7 +115,8 @@ export function selectThreadMuted(
 ): boolean {
   for (const id in state.chatReads) {
     const row = state.chatReads[id];
-    if (row?.channel_id === channelId) return isThreadMuted(row.muted_threads, rootId);
+    if (row?.channel_id === channelId)
+      return isThreadMuted(row.muted_threads, rootId);
   }
   return false;
 }
@@ -169,8 +187,21 @@ export function selectChatRail(
    *  False while only the cached rail is known, where absence means nothing. */
   railLive = false,
 ): ChatRailChannel[] {
-  const key = [state.chatChannels, state.chatMessages, state.chatReads, state.chatRail, state.chatSlackLinks, viewer, teamId, scope, railLive];
-  if (key.length === railCacheKey.length && key.every((v, i) => v === railCacheKey[i])) {
+  const key = [
+    state.chatChannels,
+    state.chatMessages,
+    state.chatReads,
+    state.chatRail,
+    state.chatSlackLinks,
+    viewer,
+    teamId,
+    scope,
+    railLive,
+  ];
+  if (
+    key.length === railCacheKey.length &&
+    key.every((v, i) => v === railCacheKey[i])
+  ) {
     return railCacheValue;
   }
 
@@ -180,11 +211,13 @@ export function selectChatRail(
     const prev = readByChannel.get(row.channel_id);
     // A hydrated stub can outlive its server row for one sync; the newer stamp
     // is the one the viewer last acted on.
-    if (!prev || prev.updated_at <= row.updated_at) readByChannel.set(row.channel_id, row);
+    if (!prev || prev.updated_at <= row.updated_at)
+      readByChannel.set(row.channel_id, row);
   }
 
   const railByChannel = new Map<string, ChatRailRow>();
-  for (const row of state.chatRail ?? []) railByChannel.set(String(row.channel_id), row);
+  for (const row of state.chatRail ?? [])
+    railByChannel.set(String(row.channel_id), row);
 
   // One mirror per channel (the server refuses a second). The row carries the
   // Slack name for the tooltip and the state for the mark's colour.
@@ -217,7 +250,13 @@ export function selectChatRail(
     if (railLive && isConvexId(id) && !railByChannel.has(id)) continue;
     if (scope === "community") {
       if (channel.kind !== "community") continue;
-    } else if (!inActiveWorkspace({ team_id: channel.team_id ? String(channel.team_id) : undefined }, teamId ? String(teamId) : undefined)) continue;
+    } else if (
+      !inActiveWorkspace(
+        { team_id: channel.team_id ? String(channel.team_id) : undefined },
+        teamId ? String(teamId) : undefined,
+      )
+    )
+      continue;
     const read = readByChannel.get(id);
     const rail = railByChannel.get(id);
     const loaded = messagesByChannel.get(id);
@@ -236,19 +275,33 @@ export function selectChatRail(
       if (!newest || byCreatedAsc(newest, m) < 0) newest = m;
       // The preview is a line the room's timeline shows: a root, or a reply
       // also sent to the channel. A reply alone lives in its thread.
-      if ((!m.thread_root_id || m.broadcast) && (!shown || byCreatedAsc(shown, m) < 0)) shown = m;
-      if (isDm && m.user_id !== viewer && (!inbound || byCreatedAsc(inbound, m) < 0)) inbound = m;
+      if (
+        (!m.thread_root_id || m.broadcast) &&
+        (!shown || byCreatedAsc(shown, m) < 0)
+      )
+        shown = m;
+      if (
+        isDm &&
+        m.user_id !== viewer &&
+        (!inbound || byCreatedAsc(inbound, m) < 0)
+      )
+        inbound = m;
     }
     const held = !!loaded && loaded.length > 0;
-    const tally = held ? tallyUnread(loaded!, read?.last_read_at, viewer, { isDm }) : { unread: 0, mentions: 0 };
+    const tally = held
+      ? tallyUnread(loaded!, read?.last_read_at, viewer, { isDm })
+      : { unread: 0, mentions: 0 };
     const unread = tally.unread;
     const mentions = tally.mentions;
     // Nothing held yet (a cold cache): the server's stamp orders the room, and
     // it shows no preview until its rows arrive.
-    const sortAt = newest ? Math.max(newest.created_at, channel.created_at) : (rail?.sort_at ?? channel.created_at);
+    const sortAt = newest
+      ? Math.max(newest.created_at, channel.created_at)
+      : (rail?.sort_at ?? channel.created_at);
     // Held rows that reach the server's newest line while the server counts
     // past its cap: the badge says "N+".
-    const reachesTip = !!rail?.last_message && !!state.chatMessages[rail.last_message._id];
+    const reachesTip =
+      !!rail?.last_message && !!state.chatMessages[rail.last_message._id];
     const unreadCapped = reachesTip && unread > 0 && !!rail?.unread_capped;
 
     const notifyLevel = read?.notify_level ?? rail?.notify_level ?? "mentions";
@@ -256,8 +309,11 @@ export function selectChatRail(
     // rail has never seen); the rail's roster covers private channels.
     let dmMemberIds: string[] | undefined;
     if (isDm) {
-      const fromKey = channel.dm_key ? dmOtherIds(channel.dm_key, viewer) : undefined;
-      dmMemberIds = fromKey ?? rail?.member_ids?.filter((uid) => uid !== viewer);
+      const fromKey = channel.dm_key
+        ? dmOtherIds(channel.dm_key, viewer)
+        : undefined;
+      dmMemberIds =
+        fromKey ?? rail?.member_ids?.filter((uid) => uid !== viewer);
     }
     out.push({
       id,
@@ -277,9 +333,13 @@ export function selectChatRail(
       notifyLevel,
       joined: !!read || !!rail?.joined,
       lastReadAt: read?.last_read_at,
-      lastMessagePreview: shown ? plainPreview(shown.content ?? "", 120) : undefined,
+      lastMessagePreview: shown
+        ? plainPreview(shown.content ?? "", 120)
+        : undefined,
       lastMessageFromAgent: shown?.author_kind === "agent",
-      lastInboundAt: held ? inbound?.created_at : rail?.last_inbound?.created_at,
+      lastInboundAt: held
+        ? inbound?.created_at
+        : rail?.last_inbound?.created_at,
       unreadCapped,
       // The rail row and the channel row arrive in the same listChannels
       // payload, so a freshly created DM is attested empty in the same sync

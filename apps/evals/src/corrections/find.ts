@@ -1,17 +1,31 @@
-import { join } from 'node:path';
+import { join } from "node:path";
 
-import { mapLimit } from '@codecast/shared/async';
+import { mapLimit } from "@codecast/shared/async";
 
-import { cliFetchRead, cliSearchRequest } from '../../../../apps/cli/src/cliHttp';
-import { parseJsonBlock } from '../../../../apps/server/convex/lib/anthropic';
-import { typedWords } from '../../../../apps/server/convex/lib/userSend';
-import { REDIRECT_WORDS } from '../../../../packages/shared/contracts/redirectWords';
-import { renderGuidanceFile } from '../../../../packages/shared/contracts/snippets';
-import { apiConfig, readConversation, toRows, type MessageRow } from '../adapters/convo';
-import { runCall } from '../adapters/dryRun';
-import { JUDGE_MODEL } from '../models';
-import { homePaths } from '../paths';
-import { correctionId, loadCorrections, saveCorrection, type Correction, type GuidanceDraft } from './store';
+import {
+  cliFetchRead,
+  cliSearchRequest,
+} from "../../../../apps/cli/src/cliHttp";
+import { parseJsonBlock } from "../../../../apps/server/convex/lib/anthropic";
+import { typedWords } from "../../../../apps/server/convex/lib/userSend";
+import { REDIRECT_WORDS } from "../../../../packages/shared/contracts/redirectWords";
+import { renderGuidanceFile } from "../../../../packages/shared/contracts/snippets";
+import {
+  apiConfig,
+  readConversation,
+  toRows,
+  type MessageRow,
+} from "../adapters/convo";
+import { runCall } from "../adapters/dryRun";
+import { JUDGE_MODEL } from "../models";
+import { homePaths } from "../paths";
+import {
+  correctionId,
+  loadCorrections,
+  saveCorrection,
+  type Correction,
+  type GuidanceDraft,
+} from "./store";
 
 // A correction is a line a person typed to redirect an agent: stop, no, not
 // like that, take that step yourself. This finds them in a window of sessions through
@@ -21,10 +35,21 @@ import { correctionId, loadCorrections, saveCorrection, type Correction, type Gu
 // passes. Everything here is real content, so it lives in EVALS_HOME, never git.
 
 /** Words a person uses when an agent did the wrong kind of thing: cast-lessons' REDIRECT_WORDS, and the ones that complain about a habit. */
-export const CORRECTION_QUERIES = [...REDIRECT_WORDS, 'why did you', 'why do you', 'I said', 'keep asking', 'asking me', 'yourself', 'waiting on me', 'just do'];
+export const CORRECTION_QUERIES = [
+  ...REDIRECT_WORDS,
+  "why did you",
+  "why do you",
+  "I said",
+  "keep asking",
+  "asking me",
+  "yourself",
+  "waiting on me",
+  "just do",
+];
 
 /** Relayed or framed lines that typedWords lets through: another session's brief, a role's relay, a delivery notice. */
-const RELAYED = /^(From @|From jx|Your message to session|Reply to session|You (own|are)\b|# Task|\[Codecast Task|Done:|Monitor event)/;
+const RELAYED =
+  /^(From @|From jx|Your message to session|Reply to session|You (own|are)\b|# Task|\[Codecast Task|Done:|Monitor event)/;
 
 /** Whether a user line is a person's own short line, which a correction is. */
 export function isTypedLine(content: string): boolean {
@@ -42,17 +67,45 @@ interface Hit {
 }
 
 /** Every typed line in the window that holds a correction word: the person's own sessions, or the team's with `team`. */
-export async function searchCandidates(o: { since: number; team?: boolean; onLine?: (l: string) => void }): Promise<Hit[]> {
+export async function searchCandidates(o: {
+  since: number;
+  team?: boolean;
+  onLine?: (l: string) => void;
+}): Promise<Hit[]> {
   const { siteUrl, apiToken } = apiConfig();
   const hits = new Map<string, Hit>();
   for (const q of CORRECTION_QUERIES) {
     for (let page = 1; page <= 5; page++) {
-      const r = await cliSearchRequest(siteUrl, { api_token: apiToken, query: `"${q}"`, limit: 50, page, start_time: o.since, user_only: true, mine_only: o.team ? undefined : true });
+      const r = await cliSearchRequest(siteUrl, {
+        api_token: apiToken,
+        query: `"${q}"`,
+        limit: 50,
+        page,
+        start_time: o.since,
+        user_only: true,
+        mine_only: o.team ? undefined : true,
+      });
       if (r?.error) throw new Error(`cli/search: ${r.error}`);
-      const convs = (r?.conversations ?? []) as Array<{ id: string; title?: string; matches?: Array<{ role: string; content: string; message_id: string; timestamp: string }> }>;
+      const convs = (r?.conversations ?? []) as Array<{
+        id: string;
+        title?: string;
+        matches?: Array<{
+          role: string;
+          content: string;
+          message_id: string;
+          timestamp: string;
+        }>;
+      }>;
       for (const c of convs)
         for (const m of c.matches ?? [])
-          if (m.role === 'user' && m.message_id && isTypedLine(m.content ?? '')) hits.set(m.message_id, { conversation: c.id, title: c.title ?? c.id, messageId: m.message_id, content: m.content, timestamp: m.timestamp });
+          if (m.role === "user" && m.message_id && isTypedLine(m.content ?? ""))
+            hits.set(m.message_id, {
+              conversation: c.id,
+              title: c.title ?? c.id,
+              messageId: m.message_id,
+              content: m.content,
+              timestamp: m.timestamp,
+            });
       if (convs.length < 50) break;
     }
   }
@@ -61,29 +114,65 @@ export async function searchCandidates(o: { since: number; team?: boolean; onLin
 }
 
 /** One row as a reader of the excerpt sees it: text, and each tool call as `Tool: input`. */
-export function rowText(r: Pick<MessageRow, 'role' | 'content' | 'tool_calls' | 'line'>, max = 600): string {
+export function rowText(
+  r: Pick<MessageRow, "role" | "content" | "tool_calls" | "line">,
+  max = 600,
+): string {
   const calls = (r.tool_calls ?? []).map((t) => {
     const input = (t.input ?? {}) as Record<string, unknown>;
-    return `  [${t.name}] ${String(typeof input.command === 'string' ? input.command : JSON.stringify(input)).slice(0, 200)}`;
+    return `  [${t.name}] ${String(typeof input.command === "string" ? input.command : JSON.stringify(input)).slice(0, 200)}`;
   });
-  const text = (r.content ?? '').trim();
-  return [`${r.line} ${r.role}: ${text.length > max ? `${text.slice(0, max)}…` : text}`, ...calls].join('\n');
+  const text = (r.content ?? "").trim();
+  return [
+    `${r.line} ${r.role}: ${text.length > max ? `${text.slice(0, max)}…` : text}`,
+    ...calls,
+  ].join("\n");
 }
 
 /** The rows around a line: `before` rows up to it and `after` past it, tool results left out. */
-export async function excerpt(conversation: string, line: number, before: number, after: number): Promise<{ rows: MessageRow[]; title: string }> {
-  const read = await readConversation(conversation, { from: Math.max(1, line - before), to: line + after });
-  const rows = toRows(read.messages).filter((r) => !(r.role === 'user' && r.tool_results?.length && !r.content?.trim()));
+export async function excerpt(
+  conversation: string,
+  line: number,
+  before: number,
+  after: number,
+): Promise<{ rows: MessageRow[]; title: string }> {
+  const read = await readConversation(conversation, {
+    from: Math.max(1, line - before),
+    to: line + after,
+  });
+  const rows = toRows(read.messages).filter(
+    (r) => !(r.role === "user" && r.tool_results?.length && !r.content?.trim()),
+  );
   return { rows, title: read.conversation.title ?? conversation };
 }
 
 /** Where a message sits: its session's full id and its line. A short id two sessions share is read as whichever /cli/read picks, so a miss there is null. */
-export async function locate(conversation: string, messageId: string): Promise<{ conversation: string; line: number } | null> {
+export async function locate(
+  conversation: string,
+  messageId: string,
+): Promise<{ conversation: string; line: number } | null> {
   const { siteUrl, apiToken } = apiConfig();
-  const r = await cliFetchRead(`${siteUrl}/cli/read`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_token: apiToken, conversation_id: conversation, around_message_id: messageId, context: 0 }) });
-  const body = (await r.json()) as { error?: string; target_line?: number; target_missing?: boolean; conversation?: { id?: string } };
+  const r = await cliFetchRead(`${siteUrl}/cli/read`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_token: apiToken,
+      conversation_id: conversation,
+      around_message_id: messageId,
+      context: 0,
+    }),
+  });
+  const body = (await r.json()) as {
+    error?: string;
+    target_line?: number;
+    target_missing?: boolean;
+    conversation?: { id?: string };
+  };
   if (body.error || !body.target_line || body.target_missing) return null;
-  return { conversation: body.conversation?.id ?? conversation, line: body.target_line };
+  return {
+    conversation: body.conversation?.id ?? conversation,
+    line: body.target_line,
+  };
 }
 
 /**
@@ -98,10 +187,24 @@ export function anthropicRefusal(conversation: string): Promise<string | null> {
   if (!hit) {
     hit = (async () => {
       const { siteUrl, apiToken } = apiConfig();
-      const r = await cliFetchRead(`${siteUrl}/cli/read`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_token: apiToken, conversation_id: conversation, start_line: 1, end_line: 1, vendor: 'anthropic' }) });
-      const body = (await r.json()) as { error?: string; vendor_refusal?: string | null };
+      const r = await cliFetchRead(`${siteUrl}/cli/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_token: apiToken,
+          conversation_id: conversation,
+          start_line: 1,
+          end_line: 1,
+          vendor: "anthropic",
+        }),
+      });
+      const body = (await r.json()) as {
+        error?: string;
+        vendor_refusal?: string | null;
+      };
       if (body.error) return `the read was refused: ${body.error}`;
-      if (!('vendor_refusal' in body)) return 'this server does not say whether the conversation may go to a model vendor (/cli/read vendor_refusal)';
+      if (!("vendor_refusal" in body))
+        return "this server does not say whether the conversation may go to a model vendor (/cli/read vendor_refusal)";
       return body.vendor_refusal ?? null;
     })().catch((e) => `the vendor check failed: ${(e as Error).message}`);
     vendorChecked.set(conversation, hit);
@@ -109,11 +212,23 @@ export function anthropicRefusal(conversation: string): Promise<string | null> {
   return hit;
 }
 
-const scratch = (name: string): string => join(homePaths().scratch, 'corrections', `${name}-${Date.now()}`);
+const scratch = (name: string): string =>
+  join(homePaths().scratch, "corrections", `${name}-${Date.now()}`);
 
-async function ask(prompt: string, name: string, maxTokens: number): Promise<unknown> {
-  const r = await runCall({ model: JUDGE_MODEL, max_tokens: maxTokens, prompt }, scratch(name), { dry: false });
-  if (r.isError) throw new Error(`${name} call failed: ${r.harnessFailure ?? r.text.slice(0, 200)}`);
+async function ask(
+  prompt: string,
+  name: string,
+  maxTokens: number,
+): Promise<unknown> {
+  const r = await runCall(
+    { model: JUDGE_MODEL, max_tokens: maxTokens, prompt },
+    scratch(name),
+    { dry: false },
+  );
+  if (r.isError)
+    throw new Error(
+      `${name} call failed: ${r.harnessFailure ?? r.text.slice(0, 200)}`,
+    );
   return parseJsonBlock(r.text);
 }
 
@@ -132,30 +247,53 @@ Items:
 Answer with one JSON object and nothing else: {"behavior": [{"i": <item number>, "habit": "<the agent's habit the person corrected, one short line>"}]}. List only the items that correct how the agent works; an empty list is a fine answer.`;
 
 /** Which candidates correct how an agent works, in batches; the rest are recorded as not-behavior so a rerun skips them. */
-export async function triage(all: Correction[], onLine?: (l: string) => void): Promise<void> {
+export async function triage(
+  all: Correction[],
+  onLine?: (l: string) => void,
+): Promise<void> {
   const cands: Correction[] = [];
   for (const c of all) {
     const refused = await anthropicRefusal(c.conversation);
     if (!refused) cands.push(c);
-    else saveCorrection(Object.assign(c, { status: 'withheld', why: `vendor guard: ${refused}` }));
+    else
+      saveCorrection(
+        Object.assign(c, {
+          status: "withheld",
+          why: `vendor guard: ${refused}`,
+        }),
+      );
   }
-  if (cands.length < all.length) onLine?.(`${all.length - cands.length} withheld by the vendor guard: their conversations may not go to a model`);
+  if (cands.length < all.length)
+    onLine?.(
+      `${all.length - cands.length} withheld by the vendor guard: their conversations may not go to a model`,
+    );
   let behavior = 0;
   for (let i = 0; i < cands.length; i += 20) {
     const batch = cands.slice(i, i + 20);
-    const items = batch.map((c, k) => `<item n="${k + 1}">\n<before>\n${c.before}\n</before>\n<typed>\n${c.said}\n</typed>\n</item>`).join('\n');
-    const parsed = (await ask(TRIAGE_PROMPT.replace('{ITEMS}', items), 'triage', 2000)) as { behavior?: Array<{ i: number; habit: string }> } | null;
-    if (!parsed) throw new Error('triage returned no JSON');
+    const items = batch
+      .map(
+        (c, k) =>
+          `<item n="${k + 1}">\n<before>\n${c.before}\n</before>\n<typed>\n${c.said}\n</typed>\n</item>`,
+      )
+      .join("\n");
+    const parsed = (await ask(
+      TRIAGE_PROMPT.replace("{ITEMS}", items),
+      "triage",
+      2000,
+    )) as { behavior?: Array<{ i: number; habit: string }> } | null;
+    if (!parsed) throw new Error("triage returned no JSON");
     const kept = new Map((parsed.behavior ?? []).map((b) => [b.i, b.habit]));
     batch.forEach((c, k) => {
       const habit = kept.get(k + 1);
-      c.status = habit ? 'candidate' : 'not-behavior';
+      c.status = habit ? "candidate" : "not-behavior";
       c.habit = habit;
-      c.why = habit ?? 'triage: about the work, or no correction';
+      c.why = habit ?? "triage: about the work, or no correction";
       saveCorrection(c);
     });
     behavior += kept.size;
-    onLine?.(`triaged ${Math.min(i + 20, cands.length)}/${cands.length}: ${behavior} correct how an agent works`);
+    onLine?.(
+      `triaged ${Math.min(i + 20, cands.length)}/${cands.length}: ${behavior} correct how an agent works`,
+    );
   }
 }
 
@@ -191,38 +329,61 @@ When belongs is false, give only belongs and why.`;
 export async function draft(c: Correction, habit: string): Promise<void> {
   const refused = await anthropicRefusal(c.conversation);
   if (refused) {
-    Object.assign(c, { status: 'withheld', why: `vendor guard: ${refused}`, draft: undefined });
+    Object.assign(c, {
+      status: "withheld",
+      why: `vendor guard: ${refused}`,
+      draft: undefined,
+    });
     saveCorrection(c);
     return;
   }
   const { rows, title } = await excerpt(c.conversation, c.line, 12, 3);
   c.said = rows.find((r) => r.line === c.line)?.content.trim() ?? c.said;
-  const prompt = DRAFT_PROMPT.replace('{GUIDANCE}', renderGuidanceFile('full', 'eval'))
-    .replace('{TITLE}', title)
-    .replace('{LINE}', String(c.line))
-    .replace('{EXCERPT}', rows.map((r) => rowText(r, r.line === c.line ? 3000 : 900)).join('\n\n'))
-    .replace('{HABIT}', habit);
-  const d = (await ask(prompt, 'draft', 3000)) as (Partial<GuidanceDraft> & { belongs?: boolean; why?: string }) | null;
+  const prompt = DRAFT_PROMPT.replace(
+    "{GUIDANCE}",
+    renderGuidanceFile("full", "eval"),
+  )
+    .replace("{TITLE}", title)
+    .replace("{LINE}", String(c.line))
+    .replace(
+      "{EXCERPT}",
+      rows.map((r) => rowText(r, r.line === c.line ? 3000 : 900)).join("\n\n"),
+    )
+    .replace("{HABIT}", habit);
+  const d = (await ask(prompt, "draft", 3000)) as
+    | (Partial<GuidanceDraft> & { belongs?: boolean; why?: string })
+    | null;
   if (!d) throw new Error(`draft for ${c.id} returned no JSON`);
   if (!d.belongs) {
-    c.status = 'not-guidance';
-    c.why = d.why ?? 'the guidance is not where this belongs';
+    c.status = "not-guidance";
+    c.why = d.why ?? "the guidance is not where this belongs";
     c.draft = undefined;
   } else {
-    const patterns = (xs: unknown) => (Array.isArray(xs) ? xs.map((p) => shellAnywhere(String(p))).filter((p) => compiles(p)) : []);
-    c.status = 'drafted';
+    const patterns = (xs: unknown) =>
+      Array.isArray(xs)
+        ? xs.map((p) => shellAnywhere(String(p))).filter((p) => compiles(p))
+        : [];
+    c.status = "drafted";
     c.why = d.why;
-    c.draft = { title: String(d.title ?? d.rule ?? '').slice(0, 60), rule: String(d.rule ?? ''), request: String(d.request ?? ''), want: patterns(d.want), avoid: patterns(d.avoid), criteria: String(d.criteria ?? '') };
+    c.draft = {
+      title: String(d.title ?? d.rule ?? "").slice(0, 60),
+      rule: String(d.rule ?? ""),
+      request: String(d.request ?? ""),
+      want: patterns(d.want),
+      avoid: patterns(d.avoid),
+      criteria: String(d.criteria ?? ""),
+    };
   }
   saveCorrection(c);
 }
 
 /** A shell pattern written as "Bash: cast x" matches only a call that starts with it; agents chain commands, so it matches the command anywhere in a shell call. */
-export const shellAnywhere = (p: string): string => p.replace(/^\^?Bash:\s*(?:\.\*\s*)?(?!\.)/, 'Bash:.*');
+export const shellAnywhere = (p: string): string =>
+  p.replace(/^\^?Bash:\s*(?:\.\*\s*)?(?!\.)/, "Bash:.*");
 
 const compiles = (p: string): boolean => {
   try {
-    new RegExp(p, 'i');
+    new RegExp(p, "i");
     return true;
   } catch {
     return false;
@@ -234,29 +395,64 @@ const compiles = (p: string): boolean => {
  * that belongs there. A line already on file keeps its status, so a rerun
  * over an overlapping window only reads what is new.
  */
-export async function findCorrections(o: { since: number; team?: boolean; limit?: number; onLine?: (l: string) => void }): Promise<Correction[]> {
+export async function findCorrections(o: {
+  since: number;
+  team?: boolean;
+  limit?: number;
+  onLine?: (l: string) => void;
+}): Promise<Correction[]> {
   const known = new Set(loadCorrections().map((c) => c.messageId));
-  const hits = (await searchCandidates(o)).filter((h) => !known.has(h.messageId)).slice(0, o.limit ?? 400);
-  const read = await mapLimit(hits, 6, async (h): Promise<Correction | null> => {
-    const at = await locate(h.conversation, h.messageId).catch(() => null);
-    if (!at) return null;
-    const { conversation, line } = at;
-    const { rows } = await excerpt(conversation, line, 3, 0).catch(() => ({ rows: [] as MessageRow[] }));
-    const typed = rows.find((r) => r.line === line);
-    const before = rows.filter((r) => r.line < line && r.role === 'assistant').slice(-2);
-    const c: Correction = { id: correctionId(conversation, line), conversation, line, messageId: h.messageId, at: h.timestamp, title: h.title, said: (typed?.content ?? h.content).trim(), before: before.map((r) => rowText(r, 500)).join('\n'), status: 'candidate' };
-    // A line set aside here is still recorded, so a rerun over the same window does not read it again.
-    if (!typed || !isTypedLine(typed.content)) Object.assign(c, { status: 'not-behavior', why: 'relayed or delivered by a program, not typed by a person' });
-    else if (!before.length) Object.assign(c, { status: 'not-behavior', why: 'answers no agent turn' });
-    saveCorrection(c);
-    return c.status === 'candidate' ? c : null;
-  });
+  const hits = (await searchCandidates(o))
+    .filter((h) => !known.has(h.messageId))
+    .slice(0, o.limit ?? 400);
+  const read = await mapLimit(
+    hits,
+    6,
+    async (h): Promise<Correction | null> => {
+      const at = await locate(h.conversation, h.messageId).catch(() => null);
+      if (!at) return null;
+      const { conversation, line } = at;
+      const { rows } = await excerpt(conversation, line, 3, 0).catch(() => ({
+        rows: [] as MessageRow[],
+      }));
+      const typed = rows.find((r) => r.line === line);
+      const before = rows
+        .filter((r) => r.line < line && r.role === "assistant")
+        .slice(-2);
+      const c: Correction = {
+        id: correctionId(conversation, line),
+        conversation,
+        line,
+        messageId: h.messageId,
+        at: h.timestamp,
+        title: h.title,
+        said: (typed?.content ?? h.content).trim(),
+        before: before.map((r) => rowText(r, 500)).join("\n"),
+        status: "candidate",
+      };
+      // A line set aside here is still recorded, so a rerun over the same window does not read it again.
+      if (!typed || !isTypedLine(typed.content))
+        Object.assign(c, {
+          status: "not-behavior",
+          why: "relayed or delivered by a program, not typed by a person",
+        });
+      else if (!before.length)
+        Object.assign(c, {
+          status: "not-behavior",
+          why: "answers no agent turn",
+        });
+      saveCorrection(c);
+      return c.status === "candidate" ? c : null;
+    },
+  );
   const fresh = read.filter((c): c is Correction => Boolean(c));
   o.onLine?.(`${fresh.length} new lines answer an agent's turn`);
   await triage(fresh, o.onLine);
-  const toDraft = loadCorrections().filter((c) => c.status === 'candidate');
+  const toDraft = loadCorrections().filter((c) => c.status === "candidate");
   await mapLimit(toDraft, 4, async (c) => {
-    await draft(c, c.habit ?? c.why ?? '').catch((e) => o.onLine?.(`draft ${c.id} failed: ${(e as Error).message}`));
+    await draft(c, c.habit ?? c.why ?? "").catch((e) =>
+      o.onLine?.(`draft ${c.id} failed: ${(e as Error).message}`),
+    );
     o.onLine?.(`drafted ${c.id}: ${c.status}`);
   });
   return loadCorrections();

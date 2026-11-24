@@ -27,7 +27,13 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { ContextMenu, useContextMenu, CtxItem, CtxHeader, CtxSeparator } from "../ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxHeader,
+  CtxSeparator,
+} from "../ui/context-menu";
 import { ForwardCtxItem } from "../menus/ObjectContextMenus";
 import { EntityIdPill } from "../EntityIdPill";
 import { PageThumb } from "../PageThumb";
@@ -35,7 +41,11 @@ import { relativeTime, withEditParam } from "./artifactCardUtils";
 import { useState } from "react";
 import { useInboxStore } from "../../store/inboxStore";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
-import { PAGE_REACHES, permanentDeleteLedger, regulatedTeam } from "../consequential/deletionLedgers";
+import {
+  PAGE_REACHES,
+  permanentDeleteLedger,
+  regulatedTeam,
+} from "../consequential/deletionLedgers";
 
 export type ArtifactRow = {
   slug: string;
@@ -66,16 +76,32 @@ export type ArtifactRow = {
   comments_open: number;
 };
 
-const KIND_GLYPH: Record<string, { glyph: string; cls: string; label: string }> = {
+const KIND_GLYPH: Record<
+  string,
+  { glyph: string; cls: string; label: string }
+> = {
   html: { glyph: "</>", cls: "text-sol-cyan bg-sol-cyan/10", label: "html" },
-  markdown: { glyph: "¶", cls: "text-sol-violet bg-sol-violet/10", label: "markdown" },
-  bundle: { glyph: "▤", cls: "text-sol-orange bg-sol-orange/10", label: "bundle" },
+  markdown: {
+    glyph: "¶",
+    cls: "text-sol-violet bg-sol-violet/10",
+    label: "markdown",
+  },
+  bundle: {
+    glyph: "▤",
+    cls: "text-sol-orange bg-sol-orange/10",
+    label: "bundle",
+  },
 };
 
 function GateBadges({ a }: { a: ArtifactRow }) {
   const badges: Array<{ icon: React.ReactNode; title: string }> = [];
-  if (a.has_password) badges.push({ icon: <Lock className="w-3 h-3" />, title: "Password protected" });
-  if (a.email_gate) badges.push({ icon: <Mail className="w-3 h-3" />, title: "Email gate" });
+  if (a.has_password)
+    badges.push({
+      icon: <Lock className="w-3 h-3" />,
+      title: "Password protected",
+    });
+  if (a.email_gate)
+    badges.push({ icon: <Mail className="w-3 h-3" />, title: "Email gate" });
   if (a.expires_at)
     badges.push({
       icon: <Timer className="w-3 h-3" />,
@@ -101,7 +127,11 @@ function Author({ a }: { a: ArtifactRow }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-meta text-sol-text-muted min-w-0">
       {a.author.image ? (
-        <AvatarImg src={a.author.image} alt="" className="w-3.5 h-3.5 rounded-full flex-shrink-0" />
+        <AvatarImg
+          src={a.author.image}
+          alt=""
+          className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+        />
       ) : (
         <User className="w-3.5 h-3.5 p-px rounded-full bg-sol-bg-highlight text-sol-text-dim flex-shrink-0" />
       )}
@@ -124,7 +154,10 @@ function SessionRef({ a }: { a: ArtifactRow }) {
 function Stats({ a }: { a: ArtifactRow }) {
   return (
     <>
-      <span className="inline-flex items-center gap-1" title={`${a.views} views`}>
+      <span
+        className="inline-flex items-center gap-1"
+        title={`${a.views} views`}
+      >
         <Eye className="w-3 h-3" /> {a.views}
       </span>
       {a.comments_open > 0 && (
@@ -184,33 +217,54 @@ export function ArtifactCard({
   };
   const deleteWithConfirm = async () => {
     if (team) return setReviewing(true);
-    if (!window.confirm(`Delete "${a.title}" and its whole version history? The link stops working immediately.`)) return;
+    if (
+      !window.confirm(
+        `Delete "${a.title}" and its whole version history? The link stops working immediately.`,
+      )
+    )
+      return;
     await runDelete();
   };
 
   const ctxMenu = useContextMenu();
-  const review = reviewing && team ? (
-    <SwitchReview
-      ledger={permanentDeleteLedger({
-        what: "page",
-        title: a.title || a.slug,
-        team: team.name,
-        figures: [{ value: String(a.version), label: a.version === 1 ? "version" : "versions", tone: "warn" }, { value: String(a.views), label: "views" }],
-        reaches: PAGE_REACHES,
-      })}
-      onClose={() => setReviewing(false)}
-      onConfirm={() => { setReviewing(false); void runDelete(); }}
-    />
-  ) : null;
+  const review =
+    reviewing && team ? (
+      <SwitchReview
+        ledger={permanentDeleteLedger({
+          what: "page",
+          title: a.title || a.slug,
+          team: team.name,
+          figures: [
+            {
+              value: String(a.version),
+              label: a.version === 1 ? "version" : "versions",
+              tone: "warn",
+            },
+            { value: String(a.views), label: "views" },
+          ],
+          reaches: PAGE_REACHES,
+        })}
+        onClose={() => setReviewing(false)}
+        onConfirm={() => {
+          setReviewing(false);
+          void runDelete();
+        }}
+      />
+    ) : null;
 
   // ONE item list serves both the hover kebab and the right-click cursor menu,
   // so the two surfaces can never drift.
   const menuItems = (
     <>
-      <CtxItem icon={ExternalLink} onSelect={() => window.open(a.url, "_blank", "noopener")}>
+      <CtxItem
+        icon={ExternalLink}
+        onSelect={() => window.open(a.url, "_blank", "noopener")}
+      >
         Open
       </CtxItem>
-      <CtxItem icon={Copy} onSelect={copyLink}>Copy link</CtxItem>
+      <CtxItem icon={Copy} onSelect={copyLink}>
+        Copy link
+      </CtxItem>
       <ForwardCtxItem url={a.url} label="page" />
       {a.manage_url && (
         <>
@@ -218,12 +272,21 @@ export function ArtifactCard({
           {/* Manage opens the artifact's own owner sheet (#o= key stays in
               the fragment); rollback, gates, viewers and stats all live
               there. */}
-          <CtxItem icon={Settings2} onSelect={() => window.open(a.manage_url!, "_blank", "noopener")}>
+          <CtxItem
+            icon={Settings2}
+            onSelect={() => window.open(a.manage_url!, "_blank", "noopener")}
+          >
             Manage
           </CtxItem>
           <CtxItem
             icon={Pencil}
-            onSelect={() => window.open(a.edit_url ?? withEditParam(a.manage_url!), "_blank", "noopener")}
+            onSelect={() =>
+              window.open(
+                a.edit_url ?? withEditParam(a.manage_url!),
+                "_blank",
+                "noopener",
+              )
+            }
           >
             Edit
           </CtxItem>
@@ -242,7 +305,9 @@ export function ArtifactCard({
           <CtxSeparator />
           {/* Teammate editing goes through authed convex actions — no
               owner keys ever reach a teammate. */}
-          <CtxItem icon={Pencil} onSelect={() => onTeamEdit(a)}>Edit (team)</CtxItem>
+          <CtxItem icon={Pencil} onSelect={() => onTeamEdit(a)}>
+            Edit (team)
+          </CtxItem>
         </>
       )}
     </>
@@ -256,8 +321,14 @@ export function ArtifactCard({
       gated={gated}
       title={a.title}
       fallback={
-        <div className={`w-full h-full flex items-center justify-center ${kind.cls}`}>
-          <span className={`font-mono opacity-70 select-none ${layout === "row" ? "text-sm" : "text-3xl"}`}>{kind.glyph}</span>
+        <div
+          className={`w-full h-full flex items-center justify-center ${kind.cls}`}
+        >
+          <span
+            className={`font-mono opacity-70 select-none ${layout === "row" ? "text-sm" : "text-3xl"}`}
+          >
+            {kind.glyph}
+          </span>
         </div>
       }
     />
@@ -298,7 +369,10 @@ export function ArtifactCard({
         className="group relative flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-sol-bg-alt/70 transition-colors"
         onContextMenu={(e) => ctxMenu.open(e, undefined)}
       >
-        <span className="w-[70px] flex-shrink-0 whitespace-nowrap text-meta font-mono tabular-nums text-sol-text-dim" title={at.toLocaleString()}>
+        <span
+          className="w-[70px] flex-shrink-0 whitespace-nowrap text-meta font-mono tabular-nums text-sol-text-dim"
+          title={at.toLocaleString()}
+        >
           {at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </span>
         <a
@@ -327,11 +401,15 @@ export function ArtifactCard({
         <span className="hidden sm:inline-flex items-center gap-3 text-meta text-sol-text-dim w-[88px] flex-shrink-0">
           <Stats a={a} />
         </span>
-        <span className="hidden lg:flex w-36 flex-shrink-0 min-w-0"><Author a={a} /></span>
+        <span className="hidden lg:flex w-36 flex-shrink-0 min-w-0">
+          <Author a={a} />
+        </span>
         <span className="hidden lg:flex w-44 flex-shrink-0 min-w-0">
           <SessionRef a={a} />
         </span>
-        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">{kebab}</div>
+        <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
+          {kebab}
+        </div>
         {cursorMenu}
         {review}
       </div>

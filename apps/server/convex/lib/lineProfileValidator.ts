@@ -3,7 +3,11 @@
 // @codecast/shared/contracts/lineProfile; the assertions at the bottom fail
 // the typecheck when the two disagree.
 import { v, type Infer } from "convex/values";
-import type { LineFinderDecl, LineProfileFacts, PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
+import type {
+  LineFinderDecl,
+  LineProfileFacts,
+  PublishedLineProfile,
+} from "@codecast/shared/contracts/lineProfile";
 
 const nullableString = v.union(v.string(), v.null());
 
@@ -17,7 +21,14 @@ export const lineFinderValidator = v.object({
   single_purpose: v.optional(v.boolean()),
   label: v.optional(v.string()),
   what: v.optional(v.string()),
-  group: v.optional(v.union(v.literal("conversations"), v.literal("people"), v.literal("product"), v.literal("pipeline"))),
+  group: v.optional(
+    v.union(
+      v.literal("conversations"),
+      v.literal("people"),
+      v.literal("product"),
+      v.literal("pipeline"),
+    ),
+  ),
 });
 
 // The repo's own line (line-map.md LX5): its parsed stations and routes ride
@@ -31,7 +42,13 @@ const repoLineValidator = v.object({
   source: v.string(),
   nodes: v.array(v.any()),
   edges: v.array(v.any()),
-  files: v.record(v.string(), v.object({ prompt: v.optional(v.string()), script: v.optional(v.string()) })),
+  files: v.record(
+    v.string(),
+    v.object({
+      prompt: v.optional(v.string()),
+      script: v.optional(v.string()),
+    }),
+  ),
 });
 
 const factFields = {
@@ -41,20 +58,47 @@ const factFields = {
   prompting: v.string(),
   size_budget: v.number(),
   watch_days: v.number(),
-  commands: v.object({ check: v.string(), prove: nullableString, eval: nullableString, ship: nullableString }),
-  caps: v.object({ cards: v.number(), stations: v.optional(v.record(v.string(), v.number())) }),
-  merge: v.optional(v.object({ auto: v.boolean(), method: v.union(v.literal("squash"), v.literal("merge"), v.literal("rebase")) })),
-  deploy: v.optional(v.object({
-    command: nullableString,
-    target: nullableString,
-    trigger: v.union(v.literal("person"), v.literal("role"), v.literal("schedule"), v.literal("count")),
-    role: v.optional(nullableString),
-    ci: v.optional(nullableString),
-    gate: v.optional(nullableString),
-    rollout: v.optional(nullableString),
-    live: v.optional(nullableString),
-  })),
-  sources: v.record(v.string(), v.union(v.literal("file"), v.literal("default"))),
+  commands: v.object({
+    check: v.string(),
+    prove: nullableString,
+    eval: nullableString,
+    ship: nullableString,
+  }),
+  caps: v.object({
+    cards: v.number(),
+    stations: v.optional(v.record(v.string(), v.number())),
+  }),
+  merge: v.optional(
+    v.object({
+      auto: v.boolean(),
+      method: v.union(
+        v.literal("squash"),
+        v.literal("merge"),
+        v.literal("rebase"),
+      ),
+    }),
+  ),
+  deploy: v.optional(
+    v.object({
+      command: nullableString,
+      target: nullableString,
+      trigger: v.union(
+        v.literal("person"),
+        v.literal("role"),
+        v.literal("schedule"),
+        v.literal("count"),
+      ),
+      role: v.optional(nullableString),
+      ci: v.optional(nullableString),
+      gate: v.optional(nullableString),
+      rollout: v.optional(nullableString),
+      live: v.optional(nullableString),
+    }),
+  ),
+  sources: v.record(
+    v.string(),
+    v.union(v.literal("file"), v.literal("default")),
+  ),
   notes: v.array(v.string()),
   warnings: v.array(v.string()),
   file: nullableString,
@@ -66,7 +110,11 @@ export const lineProfileFactsValidator = v.object(factFields);
 
 /** projects.line_profile. */
 export const publishedLineProfileValidator = lineProfileFactsValidator
-  .extend({ device_id: v.string(), publisher_user_id: v.string(), published_at: v.number() })
+  .extend({
+    device_id: v.string(),
+    publisher_user_id: v.string(),
+    published_at: v.number(),
+  })
   .partial()
   .extend({
     finders: v.array(lineFinderValidator),
@@ -80,5 +128,7 @@ type Assert<T extends true> = T;
 export type _LineProfileShapesAgree = [
   Assert<Same<Infer<typeof lineFinderValidator>, LineFinderDecl>>,
   Assert<Same<Infer<typeof lineProfileFactsValidator>, LineProfileFacts>>,
-  Assert<Same<Infer<typeof publishedLineProfileValidator>, PublishedLineProfile>>,
+  Assert<
+    Same<Infer<typeof publishedLineProfileValidator>, PublishedLineProfile>
+  >,
 ];

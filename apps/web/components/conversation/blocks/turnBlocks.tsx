@@ -1,10 +1,21 @@
-import { jointAuthors, parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import {
+  jointAuthors,
+  parseJointMessage,
+} from "@codecast/shared/contracts/jointMessage";
 import { JointParts } from "../JointParts";
 import { captureException } from "@sentry/react";
 import Link from "next/link";
 import { LogoIcon } from "../../Logo";
 import { useRouter } from "next/navigation";
-import { Fragment, useRef, useState, useMemo, useCallback, memo, useContext } from "react";
+import {
+  Fragment,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+  memo,
+  useContext,
+} from "react";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useLayoutFlag, useOverflows } from "../../../hooks/useOverflows";
 import { createPortal } from "react-dom";
@@ -12,12 +23,31 @@ import { BrowserTabPill } from "../../browser/BrowserTabPill";
 import { formatModel } from "../../../lib/conversationProcessor";
 import type { DecisionAnswerMessage } from "@codecast/shared/contracts";
 import { DecisionAnswerQuote } from "../../DecisionAnswerQuote";
-import { countToolGroup, extractNestedActions, isAgentTool, isAskTool, isPlanModeTool, isPlanWriteToolCall, isTodoTool, summarizeToolGroup } from "@codecast/shared/render";
+import {
+  countToolGroup,
+  extractNestedActions,
+  isAgentTool,
+  isAskTool,
+  isPlanModeTool,
+  isPlanWriteToolCall,
+  isTodoTool,
+  summarizeToolGroup,
+} from "@codecast/shared/render";
 import { hostedReceipt } from "../../../lib/hostedReceipt";
-import { HostedMadeLine, HostedNoteCard, madeLineParts } from "../HostedMadeLine";
-import { connectionChipCopy, useAppOffline } from "../../../hooks/useAppOffline";
+import {
+  HostedMadeLine,
+  HostedNoteCard,
+  madeLineParts,
+} from "../HostedMadeLine";
+import {
+  connectionChipCopy,
+  useAppOffline,
+} from "../../../hooks/useAppOffline";
 import { HostedSources } from "../HostedSources";
-import { hostedConnectionWords, useHostedConnection } from "../HostedConnection";
+import {
+  hostedConnectionWords,
+  useHostedConnection,
+} from "../HostedConnection";
 import { useThinkingAvailable } from "../../simple/assistantPromise";
 import { stepText } from "@platform/assistant/steps";
 import { entityRoute } from "../../../lib/entityLinks";
@@ -29,7 +59,13 @@ import { isBackgroundBashToolCall } from "../../monitorRows";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { copyToClipboard } from "../../../lib/utils";
 import { usePendingMessageStatus } from "../../../hooks/useSyncPendingPermissions";
-import { extractAgentSetup, hasAgentSetupMarker, isHostedAgentType, stripMentionContext, stripPastedContent } from "@codecast/shared/contracts";
+import {
+  extractAgentSetup,
+  hasAgentSetupMarker,
+  isHostedAgentType,
+  stripMentionContext,
+  stripPastedContent,
+} from "@codecast/shared/contracts";
 import { AgentToolSetupCard } from "./AgentToolSetupCard";
 import { SentFileBlock, type SentFileData } from "../../tools/SentFileBlock";
 import { useImageGallery, useGalleryMessageId } from "../../ImageGallery";
@@ -37,66 +73,189 @@ import { ScreenRecordingCard } from "../../calls/ScreenRecordingCard";
 import type { ParsedScreenRecording } from "@codecast/shared/contracts";
 import { EntityIdPill, TextWithMentions } from "../../EntityIdPill";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
-import { MESSAGE_MD_REHYPE, MESSAGE_MD_COMPONENTS, USER_MD_COMPONENTS, USER_MD_REMARK } from "../../messageMarkdown";
+import {
+  MESSAGE_MD_REHYPE,
+  MESSAGE_MD_COMPONENTS,
+  USER_MD_COMPONENTS,
+  USER_MD_REMARK,
+} from "../../messageMarkdown";
 import { browserTabOf, sayTextOf, type BrowserTabRef } from "../../castCommand";
-import { useInboxStore, isConvexId, retryPendingSend, type ForkChild } from "../../../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  retryPendingSend,
+  type ForkChild,
+} from "../../../store/inboxStore";
 import { useMessageBookmark } from "../../../hooks/useMessageBookmark";
 import { useCommentTools } from "../../../hooks/useCommentTools";
 import { BranchSelector } from "../../BranchSelector";
-import { Check, FileText, ListChecks, Target, Maximize2, ChevronDown, ChevronRight, ChevronUp, Split, Copy as CopyIcon, Link2, Bookmark as BookmarkIcon, Forward, MessageCircle, SquareDashedMousePointer, X, History } from "lucide-react";
+import {
+  Check,
+  FileText,
+  ListChecks,
+  Target,
+  Maximize2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Split,
+  Copy as CopyIcon,
+  Link2,
+  Bookmark as BookmarkIcon,
+  Forward,
+  MessageCircle,
+  SquareDashedMousePointer,
+  X,
+  History,
+} from "lucide-react";
 import { sendableText } from "../../../lib/sendableText";
 import { useTeamFeature } from "../../../lib/teamFeatures";
-import { ContextMenu, useContextMenu, CtxItem, CtxSeparator } from "../../ui/context-menu";
-import { pendingBannerState, pendingRetryClientId, pendingCancelRef, pendingMessageCanRetry, pendingMessageReachedSession, pendingMessageHoldReason, pendingMessageHoldScreen, isActiveAgentStatus, isBootingAgentStatus, isAliveIdleStatus, type LiveAgentStatus } from "../../../lib/pendingBanner";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxSeparator,
+} from "../../ui/context-menu";
+import {
+  pendingBannerState,
+  pendingRetryClientId,
+  pendingCancelRef,
+  pendingMessageCanRetry,
+  pendingMessageReachedSession,
+  pendingMessageHoldReason,
+  pendingMessageHoldScreen,
+  isActiveAgentStatus,
+  isBootingAgentStatus,
+  isAliveIdleStatus,
+  type LiveAgentStatus,
+} from "../../../lib/pendingBanner";
 import { cancelPendingSend } from "../../../lib/cancelPendingSend";
 import { HeldTerminalScreen } from "../HeldTerminalScreen";
 import { PendingDeliveryNote } from "../../PendingDeliveryNote";
 import { useIsHostedConversation } from "../../../hooks/useConversationAgentType";
-import { ghostRestartContextFor, deriveRestartStage } from "../../../hooks/useSessionRestart";
+import {
+  ghostRestartContextFor,
+  deriveRestartStage,
+} from "../../../hooks/useSessionRestart";
 import { useConversationCommands } from "../../../hooks/useSessionCommands";
 import { requestSessionRestart } from "../../../lib/sessionCommands";
 import { CastCommandBlock } from "./castBlocks";
 import { RewindReview } from "../RewindToHere";
 import { useCanRewindFiles } from "../../../hooks/useCanRewindFiles";
 import { requestRewind } from "../../../lib/rewindFiles";
-import { AskUserQuestionBlock, ImageBlock, MonitorBlock, PlanModeBlock, ThinkingBlock } from "./interactiveBlocks";
+import {
+  AskUserQuestionBlock,
+  ImageBlock,
+  MonitorBlock,
+  PlanModeBlock,
+  ThinkingBlock,
+} from "./interactiveBlocks";
 import { useImageSrc } from "../../../hooks/useImageSrc";
 import { FooterIconButton, FullscreenIcon, UserIcon } from "./shared";
 import { ModernReceiptWords } from "./ModernReceipt";
 import { useIsModernStyle } from "../../../hooks/useVisualStyle";
-import { CastBrowserRowContext, HostedAskingContext, HostedCardShownContext } from "../../../lib/conversationBlockContexts";
+import {
+  CastBrowserRowContext,
+  HostedAskingContext,
+  HostedCardShownContext,
+} from "../../../lib/conversationBlockContexts";
 import { useConversationIdentityRow } from "../../../hooks/useLiveIdentityRow";
 import { AgentSpeaker } from "../../identity/AgentSpeaker";
 import { ScheduleWakeupBlock, TeammateMessageCard } from "./systemBlocks";
-import { BrowserWatchButton, SimulatorWatchButton, SendMessageBlock, SkillBlock, TaskCreateUpdateBlock, TaskListBlock, TaskToolBlock, TeamCreateBlock, TodoWriteBlock, StructuredResultBlock, ToolBlock, WorkflowToolBlock } from "./toolBlocks";
-import { isAlwaysVisibleToolCall, isSayToolCall, parseApiErrorContent, parseCastCommand, parseContextBlocks, parseSkillBlocks, parseTeammateMessages, stripSystemTags } from "../classify";
-import { copyMessageLink, formatFullTimestamp, formatMessagePartsForCopy, forwardMessageToChat, safeString, useRelativeTime } from "../../../lib/conversationFormat";
+import {
+  BrowserWatchButton,
+  SimulatorWatchButton,
+  SendMessageBlock,
+  SkillBlock,
+  TaskCreateUpdateBlock,
+  TaskListBlock,
+  TaskToolBlock,
+  TeamCreateBlock,
+  TodoWriteBlock,
+  StructuredResultBlock,
+  ToolBlock,
+  WorkflowToolBlock,
+} from "./toolBlocks";
+import {
+  isAlwaysVisibleToolCall,
+  isSayToolCall,
+  parseApiErrorContent,
+  parseCastCommand,
+  parseContextBlocks,
+  parseSkillBlocks,
+  parseTeammateMessages,
+  stripSystemTags,
+} from "../classify";
+import {
+  copyMessageLink,
+  formatFullTimestamp,
+  formatMessagePartsForCopy,
+  forwardMessageToChat,
+  safeString,
+  useRelativeTime,
+} from "../../../lib/conversationFormat";
 import { MessageMarkdown, ReactMarkdown } from "../markdown";
 import { linkifyMentions } from "../../../lib/conversationMarkdown";
 import { renderAssistantBody } from "../../../lib/renderAssistantBody";
-import { PENDING_BOOT_GRACE_MS, PENDING_HOSTED_STALL_MS, PENDING_IDLE_GRACE_MS, PENDING_RESUME_GRACE_MS, PENDING_RETRY_AFTER_MS } from "../pendingSend";
+import {
+  PENDING_BOOT_GRACE_MS,
+  PENDING_HOSTED_STALL_MS,
+  PENDING_IDLE_GRACE_MS,
+  PENDING_RESUME_GRACE_MS,
+  PENDING_RETRY_AFTER_MS,
+} from "../pendingSend";
 import { ApiErrorCard } from "../sessionChrome";
 import { MessageDecisionReview } from "../../decisions/MessageDecisionReview";
 import { followRestoredConversation } from "../../../lib/followRestoredConversation";
-import type { CondensedReceipt, ImageData, MessageFeedDensity, ParsedContextBlock, ReceiptEntry, TaskRecordMaps, ToolCall, ToolCallChangeSelection, ToolResult } from "../types";
+import type {
+  CondensedReceipt,
+  ImageData,
+  MessageFeedDensity,
+  ParsedContextBlock,
+  ReceiptEntry,
+  TaskRecordMaps,
+  ToolCall,
+  ToolCallChangeSelection,
+  ToolResult,
+} from "../types";
 import { COMPACT_TAIL_HEIGHT } from "../../../lib/conversationTurnDefaults";
 
 export { StoryTimelineView, ThreadSummaryView } from "./narrativeViews";
-
 
 const USER_CONTENT_MAX_HEIGHT = 1800;
 
 // A message clipped to a max height fades its own text out at the bottom: a
 // mask rather than a painted overlay, so it reads the same on any background.
-const CLIP_FADE = "linear-gradient(to bottom, #000 calc(100% - 96px), transparent)";
+const CLIP_FADE =
+  "linear-gradient(to bottom, #000 calc(100% - 96px), transparent)";
 function clippedStyle(maxHeight: number): React.CSSProperties {
-  return { maxHeight, overflowY: "hidden", maskImage: CLIP_FADE, WebkitMaskImage: CLIP_FADE };
+  return {
+    maxHeight,
+    overflowY: "hidden",
+    maskImage: CLIP_FADE,
+    WebkitMaskImage: CLIP_FADE,
+  };
 }
 
-const CONTEXT_TYPE_CONFIG: Record<string, { icon: typeof ListChecks; colorClass: string }> = {
-  task: { icon: ListChecks, colorClass: "bg-sol-violet/10 text-sol-violet border-sol-violet/20 hover:bg-sol-violet/20" },
-  plan: { icon: Target, colorClass: "bg-sol-cyan/10 text-sol-cyan border-sol-cyan/20 hover:bg-sol-cyan/20" },
-  doc: { icon: FileText, colorClass: "bg-sol-violet/10 text-sol-violet border-sol-violet/20 hover:bg-sol-violet/20" },
+const CONTEXT_TYPE_CONFIG: Record<
+  string,
+  { icon: typeof ListChecks; colorClass: string }
+> = {
+  task: {
+    icon: ListChecks,
+    colorClass:
+      "bg-sol-violet/10 text-sol-violet border-sol-violet/20 hover:bg-sol-violet/20",
+  },
+  plan: {
+    icon: Target,
+    colorClass:
+      "bg-sol-cyan/10 text-sol-cyan border-sol-cyan/20 hover:bg-sol-cyan/20",
+  },
+  doc: {
+    icon: FileText,
+    colorClass:
+      "bg-sol-violet/10 text-sol-violet border-sol-violet/20 hover:bg-sol-violet/20",
+  },
 };
 
 function ContextBlockPill({ ctx }: { ctx: ParsedContextBlock }) {
@@ -105,10 +264,12 @@ function ContextBlockPill({ ctx }: { ctx: ParsedContextBlock }) {
   const Icon = config.icon;
 
   const route = ctx.id ? entityRoute(ctx.type, ctx.id) : null;
-  const handleClick = route ? (e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(route);
-  } : undefined;
+  const handleClick = route
+    ? (e: React.MouseEvent) => {
+        e.stopPropagation();
+        router.push(route);
+      }
+    : undefined;
 
   return (
     <button
@@ -118,19 +279,35 @@ function ContextBlockPill({ ctx }: { ctx: ParsedContextBlock }) {
     >
       <Icon className="w-3 h-3 flex-shrink-0" />
       <span className="font-medium capitalize">{ctx.type}</span>
-      <span className="text-sol-text-muted truncate max-w-[250px]">{ctx.title}</span>
+      <span className="text-sol-text-muted truncate max-w-[250px]">
+        {ctx.title}
+      </span>
       {ctx.id && <EntityIdPill shortId={ctx.id} />}
     </button>
   );
 }
 
-function SkillCard({ name, description, path }: { name?: string; description?: string; path?: string }) {
+function SkillCard({
+  name,
+  description,
+  path,
+}: {
+  name?: string;
+  description?: string;
+  path?: string;
+}) {
   const shortPath = path ? path.replace(/^\/Users\/[^/]+\//, "~/") : undefined;
   return (
     <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-sol-bg-alt border border-sol-border/40 text-xs font-mono">
       <span className="text-sol-violet font-semibold">/{name || "skill"}</span>
-      {description && <span className="text-sol-text-muted">{description}</span>}
-      {shortPath && <span className="text-sol-text-dim text-meta hidden sm:inline">{shortPath}</span>}
+      {description && (
+        <span className="text-sol-text-muted">{description}</span>
+      )}
+      {shortPath && (
+        <span className="text-sol-text-dim text-meta hidden sm:inline">
+          {shortPath}
+        </span>
+      )}
     </div>
   );
 }
@@ -140,17 +317,51 @@ function SkillCard({ name, description, path }: { name?: string; description?: s
 // says "fork" — so the mark comes from the fork-seed client_id stamp and the
 // row's lineage, not from the content. A quiet line above the bubble: where
 // this thread came from, and that this turn is where it diverged.
-export function ForkSeedMark({ parentId, parentTitle, parentUsername, convLink }: { parentId: string; parentTitle?: string; parentUsername?: string; convLink: (id: string) => string }) {
+export function ForkSeedMark({
+  parentId,
+  parentTitle,
+  parentUsername,
+  convLink,
+}: {
+  parentId: string;
+  parentTitle?: string;
+  parentUsername?: string;
+  convLink: (id: string) => string;
+}) {
   "use no memo"; // convLink() reads the share tokens this tab has presented, and one can arrive after this draws; compiled, the first link would be kept.
-  const label = parentTitle || (parentUsername ? `@${parentUsername}` : parentId.slice(0, 7));
+  const label =
+    parentTitle ||
+    (parentUsername ? `@${parentUsername}` : parentId.slice(0, 7));
   return (
-    <div className="flex items-center gap-1.5 px-3 pt-1 text-meta text-sol-text-dim" data-cc-fork-seed>
-      <svg className="w-3 h-3 shrink-0 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+    <div
+      className="flex items-center gap-1.5 px-3 pt-1 text-meta text-sol-text-dim"
+      data-cc-fork-seed
+    >
+      <svg
+        className="w-3 h-3 shrink-0 text-purple-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+        />
       </svg>
       <span className="uppercase tracking-wide font-medium">Branch seed</span>
       <span aria-hidden>·</span>
-      <span className="truncate">forked from <Link href={convLink(parentId)} className="text-sol-text-muted hover:underline underline-offset-2">{label}</Link></span>
+      <span className="truncate">
+        forked from{" "}
+        <Link
+          href={convLink(parentId)}
+          className="text-sol-text-muted hover:underline underline-offset-2"
+        >
+          {label}
+        </Link>
+      </span>
     </div>
   );
 }
@@ -159,22 +370,45 @@ export function ForkSeedMark({ parentId, parentTitle, parentUsername, convLink }
  *  terms, "Back soon" while no provider can think, as the stop notice says
  *  it. While the link is down it says what will happen to the message, in
  *  the status line's words (HostedConnection), and keeps Cancel. */
-function HostedStuckLine({ onRetry, sending, onCancel, cancelling }: { onRetry: () => void; sending: boolean; onCancel: () => void; cancelling: boolean }) {
+function HostedStuckLine({
+  onRetry,
+  sending,
+  onCancel,
+  cancelling,
+}: {
+  onRetry: () => void;
+  sending: boolean;
+  onCancel: () => void;
+  cancelling: boolean;
+}) {
   const offline = useHostedConnection();
   const down = useThinkingAvailable() === false;
   if (offline) {
     return (
-      <div className="flex items-center flex-wrap gap-2 mt-2 pl-8" data-testid="pending-message-retry">
-        <span className="text-xs text-sol-text-muted" title={offline.detail}>{hostedConnectionWords(offline, true)}</span>
+      <div
+        className="flex items-center flex-wrap gap-2 mt-2 pl-8"
+        data-testid="pending-message-retry"
+      >
+        <span className="text-xs text-sol-text-muted" title={offline.detail}>
+          {hostedConnectionWords(offline, true)}
+        </span>
         <CancelPendingButton onClick={onCancel} disabled={cancelling} quiet />
       </div>
     );
   }
   return (
-    <div className="flex items-center flex-wrap gap-2 mt-2 pl-8" data-testid="pending-message-retry">
-      <span className="text-xs text-sol-text-muted">Your assistant hasn't started on this yet</span>
+    <div
+      className="flex items-center flex-wrap gap-2 mt-2 pl-8"
+      data-testid="pending-message-retry"
+    >
+      <span className="text-xs text-sol-text-muted">
+        Your assistant hasn't started on this yet
+      </span>
       <button
-        onClick={(e) => { e.stopPropagation(); onRetry(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRetry();
+        }}
         disabled={sending || down}
         className="flex items-center gap-1 px-2 py-0.5 rounded border border-sol-border text-xs text-sol-text-muted hover:text-sol-text hover:border-sol-text-dim transition-colors disabled:opacity-60"
       >
@@ -186,11 +420,22 @@ function HostedStuckLine({ onRetry, sending, onCancel, cancelling }: { onRetry: 
 }
 
 /** `quiet`: an ink hover rather than the orange one. */
-function CancelPendingButton({ onClick, disabled, quiet = false }: { onClick: () => void; disabled?: boolean; quiet?: boolean }) {
+function CancelPendingButton({
+  onClick,
+  disabled,
+  quiet = false,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  quiet?: boolean;
+}) {
   return (
     <button
       type="button"
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       disabled={disabled}
       data-testid="pending-message-cancel"
       className={`text-meta text-sol-text-dim/70 ${quiet ? "hover:text-sol-text" : "hover:text-sol-orange"} underline underline-offset-2 transition-colors disabled:opacity-60`}
@@ -201,8 +446,63 @@ function CancelPendingButton({ onClick, disabled, quiet = false }: { onClick: ()
   );
 }
 
-
-function UserPromptImpl({ content, timestamp, messageId, conversationId, collapsed, userName, avatarUrl, onOpenComments, isHighlighted, shareSelectionMode, isSelectedForShare, onToggleShareSelection, onStartShareSelection, onForkFromMessage, forkChildren, messageUuid, images, onBranchSwitch, activeBranchId, loadingBranchId, isPending, isQueued, agentStatus, mainDivergentPreview, decision, bubble, screenRecording }: { content: string; decision?: DecisionAnswerMessage; /** A screen recording sent with these words: its player under them. */ screenRecording?: ParsedScreenRecording; /** Clean mode's chat bubble: right-aligned, no name row. */ bubble?: boolean; timestamp: number; messageId: string; conversationId?: Id<"conversations">; collapsed?: boolean; userName?: string; avatarUrl?: string | null; onOpenComments?: (messageId: string) => void; isHighlighted?: boolean; shareSelectionMode?: boolean; isSelectedForShare?: boolean; onToggleShareSelection?: (messageId: string) => void; onStartShareSelection?: (messageId: string) => void; onForkFromMessage?: (messageUuid: string) => void; forkChildren?: ForkChild[]; messageUuid?: string; images?: ImageData[]; onBranchSwitch?: (messageUuid: string, convId: string | null) => void; activeBranchId?: string | null; loadingBranchId?: string | null; isPending?: boolean; isQueued?: boolean; agentStatus?: LiveAgentStatus; mainDivergentPreview?: string }) {
+function UserPromptImpl({
+  content,
+  timestamp,
+  messageId,
+  conversationId,
+  collapsed,
+  userName,
+  avatarUrl,
+  onOpenComments,
+  isHighlighted,
+  shareSelectionMode,
+  isSelectedForShare,
+  onToggleShareSelection,
+  onStartShareSelection,
+  onForkFromMessage,
+  forkChildren,
+  messageUuid,
+  images,
+  onBranchSwitch,
+  activeBranchId,
+  loadingBranchId,
+  isPending,
+  isQueued,
+  agentStatus,
+  mainDivergentPreview,
+  decision,
+  bubble,
+  screenRecording,
+}: {
+  content: string;
+  decision?: DecisionAnswerMessage;
+  /** A screen recording sent with these words: its player under them. */ screenRecording?: ParsedScreenRecording;
+  /** Clean mode's chat bubble: right-aligned, no name row. */ bubble?: boolean;
+  timestamp: number;
+  messageId: string;
+  conversationId?: Id<"conversations">;
+  collapsed?: boolean;
+  userName?: string;
+  avatarUrl?: string | null;
+  onOpenComments?: (messageId: string) => void;
+  isHighlighted?: boolean;
+  shareSelectionMode?: boolean;
+  isSelectedForShare?: boolean;
+  onToggleShareSelection?: (messageId: string) => void;
+  onStartShareSelection?: (messageId: string) => void;
+  onForkFromMessage?: (messageUuid: string) => void;
+  forkChildren?: ForkChild[];
+  messageUuid?: string;
+  images?: ImageData[];
+  onBranchSwitch?: (messageUuid: string, convId: string | null) => void;
+  activeBranchId?: string | null;
+  loadingBranchId?: string | null;
+  isPending?: boolean;
+  isQueued?: boolean;
+  agentStatus?: LiveAgentStatus;
+  mainDivergentPreview?: string;
+}) {
   const relativeTime = useRelativeTime();
   // A hosted conversation has no machine or process: its pending notes speak
   // of the assistant picking the message up, not of delivery to an agent.
@@ -212,10 +512,20 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
   const [contentExpanded, setContentExpanded] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   // Rewind needs the fork that continues from here, so it is offered where forking is.
-  const canRewind = useCanRewindFiles(conversationId, timestamp) && !!onForkFromMessage && !!messageUuid && !isPending && !isQueued;
+  const canRewind =
+    useCanRewindFiles(conversationId, timestamp) &&
+    !!onForkFromMessage &&
+    !!messageUuid &&
+    !isPending &&
+    !isQueued;
   // The plan step's request id while the review is open: asked on the press, not on mount.
   const [rewinding, setRewinding] = useState<string | null>(null);
-  const openRewind = () => { if (conversationId) setRewinding(requestRewind(conversationId, "plan", { message_ts: timestamp })); };
+  const openRewind = () => {
+    if (conversationId)
+      setRewinding(
+        requestRewind(conversationId, "plan", { message_ts: timestamp }),
+      );
+  };
   // A mention's injected context is for the agent; the person sees what they typed.
   const rawContent = stripMentionContext(stripPastedContent(content))
     .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
@@ -223,27 +533,44 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
     .replace(/\[image\]/gi, "")
     .trim();
-  const { contexts: contextBlocks, remaining: displayContent } = parseContextBlocks(rawContent);
+  const { contexts: contextBlocks, remaining: displayContent } =
+    parseContextBlocks(rawContent);
   // A joint turn is everyone's: the header names each author, the body their parts.
   const jointParts = parseJointMessage(displayContent);
   const jointNames = jointParts ? jointAuthors(jointParts) : undefined;
 
   const effectivelyCollapsed = collapsed && !isExpanded;
 
-  const isTruncated = useLayoutFlag(contentRef, (el) => el.scrollHeight > el.clientHeight, [content], effectivelyCollapsed) && effectivelyCollapsed;
+  const isTruncated =
+    useLayoutFlag(
+      contentRef,
+      (el) => el.scrollHeight > el.clientHeight,
+      [content],
+      effectivelyCollapsed,
+    ) && effectivelyCollapsed;
 
-  const isOverflowing = useOverflows(contentRef, USER_CONTENT_MAX_HEIGHT, [content, effectivelyCollapsed]);
+  const isOverflowing = useOverflows(contentRef, USER_CONTENT_MAX_HEIGHT, [
+    content,
+    effectivelyCollapsed,
+  ]);
 
   useWatchEffect(() => {
     if (!fullscreen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false); };
-    document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = ''; };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
   }, [fullscreen]);
 
   const [retryVisible, setRetryVisible] = useState(false);
-  const [retryState, setRetryState] = useState<"idle" | "inflight" | "sent">("idle");
+  const [retryState, setRetryState] = useState<"idle" | "inflight" | "sent">(
+    "idle",
+  );
   const [cancelState, setCancelState] = useState<"idle" | "inflight">("idle");
   // Set on click; drives the live progress subscription below. Never cleared
   // while the bar is mounted — delivery removes the optimistic row and the
@@ -257,9 +584,15 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     return () => clearTimeout(timer);
   }, [retryState]);
   useWatchEffect(() => {
-    if (!isPending || !conversationId || !isConvexId(conversationId)) { setRetryVisible(false); return; }
+    if (!isPending || !conversationId || !isConvexId(conversationId)) {
+      setRetryVisible(false);
+      return;
+    }
     const remaining = PENDING_RETRY_AFTER_MS - (Date.now() - timestamp);
-    if (remaining <= 0) { setRetryVisible(true); return; }
+    if (remaining <= 0) {
+      setRetryVisible(true);
+      return;
+    }
     const t = setTimeout(() => setRetryVisible(true), remaining);
     return () => clearTimeout(t);
   }, [isPending, conversationId, timestamp]);
@@ -277,10 +610,16 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
   // "hasn't reached the agent" flash in the gap between idle and that inject.
   const [idleGraceElapsed, setIdleGraceElapsed] = useState(false);
   useWatchEffect(() => {
-    if (!isPending || agentActive) { setIdleGraceElapsed(false); return; }
+    if (!isPending || agentActive) {
+      setIdleGraceElapsed(false);
+      return;
+    }
     // A hosted turn starts within seconds when nothing else runs, so its
     // bubble offers Try again sooner.
-    const t = setTimeout(() => setIdleGraceElapsed(true), hostedConversation ? PENDING_HOSTED_STALL_MS : PENDING_IDLE_GRACE_MS);
+    const t = setTimeout(
+      () => setIdleGraceElapsed(true),
+      hostedConversation ? PENDING_HOSTED_STALL_MS : PENDING_IDLE_GRACE_MS,
+    );
     return () => clearTimeout(t);
   }, [isPending, agentActive, hostedConversation]);
   // While the session is still booting/resuming/connecting, hold off the kill &
@@ -290,10 +629,19 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
   // "Message hasn't reached the agent" false alarm that flashes during a normal boot.
   const [bootGraceElapsed, setBootGraceElapsed] = useState(false);
   useWatchEffect(() => {
-    if (!isPending || !(agentBooting || agentAliveIdle)) { setBootGraceElapsed(false); return; }
-    const budget = agentStatus === "resuming" ? PENDING_RESUME_GRACE_MS : PENDING_BOOT_GRACE_MS;
+    if (!isPending || !(agentBooting || agentAliveIdle)) {
+      setBootGraceElapsed(false);
+      return;
+    }
+    const budget =
+      agentStatus === "resuming"
+        ? PENDING_RESUME_GRACE_MS
+        : PENDING_BOOT_GRACE_MS;
     const remaining = budget - (Date.now() - timestamp);
-    if (remaining <= 0) { setBootGraceElapsed(true); return; }
+    if (remaining <= 0) {
+      setBootGraceElapsed(true);
+      return;
+    }
     const t = setTimeout(() => setBootGraceElapsed(true), remaining);
     return () => clearTimeout(t);
   }, [isPending, agentBooting, agentAliveIdle, agentStatus, timestamp]);
@@ -313,7 +661,10 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     conversationId && isConvexId(conversationId) ? conversationId : null,
     !!isPending,
   );
-  const messageReachedSession = pendingMessageReachedSession(messageId, conversationPending);
+  const messageReachedSession = pendingMessageReachedSession(
+    messageId,
+    conversationPending,
+  );
   const holdReason = pendingMessageHoldReason(messageId, conversationPending);
   const holdScreen = pendingMessageHoldScreen(messageId, conversationPending);
   const [holdScreenOpen, setHoldScreenOpen] = useState(false);
@@ -322,17 +673,33 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     if (!conversationId || sendingAnyway) return;
     setSendingAnyway(true);
     try {
-      const status = await useInboxStore.getState().retryPendingMessage(conversationId, { ...pendingCancelRef(messageId, conversationPending), force: true });
+      const status = await useInboxStore
+        .getState()
+        .retryPendingMessage(conversationId, {
+          ...pendingCancelRef(messageId, conversationPending),
+          force: true,
+        });
       if (status === "pending") setHoldScreenOpen(false);
-      else toast.info(status === "delivered" || status === "injected" ? "This message has already reached the session" : "This message is no longer queued");
+      else
+        toast.info(
+          status === "delivered" || status === "injected"
+            ? "This message has already reached the session"
+            : "This message is no longer queued",
+        );
     } catch (err) {
       captureException(err);
-      toast.error(err instanceof Error ? err.message : "Failed to send message");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send message",
+      );
     } finally {
       setSendingAnyway(false);
     }
   };
-  const cloudPlacing = useInboxStore((s) => !!conversationId && s.sessions[conversationId]?.cloud_placement === "pending");
+  const cloudPlacing = useInboxStore(
+    (s) =>
+      !!conversationId &&
+      s.sessions[conversationId]?.cloud_placement === "pending",
+  );
   const bannerState = pendingBannerState(agentStatus, {
     cloudPlacing,
     retryEligible: retryVisible && pendingMessageCanRetry(content),
@@ -340,7 +707,10 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     idleGraceElapsed,
     // A hosted request waiting behind the person's other one is on its way,
     // however long that takes.
-    bootGraceElapsed: hostedConversation && agentStatus === "waiting" ? false : bootGraceElapsed,
+    bootGraceElapsed:
+      hostedConversation && agentStatus === "waiting"
+        ? false
+        : bootGraceElapsed,
     messageReachedSession,
   });
   // Live restart progress, scoped to THIS click: the conversation feed carries the
@@ -350,33 +720,70 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
   // very mutation the click awaits).
   const retryRows = useConversationCommands(
     conversationId,
-    !!(retrying && retryStartsSession && retryClickedAt && conversationId && isConvexId(conversationId)),
+    !!(
+      retrying &&
+      retryStartsSession &&
+      retryClickedAt &&
+      conversationId &&
+      isConvexId(conversationId)
+    ),
   );
   const retryProgress = useMemo(
-    () => (retryClickedAt
-      ? retryRows.filter((c) => (c.command === "kill_session" || c.command === "resume_session") && c.requested_at >= retryClickedAt - 10_000)
-      : undefined),
+    () =>
+      retryClickedAt
+        ? retryRows.filter(
+            (c) =>
+              (c.command === "kill_session" ||
+                c.command === "resume_session") &&
+              c.requested_at >= retryClickedAt - 10_000,
+          )
+        : undefined,
     [retryRows, retryClickedAt],
   );
   const [retryWaitingLong, setRetryWaitingLong] = useState(false);
   useWatchEffect(() => {
-    if (!retrying || !retryStartsSession) { setRetryWaitingLong(false); return; }
-    if (retryProgress?.some((c) => c.executed_at)) { setRetryWaitingLong(false); return; }
+    if (!retrying || !retryStartsSession) {
+      setRetryWaitingLong(false);
+      return;
+    }
+    if (retryProgress?.some((c) => c.executed_at)) {
+      setRetryWaitingLong(false);
+      return;
+    }
     const t = setTimeout(() => setRetryWaitingLong(true), 20_000);
     return () => clearTimeout(t);
   }, [retrying, retryStartsSession, retryClickedAt, retryProgress]);
   const retryStage = useMemo(
-    () => retrying && retryStartsSession
-      ? deriveRestartStage(retryProgress, retryWaitingLong, !!agentStatus && agentStatus !== "starting" && agentStatus !== "resuming")
-      : null,
-    [retrying, retryStartsSession, retryProgress, retryWaitingLong, agentStatus],
+    () =>
+      retrying && retryStartsSession
+        ? deriveRestartStage(
+            retryProgress,
+            retryWaitingLong,
+            !!agentStatus &&
+              agentStatus !== "starting" &&
+              agentStatus !== "resuming",
+          )
+        : null,
+    [
+      retrying,
+      retryStartsSession,
+      retryProgress,
+      retryWaitingLong,
+      agentStatus,
+    ],
   );
   // A failed restart re-arms the button so the user can try again.
   useWatchEffect(() => {
-    if (retryStage?.tone === "error" && retryState === "sent") setRetryState("idle");
+    if (retryStage?.tone === "error" && retryState === "sent")
+      setRetryState("idle");
   }, [retryStage?.tone, retryState]);
   const handleRetryRestart = async () => {
-    if (!conversationId || retryState === "inflight" || !pendingMessageCanRetry(content)) return;
+    if (
+      !conversationId ||
+      retryState === "inflight" ||
+      !pendingMessageCanRetry(content)
+    )
+      return;
     setRetryState("inflight");
     setRetryStartsSession(!isPending || !agentStatus);
     setRetryClickedAt(Date.now());
@@ -386,10 +793,18 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
       if (isPending && retryClientId && content.trim()) {
         // The replay rule lives in the store (retryPendingSend); this bubble
         // only reports how it came out.
-        const status = await retryPendingSend(conversationId, retryClientId, content);
+        const status = await retryPendingSend(
+          conversationId,
+          retryClientId,
+          content,
+        );
         // A conversation with no server row was started again or re-created
         // by the rule; there is no session to restart below.
-        if (!isConvexId(conversationId) && status !== "uploading" && status !== "unavailable") {
+        if (
+          !isConvexId(conversationId) &&
+          status !== "uploading" &&
+          status !== "unavailable"
+        ) {
           setRetryState("sent");
           return;
         }
@@ -398,18 +813,42 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
           toast.info("Your attachment is still uploading");
           return;
         }
-        if (status === "unavailable") throw new Error("The retry service is unavailable. Your message is still saved.");
-        if (status === "cancelled" || status === "delivered" || status === "injected") {
+        if (status === "unavailable")
+          throw new Error(
+            "The retry service is unavailable. Your message is still saved.",
+          );
+        if (
+          status === "cancelled" ||
+          status === "delivered" ||
+          status === "injected"
+        ) {
           setRetryState("idle");
-          toast.info(status === "cancelled" ? "This message was cancelled" : hostedConversation ? "Your assistant already has this message" : "This message has already reached the session");
+          toast.info(
+            status === "cancelled"
+              ? "This message was cancelled"
+              : hostedConversation
+                ? "Your assistant already has this message"
+                : "This message has already reached the session",
+          );
           return;
         }
       } else if (isPending && messageId.startsWith("serverpending_")) {
-        const status = await useInboxStore.getState().retryPendingMessage(conversationId, { messageId: messageId.slice("serverpending_".length) });
-        if (!status) throw new Error("The retry service is unavailable. Your message is still saved.");
+        const status = await useInboxStore
+          .getState()
+          .retryPendingMessage(conversationId, {
+            messageId: messageId.slice("serverpending_".length),
+          });
+        if (!status)
+          throw new Error(
+            "The retry service is unavailable. Your message is still saved.",
+          );
         if (status !== "pending") {
           setRetryState("idle");
-          toast.info(status === "not_found" || status === "cancelled" ? "This message is no longer queued" : "This message has already reached the session");
+          toast.info(
+            status === "not_found" || status === "cancelled"
+              ? "This message is no longer queued"
+              : "This message has already reached the session",
+          );
           return;
         }
       }
@@ -430,7 +869,10 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
         toast.success("Resending your message…");
         return;
       }
-      const res = await requestSessionRestart(conversationId, ghostRestartContextFor(conversationId));
+      const res = await requestSessionRestart(
+        conversationId,
+        ghostRestartContextFor(conversationId),
+      );
       if (!followRestoredConversation(res, conversationId)) {
         toast.success("Restarting session — this message will be retried");
       }
@@ -438,7 +880,11 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     } catch (err) {
       setRetryState("idle");
       captureException(err);
-      toast.error(hostedConversation ? "Couldn't send that again. Your message is still saved." : `Retry failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        hostedConversation
+          ? "Couldn't send that again. Your message is still saved."
+          : `Retry failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   };
 
@@ -446,27 +892,39 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
     if (!conversationId || cancelState !== "idle") return;
     setCancelState("inflight");
     try {
-      const status = await cancelPendingSend(conversationId, pendingCancelRef(messageId, conversationPending), content);
+      const status = await cancelPendingSend(
+        conversationId,
+        pendingCancelRef(messageId, conversationPending),
+        content,
+      );
       if (status === "delivered" || status === "injected") {
         toast.info("This message has already reached the session");
       }
     } catch (err) {
       captureException(err);
-      toast.error(err instanceof Error ? err.message : "Failed to cancel message");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to cancel message",
+      );
     } finally {
       setCancelState("idle");
     }
   };
 
-  const { isBookmarked, toggleBookmark: handleToggleBookmark } = useMessageBookmark(conversationId, messageId);
+  const { isBookmarked, toggleBookmark: handleToggleBookmark } =
+    useMessageBookmark(conversationId, messageId);
 
   const handleCopy = () => {
-    setTimeout(() => { copyToClipboard(stripMentionContext(content)).then(() => toast.success("Copied!")).catch(() => toast.error("Failed to copy")); });
+    setTimeout(() => {
+      copyToClipboard(stripMentionContext(content))
+        .then(() => toast.success("Copied!"))
+        .catch(() => toast.error("Failed to copy"));
+    });
   };
 
   const handleCopyLink = () => copyMessageLink(conversationId, messageId);
   const chatOn = useTeamFeature("chat");
-  const handleForwardToChat = () => forwardMessageToChat(conversationId, messageId);
+  const handleForwardToChat = () =>
+    forwardMessageToChat(conversationId, messageId);
 
   const handleToggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -480,48 +938,109 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
   const gutter = bubble ? "" : "ml-8";
 
   return (
-    <div data-cc-message="user" data-cc-bubble={bubble ? "" : undefined} id={`msg-${messageId}`} className={`group relative scroll-mt-20 ${bubble ? `ml-auto w-fit max-w-[84%] mt-4 mb-2 px-3.5 py-2 rounded-[18px] rounded-br-[5px]` : `-mx-4 px-4 py-4 rounded-lg ${effectivelyCollapsed ? "mb-2" : "mb-6"}`} transition-[background-color,box-shadow,border-color] ${isHighlighted ? "ring-2 ring-sol-yellow shadow-lg message-highlight" : ""} ${shareSelectionMode ? "cursor-pointer" : ""} ${isSelectedForShare ? "bg-sol-cyan/15 border-2 border-sol-cyan ring-2 ring-sol-cyan/30" : bubble ? "bg-sol-blue/15" : "bg-sol-blue/10 border border-sol-blue/30 modern:bg-sol-bg-alt modern:border-transparent"} ${isPending ? "opacity-80 pending-stripes" : isQueued ? "opacity-90 pending-stripes queued-pulse" : ""}`} style={{ '--image-fade-bg': 'color-mix(in srgb, var(--sol-blue) 10%, var(--sol-bg))' } as React.CSSProperties} onClick={shareSelectionMode ? (() => onToggleShareSelection?.(messageId)) : undefined} onContextMenu={shareSelectionMode ? undefined : (e) => ctxMenu.open(e, undefined)}>
+    <div
+      data-cc-message="user"
+      data-cc-bubble={bubble ? "" : undefined}
+      id={`msg-${messageId}`}
+      className={`group relative scroll-mt-20 ${bubble ? `ml-auto w-fit max-w-[84%] mt-4 mb-2 px-3.5 py-2 rounded-[18px] rounded-br-[5px]` : `-mx-4 px-4 py-4 rounded-lg ${effectivelyCollapsed ? "mb-2" : "mb-6"}`} transition-[background-color,box-shadow,border-color] ${isHighlighted ? "ring-2 ring-sol-yellow shadow-lg message-highlight" : ""} ${shareSelectionMode ? "cursor-pointer" : ""} ${isSelectedForShare ? "bg-sol-cyan/15 border-2 border-sol-cyan ring-2 ring-sol-cyan/30" : bubble ? "bg-sol-blue/15" : "bg-sol-blue/10 border border-sol-blue/30 modern:bg-sol-bg-alt modern:border-transparent"} ${isPending ? "opacity-80 pending-stripes" : isQueued ? "opacity-90 pending-stripes queued-pulse" : ""}`}
+      style={
+        {
+          "--image-fade-bg":
+            "color-mix(in srgb, var(--sol-blue) 10%, var(--sol-bg))",
+        } as React.CSSProperties
+      }
+      onClick={
+        shareSelectionMode
+          ? () => onToggleShareSelection?.(messageId)
+          : undefined
+      }
+      onContextMenu={
+        shareSelectionMode ? undefined : (e) => ctxMenu.open(e, undefined)
+      }
+    >
       {rewinding && conversationId && messageUuid && (
         <RewindReview
           planId={rewinding}
           conversationId={conversationId}
           messageTs={timestamp}
-          subject={(displayContent || content).replace(/\s+/g, " ").trim().slice(0, 80) || "This message"}
+          subject={
+            (displayContent || content)
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, 80) || "This message"
+          }
           onClose={() => setRewinding(null)}
-          onStaged={() => { setRewinding(null); onForkFromMessage?.(messageUuid); }}
+          onStaged={() => {
+            setRewinding(null);
+            onForkFromMessage?.(messageUuid);
+          }}
         />
       )}
       <ContextMenu state={ctxMenu}>
         {() => (
           <>
-            <CtxItem icon={CopyIcon} onSelect={handleCopy}>Copy message</CtxItem>
-            <CtxItem icon={Link2} onSelect={handleCopyLink}>Copy link to message</CtxItem>
-            {chatOn && <CtxItem icon={Forward} onSelect={handleForwardToChat}>Send to chat…</CtxItem>}
+            <CtxItem icon={CopyIcon} onSelect={handleCopy}>
+              Copy message
+            </CtxItem>
+            <CtxItem icon={Link2} onSelect={handleCopyLink}>
+              Copy link to message
+            </CtxItem>
+            {chatOn && (
+              <CtxItem icon={Forward} onSelect={handleForwardToChat}>
+                Send to chat…
+              </CtxItem>
+            )}
             <CtxItem icon={BookmarkIcon} onSelect={handleToggleBookmark}>
               {isBookmarked ? "Remove bookmark" : "Bookmark message"}
             </CtxItem>
-            {(onForkFromMessage && messageUuid) || onStartShareSelection ? <CtxSeparator /> : null}
+            {(onForkFromMessage && messageUuid) || onStartShareSelection ? (
+              <CtxSeparator />
+            ) : null}
             {onForkFromMessage && messageUuid && (
-              <CtxItem icon={Split} onSelect={() => onForkFromMessage(messageUuid)}>Fork from here</CtxItem>
+              <CtxItem
+                icon={Split}
+                onSelect={() => onForkFromMessage(messageUuid)}
+              >
+                Fork from here
+              </CtxItem>
             )}
-            {canRewind && <CtxItem icon={History} onSelect={openRewind}>Rewind to here…</CtxItem>}
+            {canRewind && (
+              <CtxItem icon={History} onSelect={openRewind}>
+                Rewind to here…
+              </CtxItem>
+            )}
             {onStartShareSelection && (
-              <CtxItem icon={SquareDashedMousePointer} onSelect={() => onStartShareSelection(messageId)}>Share messages…</CtxItem>
+              <CtxItem
+                icon={SquareDashedMousePointer}
+                onSelect={() => onStartShareSelection(messageId)}
+              >
+                Share messages…
+              </CtxItem>
             )}
             {isPending && (
               <>
                 <CtxSeparator />
-                <CtxItem icon={X} danger onSelect={handleCancelPending} disabled={cancelState !== "idle"}>
+                <CtxItem
+                  icon={X}
+                  danger
+                  onSelect={handleCancelPending}
+                  disabled={cancelState !== "idle"}
+                >
                   Cancel pending message
                 </CtxItem>
               </>
             )}
             <CtxSeparator />
-            <CtxItem icon={Maximize2} onSelect={() => setFullscreen(true)}>Fullscreen</CtxItem>
+            <CtxItem icon={Maximize2} onSelect={() => setFullscreen(true)}>
+              Fullscreen
+            </CtxItem>
           </>
         )}
       </ContextMenu>
-      <div data-cc-user-message-toolbar className={`absolute -top-2 right-0 transition-opacity duration-150 ${TOOLBAR_SHELL} ${shareSelectionMode ? "opacity-0 pointer-events-none" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"}`}>
+      <div
+        data-cc-user-message-toolbar
+        className={`absolute -top-2 right-0 transition-opacity duration-150 ${TOOLBAR_SHELL} ${shareSelectionMode ? "opacity-0 pointer-events-none" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"}`}
+      >
         {onStartShareSelection && (
           <button
             onClick={() => onStartShareSelection(messageId)}
@@ -538,8 +1057,18 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
           title="Copy link to message"
           aria-label="Copy link to message"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
           </svg>
         </button>
         {chatOn && (
@@ -558,8 +1087,18 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
           title={isBookmarked ? "Remove bookmark" : "Bookmark message"}
           aria-label={isBookmarked ? "Remove bookmark" : "Bookmark message"}
         >
-          <svg className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          <svg
+            className="w-4 h-4"
+            fill={isBookmarked ? "currentColor" : "none"}
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
         {onForkFromMessage && messageUuid && (
@@ -589,29 +1128,61 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
           title="Copy message"
           aria-label="Copy message"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
           </svg>
         </button>
       </div>
-      {!bubble && <div data-cc-message-who className="flex items-center gap-2 mb-2">
-        <UserIcon avatarUrl={avatarUrl} />
-        <span className="text-sol-blue text-xs font-medium">{jointNames ?? (userName || "You")}</span>
-        <a
-          href={`#msg-${messageId}`}
-          className="text-sol-text-dim hover:text-sol-text-muted text-xs transition-colors"
-          title={`${formatFullTimestamp(timestamp)} (click to copy)`}
-          onClick={(e) => { e.preventDefault(); setTimeout(() => { copyToClipboard(formatFullTimestamp(timestamp)).then(() => toast.success("Timestamp copied")); }); }}
-        >
-          {relativeTime(timestamp)}
-        </a>
-        {isBookmarked && (
-          <svg data-cc-bookmarked className="w-3 h-3 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
-        )}
-      </div>}
-      {decision && !effectivelyCollapsed && <DecisionAnswerQuote decision={decision} conversationId={conversationId} timestamp={timestamp} />}
+      {!bubble && (
+        <div data-cc-message-who className="flex items-center gap-2 mb-2">
+          <UserIcon avatarUrl={avatarUrl} />
+          <span className="text-sol-blue text-xs font-medium">
+            {jointNames ?? (userName || "You")}
+          </span>
+          <a
+            href={`#msg-${messageId}`}
+            className="text-sol-text-dim hover:text-sol-text-muted text-xs transition-colors"
+            title={`${formatFullTimestamp(timestamp)} (click to copy)`}
+            onClick={(e) => {
+              e.preventDefault();
+              setTimeout(() => {
+                copyToClipboard(formatFullTimestamp(timestamp)).then(() =>
+                  toast.success("Timestamp copied"),
+                );
+              });
+            }}
+          >
+            {relativeTime(timestamp)}
+          </a>
+          {isBookmarked && (
+            <svg
+              data-cc-bookmarked
+              className="w-3 h-3 text-amber-500 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+          )}
+        </div>
+      )}
+      {decision && !effectivelyCollapsed && (
+        <DecisionAnswerQuote
+          decision={decision}
+          conversationId={conversationId}
+          timestamp={timestamp}
+        />
+      )}
       {contextBlocks.length > 0 && (
         <div className={`flex flex-wrap gap-1.5 ${indent} mb-1.5`}>
           {contextBlocks.map((ctx, i) => (
@@ -619,59 +1190,118 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
           ))}
         </div>
       )}
-      {displayContent ? <div
-        ref={contentRef}
-        data-cc-prose className={`text-sol-text text-sm ${indent} break-words relative ${effectivelyCollapsed ? "line-clamp-2 whitespace-pre-wrap" : "prose prose-invert prose-sm max-w-none"}`}
-        style={!effectivelyCollapsed && !contentExpanded && isOverflowing ? clippedStyle(USER_CONTENT_MAX_HEIGHT) : undefined}
-      >
-        {(() => {
-          if (jointParts) return <JointParts parts={jointParts} collapsed={!!effectivelyCollapsed} />;
-          const hasTeammate = displayContent.includes('<teammate-message');
-          if (effectivelyCollapsed && !hasTeammate) return <TextWithMentions text={displayContent} />;
-          if (effectivelyCollapsed && hasTeammate) {
-            const tmParts = parseTeammateMessages(displayContent);
-            return (
-              <div className="space-y-1">
-                {tmParts.map((part, i) => part.type === 'teammate' ? (
-                  <TeammateMessageCard key={i} teammateId={part.teammateId} color={part.color} summary={part.summary} content={part.content} />
-                ) : <span key={i} className="whitespace-pre-wrap"><TextWithMentions text={part.content} /></span>)}
-              </div>
-            );
+      {displayContent ? (
+        <div
+          ref={contentRef}
+          data-cc-prose
+          className={`text-sol-text text-sm ${indent} break-words relative ${effectivelyCollapsed ? "line-clamp-2 whitespace-pre-wrap" : "prose prose-invert prose-sm max-w-none"}`}
+          style={
+            !effectivelyCollapsed && !contentExpanded && isOverflowing
+              ? clippedStyle(USER_CONTENT_MAX_HEIGHT)
+              : undefined
           }
-          if (hasTeammate) {
-            const tmParts = parseTeammateMessages(displayContent);
-            return (
-              <div className="space-y-1">
-                {tmParts.map((part, i) => part.type === 'teammate' ? (
-                  <TeammateMessageCard key={i} teammateId={part.teammateId} color={part.color} summary={part.summary} content={part.content} />
-                ) : <MessageMarkdown key={i} content={part.content} userText />)}
-              </div>
-            );
-          }
-          const hasSkill = displayContent.includes('<skill>');
-          if (hasSkill) {
-            const { parts } = parseSkillBlocks(displayContent);
-            return (
-              <div className="space-y-2">
-                {parts.map((part, i) => part.type === 'skill' ? (
-                  <SkillCard key={i} name={part.skillName} description={part.skillDesc} path={part.skillPath} />
-                ) : <MessageMarkdown key={i} content={part.content} userText />)}
-              </div>
-            );
-          }
-          return <MessageMarkdown content={displayContent} userText />;
-        })()}
-      </div> : null}
+        >
+          {(() => {
+            if (jointParts)
+              return (
+                <JointParts
+                  parts={jointParts}
+                  collapsed={!!effectivelyCollapsed}
+                />
+              );
+            const hasTeammate = displayContent.includes("<teammate-message");
+            if (effectivelyCollapsed && !hasTeammate)
+              return <TextWithMentions text={displayContent} />;
+            if (effectivelyCollapsed && hasTeammate) {
+              const tmParts = parseTeammateMessages(displayContent);
+              return (
+                <div className="space-y-1">
+                  {tmParts.map((part, i) =>
+                    part.type === "teammate" ? (
+                      <TeammateMessageCard
+                        key={i}
+                        teammateId={part.teammateId}
+                        color={part.color}
+                        summary={part.summary}
+                        content={part.content}
+                      />
+                    ) : (
+                      <span key={i} className="whitespace-pre-wrap">
+                        <TextWithMentions text={part.content} />
+                      </span>
+                    ),
+                  )}
+                </div>
+              );
+            }
+            if (hasTeammate) {
+              const tmParts = parseTeammateMessages(displayContent);
+              return (
+                <div className="space-y-1">
+                  {tmParts.map((part, i) =>
+                    part.type === "teammate" ? (
+                      <TeammateMessageCard
+                        key={i}
+                        teammateId={part.teammateId}
+                        color={part.color}
+                        summary={part.summary}
+                        content={part.content}
+                      />
+                    ) : (
+                      <MessageMarkdown
+                        key={i}
+                        content={part.content}
+                        userText
+                      />
+                    ),
+                  )}
+                </div>
+              );
+            }
+            const hasSkill = displayContent.includes("<skill>");
+            if (hasSkill) {
+              const { parts } = parseSkillBlocks(displayContent);
+              return (
+                <div className="space-y-2">
+                  {parts.map((part, i) =>
+                    part.type === "skill" ? (
+                      <SkillCard
+                        key={i}
+                        name={part.skillName}
+                        description={part.skillDesc}
+                        path={part.skillPath}
+                      />
+                    ) : (
+                      <MessageMarkdown
+                        key={i}
+                        content={part.content}
+                        userText
+                      />
+                    ),
+                  )}
+                </div>
+              );
+            }
+            return <MessageMarkdown content={displayContent} userText />;
+          })()}
+        </div>
+      ) : null}
       {!effectivelyCollapsed && screenRecording && (
         <div className={`${indent} mt-2`}>
           <ScreenRecordingCard recording={screenRecording} />
         </div>
       )}
-      {!effectivelyCollapsed && images && images.filter(img => !img.tool_use_id).length > 0 && (
-        <div className={`${indent} mt-2`}>
-          {images.filter(img => !img.tool_use_id).map((img, i) => <ImageBlock key={i} image={img} />)}
-        </div>
-      )}
+      {!effectivelyCollapsed &&
+        images &&
+        images.filter((img) => !img.tool_use_id).length > 0 && (
+          <div className={`${indent} mt-2`}>
+            {images
+              .filter((img) => !img.tool_use_id)
+              .map((img, i) => (
+                <ImageBlock key={i} image={img} />
+              ))}
+          </div>
+        )}
       {isTruncated && (
         <button
           onClick={handleToggleExpand}
@@ -691,7 +1321,7 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
       {!effectivelyCollapsed && (isOverflowing || contentExpanded) && (
         <div className={`flex items-center gap-3 mt-2 ${gutter}`}>
           <button
-            onClick={() => setContentExpanded(e => !e)}
+            onClick={() => setContentExpanded((e) => !e)}
             className="text-xs font-medium text-sol-blue hover:text-sol-blue/80 transition-colors"
           >
             {contentExpanded ? "Collapse" : "Expand"}
@@ -705,16 +1335,23 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
         </div>
       )}
 
-      {forkChildren && forkChildren.length > 0 && onBranchSwitch && messageUuid && (
-        <BranchSelector
-          forkChildren={forkChildren}
-          activeBranchId={activeBranchId ?? null}
-          onSwitchBranch={(convId) => onBranchSwitch(messageUuid, convId)}
-          loadingBranchId={loadingBranchId}
-          mainDivergentPreview={mainDivergentPreview}
-          onFork={onForkFromMessage ? () => onForkFromMessage(messageUuid) : undefined}
-        />
-      )}
+      {forkChildren &&
+        forkChildren.length > 0 &&
+        onBranchSwitch &&
+        messageUuid && (
+          <BranchSelector
+            forkChildren={forkChildren}
+            activeBranchId={activeBranchId ?? null}
+            onSwitchBranch={(convId) => onBranchSwitch(messageUuid, convId)}
+            loadingBranchId={loadingBranchId}
+            mainDivergentPreview={mainDivergentPreview}
+            onFork={
+              onForkFromMessage
+                ? () => onForkFromMessage(messageUuid)
+                : undefined
+            }
+          />
+        )}
 
       {/* Session still coming up (cold boot / resume): the daemon injects the message
           and flips to "working" once the pane is ready, so reassure rather than alarm.
@@ -723,106 +1360,198 @@ function UserPromptImpl({ content, timestamp, messageId, conversationId, collaps
       {/* The daemon said why it is holding the message: say that, not "stuck".
           Restarting cannot fix it; the message goes out once the cause clears. */}
       {isPending && holdReason && (
-        <div className="flex items-center flex-wrap gap-2 mt-2 pl-8 text-xs text-sol-text-muted" data-testid="pending-message-held">
+        <div
+          className="flex items-center flex-wrap gap-2 mt-2 pl-8 text-xs text-sol-text-muted"
+          data-testid="pending-message-held"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 flex-shrink-0" />
           {holdScreen ? (
-            <button type="button" onClick={(e) => { e.stopPropagation(); setHoldScreenOpen(!holdScreenOpen); }} aria-expanded={holdScreenOpen} className="underline underline-offset-2 decoration-dotted hover:decoration-solid" data-testid="pending-message-held-screen-toggle">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setHoldScreenOpen(!holdScreenOpen);
+              }}
+              aria-expanded={holdScreenOpen}
+              className="underline underline-offset-2 decoration-dotted hover:decoration-solid"
+              data-testid="pending-message-held-screen-toggle"
+            >
               Held: {holdReason}
             </button>
           ) : (
             <span>Held: {holdReason}</span>
           )}
-          <CancelPendingButton onClick={handleCancelPending} disabled={cancelState !== "idle"} />
+          <CancelPendingButton
+            onClick={handleCancelPending}
+            disabled={cancelState !== "idle"}
+          />
         </div>
       )}
       {isPending && holdReason && holdScreen && holdScreenOpen && (
-        <HeldTerminalScreen className="mt-2 ml-8" screen={holdScreen} onSendAnyway={() => { void handleSendAnyway(); }} sending={sendingAnyway} />
+        <HeldTerminalScreen
+          className="mt-2 ml-8"
+          screen={holdScreen}
+          onSendAnyway={() => {
+            void handleSendAnyway();
+          }}
+          sending={sendingAnyway}
+        />
       )}
       {/* Mounted for every waiting message, not only past the grace: a host that
           is asleep says so the moment the message is sent (PendingDeliveryNote). */}
       {isPending && !holdReason && !messageReachedSession && (
-      <PendingDeliveryNote state={bannerState} restartInFlight={retrying} conversationId={conversationId} onCancel={handleCancelPending} cancelling={cancelState !== "idle"}>
-      {/* A hosted conversation says its wait once, in the composer's status line. */}
-      {bannerState === "queued" && !hostedConversation && (
-        <div className="flex items-center flex-wrap gap-2 mt-2 pl-8 text-xs text-sol-text-muted" data-testid="pending-message-queued">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 animate-pulse flex-shrink-0" />
-          {/* Cold launch/resume genuinely "starts up"; an alive-but-parked session
-              (or one the daemon has claimed: "connected") is just being delivered to. */}
-          <span>{agentStatus === "starting" || agentStatus === "resuming"
-            ? "Starting up — your message will send once the session is ready"
-            : "Queued — delivering your message to the agent"}</span>
-          <CancelPendingButton onClick={handleCancelPending} disabled={cancelState !== "idle"} />
-        </div>
-      )}
-      {bannerState === "stuck" && hostedConversation && (
-        <HostedStuckLine
-          onRetry={handleRetryRestart}
-          sending={retryState === "inflight" || retryState === "sent"}
+        <PendingDeliveryNote
+          state={bannerState}
+          restartInFlight={retrying}
+          conversationId={conversationId}
           onCancel={handleCancelPending}
           cancelling={cancelState !== "idle"}
-        />
-      )}
-      {bannerState === "stuck" && !hostedConversation && (
-        <div className="flex items-center flex-wrap gap-2 mt-2 pl-8" data-testid="pending-message-retry">
-          {!retryStage && (
-            <span className="text-xs text-sol-text-muted">
-              {retryState === "idle"
-                ? (hostedConversation ? "Your assistant hasn't picked this up yet" : "No confirmation from the agent yet")
-                : agentStatus ? "Waiting for message delivery…" : "Restart requested…"}
-            </span>
+        >
+          {/* A hosted conversation says its wait once, in the composer's status line. */}
+          {bannerState === "queued" && !hostedConversation && (
+            <div
+              className="flex items-center flex-wrap gap-2 mt-2 pl-8 text-xs text-sol-text-muted"
+              data-testid="pending-message-queued"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 animate-pulse flex-shrink-0" />
+              {/* Cold launch/resume genuinely "starts up"; an alive-but-parked session
+              (or one the daemon has claimed: "connected") is just being delivered to. */}
+              <span>
+                {agentStatus === "starting" || agentStatus === "resuming"
+                  ? "Starting up — your message will send once the session is ready"
+                  : "Queued — delivering your message to the agent"}
+              </span>
+              <CancelPendingButton
+                onClick={handleCancelPending}
+                disabled={cancelState !== "idle"}
+              />
+            </div>
           )}
-          {retryStage && (
-            <span className={`flex items-center gap-1.5 text-xs ${retryStage.tone === "error" ? "text-sol-red" : retryStage.tone === "warn" ? "text-sol-yellow" : "text-sol-orange/90"}`}>
-              {retryStage.tone !== "error" && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse flex-shrink-0" />}
-              {retryStage.label}
-            </span>
+          {bannerState === "stuck" && hostedConversation && (
+            <HostedStuckLine
+              onRetry={handleRetryRestart}
+              sending={retryState === "inflight" || retryState === "sent"}
+              onCancel={handleCancelPending}
+              cancelling={cancelState !== "idle"}
+            />
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); handleRetryRestart(); }}
-            disabled={retryState !== "idle"}
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-sol-border text-xs text-sol-text-muted hover:text-sol-text hover:border-sol-text-dim transition-colors disabled:opacity-60"
-          >
-            <svg className={`w-3 h-3 ${retryState !== "idle" ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {retryState === "inflight" || retryState === "sent"
-              ? (hostedConversation ? "Sending…" : agentStatus ? "Resending…" : "Restarting…")
-              : hostedConversation ? "Try again" : retryClickedAt ? "Retry again" : (agentStatus ? "Resend message" : "Retry (kill & restart)")}
-          </button>
-          <CancelPendingButton onClick={handleCancelPending} disabled={cancelState !== "idle"} />
-        </div>
-      )}
-      </PendingDeliveryNote>
+          {bannerState === "stuck" && !hostedConversation && (
+            <div
+              className="flex items-center flex-wrap gap-2 mt-2 pl-8"
+              data-testid="pending-message-retry"
+            >
+              {!retryStage && (
+                <span className="text-xs text-sol-text-muted">
+                  {retryState === "idle"
+                    ? hostedConversation
+                      ? "Your assistant hasn't picked this up yet"
+                      : "No confirmation from the agent yet"
+                    : agentStatus
+                      ? "Waiting for message delivery…"
+                      : "Restart requested…"}
+                </span>
+              )}
+              {retryStage && (
+                <span
+                  className={`flex items-center gap-1.5 text-xs ${retryStage.tone === "error" ? "text-sol-red" : retryStage.tone === "warn" ? "text-sol-yellow" : "text-sol-orange/90"}`}
+                >
+                  {retryStage.tone !== "error" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse flex-shrink-0" />
+                  )}
+                  {retryStage.label}
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRetryRestart();
+                }}
+                disabled={retryState !== "idle"}
+                className="flex items-center gap-1 px-2 py-0.5 rounded border border-sol-border text-xs text-sol-text-muted hover:text-sol-text hover:border-sol-text-dim transition-colors disabled:opacity-60"
+              >
+                <svg
+                  className={`w-3 h-3 ${retryState !== "idle" ? "animate-spin" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                {retryState === "inflight" || retryState === "sent"
+                  ? hostedConversation
+                    ? "Sending…"
+                    : agentStatus
+                      ? "Resending…"
+                      : "Restarting…"
+                  : hostedConversation
+                    ? "Try again"
+                    : retryClickedAt
+                      ? "Retry again"
+                      : agentStatus
+                        ? "Resend message"
+                        : "Retry (kill & restart)"}
+              </button>
+              <CancelPendingButton
+                onClick={handleCancelPending}
+                disabled={cancelState !== "idle"}
+              />
+            </div>
+          )}
+        </PendingDeliveryNote>
       )}
 
-      {fullscreen && createPortal(
-        <div className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto" onClick={() => setFullscreen(false)}>
-          <div className="conv-col mx-auto px-8 py-12" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sol-text-secondary text-sm font-medium">{userName || "You"}</span>
-              <button
-                onClick={() => setFullscreen(false)}
-                className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
-                title="Close (Esc)"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {fullscreen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto"
+            onClick={() => setFullscreen(false)}
+          >
+            <div
+              className="conv-col mx-auto px-8 py-12"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-sol-text-secondary text-sm font-medium">
+                  {userName || "You"}
+                </span>
+                <button
+                  onClick={() => setFullscreen(false)}
+                  className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
+                  title="Close (Esc)"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="prose prose-invert prose-sm max-w-none text-sol-text">
+                <ReactMarkdown
+                  remarkPlugins={USER_MD_REMARK}
+                  rehypePlugins={MESSAGE_MD_REHYPE}
+                  components={USER_MD_COMPONENTS}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
             </div>
-            <div className="prose prose-invert prose-sm max-w-none text-sol-text">
-              <ReactMarkdown
-                remarkPlugins={USER_MD_REMARK}
-                rehypePlugins={MESSAGE_MD_REHYPE}
-                components={USER_MD_COMPONENTS}
-              >
-                {content}
-              </ReactMarkdown>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -831,8 +1560,24 @@ export const UserPrompt = memo(UserPromptImpl);
 /** Under the person's message in a clean thread, while the agent works on its reply (Modern: the Working mark and word). Static: transcript rows run no animation. */
 export function AgentWorkingBubble() {
   return (
-    <div data-cc-working className="flex items-center gap-1 pl-8 mb-3 -mt-1 modern:gap-2" aria-label="Working on a reply">
-      {[0, 1, 2].map((i) => <span key={i} className="w-1.5 h-1.5 rounded-full bg-sol-text-dim/60 modern:hidden" />)}<span data-cc-working-mark className="hidden modern:block w-2 h-2 shrink-0 rounded-full bg-sol-green" /><span className="hidden modern:inline text-meta text-sol-text-muted">Working</span>
+    <div
+      data-cc-working
+      className="flex items-center gap-1 pl-8 mb-3 -mt-1 modern:gap-2"
+      aria-label="Working on a reply"
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-sol-text-dim/60 modern:hidden"
+        />
+      ))}
+      <span
+        data-cc-working-mark
+        className="hidden modern:block w-2 h-2 shrink-0 rounded-full bg-sol-green"
+      />
+      <span className="hidden modern:inline text-meta text-sol-text-muted">
+        Working
+      </span>
     </div>
   );
 }
@@ -845,11 +1590,17 @@ function CondensedImageThumb({ image }: { image: ImageData }) {
   const gallery = useImageGallery();
   const messageId = useGalleryMessageId();
   useWatchEffect(() => {
-    if (src && gallery) gallery.register({ src, href, messageId, storageId: image.storage_id });
+    if (src && gallery)
+      gallery.register({ src, href, messageId, storageId: image.storage_id });
   }, [src, href, messageId, image.storage_id, gallery]);
   if (storageMissing) return null;
   if (!src) {
-    return <span className="h-7 w-10 shrink-0 rounded-sm border border-sol-border/50 bg-sol-bg-alt animate-pulse" aria-hidden />;
+    return (
+      <span
+        className="h-7 w-10 shrink-0 rounded-sm border border-sol-border/50 bg-sol-bg-alt animate-pulse"
+        aria-hidden
+      />
+    );
   }
   return (
     <img
@@ -857,8 +1608,17 @@ function CondensedImageThumb({ image }: { image: ImageData }) {
       alt="Screenshot"
       role="button"
       tabIndex={0}
-      onClick={(e) => { e.stopPropagation(); gallery?.open(src); }}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); gallery?.open(src); } }}
+      onClick={(e) => {
+        e.stopPropagation();
+        gallery?.open(src);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          gallery?.open(src);
+        }
+      }}
       className="h-7 w-10 shrink-0 rounded-sm border border-sol-border/60 object-cover object-top cursor-zoom-in hover:border-sol-cyan/60 hover:brightness-110 transition-all"
       title="View screenshot"
     />
@@ -883,7 +1643,17 @@ function CondensedImageThumb({ image }: { image: ImageData }) {
 // The disclosure triangle leads in both states so the open/closed change is
 // unmistakable, and the header keeps its position and size across the toggle
 // so the click target never moves under the pointer.
-const CondensedToolsGroup = memo(function CondensedToolsGroup({ entries, expanded, onToggle, images, globalImageMap, resultFor, conversationId, renderTool, agentType }: {
+const CondensedToolsGroup = memo(function CondensedToolsGroup({
+  entries,
+  expanded,
+  onToggle,
+  images,
+  globalImageMap,
+  resultFor,
+  conversationId,
+  renderTool,
+  agentType,
+}: {
   entries: ReceiptEntry[];
   expanded: boolean;
   onToggle: () => void;
@@ -903,7 +1673,18 @@ const CondensedToolsGroup = memo(function CondensedToolsGroup({ entries, expande
   const hostedSteps = isHostedAgentType(agentType);
   // Modern draws the receipt as a row (ModernReceiptWords); a hosted receipt keeps its plain words.
   const modernRow = useIsModernStyle() && !hostedSteps;
-  const { summary, counted, actions, created, madeLine, sources, screenshots, browserTabs, droveCastBrowser, droveSim } = useMemo(() => {
+  const {
+    summary,
+    counted,
+    actions,
+    created,
+    madeLine,
+    sources,
+    screenshots,
+    browserTabs,
+    droveCastBrowser,
+    droveSim,
+  } = useMemo(() => {
     const actions: { name: string; input: string }[] = [];
     const shots: { id: string; image: ImageData }[] = [];
     // The browser tabs the folded tools drove, one per distinct tab in the
@@ -917,39 +1698,72 @@ const CondensedToolsGroup = memo(function CondensedToolsGroup({ entries, expande
       for (const tc of entry.tools) {
         const nested = extractNestedActions(tc);
         actions.push(...(nested.length > 0 ? nested : [tc]));
-        let toolImages = images?.filter(img => img.tool_use_id === tc.id) ?? [];
+        let toolImages =
+          images?.filter((img) => img.tool_use_id === tc.id) ?? [];
         if (!toolImages.length) toolImages = globalImageMap?.[tc.id] ?? [];
-        toolImages.forEach((image, i) => shots.push({ id: `${tc.id}:${i}`, image }));
+        toolImages.forEach((image, i) =>
+          shots.push({ id: `${tc.id}:${i}`, image }),
+        );
         const cast = parseCastCommand(tc);
-        const tab = browserTabOf(tc, cast, resultFor(tc)?.content, carriedBrowserRows);
+        const tab = browserTabOf(
+          tc,
+          cast,
+          resultFor(tc)?.content,
+          carriedBrowserRows,
+        );
         if (tab) tabs.set(`${tab.kind}:${tab.tabId}`, tab);
         if (tab?.kind === "cast") droveCastBrowser = true;
         if (cast?.category === "sim") droveSim = true;
       }
     }
-    const hosted = isHostedAgentType(agentType) ? hostedReceipt(entries.flatMap((e) => e.tools), resultFor, { asking: hostedAsking, cardShown: hostedCardShown }) : null;
+    const hosted = isHostedAgentType(agentType)
+      ? hostedReceipt(
+          entries.flatMap((e) => e.tools),
+          resultFor,
+          { asking: hostedAsking, cardShown: hostedCardShown },
+        )
+      : null;
     const counted = hosted?.counted ?? countToolGroup(actions);
     return {
       summary: hosted?.summary ?? summarizeToolGroup(actions, counted),
       created: hosted?.created ?? [],
       // One step that made one thing reads as one line (HostedMadeLine).
-      madeLine: hosted && hosted.steps === 1 && hosted.created.length === 1 ? madeLineParts(hosted.summary) : null,
+      madeLine:
+        hosted && hosted.steps === 1 && hosted.created.length === 1
+          ? madeLineParts(hosted.summary)
+          : null,
       sources: hosted?.sources ?? [],
-      counted, actions,
+      counted,
+      actions,
       screenshots: shots,
       browserTabs: [...tabs.values()],
       droveCastBrowser,
       droveSim,
     };
-  }, [entries, images, globalImageMap, resultFor, carriedBrowserRows, agentType, hostedAsking, hostedCardShown]);
+  }, [
+    entries,
+    images,
+    globalImageMap,
+    resultFor,
+    carriedBrowserRows,
+    agentType,
+    hostedAsking,
+    hostedCardShown,
+  ]);
   const header = (
     <div
-      data-cc-tool-receipt data-cc-row-head={modernRow ? "" : undefined}
+      data-cc-tool-receipt
+      data-cc-row-head={modernRow ? "" : undefined}
       role="button"
       tabIndex={0}
       aria-expanded={expanded}
       onClick={onToggle}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
       // One box in both states (same padding, same border width, a transparent
       // border when open), so only colour changes and the target never moves.
       // Closed, the dashed outline says "something is folded here" without the
@@ -964,12 +1778,36 @@ const CondensedToolsGroup = memo(function CondensedToolsGroup({ entries, expande
       }`}
       title={expanded ? "Hide tool activity" : "Show tool activity"}
     >
-      {modernRow ? <ModernReceiptWords calls={actions} counted={counted} resultFor={resultFor} /> : <ChevronRight className={`w-3 h-3 shrink-0 opacity-60 transition-transform ${expanded ? "rotate-90 text-sol-cyan opacity-100" : ""}`} />}
-      {!modernRow && <span className="min-w-0 truncate tracking-tight">{expanded ? counted : summary}</span>}
-      {!expanded && browserTabs.map((tab) => <BrowserTabPill key={`${tab.kind}:${tab.tabId}`} tab={tab} />)}
-      {!expanded && droveCastBrowser && conversationId && <BrowserWatchButton conversationId={conversationId} />}
-      {!expanded && droveSim && conversationId && <SimulatorWatchButton conversationId={conversationId} />}
-      {!expanded && screenshots.map(({ id, image }) => <CondensedImageThumb key={id} image={image} />)}
+      {modernRow ? (
+        <ModernReceiptWords
+          calls={actions}
+          counted={counted}
+          resultFor={resultFor}
+        />
+      ) : (
+        <ChevronRight
+          className={`w-3 h-3 shrink-0 opacity-60 transition-transform ${expanded ? "rotate-90 text-sol-cyan opacity-100" : ""}`}
+        />
+      )}
+      {!modernRow && (
+        <span className="min-w-0 truncate tracking-tight">
+          {expanded ? counted : summary}
+        </span>
+      )}
+      {!expanded &&
+        browserTabs.map((tab) => (
+          <BrowserTabPill key={`${tab.kind}:${tab.tabId}`} tab={tab} />
+        ))}
+      {!expanded && droveCastBrowser && conversationId && (
+        <BrowserWatchButton conversationId={conversationId} />
+      )}
+      {!expanded && droveSim && conversationId && (
+        <SimulatorWatchButton conversationId={conversationId} />
+      )}
+      {!expanded &&
+        screenshots.map(({ id, image }) => (
+          <CondensedImageThumb key={id} image={image} />
+        ))}
     </div>
   );
   // What the assistant made (a to-do, a note), as live pills with their full
@@ -978,47 +1816,102 @@ const CondensedToolsGroup = memo(function CondensedToolsGroup({ entries, expande
   // A note it wrote shows as a card under the receipt (HostedNoteCard): the
   // note is often the very thing the person asked for.
   const notes = hostedSteps ? created.filter((ref) => /^doc:/i.test(ref)) : [];
-  const pills = notes.length ? created.filter((ref) => !notes.includes(ref)) : created;
+  const pills = notes.length
+    ? created.filter((ref) => !notes.includes(ref))
+    : created;
   const made = pills.length > 0 && (
-    <span className="inline-flex flex-wrap items-center gap-1.5 text-[13px]" data-cc-made>
-      {pills.map((ref) => <EntityIdPill key={ref} shortId={ref} />)}
+    <span
+      className="inline-flex flex-wrap items-center gap-1.5 text-[13px]"
+      data-cc-made
+    >
+      {pills.map((ref) => (
+        <EntityIdPill key={ref} shortId={ref} />
+      ))}
     </span>
   );
-  const noteCards = notes.map((ref) => <HostedNoteCard key={ref} refId={ref} />);
+  const noteCards = notes.map((ref) => (
+    <HostedNoteCard key={ref} refId={ref} />
+  ));
   // Every step here waits on the card drawn below: the card says it.
-  if (!expanded && hostedSteps && !summary && !made && !notes.length) return null;
-  if (!expanded && madeLine) return <HostedMadeLine words={madeLine.words} name={madeLine.name} refId={created[0]} />;
+  if (!expanded && hostedSteps && !summary && !made && !notes.length)
+    return null;
+  if (!expanded && madeLine)
+    return (
+      <HostedMadeLine
+        words={madeLine.words}
+        name={madeLine.name}
+        refId={created[0]}
+      />
+    );
   // A hosted receipt keeps the transcript's block gap above the answer under it.
   // A search's sources ride under its receipt, readable without opening it.
-  const sourceLine = sources.length > 0 ? <HostedSources sources={sources} className={notes.length ? "mt-1.5" : "mt-1.5 mb-3"} /> : null;
-  if (!expanded) return (
-    <>
-      <div data-cc-row={modernRow ? "group" : undefined} className={`not-prose mt-2 flex flex-wrap items-center gap-2 ${hostedSteps && !notes.length && !sourceLine ? "mb-3" : ""}`}>{header}{made}</div>
-      {sourceLine}
-      {noteCards}
-    </>
-  );
+  const sourceLine =
+    sources.length > 0 ? (
+      <HostedSources
+        sources={sources}
+        className={notes.length ? "mt-1.5" : "mt-1.5 mb-3"}
+      />
+    ) : null;
+  if (!expanded)
+    return (
+      <>
+        <div
+          data-cc-row={modernRow ? "group" : undefined}
+          className={`not-prose mt-2 flex flex-wrap items-center gap-2 ${hostedSteps && !notes.length && !sourceLine ? "mb-3" : ""}`}
+        >
+          {header}
+          {made}
+        </div>
+        {sourceLine}
+        {noteCards}
+      </>
+    );
   return (
-    <div data-cc-row={modernRow ? "group" : undefined} className="not-prose mt-1 border-l-2 border-sol-cyan/50 pl-2">
+    <div
+      data-cc-row={modernRow ? "group" : undefined}
+      className="not-prose mt-1 border-l-2 border-sol-cyan/50 pl-2"
+    >
       {header}
-      <div data-cc-row-list={modernRow ? "" : undefined} className="pt-0.5 pb-1">
+      <div
+        data-cc-row-list={modernRow ? "" : undefined}
+        className="pt-0.5 pb-1"
+      >
         {hostedSteps ? (
           <ul data-cc-hosted-steps className="space-y-1 py-1">
-            {entries.flatMap((entry) => entry.tools.map((tc) => (
-              <li key={tc.id} className="text-[13px] leading-snug text-sol-text-muted">
-                <span>{stepText(tc, resultFor(tc), { asking: hostedAsking })}</span>
-                {renderTool(tc, entry)}
+            {entries.flatMap((entry) =>
+              entry.tools.map((tc) => (
+                <li
+                  key={tc.id}
+                  className="text-[13px] leading-snug text-sol-text-muted"
+                >
+                  <span>
+                    {stepText(tc, resultFor(tc), { asking: hostedAsking })}
+                  </span>
+                  {renderTool(tc, entry)}
+                </li>
+              )),
+            )}
+            {sources.length > 0 && (
+              <li>
+                <HostedSources sources={sources} />
               </li>
-            )))}
-            {sources.length > 0 && <li><HostedSources sources={sources} /></li>}
+            )}
           </ul>
-        ) : entries.map((entry) => entry.tools.map((tc) => renderTool(tc, entry)))}
+        ) : (
+          entries.map((entry) => entry.tools.map((tc) => renderTool(tc, entry)))
+        )}
       </div>
     </div>
   );
 });
 
-export const CompactCollapsedTurn = memo(function CompactCollapsedTurn({ content, onExpand }: { content: string; onExpand: () => void }) {
+export const CompactCollapsedTurn = memo(function CompactCollapsedTurn({
+  content,
+  onExpand,
+}: {
+  content: string;
+  onExpand: () => void;
+}) {
   const body = stripSystemTags(content || "").trim();
   const clipRef = useRef<HTMLDivElement>(null);
   // The fade only covers a reply the tail actually clips; a short one would
@@ -1035,7 +1928,9 @@ export const CompactCollapsedTurn = memo(function CompactCollapsedTurn({ content
           <MessageMarkdown content={body} />
         </div>
       </div>
-      {clipped && <div className="absolute -top-px left-0 right-0 h-24 pointer-events-none bg-gradient-to-b from-[var(--sol-bg)] via-[var(--sol-bg)] to-transparent" />}
+      {clipped && (
+        <div className="absolute -top-px left-0 right-0 h-24 pointer-events-none bg-gradient-to-b from-[var(--sol-bg)] via-[var(--sol-bg)] to-transparent" />
+      )}
       <button
         onClick={onExpand}
         className="not-prose absolute top-1 left-8 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-sol-border/70 bg-sol-bg-alt text-meta font-medium text-sol-text-dim hover:text-sol-cyan hover:border-sol-cyan/50 shadow-sm transition-colors"
@@ -1049,8 +1944,19 @@ export const CompactCollapsedTurn = memo(function CompactCollapsedTurn({ content
 
 // Who is speaking on an assistant turn: the same row the conversation header
 // reads, so the two cannot disagree on who is talking.
-function AssistantWho({ conversationId, agentType }: { conversationId?: string; agentType?: string }) {
-  return <AgentSpeaker row={useConversationIdentityRow(conversationId)} agentType={agentType} />;
+function AssistantWho({
+  conversationId,
+  agentType,
+}: {
+  conversationId?: string;
+  agentType?: string;
+}) {
+  return (
+    <AgentSpeaker
+      row={useConversationIdentityRow(conversationId)}
+      agentType={agentType}
+    />
+  );
 }
 
 function AssistantBlockImpl({
@@ -1114,7 +2020,12 @@ function AssistantBlockImpl({
   globalToolResultMap?: Record<string, ToolResult>;
   onCollapseTurn?: () => void;
   childConversationMap?: Record<string, string>;
-  childConversations?: Array<{ _id: string; title: string; is_subagent?: boolean; first_message_preview?: string }>;
+  childConversations?: Array<{
+    _id: string;
+    title: string;
+    is_subagent?: boolean;
+    first_message_preview?: string;
+  }>;
   agentNameToChildMap?: Record<string, string>;
   showHeader?: boolean;
   onOpenComments?: (messageId: string) => void;
@@ -1154,19 +2065,30 @@ function AssistantBlockImpl({
   const isOverflowing = useOverflows(contentRef, CONTENT_MAX_HEIGHT, [content]);
 
   const safeContent = content ? safeString(content) : content;
-  const strippedContent = safeContent ? stripSystemTags(safeContent) : safeContent;
-  const displayContent = strippedContent && agentNameToChildMap
-    ? linkifyMentions(strippedContent, agentNameToChildMap)
-    : strippedContent;
-  const parsedApiError = useMemo(() => parseApiErrorContent(displayContent), [displayContent]);
-  const onlyAskUser = toolCalls && toolCalls.length > 0 && toolCalls.every(tc => isAskTool(tc.name));
-  const hasContent = displayContent && displayContent.trim().length > 0 && !onlyAskUser;
+  const strippedContent = safeContent
+    ? stripSystemTags(safeContent)
+    : safeContent;
+  const displayContent =
+    strippedContent && agentNameToChildMap
+      ? linkifyMentions(strippedContent, agentNameToChildMap)
+      : strippedContent;
+  const parsedApiError = useMemo(
+    () => parseApiErrorContent(displayContent),
+    [displayContent],
+  );
+  const onlyAskUser =
+    toolCalls &&
+    toolCalls.length > 0 &&
+    toolCalls.every((tc) => isAskTool(tc.name));
+  const hasContent =
+    displayContent && displayContent.trim().length > 0 && !onlyAskUser;
   const hasThinking = !!thinking && thinking.trim().length > 0;
   const visibleThinking = hasThinking && !!showThinking;
   const hasToolCalls = toolCalls && toolCalls.length > 0;
-  const hasImages = images?.some(img => !img.tool_use_id) ?? false;
+  const hasImages = images?.some((img) => !img.tool_use_id) ?? false;
 
-  const { isBookmarked, toggleBookmark: handleToggleBookmark } = useMessageBookmark(conversationId, messageId);
+  const { isBookmarked, toggleBookmark: handleToggleBookmark } =
+    useMessageBookmark(conversationId, messageId);
 
   const toolResultMap = useMemo(() => {
     const map: Record<string, ToolResult> = {};
@@ -1181,7 +2103,8 @@ function AssistantBlockImpl({
   // result landed in a later message (the receipt chip and the folded tool
   // blocks both resolve through this one lookup).
   const resultFor = useCallback(
-    (tc: ToolCall): ToolResult | undefined => toolResultMap[tc.id] ?? globalToolResultMap?.[tc.id],
+    (tc: ToolCall): ToolResult | undefined =>
+      toolResultMap[tc.id] ?? globalToolResultMap?.[tc.id],
     [toolResultMap, globalToolResultMap],
   );
 
@@ -1192,9 +2115,20 @@ function AssistantBlockImpl({
   // A command that needed the Chrome extension or the macOS grants names the
   // tool on a marker line, whatever renders the row: the marker leaves the
   // output and the setup card goes under the row.
-  const renderToolBlock = (tc: ToolCall, result: ToolResult | undefined, src: { messageId: string; messageUuid?: string; timestamp: number }) => {
-    const setup = result && hasAgentSetupMarker(result.content) ? extractAgentSetup(result.content) : null;
-    const row = renderToolRow(tc, setup ? { ...result!, content: setup.text } : result, src);
+  const renderToolBlock = (
+    tc: ToolCall,
+    result: ToolResult | undefined,
+    src: { messageId: string; messageUuid?: string; timestamp: number },
+  ) => {
+    const setup =
+      result && hasAgentSetupMarker(result.content)
+        ? extractAgentSetup(result.content)
+        : null;
+    const row = renderToolRow(
+      tc,
+      setup ? { ...result!, content: setup.text } : result,
+      src,
+    );
     if (!setup?.tool || !conversationId) return row;
     return (
       <Fragment key={tc.id}>
@@ -1203,45 +2137,108 @@ function AssistantBlockImpl({
       </Fragment>
     );
   };
-  const renderToolRow = (tc: ToolCall, result: ToolResult | undefined, src: { messageId: string; messageUuid?: string; timestamp: number }) => (
+  const renderToolRow = (
+    tc: ToolCall,
+    result: ToolResult | undefined,
+    src: { messageId: string; messageUuid?: string; timestamp: number },
+  ) =>
     isAgentTool(tc.name) ? (
       <TaskToolBlock
         key={tc.id}
         tool={tc}
         result={result}
-        childConversationId={src.messageUuid && childConversationMap ? childConversationMap[src.messageUuid] : undefined}
+        childConversationId={
+          src.messageUuid && childConversationMap
+            ? childConversationMap[src.messageUuid]
+            : undefined
+        }
         childConversations={childConversations}
       />
     ) : isTodoTool(tc.name) ? (
       <TodoWriteBlock key={tc.id} tool={tc} />
     ) : isAskTool(tc.name) ? (
-      <AskUserQuestionBlock key={tc.id} tool={tc} result={result} onSendMessage={onSendInlineMessage} />
+      <AskUserQuestionBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        onSendMessage={onSendInlineMessage}
+      />
     ) : tc.name === "TaskList" ? (
-      <TaskListBlock key={tc.id} tool={tc} result={result} taskRecordMap={taskRecordMap} />
-    ) : tc.name === "TaskCreate" || tc.name === "TaskUpdate" || tc.name === "TaskGet" ? (
-      <TaskCreateUpdateBlock key={tc.id} tool={tc} result={result} taskSubjectMap={taskSubjectMap} taskRecordMap={taskRecordMap} />
+      <TaskListBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        taskRecordMap={taskRecordMap}
+      />
+    ) : tc.name === "TaskCreate" ||
+      tc.name === "TaskUpdate" ||
+      tc.name === "TaskGet" ? (
+      <TaskCreateUpdateBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        taskSubjectMap={taskSubjectMap}
+        taskRecordMap={taskRecordMap}
+      />
     ) : tc.name === "SendUserFile" ? (
       <SentFileBlock key={tc.id} files={globalFileMap?.[tc.id] ?? []} />
     ) : tc.name === "SendMessage" ? (
-      <SendMessageBlock key={tc.id} tool={tc} agentNameToChildMap={agentNameToChildMap} />
+      <SendMessageBlock
+        key={tc.id}
+        tool={tc}
+        agentNameToChildMap={agentNameToChildMap}
+      />
     ) : tc.name === "TeamCreate" || tc.name === "TeamDelete" ? (
       <TeamCreateBlock key={tc.id} tool={tc} />
     ) : tc.name === "Workflow" || tc.name === "workflow" ? (
-      <WorkflowToolBlock key={tc.id} tool={tc} result={result} conversationId={conversationId} />
+      <WorkflowToolBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        conversationId={conversationId}
+      />
     ) : tc.name === "StructuredOutput" ? (
       <StructuredResultBlock key={tc.id} tool={tc} result={result} />
     ) : tc.name === "Skill" ? (
       <SkillBlock key={tc.id} tool={tc} />
-    ) : tc.name === "Monitor" || tc.name === "monitor" || isBackgroundBashToolCall(tc) ? (
+    ) : tc.name === "Monitor" ||
+      tc.name === "monitor" ||
+      isBackgroundBashToolCall(tc) ? (
       <MonitorBlock key={tc.id} tool={tc} conversationId={conversationId} />
     ) : tc.name === "ScheduleWakeup" ? (
-      <ScheduleWakeupBlock key={tc.id} tool={tc} result={result} timestamp={src.timestamp} />
+      <ScheduleWakeupBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        timestamp={src.timestamp}
+      />
     ) : isPlanModeTool(tc.name) ? (
-      <PlanModeBlock key={tc.id} tool={tc} result={result} conversationId={conversationId} messageId={src.messageId} onSendMessage={onSendInlineMessage} />
+      <PlanModeBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        conversationId={conversationId}
+        messageId={src.messageId}
+        onSendMessage={onSendInlineMessage}
+      />
     ) : isSayToolCall(tc) ? (
-      <div key={tc.id} data-cc-said data-cc-prose className="text-sol-text prose prose-invert prose-sm max-w-none my-1.5">{renderAssistantBody(sayTextOf(parseCastCommand(tc))!)}</div>
+      <div
+        key={tc.id}
+        data-cc-said
+        data-cc-prose
+        className="text-sol-text prose prose-invert prose-sm max-w-none my-1.5"
+      >
+        {renderAssistantBody(sayTextOf(parseCastCommand(tc))!)}
+      </div>
     ) : parseCastCommand(tc) ? (
-      <CastCommandBlock key={tc.id} tool={tc} result={result} images={images} globalImageMap={globalImageMap} conversationId={conversationId} />
+      <CastCommandBlock
+        key={tc.id}
+        tool={tc}
+        result={result}
+        images={images}
+        globalImageMap={globalImageMap}
+        conversationId={conversationId}
+      />
     ) : (
       <ToolBlock
         key={tc.id}
@@ -1253,22 +2250,27 @@ function AssistantBlockImpl({
         messageId={src.messageId}
         conversationId={conversationId}
         onStartShareSelection={onStartShareSelection}
-        onOpenComments={onOpenComments ? () => onOpenComments(src.messageId) : undefined}
+        onOpenComments={
+          onOpenComments ? () => onOpenComments(src.messageId) : undefined
+        }
         collapsed={density === "compact"}
         timestamp={src.timestamp}
         images={images}
         globalImageMap={globalImageMap}
       />
-    )
-  );
-
+    );
 
   useWatchEffect(() => {
     if (!fullscreen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false); };
-    document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = ''; };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
   }, [fullscreen]);
 
   const chatOn = useTeamFeature("chat");
@@ -1280,18 +2282,28 @@ function AssistantBlockImpl({
   }
 
   const handleCopy = () => {
-    const text = formatMessagePartsForCopy(displayContent, toolCalls, toolResults);
+    const text = formatMessagePartsForCopy(
+      displayContent,
+      toolCalls,
+      toolResults,
+    );
     if (!text) return;
-    setTimeout(() => { copyToClipboard(text).then(() => toast.success("Copied!")).catch(() => toast.error("Failed to copy")); });
+    setTimeout(() => {
+      copyToClipboard(text)
+        .then(() => toast.success("Copied!"))
+        .catch(() => toast.error("Failed to copy"));
+    });
   };
 
   const handleCopyLink = () => copyMessageLink(conversationId, messageId);
-  const handleForwardToChat = () => forwardMessageToChat(conversationId, messageId);
+  const handleForwardToChat = () =>
+    forwardMessageToChat(conversationId, messageId);
 
   // Show Claude header for first message in sequence (regardless of content type)
   const shouldShowHeader = showHeader;
   const onlyToolCalls = hasToolCalls && !hasContent && !visibleThinking;
-  const hasVisibleContent = hasContent || visibleThinking || hasToolCalls || hasImages;
+  const hasVisibleContent =
+    hasContent || visibleThinking || hasToolCalls || hasImages;
 
   // When nothing visible, hide completely
   if (!hasVisibleContent) {
@@ -1307,32 +2319,74 @@ function AssistantBlockImpl({
   // content instead of covering them. Tool-only rows stack tightly and keep
   // the toolbar inside the row (a plan card lifts it, like a block card).
   const toolbarTop = onlyToolCalls
-    ? (hasPlanWrite ? "-top-6" : "top-1")
-    : shouldShowHeader ? "-top-2" : "-top-7";
+    ? hasPlanWrite
+      ? "-top-6"
+      : "top-1"
+    : shouldShowHeader
+      ? "-top-2"
+      : "-top-7";
 
   return (
-    <div data-cc-message="assistant" id={`msg-${messageId}`} data-cc-bubble={bubble ? "" : undefined} data-cc-tools-only={onlyToolCalls ? "" : undefined} className={`group relative scroll-mt-20 ${bubble ? "mb-2" : onlyToolCalls ? "mb-0.5" : condensed ? "mb-2.5" : "mb-6"} transition-[background-color,box-shadow,border-color] ${isHighlighted ? "ring-2 ring-sol-yellow shadow-lg rounded-lg p-2 -m-2 message-highlight" : ""} ${shareSelectionMode ? "cursor-pointer" : ""} ${isSelectedForShare ? "bg-sol-cyan/10 rounded-lg p-2 -m-2 border-2 border-sol-cyan ring-2 ring-sol-cyan/30" : ""}`} onClick={shareSelectionMode ? (() => onToggleShareSelection?.(messageId)) : undefined} onContextMenu={shareSelectionMode ? undefined : (e) => ctxMenu.open(e, undefined)} title={!shouldShowHeader ? relativeTime(timestamp) : undefined}>
+    <div
+      data-cc-message="assistant"
+      id={`msg-${messageId}`}
+      data-cc-bubble={bubble ? "" : undefined}
+      data-cc-tools-only={onlyToolCalls ? "" : undefined}
+      className={`group relative scroll-mt-20 ${bubble ? "mb-2" : onlyToolCalls ? "mb-0.5" : condensed ? "mb-2.5" : "mb-6"} transition-[background-color,box-shadow,border-color] ${isHighlighted ? "ring-2 ring-sol-yellow shadow-lg rounded-lg p-2 -m-2 message-highlight" : ""} ${shareSelectionMode ? "cursor-pointer" : ""} ${isSelectedForShare ? "bg-sol-cyan/10 rounded-lg p-2 -m-2 border-2 border-sol-cyan ring-2 ring-sol-cyan/30" : ""}`}
+      onClick={
+        shareSelectionMode
+          ? () => onToggleShareSelection?.(messageId)
+          : undefined
+      }
+      onContextMenu={
+        shareSelectionMode ? undefined : (e) => ctxMenu.open(e, undefined)
+      }
+      title={!shouldShowHeader ? relativeTime(timestamp) : undefined}
+    >
       <ContextMenu state={ctxMenu}>
         {() => (
           <>
-            <CtxItem icon={CopyIcon} onSelect={handleCopy}>Copy message</CtxItem>
-            <CtxItem icon={Link2} onSelect={handleCopyLink}>Copy link to message</CtxItem>
-            {chatOn && <CtxItem icon={Forward} onSelect={handleForwardToChat}>Send to chat…</CtxItem>}
+            <CtxItem icon={CopyIcon} onSelect={handleCopy}>
+              Copy message
+            </CtxItem>
+            <CtxItem icon={Link2} onSelect={handleCopyLink}>
+              Copy link to message
+            </CtxItem>
+            {chatOn && (
+              <CtxItem icon={Forward} onSelect={handleForwardToChat}>
+                Send to chat…
+              </CtxItem>
+            )}
             <CtxItem icon={BookmarkIcon} onSelect={handleToggleBookmark}>
               {isBookmarked ? "Remove bookmark" : "Bookmark message"}
             </CtxItem>
-            {((onForkFromMessage && messageUuid && !onlyToolCalls) || onStartShareSelection) && <CtxSeparator />}
+            {((onForkFromMessage && messageUuid && !onlyToolCalls) ||
+              onStartShareSelection) && <CtxSeparator />}
             {onForkFromMessage && messageUuid && !onlyToolCalls && (
-              <CtxItem icon={Split} onSelect={() => onForkFromMessage(messageUuid)}>Fork from here</CtxItem>
+              <CtxItem
+                icon={Split}
+                onSelect={() => onForkFromMessage(messageUuid)}
+              >
+                Fork from here
+              </CtxItem>
             )}
             {onStartShareSelection && (
-              <CtxItem icon={SquareDashedMousePointer} onSelect={() => onStartShareSelection(messageId)}>Share messages…</CtxItem>
+              <CtxItem
+                icon={SquareDashedMousePointer}
+                onSelect={() => onStartShareSelection(messageId)}
+              >
+                Share messages…
+              </CtxItem>
             )}
             {onCollapseTurn && (
-              <CtxItem icon={ChevronUp} onSelect={onCollapseTurn}>Collapse turn</CtxItem>
+              <CtxItem icon={ChevronUp} onSelect={onCollapseTurn}>
+                Collapse turn
+              </CtxItem>
             )}
             <CtxSeparator />
-            <CtxItem icon={Maximize2} onSelect={() => setFullscreen(true)}>Fullscreen</CtxItem>
+            <CtxItem icon={Maximize2} onSelect={() => setFullscreen(true)}>
+              Fullscreen
+            </CtxItem>
           </>
         )}
       </ContextMenu>
@@ -1346,7 +2400,10 @@ function AssistantBlockImpl({
         </button>
       )}
       {(hasContent || visibleThinking || hasToolCalls) && (
-        <div data-cc-assistant-message-toolbar className={`absolute ${toolbarTop} right-0 transition-opacity duration-150 ${TOOLBAR_SHELL} ${shareSelectionMode ? "opacity-0 pointer-events-none" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"}`}>
+        <div
+          data-cc-assistant-message-toolbar
+          className={`absolute ${toolbarTop} right-0 transition-opacity duration-150 ${TOOLBAR_SHELL} ${shareSelectionMode ? "opacity-0 pointer-events-none" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"}`}
+        >
           {/* Respond actions (quote into your reply) live on each block's left
               gutter — see MessageReview. This corner is META only: a plain row
               of icon buttons, distinct icons + tooltips so link vs share read clearly. */}
@@ -1356,8 +2413,18 @@ function AssistantBlockImpl({
             title="Copy message"
             aria-label="Copy message"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
             </svg>
           </button>
           <button
@@ -1366,13 +2433,25 @@ function AssistantBlockImpl({
             title="Copy link to this message"
             aria-label="Copy link to this message"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
             </svg>
           </button>
           {commentsEnabled && (
             <button
-              onClick={() => useInboxStore.getState().openCommentThread(messageId)}
+              onClick={() =>
+                useInboxStore.getState().openCommentThread(messageId)
+              }
               className={TOOLBAR_BTN}
               title="Comment for your team"
               aria-label="Comment for your team"
@@ -1406,71 +2485,150 @@ function AssistantBlockImpl({
             title={isBookmarked ? "Remove bookmark" : "Bookmark message"}
             aria-label={isBookmarked ? "Remove bookmark" : "Bookmark message"}
           >
-            <svg className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            <svg
+              className="w-4 h-4"
+              fill={isBookmarked ? "currentColor" : "none"}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+              />
             </svg>
           </button>
         </div>
       )}
 
       {shouldShowHeader && (
-        <div data-cc-message-who className={`flex items-center gap-2 ${bubble ? "mb-1.5 mt-4" : "mb-2 mt-4"}`}>
-          <span className="flex items-center gap-2 cursor-default" title={model ? `Model: ${model}` : undefined}>
-            <AssistantWho conversationId={conversationId} agentType={agentType} />
+        <div
+          data-cc-message-who
+          className={`flex items-center gap-2 ${bubble ? "mb-1.5 mt-4" : "mb-2 mt-4"}`}
+        >
+          <span
+            className="flex items-center gap-2 cursor-default"
+            title={model ? `Model: ${model}` : undefined}
+          >
+            <AssistantWho
+              conversationId={conversationId}
+              agentType={agentType}
+            />
           </span>
           {/* The hosted assistant is the author, whatever model answered; its
               model stays in the tooltip above for a developer. */}
-          {model && !bubble && !isHostedAgentType(agentType) && <span className="text-sol-text-dim text-meta font-mono truncate" title={`Model: ${model}`}>{formatModel(model)}</span>}
+          {model && !bubble && !isHostedAgentType(agentType) && (
+            <span
+              className="text-sol-text-dim text-meta font-mono truncate"
+              title={`Model: ${model}`}
+            >
+              {formatModel(model)}
+            </span>
+          )}
           <a
             href={`#msg-${messageId}`}
             className="text-sol-text-dim hover:text-sol-text-muted text-xs transition-colors"
             title={`${formatFullTimestamp(timestamp)} (click to copy)`}
-            onClick={(e) => { e.preventDefault(); setTimeout(() => { copyToClipboard(formatFullTimestamp(timestamp)).then(() => toast.success("Timestamp copied")); }); }}
+            onClick={(e) => {
+              e.preventDefault();
+              setTimeout(() => {
+                copyToClipboard(formatFullTimestamp(timestamp)).then(() =>
+                  toast.success("Timestamp copied"),
+                );
+              });
+            }}
           >
             {relativeTime(timestamp)}
           </a>
           {isBookmarked && (
-            <svg data-cc-bookmarked className="w-3 h-3 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              data-cc-bookmarked
+              className="w-3 h-3 text-amber-500 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
           )}
         </div>
       )}
 
-      <div className={bubble ? "min-w-0 max-w-[88%] pl-8" : shouldShowHeader || !showHeader ? "pl-8" : "pl-0"}>
-        {hasImages && images?.filter(img => !img.tool_use_id).map((img, i) => <ImageBlock key={i} image={img} />)}
+      <div
+        className={
+          bubble
+            ? "min-w-0 max-w-[88%] pl-8"
+            : shouldShowHeader || !showHeader
+              ? "pl-8"
+              : "pl-0"
+        }
+      >
+        {hasImages &&
+          images
+            ?.filter((img) => !img.tool_use_id)
+            .map((img, i) => <ImageBlock key={i} image={img} />)}
 
         {/* Hidden entirely unless the global "Show thinking" toggle is on
             (off by default) — opencode/pi carry real reasoning that's noisy
             otherwise. Condensed feed hides it too, EXCEPT a pure-reasoning
             turn, where thinking is the only content and hiding it leaves an
             empty bubble. */}
-        {visibleThinking && (!condensed || (!hasContent && !hasToolCalls && !hasImages)) && <ThinkingBlock content={thinking!} />}
+        {visibleThinking &&
+          (!condensed || (!hasContent && !hasToolCalls && !hasImages)) && (
+            <ThinkingBlock content={thinking!} />
+          )}
 
         {/* Condensed hides every hideable tool here: they render inside the
             receipt group below the content instead (own tools and the folded
             tools of absorbed messages alike). Always-visible blocks stay. */}
-        {hasToolCalls && toolCalls?.map((tc) => {
-          if (condensed && !isAlwaysVisibleToolCall(tc, resultFor(tc))) return null;
-          // A delivered file reads as the end of what the agent just said, so
-          // its cards go under the content rather than above it.
-          if (tc.name === "SendUserFile") return null;
-          return renderToolBlock(tc, toolResultMap[tc.id], { messageId, messageUuid, timestamp });
-        })}
+        {hasToolCalls &&
+          toolCalls?.map((tc) => {
+            if (condensed && !isAlwaysVisibleToolCall(tc, resultFor(tc)))
+              return null;
+            // A delivered file reads as the end of what the agent just said, so
+            // its cards go under the content rather than above it.
+            if (tc.name === "SendUserFile") return null;
+            return renderToolBlock(tc, toolResultMap[tc.id], {
+              messageId,
+              messageUuid,
+              timestamp,
+            });
+          })}
 
         {hasContent && (
           <>
-            <div data-cc-prose={parsedApiError ? undefined : ""} className={parsedApiError ? "" : "text-sol-text prose prose-invert prose-sm max-w-none break-words"}>
+            <div
+              data-cc-prose={parsedApiError ? undefined : ""}
+              className={
+                parsedApiError
+                  ? ""
+                  : "text-sol-text prose prose-invert prose-sm max-w-none break-words"
+              }
+            >
               {parsedApiError ? (
-                <ApiErrorCard error={parsedApiError} agentType={agentType} conversationId={conversationId} messageUuid={messageUuid} timestamp={timestamp} compact={condensed} />
+                <ApiErrorCard
+                  error={parsedApiError}
+                  agentType={agentType}
+                  conversationId={conversationId}
+                  messageUuid={messageUuid}
+                  timestamp={timestamp}
+                  compact={condensed}
+                />
               ) : (
                 <div
                   ref={contentRef}
                   className="relative"
-                  style={!bubble && !contentExpanded && isOverflowing ? clippedStyle(CONTENT_MAX_HEIGHT) : undefined}
+                  style={
+                    !bubble && !contentExpanded && isOverflowing
+                      ? clippedStyle(CONTENT_MAX_HEIGHT)
+                      : undefined
+                  }
                 >
                   {conversationId ? (
-                    <MessageIdentityProvider conversationId={String(conversationId)} messageId={messageId}>
+                    <MessageIdentityProvider
+                      conversationId={String(conversationId)}
+                      messageId={messageId}
+                    >
                       <MessageReview
                         conversationId={conversationId}
                         messageId={messageId}
@@ -1485,40 +2643,75 @@ function AssistantBlockImpl({
                 </div>
               )}
             </div>
-            {!parsedApiError && <MessageDecisionReview content={displayContent} conversationId={conversationId ? String(conversationId) : undefined} messageId={messageId} />}
+            {!parsedApiError && (
+              <MessageDecisionReview
+                content={displayContent}
+                conversationId={
+                  conversationId ? String(conversationId) : undefined
+                }
+                messageId={messageId}
+              />
+            )}
             {/* A hosted reply shows in full with no icons under it; folded
                 from its menu, it offers the way back in a word. Fullscreen
                 and folding stay in the message's menu. */}
-            {isHostedAgentType(agentType) ? (!parsedApiError && !contentExpanded && (
-              <button
-                type="button"
-                data-cc-message-overflow
-                onClick={() => setContentExpanded(true)}
-                aria-expanded={false}
-                className="mt-2 text-[12.5px] text-sol-text-dim underline-offset-2 transition-colors hover:text-sol-text hover:underline"
-              >
-                Show more
-              </button>
-            )) : !parsedApiError && !bubble && (isOverflowing || !contentExpanded) && (
-              <div data-cc-message-overflow className="flex items-center gap-1 mt-2">
-                <FooterIconButton onClick={() => setFullscreen(true)} title="Fullscreen">
-                  <FullscreenIcon />
-                </FooterIconButton>
-                <FooterIconButton onClick={() => setContentExpanded(e => !e)} title={contentExpanded ? "Collapse" : "Expand"}>
-                  {contentExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </FooterIconButton>
-              </div>
-            )}
+            {isHostedAgentType(agentType)
+              ? !parsedApiError &&
+                !contentExpanded && (
+                  <button
+                    type="button"
+                    data-cc-message-overflow
+                    onClick={() => setContentExpanded(true)}
+                    aria-expanded={false}
+                    className="mt-2 text-[12.5px] text-sol-text-dim underline-offset-2 transition-colors hover:text-sol-text hover:underline"
+                  >
+                    Show more
+                  </button>
+                )
+              : !parsedApiError &&
+                !bubble &&
+                (isOverflowing || !contentExpanded) && (
+                  <div
+                    data-cc-message-overflow
+                    className="flex items-center gap-1 mt-2"
+                  >
+                    <FooterIconButton
+                      onClick={() => setFullscreen(true)}
+                      title="Fullscreen"
+                    >
+                      <FullscreenIcon />
+                    </FooterIconButton>
+                    <FooterIconButton
+                      onClick={() => setContentExpanded((e) => !e)}
+                      title={contentExpanded ? "Collapse" : "Expand"}
+                    >
+                      {contentExpanded ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </FooterIconButton>
+                  </div>
+                )}
           </>
         )}
 
         {/* A hosted answer that holds text to send (the prompt sets it apart
             as a quote) offers it whole in one press. */}
-        {hasContent && !parsedApiError && isHostedAgentType(agentType) && <CopySendable markdown={displayContent} />}
+        {hasContent && !parsedApiError && isHostedAgentType(agentType) && (
+          <CopySendable markdown={displayContent} />
+        )}
 
-        {hasToolCalls && toolCalls?.filter(tc => tc.name === "SendUserFile").map(tc => (
-          renderToolBlock(tc, toolResultMap[tc.id], { messageId, messageUuid, timestamp })
-        ))}
+        {hasToolCalls &&
+          toolCalls
+            ?.filter((tc) => tc.name === "SendUserFile")
+            .map((tc) =>
+              renderToolBlock(tc, toolResultMap[tc.id], {
+                messageId,
+                messageUuid,
+                timestamp,
+              }),
+            )}
 
         {condensedReceipt && (
           <CondensedToolsGroup
@@ -1529,68 +2722,107 @@ function AssistantBlockImpl({
             globalImageMap={globalImageMap}
             resultFor={resultFor}
             conversationId={conversationId}
-            renderTool={(tc, entry) => renderToolBlock(tc, resultFor(tc), entry)}
+            renderTool={(tc, entry) =>
+              renderToolBlock(tc, resultFor(tc), entry)
+            }
             agentType={agentType}
           />
         )}
 
-        {fullscreen && createPortal(
-          <div className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto" onClick={() => setFullscreen(false)}>
-            <div className="conv-col mx-auto px-8 py-12" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <span className="text-sol-text-secondary text-sm font-medium">Message</span>
-                <button
-                  onClick={() => setFullscreen(false)}
-                  className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
-                  title="Close"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="prose prose-invert prose-sm max-w-none text-sol-text">
-                {parsedApiError ? (
-                  <ApiErrorCard error={parsedApiError} agentType={agentType} conversationId={conversationId} messageUuid={messageUuid} timestamp={timestamp} />
-                ) : (
-                  <ReactMarkdown
-                    remarkPlugins={entityRemarkPlugins}
-                    rehypePlugins={MESSAGE_MD_REHYPE}
-                    components={MESSAGE_MD_COMPONENTS}
+        {fullscreen &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto"
+              onClick={() => setFullscreen(false)}
+            >
+              <div
+                className="conv-col mx-auto px-8 py-12"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-sol-text-secondary text-sm font-medium">
+                    Message
+                  </span>
+                  <button
+                    onClick={() => setFullscreen(false)}
+                    className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
+                    title="Close"
                   >
-                    {displayContent}
-                  </ReactMarkdown>
-                )}
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="prose prose-invert prose-sm max-w-none text-sol-text">
+                  {parsedApiError ? (
+                    <ApiErrorCard
+                      error={parsedApiError}
+                      agentType={agentType}
+                      conversationId={conversationId}
+                      messageUuid={messageUuid}
+                      timestamp={timestamp}
+                    />
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={entityRemarkPlugins}
+                      rehypePlugins={MESSAGE_MD_REHYPE}
+                      components={MESSAGE_MD_COMPONENTS}
+                    >
+                      {displayContent}
+                    </ReactMarkdown>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
+            </div>,
+            document.body,
+          )}
       </div>
 
-      {onForkFromMessage && messageUuid && !onlyToolCalls && !shareSelectionMode && !(forkChildren && forkChildren.length) && (
-        <button
-          data-cc-message-action
-          onClick={() => onForkFromMessage(messageUuid)}
-          className={`absolute right-2 -bottom-3 ${TOOLBAR_SHELL} select-none opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity duration-150`}
-          title="Fork the conversation from this message"
-          aria-label="Fork from this message"
-        >
-          <span className={TOOLBAR_BTN}><Split className="w-4 h-4" /></span>
-        </button>
-      )}
+      {onForkFromMessage &&
+        messageUuid &&
+        !onlyToolCalls &&
+        !shareSelectionMode &&
+        !(forkChildren && forkChildren.length) && (
+          <button
+            data-cc-message-action
+            onClick={() => onForkFromMessage(messageUuid)}
+            className={`absolute right-2 -bottom-3 ${TOOLBAR_SHELL} select-none opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity duration-150`}
+            title="Fork the conversation from this message"
+            aria-label="Fork from this message"
+          >
+            <span className={TOOLBAR_BTN}>
+              <Split className="w-4 h-4" />
+            </span>
+          </button>
+        )}
 
-      {forkChildren && forkChildren.length > 0 && onBranchSwitch && messageUuid && (
-        <BranchSelector
-          forkChildren={forkChildren}
-          activeBranchId={activeBranchId ?? null}
-          onSwitchBranch={(convId) => onBranchSwitch(messageUuid, convId)}
-          loadingBranchId={loadingBranchId}
-          mainDivergentPreview={mainDivergentPreview}
-          onFork={onForkFromMessage ? () => onForkFromMessage(messageUuid) : undefined}
-        />
-      )}
+      {forkChildren &&
+        forkChildren.length > 0 &&
+        onBranchSwitch &&
+        messageUuid && (
+          <BranchSelector
+            forkChildren={forkChildren}
+            activeBranchId={activeBranchId ?? null}
+            onSwitchBranch={(convId) => onBranchSwitch(messageUuid, convId)}
+            loadingBranchId={loadingBranchId}
+            mainDivergentPreview={mainDivergentPreview}
+            onFork={
+              onForkFromMessage
+                ? () => onForkFromMessage(messageUuid)
+                : undefined
+            }
+          />
+        )}
     </div>
   );
 }
@@ -1607,14 +2839,24 @@ function CopySendable({ markdown }: { markdown: string }) {
       <button
         type="button"
         onClick={() => {
-          copyToClipboard(text).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1600);
-          }).catch(() => toast.error("Couldn't copy that. Select the text and copy it instead."));
+          copyToClipboard(text)
+            .then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1600);
+            })
+            .catch(() =>
+              toast.error(
+                "Couldn't copy that. Select the text and copy it instead.",
+              ),
+            );
         }}
         className="inline-flex h-7 items-center gap-1.5 rounded-[var(--radius,8px)] border border-sol-border px-2.5 text-[12.5px] text-sol-text-muted transition-colors hover:bg-sol-bg-highlight hover:text-sol-text"
       >
-        {copied ? <Check className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
+        {copied ? (
+          <Check className="h-3.5 w-3.5" />
+        ) : (
+          <CopyIcon className="h-3.5 w-3.5" />
+        )}
         {copied ? "Copied" : "Copy"}
       </button>
     </div>
@@ -1633,14 +2875,18 @@ export function GitDiffPanel({
       <div className="conv-col mx-auto px-4 py-2 max-h-96 overflow-y-auto">
         {gitDiffStaged && gitDiffStaged.trim().length > 0 && (
           <div className="mb-2">
-            <div className="text-sol-green text-meta font-semibold mb-1">Staged</div>
+            <div className="text-sol-green text-meta font-semibold mb-1">
+              Staged
+            </div>
             <InlineDiff raw={gitDiffStaged} />
           </div>
         )}
         {gitDiff && gitDiff.trim().length > 0 && (
           <div>
             {gitDiffStaged && gitDiffStaged.trim().length > 0 && (
-              <div className="text-sol-orange text-meta font-semibold mb-1">Unstaged</div>
+              <div className="text-sol-orange text-meta font-semibold mb-1">
+                Unstaged
+              </div>
             )}
             <InlineDiff raw={gitDiff} />
           </div>
@@ -1649,4 +2895,3 @@ export function GitDiffPanel({
     </div>
   );
 }
-

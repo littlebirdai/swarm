@@ -28,24 +28,40 @@ import { useProjectLead } from "../../hooks/useProjectLead";
 
 /** The hire form reads the whole org tree (reports-to choices, caps), so it
  *  subscribes to it only while open: the surface around it reads the roles. */
-export function HireLeadDialog(props: Omit<React.ComponentProps<typeof HireRoleDialog>, "tree">) {
+export function HireLeadDialog(
+  props: Omit<React.ComponentProps<typeof HireRoleDialog>, "tree">,
+) {
   const tree = useInboxStore(windowOrgTree);
   if (!tree) return null;
   return <HireRoleDialog tree={tree} {...props} />;
 }
 
 /** One sentence that says both things the gesture did. */
-function leadToast(role: OrgRole, title: string, outcome: ReturnType<typeof projectLeadScopeOutcome>): string {
+function leadToast(
+  role: OrgRole,
+  title: string,
+  outcome: ReturnType<typeof projectLeadScopeOutcome>,
+): string {
   const led = `${role.name} now leads ${title}`;
   switch (outcome.kind) {
-    case "add": return `${led}, and ${title} was added to what it looks after. The role was told.`;
-    case "outside_parent": return `${led}. ${title} stays outside its scope, because @${outcome.parent.handle}, which it reports to, does not look after it.`;
-    case "not_admin": return `${led}. Adding ${title} to its scope needs an admin.`;
-    default: return `${led}. The role was told.`;
+    case "add":
+      return `${led}, and ${title} was added to what it looks after. The role was told.`;
+    case "outside_parent":
+      return `${led}. ${title} stays outside its scope, because @${outcome.parent.handle}, which it reports to, does not look after it.`;
+    case "not_admin":
+      return `${led}. Adding ${title} to its scope needs an admin.`;
+    default:
+      return `${led}. The role was told.`;
   }
 }
 
-export function ProjectLeadChip({ projectId, size = "sm", editable = false, faceOnly, className }: {
+export function ProjectLeadChip({
+  projectId,
+  size = "sm",
+  editable = false,
+  faceOnly,
+  className,
+}: {
   projectId: string;
   size?: "xs" | "sm";
   /** The lead's face alone (the project page's one-line header). */
@@ -55,14 +71,19 @@ export function ProjectLeadChip({ projectId, size = "sm", editable = false, face
   className?: string;
 }) {
   const { project, roles, lead, otherWorkspace } = useProjectLead(projectId);
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   const setProjectLead = useInboxStore((s) => s.setProjectLead);
   const createOrgRole = useInboxStore((s) => s.createOrgRole);
   const [hireOpen, setHireOpen] = useState(false);
   const orgOn = useWorkspaceFeature("org");
   // A lead whose scope gains this project takes over the sessions in it (R1):
   // that gesture waits at the gate for the count and the person's one edit.
-  const [pending, setPending] = useState<{ role: OrgRole; text: string } | null>(null);
+  const [pending, setPending] = useState<{
+    role: OrgRole;
+    text: string;
+  } | null>(null);
   // Nothing honest to say before the project and its workspace's roles are
   // here: "No lead" on a project whose lead has not loaded would be a lie.
   if (!project || (!roles && !otherWorkspace)) return null;
@@ -73,34 +94,73 @@ export function ProjectLeadChip({ projectId, size = "sm", editable = false, face
     const role = roleId ? tree?.roles.find((r) => r._id === roleId) : undefined;
     // Read the outcome BEFORE the write: after it the scope already lists the
     // project and the sentence would lose its second half.
-    const outcome = role && tree ? projectLeadScopeOutcome(tree, projectId, role) : null;
-    const text = role && outcome ? leadToast(role, project.title, outcome) : `${project.title} has no named lead now`;
+    const outcome =
+      role && tree ? projectLeadScopeOutcome(tree, projectId, role) : null;
+    const text =
+      role && outcome
+        ? leadToast(role, project.title, outcome)
+        : `${project.title} has no named lead now`;
     // Only a lead whose scope GAINS the project can take sessions over; every
     // other outcome writes at once, as it always did.
-    if (role && outcome?.kind === "add") { setPending({ role, text }); return; }
+    if (role && outcome?.kind === "add") {
+      setPending({ role, text });
+      return;
+    }
     name(roleId, text);
   };
   // Painted by the store action; the promise carries only what the server
   // alone knows: the sessions in the project that now report to the role (R1).
-  const name = (roleId: string | null, text: string, opts?: { leave_sessions?: boolean }) => {
-    void setProjectLead(projectId, roleId, opts).then((r) => { if (r?.took_over) toast.message(r.took_over); }).catch(() => {});
+  const name = (
+    roleId: string | null,
+    text: string,
+    opts?: { leave_sessions?: boolean },
+  ) => {
+    void setProjectLead(projectId, roleId, opts)
+      .then((r) => {
+        if (r?.took_over) toast.message(r.took_over);
+      })
+      .catch(() => {});
     toast.success(text);
   };
 
   return (
     // A chip inside a clickable row or group header keeps its clicks to itself.
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0", className)} onClick={(e) => e.stopPropagation()} data-project-lead={lead.kind}>
+    <span
+      className={cn("inline-flex items-center gap-1.5 min-w-0", className)}
+      onClick={(e) => e.stopPropagation()}
+      data-project-lead={lead.kind}
+    >
       {pending && (
-        <Popover open onOpenChange={(open) => { if (!open) setPending(null); }}>
+        <Popover
+          open
+          onOpenChange={(open) => {
+            if (!open) setPending(null);
+          }}
+        >
           <PopoverAnchor className="self-stretch" />
-          <PopoverContent align="start" sideOffset={6} className="w-[300px] p-0 border-0 bg-transparent shadow-none modern:bg-transparent modern:shadow-none" data-lead-gate>
+          <PopoverContent
+            align="start"
+            sideOffset={6}
+            className="w-[300px] p-0 border-0 bg-transparent shadow-none modern:bg-transparent modern:shadow-none"
+            data-lead-gate
+          >
             <TakeoverGate
               key={pending.role._id}
               workspace={windowOrgTree(useInboxStore.getState())?.workspace}
-              ask={{ handle: pending.role.handle, add: [`project:${projectId}`] }}
+              ask={{
+                handle: pending.role.handle,
+                add: [`project:${projectId}`],
+              }}
               what={`${pending.role.name} will lead ${project.title}, and ${project.title} joins what it looks after.`}
               confirmLabel="Name the lead"
-              onConfirm={(opts) => { name(pending.role._id, pending.text, opts.leave_sessions ? opts : undefined); setPending(null); }}
+              onConfirm={(opts) => {
+                name(
+                  pending.role._id,
+                  pending.text,
+                  opts.leave_sessions ? opts : undefined,
+                );
+                setPending(null);
+              }}
               onCancel={() => setPending(null)}
             />
           </PopoverContent>
@@ -116,14 +176,26 @@ export function ProjectLeadChip({ projectId, size = "sm", editable = false, face
         onChange={editable ? onChange : undefined}
         // Editable with no role to offer: the chip is disabled and says why,
         // instead of a "No lead" that looks like nothing can be done.
-        blockedReason={otherWorkspace ? "Switch to the project's workspace to name its lead" : undefined}
+        blockedReason={
+          otherWorkspace
+            ? "Switch to the project's workspace to name its lead"
+            : undefined
+        }
       />
       {lead.kind === "none" && canHire && !faceOnly && (
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); setHireOpen(true); }}
+          onClick={(e) => {
+            e.preventDefault();
+            setHireOpen(true);
+          }}
           title="A standing role that leads this project: it reads the project's plans, tasks and sessions and reports to you"
-          className={cn("inline-flex items-center gap-1 rounded-md whitespace-nowrap transition-colors hover:bg-sol-bg-highlight/60 hover:text-[var(--sol-text-secondary)]", size === "xs" ? "h-[18px] px-1 text-meta" : "h-[22px] px-1.5 text-meta")}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md whitespace-nowrap transition-colors hover:bg-sol-bg-highlight/60 hover:text-[var(--sol-text-secondary)]",
+            size === "xs"
+              ? "h-[18px] px-1 text-meta"
+              : "h-[22px] px-1.5 text-meta",
+          )}
           style={{ color: "var(--sol-text-muted)" }}
           data-add-lead
         >
@@ -138,7 +210,11 @@ export function ProjectLeadChip({ projectId, size = "sm", editable = false, face
           title={`Add a lead for ${project.title}`}
           initialProjects={[project]}
           projectPath={project.project_path ?? undefined}
-          onCreate={(input) => { createOrgRole(input); setHireOpen(false); toast.success(`@${input.handle} is being created and started`); }}
+          onCreate={(input) => {
+            createOrgRole(input);
+            setHireOpen(false);
+            toast.success(`@${input.handle} is being created and started`);
+          }}
         />
       )}
     </span>
@@ -150,22 +226,58 @@ export function ProjectLeadChip({ projectId, size = "sm", editable = false, face
  *  the role the node draws. "lead" when that role leads it; the face of the
  *  role that does when it is another (a role under this one, usually); "no
  *  lead" when several roles watch it and the project names none. */
-export function ProjectLeadMark({ projectId, roleId }: { projectId: string; roleId: string }) {
+export function ProjectLeadMark({
+  projectId,
+  roleId,
+}: {
+  projectId: string;
+  roleId: string;
+}) {
   const { lead } = useProjectLead(projectId);
   if (lead.kind === "none") return null;
   if (lead.kind === "watchers") {
     return (
-      <span className="shrink-0 italic" style={{ color: "var(--sol-yellow)" }} title={`${watchersLabel(lead.roles.length)}: ${lead.roles.map((r) => r.name).join(", ")}. The project names none of them as its lead.`} data-project-lead="watchers">
+      <span
+        className="shrink-0 italic"
+        style={{ color: "var(--sol-yellow)" }}
+        title={`${watchersLabel(lead.roles.length)}: ${lead.roles.map((r) => r.name).join(", ")}. The project names none of them as its lead.`}
+        data-project-lead="watchers"
+      >
         · no lead
       </span>
     );
   }
   if (lead.role._id === roleId) {
-    return <span className="shrink-0 font-semibold" style={{ color: "var(--sol-text-secondary)" }} title={lead.by === "owner" ? "The project names this role as its lead" : lead.by === "workspace" ? "This role looks after the whole workspace and no narrower role covers this project, so it leads it" : "The only role whose scope lists this project, so it leads it"} data-project-lead="self">· lead</span>;
+    return (
+      <span
+        className="shrink-0 font-semibold"
+        style={{ color: "var(--sol-text-secondary)" }}
+        title={
+          lead.by === "owner"
+            ? "The project names this role as its lead"
+            : lead.by === "workspace"
+              ? "This role looks after the whole workspace and no narrower role covers this project, so it leads it"
+              : "The only role whose scope lists this project, so it leads it"
+        }
+        data-project-lead="self"
+      >
+        · lead
+      </span>
+    );
   }
   return (
-    <RoleHoverCard role={lead.role} side="top" triggerClassName="inline-flex shrink-0">
-      <span className="inline-flex" title={`${lead.role.name} leads this project`} data-project-lead={lead.role.short_id}><ChipFace role={lead.role} px={12} /></span>
+    <RoleHoverCard
+      role={lead.role}
+      side="top"
+      triggerClassName="inline-flex shrink-0"
+    >
+      <span
+        className="inline-flex"
+        title={`${lead.role.name} leads this project`}
+        data-project-lead={lead.role.short_id}
+      >
+        <ChipFace role={lead.role} px={12} />
+      </span>
     </RoleHoverCard>
   );
 }

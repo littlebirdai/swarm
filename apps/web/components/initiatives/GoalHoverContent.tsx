@@ -8,9 +8,21 @@ import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
 import { ObjectCardBody } from "../identity/objectCard";
 import { GoalSummary } from "../org/lines/ObjectSummary";
 
-export function GoalHoverContent({ goal, onOpen }: { goal: InitiativeRow; onOpen?: (e: React.MouseEvent) => void }) {
+export function GoalHoverContent({
+  goal,
+  onOpen,
+}: {
+  goal: InitiativeRow;
+  onOpen?: (e: React.MouseEvent) => void;
+}) {
   return (
-    <ObjectCardBody kind="initiative" refId={goal.short_id} label="Open goal" onOpen={onOpen} data-initiative-hover={goal.short_id}>
+    <ObjectCardBody
+      kind="initiative"
+      refId={goal.short_id}
+      label="Open goal"
+      onOpen={onOpen}
+      data-initiative-hover={goal.short_id}
+    >
       <GoalSummary goal={goal} />
     </ObjectCardBody>
   );

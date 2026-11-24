@@ -11,7 +11,14 @@
 // (a plan_status / task_status / project_status change) before it proposes a
 // seat.
 
-import type { BoundRecord, LandedCommit, StalePlan, StaleProject, StaleTask, StaleWork } from "@codecast/shared/contracts/orgCapacity";
+import type {
+  BoundRecord,
+  LandedCommit,
+  StalePlan,
+  StaleProject,
+  StaleTask,
+  StaleWork,
+} from "@codecast/shared/contracts/orgCapacity";
 
 const D = 86_400_000;
 export const STALE_PLAN_DAYS = 21;
@@ -25,7 +32,15 @@ export const ACTIVITY_WINDOW_DAYS = 30;
 // A repo laid out as a monorepo hides the meaningful unit one level down:
 // "apps/web/..." is the web app, under "apps". The top-level dir is
 // the unit everywhere else.
-const CONTAINER_DIRS = new Set(["packages", "apps", "services", "libs", "crates", "modules", "src"]);
+const CONTAINER_DIRS = new Set([
+  "packages",
+  "apps",
+  "services",
+  "libs",
+  "crates",
+  "modules",
+  "src",
+]);
 
 /** The area a file path belongs to: its package in a monorepo, else its top
  *  directory. "" for a repo-root file (README.md); a file straight under a
@@ -33,7 +48,8 @@ const CONTAINER_DIRS = new Set(["packages", "apps", "services", "libs", "crates"
 export function pathPrefixOf(filePath: string): string {
   const parts = (filePath ?? "").split("/").filter(Boolean);
   if (parts.length <= 1) return "";
-  if (CONTAINER_DIRS.has(parts[0])) return parts.length >= 3 ? `${parts[0]}/${parts[1]}` : parts[0];
+  if (CONTAINER_DIRS.has(parts[0]))
+    return parts.length >= 3 ? `${parts[0]}/${parts[1]}` : parts[0];
   return parts[0];
 }
 
@@ -45,8 +61,14 @@ export function pathPrefixOf(filePath: string): string {
  *  seam. No file list means no area can be read: [] and the caller counts it
  *  as a commit without files. */
 export const FILES_PER_COMMIT = 200;
-export function commitAreaPrefixes(files: Array<{ filename: string }> | null | undefined, cap = FILES_PER_COMMIT): string[] {
-  const names = (files ?? []).slice(0, cap).map((f) => f.filename).filter(Boolean);
+export function commitAreaPrefixes(
+  files: Array<{ filename: string }> | null | undefined,
+  cap = FILES_PER_COMMIT,
+): string[] {
+  const names = (files ?? [])
+    .slice(0, cap)
+    .map((f) => f.filename)
+    .filter(Boolean);
   if (names.length === 0) return [];
   const prefixes = new Set(names.map(pathPrefixOf));
   if (prefixes.size === 1) return [prefixes.values().next().value as string];
@@ -67,7 +89,9 @@ export function commitAreaPrefixes(files: Array<{ filename: string }> | null | u
 /** The area a filesystem path (a session's project_path) sits in, read as the
  *  tail after a container dir, so "/home/me/src/repo/apps/web" reads as
  *  "apps/web" and lines up with a commit's file prefix. */
-export function projectPathPrefix(projectPath: string | null | undefined): string | null {
+export function projectPathPrefix(
+  projectPath: string | null | undefined,
+): string | null {
   const parts = (projectPath ?? "").split("/").filter(Boolean);
   // The deepest container wins: a checkout is ".../src/repo/apps/web", and
   // the package (apps/web) is the unit, not the repo root under src.
@@ -83,7 +107,10 @@ export function projectPathPrefix(projectPath: string | null | undefined): strin
  *  the path's own tail is the best reading (projectPathPrefix). A session at
  *  the repository root and a commit with no file list then share the "" row
  *  for that repository instead of sitting under two different keys. */
-export function sessionAreaPrefix(s: { project_path?: string | null; git_root?: string | null }): string | null {
+export function sessionAreaPrefix(s: {
+  project_path?: string | null;
+  git_root?: string | null;
+}): string | null {
   const path = (s.project_path ?? "").replace(/\/+$/, "");
   const root = (s.git_root ?? "").replace(/\/+$/, "");
   if (!path) return null;
@@ -113,40 +140,70 @@ export type ActivityCommit = {
 /** A commit is landed history only on the default branch. A transcript commit
  *  carries no branch and is taken as landed; a webhook commit on any other
  *  branch is work in flight (a branch ahead of main, an open pull request). */
-export const isLandedCommit = (c: ActivityCommit) => !c.branch || c.branch === "main" || c.branch === "master";
+export const isLandedCommit = (c: ActivityCommit) =>
+  !c.branch || c.branch === "main" || c.branch === "master";
 
 export type ActivitySession = {
   _id: string;
-  state: string;              // work_state from the org scan
+  state: string; // work_state from the org scan
   updated_at?: number | null; // the session's last touch, for the stale task clock
   owner_user_id?: string | null;
   project_path?: string | null;
-  repo?: string | null;       // extractRepoFromRemoteUrl(git_remote_url) or repo from git_root
+  repo?: string | null; // extractRepoFromRemoteUrl(git_remote_url) or repo from git_root
   git_root?: string | null;
   active_plan_id?: string | null;
   active_task_id?: string | null;
 };
 
-export type ActivityProject = { id: string; short_id?: string; title: string; status: string; project_path?: string | null; updated_at: number };
+export type ActivityProject = {
+  id: string;
+  short_id?: string;
+  title: string;
+  status: string;
+  project_path?: string | null;
+  updated_at: number;
+};
 /** `last_entry_at` is the newest entry on the plan's own timeline (a comment, a decision, a progress note): a word somebody wrote, where `updated_at` moves on any write, a bulk apply included. */
-export type ActivityPlan = { id: string; short_id: string; title: string; status: string; project_id?: string | null; updated_at: number; last_entry_at?: number | null };
+export type ActivityPlan = {
+  id: string;
+  short_id: string;
+  title: string;
+  status: string;
+  project_id?: string | null;
+  updated_at: number;
+  last_entry_at?: number | null;
+};
 /** A plan row as the activity reading takes it, from the stored row: the one
  *  mapping the analyzer inputs and the health query share. */
 export function activityPlanOf(p: any): ActivityPlan {
   const entries: Array<{ timestamp?: number }> = p.entries ?? [];
   return {
-    id: String(p._id), short_id: p.short_id, title: p.title, status: p.status,
+    id: String(p._id),
+    short_id: p.short_id,
+    title: p.title,
+    status: p.status,
     project_id: p.project_id ? String(p.project_id) : null,
     updated_at: p.updated_at ?? p._creationTime,
-    last_entry_at: entries.length ? Math.max(...entries.map((e) => e.timestamp ?? 0)) : null,
+    last_entry_at: entries.length
+      ? Math.max(...entries.map((e) => e.timestamp ?? 0))
+      : null,
   };
 }
 export type ActivityTask = {
-  id: string; short_id: string; title: string; status: string;
-  plan_id?: string | null; project_id?: string | null; updated_at: number;
+  id: string;
+  short_id: string;
+  title: string;
+  status: string;
+  plan_id?: string | null;
+  project_id?: string | null;
+  updated_at: number;
   conversation_ids?: string[] | null;
 };
-export type ActivityMember = { user_id: string; name: string; email?: string | null };
+export type ActivityMember = {
+  user_id: string;
+  name: string;
+  email?: string | null;
+};
 
 export type ActivityInputs = {
   now: number;
@@ -180,8 +237,20 @@ export type ActivityPerson = {
 /** How much of the commit history carried a file list. A commit without one
  *  lands on the root prefix and reads as no seam; the analyzer reports the
  *  count as "could not verify" rather than as a finding about the root. */
-export type ActivityCommitCoverage = { total: number; with_files: number; without_files: number; spanning_areas: number; /** On main, with a message: the rows a record's landing was searched in. */ landed: number };
-export type OrgActivity = { areas: ActivityArea[]; people: ActivityPerson[]; stale: StaleWork; bound: { tasks: BoundRecord[]; plans: BoundRecord[] }; commits: ActivityCommitCoverage };
+export type ActivityCommitCoverage = {
+  total: number;
+  with_files: number;
+  without_files: number;
+  spanning_areas: number;
+  /** On main, with a message: the rows a record's landing was searched in. */ landed: number;
+};
+export type OrgActivity = {
+  areas: ActivityArea[];
+  people: ActivityPerson[];
+  stale: StaleWork;
+  bound: { tasks: BoundRecord[]; plans: BoundRecord[] };
+  commits: ActivityCommitCoverage;
+};
 
 // ── Naming a record in free text ────────────────────────────────────────────
 // A commit, a chat line or a session message names a record when it carries
@@ -194,24 +263,167 @@ export type OrgActivity = { areas: ActivityArea[]; people: ActivityPerson[]; sta
 // word alone is never a match: a title with one distinctive word ("Infra")
 // matches only by its short id, because one word names half the log.
 const RECORD_STOP_WORDS = new Set([
-  "with", "from", "that", "this", "when", "then", "than", "into", "onto", "over", "under", "after", "before", "every",
-  "each", "their", "there", "these", "those", "which", "while", "about", "what", "have", "will", "been", "were", "also",
-  "only", "more", "most", "much", "many", "such", "very", "just", "make", "made", "take", "took", "uses", "used", "using",
-  "does", "done", "doing", "should", "would", "could", "still", "again", "never", "always", "because", "where", "whose",
-  "same", "other", "another", "some", "them", "they", "your", "ours", "here", "need", "needs", "want", "wants", "keep",
-  "keeps", "gets", "goes", "went", "come", "back", "down", "next", "first", "last", "both", "through", "without", "within",
-  "between", "across", "against", "instead", "rather", "whether", "either", "neither", "task", "tasks", "plan", "plans",
-  "project", "projects", "work", "works", "fix", "fixes", "feat", "chore", "test", "tests", "code", "page", "pages",
-  "file", "files", "data", "user", "users", "session", "sessions", "team", "teams", "part", "step", "steps", "thing",
-  "things", "issue", "issues", "update", "updates", "change", "changes", "improve", "support", "handle", "handles",
-  "check", "checks", "wire", "wires", "clean", "cleanup", "refactor", "review", "spec", "docs",
+  "with",
+  "from",
+  "that",
+  "this",
+  "when",
+  "then",
+  "than",
+  "into",
+  "onto",
+  "over",
+  "under",
+  "after",
+  "before",
+  "every",
+  "each",
+  "their",
+  "there",
+  "these",
+  "those",
+  "which",
+  "while",
+  "about",
+  "what",
+  "have",
+  "will",
+  "been",
+  "were",
+  "also",
+  "only",
+  "more",
+  "most",
+  "much",
+  "many",
+  "such",
+  "very",
+  "just",
+  "make",
+  "made",
+  "take",
+  "took",
+  "uses",
+  "used",
+  "using",
+  "does",
+  "done",
+  "doing",
+  "should",
+  "would",
+  "could",
+  "still",
+  "again",
+  "never",
+  "always",
+  "because",
+  "where",
+  "whose",
+  "same",
+  "other",
+  "another",
+  "some",
+  "them",
+  "they",
+  "your",
+  "ours",
+  "here",
+  "need",
+  "needs",
+  "want",
+  "wants",
+  "keep",
+  "keeps",
+  "gets",
+  "goes",
+  "went",
+  "come",
+  "back",
+  "down",
+  "next",
+  "first",
+  "last",
+  "both",
+  "through",
+  "without",
+  "within",
+  "between",
+  "across",
+  "against",
+  "instead",
+  "rather",
+  "whether",
+  "either",
+  "neither",
+  "task",
+  "tasks",
+  "plan",
+  "plans",
+  "project",
+  "projects",
+  "work",
+  "works",
+  "fix",
+  "fixes",
+  "feat",
+  "chore",
+  "test",
+  "tests",
+  "code",
+  "page",
+  "pages",
+  "file",
+  "files",
+  "data",
+  "user",
+  "users",
+  "session",
+  "sessions",
+  "team",
+  "teams",
+  "part",
+  "step",
+  "steps",
+  "thing",
+  "things",
+  "issue",
+  "issues",
+  "update",
+  "updates",
+  "change",
+  "changes",
+  "improve",
+  "support",
+  "handle",
+  "handles",
+  "check",
+  "checks",
+  "wire",
+  "wires",
+  "clean",
+  "cleanup",
+  "refactor",
+  "review",
+  "spec",
+  "docs",
 ]);
 const RECORD_WORD_MIN = 4;
-const wordsOf = (text: string | null | undefined): string[] => (text ?? "").toLowerCase().match(/[a-z0-9][a-z0-9'-]*[a-z0-9]|[a-z0-9]/g) ?? [];
+const wordsOf = (text: string | null | undefined): string[] =>
+  (text ?? "").toLowerCase().match(/[a-z0-9][a-z0-9'-]*[a-z0-9]|[a-z0-9]/g) ??
+  [];
 /** The distinctive words of a title, in order, deduped. */
 export function recordWords(title: string | null | undefined): string[] {
   const out: string[] = [];
-  for (const w of wordsOf(title)) { const word = w.replace(/'s$/, ""); if (word.length >= RECORD_WORD_MIN && !/^\d+$/.test(word) && !RECORD_STOP_WORDS.has(word) && !out.includes(word)) out.push(word); }
+  for (const w of wordsOf(title)) {
+    const word = w.replace(/'s$/, "");
+    if (
+      word.length >= RECORD_WORD_MIN &&
+      !/^\d+$/.test(word) &&
+      !RECORD_STOP_WORDS.has(word) &&
+      !out.includes(word)
+    )
+      out.push(word);
+  }
   return out;
 }
 export type RecordRef = { short_id?: string | null; title?: string | null };
@@ -219,10 +431,17 @@ export type RecordRef = { short_id?: string | null; title?: string | null };
 export type NamedText = { ids: Set<string>; words: Set<string> };
 export function namedTextOf(text: string | null | undefined): NamedText {
   const lower = (text ?? "").toLowerCase();
-  return { ids: new Set(lower.match(/\b[a-z]{2,3}-\d+\b/g) ?? []), words: new Set(wordsOf(lower).map((w) => w.replace(/'s$/, ""))) };
+  return {
+    ids: new Set(lower.match(/\b[a-z]{2,3}-\d+\b/g) ?? []),
+    words: new Set(wordsOf(lower).map((w) => w.replace(/'s$/, ""))),
+  };
 }
 /** Whether a prepared text names the record: its short id, or two of its distinctive words. */
-export function namesRecord(text: NamedText, ref: RecordRef, words: string[] = recordWords(ref.title)): boolean {
+export function namesRecord(
+  text: NamedText,
+  ref: RecordRef,
+  words: string[] = recordWords(ref.title),
+): boolean {
   if (ref.short_id && text.ids.has(ref.short_id.toLowerCase())) return true;
   let hits = 0;
   for (const w of words) if (text.words.has(w) && ++hits >= 2) return true;
@@ -239,13 +458,21 @@ export function namesRecord(text: NamedText, ref: RecordRef, words: string[] = r
 // names the record.
 export const LANDING_PER_RECORD = 3;
 export const LANDING_LINE_CHARS = 120;
-export function landingFor(commits: ActivityCommit[], ref: RecordRef, cap = LANDING_PER_RECORD): LandedCommit[] {
+export function landingFor(
+  commits: ActivityCommit[],
+  ref: RecordRef,
+  cap = LANDING_PER_RECORD,
+): LandedCommit[] {
   const words = recordWords(ref.title);
   const hits: LandedCommit[] = [];
   for (const c of commits) {
     if (!c.sha || !isLandedCommit(c)) continue;
     if (!namesRecord(namedTextOf(c.message), ref, words)) continue;
-    hits.push({ sha: c.sha.slice(0, 12), at: c.timestamp, line: (c.message ?? "").split("\n")[0].slice(0, LANDING_LINE_CHARS) });
+    hits.push({
+      sha: c.sha.slice(0, 12),
+      at: c.timestamp,
+      line: (c.message ?? "").split("\n")[0].slice(0, LANDING_LINE_CHARS),
+    });
   }
   return hits.sort((a, b) => b.at - a.at).slice(0, cap);
 }
@@ -254,34 +481,72 @@ export function landingFor(commits: ActivityCommit[], ref: RecordRef, cap = LAND
  *  a record somebody is working is judged from what landed for it, not hunted
  *  for. Capped, newest touch first. */
 export const BOUND_RECORDS_CAP = 60;
-export function computeBound(input: ActivityInputs): { tasks: BoundRecord[]; plans: BoundRecord[] } {
+export function computeBound(input: ActivityInputs): {
+  tasks: BoundRecord[];
+  plans: BoundRecord[];
+} {
   const sessionsOn = (key: "active_task_id" | "active_plan_id") => {
     const m = new Map<string, ActivitySession[]>();
-    for (const s of input.sessions) if (s[key]) m.set(String(s[key]), [...(m.get(String(s[key])) ?? []), s]);
+    for (const s of input.sessions)
+      if (s[key]) m.set(String(s[key]), [...(m.get(String(s[key])) ?? []), s]);
     return m;
   };
-  const shape = (rows: Array<ActivityTask | ActivityPlan>, on: Map<string, ActivitySession[]>, closed: (s: string) => boolean): BoundRecord[] =>
-    rows.filter((r) => !closed(r.status) && on.has(String(r.id)))
+  const shape = (
+    rows: Array<ActivityTask | ActivityPlan>,
+    on: Map<string, ActivitySession[]>,
+    closed: (s: string) => boolean,
+  ): BoundRecord[] =>
+    rows
+      .filter((r) => !closed(r.status) && on.has(String(r.id)))
       .map((r) => {
         const bound = on.get(String(r.id))!;
-        return { short_id: r.short_id, title: r.title, status: r.status, sessions: bound.length, sessions_live: bound.filter((s) => s.state !== "done" && s.state !== "idle").length, updated_at: r.updated_at, landing: landingFor(input.commits, r) };
+        return {
+          short_id: r.short_id,
+          title: r.title,
+          status: r.status,
+          sessions: bound.length,
+          sessions_live: bound.filter(
+            (s) => s.state !== "done" && s.state !== "idle",
+          ).length,
+          updated_at: r.updated_at,
+          landing: landingFor(input.commits, r),
+        };
       })
-      .sort((a, b) => b.updated_at - a.updated_at).slice(0, BOUND_RECORDS_CAP);
-  return { tasks: shape(input.tasks, sessionsOn("active_task_id"), isClosedTask), plans: shape(input.plans, sessionsOn("active_plan_id"), isClosedPlan) };
+      .sort((a, b) => b.updated_at - a.updated_at)
+      .slice(0, BOUND_RECORDS_CAP);
+  return {
+    tasks: shape(input.tasks, sessionsOn("active_task_id"), isClosedTask),
+    plans: shape(input.plans, sessionsOn("active_plan_id"), isClosedPlan),
+  };
 }
 
 const CLOSED = new Set(["done", "dropped", "abandoned"]);
 export const isClosedTask = (s: string) => s === "done" || s === "dropped";
 export const isClosedPlan = (s: string) => CLOSED.has(s);
-const bump = <K>(m: Map<K, number>, k: K, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
+const bump = <K>(m: Map<K, number>, k: K, by = 1) =>
+  m.set(k, (m.get(k) ?? 0) + by);
 const areaKey = (repo: string, prefix: string) => `${repo} ${prefix}`;
 
 // ── Areas: where code lands and who lands it ────────────────────────────────
 function computeAreas(input: ActivityInputs) {
   const filesCap = input.filesPerCommit ?? FILES_PER_COMMIT;
-  const perArea = new Map<string, { repository: string; path_prefix: string; commits: number; authors: Map<string, number> }>();
+  const perArea = new Map<
+    string,
+    {
+      repository: string;
+      path_prefix: string;
+      commits: number;
+      authors: Map<string, number>;
+    }
+  >();
   const authorToMember = matchAuthors(input.members);
-  const coverage: ActivityCommitCoverage = { total: 0, with_files: 0, without_files: 0, spanning_areas: 0, landed: 0 };
+  const coverage: ActivityCommitCoverage = {
+    total: 0,
+    with_files: 0,
+    without_files: 0,
+    spanning_areas: 0,
+    landed: 0,
+  };
 
   for (const c of input.commits) {
     const repo = (c.repository ?? "").trim();
@@ -290,12 +555,18 @@ function computeAreas(input: ActivityInputs) {
     if (c.sha && isLandedCommit(c)) coverage.landed++;
     const author = (c.author_name ?? c.author_email ?? "").trim() || "unknown";
     const areas = commitAreaPrefixes(c.files, filesCap);
-    if (areas.length === 0) coverage.without_files++; else coverage.with_files++;
+    if (areas.length === 0) coverage.without_files++;
+    else coverage.with_files++;
     if (areas.length > 1) coverage.spanning_areas++;
     const prefixes = new Set<string>(areas.length ? areas : [""]);
     for (const prefix of prefixes) {
       const key = areaKey(repo, prefix);
-      const a = perArea.get(key) ?? { repository: repo, path_prefix: prefix, commits: 0, authors: new Map() };
+      const a = perArea.get(key) ?? {
+        repository: repo,
+        path_prefix: prefix,
+        commits: 0,
+        authors: new Map(),
+      };
       a.commits++;
       bump(a.authors, author);
       perArea.set(key, a);
@@ -305,13 +576,17 @@ function computeAreas(input: ActivityInputs) {
   // Sessions land in at most one area: the area of their repo whose prefix
   // their project_path names, else that repo's busiest area. This never
   // double-counts a session across a repo's areas.
-  const areasByRepo = new Map<string, Array<{ key: string; prefix: string; commits: number }>>();
+  const areasByRepo = new Map<
+    string,
+    Array<{ key: string; prefix: string; commits: number }>
+  >();
   for (const [key, a] of perArea) {
     const list = areasByRepo.get(a.repository) ?? [];
     list.push({ key, prefix: a.path_prefix, commits: a.commits });
     areasByRepo.set(a.repository, list);
   }
-  for (const list of areasByRepo.values()) list.sort((x, y) => y.commits - x.commits);
+  for (const list of areasByRepo.values())
+    list.sort((x, y) => y.commits - x.commits);
 
   const sessionsPerArea = new Map<string, Set<string>>();
   const sessionProjectPaths = new Map<string, Map<string, number>>(); // area key → project_path → count
@@ -321,7 +596,8 @@ function computeAreas(input: ActivityInputs) {
     const list = areasByRepo.get(repo);
     if (!list || list.length === 0) return null;
     const prefix = sessionAreaPrefix(s);
-    const match = prefix !== null ? list.find((x) => x.prefix === prefix) : undefined;
+    const match =
+      prefix !== null ? list.find((x) => x.prefix === prefix) : undefined;
     return (match ?? list[0]).key;
   };
   for (const s of input.sessions) {
@@ -330,7 +606,11 @@ function computeAreas(input: ActivityInputs) {
     const set = sessionsPerArea.get(key) ?? new Set<string>();
     set.add(s._id);
     sessionsPerArea.set(key, set);
-    if (s.project_path) { const m = sessionProjectPaths.get(key) ?? new Map(); bump(m, s.project_path); sessionProjectPaths.set(key, m); }
+    if (s.project_path) {
+      const m = sessionProjectPaths.get(key) ?? new Map();
+      bump(m, s.project_path);
+      sessionProjectPaths.set(key, m);
+    }
   }
 
   // A project resolves to an area by the project_path the area's sessions most
@@ -346,10 +626,18 @@ function computeAreas(input: ActivityInputs) {
   // of union-mobile/outreach) is one path, and eight Union projects file under it.
   const pathKey = (path: string) => projectPathPrefix(path) ?? path;
   const projectsByPath = new Map<string, ActivityProject[]>();
-  for (const p of input.projects) if (p.project_path) projectsByPath.set(pathKey(p.project_path), [...(projectsByPath.get(pathKey(p.project_path)) ?? []), p]);
+  for (const p of input.projects)
+    if (p.project_path)
+      projectsByPath.set(pathKey(p.project_path), [
+        ...(projectsByPath.get(pathKey(p.project_path)) ?? []),
+        p,
+      ]);
   const projectByPath = new Map<string, ActivityProject>();
   const sharedByPath = new Map<string, number>();
-  for (const [path, ps] of projectsByPath) { if (ps.length === 1) projectByPath.set(path, ps[0]); else sharedByPath.set(path, ps.length); }
+  for (const [path, ps] of projectsByPath) {
+    if (ps.length === 1) projectByPath.set(path, ps[0]);
+    else sharedByPath.set(path, ps.length);
+  }
 
   let areas: ActivityArea[] = Array.from(perArea.values()).map((a) => {
     const key = areaKey(a.repository, a.path_prefix);
@@ -357,13 +645,18 @@ function computeAreas(input: ActivityInputs) {
     let projectId: string | undefined;
     let sharedBy: number | undefined;
     if (paths) {
-      const ranked = Array.from(paths.entries()).sort((x, y) => y[1] - x[1]).map(([path]) => pathKey(path));
+      const ranked = Array.from(paths.entries())
+        .sort((x, y) => y[1] - x[1])
+        .map(([path]) => pathKey(path));
       const top = ranked.map((path) => projectByPath.get(path)).find(Boolean);
       if (top) projectId = top.id;
-      else sharedBy = ranked.map((path) => sharedByPath.get(path)).find(Boolean);
+      else
+        sharedBy = ranked.map((path) => sharedByPath.get(path)).find(Boolean);
     }
     if (!projectId && !sharedBy) {
-      const byPrefix = input.projects.filter((p) => projectPathPrefix(p.project_path) === a.path_prefix);
+      const byPrefix = input.projects.filter(
+        (p) => projectPathPrefix(p.project_path) === a.path_prefix,
+      );
       if (byPrefix.length === 1) projectId = byPrefix[0].id;
       else if (byPrefix.length > 1) sharedBy = byPrefix.length;
     }
@@ -371,14 +664,22 @@ function computeAreas(input: ActivityInputs) {
       repository: a.repository,
       path_prefix: a.path_prefix,
       commits_30d: a.commits,
-      authors: Array.from(a.authors.entries()).sort((x, y) => y[1] - x[1]).map(([name, commits]) => ({ name, commits })),
+      authors: Array.from(a.authors.entries())
+        .sort((x, y) => y[1] - x[1])
+        .map(([name, commits]) => ({ name, commits })),
       sessions_30d: sessionsPerArea.get(key)?.size ?? 0,
       ...(projectId ? { project_id: projectId } : {}),
       ...(sharedBy ? { project_shared_by: sharedBy } : {}),
     };
   });
-  areas.sort((x, y) => y.commits_30d - x.commits_30d || y.sessions_30d - x.sessions_30d || (x.path_prefix < y.path_prefix ? -1 : 1));
-  if (input.maxAreas && areas.length > input.maxAreas) areas = areas.slice(0, input.maxAreas);
+  areas.sort(
+    (x, y) =>
+      y.commits_30d - x.commits_30d ||
+      y.sessions_30d - x.sessions_30d ||
+      (x.path_prefix < y.path_prefix ? -1 : 1),
+  );
+  if (input.maxAreas && areas.length > input.maxAreas)
+    areas = areas.slice(0, input.maxAreas);
   return { areas, authorToMember, coverage };
 }
 
@@ -393,20 +694,30 @@ function matchAuthors(members: ActivityMember[]): Map<string, string> {
 }
 
 // ── People by area: what each person authors and works ──────────────────────
-function computePeople(input: ActivityInputs, authorToMember: Map<string, string>): ActivityPerson[] {
-  const byMember = new Map<string, Map<string, { commits: number; sessions: number }>>();
+function computePeople(
+  input: ActivityInputs,
+  authorToMember: Map<string, string>,
+): ActivityPerson[] {
+  const byMember = new Map<
+    string,
+    Map<string, { commits: number; sessions: number }>
+  >();
   const ensure = (uid: string, prefix: string) => {
     const areas = byMember.get(uid) ?? new Map();
     const cell = areas.get(prefix) ?? { commits: 0, sessions: 0 };
-    areas.set(prefix, cell); byMember.set(uid, areas);
+    areas.set(prefix, cell);
+    byMember.set(uid, areas);
     return cell;
   };
   const filesCap = input.filesPerCommit ?? FILES_PER_COMMIT;
   for (const c of input.commits) {
-    const uid = authorToMember.get((c.author_name ?? "").toLowerCase()) ?? authorToMember.get((c.author_email ?? "").toLowerCase());
+    const uid =
+      authorToMember.get((c.author_name ?? "").toLowerCase()) ??
+      authorToMember.get((c.author_email ?? "").toLowerCase());
     if (!uid) continue;
     const areas = commitAreaPrefixes(c.files, filesCap);
-    for (const prefix of areas.length ? areas : [""]) ensure(uid, prefix).commits++;
+    for (const prefix of areas.length ? areas : [""])
+      ensure(uid, prefix).commits++;
   }
   for (const s of input.sessions) {
     const uid = s.owner_user_id ? String(s.owner_user_id) : null;
@@ -417,10 +728,15 @@ function computePeople(input: ActivityInputs, authorToMember: Map<string, string
   const people: ActivityPerson[] = [];
   for (const [uid, areas] of byMember) {
     const rows = Array.from(areas.entries())
-      .map(([path_prefix, v]) => ({ path_prefix, commits: v.commits, sessions: v.sessions }))
+      .map(([path_prefix, v]) => ({
+        path_prefix,
+        commits: v.commits,
+        sessions: v.sessions,
+      }))
       .filter((r) => r.commits > 0 || r.sessions > 0)
-      .sort((x, y) => (y.commits + y.sessions) - (x.commits + x.sessions));
-    if (rows.length) people.push({ user_id: uid, name: nameOf.get(uid) ?? "", areas: rows });
+      .sort((x, y) => y.commits + y.sessions - (x.commits + x.sessions));
+    if (rows.length)
+      people.push({ user_id: uid, name: nameOf.get(uid) ?? "", areas: rows });
   }
   people.sort((x, y) => y.areas.length - x.areas.length);
   return people;
@@ -430,25 +746,54 @@ function computePeople(input: ActivityInputs, authorToMember: Map<string, string
 export function computeStale(input: ActivityInputs): StaleWork {
   const { now } = input;
   // The refs a record change carries so a proposal can group by them (orgRecordGroups).
-  const projectRef = new Map(input.projects.filter((p) => p.short_id).map((p) => [p.id, p.short_id!]));
+  const projectRef = new Map(
+    input.projects.filter((p) => p.short_id).map((p) => [p.id, p.short_id!]),
+  );
   const planRef = new Map(input.plans.map((p) => [p.id, p.short_id]));
-  const under = (t: { plan_id?: string | null; project_id?: string | null }) => ({ ...(t.plan_id && planRef.get(String(t.plan_id)) ? { plan: planRef.get(String(t.plan_id)) } : {}), ...(t.project_id && projectRef.get(String(t.project_id)) ? { project: projectRef.get(String(t.project_id)) } : {}) });
+  const under = (t: {
+    plan_id?: string | null;
+    project_id?: string | null;
+  }) => ({
+    ...(t.plan_id && planRef.get(String(t.plan_id))
+      ? { plan: planRef.get(String(t.plan_id)) }
+      : {}),
+    ...(t.project_id && projectRef.get(String(t.project_id))
+      ? { project: projectRef.get(String(t.project_id)) }
+      : {}),
+  });
   const tasksByPlan = new Map<string, ActivityTask[]>();
   const tasksByProject = new Map<string, ActivityTask[]>();
   for (const t of input.tasks) {
-    if (t.plan_id) tasksByPlan.set(String(t.plan_id), [...(tasksByPlan.get(String(t.plan_id)) ?? []), t]);
-    if (t.project_id) tasksByProject.set(String(t.project_id), [...(tasksByProject.get(String(t.project_id)) ?? []), t]);
+    if (t.plan_id)
+      tasksByPlan.set(String(t.plan_id), [
+        ...(tasksByPlan.get(String(t.plan_id)) ?? []),
+        t,
+      ]);
+    if (t.project_id)
+      tasksByProject.set(String(t.project_id), [
+        ...(tasksByProject.get(String(t.project_id)) ?? []),
+        t,
+      ]);
   }
   // Sessions bound to a task (active_task_id) and to a plan (active_plan_id).
   const sessionsByTask = new Map<string, ActivitySession[]>();
   const sessionsByPlan = new Map<string, ActivitySession[]>();
   for (const s of input.sessions) {
-    if (s.active_task_id) sessionsByTask.set(String(s.active_task_id), [...(sessionsByTask.get(String(s.active_task_id)) ?? []), s]);
-    if (s.active_plan_id) sessionsByPlan.set(String(s.active_plan_id), [...(sessionsByPlan.get(String(s.active_plan_id)) ?? []), s]);
+    if (s.active_task_id)
+      sessionsByTask.set(String(s.active_task_id), [
+        ...(sessionsByTask.get(String(s.active_task_id)) ?? []),
+        s,
+      ]);
+    if (s.active_plan_id)
+      sessionsByPlan.set(String(s.active_plan_id), [
+        ...(sessionsByPlan.get(String(s.active_plan_id)) ?? []),
+        s,
+      ]);
   }
   // A bound session is live while somebody or something still acts on it:
   // working, waiting on a person, or parked on a wake. Done and idle are not.
-  const isLive = (s: ActivitySession) => s.state !== "done" && s.state !== "idle";
+  const isLive = (s: ActivitySession) =>
+    s.state !== "done" && s.state !== "idle";
   const lastTouch = (rows: ActivitySession[]): number | null => {
     const stamps = rows.map((s) => s.updated_at ?? 0).filter((t) => t > 0);
     return stamps.length ? Math.max(...stamps) : null;
@@ -457,12 +802,24 @@ export function computeStale(input: ActivityInputs): StaleWork {
   // on a feature branch or an open pull request names the task and has not
   // landed, and read as landed it closes work that is one push from main.
   const tasksWithCommit = new Set<string>();
-  for (const c of input.commits) if (isLandedCommit(c)) for (const id of c.task_ids ?? []) tasksWithCommit.add(String(id));
+  for (const c of input.commits)
+    if (isLandedCommit(c))
+      for (const id of c.task_ids ?? []) tasksWithCommit.add(String(id));
   // The newest touch on a project's own path, for the project idle clock.
   const sessionTouchByProjectPath = new Map<string, number>();
-  for (const s of input.sessions) if (s.project_path) sessionTouchByProjectPath.set(s.project_path, Math.max(sessionTouchByProjectPath.get(s.project_path) ?? 0, 0));
+  for (const s of input.sessions)
+    if (s.project_path)
+      sessionTouchByProjectPath.set(
+        s.project_path,
+        Math.max(sessionTouchByProjectPath.get(s.project_path) ?? 0, 0),
+      );
   const commitTouchByRepo = new Map<string, number>();
-  for (const c of input.commits) if (c.repository) commitTouchByRepo.set(c.repository, Math.max(commitTouchByRepo.get(c.repository) ?? 0, c.timestamp));
+  for (const c of input.commits)
+    if (c.repository)
+      commitTouchByRepo.set(
+        c.repository,
+        Math.max(commitTouchByRepo.get(c.repository) ?? 0, c.timestamp),
+      );
 
   // Plans: active or draft whose evidence says finished. Task activity is the
   // primary signal and overrides the session signal: a plan whose tasks moved
@@ -483,27 +840,69 @@ export function computeStale(input: ActivityInputs): StaleWork {
     const bound = sessionsByPlan.get(String(pl.id)) ?? [];
     const liveSessions = bound.filter(isLive);
     const open = mine.filter((t) => !CLOSED.has(t.status));
-    const lastOpenTaskAt = open.length ? Math.max(...open.map((t) => t.updated_at ?? 0)) : 0;
+    const lastOpenTaskAt = open.length
+      ? Math.max(...open.map((t) => t.updated_at ?? 0))
+      : 0;
     if (pl.status === "done") {
       // A leftover open task under a finished plan is a follow up, not the plan still running: only a task in progress counts.
       // One week, not the two of the quiet clock: three Union samples reopened five done plans on a two week reading, and four of them were finished with one forgotten row.
-      const workedOpen = open.some((t) => t.status === "in_progress" && now - (t.updated_at ?? 0) < DONE_STILL_WORKED_DAYS * D);
+      const workedOpen = open.some(
+        (t) =>
+          t.status === "in_progress" &&
+          now - (t.updated_at ?? 0) < DONE_STILL_WORKED_DAYS * D,
+      );
       // A session parked on the plan after it closed (waiting on a person, or on a wake) is not working it; only a session working now is.
       // Five finished Union plans were flagged on parked sessions alone (2026-09-21).
       const workedLive = bound.some((s) => s.state === "working");
-      if (workedOpen || workedLive) plans.push({ short_id: pl.short_id, title: pl.title, status: pl.status, ...under(pl), last_task_activity_at: lastOpenTaskAt || null, sessions_live: liveSessions.length, reason: "marked done, still worked" });
+      if (workedOpen || workedLive)
+        plans.push({
+          short_id: pl.short_id,
+          title: pl.title,
+          status: pl.status,
+          ...under(pl),
+          last_task_activity_at: lastOpenTaskAt || null,
+          sessions_live: liveSessions.length,
+          reason: "marked done, still worked",
+        });
       continue;
     }
     if (pl.status !== "active" && pl.status !== "draft") continue;
     // The clock reads the OPEN tasks: a closed task touched last week (its
     // close) says nothing about whether the rows still open are being worked.
-    const lastTaskAt = open.length ? lastOpenTaskAt : mine.length ? Math.max(...mine.map((t) => t.updated_at ?? 0)) : null;
-    const lastWordAt = lastTaskAt === null ? null : Math.max(lastTaskAt, pl.last_entry_at ?? 0, lastTouch(bound) ?? 0);
+    const lastTaskAt = open.length
+      ? lastOpenTaskAt
+      : mine.length
+        ? Math.max(...mine.map((t) => t.updated_at ?? 0))
+        : null;
+    const lastWordAt =
+      lastTaskAt === null
+        ? null
+        : Math.max(lastTaskAt, pl.last_entry_at ?? 0, lastTouch(bound) ?? 0);
     let reason: StalePlan["reason"] | null = null;
     if (mine.length > 0 && open.length === 0) reason = "every task closed";
-    else if (lastWordAt !== null && now - lastWordAt >= STALE_PLAN_DAYS * D && liveSessions.length === 0) reason = "no activity 21d";
-    else if (lastWordAt !== null && now - lastWordAt >= STALE_TASK_DAYS * D && bound.length > 0 && bound.every((s) => s.state === "done")) reason = "bound sessions all done";
-    if (reason) plans.push({ short_id: pl.short_id, title: pl.title, status: pl.status, ...under(pl), last_task_activity_at: lastTaskAt, sessions_live: liveSessions.length, reason });
+    else if (
+      lastWordAt !== null &&
+      now - lastWordAt >= STALE_PLAN_DAYS * D &&
+      liveSessions.length === 0
+    )
+      reason = "no activity 21d";
+    else if (
+      lastWordAt !== null &&
+      now - lastWordAt >= STALE_TASK_DAYS * D &&
+      bound.length > 0 &&
+      bound.every((s) => s.state === "done")
+    )
+      reason = "bound sessions all done";
+    if (reason)
+      plans.push({
+        short_id: pl.short_id,
+        title: pl.title,
+        status: pl.status,
+        ...under(pl),
+        last_task_activity_at: lastTaskAt,
+        sessions_live: liveSessions.length,
+        reason,
+      });
   }
 
   // Tasks: an open task a landed commit already carried; an in-progress task
@@ -521,14 +920,35 @@ export function computeStale(input: ActivityInputs): StaleWork {
     const linked = sessionsByTask.get(String(t.id)) ?? [];
     const everHad = linked.length > 0 || (t.conversation_ids?.length ?? 0) > 0;
     const lastSessionAt = lastTouch(linked);
-    const quiet = now - Math.max(t.updated_at ?? 0, lastSessionAt ?? 0) >= STALE_TASK_DAYS * D;
+    const quiet =
+      now - Math.max(t.updated_at ?? 0, lastSessionAt ?? 0) >=
+      STALE_TASK_DAYS * D;
     let reason: StaleTask["reason"] | null = null;
     if (!quiet) reason = null;
-    else if (tasksWithCommit.has(String(t.id))) reason = "commits landed, still open";
-    else if (t.status === "in_progress" && !everHad) reason = "in progress, no session 14d";
-    else if (t.status === "in_progress" && linked.every((s) => s.state === "done")) reason = "in progress, sessions done 14d";
-    else if (t.status === "open" && !everHad && now - (t.updated_at ?? 0) >= STALE_OPEN_DAYS * D) reason = "open, untouched 45d";
-    if (reason) tasks.push({ short_id: t.short_id, title: t.title, status: t.status, ...under(t), last_session_activity_at: lastSessionAt, reason });
+    else if (tasksWithCommit.has(String(t.id)))
+      reason = "commits landed, still open";
+    else if (t.status === "in_progress" && !everHad)
+      reason = "in progress, no session 14d";
+    else if (
+      t.status === "in_progress" &&
+      linked.every((s) => s.state === "done")
+    )
+      reason = "in progress, sessions done 14d";
+    else if (
+      t.status === "open" &&
+      !everHad &&
+      now - (t.updated_at ?? 0) >= STALE_OPEN_DAYS * D
+    )
+      reason = "open, untouched 45d";
+    if (reason)
+      tasks.push({
+        short_id: t.short_id,
+        title: t.title,
+        status: t.status,
+        ...under(t),
+        last_session_activity_at: lastSessionAt,
+        reason,
+      });
   }
 
   // Projects: nothing touched them in the window. A task, a plan, a session in
@@ -537,12 +957,17 @@ export function computeStale(input: ActivityInputs): StaleWork {
   for (const p of input.projects) {
     if (CLOSED.has(p.status)) continue;
     let last = p.updated_at ?? 0;
-    for (const t of tasksByProject.get(String(p.id)) ?? []) last = Math.max(last, t.updated_at ?? 0);
-    for (const pl of input.plans) if (String(pl.project_id ?? "") === String(p.id)) last = Math.max(last, pl.updated_at ?? 0);
+    for (const t of tasksByProject.get(String(p.id)) ?? [])
+      last = Math.max(last, t.updated_at ?? 0);
+    for (const pl of input.plans)
+      if (String(pl.project_id ?? "") === String(p.id))
+        last = Math.max(last, pl.updated_at ?? 0);
     if (p.project_path && sessionTouchByProjectPath.has(p.project_path)) {
-      for (const s of input.sessions) if (s.project_path === p.project_path) last = now; // a live scan row is a touch now
+      for (const s of input.sessions)
+        if (s.project_path === p.project_path) last = now; // a live scan row is a touch now
     }
-    if (now - last >= STALE_PROJECT_DAYS * D) projects.push({ id: p.id, title: p.title, reason: "no activity 30d" });
+    if (now - last >= STALE_PROJECT_DAYS * D)
+      projects.push({ id: p.id, title: p.title, reason: "no activity 30d" });
   }
 
   return { plans, tasks, projects };
@@ -555,6 +980,13 @@ export function computeOrgActivity(input: ActivityInputs): OrgActivity {
   const people = computePeople(input, authorToMember);
   const stale = computeStale(input);
   // Every flagged record carries what landed for it on main (landingFor).
-  for (const r of [...stale.plans, ...stale.tasks]) r.landing = landingFor(input.commits, r);
-  return { areas, people, stale, bound: computeBound(input), commits: coverage };
+  for (const r of [...stale.plans, ...stale.tasks])
+    r.landing = landingFor(input.commits, r);
+  return {
+    areas,
+    people,
+    stale,
+    bound: computeBound(input),
+    commits: coverage,
+  };
 }

@@ -42,7 +42,11 @@ const EDITABLE_PROBE = `(() => {
 
 const isEditKey = (input) => {
   const key = String(input.key || "").toLowerCase();
-  return input.type === "keyDown" && (input.meta || input.control) && (key === "z" || key === "y");
+  return (
+    input.type === "keyDown" &&
+    (input.meta || input.control) &&
+    (key === "z" || key === "y")
+  );
 };
 
 /**
@@ -58,7 +62,8 @@ function createEditUndo({ focusedContents, isShell, keyRunsApp = () => true }) {
   /** Watch one webContents' keys for auto-repeat (web-contents-created). */
   function observe(contents) {
     contents.on("before-input-event", (_event, input) => {
-      if (isEditKey(input)) repeating.set(contents, input.isAutoRepeat === true);
+      if (isEditKey(input))
+        repeating.set(contents, input.isAutoRepeat === true);
     });
   }
 
@@ -91,8 +96,20 @@ function createEditUndo({ focusedContents, isShell, keyRunsApp = () => true }) {
   /** The two Edit menu items that replace `{ role: "undo" }` / `{ role: "redo" }`. */
   function menuItems() {
     return [
-      { label: "Undo", accelerator: "CmdOrCtrl+Z", click: (_item, _win, event) => { void run("undo", !!event?.triggeredByAccelerator); } },
-      { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", click: (_item, _win, event) => { void run("redo", !!event?.triggeredByAccelerator); } },
+      {
+        label: "Undo",
+        accelerator: "CmdOrCtrl+Z",
+        click: (_item, _win, event) => {
+          void run("undo", !!event?.triggeredByAccelerator);
+        },
+      },
+      {
+        label: "Redo",
+        accelerator: "Shift+CmdOrCtrl+Z",
+        click: (_item, _win, event) => {
+          void run("redo", !!event?.triggeredByAccelerator);
+        },
+      },
     ];
   }
 

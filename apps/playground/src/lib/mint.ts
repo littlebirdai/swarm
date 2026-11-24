@@ -10,12 +10,15 @@ import { errorData } from "./errors";
 type Solve = (secretHash: string, bits: number) => Promise<number>;
 
 export async function mintVisitor(
-  register: (args: { secret: string; nonce: number }) => Promise<{ visitor_id: Id<"visitors"> }>,
+  register: (args: {
+    secret: string;
+    nonce: number;
+  }) => Promise<{ visitor_id: Id<"visitors"> }>,
   solve: Solve = solveProof,
 ): Promise<{ visitor_id: Id<"visitors">; secret: string }> {
   const secret = newSecret();
   const hash = await sha256Hex(secret);
-  for (let bits = PROOF_BITS; ; ) {
+  for (let bits = PROOF_BITS; ;) {
     const nonce = await solve(hash, bits);
     try {
       const { visitor_id } = await register({ secret, nonce });
@@ -34,7 +37,9 @@ export const solveOffThread: Solve = (secretHash, bits) =>
   new Promise((resolve) => {
     let worker: Worker;
     try {
-      worker = new Worker(new URL("./proof.worker.ts", import.meta.url), { type: "module" });
+      worker = new Worker(new URL("./proof.worker.ts", import.meta.url), {
+        type: "module",
+      });
     } catch {
       return resolve(solveProof(secretHash, bits));
     }

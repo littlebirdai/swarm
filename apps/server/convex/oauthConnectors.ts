@@ -14,7 +14,12 @@
 // SCOPE). Mail stays on its own, personal-only path (googleOAuth.ts).
 
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -23,7 +28,12 @@ import { getAuthenticatedUserId } from "./pendingMessages";
 import { convexSiteUrl, webBaseUrl } from "./lib/slackOAuth";
 import { encryptRefreshToken, decryptRefreshToken } from "./googleOAuth";
 import { signStateWith, verifyStateWith } from "./lib/hmac";
-import { claimRefreshOn, writeRefreshOutcomeOn, singleFlightRefresh, storedRefreshFailure } from "./lib/tokenRefresh";
+import {
+  claimRefreshOn,
+  writeRefreshOutcomeOn,
+  singleFlightRefresh,
+  storedRefreshFailure,
+} from "./lib/tokenRefresh";
 import { sha256Hex } from "./lib/hash";
 import { activeTeamMembershipFor } from "./lib/access";
 
@@ -47,7 +57,9 @@ export interface ProviderConfig {
   tokenAuth: "body" | "basic";
   /** Fetch the connected account's label after exchange. Total: a failed
    *  profile read stores the connection unlabeled rather than failing it. */
-  profile: (accessToken: string) => Promise<{ label?: string; id?: string; appUserId?: string }>;
+  profile: (
+    accessToken: string,
+  ) => Promise<{ label?: string; id?: string; appUserId?: string }>;
   /** Extra authorize params some providers require. */
   authorizeExtra?: Record<string, string>;
 }
@@ -60,7 +72,10 @@ const linear: ProviderConfig = {
   // write is what lets outbound push a title/state/label back onto an issue
   // (S5); read + issues:create alone can only ever create, never update.
   scopes: ["read", "write", "comments:create", "app:assignable"],
-  env: { clientId: "LINEAR_OAUTH_CLIENT_ID", clientSecret: "LINEAR_OAUTH_CLIENT_SECRET" },
+  env: {
+    clientId: "LINEAR_OAUTH_CLIENT_ID",
+    clientSecret: "LINEAR_OAUTH_CLIENT_SECRET",
+  },
   tokenAuth: "body",
   // actor: "app" attributes our writes to the Codecast app rather than to
   // whoever happened to connect the workspace — the person who clicked
@@ -70,14 +85,22 @@ const linear: ProviderConfig = {
     try {
       const r = await fetch("https://api.linear.app/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ query: "{ organization { id name urlKey } viewer { id } }" }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: "{ organization { id name urlKey } viewer { id } }",
+        }),
         signal: AbortSignal.timeout(10_000),
       });
       const j: any = await r.json();
       const org = j?.data?.organization;
       const appUserId = j?.data?.viewer?.id;
-      return { ...(org ? { label: org.name ?? org.urlKey, id: org.id } : {}), ...(appUserId ? { appUserId } : {}) };
+      return {
+        ...(org ? { label: org.name ?? org.urlKey, id: org.id } : {}),
+        ...(appUserId ? { appUserId } : {}),
+      };
     } catch {
       return {};
     }
@@ -90,18 +113,26 @@ const notion: ProviderConfig = {
   authorizeUrl: "https://api.notion.com/v1/oauth/authorize",
   tokenUrl: "https://api.notion.com/v1/oauth/token",
   scopes: [], // Notion grants access per page the user shares; no scope string.
-  env: { clientId: "NOTION_OAUTH_CLIENT_ID", clientSecret: "NOTION_OAUTH_CLIENT_SECRET" },
+  env: {
+    clientId: "NOTION_OAUTH_CLIENT_ID",
+    clientSecret: "NOTION_OAUTH_CLIENT_SECRET",
+  },
   tokenAuth: "basic",
   authorizeExtra: { owner: "user" },
   profile: async () => ({}), // Notion returns workspace_name IN the token response.
 };
 
-export const PROVIDERS: Record<ConnectorId, ProviderConfig> = { linear, notion };
+export const PROVIDERS: Record<ConnectorId, ProviderConfig> = {
+  linear,
+  notion,
+};
 
 export const CONNECTOR_CALLBACK_PATH = "/api/webhooks/oauth-connector/callback";
 const CONFIRM_TTL_MS = 15 * 60 * 1000;
 
-function providerEnv(p: ProviderConfig): { clientId: string; clientSecret: string } | null {
+function providerEnv(
+  p: ProviderConfig,
+): { clientId: string; clientSecret: string } | null {
   const clientId = process.env[p.env.clientId];
   const clientSecret = process.env[p.env.clientSecret];
   return clientId && clientSecret ? { clientId, clientSecret } : null;
@@ -135,18 +166,27 @@ export const getConnectUrl = action({
     scope: v.optional(v.string()),
     api_token: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; url?: string; error?: string }> => {
-    if (!isConnectorId(args.provider)) return { ok: false, error: "unknown provider" };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; url?: string; error?: string }> => {
+    if (!isConnectorId(args.provider))
+      return { ok: false, error: "unknown provider" };
     const p = PROVIDERS[args.provider];
     const env = providerEnv(p);
     if (!env) return { ok: false, error: notConfigured(p) };
-    const scope: AppConnectionScope = isAppConnectionScope(args.scope) ? args.scope : "team";
+    const scope: AppConnectionScope = isAppConnectionScope(args.scope)
+      ? args.scope
+      : "team";
     const me: any = await ctx.runQuery(internal.oauthConnectors.resolveTeam, {
       api_token: args.api_token,
     });
     if (!me?.user_id) return { ok: false, error: "not signed in" };
     if (scope === "team" && !me?.team_id) {
-      return { ok: false, error: `Join or create a team first, or connect ${p.name} personally` };
+      return {
+        ok: false,
+        error: `Join or create a team first, or connect ${p.name} personally`,
+      };
     }
 
     const state = await signStateWith(env.clientSecret, {
@@ -167,8 +207,13 @@ export const getConnectUrl = action({
     url.searchParams.set("response_type", "code");
     url.searchParams.set("state", state);
     // Linear wants its scopes comma-joined; everyone else space-joined.
-    if (p.scopes.length > 0) url.searchParams.set("scope", p.scopes.join(p.id === "linear" ? "," : " "));
-    for (const [k, val] of Object.entries(p.authorizeExtra ?? {})) url.searchParams.set(k, val);
+    if (p.scopes.length > 0)
+      url.searchParams.set(
+        "scope",
+        p.scopes.join(p.id === "linear" ? "," : " "),
+      );
+    for (const [k, val] of Object.entries(p.authorizeExtra ?? {}))
+      url.searchParams.set(k, val);
     return { ok: true, url: url.toString() };
   },
 });
@@ -216,8 +261,15 @@ async function tokenRequest(
         })
       : await fetch(p.tokenUrl, {
           method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ ...params, client_id: env.clientId, client_secret: env.clientSecret }).toString(),
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            ...params,
+            client_id: env.clientId,
+            client_secret: env.clientSecret,
+          }).toString(),
           signal,
         });
   let tok: any = null;
@@ -229,23 +281,38 @@ async function tokenRequest(
   return { ok: resp.ok, status: resp.status, tok };
 }
 
-import { accessExpiresAt, needsRefresh, REFRESH_MARGIN_MS, REFRESH_LEASE_MS } from "./lib/tokenRefresh";
-import { isAppConnectionScope, type AppConnectionScope } from "@codecast/shared/contracts";
+import {
+  accessExpiresAt,
+  needsRefresh,
+  REFRESH_MARGIN_MS,
+  REFRESH_LEASE_MS,
+} from "./lib/tokenRefresh";
+import {
+  isAppConnectionScope,
+  type AppConnectionScope,
+} from "@codecast/shared/contracts";
 export { accessExpiresAt, needsRefresh, REFRESH_MARGIN_MS, REFRESH_LEASE_MS };
 
 /* ==========================================================================
  * Callback — code exchange, encrypted store, PENDING until confirmed
  * ========================================================================== */
 
-export const callbackHandler = async (ctx: any, request: Request): Promise<Response> => {
+export const callbackHandler = async (
+  ctx: any,
+  request: Request,
+): Promise<Response> => {
   const url = new URL(request.url);
   const errorRedirect = (provider: string, reason: string) =>
-    Response.redirect(`${webBaseUrl()}/settings/integrations?${provider}=error&reason=${encodeURIComponent(reason)}`, 302);
+    Response.redirect(
+      `${webBaseUrl()}/settings/integrations?${provider}=error&reason=${encodeURIComponent(reason)}`,
+      302,
+    );
 
   const state = url.searchParams.get("state");
   const code = url.searchParams.get("code");
   if (!state || !code) {
-    if (url.searchParams.get("error")) return errorRedirect("connector", url.searchParams.get("error")!);
+    if (url.searchParams.get("error"))
+      return errorRedirect("connector", url.searchParams.get("error")!);
     return new Response("bad_state", { status: 400 });
   }
 
@@ -267,43 +334,70 @@ export const callbackHandler = async (ctx: any, request: Request): Promise<Respo
   }
   // States minted before scopes existed carry only a team: they read as team
   // installs. A personal state names no team; a team state must.
-  const scope: AppConnectionScope = isAppConnectionScope(st?.scope) ? st!.scope : "team";
-  if (!st || !p || !env || typeof st.user_id !== "string" || (scope === "team" && typeof st.team_id !== "string")) {
+  const scope: AppConnectionScope = isAppConnectionScope(st?.scope)
+    ? st!.scope
+    : "team";
+  if (
+    !st ||
+    !p ||
+    !env ||
+    typeof st.user_id !== "string" ||
+    (scope === "team" && typeof st.team_id !== "string")
+  ) {
     return new Response("bad_state", { status: 400 });
   }
 
   // Exchange the code.
   let tok: any;
   try {
-    const res = await tokenRequest(p, env, { code, redirect_uri: redirectUri(), grant_type: "authorization_code" });
+    const res = await tokenRequest(p, env, {
+      code,
+      redirect_uri: redirectUri(),
+      grant_type: "authorization_code",
+    });
     tok = res.tok;
-    if (!res.ok) return errorRedirect(p.id, tok?.error ?? `token_${res.status}`);
+    if (!res.ok)
+      return errorRedirect(p.id, tok?.error ?? `token_${res.status}`);
   } catch (err) {
     return errorRedirect(p.id, "token_exchange_failed");
   }
-  if (typeof tok?.access_token !== "string") return errorRedirect(p.id, "no_access_token");
+  if (typeof tok?.access_token !== "string")
+    return errorRedirect(p.id, "no_access_token");
 
   const profile = await p.profile(tok.access_token);
   const label = profile.label ?? tok.workspace_name ?? undefined; // Notion puts it in the token response
   const accountId = profile.id ?? tok.workspace_id ?? undefined;
   const scopes: string[] =
-    typeof tok.scope === "string" ? tok.scope.split(/[ ,]+/).filter(Boolean) : Array.isArray(tok.scope) ? tok.scope : p.scopes;
+    typeof tok.scope === "string"
+      ? tok.scope.split(/[ ,]+/).filter(Boolean)
+      : Array.isArray(tok.scope)
+        ? tok.scope
+        : p.scopes;
 
   const confirmToken = crypto.randomUUID();
   const confirmHash = await sha256Hex(confirmToken);
-  const stored: any = await ctx.runMutation(internal.oauthConnectors.storeConnection, {
-    provider: p.id,
-    user_id: st.user_id,
-    team_id: scope === "team" ? st.team_id : undefined,
-    account_label: label,
-    account_id: accountId,
-    app_user_id: profile.appUserId,
-    access_token_enc: await encryptRefreshToken(tok.access_token, env.clientSecret),
-    refresh_token_enc: typeof tok.refresh_token === "string" ? await encryptRefreshToken(tok.refresh_token, env.clientSecret) : undefined,
-    access_expires_at: accessExpiresAt(tok, Date.now()),
-    granted_scopes: scopes,
-    pending_confirm_hash: confirmHash,
-  });
+  const stored: any = await ctx.runMutation(
+    internal.oauthConnectors.storeConnection,
+    {
+      provider: p.id,
+      user_id: st.user_id,
+      team_id: scope === "team" ? st.team_id : undefined,
+      account_label: label,
+      account_id: accountId,
+      app_user_id: profile.appUserId,
+      access_token_enc: await encryptRefreshToken(
+        tok.access_token,
+        env.clientSecret,
+      ),
+      refresh_token_enc:
+        typeof tok.refresh_token === "string"
+          ? await encryptRefreshToken(tok.refresh_token, env.clientSecret)
+          : undefined,
+      access_expires_at: accessExpiresAt(tok, Date.now()),
+      granted_scopes: scopes,
+      pending_confirm_hash: confirmHash,
+    },
+  );
   if (!stored?.ok) return errorRedirect(p.id, stored?.error ?? "store_failed");
 
   // Two-phase: hand the confirm token to the browser in the fragment (never
@@ -326,13 +420,17 @@ export async function connectionRowFor(
   if (scope.team_id) {
     return await ctx.db
       .query("app_installations")
-      .withIndex("by_provider_team", (q: any) => q.eq("provider", provider).eq("team_id", scope.team_id))
+      .withIndex("by_provider_team", (q: any) =>
+        q.eq("provider", provider).eq("team_id", scope.team_id),
+      )
       .first();
   }
   if (scope.user_id) {
     return await ctx.db
       .query("app_installations")
-      .withIndex("by_provider_user", (q: any) => q.eq("provider", provider).eq("scope_user_id", scope.user_id))
+      .withIndex("by_provider_user", (q: any) =>
+        q.eq("provider", provider).eq("scope_user_id", scope.user_id),
+      )
       .first();
   }
   return null;
@@ -353,12 +451,22 @@ export const storeConnection = internalMutation({
     granted_scopes: v.array(v.string()),
     pending_confirm_hash: v.string(),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; id?: string; error?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; id?: string; error?: string }> => {
     const userId = (ctx.db as any).normalizeId("users", args.user_id);
-    const teamId = args.team_id ? (ctx.db as any).normalizeId("teams", args.team_id) : undefined;
-    if (!userId || (args.team_id && !teamId)) return { ok: false, error: "bad_ids" };
+    const teamId = args.team_id
+      ? (ctx.db as any).normalizeId("teams", args.team_id)
+      : undefined;
+    if (!userId || (args.team_id && !teamId))
+      return { ok: false, error: "bad_ids" };
     const now = Date.now();
-    const existing = await connectionRowFor(ctx, args.provider, teamId ? { team_id: teamId } : { user_id: userId });
+    const existing = await connectionRowFor(
+      ctx,
+      args.provider,
+      teamId ? { team_id: teamId } : { user_id: userId },
+    );
     if (existing) {
       // A RECONNECT onto a confirmed row does not touch the live credentials.
       // Overwriting them activated a grant nobody confirmed — the redirect
@@ -450,11 +558,17 @@ export const confirmConnection = action({
  *  and a grant activated after that answers for a workspace nobody in it
  *  authorised. Token connectors (tokenConnectors.ts) ask the same question
  *  before storing a pasted credential. */
-export async function stillAuthorized(ctx: { db: any }, row: any, userId: any): Promise<boolean> {
+export async function stillAuthorized(
+  ctx: { db: any },
+  row: any,
+  userId: any,
+): Promise<boolean> {
   if (row.team_id) {
     const member = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", row.team_id))
+      .withIndex("by_user_team", (q: any) =>
+        q.eq("user_id", userId).eq("team_id", row.team_id),
+      )
       .first();
     return !!member;
   }
@@ -462,9 +576,16 @@ export async function stillAuthorized(ctx: { db: any }, row: any, userId: any): 
 }
 
 export const finishConfirm = internalMutation({
-  args: { user_id: v.string(), installation_id: v.string(), token_hash: v.string() },
+  args: {
+    user_id: v.string(),
+    installation_id: v.string(),
+    token_hash: v.string(),
+  },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
-    const rowId = (ctx.db as any).normalizeId("app_installations", args.installation_id);
+    const rowId = (ctx.db as any).normalizeId(
+      "app_installations",
+      args.installation_id,
+    );
     if (!rowId) return { ok: false, error: "no_such_installation" };
     const r = await (ctx.db as any).get(rowId);
     if (!r) return { ok: false, error: "no_such_installation" };
@@ -475,13 +596,19 @@ export const finishConfirm = internalMutation({
     if (r.pending_confirm_hash) {
       // First connect: nothing is live yet, so an expired attempt takes the
       // whole row with it.
-      if (typeof r.pending_expires_at === "number" && now > r.pending_expires_at) {
+      if (
+        typeof r.pending_expires_at === "number" &&
+        now > r.pending_expires_at
+      ) {
         await (ctx.db as any).delete(rowId);
         return { ok: false, error: "expired" };
       }
-      if (r.pending_confirm_hash !== args.token_hash) return { ok: false, error: "bad_token" };
-      if (String(r.connected_by) !== String(userId)) return { ok: false, error: "wrong_user" };
-      if (!(await stillAuthorized(ctx, r, userId))) return { ok: false, error: "not_authorized" };
+      if (r.pending_confirm_hash !== args.token_hash)
+        return { ok: false, error: "bad_token" };
+      if (String(r.connected_by) !== String(userId))
+        return { ok: false, error: "wrong_user" };
+      if (!(await stillAuthorized(ctx, r, userId)))
+        return { ok: false, error: "not_authorized" };
       await (ctx.db as any).patch(rowId, {
         pending_confirm_hash: undefined,
         pending_expires_at: undefined,
@@ -496,12 +623,18 @@ export const finishConfirm = internalMutation({
     // A reconnect: the live grant stays exactly as it is until this promotion
     // succeeds, and every refusal below leaves it working.
     if (now > replacement.expires_at) {
-      await (ctx.db as any).patch(rowId, { pending_replacement: undefined, updated_at: now });
+      await (ctx.db as any).patch(rowId, {
+        pending_replacement: undefined,
+        updated_at: now,
+      });
       return { ok: false, error: "expired" };
     }
-    if (replacement.confirm_hash !== args.token_hash) return { ok: false, error: "bad_token" };
-    if (String(replacement.initiated_by) !== String(userId)) return { ok: false, error: "wrong_user" };
-    if (!(await stillAuthorized(ctx, r, userId))) return { ok: false, error: "not_authorized" };
+    if (replacement.confirm_hash !== args.token_hash)
+      return { ok: false, error: "bad_token" };
+    if (String(replacement.initiated_by) !== String(userId))
+      return { ok: false, error: "wrong_user" };
+    if (!(await stillAuthorized(ctx, r, userId)))
+      return { ok: false, error: "not_authorized" };
     await (ctx.db as any).patch(rowId, {
       connected_by: userId,
       access_token_enc: replacement.access_token_enc,
@@ -543,7 +676,10 @@ export const disconnect = action({
 export const deleteConnection = internalMutation({
   args: { user_id: v.string(), installation_id: v.string() },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
-    const rowId = (ctx.db as any).normalizeId("app_installations", args.installation_id);
+    const rowId = (ctx.db as any).normalizeId(
+      "app_installations",
+      args.installation_id,
+    );
     if (!rowId) return { ok: false, error: "no_such_installation" };
     const r = await (ctx.db as any).get(rowId);
     if (!r) return { ok: true };
@@ -554,7 +690,9 @@ export const deleteConnection = internalMutation({
       // and a departed connector must not leave a live grant nobody can revoke.
       const member = await (ctx.db as any)
         .query("team_memberships")
-        .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", r.team_id))
+        .withIndex("by_user_team", (q: any) =>
+          q.eq("user_id", userId).eq("team_id", r.team_id),
+        )
         .first();
       if (!member) return { ok: false, error: "not_a_member" };
     } else if (String(r.scope_user_id) !== String(userId)) {
@@ -577,14 +715,27 @@ export async function connectionForWork(
   provider: string,
   scope: { team_id?: Id<"teams">; user_id?: Id<"users"> },
 ): Promise<any | null> {
-  const confirmed = (row: any) => (row && !row.pending_confirm_hash ? row : null);
-  const team = scope.team_id ? confirmed(await connectionRowFor(ctx, provider, { team_id: scope.team_id })) : null;
+  const confirmed = (row: any) =>
+    row && !row.pending_confirm_hash ? row : null;
+  const team = scope.team_id
+    ? confirmed(
+        await connectionRowFor(ctx, provider, { team_id: scope.team_id }),
+      )
+    : null;
   if (team) return team;
-  return scope.user_id ? confirmed(await connectionRowFor(ctx, provider, { user_id: scope.user_id })) : null;
+  return scope.user_id
+    ? confirmed(
+        await connectionRowFor(ctx, provider, { user_id: scope.user_id }),
+      )
+    : null;
 }
 
 export const getConnection = internalQuery({
-  args: { provider: v.string(), team_id: v.optional(v.id("teams")), user_id: v.optional(v.id("users")) },
+  args: {
+    provider: v.string(),
+    team_id: v.optional(v.id("teams")),
+    user_id: v.optional(v.id("users")),
+  },
   handler: async (ctx, args) => {
     if (!isConnectorId(args.provider)) return null;
     const row = await connectionForWork(ctx, args.provider, args);
@@ -606,10 +757,21 @@ const LEGACY_STAMP = { acceptLegacyAccessStamp: true } as const;
 
 /** Claim the refresh for one row (lib/tokenRefresh.claimRefreshOn). */
 export const claimRefresh = internalMutation({
-  args: { installation_id: v.id("app_installations"), expected_enc: v.string(), now: v.number() },
+  args: {
+    installation_id: v.id("app_installations"),
+    expected_enc: v.string(),
+    now: v.number(),
+  },
   // Linear rows always cache an access ciphertext, so the released action's
   // access-only stamp is still a proof here (lib/tokenRefresh.StampOptions).
-  handler: async (ctx, args) => await claimRefreshOn(ctx.db, args.installation_id, args.expected_enc, args.now, LEGACY_STAMP),
+  handler: async (ctx, args) =>
+    await claimRefreshOn(
+      ctx.db,
+      args.installation_id,
+      args.expected_enc,
+      args.now,
+      LEGACY_STAMP,
+    ),
 });
 
 /** Persist one refresh outcome, fenced (lib/tokenRefresh.writeRefreshOutcomeOn). */
@@ -626,7 +788,12 @@ export const updateStoredTokens = internalMutation({
   },
   handler: async (ctx, args) => {
     const { installation_id, ...outcome } = args;
-    return await writeRefreshOutcomeOn(ctx.db, installation_id, outcome, LEGACY_STAMP);
+    return await writeRefreshOutcomeOn(
+      ctx.db,
+      installation_id,
+      outcome,
+      LEGACY_STAMP,
+    );
   },
 });
 
@@ -644,8 +811,12 @@ export const getFreshAccessToken = internalAction({
     user_id: v.optional(v.id("users")),
     force: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; token?: string; error?: string }> => {
-    if (!isConnectorId(args.provider)) return { ok: false, error: "unknown provider" };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; token?: string; error?: string }> => {
+    if (!isConnectorId(args.provider))
+      return { ok: false, error: "unknown provider" };
     const p = PROVIDERS[args.provider];
     const env = providerEnv(p);
     if (!env) return { ok: false, error: notConfigured(p) };
@@ -658,12 +829,23 @@ export const getFreshAccessToken = internalAction({
           user_id: args.user_id,
         }),
       claim: (installation_id, expected_enc, now) =>
-        ctx.runMutation(internal.oauthConnectors.claimRefresh, { installation_id, expected_enc, now }),
+        ctx.runMutation(internal.oauthConnectors.claimRefresh, {
+          installation_id,
+          expected_enc,
+          now,
+        }),
       write: (installation_id, outcome) =>
-        ctx.runMutation(internal.oauthConnectors.updateStoredTokens, { installation_id, ...outcome }),
+        ctx.runMutation(internal.oauthConnectors.updateStoredTokens, {
+          installation_id,
+          ...outcome,
+        }),
       decrypt: (enc) => decryptRefreshToken(enc, env.clientSecret),
       encrypt: (plain) => encryptRefreshToken(plain, env.clientSecret),
-      request: (refreshToken) => tokenRequest(p, env, { grant_type: "refresh_token", refresh_token: refreshToken }),
+      request: (refreshToken) =>
+        tokenRequest(p, env, {
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
       force: args.force,
       errors: {
         noConnection: `no_connection: ${p.name} is not connected for this workspace or by you`,
@@ -671,6 +853,8 @@ export const getFreshAccessToken = internalAction({
         reconnect: `reconnect ${p.name} from Settings > Integrations`,
       },
     });
-    return res.ok ? { ok: true, token: res.token } : { ok: false, error: res.error };
+    return res.ok
+      ? { ok: true, token: res.token }
+      : { ok: false, error: res.error };
   },
 });

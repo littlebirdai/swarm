@@ -27,10 +27,19 @@ export async function listConversationFileChanges(
 // third-party URL an agent emits can never become a team-visible thumbnail.
 // Scans newest-first and returns the first hit; undefined when the batch
 // carries no image.
-export const MD_IMAGE_URL_RE = /!\[[^\]]*\]\((https?:\/\/[^)\s]+?)(?:\s+"[^"]*")?\)/g;
+export const MD_IMAGE_URL_RE =
+  /!\[[^\]]*\]\((https?:\/\/[^)\s]+?)(?:\s+"[^"]*")?\)/g;
 export function trustedImageOrigin(): string | null {
-  const base = process.env.CONVEX_CLOUD_ORIGIN || process.env.CONVEX_CLOUD_URL || process.env.VITE_CONVEX_URL || "";
-  try { return base ? new URL(base).origin : null; } catch { return null; }
+  const base =
+    process.env.CONVEX_CLOUD_ORIGIN ||
+    process.env.CONVEX_CLOUD_URL ||
+    process.env.VITE_CONVEX_URL ||
+    "";
+  try {
+    return base ? new URL(base).origin : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function latestImagePreviewUrl(

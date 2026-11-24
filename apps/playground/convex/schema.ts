@@ -1,6 +1,16 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { buildStatus, elementRef, failureKind, messageKind, narrationLine, systemNote, touchedFile, versionKind, versionRef } from "./validators";
+import {
+  buildStatus,
+  elementRef,
+  failureKind,
+  messageKind,
+  narrationLine,
+  systemNote,
+  touchedFile,
+  versionKind,
+  versionRef,
+} from "./validators";
 
 export default defineSchema({
   /** Anonymous people. The secret lives in their browser; only its hash here.
@@ -198,7 +208,8 @@ export default defineSchema({
   /** Daily totals, one row per key per UTC day (tallies.ts): build spend in
    *  dollars overall, per app and per visitor, and bytes of data copied into
    *  forks overall and per visitor. */
-  tallies: defineTable({ key: v.string(), day: v.string(), value: v.number() }).index("by_key_day", ["key", "day"])
+  tallies: defineTable({ key: v.string(), day: v.string(), value: v.number() })
+    .index("by_key_day", ["key", "day"])
     .index("by_day", ["day"]),
 
   /** Fixed-window counters (lib/rateLimit), keyed "<rule>:<subject>". */

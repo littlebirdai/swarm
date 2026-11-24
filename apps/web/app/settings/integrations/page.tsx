@@ -27,7 +27,11 @@ import {
 import { useSettingsData } from "../../../hooks/useSyncSettings";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { useConnectorReturn } from "../../../hooks/useConnectorReturn";
-import { SettingsCallout, SettingsPanel, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsCallout,
+  SettingsPanel,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { IntegrationCard } from "../../../components/integrations/IntegrationCard";
 import { SourcesSection } from "../../../components/ops/SourcesSection";
 import { BrowserExtensionSetup } from "../../../components/settings/BrowserExtensionSetup";
@@ -39,7 +43,10 @@ import { describeConnectorError } from "../../../lib/connectorReturn";
 /** Vendors whose team connection feeds the team's product sources (Ops): one connection per workspace. */
 const TEAM_FED: ReadonlySet<string> = new Set(["sentry", "posthog"]);
 
-function entriesAt(result: AppConnectionsResult | undefined, scope: AppConnectionScope) {
+function entriesAt(
+  result: AppConnectionsResult | undefined,
+  scope: AppConnectionScope,
+) {
   return new Map<string, AppConnectionStatus>(
     (result?.apps ?? [])
       .filter((a) => a.status === "coming_soon" || a.scope === scope)
@@ -66,14 +73,21 @@ export default function IntegrationsPage() {
 
   // Inside a team, the team's own Sentry or PostHog connection is what its product sources read through; a personal
   // card for the same vendor beside it would read "Not connected" over sources that are flowing, so it steps aside.
-  const personalShown = shownAt("personal").filter((id) => !(team && TEAM_FED.has(id) && teamEntries.get(id)?.status === "connected"));
+  const personalShown = shownAt("personal").filter(
+    (id) =>
+      !(
+        team &&
+        TEAM_FED.has(id) &&
+        teamEntries.get(id)?.status === "connected"
+      ),
+  );
   const showsTeam = shownAt("team").length > 0;
 
   const errorCallout = connections.error && (
     <div className="px-4 py-3 sm:px-5">
       <SettingsCallout tone="warning">
-        Couldn&apos;t load connection state: {connections.error.message}. The cards below say nothing
-        rather than guessing.
+        Couldn&apos;t load connection state: {connections.error.message}. The
+        cards below say nothing rather than guessing.
       </SettingsCallout>
     </div>
   );
@@ -89,56 +103,63 @@ export default function IntegrationsPage() {
 
       <BrowserExtensionSetup />
 
-      {showsTeam && <SettingsSection
-        title="Team connections"
-        icon={Users}
-        // The picker names the team the cards below belong to and switches the
-        // workspace to another. The client's own pointer leads while a switch
-        // is in flight; the server's answer stands in when the client is on
-        // Personal, since the ledger then falls back to the home team.
-        actions={<TeamSwitcher teamsOnly value={activeTeamId ?? team?.id ?? null} />}
-        description="Shared by everyone on the team picked here, for their work inside it. The keys stay with Codecast: your agents ask Codecast to act and never hold them."
-      >
-        {errorCallout}
-        {teamKnown && !team ? (
-          <div className="px-4 py-3 sm:px-5">
-            <SettingsCallout tone="info">
-              You&apos;re not looking at a team you belong to. Join or create one to connect services for a
-              team, or connect them for yourself below.
-            </SettingsCallout>
-          </div>
-        ) : (
-          shownAt("team").map((id) => (
+      {showsTeam && (
+        <SettingsSection
+          title="Team connections"
+          icon={Users}
+          // The picker names the team the cards below belong to and switches the
+          // workspace to another. The client's own pointer leads while a switch
+          // is in flight; the server's answer stands in when the client is on
+          // Personal, since the ledger then falls back to the home team.
+          actions={
+            <TeamSwitcher teamsOnly value={activeTeamId ?? team?.id ?? null} />
+          }
+          description="Shared by everyone on the team picked here, for their work inside it. The keys stay with Codecast: your agents ask Codecast to act and never hold them."
+        >
+          {errorCallout}
+          {teamKnown && !team ? (
+            <div className="px-4 py-3 sm:px-5">
+              <SettingsCallout tone="info">
+                You&apos;re not looking at a team you belong to. Join or create
+                one to connect services for a team, or connect them for yourself
+                below.
+              </SettingsCallout>
+            </div>
+          ) : (
+            shownAt("team").map((id) => (
+              <IntegrationCard
+                key={id}
+                descriptor={APP_DESCRIPTORS[id]}
+                scope="team"
+                connection={teamEntries.get(id)}
+                loading={loading}
+                me={user}
+                showSources={!!team}
+              />
+            ))
+          )}
+        </SettingsSection>
+      )}
+
+      {personalShown.length > 0 && (
+        <SettingsSection
+          title="Personal connections"
+          icon={User}
+          description="Yours alone, and they follow you: in any workspace you work in that has no connection of its own, an agent acting for you acts through these."
+        >
+          {personalShown.map((id) => (
             <IntegrationCard
               key={id}
               descriptor={APP_DESCRIPTORS[id]}
-              scope="team"
-              connection={teamEntries.get(id)}
+              scope="personal"
+              connection={personalEntries.get(id)}
               loading={loading}
               me={user}
-              showSources={!!team}
+              showSources={teamKnown && !team}
             />
-          ))
-        )}
-      </SettingsSection>}
-
-      {personalShown.length > 0 && <SettingsSection
-        title="Personal connections"
-        icon={User}
-        description="Yours alone, and they follow you: in any workspace you work in that has no connection of its own, an agent acting for you acts through these."
-      >
-        {personalShown.map((id) => (
-          <IntegrationCard
-            key={id}
-            descriptor={APP_DESCRIPTORS[id]}
-            scope="personal"
-            connection={personalEntries.get(id)}
-            loading={loading}
-            me={user}
-            showSources={teamKnown && !team}
-          />
-        ))}
-      </SettingsSection>}
+          ))}
+        </SettingsSection>
+      )}
 
       <SourcesSection />
     </SettingsPanel>

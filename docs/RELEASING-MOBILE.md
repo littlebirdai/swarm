@@ -3,6 +3,7 @@
 ## Prerequisites
 
 1. **Expo Account**: Login to EAS
+
    ```bash
    npx eas login
    ```
@@ -25,6 +26,7 @@ This creates a project in your Expo account and updates `app.json` with your `pr
 ### 2. Update app.json
 
 The checked-in values are Codecast's own (`owner: "ashotp"`, `com.ashotp.codecast`). A fork sets its own:
+
 ```json
 {
   "expo": {
@@ -63,6 +65,7 @@ npx eas credentials
 ```
 
 Choose "iOS" > "production" and follow prompts to generate:
+
 - Distribution Certificate
 - Provisioning Profiles, one for the app and one for the `CodecastWidget` target (`apps/mobile/targets/widget`, bundle id `<app bundle id>.widget`)
 
@@ -73,6 +76,7 @@ Submission authenticates with an App Store Connect API key rather than an Apple 
 ### 5. Set Environment Variables
 
 The app reads `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST`. `apps/mobile/.env` is gitignored, so cloud builds need them as EAS environment variables:
+
 ```bash
 npx eas env:create production --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
 npx eas env:create preview --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
@@ -108,11 +112,13 @@ Build from a clean checkout of `origin/main` (`git worktree add --detach <dir> o
 ### TestFlight (Internal Testing)
 
 1. Build production:
+
    ```bash
    bun run build:prod
    ```
 
 2. Upload it:
+
    ```bash
    bun run submit:ios
    ```
@@ -132,6 +138,7 @@ Build from a clean checkout of `origin/main` (`git worktree add --detach <dir> o
    - App category
 
 2. Build and submit:
+
    ```bash
    bun run release:ios
    ```
@@ -163,6 +170,7 @@ An update also runs on binaries built before any native library it uses. A nativ
 EAS keeps the build number remotely (`appVersionSource: "remote"` in eas.json), and the production profile's `autoIncrement` bumps it on every build. Check it with `npx eas build:version:get`.
 
 The user-facing version is manual. Bump it in `app.json` for each App Store release (this also moves the OTA runtime, see above):
+
 ```json
 {
   "expo": {
@@ -174,6 +182,7 @@ The user-facing version is manual. Bump it in `app.json` for each App Store rele
 ## Troubleshooting
 
 ### Credentials Issues
+
 ```bash
 npx eas credentials --platform ios
 ```
@@ -181,11 +190,13 @@ npx eas credentials --platform ios
 A `--non-interactive` build never creates or changes credentials. A new native target or a new entitlement fails it with "Credentials are not set up" or a profile mismatch; run one `eas build` attached to a terminal so EAS can generate the profile, and later non-interactive builds reuse it.
 
 ### Build Failures
+
 Check build logs at your Expo dashboard: `https://expo.dev/accounts/<your-username>/projects/codecast/builds`
 
 Every build profile in `eas.json` pins `"bun"`. Keep it equal to the local bun version: EAS otherwise installs with its own older bun, whose hoisted layout breaks `metro.config.js`.
 
 ### Stuck Submission
+
 ```bash
 npx eas submit --platform ios --id <build-id>
 ```

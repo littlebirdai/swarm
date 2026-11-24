@@ -31,16 +31,16 @@ Viewer text reaches the agent fenced as untrusted feedback, never as instruction
 
 Links are unlisted and unguessable; anyone holding one can read the page. The owner's menu opens **Manage sharing**:
 
-| Control | What it does |
-|---|---|
-| Views | How many times the page was opened, and when last. |
-| Password | Readers type a password before the page loads. Wrong guesses are rate limited per page. |
-| Email gate | Readers give an email before viewing; **Seen by** then lists each address with how often and when it opened the page. The address is not verified. |
-| Expires | 1 hour, 24 hours, 7 days, 30 days or never. An expired link tells readers to ask the author; the page and its history stay in your list. |
-| Editing | Only you, anyone with an edit link, or your team. |
-| Session link | Hide the bar's link back to the session, for pages that leave the team. |
-| Comments | Turn the discussion on or off, and resolve open comments. |
-| Links | Copy the manage link, and the edit link when there is one. |
+| Control      | What it does                                                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Views        | How many times the page was opened, and when last.                                                                                                 |
+| Password     | Readers type a password before the page loads. Wrong guesses are rate limited per page.                                                            |
+| Email gate   | Readers give an email before viewing; **Seen by** then lists each address with how often and when it opened the page. The address is not verified. |
+| Expires      | 1 hour, 24 hours, 7 days, 30 days or never. An expired link tells readers to ask the author; the page and its history stay in your list.           |
+| Editing      | Only you, anyone with an edit link, or your team.                                                                                                  |
+| Session link | Hide the bar's link back to the session, for pages that leave the team.                                                                            |
+| Comments     | Turn the discussion on or off, and resolve open comments.                                                                                          |
+| Links        | Copy the manage link, and the edit link when there is one.                                                                                         |
 
 **Edit this page** opens the source beside a live preview, and publishing from there makes a new version credited to its editor. Revoking access stops caches serving the old answer within six minutes.
 
@@ -54,4 +54,4 @@ A screen recording in a published folder plays in the cast player, and several c
 
 ![The publish page section 'Put a screen recording in the bundle. It plays like a film.': a dark cast player showing a failing bun test, a chapter list (Setup 0:40, The failing run 1:12, The fix 0:55, Verified 0:31) with chapter 2 active, a segmented progress bar at 1:09 / 3:19 and '#chapter=2'](/blog/field-manual/publish-video.webp "The cast player with four chapters. The progress bar is segmented by chapter, and the URL fragment tracks where you are.")
 
-> **Why it matters.** The page is tied to the *session*, in both directions. It links back to the conversation that made it, so a reader can see how a number was produced. And the discussion on the page flows back into that same conversation as fenced feedback, so "can you split this by plan tier?" from a teammate becomes the agent's next version at the same URL, without anyone copying text between a doc, a chat and a terminal.
+> **Why it matters.** The page is tied to the _session_, in both directions. It links back to the conversation that made it, so a reader can see how a number was produced. And the discussion on the page flows back into that same conversation as fenced feedback, so "can you split this by plan tier?" from a teammate becomes the agent's next version at the same URL, without anyone copying text between a doc, a chat and a terminal.

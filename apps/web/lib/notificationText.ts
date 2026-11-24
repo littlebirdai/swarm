@@ -1,7 +1,14 @@
 import { entityMentionRegex } from "./entityLinks";
-import { ANSI_RE, stripMachineText, stripMarkdown } from "@codecast/shared/contracts/plainText";
+import {
+  ANSI_RE,
+  stripMachineText,
+  stripMarkdown,
+} from "@codecast/shared/contracts/plainText";
 
-export { cleanNotificationBody, stripMarkdown } from "@codecast/shared/contracts/plainText";
+export {
+  cleanNotificationBody,
+  stripMarkdown,
+} from "@codecast/shared/contracts/plainText";
 
 /**
  * A session's last_message_preview is a raw transcript slice, so it can carry
@@ -16,7 +23,11 @@ export function stripTranscriptTags(text: string): string {
   // a task notification, a system reminder, a teammate envelope. The tag
   // CONTENTS (tool-use ids, output-file paths) are as unreadable as the tags,
   // so there is nothing worth salvaging: drop the whole preview.
-  if (/<(task-notification|system-reminder|teammate-message|session-message|task-id|tool-use|output-file|command-name)\b/i.test(text)) {
+  if (
+    /<(task-notification|system-reminder|teammate-message|session-message|task-id|tool-use|output-file|command-name)\b/i.test(
+      text,
+    )
+  ) {
     return "";
   }
   return text
@@ -48,12 +59,16 @@ const ENTITY_MENTION_RE = entityMentionRegex();
  * @[Title id] entity mentions to their display text, and keeps paragraph
  * breaks — unlike notification strings, which flatten to one line.
  */
-export function docContentPreview(content: string | undefined | null, maxLen = 700): string {
+export function docContentPreview(
+  content: string | undefined | null,
+  maxLen = 700,
+): string {
   if (!content) return "";
-  const body = content
-    .replace(FRONTMATTER_RE, "")
-    .replace(LEADING_H1_RE, "");
-  const cleaned = stripMarkdown(stripMachineText(body).replace(ENTITY_MENTION_RE, "$1"), { keepNewlines: true });
+  const body = content.replace(FRONTMATTER_RE, "").replace(LEADING_H1_RE, "");
+  const cleaned = stripMarkdown(
+    stripMachineText(body).replace(ENTITY_MENTION_RE, "$1"),
+    { keepNewlines: true },
+  );
   if (cleaned.length <= maxLen) return cleaned;
   return cleaned.slice(0, maxLen).trimEnd() + "…";
 }

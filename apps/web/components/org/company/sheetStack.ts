@@ -16,13 +16,18 @@ const VIEW_SEGMENT = /^(goals|projects)$/;
  *  `/org/projects/pj-1`), or null when the path is not under /org. The ref
  *  is raw, so a stub goal's key or a Convex id still comes through. The one
  *  parser of these addresses: titles, icons and accents all read it. */
-export function orgRefOfPath(pathname: string | null | undefined): { view?: "goals" | "projects"; ref?: string } | null {
+export function orgRefOfPath(
+  pathname: string | null | undefined,
+): { view?: "goals" | "projects"; ref?: string } | null {
   // A goal's own page names it the way /org/<in-N> did.
   const goal = /^\/goals(?:\/([^/?#]+))?(?:[/?#]|$)/.exec(pathname ?? "");
   if (goal) return { view: "goals", ref: goal[1] };
-  const m = /^\/org(?:\/([^/?#]+)(?:\/([^/?#]+))?)?(?:[/?#]|$)/.exec(pathname ?? "");
+  const m = /^\/org(?:\/([^/?#]+)(?:\/([^/?#]+))?)?(?:[/?#]|$)/.exec(
+    pathname ?? "",
+  );
   if (!m) return null;
-  if (m[1] && VIEW_SEGMENT.test(m[1])) return { view: m[1] as "goals" | "projects", ref: m[2] };
+  if (m[1] && VIEW_SEGMENT.test(m[1]))
+    return { view: m[1] as "goals" | "projects", ref: m[2] };
   return m[1] && !m[2] ? { ref: m[1] } : {};
 }
 

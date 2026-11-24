@@ -8,7 +8,7 @@ Because a queued question costs you little, agents are told to ask more often th
 
 ## Turn it on
 
-Open **Settings**, pick **Agent Features** under *Machines*, choose the computer your agents run on, and switch on **Decision queue** under *Working together*. **How it works** on the card shows an example.
+Open **Settings**, pick **Agent Features** under _Machines_, choose the computer your agents run on, and switch on **Decision queue** under _Working together_. **How it works** on the card shows an example.
 
 Agents ask on their own once it is on. You can also tell them when to:
 
@@ -30,22 +30,22 @@ Click a row to open the decision's own page: the question, the agent's full reas
 
 ![One decision shown full screen, with its options numbered and the key hints for skip, dismiss and open the session](/documentation/decisions/one-at-a-time.webp "Working through the queue one decision at a time.")
 
-| Key | What it does |
-|-----|--------------|
-| `1` to `9` | Answer with that option |
-| `t` | **Or answer in your own words**: your text goes to the agent as a message |
-| `s` | Skip for now |
-| `x` | Dismiss. The question leaves the queue and the agent is not told |
-| `o` | Open the session |
-| `esc` | Leave the queue |
+| Key        | What it does                                                              |
+| ---------- | ------------------------------------------------------------------------- |
+| `1` to `9` | Answer with that option                                                   |
+| `t`        | **Or answer in your own words**: your text goes to the agent as a message |
+| `s`        | Skip for now                                                              |
+| `x`        | Dismiss. The question leaves the queue and the agent is not told          |
+| `o`        | Open the session                                                          |
+| `esc`      | Leave the queue                                                           |
 
 The order follows a rule. Questions holding an agent up come first, then questions from sessions that have stopped, then questions the agent is already working around. Inside each group the oldest comes first. Each card shows its age in time and in messages since it was asked, so a question the thread has moved past is easy to spot.
 
-A permission prompt or a question an agent asked in its own terminal shows under *Waiting in a terminal*. You answer those in the session itself, with its real approve and deny controls; number keys never approve anything.
+A permission prompt or a question an agent asked in its own terminal shows under _Waiting in a terminal_. You answer those in the session itself, with its real approve and deny controls; number keys never approve anything.
 
 ## In the conversation
 
-Opening a session that is waiting on you shows the decision as a full card, headed *Waiting on your decision*. Answer it there, share it with the share button, or click **Read the thread** to fold it away and see what led up to it.
+Opening a session that is waiting on you shows the decision as a full card, headed _Waiting on your decision_. Answer it there, share it with the share button, or click **Read the thread** to fold it away and see what led up to it.
 
 After you answer, the transcript keeps the record: the question marked answered with a check on your choice, and your answer as a message linked back to the ask.
 

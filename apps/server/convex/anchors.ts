@@ -1,18 +1,31 @@
 import { internalMutation, mutation, query } from "./functions";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { buildShareUpdate, isConversationTeamVisible, resolveCreationPrivacy } from "./privacy";
+import {
+  buildShareUpdate,
+  isConversationTeamVisible,
+  resolveCreationPrivacy,
+} from "./privacy";
 import { activeTeamMembershipFor } from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
 import { enqueueStartSession } from "./devices";
 import { fromConvexAgentType } from "@codecast/shared/contracts";
 import { killConversation } from "./conversations";
-import { enqueuePendingMessage, formatSessionMessage, getAuthenticatedUserId } from "./pendingMessages";
+import {
+  enqueuePendingMessage,
+  formatSessionMessage,
+  getAuthenticatedUserId,
+} from "./pendingMessages";
 import { isHeadOfPeopleRole, roleGrants } from "./lib/orgAccess";
 import { standingReportsToFields } from "./lib/standingSeat";
 import { stampSeatOwners } from "./sessionOwners";
 import { seatPlace } from "./lib/seatPlace";
-import { DECISION_DISCUSSION_GUIDANCE, bootstrapMessage, roleBootstrapOf, type RoleBootstrap } from "./lib/anchorBootstrap";
+import {
+  DECISION_DISCUSSION_GUIDANCE,
+  bootstrapMessage,
+  roleBootstrapOf,
+  type RoleBootstrap,
+} from "./lib/anchorBootstrap";
 import { installationForTeam } from "./lib/slackOutbound";
 
 // An Anchor is codecast's standing agent member: one per team (shared) and one
@@ -35,7 +48,11 @@ import { installationForTeam } from "./lib/slackOutbound";
 export async function userCanAccessAnchor(
   ctx: { db: any },
   userId: Id<"users">,
-  anchor: { host_user_id?: Id<"users">; scope_user_id?: Id<"users">; team_id?: Id<"teams"> } | null,
+  anchor: {
+    host_user_id?: Id<"users">;
+    scope_user_id?: Id<"users">;
+    team_id?: Id<"teams">;
+  } | null,
 ): Promise<boolean> {
   return roleGrants(ctx, userId, anchor, () => true);
 }
@@ -46,14 +63,23 @@ export async function userCanAccessAnchor(
 export async function userCanAdminAnchor(
   ctx: { db: any },
   userId: Id<"users">,
-  anchor: { host_user_id?: Id<"users">; scope_user_id?: Id<"users">; team_id?: Id<"teams"> } | null,
+  anchor: {
+    host_user_id?: Id<"users">;
+    scope_user_id?: Id<"users">;
+    team_id?: Id<"teams">;
+  } | null,
 ): Promise<boolean> {
   return roleGrants(ctx, userId, anchor, (m) => m.role === "admin");
 }
 
 import { visibleAnchorsForUser } from "./lib/anchorRoster";
 export { visibleAnchorsForUser };
-export { DECISION_DISCUSSION_GUIDANCE, bootstrapMessage, roleBootstrapOf, type RoleBootstrap };
+export {
+  DECISION_DISCUSSION_GUIDANCE,
+  bootstrapMessage,
+  roleBootstrapOf,
+  type RoleBootstrap,
+};
 
 // The team that can read a personal agent's standing conversation. A personal
 // anchor's session resolves its privacy from its project path like any session
@@ -61,25 +87,53 @@ export { DECISION_DISCUSSION_GUIDANCE, bootstrapMessage, roleBootstrapOf, type R
 // it readable by that team, and the opening must say so rather than promise
 // privacy. A team anchor's conversation is always the team's, and its opening
 // already says that.
-async function sharedTeamOf(ctx: { db: any }, scopeType: "team" | "user", conversation: any): Promise<string | undefined> {
-  if (scopeType !== "user" || !conversation || !(await isConversationTeamVisible(ctx, conversation))) return undefined;
+async function sharedTeamOf(
+  ctx: { db: any },
+  scopeType: "team" | "user",
+  conversation: any,
+): Promise<string | undefined> {
+  if (
+    scopeType !== "user" ||
+    !conversation ||
+    !(await isConversationTeamVisible(ctx, conversation))
+  )
+    return undefined;
   const team = await ctx.db.get(conversation.team_id);
   return team?.name ?? "a team";
 }
 
 export async function findExistingAnchor(
   ctx: { db: any },
-  scope: { scope_type: "team" | "user"; team_id?: Id<"teams">; scope_user_id?: Id<"users">; org_role_id?: Id<"org_roles"> },
+  scope: {
+    scope_type: "team" | "user";
+    team_id?: Id<"teams">;
+    scope_user_id?: Id<"users">;
+    org_role_id?: Id<"org_roles">;
+  },
 ) {
-  const rows: any[] = scope.scope_type === "team" && scope.team_id
-    ? await ctx.db.query("anchors").withIndex("by_team", (q: any) => q.eq("team_id", scope.team_id)).collect()
-    : scope.scope_user_id
-      ? await ctx.db.query("anchors").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", scope.scope_user_id)).collect()
-      : [];
+  const rows: any[] =
+    scope.scope_type === "team" && scope.team_id
+      ? await ctx.db
+          .query("anchors")
+          .withIndex("by_team", (q: any) => q.eq("team_id", scope.team_id))
+          .collect()
+      : scope.scope_user_id
+        ? await ctx.db
+            .query("anchors")
+            .withIndex("by_scope_user", (q: any) =>
+              q.eq("scope_user_id", scope.scope_user_id),
+            )
+            .collect()
+        : [];
   const live = rows.filter((a: any) => a.status !== "decommissioned");
   // A role's standing agent is one per role, whatever the boundary holds;
   // the workspace anchor stays one per scope (and never matches a role's).
-  if (scope.org_role_id) return live.find((a: any) => String(a.org_role_id ?? "") === String(scope.org_role_id)) ?? null;
+  if (scope.org_role_id)
+    return (
+      live.find(
+        (a: any) => String(a.org_role_id ?? "") === String(scope.org_role_id),
+      ) ?? null
+    );
   const plain = live.find((a: any) => !a.org_role_id);
   if (plain) return plain;
   // The workspace's standing agent is a role's seat. Its row still answers as
@@ -90,8 +144,17 @@ export async function findExistingAnchor(
     const role = a.org_role_id ? await ctx.db.get(a.org_role_id) : null;
     if (role && role.status !== "retired") seated.push({ seat: a, role });
   }
-  const team = scope.scope_type === "team" && scope.team_id ? await ctx.db.get(scope.team_id) : null;
-  const role = workspaceAgentRoleOf(seated.map((s) => s.role), { team_id: scope.scope_type === "team" ? scope.team_id : undefined, chosen_role_id: team?.workspace_agent_role_id });
+  const team =
+    scope.scope_type === "team" && scope.team_id
+      ? await ctx.db.get(scope.team_id)
+      : null;
+  const role = workspaceAgentRoleOf(
+    seated.map((s) => s.role),
+    {
+      team_id: scope.scope_type === "team" ? scope.team_id : undefined,
+      chosen_role_id: team?.workspace_agent_role_id,
+    },
+  );
   return role ? seated.find((s) => s.role === role)!.seat : null;
 }
 
@@ -100,36 +163,74 @@ export async function findExistingAnchor(
  *  A team's is the role its admins chose, else its Head of People, else the
  *  team's own assistant. A person's own boundary is their global assistant,
  *  else their Head of People. Hiring a role never moves it; only a choice does. */
-export function workspaceAgentRoleOf(roles: any[], boundary: { team_id?: unknown; chosen_role_id?: unknown }): any | null {
+export function workspaceAgentRoleOf(
+  roles: any[],
+  boundary: { team_id?: unknown; chosen_role_id?: unknown },
+): any | null {
   const live = roles.filter((r) => r && r.status !== "retired");
   if (!boundary.team_id) {
-    return live.find((r) => r.scope_type === "user" && r.assistant?.reach === "global")
-      ?? live.find(isHeadOfPeopleRole)
-      ?? null;
+    return (
+      live.find(
+        (r) => r.scope_type === "user" && r.assistant?.reach === "global",
+      ) ??
+      live.find(isHeadOfPeopleRole) ??
+      null
+    );
   }
   // A person's own assistant for a team lives in their boundary and is never
   // the team's agent.
   const team = live.filter((r) => r.scope_type === "team");
-  return (boundary.chosen_role_id ? team.find((r) => String(r._id) === String(boundary.chosen_role_id)) : undefined)
-    ?? team.find(isHeadOfPeopleRole)
-    ?? team.find((r) => r.assistant?.reach === "team" && String(r.assistant.team_id) === String(boundary.team_id))
-    ?? null;
+  return (
+    (boundary.chosen_role_id
+      ? team.find((r) => String(r._id) === String(boundary.chosen_role_id))
+      : undefined) ??
+    team.find(isHeadOfPeopleRole) ??
+    team.find(
+      (r) =>
+        r.assistant?.reach === "team" &&
+        String(r.assistant.team_id) === String(boundary.team_id),
+    ) ??
+    null
+  );
 }
 
 /** Choose the role that answers for a team (workspaceAgentRoleOf). An admin's;
  *  null goes back to the Head of People. */
-export async function performSetWorkspaceAgent(ctx: { db: any }, userId: Id<"users">, args: { team_id: Id<"teams">; role_id: Id<"org_roles"> | null }) {
-  if (!(await userCanAdminAnchor(ctx, userId, { team_id: args.team_id }))) throw new Error("Only a team admin can choose who answers for the team");
+export async function performSetWorkspaceAgent(
+  ctx: { db: any },
+  userId: Id<"users">,
+  args: { team_id: Id<"teams">; role_id: Id<"org_roles"> | null },
+) {
+  if (!(await userCanAdminAnchor(ctx, userId, { team_id: args.team_id })))
+    throw new Error("Only a team admin can choose who answers for the team");
   if (args.role_id) {
     const role: any = await ctx.db.get(args.role_id);
-    if (!role || role.status === "retired" || role.scope_type !== "team" || String(role.team_id) !== String(args.team_id)) throw new Error("That role is not one of this team's");
-    if (!(await findExistingAnchor(ctx, { scope_type: "team", team_id: args.team_id, org_role_id: args.role_id }))) throw new Error("That role has no standing session to answer with");
+    if (
+      !role ||
+      role.status === "retired" ||
+      role.scope_type !== "team" ||
+      String(role.team_id) !== String(args.team_id)
+    )
+      throw new Error("That role is not one of this team's");
+    if (
+      !(await findExistingAnchor(ctx, {
+        scope_type: "team",
+        team_id: args.team_id,
+        org_role_id: args.role_id,
+      }))
+    )
+      throw new Error("That role has no standing session to answer with");
   }
-  await ctx.db.patch(args.team_id, { workspace_agent_role_id: args.role_id ?? undefined });
+  await ctx.db.patch(args.team_id, {
+    workspace_agent_role_id: args.role_id ?? undefined,
+  });
 }
 
 export const setWorkspaceAgent = mutation({
-  args: { team_id: v.id("teams"), role_id: v.union(v.id("org_roles"), v.null()) },
+  args: {
+    team_id: v.id("teams"),
+    role_id: v.union(v.id("org_roles"), v.null()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -138,10 +239,16 @@ export const setWorkspaceAgent = mutation({
 });
 
 // The workspace anchor of a boundary (a team's, or a person's own), or null.
-export async function workspaceAnchorFor(ctx: { db: any }, boundary: { team_id?: Id<"teams">; scope_user_id?: Id<"users"> }): Promise<any | null> {
+export async function workspaceAnchorFor(
+  ctx: { db: any },
+  boundary: { team_id?: Id<"teams">; scope_user_id?: Id<"users"> },
+): Promise<any | null> {
   return boundary.team_id
     ? findExistingAnchor(ctx, { scope_type: "team", team_id: boundary.team_id })
-    : findExistingAnchor(ctx, { scope_type: "user", scope_user_id: boundary.scope_user_id });
+    : findExistingAnchor(ctx, {
+        scope_type: "user",
+        scope_user_id: boundary.scope_user_id,
+      });
 }
 
 // provisionStandingAgent — idempotently create (or return) a standing agent:
@@ -159,7 +266,16 @@ export type ProvisionStandingAgentOpts = {
   persona?: string;
   project_path?: string;
   model?: string;
-  agent_type?: "claude_code" | "codex" | "cursor" | "gemini" | "opencode" | "pi" | "grok" | "muse" | "antigravity";
+  agent_type?:
+    | "claude_code"
+    | "codex"
+    | "cursor"
+    | "gemini"
+    | "opencode"
+    | "pi"
+    | "grok"
+    | "muse"
+    | "antigravity";
   // The machine a new standing session starts on (a fresh restart keeps the old seat's).
   target_device_id?: string;
   bootstrap?: boolean;
@@ -171,7 +287,12 @@ export type ProvisionStandingAgentOpts = {
   // the acting person, delivered ahead of the bootstrap, that names the new
   // job and what did not change. Only an adopted session needs it; a fresh
   // session has no history to explain.
-  role?: { _id: Id<"org_roles">; bootstrap: RoleBootstrap; adopt?: any; announce?: string };
+  role?: {
+    _id: Id<"org_roles">;
+    bootstrap: RoleBootstrap;
+    adopt?: any;
+    announce?: string;
+  };
 };
 
 // An adopted thread looks like the role (S16): its title becomes the role's
@@ -179,17 +300,38 @@ export type ProvisionStandingAgentOpts = {
 // `seat_previous` is also the mark that the seating was explained, so it is
 // stamped even when the title already matches; an earlier stamp is kept, so a
 // second seating never forgets the title the person chose.
-export function seatTitlePatch(adopt: any, roleName: string): Record<string, any> {
-  return { title: roleName, title_is_custom: true, seat_previous: adopt.seat_previous ?? { title: adopt.title ?? undefined, title_is_custom: adopt.title_is_custom ?? undefined } };
+export function seatTitlePatch(
+  adopt: any,
+  roleName: string,
+): Record<string, any> {
+  return {
+    title: roleName,
+    title_is_custom: true,
+    seat_previous: adopt.seat_previous ?? {
+      title: adopt.title ?? undefined,
+      title_is_custom: adopt.title_is_custom ?? undefined,
+    },
+  };
 }
 
 // The seating note lands as a plain turn ahead of the bootstrap.
-export async function announceSeating(ctx: any, conversationId: Id<"conversations">, hostUserId: Id<"users">, announce: string | undefined): Promise<void> {
+export async function announceSeating(
+  ctx: any,
+  conversationId: Id<"conversations">,
+  hostUserId: Id<"users">,
+  announce: string | undefined,
+): Promise<void> {
   if (!announce) return;
   const host = await ctx.db.get(hostUserId);
   const conversation = await ctx.db.get(conversationId);
   await enqueuePendingMessage(ctx, conversation, hostUserId, {
-    content: formatSessionMessage("unknown", announce, { name: host?.name || host?.github_username || host?.email?.split("@")[0] || undefined }),
+    content: formatSessionMessage("unknown", announce, {
+      name:
+        host?.name ||
+        host?.github_username ||
+        host?.email?.split("@")[0] ||
+        undefined,
+    }),
     client_id: `seat:${conversationId}:${Date.now()}`,
   });
 }
@@ -220,7 +362,9 @@ export async function provisionStandingAgent(
       resolved = (await activeTeamMembershipFor(ctx, hostUserId))?.teamId;
     }
     if (!resolved) {
-      throw new Error("No team to anchor: pass --team <id> or set an active team");
+      throw new Error(
+        "No team to anchor: pass --team <id> or set an active team",
+      );
     }
     const membership = await ctx.db
       .query("team_memberships")
@@ -238,7 +382,11 @@ export async function provisionStandingAgent(
     scopeLabel = "your personal workspace";
   }
   const host = await ctx.db.get(hostUserId);
-  const ownerName = host?.name || host?.github_username || host?.email?.split("@")[0] || undefined;
+  const ownerName =
+    host?.name ||
+    host?.github_username ||
+    host?.email?.split("@")[0] ||
+    undefined;
 
   // Idempotent: one anchor per scope, one standing agent per role.
   const existing = await findExistingAnchor(ctx, {
@@ -263,24 +411,66 @@ export async function provisionStandingAgent(
   // under a role it carries that role's id and rides its card.
   const seatRole = args.role ? await ctx.db.get(args.role._id) : null;
   const seat = seatRole ? standingReportsToFields(seatRole) : {};
-  const adoptedAnchor = args.role?.adopt?.anchor_id && !args.role.adopt.standing_role_id ? await ctx.db.get(args.role.adopt.anchor_id) : null;
-  if (adoptedAnchor && adoptedAnchor.status !== "decommissioned" && !adoptedAnchor.org_role_id
-    && String(adoptedAnchor.team_id ?? "") === String(teamId ?? "") && String(adoptedAnchor.scope_user_id ?? "") === String(scopeUserId ?? "")) {
-    await ctx.db.patch(adoptedAnchor._id, { org_role_id: args.role!._id, updated_at: now });
+  const adoptedAnchor =
+    args.role?.adopt?.anchor_id && !args.role.adopt.standing_role_id
+      ? await ctx.db.get(args.role.adopt.anchor_id)
+      : null;
+  if (
+    adoptedAnchor &&
+    adoptedAnchor.status !== "decommissioned" &&
+    !adoptedAnchor.org_role_id &&
+    String(adoptedAnchor.team_id ?? "") === String(teamId ?? "") &&
+    String(adoptedAnchor.scope_user_id ?? "") === String(scopeUserId ?? "")
+  ) {
+    await ctx.db.patch(adoptedAnchor._id, {
+      org_role_id: args.role!._id,
+      updated_at: now,
+    });
     await ctx.db.patch(adoptedAnchor.bot_user_id, { bot_kind: "role" });
-    await ctx.db.patch(args.role!.adopt._id, { standing_role_id: args.role!._id, ...seat, persistent: true, updated_at: now, ...seatTitlePatch(args.role!.adopt, name) });
-    await stampSeatOwners(ctx, args.role!.adopt._id, seatRole?.reports_to, hostUserId);
-    await announceSeating(ctx, args.role!.adopt._id, hostUserId, args.role!.announce);
+    await ctx.db.patch(args.role!.adopt._id, {
+      standing_role_id: args.role!._id,
+      ...seat,
+      persistent: true,
+      updated_at: now,
+      ...seatTitlePatch(args.role!.adopt, name),
+    });
+    await stampSeatOwners(
+      ctx,
+      args.role!.adopt._id,
+      seatRole?.reports_to,
+      hostUserId,
+    );
+    await announceSeating(
+      ctx,
+      args.role!.adopt._id,
+      hostUserId,
+      args.role!.announce,
+    );
     if (args.bootstrap !== false) {
-      await enqueuePendingMessage(ctx, await ctx.db.get(args.role!.adopt._id), hostUserId, {
-        content: bootstrapMessage({ name, scopeType: args.scope_type, scopeLabel, ownerName, teamName, persona: adoptedAnchor.persona, role: args.role!.bootstrap, cleanChat: adoptedAnchor.clean_chat }),
-      });
+      await enqueuePendingMessage(
+        ctx,
+        await ctx.db.get(args.role!.adopt._id),
+        hostUserId,
+        {
+          content: bootstrapMessage({
+            name,
+            scopeType: args.scope_type,
+            scopeLabel,
+            ownerName,
+            teamName,
+            persona: adoptedAnchor.persona,
+            role: args.role!.bootstrap,
+            cleanChat: adoptedAnchor.clean_chat,
+          }),
+        },
+      );
     }
     return {
       anchor_id: adoptedAnchor._id,
       bot_user_id: adoptedAnchor.bot_user_id,
       conversation_id: args.role!.adopt._id,
-      short_id: args.role!.adopt.short_id ?? String(args.role!.adopt._id).slice(0, 7),
+      short_id:
+        args.role!.adopt.short_id ?? String(args.role!.adopt._id).slice(0, 7),
       already_existed: false,
     };
   }
@@ -323,7 +513,9 @@ export async function provisionStandingAgent(
   });
 
   const adopt = args.role?.adopt ?? null;
-  const conversationId: Id<"conversations"> = adopt ? adopt._id : await insertStandingConversation();
+  const conversationId: Id<"conversations"> = adopt
+    ? adopt._id
+    : await insertStandingConversation();
 
   async function insertStandingConversation(): Promise<Id<"conversations">> {
     // The persistent session: owned (run + billed) by the human host, rendered as
@@ -331,9 +523,10 @@ export async function provisionStandingAgent(
     const sessionId = crypto.randomUUID();
     // A team anchor always belongs to its team and is shared; a personal anchor
     // resolves team/privacy from its project path like any session.
-    const privacy = args.scope_type === "user"
-      ? await resolveCreationPrivacy(ctx, hostUserId, args.project_path)
-      : { team_id: teamId, is_private: false, auto_shared: undefined };
+    const privacy =
+      args.scope_type === "user"
+        ? await resolveCreationPrivacy(ctx, hostUserId, args.project_path)
+        : { team_id: teamId, is_private: false, auto_shared: undefined };
 
     const agentType = args.agent_type ?? "claude_code";
     const conversationId = await ctx.db.insert("conversations", {
@@ -383,9 +576,20 @@ export async function provisionStandingAgent(
   // the anchor with no session for everyone but the hirer. Visibility goes
   // through the chokepoint so linked work items get their key recomputed.
   if (adopt) {
-    const markers = { acting_user_id: botUserId, anchor_id: anchorId, standing_role_id: args.role!._id, ...seat, persistent: true, updated_at: now, ...seatTitlePatch(adopt, name) };
+    const markers = {
+      acting_user_id: botUserId,
+      anchor_id: anchorId,
+      standing_role_id: args.role!._id,
+      ...seat,
+      persistent: true,
+      updated_at: now,
+      ...seatTitlePatch(adopt, name),
+    };
     if (args.scope_type === "team" && adopt.is_private !== false) {
-      await patchConversationVisibility(ctx, adopt, { ...(await buildShareUpdate(ctx, adopt, adopt.user_id)), ...markers });
+      await patchConversationVisibility(ctx, adopt, {
+        ...(await buildShareUpdate(ctx, adopt, adopt.user_id)),
+        ...markers,
+      });
     } else {
       await ctx.db.patch(conversationId, markers);
     }
@@ -397,7 +601,8 @@ export async function provisionStandingAgent(
     status: "active",
     updated_at: now,
   });
-  if (seatRole) await stampSeatOwners(ctx, conversationId, seatRole.reports_to, hostUserId);
+  if (seatRole)
+    await stampSeatOwners(ctx, conversationId, seatRole.reports_to, hostUserId);
 
   if (args.bootstrap !== false) {
     const conversation = await ctx.db.get(conversationId);
@@ -447,10 +652,13 @@ export async function deliverToAnchor(
 ) {
   const anchor = await ctx.db.get(anchorId);
   if (!anchor) throw new Error("No workspace agent found");
-  if (anchor.status === "decommissioned") throw new Error("The workspace's agent is retired");
-  if (!anchor.conversation_id) throw new Error("The workspace's agent has no session yet");
+  if (anchor.status === "decommissioned")
+    throw new Error("The workspace's agent is retired");
+  if (!anchor.conversation_id)
+    throw new Error("The workspace's agent has no session yet");
   const conversation = await ctx.db.get(anchor.conversation_id);
-  if (!conversation) throw new Error("The workspace agent's session is missing");
+  if (!conversation)
+    throw new Error("The workspace agent's session is missing");
   await enqueuePendingMessage(ctx, conversation, conversation.user_id, {
     content: message,
     client_id: clientId,
@@ -467,7 +675,8 @@ export const wakeAnchor = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const anchor = await ctx.db.get(args.anchor_id);
     if (!anchor) throw new Error("No workspace agent found");
     if (!(await userCanAccessAnchor(ctx, userId, anchor))) {
@@ -482,20 +691,34 @@ export const wakeAnchor = mutation({
 // its routines, how it reaches people) without being retired and re-created.
 // A role's standing session gets its role's opening, never the workspace
 // agent's.
-export async function briefingFor(ctx: { db: any }, anchor: any): Promise<string> {
+export async function briefingFor(
+  ctx: { db: any },
+  anchor: any,
+): Promise<string> {
   const team = anchor.team_id ? await ctx.db.get(anchor.team_id) : null;
-  const owner = anchor.scope_user_id ? await ctx.db.get(anchor.scope_user_id) : null;
+  const owner = anchor.scope_user_id
+    ? await ctx.db.get(anchor.scope_user_id)
+    : null;
   const role = anchor.org_role_id ? await ctx.db.get(anchor.org_role_id) : null;
   const live = role && role.status !== "retired" ? role : null;
-  const conversation = anchor.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+  const conversation = anchor.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
   return bootstrapMessage({
-    role: live ? { ...(await roleBootstrapOf(ctx, live)), rebrief: true } : undefined,
+    role: live
+      ? { ...(await roleBootstrapOf(ctx, live)), rebrief: true }
+      : undefined,
     name: live?.name ?? anchor.name,
     scopeType: anchor.scope_type,
-    scopeLabel: anchor.scope_type === "team"
-      ? `the ${team?.name ?? "team"} workspace`
-      : `${owner?.name ?? "their"}'s personal workspace`,
-    ownerName: owner?.name || owner?.github_username || owner?.email?.split("@")[0] || undefined,
+    scopeLabel:
+      anchor.scope_type === "team"
+        ? `the ${team?.name ?? "team"} workspace`
+        : `${owner?.name ?? "their"}'s personal workspace`,
+    ownerName:
+      owner?.name ||
+      owner?.github_username ||
+      owner?.email?.split("@")[0] ||
+      undefined,
     teamName: team?.name ?? undefined,
     persona: anchor.persona,
     sharedWithTeam: await sharedTeamOf(ctx, anchor.scope_type, conversation),
@@ -510,14 +733,22 @@ export const rebriefAnchor = mutation({
   args: { api_token: v.optional(v.string()), anchor_id: v.id("anchors") },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const anchor = await ctx.db.get(args.anchor_id);
     if (!anchor) throw new Error("No workspace agent found");
     if (!(await userCanAdminAnchor(ctx, userId, anchor))) {
-      throw new Error("Only an admin (or the host) can re-brief the workspace's agent");
+      throw new Error(
+        "Only an admin (or the host) can re-brief the workspace's agent",
+      );
     }
     const briefing = await briefingFor(ctx, anchor);
-    return await deliverToAnchor(ctx, args.anchor_id, briefing, `anchor-brief:${Date.now()}`);
+    return await deliverToAnchor(
+      ctx,
+      args.anchor_id,
+      briefing,
+      `anchor-brief:${Date.now()}`,
+    );
   },
 });
 
@@ -525,22 +756,41 @@ export const rebriefAnchor = mutation({
 // follows at once, and the agent is re-sent its opening so it talks the way
 // its thread now reads. Admin gated like rebriefAnchor. Returns whether a
 // briefing went out.
-export async function performSetCleanChat(ctx: any, userId: any, args: { anchor_id: Id<"anchors">; on: boolean }): Promise<boolean> {
+export async function performSetCleanChat(
+  ctx: any,
+  userId: any,
+  args: { anchor_id: Id<"anchors">; on: boolean },
+): Promise<boolean> {
   const anchor = await ctx.db.get(args.anchor_id);
   if (!anchor) throw new Error("No workspace agent found");
   if (!(await userCanAdminAnchor(ctx, userId, anchor))) {
-    throw new Error("Only an admin (or the host) can change how the workspace's agent talks");
+    throw new Error(
+      "Only an admin (or the host) can change how the workspace's agent talks",
+    );
   }
   if (!!anchor.clean_chat === args.on) return false;
-  await ctx.db.patch(args.anchor_id, { clean_chat: args.on, updated_at: Date.now() });
-  return !!(await rebriefLiveAnchor(ctx, { ...anchor, clean_chat: args.on }, "clean-chat", { key: `${args.on ? "on" : "off"}:${Date.now()}` }));
+  await ctx.db.patch(args.anchor_id, {
+    clean_chat: args.on,
+    updated_at: Date.now(),
+  });
+  return !!(await rebriefLiveAnchor(
+    ctx,
+    { ...anchor, clean_chat: args.on },
+    "clean-chat",
+    { key: `${args.on ? "on" : "off"}:${Date.now()}` },
+  ));
 }
 
 export const setCleanChat = mutation({
-  args: { api_token: v.optional(v.string()), anchor_id: v.id("anchors"), on: v.boolean() },
+  args: {
+    api_token: v.optional(v.string()),
+    anchor_id: v.id("anchors"),
+    on: v.boolean(),
+  },
   handler: async (ctx, args): Promise<boolean> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     return await performSetCleanChat(ctx, userId, args);
   },
 });
@@ -551,33 +801,78 @@ type RebriefArgs = { dry_run?: boolean; key?: string; only?: string[] };
 // with the same key sends nothing new while the first is still waiting, so a
 // later wording change needs a new key. The anchor's session, or null when it
 // has none to send to.
-async function rebriefLiveAnchor(ctx: any, anchor: any, rail: string, args: RebriefArgs): Promise<any | null> {
-  const conversation = anchor && anchor.status !== "decommissioned" && anchor.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+async function rebriefLiveAnchor(
+  ctx: any,
+  anchor: any,
+  rail: string,
+  args: RebriefArgs,
+): Promise<any | null> {
+  const conversation =
+    anchor && anchor.status !== "decommissioned" && anchor.conversation_id
+      ? await ctx.db.get(anchor.conversation_id)
+      : null;
   if (!conversation) return null;
-  if (!args.dry_run) await deliverToAnchor(ctx, anchor._id, await briefingFor(ctx, anchor), `${rail}:${args.key ?? "1"}:${anchor._id}`);
+  if (!args.dry_run)
+    await deliverToAnchor(
+      ctx,
+      anchor._id,
+      await briefingFor(ctx, anchor),
+      `${rail}:${args.key ?? "1"}:${anchor._id}`,
+    );
   return conversation;
 }
 
 // One sweep: send every live role its current opening, so a role started
 // under earlier instructions works from the ones that ship now.
 // `apps/server/run.sh anchors:rebriefRoles '{"dry_run":true}'`.
-export async function performRebriefRoles(ctx: any, args: RebriefArgs): Promise<{ dry_run: boolean; sent: Array<{ role: string; handle: string; conversation: string | null }>; skipped: number }> {
-  const sent: Array<{ role: string; handle: string; conversation: string | null }> = [];
+export async function performRebriefRoles(
+  ctx: any,
+  args: RebriefArgs,
+): Promise<{
+  dry_run: boolean;
+  sent: Array<{ role: string; handle: string; conversation: string | null }>;
+  skipped: number;
+}> {
+  const sent: Array<{
+    role: string;
+    handle: string;
+    conversation: string | null;
+  }> = [];
   let skipped = 0;
   // `only` (short ids) keeps it to the roles whose instructions changed.
   const only = args.only?.length ? new Set(args.only) : null;
   for (const role of await ctx.db.query("org_roles").collect()) {
-    if (only && !only.has(role.short_id) && !only.has(String(role._id))) continue;
-    const anchor = role.status !== "retired" && role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-    const conversation = await rebriefLiveAnchor(ctx, anchor, "role-rebrief", args);
-    if (!conversation) { skipped++; continue; }
-    sent.push({ role: role.short_id, handle: role.handle, conversation: conversation.short_id ?? null });
+    if (only && !only.has(role.short_id) && !only.has(String(role._id)))
+      continue;
+    const anchor =
+      role.status !== "retired" && role.anchor_id
+        ? await ctx.db.get(role.anchor_id)
+        : null;
+    const conversation = await rebriefLiveAnchor(
+      ctx,
+      anchor,
+      "role-rebrief",
+      args,
+    );
+    if (!conversation) {
+      skipped++;
+      continue;
+    }
+    sent.push({
+      role: role.short_id,
+      handle: role.handle,
+      conversation: conversation.short_id ?? null,
+    });
   }
   return { dry_run: !!args.dry_run, sent, skipped };
 }
 
 export const rebriefRoles = internalMutation({
-  args: { dry_run: v.optional(v.boolean()), key: v.optional(v.string()), only: v.optional(v.array(v.string())) },
+  args: {
+    dry_run: v.optional(v.boolean()),
+    key: v.optional(v.string()),
+    only: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => performRebriefRoles(ctx, args),
 });
 
@@ -585,21 +880,48 @@ export const rebriefRoles = internalMutation({
 // bootstrapMessage reaches a running workspace agent only through a rebrief.
 // `only` takes anchor ids.
 // `apps/server/run.sh anchors:rebriefWorkspaceAgents '{"dry_run":true}'`.
-export async function performRebriefWorkspaceAgents(ctx: any, args: RebriefArgs): Promise<{ dry_run: boolean; sent: Array<{ anchor: string; name: string; conversation: string | null }>; skipped: number }> {
-  const sent: Array<{ anchor: string; name: string; conversation: string | null }> = [];
+export async function performRebriefWorkspaceAgents(
+  ctx: any,
+  args: RebriefArgs,
+): Promise<{
+  dry_run: boolean;
+  sent: Array<{ anchor: string; name: string; conversation: string | null }>;
+  skipped: number;
+}> {
+  const sent: Array<{
+    anchor: string;
+    name: string;
+    conversation: string | null;
+  }> = [];
   let skipped = 0;
   const only = args.only?.length ? new Set(args.only) : null;
   for (const anchor of await ctx.db.query("anchors").collect()) {
     if (anchor.org_role_id || (only && !only.has(String(anchor._id)))) continue;
-    const conversation = await rebriefLiveAnchor(ctx, anchor, "anchor-rebrief", args);
-    if (!conversation) { skipped++; continue; }
-    sent.push({ anchor: String(anchor._id), name: anchor.name, conversation: conversation.short_id ?? null });
+    const conversation = await rebriefLiveAnchor(
+      ctx,
+      anchor,
+      "anchor-rebrief",
+      args,
+    );
+    if (!conversation) {
+      skipped++;
+      continue;
+    }
+    sent.push({
+      anchor: String(anchor._id),
+      name: anchor.name,
+      conversation: conversation.short_id ?? null,
+    });
   }
   return { dry_run: !!args.dry_run, sent, skipped };
 }
 
 export const rebriefWorkspaceAgents = internalMutation({
-  args: { dry_run: v.optional(v.boolean()), key: v.optional(v.string()), only: v.optional(v.array(v.string())) },
+  args: {
+    dry_run: v.optional(v.boolean()),
+    key: v.optional(v.string()),
+    only: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => performRebriefWorkspaceAgents(ctx, args),
 });
 
@@ -625,7 +947,9 @@ export const resolveAnchorForScope = query({
       if (!teamId) return null;
       const member = await ctx.db
         .query("team_memberships")
-        .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+        .withIndex("by_user_team", (q: any) =>
+          q.eq("user_id", userId).eq("team_id", teamId),
+        )
         .first();
       if (!member) return null;
     }
@@ -658,7 +982,14 @@ export const listAnchors = query({
     const rootSeatId = (a: any) => {
       const team = a.scope_type === "team";
       const key = team ? `team:${a.team_id}` : `user:${a.scope_user_id}`;
-      if (!roots.has(key)) roots.set(key, workspaceAnchorFor(ctx, team ? { team_id: a.team_id } : { scope_user_id: a.scope_user_id }).then((r) => r?._id ?? null));
+      if (!roots.has(key))
+        roots.set(
+          key,
+          workspaceAnchorFor(
+            ctx,
+            team ? { team_id: a.team_id } : { scope_user_id: a.scope_user_id },
+          ).then((r) => r?._id ?? null),
+        );
       return roots.get(key)!;
     };
     // Enrich with the bot's display name/avatar, the scope's name, and the
@@ -667,22 +998,40 @@ export const listAnchors = query({
     const out: any[] = [];
     for (const a of anchors) {
       const bot = await ctx.db.get(a.bot_user_id as Id<"users">);
-      const team = a.team_id ? await ctx.db.get(a.team_id as Id<"teams">) : null;
-      const conv = a.conversation_id ? await ctx.db.get(a.conversation_id as Id<"conversations">) : null;
+      const team = a.team_id
+        ? await ctx.db.get(a.team_id as Id<"teams">)
+        : null;
+      const conv = a.conversation_id
+        ? await ctx.db.get(a.conversation_id as Id<"conversations">)
+        : null;
       // Where the seat runs and as whom come from its session (lib/seatPlace).
       const place = seatPlace(a, conv);
       // The role this row is the seat of (org-staffing.md S22): the shell
       // draws the root role's face and name from this row alone, without
       // feeding the whole org tree.
-      const role = a.org_role_id ? await ctx.db.get(a.org_role_id as Id<"org_roles">) : null;
+      const role = a.org_role_id
+        ? await ctx.db.get(a.org_role_id as Id<"org_roles">)
+        : null;
       out.push({
         ...a,
         bot_name: bot?.name ?? a.name,
         // Set once the anchor is a role's seat (the head of people, S12).
         org_role_id: a.org_role_id ?? null,
-        role: role && role.status !== "retired"
-          ? { _id: role._id, short_id: role.short_id, name: role.name, handle: role.handle, avatar: role.avatar ?? null, icon: role.icon ?? null, status: role.status, given_name: role.given_name ?? null, assistant: role.assistant ?? null, scope_type: role.scope_type }
-          : null,
+        role:
+          role && role.status !== "retired"
+            ? {
+                _id: role._id,
+                short_id: role.short_id,
+                name: role.name,
+                handle: role.handle,
+                avatar: role.avatar ?? null,
+                icon: role.icon ?? null,
+                status: role.status,
+                given_name: role.given_name ?? null,
+                assistant: role.assistant ?? null,
+                scope_type: role.scope_type,
+              }
+            : null,
         // The workspace's root (workspaceAgentRoleOf). Every other role's
         // standing session is a row here too, so a picker that takes the
         // first row of a workspace lands on whichever lead is oldest.
@@ -712,11 +1061,14 @@ export const decommissionAnchor = mutation({
   args: { api_token: v.optional(v.string()), anchor_id: v.id("anchors") },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const anchor = await ctx.db.get(args.anchor_id);
     if (!anchor) throw new Error("No workspace agent found");
     if (!(await userCanAdminAnchor(ctx, userId, anchor))) {
-      throw new Error("Only an admin (or the host) can retire the workspace's agent");
+      throw new Error(
+        "Only an admin (or the host) can retire the workspace's agent",
+      );
     }
     await decommissionAnchorRow(ctx, anchor);
     return { decommissioned: true };
@@ -728,21 +1080,35 @@ export const decommissionAnchor = mutation({
 // deletion, which retires every anchor the team owned.
 // `keepChannels` leaves the anchor's channel bindings for a caller that moves
 // them to the anchor replacing this one (a fresh role restart).
-export async function decommissionAnchorRow(ctx: any, anchor: any, opts?: { keepChannels?: boolean }): Promise<void> {
+export async function decommissionAnchorRow(
+  ctx: any,
+  anchor: any,
+  opts?: { keepChannels?: boolean },
+): Promise<void> {
   if (anchor.conversation_id) {
     const conv = await ctx.db.get(anchor.conversation_id);
     if (conv) {
       // Persistence comes off first so the kill completes the row instead of
       // putting it to sleep; the kill then tears the agent down, cancels what
       // would revive it, and files the card under Killed, out of the inbox.
-      await ctx.db.patch(anchor.conversation_id, { persistent: false, inbox_pinned_at: undefined });
-      await killConversation(ctx, conv.user_id, { conversation_id: anchor.conversation_id, mark_completed: true }, { retiring: true, cause: "anchor_retire" });
+      await ctx.db.patch(anchor.conversation_id, {
+        persistent: false,
+        inbox_pinned_at: undefined,
+      });
+      await killConversation(
+        ctx,
+        conv.user_id,
+        { conversation_id: anchor.conversation_id, mark_completed: true },
+        { retiring: true, cause: "anchor_retire" },
+      );
     }
   }
-  const chans = opts?.keepChannels ? [] : await ctx.db
-    .query("anchor_channels")
-    .withIndex("by_anchor", (q: any) => q.eq("anchor_id", anchor._id))
-    .collect();
+  const chans = opts?.keepChannels
+    ? []
+    : await ctx.db
+        .query("anchor_channels")
+        .withIndex("by_anchor", (q: any) => q.eq("anchor_id", anchor._id))
+        .collect();
   for (const ch of chans) await ctx.db.delete(ch._id);
   // Remove the bot from team rosters so retired anchors don't pile up as dead
   // members. Keep the bot user row itself so its past messages still resolve an
@@ -765,7 +1131,9 @@ async function installForAnchor(ctx: any, anchor: any): Promise<any | null> {
   if (anchor.scope_user_id) {
     return await ctx.db
       .query("slack_installations")
-      .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", anchor.scope_user_id))
+      .withIndex("by_scope_user", (q: any) =>
+        q.eq("scope_user_id", anchor.scope_user_id),
+      )
       .first();
   }
   return null;
@@ -790,12 +1158,16 @@ export const getAnchorSpace = query({
       teamId = (await activeTeamMembershipFor(ctx, userId))?.teamId;
     }
     if (args.scope_type === "team") {
-      if (!teamId) return { scope_type: args.scope_type, anchor: null, no_team: true };
+      if (!teamId)
+        return { scope_type: args.scope_type, anchor: null, no_team: true };
       const member = await ctx.db
         .query("team_memberships")
-        .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+        .withIndex("by_user_team", (q: any) =>
+          q.eq("user_id", userId).eq("team_id", teamId),
+        )
         .first();
-      if (!member) return { scope_type: args.scope_type, anchor: null, forbidden: true };
+      if (!member)
+        return { scope_type: args.scope_type, anchor: null, forbidden: true };
     }
     const anchor = await findExistingAnchor(ctx, {
       scope_type: args.scope_type,
@@ -805,7 +1177,9 @@ export const getAnchorSpace = query({
     if (!anchor) return { scope_type: args.scope_type, anchor: null };
 
     const bot = await ctx.db.get(anchor.bot_user_id as Id<"users">);
-    const conv = anchor.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+    const conv = anchor.conversation_id
+      ? await ctx.db.get(anchor.conversation_id)
+      : null;
     const channels = await ctx.db
       .query("anchor_channels")
       .withIndex("by_anchor", (q: any) => q.eq("anchor_id", anchor._id))
@@ -832,7 +1206,9 @@ export const getAnchorSpace = query({
         message_count: (conv as any)?.message_count ?? 0,
         has_pending_messages: (conv as any)?.has_pending_messages ?? false,
         updated_at: (conv as any)?.updated_at ?? anchor.created_at,
-        team_name: teamId ? ((await ctx.db.get(teamId)) as any)?.name ?? null : null,
+        team_name: teamId
+          ? (((await ctx.db.get(teamId)) as any)?.name ?? null)
+          : null,
       },
       slack: {
         connected: !!install,
@@ -860,11 +1236,14 @@ export const updateAnchor = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const anchor = await ctx.db.get(args.anchor_id);
     if (!anchor) throw new Error("No workspace agent found");
     if (!(await userCanAdminAnchor(ctx, userId, anchor))) {
-      throw new Error("Only an admin (or the host) can edit the workspace's agent");
+      throw new Error(
+        "Only an admin (or the host) can edit the workspace's agent",
+      );
     }
     const patch: Record<string, any> = { updated_at: Date.now() };
     if (args.name !== undefined) patch.name = args.name;
@@ -874,7 +1253,8 @@ export const updateAnchor = mutation({
     const botPatch: Record<string, any> = {};
     if (args.name !== undefined) botPatch.name = args.name;
     if (args.avatar_url !== undefined) botPatch.image = args.avatar_url;
-    if (Object.keys(botPatch).length) await ctx.db.patch(anchor.bot_user_id as Id<"users">, botPatch);
+    if (Object.keys(botPatch).length)
+      await ctx.db.patch(anchor.bot_user_id as Id<"users">, botPatch);
     return { ok: true };
   },
 });

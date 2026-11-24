@@ -12,9 +12,15 @@ export function useSyncBuckets() {
   const result = useQueryNoThrow(api.buckets.webList, {}).data;
   const syncTable = useInboxStore((s) => s.syncTable);
 
-  useConvexSync(result, useCallback((data: any) => {
-    if (!data) return;
-    syncTable("buckets", data.buckets ?? []);
-    syncTable("bucketAssignments", data.assignments ?? []);
-  }, [syncTable]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        if (!data) return;
+        syncTable("buckets", data.buckets ?? []);
+        syncTable("bucketAssignments", data.assignments ?? []);
+      },
+      [syncTable],
+    ),
+  );
 }

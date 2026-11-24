@@ -27,7 +27,13 @@ import { Button } from "../ui/button";
 
 const COLUMNS = 6;
 
-export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Record<string, unknown>>; onDone?: () => void }) {
+export function CharacterPicker({
+  rows,
+  onDone,
+}: {
+  rows: Array<IdentityRow & Record<string, unknown>>;
+  onDone?: () => void;
+}) {
   const store = useInboxStore;
   const many = rows.length > 1;
   const first = rows[0];
@@ -38,33 +44,54 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
   const [name, setName] = useState(current?.name ?? "");
   const [nudge, setNudge] = useState(0);
   const [spread, setSpread] = useState(false);
-  const [focus, setFocus] = useState(() => Math.max(0, AVATAR_KEYS.indexOf(currentAvatar)));
+  const [focus, setFocus] = useState(() =>
+    Math.max(0, AVATAR_KEYS.indexOf(currentAvatar)),
+  );
   const faceRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const nameRef = useRef<HTMLInputElement>(null);
 
   // Applying is the gesture: every change writes through immediately, so the
   // face on the card behind the popover answers the click.
-  const apply = useCallback((next: { avatar?: AvatarKey; name?: string | null }) => {
-    if (many) {
-      const s = store.getState();
-      const face = next.avatar ?? avatar;
-      if (spread && next.avatar !== undefined) s.setSessionCharacters(spreadCharacters(rows.map((r) => r._id), face));
-      else s.setSessionCharacters(rows.map((r) => ({ id: r._id, ...next })));
-      return;
-    }
-    if (first) store.getState().setSessionCharacter(first._id, next);
-  }, [avatar, first, many, rows, spread, store]);
+  const apply = useCallback(
+    (next: { avatar?: AvatarKey; name?: string | null }) => {
+      if (many) {
+        const s = store.getState();
+        const face = next.avatar ?? avatar;
+        if (spread && next.avatar !== undefined)
+          s.setSessionCharacters(
+            spreadCharacters(
+              rows.map((r) => r._id),
+              face,
+            ),
+          );
+        else s.setSessionCharacters(rows.map((r) => ({ id: r._id, ...next })));
+        return;
+      }
+      if (first) store.getState().setSessionCharacter(first._id, next);
+    },
+    [avatar, first, many, rows, spread, store],
+  );
 
-  const pickFace = useCallback((key: AvatarKey) => {
-    setAvatar(key);
-    setNudge(0);
-    // A face carries its own names, so a name nobody typed follows the face.
-    const typed = cleanCharacterName(name);
-    const wasSuggested = !typed || (first && typed === characterNameFor(first._id, avatar, nudge));
-    const nextName = many || wasSuggested ? (first ? characterNameFor(first._id, key) : null) : typed;
-    if (!many && nextName) setName(nextName);
-    apply({ avatar: key, ...(many ? {} : { name: nextName }) });
-  }, [apply, avatar, first, many, name, nudge]);
+  const pickFace = useCallback(
+    (key: AvatarKey) => {
+      setAvatar(key);
+      setNudge(0);
+      // A face carries its own names, so a name nobody typed follows the face.
+      const typed = cleanCharacterName(name);
+      const wasSuggested =
+        !typed ||
+        (first && typed === characterNameFor(first._id, avatar, nudge));
+      const nextName =
+        many || wasSuggested
+          ? first
+            ? characterNameFor(first._id, key)
+            : null
+          : typed;
+      if (!many && nextName) setName(nextName);
+      apply({ avatar: key, ...(many ? {} : { name: nextName }) });
+    },
+    [apply, avatar, first, many, name, nudge],
+  );
 
   const shuffle = useCallback(() => {
     if (!first) return;
@@ -95,16 +122,21 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
     onDone?.();
   }, [commitName, many, onDone]);
 
-  const onFaceKey = useCallback((e: React.KeyboardEvent, index: number) => {
-    const next = moveRadioIndex(e.key, index, AVATAR_KEYS.length, COLUMNS);
-    if (next == null) return;
-    e.preventDefault();
-    setFocus(next);
-    faceRefs.current[next]?.focus();
-    pickFace(AVATAR_KEYS[next]);
-  }, [pickFace]);
+  const onFaceKey = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      const next = moveRadioIndex(e.key, index, AVATAR_KEYS.length, COLUMNS);
+      if (next == null) return;
+      e.preventDefault();
+      setFocus(next);
+      faceRefs.current[next]?.focus();
+      pickFace(AVATAR_KEYS[next]);
+    },
+    [pickFace],
+  );
 
-  useMountEffect(() => { faceRefs.current[focus]?.focus(); });
+  useMountEffect(() => {
+    faceRefs.current[focus]?.focus();
+  });
 
   if (!first) return null;
 
@@ -124,13 +156,19 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
         </button>
       </div>
 
-      <div role="radiogroup" aria-label="Character face" className="grid grid-cols-6 gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label="Character face"
+        className="grid grid-cols-6 gap-1.5"
+      >
         {AVATAR_KEYS.map((key, i) => {
           const picked = key === avatar;
           return (
             <button
               key={key}
-              ref={(el) => { faceRefs.current[i] = el; }}
+              ref={(el) => {
+                faceRefs.current[i] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={picked}
@@ -138,9 +176,14 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
               title={AVATAR_LABELS[key]}
               tabIndex={i === focus ? 0 : -1}
               onKeyDown={(e) => onFaceKey(e, i)}
-              onClick={() => { setFocus(i); pickFace(key); }}
+              onClick={() => {
+                setFocus(i);
+                pickFace(key);
+              }}
               className={`rounded-full transition-transform hover:scale-110 focus-visible:outline-none ${picked ? "scale-110" : ""}`}
-              style={picked ? { boxShadow: "0 0 0 2px var(--sol-cyan)" } : undefined}
+              style={
+                picked ? { boxShadow: "0 0 0 2px var(--sol-cyan)" } : undefined
+              }
             >
               <RoleAvatar avatar={key} size={40} />
             </button>
@@ -157,8 +200,14 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
             onChange={(e) => setName(e.target.value)}
             onBlur={commitName}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); done(); }
-              if (e.key === "Escape") { e.preventDefault(); onDone?.(); }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                done();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onDone?.();
+              }
             }}
             placeholder="Name"
             aria-label="Character name"
@@ -179,19 +228,45 @@ export function CharacterPicker({ rows, onDone }: { rows: Array<IdentityRow & Re
       {many && (
         <div className="mt-3 flex items-center gap-3 text-meta text-sol-text-muted">
           <label className="inline-flex items-center gap-1.5 cursor-pointer">
-            <input type="radio" checked={!spread} onChange={() => setSpread(false)} className="accent-sol-cyan" />
+            <input
+              type="radio"
+              checked={!spread}
+              onChange={() => setSpread(false)}
+              className="accent-sol-cyan"
+            />
             One face for all
           </label>
           <label className="inline-flex items-center gap-1.5 cursor-pointer">
-            <input type="radio" checked={spread} onChange={() => { setSpread(true); store.getState().setSessionCharacters(spreadCharacters(rows.map((r) => r._id), avatar)); }} className="accent-sol-cyan" />
+            <input
+              type="radio"
+              checked={spread}
+              onChange={() => {
+                setSpread(true);
+                store.getState().setSessionCharacters(
+                  spreadCharacters(
+                    rows.map((r) => r._id),
+                    avatar,
+                  ),
+                );
+              }}
+              className="accent-sol-cyan"
+            />
             A different face each
           </label>
         </div>
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-meta text-sol-text-dim">Changes apply as you pick</span>
-        <Button type="button" size="sm" variant="cyan" onClick={done} className="h-7 px-3 text-meta">
+        <span className="text-meta text-sol-text-dim">
+          Changes apply as you pick
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="cyan"
+          onClick={done}
+          className="h-7 px-3 text-meta"
+        >
           Done
         </Button>
       </div>

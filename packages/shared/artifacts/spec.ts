@@ -9,7 +9,10 @@ export const ARTIFACT_DOC_TYPES = ["board", "sheet", "dashboard"] as const;
 export type ArtifactType = (typeof ARTIFACT_DOC_TYPES)[number];
 
 export function isArtifactDocType(t: unknown): t is ArtifactType {
-  return typeof t === "string" && (ARTIFACT_DOC_TYPES as readonly string[]).includes(t);
+  return (
+    typeof t === "string" &&
+    (ARTIFACT_DOC_TYPES as readonly string[]).includes(t)
+  );
 }
 
 /** What a spec reads: the visible elements (deleted ones left out), keyed and in key order. */
@@ -20,8 +23,14 @@ export type ArtifactView = {
   get(key: string): ArtifactElement | undefined;
 };
 
-export function artifactView(type: ArtifactType, title: string, elements: ArtifactElement[]): ArtifactView {
-  const sorted = [...elements].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+export function artifactView(
+  type: ArtifactType,
+  title: string,
+  elements: ArtifactElement[],
+): ArtifactView {
+  const sorted = [...elements].sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+  );
   const byKey = new Map(sorted.map((e) => [e.key, e]));
   return { type, title, elements: sorted, get: (k) => byKey.get(k) };
 }
@@ -66,7 +75,10 @@ export type ArtifactSpec = {
   /** A compact text form of the artifact an agent can reason over (`cast <cli> read`). */
   describe(view: ArtifactView): string;
   /** Where an agent's cursor goes after it writes these keys. */
-  presenceFor?(view: ArtifactView, keys: string[]): ArtifactPosition | undefined;
+  presenceFor?(
+    view: ArtifactView,
+    keys: string[],
+  ): ArtifactPosition | undefined;
   /** Elements a new artifact starts with. */
   seed?(): ArtifactOp[];
   /**
@@ -80,13 +92,20 @@ export type ArtifactSpec = {
    * the thread rides the element through moves (a sheet stamps the cell).
    * Applied with the thread's first comment.
    */
-  pinComment?(view: ArtifactView, anchor: string, threadKey: string): ArtifactOp[];
+  pinComment?(
+    view: ArtifactView,
+    anchor: string,
+    threadKey: string,
+  ): ArtifactOp[];
   /**
    * Where each thread sits now: the element key carrying it, or null when its
    * element is gone (the thread shows as detached). A thread left out falls
    * back to its anchor.
    */
-  commentPlaces?(view: ArtifactView, threads: ReadonlyArray<{ key: string; anchor?: unknown }>): Map<string, string | null>;
+  commentPlaces?(
+    view: ArtifactView,
+    threads: ReadonlyArray<{ key: string; anchor?: unknown }>,
+  ): Map<string, string | null>;
   /**
    * The scope a whole-range rewrite claims for the element at `key` (a sheet's
    * cell to "tab:<id>"), or null for an element no rewrite covers. `fields`
@@ -103,7 +122,16 @@ export type ArtifactSpec = {
    * as "dataQueries:cliQuery") with {user_id, actor, actor_name, doc_id?,
    * args, stdin?}, which returns {text?, json?}.
    */
-  remote?: Record<string, { summary: string; usage: string; stdin?: boolean; needsDoc?: boolean; action: string }>;
+  remote?: Record<
+    string,
+    {
+      summary: string;
+      usage: string;
+      stdin?: boolean;
+      needsDoc?: boolean;
+      action: string;
+    }
+  >;
   /** Lines appended to `cast <cli> --help` and to the brief an asked agent gets: how to write this product well. */
   agentGuide: string;
 };
@@ -119,10 +147,16 @@ export function newElementKey(prefix: string): string {
 }
 
 /** Fields formatted for a describe line: `x=10 y=20 text="Lock pricing"`. Skips the given names. */
-export function formatFields(el: ArtifactElement, skip: readonly string[] = []): string {
+export function formatFields(
+  el: ArtifactElement,
+  skip: readonly string[] = [],
+): string {
   const omit = new Set(["key", "kind", "rev", "by", "at", ...skip]);
   return Object.entries(el)
     .filter(([f, val]) => !omit.has(f) && val !== undefined)
-    .map(([f, val]) => `${f}=${typeof val === "string" ? JSON.stringify(val) : JSON.stringify(val)}`)
+    .map(
+      ([f, val]) =>
+        `${f}=${typeof val === "string" ? JSON.stringify(val) : JSON.stringify(val)}`,
+    )
     .join(" ");
 }

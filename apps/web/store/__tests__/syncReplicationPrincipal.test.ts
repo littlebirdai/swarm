@@ -1,7 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { createReplicationFollower, createReplicationHost, type ReplicationChannel, type ReplicationMessage } from "@platform/engine";
+import {
+  createReplicationFollower,
+  createReplicationHost,
+  type ReplicationChannel,
+  type ReplicationMessage,
+} from "@platform/engine";
 import { CACHE_SCHEMA_VERSION } from "../idbCache";
-import { replicationChannelName, replicationLockName, replicationTransport, startSyncReplication, stopSyncReplication } from "../syncReplication";
+import {
+  replicationChannelName,
+  replicationLockName,
+  replicationTransport,
+  startSyncReplication,
+  stopSyncReplication,
+} from "../syncReplication";
 import { useInboxStore } from "../inboxStore";
 
 // Replication is scoped to the account a window acts for: channel and lock
@@ -11,9 +22,15 @@ import { useInboxStore } from "../inboxStore";
 
 describe("replication names", () => {
   it("carry the principal", () => {
-    expect(replicationChannelName("userA")).toBe(`codecast-replication-v1:${CACHE_SCHEMA_VERSION}:userA`);
-    expect(replicationLockName("userA")).toBe(`codecast-sync-host:${CACHE_SCHEMA_VERSION}:userA`);
-    expect(replicationChannelName("userA")).not.toBe(replicationChannelName("userB"));
+    expect(replicationChannelName("userA")).toBe(
+      `codecast-replication-v1:${CACHE_SCHEMA_VERSION}:userA`,
+    );
+    expect(replicationLockName("userA")).toBe(
+      `codecast-sync-host:${CACHE_SCHEMA_VERSION}:userA`,
+    );
+    expect(replicationChannelName("userA")).not.toBe(
+      replicationChannelName("userB"),
+    );
   });
 });
 
@@ -26,12 +43,16 @@ function makeHub() {
   class FakeBroadcastChannel {
     private own = new Set<(e: MessageEvent) => void>();
     private closed = false;
-    constructor(public name: string) { opened.push(name); }
+    constructor(public name: string) {
+      opened.push(name);
+    }
     postMessage(data: unknown) {
       if (this.closed) return;
       for (const fn of members.get(this.name) ?? []) {
         if (this.own.has(fn)) continue;
-        queueMicrotask(() => fn({ data: structuredClone(data) } as MessageEvent));
+        queueMicrotask(() =>
+          fn({ data: structuredClone(data) } as MessageEvent),
+        );
       }
     }
     addEventListener(_t: string, fn: (e: MessageEvent) => void) {
@@ -64,7 +85,11 @@ describe("startSyncReplication", () => {
   let hub: ReturnType<typeof makeHub>;
   beforeEach(() => {
     hub = makeHub();
-    saved = { window: g.window, BroadcastChannel: g.BroadcastChannel, navigator: g.navigator };
+    saved = {
+      window: g.window,
+      BroadcastChannel: g.BroadcastChannel,
+      navigator: g.navigator,
+    };
     g.window = g.window ?? globalThis;
     g.BroadcastChannel = hub.FakeBroadcastChannel;
     g.navigator = { ...(g.navigator ?? {}), locks: hub.lockManager };
@@ -72,7 +97,8 @@ describe("startSyncReplication", () => {
   afterEach(() => {
     stopSyncReplication();
     for (const [k, v] of Object.entries(saved)) {
-      if (v === undefined) delete g[k]; else g[k] = v;
+      if (v === undefined) delete g[k];
+      else g[k] = v;
     }
   });
 
@@ -100,7 +126,10 @@ describe("startSyncReplication", () => {
     stopSyncReplication();
     // A fresh start for the next account opens that account's channel, not the old one.
     startSyncReplication({ eligible: false, principalId: "userB" });
-    expect(hub.opened.filter((n) => !n.includes(":to:"))).toEqual([replicationChannelName("userA"), replicationChannelName("userB")]);
+    expect(hub.opened.filter((n) => !n.includes(":to:"))).toEqual([
+      replicationChannelName("userA"),
+      replicationChannelName("userB"),
+    ]);
     expect(useInboxStore.getState().syncRole).toBe("host");
   });
 });
@@ -110,7 +139,13 @@ describe("startSyncReplication", () => {
 // syncs from A's host, and a late message from A's host after the follower
 // re-keyed lands nowhere because its old channel is closed.
 describe("host and follower of different accounts", () => {
-  function channelFor(hub: ReturnType<typeof makeHub>, name: string): { channel: ReplicationChannel; bc: InstanceType<typeof hub.FakeBroadcastChannel> } {
+  function channelFor(
+    hub: ReturnType<typeof makeHub>,
+    name: string,
+  ): {
+    channel: ReplicationChannel;
+    bc: InstanceType<typeof hub.FakeBroadcastChannel>;
+  } {
     const bc = new hub.FakeBroadcastChannel(name);
     return {
       bc,
@@ -170,7 +205,10 @@ describe("host and follower of different accounts", () => {
     winOnA.bc.close();
     const before = appliedA.length;
     state.sessions = { s2: { _id: "s2", title: "late row from A" } } as any;
-    hostA.tee([{ op: "replace", path: ["sessions"], value: state.sessions }] as any, state);
+    hostA.tee(
+      [{ op: "replace", path: ["sessions"], value: state.sessions }] as any,
+      state,
+    );
     await settle();
     expect(appliedA.length).toBe(before);
     followerB.stop();
@@ -191,7 +229,8 @@ describe("replicationTransport", () => {
     g.BroadcastChannel = hub.FakeBroadcastChannel;
   });
   afterEach(() => {
-    if (saved === undefined) delete g.BroadcastChannel; else g.BroadcastChannel = saved;
+    if (saved === undefined) delete g.BroadcastChannel;
+    else g.BroadcastChannel = saved;
   });
   const settle = () => new Promise((r) => setTimeout(r, 5));
 
@@ -200,32 +239,56 @@ describe("replicationTransport", () => {
     const state: any = { sessions: { s1: { _id: "s1", title: "first" } } };
     const hostT = replicationTransport(name, "host");
     const host = createReplicationHost({
-      hostId: "host", channel: hostT.channel, getState: () => state,
-      replicatedKeys: ["sessions"], isCollectionKey: () => true, applyUpdates: () => {},
+      hostId: "host",
+      channel: hostT.channel,
+      getState: () => state,
+      replicatedKeys: ["sessions"],
+      isCollectionKey: () => true,
+      applyUpdates: () => {},
     });
     const seen: Record<string, ReplicationMessage[]> = { a: [], b: [] };
     const followers = (["a", "b"] as const).map((id) => {
       const t = replicationTransport(name, id);
       t.channel.onMessage((m) => seen[id].push(m));
-      return { t, f: createReplicationFollower({
-        selfId: id, channel: t.channel, replicatedKeys: ["sessions"],
-        isCollectionKey: () => true, applyUpdates: () => {}, helloRetryMs: 1000,
-      }) };
+      return {
+        t,
+        f: createReplicationFollower({
+          selfId: id,
+          channel: t.channel,
+          replicatedKeys: ["sessions"],
+          isCollectionKey: () => true,
+          applyUpdates: () => {},
+          helloRetryMs: 1000,
+        }),
+      };
     });
     await settle();
     expect(followers.every(({ f }) => f.synced())).toBe(true);
-    const snapshotsTo = (id: string) => seen[id].filter((m) => m.type === "snapshot" || m.type === "snapshotChunk");
+    const snapshotsTo = (id: string) =>
+      seen[id].filter(
+        (m) => m.type === "snapshot" || m.type === "snapshotChunk",
+      );
     expect(snapshotsTo("a").length).toBeGreaterThan(0);
     expect(snapshotsTo("a").every((m: any) => m.to === "a")).toBe(true);
     expect(snapshotsTo("b").every((m: any) => m.to === "b")).toBe(true);
 
     state.sessions = { ...state.sessions, s2: { _id: "s2", title: "second" } };
-    host.tee([{ op: "add", path: ["sessions", "s2"], value: state.sessions.s2 }] as any, state);
+    host.tee(
+      [
+        { op: "add", path: ["sessions", "s2"], value: state.sessions.s2 },
+      ] as any,
+      state,
+    );
     await settle();
-    for (const id of ["a", "b"]) expect(seen[id].some((m) => m.type === "update")).toBe(true);
+    for (const id of ["a", "b"])
+      expect(seen[id].some((m) => m.type === "update")).toBe(true);
     expect(followers.every(({ f }) => f.synced())).toBe(true);
 
-    for (const { t, f } of followers) { f.stop(); t.close(); }
-    host.stop(); hostT.close();
+    for (const { t, f } of followers) {
+      f.stop();
+      t.close();
+    }
+    host.stop();
+    hostT.close();
   });
 });

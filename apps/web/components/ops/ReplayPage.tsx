@@ -28,20 +28,58 @@
 // whose new chunks the page then reads like any other.
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { keepReasonLabel, needsVendorImport, type ReplayEvent } from "@codecast/shared/contracts/replay";
+import {
+  keepReasonLabel,
+  needsVendorImport,
+  type ReplayEvent,
+} from "@codecast/shared/contracts/replay";
 import { ExternalLink, Play } from "lucide-react";
-import { activeMsOf, formatReplayTime, isAnonymous, personKey, personLabel, routeOf } from "@codecast/shared/replay";
-import { detailGone, useOpsReplay, useOpsReplayTimeline, useOpsSources, useSyncOpsReplay } from "../../hooks/useSyncOps";
+import {
+  activeMsOf,
+  formatReplayTime,
+  isAnonymous,
+  personKey,
+  personLabel,
+  routeOf,
+} from "@codecast/shared/replay";
+import {
+  detailGone,
+  useOpsReplay,
+  useOpsReplayTimeline,
+  useOpsSources,
+  useSyncOpsReplay,
+} from "../../hooks/useSyncOps";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { relTimeShort } from "../../lib/utils";
 import { OpsFeedError, ProviderIcon } from "./parts";
 import { OpsNotFound } from "./OpsShellParts";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { EnvMarks, PersonMark, ReplayFigures } from "./replayParts";
-import { importedUntil, plural, replayLengthText, replayPagePath, restHold, restQueued, restState, vendorUrlAt } from "./replayModel";
+import {
+  importedUntil,
+  plural,
+  replayLengthText,
+  replayPagePath,
+  restHold,
+  restQueued,
+  restState,
+  vendorUrlAt,
+} from "./replayModel";
 import { issueMoments } from "./replayRail";
-import { useLinkedIssues, useReplayEvents, useVendorImport, VENDOR_NAME, vendorUrl } from "./replayPageData";
-import { HeaderIssue, IssuesAndFixes, MiddlePath, PersonRecordings, ReplayActions } from "./ReplayIssues";
+import {
+  useLinkedIssues,
+  useReplayEvents,
+  useVendorImport,
+  VENDOR_NAME,
+  vendorUrl,
+} from "./replayPageData";
+import {
+  HeaderIssue,
+  IssuesAndFixes,
+  MiddlePath,
+  PersonRecordings,
+  ReplayActions,
+} from "./ReplayIssues";
 import { personListHref, startTime } from "./replayPlayerModel";
 import { Player } from "./ReplayPlayer";
 import { RestStatus } from "./ReplayPlayerParts";
@@ -51,7 +89,15 @@ const NO_EVENTS: ReplayEvent[] = [];
 /** How long "Opening rp-N" waits on the server before the page says the recording is not in the lists it holds (still checking). */
 const OPEN_PATIENCE_MS = 4_000;
 
-export function ReplayPage({ id, t: asked, tAlt }: { id: string; t: number | null; tAlt?: number }) {
+export function ReplayPage({
+  id,
+  t: asked,
+  tAlt,
+}: {
+  id: string;
+  t: number | null;
+  tAlt?: number;
+}) {
   const feed = useSyncOpsReplay(id);
   const replay = useOpsReplay(id);
   const timeline = useOpsReplayTimeline(replay?._id);
@@ -65,7 +111,13 @@ export function ReplayPage({ id, t: asked, tAlt }: { id: string; t: number | nul
   // ?t is seconds; a link written before that carried ms, which reads as a time past the recording's end: that one opens where it meant.
   const t = startTime(asked, tAlt, replay?.duration_ms ?? null);
   const loadedEvents = loaded.state === "ready" ? loaded.events : null;
-  const moments = useMemo(() => (loadedEvents && replay ? issueMoments(loadedEvents, replay.url, issues) : new Map<string, number>()), [loadedEvents, replay, issues]);
+  const moments = useMemo(
+    () =>
+      loadedEvents && replay
+        ? issueMoments(loadedEvents, replay.url, issues)
+        : new Map<string, number>(),
+    [loadedEvents, replay, issues],
+  );
   const [slowOpen, setSlowOpen] = useState(false);
   const missing = !replay;
   useWatchEffect(() => {
@@ -87,85 +139,247 @@ export function ReplayPage({ id, t: asked, tAlt }: { id: string; t: number | nul
   const source = sources.find((s) => s._id === replay.source_id);
   const external = vendorUrl(replay, source);
   const seek = (at: number) => seekRef.current?.(Math.max(0, at - 2000));
-  const issueMarks = issues.flatMap((i) => (moments.has(i._id) ? [{ t: moments.get(i._id)!, short_id: i.short_id, title: i.title }] : []));
+  const issueMarks = issues.flatMap((i) =>
+    moments.has(i._id)
+      ? [{ t: moments.get(i._id)!, short_id: i.short_id, title: i.title }]
+      : [],
+  );
   const len = replayLengthText(replay);
   const active = activeMsOf(replay);
   const cutAt = importedUntil(replay.captured_ms, replay.duration_ms);
   const rest = restState(replay, now, source?.replay_rest?.reading);
   const queued = restQueued(replay, source, now);
   // Counted from the stream once it is read (repeat snapshots of one page folded), the stored shape until then: both count changes of address.
-  const pages = (events && events.length ? events.filter((e) => e.type === "nav").length : replay.shape?.pages) || undefined;
+  const pages =
+    (events && events.length
+      ? events.filter((e) => e.type === "nav").length
+      : replay.shape?.pages) || undefined;
   const who = personKey(replay.user);
   // A recording with a page capture opens its player while its events are still being read, so the capture loads alongside them.
-  const early = loaded.state === "loading" && replay.chunks > 0 && (replay.dom_chunks ?? 0) > 0;
+  const early =
+    loaded.state === "loading" &&
+    replay.chunks > 0 &&
+    (replay.dom_chunks ?? 0) > 0;
 
   return (
     <div className="rp-page" data-ops-replay={replay.short_id}>
       <div className="rp-page-head">
         <div className="rp-title-row">
-          <PersonMark label={personLabel(replay.user)} personKey={who} anonymous={isAnonymous(replay.user)} size={30} />
+          <PersonMark
+            label={personLabel(replay.user)}
+            personKey={who}
+            anonymous={isAnonymous(replay.user)}
+            size={30}
+          />
           <div className="min-w-0 flex-1">
             <div className="rp-title-line">
-            <h1 className="rp-h1" title={replay.url ?? undefined}>
-              {who ? (
-                <Link className="rp-h1-person" href={personListHref(who)} title={`${personLabel(replay.user)}: their recordings`} data-anon={isAnonymous(replay.user) ? "true" : undefined}>
-                  {personLabel(replay.user)}
-                </Link>
-              ) : (
-                <span className="ops-quiet">Anonymous</span>
+              <h1 className="rp-h1" title={replay.url ?? undefined}>
+                {who ? (
+                  <Link
+                    className="rp-h1-person"
+                    href={personListHref(who)}
+                    title={`${personLabel(replay.user)}: their recordings`}
+                    data-anon={isAnonymous(replay.user) ? "true" : undefined}
+                  >
+                    {personLabel(replay.user)}
+                  </Link>
+                ) : (
+                  <span className="ops-quiet">Anonymous</span>
+                )}
+                <span className="rp-h1-on ops-dim">on</span>
+                <MiddlePath
+                  text={
+                    replayPagePath(replay)
+                      ? routeOf(replayPagePath(replay))
+                      : "no page recorded"
+                  }
+                />
+              </h1>
+              {issues[0] && (
+                <HeaderIssue
+                  issue={issues[0]}
+                  more={issues.length - 1}
+                  at={moments.get(issues[0]._id)}
+                  onSeek={seek}
+                />
               )}
-              <span className="rp-h1-on ops-dim">on</span>
-              <MiddlePath text={replayPagePath(replay) ? routeOf(replayPagePath(replay)) : "no page recorded"} />
-            </h1>
-            {issues[0] && <HeaderIssue issue={issues[0]} more={issues.length - 1} at={moments.get(issues[0]._id)} onSeek={seek} />}
             </div>
             <div className="rp-facts">
-              <span className="rp-fact"><ProviderIcon provider={replay.provider} />{replay.source_name ?? replay.provider}</span>
-              <span className="rp-fact ops-num" title={new Date(replay.started_at).toLocaleString()}>{new Date(replay.started_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · {relTimeShort(replay.started_at, now)}</span>
-              <span className="rp-fact ops-num" title={len.known ? "Length" : undefined}>{len.known ? len.text : <span className="ops-dim">{len.text}</span>}{active !== undefined && len.known ? <span className="ops-dim"> · {formatReplayTime(active).replace(/\.\d$/, "")} active</span> : null}</span>
+              <span className="rp-fact">
+                <ProviderIcon provider={replay.provider} />
+                {replay.source_name ?? replay.provider}
+              </span>
+              <span
+                className="rp-fact ops-num"
+                title={new Date(replay.started_at).toLocaleString()}
+              >
+                {new Date(replay.started_at).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}{" "}
+                · {relTimeShort(replay.started_at, now)}
+              </span>
+              <span
+                className="rp-fact ops-num"
+                title={len.known ? "Length" : undefined}
+              >
+                {len.known ? (
+                  len.text
+                ) : (
+                  <span className="ops-dim">{len.text}</span>
+                )}
+                {active !== undefined && len.known ? (
+                  <span className="ops-dim">
+                    {" "}
+                    · {formatReplayTime(active).replace(/\.\d$/, "")} active
+                  </span>
+                ) : null}
+              </span>
               {cutAt !== null && (
-                <span className="rp-fact rp-cut-fact ops-num" title={`Imported 0:00 to ${formatReplayTime(cutAt)} of ${formatReplayTime(replay.duration_ms ?? 0)}`}>
-                  {formatReplayTime(cutAt).replace(/\.\d$/, "")} of {formatReplayTime(replay.duration_ms ?? 0).replace(/\.\d$/, "")} imported
-                  <RestStatus rest={rest} starting={vendorImport.state === "importing"} readRest={vendorImport.again} hold={vendorImport.declined ?? restHold(replay, now)} vendorName={external ? (VENDOR_NAME[replay.provider] ?? replay.provider) : null} queued={queued} />
+                <span
+                  className="rp-fact rp-cut-fact ops-num"
+                  title={`Imported 0:00 to ${formatReplayTime(cutAt)} of ${formatReplayTime(replay.duration_ms ?? 0)}`}
+                >
+                  {formatReplayTime(cutAt).replace(/\.\d$/, "")} of{" "}
+                  {formatReplayTime(replay.duration_ms ?? 0).replace(
+                    /\.\d$/,
+                    "",
+                  )}{" "}
+                  imported
+                  <RestStatus
+                    rest={rest}
+                    starting={vendorImport.state === "importing"}
+                    readRest={vendorImport.again}
+                    hold={vendorImport.declined ?? restHold(replay, now)}
+                    vendorName={
+                      external
+                        ? (VENDOR_NAME[replay.provider] ?? replay.provider)
+                        : null
+                    }
+                    queued={queued}
+                  />
                   {external && (
-                    <a className="rp-cut-vendor" href={vendorUrlAt(external, cutAt)} target="_blank" rel="noreferrer noopener" title={`The rest of the recording, from ${formatReplayTime(cutAt).replace(/\.\d$/, "")}, in ${VENDOR_NAME[replay.provider] ?? replay.provider}`}>
-                      Play the rest in {VENDOR_NAME[replay.provider] ?? replay.provider} <ExternalLink className="w-3 h-3" aria-hidden />
+                    <a
+                      className="rp-cut-vendor"
+                      href={vendorUrlAt(external, cutAt)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      title={`The rest of the recording, from ${formatReplayTime(cutAt).replace(/\.\d$/, "")}, in ${VENDOR_NAME[replay.provider] ?? replay.provider}`}
+                    >
+                      Play the rest in{" "}
+                      {VENDOR_NAME[replay.provider] ?? replay.provider}{" "}
+                      <ExternalLink className="w-3 h-3" aria-hidden />
                     </a>
                   )}
                 </span>
               )}
-              {pages !== undefined && <span className="rp-fact ops-num">{plural(pages, "page")}</span>}
+              {pages !== undefined && (
+                <span className="rp-fact ops-num">{plural(pages, "page")}</span>
+              )}
               <ReplayFigures replay={replay} />
-              {(replay.kept_for?.length ?? 0) > 0 && <span className="rp-fact rp-kept" title="Why the recorder kept this session">kept: {replay.kept_for!.map(keepReasonLabel).join(" · ")}</span>}
-              {replay.facts && <span className="rp-fact"><EnvMarks facts={replay.facts} full /></span>}
+              {(replay.kept_for?.length ?? 0) > 0 && (
+                <span
+                  className="rp-fact rp-kept"
+                  title="Why the recorder kept this session"
+                >
+                  kept: {replay.kept_for!.map(keepReasonLabel).join(" · ")}
+                </span>
+              )}
+              {replay.facts && (
+                <span className="rp-fact">
+                  <EnvMarks facts={replay.facts} full />
+                </span>
+              )}
             </div>
           </div>
-          <ReplayActions replay={replay} events={events} issues={issues} vendor={external ? { href: external, name: VENDOR_NAME[replay.provider] ?? replay.provider } : null} />
+          <ReplayActions
+            replay={replay}
+            events={events}
+            issues={issues}
+            vendor={
+              external
+                ? {
+                    href: external,
+                    name: VENDOR_NAME[replay.provider] ?? replay.provider,
+                  }
+                : null
+            }
+          />
         </div>
       </div>
 
       {(events && events.length > 0) || early ? (
-        <Player replay={replay} events={events ?? NO_EVENTS} reading={early} initialT={t} issueMarks={issueMarks} seekRef={seekRef} vendor={external ? { href: external, name: VENDOR_NAME[replay.provider] ?? replay.provider } : null} readRest={vendorImport.again} starting={vendorImport.state === "importing"} hold={vendorImport.declined ?? restHold(replay, now)} queued={queued} restReading={source?.replay_rest?.reading ?? null} />
+        <Player
+          replay={replay}
+          events={events ?? NO_EVENTS}
+          reading={early}
+          initialT={t}
+          issueMarks={issueMarks}
+          seekRef={seekRef}
+          vendor={
+            external
+              ? {
+                  href: external,
+                  name: VENDOR_NAME[replay.provider] ?? replay.provider,
+                }
+              : null
+          }
+          readRest={vendorImport.again}
+          starting={vendorImport.state === "importing"}
+          hold={vendorImport.declined ?? restHold(replay, now)}
+          queued={queued}
+          restReading={source?.replay_rest?.reading ?? null}
+        />
       ) : loaded.state === "loading" && replay.chunks > 0 ? (
-        <div className="rp-main rp-main-wait ops-quiet"><span className="rp-wait-bar" aria-hidden />Reading the recording</div>
-      ) : vendorImport.state === "importing" || (needsVendorImport(replay) && vendorImport.state === "idle") ? (
-        <div className="rp-main rp-main-wait ops-quiet">Importing the recording from {replay.source_name ?? replay.provider}…</div>
+        <div className="rp-main rp-main-wait ops-quiet">
+          <span className="rp-wait-bar" aria-hidden />
+          Reading the recording
+        </div>
+      ) : vendorImport.state === "importing" ||
+        (needsVendorImport(replay) && vendorImport.state === "idle") ? (
+        <div className="rp-main rp-main-wait ops-quiet">
+          Importing the recording from {replay.source_name ?? replay.provider}…
+        </div>
       ) : (
         <div className="ops-card">
           <div className="ops-card-head">
             <span>Timeline</span>
-            {loaded.state === "failed" && <span className="text-meta font-normal" style={{ color: "var(--sol-orange)" }}>Could not be read: {loaded.error}</span>}
-            {vendorImport.state === "failed" && <span className="text-meta font-normal" style={{ color: "var(--sol-orange)" }}>Import failed: {vendorImport.error}</span>}
+            {loaded.state === "failed" && (
+              <span
+                className="text-meta font-normal"
+                style={{ color: "var(--sol-orange)" }}
+              >
+                Could not be read: {loaded.error}
+              </span>
+            )}
+            {vendorImport.state === "failed" && (
+              <span
+                className="text-meta font-normal"
+                style={{ color: "var(--sol-orange)" }}
+              >
+                Import failed: {vendorImport.error}
+              </span>
+            )}
           </div>
-          <pre className="ops-outline ops-mono" style={{ maxHeight: "none" }}>{timeline?.timeline_md ?? (replay.chunks === 0 ? "Nothing recorded yet." : "No text timeline yet.")}</pre>
+          <pre className="ops-outline ops-mono" style={{ maxHeight: "none" }}>
+            {timeline?.timeline_md ??
+              (replay.chunks === 0
+                ? "Nothing recorded yet."
+                : "No text timeline yet.")}
+          </pre>
         </div>
       )}
 
       <div className="rp-below">
-        <IssuesAndFixes issues={issues} moments={moments} onSeek={events && events.length > 0 ? seek : null} />
+        <IssuesAndFixes
+          issues={issues}
+          moments={moments}
+          onSeek={events && events.length > 0 ? seek : null}
+        />
         {who && <PersonRecordings replay={replay} personKey={who} now={now} />}
       </div>
     </div>
   );
 }
-

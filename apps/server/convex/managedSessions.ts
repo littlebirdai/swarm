@@ -1,6 +1,15 @@
-import { heartbeatOf, managedHeartbeatPage, writeSessionHeartbeat } from "./lib/sessionHeartbeat";
+import {
+  heartbeatOf,
+  managedHeartbeatPage,
+  writeSessionHeartbeat,
+} from "./lib/sessionHeartbeat";
 import { buildHeartbeatPatch, statusWriteIsStale } from "./lib/heartbeatPatch";
-import { mutation, query, internalMutation, type MutationCtx } from "./functions";
+import {
+  mutation,
+  query,
+  internalMutation,
+  type MutationCtx,
+} from "./functions";
 import { noteWriteCause } from "./lifecycleEvents";
 import { releaseQueuedRows } from "./pendingMessageWrites";
 import { v } from "convex/values";
@@ -8,7 +17,11 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
-import { AGENT_STATUSES, ACTIVE_AGENT_STATUSES, isHostedAgentType } from "@codecast/shared/contracts";
+import {
+  AGENT_STATUSES,
+  ACTIVE_AGENT_STATUSES,
+  isHostedAgentType,
+} from "@codecast/shared/contracts";
 import { openTaskValidator } from "./lib/openTasksValidator";
 import { internal } from "./_generated/api";
 import {
@@ -44,19 +57,21 @@ async function scheduleNeedsInputCheck(
   // push must not chime and the settle classifier must not invent a verdict for
   // a turn that never happened. Standing the schedule down is what keeps a
   // resume out of both (ct-49533).
-  if (!ACTIVE_AGENT_STATUSES.has(agentStatus)) await releaseDecisionPushes(ctx, conversationId, Date.now()); // the turn's cards are all in: their grouped push goes out
+  if (!ACTIVE_AGENT_STATUSES.has(agentStatus))
+    await releaseDecisionPushes(ctx, conversationId, Date.now()); // the turn's cards are all in: their grouped push goes out
   if (sessionBoundary) return;
   // A spawned worker that settles tells the session it reports to.
-  if (!ACTIVE_AGENT_STATUSES.has(agentStatus)) await scheduleWorkerSettle(ctx, conversationId, statusTs);
+  if (!ACTIVE_AGENT_STATUSES.has(agentStatus))
+    await scheduleWorkerSettle(ctx, conversationId, statusTs);
   const delay =
     agentStatus === "idle"
       ? NEEDS_INPUT_IDLE_CHECK_DELAY_MS
       : agentStatus === "permission_blocked"
         ? NEEDS_INPUT_PERMISSION_CHECK_DELAY_MS
-        // A dead process is a stall: a hidden session whose agent died must
-        // resurface (the check's stall rule), and the check itself never
-        // chimes for "stopped" — this only drives the un-hide.
-        : agentStatus === "stopped"
+        : // A dead process is a stall: a hidden session whose agent died must
+          // resurface (the check's stall rule), and the check itself never
+          // chimes for "stopped" — this only drives the un-hide.
+          agentStatus === "stopped"
           ? NEEDS_INPUT_PERMISSION_CHECK_DELAY_MS
           : null;
   if (delay === null) return;
@@ -77,7 +92,7 @@ async function scheduleNeedsInputCheck(
 
 async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -99,18 +114,32 @@ async function getAuthenticatedUserId(
 // delivery. Only its owner, and never for a hosted conversation, whose turn
 // engine is the only writer of its status (setHostedAgentStatus); a local
 // agent holding the owner's token could otherwise flip a running turn.
-async function canExecuteConversation(ctx: { db: any }, userId: Id<"users">, conversationId: Id<"conversations">): Promise<boolean> {
+async function canExecuteConversation(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const conversation = await ctx.db.get(conversationId);
   if (!conversation || isHostedAgentType(conversation.agent_type)) return false;
   return conversation.user_id?.toString() === userId.toString();
 }
 
-async function requireConversationExecution(ctx: { db: any }, userId: Id<"users">, conversationId: Id<"conversations">): Promise<void> {
-  if (!(await canExecuteConversation(ctx, userId, conversationId))) throw new Error("Unauthorized");
+async function requireConversationExecution(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<void> {
+  if (!(await canExecuteConversation(ctx, userId, conversationId)))
+    throw new Error("Unauthorized");
 }
 
 // A backend switch keeps the session id: an SDK registration drops the pane, one naming a pane is tmux again.
-const backendPatch = (a: { tmux_session?: string; backend?: "sdk" }) => (a.backend === "sdk" ? { backend: "sdk", tmux_session: undefined } : a.tmux_session !== undefined ? { backend: undefined } : {});
+const backendPatch = (a: { tmux_session?: string; backend?: "sdk" }) =>
+  a.backend === "sdk"
+    ? { backend: "sdk", tmux_session: undefined }
+    : a.tmux_session !== undefined
+      ? { backend: undefined }
+      : {};
 
 // Factored out of the mutation so tests can drive it with an explicit userId
 // (same pattern as performReparentSessionToDevice).
@@ -126,122 +155,156 @@ export async function performRegisterManagedSession(
     backend?: "sdk";
   },
 ): Promise<any> {
-    const existing = await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
-      .first();
-    const linkedConversation = await ctx.db
-      .query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
-      .first();
-    const effectiveConversationId = args.conversation_id ?? existing?.conversation_id ?? linkedConversation?._id;
-    for (const conversationId of new Set([effectiveConversationId, existing?.conversation_id, linkedConversation?._id])) {
-      if (conversationId && !(await canExecuteConversation(ctx, authUserId, conversationId))) {
-        return { notOwner: true as const };
-      }
-    }
-    if (existing && existing.user_id.toString() !== authUserId.toString() && !existing.conversation_id) {
+  const existing = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+    .first();
+  const linkedConversation = await ctx.db
+    .query("conversations")
+    .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+    .first();
+  const effectiveConversationId =
+    args.conversation_id ??
+    existing?.conversation_id ??
+    linkedConversation?._id;
+  for (const conversationId of new Set([
+    effectiveConversationId,
+    existing?.conversation_id,
+    linkedConversation?._id,
+  ])) {
+    if (
+      conversationId &&
+      !(await canExecuteConversation(ctx, authUserId, conversationId))
+    ) {
       return { notOwner: true as const };
     }
-    // Only a device this caller owns may be stamped as the conversation's
-    // runner. An UNKNOWN device is not somebody else's device: the daemon's
-    // first heartbeat is what creates the row, and a boot or an account switch
-    // can register a session before that beat lands. Refusing there loses the
-    // session entirely, so the registration proceeds and only the ownership
-    // stamp waits for a device we can confirm.
-    const ownedDevice = args.device_id
-      ? await ctx.db.query("devices")
-        .withIndex("by_user_device", (q: any) => q.eq("user_id", authUserId).eq("device_id", args.device_id))
+  }
+  if (
+    existing &&
+    existing.user_id.toString() !== authUserId.toString() &&
+    !existing.conversation_id
+  ) {
+    return { notOwner: true as const };
+  }
+  // Only a device this caller owns may be stamped as the conversation's
+  // runner. An UNKNOWN device is not somebody else's device: the daemon's
+  // first heartbeat is what creates the row, and a boot or an account switch
+  // can register a session before that beat lands. Refusing there loses the
+  // session entirely, so the registration proceeds and only the ownership
+  // stamp waits for a device we can confirm.
+  const ownedDevice = args.device_id
+    ? await ctx.db
+        .query("devices")
+        .withIndex("by_user_device", (q: any) =>
+          q.eq("user_id", authUserId).eq("device_id", args.device_id),
+        )
         .first()
-      : null;
-    const stampDeviceId = ownedDevice ? args.device_id : undefined;
+    : null;
+  const stampDeviceId = ownedDevice ? args.device_id : undefined;
 
-    if (stampDeviceId && effectiveConversationId) {
-      const conv = await ctx.db.get(effectiveConversationId);
-      const owner = (conv as any)?.owner_device_id as string | undefined;
-      if (owner && owner !== args.device_id) {
-        const ownerDevice = await ctx.db
-          .query("devices")
-          .withIndex("by_user_device", (q: any) =>
-            q.eq("user_id", authUserId).eq("device_id", owner),
-          )
-          .first();
-        const ownerOnline =
-          ownerDevice &&
-          !ownerDevice.is_remote &&
-          Date.now() - ownerDevice.last_seen < 2 * 60 * 1000;
-        if (ownerOnline) {
-          return { notOwner: true as const, owner } as any;
-        }
-        // Owner offline, or owner is a remote box → fall through and reclaim (stamp below).
+  if (stampDeviceId && effectiveConversationId) {
+    const conv = await ctx.db.get(effectiveConversationId);
+    const owner = (conv as any)?.owner_device_id as string | undefined;
+    if (owner && owner !== args.device_id) {
+      const ownerDevice = await ctx.db
+        .query("devices")
+        .withIndex("by_user_device", (q: any) =>
+          q.eq("user_id", authUserId).eq("device_id", owner),
+        )
+        .first();
+      const ownerOnline =
+        ownerDevice &&
+        !ownerDevice.is_remote &&
+        Date.now() - ownerDevice.last_seen < 2 * 60 * 1000;
+      if (ownerOnline) {
+        return { notOwner: true as const, owner } as any;
       }
+      // Owner offline, or owner is a remote box → fall through and reclaim (stamp below).
     }
+  }
 
-    const now = Date.now();
-    if (existing) {
-      if (existing.user_id.toString() !== authUserId.toString()) {
-        await ctx.db.delete(existing._id);
-      } else {
-        await ctx.db.patch(existing._id, {
-          pid: args.pid,
-          last_heartbeat: now,
-          ...backendPatch(args),
-          ...(args.tmux_session !== undefined ? { tmux_session: args.tmux_session } : {}),
-          ...(effectiveConversationId ? { conversation_id: effectiveConversationId } : {}),
+  const now = Date.now();
+  if (existing) {
+    if (existing.user_id.toString() !== authUserId.toString()) {
+      await ctx.db.delete(existing._id);
+    } else {
+      await ctx.db.patch(existing._id, {
+        pid: args.pid,
+        last_heartbeat: now,
+        ...backendPatch(args),
+        ...(args.tmux_session !== undefined
+          ? { tmux_session: args.tmux_session }
+          : {}),
+        ...(effectiveConversationId
+          ? { conversation_id: effectiveConversationId }
+          : {}),
+      });
+      await writeSessionHeartbeat(ctx, existing._id, authUserId, now);
+      if (stampDeviceId && effectiveConversationId) {
+        // Registering a live local process for this conversation disproves any
+        // "couldn't start / no local checkout - clone it first" banner stamped
+        // before the session came up. Piggyback the clear on the ownership patch
+        // we already write (no extra read/write). setSessionError handles the
+        // reverse: refusing to WRITE such a banner while the session is live.
+        await ctx.db.patch(effectiveConversationId, {
+          owner_device_id: stampDeviceId,
+          session_error: undefined,
         });
-        await writeSessionHeartbeat(ctx, existing._id, authUserId, now);
-        if (stampDeviceId && effectiveConversationId) {
-          // Registering a live local process for this conversation disproves any
-          // "couldn't start / no local checkout - clone it first" banner stamped
-          // before the session came up. Piggyback the clear on the ownership patch
-          // we already write (no extra read/write). setSessionError handles the
-          // reverse: refusing to WRITE such a banner while the session is live.
-          await ctx.db.patch(effectiveConversationId, { owner_device_id: stampDeviceId, session_error: undefined });
-        }
-        return existing._id;
       }
+      return existing._id;
     }
+  }
 
-    // Remove stale sessions for same conversation, but carry forward a known
-    // tmux_session if this re-registration didn't supply one. Daemon paths
-    // sometimes re-register without a pane handle (e.g. after a transient
-    // findTmuxPaneForTty failure); we must not silently erase the live attach
-    // target the UI shows.
-    let inheritedTmuxSession: string | undefined;
-    if (effectiveConversationId) {
-      const old = await ctx.db
-        .query("managed_sessions")
-        .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", effectiveConversationId))
-        .collect();
-      for (const o of old) {
-        if (args.tmux_session === undefined && args.backend !== "sdk" && o.tmux_session && !inheritedTmuxSession) {
-          inheritedTmuxSession = o.tmux_session;
-        }
-        await ctx.db.delete(o._id);
+  // Remove stale sessions for same conversation, but carry forward a known
+  // tmux_session if this re-registration didn't supply one. Daemon paths
+  // sometimes re-register without a pane handle (e.g. after a transient
+  // findTmuxPaneForTty failure); we must not silently erase the live attach
+  // target the UI shows.
+  let inheritedTmuxSession: string | undefined;
+  if (effectiveConversationId) {
+    const old = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", effectiveConversationId),
+      )
+      .collect();
+    for (const o of old) {
+      if (
+        args.tmux_session === undefined &&
+        args.backend !== "sdk" &&
+        o.tmux_session &&
+        !inheritedTmuxSession
+      ) {
+        inheritedTmuxSession = o.tmux_session;
       }
+      await ctx.db.delete(o._id);
     }
+  }
 
-    const id = await ctx.db.insert("managed_sessions", {
-      session_id: args.session_id,
-      user_id: authUserId,
-      pid: args.pid,
-      tmux_session: args.tmux_session ?? inheritedTmuxSession,
-      ...(args.backend ? { backend: args.backend } : {}),
-      conversation_id: effectiveConversationId,
-      started_at: now,
-      last_heartbeat: now,
+  const id = await ctx.db.insert("managed_sessions", {
+    session_id: args.session_id,
+    user_id: authUserId,
+    pid: args.pid,
+    tmux_session: args.tmux_session ?? inheritedTmuxSession,
+    ...(args.backend ? { backend: args.backend } : {}),
+    conversation_id: effectiveConversationId,
+    started_at: now,
+    last_heartbeat: now,
+  });
+
+  await writeSessionHeartbeat(ctx, id, authUserId, now);
+
+  // Claim ownership: stamp this device as the conversation's owner. Also clear
+  // any stale "no local checkout" banner — a fresh local process disproves it
+  // (see the matching patch on the re-registration path above).
+  if (stampDeviceId && effectiveConversationId) {
+    await ctx.db.patch(effectiveConversationId, {
+      owner_device_id: stampDeviceId,
+      session_error: undefined,
     });
+  }
 
-    await writeSessionHeartbeat(ctx, id, authUserId, now);
-
-    // Claim ownership: stamp this device as the conversation's owner. Also clear
-    // any stale "no local checkout" banner — a fresh local process disproves it
-    // (see the matching patch on the re-registration path above).
-    if (stampDeviceId && effectiveConversationId) {
-      await ctx.db.patch(effectiveConversationId, { owner_device_id: stampDeviceId, session_error: undefined });
-    }
-
-    return id;
+  return id;
 }
 
 export const registerManagedSession = mutation({
@@ -288,7 +351,9 @@ export const updateSessionConversation = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
 
     if (!session) {
@@ -300,12 +365,19 @@ export const updateSessionConversation = mutation({
     }
 
     await requireConversationExecution(ctx, authUserId, args.conversation_id);
-    if (session.conversation_id) await requireConversationExecution(ctx, authUserId, session.conversation_id);
+    if (session.conversation_id)
+      await requireConversationExecution(
+        ctx,
+        authUserId,
+        session.conversation_id,
+      );
 
     // Remove old sessions linked to this conversation to prevent duplicates
     const oldSessions = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
 
     for (const oldSession of oldSessions) {
@@ -319,7 +391,11 @@ export const updateSessionConversation = mutation({
     });
 
     const conversation = await ctx.db.get(args.conversation_id);
-    if (conversation && conversation.user_id.toString() === authUserId.toString() && conversation.session_id !== session.session_id) {
+    if (
+      conversation &&
+      conversation.user_id.toString() === authUserId.toString() &&
+      conversation.session_id !== session.session_id
+    ) {
       await ctx.db.patch(args.conversation_id, {
         session_id: session.session_id,
       });
@@ -341,7 +417,9 @@ export const updateManagedSessionId = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.old_session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.old_session_id),
+      )
       .first();
 
     if (!session) {
@@ -352,16 +430,32 @@ export const updateManagedSessionId = mutation({
       throw new Error("Unauthorized");
     }
 
-    if (session.conversation_id) await requireConversationExecution(ctx, authUserId, session.conversation_id);
+    if (session.conversation_id)
+      await requireConversationExecution(
+        ctx,
+        authUserId,
+        session.conversation_id,
+      );
 
-    const target = await ctx.db.query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.new_session_id))
+    const target = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.new_session_id),
+      )
       .first();
-    if (target && target._id !== session._id) throw new Error("Session ID already registered");
-    const conversationAtTarget = await ctx.db.query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.new_session_id))
+    if (target && target._id !== session._id)
+      throw new Error("Session ID already registered");
+    const conversationAtTarget = await ctx.db
+      .query("conversations")
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.new_session_id),
+      )
       .first();
-    if (conversationAtTarget && conversationAtTarget._id !== session.conversation_id) throw new Error("Session ID already registered");
+    if (
+      conversationAtTarget &&
+      conversationAtTarget._id !== session.conversation_id
+    )
+      throw new Error("Session ID already registered");
 
     await ctx.db.patch(session._id, {
       session_id: args.new_session_id,
@@ -369,7 +463,11 @@ export const updateManagedSessionId = mutation({
 
     if (session.conversation_id) {
       const conversation = await ctx.db.get(session.conversation_id);
-      if (conversation && conversation.user_id.toString() === authUserId.toString() && conversation.session_id !== args.new_session_id) {
+      if (
+        conversation &&
+        conversation.user_id.toString() === authUserId.toString() &&
+        conversation.session_id !== args.new_session_id
+      ) {
         await ctx.db.patch(session.conversation_id, {
           session_id: args.new_session_id,
         });
@@ -387,10 +485,17 @@ const agentStatusValidator = v.union(
   ...AGENT_STATUSES.map((s) => v.literal(s)),
 );
 
-async function applyHeartbeat(ctx: MutationCtx, session: Doc<"managed_sessions">, agentStatus: string | undefined, clientTs: number | undefined, now: number) {
+async function applyHeartbeat(
+  ctx: MutationCtx,
+  session: Doc<"managed_sessions">,
+  agentStatus: string | undefined,
+  clientTs: number | undefined,
+  now: number,
+) {
   const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
   // Expand keeps the original throttle and counts. Seed a missing side row
   // even when this beat falls within the legacy timestamp's refresh interval.
+  // oxfmt-ignore
   await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
   if (patch) await ctx.db.patch(session._id, patch);
   return patch;
@@ -411,7 +516,9 @@ export const heartbeat = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
 
     if (!session) {
@@ -429,15 +536,34 @@ export const heartbeat = mutation({
       return { found: false };
     }
 
-    if (session.conversation_id && !(await canExecuteConversation(ctx, authUserId, session.conversation_id))) return { found: false };
+    if (
+      session.conversation_id &&
+      !(await canExecuteConversation(ctx, authUserId, session.conversation_id))
+    )
+      return { found: false };
 
     const now = Date.now();
-    const patch = await applyHeartbeat(ctx, session, args.agent_status, args.client_ts, now);
+    const patch = await applyHeartbeat(
+      ctx,
+      session,
+      args.agent_status,
+      args.client_ts,
+      now,
+    );
 
     // The heartbeat self-heals dropped status transitions (a lost Stop hook) —
     // those healed transitions must feed the needs-input push like any other.
-    if (patch?.agent_status && patch.agent_status_updated_at && session.conversation_id) {
-      await scheduleNeedsInputCheck(ctx, session.conversation_id, patch.agent_status, patch.agent_status_updated_at);
+    if (
+      patch?.agent_status &&
+      patch.agent_status_updated_at &&
+      session.conversation_id
+    ) {
+      await scheduleNeedsInputCheck(
+        ctx,
+        session.conversation_id,
+        patch.agent_status,
+        patch.agent_status_updated_at,
+      );
       await scheduleLiveActivityRefresh(ctx, session.user_id, { urgent: true });
     }
 
@@ -467,11 +593,13 @@ export const heartbeat = mutation({
 export const heartbeatBatch = mutation({
   args: {
     api_token: v.optional(v.string()),
-    sessions: v.array(v.object({
-      session_id: v.string(),
-      agent_status: v.optional(agentStatusValidator),
-      client_ts: v.optional(v.number()),
-    })),
+    sessions: v.array(
+      v.object({
+        session_id: v.string(),
+        agent_status: v.optional(agentStatusValidator),
+        client_ts: v.optional(v.number()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -488,7 +616,9 @@ export const heartbeatBatch = mutation({
     for (const entry of args.sessions) {
       const session = await ctx.db
         .query("managed_sessions")
-        .withIndex("by_session_id", (q: any) => q.eq("session_id", entry.session_id))
+        .withIndex("by_session_id", (q: any) =>
+          q.eq("session_id", entry.session_id),
+        )
         .first();
       // Skip unknown / cross-user rows (a stale daemon can carry either);
       // throwing would abort the whole batch and pollute logs every 30s.
@@ -496,19 +626,47 @@ export const heartbeatBatch = mutation({
         unknown.push(entry.session_id);
         continue;
       }
-      if (session.conversation_id && !(await canExecuteConversation(ctx, authUserId, session.conversation_id))) continue;
-      const patch = await applyHeartbeat(ctx, session, entry.agent_status, entry.client_ts, now);
+      if (
+        session.conversation_id &&
+        !(await canExecuteConversation(
+          ctx,
+          authUserId,
+          session.conversation_id,
+        ))
+      )
+        continue;
+      const patch = await applyHeartbeat(
+        ctx,
+        session,
+        entry.agent_status,
+        entry.client_ts,
+        now,
+      );
       if (!patch) continue;
       // Same self-healed-transition hook as the single heartbeat above.
-      if (patch.agent_status && patch.agent_status_updated_at && session.conversation_id) {
-        await scheduleNeedsInputCheck(ctx, session.conversation_id, patch.agent_status, patch.agent_status_updated_at);
-        await scheduleLiveActivityRefresh(ctx, session.user_id, { urgent: true });
+      if (
+        patch.agent_status &&
+        patch.agent_status_updated_at &&
+        session.conversation_id
+      ) {
+        await scheduleNeedsInputCheck(
+          ctx,
+          session.conversation_id,
+          patch.agent_status,
+          patch.agent_status_updated_at,
+        );
+        await scheduleLiveActivityRefresh(ctx, session.user_id, {
+          urgent: true,
+        });
       }
       updated++;
     }
     // The function log carries no arguments, so this line is what names who
     // sends beats for rows that do not exist.
-    if (unknown.length > 0) console.log(`heartbeatBatch: ${unknown.length} of ${args.sessions.length} sessions have no row (user ${authUserId})`);
+    if (unknown.length > 0)
+      console.log(
+        `heartbeatBatch: ${unknown.length} of ${args.sessions.length} sessions have no row (user ${authUserId})`,
+      );
     return { updated, unknown };
   },
 });
@@ -527,7 +685,9 @@ export const unregisterManagedSession = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
 
     if (!session) {
@@ -585,7 +745,9 @@ export const isSessionManaged = query({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
 
     const STALE_THRESHOLD = 60 * 1000;
@@ -606,14 +768,21 @@ export const isSessionManaged = query({
     if (isStale) {
       const children = await ctx.db
         .query("conversations")
-        .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", args.conversation_id))
+        .withIndex("by_parent_conversation_id", (q: any) =>
+          q.eq("parent_conversation_id", args.conversation_id),
+        )
         .collect();
       for (const child of children) {
         const childSession = await ctx.db
           .query("managed_sessions")
-          .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", child._id))
+          .withIndex("by_conversation_id", (q: any) =>
+            q.eq("conversation_id", child._id),
+          )
           .first();
-        if (childSession && now - await heartbeatOf(ctx, childSession) < STALE_THRESHOLD) {
+        if (
+          childSession &&
+          now - (await heartbeatOf(ctx, childSession)) < STALE_THRESHOLD
+        ) {
           has_active_children = true;
           break;
         }
@@ -648,7 +817,9 @@ export const getPendingMessagesForSession = query({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
 
     if (!session || !session.conversation_id) {
@@ -659,11 +830,19 @@ export const getPendingMessagesForSession = query({
       throw new Error("Unauthorized");
     }
 
-    await requireConversationExecution(ctx, authUserId, session.conversation_id);
+    await requireConversationExecution(
+      ctx,
+      authUserId,
+      session.conversation_id,
+    );
 
     const messages = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", session.conversation_id).eq("status", "pending"))
+      .withIndex("by_conversation_status", (q: any) =>
+        q
+          .eq("conversation_id", session.conversation_id)
+          .eq("status", "pending"),
+      )
       .collect();
 
     return messages;
@@ -686,7 +865,11 @@ export const markMessageDelivered = mutation({
       throw new Error("Message not found");
     }
 
-    await requireConversationExecution(ctx, authUserId, message.conversation_id);
+    await requireConversationExecution(
+      ctx,
+      authUserId,
+      message.conversation_id,
+    );
 
     // Same refusals as pendingMessages.updateMessageStatus: a settled row
     // (delivered, cancelled) stays settled, and a row under the fenced
@@ -707,11 +890,15 @@ export const markMessageDelivered = mutation({
     const remaining = await ctx.db
       .query("pending_messages")
       .withIndex("by_conversation_status", (q) =>
-        q.eq("conversation_id", message.conversation_id).eq("status", "pending")
+        q
+          .eq("conversation_id", message.conversation_id)
+          .eq("status", "pending"),
       )
       .first();
     if (!remaining) {
-      await ctx.db.patch(message.conversation_id, { has_pending_messages: false });
+      await ctx.db.patch(message.conversation_id, {
+        has_pending_messages: false,
+      });
     }
 
     return { success: true };
@@ -729,11 +916,16 @@ export const markMessageDelivered = mutation({
  * (2026-09-03). */
 // Which "injected" rows an observed working status may terminalize: only a
 // paste the daemon saw land. Exported for tests.
-export function ackableInjectedRow(row: { paste_verified_at?: number }): boolean {
+export function ackableInjectedRow(row: {
+  paste_verified_at?: number;
+}): boolean {
   return typeof row.paste_verified_at === "number";
 }
 
-export function activeStatusAcksInjected(agentStatus: string, presumed: boolean | undefined): boolean {
+export function activeStatusAcksInjected(
+  agentStatus: string,
+  presumed: boolean | undefined,
+): boolean {
   if (presumed === true) return false;
   return (
     agentStatus === "working" ||
@@ -749,7 +941,16 @@ export const updateAgentStatus = mutation({
     agent_status: agentStatusValidator,
     client_ts: v.optional(v.number()),
     api_token: v.optional(v.string()),
-    permission_mode: v.optional(v.union(v.literal("default"), v.literal("plan"), v.literal("acceptEdits"), v.literal("bypassPermissions"), v.literal("dontAsk"), v.literal("auto"))),
+    permission_mode: v.optional(
+      v.union(
+        v.literal("default"),
+        v.literal("plan"),
+        v.literal("acceptEdits"),
+        v.literal("bypassPermissions"),
+        v.literal("dontAsk"),
+        v.literal("auto"),
+      ),
+    ),
     // The verified open background work behind this status (see schema
     // open_tasks). Sent with settle verdicts; an empty array means "checked,
     // nothing open" and is as informative as a full one.
@@ -778,13 +979,18 @@ export const updateAgentStatus = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
 
     if (!session) return { applied: false, reason: "missing_session" };
-    if (session.user_id.toString() !== authUserId.toString()) return { applied: false, reason: "not_owner" };
-    if (!(await canExecuteConversation(ctx, authUserId, args.conversation_id))) return { applied: false, reason: "not_owner" };
-    if (statusWriteIsStale(session, args.agent_status, args.client_ts)) return { applied: false, reason: "stale_status" };
+    if (session.user_id.toString() !== authUserId.toString())
+      return { applied: false, reason: "not_owner" };
+    if (!(await canExecuteConversation(ctx, authUserId, args.conversation_id)))
+      return { applied: false, reason: "not_owner" };
+    if (statusWriteIsStale(session, args.agent_status, args.client_ts))
+      return { applied: false, reason: "stale_status" };
 
     return await applyAgentStatus(ctx, session, args);
   },
@@ -822,10 +1028,17 @@ export const setHostedAgentStatus = internalMutation({
 /** setHostedAgentStatus as a plain function, for the turn engine's own
  *  mutations (assistant/turns.ts), which set the work state in the same
  *  transaction that ends or parks a turn. */
-export async function applyHostedAgentStatus(ctx: MutationCtx, args: Pick<AgentStatusWrite, "conversation_id" | "agent_status" | "turn_completed_at">) {
+export async function applyHostedAgentStatus(
+  ctx: MutationCtx,
+  args: Pick<
+    AgentStatusWrite,
+    "conversation_id" | "agent_status" | "turn_completed_at"
+  >,
+) {
   const conversation = await ctx.db.get(args.conversation_id);
   if (!conversation) return { applied: false, reason: "missing_session" };
-  if (!isHostedAgentType(conversation.agent_type)) return { applied: false, reason: "not_hosted" };
+  if (!isHostedAgentType(conversation.agent_type))
+    return { applied: false, reason: "not_hosted" };
   const session = await ensureHostedManagedSession(ctx, conversation);
   return await applyAgentStatus(ctx, session, args);
 }
@@ -836,13 +1049,20 @@ export async function applyHostedAgentStatus(ctx: MutationCtx, args: Pick<AgentS
  *  user-wide daemon liveness and the stale-row reaper both skip it. Refuses a
  *  local conversation: the flag is permanent, and on a daemon's row it would
  *  hide that daemon from liveness and keep its dead row from the reaper. */
-export async function ensureHostedManagedSession(ctx: MutationCtx, conversation: Doc<"conversations">): Promise<Doc<"managed_sessions">> {
+export async function ensureHostedManagedSession(
+  ctx: MutationCtx,
+  conversation: Doc<"conversations">,
+): Promise<Doc<"managed_sessions">> {
   if (!isHostedAgentType(conversation.agent_type)) {
-    throw new Error("Only a hosted assistant conversation has a hosted status row");
+    throw new Error(
+      "Only a hosted assistant conversation has a hosted status row",
+    );
   }
   const existing = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversation._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversation._id),
+    )
     .first();
   if (existing) {
     if (existing.hosted) return existing;
@@ -867,7 +1087,11 @@ export async function ensureHostedManagedSession(ctx: MutationCtx, conversation:
 
 // Everything updateAgentStatus does once the writer is known to own the
 // session and the write is fresh.
-async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions">, args: AgentStatusWrite) {
+async function applyAgentStatus(
+  ctx: MutationCtx,
+  session: Doc<"managed_sessions">,
+  args: AgentStatusWrite,
+) {
   const patch: Record<string, any> = {
     agent_status: args.agent_status,
     agent_status_write_at: args.client_ts ?? Date.now(),
@@ -887,7 +1111,8 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
   if (args.hibernated_at !== undefined) {
     // undefined in a patch deletes the field, which is how a resume clears
     // the park stamp.
-    patch.hibernated_at = args.hibernated_at === null ? undefined : args.hibernated_at;
+    patch.hibernated_at =
+      args.hibernated_at === null ? undefined : args.hibernated_at;
   }
   if (args.open_tasks !== undefined) {
     // Re-stamp the time even when the list is unchanged: freshness is the
@@ -926,9 +1151,11 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
   // message and the delivery by watermark, so a settle that fires both
   // posts once.
   const turnStampAdvanced =
-    args.turn_completed_at !== undefined && args.turn_completed_at > (session.turn_completed_at ?? 0);
+    args.turn_completed_at !== undefined &&
+    args.turn_completed_at > (session.turn_completed_at ?? 0);
   const activeSettled =
-    ACTIVE_AGENT_STATUSES.has(session.agent_status ?? "") && !ACTIVE_AGENT_STATUSES.has(args.agent_status);
+    ACTIVE_AGENT_STATUSES.has(session.agent_status ?? "") &&
+    !ACTIVE_AGENT_STATUSES.has(args.agent_status);
   if (turnStampAdvanced || activeSettled) {
     await scheduleFedSessionSettle(ctx, args.conversation_id);
     // What people queued for the end of this turn goes in now.
@@ -940,14 +1167,30 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
     // A session working toward a goal has this turn judged (sessionGoals.ts).
     if (!args.session_boundary) {
       // A re-published settle carries its old stamp, so the stamp names the turn only when it advanced.
-      await scheduleGoalJudge(ctx, args.conversation_id, (turnStampAdvanced ? args.turn_completed_at : undefined) ?? patch.agent_status_updated_at ?? Date.now(), args.agent_status);
+      await scheduleGoalJudge(
+        ctx,
+        args.conversation_id,
+        (turnStampAdvanced ? args.turn_completed_at : undefined) ??
+          patch.agent_status_updated_at ??
+          Date.now(),
+        args.agent_status,
+      );
     }
-  } else if (session.agent_status === "permission_blocked" && args.agent_status !== "permission_blocked" && !ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
+  } else if (
+    session.agent_status === "permission_blocked" &&
+    args.agent_status !== "permission_blocked" &&
+    !ACTIVE_AGENT_STATUSES.has(args.agent_status)
+  ) {
     // A turn stopped at a permission prompt (denied, or interrupted by a
     // "stop and send") ended too: its queue goes in.
     await releaseQueuedRows(ctx, args.conversation_id);
     if (!args.session_boundary) {
-      await scheduleGoalJudge(ctx, args.conversation_id, patch.agent_status_updated_at ?? Date.now(), args.agent_status);
+      await scheduleGoalJudge(
+        ctx,
+        args.conversation_id,
+        patch.agent_status_updated_at ?? Date.now(),
+        args.agent_status,
+      );
     }
   }
   // The activity line names what the agent does NOW; a settled turn does
@@ -962,7 +1205,13 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
   // agent_status_updated_at is only set on an ACTUAL status change — the
   // needs-input push keys off transitions, never re-assertions.
   if (patch.agent_status_updated_at) {
-    await scheduleNeedsInputCheck(ctx, args.conversation_id, args.agent_status, patch.agent_status_updated_at, args.session_boundary);
+    await scheduleNeedsInputCheck(
+      ctx,
+      args.conversation_id,
+      args.agent_status,
+      patch.agent_status_updated_at,
+      args.session_boundary,
+    );
     // The Lock Screen strip follows every status transition, boundary or not:
     // a resume that lands the agent idle is a change the strip must show.
     await scheduleLiveActivityRefresh(ctx, session.user_id, { urgent: true });
@@ -974,25 +1223,34 @@ async function applyAgentStatus(ctx: MutationCtx, session: Doc<"managed_sessions
   // report from an unrelated turn acked one such row while its paste was being
   // refused (the message never landed, 2026-09-08).
   if (activeStatusAcksInjected(args.agent_status, args.presumed)) {
-    const injected = (await ctx.db
-      .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) =>
-        q.eq("conversation_id", args.conversation_id).eq("status", "injected")
-      )
-      .collect()).filter((msg: any) => ackableInjectedRow(msg));
+    const injected = (
+      await ctx.db
+        .query("pending_messages")
+        .withIndex("by_conversation_status", (q: any) =>
+          q
+            .eq("conversation_id", args.conversation_id)
+            .eq("status", "injected"),
+        )
+        .collect()
+    ).filter((msg: any) => ackableInjectedRow(msg));
     const now = Date.now();
     for (const msg of injected) {
-      await ctx.db.patch(msg._id, { status: "delivered" as const, delivered_at: now });
+      await ctx.db.patch(msg._id, {
+        status: "delivered" as const,
+        delivered_at: now,
+      });
     }
     if (injected.length > 0) {
       const remainingPending = await ctx.db
         .query("pending_messages")
         .withIndex("by_conversation_status", (q: any) =>
-          q.eq("conversation_id", args.conversation_id).eq("status", "pending")
+          q.eq("conversation_id", args.conversation_id).eq("status", "pending"),
         )
         .first();
       if (!remainingPending) {
-        await ctx.db.patch(args.conversation_id, { has_pending_messages: false });
+        await ctx.db.patch(args.conversation_id, {
+          has_pending_messages: false,
+        });
       }
     }
   }
@@ -1018,7 +1276,9 @@ export const reportMetrics = mutation({
 
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
 
     if (!session) return;
@@ -1033,8 +1293,11 @@ export const reportMetrics = mutation({
     // the hot-doc patch to ~5min/session (or when agent_pid changes), instead of
     // hammering it on every report.
     const SNAPSHOT_THROTTLE_MS = 5 * 60 * 1000;
-    const snapshotStale = !session.last_metrics_at || now - session.last_metrics_at > SNAPSHOT_THROTTLE_MS;
-    const agentPidChanged = args.agent_pid !== undefined && args.agent_pid !== session.agent_pid;
+    const snapshotStale =
+      !session.last_metrics_at ||
+      now - session.last_metrics_at > SNAPSHOT_THROTTLE_MS;
+    const agentPidChanged =
+      args.agent_pid !== undefined && args.agent_pid !== session.agent_pid;
     // The agent restarted. Unlike the metric copies this one cannot wait for
     // the throttle: until it lands, the inbox renders the dead process's
     // background watches as running. The tolerance absorbs the one-second
@@ -1045,7 +1308,8 @@ export const reportMetrics = mutation({
     const agentRestarted =
       args.agent_started_at !== undefined &&
       (session.agent_started_at === undefined ||
-        Math.abs(args.agent_started_at - session.agent_started_at) > AGENT_START_JITTER_MS);
+        Math.abs(args.agent_started_at - session.agent_started_at) >
+          AGENT_START_JITTER_MS);
     if (snapshotStale || agentPidChanged || agentRestarted) {
       await ctx.db.patch(session._id, {
         current_cpu: args.cpu,
@@ -1056,7 +1320,9 @@ export const reportMetrics = mutation({
         // Only on a real move: rewriting a within-tolerance sample would drift
         // the stored start and re-push the liveness overlay for no reason.
         ...(agentRestarted ? { agent_started_at: args.agent_started_at } : {}),
-        ...(args.awake_idle_ms !== undefined ? { awake_idle_ms: args.awake_idle_ms } : {}),
+        ...(args.awake_idle_ms !== undefined
+          ? { awake_idle_ms: args.awake_idle_ms }
+          : {}),
       });
 
       // Prune the time series on the throttled snapshot cadence (~5min/session),
@@ -1067,7 +1333,7 @@ export const reportMetrics = mutation({
       const old = await ctx.db
         .query("session_metrics")
         .withIndex("by_session_collected", (q: any) =>
-          q.eq("session_id", args.session_id).lt("collected_at", cutoff)
+          q.eq("session_id", args.session_id).lt("collected_at", cutoff),
         )
         .collect();
       for (const row of old) {
@@ -1106,7 +1372,7 @@ export const getSessionMetrics = query({
     const rows = await ctx.db
       .query("session_metrics")
       .withIndex("by_session_collected", (q: any) =>
-        q.eq("session_id", args.session_id)
+        q.eq("session_id", args.session_id),
       )
       .collect();
     // session_id is caller-supplied and enumerable; metrics rows carry the
@@ -1126,12 +1392,15 @@ export const getAggregateMetrics = query({
     const rows = await ctx.db
       .query("session_metrics")
       .withIndex("by_user_collected", (q: any) =>
-        q.eq("user_id", userId).gte("collected_at", cutoff)
+        q.eq("user_id", userId).gte("collected_at", cutoff),
       )
       .collect();
 
     // Bucket by 30-second windows and aggregate across sessions
-    const buckets = new Map<number, { cpu: number; memory: number; pid_count: number; count: number }>();
+    const buckets = new Map<
+      number,
+      { cpu: number; memory: number; pid_count: number; count: number }
+    >();
     for (const row of rows) {
       const bucket = Math.round(row.collected_at / 30000) * 30000;
       const existing = buckets.get(bucket);
@@ -1141,12 +1410,22 @@ export const getAggregateMetrics = query({
         existing.pid_count += row.pid_count;
         existing.count++;
       } else {
-        buckets.set(bucket, { cpu: row.cpu, memory: row.memory, pid_count: row.pid_count, count: 1 });
+        buckets.set(bucket, {
+          cpu: row.cpu,
+          memory: row.memory,
+          pid_count: row.pid_count,
+          count: 1,
+        });
       }
     }
 
     return Array.from(buckets.entries())
-      .map(([t, v]) => ({ collected_at: t, cpu: v.cpu, memory: v.memory, pid_count: v.pid_count }))
+      .map(([t, v]) => ({
+        collected_at: t,
+        cpu: v.cpu,
+        memory: v.memory,
+        pid_count: v.pid_count,
+      }))
       .sort((a, b) => a.collected_at - b.collected_at);
   },
 });
@@ -1165,7 +1444,7 @@ export const getConversationBySessionId = query({
     const conversation = await findConversationBySessionReference(
       ctx as any,
       args.claude_session_id,
-      authUserId
+      authUserId,
     );
 
     if (!conversation) {
@@ -1213,27 +1492,40 @@ export const reapStaleManagedSessions = internalMutation({
   },
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:reapStaleManagedSessions");
-    const cutoff = args.cutoff ?? Date.now() - (args.cutoffMs ?? 60 * 60 * 1000); // dead = no beat in 1h
+    const cutoff =
+      args.cutoff ?? Date.now() - (args.cutoffMs ?? 60 * 60 * 1000); // dead = no beat in 1h
     const readStart = Date.now();
-    const { expired, cursor } = await managedHeartbeatPage(ctx, cutoff - REAP_WINDOW_MS, cutoff, args.after, REAP_PAGE_SIZE);
+    const { expired, cursor } = await managedHeartbeatPage(
+      ctx,
+      cutoff - REAP_WINDOW_MS,
+      cutoff,
+      args.after,
+      REAP_PAGE_SIZE,
+    );
     const readMs = Date.now() - readStart;
 
     // A parked pane and a hosted conversation's status row are not dead rows:
     // the first is waiting to resume, and the second writes no heartbeat while
     // it waits on an approval (see the hosted field in the schema).
-    const reapable = expired.filter(s => s.agent_status !== "hibernated" && isDaemonManagedRow(s));
+    const reapable = expired.filter(
+      (s) => s.agent_status !== "hibernated" && isDaemonManagedRow(s),
+    );
     for (const s of reapable) await ctx.db.delete(s._id);
 
     const more = cursor !== undefined;
     if (cursor !== undefined) {
-      await ctx.scheduler.runAfter(0, internal.managedSessions.reapStaleManagedSessions, {
-        cutoff,
-        after: cursor,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.managedSessions.reapStaleManagedSessions,
+        {
+          cutoff,
+          after: cursor,
+        },
+      );
     }
     if (reapable.length > 0) {
       console.log(
-        `reapStaleManagedSessions: deleted ${reapable.length} dead session(s) (scan ${readMs}ms${more ? ", continuing" : ""})`
+        `reapStaleManagedSessions: deleted ${reapable.length} dead session(s) (scan ${readMs}ms${more ? ", continuing" : ""})`,
       );
     }
     return { deleted: reapable.length, more };

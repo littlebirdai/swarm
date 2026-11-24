@@ -25,7 +25,8 @@ const conv = (n: number, over: Record<string, any> = {}) => ({
   project_path: "/repo/growth",
   // Bound to the plan of the project on its path (org-staffing.md S35): the
   // folder decides nothing, the binding is what the rule reads.
-  active_plan_id: over.project_path === "/repo/billing" ? "plans_billing" : "plans_growth",
+  active_plan_id:
+    over.project_path === "/repo/billing" ? "plans_billing" : "plans_growth",
   message_count: 3,
   last_message_role: "assistant",
   updated_at: NOW - 60_000,
@@ -35,7 +36,10 @@ const conv = (n: number, over: Record<string, any> = {}) => ({
 
 function fixtures(conversations: any[]) {
   return makeFakeDb({
-    users: [{ _id: ME, name: "Me", email: "me@x.ai" }, { _id: MATE, name: "Mate", email: "mate@x.ai" }],
+    users: [
+      { _id: ME, name: "Me", email: "me@x.ai" },
+      { _id: MATE, name: "Mate", email: "mate@x.ai" },
+    ],
     team_memberships: [
       { _id: "m1", user_id: ME, team_id: TEAM, role: "admin", joined_at: 1 },
       { _id: "m2", user_id: MATE, team_id: TEAM, role: "member", joined_at: 1 },
@@ -46,12 +50,56 @@ function fixtures(conversations: any[]) {
     org_role_history: [],
     anchors: [],
     projects: [
-      { _id: P, user_id: ME, team_id: TEAM, workspace: WS, short_id: "pr-1", title: "Growth", status: "active", project_path: "/repo/growth", created_at: 1, updated_at: NOW },
-      { _id: "projects_q", user_id: ME, team_id: TEAM, workspace: WS, short_id: "pr-2", title: "Billing", status: "active", project_path: "/repo/billing", created_at: 1, updated_at: NOW },
+      {
+        _id: P,
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        short_id: "pr-1",
+        title: "Growth",
+        status: "active",
+        project_path: "/repo/growth",
+        created_at: 1,
+        updated_at: NOW,
+      },
+      {
+        _id: "projects_q",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        short_id: "pr-2",
+        title: "Billing",
+        status: "active",
+        project_path: "/repo/billing",
+        created_at: 1,
+        updated_at: NOW,
+      },
     ],
     plans: [
-      { _id: "plans_growth", user_id: ME, team_id: TEAM, workspace: WS, short_id: "pl-1", title: "Growth plan", status: "active", project_id: P, created_at: 1, updated_at: NOW },
-      { _id: "plans_billing", user_id: ME, team_id: TEAM, workspace: WS, short_id: "pl-2", title: "Billing plan", status: "active", project_id: "projects_q", created_at: 1, updated_at: NOW },
+      {
+        _id: "plans_growth",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        short_id: "pl-1",
+        title: "Growth plan",
+        status: "active",
+        project_id: P,
+        created_at: 1,
+        updated_at: NOW,
+      },
+      {
+        _id: "plans_billing",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        short_id: "pl-2",
+        title: "Billing plan",
+        status: "active",
+        project_id: "projects_q",
+        created_at: 1,
+        updated_at: NOW,
+      },
     ],
     tasks: [],
     docs: [],
@@ -67,7 +115,8 @@ function fixtures(conversations: any[]) {
 }
 
 const ctxOf = (db: any) => ({ db }) as any;
-const row = (db: any, n: number) => db._tables.conversations.find((c: any) => c._id === `conversations_s${n}`);
+const row = (db: any, n: number) =>
+  db._tables.conversations.find((c: any) => c._id === `conversations_s${n}`);
 
 describe("review: the takeover moves a session it should not", () => {
   test("the host's PRIVATE session on the project path is not filed under a team role", async () => {
@@ -77,9 +126,17 @@ describe("review: the takeover moves a session it should not", () => {
     // From then on the team role's wake frame ("Your sessions") prints its
     // title and pinned state into the role's standing session, which the team
     // can read, and the role agent is told to act on it.
-    const db = fixtures([conv(1), conv(2, { is_private: true, title: "Salary talk with my lawyer" })]);
+    const db = fixtures([
+      conv(1),
+      conv(2, { is_private: true, title: "Salary talk with my lawyer" }),
+    ]);
     const ctx = ctxOf(db);
-    const role = await performCreateRole(ctx, ME as any, { name: "Growth", handle: "growth", team_id: TEAM, scope: { project_ids: [P as any], plan_ids: [] } });
+    const role = await performCreateRole(ctx, ME as any, {
+      name: "Growth",
+      handle: "growth",
+      team_id: TEAM,
+      scope: { project_ids: [P as any], plan_ids: [] },
+    });
     const took = await takeOverSessions(ctx, ME as any, role._id);
     expect(row(db, 1).org_role_id).toBe(role._id);
     expect(took?.sessions).not.toContain("jx70002");
@@ -97,34 +154,80 @@ describe("review: R2, a teammate's long running session named as a role", () => 
     // person who runs the session") keeps user_id: ME on the session and only
     // flips owner_user_id, so the accepting person is still its runner.
     const { applyRole } = await import("./orgInit");
-    const db: any = fixtures([conv(1, { user_id: MATE, title: "Market growth mandate", is_private: false })]);
+    const db: any = fixtures([
+      conv(1, {
+        user_id: MATE,
+        title: "Market growth mandate",
+        is_private: false,
+      }),
+    ]);
     for (const t of ["bot_users", "daemon_commands"]) db._tables[t] ??= [];
-    const res: any = await applyRole({ db } as any, ME as any, { team_id: TEAM }, { kind: "role", name: "Market growth", handle: "market-growth", seat: { existing: "jx70001" } } as any, undefined, { provision: false, human_decision: "sd-1" })
-      .catch((e: any) => ({ status: "threw", error: e.message }));
+    const res: any = await applyRole(
+      { db } as any,
+      ME as any,
+      { team_id: TEAM },
+      {
+        kind: "role",
+        name: "Market growth",
+        handle: "market-growth",
+        seat: { existing: "jx70001" },
+      } as any,
+      undefined,
+      { provision: false, human_decision: "sd-1" },
+    ).catch((e: any) => ({ status: "threw", error: e.message }));
     expect(res.error ?? "").toBe("");
     expect(res.status).toBe("applied");
   });
 });
 
-
 describe("takeover privacy boundaries", () => {
   test("a hidden membership prevents takeover even for the session runner", async () => {
     const db = fixtures([conv(1, { is_private: false })]);
     await db.patch("m1", { visibility: "hidden" });
-    const role = await performCreateRole(ctxOf(db), ME as any, { name: "Growth", handle: "growth", team_id: TEAM, scope: { project_ids: [P as any], plan_ids: [] } });
-    expect((await takeOverSessions(ctxOf(db), ME as any, role._id))?.sessions ?? []).toHaveLength(0);
+    const role = await performCreateRole(ctxOf(db), ME as any, {
+      name: "Growth",
+      handle: "growth",
+      team_id: TEAM,
+      scope: { project_ids: [P as any], plan_ids: [] },
+    });
+    expect(
+      (await takeOverSessions(ctxOf(db), ME as any, role._id))?.sessions ?? [],
+    ).toHaveLength(0);
     expect(row(db, 1).org_role_id).toBeUndefined();
   });
   test("a team admin cannot seat a teammate's private session", async () => {
     const { applyRole } = await import("./orgInit");
     const db = fixtures([conv(1, { user_id: MATE, is_private: true })]);
-    await expect(applyRole(ctxOf(db), ME as any, { team_id: TEAM }, { kind: "role", name: "Growth", handle: "growth", seat: { existing: "jx70001" } }, undefined, { provision: false, human_decision: "sd-1" })).rejects.toThrow();
+    await expect(
+      applyRole(
+        ctxOf(db),
+        ME as any,
+        { team_id: TEAM },
+        {
+          kind: "role",
+          name: "Growth",
+          handle: "growth",
+          seat: { existing: "jx70001" },
+        },
+        undefined,
+        { provision: false, human_decision: "sd-1" },
+      ),
+    ).rejects.toThrow();
     expect(row(db, 1).standing_role_id).toBeUndefined();
   });
   test("a plain member cannot seat a teammate-owned session on another person's role", async () => {
     const { performProvisionRole } = await import("./orgRoles");
     const db = fixtures([conv(1, { is_private: false })]);
-    const role = await performCreateRole(ctxOf(db), ME as any, { name: "Growth", handle: "growth", team_id: TEAM });
-    await expect(performProvisionRole(ctxOf(db), MATE as any, { role_id: role._id, adopt_conversation_id: "jx70001" })).rejects.toThrow("admin");
+    const role = await performCreateRole(ctxOf(db), ME as any, {
+      name: "Growth",
+      handle: "growth",
+      team_id: TEAM,
+    });
+    await expect(
+      performProvisionRole(ctxOf(db), MATE as any, {
+        role_id: role._id,
+        adopt_conversation_id: "jx70001",
+      }),
+    ).rejects.toThrow("admin");
   });
 });

@@ -2,7 +2,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { dayStartUtc } from "./userSend";
 import { createTeamFeedFilter } from "../privacy";
 import type { ActivityInterval } from "./activityPunchcard";
-import { isUnattendedConversation, type Attendance } from "@codecast/shared/contracts";
+import {
+  isUnattendedConversation,
+  type Attendance,
+} from "@codecast/shared/contracts";
 
 // Per-day session-activity counters: the profile contribution graph, the hour
 // punchcard and the team charts all read these rows.
@@ -60,8 +63,10 @@ export type ScopedInterval = ActivityInterval & {
 };
 
 /** Does an interval or day row fall under `who`? No filter takes everything. */
-export const matchesAttendance = (who: Attendance | undefined, unattended: boolean | undefined) =>
-  !who || (who === "unattended") === !!unattended;
+export const matchesAttendance = (
+  who: Attendance | undefined,
+  unattended: boolean | undefined,
+) => !who || (who === "unattended") === !!unattended;
 
 export type ActivityDayRow = {
   day_start: number;
@@ -154,11 +159,16 @@ export async function collectIntervalsInWindow(
   ];
   for (const pass of passes) {
     for (const e of pass) {
-      const cid = e.related_conversation_id ? String(e.related_conversation_id) : `evt-${e._id}`;
+      const cid = e.related_conversation_id
+        ? String(e.related_conversation_id)
+        : `evt-${e._id}`;
       if (seen.has(cid)) continue;
       if (await conversationLives(e.related_conversation_id)) continue;
       seen.add(cid);
-      const durMs = e.event_type === "session_completed" ? (e.metadata as any)?.duration_ms : undefined;
+      const durMs =
+        e.event_type === "session_completed"
+          ? (e.metadata as any)?.duration_ms
+          : undefined;
       intervals.push({
         start: e.timestamp - (durMs ?? 0.5 * HOUR),
         end: e.timestamp,
@@ -173,7 +183,10 @@ export async function collectIntervalsInWindow(
   const insights: Doc<"session_insights">[] = await ctx.db
     .query("session_insights")
     .withIndex("by_actor_generated_at", (q: any) =>
-      q.eq("actor_user_id", userId).gte("generated_at", from).lt("generated_at", to),
+      q
+        .eq("actor_user_id", userId)
+        .gte("generated_at", from)
+        .lt("generated_at", to),
     )
     .collect();
   for (const ins of insights) {
@@ -223,7 +236,10 @@ function addInterval(acc: DayAcc, iv: ScopedInterval, dayStart: number): void {
   const lastHour = Math.floor((end - dayStart) / HOUR);
   for (let h = firstHour; h <= lastHour; h++) {
     const cellStart = dayStart + h * HOUR;
-    const frac = span <= 0 ? 1 : (Math.min(end, cellStart + HOUR) - Math.max(start, cellStart)) / span;
+    const frac =
+      span <= 0
+        ? 1
+        : (Math.min(end, cellStart + HOUR) - Math.max(start, cellStart)) / span;
     if (frac <= 0) continue;
     acc.hours[h] += iv.hours * frac;
     acc.msgs[h] += iv.msgs * frac;
@@ -260,7 +276,12 @@ export async function rollupActivityDay(
   userId: Id<"users">,
   dayStart: number,
 ): Promise<{ rows: number; sessions: number }> {
-  const intervals = await collectIntervalsInWindow(ctx, userId, dayStart, dayStart + DAY);
+  const intervals = await collectIntervalsInWindow(
+    ctx,
+    userId,
+    dayStart,
+    dayStart + DAY,
+  );
 
   // One filter per team the day touched: a teammate sees only what the owner
   // shares with that team, and the shared counters are that view, pre-summed.
@@ -277,25 +298,43 @@ export async function rollupActivityDay(
     return f;
   };
 
-  type Slot = { team_id?: Id<"teams">; unattended: boolean; total: DayAcc; shared: DayAcc };
-  const keyOf = (teamId: Id<"teams"> | undefined, unattended: boolean | undefined) =>
-    `${teamId ? String(teamId) : ""}|${unattended ? "u" : "a"}`;
+  type Slot = {
+    team_id?: Id<"teams">;
+    unattended: boolean;
+    total: DayAcc;
+    shared: DayAcc;
+  };
+  const keyOf = (
+    teamId: Id<"teams"> | undefined,
+    unattended: boolean | undefined,
+  ) => `${teamId ? String(teamId) : ""}|${unattended ? "u" : "a"}`;
   const slots = new Map<string, Slot>();
   for (const iv of intervals) {
     if (dayStartUtc(iv.end) !== dayStart) continue;
     const key = keyOf(iv.team_id, iv.unattended);
-    const slot = slots.get(key) ?? { team_id: iv.team_id, unattended: iv.unattended, total: emptyAcc(), shared: emptyAcc() };
+    const slot = slots.get(key) ?? {
+      team_id: iv.team_id,
+      unattended: iv.unattended,
+      total: emptyAcc(),
+      shared: emptyAcc(),
+    };
     slots.set(key, slot);
     addInterval(slot.total, iv, dayStart);
-    const isShared = iv.conv ? (await sharedFor(iv.team_id))(iv.conv) : !!iv.team_id;
+    const isShared = iv.conv
+      ? (await sharedFor(iv.team_id))(iv.conv)
+      : !!iv.team_id;
     if (isShared) addInterval(slot.shared, iv, dayStart);
   }
 
   const existing = await ctx.db
     .query("user_activity_daily")
-    .withIndex("by_user_day", (q: any) => q.eq("user_id", userId).eq("day_start", dayStart))
+    .withIndex("by_user_day", (q: any) =>
+      q.eq("user_id", userId).eq("day_start", dayStart),
+    )
     .collect();
-  const byKey = new Map<string, any>(existing.map((r: any) => [keyOf(r.team_id, r.unattended), r]));
+  const byKey = new Map<string, any>(
+    existing.map((r: any) => [keyOf(r.team_id, r.unattended), r]),
+  );
 
   let sessions = 0;
   for (const [key, slot] of slots) {
@@ -340,7 +379,11 @@ export async function fetchUserActivityDays(
     ? await ctx.db
         .query("user_activity_daily")
         .withIndex("by_user_team_day", (q: any) =>
-          q.eq("user_id", userId).eq("team_id", teamId).gte("day_start", from).lt("day_start", to),
+          q
+            .eq("user_id", userId)
+            .eq("team_id", teamId)
+            .gte("day_start", from)
+            .lt("day_start", to),
         )
         .collect()
     : await ctx.db
@@ -375,7 +418,14 @@ export async function fetchUserActivityDays(
     const r = pick(raw);
     const acc =
       byDay.get(r.day_start) ??
-      ({ day_start: r.day_start, hours: zeros24(), msgs: zeros24(), sessions: zeros24(), day_sessions: 0, projects: 0 } as ActivityDayRow);
+      ({
+        day_start: r.day_start,
+        hours: zeros24(),
+        msgs: zeros24(),
+        sessions: zeros24(),
+        day_sessions: 0,
+        projects: 0,
+      } as ActivityDayRow);
     byDay.set(r.day_start, {
       day_start: r.day_start,
       hours: acc.hours.map((v, h) => v + (r.hours[h] || 0)),

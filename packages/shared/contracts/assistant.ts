@@ -5,7 +5,11 @@
 // pricing change is one edit here. The shape of a plan and the lookup are
 // @platform/assistant's (the storage-free half of the assistant, shared with
 // Averil); the values are codecast's product and stay here.
-import { planIn, type PlanCatalog, type PlanSpec as PlatformPlanSpec } from "@platform/assistant/plans";
+import {
+  planIn,
+  type PlanCatalog,
+  type PlanSpec as PlatformPlanSpec,
+} from "@platform/assistant/plans";
 import { CHEAP_MODEL } from "./modelOptions";
 import { APPROVAL_ANSWERS } from "./approvalAnswers";
 
@@ -16,11 +20,23 @@ export const HOSTED_AGENT_TYPE = "codecast" as const;
 
 /** One run of the loop (`assistant_turns.status`). `queued` waits for the
  *  running turn to pick its input up; `waiting` is parked on an approval. */
-export const TURN_STATUSES = ["queued", "running", "waiting", "done", "failed"] as const;
+export const TURN_STATUSES = [
+  "queued",
+  "running",
+  "waiting",
+  "done",
+  "failed",
+] as const;
 export type TurnStatus = (typeof TURN_STATUSES)[number];
 
 /** Why a turn stopped (`assistant_turns.reason`). */
-export const TURN_REASONS = ["done", "approval", "budget", "time", "error"] as const;
+export const TURN_REASONS = [
+  "done",
+  "approval",
+  "budget",
+  "time",
+  "error",
+] as const;
 export type TurnReason = (typeof TURN_REASONS)[number];
 
 /** Why a turn stopped short of an answer, as the transcript shows it. The
@@ -35,7 +51,16 @@ export type TurnReason = (typeof TURN_REASONS)[number];
  *  on another account, or Free turns are paused for the day). `vendor` is a
  *  regulated team's turn refused because the model's vendor has no BAA with
  *  Codecast yet (contracts/vendorCoverage); nobody in the team can lift it. */
-export const NOTICE_KINDS = ["error", "unavailable", "budget", "time", "safety", "verify", "limit", "vendor"] as const;
+export const NOTICE_KINDS = [
+  "error",
+  "unavailable",
+  "budget",
+  "time",
+  "safety",
+  "verify",
+  "limit",
+  "vendor",
+] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 const NOTICE_SUBTYPE_PREFIX = "hosted_notice:";
 
@@ -45,7 +70,9 @@ export function noticeSubtype(kind: NoticeKind): string {
 }
 
 /** The notice kind a message row carries, or null for any other row. */
-export function noticeKindOf(subtype: string | null | undefined): NoticeKind | null {
+export function noticeKindOf(
+  subtype: string | null | undefined,
+): NoticeKind | null {
   if (!subtype?.startsWith(NOTICE_SUBTYPE_PREFIX)) return null;
   const kind = subtype.slice(NOTICE_SUBTYPE_PREFIX.length) as NoticeKind;
   return (NOTICE_KINDS as readonly string[]).includes(kind) ? kind : null;
@@ -63,18 +90,32 @@ export const PROMPT_TITLE_MAX_CHARS = 140;
  *  the web shows it before the row syncs. The title pass replaces it like any
  *  generated title. Empty for empty text. */
 export function promptTitle(text: string | null | undefined): string {
-  const line = (text ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
+  const line =
+    (text ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .find(Boolean) ?? "";
   // The first sentence of an ask that has several, without a closing period.
-  const flat = (line.replace(/\s+/g, " ").match(/^.+?[.?!](?=\s|$)/)?.[0] ?? line.replace(/\s+/g, " ")).replace(/\.$/, "");
+  const flat = (
+    line.replace(/\s+/g, " ").match(/^.+?[.?!](?=\s|$)/)?.[0] ??
+    line.replace(/\s+/g, " ")
+  ).replace(/\.$/, "");
   if (flat.length <= PROMPT_TITLE_MAX_CHARS) return flat;
   const cut = flat.slice(0, PROMPT_TITLE_MAX_CHARS);
   const space = cut.lastIndexOf(" ");
-  return (space > PROMPT_TITLE_MAX_CHARS / 2 ? cut.slice(0, space) : cut).replace(/[\s,.;:]+$/, "");
+  return (
+    space > PROMPT_TITLE_MAX_CHARS / 2 ? cut.slice(0, space) : cut
+  ).replace(/[\s,.;:]+$/, "");
 }
 
 /** What woke a conversation (`assistant/entry.ts: wake`). `continue` is the
  *  engine waking itself because input arrived while a turn ran. */
-export const WAKE_CAUSES = ["message", "routine", "approval", "continue"] as const;
+export const WAKE_CAUSES = [
+  "message",
+  "routine",
+  "approval",
+  "continue",
+] as const;
 export type WakeCause = (typeof WAKE_CAUSES)[number];
 
 /** A tool's risk level. Reads always run; writes pass the gate. */
@@ -89,7 +130,16 @@ export type RuleDecision = (typeof RULE_DECISIONS)[number];
 /** One wallet movement (`wallet_ledger.kind`). A `refund` takes a top-up's
  *  credit back after Stripe returned or lost the payment (a refund, a dispute);
  *  a `repay` moves allowance onto a debt such a refund left. */
-export const LEDGER_KINDS = ["reserve", "release", "charge", "grant", "topup", "period_reset", "refund", "repay"] as const;
+export const LEDGER_KINDS = [
+  "reserve",
+  "release",
+  "charge",
+  "grant",
+  "topup",
+  "period_reset",
+  "refund",
+  "repay",
+] as const;
 
 /** How long one turn may run before it ends with reason `time`. */
 export const TURN_DEADLINE_MS = 8 * 60 * 1000;
@@ -103,7 +153,8 @@ export const HOSTED_TITLE_MAX_CHARS = 200;
 /** Why an image sent to a hosted conversation is refused: the turn engine
  *  gives the model text only. The server refuses with it where input is
  *  queued, and the composer says it the moment an image is pasted or dropped. */
-export const HOSTED_IMAGE_REFUSAL = "The assistant can't read images yet. Describe what's in it, or paste the text.";
+export const HOSTED_IMAGE_REFUSAL =
+  "The assistant can't read images yet. Describe what's in it, or paste the text.";
 
 export const PLAN_IDS = ["free", "plus", "pro"] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
@@ -192,7 +243,9 @@ export const ROUTINE_SHOWS_UP = "Each run arrives in your inbox.";
  *  The card's words (convex assistant/turns.ts approveWords) and the
  *  marketing page's drawn card both say it through here. */
 export function routineYesWords(repeats: boolean): string {
-  return repeats ? `Runs until you pause it. ${ROUTINE_SHOWS_UP}` : "Runs once. What it finds arrives in your inbox.";
+  return repeats
+    ? `Runs until you pause it. ${ROUTINE_SHOWS_UP}`
+    : "Runs once. What it finds arrives in your inbox.";
 }
 
 export { APPROVAL_ANSWERS };
@@ -216,16 +269,32 @@ export const APPROVAL_BUTTONS: Record<string, string> = {
  *  and the composer then reads "Reply…". */
 export function replyAsksPerson(text: string | null | undefined): boolean {
   const own = ownLines(text ?? "");
-  const paragraphs = own.join("\n").trim().split(/\n\s*\n/);
+  const paragraphs = own
+    .join("\n")
+    .trim()
+    .split(/\n\s*\n/);
   if ((paragraphs[paragraphs.length - 1] ?? "").includes("?")) return true;
-  return own.some((line) => /\?[*_)\]"'”’\s]*$/.test(line) || /(\*\*|__)[^*_]*\?\s*(\*\*|__)/.test(line));
+  return own.some(
+    (line) =>
+      /\?[*_)\]"'”’\s]*$/.test(line) ||
+      /(\*\*|__)[^*_]*\?\s*(\*\*|__)/.test(line),
+  );
 }
 
 /** Tools whose call is itself the whole answer to a quick ask: a to-do
  *  added, a routine set, a short note written. */
-const QUICK_SAVE_TOOLS = new Set(["create_task", "schedule_routine", "write_doc"]);
+const QUICK_SAVE_TOOLS = new Set([
+  "create_task",
+  "schedule_routine",
+  "write_doc",
+]);
 /** Tools a quick save may look around with first without changing its kind. */
-const QUICK_SAVE_READS = new Set(["list_tasks", "list_routines", "recall", "remember"]);
+const QUICK_SAVE_READS = new Set([
+  "list_tasks",
+  "list_routines",
+  "recall",
+  "remember",
+]);
 /** A reply longer than this is an answer to read, whatever it saved. */
 export const QUICK_SAVE_REPLY_CHARS = 280;
 /** A note longer than this is the content the person asked for. */
@@ -236,14 +305,27 @@ export const QUICK_SAVE_NOTE_CHARS = 400;
  *  a short note if any, and a short reply that asks nothing and holds no
  *  table. Such a turn files as read, since its receipt is not news; an
  *  answer the person has not seen stays new. */
-export function turnIsQuickSave(calls: readonly { name: string; input: unknown }[], reply: string | null | undefined): boolean {
+export function turnIsQuickSave(
+  calls: readonly { name: string; input: unknown }[],
+  reply: string | null | undefined,
+): boolean {
   const text = (reply ?? "").trim();
-  if (!text || text.length > QUICK_SAVE_REPLY_CHARS || /^\s*\|/m.test(text) || replyAsksPerson(text)) return false;
+  if (
+    !text ||
+    text.length > QUICK_SAVE_REPLY_CHARS ||
+    /^\s*\|/m.test(text) ||
+    replyAsksPerson(text)
+  )
+    return false;
   let saved = false;
   for (const call of calls) {
     if (QUICK_SAVE_READS.has(call.name)) continue;
     if (!QUICK_SAVE_TOOLS.has(call.name)) return false;
-    if (call.name === "write_doc" && noteText(call.input).length > QUICK_SAVE_NOTE_CHARS) return false;
+    if (
+      call.name === "write_doc" &&
+      noteText(call.input).length > QUICK_SAVE_NOTE_CHARS
+    )
+      return false;
     saved = true;
   }
   return saved;
@@ -252,7 +334,11 @@ export function turnIsQuickSave(calls: readonly { name: string; input: unknown }
 function noteText(input: unknown): string {
   let value = input;
   if (typeof value === "string") {
-    try { value = JSON.parse(value); } catch { return value as string; }
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return value as string;
+    }
   }
   const content = (value as { content?: unknown } | null)?.content;
   return typeof content === "string" ? content : "";
@@ -264,9 +350,12 @@ function ownLines(text: string): string[] {
   const lines: string[] = [];
   let fenced = false;
   for (const line of text.split("\n")) {
-    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
     if (fenced || /^\s*>/.test(line)) continue;
-    lines.push(line.replace(/"[^"\n]*"|“[^”\n]*”/g, "\"\"").trimEnd());
+    lines.push(line.replace(/"[^"\n]*"|“[^”\n]*”/g, '""').trimEnd());
   }
   return lines;
 }
@@ -304,8 +393,12 @@ export const BILLING_RETURN = {
 export type BillingReturnOutcome = (typeof BILLING_RETURN.outcomes)[number];
 
 /** The outcome a return URL's `?billing=` names, or null for anything else. */
-export function billingReturnOutcome(raw: string | null | undefined): BillingReturnOutcome | null {
-  return raw && (BILLING_RETURN.outcomes as readonly string[]).includes(raw) ? (raw as BillingReturnOutcome) : null;
+export function billingReturnOutcome(
+  raw: string | null | undefined,
+): BillingReturnOutcome | null {
+  return raw && (BILLING_RETURN.outcomes as readonly string[]).includes(raw)
+    ? (raw as BillingReturnOutcome)
+    : null;
 }
 
 /** Codecast's plans as the wallet reads them (@platform/assistant walletRules). */
@@ -329,7 +422,8 @@ function describeInterval(ms: number): string {
   return hours <= 1 ? "hour" : `${hours} hours`;
 }
 
-export const HOSTED_ROUTINE_NO_EVENTS = "A hosted assistant runs routines on a schedule, not on events";
+export const HOSTED_ROUTINE_NO_EVENTS =
+  "A hosted assistant runs routines on a schedule, not on events";
 
 /** The shortest interval a recurring routine may repeat at on this plan: the
  *  plan's own floor, never below ROUTINE_MIN_INTERVAL_MS. Every surface that
@@ -346,7 +440,11 @@ export function routineFloor(plan: PlanSpec): number {
  *  event's frame carries text written by outsiders (issue and comment titles)
  *  into a message sent as the owner, and nothing bounds how often it fires.
  *  Admitting them needs the turn engine to treat that block as untrusted. */
-export function routineRefusal(plan: PlanSpec, routine: RoutineShape, armedOthers: number): string | null {
+export function routineRefusal(
+  plan: PlanSpec,
+  routine: RoutineShape,
+  armedOthers: number,
+): string | null {
   if (routine.schedule_type === "event") {
     return HOSTED_ROUTINE_NO_EVENTS;
   }
@@ -355,7 +453,10 @@ export function routineRefusal(plan: PlanSpec, routine: RoutineShape, armedOther
     return `The ${plan.label} plan runs up to ${max} routines at a time`;
   }
   const floor = routineFloor(plan);
-  if (routine.schedule_type === "recurring" && !((routine.interval_ms ?? 0) >= floor)) {
+  if (
+    routine.schedule_type === "recurring" &&
+    !((routine.interval_ms ?? 0) >= floor)
+  ) {
     return planFloor !== null && planFloor >= ROUTINE_MIN_INTERVAL_MS
       ? `The ${plan.label} plan repeats a routine at most once every ${describeInterval(floor)}`
       : `A routine repeats at most once every ${describeInterval(floor)}`;

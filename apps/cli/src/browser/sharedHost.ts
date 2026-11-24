@@ -28,7 +28,11 @@ export function isGitHubLogin(login: string): boolean {
 
 /** A user's own tool directories, first on every PATH they get: shell, ssh command, daemon. */
 export function userToolPath(home: string): string {
-  return [".local/bin", ".bun/bin", ".grok/bin", ".opencode/bin"].map((d) => `${home}/${d}`).join(":") + ":/usr/local/bin:/usr/bin:/bin";
+  return (
+    [".local/bin", ".bun/bin", ".grok/bin", ".opencode/bin"]
+      .map((d) => `${home}/${d}`)
+      .join(":") + ":/usr/local/bin:/usr/bin:/bin"
+  );
 }
 
 /**
@@ -37,7 +41,8 @@ export function userToolPath(home: string): string {
  * command run over ssh, so `ssh <user>@host cast ...` finds the user's own
  * tools too, not only an interactive shell.
  */
-export const BASHRC_PATH_MARK = "# codecast shared host: own tools first, also for ssh commands";
+export const BASHRC_PATH_MARK =
+  "# codecast shared host: own tools first, also for ssh commands";
 
 function bashrcPathScript(): string {
   return `if ! grep -qF '${BASHRC_PATH_MARK}' "$HOME/.bashrc" 2>/dev/null; then
@@ -211,7 +216,8 @@ export const MEMBER_OWNERS_DIR = "/etc/codecast/members";
  */
 function accountStep(user: string, owner?: string): string {
   const create = `sudo adduser --disabled-password --gecos '' --shell /bin/bash ${user} >/dev/null`;
-  if (owner === undefined) return `if ! id -u ${user} >/dev/null 2>&1; then ${create}; fi`;
+  if (owner === undefined)
+    return `if ! id -u ${user} >/dev/null 2>&1; then ${create}; fi`;
   const record = `${MEMBER_OWNERS_DIR}/${user}`;
   return `if id -u ${user} >/dev/null 2>&1; then
   owner=$(sudo cat ${record} 2>/dev/null || true)
@@ -225,24 +231,37 @@ sudo install -d -m 755 -o root -g root ${MEMBER_OWNERS_DIR}
 printf '%s\n' ${owner} | sudo tee ${record} >/dev/null`;
 }
 
-export function addUserRootScript(user: string, github?: string, opts: { pubkey?: string; lenientKeys?: boolean; owner?: string } = {}): string {
+export function addUserRootScript(
+  user: string,
+  github?: string,
+  opts: { pubkey?: string; lenientKeys?: boolean; owner?: string } = {},
+): string {
   if (!isLinuxUserName(user)) throw new Error(`not a Linux user name: ${user}`);
-  if (opts.owner !== undefined && !/^[a-z0-9]{1,64}$/.test(opts.owner)) throw new Error(`not a codecast user id: ${opts.owner}`);
-  if (github !== undefined && !isGitHubLogin(github)) throw new Error(`not a GitHub login: ${github}`);
-  if (opts.pubkey !== undefined && !/^[A-Za-z0-9@.+/= _-]{20,800}$/.test(opts.pubkey)) throw new Error("not an ssh public key");
+  if (opts.owner !== undefined && !/^[a-z0-9]{1,64}$/.test(opts.owner))
+    throw new Error(`not a codecast user id: ${opts.owner}`);
+  if (github !== undefined && !isGitHubLogin(github))
+    throw new Error(`not a GitHub login: ${github}`);
+  if (
+    opts.pubkey !== undefined &&
+    !/^[A-Za-z0-9@.+/= _-]{20,800}$/.test(opts.pubkey)
+  )
+    throw new Error("not an ssh public key");
   const fetchKeys = github
     ? `keys=$(curl -fsS --max-time 15 https://github.com/${github}.keys || true)
 ${opts.lenientKeys ? "" : `[ -n "$keys" ] || { echo "github.com/${github} has no public ssh keys" >&2; exit 1; }\n`}`
     : "keys=\n";
-  const pubkey = opts.pubkey ? `keys=$(printf '%s\\n%s' "$keys" '${opts.pubkey}')\n` : "";
-  const keys = github || opts.pubkey
-    ? `${fetchKeys}${pubkey}sudo install -d -m 700 -o ${user} -g ${user} /home/${user}/.ssh
+  const pubkey = opts.pubkey
+    ? `keys=$(printf '%s\\n%s' "$keys" '${opts.pubkey}')\n`
+    : "";
+  const keys =
+    github || opts.pubkey
+      ? `${fetchKeys}${pubkey}sudo install -d -m 700 -o ${user} -g ${user} /home/${user}/.ssh
 { printf '%s\\n' "# from ${github ? `github.com/${github}.keys` : "codecast"}${opts.pubkey ? " and the joining laptop" : ""}, refreshed on every join or --add-user; your own additions go in authorized_keys.local" "$keys"
   sudo cat /home/${user}/.ssh/authorized_keys.local 2>/dev/null || true; } | sudo tee /home/${user}/.ssh/authorized_keys.codecast >/dev/null
 sudo chown ${user}:${user} /home/${user}/.ssh/authorized_keys.codecast && sudo chmod 600 /home/${user}/.ssh/authorized_keys.codecast
 sudo mv -f /home/${user}/.ssh/authorized_keys.codecast /home/${user}/.ssh/authorized_keys
 echo "keys=$(printf '%s\\n' "$keys" | grep -c . || true)"`
-    : `echo keys=unchanged`;
+      : `echo keys=unchanged`;
   return `set -euo pipefail
 [ -e ${SHARED_HOST_MARKER} ] || { echo "not a shared host: provision it with --shared first" >&2; exit 1; }
 ${accountStep(user, opts.owner)}
@@ -278,9 +297,15 @@ echo REMOVE-USER-OK`;
  * tool the provisioning user linked there is never mistaken for one this
  * person already has.
  */
-export function addUserSelfScript(versions: Parameters<typeof agentCliInstallScript>[0]): string {
-  const ownPath = 'export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.grok/bin:$HOME/.opencode/bin:/usr/bin:/bin"';
-  const agents = agentCliInstallScript(versions).replace(/^export PATH=.*$/m, ownPath);
+export function addUserSelfScript(
+  versions: Parameters<typeof agentCliInstallScript>[0],
+): string {
+  const ownPath =
+    'export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.grok/bin:$HOME/.opencode/bin:/usr/bin:/bin"';
+  const agents = agentCliInstallScript(versions).replace(
+    /^export PATH=.*$/m,
+    ownPath,
+  );
   return `set -euo pipefail
 cd "$HOME"
 ${ownPath}

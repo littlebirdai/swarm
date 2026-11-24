@@ -14,12 +14,33 @@
 // leaves one line in ~/.codecast/task-context.log.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { formatTaskResume, formatTaskResumeUnavailable, restoresTaskContext, type TaskResumeContext } from "@codecast/shared/tasks";
-import { fitProjectContextBlock, utf8Bytes, type ProjectContext } from "@codecast/shared/contracts/projectContext";
+import {
+  formatTaskResume,
+  formatTaskResumeUnavailable,
+  restoresTaskContext,
+  type TaskResumeContext,
+} from "@codecast/shared/tasks";
+import {
+  fitProjectContextBlock,
+  utf8Bytes,
+  type ProjectContext,
+} from "@codecast/shared/contracts/projectContext";
 import { readTaskPulseFor } from "./taskPulse.js";
 import { checkoutWords } from "./checkoutWords.js";
-import { STABLE_CONTEXT_BUDGET, codecastHooksDir, installCodexSessionStartHook, removeCodexSessionStartHook, wrapForClient, type StableHookClient, type StableContextConfig } from "./stableContext.js";
-import { HOOK_FEATURE_ON, HOOK_FIELDS_READ, HOOK_STATE_DIR } from "./hookJson.js";
+import {
+  STABLE_CONTEXT_BUDGET,
+  codecastHooksDir,
+  installCodexSessionStartHook,
+  removeCodexSessionStartHook,
+  wrapForClient,
+  type StableHookClient,
+  type StableContextConfig,
+} from "./stableContext.js";
+import {
+  HOOK_FEATURE_ON,
+  HOOK_FIELDS_READ,
+  HOOK_STATE_DIR,
+} from "./hookJson.js";
 import { writeHarnessFile } from "./harness.js";
 import { defaultConfigDir } from "./config/configDir.js";
 
@@ -74,23 +95,37 @@ exit 0
 export const TASK_CONTEXT_HOOK = taskContextHookScript("claude");
 export const TASK_CONTEXT_HOOK_CODEX = taskContextHookScript("codex");
 
-const codexHookFile = () => path.join(codecastHooksDir(), "task-context-codex.sh");
+const codexHookFile = () =>
+  path.join(codecastHooksDir(), "task-context-codex.sh");
 
 /** Codex runs the same job from its own hooks.json, where Codex is installed
  *  and its hooks are already on (stableContext.ts installCodexSessionStartHook). */
 export function installTaskContextHookCodex(): void {
-  installCodexSessionStartHook(() => {
-    const file = codexHookFile();
-    writeHarnessFile(file, TASK_CONTEXT_HOOK_CODEX, "hooks", { mode: 0o755, executable: true });
-    return file;
-  }, "hooks", 10);
+  installCodexSessionStartHook(
+    () => {
+      const file = codexHookFile();
+      writeHarnessFile(file, TASK_CONTEXT_HOOK_CODEX, "hooks", {
+        mode: 0o755,
+        executable: true,
+      });
+      return file;
+    },
+    "hooks",
+    10,
+  );
 }
 
 export function removeTaskContextHookCodex(): void {
   removeCodexSessionStartHook(codexHookFile(), "hooks");
 }
 
-type HookPayload = { session_id?: string; sessionId?: string; source?: string; cursor_version?: string; cwd?: string };
+type HookPayload = {
+  session_id?: string;
+  sessionId?: string;
+  source?: string;
+  cursor_version?: string;
+  cwd?: string;
+};
 
 /**
  * The block to print for this SessionStart payload, or null. Only a
@@ -101,22 +136,37 @@ type HookPayload = { session_id?: string; sessionId?: string; source?: string; c
  */
 export async function taskContextFor(
   payload: HookPayload,
-  read: (body: { short_id?: string; started?: boolean; plan_id?: string; session_id: string }) => Promise<TaskResumeContext | null>,
+  read: (body: {
+    short_id?: string;
+    started?: boolean;
+    plan_id?: string;
+    session_id: string;
+  }) => Promise<TaskResumeContext | null>,
   now = Date.now(),
 ): Promise<string | null> {
-  if (payload.cursor_version || !restoresTaskContext(payload.source)) return null;
+  if (payload.cursor_version || !restoresTaskContext(payload.source))
+    return null;
   const sessionId = payload.session_id || payload.sessionId;
   if (!sessionId) return null;
   const pulse = readTaskPulseFor(sessionId);
   try {
     const context = await read({
-      ...(pulse?.task ? { short_id: pulse.task, ...(pulse.started ? { started: true } : {}) } : {}),
+      ...(pulse?.task
+        ? { short_id: pulse.task, ...(pulse.started ? { started: true } : {}) }
+        : {}),
       ...(pulse?.plan ? { plan_id: pulse.plan } : {}),
       session_id: sessionId,
     });
-    return context?.task ? formatTaskResume(context, { now, ...checkoutWords(payload.cwd || process.cwd()) }) : null;
+    return context?.task
+      ? formatTaskResume(context, {
+          now,
+          ...checkoutWords(payload.cwd || process.cwd()),
+        })
+      : null;
   } catch {
-    return pulse?.task ? formatTaskResumeUnavailable(pulse.task, pulse.plan || undefined) : null;
+    return pulse?.task
+      ? formatTaskResumeUnavailable(pulse.task, pulse.plan || undefined)
+      : null;
   }
 }
 
@@ -128,7 +178,8 @@ export async function projectContextFor(
   read: (body: { session: string }) => Promise<ProjectContext | null>,
   room: () => Promise<number> = async () => STABLE_CONTEXT_BUDGET,
 ): Promise<string | null> {
-  if (payload.cursor_version || !restoresTaskContext(payload.source)) return null;
+  if (payload.cursor_version || !restoresTaskContext(payload.source))
+    return null;
   const session = payload.session_id || payload.sessionId;
   if (!session) return null;
   try {
@@ -140,11 +191,17 @@ export async function projectContextFor(
 }
 
 /** One line per failure, so a hook that never prints can be diagnosed. */
-export function logFailure(sessionId: string | undefined, reason: string): void {
+export function logFailure(
+  sessionId: string | undefined,
+  reason: string,
+): void {
   try {
     const file = path.join(defaultConfigDir(), TASK_CONTEXT_LOG_FILE);
     const line = `${new Date().toISOString()} ${sessionId ?? "-"} ${reason}\n`;
-    if ((fs.statSync(file, { throwIfNoEntry: false })?.size ?? 0) > LOG_CAP_BYTES) fs.writeFileSync(file, line);
+    if (
+      (fs.statSync(file, { throwIfNoEntry: false })?.size ?? 0) > LOG_CAP_BYTES
+    )
+      fs.writeFileSync(file, line);
     else fs.appendFileSync(file, line);
   } catch {}
 }
@@ -152,7 +209,11 @@ export function logFailure(sessionId: string | undefined, reason: string): void 
 /** `codecast _task-context [--client codex]`: the hook payload on stdin, the
  *  block on stdout. `unreadable` is why the config yielded no token, when it
  *  is there but cannot be decrypted. */
-export async function runTaskContextHook(config: StableContextConfig | null, client: StableHookClient = "claude", unreadable?: string): Promise<void> {
+export async function runTaskContextHook(
+  config: StableContextConfig | null,
+  client: StableHookClient = "claude",
+  unreadable?: string,
+): Promise<void> {
   let payload: HookPayload = {};
   try {
     const chunks: Buffer[] = [];
@@ -163,37 +224,62 @@ export async function runTaskContextHook(config: StableContextConfig | null, cli
   }
   const sessionId = payload.session_id || payload.sessionId;
   const post = async (route: string, body: Record<string, unknown>) => {
-    if (!config?.auth_token || !config.convex_url) throw new Error(unreadable ?? "not signed in");
-    const response = await fetch(`${config.convex_url.replace(".cloud", ".site")}${route}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_token: config.auth_token, ...body }),
-      signal: AbortSignal.timeout(READ_TIMEOUT_MS),
-    });
+    if (!config?.auth_token || !config.convex_url)
+      throw new Error(unreadable ?? "not signed in");
+    const response = await fetch(
+      `${config.convex_url.replace(".cloud", ".site")}${route}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_token: config.auth_token, ...body }),
+        signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+      },
+    );
     if (!response.ok) throw new Error(`server answered ${response.status}`);
     return response.json();
   };
   const task = taskContextFor(payload, async (body) => {
     const label = body.short_id ?? "no pulse task";
     try {
-      const context = (await post("/cli/work/resume", body)) as TaskResumeContext | null;
-      if (!context && body.short_id) logFailure(sessionId, `${label}: nothing to restore (not found, not readable, or a closed task it only filed)`);
+      const context = (await post(
+        "/cli/work/resume",
+        body,
+      )) as TaskResumeContext | null;
+      if (!context && body.short_id)
+        logFailure(
+          sessionId,
+          `${label}: nothing to restore (not found, not readable, or a closed task it only filed)`,
+        );
       return context;
     } catch (err) {
       const timedOut = err instanceof Error && err.name === "TimeoutError";
-      logFailure(sessionId, `${label}: ${timedOut ? `no answer in ${READ_TIMEOUT_MS}ms` : err instanceof Error ? err.message : String(err)}`);
+      logFailure(
+        sessionId,
+        `${label}: ${timedOut ? `no answer in ${READ_TIMEOUT_MS}ms` : err instanceof Error ? err.message : String(err)}`,
+      );
       throw err;
     }
   });
   // Both read at once; the project block takes the room the task block leaves.
-  const project = projectContextFor(payload, async (body) => {
-    try {
-      return (await post("/cli/projects/context", body)) as ProjectContext | null;
-    } catch (err) {
-      logFailure(sessionId, `project context: ${err instanceof Error ? err.message : String(err)}`);
-      throw err;
-    }
-  }, async () => STABLE_CONTEXT_BUDGET - utf8Bytes((await task) ?? "") - 2);
+  const project = projectContextFor(
+    payload,
+    async (body) => {
+      try {
+        return (await post(
+          "/cli/projects/context",
+          body,
+        )) as ProjectContext | null;
+      } catch (err) {
+        logFailure(
+          sessionId,
+          `project context: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        throw err;
+      }
+    },
+    async () => STABLE_CONTEXT_BUDGET - utf8Bytes((await task) ?? "") - 2,
+  );
   const blocks = (await Promise.all([task, project])).filter(Boolean);
-  if (blocks.length) process.stdout.write(wrapForClient(client, blocks.join("\n\n")));
+  if (blocks.length)
+    process.stdout.write(wrapForClient(client, blocks.join("\n\n")));
 }

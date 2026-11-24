@@ -27,26 +27,34 @@ const PIN = 0;
 
 // A type-only statement (`import type`, `export type`) is erased at build and
 // carries no code into the bundle, so it never counts.
-const IMPORT_RE = /\b(?:import|export)\s+(?!type\b)[^;]*?\bfrom\s+["']@codecast\/convex\/convex\/([^"']+)["']/g;
+const IMPORT_RE =
+  /\b(?:import|export)\s+(?!type\b)[^;]*?\bfrom\s+["']@codecast\/convex\/convex\/([^"']+)["']/g;
 /** `export const x = query({`, `= mutation({`, `= internalAction({`, `= httpAction(`. */
-const DEFINES_FN_RE = /\b(?:internal)?(?:[Qq]uery|[Mm]utation|[Aa]ction)\s*\(\s*\{/;
+const DEFINES_FN_RE =
+  /\b(?:internal)?(?:[Qq]uery|[Mm]utation|[Aa]ction)\s*\(\s*\{/;
 
 const definesFunctions = new Map<string, boolean>();
 function convexModuleDefinesFunctions(spec: string): boolean {
   const cached = definesFunctions.get(spec);
   if (cached !== undefined) return cached;
-  const file = [".ts", ".tsx", "/index.ts"].map((ext) => join(CONVEX, spec + ext)).find(existsSync);
+  const file = [".ts", ".tsx", "/index.ts"]
+    .map((ext) => join(CONVEX, spec + ext))
+    .find(existsSync);
   const src = file ? codeOnly(readFileSync(file, "utf8")) : "";
   // A file is a server module when it declares convex functions itself, which
   // in this codebase always means the `./functions` wrappers.
-  const defines = !!file && /from\s+["']\.{1,2}\/(?:\.\.\/)*functions["']/.test(src) && DEFINES_FN_RE.test(src);
+  const defines =
+    !!file &&
+    /from\s+["']\.{1,2}\/(?:\.\.\/)*functions["']/.test(src) &&
+    DEFINES_FN_RE.test(src);
   definesFunctions.set(spec, defines);
   return defines;
 }
 
 function countServerImports(src: string): number {
   let hits = 0;
-  for (const m of codeOnly(src).matchAll(IMPORT_RE)) if (convexModuleDefinesFunctions(m[1])) hits += 1;
+  for (const m of codeOnly(src).matchAll(IMPORT_RE))
+    if (convexModuleDefinesFunctions(m[1])) hits += 1;
   return hits;
 }
 
@@ -60,7 +68,8 @@ const result = checkRatchet({
   allowlist: ALLOWLIST,
   pin: PIN,
   fix: "Move the shared value into @codecast/shared/contracts and import it from there on both sides.",
-  pruneCommand: "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/convexServerImports.guard.test.ts",
+  pruneCommand:
+    "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/convexServerImports.guard.test.ts",
   minScanned: 400,
 });
 
@@ -69,8 +78,16 @@ describe("convex function modules stay out of the web bundle", () => {
     // A detector that answered "no" to everything would make the scan vacuous.
     expect(convexModuleDefinesFunctions("follow")).toBe(true);
     expect(convexModuleDefinesFunctions("wakeCost")).toBe(false);
-    expect(countServerImports(`import { FOLLOW_RENEW_MS } from "@codecast/convex/convex/follow";`)).toBe(1);
-    expect(countServerImports(`import type { WhiskReturnPath } from "@codecast/convex/convex/whisk";`)).toBe(0);
+    expect(
+      countServerImports(
+        `import { FOLLOW_RENEW_MS } from "@codecast/convex/convex/follow";`,
+      ),
+    ).toBe(1);
+    expect(
+      countServerImports(
+        `import type { WhiskReturnPath } from "@codecast/convex/convex/whisk";`,
+      ),
+    ).toBe(0);
   });
 
   test("no web file imports one", () => {

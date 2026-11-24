@@ -17,9 +17,23 @@ export const L = 32;
 /** The moment the still frame shows (picked with the probe in /tmp/flows-dive). */
 export const T0 = 25;
 
-export const STEP_IDS = ["check", "review", "decide", "land", "deploy", "live"] as const;
+export const STEP_IDS = [
+  "check",
+  "review",
+  "decide",
+  "land",
+  "deploy",
+  "live",
+] as const;
 export type NodeId = (typeof STEP_IDS)[number];
-export const STEP_LABEL: Record<NodeId, string> = { check: "Check", review: "Review", decide: "Decide", land: "Land", deploy: "Deploy", live: "Live" };
+export const STEP_LABEL: Record<NodeId, string> = {
+  check: "Check",
+  review: "Review",
+  decide: "Decide",
+  land: "Land",
+  deploy: "Deploy",
+  live: "Live",
+};
 
 // ---------- routes ----------
 type Sample = { x: number; y: number; s: number };
@@ -29,7 +43,9 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 /** A polyline with rounded corners, sampled for length and nearest-point lookups. */
 export function route(points: readonly Pt[], radius = 9): Route {
-  const p = points.filter((q, i) => i === 0 || q[0] !== points[i - 1][0] || q[1] !== points[i - 1][1]);
+  const p = points.filter(
+    (q, i) => i === 0 || q[0] !== points[i - 1][0] || q[1] !== points[i - 1][1],
+  );
   const samples: Sample[] = [{ x: p[0][0], y: p[0][1], s: 0 }];
   const push = (x: number, y: number) => {
     const last = samples[samples.length - 1];
@@ -41,14 +57,23 @@ export function route(points: readonly Pt[], radius = 9): Route {
     const lin = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const lout = Math.hypot(c[0] - b[0], c[1] - b[1]);
     const r = Math.min(radius, lin / 2, lout / 2);
-    const s0: Pt = [b[0] - ((b[0] - a[0]) / lin) * r, b[1] - ((b[1] - a[1]) / lin) * r];
-    const s1: Pt = [b[0] + ((c[0] - b[0]) / lout) * r, b[1] + ((c[1] - b[1]) / lout) * r];
+    const s0: Pt = [
+      b[0] - ((b[0] - a[0]) / lin) * r,
+      b[1] - ((b[1] - a[1]) / lin) * r,
+    ];
+    const s1: Pt = [
+      b[0] + ((c[0] - b[0]) / lout) * r,
+      b[1] + ((c[1] - b[1]) / lout) * r,
+    ];
     d += ` L${r1(s0[0])} ${r1(s0[1])} Q${r1(b[0])} ${r1(b[1])} ${r1(s1[0])} ${r1(s1[1])}`;
     push(s0[0], s0[1]);
     for (let k = 1; k <= 6; k++) {
       const t = k / 6;
       const u = 1 - t;
-      push(u * u * s0[0] + 2 * u * t * b[0] + t * t * s1[0], u * u * s0[1] + 2 * u * t * b[1] + t * t * s1[1]);
+      push(
+        u * u * s0[0] + 2 * u * t * b[0] + t * t * s1[0],
+        u * u * s0[1] + 2 * u * t * b[1] + t * t * s1[1],
+      );
     }
   }
   const end = p[p.length - 1];
@@ -67,7 +92,13 @@ export function fracOf(r: Route, q: Pt): number {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const l2 = dx * dx + dy * dy;
-    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((q[0] - a.x) * dx + (q[1] - a.y) * dy) / l2));
+    const t =
+      l2 === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(1, ((q[0] - a.x) * dx + (q[1] - a.y) * dy) / l2),
+          );
     const dist = Math.hypot(a.x + dx * t - q[0], a.y + dy * t - q[1]);
     if (dist < best - 1e-6) {
       best = dist;
@@ -99,8 +130,22 @@ export type Plan = {
   stages: { n: number; name: string; x0: number; x1: number; y: number }[];
   signalsToday: { num: TextAt; size: number; label: TextAt };
   sources: { box: Box; name: TextAt; spark: Pt; status: TextAt; port: Pt }[];
-  triage: { box: Box; title: TextAt | null; open: TextAt; rows: { box: Box; kind: TextAt; count: TextAt }[]; chips: Pt[]; queued: TextAt; queueHit: Box };
-  line: { box: Box; title: TextAt; count: TextAt; slots: Box[]; glyph: Pt | null };
+  triage: {
+    box: Box;
+    title: TextAt | null;
+    open: TextAt;
+    rows: { box: Box; kind: TextAt; count: TextAt }[];
+    chips: Pt[];
+    queued: TextAt;
+    queueHit: Box;
+  };
+  line: {
+    box: Box;
+    title: TextAt;
+    count: TextAt;
+    slots: Box[];
+    glyph: Pt | null;
+  };
   session: { box: Box; glyph: Pt; title: TextAt; sub: TextAt };
   steps: Record<NodeId, Box>;
   watch: { box: Box; title: TextAt; days: TextAt; count: TextAt };
@@ -114,7 +159,13 @@ export type Plan = {
     revise: TextAt & { chip: boolean };
   };
   legend: { cols: number[]; rows: number[] };
-  edges: { signals: string[]; silent: string[]; line: string[]; person: string; main: string };
+  edges: {
+    signals: string[];
+    silent: string[];
+    line: string[];
+    person: string;
+    main: string;
+  };
   // the paths and the stops along them
   signalRoute: (src: number, bar: number) => Route;
   signalFrom: (src: number) => Pt;
@@ -175,17 +226,47 @@ function widePlan(): Plan {
   const checkEdge: Pt = [steps.check.x, ROW];
   const mainTail: Pt[] = [checkEdge, [LIVE_X, ROW], CLEAN_C];
   const q0: Pt = [292, QUEUE_Y];
-  const signalTarget = (bar: number): Pt => (bar < 0 ? [222, QUEUE_Y] : [BAR_X, BAR_Y[bar]]);
+  const signalTarget = (bar: number): Pt =>
+    bar < 0 ? [222, QUEUE_Y] : [BAR_X, BAR_Y[bar]];
   const signalFrom = (src: number): Pt => [168, SOURCE_Y[src]];
   const signalPts = (src: number, bar: number): Pt[] => {
     const t = signalTarget(bar);
     return [signalFrom(src), [BUS, SOURCE_Y[src]], [BUS, t[1]], t];
   };
-  const lineToCheck = (k: number): Pt[] => [q0, [366, QUEUE_Y], [366, SLOT_Y[k]], [SLOT_X0 + 10, SLOT_Y[k]], [RAIL, SLOT_Y[k]], [RAIL, ROW], checkEdge];
+  const lineToCheck = (k: number): Pt[] => [
+    q0,
+    [366, QUEUE_Y],
+    [366, SLOT_Y[k]],
+    [SLOT_X0 + 10, SLOT_Y[k]],
+    [RAIL, SLOT_Y[k]],
+    [RAIL, ROW],
+    checkEdge,
+  ];
   const sessionAt: Pt = [552, SESSION_Y];
-  const sessionToCheck: Pt[] = [sessionAt, [RAIL, SESSION_Y], [RAIL, ROW], checkEdge];
-  const at = (n: NodeId | "watch" | "clean"): Pt => (n === "watch" ? WATCH_C : n === "clean" ? CLEAN_C : [centre(steps[n])[0], ROW]);
-  const used: [number, number][] = [[0, 0], [0, 1], [0, 2], [0, -1], [1, 1], [1, 2], [1, 0], [2, 0], [2, 2], [2, 1]];
+  const sessionToCheck: Pt[] = [
+    sessionAt,
+    [RAIL, SESSION_Y],
+    [RAIL, ROW],
+    checkEdge,
+  ];
+  const at = (n: NodeId | "watch" | "clean"): Pt =>
+    n === "watch"
+      ? WATCH_C
+      : n === "clean"
+        ? CLEAN_C
+        : [centre(steps[n])[0], ROW];
+  const used: [number, number][] = [
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [0, -1],
+    [1, 1],
+    [1, 2],
+    [1, 0],
+    [2, 0],
+    [2, 2],
+    [2, 1],
+  ];
   return {
     W,
     H,
@@ -193,8 +274,20 @@ function widePlan(): Plan {
       { n: 1, name: "Signals", x0: 20, x1: 168, y: 28 },
       { n: 2, name: "Triage", x0: 200, x1: 346, y: 28 },
       { n: 3, name: "Build", x0: 380, x1: 566, y: 28 },
-      { n: 4, name: "Checks", x0: steps.check.x, x1: steps.decide.x + steps.decide.w, y: 28 },
-      { n: 5, name: "Ship and watch", x0: steps.land.x, x1: watch.x + watch.w, y: 28 },
+      {
+        n: 4,
+        name: "Checks",
+        x0: steps.check.x,
+        x1: steps.decide.x + steps.decide.w,
+        y: 28,
+      },
+      {
+        n: 5,
+        name: "Ship and watch",
+        x0: steps.land.x,
+        x1: watch.x + watch.w,
+        y: 28,
+      },
     ],
     signalsToday: { num: { x: 20, y: 80 }, size: 24, label: { x: 20, y: 99 } },
     sources: SOURCE_Y.map((y) => ({
@@ -208,7 +301,11 @@ function widePlan(): Plan {
       box: { x: 200, y: 256, w: 146, h: 136 },
       title: { x: 212, y: 276 },
       open: { x: 334, y: 276, anchor: "end" },
-      rows: BAR_Y.map((y) => ({ box: { x: 210, y: y - 8.5, w: 126, h: 17 }, kind: { x: 220, y: y + 4 }, count: { x: 330, y: y + 4, anchor: "end" as const } })),
+      rows: BAR_Y.map((y) => ({
+        box: { x: 210, y: y - 8.5, w: 126, h: 17 },
+        kind: { x: 220, y: y + 4 },
+        count: { x: 330, y: y + 4, anchor: "end" as const },
+      })),
       chips: [0, 1, 2, 3, 4].map((i) => [230 + i * 11, QUEUE_Y] as Pt),
       queued: { x: 212, y: 380 },
       queueHit: { x: 222, y: QUEUE_Y - 8, w: 76, h: 16 },
@@ -217,12 +314,27 @@ function widePlan(): Plan {
       box: { x: 380, y: 290, w: 186, h: 126 },
       title: { x: 396, y: 312 },
       count: { x: 552, y: 312, anchor: "end" },
-      slots: SLOT_Y.map((y) => ({ x: SLOT_X0, y: y - 9, w: SLOT_X1 - SLOT_X0, h: 18 })),
+      slots: SLOT_Y.map((y) => ({
+        x: SLOT_X0,
+        y: y - 9,
+        w: SLOT_X1 - SLOT_X0,
+        h: 18,
+      })),
       glyph: null,
     },
-    session: { box: { x: 380, y: SESSION_Y - 28, w: 186, h: 56 }, glyph: [395, SESSION_Y - 7], title: { x: 405, y: SESSION_Y - 3 }, sub: { x: 392, y: SESSION_Y + 17 } },
+    session: {
+      box: { x: 380, y: SESSION_Y - 28, w: 186, h: 56 },
+      glyph: [395, SESSION_Y - 7],
+      title: { x: 405, y: SESSION_Y - 3 },
+      sub: { x: 392, y: SESSION_Y + 17 },
+    },
     steps,
-    watch: { box: watch, title: { x: watch.x + 12, y: watch.y + 24 }, days: { x: watch.x + watch.w - 12, y: watch.y + 24, anchor: "end" }, count: { x: watch.x + 12, y: watch.y + 50 } },
+    watch: {
+      box: watch,
+      title: { x: watch.x + 12, y: watch.y + 24 },
+      days: { x: watch.x + watch.w - 12, y: watch.y + 24, anchor: "end" },
+      count: { x: watch.x + 12, y: watch.y + 50 },
+    },
     clean,
     labels: {
       onPerson: { x: steps.decide.x + 6, y: ROW + 64 },
@@ -234,7 +346,9 @@ function widePlan(): Plan {
     },
     legend: { cols: [610, 806], rows: [418, 442, 466] },
     edges: {
-      signals: used.filter(([s]) => s < 3).map(([s, b]) => route(signalPts(s, b)).d),
+      signals: used
+        .filter(([s]) => s < 3)
+        .map(([s, b]) => route(signalPts(s, b)).d),
       silent: [route(signalPts(3, 1)).d, route(signalPts(4, 2)).d],
       line: SLOT_Y.map((_, k) => route(lineToCheck(k)).d),
       person: route(sessionToCheck).d,
@@ -243,7 +357,9 @@ function widePlan(): Plan {
     signalRoute: memo((src: number, bar: number) => route(signalPts(src, bar))),
     signalFrom,
     signalTarget,
-    lineRoute: memo((k: number) => route([...lineToCheck(k), ...mainTail.slice(1)])),
+    lineRoute: memo((k: number) =>
+      route([...lineToCheck(k), ...mainTail.slice(1)]),
+    ),
     q0,
     slotIn: (k) => [SLOT_X0 + 10, SLOT_Y[k]],
     slotOut: (k) => [SLOT_X1 - 10, SLOT_Y[k]],
@@ -251,9 +367,26 @@ function widePlan(): Plan {
     sessionAt,
     checkEdge,
     at,
-    fixRoute: route([at("check"), [at("check")[0], 96], [470, 96], [470, SESSION_Y]]),
-    reviseRoute: route([at("decide"), [at("decide")[0], 72], [430, 72], [430, SESSION_Y]]),
-    regressRoute: route([WATCH_C, [1084, WATCH_C[1]], [1084, ARC_Y], [BUS, ARC_Y], [BUS, BAR_Y[1]], [BAR_X, BAR_Y[1]]]),
+    fixRoute: route([
+      at("check"),
+      [at("check")[0], 96],
+      [470, 96],
+      [470, SESSION_Y],
+    ]),
+    reviseRoute: route([
+      at("decide"),
+      [at("decide")[0], 72],
+      [430, 72],
+      [430, SESSION_Y],
+    ]),
+    regressRoute: route([
+      WATCH_C,
+      [1084, WATCH_C[1]],
+      [1084, ARC_Y],
+      [BUS, ARC_Y],
+      [BUS, BAR_Y[1]],
+      [BAR_X, BAR_Y[1]],
+    ]),
   };
 }
 
@@ -270,7 +403,12 @@ function tallPlan(): Plan {
   const SLOT_X1 = 350;
   const COL = 180;
   const MERGE_Y = 520;
-  const stepAt = (y: number, w = 150): Box => ({ x: COL - w / 2, y: y - 18, w, h: 36 });
+  const stepAt = (y: number, w = 150): Box => ({
+    x: COL - w / 2,
+    y: y - 18,
+    w,
+    h: 36,
+  });
   const steps: Record<NodeId, Box> = {
     check: stepAt(556),
     review: stepAt(604),
@@ -286,18 +424,52 @@ function tallPlan(): Plan {
   const checkEdge: Pt = [COL, steps.check.y];
   const mainTail: Pt[] = [checkEdge, CLEAN_C];
   const q0: Pt = [300, QUEUE_Y];
-  const signalTarget = (bar: number): Pt => (bar < 0 ? [310, QUEUE_Y] : [BUS, BAR_Y[bar]]);
+  const signalTarget = (bar: number): Pt =>
+    bar < 0 ? [310, QUEUE_Y] : [BUS, BAR_Y[bar]];
   const signalFrom = (src: number): Pt => [322, SOURCE_Y[src]];
   const signalPts = (src: number, bar: number): Pt[] => {
     const t = signalTarget(bar);
-    return bar < 0 ? [signalFrom(src), [BUS, SOURCE_Y[src]], [BUS, QUEUE_Y], t] : [signalFrom(src), [BUS, SOURCE_Y[src]], t];
+    return bar < 0
+      ? [signalFrom(src), [BUS, SOURCE_Y[src]], [BUS, QUEUE_Y], t]
+      : [signalFrom(src), [BUS, SOURCE_Y[src]], t];
   };
-  const lineToCheck = (k: number): Pt[] => [q0, [300, 391], [202, 391], [202, SLOT_Y[k]], [SLOT_X0 + 8, SLOT_Y[k]], [356, SLOT_Y[k]], [356, MERGE_Y], [COL, MERGE_Y], checkEdge];
+  const lineToCheck = (k: number): Pt[] => [
+    q0,
+    [300, 391],
+    [202, 391],
+    [202, SLOT_Y[k]],
+    [SLOT_X0 + 8, SLOT_Y[k]],
+    [356, SLOT_Y[k]],
+    [356, MERGE_Y],
+    [COL, MERGE_Y],
+    checkEdge,
+  ];
   const sessionAt: Pt = [90, 422];
-  const sessionToCheck: Pt[] = [sessionAt, [90, MERGE_Y], [COL, MERGE_Y], checkEdge];
-  const at = (n: NodeId | "watch" | "clean"): Pt => (n === "watch" ? WATCH_C : n === "clean" ? CLEAN_C : [COL, centre(steps[n])[1]]);
+  const sessionToCheck: Pt[] = [
+    sessionAt,
+    [90, MERGE_Y],
+    [COL, MERGE_Y],
+    checkEdge,
+  ];
+  const at = (n: NodeId | "watch" | "clean"): Pt =>
+    n === "watch"
+      ? WATCH_C
+      : n === "clean"
+        ? CLEAN_C
+        : [COL, centre(steps[n])[1]];
   const left = (n: NodeId): Pt => [steps[n].x, centre(steps[n])[1]];
-  const used: [number, number][] = [[0, 0], [0, 1], [0, 2], [0, -1], [1, 1], [1, 2], [1, 0], [2, 0], [2, 2], [2, 1]];
+  const used: [number, number][] = [
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [0, -1],
+    [1, 1],
+    [1, 2],
+    [1, 0],
+    [2, 0],
+    [2, 2],
+    [2, 1],
+  ];
   return {
     W,
     H,
@@ -318,7 +490,11 @@ function tallPlan(): Plan {
       box: { x: 10, y: 252, w: 340, h: 102 },
       title: null,
       open: { x: 112, y: QUEUE_Y + 4 },
-      rows: BAR_Y.map((y) => ({ box: { x: 22, y: y - 8, w: 310, h: 16 }, kind: { x: 32, y: y + 4 }, count: { x: 324, y: y + 4, anchor: "end" as const } })),
+      rows: BAR_Y.map((y) => ({
+        box: { x: 22, y: y - 8, w: 310, h: 16 },
+        kind: { x: 32, y: y + 4 },
+        count: { x: 324, y: y + 4, anchor: "end" as const },
+      })),
       chips: [0, 1, 2, 3, 4].map((i) => [236 + i * 11, QUEUE_Y] as Pt),
       queued: { x: 22, y: QUEUE_Y + 4 },
       queueHit: { x: 226, y: QUEUE_Y - 8, w: 92, h: 16 },
@@ -327,16 +503,34 @@ function tallPlan(): Plan {
       box: { x: 196, y: 396, w: 166, h: 102 },
       title: { x: 208, y: 415 },
       count: { x: 352, y: 415, anchor: "end" },
-      slots: SLOT_Y.map((y) => ({ x: SLOT_X0, y: y - 7.5, w: SLOT_X1 - SLOT_X0, h: 15 })),
+      slots: SLOT_Y.map((y) => ({
+        x: SLOT_X0,
+        y: y - 7.5,
+        w: SLOT_X1 - SLOT_X0,
+        h: 15,
+      })),
       glyph: null,
     },
-    session: { box: { x: 10, y: 396, w: 176, h: 56 }, glyph: [23, 413], title: { x: 34, y: 417 }, sub: { x: 22, y: 440 } },
+    session: {
+      box: { x: 10, y: 396, w: 176, h: 56 },
+      glyph: [23, 413],
+      title: { x: 34, y: 417 },
+      sub: { x: 22, y: 440 },
+    },
     steps,
-    watch: { box: watch, title: { x: watch.x + 12, y: watch.y + 22 }, days: { x: watch.x + 12, y: watch.y + 42 }, count: { x: watch.x + watch.w - 12, y: watch.y + 33, anchor: "end" } },
+    watch: {
+      box: watch,
+      title: { x: watch.x + 12, y: watch.y + 22 },
+      days: { x: watch.x + 12, y: watch.y + 42 },
+      count: { x: watch.x + watch.w - 12, y: watch.y + 33, anchor: "end" },
+    },
     clean,
     labels: {
       onPerson: { x: COL + 10, y: steps.decide.y + steps.decide.h + 21 },
-      liveToday: { x: steps.live.x + steps.live.w + 10, y: centre(steps.live)[1] + 4 },
+      liveToday: {
+        x: steps.live.x + steps.live.w + 10,
+        y: centre(steps.live)[1] + 4,
+      },
       sameChecks: null,
       back: { x: 350, y: 1004, anchor: "end" },
       // Under the route, so the token on its way back never covers it.
@@ -345,7 +539,9 @@ function tallPlan(): Plan {
     },
     legend: { cols: [10, 190], rows: [1024, 1046, 1068] },
     edges: {
-      signals: used.filter(([s]) => s < 3).map(([s, b]) => route(signalPts(s, b)).d),
+      signals: used
+        .filter(([s]) => s < 3)
+        .map(([s, b]) => route(signalPts(s, b)).d),
       silent: [route(signalPts(3, 1)).d, route(signalPts(4, 2)).d],
       line: SLOT_Y.map((_, k) => route(lineToCheck(k)).d),
       person: route(sessionToCheck).d,
@@ -354,7 +550,9 @@ function tallPlan(): Plan {
     signalRoute: memo((src: number, bar: number) => route(signalPts(src, bar))),
     signalFrom,
     signalTarget,
-    lineRoute: memo((k: number) => route([...lineToCheck(k), ...mainTail.slice(1)])),
+    lineRoute: memo((k: number) =>
+      route([...lineToCheck(k), ...mainTail.slice(1)]),
+    ),
     q0,
     slotIn: (k) => [SLOT_X0 + 8, SLOT_Y[k]],
     slotOut: (k) => [SLOT_X1 - 8, SLOT_Y[k]],
@@ -362,9 +560,26 @@ function tallPlan(): Plan {
     sessionAt,
     checkEdge,
     at,
-    fixRoute: route([at("check"), left("check"), [30, centre(steps.check)[1]], [30, 452]]),
-    reviseRoute: route([at("decide"), left("decide"), [18, centre(steps.decide)[1]], [18, 452]]),
-    regressRoute: route([WATCH_C, [300, WATCH_C[1]], [300, 986], [366, 986], [366, BAR_Y[1]], [BUS, BAR_Y[1]]]),
+    fixRoute: route([
+      at("check"),
+      left("check"),
+      [30, centre(steps.check)[1]],
+      [30, 452],
+    ]),
+    reviseRoute: route([
+      at("decide"),
+      left("decide"),
+      [18, centre(steps.decide)[1]],
+      [18, 452],
+    ]),
+    regressRoute: route([
+      WATCH_C,
+      [300, WATCH_C[1]],
+      [300, 986],
+      [366, 986],
+      [366, BAR_Y[1]],
+      [BUS, BAR_Y[1]],
+    ]),
   };
 }
 
@@ -393,12 +608,26 @@ class Run {
   private cur!: Piece;
   private t: number;
   private f = 0;
-  constructor(private id: string, start: number) {
+  constructor(
+    private id: string,
+    start: number,
+  ) {
     this.t = start;
   }
   on(kind: Kind, r: Route, from: Pt, fade: [number, number] = [0.15, 0.15]) {
     this.f = fracOf(r, from);
-    this.cur = { id: `${this.id}-${this.pieces.length}`, kind, route: r, begin: this.t, keys: [{ t: 0, f: this.f }], end: 0, zones: [], events: [], fadeIn: fade[0], fadeOut: fade[1] };
+    this.cur = {
+      id: `${this.id}-${this.pieces.length}`,
+      kind,
+      route: r,
+      begin: this.t,
+      keys: [{ t: 0, f: this.f }],
+      end: 0,
+      zones: [],
+      events: [],
+      fadeIn: fade[0],
+      fadeOut: fade[1],
+    };
     this.pieces.push(this.cur);
     return this;
   }
@@ -406,12 +635,15 @@ class Run {
     return this.t - this.cur.begin;
   }
   private zone(a: number, zone?: string) {
-    if (zone) for (const z of zone.split(" ")) this.cur.zones.push({ a, b: this.local(), z });
+    if (zone)
+      for (const z of zone.split(" "))
+        this.cur.zones.push({ a, b: this.local(), z });
   }
   /** Move to `p` over `dur` seconds (or at `speed` px/s when dur < 0). */
   to(p: Pt, dur: number, zone?: string) {
     const f = fracOf(this.cur.route, p);
-    const d = dur >= 0 ? dur : (Math.abs(f - this.f) * this.cur.route.len) / -dur;
+    const d =
+      dur >= 0 ? dur : (Math.abs(f - this.f) * this.cur.route.len) / -dur;
     const a = this.local();
     this.t += d;
     this.f = f;
@@ -459,36 +691,73 @@ type Who = "line" | "person";
 
 /** From wherever the token is to Decide's door: Check, Review, then into Decide. */
 function toDecide(g: Plan, run: Run, who: Who, failCheck = false) {
-  run.to(g.checkEdge, -150).to(g.at("check"), 0.25, failCheck ? "n:check:fail" : `n:check:${who}`);
+  run
+    .to(g.checkEdge, -150)
+    .to(g.at("check"), 0.25, failCheck ? "n:check:fail" : `n:check:${who}`);
   if (failCheck) return run.hold(0.6, "n:check:fail");
-  return run.hold(0.5, `n:check:${who}`).to(g.at("review"), 0.6).hold(0.8, `n:review:${who}`).to(g.at("decide"), 0.6);
+  return run
+    .hold(0.5, `n:check:${who}`)
+    .to(g.at("review"), 0.6)
+    .hold(0.8, `n:review:${who}`)
+    .to(g.at("decide"), 0.6);
 }
 
 /** Decide's Ship answer onward: Land, Deploy, Live, the watch, then Closed clean (or a regression). */
 function ship(g: Plan, run: Run, who: Who, regress = false) {
-  run.to(g.at("land"), 0.7).hold(0.5, `n:land:${who}`)
-    .to(g.at("deploy"), 0.6).hold(1.2, `n:deploy:${who}`)
-    .to(g.at("live"), 0.55).event("live").hold(0.3, `n:live:${who}`)
-    .to(g.at("watch"), 0.6).hold(regress ? 3.5 : 6, "watch");
+  run
+    .to(g.at("land"), 0.7)
+    .hold(0.5, `n:land:${who}`)
+    .to(g.at("deploy"), 0.6)
+    .hold(1.2, `n:deploy:${who}`)
+    .to(g.at("live"), 0.55)
+    .event("live")
+    .hold(0.3, `n:live:${who}`)
+    .to(g.at("watch"), 0.6)
+    .hold(regress ? 3.5 : 6, "watch");
   if (regress) {
-    run.on("regress", g.regressRoute, g.at("watch"), [0.12, 0.3]).to(g.signalTarget(1), -260, "regress").event("signal").event("bar:1").flash("bar:1");
+    run
+      .on("regress", g.regressRoute, g.at("watch"), [0.12, 0.3])
+      .to(g.signalTarget(1), -260, "regress")
+      .event("signal")
+      .event("bar:1")
+      .flash("bar:1");
   } else {
     run.to(g.at("clean"), 0.5).event("clean").flash("clean", 0.9);
   }
 }
 
-function lineRun(g: Plan, id: string, start: number, k: number, regress = false) {
+function lineRun(
+  g: Plan,
+  id: string,
+  start: number,
+  k: number,
+  regress = false,
+) {
   const run = new Run(id, start);
-  run.on("line", g.lineRoute(k), g.q0, [0.3, 0.15]).hold(0.3).to(g.slotIn(k), 1.0).work(g, k, 6);
+  run
+    .on("line", g.lineRoute(k), g.q0, [0.3, 0.15])
+    .hold(0.3)
+    .to(g.slotIn(k), 1.0)
+    .work(g, k, 6);
   toDecide(g, run, "line").release().hold(3.0, "decide n:decide:line");
   ship(g, run, "line", regress);
   return run.pieces;
 }
 
-function personRun(g: Plan, id: string, start: number, way: "plain" | "fix" | "revise") {
+function personRun(
+  g: Plan,
+  id: string,
+  start: number,
+  way: "plain" | "fix" | "revise",
+) {
   const run = new Run(id, start);
-  const again = () => run.on("person", g.personRoute, g.sessionAt, [0.05, 0.15]).hold(1.6, "n:session");
-  run.on("person", g.personRoute, g.sessionAt, [0.05, 0.15]).hold(way === "plain" ? 2.5 : 2, "n:session");
+  const again = () =>
+    run
+      .on("person", g.personRoute, g.sessionAt, [0.05, 0.15])
+      .hold(1.6, "n:session");
+  run
+    .on("person", g.personRoute, g.sessionAt, [0.05, 0.15])
+    .hold(way === "plain" ? 2.5 : 2, "n:session");
   if (way === "fix") {
     toDecide(g, run, "person", true);
     run.on("back", g.fixRoute, g.at("check")).to(g.sessionAt, -110, "back");
@@ -498,7 +767,10 @@ function personRun(g: Plan, id: string, start: number, way: "plain" | "fix" | "r
     run.on("back", g.reviseRoute, g.at("decide")).to(g.sessionAt, -130, "back");
     again();
   }
-  toDecide(g, run, "person").hold(way === "revise" ? 2 : 3, "decide n:decide:person");
+  toDecide(g, run, "person").hold(
+    way === "revise" ? 2 : 3,
+    "decide n:decide:person",
+  );
   ship(g, run, "person");
   return run.pieces;
 }
@@ -507,7 +779,12 @@ function personRun(g: Plan, id: string, start: number, way: "plain" | "fix" | "r
 function signalPieces(g: Plan): Piece[] {
   const out: Piece[] = [];
   const plan: { src: number; n: number; offset: number; bars: number[] }[] = [
-    { src: 0, n: 13, offset: 0.2, bars: [0, 1, 2, -1, 1, 0, 2, 1, 0, -1, 2, 1, 0] },
+    {
+      src: 0,
+      n: 13,
+      offset: 0.2,
+      bars: [0, 1, 2, -1, 1, 0, 2, 1, 0, -1, 2, 1, 0],
+    },
     { src: 1, n: 5, offset: 1.1, bars: [1, 2, 1, 2, 0] },
     { src: 2, n: 3, offset: 5.3, bars: [0, 2, 1] },
   ];
@@ -515,7 +792,8 @@ function signalPieces(g: Plan): Piece[] {
     for (let i = 0; i < n; i++) {
       const bar = bars[i % bars.length];
       const run = new Run(`s${src}-${i}`, offset + (i * L) / n);
-      run.on("signal", g.signalRoute(src, bar), g.signalFrom(src), [0.2, 0.25])
+      run
+        .on("signal", g.signalRoute(src, bar), g.signalFrom(src), [0.2, 0.25])
         .to(g.signalTarget(bar), -120)
         .event("signal")
         .event(`src:${src}`)
@@ -554,7 +832,8 @@ function buildFloor(plan: Plan): Floor {
       s.add(Math.round(norm(p.begin + z.a) * 1000) / 1000);
       s.add(Math.round(norm(p.begin + z.b) * 1000) / 1000);
     }
-    for (const ev of p.events) s.add(Math.round(norm(p.begin + ev.t) * 1000) / 1000);
+    for (const ev of p.events)
+      s.add(Math.round(norm(p.begin + ev.t) * 1000) / 1000);
   }
   return { plan, pieces, changes: [...s].sort((a, b) => a - b) };
 }
@@ -564,7 +843,8 @@ export const TALL = buildFloor(tallPlan());
 
 // ---------- reading the schedule ----------
 const localAt = (p: Piece, t: number) => norm(t - p.begin);
-const fmt4 = (xs: number[]) => xs.map((x) => Math.min(1, Math.max(0, x)).toFixed(4)).join(";");
+const fmt4 = (xs: number[]) =>
+  xs.map((x) => Math.min(1, Math.max(0, x)).toFixed(4)).join(";");
 
 /** SMIL attributes for a piece: motion keys and opacity keys over one loop. */
 export function smil(p: Piece) {
@@ -576,11 +856,19 @@ export function smil(p: Piece) {
   }
   const e = p.end / L;
   const ot = [0, p.fadeIn / L, Math.max(p.fadeIn, p.end - p.fadeOut) / L, e, 1];
-  return { keyTimes: fmt4(kt), keyPoints: fmt4(kp), opacityTimes: fmt4(ot), opacityValues: e >= 1 ? "0;1;1;1;1" : "0;1;1;0;0" };
+  return {
+    keyTimes: fmt4(kt),
+    keyPoints: fmt4(kp),
+    opacityTimes: fmt4(ot),
+    opacityValues: e >= 1 ? "0;1;1;1;1" : "0;1;1;0;0",
+  };
 }
 
 /** Where a piece is at loop time `t`, for the still frame. */
-export function snapshot(p: Piece, t: number): { x: number; y: number; o: number } {
+export function snapshot(
+  p: Piece,
+  t: number,
+): { x: number; y: number; o: number } {
   const lt = localAt(p, t);
   if (lt > p.end) return { x: 0, y: 0, o: 0 };
   let f = p.keys[p.keys.length - 1].f;
@@ -593,7 +881,11 @@ export function snapshot(p: Piece, t: number): { x: number; y: number; o: number
     }
   }
   const [x, y] = pointAt(p.route, f);
-  const o = Math.min(1, lt / Math.max(p.fadeIn, 1e-3), (p.end - lt) / Math.max(p.fadeOut, 1e-3));
+  const o = Math.min(
+    1,
+    lt / Math.max(p.fadeIn, 1e-3),
+    (p.end - lt) / Math.max(p.fadeOut, 1e-3),
+  );
   return { x, y, o: Math.max(0, o) };
 }
 
@@ -602,13 +894,19 @@ export function zonesAt(f: Floor, t: number): Map<string, number> {
   const m = new Map<string, number>();
   for (const p of f.pieces) {
     const lt = localAt(p, t);
-    for (const z of p.zones) if (lt >= z.a && lt < z.b) m.set(z.z, (m.get(z.z) ?? 0) + 1);
+    for (const z of p.zones)
+      if (lt >= z.a && lt < z.b) m.set(z.z, (m.get(z.z) ?? 0) + 1);
   }
   return m;
 }
 
 /** How many times event `e` fired in (t0, t1], loop times unwrapped. */
-export function countEvents(f: Floor, e: string, t0: number, t1: number): number {
+export function countEvents(
+  f: Floor,
+  e: string,
+  t0: number,
+  t1: number,
+): number {
   let n = 0;
   for (const p of f.pieces)
     for (const ev of p.events) {
@@ -645,7 +943,11 @@ export function slotFill(p: Piece, slot: Box) {
 }
 
 /** The slot fill at loop time `t`, for the still frame. */
-export function slotSnapshot(p: Piece, slot: Box, t: number): { k: number; w: number; o: number } | null {
+export function slotSnapshot(
+  p: Piece,
+  slot: Box,
+  t: number,
+): { k: number; w: number; o: number } | null {
   if (!p.slot) return null;
   const { k, a, b, c } = p.slot;
   const lt = localAt(p, t);

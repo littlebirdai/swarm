@@ -15,7 +15,13 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { ChangeEntity, ChangeScope } from "./changeLog";
-import { accessStampFromDoc, authorizedFor, heldKeysFor, isUserGrant, type AccessStamp } from "./lib/accessKeys";
+import {
+  accessStampFromDoc,
+  authorizedFor,
+  heldKeysFor,
+  isUserGrant,
+  type AccessStamp,
+} from "./lib/accessKeys";
 export { accessStampFromDoc, authorizedFor, type AccessStamp };
 
 export type SyncScopeKey = string; // "user:<id>" | "team:<id>"
@@ -45,8 +51,20 @@ export type SyncAckCollector = {
   positions: SyncAckPosition[];
   seen: Set<string>;
   heads: Map<SyncScopeKey, { id: any; position: number }>;
-  enqueue?: (scopeKey: string, entityType: ChangeEntity | LifecycleEntity, entityId: string, op: SyncOp, extra: ActionExtra) => Promise<void>;
-  receipts?: Array<{ id: string; revision: number; scope_key: string; entity_type: string; entity_id: string }>;
+  enqueue?: (
+    scopeKey: string,
+    entityType: ChangeEntity | LifecycleEntity,
+    entityId: string,
+    op: SyncOp,
+    extra: ActionExtra,
+  ) => Promise<void>;
+  receipts?: Array<{
+    id: string;
+    revision: number;
+    scope_key: string;
+    entity_type: string;
+    entity_id: string;
+  }>;
 };
 
 export function makeSyncAckCollector(): SyncAckCollector {
@@ -93,7 +111,10 @@ export const CHURN_ONLY_FIELDS: Record<string, ReadonlySet<string>> = {
   docs: new Set(["first_linked_conversation"]),
 };
 
-export function isChurnOnlyPatch(table: string, fields: Record<string, any>): boolean {
+export function isChurnOnlyPatch(
+  table: string,
+  fields: Record<string, any>,
+): boolean {
   const churn = CHURN_ONLY_FIELDS[table];
   if (!churn) return false;
   const keys = Object.keys(fields);
@@ -138,18 +159,34 @@ export function payloadsDisabled(): boolean {
 // from `workspace`. From the per-collection enrichment audit (pl-498).
 export const PAYLOAD_DENYLIST: Record<string, ReadonlySet<string>> = {
   tasks: new Set([
-    "drive", "steps", "files_changed", "acceptance_criteria",
-    "verification_evidence", "last_session_summary", "change_guide",
+    "drive",
+    "steps",
+    "files_changed",
+    "acceptance_criteria",
+    "verification_evidence",
+    "last_session_summary",
+    "change_guide",
   ]),
   docs: new Set(["content", "embedding", "entries", "team_id"]),
   plans: new Set([
-    "progress_log", "decision_log", "discoveries", "entries",
-    "context_pointers", "session_ids", "team_id",
+    "progress_log",
+    "decision_log",
+    "discoveries",
+    "entries",
+    "context_pointers",
+    "session_ids",
+    "team_id",
   ]),
   projects: new Set([]),
   conversations: new Set([
-    "title_embedding", "recent_files", "stable_context", "draft_message",
-    "cli_flags", "available_skills", "fork_daemon_args", "git_status",
+    "title_embedding",
+    "recent_files",
+    "stable_context",
+    "draft_message",
+    "cli_flags",
+    "available_skills",
+    "fork_daemon_args",
+    "git_status",
   ]),
 };
 
@@ -161,7 +198,11 @@ export const CARGO_MAX_BYTES = 16 * 1024;
 
 export function cargoBytes(c: Cargo | null | undefined): number {
   if (!c?.patch) return 0;
-  try { return JSON.stringify(c.patch).length; } catch { return Infinity; }
+  try {
+    return JSON.stringify(c.patch).length;
+  } catch {
+    return Infinity;
+  }
 }
 
 const SYSTEM_FIELDS = new Set(["_id", "_creationTime"]);
@@ -189,7 +230,10 @@ export function buildCargo(
   const omitted: string[] = [];
   for (const [k, v] of Object.entries(fields)) {
     if (SYSTEM_FIELDS.has(k) || churn?.has(k)) continue;
-    if (deny?.has(k)) { omitted.push(k); continue; }
+    if (deny?.has(k)) {
+      omitted.push(k);
+      continue;
+    }
     if (v === undefined) unset.push(k);
     else patch[k] = v;
   }
@@ -198,7 +242,8 @@ export function buildCargo(
     full: opts.full || undefined,
     omitted: omitted.length ? omitted : undefined,
   };
-  if (cargoBytes({ patch }) > CARGO_MAX_BYTES) return { ...base, partial: true };
+  if (cargoBytes({ patch }) > CARGO_MAX_BYTES)
+    return { ...base, partial: true };
   return { patch, ...base };
 }
 
@@ -214,11 +259,20 @@ export function mergeCargo(prev: Cargo | null | undefined, next: Cargo): Cargo {
   // survive (minus keys the full doc carries): a reader with a base that still
   // holds a field the document dropped must learn it is gone (review).
   if (next.full) {
-    const carried = (prev?.unset ?? []).filter((k) => !(next.patch && k in next.patch));
+    const carried = (prev?.unset ?? []).filter(
+      (k) => !(next.patch && k in next.patch),
+    );
     const unsetSet = new Set([...carried, ...(next.unset ?? [])]);
-    return { ...next, unset: unsetSet.size ? [...unsetSet] : undefined, omitted: mergeOmittedNames(prev?.omitted, next.omitted) };
+    return {
+      ...next,
+      unset: unsetSet.size ? [...unsetSet] : undefined,
+      omitted: mergeOmittedNames(prev?.omitted, next.omitted),
+    };
   }
-  const omittedSet = new Set([...(prev?.omitted ?? []), ...(next.omitted ?? [])]);
+  const omittedSet = new Set([
+    ...(prev?.omitted ?? []),
+    ...(next.omitted ?? []),
+  ]);
   const omitted = omittedSet.size ? [...omittedSet] : undefined;
   // partial is STICKY (review): a reader whose cursor sat below the old
   // position sees only the coalesced row, and must keep refetching until a full
@@ -227,7 +281,11 @@ export function mergeCargo(prev: Cargo | null | undefined, next: Cargo): Cargo {
   // entity re-enters through) cannot prove its contents: a thin patch merged
   // onto it would hide every earlier change from a reader below its position.
   // Treat it as partial — the self-heal then rebuilds a full cargo (review).
-  const partial = prev?.partial || next.partial || (prev && !prev.patch ? true : undefined) || undefined;
+  const partial =
+    prev?.partial ||
+    next.partial ||
+    (prev && !prev.patch ? true : undefined) ||
+    undefined;
   if (!prev || !prev.patch) return { ...next, partial, omitted };
   if (!next.patch) {
     // Poison: the row can no longer prove its own contents.
@@ -305,7 +363,10 @@ export function teamScopeKey(teamId: string): SyncScopeKey {
 // property retiring the live lists needs. Cost of the owner fan-out: one
 // indexed session_owners read per non-churn conversation write (the stamp) and
 // one head allocation per co-owner. Pure, unit-tested.
-export function scopesForChange(entityType: ChangeEntity, scope: ChangeScope): SyncScopeKey[] {
+export function scopesForChange(
+  entityType: ChangeEntity,
+  scope: ChangeScope,
+): SyncScopeKey[] {
   if (!scope.owner_user_id) return [];
   const scopes = [userScopeKey(scope.owner_user_id)];
   const addGrant = (g: string) => {
@@ -318,7 +379,8 @@ export function scopesForChange(entityType: ChangeEntity, scope: ChangeScope): S
     return scopes;
   }
   const ws = scope.workspace;
-  if (typeof ws === "string" && ws.startsWith("team:")) scopes.push(teamScopeKey(ws.slice(5)));
+  if (typeof ws === "string" && ws.startsWith("team:"))
+    scopes.push(teamScopeKey(ws.slice(5)));
   if (entityType === "tasks") {
     for (const g of scope.grants ?? []) if (isUserGrant(g)) addGrant(g);
   }
@@ -363,7 +425,12 @@ async function allocatePosition(
   if (head) {
     await db.patch(head._id, { position, updated_at: ts });
   } else {
-    headId = await db.insert("sync_heads", { scope_key: scopeKey, position, floor: 0, updated_at: ts });
+    headId = await db.insert("sync_heads", {
+      scope_key: scopeKey,
+      position,
+      floor: 0,
+      updated_at: ts,
+    });
   }
   collector?.heads.set(scopeKey, { id: headId, position });
   return position;
@@ -374,8 +441,13 @@ async function allocatePosition(
 // Lifecycle rows (a scope for a user, a member for a team) carry no cargo and
 // never coalesce: each one is an event the client acts on in order.
 export type LifecycleEntity = "scope" | "member";
-const LIFECYCLE_ENTITIES: ReadonlySet<string> = new Set<LifecycleEntity>(["scope", "member"]);
-export function isLifecycleEntity(entityType: string): entityType is LifecycleEntity {
+const LIFECYCLE_ENTITIES: ReadonlySet<string> = new Set<LifecycleEntity>([
+  "scope",
+  "member",
+]);
+export function isLifecycleEntity(
+  entityType: string,
+): entityType is LifecycleEntity {
   return LIFECYCLE_ENTITIES.has(entityType);
 }
 
@@ -402,12 +474,15 @@ export async function appendSyncAction(
   const dedupeHit = !!collector && collector.seen.has(dedupeKey);
   collector?.seen.add(dedupeKey);
   const ts = Date.now();
-  const position = dedupeHit ? null : await allocatePosition(db, collector, scopeKey, ts);
+  const position = dedupeHit
+    ? null
+    : await allocatePosition(db, collector, scopeKey, ts);
   if (!isLifecycleEntity(entityType)) {
     const existing = await db
       .query("sync_actions")
       .withIndex("by_scope_entity", (q: any) =>
-        q.eq("scope_key", scopeKey).eq("entity_id", entityId))
+        q.eq("scope_key", scopeKey).eq("entity_id", entityId),
+      )
       .first();
     // Cargo: a delete clears it AND the access stamp (nothing to apply, a stale
     // patch must not resurrect on a later upsert, and a tombstone's stamp must
@@ -416,8 +491,14 @@ export async function appendSyncAction(
     let accessFields: Record<string, any> = {};
     if (op === "delete") {
       cargoFields = {
-        patch: undefined, unset: undefined, full: undefined, partial: undefined, omitted: undefined,
-        access_owner: undefined, access_key: undefined, access_grants: undefined,
+        patch: undefined,
+        unset: undefined,
+        full: undefined,
+        partial: undefined,
+        omitted: undefined,
+        access_owner: undefined,
+        access_key: undefined,
+        access_grants: undefined,
       };
     } else {
       let merged = mergeCargo(existing, await withStickyFields(extra));
@@ -425,11 +506,18 @@ export async function appendSyncAction(
       // a full cargo from the post-write document when that fits, otherwise
       // poisoned to partial-without-patch (the client refetches).
       if (merged.partial || cargoBytes(merged) > CARGO_MAX_BYTES) {
-        const doc = extra.fullDoc && extra.table && !payloadsDisabled() ? await extra.fullDoc() : null;
+        const doc =
+          extra.fullDoc && extra.table && !payloadsDisabled()
+            ? await extra.fullDoc()
+            : null;
         const full = doc ? buildCargo(extra.table!, doc, { full: true }) : null;
-        merged = full && full.patch && !full.partial
-          ? { ...full, omitted: mergeOmittedNames(merged.omitted, full.omitted) }
-          : { partial: true, omitted: merged.omitted };
+        merged =
+          full && full.patch && !full.partial
+            ? {
+                ...full,
+                omitted: mergeOmittedNames(merged.omitted, full.omitted),
+              }
+            : { partial: true, omitted: merged.omitted };
       }
       cargoFields = cargoRowFields(merged);
       // Access stamp: always from the post-write document (never reused).
@@ -443,9 +531,14 @@ export async function appendSyncAction(
     if (existing) {
       await db.patch(existing._id, {
         ...(position === null ? {} : { position }),
-        op, ts, entity_type: entityType, ...cargoFields, ...accessFields,
+        op,
+        ts,
+        entity_type: entityType,
+        ...cargoFields,
+        ...accessFields,
       });
-      if (position !== null) collector?.positions.push({ scope_key: scopeKey, position });
+      if (position !== null)
+        collector?.positions.push({ scope_key: scopeKey, position });
       return;
     }
     if (position === null) return; // deduped but no row — nothing to merge onto
@@ -475,7 +568,13 @@ export async function appendSyncAction(
 }
 
 function cargoRowFields(c: Cargo): Record<string, any> {
-  return { patch: c.patch, unset: c.unset, full: c.full, partial: c.partial, omitted: c.omitted };
+  return {
+    patch: c.patch,
+    unset: c.unset,
+    full: c.full,
+    partial: c.partial,
+    omitted: c.omitted,
+  };
 }
 
 function mergeOmittedNames(a?: string[], b?: string[]): string[] | undefined {
@@ -507,12 +606,27 @@ export async function emitSyncActions(
     const currentSet = new Set(current);
     for (const departed of scopesForChange(entityType, previousScope)) {
       if (!currentSet.has(departed)) {
-        await appendSyncAction(db, collector, departed, entityType, entityId, "delete");
+        await appendSyncAction(
+          db,
+          collector,
+          departed,
+          entityType,
+          entityId,
+          "delete",
+        );
       }
     }
   }
   for (const scopeKey of current) {
-    await appendSyncAction(db, collector, scopeKey, entityType, entityId, op, extra);
+    await appendSyncAction(
+      db,
+      collector,
+      scopeKey,
+      entityType,
+      entityId,
+      op,
+      extra,
+    );
   }
 }
 
@@ -533,10 +647,19 @@ export async function revokeStaleScope(
   if (currentScopes.includes(staleScope)) return;
   const row = await db
     .query("sync_actions")
-    .withIndex("by_scope_entity", (q: any) => q.eq("scope_key", staleScope).eq("entity_id", entityId))
+    .withIndex("by_scope_entity", (q: any) =>
+      q.eq("scope_key", staleScope).eq("entity_id", entityId),
+    )
     .first();
   if (row && row.op === "upsert") {
-    await appendSyncAction(db, collector, staleScope, entityType, entityId, "delete");
+    await appendSyncAction(
+      db,
+      collector,
+      staleScope,
+      entityType,
+      entityId,
+      "delete",
+    );
   }
 }
 
@@ -555,9 +678,23 @@ export async function emitScopeAction(
   teamId: string,
   op: "scope_added" | "scope_removed",
 ): Promise<void> {
-  await appendSyncAction(db, collector, userScopeKey(userId), "scope", String(teamId), op);
+  await appendSyncAction(
+    db,
+    collector,
+    userScopeKey(userId),
+    "scope",
+    String(teamId),
+    op,
+  );
   if (op === "scope_removed") {
-    await appendSyncAction(db, collector, teamScopeKey(teamId), "member", String(userId), "scope_removed");
+    await appendSyncAction(
+      db,
+      collector,
+      teamScopeKey(teamId),
+      "member",
+      String(userId),
+      "scope_removed",
+    );
   }
 }
 
@@ -574,7 +711,11 @@ export const getHeads = query({
     if (!userId) return { heads: [] };
     // The caller's held keys ARE their scopes (fan-out is access-derived).
     const scopes = await heldKeysFor(ctx, userId);
-    const heads: Array<{ scope_key: SyncScopeKey; position: number; floor: number }> = [];
+    const heads: Array<{
+      scope_key: SyncScopeKey;
+      position: number;
+      floor: number;
+    }> = [];
     for (const scopeKey of scopes) {
       const head = await headFor(ctx.db, scopeKey);
       heads.push({
@@ -609,12 +750,24 @@ export const getRange = query({
       // scope revocation (purge + drop cursor), and the applier's heads-absence
       // sweep is the backstop when the scope_removed action itself was already
       // retention-pruned (design D5).
-      return { actions: [], nextFrom: args.from, hasMore: false, authorized: false };
+      return {
+        actions: [],
+        nextFrom: args.from,
+        hasMore: false,
+        authorized: false,
+      };
     }
-    return readRangePage(ctx.db, args.scope_key, args.from, args.limit, {
-      userId: String(userId),
-      heldKeys: scopes,
-    }, { cargo: !!args.cargo });
+    return readRangePage(
+      ctx.db,
+      args.scope_key,
+      args.from,
+      args.limit,
+      {
+        userId: String(userId),
+        heldKeys: scopes,
+      },
+      { cargo: !!args.cargo },
+    );
   },
 });
 
@@ -690,7 +843,8 @@ export async function readRangePage(
   const rows = await db
     .query("sync_actions")
     .withIndex("by_scope_position", (q: any) =>
-      q.eq("scope_key", scopeKey).gt("position", from))
+      q.eq("scope_key", scopeKey).gt("position", from),
+    )
     .order("asc")
     .take(limit + 1);
   let page = rows.slice(0, limit);
@@ -699,13 +853,26 @@ export async function readRangePage(
   let bytes = 0;
   for (let i = 0; i < page.length; i++) {
     const row = page[i];
-    const pending = isLifecycleEntity(row.entity_type) ? null : await db
-      .query("sync_outbox")
-      .withIndex("by_scope_entity", (q: any) => q.eq("scope_key", scopeKey).eq("entity_id", row.entity_id))
-      .unique();
+    const pending = isLifecycleEntity(row.entity_type)
+      ? null
+      : await db
+          .query("sync_outbox")
+          .withIndex("by_scope_entity", (q: any) =>
+            q.eq("scope_key", scopeKey).eq("entity_id", row.entity_id),
+          )
+          .unique();
     const a = pending?.pending
-      ? projectAction({ ...row, op: pending.op, access_owner: pending.access?.access_owner,
-          access_key: pending.access?.access_key, access_grants: pending.access?.access_grants }, viewer, false)
+      ? projectAction(
+          {
+            ...row,
+            op: pending.op,
+            access_owner: pending.access?.access_owner,
+            access_key: pending.access?.access_key,
+            access_grants: pending.access?.access_grants,
+          },
+          viewer,
+          false,
+        )
       : projectAction(row, viewer, !!opts.cargo);
     const size = a.patch ? cargoBytes(a) + 64 : 64;
     if (actions.length > 0 && bytes + size > RANGE_PAGE_MAX_BYTES) {

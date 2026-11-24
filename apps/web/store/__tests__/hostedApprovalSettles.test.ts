@@ -11,19 +11,20 @@ import { type InboxSession, type SessionDecisionItem } from "../inboxStore";
 const ME = "user1";
 const CONV = "conv_hosted_routine_0000000000000";
 
-const hosted = (extra: Partial<InboxSession> = {}): InboxSession => ({
-  _id: CONV,
-  session_id: "s-hosted",
-  user_id: ME,
-  updated_at: 2_000,
-  agent_type: HOSTED_AGENT_TYPE,
-  message_count: 6,
-  is_idle: true,
-  has_pending: false,
-  last_user_message: "Remind me of my to-dos each weekday morning",
-  title: "Morning to-do review",
-  ...extra,
-} as InboxSession);
+const hosted = (extra: Partial<InboxSession> = {}): InboxSession =>
+  ({
+    _id: CONV,
+    session_id: "s-hosted",
+    user_id: ME,
+    updated_at: 2_000,
+    agent_type: HOSTED_AGENT_TYPE,
+    message_count: 6,
+    is_idle: true,
+    has_pending: false,
+    last_user_message: "Remind me of my to-dos each weekday morning",
+    title: "Morning to-do review",
+    ...extra,
+  }) as InboxSession;
 
 const answered: SessionDecisionItem = {
   _id: "d1",
@@ -42,14 +43,29 @@ describe("an answered hosted approval settles", () => {
   it("leaves the queue empty even while the row still says permission_blocked", () => {
     const stale = hosted({ agent_status: "permission_blocked" });
     expect(sessionHasOpenQuestion(stale)).toBe(false);
-    const queue = buildDecisionQueue({ d1: answered }, { [CONV]: stale }, {}, ME);
+    const queue = buildDecisionQueue(
+      { d1: answered },
+      { [CONV]: stale },
+      {},
+      ME,
+    );
     expect(queue).toHaveLength(0);
     expect(awaitingOkIds({ d1: answered }).has(CONV)).toBe(false);
   });
 
   it("still lists the approval while its decision row is pending, as an approval", () => {
-    const pending = { ...answered, status: "pending", answer_index: undefined, resolved_at: undefined } as SessionDecisionItem;
-    const queue = buildDecisionQueue({ d1: pending }, { [CONV]: hosted({ agent_status: "permission_blocked" }) }, {}, ME);
+    const pending = {
+      ...answered,
+      status: "pending",
+      answer_index: undefined,
+      resolved_at: undefined,
+    } as SessionDecisionItem;
+    const queue = buildDecisionQueue(
+      { d1: pending },
+      { [CONV]: hosted({ agent_status: "permission_blocked" }) },
+      {},
+      ME,
+    );
     expect(queue.map((i) => i.source)).toEqual(["decide"]);
   });
 });

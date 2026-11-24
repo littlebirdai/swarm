@@ -103,17 +103,43 @@ const THEMES = [
   { id: "min-dark", label: "Minimal dark", cls: "dark minimal-style" },
 ];
 
-const SWATCHES = ["text", "text-muted", "card", "bg-alt", "border", "blue", "cyan", "green", "yellow", "orange", "red", "magenta", "violet"];
+const SWATCHES = [
+  "text",
+  "text-muted",
+  "card",
+  "bg-alt",
+  "border",
+  "blue",
+  "cyan",
+  "green",
+  "yellow",
+  "orange",
+  "red",
+  "magenta",
+  "violet",
+];
 
 const CYCLE_MS = 3200;
 
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
+function Chip({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className="font-mono text-[12px] px-2.5 py-1 rounded-md transition-colors"
-      style={on ? { backgroundColor: SOL.base03, color: SOL.base3 } : { backgroundColor: SOL.base2, color: SOL.base01 }}
+      style={
+        on
+          ? { backgroundColor: SOL.base03, color: SOL.base3 }
+          : { backgroundColor: SOL.base2, color: SOL.base01 }
+      }
     >
       {children}
     </button>
@@ -133,27 +159,46 @@ export function CanvasThemesFigure() {
 
   useWatchEffect(() => {
     if (!seen || !auto) return;
-    const id = setInterval(() => setTheme((n) => (n + 1) % THEMES.length), CYCLE_MS);
+    const id = setInterval(
+      () => setTheme((n) => (n + 1) % THEMES.length),
+      CYCLE_MS,
+    );
     return () => clearInterval(id);
   }, [seen, auto]);
 
   const th = THEMES[theme];
   return (
     <div ref={ref}>
-      <div className="px-5 pt-4 pb-3 flex flex-wrap items-center gap-2" style={{ borderBottom: `1px solid ${SOL.base2}` }}>
+      <div
+        className="px-5 pt-4 pb-3 flex flex-wrap items-center gap-2"
+        style={{ borderBottom: `1px solid ${SOL.base2}` }}
+      >
         {EXAMPLES.map((e, i) => (
-          <Chip key={e.id} on={i === example} onClick={() => setExample(i)}>{e.label}</Chip>
+          <Chip key={e.id} on={i === example} onClick={() => setExample(i)}>
+            {e.label}
+          </Chip>
         ))}
       </div>
       <div className={th.cls}>
-        <div className="transition-colors duration-500 px-5 py-4" style={{ backgroundColor: "var(--sol-bg)", color: "var(--sol-text)" }}>
+        <div
+          className="transition-colors duration-500 px-5 py-4"
+          style={{ backgroundColor: "var(--sol-bg)", color: "var(--sol-text)" }}
+        >
           <HtmlSnippet code={EXAMPLES[example].html} />
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
             {SWATCHES.map((s) => (
-              <div key={s} className="flex items-center gap-1.5 font-mono text-meta" style={{ color: "var(--sol-text-muted)" }}>
+              <div
+                key={s}
+                className="flex items-center gap-1.5 font-mono text-meta"
+                style={{ color: "var(--sol-text-muted)" }}
+              >
                 <span
                   className="inline-block w-3.5 h-3.5 rounded-sm transition-colors duration-500"
-                  style={{ backgroundColor: `var(--sol-${s})`, boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--sol-text) 15%, transparent)" }}
+                  style={{
+                    backgroundColor: `var(--sol-${s})`,
+                    boxShadow:
+                      "inset 0 0 0 1px color-mix(in srgb, var(--sol-text) 15%, transparent)",
+                  }}
                 />
                 --sol-{s}
               </div>
@@ -161,12 +206,34 @@ export function CanvasThemesFigure() {
           </div>
         </div>
       </div>
-      <div className="px-5 py-3 flex flex-wrap items-center gap-2" style={{ borderTop: `1px solid ${SOL.base2}` }}>
-        <span className="font-mono text-meta mr-1" style={{ color: SOL.base1 }}>theme</span>
+      <div
+        className="px-5 py-3 flex flex-wrap items-center gap-2"
+        style={{ borderTop: `1px solid ${SOL.base2}` }}
+      >
+        <span className="font-mono text-meta mr-1" style={{ color: SOL.base1 }}>
+          theme
+        </span>
         {THEMES.map((x, i) => (
-          <Chip key={x.id} on={i === theme} onClick={() => { setAuto(false); setTheme(i); }}>{x.label}</Chip>
+          <Chip
+            key={x.id}
+            on={i === theme}
+            onClick={() => {
+              setAuto(false);
+              setTheme(i);
+            }}
+          >
+            {x.label}
+          </Chip>
         ))}
-        {auto && <span className="font-mono text-meta ml-auto bj-pulse" data-play="1" style={{ color: SOL.base1 }}>cycling</span>}
+        {auto && (
+          <span
+            className="font-mono text-meta ml-auto bj-pulse"
+            data-play="1"
+            style={{ color: SOL.base1 }}
+          >
+            cycling
+          </span>
+        )}
       </div>
     </div>
   );

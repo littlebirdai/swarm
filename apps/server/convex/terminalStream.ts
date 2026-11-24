@@ -86,7 +86,12 @@ export async function resolveQueueUser(
   return device ? userId : null;
 }
 
-async function findClipboard(ctx: any, userId: any, device_id: string, target: string) {
+async function findClipboard(
+  ctx: any,
+  userId: any,
+  device_id: string,
+  target: string,
+) {
   return await ctx.db
     .query("terminal_clipboards")
     .withIndex("by_user_device_target", (q: any) =>
@@ -95,7 +100,12 @@ async function findClipboard(ctx: any, userId: any, device_id: string, target: s
     .first();
 }
 
-async function findRow(ctx: any, userId: any, device_id: string, target: string) {
+async function findRow(
+  ctx: any,
+  userId: any,
+  device_id: string,
+  target: string,
+) {
   return await ctx.db
     .query("terminal_frames")
     .withIndex("by_user_device_target", (q: any) =>
@@ -136,14 +146,17 @@ export const watchPane = mutation({
     // also what makes the command insert safe: it lands in a daemon queue the
     // viewer is entitled to — their own, or the bot's that runs their session.
     const userId = await resolveQueueUser(ctx, viewerId, args);
-    if (!userId) return { ok: false as const, reason: "unknown-device" as const };
+    if (!userId)
+      return { ok: false as const, reason: "unknown-device" as const };
 
     const now = Date.now();
     const row = await findRow(ctx, userId, args.device_id, args.target);
     const watch_until = now + PANE_LEASE_MS;
 
-    const streamerCold = !row || now - (row.streamer_seen_at ?? 0) > PANE_STREAMER_STALE_MS;
-    const commandCold = !row || now - (row.requested_at ?? 0) > PANE_COMMAND_DEBOUNCE_MS;
+    const streamerCold =
+      !row || now - (row.streamer_seen_at ?? 0) > PANE_STREAMER_STALE_MS;
+    const commandCold =
+      !row || now - (row.requested_at ?? 0) > PANE_COMMAND_DEBOUNCE_MS;
     const dispatch = streamerCold && commandCold;
 
     if (dispatch) {
@@ -166,7 +179,12 @@ export const watchPane = mutation({
     // A new lease after a lapsed one starts with no clipboard offer: the last
     // viewer's copy is not this one's to take.
     if (row && row.watch_until < now) {
-      const clip = await findClipboard(ctx, userId, args.device_id, args.target);
+      const clip = await findClipboard(
+        ctx,
+        userId,
+        args.device_id,
+        args.target,
+      );
       if (clip) await ctx.db.delete(clip._id);
     }
 
@@ -178,7 +196,9 @@ export const watchPane = mutation({
         ...(dispatch ? { requested_at: now } : {}),
         // A new lease after a lapsed one starts clean: the last stream's
         // "pane is gone" is not this viewer's answer until a stream says so.
-        ...(row.watch_until < now && row.error !== undefined ? { error: undefined } : {}),
+        ...(row.watch_until < now && row.error !== undefined
+          ? { error: undefined }
+          : {}),
       });
     } else {
       await ctx.db.insert("terminal_frames", {
@@ -266,12 +286,25 @@ export const cliPushClipboard = mutation({
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
     const row = await findRow(ctx, userId, args.device_id, args.target);
     const now = Date.now();
-    if (!row || row.watch_until < now || !args.text) return { ok: false as const };
+    if (!row || row.watch_until < now || !args.text)
+      return { ok: false as const };
     let text = args.text.slice(0, PANE_MAX_CLIPBOARD_CHARS);
     if (/[\ud800-\udbff]$/.test(text)) text = text.slice(0, -1);
-    const existing = await findClipboard(ctx, userId, args.device_id, args.target);
+    const existing = await findClipboard(
+      ctx,
+      userId,
+      args.device_id,
+      args.target,
+    );
     if (existing) await ctx.db.patch(existing._id, { text, at: now });
-    else await ctx.db.insert("terminal_clipboards", { user_id: userId, device_id: args.device_id, target: args.target, text, at: now });
+    else
+      await ctx.db.insert("terminal_clipboards", {
+        user_id: userId,
+        device_id: args.device_id,
+        target: args.target,
+        text,
+        at: now,
+      });
     return { ok: true as const };
   },
 });
@@ -305,11 +338,15 @@ export const cliPushFrame = mutation({
     // previous boot, say. Telling the daemon to stop is the whole answer.
     if (!row) return { watch_until: 0, stop: true, fast: false };
 
-    const patch: Record<string, unknown> = { streamer_seen_at: now, updated_at: now };
+    const patch: Record<string, unknown> = {
+      streamer_seen_at: now,
+      updated_at: now,
+    };
     if (args.frame !== undefined) {
-      patch.frame = args.frame.length > PANE_MAX_FRAME_BYTES
-        ? args.frame.slice(0, PANE_MAX_FRAME_BYTES)
-        : args.frame;
+      patch.frame =
+        args.frame.length > PANE_MAX_FRAME_BYTES
+          ? args.frame.slice(0, PANE_MAX_FRAME_BYTES)
+          : args.frame;
       patch.seq = row.seq + 1;
       patch.cols = args.cols;
       patch.rows = args.rows;
@@ -367,7 +404,8 @@ export const sendPaneInput = mutation({
   handler: async (ctx, args) => {
     const viewerId = await requireUserOrToken(ctx, args.api_token);
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
-    if (hexToBytes(args.data) === null) throw new Error("Invalid input encoding");
+    if (hexToBytes(args.data) === null)
+      throw new Error("Invalid input encoding");
 
     const userId = await resolveQueueUser(ctx, viewerId, args);
     if (!userId) return { ok: false as const, reason: "not-watching" as const };

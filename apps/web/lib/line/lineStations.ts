@@ -4,8 +4,18 @@
 // selects. Only a station's prompt, script and timeout are edited here; the
 // graph's shape stays the shipped one, so "reset" always has a station to
 // read back from. Pure, so the fork, diff and reset rules test without React.
-import { DEFAULT_LINE_SLUG, LINE_SLUG_RE, lineSlugOf } from "@codecast/shared/contracts/orgProposal";
-import { REPO_LINE_REL_DIR, REPO_LINE_REL_PATH, isRepoLineSlug, type LineStationEdit, type PublishedRepoLine } from "@codecast/shared/contracts/lineProfile";
+import {
+  DEFAULT_LINE_SLUG,
+  LINE_SLUG_RE,
+  lineSlugOf,
+} from "@codecast/shared/contracts/orgProposal";
+import {
+  REPO_LINE_REL_DIR,
+  REPO_LINE_REL_PATH,
+  isRepoLineSlug,
+  type LineStationEdit,
+  type PublishedRepoLine,
+} from "@codecast/shared/contracts/lineProfile";
 
 export type LineNode = {
   id: string;
@@ -18,7 +28,12 @@ export type LineNode = {
   [attr: string]: unknown;
 };
 
-export type LineEdge = { from: string; to: string; label?: string; condition?: string };
+export type LineEdge = {
+  from: string;
+  to: string;
+  label?: string;
+  condition?: string;
+};
 
 /** The parsed shipped template (shippedLine.generated.ts). `files` names the
  *  template file a station's prompt or script ships in. */
@@ -44,16 +59,28 @@ export type LineWorkflow = {
 
 export const STATION_FIELDS = ["prompt", "script", "timeout"] as const;
 export type StationField = (typeof STATION_FIELDS)[number];
-export type StationPatch = { prompt?: string | null; script?: string | null; timeout?: number | null };
+export type StationPatch = {
+  prompt?: string | null;
+  script?: string | null;
+  timeout?: number | null;
+};
 
 /** How the line pages name a project in a URL (`?project=`) and a slug: its
  *  short id, or its row id when it has none. */
-export const lineProjectParam = (project: { _id: string; short_id?: string | null }): string => project.short_id || project._id;
+export const lineProjectParam = (project: {
+  _id: string;
+  short_id?: string | null;
+}): string => project.short_id || project._id;
 
 /** The project's customized line: one stable slug per project, from its
  *  address (lineProjectParam), always a valid line slug. */
-export function lineForkSlug(project: { _id: string; short_id?: string | null }): string {
-  const key = lineProjectParam(project).toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+export function lineForkSlug(project: {
+  _id: string;
+  short_id?: string | null;
+}): string {
+  const key = lineProjectParam(project)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-");
   const slug = `${DEFAULT_LINE_SLUG}-${key}`.slice(0, 64).replace(/-+$/, "");
   return LINE_SLUG_RE.test(slug) ? slug : DEFAULT_LINE_SLUG;
 }
@@ -61,7 +88,9 @@ export function lineForkSlug(project: { _id: string; short_id?: string | null })
 type ProjectRef = { _id: string; short_id?: string | null };
 
 /** Customized lines by slug: each project's fork slug to the project. */
-export function lineForkIndex<P extends ProjectRef>(projects: Iterable<P>): Map<string, P> {
+export function lineForkIndex<P extends ProjectRef>(
+  projects: Iterable<P>,
+): Map<string, P> {
   const out = new Map<string, P>();
   for (const p of projects) {
     const slug = lineForkSlug(p);
@@ -70,7 +99,10 @@ export function lineForkIndex<P extends ProjectRef>(projects: Iterable<P>): Map<
   return out;
 }
 
-export type LineRunKind<P extends ProjectRef = ProjectRef> = { kind: "shipped" } | { kind: "customized"; project: P } | { kind: "repo" };
+export type LineRunKind<P extends ProjectRef = ProjectRef> =
+  | { kind: "shipped" }
+  | { kind: "customized"; project: P }
+  | { kind: "repo" };
 
 /** Which line a run ran: the shipped line, a project's customized copy (its
  *  workflow slug is that project's fork slug), or neither. A fork keeps the
@@ -84,15 +116,24 @@ export function lineRunKind<P extends ProjectRef>(
   if (project) return { kind: "customized", project };
   // A run of a repo's own line (line-map.md LX5) pushes under its own slug.
   if (slug && isRepoLineSlug(slug)) return { kind: "repo" };
-  if (slug === DEFAULT_LINE_SLUG || (!slug && run.workflow_name === DEFAULT_LINE_SLUG)) return { kind: "shipped" };
+  if (
+    slug === DEFAULT_LINE_SLUG ||
+    (!slug && run.workflow_name === DEFAULT_LINE_SLUG)
+  )
+    return { kind: "shipped" };
   return null;
 }
 
-const cloneNodes = (nodes: LineNode[]): LineNode[] => nodes.map((n) => ({ ...n }));
-const cloneEdges = (edges: LineEdge[]): LineEdge[] => edges.map((e) => ({ ...e }));
+const cloneNodes = (nodes: LineNode[]): LineNode[] =>
+  nodes.map((n) => ({ ...n }));
+const cloneEdges = (edges: LineEdge[]): LineEdge[] =>
+  edges.map((e) => ({ ...e }));
 
 /** The shipped line as the project's own workflow, ready for webUpsert. */
-export function forkShippedLine(shipped: ShippedLine, project: { _id: string; short_id?: string | null; title?: string | null }): LineWorkflow {
+export function forkShippedLine(
+  shipped: ShippedLine,
+  project: { _id: string; short_id?: string | null; title?: string | null },
+): LineWorkflow {
   return {
     slug: lineForkSlug(project),
     name: project.title ? `Steps for ${project.title}` : "Steps",
@@ -109,12 +150,18 @@ const same = (a: unknown, b: unknown) => (a ?? undefined) === (b ?? undefined);
 
 /** The station fields where `node` differs from the shipped station. A station
  *  the shipped line lacks differs in every field it sets. */
-export function stationChanges(node: LineNode, shippedNode: LineNode | undefined): StationField[] {
+export function stationChanges(
+  node: LineNode,
+  shippedNode: LineNode | undefined,
+): StationField[] {
   return STATION_FIELDS.filter((f) => !same(node[f], shippedNode?.[f]));
 }
 
 /** Every station of `nodes` that differs from shipped, with the fields. */
-export function stationDiffs(nodes: LineNode[], shipped: ShippedLine): Record<string, StationField[]> {
+export function stationDiffs(
+  nodes: LineNode[],
+  shipped: ShippedLine,
+): Record<string, StationField[]> {
   const byId = new Map(shipped.nodes.map((n) => [n.id, n]));
   const out: Record<string, StationField[]> = {};
   for (const n of nodes) {
@@ -126,14 +173,22 @@ export function stationDiffs(nodes: LineNode[], shipped: ShippedLine): Record<st
 
 /** A station's fields set from `patch`; null, an empty text or a non-positive
  *  timeout removes the field. Other stations keep their object identity. */
-export function editStation(nodes: LineNode[], id: string, patch: StationPatch): LineNode[] {
+export function editStation(
+  nodes: LineNode[],
+  id: string,
+  patch: StationPatch,
+): LineNode[] {
   return nodes.map((n) => {
     if (n.id !== id) return n;
     const next: LineNode = { ...n };
     for (const f of STATION_FIELDS) {
       if (!(f in patch)) continue;
       const v = patch[f];
-      const empty = v === null || v === undefined || (typeof v === "string" && v.trim() === "") || (typeof v === "number" && !(v > 0));
+      const empty =
+        v === null ||
+        v === undefined ||
+        (typeof v === "string" && v.trim() === "") ||
+        (typeof v === "number" && !(v > 0));
       if (empty) delete next[f];
       else (next as any)[f] = v;
     }
@@ -142,32 +197,57 @@ export function editStation(nodes: LineNode[], id: string, patch: StationPatch):
 }
 
 /** A station put back to its shipped prompt, script and timeout. */
-export function resetStation(nodes: LineNode[], id: string, shipped: ShippedLine): LineNode[] {
+export function resetStation(
+  nodes: LineNode[],
+  id: string,
+  shipped: ShippedLine,
+): LineNode[] {
   const s = shipped.nodes.find((n) => n.id === id);
   if (!s) return nodes;
-  return editStation(nodes, id, { prompt: s.prompt ?? null, script: s.script ?? null, timeout: s.timeout ?? null });
+  return editStation(nodes, id, {
+    prompt: s.prompt ?? null,
+    script: s.script ?? null,
+    timeout: s.timeout ?? null,
+  });
 }
 
 /** The whole line put back to shipped: nodes and edges. */
-export function resetAllStations(shipped: ShippedLine): Pick<LineWorkflow, "nodes" | "edges"> {
+export function resetAllStations(
+  shipped: ShippedLine,
+): Pick<LineWorkflow, "nodes" | "edges"> {
   return { nodes: cloneNodes(shipped.nodes), edges: cloneEdges(shipped.edges) };
 }
 
 /** What clicking a station opens: its prompt or its script, and the shipped
  *  template file it comes from when the shipped line names one. */
-export function stationText(node: LineNode, shipped: ShippedLine): { kind: "prompt" | "script" | null; text: string; file?: string } {
+export function stationText(
+  node: LineNode,
+  shipped: ShippedLine,
+): { kind: "prompt" | "script" | null; text: string; file?: string } {
   const files = shipped.files[node.id];
-  if (node.script !== undefined || (node.prompt === undefined && files?.script)) {
-    return { kind: "script", text: node.script ?? "", ...(files?.script ? { file: files.script } : {}) };
+  if (
+    node.script !== undefined ||
+    (node.prompt === undefined && files?.script)
+  ) {
+    return {
+      kind: "script",
+      text: node.script ?? "",
+      ...(files?.script ? { file: files.script } : {}),
+    };
   }
   if (node.prompt !== undefined || files?.prompt) {
-    return { kind: "prompt", text: node.prompt ?? "", ...(files?.prompt ? { file: files.prompt } : {}) };
+    return {
+      kind: "prompt",
+      text: node.prompt ?? "",
+      ...(files?.prompt ? { file: files.prompt } : {}),
+    };
   }
   return { kind: null, text: "" };
 }
 
 /** Start, exit and conditionals carry nothing to read or edit. */
-export const isEditableStation = (node: LineNode) => node.type !== "start" && node.type !== "exit" && node.type !== "conditional";
+export const isEditableStation = (node: LineNode) =>
+  node.type !== "start" && node.type !== "exit" && node.type !== "conditional";
 
 type ScopedRole = {
   _id: string;
@@ -178,9 +258,14 @@ type ScopedRole = {
 };
 
 /** The roles whose area holds the project, and the line each runs. */
-export function rolesOnProject<R extends ScopedRole>(roles: R[], projectId: string): Array<{ role: R; slug: string }> {
+export function rolesOnProject<R extends ScopedRole>(
+  roles: R[],
+  projectId: string,
+): Array<{ role: R; slug: string }> {
   return roles
-    .filter((r) => r.status !== "retired" && r.scope.project_ids.includes(projectId))
+    .filter(
+      (r) => r.status !== "retired" && r.scope.project_ids.includes(projectId),
+    )
     .map((role) => ({ role, slug: lineSlugOf(role) }));
 }
 
@@ -194,34 +279,63 @@ export function rolesOnProject<R extends ScopedRole>(roles: R[], projectId: stri
  * line, as the daemon then removes the repo's copy. Returns the same object when
  * there is nothing to lay over.
  */
-export function paintStationEdits(line: PublishedRepoLine | null | undefined, edits: LineStationEdit[], shipped: ShippedLine): PublishedRepoLine | null | undefined {
+export function paintStationEdits(
+  line: PublishedRepoLine | null | undefined,
+  edits: LineStationEdit[],
+  shipped: ShippedLine,
+): PublishedRepoLine | null | undefined {
   if (edits.length === 0) return line;
   let nodes = (line ?? shipped).nodes as LineNode[];
   for (const e of edits) {
-    if (e.op === "reset_station") nodes = resetStation(nodes, e.station, shipped);
+    if (e.op === "reset_station")
+      nodes = resetStation(nodes, e.station, shipped);
     else {
       const { op: _op, station, ...patch } = e;
       nodes = editStation(nodes, station, patch);
     }
   }
   // A reset that leaves every station as shipped: the daemon removes the repo's copy, so the project follows the shipped line again.
-  if (edits.some((e) => e.op === "reset_station") && nodes.length === shipped.nodes.length && Object.keys(stationDiffs(nodes, shipped)).length === 0) return null;
+  if (
+    edits.some((e) => e.op === "reset_station") &&
+    nodes.length === shipped.nodes.length &&
+    Object.keys(stationDiffs(nodes, shipped)).length === 0
+  )
+    return null;
   return { ...(line ?? materializedShape(shipped)), nodes };
 }
 
 /** The shipped line as the repo holds it once written out: the same stations, files under the repo's line directory. */
 function materializedShape(shipped: ShippedLine): PublishedRepoLine {
-  const local = (f?: string) => (f ? `${REPO_LINE_REL_DIR}/${f.replace(/^line\//, "")}` : undefined);
+  const local = (f?: string) =>
+    f ? `${REPO_LINE_REL_DIR}/${f.replace(/^line\//, "")}` : undefined;
   const files: PublishedRepoLine["files"] = {};
   for (const [id, f] of Object.entries(shipped.files)) {
     const prompt = local(f.prompt);
     const script = local(f.script);
-    files[id] = { ...(prompt ? { prompt } : {}), ...(script ? { script } : {}) };
+    files[id] = {
+      ...(prompt ? { prompt } : {}),
+      ...(script ? { script } : {}),
+    };
   }
-  return { file: REPO_LINE_REL_PATH, graph_hash: "", name: shipped.name, ...(shipped.goal ? { goal: shipped.goal } : {}), ...(shipped.stack ? { stack: shipped.stack } : {}), source: shipped.source, nodes: cloneNodes(shipped.nodes), edges: cloneEdges(shipped.edges), files };
+  return {
+    file: REPO_LINE_REL_PATH,
+    graph_hash: "",
+    name: shipped.name,
+    ...(shipped.goal ? { goal: shipped.goal } : {}),
+    ...(shipped.stack ? { stack: shipped.stack } : {}),
+    source: shipped.source,
+    nodes: cloneNodes(shipped.nodes),
+    edges: cloneEdges(shipped.edges),
+    files,
+  };
 }
 
 /** The station edits that put every station that differs back to shipped. */
-export function resetAllStationEdits(nodes: LineNode[], shipped: ShippedLine): LineStationEdit[] {
-  return Object.keys(stationDiffs(nodes, shipped)).filter((id) => shipped.nodes.some((n) => n.id === id)).map((station) => ({ op: "reset_station", station }));
+export function resetAllStationEdits(
+  nodes: LineNode[],
+  shipped: ShippedLine,
+): LineStationEdit[] {
+  return Object.keys(stationDiffs(nodes, shipped))
+    .filter((id) => shipped.nodes.some((n) => n.id === id))
+    .map((station) => ({ op: "reset_station", station }));
 }

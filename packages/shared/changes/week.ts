@@ -41,7 +41,12 @@ export function weekDates(week: string): string[] | null {
 /** Stories a week edition leads with (spec 3). */
 export const WEEK_TOP_STORIES = 5;
 
-export type WeekRelease = { surface: string; version?: string; sha: string; at: number };
+export type WeekRelease = {
+  surface: string;
+  version?: string;
+  sha: string;
+  at: number;
+};
 
 export type LedgerLine = {
   surface: string;
@@ -70,15 +75,29 @@ export function releaseLedger(releases: readonly WeekRelease[]): LedgerLine[] {
   }
   return [...bySurface.entries()]
     .map(([surface, ships]) => {
-      const list = [...ships.values()].sort((a, b) => a.at - b.at || a.sha.localeCompare(b.sha));
-      return { surface, count: list.length, first: shipName(list[0]), last: shipName(list[list.length - 1]), at: list[list.length - 1].at };
+      const list = [...ships.values()].sort(
+        (a, b) => a.at - b.at || a.sha.localeCompare(b.sha),
+      );
+      return {
+        surface,
+        count: list.length,
+        first: shipName(list[0]),
+        last: shipName(list[list.length - 1]),
+        at: list[list.length - 1].at,
+      };
     })
-    .sort((a, b) => b.count - a.count || b.at - a.at || a.surface.localeCompare(b.surface));
+    .sort(
+      (a, b) =>
+        b.count - a.count || b.at - a.at || a.surface.localeCompare(b.surface),
+    );
 }
 
 /** "cli 1.1.157 to 1.1.163, 7 releases", or "backend 3250f11, 1 release". */
 export function ledgerLabel(line: LedgerLine): string {
-  const span = line.count > 1 && line.first !== line.last ? `${line.first} to ${line.last}` : line.last;
+  const span =
+    line.count > 1 && line.first !== line.last
+      ? `${line.first} to ${line.last}`
+      : line.last;
   return `${line.surface} ${span}, ${line.count} ${line.count === 1 ? "release" : "releases"}`;
 }
 
@@ -95,7 +114,9 @@ export type WeekStoryFacts = {
 export type AreaTotal = { area: string; stories: number; files: number };
 
 /** Per area over the week: the stories it leads and the files its commits touched, busiest first. */
-export function weekAreaTotals(stories: readonly WeekStoryFacts[]): AreaTotal[] {
+export function weekAreaTotals(
+  stories: readonly WeekStoryFacts[],
+): AreaTotal[] {
   const totals = new Map<string, AreaTotal>();
   const at = (area: string) => {
     let t = totals.get(area);
@@ -104,22 +125,42 @@ export function weekAreaTotals(stories: readonly WeekStoryFacts[]): AreaTotal[] 
   };
   for (const s of stories) {
     at(s.area).stories += 1;
-    for (const [area, files] of Object.entries(s.area_counts)) at(area).files += files;
+    for (const [area, files] of Object.entries(s.area_counts))
+      at(area).files += files;
   }
-  return [...totals.values()].sort((a, b) => b.files - a.files || b.stories - a.stories || a.area.localeCompare(b.area));
+  return [...totals.values()].sort(
+    (a, b) =>
+      b.files - a.files ||
+      b.stories - a.stories ||
+      a.area.localeCompare(b.area),
+  );
 }
 
 /** Heaviest first: importance, then lines, then key, as the day edition ranks. */
 export function byStoryWeight(a: WeekStoryFacts, b: WeekStoryFacts): number {
-  return b.importance - a.importance || b.insertions + b.deletions - (a.insertions + a.deletions) || a.story_key.localeCompare(b.story_key);
+  return (
+    b.importance - a.importance ||
+    b.insertions + b.deletions - (a.insertions + a.deletions) ||
+    a.story_key.localeCompare(b.story_key)
+  );
 }
 
 /** The week's biggest stories before an editor picks: the heaviest five. */
-export function topWeekStories<T extends WeekStoryFacts>(stories: readonly T[], n = WEEK_TOP_STORIES): T[] {
+export function topWeekStories<T extends WeekStoryFacts>(
+  stories: readonly T[],
+  n = WEEK_TOP_STORIES,
+): T[] {
   return [...stories].sort(byStoryWeight).slice(0, n);
 }
 
-export type WeekStats = { commits: number; stories: number; releases: number; people: number; sessions: number; private_sessions: number };
+export type WeekStats = {
+  commits: number;
+  stories: number;
+  releases: number;
+  people: number;
+  sessions: number;
+  private_sessions: number;
+};
 
 type DayStats = Omit<WeekStats, "people">;
 
@@ -128,9 +169,21 @@ type DayStats = Omit<WeekStats, "people">;
  * across the week from the stories' commit authors, by personKey (a day's count cannot be
  * summed: the same person works every day).
  */
-export function weekStats(days: ReadonlyArray<DayStats | null | undefined>, authors: Iterable<string>, releases: number): WeekStats {
-  const people = new Set([...authors].map((a) => personKey(a)).filter(Boolean)).size;
-  const out: WeekStats = { commits: 0, stories: 0, releases, people, sessions: 0, private_sessions: 0 };
+export function weekStats(
+  days: ReadonlyArray<DayStats | null | undefined>,
+  authors: Iterable<string>,
+  releases: number,
+): WeekStats {
+  const people = new Set([...authors].map((a) => personKey(a)).filter(Boolean))
+    .size;
+  const out: WeekStats = {
+    commits: 0,
+    stories: 0,
+    releases,
+    people,
+    sessions: 0,
+    private_sessions: 0,
+  };
   for (const d of days) {
     if (!d) continue;
     out.commits += d.commits;

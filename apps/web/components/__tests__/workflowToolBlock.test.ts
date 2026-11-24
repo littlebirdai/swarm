@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { parseWorkflowLaunch, parseWorkflowScriptMeta } from "../../lib/workflowLaunch";
+import {
+  parseWorkflowLaunch,
+  parseWorkflowScriptMeta,
+} from "../../lib/workflowLaunch";
 
 const LAUNCH_RECEIPT = `Workflow launched in background. Task ID: wq2ftfdva
 Summary: Implement, independently review (revise-on-fail), and validate the 3 remaining codebase fixes (A3 gates, A4 red CI tests, A6 dead code); emit patches for final suite validation
@@ -15,12 +18,16 @@ describe("parseWorkflowLaunch", () => {
     const launch = parseWorkflowLaunch(LAUNCH_RECEIPT);
     expect(launch.taskId).toBe("wq2ftfdva");
     expect(launch.summary).toStartWith("Implement, independently review");
-    expect(launch.scriptFile).toEndWith("codecast-arch-fixes-r2-wf_d653e9cf-6e6.js");
+    expect(launch.scriptFile).toEndWith(
+      "codecast-arch-fixes-r2-wf_d653e9cf-6e6.js",
+    );
     expect(launch.runId).toBe("wf_d653e9cf-6e6");
   });
 
   it("matches the run id from the Run ID line, not the resume instructions", () => {
-    expect(parseWorkflowLaunch("Run ID: wf_abc123-x\nresumeFromRunId: wf_zzz").runId).toBe("wf_abc123-x");
+    expect(
+      parseWorkflowLaunch("Run ID: wf_abc123-x\nresumeFromRunId: wf_zzz").runId,
+    ).toBe("wf_abc123-x");
   });
 
   it("returns empty fields for non-launch content", () => {

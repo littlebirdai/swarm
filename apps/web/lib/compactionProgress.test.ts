@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { compactionProgressMessage, parseCompactionProgress } from "./compactionProgress";
+import {
+  compactionProgressMessage,
+  parseCompactionProgress,
+} from "./compactionProgress";
 
 const SCREEN = [
   "❯ continue",
@@ -19,12 +22,21 @@ describe("parseCompactionProgress", () => {
   });
 
   test("reads a one-period header and a braille spinner", () => {
-    const text = "⠧ Compacting conversation. (12s)\n██████░░░░░░░░░░░░░░░░░░░░░░░░ 18%";
-    expect(parseCompactionProgress(text)).toEqual({ elapsed: "12s", percent: 18, tip: null });
+    const text =
+      "⠧ Compacting conversation. (12s)\n██████░░░░░░░░░░░░░░░░░░░░░░░░ 18%";
+    expect(parseCompactionProgress(text)).toEqual({
+      elapsed: "12s",
+      percent: 18,
+      tip: null,
+    });
   });
 
   test("reads Codex's status line and drops the interrupt hint from the clock", () => {
-    expect(parseCompactionProgress("• Compacting conversation (2m 10s • esc to interrupt)")).toEqual({
+    expect(
+      parseCompactionProgress(
+        "• Compacting conversation (2m 10s • esc to interrupt)",
+      ),
+    ).toEqual({
       elapsed: "2m 10s",
       percent: null,
       tip: null,
@@ -32,11 +44,19 @@ describe("parseCompactionProgress", () => {
   });
 
   test("ignores a sentence that only mentions the words", () => {
-    expect(parseCompactionProgress("We should compact the conversation before the next turn.")).toBeNull();
+    expect(
+      parseCompactionProgress(
+        "We should compact the conversation before the next turn.",
+      ),
+    ).toBeNull();
   });
 
   test("ignores a percent line that is not a bar", () => {
-    expect(parseCompactionProgress("Compacting conversation... (4s)\nabout 31% done")).toEqual({
+    expect(
+      parseCompactionProgress(
+        "Compacting conversation... (4s)\nabout 31% done",
+      ),
+    ).toEqual({
       elapsed: "4s",
       percent: null,
       tip: null,

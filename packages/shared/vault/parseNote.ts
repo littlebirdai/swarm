@@ -111,7 +111,10 @@ export interface ParsedNote {
   wordCount: number;
 }
 
-import { VAULT_ASSET_EXTENSIONS, VAULT_MARKDOWN_EXTENSIONS } from "@codecast/shared/contracts";
+import {
+  VAULT_ASSET_EXTENSIONS,
+  VAULT_MARKDOWN_EXTENSIONS,
+} from "@codecast/shared/contracts";
 
 const KNOWN_EXTENSIONS: readonly string[] = [
   ...VAULT_MARKDOWN_EXTENSIONS,
@@ -131,9 +134,11 @@ const KNOWN_EXTENSIONS: readonly string[] = [
 
 function unquote(s: string): string {
   if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
-    return s.slice(1, -1).replace(/\\(["\\nt])/g, (_m, c) =>
-      c === "n" ? "\n" : c === "t" ? "\t" : c,
-    );
+    return s
+      .slice(1, -1)
+      .replace(/\\(["\\nt])/g, (_m, c) =>
+        c === "n" ? "\n" : c === "t" ? "\t" : c,
+      );
   }
   if (s.length >= 2 && s[0] === "'" && s[s.length - 1] === "'") {
     return s.slice(1, -1).replace(/''/g, "'");
@@ -173,7 +178,8 @@ function parseScalar(raw: string): unknown {
   if (s === "" || s === "~" || s === "null") return null;
   if (s === "true" || s === "yes") return true;
   if (s === "false" || s === "no") return false;
-  if (s.startsWith("[") && s.endsWith("]")) return splitTopLevel(s.slice(1, -1)).map(parseScalar);
+  if (s.startsWith("[") && s.endsWith("]"))
+    return splitTopLevel(s.slice(1, -1)).map(parseScalar);
   if (s.startsWith("{") && s.endsWith("}")) {
     const obj: Record<string, unknown> = {};
     for (const part of splitTopLevel(s.slice(1, -1))) {
@@ -188,7 +194,8 @@ function parseScalar(raw: string): unknown {
   return unquote(s);
 }
 
-const indentOf = (line: string): number => line.length - line.replace(/^\s+/, "").length;
+const indentOf = (line: string): number =>
+  line.length - line.replace(/^\s+/, "").length;
 
 export function parseYamlSubset(lines: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -212,11 +219,15 @@ export function parseYamlSubset(lines: string[]): Record<string, unknown> {
     if (value === "|" || value === ">" || value === "|-" || value === ">-") {
       const body: string[] = [];
       i++;
-      while (i < lines.length && (!lines[i].trim() || indentOf(lines[i]) > base)) {
+      while (
+        i < lines.length &&
+        (!lines[i].trim() || indentOf(lines[i]) > base)
+      ) {
         body.push(lines[i].trim());
         i++;
       }
-      out[key] = value[0] === "|" ? body.join("\n").trim() : body.join(" ").trim();
+      out[key] =
+        value[0] === "|" ? body.join("\n").trim() : body.join(" ").trim();
       continue;
     }
 
@@ -265,7 +276,11 @@ export function parseYamlSubset(lines: string[]): Record<string, unknown> {
         continue;
       }
     }
-    out[key] = items.length ? items : Object.keys(nested).length ? nested : null;
+    out[key] = items.length
+      ? items
+      : Object.keys(nested).length
+        ? nested
+        : null;
     i = j;
   }
   return out;
@@ -281,11 +296,13 @@ export function toStringList(value: unknown): string[] {
       .map((s) => s.trim())
       .filter(Boolean);
   }
-  if (typeof value === "number" || typeof value === "boolean") return [String(value)];
+  if (typeof value === "number" || typeof value === "boolean")
+    return [String(value)];
   return [];
 }
 
-const normalizeTag = (t: string): string => t.replace(/^#+/, "").replace(/\/+$/, "").trim();
+const normalizeTag = (t: string): string =>
+  t.replace(/^#+/, "").replace(/\/+$/, "").trim();
 
 // ---------------------------------------------------------------------------
 // Inline scanning
@@ -345,7 +362,8 @@ function isEscaped(line: string, idx: number): boolean {
 
 const WIKI_LINK_RE = /(!?)\[\[([^[\]\n]+)\]\]/g;
 /** `[text](dest)` or `[text](<dest with spaces>)`, with an optional "title". */
-const MARKDOWN_LINK_RE = /(?<!!)\[([^[\]\n]*)\]\((?:<([^>\n]+)>|([^)\s]+))(?:\s+"[^"\n]*")?\)/g;
+const MARKDOWN_LINK_RE =
+  /(?<!!)\[([^[\]\n]*)\]\((?:<([^>\n]+)>|([^)\s]+))(?:\s+"[^"\n]*")?\)/g;
 // A tag must start at a line start or after whitespace / an opening bracket —
 // `a#b` and `https://x/#frag` are not tags. Charset is unicode letters, digits,
 // `_`, `-`, `/` (Obsidian's rule).
@@ -407,7 +425,8 @@ function toPlainText(line: string): string {
     // Obsidian's display forms: a heading link reads "Note > Heading"; a block
     // id is a machine identifier and is never shown (nor should it be searchable
     // as prose — `^key-claim` would match a search for "key claim").
-    if (subpath && subpathType === "heading") return `${target} > ${subpath}`.trim();
+    if (subpath && subpathType === "heading")
+      return `${target} > ${subpath}`.trim();
     return target;
   });
   s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
@@ -488,7 +507,9 @@ export function parseNote(content: string): ParsedNote {
     if (fenceOpen && (fenceOpen[1][0] === "~" || !fenceOpen[2].includes("`"))) {
       // A fence closes on a run of the SAME character at least as long as the
       // opener; the info string ("```ts") belongs to the opener only.
-      fence = new RegExp(`^ {0,3}\\${fenceOpen[1][0]}{${fenceOpen[1].length},}\\s*$`);
+      fence = new RegExp(
+        `^ {0,3}\\${fenceOpen[1][0]}{${fenceOpen[1].length},}\\s*$`,
+      );
       flushChunk();
       continue;
     }
@@ -501,9 +522,16 @@ export function parseNote(content: string): ParsedNote {
       const level = heading[1].length;
       const text = (heading[2] ?? "").replace(/\s+#+\s*$/, "").trim();
       for (let h = headings.length - 1; h >= 0; h--) {
-        if (headings[h].endLine === 0 && headings[h].level >= level) headings[h].endLine = lineNo - 1;
+        if (headings[h].endLine === 0 && headings[h].level >= level)
+          headings[h].endLine = lineNo - 1;
       }
-      headings.push({ text, level, slug: slugifyHeading(text), line: lineNo, endLine: 0 });
+      headings.push({
+        text,
+        level,
+        slug: slugifyHeading(text),
+        line: lineNo,
+        endLine: 0,
+      });
       headingPath.length = Math.max(0, level - 1);
       headingPath[level - 1] = text;
       chunkHeadings = headingPath.filter(Boolean).slice();
@@ -525,14 +553,22 @@ export function parseNote(content: string): ParsedNote {
 
     const task = TASK_LINE_RE.exec(line);
     if (task) {
-      tasks.push({ done: /[xX]/.test(task[2]), text: toPlainText(task[3]), line: lineNo });
+      tasks.push({
+        done: /[xX]/.test(task[2]),
+        text: toPlainText(task[3]),
+        line: lineNo,
+      });
     }
 
     const block = /(?:^|\s)\^([A-Za-z0-9-]+)\s*$/.exec(line);
     const prose = toPlainText(line);
     if (block) {
       const own = line.slice(0, block.index).trim();
-      blocks.push({ id: block[1], line: lineNo, text: own ? prose : lastProse });
+      blocks.push({
+        id: block[1],
+        line: lineNo,
+        text: own ? prose : lastProse,
+      });
       if (own || chunkText.length) {
         chunkBlockId = block[1];
       } else if (chunks.length) {
@@ -554,14 +590,19 @@ export function parseNote(content: string): ParsedNote {
   flushChunk();
   for (const h of headings) if (h.endLine === 0) h.endLine = lines.length;
 
-  const fmTitle = frontmatter && typeof frontmatter.title === "string" ? frontmatter.title.trim() : "";
+  const fmTitle =
+    frontmatter && typeof frontmatter.title === "string"
+      ? frontmatter.title.trim()
+      : "";
   const firstH1 = headings.find((h) => h.level === 1);
   const plainText = proseLines.join("\n");
 
   return {
     title: fmTitle || firstH1?.text || null,
     frontmatter,
-    aliases: frontmatter ? toStringList(frontmatter.aliases ?? frontmatter.alias) : [],
+    aliases: frontmatter
+      ? toStringList(frontmatter.aliases ?? frontmatter.alias)
+      : [],
     frontmatterTags: frontmatter
       ? toStringList(frontmatter.tags ?? frontmatter.tag)
           .flatMap((t) => t.split(/\s+/))
@@ -593,12 +634,24 @@ function scanInline(
     let m: RegExpExecArray | null;
     while ((m = MARKDOWN_LINK_RE.exec(line))) {
       const dest = m[2] ?? m[3];
-      if (/^[a-z][a-z0-9+.-]*:/i.test(dest) || dest.startsWith("#") || isEscaped(line, m.index)) continue;
+      if (
+        /^[a-z][a-z0-9+.-]*:/i.test(dest) ||
+        dest.startsWith("#") ||
+        isEscaped(line, m.index)
+      )
+        continue;
       let target = dest.split("#")[0];
       try {
         target = decodeURI(target);
       } catch {}
-      if (target) markdownLinks.push({ target, text: m[1], line: lineNo, col: m.index, raw: m[0] });
+      if (target)
+        markdownLinks.push({
+          target,
+          text: m[1],
+          line: lineNo,
+          col: m.index,
+          raw: m[0],
+        });
     }
   }
   if (line.includes("[[")) {
@@ -626,7 +679,10 @@ function scanInline(
     // destination is still a real reference to that note, so link scanning
     // above deliberately sees the unmasked line.
     const forTags = line.includes("](")
-      ? line.replace(/\]\([^)\n]*\)/g, (m) => `](${" ".repeat(Math.max(0, m.length - 3))})`)
+      ? line.replace(
+          /\]\([^)\n]*\)/g,
+          (m) => `](${" ".repeat(Math.max(0, m.length - 3))})`,
+        )
       : line;
     TAG_RE.lastIndex = 0;
     let t: RegExpExecArray | null;
@@ -645,7 +701,8 @@ function scanInline(
 export function stripKnownExtension(path: string): string {
   const lower = path.toLowerCase();
   for (const ext of KNOWN_EXTENSIONS) {
-    if (lower.endsWith(ext) && lower.length > ext.length) return path.slice(0, -ext.length);
+    if (lower.endsWith(ext) && lower.length > ext.length)
+      return path.slice(0, -ext.length);
   }
   return path;
 }

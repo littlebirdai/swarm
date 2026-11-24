@@ -14,11 +14,23 @@ describe("the SDK's authentication failures", () => {
   });
 
   test("a safety stop behind the lead stays a safety stop", () => {
-    expect(classifyApiErrorBanner('Failed to authenticate. API Error: 403 {"error":{"code":"misalignment_policy_violation"}}')).toBe("safety");
+    expect(
+      classifyApiErrorBanner(
+        'Failed to authenticate. API Error: 403 {"error":{"code":"misalignment_policy_violation"}}',
+      ),
+    ).toBe("safety");
   });
 
   test("a reply that only says it failed to authenticate is no banner", () => {
-    expect(classifyApiErrorBanner("Failed to authenticate with GitHub, so the branch is not pushed yet.")).toBeNull();
-    expect(classifyApiErrorBanner("Failed to authenticate: the deploy key is missing on this host.")).toBeNull();
+    expect(
+      classifyApiErrorBanner(
+        "Failed to authenticate with GitHub, so the branch is not pushed yet.",
+      ),
+    ).toBeNull();
+    expect(
+      classifyApiErrorBanner(
+        "Failed to authenticate: the deploy key is missing on this host.",
+      ),
+    ).toBeNull();
   });
 });

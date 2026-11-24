@@ -1,6 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { modelOptionKey, findModelOption, modelFitsAgent } from "./agentClients";
-import { isDynamicModelKey, dynamicModelOption, featuredModelOptions } from "./modelOptions";
+import {
+  modelOptionKey,
+  findModelOption,
+  modelFitsAgent,
+} from "./agentClients";
+import {
+  isDynamicModelKey,
+  dynamicModelOption,
+  featuredModelOptions,
+} from "./modelOptions";
 
 // modelOptionKey is the inverse of the launch flag: the conversation row stores
 // the full model id, but the pickers, the Cmd+K menu, and — critically — the
@@ -11,7 +19,9 @@ describe("modelOptionKey", () => {
   it("maps a stored claude model id back to its option key", () => {
     expect(modelOptionKey("claude-opus-4-8", "claude_code")).toBe("opus");
     expect(modelOptionKey("claude-sonnet-5", "claude_code")).toBe("sonnet");
-    expect(modelOptionKey("claude-haiku-4-5-20251001", "claude_code")).toBe("haiku");
+    expect(modelOptionKey("claude-haiku-4-5-20251001", "claude_code")).toBe(
+      "haiku",
+    );
     expect(modelOptionKey("claude-fable-5", "claude_code")).toBe("fable");
   });
 
@@ -40,7 +50,16 @@ describe("modelOptionKey", () => {
   });
 
   it("maps codex model ids under the codex agent", () => {
-    for (const model of ["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex-spark"]) {
+    for (const model of [
+      "gpt-6-astra",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-5.3-codex-spark",
+    ]) {
       expect(modelOptionKey(model, "codex")).toBe(model);
       expect(findModelOption("codex", model)?.cliAlias).toBe(model);
     }
@@ -68,9 +87,15 @@ describe("modelFitsAgent", () => {
 describe("dynamic model options", () => {
   it("accepts well-formed provider/model keys and rejects junk", () => {
     expect(isDynamicModelKey("anthropic/claude-sonnet-5")).toBe(true);
-    expect(isDynamicModelKey("openrouter/anthropic/claude-sonnet-5")).toBe(true);
-    expect(isDynamicModelKey("google-vertex/claude-sonnet-5@default")).toBe(true);
-    expect(isDynamicModelKey("openrouter/meta-llama/llama-3.1-8b:free")).toBe(true);
+    expect(isDynamicModelKey("openrouter/anthropic/claude-sonnet-5")).toBe(
+      true,
+    );
+    expect(isDynamicModelKey("google-vertex/claude-sonnet-5@default")).toBe(
+      true,
+    );
+    expect(isDynamicModelKey("openrouter/meta-llama/llama-3.1-8b:free")).toBe(
+      true,
+    );
     expect(isDynamicModelKey("sonnet")).toBe(false); // no provider
     expect(isDynamicModelKey("a/../b")).toBe(false);
     expect(isDynamicModelKey("rm -rf /")).toBe(false);
@@ -85,8 +110,12 @@ describe("dynamic model options", () => {
     expect(opt.hint).toBe("via openrouter/anthropic");
     expect(dynamicModelOption("openai/gpt-5.2").label).toBe("GPT 5.2");
     // date pins drop from the label; dash version runs join with dots
-    expect(dynamicModelOption("anthropic/claude-sonnet-4-20250514").label).toBe("Claude Sonnet 4");
-    expect(dynamicModelOption("anthropic/claude-haiku-4-5-20251001").label).toBe("Claude Haiku 4.5");
+    expect(dynamicModelOption("anthropic/claude-sonnet-4-20250514").label).toBe(
+      "Claude Sonnet 4",
+    );
+    expect(
+      dynamicModelOption("anthropic/claude-haiku-4-5-20251001").label,
+    ).toBe("Claude Haiku 4.5");
   });
 
   it("findModelOption synthesizes for dynamic clients only", () => {

@@ -29,7 +29,8 @@ const WORKER_URL = new URL("./tailwindWorker.worker.mjs", import.meta.url);
 
 // The directives and functions Tailwind acts on. Stylesheets without any of
 // them pass through untouched instead of round-tripping to the worker.
-const TAILWIND_SYNTAX = /@tailwind|@apply|@layer|@config|@screen|@variants|@responsive|theme\(|screen\(/;
+const TAILWIND_SYNTAX =
+  /@tailwind|@apply|@layer|@config|@screen|@variants|@responsive|theme\(|screen\(/;
 
 interface BuildResult {
   css: string;
@@ -63,7 +64,13 @@ function createBuilder(configPath: string): Build {
       const waiter = inFlight.get(id);
       if (!waiter) return;
       inFlight.delete(id);
-      if (error) waiter.reject(Object.assign(new Error(error.message), { stack: error.stack, name: error.name }));
+      if (error)
+        waiter.reject(
+          Object.assign(new Error(error.message), {
+            stack: error.stack,
+            name: error.name,
+          }),
+        );
       else waiter.resolve({ css, messages });
     });
     // A crashed worker fails what it held and is replaced on the next build.
@@ -73,7 +80,9 @@ function createBuilder(configPath: string): Build {
       inFlight.clear();
     };
     w.on("error", reset);
-    w.on("exit", (code) => reset(new Error(`tailwind worker exited (code ${code})`)));
+    w.on("exit", (code) =>
+      reset(new Error(`tailwind worker exited (code ${code})`)),
+    );
     worker = w;
     return w;
   };
@@ -105,7 +114,10 @@ function createBuilder(configPath: string): Build {
       let slot = slots.get(from);
       if (!slot) slots.set(from, (slot = { running: false, next: null }));
       // A newer source replaces the queued one; everyone waiting gets the newest build.
-      slot.next = { css, waiters: [...(slot.next?.waiters ?? []), { resolve, reject }] };
+      slot.next = {
+        css,
+        waiters: [...(slot.next?.waiters ?? []), { resolve, reject }],
+      };
       if (!slot.running) void drain(from, slot);
     });
 }

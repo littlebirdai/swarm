@@ -55,8 +55,12 @@ export function ChatToast({
   onDismiss?: () => void;
 }) {
   const where = data.isDm
-    ? data.inThread ? "thread · direct message" : "direct message"
-    : data.inThread ? `thread in #${data.channelName}` : `#${data.channelName}`;
+    ? data.inThread
+      ? "thread · direct message"
+      : "direct message"
+    : data.inThread
+      ? `thread in #${data.channelName}`
+      : `#${data.channelName}`;
   const loud = data.tier === "loud";
   return (
     <div
@@ -90,7 +94,10 @@ export function ChatToast({
           <span className="ch-toast-author">{data.authorName}</span>
           <span className="ch-toast-where">
             {!data.isDm && (
-              <Hash className="w-2.5 h-2.5 inline-block -mt-px mr-0.5 opacity-70" aria-hidden="true" />
+              <Hash
+                className="w-2.5 h-2.5 inline-block -mt-px mr-0.5 opacity-70"
+                aria-hidden="true"
+              />
             )}
             {where}
           </span>
@@ -98,7 +105,8 @@ export function ChatToast({
         <div className="ch-toast-preview">{data.preview}</div>
         {!!data.collapsedCount && data.collapsedCount > 1 && (
           <div className="ch-toast-count">
-            and {data.collapsedCount - 1} more {data.collapsedCount === 2 ? "message" : "messages"}
+            and {data.collapsedCount - 1} more{" "}
+            {data.collapsedCount === 2 ? "message" : "messages"}
           </div>
         )}
       </div>

@@ -3,7 +3,7 @@
 // web a URL string, Metro hands the phone an asset number. The web module types
 // its map as strings, so the phone's program takes the import untyped and
 // MobileSessionFace casts the map to image sources in one place.
-declare module '*.webp' {
+declare module "*.webp" {
   const asset: any;
   export default asset;
 }

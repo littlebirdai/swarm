@@ -13,8 +13,14 @@ describe("isClaudeSubagentSessionId", () => {
   });
 
   test("top-level sessions and other agent-* names are not", () => {
-    expect(isClaudeSubagentSessionId("6d422b09-d280-4e73-9c4b-53b8bf428a3e")).toBe(false);
-    expect(isClaudeSubagentSessionId("agent-averify-bugs-7-9-06a0cd0a0f0da259")).toBe(false);
-    expect(isClaudeSubagentSessionId("wf-th7068m95vdc3c0mmhyxsx26zh8fvqaf")).toBe(false);
+    expect(
+      isClaudeSubagentSessionId("6d422b09-d280-4e73-9c4b-53b8bf428a3e"),
+    ).toBe(false);
+    expect(
+      isClaudeSubagentSessionId("agent-averify-bugs-7-9-06a0cd0a0f0da259"),
+    ).toBe(false);
+    expect(
+      isClaudeSubagentSessionId("wf-th7068m95vdc3c0mmhyxsx26zh8fvqaf"),
+    ).toBe(false);
   });
 });

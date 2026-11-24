@@ -1,22 +1,39 @@
 import { flowName } from "@codecast/shared/contracts/flowPool";
-import type { DecisionDetailItem, SessionDecisionItem } from "../store/inboxStore";
+import type {
+  DecisionDetailItem,
+  SessionDecisionItem,
+} from "../store/inboxStore";
 import { inViewerQueue } from "./decisionQueue";
 
 // The route of a decision's document page: its short id when it has one.
-export function decisionHref(d: Pick<SessionDecisionItem, "_id" | "short_id">): string {
+export function decisionHref(
+  d: Pick<SessionDecisionItem, "_id" | "short_id">,
+): string {
   return `/decisions/${d.short_id ?? d._id}`;
 }
 
 // The asking session's name without an id the card already shows in its own
 // chip (a change card's task), so a header never says it twice. A name that
 // is nothing but the id keeps it.
-export function askingSessionName(title: string | undefined, omitRef?: string): string | undefined {
+export function askingSessionName(
+  title: string | undefined,
+  omitRef?: string,
+): string | undefined {
   if (!title || !omitRef || !title.includes(omitRef)) return title;
-  return title.split(omitRef).join(" ").replace(/\s+/g, " ").replace(/[\s·:-]+$/, "").trim() || title;
+  return (
+    title
+      .split(omitRef)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .replace(/[\s·:-]+$/, "")
+      .trim() || title
+  );
 }
 
 // The latest recommendation on the ladder, if any role gave one.
-export function ladderRecommendation(d: Pick<SessionDecisionItem, "hops">): number | undefined {
+export function ladderRecommendation(
+  d: Pick<SessionDecisionItem, "hops">,
+): number | undefined {
   for (let i = (d.hops?.length ?? 0) - 1; i >= 0; i--) {
     const r = d.hops![i].recommendation;
     if (r !== undefined) return r;
@@ -26,16 +43,26 @@ export function ladderRecommendation(d: Pick<SessionDecisionItem, "hops">): numb
 
 // How many roles on the ladder recommend each option, so an option can say so
 // where it is picked.
-export function ladderRecommenders(d: Pick<SessionDecisionItem, "hops">): Map<number, number> {
+export function ladderRecommenders(
+  d: Pick<SessionDecisionItem, "hops">,
+): Map<number, number> {
   const counts = new Map<number, number>();
-  for (const h of d.hops ?? []) if (h.recommendation !== undefined) counts.set(h.recommendation, (counts.get(h.recommendation) ?? 0) + 1);
+  for (const h of d.hops ?? [])
+    if (h.recommendation !== undefined)
+      counts.set(h.recommendation, (counts.get(h.recommendation) ?? 0) + 1);
   return counts;
 }
 
 // The options a recorded answer names, in order: several for a multi or a
 // rank (answer_json), one for a single, none for a typed or form answer.
-export function chosenOptions(d: Pick<SessionDecisionItem, "answer_json" | "answer_index">): number[] {
-  return Array.isArray(d.answer_json) ? d.answer_json : d.answer_index !== undefined ? [d.answer_index] : [];
+export function chosenOptions(
+  d: Pick<SessionDecisionItem, "answer_json" | "answer_index">,
+): number[] {
+  return Array.isArray(d.answer_json)
+    ? d.answer_json
+    : d.answer_index !== undefined
+      ? [d.answer_index]
+      : [];
 }
 
 // The run chip on a gate decision (the-line.md L4, L10): the workflow's name
@@ -44,16 +71,39 @@ export function chosenOptions(d: Pick<SessionDecisionItem, "answer_json" | "answ
 export type GateRunLabel = { workflow: string; node?: string; known: boolean };
 
 export function gateRunLabel(
-  run: { workflow_name?: string; workflow_label?: string; current_node_id?: string; current_node_label?: string; node_statuses?: Array<{ node_id: string; label?: string }> } | null | undefined,
+  run:
+    | {
+        workflow_name?: string;
+        workflow_label?: string;
+        current_node_id?: string;
+        current_node_label?: string;
+        node_statuses?: Array<{ node_id: string; label?: string }>;
+      }
+    | null
+    | undefined,
   gateNodeId?: string,
 ): GateRunLabel {
-  if (!run) return { workflow: "a workflow run", node: gateNodeId, known: false };
+  if (!run)
+    return { workflow: "a workflow run", node: gateNodeId, known: false };
   const nodeId = gateNodeId ?? run.current_node_id;
-  const fromStatuses = nodeId ? run.node_statuses?.find((n) => n.node_id === nodeId)?.label : undefined;
+  const fromStatuses = nodeId
+    ? run.node_statuses?.find((n) => n.node_id === nodeId)?.label
+    : undefined;
   // current_node_label is listRuns's join against the stored graph; the get
   // channel carries only the row, whose node_statuses may label the node.
-  const node = (gateNodeId === undefined || gateNodeId === run.current_node_id ? run.current_node_label : undefined) ?? fromStatuses ?? nodeId;
-  return { workflow: flowName({ label: run.workflow_label, name: run.workflow_name }) || "a workflow run", node, known: true };
+  const node =
+    (gateNodeId === undefined || gateNodeId === run.current_node_id
+      ? run.current_node_label
+      : undefined) ??
+    fromStatuses ??
+    nodeId;
+  return {
+    workflow:
+      flowName({ label: run.workflow_label, name: run.workflow_name }) ||
+      "a workflow run",
+    node,
+    known: true,
+  };
 }
 
 export function runHref(runId: string): string {
@@ -62,25 +112,51 @@ export function runHref(runId: string): string {
 
 /** Whether an open decision waits on the viewer: the queue's own stamp when the row came through a queue feed, else
  *  (a decision page opened directly, read from its document alone) whether the viewer is among the people it asks. */
-export function waitsOnViewer(d: Pick<SessionDecisionItem, "in_queue" | "asked_user_ids">, viewerId: string | undefined): boolean {
-  if (d.in_queue !== undefined || !d.asked_user_ids || !viewerId) return inViewerQueue(d);
+export function waitsOnViewer(
+  d: Pick<SessionDecisionItem, "in_queue" | "asked_user_ids">,
+  viewerId: string | undefined,
+): boolean {
+  if (d.in_queue !== undefined || !d.asked_user_ids || !viewerId)
+    return inViewerQueue(d);
   return d.asked_user_ids.includes(viewerId);
 }
 
 /** What a pending decision's wait means for the person, in plain words: the consequence, never the mechanism. One held
  *  by someone else (passed, escalated, shared out) waits on them; a silent card was asked by codecast, not an agent. */
-export function decisionWaitLabel(d: Pick<SessionDecisionItem, "status" | "blocking" | "silent" | "in_queue" | "asked_user_ids">, viewerId?: string): string {
+export function decisionWaitLabel(
+  d: Pick<
+    SessionDecisionItem,
+    "status" | "blocking" | "silent" | "in_queue" | "asked_user_ids"
+  >,
+  viewerId?: string,
+): string {
   if (d.status !== "pending") return d.status;
   if (!waitsOnViewer(d, viewerId)) return "Waiting on a teammate";
   if (d.blocking) return "Waiting on you";
-  return d.silent ? "Asked of you" : "The agent went ahead; you can change course";
+  return d.silent
+    ? "Asked of you"
+    : "The agent went ahead; you can change course";
 }
 
 /** Who answered a decision, in the words a card's outcome line uses: a person's name ("you" for the viewer), a role's, or "policy". */
-export function answererNameOf(detail: Pick<DecisionDetailItem, "decision" | "asked_users" | "holder_role" | "ladder">, meId: string | null | undefined): string {
+export function answererNameOf(
+  detail: Pick<
+    DecisionDetailItem,
+    "decision" | "asked_users" | "holder_role" | "ladder"
+  >,
+  meId: string | null | undefined,
+): string {
   const by = detail.decision.answered_by;
   if (!by) return "a person";
   if (by.kind === "policy") return "policy";
-  if (by.kind === "role") return detail.holder_role?.name ?? detail.ladder.find((h) => h.role_id === by.id)?.role?.name ?? "a role";
-  return detail.asked_users.find((u) => u._id === by.id)?.name ?? (by.id === meId ? "you" : "a person");
+  if (by.kind === "role")
+    return (
+      detail.holder_role?.name ??
+      detail.ladder.find((h) => h.role_id === by.id)?.role?.name ??
+      "a role"
+    );
+  return (
+    detail.asked_users.find((u) => u._id === by.id)?.name ??
+    (by.id === meId ? "you" : "a person")
+  );
 }

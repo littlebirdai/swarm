@@ -3,7 +3,9 @@ import { isAdvancedClone, withAdvancedClone } from "./advanced.js";
 
 test("advanced clone scope cannot leak into concurrent or later commands", async () => {
   let release!: () => void;
-  const ready = new Promise<void>((resolve) => { release = resolve; });
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const command = withAdvancedClone(async () => {
     expect(isAdvancedClone()).toBe(true);
     await ready;
@@ -16,6 +18,10 @@ test("advanced clone scope cannot leak into concurrent or later commands", async
 });
 
 test("a failed advanced command leaves the ordinary default intact", () => {
-  expect(() => withAdvancedClone(() => { throw new Error("failed command"); })).toThrow("failed command");
+  expect(() =>
+    withAdvancedClone(() => {
+      throw new Error("failed command");
+    }),
+  ).toThrow("failed command");
   expect(isAdvancedClone()).toBe(false);
 });

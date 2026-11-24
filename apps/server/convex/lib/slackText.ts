@@ -5,7 +5,11 @@
 // round trip must still read as the same sentence, and nothing a Slack person
 // typed may turn into a codecast mention of somebody they did not name.
 
-import { emojiToShortcode, replaceShortcodes, shortcodeToEmoji } from "@codecast/shared/chat";
+import {
+  emojiToShortcode,
+  replaceShortcodes,
+  shortcodeToEmoji,
+} from "@codecast/shared/chat";
 import { parseLinkPreviewUrl } from "@codecast/shared/entities";
 
 export { emojiToShortcode, replaceShortcodes, shortcodeToEmoji };
@@ -16,17 +20,26 @@ export { emojiToShortcode, replaceShortcodes, shortcodeToEmoji };
 // ── Entities and code protection ─────────────────────────────────────────────
 
 export function decodeSlackEntities(text: string): string {
-  return text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
 export function encodeSlackEntities(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // Code is lifted out before any formatting rule runs and put back after, so a
 // `*` inside a snippet never becomes emphasis. Fences first, then spans.
 const CODE_TOKEN = "\u0000C";
-function protectCode(text: string, onCode: (code: string) => string): { text: string; restore: (s: string) => string } {
+function protectCode(
+  text: string,
+  onCode: (code: string) => string,
+): { text: string; restore: (s: string) => string } {
   const stash: string[] = [];
   const keep = (code: string) => {
     stash.push(onCode(code));
@@ -36,7 +49,11 @@ function protectCode(text: string, onCode: (code: string) => string): { text: st
   out = out.replace(/`[^`\n]+`/g, keep);
   return {
     text: out,
-    restore: (s: string) => s.replace(new RegExp(`${CODE_TOKEN}(\\d+)${CODE_TOKEN}`, "g"), (_m, i) => stash[Number(i)]),
+    restore: (s: string) =>
+      s.replace(
+        new RegExp(`${CODE_TOKEN}(\\d+)${CODE_TOKEN}`, "g"),
+        (_m, i) => stash[Number(i)],
+      ),
   };
 }
 
@@ -47,7 +64,11 @@ export type SlackInboundResolver = {
    *  the person is a mapped teammate (renders as a real mention), else a
    *  display name (renders as bold text so it can never page the wrong
    *  teammate). Null when nothing is known. */
-  user: (id: string) => { handle?: string | null; name?: string | null; href?: string | null } | null;
+  user: (id: string) => {
+    handle?: string | null;
+    name?: string | null;
+    href?: string | null;
+  } | null;
   channel?: (id: string) => string | null;
   usergroup?: (id: string) => string | null;
   /** A shared Slack message (by its channel and ts) to the chat permalink of
@@ -62,7 +83,10 @@ const OPEN = String.raw`(^|[\s(\[{"'])`;
 const CLOSE = String.raw`(?=$|[\s.,!?;:)\]}"'])`;
 function emphasisRe(marker: string): RegExp {
   const m = marker.replace(/[*~_]/g, (c) => `\\${c}`);
-  return new RegExp(`${OPEN}${m}(?!\\s)([^${m}\\n]*?[^\\s${m}])${m}${CLOSE}`, "g");
+  return new RegExp(
+    `${OPEN}${m}(?!\\s)([^${m}\\n]*?[^\\s${m}])${m}${CLOSE}`,
+    "g",
+  );
 }
 const BOLD_RE = emphasisRe("*");
 const ITALIC_RE = emphasisRe("_");
@@ -78,7 +102,8 @@ function angleToken(inner: string, resolve: SlackInboundResolver): string {
     // A zero width space after the @ keeps this out of the mention grammar on
     // both server and client: a Slack name must never page a codecast teammate
     // who happens to share it. A known person is a link to them instead.
-    if (known?.href) return `[@\u200b${name.replace(/[[\]]/g, "")}](${known.href})`;
+    if (known?.href)
+      return `[@\u200b${name.replace(/[[\]]/g, "")}](${known.href})`;
     return `**@\u200b${name}**`;
   }
   // <#C123|name> / <#C123>
@@ -91,7 +116,8 @@ function angleToken(inner: string, resolve: SlackInboundResolver): string {
   m = /^!([a-z]+)(?:\^([^|]*))?(?:\|(.*))?$/.exec(inner);
   if (m) {
     const kind = m[1];
-    if (kind === "here" || kind === "channel" || kind === "everyone") return "@here";
+    if (kind === "here" || kind === "channel" || kind === "everyone")
+      return "@here";
     if (kind === "subteam") {
       const label = m[3] || resolve.usergroup?.(m[2] ?? "") || "group";
       return `**@\u200b${label.replace(/^@/, "")}**`;
@@ -114,12 +140,19 @@ function angleToken(inner: string, resolve: SlackInboundResolver): string {
 }
 
 /** Convert one Slack mrkdwn message body to codecast markdown. */
-export function slackToMarkdown(text: string, resolve: SlackInboundResolver): string {
+export function slackToMarkdown(
+  text: string,
+  resolve: SlackInboundResolver,
+): string {
   if (!text) return "";
-  const { text: protectedText, restore } = protectCode(text, (code) => decodeSlackEntities(code));
+  const { text: protectedText, restore } = protectCode(text, (code) =>
+    decodeSlackEntities(code),
+  );
   let out = protectedText;
   // Angle tokens carry raw < >; everything else Slack sends is entity-escaped.
-  out = out.replace(/<([^<>\n]+)>/g, (_m, inner: string) => angleToken(inner, resolve));
+  out = out.replace(/<([^<>\n]+)>/g, (_m, inner: string) =>
+    angleToken(inner, resolve),
+  );
   out = decodeSlackEntities(out);
   out = out.replace(BOLD_RE, "$1**$2**");
   out = out.replace(STRIKE_RE, "$1~~$2~~");
@@ -170,10 +203,14 @@ export function isSharedMessage(a: SlackAttachment | undefined): boolean {
 }
 
 /** Every Slack user id a line names, its quoted messages included. */
-export function slackUserIdsIn(text: string, attachments?: SlackAttachment[]): string[] {
+export function slackUserIdsIn(
+  text: string,
+  attachments?: SlackAttachment[],
+): string[] {
   const ids = new Set<string>();
   const scan = (t: string | undefined) => {
-    for (const m of (t ?? "").matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g)) ids.add(m[1]);
+    for (const m of (t ?? "").matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g))
+      ids.add(m[1]);
   };
   scan(text);
   for (const a of attachments ?? []) {
@@ -189,10 +226,21 @@ export function slackUserIdsIn(text: string, attachments?: SlackAttachment[]): s
 // for its author: the chat permalink of the mirrored copy when there is one,
 // else Slack's. The chat renderer draws that shape as a quote card; every
 // other reader (CLI, search, agents) still reads who said what.
-function sharedMessageMarkdown(a: SlackAttachment, resolve: SlackInboundResolver): string[] {
+function sharedMessageMarkdown(
+  a: SlackAttachment,
+  resolve: SlackInboundResolver,
+): string[] {
   const known = a.author_id ? resolve.user(a.author_id) : null;
-  const name = (a.author_name || a.author_subname || known?.name || "Someone").replace(/[[\]]/g, "");
-  const href = (a.channel_id && a.ts ? resolve.message?.(a.channel_id, a.ts) : null) || a.from_url || a.original_url;
+  const name = (
+    a.author_name ||
+    a.author_subname ||
+    known?.name ||
+    "Someone"
+  ).replace(/[[\]]/g, "");
+  const href =
+    (a.channel_id && a.ts ? resolve.message?.(a.channel_id, a.ts) : null) ||
+    a.from_url ||
+    a.original_url;
   const lines = [href ? `[${name}](${href})` : `**${name}**`];
   const body = a.text ? slackToMarkdown(a.text, resolve) : "";
   if (body) lines.push(body);
@@ -201,12 +249,19 @@ function sharedMessageMarkdown(a: SlackAttachment, resolve: SlackInboundResolver
 }
 
 // A bot card's lines: pretext, author and title, text, fields, image, footer.
-function attachmentCardLines(a: SlackAttachment, resolve: SlackInboundResolver): string[] {
+function attachmentCardLines(
+  a: SlackAttachment,
+  resolve: SlackInboundResolver,
+): string[] {
   const lines: string[] = [];
   if (a.pretext) lines.push(slackToMarkdown(a.pretext, resolve));
   const head: string[] = [];
-  if (a.service_name || a.author_name) head.push(`*${a.author_name || a.service_name}*`);
-  if (a.title) head.push(a.title_link ? `**[${a.title}](${a.title_link})**` : `**${a.title}**`);
+  if (a.service_name || a.author_name)
+    head.push(`*${a.author_name || a.service_name}*`);
+  if (a.title)
+    head.push(
+      a.title_link ? `**[${a.title}](${a.title_link})**` : `**${a.title}**`,
+    );
   if (head.length > 0) lines.push(head.join(" · "));
   if (a.text) lines.push(slackToMarkdown(a.text, resolve));
   for (const f of a.fields ?? []) {
@@ -216,7 +271,8 @@ function attachmentCardLines(a: SlackAttachment, resolve: SlackInboundResolver):
   }
   if (a.image_url) lines.push(`![](${a.image_url})`);
   if (a.footer) lines.push(`*${slackToMarkdown(a.footer, resolve)}*`);
-  if (lines.length === 0 && a.fallback) lines.push(slackToMarkdown(a.fallback, resolve));
+  if (lines.length === 0 && a.fallback)
+    lines.push(slackToMarkdown(a.fallback, resolve));
   return lines;
 }
 
@@ -228,9 +284,20 @@ export function slackAttachmentsToMarkdown(
   const cards: string[] = [];
   for (const a of attachments) {
     if (!a || typeof a !== "object") continue;
-    const lines = isSharedMessage(a) ? sharedMessageMarkdown(a, resolve) : attachmentCardLines(a, resolve);
+    const lines = isSharedMessage(a)
+      ? sharedMessageMarkdown(a, resolve)
+      : attachmentCardLines(a, resolve);
     if (lines.length === 0) continue;
-    cards.push(lines.map((l) => l.split("\n").map((x) => `> ${x}`).join("\n")).join("\n>\n"));
+    cards.push(
+      lines
+        .map((l) =>
+          l
+            .split("\n")
+            .map((x) => `> ${x}`)
+            .join("\n"),
+        )
+        .join("\n>\n"),
+    );
   }
   return cards.join("\n\n");
 }
@@ -255,15 +322,22 @@ const ENTITY_ID_RE = /(^|[^\w-])((?:ct|pl|tr)-\d+)\b/g;
 export function hasStandalonePreviewLink(md: string): boolean {
   return md.split("\n").some((line) => {
     const t = line.trim();
-    const href = /^<?(https?:\/\/\S+?)>?$/.exec(t)?.[1] ?? /^\[[^\]]*\]\((https?:\/\/[^)\s]+)\)$/.exec(t)?.[1];
+    const href =
+      /^<?(https?:\/\/\S+?)>?$/.exec(t)?.[1] ??
+      /^\[[^\]]*\]\((https?:\/\/[^)\s]+)\)$/.exec(t)?.[1];
     return !!parseLinkPreviewUrl(href);
   });
 }
 
 /** Convert codecast markdown to Slack mrkdwn. */
-export function markdownToSlack(md: string, resolve: SlackOutboundResolver): string {
+export function markdownToSlack(
+  md: string,
+  resolve: SlackOutboundResolver,
+): string {
   if (!md) return "";
-  const { text: protectedText, restore } = protectCode(md, (code) => encodeSlackEntities(code));
+  const { text: protectedText, restore } = protectCode(md, (code) =>
+    encodeSlackEntities(code),
+  );
   let out = encodeSlackEntities(protectedText);
   // Images and links first: their URLs must not be touched by emphasis rules,
   // and a converted link is shielded so a `ct-12` in its label is not linked
@@ -273,13 +347,22 @@ export function markdownToSlack(md: string, resolve: SlackOutboundResolver): str
     links.push(token);
     return `\u0000L${links.length - 1}\u0000`;
   };
-  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, url: string) => shield(`<${url}|${alt || "image"}>`));
-  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, url: string) => shield(`<${url}|${label}>`));
+  out = out.replace(
+    /!\[([^\]]*)\]\(([^)\s]+)\)/g,
+    (_m, alt: string, url: string) => shield(`<${url}|${alt || "image"}>`),
+  );
+  out = out.replace(
+    /\[([^\]]+)\]\(([^)\s]+)\)/g,
+    (_m, label: string, url: string) => shield(`<${url}|${label}>`),
+  );
   // Headers: Slack has none; bold the line.
   out = out.replace(/^(\s*)#{1,6}\s+(.+?)\s*#*$/gm, "$1**$2**");
   // Emphasis. Single-star italic first, with lookarounds that refuse a star
   // that is part of a pair, so the bold made next is not re-read as italic.
-  out = out.replace(/(^|[\s(])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)(?=$|[\s.,!?;:)])/gm, "$1_$2_");
+  out = out.replace(
+    /(^|[\s(])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?!\*)(?=$|[\s.,!?;:)])/gm,
+    "$1_$2_",
+  );
   out = out.replace(/\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*/g, "*$1*");
   out = out.replace(/__(?!\s)([^_\n]+?)(?<!\s)__/g, "*$1*");
   out = out.replace(/~~(?!\s)([^~\n]+?)(?<!\s)~~/g, "~$1~");
@@ -303,7 +386,11 @@ export function markdownToSlack(md: string, resolve: SlackOutboundResolver): str
 
 /** The name Slack shows over a mirrored codecast line. Agents are marked so a
  *  Slack reader never mistakes a machine for the teammate hosting it. */
-export function slackDisplayName(author: { name: string; isAgent?: boolean; via?: string | null }): string {
+export function slackDisplayName(author: {
+  name: string;
+  isAgent?: boolean;
+  via?: string | null;
+}): string {
   const base = author.name.trim() || "Someone";
   if (!author.isAgent) return base.slice(0, 80);
   const via = author.via ? ` · via ${author.via}` : "";
@@ -311,28 +398,53 @@ export function slackDisplayName(author: { name: string; isAgent?: boolean; via?
 }
 
 // A Slack message's words as markdown: its text, then its cards and quoted messages.
-export function inboundTextParts(msg: any, resolver: SlackInboundResolver): string[] {
-  return [slackToMarkdown(String(msg.text ?? ""), resolver), slackAttachmentsToMarkdown(msg.attachments, resolver)].filter(Boolean);
+export function inboundTextParts(
+  msg: any,
+  resolver: SlackInboundResolver,
+): string[] {
+  return [
+    slackToMarkdown(String(msg.text ?? ""), resolver),
+    slackAttachmentsToMarkdown(msg.attachments, resolver),
+  ].filter(Boolean);
 }
 
 // The message subtypes that carry a line a person or app wrote; every other
 // subtype is an edit, delete or system notice with its own path.
-export function isMirrorableMessage(m: { subtype?: string } | null | undefined): boolean {
+export function isMirrorableMessage(
+  m: { subtype?: string } | null | undefined,
+): boolean {
   const sub = m?.subtype;
-  return sub === undefined || sub === "file_share" || sub === "thread_broadcast" || sub === "bot_message";
+  return (
+    sub === undefined ||
+    sub === "file_share" ||
+    sub === "thread_broadcast" ||
+    sub === "bot_message"
+  );
 }
 
 // What Slack's own housekeeping reads as in chat. Null for a subtype worth no
 // line at all, which the caller records as a skip.
-export function systemNoticeLine(subtype: string | undefined, who: string, event: any): string | null {
-  const plain = (raw: unknown) => slackToMarkdown(String(raw ?? ""), { user: () => null });
+export function systemNoticeLine(
+  subtype: string | undefined,
+  who: string,
+  event: any,
+): string | null {
+  const plain = (raw: unknown) =>
+    slackToMarkdown(String(raw ?? ""), { user: () => null });
   switch (subtype) {
-    case "channel_join": return `${who} joined the Slack channel`;
-    case "channel_leave": return `${who} left the Slack channel`;
-    case "channel_topic": return `${who} set the Slack topic: ${plain(event.topic)}`;
-    case "channel_purpose": return `${who} set the Slack purpose: ${plain(event.purpose)}`;
-    case "channel_name": return `${who} renamed the Slack channel to #${event.name ?? ""}`;
-    case "pinned_item": return `${who} pinned a message in Slack`;
-    default: return null;
+    case "channel_join":
+      return `${who} joined the Slack channel`;
+    case "channel_leave":
+      return `${who} left the Slack channel`;
+    case "channel_topic":
+      return `${who} set the Slack topic: ${plain(event.topic)}`;
+    case "channel_purpose":
+      return `${who} set the Slack purpose: ${plain(event.purpose)}`;
+    case "channel_name":
+      return `${who} renamed the Slack channel to #${event.name ?? ""}`;
+    case "pinned_item":
+      return `${who} pinned a message in Slack`;
+    default:
+      return null;
   }
 }

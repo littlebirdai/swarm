@@ -1,8 +1,25 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { _resetUndoStacks, getUndoHistory, performRedo, performUndo } from "@platform/engine";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
+import {
+  _resetUndoStacks,
+  getUndoHistory,
+  performRedo,
+  performUndo,
+} from "@platform/engine";
 import { useInboxStore } from "../inboxStore";
 import { NO_CLEAR, UNDO_WIRE_TABLES, UNDO_WRITERS } from "../undo/writers";
-import { closeTaskWithGuard, resolveTaskCloseGuard, setTaskParent, updateTasksAsOne } from "../../lib/taskActions";
+import {
+  closeTaskWithGuard,
+  resolveTaskCloseGuard,
+  setTaskParent,
+  updateTasksAsOne,
+} from "../../lib/taskActions";
 
 // The writer contract, generated over UNDO_WRITERS and their wire tables. For
 // every field a writer carries, in both directions that can happen (a prior
@@ -56,10 +73,31 @@ const s = () => useInboxStore.getState() as any;
 const FIXTURES: Record<string, Fixture> = {
   tasks: {
     id: T,
-    seed: () => ({ _id: T, short_id: "ct-1", title: "Fix it", status: "todo", priority: "medium", updated_at: 1 }),
+    seed: () => ({
+      _id: T,
+      short_id: "ct-1",
+      title: "Fix it",
+      status: "todo",
+      priority: "medium",
+      updated_at: 1,
+    }),
     others: () => ({
-      [T_PARENT]: { _id: T_PARENT, short_id: "ct-2", title: "Parent", status: "todo", priority: "medium", updated_at: 1 },
-      [T_OTHER]: { _id: T_OTHER, short_id: "ct-3", title: "Other", status: "todo", priority: "medium", updated_at: 1 },
+      [T_PARENT]: {
+        _id: T_PARENT,
+        short_id: "ct-2",
+        title: "Parent",
+        status: "todo",
+        priority: "medium",
+        updated_at: 1,
+      },
+      [T_OTHER]: {
+        _id: T_OTHER,
+        short_id: "ct-3",
+        title: "Other",
+        status: "todo",
+        priority: "medium",
+        updated_at: 1,
+      },
     }),
     samples: {
       status: ["todo", "in_progress"],
@@ -79,13 +117,29 @@ const FIXTURES: Record<string, Fixture> = {
     },
     forward: (field, value) => {
       if (field === "parent_id") {
-        s().updateTask("ct-1", { parent: value === T_PARENT ? "ct-2" : "ct-3" });
+        s().updateTask("ct-1", {
+          parent: value === T_PARENT ? "ct-2" : "ct-3",
+        });
       } else {
         s().updateTask("ct-1", { [field]: value });
       }
     },
     expected: (field, restored) => {
-      if (field === "parent_id") return ["updateTask", ["ct-1", { parent: restored === T_PARENT ? "ct-2" : restored === T_OTHER ? "ct-3" : "" }]];
+      if (field === "parent_id")
+        return [
+          "updateTask",
+          [
+            "ct-1",
+            {
+              parent:
+                restored === T_PARENT
+                  ? "ct-2"
+                  : restored === T_OTHER
+                    ? "ct-3"
+                    : "",
+            },
+          ],
+        ];
       return ["updateTask", ["ct-1", { [field]: restored ?? "" }]];
     },
     syncOpts: { isDelta: true },
@@ -93,14 +147,23 @@ const FIXTURES: Record<string, Fixture> = {
   },
   plans: {
     id: PLAN,
-    seed: () => ({ _id: PLAN, short_id: "pl-1", title: "Plan", status: "active", updated_at: 1 }),
+    seed: () => ({
+      _id: PLAN,
+      short_id: "pl-1",
+      title: "Plan",
+      status: "active",
+      updated_at: 1,
+    }),
     samples: {
       title: ["Plan", "Plan B"],
       goal: ["ship", "ship faster"],
       acceptance_criteria: [["a"], ["b"]],
       status: ["active", "done"],
       task_ids: [["x"], ["y"]],
-      context_pointers: [[{ label: "a", path_or_url: "/a" }], [{ label: "b", path_or_url: "/b" }]],
+      context_pointers: [
+        [{ label: "a", path_or_url: "/a" }],
+        [{ label: "b", path_or_url: "/b" }],
+      ],
       project_id: ["proj_a", "proj_b"],
       success_metrics: [["m1"], ["m2"]],
       priority: ["p1", "p2"],
@@ -108,11 +171,25 @@ const FIXTURES: Record<string, Fixture> = {
       non_goals: [["n1"], ["n2"]],
     },
     forward: (field, value) => s().updatePlan("pl-1", { [field]: value }),
-    expected: (field, restored) => ["updatePlan", ["pl-1", { [field]: restored === undefined ? clearWire("plans", field) : restored }]],
+    expected: (field, restored) => [
+      "updatePlan",
+      [
+        "pl-1",
+        {
+          [field]:
+            restored === undefined ? clearWire("plans", field) : restored,
+        },
+      ],
+    ],
   },
   projects: {
     id: PROJECT,
-    seed: () => ({ _id: PROJECT, title: "Project", status: "active", updated_at: 1 }),
+    seed: () => ({
+      _id: PROJECT,
+      title: "Project",
+      status: "active",
+      updated_at: 1,
+    }),
     samples: {
       title: ["Project", "Project 2"],
       description: ["d1", "d2"],
@@ -132,27 +209,63 @@ const FIXTURES: Record<string, Fixture> = {
       budget: [{ tokens_per_day: 1 }, { tokens_per_day: 2 }],
     },
     forward: (field, value) => s().updateProject(PROJECT, { [field]: value }),
-    expected: (field, restored) => ["updateProject", [PROJECT, { [field]: restored === undefined ? clearWire("projects", field) : restored }]],
+    expected: (field, restored) => [
+      "updateProject",
+      [
+        PROJECT,
+        {
+          [field]:
+            restored === undefined ? clearWire("projects", field) : restored,
+        },
+      ],
+    ],
   },
   initiatives: {
     id: INITIATIVE,
-    seed: () => ({ _id: INITIATIVE, short_id: "in-1", title: "Grow", status: "active", project_ids: [], health: "none", workspace: "user:u", user_id: "u", created_at: 1, updated_at: 1 }),
+    seed: () => ({
+      _id: INITIATIVE,
+      short_id: "in-1",
+      title: "Grow",
+      status: "active",
+      project_ids: [],
+      health: "none",
+      workspace: "user:u",
+      user_id: "u",
+      created_at: 1,
+      updated_at: 1,
+    }),
     samples: {
       title: ["Grow", "Grow more"],
       description: ["d1", "d2"],
       status: ["active", "done"],
-      owner: [{ kind: "user", user_id: "u1" }, { kind: "user", user_id: "u2" }],
+      owner: [
+        { kind: "user", user_id: "u1" },
+        { kind: "user", user_id: "u2" },
+      ],
       target_date: [100, 200],
       priority: ["p1", "p2"],
       labels: [["a"], ["b"]],
       parent_initiative_id: ["in_a", "in_b"],
       position: [1, 2],
-      metrics: [[{ key: "k", name: "n", target: "1" }], [{ key: "k", name: "n", target: "2" }]],
+      metrics: [
+        [{ key: "k", name: "n", target: "1" }],
+        [{ key: "k", name: "n", target: "2" }],
+      ],
       why: ["w1", "w2"],
       done_when: ["dw1", "dw2"],
     },
-    forward: (field, value) => s().updateInitiative(INITIATIVE, { [field]: value }),
-    expected: (field, restored) => ["updateInitiative", [INITIATIVE, { [field]: restored === undefined ? clearWire("initiatives", field) : restored }]],
+    forward: (field, value) =>
+      s().updateInitiative(INITIATIVE, { [field]: value }),
+    expected: (field, restored) => [
+      "updateInitiative",
+      [
+        INITIATIVE,
+        {
+          [field]:
+            restored === undefined ? clearWire("initiatives", field) : restored,
+        },
+      ],
+    ],
   },
   docs: {
     id: DOC,
@@ -176,9 +289,20 @@ const FIXTURES: Record<string, Fixture> = {
       const row = s().docs[DOC];
       if (field === "pinned") return ["pinDoc", [DOC, restored === true]];
       // An unset parent or rank travels as null; webMoveDoc unsets the parent.
-      if (field === "parent_id") return ["moveDoc", [DOC, restored ?? null, row.sort_order ?? null]];
-      if (field === "sort_order") return ["moveDoc", [DOC, row.parent_id ?? null, restored ?? null]];
-      return ["updateDoc", [DOC, { [field]: restored === undefined ? clearWire("docs", field) : restored }]];
+      if (field === "parent_id")
+        return ["moveDoc", [DOC, restored ?? null, row.sort_order ?? null]];
+      if (field === "sort_order")
+        return ["moveDoc", [DOC, row.parent_id ?? null, restored ?? null]];
+      return [
+        "updateDoc",
+        [
+          DOC,
+          {
+            [field]:
+              restored === undefined ? clearWire("docs", field) : restored,
+          },
+        ],
+      ];
     },
     syncOpts: { isDelta: true },
   },
@@ -187,19 +311,63 @@ const FIXTURES: Record<string, Fixture> = {
     seed: () => ({ _id: ASSIGNMENT, conversation_id: CONV, updated_at: 1 }),
     samples: { bucket_id: ["bkt_a", "bkt_b"] },
     forward: (_field, value) => s().assignSessionToBucket(CONV, value),
-    expected: (_field, restored) => ["assignSessionToBucket", [CONV, restored ?? null]],
+    expected: (_field, restored) => [
+      "assignSessionToBucket",
+      [CONV, restored ?? null],
+    ],
   },
   workflows: {
     id: WORKFLOW,
-    seed: () => ({ _id: WORKFLOW, slug: WF_SLUG, name: "Line", source: "digraph line {}", edges: [], updated_at: 1 }),
+    seed: () => ({
+      _id: WORKFLOW,
+      slug: WF_SLUG,
+      name: "Line",
+      source: "digraph line {}",
+      edges: [],
+      updated_at: 1,
+    }),
     samples: {
       nodes: [
-        [{ id: "ground", label: "Ground", shape: "box", type: "agent", prompt: "shipped" }],
-        [{ id: "ground", label: "Ground", shape: "box", type: "agent", prompt: "edited" }],
+        [
+          {
+            id: "ground",
+            label: "Ground",
+            shape: "box",
+            type: "agent",
+            prompt: "shipped",
+          },
+        ],
+        [
+          {
+            id: "ground",
+            label: "Ground",
+            shape: "box",
+            type: "agent",
+            prompt: "edited",
+          },
+        ],
       ],
     },
-    forward: (_field, value) => s().saveLineWorkflow({ slug: WF_SLUG, name: "Line", source: "digraph line {}", edges: [], nodes: value }),
-    expected: (_field, restored) => ["saveLineWorkflow", [{ slug: WF_SLUG, name: "Line", source: "digraph line {}", edges: [], nodes: restored }]],
+    forward: (_field, value) =>
+      s().saveLineWorkflow({
+        slug: WF_SLUG,
+        name: "Line",
+        source: "digraph line {}",
+        edges: [],
+        nodes: value,
+      }),
+    expected: (_field, restored) => [
+      "saveLineWorkflow",
+      [
+        {
+          slug: WF_SLUG,
+          name: "Line",
+          source: "digraph line {}",
+          edges: [],
+          nodes: restored,
+        },
+      ],
+    ],
     syncOpts: { isDelta: true },
   },
 };
@@ -220,7 +388,10 @@ function seedRow(store: string, field: string, prior: Prior) {
   const row = { ...f.seed() };
   if (prior !== ABSENT) row[field] = prior;
   else delete row[field];
-  useInboxStore.setState({ [store]: { ...(f.others?.() ?? {}), [f.id]: row }, pending: {} } as any);
+  useInboxStore.setState({
+    [store]: { ...(f.others?.() ?? {}), [f.id]: row },
+    pending: {},
+  } as any);
   return row;
 }
 
@@ -239,16 +410,23 @@ function withField(row: Record<string, any>, field: string, value: unknown) {
 const rowOf = (store: string) => s()[store][FIXTURES[store]!.id];
 const locksOn = (store: string) => {
   const prefix = `${store}:${FIXTURES[store]!.id}`;
-  return Object.keys(s().pending).filter((k) => (k === prefix || k.startsWith(`${prefix}:`)) && k !== `${prefix}:updated_at`);
+  return Object.keys(s().pending).filter(
+    (k) =>
+      (k === prefix || k.startsWith(`${prefix}:`)) &&
+      k !== `${prefix}:updated_at`,
+  );
 };
 
 let calls: Array<[string, unknown[]]> = [];
 const owner = {};
 beforeAll(() => {
-  s()._setDispatch(async (action: string, args: unknown[]) => {
-    calls.push([action, args]);
-    return null;
-  }, { owner });
+  s()._setDispatch(
+    async (action: string, args: unknown[]) => {
+      calls.push([action, args]);
+      return null;
+    },
+    { owner },
+  );
 });
 afterAll(() => s()._clearDispatch(owner));
 beforeEach(() => {
@@ -264,9 +442,13 @@ async function sent(): Promise<void> {
 
 describe("every writer has a fixture for every wire field", () => {
   it("fixtures cover UNDO_WRITERS and their wire tables", () => {
-    expect(Object.keys(FIXTURES).sort()).toEqual(Object.keys(UNDO_WRITERS).sort());
+    expect(Object.keys(FIXTURES).sort()).toEqual(
+      Object.keys(UNDO_WRITERS).sort(),
+    );
     for (const [store, table] of Object.entries(UNDO_WIRE_TABLES)) {
-      expect(Object.keys(FIXTURES[store]!.samples).sort()).toEqual(Object.keys(table).sort());
+      expect(Object.keys(FIXTURES[store]!.samples).sort()).toEqual(
+        Object.keys(table).sort(),
+      );
     }
   });
 });
@@ -276,37 +458,46 @@ for (const [store, fixture] of Object.entries(FIXTURES)) {
     for (const [field, [prior, next]] of Object.entries(fixture.samples)) {
       for (const from of [prior, ABSENT] as Prior[]) {
         const uncaptured = fixture.uncaptured?.[field];
-        const blocked = !!uncaptured || (from === ABSENT && UNDO_WIRE_TABLES[store]?.[field] === NO_CLEAR && !(field in (UNDO_WRITERS[store]?.clears ?? {})));
+        const blocked =
+          !!uncaptured ||
+          (from === ABSENT &&
+            UNDO_WIRE_TABLES[store]?.[field] === NO_CLEAR &&
+            !(field in (UNDO_WRITERS[store]?.clears ?? {})));
         const name = `${field}: ${from === ABSENT ? "unset" : "set"} → forward → undo`;
-        it(blocked ? `${name} is not recorded (${uncaptured ?? "the server cannot clear it"})` : name, async () => {
-          const seeded = seedRow(store, field, from);
-          fixture.forward(field, next);
-          expect(rowOf(store)[field]).toEqual(next);
-          if (blocked) {
-            expect(getUndoHistory().items).toHaveLength(0);
-            return;
-          }
-          expect(getUndoHistory().items).toHaveLength(1);
-          // A push from before the server saw the edit does not take it back.
-          push(store, seeded);
-          expect(rowOf(store)[field]).toEqual(next);
+        it(
+          blocked
+            ? `${name} is not recorded (${uncaptured ?? "the server cannot clear it"})`
+            : name,
+          async () => {
+            const seeded = seedRow(store, field, from);
+            fixture.forward(field, next);
+            expect(rowOf(store)[field]).toEqual(next);
+            if (blocked) {
+              expect(getUndoHistory().items).toHaveLength(0);
+              return;
+            }
+            expect(getUndoHistory().items).toHaveLength(1);
+            // A push from before the server saw the edit does not take it back.
+            push(store, seeded);
+            expect(rowOf(store)[field]).toEqual(next);
 
-          const restored = restoredValue(store, field, from);
-          calls = [];
-          expect(performUndo()).toBe(true);
-          expect(rowOf(store)[field]).toEqual(restored);
-          await sent();
-          expect(calls.at(-1)).toEqual(fixture.expected(field, restored));
+            const restored = restoredValue(store, field, from);
+            calls = [];
+            expect(performUndo()).toBe(true);
+            expect(rowOf(store)[field]).toEqual(restored);
+            await sent();
+            expect(calls.at(-1)).toEqual(fixture.expected(field, restored));
 
-          // A push still carrying the forward value does not re-apply it.
-          push(store, withField(seeded, field, next));
-          expect(rowOf(store)[field]).toEqual(restored);
+            // A push still carrying the forward value does not re-apply it.
+            push(store, withField(seeded, field, next));
+            expect(rowOf(store)[field]).toEqual(restored);
 
-          // The server's echo of the undo: the row stays, and nothing is left locked.
-          push(store, withField(seeded, field, restored));
-          expect(rowOf(store)[field]).toEqual(restored);
-          expect(locksOn(store)).toEqual([]);
-        });
+            // The server's echo of the undo: the row stays, and nothing is left locked.
+            push(store, withField(seeded, field, restored));
+            expect(rowOf(store)[field]).toEqual(restored);
+            expect(locksOn(store)).toEqual([]);
+          },
+        );
       }
     }
   });
@@ -327,8 +518,23 @@ describe("task writer specifics", () => {
     const C1 = "1".repeat(32);
     useInboxStore.setState({
       tasks: {
-        [T]: { _id: T, short_id: "ct-1", title: "Parent", status: "done", priority: "medium", updated_at: 1 },
-        [C1]: { _id: C1, short_id: "ct-2", title: "Child", status: "todo", priority: "medium", parent_id: T, updated_at: 1 },
+        [T]: {
+          _id: T,
+          short_id: "ct-1",
+          title: "Parent",
+          status: "done",
+          priority: "medium",
+          updated_at: 1,
+        },
+        [C1]: {
+          _id: C1,
+          short_id: "ct-2",
+          title: "Child",
+          status: "todo",
+          priority: "medium",
+          parent_id: T,
+          updated_at: 1,
+        },
       },
       pending: {},
     } as any);
@@ -337,7 +543,12 @@ describe("task writer specifics", () => {
     performUndo();
     expect(s().tasks[T].status).toBe("done");
     // The server refuses to close a parent with open subtasks unless told how.
-    expect(calls).toEqual([["updateTask", ["ct-1", { status: "done", subtask_resolution: "only_parent" }]]]);
+    expect(calls).toEqual([
+      [
+        "updateTask",
+        ["ct-1", { status: "done", subtask_resolution: "only_parent" }],
+      ],
+    ]);
   });
 
   it("a cascade close undoes as one updateTask per closed row", () => {
@@ -345,25 +556,65 @@ describe("task writer specifics", () => {
     const C2 = "2".repeat(32);
     useInboxStore.setState({
       tasks: {
-        [T]: { _id: T, short_id: "ct-1", title: "Parent", status: "in_progress", priority: "medium", updated_at: 1 },
-        [C1]: { _id: C1, short_id: "ct-11", title: "Child", status: "todo", priority: "medium", parent_id: T, updated_at: 1 },
-        [C2]: { _id: C2, short_id: "ct-12", title: "Child", status: "in_progress", priority: "medium", parent_id: T, updated_at: 1 },
+        [T]: {
+          _id: T,
+          short_id: "ct-1",
+          title: "Parent",
+          status: "in_progress",
+          priority: "medium",
+          updated_at: 1,
+        },
+        [C1]: {
+          _id: C1,
+          short_id: "ct-11",
+          title: "Child",
+          status: "todo",
+          priority: "medium",
+          parent_id: T,
+          updated_at: 1,
+        },
+        [C2]: {
+          _id: C2,
+          short_id: "ct-12",
+          title: "Child",
+          status: "in_progress",
+          priority: "medium",
+          parent_id: T,
+          updated_at: 1,
+        },
       },
       pending: {},
     } as any);
     s().updateTask("ct-1", { status: "done", subtask_resolution: "cascade" });
-    expect([T, C1, C2].map((id) => s().tasks[id].status)).toEqual(["done", "done", "done"]);
-    expect(getUndoHistory().items.map((i) => i.label)).toEqual(["Moved ct-1 and 2 subtasks to Done"]);
+    expect([T, C1, C2].map((id) => s().tasks[id].status)).toEqual([
+      "done",
+      "done",
+      "done",
+    ]);
+    expect(getUndoHistory().items.map((i) => i.label)).toEqual([
+      "Moved ct-1 and 2 subtasks to Done",
+    ]);
     calls = [];
     performUndo();
-    expect([T, C1, C2].map((id) => s().tasks[id].status)).toEqual(["in_progress", "todo", "in_progress"]);
-    expect(calls.filter(([a]) => a === "updateTask").map(([, args]) => args).sort((a: any, b: any) => a[0].localeCompare(b[0]))).toEqual([
+    expect([T, C1, C2].map((id) => s().tasks[id].status)).toEqual([
+      "in_progress",
+      "todo",
+      "in_progress",
+    ]);
+    expect(
+      calls
+        .filter(([a]) => a === "updateTask")
+        .map(([, args]) => args)
+        .sort((a: any, b: any) => a[0].localeCompare(b[0])),
+    ).toEqual([
       ["ct-1", { status: "in_progress" }],
       ["ct-11", { status: "todo" }],
       ["ct-12", { status: "in_progress" }],
     ]);
     // closed_at is the server's: the undo neither restores nor locks it.
-    expect(Object.keys(s().pending).filter((k) => k.endsWith(":closed_at"))).toEqual([]);
+    expect(
+      Object.keys(s().pending).filter((k) => k.endsWith(":closed_at")),
+    ).toEqual([]);
   });
 
   it("updateTaskStatus rides the same writer, labeled by short id and status name", async () => {
@@ -383,9 +634,31 @@ describe("task writer specifics", () => {
     const C1 = "1".repeat(32);
     useInboxStore.setState({
       tasks: {
-        [T]: { _id: T, short_id: "ct-1", title: "Parent", status: "in_progress", priority: "medium", updated_at: 1 },
-        [C1]: { _id: C1, short_id: "ct-11", title: "Child", status: "todo", priority: "medium", parent_id: T, updated_at: 1 },
-        [T_OTHER]: { _id: T_OTHER, short_id: "ct-3", title: "Other", status: "todo", priority: "medium", updated_at: 1 },
+        [T]: {
+          _id: T,
+          short_id: "ct-1",
+          title: "Parent",
+          status: "in_progress",
+          priority: "medium",
+          updated_at: 1,
+        },
+        [C1]: {
+          _id: C1,
+          short_id: "ct-11",
+          title: "Child",
+          status: "todo",
+          priority: "medium",
+          parent_id: T,
+          updated_at: 1,
+        },
+        [T_OTHER]: {
+          _id: T_OTHER,
+          short_id: "ct-3",
+          title: "Other",
+          status: "todo",
+          priority: "medium",
+          updated_at: 1,
+        },
       },
       pending: {},
     } as any);
@@ -394,13 +667,20 @@ describe("task writer specifics", () => {
     expect(closeTaskWithGuard("ct-1", "done").needsConfirm).toBe(true);
     expect(getUndoHistory().items).toHaveLength(0);
     resolveTaskCloseGuard("cascade");
-    expect(getUndoHistory().items.map((i) => i.label)).toEqual(["Moved ct-1 and 1 subtask to Done"]);
+    expect(getUndoHistory().items.map((i) => i.label)).toEqual([
+      "Moved ct-1 and 1 subtask to Done",
+    ]);
     performUndo();
-    expect([T, C1].map((id) => s().tasks[id].status)).toEqual(["in_progress", "todo"]);
+    expect([T, C1].map((id) => s().tasks[id].status)).toEqual([
+      "in_progress",
+      "todo",
+    ]);
 
     _resetUndoStacks();
     expect(setTaskParent("ct-3", "ct-1").ok).toBe(true);
-    expect(getUndoHistory().items.map((i) => i.label)).toEqual(["Moved ct-3 under ct-1"]);
+    expect(getUndoHistory().items.map((i) => i.label)).toEqual([
+      "Moved ct-3 under ct-1",
+    ]);
     calls = [];
     performUndo();
     expect(s().tasks[T_OTHER].parent_id).toBeUndefined();
@@ -417,26 +697,83 @@ describe("a bulk close over several guarded parents", () => {
     const P5 = "5".repeat(32);
     useInboxStore.setState({
       tasks: {
-        [P1]: { _id: P1, short_id: "ct-1", title: "One", status: "todo", priority: "medium", updated_at: 1 },
-        [K1]: { _id: K1, short_id: "ct-11", title: "Kid one", status: "todo", priority: "medium", parent_id: P1, updated_at: 1 },
-        [P2]: { _id: P2, short_id: "ct-2", title: "Two", status: "todo", priority: "medium", updated_at: 1 },
-        [K2]: { _id: K2, short_id: "ct-21", title: "Kid two", status: "todo", priority: "medium", parent_id: P2, updated_at: 1 },
-        [P5]: { _id: P5, short_id: "ct-5", title: "Five", status: "todo", priority: "medium", updated_at: 1 },
+        [P1]: {
+          _id: P1,
+          short_id: "ct-1",
+          title: "One",
+          status: "todo",
+          priority: "medium",
+          updated_at: 1,
+        },
+        [K1]: {
+          _id: K1,
+          short_id: "ct-11",
+          title: "Kid one",
+          status: "todo",
+          priority: "medium",
+          parent_id: P1,
+          updated_at: 1,
+        },
+        [P2]: {
+          _id: P2,
+          short_id: "ct-2",
+          title: "Two",
+          status: "todo",
+          priority: "medium",
+          updated_at: 1,
+        },
+        [K2]: {
+          _id: K2,
+          short_id: "ct-21",
+          title: "Kid two",
+          status: "todo",
+          priority: "medium",
+          parent_id: P2,
+          updated_at: 1,
+        },
+        [P5]: {
+          _id: P5,
+          short_id: "ct-5",
+          title: "Five",
+          status: "todo",
+          priority: "medium",
+          updated_at: 1,
+        },
       },
       pending: {},
     } as any);
 
-    expect(updateTasksAsOne(["ct-1", "ct-2", "ct-5"], { status: "done" }).needsConfirm).toBe(true);
-    expect((s().taskCloseGuard.parents as Array<{ shortId: string }>).map((p) => p.shortId)).toEqual(["ct-1", "ct-2"]);
-    expect(getUndoHistory().items.map((i) => i.label)).toEqual(["Moved ct-5 to Done"]);
+    expect(
+      updateTasksAsOne(["ct-1", "ct-2", "ct-5"], { status: "done" })
+        .needsConfirm,
+    ).toBe(true);
+    expect(
+      (s().taskCloseGuard.parents as Array<{ shortId: string }>).map(
+        (p) => p.shortId,
+      ),
+    ).toEqual(["ct-1", "ct-2"]);
+    expect(getUndoHistory().items.map((i) => i.label)).toEqual([
+      "Moved ct-5 to Done",
+    ]);
 
     resolveTaskCloseGuard("cascade");
     expect(s().taskCloseGuard).toBeNull();
-    expect([P1, K1, P2, K2].map((id) => s().tasks[id].status)).toEqual(["done", "done", "done", "done"]);
+    expect([P1, K1, P2, K2].map((id) => s().tasks[id].status)).toEqual([
+      "done",
+      "done",
+      "done",
+      "done",
+    ]);
     expect(getUndoHistory().items).toHaveLength(2);
     expect(getUndoHistory().items[0]!.label).toMatch(/^Moved 2 tasks/);
     performUndo();
-    expect([P1, K1, P2, K2, P5].map((id) => s().tasks[id].status)).toEqual(["todo", "todo", "todo", "todo", "done"]);
+    expect([P1, K1, P2, K2, P5].map((id) => s().tasks[id].status)).toEqual([
+      "todo",
+      "todo",
+      "todo",
+      "todo",
+      "done",
+    ]);
   });
 });
 
@@ -449,8 +786,14 @@ describe("bucket assignment writer", () => {
     await sent();
     expect(calls).toEqual([["assignSessionToBucket", [CONV, null]]]);
     // The row stays, unfiled, as it does on the server.
-    expect(Object.values(s().bucketAssignments).filter((r: any) => r.conversation_id === CONV && r.bucket_id)).toEqual([]);
-    expect(Object.values(s().pending).filter((e: any) => e.type === "exclude")).toEqual([]);
+    expect(
+      Object.values(s().bucketAssignments).filter(
+        (r: any) => r.conversation_id === CONV && r.bucket_id,
+      ),
+    ).toEqual([]);
+    expect(
+      Object.values(s().pending).filter((e: any) => e.type === "exclude"),
+    ).toEqual([]);
   });
 
   // The server never deletes an assignment row: an unfile keeps it with
@@ -458,11 +801,16 @@ describe("bucket assignment writer", () => {
   // row would exclude that id, and every later push of it would be skipped.
   it("after the echo, an undone first filing keeps the server row, and a later filing of it shows", async () => {
     const SRV = ASSIGNMENT;
-    const assignments = () => Object.keys(s().pending).filter((k) => k.startsWith("bucketAssignments:"));
+    const assignments = () =>
+      Object.keys(s().pending).filter((k) =>
+        k.startsWith("bucketAssignments:"),
+      );
     useInboxStore.setState({ bucketAssignments: {}, pending: {} } as any);
     s().assignSessionToBucket(CONV, "bkt_a");
     // useSyncBuckets' push of the created row rekeys the stub onto it.
-    s().syncTable("bucketAssignments", [{ _id: SRV, conversation_id: CONV, bucket_id: "bkt_a", updated_at: 2 }]);
+    s().syncTable("bucketAssignments", [
+      { _id: SRV, conversation_id: CONV, bucket_id: "bkt_a", updated_at: 2 },
+    ]);
     expect(Object.keys(s().bucketAssignments)).toEqual([SRV]);
 
     calls = [];
@@ -474,16 +822,27 @@ describe("bucket assignment writer", () => {
     expect(s().pending[`bucketAssignments:${SRV}`]).toBeUndefined();
 
     // A stale push still carrying the filing does not bring it back.
-    s().syncTable("bucketAssignments", [{ _id: SRV, conversation_id: CONV, bucket_id: "bkt_a", updated_at: 2 }]);
+    s().syncTable("bucketAssignments", [
+      { _id: SRV, conversation_id: CONV, bucket_id: "bkt_a", updated_at: 2 },
+    ]);
     expect(s().bucketAssignments[SRV].bucket_id).toBeUndefined();
     // The echo of the unfile retires the undo's lock.
-    s().syncTable("bucketAssignments", [{ _id: SRV, conversation_id: CONV, updated_at: 3 }]);
+    s().syncTable("bucketAssignments", [
+      { _id: SRV, conversation_id: CONV, updated_at: 3 },
+    ]);
     expect(s().bucketAssignments[SRV].bucket_id).toBeUndefined();
     expect(assignments().filter((k) => !k.endsWith(":updated_at"))).toEqual([]);
     // Filed again from another device: the reused row shows here.
-    s().syncTable("bucketAssignments", [{ _id: SRV, conversation_id: CONV, bucket_id: "bkt_b", updated_at: 4 }]);
-    expect(s().bucketAssignments[SRV]).toMatchObject({ conversation_id: CONV, bucket_id: "bkt_b" });
-    expect(assignments().filter((k) => s().pending[k].type === "exclude")).toEqual([]);
+    s().syncTable("bucketAssignments", [
+      { _id: SRV, conversation_id: CONV, bucket_id: "bkt_b", updated_at: 4 },
+    ]);
+    expect(s().bucketAssignments[SRV]).toMatchObject({
+      conversation_id: CONV,
+      bucket_id: "bkt_b",
+    });
+    expect(
+      assignments().filter((k) => s().pending[k].type === "exclude"),
+    ).toEqual([]);
   });
 
   it("an undone first filing can be redone", async () => {
@@ -496,6 +855,8 @@ describe("bucket assignment writer", () => {
     performRedo();
     await sent();
     expect(calls).toEqual([["assignSessionToBucket", [CONV, "bkt_a"]]]);
-    expect(Object.values(s().bucketAssignments).map((r: any) => r.bucket_id)).toEqual(["bkt_a"]);
+    expect(
+      Object.values(s().bucketAssignments).map((r: any) => r.bucket_id),
+    ).toEqual(["bkt_a"]);
   });
 });

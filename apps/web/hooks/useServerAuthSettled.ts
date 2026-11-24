@@ -36,7 +36,10 @@ import { useRef } from "react";
 import { useConvexAuth } from "convex/react";
 
 /** The latch itself, so its rule is testable without a renderer. */
-export function authSettledLatch(settled: boolean, isAuthenticated: boolean): boolean {
+export function authSettledLatch(
+  settled: boolean,
+  isAuthenticated: boolean,
+): boolean {
   return settled || isAuthenticated;
 }
 
@@ -67,13 +70,19 @@ export function useServerAuthenticated(): boolean {
 /** Both halves of the server auth signal a feeder acts on. `settled`: the
  *  server has confirmed this caller at least once (latched). `identityLost`:
  *  it did, and the socket is anonymous now, so any answer is a stranger's. */
-export function useServerAuthState(): { settled: boolean; identityLost: boolean } {
+export function useServerAuthState(): {
+  settled: boolean;
+  identityLost: boolean;
+} {
   const isAuthenticated = useServerAuthenticated();
   const settled = useRef(false);
   // useConvexAuth re-renders us when it flips, so reading the latch in the
   // same pass it is written is enough — no effect, no extra commit.
   settled.current = authSettledLatch(settled.current, isAuthenticated);
-  return { settled: settled.current, identityLost: settled.current && !isAuthenticated };
+  return {
+    settled: settled.current,
+    identityLost: settled.current && !isAuthenticated,
+  };
 }
 
 export function useServerAuthSettled(): boolean {

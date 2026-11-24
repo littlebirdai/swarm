@@ -11,7 +11,10 @@ import {
 } from "./vaultMirror.js";
 import { addVault, setVaultMirroring } from "./vaultRegistry.js";
 import { scanVault, vaultContentHash } from "./vaultScope.js";
-import type { VaultFileEntry, VaultMirrorUpsertRequest } from "@codecast/shared/contracts";
+import type {
+  VaultFileEntry,
+  VaultMirrorUpsertRequest,
+} from "@codecast/shared/contracts";
 
 let base = "";
 let configDir = "";
@@ -25,7 +28,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(base, { recursive: true, force: true });
+  } catch {}
 });
 
 function write(rel: string, content: string): void {
@@ -71,7 +76,12 @@ function recordingTransport(opts: { sweepPages?: number } = {}) {
 }
 
 function mirrorFor(transport: VaultMirrorTransport): VaultMirror {
-  return new VaultMirror({ configDir, deviceId: "dev-1", transport, batchIntervalMs: 0 });
+  return new VaultMirror({
+    configDir,
+    deviceId: "dev-1",
+    transport,
+    batchIntervalMs: 0,
+  });
 }
 
 describe("diffScanAgainstLedger", () => {
@@ -85,7 +95,11 @@ describe("diffScanAgainstLedger", () => {
       },
     };
     const result = diffScanAgainstLedger(
-      [file("same.md", 10, 100), file("edited.md", 20, 140), file("new.md", 30, 10)],
+      [
+        file("same.md", 10, 100),
+        file("edited.md", 20, 140),
+        file("new.md", 30, 10),
+      ],
       ledger,
     );
     expect(result.unchanged).toEqual(["same.md"]);
@@ -94,7 +108,10 @@ describe("diffScanAgainstLedger", () => {
   });
 
   test("everything is changed when there is no ledger", () => {
-    const result = diffScanAgainstLedger([file("a.md", 1, 2), file("b.md", 1, 2)], undefined);
+    const result = diffScanAgainstLedger(
+      [file("a.md", 1, 2), file("b.md", 1, 2)],
+      undefined,
+    );
     expect(result.changed).toHaveLength(2);
     expect(result.unchanged).toEqual([]);
     expect(result.removed).toEqual([]);
@@ -121,13 +138,20 @@ describe("buildMirrorNote", () => {
 
   test("title comes from frontmatter, then H1, then the basename", () => {
     const fm = Buffer.from("---\ntitle: From Frontmatter\n---\n\n# Heading\n");
-    expect(buildMirrorNote("a.md", file("a.md", 1, fm.length), fm).title).toBe("From Frontmatter");
+    expect(buildMirrorNote("a.md", file("a.md", 1, fm.length), fm).title).toBe(
+      "From Frontmatter",
+    );
 
     const h1 = Buffer.from("# From Heading\n\ntext\n");
-    expect(buildMirrorNote("a.md", file("a.md", 1, h1.length), h1).title).toBe("From Heading");
+    expect(buildMirrorNote("a.md", file("a.md", 1, h1.length), h1).title).toBe(
+      "From Heading",
+    );
 
     const bare = Buffer.from("just text\n");
-    expect(buildMirrorNote("notes/Some Note.md", file("x", 1, bare.length), bare).title).toBe("Some Note");
+    expect(
+      buildMirrorNote("notes/Some Note.md", file("x", 1, bare.length), bare)
+        .title,
+    ).toBe("Some Note");
   });
 
   test("merges frontmatter and inline tags, dedupes links, counts headings", () => {
@@ -142,7 +166,11 @@ describe("buildMirrorNote", () => {
 
   test("an attachment gets no note metadata", () => {
     const data = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
-    const note = buildMirrorNote("img/pic.png", file("img/pic.png", 1, 4), data);
+    const note = buildMirrorNote(
+      "img/pic.png",
+      file("img/pic.png", 1, 4),
+      data,
+    );
     expect(note.title).toBe("pic.png");
     expect(note.tags).toEqual([]);
     expect(note.links).toEqual([]);
@@ -250,13 +278,15 @@ describe("VaultMirror push cycle", () => {
 
   test("batches stay under the note-count bound", async () => {
     registerMirrored();
-    for (let i = 0; i < 250; i++) write(`n${String(i).padStart(3, "0")}.md`, `# Note ${i}\n`);
+    for (let i = 0; i < 250; i++)
+      write(`n${String(i).padStart(3, "0")}.md`, `# Note ${i}\n`);
     const { transport, pushes } = recordingTransport();
     await mirrorFor(transport).syncAll();
 
     const noteBatches = pushes.filter((p) => p.notes.length > 0);
     expect(noteBatches.length).toBeGreaterThan(1);
-    for (const batch of noteBatches) expect(batch.notes.length).toBeLessThanOrEqual(200);
+    for (const batch of noteBatches)
+      expect(batch.notes.length).toBeLessThanOrEqual(200);
     expect(noteBatches.flatMap((p) => p.notes)).toHaveLength(250);
   });
 

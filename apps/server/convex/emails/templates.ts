@@ -9,7 +9,11 @@
 // email states in the footer why it was received; anything the user did NOT
 // initiate says clearly what to do if it wasn't them.
 
-import { createTemplates, formatWhen, type RenderedEmail } from "@platform/email";
+import {
+  createTemplates,
+  formatWhen,
+  type RenderedEmail,
+} from "@platform/email";
 import { BRAND, renderEmail, type EmailBlock } from "./render";
 
 // ---------------------------------------------------------------------------
@@ -27,7 +31,8 @@ export function welcome(args: { email: string; name?: string }): RenderedEmail {
     email: args.email,
     name: args.name,
     subject: "Welcome to Codecast — your agents, on air",
-    preheader: "Connect your machine and every coding agent session lands in one inbox.",
+    preheader:
+      "Connect your machine and every coding agent session lands in one inbox.",
     heading: "You're on the air",
     intro:
       "Codecast is mission control for your coding agents: every Claude Code and Codex session on your machines streams into one live inbox, where you can read, steer, and hand off work from anywhere.",
@@ -69,7 +74,10 @@ export function teamInvite(args: {
     ? `**${args.inviterName}** (${args.inviterEmail})`
     : `**${args.inviterName}**`;
   const expiryDays = args.expiresAt
-    ? Math.max(1, Math.round((args.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)))
+    ? Math.max(
+        1,
+        Math.round((args.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)),
+      )
     : undefined;
   return renderEmail({
     subject: `${args.inviterName} invited you to ${args.teamName} on Codecast`,
@@ -145,7 +153,11 @@ export function notificationDigest(args: {
       value: `…and ${args.moreCount} more waiting in [your inbox](${BRAND.url}/notifications).`,
     });
   }
-  blocks.push({ kind: "button", label: "Open Codecast", url: `${BRAND.url}/inbox` });
+  blocks.push({
+    kind: "button",
+    label: "Open Codecast",
+    url: `${BRAND.url}/inbox`,
+  });
   return renderEmail({
     subject: args.subject,
     preheader: args.preheader,
@@ -169,7 +181,9 @@ export function artifactComment(args: {
 }): RenderedEmail {
   // Long comments get trimmed — the email is a notification, not the thread.
   const excerpt =
-    args.commentText.length > 400 ? `${args.commentText.slice(0, 400)}…` : args.commentText;
+    args.commentText.length > 400
+      ? `${args.commentText.slice(0, 400)}…`
+      : args.commentText;
   return renderEmail({
     subject: `New comment on "${args.pageTitle}"`,
     preheader: `${args.commenterName}: ${excerpt.slice(0, 90)}`,
@@ -189,14 +203,23 @@ export function artifactComment(args: {
 // ---------------------------------------------------------------------------
 
 /** A person's first passkey was added (passkeys.ts): it confirms Vault actions from now on, so one they did not add is an alarm. */
-export function passkeyAdded(args: { email: string; passkeyName: string; addedAt: number; settingsUrl: string }): RenderedEmail {
+export function passkeyAdded(args: {
+  email: string;
+  passkeyName: string;
+  addedAt: number;
+  settingsUrl: string;
+}): RenderedEmail {
   return renderEmail({
     subject: "Touch ID was added to your Codecast account",
     preheader: "If this was you, no action is needed.",
     eyebrow: "security",
     heading: "Touch ID added",
     blocks: [
-      { kind: "text", value: "A passkey was added to your Codecast account. It confirms revealing an Ask first secret, approving its use and switching Ask first off. An account's first passkey starts a day after it was added." },
+      {
+        kind: "text",
+        value:
+          "A passkey was added to your Codecast account. It confirms revealing an Ask first secret, approving its use and switching Ask first off. An account's first passkey starts a day after it was added.",
+      },
       {
         kind: "meta",
         rows: [
@@ -206,7 +229,11 @@ export function passkeyAdded(args: { email: string; passkeyName: string; addedAt
         ],
       },
       { kind: "text", value: "If this was you, no action is needed." },
-      { kind: "text", value: "If this **wasn't** you, remove the passkey in Settings now: whoever added it could confirm those actions as you." },
+      {
+        kind: "text",
+        value:
+          "If this **wasn't** you, remove the passkey in Settings now: whoever added it could confirm those actions as you.",
+      },
       { kind: "button", label: "Review passkeys", url: args.settingsUrl },
     ],
     reason: `You received this security notice because a passkey was added to ${args.email} at codecast.sh.`,
@@ -214,30 +241,54 @@ export function passkeyAdded(args: { email: string; passkeyName: string; addedAt
 }
 
 /** The code that moves an account to a new sign-in address (accountEmail.ts), mailed to that new address. Not the sign-up wording: the account exists, and the code decides which address it answers to. */
-export function confirmNewEmail(args: { code: string; email: string; expiryMinutes: number }): RenderedEmail {
+export function confirmNewEmail(args: {
+  code: string;
+  email: string;
+  expiryMinutes: number;
+}): RenderedEmail {
   return renderEmail({
     subject: `${args.code} is your Codecast code to change your email`,
     preheader: `Enter this code to sign in to Codecast as ${args.email}. It expires in ${args.expiryMinutes} minutes.`,
     eyebrow: "change your email",
     heading: "Confirm your new address",
     blocks: [
-      { kind: "text", value: `Enter this code in Settings to make **${args.email}** the address your Codecast account signs in with.` },
-      { kind: "code", code: args.code, hint: `expires in ${args.expiryMinutes} minutes` },
-      { kind: "note", value: "Didn't ask for this? You can safely ignore this email: nothing changes without the code." },
+      {
+        kind: "text",
+        value: `Enter this code in Settings to make **${args.email}** the address your Codecast account signs in with.`,
+      },
+      {
+        kind: "code",
+        code: args.code,
+        hint: `expires in ${args.expiryMinutes} minutes`,
+      },
+      {
+        kind: "note",
+        value:
+          "Didn't ask for this? You can safely ignore this email: nothing changes without the code.",
+      },
     ],
     reason: `You received this because someone signed in to Codecast asked to use ${args.email} as their account email.`,
   });
 }
 
 /** An account moved to a new sign-in address (accountEmail.ts), mailed to the address it left: the one mailbox a person who did not do this still reads. */
-export function emailChanged(args: { oldEmail: string; newEmail: string; changedAt: number; settingsUrl: string }): RenderedEmail {
+export function emailChanged(args: {
+  oldEmail: string;
+  newEmail: string;
+  changedAt: number;
+  settingsUrl: string;
+}): RenderedEmail {
   return renderEmail({
     subject: "Your Codecast sign-in email was changed",
     preheader: "If this was you, no action is needed.",
     eyebrow: "security",
     heading: "Your sign-in email was changed",
     blocks: [
-      { kind: "text", value: "Your Codecast account now signs in with a different address. Notices go to the new address from here on, and a password sign-in uses it too." },
+      {
+        kind: "text",
+        value:
+          "Your Codecast account now signs in with a different address. Notices go to the new address from here on, and a password sign-in uses it too.",
+      },
       {
         kind: "meta",
         rows: [
@@ -247,7 +298,10 @@ export function emailChanged(args: { oldEmail: string; newEmail: string; changed
         ],
       },
       { kind: "text", value: "If this was you, no action is needed." },
-      { kind: "text", value: `If this **wasn't** you, someone else has access to your account. Email us at **${BRAND.supportEmail}** from this address and we will move it back.` },
+      {
+        kind: "text",
+        value: `If this **wasn't** you, someone else has access to your account. Email us at **${BRAND.supportEmail}** from this address and we will move it back.`,
+      },
       { kind: "button", label: "Review your account", url: args.settingsUrl },
     ],
     reason: `You received this security notice because ${args.oldEmail} was the sign-in address of a Codecast account until now.`,

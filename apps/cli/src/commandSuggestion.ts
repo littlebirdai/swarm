@@ -38,13 +38,21 @@ function tokens(node: CommandNode): string[] {
  *  commonest typo (`statsu` for `status`), not two. */
 function typoDistance(a: string, b: string): number {
   if (a.length < 2 || b.length < 2) return levenshtein(a, b);
-  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [
+    i,
+    ...Array<number>(b.length).fill(0),
+  ]);
   for (let j = 1; j <= b.length; j++) d[0]![j] = j;
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      let best = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + cost);
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) best = Math.min(best, d[i - 2]![j - 2]! + 1);
+      let best = Math.min(
+        d[i - 1]![j]! + 1,
+        d[i]![j - 1]! + 1,
+        d[i - 1]![j - 1]! + cost,
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        best = Math.min(best, d[i - 2]![j - 2]! + 1);
       d[i]![j] = best;
     }
   }
@@ -52,16 +60,18 @@ function typoDistance(a: string, b: string): number {
 }
 
 /** A name a typo may be reaching for. A bare string is its own key and token. */
-export type NearCandidate = string | {
-  /** What comes back when it matches (a command path, an event name). */
-  key: string;
-  /** The words compared with what was typed (a name and its aliases). */
-  tokens: readonly string[];
-  /** A tighter reach for this one: a destructive command is offered only one edit off. */
-  maxDistance?: number;
-  /** Refuse the prefix shortcut (`sess` for `sessions`): destructive commands need a near-miss of the whole name. */
-  noPrefix?: boolean;
-};
+export type NearCandidate =
+  | string
+  | {
+      /** What comes back when it matches (a command path, an event name). */
+      key: string;
+      /** The words compared with what was typed (a name and its aliases). */
+      tokens: readonly string[];
+      /** A tighter reach for this one: a destructive command is offered only one edit off. */
+      maxDistance?: number;
+      /** Refuse the prefix shortcut (`sess` for `sessions`): destructive commands need a near-miss of the whole name. */
+      noPrefix?: boolean;
+    };
 
 /**
  * The candidates close enough to `typed` to be what it meant, nearest first.
@@ -72,19 +82,39 @@ export type NearCandidate = string | {
  * come back (`teamz` gets `teams`, not also `blame` and `learn` three edits
  * away), at most three. Case-insensitive.
  */
-export function nearMatches(typed: string, candidates: readonly NearCandidate[]): string[] {
+export function nearMatches(
+  typed: string,
+  candidates: readonly NearCandidate[],
+): string[] {
   const word = typed.toLowerCase();
   if (!word) return [];
-  const reach = Math.min(MAX_DISTANCE, Math.max(1, Math.floor(word.length / 2)));
+  const reach = Math.min(
+    MAX_DISTANCE,
+    Math.max(1, Math.floor(word.length / 2)),
+  );
   const close = candidates
     .map((candidate) => {
-      const { key, tokens: words, maxDistance, noPrefix } = typeof candidate === "string"
-        ? { key: candidate, tokens: [candidate], maxDistance: undefined, noPrefix: false }
+      const {
+        key,
+        tokens: words,
+        maxDistance,
+        noPrefix,
+      } = typeof candidate === "string"
+        ? {
+            key: candidate,
+            tokens: [candidate],
+            maxDistance: undefined,
+            noPrefix: false,
+          }
         : candidate;
-      const distance = Math.min(...words.map((token) => {
-        const t = token.toLowerCase();
-        return !noPrefix && word.length >= 3 && t.startsWith(word) ? 1 : typoDistance(word, t);
-      }));
+      const distance = Math.min(
+        ...words.map((token) => {
+          const t = token.toLowerCase();
+          return !noPrefix && word.length >= 3 && t.startsWith(word)
+            ? 1
+            : typoDistance(word, t);
+        }),
+      );
       return { key, distance, limit: Math.min(reach, maxDistance ?? reach) };
     })
     .filter((entry) => entry.distance > 0 && entry.distance <= entry.limit)
@@ -102,7 +132,9 @@ export function nearMatches(typed: string, candidates: readonly NearCandidate[])
  * bare names where the match is not a command (an event name, a config key).
  */
 export function didYouMean(matches: readonly string[]): string | null {
-  return matches.length ? `Next step: did you mean ${matches.join(", ")}?` : null;
+  return matches.length
+    ? `Next step: did you mean ${matches.join(", ")}?`
+    : null;
 }
 
 /**
@@ -118,18 +150,26 @@ export function suggestCommands(
 ): string[] {
   const { prefix, level, typed } = unresolved(root, operands);
   if (typed === undefined) return [];
-  return nearMatches(typed, level
-    .filter((node) => !node.hidden)
-    .map((node) => {
-      const destructive = isDestructivePath([...prefix, node.name]);
-      return {
-        key: [...prefix, node.name].join(" "),
-        // A two-letter alias (`in` for goal) is too short to be a typo of
-        // anything: `unin` is two edits from it and was offered `cast goal`.
-        tokens: [node.name, ...(node.aliases ?? []).filter((alias) => alias.length > 2)],
-        ...(destructive ? { maxDistance: DESTRUCTIVE_INTENT_DISTANCE, noPrefix: true } : {}),
-      };
-    }));
+  return nearMatches(
+    typed,
+    level
+      .filter((node) => !node.hidden)
+      .map((node) => {
+        const destructive = isDestructivePath([...prefix, node.name]);
+        return {
+          key: [...prefix, node.name].join(" "),
+          // A two-letter alias (`in` for goal) is too short to be a typo of
+          // anything: `unin` is two edits from it and was offered `cast goal`.
+          tokens: [
+            node.name,
+            ...(node.aliases ?? []).filter((alias) => alias.length > 2),
+          ],
+          ...(destructive
+            ? { maxDistance: DESTRUCTIVE_INTENT_DISTANCE, noPrefix: true }
+            : {}),
+        };
+      }),
+  );
 }
 
 /**
@@ -143,16 +183,22 @@ export function suggestCommands(
  * got nothing and `cast deploys` was offered `cast replay`.
  */
 const COMMAND_INTENTS: Record<string, string> = {
-  whoami: "'cast auth status' (this machine's sign-in), 'cast teams members' (the people you work with)",
+  whoami:
+    "'cast auth status' (this machine's sign-in), 'cast teams members' (the people you work with)",
   "daemon status": "'cast status' (daemon, connection and sync)",
   deploys: "'cast ship mark --surface <name>' (record a deploy)",
-  conflicts: "'cast similar --file <path>' (sessions that touched the same file)",
-  "doc comments": "'cast doc show <id> -c' (read a doc's comments; 'cast doc comment <id> \"…\"' adds one)",
-  "task comments": "'cast task show <id> --only comments' (-c for all of them; 'cast task comment' adds one)",
+  conflicts:
+    "'cast similar --file <path>' (sessions that touched the same file)",
+  "doc comments":
+    "'cast doc show <id> -c' (read a doc's comments; 'cast doc comment <id> \"…\"' adds one)",
+  "task comments":
+    "'cast task show <id> --only comments' (-c for all of them; 'cast task comment' adds one)",
 };
 
 /** The intent line for what was typed, matching its first one or two words. */
-export function commandIntentNextStep(operands: readonly string[]): string | null {
+export function commandIntentNextStep(
+  operands: readonly string[],
+): string | null {
   const two = operands.slice(0, 2).join(" ");
   const where = COMMAND_INTENTS[two] ?? COMMAND_INTENTS[operands[0] ?? ""];
   return where ? `Next step: ${where}` : null;
@@ -166,11 +212,19 @@ export function unknownCommandNextStep(
   if (intent) return intent;
   const suggestions = suggestCommands(root, operands);
   const mentions = commandsMentioning(root, operands);
-  const mentioned = mentions.paths.filter((path) => !suggestions.includes(path));
+  const mentioned = mentions.paths.filter(
+    (path) => !suggestions.includes(path),
+  );
   const lines = [
-    ...(suggestions.length ? [didYouMean(suggestions.map((path) => `'cast ${path}'`))!] : []),
+    ...(suggestions.length
+      ? [didYouMean(suggestions.map((path) => `'cast ${path}'`))!]
+      : []),
     // `hooks` is one edit from `hosts`, and still the agent wanted the setting.
-    ...(mentioned.length ? [`${suggestions.length ? "Or" : "Next step"}: these commands mention '${mentions.typed}': ${mentioned.map((path) => `'cast ${path}'`).join(", ")}`] : []),
+    ...(mentioned.length
+      ? [
+          `${suggestions.length ? "Or" : "Next step"}: these commands mention '${mentions.typed}': ${mentioned.map((path) => `'cast ${path}'`).join(", ")}`,
+        ]
+      : []),
   ];
   return lines.length ? lines.join("\n") : null;
 }
@@ -189,10 +243,13 @@ export function commandsMentioning(
   operands: readonly string[],
 ): { typed: string; paths: string[] } {
   const { prefix, level, typed } = unresolved(root, operands);
-  if (typed === undefined || typed.length < 4 || !/^[a-z][a-z-]*$/i.test(typed)) return { typed: typed ?? "", paths: [] };
+  if (typed === undefined || typed.length < 4 || !/^[a-z][a-z-]*$/i.test(typed))
+    return { typed: typed ?? "", paths: [] };
   const word = new RegExp(`\\b${typed}s?\\b`, "i");
   const paths = level
-    .filter((node) => !node.hidden && node.description && word.test(node.description))
+    .filter(
+      (node) => !node.hidden && node.description && word.test(node.description),
+    )
     .filter((node) => !isDestructivePath([...prefix, node.name]))
     .slice(0, MAX_MENTIONS)
     .map((node) => [...prefix, node.name].join(" "));
@@ -218,9 +275,14 @@ function unresolved(root: readonly CommandNode[], operands: readonly string[]) {
  * (`cast decide shwo`, `cast stack lss`): `verbs` are its subcommands, `path`
  * the command words before them. Null when the typed word is near none.
  */
-export function verbTypoNextStep(path: readonly string[], verbs: readonly string[], typed: string): string | null {
+export function verbTypoNextStep(
+  path: readonly string[],
+  verbs: readonly string[],
+  typed: string,
+): string | null {
   let root: CommandNode[] = verbs.map((name) => ({ name }));
-  for (const word of [...path].reverse()) root = [{ name: word, children: root }];
+  for (const word of [...path].reverse())
+    root = [{ name: word, children: root }];
   return unknownCommandNextStep(root, [...path, typed]);
 }
 
@@ -259,7 +321,12 @@ const MAX_LEAD = 110;
 export function listDescription(description: string): string {
   const firstParagraph = description.trim().split(/\n\s*\n/)[0] ?? "";
   // A lead that introduces a list ("three independent axes:") ends on the colon.
-  const lead = firstParagraph.split("\n").map((line) => line.trim()).filter(Boolean).join(" ").replace(/:$/, "");
+  const lead = firstParagraph
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/:$/, "");
   if (lead.length <= MAX_LEAD) return lead;
   // A sentence ends at . ! or ? followed by a space and a capital or a
   // backtick, so "e.g. jx7c6zk" and "v1.2" never cut a lead short.

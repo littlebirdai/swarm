@@ -18,7 +18,11 @@ import {
 import { useMountEffect } from "./useMountEffect";
 
 export function useRecorderStatus(): RecorderStatus {
-  return useSyncExternalStore(subscribeRecorder, getRecorderStatus, getRecorderStatus);
+  return useSyncExternalStore(
+    subscribeRecorder,
+    getRecorderStatus,
+    getRecorderStatus,
+  );
 }
 
 /** Hands the engine its Convex client. Mounted once app-wide beside
@@ -40,7 +44,8 @@ export function useRecorderLevelVar<T extends HTMLElement>(active: boolean) {
       if (!el) return;
       el.style.setProperty("--level", "0");
       if (!active) return;
-      const write = () => el.style.setProperty("--level", getRecorderLevel().toFixed(3));
+      const write = () =>
+        el.style.setProperty("--level", getRecorderLevel().toFixed(3));
       write();
       const off = subscribeRecorderLevel(write);
       return () => {

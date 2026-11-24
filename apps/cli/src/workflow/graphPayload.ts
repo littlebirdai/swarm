@@ -7,7 +7,10 @@ import type { WorkflowGraph } from "./types.js";
 
 export function graphNodesPayload(graph: WorkflowGraph) {
   return [...graph.nodes.values()].map((n) => ({
-    id: n.id, label: n.label, shape: n.shape, type: n.type,
+    id: n.id,
+    label: n.label,
+    shape: n.shape,
+    type: n.type,
     ...(n.prompt ? { prompt: n.prompt } : {}),
     ...(n.script ? { script: n.script } : {}),
     ...(n.model ? { model: n.model } : {}),
@@ -34,7 +37,8 @@ export function graphNodesPayload(graph: WorkflowGraph) {
 
 export function graphEdgesPayload(graph: WorkflowGraph) {
   return graph.edges.map((e) => ({
-    from: e.from, to: e.to,
+    from: e.from,
+    to: e.to,
     ...(e.label ? { label: e.label } : {}),
     ...(e.condition ? { condition: e.condition } : {}),
   }));

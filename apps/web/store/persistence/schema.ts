@@ -1,4 +1,8 @@
-import { META_STORE_KEYS, WEB_COLLECTION_INDEXES, isPersistedClientStoreKey } from "../clientSyncRegistry";
+import {
+  META_STORE_KEYS,
+  WEB_COLLECTION_INDEXES,
+  isPersistedClientStoreKey,
+} from "../clientSyncRegistry";
 
 export { WEB_COLLECTION_INDEXES };
 
@@ -24,7 +28,8 @@ export const SYSTEM_TABLES = {
   // Indexed by latestTimestamp so the on-disk store can be pruned (LRU + TTL)
   // instead of growing forever — one row per conversation ever opened.
   conversationMessageMeta: "convId, latestTimestamp",
-  conversationMessageRows: "[convId+messageKey], [convId+position+messageKey+revision]",
+  conversationMessageRows:
+    "[convId+messageKey], [convId+position+messageKey+revision]",
   // The complete navigable user-message list (getUserMessages), one small row
   // per conversation. Its own table, separate from the transcript cache: the
   // two lists arrive from different subscriptions at different times, and a
@@ -43,12 +48,14 @@ export const SYSTEM_TABLES = {
 /** Stable serialization of the on-disk schema (sorted). */
 export function cacheSchemaSignature(): string {
   return Object.entries({ ...WEB_COLLECTION_INDEXES, ...SYSTEM_TABLES })
-    .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([table, indexes]) => `${table}:${indexes}`)
     .join("|");
 }
 
-export const META_KEYS = new Set<string>(META_STORE_KEYS.filter((key) => !(key in WEB_COLLECTION_INDEXES)));
+export const META_KEYS = new Set<string>(
+  META_STORE_KEYS.filter((key) => !(key in WEB_COLLECTION_INDEXES)),
+);
 
 // A top-level store key is durable iff it maps to a dedicated collection table
 // or is whitelisted as a meta blob. Keys that satisfy neither are silently

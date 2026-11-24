@@ -1,6 +1,9 @@
 import type { BucketItem, InboxSession } from "../inboxStore";
 
-export const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
+export const session = (
+  id: string,
+  extra: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: id,
   session_id: `session-${id}`,
   updated_at: Date.now(),
@@ -17,7 +20,11 @@ export const session = (id: string, extra: Partial<InboxSession> = {}): InboxSes
 // logic treats them as server-known rows.
 export const convexId = (seed: string) => seed.padEnd(32, "0").slice(0, 32);
 
-export const bucket = (id: string, name: string, extra: Partial<BucketItem> = {}): BucketItem => ({
+export const bucket = (
+  id: string,
+  name: string,
+  extra: Partial<BucketItem> = {},
+): BucketItem => ({
   _id: id,
   name,
   created_at: 1,

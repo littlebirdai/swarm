@@ -20,24 +20,52 @@ function ctxAs(userId: string | null) {
       { _id: "m2", user_id: BEN, team_id: TEAM, role: "member" },
     ],
     docs: [
-      { _id: "doc_team", user_id: ANA, team_id: TEAM, workspace: `team:${TEAM}`, title: "Team doc" },
-      { _id: "doc_mine", user_id: ANA, team_id: TEAM, workspace: `user:${ANA}`, title: "Private doc" },
+      {
+        _id: "doc_team",
+        user_id: ANA,
+        team_id: TEAM,
+        workspace: `team:${TEAM}`,
+        title: "Team doc",
+      },
+      {
+        _id: "doc_mine",
+        user_id: ANA,
+        team_id: TEAM,
+        workspace: `user:${ANA}`,
+        title: "Private doc",
+      },
     ],
     rate_limits: [],
   };
   const db: any = makeFakeDb(tables);
-  db.normalizeId = (table: string, id: string) => ((tables[table] ?? []).some((r) => r._id === id) ? id : null);
-  return { db, auth: { getUserIdentity: async () => (userId ? { subject: `${userId}|sess`, tokenIdentifier: "x" } : null) } } as any;
+  db.normalizeId = (table: string, id: string) =>
+    (tables[table] ?? []).some((r) => r._id === id) ? id : null;
+  return {
+    db,
+    auth: {
+      getUserIdentity: async () =>
+        userId ? { subject: `${userId}|sess`, tokenIdentifier: "x" } : null,
+    },
+  } as any;
 }
 
-const admit = (ctx: any, doc_id: string) => (admitRun as any)._handler(ctx, { doc_id });
+const admit = (ctx: any, doc_id: string) =>
+  (admitRun as any)._handler(ctx, { doc_id });
 
 describe("docLab.admitRun", () => {
   test("refuses a doc the caller cannot read", async () => {
-    await expect(admit(ctxAs(EVE), "doc_team")).rejects.toThrow(/Doc not found/);
-    await expect(admit(ctxAs(BEN), "doc_mine")).rejects.toThrow(/Doc not found/);
-    await expect(admit(ctxAs(ANA), "not_a_doc")).rejects.toThrow(/Doc not found/);
-    await expect(admit(ctxAs(null), "doc_team")).rejects.toThrow(/Unauthorized/);
+    await expect(admit(ctxAs(EVE), "doc_team")).rejects.toThrow(
+      /Doc not found/,
+    );
+    await expect(admit(ctxAs(BEN), "doc_mine")).rejects.toThrow(
+      /Doc not found/,
+    );
+    await expect(admit(ctxAs(ANA), "not_a_doc")).rejects.toThrow(
+      /Doc not found/,
+    );
+    await expect(admit(ctxAs(null), "doc_team")).rejects.toThrow(
+      /Unauthorized/,
+    );
   });
 
   test("admits the owner and a teammate of a team doc", async () => {
@@ -55,11 +83,21 @@ describe("docLab.admitRun", () => {
 describe("docLab input size (F72)", () => {
   test("a draft past the server model call cap is refused before anything is sent", () => {
     const huge = "word ".repeat(MODEL_CALL_LIMITS.prompt_chars / 5 + 1);
-    expect(() => labPromptWithinLimits({ tool: "typos" }, huge)).toThrow(/reads up to/);
-    expect(() => labPromptWithinLimits({ tool: "alternatives", target: "x", context: huge }, "")).toThrow(/reads up to/);
+    expect(() => labPromptWithinLimits({ tool: "typos" }, huge)).toThrow(
+      /reads up to/,
+    );
+    expect(() =>
+      labPromptWithinLimits(
+        { tool: "alternatives", target: "x", context: huge },
+        "",
+      ),
+    ).toThrow(/reads up to/);
   });
 
   test("an ordinary draft passes", () => {
-    expect(labPromptWithinLimits({ tool: "typos" }, "A short draft with a tpyo.").prompt).toContain("tpyo");
+    expect(
+      labPromptWithinLimits({ tool: "typos" }, "A short draft with a tpyo.")
+        .prompt,
+    ).toContain("tpyo");
   });
 });

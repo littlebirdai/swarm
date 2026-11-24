@@ -28,7 +28,7 @@ export function webDocsNeedsUserDoc(args: WebDocsResolveArgs): boolean {
 // webDocsNeedsUserDoc(args) is true.
 export function resolveWebDocsTeamId(
   args: WebDocsResolveArgs,
-  userActiveTeamId: string | undefined
+  userActiveTeamId: string | undefined,
 ): string | undefined {
   if (args.workspace === "team" && args.team_id) return args.team_id;
   if (!args.workspace) return userActiveTeamId;

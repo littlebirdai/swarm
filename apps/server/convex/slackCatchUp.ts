@@ -34,21 +34,43 @@ const RUN_BUDGET_MS = 40_000;
 // every channel's history calls at Slack at once.
 const STAGGER_MS = 3_000;
 
-type SlackMsg = { ts: string; subtype?: string; thread_ts?: string; reply_count?: number; latest_reply?: string };
+type SlackMsg = {
+  ts: string;
+  subtype?: string;
+  thread_ts?: string;
+  reply_count?: number;
+  latest_reply?: string;
+};
 
 /** Where lines may be missing from: the mark less the overlap, or the first
  *  run window, never before the link's own floor. */
-export function catchUpFloor(link: { caught_up_ts?: string; since_ts: string }, nowS: number): number {
-  const from = link.caught_up_ts ? Number(link.caught_up_ts) - CATCH_UP_OVERLAP_S : nowS - FIRST_RUN_WINDOW_S;
+export function catchUpFloor(
+  link: { caught_up_ts?: string; since_ts: string },
+  nowS: number,
+): number {
+  const from = link.caught_up_ts
+    ? Number(link.caught_up_ts) - CATCH_UP_OVERLAP_S
+    : nowS - FIRST_RUN_WINDOW_S;
   return Math.max(Number(link.since_ts) || 0, from);
 }
 
 /** From one history read: the roots that may be missing, and the roots whose
  *  threads have replies past the floor. */
-export function planCatchUp(messages: SlackMsg[], floor: number, threads: boolean): { roots: SlackMsg[]; threadRoots: string[] } {
-  const roots = messages.filter((m) => Number(m.ts) >= floor && isMirrorableMessage(m));
+export function planCatchUp(
+  messages: SlackMsg[],
+  floor: number,
+  threads: boolean,
+): { roots: SlackMsg[]; threadRoots: string[] } {
+  const roots = messages.filter(
+    (m) => Number(m.ts) >= floor && isMirrorableMessage(m),
+  );
   const threadRoots = threads
-    ? messages.filter((m) => (m.reply_count ?? 0) > 0 && Number(m.latest_reply ?? 0) >= floor).map((m) => m.ts)
+    ? messages
+        .filter(
+          (m) =>
+            (m.reply_count ?? 0) > 0 && Number(m.latest_reply ?? 0) >= floor,
+        )
+        .map((m) => m.ts)
     : [];
   return { roots, threadRoots };
 }
@@ -56,9 +78,16 @@ export function planCatchUp(messages: SlackMsg[], floor: number, threads: boolea
 export const catchUpAll = internalAction({
   args: {},
   handler: async (ctx): Promise<{ scheduled: number }> => {
-    const ids: Id<"slack_channel_links">[] = await ctx.runQuery(internal.slackCatchUp.linkIds, {});
+    const ids: Id<"slack_channel_links">[] = await ctx.runQuery(
+      internal.slackCatchUp.linkIds,
+      {},
+    );
     for (const [i, link_id] of ids.entries()) {
-      await ctx.scheduler.runAfter(i * STAGGER_MS, internal.slackCatchUp.catchUpLink, { link_id });
+      await ctx.scheduler.runAfter(
+        i * STAGGER_MS,
+        internal.slackCatchUp.catchUpLink,
+        { link_id },
+      );
     }
     return { scheduled: ids.length };
   },
@@ -67,7 +96,10 @@ export const catchUpAll = internalAction({
 export const linkIds = internalQuery({
   args: {},
   handler: async (ctx): Promise<Id<"slack_channel_links">[]> => {
-    const links = await ctx.db.query("slack_channel_links").withIndex("by_team").collect();
+    const links = await ctx.db
+      .query("slack_channel_links")
+      .withIndex("by_team")
+      .collect();
     return links.map((l) => l._id);
   },
 });
@@ -78,7 +110,8 @@ export const mirroredTs = internalQuery({
     const link = await ctx.db.get(args.link_id);
     if (!link) return [];
     const here: string[] = [];
-    for (const ts of args.ts) if (await findMirroredRow(ctx, link, ts)) here.push(ts);
+    for (const ts of args.ts)
+      if (await findMirroredRow(ctx, link, ts)) here.push(ts);
     return here;
   },
 });
@@ -95,8 +128,13 @@ export const markCaughtUp = internalMutation({
 
 export const catchUpLink = internalAction({
   args: { link_id: v.id("slack_channel_links") },
-  handler: async (ctx, args): Promise<{ status: string; mirrored?: number }> => {
-    const c = await ctx.runQuery(internal.slackSync.linkContext, { link_id: args.link_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ status: string; mirrored?: number }> => {
+    const c = await ctx.runQuery(internal.slackSync.linkContext, {
+      link_id: args.link_id,
+    });
     if (!c?.link || !c.install) return { status: "no_link" };
     const { link, install } = c;
     const started = Date.now();
@@ -104,11 +142,15 @@ export const catchUpLink = internalAction({
     // Nothing flows in, so nothing is owed: keep the mark current, so a
     // resumed link starts from the resume, not from the pause.
     if (!linkReceivesInbound(link) || !c.channel || c.channel.archived_at) {
-      await ctx.runMutation(internal.slackCatchUp.markCaughtUp, { link_id: link._id, ts: nowTs });
+      await ctx.runMutation(internal.slackCatchUp.markCaughtUp, {
+        link_id: link._id,
+        ts: nowTs,
+      });
       return { status: "not_receiving" };
     }
     // The history import covers its own window; the next tick takes over.
-    if (link.backfill?.status === "running") return { status: "import_running" };
+    if (link.backfill?.status === "running")
+      return { status: "import_running" };
 
     const floor = catchUpFloor(link, started / 1000);
     const scanFrom = Math.max(0, floor - THREAD_LOOKBACK_S);
@@ -118,26 +160,63 @@ export const catchUpLink = internalAction({
     // History, newest first between both bounds.
     let cursor: string | undefined;
     for (let page = 0; ; page++) {
-      if (page >= HISTORY_MAX_PAGES) { complete = false; break; }
+      if (page >= HISTORY_MAX_PAGES) {
+        complete = false;
+        break;
+      }
       const resp = await slackApi(install.bot_token, "conversations.history", {
-        channel: link.slack_channel_id, oldest: scanFrom.toFixed(6), latest: nowTs, inclusive: "true",
-        limit: String(HISTORY_PAGE), cursor,
+        channel: link.slack_channel_id,
+        oldest: scanFrom.toFixed(6),
+        latest: nowTs,
+        inclusive: "true",
+        limit: String(HISTORY_PAGE),
+        cursor,
       });
       if (!resp.ok) {
-        console.warn("[slackCatchUp] history failed", link.slack_channel_id, resp.error);
+        console.warn(
+          "[slackCatchUp] history failed",
+          link.slack_channel_id,
+          resp.error,
+        );
         return { status: `slack:${resp.error}` };
       }
-      const plan = planCatchUp(resp.messages ?? [], floor, link.options.threads);
+      const plan = planCatchUp(
+        resp.messages ?? [],
+        floor,
+        link.options.threads,
+      );
       candidates.push(...plan.roots);
       for (const root of plan.threadRoots) {
         let replyCursor: string | undefined;
         for (let rp = 0; ; rp++) {
-          if (rp >= REPLY_MAX_PAGES) { complete = false; break; }
-          const replies = await slackApi(install.bot_token, "conversations.replies", {
-            channel: link.slack_channel_id, ts: root, oldest: floor.toFixed(6), inclusive: "true", limit: "200", cursor: replyCursor,
-          });
-          if (!replies.ok) { complete = false; break; }
-          candidates.push(...(replies.messages ?? []).filter((m: SlackMsg) => m.ts !== root && Number(m.ts) >= floor && isMirrorableMessage(m)));
+          if (rp >= REPLY_MAX_PAGES) {
+            complete = false;
+            break;
+          }
+          const replies = await slackApi(
+            install.bot_token,
+            "conversations.replies",
+            {
+              channel: link.slack_channel_id,
+              ts: root,
+              oldest: floor.toFixed(6),
+              inclusive: "true",
+              limit: "200",
+              cursor: replyCursor,
+            },
+          );
+          if (!replies.ok) {
+            complete = false;
+            break;
+          }
+          candidates.push(
+            ...(replies.messages ?? []).filter(
+              (m: SlackMsg) =>
+                m.ts !== root &&
+                Number(m.ts) >= floor &&
+                isMirrorableMessage(m),
+            ),
+          );
           replyCursor = replies.response_metadata?.next_cursor || undefined;
           if (!replyCursor) break;
         }
@@ -151,24 +230,52 @@ export const catchUpLink = internalAction({
     const all = [...byTs.keys()];
     const here = new Set<string>();
     for (let i = 0; i < all.length; i += 200) {
-      for (const ts of await ctx.runQuery(internal.slackCatchUp.mirroredTs, { link_id: link._id, ts: all.slice(i, i + 200) })) here.add(ts);
+      for (const ts of await ctx.runQuery(internal.slackCatchUp.mirroredTs, {
+        link_id: link._id,
+        ts: all.slice(i, i + 200),
+      }))
+        here.add(ts);
     }
-    const missing = all.filter((ts) => !here.has(ts)).sort((a, b) => Number(a) - Number(b));
+    const missing = all
+      .filter((ts) => !here.has(ts))
+      .sort((a, b) => Number(a) - Number(b));
 
     let mirrored = 0;
     for (const ts of missing) {
-      if (Date.now() - started > RUN_BUDGET_MS) { complete = false; break; }
+      if (Date.now() - started > RUN_BUDGET_MS) {
+        complete = false;
+        break;
+      }
       try {
-        const r = await mirrorMessage(ctx, { install, link, anchor_handle: c.anchor_handle }, byTs.get(ts), { live: false });
+        const r = await mirrorMessage(
+          ctx,
+          { install, link, anchor_handle: c.anchor_handle },
+          byTs.get(ts),
+          { live: false },
+        );
         if (r.message_id) mirrored++;
       } catch (error) {
-        console.error("[slackCatchUp] line skipped", link.slack_channel_id, ts, error);
+        console.error(
+          "[slackCatchUp] line skipped",
+          link.slack_channel_id,
+          ts,
+          error,
+        );
       }
     }
-    if (missing.length > 0) console.log("[slackCatchUp]", link.slack_channel_id, `missing=${missing.length} mirrored=${mirrored}`);
+    if (missing.length > 0)
+      console.log(
+        "[slackCatchUp]",
+        link.slack_channel_id,
+        `missing=${missing.length} mirrored=${mirrored}`,
+      );
     // A run cut short leaves the mark alone; the next run reads the same span
     // and skips what this one brought over.
-    if (complete) await ctx.runMutation(internal.slackCatchUp.markCaughtUp, { link_id: link._id, ts: nowTs });
+    if (complete)
+      await ctx.runMutation(internal.slackCatchUp.markCaughtUp, {
+        link_id: link._id,
+        ts: nowTs,
+      });
     return { status: complete ? "done" : "partial", mirrored };
   },
 });

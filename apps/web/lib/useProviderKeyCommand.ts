@@ -12,7 +12,13 @@ import { useMutation, useQuery } from "convex/react";
 import { captureError } from "./analytics";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { CLOUD_AGENT_ACTIONS, cloudAgentPageUrl, getProviderKeySpec, type CloudAgentActionName, type CloudAgentLoginStateName } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_ACTIONS,
+  cloudAgentPageUrl,
+  getProviderKeySpec,
+  type CloudAgentActionName,
+  type CloudAgentLoginStateName,
+} from "@codecast/shared/contracts";
 import { encryptProviderKey } from "./providerKeyCrypto";
 import { useInboxStore } from "../store/inboxStore";
 /** The fields of a machine these hooks read (listDevices' row is one); kept structural so the phone can call them without the web's device badge. */
@@ -32,9 +38,15 @@ type ManagedKeyDevice = Device & {
  * already manages a key for. Ids only — the keys themselves never leave the device.
  * A device whose daemon predates provider keys has no `pubkey`; callers gate on that.
  */
-export function deviceManagedKeys(device: Device): { pubkey?: string; managedIds: string[] } {
+export function deviceManagedKeys(device: Device): {
+  pubkey?: string;
+  managedIds: string[];
+} {
   const d = device as ManagedKeyDevice; // pl-207: resolves on next convex codegen
-  return { pubkey: d.provider_key_pubkey, managedIds: d.managed_provider_ids ?? [] };
+  return {
+    pubkey: d.provider_key_pubkey,
+    managedIds: d.managed_provider_ids ?? [],
+  };
 }
 
 /** Encrypt-and-enqueue actions for a device, shared by both key-entry surfaces. */
@@ -47,14 +59,23 @@ const PROVIDER_KEY_COMMANDS = {
   /** Seal `apiKey` to the device's public key and send a "set" command.
    *  Resolves to the command's id, so a caller can watch the daemon's verdict
    *  (devices.watchedCommandOutcome). */
-  async setKey(deviceId: string, pubkey: string, provider: string, apiKey: string): Promise<string | undefined> {
+  async setKey(
+    deviceId: string,
+    pubkey: string,
+    provider: string,
+    apiKey: string,
+  ): Promise<string | undefined> {
     const payload = await encryptProviderKey(pubkey, provider, apiKey);
-    const res = await useInboxStore.getState().setProviderKey(deviceId, { op: "set", payload });
+    const res = await useInboxStore
+      .getState()
+      .setProviderKey(deviceId, { op: "set", payload });
     return res?.command_id;
   },
   /** Remove a managed key — no encryption, just the provider id. */
   async removeKey(deviceId: string, provider: string) {
-    await useInboxStore.getState().setProviderKey(deviceId, { op: "remove", provider });
+    await useInboxStore
+      .getState()
+      .setProviderKey(deviceId, { op: "remove", provider });
   },
 };
 
@@ -67,7 +88,10 @@ const PROVIDER_KEY_COMMANDS = {
 export function useWatchedCommand(timeoutMs?: number) {
   const [commandId, watch] = useState<string | null>(null);
   const [unansweredId, setUnansweredId] = useState<string | null>(null);
-  const outcome = useQuery(api.devices.watchedCommandOutcome, commandId ? { command_id: commandId as Id<"daemon_commands"> } : "skip");
+  const outcome = useQuery(
+    api.devices.watchedCommandOutcome,
+    commandId ? { command_id: commandId as Id<"daemon_commands"> } : "skip",
+  );
   const settled = outcome?.state === "done" || outcome?.state === "failed";
   useWatchEffect(() => {
     if (!commandId || settled || timeoutMs === undefined) return;
@@ -89,7 +113,11 @@ export function useWatchedCommand(timeoutMs?: number) {
  * refused key is never kept. `looksRight` gates the submit on the provider's
  * key prefix; `sent` is true once a key went out (the field then clears).
  */
-export function useVerifiedKeySubmit(keyProvider: string, device: Device | null, pubkey: string | undefined) {
+export function useVerifiedKeySubmit(
+  keyProvider: string,
+  device: Device | null,
+  pubkey: string | undefined,
+) {
   const { setKey } = useProviderKeyCommand();
   const [key, setKeyText] = useState("");
   const { commandId, watch, outcome } = useWatchedCommand();
@@ -97,7 +125,9 @@ export function useVerifiedKeySubmit(keyProvider: string, device: Device | null,
   const [sendError, setSendError] = useState<string | null>(null);
 
   const trimmed = key.trim();
-  const looksRight = trimmed.startsWith(getProviderKeySpec(keyProvider)?.keyPrefix ?? "") && trimmed.length > 20;
+  const looksRight =
+    trimmed.startsWith(getProviderKeySpec(keyProvider)?.keyPrefix ?? "") &&
+    trimmed.length > 20;
 
   const submit = async () => {
     if (!device || !pubkey || !looksRight) return;
@@ -110,7 +140,9 @@ export function useVerifiedKeySubmit(keyProvider: string, device: Device | null,
       setKeyText("");
     } catch (err) {
       captureError(err instanceof Error ? err : new Error(String(err)));
-      setSendError(err instanceof Error ? err.message : "Couldn't send the key");
+      setSendError(
+        err instanceof Error ? err.message : "Couldn't send the key",
+      );
     } finally {
       setSending(false);
     }
@@ -122,7 +154,9 @@ export function useVerifiedKeySubmit(keyProvider: string, device: Device | null,
     looksRight,
     submit,
     sent: !!commandId,
-    checking: sending || (!!commandId && (outcome === undefined || outcome?.state === "pending")),
+    checking:
+      sending ||
+      (!!commandId && (outcome === undefined || outcome?.state === "pending")),
     done: outcome?.state === "done",
     account: outcome?.state === "done" ? outcome.account : undefined,
     /** What a key the provider kept still lacks (it was stored anyway). */
@@ -134,7 +168,12 @@ export function useVerifiedKeySubmit(keyProvider: string, device: Device | null,
 /** A machine's sign-in to a sign-in based cloud agent provider, as its daemon last checked it. */
 export type CloudAgentLoginView =
   | { state: "checking" }
-  | { state: CloudAgentLoginStateName; account?: string; plan?: string; detail?: string }
+  | {
+      state: CloudAgentLoginStateName;
+      account?: string;
+      plan?: string;
+      detail?: string;
+    }
   | { state: "failed"; error: string };
 
 /** How long a started sign-in is waited on before the dialog offers it again. */
@@ -164,18 +203,31 @@ export function useCloudAgentLogin(provider: string, device: Device | null) {
   // A started sign-in the wait ran out on, so the dialog says so rather than quietly offering it again.
   const [timedOut, setTimedOut] = useState(false);
 
-  const send = useCallback(async (op: "check" | "start", deviceCode = false): Promise<string | null> => {
-    if (!deviceId) return null;
-    try {
-      const res = await enqueue({ device_id: deviceId, provider, op, ...(deviceCode ? { device_code: true } : {}) });
-      setSendError(null);
-      return (res as { command_id?: string } | undefined)?.command_id ?? null;
-    } catch (err) {
-      captureError(err instanceof Error ? err : new Error(String(err)));
-      setSendError(err instanceof Error ? err.message : "Couldn't reach codecast");
-      return null;
-    }
-  }, [deviceId, enqueue, provider]);
+  const send = useCallback(
+    async (
+      op: "check" | "start",
+      deviceCode = false,
+    ): Promise<string | null> => {
+      if (!deviceId) return null;
+      try {
+        const res = await enqueue({
+          device_id: deviceId,
+          provider,
+          op,
+          ...(deviceCode ? { device_code: true } : {}),
+        });
+        setSendError(null);
+        return (res as { command_id?: string } | undefined)?.command_id ?? null;
+      } catch (err) {
+        captureError(err instanceof Error ? err : new Error(String(err)));
+        setSendError(
+          err instanceof Error ? err.message : "Couldn't reach codecast",
+        );
+        return null;
+      }
+    },
+    [deviceId, enqueue, provider],
+  );
 
   const recheck = useCallback(async () => {
     const id = await send("check");
@@ -204,38 +256,82 @@ export function useCloudAgentLogin(provider: string, device: Device | null) {
   const signedIn = check?.state === "done" && check.login === "signed_in";
   useWatchEffect(() => {
     if (waitingSince === null || !settled) return;
-    if (signedIn || start?.state === "failed") { setWaitingSince(null); return; }
-    if (Date.now() - waitingSince > LOGIN_WAIT_MS) { setWaitingSince(null); setTimedOut(true); return; }
+    if (signedIn || start?.state === "failed") {
+      setWaitingSince(null);
+      return;
+    }
+    if (Date.now() - waitingSince > LOGIN_WAIT_MS) {
+      setWaitingSince(null);
+      setTimedOut(true);
+      return;
+    }
     const t = setTimeout(() => void recheck(), LOGIN_RECHECK_MS);
     return () => clearTimeout(t);
-  }, [waitingSince, checkCmd.commandId, settled, signedIn, start?.state, recheck]);
+  }, [
+    waitingSince,
+    checkCmd.commandId,
+    settled,
+    signedIn,
+    start?.state,
+    recheck,
+  ]);
 
   // `deviceCode`: the person finishes on this device (a phone), with the page and code the machine answers (`prompt`).
-  const signIn = useCallback(async (opts?: { deviceCode?: boolean }) => {
-    setTimedOut(false);
-    const id = await send("start", opts?.deviceCode === true);
-    if (!id) return;
-    startCmd.watch(id);
-    setWaitingSince(Date.now());
-  }, [send, startCmd.watch]);
+  const signIn = useCallback(
+    async (opts?: { deviceCode?: boolean }) => {
+      setTimedOut(false);
+      const id = await send("start", opts?.deviceCode === true);
+      if (!id) return;
+      startCmd.watch(id);
+      setWaitingSince(Date.now());
+    },
+    [send, startCmd.watch],
+  );
 
   let view: CloudAgentLoginView;
   if (sendError) view = { state: "failed", error: sendError };
-  else if (start?.state === "failed") view = { state: "failed", error: start.error };
-  else if (checkCmd.unanswered) view = { state: "failed", error: `${device?.label ?? "Your computer"} didn't answer. Check that codecast is running there, then check again.` };
+  else if (start?.state === "failed")
+    view = { state: "failed", error: start.error };
+  else if (checkCmd.unanswered)
+    view = {
+      state: "failed",
+      error: `${device?.label ?? "Your computer"} didn't answer. Check that codecast is running there, then check again.`,
+    };
   else if (!check || check.state === "pending") view = { state: "checking" };
-  else if (check.state === "failed") view = { state: "failed", error: check.error };
-  else view = { state: check.login ?? "unreachable", account: check.account, plan: check.plan, detail: check.detail };
+  else if (check.state === "failed")
+    view = { state: "failed", error: check.error };
+  else
+    view = {
+      state: check.login ?? "unreachable",
+      account: check.account,
+      plan: check.plan,
+      detail: check.detail,
+    };
 
-  const prompt = start?.state === "done" && start.url && start.detail ? { url: start.url, code: start.detail } : null;
-  return { view, waiting: waitingSince !== null, timedOut: timedOut && !signedIn, signIn, recheck: checkAgain, prompt };
+  const prompt =
+    start?.state === "done" && start.url && start.detail
+      ? { url: start.url, code: start.detail }
+      : null;
+  return {
+    view,
+    waiting: waitingSince !== null,
+    timedOut: timedOut && !signedIn,
+    signIn,
+    recheck: checkAgain,
+    prompt,
+  };
 }
 
 /** How long an action waits for the hosting machine's answer (Create PR waits up to a minute for Codex to open the pull request). */
 const ACTION_WAIT_MS = 4 * 60_000;
 
 /** How an action went, for the page that asked: its result in words, and the page it made (a pull request). */
-export interface CloudAgentActionOutcome { action: CloudAgentActionName; ok: boolean; text: string; url?: string }
+export interface CloudAgentActionOutcome {
+  action: CloudAgentActionName;
+  ok: boolean;
+  text: string;
+  url?: string;
+}
 
 /**
  * A session header's action on its cloud agent (CLOUD_AGENT_ACTIONS), sent to
@@ -243,29 +339,57 @@ export interface CloudAgentActionOutcome { action: CloudAgentActionName; ok: boo
  * session's thread; `onResult` hears it here too, or that the machine never
  * answered.
  */
-export function useCloudAgentAction(conversationId: string, onResult: (outcome: CloudAgentActionOutcome) => void) {
+export function useCloudAgentAction(
+  conversationId: string,
+  onResult: (outcome: CloudAgentActionOutcome) => void,
+) {
   const enqueue = useMutation(api.devices.enqueueCloudAgentActionCommand);
   const [action, setAction] = useState<CloudAgentActionName | null>(null);
   const { watch, outcome, unanswered } = useWatchedCommand(ACTION_WAIT_MS);
   const report = useRef(onResult);
   report.current = onResult;
 
-  const run = useCallback(async (next: CloudAgentActionName) => {
-    try {
-      const res = await enqueue({ conversation_id: conversationId as Id<"conversations">, action: next });
-      setAction(next);
-      watch(res.command_id);
-    } catch (err) {
-      captureError(err instanceof Error ? err : new Error(String(err)));
-      report.current({ action: next, ok: false, text: err instanceof Error ? err.message : `${CLOUD_AGENT_ACTIONS[next].label} could not be sent` });
-    }
-  }, [conversationId, enqueue, watch]);
+  const run = useCallback(
+    async (next: CloudAgentActionName) => {
+      try {
+        const res = await enqueue({
+          conversation_id: conversationId as Id<"conversations">,
+          action: next,
+        });
+        setAction(next);
+        watch(res.command_id);
+      } catch (err) {
+        captureError(err instanceof Error ? err : new Error(String(err)));
+        report.current({
+          action: next,
+          ok: false,
+          text:
+            err instanceof Error
+              ? err.message
+              : `${CLOUD_AGENT_ACTIONS[next].label} could not be sent`,
+        });
+      }
+    },
+    [conversationId, enqueue, watch],
+  );
 
   useWatchEffect(() => {
     if (!action) return;
-    if (unanswered) report.current({ action, ok: false, text: "The machine that hosts this session did not answer: it may be offline, or its codecast too old for this" });
-    else if (outcome?.state === "done") report.current({ action, ok: true, text: outcome.detail ?? `${CLOUD_AGENT_ACTIONS[action].label} done`, url: cloudAgentPageUrl(outcome.url) });
-    else if (outcome?.state === "failed") report.current({ action, ok: false, text: outcome.error });
+    if (unanswered)
+      report.current({
+        action,
+        ok: false,
+        text: "The machine that hosts this session did not answer: it may be offline, or its codecast too old for this",
+      });
+    else if (outcome?.state === "done")
+      report.current({
+        action,
+        ok: true,
+        text: outcome.detail ?? `${CLOUD_AGENT_ACTIONS[action].label} done`,
+        url: cloudAgentPageUrl(outcome.url),
+      });
+    else if (outcome?.state === "failed")
+      report.current({ action, ok: false, text: outcome.error });
     else return;
     setAction(null);
     watch(null);
@@ -273,4 +397,3 @@ export function useCloudAgentAction(conversationId: string, onResult: (outcome: 
 
   return { run, pending: action };
 }
-

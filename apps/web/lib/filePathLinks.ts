@@ -21,7 +21,8 @@ const SEG = String.raw`(?:\([\w.@+-]+\)|[\w.@+\-\[\]]+)`;
 
 // Top-level directories an absolute path may start in. Not "any slash-led
 // token": app routes (/inbox, /tasks/:id, /files?f=) are everywhere in prose.
-const ABS_ROOTS = "Users|home|tmp|private|var|etc|opt|root|mnt|Volumes|Applications|srv|usr|Library|workspace";
+const ABS_ROOTS =
+  "Users|home|tmp|private|var|etc|opt|root|mnt|Volumes|Applications|srv|usr|Library|workspace";
 
 const ABS = String.raw`/(?:${ABS_ROOTS})(?:/${SEG})*/?`;
 const HOME = String.raw`~(?:/${SEG})+/?`;
@@ -41,8 +42,13 @@ const TOKEN = String.raw`(${ABS}|${HOME}|${REL})${LINE}`;
 /** Global scanner for text nodes (mdast-util-find-and-replace wants a /g regex). */
 export const FILE_PATH_SCAN_RE = new RegExp(`${BEFORE}${TOKEN}${AFTER}`, "g");
 const WHOLE_RE = new RegExp(`^${TOKEN}$`);
-const ABS_HREF_RE = new RegExp(String.raw`^(/(?:${ABS_ROOTS})(?:/[^?#\r\n]*?)?)${LINE}${HASH_LINE}$`);
-const FILE_URI_RE = new RegExp(String.raw`^file://(?:localhost)?(/(?:${ABS_ROOTS})(?:/[^?#\r\n]*?)?)${LINE}${HASH_LINE}$`, "i");
+const ABS_HREF_RE = new RegExp(
+  String.raw`^(/(?:${ABS_ROOTS})(?:/[^?#\r\n]*?)?)${LINE}${HASH_LINE}$`,
+);
+const FILE_URI_RE = new RegExp(
+  String.raw`^file://(?:localhost)?(/(?:${ABS_ROOTS})(?:/[^?#\r\n]*?)?)${LINE}${HASH_LINE}$`,
+  "i",
+);
 
 const TRAILING_PUNCT = /[.,;:!?]+$/;
 const EXTENSION = /\.[A-Za-z][A-Za-z0-9]{0,9}$/;
@@ -76,12 +82,19 @@ function looksLikePath(path: string): boolean {
   // Without an extension, depth is the evidence. Three bare words are as often a list
   // ("booked/unbooked/missed", "read/write/admin") as a directory, so three plain-word
   // segments are not enough; a fourth, or a segment no word looks like, is.
-  return segs.length >= 4 || (segs.length === 3 && segs.some((s) => !/^[A-Za-z]+$/.test(s)));
+  return (
+    segs.length >= 4 ||
+    (segs.length === 3 && segs.some((s) => !/^[A-Za-z]+$/.test(s)))
+  );
 }
 const GIT_REF_ROOTS = new Set(["origin", "upstream", "refs", "remotes"]);
 
 /** Interpret one regex match (from FILE_PATH_SCAN_RE or the whole-string form). */
-export function mentionFromMatch(full: string, rawPath: string, line?: string): FilePathMention | null {
+export function mentionFromMatch(
+  full: string,
+  rawPath: string,
+  line?: string,
+): FilePathMention | null {
   const trimmed = rawPath.replace(TRAILING_PUNCT, "");
   if (!trimmed || !looksLikePath(trimmed)) return null;
   // The line suffix only counts when nothing was trimmed between it and the path.
@@ -136,7 +149,10 @@ export interface FilePathContextValue {
 
 /** The absolute and `~/` paths named anywhere in these tool call inputs
  *  (JSON strings), `~` expanded against `home`, sorted and unique. */
-export function namedAbsolutePaths(inputs: Iterable<string>, home: string | undefined): string[] {
+export function namedAbsolutePaths(
+  inputs: Iterable<string>,
+  home: string | undefined,
+): string[] {
   const out = new Set<string>();
   const visit = (v: unknown): void => {
     if (typeof v === "string") {
@@ -166,7 +182,10 @@ export function namedAbsolutePaths(inputs: Iterable<string>, home: string | unde
  * segments (`ls ~/src/repo/a/b` places `repo/a/b/c.ts`). When the touched
  * paths disagree, or one agrees with the working directory, it stays there.
  */
-export function resolveMentionPath(path: string, ctx: FilePathContextValue | null | undefined): string | undefined {
+export function resolveMentionPath(
+  path: string,
+  ctx: FilePathContextValue | null | undefined,
+): string | undefined {
   if (!ctx) return undefined;
   const direct = resolveCustomPath(path, ctx.home, ctx.base);
   const rel = path.trim().replace(/\/$/, "");
@@ -179,11 +198,14 @@ export function resolveMentionPath(path: string, ctx: FilePathContextValue | nul
       const head = segs.slice(0, j).join("/");
       const at = `${k}/`.indexOf(`/${head}/`);
       if (at < 0) continue;
-      candidates.add([k.slice(0, at + 1 + head.length), ...segs.slice(j)].join("/"));
+      candidates.add(
+        [k.slice(0, at + 1 + head.length), ...segs.slice(j)].join("/"),
+      );
       break;
     }
   }
-  if (candidates.size !== 1 || (direct && candidates.has(direct))) return direct;
+  if (candidates.size !== 1 || (direct && candidates.has(direct)))
+    return direct;
   return [...candidates][0];
 }
 
@@ -197,21 +219,30 @@ export const FilePathContext = createContext<FilePathContextValue | null>(null);
  * here so the link names the file regardless of which vault is open; without it,
  * the raw path rides along and the page does its best.
  */
-export function filePathHref(path: string, line: number | undefined, ctx?: FilePathContextValue | null): string {
+export function filePathHref(
+  path: string,
+  line: number | undefined,
+  ctx?: FilePathContextValue | null,
+): string {
   const abs = resolveMentionPath(path, ctx);
   return filesHref({ localPath: abs ?? path, line });
 }
 
 /** Reads a mention back out of a link the plugin minted, so a component can
  *  re-resolve it with context it has and the parser did not. */
-export function parseFilePathHref(href: string | undefined): { path: string; line?: number } | null {
+export function parseFilePathHref(
+  href: string | undefined,
+): { path: string; line?: number } | null {
   if (!href) return null;
   const absolute = ABS_HREF_RE.exec(href) ?? FILE_URI_RE.exec(href);
   if (absolute) {
     const encoded = absolute[1].replace(/\+/g, "%2B").replace(/&/g, "%26");
     const path = new URLSearchParams(`path=${encoded}`).get("path")!;
     const line = Number(absolute[2] ?? absolute[3]);
-    return { path, ...(Number.isSafeInteger(line) && line > 0 ? { line } : {}) };
+    return {
+      path,
+      ...(Number.isSafeInteger(line) && line > 0 ? { line } : {}),
+    };
   }
   if (!href.startsWith("/files?") && !href.startsWith("/vault?")) return null;
   const params = new URLSearchParams(href.slice(href.indexOf("?") + 1));
@@ -233,16 +264,27 @@ export function matchSessionChangedFile(
   changes: ReadonlyArray<{ filePath: string; changeType?: string }>,
   ctx?: FilePathContextValue | null,
 ): { kind: "file"; filePath: string } | { kind: "dir" } | null {
-  const fileChanges = changes.filter((c) => c.changeType !== "commit" && !!c.filePath);
+  const fileChanges = changes.filter(
+    (c) => c.changeType !== "commit" && !!c.filePath,
+  );
   if (fileChanges.length === 0) return null;
-  const resolved = (resolveMentionPath(rawPath, ctx) ?? rawPath).replace(/\/+$/, "");
+  const resolved = (resolveMentionPath(rawPath, ctx) ?? rawPath).replace(
+    /\/+$/,
+    "",
+  );
   if (!resolved) return null;
   const exact = fileChanges.find((c) => c.filePath === resolved);
   if (exact) return { kind: "file", filePath: exact.filePath };
   if (!rawPath.startsWith("/") && !rawPath.startsWith("~")) {
     const cleanRel = rawPath.trim().replace(/^\.\//, "").replace(/\/+$/, "");
     if (cleanRel) {
-      const hits = [...new Set(fileChanges.filter((c) => c.filePath.endsWith(`/${cleanRel}`)).map((c) => c.filePath))];
+      const hits = [
+        ...new Set(
+          fileChanges
+            .filter((c) => c.filePath.endsWith(`/${cleanRel}`))
+            .map((c) => c.filePath),
+        ),
+      ];
       if (hits.length === 1) return { kind: "file", filePath: hits[0] };
     }
   }

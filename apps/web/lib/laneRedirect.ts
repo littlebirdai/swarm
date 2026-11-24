@@ -7,10 +7,17 @@
 // links, bookmarks, pushes and the phone lane's addresses all arrive here.
 // The hosted page names (/approvals, /plan, /mail) redirect the
 // same way, so an address guessed from the rail never lands on a profile 404.
-import { LANE_CONVERSATION_ROUTE, LANE_PATHS } from "../components/simple/lanePaths";
+import {
+  LANE_CONVERSATION_ROUTE,
+  LANE_PATHS,
+} from "../components/simple/lanePaths";
 import { LANE_ROOT, isUnderRoot } from "../components/simple/laneBoot";
 import { settingsPathFor } from "./settingsSections";
-import { RENAMED_PAGES, RENAMED_PAGE_ROOTS, currentPagePath } from "./renamedPages";
+import {
+  RENAMED_PAGES,
+  RENAMED_PAGE_ROOTS,
+  currentPagePath,
+} from "./renamedPages";
 
 const PAGES: Record<string, string> = {
   [LANE_PATHS.home]: "/inbox",
@@ -46,29 +53,44 @@ export const PAGE_ALIASES: Readonly<Record<string, string>> = {
 
 /** The root segments the aliases and renamed pages take, which no public profile may claim
  *  (convex/users.ts RESERVED_USERNAMES lists them too). */
-export const PAGE_ALIAS_SEGMENTS = [...Object.keys(PAGE_ALIASES), ...Object.keys(RENAMED_PAGE_ROOTS), ...Object.keys(RENAMED_PAGES)].map((p) => p.slice(1));
+export const PAGE_ALIAS_SEGMENTS = [
+  ...Object.keys(PAGE_ALIASES),
+  ...Object.keys(RENAMED_PAGE_ROOTS),
+  ...Object.keys(RENAMED_PAGES),
+].map((p) => p.slice(1));
 
 function trimmed(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
 
 /** The main app's address for a lane address, or null for one outside the lane. */
-export function laneRedirectTarget(pathname: string, search = "", hash = ""): string | null {
+export function laneRedirectTarget(
+  pathname: string,
+  search = "",
+  hash = "",
+): string | null {
   const path = trimmed(pathname);
   if (!isUnderRoot(path, LANE_ROOT)) return null;
-  const id = path.startsWith(CONVERSATION_PREFIX) ? path.slice(CONVERSATION_PREFIX.length).split("/")[0] : "";
-  const to = id ? `/conversation/${id}` : PAGES[path] ?? "/inbox";
+  const id = path.startsWith(CONVERSATION_PREFIX)
+    ? path.slice(CONVERSATION_PREFIX.length).split("/")[0]
+    : "";
+  const to = id ? `/conversation/${id}` : (PAGES[path] ?? "/inbox");
   return `${to}${search}${hash}`;
 }
 
 /** The page a hosted page name or a renamed page's address stands for
  *  (/approvals and /questions are /decisions, /goals/in-7 is /org/goals/in-7), or null. */
-export function pageAliasTarget(pathname: string, search = "", hash = ""): string | null {
+export function pageAliasTarget(
+  pathname: string,
+  search = "",
+  hash = "",
+): string | null {
   const path = trimmed(pathname);
   const renamed = currentPagePath(path);
   const to = PAGE_ALIASES[path] ?? (renamed !== path ? renamed : undefined);
   if (!to) return null;
   // An alias that carries its own query keeps the visitor's too (?utm_...).
-  const query = to.includes("?") && search.startsWith("?") ? `&${search.slice(1)}` : search;
+  const query =
+    to.includes("?") && search.startsWith("?") ? `&${search.slice(1)}` : search;
   return `${to}${query}${hash}`;
 }

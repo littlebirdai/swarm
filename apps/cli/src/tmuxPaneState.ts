@@ -4,9 +4,19 @@
  * agents raise on their own before or between turns.
  */
 
-import { isClaudeAutoContinueLine, localAgentClient } from "@codecast/shared/contracts";
-import type { AgentClientId, LivenessVerdict } from "@codecast/shared/contracts";
-import { isComposerRow, limitDialogOnPane, parseSelectDialog } from "./interactivePrompt.js";
+import {
+  isClaudeAutoContinueLine,
+  localAgentClient,
+} from "@codecast/shared/contracts";
+import type {
+  AgentClientId,
+  LivenessVerdict,
+} from "@codecast/shared/contracts";
+import {
+  isComposerRow,
+  limitDialogOnPane,
+  parseSelectDialog,
+} from "./interactivePrompt.js";
 
 // Codex's working-directory picker, as the TUI renders it (0.153):
 //
@@ -23,7 +33,8 @@ import { isComposerRow, limitDialogOnPane, parseSelectDialog } from "./interacti
 // classifier's live region (a five-line tail when no separators are on screen)
 // holds only the option rows. Both shapes are matched, so the same test serves
 // the scraped card path and the live-region classifier.
-const RESUME_CWD_PICKER_RE = /latest cwd recorded in the resumed session|Choose working directory to resume|Use session directory \(|Always use (?:session|current) directory/i;
+const RESUME_CWD_PICKER_RE =
+  /latest cwd recorded in the resumed session|Choose working directory to resume|Use session directory \(|Always use (?:session|current) directory/i;
 export function isResumeCwdPicker(text: string): boolean {
   return RESUME_CWD_PICKER_RE.test(text);
 }
@@ -50,8 +61,11 @@ export function isResumeCwdPicker(text: string): boolean {
 // wording, so a cold codex pane in an untrusted directory classified "booting"
 // for its whole 120s budget and never bound (ct-49609, ct-49749).
 export function isCodexTrustDialog(text: string): boolean {
-  return /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Yes,\s*continue\b/im.test(text)
-    && /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*No,\s*quit\b/im.test(text);
+  return (
+    /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Yes,\s*continue\b/im.test(
+      text,
+    ) && /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*No,\s*quit\b/im.test(text)
+  );
 }
 
 // Claude Code's one-time warning when it starts with
@@ -68,13 +82,21 @@ export function isCodexTrustDialog(text: string): boolean {
 // launch already chose bypass mode, so accepting is what it asked for, and it is
 // answered the trust dialog's way: select "Yes, I accept", then confirm.
 export function isClaudeBypassWarning(text: string): boolean {
-  return /running in Bypass Permissions mode/i.test(text) && /^[^\S\n]*[❯›>]?[^\S\n]*(?:\d+[.)][^\S\n]*)?Yes,\s*I accept\b/im.test(text);
+  return (
+    /running in Bypass Permissions mode/i.test(text) &&
+    /^[^\S\n]*[❯›>]?[^\S\n]*(?:\d+[.)][^\S\n]*)?Yes,\s*I accept\b/im.test(text)
+  );
 }
 
 // Claude Code's idle-resume dialog ("This conversation has been inactive for
 // … Resume / Start a new conversation"). CLAUDE_CODE_RESUME_* does not silence it.
 export function isClaudeIdleResumeDialog(text: string): boolean {
-  return /has been inactive for\b/i.test(text) && /^[^\S\n]*[❯›>]?[^\S\n]*(?:\d+[.)][^\S\n]*)?Start a new conversation\b/im.test(text);
+  return (
+    /has been inactive for\b/i.test(text) &&
+    /^[^\S\n]*[❯›>]?[^\S\n]*(?:\d+[.)][^\S\n]*)?Start a new conversation\b/im.test(
+      text,
+    )
+  );
 }
 
 // Claude Code's Rewind picker (opened by a double Escape on an empty composer).
@@ -89,15 +111,28 @@ export function isClaudeRewindDialog(text: string): boolean {
 // and the history the wake was written against; the runner armed the wake.
 export const MACHINE_WAKE_IDLE_RESUME_CHOICE = "Resume";
 
-export function isIdleResumeOptionRow(line: string, label = MACHINE_WAKE_IDLE_RESUME_CHOICE): boolean {
-  return line.replace(/^\s*[❯›>]?\s*/, "").replace(/^\d+[.)]\s*/, "").split(/\s{3,}/)[0].trim() === label;
+export function isIdleResumeOptionRow(
+  line: string,
+  label = MACHINE_WAKE_IDLE_RESUME_CHOICE,
+): boolean {
+  return (
+    line
+      .replace(/^\s*[❯›>]?\s*/, "")
+      .replace(/^\d+[.)]\s*/, "")
+      .split(/\s{3,}/)[0]
+      .trim() === label
+  );
 }
 
 export function isCodexUpdateDialog(text: string): boolean {
-  return /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Update now\b/im.test(text)
-    && /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Skip[^\S\n]*$/im.test(text)
-    && /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Skip until next version[^\S\n]*$/im.test(text)
-    && /Press enter to continue/i.test(text);
+  return (
+    /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Update now\b/im.test(text) &&
+    /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Skip[^\S\n]*$/im.test(text) &&
+    /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Skip until next version[^\S\n]*$/im.test(
+      text,
+    ) &&
+    /Press enter to continue/i.test(text)
+  );
 }
 
 // Grok 1.0.30 first-launch folder-trust dialog, verified against a live pane in
@@ -119,8 +154,10 @@ export function isCodexUpdateDialog(text: string): boolean {
 // the option pair against the WHOLE pane. "Yes, proceed" is grok's wording —
 // Codex says "Yes, continue" — so the two dialogs cannot claim each other.
 export function isGrokTrustDialog(text: string): boolean {
-  return /Yes,\s*proceed\b[^\n]*\by\b/i.test(text)
-    && /No,\s*quit\b[^\n]*\bn\b/i.test(text);
+  return (
+    /Yes,\s*proceed\b[^\n]*\by\b/i.test(text) &&
+    /No,\s*quit\b[^\n]*\bn\b/i.test(text)
+  );
 }
 
 // agy's first launch in a folder it has not trusted: "Do you trust the contents
@@ -130,7 +167,10 @@ export function isGrokTrustDialog(text: string): boolean {
 // folder into agy's trustedWorkspaces before launch (antigravityLocal.ts), so
 // this is the fallback. Answered, the dialog is cleared off the pane.
 export function isAntigravityTrustDialog(text: string): boolean {
-  return /Do you trust the contents of this project\?/.test(text) && /Yes, I trust this folder/.test(text);
+  return (
+    /Do you trust the contents of this project\?/.test(text) &&
+    /Yes, I trust this folder/.test(text)
+  );
 }
 
 // cursor-agent's first launch in a directory: "Workspace Trust Required" over
@@ -139,9 +179,12 @@ export function isAntigravityTrustDialog(text: string): boolean {
 // dialog with nothing painted after its options is live.
 export function isCursorTrustDialog(text: string): boolean {
   const at = text.search(/\[a\]\s*Trust this workspace/i);
-  if (at < 0 || !/Workspace Trust Required/i.test(text.slice(0, at))) return false;
+  if (at < 0 || !/Workspace Trust Required/i.test(text.slice(0, at)))
+    return false;
   const after = text.slice(at);
-  return !/Trusting workspace|Cursor Agent|→ /.test(after.slice(after.search(/\[q\]\s*Quit/i) + 1));
+  return !/Trusting workspace|Cursor Agent|→ /.test(
+    after.slice(after.search(/\[q\]\s*Quit/i) + 1),
+  );
 }
 
 // cursor-agent's signed-out splash ("Press any key to log in..."). Any key
@@ -165,8 +208,14 @@ export function isCursorLoginScreen(text: string): boolean {
 // behind a card whose answer starts a browser login on another machine. The
 // machine has to log codex in; nothing typed into this pane can.
 export function isCodexLoginScreen(text: string): boolean {
-  return /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Sign in with (?:ChatGPT|Device Code)\b/im.test(text)
-    && /Press enter to continue|Sign in another way|Provide your own API key/i.test(text);
+  return (
+    /^[^\S\n]*(?:[›❯>][^\S\n]*)?\d+[.)][^\S\n]*Sign in with (?:ChatGPT|Device Code)\b/im.test(
+      text,
+    ) &&
+    /Press enter to continue|Sign in another way|Provide your own API key/i.test(
+      text,
+    )
+  );
 }
 
 // Grok's device-code sign-in, drawn when its stored login is gone (grok 1.0.88
@@ -182,7 +231,9 @@ export function isGrokLoginScreen(text: string): boolean {
 }
 
 /** Which agent's own login screen the pane shows, or null. */
-export function agentAtLoginScreen(text: string): "cursor" | "codex" | "grok" | null {
+export function agentAtLoginScreen(
+  text: string,
+): "cursor" | "codex" | "grok" | null {
   if (isCursorLoginScreen(text)) return "cursor";
   if (isCodexLoginScreen(text)) return "codex";
   if (isGrokLoginScreen(text)) return "grok";
@@ -200,21 +251,21 @@ export function isAgentLoginScreen(text: string): boolean {
 export const GROK_TRUST_PANE_CAPTURE_LINES = 80;
 
 export type TmuxLiveState =
-  | "idle"          // empty input prompt — safe to paste
-  | "busy"          // spinner / "esc to interrupt" — wait
-  | "starting"      // composer painted but the TUI is still booting — wait, send nothing
-  | "interrupted"   // "What should Claude do instead?" dialog — Escape to clear
-  | "rewind"        // Rewind/Restore modal — Escape to cancel (NEVER Enter, that rewinds)
-  | "trust"         // workspace "Quick safety check" prompt — Enter accepts ("Yes, I trust" is preselected)
-  | "warning"       // dismissable banner — Enter to ack
-  | "update_menu"   // agent's own "Update available" menu — Escape (Enter would RUN the update)
-  | "limit_dialog"  // usage/spend limit dialog — Escape (its options are billing actions and a day-long wait)
-  | "offer_dialog"  // agent's own suggestion ("esc not now") — Escape declines it (Enter would accept a settings change)
-  | "cwd_picker"    // Codex resume "Choose working directory" picker — answered by answerResumeCwdPicker
-  | "signed_out"    // the agent's own login splash — hold, press nothing; the machine must log in
-  | "menu"          // a select dialog (parseSelectDialog) or a numbered dialog with its cursor on an option — only a card answer moves it; press nothing, hold delivery
-  | "exited"        // bare shell, agent has exited — abort
-  | "unknown";      // anything we don't recognize — defer, do not guess
+  | "idle" // empty input prompt — safe to paste
+  | "busy" // spinner / "esc to interrupt" — wait
+  | "starting" // composer painted but the TUI is still booting — wait, send nothing
+  | "interrupted" // "What should Claude do instead?" dialog — Escape to clear
+  | "rewind" // Rewind/Restore modal — Escape to cancel (NEVER Enter, that rewinds)
+  | "trust" // workspace "Quick safety check" prompt — Enter accepts ("Yes, I trust" is preselected)
+  | "warning" // dismissable banner — Enter to ack
+  | "update_menu" // agent's own "Update available" menu — Escape (Enter would RUN the update)
+  | "limit_dialog" // usage/spend limit dialog — Escape (its options are billing actions and a day-long wait)
+  | "offer_dialog" // agent's own suggestion ("esc not now") — Escape declines it (Enter would accept a settings change)
+  | "cwd_picker" // Codex resume "Choose working directory" picker — answered by answerResumeCwdPicker
+  | "signed_out" // the agent's own login splash — hold, press nothing; the machine must log in
+  | "menu" // a select dialog (parseSelectDialog) or a numbered dialog with its cursor on an option — only a card answer moves it; press nothing, hold delivery
+  | "exited" // bare shell, agent has exited — abort
+  | "unknown"; // anything we don't recognize — defer, do not guess
 
 // What the pane's TEXT is allowed to say about liveness. "unknown" is a
 // statement about OUR vocabulary, not about the pane — text classification is a
@@ -258,7 +309,8 @@ function newestPaintedFrame(region: string): string {
 //
 // The glyph cycles, and off macOS one frame is a plain "*" where macOS draws
 // ✳: a read that landed on it settled hands mid tool call on Linux.
-export const CLAUDE_TURN_STATUS_LINE = /^\s*[·✢✳✶✻✽*]\s+\S[^\n]*…\s*\([^)\n]*?\b\d+[dhms]\b/m;
+export const CLAUDE_TURN_STATUS_LINE =
+  /^\s*[·✢✳✶✻✽*]\s+\S[^\n]*…\s*\([^)\n]*?\b\d+[dhms]\b/m;
 
 // The composer's top rule with the turn status line painted over it: the
 // glyph, the verb and the digits replace some cells and the rule shows through
@@ -269,7 +321,8 @@ export const CLAUDE_TURN_STATUS_LINE = /^\s*[·✢✳✶✻✽*]\s+\S[^\n]*…\s
 export const CLAUDE_OVERPAINTED_RULE = /^\s*[·✢✳✶✻✽*][─━][^\n]*[─━]{10,}\s*$/m;
 
 // A spinner frame, or the "esc to interrupt" hint: drawn only while a turn runs.
-export const TURN_SPINNER_OR_INTERRUPT = /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏|esc to interrupt/i;
+export const TURN_SPINNER_OR_INTERRUPT =
+  /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏|esc to interrupt/i;
 
 // Whether the pane shows a turn running now, by the marks only a running turn
 // draws. Narrower than classifyTmuxLiveState's "busy", which also reads two
@@ -278,7 +331,10 @@ export const TURN_SPINNER_OR_INTERRUPT = /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|�
 // teammate panel. A slash command held for a turn's end is not safe either
 // way: on those shapes it would wait for a turn that is not running.
 export function claudeTurnRunningOnPane(region: string): boolean {
-  return TURN_SPINNER_OR_INTERRUPT.test(region) || CLAUDE_TURN_STATUS_LINE.test(region);
+  return (
+    TURN_SPINNER_OR_INTERRUPT.test(region) ||
+    CLAUDE_TURN_STATUS_LINE.test(region)
+  );
 }
 
 // A draft taller than Claude Code's composer scrolls inside the box, and the
@@ -287,8 +343,10 @@ export function claudeTurnRunningOnPane(region: string): boolean {
 // With no ❯ in view the pane read "unknown", and a typed scheduled task that
 // had not been submitted held every message to its session for hours
 // (2026-11-17: six messages to two sessions, 2h+ each). One line each.
-export const CLAUDE_COMPOSER_SCROLLED_ABOVE = /^\s*[─━]{2,}\s+↑\s*\d+\s+more\s+[─━]{2,}\s*$/;
-export const CLAUDE_COMPOSER_SCROLLED_BELOW = /^\s*[─━]{2,}\s+↓\s*\d+\s+more\s+[─━]{2,}\s*$/;
+export const CLAUDE_COMPOSER_SCROLLED_ABOVE =
+  /^\s*[─━]{2,}\s+↑\s*\d+\s+more\s+[─━]{2,}\s*$/;
+export const CLAUDE_COMPOSER_SCROLLED_BELOW =
+  /^\s*[─━]{2,}\s+↓\s*\d+\s+more\s+[─━]{2,}\s*$/;
 
 // Claude Code's slash-command menu hangs under the composer's bottom rule and
 // marks its selected row with the same ❯, indented ("  ❯ /drive   Take an ask
@@ -307,13 +365,19 @@ function lineEndingAt(pane: string, newlineAt: number): string {
 function skipSuggestionMenu(pane: string, glyphAt: number): number {
   if (glyphAt === -1) return -1;
   const rowStart = pane.lastIndexOf("\n", glyphAt) + 1;
-  if (rowStart === 0 || !/^[ \t]+$/.test(pane.slice(rowStart, glyphAt))) return glyphAt;
+  if (rowStart === 0 || !/^[ \t]+$/.test(pane.slice(rowStart, glyphAt)))
+    return glyphAt;
   if (!COMPOSER_RULE.test(lineEndingAt(pane, rowStart - 1))) return glyphAt;
   const bottomRuleStart = pane.lastIndexOf("\n", rowStart - 2) + 1;
-  const composerGlyph = Math.max(pane.lastIndexOf("❯", bottomRuleStart), pane.lastIndexOf("›", bottomRuleStart));
+  const composerGlyph = Math.max(
+    pane.lastIndexOf("❯", bottomRuleStart),
+    pane.lastIndexOf("›", bottomRuleStart),
+  );
   if (composerGlyph <= 0 || pane[composerGlyph - 1] !== "\n") return glyphAt;
   const topRule = lineEndingAt(pane, composerGlyph - 1);
-  return COMPOSER_RULE.test(topRule) || CLAUDE_OVERPAINTED_RULE.test(topRule) ? composerGlyph : glyphAt;
+  return COMPOSER_RULE.test(topRule) || CLAUDE_OVERPAINTED_RULE.test(topRule)
+    ? composerGlyph
+    : glyphAt;
 }
 
 // Where the composer's text starts: after its last ❯/› glyph, or under the top
@@ -321,11 +385,15 @@ function skipSuggestionMenu(pane: string, glyphAt: number): number {
 // Taking the last glyph alone read the transcript's newest user turn, above the
 // box, as the draft. -1 when neither is in view.
 export function composerTextStart(pane: string): number {
-  const glyphAt = skipSuggestionMenu(pane, Math.max(pane.lastIndexOf("❯"), pane.lastIndexOf("›")));
+  const glyphAt = skipSuggestionMenu(
+    pane,
+    Math.max(pane.lastIndexOf("❯"), pane.lastIndexOf("›")),
+  );
   let scrolledAt = -1;
   let offset = 0;
   for (const line of pane.split("\n")) {
-    if (CLAUDE_COMPOSER_SCROLLED_ABOVE.test(line)) scrolledAt = offset + line.length + 1;
+    if (CLAUDE_COMPOSER_SCROLLED_ABOVE.test(line))
+      scrolledAt = offset + line.length + 1;
     offset += line.length + 1;
   }
   if (scrolledAt > glyphAt) return Math.min(scrolledAt, pane.length);
@@ -338,7 +406,9 @@ export function composerScrolledPastCaret(pane: string): boolean {
   const start = composerTextStart(pane);
   if (start === -1) return false;
   const above = pane.slice(0, start).replace(/\n$/, "");
-  return CLAUDE_COMPOSER_SCROLLED_ABOVE.test(above.slice(above.lastIndexOf("\n") + 1));
+  return CLAUDE_COMPOSER_SCROLLED_ABOVE.test(
+    above.slice(above.lastIndexOf("\n") + 1),
+  );
 }
 
 // Classifies the live region only. Ordering matters: more-specific dialogs are
@@ -347,7 +417,8 @@ export function composerScrolledPastCaret(pane: string): boolean {
 // absence of other patterns.
 export function classifyTmuxLiveState(region: string): TmuxLiveState {
   if (/Resume this session with:/i.test(region)) return "exited";
-  if (/-(?:ba)?sh:.*(?:No such file|command not found)/.test(region)) return "exited";
+  if (/-(?:ba)?sh:.*(?:No such file|command not found)/.test(region))
+    return "exited";
   // Why: a painted composer is not proof the TUI reads stdin. codex paints
   // "› Ask Codex to do anything" while it is still replaying a resumed session
   // ("Resuming session…", header still "model: loading"), the ›-glyph rule below
@@ -356,7 +427,8 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // the prompt (ct-49614: nine stacked copies, none submitted). Checked before
   // busy: "not reading input yet" is a stronger statement than "a turn is
   // running", and the type-ahead paste busy allows is exactly what is unsafe here.
-  if (/^\s*Resuming session[.…]/mi.test(newestPaintedFrame(region))) return "starting";
+  if (/^\s*Resuming session[.…]/im.test(newestPaintedFrame(region)))
+    return "starting";
   if (TURN_SPINNER_OR_INTERRUPT.test(region)) return "busy";
   // Claude Code's own turn status line: a cycling asterisk glyph, a verb, an
   // ellipsis, then the elapsed time in parentheses — "✶ Perambulating… (50s ·
@@ -375,7 +447,10 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // live UI: a dialog replaces the box rather than drawing under it. Checked
   // before the dialog rules because the draft inside can be any text, a
   // scheduled task quoting "Esc to cancel" included.
-  if (region.split("\n").some((line) => CLAUDE_COMPOSER_SCROLLED_ABOVE.test(line))) return "idle";
+  if (
+    region.split("\n").some((line) => CLAUDE_COMPOSER_SCROLLED_ABOVE.test(line))
+  )
+    return "idle";
   // Rewind / cancel-able modal: distinguished from warnings by an Esc option.
   // Warnings have only "Press enter to continue" (no Esc). The "❯ (current)" marker
   // is also unique to the Rewind option list.
@@ -384,7 +459,12 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // Rewind rule below — misread as Rewind, the Escape we send is this dialog's
   // "No, exit": the agent quits, the resume loops, and the message never lands
   // (17 panes found dead on this on 2026-08-21).
-  if (/Quick safety check|trust this folder|Is this a project you created/i.test(region)) return "trust";
+  if (
+    /Quick safety check|trust this folder|Is this a project you created/i.test(
+      region,
+    )
+  )
+    return "trust";
   // Codex asks the same question with a numbered menu. Without this rule the
   // shape fell through to update_menu below — a numbered cursor row plus a
   // "Press enter to continue" footer — and the corrective sent Escape, which is
@@ -395,7 +475,10 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // to cancel", under a live composer. Escape there cancels the continue, and
   // the next one opens the real Rewind dialog (2026-09-30: three Escapes left a
   // limit-parked session holding every message for two hours). It is no modal.
-  const dialogText = region.split("\n").filter((line) => !isClaudeAutoContinueLine(line)).join("\n");
+  const dialogText = region
+    .split("\n")
+    .filter((line) => !isClaudeAutoContinueLine(line))
+    .join("\n");
   // The limit dialog ends in "Esc to cancel" too; named first so its Escape is
   // a deliberate dismissal, not a Rewind cancel that happens to fit.
   if (limitDialogOnPane(region)) return "limit_dialog";
@@ -420,8 +503,13 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // about whether the lead is generating. Requires a panel signature (⏺ main
   // header, a second chip, or the overflow marker) so one stray ◯ line in a
   // no-separator fallback region can't hijack the classification.
-  const chipLines = region.split("\n").filter((l) => /^\s*◯\s+\S+/.test(l)).length;
-  if (chipLines >= 2 || (chipLines >= 1 && /(?:^\s*⏺\s+main\s*$|↓\s*\d+\s*more)/m.test(region))) {
+  const chipLines = region
+    .split("\n")
+    .filter((l) => /^\s*◯\s+\S+/.test(l)).length;
+  if (
+    chipLines >= 2 ||
+    (chipLines >= 1 && /(?:^\s*⏺\s+main\s*$|↓\s*\d+\s*more)/m.test(region))
+  ) {
     return "busy";
   }
   // Input prompt visible = no blocking modal. Real warnings ("Press enter to
@@ -469,8 +557,14 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   if (isCodexLoginScreen(region)) return "signed_out";
   if (isResumeCwdPicker(region)) return "cwd_picker";
   const regionLines = region.split("\n");
-  const numberedCursorRow = regionLines.some((line, i) => /^\s*[›❯>]\s*\d+[.)]\s/.test(line) && !isComposerRow(regionLines, i));
-  if (numberedCursorRow && /Press enter to continue|Update available!/i.test(region)) {
+  const numberedCursorRow = regionLines.some(
+    (line, i) =>
+      /^\s*[›❯>]\s*\d+[.)]\s/.test(line) && !isComposerRow(regionLines, i),
+  );
+  if (
+    numberedCursorRow &&
+    /Press enter to continue|Update available!/i.test(region)
+  ) {
     return "update_menu";
   }
   // An unnumbered select dialog draws its highlight with the same ❯ glyph, so
@@ -491,7 +585,12 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
   // up (2026-11-13, jx7eahf).
   const promptVisible = /^\s?[❯›]/m.test(region);
   if (promptVisible) return "idle";
-  if (/Press enter to continue|Update available|weekly limit|recorded with model|⚠/i.test(region)) return "warning";
+  if (
+    /Press enter to continue|Update available|weekly limit|recorded with model|⚠/i.test(
+      region,
+    )
+  )
+    return "warning";
   return "unknown";
 }
 
@@ -511,14 +610,22 @@ export function classifyTmuxLiveState(region: string): TmuxLiveState {
 //    mid-turn pane "idle" and the paste's leading Escape would cancel the running
 //    turn. grok needs the busy-first order this classifier guarantees. agy does
 //    the same with its `>` composer ("esc to cancel" in the footer while busy).
-export const GLYPHLESS_PROMPT_CLIENTS: ReadonlySet<AgentClientId> = new Set(["opencode", "pi", "grok", "cursor", "antigravity"]);
+export const GLYPHLESS_PROMPT_CLIENTS: ReadonlySet<AgentClientId> = new Set([
+  "opencode",
+  "pi",
+  "grok",
+  "cursor",
+  "antigravity",
+]);
 
 // The registry promptReadyPattern for a client classified whole-pane (see
 // GLYPHLESS_PROMPT_CLIENTS above), null for the ❯/›-glyph clients. Every pane
 // classification site that knows its client routes through this instead of
 // re-testing set membership, so no site can fall back to the claude-chrome
 // whitelist for a client it cannot read.
-export function glyphlessPromptPattern(agentType: AgentClientId | undefined): RegExp | null {
+export function glyphlessPromptPattern(
+  agentType: AgentClientId | undefined,
+): RegExp | null {
   return agentType && GLYPHLESS_PROMPT_CLIENTS.has(agentType)
     ? localAgentClient(agentType).promptReadyPattern
     : null;
@@ -539,17 +646,24 @@ export function classifyGlyphlessClientPaneState(
   paneContent: string,
   readyPattern: RegExp,
 ): TmuxLiveState {
-  if (/-(?:ba)?sh:.*(?:No such file|command not found)/.test(paneContent)) return "exited";
+  if (/-(?:ba)?sh:.*(?:No such file|command not found)/.test(paneContent))
+    return "exited";
   // Grok's first-launch folder-trust dialog is a pane-driven modal that appears
   // BEFORE any store/transcript exists (jx702ea). Without this rule the pane
   // classified "unknown" (no ❯ yet) and ensureTmuxReady's glyphless skip polled
   // until timeout, never sending the `y` the dialog asks for.
-  if (isGrokTrustDialog(paneContent) || isCursorTrustDialog(paneContent) || isAntigravityTrustDialog(paneContent)) return "trust";
+  if (
+    isGrokTrustDialog(paneContent) ||
+    isCursorTrustDialog(paneContent) ||
+    isAntigravityTrustDialog(paneContent)
+  )
+    return "trust";
   if (isAgentLoginScreen(paneContent)) return "signed_out";
   // cursor-agent's tool approval menu ("Run this command?" … "Skip & tell the
   // agent what to do instead") when it runs without --force: only a person
   // can answer it, and its "→ Run (once)" row is not the composer.
-  if (/Skip & tell the agent what to do instead/i.test(paneContent)) return "menu";
+  if (/Skip & tell the agent what to do instead/i.test(paneContent))
+    return "menu";
   // Busy before ready, always. Braille spinner frames + "esc to interrupt" cover
   // opencode/pi; `Esc:cancel` / `Waiting for response` / `[stop]` are grok's busy
   // chrome (live pane capture, v1.0.5 — the spinner sits in grok's HEADER, which a
@@ -562,7 +676,12 @@ export function classifyGlyphlessClientPaneState(
   // agy's footer reads "esc to cancel" for the whole turn (its spinner is an
   // eight-dot braille frame beside "Running command..."); idle it reads
   // "? for shortcuts". Its promo banners say "esc to dismiss", never "cancel".
-  if (/⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏|⬝⬝|esc (?:to )?interrupt|esc to cancel|Esc:cancel|Waiting for response|\[stop\]/i.test(paneContent)) return "busy";
+  if (
+    /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏|⬝⬝|esc (?:to )?interrupt|esc to cancel|Esc:cancel|Waiting for response|\[stop\]/i.test(
+      paneContent,
+    )
+  )
+    return "busy";
   if (/^\s*[\u2800-\u28FF]{2} [A-Z][a-z]+\b/m.test(paneContent)) return "busy";
   if (readyPattern.test(paneContent)) return "idle";
   return "unknown";
@@ -574,7 +693,10 @@ export function classifyGlyphlessClientPaneState(
 // composer as "idle" mid-turn (a busy grok must never look reapable), and read
 // pi/opencode as a permanent "unknown" (their idle terminals were never
 // reaped). Other clients keep the claude-chrome whitelist unchanged.
-export function classifyLivePaneFor(agentType: AgentClientId, paneContent: string): TmuxLiveState {
+export function classifyLivePaneFor(
+  agentType: AgentClientId,
+  paneContent: string,
+): TmuxLiveState {
   const glyphless = glyphlessPromptPattern(agentType);
   return glyphless
     ? classifyGlyphlessClientPaneState(paneContent, glyphless)

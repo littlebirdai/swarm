@@ -24,9 +24,7 @@ describe("collectOldLegacyPendingMessages", () => {
         { _id: "old-pending", status: "pending", created_at: 100 },
         { _id: "recent-pending", status: "pending", created_at: cutoff },
       ],
-      injected: [
-        { _id: "old-injected", status: "injected", created_at: 200 },
-      ],
+      injected: [{ _id: "old-injected", status: "injected", created_at: 200 }],
       failed: [
         {
           _id: "fenced-failed",
@@ -244,24 +242,68 @@ describe("daemon pending-message ownership", () => {
   test("only the owner daemon can see, claim, and mark a pending row", async () => {
     const records: Record<string, any> = {
       c1: { _id: "c1", user_id: "u1", owner_device_id: "dev-owner" },
-      m1: { _id: "m1", conversation_id: "c1", from_user_id: "u1", status: "pending", retry_count: 0 },
+      m1: {
+        _id: "m1",
+        conversation_id: "c1",
+        from_user_id: "u1",
+        status: "pending",
+        retry_count: 0,
+      },
     };
     const { ctx, patches } = createOwnerCtx(records);
 
-    expect(canDaemonSeePendingMessage(records.m1 as any, records.c1 as any, "u1" as any, "dev-owner")).toBe(true);
-    expect(canDaemonSeePendingMessage(records.m1 as any, records.c1 as any, "u1" as any, "dev-other")).toBe(false);
+    expect(
+      canDaemonSeePendingMessage(
+        records.m1 as any,
+        records.c1 as any,
+        "u1" as any,
+        "dev-owner",
+      ),
+    ).toBe(true);
+    expect(
+      canDaemonSeePendingMessage(
+        records.m1 as any,
+        records.c1 as any,
+        "u1" as any,
+        "dev-other",
+      ),
+    ).toBe(false);
 
-    await expect(claimPendingMessageForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-other")).resolves.toBeNull();
+    await expect(
+      claimPendingMessageForDaemon(
+        ctx as any,
+        "m1" as any,
+        "u1" as any,
+        "dev-other",
+      ),
+    ).resolves.toBeNull();
     expect(patches).toHaveLength(0);
 
-    const skipped = await updatePendingMessageStatusForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-other", { status: "injected" });
+    const skipped = await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      "m1" as any,
+      "u1" as any,
+      "dev-other",
+      { status: "injected" },
+    );
     expect(skipped).toEqual({ updated: false, skipped: true });
     expect(patches).toHaveLength(0);
 
-    const claimed = await claimPendingMessageForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-owner");
+    const claimed = await claimPendingMessageForDaemon(
+      ctx as any,
+      "m1" as any,
+      "u1" as any,
+      "dev-owner",
+    );
     expect(claimed?._id).toBe("m1");
 
-    const updated = await updatePendingMessageStatusForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-owner", { status: "injected" });
+    const updated = await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      "m1" as any,
+      "u1" as any,
+      "dev-owner",
+      { status: "injected" },
+    );
     expect(updated).toEqual({ updated: true, skipped: false });
     expect(patches).toEqual([{ id: "m1", patch: { status: "injected" } }]);
   });
@@ -270,33 +312,86 @@ describe("daemon pending-message ownership", () => {
     // Alice (u-alice) sent to Bob's conversation (owned by u-bob). The row carries owner_user_id=u-bob.
     const records: Record<string, any> = {
       cBob: { _id: "cBob", user_id: "u-bob", owner_device_id: "dev-bob" },
-      m1: { _id: "m1", conversation_id: "cBob", from_user_id: "u-alice", owner_user_id: "u-bob", status: "pending", retry_count: 0 },
+      m1: {
+        _id: "m1",
+        conversation_id: "cBob",
+        from_user_id: "u-alice",
+        owner_user_id: "u-bob",
+        status: "pending",
+        retry_count: 0,
+      },
     };
     const { ctx } = createOwnerCtx(records);
 
     // The sender's daemon must NOT be able to see or claim it.
-    expect(canDaemonSeePendingMessage(records.m1 as any, records.cBob as any, "u-alice" as any, "dev-alice")).toBe(false);
-    await expect(claimPendingMessageForDaemon(ctx as any, "m1" as any, "u-alice" as any, "dev-alice")).resolves.toBeNull();
+    expect(
+      canDaemonSeePendingMessage(
+        records.m1 as any,
+        records.cBob as any,
+        "u-alice" as any,
+        "dev-alice",
+      ),
+    ).toBe(false);
+    await expect(
+      claimPendingMessageForDaemon(
+        ctx as any,
+        "m1" as any,
+        "u-alice" as any,
+        "dev-alice",
+      ),
+    ).resolves.toBeNull();
 
     // The owner's daemon sees and claims it.
-    expect(canDaemonSeePendingMessage(records.m1 as any, records.cBob as any, "u-bob" as any, "dev-bob")).toBe(true);
-    const claimed = await claimPendingMessageForDaemon(ctx as any, "m1" as any, "u-bob" as any, "dev-bob");
+    expect(
+      canDaemonSeePendingMessage(
+        records.m1 as any,
+        records.cBob as any,
+        "u-bob" as any,
+        "dev-bob",
+      ),
+    ).toBe(true);
+    const claimed = await claimPendingMessageForDaemon(
+      ctx as any,
+      "m1" as any,
+      "u-bob" as any,
+      "dev-bob",
+    );
     expect(claimed?._id).toBe("m1");
   });
 
   test("legacy unowned conversations are atomically claimed before daemon delivery", async () => {
     const records: Record<string, any> = {
       c1: { _id: "c1", user_id: "u1" },
-      m1: { _id: "m1", conversation_id: "c1", from_user_id: "u1", status: "pending", retry_count: 0 },
+      m1: {
+        _id: "m1",
+        conversation_id: "c1",
+        from_user_id: "u1",
+        status: "pending",
+        retry_count: 0,
+      },
     };
     const { ctx, patches } = createOwnerCtx(records);
 
-    const claimed = await claimPendingMessageForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-a");
+    const claimed = await claimPendingMessageForDaemon(
+      ctx as any,
+      "m1" as any,
+      "u1" as any,
+      "dev-a",
+    );
     expect(claimed?._id).toBe("m1");
     expect(records.c1.owner_device_id).toBe("dev-a");
-    expect(patches).toEqual([{ id: "c1", patch: { owner_device_id: "dev-a" } }]);
+    expect(patches).toEqual([
+      { id: "c1", patch: { owner_device_id: "dev-a" } },
+    ]);
 
-    await expect(claimPendingMessageForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-b")).resolves.toBeNull();
+    await expect(
+      claimPendingMessageForDaemon(
+        ctx as any,
+        "m1" as any,
+        "u1" as any,
+        "dev-b",
+      ),
+    ).resolves.toBeNull();
     expect(patches).toHaveLength(1);
   });
 
@@ -304,11 +399,23 @@ describe("daemon pending-message ownership", () => {
     for (const status of ["delivered", "cancelled"]) {
       const records: Record<string, any> = {
         c1: { _id: "c1", user_id: "u1" },
-        m1: { _id: "m1", conversation_id: "c1", from_user_id: "u1", status, retry_count: 4 },
+        m1: {
+          _id: "m1",
+          conversation_id: "c1",
+          from_user_id: "u1",
+          status,
+          retry_count: 4,
+        },
       };
       const { ctx, patches } = createOwnerCtx(records);
 
-      const result = await updatePendingMessageStatusForDaemon(ctx as any, "m1" as any, "u1" as any, "dev-owner", { status: "pending" });
+      const result = await updatePendingMessageStatusForDaemon(
+        ctx as any,
+        "m1" as any,
+        "u1" as any,
+        "dev-owner",
+        { status: "pending" },
+      );
       expect(result).toEqual({ updated: false, skipped: true });
       expect(patches).toHaveLength(0);
       expect(records.m1.status).toBe(status);
@@ -320,7 +427,10 @@ describe("daemon pending-message ownership", () => {
 // Fake ctx.db that answers the two delivery indexes the daemon poll unions, modelling the real
 // Convex semantics: an index eq() on an unset optional field matches NOTHING (there is no entry
 // to range over). This is exactly what made an un-stamped self-send invisible to the owner scan.
-const createDeliverCtx = (rows: Array<Record<string, any>>, convs: Record<string, any>) => {
+const createDeliverCtx = (
+  rows: Array<Record<string, any>>,
+  convs: Record<string, any>,
+) => {
   const ctx = {
     db: {
       async get(id: string) {
@@ -330,10 +440,21 @@ const createDeliverCtx = (rows: Array<Record<string, any>>, convs: Record<string
         return {
           withIndex(indexName: string, builder: (q: any) => unknown) {
             const eqs: Record<string, any> = {};
-            const q = { eq(field: string, value: any) { eqs[field] = value; return q; } };
+            const q = {
+              eq(field: string, value: any) {
+                eqs[field] = value;
+                return q;
+              },
+            };
             builder(q);
-            const keyField = indexName === "by_owner_status" ? "owner_user_id" : "from_user_id";
-            const matching = () => rows.filter((r) => r[keyField] === eqs[keyField] && r.status === eqs.status);
+            const keyField =
+              indexName === "by_owner_status"
+                ? "owner_user_id"
+                : "from_user_id";
+            const matching = () =>
+              rows.filter(
+                (r) => r[keyField] === eqs[keyField] && r.status === eqs.status,
+              );
             return {
               async first() {
                 expect(table).toBe("session_starts");
@@ -362,11 +483,28 @@ describe("collectDeliverableForOwner", () => {
   test("delivers an un-stamped self-send via the from_user_id fallback, plus owner-routed team sends", async () => {
     const rows = [
       // The bug's exact shape: my own message with NO owner_user_id (written by a path that forgot it).
-      { _id: "self_unowned", conversation_id: "cMine", from_user_id: "u1", status: "pending" },
+      {
+        _id: "self_unowned",
+        conversation_id: "cMine",
+        from_user_id: "u1",
+        status: "pending",
+      },
       // A teammate's message into my other conversation — only reachable via the owner index.
-      { _id: "team_owned", conversation_id: "cMine2", from_user_id: "u-alice", owner_user_id: "u1", status: "pending" },
+      {
+        _id: "team_owned",
+        conversation_id: "cMine2",
+        from_user_id: "u-alice",
+        owner_user_id: "u1",
+        status: "pending",
+      },
       // Someone else's message — must never appear in my daemon's queue.
-      { _id: "other_user", conversation_id: "cOther", from_user_id: "u2", owner_user_id: "u2", status: "pending" },
+      {
+        _id: "other_user",
+        conversation_id: "cOther",
+        from_user_id: "u2",
+        owner_user_id: "u2",
+        status: "pending",
+      },
     ];
     const convs = {
       cMine: { _id: "cMine", user_id: "u1" },
@@ -375,29 +513,58 @@ describe("collectDeliverableForOwner", () => {
     };
     const { ctx } = createDeliverCtx(rows, convs);
 
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
-    expect(out.map((r) => r._id).sort()).toEqual(["self_unowned", "team_owned"]);
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
+    expect(out.map((r) => r._id).sort()).toEqual([
+      "self_unowned",
+      "team_owned",
+    ]);
   });
 
   test("stamps each deliverable with the conversation's declared agent", async () => {
     const rows = [
-      { _id: "m1", conversation_id: "cGrok", from_user_id: "u1", owner_user_id: "u1", status: "pending" },
+      {
+        _id: "m1",
+        conversation_id: "cGrok",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+      },
     ];
-    const convs = { cGrok: { _id: "cGrok", user_id: "u1", agent_type: "grok" } };
+    const convs = {
+      cGrok: { _id: "cGrok", user_id: "u1", agent_type: "grok" },
+    };
     const { ctx } = createDeliverCtx(rows, convs);
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
     expect(out).toHaveLength(1);
     expect(out[0].conversation_agent_type).toBe("grok");
   });
 
   test("dedups a row that matches both indexes (owner == sender self-send)", async () => {
     const rows = [
-      { _id: "both", conversation_id: "cMine", from_user_id: "u1", owner_user_id: "u1", status: "pending" },
+      {
+        _id: "both",
+        conversation_id: "cMine",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+      },
     ];
     const convs = { cMine: { _id: "cMine", user_id: "u1" } };
     const { ctx } = createDeliverCtx(rows, convs);
 
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
     expect(out.map((r) => r._id)).toEqual(["both"]);
   });
 
@@ -407,12 +574,25 @@ describe("collectDeliverableForOwner", () => {
   // server-side error state. The scan is bounded now; a deep backlog drains in waves.
   test("bounds the scan so a deep backlog cannot make the query un-executable", async () => {
     const rows = Array.from({ length: 600 }, (_, i) => ({
-      _id: `m${i}`, conversation_id: `c${i}`, from_user_id: "u1", owner_user_id: "u1", status: "pending",
+      _id: `m${i}`,
+      conversation_id: `c${i}`,
+      from_user_id: "u1",
+      owner_user_id: "u1",
+      status: "pending",
     }));
-    const convs = Object.fromEntries(rows.map((r) => [r.conversation_id, { _id: r.conversation_id, user_id: "u1" }]));
+    const convs = Object.fromEntries(
+      rows.map((r) => [
+        r.conversation_id,
+        { _id: r.conversation_id, user_id: "u1" },
+      ]),
+    );
     const { ctx } = createDeliverCtx(rows, convs);
 
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
     expect(out.length).toBe(500);
     // Index order = oldest first, so the oldest slice delivers first.
     expect(out[0]._id).toBe("m0");
@@ -423,48 +603,120 @@ describe("collectDeliverableForOwner", () => {
   // conversation on 2026-10-05) was claimed in full on every push.
   test("returns only the oldest deliverable row of each conversation", async () => {
     const rows = [
-      { _id: "a2", conversation_id: "cA", from_user_id: "u1", owner_user_id: "u1", status: "pending", created_at: 20 },
-      { _id: "a1", conversation_id: "cA", from_user_id: "u1", owner_user_id: "u1", status: "pending", created_at: 10 },
-      { _id: "a3", conversation_id: "cA", from_user_id: "u1", owner_user_id: "u1", status: "pending", created_at: 30 },
+      {
+        _id: "a2",
+        conversation_id: "cA",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 20,
+      },
+      {
+        _id: "a1",
+        conversation_id: "cA",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 10,
+      },
+      {
+        _id: "a3",
+        conversation_id: "cA",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 30,
+      },
       // A teammate's older row reached through the owner index still heads its queue.
-      { _id: "b2", conversation_id: "cB", from_user_id: "u1", status: "pending", created_at: 50 },
-      { _id: "b1", conversation_id: "cB", from_user_id: "u-alice", owner_user_id: "u1", status: "pending", created_at: 40 },
+      {
+        _id: "b2",
+        conversation_id: "cB",
+        from_user_id: "u1",
+        status: "pending",
+        created_at: 50,
+      },
+      {
+        _id: "b1",
+        conversation_id: "cB",
+        from_user_id: "u-alice",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 40,
+      },
     ];
-    const convs = { cA: { _id: "cA", user_id: "u1" }, cB: { _id: "cB", user_id: "u1" } };
+    const convs = {
+      cA: { _id: "cA", user_id: "u1" },
+      cB: { _id: "cB", user_id: "u1" },
+    };
     const { ctx } = createDeliverCtx(rows, convs);
 
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
     expect(out.map((r) => r._id).sort()).toEqual(["a1", "b1"]);
   });
 
   test("a row the daemon may not deliver never hides the deliverable one behind it", async () => {
     const rows = [
       // Oldest, but fenced: not this rail's to deliver.
-      { _id: "fenced", conversation_id: "cA", from_user_id: "u1", owner_user_id: "u1", status: "pending", created_at: 1, delivery_protocol_version: 1 },
-      { _id: "next", conversation_id: "cA", from_user_id: "u1", owner_user_id: "u1", status: "pending", created_at: 2 },
+      {
+        _id: "fenced",
+        conversation_id: "cA",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 1,
+        delivery_protocol_version: 1,
+      },
+      {
+        _id: "next",
+        conversation_id: "cA",
+        from_user_id: "u1",
+        owner_user_id: "u1",
+        status: "pending",
+        created_at: 2,
+      },
     ];
     const convs = { cA: { _id: "cA", user_id: "u1" } };
     const { ctx } = createDeliverCtx(rows, convs);
 
-    const out = await collectDeliverableForOwner(ctx as any, "u1" as any, "dev1");
+    const out = await collectDeliverableForOwner(
+      ctx as any,
+      "u1" as any,
+      "dev1",
+    );
     expect(out.map((r) => r._id)).toEqual(["next"]);
   });
 });
 
 describe("isControlMessage", () => {
   test("recognizes __cc_poll keystroke answers (keys and steps forms)", () => {
-    expect(isControlMessage('{"__cc_poll":true,"keys":["1"],"display":"Default (recommended)"}')).toBe(true);
-    expect(isControlMessage('{"__cc_poll":true,"steps":[{"key":"2"}]}')).toBe(true);
+    expect(
+      isControlMessage(
+        '{"__cc_poll":true,"keys":["1"],"display":"Default (recommended)"}',
+      ),
+    ).toBe(true);
+    expect(isControlMessage('{"__cc_poll":true,"steps":[{"key":"2"}]}')).toBe(
+      true,
+    );
   });
 
   test("recognizes __cc_poll free-text answers (text form — declines the menu and types)", () => {
     // The web sends a custom/"Other" AUQ answer as prose in `text` with no keys/steps; it
     // must still route as a fire-and-forget control message so it isn't re-injected.
-    expect(isControlMessage('{"__cc_poll":true,"text":"use the intro response","display":"x"}')).toBe(true);
+    expect(
+      isControlMessage(
+        '{"__cc_poll":true,"text":"use the intro response","display":"x"}',
+      ),
+    ).toBe(true);
   });
 
   test("treats normal user text and malformed JSON as non-control", () => {
-    expect(isControlMessage("https://codecast.sh/conversation/x not responding")).toBe(false);
+    expect(
+      isControlMessage("https://codecast.sh/conversation/x not responding"),
+    ).toBe(false);
     expect(isControlMessage("go")).toBe(false);
     expect(isControlMessage('{"__cc_poll":true}')).toBe(false); // missing keys/steps/text
     expect(isControlMessage("{not json")).toBe(false);
@@ -476,12 +728,18 @@ const createCollectCtx = (messages: Array<Record<string, any>>) => {
   const patches: Array<{ id: string; patch: Record<string, unknown> }> = [];
   const ctx = {
     db: {
-      async get() { return { _id: "c1" }; },
+      async get() {
+        return { _id: "c1" };
+      },
       query() {
         return {
           withIndex(_index: string, builder: (q: any) => unknown) {
             builder({ eq: () => ({ eq: () => {} }) });
-            return { async collect() { return messages; } };
+            return {
+              async collect() {
+                return messages;
+              },
+            };
           },
         };
       },
@@ -499,16 +757,29 @@ const createCollectCtx = (messages: Array<Record<string, any>>) => {
 describe("resetConversationPendingMessages", () => {
   test("re-pends stranded injected/failed/undeliverable messages, leaving pending/delivered alone", async () => {
     const messages = [
-      { _id: "m_injected", status: "injected", retry_count: 3, delivered_at: 123 },
+      {
+        _id: "m_injected",
+        status: "injected",
+        retry_count: 3,
+        delivered_at: 123,
+      },
       { _id: "m_failed", status: "failed", retry_count: 5 },
       { _id: "m_undeliverable", status: "undeliverable", retry_count: 12 },
       { _id: "m_pending", status: "pending", retry_count: 0 },
-      { _id: "m_delivered", status: "delivered", retry_count: 1, delivered_at: 456 },
+      {
+        _id: "m_delivered",
+        status: "delivered",
+        retry_count: 1,
+        delivered_at: 456,
+      },
       { _id: "m_cancelled", status: "cancelled", retry_count: 1 },
     ];
     const { ctx, patches } = createCollectCtx(messages);
 
-    const count = await resetConversationPendingMessages(ctx as any, "c1" as any);
+    const count = await resetConversationPendingMessages(
+      ctx as any,
+      "c1" as any,
+    );
     expect(count).toBe(3);
 
     for (const id of ["m_injected", "m_failed", "m_undeliverable"]) {
@@ -523,7 +794,9 @@ describe("resetConversationPendingMessages", () => {
     expect(patches.find((x) => x.id === "m_delivered")).toBeUndefined();
     expect(patches.find((x) => x.id === "m_cancelled")).toBeUndefined();
     // Conversation is re-flagged as having pending work so the inbox/daemon notice it.
-    expect(patches.find((x) => x.id === "c1")?.patch).toEqual({ has_pending_messages: true });
+    expect(patches.find((x) => x.id === "c1")?.patch).toEqual({
+      has_pending_messages: true,
+    });
   });
 
   test("no-op when nothing is stranded (does not re-flag the conversation)", async () => {
@@ -533,7 +806,10 @@ describe("resetConversationPendingMessages", () => {
     ];
     const { ctx, patches } = createCollectCtx(messages);
 
-    const count = await resetConversationPendingMessages(ctx as any, "c1" as any);
+    const count = await resetConversationPendingMessages(
+      ctx as any,
+      "c1" as any,
+    );
     expect(count).toBe(0);
     expect(patches).toHaveLength(0);
   });
@@ -560,11 +836,41 @@ describe("planStuckMessageHeal", () => {
   });
 
   test("a submitted message that never echoed fails visibly instead of being typed again", () => {
-    expect(planStuckMessageHeal({ status: "injected", content: "continue", created_at: now - 3 * 60_000, paste_verified_at: now - 170_000 }, now).kind).toBe("fail_unconfirmed");
+    expect(
+      planStuckMessageHeal(
+        {
+          status: "injected",
+          content: "continue",
+          created_at: now - 3 * 60_000,
+          paste_verified_at: now - 170_000,
+        },
+        now,
+      ).kind,
+    ).toBe("fail_unconfirmed");
     // A send that waited in the queue is timed from its paste, not its creation.
-    expect(planStuckMessageHeal({ status: "injected", content: "continue", created_at: now - 60 * 60_000, paste_verified_at: now - 30_000 }, now).kind).toBe("skip");
+    expect(
+      planStuckMessageHeal(
+        {
+          status: "injected",
+          content: "continue",
+          created_at: now - 60 * 60_000,
+          paste_verified_at: now - 30_000,
+        },
+        now,
+      ).kind,
+    ).toBe("skip");
     // Failed that way, only a person's retry moves it again.
-    expect(planStuckMessageHeal({ status: "failed", content: "continue", created_at: now - 3 * 60_000, delivery_disposition_reason: "unconfirmed" }, now).kind).toBe("skip");
+    expect(
+      planStuckMessageHeal(
+        {
+          status: "failed",
+          content: "continue",
+          created_at: now - 3 * 60_000,
+          delivery_disposition_reason: "unconfirmed",
+        },
+        now,
+      ).kind,
+    ).toBe("skip");
   });
 
   test("leaves a freshly-injected message alone so the JSONL ack can land", () => {
@@ -572,8 +878,11 @@ describe("planStuckMessageHeal", () => {
   });
 
   test("acks a stale injected control message instead of re-injecting keystrokes", () => {
-    const control = '{"__cc_poll":true,"keys":["2"],"display":"Commit everything together"}';
-    expect(recent("injected", control, 3 * 60_000).kind).toBe("deliver_control");
+    const control =
+      '{"__cc_poll":true,"keys":["2"],"display":"Commit everything together"}';
+    expect(recent("injected", control, 3 * 60_000).kind).toBe(
+      "deliver_control",
+    );
   });
 
   test("leaves a fresh pending message to the daemon's live subscription", () => {
@@ -589,7 +898,8 @@ describe("planStuckMessageHeal", () => {
   });
 
   test("does NOT revive a pending poll-keystroke control message (re-pending could double-select)", () => {
-    const control = '{"__cc_poll":true,"keys":["2"],"display":"Commit everything together"}';
+    const control =
+      '{"__cc_poll":true,"keys":["2"],"display":"Commit everything together"}';
     expect(recent("pending", control, 3 * 60_000).kind).toBe("skip");
   });
 
@@ -608,10 +918,19 @@ describe("planStuckMessageHeal", () => {
 // were exhausted — strand the row as completed + has_pending_messages forever.
 describe("cancelQueuedMessagesOnKill", () => {
   const CONV = "c1";
-  const mkDb = (rows: Array<Record<string, any>>, convExtra: Record<string, any> = {}) =>
+  const mkDb = (
+    rows: Array<Record<string, any>>,
+    convExtra: Record<string, any> = {},
+  ) =>
     makeFakeDb({
-      conversations: [{ _id: CONV, user_id: "u1", has_pending_messages: true, ...convExtra }],
-      pending_messages: rows.map((r) => ({ conversation_id: CONV, retry_count: 0, ...r })),
+      conversations: [
+        { _id: CONV, user_id: "u1", has_pending_messages: true, ...convExtra },
+      ],
+      pending_messages: rows.map((r) => ({
+        conversation_id: CONV,
+        retry_count: 0,
+        ...r,
+      })),
     });
 
   test("the fixture orders missing generation values before generation zero", async () => {
@@ -621,12 +940,19 @@ describe("cancelQueuedMessagesOnKill", () => {
       { _id: "one", status: "pending", kill_generation: 1 },
     ]);
     for (const [op, expected] of [
-      ["lt", ["missing"]], ["lte", ["missing", "zero"]],
-      ["gt", ["one"]], ["gte", ["zero", "one"]],
+      ["lt", ["missing"]],
+      ["lte", ["missing", "zero"]],
+      ["gt", ["one"]],
+      ["gte", ["zero", "one"]],
     ] as const) {
-      const rows = await db.query("pending_messages")
+      const rows = await db
+        .query("pending_messages")
         .withIndex("by_conversation_status_kill_generation", (q: any) =>
-          q.eq("conversation_id", CONV).eq("status", "pending")[op]("kill_generation", 0))
+          q
+            .eq("conversation_id", CONV)
+            .eq("status", "pending")
+            [op]("kill_generation", 0),
+        )
         .collect();
       expect(rows.map((row: any) => row._id)).toEqual([...expected]);
     }
@@ -642,9 +968,17 @@ describe("cancelQueuedMessagesOnKill", () => {
       { _id: "m_cancelled", status: "cancelled" },
     ]);
 
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(4);
-    const row = (id: string) => db._tables.pending_messages.find((r: any) => r._id === id)!;
-    for (const id of ["m_pending", "m_injected", "m_failed", "m_undeliverable"]) {
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      4,
+    );
+    const row = (id: string) =>
+      db._tables.pending_messages.find((r: any) => r._id === id)!;
+    for (const id of [
+      "m_pending",
+      "m_injected",
+      "m_failed",
+      "m_undeliverable",
+    ]) {
       expect(row(id).status).toBe("cancelled");
     }
     expect(row("m_delivered").status).toBe("delivered");
@@ -655,17 +989,26 @@ describe("cancelQueuedMessagesOnKill", () => {
   // to clear the flag, or the row sits "completed + has pending work" forever.
   test("clears a stale has_pending_messages flag even with nothing left to cancel", async () => {
     const db = mkDb([{ _id: "m_delivered", status: "delivered" }]);
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(0);
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      0,
+    );
     expect(db._tables.conversations[0].has_pending_messages).toBe(false);
   });
 
   // A queue deeper than one page must not survive a kill — the cancel drains,
   // it doesn't sample.
   test("drains a queue larger than one page", async () => {
-    const many = Array.from({ length: 250 }, (_, i) => ({ _id: `m${i}`, status: "pending" }));
+    const many = Array.from({ length: 250 }, (_, i) => ({
+      _id: `m${i}`,
+      status: "pending",
+    }));
     const db = mkDb(many);
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(250);
-    expect(db._tables.pending_messages.every((r: any) => r.status === "cancelled")).toBe(true);
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      250,
+    );
+    expect(
+      db._tables.pending_messages.every((r: any) => r.status === "cancelled"),
+    ).toBe(true);
     expect(db._tables.conversations[0].has_pending_messages).toBe(false);
   });
 
@@ -673,12 +1016,24 @@ describe("cancelQueuedMessagesOnKill", () => {
   // the epoch machinery's back — kill routes them through its sanctioned cancel
   // instead, so kill is terminal on a fenced conversation too.
   test("cancels UNSTARTED fenced deliveries through the epoch machinery", async () => {
-    const db = mkDb([
-      { _id: "m_fenced", status: "pending", delivery_protocol_version: 2, delivery_status: "pending" },
-    ], { execution_protocol_state: "fenced" });
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(1);
+    const db = mkDb(
+      [
+        {
+          _id: "m_fenced",
+          status: "pending",
+          delivery_protocol_version: 2,
+          delivery_status: "pending",
+        },
+      ],
+      { execution_protocol_state: "fenced" },
+    );
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      1,
+    );
     expect(db._tables.pending_messages[0].status).toBe("cancelled");
-    expect(db._tables.pending_messages[0].delivery_status).toBe("cancelled-by-supersession");
+    expect(db._tables.pending_messages[0].delivery_status).toBe(
+      "cancelled-by-supersession",
+    );
     expect(db._tables.conversations[0].has_pending_messages).toBe(false);
   });
 
@@ -687,8 +1042,13 @@ describe("cancelQueuedMessagesOnKill", () => {
   // the sweep reads only the status-scoped index — collecting by_conversation_id
   // (the documented anti-pattern) is what blows the transaction's read limit.
   test("never reads the conversation's whole history — status-scoped indexes only", async () => {
-    const history = Array.from({ length: 2000 }, (_, i) => ({ _id: `d${i}`, status: "delivered" }));
-    const db = mkDb([...history, { _id: "m_live", status: "pending" }], { execution_protocol_state: "fenced" });
+    const history = Array.from({ length: 2000 }, (_, i) => ({
+      _id: `d${i}`,
+      status: "delivered",
+    }));
+    const db = mkDb([...history, { _id: "m_live", status: "pending" }], {
+      execution_protocol_state: "fenced",
+    });
     const indexes: string[] = [];
     const rawQuery = db.query.bind(db);
     db.query = (table: string) => {
@@ -701,10 +1061,20 @@ describe("cancelQueuedMessagesOnKill", () => {
       return builder;
     };
 
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(1);
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      1,
+    );
     expect(indexes.length).toBeGreaterThan(0);
-    expect(indexes.every((i) => i === "by_conversation_status" || i === "by_conversation_status_kill_generation")).toBe(true);
-    expect(db._tables.pending_messages.filter((r: any) => r.status === "delivered")).toHaveLength(2000);
+    expect(
+      indexes.every(
+        (i) =>
+          i === "by_conversation_status" ||
+          i === "by_conversation_status_kill_generation",
+      ),
+    ).toBe(true);
+    expect(
+      db._tables.pending_messages.filter((r: any) => r.status === "delivered"),
+    ).toHaveLength(2000);
   });
 
   // The fenced sweep is the expensive one; an ordinary conversation must not pay
@@ -713,7 +1083,10 @@ describe("cancelQueuedMessagesOnKill", () => {
     const db = mkDb([{ _id: "m_pending", status: "pending" }]);
     const heads: string[] = [];
     const rawQuery = db.query.bind(db);
-    db.query = (table: string) => { heads.push(table); return rawQuery(table); };
+    db.query = (table: string) => {
+      heads.push(table);
+      return rawQuery(table);
+    };
     await cancelQueuedMessagesOnKill({ db } as any, CONV as any);
     expect(heads).not.toContain("conversation_execution_heads");
   });
@@ -721,22 +1094,45 @@ describe("cancelQueuedMessagesOnKill", () => {
   // Overflow: one transaction cancels at most the budget and hands the rest to a
   // scheduled continuation, so the kill mutation itself always lands fast.
   test("caps one transaction at the budget and schedules the remainder", async () => {
-    const db = mkDb(Array.from({ length: 350 }, (_, i) => ({ _id: `m${i}`, status: "pending" })));
+    const db = mkDb(
+      Array.from({ length: 350 }, (_, i) => ({
+        _id: `m${i}`,
+        status: "pending",
+      })),
+    );
     const scheduled: any[] = [];
-    const ctx = { db, scheduler: { runAfter: async (_d: number, fn: any, a: any) => { scheduled.push([fn, a]); } } };
+    const ctx = {
+      db,
+      scheduler: {
+        runAfter: async (_d: number, fn: any, a: any) => {
+          scheduled.push([fn, a]);
+        },
+      },
+    };
 
     expect(await cancelQueuedMessagesOnKill(ctx as any, CONV as any)).toBe(300);
     expect(scheduled).toHaveLength(1);
-    expect(scheduled[0][1]).toEqual({ conversation_id: CONV, cutoff_generation: 0 });
-    expect(db._tables.pending_messages.filter((r: any) => r.status === "pending")).toHaveLength(50);
+    expect(scheduled[0][1]).toEqual({
+      conversation_id: CONV,
+      cutoff_generation: 0,
+    });
+    expect(
+      db._tables.pending_messages.filter((r: any) => r.status === "pending"),
+    ).toHaveLength(50);
 
     // The continuation finishes the job (and doesn't need another).
     const args = scheduled[0][1];
     scheduled.length = 0;
-    expect(await (continueKillCancellation as any)._handler(ctx, args)).toEqual({ cancelled: 50 });
+    expect(await (continueKillCancellation as any)._handler(ctx, args)).toEqual(
+      { cancelled: 50 },
+    );
     expect(db._tables.conversations[0].pending_kill_generation).toBe(1);
-    expect(db._tables.pending_messages.every((r: any) => r.status === "cancelled")).toBe(true);
-    expect(scheduled.map(([fn]) => getFunctionName(fn))).toEqual(["syncOutbox:drain"]);
+    expect(
+      db._tables.pending_messages.every((r: any) => r.status === "cancelled"),
+    ).toBe(true);
+    expect(scheduled.map(([fn]) => getFunctionName(fn))).toEqual([
+      "syncOutbox:drain",
+    ]);
   });
 
   // A delivery already landing in the pane is the one thing kill may not
@@ -744,12 +1140,24 @@ describe("cancelQueuedMessagesOnKill", () => {
   // which is the honest answer (classifyWorkState keeps the killed row out of
   // the Working bucket regardless).
   test("leaves an in-flight fenced delivery alone and does not lie about the flag", async () => {
-    const db = mkDb([
-      { _id: "m_started", status: "pending", delivery_protocol_version: 2, delivery_status: "delivery-started" },
-    ], { execution_protocol_state: "fenced" });
-    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(0);
+    const db = mkDb(
+      [
+        {
+          _id: "m_started",
+          status: "pending",
+          delivery_protocol_version: 2,
+          delivery_status: "delivery-started",
+        },
+      ],
+      { execution_protocol_state: "fenced" },
+    );
+    expect(await cancelQueuedMessagesOnKill({ db } as any, CONV as any)).toBe(
+      0,
+    );
     expect(db._tables.pending_messages[0].status).toBe("pending");
-    expect(db._tables.pending_messages[0].delivery_status).toBe("delivery-started");
+    expect(db._tables.pending_messages[0].delivery_status).toBe(
+      "delivery-started",
+    );
     expect(db._tables.conversations[0].has_pending_messages).toBe(true);
   });
 });
@@ -763,16 +1171,30 @@ describe("delivery revives a killed conversation", () => {
   const CONV = "c1";
   const killedDb = () =>
     makeFakeDb({
-      conversations: [{
-        _id: CONV, user_id: "u1", status: "completed",
-        inbox_killed_at: 111, inbox_dismissed_at: 111, inbox_stashed_at: 111,
-      }],
-      pending_messages: [{ _id: "m1", conversation_id: CONV, status: "pending", retry_count: 0 }],
+      conversations: [
+        {
+          _id: CONV,
+          user_id: "u1",
+          status: "completed",
+          inbox_killed_at: 111,
+          inbox_dismissed_at: 111,
+          inbox_stashed_at: 111,
+        },
+      ],
+      pending_messages: [
+        { _id: "m1", conversation_id: CONV, status: "pending", retry_count: 0 },
+      ],
     });
 
   test("an injection clears the kill/dismiss stamps and re-activates the row", async () => {
     const db = killedDb();
-    await updatePendingMessageStatusForDaemon({ db } as any, "m1" as any, "u1" as any, "dev1", { status: "injected" });
+    await updatePendingMessageStatusForDaemon(
+      { db } as any,
+      "m1" as any,
+      "u1" as any,
+      "dev1",
+      { status: "injected" },
+    );
     const conv = db._tables.conversations[0];
     expect(conv.inbox_killed_at).toBeUndefined();
     expect(conv.inbox_dismissed_at).toBeUndefined();
@@ -795,7 +1217,9 @@ describe("delivery revives a killed conversation", () => {
     await (updateMessageStatus as any)._handler(
       {
         db,
-        auth: { getUserIdentity: async () => ({ subject: "u_teammate|session" }) },
+        auth: {
+          getUserIdentity: async () => ({ subject: "u_teammate|session" }),
+        },
       },
       { message_id: "m1", status: "injected" },
     );
@@ -817,104 +1241,289 @@ describe("delivery revives a killed conversation", () => {
 describe("getConversationPendingMessage", () => {
   test("returns the pending row's own id as message_id (the client feeds it to getMessageStatus)", async () => {
     const { getConversationPendingMessage } = await import("./pendingMessages");
-    const auth = { async getUserIdentity() { return { subject: "u_owner|session" }; } };
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "u_owner|session" };
+      },
+    };
     const ctx = {
       auth,
       db: makeFakeDb({
         conversations: [{ _id: "conv_1", user_id: "u_owner" }],
         pending_messages: [
-          { _id: "pm_1", conversation_id: "conv_1", from_user_id: "u_owner", status: "pending", created_at: 5, retry_count: 0, content: "hi" },
+          {
+            _id: "pm_1",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "pending",
+            created_at: 5,
+            retry_count: 0,
+            content: "hi",
+          },
         ],
       }),
     } as any;
-    const result = await (getConversationPendingMessage as any)._handler(ctx, { conversation_id: "conv_1" });
+    const result = await (getConversationPendingMessage as any)._handler(ctx, {
+      conversation_id: "conv_1",
+    });
     expect(result?.message_id).toBe("pm_1");
     expect(result?.status).toBe("pending");
   });
 
   test("reports the newest settled row when nothing is in flight, so a lagging viewer keeps the message on screen", async () => {
     const { getConversationPendingMessage } = await import("./pendingMessages");
-    const auth = { async getUserIdentity() { return { subject: "u_owner|session" }; } };
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "u_owner|session" };
+      },
+    };
     const ctx = {
       auth,
       db: makeFakeDb({
         conversations: [{ _id: "conv_1", user_id: "u_owner" }],
         pending_messages: [
-          { _id: "pm_old", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 1, retry_count: 0, content: "first" },
-          { _id: "pm_cancelled", conversation_id: "conv_1", from_user_id: "u_owner", status: "cancelled", created_at: 3, retry_count: 0, content: "never mind" },
-          { _id: "pm_new", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 2, retry_count: 0, content: "continue" },
+          {
+            _id: "pm_old",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 1,
+            retry_count: 0,
+            content: "first",
+          },
+          {
+            _id: "pm_cancelled",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "cancelled",
+            created_at: 3,
+            retry_count: 0,
+            content: "never mind",
+          },
+          {
+            _id: "pm_new",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 2,
+            retry_count: 0,
+            content: "continue",
+          },
         ],
       }),
     } as any;
-    const result = await (getConversationPendingMessage as any)._handler(ctx, { conversation_id: "conv_1" });
+    const result = await (getConversationPendingMessage as any)._handler(ctx, {
+      conversation_id: "conv_1",
+    });
     expect(result?.message_id).toBe("pm_cancelled");
     expect(result?.status).toBe("cancelled");
-    const empty = { auth, db: makeFakeDb({ conversations: [{ _id: "conv_1", user_id: "u_owner" }], pending_messages: [] }) } as any;
-    expect(await (getConversationPendingMessage as any)._handler(empty, { conversation_id: "conv_1" })).toBeNull();
+    const empty = {
+      auth,
+      db: makeFakeDb({
+        conversations: [{ _id: "conv_1", user_id: "u_owner" }],
+        pending_messages: [],
+      }),
+    } as any;
+    expect(
+      await (getConversationPendingMessage as any)._handler(empty, {
+        conversation_id: "conv_1",
+      }),
+    ).toBeNull();
   });
 
   test("lists every undelivered row, so each queued send renders while the session is down", async () => {
     const { getConversationPendingMessage } = await import("./pendingMessages");
-    const auth = { async getUserIdentity() { return { subject: "u_owner|session" }; } };
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "u_owner|session" };
+      },
+    };
     const ctx = {
       auth,
       db: makeFakeDb({
         conversations: [{ _id: "conv_1", user_id: "u_owner" }],
         pending_messages: [
-          { _id: "pm_photo", conversation_id: "conv_1", from_user_id: "u_owner", status: "pending", created_at: 2, retry_count: 140, content: "use this photo", client_id: "c_photo" },
-          { _id: "pm_task", conversation_id: "conv_1", from_user_id: "u_owner", status: "failed", created_at: 1, retry_count: 535, content: "<scheduled-task>" },
-          { _id: "pm_buy", conversation_id: "conv_1", from_user_id: "u_owner", status: "injected", created_at: 3, retry_count: 31, content: "buy it", client_id: "c_buy" },
-          { _id: "pm_done", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 0, retry_count: 0, content: "done" },
+          {
+            _id: "pm_photo",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "pending",
+            created_at: 2,
+            retry_count: 140,
+            content: "use this photo",
+            client_id: "c_photo",
+          },
+          {
+            _id: "pm_task",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "failed",
+            created_at: 1,
+            retry_count: 535,
+            content: "<scheduled-task>",
+          },
+          {
+            _id: "pm_buy",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "injected",
+            created_at: 3,
+            retry_count: 31,
+            content: "buy it",
+            client_id: "c_buy",
+          },
+          {
+            _id: "pm_done",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 0,
+            retry_count: 0,
+            content: "done",
+          },
         ],
       }),
     } as any;
-    const result = await (getConversationPendingMessage as any)._handler(ctx, { conversation_id: "conv_1" });
+    const result = await (getConversationPendingMessage as any)._handler(ctx, {
+      conversation_id: "conv_1",
+    });
     expect(result?.message_id).toBe("pm_task");
-    expect(result?.inflight.map((r: any) => r.message_id)).toEqual(["pm_task", "pm_photo", "pm_buy"]);
-    expect(result?.inflight[1]).toMatchObject({ client_id: "c_photo", content: "use this photo", status: "pending", created_at: 2 });
+    expect(result?.inflight.map((r: any) => r.message_id)).toEqual([
+      "pm_task",
+      "pm_photo",
+      "pm_buy",
+    ]);
+    expect(result?.inflight[1]).toMatchObject({
+      client_id: "c_photo",
+      content: "use this photo",
+      status: "pending",
+      created_at: 2,
+    });
   });
 
   // Two queued messages released at the end of a turn, a third still waiting:
   // the viewer's tail has neither echo yet, so both delivered rows must reach it.
   test("lists the recently delivered rows beside the ones in flight, newest first, within an hour of the newest", async () => {
     const { getConversationPendingMessage } = await import("./pendingMessages");
-    const auth = { async getUserIdentity() { return { subject: "u_owner|session" }; } };
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "u_owner|session" };
+      },
+    };
     const hour = 60 * 60_000;
     const ctx = {
       auth,
       db: makeFakeDb({
         conversations: [{ _id: "conv_1", user_id: "u_owner" }],
         pending_messages: [
-          { _id: "pm_ancient", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 1, delivered_at: 2, retry_count: 0, content: "long ago" },
-          { _id: "pm_a", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 2 * hour, delivered_at: 3 * hour, retry_count: 0, content: "first", client_id: "c_a" },
-          { _id: "pm_b", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 2 * hour + 1, delivered_at: 3 * hour + 1, retry_count: 0, content: "second", client_id: "c_b" },
-          { _id: "pm_wait", conversation_id: "conv_1", from_user_id: "u_owner", status: "pending", created_at: 3 * hour + 2, retry_count: 0, content: "third" },
+          {
+            _id: "pm_ancient",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 1,
+            delivered_at: 2,
+            retry_count: 0,
+            content: "long ago",
+          },
+          {
+            _id: "pm_a",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 2 * hour,
+            delivered_at: 3 * hour,
+            retry_count: 0,
+            content: "first",
+            client_id: "c_a",
+          },
+          {
+            _id: "pm_b",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "delivered",
+            created_at: 2 * hour + 1,
+            delivered_at: 3 * hour + 1,
+            retry_count: 0,
+            content: "second",
+            client_id: "c_b",
+          },
+          {
+            _id: "pm_wait",
+            conversation_id: "conv_1",
+            from_user_id: "u_owner",
+            status: "pending",
+            created_at: 3 * hour + 2,
+            retry_count: 0,
+            content: "third",
+          },
         ],
       }),
     } as any;
-    const result = await (getConversationPendingMessage as any)._handler(ctx, { conversation_id: "conv_1" });
+    const result = await (getConversationPendingMessage as any)._handler(ctx, {
+      conversation_id: "conv_1",
+    });
     expect(result?.message_id).toBe("pm_wait");
     expect(result?.inflight.map((r: any) => r.message_id)).toEqual(["pm_wait"]);
-    expect(result?.delivered.map((r: any) => r.message_id)).toEqual(["pm_b", "pm_a"]);
-    expect(result?.delivered[1]).toMatchObject({ client_id: "c_a", delivered_at: 3 * hour, status: "delivered" });
+    expect(result?.delivered.map((r: any) => r.message_id)).toEqual([
+      "pm_b",
+      "pm_a",
+    ]);
+    expect(result?.delivered[1]).toMatchObject({
+      client_id: "c_a",
+      delivered_at: 3 * hour,
+      status: "delivered",
+    });
   });
 
   test("keeps showing the oldest queued message while delivery attempts flip its status", async () => {
     const { getConversationPendingMessage } = await import("./pendingMessages");
-    const auth = { async getUserIdentity() { return { subject: "u_owner|session" }; } };
-    const rows = (oldestStatus: string) => ({
-      auth,
-      db: makeFakeDb({
-        conversations: [{ _id: "conv_1", user_id: "u_owner" }],
-        pending_messages: [
-          { _id: "pm_new", conversation_id: "conv_1", from_user_id: "u_owner", status: "pending", created_at: 9, retry_count: 0, content: "second" },
-          { _id: "pm_old", conversation_id: "conv_1", from_user_id: "u_owner", status: oldestStatus, created_at: 5, retry_count: 0, content: "first" },
-          { _id: "pm_done", conversation_id: "conv_1", from_user_id: "u_owner", status: "delivered", created_at: 1, retry_count: 0, content: "done" },
-        ],
-      }),
-    } as any);
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "u_owner|session" };
+      },
+    };
+    const rows = (oldestStatus: string) =>
+      ({
+        auth,
+        db: makeFakeDb({
+          conversations: [{ _id: "conv_1", user_id: "u_owner" }],
+          pending_messages: [
+            {
+              _id: "pm_new",
+              conversation_id: "conv_1",
+              from_user_id: "u_owner",
+              status: "pending",
+              created_at: 9,
+              retry_count: 0,
+              content: "second",
+            },
+            {
+              _id: "pm_old",
+              conversation_id: "conv_1",
+              from_user_id: "u_owner",
+              status: oldestStatus,
+              created_at: 5,
+              retry_count: 0,
+              content: "first",
+            },
+            {
+              _id: "pm_done",
+              conversation_id: "conv_1",
+              from_user_id: "u_owner",
+              status: "delivered",
+              created_at: 1,
+              retry_count: 0,
+              content: "done",
+            },
+          ],
+        }),
+      }) as any;
     for (const status of ["pending", "injected", "pending"]) {
-      const result = await (getConversationPendingMessage as any)._handler(rows(status), { conversation_id: "conv_1" });
+      const result = await (getConversationPendingMessage as any)._handler(
+        rows(status),
+        { conversation_id: "conv_1" },
+      );
       expect(result?.message_id).toBe("pm_old");
       expect(result?.status).toBe(status);
     }

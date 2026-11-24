@@ -15,7 +15,16 @@ import { enqueuePendingMessage } from "./pendingMessages";
 
 function world(conv: Record<string, any>) {
   const tables: Record<string, any[]> = {
-    conversations: [{ _id: "conv1", user_id: "u1", short_id: "jx1", session_id: "s1", status: "active", ...conv }],
+    conversations: [
+      {
+        _id: "conv1",
+        user_id: "u1",
+        short_id: "jx1",
+        session_id: "s1",
+        status: "active",
+        ...conv,
+      },
+    ],
     pending_messages: [],
     session_owners: [],
     managed_sessions: [],
@@ -27,20 +36,34 @@ function world(conv: Record<string, any>) {
 describe("stash wake rules at enqueue", () => {
   test("a trigger wake clears a plain stash — the row pops back", async () => {
     const { ctx, conv } = world({ inbox_stashed_at: 100 });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
     expect(conv.inbox_stashed_at).toBeUndefined();
   });
 
   test("a trigger wake leaves a hidden stash in place", async () => {
-    const { ctx, conv } = world({ inbox_stashed_at: 100, inbox_stash_hidden: true });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
+    const { ctx, conv } = world({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+    });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
     expect(conv.inbox_stashed_at).toBe(100);
     expect(conv.has_pending_messages).toBe(true);
   });
 
   test("a human send clears a hidden stash", async () => {
-    const { ctx, conv } = world({ inbox_stashed_at: 100, inbox_stash_hidden: true });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "hey" });
+    const { ctx, conv } = world({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+    });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "hey",
+    });
     expect(conv.inbox_stashed_at).toBeUndefined();
   });
 
@@ -48,13 +71,25 @@ describe("stash wake rules at enqueue", () => {
     // The flag is honored only while the stamp is set: a later plain stash of
     // this row would rewrite it, so a leftover `true` must not hide anything.
     const { ctx, conv } = world({ inbox_stash_hidden: true });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
     expect(conv.inbox_stashed_at).toBeUndefined();
   });
 
   test("dismissed and killed clear on a trigger wake even when the stash is hidden", async () => {
-    const { ctx, conv } = world({ inbox_stashed_at: 100, inbox_stash_hidden: true, inbox_dismissed_at: 50, inbox_killed_at: 60, status: "completed" });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
+    const { ctx, conv } = world({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+      inbox_dismissed_at: 50,
+      inbox_killed_at: 60,
+      status: "completed",
+    });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
     expect(conv.inbox_dismissed_at).toBeUndefined();
     expect(conv.inbox_killed_at).toBeUndefined();
     expect(conv.status).toBe("active");
@@ -72,7 +107,10 @@ describe("the pinned thread state at enqueue", () => {
 
   test("a human send takes the pin down — all four fields", async () => {
     const { ctx, conv } = world(pinned);
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "one more thing", human: true });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "one more thing",
+      human: true,
+    });
     expect(conv.thread_state).toBeUndefined();
     expect(conv.thread_state_at).toBeUndefined();
     expect(conv.thread_state_msg_count).toBeUndefined();
@@ -82,7 +120,10 @@ describe("the pinned thread state at enqueue", () => {
 
   test("a trigger wake leaves the pin standing", async () => {
     const { ctx, conv } = world(pinned);
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
     expect(conv.thread_state).toBe(pinned.thread_state);
     expect(conv.thread_state_status).toBe("done");
   });
@@ -91,14 +132,19 @@ describe("the pinned thread state at enqueue", () => {
     // Session relays, account-switch continues, undeliverable receipts: the
     // flag is positive, so an unmarked path keeps the pin.
     const { ctx, conv } = world(pinned);
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "<session-message from=\"jx2\">done</session-message>" });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: '<session-message from="jx2">done</session-message>',
+    });
     expect(conv.thread_state).toBe(pinned.thread_state);
     expect(conv.thread_state_at).toBe(1_000);
   });
 
   test("a human send into a row with no pin writes nothing about it", async () => {
     const { ctx, conv } = world({});
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "hi", human: true });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "hi",
+      human: true,
+    });
     expect("thread_state" in conv).toBe(false);
   });
 });
@@ -106,48 +152,97 @@ describe("the pinned thread state at enqueue", () => {
 describe("a person writing into a nested session", () => {
   // The inbox shows a subagent or flow station only under its parent, and
   // only while that parent is shown, so the send brings a hidden parent back.
-  function nested(parent: Record<string, any>, child: Record<string, any> = {}) {
+  function nested(
+    parent: Record<string, any>,
+    child: Record<string, any> = {},
+  ) {
     const tables: Record<string, any[]> = {
       conversations: [
-        { _id: "parent1", user_id: "u1", short_id: "jxp", session_id: "sp", status: "completed", ...parent },
-        { _id: "conv1", user_id: "u1", short_id: "jx1", session_id: "s1", status: "active", is_subagent: true, parent_conversation_id: "parent1", ...child },
+        {
+          _id: "parent1",
+          user_id: "u1",
+          short_id: "jxp",
+          session_id: "sp",
+          status: "completed",
+          ...parent,
+        },
+        {
+          _id: "conv1",
+          user_id: "u1",
+          short_id: "jx1",
+          session_id: "s1",
+          status: "active",
+          is_subagent: true,
+          parent_conversation_id: "parent1",
+          ...child,
+        },
       ],
       pending_messages: [],
       session_owners: [],
       managed_sessions: [],
     };
-    return { ctx: { db: makeFakeDb(tables) }, parent: tables.conversations[0], conv: tables.conversations[1] };
+    return {
+      ctx: { db: makeFakeDb(tables) },
+      parent: tables.conversations[0],
+      conv: tables.conversations[1],
+    };
   }
 
   test("a human send restores a stashed parent", async () => {
     const { ctx, parent, conv } = nested({ inbox_stashed_at: 100 });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "why this one?", human: true });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "why this one?",
+      human: true,
+    });
     expect(parent.inbox_stashed_at).toBeUndefined();
   });
 
   test("a human send restores a dismissed parent of a flow station", async () => {
-    const { ctx, parent, conv } = nested({ inbox_dismissed_at: 100 }, { is_subagent: undefined, is_workflow_sub: true });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "why this one?", human: true });
+    const { ctx, parent, conv } = nested(
+      { inbox_dismissed_at: 100 },
+      { is_subagent: undefined, is_workflow_sub: true },
+    );
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "why this one?",
+      human: true,
+    });
     expect(parent.inbox_dismissed_at).toBeUndefined();
   });
 
   test("a killed parent stays killed", async () => {
-    const { ctx, parent, conv } = nested({ inbox_stashed_at: 100, inbox_killed_at: 200 });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "hi", human: true });
+    const { ctx, parent, conv } = nested({
+      inbox_stashed_at: 100,
+      inbox_killed_at: 200,
+    });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "hi",
+      human: true,
+    });
     expect(parent.inbox_killed_at).toBe(200);
     expect(parent.inbox_stashed_at).toBe(100);
   });
 
   test("a session relay or a trigger leaves the parent hidden", async () => {
     const { ctx, parent, conv } = nested({ inbox_stashed_at: 100 });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "tick", origin: "scheduler" });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "<session-message from=\"jx2\">done</session-message>" });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "tick",
+      origin: "scheduler",
+    });
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: '<session-message from="jx2">done</session-message>',
+    });
     expect(parent.inbox_stashed_at).toBe(100);
   });
 
   test("a plan handoff is its own inbox row and leaves its parent alone", async () => {
-    const { ctx, parent, conv } = nested({ inbox_stashed_at: 100 }, { is_subagent: undefined, parent_message_uuid: "plan-handoff" });
-    await enqueuePendingMessage(ctx as any, conv, "u1" as any, { content: "hi", human: true });
+    const { ctx, parent, conv } = nested(
+      { inbox_stashed_at: 100 },
+      { is_subagent: undefined, parent_message_uuid: "plan-handoff" },
+    );
+    await enqueuePendingMessage(ctx as any, conv, "u1" as any, {
+      content: "hi",
+      human: true,
+    });
     expect(parent.inbox_stashed_at).toBe(100);
   });
 });

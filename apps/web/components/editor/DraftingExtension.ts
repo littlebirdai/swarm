@@ -1,7 +1,25 @@
-import { Extension, Mark, getMarkRange, mergeAttributes, type Editor } from "@tiptap/core";
-import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import {
+  Extension,
+  Mark,
+  getMarkRange,
+  mergeAttributes,
+  type Editor,
+} from "@tiptap/core";
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  type EditorState,
+  type Transaction,
+} from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
-import { Fragment, Slice, type Mark as PMMark, type MarkType, type Node as PMNode } from "@tiptap/pm/model";
+import {
+  Fragment,
+  Slice,
+  type Mark as PMMark,
+  type MarkType,
+  type Node as PMNode,
+} from "@tiptap/pm/model";
 import {
   CLOSE_TAG,
   DRAFT_MARKS,
@@ -34,7 +52,8 @@ export type Range = { from: number; to: number };
 const markdownStorage = {
   markdown: {
     serialize: {
-      open: (_state: unknown, mark: PMMark) => draftMarkTag(mark.toJSON() as any),
+      open: (_state: unknown, mark: PMMark) =>
+        draftMarkTag(mark.toJSON() as any),
       close: () => CLOSE_TAG,
     },
     parse: {},
@@ -51,12 +70,16 @@ export const DraftAltsMark = Mark.create({
         default: [],
         parseHTML: (el) => {
           try {
-            return normalizeAlts(JSON.parse(el.getAttribute("data-alts") || "[]"));
+            return normalizeAlts(
+              JSON.parse(el.getAttribute("data-alts") || "[]"),
+            );
           } catch {
             return [];
           }
         },
-        renderHTML: (a) => ({ "data-alts": JSON.stringify(normalizeAlts(a.alts)) }),
+        renderHTML: (a) => ({
+          "data-alts": JSON.stringify(normalizeAlts(a.alts)),
+        }),
       },
       at: {
         default: 0,
@@ -75,7 +98,13 @@ export const DraftAltsMark = Mark.create({
   },
   renderHTML({ HTMLAttributes, mark }) {
     const varied = (mark.attrs.at ?? 0) > 0;
-    return ["span", mergeAttributes(HTMLAttributes, { class: `draft-alt${varied ? " draft-alt--varied" : ""}` }), 0];
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: `draft-alt${varied ? " draft-alt--varied" : ""}`,
+      }),
+      0,
+    ];
   },
   addStorage() {
     return markdownStorage;
@@ -137,7 +166,14 @@ export const DraftFlagMark = Mark.create({
   },
   renderHTML({ HTMLAttributes, mark }) {
     const label = FLAG_LABELS[mark.attrs.flag] ?? mark.attrs.flag;
-    return ["span", mergeAttributes(HTMLAttributes, { class: "draft-flag", title: mark.attrs.note ? `${label}: ${mark.attrs.note}` : label }), 0];
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: "draft-flag",
+        title: mark.attrs.note ? `${label}: ${mark.attrs.note}` : label,
+      }),
+      0,
+    ];
   },
   addStorage() {
     return markdownStorage;
@@ -157,16 +193,32 @@ export const draftingKey = new PluginKey<DraftingPluginState>("drafting");
 
 type DraftingMeta = { enabled?: boolean; focus?: Range | null };
 
-export function draftingState(state: EditorState): DraftingPluginState | undefined {
+export function draftingState(
+  state: EditorState,
+): DraftingPluginState | undefined {
   return draftingKey.getState(state);
 }
 
 /** Every contiguous run of an alternatives mark: its range, attrs and shown text. */
-export function altRanges(doc: PMNode, type: MarkType): Array<Range & { mark: PMMark; text: string; block: PMNode; blockPos: number }> {
-  const out: Array<Range & { mark: PMMark; text: string; block: PMNode; blockPos: number }> = [];
+export function altRanges(
+  doc: PMNode,
+  type: MarkType,
+): Array<
+  Range & { mark: PMMark; text: string; block: PMNode; blockPos: number }
+> {
+  const out: Array<
+    Range & { mark: PMMark; text: string; block: PMNode; blockPos: number }
+  > = [];
   doc.descendants((block, blockPos) => {
     if (!block.isTextblock) return true;
-    let current: (Range & { mark: PMMark; text: string; block: PMNode; blockPos: number }) | null = null;
+    let current:
+      | (Range & {
+          mark: PMMark;
+          text: string;
+          block: PMNode;
+          blockPos: number;
+        })
+      | null = null;
     block.forEach((child, offset) => {
       const pos = blockPos + 1 + offset;
       const mark = child.marks.find((m) => m.type === type);
@@ -176,7 +228,16 @@ export function altRanges(doc: PMNode, type: MarkType): Array<Range & { mark: PM
         return;
       }
       if (current) out.push(current);
-      current = mark ? { from: pos, to: pos + child.nodeSize, mark, text: child.text ?? "", block, blockPos } : null;
+      current = mark
+        ? {
+            from: pos,
+            to: pos + child.nodeSize,
+            mark,
+            text: child.text ?? "",
+            block,
+            blockPos,
+          }
+        : null;
     });
     if (current) out.push(current);
     return false;
@@ -184,7 +245,13 @@ export function altRanges(doc: PMNode, type: MarkType): Array<Range & { mark: PM
   return out;
 }
 
-function dots(view: EditorView, range: Range, full: AltOption[], at: number, vertical: boolean): HTMLElement {
+function dots(
+  view: EditorView,
+  range: Range,
+  full: AltOption[],
+  at: number,
+  vertical: boolean,
+): HTMLElement {
   const wrap = document.createElement("span");
   wrap.className = `draft-dots${vertical ? " draft-dots--para" : ""}`;
   wrap.contentEditable = "false";
@@ -205,24 +272,53 @@ function dots(view: EditorView, range: Range, full: AltOption[], at: number, ver
   return wrap;
 }
 
-function buildDecorations(state: EditorState, enabled: boolean, focus: Range | null): DecorationSet {
+function buildDecorations(
+  state: EditorState,
+  enabled: boolean,
+  focus: Range | null,
+): DecorationSet {
   if (!enabled) return DecorationSet.empty;
   const type = state.schema.marks[DRAFT_MARKS.alts];
   const decos: Decoration[] = [];
   if (type) {
     for (const r of altRanges(state.doc, type)) {
-      const full = fullAltList({ alts: normalizeAlts(r.mark.attrs.alts), at: r.mark.attrs.at, ai: r.mark.attrs.ai }, r.text);
+      const full = fullAltList(
+        {
+          alts: normalizeAlts(r.mark.attrs.alts),
+          at: r.mark.attrs.at,
+          ai: r.mark.attrs.ai,
+        },
+        r.text,
+      );
       if (full.length < 2) continue;
       const at = Math.min(r.mark.attrs.at ?? 0, full.length - 1);
       // A paragraph-level set: the mark covers the whole block, so the pager
       // moves to a rule in the left gutter instead of sitting under the text.
-      const whole = r.from === r.blockPos + 1 && r.to === r.blockPos + 1 + r.block.content.size;
+      const whole =
+        r.from === r.blockPos + 1 &&
+        r.to === r.blockPos + 1 + r.block.content.size;
       const isPara = whole && /[.!?]\s+\S/.test(r.text);
       if (isPara) {
-        decos.push(Decoration.node(r.blockPos, r.blockPos + r.block.nodeSize, { class: "draft-alt-para" }));
-        decos.push(Decoration.widget(r.from, (view) => dots(view, r, full, at, true), { side: -1, key: `pd:${r.from}:${at}:${full.length}`, ignoreSelection: true }));
+        decos.push(
+          Decoration.node(r.blockPos, r.blockPos + r.block.nodeSize, {
+            class: "draft-alt-para",
+          }),
+        );
+        decos.push(
+          Decoration.widget(r.from, (view) => dots(view, r, full, at, true), {
+            side: -1,
+            key: `pd:${r.from}:${at}:${full.length}`,
+            ignoreSelection: true,
+          }),
+        );
       } else {
-        decos.push(Decoration.widget(r.to, (view) => dots(view, r, full, at, false), { side: -1, key: `d:${r.from}:${at}:${full.length}`, ignoreSelection: true }));
+        decos.push(
+          Decoration.widget(r.to, (view) => dots(view, r, full, at, false), {
+            side: -1,
+            key: `d:${r.from}:${at}:${full.length}`,
+            ignoreSelection: true,
+          }),
+        );
       }
     }
   }
@@ -230,7 +326,12 @@ function buildDecorations(state: EditorState, enabled: boolean, focus: Range | n
     decos.push(Decoration.inline(focus.from, focus.to, { class: "draft-lit" }));
     // The top-level block holding the stretch stays lit while the rest recedes.
     const $from = state.doc.resolve(focus.from);
-    if ($from.depth >= 1) decos.push(Decoration.node($from.before(1), $from.after(1), { class: "draft-lit-block" }));
+    if ($from.depth >= 1)
+      decos.push(
+        Decoration.node($from.before(1), $from.after(1), {
+          class: "draft-lit-block",
+        }),
+      );
   }
   return DecorationSet.create(state.doc, decos);
 }
@@ -245,7 +346,14 @@ function altMarkType(state: EditorState) {
 export function altRangeAt(state: EditorState, pos: number) {
   const type = altMarkType(state);
   if (!type) return null;
-  return altRanges(state.doc, type).find((r) => r.from <= pos && pos <= r.to && (pos < r.to || r.from === pos || pos === r.to)) ?? null;
+  return (
+    altRanges(state.doc, type).find(
+      (r) =>
+        r.from <= pos &&
+        pos <= r.to &&
+        (pos < r.to || r.from === pos || pos === r.to),
+    ) ?? null
+  );
 }
 
 /**
@@ -253,19 +361,42 @@ export function altRangeAt(state: EditorState, pos: number) {
  * replaced in place (other marks of its first character kept) and the article
  * before it agrees with the new word.
  */
-export function pickAlternativeAt(view: EditorView, pos: number, index: number): boolean {
+export function pickAlternativeAt(
+  view: EditorView,
+  pos: number,
+  index: number,
+): boolean {
   const { state } = view;
   const r = altRangeAt(state, pos);
   if (!r) return false;
-  const full = fullAltList({ alts: normalizeAlts(r.mark.attrs.alts), at: r.mark.attrs.at, ai: r.mark.attrs.ai }, r.text);
-  if (index < 0 || index >= full.length || index === Math.min(r.mark.attrs.at, full.length - 1)) return false;
+  const full = fullAltList(
+    {
+      alts: normalizeAlts(r.mark.attrs.alts),
+      at: r.mark.attrs.at,
+      ai: r.mark.attrs.ai,
+    },
+    r.text,
+  );
+  if (
+    index < 0 ||
+    index >= full.length ||
+    index === Math.min(r.mark.attrs.at, full.length - 1)
+  )
+    return false;
   const { attrs, shown } = altAttrsFor(full, index);
   const type = altMarkType(state);
-  const others = (state.doc.nodeAt(r.from)?.marks ?? []).filter((m) => m.type !== type);
+  const others = (state.doc.nodeAt(r.from)?.marks ?? []).filter(
+    (m) => m.type !== type,
+  );
   const tr = state.tr;
   let from = r.from;
   // a/an agreement with the text right before the run, inside the same block.
-  const before = state.doc.textBetween(Math.max(r.blockPos + 1, r.from - 4), r.from, undefined, "￼");
+  const before = state.doc.textBetween(
+    Math.max(r.blockPos + 1, r.from - 4),
+    r.from,
+    undefined,
+    "￼",
+  );
   const fixed = agreeArticle(before, shown);
   if (fixed !== before && fixed.length <= before.length + 1) {
     const start = r.from - before.length;
@@ -273,7 +404,11 @@ export function pickAlternativeAt(view: EditorView, pos: number, index: number):
     from = start + fixed.length;
   }
   const to = tr.mapping.map(r.to);
-  tr.replaceWith(from, to, state.schema.text(shown, [...others, type.create(attrs)]));
+  tr.replaceWith(
+    from,
+    to,
+    state.schema.text(shown, [...others, type.create(attrs)]),
+  );
   const sel = state.selection;
   if (sel.empty && sel.from >= r.from && sel.from <= r.to) {
     tr.setSelection(TextSelection.near(tr.doc.resolve(from + shown.length)));
@@ -283,7 +418,11 @@ export function pickAlternativeAt(view: EditorView, pos: number, index: number):
 }
 
 /** Step the alternatives run at `pos` up or down its list, wrapping around. */
-export function cycleAlternativeAt(view: EditorView, pos: number, dir: 1 | -1): boolean {
+export function cycleAlternativeAt(
+  view: EditorView,
+  pos: number,
+  dir: 1 | -1,
+): boolean {
   const r = altRangeAt(view.state, pos);
   if (!r) return false;
   const n = normalizeAlts(r.mark.attrs.alts).length + 1;
@@ -298,7 +437,12 @@ export function cycleAlternativeAt(view: EditorView, pos: number, dir: 1 | -1): 
  * switches to the first added version (adding one by hand shows it, as the
  * writer wants to read it in place).
  */
-export function addAlternativesAt(view: EditorView, range: Range, options: string[], opts: { ai?: boolean; show?: boolean } = {}): boolean {
+export function addAlternativesAt(
+  view: EditorView,
+  range: Range,
+  options: string[],
+  opts: { ai?: boolean; show?: boolean } = {},
+): boolean {
   const { state } = view;
   const type = altMarkType(state);
   const fresh = options.map((t) => t.trim()).filter(Boolean);
@@ -310,7 +454,14 @@ export function addAlternativesAt(view: EditorView, range: Range, options: strin
   let runFrom: number;
   let runTo: number;
   if (existing && existing.from === range.from && existing.to === range.to) {
-    full = fullAltList({ alts: normalizeAlts(existing.mark.attrs.alts), at: existing.mark.attrs.at, ai: existing.mark.attrs.ai }, existing.text);
+    full = fullAltList(
+      {
+        alts: normalizeAlts(existing.mark.attrs.alts),
+        at: existing.mark.attrs.at,
+        ai: existing.mark.attrs.ai,
+      },
+      existing.text,
+    );
     at = Math.min(existing.mark.attrs.at ?? 0, full.length - 1);
     runFrom = existing.from;
     runTo = existing.to;
@@ -324,26 +475,49 @@ export function addAlternativesAt(view: EditorView, range: Range, options: strin
   const known = new Set(full.map((o) => o.t));
   const added = fresh.filter((t) => !known.has(t));
   if (!added.length) return false;
-  full = [...full, ...added.map((t) => ({ t, ...(opts.ai ? { ai: true } : {}) }))];
+  full = [
+    ...full,
+    ...added.map((t) => ({ t, ...(opts.ai ? { ai: true } : {}) })),
+  ];
   const { attrs } = altAttrsFor(full, at);
-  tr.removeMark(runFrom, runTo, type).addMark(runFrom, runTo, type.create(attrs));
+  tr.removeMark(runFrom, runTo, type).addMark(
+    runFrom,
+    runTo,
+    type.create(attrs),
+  );
   view.dispatch(tr);
   if (opts.show) pickAlternativeAt(view, runFrom, full.length - added.length);
   return true;
 }
 
 /** Drop one version (never the one shown). With one version left the run settles into plain text. */
-export function removeAlternativeAt(view: EditorView, pos: number, index: number): boolean {
+export function removeAlternativeAt(
+  view: EditorView,
+  pos: number,
+  index: number,
+): boolean {
   const { state } = view;
   const r = altRangeAt(state, pos);
   if (!r) return false;
-  const full = fullAltList({ alts: normalizeAlts(r.mark.attrs.alts), at: r.mark.attrs.at, ai: r.mark.attrs.ai }, r.text);
+  const full = fullAltList(
+    {
+      alts: normalizeAlts(r.mark.attrs.alts),
+      at: r.mark.attrs.at,
+      ai: r.mark.attrs.ai,
+    },
+    r.text,
+  );
   const at = Math.min(r.mark.attrs.at ?? 0, full.length - 1);
   if (index === at || index < 0 || index >= full.length) return false;
   const rest = full.filter((_, i) => i !== index);
   const type = altMarkType(state);
   const tr = state.tr.removeMark(r.from, r.to, type);
-  if (rest.length > 1) tr.addMark(r.from, r.to, type.create(altAttrsFor(rest, index < at ? at - 1 : at).attrs));
+  if (rest.length > 1)
+    tr.addMark(
+      r.from,
+      r.to,
+      type.create(altAttrsFor(rest, index < at ? at - 1 : at).attrs),
+    );
   view.dispatch(tr);
   return true;
 }
@@ -356,7 +530,9 @@ export function toggleGhost(view: EditorView, reason = ""): boolean {
   if (!type) return false;
   if (empty) return reviveAt(view, from);
   const ghosted = state.doc.rangeHasMark(from, to, type);
-  const tr = ghosted ? state.tr.removeMark(from, to, type) : state.tr.addMark(from, to, type.create({ reason }));
+  const tr = ghosted
+    ? state.tr.removeMark(from, to, type)
+    : state.tr.addMark(from, to, type.create({ reason }));
   view.dispatch(tr);
   return true;
 }
@@ -367,7 +543,9 @@ export function reviveAt(view: EditorView, pos: number): boolean {
   const type = state.schema.marks[DRAFT_MARKS.ghost];
   if (!type) return false;
   const $pos = state.doc.resolve(pos);
-  const range = getMarkRange($pos, type) ?? (pos > 0 ? getMarkRange(state.doc.resolve(pos - 1), type) : undefined);
+  const range =
+    getMarkRange($pos, type) ??
+    (pos > 0 ? getMarkRange(state.doc.resolve(pos - 1), type) : undefined);
   if (!range) return false;
   view.dispatch(state.tr.removeMark(range.from, range.to, type));
   return true;
@@ -391,7 +569,10 @@ export function ghostRanges(state: EditorState, reason: string): Range[] {
 }
 
 /** Delete proposed cuts (or all ghosts with "*"), tidying the space each leaves. */
-export function makeCuts(view: EditorView, reason: string = TRIM_REASON): number {
+export function makeCuts(
+  view: EditorView,
+  reason: string = TRIM_REASON,
+): number {
   return cutRanges(view, ghostRanges(view.state, reason));
 }
 
@@ -402,10 +583,16 @@ export function cutRanges(view: EditorView, ranges: Range[]): number {
   for (const r of [...ranges].reverse()) {
     let { from, to } = r;
     const doc = tr.doc;
-    const after = doc.textBetween(to, Math.min(to + 1, doc.content.size), undefined, "￼");
+    const after = doc.textBetween(
+      to,
+      Math.min(to + 1, doc.content.size),
+      undefined,
+      "￼",
+    );
     const before = doc.textBetween(Math.max(0, from - 1), from, undefined, "￼");
     // "a  b" -> "a b", "a ." -> "a."
-    if (before === " " && (after === " " || /^[,.;:!?]$/.test(after))) from -= 1;
+    if (before === " " && (after === " " || /^[,.;:!?]$/.test(after)))
+      from -= 1;
     tr.delete(from, to);
   }
   view.dispatch(tr);
@@ -413,7 +600,10 @@ export function cutRanges(view: EditorView, ranges: Range[]): number {
 }
 
 /** Revive every ghost of `reason`. */
-export function reviveAll(view: EditorView, reason: string = TRIM_REASON): number {
+export function reviveAll(
+  view: EditorView,
+  reason: string = TRIM_REASON,
+): number {
   const type = view.state.schema.marks[DRAFT_MARKS.ghost];
   const ranges = ghostRanges(view.state, reason);
   if (!ranges.length || !type) return 0;
@@ -431,7 +621,8 @@ export function clearFlags(view: EditorView, flag?: string): void {
   view.state.doc.descendants((node, pos) => {
     if (!node.isText) return true;
     const m = node.marks.find((mk) => mk.type === type);
-    if (m && (!flag || m.attrs.flag === flag)) tr.removeMark(pos, pos + node.nodeSize, m);
+    if (m && (!flag || m.attrs.flag === flag))
+      tr.removeMark(pos, pos + node.nodeSize, m);
     return false;
   });
   if (tr.docChanged) view.dispatch(tr);
@@ -460,7 +651,12 @@ export function wordsWithout(state: EditorState, reason?: string): number {
     if (node.isTextblock) {
       node.forEach((child) => {
         const g = type && child.marks.find((m) => m.type === type);
-        if (g && reason !== undefined && (reason === "*" || g.attrs.reason === reason)) return;
+        if (
+          g &&
+          reason !== undefined &&
+          (reason === "*" || g.attrs.reason === reason)
+        )
+          return;
         text += child.text ?? " ";
       });
       text += "\n";
@@ -482,7 +678,8 @@ export function findTextRanges(doc: PMNode, needle: string): Range[] {
     let text = "";
     node.forEach((child, offset) => {
       if (child.isText) {
-        for (let i = 0; i < child.text!.length; i++) map.push(pos + 1 + offset + i);
+        for (let i = 0; i < child.text!.length; i++)
+          map.push(pos + 1 + offset + i);
         text += child.text;
       } else {
         map.push(-1);
@@ -501,9 +698,17 @@ export function findTextRanges(doc: PMNode, needle: string): Range[] {
   return out;
 }
 
-function freeRange(state: EditorState, needle: string, markName: string): Range | null {
+function freeRange(
+  state: EditorState,
+  needle: string,
+  markName: string,
+): Range | null {
   const type = state.schema.marks[markName];
-  return findTextRanges(state.doc, needle).find((r) => !type || !state.doc.rangeHasMark(r.from, r.to, type)) ?? null;
+  return (
+    findTextRanges(state.doc, needle).find(
+      (r) => !type || !state.doc.rangeHasMark(r.from, r.to, type),
+    ) ?? null
+  );
 }
 
 /**
@@ -511,11 +716,16 @@ function freeRange(state: EditorState, needle: string, markName: string): Range 
  * applyLabResult (which lands it in stored markdown for `cast doc lab`). A new
  * trim replaces the previous one's proposals.
  */
-export function applyLabResultInEditor(view: EditorView, result: LabResult, target?: Range): { applied: number; missed: string[] } {
+export function applyLabResultInEditor(
+  view: EditorView,
+  result: LabResult,
+  target?: Range,
+): { applied: number; missed: string[] } {
   const missed: string[] = [];
   let applied = 0;
   if (result.tool === "alternatives") {
-    if (target && addAlternativesAt(view, target, result.options, { ai: true })) applied = result.options.length;
+    if (target && addAlternativesAt(view, target, result.options, { ai: true }))
+      applied = result.options.length;
     return { applied, missed };
   }
   if (result.tool === "trim") {
@@ -523,8 +733,17 @@ export function applyLabResultInEditor(view: EditorView, result: LabResult, targ
     const type = view.state.schema.marks[DRAFT_MARKS.ghost];
     for (const cut of result.cuts) {
       const r = freeRange(view.state, cut, DRAFT_MARKS.ghost);
-      if (!r) { missed.push(cut); continue; }
-      view.dispatch(view.state.tr.addMark(r.from, r.to, type.create({ reason: TRIM_REASON })));
+      if (!r) {
+        missed.push(cut);
+        continue;
+      }
+      view.dispatch(
+        view.state.tr.addMark(
+          r.from,
+          r.to,
+          type.create({ reason: TRIM_REASON }),
+        ),
+      );
       applied++;
     }
     return { applied, missed };
@@ -534,16 +753,29 @@ export function applyLabResultInEditor(view: EditorView, result: LabResult, targ
     const type = view.state.schema.marks[DRAFT_MARKS.flag];
     for (const item of result.items) {
       const r = freeRange(view.state, item.text, DRAFT_MARKS.flag);
-      if (!r) { missed.push(item.text); continue; }
-      view.dispatch(view.state.tr.addMark(r.from, r.to, type.create({ flag: result.flag, note: item.note ?? null })));
+      if (!r) {
+        missed.push(item.text);
+        continue;
+      }
+      view.dispatch(
+        view.state.tr.addMark(
+          r.from,
+          r.to,
+          type.create({ flag: result.flag, note: item.note ?? null }),
+        ),
+      );
       applied++;
     }
     return { applied, missed };
   }
   for (const fix of result.fixes) {
     const r = freeRange(view.state, fix.old, DRAFT_MARKS.alts);
-    if (!r) { missed.push(fix.old); continue; }
-    if (addAlternativesAt(view, r, [fix.new], { ai: true, show: true })) applied++;
+    if (!r) {
+      missed.push(fix.old);
+      continue;
+    }
+    if (addAlternativesAt(view, r, [fix.new], { ai: true, show: true }))
+      applied++;
   }
   return { applied, missed };
 }
@@ -553,7 +785,11 @@ export function applyLabResultInEditor(view: EditorView, result: LabResult, targ
 export type AltScope = "word" | "sentence" | "paragraph";
 
 /** The word, sentence or paragraph around `pos`, as a doc range inside its text block. */
-export function scopeRange(state: EditorState, pos: number, scope: AltScope): Range | null {
+export function scopeRange(
+  state: EditorState,
+  pos: number,
+  scope: AltScope,
+): Range | null {
   const $pos = state.doc.resolve(pos);
   const block = $pos.parent;
   if (!block.isTextblock || block.content.size === 0) return null;
@@ -601,16 +837,23 @@ export interface DraftingOptions {
 
 export function setDraftingEnabled(editor: Editor, enabled: boolean) {
   if (editor.isDestroyed) return;
-  editor.view.dispatch(editor.state.tr.setMeta(draftingKey, { enabled } satisfies DraftingMeta));
+  editor.view.dispatch(
+    editor.state.tr.setMeta(draftingKey, { enabled } satisfies DraftingMeta),
+  );
 }
 
 export function setDraftingFocus(editor: Editor, focus: Range | null) {
   if (editor.isDestroyed) return;
-  editor.view.dispatch(editor.state.tr.setMeta(draftingKey, { focus } satisfies DraftingMeta));
+  editor.view.dispatch(
+    editor.state.tr.setMeta(draftingKey, { focus } satisfies DraftingMeta),
+  );
 }
 
 /** Delete the selection and hand its text to `onStash`. */
-export function stashSelection(view: EditorView, onStash: (text: string) => void): boolean {
+export function stashSelection(
+  view: EditorView,
+  onStash: (text: string) => void,
+): boolean {
   const { from, to, empty } = view.state.selection;
   if (empty) return false;
   const text = view.state.doc.textBetween(from, to, "\n\n");
@@ -630,7 +873,11 @@ export function cleanDraftingFragment(fragment: Fragment): Fragment {
   fragment.forEach((node) => {
     if (node.isText) {
       if (node.marks.some((m) => m.type.name === DRAFT_MARKS.ghost)) return;
-      out.push(node.mark(node.marks.filter((m) => !isDraftMark({ type: m.type.name }))));
+      out.push(
+        node.mark(
+          node.marks.filter((m) => !isDraftMark({ type: m.type.name })),
+        ),
+      );
     } else {
       out.push(node.copy(cleanDraftingFragment(node.content)));
     }
@@ -645,7 +892,12 @@ const DraftingClipboard = Extension.create({
       new Plugin({
         key: new PluginKey("draftingClipboard"),
         props: {
-          transformCopied: (slice) => new Slice(cleanDraftingFragment(slice.content), slice.openStart, slice.openEnd),
+          transformCopied: (slice) =>
+            new Slice(
+              cleanDraftingFragment(slice.content),
+              slice.openStart,
+              slice.openEnd,
+            ),
         },
       }),
     ];
@@ -653,7 +905,12 @@ const DraftingClipboard = Extension.create({
 });
 
 /** The drafting marks every editor loads, so no editor drops drafting markup it opens. */
-export const DRAFTING_MARKS = [DraftAltsMark, DraftGhostMark, DraftFlagMark, DraftingClipboard];
+export const DRAFTING_MARKS = [
+  DraftAltsMark,
+  DraftGhostMark,
+  DraftFlagMark,
+  DraftingClipboard,
+];
 
 /** The drafting behaviour (pager, cycling, shortcuts) the doc page's editor adds on top of the marks. */
 export const DraftingExtension = Extension.create<DraftingOptions>({
@@ -669,7 +926,9 @@ export const DraftingExtension = Extension.create<DraftingOptions>({
       const { from, to, empty } = state.selection;
       if (!empty) return { from, to };
       const run = altRangeAt(state, from);
-      return run ? { from: run.from, to: run.to } : scopeRange(state, from, "word");
+      return run
+        ? { from: run.from, to: run.to }
+        : scopeRange(state, from, "word");
     };
     return {
       "Mod-Shift-o": () => {
@@ -685,9 +944,22 @@ export const DraftingExtension = Extension.create<DraftingOptions>({
         return true;
       },
       "Mod-Shift-.": () => toggleGhost(this.editor.view),
-      "Mod-Shift-x": () => (this.options.onStash ? stashSelection(this.editor.view, this.options.onStash) : false),
-      "Alt-ArrowUp": () => cycleAlternativeAt(this.editor.view, this.editor.state.selection.from, -1),
-      "Alt-ArrowDown": () => cycleAlternativeAt(this.editor.view, this.editor.state.selection.from, 1),
+      "Mod-Shift-x": () =>
+        this.options.onStash
+          ? stashSelection(this.editor.view, this.options.onStash)
+          : false,
+      "Alt-ArrowUp": () =>
+        cycleAlternativeAt(
+          this.editor.view,
+          this.editor.state.selection.from,
+          -1,
+        ),
+      "Alt-ArrowDown": () =>
+        cycleAlternativeAt(
+          this.editor.view,
+          this.editor.state.selection.from,
+          1,
+        ),
     };
   },
 
@@ -699,30 +971,50 @@ export const DraftingExtension = Extension.create<DraftingOptions>({
       new Plugin<DraftingPluginState>({
         key: draftingKey,
         state: {
-          init: (_, state) => ({ enabled: false, focus: null, decorations: buildDecorations(state, false, null) }),
+          init: (_, state) => ({
+            enabled: false,
+            focus: null,
+            decorations: buildDecorations(state, false, null),
+          }),
           apply(tr: Transaction, prev, _old, state) {
             const meta = tr.getMeta(draftingKey) as DraftingMeta | undefined;
             const enabled = meta?.enabled ?? prev.enabled;
-            let focus = meta && "focus" in meta ? meta.focus ?? null : prev.focus;
+            let focus =
+              meta && "focus" in meta ? (meta.focus ?? null) : prev.focus;
             if (focus && tr.docChanged && !(meta && "focus" in meta)) {
-              focus = { from: tr.mapping.map(focus.from, -1), to: tr.mapping.map(focus.to, 1) };
+              focus = {
+                from: tr.mapping.map(focus.from, -1),
+                to: tr.mapping.map(focus.to, 1),
+              };
               if (focus.to <= focus.from) focus = null;
             }
             if (!meta && !tr.docChanged) return prev;
-            return { enabled, focus, decorations: buildDecorations(state, enabled, focus) };
+            return {
+              enabled,
+              focus,
+              decorations: buildDecorations(state, enabled, focus),
+            };
           },
         },
         props: {
           decorations: (state) => draftingKey.getState(state)?.decorations,
           attributes: (state): Record<string, string> => {
             const s = draftingKey.getState(state);
-            const cls = [s?.enabled ? "drafting-on" : "", s?.focus ? "drafting-focus" : ""].filter(Boolean).join(" ");
+            const cls = [
+              s?.enabled ? "drafting-on" : "",
+              s?.focus ? "drafting-focus" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
             return cls ? { class: cls } : {};
           },
           handleDOMEvents: {
             mouseover: (view, event) => {
-              const el = (event.target as HTMLElement | null)?.closest?.("span[data-alts]");
-              hoverPos = el && view.dom.contains(el) ? view.posAtDOM(el, 0) : null;
+              const el = (event.target as HTMLElement | null)?.closest?.(
+                "span[data-alts]",
+              );
+              hoverPos =
+                el && view.dom.contains(el) ? view.posAtDOM(el, 0) : null;
               return false;
             },
             mouseleave: () => {
@@ -731,16 +1023,30 @@ export const DraftingExtension = Extension.create<DraftingOptions>({
             },
           },
           handleKeyDown: (view, event) => {
-            if (hoverPos == null || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return false;
-            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return false;
+            if (
+              hoverPos == null ||
+              event.altKey ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey
+            )
+              return false;
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+              return false;
             if (!draftingKey.getState(view.state)?.enabled) return false;
-            const done = cycleAlternativeAt(view, hoverPos, event.key === "ArrowUp" ? -1 : 1);
+            const done = cycleAlternativeAt(
+              view,
+              hoverPos,
+              event.key === "ArrowUp" ? -1 : 1,
+            );
             if (done) event.preventDefault();
             return done;
           },
           handleClick: (view, pos, event) => {
             // A proposed cut is kept by clicking it.
-            const el = (event.target as HTMLElement | null)?.closest?.(`span[data-ghost="${TRIM_REASON}"]`);
+            const el = (event.target as HTMLElement | null)?.closest?.(
+              `span[data-ghost="${TRIM_REASON}"]`,
+            );
             if (!el) return false;
             return reviveAt(view, pos);
           },

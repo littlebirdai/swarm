@@ -49,12 +49,17 @@ const LEDGER_KEEP = 500;
 // CODECAST_HARNESS_LEDGER moves the file; the test preload points it at a
 // temp file so no test run can write into a real user's change history.
 export function harnessLedgerPath(): string {
-  return process.env.CODECAST_HARNESS_LEDGER || path.join(defaultConfigDir(), LEDGER_FILE);
+  return (
+    process.env.CODECAST_HARNESS_LEDGER ||
+    path.join(defaultConfigDir(), LEDGER_FILE)
+  );
 }
 
 function homeRelative(file: string): string {
   const home = process.env.HOME || "";
-  return home && file.startsWith(home + path.sep) ? "~" + file.slice(home.length) : file;
+  return home && file.startsWith(home + path.sep)
+    ? "~" + file.slice(home.length)
+    : file;
 }
 
 // The cause of every write in this process, unless a caller scopes its own.
@@ -65,9 +70,13 @@ let scoped: HarnessCause | null = null;
 
 function processCause(): HarnessCause {
   const why = process.env.CODECAST_HARNESS_WHY;
-  if (why) return { why, automatic: process.env.CODECAST_HARNESS_AUTOMATIC === "1" };
+  if (why)
+    return { why, automatic: process.env.CODECAST_HARNESS_AUTOMATIC === "1" };
   const args = process.argv.slice(2).filter((a) => !a.startsWith("_"));
-  return { why: args.length ? `cast ${args.join(" ")}` : "cast", automatic: false };
+  return {
+    why: args.length ? `cast ${args.join(" ")}` : "cast",
+    automatic: false,
+  };
 }
 
 export function currentHarnessCause(): HarnessCause {
@@ -81,7 +90,9 @@ export function withHarnessCause<T>(cause: HarnessCause, fn: () => T): T {
   try {
     const out = fn();
     if (out instanceof Promise) {
-      return out.finally(() => { scoped = prev; }) as T;
+      return out.finally(() => {
+        scoped = prev;
+      }) as T;
     }
     scoped = prev;
     return out;
@@ -93,7 +104,10 @@ export function withHarnessCause<T>(cause: HarnessCause, fn: () => T): T {
 
 /** Environment for a child `cast` whose writes belong to `cause`. */
 export function harnessCauseEnv(cause: HarnessCause): Record<string, string> {
-  return { CODECAST_HARNESS_WHY: cause.why, CODECAST_HARNESS_AUTOMATIC: cause.automatic ? "1" : "0" };
+  return {
+    CODECAST_HARNESS_WHY: cause.why,
+    CODECAST_HARNESS_AUTOMATIC: cause.automatic ? "1" : "0",
+  };
 }
 
 function readOrNull(file: string): string | null {
@@ -105,11 +119,23 @@ function readOrNull(file: string): string | null {
 }
 
 /** Record a change made without the writers below (a symlink, a directory). */
-export function recordHarnessChange(file: string, action: HarnessAction, what: string, before: string | Uint8Array | null = null, after: string | Uint8Array | null = null): void {
+export function recordHarnessChange(
+  file: string,
+  action: HarnessAction,
+  what: string,
+  before: string | Uint8Array | null = null,
+  after: string | Uint8Array | null = null,
+): void {
   record(file, action, what, before, after);
 }
 
-function record(file: string, action: HarnessAction, what: string, before: string | Uint8Array | null, after: string | Uint8Array | null): void {
+function record(
+  file: string,
+  action: HarnessAction,
+  what: string,
+  before: string | Uint8Array | null,
+  after: string | Uint8Array | null,
+): void {
   const cause = currentHarnessCause();
   const entry: HarnessChange = {
     at: Date.now(),
@@ -145,7 +171,9 @@ function trimLedger(ledger: string): void {
   const stat = fs.statSync(ledger);
   if (stat.size < 512 * 1024) return;
   const lines = fs.readFileSync(ledger, "utf-8").split("\n").filter(Boolean);
-  atomicWriteFile(ledger, lines.slice(-LEDGER_KEEP).join("\n") + "\n", { mode: 0o600 });
+  atomicWriteFile(ledger, lines.slice(-LEDGER_KEEP).join("\n") + "\n", {
+    mode: 0o600,
+  });
 }
 
 /**
@@ -171,16 +199,26 @@ export function writeHarnessFile(
       before = null;
     }
   }
-  const same = before !== null && (typeof next === "string" ? before === next : Buffer.compare(before as Buffer, next) === 0);
+  const same =
+    before !== null &&
+    (typeof next === "string"
+      ? before === next
+      : Buffer.compare(before as Buffer, next) === 0);
   if (!same) {
-    atomicWriteFile(file, next, before === null && opts.mode !== undefined ? { mode: opts.mode } : {});
+    atomicWriteFile(
+      file,
+      next,
+      before === null && opts.mode !== undefined ? { mode: opts.mode } : {},
+    );
     record(file, before === null ? "created" : "modified", what, before, next);
   }
   if (opts.executable) {
     try {
       const mode = fs.statSync(file).mode & 0o777;
       if ((mode & 0o111) !== 0o111) fs.chmodSync(file, mode | 0o755);
-    } catch { /* raced a removal: nothing to repair */ }
+    } catch {
+      /* raced a removal: nothing to repair */
+    }
   }
   return !same;
 }
@@ -217,11 +255,18 @@ export function editHarnessJson(
   const original = JSON.stringify(settings);
   edit(settings);
   if (JSON.stringify(settings) === original) return false;
-  return writeHarnessFile(file, JSON.stringify(settings, null, opts.indent ?? jsonIndentOf(before) ?? 2) + "\n", what);
+  return writeHarnessFile(
+    file,
+    JSON.stringify(settings, null, opts.indent ?? jsonIndentOf(before) ?? 2) +
+      "\n",
+    what,
+  );
 }
 
 /** The indentation a JSON file already uses, so our rewrite keeps it. */
-export function jsonIndentOf(text: string | null | undefined): number | undefined {
+export function jsonIndentOf(
+  text: string | null | undefined,
+): number | undefined {
   const m = text?.match(/\n( +)["}\]]/);
   return m ? Math.min(m[1].length, 8) : undefined;
 }
@@ -236,7 +281,9 @@ export function readHarnessChanges(limit = 50): HarnessChange[] {
     if (!lines[i]) continue;
     try {
       out.push(JSON.parse(lines[i]));
-    } catch { /* torn line from a crashed writer */ }
+    } catch {
+      /* torn line from a crashed writer */
+    }
   }
   return out;
 }
@@ -278,5 +325,7 @@ export function markHarnessChangesSent(changes: HarnessChange[]): void {
   const newest = Math.max(...changes.map((c) => c.at));
   try {
     atomicWriteFile(cursorPath(), String(newest), { mode: 0o600 });
-  } catch { /* resent next beat; the server drops duplicates */ }
+  } catch {
+    /* resent next beat; the server drops duplicates */
+  }
 }

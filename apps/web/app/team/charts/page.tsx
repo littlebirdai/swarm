@@ -33,7 +33,10 @@ import {
   type PunchRow,
   type TimelineMetric,
 } from "../../../components/ActivityCharts";
-import { HoverTip, useContainerWidth } from "../../../components/ActivityHeatmap";
+import {
+  HoverTip,
+  useContainerWidth,
+} from "../../../components/ActivityHeatmap";
 import { SegmentedToggle } from "../../../components/SegmentedToggle";
 
 // Team-wide activity: every member's punchcard merged into one grid, plus a
@@ -50,9 +53,23 @@ export default function TeamChartsPage() {
   );
 }
 
-type MemberInfo = { _id: string; name?: string; github_username?: string; github_avatar_url?: string };
+type MemberInfo = {
+  _id: string;
+  name?: string;
+  github_username?: string;
+  github_avatar_url?: string;
+};
 
-const LINE_COLORS = ["#268bd2", "#859900", "#cb4b16", "#6c71c4", "#2aa198", "#b58900", "#d33682", "#dc322f"];
+const LINE_COLORS = [
+  "#268bd2",
+  "#859900",
+  "#cb4b16",
+  "#6c71c4",
+  "#2aa198",
+  "#b58900",
+  "#d33682",
+  "#dc322f",
+];
 
 const zeros24 = () => new Array(24).fill(0);
 
@@ -60,57 +77,114 @@ const zeros24 = () => new Array(24).fill(0);
 // person was at, or the ones running unattended under their account.
 const WHO_ITEMS = [
   { key: "all", label: "All", title: "Every session" },
-  { key: "attended", icon: User, label: "Attended", title: "Sessions someone was at" },
-  { key: "unattended", icon: Bot, label: "Unattended", title: "Sessions nobody was watching: line stations, roles, routines, workers" },
+  {
+    key: "attended",
+    icon: User,
+    label: "Attended",
+    title: "Sessions someone was at",
+  },
+  {
+    key: "unattended",
+    icon: Bot,
+    label: "Unattended",
+    title:
+      "Sessions nobody was watching: line stations, roles, routines, workers",
+  },
 ];
 const sum = (a: number[]) => a.reduce((s, v) => s + v, 0);
 
 function TeamChartsContent() {
   const currentUser = useQuery(api.users.getCurrentUser);
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const myTeams = useQueryNoThrow(api.teams.getUserTeams, {}).data;
-  const defaultTeamId = activeTeamId || currentUser?.active_team_id || currentUser?.team_id;
+  const defaultTeamId =
+    activeTeamId || currentUser?.active_team_id || currentUser?.team_id;
   const [pickedTeam, setPickedTeam] = useState<string | null>(null);
-  const teamId = (pickedTeam ?? (defaultTeamId ? String(defaultTeamId) : null)) as Id<"teams"> | null;
+  const teamId = (pickedTeam ??
+    (defaultTeamId ? String(defaultTeamId) : null)) as Id<"teams"> | null;
 
   const tzOffset = useMemo(() => new Date().getTimezoneOffset(), []);
   const [who, setWho] = useState<"all" | Attendance>("all");
-  const members = useQuery(api.users.getTeamMembers, teamId ? { team_id: teamId } : "skip") as
-    | MemberInfo[]
-    | undefined;
+  const members = useQuery(
+    api.users.getTeamMembers,
+    teamId ? { team_id: teamId } : "skip",
+  ) as MemberInfo[] | undefined;
 
   // One punchcard subscription per member; useQueries keeps hook order legal
   // as the member set changes.
   const punchQueries = useMemo(() => {
-    const q: Record<string, { query: typeof api.users.getUserActivityPunchcard; args: any }> = {};
+    const q: Record<
+      string,
+      { query: typeof api.users.getUserActivityPunchcard; args: any }
+    > = {};
     if (teamId && members) {
       for (const m of members) {
         q[String(m._id)] = {
           query: api.users.getUserActivityPunchcard,
-          args: { user_id: m._id as Id<"users">, team_id: teamId, days: 371, tz_offset_minutes: tzOffset, ...(who === "all" ? {} : { who }) },
+          args: {
+            user_id: m._id as Id<"users">,
+            team_id: teamId,
+            days: 371,
+            tz_offset_minutes: tzOffset,
+            ...(who === "all" ? {} : { who }),
+          },
         };
       }
     }
     return q;
   }, [teamId, members, tzOffset, who]);
-  const fresh = useQueries(punchQueries) as Record<string, PunchRow[] | undefined>;
+  const fresh = useQueries(punchQueries) as Record<
+    string,
+    PunchRow[] | undefined
+  >;
   const freshLoaded =
-    !!members && members.length > 0 && members.every((m) => fresh[String(m._id)] !== undefined);
+    !!members &&
+    members.length > 0 &&
+    members.every((m) => fresh[String(m._id)] !== undefined);
   // Switching which sessions count re-subscribes every member: keep drawing
   // the last complete answer until the new one is whole, instead of a skeleton.
-  const lastLoaded = useRef<{ teamId: string | null; rows: Record<string, PunchRow[] | undefined> } | null>(null);
+  const lastLoaded = useRef<{
+    teamId: string | null;
+    rows: Record<string, PunchRow[] | undefined>;
+  } | null>(null);
   if (freshLoaded) lastLoaded.current = { teamId, rows: fresh };
-  const held = !freshLoaded && lastLoaded.current?.teamId === teamId ? lastLoaded.current.rows : null;
+  const held =
+    !freshLoaded && lastLoaded.current?.teamId === teamId
+      ? lastLoaded.current.rows
+      : null;
   const punchResults = held ?? fresh;
   const allLoaded = freshLoaded || !!held;
 
   // Merge member punchcards cell-by-cell into the team-wide grid.
   const rows = useMemo(() => {
     if (!allLoaded || !members) return undefined;
-    const merged: Record<string, { hours: number[]; msgs: number[]; sends: number[]; words: number[]; tokens: number[]; spend: number[]; sessions: number[]; day_sessions: number }> = {};
+    const merged: Record<
+      string,
+      {
+        hours: number[];
+        msgs: number[];
+        sends: number[];
+        words: number[];
+        tokens: number[];
+        spend: number[];
+        sessions: number[];
+        day_sessions: number;
+      }
+    > = {};
     for (const m of members) {
       for (const r of punchResults[String(m._id)] ?? []) {
-        const acc = (merged[r.date] ||= { hours: zeros24(), msgs: zeros24(), sends: zeros24(), words: zeros24(), tokens: zeros24(), spend: zeros24(), sessions: zeros24(), day_sessions: 0 });
+        const acc = (merged[r.date] ||= {
+          hours: zeros24(),
+          msgs: zeros24(),
+          sends: zeros24(),
+          words: zeros24(),
+          tokens: zeros24(),
+          spend: zeros24(),
+          sessions: zeros24(),
+          day_sessions: 0,
+        });
         for (let h = 0; h < 24; h++) {
           acc.hours[h] += r.hours[h];
           acc.msgs[h] += r.msgs[h];
@@ -153,21 +227,31 @@ function TeamChartsContent() {
 
   if (!currentUser) return <div className="w-full py-10" />;
   if (!teamId) {
-    return <div className="text-[12px] text-sol-text-muted text-center py-16">Join a team to see team charts.</div>;
+    return (
+      <div className="text-[12px] text-sol-text-muted text-center py-16">
+        Join a team to see team charts.
+      </div>
+    );
   }
 
   return (
     <div className="w-full py-4 px-4">
       <div className="flex items-center gap-2 pb-3">
         <div className="min-w-0">
-          <div className="text-[13px] font-bold text-sol-text leading-tight">Team activity</div>
+          <div className="text-[13px] font-bold text-sol-text leading-tight">
+            Team activity
+          </div>
           <div className="text-meta text-sol-text-muted mt-0.5">
             Everyone&apos;s hours, messages, and what they typed in one view
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <div className="scale-[0.82] origin-right">
-            <SegmentedToggle value={who} onChange={(k) => setWho(k as "all" | Attendance)} items={WHO_ITEMS} />
+            <SegmentedToggle
+              value={who}
+              onChange={(k) => setWho(k as "all" | Attendance)}
+              items={WHO_ITEMS}
+            />
           </div>
           {rows && (
             <div className="scale-[0.82] origin-right">
@@ -180,12 +264,19 @@ function TeamChartsContent() {
               onChange={(e) => setPickedTeam(e.target.value)}
               className="text-meta text-sol-text-muted bg-transparent border border-sol-border/25 rounded px-1.5 py-0.5 hover:border-sol-border/50 focus:outline-none cursor-pointer max-w-[150px]"
             >
-              {myTeams.filter((t): t is NonNullable<typeof t> => t !== null).map((t) => (
-                <option key={String(t._id)} value={String(t._id)}>{t.name}</option>
-              ))}
+              {myTeams
+                .filter((t): t is NonNullable<typeof t> => t !== null)
+                .map((t) => (
+                  <option key={String(t._id)} value={String(t._id)}>
+                    {t.name}
+                  </option>
+                ))}
             </select>
           )}
-          <Link href="/org" className="text-meta text-sol-cyan/60 hover:text-sol-cyan transition-colors">
+          <Link
+            href="/org"
+            className="text-meta text-sol-cyan/60 hover:text-sol-cyan transition-colors"
+          >
             Org
           </Link>
         </div>
@@ -200,8 +291,14 @@ function TeamChartsContent() {
       )}
       {rows && (
         <>
-          {heatmapData && heatmapData.length > 0 && <ActivityHeatmap data={heatmapData} />}
-          <TimelineCharts punchcard={rows} range={range} onRangeChange={setRange} />
+          {heatmapData && heatmapData.length > 0 && (
+            <ActivityHeatmap data={heatmapData} />
+          )}
+          <TimelineCharts
+            punchcard={rows}
+            range={range}
+            onRangeChange={setRange}
+          />
           <MemberBreakdown
             members={members ?? []}
             punchResults={punchResults}
@@ -212,7 +309,9 @@ function TeamChartsContent() {
         </>
       )}
       {members && members.length === 0 && (
-        <div className="text-[12px] text-sol-text-muted text-center py-16">No members in this team.</div>
+        <div className="text-[12px] text-sol-text-muted text-center py-16">
+          No members in this team.
+        </div>
       )}
     </div>
   );
@@ -240,12 +339,15 @@ function MemberBreakdown({
   const ranked = useMemo(() => {
     return members
       .map((m) => {
-        const recent = (punchResults[String(m._id)] ?? []).filter((r) => r.date >= from && r.date <= to);
+        const recent = (punchResults[String(m._id)] ?? []).filter(
+          (r) => r.date >= from && r.date <= to,
+        );
         return {
           ...m,
           display_name: m.name || m.github_username || "Unnamed",
           rows: recent,
-          month_hours: Math.round(recent.reduce((s, r) => s + sum(r.hours), 0) * 10) / 10,
+          month_hours:
+            Math.round(recent.reduce((s, r) => s + sum(r.hours), 0) * 10) / 10,
           month_msgs: recent.reduce((s, r) => s + sum(r.msgs), 0),
           month_sends: recent.reduce((s, r) => s + sum(r.sends ?? []), 0),
           month_words: recent.reduce((s, r) => s + sum(r.words ?? []), 0),
@@ -270,7 +372,11 @@ function MemberBreakdown({
     });
   }, [ranked, dayKeys, metric]);
 
-  const metricItems = useMemo(() => metricItemsFor(Object.values(punchResults).flatMap((rows) => rows ?? [])), [punchResults]);
+  const metricItems = useMemo(
+    () =>
+      metricItemsFor(Object.values(punchResults).flatMap((rows) => rows ?? [])),
+    [punchResults],
+  );
   const showSpend = metricItems.some((m) => m.key === "spend");
 
   if (members.length === 0) return null;
@@ -278,7 +384,9 @@ function MemberBreakdown({
   return (
     <div className="mt-6">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-mark font-bold text-sol-text-dim uppercase tracking-widest">Members · {rangeLabel(range)}</span>
+        <span className="text-mark font-bold text-sol-text-dim uppercase tracking-widest">
+          Members · {rangeLabel(range)}
+        </span>
         <div className="flex-1 h-px bg-sol-border/10" />
         <div className="scale-[0.82] origin-right">
           <SegmentedToggle
@@ -300,37 +408,61 @@ function MemberBreakdown({
       {/* Six number columns beside the name: in a narrow pane the list
           scrolls sideways as one, rather than crushing the names to nothing. */}
       <div className="mt-3 overflow-x-auto">
-      <div className="min-w-[36rem] space-y-px">
-        {ranked.map((m, i) => (
-          <Link
-            key={String(m._id)}
-            href={m.github_username ? `/team/${m.github_username}` : "#"}
-            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sol-bg-alt/50 transition-colors group"
-          >
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ background: i < LINE_COLORS.length ? LINE_COLORS[i % LINE_COLORS.length] : "transparent" }}
-            />
-            <AvatarImg
-              src={m.github_avatar_url}
-              alt=""
-              className="w-5 h-5 rounded-full ring-1 ring-sol-border/20"
-              fallback={
-                <div className="w-5 h-5 rounded-full bg-sol-bg-highlight flex items-center justify-center text-meta font-semibold text-sol-text-secondary">
-                  {m.display_name[0]?.toUpperCase() || "?"}
-                </div>
-              }
-            />
-            <span className="min-w-[6rem] text-[12px] text-sol-text-secondary truncate flex-1 group-hover:text-sol-text transition-colors" title={m.display_name}>{m.display_name}</span>
-            <span className="text-meta tabular-nums text-sol-green/50 w-14 text-right">{m.month_hours}h</span>
-            <span className="text-meta tabular-nums text-sol-cyan/50 w-20 text-right">{fmtK(m.month_msgs)} msgs</span>
-            <span className="text-meta tabular-nums text-sol-blue/60 w-20 text-right">{fmtK(m.month_sends)} typed</span>
-            <span className="text-meta tabular-nums text-sol-violet/60 w-24 text-right">{fmtK(m.month_words)} words</span>
-            {showSpend && <span className="text-meta tabular-nums text-sol-yellow/70 w-14 text-right">{fmtUsd(m.month_spend)}</span>}
-            <span className="text-meta tabular-nums text-sol-text-dim w-[68px] text-right">{m.month_sessions} sess</span>
-          </Link>
-        ))}
-      </div>
+        <div className="min-w-[36rem] space-y-px">
+          {ranked.map((m, i) => (
+            <Link
+              key={String(m._id)}
+              href={m.github_username ? `/team/${m.github_username}` : "#"}
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sol-bg-alt/50 transition-colors group"
+            >
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{
+                  background:
+                    i < LINE_COLORS.length
+                      ? LINE_COLORS[i % LINE_COLORS.length]
+                      : "transparent",
+                }}
+              />
+              <AvatarImg
+                src={m.github_avatar_url}
+                alt=""
+                className="w-5 h-5 rounded-full ring-1 ring-sol-border/20"
+                fallback={
+                  <div className="w-5 h-5 rounded-full bg-sol-bg-highlight flex items-center justify-center text-meta font-semibold text-sol-text-secondary">
+                    {m.display_name[0]?.toUpperCase() || "?"}
+                  </div>
+                }
+              />
+              <span
+                className="min-w-[6rem] text-[12px] text-sol-text-secondary truncate flex-1 group-hover:text-sol-text transition-colors"
+                title={m.display_name}
+              >
+                {m.display_name}
+              </span>
+              <span className="text-meta tabular-nums text-sol-green/50 w-14 text-right">
+                {m.month_hours}h
+              </span>
+              <span className="text-meta tabular-nums text-sol-cyan/50 w-20 text-right">
+                {fmtK(m.month_msgs)} msgs
+              </span>
+              <span className="text-meta tabular-nums text-sol-blue/60 w-20 text-right">
+                {fmtK(m.month_sends)} typed
+              </span>
+              <span className="text-meta tabular-nums text-sol-violet/60 w-24 text-right">
+                {fmtK(m.month_words)} words
+              </span>
+              {showSpend && (
+                <span className="text-meta tabular-nums text-sol-yellow/70 w-14 text-right">
+                  {fmtUsd(m.month_spend)}
+                </span>
+              )}
+              <span className="text-meta tabular-nums text-sol-text-dim w-[68px] text-right">
+                {m.month_sessions} sess
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -353,9 +485,19 @@ function MemberLines({
 }) {
   const { ref, width } = useContainerWidth();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [hoverAt, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
-  const brush = useDayBrush((a, b) => { setHover(null); onPickRange(dayKeys[a], dayKeys[b]); });
-  const h = 140, padR = 8, padT = 6, padB = 20;
+  const [hoverAt, setHover] = useState<{
+    idx: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const brush = useDayBrush((a, b) => {
+    setHover(null);
+    onPickRange(dayKeys[a], dayKeys[b]);
+  });
+  const h = 140,
+    padR = 8,
+    padT = 6,
+    padB = 20;
   const n = dayKeys.length;
   const max = useMemo(() => {
     let m = 1;
@@ -364,20 +506,29 @@ function MemberLines({
   }, [series]);
   const padL = axisPadLeft([0, 0.5, 1].map((f) => fmtAxis(max * f)));
   const plotH = h - padT - padB;
-  const toX = (i: number) => padL + (i / Math.max(n - 1, 1)) * (width - padL - padR);
+  const toX = (i: number) =>
+    padL + (i / Math.max(n - 1, 1)) * (width - padL - padR);
   const toY = (v: number) => padT + (1 - v / max) * plotH;
-  const xLabels = useMemo(() => timeAxisLabels(dayKeys, toX), [dayKeys, width, padL]);
+  const xLabels = useMemo(
+    () => timeAxisLabels(dayKeys, toX),
+    [dayKeys, width, padL],
+  );
   if (n === 0) return null;
   // A hover left over from a wider window (before a zoom) points past this one.
   const hover = hoverAt && hoverAt.idx < n ? hoverAt : null;
   const idxAt = (clientX: number) => {
     const r = svgRef.current?.getBoundingClientRect();
     if (!r) return null;
-    const i = Math.round(((clientX - r.left - padL) / Math.max(width - padL - padR, 1)) * (n - 1));
+    const i = Math.round(
+      ((clientX - r.left - padL) / Math.max(width - padL - padR, 1)) * (n - 1),
+    );
     return { i: Math.max(0, Math.min(n - 1, i)), r };
   };
   const rows = hover
-    ? series.map((s) => ({ ...s, v: s.values[hover.idx] })).filter((s) => s.v > 0).sort((a, b) => b.v - a.v)
+    ? series
+        .map((s) => ({ ...s, v: s.values[hover.idx] }))
+        .filter((s) => s.v > 0)
+        .sort((a, b) => b.v - a.v)
     : [];
   return (
     <div ref={ref} className="w-full relative">
@@ -386,8 +537,17 @@ function MemberLines({
         width={width}
         height={h}
         className="block cursor-crosshair select-none"
-        onMouseLeave={() => { setHover(null); brush.cancel(); }}
-        onMouseDown={(e) => { const at = idxAt(e.clientX); if (at) { e.preventDefault(); brush.start(at.i); } }}
+        onMouseLeave={() => {
+          setHover(null);
+          brush.cancel();
+        }}
+        onMouseDown={(e) => {
+          const at = idxAt(e.clientX);
+          if (at) {
+            e.preventDefault();
+            brush.start(at.i);
+          }
+        }}
         onMouseUp={brush.end}
         onMouseMove={(e) => {
           const at = idxAt(e.clientX);
@@ -398,18 +558,49 @@ function MemberLines({
       >
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
-            <line x1={padL} x2={width - padR} y1={toY(max * f)} y2={toY(max * f)} stroke="currentColor" className="text-sol-border/8" strokeWidth={0.5} strokeDasharray={f === 0 ? "none" : "2,3"} />
-            <text x={padL - 4} y={toY(max * f) + 3} textAnchor="end" className="fill-sol-text-dim" style={{ fontSize: 11 }}>{fmtAxis(max * f)}</text>
+            <line
+              x1={padL}
+              x2={width - padR}
+              y1={toY(max * f)}
+              y2={toY(max * f)}
+              stroke="currentColor"
+              className="text-sol-border/8"
+              strokeWidth={0.5}
+              strokeDasharray={f === 0 ? "none" : "2,3"}
+            />
+            <text
+              x={padL - 4}
+              y={toY(max * f) + 3}
+              textAnchor="end"
+              className="fill-sol-text-dim"
+              style={{ fontSize: 11 }}
+            >
+              {fmtAxis(max * f)}
+            </text>
           </g>
         ))}
         {xLabels.map((l, i) => (
-          <text key={i} x={l.x} y={h - 5} textAnchor="start" className="fill-sol-text-dim" style={{ fontSize: 11 }}>{l.label}</text>
+          <text
+            key={i}
+            x={l.x}
+            y={h - 5}
+            textAnchor="start"
+            className="fill-sol-text-dim"
+            style={{ fontSize: 11 }}
+          >
+            {l.label}
+          </text>
         ))}
         <BrushRect drag={brush.drag} toX={toX} top={padT} height={plotH} />
         {series.map((s) => (
           <path
             key={s.name}
-            d={s.values.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ")}
+            d={s.values
+              .map(
+                (v, i) =>
+                  `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`,
+              )
+              .join(" ")}
             fill="none"
             stroke={s.color}
             strokeWidth={1.5}
@@ -418,18 +609,43 @@ function MemberLines({
         ))}
         {hover && (
           <>
-            <line x1={toX(hover.idx)} x2={toX(hover.idx)} y1={padT} y2={padT + plotH} stroke="currentColor" className="text-sol-text/30" strokeWidth={0.5} strokeDasharray="3,3" />
-            {rows.map((s) => <circle key={s.name} cx={toX(hover.idx)} cy={toY(s.v)} r={2.5} fill={s.color} />)}
+            <line
+              x1={toX(hover.idx)}
+              x2={toX(hover.idx)}
+              y1={padT}
+              y2={padT + plotH}
+              stroke="currentColor"
+              className="text-sol-text/30"
+              strokeWidth={0.5}
+              strokeDasharray="3,3"
+            />
+            {rows.map((s) => (
+              <circle
+                key={s.name}
+                cx={toX(hover.idx)}
+                cy={toY(s.v)}
+                r={2.5}
+                fill={s.color}
+              />
+            ))}
           </>
         )}
       </svg>
       {hover && (
         <HoverTip x={hover.x} y={hover.y}>
-          <div className="font-semibold mb-0.5">{fmtDayLabel(dayKeys[hover.idx])}</div>
+          <div className="font-semibold mb-0.5">
+            {fmtDayLabel(dayKeys[hover.idx])}
+          </div>
           {rows.length === 0 && <div className="opacity-60">No activity</div>}
           {rows.map((s) => (
-            <div key={s.name} className="flex items-center gap-1.5 tabular-nums">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
+            <div
+              key={s.name}
+              className="flex items-center gap-1.5 tabular-nums"
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: s.color }}
+              />
               <span className="flex-1">{s.name}</span>
               <span className="pl-3">{fmt(s.v)}</span>
             </div>

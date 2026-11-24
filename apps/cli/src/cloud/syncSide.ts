@@ -41,24 +41,61 @@
 import { createRequire } from "node:module";
 import * as proc from "../proc.js";
 import { promisify } from "node:util";
-import { shq, sshBase, sshDestination, type RemoteHost } from "../remote/session-move.js";
-import { describeSyncSkipped, type SyncSkipReason } from "@codecast/shared/contracts";
-import { AGENT_CONTEXT_ROOTS, INSTRUCTION_FILE_RE, MEDIA_FILE_RE, NATIVE_BINARY_MAGICS } from "./mirror/discovery.js";
+import {
+  shq,
+  sshBase,
+  sshDestination,
+  type RemoteHost,
+} from "../remote/session-move.js";
+import {
+  describeSyncSkipped,
+  type SyncSkipReason,
+} from "@codecast/shared/contracts";
+import {
+  AGENT_CONTEXT_ROOTS,
+  INSTRUCTION_FILE_RE,
+  MEDIA_FILE_RE,
+  NATIVE_BINARY_MAGICS,
+} from "./mirror/discovery.js";
 
 /**
  * What every command the laptop runs on a host starts with: a non-interactive
  * ssh shell reads no profile, so bun, cast and (on a Mac host) Homebrew's
  * tools are on PATH only if the command puts them there. Spelled once here.
  */
-export const HOST_PATH_EXPORT = 'export PATH="$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"';
+export const HOST_PATH_EXPORT =
+  'export PATH="$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"';
 
 const execFileAsync = promisify(proc.execFile);
 
 /** Folders the host rebuilds itself: never copied unless an `always` pattern names them. */
 export const SYNC_REBUILT_DIRS: readonly string[] = [
-  "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
-  "target", "dist", "build", ".next", ".nuxt", ".svelte-kit", ".turbo", ".cache", ".parcel-cache",
-  ".gradle", "Pods", "DerivedData", ".expo", ".dart_tool", "coverage", ".terraform", ".vercel", ".wrangler",
+  "node_modules",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".pytest_cache",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".tox",
+  "target",
+  "dist",
+  "build",
+  ".next",
+  ".nuxt",
+  ".svelte-kit",
+  ".turbo",
+  ".cache",
+  ".parcel-cache",
+  ".gradle",
+  "Pods",
+  "DerivedData",
+  ".expo",
+  ".dart_tool",
+  "coverage",
+  ".terraform",
+  ".vercel",
+  ".wrangler",
 ];
 
 /**
@@ -67,7 +104,14 @@ export const SYNC_REBUILT_DIRS: readonly string[] = [
  * other agent tools keep there (Claude Code's, Conductor's), each a whole
  * checkout of its own, and a local Convex backend's database.
  */
-export const SYNC_MACHINE_DIRS: readonly string[] = [".codecast/workspaces", ".codecast/worktrees", ".codecast/logs", ".claude/worktrees", ".conductor", ".convex/local"];
+export const SYNC_MACHINE_DIRS: readonly string[] = [
+  ".codecast/workspaces",
+  ".codecast/worktrees",
+  ".codecast/logs",
+  ".claude/worktrees",
+  ".conductor",
+  ".convex/local",
+];
 
 export const SYNC_MAX_FILE_BYTES = 100 * 1024 * 1024;
 export const SYNC_MAX_TOTAL_BYTES = 1024 * 1024 * 1024;
@@ -80,7 +124,11 @@ export interface SyncScope {
 }
 
 export type SkipReason = SyncSkipReason;
-export interface Skipped { path: string; reason: SkipReason; bytes?: number }
+export interface Skipped {
+  path: string;
+  reason: SkipReason;
+  bytes?: number;
+}
 
 export interface SnapshotResult {
   tree: string;
@@ -98,15 +146,36 @@ export interface SnapshotResult {
 }
 
 export type SideRequest =
-  | { op: "snapshot"; cwd: string; scope?: SyncScope; commit?: boolean; ref?: string; skippedLimit?: number; agentPaths?: boolean; listOnly?: boolean }
-  | { op: "land"; cwd: string; scope?: SyncScope; sha: string; expectTree: string; moveHead?: string; backupPrefix?: string }
+  | {
+      op: "snapshot";
+      cwd: string;
+      scope?: SyncScope;
+      commit?: boolean;
+      ref?: string;
+      skippedLimit?: number;
+      agentPaths?: boolean;
+      listOnly?: boolean;
+    }
+  | {
+      op: "land";
+      cwd: string;
+      scope?: SyncScope;
+      sha: string;
+      expectTree: string;
+      moveHead?: string;
+      backupPrefix?: string;
+    }
   | { op: "ls"; cwd: string; paths: string[] };
 
 export type LandResult =
   | { landed: true; tree: string; changed: string[]; backupRef?: string }
   | { landed: false; reason: "moved"; tree: string };
 
-export interface LsEntry { path: string; kind: "file" | "dir" | "link" | "missing"; bytes?: number }
+export interface LsEntry {
+  path: string;
+  kind: "file" | "dir" | "link" | "missing";
+  bytes?: number;
+}
 
 /**
  * The program. Plain JS (no types, no template interpolation) because it runs
@@ -362,11 +431,22 @@ if (req.op === "ls") return await ls();
 throw new Error("unknown op " + req.op);
 `;
 
-const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor as new (...args: string[]) => (...a: unknown[]) => Promise<unknown>;
+const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor as new (
+  ...args: string[]
+) => (...a: unknown[]) => Promise<unknown>;
 const localRequire = createRequire(import.meta.url);
 
 function withConstants(req: SideRequest): object {
-  return { ...req, rebuilt: SYNC_REBUILT_DIRS, machine: SYNC_MACHINE_DIRS, media: MEDIA_FILE_RE.source, magics: NATIVE_BINARY_MAGICS, agentRoots: AGENT_CONTEXT_ROOTS.filter((r) => !r.includes("/")), instruction: INSTRUCTION_FILE_RE.source, defaults: { maxFile: SYNC_MAX_FILE_BYTES, maxTotal: SYNC_MAX_TOTAL_BYTES } };
+  return {
+    ...req,
+    rebuilt: SYNC_REBUILT_DIRS,
+    machine: SYNC_MACHINE_DIRS,
+    media: MEDIA_FILE_RE.source,
+    magics: NATIVE_BINARY_MAGICS,
+    agentRoots: AGENT_CONTEXT_ROOTS.filter((r) => !r.includes("/")),
+    instruction: INSTRUCTION_FILE_RE.source,
+    defaults: { maxFile: SYNC_MAX_FILE_BYTES, maxTotal: SYNC_MAX_TOTAL_BYTES },
+  };
 }
 
 let compiled: ((...a: unknown[]) => Promise<unknown>) | null = null;
@@ -387,13 +467,25 @@ export function remoteSideCommand(req: SideRequest): string {
 }
 
 /** Run one side's operation on a host over its ssh connection. */
-export async function runRemoteSide<T = unknown>(host: RemoteHost, req: SideRequest, timeoutMs = 120_000): Promise<T> {
+export async function runRemoteSide<T = unknown>(
+  host: RemoteHost,
+  req: SideRequest,
+  timeoutMs = 120_000,
+): Promise<T> {
   try {
-    const { stdout } = await execFileAsync("ssh", [...sshBase(host), sshDestination(host), remoteSideCommand(req)], { encoding: "utf-8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 });
+    const { stdout } = await execFileAsync(
+      "ssh",
+      [...sshBase(host), sshDestination(host), remoteSideCommand(req)],
+      { encoding: "utf-8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 },
+    );
     return JSON.parse(stdout.trim().split("\n").pop() || "null") as T;
   } catch (e) {
     const err = e as { stderr?: string; message?: string };
-    const detail = (proc.lastErrorLine(err.stderr) || err.message || String(e)).slice(0, 300);
+    const detail = (
+      proc.lastErrorLine(err.stderr) ||
+      err.message ||
+      String(e)
+    ).slice(0, 300);
     throw new Error(`on the host: ${detail}`);
   }
 }

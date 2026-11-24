@@ -11,7 +11,12 @@
 import { memo, Suspense, useRef, type ReactNode, type Ref } from "react";
 import { PhoneCall, Plus } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
-import { useCallsAvailable, useTeamFeature, useWorkspaceFeature, useWorkspaceFeatureState } from "../../lib/teamFeatures";
+import {
+  useCallsAvailable,
+  useTeamFeature,
+  useWorkspaceFeature,
+  useWorkspaceFeatureState,
+} from "../../lib/teamFeatures";
 import { FOLDERS_HEADING, type NavGates } from "../../lib/navRegistry";
 import { placeSection, RAIL_MORE_EVENT } from "../../lib/navPlace";
 import { useMountEffect } from "../../hooks/useMountEffect";
@@ -22,7 +27,13 @@ import { useThreadUnread } from "../../hooks/useThreadsSync";
 import { useLiveRoomCount } from "../../hooks/useLiveRoomCount";
 import { usePoppedOut } from "../../hooks/usePoppedOut";
 import { useRailLevel } from "../../hooks/useRailLevel";
-import { NavCount, NeedsInputCount, RailHeading, SectionRow, type SectionRowSpec } from "./navPrimitives";
+import {
+  NavCount,
+  NeedsInputCount,
+  RailHeading,
+  SectionRow,
+  type SectionRowSpec,
+} from "./navPrimitives";
 import { ChatDrillList, ChatNavRow } from "./ChatNav";
 import { SidebarDrillStack } from "./SidebarDrill";
 import { ModernNavView, RegistryNavSection } from "./ModernNav";
@@ -44,7 +55,11 @@ const OpsRailCount = lazyNamed(() => import("./OpsRailCount"), "OpsRailCount");
 const NEEDS_YOU = "bg-sol-cyan/15 text-sol-cyan";
 const UNREAD = "bg-sol-red/15 text-sol-red";
 
-type RowProps = { isActive: boolean; isNarrow: boolean; onMobileClose?: () => void };
+type RowProps = {
+  isActive: boolean;
+  isNarrow: boolean;
+  onMobileClose?: () => void;
+};
 
 // Each live row is a leaf of its own: its count moves on its own clock (an
 // agent asks, someone replies, a huddle starts), and that must re-render one
@@ -53,27 +68,69 @@ type RowProps = { isActive: boolean; isNarrow: boolean; onMobileClose?: () => vo
 /** The sessions that need you: the session rail's Questions and Needs You,
  *  mine-scoped (useNeedsInputCount, over wake signatures, never the raw
  *  sessions map). Silent at zero. */
-export const ModernInboxRow = memo(function ModernInboxRow({ isActive, isNarrow, onMobileClose }: RowProps) {
+export const ModernInboxRow = memo(function ModernInboxRow({
+  isActive,
+  isNarrow,
+  onMobileClose,
+}: RowProps) {
   const needs = useNeedsInputCount();
-  return <RegistryNavSection id="inbox" isActive={isActive} isNarrow={isNarrow} onMobileClose={onMobileClose} badge={needs > 0 ? <NavCount n={needs} tone={NEEDS_YOU} /> : undefined} />;
+  return (
+    <RegistryNavSection
+      id="inbox"
+      isActive={isActive}
+      isNarrow={isNarrow}
+      onMobileClose={onMobileClose}
+      badge={needs > 0 ? <NavCount n={needs} tone={NEEDS_YOU} /> : undefined}
+    />
+  );
 });
 
 /** The decisions waiting on you: the queue the stepper walks and the panel lists. Always drawn: at zero the count goes, the row stays. */
-const DecisionsRow = memo(function DecisionsRow({ isActive, isNarrow, onMobileClose }: RowProps) {
+const DecisionsRow = memo(function DecisionsRow({
+  isActive,
+  isNarrow,
+  onMobileClose,
+}: RowProps) {
   const pending = useDecisionQueue().length;
-  return <RegistryNavSection id="decisions" isActive={isActive} isNarrow={isNarrow} onMobileClose={onMobileClose} badge={pending > 0 ? <NavCount n={pending} tone={NEEDS_YOU} /> : undefined} />;
+  return (
+    <RegistryNavSection
+      id="decisions"
+      isActive={isActive}
+      isNarrow={isNarrow}
+      onMobileClose={onMobileClose}
+      badge={
+        pending > 0 ? <NavCount n={pending} tone={NEEDS_YOU} /> : undefined
+      }
+    />
+  );
 });
 
 /** Every conversation you are in, with how many moved. */
-const ThreadsRow = memo(function ThreadsRow({ isActive, isNarrow, onMobileClose }: RowProps) {
+const ThreadsRow = memo(function ThreadsRow({
+  isActive,
+  isNarrow,
+  onMobileClose,
+}: RowProps) {
   const unread = useThreadUnread();
-  return <RegistryNavSection id="threads" isActive={isActive} isNarrow={isNarrow} onMobileClose={onMobileClose} badge={unread > 0 ? <NavCount n={unread} tone={UNREAD} /> : undefined} />;
+  return (
+    <RegistryNavSection
+      id="threads"
+      isActive={isActive}
+      isNarrow={isNarrow}
+      onMobileClose={onMobileClose}
+      badge={unread > 0 ? <NavCount n={unread} tone={UNREAD} /> : undefined}
+    />
+  );
 });
 
 /** Calls, with a still dot while a huddle is live (the rail runs no infinite
  *  animation), and Start huddle on hover or keyboard focus. In the Chat
  *  window while there is one. */
-const CallsRow = memo(function CallsRow({ isActive, isNarrow, onMobileClose }: RowProps) {
+const CallsRow = memo(function CallsRow({
+  isActive,
+  isNarrow,
+  onMobileClose,
+}: RowProps) {
   const live = useLiveRoomCount();
   const openCreateModal = useInboxStore((s) => s.openCreateModal);
   return (
@@ -83,7 +140,14 @@ const CallsRow = memo(function CallsRow({ isActive, isNarrow, onMobileClose }: R
       isNarrow={isNarrow}
       onMobileClose={onMobileClose}
       popped="chat"
-      badge={live > 0 ? <span className="block w-2 h-2 mx-1.5 rounded-full bg-sol-green" aria-label="Live huddle" /> : undefined}
+      badge={
+        live > 0 ? (
+          <span
+            className="block w-2 h-2 mx-1.5 rounded-full bg-sol-green"
+            aria-label="Live huddle"
+          />
+        ) : undefined
+      }
       headerAction={
         <button
           onClick={() => openCreateModal("huddle")}
@@ -140,7 +204,9 @@ export function ModernSidebar({
   decisionViewItems: SectionRowSpec[];
   /** The person's open and shut sections (client_state.ui.nav_sections). */
   viewSectionOverride: Record<string, boolean>;
-  setViewSectionOverride: (next: (cur: Record<string, boolean>) => Record<string, boolean>) => void;
+  setViewSectionOverride: (
+    next: (cur: Record<string, boolean>) => Record<string, boolean>,
+  ) => void;
   bookmarkRows: ReactNode;
   folderRows: ReactNode;
   appFooter: ReactNode;
@@ -170,13 +236,29 @@ export function ModernSidebar({
   const orgOffer = useWorkspaceFeatureState("org") === "offer";
   const flowsOn = useWorkspaceFeature("line");
   const flowsOffer = useWorkspaceFeatureState("line") === "offer";
-  const staff = useInboxStore((s) => (s.currentUser as { staff?: boolean } | null | undefined)?.staff === true);
+  const staff = useInboxStore(
+    (s) =>
+      (s.currentUser as { staff?: boolean } | null | undefined)?.staff === true,
+  );
   const gates: NavGates = {
-    chat: chatOn, calls: callsOn, changes: changesOn, team: hasTeam, staff,
-    org: orgOn || (orgOffer ? "offer" : false), line: flowsOn || (flowsOffer ? "offer" : false),
+    chat: chatOn,
+    calls: callsOn,
+    changes: changesOn,
+    team: hasTeam,
+    staff,
+    org: orgOn || (orgOffer ? "offer" : false),
+    line: flowsOn || (flowsOffer ? "offer" : false),
   };
   // Saving the first layout is the palette's; the rail lists them once there is one.
-  const layoutCount = useInboxStore((s) => sortedWorkbenches({ savedViews: s.savedViews ?? {}, clientState: { ui: { active_team_id: s.clientState.ui?.active_team_id } } }).length);
+  const layoutCount = useInboxStore(
+    (s) =>
+      sortedWorkbenches({
+        savedViews: s.savedViews ?? {},
+        clientState: {
+          ui: { active_team_id: s.clientState.ui?.active_team_id },
+        },
+      }).length,
+  );
 
   // Chat, Tasks and More are levels of the rail (SidebarDrill), open while the
   // route belongs to one or after the person opens one, never left over from
@@ -187,7 +269,10 @@ export function ModernSidebar({
   const drillOn = !isNarrow;
   const chatDrills = drillOn && chatOn && !chatAway && !peek;
   const tasksDrill = drillOn && !workAway && taskViewItems.length > 0;
-  const drill = useRailLevel<"chat" | "tasks" | "more">(isChat ? "chat" : isTasks ? "tasks" : null, { chat: chatDrills, tasks: tasksDrill, more: drillOn });
+  const drill = useRailLevel<"chat" | "tasks" | "more">(
+    isChat ? "chat" : isTasks ? "tasks" : null,
+    { chat: chatDrills, tasks: tasksDrill, more: drillOn },
+  );
   // The "More" crumb above a page that lives there opens this level
   // (components/nav/PlaceCrumbs).
   const openMore = useRef(() => {});
@@ -198,8 +283,10 @@ export function ModernSidebar({
     return () => window.removeEventListener(RAIL_MORE_EVENT, onMore);
   });
 
-  const sectionOpen = (key: string, fallback: boolean) => viewSectionOverride[key] ?? fallback;
-  const toggleSection = (key: string, fallback: boolean) => setViewSectionOverride((o) => ({ ...o, [key]: !(o[key] ?? fallback) }));
+  const sectionOpen = (key: string, fallback: boolean) =>
+    viewSectionOverride[key] ?? fallback;
+  const toggleSection = (key: string, fallback: boolean) =>
+    setViewSectionOverride((o) => ({ ...o, [key]: !(o[key] ?? fallback) }));
   const row = { isNarrow, onMobileClose };
 
   const nav = (
@@ -218,7 +305,11 @@ export function ModernSidebar({
           <>
             <DecisionsRow isActive={activeId === "decisions"} {...row} />
             {/* The page's saved views, while it is open. */}
-            {!isNarrow && isDecisions && decisionViewItems.map((view) => <SectionRow key={view.id} row={view} className="pl-6" />)}
+            {!isNarrow &&
+              isDecisions &&
+              decisionViewItems.map((view) => (
+                <SectionRow key={view.id} row={view} className="pl-6" />
+              ))}
           </>
         ),
         threads: <ThreadsRow isActive={activeId === "threads"} {...row} />,
@@ -243,18 +334,39 @@ export function ModernSidebar({
             </Suspense>
           </>
         ),
-        activity: hasTeam && <RegistryNavSection id="activity" isActive={activeId === "activity"} {...row} />,
+        activity: hasTeam && (
+          <RegistryNavSection
+            id="activity"
+            isActive={activeId === "activity"}
+            {...row}
+          />
+        ),
       }}
-      tasks={{ items: taskViewItems, expanded: sectionOpen("tasks", isTasks), onToggle: () => toggleSection("tasks", isTasks), onDrill: tasksDrill ? () => drill.open("tasks") : undefined }}
-      docs={{ items: docViewItems, expanded: sectionOpen("docs", isDocs), onToggle: () => toggleSection("docs", isDocs) }}
-      opsBadge={<Suspense fallback={null}><OpsRailCount /></Suspense>}
+      tasks={{
+        items: taskViewItems,
+        expanded: sectionOpen("tasks", isTasks),
+        onToggle: () => toggleSection("tasks", isTasks),
+        onDrill: tasksDrill ? () => drill.open("tasks") : undefined,
+      }}
+      docs={{
+        items: docViewItems,
+        expanded: sectionOpen("docs", isDocs),
+        onToggle: () => toggleSection("docs", isDocs),
+      }}
+      opsBadge={
+        <Suspense fallback={null}>
+          <OpsRailCount />
+        </Suspense>
+      }
       workAction={<AppPopOutButton app="work" className="-my-1" />}
       // A person in no team has one workspace and nothing to switch.
-      workspaceHeader={hasTeams ? (
-        <ErrorBoundary name="TeamSwitcher" level="inline">
-          <TeamSwitcher variant="rail" isNarrow={isNarrow} />
-        </ErrorBoundary>
-      ) : undefined}
+      workspaceHeader={
+        hasTeams ? (
+          <ErrorBoundary name="TeamSwitcher" level="inline">
+            <TeamSwitcher variant="rail" isNarrow={isNarrow} />
+          </ErrorBoundary>
+        ) : undefined
+      }
     />
   );
 
@@ -271,26 +383,43 @@ export function ModernSidebar({
       <SidebarDrillStack
         level={drill.level}
         shown={drill.shown}
-        label={drill.shown === "tasks" ? "Tasks" : drill.shown === "more" ? "More" : "Chat"}
+        label={
+          drill.shown === "tasks"
+            ? "Tasks"
+            : drill.shown === "more"
+              ? "More"
+              : "Chat"
+        }
         peek={<NeedsYouPeek />}
         onBack={drill.back}
-        pane={drill.shown === "chat" ? (
-          <ChatDrillList pathname={pathname} onMobileClose={onMobileClose} />
-        ) : drill.shown === "tasks" ? (
-          <>
-            <RailHeading label="Saved views" isNarrow={false} />
-            {taskViewItems.map((view) => <SectionRow key={view.id} row={view} />)}
-          </>
-        ) : drill.shown === "more" ? (
-          <MoreDrillList
-            activeId={activeId}
-            gates={gates}
-            focused={focus.focused}
-            daily={focus.daily}
-            focusToggle={focus.offered ? () => useInboxStore.getState().updateClientUI({ rail_everything: focus.focused }) : undefined}
-            onMobileClose={onMobileClose}
-          />
-        ) : null}
+        pane={
+          drill.shown === "chat" ? (
+            <ChatDrillList pathname={pathname} onMobileClose={onMobileClose} />
+          ) : drill.shown === "tasks" ? (
+            <>
+              <RailHeading label="Saved views" isNarrow={false} />
+              {taskViewItems.map((view) => (
+                <SectionRow key={view.id} row={view} />
+              ))}
+            </>
+          ) : drill.shown === "more" ? (
+            <MoreDrillList
+              activeId={activeId}
+              gates={gates}
+              focused={focus.focused}
+              daily={focus.daily}
+              focusToggle={
+                focus.offered
+                  ? () =>
+                      useInboxStore
+                        .getState()
+                        .updateClientUI({ rail_everything: focus.focused })
+                  : undefined
+              }
+              onMobileClose={onMobileClose}
+            />
+          ) : null
+        }
       >
         <div className="flex-1 flex flex-col min-h-0">
           {/* Pins lead the rail. */}
@@ -301,12 +430,22 @@ export function ModernSidebar({
             <>
               {!isNarrow && counts.bookmarks > 0 && (
                 <div data-rail-group="bookmarks" className="mt-3">
-                  <RailFoldHeading label="Bookmarks" open={bookmarksOpen} onToggle={() => toggleSection("bookmarks", false)} count={counts.bookmarks} />
+                  <RailFoldHeading
+                    label="Bookmarks"
+                    open={bookmarksOpen}
+                    onToggle={() => toggleSection("bookmarks", false)}
+                    count={counts.bookmarks}
+                  />
                   {bookmarksOpen && bookmarkRows}
                 </div>
               )}
               {/* Saved layouts (store/workbench.ts): the frame, not the work. */}
-              {!focus.focused && layoutCount > 0 && <WorkbenchSection isNarrow={isNarrow} onMobileClose={onMobileClose} />}
+              {!focus.focused && layoutCount > 0 && (
+                <WorkbenchSection
+                  isNarrow={isNarrow}
+                  onMobileClose={onMobileClose}
+                />
+              )}
               {!isNarrow && counts.folders > 0 && (
                 <div data-rail-group="folders" className="mt-3">
                   <RailFoldHeading

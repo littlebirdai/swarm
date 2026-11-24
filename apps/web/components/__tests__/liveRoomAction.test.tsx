@@ -26,7 +26,8 @@ function row(overrides: Partial<LiveRoomRow> = {}): LiveRoomRow {
   };
 }
 
-const action = (r: LiveRoomRow) => renderToStaticMarkup(<LiveRoomAction row={r} />);
+const action = (r: LiveRoomRow) =>
+  renderToStaticMarkup(<LiveRoomAction row={r} />);
 
 describe("LiveRoomAction", () => {
   test("an open room offers join", () => {
@@ -46,7 +47,9 @@ describe("LiveRoomAction", () => {
   });
 
   test("a knock already at the door waits instead of re-asking", () => {
-    expect(action(row({ locked: true, canJoin: false, knocked: true }))).toContain(">knocked<");
+    expect(
+      action(row({ locked: true, canJoin: false, knocked: true })),
+    ).toContain(">knocked<");
   });
 
   test("the room I am sitting in offers its existing huddle window", () => {
@@ -58,9 +61,13 @@ describe("LiveRoomAction", () => {
   });
 
   test("the lock glyph reports the door honestly, even on a room I may enter", () => {
-    const shut = renderToStaticMarkup(<LiveRoomLabel row={row({ locked: true, canJoin: true })} />);
+    const shut = renderToStaticMarkup(
+      <LiveRoomLabel row={row({ locked: true, canJoin: true })} />,
+    );
     expect(shut).toContain('aria-label="Locked"');
-    expect(renderToStaticMarkup(<LiveRoomLabel row={row()} />)).not.toContain('aria-label="Locked"');
+    expect(renderToStaticMarkup(<LiveRoomLabel row={row()} />)).not.toContain(
+      'aria-label="Locked"',
+    );
   });
 });
 
@@ -77,9 +84,9 @@ describe("Live now is reachable by keyboard, and says what it reaches", () => {
   });
 
   test("knock carries the room too", () => {
-    expect(action(row({ locked: true, canJoin: false, label: "#design" }))).toContain(
-      'aria-label="Knock at #design"',
-    );
+    expect(
+      action(row({ locked: true, canJoin: false, label: "#design" })),
+    ).toContain('aria-label="Knock at #design"');
   });
 
   test("a redacted huddle still names itself the way the row does", () => {
@@ -89,7 +96,11 @@ describe("Live now is reachable by keyboard, and says what it reaches", () => {
   });
 
   test("every gesture is a real button, so tab reaches it", () => {
-    for (const r of [row(), row({ locked: true, canJoin: false }), row({ mine: true })]) {
+    for (const r of [
+      row(),
+      row({ locked: true, canJoin: false }),
+      row({ mine: true }),
+    ]) {
       expect(action(r)).toContain("<button");
     }
   });
@@ -97,6 +108,8 @@ describe("Live now is reachable by keyboard, and says what it reaches", () => {
   test("a pending knock renders no control until I am in the room", () => {
     const waiting = row({ locked: true, canJoin: false, knocked: true });
     expect(action(waiting)).not.toContain("<button");
-    expect(action({ ...waiting, mine: true })).toContain('aria-label="Show Ann"');
+    expect(action({ ...waiting, mine: true })).toContain(
+      'aria-label="Show Ann"',
+    );
   });
 });

@@ -8,7 +8,10 @@ import { Fingerprint, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { PasskeyMeta } from "@codecast/shared/contracts/secrets";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
-import { formatFullTimestamp, formatRelativeTime } from "../../lib/conversationFormat";
+import {
+  formatFullTimestamp,
+  formatRelativeTime,
+} from "../../lib/conversationFormat";
 import { PERSON_ONLY, useAgentDrivenTab } from "../../lib/agentTabGuard";
 import { addPasskey } from "../../lib/passkeyPresence";
 import { useRemovePasskey } from "../../hooks/useRemovePasskey";
@@ -29,12 +32,21 @@ function PasskeyRow({ passkey }: { passkey: PasskeyMeta }) {
     setRenameError(res?.error ?? null);
   };
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5" data-passkey={passkey._id}>
+    <div
+      className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5"
+      data-passkey={passkey._id}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Fingerprint className="h-4 w-4 shrink-0 text-sol-text-dim" />
         <div className="min-w-0">
           {name === null ? (
-            <button type="button" onClick={() => setName(passkey.name)} title="Rename" className="block max-w-full truncate text-left text-sm text-sol-text hover:text-sol-cyan" data-passkey-name>
+            <button
+              type="button"
+              onClick={() => setName(passkey.name)}
+              title="Rename"
+              className="block max-w-full truncate text-left text-sm text-sol-text hover:text-sol-cyan"
+              data-passkey-name
+            >
               {passkey.name}
             </button>
           ) : (
@@ -53,8 +65,20 @@ function PasskeyRow({ passkey }: { passkey: PasskeyMeta }) {
             />
           )}
           <div className="mt-0.5 flex gap-3 text-xs text-sol-text-muted">
-            <span title={formatFullTimestamp(passkey.created_at)}>added {formatRelativeTime(passkey.created_at)}</span>
-            <span title={passkey.last_used_at ? formatFullTimestamp(passkey.last_used_at) : undefined}>{passkey.last_used_at ? `used ${formatRelativeTime(passkey.last_used_at)}` : "never used"}</span>
+            <span title={formatFullTimestamp(passkey.created_at)}>
+              added {formatRelativeTime(passkey.created_at)}
+            </span>
+            <span
+              title={
+                passkey.last_used_at
+                  ? formatFullTimestamp(passkey.last_used_at)
+                  : undefined
+              }
+            >
+              {passkey.last_used_at
+                ? `used ${formatRelativeTime(passkey.last_used_at)}`
+                : "never used"}
+            </span>
           </div>
           {error && <div className="mt-0.5 text-xs text-sol-red">{error}</div>}
         </div>
@@ -68,7 +92,14 @@ function PasskeyRow({ passkey }: { passkey: PasskeyMeta }) {
         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sol-text-dim transition-colors hover:bg-sol-red/10 hover:text-sol-red disabled:opacity-50"
         data-passkey-remove
       >
-        {removing ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : <Trash2 size={14} />}
+        {removing ? (
+          <Loader2
+            size={14}
+            className="animate-spin motion-reduce:animate-none"
+          />
+        ) : (
+          <Trash2 size={14} />
+        )}
       </button>
     </div>
   );
@@ -88,8 +119,19 @@ export function PasskeysSection() {
       setAdding(false);
     }
   };
-  const addProps = { onClick: () => void add(), disabled: adding || passkeys === undefined || agentTab, title: agentTab ? PERSON_ONLY.enroll : undefined, "data-passkey-add": true };
-  const addIcon = adding ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : agentTab ? <Lock className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />;
+  const addProps = {
+    onClick: () => void add(),
+    disabled: adding || passkeys === undefined || agentTab,
+    title: agentTab ? PERSON_ONLY.enroll : undefined,
+    "data-passkey-add": true,
+  };
+  const addIcon = adding ? (
+    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+  ) : agentTab ? (
+    <Lock className="h-3.5 w-3.5" />
+  ) : (
+    <Plus className="h-3.5 w-3.5" />
+  );
   return (
     <SettingsSection
       title="Touch ID"
@@ -104,14 +146,27 @@ export function PasskeysSection() {
       }
     >
       {passkeys === undefined ? (
-        <div className={`px-4 py-3 text-sm sm:px-5 ${error ? "text-sol-red" : "text-sol-text-dim"}`}>{error ? "Could not load Touch ID" : "Loading"}</div>
+        <div
+          className={`px-4 py-3 text-sm sm:px-5 ${error ? "text-sol-red" : "text-sol-text-dim"}`}
+        >
+          {error ? "Could not load Touch ID" : "Loading"}
+        </div>
       ) : passkeys.length === 0 ? (
-        <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5" data-passkeys-empty>
+        <div
+          className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5"
+          data-passkeys-empty
+        >
           <div className="flex min-w-0 items-center gap-3">
             <Fingerprint className="h-4 w-4 shrink-0 text-sol-text-dim" />
             <span className="text-sm text-sol-text-muted">Not set up</span>
           </div>
-          <Button type="button" variant="yellow" size="xs" {...addProps} className="shrink-0">
+          <Button
+            type="button"
+            variant="yellow"
+            size="xs"
+            {...addProps}
+            className="shrink-0"
+          >
             {addIcon}
             Add Touch ID
           </Button>

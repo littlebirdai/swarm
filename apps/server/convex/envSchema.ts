@@ -12,12 +12,17 @@ import { v } from "convex/values";
 import { ENV_LEVELS, ENV_SPLITS } from "@codecast/shared/contracts/envs";
 import { CASE_SET_SPLITS } from "@codecast/shared/contracts/envCases";
 
-const literals = <T extends string>(values: readonly T[]) => v.union(...values.map((value) => v.literal(value)));
+const literals = <T extends string>(values: readonly T[]) =>
+  v.union(...values.map((value) => v.literal(value)));
 
 export const envLevelValidator = literals(ENV_LEVELS);
 export const envSplitValidator = literals(ENV_SPLITS);
 export const caseSetSplitValidator = literals(CASE_SET_SPLITS);
-export const goalEnvValidator = v.object({ env: v.string(), level: envLevelValidator, note: v.optional(v.string()) });
+export const goalEnvValidator = v.object({
+  env: v.string(),
+  level: envLevelValidator,
+  note: v.optional(v.string()),
+});
 const interval = v.array(v.number());
 
 export const envTables = {
@@ -31,7 +36,11 @@ export const envTables = {
     title: v.optional(v.string()),
     // Where the declaration lives (a normalized git remote): one key, one repo.
     repo: v.optional(v.string()),
-    candidate: v.object({ label: v.string(), sha: v.optional(v.string()), prompt_hash: v.optional(v.string()) }),
+    candidate: v.object({
+      label: v.string(),
+      sha: v.optional(v.string()),
+      prompt_hash: v.optional(v.string()),
+    }),
     split: envSplitValidator,
     n: v.number(),
     mean: v.number(),

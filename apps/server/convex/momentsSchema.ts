@@ -16,7 +16,10 @@ import { v } from "convex/values";
 export const FINDING_VECTOR_DIMENSIONS = 1536;
 
 /** What a judge run read, as hashes: the messages (what was said) and the facts and text the extractor computed (lib/momentJudging.judgeInputsOf). */
-export const judgeInputs = v.object({ messages: v.string(), facts: v.string() });
+export const judgeInputs = v.object({
+  messages: v.string(),
+  facts: v.string(),
+});
 
 /** An agent judge's session (contracts/agentJudges AgentJudgeSpec), with the files its header names read in at publish. */
 export const agentJudgeFields = v.object({
@@ -30,11 +33,27 @@ export const agentJudgeFields = v.object({
   gateway: v.optional(v.string()),
 });
 
-export const agentReviewStatus = v.union(v.literal("queued"), v.literal("running"), v.literal("done"), v.literal("failed"), v.literal("cancelled"));
+export const agentReviewStatus = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("done"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
 
 // skipped: its extractor declined it (ExtractorOutput.skip); nothing judges it.
-const momentStatus = v.union(v.literal("waiting"), v.literal("extracting"), v.literal("ready"), v.literal("failed"), v.literal("skipped"));
-const budgetPurposes = v.object({ judge: v.number(), grouping: v.number(), call: v.number() });
+const momentStatus = v.union(
+  v.literal("waiting"),
+  v.literal("extracting"),
+  v.literal("ready"),
+  v.literal("failed"),
+  v.literal("skipped"),
+);
+const budgetPurposes = v.object({
+  judge: v.number(),
+  grouping: v.number(),
+  call: v.number(),
+});
 
 export const momentsTables = {
   // LL7. One moment: the coalesced events of one (kind, subject), then what
@@ -82,8 +101,18 @@ export const momentsTables = {
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_source_kind_subject_status", ["source_id", "kind", "subject", "status"])
-    .index("by_source_kind_status_due", ["source_id", "kind", "status", "due_at"])
+    .index("by_source_kind_subject_status", [
+      "source_id",
+      "kind",
+      "subject",
+      "status",
+    ])
+    .index("by_source_kind_status_due", [
+      "source_id",
+      "kind",
+      "status",
+      "due_at",
+    ])
     // The daily prune: waiting moments no extractor ever took, and failed and skipped ones.
     .index("by_status_due", ["status", "due_at"])
     .index("by_workspace_created", ["workspace", "created_at"])
@@ -154,7 +183,9 @@ export const momentsTables = {
     /** Why it failed or was skipped, in words. */
     reason: v.optional(v.string()),
     /** The expectations versions it graded against. */
-    expectations: v.array(v.object({ project_id: v.id("projects"), version: v.number() })),
+    expectations: v.array(
+      v.object({ project_id: v.id("projects"), version: v.number() }),
+    ),
     /** JudgeFinding[] as JSON. */
     findings_json: v.optional(v.string()),
     findings: v.number(),
@@ -207,7 +238,14 @@ export const momentsTables = {
     /** What the session took: wall time, turns, tokens, and what claude reports it would cost on the API (subscription quota, not money). */
     took_ms: v.optional(v.number()),
     turns: v.optional(v.number()),
-    usage: v.optional(v.object({ input: v.number(), output: v.number(), cache_read: v.number(), cache_write: v.number() })),
+    usage: v.optional(
+      v.object({
+        input: v.number(),
+        output: v.number(),
+        cache_read: v.number(),
+        cache_write: v.number(),
+      }),
+    ),
     notional_usd: v.optional(v.number()),
     /** Of notional_usd, what the second turn (listing the findings) cost. */
     findings_turn_usd: v.optional(v.number()),
@@ -254,7 +292,11 @@ export const momentsTables = {
     embedding: v.array(v.float64()),
   })
     .index("by_signal", ["signal_id"])
-    .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: FINDING_VECTOR_DIMENSIONS, filterFields: ["scope"] }),
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: FINDING_VECTOR_DIMENSIONS,
+      filterFields: ["scope"],
+    }),
 
   // LL10. A team's monthly model budget: the cap a person set, and this
   // month's spend by purpose. 0 is off.

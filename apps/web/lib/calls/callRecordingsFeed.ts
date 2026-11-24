@@ -6,7 +6,11 @@
 // the `@/` alias, which means the mobile app on the phone.
 import { useMemo, useRef } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { callRecordingUrlWindow, type CallRecordingKind, type CallRecordingStatus } from "@codecast/shared/contracts";
+import {
+  callRecordingUrlWindow,
+  type CallRecordingKind,
+  type CallRecordingStatus,
+} from "@codecast/shared/contracts";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { syncTransaction } from "../../store/syncTransaction";
 import { useFeederError } from "../../hooks/useSyncCollection";
@@ -104,8 +108,20 @@ export function useCallRecordingUrlWindow(): number {
 // URLs are signed for a window, though, so an answer held past them is not
 // painted (useCallRecordings).
 
-const CALL_FACTS = ["short_id", "call_started_at", "call_ended_at", "configured", "share_link", "video_shared", "video_later", "can_share_video"] as const;
-type CallRecordingFacts = Omit<CallRecordings, "recordings" | "transcript_id"> & { _id: string };
+const CALL_FACTS = [
+  "short_id",
+  "call_started_at",
+  "call_ended_at",
+  "configured",
+  "share_link",
+  "video_shared",
+  "video_later",
+  "can_share_video",
+] as const;
+type CallRecordingFacts = Omit<
+  CallRecordings,
+  "recordings" | "transcript_id"
+> & { _id: string };
 type StoredRecordingRow = CallRecordingRow & { transcript_id: string };
 
 // Which file ids each call's answers have carried in this tab, so a push
@@ -133,7 +149,8 @@ export function releasedRecordingTombstones(
     if (entry?.type !== "exclude" || !key.startsWith(prefix)) continue;
     const id = key.slice(prefix.length);
     if (here.has(id)) continue;
-    if (mine?.has(id) || ![...seen.values()].some((ids) => ids.has(id))) released.push(id);
+    if (mine?.has(id) || ![...seen.values()].some((ids) => ids.has(id)))
+      released.push(id);
   }
   return released;
 }
@@ -141,20 +158,43 @@ export function releasedRecordingTombstones(
 function applyCallRecordings(data: CallRecordings | null | undefined): void {
   if (!data) return;
   const st = useInboxStore.getState() as any;
-  const rows = data.recordings.map((r) => ({ ...r, transcript_id: data.transcript_id }));
+  const rows = data.recordings.map((r) => ({
+    ...r,
+    transcript_id: data.transcript_id,
+  }));
   const present = rows.map((r) => r._id);
   // A file gone from the call (a run deleted) takes its kept frames with it.
   keepCallFrames(data.transcript_id, new Set(present));
-  const released = releasedRecordingTombstones(st.pending ?? {}, data.transcript_id, present, seenFiles);
+  const released = releasedRecordingTombstones(
+    st.pending ?? {},
+    data.transcript_id,
+    present,
+    seenFiles,
+  );
   noteSeen(seenFiles, data.transcript_id, present, released);
   // A server older than shared pictures sends none: nothing to say about them.
-  const shares = data.frame_shares?.map((f) => ({ ...f, transcript_id: data.transcript_id }));
+  const shares = data.frame_shares?.map((f) => ({
+    ...f,
+    transcript_id: data.transcript_id,
+  }));
   const sharesPresent = shares?.map((f) => f._id) ?? [];
-  const sharesReleased = shares ? releasedRecordingTombstones(st.pending ?? {}, data.transcript_id, sharesPresent, seenShares, "callFrameShares") : [];
-  if (shares) noteSeen(seenShares, data.transcript_id, sharesPresent, sharesReleased);
+  const sharesReleased = shares
+    ? releasedRecordingTombstones(
+        st.pending ?? {},
+        data.transcript_id,
+        sharesPresent,
+        seenShares,
+        "callFrameShares",
+      )
+    : [];
+  if (shares)
+    noteSeen(seenShares, data.transcript_id, sharesPresent, sharesReleased);
   syncTransaction(() => {
     st.syncTable("callRecordingCalls", [
-      { _id: data.transcript_id, ...Object.fromEntries(CALL_FACTS.map((k) => [k, data[k]])) } as CallRecordingFacts,
+      {
+        _id: data.transcript_id,
+        ...Object.fromEntries(CALL_FACTS.map((k) => [k, data[k]])),
+      } as CallRecordingFacts,
     ]);
     // Each answer is the call's complete set of files: a run deleted from
     // another window leaves this one too.
@@ -168,12 +208,18 @@ function applyCallRecordings(data: CallRecordings | null | undefined): void {
         isDelta: true,
         pruneAbsentScope: (r: any) => r.transcript_id === data.transcript_id,
       });
-      if (sharesReleased.length) st.settleCallRecordingTombstones(sharesReleased, "callFrameShares");
+      if (sharesReleased.length)
+        st.settleCallRecordingTombstones(sharesReleased, "callFrameShares");
     }
   });
 }
 
-function noteSeen(map: Map<string, Set<string>>, transcriptId: string, present: string[], released: string[]): void {
+function noteSeen(
+  map: Map<string, Set<string>>,
+  transcriptId: string,
+  present: string[],
+  released: string[],
+): void {
   const seen = map.get(transcriptId) ?? new Set<string>();
   for (const id of present) seen.add(id);
   for (const id of released) seen.delete(id);
@@ -191,13 +237,28 @@ export function forgetCallRecordings(call: string): void {
   // when the store held nothing of the call.
   keepCallFrames(call);
   const st = useInboxStore.getState() as any;
-  if (!callFactsOf(st, call) && !Object.values(st.callRecordings ?? {}).some((r: any) => r.transcript_id === call)) return;
+  if (
+    !callFactsOf(st, call) &&
+    !Object.values(st.callRecordings ?? {}).some(
+      (r: any) => r.transcript_id === call,
+    )
+  )
+    return;
   seenFiles.delete(call);
   seenShares.delete(call);
   syncTransaction(() => {
-    st.syncTable("callRecordings", [], { isDelta: true, pruneAbsentScope: (r: any) => r.transcript_id === call });
-    st.syncTable("callRecordingCalls", [], { isDelta: true, pruneAbsentScope: (r: any) => r._id === call });
-    st.syncTable("callFrameShares", [], { isDelta: true, pruneAbsentScope: (r: any) => r.transcript_id === call });
+    st.syncTable("callRecordings", [], {
+      isDelta: true,
+      pruneAbsentScope: (r: any) => r.transcript_id === call,
+    });
+    st.syncTable("callRecordingCalls", [], {
+      isDelta: true,
+      pruneAbsentScope: (r: any) => r._id === call,
+    });
+    st.syncTable("callFrameShares", [], {
+      isDelta: true,
+      pruneAbsentScope: (r: any) => r.transcript_id === call,
+    });
   });
 }
 
@@ -213,40 +274,61 @@ const FACTS_SIG_FIELDS = [...CALL_FACTS, "deleted_here_at"] as const;
 
 /** The call's facts in the store, by the call's full id (what every caller
  *  asks under, and what the feeder keys them by). */
-function callFactsOf(st: any, call: string | null | undefined): CallRecordingFacts | undefined {
-  return call ? ((st.callRecordingCalls ?? {}) as Record<string, CallRecordingFacts>)[call] : undefined;
+function callFactsOf(
+  st: any,
+  call: string | null | undefined,
+): CallRecordingFacts | undefined {
+  return call
+    ? ((st.callRecordingCalls ?? {}) as Record<string, CallRecordingFacts>)[
+        call
+      ]
+    : undefined;
 }
 
 /** What a caller does with stored rows whose URLs are past their window
  *  while the next answer loads: `hold` them back on a first mount (the page
  *  keeps the player's place), keep them `refreshing` under a player already
  *  on screen, and `paint` when nothing has lapsed. */
-export function lapsedRowsVerdict(lapsed: boolean, hadAnswer: boolean): "paint" | "hold" | "refreshing" {
+export function lapsedRowsVerdict(
+  lapsed: boolean,
+  hadAnswer: boolean,
+): "paint" | "hold" | "refreshing" {
   if (!lapsed) return "paint";
   return hadAnswer ? "refreshing" : "hold";
 }
 
 /** A signed URL past its window: an element handed it would be refused. */
-const urlLapsed = (r: CallRecordingRow, now: number) => !!r.url && r.url_expires_at !== null && r.url_expires_at <= now;
+const urlLapsed = (r: CallRecordingRow, now: number) =>
+  !!r.url && r.url_expires_at !== null && r.url_expires_at <= now;
 
 /** A call's recordings, by the call's full id: undefined while loading, null
  *  when there is nothing to show (no such call for this viewer, or a server
  *  without callRecordings, whose error degrades to "no video" rather than a
  *  surface that waits forever). */
-export function useCallRecordings(call: string | null | undefined): CallRecordings | null | undefined {
+export function useCallRecordings(
+  call: string | null | undefined,
+): CallRecordings | null | undefined {
   const urlWindow = useCallRecordingUrlWindow();
   const authSettled = useServerAuthSettled();
-  const args = call && authSettled ? { call, url_window: urlWindow } : ("skip" as const);
-  const { data, error } = useQueryNoThrow(api.callRecordings.webCallRecordings, args);
+  const args =
+    call && authSettled ? { call, url_window: urlWindow } : ("skip" as const);
+  const { data, error } = useQueryNoThrow(
+    api.callRecordings.webCallRecordings,
+    args,
+  );
   useFeederError("callRecordings.webCallRecordings", error);
-  useConvexSync(data as CallRecordings | null | undefined, (answer) => (answer ? applyCallRecordings(answer) : call && forgetCallRecordings(call)));
+  useConvexSync(data as CallRecordings | null | undefined, (answer) =>
+    answer ? applyCallRecordings(answer) : call && forgetCallRecordings(call),
+  );
 
   const factsSig = useMemo(
     () =>
       Object.assign(
         (st: any) => {
           const row = callFactsOf(st, call) as any;
-          return row ? `${row._id}|${FACTS_SIG_FIELDS.map((k) => row[k]).join("|")}` : "";
+          return row
+            ? `${row._id}|${FACTS_SIG_FIELDS.map((k) => row[k]).join("|")}`
+            : "";
         },
         { label: "callRecordingFacts" },
       ),
@@ -256,8 +338,15 @@ export function useCallRecordings(call: string | null | undefined): CallRecordin
   const factsKey = factsSig(s);
   const facts = callFactsOf(s, call);
   const transcriptId = facts?._id ?? null;
-  const where = useMemo(() => (r: StoredRecordingRow) => r.transcript_id === transcriptId, [transcriptId]);
-  const rows = useCollectionRows<StoredRecordingRow>("callRecordings", { where, sig: rowSig, sort: byRequestThenStart });
+  const where = useMemo(
+    () => (r: StoredRecordingRow) => r.transcript_id === transcriptId,
+    [transcriptId],
+  );
+  const rows = useCollectionRows<StoredRecordingRow>("callRecordings", {
+    where,
+    sig: rowSig,
+    sort: byRequestThenStart,
+  });
   const recordings = transcriptId ? rows : NO_ROWS;
   // The store holds a call's rows for the life of the tab, and their URLs
   // for one window. Until this window's answer lands, rows signed for an
@@ -282,8 +371,12 @@ export function useCallRecordings(call: string | null | undefined): CallRecordin
     if (!facts) return error ? null : undefined;
     if (verdict === "hold") return undefined;
     const { _id, ...rest } = facts;
-    return { ...rest, transcript_id: _id, recordings, ...(verdict === "refreshing" ? { refreshing: true } : {}) };
+    return {
+      ...rest,
+      transcript_id: _id,
+      recordings,
+      ...(verdict === "refreshing" ? { refreshing: true } : {}),
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- facts is read through its signature
   }, [call, data === null, !!error, factsKey, recordings, verdict]);
 }
-

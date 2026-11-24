@@ -37,7 +37,10 @@ export function snippetEnabledOn(
 }
 
 /** "New" pill on the settings page: recently shipped, regardless of state. */
-export function isRecentlyShipped(s: SnippetDescriptor, now = Date.now()): boolean {
+export function isRecentlyShipped(
+  s: SnippetDescriptor,
+  now = Date.now(),
+): boolean {
   const shipped = Date.parse(s.shipped);
   return Number.isFinite(shipped) && now - shipped < UPSELL_WINDOW_MS;
 }
@@ -67,7 +70,10 @@ export function newSnippetsFor({
     if (now - shipped >= UPSELL_WINDOW_MS) return false;
     // Unknown account age reads as an old account: they have devices, so the
     // account certainly predates anything shipping this window.
-    if (userCreatedAt !== undefined && shipped <= userCreatedAt + NEW_ACCOUNT_GRACE_MS)
+    if (
+      userCreatedAt !== undefined &&
+      shipped <= userCreatedAt + NEW_ACCOUNT_GRACE_MS
+    )
       return false;
     if (dismissed?.[snippetIntroKey(s.slug)]) return false;
     return !devices.some((d) => snippetEnabledOn(d.settings ?? undefined, s));

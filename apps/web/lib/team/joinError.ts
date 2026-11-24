@@ -5,7 +5,10 @@ import { ConvexError } from "convex/values";
 export function joinErrorText(err: unknown): string {
   if (err instanceof ConvexError) {
     const code = (err.data as { code?: string } | null)?.code;
-    if (code === "upgrade_required" || code === "subscription_lapsed") return "This team has no free seats. Ask a team admin to upgrade it to Pro.";
+    if (code === "upgrade_required" || code === "subscription_lapsed")
+      return "This team has no free seats. Ask a team admin to upgrade it to Pro.";
   }
-  return err instanceof Error ? err.message : "Could not join the team. Try again.";
+  return err instanceof Error
+    ? err.message
+    : "Could not join the team. Try again.";
 }

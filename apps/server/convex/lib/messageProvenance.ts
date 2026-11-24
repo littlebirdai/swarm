@@ -19,10 +19,23 @@
 // context and attachments the composer folded in, and blocks pasted at the
 // terminal, are not.
 import type { Doc } from "../_generated/dataModel";
-import { canonicalSlashCommand, isHostedAgentType, parseDecisionAnswer, stripMentionContext, stripPastedContent } from "@codecast/shared/contracts";
+import {
+  canonicalSlashCommand,
+  isHostedAgentType,
+  parseDecisionAnswer,
+  stripMentionContext,
+  stripPastedContent,
+} from "@codecast/shared/contracts";
 import { stickyPromptContent } from "../../../../apps/web/lib/stickyPrompt";
-import { cleanUserMessage, isBareNudge } from "../../../../apps/web/components/sessionMessage";
-import { isPressedMessage, isProgramLaunched, isUserMessageNoise } from "./userSend";
+import {
+  cleanUserMessage,
+  isBareNudge,
+} from "../../../../apps/web/components/sessionMessage";
+import {
+  isPressedMessage,
+  isProgramLaunched,
+  isUserMessageNoise,
+} from "./userSend";
 
 export type MessageProvenance = "typed_composer" | "typed_local" | "program";
 
@@ -42,7 +55,11 @@ type ConversationLinks = Pick<
 
 /** A program started this session (isProgramLaunched, a fork's branch, or a session another one handed its work to). */
 export function launchedByProgram(conversation: ConversationLinks): boolean {
-  return isProgramLaunched(conversation as Doc<"conversations">) || !!conversation.forked_from || !!conversation.handed_off_from_conversation_id;
+  return (
+    isProgramLaunched(conversation as Doc<"conversations">) ||
+    !!conversation.forked_from ||
+    !!conversation.handed_off_from_conversation_id
+  );
 }
 
 /**
@@ -62,31 +79,48 @@ function interactiveLaunch(conversation: ConversationLinks): boolean {
  */
 export function messageProvenance(
   message: { _id: string; client_id?: string; from_user_id?: string },
-  pending: { channel?: "composer"; typed_text?: string; echo_message_id?: string } | null,
+  pending: {
+    channel?: "composer";
+    typed_text?: string;
+    echo_message_id?: string;
+  } | null,
   conversation: ConversationLinks,
   queuedSame = false,
 ): MessageProvenance {
   if (pending) {
     // A row that settled onto another message is not this message's row.
-    if (pending.echo_message_id && String(pending.echo_message_id) !== String(message._id)) return "program";
-    return pending.channel === "composer" && pending.typed_text?.trim() ? "typed_composer" : "program";
+    if (
+      pending.echo_message_id &&
+      String(pending.echo_message_id) !== String(message._id)
+    )
+      return "program";
+    return pending.channel === "composer" && pending.typed_text?.trim()
+      ? "typed_composer"
+      : "program";
   }
   // Only a queue row's adoption stamps these, so the message came through a
   // queue whose row is gone or unreadable.
   if (message.client_id || message.from_user_id) return "program";
   if (queuedSame) return "program";
   // A hosted conversation has no terminal; a launched one's terminal is the launcher's.
-  if (isHostedAgentType(conversation.agent_type) || launchedByProgram(conversation)) return "program";
+  if (
+    isHostedAgentType(conversation.agent_type) ||
+    launchedByProgram(conversation)
+  )
+    return "program";
   return interactiveLaunch(conversation) ? "typed_local" : "program";
 }
 
 // A pasted block, closed. One left open cannot be told from what follows it.
-const PASTED_BLOCK_RE = /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
+const PASTED_BLOCK_RE =
+  /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
 
 /** A slash command as Claude Code records it, or as the queue carried it: "/name args". */
 function slashInvocation(content: string): string | null {
   const t = content.trim();
-  return /^<command-(?:name|message)>/.test(t) || t.startsWith("/") ? canonicalSlashCommand(t) : null;
+  return /^<command-(?:name|message)>/.test(t) || t.startsWith("/")
+    ? canonicalSlashCommand(t)
+    : null;
 }
 
 /**
@@ -98,9 +132,14 @@ function slashInvocation(content: string): string | null {
  * makes the whole line unreadable. A slash command reads as "/name args", its
  * expansion never.
  */
-export function typedPart(content: string, provenance: MessageProvenance, pending: { typed_text?: string } | null): string | null {
+export function typedPart(
+  content: string,
+  provenance: MessageProvenance,
+  pending: { typed_text?: string } | null,
+): string | null {
   if (provenance === "program") return null;
-  if (provenance === "typed_composer") return pending?.typed_text?.trim() || null;
+  if (provenance === "typed_composer")
+    return pending?.typed_text?.trim() || null;
   const command = slashInvocation(content);
   if (command) return command;
   const unpasted = content.replace(PASTED_BLOCK_RE, "");
@@ -110,7 +149,9 @@ export function typedPart(content: string, provenance: MessageProvenance, pendin
 
 /** Words as two sends of them compare: paste markers and whitespace folded, a slash command in one shape. */
 export function sameWordsKey(text: string): string {
-  return (slashInvocation(text) ?? stripPastedContent(text)).replace(/\s+/g, " ").trim();
+  return (slashInvocation(text) ?? stripPastedContent(text))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -118,11 +159,15 @@ export function sameWordsKey(text: string): string {
  * or a row of 20 characters or more inside it. Fails toward program: a person
  * who typed what a program had queued reads as that program.
  */
-export function queuedTwin(content: string, queuedKeys: ReadonlySet<string>): boolean {
+export function queuedTwin(
+  content: string,
+  queuedKeys: ReadonlySet<string>,
+): boolean {
   const key = sameWordsKey(content);
   if (!key) return false;
   if (queuedKeys.has(key)) return true;
-  for (const q of queuedKeys) if (q.length >= 20 && key.includes(q)) return true;
+  for (const q of queuedKeys)
+    if (q.length >= 20 && key.includes(q)) return true;
   return false;
 }
 
@@ -140,5 +185,8 @@ export function mayBeTyped(content: string | undefined): boolean {
   if (slashInvocation(content)) return true;
   if (isUserMessageNoise(content) || isPressedMessage(content)) return false;
   if (parseDecisionAnswer(content)) return true;
-  return stickyPromptContent(content) !== null || isBareNudge(cleanUserMessage(content));
+  return (
+    stickyPromptContent(content) !== null ||
+    isBareNudge(cleanUserMessage(content))
+  );
 }

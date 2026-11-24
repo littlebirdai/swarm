@@ -30,7 +30,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
@@ -87,12 +87,19 @@ const popoverEl = () =>
   );
 
 test("machines stay in the popover; one joins the row only while it is in the filter", async () => {
-  useInboxStore.setState({ machineRoster: [{ device_id: "m2", label: "jb-m2-pro" }] } as any);
+  useInboxStore.setState({
+    machineRoster: [{ device_id: "m2", label: "jb-m2-pro" }],
+  } as any);
   const { container, root } = await mountRow([["mc:m2", 4]]);
-  const rowChip = () => [...container.querySelectorAll("button")].find((b) => b.textContent?.includes("jb-m2-pro"));
+  const rowChip = () =>
+    [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("jb-m2-pro"),
+    );
   try {
     expect(rowChip()).toBeUndefined();
-    await act(() => useInboxStore.setState({ activeProjectFilter: "mc:m2" } as any));
+    await act(() =>
+      useInboxStore.setState({ activeProjectFilter: "mc:m2" } as any),
+    );
     expect(rowChip()).toBeTruthy();
   } finally {
     await act(() => root.unmount());
@@ -109,7 +116,11 @@ test("the pill renders outside the clip shell that can collapse to zero width", 
     // Walk up to the component root: no ancestor on the way may clip, or a
     // squeezed panel header takes the pill's paint and its clicks with it.
     const clipping: string[] = [];
-    for (let el = pill.parentElement; el && el !== container; el = el.parentElement) {
+    for (
+      let el = pill.parentElement;
+      el && el !== container;
+      el = el.parentElement
+    ) {
       const cls = el.getAttribute("class") || "";
       if (cls.includes("overflow-hidden")) clipping.push(cls);
     }
@@ -126,12 +137,26 @@ test("a mousedown plus click on the pill closes the popover it opened", async ()
     // JSDOM does no layout, and the popover only renders once it has a real
     // anchor box to place against.
     pill.getBoundingClientRect = () =>
-      ({ left: 900, right: 940, top: 80, bottom: 100, width: 40, height: 20, x: 900, y: 80, toJSON() {} }) as DOMRect;
+      ({
+        left: 900,
+        right: 940,
+        top: 80,
+        bottom: 100,
+        width: 40,
+        height: 20,
+        x: 900,
+        y: 80,
+        toJSON() {},
+      }) as DOMRect;
 
     const press = async () => {
       await act(() => {
-        pill.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
-        pill.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+        pill.dispatchEvent(
+          new dom.window.MouseEvent("mousedown", { bubbles: true }),
+        );
+        pill.dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
       });
     };
 
@@ -153,7 +178,17 @@ test("the popover is placed under the pill and capped to the room below it", asy
   const { container, root, pill } = await mountRow();
   try {
     pill.getBoundingClientRect = () =>
-      ({ left: 900, right: 940, top: 80, bottom: 100, width: 40, height: 20, x: 900, y: 80, toJSON() {} }) as DOMRect;
+      ({
+        left: 900,
+        right: 940,
+        top: 80,
+        bottom: 100,
+        width: 40,
+        height: 20,
+        x: 900,
+        y: 80,
+        toJSON() {},
+      }) as DOMRect;
     await act(() => {
       pill.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     });
@@ -163,7 +198,10 @@ test("the popover is placed under the pill and capped to the room below it", asy
     expect(pop.style.left).toBe("684px"); // right edge aligned to the pill: 940 - 256
     // Never taller than the room under the pill, so a long list scrolls inside
     // the window instead of running off its bottom edge.
-    const cap = Math.min(window.innerHeight - 100 - 16, window.innerHeight * 0.6);
+    const cap = Math.min(
+      window.innerHeight - 100 - 16,
+      window.innerHeight * 0.6,
+    );
     expect(parseFloat(pop.style.maxHeight)).toBeLessThanOrEqual(cap);
     expect(parseFloat(pop.style.maxHeight)).toBeGreaterThan(0);
   } finally {

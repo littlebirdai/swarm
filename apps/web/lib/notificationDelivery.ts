@@ -20,19 +20,39 @@ export function agentAlertsSuppressed(): boolean {
 export type AlertClaim = { key: string; ttl: number; preferDesktop: boolean };
 export type ClaimResult = "claimed" | "duplicate" | "desktop" | null;
 
-export function claimStoredAlert(storage: Pick<Storage, "getItem" | "setItem">, key: string, ttl: number, now = Date.now()): boolean {
-  const entries: Record<string, number> = JSON.parse(storage.getItem(CLAIMS_KEY) || "{}");
+export function claimStoredAlert(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  key: string,
+  ttl: number,
+  now = Date.now(),
+): boolean {
+  const entries: Record<string, number> = JSON.parse(
+    storage.getItem(CLAIMS_KEY) || "{}",
+  );
   if (entries[key] > now) return false;
-  const live = Object.entries(entries).filter(([, expires]) => expires > now).slice(-499);
-  storage.setItem(CLAIMS_KEY, JSON.stringify(Object.fromEntries([...live, [key, now + ttl]])));
+  const live = Object.entries(entries)
+    .filter(([, expires]) => expires > now)
+    .slice(-499);
+  storage.setItem(
+    CLAIMS_KEY,
+    JSON.stringify(Object.fromEntries([...live, [key, now + ttl]])),
+  );
   return true;
 }
 
-export async function claimBrowserAlert(scope: string, claim: AlertClaim): Promise<boolean> {
+export async function claimBrowserAlert(
+  scope: string,
+  claim: AlertClaim,
+): Promise<boolean> {
   const key = JSON.stringify([scope, claim.key]);
   const reserve = () => claimStoredAlert(localStorage, key, claim.ttl);
   try {
-    if (navigator.locks) return await navigator.locks.request(CLAIMS_KEY, { signal: AbortSignal.timeout(3_000) }, reserve);
+    if (navigator.locks)
+      return await navigator.locks.request(
+        CLAIMS_KEY,
+        { signal: AbortSignal.timeout(3_000) },
+        reserve,
+      );
     return reserve();
   } catch (error) {
     reportAlertError(error as Error);
@@ -51,12 +71,19 @@ export type NotificationDeliveryDeps = {
 export function createNotificationDelivery(deps: NotificationDeliveryDeps) {
   let stopped = false;
   const now = deps.now ?? Date.now;
-  const wait = deps.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const wait =
+    deps.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   return {
-    stop() { stopped = true; },
-    async deliver(claim: AlertClaim, send: () => boolean | void | Promise<boolean | void>): Promise<boolean> {
+    stop() {
+      stopped = true;
+    },
+    async deliver(
+      claim: AlertClaim,
+      send: () => boolean | void | Promise<boolean | void>,
+    ): Promise<boolean> {
       const deadline = now() + Math.min(claim.ttl, 20_000);
-      if (stopped || deps.suppressed() || !(await deps.fallback(claim))) return false;
+      if (stopped || deps.suppressed() || !(await deps.fallback(claim)))
+        return false;
       while (!stopped && !deps.suppressed()) {
         const result = await deps.remote(claim);
         if (stopped || deps.suppressed() || now() > deadline) return false;
@@ -92,7 +119,11 @@ export function installNotificationDelivery(delivery: Delivery): () => void {
 export function deliverAlert(
   key: string,
   send: () => boolean | void | Promise<boolean | void>,
-  { ttl = 60_000, preferDesktop = true, due }: { ttl?: number; preferDesktop?: boolean; due?: () => boolean } = {},
+  {
+    ttl = 60_000,
+    preferDesktop = true,
+    due,
+  }: { ttl?: number; preferDesktop?: boolean; due?: () => boolean } = {},
 ): Promise<boolean> {
   if (agentAlertsSuppressed() || (due && !due())) return Promise.resolve(false);
   const sendIfDue = () => (due && !due() ? false : send());
@@ -122,7 +153,9 @@ export function installFocusHold(view: () => string | null): () => void {
     if (!name) return;
     // Released before the grant, the hold ends as soon as it starts.
     let release = () => {};
-    const hold = new Promise<void>((resolve) => { release = resolve; });
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     held = { name, release };
     locks.request(name, { mode: "shared" }, () => hold).catch(reportAlertError);
   };
@@ -151,7 +184,11 @@ export async function focusedWindowShows(entity: string): Promise<boolean> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
   if (!locks) return false;
   try {
-    return await locks.request(FOCUS_LOCK + entity, { mode: "exclusive", ifAvailable: true }, (lock) => lock === null);
+    return await locks.request(
+      FOCUS_LOCK + entity,
+      { mode: "exclusive", ifAvailable: true },
+      (lock) => lock === null,
+    );
   } catch (error) {
     reportAlertError(error as Error);
     return false;

@@ -36,7 +36,12 @@ export type Principal =
   | { kind: "token"; userId: string; token: string } // api_tokens row seeded with hashToken
   | { kind: "system" }; // scheduled jobs, crons: null identity
 
-export interface ScheduledJob { id: string; due: number; name: string; args: unknown }
+export interface ScheduledJob {
+  id: string;
+  due: number;
+  name: string;
+  args: unknown;
+}
 
 export interface CallRecord {
   seq: number;
@@ -72,7 +77,11 @@ export interface SimClient {
 }
 
 // The call running now, so the realm can route Math.random to its stream.
-export interface ActiveCall { seq: number; name: string; rng: () => number }
+export interface ActiveCall {
+  seq: number;
+  name: string;
+  rng: () => number;
+}
 
 export interface SimBackend {
   db: any;
@@ -139,8 +148,12 @@ interface Registered {
 }
 
 function isRegistered(value: any): value is Registered {
-  return !!value && typeof value._handler === "function" && typeof value.exportArgs === "function"
-    && (value.isQuery || value.isMutation || value.isAction);
+  return (
+    !!value &&
+    typeof value._handler === "function" &&
+    typeof value.exportArgs === "function" &&
+    (value.isQuery || value.isMutation || value.isAction)
+  );
 }
 
 function kindOf(fn: Registered): Kind {
@@ -149,7 +162,15 @@ function kindOf(fn: Registered): Kind {
 
 // Every field prod puts on some ctx. One of these missing from the ctx a call
 // gets reads as undefined, as in prod; any other field is a sim gap.
-const KNOWN_CTX_FIELDS = new Set(["db", "auth", "scheduler", "runQuery", "runMutation", "runAction", "storage"]);
+const KNOWN_CTX_FIELDS = new Set([
+  "db",
+  "auth",
+  "scheduler",
+  "runQuery",
+  "runMutation",
+  "runAction",
+  "storage",
+]);
 
 function nameOf(ref: any): string {
   const name = typeof ref === "string" ? ref : getFunctionName(ref);
@@ -182,8 +203,15 @@ function validField(k: string): boolean {
 }
 
 function wireCopy(v: unknown): unknown {
-  if (v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "number") return v;
-  if (typeof v === "bigint") return v >= MIN_INT64 && v <= MAX_INT64 ? v : UNWIRED;
+  if (
+    v === null ||
+    typeof v === "string" ||
+    typeof v === "boolean" ||
+    typeof v === "number"
+  )
+    return v;
+  if (typeof v === "bigint")
+    return v >= MIN_INT64 && v <= MAX_INT64 ? v : UNWIRED;
   if (typeof v !== "object") return UNWIRED;
   if (Array.isArray(v)) {
     const out: unknown[] = new Array(v.length);
@@ -197,7 +225,12 @@ function wireCopy(v: unknown): unknown {
   }
   if (v instanceof ArrayBuffer) return v.slice(0);
   const proto = Object.getPrototypeOf(v);
-  if (proto !== null && proto !== Object.prototype && proto?.constructor?.name !== "Object") return UNWIRED;
+  if (
+    proto !== null &&
+    proto !== Object.prototype &&
+    proto?.constructor?.name !== "Object"
+  )
+    return UNWIRED;
   const keys = Object.keys(v);
   for (let i = 1; i < keys.length; i++) {
     if (keys[i - 1] > keys[i]) {
@@ -223,10 +256,23 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
   const modules = { ...MODULES, ...opts.modules };
   // Reads follow the schema's real indexes: their order, their field rules
   // and key cursors, so the sim sees the rows prod would return, in prod's order.
-  const db = makeFakeDb(opts.tables, { mintId: opts.mintId, creationTime: opts.now, strictPatch: true, indexes: SCHEMA_INDEXES });
+  const db = makeFakeDb(opts.tables, {
+    mintId: opts.mintId,
+    creationTime: opts.now,
+    strictPatch: true,
+    indexes: SCHEMA_INDEXES,
+  });
   // `_scheduled_functions`, read by handlers through ctx.db.system. A system
   // table has only the built-in indexes.
-  const systemDb = makeFakeDb({ _scheduled_functions: [] }, { mintId: opts.mintId, creationTime: opts.now, strictPatch: true, indexes: {} });
+  const systemDb = makeFakeDb(
+    { _scheduled_functions: [] },
+    {
+      mintId: opts.mintId,
+      creationTime: opts.now,
+      strictPatch: true,
+      indexes: {},
+    },
+  );
   db.system = { get: systemDb.get, query: systemDb.query };
   const memoNames = new Set(opts.memoFunctions ?? DEFAULT_MEMO_FUNCTIONS);
   // Memoized results as the handler returned them. Nothing else holds them, so
@@ -267,14 +313,17 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
     if (isRegistered(fn)) return fn;
     const suggestion = await closestName(name, moduleName);
     throw new Error(
-      `sim client: no handler for "${name}"${suggestion ? `; did you mean ${suggestion}?` : "."}`
-      + " Add the module to MODULES in convex/simBackend.testing.ts",
+      `sim client: no handler for "${name}"${suggestion ? `; did you mean ${suggestion}?` : "."}` +
+        " Add the module to MODULES in convex/simBackend.testing.ts",
     );
   }
 
   // The nearest registered function: in the named module when it is known,
   // else in the nearest module name.
-  async function closestName(name: string, moduleName: string): Promise<string | null> {
+  async function closestName(
+    name: string,
+    moduleName: string,
+  ): Promise<string | null> {
     let home = moduleName in modules ? moduleName : null;
     if (!home) {
       const near = Object.keys(modules)
@@ -294,17 +343,28 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
 
   function validatorOf(fn: Registered): ValidatorJson {
     let json = argsJson.get(fn);
-    if (!json) argsJson.set(fn, (json = JSON.parse(fn.exportArgs()) as ValidatorJson));
+    if (!json)
+      argsJson.set(fn, (json = JSON.parse(fn.exportArgs()) as ValidatorJson));
     return json;
   }
 
   // Wire the arguments, add a token principal's api_token where the function
   // takes one (the CLI passes it in args), and validate them.
-  function prepareArgs(fn: Registered, args: unknown, principal: Principal): any {
+  function prepareArgs(
+    fn: Registered,
+    args: unknown,
+    principal: Principal,
+  ): any {
     const validator = validatorOf(fn);
     let sent = wire(args ?? {});
-    if (principal.kind === "token" && validator.type === "object" && "api_token" in validator.value
-      && sent && typeof sent === "object" && sent.api_token === undefined) {
+    if (
+      principal.kind === "token" &&
+      validator.type === "object" &&
+      "api_token" in validator.value &&
+      sent &&
+      typeof sent === "object" &&
+      sent.api_token === undefined
+    ) {
       sent = { ...sent, api_token: principal.token };
     }
     validateArgs(validator, sent, { isId });
@@ -317,32 +377,55 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
   // on unknown fields is gone (they read as undefined); the storage stub
   // travels by reference and still names itself.
   function makeCtx(kind: Kind, principal: Principal, name: string): any {
-    const identity = principal.kind === "user" ? { subject: `${principal.userId}|session` } : null;
+    const identity =
+      principal.kind === "user"
+        ? { subject: `${principal.userId}|session` }
+        : null;
     const missing = (what: string) =>
-      new Error(`sim ctx: ${name} read ctx.${what}, which the sim does not provide. Add it in makeCtx.`);
+      new Error(
+        `sim ctx: ${name} read ctx.${what}, which the sim does not provide. Add it in makeCtx.`,
+      );
     // Reading ctx.storage works; touching anything on it is a named gap.
-    const storage = new Proxy({}, {
-      get(_target, key) {
-        if (typeof key === "symbol") return undefined;
-        throw missing(`storage.${key}`);
+    const storage = new Proxy(
+      {},
+      {
+        get(_target, key) {
+          if (typeof key === "symbol") return undefined;
+          throw missing(`storage.${key}`);
+        },
       },
-    });
+    );
     const refuse = (op: string) => async () => {
-      throw new Error(`sim server: query ${name} called db.${op}; queries cannot write`);
+      throw new Error(
+        `sim server: query ${name} called db.${op}; queries cannot write`,
+      );
     };
     const present: Record<string, unknown> = {
-      db: kind === "query"
-        ? { get: db.get, query: db.query, normalizeId: db.normalizeId, system: db.system, insert: refuse("insert"), patch: refuse("patch"), replace: refuse("replace"), delete: refuse("delete") }
-        : db,
+      db:
+        kind === "query"
+          ? {
+              get: db.get,
+              query: db.query,
+              normalizeId: db.normalizeId,
+              system: db.system,
+              insert: refuse("insert"),
+              patch: refuse("patch"),
+              replace: refuse("replace"),
+              delete: refuse("delete"),
+            }
+          : db,
       auth: { getUserIdentity: async () => identity },
       storage,
       runQuery: (ref: any, args: any) => nested(ref, args, principal, "query"),
     };
     if (kind === "mutation") {
-      present.runMutation = (ref: any, args: any) => nested(ref, args, principal, "mutation");
+      present.runMutation = (ref: any, args: any) =>
+        nested(ref, args, principal, "mutation");
       present.scheduler = {
-        runAfter: async (ms: number, ref: any, args: any) => schedule(opts.now() + ms, ref, args),
-        runAt: async (at: number | Date, ref: any, args: any) => schedule(at instanceof Date ? at.getTime() : at, ref, args),
+        runAfter: async (ms: number, ref: any, args: any) =>
+          schedule(opts.now() + ms, ref, args),
+        runAt: async (at: number | Date, ref: any, args: any) =>
+          schedule(at instanceof Date ? at.getTime() : at, ref, args),
         cancel: async (id: string) => {
           await systemDb.patch(id, { state: { kind: "canceled" } });
         },
@@ -350,7 +433,8 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
     }
     return new Proxy(present, {
       get(target, key) {
-        if (typeof key === "symbol" || key in target) return (target as any)[key];
+        if (typeof key === "symbol" || key in target)
+          return (target as any)[key];
         if (KNOWN_CTX_FIELDS.has(key)) return undefined;
         throw missing(key);
       },
@@ -373,10 +457,18 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
   // runQuery/runMutation from inside a handler: inline, same principal, same
   // journal. Each nested mutation still gets its own change-log wrap, because
   // the wrap lives in its own `_handler`.
-  async function nested(ref: any, args: any, principal: Principal, kind: Kind): Promise<any> {
+  async function nested(
+    ref: any,
+    args: any,
+    principal: Principal,
+    kind: Kind,
+  ): Promise<any> {
     const name = nameOf(ref);
     const fn = await resolve(name);
-    if (kindOf(fn) !== kind) throw new Error(`sim server: ctx.run${kind === "query" ? "Query" : "Mutation"} reached ${name}, a ${kindOf(fn)}`);
+    if (kindOf(fn) !== kind)
+      throw new Error(
+        `sim server: ctx.run${kind === "query" ? "Query" : "Mutation"} reached ${name}, a ${kindOf(fn)}`,
+      );
     const sent = prepareArgs(fn, args, principal);
     return wire(await fn._handler(makeCtx(kind, principal, name), sent));
   }
@@ -386,32 +478,64 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
   // refused instead of queued.
   function serialize<T>(name: string, run: () => Promise<T>): Promise<T> {
     if (opts.debug && inFlight.length) {
-      return Promise.reject(new Error(`sim server: ${name} started while ${inFlight[0]} was running`));
+      return Promise.reject(
+        new Error(
+          `sim server: ${name} started while ${inFlight[0]} was running`,
+        ),
+      );
     }
     inFlight.push(name);
     const result = chain.then(run);
-    const done = () => { inFlight.shift(); };
+    const done = () => {
+      inFlight.shift();
+    };
     chain = result.then(done, done);
     return result;
   }
 
-  function topLevel(name: string, args: unknown, principal: Principal, entry: "client" | "internal", expected?: Kind): Promise<any> {
-    return serialize(name, () => invoke(name, args, principal, entry, expected));
+  function topLevel(
+    name: string,
+    args: unknown,
+    principal: Principal,
+    entry: "client" | "internal",
+    expected?: Kind,
+  ): Promise<any> {
+    return serialize(name, () =>
+      invoke(name, args, principal, entry, expected),
+    );
   }
 
   // One top-level call, already at the head of the chain: resolve, validate,
   // run in a journal, commit or roll back.
-  async function invoke(name: string, args: unknown, principal: Principal, entry: "client" | "internal", expected?: Kind): Promise<any> {
+  async function invoke(
+    name: string,
+    args: unknown,
+    principal: Principal,
+    entry: "client" | "internal",
+    expected?: Kind,
+  ): Promise<any> {
     const seq = ++callSeq;
-    const record: CallRecord = { seq, principal, name, kind: expected ?? "query", ok: true, writes: 0 };
+    const record: CallRecord = {
+      seq,
+      principal,
+      name,
+      kind: expected ?? "query",
+      ok: true,
+      writes: 0,
+    };
     calls.push(record);
     try {
       const fn = await resolve(name);
       const kind = (record.kind = kindOf(fn));
       if (entry === "client" && !fn.isPublic) {
-        throw new Error(`sim client: "${name}" is internal; clients reach public functions only (use runInternal)`);
+        throw new Error(
+          `sim client: "${name}" is internal; clients reach public functions only (use runInternal)`,
+        );
       }
-      if (expected && expected !== kind) throw new Error(`sim client: "${name}" is a ${kind}, called as a ${expected}`);
+      if (expected && expected !== kind)
+        throw new Error(
+          `sim client: "${name}" is a ${kind}, called as a ${expected}`,
+        );
       const sent = prepareArgs(fn, args, principal);
       if (kind === "action") {
         actions.push({ name, args: sent });
@@ -425,10 +549,24 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
     }
   }
 
-  async function execute(fn: Registered, kind: Kind, name: string, sent: any, principal: Principal, record: CallRecord): Promise<any> {
-    const memoKey = kind === "query" && memoNames.has(name)
-      ? JSON.stringify([principal, name, convexToJson(sent), db.__writeCount, inboxEpoch(opts.now())])
-      : null;
+  async function execute(
+    fn: Registered,
+    kind: Kind,
+    name: string,
+    sent: any,
+    principal: Principal,
+    record: CallRecord,
+  ): Promise<any> {
+    const memoKey =
+      kind === "query" && memoNames.has(name)
+        ? JSON.stringify([
+            principal,
+            name,
+            convexToJson(sent),
+            db.__writeCount,
+            inboxEpoch(opts.now()),
+          ])
+        : null;
     if (memoKey) {
       if (memoWrites !== db.__writeCount) {
         memo.clear();
@@ -439,7 +577,8 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
         return wire(memo.get(memoKey));
       }
       record.memo = "miss";
-      resetChildAuqProbeCache ??= (await modules.conversations!())._resetChildAuqProbeCacheForTests as () => void;
+      resetChildAuqProbeCache ??= (await modules.conversations!())
+        ._resetChildAuqProbeCacheForTests as () => void;
       resetChildAuqProbeCache();
     }
     active = { seq: record.seq, name, rng: opts.rngFor(record.seq) };
@@ -447,7 +586,9 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
     const insertsBefore = db._inserted.length;
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () => {
-      throw new Error(`sim server: ${name} called fetch, which the sim does not allow`);
+      throw new Error(
+        `sim server: ${name} called fetch, which the sim does not allow`,
+      );
     }) as any;
     scheduledInCall = [];
     if (kind === "mutation") {
@@ -462,7 +603,8 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
         systemDb.__commit();
       }
       record.writes = db.__writeCount - writesBefore;
-      for (const { table, _id } of db._inserted.slice(insertsBefore)) opts.onInsert?.(table, _id);
+      for (const { table, _id } of db._inserted.slice(insertsBefore))
+        opts.onInsert?.(table, _id);
       for (const job of scheduledInCall) opts.onSchedule?.(job);
       if (memoKey) memo.set(memoKey, returned);
       return result;
@@ -489,10 +631,16 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
       await systemDb.patch(job.id, { state: { kind: "inProgress" } });
       try {
         await invoke(job.name, job.args, { kind: "system" }, "internal");
-        await systemDb.patch(job.id, { state: { kind: "success" }, completedTime: opts.now() });
+        await systemDb.patch(job.id, {
+          state: { kind: "success" },
+          completedTime: opts.now(),
+        });
       } catch (error: any) {
         // As in prod, a failed job fails alone; the record in `calls` keeps it.
-        await systemDb.patch(job.id, { state: { kind: "failed", error: String(error?.message ?? error) }, completedTime: opts.now() });
+        await systemDb.patch(job.id, {
+          state: { kind: "failed", error: String(error?.message ?? error) },
+          completedTime: opts.now(),
+        });
       }
     });
   }
@@ -502,15 +650,23 @@ export function makeSimBackend(opts: SimBackendOptions): SimBackend {
     clientFor(p: Principal): SimClient {
       return {
         query: (ref, args) => topLevel(nameOf(ref), args, p, "client", "query"),
-        mutation: (ref, args) => topLevel(nameOf(ref), args, p, "client", "mutation"),
-        action: (ref, args) => topLevel(nameOf(ref), args, p, "client", "action"),
+        mutation: (ref, args) =>
+          topLevel(nameOf(ref), args, p, "client", "mutation"),
+        action: (ref, args) =>
+          topLevel(nameOf(ref), args, p, "client", "action"),
       };
     },
-    runInternal: (name, args, p = { kind: "system" }) => topLevel(nameOf(name), args, p, "internal"),
+    runInternal: (name, args, p = { kind: "system" }) =>
+      topLevel(nameOf(name), args, p, "internal"),
     runScheduled,
     cancelScheduled(id: string) {
-      if (opts.debug && inFlight.length) throw new Error(`sim server: cancelScheduled started while ${inFlight[0]} was running`);
-      void serialize("cancelScheduled", () => systemDb.patch(id, { state: { kind: "canceled" } }));
+      if (opts.debug && inFlight.length)
+        throw new Error(
+          `sim server: cancelScheduled started while ${inFlight[0]} was running`,
+        );
+      void serialize("cancelScheduled", () =>
+        systemDb.patch(id, { state: { kind: "canceled" } }),
+      );
     },
     writes: () => db.__writeCount,
     calls,

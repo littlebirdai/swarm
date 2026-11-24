@@ -8,8 +8,17 @@ import { execFile } from "./proc.js";
  */
 export function isOutsideGitRepo(cwd: string): Promise<boolean> {
   return new Promise((resolve) => {
-    execFile("git", ["rev-parse", "--is-inside-work-tree"], { cwd, encoding: "utf-8", timeout: 10_000 }, (err, _stdout, stderr) => {
-      resolve(!!err && (err as { code?: unknown }).code === 128 && /not a git repository/i.test(String(stderr)));
-    });
+    execFile(
+      "git",
+      ["rev-parse", "--is-inside-work-tree"],
+      { cwd, encoding: "utf-8", timeout: 10_000 },
+      (err, _stdout, stderr) => {
+        resolve(
+          !!err &&
+            (err as { code?: unknown }).code === 128 &&
+            /not a git repository/i.test(String(stderr)),
+        );
+      },
+    );
   });
 }

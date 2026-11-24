@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { deadTranscriptBeats, strikeUnknownBeats } from "./heartbeatMembership";
 
-const facts = (over: Partial<Record<"pane" | "parked" | "alive", string[]>> = {}) => ({
+const facts = (
+  over: Partial<Record<"pane" | "parked" | "alive", string[]>> = {},
+) => ({
   hasPane: (id: string) => (over.pane ?? []).includes(id),
   parked: (id: string) => (over.parked ?? []).includes(id),
   processAlive: (id: string) => (over.alive ?? []).includes(id),
@@ -9,11 +11,18 @@ const facts = (over: Partial<Record<"pane" | "parked" | "alive", string[]>> = {}
 
 describe("deadTranscriptBeats", () => {
   test("a session whose process exited stops beating", () => {
-    expect(deadTranscriptBeats(["gone", "running"], facts({ alive: ["running"] }))).toEqual(["gone"]);
+    expect(
+      deadTranscriptBeats(["gone", "running"], facts({ alive: ["running"] })),
+    ).toEqual(["gone"]);
   });
 
   test("a pane or a park keeps a session beating without a registered process", () => {
-    expect(deadTranscriptBeats(["paned", "parked", "gone"], facts({ pane: ["paned"], parked: ["parked"] }))).toEqual(["gone"]);
+    expect(
+      deadTranscriptBeats(
+        ["paned", "parked", "gone"],
+        facts({ pane: ["paned"], parked: ["parked"] }),
+      ),
+    ).toEqual(["gone"]);
   });
 
   test("a fleet of finished hands drains to the ones still running", () => {
@@ -42,6 +51,7 @@ describe("strikeUnknownBeats", () => {
 
   test("an older backend that lists nothing drops nothing", () => {
     const strikes = new Map<string, number>();
-    for (let i = 0; i < 5; i++) expect(strikeUnknownBeats(strikes, ["a"], undefined)).toEqual([]);
+    for (let i = 0; i < 5; i++)
+      expect(strikeUnknownBeats(strikes, ["a"], undefined)).toEqual([]);
   });
 });

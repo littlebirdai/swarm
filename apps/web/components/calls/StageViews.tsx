@@ -3,13 +3,25 @@ import { Maximize2, MicOff, Minimize2, MonitorUp } from "lucide-react";
 import { callParticipantKind } from "@codecast/shared/contracts";
 import { isOwnScreen, type ParticipantTile } from "../../lib/calls/callMedia";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { useNaturalSize, useScreenCursorSender } from "../../hooks/useScreenCursorSender";
+import {
+  useNaturalSize,
+  useScreenCursorSender,
+} from "../../hooks/useScreenCursorSender";
 import { useShareZoom } from "../../hooks/useShareZoom";
 import { ScreenCursors } from "./ScreenCursors";
 import { Avatar } from "./Avatar";
 import { firstName } from "./speakers";
 import { ParticipantTag, PersonName } from "./GuestTag";
-import { isMuted, isPinShare, noFollowLeader, SPEAKING_RING, stageLattice, useIsSpeaking, useStageHost, type StageShare } from "./stageHost";
+import {
+  isMuted,
+  isPinShare,
+  noFollowLeader,
+  SPEAKING_RING,
+  stageLattice,
+  useIsSpeaking,
+  useStageHost,
+  type StageShare,
+} from "./stageHost";
 import "./callSurface.css";
 
 // THE STAGE'S PICTURE, apart from the app.
@@ -29,14 +41,22 @@ import "./callSurface.css";
 // room's guests (`guest:<id>`); a guest's roster is built from the media
 // room itself. Either way a guest is marked by identity (PersonName).
 
-function PersonActions(p: { identity: string; name: string; variant: "tile" | "row" }) {
+function PersonActions(p: {
+  identity: string;
+  name: string;
+  variant: "tile" | "row";
+}) {
   const host = useStageHost();
   return <>{host.personActions?.(p) ?? null}</>;
 }
 
 /** A right click on someone opens what the viewer may do to them (the
  *  host's menu); no host menu, the browser's own. */
-function usePersonMenu(identity: string, name: string, self = false): { onContextMenu?: (e: MouseEvent) => void } {
+function usePersonMenu(
+  identity: string,
+  name: string,
+  self = false,
+): { onContextMenu?: (e: MouseEvent) => void } {
   const host = useStageHost();
   if (!host.openPersonMenu || self || identity === host.selfIdentity) return {};
   return { onContextMenu: (e) => host.openPersonMenu!(e, { identity, name }) };
@@ -53,7 +73,17 @@ function SideActions({ identity, name }: { identity: string; name: string }) {
 }
 
 /** A box around one person that opens their menu on a right click. */
-function PersonMenuArea({ identity, name, className, children }: { identity: string; name: string; className?: string; children: ReactNode }) {
+function PersonMenuArea({
+  identity,
+  name,
+  className,
+  children,
+}: {
+  identity: string;
+  name: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <div className={className} {...usePersonMenu(identity, name)}>
       {children}
@@ -65,7 +95,12 @@ function PersonMenuArea({ identity, name, className, children }: { identity: str
 
 /** Somebody on their way into the call: a teammate being rung, or a guest
  *  who was let in and has not connected yet (`note` says which wait it is). */
-export type StageGhost = { user_id: string; user_name: string; user_image?: string; note?: string };
+export type StageGhost = {
+  user_id: string;
+  user_name: string;
+  user_image?: string;
+  note?: string;
+};
 
 // Auto: an active share owns the stage; else adaptive camera grid; else the
 // audio-only avatar stage.
@@ -92,71 +127,91 @@ export function AutoStage({
   // When the viewer last picked a tab: a thing pinned after it is marked new
   // on its tab rather than taking the stage from what they chose.
   const [pickedAt, setPickedAt] = useState(0);
-  const hero = (heroKey && screens.find((t) => t.key === heroKey)) || screens[0] || null;
+  const hero =
+    (heroKey && screens.find((t) => t.key === heroKey)) || screens[0] || null;
   if (hero) {
     return (
       // The faces file into a strip beside the share, or under it once the
       // view itself is narrow (callSurface.css, .stage-fit): a phone, the
       // call window with the thread open, a rail dragged wide.
       <div className="stage-fit flex min-h-0 min-w-0 flex-1">
-      <div className="stage-split flex min-h-0 min-w-0 flex-1 gap-2">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
-          {/* Everything that can hold the stage, as tabs over it: a share and
+        <div className="stage-split flex min-h-0 min-w-0 flex-1 gap-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
+            {/* Everything that can hold the stage, as tabs over it: a share and
               each pinned thing. A row of its own, so it never covers a
               shared screen's corner or a board's controls. */}
-          {screens.length > 1 && (
-            <div className="flex shrink-0 items-center gap-1 overflow-x-auto" role="tablist" aria-label="On the stage">
-              {screens.map((t) => (
-                <button
-                  key={t.key}
-                  role="tab"
-                  aria-selected={t.key === hero.key}
-                  onClick={() => {
-                    setHeroKey(t.key);
-                    setPickedAt(Date.now());
-                  }}
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-meta transition-colors ${
-                    t.key === hero.key
-                      ? isPinShare(t) ? "bg-sol-cyan/20 text-sol-text" : "bg-sol-violet/30 text-white"
-                      : "bg-white/[0.05] text-sol-text-muted hover:bg-white/[0.08] hover:text-sol-text"
-                  } modern:rounded-control modern:font-sans modern:font-medium`}
-                >
-                  <span className="flex max-w-[220px] items-center gap-1">
-                    {isPinShare(t) && heroKey && t.key !== hero.key && (t.at ?? 0) > pickedAt && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sol-cyan" aria-label="new" />
-                    )}
-                    {isPinShare(t) ? (
-                      <PinName share={t} />
-                    ) : (
-                      <>
-                        {t.isLocal ? "your screen" : `${firstName(t.name)}'s screen`}
-                        <ParticipantTag identity={t.identity} />
-                      </>
-                    )}
-                  </span>
-                </button>
-              ))}
+            {screens.length > 1 && (
+              <div
+                className="flex shrink-0 items-center gap-1 overflow-x-auto"
+                role="tablist"
+                aria-label="On the stage"
+              >
+                {screens.map((t) => (
+                  <button
+                    key={t.key}
+                    role="tab"
+                    aria-selected={t.key === hero.key}
+                    onClick={() => {
+                      setHeroKey(t.key);
+                      setPickedAt(Date.now());
+                    }}
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-meta transition-colors ${
+                      t.key === hero.key
+                        ? isPinShare(t)
+                          ? "bg-sol-cyan/20 text-sol-text"
+                          : "bg-sol-violet/30 text-white"
+                        : "bg-white/[0.05] text-sol-text-muted hover:bg-white/[0.08] hover:text-sol-text"
+                    } modern:rounded-control modern:font-sans modern:font-medium`}
+                  >
+                    <span className="flex max-w-[220px] items-center gap-1">
+                      {isPinShare(t) &&
+                        heroKey &&
+                        t.key !== hero.key &&
+                        (t.at ?? 0) > pickedAt && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-sol-cyan"
+                            aria-label="new"
+                          />
+                        )}
+                      {isPinShare(t) ? (
+                        <PinName share={t} />
+                      ) : (
+                        <>
+                          {t.isLocal
+                            ? "your screen"
+                            : `${firstName(t.name)}'s screen`}
+                          <ParticipantTag identity={t.identity} />
+                        </>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="relative min-h-0 min-w-0 flex-1">
+              <StageVideo tile={hero} speaking={speaking} contain />
             </div>
-          )}
-          <div className="relative min-h-0 min-w-0 flex-1">
-            <StageVideo tile={hero} speaking={speaking} contain />
           </div>
-        </div>
-        {(cameras.length > 0 || roster.length > 0) && (
-          <div className="stage-strip flex w-[clamp(120px,22%,200px)] shrink-0 flex-col gap-2 overflow-y-auto">
-            {cameras.map((t) => (
-              <StageVideo
-                key={t.key}
-                tile={t}
+          {(cameras.length > 0 || roster.length > 0) && (
+            <div className="stage-strip flex w-[clamp(120px,22%,200px)] shrink-0 flex-col gap-2 overflow-y-auto">
+              {cameras.map((t) => (
+                <StageVideo
+                  key={t.key}
+                  tile={t}
+                  speaking={speaking}
+                  muted={isMuted(roster, t.identity)}
+                  small
+                />
+              ))}
+              <VoiceRows
+                roster={roster}
+                cameras={cameras}
                 speaking={speaking}
-                muted={isMuted(roster, t.identity)}
                 small
               />
-            ))}
-            <VoiceRows roster={roster} cameras={cameras} speaking={speaking} small />
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -164,7 +219,10 @@ export function AutoStage({
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
         {/* Every camera gets a cell: as many equal rows as the count needs. */}
-        <div className="grid min-h-0 flex-1 gap-2" style={stageLattice(cameras.length)}>
+        <div
+          className="grid min-h-0 flex-1 gap-2"
+          style={stageLattice(cameras.length)}
+        >
           {cameras.map((t) => (
             <StageVideo
               key={t.key}
@@ -221,68 +279,81 @@ export function SpeakerStage({
   const others = [...screens, ...cameras].filter((t) => t.key !== focus?.key);
   const onCamera = new Set(cameras.map((c) => c.identity));
   const stripVoices = roster.filter(
-    (m) => !onCamera.has(String(m.user_id)) && String(m.user_id) !== String(focusMember?.user_id ?? ""),
+    (m) =>
+      !onCamera.has(String(m.user_id)) &&
+      String(m.user_id) !== String(focusMember?.user_id ?? ""),
   );
 
   return (
     // The strip sits beside the focus, or under it once the view is narrow
     // (callSurface.css, .stage-fit).
     <div className="stage-fit flex min-h-0 min-w-0 flex-1">
-    <div className="stage-split flex min-h-0 min-w-0 flex-1 gap-2">
-      <div className="relative min-h-0 min-w-0 flex-1">
-        {focus ? (
-          <StageVideo
-            tile={focus}
-            speaking={speaking}
-            muted={isMuted(roster, focus.identity)}
-            contain={focus.kind === "screen"}
-          />
-        ) : focusMember ? (
-          <FocusFace m={focusMember} speaking={speaking} />
-        ) : (
-          <div className="flex h-full items-center justify-center font-mono text-[13px] text-sol-text-muted">
-            just you so far
+      <div className="stage-split flex min-h-0 min-w-0 flex-1 gap-2">
+        <div className="relative min-h-0 min-w-0 flex-1">
+          {focus ? (
+            <StageVideo
+              tile={focus}
+              speaking={speaking}
+              muted={isMuted(roster, focus.identity)}
+              contain={focus.kind === "screen"}
+            />
+          ) : focusMember ? (
+            <FocusFace m={focusMember} speaking={speaking} />
+          ) : (
+            <div className="flex h-full items-center justify-center font-mono text-[13px] text-sol-text-muted">
+              just you so far
+            </div>
+          )}
+          {pinned && (
+            <button
+              onClick={() => onPin(pinned)}
+              className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-0.5 font-mono text-meta text-sol-yellow backdrop-blur transition-colors hover:text-white"
+              title="Unpin: follow the active speaker again"
+            >
+              pinned · unpin
+            </button>
+          )}
+        </div>
+        {(others.length > 0 || stripVoices.length > 0) && (
+          <div className="stage-strip flex w-[clamp(120px,22%,200px)] shrink-0 flex-col gap-2 overflow-y-auto">
+            {others.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => onPin(t.identity)}
+                title="Pin this tile"
+                className="shrink-0 rounded-lg text-left transition-opacity hover:opacity-85"
+              >
+                <StageVideo
+                  tile={t}
+                  speaking={speaking}
+                  muted={isMuted(roster, t.identity)}
+                  small
+                />
+              </button>
+            ))}
+            {stripVoices.map((m) => (
+              <StripVoiceRow
+                key={m.user_id}
+                m={m}
+                speaking={speaking}
+                onPin={onPin}
+              />
+            ))}
           </div>
         )}
-        {pinned && (
-          <button
-            onClick={() => onPin(pinned)}
-            className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-0.5 font-mono text-meta text-sol-yellow backdrop-blur transition-colors hover:text-white"
-            title="Unpin: follow the active speaker again"
-          >
-            pinned · unpin
-          </button>
-        )}
       </div>
-      {(others.length > 0 || stripVoices.length > 0) && (
-        <div className="stage-strip flex w-[clamp(120px,22%,200px)] shrink-0 flex-col gap-2 overflow-y-auto">
-          {others.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => onPin(t.identity)}
-              title="Pin this tile"
-              className="shrink-0 rounded-lg text-left transition-opacity hover:opacity-85"
-            >
-              <StageVideo
-                tile={t}
-                speaking={speaking}
-                muted={isMuted(roster, t.identity)}
-                small
-              />
-            </button>
-          ))}
-          {stripVoices.map((m) => (
-            <StripVoiceRow key={m.user_id} m={m} speaking={speaking} onPin={onPin} />
-          ))}
-        </div>
-      )}
-    </div>
     </div>
   );
 }
 
 /** The face that holds the stage in Speaker view when nobody is on camera. */
-function FocusFace({ m, speaking }: { m: any; speaking?: ReadonlySet<string> }) {
+function FocusFace({
+  m,
+  speaking,
+}: {
+  m: any;
+  speaking?: ReadonlySet<string>;
+}) {
   const on = useIsSpeaking(String(m.user_id), speaking);
   return (
     <div
@@ -299,10 +370,22 @@ function FocusFace({ m, speaking }: { m: any; speaking?: ReadonlySet<string> }) 
 }
 
 /** A voice-only person in Speaker view's strip: a press pins them. */
-function StripVoiceRow({ m, speaking, onPin }: { m: any; speaking?: ReadonlySet<string>; onPin: (id: string) => void }) {
+function StripVoiceRow({
+  m,
+  speaking,
+  onPin,
+}: {
+  m: any;
+  speaking?: ReadonlySet<string>;
+  onPin: (id: string) => void;
+}) {
   const on = useIsSpeaking(String(m.user_id), speaking);
   return (
-    <PersonMenuArea identity={String(m.user_id)} name={m.user_name} className="shrink-0">
+    <PersonMenuArea
+      identity={String(m.user_id)}
+      name={m.user_name}
+      className="shrink-0"
+    >
       <button
         onClick={() => onPin(String(m.user_id))}
         className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/[0.06] ${
@@ -311,7 +394,11 @@ function StripVoiceRow({ m, speaking, onPin }: { m: any; speaking?: ReadonlySet<
         title="Pin this person"
       >
         <Avatar m={m} size={24} />
-        <PersonName identity={String(m.user_id)} name={m.user_name} className="font-mono text-[12px] text-sol-text" />
+        <PersonName
+          identity={String(m.user_id)}
+          name={m.user_name}
+          className="font-mono text-[12px] text-sol-text"
+        />
         {m.muted && <MicOff className="h-3 w-3 shrink-0 text-sol-text-muted" />}
       </button>
     </PersonMenuArea>
@@ -361,7 +448,13 @@ export function GridStage({
 }
 
 /** A voice-only person's cell in the grid. */
-function GridVoiceTile({ m, speaking }: { m: any; speaking?: ReadonlySet<string> }) {
+function GridVoiceTile({
+  m,
+  speaking,
+}: {
+  m: any;
+  speaking?: ReadonlySet<string>;
+}) {
   const on = useIsSpeaking(String(m.user_id), speaking);
   return (
     <PersonMenuArea
@@ -373,7 +466,11 @@ function GridVoiceTile({ m, speaking }: { m: any; speaking?: ReadonlySet<string>
     >
       <Avatar m={m} size={64} />
       <div className="relative flex max-w-full items-center gap-1.5 px-2">
-        <PersonName identity={String(m.user_id)} name={m.user_name} className="font-mono text-[12.5px] text-sol-text" />
+        <PersonName
+          identity={String(m.user_id)}
+          name={m.user_name}
+          className="font-mono text-[12.5px] text-sol-text"
+        />
         {m.muted && <MicOff className="h-3 w-3 shrink-0 text-sol-text-muted" />}
         <SideActions identity={String(m.user_id)} name={m.user_name} />
       </div>
@@ -397,17 +494,31 @@ type StageVideoProps = {
 export function StageVideo(props: StageVideoProps) {
   const tile = props.tile;
   if (isPinShare(tile)) return <PinSlot share={tile} small={props.small} />;
-  return isOwnScreen(tile) ? <OwnScreenTile tile={tile} small={props.small} /> : <TrackVideo {...props} tile={tile} />;
+  return isOwnScreen(tile) ? (
+    <OwnScreenTile tile={tile} small={props.small} />
+  ) : (
+    <TrackVideo {...props} tile={tile} />
+  );
 }
 
 /** A pinned thing's name, resolved by the host when it can. */
 function PinName({ share }: { share: Extract<StageShare, { kind: "pin" }> }) {
   const Label = useStageHost().PinLabel;
-  return <span className="truncate">{Label ? <Label share={share} /> : share.name}</span>;
+  return (
+    <span className="truncate">
+      {Label ? <Label share={share} /> : share.name}
+    </span>
+  );
 }
 
 /** A pinned thing, drawn by the host that knows what it is. */
-function PinSlot({ share, small }: { share: Extract<StageShare, { kind: "pin" }>; small?: boolean }) {
+function PinSlot({
+  share,
+  small,
+}: {
+  share: Extract<StageShare, { kind: "pin" }>;
+  small?: boolean;
+}) {
   const Tile = useStageHost().PinTile;
   return Tile ? <Tile share={share} small={small} /> : null;
 }
@@ -415,16 +526,30 @@ function PinSlot({ share, small }: { share: Extract<StageShare, { kind: "pin" }>
 // Your own share, as the others see it named, without its picture: the video
 // of a screen drawn back onto the screen it captures is the stage inside
 // itself, over and over. The tile is what says the share is live.
-function OwnScreenTile({ tile, small }: { tile: ParticipantTile; small?: boolean }) {
+function OwnScreenTile({
+  tile,
+  small,
+}: {
+  tile: ParticipantTile;
+  small?: boolean;
+}) {
   return (
     <div
       data-own-screen
       className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden border border-sol-green/25 bg-sol-green/[0.06] ${
-        small ? "stage-tile-small aspect-video w-full shrink-0 rounded-lg" : "h-full w-full rounded-xl"
+        small
+          ? "stage-tile-small aspect-video w-full shrink-0 rounded-lg"
+          : "h-full w-full rounded-xl"
       }`}
     >
-      <MonitorUp className={`text-sol-green ${small ? "h-5 w-5" : "h-9 w-9"}`} />
-      {!small && <span className="font-mono text-[13px] text-sol-text">your screen is live</span>}
+      <MonitorUp
+        className={`text-sol-green ${small ? "h-5 w-5" : "h-9 w-9"}`}
+      />
+      {!small && (
+        <span className="font-mono text-[13px] text-sol-text">
+          your screen is live
+        </span>
+      )}
       <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-black/45 px-2 py-px font-mono text-meta text-white/90 backdrop-blur">
         <span className="h-1.5 w-1.5 rounded-full bg-sol-green" />
         <PersonName identity={tile.identity} name={tile.name} you />
@@ -434,7 +559,13 @@ function OwnScreenTile({ tile, small }: { tile: ParticipantTile; small?: boolean
   );
 }
 
-function TrackVideo({ tile, speaking: speakingSet, muted, small, contain }: StageVideoProps & { tile: ParticipantTile }) {
+function TrackVideo({
+  tile,
+  speaking: speakingSet,
+  muted,
+  small,
+  contain,
+}: StageVideoProps & { tile: ParticipantTile }) {
   const host = useStageHost();
   const speaking = useIsSpeaking(tile.identity, speakingSet);
   const ref = useRef<HTMLVideoElement>(null);
@@ -495,7 +626,14 @@ function TrackVideo({ tile, speaking: speakingSet, muted, small, contain }: Stag
               tile.isLocal && tile.kind === "camera" ? "-scale-x-100" : ""
             }`}
           />
-          {cursorsOn && <ScreenCursors tile={tile} boxRef={frameRef} videoRef={ref} getRoom={host.getRoom} />}
+          {cursorsOn && (
+            <ScreenCursors
+              tile={tile}
+              boxRef={frameRef}
+              videoRef={ref}
+              getRoom={host.getRoom}
+            />
+          )}
         </div>
       </div>
       <span className="absolute bottom-2 left-2 flex items-center gap-1.5">
@@ -504,17 +642,38 @@ function TrackVideo({ tile, speaking: speakingSet, muted, small, contain }: Stag
             small ? "px-2 py-px text-meta" : "px-2.5 py-0.5 text-[12px]"
           }`}
         >
-          <PersonName identity={tile.identity} name={tile.name} you={tile.isLocal} />
-          {tile.kind === "screen" ? <span className="shrink-0">· screen</span> : null}
-          {muted && tile.kind === "camera" && <MicOff className="h-3 w-3 text-sol-red/90" />}
+          <PersonName
+            identity={tile.identity}
+            name={tile.name}
+            you={tile.isLocal}
+          />
+          {tile.kind === "screen" ? (
+            <span className="shrink-0">· screen</span>
+          ) : null}
+          {muted && tile.kind === "camera" && (
+            <MicOff className="h-3 w-3 text-sol-red/90" />
+          )}
         </span>
         {/* Follow them in the app. A shared screen carries it at rest: that
             is the moment it is for. A camera tile reveals it on hover. An
             agent's face has no app to follow, and neither has a guest. */}
-        {!small && host.FollowChip && callParticipantKind(tile.identity) === "person" && (
-          <host.FollowChip identity={tile.identity} name={tile.name} variant="tile" always={tile.kind === "screen"} />
+        {!small &&
+          host.FollowChip &&
+          callParticipantKind(tile.identity) === "person" && (
+            <host.FollowChip
+              identity={tile.identity}
+              name={tile.name}
+              variant="tile"
+              always={tile.kind === "screen"}
+            />
+          )}
+        {!small && !tile.isLocal && (
+          <PersonActions
+            identity={tile.identity}
+            name={tile.name}
+            variant="tile"
+          />
         )}
-        {!small && !tile.isLocal && <PersonActions identity={tile.identity} name={tile.name} variant="tile" />}
       </span>
       {zoomable && (
         <span
@@ -527,7 +686,11 @@ function TrackVideo({ tile, speaking: speakingSet, muted, small, contain }: Stag
             type="button"
             onClick={zoom.toggleActual}
             className={`rounded-full px-2 py-0.5 transition-colors hover:bg-white/15 hover:text-white ${zoom.actual ? "bg-white/20 text-white" : ""}`}
-            title={zoom.actual ? "Fit the share to the tile" : "Show the share at its real size, one pixel per pixel. Drag to pan"}
+            title={
+              zoom.actual
+                ? "Fit the share to the tile"
+                : "Show the share at its real size, one pixel per pixel. Drag to pan"
+            }
             aria-pressed={zoom.actual}
           >
             {zoom.actual ? "fit" : "1:1"}
@@ -537,10 +700,18 @@ function TrackVideo({ tile, speaking: speakingSet, muted, small, contain }: Stag
               type="button"
               onClick={zoom.toggleFullscreen}
               className="rounded-full p-1 transition-colors hover:bg-white/15 hover:text-white"
-              title={zoom.fullscreen ? "Exit fullscreen" : "Fullscreen (or double-click the share)"}
+              title={
+                zoom.fullscreen
+                  ? "Exit fullscreen"
+                  : "Fullscreen (or double-click the share)"
+              }
               aria-label={zoom.fullscreen ? "Exit fullscreen" : "Fullscreen"}
             >
-              {zoom.fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              {zoom.fullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
             </button>
           )}
         </span>
@@ -569,19 +740,38 @@ export function VoiceRows({
   return (
     // In the strip a column of rows, or one row of them once the strip runs
     // under the share (callSurface.css, .stage-voices).
-    <div className={small ? "stage-voices flex shrink-0 flex-col gap-1" : "flex flex-wrap gap-2"}>
+    <div
+      className={
+        small
+          ? "stage-voices flex shrink-0 flex-col gap-1"
+          : "flex flex-wrap gap-2"
+      }
+    >
       {/* A row wraps rather than squeeze: in the 200px side column a guest's
           remove, once pressed, asks "remove Pat?" and offers the link too,
           and on one line that crushed the face and the name it is asking
           about. Its actions take their own line instead. */}
       {voices.map((m) => (
-        <VoiceRow key={m.user_id} m={m} speaking={speaking} followed={followLeaderId === String(m.user_id)} />
+        <VoiceRow
+          key={m.user_id}
+          m={m}
+          speaking={speaking}
+          followed={followLeaderId === String(m.user_id)}
+        />
       ))}
     </div>
   );
 }
 
-function VoiceRow({ m, speaking, followed }: { m: any; speaking?: ReadonlySet<string>; followed: boolean }) {
+function VoiceRow({
+  m,
+  speaking,
+  followed,
+}: {
+  m: any;
+  speaking?: ReadonlySet<string>;
+  followed: boolean;
+}) {
   const host = useStageHost();
   const on = useIsSpeaking(String(m.user_id), speaking);
   return (
@@ -593,13 +783,26 @@ function VoiceRow({ m, speaking, followed }: { m: any; speaking?: ReadonlySet<st
       }`}
     >
       <Avatar m={m} size={22} followed={followed} />
-      <PersonName identity={String(m.user_id)} name={m.user_name} className="font-mono text-[12px] text-sol-text" />
+      <PersonName
+        identity={String(m.user_id)}
+        name={m.user_name}
+        className="font-mono text-[12px] text-sol-text"
+      />
       {m.muted && <MicOff className="h-3 w-3 shrink-0 text-sol-text-muted" />}
       <span className="ml-auto flex shrink-0 items-center gap-1">
-        <PersonActions identity={String(m.user_id)} name={m.user_name} variant="row" />
-        {host.FollowChip && callParticipantKind(String(m.user_id)) === "person" && (
-          <host.FollowChip identity={String(m.user_id)} name={m.user_name} variant="row" />
-        )}
+        <PersonActions
+          identity={String(m.user_id)}
+          name={m.user_name}
+          variant="row"
+        />
+        {host.FollowChip &&
+          callParticipantKind(String(m.user_id)) === "person" && (
+            <host.FollowChip
+              identity={String(m.user_id)}
+              name={m.user_name}
+              variant="row"
+            />
+          )}
       </span>
     </PersonMenuArea>
   );
@@ -608,7 +811,11 @@ function VoiceRow({ m, speaking, followed }: { m: any; speaking?: ReadonlySet<st
 /** The voice-only stage's face size and spacing by how many faces it holds:
  *  a dozen 88px faces overflow a call window, so a big room steps down. */
 function audioFaceScale(n: number): { size: number; gap: string } {
-  return n > 9 ? { size: 48, gap: "gap-4" } : n > 6 ? { size: 64, gap: "gap-6" } : { size: 88, gap: "gap-10" };
+  return n > 9
+    ? { size: 48, gap: "gap-4" }
+    : n > 6
+      ? { size: 64, gap: "gap-6" }
+      : { size: 88, gap: "gap-10" };
 }
 
 // Nobody on camera: large avatars breathing on the stage, speaking ring live.
@@ -637,57 +844,89 @@ export function AudioOnlyStage({
     // margins collapse instead of pushing the first row up under the header.
     <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto">
       <div className="my-auto flex w-full flex-col items-center gap-6 py-2">
-      <div className={`flex flex-wrap items-center justify-center ${scale.gap}`}>
-        {roster.length === 0 && ghosts.length === 0 && (
-          <span className="font-mono text-[13px] text-sol-text-muted">
-            {phase === "connecting" ? "connecting…" : phase === "ringing_out" ? "ringing…" : "just you so far"}
+        <div
+          className={`flex flex-wrap items-center justify-center ${scale.gap}`}
+        >
+          {roster.length === 0 && ghosts.length === 0 && (
+            <span className="font-mono text-[13px] text-sol-text-muted">
+              {phase === "connecting"
+                ? "connecting…"
+                : phase === "ringing_out"
+                  ? "ringing…"
+                  : "just you so far"}
+            </span>
+          )}
+          {ghosts.map((r) => (
+            <div
+              key={`ring:${r.user_id}`}
+              className="flex flex-col items-center gap-3 opacity-60"
+            >
+              <div className="animate-pulse rounded-full ring-2 ring-sol-violet/40 ring-offset-4 ring-offset-sol-bg">
+                <Avatar m={r} size={scale.size} />
+              </div>
+              <span className="flex items-center gap-1.5 font-mono text-[12.5px] text-sol-text-muted">
+                {firstName(r.user_name)}
+                <ParticipantTag identity={r.user_id} />
+                <span>· {r.note ?? "ringing…"}</span>
+              </span>
+            </div>
+          ))}
+          {roster.map((m) => (
+            <AudioFace
+              key={m.user_id}
+              m={m}
+              size={scale.size}
+              speaking={speaking}
+            />
+          ))}
+        </div>
+        {settledLine && (
+          <span className="font-mono text-[12px] text-sol-text-muted">
+            {settledLine.toLowerCase()}
           </span>
         )}
-        {ghosts.map((r) => (
-          <div key={`ring:${r.user_id}`} className="flex flex-col items-center gap-3 opacity-60">
-            <div className="animate-pulse rounded-full ring-2 ring-sol-violet/40 ring-offset-4 ring-offset-sol-bg">
-              <Avatar m={r} size={scale.size} />
-            </div>
-            <span className="flex items-center gap-1.5 font-mono text-[12.5px] text-sol-text-muted">
-              {firstName(r.user_name)}
-              <ParticipantTag identity={r.user_id} />
-              <span>· {r.note ?? "ringing…"}</span>
-            </span>
-          </div>
-        ))}
-        {roster.map((m) => (
-          <AudioFace key={m.user_id} m={m} size={scale.size} speaking={speaking} />
-        ))}
-      </div>
-      {settledLine && (
-        <span className="font-mono text-[12px] text-sol-text-muted">
-          {settledLine.toLowerCase()}
-        </span>
-      )}
       </div>
     </div>
   );
 }
 
-function AudioFace({ m, size, speaking }: { m: any; size: number; speaking?: ReadonlySet<string> }) {
+function AudioFace({
+  m,
+  size,
+  speaking,
+}: {
+  m: any;
+  size: number;
+  speaking?: ReadonlySet<string>;
+}) {
   const on = useIsSpeaking(String(m.user_id), speaking);
   return (
-    <PersonMenuArea identity={String(m.user_id)} name={m.user_name} className="group flex flex-col items-center gap-3">
+    <PersonMenuArea
+      identity={String(m.user_id)}
+      name={m.user_name}
+      className="group flex flex-col items-center gap-3"
+    >
       <div
         className={`rounded-full transition-all duration-300 ${
-          on ? "ring-2 ring-sol-cyan/80 ring-offset-4 ring-offset-sol-bg shadow-[0_0_0_8px_rgba(42,161,152,0.14)]" : ""
+          on
+            ? "ring-2 ring-sol-cyan/80 ring-offset-4 ring-offset-sol-bg shadow-[0_0_0_8px_rgba(42,161,152,0.14)]"
+            : ""
         }`}
       >
         <Avatar m={m} size={size} />
       </div>
       <div className="relative flex max-w-[160px] items-center gap-1.5">
-        <PersonName identity={String(m.user_id)} name={m.user_name} className="font-mono text-[13px] text-sol-text" />
+        <PersonName
+          identity={String(m.user_id)}
+          name={m.user_name}
+          className="font-mono text-[13px] text-sol-text"
+        />
         {m.muted && <MicOff className="h-3 w-3 shrink-0 text-sol-text-muted" />}
-        {m.sharing && <MonitorUp className="h-3 w-3 shrink-0 text-sol-violet" />}
+        {m.sharing && (
+          <MonitorUp className="h-3 w-3 shrink-0 text-sol-violet" />
+        )}
         <SideActions identity={String(m.user_id)} name={m.user_name} />
       </div>
     </PersonMenuArea>
   );
 }
-
-

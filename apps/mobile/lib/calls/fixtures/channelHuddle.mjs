@@ -7,23 +7,54 @@ const joins = [];
 const routes = [];
 const alerts = [];
 let occupied = false;
-mock.module("react-native", () => ({ TouchableOpacity: "button", StyleSheet: { create: (styles) => styles } }));
-mock.module("@/lib/popups", () => ({ appAlert: (...args) => alerts.push(args) }));
-mock.module("expo-router", () => ({ useRouter: () => ({ push: (route) => routes.push(route) }) }));
-mock.module("expo-haptics", () => ({ ImpactFeedbackStyle: { Medium: "medium" }, impactAsync: async () => {} }));
+mock.module("react-native", () => ({
+  TouchableOpacity: "button",
+  StyleSheet: { create: (styles) => styles },
+}));
+mock.module("@/lib/popups", () => ({
+  appAlert: (...args) => alerts.push(args),
+}));
+mock.module("expo-router", () => ({
+  useRouter: () => ({ push: (route) => routes.push(route) }),
+}));
+mock.module("expo-haptics", () => ({
+  ImpactFeedbackStyle: { Medium: "medium" },
+  impactAsync: async () => {},
+}));
 mock.module("@expo/vector-icons", () => ({ Ionicons: "icon" }));
 // The button reads call config and live rooms off the store the sync bridge feeds.
 mock.module("@codecast/web/store/inboxStore", () => ({
-  useInboxStore: (select) => select({
-    callConfig: { enabled: true, teams: ["team"] },
-    liveRooms: occupied ? [{ room_key: "channel:design", members: [{}] }] : [],
-  }),
+  useInboxStore: (select) =>
+    select({
+      callConfig: { enabled: true, teams: ["team"] },
+      liveRooms: occupied
+        ? [{ room_key: "channel:design", members: [{}] }]
+        : [],
+    }),
 }));
 mock.module("@/components/Themed", () => ({ Text: "span" }));
-mock.module("@/constants/Theme", () => ({ Theme: {}, useTheme: () => ({}), themedStyles: (fn) => fn({}) }));
-mock.module("@/lib/calls/callManager", () => ({ startHuddle: async (opts) => { starts.push(opts); }, joinCall: async (room) => { joins.push(room); } }));
-const { HuddleButton } = await import("../../../components/calls/SessionHuddleButton");
-const button = (count) => HuddleButton({ roomKey: "channel:design", teamId: "team", channelMemberCount: count, anchorTitle: "#design" });
+mock.module("@/constants/Theme", () => ({
+  Theme: {},
+  useTheme: () => ({}),
+  themedStyles: (fn) => fn({}),
+}));
+mock.module("@/lib/calls/callManager", () => ({
+  startHuddle: async (opts) => {
+    starts.push(opts);
+  },
+  joinCall: async (room) => {
+    joins.push(room);
+  },
+}));
+const { HuddleButton } =
+  await import("../../../components/calls/SessionHuddleButton");
+const button = (count) =>
+  HuddleButton({
+    roomKey: "channel:design",
+    teamId: "team",
+    channelMemberCount: count,
+    anchorTitle: "#design",
+  });
 button(7).props.onPress();
 assert.equal(starts.length, 1);
 assert.equal(starts[0].ringChannel, true);

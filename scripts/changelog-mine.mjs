@@ -20,7 +20,11 @@
 import { execSync } from "node:child_process";
 
 const git = (args) =>
-  execSync(`git ${args}`, { cwd: process.cwd(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  execSync(`git ${args}`, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
 
 // ── parse args ───────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -28,7 +32,8 @@ let since, until, label;
 
 const monthBounds = (ym) => {
   const [y, m] = ym.split("-").map(Number);
-  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const next =
+    m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
   return { from: `${ym}-01`, to: next };
 };
 
@@ -36,7 +41,10 @@ if (argv[0] === "--since") {
   since = argv[1];
   until = "now";
   label = `since ${since}`;
-} else if (/^\d{4}-\d{2}$/.test(argv[0] || "") && /^\d{4}-\d{2}$/.test(argv[1] || "")) {
+} else if (
+  /^\d{4}-\d{2}$/.test(argv[0] || "") &&
+  /^\d{4}-\d{2}$/.test(argv[1] || "")
+) {
   since = monthBounds(argv[0]).from;
   until = monthBounds(argv[1]).to;
   label = `${argv[0]} … ${argv[1]}`;
@@ -57,7 +65,9 @@ if (argv[0] === "--since") {
 const range = `--since=${since} ${until !== "now" ? `--until=${until}` : ""}`;
 
 // ── collect commits ──────────────────────────────────────────────────────────
-const raw = git(`log ${range} --reverse --no-merges --date=short --format=%ad%x1f%h%x1f%s`)
+const raw = git(
+  `log ${range} --reverse --no-merges --date=short --format=%ad%x1f%h%x1f%s`,
+)
   .split("\n")
   .filter(Boolean)
   .map((l) => {
@@ -66,12 +76,15 @@ const raw = git(`log ${range} --reverse --no-merges --date=short --format=%ad%x1
   });
 
 // ── releases (version bumps) ─────────────────────────────────────────────────
-const releaseRe = /(bump version to|release v?|bump .*(dmg|download).* to)\s*v?([\d.]+)/i;
+const releaseRe =
+  /(bump version to|release v?|bump .*(dmg|download).* to)\s*v?([\d.]+)/i;
 const releases = raw
   .map((c) => {
     const m = c.subject.match(releaseRe);
     if (!m) return null;
-    const scope = (c.subject.match(/\((cli|electron|web|mobile|desktop)\)/i) || [])[1] || "?";
+    const scope =
+      (c.subject.match(/\((cli|electron|web|mobile|desktop)\)/i) || [])[1] ||
+      "?";
     return { date: c.date, scope: scope.toLowerCase(), version: m[3] };
   })
   .filter(Boolean);
@@ -91,7 +104,8 @@ function cmpVer(a, b) {
 }
 
 // ── cluster substantive commits by scope ─────────────────────────────────────
-const NOISE = /(bump version|tsbuildinfo|^chore:|gitignore|prettier|eslint|lint|snapshot|wip|typo|^docs?:|^test:|^ci:|^build:|^style:|merge branch|bump .*(dmg|download))/i;
+const NOISE =
+  /(bump version|tsbuildinfo|^chore:|gitignore|prettier|eslint|lint|snapshot|wip|typo|^docs?:|^test:|^ci:|^build:|^style:|merge branch|bump .*(dmg|download))/i;
 const TYPE_RE = /^(feat|fix|perf|refactor)(\(([^)]+)\))?(!)?:\s*(.*)$/;
 
 const buckets = new Map();
@@ -109,7 +123,9 @@ for (const c of raw) {
   counted++;
 }
 
-const orderedScopes = [...buckets.entries()].sort((a, b) => b[1].length - a[1].length);
+const orderedScopes = [...buckets.entries()].sort(
+  (a, b) => b[1].length - a[1].length,
+);
 
 // ── print digest ─────────────────────────────────────────────────────────────
 const bold = (s) => `\x1b[1m${s}\x1b[0m`;
@@ -117,7 +133,9 @@ const dim = (s) => `\x1b[2m${s}\x1b[0m`;
 
 console.log("");
 console.log(bold(`Changelog material — ${label}`));
-console.log(dim(`${raw.length} commits, ${counted} substantive (feat/fix/perf)`));
+console.log(
+  dim(`${raw.length} commits, ${counted} substantive (feat/fix/perf)`),
+);
 console.log("");
 
 console.log(bold("Releases in period:"));
@@ -134,7 +152,9 @@ if (releases.length === 0) {
       s.first.version === s.last.version
         ? `v${s.last.version}`
         : `v${s.first.version} – v${s.last.version}`;
-    console.log(`  ${scope.padEnd(9)} ${range}  ${dim(`(${s.first.date} … ${s.last.date})`)}`);
+    console.log(
+      `  ${scope.padEnd(9)} ${range}  ${dim(`(${s.first.date} … ${s.last.date})`)}`,
+    );
   }
 }
 console.log("");
@@ -144,7 +164,8 @@ for (const [scope, items] of orderedScopes) {
   console.log("");
   console.log(`  ${bold(scope)} ${dim(`(${items.length})`)}`);
   for (const it of items) {
-    const tag = it.type === "fix" ? "fix " : it.type === "perf" ? "perf" : "feat";
+    const tag =
+      it.type === "fix" ? "fix " : it.type === "perf" ? "perf" : "feat";
     console.log(`    ${dim(tag)} ${it.text}  ${dim(it.hash)}`);
   }
 }
@@ -152,7 +173,7 @@ console.log("");
 console.log(
   dim(
     "→ Now write/extend the entry in apps/web/app/(marketing)/changelog/changelogData.ts.\n" +
-      "  Group these into a few topical sections, and say in plain language what each change does for the user."
-  )
+      "  Group these into a few topical sections, and say in plain language what each change does for the user.",
+  ),
 );
 console.log("");

@@ -18,8 +18,18 @@ export const RECEIPT_EXPIRES_MS = 24 * 3600_000;
 /** Expo's limit on ids per getReceipts call. */
 const RECEIPT_BATCH = 1000;
 
-export type Ticket = { _id: Id<"push_tickets">; ticket_id: string; push_token: string; user_id?: Id<"users">; sent_at: number };
-export type ExpoPushResult = { status: "ok" | "error"; message?: string; details?: { error?: string } };
+export type Ticket = {
+  _id: Id<"push_tickets">;
+  ticket_id: string;
+  push_token: string;
+  user_id?: Id<"users">;
+  sent_at: number;
+};
+export type ExpoPushResult = {
+  status: "ok" | "error";
+  message?: string;
+  details?: { error?: string };
+};
 export type PushFailure = { code: string; count: number; sample: string };
 
 /**
@@ -27,7 +37,11 @@ export type PushFailure = { code: string; count: number; sample: string };
  * dead, and the failures by error code. A ticket with no receipt yet stays
  * unless Expo has already dropped it.
  */
-export function settleReceipts(tickets: Ticket[], receipts: Record<string, ExpoPushResult>, now: number) {
+export function settleReceipts(
+  tickets: Ticket[],
+  receipts: Record<string, ExpoPushResult>,
+  now: number,
+) {
   const settled: Id<"push_tickets">[] = [];
   const dead: { user_id: Id<"users">; push_token: string }[] = [];
   const failures = new Map<string, PushFailure>();
@@ -41,10 +55,15 @@ export function settleReceipts(tickets: Ticket[], receipts: Record<string, ExpoP
     if (r.status !== "error") continue;
     const code = r.details?.error ?? "Unknown";
     if (code === "DeviceNotRegistered") {
-      if (t.user_id) dead.push({ user_id: t.user_id, push_token: t.push_token });
+      if (t.user_id)
+        dead.push({ user_id: t.user_id, push_token: t.push_token });
       continue;
     }
-    const f = failures.get(code) ?? { code, count: 0, sample: r.message ?? code };
+    const f = failures.get(code) ?? {
+      code,
+      count: 0,
+      sample: r.message ?? code,
+    };
     f.count++;
     failures.set(code, f);
   }
@@ -52,7 +71,11 @@ export function settleReceipts(tickets: Ticket[], receipts: Record<string, ExpoP
 }
 
 export const recordTicket = internalMutation({
-  args: { ticket_id: v.string(), push_token: v.string(), user_id: v.optional(v.id("users")) },
+  args: {
+    ticket_id: v.string(),
+    push_token: v.string(),
+    user_id: v.optional(v.id("users")),
+  },
   handler: async (ctx, args) => {
     await ctx.db.insert("push_tickets", { ...args, sent_at: Date.now() });
   },
@@ -74,15 +97,22 @@ export const settle = internalMutation({
     dead: v.array(v.object({ user_id: v.id("users"), push_token: v.string() })),
   },
   handler: async (ctx, args) => {
-    for (const id of args.ids) if (await ctx.db.get(id)) await ctx.db.delete(id);
-    for (const d of args.dead) await clearPushTokenIfCurrent(ctx, d.user_id, d.push_token);
+    for (const id of args.ids)
+      if (await ctx.db.get(id)) await ctx.db.delete(id);
+    for (const d of args.dead)
+      await clearPushTokenIfCurrent(ctx, d.user_id, d.push_token);
   },
 });
 
 /** Clears a dead token only if the user still carries it, so a re-registration that raced the ticket survives. */
-export async function clearPushTokenIfCurrent(ctx: { db: any }, userId: Id<"users">, pushToken: string) {
+export async function clearPushTokenIfCurrent(
+  ctx: { db: any },
+  userId: Id<"users">,
+  pushToken: string,
+) {
   const user = await ctx.db.get(userId);
-  if (user?.push_token === pushToken) await ctx.db.patch(userId, { push_token: undefined });
+  if (user?.push_token === pushToken)
+    await ctx.db.patch(userId, { push_token: undefined });
 }
 
 /**
@@ -90,12 +120,18 @@ export async function clearPushTokenIfCurrent(ctx: { db: any }, userId: Id<"user
  * by error code. The source is the one whose ingest key sits in
  * CODECAST_BACKEND_INGEST_KEY; without it the failure only reaches the log.
  */
-export async function reportPushFailures(ctx: { runQuery: any; runMutation: any }, failures: PushFailure[]) {
+export async function reportPushFailures(
+  ctx: { runQuery: any; runMutation: any },
+  failures: PushFailure[],
+) {
   if (!failures.length) return;
-  for (const f of failures) console.error(`expo push failing: ${f.code} x${f.count}: ${f.sample}`);
+  for (const f of failures)
+    console.error(`expo push failing: ${f.code} x${f.count}: ${f.sample}`);
   const key = process.env.CODECAST_BACKEND_INGEST_KEY;
   if (!key) return;
-  const source = await ctx.runQuery(internal.ingest.sourceForKey, { key_hash: await sha256Hex(key) });
+  const source = await ctx.runQuery(internal.ingest.sourceForKey, {
+    key_hash: await sha256Hex(key),
+  });
   if (!source || "retry_after_ms" in source) return;
   const at = Date.now();
   await ctx.runMutation(internal.ingest.applyBatch, {
@@ -110,7 +146,7 @@ export async function reportPushFailures(ctx: { runQuery: any; runMutation: any 
         tags: { channel: "expo-push", code: f.code },
         context: { failed: f.count, sample: f.sample },
         at,
-      }))
+      })),
     ),
   });
 }
@@ -125,24 +161,39 @@ export const sweep = internalAction({
     const failures: PushFailure[] = [];
     let checked = 0;
     for (let batch = 0; batch < SWEEP_BATCHES; batch++) {
-      const tickets: Ticket[] = await ctx.runQuery(internal.pushReceipts.readyTickets, { before: now - RECEIPT_READY_MS, limit: RECEIPT_BATCH });
+      const tickets: Ticket[] = await ctx.runQuery(
+        internal.pushReceipts.readyTickets,
+        { before: now - RECEIPT_READY_MS, limit: RECEIPT_BATCH },
+      );
       if (!tickets.length) break;
       const res = await fetch("https://exp.host/--/api/v2/push/getReceipts", {
         method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ ids: tickets.map((t) => t.ticket_id) }),
       });
       if (!res.ok) {
         console.error(`expo getReceipts ${res.status}: ${await res.text()}`);
         break;
       }
-      const receipts = ((await res.json()) as { data?: Record<string, ExpoPushResult> }).data ?? {};
+      const receipts =
+        ((await res.json()) as { data?: Record<string, ExpoPushResult> })
+          .data ?? {};
       const settled = settleReceipts(tickets, receipts, now);
-      await ctx.runMutation(internal.pushReceipts.settle, { ids: settled.settled, dead: settled.dead });
+      await ctx.runMutation(internal.pushReceipts.settle, {
+        ids: settled.settled,
+        dead: settled.dead,
+      });
       failures.push(...settled.failures);
       checked += tickets.length;
       // Tickets still waiting on a receipt stay in the index; stop rather than re-read them.
-      if (tickets.length < RECEIPT_BATCH || settled.settled.length < tickets.length) break;
+      if (
+        tickets.length < RECEIPT_BATCH ||
+        settled.settled.length < tickets.length
+      )
+        break;
     }
     const byCode = new Map<string, PushFailure>();
     for (const f of failures) {

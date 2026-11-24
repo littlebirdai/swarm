@@ -24,7 +24,10 @@ export type ProjectMatch =
 // Classify a reference against the caller's visible projects. Pure: the caller
 // turns "none"/"ambiguous" into an error, so the same rules can be tested
 // without a server.
-export function matchProject(projects: ProjectLike[], ref: string): ProjectMatch {
+export function matchProject(
+  projects: ProjectLike[],
+  ref: string,
+): ProjectMatch {
   // An empty ref is the "clear the project" signal on update, not a lookup.
   if (!ref) return { kind: "empty" };
   if (looksLikeConvexId(ref)) return { kind: "id", id: ref };

@@ -12,7 +12,13 @@ export function nameMatchers(names) {
   return names
     .map((n) => n.trim())
     .filter(Boolean)
-    .map((n) => new RegExp(`(?:^|[^\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^\\p{L}\\p{N}])`, "iu"));
+    .map(
+      (n) =>
+        new RegExp(
+          `(?:^|[^\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^\\p{L}\\p{N}])`,
+          "iu",
+        ),
+    );
 }
 
 /** Whether a turn is the voice's without hearing its words: one person is in
@@ -25,6 +31,7 @@ export function turnIsForVoice({ quiet, alone }) {
 /** What to do with one finished line from the room: "answer" it, and whether
  *  it lifts a quiet. */
 export function turnVerdict({ transcript, named, quiet, alone }) {
-  if (named.some((re) => re.test(transcript))) return { answer: true, quiet: false };
+  if (named.some((re) => re.test(transcript)))
+    return { answer: true, quiet: false };
   return { answer: turnIsForVoice({ quiet, alone }), quiet };
 }

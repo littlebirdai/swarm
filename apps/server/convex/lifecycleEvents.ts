@@ -31,7 +31,8 @@ const MAX_VALUE = 160;
 
 /** Name who is writing, for every lifecycle event this mutation records from here on. */
 export function noteWriteCause(ctx: { db: any }, cause: string): void {
-  if (ctx?.db && typeof ctx.db === "object" && CAUSE in ctx.db) ctx.db[CAUSE] = cause;
+  if (ctx?.db && typeof ctx.db === "object" && CAUSE in ctx.db)
+    ctx.db[CAUSE] = cause;
 }
 
 function short(value: unknown): string | null {
@@ -45,14 +46,20 @@ function writerStack(): string {
     .split("\n")
     .slice(1)
     .map((line) => line.trim())
-    .filter((line) => !/(lifecycleEvents|changeLog|principalViewRevisions|functions)\.(ts|js)/.test(line))
+    .filter(
+      (line) =>
+        !/(lifecycleEvents|changeLog|principalViewRevisions|functions)\.(ts|js)/.test(
+          line,
+        ),
+    )
     .slice(0, 4)
     .join(" | ");
 }
 
 export function makeLifecycleEventDb(db: any, rawDb: any): any {
   if (typeof rawDb?.normalizeId !== "function") return db;
-  const tableOf = (id: any, table: string) => !!rawDb.normalizeId(table, String(id));
+  const tableOf = (id: any, table: string) =>
+    !!rawDb.normalizeId(table, String(id));
 
   const record = async (row: {
     conversation_id: string;
@@ -88,21 +95,35 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
     system: db.system,
 
     async patch(id: any, fields: any) {
-      if (tableOf(id, "conversations") && LIFECYCLE_FIELDS.some((f) => f in fields)) {
+      if (
+        tableOf(id, "conversations") &&
+        LIFECYCLE_FIELDS.some((f) => f in fields)
+      ) {
         const pre = await db.get(id);
         const res = await db.patch(id, fields);
         const changes = conversationChanges(pre, fields, false);
-        if (Object.keys(changes).length) await record({ conversation_id: String(id), kind: "lifecycle", changes });
+        if (Object.keys(changes).length)
+          await record({
+            conversation_id: String(id),
+            kind: "lifecycle",
+            changes,
+          });
         return res;
       }
-      if (tableOf(id, "pending_messages") && TERMINAL_PENDING.has(fields?.status)) {
+      if (
+        tableOf(id, "pending_messages") &&
+        TERMINAL_PENDING.has(fields?.status)
+      ) {
         const pre = await db.get(id);
         const res = await db.patch(id, fields);
         if (pre && pre.status !== fields.status && pre.conversation_id) {
           await record({
             conversation_id: String(pre.conversation_id),
             kind: `message_${fields.status}`,
-            changes: { message: [String(id), short(pre.status)], status: [short(pre.status), fields.status] },
+            changes: {
+              message: [String(id), short(pre.status)],
+              status: [short(pre.status), fields.status],
+            },
           });
         }
         return res;
@@ -115,7 +136,12 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
       const pre = await db.get(id);
       const res = await db.replace(id, doc);
       const changes = conversationChanges(pre, doc ?? {}, true);
-      if (Object.keys(changes).length) await record({ conversation_id: String(id), kind: "lifecycle", changes });
+      if (Object.keys(changes).length)
+        await record({
+          conversation_id: String(id),
+          kind: "lifecycle",
+          changes,
+        });
       return res;
     },
 
@@ -127,7 +153,11 @@ export function makeLifecycleEventDb(db: any, rawDb: any): any {
       const res = await db.delete(id);
       if (managed) await deleteSessionHeartbeat({ db }, id);
       if (conversation) {
-        await record({ conversation_id: String(id), kind: "deleted", changes: { status: [short(pre?.status), null] } });
+        await record({
+          conversation_id: String(id),
+          kind: "deleted",
+          changes: { status: [short(pre?.status), null] },
+        });
       } else if (pre?.conversation_id) {
         await record({
           conversation_id: String(pre.conversation_id),

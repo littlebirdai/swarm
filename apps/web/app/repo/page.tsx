@@ -13,7 +13,10 @@ import { ExternalEventRow } from "../../components/feed/ExternalEventRow";
 import { LoadingSkeleton } from "../../components/LoadingSkeleton";
 import { useRepositories } from "../../hooks/useRepoBrowse";
 import { useExternalEvents } from "../../hooks/useSyncExternalEvents";
-import { useSyncPullRequests, usePullRequests } from "../../hooks/useSyncTimeline";
+import {
+  useSyncPullRequests,
+  usePullRequests,
+} from "../../hooks/useSyncTimeline";
 import { useTitlebarHead } from "../../hooks/useTitlebarHead";
 import { serverErrorText } from "../../lib/errorCause";
 import { externalEventRowToExternalEvent } from "../../lib/externalEvents";
@@ -24,7 +27,9 @@ function RepoList() {
   const { rows, ready, error } = useRepositories();
 
   useSyncPullRequests({ limit: 200 });
-  const openPRs = usePullRequests(useCallback((pr: any) => pr.state === "open", []));
+  const openPRs = usePullRequests(
+    useCallback((pr: any) => pr.state === "open", []),
+  );
   const events = useExternalEvents();
 
   const byRepository = useMemo(() => {
@@ -57,7 +62,8 @@ function RepoList() {
         <FolderGit2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
         <p className="text-[14px] mb-1">No repository is connected yet.</p>
         <p className="text-[12px] text-sol-text-dim">
-          Install the GitHub App on a team from Settings and its repositories appear here.
+          Install the GitHub App on a team from Settings and its repositories
+          appear here.
         </p>
       </div>
     );
@@ -79,7 +85,10 @@ function RepoList() {
             style={{ ["--d" as string]: `${Math.min(i, 12) * 30}ms` }}
           >
             <div className="flex items-baseline gap-2 flex-wrap">
-              <Link href={repoHomeHref(row.repository)} className="flex items-baseline gap-1 group">
+              <Link
+                href={repoHomeHref(row.repository)}
+                className="flex items-baseline gap-1 group"
+              >
                 <span className="text-[12px] text-sol-text-dim">{owner}/</span>
                 <span className="font-serif text-[17px] leading-none text-sol-text group-hover:underline">
                   {name}
@@ -115,10 +124,19 @@ export default function RepositoriesPage() {
     <AuthGuard>
       <DashboardLayout>
         <div className="repo-page h-full flex flex-col">
-          <header ref={titlebarRef} className="repo-band border-b border-sol-border/60 px-4 py-3 shrink-0">
-            <h1 className="repo-rise font-serif text-[20px] leading-none text-sol-text">Repositories</h1>
-            <p className="repo-rise mt-1.5 text-[12px] text-sol-text-muted" style={{ ["--d" as string]: "60ms" }}>
-              History, source and every commit, with the sessions and tasks behind them.
+          <header
+            ref={titlebarRef}
+            className="repo-band border-b border-sol-border/60 px-4 py-3 shrink-0"
+          >
+            <h1 className="repo-rise font-serif text-[20px] leading-none text-sol-text">
+              Repositories
+            </h1>
+            <p
+              className="repo-rise mt-1.5 text-[12px] text-sol-text-muted"
+              style={{ ["--d" as string]: "60ms" }}
+            >
+              History, source and every commit, with the sessions and tasks
+              behind them.
             </p>
           </header>
           <div className="flex-1 min-h-0 overflow-y-auto">

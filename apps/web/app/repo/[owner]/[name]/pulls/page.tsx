@@ -9,7 +9,10 @@ export default function RepoPullsPage() {
 
   return (
     <RepoSectionPage tab="pulls" accent="var(--sol-violet)">
-      <RepoPullsContent repository={`${params.owner}/${params.name}`} family={family} />
+      <RepoPullsContent
+        repository={`${params.owner}/${params.name}`}
+        family={family}
+      />
     </RepoSectionPage>
   );
 }

@@ -2,7 +2,11 @@ import { Extension } from "@tiptap/react";
 import { ReactRenderer } from "@tiptap/react";
 import Suggestion from "@tiptap/suggestion";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
-import { SlashCommandList, SLASH_COMMANDS, type SlashCommandItem } from "./SlashCommand";
+import {
+  SlashCommandList,
+  SLASH_COMMANDS,
+  type SlashCommandItem,
+} from "./SlashCommand";
 
 export const SlashCommandExtension = Extension.create({
   name: "slashCommand",
@@ -18,7 +22,7 @@ export const SlashCommandExtension = Extension.create({
           return SLASH_COMMANDS.filter(
             (cmd) =>
               cmd.title.toLowerCase().includes(q) ||
-              cmd.description.toLowerCase().includes(q)
+              cmd.description.toLowerCase().includes(q),
           );
         },
         command: ({ editor, range, props: item }: any) => {

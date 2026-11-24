@@ -20,7 +20,10 @@ export function ZenToggle() {
   return (
     <ShortcutTooltip label={label} action="ui.zenToggle" side="bottom">
       <TopbarButton
-        onClick={(e) => { dispatchAction("ui.zenToggle"); tipActions.whisper("ui.zenToggle", e); }}
+        onClick={(e) => {
+          dispatchAction("ui.zenToggle");
+          tipActions.whisper("ui.zenToggle", e);
+        }}
         aria-label={label}
         desktopOnly
       >

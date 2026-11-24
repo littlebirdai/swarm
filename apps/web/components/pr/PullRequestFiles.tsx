@@ -6,9 +6,17 @@
 // a card mounts it only once it is expanded.
 
 import { FileDiffList, type DiffFile } from "../FileDiffView";
-import { usePullRequestDetail, useSyncPullRequestDetail } from "../../hooks/useSyncTimeline";
+import {
+  usePullRequestDetail,
+  useSyncPullRequestDetail,
+} from "../../hooks/useSyncTimeline";
 
-export function PullRequestFiles({ id, files, emptyText, className }: {
+export function PullRequestFiles({
+  id,
+  files,
+  emptyText,
+  className,
+}: {
   /** The pull request's row id. */
   id: string | undefined;
   /** Files the caller already holds (a fixture's whole object): shown as they are, and nothing is read. */
@@ -21,5 +29,11 @@ export function PullRequestFiles({ id, files, emptyText, className }: {
   const shown = files ?? (detail?.files as DiffFile[] | undefined);
   // Until the first answer, an empty list would read as "no files".
   const settled = !!files || !!detail || feed.ready || !!feed.error || !id;
-  return <FileDiffList files={shown} emptyText={settled ? emptyText : undefined} className={className} />;
+  return (
+    <FileDiffList
+      files={shown}
+      emptyText={settled ? emptyText : undefined}
+      className={className}
+    />
+  );
 }

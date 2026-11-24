@@ -42,7 +42,9 @@ export function rowArrivedAt(id: string): number {
 }
 export function onLiveRowsArrived(fn: () => void): () => void {
   arrivalListeners.add(fn);
-  return () => { arrivalListeners.delete(fn); };
+  return () => {
+    arrivalListeners.delete(fn);
+  };
 }
 const appliedRev = new Map<string, number>();
 type Settle = { docId: string; rev: number; rowIds: string[]; before: number };
@@ -56,9 +58,13 @@ function runSettles() {
   const store = useInboxStore.getState() as any;
   // One release for every write that came due (a big write lands as many batches at once).
   const settled: Record<string, number> = {};
-  for (const x of due) for (const id of x.rowIds) settled[id] = Math.max(settled[id] ?? 0, x.before);
+  for (const x of due)
+    for (const id of x.rowIds)
+      settled[id] = Math.max(settled[id] ?? 0, x.before);
   store.settleLiveRows(settled);
-  const rows = due.flatMap((x) => x.rowIds.map((id) => serverRows.get(id))).filter(Boolean);
+  const rows = due
+    .flatMap((x) => x.rowIds.map((id) => serverRows.get(id)))
+    .filter(Boolean);
   if (rows.length) store.syncTable("liveElements", rows);
 }
 
@@ -72,7 +78,8 @@ function runSettles() {
  * first feed answer, every live lock older than the page goes: the server's
  * rows show, and a replay still on its way lands like any other write.
  */
-const PAGE_START = typeof performance !== "undefined" ? performance.timeOrigin : Date.now();
+const PAGE_START =
+  typeof performance !== "undefined" ? performance.timeOrigin : Date.now();
 let orphansReleased = false;
 function releaseOrphanLocks() {
   if (orphansReleased) return;
@@ -81,9 +88,17 @@ function releaseOrphanLocks() {
   const prefix = "liveElements:";
   const settled: Record<string, number> = {};
   for (const key in pending) {
-    if (!key.startsWith(prefix) || !((pending[key]?.ts ?? Infinity) < PAGE_START)) continue;
+    if (
+      !key.startsWith(prefix) ||
+      !((pending[key]?.ts ?? Infinity) < PAGE_START)
+    )
+      continue;
     const rest = key.slice(prefix.length);
-    settled[pending[key].type === "field" ? rest.slice(0, rest.lastIndexOf(":")) : rest] = PAGE_START;
+    settled[
+      pending[key].type === "field"
+        ? rest.slice(0, rest.lastIndexOf(":"))
+        : rest
+    ] = PAGE_START;
   }
   const ids = Object.keys(settled);
   if (ids.length === 0) return;
@@ -108,11 +123,17 @@ export function liveReadThrough(docId: string): number {
 /** Put the server's rows back over these (a write painted without locks that the server refused). */
 export function restoreServerRows(ids: string[]) {
   const rows = ids.map((id) => serverRows.get(id)).filter(Boolean);
-  if (rows.length) (useInboxStore.getState() as any).syncTable("liveElements", rows);
+  if (rows.length)
+    (useInboxStore.getState() as any).syncTable("liveElements", rows);
 }
 
 /** A write landed at `rev`: once the feed has read that far, its locks go and the server's rows stand. */
-export function settleAfter(docId: string, rev: number, rowIds: string[], before: number) {
+export function settleAfter(
+  docId: string,
+  rev: number,
+  rowIds: string[],
+  before: number,
+) {
   settles.push({ docId, rev, rowIds, before });
   runSettles();
 }
@@ -138,7 +159,8 @@ function localRows(docId: string): { count: number; revSum: number } {
 
 /** Whether the store holds the doc exactly as the server does: as many rows, at the same revisions. */
 function cacheMatches(payload: any): boolean {
-  if (typeof payload.total !== "number" || typeof payload.rev_sum !== "number") return false;
+  if (typeof payload.total !== "number" || typeof payload.rev_sum !== "number")
+    return false;
   const mine = localRows(payload.doc_id);
   return mine.count === payload.total && mine.revSum === payload.rev_sum;
 }
@@ -167,9 +189,26 @@ export function applyElementsPayload(payload: any): number {
   // when the store's server rows for the doc match the server's count and
   // revision sum (a row held at an older value sums lower). The next open reads the tail from there.
   const complete = !payload.more && cacheMatches(payload) ? payload.head : null;
-  store.syncTable("liveHeads", [{ _id: payload.doc_id, head: payload.head, draft: payload.draft ?? null, restoring: payload.restoring ?? null, title: payload.title, doc_type: payload.doc_type, complete, edit: payload.edit ?? "team", editors: payload.editors ?? [], can_edit: payload.can_edit !== false }]);
+  store.syncTable("liveHeads", [
+    {
+      _id: payload.doc_id,
+      head: payload.head,
+      draft: payload.draft ?? null,
+      restoring: payload.restoring ?? null,
+      title: payload.title,
+      doc_type: payload.doc_type,
+      complete,
+      edit: payload.edit ?? "team",
+      editors: payload.editors ?? [],
+      can_edit: payload.can_edit !== false,
+    },
+  ]);
   const next = payload.next ?? 0;
-  if (!payload.more) appliedRev.set(payload.doc_id, Math.max(appliedRev.get(payload.doc_id) ?? 0, payload.head ?? next));
+  if (!payload.more)
+    appliedRev.set(
+      payload.doc_id,
+      Math.max(appliedRev.get(payload.doc_id) ?? 0, payload.head ?? next),
+    );
   runSettles();
   if ((payload.rows ?? []).length) for (const fn of arrivalListeners) fn();
   return next;
@@ -180,7 +219,11 @@ export function applyElementsPayload(payload: any): number {
 // The first answer proves it again: a cache persisted in part (a write-through
 // cut short, a hydration still running) counts short, and the feed falls back
 // to reading the doc from revision 0, so a missed row is always asked for.
-const startOf = (docId: string): number => (docId ? Number((useInboxStore.getState() as any).liveHeads?.[docId]?.complete) || 0 : 0);
+const startOf = (docId: string): number =>
+  docId
+    ? Number((useInboxStore.getState() as any).liveHeads?.[docId]?.complete) ||
+      0
+    : 0;
 
 function useElementsFeed(docId: string): { ready: boolean } {
   const authSettled = useServerAuthSettled();
@@ -195,28 +238,35 @@ function useElementsFeed(docId: string): { ready: boolean } {
     setReady(false);
   }, [docId]);
   const stub = isStubDoc(docId);
-  const args = authSettled && docId && !stub ? { doc_id: docId as any, since } : "skip";
-  const { data, error } = useQueryNoThrow(api.liveArtifacts.elementsSince, args as any);
+  const args =
+    authSettled && docId && !stub ? { doc_id: docId as any, since } : "skip";
+  const { data, error } = useQueryNoThrow(
+    api.liveArtifacts.elementsSince,
+    args as any,
+  );
   useFeederError("liveArtifacts.elementsSince", error);
   useConvexSync(
     data,
-    useCallback((payload: any) => {
-      if (!payload) return;
-      const next = applyElementsPayload(payload);
-      if (unproven.current && !payload.more) {
-        unproven.current = false;
-        // The cache counted short (or long): read the whole doc instead.
-        if (!cacheMatches(payload)) {
-          setSince(0);
-          return;
+    useCallback(
+      (payload: any) => {
+        if (!payload) return;
+        const next = applyElementsPayload(payload);
+        if (unproven.current && !payload.more) {
+          unproven.current = false;
+          // The cache counted short (or long): read the whole doc instead.
+          if (!cacheMatches(payload)) {
+            setSince(0);
+            return;
+          }
         }
-      }
-      if (!payload.more) {
-        setReady(true);
-        releaseOrphanLocks();
-      }
-      if (next > since) setSince(next);
-    }, [since]),
+        if (!payload.more) {
+          setReady(true);
+          releaseOrphanLocks();
+        }
+        if (next > since) setSince(next);
+      },
+      [since],
+    ),
   );
   // A placeholder doc has nothing on the server: what this tab holds is all of it.
   return { ready: ready || stub };
@@ -226,12 +276,32 @@ function useElementsFeed(docId: string): { ready: boolean } {
 export function useSyncLiveArtifact(docId: string): { ready: boolean } {
   const feed = useElementsFeed(docId);
   const onServer = !!docId && !isStubDoc(docId);
-  useSyncCollection("livePresence", api.livePresence.presence, onServer ? { doc_id: docId as any } : "skip", {
-    select: useCallback((rows: any) => (Array.isArray(rows) ? rows.map((r: any) => ({ ...r, _id: `${r.doc_id}|${r.actor}` })) : rows), []),
-    dropAbsent: useCallback((row: any) => row?.doc_id === docId, [docId]),
-  });
-  useSyncCollection("liveVersions", api.liveArtifacts.versions, onServer ? { doc_id: docId as any } : "skip", {
-    select: useCallback((p: any) => p?.versions?.map((v: any) => ({ ...v, _id: String(v._id) })), []),
-  });
+  useSyncCollection(
+    "livePresence",
+    api.livePresence.presence,
+    onServer ? { doc_id: docId as any } : "skip",
+    {
+      select: useCallback(
+        (rows: any) =>
+          Array.isArray(rows)
+            ? rows.map((r: any) => ({ ...r, _id: `${r.doc_id}|${r.actor}` }))
+            : rows,
+        [],
+      ),
+      dropAbsent: useCallback((row: any) => row?.doc_id === docId, [docId]),
+    },
+  );
+  useSyncCollection(
+    "liveVersions",
+    api.liveArtifacts.versions,
+    onServer ? { doc_id: docId as any } : "skip",
+    {
+      select: useCallback(
+        (p: any) =>
+          p?.versions?.map((v: any) => ({ ...v, _id: String(v._id) })),
+        [],
+      ),
+    },
+  );
   return feed;
 }

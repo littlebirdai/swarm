@@ -12,9 +12,17 @@
 //
 // Pure and generic over the caller's role rows, like orgLead.
 
-import { isWholeWorkspaceRole, ownerOf, type LeadRole, type OwnedWork, type WorkOwner } from "./orgLead";
+import {
+  isWholeWorkspaceRole,
+  ownerOf,
+  type LeadRole,
+  type OwnedWork,
+  type WorkOwner,
+} from "./orgLead";
 
-export type RouteOwner<R> = { kind: "role"; role: R } | { kind: "user"; user_id: string };
+export type RouteOwner<R> =
+  | { kind: "role"; role: R }
+  | { kind: "user"; user_id: string };
 
 export type RouteInput<R> = {
   /** Line 1: `--to @role`, `--to me`, an @mention, `--assignee`, a reparent. */
@@ -34,29 +42,70 @@ export type RouteLanding<R> =
   /** Nothing placed it: the semantic router reads it (S35). */
   | { line: 4; owner: null; why: string };
 
-const named = (work: OwnedWork) => (work.plan_id ? "plan" : work.project_id ? "project" : "nothing");
+const named = (work: OwnedWork) =>
+  work.plan_id ? "plan" : work.project_id ? "project" : "nothing";
 
-export function routeWork<R extends LeadRole>(input: RouteInput<R>, roles: readonly R[] | null | undefined): RouteLanding<R> {
-  if (input.to) return { line: 1, owner: input.to, why: input.to.kind === "role" ? `named @${input.to.role.handle ?? "role"}` : "named a person" };
+export function routeWork<R extends LeadRole>(
+  input: RouteInput<R>,
+  roles: readonly R[] | null | undefined,
+): RouteLanding<R> {
+  if (input.to)
+    return {
+      line: 1,
+      owner: input.to,
+      why:
+        input.to.kind === "role"
+          ? `named @${input.to.role.handle ?? "role"}`
+          : "named a person",
+    };
   const anchor = input.anchor;
   if (anchor && (anchor.plan_id || anchor.project_id)) {
     const owner: WorkOwner<R> = ownerOf(anchor, roles);
     if (owner.kind === "owner") {
       const whole = isWholeWorkspaceRole(owner.role);
-      return { line: 2, owner: { kind: "role", role: owner.role }, why: whole ? `no role names its ${named(anchor)}; @${owner.role.handle} looks after the rest` : `@${owner.role.handle} names its ${named(anchor)}` };
+      return {
+        line: 2,
+        owner: { kind: "role", role: owner.role },
+        why: whole
+          ? `no role names its ${named(anchor)}; @${owner.role.handle} looks after the rest`
+          : `@${owner.role.handle} names its ${named(anchor)}`,
+      };
     }
-    if (owner.kind === "watchers") return { line: 2, owner: null, choices: owner.roles, why: `${owner.roles.length} roles watch its ${named(anchor)} and none is closer` };
-    if (input.starter) return { line: 3, owner: { kind: "user", user_id: input.starter }, why: `no role covers its ${named(anchor)}; it stays with whoever started it` };
+    if (owner.kind === "watchers")
+      return {
+        line: 2,
+        owner: null,
+        choices: owner.roles,
+        why: `${owner.roles.length} roles watch its ${named(anchor)} and none is closer`,
+      };
+    if (input.starter)
+      return {
+        line: 3,
+        owner: { kind: "user", user_id: input.starter },
+        why: `no role covers its ${named(anchor)}; it stays with whoever started it`,
+      };
     return { line: 4, owner: null, why: `no role covers its ${named(anchor)}` };
   }
-  if (input.starter) return { line: 3, owner: { kind: "user", user_id: input.starter }, why: "no task, plan or project; it stays with whoever started it" };
+  if (input.starter)
+    return {
+      line: 3,
+      owner: { kind: "user", user_id: input.starter },
+      why: "no task, plan or project; it stays with whoever started it",
+    };
   return { line: 4, owner: null, why: "no name, no task, no plan, no project" };
 }
 
 /** The one-line form every surface prints: `→ @cold-email · line 2: @cold-email names its plan`. */
-export function landingLine<R extends LeadRole & { handle?: string }>(landing: RouteLanding<R>, personName?: (userId: string) => string): string {
+export function landingLine<R extends LeadRole & { handle?: string }>(
+  landing: RouteLanding<R>,
+  personName?: (userId: string) => string,
+): string {
   const who = landing.owner
-    ? landing.owner.kind === "role" ? `@${landing.owner.role.handle}` : personName?.(landing.owner.user_id) ?? "you"
-    : "choices" in landing ? landing.choices.map((r) => `@${r.handle}`).join(" or ") : "nobody yet";
+    ? landing.owner.kind === "role"
+      ? `@${landing.owner.role.handle}`
+      : (personName?.(landing.owner.user_id) ?? "you")
+    : "choices" in landing
+      ? landing.choices.map((r) => `@${r.handle}`).join(" or ")
+      : "nobody yet";
   return `→ ${who} · line ${landing.line}: ${landing.why}`;
 }

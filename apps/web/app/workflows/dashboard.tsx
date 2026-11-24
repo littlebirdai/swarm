@@ -34,13 +34,24 @@ function RunCard({ run }: { run: any }) {
     <div className="rounded-xl border border-sol-cyan/20 bg-sol-cyan/[0.04] overflow-hidden">
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-sol-cyan/15">
         <Workflow className="w-4 h-4 text-sol-cyan flex-shrink-0" />
-        <span className="text-sm font-semibold text-sol-text truncate">{flowName({ label: run.workflow_label, name: run.workflow_name }, "workflow")}</span>
+        <span className="text-sm font-semibold text-sol-text truncate">
+          {flowName(
+            { label: run.workflow_label, name: run.workflow_name },
+            "workflow",
+          )}
+        </span>
         <div className="ml-auto flex items-center gap-3 text-meta text-sol-text-dim flex-shrink-0">
           <span>{agentCount} agents</span>
-          {run.total_tokens ? <span>{wfFmtTokens(run.total_tokens)} tok</span> : null}
+          {run.total_tokens ? (
+            <span>{wfFmtTokens(run.total_tokens)} tok</span>
+          ) : null}
           <span>{timeAgo(run.updated_at || run.created_at)}</span>
           <span className={`flex items-center gap-1 ${sm.cls}`}>
-            {sm.dot ? <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} /> : sm.icon}
+            {sm.dot ? (
+              <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
+            ) : (
+              sm.icon
+            )}
             {run.status}
           </span>
           {run.primary_conversation_id && (
@@ -69,31 +80,46 @@ export function WorkflowsDashboardContent({ tabs }: { tabs?: ReactNode }) {
   const titlebarRef = useTitlebarHead<HTMLDivElement>();
   // Modern keeps its header (and the page's tabs in it) while a cold cache loads.
   const modern = useIsModernStyle();
-  if (runs === undefined && !modern) return <AppLoader className="min-h-[16rem] h-full" />;
+  if (runs === undefined && !modern)
+    return <AppLoader className="min-h-[16rem] h-full" />;
   const legacy = (
     <div ref={titlebarRef} className="flex items-baseline gap-2 mb-5">
       <Workflow className="w-4 h-4 text-sol-cyan self-center" />
       <h1 className="text-lg font-semibold text-sol-text">Workflows</h1>
-      <span className="ml-auto text-xs text-sol-text-dim font-mono">{runs?.length}</span>
+      <span className="ml-auto text-xs text-sol-text-dim font-mono">
+        {runs?.length}
+      </span>
     </div>
   );
   return (
     <PageFrame
-      header={<PageHeader legacy={legacy} title="Workflows" icon={Workflow} count={runs?.length} tabs={tabs} />}
+      header={
+        <PageHeader
+          legacy={legacy}
+          title="Workflows"
+          icon={Workflow}
+          count={runs?.length}
+          tabs={tabs}
+        />
+      }
       legacyScroll="h-full overflow-y-auto bg-sol-bg"
       legacyColumn="max-w-3xl mx-auto px-6 py-6"
       column="max-w-3xl mx-auto px-4 sm:px-6 py-6"
     >
-        {runs === undefined ? <AppLoader className="min-h-[16rem]" /> : runs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
-            <Workflow className="w-8 h-8 text-sol-text-dim" />
-            <p className="text-sm text-sol-text-muted">No workflow runs yet</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {runs.map((r: any) => <RunCard key={r._id} run={r} />)}
-          </div>
-        )}
+      {runs === undefined ? (
+        <AppLoader className="min-h-[16rem]" />
+      ) : runs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
+          <Workflow className="w-8 h-8 text-sol-text-dim" />
+          <p className="text-sm text-sol-text-muted">No workflow runs yet</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {runs.map((r: any) => (
+            <RunCard key={r._id} run={r} />
+          ))}
+        </div>
+      )}
     </PageFrame>
   );
 }

@@ -14,14 +14,18 @@ export function SlackReturnFlash() {
     if (s !== "connected" && s !== "error") return;
     setFlash(s);
     const u = new URL(window.location.href);
-    ["code", "state", "scope", "team", "slack", "reason", "error"].forEach((k) => u.searchParams.delete(k));
+    ["code", "state", "scope", "team", "slack", "reason", "error"].forEach(
+      (k) => u.searchParams.delete(k),
+    );
     window.history.replaceState({}, "", u.pathname + u.search);
     const t = setTimeout(() => setFlash(null), 6000);
     return () => clearTimeout(t);
   });
   if (!flash) return null;
   return (
-    <div className={`px-6 py-2 text-sm shrink-0 ${flash === "connected" ? "bg-sol-green/15 text-sol-green" : "bg-sol-red/15 text-sol-red"}`}>
+    <div
+      className={`px-6 py-2 text-sm shrink-0 ${flash === "connected" ? "bg-sol-green/15 text-sol-green" : "bg-sol-red/15 text-sol-red"}`}
+    >
       {flash === "connected"
         ? "Slack connected. Invite the bot to a channel, then link it under Settings."
         : "Slack connection failed. Please try again."}

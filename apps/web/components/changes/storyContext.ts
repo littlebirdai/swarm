@@ -58,7 +58,12 @@ export type StoryContext = {
 
 const idle = createFocusStore();
 
-export const StoryCtx = createContext<StoryContext>({ focus: idle, waiting: new Set(), dimmed: new Set(), pick: idle.set });
+export const StoryCtx = createContext<StoryContext>({
+  focus: idle,
+  waiting: new Set(),
+  dimmed: new Set(),
+  pick: idle.set,
+});
 
 export const useStoryCtx = () => useContext(StoryCtx);
 
@@ -81,5 +86,9 @@ export function useIsFocused(key: string): boolean {
 export function useStoryAttrs(key: string) {
   const { pick } = useStoryCtx();
   const focused = useIsFocused(key);
-  return { "data-story-key": key, "data-focused": focused, onFocusCapture: () => pick(key) };
+  return {
+    "data-story-key": key,
+    "data-focused": focused,
+    onFocusCapture: () => pick(key),
+  };
 }

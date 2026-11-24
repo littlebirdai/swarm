@@ -33,7 +33,10 @@ export function ensureBookmarksStarted(): void {
   started = true;
 
   const initial = useVaultStore.getState();
-  if (initial.activeVaultId && initial.bookmarksVaultId !== initial.activeVaultId) {
+  if (
+    initial.activeVaultId &&
+    initial.bookmarksVaultId !== initial.activeVaultId
+  ) {
     void initial.loadBookmarks();
   }
 

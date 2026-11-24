@@ -19,7 +19,11 @@
 
 import { parseEndDate, parseRelativeDate } from "../time";
 import { tokenizeQuery } from "./tokenize";
-import { extractRepoFromRemoteUrl, parseOwnerRepo, parsePrRef } from "../contracts/prRefs";
+import {
+  extractRepoFromRemoteUrl,
+  parseOwnerRepo,
+  parsePrRef,
+} from "../contracts/prRefs";
 
 export type SessionQueryPr = { number: number; repository?: string };
 
@@ -41,18 +45,40 @@ export interface SessionQuery {
 }
 
 export const SESSION_QUERY_OPERATORS = [
-  { op: "file:", example: "file:src/auth.ts", hint: "sessions that edited a file or folder" },
-  { op: "commit:", example: "commit:3f2a91c", hint: "the session that made a commit" },
+  {
+    op: "file:",
+    example: "file:src/auth.ts",
+    hint: "sessions that edited a file or folder",
+  },
+  {
+    op: "commit:",
+    example: "commit:3f2a91c",
+    hint: "the session that made a commit",
+  },
   { op: "pr:", example: "pr:482", hint: "sessions linked to a pull request" },
-  { op: "label:", example: "label:api", hint: "sessions filed under one of your labels" },
+  {
+    op: "label:",
+    example: "label:api",
+    hint: "sessions filed under one of your labels",
+  },
   { op: "author:", example: "author:me", hint: "who ran the session" },
   { op: "repo:", example: "repo:codecast", hint: "the session's repository" },
-  { op: "after:", example: "after:7d", hint: "activity after a time (7d, 2w, yesterday, 2026-09-01)" },
-  { op: "before:", example: "before:2026-09-01", hint: "activity before a time" },
+  {
+    op: "after:",
+    example: "after:7d",
+    hint: "activity after a time (7d, 2w, yesterday, 2026-09-01)",
+  },
+  {
+    op: "before:",
+    example: "before:2026-09-01",
+    hint: "activity before a time",
+  },
 ] as const;
 
 type OperatorName<T> = T extends `${infer N}:` ? N : never;
-export type SessionQueryOperator = OperatorName<(typeof SESSION_QUERY_OPERATORS)[number]["op"]>;
+export type SessionQueryOperator = OperatorName<
+  (typeof SESSION_QUERY_OPERATORS)[number]["op"]
+>;
 const OPERATOR_NAMES = SESSION_QUERY_OPERATORS.map((o) => o.op.slice(0, -1));
 const OPERATOR = new RegExp(`^(${OPERATOR_NAMES.join("|")}):([\\s\\S]*)$`, "i");
 const SHA = /^[0-9a-f]{7,40}$/;
@@ -63,7 +89,9 @@ const TIME_HINT = "Try 7d, 2w, 24h, yesterday or 2026-09-01.";
 function parsePr(value: string): SessionQueryPr | null {
   const ref = parsePrRef(value);
   if (ref?.number == null) return null;
-  return ref.repository ? { repository: ref.repository, number: ref.number } : { number: ref.number };
+  return ref.repository
+    ? { repository: ref.repository, number: ref.number }
+    : { number: ref.number };
 }
 
 /**
@@ -76,12 +104,19 @@ export function normalizeRepoName(value: string): string {
   return (
     extractRepoFromRemoteUrl(value) ??
     parseOwnerRepo(value) ??
-    value.trim().replace(/\.git$/i, "").replace(/\/+$/, "").toLowerCase()
+    value
+      .trim()
+      .replace(/\.git$/i, "")
+      .replace(/\/+$/, "")
+      .toLowerCase()
   );
 }
 
 /** A session's absolute file path as the repository spells it, when it lies inside the checkout. */
-export function pathInRepository(filePath: string, root: string | null | undefined): string | null {
+export function pathInRepository(
+  filePath: string,
+  root: string | null | undefined,
+): string | null {
   if (!root) return null;
   const base = root.replace(/\/+$/, "") + "/";
   return filePath.startsWith(base) ? filePath.slice(base.length) : null;
@@ -92,7 +127,10 @@ export function pathInRepository(filePath: string, root: string | null | undefin
  *  (`.codecast/worktrees/<name>/...`), since the index searches every
  *  checkout of a repository with the same relative path. Null outside the
  *  checkout. */
-export function fileQueryPathFor(filePath: string, root: string | null | undefined): string | null {
+export function fileQueryPathFor(
+  filePath: string,
+  root: string | null | undefined,
+): string | null {
   const rel = pathInRepository(filePath, root);
   return rel === null ? null : rel.replace(/^\.[^/]+\/worktrees\/[^/]+\//, "");
 }
@@ -101,7 +139,10 @@ export function fileQueryPathFor(filePath: string, root: string | null | undefin
  *  each path once: what `file:` completes to. A path outside its session's
  *  checkout has no repo-relative spelling and is left out. */
 export function recentFilesFromSessions(
-  sessions: ReadonlyArray<{ recent_files?: string[] | null; git_root?: string | null }>,
+  sessions: ReadonlyArray<{
+    recent_files?: string[] | null;
+    git_root?: string | null;
+  }>,
   limit: number,
 ): string[] {
   const seen = new Set<string>();
@@ -123,7 +164,10 @@ export function normalizeFileQueryPath(value: string): string {
   return path;
 }
 
-export function parseSessionQuery(input: string, now: number = Date.now()): SessionQuery {
+export function parseSessionQuery(
+  input: string,
+  now: number = Date.now(),
+): SessionQuery {
   const q: SessionQuery = {
     text: "",
     files: [],
@@ -149,24 +193,35 @@ export function parseSessionQuery(input: string, now: number = Date.now()): Sess
     // words after it (`file: src/a.ts`), the value was meant for it.
     const value = op[2].trim();
     if (!value) {
-      if (i < tokens.length - 1) q.errors.push(`${op[1].toLowerCase()}: takes its value right after the colon, with no space (${op[1].toLowerCase()}:${tokens[i + 1].raw}).`);
+      if (i < tokens.length - 1)
+        q.errors.push(
+          `${op[1].toLowerCase()}: takes its value right after the colon, with no space (${op[1].toLowerCase()}:${tokens[i + 1].raw}).`,
+        );
       return;
     }
     const name = op[1].toLowerCase();
     if (name === "file") {
       if (value.startsWith("~")) {
-        q.errors.push(`file: "${value}" starts with ~, which only your shell can expand. Use a repo-relative or absolute path.`);
+        q.errors.push(
+          `file: "${value}" starts with ~, which only your shell can expand. Use a repo-relative or absolute path.`,
+        );
       } else {
         q.files.push(normalizeFileQueryPath(value));
       }
     } else if (name === "commit") {
       const sha = value.toLowerCase();
       if (SHA.test(sha)) q.commits.push(sha);
-      else q.errors.push(`commit: "${value}" is not a commit sha. Give at least 7 hex characters.`);
+      else
+        q.errors.push(
+          `commit: "${value}" is not a commit sha. Give at least 7 hex characters.`,
+        );
     } else if (name === "pr") {
       const pr = parsePr(value);
       if (pr) q.prs.push(pr);
-      else q.errors.push(`pr: "${value}" is not a pull request. Use 482, owner/repo#482 or the pull request URL.`);
+      else
+        q.errors.push(
+          `pr: "${value}" is not a pull request. Use 482, owner/repo#482 or the pull request URL.`,
+        );
     } else if (name === "label") {
       q.labels.push(value);
     } else if (name === "author") {
@@ -174,8 +229,12 @@ export function parseSessionQuery(input: string, now: number = Date.now()): Sess
     } else if (name === "repo") {
       q.repos.push(normalizeRepoName(value));
     } else {
-      const at = name === "after" ? parseRelativeDate(value, now) : parseEndDate(value, now);
-      if (at === null) q.errors.push(`${name}: can't read "${value}" as a time. ${TIME_HINT}`);
+      const at =
+        name === "after"
+          ? parseRelativeDate(value, now)
+          : parseEndDate(value, now);
+      if (at === null)
+        q.errors.push(`${name}: can't read "${value}" as a time. ${TIME_HINT}`);
       // Repeats narrow: the latest after and the earliest before win.
       else if (name === "after") q.after = Math.max(q.after ?? at, at);
       else q.before = Math.min(q.before ?? at, at);
@@ -184,7 +243,13 @@ export function parseSessionQuery(input: string, now: number = Date.now()): Sess
 
   q.text = terms.join(" ").trim();
   q.hasFilters =
-    q.files.length + q.commits.length + q.prs.length + q.labels.length + q.authors.length + q.repos.length > 0 ||
+    q.files.length +
+      q.commits.length +
+      q.prs.length +
+      q.labels.length +
+      q.authors.length +
+      q.repos.length >
+      0 ||
     q.after !== undefined ||
     q.before !== undefined;
   return q;
@@ -205,7 +270,10 @@ export function sessionFilter(op: SessionQueryOperator, value: string): string {
 }
 
 /** The /search page narrowed to one filter: "sessions that touched this". */
-export function sessionSearchHref(op: SessionQueryOperator, value: string): string {
+export function sessionSearchHref(
+  op: SessionQueryOperator,
+  value: string,
+): string {
   return `/search?q=${encodeURIComponent(sessionFilter(op, value))}`;
 }
 
@@ -219,9 +287,18 @@ export function sessionSearchHref(op: SessionQueryOperator, value: string): stri
  */
 export type SessionQueryCompletion =
   | { kind: "operator"; partial: string; from: number; to: number }
-  | { kind: "value"; op: SessionQueryOperator; partial: string; from: number; to: number };
+  | {
+      kind: "value";
+      op: SessionQueryOperator;
+      partial: string;
+      from: number;
+      to: number;
+    };
 
-export function sessionQueryCompletion(input: string, caret: number = input.length): SessionQueryCompletion | null {
+export function sessionQueryCompletion(
+  input: string,
+  caret: number = input.length,
+): SessionQueryCompletion | null {
   // Token boundaries respect quotes, exactly as tokenizeQuery splits.
   let from = 0;
   let inQuotes = false;
@@ -238,12 +315,22 @@ export function sessionQueryCompletion(input: string, caret: number = input.leng
   const token = input.slice(from, caret);
   const op = OPERATOR.exec(token);
   if (op) {
-    return { kind: "value", op: op[1].toLowerCase() as SessionQueryOperator, partial: op[2].replace(/"/g, ""), from, to };
+    return {
+      kind: "value",
+      op: op[1].toLowerCase() as SessionQueryOperator,
+      partial: op[2].replace(/"/g, ""),
+      from,
+      to,
+    };
   }
   const word = token.toLowerCase();
   // Two letters before a plain word is taken for a filter name ("pr" is the
   // shortest), so ordinary searching is not trailed by suggestions.
-  if (!/^[a-z]{2,}$/.test(word) || !OPERATOR_NAMES.some((n) => n.startsWith(word))) return null;
+  if (
+    !/^[a-z]{2,}$/.test(word) ||
+    !OPERATOR_NAMES.some((n) => n.startsWith(word))
+  )
+    return null;
   return { kind: "operator", partial: word, from, to };
 }
 

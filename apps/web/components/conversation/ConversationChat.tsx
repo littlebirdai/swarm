@@ -4,7 +4,13 @@ import { dmKeyFor } from "@codecast/shared/chat";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
 import { holdConversationChatPeople } from "../../hooks/useConversationChatPeople";
 import { findDmChannelId, type ChatAttachment } from "../../store/chatSlice";
-import { useChannelMessages, useChannelMessagesSync, useChatMembers, useChatRail, useReadWhileSeen } from "../../hooks/useChatSync";
+import {
+  useChannelMessages,
+  useChannelMessagesSync,
+  useChatMembers,
+  useChatRail,
+  useReadWhileSeen,
+} from "../../hooks/useChatSync";
 import { useTypingMembers } from "../../hooks/useChatTyping";
 import { useOpenChatPath } from "../../hooks/useOpenDm";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
@@ -50,7 +56,9 @@ export const ConversationChat = memo(function ConversationChat({
   const teamId = chatOn ? activeTeamIdOf(st) : undefined;
   const me = st.currentUser?._id ? String(st.currentUser._id) : "";
   const dmKey = teamId && me ? dmKeyFor(teamId, [me, ...ids]) : null;
-  const found = useInboxStore((s) => (dmKey ? findDmChannelId(s.chatChannels, dmKey) : null));
+  const found = useInboxStore((s) =>
+    dmKey ? findDmChannelId(s.chatChannels, dmKey) : null,
+  );
   const room = useChatRail().find((c) => c.id === found);
   const unread = room?.unreadCount ?? 0;
   const typists = useTypingMembers(found ?? undefined);
@@ -76,8 +84,12 @@ export const ConversationChat = memo(function ConversationChat({
   // The room for this group: the one the chat already holds, or, on first
   // open, the one openDmChannel makes (a stub the server row supersedes).
   useWatchEffect(() => {
-    if (found) { setChannelId(found); return; }
-    if (open && teamId && ids.length) setChannelId(useInboxStore.getState().openDmChannel(ids, teamId));
+    if (found) {
+      setChannelId(found);
+      return;
+    }
+    if (open && teamId && ids.length)
+      setChannelId(useInboxStore.getState().openDmChannel(ids, teamId));
     else setChannelId(null);
   }, [found, open, teamId, idsKey]);
 
@@ -85,7 +97,10 @@ export const ConversationChat = memo(function ConversationChat({
   const inboundAt = room?.lastInboundAt ?? 0;
   const seenInbound = useRef<number | null>(null);
   useWatchEffect(() => {
-    if (seenInbound.current === null) { seenInbound.current = inboundAt; return; }
+    if (seenInbound.current === null) {
+      seenInbound.current = inboundAt;
+      return;
+    }
     if (inboundAt > seenInbound.current) {
       seenInbound.current = inboundAt;
       if (!open && unread > 0) show(true, true);
@@ -99,7 +114,9 @@ export const ConversationChat = memo(function ConversationChat({
       <PopoverAnchor asChild>
         <button
           type="button"
-          data-cc-chat-chip={unread > 0 ? "unread" : typists.length ? "typing" : "idle"}
+          data-cc-chat-chip={
+            unread > 0 ? "unread" : typists.length ? "typing" : "idle"
+          }
           aria-expanded={open}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => show(!open)}
@@ -108,11 +125,22 @@ export const ConversationChat = memo(function ConversationChat({
         >
           <ViewerFaces members={people} size={16} />
           {typists.length > 0 && !open ? (
-            <span className="ch-typing-dots cc-chat-dots" aria-label={`${label} typing`}><span /><span /><span /></span>
+            <span
+              className="ch-typing-dots cc-chat-dots"
+              aria-label={`${label} typing`}
+            >
+              <span />
+              <span />
+              <span />
+            </span>
           ) : (
             <MessageSquare className="cc-chat-icon" />
           )}
-          {unread > 0 && <span className="cc-chat-badge">{unread > 99 ? "99+" : unread}</span>}
+          {unread > 0 && (
+            <span className="cc-chat-badge">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
         </button>
       </PopoverAnchor>
       <PopoverContent
@@ -123,12 +151,17 @@ export const ConversationChat = memo(function ConversationChat({
         collisionPadding={12}
         className="cc-chat-panel"
         aria-label={`Chat with ${label}`}
-        onOpenAutoFocus={(e) => { if (quietRef.current) e.preventDefault(); }}
+        onOpenAutoFocus={(e) => {
+          if (quietRef.current) e.preventDefault();
+        }}
         onCloseAutoFocus={(e) => e.preventDefault()}
         // A chat stays open while you work in the session; only its own
         // collapse, or Escape from inside it, closes it.
         onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => { if (!panelRef.current?.contains(document.activeElement)) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => {
+          if (!panelRef.current?.contains(document.activeElement))
+            e.preventDefault();
+        }}
       >
         {channelId && (
           <Room
@@ -176,19 +209,35 @@ function Room({
   useReadWhileSeen(channelId, atBottom, feed, newestId);
   // Each line names this session, so the room (on the chat page, on a phone)
   // reads which thread it was about.
-  const send = useCallback((content: string, attachments?: ChatAttachment[]) => {
-    return useInboxStore.getState().sendChatMessage(channelId, content, { attachments, contextSessionId: conversationId });
-  }, [channelId, conversationId]);
+  const send = useCallback(
+    (content: string, attachments?: ChatAttachment[]) => {
+      return useInboxStore.getState().sendChatMessage(channelId, content, {
+        attachments,
+        contextSessionId: conversationId,
+      });
+    },
+    [channelId, conversationId],
+  );
 
   return (
     <div className="cc-chat-room">
       <div className="cc-chat-head">
         <ViewerFaces members={people} size={20} />
         <span className="cc-chat-title">{label}</span>
-        <button type="button" className="cc-chat-tool" title="Open in Chat" onClick={() => openChat(`/chat/${channelId}`)}>
+        <button
+          type="button"
+          className="cc-chat-tool"
+          title="Open in Chat"
+          onClick={() => openChat(`/chat/${channelId}`)}
+        >
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
-        <button type="button" className="cc-chat-tool" title="Collapse" onClick={onCollapse}>
+        <button
+          type="button"
+          className="cc-chat-tool"
+          title="Collapse"
+          onClick={onCollapse}
+        >
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -212,8 +261,12 @@ function Room({
           onReachedBottom={() => setAtBottom(true)}
           canReportRead
           inThread
-          onReact={(id, emoji) => useInboxStore.getState().toggleChatReaction(id, emoji)}
-          onEdit={(id, content) => useInboxStore.getState().editChatMessage(id, content)}
+          onReact={(id, emoji) =>
+            useInboxStore.getState().toggleChatReaction(id, emoji)
+          }
+          onEdit={(id, content) =>
+            useInboxStore.getState().editChatMessage(id, content)
+          }
           onDelete={(id) => useInboxStore.getState().deleteChatMessage(id)}
           onRetrySend={(id) => useInboxStore.getState().retryChatSend(id)}
           hereSessionId={conversationId}

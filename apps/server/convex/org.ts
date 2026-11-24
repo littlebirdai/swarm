@@ -5,17 +5,35 @@ import { sessionProjectId } from "@codecast/shared/contracts/sessionProject";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
-import { checkConversationAccess, createTeamFeedFilter, isTeamMember } from "./privacy";
+import {
+  checkConversationAccess,
+  createTeamFeedFilter,
+  isTeamMember,
+} from "./privacy";
 import { classifyWorkStates } from "./conversations";
 import { isOrphanOrSubagent, type WorkState } from "./inboxFilters";
 import { nestParentIdOf } from "./ccAccountsShared";
 import { derivePresenceState } from "./presenceState";
-import { WORKING_SET_RECENCY_MS, addressesAgent, inboxEpoch, extractRepoFromRemoteUrl, parseThreadStateStatus, threadStateHeadline, type ThreadStateStatus } from "@codecast/shared/contracts";
+import {
+  WORKING_SET_RECENCY_MS,
+  addressesAgent,
+  inboxEpoch,
+  extractRepoFromRemoteUrl,
+  parseThreadStateStatus,
+  threadStateHeadline,
+  type ThreadStateStatus,
+} from "@codecast/shared/contracts";
 import { accessJudgeFor, canAccessDoc, workspaceKey } from "./lib/access";
 import { userCanAccessRole } from "./lib/orgAccess";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
-import { overlapsAmong, planProjectsOf, resolveRoleRef, rolesInBoundary, type ScopeOverlap } from "./orgRoles";
+import {
+  overlapsAmong,
+  planProjectsOf,
+  resolveRoleRef,
+  rolesInBoundary,
+  type ScopeOverlap,
+} from "./orgRoles";
 import { personReportsToMap } from "./orgPeople";
 import { pendingOnLadder } from "./sessionDecisions";
 import { isScopeless, type Scope } from "./lib/orgScope";
@@ -25,7 +43,11 @@ import { findRoleRoutine } from "./lib/orgRoutine";
 import { roleWakeOf } from "@codecast/shared/contracts/rolePlaybook";
 import { extractPlanTitleForWeb } from "./docs";
 import { computeReportingPeople, type BriefPerson } from "./orgGoals";
-import { roleProjectNumbers, roleServedInitiatives, servedMetricLines } from "./lib/roleInitiatives";
+import {
+  roleProjectNumbers,
+  roleServedInitiatives,
+  servedMetricLines,
+} from "./lib/roleInitiatives";
 import { type IntentSource } from "@codecast/shared/contracts/initiative";
 import { parseCallRef } from "@codecast/shared/entities";
 import { isActiveTask } from "@codecast/shared/tasks";
@@ -72,7 +94,13 @@ type OrgSession = {
 };
 type ParentKey = string; // "user:<id>" | "role:<id>"
 
-const STATE_ORDER: WorkState[] = ["needs_input", "working", "dormant", "done", "idle"];
+const STATE_ORDER: WorkState[] = [
+  "needs_input",
+  "working",
+  "dormant",
+  "done",
+  "idle",
+];
 function emptyCounts(): StateCounts {
   return { working: 0, needs_input: 0, done: 0, dormant: 0, idle: 0 };
 }
@@ -82,8 +110,12 @@ function orderSessions(rows: OrgSession[]): OrgSession[] {
     return d !== 0 ? d : b.updated_at - a.updated_at;
   });
 }
-export const parentKeyOf = (p: { kind: "user"; user_id: any } | { kind: "role"; role_id: any }): ParentKey =>
-  p.kind === "user" ? `user:${p.user_id.toString()}` : `role:${p.role_id.toString()}`;
+export const parentKeyOf = (
+  p: { kind: "user"; user_id: any } | { kind: "role"; role_id: any },
+): ParentKey =>
+  p.kind === "user"
+    ? `user:${p.user_id.toString()}`
+    : `role:${p.role_id.toString()}`;
 
 // The workspace's sessions, filed. Shared by `tree` and `sessionsUnder` so a
 // cluster expand lists exactly what its count promised.
@@ -118,7 +150,9 @@ export async function collectOrgSessions(
     teamId ? createTeamFeedFilter(ctx as any, teamId) : Promise.resolve(null),
   ]);
   const memberships: any[] = teamFilter ? teamFilter.memberships : [];
-  const memberIds: Id<"users">[] = teamFilter ? memberships.map((m: any) => m.user_id) : [userId];
+  const memberIds: Id<"users">[] = teamFilter
+    ? memberships.map((m: any) => m.user_id)
+    : [userId];
 
   // The scan: each member's ACTIVE rows in the window, newest first, through
   // an index that carries status, so a completed row is never read. A filter
@@ -133,9 +167,23 @@ export async function collectOrgSessions(
       const r = q.gte("updated_at", cutoff);
       return atOrBelow === undefined ? r : r.lte("updated_at", atOrBelow);
     };
-    return (teamId
-      ? ctx.db.query("conversations").withIndex("by_team_user_status_updated", (q: any) => range(q.eq("team_id", teamId).eq("user_id", memberId).eq("status", "active")))
-      : ctx.db.query("conversations").withIndex("by_user_status_updated", (q: any) => range(q.eq("user_id", memberId).eq("status", "active")))
+    return (
+      teamId
+        ? ctx.db
+            .query("conversations")
+            .withIndex("by_team_user_status_updated", (q: any) =>
+              range(
+                q
+                  .eq("team_id", teamId)
+                  .eq("user_id", memberId)
+                  .eq("status", "active"),
+              ),
+            )
+        : ctx.db
+            .query("conversations")
+            .withIndex("by_user_status_updated", (q: any) =>
+              range(q.eq("user_id", memberId).eq("status", "active")),
+            )
     ).order("desc");
   };
   const rows: any[] = [];
@@ -144,31 +192,60 @@ export async function collectOrgSessions(
       if (c.inbox_killed_at || c.inbox_dismissed_at) continue;
       // A teammate's private row is theirs alone; the caller's own rows are
       // always theirs to see.
-      if (teamFilter && c.user_id.toString() !== userId.toString() && !teamFilter.isVisible(c)) continue;
+      if (
+        teamFilter &&
+        c.user_id.toString() !== userId.toString() &&
+        !teamFilter.isVisible(c)
+      )
+        continue;
       rows.push(c);
     }
   };
-  const share = Math.max(1, Math.floor(ORG_ROW_CAP / Math.max(1, memberIds.length)));
+  const share = Math.max(
+    1,
+    Math.floor(ORG_ROW_CAP / Math.max(1, memberIds.length)),
+  );
   let budget = ORG_ROW_CAP;
-  const heavy: Array<{ memberId: Id<"users">; edge: number; atEdge: Set<string> }> = [];
+  const heavy: Array<{
+    memberId: Id<"users">;
+    edge: number;
+    atEdge: Set<string>;
+  }> = [];
   for (const memberId of memberIds) {
-    if (budget <= 0) { truncated = true; break; }
+    if (budget <= 0) {
+      truncated = true;
+      break;
+    }
     const take = Math.min(share, budget);
     const got: any[] = await activeRange(memberId).take(take + 1);
     if (got.length > take) {
       got.length = take;
       const edge = got[take - 1].updated_at;
-      heavy.push({ memberId, edge, atEdge: new Set(got.filter((c) => c.updated_at === edge).map((c) => String(c._id))) });
+      heavy.push({
+        memberId,
+        edge,
+        atEdge: new Set(
+          got.filter((c) => c.updated_at === edge).map((c) => String(c._id)),
+        ),
+      });
     }
     budget -= got.length;
     accept(got);
   }
   for (const { memberId, edge, atEdge } of heavy) {
-    if (budget <= 0) { truncated = true; break; }
+    if (budget <= 0) {
+      truncated = true;
+      break;
+    }
     // Continue below the first read's last row; rows sharing its timestamp
     // come back once more and are dropped by id.
-    const got: any[] = (await activeRange(memberId, edge).take(budget + atEdge.size + 1)).filter((c: any) => !atEdge.has(String(c._id)));
-    if (got.length > budget) { truncated = true; got.length = budget; }
+    const got: any[] = (
+      await activeRange(memberId, edge).take(budget + atEdge.size + 1)
+    ).filter((c: any) => !atEdge.has(String(c._id)));
+    if (got.length > budget) {
+      truncated = true;
+      got.length = budget;
+    }
     budget -= got.length;
     accept(got);
   }
@@ -182,15 +259,26 @@ export async function collectOrgSessions(
       const pid = nestParentIdOf(c);
       if (!pid) continue;
       const list = childrenByParent.get(pid);
-      if (list) list.push(c); else childrenByParent.set(pid, [c]);
+      if (list) list.push(c);
+      else childrenByParent.set(pid, [c]);
     } else {
       topLevel.push(c);
     }
   }
-  const workStates = await classifyWorkStates(ctx, userId, topLevel, childrenByParent, now);
+  const workStates = await classifyWorkStates(
+    ctx,
+    userId,
+    topLevel,
+    childrenByParent,
+    now,
+  );
 
   const roleIds = new Set(roles.map((r: any) => r._id.toString()));
-  const anchorByConv = new Map<string, any>(anchors.filter((a: any) => a.conversation_id).map((a: any) => [a.conversation_id.toString(), a]));
+  const anchorByConv = new Map<string, any>(
+    anchors
+      .filter((a: any) => a.conversation_id)
+      .map((a: any) => [a.conversation_id.toString(), a]),
+  );
   const memberSet = new Set(memberIds.map((id) => id.toString()));
   const byParent = new Map<ParentKey, OrgSession[]>();
   const anchorSessions = new Map<string, OrgSession>();
@@ -219,22 +307,40 @@ export async function collectOrgSessions(
     // workspace (decommissioned, or a member's personal anchor seen from the
     // team) is nobody's session here and is dropped.
     const anchor = anchorByConv.get(cid);
-    if (anchor) { anchorSessions.set(anchor._id.toString(), session); continue; }
+    if (anchor) {
+      anchorSessions.set(anchor._id.toString(), session);
+      continue;
+    }
     if (c.anchor_id || c.standing_role_id) continue;
     let key: ParentKey | null = null;
     if (c.org_role_id && roleIds.has(c.org_role_id.toString())) {
       key = parentKeyOf({ kind: "role", role_id: c.org_role_id });
     } else {
       const owner = (c.owner_user_id ?? c.user_id).toString();
-      const person = memberSet.has(owner) ? owner : memberSet.has(c.user_id.toString()) ? c.user_id.toString() : null;
+      const person = memberSet.has(owner)
+        ? owner
+        : memberSet.has(c.user_id.toString())
+          ? c.user_id.toString()
+          : null;
       if (person) key = `user:${person}`;
     }
     if (!key) continue;
     const list = byParent.get(key);
-    if (list) list.push(session); else byParent.set(key, [session]);
+    if (list) list.push(session);
+    else byParent.set(key, [session]);
   }
   for (const list of byParent.values()) orderSessions(list);
-  return { memberIds, memberships, roles, anchors, anchorSessions, byParent, sessions, truncated, windows: new Map() };
+  return {
+    memberIds,
+    memberships,
+    roles,
+    anchors,
+    anchorSessions,
+    byParent,
+    sessions,
+    truncated,
+    windows: new Map(),
+  };
 }
 
 function tallyOf(rows: OrgSession[]): StateCounts {
@@ -248,9 +354,15 @@ function tallyOf(rows: OrgSession[]): StateCounts {
  *  (who acts next, which is the node's colour), and when it was written. One
  *  derivation for a role's standing agent, the anchor row and a brief's hands,
  *  so the board line reads the same on every card. */
-export type StandingState = { state_line: string | null; state_status: ThreadStateStatus | null; state_at: number | null };
+export type StandingState = {
+  state_line: string | null;
+  state_status: ThreadStateStatus | null;
+  state_at: number | null;
+};
 export function stateOf(raw: any): StandingState {
-  const line = raw?.thread_state ? threadStateHeadline(String(raw.thread_state)) : "";
+  const line = raw?.thread_state
+    ? threadStateHeadline(String(raw.thread_state))
+    : "";
   return {
     state_line: line || null,
     state_status: parseThreadStateStatus(raw?.thread_state_status),
@@ -261,9 +373,24 @@ export function stateOf(raw: any): StandingState {
 // Presence for the people row: the surface row plus the daemon heartbeat, two
 // indexed reads per member. active/idle collapse to "online" — the page shows
 // a dot, not a stopwatch.
-async function presenceOf(ctx: Ctx, user: any, now: number): Promise<"online" | "away" | "offline"> {
-  const presence = await ctx.db.query("user_presence").withIndex("by_user", (q: any) => q.eq("user_id", user._id)).first();
-  const state = derivePresenceState({ presence, devices: [], machineWide: user.machine_wide_presence, daemonLastSeen: user.daemon_last_seen }, now);
+async function presenceOf(
+  ctx: Ctx,
+  user: any,
+  now: number,
+): Promise<"online" | "away" | "offline"> {
+  const presence = await ctx.db
+    .query("user_presence")
+    .withIndex("by_user", (q: any) => q.eq("user_id", user._id))
+    .first();
+  const state = derivePresenceState(
+    {
+      presence,
+      devices: [],
+      machineWide: user.machine_wide_presence,
+      daemonLastSeen: user.daemon_last_seen,
+    },
+    now,
+  );
   return state === "active" || state === "idle" ? "online" : state;
 }
 
@@ -271,15 +398,31 @@ async function presenceOf(ctx: Ctx, user: any, now: number): Promise<"online" | 
 // personal workspace holds only the caller's. Rows a person edits, never rows
 // an agent writes, so a query that reads only these re-runs only when the org
 // changes (`roles` below).
-async function readOrgSeats(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined): Promise<{ roles: any[]; anchors: any[] }> {
+async function readOrgSeats(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+): Promise<{ roles: any[]; anchors: any[] }> {
   const [roles, anchors] = await Promise.all([
     (teamId
-      ? ctx.db.query("org_roles").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).collect()
-      : ctx.db.query("org_roles").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId)).collect()
+      ? ctx.db
+          .query("org_roles")
+          .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+          .collect()
+      : ctx.db
+          .query("org_roles")
+          .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId))
+          .collect()
     ).then((rows: any[]) => rows.filter((r) => r.status !== "retired")),
     (teamId
-      ? ctx.db.query("anchors").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).collect()
-      : ctx.db.query("anchors").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId)).collect()
+      ? ctx.db
+          .query("anchors")
+          .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+          .collect()
+      : ctx.db
+          .query("anchors")
+          .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId))
+          .collect()
     ).then((rows: any[]) => rows.filter((a) => a.status !== "decommissioned")),
   ]);
   return { roles, anchors };
@@ -301,11 +444,13 @@ function orgAnchorRow(a: any, live?: { session?: OrgSession; raw?: any }) {
     org_role_id: a.org_role_id ?? undefined,
     conversation_id: a.conversation_id ?? undefined,
     status: a.status,
-    ...(live ? {
-      short_id: live.session?.short_id ?? live.raw?.short_id ?? undefined,
-      state: live.session?.state,
-      ...stateOf(live.raw),
-    } : {}),
+    ...(live
+      ? {
+          short_id: live.session?.short_id ?? live.raw?.short_id ?? undefined,
+          state: live.session?.state,
+          ...stateOf(live.raw),
+        }
+      : {}),
   };
 }
 
@@ -313,20 +458,39 @@ function orgAnchorRow(a: any, live?: { session?: OrgSession; raw?: any }) {
 // and its standing agent (found by the anchor naming the role or by the role
 // naming the anchor). `mine` is the sessions filed under it, which only the
 // full tree reads.
-async function orgRoleRow(ctx: Ctx, role: any, anchors: ReturnType<typeof orgAnchorRow>[], mine?: OrgSession[]) {
+async function orgRoleRow(
+  ctx: Ctx,
+  role: any,
+  anchors: ReturnType<typeof orgAnchorRow>[],
+  mine?: OrgSession[],
+) {
   // The last match wins, as a Map built over the anchors would have it.
   const lastOf = (hit: (a: ReturnType<typeof orgAnchorRow>) => boolean) => {
-    for (let i = anchors.length - 1; i >= 0; i--) if (hit(anchors[i])) return anchors[i];
+    for (let i = anchors.length - 1; i >= 0; i--)
+      if (hit(anchors[i])) return anchors[i];
     return undefined;
   };
-  const standing = lastOf((a) => !!a.org_role_id && String(a.org_role_id) === String(role._id))
-    ?? (role.anchor_id ? lastOf((a) => String(a.anchor_id) === String(role.anchor_id)) : undefined);
+  const standing =
+    lastOf(
+      (a) => !!a.org_role_id && String(a.org_role_id) === String(role._id),
+    ) ??
+    (role.anchor_id
+      ? lastOf((a) => String(a.anchor_id) === String(role.anchor_id))
+      : undefined);
   const [projects, plans, charter] = await Promise.all([
     Promise.all(role.scope.project_ids.map((id: any) => ctx.db.get(id))),
     Promise.all(role.scope.plan_ids.map((id: any) => ctx.db.get(id))),
     roleCharterOf(ctx, role),
   ]);
-  const live = standing as (typeof standing & { short_id?: string; state?: any; state_line?: any; state_status?: any; state_at?: any }) | undefined;
+  const live = standing as
+    | (typeof standing & {
+        short_id?: string;
+        state?: any;
+        state_line?: any;
+        state_status?: any;
+        state_at?: any;
+      })
+    | undefined;
   return {
     ...role,
     // The charter as its doc says it (lib/roleCharter): read here, never stored on the row.
@@ -334,15 +498,34 @@ async function orgRoleRow(ctx: Ctx, role: any, anchors: ReturnType<typeof orgAnc
     // The face (org-staffing.md S13): the chosen key, else the handle's
     // default, so every node draws one. Tenure (S10) rides through `...role`.
     avatar: avatarOf(role),
-    ...(mine ? { counts: tallyOf(mine), sessions: mine.slice(0, ORG_TOP_N), total: mine.length } : {}),
+    ...(mine
+      ? {
+          counts: tallyOf(mine),
+          sessions: mine.slice(0, ORG_TOP_N),
+          total: mine.length,
+        }
+      : {}),
     standing: live
-      ? (mine
-        ? { conversation_id: live.conversation_id, short_id: live.short_id, state: live.state, state_line: live.state_line, state_status: live.state_status, state_at: live.state_at }
-        : { conversation_id: live.conversation_id })
+      ? mine
+        ? {
+            conversation_id: live.conversation_id,
+            short_id: live.short_id,
+            state: live.state,
+            state_line: live.state_line,
+            state_status: live.state_status,
+            state_at: live.state_at,
+          }
+        : { conversation_id: live.conversation_id }
       : null,
     scope_names: {
-      projects: projects.filter(Boolean).map((p: any) => ({ id: p._id, title: p.title, short_id: p.short_id ?? undefined })),
-      plans: plans.filter(Boolean).map((p: any) => ({ id: p._id, title: p.title, short_id: p.short_id })),
+      projects: projects.filter(Boolean).map((p: any) => ({
+        id: p._id,
+        title: p.title,
+        short_id: p.short_id ?? undefined,
+      })),
+      plans: plans
+        .filter(Boolean)
+        .map((p: any) => ({ id: p._id, title: p.title, short_id: p.short_id })),
     },
   };
 }
@@ -351,7 +534,13 @@ async function orgRoleRow(ctx: Ctx, role: any, anchors: ReturnType<typeof orgAnc
 // A standing agent's bot account sits on the roster for routing; it is a
 // seat's identity, drawn once under its role or anchor, never a person.
 // `reportsTo` is who each member reports to (orgPeople.personReportsToMap).
-function orgPersonRow(user: any, uid: Id<"users">, userId: Id<"users">, roleById: Map<string, string>, reportsTo: Map<string, string>) {
+function orgPersonRow(
+  user: any,
+  uid: Id<"users">,
+  userId: Id<"users">,
+  roleById: Map<string, string>,
+  reportsTo: Map<string, string>,
+) {
   if (!user || user.is_bot) return null;
   const manager = reportsTo.get(uid.toString());
   return {
@@ -365,45 +554,80 @@ function orgPersonRow(user: any, uid: Id<"users">, userId: Id<"users">, roleById
   };
 }
 
-function orgWorkspaceOf(userId: Id<"users">, teamId: Id<"teams"> | undefined, team: any, caller: any) {
+function orgWorkspaceOf(
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  team: any,
+  caller: any,
+) {
   return teamId
     ? { kind: "team" as const, id: teamId.toString(), name: team?.name ?? "" }
-    : { kind: "user" as const, id: userId.toString(), name: caller?.name ?? "" };
+    : {
+        kind: "user" as const,
+        id: userId.toString(),
+        name: caller?.name ?? "",
+      };
 }
 
-export async function computeOrgTree(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number) {
+export async function computeOrgTree(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+) {
   const scan = await collectOrgSessions(ctx, userId, teamId, now);
   const team = teamId ? await ctx.db.get(teamId) : null;
   const caller = await ctx.db.get(userId);
-  const roleById = new Map(scan.memberships.map((m: any) => [m.user_id.toString(), m.role ?? "member"]));
+  const roleById = new Map(
+    scan.memberships.map((m: any) => [
+      m.user_id.toString(),
+      m.role ?? "member",
+    ]),
+  );
   const reportsTo = personReportsToMap(scan.memberships);
 
-  const people = await Promise.all(scan.memberIds.map(async (uid) => {
-    const user = uid.toString() === userId.toString() ? caller : await ctx.db.get(uid);
-    const person = orgPersonRow(user, uid, userId, roleById, reportsTo);
-    if (!person) return null;
-    const mine = scan.byParent.get(`user:${uid.toString()}`) ?? [];
-    return {
-      ...person,
-      presence: await presenceOf(ctx, user, now),
-      counts: tallyOf(mine),
-      sessions: mine.slice(0, ORG_TOP_N),
-      total: mine.length,
-    };
-  }));
+  const people = await Promise.all(
+    scan.memberIds.map(async (uid) => {
+      const user =
+        uid.toString() === userId.toString() ? caller : await ctx.db.get(uid);
+      const person = orgPersonRow(user, uid, userId, roleById, reportsTo);
+      if (!person) return null;
+      const mine = scan.byParent.get(`user:${uid.toString()}`) ?? [];
+      return {
+        ...person,
+        presence: await presenceOf(ctx, user, now),
+        counts: tallyOf(mine),
+        sessions: mine.slice(0, ORG_TOP_N),
+        total: mine.length,
+      };
+    }),
+  );
 
   // The standing agents, with each one's pinned state (the anchor's line on
   // the phone; a role's colour). The scan holds the recent visible rows; a
   // standing session that has been quiet longer than the window is read
   // directly, the way `org.brief` reads it.
-  const anchors = await Promise.all(scan.anchors.map(async (a: any) => {
-    const session = scan.anchorSessions.get(a._id.toString());
-    const convId = a.conversation_id ? String(a.conversation_id) : null;
-    const raw = convId ? scan.sessions.get(convId)?.raw ?? await ctx.db.get(a.conversation_id) : null;
-    return orgAnchorRow(a, { session, raw });
-  }));
-  const roles = await Promise.all(scan.roles.map((role: any) =>
-    orgRoleRow(ctx, role, anchors, scan.byParent.get(`role:${role._id.toString()}`) ?? [])));
+  const anchors = await Promise.all(
+    scan.anchors.map(async (a: any) => {
+      const session = scan.anchorSessions.get(a._id.toString());
+      const convId = a.conversation_id ? String(a.conversation_id) : null;
+      const raw = convId
+        ? (scan.sessions.get(convId)?.raw ??
+          (await ctx.db.get(a.conversation_id)))
+        : null;
+      return orgAnchorRow(a, { session, raw });
+    }),
+  );
+  const roles = await Promise.all(
+    scan.roles.map((role: any) =>
+      orgRoleRow(
+        ctx,
+        role,
+        anchors,
+        scan.byParent.get(`role:${role._id.toString()}`) ?? [],
+      ),
+    ),
+  );
 
   return {
     workspace: orgWorkspaceOf(userId, teamId, team, caller),
@@ -421,21 +645,39 @@ export async function computeOrgTree(ctx: Ctx, userId: Id<"users">, teamId: Id<"
   };
 }
 
-export async function requireWorkspaceCaller(ctx: any, apiToken: string | undefined, teamId: Id<"teams"> | undefined): Promise<Id<"users"> | null> {
+export async function requireWorkspaceCaller(
+  ctx: any,
+  apiToken: string | undefined,
+  teamId: Id<"teams"> | undefined,
+): Promise<Id<"users"> | null> {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
   if (!userId) return null;
   if (teamId && !(await isTeamMember(ctx, userId, teamId))) return null;
   // The org feature is per team, default off (teams.features.org). A
   // workspace with it off has no org to read: the tree, the scope feed and
   // the health views answer as they do for a stranger.
-  if (!(await workspaceHasFeature(ctx, { team_id: teamId, user_id: userId }, "org"))) return null;
+  if (
+    !(await workspaceHasFeature(
+      ctx,
+      { team_id: teamId, user_id: userId },
+      "org",
+    ))
+  )
+    return null;
   return userId;
 }
 
 export const tree = query({
-  args: { api_token: v.optional(v.string()), team_id: v.optional(v.id("teams")) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args) => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return null;
     return computeOrgTree(ctx, userId, args.team_id, Date.now());
   },
@@ -454,36 +696,66 @@ export const tree = query({
 // the session fields (people, counts, sessions, an anchor's live state) from
 // the last full tree rather than blank them.
 export const roles = query({
-  args: { api_token: v.optional(v.string()), team_id: v.optional(v.id("teams")) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args) => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return null;
     return computeOrgRoles(ctx, userId, args.team_id, Date.now());
   },
 });
 
-export async function computeOrgRoles(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number) {
+export async function computeOrgRoles(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+) {
   const [{ roles, anchors }, team, caller, memberships] = await Promise.all([
     readOrgSeats(ctx, userId, teamId),
     teamId ? ctx.db.get(teamId) : Promise.resolve(null),
     ctx.db.get(userId),
     teamId
-      ? ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect()
+      ? ctx.db
+          .query("team_memberships")
+          .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+          .collect()
       : Promise.resolve([] as any[]),
   ]);
   // The members, as identity only: who they are and which is the caller (the
   // role pickers and the chat listeners read that). Presence and the sessions
   // filed under each person are the full tree's.
-  const roleById = new Map<string, string>(memberships.map((m: any) => [m.user_id.toString(), m.role ?? "member"]));
-  const memberIds: Id<"users">[] = teamId ? memberships.map((m: any) => m.user_id) : [userId];
+  const roleById = new Map<string, string>(
+    memberships.map((m: any) => [m.user_id.toString(), m.role ?? "member"]),
+  );
+  const memberIds: Id<"users">[] = teamId
+    ? memberships.map((m: any) => m.user_id)
+    : [userId];
   const reportsTo = personReportsToMap(memberships);
-  const people = await Promise.all(memberIds.map(async (uid) =>
-    orgPersonRow(uid.toString() === userId.toString() ? caller : await ctx.db.get(uid), uid, userId, roleById, reportsTo)));
+  const people = await Promise.all(
+    memberIds.map(async (uid) =>
+      orgPersonRow(
+        uid.toString() === userId.toString() ? caller : await ctx.db.get(uid),
+        uid,
+        userId,
+        roleById,
+        reportsTo,
+      ),
+    ),
+  );
   const anchorRows = anchors.map((a: any) => orgAnchorRow(a));
   return {
     workspace: orgWorkspaceOf(userId, teamId, team, caller),
     people: people.filter(Boolean),
-    roles: await Promise.all(roles.map((role: any) => orgRoleRow(ctx, role, anchorRows))),
+    roles: await Promise.all(
+      roles.map((role: any) => orgRoleRow(ctx, role, anchorRows)),
+    ),
     anchors: anchorRows,
     roles_only: true as const,
     generated_at: inboxEpoch(now),
@@ -502,14 +774,27 @@ export const sessionsUnder = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return { sessions: [], next_cursor: undefined };
-    const scan = await collectOrgSessions(ctx, userId, args.team_id, Date.now());
+    const scan = await collectOrgSessions(
+      ctx,
+      userId,
+      args.team_id,
+      Date.now(),
+    );
     const all = scan.byParent.get(parentKeyOf(args.parent)) ?? [];
     const offset = Math.max(0, Number(args.cursor ?? 0) || 0);
     const limit = Math.min(Math.max(1, args.limit ?? PAGE_DEFAULT), 200);
     const page = all.slice(offset, offset + limit);
-    return { sessions: page, next_cursor: offset + limit < all.length ? String(offset + limit) : undefined };
+    return {
+      sessions: page,
+      next_cursor:
+        offset + limit < all.length ? String(offset + limit) : undefined,
+    };
   },
 });
 
@@ -537,15 +822,24 @@ export type HandStarted = StandingState & {
 };
 
 export const handsStartedBy = query({
-  args: { api_token: v.optional(v.string()), conversation_id: v.id("conversations") },
+  args: {
+    api_token: v.optional(v.string()),
+    conversation_id: v.id("conversations"),
+  },
   handler: async (ctx, args): Promise<HandStarted[]> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return [];
     const standing = await ctx.db.get(args.conversation_id);
-    if (!standing || (await checkConversationAccess(ctx, userId, standing)) === "denied") return [];
+    if (
+      !standing ||
+      (await checkConversationAccess(ctx, userId, standing)) === "denied"
+    )
+      return [];
     const rows: any[] = await ctx.db
       .query("conversations")
-      .withIndex("by_spawned_by", (q: any) => q.eq("spawned_by_conversation_id", args.conversation_id))
+      .withIndex("by_spawned_by", (q: any) =>
+        q.eq("spawned_by_conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(HANDS_STARTED_CAP);
     const hands = rows.filter((c) => c.org_role_id);
@@ -558,7 +852,9 @@ export const handsStartedBy = query({
       // cast alone does not narrow the RESULT — assert the doc type too, or
       // reading task.short_id fails the deploy typecheck.
       const task = c.active_task_id
-        ? ((await ctx.db.get(c.active_task_id as Id<"tasks">)) as Doc<"tasks"> | null)
+        ? ((await ctx.db.get(
+            c.active_task_id as Id<"tasks">,
+          )) as Doc<"tasks"> | null)
         : null;
       out.push({
         _id: c._id,
@@ -586,8 +882,31 @@ export const handsStartedBy = query({
 // "goal" and "call" (initiatives-projects-role-page.md I5): a moment on a
 // goal's record (a milestone reached, a question asked or answered, a
 // decision taken), and a call that names a goal in scope.
-export type FeedKind = "session" | "task" | "plan" | "doc" | "artifact" | "decision" | "update" | "commit" | "run" | "goal" | "call";
-export const FEED_KINDS: FeedKind[] = ["session", "task", "plan", "doc", "artifact", "decision", "update", "commit", "run", "goal", "call"];
+export type FeedKind =
+  | "session"
+  | "task"
+  | "plan"
+  | "doc"
+  | "artifact"
+  | "decision"
+  | "update"
+  | "commit"
+  | "run"
+  | "goal"
+  | "call";
+export const FEED_KINDS: FeedKind[] = [
+  "session",
+  "task",
+  "plan",
+  "doc",
+  "artifact",
+  "decision",
+  "update",
+  "commit",
+  "run",
+  "goal",
+  "call",
+];
 export type FeedActor = { name: string; image?: string; is_bot?: boolean };
 export type FeedRow = {
   kind: FeedKind;
@@ -626,10 +945,16 @@ const PREVIEW_CHARS = 200;
 
 const preview = (text: string | undefined | null): string | undefined => {
   const t = (text ?? "").replace(/\s+/g, " ").trim();
-  return t ? (t.length > PREVIEW_CHARS ? t.slice(0, PREVIEW_CHARS - 1) + "…" : t) : undefined;
+  return t
+    ? t.length > PREVIEW_CHARS
+      ? t.slice(0, PREVIEW_CHARS - 1) + "…"
+      : t
+    : undefined;
 };
-const rowOrder = (a: { updated_at: number; id: string }, b: { updated_at: number; id: string }) =>
-  b.updated_at - a.updated_at || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+const rowOrder = (
+  a: { updated_at: number; id: string },
+  b: { updated_at: number; id: string },
+) => b.updated_at - a.updated_at || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 const afterCursor = (row: FeedRow, at?: { ts: number; id: string }) =>
   !at || row.updated_at < at.ts || (row.updated_at === at.ts && row.id < at.id);
 
@@ -640,14 +965,24 @@ export function encodeFeedCursor(c: FeedCursor): string {
 }
 export function decodeFeedCursor(s: string | undefined): FeedCursor {
   if (!s) return {};
-  try { return JSON.parse(atob(s)) ?? {}; } catch { return {}; }
+  try {
+    return JSON.parse(atob(s)) ?? {};
+  } catch {
+    return {};
+  }
 }
 
 const scopeArgs = {
   api_token: v.optional(v.string()),
   role_id: v.optional(v.string()),
   // `initiative_ids`: goals by id or `in-N`. A role's stored scope names none.
-  scope: v.optional(v.object({ project_ids: v.array(v.id("projects")), plan_ids: v.array(v.id("plans")), initiative_ids: v.optional(v.array(v.string())) })),
+  scope: v.optional(
+    v.object({
+      project_ids: v.array(v.id("projects")),
+      plan_ids: v.array(v.id("plans")),
+      initiative_ids: v.optional(v.array(v.string())),
+    }),
+  ),
   team_id: v.optional(v.id("teams")),
 };
 
@@ -675,14 +1010,23 @@ export type ResolvedScope = {
 export async function resolveScope(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { role_id?: string; scope?: Scope & { initiative_ids?: string[] }; team_id?: Id<"teams"> },
+  args: {
+    role_id?: string;
+    scope?: Scope & { initiative_ids?: string[] };
+    team_id?: Id<"teams">;
+  },
 ): Promise<ResolvedScope | null> {
   let role: any = null;
   let scope: Scope;
   let teamId = args.team_id;
   if (args.role_id) {
     role = await resolveRoleRef(ctx, args.role_id);
-    if (!role || role.status === "retired" || !(await userCanAccessRole(ctx, userId, role))) return null;
+    if (
+      !role ||
+      role.status === "retired" ||
+      !(await userCanAccessRole(ctx, userId, role))
+    )
+      return null;
     scope = role.scope;
     teamId = role.team_id ?? undefined;
   } else if (args.scope) {
@@ -708,8 +1052,13 @@ export async function resolveScope(
     if (p && (await mayRead("plans", p))) planById.set(p._id.toString(), p);
   }
   for (const project of projects) {
-    const rows: any[] = await ctx.db.query("plans").withIndex("by_project_id", (q: any) => q.eq("project_id", project._id)).collect();
-    for (const p of rows) if (!planById.has(p._id.toString()) && (await mayRead("plans", p))) planById.set(p._id.toString(), p);
+    const rows: any[] = await ctx.db
+      .query("plans")
+      .withIndex("by_project_id", (q: any) => q.eq("project_id", project._id))
+      .collect();
+    for (const p of rows)
+      if (!planById.has(p._id.toString()) && (await mayRead("plans", p)))
+        planById.set(p._id.toString(), p);
   }
   // Tasks: by project, by plan (a plan's project may be outside the listed
   // projects, so both reads run), deduped.
@@ -718,7 +1067,13 @@ export async function resolveScope(
   const admit = async (rows: any[]) => {
     for (const t of rows) {
       const id = t._id.toString();
-      if (taskById.has(id) || ephemeralIds.has(id) || !isActiveTask(t) || !(await mayRead("tasks", t))) continue;
+      if (
+        taskById.has(id) ||
+        ephemeralIds.has(id) ||
+        !isActiveTask(t) ||
+        !(await mayRead("tasks", t))
+      )
+        continue;
       if (t.ephemeral) ephemeralIds.add(id);
       else taskById.set(id, t);
     }
@@ -728,39 +1083,87 @@ export async function resolveScope(
   // rows and rows from before triage existed can be work (isActiveTask).
   for (const project of projects) {
     for (const triage of ["active", undefined]) {
-      await admit(await ctx.db.query("tasks").withIndex("by_project_triage", (q: any) => q.eq("project_id", project._id).eq("triage_status", triage)).collect());
+      await admit(
+        await ctx.db
+          .query("tasks")
+          .withIndex("by_project_triage", (q: any) =>
+            q.eq("project_id", project._id).eq("triage_status", triage),
+          )
+          .collect(),
+      );
     }
   }
   for (const plan of planById.values()) {
-    await admit(await ctx.db.query("tasks").withIndex("by_plan_id", (q: any) => q.eq("plan_id", plan._id)).collect());
+    await admit(
+      await ctx.db
+        .query("tasks")
+        .withIndex("by_plan_id", (q: any) => q.eq("plan_id", plan._id))
+        .collect(),
+    );
   }
   // Goals: each admitted by the initiative's own access rule (its workspace
   // key), so one the caller cannot read is dropped like an unreadable project.
   const goalById = new Map<string, any>();
-  for (const ref of args.role_id ? [] : args.scope?.initiative_ids ?? []) {
+  for (const ref of args.role_id ? [] : (args.scope?.initiative_ids ?? [])) {
     const goal = await findInitiative(ctx, userId, ref);
     if (goal) goalById.set(goal._id.toString(), goal);
   }
   const initiatives = Array.from(goalById.values());
-  return { userId, role, teamId, scope, projects, plans: Array.from(planById.values()), tasks: Array.from(taskById.values()), ephemeral_task_ids: [...ephemeralIds], initiatives, initiative_ids: initiatives.map((g) => g._id) };
+  return {
+    userId,
+    role,
+    teamId,
+    scope,
+    projects,
+    plans: Array.from(planById.values()),
+    tasks: Array.from(taskById.values()),
+    ephemeral_task_ids: [...ephemeralIds],
+    initiatives,
+    initiative_ids: initiatives.map((g) => g._id),
+  };
 }
 
 // F1's session rule over the org scan (org-staffing.md S35): bound to a task
 // or plan in scope, or filed under the role. A scope project's folder puts
 // nothing in scope: folders decide nothing.
 export type OrgScan = Awaited<ReturnType<typeof collectOrgSessions>>;
-export async function sessionsInScope(ctx: Ctx, resolved: ResolvedScope, now: number, scanIn?: OrgScan): Promise<Array<{ session: OrgSession; raw: any }>> {
+export async function sessionsInScope(
+  ctx: Ctx,
+  resolved: ResolvedScope,
+  now: number,
+  scanIn?: OrgScan,
+): Promise<Array<{ session: OrgSession; raw: any }>> {
   if (isScopeless(resolved.scope) && !resolved.role) return [];
-  const scan = scanIn ?? await collectOrgSessions(ctx, resolved.userId, resolved.teamId, now);
-  const taskIds = new Set([...resolved.tasks.map((t) => t._id.toString()), ...(resolved.ephemeral_task_ids ?? [])]);
+  const scan =
+    scanIn ??
+    (await collectOrgSessions(ctx, resolved.userId, resolved.teamId, now));
+  const taskIds = new Set([
+    ...resolved.tasks.map((t) => t._id.toString()),
+    ...(resolved.ephemeral_task_ids ?? []),
+  ]);
   const planIds = new Set(resolved.plans.map((p) => p._id.toString()));
   const roleId = resolved.role?._id?.toString();
   // A session in a scope project (shared/contracts/sessionProject), its
   // workers included, resolved over the scan so a parent costs no read.
   const projectIds = new Set(resolved.projects.map((p) => p._id.toString()));
-  const taskProject = new Map(resolved.tasks.map((t) => [t._id.toString(), t.project_id?.toString() ?? null]));
-  const taskPlan = new Map(resolved.tasks.map((t) => [t._id.toString(), t.plan_id?.toString() ?? null]));
-  const planProject = new Map(resolved.plans.map((p) => [p._id.toString(), p.project_id?.toString() ?? null]));
+  const taskProject = new Map(
+    resolved.tasks.map((t) => [
+      t._id.toString(),
+      t.project_id?.toString() ?? null,
+    ]),
+  );
+  const taskPlan = new Map(
+    resolved.tasks.map((t) => [
+      t._id.toString(),
+      t.plan_id?.toString() ?? null,
+    ]),
+  );
+  const planProject = new Map(
+    resolved.plans.map((p) => [
+      p._id.toString(),
+      p.project_id?.toString() ?? null,
+    ]),
+  );
   const projectLookup = {
     session: (id: string) => scan.sessions.get(id)?.raw,
     taskProject: (id: string) => taskProject.get(id),
@@ -793,22 +1196,44 @@ function actorCache(ctx: Ctx) {
     // A task's assignee may be a role (org-roles-run-work.md R5): named as the
     // role, never read as if its id were a user's.
     const roleId = ctx.db.normalizeId("org_roles", key);
-    const p: Promise<FeedActor | undefined> = (roleId ? ctx.db.get(roleId) : ctx.db.get(userId)).then((u: any) => !u ? undefined
-      : roleId ? { name: u.name ?? "", is_bot: true }
-      : { name: u.name ?? u.email ?? "", image: u.github_avatar_url || u.image || undefined, is_bot: !!u.bot_kind || undefined }).catch(() => undefined);
+    const p: Promise<FeedActor | undefined> = (
+      roleId ? ctx.db.get(roleId) : ctx.db.get(userId)
+    )
+      .then((u: any) =>
+        !u
+          ? undefined
+          : roleId
+            ? { name: u.name ?? "", is_bot: true }
+            : {
+                name: u.name ?? u.email ?? "",
+                image: u.github_avatar_url || u.image || undefined,
+                is_bot: !!u.bot_kind || undefined,
+              },
+      )
+      .catch(() => undefined);
     users.set(key, p);
     return p;
   };
 }
 
-const storageUrl = async (ctx: any, storageId: any): Promise<string | undefined> =>
-  storageId && ctx.storage?.getUrl ? (await ctx.storage.getUrl(storageId)) ?? undefined : undefined;
+const storageUrl = async (
+  ctx: any,
+  storageId: any,
+): Promise<string | undefined> =>
+  storageId && ctx.storage?.getUrl
+    ? ((await ctx.storage.getUrl(storageId)) ?? undefined)
+    : undefined;
 
 /** Whose rows the feed windows: every member of the scope's team, or the
  *  caller alone in a personal workspace. One read of the memberships. */
-async function scopeMemberIds(ctx: Ctx, resolved: ResolvedScope): Promise<Id<"users">[]> {
+async function scopeMemberIds(
+  ctx: Ctx,
+  resolved: ResolvedScope,
+): Promise<Id<"users">[]> {
   if (!resolved.teamId) return [resolved.userId];
-  return (await createTeamFeedFilter(ctx as any, resolved.teamId)).memberships.map((m: any) => m.user_id as Id<"users">);
+  return (
+    await createTeamFeedFilter(ctx as any, resolved.teamId)
+  ).memberships.map((m: any) => m.user_id as Id<"users">);
 }
 
 /** Calls that name a goal in scope (I5): its short id or title in the call's
@@ -822,7 +1247,11 @@ async function scopeMemberIds(ctx: Ctx, resolved: ResolvedScope): Promise<Id<"us
 async function callsNamingGoals(
   ctx: Ctx,
   resolved: ResolvedScope,
-  opts: { from?: FeedPosition; actor: ReturnType<typeof actorCache>; enough: (at: FeedPosition, kept: number) => boolean },
+  opts: {
+    from?: FeedPosition;
+    actor: ReturnType<typeof actorCache>;
+    enough: (at: FeedPosition, kept: number) => boolean;
+  },
 ): Promise<{ rows: FeedRow[]; at?: FeedPosition; more: boolean }> {
   const goals = resolved.initiatives ?? [];
   const cited = new Set<string>();
@@ -830,32 +1259,72 @@ async function callsNamingGoals(
   for (const goal of goals) {
     if (goal.short_id) names.push(goal.short_id);
     if ((goal.title ?? "").trim().length >= 3) names.push(goal.title);
-    const sourced: Array<IntentSource | undefined> = [...(goal.sources ?? []), ...[goal.milestones, goal.questions, goal.decisions].flatMap((list: any[] | undefined) => (list ?? []).map((e) => e.source))];
-    for (const s of sourced) if (s?.kind === "call" && s.ref) cited.add(parseCallRef(s.ref)?.call ?? s.ref.toLowerCase());
+    const sourced: Array<IntentSource | undefined> = [
+      ...(goal.sources ?? []),
+      ...[goal.milestones, goal.questions, goal.decisions].flatMap(
+        (list: any[] | undefined) => (list ?? []).map((e) => e.source),
+      ),
+    ];
+    for (const s of sourced)
+      if (s?.kind === "call" && s.ref)
+        cited.add(parseCallRef(s.ref)?.call ?? s.ref.toLowerCase());
   }
   // `team_id` here is routing (whose calls to window); canReadCall decides.
-  const teams = new Set<string>(resolved.teamId ? [String(resolved.teamId)] : goals.map((g) => g.team_id).filter(Boolean).map(String));
+  const teams = new Set<string>(
+    resolved.teamId
+      ? [String(resolved.teamId)]
+      : goals
+          .map((g) => g.team_id)
+          .filter(Boolean)
+          .map(String),
+  );
   const rows: FeedRow[] = [];
   let at = opts.from;
   let more = teams.size > 0;
-  scan: for (let read = 0; more && read < CALL_WINDOWS_PER_PAGE && !(at && opts.enough(at, rows.length)); read++) {
+  scan: for (
+    let read = 0;
+    more &&
+    read < CALL_WINDOWS_PER_PAGE &&
+    !(at && opts.enough(at, rows.length));
+    read++
+  ) {
     const windows: any[][] = [];
     for (const teamId of teams) {
-      windows.push(await ctx.db.query("transcripts")
-        .withIndex("by_team_started", (q: any) => (at ? q.eq("team_id", teamId).lt("started_at", at.ts) : q.eq("team_id", teamId)))
-        .order("desc")
-        .take(CALLS_PER_TEAM));
+      windows.push(
+        await ctx.db
+          .query("transcripts")
+          .withIndex("by_team_started", (q: any) =>
+            at
+              ? q.eq("team_id", teamId).lt("started_at", at.ts)
+              : q.eq("team_id", teamId),
+          )
+          .order("desc")
+          .take(CALLS_PER_TEAM),
+      );
     }
     // A full window hides that team's older calls, so this pass reads no
     // further down than the newest edge of a full one.
-    const floor = Math.max(...windows.filter((w) => w.length === CALLS_PER_TEAM).map((w) => w[w.length - 1].started_at));
+    const floor = Math.max(
+      ...windows
+        .filter((w) => w.length === CALLS_PER_TEAM)
+        .map((w) => w[w.length - 1].started_at),
+    );
     more = floor > -Infinity;
-    for (const t of windows.flat().filter((c) => c.started_at >= floor).sort((a, b) => b.started_at - a.started_at)) {
+    for (const t of windows
+      .flat()
+      .filter((c) => c.started_at >= floor)
+      .sort((a, b) => b.started_at - a.started_at)) {
       // addressesAgent is the whole word, case folded name match: "in-3" is
       // not named by "in-30".
-      const named = cited.has(String(t._id)) || (!!t.short_id && cited.has(t.short_id)) || addressesAgent(`${t.title ?? ""}\n${t.summary ?? ""}`, names);
+      const named =
+        cited.has(String(t._id)) ||
+        (!!t.short_id && cited.has(t.short_id)) ||
+        addressesAgent(`${t.title ?? ""}\n${t.summary ?? ""}`, names);
       if (named) {
-        if (rows.length >= CALL_ROWS_PER_PAGE) { more = true; break scan; }
+        if (rows.length >= CALL_ROWS_PER_PAGE) {
+          more = true;
+          break scan;
+        }
         if (await canReadCall(ctx as any, resolved.userId, t)) {
           rows.push({
             kind: "call",
@@ -881,18 +1350,32 @@ export async function computeScopeFeed(
   resolved: ResolvedScope,
   /** `scan`: the caller's org scan, when it holds one, so a caller looping
    *  over roles reads the sessions once rather than once per role. */
-  opts: { cursor?: string; limit?: number; kinds?: FeedKind[]; now: number; scan?: OrgScan },
+  opts: {
+    cursor?: string;
+    limit?: number;
+    kinds?: FeedKind[];
+    now: number;
+    scan?: OrgScan;
+  },
 ): Promise<{ rows: FeedRow[]; next_cursor?: string }> {
   const { now } = opts;
-  const limit = Math.min(Math.max(1, opts.limit ?? FEED_LIMIT_DEFAULT), FEED_LIMIT_MAX);
+  const limit = Math.min(
+    Math.max(1, opts.limit ?? FEED_LIMIT_DEFAULT),
+    FEED_LIMIT_MAX,
+  );
   const kinds = new Set<FeedKind>(opts.kinds?.length ? opts.kinds : FEED_KINDS);
   const cursor = decodeFeedCursor(opts.cursor);
   const actor = actorCache(ctx);
   const want = (k: FeedKind) => kinds.has(k);
 
-  const sessions = want("session") || want("artifact") || want("commit") || want("decision") ? await sessionsInScope(ctx, resolved, now, opts.scan) : [];
+  const sessions =
+    want("session") || want("artifact") || want("commit") || want("decision")
+      ? await sessionsInScope(ctx, resolved, now, opts.scan)
+      : [];
   const sessionIds = new Set(sessions.map((s) => s.session._id.toString()));
-  const sessionRawById = new Map(sessions.map((s) => [s.session._id.toString(), s.raw]));
+  const sessionRawById = new Map(
+    sessions.map((s) => [s.session._id.toString(), s.raw]),
+  );
 
   const sources = new Map<FeedKind, FeedRow[]>();
   // The read budget (F2). A query on this backend may read 4,096 documents,
@@ -911,19 +1394,30 @@ export async function computeScopeFeed(
   // A window that does not depend on the scope, shared through the caller's
   // scan: twenty three Union roles each read the same 200 newest runs, 1.9 MB
   // a role, until the org slice passed the read limit (2026-10-27).
-  const windowOf = (key: string, read: () => Promise<any[]>): Promise<any[]> => {
+  const windowOf = (
+    key: string,
+    read: () => Promise<any[]>,
+  ): Promise<any[]> => {
     const cache = opts.scan?.windows;
     if (!cache) return read();
     const k = `${key}|${take}`;
     let hit = cache.get(k);
-    if (!hit) { hit = read(); cache.set(k, hit); }
+    if (!hit) {
+      hit = read();
+      cache.set(k, hit);
+    }
     return hit;
   };
-  const taskShortIds = new Map(resolved.tasks.map((t) => [t._id.toString(), t.short_id]));
-  const planShortIds = new Map(resolved.plans.map((p) => [p._id.toString(), p.short_id]));
+  const taskShortIds = new Map(
+    resolved.tasks.map((t) => [t._id.toString(), t.short_id]),
+  );
+  const planShortIds = new Map(
+    resolved.plans.map((p) => [p._id.toString(), p.short_id]),
+  );
   const projectIds = new Set(resolved.projects.map((p) => p._id.toString()));
   /** The window's range on a time keyed index: everything before the cursor. */
-  const before = (q: any, field: string, kind: FeedKind) => (cursor[kind] ? q.lt(field, cursor[kind]!.ts) : q);
+  const before = (q: any, field: string, kind: FeedKind) =>
+    cursor[kind] ? q.lt(field, cursor[kind]!.ts) : q;
   const goals = resolved.initiatives ?? [];
   const goalHref = (goal: any) => `/goals/${goal.short_id ?? goal._id}`;
   // A source that windows a member's or the workspace's rows runs only when
@@ -932,60 +1426,90 @@ export async function computeScopeFeed(
   const hasSessionsOrTasks = sessionIds.size > 0 || taskShortIds.size > 0;
 
   if (want("session")) {
-    sources.set("session", await Promise.all(sessions.map(async ({ session, raw }) => ({
-      kind: "session" as const,
-      id: session._id.toString(),
-      short_id: session.short_id ?? undefined,
-      title: session.title || "(untitled)",
-      state: session.state,
-      actor: await actor(session.owner_user_id),
-      updated_at: session.updated_at,
-      href: `/conversation/${session.short_id ?? session._id}`,
-      preview: preview(raw.idle_summary ?? raw.subtitle),
-    }))));
+    sources.set(
+      "session",
+      await Promise.all(
+        sessions.map(async ({ session, raw }) => ({
+          kind: "session" as const,
+          id: session._id.toString(),
+          short_id: session.short_id ?? undefined,
+          title: session.title || "(untitled)",
+          state: session.state,
+          actor: await actor(session.owner_user_id),
+          updated_at: session.updated_at,
+          href: `/conversation/${session.short_id ?? session._id}`,
+          preview: preview(raw.idle_summary ?? raw.subtitle),
+        })),
+      ),
+    );
   }
   if (want("task")) {
-    sources.set("task", await Promise.all(resolved.tasks.map(async (t) => ({
-      kind: "task" as const,
-      id: t._id.toString(),
-      short_id: t.short_id,
-      title: t.title,
-      state: t.status,
-      actor: await actor(t.assignee),
-      updated_at: t.updated_at,
-      href: `/tasks/${t.short_id ?? t._id}`,
-      preview: preview(t.description),
-    }))));
+    sources.set(
+      "task",
+      await Promise.all(
+        resolved.tasks.map(async (t) => ({
+          kind: "task" as const,
+          id: t._id.toString(),
+          short_id: t.short_id,
+          title: t.title,
+          state: t.status,
+          actor: await actor(t.assignee),
+          updated_at: t.updated_at,
+          href: `/tasks/${t.short_id ?? t._id}`,
+          preview: preview(t.description),
+        })),
+      ),
+    );
   }
   if (want("plan")) {
-    sources.set("plan", await Promise.all(resolved.plans.map(async (p) => ({
-      kind: "plan" as const,
-      id: p._id.toString(),
-      short_id: p.short_id,
-      title: p.title,
-      state: p.status,
-      actor: await actor(p.user_id),
-      updated_at: p.updated_at,
-      href: `/plans/${p.short_id ?? p._id}`,
-      preview: preview(p.goal ?? p.description),
-    }))));
+    sources.set(
+      "plan",
+      await Promise.all(
+        resolved.plans.map(async (p) => ({
+          kind: "plan" as const,
+          id: p._id.toString(),
+          short_id: p.short_id,
+          title: p.title,
+          state: p.status,
+          actor: await actor(p.user_id),
+          updated_at: p.updated_at,
+          href: `/plans/${p.short_id ?? p._id}`,
+          preview: preview(p.goal ?? p.description),
+        })),
+      ),
+    );
   }
   if (want("doc") && (projectIds.size > 0 || planShortIds.size > 0)) {
     // A member's docs, newest change first, kept when filed under a project
     // or plan in scope.
     const docById = new Map<string, any>();
     for (const uid of members) {
-      const rows: any[] = await windowOf(`doc|${uid}|${cursor.doc?.ts ?? ""}`, () => ctx.db.query("docs")
-        .withIndex("by_user_updated", (q: any) => before(q.eq("user_id", uid), "updated_at", "doc"))
-        .order("desc")
-        .take(take));
+      const rows: any[] = await windowOf(
+        `doc|${uid}|${cursor.doc?.ts ?? ""}`,
+        () =>
+          ctx.db
+            .query("docs")
+            .withIndex("by_user_updated", (q: any) =>
+              before(q.eq("user_id", uid), "updated_at", "doc"),
+            )
+            .order("desc")
+            .take(take),
+      );
       for (const d of rows) {
-        if ((d.project_id && projectIds.has(d.project_id.toString())) || (d.plan_id && planShortIds.has(d.plan_id.toString()))) docById.set(d._id.toString(), d);
+        if (
+          (d.project_id && projectIds.has(d.project_id.toString())) ||
+          (d.plan_id && planShortIds.has(d.plan_id.toString()))
+        )
+          docById.set(d._id.toString(), d);
       }
     }
     const rows: FeedRow[] = [];
     for (const d of docById.values()) {
-      if (d.archived_at || !(await canAccessDoc(ctx as any, resolved.userId, d))) continue;
+      if (
+        d.archived_at ||
+        !(await canAccessDoc(ctx as any, resolved.userId, d))
+      )
+        continue;
       const shaped = extractPlanTitleForWeb(d);
       rows.push({
         kind: "doc",
@@ -1006,17 +1530,29 @@ export async function computeScopeFeed(
     // page in through both is one row, keyed by slug.
     const pageBySlug = new Map<string, any>();
     for (const uid of members) {
-      const pages: any[] = await windowOf(`artifact|${uid}`, () => ctx.db.query("artifacts").withIndex("by_user", (q: any) => q.eq("user_id", uid)).order("desc").take(ARTIFACTS_PER_MEMBER));
+      const pages: any[] = await windowOf(`artifact|${uid}`, () =>
+        ctx.db
+          .query("artifacts")
+          .withIndex("by_user", (q: any) => q.eq("user_id", uid))
+          .order("desc")
+          .take(ARTIFACTS_PER_MEMBER),
+      );
       for (const a of pages) {
-        const owned = !!a.session_conversation_id && sessionIds.has(a.session_conversation_id.toString());
+        const owned =
+          !!a.session_conversation_id &&
+          sessionIds.has(a.session_conversation_id.toString());
         const attached = !!a.task_id && taskShortIds.has(a.task_id.toString());
         if (owned || attached) pageBySlug.set(a.slug, a);
       }
     }
     const rows: FeedRow[] = [];
     for (const a of pageBySlug.values()) {
-      const attached = a.task_id ? taskShortIds.get(a.task_id.toString()) : undefined;
-      const origin = a.session_short_id ? `published by ${a.session_short_id} · v${a.version}` : `v${a.version}`;
+      const attached = a.task_id
+        ? taskShortIds.get(a.task_id.toString())
+        : undefined;
+      const origin = a.session_short_id
+        ? `published by ${a.session_short_id} · v${a.version}`
+        : `v${a.version}`;
       rows.push({
         kind: "artifact",
         id: a._id.toString(),
@@ -1026,7 +1562,9 @@ export async function computeScopeFeed(
         actor: await actor(a.user_id),
         updated_at: a.updated_at,
         href: `/a/${a.slug}`,
-        preview: attached ? `${origin} · ${attached}${a.station ? ` at ${a.station}` : ""}` : origin,
+        preview: attached
+          ? `${origin} · ${attached}${a.station ? ` at ${a.station}` : ""}`
+          : origin,
       });
     }
     sources.set("artifact", rows);
@@ -1038,13 +1576,27 @@ export async function computeScopeFeed(
     const decisionById = new Map<string, any>();
     for (const uid of members) {
       for (const status of DECISION_STATUSES) {
-        const asked: any[] = await windowOf(`decision|${uid}|${status}|${cursor.decision?.ts ?? ""}`, () => ctx.db.query("session_decisions")
-          .withIndex("by_user_status_created", (q: any) => before(q.eq("user_id", uid).eq("status", status), "created_at", "decision"))
-          .order("desc")
-          .take(take));
+        const asked: any[] = await windowOf(
+          `decision|${uid}|${status}|${cursor.decision?.ts ?? ""}`,
+          () =>
+            ctx.db
+              .query("session_decisions")
+              .withIndex("by_user_status_created", (q: any) =>
+                before(
+                  q.eq("user_id", uid).eq("status", status),
+                  "created_at",
+                  "decision",
+                ),
+              )
+              .order("desc")
+              .take(take),
+        );
         for (const d of asked) {
           const onTask = !!d.task_id && taskShortIds.has(d.task_id.toString());
-          const openAsk = !d.task_id && d.status === "pending" && sessionIds.has(d.conversation_id.toString());
+          const openAsk =
+            !d.task_id &&
+            d.status === "pending" &&
+            sessionIds.has(d.conversation_id.toString());
           if (onTask || openAsk) decisionById.set(d._id.toString(), d);
         }
       }
@@ -1052,7 +1604,9 @@ export async function computeScopeFeed(
     const rows: FeedRow[] = [];
     {
       for (const d of decisionById.values()) {
-        const conv = sessionRawById.get(d.conversation_id.toString()) ?? (await ctx.db.get(d.conversation_id));
+        const conv =
+          sessionRawById.get(d.conversation_id.toString()) ??
+          (await ctx.db.get(d.conversation_id));
         rows.push({
           kind: "decision",
           id: d._id.toString(),
@@ -1062,7 +1616,11 @@ export async function computeScopeFeed(
           actor: await actor(conv?.owner_user_id ?? d.user_id),
           updated_at: d.updated_at ?? d.resolved_at ?? d.created_at,
           href: `/questions?s=${d.conversation_id}`,
-          preview: preview(d.status === "answered" && d.answer_index != null ? `answered: ${d.options[d.answer_index]?.label ?? d.answer_text ?? ""}` : d.context_md),
+          preview: preview(
+            d.status === "answered" && d.answer_index != null
+              ? `answered: ${d.options[d.answer_index]?.label ?? d.answer_text ?? ""}`
+              : d.context_md,
+          ),
         });
       }
     }
@@ -1071,8 +1629,11 @@ export async function computeScopeFeed(
   if (want("update")) {
     const rows: FeedRow[] = [];
     for (const project of resolved.projects) {
-      const updates: any[] = await ctx.db.query("project_updates")
-        .withIndex("by_project_created", (q: any) => before(q.eq("project_id", project._id), "created_at", "update"))
+      const updates: any[] = await ctx.db
+        .query("project_updates")
+        .withIndex("by_project_created", (q: any) =>
+          before(q.eq("project_id", project._id), "created_at", "update"),
+        )
         .order("desc")
         .take(take);
       for (const u of updates) {
@@ -1080,9 +1641,14 @@ export async function computeScopeFeed(
           kind: "update",
           id: u._id.toString(),
           short_id: u.short_id,
-          title: u.title || `${u.kind === "digest" ? "Digest" : "Update"} on ${project.title}`,
+          title:
+            u.title ||
+            `${u.kind === "digest" ? "Digest" : "Update"} on ${project.title}`,
           state: u.kind,
-          actor: (await actor(u.author_user_id)) ?? { name: u.author, is_bot: u.author_kind === "agent" || undefined },
+          actor: (await actor(u.author_user_id)) ?? {
+            name: u.author,
+            is_bot: u.author_kind === "agent" || undefined,
+          },
           updated_at: u.updated_at ?? u.created_at,
           href: `/projects/${project._id}?tab=updates`,
           preview: preview(u.body),
@@ -1092,19 +1658,27 @@ export async function computeScopeFeed(
     // What a goal's owner said (I1): the first line is the row, the health
     // its state, the rest the preview.
     for (const goal of goals) {
-      const updates: any[] = await ctx.db.query("initiative_updates")
-        .withIndex("by_initiative_at", (q: any) => before(q.eq("initiative_id", goal._id), "at", "update"))
+      const updates: any[] = await ctx.db
+        .query("initiative_updates")
+        .withIndex("by_initiative_at", (q: any) =>
+          before(q.eq("initiative_id", goal._id), "at", "update"),
+        )
         .order("desc")
         .take(take);
       for (const u of updates) {
-        const [first, ...rest] = String(u.body ?? "").trim().split("\n");
+        const [first, ...rest] = String(u.body ?? "")
+          .trim()
+          .split("\n");
         rows.push({
           kind: "update",
           id: u._id.toString(),
           short_id: goal.short_id,
-          title: first.replace(/^#+\s*/, "").trim() || `Update on ${goal.title}`,
+          title:
+            first.replace(/^#+\s*/, "").trim() || `Update on ${goal.title}`,
           state: u.health,
-          actor: await actor(u.by?.kind === "role" ? u.by.role_id : u.by?.user_id ?? u.user_id),
+          actor: await actor(
+            u.by?.kind === "role" ? u.by.role_id : (u.by?.user_id ?? u.user_id),
+          ),
           updated_at: u.at,
           href: goalHref(goal),
           preview: preview(rest.join(" ")),
@@ -1121,19 +1695,58 @@ export async function computeScopeFeed(
     // list and key.
     const rows: FeedRow[] = [];
     const said = (source?: IntentSource) => preview(source?.quote);
-    const by = (name?: string): FeedActor | undefined => (name ? { name } : undefined);
+    const by = (name?: string): FeedActor | undefined =>
+      name ? { name } : undefined;
     for (const goal of goals) {
-      const moment = (list: string, key: string, row: Pick<FeedRow, "title" | "state" | "updated_at" | "actor" | "preview">) =>
-        rows.push({ kind: "goal", id: `${goal._id}:${list}:${key}`, short_id: goal.short_id, href: goalHref(goal), ...row });
+      const moment = (
+        list: string,
+        key: string,
+        row: Pick<
+          FeedRow,
+          "title" | "state" | "updated_at" | "actor" | "preview"
+        >,
+      ) =>
+        rows.push({
+          kind: "goal",
+          id: `${goal._id}:${list}:${key}`,
+          short_id: goal.short_id,
+          href: goalHref(goal),
+          ...row,
+        });
       for (const m of goal.milestones ?? []) {
-        if (m.done_at) moment("milestones", m.key, { title: m.title, state: "reached", updated_at: m.done_at, preview: said(m.source) });
+        if (m.done_at)
+          moment("milestones", m.key, {
+            title: m.title,
+            state: "reached",
+            updated_at: m.done_at,
+            preview: said(m.source),
+          });
       }
       for (const q of goal.questions ?? []) {
-        if (q.answer) moment("questions", q.key, { title: q.text, state: "answered", updated_at: q.answered_at ?? q.at, preview: preview(q.answer) });
-        else moment("questions", q.key, { title: q.text, state: "asked", updated_at: q.at, actor: by(q.by), preview: said(q.source) });
+        if (q.answer)
+          moment("questions", q.key, {
+            title: q.text,
+            state: "answered",
+            updated_at: q.answered_at ?? q.at,
+            preview: preview(q.answer),
+          });
+        else
+          moment("questions", q.key, {
+            title: q.text,
+            state: "asked",
+            updated_at: q.at,
+            actor: by(q.by),
+            preview: said(q.source),
+          });
       }
       for (const d of goal.decisions ?? []) {
-        moment("decisions", d.key, { title: d.text, state: "decided", updated_at: d.at, actor: by(d.by), preview: said(d.source) });
+        moment("decisions", d.key, {
+          title: d.text,
+          state: "decided",
+          updated_at: d.at,
+          actor: by(d.by),
+          preview: said(d.source),
+        });
       }
     }
     sources.set("goal", rows);
@@ -1149,17 +1762,40 @@ export async function computeScopeFeed(
     // a stored key ride the owner index, as the run list does.
     const runById = new Map<string, any>();
     const runShortId = new Map<string, string>();
-    const key = workspaceKey(resolved.teamId ? { type: "team", teamId: resolved.teamId } : { type: "personal", userId: resolved.userId });
-    const candidates: any[] = [...await windowOf(`run|${key}|${cursor.run?.ts ?? ""}`, () => ctx.db.query("workflow_runs")
-      .withIndex("by_workspace_updated", (q: any) => before(q.eq("workspace", key), "updated_at", "run"))
-      .order("desc")
-      .take(RUNS_PER_WORKSPACE))];
+    const key = workspaceKey(
+      resolved.teamId
+        ? { type: "team", teamId: resolved.teamId }
+        : { type: "personal", userId: resolved.userId },
+    );
+    const candidates: any[] = [
+      ...(await windowOf(`run|${key}|${cursor.run?.ts ?? ""}`, () =>
+        ctx.db
+          .query("workflow_runs")
+          .withIndex("by_workspace_updated", (q: any) =>
+            before(q.eq("workspace", key), "updated_at", "run"),
+          )
+          .order("desc")
+          .take(RUNS_PER_WORKSPACE),
+      )),
+    ];
     if (!resolved.teamId) {
-      const legacy: any[] = await windowOf(`run-legacy|${resolved.userId}`, () => ctx.db.query("workflow_runs").withIndex("by_user_id", (q: any) => q.eq("user_id", resolved.userId)).order("desc").take(RUNS_PER_WORKSPACE));
+      const legacy: any[] = await windowOf(
+        `run-legacy|${resolved.userId}`,
+        () =>
+          ctx.db
+            .query("workflow_runs")
+            .withIndex("by_user_id", (q: any) =>
+              q.eq("user_id", resolved.userId),
+            )
+            .order("desc")
+            .take(RUNS_PER_WORKSPACE),
+      );
       for (const r of legacy) if (!r.workspace) candidates.push(r);
     }
     for (const r of candidates) {
-      const short = (r.task_id && taskShortIds.get(r.task_id.toString())) || (r.plan_id && planShortIds.get(r.plan_id.toString()));
+      const short =
+        (r.task_id && taskShortIds.get(r.task_id.toString())) ||
+        (r.plan_id && planShortIds.get(r.plan_id.toString()));
       if (!short) continue;
       runById.set(r._id.toString(), r);
       runShortId.set(r._id.toString(), short);
@@ -1168,14 +1804,19 @@ export async function computeScopeFeed(
     const rows: FeedRow[] = [];
     for (const r of runById.values()) {
       const wfKey = r.workflow_id ? r.workflow_id.toString() : "";
-      if (wfKey && !workflowById.has(wfKey)) workflowById.set(wfKey, await ctx.db.get(r.workflow_id));
+      if (wfKey && !workflowById.has(wfKey))
+        workflowById.set(wfKey, await ctx.db.get(r.workflow_id));
       const workflow = wfKey ? workflowById.get(wfKey) : null;
       const node = r.current_node_id
         ? r.node_statuses?.find((n: any) => n.node_id === r.current_node_id)
         : undefined;
-      const nodeLabel = node?.label ?? workflow?.nodes?.find((n: any) => n.id === r.current_node_id)?.label ?? r.current_node_id;
+      const nodeLabel =
+        node?.label ??
+        workflow?.nodes?.find((n: any) => n.id === r.current_node_id)?.label ??
+        r.current_node_id;
       const spawner = r.spawner_conversation_id
-        ? sessionRawById.get(r.spawner_conversation_id.toString()) ?? (await ctx.db.get(r.spawner_conversation_id))
+        ? (sessionRawById.get(r.spawner_conversation_id.toString()) ??
+          (await ctx.db.get(r.spawner_conversation_id)))
         : null;
       rows.push({
         kind: "run",
@@ -1183,10 +1824,20 @@ export async function computeScopeFeed(
         short_id: runShortId.get(r._id.toString()),
         title: r.workflow_name ?? workflow?.name ?? "run",
         state: nodeLabel ? `${r.status} · ${nodeLabel}` : r.status,
-        actor: spawner ? { name: spawner.title || spawner.short_id || "session", is_bot: true } : await actor(r.user_id),
+        actor: spawner
+          ? {
+              name: spawner.title || spawner.short_id || "session",
+              is_bot: true,
+            }
+          : await actor(r.user_id),
         updated_at: r.updated_at,
         href: `/workflows/runs/${r._id}`,
-        preview: preview(r.fail_reason ?? (r.status === "paused" ? r.gate_prompt : node?.activity ?? node?.result_preview)),
+        preview: preview(
+          r.fail_reason ??
+            (r.status === "paused"
+              ? r.gate_prompt
+              : (node?.activity ?? node?.result_preview)),
+        ),
       });
     }
     sources.set("run", rows);
@@ -1201,8 +1852,15 @@ export async function computeScopeFeed(
     const rows: FeedRow[] = [];
     const since = now - COMMIT_WINDOW_MS;
     for (const repo of repos) {
-      const commits: any[] = await ctx.db.query("commits")
-        .withIndex("by_repository_timestamp", (q: any) => before(q.eq("repository", repo).gte("timestamp", since), "timestamp", "commit"))
+      const commits: any[] = await ctx.db
+        .query("commits")
+        .withIndex("by_repository_timestamp", (q: any) =>
+          before(
+            q.eq("repository", repo).gte("timestamp", since),
+            "timestamp",
+            "commit",
+          ),
+        )
         .order("desc")
         .take(take);
       for (const cm of commits) {
@@ -1213,10 +1871,15 @@ export async function computeScopeFeed(
           short_id: cm.sha.slice(0, 7),
           title: subject || cm.sha.slice(0, 7),
           state: cm.branch,
-          actor: { name: cm.author_login ?? cm.author_name, image: cm.author_avatar_url ?? undefined },
+          actor: {
+            name: cm.author_login ?? cm.author_name,
+            image: cm.author_avatar_url ?? undefined,
+          },
           updated_at: cm.timestamp,
           href: `/commit/${repo}/${cm.sha}`,
-          preview: preview(body.join(" ")) ?? `${cm.files_changed} files, +${cm.insertions} −${cm.deletions}`,
+          preview:
+            preview(body.join(" ")) ??
+            `${cm.files_changed} files, +${cm.insertions} −${cm.deletions}`,
         });
       }
     }
@@ -1227,24 +1890,37 @@ export async function computeScopeFeed(
   // `limit` across all of them. The next cursor records, per source, the last
   // row that page emitted; untouched sources keep their old position.
   const remaining = new Map<FeedKind, FeedRow[]>();
-  for (const [kind, rows] of sources) remaining.set(kind, rows.filter((r) => afterCursor(r, cursor[kind])).sort(rowOrder));
+  for (const [kind, rows] of sources)
+    remaining.set(
+      kind,
+      rows.filter((r) => afterCursor(r, cursor[kind])).sort(rowOrder),
+    );
   let merged = Array.from(remaining.values()).flat().sort(rowOrder);
   // Calls are scanned last, against the rows above: the scan stops reading as
   // soon as the rows it has passed fill the page.
-  const calls = want("call") && goals.length
-    ? await callsNamingGoals(ctx, resolved, { from: cursor.call, actor, enough: (at, kept) => kept + merged.filter((r) => !afterCursor(r, at)).length >= limit })
-    : undefined;
+  const calls =
+    want("call") && goals.length
+      ? await callsNamingGoals(ctx, resolved, {
+          from: cursor.call,
+          actor,
+          enough: (at, kept) =>
+            kept + merged.filter((r) => !afterCursor(r, at)).length >= limit,
+        })
+      : undefined;
   if (calls) merged = [...merged, ...calls.rows].sort(rowOrder);
   // A scan that stopped with calls unread holds back every row older than
   // where it stopped, of any kind, with its cursor untouched: a call found on
   // a later page never lands under rows older than it.
-  const ready = calls?.more ? merged.filter((r) => !!calls.at && !afterCursor(r, calls.at)) : merged;
+  const ready = calls?.more
+    ? merged.filter((r) => !!calls.at && !afterCursor(r, calls.at))
+    : merged;
   const page = ready.slice(0, limit);
   const next: FeedCursor = { ...cursor };
   for (const row of page) next[row.kind] = { ts: row.updated_at, id: row.id };
   // The call source's position is how far its scan read, once every call it
   // kept has shipped: the calls it passed over are never read again.
-  if (calls?.at && calls.rows.every((r) => page.includes(r))) next.call = calls.at;
+  if (calls?.at && calls.rows.every((r) => page.includes(r)))
+    next.call = calls.at;
   const hasMore = merged.length > page.length || !!calls?.more;
 
   // Thumbnails only for the rows that ship: an image artifact or a page
@@ -1252,17 +1928,28 @@ export async function computeScopeFeed(
   for (const row of page) {
     if (row.kind === "artifact") {
       const a = await ctx.db.get(row.id as any);
-      row.image_url = a?.kind === "image" ? await storageUrl(ctx, a.storage_id) : await storageUrl(ctx, a?.thumb_storage_id);
+      row.image_url =
+        a?.kind === "image"
+          ? await storageUrl(ctx, a.storage_id)
+          : await storageUrl(ctx, a?.thumb_storage_id);
     } else if (row.kind === "session") {
-      const img = await ctx.db.query("conversation_images")
-        .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", row.id))
+      const img = await ctx.db
+        .query("conversation_images")
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", row.id),
+        )
         .order("desc")
         .first();
-      if (img) row.image_url = (await storageUrl(ctx, img.storage_id)) ?? img.src ?? undefined;
+      if (img)
+        row.image_url =
+          (await storageUrl(ctx, img.storage_id)) ?? img.src ?? undefined;
     }
     if (row.image_url === undefined) delete row.image_url;
   }
-  return { rows: page, next_cursor: hasMore ? encodeFeedCursor(next) : undefined };
+  return {
+    rows: page,
+    next_cursor: hasMore ? encodeFeedCursor(next) : undefined,
+  };
 }
 
 export const scopeFeed = query({
@@ -1277,8 +1964,15 @@ export const scopeFeed = query({
     if (!userId) return { rows: [], next_cursor: undefined };
     const resolved = await resolveScope(ctx, userId, args);
     if (!resolved) return { rows: [], next_cursor: undefined };
-    const kinds = (args.kinds ?? []).filter((k): k is FeedKind => (FEED_KINDS as string[]).includes(k));
-    return computeScopeFeed(ctx, resolved, { cursor: args.cursor, limit: args.limit, kinds, now: Date.now() });
+    const kinds = (args.kinds ?? []).filter((k): k is FeedKind =>
+      (FEED_KINDS as string[]).includes(k),
+    );
+    return computeScopeFeed(ctx, resolved, {
+      cursor: args.cursor,
+      limit: args.limit,
+      kinds,
+      now: Date.now(),
+    });
   },
 });
 
@@ -1289,43 +1983,100 @@ export const scopeFeed = query({
 // A scope project with its charter (org-staffing.md S7): the frame, the brief
 // and the scope page lead with the goal, priority and metrics when present.
 export type ScopeProject = {
-  id: string; title: string; short_id?: string; project_path?: string;
-  goal?: string; priority?: string; success_metrics?: string[]; owner_role_id?: string;
+  id: string;
+  title: string;
+  short_id?: string;
+  project_path?: string;
+  goal?: string;
+  priority?: string;
+  success_metrics?: string[];
+  owner_role_id?: string;
 };
 
 export type ScopeSummary = {
   scope: { project_ids: string[]; plan_ids: string[] };
   projects: ScopeProject[];
-  plans: Array<{ id: string; short_id: string; title: string; status: string; updated_at: number; progress: { total: number; done: number; in_progress: number; open: number } }>;
-  tasks: { total: number; open: number; by_status: Record<string, number>; by_priority: Record<string, number> };
+  plans: Array<{
+    id: string;
+    short_id: string;
+    title: string;
+    status: string;
+    updated_at: number;
+    progress: {
+      total: number;
+      done: number;
+      in_progress: number;
+      open: number;
+    };
+  }>;
+  tasks: {
+    total: number;
+    open: number;
+    by_status: Record<string, number>;
+    by_priority: Record<string, number>;
+  };
   sessions: StateCounts & { total: number };
   decisions: { open: number };
   overlaps: ScopeOverlap[];
   generated_at: number;
 };
 
-export async function computeScopeSummary(ctx: Ctx, resolved: ResolvedScope, now: number, scan?: OrgScan): Promise<ScopeSummary> {
-  const by_status: Record<string, number> = { backlog: 0, open: 0, in_progress: 0, in_review: 0, done: 0, dropped: 0 };
-  const by_priority: Record<string, number> = { urgent: 0, high: 0, medium: 0, low: 0, none: 0 };
+export async function computeScopeSummary(
+  ctx: Ctx,
+  resolved: ResolvedScope,
+  now: number,
+  scan?: OrgScan,
+): Promise<ScopeSummary> {
+  const by_status: Record<string, number> = {
+    backlog: 0,
+    open: 0,
+    in_progress: 0,
+    in_review: 0,
+    done: 0,
+    dropped: 0,
+  };
+  const by_priority: Record<string, number> = {
+    urgent: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    none: 0,
+  };
   let open = 0;
   for (const t of resolved.tasks) {
     by_status[t.status] = (by_status[t.status] ?? 0) + 1;
-    by_priority[t.priority ?? "none"] = (by_priority[t.priority ?? "none"] ?? 0) + 1;
+    by_priority[t.priority ?? "none"] =
+      (by_priority[t.priority ?? "none"] ?? 0) + 1;
     if (t.status !== "done" && t.status !== "dropped") open++;
   }
   // Plan progress from the live task set, the plan's own rule: top-level,
   // undropped tasks only (plans.recalcProgress).
-  const plans = resolved.plans.map((p) => {
-    const progress = { total: 0, done: 0, in_progress: 0, open: 0 };
-    for (const t of resolved.tasks) {
-      if (t.plan_id?.toString() !== p._id.toString() || t.parent_id || t.status === "dropped") continue;
-      progress.total++;
-      if (t.status === "done") progress.done++;
-      else if (t.status === "in_progress" || t.status === "in_review") progress.in_progress++;
-      else progress.open++;
-    }
-    return { id: p._id.toString(), short_id: p.short_id, title: p.title, status: p.status, updated_at: p.updated_at, progress };
-  }).sort((a, b) => b.updated_at - a.updated_at);
+  const plans = resolved.plans
+    .map((p) => {
+      const progress = { total: 0, done: 0, in_progress: 0, open: 0 };
+      for (const t of resolved.tasks) {
+        if (
+          t.plan_id?.toString() !== p._id.toString() ||
+          t.parent_id ||
+          t.status === "dropped"
+        )
+          continue;
+        progress.total++;
+        if (t.status === "done") progress.done++;
+        else if (t.status === "in_progress" || t.status === "in_review")
+          progress.in_progress++;
+        else progress.open++;
+      }
+      return {
+        id: p._id.toString(),
+        short_id: p.short_id,
+        title: p.title,
+        status: p.status,
+        updated_at: p.updated_at,
+        progress,
+      };
+    })
+    .sort((a, b) => b.updated_at - a.updated_at);
 
   const sessions = await sessionsInScope(ctx, resolved, now, scan);
   const counts = tallyOf(sessions.map((s) => s.session));
@@ -1338,25 +2089,51 @@ export async function computeScopeSummary(ctx: Ctx, resolved: ResolvedScope, now
   const openIds = new Set<string>();
   if (resolved.tasks.length) {
     const taskIds = new Set(resolved.tasks.map((t) => String(t._id)));
-    for (const memberId of scan?.memberIds ?? await scopeMemberIds(ctx, resolved)) {
-      const pending: any[] = await ctx.db.query("session_decisions").withIndex("by_user_status", (q: any) => q.eq("user_id", memberId).eq("status", "pending")).collect();
-      for (const d of pending) if (d.task_id && taskIds.has(String(d.task_id))) openIds.add(String(d._id));
+    for (const memberId of scan?.memberIds ??
+      (await scopeMemberIds(ctx, resolved))) {
+      const pending: any[] = await ctx.db
+        .query("session_decisions")
+        .withIndex("by_user_status", (q: any) =>
+          q.eq("user_id", memberId).eq("status", "pending"),
+        )
+        .collect();
+      for (const d of pending)
+        if (d.task_id && taskIds.has(String(d.task_id)))
+          openIds.add(String(d._id));
     }
   }
-  if (resolved.role) for (const d of await pendingOnLadder(ctx, resolved.role._id, now)) openIds.add(String(d._id));
+  if (resolved.role)
+    for (const d of await pendingOnLadder(ctx, resolved.role._id, now))
+      openIds.add(String(d._id));
   const decisions = { open: openIds.size };
 
   let overlaps: ScopeOverlap[] = [];
   if (resolved.role) {
     const siblings = await rolesInBoundary(ctx, resolved.role);
-    overlaps = overlapsAmong(resolved.role, siblings, await planProjectsOf(ctx, siblings.map((r) => r.scope)));
+    overlaps = overlapsAmong(
+      resolved.role,
+      siblings,
+      await planProjectsOf(
+        ctx,
+        siblings.map((r) => r.scope),
+      ),
+    );
   }
 
   return {
-    scope: { project_ids: resolved.scope.project_ids.map(String), plan_ids: resolved.scope.plan_ids.map(String) },
+    scope: {
+      project_ids: resolved.scope.project_ids.map(String),
+      plan_ids: resolved.scope.plan_ids.map(String),
+    },
     projects: resolved.projects.map((p): ScopeProject => ({
-      id: p._id.toString(), title: p.title, short_id: p.short_id ?? undefined, project_path: p.project_path ?? undefined,
-      goal: p.goal ?? undefined, priority: p.priority ?? undefined, success_metrics: p.success_metrics ?? undefined, owner_role_id: p.owner_role_id ? String(p.owner_role_id) : undefined,
+      id: p._id.toString(),
+      title: p.title,
+      short_id: p.short_id ?? undefined,
+      project_path: p.project_path ?? undefined,
+      goal: p.goal ?? undefined,
+      priority: p.priority ?? undefined,
+      success_metrics: p.success_metrics ?? undefined,
+      owner_role_id: p.owner_role_id ? String(p.owner_role_id) : undefined,
     })),
     plans,
     tasks: { total: resolved.tasks.length, open, by_status, by_priority },
@@ -1391,7 +2168,9 @@ export const scopeSummary = query({
 export function waitingSinceOf(state: string, raw: any): number | null {
   if (state !== "needs_input") return null;
   const pin = stateOf(raw);
-  return (pin.state_status === "blocked" && pin.state_at) || raw.updated_at || null;
+  return (
+    (pin.state_status === "blocked" && pin.state_at) || raw.updated_at || null
+  );
 }
 
 export type BriefHand = {
@@ -1407,27 +2186,70 @@ export type BriefHand = {
   // A wait is the role's to answer or pass up (org-staffing.md S28).
   waiting_since: number | null;
   // The task the hand is bound to, with its last handoff status and verdict.
-  task: { short_id: string; title: string; status: string; execution_status?: string; review_verdict?: string; review_note?: string } | null;
+  task: {
+    short_id: string;
+    title: string;
+    status: string;
+    execution_status?: string;
+    review_verdict?: string;
+    review_note?: string;
+  } | null;
 };
-export type BriefChange = { kind: "task" | "plan"; short_id?: string; title: string; status: string; updated_at: number };
+export type BriefChange = {
+  kind: "task" | "plan";
+  short_id?: string;
+  title: string;
+  status: string;
+  updated_at: number;
+};
 // An initiative the role serves (initiatives-projects-role-page.md I4), with
 // its health as last said and when: a lead's daily check refreshes the ones
 // it owns (org-staffing.md S25), so a read that is older than its check is a
 // read to post again.
-export type BriefInitiative = { short_id: string; title: string; status: string; health: string; health_at: number | null; owned: boolean; metrics: string[]; chain: string[] };
+export type BriefInitiative = {
+  short_id: string;
+  title: string;
+  status: string;
+  health: string;
+  health_at: number | null;
+  owned: boolean;
+  metrics: string[];
+  chain: string[];
+};
 // The standing session as the org card reads it: its work state and its pinned
 // line, so a reader of another role's brief (the Head of People, S29) sees
 // where the role itself stands without a second read.
-export type BriefStanding = { short_id: string | null; state: WorkState | null } & StandingState;
+export type BriefStanding = {
+  short_id: string | null;
+  state: WorkState | null;
+} & StandingState;
 export type BriefFacts = {
-  scope: { projects: ScopeProject[]; plans: { id: string; short_id: string; title: string; project_id?: string }[]; whole_workspace: boolean };
-  tasks: { total: number; open: number; by_status: Record<string, number>; by_priority: Record<string, number> };
+  scope: {
+    projects: ScopeProject[];
+    plans: {
+      id: string;
+      short_id: string;
+      title: string;
+      project_id?: string;
+    }[];
+    whole_workspace: boolean;
+  };
+  tasks: {
+    total: number;
+    open: number;
+    by_status: Record<string, number>;
+    by_priority: Record<string, number>;
+  };
   plans: ScopeSummary["plans"];
   hands: BriefHand[];
   // The initiatives the role owns or its projects carry, owned first.
   initiatives: BriefInitiative[];
   /** The numbers of the projects it looks after, each line read like an initiative's. */
-  project_numbers: Array<{ short_id: string; title: string; metrics: string[] }>;
+  project_numbers: Array<{
+    short_id: string;
+    title: string;
+    metrics: string[];
+  }>;
   // The role's own standing session, or null before provision.
   standing: BriefStanding | null;
   // The people who report to the role (org-roles-run-work.md R6): their goals
@@ -1439,7 +2261,14 @@ export type BriefFacts = {
   changed: BriefChange[];
   changed_since: number;
   decisions: { open: number; answered_today: number };
-  usage: { day: string; wakes: number; hands: number; tokens: number; caps: RoleDailyCaps; uncounted_sessions: number };
+  usage: {
+    day: string;
+    wakes: number;
+    hands: number;
+    tokens: number;
+    caps: RoleDailyCaps;
+    uncounted_sessions: number;
+  };
   generated_at: number;
 };
 
@@ -1450,16 +2279,37 @@ const WHOLE_WORKSPACE_TASK_CAP = 2000;
 // its boundary (org-staffing.md S26); resolveScope answers nothing for that
 // case, so read them here. Projects ride along so the Head of People reads
 // every charter in its frame.
-async function wholeWorkspaceItems(ctx: Ctx, role: any): Promise<{ projects: any[]; tasks: any[]; ephemeral_task_ids: string[]; plans: any[] }> {
-  const key = role.team_id ? `team:${role.team_id}` : `user:${role.scope_user_id}`;
-  const projects: any[] = await ctx.db.query("projects").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).take(200);
-  const tasks: any[] = await ctx.db.query("tasks").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).take(WHOLE_WORKSPACE_TASK_CAP);
-  const plans: any[] = await ctx.db.query("plans").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).take(500);
+async function wholeWorkspaceItems(
+  ctx: Ctx,
+  role: any,
+): Promise<{
+  projects: any[];
+  tasks: any[];
+  ephemeral_task_ids: string[];
+  plans: any[];
+}> {
+  const key = role.team_id
+    ? `team:${role.team_id}`
+    : `user:${role.scope_user_id}`;
+  const projects: any[] = await ctx.db
+    .query("projects")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+    .take(200);
+  const tasks: any[] = await ctx.db
+    .query("tasks")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+    .take(WHOLE_WORKSPACE_TASK_CAP);
+  const plans: any[] = await ctx.db
+    .query("plans")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+    .take(500);
   const live = tasks.filter((t) => t.status !== "dropped");
   return {
     projects: projects.filter((p) => p.status !== "done"),
     tasks: live.filter((t) => !t.ephemeral),
-    ephemeral_task_ids: live.filter((t) => t.ephemeral).map((t) => String(t._id)),
+    ephemeral_task_ids: live
+      .filter((t) => t.ephemeral)
+      .map((t) => String(t._id)),
     plans,
   };
 }
@@ -1467,11 +2317,26 @@ async function wholeWorkspaceItems(ctx: Ctx, role: any): Promise<{ projects: any
 // `viewerId` is whose grants the facts are read with: the caller of
 // org.brief, or the role's host for the wake frame (the host runs the
 // session, so the frame carries what the host may see and nothing more).
-export async function computeBriefFacts(ctx: Ctx, viewerId: Id<"users">, role: any, now: number): Promise<BriefFacts> {
-  let resolved = await resolveScope(ctx, viewerId, { role_id: String(role._id) });
+export async function computeBriefFacts(
+  ctx: Ctx,
+  viewerId: Id<"users">,
+  role: any,
+  now: number,
+): Promise<BriefFacts> {
+  let resolved = await resolveScope(ctx, viewerId, {
+    role_id: String(role._id),
+  });
   const whole = isWholeWorkspaceRole(role);
   if (!resolved) {
-    resolved = { userId: viewerId, role, teamId: role.team_id ?? undefined, scope: role.scope, projects: [], plans: [], tasks: [] };
+    resolved = {
+      userId: viewerId,
+      role,
+      teamId: role.team_id ?? undefined,
+      scope: role.scope,
+      projects: [],
+      plans: [],
+      tasks: [],
+    };
   }
   if (whole) {
     const items = await wholeWorkspaceItems(ctx, role);
@@ -1481,11 +2346,17 @@ export async function computeBriefFacts(ctx: Ctx, viewerId: Id<"users">, role: a
   // membership (recent, visible, top level) and the same classifier inputs
   // (subagents rolled up) as the org tree, so a hand reads the same on the
   // org node, the scope page and the brief.
-  const scan = await collectOrgSessions(ctx, viewerId, role.team_id ?? undefined, now);
+  const scan = await collectOrgSessions(
+    ctx,
+    viewerId,
+    role.team_id ?? undefined,
+    now,
+  );
   const summary = await computeScopeSummary(ctx, resolved, now, scan);
 
   const hands: BriefHand[] = [];
-  for (const session of scan.byParent.get(`role:${role._id.toString()}`) ?? []) {
+  for (const session of scan.byParent.get(`role:${role._id.toString()}`) ??
+    []) {
     const c = scan.sessions.get(session._id.toString())?.raw;
     if (!c) continue;
     const task = c.active_task_id ? await ctx.db.get(c.active_task_id) : null;
@@ -1497,14 +2368,16 @@ export async function computeBriefFacts(ctx: Ctx, viewerId: Id<"users">, role: a
       ...stateOf(c),
       updated_at: c.updated_at,
       waiting_since: waitingSinceOf(session.state, c),
-      task: task ? {
-        short_id: task.short_id,
-        title: task.title,
-        status: task.status,
-        execution_status: task.execution_status ?? undefined,
-        review_verdict: task.review_verdict?.verdict ?? undefined,
-        review_note: task.review_verdict?.note ?? undefined,
-      } : null,
+      task: task
+        ? {
+            short_id: task.short_id,
+            title: task.title,
+            status: task.status,
+            execution_status: task.execution_status ?? undefined,
+            review_verdict: task.review_verdict?.verdict ?? undefined,
+            review_note: task.review_verdict?.note ?? undefined,
+          }
+        : null,
     });
   }
 
@@ -1512,42 +2385,109 @@ export async function computeBriefFacts(ctx: Ctx, viewerId: Id<"users">, role: a
   // .markBriefRead); a day, for a role that never has.
   const since = role.checked_at ?? now - 24 * 3600_000;
   const changed: BriefChange[] = [
-    ...resolved.tasks.map((t): BriefChange => ({ kind: "task", short_id: t.short_id, title: t.title, status: t.status, updated_at: t.updated_at })),
-    ...resolved.plans.map((p): BriefChange => ({ kind: "plan", short_id: p.short_id, title: p.title, status: p.status, updated_at: p.updated_at })),
-  ].filter((c) => c.updated_at > since).sort((a, b) => b.updated_at - a.updated_at).slice(0, BRIEF_CHANGES_MAX);
+    ...resolved.tasks.map((t): BriefChange => ({
+      kind: "task",
+      short_id: t.short_id,
+      title: t.title,
+      status: t.status,
+      updated_at: t.updated_at,
+    })),
+    ...resolved.plans.map((p): BriefChange => ({
+      kind: "plan",
+      short_id: p.short_id,
+      title: p.title,
+      status: p.status,
+      updated_at: p.updated_at,
+    })),
+  ]
+    .filter((c) => c.updated_at > since)
+    .sort((a, b) => b.updated_at - a.updated_at)
+    .slice(0, BRIEF_CHANGES_MAX);
 
   // Decisions: the summary's one open count, and the ladder's answers today.
   const dayStart = now - (now % 86_400_000);
   const decisions = { open: summary.decisions.open, answered_today: 0 };
-  const answered: any[] = await ctx.db.query("session_decisions").withIndex("by_status_created", (q: any) => q.eq("status", "answered").gte("created_at", dayStart)).take(500);
-  for (const d of answered) if ((d.hops ?? []).some((h: any) => String(h.role_id) === String(role._id))) decisions.answered_today++;
+  const answered: any[] = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_status_created", (q: any) =>
+      q.eq("status", "answered").gte("created_at", dayStart),
+    )
+    .take(500);
+  for (const d of answered)
+    if ((d.hops ?? []).some((h: any) => String(h.role_id) === String(role._id)))
+      decisions.answered_today++;
 
   const counters = await countersNow(ctx, role, now);
   const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-  const standing = anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
-  const uncounted = [standing, ...hands.map((h) => scan.sessions.get(h._id.toString())?.raw)].filter((c) => c && c.agent_type !== "claude_code").length;
+  const standing = anchor?.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
+  const uncounted = [
+    standing,
+    ...hands.map((h) => scan.sessions.get(h._id.toString())?.raw),
+  ].filter((c) => c && c.agent_type !== "claude_code").length;
   // What the area serves (I4): the initiatives it owns and the ones its
   // projects carry, each with its health as last said and when.
-  const initiatives: BriefInitiative[] = (await roleServedInitiatives(ctx, role)).map((i) => ({
-    short_id: i.short_id, title: i.title, status: i.status, health: i.health, health_at: i.health_at, owned: i.owned,
-    metrics: servedMetricLines(i, now), chain: i.chain.map((c) => c.title),
+  const initiatives: BriefInitiative[] = (
+    await roleServedInitiatives(ctx, role)
+  ).map((i) => ({
+    short_id: i.short_id,
+    title: i.title,
+    status: i.status,
+    health: i.health,
+    health_at: i.health_at,
+    owned: i.owned,
+    metrics: servedMetricLines(i, now),
+    chain: i.chain.map((c) => c.title),
   }));
   // The numbers of the projects it looks after, read the same way.
-  const project_numbers = (await roleProjectNumbers(ctx, role)).map((p) => ({ short_id: p.short_id, title: p.title, metrics: servedMetricLines(p, now) }));
-  const standingEntry = standing ? scan.sessions.get(String(standing._id))?.session : undefined;
-  const standingFacts: BriefStanding | null = standing ? { short_id: standing.short_id ?? null, state: standingEntry?.state ?? null, ...stateOf(standing) } : null;
+  const project_numbers = (await roleProjectNumbers(ctx, role)).map((p) => ({
+    short_id: p.short_id,
+    title: p.title,
+    metrics: servedMetricLines(p, now),
+  }));
+  const standingEntry = standing
+    ? scan.sessions.get(String(standing._id))?.session
+    : undefined;
+  const standingFacts: BriefStanding | null = standing
+    ? {
+        short_id: standing.short_id ?? null,
+        state: standingEntry?.state ?? null,
+        ...stateOf(standing),
+      }
+    : null;
 
   // The people who report to the role, read with the same grants and the same
   // scan as the hands; "changed" is since the role last read its brief.
-  const briefDoc = role.brief_doc_id ? await ctx.db.get(role.brief_doc_id) : null;
+  const briefDoc = role.brief_doc_id
+    ? await ctx.db.get(role.brief_doc_id)
+    : null;
   const people = await computeReportingPeople(
-    ctx, viewerId, role,
-    briefDoc ? { content: briefDoc.content ?? "", updated_at: briefDoc.updated_at ?? briefDoc._creationTime ?? 0 } : null,
-    scan, since, now,
+    ctx,
+    viewerId,
+    role,
+    briefDoc
+      ? {
+          content: briefDoc.content ?? "",
+          updated_at: briefDoc.updated_at ?? briefDoc._creationTime ?? 0,
+        }
+      : null,
+    scan,
+    since,
+    now,
   );
 
   return {
-    scope: { projects: summary.projects, plans: resolved.plans.map((p) => ({ id: p._id.toString(), short_id: p.short_id, title: p.title, project_id: p.project_id ? String(p.project_id) : undefined })), whole_workspace: whole },
+    scope: {
+      projects: summary.projects,
+      plans: resolved.plans.map((p) => ({
+        id: p._id.toString(),
+        short_id: p.short_id,
+        title: p.title,
+        project_id: p.project_id ? String(p.project_id) : undefined,
+      })),
+      whole_workspace: whole,
+    },
     tasks: summary.tasks,
     plans: summary.plans,
     hands,
@@ -1578,33 +2518,87 @@ export const roleCard = query({
     const role = await resolveRoleRef(ctx, args.role_id);
     if (!role || !(await userCanAccessRole(ctx, userId, role))) return null;
     const [projects, plans, charterText, anchor] = await Promise.all([
-      Promise.all((role.scope?.project_ids ?? []).map((id: any) => ctx.db.get(id))),
-      Promise.all((role.scope?.plan_ids ?? []).map((id: any) => ctx.db.get(id))),
+      Promise.all(
+        (role.scope?.project_ids ?? []).map((id: any) => ctx.db.get(id)),
+      ),
+      Promise.all(
+        (role.scope?.plan_ids ?? []).map((id: any) => ctx.db.get(id)),
+      ),
       roleCharterOf(ctx, role),
       role.anchor_id ? ctx.db.get(role.anchor_id) : Promise.resolve(null),
     ]);
-    const standing: any = (anchor as any)?.conversation_id ? await ctx.db.get((anchor as any).conversation_id) : null;
-    let reports_to: { kind: "user" | "role"; name: string; short_id?: string; avatar?: string; icon?: any } | null = null;
+    const standing: any = (anchor as any)?.conversation_id
+      ? await ctx.db.get((anchor as any).conversation_id)
+      : null;
+    let reports_to: {
+      kind: "user" | "role";
+      name: string;
+      short_id?: string;
+      avatar?: string;
+      icon?: any;
+    } | null = null;
     if (role.reports_to?.kind === "user") {
       const u: any = await ctx.db.get(role.reports_to.user_id);
-      reports_to = u ? { kind: "user", name: u.name ?? u.email ?? "someone", avatar: u.image ?? u.github_avatar_url ?? undefined } : null;
+      reports_to = u
+        ? {
+            kind: "user",
+            name: u.name ?? u.email ?? "someone",
+            avatar: u.image ?? u.github_avatar_url ?? undefined,
+          }
+        : null;
     } else if (role.reports_to?.kind === "role") {
       const r: any = await ctx.db.get(role.reports_to.role_id);
-      reports_to = r ? { kind: "role", name: r.name, short_id: r.short_id, avatar: avatarOf(r), icon: r.icon ?? undefined } : null;
+      reports_to = r
+        ? {
+            kind: "role",
+            name: r.name,
+            short_id: r.short_id,
+            avatar: avatarOf(r),
+            icon: r.icon ?? undefined,
+          }
+        : null;
     }
     // The first paragraph, minus a leading markdown heading, capped for a card.
-    const charter = charterText.replace(/^#+[^\n]*\n+/, "").split(/\n\s*\n/)[0]?.trim().slice(0, 280) ?? "";
+    const charter =
+      charterText
+        .replace(/^#+[^\n]*\n+/, "")
+        .split(/\n\s*\n/)[0]
+        ?.trim()
+        .slice(0, 280) ?? "";
     return {
-      _id: role._id.toString(), short_id: role.short_id, name: role.name, handle: role.handle, avatar: avatarOf(role), icon: role.icon ?? null,
-      status: role.status, tenure: role.tenure ?? { kind: "standing" }, trust: trustOf(role),
-      charter, reports_to,
+      _id: role._id.toString(),
+      short_id: role.short_id,
+      name: role.name,
+      handle: role.handle,
+      avatar: avatarOf(role),
+      icon: role.icon ?? null,
+      status: role.status,
+      tenure: role.tenure ?? { kind: "standing" },
+      trust: trustOf(role),
+      charter,
+      reports_to,
       scope: {
-        projects: projects.filter(Boolean).map((p: any) => ({ id: p._id.toString(), title: p.title, short_id: p.short_id ?? null })),
-        plans: plans.filter(Boolean).map((p: any) => ({ id: p._id.toString(), title: p.title, short_id: p.short_id })),
+        projects: projects.filter(Boolean).map((p: any) => ({
+          id: p._id.toString(),
+          title: p.title,
+          short_id: p.short_id ?? null,
+        })),
+        plans: plans.filter(Boolean).map((p: any) => ({
+          id: p._id.toString(),
+          title: p.title,
+          short_id: p.short_id,
+        })),
       },
-      caps: role.caps ?? null, counters: role.counters ?? null,
-      standing_short_id: standing?.short_id ?? null, standing_conversation_id: standing?._id?.toString() ?? null,
-      standing_state: standing ? { line: standing.thread_state ?? null, status: standing.thread_state_status ?? null } : null,
+      caps: role.caps ?? null,
+      counters: role.counters ?? null,
+      standing_short_id: standing?.short_id ?? null,
+      standing_conversation_id: standing?._id?.toString() ?? null,
+      standing_state: standing
+        ? {
+            line: standing.thread_state ?? null,
+            status: standing.thread_state_status ?? null,
+          }
+        : null,
     };
   },
 });
@@ -1620,30 +2614,60 @@ export const brief = query({
     const facts = await computeBriefFacts(ctx, userId, role, now);
     // `role` is untyped (resolveRoleRef), so the ids below resolve to the
     // union of every table; the rows are read as plain objects.
-    const briefDoc: any = role.brief_doc_id ? await ctx.db.get(role.brief_doc_id) : null;
-    const anchor: any = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-    const standing: any = anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+    const briefDoc: any = role.brief_doc_id
+      ? await ctx.db.get(role.brief_doc_id)
+      : null;
+    const anchor: any = role.anchor_id
+      ? await ctx.db.get(role.anchor_id)
+      : null;
+    const standing: any = anchor?.conversation_id
+      ? await ctx.db.get(anchor.conversation_id)
+      : null;
     // The role's routine (org-staffing.md S25): when it last ran and runs next.
     const routine: any = await findRoleRoutine(ctx, role, standing);
     return {
       role: {
-        _id: role._id, short_id: role.short_id, name: role.name, handle: role.handle, status: role.status,
-        icon: role.icon ?? null, team_id: role.team_id ?? null,
-        trust: trustOf(role), reports_to: role.reports_to, review_backend: role.review_backend ?? null,
+        _id: role._id,
+        short_id: role.short_id,
+        name: role.name,
+        handle: role.handle,
+        status: role.status,
+        icon: role.icon ?? null,
+        team_id: role.team_id ?? null,
+        trust: trustOf(role),
+        reports_to: role.reports_to,
+        review_backend: role.review_backend ?? null,
         authority: role.authority ?? [],
-        standing_short_id: standing?.short_id ?? null, standing_conversation_id: standing?._id ?? null,
+        standing_short_id: standing?.short_id ?? null,
+        standing_conversation_id: standing?._id ?? null,
         checked_at: role.checked_at ?? null,
         // The rooms it follows (agent-channels.md C1): `cast brief` reads
         // their lines since `facts.changed_since` into the brief.
         follow_channel_ids: (role.follow_channel_ids ?? []).map(String),
         // `wake` is how the check runs as the role may tune it (S38): cadence, gate, focus, and why it last changed.
-        routine: routine ? { _id: routine._id, short_id: routine.short_id ?? null, title: routine.title, status: routine.status, run_at: routine.run_at ?? null, last_run_at: routine.last_run_at ?? null, interval_ms: routine.interval_ms ?? null, wake: roleWakeOf(routine) } : null,
+        routine: routine
+          ? {
+              _id: routine._id,
+              short_id: routine.short_id ?? null,
+              title: routine.title,
+              status: routine.status,
+              run_at: routine.run_at ?? null,
+              last_run_at: routine.last_run_at ?? null,
+              interval_ms: routine.interval_ms ?? null,
+              wake: roleWakeOf(routine),
+            }
+          : null,
       },
       facts,
       narrative: briefDoc?.content ?? "",
       brief_doc_id: role.brief_doc_id ?? null,
       // What `cast brief edit` computed from this read sends back as its base.
-      brief_revision: briefDoc ? docRevision(briefDoc.content, (await docLiveState(ctx, briefDoc._id)).version) : null,
+      brief_revision: briefDoc
+        ? docRevision(
+            briefDoc.content,
+            (await docLiveState(ctx, briefDoc._id)).version,
+          )
+        : null,
       charter: await roleCharterOf(ctx, role),
       charter_doc_id: role.charter_doc_id ?? null,
     };

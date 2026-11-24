@@ -216,81 +216,21 @@
     },
     "set_digest": "6419c06471b2058e",
     "placements": {
-      "dismissedoldrowz1500000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "dismissedrecentz1500000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "everythingz100000000000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "horizonedgeinz130000000000000000": [
-        "needs_input",
-        "needs_input",
-        true
-      ],
-      "killeddismissedpinnedz2100000000": [
-        "dismissed",
-        "idle",
-        false
-      ],
-      "ownedfailedz11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "ownedoldz80000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "ownedrecentz11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "pinfailedz9000000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "pinoldz6000000000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "pinrecentz9000000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "recentcompletedz1500000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "recentonlyz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "stashedoldrowz130000000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "stashedrecentz130000000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ]
+      "dismissedoldrowz1500000000000000": ["dismissed", "needs_input", false],
+      "dismissedrecentz1500000000000000": ["dismissed", "needs_input", false],
+      "everythingz100000000000000000000": ["dismissed", "needs_input", false],
+      "horizonedgeinz130000000000000000": ["needs_input", "needs_input", true],
+      "killeddismissedpinnedz2100000000": ["dismissed", "idle", false],
+      "ownedfailedz11000000000000000000": ["needs_input", "needs_input", false],
+      "ownedoldz80000000000000000000000": ["needs_input", "needs_input", false],
+      "ownedrecentz11000000000000000000": ["needs_input", "needs_input", false],
+      "pinfailedz9000000000000000000000": ["pinned", "needs_input", false],
+      "pinoldz6000000000000000000000000": ["pinned", "needs_input", false],
+      "pinrecentz9000000000000000000000": ["pinned", "needs_input", false],
+      "recentcompletedz1500000000000000": ["needs_input", "needs_input", false],
+      "recentonlyz100000000000000000000": ["needs_input", "needs_input", false],
+      "stashedoldrowz130000000000000000": ["stashed", "needs_input", false],
+      "stashedrecentz130000000000000000": ["stashed", "needs_input", false]
     },
     "sort_at": {
       "dismissedoldrowz1500000000000000": -3456000000,

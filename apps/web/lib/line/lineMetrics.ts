@@ -11,25 +11,60 @@
  * Pure: the rows come from the store, the window from the caller, so the map,
  * /line and a test all read the same numbers.
  */
-import { isLineRun, lineRunOutcome, type AnsweredGate } from "@codecast/shared/contracts/changeCard";
+import {
+  isLineRun,
+  lineRunOutcome,
+  type AnsweredGate,
+} from "@codecast/shared/contracts/changeCard";
 import { isExpectationId } from "@codecast/shared/contracts/expectations";
-import { DAY, quietWatchEnd, type LineCauseTask, type LineSignal } from "../lineFlow";
+import {
+  DAY,
+  quietWatchEnd,
+  type LineCauseTask,
+  type LineSignal,
+} from "../lineFlow";
 
 export type MetricsWindow = { from: number; to: number };
 
 /** A line run, the fields these numbers read: which cause, and how its dissolve station ended. */
 export type MetricsRun = {
   task_id?: string | null;
-  node_statuses?: ReadonlyArray<{ node_id: string; status: string; started_at?: number; completed_at?: number; result_preview?: string }>;
+  node_statuses?: ReadonlyArray<{
+    node_id: string;
+    status: string;
+    started_at?: number;
+    completed_at?: number;
+    result_preview?: string;
+  }>;
 } & AnsweredGate;
 
-export type ExplainedShare = { explained: number; opened: number; share: number | null };
-export type FixesThatHold = { held: number; reopened: number; share: number | null };
-export type ExpectationBreaks = { breaks: number; days: number; perDay: number };
-export type LineMetrics = { breaks: ExpectationBreaks; explained: ExplainedShare; holding: FixesThatHold };
+export type ExplainedShare = {
+  explained: number;
+  opened: number;
+  share: number | null;
+};
+export type FixesThatHold = {
+  held: number;
+  reopened: number;
+  share: number | null;
+};
+export type ExpectationBreaks = {
+  breaks: number;
+  days: number;
+  perDay: number;
+};
+export type LineMetrics = {
+  breaks: ExpectationBreaks;
+  explained: ExplainedShare;
+  holding: FixesThatHold;
+};
 
-const inWindow = (at: number | null | undefined, w: MetricsWindow): at is number => typeof at === "number" && at >= w.from && at < w.to;
-const ratio = (part: number, whole: number) => (whole > 0 ? part / whole : null);
+const inWindow = (
+  at: number | null | undefined,
+  w: MetricsWindow,
+): at is number => typeof at === "number" && at >= w.from && at < w.to;
+const ratio = (part: number, whole: number) =>
+  whole > 0 ? part / whole : null;
 
 /**
  * Of the signals created in the window, the share the attach step put on a
@@ -40,7 +75,10 @@ const ratio = (part: number, whole: number) => (whole > 0 ? part / whole : null)
 /** How a finding joins a problem the line already knows: by key, by a judge, by reading the same, or by being the same written message. */
 const EXPLAINED = new Set(["fingerprint", "judge", "similar", "message"]);
 
-export function explainedShare(signals: ReadonlyArray<Pick<LineSignal, "created_at" | "attach">>, w: MetricsWindow): ExplainedShare {
+export function explainedShare(
+  signals: ReadonlyArray<Pick<LineSignal, "created_at" | "attach">>,
+  w: MetricsWindow,
+): ExplainedShare {
   let explained = 0;
   let opened = 0;
   for (const s of signals) {
@@ -65,9 +103,11 @@ export function fixesThatHold(
   now: number,
 ): FixesThatHold {
   let held = 0;
-  for (const t of tasks) if (t.cause && inWindow(quietWatchEnd(t, now), w)) held++;
+  for (const t of tasks)
+    if (t.cause && inWindow(quietWatchEnd(t, now), w)) held++;
   let reopened = 0;
-  for (const s of signals) if (s.reopened && inWindow(s.created_at, w)) reopened++;
+  for (const s of signals)
+    if (s.reopened && inWindow(s.created_at, w)) reopened++;
   return { held, reopened, share: ratio(held, held + reopened) };
 }
 
@@ -76,7 +116,9 @@ export function fixesThatHold(
  * output the run keeps on the node: "judge_defect" when the cause's findings
  * were the judge's own mistake, "no_repro" when the miss did not reproduce.
  */
-export function dissolveKind(preview: string | undefined): "judge_defect" | "no_repro" | null {
+export function dissolveKind(
+  preview: string | undefined,
+): "judge_defect" | "no_repro" | null {
   const line = preview?.split("\n").find((l) => l.trim().startsWith("{"));
   if (!line) return null;
   try {
@@ -88,7 +130,9 @@ export function dissolveKind(preview: string | undefined): "judge_defect" | "no_
 }
 
 /** The causes whose last line run ended at dissolve because the judge was wrong: their signals were refuted. */
-export function judgeDefectCauses(runs: ReadonlyArray<MetricsRun>): Set<string> {
+export function judgeDefectCauses(
+  runs: ReadonlyArray<MetricsRun>,
+): Set<string> {
   const latest = new Map<string, { at: number; judge: boolean }>();
   for (const r of runs) {
     if (!r.task_id || !isLineRun(r)) continue;
@@ -96,8 +140,14 @@ export function judgeDefectCauses(runs: ReadonlyArray<MetricsRun>): Set<string> 
     if (!end) continue;
     const prev = latest.get(r.task_id);
     if (prev && prev.at > end.at) continue;
-    const dissolve = end.kind === "dissolved" ? r.node_statuses!.find((n) => n.node_id === "dissolve") : undefined;
-    latest.set(r.task_id, { at: end.at, judge: dissolveKind(dissolve?.result_preview) === "judge_defect" });
+    const dissolve =
+      end.kind === "dissolved"
+        ? r.node_statuses!.find((n) => n.node_id === "dissolve")
+        : undefined;
+    latest.set(r.task_id, {
+      at: end.at,
+      judge: dissolveKind(dissolve?.result_preview) === "judge_defect",
+    });
   }
   return new Set([...latest].filter(([, v]) => v.judge).map(([id]) => id));
 }
@@ -108,12 +158,20 @@ export function judgeDefectCauses(runs: ReadonlyArray<MetricsRun>): Set<string> 
  * signal is refuted when its cause dissolved as the judge's own mistake.
  */
 export function expectationBreaks(
-  signals: ReadonlyArray<Pick<LineSignal, "created_at" | "subject" | "task_id">>,
+  signals: ReadonlyArray<
+    Pick<LineSignal, "created_at" | "subject" | "task_id">
+  >,
   refuted: ReadonlySet<string>,
   w: MetricsWindow,
 ): ExpectationBreaks {
   let breaks = 0;
-  for (const s of signals) if (inWindow(s.created_at, w) && isExpectationId(s.subject) && !refuted.has(s.task_id)) breaks++;
+  for (const s of signals)
+    if (
+      inWindow(s.created_at, w) &&
+      isExpectationId(s.subject) &&
+      !refuted.has(s.task_id)
+    )
+      breaks++;
   const days = Math.max(0, w.to - w.from) / DAY;
   return { breaks, days, perDay: days > 0 ? breaks / days : 0 };
 }

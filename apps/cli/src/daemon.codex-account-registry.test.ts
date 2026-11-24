@@ -14,12 +14,14 @@ describe("codex panes record the account they launched on", () => {
   it("stamps at every path that starts a codex process", () => {
     // Each new-session lands one stamp: start_session, the blank/fresh start,
     // and the auto-resume (a resume is a new process reading auth.json afresh).
-    const calls = codeLines(src).filter(({ line }) => line.includes("stampCodexPaneAccount("));
+    const calls = codeLines(src).filter(({ line }) =>
+      line.includes("stampCodexPaneAccount("),
+    );
     // Three call sites plus the declaration.
     expect(calls.length).toBe(4);
     for (const anchor of [
       "await stampCodexPaneAccount(agentType, tmuxSession, conversationId);",
-      "await stampCodexPaneAccount(blankAgentType, tmuxSession, conversationId);",
+      "await stampCodexPaneAccount(\n                blankAgentType,\n                tmuxSession,\n                conversationId,\n              );",
     ]) {
       expect(src).toContain(anchor);
     }
@@ -28,8 +30,12 @@ describe("codex panes record the account they launched on", () => {
   it("writes all three copies of the fact, and only for codex", () => {
     const body = functionBlock(src, "stampCodexPaneAccount").text;
     expect(body).toContain('if (agentType !== "codex") return;');
-    expect(body).toContain('setTmuxSessionOption(tmuxSession, "@codecast_codex_account", account)');
-    expect(body).toContain("markCodexPaneLive(tmuxSession, { account, conversationId })");
+    expect(body).toContain(
+      'setTmuxSessionOption(\n      tmuxSession,\n      "@codecast_codex_account",\n      account,\n    )',
+    );
+    expect(body).toContain(
+      "markCodexPaneLive(tmuxSession, { account, conversationId })",
+    );
     expect(body).toContain("recordCodexAccount(conversationId, account)");
     // An account we cannot name is still registered — unattributed, so the
     // staleness check leaves the pane alone instead of ordering a restart.
@@ -70,8 +76,12 @@ describe("naming the stale panes", () => {
   // A tmux that could not be reached is not evidence of an empty machine.
   it("only adopts an empty list when tmux says it has no server", () => {
     const reconcile = functionBlock(src, "reconcileCodexPaneRegistry").text;
-    expect(reconcile).toContain("if (!/no server running|no such file or directory/i.test(msg)) return;");
-    expect(reconcile).toContain("reconcileCodexPanes(parseCodexPaneRows(stdout, REAP_FIELD_SEP))");
+    expect(reconcile).toContain(
+      "if (!/no server running|no such file or directory/i.test(msg)) return;",
+    );
+    expect(reconcile).toContain(
+      "reconcileCodexPanes(parseCodexPaneRows(stdout, REAP_FIELD_SEP))",
+    );
   });
 
   it("restores the registry at daemon start, before the first reconcile runs", () => {

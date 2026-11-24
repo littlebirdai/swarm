@@ -18,45 +18,107 @@ export type FeatureDeepDive = {
 };
 
 export const FEATURE_DEEP_DIVES: FeatureDeepDive[] = [
-  { slug: "browser", snippet: "browser", name: "Browser", color: "#dc322f",
+  {
+    slug: "browser",
+    snippet: "browser",
+    name: "Browser",
+    color: "#dc322f",
     title: "Browser: your agents drive your own Chrome",
-    dek: "Agents verify UI, read behind sign-ins and reproduce bugs in a background tab of the Chrome you already use, with every screenshot and console error landing in the conversation." },
-  { slug: "computer", snippet: "computer", name: "Computer", color: "#d33682",
+    dek: "Agents verify UI, read behind sign-ins and reproduce bugs in a background tab of the Chrome you already use, with every screenshot and console error landing in the conversation.",
+  },
+  {
+    slug: "computer",
+    snippet: "computer",
+    name: "Computer",
+    color: "#d33682",
     title: "Computer: agents that use your Mac's native apps",
-    dek: "Agents read any macOS window as an accessibility tree and act on it by name, in the background, without taking your screen, your mouse or your keyboard." },
-  { slug: "publish", snippet: "publish", name: "Publish", color: "#2aa198",
+    dek: "Agents read any macOS window as an accessibility tree and act on it by name, in the background, without taking your screen, your mouse or your keyboard.",
+  },
+  {
+    slug: "publish",
+    snippet: "publish",
+    name: "Publish",
+    color: "#2aa198",
     title: "Publish: a URL for everything your agent makes",
-    dek: "Reports, dashboards and mockups go live at a stable link with versions, diffs, comments and gates, and render inline in the conversation that made them." },
-  { slug: "triggers", snippet: "triggers", name: "Triggers", color: "#cb4b16",
+    dek: "Reports, dashboards and mockups go live at a stable link with versions, diffs, comments and gates, and render inline in the conversation that made them.",
+  },
+  {
+    slug: "triggers",
+    snippet: "triggers",
+    name: "Triggers",
+    color: "#cb4b16",
     title: "Triggers: agent work that runs after the session ends",
-    dek: "Schedule follow-ups, standing monitors and event reactions that wake a session or spawn a fresh one, and report only when a person needs to read it." },
-  { slug: "agents", snippet: "forks", name: "Spawn and fork", color: "#859900",
+    dek: "Schedule follow-ups, standing monitors and event reactions that wake a session or spawn a fresh one, and report only when a person needs to read it.",
+  },
+  {
+    slug: "agents",
+    snippet: "forks",
+    name: "Spawn and fork",
+    color: "#859900",
     title: "Agents: delegate, branch and switch sessions",
-    dek: "Delegate to workers on any backend, branch a conversation into parallel directions, or move a session to another agent without losing a line of history." },
-  { slug: "memory", snippet: "memory", name: "Team memory", color: "#6c71c4",
+    dek: "Delegate to workers on any backend, branch a conversation into parallel directions, or move a session to another agent without losing a line of history.",
+  },
+  {
+    slug: "memory",
+    snippet: "memory",
+    name: "Team memory",
+    color: "#6c71c4",
     title: "Team memory: every agent reads what every other agent learned",
-    dek: "Search, ask and blame across every session your team has run, so an agent starts from the decisions already made instead of rediscovering them." },
-  { slug: "flows", name: "Flows", color: "#2aa198",
+    dek: "Search, ask and blame across every session your team has run, so an agent starts from the decisions already made instead of rediscovering them.",
+  },
+  {
+    slug: "flows",
+    name: "Flows",
+    color: "#2aa198",
     title: "Flows: every change takes the same path to production",
-    dek: "Your session's changes and the ones agents make from production signals pass the same checks, land, deploy and get watched the same way, and a measured regret-free rate decides how much an agent may merge on its own." },
-  { slug: "decisions", snippet: "decide", name: "Decisions", color: "#b58900",
+    dek: "Your session's changes and the ones agents make from production signals pass the same checks, land, deploy and get watched the same way, and a measured regret-free rate decides how much an agent may merge on its own.",
+  },
+  {
+    slug: "decisions",
+    snippet: "decide",
+    name: "Decisions",
+    color: "#b58900",
     title: "Decisions: one queue for the calls only you can make",
-    dek: "Agents queue the choices that need a person, with the evidence attached, and keep working while you clear the queue in one sitting." },
-  { slug: "pull-requests", snippet: "pr", name: "Pull requests", color: "#2aa198",
+    dek: "Agents queue the choices that need a person, with the evidence attached, and keep working while you clear the queue in one sitting.",
+  },
+  {
+    slug: "pull-requests",
+    snippet: "pr",
+    name: "Pull requests",
+    color: "#2aa198",
     title: "Pull requests: owned by the session that opened them",
-    dek: "The session that opened a PR owns it until merge: it wakes for reviews, fixes failing checks and answers threads, and every line traces back to the conversation behind it." },
-  { slug: "cloud", name: "Cloud hosts", color: "#268bd2",
+    dek: "The session that opened a PR owns it until merge: it wakes for reviews, fixes failing checks and answers threads, and every line traces back to the conversation behind it.",
+  },
+  {
+    slug: "cloud",
+    name: "Cloud hosts",
+    color: "#268bd2",
     title: "Cloud hosts: run sessions on your own server",
-    dek: "Start a session on your cloud host from this checkout, uncommitted work included, mirror its tree back live, and migrate sessions between laptop and host mid-turn." },
-  { slug: "mods", snippet: "mods", name: "Mods", color: "#6c71c4",
+    dek: "Start a session on your cloud host from this checkout, uncommitted work included, mirror its tree back live, and migrate sessions between laptop and host mid-turn.",
+  },
+  {
+    slug: "mods",
+    snippet: "mods",
+    name: "Mods",
+    color: "#6c71c4",
     title: "Mods: live cards for your own objects in agent replies",
-    dek: "Teach codecast the things your team works with. Agents write an id like inc-7 and you see a live pill with its state, a card on hover and a page a click away, plus blocks, panes and commands your agent builds in the thread." },
-  { slug: "org", name: "Org", color: "#6c71c4",
+    dek: "Teach codecast the things your team works with. Agents write an id like inc-7 and you see a live pill with its state, a card on hover and a page a click away, plus blocks, panes and commands your agent builds in the thread.",
+  },
+  {
+    slug: "org",
+    name: "Org",
+    color: "#6c71c4",
     title: "Org: an org chart your agents work inside",
-    dek: "Standing agent roles own areas of your work, report to people and start workers on what comes up. Questions climb the chart, so you see one card per lead, and a person approves every change to the chart." },
-  { slug: "calls", snippet: "calls", name: "Calls", color: "#d33682",
+    dek: "Standing agent roles own areas of your work, report to people and start workers on what comes up. Questions climb the chart, so you see one card per lead, and a person approves every change to the chart.",
+  },
+  {
+    slug: "calls",
+    snippet: "calls",
+    name: "Calls",
+    color: "#d33682",
     title: "Calls: team calls your agents can read",
-    dek: "Team calls transcribed by speaker, summarized with action items, and readable by every agent, so what was decided out loud reaches the work." },
+    dek: "Team calls transcribed by speaker, summarized with action items, and readable by every agent, so what was decided out loud reaches the work.",
+  },
 ];
 
 export function getFeatureDeepDive(slug: string): FeatureDeepDive | undefined {
@@ -73,6 +135,8 @@ export function featureHref(slug: string): string {
 }
 
 /** The deep dive that explains an agent feature, by its snippet slug. */
-export function deepDiveForSnippet(snippet: string): FeatureDeepDive | undefined {
+export function deepDiveForSnippet(
+  snippet: string,
+): FeatureDeepDive | undefined {
   return FEATURE_DEEP_DIVES.find((f) => f.snippet === snippet);
 }

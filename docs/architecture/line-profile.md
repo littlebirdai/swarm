@@ -166,7 +166,7 @@ a declaration.
   and merges in either of two cases: the profile sets `[line.merge] auto`, or
   the role that owns the line holds a merge grant (`org_roles.line_merge` with
   its merge authority, the-line.md L12). A grant merges through `cast line
-  merge`, so it counts against the role's daily limit.
+merge`, so it counts against the role's daily limit.
 
 ## LP5. Principles and prompting per project
 

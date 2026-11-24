@@ -83,14 +83,28 @@ function tablePath(session: string): string {
 /** Record what a snapshot just showed, and the URL it showed it on. Best
  *  effort: a cache that cannot be written is a failed recovery, not a wrong
  *  one. */
-export function rememberSnapshotRefs(session: string, refs: SnapshotRefEntry[], page: PageStamp | null, scope?: string): void {
+export function rememberSnapshotRefs(
+  session: string,
+  refs: SnapshotRefEntry[],
+  page: PageStamp | null,
+  scope?: string,
+): void {
   const counts = new Map<string, number>();
-  for (const r of refs) counts.set(`${r.role}\0${r.name}`, (counts.get(`${r.role}\0${r.name}`) ?? 0) + 1);
-  const table: Table = page ? { url: page.url, doc: page.doc, at: page.at, refs: {} } : { url: null, refs: {} };
+  for (const r of refs)
+    counts.set(
+      `${r.role}\0${r.name}`,
+      (counts.get(`${r.role}\0${r.name}`) ?? 0) + 1,
+    );
+  const table: Table = page
+    ? { url: page.url, doc: page.doc, at: page.at, refs: {} }
+    : { url: null, refs: {} };
   if (scope) table.scope = scope;
   for (const r of refs.slice(0, MAX_ENTRIES)) {
     const of = counts.get(`${r.role}\0${r.name}`) ?? 1;
-    table.refs[r.ref] = r.nth === undefined ? { role: r.role, name: r.name } : { role: r.role, name: r.name, nth: r.nth, of };
+    table.refs[r.ref] =
+      r.nth === undefined
+        ? { role: r.role, name: r.name }
+        : { role: r.role, name: r.name, nth: r.nth, of };
   }
   try {
     fs.mkdirSync(path.dirname(tablePath(session)), { recursive: true });
@@ -101,9 +115,14 @@ export function rememberSnapshotRefs(session: string, refs: SnapshotRefEntry[], 
 }
 
 /** What the last snapshot said `ref` (`e12` or `@e12`) was. */
-export function recallSnapshotRef(session: string, ref: string): RecalledRef | null {
+export function recallSnapshotRef(
+  session: string,
+  ref: string,
+): RecalledRef | null {
   try {
-    const table = JSON.parse(fs.readFileSync(tablePath(session), "utf-8")) as Partial<Table>;
+    const table = JSON.parse(
+      fs.readFileSync(tablePath(session), "utf-8"),
+    ) as Partial<Table>;
     const entry = table.refs?.[ref.replace(/^@/, "")];
     if (!entry || typeof entry.role !== "string") return null;
     return {
@@ -121,14 +140,17 @@ export function recallSnapshotRef(session: string, ref: string): RecalledRef | n
 /** The URL the session's last snapshot was taken on, or null. */
 export function rememberedSnapshotUrl(session: string): string | null {
   try {
-    const table = JSON.parse(fs.readFileSync(tablePath(session), "utf-8")) as Partial<Table>;
+    const table = JSON.parse(
+      fs.readFileSync(tablePath(session), "utf-8"),
+    ) as Partial<Table>;
     return typeof table.url === "string" ? table.url : null;
   } catch {
     return null;
   }
 }
 
-export const SNAPSHOT_AGAIN = "take a fresh `cast browser snapshot` and act on the new ref";
+export const SNAPSHOT_AGAIN =
+  "take a fresh `cast browser snapshot` and act on the new ref";
 
 /** The answer to "may a stale ref be retried, and as what". */
 export type RecoveryPlan = { ref: string } | { refused: string };
@@ -145,14 +167,28 @@ export type RecoveryPlan = { ref: string } | { refused: string };
  * refusal costs the agent one snapshot; a wrong recovery reports success for
  * an action on the wrong thing. Pure, so the choice is pinned by test.
  */
-export function recoverRefPlan(entry: RecalledRef | null, fresh: SnapshotRefEntry[], currentUrl: string | null): RecoveryPlan {
-  if (!entry) return { refused: `the ref is not in the last snapshot; ${SNAPSHOT_AGAIN}` };
+export function recoverRefPlan(
+  entry: RecalledRef | null,
+  fresh: SnapshotRefEntry[],
+  currentUrl: string | null,
+): RecoveryPlan {
+  if (!entry)
+    return {
+      refused: `the ref is not in the last snapshot; ${SNAPSHOT_AGAIN}`,
+    };
   if (!entry.url || !currentUrl || !samePage(entry.url, currentUrl)) {
-    return { refused: `the page changed since the snapshot (${entry.url ?? "unknown"} → ${currentUrl ?? "unknown"}); ${SNAPSHOT_AGAIN}` };
+    return {
+      refused: `the page changed since the snapshot (${entry.url ?? "unknown"} → ${currentUrl ?? "unknown"}); ${SNAPSHOT_AGAIN}`,
+    };
   }
   const label = `${entry.role} ${JSON.stringify(entry.name)}`;
-  const namesakes = fresh.filter((f) => f.role === entry.role && f.name === entry.name);
-  if (!namesakes.length) return { refused: `no ${label} is on the page any more; ${SNAPSHOT_AGAIN}` };
+  const namesakes = fresh.filter(
+    (f) => f.role === entry.role && f.name === entry.name,
+  );
+  if (!namesakes.length)
+    return {
+      refused: `no ${label} is on the page any more; ${SNAPSHOT_AGAIN}`,
+    };
   const nth = entry.nth ?? 1;
   const was = entry.of ?? 1;
   if (namesakes.length !== was || !namesakes[nth - 1]) {
@@ -199,16 +235,28 @@ export function samePage(a: string, b: string): boolean {
  * own resolution and the stale-ref path (recoverRefPlan) still apply. Pure,
  * so the rules are pinned by test.
  */
-export function preflightRefPlan(entry: RecalledRef | null, probe: SettleProbe | null): { refused: string } | null {
+export function preflightRefPlan(
+  entry: RecalledRef | null,
+  probe: SettleProbe | null,
+): { refused: string } | null {
   if (!entry || !probe || entry.at === undefined) return null;
   if (entry.doc && probe.doc !== entry.doc) {
-    return { refused: `the page navigated or reloaded since the snapshot; ${SNAPSHOT_AGAIN}` };
+    return {
+      refused: `the page navigated or reloaded since the snapshot; ${SNAPSHOT_AGAIN}`,
+    };
   }
   if (entry.url && !samePage(probe.url, entry.url)) {
-    return { refused: `the page changed since the snapshot (${entry.url} → ${probe.url}); ${SNAPSHOT_AGAIN}` };
+    return {
+      refused: `the page changed since the snapshot (${entry.url} → ${probe.url}); ${SNAPSHOT_AGAIN}`,
+    };
   }
-  if ((entry.of ?? 1) > 1 && (probe.goneAt === null || probe.goneAt > entry.at)) {
-    const label = entry.name ? `${entry.role} ${JSON.stringify(entry.name)}` : `unnamed ${entry.role}`;
+  if (
+    (entry.of ?? 1) > 1 &&
+    (probe.goneAt === null || probe.goneAt > entry.at)
+  ) {
+    const label = entry.name
+      ? `${entry.role} ${JSON.stringify(entry.name)}`
+      : `unnamed ${entry.role}`;
     return {
       refused: `a ${label} left the page since the snapshot, and the snapshot had ${entry.of} of them, so this ref may now point at another; ${SNAPSHOT_AGAIN}`,
     };
@@ -225,5 +273,7 @@ export function preflightRefPlan(entry: RecalledRef | null, probe: SettleProbe |
  * it could not resolve, checked before anything ran.
  */
 export function isStaleRefFailure(text: string): boolean {
-  return /unknown ref|could not locate element|element not found|no objectid for ref/i.test(text);
+  return /unknown ref|could not locate element|element not found|no objectid for ref/i.test(
+    text,
+  );
 }

@@ -23,7 +23,13 @@ import {
   type ReadinessOptions,
   type StatusOf,
 } from "@codecast/shared/tasks";
-import { canAccessTask, isSameWorkspace, requireSameWorkspace, workspaceForResource, type AuthorizedWorkspace } from "./access";
+import {
+  canAccessTask,
+  isSameWorkspace,
+  requireSameWorkspace,
+  workspaceForResource,
+  type AuthorizedWorkspace,
+} from "./access";
 import { notFound } from "./auth";
 import { recordTaskChange, type TaskChangeBy } from "./taskHistory";
 
@@ -31,17 +37,28 @@ type ReadCtx = Pick<QueryCtx, "db">;
 
 /** The task a `blocked_by` ref names: a short id, or the `_id` a plan's older
  *  rows used. Null when it names nothing. */
-export async function taskByRef(ctx: ReadCtx, ref: string): Promise<Doc<"tasks"> | null> {
+export async function taskByRef(
+  ctx: ReadCtx,
+  ref: string,
+): Promise<Doc<"tasks"> | null> {
   const id = ctx.db.normalizeId("tasks", ref);
   if (id) return await ctx.db.get(id);
-  return await ctx.db.query("tasks").withIndex("by_short_id", (q) => q.eq("short_id", ref)).first();
+  return await ctx.db
+    .query("tasks")
+    .withIndex("by_short_id", (q) => q.eq("short_id", ref))
+    .first();
 }
 
 /** The task `ref` names when `userId` may read it, else not found, naming
  *  the ref: a write naming several tasks says which one is wrong. */
-export async function requireTaskByRef(ctx: ReadCtx, userId: Id<"users">, ref: string): Promise<Doc<"tasks">> {
+export async function requireTaskByRef(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<Doc<"tasks">> {
   const t = await taskByRef(ctx, ref.trim());
-  if (!t || !(await canAccessTask(ctx, userId, t))) notFound(`Task ${ref.trim()} not found`);
+  if (!t || !(await canAccessTask(ctx, userId, t)))
+    notFound(`Task ${ref.trim()} not found`);
   return t!;
 }
 
@@ -52,11 +69,17 @@ export async function requireTaskByRef(ctx: ReadCtx, userId: Id<"users">, ref: s
  * `_id`) are found that way. A caller checks each one's blocked_by, since a
  * mirror entry can be stale.
  */
-export async function dependentRefs(ctx: ReadCtx, task: Doc<"tasks">): Promise<string[]> {
+export async function dependentRefs(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+): Promise<string[]> {
   const refs = [...(task.blocks ?? [])];
   if (!task.plan_id) return refs;
   const self = new Set([task.short_id, String(task._id)]);
-  const mates = await ctx.db.query("tasks").withIndex("by_plan_id", (q) => q.eq("plan_id", task.plan_id)).collect();
+  const mates = await ctx.db
+    .query("tasks")
+    .withIndex("by_plan_id", (q) => q.eq("plan_id", task.plan_id))
+    .collect();
   for (const t of mates) {
     if (refs.includes(t.short_id) || refs.includes(String(t._id))) continue;
     if ((t.blocked_by ?? []).some((r) => self.has(r))) refs.push(t.short_id);
@@ -75,12 +98,19 @@ export async function dependentRefs(ctx: ReadCtx, task: Doc<"tasks">): Promise<s
  * stays unknown and blocks, so readiness never reports whether a task the
  * caller may not read has finished.
  */
-export async function graphOutside(ctx: ReadCtx, page: Doc<"tasks">[]): Promise<{ tasks: Doc<"tasks">[]; searched: string[] }> {
+export async function graphOutside(
+  ctx: ReadCtx,
+  page: Doc<"tasks">[],
+): Promise<{ tasks: Doc<"tasks">[]; searched: string[] }> {
   const held = statusLookup(page);
   const referrers = new Map<string, Doc<"tasks">[]>();
   for (const t of page) {
-    for (const ref of [...(t.blocked_by ?? []), ...(t.parent_id ? [String(t.parent_id)] : [])]) {
-      if (held(ref) === undefined) referrers.set(ref, [...(referrers.get(ref) ?? []), t]);
+    for (const ref of [
+      ...(t.blocked_by ?? []),
+      ...(t.parent_id ? [String(t.parent_id)] : []),
+    ]) {
+      if (held(ref) === undefined)
+        referrers.set(ref, [...(referrers.get(ref) ?? []), t]);
     }
   }
   return await readInWorkspace(ctx, referrers);
@@ -100,7 +130,10 @@ export const GRAPH_LINK_CAP = 50;
  * The workspace rule is not a read check: a caller shipping these rows to a
  * viewer filters them by canAccessTask.
  */
-export async function graphNeighbors(ctx: ReadCtx, task: Doc<"tasks">): Promise<{ tasks: Doc<"tasks">[]; missing: string[] }> {
+export async function graphNeighbors(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+): Promise<{ tasks: Doc<"tasks">[]; missing: string[] }> {
   const refs = [
     ...(task.blocked_by ?? []),
     ...(task.blocks ?? []).slice(0, GRAPH_LINK_CAP),
@@ -109,7 +142,9 @@ export async function graphNeighbors(ctx: ReadCtx, task: Doc<"tasks">): Promise<
     task.superseded_by,
   ];
   const referrers = new Map<string, Doc<"tasks">[]>();
-  for (const ref of refs) if (ref && ref !== task.short_id && ref !== String(task._id)) referrers.set(ref, [task]);
+  for (const ref of refs)
+    if (ref && ref !== task.short_id && ref !== String(task._id))
+      referrers.set(ref, [task]);
   const { tasks, missing } = await readInWorkspace(ctx, referrers);
   return { tasks, missing };
 }
@@ -131,7 +166,11 @@ async function readInWorkspace(
     if (!row) {
       searched.push(ref);
       missing.push(ref);
-    } else if (referrers.get(ref)!.some((d) => isSameWorkspace(row, workspaceForResource(d)))) {
+    } else if (
+      referrers
+        .get(ref)!
+        .some((d) => isSameWorkspace(row, workspaceForResource(d)))
+    ) {
       tasks.push(row);
       searched.push(ref);
     }
@@ -148,7 +187,10 @@ type Lookups = Pick<ReadinessOptions, "statusOf" | "parentStatusOf">;
  * view, a role's view), so every reader judges an edge alike. Parents resolve
  * through `statusOf` too, so `statusOf(parent_id)` is the parent row.
  */
-export async function readinessLookups(ctx: ReadCtx, page: Doc<"tasks">[]): Promise<(task: Doc<"tasks">) => Lookups> {
+export async function readinessLookups(
+  ctx: ReadCtx,
+  page: Doc<"tasks">[],
+): Promise<(task: Doc<"tasks">) => Lookups> {
   const outside = await graphOutside(ctx, page);
   const held = statusLookup([...page, ...outside.tasks], outside.searched);
   return (task) => {
@@ -162,7 +204,10 @@ export async function readinessLookups(ctx: ReadCtx, page: Doc<"tasks">[]): Prom
 }
 
 /** `readinessLookups` for one task. */
-export async function taskLookups(ctx: ReadCtx, task: Doc<"tasks">): Promise<Lookups> {
+export async function taskLookups(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+): Promise<Lookups> {
   return (await readinessLookups(ctx, [task]))(task);
 }
 
@@ -181,16 +226,30 @@ export async function openBlockersOf(ctx: ReadCtx, task: Doc<"tasks">) {
  * names (TG1). An array, not a record: a ref is whatever `blocked_by` stored,
  * and an object key must be plain ASCII.
  */
-export async function stampGraphStatus(ctx: ReadCtx, page: (Doc<"tasks"> & { graph_status?: GraphRefStatus[] })[]): Promise<void> {
+export async function stampGraphStatus(
+  ctx: ReadCtx,
+  page: (Doc<"tasks"> & { graph_status?: GraphRefStatus[] })[],
+): Promise<void> {
   const lookupsFor = await readinessLookups(ctx, page);
   for (const t of page) {
     const { statusOf } = lookupsFor(t);
-    const refs = [...new Set([...(t.blocked_by ?? []), ...(t.parent_id ? [String(t.parent_id)] : [])])];
+    const refs = [
+      ...new Set([
+        ...(t.blocked_by ?? []),
+        ...(t.parent_id ? [String(t.parent_id)] : []),
+      ]),
+    ];
     const known = refs.flatMap((ref): GraphRefStatus[] => {
       const found = statusOf(ref);
       if (found === undefined) return [];
       if (found === null) return [{ ref, status: null }];
-      return [{ ref, short_id: found.short_id ?? undefined, status: found.status ?? null }];
+      return [
+        {
+          ref,
+          short_id: found.short_id ?? undefined,
+          status: found.status ?? null,
+        },
+      ];
     });
     if (refs.length) t.graph_status = known;
   }
@@ -204,10 +263,18 @@ export async function stampGraphStatus(ctx: ReadCtx, page: (Doc<"tasks"> & { gra
  * for an ephemeral task depends on who asks, so it is judged as if it were
  * not one; the reader says whose it is.
  */
-export async function offFrontierReason(ctx: ReadCtx, task: Doc<"tasks">): Promise<NotReadyReason | null> {
+export async function offFrontierReason(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+): Promise<NotReadyReason | null> {
   if (task.status !== "open") return null;
-  const r = readinessOf({ ...task, ephemeral: false }, { ...(await taskLookups(ctx, task)), viewer: null });
-  return r.ready || r.reason === "blocked" || r.reason === "superseded" ? null : r.reason;
+  const r = readinessOf(
+    { ...task, ephemeral: false },
+    { ...(await taskLookups(ctx, task)), viewer: null },
+  );
+  return r.ready || r.reason === "blocked" || r.reason === "superseded"
+    ? null
+    : r.reason;
 }
 
 /** The tasks of `page` that can be started now, with the lookups that decided it. */
@@ -217,17 +284,32 @@ export async function readyTasks<T extends Doc<"tasks">>(
   opts: Pick<ReadinessOptions, "viewer" | "viewerSession" | "includeSubtasks">,
 ) {
   const lookupsFor = await readinessLookups(ctx, page);
-  return { ready: page.filter((t) => readinessOf(t, { ...lookupsFor(t), ...opts }).ready), lookupsFor };
+  return {
+    ready: page.filter(
+      (t) => readinessOf(t, { ...lookupsFor(t), ...opts }).ready,
+    ),
+    lookupsFor,
+  };
 }
 
 /** `tasks` in frontier order (TG7, shared frontierOrder): live before stale,
  *  priority, plan order, oldest. Reads the plans that order needs. */
-export async function orderFrontier<T extends Doc<"tasks">>(ctx: ReadCtx, tasks: T[], now: number): Promise<T[]> {
-  const planIds = [...new Set(tasks.flatMap((t) => (t.plan_id ? [t.plan_id] : [])))];
+export async function orderFrontier<T extends Doc<"tasks">>(
+  ctx: ReadCtx,
+  tasks: T[],
+  now: number,
+): Promise<T[]> {
+  const planIds = [
+    ...new Set(tasks.flatMap((t) => (t.plan_id ? [t.plan_id] : []))),
+  ];
   const plans = await Promise.all(planIds.map((id) => ctx.db.get(id)));
   const position = new Map<string, number>();
-  for (const plan of plans) (plan?.task_ids ?? []).forEach((id, i) => position.set(String(id), i));
-  return frontierOrder(tasks, { now, planPosition: (t) => position.get(String(t._id)) });
+  for (const plan of plans)
+    (plan?.task_ids ?? []).forEach((id, i) => position.set(String(id), i));
+  return frontierOrder(tasks, {
+    now,
+    planPosition: (t) => position.get(String(t._id)),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +325,10 @@ export async function orderFrontier<T extends Doc<"tasks">>(ctx: ReadCtx, tasks:
  * `waits` holds the wait-shaped refs (#42, sd-4, 2h), `refused` the
  * grammar's error for each ref that is neither.
  */
-export function sortGraphRefs(ctx: ReadCtx, refs: readonly string[]): { tasks: string[]; waits: string[]; refused: string[] } {
+export function sortGraphRefs(
+  ctx: ReadCtx,
+  refs: readonly string[],
+): { tasks: string[]; waits: string[]; refused: string[] } {
   const tasks = new Set<string>();
   const waits: string[] = [];
   const refused: string[] = [];
@@ -269,18 +354,26 @@ export function sortGraphRefs(ctx: ReadCtx, refs: readonly string[]): { tasks: s
  */
 export function storedGraphRefs(
   ctx: ReadCtx,
-  args: { short_id?: string; blocked_by?: string[]; blocks?: string[]; waits?: string[] },
+  args: {
+    short_id?: string;
+    blocked_by?: string[];
+    blocks?: string[];
+    waits?: string[];
+  },
   opts: { waits?: boolean } = {},
 ): { blocked_by?: string[]; blocks?: string[]; waits?: string[] } {
-  const out: { blocked_by?: string[]; blocks?: string[]; waits?: string[] } = {};
+  const out: { blocked_by?: string[]; blocks?: string[]; waits?: string[] } =
+    {};
   for (const field of ["blocked_by", "blocks"] as const) {
     if (!args[field]) continue;
     const { tasks, waits, refused } = sortGraphRefs(ctx, args[field]);
     if (refused.length) throw new Error(refused[0]);
     if (waits.length && (field === "blocks" || !opts.waits)) {
-      throw new Error(field === "blocks"
-        ? `"${waits[0]}" is not a task: blocks names the tasks that wait on this one (ct-12)`
-        : `"${waits[0]}" is a wait, not a task: add it with cast task dep ${args.short_id ?? "<task>"} --blocked-by "${waits[0]}"`);
+      throw new Error(
+        field === "blocks"
+          ? `"${waits[0]}" is not a task: blocks names the tasks that wait on this one (ct-12)`
+          : `"${waits[0]}" is a wait, not a task: add it with cast task dep ${args.short_id ?? "<task>"} --blocked-by "${waits[0]}"`,
+      );
     }
     out[field] = tasks;
     if (waits.length) out.waits = [...(args.waits ?? []), ...waits];
@@ -303,9 +396,17 @@ export async function writeEdges(
   now = Date.now(),
 ): Promise<void> {
   const prev = task[field] ?? [];
-  if (prev.length === next.length && prev.every((r, i) => r === next[i])) return;
+  if (prev.length === next.length && prev.every((r, i) => r === next[i]))
+    return;
   await ctx.db.patch(task._id, { [field]: next, updated_at: now });
-  if (field === "blocked_by") await recordTaskChange(ctx, task._id, by, [["blocked_by", prev, next]], now);
+  if (field === "blocked_by")
+    await recordTaskChange(
+      ctx,
+      task._id,
+      by,
+      [["blocked_by", prev, next]],
+      now,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -315,16 +416,26 @@ export async function writeEdges(
 /** How many tasks one loop check reads at most. A real chain is a few dozen. */
 const LOOP_WALK_CAP = 2000;
 
-const depNode = (t: Doc<"tasks">, blocked_by = t.blocked_by): DepNode => ({ short_id: t.short_id, _id: String(t._id), blocked_by });
+const depNode = (t: Doc<"tasks">, blocked_by = t.blocked_by): DepNode => ({
+  short_id: t.short_id,
+  _id: String(t._id),
+  blocked_by,
+});
 
 /** Whether a task is an open task in `workspace`: the only kind a loop runs through. */
-const openIn = (workspace: AuthorizedWorkspace) => (t: Doc<"tasks"> | null): t is Doc<"tasks"> =>
-  !!t && !isTerminalTaskStatus(t.status) && isSameWorkspace(t, workspace);
+const openIn =
+  (workspace: AuthorizedWorkspace) =>
+  (t: Doc<"tasks"> | null): t is Doc<"tasks"> =>
+    !!t && !isTerminalTaskStatus(t.status) && isSameWorkspace(t, workspace);
 
 /** `start` and every open task in `workspace` it waits on, transitively,
  *  keyed by short id, read one level at a time. A graph too large to walk
  *  whole is refused rather than half checked. */
-async function walkUpstream(ctx: ReadCtx, start: DepNode, workspace: AuthorizedWorkspace): Promise<Map<string, DepNode>> {
+async function walkUpstream(
+  ctx: ReadCtx,
+  start: DepNode,
+  workspace: AuthorizedWorkspace,
+): Promise<Map<string, DepNode>> {
   const open = openIn(workspace);
   const nodes = new Map<string, DepNode>([[start.short_id, start]]);
   const looked = new Set<string>();
@@ -333,7 +444,9 @@ async function walkUpstream(ctx: ReadCtx, start: DepNode, workspace: AuthorizedW
     const refs = [...shortIds, ...ids].filter((r) => !looked.has(r));
     if (!refs.length) return nodes;
     if (nodes.size >= LOOP_WALK_CAP) {
-      throw new Error(`Cannot check ${start.short_id}'s dependencies for a loop: more than ${LOOP_WALK_CAP} open tasks wait behind it.`);
+      throw new Error(
+        `Cannot check ${start.short_id}'s dependencies for a loop: more than ${LOOP_WALK_CAP} open tasks wait behind it.`,
+      );
     }
     for (const r of refs) looked.add(r);
     for (const t of await Promise.all(refs.map((r) => taskByRef(ctx, r)))) {
@@ -347,7 +460,11 @@ async function walkUpstream(ctx: ReadCtx, start: DepNode, workspace: AuthorizedW
  *  closes a loop exactly when d is one of them, so a write moving many
  *  dependents onto one task walks once and asks assertDependencyEdges only
  *  for the error of one that loops. */
-export async function openUpstream(ctx: ReadCtx, task: Doc<"tasks">, workspace: AuthorizedWorkspace): Promise<Set<string>> {
+export async function openUpstream(
+  ctx: ReadCtx,
+  task: Doc<"tasks">,
+  workspace: AuthorizedWorkspace,
+): Promise<Set<string>> {
   if (!openIn(workspace)(task)) return new Set();
   const nodes = await walkUpstream(ctx, depNode(task), workspace);
   nodes.delete(task.short_id);
@@ -380,8 +497,11 @@ export async function assertDependencyEdges(
   const newDependents = added.blocks ?? [];
   if (!newBlockers.length && !newDependents.length) return;
 
-  const named = await Promise.all([...newBlockers, ...newDependents].map((r) => taskByRef(ctx, r)));
-  for (const t of named) if (t) requireSameWorkspace(t, workspace, "dependency task");
+  const named = await Promise.all(
+    [...newBlockers, ...newDependents].map((r) => taskByRef(ctx, r)),
+  );
+  for (const t of named)
+    if (t) requireSameWorkspace(t, workspace, "dependency task");
 
   const open = openIn(workspace);
   const nodes = await walkUpstream(ctx, task, workspace);

@@ -4,8 +4,6 @@ import { heartbeatOf } from "./lib/sessionHeartbeat";
 import { internalQuery, internalMutation } from "./functions";
 import { v } from "convex/values";
 
-
-
 export const inspectConversation = internalQuery({
   args: { id: v.string() },
   handler: async (ctx, args) => {
@@ -28,25 +26,33 @@ export const inspectConversation = internalQuery({
 
     const ownerRows = await ctx.db
       .query("session_owners")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", conversation._id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
       .collect();
 
     const recentMessages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
       .order("desc")
       .take(5);
 
     const pending = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
       .order("desc")
       .take(5);
 
     const managed = conversation.session_id
       ? await ctx.db
           .query("managed_sessions")
-          .withIndex("by_session_id", (q) => q.eq("session_id", conversation.session_id!))
+          .withIndex("by_session_id", (q) =>
+            q.eq("session_id", conversation.session_id!),
+          )
           .first()
       : null;
 
@@ -55,7 +61,8 @@ export const inspectConversation = internalQuery({
         _id: conversation._id,
         title: conversation.title,
         nav_prompts_indexed_at: conversation.nav_prompts_indexed_at,
-        nav_prompts_backfill_started_at: conversation.nav_prompts_backfill_started_at,
+        nav_prompts_backfill_started_at:
+          conversation.nav_prompts_backfill_started_at,
         session_id: conversation.session_id,
         user_id: conversation.user_id,
         status: conversation.status,
@@ -106,30 +113,50 @@ export const inspectConversation = internalQuery({
   },
 });
 
-
-
 // TEMPORARY: a bare `cast sync` (from a mistyped `cast sync ls`) re-uploaded
 // old transcripts on 2026-10-07, and addMessage stamped each row's updated_at
 // with the upload time, so weeks-old sessions sorted as minutes old. Resets
 // updated_at to the newest message's own time for rows still carrying an
 // upload-window stamp that no message explains.
 export const repairReuploadedActivity = internalMutation({
-  args: { user_id: v.id("users"), from: v.number(), to: v.number(), dryRun: v.boolean() },
+  args: {
+    user_id: v.id("users"),
+    from: v.number(),
+    to: v.number(),
+    dryRun: v.boolean(),
+  },
   handler: async (ctx, args) => {
     const rows = await ctx.db
       .query("conversations")
-      .withIndex("by_user_updated", (q) => q.eq("user_id", args.user_id).gte("updated_at", args.from).lte("updated_at", args.to))
+      .withIndex("by_user_updated", (q) =>
+        q
+          .eq("user_id", args.user_id)
+          .gte("updated_at", args.from)
+          .lte("updated_at", args.to),
+      )
       .collect();
-    const fixed: Array<{ id: string; title?: string; from: number; to: number }> = [];
+    const fixed: Array<{
+      id: string;
+      title?: string;
+      from: number;
+      to: number;
+    }> = [];
     for (const conv of rows) {
       const newest = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_timestamp", (q) =>
+          q.eq("conversation_id", conv._id),
+        )
         .order("desc")
         .first();
       const to = Math.max(newest?.timestamp ?? 0, conv.started_at ?? 0);
       if (!to || to > conv.updated_at - 3600_000) continue;
-      fixed.push({ id: conv._id, title: conv.title, from: conv.updated_at, to });
+      fixed.push({
+        id: conv._id,
+        title: conv.title,
+        from: conv.updated_at,
+        to,
+      });
       if (!args.dryRun) await ctx.db.patch(conv._id, { updated_at: to });
     }
     return { scanned: rows.length, fixed: fixed.length, rows: fixed };

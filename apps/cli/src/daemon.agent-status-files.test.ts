@@ -10,7 +10,10 @@ describe("readAgentStatusFiles", () => {
   test("parses records, reports corrupt ones as null, skips non json names", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-agent-status-"));
     try {
-      fs.writeFileSync(path.join(dir, "aaa.json"), JSON.stringify({ status: "idle", ts: 1700000000 }));
+      fs.writeFileSync(
+        path.join(dir, "aaa.json"),
+        JSON.stringify({ status: "idle", ts: 1700000000 }),
+      );
       fs.writeFileSync(path.join(dir, "bbb.json"), "{not json");
       fs.writeFileSync(path.join(dir, "ccc.txt"), "ignored");
       const before = Date.now() - 1000;
@@ -27,6 +30,10 @@ describe("readAgentStatusFiles", () => {
   });
 
   test("a missing directory reads as empty", async () => {
-    expect(await readAgentStatusFiles(path.join(os.tmpdir(), "cc-agent-status-missing-" + process.pid))).toEqual([]);
+    expect(
+      await readAgentStatusFiles(
+        path.join(os.tmpdir(), "cc-agent-status-missing-" + process.pid),
+      ),
+    ).toEqual([]);
   });
 });

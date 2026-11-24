@@ -15,7 +15,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { defaultShotPath, imageSize, shotJson, writeShotFile } from "./shotFile.js";
+import {
+  defaultShotPath,
+  imageSize,
+  shotJson,
+  writeShotFile,
+} from "./shotFile.js";
 import { TEMP_FILE_MODE } from "../tempFiles.js";
 
 let home: string;
@@ -47,7 +52,9 @@ function png(width: number, height: number): Buffer {
 describe("defaultShotPath", () => {
   test("lands in our own 0700 directory, not /tmp", () => {
     const file = defaultShotPath("png");
-    expect(file.startsWith(path.join(process.env.CODECAST_DIR!, "tmp", "shots"))).toBe(true);
+    expect(
+      file.startsWith(path.join(process.env.CODECAST_DIR!, "tmp", "shots")),
+    ).toBe(true);
     // The old default dropped the file straight into the shared temp dir.
     expect(path.dirname(file)).not.toBe(os.tmpdir());
     expect(fs.statSync(path.dirname(file)).mode & 0o777).toBe(0o700);
@@ -99,7 +106,14 @@ describe("imageSize", () => {
 describe("shot --json", () => {
   test("the file and its size, with an absolute path", () => {
     const out = defaultShotPath("png");
-    expect(shotJson({ file: out, bytes: 4096, size: { width: 2880, height: 1800 }, scale: 2 })).toEqual({
+    expect(
+      shotJson({
+        file: out,
+        bytes: 4096,
+        size: { width: 2880, height: 1800 },
+        scale: 2,
+      }),
+    ).toEqual({
       path: path.resolve(out),
       width: 2880,
       height: 1800,
@@ -109,14 +123,24 @@ describe("shot --json", () => {
   });
 
   test("a size or scale we could not read is null, not a guess", () => {
-    const json = shotJson({ file: "shot.png", bytes: 0, size: null, scale: null });
+    const json = shotJson({
+      file: "shot.png",
+      bytes: 0,
+      size: null,
+      scale: null,
+    });
     expect(json.width).toBeNull();
     expect(json.height).toBeNull();
     expect(json.scale).toBeNull();
   });
 
   test("annotations and a shared URL appear only when there are any", () => {
-    const bare = shotJson({ file: "shot.png", bytes: 1, size: null, scale: null });
+    const bare = shotJson({
+      file: "shot.png",
+      bytes: 1,
+      size: null,
+      scale: null,
+    });
     expect("annotations" in bare).toBe(false);
     expect("url" in bare).toBe(false);
     const full = shotJson({
@@ -128,7 +152,9 @@ describe("shot --json", () => {
       url: "https://codecast.sh/i/abc",
     });
     expect(full.url).toBe("https://codecast.sh/i/abc");
-    expect(full.annotations).toEqual([{ number: 1, ref: "e1", role: "link", name: "Learn more" }]);
+    expect(full.annotations).toEqual([
+      { number: 1, ref: "e1", role: "link", name: "Learn more" },
+    ]);
   });
 
   test("the image itself never travels in the JSON", () => {
@@ -136,12 +162,14 @@ describe("shot --json", () => {
     // base64 that the conversation cannot render anyway.
     const out = defaultShotPath("png");
     writeShotFile(png(8, 8), out, { inline: false, quiet: true });
-    const json = JSON.stringify(shotJson({
-      file: out,
-      bytes: fs.statSync(out).size,
-      size: imageSize(fs.readFileSync(out)),
-      scale: 2,
-    }));
+    const json = JSON.stringify(
+      shotJson({
+        file: out,
+        bytes: fs.statSync(out).size,
+        size: imageSize(fs.readFileSync(out)),
+        scale: 2,
+      }),
+    );
     expect(json).not.toContain("base64");
     expect(json).not.toContain("data:image");
     expect(json).not.toContain("iVBOR"); // how a base64 PNG begins

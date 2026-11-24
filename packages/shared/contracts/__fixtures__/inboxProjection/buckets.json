@@ -1,9 +1,7 @@
 {
   "about": "One row per placement rule: every bucket, every rest verdict, every hard block. Fresh cluster (no fold).",
   "epoch": "E",
-  "asking": [
-    "ask_child_lift"
-  ],
+  "asking": ["ask_child_lift"],
   "rows": [
     {
       "_id": "working",
@@ -520,251 +518,55 @@
     },
     "set_digest": "1eb636f462b06964",
     "placements": {
-      "anchorblockedz130000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "anchordeadz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "anchorquietz11000000000000000000": [
-        "hidden",
-        "needs_input",
-        false
-      ],
-      "apierrorz80000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "askchildliftz1200000000000000000": [
-        "questions",
-        "needs_input",
-        false
-      ],
-      "blankz50000000000000000000000000": [
-        "new",
-        "idle",
-        false
-      ],
-      "boundarybarez1200000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "boundarykeepsdonez17000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "completedcontentz160000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "deadafterdonez130000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "deadblankz9000000000000000000000": [
-        "new",
-        "idle",
-        false
-      ],
-      "deadz400000000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "declaredblockedz1500000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "declareddonez1200000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "declareddormantz1500000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "dismissedz9000000000000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "forkchildz9000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "hibernatedaskz130000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "hibernatedstashedz17000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "hibernatedz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "killedpinnedz1200000000000000000": [
-        "pinned",
-        "idle",
-        false
-      ],
-      "loopfreshz9000000000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "loopoverduez11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "midgracez80000000000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "needsinputz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "oncehomedonez1200000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "oncehomeneedsz130000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "ownpromptz9000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "permissionz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "pinnedneedsz11000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "pinnedworkingz130000000000000000": [
-        "pinned",
-        "working",
-        false
-      ],
-      "queueddeadafterdonez190000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "queueddeadz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "queuedz6000000000000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "quietunansweredz1500000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "rowdonenodaemonz1500000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "settledonecurrentz17000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "settledonestalez1500000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "snoozeduez9000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "snoozedz700000000000000000000000": [
-        "snoozed",
-        "dormant",
-        false
-      ],
-      "standinghomehumanlastz2100000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "standinghomez1200000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "stashedz700000000000000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "unresponsivenotidlez190000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "unresponsivez1200000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "userdormantstalez160000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "userdormantz11000000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "waitingz700000000000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "workingz700000000000000000000000": [
-        "working",
-        "working",
-        false
-      ]
+      "anchorblockedz130000000000000000": ["needs_input", "needs_input", false],
+      "anchordeadz100000000000000000000": ["needs_input", "needs_input", false],
+      "anchorquietz11000000000000000000": ["hidden", "needs_input", false],
+      "apierrorz80000000000000000000000": ["needs_input", "needs_input", false],
+      "askchildliftz1200000000000000000": ["questions", "needs_input", false],
+      "blankz50000000000000000000000000": ["new", "idle", false],
+      "boundarybarez1200000000000000000": ["needs_input", "needs_input", false],
+      "boundarykeepsdonez17000000000000": ["done", "done", false],
+      "completedcontentz160000000000000": ["needs_input", "needs_input", false],
+      "deadafterdonez130000000000000000": ["done", "done", false],
+      "deadblankz9000000000000000000000": ["new", "idle", false],
+      "deadz400000000000000000000000000": ["needs_input", "needs_input", false],
+      "declaredblockedz1500000000000000": ["needs_input", "needs_input", false],
+      "declareddonez1200000000000000000": ["done", "done", false],
+      "declareddormantz1500000000000000": ["dormant", "dormant", false],
+      "dismissedz9000000000000000000000": ["dismissed", "needs_input", false],
+      "forkchildz9000000000000000000000": ["needs_input", "needs_input", false],
+      "hibernatedaskz130000000000000000": ["needs_input", "needs_input", false],
+      "hibernatedstashedz17000000000000": ["stashed", "needs_input", false],
+      "hibernatedz100000000000000000000": ["needs_input", "needs_input", false],
+      "killedpinnedz1200000000000000000": ["pinned", "idle", false],
+      "loopfreshz9000000000000000000000": ["dormant", "dormant", false],
+      "loopoverduez11000000000000000000": ["needs_input", "needs_input", false],
+      "midgracez80000000000000000000000": ["working", "working", false],
+      "needsinputz100000000000000000000": ["needs_input", "needs_input", false],
+      "oncehomedonez1200000000000000000": ["dormant", "dormant", false],
+      "oncehomeneedsz130000000000000000": ["needs_input", "needs_input", false],
+      "ownpromptz9000000000000000000000": ["needs_input", "needs_input", false],
+      "permissionz100000000000000000000": ["needs_input", "needs_input", false],
+      "pinnedneedsz11000000000000000000": ["pinned", "needs_input", false],
+      "pinnedworkingz130000000000000000": ["pinned", "working", false],
+      "queueddeadafterdonez190000000000": ["needs_input", "needs_input", false],
+      "queueddeadz100000000000000000000": ["needs_input", "needs_input", false],
+      "queuedz6000000000000000000000000": ["working", "working", false],
+      "quietunansweredz1500000000000000": ["working", "working", false],
+      "rowdonenodaemonz1500000000000000": ["done", "done", false],
+      "settledonecurrentz17000000000000": ["done", "done", false],
+      "settledonestalez1500000000000000": ["needs_input", "needs_input", false],
+      "snoozeduez9000000000000000000000": ["needs_input", "needs_input", false],
+      "snoozedz700000000000000000000000": ["snoozed", "dormant", false],
+      "standinghomehumanlastz2100000000": ["needs_input", "needs_input", false],
+      "standinghomez1200000000000000000": ["dormant", "dormant", false],
+      "stashedz700000000000000000000000": ["stashed", "needs_input", false],
+      "unresponsivenotidlez190000000000": ["needs_input", "needs_input", false],
+      "unresponsivez1200000000000000000": ["needs_input", "needs_input", false],
+      "userdormantstalez160000000000000": ["needs_input", "needs_input", false],
+      "userdormantz11000000000000000000": ["dormant", "dormant", false],
+      "waitingz700000000000000000000000": ["dormant", "dormant", false],
+      "workingz700000000000000000000000": ["working", "working", false]
     },
     "sort_at": {
       "anchorblockedz130000000000000000": -2100000,

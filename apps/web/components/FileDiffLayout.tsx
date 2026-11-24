@@ -10,7 +10,6 @@ import {
   ChevronDown,
   FileText,
   Keyboard,
-
   Copy,
   Check,
   X,
@@ -25,19 +24,36 @@ import {
 import { Button } from "./ui/button";
 import { FilePatchDiff } from "./DiffView";
 import { diffLineElements, revealDiffLine } from "./diff/pierre";
-import { parsePatch, getFileStatus, type DiffLineAnchor } from "../lib/patchParser";
+import {
+  parsePatch,
+  getFileStatus,
+  type DiffLineAnchor,
+} from "../lib/patchParser";
 import { cn, copyToClipboard } from "../lib/utils";
 import { copyText } from "../lib/copyText";
 import { useTrackedStore } from "../store/inboxStore";
-import { findCommonPrefix, shortenPrefix, stripCommonPrefix, treeOrder } from "../lib/diffFileTree";
+import {
+  findCommonPrefix,
+  shortenPrefix,
+  stripCommonPrefix,
+  treeOrder,
+} from "../lib/diffFileTree";
 import { FileSidebar } from "./FileDiffSidebar";
 import { keyBelongsElsewhere } from "../shortcuts/keyOwnership";
-import { matchesAction, usePaneShortcutAction, useShortcutContext, withShortcut } from "../shortcuts";
+import {
+  matchesAction,
+  usePaneShortcutAction,
+  useShortcutContext,
+  withShortcut,
+} from "../shortcuts";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import { useFollowSurface } from "../hooks/useFollowSurface";
 import { landOn } from "../hooks/useDiffAddress";
 import { notifyFollowView } from "../lib/follow";
-import type { AnchorPlacement, CodeAnchorText } from "@codecast/shared/comments";
+import type {
+  AnchorPlacement,
+  CodeAnchorText,
+} from "@codecast/shared/comments";
 
 export interface DiffFile {
   filename: string;
@@ -57,10 +73,20 @@ export type FileLineThreads = {
    *  how a surface opens a composer where no thread exists yet. */
   threadsFor: (filename: string) => ReadonlyMap<string, unknown[]> | undefined;
   /** Render one anchor's thread (and its composer, when the surface wants one). */
-  render: (filename: string, anchor: DiffLineAnchor, items: unknown[], placement?: AnchorPlacement) => React.ReactNode;
+  render: (
+    filename: string,
+    anchor: DiffLineAnchor,
+    items: unknown[],
+    placement?: AnchorPlacement,
+  ) => React.ReactNode;
   /** Hover handle click. Omit to leave the diff read only. `anchorLines` is
    *  the text to store with the comment (shared/comments/codeAnchor.ts). */
-  onComment?: (filename: string, anchor: DiffLineAnchor | undefined, code: string, anchorLines?: CodeAnchorText) => void;
+  onComment?: (
+    filename: string,
+    anchor: DiffLineAnchor | undefined,
+    code: string,
+    anchorLines?: CodeAnchorText,
+  ) => void;
 };
 
 /** What a surface knows about one file beyond its diff, for the tree and header. */
@@ -91,7 +117,11 @@ export interface FileDiffLayoutProps {
   onCloseDiffPanel?: () => void;
   // Enables inline line comments (ephemeral review batch + durable file:line
   // threads) on each file's DiffView. Called with the file's ORIGINAL path.
-  commentContextFor?: (filename: string) => { conversationId: string; anchorKey: string; filePath: string } | undefined;
+  commentContextFor?: (
+    filename: string,
+  ) =>
+    | { conversationId: string; anchorKey: string; filePath: string }
+    | undefined;
   // Line threads the OWNER holds and renders (the PR page's code comments,
   // which are not conversation comments). DiffView only places them; every
   // callback here is called with the file's ORIGINAL path.
@@ -194,7 +224,7 @@ function CopyButton({ text, className }: { text: string; className?: string }) {
       onClick={handleCopy}
       className={cn(
         "p-1 rounded hover:bg-sol-bg-alt/50 transition-colors",
-        className
+        className,
       )}
       title={copied ? "Copied!" : "Copy to clipboard"}
     >
@@ -225,7 +255,9 @@ function FileHeaderName({
   const name = getFileName(file.filename);
   const label = (
     <>
-      {dir && <span className="modern:font-mono text-sol-text-dim">{dir}/</span>}
+      {dir && (
+        <span className="modern:font-mono text-sol-text-dim">{dir}/</span>
+      )}
       <span className="modern:font-mono text-sol-text">{name}</span>
     </>
   );
@@ -234,7 +266,10 @@ function FileHeaderName({
       {href ? (
         <Link
           href={href}
-          className={cn("font-mono text-xs truncate min-w-0 hover:underline decoration-sol-border underline-offset-2", className)}
+          className={cn(
+            "font-mono text-xs truncate min-w-0 hover:underline decoration-sol-border underline-offset-2",
+            className,
+          )}
           title={`Open ${path} at this revision`}
         >
           {label}
@@ -242,13 +277,17 @@ function FileHeaderName({
       ) : (
         // data-diff-file: a surface that knows where the file lives (the
         // conversation diff panel) gives the plain name a file menu.
-        <span data-diff-file={path} className={cn("font-mono text-xs truncate min-w-0", className)}>{label}</span>
+        <span
+          data-diff-file={path}
+          className={cn("font-mono text-xs truncate min-w-0", className)}
+        >
+          {label}
+        </span>
       )}
       <CopyButton text={path} />
     </>
   );
 }
-
 
 function FileDiffContent({
   file,
@@ -302,7 +341,10 @@ function FileDiffContent({
                 <button
                   onClick={onToggleSidebar}
                   className="p-1 -ml-1 rounded hover:bg-sol-bg-alt/50 text-sol-text-dim hover:text-sol-text-muted transition-colors shrink-0"
-                  title={withShortcut(sidebarOpen ? "Hide file tree" : "Show file tree", "diff.toggleFileTree")}
+                  title={withShortcut(
+                    sidebarOpen ? "Hide file tree" : "Show file tree",
+                    "diff.toggleFileTree",
+                  )}
                 >
                   {sidebarOpen ? (
                     <PanelLeftClose className="w-4 h-4" />
@@ -315,12 +357,16 @@ function FileDiffContent({
                 className={cn(
                   "w-5 h-5 rounded text-meta font-bold flex items-center justify-center shrink-0",
                   status.bgColor,
-                  status.color
+                  status.color,
                 )}
               >
                 {status.label}
               </span>
-              <FileHeaderName file={file} fileHref={fileHref} className="text-sm font-medium" />
+              <FileHeaderName
+                file={file}
+                fileHref={fileHref}
+                className="text-sm font-medium"
+              />
             </div>
             {showNav && (
               <div className="text-xs text-sol-text-dim shrink-0 ml-2">
@@ -341,8 +387,8 @@ function FileDiffContent({
             {file.status === "added"
               ? "Binary file or new file (no diff available)"
               : file.status === "removed" || file.status === "deleted"
-              ? "File deleted"
-              : "No changes to display"}
+                ? "File deleted"
+                : "No changes to display"}
           </div>
         </div>
         {renderExtra && renderExtra(file)}
@@ -351,14 +397,20 @@ function FileDiffContent({
   }
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden" data-follow-diff-scroll>
+    <div
+      className="h-full overflow-y-auto overflow-x-hidden"
+      data-follow-diff-scroll
+    >
       <div className="sticky top-0 z-10 bg-sol-bg-alt border-b border-sol-border/30 px-3 py-1 flex items-center justify-between gap-x-3 gap-y-1 flex-wrap">
         <div className="flex items-center gap-1.5 min-w-[min(100%,10rem)] flex-1 basis-[10rem]">
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
               className="p-0.5 -ml-0.5 rounded hover:bg-sol-bg-alt/50 text-sol-text-dim hover:text-sol-text-muted transition-colors shrink-0"
-              title={withShortcut(sidebarOpen ? "Hide file tree" : "Show file tree", "diff.toggleFileTree")}
+              title={withShortcut(
+                sidebarOpen ? "Hide file tree" : "Show file tree",
+                "diff.toggleFileTree",
+              )}
             >
               {sidebarOpen ? (
                 <PanelLeftClose className="w-3.5 h-3.5" />
@@ -375,7 +427,9 @@ function FileDiffContent({
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-meta text-sol-text-dim">
             <span className="text-sol-green">+{file.additions}</span>
-            <span className="mx-0.5 text-sol-text-dim/30 modern:text-sol-text-dim">/</span>
+            <span className="mx-0.5 text-sol-text-dim/30 modern:text-sol-text-dim">
+              /
+            </span>
             <span className="text-sol-red">-{file.deletions}</span>
           </span>
           {showNav && (
@@ -383,14 +437,20 @@ function FileDiffContent({
               {fileIndex + 1}/{totalFiles}
             </span>
           )}
-          <ViewedToggle file={file} fileMarks={fileMarks} onToggleViewed={onToggleViewed} />
+          <ViewedToggle
+            file={file}
+            fileMarks={fileMarks}
+            onToggleViewed={onToggleViewed}
+          />
         </div>
       </div>
       <FilePatchDiff
         patch={file.patch}
         language={language}
         maxLines={100}
-        commentContext={commentContextFor?.(file.originalFilename ?? file.filename)}
+        commentContext={commentContextFor?.(
+          file.originalFilename ?? file.filename,
+        )}
         {...lineThreadProps(lineThreads, file)}
       />
       {renderExtra && renderExtra(file)}
@@ -404,17 +464,26 @@ function FileDiffContent({
 // Line numbers come with them: a comment is anchored to a line, and the gutter
 // is what the reader clicks to select one, so a diff that takes line threads
 // has to show the numbers. A diff with no threads keeps its bare rows.
-function lineThreadProps(lineThreads: FileLineThreads | undefined, file: DiffFile) {
+function lineThreadProps(
+  lineThreads: FileLineThreads | undefined,
+  file: DiffFile,
+) {
   if (!lineThreads) return undefined;
   const path = file.originalFilename ?? file.filename;
   return {
     showLineNumbers: true,
     lineThreads: lineThreads.threadsFor(path),
-    renderLineThread: (anchor: DiffLineAnchor, items: unknown[], placement?: AnchorPlacement) =>
-      lineThreads.render(path, anchor, items, placement),
+    renderLineThread: (
+      anchor: DiffLineAnchor,
+      items: unknown[],
+      placement?: AnchorPlacement,
+    ) => lineThreads.render(path, anchor, items, placement),
     onLineComment: lineThreads.onComment
-      ? (anchor: DiffLineAnchor | undefined, code: string, anchorLines?: CodeAnchorText) =>
-          lineThreads.onComment!(path, anchor, code, anchorLines)
+      ? (
+          anchor: DiffLineAnchor | undefined,
+          code: string,
+          anchorLines?: CodeAnchorText,
+        ) => lineThreads.onComment!(path, anchor, code, anchorLines)
       : undefined,
   };
 }
@@ -439,30 +508,39 @@ function ViewedToggle({
   const path = file.originalFilename ?? file.filename;
   const viewed = !!fileMarks?.(path)?.viewed;
   return (
-    <ShortcutTooltip label={viewed ? "Clear the viewed mark" : "Mark viewed: it folds until it changes again"} action="diff.toggleSeen">
-    <label
-      className={cn(
-        "inline-flex items-center gap-1.5 cursor-pointer select-none text-meta transition-colors",
-        viewed ? "text-sol-green" : "text-sol-text-dim hover:text-sol-text-muted",
-        className,
-      )}
+    <ShortcutTooltip
+      label={
+        viewed
+          ? "Clear the viewed mark"
+          : "Mark viewed: it folds until it changes again"
+      }
+      action="diff.toggleSeen"
     >
-      <input
-        type="checkbox"
-        className="sr-only"
-        checked={viewed}
-        onChange={() => onToggleViewed(path)}
-      />
-      <span
+      <label
         className={cn(
-          "flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors",
-          viewed ? "border-sol-green bg-sol-green/20" : "border-sol-border",
+          "inline-flex items-center gap-1.5 cursor-pointer select-none text-meta transition-colors",
+          viewed
+            ? "text-sol-green"
+            : "text-sol-text-dim hover:text-sol-text-muted",
+          className,
         )}
       >
-        {viewed && <Check className="w-2.5 h-2.5" />}
-      </span>
-      Viewed
-    </label>
+        <input
+          type="checkbox"
+          className="sr-only"
+          checked={viewed}
+          onChange={() => onToggleViewed(path)}
+        />
+        <span
+          className={cn(
+            "flex h-3.5 w-3.5 items-center justify-center rounded border transition-colors",
+            viewed ? "border-sol-green bg-sol-green/20" : "border-sol-border",
+          )}
+        >
+          {viewed && <Check className="w-2.5 h-2.5" />}
+        </span>
+        Viewed
+      </label>
     </ShortcutTooltip>
   );
 }
@@ -500,15 +578,23 @@ function UnifiedDiffView({
   // A viewed file folds to its header, the way a reader puts a finished page
   // face down; a click on the chevron wins either way until the mark moves.
   const [folded, setFolded] = useState<Map<string, boolean>>(new Map());
-  const isFolded = (path: string) => folded.get(path) ?? !!fileMarks?.(path)?.viewed;
+  const isFolded = (path: string) =>
+    folded.get(path) ?? !!fileMarks?.(path)?.viewed;
   useWatchEffect(() => {
-    if (focusFile && (folded.get(focusFile) ?? !!fileMarks?.(focusFile)?.viewed)) {
+    if (
+      focusFile &&
+      (folded.get(focusFile) ?? !!fileMarks?.(focusFile)?.viewed)
+    ) {
       setFolded((prev) => new Map(prev).set(focusFile, false));
     }
   }, [focusFile, focusNonce]);
   const toggleViewed = onToggleViewed
     ? (path: string) => {
-        setFolded((prev) => { const next = new Map(prev); next.delete(path); return next; });
+        setFolded((prev) => {
+          const next = new Map(prev);
+          next.delete(path);
+          return next;
+        });
         onToggleViewed(path);
       }
     : undefined;
@@ -521,11 +607,19 @@ function UnifiedDiffView({
     if (!scroller) return undefined;
     const top = scroller.getBoundingClientRect().top + 8;
     let current: string | undefined = files[0] && pathOf(files[0]);
-    for (const el of scroller.querySelectorAll<HTMLElement>("[data-unified-file]")) {
-      if (el.getBoundingClientRect().top <= top) current = el.dataset.unifiedFile;
+    for (const el of scroller.querySelectorAll<HTMLElement>(
+      "[data-unified-file]",
+    )) {
+      if (el.getBoundingClientRect().top <= top)
+        current = el.dataset.unifiedFile;
       else break;
     }
-    if (current) setFolded((prev) => { const next = new Map(prev); next.delete(current!); return next; });
+    if (current)
+      setFolded((prev) => {
+        const next = new Map(prev);
+        next.delete(current!);
+        return next;
+      });
     return current;
   };
 
@@ -533,7 +627,11 @@ function UnifiedDiffView({
   // begins without reading the headers; each header stays pinned while its
   // own diff scrolls under it.
   return (
-    <div ref={scrollerRef} className="h-full overflow-y-auto overflow-x-hidden pb-8" data-follow-diff-scroll>
+    <div
+      ref={scrollerRef}
+      className="h-full overflow-y-auto overflow-x-hidden pb-8"
+      data-follow-diff-scroll
+    >
       {files.map((file, index) => {
         const status = getFileStatus(file.status);
         const language = getFileExtension(file.filename);
@@ -542,30 +640,61 @@ function UnifiedDiffView({
         const viewed = !!fileMarks?.(path)?.viewed;
 
         return (
-          <div key={file.filename} data-unified-file={path} className="overflow-hidden mb-4 last:mb-0" id={`file-${index}`} style={{ contentVisibility: shut ? undefined : "auto", containIntrinsicBlockSize: "auto 500px" }}>
-            <div className={cn("sticky top-0 z-10 bg-sol-bg-alt px-3 py-1.5 flex items-center justify-between gap-x-3 gap-y-1 flex-wrap border-y border-sol-border/30")}>
+          <div
+            key={file.filename}
+            data-unified-file={path}
+            className="overflow-hidden mb-4 last:mb-0"
+            id={`file-${index}`}
+            style={{
+              contentVisibility: shut ? undefined : "auto",
+              containIntrinsicBlockSize: "auto 500px",
+            }}
+          >
+            <div
+              className={cn(
+                "sticky top-0 z-10 bg-sol-bg-alt px-3 py-1.5 flex items-center justify-between gap-x-3 gap-y-1 flex-wrap border-y border-sol-border/30",
+              )}
+            >
               <div className="flex items-center gap-1.5 min-w-[min(100%,10rem)] flex-1 basis-[10rem]">
                 <button
                   type="button"
-                  onClick={() => setFolded((prev) => new Map(prev).set(path, !shut))}
+                  onClick={() =>
+                    setFolded((prev) => new Map(prev).set(path, !shut))
+                  }
                   className="p-0.5 -ml-1 rounded text-sol-text-dim hover:text-sol-text transition-colors shrink-0"
                   title={shut ? "Show this file" : "Fold this file"}
                   aria-expanded={!shut}
                 >
-                  {shut ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  {shut ? (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
                 </button>
-                <span className={cn("text-meta font-bold shrink-0", status.color)}>
+                <span
+                  className={cn("text-meta font-bold shrink-0", status.color)}
+                >
                   {status.label}
                 </span>
-                <FileHeaderName file={file} fileHref={fileHref} className={cn(shut && viewed && "opacity-60")} />
+                <FileHeaderName
+                  file={file}
+                  fileHref={fileHref}
+                  className={cn(shut && viewed && "opacity-60")}
+                />
               </div>
               <span className="flex items-center gap-2 text-meta text-sol-text-dim shrink-0">
                 <span>
                   <span className="text-sol-green">+{file.additions}</span>
-                  <span className="mx-0.5 text-sol-text-dim/30 modern:text-sol-text-dim">/</span>
+                  <span className="mx-0.5 text-sol-text-dim/30 modern:text-sol-text-dim">
+                    /
+                  </span>
                   <span className="text-sol-red">-{file.deletions}</span>
                 </span>
-                <ViewedToggle file={file} fileMarks={fileMarks} onToggleViewed={toggleViewed} />
+                <ViewedToggle
+                  file={file}
+                  fileMarks={fileMarks}
+                  onToggleViewed={toggleViewed}
+                />
               </span>
             </div>
             {shut ? null : file.patch ? (
@@ -573,7 +702,9 @@ function UnifiedDiffView({
                 patch={file.patch}
                 language={language}
                 maxLines={500}
-                commentContext={commentContextFor?.(file.originalFilename ?? file.filename)}
+                commentContext={commentContextFor?.(
+                  file.originalFilename ?? file.filename,
+                )}
                 {...lineThreadProps(lineThreads, file)}
               />
             ) : (
@@ -581,8 +712,8 @@ function UnifiedDiffView({
                 {file.status === "added"
                   ? "Binary file or new file (no diff available)"
                   : file.status === "removed" || file.status === "deleted"
-                  ? "File deleted"
-                  : "No changes to display"}
+                    ? "File deleted"
+                    : "No changes to display"}
               </div>
             )}
             {!shut && renderExtra && renderExtra(file)}
@@ -593,7 +724,6 @@ function UnifiedDiffView({
   );
 }
 
-
 /** The label for a run of lines, the way the gutter reads it. */
 function lineRunLabel(anchor: DiffLineAnchor): string {
   const letter = anchor.side === "LEFT" ? "L" : "R";
@@ -602,7 +732,15 @@ function lineRunLabel(anchor: DiffLineAnchor): string {
     : `${letter}${anchor.lineNumber}`;
 }
 
-function CopyLinkButton({ url, label, children }: { url: string; label: string; children?: React.ReactNode }) {
+function CopyLinkButton({
+  url,
+  label,
+  children,
+}: {
+  url: string;
+  label: string;
+  children?: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -665,14 +803,19 @@ function FlowDiffView({
   // Open or shut, per file. A viewed file folds by default, the way a reader
   // puts a finished page face down; their own click wins either way.
   const [folded, setFolded] = useState<Map<string, boolean>>(new Map());
-  const isFolded = (path: string) => folded.get(path) ?? !!fileMarks?.(path)?.viewed;
+  const isFolded = (path: string) =>
+    folded.get(path) ?? !!fileMarks?.(path)?.viewed;
   const setFold = (path: string, value: boolean) =>
     setFolded((prev) => new Map(prev).set(path, value));
   // An address that names a file opens it, even one the reader folded or
   // marked viewed: a link lands on what it points at.
   const selectedFile = flow.selected?.file;
   useWatchEffect(() => {
-    if (selectedFile && (folded.get(selectedFile) ?? !!fileMarks?.(selectedFile)?.viewed)) setFold(selectedFile, false);
+    if (
+      selectedFile &&
+      (folded.get(selectedFile) ?? !!fileMarks?.(selectedFile)?.viewed)
+    )
+      setFold(selectedFile, false);
   }, [selectedFile, flow.selected?.anchor?.lineNumber]);
 
   // The file the reader is in: the topmost card under the sticky chrome.
@@ -693,7 +836,9 @@ function FlowDiffView({
     return () => observer.disconnect();
   }, []);
   const sidebarOpen = narrow ? narrowTreeOpen : wideTreeOpen;
-  const onToggleSidebar = narrow ? () => setNarrowTreeOpen((v) => !v) : toggleWideTree;
+  const onToggleSidebar = narrow
+    ? () => setNarrowTreeOpen((v) => !v)
+    : toggleWideTree;
   const [active, setActive] = useState<string | null>(null);
   const stickyTop = flow.stickyTop;
   const fileKey = files.map(pathOf).join("\n");
@@ -707,7 +852,8 @@ function FlowDiffView({
       const line = scroller.getBoundingClientRect().top + stickyTop + 48;
       let current: string | null = null;
       for (const el of root.querySelectorAll<HTMLElement>("[data-flow-file]")) {
-        if (el.getBoundingClientRect().top <= line) current = el.dataset.flowFile!;
+        if (el.getBoundingClientRect().top <= line)
+          current = el.dataset.flowFile!;
         else break;
       }
       setActive(current ?? (files[0] ? pathOf(files[0]) : null));
@@ -725,7 +871,12 @@ function FlowDiffView({
       scroller.removeEventListener("scroll", measure);
       settles.forEach(clearTimeout);
     };
-  }, [fileKey, stickyTop, flow.selected?.file, flow.selected?.anchor?.lineNumber]);
+  }, [
+    fileKey,
+    stickyTop,
+    flow.selected?.file,
+    flow.selected?.anchor?.lineNumber,
+  ]);
 
   // The tree stays in view only while it fits under the chrome; a tree taller
   // than the window scrolls with the page, so every entry stays reachable
@@ -735,7 +886,8 @@ function FlowDiffView({
   useWatchEffect(() => {
     const el = treeRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const measure = () => setTreeFits(el.offsetHeight <= window.innerHeight - stickyTop - 24);
+    const measure = () =>
+      setTreeFits(el.offsetHeight <= window.innerHeight - stickyTop - 24);
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     window.addEventListener("resize", measure);
@@ -756,7 +908,10 @@ function FlowDiffView({
     // bracket aliases are plain keys only.
     const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
     const order = files.map(pathOf);
-    const at = Math.max(0, order.indexOf(active ?? flow.selected?.file ?? order[0]));
+    const at = Math.max(
+      0,
+      order.indexOf(active ?? flow.selected?.file ?? order[0]),
+    );
     if (matchesAction(e, "pr.nextFile") || (plain && e.key === "]")) {
       e.preventDefault();
       if (at < order.length - 1) flow.onJumpFile(order[at + 1]);
@@ -767,29 +922,54 @@ function FlowDiffView({
       e.preventDefault();
       const path = order[at];
       const wasViewed = !!fileMarks?.(path)?.viewed;
-      setFolded((prev) => { const next = new Map(prev); next.delete(path); return next; });
+      setFolded((prev) => {
+        const next = new Map(prev);
+        next.delete(path);
+        return next;
+      });
       onToggleViewed(path);
       if (!wasViewed && at < order.length - 1) flow.onJumpFile(order[at + 1]);
     }
   });
 
   inHand.current = () => {
-    const path = active ?? flow.selected?.file ?? (files[0] && pathOf(files[0]));
+    const path =
+      active ?? flow.selected?.file ?? (files[0] && pathOf(files[0]));
     // The shortcut folds what it marks, like m.
-    if (path) setFolded((prev) => { const next = new Map(prev); next.delete(path); return next; });
+    if (path)
+      setFolded((prev) => {
+        const next = new Map(prev);
+        next.delete(path);
+        return next;
+      });
     return path;
   };
 
-  const selectedTreePath = files.find((f) => pathOf(f) === (active ?? flow.selected?.file))?.filename ?? null;
+  const selectedTreePath =
+    files.find((f) => pathOf(f) === (active ?? flow.selected?.file))
+      ?.filename ?? null;
   const allFolded = files.every((f) => isFolded(pathOf(f)));
 
   return (
-    <div ref={rootRef} className={cn("cc-flow flex gap-4 px-4 pt-4 pb-16", narrow ? "flex-col" : "items-start")}>
+    <div
+      ref={rootRef}
+      className={cn(
+        "cc-flow flex gap-4 px-4 pt-4 pb-16",
+        narrow ? "flex-col" : "items-start",
+      )}
+    >
       {sidebarOpen && (
         <aside
           ref={treeRef}
-          className={cn("cc-flow-tree shrink-0", narrow ? "w-full" : "w-[272px]")}
-          style={treeFits && !narrow ? { position: "sticky", top: stickyTop + 12 } : undefined}
+          className={cn(
+            "cc-flow-tree shrink-0",
+            narrow ? "w-full" : "w-[272px]",
+          )}
+          style={
+            treeFits && !narrow
+              ? { position: "sticky", top: stickyTop + 12 }
+              : undefined
+          }
         >
           <FileSidebar
             flow
@@ -818,25 +998,41 @@ function FlowDiffView({
             type="button"
             onClick={onToggleSidebar}
             className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-sol-border/60 px-2 py-1 hover:text-sol-text hover:border-sol-border transition-colors"
-            title={withShortcut(sidebarOpen ? "Hide the file tree" : "Show the file tree", "diff.toggleFileTree")}
+            title={withShortcut(
+              sidebarOpen ? "Hide the file tree" : "Show the file tree",
+              "diff.toggleFileTree",
+            )}
           >
-            {sidebarOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeft className="w-3.5 h-3.5" />}
+            {sidebarOpen ? (
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            ) : (
+              <PanelLeft className="w-3.5 h-3.5" />
+            )}
             Files
           </button>
           <span className="min-w-0 truncate">
             {files.length} {files.length === 1 ? "file" : "files"} changed
             {commonPrefix && (
-              <span className="ml-2 font-mono text-meta text-sol-text-dim" title={commonPrefix}>
+              <span
+                className="ml-2 font-mono text-meta text-sol-text-dim"
+                title={commonPrefix}
+              >
                 in {shortenPrefix(commonPrefix)}/
               </span>
             )}
           </span>
           <button
             type="button"
-            onClick={() => setFolded(new Map(files.map((f) => [pathOf(f), !allFolded])))}
+            onClick={() =>
+              setFolded(new Map(files.map((f) => [pathOf(f), !allFolded])))
+            }
             className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-sol-text-dim hover:text-sol-text transition-colors"
           >
-            {allFolded ? <ChevronsUpDown className="w-3.5 h-3.5" /> : <ChevronsDownUp className="w-3.5 h-3.5" />}
+            {allFolded ? (
+              <ChevronsUpDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronsDownUp className="w-3.5 h-3.5" />
+            )}
             {allFolded ? "Expand all" : "Collapse all"}
           </button>
         </div>
@@ -849,7 +1045,13 @@ function FlowDiffView({
             const shut = isFolded(path);
             const target = flow.selected?.file === path ? flow.selected : null;
             const selection = target?.anchor
-              ? { side: target.anchor.side, range: { start: target.anchor.lineNumber, end: target.anchor.lineEnd ?? target.anchor.lineNumber } }
+              ? {
+                  side: target.anchor.side,
+                  range: {
+                    start: target.anchor.lineNumber,
+                    end: target.anchor.lineEnd ?? target.anchor.lineNumber,
+                  },
+                }
               : null;
             return (
               <section
@@ -863,7 +1065,11 @@ function FlowDiffView({
                 // Off screen a card is a placeholder of its last known height, which
                 // keeps a big pull request light. The card an address points into
                 // is always real, so the landing measures true geometry.
-                style={{ scrollMarginTop: stickyTop + 12, contentVisibility: shut || target ? undefined : "auto", containIntrinsicBlockSize: "auto 480px" }}
+                style={{
+                  scrollMarginTop: stickyTop + 12,
+                  contentVisibility: shut || target ? undefined : "auto",
+                  containIntrinsicBlockSize: "auto 480px",
+                }}
               >
                 <header
                   className={cn(
@@ -879,19 +1085,32 @@ function FlowDiffView({
                     title={shut ? "Show this file" : "Fold this file"}
                     aria-expanded={!shut}
                   >
-                    {shut ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    {shut ? (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
                   </button>
-                  <span className={cn("text-meta font-bold shrink-0", status.color)} title={file.status}>
+                  <span
+                    className={cn("text-meta font-bold shrink-0", status.color)}
+                    title={file.status}
+                  >
                     {status.label}
                   </span>
                   <span className="flex items-center gap-1 min-w-0 flex-1 basis-[16rem]">
                     <FileHeaderName file={file} fileHref={fileHref} />
                     {target?.anchor ? (
-                      <CopyLinkButton url={flow.shareUrl(flow.lineHref(path, target.anchor))} label="Copy a link to the selected lines">
+                      <CopyLinkButton
+                        url={flow.shareUrl(flow.lineHref(path, target.anchor))}
+                        label="Copy a link to the selected lines"
+                      >
                         {lineRunLabel(target.anchor)} · Copy link
                       </CopyLinkButton>
                     ) : (
-                      <CopyLinkButton url={flow.shareUrl(flow.fileAnchorHref(path))} label="Copy a link to this file" />
+                      <CopyLinkButton
+                        url={flow.shareUrl(flow.fileAnchorHref(path))}
+                        label="Copy a link to this file"
+                      />
                     )}
                   </span>
                   <span className="flex items-center gap-3 text-meta text-sol-text-dim shrink-0">
@@ -903,48 +1122,59 @@ function FlowDiffView({
                     <ViewedToggle
                       file={file}
                       fileMarks={fileMarks}
-                      onToggleViewed={onToggleViewed ? (p) => {
-                        // Marking a file viewed folds it; unmarking opens it.
-                        setFolded((prev) => { const next = new Map(prev); next.delete(p); return next; });
-                        onToggleViewed(p);
-                      } : undefined}
+                      onToggleViewed={
+                        onToggleViewed
+                          ? (p) => {
+                              // Marking a file viewed folds it; unmarking opens it.
+                              setFolded((prev) => {
+                                const next = new Map(prev);
+                                next.delete(p);
+                                return next;
+                              });
+                              onToggleViewed(p);
+                            }
+                          : undefined
+                      }
                     />
                   </span>
                 </header>
-                {!shut && (file.patch ? (
-                  <FilePatchDiff
-                    patch={file.patch}
-                    language={language}
-                    // A long file shows its first stretch and a "show more": a
-                    // big pull request stays light. The file an address points
-                    // into shows whole, so the linked line has a row to land on.
-                    maxLines={target ? 1_000_000 : 600}
-                    wrap
-                    // Every line has an address here, so every line shows its number.
-                    showLineNumbers
-                    selection={selection}
-                    onSelectionChange={(next) => {
-                      if (!next) return;
-                      flow.onSelectLines(path, {
-                        side: next.side,
-                        lineNumber: next.range.start,
-                        ...(next.range.end !== next.range.start ? { lineEnd: next.range.end } : {}),
-                      });
-                    }}
-                    commentContext={commentContextFor?.(path)}
-                    {...lineThreadProps(lineThreads, file)}
-                  />
-                ) : (
-                  <div className="text-sol-text-muted text-[13px] py-5 text-center">
-                    {file.status === "added"
-                      ? "A binary or empty file, so there is no diff to show"
-                      : file.status === "removed" || file.status === "deleted"
-                      ? "This file was deleted"
-                      : file.status === "renamed"
-                      ? "Renamed without changes"
-                      : "No changes to display"}
-                  </div>
-                ))}
+                {!shut &&
+                  (file.patch ? (
+                    <FilePatchDiff
+                      patch={file.patch}
+                      language={language}
+                      // A long file shows its first stretch and a "show more": a
+                      // big pull request stays light. The file an address points
+                      // into shows whole, so the linked line has a row to land on.
+                      maxLines={target ? 1_000_000 : 600}
+                      wrap
+                      // Every line has an address here, so every line shows its number.
+                      showLineNumbers
+                      selection={selection}
+                      onSelectionChange={(next) => {
+                        if (!next) return;
+                        flow.onSelectLines(path, {
+                          side: next.side,
+                          lineNumber: next.range.start,
+                          ...(next.range.end !== next.range.start
+                            ? { lineEnd: next.range.end }
+                            : {}),
+                        });
+                      }}
+                      commentContext={commentContextFor?.(path)}
+                      {...lineThreadProps(lineThreads, file)}
+                    />
+                  ) : (
+                    <div className="text-sol-text-muted text-[13px] py-5 text-center">
+                      {file.status === "added"
+                        ? "A binary or empty file, so there is no diff to show"
+                        : file.status === "removed" || file.status === "deleted"
+                          ? "This file was deleted"
+                          : file.status === "renamed"
+                            ? "Renamed without changes"
+                            : "No changes to display"}
+                    </div>
+                  ))}
                 {!shut && renderExtra && renderExtra(file)}
               </section>
             );
@@ -979,24 +1209,33 @@ export function FileDiffLayout({
   flow,
 }: FileDiffLayoutProps) {
   // Strip common prefix once for consistent comparisons
-  const commonPrefix = useMemo(() => findCommonPrefix(files.map(f => f.filename)), [files]);
+  const commonPrefix = useMemo(
+    () => findCommonPrefix(files.map((f) => f.filename)),
+    [files],
+  );
   const strippedFiles = useMemo(() => stripCommonPrefix(files), [files]);
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const s = useTrackedStore([
-    s => s.clientState.layouts?.file_diff,
-    s => s.clientState.ui?.file_diff_view_mode,
+    (s) => s.clientState.layouts?.file_diff,
+    (s) => s.clientState.ui?.file_diff_view_mode,
   ]);
-  const layoutPref = s.clientState.layouts?.file_diff ?? DEFAULT_FILE_DIFF_LAYOUT;
+  const layoutPref =
+    s.clientState.layouts?.file_diff ?? DEFAULT_FILE_DIFF_LAYOUT;
   const viewMode = s.clientState.ui?.file_diff_view_mode ?? "unified";
-  const layout: Layout = { "file-tree": layoutPref.tree, "diff-content": layoutPref.content };
+  const layout: Layout = {
+    "file-tree": layoutPref.tree,
+    "diff-content": layoutPref.content,
+  };
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const selectedFileRef = useRef<HTMLButtonElement>(null);
 
   const toggleViewMode = () => {
-    s.updateClientUI({ file_diff_view_mode: viewMode === "split" ? "unified" : "split" });
+    s.updateClientUI({
+      file_diff_view_mode: viewMode === "split" ? "unified" : "split",
+    });
   };
 
   // Cmd+Option+Y marks the file in hand viewed, whichever form is showing.
@@ -1005,7 +1244,10 @@ export function FileDiffLayout({
   usePaneShortcutAction("diff.toggleSeen", () => {
     if (!onToggleViewed) return false;
     const current = strippedFiles[currentFileIndex];
-    const path = !flow && viewMode === "split" ? current && (current.originalFilename ?? current.filename) : inHand.current?.();
+    const path =
+      !flow && viewMode === "split"
+        ? current && (current.originalFilename ?? current.filename)
+        : inHand.current?.();
     if (!path) return false;
     onToggleViewed(path);
     return true;
@@ -1040,10 +1282,19 @@ export function FileDiffLayout({
     if (index < 0) return;
     setSelectedFile(strippedFiles[index].filename);
     setCurrentFileIndex(index);
-    const scroll = () => document.getElementById(`file-${index}`)?.scrollIntoView({ block: "start" });
+    const scroll = () =>
+      document
+        .getElementById(`file-${index}`)
+        ?.scrollIntoView({ block: "start" });
     scroll();
-    const raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame(scroll) : 0;
-    return () => { if (raf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(raf); };
+    const raf =
+      typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame(scroll)
+        : 0;
+    return () => {
+      if (raf && typeof cancelAnimationFrame === "function")
+        cancelAnimationFrame(raf);
+    };
   }, [focusFile, focusNonce, strippedFiles]);
 
   useWatchEffect(() => {
@@ -1055,7 +1306,10 @@ export function FileDiffLayout({
 
   useWatchEffect(() => {
     if (selectedFileRef.current) {
-      selectedFileRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      selectedFileRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
     }
   }, [currentFileIndex]);
 
@@ -1096,7 +1350,10 @@ export function FileDiffLayout({
       if (!current) return;
       const path = current.originalFilename ?? current.filename;
       onToggleViewed(path);
-      if (!fileMarks?.(path)?.viewed && currentFileIndex < strippedFiles.length - 1) {
+      if (
+        !fileMarks?.(path)?.viewed &&
+        currentFileIndex < strippedFiles.length - 1
+      ) {
         const nextFile = strippedFiles[currentFileIndex + 1];
         setSelectedFile(nextFile.filename);
         setCurrentFileIndex(currentFileIndex + 1);
@@ -1112,7 +1369,10 @@ export function FileDiffLayout({
 
   const groupElRef = useRef<HTMLDivElement | null>(null);
   const handleLayoutChange = useDragGatedLayoutPersist((newLayout) => {
-    s.updateClientLayout("file_diff", { tree: newLayout["file-tree"] || 25, content: newLayout["diff-content"] || 75 });
+    s.updateClientLayout("file_diff", {
+      tree: newLayout["file-tree"] || 25,
+      content: newLayout["diff-content"] || 75,
+    });
   }, groupElRef);
 
   const handleSelectFile = (filename: string) => {
@@ -1120,7 +1380,8 @@ export function FileDiffLayout({
     if (isMobile) setSidebarOpen(false);
   };
 
-  const selectedFileData = strippedFiles.find((f) => f.filename === selectedFile) || null;
+  const selectedFileData =
+    strippedFiles.find((f) => f.filename === selectedFile) || null;
 
   // Follow mode (lib/follow.ts): a pane diff is a place, the file in hand and
   // the line at the top of its scroller. The page form reports through its
@@ -1133,19 +1394,35 @@ export function FileDiffLayout({
         const root = paneRef.current;
         if (!root || root.offsetParent === null) return null;
         const at = topDiffRow(root);
-        const file = viewMode === "unified" && at?.fileIndex !== undefined ? strippedFiles[at.fileIndex] : selectedFileData;
-        return file ? { diff: { file: file.originalFilename ?? file.filename, line: at?.line } } : null;
+        const file =
+          viewMode === "unified" && at?.fileIndex !== undefined
+            ? strippedFiles[at.fileIndex]
+            : selectedFileData;
+        return file
+          ? {
+              diff: {
+                file: file.originalFilename ?? file.filename,
+                line: at?.line,
+              },
+            }
+          : null;
       },
       apply: (view) => {
         const want = view.diff;
         const root = paneRef.current;
         if (!want || !root || root.offsetParent === null) return [];
-        const index = strippedFiles.findIndex((f) => (f.originalFilename ?? f.filename) === want.file);
+        const index = strippedFiles.findIndex(
+          (f) => (f.originalFilename ?? f.filename) === want.file,
+        );
         if (index < 0) return [];
         setSelectedFile(strippedFiles[index].filename);
         setCurrentFileIndex(index);
         landRef.current?.();
-        landRef.current = landOnDiffRow(paneRef, viewMode === "unified" ? index : null, want.line);
+        landRef.current = landOnDiffRow(
+          paneRef,
+          viewMode === "unified" ? index : null,
+          want.line,
+        );
         return ["diff"];
       },
     },
@@ -1155,7 +1432,10 @@ export function FileDiffLayout({
   useWatchEffect(() => {
     const root = paneRef.current;
     if (flow || !root) return;
-    root.addEventListener("scroll", notifyFollowView, { capture: true, passive: true });
+    root.addEventListener("scroll", notifyFollowView, {
+      capture: true,
+      passive: true,
+    });
     return () => {
       root.removeEventListener("scroll", notifyFollowView, { capture: true });
       landRef.current?.();
@@ -1169,7 +1449,9 @@ export function FileDiffLayout({
       <div className="h-full flex flex-col">
         {(title || subtitle) && (
           <div className="border-b border-sol-border px-4 py-3 bg-sol-bg">
-            {title && <h1 className="text-lg font-semibold text-sol-text">{title}</h1>}
+            {title && (
+              <h1 className="text-lg font-semibold text-sol-text">{title}</h1>
+            )}
             {subtitle && <div className="mt-1">{subtitle}</div>}
           </div>
         )}
@@ -1177,7 +1459,13 @@ export function FileDiffLayout({
           <div className="px-4 py-2 border-b border-sol-border bg-sol-bg flex items-center justify-between shrink-0 gap-2">
             <div className="flex items-center gap-3 min-w-0">{headerExtra}</div>
             {onCloseDiffPanel && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100" onClick={onCloseDiffPanel} title={withShortcut("Close diff panel", "conv.toggleDiff")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-50 hover:opacity-100"
+                onClick={onCloseDiffPanel}
+                title={withShortcut("Close diff panel", "conv.toggleDiff")}
+              >
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -1206,7 +1494,7 @@ export function FileDiffLayout({
         commentContextFor={commentContextFor}
         lineThreads={lineThreads}
         fileHref={fileHref}
-       
+
         fileMarks={fileMarks}
         onToggleViewed={onToggleViewed}
         sidebarOpen={sidebarOpen}
@@ -1231,7 +1519,10 @@ export function FileDiffLayout({
     onToggleViewed,
   };
 
-  const viewedCount = fileMarks ? files.filter((f) => fileMarks(f.originalFilename ?? f.filename)?.viewed).length : 0;
+  const viewedCount = fileMarks
+    ? files.filter((f) => fileMarks(f.originalFilename ?? f.filename)?.viewed)
+        .length
+    : 0;
   const totalAdditions = files.reduce((sum, f) => sum + f.additions, 0);
   const totalDeletions = files.reduce((sum, f) => sum + f.deletions, 0);
 
@@ -1241,7 +1532,11 @@ export function FileDiffLayout({
       size="sm"
       className="h-8 gap-1.5 text-xs"
       onClick={toggleViewMode}
-      title={viewMode === "unified" ? "Switch to split view (v)" : "Switch to unified view (v)"}
+      title={
+        viewMode === "unified"
+          ? "Switch to split view (v)"
+          : "Switch to unified view (v)"
+      }
     >
       {viewMode === "unified" ? (
         <>
@@ -1265,18 +1560,35 @@ export function FileDiffLayout({
             {headerExtra}
             {/* Beside header controls the count drops "changed" and the
                 folder moves to the tooltip, so the viewed tally stays in view. */}
-            <span className="text-sol-text-muted shrink-0 modern:shrink modern:min-w-0 modern:truncate" title={headerExtra && commonPrefix ? `${commonPrefix}/` : undefined}>
-              {files.length} {files.length === 1 ? "file" : "files"}{headerExtra ? "" : " changed"}
+            <span
+              className="text-sol-text-muted shrink-0 modern:shrink modern:min-w-0 modern:truncate"
+              title={
+                headerExtra && commonPrefix ? `${commonPrefix}/` : undefined
+              }
+            >
+              {files.length} {files.length === 1 ? "file" : "files"}
+              {headerExtra ? "" : " changed"}
             </span>
-            <span className="text-sol-green font-medium shrink-0">+{totalAdditions}</span>
-            <span className="text-sol-red font-medium shrink-0">-{totalDeletions}</span>
+            <span className="text-sol-green font-medium shrink-0">
+              +{totalAdditions}
+            </span>
+            <span className="text-sol-red font-medium shrink-0">
+              -{totalDeletions}
+            </span>
             {viewedCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-sol-green text-xs shrink-0 tabular-nums" title={`${viewedCount} of ${files.length} viewed`}>
-                <Check className="w-3 h-3" />{viewedCount}/{files.length}
+              <span
+                className="inline-flex items-center gap-0.5 text-sol-green text-xs shrink-0 tabular-nums"
+                title={`${viewedCount} of ${files.length} viewed`}
+              >
+                <Check className="w-3 h-3" />
+                {viewedCount}/{files.length}
               </span>
             )}
             {commonPrefix && !headerExtra && (
-              <span className="font-mono text-sol-text-dim text-xs truncate" title={commonPrefix}>
+              <span
+                className="font-mono text-sol-text-dim text-xs truncate"
+                title={commonPrefix}
+              >
                 {shortenPrefix(commonPrefix)}/
               </span>
             )}
@@ -1288,7 +1600,10 @@ export function FileDiffLayout({
               size="icon"
               className="h-8 w-8 opacity-50 hover:opacity-100"
               onClick={s.toggleShortcutsPanel}
-              title={withShortcut("Keyboard shortcuts", "ui.toggleShortcutsHelp")}
+              title={withShortcut(
+                "Keyboard shortcuts",
+                "ui.toggleShortcutsHelp",
+              )}
             >
               <Keyboard className="h-4 w-4" />
             </Button>
@@ -1313,7 +1628,7 @@ export function FileDiffLayout({
             commentContextFor={commentContextFor}
             lineThreads={lineThreads}
             fileHref={fileHref}
-           
+
             fileMarks={fileMarks}
             onToggleViewed={onToggleViewed}
             focusFile={focusFile}
@@ -1328,8 +1643,14 @@ export function FileDiffLayout({
   const headerContent = showHeader ? (
     <div className="border-b border-sol-border px-4 py-3 bg-sol-bg flex items-center justify-between shrink-0 gap-2">
       <div className="min-w-0 truncate">
-        {title && <h1 className="text-lg font-semibold text-sol-text truncate">{title}</h1>}
-        {subtitle && <div className={cn("truncate", title ? "mt-1" : "")}>{subtitle}</div>}
+        {title && (
+          <h1 className="text-lg font-semibold text-sol-text truncate">
+            {title}
+          </h1>
+        )}
+        {subtitle && (
+          <div className={cn("truncate", title ? "mt-1" : "")}>{subtitle}</div>
+        )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {headerExtra}
@@ -1357,8 +1678,15 @@ export function FileDiffLayout({
       </div>
     </div>
   ) : (
-    <div className={cn("px-4 py-2 border-b border-sol-border bg-sol-bg flex items-center shrink-0 gap-2", headerExtra ? "justify-between" : "justify-end")}>
-      {headerExtra && <div className="flex items-center gap-3 min-w-0">{headerExtra}</div>}
+    <div
+      className={cn(
+        "px-4 py-2 border-b border-sol-border bg-sol-bg flex items-center shrink-0 gap-2",
+        headerExtra ? "justify-between" : "justify-end",
+      )}
+    >
+      {headerExtra && (
+        <div className="flex items-center gap-3 min-w-0">{headerExtra}</div>
+      )}
       <div className="flex items-center gap-1 shrink-0">
         {viewModeButton}
         <Button
@@ -1461,29 +1789,48 @@ const PANE_HEADER_PX = 32;
 
 /** The diff row at the top of a pane's scroller: its new-side line, and the
  *  file card it sits in when every file is stacked (`file-<index>`). */
-function topDiffRow(root: HTMLElement): { line?: number; fileIndex?: number } | null {
+function topDiffRow(
+  root: HTMLElement,
+): { line?: number; fileIndex?: number } | null {
   const scroller = root.querySelector<HTMLElement>("[data-follow-diff-scroll]");
   if (!scroller) return null;
   const edge = scroller.getBoundingClientRect().top + PANE_HEADER_PX;
   for (const { el, anchor } of diffLineElements(scroller)) {
-    if (anchor.side !== "RIGHT" || el.getBoundingClientRect().bottom <= edge) continue;
+    if (anchor.side !== "RIGHT" || el.getBoundingClientRect().bottom <= edge)
+      continue;
     // The line sits in its diff's shadow root; the card is around the diff.
-    const host = (el.getRootNode() as ShadowRoot).host as HTMLElement | undefined;
+    const host = (el.getRootNode() as ShadowRoot).host as
+      | HTMLElement
+      | undefined;
     const card = host?.closest<HTMLElement>("[id^='file-']");
     const fileIndex = card ? Number(card.id.slice(5)) : undefined;
-    return { line: anchor.lineNumber, fileIndex: Number.isFinite(fileIndex) ? fileIndex : undefined };
+    return {
+      line: anchor.lineNumber,
+      fileIndex: Number.isFinite(fileIndex) ? fileIndex : undefined,
+    };
   }
   return { line: undefined };
 }
 
 /** Bring a file (its card, when stacked) and a new-side line to the top of a
  *  pane's scroller, the nearest line before it when the diff leaves it out. */
-function landOnDiffRow(paneRef: React.RefObject<HTMLElement | null>, fileIndex: number | null, line: number | undefined): () => void {
+function landOnDiffRow(
+  paneRef: React.RefObject<HTMLElement | null>,
+  fileIndex: number | null,
+  line: number | undefined,
+): () => void {
   return landOn(
-    () => paneRef.current?.querySelector<HTMLElement>("[data-follow-diff-scroll]"),
+    () =>
+      paneRef.current?.querySelector<HTMLElement>("[data-follow-diff-scroll]"),
     (scroller) => {
-      const scope = fileIndex === null ? scroller : scroller.querySelector<HTMLElement>(`[id="file-${fileIndex}"]`);
-      if (!scope || line === undefined) return scope === scroller ? (scroller.firstElementChild as HTMLElement | null) : scope;
+      const scope =
+        fileIndex === null
+          ? scroller
+          : scroller.querySelector<HTMLElement>(`[id="file-${fileIndex}"]`);
+      if (!scope || line === undefined)
+        return scope === scroller
+          ? (scroller.firstElementChild as HTMLElement | null)
+          : scope;
       let best: HTMLElement | null = null;
       for (const { el, anchor } of diffLineElements(scope)) {
         if (anchor.side !== "RIGHT") continue;
@@ -1493,7 +1840,13 @@ function landOnDiffRow(paneRef: React.RefObject<HTMLElement | null>, fileIndex: 
       // A long diff draws only near the viewport: when the line (or, in a
       // collapsed stretch, the nearest line before it) is not drawn yet,
       // scroll there and look again.
-      return revealDiffLine(scope, { side: "RIGHT", lineNumber: line }, { orEarlier: true }) ? null : best ?? scope;
+      return revealDiffLine(
+        scope,
+        { side: "RIGHT", lineNumber: line },
+        { orEarlier: true },
+      )
+        ? null
+        : (best ?? scope);
     },
     (el) => (el.matches("[data-line]") ? PANE_HEADER_PX : 0),
   );

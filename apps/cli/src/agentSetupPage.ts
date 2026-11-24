@@ -5,12 +5,19 @@
  * here and starts each step here.
  */
 
-import { agentSetupPageUrl, type AgentSetupTool } from "@codecast/shared/contracts";
+import {
+  agentSetupPageUrl,
+  type AgentSetupTool,
+} from "@codecast/shared/contracts";
 import { webBaseUrl } from "./config/readLocalConfig.js";
 import { deviceId } from "./remote/device.js";
 
 export function agentSetupPageLink(tool: AgentSetupTool): string {
   let device: string | undefined;
-  try { device = deviceId(); } catch { /* the page falls back to the viewer's machines */ }
+  try {
+    device = deviceId();
+  } catch {
+    /* the page falls back to the viewer's machines */
+  }
   return agentSetupPageUrl(tool, webBaseUrl(), device);
 }

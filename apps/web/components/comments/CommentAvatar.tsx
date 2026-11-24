@@ -42,7 +42,12 @@ export function CommentAvatar({
         size={size}
         className={`cc-cmt-avatar ${className}`}
         title={name}
-        badge={<AgentTypeIcon agentType={agentType || "claude_code"} className="w-full h-full p-[1px]" />}
+        badge={
+          <AgentTypeIcon
+            agentType={agentType || "claude_code"}
+            className="w-full h-full p-[1px]"
+          />
+        }
       />
     );
   }
@@ -53,7 +58,10 @@ export function CommentAvatar({
         style={{ width: size, height: size }}
         title={name || "Agent"}
       >
-        <AgentIcon agentType={agentType || "claude_code"} className="w-full h-full rounded-md" />
+        <AgentIcon
+          agentType={agentType || "claude_code"}
+          className="w-full h-full rounded-md"
+        />
       </span>
     );
   }

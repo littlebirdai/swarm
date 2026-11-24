@@ -14,7 +14,10 @@ export const MAX_LIVE_TEAM_READ_KEYS = 10;
 export function newTeamReadKey(): string {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
-  return TEAM_READ_KEY_PREFIX + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return (
+    TEAM_READ_KEY_PREFIX +
+    Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+  );
 }
 
 export function isTeamReadKey(key: string): boolean {

@@ -9,7 +9,12 @@ import { conversationTitle } from "./conversationTitle";
 import { pathLabel } from "./pathLabel";
 import { chatTabTitle, initiativeTabTitle, recordTabTitle } from "./tabTitle";
 import { activeWorkspaceKeyOf } from "./workspaceScope";
-import { canonicalPlacePath, placeOf, placeSessionId, type PlaceNames } from "./navPlace";
+import {
+  canonicalPlacePath,
+  placeOf,
+  placeSessionId,
+  type PlaceNames,
+} from "./navPlace";
 import { lookup } from "./liveEntities";
 import { cleanTitle } from "./conversationProcessor";
 import { teamMembersOf } from "./activeTeam";
@@ -31,11 +36,19 @@ export function placeTitle(s: PlaceState, rawPath: string): string | null {
   const path = canonicalPlacePath(rawPath);
   const sid = placeSessionId(path);
   if (sid) return sessionPlaceTitle(s, sid);
-  const chat = chatTabTitle(path, s.chatChannels, teamMembersOf(s), s.currentUser?._id ? String(s.currentUser._id) : undefined);
+  const chat = chatTabTitle(
+    path,
+    s.chatChannels,
+    teamMembersOf(s),
+    s.currentUser?._id ? String(s.currentUser._id) : undefined,
+  );
   if (chat) return chat;
   if (path.startsWith("/org")) {
     const key = s.clientState ? activeWorkspaceKeyOf(s as any) : null;
-    return initiativeTabTitle(path, s.initiatives, key) ?? recordTabTitle(path, s as any);
+    return (
+      initiativeTabTitle(path, s.initiatives, key) ??
+      recordTabTitle(path, s as any)
+    );
   }
   return recordTabTitle(path, s as any);
 }
@@ -49,7 +62,14 @@ export function placeName(s: PlaceState, path: string): string {
 export function placeNamesOf(s: PlaceState): PlaceNames {
   return {
     title: (type, id) => {
-      const rows = type === "project" ? s.projects : type === "plan" ? s.plans : type === "doc" ? s.docs : s.tasks;
+      const rows =
+        type === "project"
+          ? s.projects
+          : type === "plan"
+            ? s.plans
+            : type === "doc"
+              ? s.docs
+              : s.tasks;
       const row = lookup(rows, id);
       return row?.display_title ?? row?.title;
     },
@@ -66,5 +86,10 @@ export function placeNamesOf(s: PlaceState): PlaceNames {
 /** The crumbs above a page, as one string: what a header subscribes to, so a
  *  write the crumbs do not show never re-renders it. */
 export function placeCrumbsSig(s: PlaceState, path: string): string {
-  return placeOf(path, placeNamesOf(s)).crumbs.map((c) => `${c.label}\x1e${c.href ?? ""}\x1e${c.more ? 1 : 0}\x1e${c.mono ? 1 : 0}`).join("\x1f");
+  return placeOf(path, placeNamesOf(s))
+    .crumbs.map(
+      (c) =>
+        `${c.label}\x1e${c.href ?? ""}\x1e${c.more ? 1 : 0}\x1e${c.mono ? 1 : 0}`,
+    )
+    .join("\x1f");
 }

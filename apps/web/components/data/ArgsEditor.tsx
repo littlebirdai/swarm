@@ -10,11 +10,25 @@ import { SheetRangePicker } from "./SheetRangePicker";
 
 type Args = Record<string, Json>;
 
-const fieldCls = "w-full rounded-md bg-sol-bg border border-sol-border/60 px-2 h-8 text-sm text-sol-text outline-none focus:border-sol-blue";
+const fieldCls =
+  "w-full rounded-md bg-sol-bg border border-sol-border/60 px-2 h-8 text-sm text-sol-text outline-none focus:border-sol-blue";
 
-export function ArgsEditor({ docId, source, args, onChange }: { docId: string; source: string; args: Args; onChange: (next: Args) => void }) {
-  const params = dashboard.SOURCE_PARAMS[source as dashboard.DataSourceId] ?? [];
-  const needsList = params.some((p) => p.kind === "sheet" || p.kind === "watch");
+export function ArgsEditor({
+  docId,
+  source,
+  args,
+  onChange,
+}: {
+  docId: string;
+  source: string;
+  args: Args;
+  onChange: (next: Args) => void;
+}) {
+  const params =
+    dashboard.SOURCE_PARAMS[source as dashboard.DataSourceId] ?? [];
+  const needsList = params.some(
+    (p) => p.kind === "sheet" || p.kind === "watch",
+  );
   const { rows, loading } = useDataSources(docId, needsList);
   const [raw, setRaw] = useState(false);
   const set = (name: string, value: Json | undefined) => {
@@ -28,33 +42,78 @@ export function ArgsEditor({ docId, source, args, onChange }: { docId: string; s
       {!raw ? (
         <div className="grid grid-cols-2 gap-2">
           {params.map((p) =>
-            source === "sheet" && p.name === "range" && typeof args.doc === "string" && args.doc ? (
+            source === "sheet" &&
+            p.name === "range" &&
+            typeof args.doc === "string" &&
+            args.doc ? (
               <div key={p.name} className="col-span-2 space-y-1">
                 <span className="text-meta text-sol-text-dim">{p.label}</span>
-                <SheetRangePicker sheetId={args.doc} range={typeof args.range === "string" ? args.range : undefined} header={args.header !== false} onRange={(r) => set("range", r)} />
+                <SheetRangePicker
+                  sheetId={args.doc}
+                  range={
+                    typeof args.range === "string" ? args.range : undefined
+                  }
+                  header={args.header !== false}
+                  onRange={(r) => set("range", r)}
+                />
               </div>
             ) : (
-              <ParamControl key={p.name} p={p} value={args[p.name]} rows={rows} loading={loading} onSet={(v) => set(p.name, v)} />
+              <ParamControl
+                key={p.name}
+                p={p}
+                value={args[p.name]}
+                rows={rows}
+                loading={loading}
+                onSet={(v) => set(p.name, v)}
+              />
             ),
           )}
         </div>
       ) : (
         <RawArgs args={args} onChange={onChange} />
       )}
-      <button type="button" onClick={() => setRaw((r) => !r)} aria-pressed={raw} className={`inline-flex items-center gap-1 text-meta ${raw ? "text-sol-text" : "text-sol-text-dim hover:text-sol-text"}`}>
+      <button
+        type="button"
+        onClick={() => setRaw((r) => !r)}
+        aria-pressed={raw}
+        className={`inline-flex items-center gap-1 text-meta ${raw ? "text-sol-text" : "text-sol-text-dim hover:text-sol-text"}`}
+      >
         <Braces className="w-3 h-3" /> JSON
       </button>
     </div>
   );
 }
 
-function ParamControl({ p, value, rows, loading, onSet }: { p: dashboard.SourceParam; value: Json | undefined; rows: Array<{ source: string; label: string; args?: Record<string, unknown> }>; loading: boolean; onSet: (v: Json | undefined) => void }) {
-  const wide = p.kind === "sheet" || (p.kind === "text" && (p.name === "query" || p.name === "range"));
+function ParamControl({
+  p,
+  value,
+  rows,
+  loading,
+  onSet,
+}: {
+  p: dashboard.SourceParam;
+  value: Json | undefined;
+  rows: Array<{
+    source: string;
+    label: string;
+    args?: Record<string, unknown>;
+  }>;
+  loading: boolean;
+  onSet: (v: Json | undefined) => void;
+}) {
+  const wide =
+    p.kind === "sheet" ||
+    (p.kind === "text" && (p.name === "query" || p.name === "range"));
   const label = <span className="text-meta text-sol-text-dim">{p.label}</span>;
   if (p.kind === "bool") {
     return (
       <label className="col-span-2 flex items-center gap-2 text-sm text-sol-text-secondary">
-        <input type="checkbox" checked={value !== false} onChange={(e) => onSet(e.target.checked ? undefined : false)} className="accent-[var(--sol-blue)]" />
+        <input
+          type="checkbox"
+          checked={value !== false}
+          onChange={(e) => onSet(e.target.checked ? undefined : false)}
+          className="accent-[var(--sol-blue)]"
+        />
         {p.label}
       </label>
     );
@@ -63,7 +122,11 @@ function ParamControl({ p, value, rows, loading, onSet }: { p: dashboard.SourceP
     return (
       <label className="block space-y-1 min-w-0">
         {label}
-        <select value={String(value ?? p.options?.[0] ?? "")} onChange={(e) => onSet(e.target.value)} className={`${fieldCls} pr-6`}>
+        <select
+          value={String(value ?? p.options?.[0] ?? "")}
+          onChange={(e) => onSet(e.target.value)}
+          className={`${fieldCls} pr-6`}
+        >
           {p.options?.map((o) => (
             <option key={o} value={o}>
               {o.replace(/_/g, " ")}
@@ -75,14 +138,31 @@ function ParamControl({ p, value, rows, loading, onSet }: { p: dashboard.SourceP
   }
   if (p.kind === "sheet" || p.kind === "watch") {
     const want = p.kind === "sheet" ? "sheet" : "metric";
-    const opts = rows.filter((r) => r.source === want).map((r) => ({ id: String(p.kind === "sheet" ? r.args?.doc : r.args?.watch), label: r.label }));
+    const opts = rows
+      .filter((r) => r.source === want)
+      .map((r) => ({
+        id: String(p.kind === "sheet" ? r.args?.doc : r.args?.watch),
+        label: r.label,
+      }));
     const v = String(value ?? "");
     return (
       <label className={`block space-y-1 min-w-0 ${wide ? "col-span-2" : ""}`}>
         {label}
-        <select value={v} onChange={(e) => onSet(e.target.value || undefined)} className={`${fieldCls} pr-6`}>
-          <option value="">{opts.length ? "Pick one" : loading ? "Loading…" : "None in this workspace"}</option>
-          {v && !opts.some((o) => o.id === v) ? <option value={v}>{v}</option> : null}
+        <select
+          value={v}
+          onChange={(e) => onSet(e.target.value || undefined)}
+          className={`${fieldCls} pr-6`}
+        >
+          <option value="">
+            {opts.length
+              ? "Pick one"
+              : loading
+                ? "Loading…"
+                : "None in this workspace"}
+          </option>
+          {v && !opts.some((o) => o.id === v) ? (
+            <option value={v}>{v}</option>
+          ) : null}
           {opts.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -100,17 +180,38 @@ function ParamControl({ p, value, rows, loading, onSet }: { p: dashboard.SourceP
         placeholder={p.placeholder}
         numeric={p.kind === "days"}
         max={p.max}
-        onCommit={(t) => onSet(p.kind === "days" ? (t ? Number(t) : undefined) : t || undefined)}
+        onCommit={(t) =>
+          onSet(
+            p.kind === "days" ? (t ? Number(t) : undefined) : t || undefined,
+          )
+        }
       />
     </label>
   );
 }
 
 /** A text field that writes on blur or Enter, so typing stays cheap; a days field takes whole numbers only. */
-function Committed({ value, placeholder, numeric, max, onCommit }: { value: string; placeholder?: string; numeric?: boolean; max?: number; onCommit: (v: string) => void }) {
+function Committed({
+  value,
+  placeholder,
+  numeric,
+  max,
+  onCommit,
+}: {
+  value: string;
+  placeholder?: string;
+  numeric?: boolean;
+  max?: number;
+  onCommit: (v: string) => void;
+}) {
   const { draft, setDraft, onFocus, onBlur } = useCommittedDraft(value);
   // A window the source can't serve is refused here, where it is typed, not after the save.
-  const bad = numeric && draft !== "" && (!/^\d{1,3}$/.test(draft) || Number(draft) < 1 || (max !== undefined && Number(draft) > max));
+  const bad =
+    numeric &&
+    draft !== "" &&
+    (!/^\d{1,3}$/.test(draft) ||
+      Number(draft) < 1 ||
+      (max !== undefined && Number(draft) > max));
   return (
     <input
       value={draft}
@@ -127,14 +228,22 @@ function Committed({ value, placeholder, numeric, max, onCommit }: { value: stri
         if (!bad && draft !== value) onCommit(draft);
       }}
       title={bad && max !== undefined ? `1 to ${max} days` : undefined}
-      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      onKeyDown={(e) =>
+        e.key === "Enter" && (e.target as HTMLInputElement).blur()
+      }
       aria-invalid={bad || undefined}
       className={`${fieldCls} ${bad ? "border-sol-red/70" : ""}`}
     />
   );
 }
 
-function RawArgs({ args, onChange }: { args: Args; onChange: (next: Args) => void }) {
+function RawArgs({
+  args,
+  onChange,
+}: {
+  args: Args;
+  onChange: (next: Args) => void;
+}) {
   const shown = JSON.stringify(args);
   const { draft, setDraft, onFocus, onBlur } = useCommittedDraft(shown);
   let error: string | null = null;

@@ -6,11 +6,22 @@
 // daemon never answers expires here, at read time, from when it was asked.
 
 import { useInboxStore, type AccountSwitchArgs } from "../store/inboxStore";
-import { isParkedDispatchError, isRefusedDispatchError } from "../store/mutativeMiddleware";
+import {
+  isParkedDispatchError,
+  isRefusedDispatchError,
+} from "../store/mutativeMiddleware";
 import { MACHINE_SWITCH_TIMEOUT_MS } from "./machineAccountSwitch";
 import { dispatchRefusalReason } from "./dispatchRefusal";
 
-export type SessionCommandKind = "restart" | "repair" | "move" | "switch" | "line_edit" | "interrupt" | "backend" | "rewind";
+export type SessionCommandKind =
+  | "restart"
+  | "repair"
+  | "move"
+  | "switch"
+  | "line_edit"
+  | "interrupt"
+  | "backend"
+  | "rewind";
 
 export type SessionCommandRow = {
   _id: string;
@@ -43,7 +54,15 @@ export type SessionCommandRow = {
 };
 
 // The store actions whose first argument is a sessionCommands request id.
-export const SESSION_COMMAND_ACTIONS = new Set(["hibernateSession", "restartSession", "moveSessionToDevice", "requestAccountSwitch", "editLineProfile", "switchClaudeBackend", "rewindFiles"]);
+export const SESSION_COMMAND_ACTIONS = new Set([
+  "hibernateSession",
+  "restartSession",
+  "moveSessionToDevice",
+  "requestAccountSwitch",
+  "editLineProfile",
+  "switchClaudeBackend",
+  "rewindFiles",
+]);
 
 // Marks a row the server refused outright (no daemon will ever answer it).
 export const DISPATCH_REFUSED = "dispatch_refused";
@@ -65,7 +84,10 @@ export const BACKEND_SWITCH_GIVE_UP_MS = 5 * 60_000;
 /** A request id the server accepts (1-128 of [A-Za-z0-9_-]). */
 export function newRequestId(): string {
   const uuid = (globalThis as any).crypto?.randomUUID?.();
-  return uuid ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+  return (
+    uuid ??
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
+  );
 }
 
 /** When the gesture began: a repair carries its restart's click. */
@@ -76,32 +98,47 @@ export function sessionCommandStartedAt(row: SessionCommandRow): number {
 /** When a row that never settled stops counting as in flight. */
 export function sessionCommandDeadline(row: SessionCommandRow): number {
   const budget =
-    row.kind === "restart" || row.kind === "repair" ? RESTART_GIVE_UP_AFTER_MS
-    : row.kind === "move" ? (row.to_remote ? MOVE_GIVE_UP_REMOTE_MS : MOVE_GIVE_UP_LOCAL_MS)
-    : row.kind === "switch" ? MACHINE_SWITCH_TIMEOUT_MS
-    : row.kind === "backend" ? BACKEND_SWITCH_GIVE_UP_MS
-    : Infinity;
+    row.kind === "restart" || row.kind === "repair"
+      ? RESTART_GIVE_UP_AFTER_MS
+      : row.kind === "move"
+        ? row.to_remote
+          ? MOVE_GIVE_UP_REMOTE_MS
+          : MOVE_GIVE_UP_LOCAL_MS
+        : row.kind === "switch"
+          ? MACHINE_SWITCH_TIMEOUT_MS
+          : row.kind === "backend"
+            ? BACKEND_SWITCH_GIVE_UP_MS
+            : Infinity;
   return sessionCommandStartedAt(row) + budget;
 }
 
-export function sessionCommandTimedOut(row: SessionCommandRow, now: number): boolean {
+export function sessionCommandTimedOut(
+  row: SessionCommandRow,
+  now: number,
+): boolean {
   return now >= sessionCommandDeadline(row);
 }
 
 /** The newest gesture row matching `pred` (rows an action painted carry a kind). */
 export function latestSessionCommand(
-  rows: Record<string, SessionCommandRow> | SessionCommandRow[] | undefined | null,
+  rows:
+    | Record<string, SessionCommandRow>
+    | SessionCommandRow[]
+    | undefined
+    | null,
   pred: (row: SessionCommandRow) => boolean,
 ): SessionCommandRow | undefined {
   let best: SessionCommandRow | undefined;
   for (const row of Array.isArray(rows) ? rows : Object.values(rows ?? {})) {
     if (!row?.kind || !pred(row)) continue;
-    if (!best || sessionCommandStartedAt(row) > sessionCommandStartedAt(best)) best = row;
+    if (!best || sessionCommandStartedAt(row) > sessionCommandStartedAt(best))
+      best = row;
   }
   return best;
 }
 
-export const isRestartRow = (row: SessionCommandRow) => row.kind === "restart" || row.kind === "repair";
+export const isRestartRow = (row: SessionCommandRow) =>
+  row.kind === "restart" || row.kind === "repair";
 
 /** One conversation's restart/move pipeline rows since `since` (10s
  *  of client/server clock skew allowed), oldest first. */
@@ -111,14 +148,26 @@ export function conversationCommandRows(
   since = 0,
 ): SessionCommandRow[] {
   return Object.values(rows ?? {})
-    .filter((row) => row.conversation_id === conversationId && row.requested_at >= since - 10_000)
+    .filter(
+      (row) =>
+        row.conversation_id === conversationId &&
+        row.requested_at >= since - 10_000,
+    )
     .sort((a, b) => a.requested_at - b.requested_at);
 }
 
 /** A restart still waiting on its daemon (the inbox row's "restarting"):
  *  asked, not yet reported, not refused, not past its deadline. */
-export function restartPending(row: SessionCommandRow | undefined, now: number): boolean {
-  return !!row && isRestartRow(row) && !row.executed_at && !sessionCommandTimedOut(row, now);
+export function restartPending(
+  row: SessionCommandRow | undefined,
+  now: number,
+): boolean {
+  return (
+    !!row &&
+    isRestartRow(row) &&
+    !row.executed_at &&
+    !sessionCommandTimedOut(row, now)
+  );
 }
 
 /**
@@ -127,17 +176,31 @@ export function restartPending(row: SessionCommandRow | undefined, now: number):
  * spinning. A parked or transient failure stays in flight; the outbox
  * re-drives it and the echo settles it.
  */
-export function recordSessionCommandDispatchError(requestId: string, error: unknown) {
+export function recordSessionCommandDispatchError(
+  requestId: string,
+  error: unknown,
+) {
   if (!isRefusedDispatchError(error)) return;
-  settleSessionCommand(requestId, { error: String(error), result: DISPATCH_REFUSED });
+  settleSessionCommand(requestId, {
+    error: String(error),
+    result: DISPATCH_REFUSED,
+  });
 }
 
 /** Settle a row no daemon will report on (refused, or nothing was queued). */
-export function settleSessionCommand(requestId: string, outcome: { result: string; error?: string | null }) {
+export function settleSessionCommand(
+  requestId: string,
+  outcome: { result: string; error?: string | null },
+) {
   const store = useInboxStore.getState();
   const row = store.sessionCommands[requestId];
   if (row && !row.executed_at) {
-    store.syncRecord("sessionCommands", requestId, { ...row, error: outcome.error ?? null, result: outcome.result, executed_at: Date.now() });
+    store.syncRecord("sessionCommands", requestId, {
+      ...row,
+      error: outcome.error ?? null,
+      result: outcome.result,
+      executed_at: Date.now(),
+    });
   }
 }
 
@@ -149,17 +212,33 @@ export function settleSessionCommand(requestId: string, outcome: { result: strin
  * surface calls this, so the inbox row and the header see any of them. A
  * refusal ends the row failed; the promise still rejects for the caller.
  */
-export function requestSessionRestart(conversationId: string, ghost?: Record<string, unknown>, repair = false): Promise<any> {
+export function requestSessionRestart(
+  conversationId: string,
+  ghost?: Record<string, unknown>,
+  repair = false,
+): Promise<any> {
   const requestId = newRequestId();
-  return useInboxStore.getState().restartSession(requestId, conversationId, ghost, repair).catch((error: unknown) => {
-    if (!isParkedDispatchError(error)) recordSessionCommandDispatchError(requestId, error);
-    throw error;
-  });
+  return useInboxStore
+    .getState()
+    .restartSession(requestId, conversationId, ghost, repair)
+    .catch((error: unknown) => {
+      if (!isParkedDispatchError(error))
+        recordSessionCommandDispatchError(requestId, error);
+      throw error;
+    });
 }
 
 /** The conversation's newest restart/repair row. */
-export function latestRestartRow(rows: Record<string, SessionCommandRow> | undefined | null, conversationId: string | undefined) {
-  return conversationId ? latestSessionCommand(rows, (r) => r.conversation_id === conversationId && isRestartRow(r)) : undefined;
+export function latestRestartRow(
+  rows: Record<string, SessionCommandRow> | undefined | null,
+  conversationId: string | undefined,
+) {
+  return conversationId
+    ? latestSessionCommand(
+        rows,
+        (r) => r.conversation_id === conversationId && isRestartRow(r),
+      )
+    : undefined;
 }
 
 // ── Stops (Escape) ───────────────────────────────────────────────────────────
@@ -171,8 +250,16 @@ export const INTERRUPT_ACK_MS = 30_000;
 // How long a verdict stays up. Past it the session's own status speaks again.
 export const INTERRUPT_VERDICT_LINGER_MS = 5 * 60_000;
 
-export function latestInterruptRow(rows: Record<string, SessionCommandRow> | undefined | null, conversationId: string | undefined) {
-  return conversationId ? latestSessionCommand(rows, (r) => r.conversation_id === conversationId && r.kind === "interrupt") : undefined;
+export function latestInterruptRow(
+  rows: Record<string, SessionCommandRow> | undefined | null,
+  conversationId: string | undefined,
+) {
+  return conversationId
+    ? latestSessionCommand(
+        rows,
+        (r) => r.conversation_id === conversationId && r.kind === "interrupt",
+      )
+    : undefined;
 }
 
 /**
@@ -182,9 +269,14 @@ export function latestInterruptRow(rows: Record<string, SessionCommandRow> | und
  * session needs a restart. Null while it is in flight, after it landed, or
  * once the verdict has lingered long enough.
  */
-export function interruptVerdict(row: SessionCommandRow | undefined, now: number): "undelivered" | "failed" | null {
-  if (!row || now - row.requested_at >= INTERRUPT_VERDICT_LINGER_MS) return null;
-  if (row.result === DISPATCH_REFUSED || row.result === "escape_stale_press") return "undelivered";
+export function interruptVerdict(
+  row: SessionCommandRow | undefined,
+  now: number,
+): "undelivered" | "failed" | null {
+  if (!row || now - row.requested_at >= INTERRUPT_VERDICT_LINGER_MS)
+    return null;
+  if (row.result === DISPATCH_REFUSED || row.result === "escape_stale_press")
+    return "undelivered";
   if (row.executed_at) return row.error ? "failed" : null;
   return now - row.requested_at >= INTERRUPT_ACK_MS ? "undelivered" : null;
 }
@@ -192,25 +284,40 @@ export function interruptVerdict(row: SessionCommandRow | undefined, now: number
 // ── Device moves ─────────────────────────────────────────────────────────────
 
 /** Destination of a move: a device by id + the display name to narrate with. */
-export type MoveTarget = { device_id: string; is_remote: boolean; label: string };
+export type MoveTarget = {
+  device_id: string;
+  is_remote: boolean;
+  label: string;
+};
 
 /**
  * "Run here" / "Move to <device>": paints the move's row and dispatches it. A
  * refusal ends the row failed (and, on web, raises the dispatch-failure
  * toast); the promise is the caller's to toast on a platform without it.
  */
-export function requestSessionMove(conversationId: string, target: MoveTarget): Promise<unknown> {
+export function requestSessionMove(
+  conversationId: string,
+  target: MoveTarget,
+): Promise<unknown> {
   // On a fork/new-session stub page the id is the client-minted session UUID
   // until the create resolves; follow the stub→real mapping when it exists.
   // The server accepts any ref, so an unmapped UUID still resolves later.
   const store = useInboxStore.getState();
   const convId = store.getConvexId(conversationId) ?? conversationId;
   const requestId = newRequestId();
-  return store.moveSessionToDevice(requestId, convId, target.device_id, target.is_remote, target.label).catch((error: unknown) => {
-    if (isParkedDispatchError(error)) return;
-    recordSessionCommandDispatchError(requestId, error);
-    throw error;
-  });
+  return store
+    .moveSessionToDevice(
+      requestId,
+      convId,
+      target.device_id,
+      target.is_remote,
+      target.label,
+    )
+    .catch((error: unknown) => {
+      if (isParkedDispatchError(error)) return;
+      recordSessionCommandDispatchError(requestId, error);
+      throw error;
+    });
 }
 
 // How long a confirmed move's green line and a failed move's retry stay up.
@@ -228,43 +335,82 @@ export function deviceMoveStatusOf(
   gesture: SessionCommandRow | undefined,
   rows: SessionCommandRow[],
   now: number,
-): { phase: DeviceMovePhase; stage: { label: string; tone: "active" | "warn" | "error" } | null; failure: string | null; resumed?: SessionCommandRow } {
+): {
+  phase: DeviceMovePhase;
+  stage: { label: string; tone: "active" | "warn" | "error" } | null;
+  failure: string | null;
+  resumed?: SessionCommandRow;
+} {
   const idle = { phase: "idle" as const, stage: null, failure: null };
   if (!gesture) return idle;
   const dest = gesture.to_label ?? gesture.to_device_id ?? "the other device";
   const failed = (failure: string) =>
-    now < sessionCommandDeadline(gesture) + MOVE_FAILED_LINGER_MS ? { phase: "failed" as const, stage: null, failure } : idle;
-  if (gesture.confirmed_at) return now - gesture.confirmed_at < MOVE_RESTORED_LINGER_MS ? { phase: "restored", stage: null, failure: null } : idle;
-  if (gesture.result === DISPATCH_REFUSED) return failed(`Move to ${dest} failed · ${dispatchRefusalReason(gesture.error ?? "")}`);
-  const since = conversationCommandRows(Object.fromEntries(rows.map((r) => [r._id, r])), gesture.conversation_id ?? "", gesture.requested_at);
+    now < sessionCommandDeadline(gesture) + MOVE_FAILED_LINGER_MS
+      ? { phase: "failed" as const, stage: null, failure }
+      : idle;
+  if (gesture.confirmed_at)
+    return now - gesture.confirmed_at < MOVE_RESTORED_LINGER_MS
+      ? { phase: "restored", stage: null, failure: null }
+      : idle;
+  if (gesture.result === DISPATCH_REFUSED)
+    return failed(
+      `Move to ${dest} failed · ${dispatchRefusalReason(gesture.error ?? "")}`,
+    );
+  const since = conversationCommandRows(
+    Object.fromEntries(rows.map((r) => [r._id, r])),
+    gesture.conversation_id ?? "",
+    gesture.requested_at,
+  );
   const last = [...since].reverse();
   const resume = last.find((c) => c.command === "resume_session");
   const mv = last.find((c) => c.command === "move_to_device");
   if (resume?.executed_at) {
     if (resume.error) return failed(`Move failed: ${resume.error}`);
-    return { phase: "restarting", stage: { label: `Starting on ${dest}…`, tone: "active" }, failure: null, resumed: resume };
+    return {
+      phase: "restarting",
+      stage: { label: `Starting on ${dest}…`, tone: "active" },
+      failure: null,
+      resumed: resume,
+    };
   }
   if (mv?.executed_at && mv.error) return failed(`Move failed: ${mv.error}`);
-  if (sessionCommandTimedOut(gesture, now)) return failed("Move didn't finish — a device may be offline. Check its daemon, or try again.");
+  if (sessionCommandTimedOut(gesture, now))
+    return failed(
+      "Move didn't finish — a device may be offline. Check its daemon, or try again.",
+    );
   const age = now - gesture.requested_at;
-  const stage =
-    mv?.executed_at
-      ? { label: `Transferred — starting on ${dest}…`, tone: "active" as const }
-      : !since.some((c) => c.executed_at) && age > COMMAND_UNCLAIMED_WARN_MS
-        ? { label: "Waiting for the daemon to pick this up — is the source device online?", tone: "warn" as const }
-        : mv
-          ? { label: `Transferring session to ${dest} — this can take a few minutes…`, tone: "active" as const }
-          : resume
-            ? { label: `Starting on ${dest}…`, tone: "active" as const }
-            : { label: `Moving session to ${dest}…`, tone: "active" as const };
+  const stage = mv?.executed_at
+    ? { label: `Transferred — starting on ${dest}…`, tone: "active" as const }
+    : !since.some((c) => c.executed_at) && age > COMMAND_UNCLAIMED_WARN_MS
+      ? {
+          label:
+            "Waiting for the daemon to pick this up — is the source device online?",
+          tone: "warn" as const,
+        }
+      : mv
+        ? {
+            label: `Transferring session to ${dest} — this can take a few minutes…`,
+            tone: "active" as const,
+          }
+        : resume
+          ? { label: `Starting on ${dest}…`, tone: "active" as const }
+          : { label: `Moving session to ${dest}…`, tone: "active" as const };
   return { phase: "restarting", stage, failure: null };
 }
 
 // ── Account switches ─────────────────────────────────────────────────────────
 
 /** A switch row still waiting: asked, not reported, not past its deadline. */
-export function switchPending(row: SessionCommandRow | undefined, now: number): boolean {
-  return !!row && row.kind === "switch" && !row.executed_at && !sessionCommandTimedOut(row, now);
+export function switchPending(
+  row: SessionCommandRow | undefined,
+  now: number,
+): boolean {
+  return (
+    !!row &&
+    row.kind === "switch" &&
+    !row.executed_at &&
+    !sessionCommandTimedOut(row, now)
+  );
 }
 
 /**
@@ -274,25 +420,49 @@ export function switchPending(row: SessionCommandRow | undefined, now: number): 
  * plain continue) settles on the reply, since no daemon will report it. A
  * swap nobody queued is a failure. The reply is the caller's for its toast.
  */
-export function requestAccountSwitchCommand(args: AccountSwitchArgs, intent: { profile?: string; email?: string } = {}): Promise<any> {
+export function requestAccountSwitchCommand(
+  args: AccountSwitchArgs,
+  intent: { profile?: string; email?: string } = {},
+): Promise<any> {
   const requestId = newRequestId();
-  return useInboxStore.getState().requestAccountSwitch(requestId, args, { profile: intent.profile ?? args.profile, email: intent.email ?? args.email })
-    .then((res: any) => {
-      if (!res?.command_ids?.length) {
-        if (args.profile || args.email) settleSessionCommand(requestId, { result: "no_command", error: "No daemon accepted the account switch" });
-        else settleSessionCommand(requestId, { result: "continued" });
-      }
-      return res;
-    }, (error: unknown) => {
-      if (!isParkedDispatchError(error)) recordSessionCommandDispatchError(requestId, error);
-      throw error;
-    });
+  return useInboxStore
+    .getState()
+    .requestAccountSwitch(requestId, args, {
+      profile: intent.profile ?? args.profile,
+      email: intent.email ?? args.email,
+    })
+    .then(
+      (res: any) => {
+        if (!res?.command_ids?.length) {
+          if (args.profile || args.email)
+            settleSessionCommand(requestId, {
+              result: "no_command",
+              error: "No daemon accepted the account switch",
+            });
+          else settleSessionCommand(requestId, { result: "continued" });
+        }
+        return res;
+      },
+      (error: unknown) => {
+        if (!isParkedDispatchError(error))
+          recordSessionCommandDispatchError(requestId, error);
+        throw error;
+      },
+    );
 }
 
 // ── Claude backend (tmux / Agent SDK) ───────────────────────────────────────
 
-export function latestBackendRow(rows: Record<string, SessionCommandRow> | undefined | null, conversationId: string | undefined) {
-  return conversationId ? latestSessionCommand(rows, (r) => r.conversation_id === conversationId && r.kind === "backend") : undefined;
+export function latestBackendRow(
+  rows: Record<string, SessionCommandRow> | undefined | null,
+  conversationId: string | undefined,
+) {
+  return conversationId
+    ? latestSessionCommand(
+        rows,
+        (r) => r.conversation_id === conversationId && r.kind === "backend",
+      )
+    : undefined;
 }
 
 // How long a refused or failed switch keeps saying why.
@@ -303,37 +473,71 @@ export const BACKEND_VERDICT_LINGER_MS = 2 * 60_000;
  * deadline), failed with the daemon's reason (or no daemon took it), or
  * nothing to say (it landed, or its verdict is old).
  */
-export function backendSwitchState(row: SessionCommandRow | undefined, actual: "sdk" | "tmux", now: number): { moving: "sdk" | "tmux" } | { failed: string } | null {
+export function backendSwitchState(
+  row: SessionCommandRow | undefined,
+  actual: "sdk" | "tmux",
+  now: number,
+): { moving: "sdk" | "tmux" } | { failed: string } | null {
   if (!row?.backend) return null;
   if (!row.executed_at) {
     if (!sessionCommandTimedOut(row, now)) return { moving: row.backend };
-    return now - sessionCommandDeadline(row) < BACKEND_VERDICT_LINGER_MS ? { failed: "The switch never reported back; check where the session runs" } : null;
+    return now - sessionCommandDeadline(row) < BACKEND_VERDICT_LINGER_MS
+      ? {
+          failed:
+            "The switch never reported back; check where the session runs",
+        }
+      : null;
   }
   if (now - row.executed_at >= BACKEND_VERDICT_LINGER_MS) return null;
-  if (row.error) return { failed: row.result === DISPATCH_REFUSED ? "The switch was refused" : row.error };
+  if (row.error)
+    return {
+      failed:
+        row.result === DISPATCH_REFUSED ? "The switch was refused" : row.error,
+    };
   const landed = landedOn(row);
-  if (landed.fellBack) return { failed: `The SDK host did not start, so it runs in the terminal: ${landed.fellBack}` };
+  if (landed.fellBack)
+    return {
+      failed: `The SDK host did not start, so it runs in the terminal: ${landed.fellBack}`,
+    };
   // Landed: the session's own registration says where it runs a moment later.
-  return actual !== landed.backend && now - row.executed_at < BACKEND_FACT_LAG_MS ? { moving: landed.backend } : null;
+  return actual !== landed.backend &&
+    now - row.executed_at < BACKEND_FACT_LAG_MS
+    ? { moving: landed.backend }
+    : null;
 }
 
 // How long a landed switch waits for the session's backend fact to follow.
 const BACKEND_FACT_LAG_MS = 20_000;
 
 /** Where a landed switch put the session: its target, or tmux when the SDK host did not come up. */
-function landedOn(row: SessionCommandRow): { backend: "sdk" | "tmux"; fellBack?: string } {
+function landedOn(row: SessionCommandRow): {
+  backend: "sdk" | "tmux";
+  fellBack?: string;
+} {
   try {
     const r = JSON.parse(row.result ?? "{}");
-    if (r.backend === "sdk" || r.backend === "tmux") return { backend: r.backend, ...(typeof r.fell_back === "string" ? { fellBack: r.fell_back } : {}) };
+    if (r.backend === "sdk" || r.backend === "tmux")
+      return {
+        backend: r.backend,
+        ...(typeof r.fell_back === "string" ? { fellBack: r.fell_back } : {}),
+      };
   } catch {}
   return { backend: row.backend! };
 }
 
 /** Switch a Claude conversation's backend: paints the row and dispatches it. */
-export function requestBackendSwitch(conversationId: string, backend: "sdk" | "tmux", interrupt: boolean): Promise<unknown> {
+export function requestBackendSwitch(
+  conversationId: string,
+  backend: "sdk" | "tmux",
+  interrupt: boolean,
+): Promise<unknown> {
   const requestId = newRequestId();
-  return useInboxStore.getState().switchClaudeBackend(requestId, conversationId, backend, interrupt).catch((error: unknown) => {
-    if (!isParkedDispatchError(error)) recordSessionCommandDispatchError(requestId, error);
-    throw error;
-  });
+  return useInboxStore
+    .getState()
+    .switchClaudeBackend(requestId, conversationId, backend, interrupt)
+    .catch((error: unknown) => {
+      if (!isParkedDispatchError(error))
+        recordSessionCommandDispatchError(requestId, error);
+      throw error;
+    });
 }

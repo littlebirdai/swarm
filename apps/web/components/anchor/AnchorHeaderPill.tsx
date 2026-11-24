@@ -11,9 +11,14 @@ import { useInboxStore } from "../../store/inboxStore";
 import { useAnchorIdentity } from "../../hooks/useSyncAnchors";
 import { AnchorScopePill } from "./AnchorIdentity";
 
-export function AnchorHeaderFact({ conversationId }: { conversationId: string }) {
+export function AnchorHeaderFact({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
   const anchorId = useInboxStore((s) => {
-    const row: any = s.sessions[conversationId] ?? s.conversations[conversationId];
+    const row: any =
+      s.sessions[conversationId] ?? s.conversations[conversationId];
     return (row?.anchor_id as string | null | undefined) ?? null;
   });
   const identity = useAnchorIdentity(anchorId);

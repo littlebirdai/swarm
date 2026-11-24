@@ -31,7 +31,10 @@ type SendState =
   | { kind: "error"; message: string }
   | { kind: "full" };
 
-function findTeamRole(teams: Array<{ _id?: string; role?: string } | null> | undefined, teamId: string) {
+function findTeamRole(
+  teams: Array<{ _id?: string; role?: string } | null> | undefined,
+  teamId: string,
+) {
   return teams?.find((t) => t?._id === teamId)?.role;
 }
 
@@ -42,13 +45,21 @@ function findTeamRole(teams: Array<{ _id?: string; role?: string } | null> | und
  */
 export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
   const { user } = useCurrentUser();
-  const teamRole = findTeamRole(useTrackedStore([(s) => findTeamRole(s.teams, teamId)]).teams, teamId);
-  const { data: team, error: teamError, retry: retryTeam } = useQueryNoThrow(api.teams.getTeam, { team_id: teamId });
+  const teamRole = findTeamRole(
+    useTrackedStore([(s) => findTeamRole(s.teams, teamId)]).teams,
+    teamId,
+  );
+  const {
+    data: team,
+    error: teamError,
+    retry: retryTeam,
+  } = useQueryNoThrow(api.teams.getTeam, { team_id: teamId });
   const regenerateInviteCode = useMutation(api.teams.regenerateInviteCode);
   const sendInviteEmail = useMutation(api.teams.sendInviteEmail);
   const seats = useSeatState(teamId);
   // Starter with every free seat taken: a new invite needs Pro first.
-  const seatsFull = !!seats && (seats.full || seats.lapsed) && !seats.grandfathered;
+  const seatsFull =
+    !!seats && (seats.full || seats.lapsed) && !seats.grandfathered;
 
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
@@ -57,8 +68,12 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [sendState, setSendState] = useState<SendState>({ kind: "idle" });
 
-  const inviteUrl = team?.invite_code ? `https://codecast.sh/join/${team.invite_code}` : "";
-  const isExpired = !!(team?.invite_code_expires_at && Date.now() > team.invite_code_expires_at);
+  const inviteUrl = team?.invite_code
+    ? `https://codecast.sh/join/${team.invite_code}`
+    : "";
+  const isExpired = !!(
+    team?.invite_code_expires_at && Date.now() > team.invite_code_expires_at
+  );
   const isAdmin = teamRole ? teamRole === "admin" : user?.role === "admin";
   const page = variant === "page";
 
@@ -84,7 +99,10 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
     setIsRegenerating(true);
     setRegenError(false);
     try {
-      await regenerateInviteCode({ team_id: teamId, requesting_user_id: user._id });
+      await regenerateInviteCode({
+        team_id: teamId,
+        requesting_user_id: user._id,
+      });
     } catch {
       // The old link keeps working on failure, so the message only has to
       // say the new one did not happen.
@@ -134,18 +152,25 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
       {seats && <SeatPlanRow teamId={teamId} state={seats} />}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="team-invite-link" className="text-sol-text">Invite link</Label>
+          <Label htmlFor="team-invite-link" className="text-sol-text">
+            Invite link
+          </Label>
           <span className="flex items-center gap-2 text-xs">
             {/* aria-live: after New link runs, the fresh expiry is the only
                 text that changes, so announcing it confirms the action. */}
-            <span aria-live="polite" className={isExpired ? "text-sol-red" : "text-sol-text-muted"}>
+            <span
+              aria-live="polite"
+              className={isExpired ? "text-sol-red" : "text-sol-text-muted"}
+            >
               {team ? formatInviteExpiry(team.invite_code_expires_at) : ""}
             </span>
             {/* Regenerate is a quiet text action next to the expiry it
                 changes, so the panel keeps one accent action: Copy. */}
             {isAdmin && (
               <>
-                <span aria-hidden="true" className="text-sol-border">·</span>
+                <span aria-hidden="true" className="text-sol-border">
+                  ·
+                </span>
                 <button
                   type="button"
                   onClick={handleRegenerate}
@@ -159,7 +184,8 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
                   {isRegenerating ? "Making a new link" : "New link"}
                 </button>
                 <span id="team-invite-regen-note" className="sr-only">
-                  Makes a new invite link that lasts 7 days. The old one stops working.
+                  Makes a new invite link that lasts 7 days. The old one stops
+                  working.
                 </span>
               </>
             )}
@@ -168,8 +194,13 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
         {teamError && !team ? (
           // The link never arrived (offline, server error). Say so and offer
           // one retry; the email form below still works without it.
-          <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-sol-red/20 bg-sol-red/10 px-3 py-2.5">
-            <p className="text-sm text-sol-red">Could not load the invite link.</p>
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-md border border-sol-red/20 bg-sol-red/10 px-3 py-2.5"
+          >
+            <p className="text-sm text-sol-red">
+              Could not load the invite link.
+            </p>
             <button
               type="button"
               onClick={retryTeam}
@@ -179,38 +210,41 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
             </button>
           </div>
         ) : (
-        <div className="flex gap-2">
-          <Input
-            id="team-invite-link"
-            value={inviteUrl}
-            readOnly
-            // Focus selects the whole link, so a keyboard user can copy it
-            // with one chord instead of selecting a long URL by hand.
-            onFocus={(e) => e.currentTarget.select()}
-            placeholder={team ? "" : "Making your invite link"}
-            className={`font-mono ${page ? "text-base h-11" : "text-sm"} bg-sol-bg-alt border-sol-border text-sol-text ${isExpired ? "opacity-50" : ""}`}
-          />
-          {/* Copy is the payoff action, so it carries the accent. The
+          <div className="flex gap-2">
+            <Input
+              id="team-invite-link"
+              value={inviteUrl}
+              readOnly
+              // Focus selects the whole link, so a keyboard user can copy it
+              // with one chord instead of selecting a long URL by hand.
+              onFocus={(e) => e.currentTarget.select()}
+              placeholder={team ? "" : "Making your invite link"}
+              className={`font-mono ${page ? "text-base h-11" : "text-sm"} bg-sol-bg-alt border-sol-border text-sol-text ${isExpired ? "opacity-50" : ""}`}
+            />
+            {/* Copy is the payoff action, so it carries the accent. The
               confirmation swaps in a check with a quick pop. */}
-          <Button
-            onClick={handleCopy}
-            disabled={isExpired || !inviteUrl}
-            aria-live="polite"
-            className={`tf-primary ${page ? "h-11 px-5" : ""}`}
-          >
-            {copied ? (
-              <span className="tf-pop inline-flex items-center gap-1.5">
-                <Check className="w-4 h-4" />
-                Copied
-              </span>
-            ) : (
-              "Copy"
-            )}
-          </Button>
-        </div>
+            <Button
+              onClick={handleCopy}
+              disabled={isExpired || !inviteUrl}
+              aria-live="polite"
+              className={`tf-primary ${page ? "h-11 px-5" : ""}`}
+            >
+              {copied ? (
+                <span className="tf-pop inline-flex items-center gap-1.5">
+                  <Check className="w-4 h-4" />
+                  Copied
+                </span>
+              ) : (
+                "Copy"
+              )}
+            </Button>
+          </div>
         )}
         {/* Persistent for the same reason as the send status below. */}
-        <p aria-live="polite" className={copyFailed ? "text-sm text-sol-red" : "sr-only"}>
+        <p
+          aria-live="polite"
+          className={copyFailed ? "text-sm text-sol-red" : "sr-only"}
+        >
           {copyFailed && (
             <>
               Could not copy. The link is selected; press{" "}
@@ -222,18 +256,27 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
             </>
           )}
         </p>
-        <p aria-live="polite" className={regenError ? "text-sm text-sol-red" : "sr-only"}>
-          {regenError && "Could not make a new link. The current one still works."}
+        <p
+          aria-live="polite"
+          className={regenError ? "text-sm text-sol-red" : "sr-only"}
+        >
+          {regenError &&
+            "Could not make a new link. The current one still works."}
         </p>
         {isExpired && (
           <p className="text-sm text-sol-red">
-            This invite link has expired. {isAdmin ? "Use New link above to make a fresh one." : "Ask an admin to make a new one."}
+            This invite link has expired.{" "}
+            {isAdmin
+              ? "Use New link above to make a fresh one."
+              : "Ask an admin to make a new one."}
           </p>
         )}
       </div>
 
       <div className="pt-3 border-t border-sol-border space-y-2">
-        <Label htmlFor="team-invite-email" className="text-sol-text">Or email an invite</Label>
+        <Label htmlFor="team-invite-email" className="text-sol-text">
+          Or email an invite
+        </Label>
         <form onSubmit={handleSendEmail} className="flex gap-2">
           <Input
             id="team-invite-email"
@@ -250,7 +293,12 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
           <Button
             type="submit"
             variant="outline"
-            disabled={isExpired || seatsFull || !inviteEmail.trim() || sendState.kind === "sending"}
+            disabled={
+              isExpired ||
+              seatsFull ||
+              !inviteEmail.trim() ||
+              sendState.kind === "sending"
+            }
             className={`${page ? "h-11 px-5" : ""} border-sol-border text-sol-text-muted hover:bg-sol-bg-alt`}
           >
             {sendState.kind === "sending" ? "Sending" : "Send"}
@@ -263,7 +311,9 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
         <p
           aria-live="polite"
           className={
-            sendState.kind === "sent" || sendState.kind === "error" || sendState.kind === "full"
+            sendState.kind === "sent" ||
+            sendState.kind === "error" ||
+            sendState.kind === "full"
               ? `text-sm ${sendState.kind === "sent" ? "text-sol-green" : sendState.kind === "full" ? "text-sol-orange" : "text-sol-red"}`
               : "sr-only"
           }
@@ -275,7 +325,8 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
             </span>
           )}
           {sendState.kind === "error" && sendState.message}
-          {sendState.kind === "full" && "No free seats left. Upgrade to Pro to invite more."}
+          {sendState.kind === "full" &&
+            "No free seats left. Upgrade to Pro to invite more."}
         </p>
       </div>
 
@@ -283,7 +334,10 @@ export function InvitePanel({ teamId, variant = "modal" }: InvitePanelProps) {
           done, and the finish action stays in view. */}
       <details className="group pt-3 border-t border-sol-border">
         <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-sm text-sol-text-muted hover:text-sol-text [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-acc)]">
-          <ChevronRight className="w-3.5 h-3.5 transition-transform motion-reduce:transition-none group-open:rotate-90" aria-hidden="true" />
+          <ChevronRight
+            className="w-3.5 h-3.5 transition-transform motion-reduce:transition-none group-open:rotate-90"
+            aria-hidden="true"
+          />
           How invites work
         </summary>
         <ol className="mt-2.5 text-sm text-sol-text-muted space-y-2.5">

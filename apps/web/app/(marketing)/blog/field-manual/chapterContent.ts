@@ -22,15 +22,15 @@ const CONTENT: Record<string, string> = {
   "the-inbox": theInbox,
   "switching-agents": switchingAgents,
   "team-memory": teamMemory,
-  "decisions": decisions,
-  "triggers": triggers,
-  "publish": publish,
+  decisions: decisions,
+  triggers: triggers,
+  publish: publish,
   "pull-requests": pullRequests,
-  "browser": browser,
-  "computer": computer,
+  browser: browser,
+  computer: computer,
   "cloud-hosts": cloudHosts,
-  "calls": calls,
-  "mods": mods,
+  calls: calls,
+  mods: mods,
 };
 
 export function getChapterContent(slug: string): string | undefined {

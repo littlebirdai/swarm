@@ -1,6 +1,9 @@
 import type { ComponentType } from "react";
 import { useInboxStore } from "../store/inboxStore";
-import { selectChannelReadMarker, type ChatRailChannel } from "../store/chatSlice";
+import {
+  selectChannelReadMarker,
+  type ChatRailChannel,
+} from "../store/chatSlice";
 import type { ThreadInboxRow } from "../store/threadTypes";
 import type { InboxSession } from "../store/inboxStore";
 import {
@@ -11,15 +14,45 @@ import {
   type ThreadCardModel,
   type ThreadKindMeta,
 } from "./threadCards";
-import { ChatExpanded, ChatGlyph, ChatLabel, ChatMeta } from "../components/threads/kinds/ChatThreadKind";
-import { DmExpanded, DmGlyph, DmLabel } from "../components/threads/kinds/DmKind";
-import { CommentExpanded, CommentLabel, CommentMeta } from "../components/threads/kinds/CommentKind";
-import { CodeExpanded, CodeLabel, CodeMeta } from "../components/threads/kinds/CodeKind";
-import { TaskExpanded, TaskLabel, TaskMeta } from "../components/threads/kinds/TaskKind";
-import { SessionExpanded, SessionLabel } from "../components/threads/kinds/SessionKind";
+import {
+  ChatExpanded,
+  ChatGlyph,
+  ChatLabel,
+  ChatMeta,
+} from "../components/threads/kinds/ChatThreadKind";
+import {
+  DmExpanded,
+  DmGlyph,
+  DmLabel,
+} from "../components/threads/kinds/DmKind";
+import {
+  CommentExpanded,
+  CommentLabel,
+  CommentMeta,
+} from "../components/threads/kinds/CommentKind";
+import {
+  CodeExpanded,
+  CodeLabel,
+  CodeMeta,
+} from "../components/threads/kinds/CodeKind";
+import {
+  TaskExpanded,
+  TaskLabel,
+  TaskMeta,
+} from "../components/threads/kinds/TaskKind";
+import {
+  SessionExpanded,
+  SessionLabel,
+} from "../components/threads/kinds/SessionKind";
 import { PageExpanded, PageLabel } from "../components/threads/kinds/PageKind";
-import { QuestionExpanded, QuestionLabel } from "../components/threads/kinds/QuestionKind";
-import { DecisionThreadExpanded, DecisionThreadLabel } from "../components/threads/kinds/DecisionThreadKind";
+import {
+  QuestionExpanded,
+  QuestionLabel,
+} from "../components/threads/kinds/QuestionKind";
+import {
+  DecisionThreadExpanded,
+  DecisionThreadLabel,
+} from "../components/threads/kinds/DecisionThreadKind";
 
 // The Threads page's kind registry: one spec per card kind, each saying how a
 // thread's head is labelled, what its body shows, and how it marks itself read. The
@@ -45,7 +78,13 @@ export type ThreadKindSpec = ThreadKindMeta & {
    *  the body is on screen) and on its own content having arrived, never on
    *  the mount itself, so a cold cache cannot mark a thread read it never
    *  showed. */
-  Expanded: ComponentType<{ card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }>;
+  Expanded: ComponentType<{
+    card: ThreadCardModel;
+    present: boolean;
+    seen: boolean;
+    frozenReadAt: number;
+    focusComposer: boolean;
+  }>;
   /** Mark one card read, the kind's own way. */
   markRead(card: ThreadCardModel): void;
 };
@@ -67,17 +106,68 @@ function markSessionSeen(card: ThreadCardModel): void {
 }
 
 export const THREAD_KIND_SPECS: Record<ThreadCardKind, ThreadKindSpec> = {
-  chat: { ...THREAD_KIND_META.chat, Glyph: ChatGlyph, Label: ChatLabel, Meta: ChatMeta, Expanded: ChatExpanded, markRead: markServerRead },
-  dm: { ...THREAD_KIND_META.dm, Glyph: DmGlyph, Label: DmLabel, Expanded: DmExpanded, markRead: markDmRead },
-  comment: { ...THREAD_KIND_META.comment, Label: CommentLabel, Meta: CommentMeta, Expanded: CommentExpanded, markRead: markServerRead },
-  code: { ...THREAD_KIND_META.code, Label: CodeLabel, Meta: CodeMeta, Expanded: CodeExpanded, markRead: markServerRead },
-  task: { ...THREAD_KIND_META.task, Label: TaskLabel, Meta: TaskMeta, Expanded: TaskExpanded, markRead: markServerRead },
-  session: { ...THREAD_KIND_META.session, Label: SessionLabel, Expanded: SessionExpanded, markRead: markSessionSeen },
-  page: { ...THREAD_KIND_META.page, Label: PageLabel, Expanded: PageExpanded, markRead: markServerRead },
+  chat: {
+    ...THREAD_KIND_META.chat,
+    Glyph: ChatGlyph,
+    Label: ChatLabel,
+    Meta: ChatMeta,
+    Expanded: ChatExpanded,
+    markRead: markServerRead,
+  },
+  dm: {
+    ...THREAD_KIND_META.dm,
+    Glyph: DmGlyph,
+    Label: DmLabel,
+    Expanded: DmExpanded,
+    markRead: markDmRead,
+  },
+  comment: {
+    ...THREAD_KIND_META.comment,
+    Label: CommentLabel,
+    Meta: CommentMeta,
+    Expanded: CommentExpanded,
+    markRead: markServerRead,
+  },
+  code: {
+    ...THREAD_KIND_META.code,
+    Label: CodeLabel,
+    Meta: CodeMeta,
+    Expanded: CodeExpanded,
+    markRead: markServerRead,
+  },
+  task: {
+    ...THREAD_KIND_META.task,
+    Label: TaskLabel,
+    Meta: TaskMeta,
+    Expanded: TaskExpanded,
+    markRead: markServerRead,
+  },
+  session: {
+    ...THREAD_KIND_META.session,
+    Label: SessionLabel,
+    Expanded: SessionExpanded,
+    markRead: markSessionSeen,
+  },
+  page: {
+    ...THREAD_KIND_META.page,
+    Label: PageLabel,
+    Expanded: PageExpanded,
+    markRead: markServerRead,
+  },
   // A question's status IS its read mark: answering or dismissing resolves the
   // row, so there is nothing separate to mark.
-  decision: { ...THREAD_KIND_META.decision, Label: DecisionThreadLabel, Expanded: DecisionThreadExpanded, markRead: markServerRead },
-  question: { ...THREAD_KIND_META.question, Label: QuestionLabel, Expanded: QuestionExpanded, markRead: () => {} },
+  decision: {
+    ...THREAD_KIND_META.decision,
+    Label: DecisionThreadLabel,
+    Expanded: DecisionThreadExpanded,
+    markRead: markServerRead,
+  },
+  question: {
+    ...THREAD_KIND_META.question,
+    Label: QuestionLabel,
+    Expanded: QuestionExpanded,
+    markRead: () => {},
+  },
 };
 
 /** Mark every unread card of a view read. Server kinds go through the one
@@ -94,20 +184,25 @@ export function markViewRead(
   // in a DM room and file under the DMs chip, so the server's kind-scoped
   // sweep would erase threads the reader never saw.
   if (chip === "dm" || chip === "chat") {
-    for (const c of cards) if (c.unread > 0 && (c.kind === "dm" || c.kind === "chat")) THREAD_KIND_SPECS[c.kind].markRead(c);
+    for (const c of cards)
+      if (c.unread > 0 && (c.kind === "dm" || c.kind === "chat"))
+        THREAD_KIND_SPECS[c.kind].markRead(c);
     return;
   }
   // Questions have no separate read mark (their status is the mark); a
   // decision's thread is marked card by card. Session cards never join a sweep.
   if (chip === "question") {
-    for (const c of cards) if (c.unread > 0 && c.kind === "decision") THREAD_KIND_SPECS.decision.markRead(c);
+    for (const c of cards)
+      if (c.unread > 0 && c.kind === "decision")
+        THREAD_KIND_SPECS.decision.markRead(c);
     return;
   }
   if (chip === "all") {
     // "all" is an explicit sentinel on the wire: a one-argument call is the
     // legacy chat-only sweep, and absence must not widen it.
     st.markAllThreadsRead(teamId, "all");
-    for (const c of cards) if (c.unread > 0 && c.kind === "dm") THREAD_KIND_SPECS.dm.markRead(c);
+    for (const c of cards)
+      if (c.unread > 0 && c.kind === "dm") THREAD_KIND_SPECS.dm.markRead(c);
     return;
   }
   if (SWEEPABLE_CHIPS.has(chip)) st.markAllThreadsRead(teamId, chip);

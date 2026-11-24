@@ -1,8 +1,19 @@
-import { afterEach, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { convergenceState, recordConvergenceSignals, resetConvergenceState } from "./heartbeat.js";
+import {
+  convergenceState,
+  recordConvergenceSignals,
+  resetConvergenceState,
+} from "./heartbeat.js";
 import { reconcileFromHeartbeat, type KitAppliedItem } from "./reconcile.js";
 import { folderHash, packArchive, type StoreFile } from "./contentStore.js";
 import { kitLedgerPath } from "./kitInstall.js";
@@ -33,8 +44,20 @@ function png(): Buffer {
   ihdr.writeUInt32BE(4, 0);
   ihdr.writeUInt32BE(4, 4);
   ihdr.set([8, 6, 0, 0, 0], 8);
-  const rows = Buffer.concat(Array.from({ length: 4 }, (_, y) => Buffer.from([0, ...Array.from({ length: 16 }, (_, i) => (y * 61 + i * 37 + 200) & 0xff)])));
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
+  const rows = Buffer.concat(
+    Array.from({ length: 4 }, (_, y) =>
+      Buffer.from([
+        0,
+        ...Array.from({ length: 16 }, (_, i) => (y * 61 + i * 37 + 200) & 0xff),
+      ]),
+    ),
+  );
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", zlib.deflateSync(rows)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
 }
 
 // Each pass shells out to git for the project key; a loaded machine needs headroom.
@@ -42,7 +65,9 @@ setDefaultTimeout(30_000);
 
 const dirs: string[] = [];
 function tmpHome(): string {
-  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cc-kitrec-")));
+  const d = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "cc-kitrec-")),
+  );
   dirs.push(d);
   return d;
 }
@@ -50,10 +75,15 @@ let revision = 0;
 beforeEach(() => resetConvergenceState());
 afterEach(() => {
   resetConvergenceState();
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
-const f = (p: string, text: string, executable = false): StoreFile => ({ path: p, bytes: Buffer.from(text), executable });
+const f = (p: string, text: string, executable = false): StoreFile => ({
+  path: p,
+  bytes: Buffer.from(text),
+  executable,
+});
 
 interface KitVersion {
   kind: string;
@@ -79,14 +109,25 @@ function fakeServer() {
   const fetchImpl = (async (url: string, init: any) => {
     const u = String(url);
     if (u.startsWith("https://files.test/")) {
-      const v = state.versions.get(decodeURIComponent(u.slice("https://files.test/".length)))!;
+      const v = state.versions.get(
+        decodeURIComponent(u.slice("https://files.test/".length)),
+      )!;
       return new Response(new Uint8Array(v.archive ?? packArchive(v.files)));
     }
     const route = u.replace("https://site.test", "");
     const body = JSON.parse(init.body);
-    const json = (x: unknown, status = 200) => new Response(JSON.stringify(x), { status });
+    const json = (x: unknown, status = 200) =>
+      new Response(JSON.stringify(x), { status });
     if (route === "/cli/cap/bindings") {
-      return json([...state.bindings].map(([slug, enabled]) => ({ capability_slug: slug, scope_kind: "user", scope_key: "", enabled, updated_at: 1 })));
+      return json(
+        [...state.bindings].map(([slug, enabled]) => ({
+          capability_slug: slug,
+          scope_kind: "user",
+          scope_key: "",
+          enabled,
+          updated_at: 1,
+        })),
+      );
     }
     if (route === "/cli/cap/kit/version") {
       if (state.versionDown) return json({ error: "backend unavailable" }, 500);
@@ -109,14 +150,18 @@ function fakeServer() {
       state.applied.push(body.items);
       return json({ status: "recorded" });
     }
-    if (route === "/cli/teams") return json({ teams: [{ _id: "t1", name: "Acme" }] });
+    if (route === "/cli/teams")
+      return json({ teams: [{ _id: "t1", name: "Acme" }] });
     return json({ error: `unexpected ${route}` }, 404);
   }) as unknown as typeof fetch;
   return { state, fetchImpl };
 }
 
 async function pass(home: string, server: ReturnType<typeof fakeServer>) {
-  recordConvergenceSignals({ capabilities_mode: "on", capability_desired_revision: ++revision });
+  recordConvergenceSignals({
+    capabilities_mode: "on",
+    capability_desired_revision: ++revision,
+  });
   const lines: string[] = [];
   const out = await reconcileFromHeartbeat({
     siteUrl: "https://site.test",
@@ -131,7 +176,15 @@ async function pass(home: string, server: ReturnType<typeof fakeServer>) {
 }
 
 const SKILL = "authored/t1/skill/deploy";
-const PROSE_SKILL: KitVersion = { kind: "skill", name: "deploy", surfaces: ["prose"], files: [f("SKILL.md", "---\nname: deploy\n---\nDeploy carefully.\n"), f("reference/notes.md", "Notes.\n")] };
+const PROSE_SKILL: KitVersion = {
+  kind: "skill",
+  name: "deploy",
+  surfaces: ["prose"],
+  files: [
+    f("SKILL.md", "---\nname: deploy\n---\nDeploy carefully.\n"),
+    f("reference/notes.md", "Notes.\n"),
+  ],
+};
 
 describe("the reconciler installs the kit", () => {
   test("a prose skill installs without asking: shared dir, Claude link, ledger, report", async () => {
@@ -142,15 +195,31 @@ describe("the reconciler installs the kit", () => {
 
     const { out, report } = await pass(home, server);
     const dir = path.join(home, ".agents", "skills", "deploy");
-    expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toContain("Deploy carefully.");
-    expect(fs.readFileSync(path.join(dir, "reference", "notes.md"), "utf-8")).toBe("Notes.\n");
+    expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toContain(
+      "Deploy carefully.",
+    );
+    expect(
+      fs.readFileSync(path.join(dir, "reference", "notes.md"), "utf-8"),
+    ).toBe("Notes.\n");
     const link = path.join(home, ".claude", "skills", "deploy");
     expect(fs.lstatSync(link).isSymbolicLink()).toBe(true);
     expect(fs.realpathSync(link)).toBe(dir);
-    expect(report).toEqual([{ slug: SKILL, hash: folderHash(PROSE_SKILL.files), status: "installed" }]);
+    expect(report).toEqual([
+      { slug: SKILL, hash: folderHash(PROSE_SKILL.files), status: "installed" },
+    ]);
     expect(out.conflicts).toBe(0);
     expect(convergenceState().applied).toBe(revision);
-    expect(fs.existsSync(path.join(home, ".codecast", "capabilities", "store", folderHash(PROSE_SKILL.files)))).toBe(true);
+    expect(
+      fs.existsSync(
+        path.join(
+          home,
+          ".codecast",
+          "capabilities",
+          "store",
+          folderHash(PROSE_SKILL.files),
+        ),
+      ),
+    ).toBe(true);
 
     // Steady state: the next pass writes nothing.
     const again = await pass(home, server);
@@ -160,21 +229,53 @@ describe("the reconciler installs the kit", () => {
   test("a skill shipping scripts waits for this device's consent, then installs", async () => {
     const home = tmpHome();
     const server = fakeServer();
-    const v: KitVersion = { kind: "skill", name: "deploy", surfaces: ["prose", "ships_scripts"], files: [f("SKILL.md", "Run scripts/go.sh\n"), f("scripts/go.sh", "#!/bin/sh\necho go\n", true)] };
+    const v: KitVersion = {
+      kind: "skill",
+      name: "deploy",
+      surfaces: ["prose", "ships_scripts"],
+      files: [
+        f("SKILL.md", "Run scripts/go.sh\n"),
+        f("scripts/go.sh", "#!/bin/sh\necho go\n", true),
+      ],
+    };
     server.state.bindings.set(SKILL, true);
     server.state.versions.set(SKILL, v);
 
     const first = await pass(home, server);
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(false);
-    expect(first.report).toEqual([{ slug: SKILL, hash: folderHash(v.files), status: "pending_consent", detail: "prose,ships_scripts" }]);
+    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(
+      false,
+    );
+    expect(first.report).toEqual([
+      {
+        slug: SKILL,
+        hash: folderHash(v.files),
+        status: "pending_consent",
+        detail: "prose,ships_scripts",
+      },
+    ]);
 
-    server.state.consents.push({ capability_slug: SKILL, manifest_hash: "some-other-hash" });
+    server.state.consents.push({
+      capability_slug: SKILL,
+      manifest_hash: "some-other-hash",
+    });
     await pass(home, server);
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(false);
+    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(
+      false,
+    );
 
-    server.state.consents.push({ capability_slug: SKILL, manifest_hash: folderHash(v.files) });
+    server.state.consents.push({
+      capability_slug: SKILL,
+      manifest_hash: folderHash(v.files),
+    });
     const third = await pass(home, server);
-    const script = path.join(home, ".agents", "skills", "deploy", "scripts", "go.sh");
+    const script = path.join(
+      home,
+      ".agents",
+      "skills",
+      "deploy",
+      "scripts",
+      "go.sh",
+    );
     expect(fs.readFileSync(script, "utf-8")).toContain("echo go");
     expect(fs.statSync(script).mode & 0o111).not.toBe(0);
     expect(third.report[0]!.status).toBe("installed");
@@ -184,23 +285,48 @@ describe("the reconciler installs the kit", () => {
     const home = tmpHome();
     const server = fakeServer();
     // The person's own skills, in both directories the kit writes into.
-    fs.mkdirSync(path.join(home, ".agents", "skills", "mine"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".agents", "skills", "mine", "SKILL.md"), "mine\n");
-    fs.mkdirSync(path.join(home, ".claude", "skills", "handmade"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".claude", "skills", "handmade", "SKILL.md"), "handmade\n");
+    fs.mkdirSync(path.join(home, ".agents", "skills", "mine"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(home, ".agents", "skills", "mine", "SKILL.md"),
+      "mine\n",
+    );
+    fs.mkdirSync(path.join(home, ".claude", "skills", "handmade"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(home, ".claude", "skills", "handmade", "SKILL.md"),
+      "handmade\n",
+    );
     server.state.bindings.set(SKILL, true);
     server.state.versions.set(SKILL, PROSE_SKILL);
     await pass(home, server);
-    const written = JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8")).files[SKILL];
+    const written = JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8"))
+      .files[SKILL];
     expect(written).toHaveLength(3);
 
     server.state.bindings.set(SKILL, false);
     const off = await pass(home, server);
     for (const p of written) expect(fs.existsSync(p)).toBe(false);
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(false);
-    expect(fs.readFileSync(path.join(home, ".agents", "skills", "mine", "SKILL.md"), "utf-8")).toBe("mine\n");
-    expect(fs.readFileSync(path.join(home, ".claude", "skills", "handmade", "SKILL.md"), "utf-8")).toBe("handmade\n");
-    expect(JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8")).files[SKILL]).toBeUndefined();
+    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(
+      false,
+    );
+    expect(
+      fs.readFileSync(
+        path.join(home, ".agents", "skills", "mine", "SKILL.md"),
+        "utf-8",
+      ),
+    ).toBe("mine\n");
+    expect(
+      fs.readFileSync(
+        path.join(home, ".claude", "skills", "handmade", "SKILL.md"),
+        "utf-8",
+      ),
+    ).toBe("handmade\n");
+    expect(
+      JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8")).files[SKILL],
+    ).toBeUndefined();
     expect(off.report).toEqual([]);
   });
 
@@ -212,7 +338,12 @@ describe("the reconciler installs the kit", () => {
     fs.writeFileSync(cmd, "my own review command\n");
     const slug = "authored/t1/command/review";
     server.state.bindings.set(slug, true);
-    server.state.versions.set(slug, { kind: "command", name: "review", surfaces: ["prose"], files: [f("review.md", "The team's review.\n")] });
+    server.state.versions.set(slug, {
+      kind: "command",
+      name: "review",
+      surfaces: ["prose"],
+      files: [f("review.md", "The team's review.\n")],
+    });
 
     const { out, report } = await pass(home, server);
     expect(fs.readFileSync(cmd, "utf-8")).toBe("my own review command\n");
@@ -230,25 +361,53 @@ describe("the reconciler installs the kit", () => {
   test("a skill directory someone else made is a conflict even when no file name collides", async () => {
     const home = tmpHome();
     const server = fakeServer();
-    fs.mkdirSync(path.join(home, ".agents", "skills", "deploy"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".agents", "skills", "deploy", "OTHER.md"), "theirs\n");
+    fs.mkdirSync(path.join(home, ".agents", "skills", "deploy"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(home, ".agents", "skills", "deploy", "OTHER.md"),
+      "theirs\n",
+    );
     server.state.bindings.set(SKILL, true);
     server.state.versions.set(SKILL, PROSE_SKILL);
     const { report } = await pass(home, server);
     expect(report[0]!.status).toBe("conflict");
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy", "SKILL.md"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(home, ".agents", "skills", "deploy", "SKILL.md")),
+    ).toBe(false);
   });
 
   test("commands land in ~/.claude/commands and subagents in ~/.claude/agents", async () => {
     const home = tmpHome();
     const server = fakeServer();
     server.state.bindings.set("authored/t1/command/ship", true);
-    server.state.versions.set("authored/t1/command/ship", { kind: "command", name: "ship", surfaces: ["prose"], files: [f("ship.md", "Ship it.\n")] });
+    server.state.versions.set("authored/t1/command/ship", {
+      kind: "command",
+      name: "ship",
+      surfaces: ["prose"],
+      files: [f("ship.md", "Ship it.\n")],
+    });
     server.state.bindings.set("authored/u1/subagent/critic", true);
-    server.state.versions.set("authored/u1/subagent/critic", { kind: "subagent", name: "critic", surfaces: ["prose"], workspace: "user:u1", files: [f("critic.md", "---\nname: critic\n---\nYou critique.\n")] });
+    server.state.versions.set("authored/u1/subagent/critic", {
+      kind: "subagent",
+      name: "critic",
+      surfaces: ["prose"],
+      workspace: "user:u1",
+      files: [f("critic.md", "---\nname: critic\n---\nYou critique.\n")],
+    });
     await pass(home, server);
-    expect(fs.readFileSync(path.join(home, ".claude", "commands", "ship.md"), "utf-8")).toBe("Ship it.\n");
-    expect(fs.readFileSync(path.join(home, ".claude", "agents", "critic.md"), "utf-8")).toContain("You critique.");
+    expect(
+      fs.readFileSync(
+        path.join(home, ".claude", "commands", "ship.md"),
+        "utf-8",
+      ),
+    ).toBe("Ship it.\n");
+    expect(
+      fs.readFileSync(
+        path.join(home, ".claude", "agents", "critic.md"),
+        "utf-8",
+      ),
+    ).toContain("You critique.");
   });
 
   test("a new version replaces the old files and drops the ones it no longer ships", async () => {
@@ -257,10 +416,15 @@ describe("the reconciler installs the kit", () => {
     server.state.bindings.set(SKILL, true);
     server.state.versions.set(SKILL, PROSE_SKILL);
     await pass(home, server);
-    server.state.versions.set(SKILL, { ...PROSE_SKILL, files: [f("SKILL.md", "Deploy v2.\n")] });
+    server.state.versions.set(SKILL, {
+      ...PROSE_SKILL,
+      files: [f("SKILL.md", "Deploy v2.\n")],
+    });
     await pass(home, server);
     const dir = path.join(home, ".agents", "skills", "deploy");
-    expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toBe("Deploy v2.\n");
+    expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toBe(
+      "Deploy v2.\n",
+    );
     expect(fs.existsSync(path.join(dir, "reference"))).toBe(false);
   });
 
@@ -272,7 +436,9 @@ describe("the reconciler installs the kit", () => {
     await pass(home, server);
     server.state.versionDown = true;
     const { report } = await pass(home, server);
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy", "SKILL.md"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(home, ".agents", "skills", "deploy", "SKILL.md")),
+    ).toBe(true);
     expect(report[0]).toMatchObject({ slug: SKILL, status: "error" });
     expect(convergenceState().applied).toBeLessThan(revision);
   });
@@ -281,9 +447,14 @@ describe("the reconciler installs the kit", () => {
     const home = tmpHome();
     const server = fakeServer();
     server.state.bindings.set(SKILL, true);
-    server.state.versions.set(SKILL, { ...PROSE_SKILL, archive: packArchive([f("SKILL.md", "something else\n")]) });
+    server.state.versions.set(SKILL, {
+      ...PROSE_SKILL,
+      archive: packArchive([f("SKILL.md", "something else\n")]),
+    });
     const { report } = await pass(home, server);
-    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(false);
+    expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(
+      false,
+    );
     expect(report[0]).toMatchObject({ status: "error" });
     expect(report[0]!.detail).toContain("hash_mismatch");
   });
@@ -291,13 +462,18 @@ describe("the reconciler installs the kit", () => {
   test("a PNG round-trips byte-identical through publish, store and install", async () => {
     const image = png();
     // Not text: a UTF-8 decode would replace the 0x89 signature byte and more.
-    expect(Buffer.from(image.toString("utf-8"), "utf-8").equals(image)).toBe(false);
+    expect(Buffer.from(image.toString("utf-8"), "utf-8").equals(image)).toBe(
+      false,
+    );
 
     // Publish from one machine, capturing the archive the server would store.
     const publisher = tmpHome();
     const src = path.join(publisher, ".claude", "skills", "brand");
     fs.mkdirSync(path.join(src, "assets"), { recursive: true });
-    fs.writeFileSync(path.join(src, "SKILL.md"), "---\nname: brand\n---\nUse assets/logo.png.\n");
+    fs.writeFileSync(
+      path.join(src, "SKILL.md"),
+      "---\nname: brand\n---\nUse assets/logo.png.\n",
+    );
     fs.writeFileSync(path.join(src, "assets", "logo.png"), image);
     let archive: Buffer | undefined;
     let published: any;
@@ -306,7 +482,8 @@ describe("the reconciler installs the kit", () => {
       workspace: { kind: "team", teamId: "t1" },
       deviceId: "pub",
       post: async (route, body) => {
-        if (route.endsWith("/upload-url")) return { upload_url: "https://upload.test/x" };
+        if (route.endsWith("/upload-url"))
+          return { upload_url: "https://upload.test/x" };
         published = body;
         return { status: "created", version: 1 };
       },
@@ -315,21 +492,48 @@ describe("the reconciler installs the kit", () => {
         return new Response(JSON.stringify({ storageId: "st" }));
       }) as unknown as typeof fetch,
     });
-    expect(published.files).toContainEqual({ path: "assets/logo.png", size: image.length, executable: false });
+    expect(published.files).toContainEqual({
+      path: "assets/logo.png",
+      size: image.length,
+      executable: false,
+    });
 
     // Install on another machine from exactly that archive.
     const home = tmpHome();
     const server = fakeServer();
     const slug = "authored/t1/skill/brand";
     server.state.bindings.set(slug, true);
-    server.state.versions.set(slug, { kind: "skill", name: "brand", surfaces: ["prose"], files: [f("SKILL.md", "---\nname: brand\n---\nUse assets/logo.png.\n"), { path: "assets/logo.png", bytes: image, executable: false }], archive });
-    expect(folderHash(server.state.versions.get(slug)!.files)).toBe(published.folder_hash);
+    server.state.versions.set(slug, {
+      kind: "skill",
+      name: "brand",
+      surfaces: ["prose"],
+      files: [
+        f("SKILL.md", "---\nname: brand\n---\nUse assets/logo.png.\n"),
+        { path: "assets/logo.png", bytes: image, executable: false },
+      ],
+      archive,
+    });
+    expect(folderHash(server.state.versions.get(slug)!.files)).toBe(
+      published.folder_hash,
+    );
 
     const { report } = await pass(home, server);
     expect(report[0]).toMatchObject({ slug, status: "installed" });
-    const stored = fs.readFileSync(path.join(home, ".codecast", "capabilities", "store", published.folder_hash, "assets", "logo.png"));
+    const stored = fs.readFileSync(
+      path.join(
+        home,
+        ".codecast",
+        "capabilities",
+        "store",
+        published.folder_hash,
+        "assets",
+        "logo.png",
+      ),
+    );
     expect(stored.equals(image)).toBe(true);
-    const installed = fs.readFileSync(path.join(home, ".agents", "skills", "brand", "assets", "logo.png"));
+    const installed = fs.readFileSync(
+      path.join(home, ".agents", "skills", "brand", "assets", "logo.png"),
+    );
     expect(installed.equals(image)).toBe(true);
 
     // Byte comparison holds the steady state: nothing is rewritten.
@@ -354,7 +558,10 @@ describe("the reconciler installs the kit", () => {
     const handMade = (home: string) => {
       const dir = path.join(home, ".claude", "skills", "deploy");
       fs.mkdirSync(path.join(dir, "img"), { recursive: true });
-      fs.writeFileSync(path.join(dir, "SKILL.md"), "---\nname: deploy\n---\nMy own deploy.\n");
+      fs.writeFileSync(
+        path.join(dir, "SKILL.md"),
+        "---\nname: deploy\n---\nMy own deploy.\n",
+      );
       fs.writeFileSync(path.join(dir, "img", "x.bin"), png());
       return dir;
     };
@@ -372,7 +579,9 @@ describe("the reconciler installs the kit", () => {
       expect(report[0]).toMatchObject({ slug: SKILL, status: "conflict" });
       expect(snapshot(dir)).toEqual(before);
       expect(fs.readdirSync(path.dirname(dir))).toEqual(["deploy"]);
-      expect(fs.existsSync(path.join(home, ".agents", "skills", "deploy"))).toBe(false);
+      expect(
+        fs.existsSync(path.join(home, ".agents", "skills", "deploy")),
+      ).toBe(false);
       expect(fs.existsSync(kitLedgerPath(home))).toBe(false);
     });
 
@@ -383,21 +592,37 @@ describe("the reconciler installs the kit", () => {
       const server = fakeServer();
       server.state.bindings.set(SKILL, true);
       server.state.versions.set(SKILL, PROSE_SKILL);
-      server.state.adoptions.push({ slug: SKILL, hash: folderHash(PROSE_SKILL.files) });
+      server.state.adoptions.push({
+        slug: SKILL,
+        hash: folderHash(PROSE_SKILL.files),
+      });
 
       const { out, report } = await pass(home, server);
       // Out of every skills dir, so no client loads the old copy as a second skill.
       const asideRoot = path.join(home, ".codecast", "capabilities", "aside");
-      const aside = fs.readdirSync(asideRoot).find((n) => /^deploy\.mine-\d{12}$/.test(n));
+      const aside = fs
+        .readdirSync(asideRoot)
+        .find((n) => /^deploy\.mine-\d{12}$/.test(n));
       expect(aside).toBeDefined();
       expect(snapshot(path.join(asideRoot, aside!))).toEqual(before);
       expect(fs.readdirSync(path.dirname(dir))).toEqual(["deploy"]);
-      expect(fs.readdirSync(path.join(home, ".agents", "skills"))).toEqual(["deploy"]);
+      expect(fs.readdirSync(path.join(home, ".agents", "skills"))).toEqual([
+        "deploy",
+      ]);
       expect(fs.lstatSync(dir).isSymbolicLink()).toBe(true);
-      expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toContain("Deploy carefully.");
+      expect(fs.readFileSync(path.join(dir, "SKILL.md"), "utf-8")).toContain(
+        "Deploy carefully.",
+      );
       expect(out.conflicts).toBe(0);
-      expect(report[0]).toEqual({ slug: SKILL, hash: folderHash(PROSE_SKILL.files), status: "installed", detail: `moved your copy to ~/.codecast/capabilities/aside/${aside}` });
-      expect(JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8")).files[SKILL]).toContain(dir);
+      expect(report[0]).toEqual({
+        slug: SKILL,
+        hash: folderHash(PROSE_SKILL.files),
+        status: "installed",
+        detail: `moved your copy to ~/.codecast/capabilities/aside/${aside}`,
+      });
+      expect(
+        JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8")).files[SKILL],
+      ).toContain(dir);
       expect(convergenceState().applied).toBe(revision);
 
       // Steady afterwards, and turning it off removes ours and keeps theirs.
@@ -417,13 +642,22 @@ describe("the reconciler installs the kit", () => {
       const server = fakeServer();
       server.state.bindings.set(SKILL, true);
       server.state.versions.set(SKILL, PROSE_SKILL);
-      server.state.adoptions.push({ slug: SKILL, hash: folderHash(PROSE_SKILL.files) });
+      server.state.adoptions.push({
+        slug: SKILL,
+        hash: folderHash(PROSE_SKILL.files),
+      });
       const { report } = await pass(home, server);
       const asideRoot = path.join(home, ".codecast", "capabilities", "aside");
       const moved = fs.readdirSync(asideRoot).sort();
       expect(moved).toHaveLength(2);
-      const texts = moved.map((n) => fs.readFileSync(path.join(asideRoot, n, "SKILL.md"), "utf-8")).sort();
-      expect(texts).toEqual(["---\nname: deploy\n---\nMy own deploy.\n", "shared copy\n"].sort());
+      const texts = moved
+        .map((n) =>
+          fs.readFileSync(path.join(asideRoot, n, "SKILL.md"), "utf-8"),
+        )
+        .sort();
+      expect(texts).toEqual(
+        ["---\nname: deploy\n---\nMy own deploy.\n", "shared copy\n"].sort(),
+      );
       expect(fs.realpathSync(claudeCopy)).toBe(fs.realpathSync(shared));
       expect(report[0]!.status).toBe("installed");
       expect(report[0]!.detail).toContain(moved[0]);
@@ -436,15 +670,24 @@ describe("the reconciler installs the kit", () => {
       fs.mkdirSync(path.dirname(cmd), { recursive: true });
       fs.writeFileSync(cmd, "my own review command\n");
       const slug = "authored/t1/command/review";
-      const v: KitVersion = { kind: "command", name: "review", surfaces: ["prose"], files: [f("review.md", "The team's review.\n")] };
+      const v: KitVersion = {
+        kind: "command",
+        name: "review",
+        surfaces: ["prose"],
+        files: [f("review.md", "The team's review.\n")],
+      };
       const server = fakeServer();
       server.state.bindings.set(slug, true);
       server.state.versions.set(slug, v);
       server.state.adoptions.push({ slug, hash: folderHash(v.files) });
       await pass(home, server);
       expect(fs.readFileSync(cmd, "utf-8")).toBe("The team's review.\n");
-      const aside = fs.readdirSync(path.dirname(cmd)).find((n) => n.startsWith("review.md.mine-"))!;
-      expect(fs.readFileSync(path.join(path.dirname(cmd), aside), "utf-8")).toBe("my own review command\n");
+      const aside = fs
+        .readdirSync(path.dirname(cmd))
+        .find((n) => n.startsWith("review.md.mine-"))!;
+      expect(
+        fs.readFileSync(path.join(path.dirname(cmd), aside), "utf-8"),
+      ).toBe("my own review command\n");
     });
   });
 });

@@ -17,4 +17,9 @@ export type RepoFlow = {
   edges: FlowEdgeIn[];
 };
 
-export type RepoFlowsReport = { root: string; repository: string; hash: string; flows: RepoFlow[] };
+export type RepoFlowsReport = {
+  root: string;
+  repository: string;
+  hash: string;
+  flows: RepoFlow[];
+};

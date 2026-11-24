@@ -14,8 +14,17 @@
  */
 
 import { SHARED_HOST_MARKER } from "../remote/sharedHostGuard.js";
-import { INSTALLABLE_CLIENTS, type InstallableClient } from "../remote/agentAuth.js";
-import { clientInstallSnippet, HOST_TOOLS_PATH, NODE_FLOOR_MAJOR, nodeInstallSnippet, safeVersion } from "../cloud/hostTools.js";
+import {
+  INSTALLABLE_CLIENTS,
+  type InstallableClient,
+} from "../remote/agentAuth.js";
+import {
+  clientInstallSnippet,
+  HOST_TOOLS_PATH,
+  NODE_FLOOR_MAJOR,
+  nodeInstallSnippet,
+  safeVersion,
+} from "../cloud/hostTools.js";
 export { NODE_22_VERSION } from "../cloud/hostTools.js";
 
 /**
@@ -48,7 +57,10 @@ fi`;
  * loop runs under `set -e`, so a CLI whose `--version` fails (gemini on an
  * old node) reports empty instead of aborting the step after the installs.
  */
-export function agentCliInstallScript(versions: Partial<Record<InstallableClient, string>>, opts: { upgradeCodex?: boolean } = {}): string {
+export function agentCliInstallScript(
+  versions: Partial<Record<InstallableClient, string>>,
+  opts: { upgradeCodex?: boolean } = {},
+): string {
   const lines: string[] = [];
   lines.push(`set -euo pipefail
 ${HOST_TOOLS_PATH}
@@ -74,6 +86,9 @@ echo AGENT-CLIS-OK`);
 /** The `<bin>=<version>` lines of the script's output as one report line. */
 export function parseAgentCliReport(out: string): string {
   const names = new Set<string>([...INSTALLABLE_CLIENTS, "node"]);
-  const pairs = out.split("\n").map((l) => l.trim()).filter((l) => names.has(l.split("=")[0]) && l.includes("="));
+  const pairs = out
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => names.has(l.split("=")[0]) && l.includes("="));
   return pairs.join("  ");
 }

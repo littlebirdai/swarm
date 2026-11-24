@@ -29,7 +29,9 @@ export class ElementGone extends Error {
 
 export class ElementOccluded extends Error {
   constructor(ref: number, by: string) {
-    super(`element #e${ref} is covered by ${by} — dismiss it, or scroll, or use --force`);
+    super(
+      `element #e${ref} is covered by ${by} — dismiss it, or scroll, or use --force`,
+    );
     this.name = "ElementOccluded";
   }
 }
@@ -40,7 +42,10 @@ export interface Point {
 }
 
 /** Block until the page has stopped scrolling, so a measurement stays true. */
-async function settleScroll(page: PageSession, timeoutMs = 1500): Promise<void> {
+async function settleScroll(
+  page: PageSession,
+  timeoutMs = 1500,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let last = Number.NaN;
   let stable = 0;
@@ -49,7 +54,10 @@ async function settleScroll(page: PageSession, timeoutMs = 1500): Promise<void> 
     try {
       const r = await page.conn.send<any>(
         "Runtime.evaluate",
-        { expression: `Math.round(scrollY) + ":" + Math.round(scrollX)`, returnByValue: true },
+        {
+          expression: `Math.round(scrollY) + ":" + Math.round(scrollX)`,
+          returnByValue: true,
+        },
         page.sessionId,
         2000,
       );
@@ -71,7 +79,11 @@ async function settleScroll(page: PageSession, timeoutMs = 1500): Promise<void> 
 export async function locate(page: PageSession, ref: number): Promise<Point> {
   const { conn, sessionId } = page;
   try {
-    await conn.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: ref }, sessionId);
+    await conn.send(
+      "DOM.scrollIntoViewIfNeeded",
+      { backendNodeId: ref },
+      sessionId,
+    );
   } catch (err) {
     // "Node with given id does not belong to the document" means it is gone.
     throw new ElementGone(ref);
@@ -88,16 +100,25 @@ export async function locate(page: PageSession, ref: number): Promise<Point> {
 
   let quads: number[][];
   try {
-    const res = await conn.send<{ quads: number[][] }>("DOM.getContentQuads", { backendNodeId: ref }, sessionId);
+    const res = await conn.send<{ quads: number[][] }>(
+      "DOM.getContentQuads",
+      { backendNodeId: ref },
+      sessionId,
+    );
     quads = res.quads;
   } catch {
     throw new ElementGone(ref);
   }
   if (!quads?.length) {
-    throw new Error(`element #e${ref} has no layout box — it is hidden (display:none, zero size, or collapsed)`);
+    throw new Error(
+      `element #e${ref} has no layout box — it is hidden (display:none, zero size, or collapsed)`,
+    );
   }
   const q = quads[0];
-  return { x: (q[0] + q[2] + q[4] + q[6]) / 4, y: (q[1] + q[3] + q[5] + q[7]) / 4 };
+  return {
+    x: (q[0] + q[2] + q[4] + q[6]) / 4,
+    y: (q[1] + q[3] + q[5] + q[7]) / 4,
+  };
 }
 
 /**
@@ -117,7 +138,11 @@ async function resolveRef(page: PageSession, ref: number): Promise<string> {
  * Would a click at `pt` reach this element? Returns null when it would, or a
  * description of whatever is on top when it would not.
  */
-export async function hitTest(page: PageSession, ref: number, pt: Point): Promise<string | null> {
+export async function hitTest(
+  page: PageSession,
+  ref: number,
+  pt: Point,
+): Promise<string | null> {
   const { conn, sessionId } = page;
   const objectId = await resolveRef(page, ref);
   const res = await conn.send<any>(
@@ -137,7 +162,9 @@ export async function hitTest(page: PageSession, ref: number, pt: Point): Promis
     },
     sessionId,
   );
-  await conn.send("Runtime.releaseObject", { objectId }, sessionId).catch(() => {});
+  await conn
+    .send("Runtime.releaseObject", { objectId }, sessionId)
+    .catch(() => {});
   return (res.result?.value as string | null) ?? null;
 }
 
@@ -151,19 +178,27 @@ export interface ClickOptions {
 
 export class ClickNotDelivered extends Error {
   constructor(where: string) {
-    super(`the click never reached the page at ${where}: Chrome dropped it, so nothing was clicked — take a snapshot and try again`);
+    super(
+      `the click never reached the page at ${where}: Chrome dropped it, so nothing was clicked — take a snapshot and try again`,
+    );
     this.name = "ClickNotDelivered";
   }
 }
 
 export class ClickMissed extends Error {
   constructor(ref: number, landed: string) {
-    super(`the click on #e${ref} landed on ${landed} instead — the page moved under it; take a fresh snapshot`);
+    super(
+      `the click on #e${ref} landed on ${landed} instead — the page moved under it; take a fresh snapshot`,
+    );
     this.name = "ClickMissed";
   }
 }
 
-export async function click(page: PageSession, ref: number, opts: ClickOptions = {}): Promise<Point> {
+export async function click(
+  page: PageSession,
+  ref: number,
+  opts: ClickOptions = {},
+): Promise<Point> {
   const top = page;
   ({ page, ref } = await pageForRef(page, ref)); // a ref inside a cross-origin frame acts on its session (oopif.ts)
   const pt = await locate(page, ref);
@@ -187,30 +222,69 @@ export async function click(page: PageSession, ref: number, opts: ClickOptions =
  */
 async function paint(top: PageSession): Promise<void> {
   await top.conn
-    .send("Page.captureScreenshot", { format: "jpeg", quality: 1, clip: { x: 0, y: 0, width: 1, height: 1, scale: 1 } }, top.sessionId, 5000)
+    .send(
+      "Page.captureScreenshot",
+      {
+        format: "jpeg",
+        quality: 1,
+        clip: { x: 0, y: 0, width: 1, height: 1, scale: 1 },
+      },
+      top.sessionId,
+      5000,
+    )
     .catch(() => {});
 }
 
 async function isHidden(page: PageSession): Promise<boolean> {
   const r = await page.conn
-    .send<any>("Runtime.evaluate", { expression: "document.hidden", returnByValue: true }, page.sessionId, 3000)
+    .send<any>(
+      "Runtime.evaluate",
+      { expression: "document.hidden", returnByValue: true },
+      page.sessionId,
+      3000,
+    )
     .catch(() => null);
   return r?.result?.value === true;
 }
 
 /** A mouse event, answered promptly even in a background tab: Chrome holds a
  *  move's or wheel's reply until the tab draws, so draw it while it waits. */
-async function sendMouse(page: PageSession, params: Record<string, unknown>, hidden: boolean, top: PageSession = page): Promise<void> {
-  const sent = page.conn.send("Input.dispatchMouseEvent", params, page.sessionId, hidden ? 6000 : undefined);
+async function sendMouse(
+  page: PageSession,
+  params: Record<string, unknown>,
+  hidden: boolean,
+  top: PageSession = page,
+): Promise<void> {
+  const sent = page.conn.send(
+    "Input.dispatchMouseEvent",
+    params,
+    page.sessionId,
+    hidden ? 6000 : undefined,
+  );
   if (hidden) await paint(top);
   await sent;
 }
 
 /** A pointer move. A reply Chrome still held after the tab drew is not a
  *  failure (the move is queued); anything else is. */
-async function moveTo(page: PageSession, x: number, y: number, modifiers: number, hidden: boolean, top: PageSession): Promise<void> {
-  await sendMouse(page, { type: "mouseMoved", x, y, button: "none", modifiers }, hidden, top).catch((err) => {
-    if (!(hidden && /did not answer within/.test(String((err as Error)?.message)))) throw err;
+async function moveTo(
+  page: PageSession,
+  x: number,
+  y: number,
+  modifiers: number,
+  hidden: boolean,
+  top: PageSession,
+): Promise<void> {
+  await sendMouse(
+    page,
+    { type: "mouseMoved", x, y, button: "none", modifiers },
+    hidden,
+    top,
+  ).catch((err) => {
+    if (
+      !(hidden && /did not answer within/.test(String((err as Error)?.message)))
+    )
+      throw err;
   });
 }
 
@@ -227,17 +301,27 @@ async function moveTo(page: PageSession, x: number, y: number, modifiers: number
  *
  * Returns 1 when the page cannot answer, which is the correct assumption.
  */
-async function inputScale(page: PageSession, at: Point, hidden: boolean, top: PageSession): Promise<number> {
+async function inputScale(
+  page: PageSession,
+  at: Point,
+  hidden: boolean,
+  top: PageSession,
+): Promise<number> {
   const { conn, sessionId } = page;
   try {
     await moveTo(page, at.x, at.y, 0, hidden, top);
     const r = await conn.send<any>(
       "Runtime.evaluate",
-      { expression: `JSON.stringify(window.__cast && window.__cast.ptr)`, returnByValue: true },
+      {
+        expression: `JSON.stringify(window.__cast && window.__cast.ptr)`,
+        returnByValue: true,
+      },
       sessionId,
       3000,
     );
-    const seen = JSON.parse(r.result?.value ?? "null") as [number, number] | null;
+    const seen = JSON.parse(r.result?.value ?? "null") as
+      | [number, number]
+      | null;
     if (!seen || !at.x) return 1;
     const scale = seen[0] / at.x;
     // Only trust a clear, consistent scaling. Anything near 1 is 1, and a wild
@@ -286,20 +370,34 @@ export const DELIVERY_PROBE = `function(x, y) {
  * over a frame is delivered inside that frame, out of this listener's sight,
  * so the record notes when the point is over one: delivery is then unknown.
  */
-async function armDelivery(page: PageSession, pt: Point, ref?: number): Promise<string | null> {
+async function armDelivery(
+  page: PageSession,
+  pt: Point,
+  ref?: number,
+): Promise<string | null> {
   const fn = DELIVERY_PROBE;
   try {
     if (ref !== undefined) {
       const objectId = await resolveRef(page, ref);
       const r = await page.conn.send<any>(
         "Runtime.callFunctionOn",
-        { objectId, functionDeclaration: fn, arguments: [{ value: pt.x }, { value: pt.y }] },
+        {
+          objectId,
+          functionDeclaration: fn,
+          arguments: [{ value: pt.x }, { value: pt.y }],
+        },
         page.sessionId,
       );
-      await page.conn.send("Runtime.releaseObject", { objectId }, page.sessionId).catch(() => {});
+      await page.conn
+        .send("Runtime.releaseObject", { objectId }, page.sessionId)
+        .catch(() => {});
       return r?.result?.objectId ?? null;
     }
-    const r = await page.conn.send<any>("Runtime.evaluate", { expression: `(${fn}).call(null, ${Number(pt.x)}, ${Number(pt.y)})` }, page.sessionId);
+    const r = await page.conn.send<any>(
+      "Runtime.evaluate",
+      { expression: `(${fn}).call(null, ${Number(pt.x)}, ${Number(pt.y)})` },
+      page.sessionId,
+    );
     return r?.result?.objectId ?? null;
   } catch {
     return null;
@@ -309,11 +407,19 @@ async function armDelivery(page: PageSession, pt: Point, ref?: number): Promise<
 /** What the armed listener saw. A context torn down by the click's own navigation means it arrived. */
 type Delivery = { got: { hit: boolean; name: string } | null; frame: boolean };
 
-async function readDelivery(page: PageSession, probe: string): Promise<Delivery | "navigated"> {
+async function readDelivery(
+  page: PageSession,
+  probe: string,
+): Promise<Delivery | "navigated"> {
   try {
     const r = await page.conn.send<any>(
       "Runtime.callFunctionOn",
-      { objectId: probe, functionDeclaration: "function() { this.off(); return { got: this.got, frame: this.frame }; }", returnByValue: true },
+      {
+        objectId: probe,
+        functionDeclaration:
+          "function() { this.off(); return { got: this.got, frame: this.frame }; }",
+        returnByValue: true,
+      },
       page.sessionId,
       3000,
     );
@@ -322,16 +428,28 @@ async function readDelivery(page: PageSession, probe: string): Promise<Delivery 
   } catch {
     return "navigated";
   } finally {
-    page.conn.send("Runtime.releaseObject", { objectId: probe }, page.sessionId).catch(() => {});
+    page.conn
+      .send("Runtime.releaseObject", { objectId: probe }, page.sessionId)
+      .catch(() => {});
   }
 }
 
 /** Click raw viewport coordinates. The escape hatch when no ref fits. */
-export async function clickAt(page: PageSession, pt: Point, opts: ClickOptions = {}): Promise<void> {
+export async function clickAt(
+  page: PageSession,
+  pt: Point,
+  opts: ClickOptions = {},
+): Promise<void> {
   await press(page, pt, opts, page);
 }
 
-async function press(page: PageSession, pt: Point, opts: ClickOptions, top: PageSession, ref?: number): Promise<void> {
+async function press(
+  page: PageSession,
+  pt: Point,
+  opts: ClickOptions,
+  top: PageSession,
+  ref?: number,
+): Promise<void> {
   const { conn, sessionId } = page;
   const button = opts.button ?? "left";
   const clickCount = opts.clickCount ?? 1;
@@ -349,14 +467,23 @@ async function press(page: PageSession, pt: Point, opts: ClickOptions, top: Page
   for (let attempt = 0; ; attempt++) {
     const probe = await armDelivery(page, pt, ref);
     await moveTo(page, x, y, modifiers, hidden, top);
-    await conn.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button, clickCount, modifiers }, sessionId);
-    await conn.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button, clickCount, modifiers }, sessionId);
+    await conn.send(
+      "Input.dispatchMouseEvent",
+      { type: "mousePressed", x, y, button, clickCount, modifiers },
+      sessionId,
+    );
+    await conn.send(
+      "Input.dispatchMouseEvent",
+      { type: "mouseReleased", x, y, button, clickCount, modifiers },
+      sessionId,
+    );
     if (!probe) return;
     const seen = await readDelivery(page, probe);
     if (seen === "navigated") return;
     const { got } = seen;
     if (got) {
-      if (!got.hit && ref !== undefined && !opts.force) throw new ClickMissed(ref, got.name);
+      if (!got.hit && ref !== undefined && !opts.force)
+        throw new ClickMissed(ref, got.name);
       return;
     }
     // Over a frame, the press went into it where this page cannot see:
@@ -368,7 +495,8 @@ async function press(page: PageSession, pt: Point, opts: ClickOptions, top: Page
     // a dropped press is the known failure, is pressed again.
     if (!hidden) return;
     // Nothing reached the page, so nothing acted and pressing again is safe.
-    if (attempt >= 1) throw new ClickNotDelivered(`[${Math.round(pt.x)},${Math.round(pt.y)}]`);
+    if (attempt >= 1)
+      throw new ClickNotDelivered(`[${Math.round(pt.x)},${Math.round(pt.y)}]`);
   }
 }
 
@@ -383,9 +511,11 @@ export async function hover(page: PageSession, ref: number): Promise<Point> {
 /** Focus an element without clicking — safer for inputs inside labels/links. */
 export async function focus(page: PageSession, ref: number): Promise<void> {
   ({ page, ref } = await pageForRef(page, ref)); // a ref inside a cross-origin frame acts on its session (oopif.ts)
-  await page.conn.send("DOM.focus", { backendNodeId: ref }, page.sessionId).catch(() => {
-    throw new ElementGone(ref);
-  });
+  await page.conn
+    .send("DOM.focus", { backendNodeId: ref }, page.sessionId)
+    .catch(() => {
+      throw new ElementGone(ref);
+    });
 }
 
 export interface TypeOptions {
@@ -399,7 +529,12 @@ export interface TypeOptions {
   delayMs?: number;
 }
 
-export async function type(page: PageSession, ref: number, text: string, opts: TypeOptions = {}): Promise<void> {
+export async function type(
+  page: PageSession,
+  ref: number,
+  text: string,
+  opts: TypeOptions = {},
+): Promise<void> {
   ({ page, ref } = await pageForRef(page, ref)); // a ref inside a cross-origin frame acts on its session (oopif.ts)
   const { conn, sessionId } = page;
   await focus(page, ref);
@@ -407,15 +542,44 @@ export async function type(page: PageSession, ref: number, text: string, opts: T
   if (opts.clear) {
     // Select-all then delete goes through the editing pipeline, so frameworks
     // observe the change. Setting .value directly does not notify React.
-    await conn.send("Input.dispatchKeyEvent", { type: "keyDown", modifiers: 4, key: "a", code: "KeyA", windowsVirtualKeyCode: 65, commands: ["selectAll"] }, sessionId);
-    await conn.send("Input.dispatchKeyEvent", { type: "keyUp", modifiers: 4, key: "a", code: "KeyA", windowsVirtualKeyCode: 65 }, sessionId);
+    await conn.send(
+      "Input.dispatchKeyEvent",
+      {
+        type: "keyDown",
+        modifiers: 4,
+        key: "a",
+        code: "KeyA",
+        windowsVirtualKeyCode: 65,
+        commands: ["selectAll"],
+      },
+      sessionId,
+    );
+    await conn.send(
+      "Input.dispatchKeyEvent",
+      {
+        type: "keyUp",
+        modifiers: 4,
+        key: "a",
+        code: "KeyA",
+        windowsVirtualKeyCode: 65,
+      },
+      sessionId,
+    );
     await pressKey(page, "Delete");
   }
 
   if (opts.perKey) {
     for (const ch of text) {
-      await conn.send("Input.dispatchKeyEvent", { type: "keyDown", text: ch, key: ch }, sessionId);
-      await conn.send("Input.dispatchKeyEvent", { type: "keyUp", key: ch }, sessionId);
+      await conn.send(
+        "Input.dispatchKeyEvent",
+        { type: "keyDown", text: ch, key: ch },
+        sessionId,
+      );
+      await conn.send(
+        "Input.dispatchKeyEvent",
+        { type: "keyUp", key: ch },
+        sessionId,
+      );
       if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs));
     }
   } else {
@@ -429,7 +593,10 @@ export async function type(page: PageSession, ref: number, text: string, opts: T
 
 // Keys an agent actually reaches for. `text` is what the page receives as
 // input; keys that produce no character omit it.
-const KEYS: Record<string, { code: string; key: string; vk: number; text?: string }> = {
+const KEYS: Record<
+  string,
+  { code: string; key: string; vk: number; text?: string }
+> = {
   Enter: { code: "Enter", key: "Enter", vk: 13, text: "\r" },
   Tab: { code: "Tab", key: "Tab", vk: 9, text: "\t" },
   Escape: { code: "Escape", key: "Escape", vk: 27 },
@@ -446,20 +613,36 @@ const KEYS: Record<string, { code: string; key: string; vk: number; text?: strin
   Space: { code: "Space", key: " ", vk: 32, text: " " },
 };
 
-const MODIFIER_BITS: Record<string, number> = { alt: 1, ctrl: 2, control: 2, meta: 4, cmd: 4, command: 4, shift: 8 };
+const MODIFIER_BITS: Record<string, number> = {
+  alt: 1,
+  ctrl: 2,
+  control: 2,
+  meta: 4,
+  cmd: 4,
+  command: 4,
+  shift: 8,
+};
 
 /**
  * Press a key, optionally with modifiers: "Enter", "Escape", "cmd+a",
  * "ctrl+shift+Tab", "F5", "cmd++". Single characters are allowed too ("/"
  * opens search on many sites).
  */
-export async function pressKey(page: PageSession, combo: string): Promise<void> {
+export async function pressKey(
+  page: PageSession,
+  combo: string,
+): Promise<void> {
   const { conn, sessionId } = page;
   // "+" separates, and is also a key: "+" alone, or last as in "cmd++".
   const plus = combo === "+" || combo.endsWith("++");
-  const parts = (plus ? combo.slice(0, -1) : combo).split("+").filter((p, i, all) => !(plus && i === all.length - 1 && p === ""));
+  const parts = (plus ? combo.slice(0, -1) : combo)
+    .split("+")
+    .filter((p, i, all) => !(plus && i === all.length - 1 && p === ""));
   const keyName = plus ? "+" : parts.pop()!;
-  if (!keyName) throw new Error(`'${combo}' names no key — use a key name or character, with modifiers before it: Enter, cmd+a, ctrl+shift+Tab`);
+  if (!keyName)
+    throw new Error(
+      `'${combo}' names no key — use a key name or character, with modifiers before it: Enter, cmd+a, ctrl+shift+Tab`,
+    );
   let modifiers = 0;
   for (const m of parts) modifiers |= MODIFIER_BITS[m.toLowerCase()] ?? 0;
 
@@ -468,7 +651,7 @@ export async function pressKey(page: PageSession, combo: string): Promise<void> 
     ? { code: `F${fn[1]}`, key: `F${fn[1]}`, vk: 111 + Number(fn[1]) }
     : plus
       ? { code: "Equal", key: "+", vk: 187, text: "+" }
-      : KEYS[keyName] ?? KEYS[keyName[0].toUpperCase() + keyName.slice(1)];
+      : (KEYS[keyName] ?? KEYS[keyName[0].toUpperCase() + keyName.slice(1)]);
   const spec = known ?? {
     code: `Key${keyName.toUpperCase()}`,
     key: keyName,
@@ -481,12 +664,25 @@ export async function pressKey(page: PageSession, combo: string): Promise<void> 
   const text = modifiers === 0 || modifiers === 8 ? spec.text : undefined;
   await conn.send(
     "Input.dispatchKeyEvent",
-    { type: text ? "keyDown" : "rawKeyDown", modifiers, windowsVirtualKeyCode: spec.vk, code: spec.code, key: spec.key, ...(text ? { text } : {}) },
+    {
+      type: text ? "keyDown" : "rawKeyDown",
+      modifiers,
+      windowsVirtualKeyCode: spec.vk,
+      code: spec.code,
+      key: spec.key,
+      ...(text ? { text } : {}),
+    },
     sessionId,
   );
   await conn.send(
     "Input.dispatchKeyEvent",
-    { type: "keyUp", modifiers, windowsVirtualKeyCode: spec.vk, code: spec.code, key: spec.key },
+    {
+      type: "keyUp",
+      modifiers,
+      windowsVirtualKeyCode: spec.vk,
+      code: spec.code,
+      key: spec.key,
+    },
     sessionId,
   );
 }
@@ -507,7 +703,11 @@ export interface ScrollResult {
  * after dispatching returns the OLD position — which made every scroll report
  * the offset it started from and the first one always say "at 0".
  */
-export async function scroll(page: PageSession, deltaY: number, deltaX = 0): Promise<ScrollResult> {
+export async function scroll(
+  page: PageSession,
+  deltaY: number,
+  deltaX = 0,
+): Promise<ScrollResult> {
   const { conn, sessionId } = page;
   /**
    * Where the thing under the cursor is scrolled to.
@@ -521,7 +721,12 @@ export async function scroll(page: PageSession, deltaY: number, deltaX = 0): Pro
    * first try. So find the nearest scrollable ancestor of the element at the
    * cursor and measure THAT, falling back to the document.
    */
-  const read = async (): Promise<{ y: number; max: number; cx: number; cy: number }> => {
+  const read = async (): Promise<{
+    y: number;
+    max: number;
+    cx: number;
+    cy: number;
+  }> => {
     const r = await conn.send<any>(
       "Runtime.evaluate",
       {
@@ -550,7 +755,11 @@ export async function scroll(page: PageSession, deltaY: number, deltaX = 0): Pro
 
   const hidden = await isHidden(page);
   const start = await read();
-  await sendMouse(page, { type: "mouseWheel", x: start.cx, y: start.cy, deltaX, deltaY }, hidden);
+  await sendMouse(
+    page,
+    { type: "mouseWheel", x: start.cx, y: start.cy, deltaX, deltaY },
+    hidden,
+  );
 
   // Wait for the position to stop changing rather than guessing a delay: a
   // smooth-scrolling page is still moving for a few hundred ms.
@@ -577,7 +786,11 @@ export async function scroll(page: PageSession, deltaY: number, deltaX = 0): Pro
  * and has no DOM, so a click can never reach it; setting the value and firing
  * the events the page listens for is the only path that works.
  */
-export async function selectOption(page: PageSession, ref: number, value: string): Promise<string> {
+export async function selectOption(
+  page: PageSession,
+  ref: number,
+  value: string,
+): Promise<string> {
   ({ page, ref } = await pageForRef(page, ref)); // a ref inside a cross-origin frame acts on its session (oopif.ts)
   const { conn, sessionId } = page;
   const objectId = await resolveRef(page, ref);
@@ -609,7 +822,9 @@ export async function selectOption(page: PageSession, ref: number, value: string
     },
     sessionId,
   );
-  await conn.send("Runtime.releaseObject", { objectId }, sessionId).catch(() => {});
+  await conn
+    .send("Runtime.releaseObject", { objectId }, sessionId)
+    .catch(() => {});
   const err = res.result?.value as string | null;
   if (err) throw new Error(err);
   return value;
@@ -621,7 +836,7 @@ export async function selectOption(page: PageSession, ref: number, value: string
 const PAGE_UPLOAD_MAX_ENCODED = 60 * 1024 * 1024;
 
 const FILE_ACCESS_HINT =
-  "Chrome lets an extension hand files to a page only with its \"Allow access to file URLs\" switch: chrome://extensions → Codecast → Details";
+  'Chrome lets an extension hand files to a page only with its "Allow access to file URLs" switch: chrome://extensions → Codecast → Details';
 
 /**
  * Attach files to a file input. Returns how: "native" through Chrome, or
@@ -630,10 +845,18 @@ const FILE_ACCESS_HINT =
  * set on the input with input and change events, which is all an ordinary
  * upload widget reads.
  */
-export async function uploadFiles(page: PageSession, ref: number, files: string[]): Promise<"native" | "page"> {
+export async function uploadFiles(
+  page: PageSession,
+  ref: number,
+  files: string[],
+): Promise<"native" | "page"> {
   ({ page, ref } = await pageForRef(page, ref)); // a ref inside a cross-origin frame acts on its session (oopif.ts)
   try {
-    await page.conn.send("DOM.setFileInputFiles", { backendNodeId: ref, files }, page.sessionId);
+    await page.conn.send(
+      "DOM.setFileInputFiles",
+      { backendNodeId: ref, files },
+      page.sessionId,
+    );
     return "native";
   } catch (err) {
     if (!/not allowed/i.test(String((err as Error)?.message ?? err))) throw err;
@@ -641,11 +864,21 @@ export async function uploadFiles(page: PageSession, ref: number, files: string[
   const fs = await import("node:fs");
   const path = await import("node:path");
   const total = files.reduce((n, f) => n + fs.statSync(f).size, 0);
-  const encoded = files.reduce((n, f) => n + Math.ceil(fs.statSync(f).size / 3) * 4, 0);
-  if (encoded > PAGE_UPLOAD_MAX_ENCODED) throw new Error(`Chrome refused the files (Not allowed), and ${Math.round(total / 1048576)}MB is too large to build in the page. ${FILE_ACCESS_HINT}`);
+  const encoded = files.reduce(
+    (n, f) => n + Math.ceil(fs.statSync(f).size / 3) * 4,
+    0,
+  );
+  if (encoded > PAGE_UPLOAD_MAX_ENCODED)
+    throw new Error(
+      `Chrome refused the files (Not allowed), and ${Math.round(total / 1048576)}MB is too large to build in the page. ${FILE_ACCESS_HINT}`,
+    );
   const payload = files.map((f) => {
     const type = mediaTypeForFile(f);
-    return { name: path.basename(f), type: type === "application/octet-stream" ? "" : type, data: fs.readFileSync(f).toString("base64") };
+    return {
+      name: path.basename(f),
+      type: type === "application/octet-stream" ? "" : type,
+      data: fs.readFileSync(f).toString("base64"),
+    };
   });
   const objectId = await resolveRef(page, ref);
   const r = await page.conn.send<any>(
@@ -673,10 +906,16 @@ export async function uploadFiles(page: PageSession, ref: number, files: string[
     page.sessionId,
     60_000,
   );
-  await page.conn.send("Runtime.releaseObject", { objectId }, page.sessionId).catch(() => {});
-  const problem = r?.exceptionDetails?.exception?.description ?? r?.result?.value;
+  await page.conn
+    .send("Runtime.releaseObject", { objectId }, page.sessionId)
+    .catch(() => {});
+  const problem =
+    r?.exceptionDetails?.exception?.description ?? r?.result?.value;
   if (problem === "gone") throw new ElementGone(ref);
-  if (problem) throw new Error(`Chrome refused the files (Not allowed), and building them in the page failed: ${problem}. ${FILE_ACCESS_HINT}`);
+  if (problem)
+    throw new Error(
+      `Chrome refused the files (Not allowed), and building them in the page failed: ${problem}. ${FILE_ACCESS_HINT}`,
+    );
   return "page";
 }
 
@@ -693,7 +932,10 @@ export interface ShotOptions {
 }
 
 /** Capture a screenshot, returned as raw bytes. */
-export async function screenshot(page: PageSession, opts: ShotOptions = {}): Promise<Buffer> {
+export async function screenshot(
+  page: PageSession,
+  opts: ShotOptions = {},
+): Promise<Buffer> {
   const { conn, sessionId } = page;
   const format = opts.format ?? "png";
   const params: Record<string, unknown> = {
@@ -702,16 +944,34 @@ export async function screenshot(page: PageSession, opts: ShotOptions = {}): Pro
   };
 
   if (opts.ref !== undefined) {
-    await conn.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: opts.ref }, sessionId).catch(() => {
-      throw new ElementGone(opts.ref!);
-    });
-    const { model } = await conn.send<any>("DOM.getBoxModel", { backendNodeId: opts.ref }, sessionId);
+    await conn
+      .send(
+        "DOM.scrollIntoViewIfNeeded",
+        { backendNodeId: opts.ref },
+        sessionId,
+      )
+      .catch(() => {
+        throw new ElementGone(opts.ref!);
+      });
+    const { model } = await conn.send<any>(
+      "DOM.getBoxModel",
+      { backendNodeId: opts.ref },
+      sessionId,
+    );
     const [x1, y1, , , x3, y3] = model.border;
     // The box model is in viewport coordinates and a clip is in page
     // coordinates: on a scrolled page the two differ by the scroll offset.
-    const metrics = await conn.send<any>("Page.getLayoutMetrics", {}, sessionId).catch(() => null);
+    const metrics = await conn
+      .send<any>("Page.getLayoutMetrics", {}, sessionId)
+      .catch(() => null);
     const vv = metrics?.cssVisualViewport ?? metrics?.visualViewport;
-    params.clip = { x: x1 + (vv?.pageX ?? 0), y: y1 + (vv?.pageY ?? 0), width: x3 - x1, height: y3 - y1, scale: 1 };
+    params.clip = {
+      x: x1 + (vv?.pageX ?? 0),
+      y: y1 + (vv?.pageY ?? 0),
+      width: x3 - x1,
+      height: y3 - y1,
+      scale: 1,
+    };
   } else if (opts.fullPage) {
     // captureBeyondViewport renders the whole scroll height without the
     // scroll-and-stitch dance, which double-fires lazy loaders.
@@ -719,7 +979,11 @@ export async function screenshot(page: PageSession, opts: ShotOptions = {}): Pro
   } else if (opts.maxWidth) {
     const [lm, dprRes] = await Promise.all([
       conn.send<any>("Page.getLayoutMetrics", {}, sessionId),
-      conn.send<any>("Runtime.evaluate", { expression: "devicePixelRatio", returnByValue: true }, sessionId),
+      conn.send<any>(
+        "Runtime.evaluate",
+        { expression: "devicePixelRatio", returnByValue: true },
+        sessionId,
+      ),
     ]);
     const v = lm.cssLayoutViewport;
     const dpr = Number(dprRes?.result?.value) || 1;
@@ -730,16 +994,29 @@ export async function screenshot(page: PageSession, opts: ShotOptions = {}): Pro
     if (v && scale < 1) {
       // Clip coordinates are page coordinates, so a scrolled page needs the
       // scroll offset folded in or the capture shows the top of the document.
-      params.clip = { x: v.pageX ?? 0, y: v.pageY ?? 0, width: v.clientWidth, height: v.clientHeight, scale };
+      params.clip = {
+        x: v.pageX ?? 0,
+        y: v.pageY ?? 0,
+        width: v.clientWidth,
+        height: v.clientHeight,
+        scale,
+      };
     }
   }
 
-  const res = await conn.send<{ data: string }>("Page.captureScreenshot", params, sessionId);
+  const res = await conn.send<{ data: string }>(
+    "Page.captureScreenshot",
+    params,
+    sessionId,
+  );
   return Buffer.from(res.data, "base64");
 }
 
 /** Run JavaScript in the page and return its value. */
-export async function evaluate(page: PageSession, expression: string): Promise<unknown> {
+export async function evaluate(
+  page: PageSession,
+  expression: string,
+): Promise<unknown> {
   const res = await page.conn.send<any>(
     "Runtime.evaluate",
     { expression, returnByValue: true, awaitPromise: true, userGesture: true },

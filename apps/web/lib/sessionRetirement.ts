@@ -4,7 +4,9 @@ type RetirementStamps = {
   inbox_stashed_at?: number | null;
 };
 
-export function isSessionDismissed(s: Pick<RetirementStamps, "inbox_dismissed_at">): boolean {
+export function isSessionDismissed(
+  s: Pick<RetirementStamps, "inbox_dismissed_at">,
+): boolean {
   return !!s.inbox_dismissed_at;
 }
 
@@ -17,7 +19,9 @@ export function isSessionDismissed(s: Pick<RetirementStamps, "inbox_dismissed_at
 // that's the path behind the web's convCommand("killSession") (the Killed
 // shelf's kill-and-complete) and older clients. Anything asking "is this
 // killed?" must read this field or it silently misses those.
-export function isSessionKilled(s: Pick<RetirementStamps, "inbox_killed_at">): boolean {
+export function isSessionKilled(
+  s: Pick<RetirementStamps, "inbox_killed_at">,
+): boolean {
   return !!s.inbox_killed_at;
 }
 
@@ -33,6 +37,13 @@ export function isSessionStashed(
 // session menu offers Restore in place of the filing verbs for such a row,
 // because those verbs would be no-ops: a killed row stays under Killed
 // whatever else is stamped on it. `dismissed` is the palette target's flag.
-export function isSessionSetAside(s: RetirementStamps & { dismissed?: unknown }): boolean {
-  return !!s.dismissed || !!s.inbox_stashed_at || !!s.inbox_killed_at || !!s.inbox_dismissed_at;
+export function isSessionSetAside(
+  s: RetirementStamps & { dismissed?: unknown },
+): boolean {
+  return (
+    !!s.dismissed ||
+    !!s.inbox_stashed_at ||
+    !!s.inbox_killed_at ||
+    !!s.inbox_dismissed_at
+  );
 }

@@ -4,11 +4,17 @@
 // uses, back to back, so the agent reads one instruction that names every
 // author instead of two turns that may contradict each other, and the
 // transcript draws each part under its author.
-import { formatUserMessage, parseUserMessage, restoreFrameTags, stripInjectionNoise } from "./machineMessages";
+import {
+  formatUserMessage,
+  parseUserMessage,
+  restoreFrameTags,
+  stripInjectionNoise,
+} from "./machineMessages";
 
 export type JointPart = { from: string; body: string };
 
-const PART_RE = /<user-message\s+from="([^"]*)"[^>]*>([\s\S]*?)<\/user-message>/g;
+const PART_RE =
+  /<user-message\s+from="([^"]*)"[^>]*>([\s\S]*?)<\/user-message>/g;
 
 /** The wire text for a joint turn. Empty parts drop; one part is an ordinary direct send. */
 export function formatJointMessage(parts: readonly JointPart[]): string {
@@ -17,14 +23,19 @@ export function formatJointMessage(parts: readonly JointPart[]): string {
 }
 
 /** The parts of a joint turn, or null when the text is not one (fewer than two parts, or text outside them). */
-export function parseJointMessage(raw: string | null | undefined): JointPart[] | null {
+export function parseJointMessage(
+  raw: string | null | undefined,
+): JointPart[] | null {
   if (!raw) return null;
   const text = stripInjectionNoise(raw).trim();
   if (!text.startsWith("<user-message")) return null;
   const parts: JointPart[] = [];
   let rest = text;
   for (const m of text.matchAll(PART_RE)) {
-    parts.push({ from: restoreFrameTags(m[1].trim()), body: restoreFrameTags(m[2].trim()) });
+    parts.push({
+      from: restoreFrameTags(m[1].trim()),
+      body: restoreFrameTags(m[2].trim()),
+    });
     rest = rest.replace(m[0], "");
   }
   if (parts.length < 2 || rest.trim()) return null;

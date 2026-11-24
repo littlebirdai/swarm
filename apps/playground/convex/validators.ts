@@ -6,15 +6,28 @@ import { VERSION_KINDS } from "./lib/versions";
 export const visitorArgs = { visitor_id: v.string(), secret: v.string() };
 
 /** What an app's SDK proves instead: a visitor, in one app (requireRuntimeVisitor). */
-export const runtimeArgs = { visitor_id: v.string(), app_id: v.id("apps"), token: v.string() };
+export const runtimeArgs = {
+  visitor_id: v.string(),
+  app_id: v.id("apps"),
+  token: v.string(),
+};
 
 export const versionKind = v.union(...VERSION_KINDS.map((k) => v.literal(k)));
 
-export const messageKind = v.union(v.literal("chat"), v.literal("request"), v.literal("build"), v.literal("system"));
+export const messageKind = v.union(
+  v.literal("chat"),
+  v.literal("request"),
+  v.literal("build"),
+  v.literal("system"),
+);
 export type MessageKind = Infer<typeof messageKind>;
 
 /** What the composer asked for: Auto lets triage decide. */
-export const composerMode = v.union(v.literal("auto"), v.literal("change"), v.literal("chat"));
+export const composerMode = v.union(
+  v.literal("auto"),
+  v.literal("change"),
+  v.literal("chat"),
+);
 
 /** Point and talk: the element a message is about. */
 export const elementRef = v.object({
@@ -28,16 +41,39 @@ export type ElementRef = Infer<typeof elementRef>;
 /** A system note's facts; the shell writes the words from them, so a
  *  character renamed later reads right. */
 export const systemNote = v.union(
-  v.object({ type: v.literal("fork"), visitor_id: v.id("visitors"), version: v.number(), fork_app_id: v.id("apps") }),
-  v.object({ type: v.literal("restore"), visitor_id: v.id("visitors"), from_version: v.number(), version: v.number(), undid: v.optional(v.number()) }),
-  v.object({ type: v.literal("error"), version: v.number(), message: v.string() }),
+  v.object({
+    type: v.literal("fork"),
+    visitor_id: v.id("visitors"),
+    version: v.number(),
+    fork_app_id: v.id("apps"),
+  }),
+  v.object({
+    type: v.literal("restore"),
+    visitor_id: v.id("visitors"),
+    from_version: v.number(),
+    version: v.number(),
+    undid: v.optional(v.number()),
+  }),
+  v.object({
+    type: v.literal("error"),
+    version: v.number(),
+    message: v.string(),
+  }),
   /** A fork's data did not all come over: skipped (a copy budget was spent)
    *  or partial (the copy broke off). */
-  v.object({ type: v.literal("data"), outcome: v.union(v.literal("skipped"), v.literal("partial")) }),
+  v.object({
+    type: v.literal("data"),
+    outcome: v.union(v.literal("skipped"), v.literal("partial")),
+  }),
 );
 export type SystemNote = Infer<typeof systemNote>;
 
-export const buildStatus = v.union(v.literal("queued"), v.literal("building"), v.literal("live"), v.literal("failed"));
+export const buildStatus = v.union(
+  v.literal("queued"),
+  v.literal("building"),
+  v.literal("live"),
+  v.literal("failed"),
+);
 export type BuildStatus = Infer<typeof buildStatus>;
 
 /** How a build failed, which decides what its card offers: a retry where
@@ -57,7 +93,13 @@ export const failureKind = v.union(
 export type FailureKind = Infer<typeof failureKind>;
 
 /** Failures a second try of the same words can get past. */
-export const RETRYABLE_FAILURES: readonly FailureKind[] = ["invalid", "time", "stopped", "unreachable", "moved"];
+export const RETRYABLE_FAILURES: readonly FailureKind[] = [
+  "invalid",
+  "time",
+  "stopped",
+  "unreachable",
+  "moved",
+];
 
 /** A file a build looked at or changed, as its card shows it. */
 export const touchedFile = v.object({
@@ -76,4 +118,7 @@ export const narrationLine = v.object({
 });
 export type NarrationLine = Infer<typeof narrationLine>;
 
-export const versionRef = v.object({ app_id: v.id("apps"), version: v.number() });
+export const versionRef = v.object({
+  app_id: v.id("apps"),
+  version: v.number(),
+});

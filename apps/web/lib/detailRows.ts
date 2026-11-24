@@ -23,7 +23,10 @@
  *  the row to disk each time. */
 export const CACHED_AT_GRAIN_MS = 6 * 60 * 60 * 1000;
 
-export const cachedAt = (prev: { _cachedAt?: number } | undefined, now: number): number => {
+export const cachedAt = (
+  prev: { _cachedAt?: number } | undefined,
+  now: number,
+): number => {
   const held = prev?._cachedAt;
   return held !== undefined && now - held < CACHED_AT_GRAIN_MS ? held : now;
 };
@@ -51,23 +54,40 @@ type Row = Record<string, any>;
 // `deployDetails` holds the names an opened deploy's push added and dropped
 // (up to 500 each, so a row can reach tens of KB): the deploys a person opened
 // lately, pinned by the open detail (hooks/useDeployDetail).
-export const DETAIL_ROW_CAPS = { taskComments: 1500, pullRequestDetails: 12, deployReach: 300, runGraphs: 40, deployDetails: 50 } as const;
+export const DETAIL_ROW_CAPS = {
+  taskComments: 1500,
+  pullRequestDetails: 12,
+  deployReach: 300,
+  runGraphs: 40,
+  deployDetails: 50,
+} as const;
 export type DetailKey = keyof typeof DETAIL_ROW_CAPS;
-export const isDetailKey = (key: string): key is DetailKey => Object.prototype.hasOwnProperty.call(DETAIL_ROW_CAPS, key);
+export const isDetailKey = (key: string): key is DetailKey =>
+  Object.prototype.hasOwnProperty.call(DETAIL_ROW_CAPS, key);
 
 // What is on screen in this window: each mounted reader of a detail row pins
 // it (useTaskComments, usePullRequestDetail, useSyncTaskThreads), and a
 // pinned row is never evicted, whatever the cap and whichever window asked.
-const pins: Record<DetailKey, Map<string, number>> = { taskComments: new Map(), pullRequestDetails: new Map(), deployReach: new Map(), runGraphs: new Map(), deployDetails: new Map() };
+const pins: Record<DetailKey, Map<string, number>> = {
+  taskComments: new Map(),
+  pullRequestDetails: new Map(),
+  deployReach: new Map(),
+  runGraphs: new Map(),
+  deployDetails: new Map(),
+};
 
 /** Hold these rows while a surface shows them. Returns the release. */
-export function pinDetailRows(key: DetailKey, ids: readonly string[]): () => void {
+export function pinDetailRows(
+  key: DetailKey,
+  ids: readonly string[],
+): () => void {
   const held = pins[key];
   for (const id of ids) held.set(id, (held.get(id) ?? 0) + 1);
   return () => {
     for (const id of ids) {
       const n = (held.get(id) ?? 0) - 1;
-      if (n > 0) held.set(id, n); else held.delete(id);
+      if (n > 0) held.set(id, n);
+      else held.delete(id);
     }
   };
 }
@@ -139,19 +159,29 @@ export function thinTaskRow<T extends Row>(row: T): T {
 }
 
 /** The thread a task row carries, or null when it carries none. */
-export function taskCommentsRow(row: Row, prev: TaskCommentsRow | undefined, now: number): TaskCommentsRow | null {
+export function taskCommentsRow(
+  row: Row,
+  prev: TaskCommentsRow | undefined,
+  now: number,
+): TaskCommentsRow | null {
   if (!row || !Array.isArray(row.comments)) return null;
   return {
     _id: String(row._id),
     comments: row.comments,
-    as_of: typeof row.last_comment_at === "number" ? row.last_comment_at : prev?.as_of ?? 0,
+    as_of:
+      typeof row.last_comment_at === "number"
+        ? row.last_comment_at
+        : (prev?.as_of ?? 0),
     _cachedAt: cachedAt(prev, now),
   };
 }
 
 /** Whether the store's thread for a task is older than the task row says its
  *  comments are (or was never read). */
-export function taskThreadStale(task: { last_comment_at?: number | null } | undefined, thread: TaskCommentsRow | undefined): boolean {
+export function taskThreadStale(
+  task: { last_comment_at?: number | null } | undefined,
+  thread: TaskCommentsRow | undefined,
+): boolean {
   if (!thread) return true;
   return (task?.last_comment_at ?? 0) > thread.as_of;
 }
@@ -159,7 +189,11 @@ export function taskThreadStale(task: { last_comment_at?: number | null } | unde
 // ── Pull requests ───────────────────────────────────────────────────────────
 
 /** The fields of a pull request row only its page and its diff draw. */
-export const PULL_REQUEST_DETAIL_FIELDS = ["files", "commits", "checks"] as const;
+export const PULL_REQUEST_DETAIL_FIELDS = [
+  "files",
+  "commits",
+  "checks",
+] as const;
 
 export type PullRequestDetailRow = {
   _id: string;
@@ -186,20 +220,36 @@ export function thinPullRequestRow<T extends Row>(row: T): T {
 }
 
 /** The detail a full pull request row carries, or null for a row that carries none (a chip row). */
-export function pullRequestDetailRow(row: Row, prev: PullRequestDetailRow | undefined, now: number): PullRequestDetailRow | null {
+export function pullRequestDetailRow(
+  row: Row,
+  prev: PullRequestDetailRow | undefined,
+  now: number,
+): PullRequestDetailRow | null {
   if (!carriesPullRequestDetail(row)) return null;
-  const out: PullRequestDetailRow = { _id: String(row._id), checks_state: row.checks_state ?? null, _cachedAt: cachedAt(prev, now) };
-  for (const f of PULL_REQUEST_DETAIL_FIELDS) if (row[f] !== undefined) out[f] = row[f];
+  const out: PullRequestDetailRow = {
+    _id: String(row._id),
+    checks_state: row.checks_state ?? null,
+    _cachedAt: cachedAt(prev, now),
+  };
+  for (const f of PULL_REQUEST_DETAIL_FIELDS)
+    if (row[f] !== undefined) out[f] = row[f];
   return out;
 }
 
 /** A pull request as its page reads it: the list row with its detail laid on. */
-export function joinPullRequestDetail<T extends Row>(row: T, detail: PullRequestDetailRow | undefined): T {
+export function joinPullRequestDetail<T extends Row>(
+  row: T,
+  detail: PullRequestDetailRow | undefined,
+): T {
   if (!detail) return row;
   const out: Row = { ...row };
   if (detail.files !== undefined) out.files = detail.files;
   if (detail.commits !== undefined) out.commits = detail.commits;
-  if (detail.checks !== undefined && detail.checks_state === (row.checks_state ?? null)) out.checks = detail.checks;
+  if (
+    detail.checks !== undefined &&
+    detail.checks_state === (row.checks_state ?? null)
+  )
+    out.checks = detail.checks;
   return out as T;
 }
 
@@ -214,9 +264,15 @@ const joinedRows = new WeakMap<object, { comments: any[]; row: Row }>();
  * with no thread held is returned as it is, and a joined row keeps its
  * identity while its row and its thread do.
  */
-export function withTaskComments<T extends { _id: string }>(rows: readonly T[], threads: Record<string, TaskCommentsRow> | undefined, wants: (row: T) => boolean): T[] {
+export function withTaskComments<T extends { _id: string }>(
+  rows: readonly T[],
+  threads: Record<string, TaskCommentsRow> | undefined,
+  wants: (row: T) => boolean,
+): T[] {
   return rows.map((row) => {
-    const comments = wants(row) ? threads?.[String(row._id)]?.comments : undefined;
+    const comments = wants(row)
+      ? threads?.[String(row._id)]?.comments
+      : undefined;
     if (!comments) return row;
     const was = joinedRows.get(row);
     if (was && was.comments === comments) return was.row as T;

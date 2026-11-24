@@ -33,14 +33,21 @@ export type Conversation = {
   // The handoff pair (`cast handoff --to`): a child started from a human
   // shell has no spawned_by, so the card reads this for its parent link too.
   handed_off_from_conversation_id?: string | null;
-  handed_off_from_details?: { conversation_id: string; short_id: string; title?: string | null } | null;
+  handed_off_from_details?: {
+    conversation_id: string;
+    short_id: string;
+    title?: string | null;
+  } | null;
   parent_message_uuid?: string | null;
   is_subagent?: boolean;
   is_workflow_sub?: boolean;
   workflow_run_id?: string | null;
   parent_title?: string | null;
   children?: Conversation[];
-  latest_todos?: { todos: Array<{ status: string; content: string; activeForm?: string }>; timestamp: number };
+  latest_todos?: {
+    todos: Array<{ status: string; content: string; activeForm?: string }>;
+    timestamp: number;
+  };
   latest_usage?: {
     inputTokens: number;
     outputTokens: number;

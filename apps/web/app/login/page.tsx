@@ -26,7 +26,18 @@ function LoginForm() {
   // The address a sign-in is meant for (a managed device's profile names its
   // person): prefilled, and named in the subtitle.
   const loginHint = searchParams.get("login_hint")?.trim() || "";
-  const { email, setEmail, password, setPassword, error, loading, submit: handleSubmit, pendingVerification, verified, startOver } = useEmailAuth("signIn", redirectTo, loginHint);
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    error,
+    loading,
+    submit: handleSubmit,
+    pendingVerification,
+    verified,
+    startOver,
+  } = useEmailAuth("signIn", redirectTo, loginHint);
 
   useWatchEffect(() => {
     if (localAuthed || (!isLoading && isAuthenticated)) {
@@ -35,14 +46,16 @@ function LoginForm() {
   }, [localAuthed, isAuthenticated, isLoading, router, redirectTo]);
 
   if (localAuthed || isLoading || isAuthenticated) {
-    return (
-<AppLoader />
-    );
+    return <AppLoader />;
   }
 
   if (pendingVerification) {
     return (
-      <EmailVerificationForm email={email} onVerified={verified} onBack={startOver} />
+      <EmailVerificationForm
+        email={email}
+        onVerified={verified}
+        onBack={startOver}
+      />
     );
   }
 
@@ -52,17 +65,21 @@ function LoginForm() {
         <div className="text-center mb-8 flex flex-col items-center">
           <Logo size="xl" className="text-sol-text" />
           <p className="text-sol-text-muted mt-3 text-sm">
-            {loginHint
-              ? <>Sign in as <span className="text-sol-text">{loginHint}</span></>
-              : reason === "slack"
-              ? "Sign in with the Codecast account that started this Slack connection."
-              : reason === "whisk"
-                ? "Sign in with the Codecast account that started connecting your mail and calendar."
-                : reason === "session_expired"
-                  ? "Your session expired. Please sign in again."
-                  : reason === "oauth"
-                    ? "GitHub sign-in didn't complete. Please try again."
-                    : "Sign in to access your conversations"}
+            {loginHint ? (
+              <>
+                Sign in as <span className="text-sol-text">{loginHint}</span>
+              </>
+            ) : reason === "slack" ? (
+              "Sign in with the Codecast account that started this Slack connection."
+            ) : reason === "whisk" ? (
+              "Sign in with the Codecast account that started connecting your mail and calendar."
+            ) : reason === "session_expired" ? (
+              "Your session expired. Please sign in again."
+            ) : reason === "oauth" ? (
+              "GitHub sign-in didn't complete. Please try again."
+            ) : (
+              "Sign in to access your conversations"
+            )}
           </p>
         </div>
 
@@ -74,68 +91,76 @@ function LoginForm() {
               <div className="w-full border-t border-sol-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-sol-bg-alt text-sol-text-muted">or sign in with email</span>
+              <span className="px-2 bg-sol-bg-alt text-sol-text-muted">
+                or sign in with email
+              </span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-sol-text-muted mb-2"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "auth-error" : undefined}
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
+              <div>
                 <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-sol-text-muted"
+                  htmlFor="email"
+                  className="block text-sm font-medium text-sol-text-muted mb-2"
                 >
-                  Password
+                  Email
                 </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange transition-colors"
-                >
-                  Forgot password?
-                </Link>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
+                  placeholder="you@example.com"
+                />
               </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "auth-error" : undefined}
-                placeholder="Enter your password"
-              />
-            </div>
-          </div>
 
-          {error && (
-            <p id="auth-error" role="alert" className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>
-          )}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-sol-text-muted"
+                  >
+                    Password
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p
+                id="auth-error"
+                role="alert"
+                className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
+              >
+                {error}
+              </p>
+            )}
 
             <Button
               variant="amber"
@@ -151,7 +176,11 @@ function LoginForm() {
           <p className="mt-6 text-center text-sm text-sol-text-muted">
             Don&apos;t have an account?{" "}
             <Link
-              href={returnTo ? `/signup?return_to=${encodeURIComponent(returnTo)}` : "/signup"}
+              href={
+                returnTo
+                  ? `/signup?return_to=${encodeURIComponent(returnTo)}`
+                  : "/signup"
+              }
               className="font-medium text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange transition-colors"
             >
               Sign Up
@@ -165,9 +194,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-<AppLoader />
-    }>
+    <Suspense fallback={<AppLoader />}>
       <LoginForm />
     </Suspense>
   );

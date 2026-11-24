@@ -1,4 +1,10 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, join } from "node:path";
 
 // THE SHRINK-ONLY RATCHET.
@@ -83,7 +89,12 @@ const DEFAULT_IGNORED = [
 ] as const;
 
 /** Every file under `dir` with a scanned extension, recursively. */
-export function walkFiles(dir: string, extensions: readonly string[], ignoreDirs: ReadonlySet<string>, out: string[] = []): string[] {
+export function walkFiles(
+  dir: string,
+  extensions: readonly string[],
+  ignoreDirs: ReadonlySet<string>,
+  out: string[] = [],
+): string[] {
   let entries: string[];
   try {
     entries = readdirSync(dir);
@@ -116,7 +127,10 @@ export function codeOnly(source: string): string {
 
 /** Occurrences of `pattern` in the file's code, comments excluded. */
 export function countMatches(source: string, pattern: RegExp): number {
-  const re = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  const re = new RegExp(
+    pattern.source,
+    pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
+  );
   return (codeOnly(source).match(re) ?? []).length;
 }
 
@@ -126,15 +140,22 @@ export function parseAllowlist(text: string): Map<string, RatchetAllowance> {
     const hash = raw.indexOf("#");
     const body = (hash === -1 ? raw : raw.slice(0, hash)).trim();
     if (!body) continue;
-    const note = hash === -1 ? undefined : raw.slice(hash + 1).trim() || undefined;
+    const note =
+      hash === -1 ? undefined : raw.slice(hash + 1).trim() || undefined;
     const [key, second] = body.split(/\s+/);
-    const value = second !== undefined && Number.isFinite(Number(second)) ? Number(second) : undefined;
+    const value =
+      second !== undefined && Number.isFinite(Number(second))
+        ? Number(second)
+        : undefined;
     out.set(key, { value, note });
   }
   return out;
 }
 
-export function formatAllowlist(spec: RatchetSpec, entries: ReadonlyMap<string, RatchetAllowance>): string {
+export function formatAllowlist(
+  spec: RatchetSpec,
+  entries: ReadonlyMap<string, RatchetAllowance>,
+): string {
   const header = [
     `# ${spec.name}: the files that still break this rule.`,
     "#",
@@ -145,25 +166,33 @@ export function formatAllowlist(spec: RatchetSpec, entries: ReadonlyMap<string, 
     `#   ${spec.pruneCommand}`,
     "",
   ].join("\n");
-  const lines = [...entries.keys()]
-    .sort()
-    .map((key) => {
-      const { value, note } = entries.get(key)!;
-      const body = value === undefined ? key : `${key} ${value}`;
-      return note ? `${body}  # ${note}` : body;
-    });
+  const lines = [...entries.keys()].sort().map((key) => {
+    const { value, note } = entries.get(key)!;
+    const body = value === undefined ? key : `${key} ${value}`;
+    return note ? `${body}  # ${note}` : body;
+  });
   return `${header}${lines.join("\n")}\n`;
 }
 
-function scan(spec: RatchetSpec): { scanned: number; offenders: RatchetOffender[] } {
+function scan(spec: RatchetSpec): {
+  scanned: number;
+  offenders: RatchetOffender[];
+} {
   const extensions = spec.extensions ?? DEFAULT_EXTENSIONS;
   const ignoreDirs = new Set([...DEFAULT_IGNORED, ...(spec.ignoreDirs ?? [])]);
   const dirs = spec.dirs ?? ["."];
   const offenders: RatchetOffender[] = [];
   let scanned = 0;
   for (const dir of dirs) {
-    for (const file of walkFiles(join(spec.root, dir), extensions, ignoreDirs)) {
-      const rel = file.slice(spec.root.length + 1).split("\\").join("/");
+    for (const file of walkFiles(
+      join(spec.root, dir),
+      extensions,
+      ignoreDirs,
+    )) {
+      const rel = file
+        .slice(spec.root.length + 1)
+        .split("\\")
+        .join("/");
       if (spec.exempt?.(rel)) continue;
       scanned++;
       const n = spec.count(readFileSync(file, "utf8"), rel);
@@ -180,18 +209,28 @@ function scan(spec: RatchetSpec): { scanned: number; offenders: RatchetOffender[
  * raises a number, so it cannot be used to widen. `init` writes the current
  * scan verbatim, for bootstrapping a brand new ratchet.
  */
-export function syncAllowlist(spec: RatchetSpec, offenders: readonly RatchetOffender[], mode: "prune" | "init"): void {
+export function syncAllowlist(
+  spec: RatchetSpec,
+  offenders: readonly RatchetOffender[],
+  mode: "prune" | "init",
+): void {
   const current = new Map(offenders.map((o) => [o.key, o.value]));
-  const existing = existsSync(spec.allowlist) ? parseAllowlist(readFileSync(spec.allowlist, "utf8")) : new Map<string, RatchetAllowance>();
+  const existing = existsSync(spec.allowlist)
+    ? parseAllowlist(readFileSync(spec.allowlist, "utf8"))
+    : new Map<string, RatchetAllowance>();
   const next = new Map<string, RatchetAllowance>();
   if (mode === "init") {
-    for (const [key, value] of current) next.set(key, { value, note: existing.get(key)?.note });
+    for (const [key, value] of current)
+      next.set(key, { value, note: existing.get(key)?.note });
   } else {
     for (const [key, allowance] of existing) {
       const value = current.get(key);
       if (value === undefined) continue; // gone: drop it
       const pinned = allowance.value;
-      next.set(key, { value: pinned === undefined ? undefined : Math.min(pinned, value), note: allowance.note });
+      next.set(key, {
+        value: pinned === undefined ? undefined : Math.min(pinned, value),
+        note: allowance.note,
+      });
     }
   }
   writeFileSync(spec.allowlist, formatAllowlist(spec, next));
@@ -207,17 +246,23 @@ export function syncAllowlist(spec: RatchetSpec, offenders: readonly RatchetOffe
 export function checkRatchet(spec: RatchetSpec): RatchetResult {
   // A folder that moved is skipped by the walk, so the ratchet would guard
   // less than it says and a prune would drop the moved files' entries.
-  const missing = (spec.dirs ?? []).filter((dir) => !existsSync(join(spec.root, dir)));
+  const missing = (spec.dirs ?? []).filter(
+    (dir) => !existsSync(join(spec.root, dir)),
+  );
   if (missing.length) {
     return {
-      problems: missing.map((dir) => `${spec.name}: ${dir} does not exist under the scan root, so this ratchet no longer guards it. Point dirs at the folder's current path.`),
+      problems: missing.map(
+        (dir) =>
+          `${spec.name}: ${dir} does not exist under the scan root, so this ratchet no longer guards it. Point dirs at the folder's current path.`,
+      ),
       offenders: [],
       scanned: 0,
     };
   }
   const { scanned, offenders } = scan(spec);
   const write = process.env.RATCHET_WRITE;
-  if (write === "prune" || write === "init") syncAllowlist(spec, offenders, write);
+  if (write === "prune" || write === "init")
+    syncAllowlist(spec, offenders, write);
 
   const problems: string[] = [];
   const listName = basename(spec.allowlist);
@@ -236,7 +281,9 @@ export function checkRatchet(spec: RatchetSpec): RatchetResult {
   for (const { key, value } of offenders) {
     const allowance = allowed.get(key);
     if (!allowance) {
-      problems.push(`${spec.name}: ${key} newly breaks this rule (${value}). ${spec.fix}`);
+      problems.push(
+        `${spec.name}: ${key} newly breaks this rule (${value}). ${spec.fix}`,
+      );
       continue;
     }
     if (allowance.value !== undefined && value > allowance.value) {
@@ -257,7 +304,9 @@ export function checkRatchet(spec: RatchetSpec): RatchetResult {
   const offenderKeys = new Set(offenders.map((o) => o.key));
   for (const key of allowed.keys()) {
     if (offenderKeys.has(key)) continue;
-    problems.push(`${spec.name}: ${key} no longer breaks this rule — delete its line from ${listName} so it cannot come back for free. (${spec.pruneCommand})`);
+    problems.push(
+      `${spec.name}: ${key} no longer breaks this rule — delete its line from ${listName} so it cannot come back for free. (${spec.pruneCommand})`,
+    );
   }
 
   if (offenders.length > spec.pin) {

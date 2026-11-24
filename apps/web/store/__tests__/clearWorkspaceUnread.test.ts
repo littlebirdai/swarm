@@ -10,8 +10,14 @@ const ACTIVE = "teamactive".padEnd(32, "0");
 const OTHER = "teamother".padEnd(32, "0");
 
 const row = (root: string, team_id?: string) => ({
-  _id: threadRowId("chat", root), kind: "chat", root_key: root, team_id,
-  last_activity_at: 10, last_read_at: 5, updated_at: 10, unread: 1,
+  _id: threadRowId("chat", root),
+  kind: "chat",
+  root_key: root,
+  team_id,
+  last_activity_at: 10,
+  last_read_at: 5,
+  updated_at: 10,
+  unread: 1,
 });
 
 describe("markAllThreadsRead from the switcher", () => {
@@ -24,13 +30,22 @@ describe("markAllThreadsRead from the switcher", () => {
       clientState: { ui: { active_team_id: ACTIVE } },
       pending: {},
       threadUnread: 3,
-      threadUnreadByWorkspace: [{ team_id: OTHER, count: 2 }, { team_id: null, count: 4 }],
+      threadUnreadByWorkspace: [
+        { team_id: OTHER, count: 2 },
+        { team_id: null, count: 4 },
+      ],
       threadInbox: {
         [threadRowId("chat", "a")]: row("a", ACTIVE),
         [threadRowId("chat", "o")]: row("o", OTHER),
       },
     } as any);
-    useInboxStore.getState()._setDispatch(async (action: string, args: any[]) => { calls.push({ action, args }); return { marked: 1 }; }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action: string, args: any[]) => {
+        calls.push({ action, args });
+        return { marked: 1 };
+      },
+      { owner },
+    );
   });
   afterEach(() => useInboxStore.getState()._clearDispatch(owner));
 
@@ -46,7 +61,9 @@ describe("markAllThreadsRead from the switcher", () => {
 
   it("clears Personal's badge by its null team", () => {
     useInboxStore.getState().markAllThreadsRead(null, "all");
-    expect((useInboxStore.getState() as any).threadUnreadByWorkspace).toEqual([{ team_id: OTHER, count: 2 }]);
+    expect((useInboxStore.getState() as any).threadUnreadByWorkspace).toEqual([
+      { team_id: OTHER, count: 2 },
+    ]);
     expect((useInboxStore.getState() as any).threadUnread).toBe(3);
   });
 

@@ -6,28 +6,72 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as path from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
-import { chromeLaunchCommand, pairingPagePath, settlePairingPage, takeStamp, takeWake, WAKE_MIN_GAP_MS, WAKE_ONCE_MS } from "./realChrome.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
+import {
+  chromeLaunchCommand,
+  pairingPagePath,
+  settlePairingPage,
+  takeStamp,
+  takeWake,
+  WAKE_MIN_GAP_MS,
+  WAKE_ONCE_MS,
+} from "./realChrome.js";
 
 let isolation: IsolatedCodecastDir;
 
 test("macOS launches Chrome through Launch Services with a fresh default-profile process", () => {
-  const args = ["--disable-renderer-backgrounding", "--restore-last-session", "file:///private/tmp/pair.html"];
-  expect(chromeLaunchCommand("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", args, "darwin", false)).toEqual({
+  const args = [
+    "--disable-renderer-backgrounding",
+    "--restore-last-session",
+    "file:///private/tmp/pair.html",
+  ];
+  expect(
+    chromeLaunchCommand(
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      args,
+      "darwin",
+      false,
+    ),
+  ).toEqual({
     command: "/usr/bin/open",
-    args: ["-n", "-g", "-a", "/Applications/Google Chrome.app", "--args", ...args],
+    args: [
+      "-n",
+      "-g",
+      "-a",
+      "/Applications/Google Chrome.app",
+      "--args",
+      ...args,
+    ],
   });
 });
 
 test("non-bundle and non-macOS Chrome launches retain their executable and arguments", () => {
-  expect(chromeLaunchCommand("/usr/bin/chromium", ["--restore-last-session"], "linux", false)).toEqual({ command: "/usr/bin/chromium", args: ["--restore-last-session"] });
-  expect(chromeLaunchCommand("/tmp/chromium", [], "darwin", false)).toEqual({ command: "/tmp/chromium", args: [] });
+  expect(
+    chromeLaunchCommand(
+      "/usr/bin/chromium",
+      ["--restore-last-session"],
+      "linux",
+      false,
+    ),
+  ).toEqual({ command: "/usr/bin/chromium", args: ["--restore-last-session"] });
+  expect(chromeLaunchCommand("/tmp/chromium", [], "darwin", false)).toEqual({
+    command: "/tmp/chromium",
+    args: [],
+  });
   expect(chromeLaunchCommand(null, [], "linux", false)).toBeNull();
 });
 
 test("inside WSL the human's Chrome is the Windows one, started through cmd from a Windows directory", () => {
-  const page = "\\\\wsl.localhost\\Ubuntu\\home\\me\\.codecast\\browser\\pair.html";
-  expect(chromeLaunchCommand(null, [page], "linux", true)).toEqual({ command: "cmd.exe", args: ["/c", "start", "", "chrome", page], cwd: "/mnt/c" });
+  const page =
+    "\\\\wsl.localhost\\Ubuntu\\home\\me\\.codecast\\browser\\pair.html";
+  expect(chromeLaunchCommand(null, [page], "linux", true)).toEqual({
+    command: "cmd.exe",
+    args: ["/c", "start", "", "chrome", page],
+    cwd: "/mnt/c",
+  });
 });
 
 beforeEach(() => {
@@ -79,15 +123,24 @@ test("six processes claiming the same outage at once: exactly one wins", async (
     await new Promise((r) => setTimeout(r, Math.max(0, ${at} - Date.now())));
     writeFileSync(process.env.CAST_CLAIM_RESULT_FILE, String(await takeWake("seen:race")));
   `;
-  const results = Array.from({ length: 6 }, (_, index) => path.join(isolation.dir, `claim-${index}.txt`));
+  const results = Array.from({ length: 6 }, (_, index) =>
+    path.join(isolation.dir, `claim-${index}.txt`),
+  );
   const children = results.map((result) =>
     Bun.spawn([process.execPath, "--eval", script], {
-      env: { ...process.env, CODECAST_DIR: isolation.dir, CAST_REAL_CHROME_CLAIM_DELAY_MS: "400", CAST_CLAIM_RESULT_FILE: result },
+      env: {
+        ...process.env,
+        CODECAST_DIR: isolation.dir,
+        CAST_REAL_CHROME_CLAIM_DELAY_MS: "400",
+        CAST_CLAIM_RESULT_FILE: result,
+      },
       stdout: "ignore",
       stderr: "inherit",
     }),
   );
-  expect(await Promise.all(children.map((c) => c.exited))).toEqual([0, 0, 0, 0, 0, 0]);
+  expect(await Promise.all(children.map((c) => c.exited))).toEqual([
+    0, 0, 0, 0, 0, 0,
+  ]);
   const answers = results.map((result) => readFileSync(result, "utf8"));
   expect(answers.filter((a) => a === "true")).toHaveLength(1);
   expect(answers.filter((a) => a === "false")).toHaveLength(5);
@@ -98,7 +151,10 @@ test("six processes claiming the same outage at once: exactly one wins", async (
 test("a settled pairing page stays on disk without the token", () => {
   const page = pairingPagePath();
   mkdirSync(path.dirname(page), { recursive: true });
-  writeFileSync(page, "<script>location.replace(\"chrome-extension://x/options.html#t=secret\")</script>");
+  writeFileSync(
+    page,
+    '<script>location.replace("chrome-extension://x/options.html#t=secret")</script>',
+  );
   settlePairingPage(true);
   const settled = readFileSync(page, "utf-8");
   expect(settled).not.toContain("secret");

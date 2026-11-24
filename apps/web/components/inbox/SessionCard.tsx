@@ -11,17 +11,40 @@ import { compressImage } from "../../lib/compressImage";
 import { threadStateView } from "../../lib/threadState";
 import { sessionIdleAt, sessionLiveAt } from "../../lib/liveness";
 import { sessionPanePath, startPaneDrag } from "../../lib/stage";
-import { identityPrefsOf, identityRowOf, identitySig, roleLookingAfter } from "../../lib/sessionIdentity";
+import {
+  identityPrefsOf,
+  identityRowOf,
+  identitySig,
+  roleLookingAfter,
+} from "../../lib/sessionIdentity";
 import { useLiveIdentityRow } from "../../hooks/useLiveIdentityRow";
-import { clickBucketChip, clickProjectChip } from "../../store/chipFilterClicks";
+import {
+  clickBucketChip,
+  clickProjectChip,
+} from "../../store/chipFilterClicks";
 import { workProjectSig } from "../../lib/workProjectSig";
-import { useInboxStore, useTrackedStore, convHasPendingSend, isUnsentConversation, resolveSessionAuthor, showsBlockedBadge, convBucketMap, getProjectName, railRowPlacement, type InboxSession, type SessionRoleSnapshot } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  convHasPendingSend,
+  isUnsentConversation,
+  resolveSessionAuthor,
+  showsBlockedBadge,
+  convBucketMap,
+  getProjectName,
+  railRowPlacement,
+  type InboxSession,
+  type SessionRoleSnapshot,
+} from "../../store/inboxStore";
 import { promptTitle } from "@codecast/shared/contracts/assistant";
 import { useNowWhen } from "../../hooks/useCoarseNow";
 import { latestRestartRow, restartPending } from "../../lib/sessionCommands";
 import { useAckAssignment } from "../../hooks/useAckAssignment";
 import { memberListSig, rosterIdentity } from "../../hooks/useTeamRoster";
-import { anchorIdentitySig, anchorIdentityFromSig } from "../../hooks/useSyncAnchors";
+import {
+  anchorIdentitySig,
+  anchorIdentityFromSig,
+} from "../../hooks/useSyncAnchors";
 import { viewersOf, viewersSig } from "../presence/memberPresence";
 import { rosterDeviceOf, deviceWakesOnUse } from "../DeviceBadge";
 import { localDeviceIdOf } from "../../hooks/useLocalDeviceId";
@@ -29,13 +52,27 @@ import { useTipActions, checkMilestone } from "../../tips";
 import { formatIdleDuration, sessionCardTitle } from "../../lib/sessionCard";
 import { pendingAsk } from "../../lib/conversationTitle";
 import { hostedRowTitle } from "../../lib/hostedRowTitle";
-import { SessionCardView, type SessionCardChrome, type SessionCardViewProps } from "./SessionCardView";
+import {
+  SessionCardView,
+  type SessionCardChrome,
+  type SessionCardViewProps,
+} from "./SessionCardView";
 import { ModernSessionCardView } from "./ModernSessionCard";
 import { useIsModernStyle } from "../../hooks/useVisualStyle";
 import { useInboxSelection } from "../../lib/inboxSelection";
-import { sessionShipSig, sessionShipFromSig } from "../../hooks/useSessionShipState";
-import { sessionPullRequestsSig, titledSessionPullRequests } from "../../lib/sessionPullRequests";
-import { resolveImageThumbs, resolveShowBranchPill, resolveShowCharacters } from "../../lib/uiPrefDefaults";
+import {
+  sessionShipSig,
+  sessionShipFromSig,
+} from "../../hooks/useSessionShipState";
+import {
+  sessionPullRequestsSig,
+  titledSessionPullRequests,
+} from "../../lib/sessionPullRequests";
+import {
+  resolveImageThumbs,
+  resolveShowBranchPill,
+  resolveShowCharacters,
+} from "../../lib/uiPrefDefaults";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 // The inbox session card's container: the store, the clock, the mutations and
@@ -54,7 +91,11 @@ function cardChromeSig(clientState: any): string {
  *  string and never on the parent row's own churn. */
 function spawnedByTitleOf(s: any, spawnedById: string | null): string | null {
   if (!spawnedById) return null;
-  return (s.sessions[spawnedById]?.title || (s.conversations[spawnedById] as any)?.title) ?? null;
+  return (
+    (s.sessions[spawnedById]?.title ||
+      (s.conversations[spawnedById] as any)?.title) ??
+    null
+  );
 }
 
 /** The conversation row's authorship fields only — the whole row's identity
@@ -68,20 +109,38 @@ function convAuthorSig(conv: any): string | null {
 // The role a standing session rides (S28): the snapshot on the parent's own
 // standing row, found by the pointer the row carries. Read once per render
 // from the store; the aria text is all it feeds.
-function leadRoleOf(session: { org_role_id?: string | null; standing_role_id?: string | null }): SessionRoleSnapshot | null {
+function leadRoleOf(session: {
+  org_role_id?: string | null;
+  standing_role_id?: string | null;
+}): SessionRoleSnapshot | null {
   if (!session.standing_role_id || !session.org_role_id) return null;
   const rows = useInboxStore.getState().sessions;
   for (const id in rows) {
     const r = rows[id];
-    if (r.standing_role_id && String(r.standing_role_id) === String(session.org_role_id) && r.role) return r.role;
+    if (
+      r.standing_role_id &&
+      String(r.standing_role_id) === String(session.org_role_id) &&
+      r.role
+    )
+      return r.role;
   }
   return null;
 }
 
 // The card's name off its own store row: the hosted name rule for hosted
 // rows, the session's title otherwise.
-function liveCardTitle(s: Parameters<typeof hostedRowTitle>[0], cardId: string, hosted: boolean, session: InboxSession): string {
-  return hosted ? hostedRowTitle(s, cardId) : sessionCardTitle(s.sessions[cardId] ?? session, pendingAsk(s.pendingMessages[cardId]));
+function liveCardTitle(
+  s: Parameters<typeof hostedRowTitle>[0],
+  cardId: string,
+  hosted: boolean,
+  session: InboxSession,
+): string {
+  return hosted
+    ? hostedRowTitle(s, cardId)
+    : sessionCardTitle(
+        s.sessions[cardId] ?? session,
+        pendingAsk(s.pendingMessages[cardId]),
+      );
 }
 
 // The placement the Modern card reads where no section decides its word, as
@@ -93,13 +152,23 @@ function modernPlacementSig(session: InboxSession, t: number): string {
 }
 
 // Store actions the card reaches, the same for every card.
-const toggleFavorite = (id: string) => useInboxStore.getState().toggleFavorite(id);
+const toggleFavorite = (id: string) =>
+  useInboxStore.getState().toggleFavorite(id);
 const openLabels = (session: InboxSession) =>
-  useInboxStore.getState().openPalette({ targets: [session], targetType: "session", mode: "bucket" });
+  useInboxStore
+    .getState()
+    .openPalette({ targets: [session], targetType: "session", mode: "bucket" });
 const filterProject = (session: InboxSession, e: React.MouseEvent) =>
-  clickProjectChip(getProjectName(session.git_root, session.project_path), session.git_root || session.project_path || null, e.altKey, e.shiftKey);
+  clickProjectChip(
+    getProjectName(session.git_root, session.project_path),
+    session.git_root || session.project_path || null,
+    e.altKey,
+    e.shiftKey,
+  );
 const filterLabel = (session: InboxSession, e: React.MouseEvent) => {
-  const bucketId = convBucketMap(useInboxStore.getState().bucketAssignments)[session._id];
+  const bucketId = convBucketMap(useInboxStore.getState().bucketAssignments)[
+    session._id
+  ];
   if (bucketId) clickBucketChip(bucketId, e.altKey, e.shiftKey);
 };
 const openComments = (id: string) => {
@@ -108,14 +177,34 @@ const openComments = (id: string) => {
   st.setCommentRailOpen(true);
 };
 const toggleSelect = (id: string) => useInboxSelection.getState().toggle(id);
-const paneDragStart = (sessionId: string) => (e: React.DragEvent, title: string) =>
-  startPaneDrag(e, { path: sessionPanePath(sessionId), title });
+const paneDragStart =
+  (sessionId: string) => (e: React.DragEvent, title: string) =>
+    startPaneDrag(e, { path: sessionPanePath(sessionId), title });
 
 export type SessionCardProps = Pick<
   SessionCardViewProps,
-  | "session" | "isActive" | "isParentActive" | "isSelected" | "isUnread" | "isFavorite" | "sessionLabel"
-  | "variant" | "sectionStatus" | "forkColorKey" | "subRow" | "roleSessions" | "hiddenRunningSubagents" | "foldedSubagentId"
-  | "onSelect" | "onClose" | "onDefer" | "onRestore" | "onKill" | "onNavigateToSession" | "onCardContextMenu" | "onPickCharacter"
+  | "session"
+  | "isActive"
+  | "isParentActive"
+  | "isSelected"
+  | "isUnread"
+  | "isFavorite"
+  | "sessionLabel"
+  | "variant"
+  | "sectionStatus"
+  | "forkColorKey"
+  | "subRow"
+  | "roleSessions"
+  | "hiddenRunningSubagents"
+  | "foldedSubagentId"
+  | "onSelect"
+  | "onClose"
+  | "onDefer"
+  | "onRestore"
+  | "onKill"
+  | "onNavigateToSession"
+  | "onCardContextMenu"
+  | "onPickCharacter"
 > & {
   globalIndex: number;
   onPin?: (id: string) => void;
@@ -159,7 +248,10 @@ export const SessionCard = memo(function SessionCard({
     // (a settings write) and never independently at heartbeat rate.
     (s) => cardChromeSig(s.clientState),
     (s) => spawnedByTitleOf(s, spawnedById),
-    (s) => (hasDraft ? ((s.drafts[cardId]?.draft_message as string | undefined) ?? "") : ""),
+    (s) =>
+      hasDraft
+        ? ((s.drafts[cardId]?.draft_message as string | undefined) ?? "")
+        : "",
     (s) => s.currentUser?._id?.toString?.() ?? null,
     (s) => convAuthorSig(s.conversations[cardId]),
     // The roster's own object, Object.is-stable between roster pushes.
@@ -170,10 +262,18 @@ export const SessionCard = memo(function SessionCard({
     // Teammates who have this session open (their faces in the meta row and
     // a ring on the card). The signature is the viewer id list, so a roster
     // push that changes nothing about who is here wakes nothing.
-    (s) => viewersSig(teamMembersOf(s), cardId, s.currentUser?._id?.toString?.() ?? null),
+    (s) =>
+      viewersSig(
+        teamMembersOf(s),
+        cardId,
+        s.currentUser?._id?.toString?.() ?? null,
+      ),
     // A hosted conversation that ended on a stop notice: the kind, a string,
     // so a streamed message wakes the card only when the answer changes.
-    (s) => (hosted ? hostedStopOf(s.sessions[cardId] ?? session, s.messages[cardId]) : null),
+    (s) =>
+      hosted
+        ? hostedStopOf(s.sessions[cardId] ?? session, s.messages[cardId])
+        : null,
     (s) => (hosted ? awaitingOkIds(s.sessionDecisions).has(cardId) : false),
     // The card's name, read off its own row: the list wakes on structure only
     // (sessionStructuralSig leaves the title out), so a rename that arrives
@@ -189,15 +289,19 @@ export const SessionCard = memo(function SessionCard({
     (s) => workProjectSig(s as any, cardId),
     // Modern only: a pending `cast decide` on this session, so the card in
     // Decisions says Needs you. Constant (false) in Classic and Minimal.
-    (s) => (modern && !hosted ? awaitingOkIds(s.sessionDecisions).has(cardId) : false),
+    (s) =>
+      modern && !hosted ? awaitingOkIds(s.sessionDecisions).has(cardId) : false,
   ]);
   const liveTitle = liveCardTitle(st, cardId, hosted, session);
   const prSig = sessionPullRequestsSig(st as any, cardId);
   // Titles off the rows at render: a rename alone need not wake the card.
+  // oxfmt-ignore
   const linkedPrs = useMemo(() => titledSessionPullRequests(st as any, cardId), [prSig, cardId]); // eslint-disable-line react-hooks/exhaustive-deps
   const meId = st.currentUser?._id?.toString?.() ?? null;
   const viewers = viewersOf(teamMembersOf(st), cardId, meId);
-  const stoppedKind = hosted ? hostedStopOf(st.sessions[cardId] ?? session, st.messages[cardId]) : null;
+  const stoppedKind = hosted
+    ? hostedStopOf(st.sessions[cardId] ?? session, st.messages[cardId])
+    : null;
   // The amber blocked chip's revive stamp — read before the clock below so its
   // TTL participates in the clock's re-render signature.
   const reviveRequestedAt = st.blockedReviveRequestedAt[cardId];
@@ -225,22 +329,36 @@ export const SessionCard = memo(function SessionCard({
   // useDevices() here would mount the roster feeder once per card. Only a cloud
   // host earns an icon: a worktree on your own laptop needs no explaining.
   const ownerDevice = rosterDeviceOf(st.machineRoster as any, deviceId);
-  const runHost = ownerDevice && deviceWakesOnUse(ownerDevice) ? ownerDevice : null;
+  const runHost =
+    ownerDevice && deviceWakesOnUse(ownerDevice) ? ownerDevice : null;
   // Where the session runs, when that is worth a glance: any cloud machine,
   // or another of your machines when this window knows which one it is on.
   const localDeviceId = localDeviceIdOf(st);
-  const placeDevice = ownerDevice && (ownerDevice.is_remote || (localDeviceId && ownerDevice.device_id !== localDeviceId)) ? ownerDevice : null;
+  const placeDevice =
+    ownerDevice &&
+    (ownerDevice.is_remote ||
+      (localDeviceId && ownerDevice.device_id !== localDeviceId))
+      ? ownerDevice
+      : null;
   const chromeSig = cardChromeSig(st.clientState);
-  const chrome = useMemo<SessionCardChrome>(() => ({
-    showModelBadge: chromeSig[0] === "1",
-    showAgentIcon: chromeSig[1] === "1",
-    prefs: identityPrefsOf({ personify_sessions: chromeSig[3] === "1", show_characters: chromeSig[6] === "1" }),
-    showBranchPill: chromeSig[4] === "1",
-    showDeviceIcon: chromeSig[5] === "1",
-  }), [chromeSig]);
+  const chrome = useMemo<SessionCardChrome>(
+    () => ({
+      showModelBadge: chromeSig[0] === "1",
+      showAgentIcon: chromeSig[1] === "1",
+      prefs: identityPrefsOf({
+        personify_sessions: chromeSig[3] === "1",
+        show_characters: chromeSig[6] === "1",
+      }),
+      showBranchPill: chromeSig[4] === "1",
+      showDeviceIcon: chromeSig[5] === "1",
+    }),
+    [chromeSig],
+  );
   // Cache-first bytes: a thumbnail seen once paints locally (and offline)
   // instead of re-fetching per scroll-through of the inbox.
-  const thumbSrc = imageBytes.useSrc(chromeSig[2] === "1" ? session.image_preview_url : undefined);
+  const thumbSrc = imageBytes.useSrc(
+    chromeSig[2] === "1" ? session.image_preview_url : undefined,
+  );
   // Distrust a frozen live status the same way the bucket does: a row that aged
   // out of the liveness overlay keeps its last is_idle:false forever, so without
   // this an agent that finished 15 days ago still pulses green while sitting in
@@ -259,17 +377,28 @@ export const SessionCard = memo(function SessionCard({
   // Only the viewer's id is read here (author resolution + foreign check), so
   // subscribe to that string, not the whole user doc — the doc's identity
   // churns on daemon heartbeat fields and would re-render every card.
-  const currentUser = useMemo(() => (meId ? ({ _id: meId } as any) : null), [meId]);
+  const currentUser = useMemo(
+    () => (meId ? ({ _id: meId } as any) : null),
+    [meId],
+  );
   const teamMembers = rosterIdentity(teamMembersOf(st));
   const convMetaSig = convAuthorSig(st.conversations[cardId]);
   const convMeta = useMemo(() => {
     if (convMetaSig === null) return null;
-    const [user_id, is_own, acting_user_id, name, email, avatar_url] = convMetaSig.split("\u0000");
+    const [user_id, is_own, acting_user_id, name, email, avatar_url] =
+      convMetaSig.split("\u0000");
     return {
       user_id: user_id || undefined,
       is_own: is_own === "" ? undefined : is_own === "1",
       acting_user_id: acting_user_id || null,
-      user: name || email || avatar_url ? { name: name || null, email: email || null, avatar_url: avatar_url || null } : null,
+      user:
+        name || email || avatar_url
+          ? {
+              name: name || null,
+              email: email || null,
+              avatar_url: avatar_url || null,
+            }
+          : null,
     };
   }, [convMetaSig]);
   // Who this row is (lib/sessionIdentity), with the role read from the role
@@ -278,11 +407,14 @@ export const SessionCard = memo(function SessionCard({
   const sessionIdentitySig = identitySig(session as any);
   const identityBase = useMemo(() => {
     const row = identityRowOf(session as any);
-    return row.acting_user_id || !convMeta?.acting_user_id ? row : { ...row, acting_user_id: convMeta.acting_user_id };
+    return row.acting_user_id || !convMeta?.acting_user_id
+      ? row
+      : { ...row, acting_user_id: convMeta.acting_user_id };
   }, [sessionIdentitySig, convMeta?.acting_user_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const identity = useLiveIdentityRow(identityBase);
   // A role's own card names the role on its title line, so the meta row adds
   // no author chip repeating it.
+  // oxfmt-ignore
   const author = useMemo(
     () => identity.standing_role_id && identity.role ? null : resolveSessionAuthor({ ...session, standing_role_id: identity.standing_role_id, role: identity.role }, convMeta, currentUser, teamMembers, identityPrefsOf({ show_characters: chromeSig[6] === "1" })),
     [session.user_id, session.author_name, session.author_avatar, session.acting_user_id, identity, convMeta, currentUser, teamMembers, chromeSig], // eslint-disable-line react-hooks/exhaustive-deps
@@ -291,45 +423,66 @@ export const SessionCard = memo(function SessionCard({
   // icon, and the scope pill (Personal / team name) beside the title — so a
   // standing member never reads as just another session.
   const anchorSig = anchorIdentitySig((st as any).anchors, anchorId);
-  const anchorIdentity = useMemo(() => anchorIdentityFromSig(anchorSig), [anchorSig]);
+  const anchorIdentity = useMemo(
+    () => anchorIdentityFromSig(anchorSig),
+    [anchorSig],
+  );
   // The role above a nested row (R1), read through lib/sessionIdentity.
   // The role this row rides: its own pointer's snapshot for a hand; for a
   // role's standing session under a role (org-staffing.md S28) the parent's
   // snapshot lives on the parent's standing row, so it is read from there.
-  const roleAbove = rest.subRow === "role" ? roleLookingAfter(session) ?? leadRoleOf(session) : null;
+  const roleAbove =
+    rest.subRow === "role"
+      ? (roleLookingAfter(session) ?? leadRoleOf(session))
+      : null;
   const generateUploadUrl = useMutation(api.images.generateUploadUrl);
   const ackAssignment = useAckAssignment();
 
-  const handleDropFiles = useCallback(async (dropped: File[], title: string) => {
-    const files = dropped.filter(f => f.type.startsWith("image/"));
-    if (files.length === 0) {
-      if (dropped.length > 0) toast.error("Only image files are supported");
-      return;
-    }
-    try {
-      const storageIds: Id<"_storage">[] = [];
-      for (const file of files) {
-        const uploaded = await compressImage(file);
-        const uploadUrl = await generateUploadUrl({});
-        const result = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": uploaded.type }, body: uploaded });
-        const { storageId } = await result.json();
-        storageIds.push(storageId);
+  const handleDropFiles = useCallback(
+    async (dropped: File[], title: string) => {
+      const files = dropped.filter((f) => f.type.startsWith("image/"));
+      if (files.length === 0) {
+        if (dropped.length > 0) toast.error("Only image files are supported");
+        return;
       }
-      useInboxStore.getState().sendMessage(cardId, "[image]", storageIds);
-      toast.success(`Attached ${files.length} image${files.length > 1 ? "s" : ""} to "${title}"`);
-    } catch {
-      toast.error("Failed to attach files");
-    }
-  }, [cardId, generateUploadUrl]);
+      try {
+        const storageIds: Id<"_storage">[] = [];
+        for (const file of files) {
+          const uploaded = await compressImage(file);
+          const uploadUrl = await generateUploadUrl({});
+          const result = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": uploaded.type },
+            body: uploaded,
+          });
+          const { storageId } = await result.json();
+          storageIds.push(storageId);
+        }
+        useInboxStore.getState().sendMessage(cardId, "[image]", storageIds);
+        toast.success(
+          `Attached ${files.length} image${files.length > 1 ? "s" : ""} to "${title}"`,
+        );
+      } catch {
+        toast.error("Failed to attach files");
+      }
+    },
+    [cardId, generateUploadUrl],
+  );
 
   const isPinned = !!session.is_pinned;
-  const handlePin = useMemo(() => onPin && ((id: string, e: React.MouseEvent) => {
-    onPin(id);
-    tipActions.whisper("session.pin", e);
-    if (!isPinned) checkMilestone("m-first-pin");
-  }), [onPin, tipActions, isPinned]);
+  const handlePin = useMemo(
+    () =>
+      onPin &&
+      ((id: string, e: React.MouseEvent) => {
+        onPin(id);
+        tipActions.whisper("session.pin", e);
+        if (!isPinned) checkMilestone("m-first-pin");
+      }),
+    [onPin, tipActions, isPinned],
+  );
   const openParent = useCallback(
-    (id: string) => (onNavigateToSession ?? useInboxStore.getState().navigateToSession)(id),
+    (id: string) =>
+      (onNavigateToSession ?? useInboxStore.getState().navigateToSession)(id),
     [onNavigateToSession],
   );
   const handlePaneDragStart = useMemo(() => paneDragStart(cardId), [cardId]);
@@ -339,7 +492,10 @@ export const SessionCard = memo(function SessionCard({
   // news: it never takes the unread weight, and it is named from what they
   // typed, else "Untitled draft".
   const unsentDraft = hosted && !liveTitle && isUnsentConversation(session);
-  const draftTitle = unsentDraft ? (promptTitle(st.drafts[cardId]?.draft_message as string | undefined) || "Untitled draft") : "";
+  const draftTitle = unsentDraft
+    ? promptTitle(st.drafts[cardId]?.draft_message as string | undefined) ||
+      "Untitled draft"
+    : "";
   const CardView = modern ? ModernSessionCardView : SessionCardView;
 
   return (
@@ -356,17 +512,28 @@ export const SessionCard = memo(function SessionCard({
         // A hosted conversation that stopped on a notice is settled: no live
         // dot, whatever the work state's heartbeat still says.
         // So is one waiting on an OK: it is the person's turn, not work.
-        isLive: isLive && !(hosted && (stoppedKind || awaitingOkIds(st.sessionDecisions).has(cardId))),
+        isLive:
+          isLive &&
+          !(
+            hosted &&
+            (stoppedKind || awaitingOkIds(st.sessionDecisions).has(cardId))
+          ),
         pendingSend: convHasPendingSend(st.pendingMessages[cardId]),
         blockedReviveAt: reviveRequestedAt,
         restarting,
-        draft: hasDraft ? ((st.drafts[cardId]?.draft_message as string | undefined) ?? "") : "",
+        draft: hasDraft
+          ? ((st.drafts[cardId]?.draft_message as string | undefined) ?? "")
+          : "",
         stopped: stoppedKind,
         // An approval waits on the person: said on the row, since hosted
         // mode files it under Your turn with the replies.
         // The pending decision row is the one home for that (awaitingOkIds).
         asksOk: hosted && awaitingOkIds(st.sessionDecisions).has(cardId),
-        ...(modern ? { asking: !hosted && awaitingOkIds(st.sessionDecisions).has(cardId) } : {}),
+        ...(modern
+          ? {
+              asking: !hosted && awaitingOkIds(st.sessionDecisions).has(cardId),
+            }
+          : {}),
       }}
       viewerId={meId}
       author={author}

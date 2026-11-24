@@ -3,14 +3,23 @@
 // answered by "Quinn was named Oct 12 in a contact's reply". Pure.
 
 /** The reader that searches the app's history by keyword, and its arguments. */
-export const HISTORY_SEARCH = { name: "history.search", query: "query", limit: "limit" } as const;
+export const HISTORY_SEARCH = {
+  name: "history.search",
+  query: "query",
+  limit: "limit",
+} as const;
 /** The reader that opens one history item in full, by the id a search showed. */
 export const HISTORY_ITEM = { name: "history.item", item: "item" } as const;
 
 /** `id`: the activity's own id, which HISTORY_ITEM opens whole; null when the app showed none. */
 /** `at`: an ISO instant. The app prints its times in UTC with no zone ("2026-10-13 15:46"); read as local they would
  *  name another hour than the message they open (sent 11:46 AM in New York). */
-export type HistoryHit = { at: string; where: string | null; words: string; id: string | null };
+export type HistoryHit = {
+  at: string;
+  where: string | null;
+  words: string;
+  id: string | null;
+};
 
 /** The app's zone-less UTC time as an ISO instant; a time that names its zone is kept as it is. */
 export const utcInstant = (t: string): string => {
@@ -29,15 +38,29 @@ const HIT = /^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\]\s+(?:\[([^\]]+)\]\s+)?/;
 
 /** Slack and Markdown markup as plain words: `<url|Name>` is Name, `*bold*` is bold, an id tail goes. */
 const plain = (s: string) =>
-  s.replace(/<[^|>]+\|([^>]+)>/g, "$1").replace(/<(https?:[^>]+)>/g, "$1").replace(/\*([^*\n]+)\*/g, "$1").replace(/\s*\(id: [0-9a-f-]+\)\s*$/i, "").replace(/\s+/g, " ").trim();
+  s
+    .replace(/<[^|>]+\|([^>]+)>/g, "$1")
+    .replace(/<(https?:[^>]+)>/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/\s*\(id: [0-9a-f-]+\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /** The words around the first mention of `name`, about `span` characters either side, cut at word ends. */
 function around(text: string, name: string, span = 90): string {
-  const i = text.search(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`));
-  if (i < 0) return text.length > span * 2 ? `${text.slice(0, span * 2).replace(/\s+\S*$/, "")}…` : text;
+  const i = text.search(
+    new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`),
+  );
+  if (i < 0)
+    return text.length > span * 2
+      ? `${text.slice(0, span * 2).replace(/\s+\S*$/, "")}…`
+      : text;
   const from = Math.max(0, i - span);
   const to = Math.min(text.length, i + name.length + span);
-  const head = from > 0 ? `…${text.slice(from, to).replace(/^\S*\s+/, "")}` : text.slice(0, to);
+  const head =
+    from > 0
+      ? `…${text.slice(from, to).replace(/^\S*\s+/, "")}`
+      : text.slice(0, to);
   return to < text.length ? `${head.replace(/\s+\S*$/, "")}…` : head;
 }
 
@@ -54,20 +77,43 @@ export function appAnswerText(raw: string | null | undefined): string {
 }
 
 /** The reader's answer as hits, newest first as the app lists them. */
-export function readHistoryHits(raw: string | null | undefined, name: string): HistoryHit[] {
+export function readHistoryHits(
+  raw: string | null | undefined,
+  name: string,
+): HistoryHit[] {
   const t = appAnswerText(raw).replace(TRAILER, "");
   const hits: Array<{ at: string; where: string | null; lines: string[] }> = [];
   for (const line of t.split("\n")) {
     const m = HIT.exec(line);
-    if (m) hits.push({ at: utcInstant(m[1]), where: m[2] ?? null, lines: [line.slice(m[0].length)] });
+    if (m)
+      hits.push({
+        at: utcInstant(m[1]),
+        where: m[2] ?? null,
+        lines: [line.slice(m[0].length)],
+      });
     else if (hits.length) hits[hits.length - 1].lines.push(line);
   }
   // An activity whose text the app cut before the name says nothing about them here: only hits that show it.
-  const named = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+  const named = new RegExp(
+    `\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+  );
   return hits
-    .map((h) => { const raw = h.lines.join("\n").trim(); return { at: h.at, where: h.where, id: [...raw.matchAll(ITEM_ID)].at(-1)?.[1] ?? null, text: plain(raw).replace(KIND, "") }; })
+    .map((h) => {
+      const raw = h.lines.join("\n").trim();
+      return {
+        at: h.at,
+        where: h.where,
+        id: [...raw.matchAll(ITEM_ID)].at(-1)?.[1] ?? null,
+        text: plain(raw).replace(KIND, ""),
+      };
+    })
     .filter((h) => named.test(h.text))
-    .map((h) => ({ at: h.at, where: h.where, words: around(h.text, name), id: h.id }));
+    .map((h) => ({
+      at: h.at,
+      where: h.where,
+      words: around(h.text, name),
+      id: h.id,
+    }));
 }
 
 /** One history item as the app opened it (HISTORY_ITEM): its whole text, plain, without the machine head, the
@@ -75,6 +121,12 @@ export function readHistoryHits(raw: string | null | undefined, name: string): H
 export function readHistoryItem(raw: string | null | undefined): string {
   const t = appAnswerText(raw).replace(/\n+Metadata: \{[\s\S]*$/, "");
   const full = /\nFull text:\n([\s\S]*)$/.exec(t)?.[1];
-  const body = full ?? t.replace(/^\[[^\]]+\][^\n]*\n/, "").replace(/^Summary:\s*/, "");
-  return body.replace(/<[^|>]+\|([^>]+)>/g, "$1").replace(/<(https?:[^>]+)>/g, "$1").replace(/\*([^*\n]+)\*/g, "$1").replace(/\n{3,}/g, "\n\n").trim();
+  const body =
+    full ?? t.replace(/^\[[^\]]+\][^\n]*\n/, "").replace(/^Summary:\s*/, "");
+  return body
+    .replace(/<[^|>]+\|([^>]+)>/g, "$1")
+    .replace(/<(https?:[^>]+)>/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

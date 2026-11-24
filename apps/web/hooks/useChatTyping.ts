@@ -42,7 +42,9 @@ export function useTypingReporter(
   const convex = useConvex();
   const lastSentRef = useRef(0);
   // The scope the last report went to, so switching channels clears the old one.
-  const scopeRef = useRef<{ channelId: string; threadRootId?: string } | null>(null);
+  const scopeRef = useRef<{ channelId: string; threadRootId?: string } | null>(
+    null,
+  );
 
   const stop = useCallback(() => {
     const scope = scopeRef.current;

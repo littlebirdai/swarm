@@ -12,7 +12,13 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { canAccessPullRequest } from "./lib/access";
 import { changeGuideStepValidator } from "./lib/changeGuideValidator";
 import { callModelMetered, modelCost } from "./lib/anthropic";
-import { PR_GUIDE_MODEL, PR_GUIDE_PROMPT_VERSION, parsePrGuideReply, prGuideRequest, type PrGuideInput } from "./lib/prGuidePrompt";
+import {
+  PR_GUIDE_MODEL,
+  PR_GUIDE_PROMPT_VERSION,
+  parsePrGuideReply,
+  prGuideRequest,
+  type PrGuideInput,
+} from "./lib/prGuidePrompt";
 
 /** A team's spend on guides over any 24 hours; past it, Write refuses until older guides age out. */
 export const PR_GUIDE_DAILY_CAP_USD = 5;
@@ -30,7 +36,14 @@ const GUIDE_LOOKBACK = 20;
  */
 export const forPr = query({
   args: { pr_id: v.id("pull_requests") },
-  handler: async (ctx, args): Promise<{ pr_id: Id<"pull_requests">; guide: Doc<"pr_guides"> | null; latest: Doc<"pr_guides"> } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    pr_id: Id<"pull_requests">;
+    guide: Doc<"pr_guides"> | null;
+    latest: Doc<"pr_guides">;
+  } | null> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const pr = await ctx.db.get(args.pr_id);
@@ -55,27 +68,47 @@ export const forPr = query({
 
 export const begin = internalMutation({
   args: { pr_id: v.id("pull_requests"), user_id: v.id("users") },
-  handler: async (ctx, args): Promise<{ guide_id: Id<"pr_guides">; team_id: Id<"teams">; input: PrGuideInput }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    guide_id: Id<"pr_guides">;
+    team_id: Id<"teams">;
+    input: PrGuideInput;
+  }> => {
     const pr = await ctx.db.get(args.pr_id);
-    if (!pr || !(await canAccessPullRequest(ctx, args.user_id, pr))) throw new ConvexError("Pull request not found or access denied.");
+    if (!pr || !(await canAccessPullRequest(ctx, args.user_id, pr)))
+      throw new ConvexError("Pull request not found or access denied.");
     const files = pr.files ?? [];
-    if (!files.length) throw new ConvexError("No file changes have been synced for this pull request yet.");
+    if (!files.length)
+      throw new ConvexError(
+        "No file changes have been synced for this pull request yet.",
+      );
     const now = Date.now();
     const latest = await ctx.db
       .query("pr_guides")
       .withIndex("by_pr_created", (q) => q.eq("pr_id", args.pr_id))
       .order("desc")
       .first();
-    if (latest?.status === "writing" && now - latest.created_at < PR_GUIDE_WRITING_STALE_MS) {
-      throw new ConvexError("A guide for this pull request is already being written.");
+    if (
+      latest?.status === "writing" &&
+      now - latest.created_at < PR_GUIDE_WRITING_STALE_MS
+    ) {
+      throw new ConvexError(
+        "A guide for this pull request is already being written.",
+      );
     }
     const recent = await ctx.db
       .query("pr_guides")
-      .withIndex("by_team_created", (q) => q.eq("team_id", pr.team_id).gte("created_at", now - DAY_MS))
+      .withIndex("by_team_created", (q) =>
+        q.eq("team_id", pr.team_id).gte("created_at", now - DAY_MS),
+      )
       .collect();
     const spent = recent.reduce((sum, row) => sum + (row.cost_usd ?? 0), 0);
     if (spent >= PR_GUIDE_DAILY_CAP_USD) {
-      throw new ConvexError(`Your team has spent its $${PR_GUIDE_DAILY_CAP_USD} for guides in the last 24 hours.`);
+      throw new ConvexError(
+        `Your team has spent its $${PR_GUIDE_DAILY_CAP_USD} for guides in the last 24 hours.`,
+      );
     }
     const guide_id = await ctx.db.insert("pr_guides", {
       pr_id: args.pr_id,
@@ -90,7 +123,13 @@ export const begin = internalMutation({
     return {
       guide_id,
       team_id: pr.team_id,
-      input: { repository: pr.repository, number: pr.number, title: pr.title, body: pr.body, files },
+      input: {
+        repository: pr.repository,
+        number: pr.number,
+        title: pr.title,
+        body: pr.body,
+        files,
+      },
     };
   },
 });
@@ -122,28 +161,58 @@ export const write = action({
   handler: async (ctx, args): Promise<void> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("Sign in to write a guide.");
-    const { guide_id, team_id, input } = await ctx.runMutation(internal.prGuides.begin, { pr_id: args.pr_id, user_id: userId });
+    const { guide_id, team_id, input } = await ctx.runMutation(
+      internal.prGuides.begin,
+      { pr_id: args.pr_id, user_id: userId },
+    );
     const req = prGuideRequest(input);
     let call;
     try {
-      call = await callModelMetered({ ...req, label: "PR guide", timeout_ms: TIMEOUT_MS, gate: { ctx, scope: { workspace: `team:${team_id}` } } });
+      call = await callModelMetered({
+        ...req,
+        label: "PR guide",
+        timeout_ms: TIMEOUT_MS,
+        gate: { ctx, scope: { workspace: `team:${team_id}` } },
+      });
     } catch (e) {
-      await ctx.runMutation(internal.prGuides.finish, { guide_id, error: e instanceof Error ? e.message : String(e) });
+      await ctx.runMutation(internal.prGuides.finish, {
+        guide_id,
+        error: e instanceof Error ? e.message : String(e),
+      });
       throw new ConvexError("The model call failed. Try again.");
     }
     const usage = call.usage;
-    const spend = usage ? { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cost_usd: modelCost(req.model, usage) } : {};
+    const spend = usage
+      ? {
+          input_tokens: usage.input_tokens,
+          output_tokens: usage.output_tokens,
+          cost_usd: modelCost(req.model, usage),
+        }
+      : {};
     if (!call.reply) {
       const error = call.error ?? "the model gave no answer";
-      await ctx.runMutation(internal.prGuides.finish, { guide_id, error, ...spend });
+      await ctx.runMutation(internal.prGuides.finish, {
+        guide_id,
+        error,
+        ...spend,
+      });
       throw new ConvexError(`The guide could not be written: ${error}.`);
     }
     try {
       const guide = parsePrGuideReply(call.reply.text, input.files);
-      await ctx.runMutation(internal.prGuides.finish, { guide_id, ...(guide.summary ? { summary: guide.summary } : {}), steps: guide.steps, ...spend });
+      await ctx.runMutation(internal.prGuides.finish, {
+        guide_id,
+        ...(guide.summary ? { summary: guide.summary } : {}),
+        steps: guide.steps,
+        ...spend,
+      });
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
-      await ctx.runMutation(internal.prGuides.finish, { guide_id, error, ...spend });
+      await ctx.runMutation(internal.prGuides.finish, {
+        guide_id,
+        error,
+        ...spend,
+      });
       throw new ConvexError(`The guide could not be written: ${error}.`);
     }
   },

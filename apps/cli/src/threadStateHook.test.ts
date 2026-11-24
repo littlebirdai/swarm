@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { THREAD_STATE_NUDGE_MSGS, THREAD_STATE_RECRUIT_MSGS } from "@codecast/shared/contracts";
+import {
+  THREAD_STATE_NUDGE_MSGS,
+  THREAD_STATE_RECRUIT_MSGS,
+} from "@codecast/shared/contracts";
 import { THREAD_STATE_HOOK } from "./threadStateHook.js";
 
 // Run the installed hook exactly as Claude Code would: pipe a hook-event JSON
@@ -17,7 +20,11 @@ function transcript(sessionId: string, messages: number): string {
   const file = path.join(home, `${sessionId}.jsonl`);
   const lines: string[] = ['{"type":"file-history-snapshot","x":1}'];
   for (let i = 0; i < messages; i++) {
-    lines.push(i % 2 ? '{"type":"assistant","message":{"content":[{"type":"tool_use"}]}}' : '{"type":"user","message":{"content":"hi"}}');
+    lines.push(
+      i % 2
+        ? '{"type":"assistant","message":{"content":[{"type":"tool_use"}]}}'
+        : '{"type":"user","message":{"content":"hi"}}',
+    );
     // Noise entries that are NOT messages must not count.
     if (i % 5 === 0) lines.push('{"type":"progress","data":{}}');
   }
@@ -28,18 +35,38 @@ function transcript(sessionId: string, messages: number): string {
 function stamp(sessionId: string): void {
   const dir = path.join(home, ".codecast", "thread-state");
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${sessionId}.json`), JSON.stringify({ at: Date.now() }));
+  fs.writeFileSync(
+    path.join(dir, `${sessionId}.json`),
+    JSON.stringify({ at: Date.now() }),
+  );
 }
 
 /** What `cast state` does on every write: drop the mark so the baseline resets. */
 function rewriteState(sessionId: string): void {
-  fs.rmSync(path.join(home, ".codecast", "thread-state", "counters", sessionId), { force: true });
+  fs.rmSync(
+    path.join(home, ".codecast", "thread-state", "counters", sessionId),
+    { force: true },
+  );
 }
 
-function run(sessionId: string, event: "Stop" | "UserPromptSubmit", messages: number, extra: Record<string, unknown> = {}): string {
+function run(
+  sessionId: string,
+  event: "Stop" | "UserPromptSubmit",
+  messages: number,
+  extra: Record<string, unknown> = {},
+): string {
   return execFileSync("bash", [hookFile], {
-    input: JSON.stringify({ session_id: sessionId, hook_event_name: event, transcript_path: transcript(sessionId, messages), ...extra }),
-    env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+    input: JSON.stringify({
+      session_id: sessionId,
+      hook_event_name: event,
+      transcript_path: transcript(sessionId, messages),
+      ...extra,
+    }),
+    env: {
+      ...process.env,
+      HOME: home,
+      CODECAST_DIR: path.join(home, ".codecast"),
+    },
   }).toString();
 }
 
@@ -51,7 +78,10 @@ beforeAll(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-thread-state-hook-"));
   // The reminder jobs run only while their Agent Features entry is on.
   fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
-  fs.writeFileSync(path.join(home, ".codecast", "config.json"), JSON.stringify({ state_enabled: true, work_enabled: true }, null, 2));
+  fs.writeFileSync(
+    path.join(home, ".codecast", "config.json"),
+    JSON.stringify({ state_enabled: true, work_enabled: true }, null, 2),
+  );
   hookFile = path.join(home, "thread-state.sh");
   fs.writeFileSync(hookFile, THREAD_STATE_HOOK, { mode: 0o755 });
 });
@@ -79,21 +109,39 @@ describe("thread-state hook", () => {
     // while the Stop hook is already holding it.
     expect(run(id, "Stop", THREAD_STATE_RECRUIT_MSGS + 300)).toBe("");
     const other = fresh();
-    expect(run(other, "Stop", THREAD_STATE_RECRUIT_MSGS, { stop_hook_active: true })).toBe("");
+    expect(
+      run(other, "Stop", THREAD_STATE_RECRUIT_MSGS, { stop_hook_active: true }),
+    ).toBe("");
   });
 
   test("silent while Thread State is off in Agent Features", () => {
-    fs.writeFileSync(path.join(home, ".codecast", "config.json"), JSON.stringify({ state_enabled: false }));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "config.json"),
+      JSON.stringify({ state_enabled: false }),
+    );
     expect(run(fresh(), "Stop", THREAD_STATE_RECRUIT_MSGS)).toBe("");
-    fs.writeFileSync(path.join(home, ".codecast", "config.json"), JSON.stringify({ state_enabled: true, work_enabled: true }));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "config.json"),
+      JSON.stringify({ state_enabled: true, work_enabled: true }),
+    );
   });
 
   test("once it declares, the ordinary staleness reminder takes over", () => {
     const id = fresh();
-    expect(JSON.parse(run(id, "Stop", THREAD_STATE_RECRUIT_MSGS)).decision).toBe("block");
+    expect(
+      JSON.parse(run(id, "Stop", THREAD_STATE_RECRUIT_MSGS)).decision,
+    ).toBe("block");
     stamp(id);
     expect(run(id, "Stop", THREAD_STATE_RECRUIT_MSGS + 2)).toBe(""); // baseline recorded
-    expect(JSON.parse(run(id, "Stop", THREAD_STATE_RECRUIT_MSGS + 2 + THREAD_STATE_NUDGE_MSGS)).reason).toContain("messages old");
+    expect(
+      JSON.parse(
+        run(
+          id,
+          "Stop",
+          THREAD_STATE_RECRUIT_MSGS + 2 + THREAD_STATE_NUDGE_MSGS,
+        ),
+      ).reason,
+    ).toContain("messages old");
   });
 
   test("first event after a write records the baseline; the nudge fires on the crossing only", () => {
@@ -109,28 +157,39 @@ describe("thread-state hook", () => {
     expect(json.reason).toContain("cast state");
     // Ignored: not nagged again, however far the thread runs.
     expect(run(id, "Stop", 30 + THREAD_STATE_NUDGE_MSGS + 300)).toBe("");
-    expect(run(id, "UserPromptSubmit", 30 + THREAD_STATE_NUDGE_MSGS + 300)).toBe("");
+    expect(
+      run(id, "UserPromptSubmit", 30 + THREAD_STATE_NUDGE_MSGS + 300),
+    ).toBe("");
   });
 
   test("cast state re-arms it: a maintained state is reminded again later", () => {
     const id = fresh();
     stamp(id);
     run(id, "Stop", 10);
-    expect(JSON.parse(run(id, "Stop", 10 + THREAD_STATE_NUDGE_MSGS)).decision).toBe("block");
+    expect(
+      JSON.parse(run(id, "Stop", 10 + THREAD_STATE_NUDGE_MSGS)).decision,
+    ).toBe("block");
     rewriteState(id);
     // New baseline at the end of the turn that rewrote it.
     expect(run(id, "Stop", 10 + THREAD_STATE_NUDGE_MSGS + 5)).toBe("");
     expect(run(id, "Stop", 10 + 2 * THREAD_STATE_NUDGE_MSGS + 4)).toBe("");
-    expect(JSON.parse(run(id, "Stop", 10 + 2 * THREAD_STATE_NUDGE_MSGS + 5)).decision).toBe("block");
+    expect(
+      JSON.parse(run(id, "Stop", 10 + 2 * THREAD_STATE_NUDGE_MSGS + 5))
+        .decision,
+    ).toBe("block");
   }, 20_000);
 
   test("a Stop already continuing from a stop hook never blocks again, and keeps the nudge armed", () => {
     const id = fresh();
     stamp(id);
     run(id, "Stop", 0);
-    expect(run(id, "Stop", THREAD_STATE_NUDGE_MSGS, { stop_hook_active: true })).toBe("");
+    expect(
+      run(id, "Stop", THREAD_STATE_NUDGE_MSGS, { stop_hook_active: true }),
+    ).toBe("");
     // The next ordinary Stop still fires — nothing was consumed.
-    expect(JSON.parse(run(id, "Stop", THREAD_STATE_NUDGE_MSGS)).decision).toBe("block");
+    expect(JSON.parse(run(id, "Stop", THREAD_STATE_NUDGE_MSGS)).decision).toBe(
+      "block",
+    );
   });
 
   test("UserPromptSubmit is the fallback voice: plain context, not a block", () => {
@@ -147,7 +206,11 @@ describe("thread-state hook", () => {
     stamp(id);
     const out = execFileSync("bash", [hookFile], {
       input: JSON.stringify({ session_id: id, hook_event_name: "Stop" }),
-      env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+      },
     }).toString();
     expect(out).toBe("");
   });
@@ -158,8 +221,16 @@ describe("thread-state hook", () => {
     execFileSync("mkfifo", [fifo]);
     const t0 = Date.now();
     const out = execFileSync("bash", [hookFile], {
-      input: JSON.stringify({ session_id: id, hook_event_name: "UserPromptSubmit", transcript_path: fifo }),
-      env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast") },
+      input: JSON.stringify({
+        session_id: id,
+        hook_event_name: "UserPromptSubmit",
+        transcript_path: fifo,
+      }),
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+      },
       timeout: 2000,
     }).toString();
     expect(out).toBe("");
@@ -171,7 +242,11 @@ describe("thread-state hook", () => {
     stamp(id);
     const bin = path.join(home, "bin");
     fs.mkdirSync(bin, { recursive: true });
-    fs.writeFileSync(path.join(bin, "python3"), "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n", { mode: 0o755 });
+    fs.writeFileSync(
+      path.join(bin, "python3"),
+      "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n",
+      { mode: 0o755 },
+    );
     expect(run(id, "UserPromptSubmit", 0)).toBe("");
     const out = execFileSync("bash", [hookFile], {
       input: JSON.stringify({
@@ -179,7 +254,12 @@ describe("thread-state hook", () => {
         hook_event_name: "UserPromptSubmit",
         transcript_path: transcript(id, THREAD_STATE_NUDGE_MSGS + 3),
       }),
-      env: { ...process.env, HOME: home, CODECAST_DIR: path.join(home, ".codecast"), PATH: `${bin}:${process.env.PATH}` },
+      env: {
+        ...process.env,
+        HOME: home,
+        CODECAST_DIR: path.join(home, ".codecast"),
+        PATH: `${bin}:${process.env.PATH}`,
+      },
     }).toString();
     expect(out.startsWith("<thread-state>")).toBe(true);
   });

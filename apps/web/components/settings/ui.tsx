@@ -28,8 +28,21 @@ import { modernChip, modernPill, type ModernTone } from "../ui/modernLook";
  *  SettingsCallout or a bg-tinted inset instead of a nested bordered box.
  */
 
-export function SettingsPanel({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div data-cc-settings className={cn("mx-auto max-w-3xl space-y-8 pb-6", className)}>{children}</div>;
+export function SettingsPanel({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      data-cc-settings
+      className={cn("mx-auto max-w-3xl space-y-8 pb-6", className)}
+    >
+      {children}
+    </div>
+  );
 }
 
 interface SectionProps {
@@ -49,18 +62,45 @@ interface SectionProps {
   className?: string;
 }
 
-export function SettingsSection({ title, icon: Icon, description, actions, padded, overflowVisible, children, className }: SectionProps) {
+export function SettingsSection({
+  title,
+  icon: Icon,
+  description,
+  actions,
+  padded,
+  overflowVisible,
+  children,
+  className,
+}: SectionProps) {
   return (
     <section className={className}>
-      {(title || actions) && <div className="mb-2 flex items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-2 min-w-0">
-          {Icon && title && <Icon data-cc-settings-icon className="h-3.5 w-3.5 shrink-0 text-sol-text-dim" />}
-          {title && <h3 data-cc-settings-title className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-sol-text-muted modern:text-ui modern:normal-case modern:tracking-normal modern:text-sol-text">{title}</h3>}
+      {(title || actions) && (
+        <div className="mb-2 flex items-center justify-between gap-4 px-1">
+          <div className="flex items-center gap-2 min-w-0">
+            {Icon && title && (
+              <Icon
+                data-cc-settings-icon
+                className="h-3.5 w-3.5 shrink-0 text-sol-text-dim"
+              />
+            )}
+            {title && (
+              <h3
+                data-cc-settings-title
+                className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-sol-text-muted modern:text-ui modern:normal-case modern:tracking-normal modern:text-sol-text"
+              >
+                {title}
+              </h3>
+            )}
+          </div>
+          {actions && (
+            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          )}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-      </div>}
+      )}
       {description && (
-        <p className="mb-2.5 -mt-1 max-w-prose px-1 text-xs leading-relaxed text-sol-text-muted">{description}</p>
+        <p className="mb-2.5 -mt-1 max-w-prose px-1 text-xs leading-relaxed text-sol-text-muted">
+          {description}
+        </p>
       )}
       <div
         className={cn(
@@ -89,7 +129,15 @@ interface RowProps {
   className?: string;
 }
 
-export function SettingsRow({ label, description, icon: Icon, alignTop, disabled, children, className }: RowProps) {
+export function SettingsRow({
+  label,
+  description,
+  icon: Icon,
+  alignTop,
+  disabled,
+  children,
+  className,
+}: RowProps) {
   return (
     <div
       className={cn(
@@ -99,18 +147,34 @@ export function SettingsRow({ label, description, icon: Icon, alignTop, disabled
         className,
       )}
     >
-      <div className={cn("flex min-w-0 gap-3", alignTop ? "items-start" : "items-center")}>
+      <div
+        className={cn(
+          "flex min-w-0 gap-3",
+          alignTop ? "items-start" : "items-center",
+        )}
+      >
         {Icon && <Icon className="mt-px h-4 w-4 shrink-0 text-sol-text-dim" />}
         <div className="min-w-0">
           <div className="text-sm text-sol-text">{label}</div>
           {description && (
-            <div className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">{description}</div>
+            <div className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">
+              {description}
+            </div>
           )}
         </div>
       </div>
       {children != null && (
-        <div className={cn("flex shrink-0 items-center gap-2", alignTop && "pt-0.5")}>
-          {typeof children === "string" ? <span className="text-sm text-sol-text-muted">{children}</span> : children}
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-2",
+            alignTop && "pt-0.5",
+          )}
+        >
+          {typeof children === "string" ? (
+            <span className="text-sm text-sol-text-muted">{children}</span>
+          ) : (
+            children
+          )}
         </div>
       )}
     </div>
@@ -129,7 +193,14 @@ interface LinkRowProps {
 
 /** A row that navigates — to another section, a page, a dialog. The only row
  *  that responds to hover, because it is the only row that is itself a target. */
-export function SettingsLinkRow({ label, description, icon: Icon, value, onClick, className }: LinkRowProps) {
+export function SettingsLinkRow({
+  label,
+  description,
+  icon: Icon,
+  value,
+  onClick,
+  className,
+}: LinkRowProps) {
   return (
     <button
       type="button"
@@ -146,7 +217,9 @@ export function SettingsLinkRow({ label, description, icon: Icon, value, onClick
         <div className="min-w-0">
           <div className="text-sm text-sol-text">{label}</div>
           {description && (
-            <div className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">{description}</div>
+            <div className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">
+              {description}
+            </div>
           )}
         </div>
       </div>
@@ -169,10 +242,19 @@ interface FieldProps {
 
 /** A labelled form control inside a section card — the input-shaped sibling of
  *  SettingsRow, for panels that edit text rather than flip switches. */
-export function SettingsField({ label, htmlFor, hint, children, className }: FieldProps) {
+export function SettingsField({
+  label,
+  htmlFor,
+  hint,
+  children,
+  className,
+}: FieldProps) {
   return (
     <div className={cn("px-4 py-3.5 sm:px-5", className)}>
-      <label htmlFor={htmlFor} className="text-xs font-medium text-sol-text-muted">
+      <label
+        htmlFor={htmlFor}
+        className="text-xs font-medium text-sol-text-muted"
+      >
         {label}
       </label>
       <div className="mt-1.5">{children}</div>
@@ -199,7 +281,13 @@ export function SettingsCallout({
         ? "bg-sol-yellow/10 text-sol-text"
         : "bg-sol-bg-highlight/40 text-sol-text-muted";
   return (
-    <div className={cn("rounded-md px-3 py-2 text-xs leading-relaxed modern:rounded-control modern:text-meta", tint, className)}>
+    <div
+      className={cn(
+        "rounded-md px-3 py-2 text-xs leading-relaxed modern:rounded-control modern:text-meta",
+        tint,
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -239,7 +327,11 @@ export function SettingsOptionGroup({
 }) {
   const isCard = variant === "card";
   return (
-    <div role="group" aria-label={label} className={cn("flex flex-wrap gap-2", className)}>
+    <div
+      role="group"
+      aria-label={label}
+      className={cn("flex flex-wrap gap-2", className)}
+    >
       {options.map((opt) => {
         const active = value === opt.value;
         return (
@@ -252,7 +344,9 @@ export function SettingsOptionGroup({
             onClick={() => onChange(opt.value)}
             className={cn(
               "border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-              isCard ? "flex-1 rounded-lg px-3 py-2.5" : "rounded-md px-2.5 py-1.5 text-xs font-medium",
+              isCard
+                ? "flex-1 rounded-lg px-3 py-2.5"
+                : "rounded-md px-2.5 py-1.5 text-xs font-medium",
               active
                 ? "border-sol-cyan bg-sol-cyan/10"
                 : "border-sol-border bg-sol-bg-alt text-sol-text-muted hover:border-sol-text-muted",
@@ -261,15 +355,35 @@ export function SettingsOptionGroup({
               // Modern: pills are the filter chip; cards the white face on the
               // hairline, the chosen one edged in the accent.
               isCard
-                ? cn("modern:rounded-control modern:shadow-none", active ? "modern:border-sol-cyan modern:bg-sol-cyan/[0.06]" : "modern:border-sol-border modern:bg-sol-card modern:hover:border-sol-text-dim/50")
+                ? cn(
+                    "modern:rounded-control modern:shadow-none",
+                    active
+                      ? "modern:border-sol-cyan modern:bg-sol-cyan/[0.06]"
+                      : "modern:border-sol-border modern:bg-sol-card modern:hover:border-sol-text-dim/50",
+                  )
                 : modernChip({ active }),
             )}
           >
             {isCard ? (
               <>
-                <div className={cn("text-sm font-medium", active && "text-sol-cyan")}>{opt.label}</div>
-                {opt.description && <div className="mt-0.5 text-xs leading-snug opacity-70">{opt.description}</div>}
-                {opt.mono && <div className="mt-1 font-mono text-meta opacity-50">{opt.mono}</div>}
+                <div
+                  className={cn(
+                    "text-sm font-medium",
+                    active && "text-sol-cyan",
+                  )}
+                >
+                  {opt.label}
+                </div>
+                {opt.description && (
+                  <div className="mt-0.5 text-xs leading-snug opacity-70">
+                    {opt.description}
+                  </div>
+                )}
+                {opt.mono && (
+                  <div className="mt-1 font-mono text-meta opacity-50">
+                    {opt.mono}
+                  </div>
+                )}
               </>
             ) : (
               opt.label
@@ -281,10 +395,25 @@ export function SettingsOptionGroup({
   );
 }
 
-export type SettingsBadgeTone = "neutral" | "muted" | "cyan" | "green" | "yellow" | "red" | "violet";
+export type SettingsBadgeTone =
+  | "neutral"
+  | "muted"
+  | "cyan"
+  | "green"
+  | "yellow"
+  | "red"
+  | "violet";
 
 // Modern: the Badge's soft tint (ui/modernLook.ts) in the same tone.
-const BADGE_MODERN: Record<SettingsBadgeTone, ModernTone> = { neutral: "neutral", muted: "neutral", cyan: "cyan", green: "green", yellow: "yellow", red: "red", violet: "violet" };
+const BADGE_MODERN: Record<SettingsBadgeTone, ModernTone> = {
+  neutral: "neutral",
+  muted: "neutral",
+  cyan: "cyan",
+  green: "green",
+  yellow: "yellow",
+  red: "red",
+  violet: "violet",
+};
 
 const BADGE_TONE: Record<SettingsBadgeTone, string> = {
   neutral: "bg-sol-bg-alt text-sol-text-dim",
@@ -304,12 +433,21 @@ export function SettingsBadge({
   className,
   children,
   ...rest
-}: { tone?: SettingsBadgeTone; className?: string; children: React.ReactNode } & Omit<
-  React.HTMLAttributes<HTMLSpanElement>,
-  "className" | "children"
->) {
+}: {
+  tone?: SettingsBadgeTone;
+  className?: string;
+  children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLSpanElement>, "className" | "children">) {
   return (
-    <span className={cn("inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-meta", BADGE_TONE[tone], modernPill({ tone: BADGE_MODERN[tone] }), className)} {...rest}>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-meta",
+        BADGE_TONE[tone],
+        modernPill({ tone: BADGE_MODERN[tone] }),
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </span>
   );
@@ -322,7 +460,12 @@ export function SupportSentence({ words }: { words: SupportWords }) {
   return (
     <>
       {words.before}
-      <a href={supportMailto(words.subject)} className="underline underline-offset-2">{words.link}</a>
+      <a
+        href={supportMailto(words.subject)}
+        className="underline underline-offset-2"
+      >
+        {words.link}
+      </a>
       {words.after}
     </>
   );

@@ -8,7 +8,16 @@ import { isOrgChangeDecidable } from "@codecast/shared/contracts/orgProposal";
 import type { OrgProposalChange, OrgProposalListRow } from "./orgStaffingTypes";
 import { workspaceOpenProposals, type OrgWorkspaceRef } from "./staffingModel";
 
-type Row = Pick<OrgProposalListRow, "_id" | "status" | "team_id" | "author" | "mode" | "created_at" | "superseded_by">;
+type Row = Pick<
+  OrgProposalListRow,
+  | "_id"
+  | "status"
+  | "team_id"
+  | "author"
+  | "mode"
+  | "created_at"
+  | "superseded_by"
+>;
 
 export type SuggestionSplit<R extends Row> = {
   /** The Head of People's open proposals, oldest first: the set's pieces. */
@@ -20,30 +29,50 @@ export type SuggestionSplit<R extends Row> = {
 };
 
 /** Whether the Head of People wrote it: its role, or a review run (a review or a first chart is its work whoever ran it). */
-export function isHeadSuggestion(row: Pick<Row, "author" | "mode">, headRoleId: string | null): boolean {
+export function isHeadSuggestion(
+  row: Pick<Row, "author" | "mode">,
+  headRoleId: string | null,
+): boolean {
   if (row.mode === "init" || row.mode === "review") return true;
-  return !!headRoleId && row.author?.kind === "role" && row.author.id === headRoleId;
+  return (
+    !!headRoleId && row.author?.kind === "role" && row.author.id === headRoleId
+  );
 }
 
 /** The workspace's open proposals split into the set, the replaced and the rest. */
-export function splitSuggestions<R extends Row>(rows: readonly R[], ws: OrgWorkspaceRef | null, headRoleId: string | null): SuggestionSplit<R> {
-  const open = workspaceOpenProposals(rows, ws).sort((a, b) => a.created_at - b.created_at);
+export function splitSuggestions<R extends Row>(
+  rows: readonly R[],
+  ws: OrgWorkspaceRef | null,
+  headRoleId: string | null,
+): SuggestionSplit<R> {
+  const open = workspaceOpenProposals(rows, ws).sort(
+    (a, b) => a.created_at - b.created_at,
+  );
   const out: SuggestionSplit<R> = { set: [], replaced: [], others: [] };
   for (const p of open) {
     if (!isHeadSuggestion(p, headRoleId)) out.others.push(p);
-    else if (p.superseded_by && open.some((q) => q._id === p.superseded_by!.id)) out.replaced.push(p);
+    else if (p.superseded_by && open.some((q) => q._id === p.superseded_by!.id))
+      out.replaced.push(p);
     else out.set.push(p);
   }
   return out;
 }
 
 /** When a piece was last put to the person: its proposal's post, or the latest revise of its changes. */
-export function pieceAge(proposalCreatedAt: number, changes: readonly Pick<OrgProposalChange, "revision">[]): number {
-  return Math.max(proposalCreatedAt, ...changes.map((c) => c.revision?.at ?? 0));
+export function pieceAge(
+  proposalCreatedAt: number,
+  changes: readonly Pick<OrgProposalChange, "revision">[],
+): number {
+  return Math.max(
+    proposalCreatedAt,
+    ...changes.map((c) => c.revision?.at ?? 0),
+  );
 }
 
 /** The changes still waiting on the person. */
-export const waitingChanges = <C extends Pick<OrgProposalChange, "status">>(changes: readonly C[]): C[] => changes.filter((c) => isOrgChangeDecidable(c.status));
+export const waitingChanges = <C extends Pick<OrgProposalChange, "status">>(
+  changes: readonly C[],
+): C[] => changes.filter((c) => isOrgChangeDecidable(c.status));
 
 /** A piece older than this reads as stale: the Head of People should have refreshed or dropped it. */
 export const STALE_PIECE_MS = 7 * 24 * 60 * 60 * 1000;

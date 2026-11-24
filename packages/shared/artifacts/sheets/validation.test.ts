@@ -7,21 +7,40 @@ import { structuralOps } from "./ops";
 describe("validation", () => {
   test("list with chip colors, describe line, restyle in place, clear", () => {
     const d = doc(sheetSpec.seed!());
-    d.verb("validate", ["C2:C40", "list", "Applied:gray, Screen:blue,Offer:green,Screen", "--strict"]);
+    d.verb("validate", [
+      "C2:C40",
+      "list",
+      "Applied:gray, Screen:blue,Offer:green,Screen",
+      "--strict",
+    ]);
     let m = buildModel(d.elements());
     expect(m.validations).toHaveLength(1);
-    expect(m.validations[0]).toMatchObject({ rule: "list", strict: true, options: [{ v: "Applied", color: "gray" }, { v: "Screen", color: "blue" }, { v: "Offer", color: "green" }] });
+    expect(m.validations[0]).toMatchObject({
+      rule: "list",
+      strict: true,
+      options: [
+        { v: "Applied", color: "gray" },
+        { v: "Screen", color: "blue" },
+        { v: "Offer", color: "green" },
+      ],
+    });
     expect(validationAt(m, m.tabs[0].id, 3, 10)?.rule).toBe("list");
     expect(validationAt(m, m.tabs[0].id, 4, 10)).toBeUndefined();
-    expect(sheetSpec.describe(d.view())).toContain("validate C2:C40 list Applied:gray,Screen:blue,Offer:green --strict");
+    expect(sheetSpec.describe(d.view())).toContain(
+      "validate C2:C40 list Applied:gray,Screen:blue,Offer:green --strict",
+    );
     d.verb("validate", ["C2:C40", "date"]);
     m = buildModel(d.elements());
     expect(m.validations).toHaveLength(1);
     expect(m.validations[0].rule).toBe("date");
     d.verb("validate", ["C2:C40", "clear"]);
     expect(buildModel(d.elements()).validations).toHaveLength(0);
-    expect(() => d.verb("validate", ["C2:C4", "list", "A:pink"])).toThrow(/color must be/);
-    expect(() => d.verb("validate", ["C2:C4", "list"])).toThrow(/needs its values/);
+    expect(() => d.verb("validate", ["C2:C4", "list", "A:pink"])).toThrow(
+      /color must be/,
+    );
+    expect(() => d.verb("validate", ["C2:C4", "list"])).toThrow(
+      /needs its values/,
+    );
   });
 
   test("inserting rows above moves the range; LiveSheet matches a rebuild", () => {
@@ -32,17 +51,38 @@ describe("validation", () => {
     const m = buildModel(d.elements());
     d.apply(structuralOps(m, m.tabs[0].id, "row", 1, 2));
     live.update(d.elements());
-    expect(buildModel(d.elements()).validations[0].rect).toEqual({ c0: 2, c1: 2, r0: 4, r1: 12 });
-    expect(live.model.validations).toEqual(buildModel(d.elements()).validations);
+    expect(buildModel(d.elements()).validations[0].rect).toEqual({
+      c0: 2,
+      c1: 2,
+      r0: 4,
+      r1: 12,
+    });
+    expect(live.model.validations).toEqual(
+      buildModel(d.elements()).validations,
+    );
   });
 });
 
 import { parseTable } from "./delimited";
 describe("parseTable", () => {
   test("sniffs CSV, TSV and semicolons; quoted fields keep commas and line breaks", () => {
-    expect(parseTable('Name,Note,Amount\nPie,"a, b",12\n"Tart ""v2""","line\nbreak",8\n')).toEqual([["Name", "Note", "Amount"], ["Pie", "a, b", "12"], ['Tart "v2"', "line\nbreak", "8"]]);
-    expect(parseTable("a\tb,c\n1\t2")).toEqual([["a", "b,c"], ["1", "2"]]);
-    expect(parseTable("a;b\r\n1,5;2")).toEqual([["a", "b"], ["1,5", "2"]]);
+    expect(
+      parseTable(
+        'Name,Note,Amount\nPie,"a, b",12\n"Tart ""v2""","line\nbreak",8\n',
+      ),
+    ).toEqual([
+      ["Name", "Note", "Amount"],
+      ["Pie", "a, b", "12"],
+      ['Tart "v2"', "line\nbreak", "8"],
+    ]);
+    expect(parseTable("a\tb,c\n1\t2")).toEqual([
+      ["a", "b,c"],
+      ["1", "2"],
+    ]);
+    expect(parseTable("a;b\r\n1,5;2")).toEqual([
+      ["a", "b"],
+      ["1,5", "2"],
+    ]);
   });
 });
 
@@ -51,15 +91,31 @@ describe("importTablesOps", () => {
   test("each table becomes a new tab with a unique name and fitted columns", () => {
     const d = doc(sheetSpec.seed!());
     const m0 = buildModel(d.elements());
-    const r = importTablesOps(m0, [{ name: m0.tabs[0].name, grid: [["Name", "A rather long header"], ["Pie", "12"]] }, { name: "Notes", grid: [["x"]] }]);
+    const r = importTablesOps(m0, [
+      {
+        name: m0.tabs[0].name,
+        grid: [
+          ["Name", "A rather long header"],
+          ["Pie", "12"],
+        ],
+      },
+      { name: "Notes", grid: [["x"]] },
+    ]);
     d.apply(r.ops);
     const m = buildModel(d.elements());
-    expect(m.tabs.map((t) => t.name)).toEqual([m0.tabs[0].name, `${m0.tabs[0].name} 2`, "Notes"]);
+    expect(m.tabs.map((t) => t.name)).toEqual([
+      m0.tabs[0].name,
+      `${m0.tabs[0].name} 2`,
+      "Notes",
+    ]);
     expect(new Set(r.tabIds).size).toBe(2);
     const t = m.byId.get(r.tabIds[0])!;
     expect(t.rows).toBe(2);
     expect(t.colWidths.get(2)! > t.colWidths.get(1)!).toBe(true);
-    expect(sheetSpec.verbs!.range.run(d.view(), [`'${m0.tabs[0].name} 2'!A1:B2`]).status).toBe("Name\tA rather long header\nPie\t12");
+    expect(
+      sheetSpec.verbs!.range.run(d.view(), [`'${m0.tabs[0].name} 2'!A1:B2`])
+        .status,
+    ).toBe("Name\tA rather long header\nPie\t12");
   });
 });
 
@@ -67,17 +123,25 @@ describe("import verb", () => {
   test("CSV on stdin lands in a new tab", () => {
     const d = doc(sheetSpec.seed!());
     d.verb("import", ["Q4", "orders"], 'flavor,boxes\n"Pecan, salted",120\n');
-    expect(sheetSpec.verbs!.range.run(d.view(), ["'Q4 orders'!A1:B2"]).status).toBe("flavor\tboxes\nPecan, salted\t120");
+    expect(
+      sheetSpec.verbs!.range.run(d.view(), ["'Q4 orders'!A1:B2"]).status,
+    ).toBe("flavor\tboxes\nPecan, salted\t120");
   });
 });
 
 import { validateInput } from "./ruleOps";
 describe("validateInput", () => {
-  const list = { rule: "list" as const, options: [{ v: "Offer" }, { v: "Screen" }], strict: true };
+  const list = {
+    rule: "list" as const,
+    options: [{ v: "Offer" }, { v: "Screen" }],
+    strict: true,
+  };
   test("strict lists refuse, take any case, and leave formulas and blanks alone", () => {
     expect(validateInput(list, "offer")).toEqual({ input: "Offer" });
     expect("refuse" in validateInput(list, "Maybe")).toBe(true);
-    expect(validateInput({ ...list, strict: false }, "Maybe")).toEqual({ input: "Maybe" });
+    expect(validateInput({ ...list, strict: false }, "Maybe")).toEqual({
+      input: "Maybe",
+    });
     expect(validateInput(list, "=A1")).toEqual({ input: "=A1" });
     expect(validateInput(list, "")).toEqual({ input: "" });
   });
@@ -102,7 +166,11 @@ describe("enforceValidation", () => {
       { k: `c:${id}!B4`, set: { b: true } },
     ]);
     expect(r.refused).toBe(1);
-    expect(r.ops.map((o) => o.k)).toEqual([`c:${id}!B3`, `c:${id}!C3`, `c:${id}!B4`]);
+    expect(r.ops.map((o) => o.k)).toEqual([
+      `c:${id}!B3`,
+      `c:${id}!C3`,
+      `c:${id}!B4`,
+    ]);
     expect((r.ops[0] as any).set.input).toBe("Done");
   });
 });
@@ -113,11 +181,15 @@ describe("hide and unhide", () => {
     d.verb("width", ["B", "200"]);
     d.verb("hide", ["cols", "B:C"]);
     d.verb("hide", ["rows", "4"]);
-    let t = buildModel(d.elements()).byId.get(buildModel(d.elements()).tabs[0].id)!;
+    let t = buildModel(d.elements()).byId.get(
+      buildModel(d.elements()).tabs[0].id,
+    )!;
     expect([...t.hiddenCols!].sort()).toEqual([2, 3]);
     expect([...t.hiddenRows!]).toEqual([4]);
     expect(t.colWidths.get(2)).toBe(200);
-    expect(sheetSpec.describe(d.view())).toContain("hidden cols B,C · hidden rows 4");
+    expect(sheetSpec.describe(d.view())).toContain(
+      "hidden cols B,C · hidden rows 4",
+    );
     const live = new LiveSheet();
     live.update(d.elements());
     d.verb("unhide", ["cols", "B:C"]);
@@ -136,7 +208,9 @@ describe("number formats", () => {
     expect(formatValue(-1234.5, { nf: "accounting" })).toBe("($1,234.50)");
     expect(formatValue(1234.5, { nf: "currency", cur: "€" })).toBe("€1,234.50");
     expect(formatValue(12345.678, { nf: "scientific" })).toBe("1.23E+04");
-    expect(formatValue(1234.56, { nf: "custom", code: '#,##0.0 "kg"' })).toBe("1,234.6 kg");
+    expect(formatValue(1234.56, { nf: "custom", code: '#,##0.0 "kg"' })).toBe(
+      "1,234.6 kg",
+    );
   });
   test("the fmt verb sets them and describe reads them back", () => {
     const d = doc(sheetSpec.seed!());
@@ -146,7 +220,9 @@ describe("number formats", () => {
     const out = sheetSpec.describe(d.view());
     expect(out).toContain("nf=currency cur=€");
     expect(out).toContain("nf=custom");
-    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:A2"]).status).toBe("1234.5\n2");
+    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:A2"]).status).toBe(
+      "1234.5\n2",
+    );
   });
 });
 
@@ -157,8 +233,13 @@ describe("conditional rules", () => {
     d.verb("cond", ["C2:C40", "after", "2026-12-31", "green"]);
     d.verb("cond", ["C2:C40", "before", "today", "orange"]);
     const conds = buildModel(d.elements()).conds;
-    expect(conds.map((c) => [c.rule, c.value, c.color])).toEqual([["before", "today", "orange"], ["after", "2026-12-31", "green"]]);
-    expect(sheetSpec.describe(d.view())).toContain("cond C2:C40 before today orange");
+    expect(conds.map((c) => [c.rule, c.value, c.color])).toEqual([
+      ["before", "today", "orange"],
+      ["after", "2026-12-31", "green"],
+    ]);
+    expect(sheetSpec.describe(d.view())).toContain(
+      "cond C2:C40 before today orange",
+    );
   });
 });
 
@@ -168,9 +249,13 @@ describe("merged cells", () => {
     const d = doc(sheetSpec.seed!());
     d.verb("merge", ["A1:D1"]);
     let m = buildModel(d.elements());
-    expect(m.merges.map((x) => x.rect)).toEqual([{ c0: 1, r0: 1, c1: 4, r1: 1 }]);
+    expect(m.merges.map((x) => x.rect)).toEqual([
+      { c0: 1, r0: 1, c1: 4, r1: 1 },
+    ]);
     expect(sheetSpec.describe(d.view())).toContain("merged A1:D1");
-    expect(expandToMerges(m, m.tabs[0].id, { c0: 2, r0: 1, c1: 2, r1: 2 })).toEqual({ c0: 1, r0: 1, c1: 4, r1: 2 });
+    expect(
+      expandToMerges(m, m.tabs[0].id, { c0: 2, r0: 1, c1: 2, r1: 2 }),
+    ).toEqual({ c0: 1, r0: 1, c1: 4, r1: 2 });
     d.apply(structuralOps(m, m.tabs[0].id, "row", 1, 1));
     m = buildModel(d.elements());
     expect(m.merges[0].rect).toEqual({ c0: 1, r0: 2, c1: 4, r1: 2 });
@@ -186,7 +271,11 @@ describe("agents and strict cells", () => {
     const r = sheetSpec.verbs!.set.run(d.view(), ["B2", "Maybe"]);
     expect(r.status).toContain("skipped 1 value");
     expect(r.ops.some((o) => o.k.endsWith("!B2"))).toBe(false);
-    expect(sheetSpec.verbs!.set.run(d.view(), ["B2", "done"]).ops.find((o) => o.k.endsWith("!B2"))).toBeTruthy();
+    expect(
+      sheetSpec
+        .verbs!.set.run(d.view(), ["B2", "done"])
+        .ops.find((o) => o.k.endsWith("!B2")),
+    ).toBeTruthy();
   });
 });
 
@@ -199,7 +288,9 @@ describe("merge keeps the top-left value only", () => {
     const ops = mergeOps(m, m.tabs[0].id, { c0: 1, r0: 1, c1: 2, r1: 2 });
     expect(ops.dropped).toBe(2);
     d.apply(ops);
-    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:B2"]).status).toBe("keep\t\n\t");
+    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:B2"]).status).toBe(
+      "keep\t\n\t",
+    );
   });
 });
 
@@ -218,13 +309,21 @@ import { replaceOps } from "./ops";
 describe("replace", () => {
   test("replaces text in typed cells, any case, leaving formulas alone; one cell or all", () => {
     const d = doc(sheetSpec.seed!());
-    d.verb("write", ["A1"], "Pending\tpending review\n=\"pending\"\tdone");
+    d.verb("write", ["A1"], 'Pending\tpending review\n="pending"\tdone');
     const m = buildModel(d.elements());
     const all = replaceOps(m, m.tabs[0].id, "pending", "Open");
     expect(all.count).toBe(2);
     d.apply(all.ops);
-    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:B2"]).status).toBe("Open\tOpen review\npending\tdone");
-    const one = replaceOps(buildModel(d.elements()), m.tabs[0].id, "open", "X", { col: 2, row: 1 });
+    expect(sheetSpec.verbs!.range.run(d.view(), ["A1:B2"]).status).toBe(
+      "Open\tOpen review\npending\tdone",
+    );
+    const one = replaceOps(
+      buildModel(d.elements()),
+      m.tabs[0].id,
+      "open",
+      "X",
+      { col: 2, row: 1 },
+    );
     expect(one.count).toBe(1);
   });
 });
@@ -236,14 +335,32 @@ describe("comment threads follow their cell", () => {
     const { workbookFor } = await import("./model");
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "Name\tAmount\nBo\t5\nAna\t9");
-    const threads = [{ key: "cm_1", anchor: "c:Sheet1!B3" }, { key: "cm_2", anchor: "c:Sheet1!B3" }, { key: "cm_e", anchor: "c:Sheet1!D3" }];
+    const threads = [
+      { key: "cm_1", anchor: "c:Sheet1!B3" },
+      { key: "cm_2", anchor: "c:Sheet1!B3" },
+      { key: "cm_e", anchor: "c:Sheet1!D3" },
+    ];
     d.apply(pinCommentOps(buildModel(d.elements()), threads));
-    const at = (key: string) => threadCell(buildModel(d.elements()), threads.find((t) => t.key === key)!);
+    const at = (key: string) =>
+      threadCell(
+        buildModel(d.elements()),
+        threads.find((t) => t.key === key)!,
+      );
     d.apply(structuralOps(buildModel(d.elements()), "Sheet1", "row", 2, 1));
-    expect([at("cm_1"), at("cm_2"), at("cm_e")]).toEqual([{ tab: "Sheet1", col: 2, row: 4 }, { tab: "Sheet1", col: 2, row: 4 }, { tab: "Sheet1", col: 4, row: 4 }]);
+    expect([at("cm_1"), at("cm_2"), at("cm_e")]).toEqual([
+      { tab: "Sheet1", col: 2, row: 4 },
+      { tab: "Sheet1", col: 2, row: 4 },
+      { tab: "Sheet1", col: 4, row: 4 },
+    ]);
     const m = buildModel(d.elements());
-    d.apply(sortOps(m, workbookFor(m), "Sheet1", { c0: 1, r0: 3, c1: 4, r1: 4 }, 1));
-    expect([at("cm_1"), at("cm_2"), at("cm_e")]).toEqual([{ tab: "Sheet1", col: 2, row: 3 }, { tab: "Sheet1", col: 2, row: 3 }, { tab: "Sheet1", col: 4, row: 3 }]);
+    d.apply(
+      sortOps(m, workbookFor(m), "Sheet1", { c0: 1, r0: 3, c1: 4, r1: 4 }, 1),
+    );
+    expect([at("cm_1"), at("cm_2"), at("cm_e")]).toEqual([
+      { tab: "Sheet1", col: 2, row: 3 },
+      { tab: "Sheet1", col: 2, row: 3 },
+      { tab: "Sheet1", col: 4, row: 3 },
+    ]);
     d.apply(structuralOps(buildModel(d.elements()), "Sheet1", "row", 3, -1));
     expect([at("cm_1"), at("cm_2"), at("cm_e")]).toEqual([null, null, null]);
     // Pinning again does nothing.
@@ -255,7 +372,10 @@ describe("comment anchors from a reference", () => {
   test("Tab!A1, A1 and a tab id name the cell; an unknown tab names nothing", () => {
     const d = doc(sheetSpec.seed!());
     d.verb("write", ["A1"], "x");
-    const view = { elements: d.elements(), get: (k: string) => d.elements().find((e) => e.key === k) } as never;
+    const view = {
+      elements: d.elements(),
+      get: (k: string) => d.elements().find((e) => e.key === k),
+    } as never;
     expect(sheetSpec.anchorFor!(view, "Sheet1!C4")).toBe("c:Sheet1!C4");
     expect(sheetSpec.anchorFor!(view, "b2:c3")).toBe("c:Sheet1!B2");
     expect(sheetSpec.anchorFor!(view, "Nope!A1")).toBeUndefined();
@@ -271,11 +391,34 @@ describe("clearing a commented cell", () => {
     d.verb("write", ["B2"], "42");
     const th = { key: "cm_c", anchor: "c:Sheet1!B2" };
     d.apply(pinCommentOps(buildModel(d.elements()), [th]));
-    d.apply(inputOps(buildModel(d.elements()), "Sheet1", [{ col: 2, row: 2, input: "" }]));
-    expect(threadCell(buildModel(d.elements()), th)).toEqual({ tab: "Sheet1", col: 2, row: 2 });
-    d.apply(inputOps(buildModel(d.elements()), "Sheet1", [{ col: 2, row: 2, input: "7" }]));
-    d.apply(clearOps(buildModel(d.elements()), "Sheet1", { c0: 2, r0: 2, c1: 2, r1: 2 }));
-    expect(threadCell(buildModel(d.elements()), th)).toEqual({ tab: "Sheet1", col: 2, row: 2 });
+    d.apply(
+      inputOps(buildModel(d.elements()), "Sheet1", [
+        { col: 2, row: 2, input: "" },
+      ]),
+    );
+    expect(threadCell(buildModel(d.elements()), th)).toEqual({
+      tab: "Sheet1",
+      col: 2,
+      row: 2,
+    });
+    d.apply(
+      inputOps(buildModel(d.elements()), "Sheet1", [
+        { col: 2, row: 2, input: "7" },
+      ]),
+    );
+    d.apply(
+      clearOps(buildModel(d.elements()), "Sheet1", {
+        c0: 2,
+        r0: 2,
+        c1: 2,
+        r1: 2,
+      }),
+    );
+    expect(threadCell(buildModel(d.elements()), th)).toEqual({
+      tab: "Sheet1",
+      col: 2,
+      row: 2,
+    });
   });
 });
 
@@ -287,18 +430,44 @@ describe("copying a dropdown", () => {
     d.verb("validate", ["Sheet1!A1:A9", "list", "Open:green,Done:blue"]);
     const m = buildModel(d.elements());
     // The grid copies with its visible rows listed; without gaps the dropdown comes along.
-    d.apply(pasteClipOps(m, "Sheet1", clipOf(m, "Sheet1", { c0: 1, r0: 1, c1: 1, r1: 2 }, [1, 2]), { c0: 3, r0: 5, c1: 3, r1: 5 }));
+    d.apply(
+      pasteClipOps(
+        m,
+        "Sheet1",
+        clipOf(m, "Sheet1", { c0: 1, r0: 1, c1: 1, r1: 2 }, [1, 2]),
+        { c0: 3, r0: 5, c1: 3, r1: 5 },
+      ),
+    );
     const v = validationAt(buildModel(d.elements()), "Sheet1", 3, 6);
-    expect(v).toMatchObject({ rule: "list", options: [{ v: "Open", color: "green" }, { v: "Done", color: "blue" }] });
+    expect(v).toMatchObject({
+      rule: "list",
+      options: [
+        { v: "Open", color: "green" },
+        { v: "Done", color: "blue" },
+      ],
+    });
   });
 });
 
 describe("rule values as typed", () => {
   test("50%, $100 and 1,200 compare as numbers; a broken custom formula is refused", async () => {
     const { valueMeetsRule, betweenOf, condOps } = await import("./ruleOps");
-    expect([valueMeetsRule("gt", "50%", 0.6), valueMeetsRule("gt", "50%", 0.4), valueMeetsRule("lt", "$100", 99), valueMeetsRule("eq", "$1,200", 1200)]).toEqual([true, false, true, true]);
+    expect([
+      valueMeetsRule("gt", "50%", 0.6),
+      valueMeetsRule("gt", "50%", 0.4),
+      valueMeetsRule("lt", "$100", 99),
+      valueMeetsRule("eq", "$1,200", 1200),
+    ]).toEqual([true, false, true, true]);
     expect(betweenOf("$1,200, $2,000")).toEqual([1200, 2000]);
     const d = doc(sheetSpec.seed!());
-    expect(() => condOps(buildModel(d.elements()), "Sheet1", { c0: 1, r0: 1, c1: 1, r1: 3 }, "formula", "=A1>(")).toThrow(/doesn't read/);
+    expect(() =>
+      condOps(
+        buildModel(d.elements()),
+        "Sheet1",
+        { c0: 1, r0: 1, c1: 1, r1: 3 },
+        "formula",
+        "=A1>(",
+      ),
+    ).toThrow(/doesn't read/);
   });
 });

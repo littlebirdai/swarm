@@ -18,7 +18,10 @@ import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useInboxStore, isConvexId } from "../../../store/inboxStore";
 import { isForeignSession } from "../../../lib/liveEntities";
 import { PREFILL_PARAM, buildPrefillText } from "../../../lib/composerPrefill";
-import { getShareTokenScope, setShareTokenScope } from "../../../lib/shareTokenScope";
+import {
+  getShareTokenScope,
+  setShareTokenScope,
+} from "../../../lib/shareTokenScope";
 import { GuestSuggestComposer } from "../../../components/GuestSuggestComposer";
 import { useLocalAuth } from "../../../lib/localAuth";
 import { parseMessageHash } from "../../../lib/messageHash";
@@ -56,7 +59,8 @@ function RedirectToInbox({
     // That redirect is also what keeps a refresh from re-seeding the composer —
     // the param never reaches the address bar the user ends up on.
     const prefillText = buildPrefillText(prefill);
-    if (prefillText) store.setComposerPrefill({ convId: id, text: prefillText });
+    if (prefillText)
+      store.setComposerPrefill({ convId: id, text: prefillText });
     // Deep-link state travels through requestNavigate — target session, scroll
     // target, and highlight in ONE action. Setting pendingScrollToMessageId as
     // a bare field first (the old shape) raced: with another inbox pane
@@ -112,12 +116,19 @@ function GuestConversationView({
   // travel through the store's navigate request — the same codepath the inbox
   // uses. Its consumer (QueuePageClient) isn't mounted on this page, so consume
   // requests aimed at this conversation and re-target the message hook directly.
-  const [jumpTargetId, setJumpTargetId] = useState<string | undefined>(undefined);
+  const [jumpTargetId, setJumpTargetId] = useState<string | undefined>(
+    undefined,
+  );
   const pendingNavigateId = useInboxStore((s) => s.pendingNavigateId);
   useWatchEffect(() => {
     if (pendingNavigateId !== id) return;
     const msgId = useInboxStore.getState().pendingScrollToMessageId;
-    useInboxStore.setState({ pendingNavigateId: null, pendingScrollToMessageId: null, pendingScrollToMessageTimestamp: null, pendingHighlightQuery: null });
+    useInboxStore.setState({
+      pendingNavigateId: null,
+      pendingScrollToMessageId: null,
+      pendingScrollToMessageTimestamp: null,
+      pendingHighlightQuery: null,
+    });
     if (msgId) setJumpTargetId(msgId);
   }, [pendingNavigateId, id]);
   // Opens on the first page: a share link reads from the beginning.
@@ -134,13 +145,24 @@ function GuestConversationView({
     jumpToTimestamp,
     effectiveTargetMessageId,
     isJumpingToTarget,
-  } = useConversationMessages(id, jumpTargetId ?? targetMessageId, highlightQuery, undefined, undefined, true);
+  } = useConversationMessages(
+    id,
+    jumpTargetId ?? targetMessageId,
+    highlightQuery,
+    undefined,
+    undefined,
+    true,
+  );
 
   // The guest frame has no app chrome, so the header carries the way in: the
   // mark home, and sign-in back to this same conversation.
   const [chrome] = useState(() => ({
     lead: (
-      <a href="/" aria-label="codecast" className="flex-shrink-0 opacity-80 hover:opacity-100 transition-opacity">
+      <a
+        href="/"
+        aria-label="codecast"
+        className="flex-shrink-0 opacity-80 hover:opacity-100 transition-opacity"
+      >
         <LogoMark size={18} />
       </a>
     ),
@@ -164,34 +186,39 @@ function GuestConversationView({
       <ErrorBoundary name="GuestConversation" level="panel">
         <div className="h-full flex flex-col">
           <div className="flex-1 min-h-0">
-          <ConversationDiffLayout
-            conversation={conversation as ConversationData}
-            embedded
-            hasMoreAbove={hasMoreAbove}
-            hasMoreBelow={hasMoreBelow}
-            isLoadingOlder={isLoadingOlder}
-            isLoadingNewer={isLoadingNewer}
-            onLoadOlder={loadOlder}
-            onLoadNewer={loadNewer}
-            onJumpToStart={jumpToStart}
-            onJumpToEnd={jumpToEnd}
-            onJumpToTimestamp={jumpToTimestamp}
-            isOwner={false}
-            guest
-            headerLeft={chrome.lead}
-            headerEnd={chrome.end}
-            showMessageInput={false}
-            targetMessageId={effectiveTargetMessageId}
-            isJumpingToTarget={isJumpingToTarget}
-            highlightQuery={highlightQuery}
-            onClearHighlight={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.delete("highlight");
-              router.replace(url.pathname + url.search);
-            }}
-          />
+            <ConversationDiffLayout
+              conversation={conversation as ConversationData}
+              embedded
+              hasMoreAbove={hasMoreAbove}
+              hasMoreBelow={hasMoreBelow}
+              isLoadingOlder={isLoadingOlder}
+              isLoadingNewer={isLoadingNewer}
+              onLoadOlder={loadOlder}
+              onLoadNewer={loadNewer}
+              onJumpToStart={jumpToStart}
+              onJumpToEnd={jumpToEnd}
+              onJumpToTimestamp={jumpToTimestamp}
+              isOwner={false}
+              guest
+              headerLeft={chrome.lead}
+              headerEnd={chrome.end}
+              showMessageInput={false}
+              targetMessageId={effectiveTargetMessageId}
+              isJumpingToTarget={isJumpingToTarget}
+              highlightQuery={highlightQuery}
+              onClearHighlight={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("highlight");
+                router.replace(url.pathname + url.search);
+              }}
+            />
           </div>
-          {shareToken && <GuestSuggestComposer conversation={conversation as ConversationData} shareToken={shareToken} />}
+          {shareToken && (
+            <GuestSuggestComposer
+              conversation={conversation as ConversationData}
+              shareToken={shareToken}
+            />
+          )}
         </div>
       </ErrorBoundary>
     </DashboardLayout>
@@ -215,7 +242,9 @@ function ConversationLoadingSkeleton({ id }: { id?: string }) {
  *  `?return_to=` as this page's query and nested it inside itself. */
 function RedirectToLogin({ id }: { id: string }) {
   const router = useRouter();
-  const [returnTo] = useState(() => `/conversation/${id}${window.location.search}${window.location.hash}`);
+  const [returnTo] = useState(
+    () => `/conversation/${id}${window.location.search}${window.location.hash}`,
+  );
   useMountEffect(() => {
     router.replace(`/login?return_to=${encodeURIComponent(returnTo)}`);
   });
@@ -226,7 +255,11 @@ function RedirectToLogin({ id }: { id: string }) {
 function UnavailableView({ onRetry }: { onRetry?: () => void }) {
   return (
     <DashboardLayout>
-      <ConversationUnavailable failed={!!onRetry} actionLabel={onRetry ? "Try again" : undefined} onAction={onRetry} />
+      <ConversationUnavailable
+        failed={!!onRetry}
+        actionLabel={onRetry ? "Try again" : undefined}
+        onAction={onRetry}
+      />
     </DashboardLayout>
   );
 }
@@ -251,9 +284,13 @@ export default function ConversationPage() {
   // A failed resolve (a backend without the function, a server error) must
   // not take the page down: a cached session still opens from the cache, and
   // anything else reads as unavailable rather than as a crash.
-  const { data: resolved, error: resolveError, retry: retryResolve } = useQueryNoThrow(
+  const {
+    data: resolved,
+    error: resolveError,
+    retry: retryResolve,
+  } = useQueryNoThrow(
     api.conversations.resolveConversation,
-    id ? { id, ...(shareToken ? { share_token: shareToken } : {}) } : "skip"
+    id ? { id, ...(shareToken ? { share_token: shareToken } : {}) } : "skip",
   );
   const effective = resolved;
 
@@ -298,7 +335,8 @@ export default function ConversationPage() {
     if (authGate === "guest") return <RedirectToLogin id={id} />;
     return <UnavailableView />;
   }
-  if (effective.access_level === "not_found" || !effective.conversation_id) return <UnavailableView />;
+  if (effective.access_level === "not_found" || !effective.conversation_id)
+    return <UnavailableView />;
 
   // Register the presented token under the RESOLVED id before any child
   // mounts, so every id-keyed query in the tree re-presents it.
@@ -374,7 +412,9 @@ function RedeemThenRedirect({
   useMountEffect(() => {
     // Best-effort: an invalid/rotated token redeems nothing and the inbox
     // shows denied, which is the honest outcome.
-    redeem({ share_token: shareToken }).catch(() => {}).finally(() => setRedeemed(true));
+    redeem({ share_token: shareToken })
+      .catch(() => {})
+      .finally(() => setRedeemed(true));
   });
   if (!redeemed) return <ConversationLoadingSkeleton id={id} />;
   return (

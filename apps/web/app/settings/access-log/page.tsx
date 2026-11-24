@@ -9,10 +9,16 @@ import { AccessLogPanel } from "../../../components/settings/AccessLogPanel";
 import { useActiveTeamLogsAccess } from "../../../hooks/useActiveTeamLogsAccess";
 
 export default function AccessLogPage() {
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const allowed = useActiveTeamLogsAccess();
   if (!activeTeamId || !allowed) {
-    return <p className="mx-auto max-w-3xl px-1 text-sm text-sol-text-muted">Switch to a regulated team you administer to see its access log.</p>;
+    return (
+      <p className="mx-auto max-w-3xl px-1 text-sm text-sol-text-muted">
+        Switch to a regulated team you administer to see its access log.
+      </p>
+    );
   }
   return <AccessLogPanel teamId={activeTeamId} />;
 }

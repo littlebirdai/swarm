@@ -6,12 +6,28 @@
   "publisher": "codecast",
   "license": "MIT",
   "icon": "icon.png",
-  "engines": { "vscode": "^1.75.0" },
-  "categories": ["SCM Providers", "Other"],
-  "keywords": ["blame", "git", "codecast", "session", "history"],
-  "repository": { "type": "git", "url": "https://github.com/codecast-sh/codecast" },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "blame",
+    "git",
+    "codecast",
+    "session",
+    "history"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codecast-sh/codecast"
+  },
   "homepage": "https://codecast.sh",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -52,7 +68,11 @@
     ],
     "menus": {
       "editor/context": [
-        { "command": "codecast.openSession", "group": "navigation@99", "when": "editorTextFocus" }
+        {
+          "command": "codecast.openSession",
+          "group": "navigation@99",
+          "when": "editorTextFocus"
+        }
       ]
     },
     "configuration": {

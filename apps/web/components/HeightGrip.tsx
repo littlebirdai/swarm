@@ -13,7 +13,8 @@ export { scrollParentOf };
 
 /** A height that fits a frame's top and bottom in one view of its scrolling
  *  surface: the default a frame opens at. A drag is not held to it. */
-export const maxGripHeight = (scroller: HTMLElement, min: number) => Math.max(min, scroller.clientHeight - 24);
+export const maxGripHeight = (scroller: HTMLElement, min: number) =>
+  Math.max(min, scroller.clientHeight - 24);
 
 export function savedGripHeight(key: string, min: number): number | null {
   try {
@@ -24,7 +25,13 @@ export function savedGripHeight(key: string, min: number): number | null {
   }
 }
 
-export function HeightGrip({ target, storageKey, min, onResized, className = "" }: {
+export function HeightGrip({
+  target,
+  storageKey,
+  min,
+  onResized,
+  className = "",
+}: {
   /** The element whose height the drag sets. Carries data-resizing while dragged. */
   target: React.RefObject<HTMLElement | null>;
   /** Where the dragged height persists; without one a drag sizes this frame alone. */

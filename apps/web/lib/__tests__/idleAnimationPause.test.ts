@@ -1,12 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import { followWindowIdle } from "../idleAnimationPause";
 
-type Fake = { playState: string; iterations: number; pauses: number; plays: number; pause(): void; play(): void; effect: { getComputedTiming(): { iterations: number } } | null };
+type Fake = {
+  playState: string;
+  iterations: number;
+  pauses: number;
+  plays: number;
+  pause(): void;
+  play(): void;
+  effect: { getComputedTiming(): { iterations: number } } | null;
+};
 const animation = (iterations: number, playState = "running"): Fake => {
   const a: Fake = {
-    playState, iterations, pauses: 0, plays: 0,
-    pause() { a.pauses++; a.playState = "paused"; },
-    play() { a.plays++; a.playState = "running"; },
+    playState,
+    iterations,
+    pauses: 0,
+    plays: 0,
+    pause() {
+      a.pauses++;
+      a.playState = "paused";
+    },
+    play() {
+      a.plays++;
+      a.playState = "running";
+    },
     effect: { getComputedTiming: () => ({ iterations }) },
   };
   return a;
@@ -18,25 +35,60 @@ function world(animations: Fake[]) {
   const state = { focused: true, visibility: "visible", attributeWrites: 0 };
   const doc = {
     hasFocus: () => state.focused,
-    get visibilityState() { return state.visibility; },
+    get visibilityState() {
+      return state.visibility;
+    },
     getAnimations: () => animations,
-    addEventListener: (type: string, l: (e: Event) => void) => { (docListeners.get(type) ?? docListeners.set(type, new Set()).get(type)!).add(l); },
-    removeEventListener: (type: string, l: (e: Event) => void) => { docListeners.get(type)?.delete(l); },
+    addEventListener: (type: string, l: (e: Event) => void) => {
+      (
+        docListeners.get(type) ?? docListeners.set(type, new Set()).get(type)!
+      ).add(l);
+    },
+    removeEventListener: (type: string, l: (e: Event) => void) => {
+      docListeners.get(type)?.delete(l);
+    },
   };
   const win = {
-    addEventListener: (type: string, l: () => void) => { (winListeners.get(type) ?? winListeners.set(type, new Set()).get(type)!).add(l); },
-    removeEventListener: (type: string, l: () => void) => { winListeners.get(type)?.delete(l); },
+    addEventListener: (type: string, l: () => void) => {
+      (
+        winListeners.get(type) ?? winListeners.set(type, new Set()).get(type)!
+      ).add(l);
+    },
+    removeEventListener: (type: string, l: () => void) => {
+      winListeners.get(type)?.delete(l);
+    },
   };
-  const fire = (type: string) => { for (const l of winListeners.get(type) ?? []) l(); };
-  const fireDoc = (type: string, event: unknown = {}) => { for (const l of docListeners.get(type) ?? []) l(event as Event); };
+  const fire = (type: string) => {
+    for (const l of winListeners.get(type) ?? []) l();
+  };
+  const fireDoc = (type: string, event: unknown = {}) => {
+    for (const l of docListeners.get(type) ?? []) l(event as Event);
+  };
   return {
-    doc, win, state,
-    blur() { state.focused = false; fire("blur"); },
-    focus() { state.focused = true; fire("focus"); },
-    hide() { state.visibility = "hidden"; fireDoc("visibilitychange"); },
-    show() { state.visibility = "visible"; fireDoc("visibilitychange"); },
-    start(target: { getAnimations(): Fake[] }) { fireDoc("animationstart", { target }); },
-    listening: (type: string) => (docListeners.get(type)?.size ?? 0) + (winListeners.get(type)?.size ?? 0),
+    doc,
+    win,
+    state,
+    blur() {
+      state.focused = false;
+      fire("blur");
+    },
+    focus() {
+      state.focused = true;
+      fire("focus");
+    },
+    hide() {
+      state.visibility = "hidden";
+      fireDoc("visibilitychange");
+    },
+    show() {
+      state.visibility = "visible";
+      fireDoc("visibilitychange");
+    },
+    start(target: { getAnimations(): Fake[] }) {
+      fireDoc("animationstart", { target });
+    },
+    listening: (type: string) =>
+      (docListeners.get(type)?.size ?? 0) + (winListeners.get(type)?.size ?? 0),
   };
 }
 
@@ -109,12 +161,19 @@ describe("followWindowIdle", () => {
     expect(pulse.pauses).toBe(1);
     stop();
     expect(pulse.playState).toBe("running");
-    expect(w.listening("focus") + w.listening("blur") + w.listening("visibilitychange") + w.listening("animationstart")).toBe(0);
+    expect(
+      w.listening("focus") +
+        w.listening("blur") +
+        w.listening("visibilitychange") +
+        w.listening("animationstart"),
+    ).toBe(0);
   });
 
   test("an animation that throws (its element left the page) does not stop the others", () => {
     const gone = animation(Infinity);
-    gone.pause = () => { throw new Error("detached"); };
+    gone.pause = () => {
+      throw new Error("detached");
+    };
     const pulse = animation(Infinity);
     const w = world([gone, pulse]);
     followWindowIdle(w.doc, w.win);

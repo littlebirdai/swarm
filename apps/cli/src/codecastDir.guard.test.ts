@@ -20,30 +20,54 @@ const SRC = path.resolve(path.dirname(THIS_FILE));
 
 /** The resolver itself, the test helper that names the real directory on purpose,
  *  and the `cast run` host runner, which ships as source and cannot import it. */
-const EXEMPT = new Set(["codecastDir.ts", path.join("test-helpers", "codecastDir.ts"), path.join("run", "hostRunner.ts")]);
+const EXEMPT = new Set([
+  "codecastDir.ts",
+  path.join("test-helpers", "codecastDir.ts"),
+  path.join("run", "hostRunner.ts"),
+]);
 
 const HOME = String.raw`(?:process\.env\.HOME(?:\s*\|\|\s*"[^"]*")?|os\.homedir\(\)|homedir\(\)|homeDir\(\))`;
 
 /** Every hand-rolled spelling of the state directory. */
 const HANDROLLED = [
   new RegExp(String.raw`process\.env\.HOME\s*\+\s*"/?\.codecast`),
-  new RegExp(String.raw`path\.join\(\s*` + HOME + String.raw`\s*,\s*"\.codecast"`),
+  new RegExp(
+    String.raw`path\.join\(\s*` + HOME + String.raw`\s*,\s*"\.codecast"`,
+  ),
 ];
 
 /** Naming one of these writes positions.json or sync-ledger.json. */
-const STATE_WRITERS = ["setPosition(", "clearPosition(", "markSynced(", "markExamined(", "updateSyncRecord(", "processSessionFile("];
+const STATE_WRITERS = [
+  "setPosition(",
+  "clearPosition(",
+  "markSynced(",
+  "markExamined(",
+  "updateSyncRecord(",
+  "processSessionFile(",
+];
 
 /** Any of these puts the writes somewhere other than the human's ~/.codecast. */
-const REDIRECTS = [/process\.env\.CODECAST_DIR\s*=/, /CODECAST_DIR\s*:/, /isolateCodecastDir(?:EachTest)?\s*\(/];
+const REDIRECTS = [
+  /process\.env\.CODECAST_DIR\s*=/,
+  /CODECAST_DIR\s*:/,
+  /isolateCodecastDir(?:EachTest)?\s*\(/,
+];
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__"]);
 
-function walk(dir: string, out: string[] = [], opts: { tests?: boolean } = {}): string[] {
+function walk(
+  dir: string,
+  out: string[] = [],
+  opts: { tests?: boolean } = {},
+): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (!SKIP_DIRS.has(entry.name)) walk(full, out, opts);
-    } else if (entry.name.endsWith(".ts") && entry.name.endsWith(".test.ts") === !!opts.tests) {
+    } else if (
+      entry.name.endsWith(".ts") &&
+      entry.name.endsWith(".test.ts") === !!opts.tests
+    ) {
       out.push(full);
     }
   }
@@ -58,7 +82,9 @@ describe("the CLI state directory has one resolver", () => {
     if (file === THIS_FILE || EXEMPT.has(rel)) continue;
     for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
       if (HANDROLLED.some((re) => re.test(line))) {
-        offenders.push(`${rel}:${n} builds the state directory by hand — use codecastDir()/codecastPath()`);
+        offenders.push(
+          `${rel}:${n} builds the state directory by hand — use codecastDir()/codecastPath()`,
+        );
       }
     }
   }
@@ -68,7 +94,9 @@ describe("the CLI state directory has one resolver", () => {
   });
 
   test("the guard is looking at real files", () => {
-    expect(scanned.some((f) => f.endsWith(path.join("src", "positionTracker.ts")))).toBe(true);
+    expect(
+      scanned.some((f) => f.endsWith(path.join("src", "positionTracker.ts"))),
+    ).toBe(true);
   });
 
   test("the patterns still catch a hand-rolled path", () => {
@@ -77,7 +105,8 @@ describe("the CLI state directory has one resolver", () => {
       'const d = path.join(os.homedir(), ".codecast", "positions.json");',
       'const d = path.join(process.env.HOME || "", ".codecast", "agent-status");',
     ];
-    for (const s of samples) expect(HANDROLLED.some((re) => re.test(s))).toBe(true);
+    for (const s of samples)
+      expect(HANDROLLED.some((re) => re.test(s))).toBe(true);
   });
 });
 
@@ -91,10 +120,15 @@ describe("no test writes the human's sync state", () => {
   for (const file of tests) {
     if (file === THIS_FILE) continue; // this guard names every writer it looks for
     const lines = codeLines(fs.readFileSync(file, "utf8"));
-    const writes = lines.filter(({ line }) => STATE_WRITERS.some((w) => line.includes(w)));
+    const writes = lines.filter(({ line }) =>
+      STATE_WRITERS.some((w) => line.includes(w)),
+    );
     if (writes.length === 0) continue;
-    if (lines.some(({ line }) => REDIRECTS.some((re) => re.test(line)))) continue;
-    offenders.push(`${path.relative(SRC, file)}:${writes[0].n} writes sync state with no CODECAST_DIR redirect`);
+    if (lines.some(({ line }) => REDIRECTS.some((re) => re.test(line))))
+      continue;
+    offenders.push(
+      `${path.relative(SRC, file)}:${writes[0].n} writes sync state with no CODECAST_DIR redirect`,
+    );
   }
 
   test("every test that records a position or a sync record redirects CODECAST_DIR first", () => {
@@ -102,6 +136,8 @@ describe("no test writes the human's sync state", () => {
   });
 
   test("the guard is looking at real files", () => {
-    expect(tests.some((f) => f.endsWith(path.join("src", "fileRotation.test.ts")))).toBe(true);
+    expect(
+      tests.some((f) => f.endsWith(path.join("src", "fileRotation.test.ts"))),
+    ).toBe(true);
   });
 });

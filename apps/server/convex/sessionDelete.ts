@@ -4,7 +4,10 @@ import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { killConversation } from "./conversations";
-import { CONVERSATION_ROW_TABLES, conversationRowEffects } from "./lib/conversationRows";
+import {
+  CONVERSATION_ROW_TABLES,
+  conversationRowEffects,
+} from "./lib/conversationRows";
 import { isRegulatedTeam } from "./lib/accessLog";
 import { mayDeleteRegulated, startDeletion } from "./regulatedDeletion";
 
@@ -24,7 +27,9 @@ export const purgeConversationRows = internalMutation({
       if (budget <= 0) break;
       const rows = await (ctx.db as any)
         .query(table)
-        .withIndex(index, (q: any) => q.eq("conversation_id", args.conversation_id))
+        .withIndex(index, (q: any) =>
+          q.eq("conversation_id", args.conversation_id),
+        )
         .take(budget);
       for (const row of rows) {
         await conversationRowEffects(ctx, table, row);
@@ -33,7 +38,11 @@ export const purgeConversationRows = internalMutation({
       budget -= rows.length;
     }
     if (budget <= 0) {
-      await ctx.scheduler.runAfter(0, internal.sessionDelete.purgeConversationRows, args);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.sessionDelete.purgeConversationRows,
+        args,
+      );
     }
     return { deleted: PURGE_BUDGET - budget, done: budget > 0 };
   },
@@ -43,16 +52,31 @@ export const purgeConversationRows = internalMutation({
  *  that runs it may delete it; a seated role session refuses. In a team whose
  *  data is regulated, a team admin may too, and the delete is permanent
  *  everywhere its content went (regulatedDeletion.ts), logged as it goes. */
-export async function deleteSessionAsOwner(ctx: any, userId: Id<"users">, conversationId: Id<"conversations">) {
+export async function deleteSessionAsOwner(
+  ctx: any,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
   const conv = await ctx.db.get(conversationId);
   if (!conv) return { deleted: 0 };
-  const regulatedTeam = conv.team_id && (await isRegulatedTeam(ctx, conv.team_id)) ? conv.team_id : null;
-  const allowed = regulatedTeam ? await mayDeleteRegulated(ctx, userId, conv.user_id, regulatedTeam) : conv.user_id === userId;
+  const regulatedTeam =
+    conv.team_id && (await isRegulatedTeam(ctx, conv.team_id))
+      ? conv.team_id
+      : null;
+  const allowed = regulatedTeam
+    ? await mayDeleteRegulated(ctx, userId, conv.user_id, regulatedTeam)
+    : conv.user_id === userId;
   if (!allowed) throw new Error("Only the session's owner can delete it");
-  if (conv.persistent) throw new Error("A role's standing session cannot be deleted");
+  if (conv.persistent)
+    throw new Error("A role's standing session cannot be deleted");
   const ownerId: Id<"users"> = conv.user_id;
 
-  await killConversation(ctx, ownerId, { conversation_id: conversationId, mark_completed: true }, { cause: "delete" });
+  await killConversation(
+    ctx,
+    ownerId,
+    { conversation_id: conversationId, mark_completed: true },
+    { cause: "delete" },
+  );
 
   // Subagent transcripts are part of the session's content; spawned worker
   // sessions are their own conversations and stay.
@@ -62,10 +86,16 @@ export async function deleteSessionAsOwner(ctx: any, userId: Id<"users">, conver
     const row = queue.shift();
     const children = await ctx.db
       .query("conversations")
-      .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", row._id))
+      .withIndex("by_parent_conversation_id", (q: any) =>
+        q.eq("parent_conversation_id", row._id),
+      )
       .collect();
     for (const child of children) {
-      if (child.user_id === ownerId && (child.is_subagent || child.parent_message_uuid)) queue.push(child);
+      if (
+        child.user_id === ownerId &&
+        (child.is_subagent || child.parent_message_uuid)
+      )
+        queue.push(child);
     }
     if (row.session_id) {
       await ctx.db.insert("deleted_sessions", {
@@ -81,11 +111,21 @@ export async function deleteSessionAsOwner(ctx: any, userId: Id<"users">, conver
   if (regulatedTeam) {
     const team = await ctx.db.get(regulatedTeam);
     await startDeletion(ctx, {
-      team, actorId: userId, kind: "session", targetId: String(conv._id), targetLabel: conv.title ?? undefined, shortId: conv.short_id,
+      team,
+      actorId: userId,
+      kind: "session",
+      targetId: String(conv._id),
+      targetLabel: conv.title ?? undefined,
+      shortId: conv.short_id,
       roots: purged.map((id) => ({ plan: "conversation" as const, id })),
     });
   } else {
-    for (const id of purged) await ctx.scheduler.runAfter(0, internal.sessionDelete.purgeConversationRows, { conversation_id: id });
+    for (const id of purged)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.sessionDelete.purgeConversationRows,
+        { conversation_id: id },
+      );
   }
   return { deleted: purged.length };
 }

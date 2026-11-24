@@ -28,7 +28,9 @@ export function isCustomBubbleColor(value: string | undefined): boolean {
  *  preset removed later or a malformed value never reaches the stylesheet. */
 export function resolveBubbleHue(value: string | undefined): string {
   if (value && HEX.test(value)) return value.toLowerCase();
-  const preset = BUBBLE_PRESETS.find((p) => p.id === value) ?? BUBBLE_PRESETS.find((p) => p.id === DEFAULT_BUBBLE_PRESET)!;
+  const preset =
+    BUBBLE_PRESETS.find((p) => p.id === value) ??
+    BUBBLE_PRESETS.find((p) => p.id === DEFAULT_BUBBLE_PRESET)!;
   return preset.hue;
 }
 

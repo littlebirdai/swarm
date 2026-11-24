@@ -18,7 +18,9 @@ afterEach(() => resetCapabilityHeartbeatState());
 
 function fakeHome(extraSkills = 0): string {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-hb-"));
-  fs.mkdirSync(path.join(home, ".claude", "skills", "deploy"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".claude", "skills", "deploy"), {
+    recursive: true,
+  });
   fs.writeFileSync(
     path.join(home, ".claude", "skills", "deploy", "SKILL.md"),
     "---\nname: deploy\ndescription: ship it\n---\n",
@@ -26,7 +28,10 @@ function fakeHome(extraSkills = 0): string {
   for (let i = 0; i < extraSkills; i++) {
     const dir = path.join(home, ".claude", "skills", `skill-${i}`);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "SKILL.md"), `---\nname: skill-${i}\ndescription: number ${i}\n---\n`);
+    fs.writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: skill-${i}\ndescription: number ${i}\n---\n`,
+    );
   }
   return home;
 }
@@ -51,7 +56,9 @@ describe("capability heartbeat payload", () => {
   });
 
   test("a scan of a missing HOME still returns a payload, never throws", () => {
-    const p = collectCapabilityInventory(path.join(os.tmpdir(), "does-not-exist-cc"));
+    const p = collectCapabilityInventory(
+      path.join(os.tmpdir(), "does-not-exist-cc"),
+    );
     expect(p.items).toEqual([]);
     expect(p.hash.length).toBe(16);
   });
@@ -59,9 +66,13 @@ describe("capability heartbeat payload", () => {
   test("bodies ride a sidecar, never the inventory items", () => {
     const home = fakeHome();
     const p = collectCapabilityInventory(home);
-    expect(p.items.every((i) => (i as { body?: string }).body === undefined)).toBe(true);
+    expect(
+      p.items.every((i) => (i as { body?: string }).body === undefined),
+    ).toBe(true);
     const contents = pendingCapabilityContents();
-    expect(contents?.some((c) => c.name === "deploy" && c.body.includes("ship it"))).toBe(true);
+    expect(
+      contents?.some((c) => c.name === "deploy" && c.body.includes("ship it")),
+    ).toBe(true);
   });
 
   test("an unchanged body stops riding after it is marked sent", () => {
@@ -76,7 +87,9 @@ describe("capability heartbeat payload", () => {
   test("a body edit ships again under a new hash", () => {
     const home = fakeHome();
     collectCapabilityInventory(home);
-    markCapabilityContentsSent((pendingCapabilityContents() ?? []).map((c) => c.hash));
+    markCapabilityContentsSent(
+      (pendingCapabilityContents() ?? []).map((c) => c.hash),
+    );
     fs.writeFileSync(
       path.join(home, ".claude", "skills", "deploy", "SKILL.md"),
       "---\nname: deploy\ndescription: ship it\n---\nnew body\n",
@@ -92,13 +105,18 @@ describe("capability heartbeat payload", () => {
     for (const name of ["one", "two", "three"]) {
       const dir = path.join(home, ".claude", "skills", name);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, "SKILL.md"), `---\nname: ${name}\ndescription: ${name}\n---\n${bulky}\n`);
+      fs.writeFileSync(
+        path.join(dir, "SKILL.md"),
+        `---\nname: ${name}\ndescription: ${name}\n---\n${bulky}\n`,
+      );
     }
     collectCapabilityInventory(home);
     const first = pendingCapabilityContents() ?? [];
     expect(first.length).toBeGreaterThan(0);
     expect(first.length).toBeLessThan(4);
-    expect(first.reduce((n, c) => n + c.body.length, 0)).toBeLessThanOrEqual(CONTENT_BATCH_CHARS);
+    expect(first.reduce((n, c) => n + c.body.length, 0)).toBeLessThanOrEqual(
+      CONTENT_BATCH_CHARS,
+    );
   });
 });
 
@@ -137,7 +155,9 @@ describe("background collection", () => {
         await new Promise((r) => setTimeout(r, 1));
       }
     }, 1);
-    expect(pendingCapabilityPayload()?.hash).toBe(collectCapabilityInventory(home).hash);
+    expect(pendingCapabilityPayload()?.hash).toBe(
+      collectCapabilityInventory(home).hash,
+    );
     expect(ticks).toBeGreaterThanOrEqual(2);
     expect(maxGapMs).toBeLessThan(loopHoldBoundMs(100));
   }, 15_000);

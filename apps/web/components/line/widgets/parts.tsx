@@ -7,7 +7,14 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { backTimes } from "@codecast/shared/contracts/causeHistory";
 import { backOfWords } from "../../../lib/line/lineActions";
-import { closeBackWords, decisionKey, type DecisionClose, type LineModel, type StepDecision, type StepKind } from "../../../lib/line/lineModel";
+import {
+  closeBackWords,
+  decisionKey,
+  type DecisionClose,
+  type LineModel,
+  type StepDecision,
+  type StepKind,
+} from "../../../lib/line/lineModel";
 import type { StepState } from "../../../lib/line/runReport";
 import { formatElapsed } from "../../../lib/taskLine";
 
@@ -30,11 +37,24 @@ export type LineNav = {
   replacePath?: (path: string) => void;
 };
 
-const NO_NAV: LineNav = { openStep: () => {}, openRun: () => {}, stepHref: () => null, runHref: () => null };
+const NO_NAV: LineNav = {
+  openStep: () => {},
+  openRun: () => {},
+  stepHref: () => null,
+  runHref: () => null,
+};
 const LineNavContext = createContext<LineNav>(NO_NAV);
 
-export function LineNavProvider({ nav, children }: { nav: LineNav; children: ReactNode }) {
-  return <LineNavContext.Provider value={nav}>{children}</LineNavContext.Provider>;
+export function LineNavProvider({
+  nav,
+  children,
+}: {
+  nav: LineNav;
+  children: ReactNode;
+}) {
+  return (
+    <LineNavContext.Provider value={nav}>{children}</LineNavContext.Provider>
+  );
 }
 export const useLineNav = () => useContext(LineNavContext);
 
@@ -42,33 +62,89 @@ export const useLineNav = () => useContext(LineNavContext);
  *  fence for that project inside it draws from this model and opens steps
  *  and runs in place, instead of reading the line again and linking away. */
 /** What a fence inside the app reads: the project's model, and the rows it holds (to resolve a problem by ref and its newest run). */
-export type LineFenceScope = { projectId: string; model: LineModel; nav: LineNav; now: number; rows: { tasks: ReadonlyArray<{ _id: string; short_id?: string | null }>; runs: ReadonlyArray<{ task_id?: string | null; created_at: number; workflow_slug?: string; workflow_name?: string }> } };
+export type LineFenceScope = {
+  projectId: string;
+  model: LineModel;
+  nav: LineNav;
+  now: number;
+  rows: {
+    tasks: ReadonlyArray<{ _id: string; short_id?: string | null }>;
+    runs: ReadonlyArray<{
+      task_id?: string | null;
+      created_at: number;
+      workflow_slug?: string;
+      workflow_name?: string;
+    }>;
+  };
+};
 const LineFenceScopeContext = createContext<LineFenceScope | null>(null);
-export function LineFenceScopeProvider({ scope, children }: { scope: LineFenceScope | null; children: ReactNode }) {
-  return <LineFenceScopeContext.Provider value={scope}>{children}</LineFenceScopeContext.Provider>;
+export function LineFenceScopeProvider({
+  scope,
+  children,
+}: {
+  scope: LineFenceScope | null;
+  children: ReactNode;
+}) {
+  return (
+    <LineFenceScopeContext.Provider value={scope}>
+      {children}
+    </LineFenceScopeContext.Provider>
+  );
 }
 export const useLineFenceScope = () => useContext(LineFenceScopeContext);
 
-const KIND_WORDS: Record<StepKind, string> = { agent: "Agent", person: "You decide", script: "Script", end: "End" };
+const KIND_WORDS: Record<StepKind, string> = {
+  agent: "Agent",
+  person: "You decide",
+  script: "Script",
+  end: "End",
+};
 
 /** Who does a step, as a chip: an agent's dot, a person's diamond, a script's square. */
-export function KindTag({ kind, children }: { kind: StepKind; children?: ReactNode }) {
-  return <span className="lw-kind" data-kind={kind}>{children ?? KIND_WORDS[kind]}</span>;
+export function KindTag({
+  kind,
+  children,
+}: {
+  kind: StepKind;
+  children?: ReactNode;
+}) {
+  return (
+    <span className="lw-kind" data-kind={kind}>
+      {children ?? KIND_WORDS[kind]}
+    </span>
+  );
 }
 
 /** What each kind of step is, in the words every legend of the line uses (the Graph, the Notebook). */
-export const STEP_KIND_LEGEND: ReadonlyArray<{ kind: "agent" | "person" | "script"; name: string; does: string }> = [
+export const STEP_KIND_LEGEND: ReadonlyArray<{
+  kind: "agent" | "person" | "script";
+  name: string;
+  does: string;
+}> = [
   { kind: "agent", name: "Agent", does: "one prompt" },
   { kind: "person", name: "You", does: "decide" },
   { kind: "script", name: "Script", does: "code" },
 ];
 
 /** The step kinds' legend: each kind's mark (the view draws its own) and the same two words everywhere. */
-export function StepKindLegend({ className, itemClassName, show, mark }: { className: string; itemClassName?: string; show?: (kind: "agent" | "person" | "script") => boolean; mark: (kind: "agent" | "person" | "script") => ReactNode }) {
+export function StepKindLegend({
+  className,
+  itemClassName,
+  show,
+  mark,
+}: {
+  className: string;
+  itemClassName?: string;
+  show?: (kind: "agent" | "person" | "script") => boolean;
+  mark: (kind: "agent" | "person" | "script") => ReactNode;
+}) {
   return (
     <div className={className} aria-label="Step kinds">
       {STEP_KIND_LEGEND.filter((k) => !show || show(k.kind)).map((k) => (
-        <span key={k.kind} className={itemClassName} data-kind={k.kind}>{mark(k.kind)}{k.name} <i>{k.does}</i></span>
+        <span key={k.kind} className={itemClassName} data-kind={k.kind}>
+          {mark(k.kind)}
+          {k.name} <i>{k.does}</i>
+        </span>
       ))}
     </div>
   );
@@ -76,13 +152,19 @@ export function StepKindLegend({ className, itemClassName, show, mark }: { class
 
 export type OutcomeTone = "ok" | "warn" | "bad" | "live" | "person" | "none";
 
-const BAD = /\b(fail|failed|failure|error|reject|rejected|stopped|timed?\s?out|crash)/i;
-const WARN = /\b(not[_ ]reproduced|infeasible|changes|revise|strategy[_ ]fails|wrong[_ ]cause|judge[_ ]defect|stuck|retry|escalat)/i;
-const STOP = /\b(dissolved|closed|dropped|released|carried|approve|approved|shipped|merged|red|built|proposed|mechanism|refined|written)\b/i;
+const BAD =
+  /\b(fail|failed|failure|error|reject|rejected|stopped|timed?\s?out|crash)/i;
+const WARN =
+  /\b(not[_ ]reproduced|infeasible|changes|revise|strategy[_ ]fails|wrong[_ ]cause|judge[_ ]defect|stuck|retry|escalat)/i;
+const STOP =
+  /\b(dissolved|closed|dropped|released|carried|approve|approved|shipped|merged|red|built|proposed|mechanism|refined|written)\b/i;
 
 /** An outcome's tone from its words and the visit's state: failures red,
  *  sends-back yellow, a step that settled something green, the rest plain. */
-export function outcomeTone(words: string | null | undefined, status?: StepState): OutcomeTone {
+export function outcomeTone(
+  words: string | null | undefined,
+  status?: StepState,
+): OutcomeTone {
   // A session cut off decided nothing: grey, not a red mark against the step.
   if (words === CUT_OFF) return "none";
   if (status === "failed") return "bad";
@@ -96,8 +178,21 @@ export function outcomeTone(words: string | null | undefined, status?: StepState
 }
 
 /** An outcome key as a reader says it: "not_reproduced" reads "not reproduced"; a session killed or timed out before deciding failed its run, and reads "failed" as the run does. */
-export const outcomeWords = (outcome: string | null | undefined, status?: StepState): string =>
-  outcome === "cut off" ? "failed" : outcome ? outcome.replace(/_/g, " ") : status === "live" ? "running" : status === "waiting" ? "waiting" : status === "failed" ? "failed" : "handed on";
+export const outcomeWords = (
+  outcome: string | null | undefined,
+  status?: StepState,
+): string =>
+  outcome === "cut off"
+    ? "failed"
+    : outcome
+      ? outcome.replace(/_/g, " ")
+      : status === "live"
+        ? "running"
+        : status === "waiting"
+          ? "waiting"
+          : status === "failed"
+            ? "failed"
+            : "handed on";
 
 const CUT_OFF = "cut off";
 
@@ -105,11 +200,29 @@ export { backTimes };
 
 /** A close that did not hold (lineModel DecisionClose): "came back 3x after this", red, with the history's own words on hover.
  *  A close that folded the problem into a cause whose fix is pending says so, quietly. Nothing when it held or closed nothing. */
-export function CameBackTag({ closed }: { closed: DecisionClose | null | undefined }) {
-  if (closed?.folded) return <span className="lw-oc" data-folded="" title="Occurrences after this close are that cause's to fix; they count against this close only once its fix goes live.">{closed.folded}</span>;
+export function CameBackTag({
+  closed,
+}: {
+  closed: DecisionClose | null | undefined;
+}) {
+  if (closed?.folded)
+    return (
+      <span
+        className="lw-oc"
+        data-folded=""
+        title="Occurrences after this close are that cause's to fix; they count against this close only once its fix goes live."
+      >
+        {closed.folded}
+      </span>
+    );
   if (!closed || closed.held) return null;
   return (
-    <span className="lw-oc" data-tone="bad" data-came-back="" title={`${closed.words ?? "The problem came back"}. The close was likely wrong.`}>
+    <span
+      className="lw-oc"
+      data-tone="bad"
+      data-came-back=""
+      title={`${closed.words ?? "The problem came back"}. The close was likely wrong.`}
+    >
       {closeBackWords(closed)}
     </span>
   );
@@ -118,16 +231,34 @@ export function CameBackTag({ closed }: { closed: DecisionClose | null | undefin
 /** A group of a case's runs whose closes did not hold, on the header that folds them: "came back 9x", the case's count in all, as the Timeline says it. */
 export function GroupBackTag({ n, total }: { n: number; total: number }) {
   if (n <= 0) return null;
-  const title = n === 1 ? "One of these runs closed the problem and it came back after" : `${n} of these runs closed the problem and it came back after`;
-  return <span className="lw-oc" data-tone="bad" data-came-back="" title={title}>came back {backTimes(total)}</span>;
+  const title =
+    n === 1
+      ? "One of these runs closed the problem and it came back after"
+      : `${n} of these runs closed the problem and it came back after`;
+  return (
+    <span className="lw-oc" data-tone="bad" data-came-back="" title={title}>
+      came back {backTimes(total)}
+    </span>
+  );
 }
 
 /** How many runs took a way out, and how many of those closes the problem came back after: "6×, 4 came back". The came-back part is red. */
-export function RouteCount({ count, back = 0, className }: { count: number; back?: number; className?: string }) {
+export function RouteCount({
+  count,
+  back = 0,
+  className,
+}: {
+  count: number;
+  back?: number;
+  className?: string;
+}) {
   if (count <= 0) return null;
   return (
     <span className={className} data-came-back={back > 0 ? "" : undefined}>
-      {count}×{back > 0 && <span className="lw-route-back">{backOfWords(count, back)}</span>}
+      {count}×
+      {back > 0 && (
+        <span className="lw-route-back">{backOfWords(count, back)}</span>
+      )}
     </span>
   );
 }
@@ -135,37 +266,111 @@ export function RouteCount({ count, back = 0, className }: { count: number; back
 /** What a step found, in its own words (lineModel decisionSaid, an attempt's
  *  Found), with "never shipped" beside it when its close shipped no change and
  *  the words name a guard (an eval, a test) as if it were in place. */
-export function FoundWords({ text, unshipped }: { text: string; unshipped: boolean }) {
+export function FoundWords({
+  text,
+  unshipped,
+}: {
+  text: string;
+  unshipped: boolean;
+}) {
   return (
     <>
       {text}
-      {unshipped && <> <span className="lw-unshipped" title="This close shipped no change: the eval or guard it names was never shipped, so nothing guards against it.">guard never shipped</span></>}
+      {unshipped && (
+        <>
+          {" "}
+          <span
+            className="lw-unshipped"
+            title="This close shipped no change: the eval or guard it names was never shipped, so nothing guards against it."
+          >
+            guard never shipped
+          </span>
+        </>
+      )}
     </>
   );
 }
 
 /** The tone of a decision that closed a problem: by whether the close held, never the green of a good end when it came back. */
-export const closedTone = (closed: DecisionClose | null | undefined): OutcomeTone | null => (closed && !closed.held ? "bad" : null);
+export const closedTone = (
+  closed: DecisionClose | null | undefined,
+): OutcomeTone | null => (closed && !closed.held ? "bad" : null);
 
 /** What a decision decided, as a tag: its key in the step's tally (decisionKey), so a tag and the counts above it say the same word.
  *  A close the problem came back after is red and says so beside it. */
-export function DecisionTag({ d, title, backTag = true }: { d: Pick<StepDecision, "status" | "decided" | "closed">; title?: string; /** Off where the surface says what came back in its own words. */ backTag?: boolean }) {
+export function DecisionTag({
+  d,
+  title,
+  backTag = true,
+}: {
+  d: Pick<StepDecision, "status" | "decided" | "closed">;
+  title?: string;
+  /** Off where the surface says what came back in its own words. */ backTag?: boolean;
+}) {
   const key = decisionKey(d);
   // A session that reported and then failed decided what it reported: toned by its words, not its end.
-  const tone = closedTone(d.closed) ?? outcomeTone(key, key === "failed" || key === CUT_OFF ? d.status : d.status === "failed" ? undefined : d.status);
+  const tone =
+    closedTone(d.closed) ??
+    outcomeTone(
+      key,
+      key === "failed" || key === CUT_OFF
+        ? d.status
+        : d.status === "failed"
+          ? undefined
+          : d.status,
+    );
   // What came of its close rides in the same chip ("dissolved, came back 3x"), so the row keeps its width for the finding.
   const c = backTag ? d.closed : null;
   const back = c && !c.held ? c : null;
-  const after = back ? `, came back ${backTimes(back.count)}` : c?.foldInto ? `, folded into ${c.foldInto}` : "";
-  const why = back ? `${closeBackWords(back)}. ${back.words ?? "The problem came back"}; the close was likely wrong.` : c?.folded ? `It ${c.folded}: what happens until then is that cause's to fix, not a close that did not hold.` : undefined;
+  const after = back
+    ? `, came back ${backTimes(back.count)}`
+    : c?.foldInto
+      ? `, folded into ${c.foldInto}`
+      : "";
+  const why = back
+    ? `${closeBackWords(back)}. ${back.words ?? "The problem came back"}; the close was likely wrong.`
+    : c?.folded
+      ? `It ${c.folded}: what happens until then is that cause's to fix, not a close that did not hold.`
+      : undefined;
   return (
-    <span className="lw-oc" data-tone={tone} data-cut={key === CUT_OFF ? "" : undefined} data-came-back={back ? "" : undefined} title={title ?? why ?? (key === CUT_OFF ? "The session was cut off before it decided" : undefined)}>{outcomeWords(key)}{after}</span>
+    <span
+      className="lw-oc"
+      data-tone={tone}
+      data-cut={key === CUT_OFF ? "" : undefined}
+      data-came-back={back ? "" : undefined}
+      title={
+        title ??
+        why ??
+        (key === CUT_OFF
+          ? "The session was cut off before it decided"
+          : undefined)
+      }
+    >
+      {outcomeWords(key)}
+      {after}
+    </span>
   );
 }
 
-export function OutcomeTag({ outcome, status, title }: { outcome: string | null | undefined; status?: StepState; title?: string }) {
+export function OutcomeTag({
+  outcome,
+  status,
+  title,
+}: {
+  outcome: string | null | undefined;
+  status?: StepState;
+  title?: string;
+}) {
   const words = outcomeWords(outcome, status);
-  return <span className="lw-oc" data-tone={outcomeTone(outcome ?? words, status)} title={title}>{words}</span>;
+  return (
+    <span
+      className="lw-oc"
+      data-tone={outcomeTone(outcome ?? words, status)}
+      title={title}
+    >
+      {words}
+    </span>
+  );
 }
 
 /** A duration in its largest units: "4m", "2h 5m", "40s". */
@@ -176,11 +381,39 @@ export function durationWords(ms: number | null | undefined): string | null {
 }
 
 /** A date as the line's other pages say one: "Oct 8". */
-export const dayWords = (at: number | null | undefined) => (at ? new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null);
+export const dayWords = (at: number | null | undefined) =>
+  at
+    ? new Date(at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
 /** A button that is a link when it can be: middle click and copy work, a plain click stays in place. */
-export function NavLink({ href, onOpen, className, children, title }: { href: string | null; onOpen: () => void; className?: string; children: ReactNode; title?: string }) {
-  if (!href) return <button type="button" className={className} onClick={onOpen} title={title}>{children}</button>;
+export function NavLink({
+  href,
+  onOpen,
+  className,
+  children,
+  title,
+}: {
+  href: string | null;
+  onOpen: () => void;
+  className?: string;
+  children: ReactNode;
+  title?: string;
+}) {
+  if (!href)
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={onOpen}
+        title={title}
+      >
+        {children}
+      </button>
+    );
   return (
     <a
       href={href}

@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { clearCreds, readCreds, readMediaPrefs, readName, writeCreds, writeMediaPrefs, writeName } from "./meetStorage";
+import {
+  clearCreds,
+  readCreds,
+  readMediaPrefs,
+  readName,
+  writeCreds,
+  writeMediaPrefs,
+  writeName,
+} from "./meetStorage";
 
 function memory() {
   const m = new Map<string, string>();
@@ -13,7 +21,10 @@ function memory() {
 test("credentials are kept per link: two links in one browser are two guests", () => {
   const s = memory();
   writeCreds("link-a", { guest_id: "g1", secret: "s".repeat(32) }, s);
-  expect(readCreds("link-a", s)).toEqual({ guest_id: "g1", secret: "s".repeat(32) });
+  expect(readCreds("link-a", s)).toEqual({
+    guest_id: "g1",
+    secret: "s".repeat(32),
+  });
   expect(readCreds("link-b", s)).toBeNull();
   clearCreds("link-a", s);
   expect(readCreds("link-a", s)).toBeNull();
@@ -21,7 +32,10 @@ test("credentials are kept per link: two links in one browser are two guests", (
 
 test("a malformed or short secret reads as no guest at all", () => {
   const s = memory();
-  s.setItem("codecast:guest:link:x", JSON.stringify({ guest_id: "g1", secret: "short" }));
+  s.setItem(
+    "codecast:guest:link:x",
+    JSON.stringify({ guest_id: "g1", secret: "short" }),
+  );
   expect(readCreds("x", s)).toBeNull();
   s.setItem("codecast:guest:link:y", "{not json");
   expect(readCreds("y", s)).toBeNull();

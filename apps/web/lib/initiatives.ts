@@ -5,16 +5,42 @@
 // beside the owner's word, sub initiatives, whose conversation the page opens
 // beside, and the one initiative a task or a project reads as. Pure, so a task's status change
 // moves every bar in the same tick and nothing derived is ever stored.
-import type { InitiativeOwner, InitiativeRow, InitiativeStatus } from "@codecast/shared/contracts/initiative";
-import { projectTaskCounts, type ProjectProgress } from "@codecast/shared/tasks";
+import type {
+  InitiativeOwner,
+  InitiativeRow,
+  InitiativeStatus,
+} from "@codecast/shared/contracts/initiative";
+import {
+  projectTaskCounts,
+  type ProjectProgress,
+} from "@codecast/shared/tasks";
 
 export type Progress = ProjectProgress;
 /** What the board rule reads off a task. */
-export type BoardTask = { status?: string | null; project_id?: unknown; source?: string | null; promoted?: boolean | null; assignee?: string | null; triage_status?: string | null };
-type ProjectLike = { _id: string; title: string; status: string; target_date?: number; risks?: string[] };
+export type BoardTask = {
+  status?: string | null;
+  project_id?: unknown;
+  source?: string | null;
+  promoted?: boolean | null;
+  assignee?: string | null;
+  triage_status?: string | null;
+};
+type ProjectLike = {
+  _id: string;
+  title: string;
+  status: string;
+  target_date?: number;
+  risks?: string[];
+};
 
 /** The list's order: what is being driven now, then what is coming, then what ended. */
-export const INITIATIVE_STATUS_ORDER: readonly InitiativeStatus[] = ["active", "planned", "proposed", "completed", "cancelled"];
+export const INITIATIVE_STATUS_ORDER: readonly InitiativeStatus[] = [
+  "active",
+  "planned",
+  "proposed",
+  "completed",
+  "cancelled",
+];
 const statusRank = (s: InitiativeStatus) => INITIATIVE_STATUS_ORDER.indexOf(s);
 
 /** The id `resolveAssigneeInfo` takes: a role's or a person's, whichever owns it. */
@@ -26,65 +52,109 @@ export const ownerId = (owner: InitiativeOwner | undefined): string | null =>
  *  projectTaskCounts): the one rule the page, the list, the owner's opening
  *  line, the server and the CLI all read, so the number a person is promised
  *  is the number the board shows when they click through. */
-export function initiativeProgress(initiative: Pick<InitiativeRow, "project_ids">, tasks: Iterable<BoardTask>): Progress {
+export function initiativeProgress(
+  initiative: Pick<InitiativeRow, "project_ids">,
+  tasks: Iterable<BoardTask>,
+): Progress {
   return projectTaskCounts(tasks, initiative.project_ids);
 }
 
-export const progressPercent = (p: Progress): number => (p.total === 0 ? 0 : Math.round((p.done / p.total) * 100));
+export const progressPercent = (p: Progress): number =>
+  p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
 
 /** What a project says for itself, shown beside the owner's word so the two
  *  can disagree in plain sight: it is past its target with work left, or its
  *  lead wrote risks into its charter. */
-export function projectTrouble(project: ProjectLike, counts: { open: number; done: number }, now: number): string | null {
+export function projectTrouble(
+  project: ProjectLike,
+  counts: { open: number; done: number },
+  now: number,
+): string | null {
   const unfinished = counts.open > 0 || counts.done === 0;
-  if (project.target_date && project.target_date < now && unfinished && project.status !== "done") return "past its target";
+  if (
+    project.target_date &&
+    project.target_date < now &&
+    unfinished &&
+    project.status !== "done"
+  )
+    return "past its target";
   const risks = project.risks?.filter((r) => r.trim()).length ?? 0;
-  return risks > 0 ? `${risks} ${risks === 1 ? "risk" : "risks"} in its charter` : null;
+  return risks > 0
+    ? `${risks} ${risks === 1 ? "risk" : "risks"} in its charter`
+    : null;
 }
 
-export const subInitiatives = (rows: readonly InitiativeRow[], parentId: string): InitiativeRow[] =>
+export const subInitiatives = (
+  rows: readonly InitiativeRow[],
+  parentId: string,
+): InitiativeRow[] =>
   rows.filter((r) => r.parent_initiative_id === parentId).sort(byListOrder);
 
 /** What a goal's activity covers: its own projects, then every sub goal's,
  *  each once, in the owner's order. The scope the goal page's feed asks for. */
-export function goalScopeProjectIds(initiative: Pick<InitiativeRow, "_id" | "project_ids">, all: readonly InitiativeRow[]): string[] {
-  return [...new Set([initiative, ...subInitiatives(all, initiative._id)].flatMap((r) => r.project_ids))];
+export function goalScopeProjectIds(
+  initiative: Pick<InitiativeRow, "_id" | "project_ids">,
+  all: readonly InitiativeRow[],
+): string[] {
+  return [
+    ...new Set(
+      [initiative, ...subInitiatives(all, initiative._id)].flatMap(
+        (r) => r.project_ids,
+      ),
+    ),
+  ];
 }
 
 /** The goal and the goals under it: whose updates and mentions belong in its
  *  feed. A stub the server has not numbered yet has no row to ask about. */
-export const goalScopeInitiativeIds = (initiative: Pick<InitiativeRow, "_id" | "short_id">, all: readonly InitiativeRow[]): string[] =>
-  [initiative, ...subInitiatives(all, initiative._id)].filter((r) => r.short_id).map((r) => r._id);
+export const goalScopeInitiativeIds = (
+  initiative: Pick<InitiativeRow, "_id" | "short_id">,
+  all: readonly InitiativeRow[],
+): string[] =>
+  [initiative, ...subInitiatives(all, initiative._id)]
+    .filter((r) => r.short_id)
+    .map((r) => r._id);
 
 /** A row whose parent the viewer can see nests under it; one whose parent is
  *  missing (another workspace, no access) stands at the top level. */
-export function topLevelInitiatives(rows: readonly InitiativeRow[]): InitiativeRow[] {
+export function topLevelInitiatives(
+  rows: readonly InitiativeRow[],
+): InitiativeRow[] {
   const ids = new Set(rows.map((r) => r._id));
-  return rows.filter((r) => !r.parent_initiative_id || !ids.has(r.parent_initiative_id));
+  return rows.filter(
+    (r) => !r.parent_initiative_id || !ids.has(r.parent_initiative_id),
+  );
 }
 
-export const initiativeEnded = (s: InitiativeStatus): boolean => s === "completed" || s === "cancelled";
+export const initiativeEnded = (s: InitiativeStatus): boolean =>
+  s === "completed" || s === "cancelled";
 
 /** The one order every surface lists initiatives in: open ones before ended
  *  ones; among those, the order set by hand (`position`) first, then what is
  *  being driven now, then the nearest target, then the oldest. */
 export function byListOrder(a: InitiativeRow, b: InitiativeRow): number {
-  return Number(initiativeEnded(a.status)) - Number(initiativeEnded(b.status))
-    || (a.position ?? Infinity) - (b.position ?? Infinity)
-    || statusRank(a.status) - statusRank(b.status)
-    || (a.target_date ?? Infinity) - (b.target_date ?? Infinity)
-    || a.created_at - b.created_at;
+  return (
+    Number(initiativeEnded(a.status)) - Number(initiativeEnded(b.status)) ||
+    (a.position ?? Infinity) - (b.position ?? Infinity) ||
+    statusRank(a.status) - statusRank(b.status) ||
+    (a.target_date ?? Infinity) - (b.target_date ?? Infinity) ||
+    a.created_at - b.created_at
+  );
 }
 
-
 /** Every initiative a project belongs to, the ones still open first. */
-export const initiativesOfProject = (rows: readonly InitiativeRow[], projectId: string): InitiativeRow[] =>
+export const initiativesOfProject = (
+  rows: readonly InitiativeRow[],
+  projectId: string,
+): InitiativeRow[] =>
   rows.filter((r) => r.project_ids.includes(projectId)).sort(byListOrder);
 
 /** A project may sit in several initiatives, and a task board needs one
  *  bucket for each task. The one a project reads as is the first by the list's
  *  order: an open initiative before a closed one, then the nearest target. */
-export function projectInitiativeIndex(rows: readonly InitiativeRow[]): Map<string, InitiativeRow> {
+export function projectInitiativeIndex(
+  rows: readonly InitiativeRow[],
+): Map<string, InitiativeRow> {
   const out = new Map<string, InitiativeRow>();
   for (const row of [...rows].sort(byListOrder)) {
     for (const id of row.project_ids) if (!out.has(id)) out.set(id, row);
@@ -95,13 +165,40 @@ export function projectInitiativeIndex(rows: readonly InitiativeRow[]): Map<stri
 /** The wake signature of the rows a list paints: a heartbeat on `updated_at`
  *  alone changes nothing a person reads, so it is left out. */
 export const initiativeSig = (r: InitiativeRow): string =>
-  [r._id, r.short_id, r.title, r.status, r.health, r.health_at ?? "", r.target_date ?? "", ownerId(r.owner) ?? "", r.priority ?? "", r.parent_initiative_id ?? "", r.position ?? "", r.project_ids.join(","), r.description ?? "", recordSig(r)].join("|");
+  [
+    r._id,
+    r.short_id,
+    r.title,
+    r.status,
+    r.health,
+    r.health_at ?? "",
+    r.target_date ?? "",
+    ownerId(r.owner) ?? "",
+    r.priority ?? "",
+    r.parent_initiative_id ?? "",
+    r.position ?? "",
+    r.project_ids.join(","),
+    r.description ?? "",
+    recordSig(r),
+  ].join("|");
 
 /** The numbers and the intent record (I4, I5): a list row paints the metric
  *  with its trend and the next milestone, and the page paints all of it. */
 const recordSig = (r: InitiativeRow): string =>
-  JSON.stringify([r.metrics ?? 0, (r as { envs?: unknown }).envs ?? 0, r.scoreboard ?? 0, r.score_history ?? 0, r.why ?? 0, r.done_when ?? 0, r.milestones ?? 0, r.questions ?? 0, r.decisions ?? 0, r.sources ?? 0]);
+  JSON.stringify([
+    r.metrics ?? 0,
+    (r as { envs?: unknown }).envs ?? 0,
+    r.scoreboard ?? 0,
+    r.score_history ?? 0,
+    r.why ?? 0,
+    r.done_when ?? 0,
+    r.milestones ?? 0,
+    r.questions ?? 0,
+    r.decisions ?? 0,
+    r.sources ?? 0,
+  ]);
 
 /** The key a create or an update stub is born with, and the server row
  *  carries back: never a Convex id, so nothing mistakes the stub for a row. */
-export const newInitiativeKey = (): string => `in_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+export const newInitiativeKey = (): string =>
+  `in_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;

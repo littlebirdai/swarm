@@ -10,7 +10,8 @@
 import { FIND_CAST_SH } from "./cloud/ghWrapper.js";
 import type { CODECAST_HOOK_SCRIPTS } from "./codecastOwned.js";
 
-export const SESSION_TRAILER_HOOK_FILE = "codecast-session-trailer.sh" satisfies (typeof CODECAST_HOOK_SCRIPTS)[number];
+export const SESSION_TRAILER_HOOK_FILE =
+  "codecast-session-trailer.sh" satisfies (typeof CODECAST_HOOK_SCRIPTS)[number];
 
 export const SESSION_TRAILER_HOOK = `#!/bin/bash
 # Adds a Codecast-Session trailer to each git commit an agent runs.

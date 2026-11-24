@@ -48,17 +48,25 @@ export const MACHINE_SETTINGS = {
 } as const;
 export type MachineSetting = keyof typeof MACHINE_SETTINGS;
 /** Each machine setting's value as a device reports it (true unless off). */
-export type MachineSettingValues = { [K in (typeof MACHINE_SETTINGS)[MachineSetting]]?: boolean };
+export type MachineSettingValues = {
+  [K in (typeof MACHINE_SETTINGS)[MachineSetting]]?: boolean;
+};
 
 /** The values a device reports, read from its config.json. */
-export function machineSettingValues(config: Record<string, unknown> | null | undefined): Required<MachineSettingValues> {
+export function machineSettingValues(
+  config: Record<string, unknown> | null | undefined,
+): Required<MachineSettingValues> {
   const out = {} as Required<MachineSettingValues>;
-  for (const key of Object.values(MACHINE_SETTINGS)) out[key] = config?.[key] !== false;
+  for (const key of Object.values(MACHINE_SETTINGS))
+    out[key] = config?.[key] !== false;
   return out;
 }
 
 export function isMachineSetting(name: unknown): name is MachineSetting {
-  return typeof name === "string" && Object.prototype.hasOwnProperty.call(MACHINE_SETTINGS, name);
+  return (
+    typeof name === "string" &&
+    Object.prototype.hasOwnProperty.call(MACHINE_SETTINGS, name)
+  );
 }
 
 /** One apply_snippet change from the web: a snippet, a machine setting, or
@@ -71,27 +79,51 @@ export interface DeviceSnippetChange {
 }
 
 /** Stable injection's mode for a change: the one asked for, else on or off. */
-export function stableModeOf(change: DeviceSnippetChange): "solo" | "team" | "off" {
+export function stableModeOf(
+  change: DeviceSnippetChange,
+): "solo" | "team" | "off" {
   return change.mode ?? (change.enabled ? "solo" : "off");
 }
 
 /** A device's reported settings with one change applied: what the server
  *  mirrors onto the device row and the web paints before the daemon reports. */
-export function settingsAfterSnippet(prev: Record<string, any> | null | undefined, change: DeviceSnippetChange): Record<string, any> {
+export function settingsAfterSnippet(
+  prev: Record<string, any> | null | undefined,
+  change: DeviceSnippetChange,
+): Record<string, any> {
   const base = prev ?? {};
-  if (change.snippet === "stable") return { ...base, stable_mode: stableModeOf(change), stable_global: change.global === true };
-  if (isMachineSetting(change.snippet)) return { ...base, [MACHINE_SETTINGS[change.snippet]]: change.enabled };
-  return { ...base, snippets: { ...(base.snippets ?? {}), [change.snippet]: change.enabled } };
+  if (change.snippet === "stable")
+    return {
+      ...base,
+      stable_mode: stableModeOf(change),
+      stable_global: change.global === true,
+    };
+  if (isMachineSetting(change.snippet))
+    return { ...base, [MACHINE_SETTINGS[change.snippet]]: change.enabled };
+  return {
+    ...base,
+    snippets: { ...(base.snippets ?? {}), [change.snippet]: change.enabled },
+  };
 }
 
 export const HARNESS_HOOKS: readonly HarnessHook[] = [
   {
     file: "codecast-status.sh",
-    events: ["PreToolUse", "PreCompact", "PostCompact", "Stop", "PermissionRequest", "Notification", "SessionStart"],
+    events: [
+      "PreToolUse",
+      "PreCompact",
+      "PostCompact",
+      "Stop",
+      "PermissionRequest",
+      "Notification",
+      "SessionStart",
+    ],
     kind: "hook",
     name: "Session status",
-    purpose: "Tells codecast when an agent starts a turn, finishes, compacts, or waits for a permission or an answer.",
-    withoutIt: "The inbox guesses status from the transcript and the terminal instead, so sessions can show as working after they stopped, and permission prompts and questions arrive late or not at all.",
+    purpose:
+      "Tells codecast when an agent starts a turn, finishes, compacts, or waits for a permission or an answer.",
+    withoutIt:
+      "The inbox guesses status from the transcript and the terminal instead, so sessions can show as working after they stopped, and permission prompts and questions arrive late or not at all.",
   },
   {
     file: "session-register.sh",
@@ -99,15 +131,18 @@ export const HARNESS_HOOKS: readonly HarnessHook[] = [
     kind: "hook",
     name: "Session registration",
     purpose: "Records which terminal and process each agent session runs in.",
-    withoutIt: "Codecast cannot find the terminal of a session you started yourself, so messages sent from the web or phone to that session cannot be delivered, and resume, fork and move are unreliable for it.",
+    withoutIt:
+      "Codecast cannot find the terminal of a session you started yourself, so messages sent from the web or phone to that session cannot be delivered, and resume, fork and move are unreliable for it.",
   },
   {
     file: "codecast-prompt.sh",
     events: ["UserPromptSubmit"],
     kind: "hook",
     name: "Prompt submitted",
-    purpose: "Runs the status, registration, task and thread state jobs in one process each time a prompt is sent.",
-    withoutIt: "Codecast does not learn that a message reached the agent, so a sent message can show as not delivered, and task and state reminders stop.",
+    purpose:
+      "Runs the status, registration, task and thread state jobs in one process each time a prompt is sent.",
+    withoutIt:
+      "Codecast does not learn that a message reached the agent, so a sent message can show as not delivered, and task and state reminders stop.",
   },
   {
     file: "thread-state.sh",
@@ -116,8 +151,10 @@ export const HARNESS_HOOKS: readonly HarnessHook[] = [
     feature: "state",
     affectsAgent: true,
     name: "Thread state reminder",
-    purpose: "Asks the agent to update the pinned state of its session before it stops. It can hold a turn open for one more step, and adds a short note to a prompt when the state is old.",
-    withoutIt: "Pinned states go stale, so the inbox cannot tell which sessions need you and which are done.",
+    purpose:
+      "Asks the agent to update the pinned state of its session before it stops. It can hold a turn open for one more step, and adds a short note to a prompt when the state is old.",
+    withoutIt:
+      "Pinned states go stale, so the inbox cannot tell which sessions need you and which are done.",
   },
   {
     file: "task-pulse.sh",
@@ -126,7 +163,8 @@ export const HARNESS_HOOKS: readonly HarnessHook[] = [
     feature: "tasks",
     affectsAgent: true,
     name: "Task reminder",
-    purpose: "Every 8 prompts, reminds an agent bound to a task or plan which one it is on. It runs inside the prompt hook.",
+    purpose:
+      "Every 8 prompts, reminds an agent bound to a task or plan which one it is on. It runs inside the prompt hook.",
     withoutIt: "Agents bound to a task forget to post progress on it.",
   },
   {
@@ -136,8 +174,10 @@ export const HARNESS_HOOKS: readonly HarnessHook[] = [
     feature: "tasks",
     affectsAgent: true,
     name: "Task context after compaction",
-    purpose: "When an agent bound to a task compacts or resumes, puts the task back in front of it: its status, what still blocks it, the last progress note and the plan's next ready step. Codex gets the same through its own hooks file.",
-    withoutIt: "After compaction an agent loses which task it was on and what was left, until it thinks to run cast task context.",
+    purpose:
+      "When an agent bound to a task compacts or resumes, puts the task back in front of it: its status, what still blocks it, the last progress note and the plan's next ready step. Codex gets the same through its own hooks file.",
+    withoutIt:
+      "After compaction an agent loses which task it was on and what was left, until it thinks to run cast task context.",
   },
   {
     file: "stable-feed.sh",
@@ -147,25 +187,31 @@ export const HARNESS_HOOKS: readonly HarnessHook[] = [
     installedElsewhere: true,
     affectsAgent: true,
     name: "Stable context feed",
-    purpose: "Adds a feed of your recent sessions to the start of every new session.",
-    withoutIt: "New sessions start without the recent history of your other sessions.",
+    purpose:
+      "Adds a feed of your recent sessions to the start of every new session.",
+    withoutIt:
+      "New sessions start without the recent history of your other sessions.",
   },
   {
     file: "codecast-session-trailer.sh",
     events: ["PreToolUse"],
     kind: "hook",
     name: "Session trailer on commits",
-    purpose: "Adds a Codecast-Session line to each commit an agent makes in a session your team can see, so git log and cast blame lead back to the conversation. Private sessions commit without it. Per repository: git config codecast.sessionTrailer false or always.",
+    purpose:
+      "Adds a Codecast-Session line to each commit an agent makes in a session your team can see, so git log and cast blame lead back to the conversation. Private sessions commit without it. Per repository: git config codecast.sessionTrailer false or always.",
     setting: "session_trailer",
-    withoutIt: "Commits are matched to sessions by guessing from the agent's output, which misses rebased and squashed commits.",
+    withoutIt:
+      "Commits are matched to sessions by guessing from the agent's output, which misses rebased and squashed commits.",
   },
   {
     file: "codecast-statusline.sh",
     events: [],
     kind: "statusLine",
     name: "Status line",
-    purpose: "Draws a line under the Claude Code composer and passes your live usage limits to codecast. It is installed only when you have no status line of your own.",
-    withoutIt: "Usage meters and automatic account switching update every few minutes instead of on every turn.",
+    purpose:
+      "Draws a line under the Claude Code composer and passes your live usage limits to codecast. It is installed only when you have no status line of your own.",
+    withoutIt:
+      "Usage meters and automatic account switching update every few minutes instead of on every turn.",
   },
 ];
 
@@ -180,6 +226,7 @@ export function harnessHookWanted(
   hooksOn: boolean,
   featureOn: (feature: string) => boolean,
 ): boolean {
-  if (hook.installedElsewhere) return hook.feature ? featureOn(hook.feature) : true;
+  if (hook.installedElsewhere)
+    return hook.feature ? featureOn(hook.feature) : true;
   return hooksOn && (!hook.feature || featureOn(hook.feature));
 }

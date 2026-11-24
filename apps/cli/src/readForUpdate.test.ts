@@ -9,7 +9,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { readJsonForUpdate, readProfileIndexFile } from "./readForUpdate.js";
-import { readProviderKeyStore, readProviderKeyStoreForUpdate } from "./providerKeyStore.js";
+import {
+  readProviderKeyStore,
+  readProviderKeyStoreForUpdate,
+} from "./providerKeyStore.js";
 
 class TestError extends Error {}
 const wrap = (m: string) => new TestError(m);
@@ -23,7 +26,9 @@ function fixture(body?: string, mode?: number): string {
   return p;
 }
 
-const TWO = { profiles: { work: { email: "a@x.com" }, personal: { email: "b@x.com" } } };
+const TWO = {
+  profiles: { work: { email: "a@x.com" }, personal: { email: "b@x.com" } },
+};
 
 describe("readProfileIndexFile", () => {
   it("returns the profiles a healthy index holds", () => {
@@ -32,7 +37,9 @@ describe("readProfileIndexFile", () => {
   });
 
   it("treats an absent file as an empty index — nobody has saved a profile yet", () => {
-    expect(readProfileIndexFile(path.join(root, "never-written.json"), wrap)).toEqual({
+    expect(
+      readProfileIndexFile(path.join(root, "never-written.json"), wrap),
+    ).toEqual({
       profiles: {},
     });
   });
@@ -43,7 +50,9 @@ describe("readProfileIndexFile", () => {
 
   it("throws the caller's error class, not a bare Error", () => {
     // Callers print these as account errors; a raw Error would escape as a crash.
-    expect(() => readProfileIndexFile(fixture("{ truncated"), wrap)).toThrow(TestError);
+    expect(() => readProfileIndexFile(fixture("{ truncated"), wrap)).toThrow(
+      TestError,
+    );
   });
 
   it("refuses a truncated index instead of reporting zero accounts", () => {
@@ -56,7 +65,9 @@ describe("readProfileIndexFile", () => {
   it("refuses an index it cannot read instead of reporting zero accounts", () => {
     if (process.getuid?.() === 0) return; // root reads through any mode
     const p = fixture(JSON.stringify(TWO), 0o000);
-    expect(() => readProfileIndexFile(p, wrap)).toThrow(/cannot be read \(EACCES\)/);
+    expect(() => readProfileIndexFile(p, wrap)).toThrow(
+      /cannot be read \(EACCES\)/,
+    );
     fs.chmodSync(p, 0o600);
     expect(readProfileIndexFile(p, wrap).profiles).toEqual(TWO.profiles);
   });
@@ -65,8 +76,17 @@ describe("readProfileIndexFile", () => {
     // Each of these would have satisfied a `parsed && typeof parsed === "object"`
     // check somewhere, and each would have yielded an undefined `.profiles` that
     // a caller then writes back as a wiped index.
-    for (const body of ["null", "[]", '"a string"', "42", "{}", '{"profiles": null}']) {
-      expect(() => readProfileIndexFile(fixture(body), wrap), body).toThrow(TestError);
+    for (const body of [
+      "null",
+      "[]",
+      '"a string"',
+      "42",
+      "{}",
+      '{"profiles": null}',
+    ]) {
+      expect(() => readProfileIndexFile(fixture(body), wrap), body).toThrow(
+        TestError,
+      );
     }
   });
 
@@ -101,8 +121,14 @@ describe("provider key store: the split between reading and updating", () => {
 
   it("reads a healthy store the same way through both doors", () => {
     write(JSON.stringify({ openai: "sk-1", anthropic: "sk-2" }));
-    expect(readProviderKeyStore(dir)).toEqual({ openai: "sk-1", anthropic: "sk-2" });
-    expect(readProviderKeyStoreForUpdate(dir)).toEqual({ openai: "sk-1", anthropic: "sk-2" });
+    expect(readProviderKeyStore(dir)).toEqual({
+      openai: "sk-1",
+      anthropic: "sk-2",
+    });
+    expect(readProviderKeyStoreForUpdate(dir)).toEqual({
+      openai: "sk-1",
+      anthropic: "sk-2",
+    });
   });
 
   it("a launch still starts on a corrupt store; an update refuses to overwrite it", () => {
@@ -130,18 +156,27 @@ describe("provider key store: the split between reading and updating", () => {
 
 describe("readJsonForUpdate: absent and empty are the only silent cases", () => {
   it("returns undefined rather than a value, so callers cannot confuse it with data", () => {
-    expect(readJsonForUpdate(path.join(root, "nope.json"), wrap, () => true, "x")).toBeUndefined();
-    expect(readJsonForUpdate(fixture(""), wrap, () => true, "x")).toBeUndefined();
+    expect(
+      readJsonForUpdate(path.join(root, "nope.json"), wrap, () => true, "x"),
+    ).toBeUndefined();
+    expect(
+      readJsonForUpdate(fixture(""), wrap, () => true, "x"),
+    ).toBeUndefined();
   });
 
   it("applies the caller's own shape check, and names the expected shape when it fails", () => {
     const p = fixture('{"a":1}');
-    expect(() => readJsonForUpdate(p, wrap, (v) => Array.isArray(v), "a list of keys")).toThrow(
-      /is not a list of keys/,
-    );
+    expect(() =>
+      readJsonForUpdate(p, wrap, (v) => Array.isArray(v), "a list of keys"),
+    ).toThrow(/is not a list of keys/);
     // Same bytes, a check that accepts them: no throw.
     expect(
-      readJsonForUpdate<{ a: number }>(p, wrap, (v) => typeof v === "object", "an object"),
+      readJsonForUpdate<{ a: number }>(
+        p,
+        wrap,
+        (v) => typeof v === "object",
+        "an object",
+      ),
     ).toEqual({ a: 1 });
   });
 });

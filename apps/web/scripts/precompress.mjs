@@ -24,7 +24,10 @@ function shouldCompress(path) {
 }
 
 const files = (await walk(DIST)).filter(shouldCompress);
-let kept = 0, total = 0, brBytes = 0, gzBytes = 0;
+let kept = 0,
+  total = 0,
+  brBytes = 0,
+  gzBytes = 0;
 for (const f of files) {
   const buf = await readFile(f);
   if (buf.length < MIN_BYTES) continue;
@@ -43,5 +46,5 @@ for (const f of files) {
   gzBytes += gz.length;
 }
 console.log(
-  `precompress: ${kept} files, raw=${(total / 1024).toFixed(0)} KiB → br=${(brBytes / 1024).toFixed(0)} KiB (${((1 - brBytes / total) * 100).toFixed(0)}%), gz=${(gzBytes / 1024).toFixed(0)} KiB (${((1 - gzBytes / total) * 100).toFixed(0)}%)`
+  `precompress: ${kept} files, raw=${(total / 1024).toFixed(0)} KiB → br=${(brBytes / 1024).toFixed(0)} KiB (${((1 - brBytes / total) * 100).toFixed(0)}%), gz=${(gzBytes / 1024).toFixed(0)} KiB (${((1 - gzBytes / total) * 100).toFixed(0)}%)`,
 );

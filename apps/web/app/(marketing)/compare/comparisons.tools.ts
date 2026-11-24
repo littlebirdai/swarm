@@ -17,21 +17,36 @@ export const TOOL_COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "A per project archive of past sessions that agents query through MCP",
+        competitor:
+          "A per project archive of past sessions that agents query through MCP",
       },
-      { ...SHARED_ROWS.agents, competitor: "Claude Code, Cursor and Codex are shown on its site" },
+      {
+        ...SHARED_ROWS.agents,
+        competitor: "Claude Code, Cursor and Codex are shown on its site",
+      },
       {
         dimension: "How sessions are captured",
-        codecast: "A daemon syncs the history files agents already write to disk",
-        competitor: "The same approach: a daemon reads the history agents write, with no plugin or wrapper",
+        codecast:
+          "A daemon syncs the history files agents already write to disk",
+        competitor:
+          "The same approach: a daemon reads the history agents write, with no plugin or wrapper",
       },
-      { ...SHARED_ROWS.team, competitor: "One archive per project shared by its members; revoking a member keeps their history attributed" },
+      {
+        ...SHARED_ROWS.team,
+        competitor:
+          "One archive per project shared by its members; revoking a member keeps their history attributed",
+      },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Agents search the archive mid task through MCP tools, including read only SQL",
+        competitor:
+          "Agents search the archive mid task through MCP tools, including read only SQL",
       },
       { ...SHARED_ROWS.blame, competitor: "Not documented" },
-      { ...SHARED_ROWS.remote, competitor: "Not offered: the archive is history, and a running session appears after its next sync" },
+      {
+        ...SHARED_ROWS.remote,
+        competitor:
+          "Not offered: the archive is history, and a running session appears after its next sync",
+      },
       { ...SHARED_ROWS.oss, competitor: "Not stated on its site" },
     ],
     whenCompetitor: [
@@ -60,7 +75,8 @@ export const TOOL_COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "Starts and manages agent instances itself, each in a tmux session on its own worktree",
+        competitor:
+          "Starts and manages agent instances itself, each in a tmux session on its own worktree",
       },
       {
         ...SHARED_ROWS.agents,
@@ -69,23 +85,38 @@ export const TOOL_COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Where it runs",
-        codecast: "A daemon on each machine where agents run; clients on web, macOS desktop and iOS",
-        competitor: "A terminal UI on the machine running the agents; needs tmux and gh installed",
+        codecast:
+          "A daemon on each machine where agents run; clients on web, macOS desktop and iOS",
+        competitor:
+          "A terminal UI on the machine running the agents; needs tmux and gh installed",
       },
       {
         dimension: "Parallel work",
         codecast:
           "Forks and workers started from a session (cast fork, cast spawn), each optionally in its own git worktree, on this machine or a cloud host",
-        competitor: "The core job: one worktree and branch per task, reviewed in a diff tab, then committed and pushed from the UI",
+        competitor:
+          "The core job: one worktree and branch per task, reviewed in a diff tab, then committed and pushed from the UI",
       },
-      { ...SHARED_ROWS.team, competitor: "Not stated; it manages the agents on one machine" },
+      {
+        ...SHARED_ROWS.team,
+        competitor: "Not stated; it manages the agents on one machine",
+      },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Not stated; instances persist until you delete them, and cs reset clears them",
+        competitor:
+          "Not stated; instances persist until you delete them, and cs reset clears them",
       },
       { ...SHARED_ROWS.blame, competitor: "Not stated" },
-      { ...SHARED_ROWS.remote, competitor: "Not stated; you attach to sessions in the terminal running cs" },
-      { dimension: "Pricing", codecast: "Free for one person, per seat for teams", competitor: "Not stated on its site" },
+      {
+        ...SHARED_ROWS.remote,
+        competitor:
+          "Not stated; you attach to sessions in the terminal running cs",
+      },
+      {
+        dimension: "Pricing",
+        codecast: "Free for one person, per seat for teams",
+        competitor: "Not stated on its site",
+      },
       { ...SHARED_ROWS.oss, competitor: "Open source, AGPL-3.0" },
     ],
     whenCompetitor: [
@@ -116,7 +147,8 @@ export const TOOL_COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "Launches agents itself, one workspace (git worktree and branch) per task, and wraps their launch commands to track status",
+        competitor:
+          "Launches agents itself, one workspace (git worktree and branch) per task, and wraps their launch commands to track status",
       },
       {
         ...SHARED_ROWS.agents,
@@ -125,22 +157,27 @@ export const TOOL_COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Where it runs",
-        codecast: "A daemon on each machine where agents run; clients on web, macOS desktop and iOS",
-        competitor: "A macOS desktop app (Linux AppImage experimental, Windows not yet available), plus remote hosts and cloud workspaces",
+        codecast:
+          "A daemon on each machine where agents run; clients on web, macOS desktop and iOS",
+        competitor:
+          "A macOS desktop app (Linux AppImage experimental, Windows not yet available), plus remote hosts and cloud workspaces",
       },
       {
         dimension: "Parallel work",
         codecast:
           "Forks and workers started from a session (cast fork, cast spawn), each optionally in its own git worktree, on this machine or a cloud host",
-        competitor: "The core job: a worktree per task, diffs and pull requests in the app, and recipes for racing agents or fanning out a refactor",
+        competitor:
+          "The core job: a worktree per task, diffs and pull requests in the app, and recipes for racing agents or fanning out a refactor",
       },
       {
         ...SHARED_ROWS.team,
-        competitor: "Organizations, Pages that teammates comment on, and a Tasks view over Linear and GitHub issues",
+        competitor:
+          "Organizations, Pages that teammates comment on, and a Tasks view over Linear and GitHub issues",
       },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Sessions resume after a crash and can be forked or handed to another agent; search across past sessions is not stated",
+        competitor:
+          "Sessions resume after a crash and can be forked or handed to another agent; search across past sessions is not stated",
       },
       { ...SHARED_ROWS.blame, competitor: "Not stated" },
       {
@@ -151,9 +188,14 @@ export const TOOL_COMPARISONS: Comparison[] = [
       {
         dimension: "Pricing",
         codecast: "Free for one person, per seat for teams",
-        competitor: "A free tier; remote access, mobile and automations need Pro",
+        competitor:
+          "A free tier; remote access, mobile and automations need Pro",
       },
-      { ...SHARED_ROWS.oss, competitor: "Source available under the Elastic License 2.0, which its site notes is not OSI approved" },
+      {
+        ...SHARED_ROWS.oss,
+        competitor:
+          "Source available under the Elastic License 2.0, which its site notes is not OSI approved",
+      },
     ],
     whenCompetitor: [
       "You want to run many agents at once on one repository and do the whole loop (prompt, review, preview, pull request, merge) inside one desktop app.",
@@ -183,7 +225,8 @@ export const TOOL_COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "Runs agents you define in a config, launched and observed through its API, SDK, CLI or dashboard",
+        competitor:
+          "Runs agents you define in a config, launched and observed through its API, SDK, CLI or dashboard",
       },
       {
         ...SHARED_ROWS.agents,
@@ -192,33 +235,44 @@ export const TOOL_COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Where agents run",
-        codecast: "Wherever you already run them; a daemon on each machine syncs the sessions",
-        competitor: "Omnara Cloud or a self-hosted deployment, on pooled sandboxes or your own machine through the omnarad daemon",
+        codecast:
+          "Wherever you already run them; a daemon on each machine syncs the sessions",
+        competitor:
+          "Omnara Cloud or a self-hosted deployment, on pooled sandboxes or your own machine through the omnarad daemon",
       },
       {
         dimension: "Who it is for",
         codecast: "People who use coding agents, alone or as a team",
-        competitor: "Developers deploying agents for their users or team, with Slack, Discord and GitHub integrations",
+        competitor:
+          "Developers deploying agents for their users or team, with Slack, Discord and GitHub integrations",
       },
       {
         ...SHARED_ROWS.team,
-        competitor: "Role based access for people and API keys, and an append only audit history of agent actions",
+        competitor:
+          "Role based access for people and API keys, and an append only audit history of agent actions",
       },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Each agent's state is a durable event log; memory stores are listed in its changelog",
+        competitor:
+          "Each agent's state is a durable event log; memory stores are listed in its changelog",
       },
       { ...SHARED_ROWS.blame, competitor: "Not stated" },
       {
         ...SHARED_ROWS.remote,
-        competitor: "Steer agents through the API, CLI or dashboard, with approval requests for risky tool calls; mobile apps are not stated",
+        competitor:
+          "Steer agents through the API, CLI or dashboard, with approval requests for risky tool calls; mobile apps are not stated",
       },
       {
         dimension: "Pricing",
         codecast: "Free for one person, per seat for teams",
-        competitor: "No platform fee and free to self-host; optional pay as you go credits for models and machines",
+        competitor:
+          "No platform fee and free to self-host; optional pay as you go credits for models and machines",
       },
-      { ...SHARED_ROWS.oss, competitor: "Open source, Apache-2.0, self-hostable with Docker Compose" },
+      {
+        ...SHARED_ROWS.oss,
+        competitor:
+          "Open source, Apache-2.0, self-hostable with Docker Compose",
+      },
     ],
     whenCompetitor: [
       "You are shipping agents inside your own product or to your team, and want an API, sandboxes, permissions and an audit trail you can self-host.",
@@ -248,17 +302,20 @@ export const TOOL_COMPARISONS: Comparison[] = [
       { ...SHARED_ROWS.agents, competitor: "Claude Code and Codex" },
       {
         dimension: "Designed for",
-        codecast: "Teams (with a real single-player mode): shared feed, per-directory privacy",
+        codecast:
+          "Teams (with a real single-player mode): shared feed, per-directory privacy",
         competitor: "An individual and their own sessions",
       },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Live mirroring and history of your sessions; no cross-session agent memory",
+        competitor:
+          "Live mirroring and history of your sessions; no cross-session agent memory",
       },
       { ...SHARED_ROWS.blame, competitor: "Not a goal" },
       {
         ...SHARED_ROWS.remote,
-        competitor: "Mobile-first apps with push notifications and voice; end-to-end encrypted",
+        competitor:
+          "Mobile-first apps with push notifications and voice; end-to-end encrypted",
       },
       { ...SHARED_ROWS.oss, competitor: "Open source" },
     ],
@@ -290,13 +347,15 @@ export const TOOL_COMPARISONS: Comparison[] = [
       { ...SHARED_ROWS.agents, competitor: "Claude Code" },
       {
         dimension: "Your terminal workflow",
-        codecast: "Unchanged — keep tmux, IDE terminals, SSH; codecast records alongside",
+        codecast:
+          "Unchanged — keep tmux, IDE terminals, SSH; codecast records alongside",
         competitor: "Moves into opcode's interface",
       },
       { ...SHARED_ROWS.team, competitor: "Single-user, local data" },
       {
         ...SHARED_ROWS.memory,
-        competitor: "Local session browser and checkpoints; usage and cost analytics",
+        competitor:
+          "Local session browser and checkpoints; usage and cost analytics",
       },
       { ...SHARED_ROWS.blame, competitor: "Not a goal" },
       { ...SHARED_ROWS.remote, competitor: "On the machine running it" },

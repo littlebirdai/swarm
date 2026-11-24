@@ -5,7 +5,13 @@
 // keeps a stricter one that throws on an unexpected probe error.
 
 export function isPidAlive(pid: number | null | undefined): boolean {
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0 || pid > 0x7fff_ffff) return false;
+  if (
+    typeof pid !== "number" ||
+    !Number.isInteger(pid) ||
+    pid <= 0 ||
+    pid > 0x7fff_ffff
+  )
+    return false;
   try {
     process.kill(pid, 0);
     return true;

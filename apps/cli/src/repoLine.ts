@@ -21,10 +21,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import lineCast from "./workflow/templates/line.cast" with { type: "text" };
-import { LINE_TEMPLATE_FILES, resolveWorkflowSource, type ResolvedWorkflowSource } from "./workflow/templates.js";
-import { graphHash, parseWorkflowSource, validateWorkflow } from "./workflow/parser.js";
+import {
+  LINE_TEMPLATE_FILES,
+  resolveWorkflowSource,
+  type ResolvedWorkflowSource,
+} from "./workflow/templates.js";
+import {
+  graphHash,
+  parseWorkflowSource,
+  validateWorkflow,
+} from "./workflow/parser.js";
 import { graphToPushPayload } from "./workflow/runner.js";
-import { materializeLibraryRun, type LibraryVersion } from "./workflow/daemonGraph.js";
+import {
+  materializeLibraryRun,
+  type LibraryVersion,
+} from "./workflow/daemonGraph.js";
 import { findLineProfile, LineProfileError } from "./lineProfile.js";
 import {
   REPO_LINE_FILE_RE,
@@ -33,11 +44,15 @@ import {
   type LineStationEdit,
   type PublishedRepoLine,
 } from "@codecast/shared/contracts/lineProfile";
-import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "@codecast/shared/contracts/orgProposal";
+import {
+  DEFAULT_LINE_SLUG,
+  LINE_SLUG_RE,
+} from "@codecast/shared/contracts/orgProposal";
 
 export { REPO_LINE_FILE_RE, REPO_LINE_REL_DIR, REPO_LINE_REL_PATH };
 
-export const repoLineFile = (root: string) => path.join(root, REPO_LINE_REL_PATH);
+export const repoLineFile = (root: string) =>
+  path.join(root, REPO_LINE_REL_PATH);
 export const repoLineDir = (root: string) => path.join(root, REPO_LINE_REL_DIR);
 
 const SHIPPED_PREFIX = "line/";
@@ -53,9 +68,13 @@ const REPO_LINE_HEADER = [
 
 /** The shipped line as repo files: line.cast with its `@line/<file>` refs made local, and every file they name. */
 export function shippedRepoLineFiles(): Record<string, string> {
-  const out: Record<string, string> = { "line.cast": REPO_LINE_HEADER + localizeRefs(lineCast) };
+  const out: Record<string, string> = {
+    "line.cast": REPO_LINE_HEADER + localizeRefs(lineCast),
+  };
   // LINE_TEMPLATE_FILES also holds other shipped flows' files (change/*); only the line's own belong here.
-  for (const [ref, text] of Object.entries(LINE_TEMPLATE_FILES)) if (ref.startsWith(SHIPPED_PREFIX)) out[ref.slice(SHIPPED_PREFIX.length)] = text;
+  for (const [ref, text] of Object.entries(LINE_TEMPLATE_FILES))
+    if (ref.startsWith(SHIPPED_PREFIX))
+      out[ref.slice(SHIPPED_PREFIX.length)] = text;
   return out;
 }
 
@@ -77,9 +96,21 @@ export function repoLineFor(cwd: string): ResolvedWorkflowSource | null {
  * machine: null when no version serves it or its file lives elsewhere, and
  * then the run in this process takes the repo's or role's line.
  */
-export function lineVersionFile(version: { origin?: { device_id: string; root: string; file: string } | null; library?: { versions: LibraryVersion[] } } | null | undefined, device: string): ResolvedWorkflowSource | null {
+export function lineVersionFile(
+  version:
+    | {
+        origin?: { device_id: string; root: string; file: string } | null;
+        library?: { versions: LibraryVersion[] };
+      }
+    | null
+    | undefined,
+  device: string,
+): ResolvedWorkflowSource | null {
   // A version that runs from the library runs its saved graph on any machine (ct-70169).
-  if (version?.library?.versions?.length) return resolveWorkflowSource(materializeLibraryRun(version.library.versions));
+  if (version?.library?.versions?.length)
+    return resolveWorkflowSource(
+      materializeLibraryRun(version.library.versions),
+    );
   const o = version?.origin;
   if (!o || o.device_id !== device) return null;
   const file = path.join(o.root, o.file);
@@ -92,11 +123,20 @@ export function lineVersionFile(version: { origin?: { device_id: string; root: s
  * else the repo's line when it exists, the role's line, the shipped one. The
  * repo's line is taken only for a run bound to a task.
  */
-export function chooseLineSource(opts: { file?: string | null; taskBound: boolean; cwd: string; roleSlug?: string | null; causeLine?: ResolvedWorkflowSource | null }):
-  { kind: "file"; name: string } | { kind: "repo" | "version"; resolved: ResolvedWorkflowSource } | { kind: "role" | "shipped"; name: string } {
+export function chooseLineSource(opts: {
+  file?: string | null;
+  taskBound: boolean;
+  cwd: string;
+  roleSlug?: string | null;
+  causeLine?: ResolvedWorkflowSource | null;
+}):
+  | { kind: "file"; name: string }
+  | { kind: "repo" | "version"; resolved: ResolvedWorkflowSource }
+  | { kind: "role" | "shipped"; name: string } {
   if (opts.file) return { kind: "file", name: opts.file };
   // A version keeps its own row (slug from its graph's name), never the repo line's.
-  if (opts.taskBound && opts.causeLine) return { kind: "version", resolved: opts.causeLine };
+  if (opts.taskBound && opts.causeLine)
+    return { kind: "version", resolved: opts.causeLine };
   const repo = opts.taskBound ? repoLineFor(opts.cwd) : null;
   if (repo) return { kind: "repo", resolved: repo };
   if (opts.roleSlug) return { kind: "role", name: opts.roleSlug };
@@ -109,14 +149,20 @@ export function chooseLineSource(opts: { file?: string | null; taskBound: boolea
  * a role's line slug: `line`, `line-<x>`) is redirected; any other workflow
  * runs as named.
  */
-export function repoLineForRun(run: { task_short_id?: string | null; workflow_name?: string | null }, wf: { slug?: string | null } | null | undefined, cwd: string): ResolvedWorkflowSource | null {
+export function repoLineForRun(
+  run: { task_short_id?: string | null; workflow_name?: string | null },
+  wf: { slug?: string | null } | null | undefined,
+  cwd: string,
+): ResolvedWorkflowSource | null {
   if (!run.task_short_id) return null;
   const name = wf?.slug || run.workflow_name || "";
   if (!isLineSlug(name)) return null;
   return repoLineFor(cwd);
 }
 
-const isLineSlug = (s: string) => LINE_SLUG_RE.test(s) && (s === DEFAULT_LINE_SLUG || s.startsWith(`${DEFAULT_LINE_SLUG}-`));
+const isLineSlug = (s: string) =>
+  LINE_SLUG_RE.test(s) &&
+  (s === DEFAULT_LINE_SLUG || s.startsWith(`${DEFAULT_LINE_SLUG}-`));
 
 // ------------------------------------------------------------- the DOT text
 
@@ -145,13 +191,27 @@ function codeMask(src: string): Uint8Array {
   return mask;
 }
 
-interface Attr { key: string; entryStart: number; valueStart: number; valueEnd: number; raw: string }
-interface NodeStmt { start: number; open: number; close: number; attrs: Attr[] }
+interface Attr {
+  key: string;
+  entryStart: number;
+  valueStart: number;
+  valueEnd: number;
+  raw: string;
+}
+interface NodeStmt {
+  start: number;
+  open: number;
+  close: number;
+  attrs: Attr[];
+}
 
 /** The attribute list of the node statement `<id> [ ... ]`, or null when the source declares no such node. */
 export function findNodeStmt(src: string, id: string): NodeStmt | null {
   const mask = codeMask(src);
-  const re = new RegExp(String.raw`(^|[\n;{\]])([ \t]*)(${id.replace(/[^\w]/g, "\\$&")})\s*\[`, "g");
+  const re = new RegExp(
+    String.raw`(^|[\n;{\]])([ \t]*)(${id.replace(/[^\w]/g, "\\$&")})\s*\[`,
+    "g",
+  );
   for (let m = re.exec(src); m; m = re.exec(src)) {
     const at = m.index + m[1].length + m[2].length;
     if (!mask[at]) continue;
@@ -159,24 +219,41 @@ export function findNodeStmt(src: string, id: string): NodeStmt | null {
     let close = open + 1;
     while (close < src.length && !(mask[close] && src[close] === "]")) close++;
     if (close >= src.length) return null;
-    return { start: at, open, close, attrs: lexAttrs(src, mask, open + 1, close) };
+    return {
+      start: at,
+      open,
+      close,
+      attrs: lexAttrs(src, mask, open + 1, close),
+    };
   }
   return null;
 }
 
-function lexAttrs(src: string, mask: Uint8Array, from: number, to: number): Attr[] {
+function lexAttrs(
+  src: string,
+  mask: Uint8Array,
+  from: number,
+  to: number,
+): Attr[] {
   const attrs: Attr[] = [];
   let i = from;
-  const skip = () => { while (i < to && (/[\s,;]/.test(src[i]) || !mask[i] && src[i] !== '"')) i++; };
+  const skip = () => {
+    while (i < to && (/[\s,;]/.test(src[i]) || (!mask[i] && src[i] !== '"')))
+      i++;
+  };
   for (;;) {
     skip();
     if (i >= to) break;
     const entryStart = i;
     const key = /^[A-Za-z_][\w]*/.exec(src.slice(i, to))?.[0];
-    if (!key) throw new LineProfileError(`cannot read the attributes at ${src.slice(i, i + 20)}`);
+    if (!key)
+      throw new LineProfileError(
+        `cannot read the attributes at ${src.slice(i, i + 20)}`,
+      );
     i += key.length;
     while (i < to && /\s/.test(src[i])) i++;
-    if (src[i] !== "=") throw new LineProfileError(`attribute ${key} has no value`);
+    if (src[i] !== "=")
+      throw new LineProfileError(`attribute ${key} has no value`);
     i++;
     while (i < to && /\s/.test(src[i])) i++;
     const valueStart = i;
@@ -187,13 +264,24 @@ function lexAttrs(src: string, mask: Uint8Array, from: number, to: number): Attr
     } else {
       while (i < to && !/[\s,;\]]/.test(src[i])) i++;
     }
-    attrs.push({ key, entryStart, valueStart, valueEnd: i, raw: src.slice(valueStart, i) });
+    attrs.push({
+      key,
+      entryStart,
+      valueStart,
+      valueEnd: i,
+      raw: src.slice(valueStart, i),
+    });
   }
   return attrs;
 }
 
 /** The source with `key` on node `id` set to `raw` (DOT text: a quoted string or a bare value), or removed when raw is null. */
-export function setNodeAttr(src: string, id: string, key: string, raw: string | null): string {
+export function setNodeAttr(
+  src: string,
+  id: string,
+  key: string,
+  raw: string | null,
+): string {
   const stmt = findNodeStmt(src, id);
   if (!stmt) throw new LineProfileError(`the line has no station "${id}"`);
   const at = stmt.attrs.findIndex((a) => a.key === key);
@@ -209,7 +297,8 @@ export function setNodeAttr(src: string, id: string, key: string, raw: string | 
   }
   if (a) return src.slice(0, a.valueStart) + raw + src.slice(a.valueEnd);
   const last = stmt.attrs[stmt.attrs.length - 1];
-  if (!last) return `${src.slice(0, stmt.open + 1)}${key}=${raw}${src.slice(stmt.close)}`;
+  if (!last)
+    return `${src.slice(0, stmt.open + 1)}${key}=${raw}${src.slice(stmt.close)}`;
   return `${src.slice(0, last.valueEnd)}, ${key}=${raw}${src.slice(last.valueEnd)}`;
 }
 
@@ -218,10 +307,15 @@ export function setNodeAttr(src: string, id: string, key: string, raw: string | 
  * new statement on its own line before the graph's closing brace. A statement left with no attributes goes, line
  * and all; every other byte, comments included, stays.
  */
-export function upsertNodeAttrs(src: string, id: string, attrs: Record<string, string | null>): string {
+export function upsertNodeAttrs(
+  src: string,
+  id: string,
+  attrs: Record<string, string | null>,
+): string {
   let out = src;
   if (findNodeStmt(out, id)) {
-    for (const [k, v] of Object.entries(attrs)) out = setNodeAttr(out, id, k, v);
+    for (const [k, v] of Object.entries(attrs))
+      out = setNodeAttr(out, id, k, v);
     return findNodeStmt(out, id)!.attrs.length ? out : dropNodeStmt(out, id);
   }
   const set = Object.entries(attrs).filter(([, v]) => v !== null);
@@ -232,7 +326,8 @@ export function upsertNodeAttrs(src: string, id: string, attrs: Record<string, s
   if (close < 0) throw new LineProfileError("the graph has no closing brace");
   const stmt = `${id} [${set.map(([k, v]) => `${k}=${v}`).join(", ")}]`;
   const lineStart = out.lastIndexOf("\n", close - 1) + 1;
-  if (!out.slice(lineStart, close).trim()) return `${out.slice(0, lineStart)}  ${stmt}\n${out.slice(lineStart)}`;
+  if (!out.slice(lineStart, close).trim())
+    return `${out.slice(0, lineStart)}  ${stmt}\n${out.slice(lineStart)}`;
   return `${out.slice(0, close).replace(/[ \t]*$/, "")}\n  ${stmt}\n${out.slice(close)}`;
 }
 
@@ -244,7 +339,13 @@ export function dropNodeStmt(src: string, id: string): string {
   const nl = src.indexOf("\n", stmt.close);
   const lineEnd = nl < 0 ? src.length : nl;
   const after = src.slice(stmt.close + 1, lineEnd).trim();
-  if (!src.slice(lineStart, stmt.start).trim() && (!after || after.startsWith("//"))) return src.slice(0, lineStart) + src.slice(Math.min(src.length, lineEnd + 1));
+  if (
+    !src.slice(lineStart, stmt.start).trim() &&
+    (!after || after.startsWith("//"))
+  )
+    return (
+      src.slice(0, lineStart) + src.slice(Math.min(src.length, lineEnd + 1))
+    );
   return src.slice(0, stmt.start) + src.slice(stmt.close + 1);
 }
 
@@ -261,7 +362,11 @@ export function nodeStmtIds(src: string): string[] {
 }
 
 /** A node attribute's raw DOT text, or null. */
-export const nodeAttrRaw = (src: string, id: string, key: string): string | null =>
+export const nodeAttrRaw = (
+  src: string,
+  id: string,
+  key: string,
+): string | null =>
   findNodeStmt(src, id)?.attrs.find((a) => a.key === key)?.raw ?? null;
 
 /** The file a raw `"@<file>"` value names, or null for an inline value. */
@@ -296,7 +401,10 @@ const FIELD_EXT = { prompt: "md", script: "sh" } as const;
  * parser (every route resolves, every command station keeps a script) before
  * the caller writes anything; throws LineProfileError on a refusal.
  */
-export function planStationEdits(root: string, edits: LineStationEdit[]): StationEditPlan {
+export function planStationEdits(
+  root: string,
+  edits: LineStationEdit[],
+): StationEditPlan {
   const dir = repoLineDir(root);
   const exists = fs.existsSync(repoLineFile(root));
   const shipped = shippedRepoLineFiles();
@@ -307,32 +415,56 @@ export function planStationEdits(root: string, edits: LineStationEdit[]): Statio
     return exists && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null;
   };
   const files = new Map<string, string>();
-  const get = (name: string) => (files.has(name) ? files.get(name)! : read(name));
+  const get = (name: string) =>
+    files.has(name) ? files.get(name)! : read(name);
   let cast = get("line.cast");
-  if (cast === null) throw new LineProfileError(`${REPO_LINE_REL_PATH} could not be read`);
+  if (cast === null)
+    throw new LineProfileError(`${REPO_LINE_REL_PATH} could not be read`);
   const shippedCast = shipped["line.cast"];
   const touched = new Set<string>();
 
-  const setText = (station: string, field: "prompt" | "script", text: string | null) => {
+  const setText = (
+    station: string,
+    field: "prompt" | "script",
+    text: string | null,
+  ) => {
     const raw = nodeAttrRaw(cast!, station, field);
-    if (text === null) { cast = setNodeAttr(cast!, station, field, null); return; }
+    if (text === null) {
+      cast = setNodeAttr(cast!, station, field, null);
+      return;
+    }
     const ref = refOf(raw);
-    if (ref && REPO_LINE_FILE_RE.test(ref)) { files.set(ref, text); return; }
+    if (ref && REPO_LINE_FILE_RE.test(ref)) {
+      files.set(ref, text);
+      return;
+    }
     // An inline value, or none yet: the station gets its own file.
     let name = `${station}.${FIELD_EXT[field]}`;
-    for (let n = 2; get(name) !== null && !refersOnlyFrom(cast!, name, station); n++) name = `${station}-${n}.${FIELD_EXT[field]}`;
-    if (!REPO_LINE_FILE_RE.test(name)) throw new LineProfileError(`station "${station}" cannot name a file`);
+    for (
+      let n = 2;
+      get(name) !== null && !refersOnlyFrom(cast!, name, station);
+      n++
+    )
+      name = `${station}-${n}.${FIELD_EXT[field]}`;
+    if (!REPO_LINE_FILE_RE.test(name))
+      throw new LineProfileError(`station "${station}" cannot name a file`);
     files.set(name, text);
     cast = setNodeAttr(cast!, station, field, `"@${name}"`);
   };
 
   for (const edit of edits) {
-    const station = typeof edit?.station === "string" ? edit.station.trim() : "";
-    if (!/^[A-Za-z_][\w]*$/.test(station)) throw new LineProfileError(`a station edit needs a station id`);
-    if (!findNodeStmt(cast, station)) throw new LineProfileError(`the line has no station "${station}"`);
+    const station =
+      typeof edit?.station === "string" ? edit.station.trim() : "";
+    if (!/^[A-Za-z_][\w]*$/.test(station))
+      throw new LineProfileError(`a station edit needs a station id`);
+    if (!findNodeStmt(cast, station))
+      throw new LineProfileError(`the line has no station "${station}"`);
     touched.add(station);
     if (edit.op === "reset_station") {
-      if (!findNodeStmt(shippedCast, station)) throw new LineProfileError(`the shipped line has no station "${station}" to reset to`);
+      if (!findNodeStmt(shippedCast, station))
+        throw new LineProfileError(
+          `the shipped line has no station "${station}" to reset to`,
+        );
       for (const field of ["prompt", "script"] as const) {
         const raw = nodeAttrRaw(shippedCast, station, field);
         const ref = refOf(raw);
@@ -341,20 +473,39 @@ export function planStationEdits(root: string, edits: LineStationEdit[]): Statio
         // An inline shipped value goes back inline, exactly as the shipped line writes it.
         else cast = setNodeAttr(cast, station, field, raw);
       }
-      cast = setNodeAttr(cast, station, "timeout", nodeAttrRaw(shippedCast, station, "timeout"));
+      cast = setNodeAttr(
+        cast,
+        station,
+        "timeout",
+        nodeAttrRaw(shippedCast, station, "timeout"),
+      );
       continue;
     }
-    if (edit.op !== "set_station") throw new LineProfileError(`unknown station op "${(edit as any)?.op}"`);
+    if (edit.op !== "set_station")
+      throw new LineProfileError(`unknown station op "${(edit as any)?.op}"`);
     for (const field of ["prompt", "script"] as const) {
       if (!(field in edit)) continue;
       const v = edit[field];
-      if (v !== null && v !== undefined && typeof v !== "string") throw new LineProfileError(`${station} ${field} must be text`);
+      if (v !== null && v !== undefined && typeof v !== "string")
+        throw new LineProfileError(`${station} ${field} must be text`);
       setText(station, field, typeof v === "string" && v.trim() ? v : null);
     }
     if ("timeout" in edit) {
       const t = edit.timeout;
-      if (t !== null && t !== undefined && (typeof t !== "number" || !Number.isFinite(t))) throw new LineProfileError(`${station} timeout must be a number of seconds`);
-      cast = setNodeAttr(cast, station, "timeout", typeof t === "number" && t > 0 ? String(Math.round(t)) : null);
+      if (
+        t !== null &&
+        t !== undefined &&
+        (typeof t !== "number" || !Number.isFinite(t))
+      )
+        throw new LineProfileError(
+          `${station} timeout must be a number of seconds`,
+        );
+      cast = setNodeAttr(
+        cast,
+        station,
+        "timeout",
+        typeof t === "number" && t > 0 ? String(Math.round(t)) : null,
+      );
     }
   }
 
@@ -362,15 +513,42 @@ export function planStationEdits(root: string, edits: LineStationEdit[]): Statio
   const graph = parseRepoLine(cast, get);
   const graph_hash = graphHash(graph);
   const was = exists ? safeHashes(root) : null;
-  const now = new Map(graphToPushPayload(graph).nodes.map((n) => [n.id, stationKey(n)]));
-  const moved = () => [...touched].filter((s) => !was || was.get(s) !== now.get(s));
+  const now = new Map(
+    graphToPushPayload(graph).nodes.map((n) => [n.id, stationKey(n)]),
+  );
+  const moved = () =>
+    [...touched].filter((s) => !was || was.get(s) !== now.get(s));
 
   // A reset that brings the line back to the shipped one removes the repo's
   // copy rather than freezing it, so later shipped updates reach the project.
-  if (edits.some((e) => e?.op === "reset_station") && graph_hash === shippedGraphHash(shipped)) {
-    if (!exists) return { writes: [], removes: [], changed: false, materialized: false, stations: [], graph_hash };
-    const removes = [REPO_LINE_REL_PATH, ...fs.readdirSync(dir).filter((n) => n !== "line.cast" && REPO_LINE_FILE_RE.test(n)).map((n) => path.posix.join(REPO_LINE_REL_DIR, n))];
-    return { writes: [], removes, changed: true, materialized: false, stations: moved(), graph_hash };
+  if (
+    edits.some((e) => e?.op === "reset_station") &&
+    graph_hash === shippedGraphHash(shipped)
+  ) {
+    if (!exists)
+      return {
+        writes: [],
+        removes: [],
+        changed: false,
+        materialized: false,
+        stations: [],
+        graph_hash,
+      };
+    const removes = [
+      REPO_LINE_REL_PATH,
+      ...fs
+        .readdirSync(dir)
+        .filter((n) => n !== "line.cast" && REPO_LINE_FILE_RE.test(n))
+        .map((n) => path.posix.join(REPO_LINE_REL_DIR, n)),
+    ];
+    return {
+      writes: [],
+      removes,
+      changed: true,
+      materialized: false,
+      stations: moved(),
+      graph_hash,
+    };
   }
 
   // What actually differs from the files as they stand; a materialize writes them all.
@@ -379,36 +557,59 @@ export function planStationEdits(root: string, edits: LineStationEdit[]): Statio
   for (const [name, content] of all) {
     if (name === "line.cast") continue;
     const p = path.join(dir, name);
-    if (exists && fs.existsSync(p) && fs.readFileSync(p, "utf8") === content) continue;
+    if (exists && fs.existsSync(p) && fs.readFileSync(p, "utf8") === content)
+      continue;
     writes.push({ rel: path.posix.join(REPO_LINE_REL_DIR, name), content });
   }
-  const castChanged = !exists || fs.readFileSync(repoLineFile(root), "utf8") !== cast;
+  const castChanged =
+    !exists || fs.readFileSync(repoLineFile(root), "utf8") !== cast;
   if (castChanged) writes.push({ rel: REPO_LINE_REL_PATH, content: cast });
   const changed = writes.length > 0;
   // Only a station whose parsed values moved counts, so a no-op edit says so.
-  return { writes: changed ? writes : [], removes: [], changed, materialized: !exists, stations: changed ? moved() : [], graph_hash };
+  return {
+    writes: changed ? writes : [],
+    removes: [],
+    changed,
+    materialized: !exists,
+    stations: changed ? moved() : [],
+    graph_hash,
+  };
 }
 
 /** The hash a run of the shipped line records, read from the same files a repo copy starts from. */
 function shippedGraphHash(shipped: Record<string, string>): string {
-  return graphHash(parseRepoLine(shipped["line.cast"], (name) => shipped[name] ?? null));
+  return graphHash(
+    parseRepoLine(shipped["line.cast"], (name) => shipped[name] ?? null),
+  );
 }
 
 /** Whether `name` is referenced by no station but `station` (so `station` may reuse it). */
 function refersOnlyFrom(cast: string, name: string, station: string): boolean {
   for (const n of parseWorkflowSource(cast).nodes.values()) {
-    if (n.id !== station && (n.prompt === `@${name}` || n.script === `@${name}`)) return false;
+    if (
+      n.id !== station &&
+      (n.prompt === `@${name}` || n.script === `@${name}`)
+    )
+      return false;
   }
   return true;
 }
 
-const stationKey = (n: { prompt?: string; script?: string; timeout?: number }) => JSON.stringify([n.prompt ?? null, n.script ?? null, n.timeout ?? null]);
+const stationKey = (n: {
+  prompt?: string;
+  script?: string;
+  timeout?: number;
+}) => JSON.stringify([n.prompt ?? null, n.script ?? null, n.timeout ?? null]);
 
 function safeHashes(root: string): Map<string, string> | null {
   try {
     const r = resolveWorkflowSource(repoLineFile(root));
     if (!r) return null;
-    return new Map(graphToPushPayload(parseWorkflowSource(r.source, r.dir)).nodes.map((n) => [n.id, stationKey(n)]));
+    return new Map(
+      graphToPushPayload(parseWorkflowSource(r.source, r.dir)).nodes.map(
+        (n) => [n.id, stationKey(n)],
+      ),
+    );
   } catch {
     return null;
   }
@@ -423,7 +624,9 @@ function parseRepoLine(cast: string, get: (name: string) => string | null) {
   try {
     graph = parseWorkflowSource(cast);
   } catch (err) {
-    throw new LineProfileError(`${REPO_LINE_REL_PATH} does not parse: ${err instanceof Error ? err.message : String(err)}`);
+    throw new LineProfileError(
+      `${REPO_LINE_REL_PATH} does not parse: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
   for (const node of graph.nodes.values()) {
     for (const field of ["prompt", "script"] as const) {
@@ -431,19 +634,27 @@ function parseRepoLine(cast: string, get: (name: string) => string | null) {
       if (!v?.startsWith("@")) continue;
       const name = v.slice(1);
       const text = REPO_LINE_FILE_RE.test(name) ? get(name) : null;
-      if (text === null) throw new LineProfileError(`station "${node.id}" names ${name}, which is not in ${REPO_LINE_REL_DIR}`);
+      if (text === null)
+        throw new LineProfileError(
+          `station "${node.id}" names ${name}, which is not in ${REPO_LINE_REL_DIR}`,
+        );
       node[field] = text;
     }
   }
   const errors = validateWorkflow(graph);
-  if (errors.length) throw new LineProfileError(`${REPO_LINE_REL_PATH} would not run: ${errors.join("; ")}`);
+  if (errors.length)
+    throw new LineProfileError(
+      `${REPO_LINE_REL_PATH} would not run: ${errors.join("; ")}`,
+    );
   return graph;
 }
 
 // ------------------------------------------------------------------ publish
 
 /** The repo's line as the project row carries it (LX5), or null when the repo has none. Throws LineProfileError on a line that would not run. */
-export function publishedRepoLine(root: string | null | undefined): PublishedRepoLine | null {
+export function publishedRepoLine(
+  root: string | null | undefined,
+): PublishedRepoLine | null {
   if (!root) return null;
   const file = repoLineFile(root);
   if (!fs.existsSync(file)) return null;
@@ -457,9 +668,17 @@ export function publishedRepoLine(root: string | null | undefined): PublishedRep
   const { nodes, edges, stack } = graphToPushPayload(graph);
   const files: PublishedRepoLine["files"] = {};
   for (const n of parseWorkflowSource(source).nodes.values()) {
-    const prompt = n.prompt?.startsWith("@") ? path.posix.join(REPO_LINE_REL_DIR, n.prompt.slice(1)) : undefined;
-    const script = n.script?.startsWith("@") ? path.posix.join(REPO_LINE_REL_DIR, n.script.slice(1)) : undefined;
-    if (prompt || script) files[n.id] = { ...(prompt ? { prompt } : {}), ...(script ? { script } : {}) };
+    const prompt = n.prompt?.startsWith("@")
+      ? path.posix.join(REPO_LINE_REL_DIR, n.prompt.slice(1))
+      : undefined;
+    const script = n.script?.startsWith("@")
+      ? path.posix.join(REPO_LINE_REL_DIR, n.script.slice(1))
+      : undefined;
+    if (prompt || script)
+      files[n.id] = {
+        ...(prompt ? { prompt } : {}),
+        ...(script ? { script } : {}),
+      };
   }
   return {
     file: REPO_LINE_REL_PATH,

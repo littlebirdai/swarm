@@ -4,7 +4,11 @@
  * (cloud.commandOutcome). Shared by `cast browser sync` and `cast sync`.
  */
 
-export interface CommandOutcome { executed_at: number | null; result: string | null; error: string | null }
+export interface CommandOutcome {
+  executed_at: number | null;
+  result: string | null;
+  error: string | null;
+}
 
 export interface AwaitDeps {
   sleep?: (ms: number) => Promise<void>;
@@ -19,7 +23,8 @@ export async function awaitCommandOutcome(
   deadline: number,
   deps: AwaitDeps = {},
 ): Promise<CommandOutcome | null> {
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const sleep =
+    deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const now = deps.now ?? Date.now;
   for (;;) {
     const row = await query(commandId);

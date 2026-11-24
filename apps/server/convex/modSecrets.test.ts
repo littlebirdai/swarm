@@ -2,7 +2,14 @@
 // never comes back out, and a fetch carries it only toward its declared
 // origins, for whoever may run the mod (the author, or the team it is shared
 // with). A connector read refuses a source the manifest does not grant.
-import { afterAll, afterEach, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import schema from "./schema";
@@ -30,14 +37,28 @@ beforeAll(() => {
   process.env[KEY_ENV] = "test-deployment-key-0123456789abcdef";
   globalThis.fetch = (async (url: any, init: any) => {
     // The server fetch resolves the host over DNS-over-HTTPS before the key leaves.
-    const doh = /^https:\/\/(cloudflare-dns\.com|dns\.google)\//.test(String(url)) ? new URL(String(url)) : null;
+    const doh = /^https:\/\/(cloudflare-dns\.com|dns\.google)\//.test(
+      String(url),
+    )
+      ? new URL(String(url))
+      : null;
     if (doh) {
       const type = doh.searchParams.get("type") === "A" ? 1 : 28;
-      const addrs = (dns[doh.searchParams.get("name") ?? ""] ?? []).filter((a) => (type === 1) === !a.includes(":"));
-      return new Response(JSON.stringify({ Status: 0, Answer: addrs.map((data) => ({ type, data, TTL: 0 })) }));
+      const addrs = (dns[doh.searchParams.get("name") ?? ""] ?? []).filter(
+        (a) => (type === 1) === !a.includes(":"),
+      );
+      return new Response(
+        JSON.stringify({
+          Status: 0,
+          Answer: addrs.map((data) => ({ type, data, TTL: 0 })),
+        }),
+      );
     }
     sent.push({ url: String(url), headers: { ...(init?.headers ?? {}) } });
-    return new Response(JSON.stringify({ hello: "union" }), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ hello: "union" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   }) as any;
 });
 afterAll(() => {
@@ -49,7 +70,8 @@ afterAll(() => {
 const backends: any[] = [];
 afterEach(async () => {
   sent = [];
-  for (const t of backends.splice(0)) await t.finishAllScheduledFunctions?.(() => {}).catch?.(() => {});
+  for (const t of backends.splice(0))
+    await t.finishAllScheduledFunctions?.(() => {}).catch?.(() => {});
 });
 
 const MANIFEST = {
@@ -63,57 +85,145 @@ async function seed() {
   backends.push(t);
   const now = Date.now();
   const ids = await t.run(async (ctx) => {
-    const team = await ctx.db.insert("teams", { name: "Union", created_at: now, invite_code: "x" } as any);
+    const team = await ctx.db.insert("teams", {
+      name: "Union",
+      created_at: now,
+      invite_code: "x",
+    } as any);
     const ana = await ctx.db.insert("users", { name: "Ana" } as any);
     const ben = await ctx.db.insert("users", { name: "Ben" } as any);
     const cat = await ctx.db.insert("users", { name: "Cat" } as any);
-    for (const u of [ana, ben]) await ctx.db.insert("team_memberships", { user_id: u, team_id: team, role: "member", joined_at: now } as any);
-    await ctx.db.insert("api_tokens", { user_id: ana, token_hash: await hashToken(TOKEN), name: "cli", created_at: now, last_used_at: now } as any);
+    for (const u of [ana, ben])
+      await ctx.db.insert("team_memberships", {
+        user_id: u,
+        team_id: team,
+        role: "member",
+        joined_at: now,
+      } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: ana,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
+    } as any);
     const mod = await ctx.db.insert("mods", {
-      user_id: ana, team_id: team, shared: true, name: "union", manifest: MANIFEST, code: "",
-      rev: 1, version: 0, enabled: true, created_at: now, updated_at: now,
+      user_id: ana,
+      team_id: team,
+      shared: true,
+      name: "union",
+      manifest: MANIFEST,
+      code: "",
+      rev: 1,
+      version: 0,
+      enabled: true,
+      created_at: now,
+      updated_at: now,
     } as any);
     return { team, ana, ben, cat, mod };
   });
   const as = (u: string) => t.withIdentity({ subject: `${u}|test` });
   const fetchAs = (u: string, url: string, init: Record<string, unknown>) =>
-    as(u).action(api.modServer.call, { mod_id: ids.mod, method: "http.fetch", args_json: JSON.stringify([url, init]) });
+    as(u).action(api.modServer.call, {
+      mod_id: ids.mod,
+      method: "http.fetch",
+      args_json: JSON.stringify([url, init]),
+    });
   return { t, ...ids, as, fetchAs };
 }
 
 test("only the author sets a declared secret, and the row says when without the value", async () => {
   const { t, mod, ana, ben, as } = await seed();
-  expect(await as(ben).action(api.modSecrets.webSet, { mod_id: mod, secret: "UNION_KEY", value: "k" })).toMatchObject({ error: expect.stringMatching(/author/) });
-  expect(await as(ana).action(api.modSecrets.webSet, { mod_id: mod, secret: "OTHER_KEY", value: "k" })).toMatchObject({ error: expect.stringMatching(/declares no secret/) });
-  expect(await as(ana).action(api.modSecrets.webSet, { mod_id: mod, secret: "UNION_KEY", value: "sk-live-1" })).toMatchObject({ ok: true });
+  expect(
+    await as(ben).action(api.modSecrets.webSet, {
+      mod_id: mod,
+      secret: "UNION_KEY",
+      value: "k",
+    }),
+  ).toMatchObject({ error: expect.stringMatching(/author/) });
+  expect(
+    await as(ana).action(api.modSecrets.webSet, {
+      mod_id: mod,
+      secret: "OTHER_KEY",
+      value: "k",
+    }),
+  ).toMatchObject({ error: expect.stringMatching(/declares no secret/) });
+  expect(
+    await as(ana).action(api.modSecrets.webSet, {
+      mod_id: mod,
+      secret: "UNION_KEY",
+      value: "sk-live-1",
+    }),
+  ).toMatchObject({ ok: true });
 
-  const [row, stored] = await t.run(async (ctx: any) => [await ctx.db.get(mod), await ctx.db.query("mod_secrets").collect()]);
+  const [row, stored] = await t.run(async (ctx: any) => [
+    await ctx.db.get(mod),
+    await ctx.db.query("mod_secrets").collect(),
+  ]);
   expect(row.secrets_set.map((s: any) => s.name)).toEqual(["UNION_KEY"]);
   expect(stored[0].value_enc).not.toContain("sk-live-1");
 
-  const listed = await t.query(api.modSecrets.cliList, { api_token: TOKEN, name: "union" });
-  expect(listed.secrets[0]).toMatchObject({ name: "UNION_KEY", set_at: expect.any(Number) });
+  const listed = await t.query(api.modSecrets.cliList, {
+    api_token: TOKEN,
+    name: "union",
+  });
+  expect(listed.secrets[0]).toMatchObject({
+    name: "UNION_KEY",
+    set_at: expect.any(Number),
+  });
   expect(JSON.stringify(listed)).not.toContain("sk-live-1");
 });
 
 test("a teammate's fetch carries the key to its origin and nowhere else", async () => {
   const { mod, ana, ben, cat, as, fetchAs } = await seed();
-  expect(await fetchAs(ben, "https://api.union.test/refs", { secret: "UNION_KEY" })).toMatchObject({ ok: false, error: expect.stringMatching(/not set/) });
-  await as(ana).action(api.modSecrets.webSet, { mod_id: mod, secret: "UNION_KEY", value: "sk-live-1" });
+  expect(
+    await fetchAs(ben, "https://api.union.test/refs", { secret: "UNION_KEY" }),
+  ).toMatchObject({ ok: false, error: expect.stringMatching(/not set/) });
+  await as(ana).action(api.modSecrets.webSet, {
+    mod_id: mod,
+    secret: "UNION_KEY",
+    value: "sk-live-1",
+  });
 
-  const res = await fetchAs(ben, "https://api.union.test/refs", { secret: "UNION_KEY", headers: { Authorization: "Bearer forged" } });
-  expect(res).toMatchObject({ ok: true, status: 200, json: { hello: "union" } });
-  expect(sent).toEqual([{ url: "https://api.union.test/refs", headers: { Authorization: "Bearer sk-live-1" } }]);
+  const res = await fetchAs(ben, "https://api.union.test/refs", {
+    secret: "UNION_KEY",
+    headers: { Authorization: "Bearer forged" },
+  });
+  expect(res).toMatchObject({
+    ok: true,
+    status: 200,
+    json: { hello: "union" },
+  });
+  expect(sent).toEqual([
+    {
+      url: "https://api.union.test/refs",
+      headers: { Authorization: "Bearer sk-live-1" },
+    },
+  ]);
   expect(JSON.stringify(res)).not.toContain("sk-live-1");
 
-  expect(await fetchAs(ben, "https://evil.test/x", { secret: "UNION_KEY" })).toMatchObject({ ok: false, error: expect.stringMatching(/sent only to/) });
-  expect(await fetchAs(cat, "https://api.union.test/refs", { secret: "UNION_KEY" })).toMatchObject({ ok: false, error: expect.stringMatching(/not one you run/) });
+  expect(
+    await fetchAs(ben, "https://evil.test/x", { secret: "UNION_KEY" }),
+  ).toMatchObject({ ok: false, error: expect.stringMatching(/sent only to/) });
+  expect(
+    await fetchAs(cat, "https://api.union.test/refs", { secret: "UNION_KEY" }),
+  ).toMatchObject({
+    ok: false,
+    error: expect.stringMatching(/not one you run/),
+  });
   expect(sent.length).toBe(1);
 
   // A declared origin whose name now points inside the network: refused before the key leaves.
   dns["api.union.test"] = ["169.254.169.254"];
   try {
-    expect(await fetchAs(ben, "https://api.union.test/refs", { secret: "UNION_KEY" })).toMatchObject({ ok: false, error: expect.stringMatching(/not reachable from codecast's servers/) });
+    expect(
+      await fetchAs(ben, "https://api.union.test/refs", {
+        secret: "UNION_KEY",
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/not reachable from codecast's servers/),
+    });
   } finally {
     dns["api.union.test"] = ["93.184.216.34"];
   }
@@ -122,6 +232,13 @@ test("a teammate's fetch carries the key to its origin and nowhere else", async 
 
 test("a connector read names only a granted source", async () => {
   const { mod, ben, as } = await seed();
-  const res = await as(ben).action(api.modServer.call, { mod_id: mod, method: "connector.read", args_json: JSON.stringify(["sentry", "issues", {}]) });
-  expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/permissions.connectors/) });
+  const res = await as(ben).action(api.modServer.call, {
+    mod_id: mod,
+    method: "connector.read",
+    args_json: JSON.stringify(["sentry", "issues", {}]),
+  });
+  expect(res).toMatchObject({
+    ok: false,
+    error: expect.stringMatching(/permissions.connectors/),
+  });
 });

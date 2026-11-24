@@ -7,14 +7,14 @@ Benchmarks of the web app's hot paths, each with two halves:
 
 Both drive `harness.tsx`: the real components mounted in jsdom over a synthetic cache, with a Convex client that answers nothing and counts what it is asked. The harness runs under plain `bun` (strobe's script host), so it uses no `mock.module` and no test preload. The diff case therefore draws with the real `@pierre/diffs` viewer.
 
-| Case | Workload | Exact counts (budgets.ts) |
-| --- | --- | --- |
-| switch conversation (warm) | Two conversations of 200 cached messages, both visited, over 2,000 sessions; switch until the last answer is on screen | 0 one-shot fetches, 15 subscriptions opened, 2 store writes, 21 DOM mutation records |
-| a message arrives in an open conversation | One conversation of 200 cached messages on screen, over 2,000 sessions; one more row appended through `mergeMessages` (the path a streamed answer takes) until its text is drawn | 1 store write, 0 fetches, 0 subscriptions opened |
-| load an inbox of 5000 sessions | `SessionListPanel` mounting over 5,000 sessions | 51 cards drawn, 2 subscriptions, 0 fetches |
-| heartbeat in an inbox of 5000 sessions | A liveness overlay payload (`applyMineLivenessPayload`) shaped like the server's: the viewer's 600 newest sessions, each with its facts and placement stamps, plus the projection envelope, all freshly decoded; only one drawn session's heartbeat moved | 0 commits, 0 DOM mutations, 0 layout reads |
-| the same two, Modern style (`inbox-load-modern`, `inbox-heartbeat-modern`; budgets only) | The panel under the Modern theme context, drawing `ModernSessionCardView` and its section header | the same counts: 51 cards, 2 subscriptions; 0 commits, 0 DOM mutations, 0 layout reads |
-| open a long diff | A 1,560-line TypeScript file with 52 changed lines, shown whole and highlighted, in a warm app, mounted at the top of a scroller a viewport (800px) tall | 2 commits, 18 DOM mutation records, 32 layout reads, 0 store writes, 150 of 1,612 rows drawn |
+| Case                                                                                     | Workload                                                                                                                                                                                                                                                  | Exact counts (budgets.ts)                                                                    |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| switch conversation (warm)                                                               | Two conversations of 200 cached messages, both visited, over 2,000 sessions; switch until the last answer is on screen                                                                                                                                    | 0 one-shot fetches, 15 subscriptions opened, 2 store writes, 21 DOM mutation records         |
+| a message arrives in an open conversation                                                | One conversation of 200 cached messages on screen, over 2,000 sessions; one more row appended through `mergeMessages` (the path a streamed answer takes) until its text is drawn                                                                          | 1 store write, 0 fetches, 0 subscriptions opened                                             |
+| load an inbox of 5000 sessions                                                           | `SessionListPanel` mounting over 5,000 sessions                                                                                                                                                                                                           | 51 cards drawn, 2 subscriptions, 0 fetches                                                   |
+| heartbeat in an inbox of 5000 sessions                                                   | A liveness overlay payload (`applyMineLivenessPayload`) shaped like the server's: the viewer's 600 newest sessions, each with its facts and placement stamps, plus the projection envelope, all freshly decoded; only one drawn session's heartbeat moved | 0 commits, 0 DOM mutations, 0 layout reads                                                   |
+| the same two, Modern style (`inbox-load-modern`, `inbox-heartbeat-modern`; budgets only) | The panel under the Modern theme context, drawing `ModernSessionCardView` and its section header                                                                                                                                                          | the same counts: 51 cards, 2 subscriptions; 0 commits, 0 DOM mutations, 0 layout reads       |
+| open a long diff                                                                         | A 1,560-line TypeScript file with 52 changed lines, shown whole and highlighted, in a warm app, mounted at the top of a scroller a viewport (800px) tall                                                                                                  | 2 commits, 18 DOM mutation records, 32 layout reads, 0 store writes, 150 of 1,612 rows drawn |
 
 The budgets also check that a rename arriving through the feed reaches its card.
 
@@ -41,10 +41,10 @@ REACT_COMPILER_SOURCES=components/inbox/ bun perf/compilerAB.ts --workload inbox
 
 `compilerAB.ts` runs fresh processes in pairs with the order alternating and reports the median difference with a 95% interval, for CPU (what strobe calls `cpu.work`) and for the time React spent rendering (`detail.renderMs`, the harness Profiler's `actualDuration`). Measured on 2026-11-18 with the list as it was first written, 8 pairs:
 
-| Case | React render, off → on | CPU, off → on |
-| --- | --- | --- |
-| a message arrives in an open conversation | 37.9 → 32.9 ms, -13.8% (95% -8.6 to -3.7 ms) | 133.5 → 111.3 ms, -19.5% (95% -35.7 to -12.7 ms) |
-| switch conversation (warm) | 42.3 → 40.8 ms, no difference (95% -5.4 to +5.7 ms) | 145.9 → 133.1 ms, no difference (95% -28.6 to +7.7 ms) |
+| Case                                      | React render, off → on                              | CPU, off → on                                          |
+| ----------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| a message arrives in an open conversation | 37.9 → 32.9 ms, -13.8% (95% -8.6 to -3.7 ms)        | 133.5 → 111.3 ms, -19.5% (95% -35.7 to -12.7 ms)       |
+| switch conversation (warm)                | 42.3 → 40.8 ms, no difference (95% -5.4 to +5.7 ms) | 145.9 → 133.1 ms, no difference (95% -28.6 to +7.7 ms) |
 
 Measured again the same day, 6 pairs, after `useRelativeTime` was changed to hand compiled rows a callback that moves with the clock: a message arriving renders in 39.6 → 34.5 ms, -12.3% (95% -5.7 to -3.4 ms); CPU 131.4 → 117.6 ms with an interval that reaches zero (-27.6 to +0.1 ms, taken at a load of 24).
 

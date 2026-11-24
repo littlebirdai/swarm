@@ -30,7 +30,10 @@ import {
   wakeStatusAfterPark,
   type HibernationPassIo,
 } from "./daemon.js";
-import { HIBERNATE_SUBAGENT_QUIET_MS, HIBERNATE_RESUME_GRACE_MS } from "./hibernation.js";
+import {
+  HIBERNATE_SUBAGENT_QUIET_MS,
+  HIBERNATE_RESUME_GRACE_MS,
+} from "./hibernation.js";
 import { functionBlock } from "./test-helpers/sourceRegion.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import type { ConversationLifecycle } from "./syncService.js";
@@ -69,39 +72,77 @@ type FixtureOpts = {
 };
 
 function fixture(opts: FixtureOpts): Fixture {
-  const sessions = Array.from({ length: opts.count }, (_, i) => `hib-test-${String(i).padStart(3, "0")}`);
-  const tmuxOf = (id: string) => (opts.onePane ? "cc-resume-shared" : `cc-resume-${id}`);
+  const sessions = Array.from(
+    { length: opts.count },
+    (_, i) => `hib-test-${String(i).padStart(3, "0")}`,
+  );
+  const tmuxOf = (id: string) =>
+    opts.onePane ? "cc-resume-shared" : `cc-resume-${id}`;
   const conversationIds: Record<string, string> = {};
   sessions.forEach((id, i) => {
-    trackSessionPaneForTests(id, tmuxOf(id), { status: "idle", ...(opts.facts ? opts.facts(i) : {}) });
+    trackSessionPaneForTests(id, tmuxOf(id), {
+      status: "idle",
+      ...(opts.facts ? opts.facts(i) : {}),
+    });
     tracked.push(id);
     conversationIds[id] = `conv-${i}`;
   });
   const parked: string[] = [];
   const io: HibernationPassIo = {
     terminal: async () => ({ stdout: "" }),
-    policy: () => ({ maxLive: opts.maxLive ?? 0, idleMs: opts.idleMs ?? 0, maxPerPass: opts.maxPerPass ?? 5 }),
+    policy: () => ({
+      maxLive: opts.maxLive ?? 0,
+      idleMs: opts.idleMs ?? 0,
+      maxPerPass: opts.maxPerPass ?? 5,
+    }),
     tmuxSessions: async () => {
       const m = new Map<string, number>();
-      sessions.forEach((id, i) => m.set(tmuxOf(id), opts.attached ? opts.attached(i) : 0));
+      sessions.forEach((id, i) =>
+        m.set(tmuxOf(id), opts.attached ? opts.attached(i) : 0),
+      );
       return m;
     },
-    awakeIdleMs: (id) => (opts.awakeIdleMs ? opts.awakeIdleMs(sessions.indexOf(id)) : 0),
-    subagentActiveAgoMs: (id) => (opts.subagentActiveAgoMs ? opts.subagentActiveAgoMs(id) : Infinity),
+    awakeIdleMs: (id) =>
+      opts.awakeIdleMs ? opts.awakeIdleMs(sessions.indexOf(id)) : 0,
+    subagentActiveAgoMs: (id) =>
+      opts.subagentActiveAgoMs ? opts.subagentActiveAgoMs(id) : Infinity,
     conversationIds: () => conversationIds,
-    askSidecarMtimeMs: async (id) => (opts.sidecarMtimeMs ? opts.sidecarMtimeMs(id) : null),
-    transcriptLastRealMs: async (id) => (opts.transcriptLastRealMs ? opts.transcriptLastRealMs(id) : null),
-    lifecycle: async (_conv, id) => (opts.lifecycle ? opts.lifecycle(id) : lifecycleOf({})),
-    canReapPidTree: (id) => (opts.canReapPidTree ? opts.canReapPidTree(id) : true),
-    deliveryActive: (id) => (opts.deliveryActive ? opts.deliveryActive(id) : false),
-    inspectTarget: async (id) => ({ session: "$1", pane: "%1", pid: 100, agentPid: 100, start: "start", stamp: id, conversationStamp: "" }),
-    park: async (id) => { parked.push(id); return true; },
+    askSidecarMtimeMs: async (id) =>
+      opts.sidecarMtimeMs ? opts.sidecarMtimeMs(id) : null,
+    transcriptLastRealMs: async (id) =>
+      opts.transcriptLastRealMs ? opts.transcriptLastRealMs(id) : null,
+    lifecycle: async (_conv, id) =>
+      opts.lifecycle ? opts.lifecycle(id) : lifecycleOf({}),
+    canReapPidTree: (id) =>
+      opts.canReapPidTree ? opts.canReapPidTree(id) : true,
+    deliveryActive: (id) =>
+      opts.deliveryActive ? opts.deliveryActive(id) : false,
+    inspectTarget: async (id) => ({
+      session: "$1",
+      pane: "%1",
+      pid: 100,
+      agentPid: 100,
+      start: "start",
+      stamp: id,
+      conversationStamp: "",
+    }),
+    park: async (id) => {
+      parked.push(id);
+      return true;
+    },
     now: () => NOW,
   };
-  return { io, parked, sessions, hibernate: (id) => hibernateSessionNow(id, undefined, io) };
+  return {
+    io,
+    parked,
+    sessions,
+    hibernate: (id) => hibernateSessionNow(id, undefined, io),
+  };
 }
 
-const lifecycleOf = (over: Partial<ConversationLifecycle>): ConversationLifecycle => ({
+const lifecycleOf = (
+  over: Partial<ConversationLifecycle>,
+): ConversationLifecycle => ({
   status: "active",
   inboxKilledAt: null,
   inboxStashedAt: null,
@@ -121,7 +162,13 @@ describe("runHibernationPass", () => {
   test("both knobs off parks nothing and never asks tmux", async () => {
     let asked = false;
     const f = fixture({ count: 20 });
-    const io = { ...f.io, tmuxSessions: async () => { asked = true; return new Map(); } };
+    const io = {
+      ...f.io,
+      tmuxSessions: async () => {
+        asked = true;
+        return new Map();
+      },
+    };
     expect(await runHibernationPass(io)).toBe(0);
     expect(asked).toBe(false);
   });
@@ -137,14 +184,28 @@ describe("runHibernationPass", () => {
     const f = fixture({ count: 4, maxLive: 1 });
     // tmux lists only the first two panes: the other two are already gone, so
     // the fleet is two sessions against a cap of one.
-    const io = { ...f.io, tmuxSessions: async () => new Map([[`cc-resume-${f.sessions[0]}`, 0], [`cc-resume-${f.sessions[1]}`, 0]]) };
+    const io = {
+      ...f.io,
+      tmuxSessions: async () =>
+        new Map([
+          [`cc-resume-${f.sessions[0]}`, 0],
+          [`cc-resume-${f.sessions[1]}`, 0],
+        ]),
+    };
     expect(await runHibernationPass(io)).toBe(1);
-    expect(f.parked.every((id) => id === f.sessions[0] || id === f.sessions[1])).toBe(true);
+    expect(
+      f.parked.every((id) => id === f.sessions[0] || id === f.sessions[1]),
+    ).toBe(true);
   });
 
   test("tmux unreachable parks nothing", async () => {
     const f = fixture({ count: 10, maxLive: 1 });
-    const io = { ...f.io, tmuxSessions: async () => { throw new Error("no server"); } };
+    const io = {
+      ...f.io,
+      tmuxSessions: async () => {
+        throw new Error("no server");
+      },
+    };
     expect(await runHibernationPass(io)).toBe(0);
     expect(f.parked).toEqual([]);
   });
@@ -162,7 +223,12 @@ describe("runHibernationPass", () => {
   });
 
   test("an unavailable lifecycle refuses parking", async () => {
-    const f = fixture({ count: 3, maxLive: 2, awakeIdleMs: (i) => i * 1000, lifecycle: () => null });
+    const f = fixture({
+      count: 3,
+      maxLive: 2,
+      awakeIdleMs: (i) => i * 1000,
+      lifecycle: () => null,
+    });
     expect(await runHibernationPass(f.io)).toBe(0);
     expect(f.parked).toEqual([]);
   });
@@ -183,7 +249,9 @@ describe("runHibernationPass", () => {
     // pass parks at most what it picked, and the next pass re-picks with fresh
     // facts. This is what keeps a pass bounded when many candidates are gated.
     const f = fixture({
-      count: 6, maxLive: 4, awakeIdleMs: (i) => i * 1000,
+      count: 6,
+      maxLive: 4,
+      awakeIdleMs: (i) => i * 1000,
       canReapPidTree: () => false,
     });
     expect(await runHibernationPass(f.io)).toBe(0);
@@ -203,13 +271,21 @@ describe("cast hibernate", () => {
 
   test("a session with no known live pane is not reported parked", async () => {
     const f = fixture({ count: 1 });
-    expect(await f.hibernate("nobody-here")).toEqual({ result: "skipped_no-live-pane", error: "not parked: no-live-pane" });
+    expect(await f.hibernate("nobody-here")).toEqual({
+      result: "skipped_no-live-pane",
+      error: "not parked: no-live-pane",
+    });
     expect(f.parked).toEqual([]);
   });
 
   test("tmux unreachable refuses rather than guessing", async () => {
     const f = fixture({ count: 2 });
-    const io = { ...f.io, tmuxSessions: async () => { throw new Error("no server"); } };
+    const io = {
+      ...f.io,
+      tmuxSessions: async () => {
+        throw new Error("no server");
+      },
+    };
     const outcome = await hibernateSessionNow(f.sessions[0], undefined, io);
     expect(outcome.result).toBeUndefined();
     expect(outcome.error).toContain("tmux");
@@ -231,7 +307,11 @@ describe("cast hibernate", () => {
 // is asserted against BOTH paths: the policy pass and the explicit `cast
 // hibernate`. A rule that only one path applies is the shape of the defect.
 describe("a live session is refused by both the pass and the command", () => {
-  type Rule = { name: string; reason: string; opts: Omit<FixtureOpts, "count"> };
+  type Rule = {
+    name: string;
+    reason: string;
+    opts: Omit<FixtureOpts, "count">;
+  };
 
   // The target is always the last session and always the longest idle, so it is
   // the pass's first pick: if the rule stopped blocking, the pass would park it.
@@ -239,7 +319,9 @@ describe("a live session is refused by both the pass and the command", () => {
   const base = { count: 3, maxLive: 1, awakeIdleMs: (i: number) => i * 1000 };
 
   const rules: Rule[] = [
-    ...(["working", "thinking", "compacting", "permission_blocked"] as const).map((status) => ({
+    ...(
+      ["working", "thinking", "compacting", "permission_blocked"] as const
+    ).map((status) => ({
       name: `${status}: a turn is in flight`,
       reason: "status-working",
       opts: { facts: (i: number) => (i === 2 ? { status } : {}) },
@@ -247,7 +329,10 @@ describe("a live session is refused by both the pass and the command", () => {
     {
       name: "waiting: the pane's process tree holds the background work",
       reason: "open-background-work",
-      opts: { facts: (i: number) => (i === 2 ? { status: "waiting" as AgentStatus } : {}) },
+      opts: {
+        facts: (i: number) =>
+          i === 2 ? { status: "waiting" as AgentStatus } : {},
+      },
     },
     ...(["resuming", "starting"] as const).map((status) => ({
       name: `${status}: the session is still coming up`,
@@ -262,12 +347,18 @@ describe("a live session is refused by both the pass and the command", () => {
     {
       name: "a subagent of this session is still writing",
       reason: "live-subagents",
-      opts: { subagentActiveAgoMs: (id: string) => (id === target ? HIBERNATE_SUBAGENT_QUIET_MS - 1 : Infinity) },
+      opts: {
+        subagentActiveAgoMs: (id: string) =>
+          id === target ? HIBERNATE_SUBAGENT_QUIET_MS - 1 : Infinity,
+      },
     },
     {
       name: "the session resumed a moment ago",
       reason: "recently-resumed",
-      opts: { facts: (i: number) => (i === 2 ? { resumedAt: NOW - (HIBERNATE_RESUME_GRACE_MS - 1) } : {}) },
+      opts: {
+        facts: (i: number) =>
+          i === 2 ? { resumedAt: NOW - (HIBERNATE_RESUME_GRACE_MS - 1) } : {},
+      },
     },
     {
       name: "work is on its way to the session",
@@ -285,17 +376,30 @@ describe("a live session is refused by both the pass and the command", () => {
     {
       name: "the conversation is pinned",
       reason: "pinned",
-      opts: { lifecycle: (id: string) => (id === target ? lifecycleOf({ inboxPinnedAt: 123 }) : lifecycleOf({})) },
+      opts: {
+        lifecycle: (id: string) =>
+          id === target ? lifecycleOf({ inboxPinnedAt: 123 }) : lifecycleOf({}),
+      },
     },
     {
       name: "the conversation has undelivered messages",
       reason: "pending-messages",
-      opts: { lifecycle: (id: string) => (id === target ? lifecycleOf({ hasPendingMessages: true }) : lifecycleOf({})) },
+      opts: {
+        lifecycle: (id: string) =>
+          id === target
+            ? lifecycleOf({ hasPendingMessages: true })
+            : lifecycleOf({}),
+      },
     },
     {
       name: "the lifecycle answer is degraded, so the pin cannot be believed",
       reason: "lifecycle-degraded",
-      opts: { lifecycle: (id: string) => (id === target ? lifecycleOf({ hideStateKnown: false }) : lifecycleOf({})) },
+      opts: {
+        lifecycle: (id: string) =>
+          id === target
+            ? lifecycleOf({ hideStateKnown: false })
+            : lifecycleOf({}),
+      },
     },
     {
       name: "the session borrows its parent's process",
@@ -338,21 +442,37 @@ describe("the subagent activity recorder", () => {
   const parent = "parent-session-id";
 
   test("both transcript layouts name the parent", () => {
-    expect(subagentParentSessionFromPath(`${PROJ}/${parent}/subagents/child-1.jsonl`)).toBe(parent);
-    expect(subagentParentSessionFromPath(`${PROJ}/${parent}/subagents/workflows/run-7/agent-2.jsonl`)).toBe(parent);
+    expect(
+      subagentParentSessionFromPath(
+        `${PROJ}/${parent}/subagents/child-1.jsonl`,
+      ),
+    ).toBe(parent);
+    expect(
+      subagentParentSessionFromPath(
+        `${PROJ}/${parent}/subagents/workflows/run-7/agent-2.jsonl`,
+      ),
+    ).toBe(parent);
   });
 
   test("a plain session transcript names nobody", () => {
-    expect(subagentParentSessionFromPath(`${PROJ}/${parent}.jsonl`)).toBeUndefined();
+    expect(
+      subagentParentSessionFromPath(`${PROJ}/${parent}.jsonl`),
+    ).toBeUndefined();
   });
 
   test("an append records the parent, and the age is measured from it", () => {
     resetSubagentActivityForTests();
     expect(subagentActiveAgoMs(parent, NOW)).toBe(Infinity);
-    noteSubagentActivity(`${PROJ}/${parent}/subagents/child-1.jsonl`, NOW - 4000);
+    noteSubagentActivity(
+      `${PROJ}/${parent}/subagents/child-1.jsonl`,
+      NOW - 4000,
+    );
     expect(subagentActiveAgoMs(parent, NOW)).toBe(4000);
     // The later of two children is the one that keeps the parent live.
-    noteSubagentActivity(`${PROJ}/${parent}/subagents/workflows/run-7/agent-2.jsonl`, NOW - 100);
+    noteSubagentActivity(
+      `${PROJ}/${parent}/subagents/workflows/run-7/agent-2.jsonl`,
+      NOW - 100,
+    );
     expect(subagentActiveAgoMs(parent, NOW)).toBe(100);
   });
 
@@ -365,7 +485,8 @@ describe("the subagent activity recorder", () => {
   test("bounded recorder never interprets lost or old facts as no children", () => {
     resetSubagentActivityForTests();
     const old = NOW - HIBERNATE_SUBAGENT_QUIET_MS * 2;
-    for (let i = 0; i < 600; i++) noteSubagentActivity(`${PROJ}/old-${i}/subagents/c.jsonl`, old);
+    for (let i = 0; i < 600; i++)
+      noteSubagentActivity(`${PROJ}/old-${i}/subagents/c.jsonl`, old);
     expect(subagentActiveAgoMs("old-0", NOW)).toBe(NOW - old);
     expect(subagentActiveAgoMs("old-599", NOW)).toBeNaN();
     noteSubagentActivity(`${PROJ}/${parent}/subagents/c.jsonl`, NOW);
@@ -387,20 +508,28 @@ describe("the wiring that has no other witness", () => {
     // heartbeat re-asserts lastSentAgentStatus, and nothing else corrects a
     // session that has no pane. A full delivery driven wake needs Convex and a
     // real conversation, so this is what stands in for it.
-    expect(functionBlock(src, "autoResumeSession").text).toContain("clearHibernationPark(");
+    expect(functionBlock(src, "autoResumeSession").text).toContain(
+      "clearHibernationPark(",
+    );
   });
 
   test("registerManagedStartedSession clears the park", () => {
     // The other route by which a parked session gets a pane back: transcript
     // driven pane adoption and the warm restart scan both land here.
-    expect(functionBlock(src, "registerManagedStartedSession").text).toContain("clearHibernationPark(");
+    expect(functionBlock(src, "registerManagedStartedSession").text).toContain(
+      "clearHibernationPark(",
+    );
   });
 
   test("the ingest path records subagent appends", () => {
     const wrapper = functionBlock(src, "processSessionFile").text;
-    expect(wrapper).toContain("runTranscriptPass(args[1], path.resolve(args[0]), () => processSessionFilePass(...args))");
+    expect(wrapper).toContain(
+      "runTranscriptPass(args[1], path.resolve(args[0]), () =>\n    processSessionFilePass(...args),\n  )",
+    );
     const serialized = functionBlock(src, "runTranscriptPass").text;
-    expect(serialized).toContain("serializeTranscript(`ingest-session:${sessionId}`");
+    expect(serialized).toContain(
+      "serializeTranscript(`ingest-session:${sessionId}`",
+    );
     expect(serialized).toContain("serializeTranscript(file,");
     const body = functionBlock(src, "processSessionFilePass").text;
     expect(body).toContain("noteSubagentActivity(filePath)");
@@ -421,7 +550,13 @@ describe("wakeStatusAfterPark", () => {
   });
 
   test("a status the session earned after the park is kept", () => {
-    for (const status of ["working", "thinking", "waiting", "idle", "permission_blocked"] as const) {
+    for (const status of [
+      "working",
+      "thinking",
+      "waiting",
+      "idle",
+      "permission_blocked",
+    ] as const) {
       expect(wakeStatusAfterPark(status)).toBe(status);
     }
   });
@@ -430,7 +565,11 @@ describe("wakeStatusAfterPark", () => {
 // The park mark is daemon memory, and two things go wrong when it is trusted
 // alone: a restart empties it, and a teardown leaves it behind.
 describe("the park mark and the server stamp", async () => {
-  const writes: Array<{ conversationId: string; status: string; hibernatedAt?: number | null }> = [];
+  const writes: Array<{
+    conversationId: string;
+    status: string;
+    hibernatedAt?: number | null;
+  }> = [];
   const sync = {
     updateSessionAgentStatus: async (
       conversationId: string,
@@ -440,15 +579,24 @@ describe("the park mark and the server stamp", async () => {
       _tasks?: unknown,
       _presumed?: boolean,
       hibernatedAt?: number | null,
-    ) => { writes.push({ conversationId, status, hibernatedAt }); return true; },
+    ) => {
+      writes.push({ conversationId, status, hibernatedAt });
+      return true;
+    },
   } as unknown as import("./syncService.js").SyncService;
 
-  const track = (id: string, facts: { status?: AgentStatus; parked?: boolean } = {}) => {
+  const track = (
+    id: string,
+    facts: { status?: AgentStatus; parked?: boolean } = {},
+  ) => {
     trackSessionPaneForTests(id, `cc-resume-${id}`, facts);
     tracked.push(id);
   };
 
-  beforeEach(() => { writes.length = 0; setSyncServiceForTests(sync); });
+  beforeEach(() => {
+    writes.length = 0;
+    setSyncServiceForTests(sync);
+  });
   afterEach(() => setSyncServiceForTests(null));
 
   test("a park this daemon made is cleared and logged as a wake", async () => {
@@ -456,7 +604,13 @@ describe("the park mark and the server stamp", async () => {
     clearHibernationPark("mark-parked", "conv-parked");
     await flushHibernationStamps();
     expect(sessionParkStateForTests("mark-parked").parked).toBe(false);
-    expect(writes).toEqual([{ conversationId: "conv-parked", status: "connected", hibernatedAt: null }]);
+    expect(writes).toEqual([
+      {
+        conversationId: "conv-parked",
+        status: "connected",
+        hibernatedAt: null,
+      },
+    ]);
   });
 
   test("the first wake after boot clears the stamp even with no local mark", async () => {
@@ -466,7 +620,9 @@ describe("the park mark and the server stamp", async () => {
     track("mark-unknown", { status: "idle" });
     clearHibernationPark("mark-unknown", "conv-unknown");
     await flushHibernationStamps();
-    expect(writes).toEqual([{ conversationId: "conv-unknown", status: "idle", hibernatedAt: null }]);
+    expect(writes).toEqual([
+      { conversationId: "conv-unknown", status: "idle", hibernatedAt: null },
+    ]);
   });
 
   test("later wakes of the same session write nothing", async () => {
@@ -488,10 +644,15 @@ describe("the park mark and the server stamp", async () => {
     clearHibernationPark("mark-again", "conv-again");
     await flushHibernationStamps();
     writes.length = 0;
-    trackSessionPaneForTests("mark-again", `cc-resume-mark-again`, { parked: true, status: "hibernated" });
+    trackSessionPaneForTests("mark-again", `cc-resume-mark-again`, {
+      parked: true,
+      status: "hibernated",
+    });
     clearHibernationPark("mark-again", "conv-again");
     await flushHibernationStamps();
-    expect(writes).toEqual([{ conversationId: "conv-again", status: "connected", hibernatedAt: null }]);
+    expect(writes).toEqual([
+      { conversationId: "conv-again", status: "connected", hibernatedAt: null },
+    ]);
   });
 
   test("a teardown drops the mark: a killed session is not a parked one", async () => {
@@ -507,9 +668,12 @@ describe("the park mark and the server stamp", async () => {
 describe("after a daemon restart", () => {
   // The in-memory status is gone after every restart and an idle session never
   // speaks again, so the hook's own file is the status the pass must read.
-  const statusFile = (id: string) => path.join(defaultConfigDir(), "agent-status", `${id}.json`);
+  const statusFile = (id: string) =>
+    path.join(defaultConfigDir(), "agent-status", `${id}.json`);
   const written: string[] = [];
-  afterEach(() => { for (const f of written.splice(0)) fs.rmSync(f, { force: true }); });
+  afterEach(() => {
+    for (const f of written.splice(0)) fs.rmSync(f, { force: true });
+  });
   const writeStatus = (id: string, status: AgentStatus) => {
     fs.mkdirSync(path.dirname(statusFile(id)), { recursive: true });
     fs.writeFileSync(statusFile(id), JSON.stringify({ status, ts: NOW }));
@@ -525,7 +689,9 @@ describe("after a daemon restart", () => {
   test("a session working on disk still keeps its pane", async () => {
     const f = fixture({ count: 1, facts: () => ({ status: undefined }) });
     writeStatus(f.sessions[0], "working");
-    expect((await f.hibernate(f.sessions[0])).result).toBe("skipped_status-working");
+    expect((await f.hibernate(f.sessions[0])).result).toBe(
+      "skipped_status-working",
+    );
     expect(f.parked).toEqual([]);
   });
 });

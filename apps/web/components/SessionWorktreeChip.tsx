@@ -10,7 +10,16 @@ import { cloudSeedTitle } from "@codecast/shared/contracts";
  * says what it started from (`seed`): `<name> @<base7>` in the chip, the
  * "Started from …" line in the title.
  */
-export function SessionWorktreeChip({ name, branch, preparing, shared, moving, hostName, hostIcon, seed }: {
+export function SessionWorktreeChip({
+  name,
+  branch,
+  preparing,
+  shared,
+  moving,
+  hostName,
+  hostIcon,
+  seed,
+}: {
   name?: string | null;
   branch?: string | null;
   preparing?: boolean;
@@ -19,17 +28,35 @@ export function SessionWorktreeChip({ name, branch, preparing, shared, moving, h
   moving?: boolean;
   hostName?: string;
   hostIcon?: ReactNode;
-  seed?: { source: "checkout" | "origin_main"; base: string; branch?: string | null; dirty?: boolean | null; laptop_root?: string | null; reason?: string | null } | null;
+  seed?: {
+    source: "checkout" | "origin_main";
+    base: string;
+    branch?: string | null;
+    dirty?: boolean | null;
+    laptop_root?: string | null;
+    reason?: string | null;
+  } | null;
 }) {
   if (!name && !preparing && !shared && !moving) return null;
-  const where = moving ? "Moving to another machine — messages sent now wait and arrive after the move."
-    : preparing ? "Preparing the cloud host — its checkout is being made now."
-    : shared ? `Runs in the host's main checkout${branch ? ` (${branch})` : ""}`
-    : `Worktree ${name}${branch ? ` (${branch})` : ""}`;
+  const where = moving
+    ? "Moving to another machine — messages sent now wait and arrive after the move."
+    : preparing
+      ? "Preparing the cloud host — its checkout is being made now."
+      : shared
+        ? `Runs in the host's main checkout${branch ? ` (${branch})` : ""}`
+        : `Worktree ${name}${branch ? ` (${branch})` : ""}`;
   const busy = preparing || moving;
   const started = seed && !busy ? cloudSeedTitle(seed) : "";
-  const title = [hostName && `Runs on ${hostName}`, where, started].filter(Boolean).join("\n");
-  const label = moving ? "moving" : preparing ? "preparing" : shared ? "shared" : name;
+  const title = [hostName && `Runs on ${hostName}`, where, started]
+    .filter(Boolean)
+    .join("\n");
+  const label = moving
+    ? "moving"
+    : preparing
+      ? "preparing"
+      : shared
+        ? "shared"
+        : name;
   const text = seed && !busy ? `${label} @${seed.base.slice(0, 7)}` : label;
   return (
     <span
@@ -38,7 +65,10 @@ export function SessionWorktreeChip({ name, branch, preparing, shared, moving, h
       title={title}
     >
       <span className="sr-only">{title}</span>
-      <span aria-hidden="true" className="inline-flex items-center gap-1 min-w-0">
+      <span
+        aria-hidden="true"
+        className="inline-flex items-center gap-1 min-w-0"
+      >
         {hostIcon}
         <span className="truncate">{text}</span>
       </span>

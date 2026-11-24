@@ -30,7 +30,11 @@ export type Entry = {
   live?: boolean;
 };
 
-const tool = (id: string, name: string, input: Record<string, unknown>): ToolCall => ({ id, name, input: JSON.stringify(input) });
+const tool = (
+  id: string,
+  name: string,
+  input: Record<string, unknown>,
+): ToolCall => ({ id, name, input: JSON.stringify(input) });
 
 const RETRY_OLD = `export async function deliver(hook: Webhook) {
   await post(hook.url, hook.body);
@@ -50,41 +54,105 @@ export async function deliver(hook: Webhook, attempt = 1) {
 const spawnOut = (shortId: string, gist: string, where = "~/src/billing") =>
   `✓ spawned 1 session in ${where}, nested under ${SESSIONS.lead.shortId} as a subagent row:\n  ${shortId}  ${gist}`;
 
-export const API_TASK = "Retry endpoint: POST /v2/hooks/retry, idempotent, 5 attempts max";
-export const UI_TASK = "Dashboard: a retry button and attempt history on each failed webhook";
+export const API_TASK =
+  "Retry endpoint: POST /v2/hooks/retry, idempotent, 5 attempts max";
+export const UI_TASK =
+  "Dashboard: a retry button and attempt history on each failed webhook";
 
 /** The lead's transcript, every entry it gains during the film, in order. */
 export const ENTRIES: Entry[] = [
   { key: "prompt", kind: "user", cue: CUES.prompt, ago: 50_000, text: PROMPT },
   {
-    key: "thinking", kind: "assistant", cue: DESK.thinking, ago: 44_000, agent: SESSIONS.lead.agent, header: true,
-    thinking: "Failed deliveries are dropped today. A queue with exponential backoff keeps a flaky endpoint from losing events, and a cap stops a dead one from retrying forever.",
+    key: "thinking",
+    kind: "assistant",
+    cue: DESK.thinking,
+    ago: 44_000,
+    agent: SESSIONS.lead.agent,
+    header: true,
+    thinking:
+      "Failed deliveries are dropped today. A queue with exponential backoff keeps a flaky endpoint from losing events, and a cap stops a dead one from retrying forever.",
     text: "I'll put failed deliveries on a retry queue with exponential backoff, and send the ones that run out of attempts to a dead letter table.",
   },
   {
-    key: "edit", kind: "assistant", cue: DESK.edit, ago: 38_000, agent: SESSIONS.lead.agent, live: true,
-    tool: tool("hero-tool-edit", "Edit", { file_path: "/u/src/billing/src/billing/retry.ts", old_string: RETRY_OLD, new_string: RETRY_NEW }),
-    result: { tool_use_id: "hero-tool-edit", content: "The file src/billing/retry.ts has been updated." },
+    key: "edit",
+    kind: "assistant",
+    cue: DESK.edit,
+    ago: 38_000,
+    agent: SESSIONS.lead.agent,
+    live: true,
+    tool: tool("hero-tool-edit", "Edit", {
+      file_path: "/u/src/billing/src/billing/retry.ts",
+      old_string: RETRY_OLD,
+      new_string: RETRY_NEW,
+    }),
+    result: {
+      tool_use_id: "hero-tool-edit",
+      content: "The file src/billing/retry.ts has been updated.",
+    },
   },
   {
-    key: "bash", kind: "assistant", cue: DESK.bash, ago: 30_000, agent: SESSIONS.lead.agent, pendingUntil: CUES.testsPass,
-    tool: tool("hero-tool-test", "Bash", { command: "bun test src/billing", description: "Run the billing tests" }),
-    result: { tool_use_id: "hero-tool-test", content: "src/billing/retry.test.ts:\n✓ retries with exponential backoff\n✓ dead-letters after the last attempt\n\n 212 pass\n 0 fail\nRan 212 tests across 18 files. [3.41s]" },
+    key: "bash",
+    kind: "assistant",
+    cue: DESK.bash,
+    ago: 30_000,
+    agent: SESSIONS.lead.agent,
+    pendingUntil: CUES.testsPass,
+    tool: tool("hero-tool-test", "Bash", {
+      command: "bun test src/billing",
+      description: "Run the billing tests",
+    }),
+    result: {
+      tool_use_id: "hero-tool-test",
+      content:
+        "src/billing/retry.test.ts:\n✓ retries with exponential backoff\n✓ dead-letters after the last attempt\n\n 212 pass\n 0 fail\nRan 212 tests across 18 files. [3.41s]",
+    },
   },
-  { key: "steer", kind: "user", cue: DESK.steerSent, ago: 18_000, text: "keep the max at 5 attempts" },
   {
-    key: "ack", kind: "assistant", cue: DESK.ack, ago: 12_000, agent: SESSIONS.lead.agent,
+    key: "steer",
+    kind: "user",
+    cue: DESK.steerSent,
+    ago: 18_000,
+    text: "keep the max at 5 attempts",
+  },
+  {
+    key: "ack",
+    kind: "assistant",
+    cue: DESK.ack,
+    ago: 12_000,
+    agent: SESSIONS.lead.agent,
     text: "212 tests pass. MAX_ATTEMPTS is 5 now. I'll split the rest between two workers: the retry endpoint and the dashboard.",
   },
   {
-    key: "spawnA", kind: "assistant", cue: CUES.spawnA, ago: 8_000, agent: SESSIONS.lead.agent,
-    tool: tool("hero-tool-spawnA", "Bash", { command: `cast spawn --subagent --cloud --agent codex -- "${API_TASK}"` }),
-    result: { tool_use_id: "hero-tool-spawnA", content: spawnOut(SESSIONS.api.shortId, API_TASK, `~/src/billing on ${OBJECTS.hosts.cloud}`) },
+    key: "spawnA",
+    kind: "assistant",
+    cue: CUES.spawnA,
+    ago: 8_000,
+    agent: SESSIONS.lead.agent,
+    tool: tool("hero-tool-spawnA", "Bash", {
+      command: `cast spawn --subagent --cloud --agent codex -- "${API_TASK}"`,
+    }),
+    result: {
+      tool_use_id: "hero-tool-spawnA",
+      content: spawnOut(
+        SESSIONS.api.shortId,
+        API_TASK,
+        `~/src/billing on ${OBJECTS.hosts.cloud}`,
+      ),
+    },
   },
   {
-    key: "spawnB", kind: "assistant", cue: CUES.spawnB, ago: 7_000, agent: SESSIONS.lead.agent,
-    tool: tool("hero-tool-spawnB", "Bash", { command: `cast spawn --subagent --agent cursor -- "${UI_TASK}"` }),
-    result: { tool_use_id: "hero-tool-spawnB", content: spawnOut(SESSIONS.ui.shortId, UI_TASK) },
+    key: "spawnB",
+    kind: "assistant",
+    cue: CUES.spawnB,
+    ago: 7_000,
+    agent: SESSIONS.lead.agent,
+    tool: tool("hero-tool-spawnB", "Bash", {
+      command: `cast spawn --subagent --agent cursor -- "${UI_TASK}"`,
+    }),
+    result: {
+      tool_use_id: "hero-tool-spawnB",
+      content: spawnOut(SESSIONS.ui.shortId, UI_TASK),
+    },
   },
 ];
 
@@ -98,17 +166,42 @@ export const PREV = {
   messages: 41,
   entries: [
     {
-      key: "prev-plan", kind: "assistant", cue: 0, ago: 9 * MIN, agent: "codex", header: true,
+      key: "prev-plan",
+      kind: "assistant",
+      cue: 0,
+      ago: 9 * MIN,
+      agent: "codex",
+      header: true,
       text: "I'll copy invoices in batches of 50,000 and checksum each batch against the old cluster before switching reads.",
     },
     {
-      key: "prev-tool", kind: "assistant", cue: 0, ago: 6 * MIN, agent: "codex",
-      tool: tool("hero-tool-prev", "Bash", { command: "bun run migrate:invoices --target local --batch 50000" }),
-      result: { tool_use_id: "hero-tool-prev", content: "copied 1,204,331 invoices in 25 batches\nchecksums match" },
+      key: "prev-tool",
+      kind: "assistant",
+      cue: 0,
+      ago: 6 * MIN,
+      agent: "codex",
+      tool: tool("hero-tool-prev", "Bash", {
+        command: "bun run migrate:invoices --target local --batch 50000",
+      }),
+      result: {
+        tool_use_id: "hero-tool-prev",
+        content: "copied 1,204,331 invoices in 25 batches\nchecksums match",
+      },
     },
-    { key: "prev-q", kind: "user", cue: 0, ago: 3 * MIN, text: "run the migration against staging first" },
     {
-      key: "prev-a", kind: "assistant", cue: 0, ago: 2 * MIN, agent: "codex", header: true,
+      key: "prev-q",
+      kind: "user",
+      cue: 0,
+      ago: 3 * MIN,
+      text: "run the migration against staging first",
+    },
+    {
+      key: "prev-a",
+      kind: "assistant",
+      cue: 0,
+      ago: 2 * MIN,
+      agent: "codex",
+      header: true,
       text: "Staging is on Postgres 16. All 1.2M invoices copied and checksummed; the old cluster stays read-only until you say so.",
     },
   ] satisfies Entry[],
@@ -116,7 +209,11 @@ export const PREV = {
 
 export const VIEWER = {
   model: "claude-opus-5-5",
-  sarah: { _id: PEOPLE.sarah.id, name: PEOPLE.sarah.name, presence_state: "active" },
+  sarah: {
+    _id: PEOPLE.sarah.id,
+    name: PEOPLE.sarah.name,
+    presence_state: "active",
+  },
 };
 
 /** Sarah opens the lead while it runs the tests. */
@@ -124,8 +221,22 @@ export const SARAH_VIEWING = DESK.bash + 0.4;
 
 /** What the working line says the lead is doing. */
 /** The working line's label after each cue: thinking until the first, then each in turn. */
-export const WORKING_CUES = [DESK.edit, DESK.bash, CUES.testsPass, DESK.steerSent, CUES.spawnA] as const;
-export const WORKING_LABELS = ["thinking", "editing retry.ts", "running bun test", "tests passed", "reading your message", "spawning workers"] as const;
-export const workingLabel = (t: number) => WORKING_LABELS[WORKING_CUES.filter((c) => t >= c).length];
+export const WORKING_CUES = [
+  DESK.edit,
+  DESK.bash,
+  CUES.testsPass,
+  DESK.steerSent,
+  CUES.spawnA,
+] as const;
+export const WORKING_LABELS = [
+  "thinking",
+  "editing retry.ts",
+  "running bun test",
+  "tests passed",
+  "reading your message",
+  "spawning workers",
+] as const;
+export const workingLabel = (t: number) =>
+  WORKING_LABELS[WORKING_CUES.filter((c) => t >= c).length];
 
 export const entities: Record<string, EntityFixture> = {};

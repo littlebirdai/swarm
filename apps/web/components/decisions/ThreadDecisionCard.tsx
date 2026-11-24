@@ -23,7 +23,14 @@ import { SessionDecisionCard, type Size } from "../SessionDecisionCard";
  * here: in a thread it is its own card in the transcript, with the command it
  * runs, and it comes up there once the asks ahead of it are answered.
  */
-export function ThreadDecisionCard({ conversationId, asks, fallback, stepper, targetNonce, scrollToMessage }: {
+export function ThreadDecisionCard({
+  conversationId,
+  asks,
+  fallback,
+  stepper,
+  targetNonce,
+  scrollToMessage,
+}: {
   conversationId: string;
   /** The thread's open `cast decide` asks, in the order they are answered. */
   asks: readonly QueueItem[];
@@ -33,20 +40,55 @@ export function ThreadDecisionCard({ conversationId, asks, fallback, stepper, ta
   targetNonce?: number;
   scrollToMessage?: (messageId: string) => void;
 }) {
-  const [picked, setPicked] = useState<{ key: string; size?: Size } | null>(null);
+  const [picked, setPicked] = useState<{ key: string; size?: Size } | null>(
+    null,
+  );
   // The rows past the first few, once opened, stay open while the person moves between the thread's asks.
   const [allRows, setAllRows] = useState(false);
-  useWatchEffect(() => { setPicked(null); setAllRows(false); }, [conversationId]);
-  useWatchEffect(() => { setPicked(null); }, [fallback?.key]);
-  useWatchEffect(() => { if (picked?.size) setPicked({ key: picked.key }); }, [picked]);
-  const pick = useCallback((key: string, size: Size) => setPicked({ key, size }), []);
+  useWatchEffect(() => {
+    setPicked(null);
+    setAllRows(false);
+  }, [conversationId]);
+  useWatchEffect(() => {
+    setPicked(null);
+  }, [fallback?.key]);
+  useWatchEffect(() => {
+    if (picked?.size) setPicked({ key: picked.key });
+  }, [picked]);
+  const pick = useCallback(
+    (key: string, size: Size) => setPicked({ key, size }),
+    [],
+  );
   const showAllRows = useCallback(() => setAllRows(true), []);
-  const runKeys = useInboxStore((s) => asks.filter((a) => !!a.decisionId && !!s.sessionDecisions[a.decisionId]?.run).map((a) => a.key).join("\u0001"));
-  const steppable = useMemo(() => { const run = new Set(runKeys.split("\u0001")); return asks.filter((a) => !run.has(a.key)); }, [asks, runKeys]);
-  const shown = steppable.find((a) => a.key === picked?.key) ?? steppable.find((a) => a.key === fallback?.key) ?? asks[0] ?? fallback ?? null;
+  const runKeys = useInboxStore((s) =>
+    asks
+      .filter((a) => !!a.decisionId && !!s.sessionDecisions[a.decisionId]?.run)
+      .map((a) => a.key)
+      .join("\u0001"),
+  );
+  const steppable = useMemo(() => {
+    const run = new Set(runKeys.split("\u0001"));
+    return asks.filter((a) => !run.has(a.key));
+  }, [asks, runKeys]);
+  const shown =
+    steppable.find((a) => a.key === picked?.key) ??
+    steppable.find((a) => a.key === fallback?.key) ??
+    asks[0] ??
+    fallback ??
+    null;
   if (!shown) return null;
   return (
-    <SessionDecisionCard key={shown.key} item={shown} stepper={stepper} asks={steppable.some((a) => a.key === shown.key) ? steppable : undefined} onPick={pick}
-      startSize={picked?.key === shown.key ? picked.size : undefined} allRows={allRows} onAllRows={showAllRows} targetNonce={targetNonce} scrollToMessage={scrollToMessage} />
+    <SessionDecisionCard
+      key={shown.key}
+      item={shown}
+      stepper={stepper}
+      asks={steppable.some((a) => a.key === shown.key) ? steppable : undefined}
+      onPick={pick}
+      startSize={picked?.key === shown.key ? picked.size : undefined}
+      allRows={allRows}
+      onAllRows={showAllRows}
+      targetNonce={targetNonce}
+      scrollToMessage={scrollToMessage}
+    />
   );
 }

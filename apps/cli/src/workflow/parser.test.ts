@@ -2,7 +2,11 @@ import { describe, test, expect } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { parseWorkflowSource, parseWorkflowFile, validateWorkflow } from "./parser.js";
+import {
+  parseWorkflowSource,
+  parseWorkflowFile,
+  validateWorkflow,
+} from "./parser.js";
 
 // ── Parser tests ──────────────────────────────────────────────────────────────
 
@@ -96,8 +100,12 @@ describe("workflow/parser", () => {
       retry  -> done
     }`;
     const g = parseWorkflowSource(src);
-    const toSuccess = g.edges.find(e => e.from === "verify" && e.to === "done");
-    const toRetry = g.edges.find(e => e.from === "verify" && e.to === "retry");
+    const toSuccess = g.edges.find(
+      (e) => e.from === "verify" && e.to === "done",
+    );
+    const toRetry = g.edges.find(
+      (e) => e.from === "verify" && e.to === "retry",
+    );
     expect(toSuccess?.condition).toBe("outcome = success");
     expect(toRetry?.condition).toBe("outcome = failure");
   });
@@ -161,7 +169,7 @@ describe("workflow/validateWorkflow", () => {
       exit [shape=Msquare]
     }`);
     const errs = validateWorkflow(g);
-    expect(errs.some(e => e.includes("start"))).toBe(true);
+    expect(errs.some((e) => e.includes("start"))).toBe(true);
   });
 
   test("errors on missing exit node", () => {
@@ -169,7 +177,9 @@ describe("workflow/validateWorkflow", () => {
       start [shape=Mdiamond]
     }`);
     const errs = validateWorkflow(g);
-    expect(errs.some(e => e.includes("exit") || e.includes("Msquare"))).toBe(true);
+    expect(errs.some((e) => e.includes("exit") || e.includes("Msquare"))).toBe(
+      true,
+    );
   });
 
   test("errors on command node with no script", () => {
@@ -180,7 +190,9 @@ describe("workflow/validateWorkflow", () => {
       start -> broken -> exit
     }`);
     const errs = validateWorkflow(g);
-    expect(errs.some(e => e.includes("broken") && e.includes("script"))).toBe(true);
+    expect(errs.some((e) => e.includes("broken") && e.includes("script"))).toBe(
+      true,
+    );
   });
 
   test("an arrow written without spaces is still an edge, and a dash stays part of a name", () => {
@@ -190,7 +202,10 @@ describe("workflow/validateWorkflow", () => {
       exit  [shape=Msquare]
       start->fix-check->exit
     }`);
-    expect(g.edges.map(e => `${e.from}>${e.to}`)).toEqual(["start>fix-check", "fix-check>exit"]);
+    expect(g.edges.map((e) => `${e.from}>${e.to}`)).toEqual([
+      "start>fix-check",
+      "fix-check>exit",
+    ]);
     expect(g.nodes.has("fix-check")).toBe(true);
   });
 
@@ -203,6 +218,6 @@ describe("workflow/validateWorkflow", () => {
     // Manually inject a bad edge
     g.edges.push({ from: "start", to: "ghost" });
     const errs = validateWorkflow(g);
-    expect(errs.some(e => e.includes("ghost"))).toBe(true);
+    expect(errs.some((e) => e.includes("ghost"))).toBe(true);
   });
 });

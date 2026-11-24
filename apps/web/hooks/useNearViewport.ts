@@ -9,8 +9,14 @@ import { useMountEffect } from "./useMountEffect";
  *  buffer): it mounts as the reader nears it and is let go once they are far
  *  past, so a thread of them never holds more than the screen's worth. No
  *  IntersectionObserver (a test, an old browser) means yes at once. */
-export function useNearViewport(ref: RefObject<Element | null>, margin = "200px", { latch = true }: { latch?: boolean } = {}): boolean {
-  const [near, setNear] = useState(() => typeof IntersectionObserver === "undefined");
+export function useNearViewport(
+  ref: RefObject<Element | null>,
+  margin = "200px",
+  { latch = true }: { latch?: boolean } = {},
+): boolean {
+  const [near, setNear] = useState(
+    () => typeof IntersectionObserver === "undefined",
+  );
   useMountEffect(() => {
     const el = ref.current;
     if (near || !el || typeof IntersectionObserver === "undefined") return;

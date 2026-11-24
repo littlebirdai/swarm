@@ -14,7 +14,10 @@ function tmpMetadata(): string {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitFor(cond: () => boolean, timeoutMs = 3000): Promise<boolean> {
+async function waitFor(
+  cond: () => boolean,
+  timeoutMs = 3000,
+): Promise<boolean> {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
     if (cond()) return true;
@@ -33,7 +36,10 @@ describe("watchOptimizerCache", () => {
       intervalMs: 20,
       graceMs: 60,
     });
-    fs.rmSync(path.dirname(path.dirname(file)), { recursive: true, force: true });
+    fs.rmSync(path.dirname(path.dirname(file)), {
+      recursive: true,
+      force: true,
+    });
     expect(await waitFor(() => fired === 1)).toBe(true);
     // Fires once, not on every later poll.
     await sleep(150);
@@ -59,17 +65,28 @@ describe("watchOptimizerCache", () => {
   });
 
   test("ignores a cache that never existed (boot before the first optimize)", async () => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "deps-guard-")), "deps", "_metadata.json");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "deps-guard-")),
+      "deps",
+      "_metadata.json",
+    );
     let fired = 0;
-    const stop = watchOptimizerCache({ metadataPath: file, onPurged: () => fired++, intervalMs: 20, graceMs: 40 });
+    const stop = watchOptimizerCache({
+      metadataPath: file,
+      onPurged: () => fired++,
+      intervalMs: 20,
+      graceMs: 40,
+    });
     await sleep(150);
     stop();
     expect(fired).toBe(0);
   });
 
   test("watches the client deps metadata under the resolved cacheDir", () => {
-    expect(metadataPathFor({ config: { cacheDir: "/repo/apps/web/node_modules/.vite" } } as any)).toBe(
-      "/repo/apps/web/node_modules/.vite/deps/_metadata.json",
-    );
+    expect(
+      metadataPathFor({
+        config: { cacheDir: "/repo/apps/web/node_modules/.vite" },
+      } as any),
+    ).toBe("/repo/apps/web/node_modules/.vite/deps/_metadata.json");
   });
 });

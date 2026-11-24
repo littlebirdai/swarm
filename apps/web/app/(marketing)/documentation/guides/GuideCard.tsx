@@ -10,11 +10,28 @@ export function GuideCard({ guide }: { guide: Guide }) {
     <Link
       href={guideHref(guide.slug)}
       className="rounded-lg p-4 block transition-colors hover:shadow-sm"
-      style={{ backgroundColor: `${SOL.base2}55`, border: `1px solid ${SOL.base2}` }}
+      style={{
+        backgroundColor: `${SOL.base2}55`,
+        border: `1px solid ${SOL.base2}`,
+      }}
     >
-      <div className="font-mono text-sm font-semibold mb-1" style={{ color: SOL.base03 }}>{guide.title}</div>
-      <div className="text-[13px] leading-relaxed" style={{ color: SOL.base00 }}>{guide.dek}</div>
-      <time dateTime={guide.published} className="block mt-2 font-mono text-meta" style={{ color: SOL.base1 }}>
+      <div
+        className="font-mono text-sm font-semibold mb-1"
+        style={{ color: SOL.base03 }}
+      >
+        {guide.title}
+      </div>
+      <div
+        className="text-[13px] leading-relaxed"
+        style={{ color: SOL.base00 }}
+      >
+        {guide.dek}
+      </div>
+      <time
+        dateTime={guide.published}
+        className="block mt-2 font-mono text-meta"
+        style={{ color: SOL.base1 }}
+      >
         {formatGuideDate(guide.published)}
       </time>
     </Link>

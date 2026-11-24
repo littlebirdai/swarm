@@ -15,9 +15,27 @@ const ROOM = "channel:design";
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "PointerEvent", "MouseEvent", "localStorage"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key] ?? (dom.window as any).Event, configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+    "PointerEvent",
+    "MouseEvent",
+    "localStorage",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key] ?? (dom.window as any).Event,
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -43,18 +61,36 @@ test("the card offers Record while connected, asks first, and steps aside while 
   useInboxStore.getState().syncTable("callRooms", [row({})]);
   const host = document.getElementById("root")!;
   const root = createRoot(host);
-  React.act(() => root.render(React.createElement("div", { className: "engagement-card" }, React.createElement(RecordButton, { roomKey: ROOM, variant: "card" }))));
-  const button = host.querySelector('[data-card-action="record"]') as HTMLButtonElement | null;
+  React.act(() =>
+    root.render(
+      React.createElement(
+        "div",
+        { className: "engagement-card" },
+        React.createElement(RecordButton, { roomKey: ROOM, variant: "card" }),
+      ),
+    ),
+  );
+  const button = host.querySelector(
+    '[data-card-action="record"]',
+  ) as HTMLButtonElement | null;
   expect(button?.getAttribute("aria-label")).toBe("Record this huddle");
   expect(button?.className).toContain("engagement-card-toggle");
   // The first press asks the room's question, under the card.
   React.act(() => button!.click());
-  expect(host.querySelector('[role="dialog"][aria-label="Record this huddle?"]')).not.toBeNull();
+  expect(
+    host.querySelector('[role="dialog"][aria-label="Record this huddle?"]'),
+  ).not.toBeNull();
   // Recording: the card's mark is the Stop, so the button draws nothing.
   // The store tells its readers after the write settles: let it.
   await React.act(async () => {
     useInboxStore.getState().syncTable("callRooms", [
-      row({ recording: true, recording_status: "recording", recording_run_id: "run1", recording_by_id: "u1", recording_requested_at: 1 }),
+      row({
+        recording: true,
+        recording_status: "recording",
+        recording_run_id: "run1",
+        recording_by_id: "u1",
+        recording_requested_at: 1,
+      }),
     ]);
     await new Promise((r) => setTimeout(r, 50));
   });
@@ -64,10 +100,17 @@ test("the card offers Record while connected, asks first, and steps aside while 
 
 test("a server with recording off offers nothing on the card, and says nothing until it has answered", () => {
   const host = document.getElementById("root")!;
-  for (const over of [{ recording_configured: false }, { recording_configured: undefined }]) {
+  for (const over of [
+    { recording_configured: false },
+    { recording_configured: undefined },
+  ]) {
     useInboxStore.getState().syncTable("callRooms", [row(over)]);
     const root = createRoot(host);
-    React.act(() => root.render(React.createElement(RecordButton, { roomKey: ROOM, variant: "card" })));
+    React.act(() =>
+      root.render(
+        React.createElement(RecordButton, { roomKey: ROOM, variant: "card" }),
+      ),
+    );
     expect(host.innerHTML).toBe("");
     React.act(() => root.unmount());
   }

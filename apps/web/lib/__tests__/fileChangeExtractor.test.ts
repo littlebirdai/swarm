@@ -481,7 +481,9 @@ describe("extractFileChanges", () => {
           {
             id: "fc2",
             name: "fileChange",
-            input: JSON.stringify({ changes: "updated: /src/a.ts\ncreated: /src/b.ts" }),
+            input: JSON.stringify({
+              changes: "updated: /src/a.ts\ncreated: /src/b.ts",
+            }),
           },
         ],
         tool_results: [

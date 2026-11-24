@@ -23,27 +23,67 @@ const TEAM = "t_team";
 
 function fixture() {
   return makeFakeDb({
-    users: [{ _id: OWNER, active_team_id: TEAM }, { _id: MATE, active_team_id: TEAM }],
+    users: [
+      { _id: OWNER, active_team_id: TEAM },
+      { _id: MATE, active_team_id: TEAM },
+    ],
     teams: [{ _id: TEAM }],
     team_memberships: [
-      { _id: "m1", user_id: OWNER, team_id: TEAM, role: "member", visibility: "full" },
-      { _id: "m2", user_id: MATE, team_id: TEAM, role: "member", visibility: "full" },
+      {
+        _id: "m1",
+        user_id: OWNER,
+        team_id: TEAM,
+        role: "member",
+        visibility: "full",
+      },
+      {
+        _id: "m2",
+        user_id: MATE,
+        team_id: TEAM,
+        role: "member",
+        visibility: "full",
+      },
     ],
     conversations: [
       { _id: "c_shared", user_id: OWNER, is_private: false },
       { _id: "c_private", user_id: OWNER, is_private: true },
     ],
     tasks: [
-      { _id: "task_shared", user_id: OWNER, created_from_conversation: "c_shared", workspace: `user:${OWNER}` },
-      { _id: "task_private", user_id: OWNER, created_from_conversation: "c_private", workspace: `user:${OWNER}` },
+      {
+        _id: "task_shared",
+        user_id: OWNER,
+        created_from_conversation: "c_shared",
+        workspace: `user:${OWNER}`,
+      },
+      {
+        _id: "task_private",
+        user_id: OWNER,
+        created_from_conversation: "c_private",
+        workspace: `user:${OWNER}`,
+      },
     ],
-    docs: [{ _id: "doc_shared", user_id: OWNER, conversation_id: "c_shared", workspace: `user:${OWNER}` }],
-    plans: [{ _id: "plan_shared", user_id: OWNER, created_from_conversation_id: "c_shared", workspace: `user:${OWNER}` }],
+    docs: [
+      {
+        _id: "doc_shared",
+        user_id: OWNER,
+        conversation_id: "c_shared",
+        workspace: `user:${OWNER}`,
+      },
+    ],
+    plans: [
+      {
+        _id: "plan_shared",
+        user_id: OWNER,
+        created_from_conversation_id: "c_shared",
+        workspace: `user:${OWNER}`,
+      },
+    ],
     projects: [],
   });
 }
 
-const run = (fn: any, ctx: any, args: any) => ((fn as any)._handler ?? (fn as any).handler)(ctx, args);
+const run = (fn: any, ctx: any, args: any) =>
+  ((fn as any)._handler ?? (fn as any).handler)(ctx, args);
 
 /** Every disagreement the reconciler finds across the key-carrying tables. */
 async function sweepDisagreements(ctx: any) {
@@ -71,7 +111,8 @@ describe("conversation team_id backfills propagate the workspace access key", ()
     // already on the key its conversation implies, so nothing to rewrite.
     expect(result.rescoped).toBe(3);
 
-    const byId = (table: string, id: string) => db._tables[table].find((r: any) => r._id === id);
+    const byId = (table: string, id: string) =>
+      db._tables[table].find((r: any) => r._id === id);
     expect(byId("conversations", "c_shared").team_id).toBe(TEAM);
     expect(byId("conversations", "c_private").team_id).toBe(TEAM);
     expect(byId("tasks", "task_shared").workspace).toBe(`team:${TEAM}`);
@@ -81,27 +122,48 @@ describe("conversation team_id backfills propagate the workspace access key", ()
 
     // The point of the key: a teammate can now read the shared session's work
     // and still cannot read the private session's.
-    expect(await canAccessTask(ctx, MATE as any, byId("tasks", "task_shared"))).toBe(true);
-    expect(await canAccessTask(ctx, MATE as any, byId("tasks", "task_private"))).toBe(false);
+    expect(
+      await canAccessTask(ctx, MATE as any, byId("tasks", "task_shared")),
+    ).toBe(true);
+    expect(
+      await canAccessTask(ctx, MATE as any, byId("tasks", "task_private")),
+    ).toBe(false);
 
-    expect(await sweepDisagreements(ctx)).toEqual({ findings: [], stale: 0, missing: 0 });
+    expect(await sweepDisagreements(ctx)).toEqual({
+      findings: [],
+      stale: 0,
+      missing: 0,
+    });
   });
 
   test("backfillUserTeamIds: same propagation, and the reconciler reports nothing", async () => {
     const db = fixture();
     const ctx = { db } as any;
 
-    const result = await run(backfillUserTeamIds, ctx, { userId: OWNER, teamId: TEAM });
+    const result = await run(backfillUserTeamIds, ctx, {
+      userId: OWNER,
+      teamId: TEAM,
+    });
 
-    expect(result).toEqual({ updated: 2, alreadyHad: 0, rescoped: 3, isDone: true });
+    expect(result).toEqual({
+      updated: 2,
+      alreadyHad: 0,
+      rescoped: 3,
+      isDone: true,
+    });
 
-    const byId = (table: string, id: string) => db._tables[table].find((r: any) => r._id === id);
+    const byId = (table: string, id: string) =>
+      db._tables[table].find((r: any) => r._id === id);
     expect(byId("tasks", "task_shared").workspace).toBe(`team:${TEAM}`);
     expect(byId("docs", "doc_shared").workspace).toBe(`team:${TEAM}`);
     expect(byId("plans", "plan_shared").workspace).toBe(`team:${TEAM}`);
     expect(byId("tasks", "task_private").workspace).toBe(`user:${OWNER}`);
 
-    expect(await sweepDisagreements(ctx)).toEqual({ findings: [], stale: 0, missing: 0 });
+    expect(await sweepDisagreements(ctx)).toEqual({
+      findings: [],
+      stale: 0,
+      missing: 0,
+    });
   });
 
   test("one call rewrites at most a batch and the re-run finishes the rest", async () => {
@@ -111,7 +173,11 @@ describe("conversation team_id backfills propagate the workspace access key", ()
     // stamped conversation is skipped the second time round.
     const db = fixture();
     for (let i = 0; i < 12; i++) {
-      db._tables.conversations.push({ _id: `c_extra_${i}`, user_id: OWNER, is_private: false });
+      db._tables.conversations.push({
+        _id: `c_extra_${i}`,
+        user_id: OWNER,
+        is_private: false,
+      });
     }
     const ctx = { db } as any;
 
@@ -119,20 +185,36 @@ describe("conversation team_id backfills propagate the workspace access key", ()
     expect(first.updated).toBe(10);
     expect(first.isDone).toBe(false);
 
-    const second = await run(backfillTeamIds, ctx, { cursor: first.cursor ?? undefined });
+    const second = await run(backfillTeamIds, ctx, {
+      cursor: first.cursor ?? undefined,
+    });
     expect(second.updated).toBe(4);
     expect(second.isDone).toBe(true);
-    expect(db._tables.conversations.every((c: any) => c.team_id === TEAM)).toBe(true);
+    expect(db._tables.conversations.every((c: any) => c.team_id === TEAM)).toBe(
+      true,
+    );
 
-    expect(await sweepDisagreements(ctx)).toEqual({ findings: [], stale: 0, missing: 0 });
+    expect(await sweepDisagreements(ctx)).toEqual({
+      findings: [],
+      stale: 0,
+      missing: 0,
+    });
   });
 
   test("a conversation that already carries a team is left alone", async () => {
     const db = fixture();
-    db._tables.conversations.push({ _id: "c_other", user_id: OWNER, team_id: TEAM, is_private: false });
+    db._tables.conversations.push({
+      _id: "c_other",
+      user_id: OWNER,
+      team_id: TEAM,
+      is_private: false,
+    });
     const ctx = { db } as any;
 
-    const result = await run(backfillUserTeamIds, ctx, { userId: OWNER, teamId: TEAM });
+    const result = await run(backfillUserTeamIds, ctx, {
+      userId: OWNER,
+      teamId: TEAM,
+    });
 
     expect(result.alreadyHad).toBe(1);
     expect(db._patched.some((p: any) => p._id === "c_other")).toBe(false);

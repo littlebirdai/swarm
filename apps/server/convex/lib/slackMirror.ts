@@ -7,7 +7,10 @@ export type SlackDirection = "both" | "slack_to_codecast" | "codecast_to_slack";
 
 export type SlackSendAuth = "ready" | "connect" | "reconnect";
 
-export function tokenHasScope(scopes: string | undefined | null, scope: string): boolean {
+export function tokenHasScope(
+  scopes: string | undefined | null,
+  scope: string,
+): boolean {
   return (scopes ?? "").split(",").some((s) => s.trim() === scope);
 }
 
@@ -31,13 +34,26 @@ export function slackMemberWriter(opts: {
   botScopes?: string | null;
   userScopes?: string | null;
 }): SlackMemberWriter {
-  if (tokenHasScope(opts.botScopes, opts.isPrivate ? "groups:write" : "channels:manage")) return "bot";
-  if (opts.isPrivate && tokenHasScope(opts.userScopes, "groups:write")) return "user";
+  if (
+    tokenHasScope(
+      opts.botScopes,
+      opts.isPrivate ? "groups:write" : "channels:manage",
+    )
+  )
+    return "bot";
+  if (opts.isPrivate && tokenHasScope(opts.userScopes, "groups:write"))
+    return "user";
   return null;
 }
 
-export function slackSendAuth(token: { scopes?: string } | null): SlackSendAuth {
-  return !token ? "connect" : tokenCanPost(token.scopes) ? "ready" : "reconnect";
+export function slackSendAuth(
+  token: { scopes?: string } | null,
+): SlackSendAuth {
+  return !token
+    ? "connect"
+    : tokenCanPost(token.scopes)
+      ? "ready"
+      : "reconnect";
 }
 
 export type SlackLinkOptions = {
@@ -89,25 +105,47 @@ type Flowing = { direction: SlackDirection; paused?: boolean };
 
 /** Does a line written in codecast reach Slack? */
 export function linkSendsOutbound(link: Flowing): boolean {
-  return !link.paused && (link.direction === "both" || link.direction === "codecast_to_slack");
+  return (
+    !link.paused &&
+    (link.direction === "both" || link.direction === "codecast_to_slack")
+  );
 }
 
 /** Does a line written in Slack reach codecast? */
 export function linkReceivesInbound(link: Flowing): boolean {
-  return !link.paused && (link.direction === "both" || link.direction === "slack_to_codecast");
+  return (
+    !link.paused &&
+    (link.direction === "both" || link.direction === "slack_to_codecast")
+  );
 }
 
 /** How much Slack history a new mirror brings over. "none" starts from now;
  *  "all" is bounded by BACKFILL_MAX_TOTAL lines per import (slackSync.ts). */
 export type BackfillWindow = "none" | "1d" | "7d" | "30d" | "90d" | "all";
 
-export const BACKFILL_WINDOWS: { key: BackfillWindow; label: string; hint: string }[] = [
+export const BACKFILL_WINDOWS: {
+  key: BackfillWindow;
+  label: string;
+  hint: string;
+}[] = [
   { key: "none", label: "From now", hint: "Nothing older comes over." },
   { key: "1d", label: "Last day", hint: "Yesterday and today." },
-  { key: "7d", label: "Last week", hint: "Enough to follow what is being discussed." },
-  { key: "30d", label: "Last month", hint: "The usual choice: recent context without the archive." },
+  {
+    key: "7d",
+    label: "Last week",
+    hint: "Enough to follow what is being discussed.",
+  },
+  {
+    key: "30d",
+    label: "Last month",
+    hint: "The usual choice: recent context without the archive.",
+  },
   { key: "90d", label: "Last 3 months", hint: "A quarter of history." },
-  { key: "all", label: "Everything", hint: "The whole channel, up to 25,000 lines." },
+  {
+    key: "all",
+    label: "Everything",
+    hint: "The whole channel, up to 25,000 lines.",
+  },
 ];
 
 /** The default for a channel brought over from Slack: a month gives the room
@@ -119,7 +157,9 @@ export const DEFAULT_BACKFILL: BackfillWindow = "30d";
  *  paused link looks paused everywhere or nowhere. */
 export type SlackMirrorState = "live" | "paused" | "error";
 
-export function mirrorState(link: Flowing & { last_error?: string | null }): SlackMirrorState {
+export function mirrorState(
+  link: Flowing & { last_error?: string | null },
+): SlackMirrorState {
   if (link.paused) return "paused";
   if (link.last_error) return "error";
   return "live";
@@ -168,7 +208,9 @@ export function nextSlackMembers(
   cap: number,
 ): string[] {
   if (change.set) return [...new Set(change.set)].slice(0, cap);
-  if (change.add && !current.includes(change.add) && current.length < cap) return [...current, change.add];
-  if (change.remove && current.includes(change.remove)) return current.filter((id) => id !== change.remove);
+  if (change.add && !current.includes(change.add) && current.length < cap)
+    return [...current, change.add];
+  if (change.remove && current.includes(change.remove))
+    return current.filter((id) => id !== change.remove);
   return current;
 }

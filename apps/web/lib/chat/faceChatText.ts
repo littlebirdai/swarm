@@ -5,9 +5,14 @@ import { useInboxStore } from "../../store/inboxStore";
 
 /** Where a line was said. `thread` is the thread's root id, or just true when
  *  the line is a reply whose root this window has not loaded. */
-export function whereOf(channelId: string, isDm: boolean, threadRootId?: string | boolean): string {
+export function whereOf(
+  channelId: string,
+  isDm: boolean,
+  threadRootId?: string | boolean,
+): string {
   if (isDm) return threadRootId ? "thread · direct message" : "direct message";
-  const name = (useInboxStore.getState() as any).chatChannels?.[channelId]?.name;
+  const name = (useInboxStore.getState() as any).chatChannels?.[channelId]
+    ?.name;
   return `${threadRootId ? "thread in " : "in "}#${name ?? "channel"}`;
 }
 
@@ -16,7 +21,12 @@ export function whereOf(channelId: string, isDm: boolean, threadRootId?: string 
 export function viewerHandles(): Set<string> {
   const u: any = useInboxStore.getState().currentUser;
   const out = new Set<string>(["here", "channel", "everyone"]);
-  for (const h of [u?.github_username, u?.name, String(u?.name ?? "").split(/\s+/)[0]]) if (h) out.add(String(h).toLowerCase());
+  for (const h of [
+    u?.github_username,
+    u?.name,
+    String(u?.name ?? "").split(/\s+/)[0],
+  ])
+    if (h) out.add(String(h).toLowerCase());
   return out;
 }
 

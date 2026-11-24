@@ -18,11 +18,19 @@ export function machineSwitchBlock(opts: {
   tokenLive?: boolean;
   thisProfile: string;
 }): { block: SwitchBlock; label: string } | null {
-  if (opts.isActive) return { block: "active", label: "This machine is already on this account" };
+  if (opts.isActive)
+    return {
+      block: "active",
+      label: "This machine is already on this account",
+    };
   if (opts.isRemote) {
-    return { block: "remote", label: "Remote machines mirror the primary — switch there" };
+    return {
+      block: "remote",
+      label: "Remote machines mirror the primary — switch there",
+    };
   }
-  if (opts.online === false) return { block: "offline", label: "The daemon on this machine is offline" };
+  if (opts.online === false)
+    return { block: "offline", label: "The daemon on this machine is offline" };
   if (opts.loginExpired && !opts.tokenLive) {
     return {
       block: "login_expired",
@@ -58,7 +66,13 @@ export function profileIsFleetAccount(
   return profileIsCurrentLogin(profile, fleet.activeEmail);
 }
 
-export type MachineSwitchPhase = "idle" | "waiting" | "confirming" | "slow" | "succeeded" | "failed";
+export type MachineSwitchPhase =
+  | "idle"
+  | "waiting"
+  | "confirming"
+  | "slow"
+  | "succeeded"
+  | "failed";
 
 export type MachineSwitchCommand = {
   executed_at?: number | null;
@@ -116,13 +130,23 @@ export function humanizeSwitchError(msg: string): string {
 
 /** `account` is what a person reads: the email, never the daemon's profile id
  *  (an account-pool share is saved as `pool-<local part>`). */
-export function machineSwitchPendingCopy(phase: MachineSwitchPhase, account: string, deviceLabel?: string): string {
+export function machineSwitchPendingCopy(
+  phase: MachineSwitchPhase,
+  account: string,
+  deviceLabel?: string,
+): string {
   const where = deviceLabel ? ` on ${deviceLabel}` : "";
   if (phase === "confirming") return `Confirming${where}: ${account}…`;
   if (phase === "slow") return `Still switching${where} to ${account}…`;
   return `Switching to ${account}…`;
 }
 
-export function machineSwitchSuccessCopy(account: string): { title: string; description: string } {
-  return { title: `Now on ${account}`, description: "New and resumed sessions use it" };
+export function machineSwitchSuccessCopy(account: string): {
+  title: string;
+  description: string;
+} {
+  return {
+    title: `Now on ${account}`,
+    description: "New and resumed sessions use it",
+  };
 }

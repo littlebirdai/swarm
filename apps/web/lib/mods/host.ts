@@ -10,15 +10,37 @@
 
 import { toast } from "sonner";
 import {
-  MOD_COLLECTIONS, MOD_PROTOCOL, canRead, canReadConnector, canWrite,
-  type FrameToHost, type HostToFrame, type ModContext, type ModEventName, type ModManifest, type ModNode, type ModSurface,
+  MOD_COLLECTIONS,
+  MOD_PROTOCOL,
+  canRead,
+  canReadConnector,
+  canWrite,
+  type FrameToHost,
+  type HostToFrame,
+  type ModContext,
+  type ModEventName,
+  type ModManifest,
+  type ModNode,
+  type ModSurface,
 } from "@codecast/shared/contracts/mods";
 import { withoutUndo } from "@platform/engine";
 import { useInboxStore, sessionWorkState } from "../../store/inboxStore";
-import { baseName, CALL_LIMIT, inboxPlacements, present, queryCollection, rowsOf, type Query } from "./collectionQuery";
+import {
+  baseName,
+  CALL_LIMIT,
+  inboxPlacements,
+  present,
+  queryCollection,
+  rowsOf,
+  type Query,
+} from "./collectionQuery";
 import { objectByShortId } from "./objects";
 import { modIsActive } from "./active";
-import { availableThemes, DEFAULT_COLOR_THEME, resolveColorThemeKey } from "../theme/colorTheme";
+import {
+  availableThemes,
+  DEFAULT_COLOR_THEME,
+  resolveColorThemeKey,
+} from "../theme/colorTheme";
 import { setThemePreview, THEME_PREVIEW_MS } from "../theme/preview";
 
 export type ModRow = {
@@ -37,15 +59,29 @@ export type ModRow = {
   /** Whether it has a local half, and (the author only) where that runs. */
   has_local?: boolean;
   local_off?: string[];
-  local_devices?: { device: string; state: "running" | "off" | "failed"; error?: string; at: number }[];
+  local_devices?: {
+    device: string;
+    state: "running" | "off" | "failed";
+    error?: string;
+    at: number;
+  }[];
   /** Which declared secrets the author has set, and when; never a value. */
   secrets_set?: { name: string; at: number }[];
   updated_at: number;
 };
 
 export type ModStatus = "loading" | "ready" | "failed";
-export type ModLogLine = { level: "log" | "warn" | "error"; text: string; at: number };
-export type RenderResult = { tree?: ModNode; value?: unknown; error?: string; pass?: boolean };
+export type ModLogLine = {
+  level: "log" | "warn" | "error";
+  text: string;
+  at: number;
+};
+export type RenderResult = {
+  tree?: ModNode;
+  value?: unknown;
+  error?: string;
+  pass?: boolean;
+};
 
 /** The app-side capabilities the host needs from React land, registered by ModRuntimes. */
 export type HostBridge = {
@@ -54,7 +90,11 @@ export type HostBridge = {
   /** Queue a call to the mod's local half and resolve with its answer. */
   callLocal: (modId: string, method: string, args: unknown) => Promise<unknown>;
   /** Run one of the mod's server-side requests: a connector reader, or a fetch that carries a declared secret. */
-  callServer: (modId: string, method: "connector.read" | "http.fetch", args: unknown[]) => Promise<unknown>;
+  callServer: (
+    modId: string,
+    method: "connector.read" | "http.fetch",
+    args: unknown[],
+  ) => Promise<unknown>;
 };
 
 let bridge: HostBridge | null = null;
@@ -74,7 +114,11 @@ const RENDER_TIMEOUT = 20000;
  * booted is mounted again after a backoff, and one already running the mod's code keeps going
  * and recovers when register() returns. Mutable for tests.
  */
-export const modLoadTiming = { timeout: 20000, retryBase: 5000, retryMax: 60000 };
+export const modLoadTiming = {
+  timeout: 20000,
+  retryBase: 5000,
+  retryMax: 60000,
+};
 /** The most one mod may keep in $.state on a device. */
 const STATE_CAP = 200_000;
 
@@ -84,7 +128,8 @@ const STATE_CAP = 200_000;
 function signature(v: unknown): string {
   const text = JSON.stringify(v ?? null);
   let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  for (let i = 0; i < text.length; i++)
+    h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
   return `${text.length}:${(h >>> 0).toString(36)}`;
 }
 
@@ -96,20 +141,30 @@ function plain<T>(v: T): T {
 // -- State (the mod's own values) ---------------------------------------------
 
 function stateKey(modId: string): string {
-  const uid = String((useInboxStore.getState() as any).currentUser?._id ?? "anon");
+  const uid = String(
+    (useInboxStore.getState() as any).currentUser?._id ?? "anon",
+  );
   return `codecast-mod-state:${uid}:${modId}`;
 }
 function readState(modId: string): Record<string, unknown> {
-  try { return JSON.parse(localStorage.getItem(stateKey(modId)) || "{}"); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(stateKey(modId)) || "{}");
+  } catch {
+    return {};
+  }
 }
 /** Returns whether the stored value changed. Refuses a write that would take the mod past its cap. */
 function writeState(modId: string, key: string, value: unknown): boolean {
   const all = readState(modId);
-  if (JSON.stringify(all[key] ?? null) === JSON.stringify(value ?? null)) return false;
+  if (JSON.stringify(all[key] ?? null) === JSON.stringify(value ?? null))
+    return false;
   if (value === undefined || value === null) delete all[key];
   else all[key] = value;
   const text = JSON.stringify(all);
-  if (text.length > STATE_CAP) throw new Error(`a mod keeps at most ${STATE_CAP / 1000} KB in $.state on a device`);
+  if (text.length > STATE_CAP)
+    throw new Error(
+      `a mod keeps at most ${STATE_CAP / 1000} KB in $.state on a device`,
+    );
   localStorage.setItem(stateKey(modId), text);
   return true;
 }
@@ -126,13 +181,19 @@ function isPrimaryWindow(): boolean {
 // -- Pane props handed from $.ui.open to the pane's render ----------------------
 
 const paneProps = new Map<string, Record<string, unknown>>();
-export function takePaneProps(mod: string, pane: string): Record<string, unknown> | undefined {
+export function takePaneProps(
+  mod: string,
+  pane: string,
+): Record<string, unknown> | undefined {
   return paneProps.get(`${mod}:${pane}`);
 }
 
 // -- Runtime ------------------------------------------------------------------
 
-type Pending = { resolve: (r: RenderResult) => void; timer: ReturnType<typeof setTimeout> };
+type Pending = {
+  resolve: (r: RenderResult) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
 type Done = { resolve: (error?: string) => void };
 
 export class ModRuntime {
@@ -147,7 +208,10 @@ export class ModRuntime {
   private renders = new Map<string, Pending>();
   private dones = new Map<string, Done>();
   /** Per surface: the data calls its last render made and a signature of each answer. */
-  private answers = new Map<string, { method: string; args: unknown[]; collection: string; sig: string }[]>();
+  private answers = new Map<
+    string,
+    { method: string; args: unknown[]; collection: string; sig: string }[]
+  >();
   private invalidators = new Map<string, Set<() => void>>();
   private statusListeners = new Set<() => void>();
   private pendingLogs: { level: string; text: string }[] = [];
@@ -162,7 +226,10 @@ export class ModRuntime {
   private retries = 0;
   private booted = false;
 
-  constructor(row: ModRow, private container: HTMLElement) {
+  constructor(
+    row: ModRow,
+    private container: HTMLElement,
+  ) {
     this.id = row._id;
     this.row = row;
     this.onMessage = this.onMessage.bind(this);
@@ -182,13 +249,19 @@ export class ModRuntime {
     // The sandbox page loads once. A second load means the mod navigated its
     // own frame (a way to carry data out in a URL), so the mod is stopped.
     frame.addEventListener("load", () => {
-      if (++this.loads > 1 && frame === this.frame) this.fail("the mod navigated its own frame away; mods draw through codecast and never navigate");
+      if (++this.loads > 1 && frame === this.frame)
+        this.fail(
+          "the mod navigated its own frame away; mods draw through codecast and never navigate",
+        );
     });
     this.container.appendChild(frame);
     this.frame = frame;
     this.booted = false;
     this.clearTimers();
-    this.loadTimer = setTimeout(() => this.loadTimedOut(frame), modLoadTiming.timeout);
+    this.loadTimer = setTimeout(
+      () => this.loadTimedOut(frame),
+      modLoadTiming.timeout,
+    );
   }
 
   private loadTimedOut(frame: HTMLIFrameElement): void {
@@ -196,12 +269,22 @@ export class ModRuntime {
     const secs = modLoadTiming.timeout / 1000;
     if (this.booted) {
       // register() is still running in a live frame: say so, and let a late "ready" bring it up.
-      this.fail(`did not finish loading within ${secs}s (register never returned, or the machine is under heavy load)`, { keepFrame: true });
+      this.fail(
+        `did not finish loading within ${secs}s (register never returned, or the machine is under heavy load)`,
+        { keepFrame: true },
+      );
       return;
     }
-    const wait = Math.min(modLoadTiming.retryBase * 2 ** this.retries++, modLoadTiming.retryMax);
-    this.fail(`the mod host page did not load within ${secs}s; trying again in ${Math.round(wait / 1000)}s`);
-    this.retryTimer = setTimeout(() => { if (this.status === "failed") this.reload(this.row); }, wait);
+    const wait = Math.min(
+      modLoadTiming.retryBase * 2 ** this.retries++,
+      modLoadTiming.retryMax,
+    );
+    this.fail(
+      `the mod host page did not load within ${secs}s; trying again in ${Math.round(wait / 1000)}s`,
+    );
+    this.retryTimer = setTimeout(() => {
+      if (this.status === "failed") this.reload(this.row);
+    }, wait);
   }
 
   private clearTimers(): void {
@@ -243,8 +326,15 @@ export class ModRuntime {
   private teardownFrame(reason: string): void {
     this.frame?.remove();
     this.frame = null;
-    for (const [rid, p] of this.renders) { clearTimeout(p.timer); p.resolve({ error: reason }); this.renders.delete(rid); }
-    for (const [rid, d] of this.dones) { d.resolve(reason); this.dones.delete(rid); }
+    for (const [rid, p] of this.renders) {
+      clearTimeout(p.timer);
+      p.resolve({ error: reason });
+      this.renders.delete(rid);
+    }
+    for (const [rid, d] of this.dones) {
+      d.resolve(reason);
+      this.dones.delete(rid);
+    }
   }
 
   private post(msg: HostToFrame): void {
@@ -254,11 +344,20 @@ export class ModRuntime {
   private context(): ModContext {
     const st = useInboxStore.getState() as any;
     const user = st.currentUser;
-    const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+    const isDark =
+      typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark");
     return {
-      user: user ? { id: String(user._id), name: user.name ?? undefined } : null,
-      team: st.clientState?.ui?.active_team_id ? { id: String(st.clientState.ui.active_team_id) } : null,
-      surface: typeof window !== "undefined" && (window as any).electronAPI ? "desktop" : "web",
+      user: user
+        ? { id: String(user._id), name: user.name ?? undefined }
+        : null,
+      team: st.clientState?.ui?.active_team_id
+        ? { id: String(st.clientState.ui.active_team_id) }
+        : null,
+      surface:
+        typeof window !== "undefined" && (window as any).electronAPI
+          ? "desktop"
+          : "web",
       theme: isDark ? "dark" : "light",
     };
   }
@@ -285,13 +384,17 @@ export class ModRuntime {
     set.add(fn);
     return () => {
       set!.delete(fn);
-      if (!set!.size) { this.invalidators.delete(key); this.answers.delete(key); }
+      if (!set!.size) {
+        this.invalidators.delete(key);
+        this.answers.delete(key);
+      }
     };
   }
 
   invalidate(key?: string): void {
     const keys = !key || key === "*" ? [...this.invalidators.keys()] : [key];
-    for (const k of keys) for (const fn of [...(this.invalidators.get(k) ?? [])]) fn();
+    for (const k of keys)
+      for (const fn of [...(this.invalidators.get(k) ?? [])]) fn();
   }
 
   /**
@@ -302,11 +405,18 @@ export class ModRuntime {
    */
   dataChanged(changed: Set<string>): void {
     for (const [key, calls] of this.answers) {
-      const stale = calls.some((c) => changed.has(c.collection) && signature(this.runData(c.method, c.args)) !== c.sig);
+      const stale = calls.some(
+        (c) =>
+          changed.has(c.collection) &&
+          signature(this.runData(c.method, c.args)) !== c.sig,
+      );
       if (stale) this.invalidate(key);
     }
     // Event hooks run in the one window that syncs, so a hook that writes fires once, not per tab.
-    if (isPrimaryWindow() && this.hooks.some((h) => h.event === "data.change")) {
+    if (
+      isPrimaryWindow() &&
+      this.hooks.some((h) => h.event === "data.change")
+    ) {
       for (const c of changed) this.emit("data.change", { collection: c });
     }
   }
@@ -322,7 +432,8 @@ export class ModRuntime {
 
   async render(key: string, surface: ModSurface): Promise<RenderResult> {
     await this.whenReady();
-    if (this.status === "failed") return { error: this.error ?? "the mod failed to load" };
+    if (this.status === "failed")
+      return { error: this.error ?? "the mod failed to load" };
     const rid = `r${++this.seq}`;
     this.answers.set(key, []);
     return await new Promise<RenderResult>((resolve) => {
@@ -348,7 +459,11 @@ export class ModRuntime {
   async invoke(fn: string, args: unknown[]): Promise<string | undefined> {
     await this.whenReady();
     this.userActs++;
-    const err = await this.awaitDone((rid) => this.post({ type: "invoke", rid, fn, args: plain(args) })).finally(() => { this.userActs--; });
+    const err = await this.awaitDone((rid) =>
+      this.post({ type: "invoke", rid, fn, args: plain(args) }),
+    ).finally(() => {
+      this.userActs--;
+    });
     if (err) this.addLog("error", err);
     return err;
   }
@@ -357,7 +472,11 @@ export class ModRuntime {
     await this.whenReady();
     if (this.status === "failed") return this.error ?? "the mod failed to load";
     this.userActs++;
-    const err = await this.awaitDone((rid) => this.post({ type: "command", rid, id })).finally(() => { this.userActs--; });
+    const err = await this.awaitDone((rid) =>
+      this.post({ type: "command", rid, id }),
+    ).finally(() => {
+      this.userActs--;
+    });
     if (err) this.addLog("error", `command ${id}: ${err}`);
     return err;
   }
@@ -371,7 +490,8 @@ export class ModRuntime {
     this.logs.push({ level, text, at: Date.now() });
     if (this.logs.length > 200) this.logs.splice(0, this.logs.length - 200);
     this.pendingLogs.push({ level, text });
-    if (!this.logTimer) this.logTimer = setTimeout(() => this.flushLogs(), 1500);
+    if (!this.logTimer)
+      this.logTimer = setTimeout(() => this.flushLogs(), 1500);
     if (level === "error") modHost.bump();
   }
 
@@ -390,14 +510,29 @@ export class ModRuntime {
     switch (msg.type) {
       case "booted":
         this.booted = true;
-        this.post({ type: "load", proto: MOD_PROTOCOL, mod: { id: this.id, name: this.row.name, manifest: plain(this.row.manifest), context: this.context() }, code: this.row.code, primary: isPrimaryWindow() });
+        this.post({
+          type: "load",
+          proto: MOD_PROTOCOL,
+          mod: {
+            id: this.id,
+            name: this.row.name,
+            manifest: plain(this.row.manifest),
+            context: this.context(),
+          },
+          code: this.row.code,
+          primary: isPrimaryWindow(),
+        });
         return;
       case "ready":
         this.clearTimers();
         this.retries = 0;
         this.status = "ready";
         this.error = null;
-        this.hooks = Array.isArray(msg.hooks) ? msg.hooks.filter((h) => h && typeof h.event === "string").slice(0, 200) : [];
+        this.hooks = Array.isArray(msg.hooks)
+          ? msg.hooks
+              .filter((h) => h && typeof h.event === "string")
+              .slice(0, 200)
+          : [];
         this.readyWaiters.splice(0).forEach((r) => r());
         this.notifyStatus();
         return;
@@ -414,7 +549,12 @@ export class ModRuntime {
         clearTimeout(p.timer);
         this.renders.delete(msg.rid);
         if (msg.error) this.addLog("error", `render: ${msg.error}`);
-        p.resolve({ tree: msg.tree, value: msg.value, error: msg.error, pass: msg.pass });
+        p.resolve({
+          tree: msg.tree,
+          value: msg.value,
+          error: msg.error,
+          pass: msg.pass,
+        });
         return;
       }
       case "done": {
@@ -447,12 +587,15 @@ export class ModRuntime {
     return true;
   }
 
-  private async answer(msg: Extract<FrameToHost, { type: "call" }>): Promise<void> {
+  private async answer(
+    msg: Extract<FrameToHost, { type: "call" }>,
+  ): Promise<void> {
     try {
       // The store action runs synchronously inside call() before its first
       // await, so wrapping the call covers the write itself.
       const automated = this.isAutomated(msg.origin);
-      const run = () => this.call(msg.method, msg.args ?? [], msg.key, automated);
+      const run = () =>
+        this.call(msg.method, msg.args ?? [], msg.key, automated);
       const value = await (automated ? withoutUndo(run) : run());
       this.post({ type: "reply", cid: msg.cid, ok: true, value: plain(value) });
     } catch (err) {
@@ -464,8 +607,12 @@ export class ModRuntime {
 
   private needRead(collection: unknown): string {
     const c = String(collection);
-    if (!(c in MOD_COLLECTIONS)) throw new Error(`"${c}" is not a collection a mod can read (${Object.keys(MOD_COLLECTIONS).join(", ")})`);
-    if (!canRead(this.row.manifest, c)) throw new Error(`permissions.read does not include "${c}"`);
+    if (!(c in MOD_COLLECTIONS))
+      throw new Error(
+        `"${c}" is not a collection a mod can read (${Object.keys(MOD_COLLECTIONS).join(", ")})`,
+      );
+    if (!canRead(this.row.manifest, c))
+      throw new Error(`permissions.read does not include "${c}"`);
     return c;
   }
 
@@ -474,28 +621,60 @@ export class ModRuntime {
     const a0 = args[0] as any;
     const a1 = args[1] as any;
     if (method === "local.get") {
-      const rows = Object.values(((useInboxStore.getState() as any).modState ?? {}) as Record<string, any>);
-      const row = rows.find((r) => String(r?.mod_id) === this.id && r.key === String(a0));
-      return row ? { value: row.value ?? null, device: row.device_name ?? null, at: row.updated_at } : null;
+      const rows = Object.values(
+        ((useInboxStore.getState() as any).modState ?? {}) as Record<
+          string,
+          any
+        >,
+      );
+      const row = rows.find(
+        (r) => String(r?.mod_id) === this.id && r.key === String(a0),
+      );
+      return row
+        ? {
+            value: row.value ?? null,
+            device: row.device_name ?? null,
+            at: row.updated_at,
+          }
+        : null;
     }
     const c = this.needRead(a0);
     if (method === "data.list") return queryCollection(c, a1 ?? {});
-    if (method === "data.count") return queryCollection(c, { ...(a1 ?? {}), limit: CALL_LIMIT, fields: ["_id"] }).length;
+    if (method === "data.count")
+      return queryCollection(c, {
+        ...(a1 ?? {}),
+        limit: CALL_LIMIT,
+        fields: ["_id"],
+      }).length;
     if (a1 === undefined || a1 === null || a1 === "") return null;
-    const row = rowsOf(c).find((r) => String(r._id) === String(a1) || r.short_id === a1 || r.session_id === a1);
-    return row ? present(c, row, c === "sessions" ? inboxPlacements() : undefined) : null;
+    const row = rowsOf(c).find(
+      (r) =>
+        String(r._id) === String(a1) ||
+        r.short_id === a1 ||
+        r.session_id === a1,
+    );
+    return row
+      ? present(c, row, c === "sessions" ? inboxPlacements() : undefined)
+      : null;
   }
 
   /** A mod writes only the object kinds it declares itself; it may read any. */
   private needOwnKind(prefix: string): void {
-    if (!this.row.manifest.objects?.some((k) => k.prefix === prefix)) throw new Error(`"${prefix}" is not an object kind this mod declares`);
+    if (!this.row.manifest.objects?.some((k) => k.prefix === prefix))
+      throw new Error(`"${prefix}" is not an object kind this mod declares`);
   }
 
   private needWrite(write: string): void {
-    if (!canWrite(this.row.manifest, write)) throw new Error(`permissions.write does not include "${write}"`);
+    if (!canWrite(this.row.manifest, write))
+      throw new Error(`permissions.write does not include "${write}"`);
   }
 
-  private async call(method: string, args: unknown[], key?: string, automated = true): Promise<unknown> {
+  private async call(
+    method: string,
+    args: unknown[],
+    key?: string,
+    automated = true,
+  ): Promise<unknown> {
     const store = useInboxStore.getState() as any;
     const a0 = args[0] as any;
     const a1 = args[1] as any;
@@ -505,20 +684,33 @@ export class ModRuntime {
       case "data.get":
       case "local.get": {
         const value = this.runData(method, args);
-        const collection = method === "local.get" ? "modState" : (MOD_COLLECTIONS as Record<string, string>)[String(a0)];
-        if (key) this.answers.get(key)?.push({ method, args, collection, sig: signature(value) });
+        const collection =
+          method === "local.get"
+            ? "modState"
+            : (MOD_COLLECTIONS as Record<string, string>)[String(a0)];
+        if (key)
+          this.answers
+            .get(key)
+            ?.push({ method, args, collection, sig: signature(value) });
         // local.get answers the value itself; its device and time ride on $.local.meta.
         return method === "local.get" ? ((value as any)?.value ?? null) : value;
       }
-      case "local.meta": return this.runData("local.get", args);
+      case "local.meta":
+        return this.runData("local.get", args);
       case "local.call": {
         // A shared mod's local half runs on its author's machines and answers every member of the team.
-        if (!this.row.is_mine && !this.row.shared) throw new Error("a local call reaches only your own mods and your team's shared ones");
+        if (!this.row.is_mine && !this.row.shared)
+          throw new Error(
+            "a local call reaches only your own mods and your team's shared ones",
+          );
         if (!bridge) throw new Error("not connected");
         return await bridge.callLocal(this.id, String(a0), a1 ?? null);
       }
       case "connector.read": {
-        if (!canReadConnector(this.row.manifest, String(a0))) throw new Error(`permissions.connectors does not list "${String(a0)}"`);
+        if (!canReadConnector(this.row.manifest, String(a0)))
+          throw new Error(
+            `permissions.connectors does not list "${String(a0)}"`,
+          );
         if (!bridge) throw new Error("not connected");
         return await bridge.callServer(this.id, method, args);
       }
@@ -541,26 +733,34 @@ export class ModRuntime {
       }
       case "ui.navigate": {
         const path = String(a0 ?? "");
-        if (!isAppPath(path)) throw new Error("navigate takes an in-app path starting with a single /");
+        if (!isAppPath(path))
+          throw new Error(
+            "navigate takes an in-app path starting with a single /",
+          );
         modNavigate(path);
         return null;
       }
       case "ui.open": {
         const pane = String(a0 ?? "");
-        if (!this.row.manifest.panes?.some((p) => p.id === pane)) throw new Error(`no pane "${pane}" in the manifest`);
-        if (a1 && typeof a1 === "object") paneProps.set(`${this.row.name}:${pane}`, a1);
+        if (!this.row.manifest.panes?.some((p) => p.id === pane))
+          throw new Error(`no pane "${pane}" in the manifest`);
+        if (a1 && typeof a1 === "object")
+          paneProps.set(`${this.row.name}:${pane}`, a1);
         else paneProps.delete(`${this.row.name}:${pane}`);
         modNavigate(`/m/${this.row.name}/${pane}`);
         this.invalidate(`pane:${pane}`);
         return null;
       }
-      case "ui.invalidate": this.invalidate(a0); return null;
+      case "ui.invalidate":
+        this.invalidate(a0);
+        return null;
       case "ui.copy": {
         this.needWrite("clipboard");
         await navigator.clipboard.writeText(String(a0 ?? ""));
         return null;
       }
-      case "state.get": return readState(this.id)[String(a0)];
+      case "state.get":
+        return readState(this.id)[String(a0)];
       case "state.set": {
         // Only a real change redraws, so a render that sets what it already holds does not loop.
         if (writeState(this.id, String(a0), a1)) this.invalidate("*");
@@ -569,8 +769,16 @@ export class ModRuntime {
       case "tasks.create": {
         this.needWrite("tasks");
         if (!a0?.title) throw new Error("a task needs a title");
-        const res = await store.createTask({ title: String(a0.title), description: a0.description, priority: a0.priority, status: a0.status, labels: a0.labels });
-        return { id: String(res?.short_id ?? res?.id ?? res?._id ?? res ?? "") };
+        const res = await store.createTask({
+          title: String(a0.title),
+          description: a0.description,
+          priority: a0.priority,
+          status: a0.status,
+          labels: a0.labels,
+        });
+        return {
+          id: String(res?.short_id ?? res?.id ?? res?._id ?? res ?? ""),
+        };
       }
       case "tasks.update": {
         this.needWrite("tasks");
@@ -590,9 +798,16 @@ export class ModRuntime {
       }
       case "objects.create": {
         this.needWrite("objects");
-        if (!a0?.prefix || !a0?.title) throw new Error("an object needs a prefix (its kind) and a title");
+        if (!a0?.prefix || !a0?.title)
+          throw new Error("an object needs a prefix (its kind) and a title");
         this.needOwnKind(String(a0.prefix));
-        const opts = { prefix: String(a0.prefix), title: String(a0.title), status: a0.status, fields: a0.fields, body: a0.body };
+        const opts = {
+          prefix: String(a0.prefix),
+          title: String(a0.title),
+          status: a0.status,
+          fields: a0.fields,
+          body: a0.body,
+        };
         const res = store.createModObject(opts);
         return { client_key: res?.client_key };
       }
@@ -600,34 +815,69 @@ export class ModRuntime {
       case "objects.archive": {
         this.needWrite("objects");
         const ref = String(a0 ?? "");
-        const row = (store.modObjects ?? {})[ref] ?? objectByShortId(store.modObjects, ref);
+        const row =
+          (store.modObjects ?? {})[ref] ??
+          objectByShortId(store.modObjects, ref);
         if (!row) throw new Error(`no object ${ref}`);
         this.needOwnKind(row.prefix);
         const patch = a1 && typeof a1 === "object" ? a1 : {};
-        store.updateModObject(row._id, method === "objects.archive" ? { archived: true } : {
-          ...(typeof patch.title === "string" ? { title: patch.title } : {}),
-          ...(typeof patch.status === "string" ? { status: patch.status } : {}),
-          ...(typeof patch.body === "string" ? { body: patch.body } : {}),
-          ...(patch.fields && typeof patch.fields === "object" ? { fields: patch.fields } : {}),
-        });
+        store.updateModObject(
+          row._id,
+          method === "objects.archive"
+            ? { archived: true }
+            : {
+                ...(typeof patch.title === "string"
+                  ? { title: patch.title }
+                  : {}),
+                ...(typeof patch.status === "string"
+                  ? { status: patch.status }
+                  : {}),
+                ...(typeof patch.body === "string" ? { body: patch.body } : {}),
+                ...(patch.fields && typeof patch.fields === "object"
+                  ? { fields: patch.fields }
+                  : {}),
+              },
+        );
         return null;
       }
       case "theme.list": {
-        const current = resolveColorThemeKey(store.clientState?.ui?.color_theme);
-        return availableThemes(Object.values(store.mods ?? {}), store.clientState?.ui?.mods_installed ?? []).map((c) => ({
-          key: c.key, title: c.theme.title, mod: c.modTitle ?? null, backdrop: !!c.theme.backdrop, current: c.key === current,
+        const current = resolveColorThemeKey(
+          store.clientState?.ui?.color_theme,
+        );
+        return availableThemes(
+          Object.values(store.mods ?? {}),
+          store.clientState?.ui?.mods_installed ?? [],
+        ).map((c) => ({
+          key: c.key,
+          title: c.theme.title,
+          mod: c.modTitle ?? null,
+          backdrop: !!c.theme.backdrop,
+          current: c.key === current,
         }));
       }
-      case "theme.current": return resolveColorThemeKey(store.clientState?.ui?.color_theme);
+      case "theme.current":
+        return resolveColorThemeKey(store.clientState?.ui?.color_theme);
       case "theme.apply":
       case "theme.preview": {
         // The person's look changes only when they press for it, never from a hook or a render.
-        if (automated) throw new Error(`$.${method} runs only from the person's press (a button's onPress or a command)`);
+        if (automated)
+          throw new Error(
+            `$.${method} runs only from the person's press (a button's onPress or a command)`,
+          );
         const themeKey = a0 === null || a0 === undefined ? null : String(a0);
-        const known = availableThemes(Object.values(store.mods ?? {}), store.clientState?.ui?.mods_installed ?? []);
-        if (themeKey && !known.some((c) => c.key === themeKey)) throw new Error(`no theme "${themeKey}"; $.theme.list() names them as "<mod>/<theme id>"`);
+        const known = availableThemes(
+          Object.values(store.mods ?? {}),
+          store.clientState?.ui?.mods_installed ?? [],
+        );
+        if (themeKey && !known.some((c) => c.key === themeKey))
+          throw new Error(
+            `no theme "${themeKey}"; $.theme.list() names them as "<mod>/<theme id>"`,
+          );
         if (method === "theme.preview") {
-          const ms = typeof a1?.ms === "number" ? Math.min(Math.max(a1.ms, 1000), 60000) : THEME_PREVIEW_MS;
+          const ms =
+            typeof a1?.ms === "number"
+              ? Math.min(Math.max(a1.ms, 1000), 60000)
+              : THEME_PREVIEW_MS;
           setThemePreview(themeKey, ms);
           return null;
         }
@@ -637,7 +887,10 @@ export class ModRuntime {
       }
       case "docs.create": {
         this.needWrite("docs");
-        const res = await store.createDoc({ title: String(a0?.title ?? "Untitled"), content: a0?.content ?? "" });
+        const res = await store.createDoc({
+          title: String(a0?.title ?? "Untitled"),
+          content: a0?.content ?? "",
+        });
         return { id: String(res?._id ?? res?.id ?? res ?? "") };
       }
       default:
@@ -678,16 +931,28 @@ class ModHost {
    */
   sync(rows: ModRow[], installed: readonly string[] = []): void {
     if (!this.container) return;
-    const want = new Map(rows.filter((r) => r.code && modIsActive(r, installed)).map((r) => [r._id, r]));
+    const want = new Map(
+      rows
+        .filter((r) => r.code && modIsActive(r, installed))
+        .map((r) => [r._id, r]),
+    );
     let changed = false;
     for (const [id, rt] of this.runtimes) {
       const next = want.get(id);
-      if (!next) { rt.dispose(); this.runtimes.delete(id); changed = true; }
-      else if (next.rev !== rt.row.rev || next.code !== rt.row.code) { rt.reload(next); changed = true; }
-      else rt.row = next;
+      if (!next) {
+        rt.dispose();
+        this.runtimes.delete(id);
+        changed = true;
+      } else if (next.rev !== rt.row.rev || next.code !== rt.row.code) {
+        rt.reload(next);
+        changed = true;
+      } else rt.row = next;
     }
     for (const [id, row] of want) {
-      if (!this.runtimes.has(id)) { this.runtimes.set(id, new ModRuntime(row, this.container)); changed = true; }
+      if (!this.runtimes.has(id)) {
+        this.runtimes.set(id, new ModRuntime(row, this.container));
+        changed = true;
+      }
     }
     if (changed) this.bump();
   }
@@ -698,7 +963,10 @@ class ModHost {
    * (`cast browser eval "__modHost.query('sessions', { where: { inbox: 'needs_input' } })"`).
    */
   query(collection: string, q: Query = {}): any[] {
-    if (!(collection in MOD_COLLECTIONS)) throw new Error(`"${collection}" is not a collection a mod can read (${Object.keys(MOD_COLLECTIONS).join(", ")})`);
+    if (!(collection in MOD_COLLECTIONS))
+      throw new Error(
+        `"${collection}" is not a collection a mod can read (${Object.keys(MOD_COLLECTIONS).join(", ")})`,
+      );
     return queryCollection(collection, q);
   }
 
@@ -708,7 +976,10 @@ class ModHost {
 
   /** Running mods with the viewer's own first: on a name or fence clash, yours wins over a teammate's. */
   private ordered(): ModRuntime[] {
-    return [...this.runtimes.values()].sort((a, b) => Number(b.row.is_mine !== false) - Number(a.row.is_mine !== false));
+    return [...this.runtimes.values()].sort(
+      (a, b) =>
+        Number(b.row.is_mine !== false) - Number(a.row.is_mine !== false),
+    );
   }
 
   byName(name: string): ModRuntime | undefined {
@@ -717,7 +988,9 @@ class ModHost {
 
   /** The runtime that draws a fence language, if any enabled mod declares it. */
   forFence(lang: string): ModRuntime | undefined {
-    return this.ordered().find((r) => r.row.manifest.fences?.some((f) => f.lang === lang));
+    return this.ordered().find((r) =>
+      r.row.manifest.fences?.some((f) => f.lang === lang),
+    );
   }
 
   all(): ModRuntime[] {
@@ -753,36 +1026,67 @@ class ModHost {
         pending = new Set();
         // One mod failing to answer must not stop the rest from hearing about changes.
         for (const rt of this.runtimes.values()) {
-          try { rt.dataChanged(changed); } catch (err) { console.warn(`[mods] ${rt.row.name}: ${err instanceof Error ? err.message : String(err)}`); }
+          try {
+            rt.dataChanged(changed);
+          } catch (err) {
+            console.warn(
+              `[mods] ${rt.row.name}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
         }
         if (changed.has("sessions")) this.emitSessionStates();
       }, 400);
     });
     this.seedSessionStates();
-    return () => { unsub(); if (timer) clearTimeout(timer); };
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+    };
   }
 
   private seedSessionStates(): void {
     for (const s of rowsOf("sessions")) {
-      try { this.lastStates.set(String(s._id), sessionWorkState(s)); } catch {}
+      try {
+        this.lastStates.set(String(s._id), sessionWorkState(s));
+      } catch {}
     }
   }
 
   private emitSessionStates(): void {
-    const listeners = [...this.runtimes.values()].filter((r) => r.hasHook("session.state"));
-    const moves: { id: string; title?: string; from: string | null; to: string; project?: string }[] = [];
+    const listeners = [...this.runtimes.values()].filter((r) =>
+      r.hasHook("session.state"),
+    );
+    const moves: {
+      id: string;
+      title?: string;
+      from: string | null;
+      to: string;
+      project?: string;
+    }[] = [];
     for (const s of rowsOf("sessions")) {
       let to: string;
-      try { to = sessionWorkState(s); } catch { continue; }
+      try {
+        to = sessionWorkState(s);
+      } catch {
+        continue;
+      }
       const id = String(s._id);
       const from = this.lastStates.get(id) ?? null;
       if (from !== to) {
         this.lastStates.set(id, to);
-        if (from !== null) moves.push({ id, title: s.title, from, to, project: baseName(s.git_root ?? s.project_path) });
+        if (from !== null)
+          moves.push({
+            id,
+            title: s.title,
+            from,
+            to,
+            project: baseName(s.git_root ?? s.project_path),
+          });
       }
     }
     if (!listeners.length || !isPrimaryWindow()) return;
-    for (const m of moves) for (const rt of listeners) rt.emit("session.state", m);
+    for (const m of moves)
+      for (const rt of listeners) rt.emit("session.state", m);
   }
 }
 

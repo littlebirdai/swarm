@@ -15,14 +15,25 @@ import { resolveCapabilities } from "./capabilityResolver";
 // diff in the same commit — a fixture updated alone is indistinguishable from
 // a regression goldened away.
 
-const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "__fixtures__", "resolver");
+const DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "__fixtures__",
+  "resolver",
+);
 
-export function goldenCases(): Array<{ name: string; input: any; output: any }> {
+export function goldenCases(): Array<{
+  name: string;
+  input: any;
+  output: any;
+}> {
   return fs
     .readdirSync(DIR)
     .filter((f) => f.endsWith(".json"))
     .sort()
-    .map((f) => ({ name: f.replace(/\.json$/, ""), ...JSON.parse(fs.readFileSync(path.join(DIR, f), "utf-8")) }));
+    .map((f) => ({
+      name: f.replace(/\.json$/, ""),
+      ...JSON.parse(fs.readFileSync(path.join(DIR, f), "utf-8")),
+    }));
 }
 
 describe("resolver golden parity (shared)", () => {

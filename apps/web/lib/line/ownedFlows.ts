@@ -23,7 +23,10 @@ export type OwnedFlow = {
 };
 
 /** The person a role's reporting line ends at, or null when it ends nowhere (a loop, a missing role). */
-export function deciderOf(role: Pick<OrgRole, "reports_to">, roles: ReadonlyArray<Pick<OrgRole, "_id" | "reports_to">>): string | null {
+export function deciderOf(
+  role: Pick<OrgRole, "reports_to">,
+  roles: ReadonlyArray<Pick<OrgRole, "_id" | "reports_to">>,
+): string | null {
   const byId = new Map(roles.map((r) => [r._id, r]));
   const seen = new Set<string>();
   let at: Pick<OrgRole, "reports_to"> | undefined = role;
@@ -61,15 +64,23 @@ export function ownedFlows(
     flow.projects.push({ id: p._id, title: p.title ?? "Untitled" });
     by.set(owner._id, flow);
   }
-  return [...by.values()].sort((a, b) => a.owner.name.localeCompare(b.owner.name));
+  return [...by.values()].sort((a, b) =>
+    a.owner.name.localeCompare(b.owner.name),
+  );
 }
 
 /** The flow a handle names, or null. */
-export const flowOf = (flows: ReadonlyArray<OwnedFlow>, handle: string | null | undefined): OwnedFlow | null =>
-  (handle ? flows.find((f) => f.owner.handle === handle) ?? null : null);
+export const flowOf = (
+  flows: ReadonlyArray<OwnedFlow>,
+  handle: string | null | undefined,
+): OwnedFlow | null =>
+  handle ? (flows.find((f) => f.owner.handle === handle) ?? null) : null;
 
 /** The items of `needs` from a flow's projects: what the flow holds for a person. */
-export function flowNeeds<N extends { projectId: string | null }>(needs: ReadonlyArray<N>, flow: Pick<OwnedFlow, "projects">): N[] {
+export function flowNeeds<N extends { projectId: string | null }>(
+  needs: ReadonlyArray<N>,
+  flow: Pick<OwnedFlow, "projects">,
+): N[] {
   const intake = new Set(flow.projects.map((p) => p.id));
   return needs.filter((n) => !!n.projectId && intake.has(n.projectId));
 }

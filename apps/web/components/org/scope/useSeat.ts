@@ -8,7 +8,17 @@ import { useRouter } from "next/navigation";
 import type { SeatConversation } from "../../../app/inbox/QueuePageClient";
 import { askSessionView } from "../../../lib/sessionViewVisit";
 
-export function useSeat({ conversationId, speaker, ask, lead, offer, canTalk, hideDiff, onSessionView, head }: {
+export function useSeat({
+  conversationId,
+  speaker,
+  ask,
+  lead,
+  offer,
+  canTalk,
+  hideDiff,
+  onSessionView,
+  head,
+}: {
   conversationId: string | null | undefined;
   /** Who the composer addresses: "Ask <speaker> for anything". */
   speaker: string;
@@ -27,23 +37,43 @@ export function useSeat({ conversationId, speaker, ask, lead, offer, canTalk, hi
   head: SeatConversation["head"];
 }): SeatConversation {
   const router = useRouter();
-  return useMemo(() => ({
-    layout: {
-      leadNode: lead,
-      // A lead of the page's own stays above the transcript; without one the
-      // seat's earlier history folds at the top of the transcript and scrolls with it.
-      leadPinned: !!lead,
-      stickyPrompt: false,
-      initialDensity: "condensed",
-      foldWorkingTurns: true,
-      composerPlaceholder: `Ask ${speaker} ${ask ?? "for anything"}…`,
-      composerNode: offer,
+  return useMemo(
+    () => ({
+      layout: {
+        leadNode: lead,
+        // A lead of the page's own stays above the transcript; without one the
+        // seat's earlier history folds at the top of the transcript and scrolls with it.
+        leadPinned: !!lead,
+        stickyPrompt: false,
+        initialDensity: "condensed",
+        foldWorkingTurns: true,
+        composerPlaceholder: `Ask ${speaker} ${ask ?? "for anything"}…`,
+        composerNode: offer,
+        hideDiff,
+      },
+      seedOwnership: canTalk,
+      // From a page's own route the plain view is the session's address; the
+      // pane that opens it reads the ask (lib/sessionViewVisit).
+      onSessionView:
+        onSessionView ??
+        (() => {
+          if (!conversationId) return;
+          askSessionView(conversationId);
+          router.push(`/conversation/${conversationId}`);
+        }),
+      head,
+    }),
+    [
+      lead,
+      offer,
+      speaker,
+      ask,
       hideDiff,
-    },
-    seedOwnership: canTalk,
-    // From a page's own route the plain view is the session's address; the
-    // pane that opens it reads the ask (lib/sessionViewVisit).
-    onSessionView: onSessionView ?? (() => { if (!conversationId) return; askSessionView(conversationId); router.push(`/conversation/${conversationId}`); }),
-    head,
-  }), [lead, offer, speaker, ask, hideDiff, canTalk, onSessionView, conversationId, router, head]);
+      canTalk,
+      onSessionView,
+      conversationId,
+      router,
+      head,
+    ],
+  );
 }

@@ -68,7 +68,10 @@ import { useMountEffect } from "./useMountEffect";
 import { useWatchEffect } from "./useWatchEffect";
 import { prefersReducedMotion } from "../lib/reducedMotion";
 import { attributeMeasurementsByKey } from "../lib/virtualList/attributeByKey";
-import { createScrollHold, type ScrollHold } from "../lib/virtualList/scrollHold";
+import {
+  createScrollHold,
+  type ScrollHold,
+} from "../lib/virtualList/scrollHold";
 import { visibleInterval } from "../lib/windowVisibleWork";
 import { VLIST_LEGACY } from "../lib/virtualList/legacyFlags";
 import { adjustScrollForResizeRule } from "../lib/virtualList/resizeAdjust";
@@ -92,7 +95,6 @@ function recordHeight(key: string, size: number) {
   }
   HEIGHT_CACHE.set(key, size);
 }
-
 
 // The in-app zoom sets CSS zoom on <html>. Under it getBoundingClientRect
 // returns screen px (layout px × zoom) while scrollTop, scrollHeight and the
@@ -178,12 +180,17 @@ export type BottomAnchoredList = {
   /** Index of the last row with any pixel on screen, or -1. */
   lastVisibleIndex: number;
   scrollToBottom: (opts?: { smooth?: boolean }) => void;
-  scrollToIndex: (index: number, opts?: { align?: "start" | "center" | "end"; smooth?: boolean }) => void;
+  scrollToIndex: (
+    index: number,
+    opts?: { align?: "start" | "center" | "end"; smooth?: boolean },
+  ) => void;
 };
 
 // ── The hook ────────────────────────────────────────────────────────────────
 
-export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAnchoredList {
+export function useBottomAnchoredList(
+  opts: BottomAnchoredListOptions,
+): BottomAnchoredList {
   const {
     count,
     getItemKey,
@@ -212,13 +219,19 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
   // effects read them synchronously, in the same frame the scroll happened.
   const [atBottom, _setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
-  const setAtBottom = useCallback((v: boolean) => { atBottomRef.current = v; _setAtBottom(v); }, []);
+  const setAtBottom = useCallback((v: boolean) => {
+    atBottomRef.current = v;
+    _setAtBottom(v);
+  }, []);
   const [nearTop, setNearTop] = useState(true);
   const [nearBottom, setNearBottom] = useState(true);
   const [isScrollable, setIsScrollable] = useState(false);
   const [userScrolled, _setUserScrolled] = useState(false);
   const userScrolledRef = useRef(false);
-  const setUserScrolled = useCallback((v: boolean) => { userScrolledRef.current = v; _setUserScrolled(v); }, []);
+  const setUserScrolled = useCallback((v: boolean) => {
+    userScrolledRef.current = v;
+    _setUserScrolled(v);
+  }, []);
 
   const lastScrollTopRef = useRef(0);
   // Bridges the render gap between asking for a page and isLoading* flipping,
@@ -231,8 +244,22 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
 
   // Latest props for handlers that live outside React's render (wheel, scroll,
   // interval) and must not be rebound on every render.
-  const pageRef = useRef({ hasMoreAbove, isLoadingOlder, onLoadOlder, hasMoreBelow, isLoadingNewer, onLoadNewer });
-  pageRef.current = { hasMoreAbove, isLoadingOlder, onLoadOlder, hasMoreBelow, isLoadingNewer, onLoadNewer };
+  const pageRef = useRef({
+    hasMoreAbove,
+    isLoadingOlder,
+    onLoadOlder,
+    hasMoreBelow,
+    isLoadingNewer,
+    onLoadNewer,
+  });
+  pageRef.current = {
+    hasMoreAbove,
+    isLoadingOlder,
+    onLoadOlder,
+    hasMoreBelow,
+    isLoadingNewer,
+    onLoadNewer,
+  };
 
   const heightKey = useCallback(
     (index: number, key: string | number) =>
@@ -255,14 +282,21 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
   // The element's index comes from its own data-vkey stamp
   // (attributeMeasurementsByKey below), so the key here is always the row's own.
   const measureElement = useCallback(
-    (element: Element, entry: ResizeObserverEntry | undefined, instance: any) => {
+    (
+      element: Element,
+      entry: ResizeObserverEntry | undefined,
+      instance: any,
+    ) => {
       const horizontal = instance.options.horizontal;
       const index = instance.indexFromElement(element);
       if (index < 0) return 0;
       const key = instance.options.getItemKey(index);
       const stamped = (element as HTMLElement).dataset?.vkey;
       if (VLIST_LEGACY && stamped !== undefined && stamped !== String(key)) {
-        return instance.itemSizeCache.get(key) ?? instance.options.estimateSize(index);
+        return (
+          instance.itemSizeCache.get(key) ??
+          instance.options.estimateSize(index)
+        );
       }
       const box = entry?.borderBoxSize?.[0];
       let size: number;
@@ -270,7 +304,12 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
         size = Math.round(horizontal ? box.inlineSize : box.blockSize);
       } else {
         const cached = instance.itemSizeCache.get(key);
-        size = cached !== undefined ? cached : (element as HTMLElement)[horizontal ? "offsetWidth" : "offsetHeight"];
+        size =
+          cached !== undefined
+            ? cached
+            : (element as HTMLElement)[
+                horizontal ? "offsetWidth" : "offsetHeight"
+              ];
       }
       if (index >= 0) recordHeight(heightKey(index, key), size);
       return size;
@@ -330,7 +369,9 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       key: item.key,
       "data-index": item.index,
       "data-vkey": String(item.key),
-      ref: virtualizer.measureElement as unknown as (el: HTMLElement | null) => void,
+      ref: virtualizer.measureElement as unknown as (
+        el: HTMLElement | null,
+      ) => void,
       style: {
         position: "absolute" as const,
         top: 0,
@@ -347,19 +388,40 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
   // virtualizer. One shot is never enough: the target offset comes from believed
   // sizes, and as rows measure in the end moves by whole screens. The hold
   // re-aims each time sizes move, for a second of visible time.
-  const scrollToRef = useRef<(target: number | "bottom", o?: { align?: "start" | "center" | "end"; smooth?: boolean; bailOnUserScroll?: boolean; holdMs?: number }) => void>(() => {});
+  const scrollToRef = useRef<
+    (
+      target: number | "bottom",
+      o?: {
+        align?: "start" | "center" | "end";
+        smooth?: boolean;
+        bailOnUserScroll?: boolean;
+        holdMs?: number;
+      },
+    ) => void
+  >(() => {});
   const scrollRequestRef = useRef(0);
   const scrollScopeRef = useRef(resetKey);
   scrollScopeRef.current = resetKey;
-  useMountEffect(() => () => { scrollRequestRef.current++; holdRef.current?.release(); });
+  useMountEffect(() => () => {
+    scrollRequestRef.current++;
+    holdRef.current?.release();
+  });
   scrollToRef.current = (target, o) => {
     const sc = containerRef.current;
     if (!sc) return;
     if (!VLIST_LEGACY) {
-      const aim = () => hold.set(target === "bottom" ? "bottom" : { index: target, align: o?.align ?? "start" }, {
-        holdMs: o?.holdMs ?? 1000,
-        bail: o?.bailOnUserScroll ? () => userScrolledRef.current : undefined,
-      });
+      const aim = () =>
+        hold.set(
+          target === "bottom"
+            ? "bottom"
+            : { index: target, align: o?.align ?? "start" },
+          {
+            holdMs: o?.holdMs ?? 1000,
+            bail: o?.bailOnUserScroll
+              ? () => userScrolledRef.current
+              : undefined,
+          },
+        );
       // Smooth is offered only for the bottom, and only as native scrollTo: the
       // virtualizer's own smooth mode is unsupported alongside dynamic
       // measurement. The hold takes over once the animation lands. Reduced
@@ -369,7 +431,11 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
         const request = ++scrollRequestRef.current;
         sc.scrollTo({ top: sc.scrollHeight, behavior: "smooth" });
         setTimeout(() => {
-          if (request !== scrollRequestRef.current || resetKey !== scrollScopeRef.current) return;
+          if (
+            request !== scrollRequestRef.current ||
+            resetKey !== scrollScopeRef.current
+          )
+            return;
           if (o?.bailOnUserScroll && userScrolledRef.current) return;
           aim();
         }, 450);
@@ -381,10 +447,17 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     }
     const request = ++scrollRequestRef.current;
     const pull = () => {
-      if (request !== scrollRequestRef.current || resetKey !== scrollScopeRef.current) return;
+      if (
+        request !== scrollRequestRef.current ||
+        resetKey !== scrollScopeRef.current
+      )
+        return;
       if (o?.bailOnUserScroll && userScrolledRef.current) return;
       if (target === "bottom") {
-        if (virtualizer.options.count > 0) virtualizer.scrollToIndex(virtualizer.options.count - 1, { align: "end" });
+        if (virtualizer.options.count > 0)
+          virtualizer.scrollToIndex(virtualizer.options.count - 1, {
+            align: "end",
+          });
         sc.scrollTop = sc.scrollHeight;
       } else {
         virtualizer.scrollToIndex(target, { align: o?.align ?? "start" });
@@ -408,14 +481,26 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     [100, 300, 600].forEach((ms) => setTimeout(pull, ms));
   };
 
-  const scrollToBottom = useCallback((o?: { smooth?: boolean }) => {
-    setUserScrolled(false);
-    scrollToRef.current("bottom", { smooth: o?.smooth, bailOnUserScroll: true });
-  }, [setUserScrolled]);
+  const scrollToBottom = useCallback(
+    (o?: { smooth?: boolean }) => {
+      setUserScrolled(false);
+      scrollToRef.current("bottom", {
+        smooth: o?.smooth,
+        bailOnUserScroll: true,
+      });
+    },
+    [setUserScrolled],
+  );
 
-  const scrollToIndex = useCallback((index: number, o?: { align?: "start" | "center" | "end"; smooth?: boolean }) => {
-    scrollToRef.current(index, o);
-  }, []);
+  const scrollToIndex = useCallback(
+    (
+      index: number,
+      o?: { align?: "start" | "center" | "end"; smooth?: boolean },
+    ) => {
+      scrollToRef.current(index, o);
+    },
+    [],
+  );
 
   // ── Scroll bookkeeping ────────────────────────────────────────────────────
   useMountEffect(() => {
@@ -440,7 +525,8 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       // exactly at the bottom is the browser clamping scrollTop after the
       // viewport grew (composer shrank back, window resized), never a reader
       // leaving the bottom.
-      if (up && fromBottom > 1 && Date.now() >= paginationCooldownRef.current) setUserScrolled(true);
+      if (up && fromBottom > 1 && Date.now() >= paginationCooldownRef.current)
+        setUserScrolled(true);
       if (fromBottom < bottomThresholdPx && down) setUserScrolled(false);
     };
 
@@ -455,12 +541,18 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     let lastHeight = -1;
     const ro = new ResizeObserver(() => {
       const h = sc.clientHeight;
-      if (lastHeight === -1) { lastHeight = h; return; }
+      if (lastHeight === -1) {
+        lastHeight = h;
+        return;
+      }
       if (h === lastHeight) return;
       lastHeight = h;
       if (userScrolledRef.current || !atBottomRef.current) return;
       // Mask the clamp scroll a growth causes so it cannot read as intent.
-      paginationCooldownRef.current = Math.max(paginationCooldownRef.current, Date.now() + 300);
+      paginationCooldownRef.current = Math.max(
+        paginationCooldownRef.current,
+        Date.now() + 300,
+      );
       scrollToRef.current("bottom", { bailOnUserScroll: true });
     });
     ro.observe(sc);
@@ -477,8 +569,20 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     const take = () => holdRef.current?.release();
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t?.isContentEditable || t?.closest?.("input, textarea, select")) return;
-      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) take();
+      if (t?.isContentEditable || t?.closest?.("input, textarea, select"))
+        return;
+      if (
+        [
+          "ArrowUp",
+          "ArrowDown",
+          "PageUp",
+          "PageDown",
+          "Home",
+          "End",
+          " ",
+        ].includes(e.key)
+      )
+        take();
     };
 
     sc.addEventListener("scroll", onScroll);
@@ -503,19 +607,29 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
   // Remember the topmost visible row and its exact viewport offset; the layout
   // effect below puts it right back after the page mounts, so visible text never
   // moves. The library's own anchor is estimate based and does not hold this.
-  const anchorRef = useRef<{ key: string; relTop: number; scrollHeight: number; scrollTop: number; dir: "older" | "newer" } | null>(null);
+  const anchorRef = useRef<{
+    key: string;
+    relTop: number;
+    scrollHeight: number;
+    scrollTop: number;
+    dir: "older" | "newer";
+  } | null>(null);
   const TRIGGER_PX = 600;
 
   const captureAnchor = (sc: HTMLElement, dir: "older" | "newer") => {
     const scTop = sc.getBoundingClientRect().top;
     let anchorEl: HTMLElement | null = null;
     for (const el of sc.querySelectorAll<HTMLElement>("[data-vkey]")) {
-      if (el.getBoundingClientRect().bottom > scTop + 1) { anchorEl = el; break; }
+      if (el.getBoundingClientRect().bottom > scTop + 1) {
+        anchorEl = el;
+        break;
+      }
     }
     anchorRef.current = anchorEl
       ? {
           key: anchorEl.dataset.vkey!,
-          relTop: (anchorEl.getBoundingClientRect().top - scTop) / cssZoomOf(sc),
+          relTop:
+            (anchorEl.getBoundingClientRect().top - scTop) / cssZoomOf(sc),
           scrollHeight: sc.scrollHeight,
           scrollTop: sc.scrollTop,
           dir,
@@ -524,7 +638,10 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     // If the page never arrives, drop the anchor so a later append cannot be
     // dragged by it.
     const captured = anchorRef.current;
-    if (captured) setTimeout(() => { if (anchorRef.current === captured) anchorRef.current = null; }, 3000);
+    if (captured)
+      setTimeout(() => {
+        if (anchorRef.current === captured) anchorRef.current = null;
+      }, 3000);
   };
 
   const maybeLoadRef = useRef<() => void>(() => {});
@@ -535,7 +652,12 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     const cooling = Date.now() < paginationCooldownRef.current;
     if (cooling || p.isLoadingOlder || p.isLoadingNewer) return;
 
-    if (p.onLoadOlder && p.hasMoreAbove && loadOlderArmedRef.current && sc.scrollTop < TRIGGER_PX) {
+    if (
+      p.onLoadOlder &&
+      p.hasMoreAbove &&
+      loadOlderArmedRef.current &&
+      sc.scrollTop < TRIGGER_PX
+    ) {
       loadOlderArmedRef.current = false;
       captureAnchor(sc, "older");
       paginationCooldownRef.current = Date.now() + 700;
@@ -543,8 +665,10 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       return;
     }
     if (
-      p.onLoadNewer && p.hasMoreBelow && loadNewerArmedRef.current
-      && sc.scrollHeight - sc.scrollTop - sc.clientHeight < TRIGGER_PX
+      p.onLoadNewer &&
+      p.hasMoreBelow &&
+      loadNewerArmedRef.current &&
+      sc.scrollHeight - sc.scrollTop - sc.clientHeight < TRIGGER_PX
     ) {
       loadNewerArmedRef.current = false;
       captureAnchor(sc, "newer");
@@ -565,9 +689,14 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     if (!sc) return;
     paginationCooldownRef.current = Date.now() + 500;
     const pinExact = () => {
-      const el = sc.querySelector<HTMLElement>(`[data-vkey="${CSS.escape(a.key)}"]`);
+      const el = sc.querySelector<HTMLElement>(
+        `[data-vkey="${CSS.escape(a.key)}"]`,
+      );
       if (!el) return false;
-      const correction = (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) / cssZoomOf(sc) - a.relTop;
+      const correction =
+        (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) /
+          cssZoomOf(sc) -
+        a.relTop;
       if (correction !== 0) sc.scrollTop += correction;
       lastScrollTopRef.current = sc.scrollTop;
       return true;
@@ -579,13 +708,19 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       // offset is still right.
       if (a.dir === "older") {
         const grew = sc.scrollHeight - a.scrollHeight;
-        if (grew > 0) { sc.scrollTop += grew; lastScrollTopRef.current = sc.scrollTop; }
+        if (grew > 0) {
+          sc.scrollTop += grew;
+          lastScrollTopRef.current = sc.scrollTop;
+        }
       } else {
         sc.scrollTop = a.scrollTop;
         lastScrollTopRef.current = sc.scrollTop;
       }
     }
-    requestAnimationFrame(() => { pinExact(); paginationCooldownRef.current = 0; });
+    requestAnimationFrame(() => {
+      pinExact();
+      paginationCooldownRef.current = 0;
+    });
   }, [count]);
 
   // ── Initial landing ───────────────────────────────────────────────────────
@@ -616,9 +751,16 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     lastScrollTopRef.current = 0;
     paginationCooldownRef.current = Date.now() + 1000;
 
-    const target = initialIndex != null && initialIndex >= 0 && initialIndex < count ? initialIndex : "bottom";
+    const target =
+      initialIndex != null && initialIndex >= 0 && initialIndex < count
+        ? initialIndex
+        : "bottom";
     if (!VLIST_LEGACY) {
-      scrollToRef.current(target, { align: "start", bailOnUserScroll: true, holdMs: 8000 });
+      scrollToRef.current(target, {
+        align: "start",
+        bailOnUserScroll: true,
+        holdMs: 8000,
+      });
       return;
     }
     scrollToRef.current(target, { align: "start", bailOnUserScroll: true });
@@ -626,7 +768,10 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
     const start = Date.now();
     const stop = visibleInterval(() => {
       const el = containerRef.current;
-      if (!el || userScrolledRef.current || Date.now() - start > 8000) { stop(); return; }
+      if (!el || userScrolledRef.current || Date.now() - start > 8000) {
+        stop();
+        return;
+      }
       if (target === "bottom") {
         if (el.scrollHeight - el.scrollTop - el.clientHeight > 20) {
           scrollToRef.current("bottom", { bailOnUserScroll: true });
@@ -636,8 +781,14 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
         // re measuring, which is exactly what drags it away.
         const row = el.querySelector<HTMLElement>(`[data-index="${target}"]`);
         if (!row) return;
-        const off = (row.getBoundingClientRect().top - el.getBoundingClientRect().top) / cssZoomOf(el);
-        if (Math.abs(off - paddingStart) > 4) scrollToRef.current(target, { align: "start", bailOnUserScroll: true });
+        const off =
+          (row.getBoundingClientRect().top - el.getBoundingClientRect().top) /
+          cssZoomOf(el);
+        if (Math.abs(off - paddingStart) > 4)
+          scrollToRef.current(target, {
+            align: "start",
+            bailOnUserScroll: true,
+          });
         else stop();
       }
     }, 120);
@@ -648,7 +799,13 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
 
   // A new list means a fresh landing next time this key comes back, and the old
   // list's pending target must not pull the new one.
-  useWatchEffect(() => () => { landedRef.current = null; holdRef.current?.release(); }, [resetKey]);
+  useWatchEffect(
+    () => () => {
+      landedRef.current = null;
+      holdRef.current?.release();
+    },
+    [resetKey],
+  );
 
   // ── Size drift self heal ──────────────────────────────────────────────────
   // A height filed under the wrong key never heals on its own: the observer only
@@ -661,9 +818,12 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       // feeding those through resizeItem would zero the whole layout.
       if (!sc || sc.offsetParent === null) return;
       if (virtualizer.isScrolling) return;
-      const byIndex = new Map(virtualizer.getVirtualItems().map((v) => [v.index, v]));
+      const byIndex = new Map(
+        virtualizer.getVirtualItems().map((v) => [v.index, v]),
+      );
       if (byIndex.size === 0) return;
-      const wasAtBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < bottomThresholdPx;
+      const wasAtBottom =
+        sc.scrollHeight - sc.scrollTop - sc.clientHeight < bottomThresholdPx;
       let corrected = false;
       for (const el of sc.querySelectorAll<HTMLElement>("[data-index]")) {
         const v = byIndex.get(Number(el.dataset.index));
@@ -678,7 +838,10 @@ export function useBottomAnchoredList(opts: BottomAnchoredListOptions): BottomAn
       // Healing under a bottom pinned view must keep the reader there, or the
       // last message's tail ends up cut off.
       if (corrected && wasAtBottom && !userScrolledRef.current) {
-        virtualizer.scrollToIndex(Math.max(0, count - 1), { align: "end", behavior: "auto" });
+        virtualizer.scrollToIndex(Math.max(0, count - 1), {
+          align: "end",
+          behavior: "auto",
+        });
       }
     };
     return visibleInterval(tick, 1000);

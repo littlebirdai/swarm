@@ -7,7 +7,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { ctx } from "./prompt-dry-run-context.ts";
 import { loggedArgv, markCall } from "./prompt-dry-run-record.ts";
 import { realCast } from "./prompt-dry-run-realcast.ts";
-import { refuse, scratchIsolationGap, scratchSandbox } from "./prompt-dry-run-sandbox.ts";
+import {
+  refuse,
+  scratchIsolationGap,
+  scratchSandbox,
+} from "./prompt-dry-run-sandbox.ts";
 
 /** The fake's closed world, once loadFake has checked this machine can give it one: null without --fake. */
 let fakeBox: { prefix: string[]; env: Record<string, string> } | null = null;
@@ -15,7 +19,11 @@ let fakeBox: { prefix: string[]; env: Record<string, string> } | null = null;
 let fakeQueue: Promise<unknown> = Promise.resolve();
 
 /** One call to the fake: the first `stdinBytes` of the body are its stdin, the rest its argv, \0 separated. */
-export async function answerFake(body: Buffer, stdinBytes: number, callId: string | null): Promise<Response> {
+export async function answerFake(
+  body: Buffer,
+  stdinBytes: number,
+  callId: string | null,
+): Promise<Response> {
   const { harnessDir } = ctx();
   const stdin = body.subarray(0, stdinBytes).toString("utf8");
   const argv = body.subarray(stdinBytes).toString("utf8").split("\0");
@@ -26,7 +34,10 @@ export async function answerFake(body: Buffer, stdinBytes: number, callId: strin
   try {
     a = await turn;
   } catch (e) {
-    fs.appendFileSync(path.join(harnessDir, "fake-errors.log"), `${loggedArgv(argv)}: ${(e as Error).message}\n`);
+    fs.appendFileSync(
+      path.join(harnessDir, "fake-errors.log"),
+      `${loggedArgv(argv)}: ${(e as Error).message}\n`,
+    );
   }
   if (!a) return new Response("125\n");
   markCall(callId, argv, a.cli ? "CLI" : a.exit === 0 ? "FAKED" : "FAKEERR");
@@ -49,8 +60,12 @@ function readCapped(file: string, cap: number): string {
   const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   try {
     const st = fs.fstatSync(fd);
-    if (!st.isFile()) throw new Error(`${path.basename(file)} is not a regular file`);
-    if (st.size > cap) throw new Error(`${path.basename(file)} holds ${st.size} bytes, over its cap of ${cap}`);
+    if (!st.isFile())
+      throw new Error(`${path.basename(file)} is not a regular file`);
+    if (st.size > cap)
+      throw new Error(
+        `${path.basename(file)} holds ${st.size} bytes, over its cap of ${cap}`,
+      );
     return fs.readFileSync(fd, "utf8");
   } finally {
     fs.closeSync(fd);
@@ -68,9 +83,20 @@ function readCapped(file: string, cap: number): string {
  */
 function sessionPids(sid: number): number[] {
   const { dlopen, FFIType } = require("bun:ffi") as typeof import("bun:ffi");
-  const libc = dlopen("/usr/lib/libSystem.B.dylib", { getsid: { args: [FFIType.i32], returns: FFIType.i32 } });
+  const libc = dlopen("/usr/lib/libSystem.B.dylib", {
+    getsid: { args: [FFIType.i32], returns: FFIType.i32 },
+  });
   try {
-    const pids = (spawnSync("/bin/ps", ["-xo", "pid=", "-U", String(process.getuid?.() ?? "")], { encoding: "utf8", maxBuffer: 16 << 20 }).stdout ?? "").split("\n").map(Number).filter((p) => p > 0 && p !== process.pid);
+    const pids = (
+      spawnSync(
+        "/bin/ps",
+        ["-xo", "pid=", "-U", String(process.getuid?.() ?? "")],
+        { encoding: "utf8", maxBuffer: 16 << 20 },
+      ).stdout ?? ""
+    )
+      .split("\n")
+      .map(Number)
+      .filter((p) => p > 0 && p !== process.pid);
     const members = pids.filter((p) => libc.symbols.getsid(p) === sid);
     return members.includes(sid) ? [] : members;
   } finally {
@@ -89,7 +115,10 @@ function dirBytes(dir: string): number {
   for (const name of fs.readdirSync(dir)) {
     const f = path.join(dir, name);
     const st = fs.lstatSync(f);
-    if (st.isSymbolicLink()) throw new Error(`the fake's dir holds a link: ${JSON.stringify(path.relative(fakeDir, f))}`);
+    if (st.isSymbolicLink())
+      throw new Error(
+        `the fake's dir holds a link: ${JSON.stringify(path.relative(fakeDir, f))}`,
+      );
     n += st.isDirectory() ? dirBytes(f) : st.size;
   }
   return n;
@@ -103,45 +132,110 @@ function dirBytes(dir: string): number {
  * fake-timings.log keeps what each call cost. Null when it does not model the
  * call.
  */
-async function fakeCall(argv: string[], stdin: string): Promise<FakeAnswer | null> {
+async function fakeCall(
+  argv: string[],
+  stdin: string,
+): Promise<FakeAnswer | null> {
   const { fakeBin, fakeDir, fakeSeed, RUN_TAG, harnessDir } = ctx();
   if (!fakeBin || !fakeBox) return null;
-  const [outFile, errFile] = [path.join(fakeDir, "call.out"), path.join(fakeDir, "call.err")];
+  const [outFile, errFile] = [
+    path.join(fakeDir, "call.out"),
+    path.join(fakeDir, "call.err"),
+  ];
   // Made fresh for each call, never opened through what the last call left: a link there would have the harness,
   // outside the sandbox, truncate the file it points at. O_EXCL refuses any path that exists again, a link included.
   const [outFd, errFd] = [outFile, errFile].map((f) => {
     fs.rmSync(f, { force: true });
-    return fs.openSync(f, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
+    return fs.openSync(
+      f,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
+      0o600,
+    );
   });
   const seed = fakeSeed ? path.join(fakeDir, "seed.json") : "";
-  const child = spawn(fakeBox.prefix[0]!, [...fakeBox.prefix.slice(1), process.execPath, FAKE_RUNNER, fakeBin, path.join(fakeDir, "world.json"), path.join(fakeDir, "tree.json"), seed, ...argv], {
-    cwd: fakeDir,
-    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", LANG: process.env.LANG ?? "en_US.UTF-8", HOME: path.join(fakeDir, "home"), DRY_RUN_TAG: RUN_TAG, ...fakeBox.env },
-    stdio: ["pipe", outFd, errFd], detached: true,
-  });
+  const child = spawn(
+    fakeBox.prefix[0]!,
+    [
+      ...fakeBox.prefix.slice(1),
+      process.execPath,
+      FAKE_RUNNER,
+      fakeBin,
+      path.join(fakeDir, "world.json"),
+      path.join(fakeDir, "tree.json"),
+      seed,
+      ...argv,
+    ],
+    {
+      cwd: fakeDir,
+      env: {
+        PATH: process.env.PATH ?? "/usr/bin:/bin",
+        LANG: process.env.LANG ?? "en_US.UTF-8",
+        HOME: path.join(fakeDir, "home"),
+        DRY_RUN_TAG: RUN_TAG,
+        ...fakeBox.env,
+      },
+      stdio: ["pipe", outFd, errFd],
+      detached: true,
+    },
+  );
   child.stdin!.end(stdin);
   const started = performance.now();
   const code = await new Promise<number>((resolve) => {
-    const t = setTimeout(() => { try { process.kill(-child.pid!, "SIGKILL"); } catch { /* gone */ } }, 30_000);
-    child.on("exit", (c) => { clearTimeout(t); resolve(c ?? 1); });
+    const t = setTimeout(() => {
+      try {
+        process.kill(-child.pid!, "SIGKILL");
+      } catch {
+        /* gone */
+      }
+    }, 30_000);
+    child.on("exit", (c) => {
+      clearTimeout(t);
+      resolve(c ?? 1);
+    });
   });
   for (const fd of [outFd, errFd]) fs.closeSync(fd);
   const ran = performance.now();
   // Its whole session: a child it spawned with no env and another cwd, which neither the tag nor the cwd finds, is still in it.
   // A grandchild that started a session of its own is the run's sweep's (sweepRun: the run's tag, or a cwd in fakeDir).
-  try { process.kill(-child.pid!, "SIGKILL"); } catch { /* gone */ }
-  for (const pid of sessionPids(child.pid!)) { try { process.kill(pid, "SIGKILL"); } catch { /* gone */ } }
+  try {
+    process.kill(-child.pid!, "SIGKILL");
+  } catch {
+    /* gone */
+  }
+  for (const pid of sessionPids(child.pid!)) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      /* gone */
+    }
+  }
   // What each call cost: the fake's process, then killing its session (ms).
-  fs.appendFileSync(path.join(harnessDir, "fake-timings.log"), `${Math.round(ran - started)}\t${Math.round(performance.now() - ran)}\t${code}\t${loggedArgv(argv)}\n`);
+  fs.appendFileSync(
+    path.join(harnessDir, "fake-timings.log"),
+    `${Math.round(ran - started)}\t${Math.round(performance.now() - ran)}\t${code}\t${loggedArgv(argv)}\n`,
+  );
   // Before reading anything the fake wrote: no links, and within its size.
   const size = dirBytes(fakeDir);
-  if (size > FAKE_DIR_CAP) throw new Error(`the fake's dir holds ${size} bytes, over its cap of ${FAKE_DIR_CAP}`);
+  if (size > FAKE_DIR_CAP)
+    throw new Error(
+      `the fake's dir holds ${size} bytes, over its cap of ${FAKE_DIR_CAP}`,
+    );
   if (code === 125) return null;
   const said = readCapped(errFile, FAKE_OUTPUT_CAP).trim();
-  if (code !== 0) throw new Error(said.split("\n").find((l) => /error/i.test(l)) ?? said.split("\n")[0] ?? `exit ${code}`);
+  if (code !== 0)
+    throw new Error(
+      said.split("\n").find((l) => /error/i.test(l)) ??
+        said.split("\n")[0] ??
+        `exit ${code}`,
+    );
   const a = JSON.parse(readCapped(outFile, FAKE_OUTPUT_CAP)) as FakeAnswer;
-  if (typeof a?.out !== "string" || !Number.isInteger(a.exit)) throw new Error("the fake's answer is not { out, exit }");
-  return { out: a.out, exit: a.exit, ...(a.cli === true ? { cli: true as const } : {}) };
+  if (typeof a?.out !== "string" || !Number.isInteger(a.exit))
+    throw new Error("the fake's answer is not { out, exit }");
+  return {
+    out: a.out,
+    exit: a.exit,
+    ...(a.cli === true ? { cli: true as const } : {}),
+  };
 }
 
 /** The answering process: imports the --fake module and answers one call (prompt-dry-run-fake.ts). */
@@ -155,24 +249,65 @@ const FAKE_RUNNER = path.join(import.meta.dir, "prompt-dry-run-fake.ts");
  * process.
  */
 export async function loadFake(): Promise<void> {
-  const { fakeBin, fakeSeed, fakeDir, harnessDir, brokerCwdDefault, guardDir } = ctx();
+  const { fakeBin, fakeSeed, fakeDir, harnessDir, brokerCwdDefault, guardDir } =
+    ctx();
   if (!fakeBin) return;
   const cast = realCast();
   const state = path.join(harnessDir, "cast-state");
   fs.mkdirSync(state, { recursive: true });
-  const r = cast ? spawnSync(cast, ["agent-context", "--json"], { cwd: brokerCwdDefault, env: { PATH: process.env.PATH ?? "", HOME: harnessDir, CODECAST_DIR: state, CODECAST_NO_AUTO_UPDATE: "1" }, encoding: "utf8", maxBuffer: 256 << 20 }) : null;
+  const r = cast
+    ? spawnSync(cast, ["agent-context", "--json"], {
+        cwd: brokerCwdDefault,
+        env: {
+          PATH: process.env.PATH ?? "",
+          HOME: harnessDir,
+          CODECAST_DIR: state,
+          CODECAST_NO_AUTO_UPDATE: "1",
+        },
+        encoding: "utf8",
+        maxBuffer: 256 << 20,
+      })
+    : null;
   let tree: unknown = null;
-  try { tree = r && r.status === 0 ? JSON.parse(r.stdout) : null; } catch { /* not the tree */ }
-  if (!tree) refuse(`--fake needs the CLI's command tree, and \`cast agent-context --json\` did not give one (${!r ? "no cast on PATH" : r.status !== 0 ? `exit ${r.status}` : "its output is not JSON"})`);
+  try {
+    tree = r && r.status === 0 ? JSON.parse(r.stdout) : null;
+  } catch {
+    /* not the tree */
+  }
+  if (!tree)
+    refuse(
+      `--fake needs the CLI's command tree, and \`cast agent-context --json\` did not give one (${!r ? "no cast on PATH" : r.status !== 0 ? `exit ${r.status}` : "its output is not JSON"})`,
+    );
   fs.writeFileSync(path.join(harnessDir, "cli-tree.json"), r!.stdout);
   fs.mkdirSync(path.join(fakeDir, "home"), { recursive: true });
   fs.writeFileSync(path.join(fakeDir, "tree.json"), r!.stdout);
   if (fakeSeed) fs.copyFileSync(fakeSeed, path.join(fakeDir, "seed.json"));
   // The fake's code and what it imports: its checkout (git's top level), or its directory, and wherever the checkout's install really lives.
   const dir = path.dirname(fakeBin);
-  const top = spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).stdout?.trim();
-  const reads = [dir, import.meta.dir, ...(top ? [top, ...["node_modules"].map((n) => path.join(top, n)).filter((p) => fs.existsSync(p)).map((p) => fs.realpathSync(p))] : [])];
+  const top = spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  }).stdout?.trim();
+  const reads = [
+    dir,
+    import.meta.dir,
+    ...(top
+      ? [
+          top,
+          ...["node_modules"]
+            .map((n) => path.join(top, n))
+            .filter((p) => fs.existsSync(p))
+            .map((p) => fs.realpathSync(p)),
+        ]
+      : []),
+  ];
   const gap = scratchIsolationGap(fakeDir, guardDir, fs.realpathSync(dir));
-  if (gap) refuse(`--fake runs the fake in the closed world, and this machine cannot give it one (${gap})`);
-  fakeBox = scratchSandbox(fakeDir, { guard: guardDir, read: reads, ports: [] });
+  if (gap)
+    refuse(
+      `--fake runs the fake in the closed world, and this machine cannot give it one (${gap})`,
+    );
+  fakeBox = scratchSandbox(fakeDir, {
+    guard: guardDir,
+    read: reads,
+    ports: [],
+  });
 }

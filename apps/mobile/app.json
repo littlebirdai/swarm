@@ -2,10 +2,7 @@
   "expo": {
     "name": "Codecast",
     "slug": "codecast",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "version": "1.0.5",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -32,11 +29,7 @@
         "webcredentials:codecast.sh"
       ],
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio",
-          "remote-notification",
-          "voip"
-        ],
+        "UIBackgroundModes": ["audio", "remote-notification", "voip"],
         "NSFaceIDUsageDescription": "Codecast uses Face ID to unlock the app and keep your workspace private. For example, you can require Face ID before the app opens your team's conversations.",
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Codecast uses the camera to take a photo you attach to a message, and to share your live video with teammates when you turn your camera on during a team huddle (a live voice and video call).",
@@ -47,9 +40,7 @@
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
-        "com.apple.security.application-groups": [
-          "group.com.ashotp.codecast"
-        ],
+        "com.apple.security.application-groups": ["group.com.ashotp.codecast"],
         "keychain-access-groups": [
           "$(AppIdentifierPrefix)com.ashotp.codecast",
           "$(AppIdentifierPrefix)com.ashotp.codecast.shared"
@@ -134,10 +125,7 @@
               "pathPrefix": "/join"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "adaptiveIcon": {
@@ -229,9 +217,7 @@
       [
         "expo-callkit-telecom",
         {
-          "sounds": [
-            "./assets/sounds/huddle-ring.caf"
-          ],
+          "sounds": ["./assets/sounds/huddle-ring.caf"],
           "defaultRingtoneIos": "huddle-ring.caf",
           "incomingCallTimeout": 45,
           "fulfillAnswerCallTimeout": 30

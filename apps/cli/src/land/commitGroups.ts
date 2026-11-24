@@ -21,12 +21,24 @@ export interface Frozen {
   /** The working tree as a git tree. */
   tree: string;
   /** Every path whose frozen content differs from HEAD's, with its frozen blob (null when deleted) and HEAD's (`from`, null when added). */
-  changes: Array<{ path: string; blob: string | null; from: string | null; mode: string; added: boolean }>;
+  changes: Array<{
+    path: string;
+    blob: string | null;
+    from: string | null;
+    mode: string;
+    added: boolean;
+  }>;
 }
 
 /** A base-to-frozen tree diff as the changes a freeze holds. */
 export function frozenChanges(entries: DiffEntry[]): Frozen["changes"] {
-  return entries.map((e) => ({ path: e.path, blob: e.dst, from: e.src, mode: e.dst ? e.dstMode : e.srcMode, added: !e.src }));
+  return entries.map((e) => ({
+    path: e.path,
+    blob: e.dst,
+    from: e.src,
+    mode: e.dst ? e.dstMode : e.srcMode,
+    added: !e.src,
+  }));
 }
 
 export async function freezeWorktree(root: string): Promise<Frozen> {
@@ -51,7 +63,11 @@ export interface CommitSpec {
  * Commit each spec's paths, at their frozen content, on top of `base`. Returns
  * the tip and the commit made for each spec (null when a spec changed nothing).
  */
-export async function buildCommits(root: string, frozen: Frozen, specs: CommitSpec[]): Promise<{ tip: string; commits: Array<string | null> }> {
+export async function buildCommits(
+  root: string,
+  frozen: Frozen,
+  specs: CommitSpec[],
+): Promise<{ tip: string; commits: Array<string | null> }> {
   const byPath = new Map(frozen.changes.map((c) => [c.path, c]));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-ship-index-"));
   const env = { ...process.env, GIT_INDEX_FILE: path.join(dir, "index") };
@@ -64,12 +80,32 @@ export async function buildCommits(root: string, frozen: Frozen, specs: CommitSp
       const info = spec.paths
         .map((p) => byPath.get(p))
         .filter((c): c is Frozen["changes"][number] => !!c)
-        .map((c) => (c.blob ? `${c.mode} ${c.blob}\t${c.path}` : `0 ${"0".repeat(40)}\t${c.path}`));
-      if (!info.length) { commits.push(null); continue; }
-      await git(root, ["update-index", "--index-info"], env, info.join("\n") + "\n");
+        .map((c) =>
+          c.blob
+            ? `${c.mode} ${c.blob}\t${c.path}`
+            : `0 ${"0".repeat(40)}\t${c.path}`,
+        );
+      if (!info.length) {
+        commits.push(null);
+        continue;
+      }
+      await git(
+        root,
+        ["update-index", "--index-info"],
+        env,
+        info.join("\n") + "\n",
+      );
       const next = await git(root, ["write-tree"], env);
-      if (next === tree) { commits.push(null); continue; }
-      tip = await git(root, ["commit-tree", next, "-p", tip, "-F", "-"], { ...env, ...spec.env }, spec.message);
+      if (next === tree) {
+        commits.push(null);
+        continue;
+      }
+      tip = await git(
+        root,
+        ["commit-tree", next, "-p", tip, "-F", "-"],
+        { ...env, ...spec.env },
+        spec.message,
+      );
       tree = next;
       commits.push(tip);
     }

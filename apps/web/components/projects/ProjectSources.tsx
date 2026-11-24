@@ -7,7 +7,12 @@
 import Link from "next/link";
 import { Hash, Pause, Play, Trash2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CHAT_TRIGGER_EVENTS, TRIGGER_EVENT_NAMES, projectChannelRefusal, triggerEventLabel } from "@codecast/shared/contracts";
+import {
+  CHAT_TRIGGER_EVENTS,
+  TRIGGER_EVENT_NAMES,
+  projectChannelRefusal,
+  triggerEventLabel,
+} from "@codecast/shared/contracts";
 import { useInboxStore, isConvexId } from "../../store/inboxStore";
 import { useCollectionRows } from "../../hooks/useCollectionRows";
 import { useSyncProjectTeammateSources } from "../../hooks/useSyncProjectTeammateSources";
@@ -17,7 +22,11 @@ import { SwitchReview } from "../consequential/ConsequentialSwitch";
 import { sourceLedger } from "../../lib/projectSourceLedger";
 import { relativeTime } from "../../lib/entityDisplay";
 import { windowOrgTree } from "../../store/orgSlice";
-import { projectDefaultSessionOf, type ProjectRow, type RoleSeat } from "../../lib/projectDefaultSession";
+import {
+  projectDefaultSessionOf,
+  type ProjectRow,
+  type RoleSeat,
+} from "../../lib/projectDefaultSession";
 
 type SourceRow = {
   _id: string;
@@ -36,39 +45,106 @@ type SourceRow = {
 };
 
 const GONE = new Set(["completed", "cancelled"]);
-const sourceSig = (t: SourceRow) => `${t.project_id ?? ""}|${t.status}|${t.title}|${t.last_run_at ?? 0}|${t.last_run_failed ? 1 : 0}|${t.run_count}|${t.paused_by_project_id ?? ""}|${t.event_filter?.channel_id ?? ""}`;
+const sourceSig = (t: SourceRow) =>
+  `${t.project_id ?? ""}|${t.status}|${t.title}|${t.last_run_at ?? 0}|${t.last_run_failed ? 1 : 0}|${t.run_count}|${t.paused_by_project_id ?? ""}|${t.event_filter?.channel_id ?? ""}`;
 const teammateSig = (t: SourceRow) => `${sourceSig(t)}|${t.owner_name ?? ""}`;
-const channelSig = (c: any) => `${c.name}|${c.kind ?? ""}|${c.archived_at ? 1 : 0}`;
-const EVENTS = TRIGGER_EVENT_NAMES.filter((n) => !CHAT_TRIGGER_EVENTS.includes(n));
+const channelSig = (c: any) =>
+  `${c.name}|${c.kind ?? ""}|${c.archived_at ? 1 : 0}`;
+const EVENTS = TRIGGER_EVENT_NAMES.filter(
+  (n) => !CHAT_TRIGGER_EVENTS.includes(n),
+);
 
-export function ProjectSources({ project }: { project: ProjectRow & { _id: string; title: string } }) {
-  const where = useMemo(() => (t: SourceRow) => t.project_id === project._id && !GONE.has(t.status), [project._id]);
-  const own = useCollectionRows<SourceRow>("agentTasks", { where, sig: sourceSig });
+export function ProjectSources({
+  project,
+}: {
+  project: ProjectRow & { _id: string; title: string };
+}) {
+  const where = useMemo(
+    () => (t: SourceRow) => t.project_id === project._id && !GONE.has(t.status),
+    [project._id],
+  );
+  const own = useCollectionRows<SourceRow>("agentTasks", {
+    where,
+    sig: sourceSig,
+  });
   useSyncProjectTeammateSources(isConvexId(project._id) ? project._id : null);
-  const theirs = useCollectionRows<SourceRow>("projectTeammateSources", { where, sig: teammateSig });
+  const theirs = useCollectionRows<SourceRow>("projectTeammateSources", {
+    where,
+    sig: teammateSig,
+  });
   const sources = useMemo(() => [...own, ...theirs], [own, theirs]);
   // The project's team's channels (a personal project offers the active team's).
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id ?? null);
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id ?? null,
+  );
   const teamId = (project as { team_id?: string }).team_id ?? activeTeamId;
-  const inTeam = useMemo(() => (c: any) => !!teamId && String(c.team_id) === String(teamId), [teamId]);
-  const channelRows = useCollectionRows<any>("chatChannels", { where: inTeam, sig: channelSig });
+  const inTeam = useMemo(
+    () => (c: any) => !!teamId && String(c.team_id) === String(teamId),
+    [teamId],
+  );
+  const channelRows = useCollectionRows<any>("chatChannels", {
+    where: inTeam,
+    sig: channelSig,
+  });
   const workspace = (project as { workspace?: string }).workspace ?? null;
-  const channels = useMemo(() => channelRows.filter((c) => c.kind !== "dm" && !c.archived_at && !projectChannelRefusal({ workspace }, c)).sort((a, b) => a.name.localeCompare(b.name)), [channelRows, workspace]);
-  const channelName = useMemo(() => new Map(channelRows.map((c) => [String(c._id), c.name as string])), [channelRows]);
-  const mainId = useInboxStore((s) => projectDefaultSessionOf(project, s.sessions, windowOrgTree(s)?.roles as RoleSeat[] | undefined));
-  const mainTitle = useInboxStore((s) => (mainId ? s.sessions[mainId]?.title || mainId.slice(0, 7) : null));
+  const channels = useMemo(
+    () =>
+      channelRows
+        .filter(
+          (c) =>
+            c.kind !== "dm" &&
+            !c.archived_at &&
+            !projectChannelRefusal({ workspace }, c),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [channelRows, workspace],
+  );
+  const channelName = useMemo(
+    () => new Map(channelRows.map((c) => [String(c._id), c.name as string])),
+    [channelRows],
+  );
+  const mainId = useInboxStore((s) =>
+    projectDefaultSessionOf(
+      project,
+      s.sessions,
+      windowOrgTree(s)?.roles as RoleSeat[] | undefined,
+    ),
+  );
+  const mainTitle = useInboxStore((s) =>
+    mainId ? s.sessions[mainId]?.title || mainId.slice(0, 7) : null,
+  );
   // Runs land only in a session the source's owner runs; the server refuses the rest.
   const othersSession = useInboxStore((s) => {
-    const owner = mainId ? (s.sessions[mainId] as { user_id?: string } | undefined)?.user_id : undefined;
+    const owner = mainId
+      ? (s.sessions[mainId] as { user_id?: string } | undefined)?.user_id
+      : undefined;
     const me = s.currentUser?._id;
     return !!owner && !!me && String(owner) !== String(me);
   });
-  const projectQuiet = (project as { status?: string }).status === "paused" || (project as { status?: string }).status === "done";
+  const projectQuiet =
+    (project as { status?: string }).status === "paused" ||
+    (project as { status?: string }).status === "done";
   const [pick, setPick] = useState("");
   const [reviewing, setReviewing] = useState(false);
 
-  const watched = useMemo(() => new Set(sources.map((s) => s.event_filter?.channel_id ?? `event:${s.event_filter?.event_type}`)), [sources]);
-  const picked = pick.startsWith("ch:") ? { channel_id: pick.slice(3), title: `#${channelName.get(pick.slice(3)) ?? "channel"}` } : pick ? { event: pick.slice(3), title: triggerEventLabel(pick.slice(3)) } : null;
+  const watched = useMemo(
+    () =>
+      new Set(
+        sources.map(
+          (s) =>
+            s.event_filter?.channel_id ?? `event:${s.event_filter?.event_type}`,
+        ),
+      ),
+    [sources],
+  );
+  const picked = pick.startsWith("ch:")
+    ? {
+        channel_id: pick.slice(3),
+        title: `#${channelName.get(pick.slice(3)) ?? "channel"}`,
+      }
+    : pick
+      ? { event: pick.slice(3), title: triggerEventLabel(pick.slice(3)) }
+      : null;
 
   const add = () => {
     if (!picked) return;
@@ -82,62 +158,150 @@ export function ProjectSources({ project }: { project: ProjectRow & { _id: strin
       <ul className="flex flex-col" data-project-sources>
         {sources.map((t) => {
           const chat = !!t.event_filter?.channel_id;
-          const name = chat ? `#${channelName.get(t.event_filter!.channel_id!) ?? "channel"}` : triggerEventLabel(t.event_filter?.event_type);
+          const name = chat
+            ? `#${channelName.get(t.event_filter!.channel_id!) ?? "channel"}`
+            : triggerEventLabel(t.event_filter?.event_type);
           const paused = t.status === "paused";
           const stub = !isConvexId(t._id);
           const fired = relativeTime(t.last_run_at);
           return (
-            <li key={t._id} className="group flex items-center gap-2 rounded px-1.5 py-1 hover:bg-sol-bg-alt" data-project-source={t._id}>
-              {chat ? <Hash className="h-3.5 w-3.5 shrink-0 text-sol-cyan" /> : <Zap className="h-3.5 w-3.5 shrink-0 text-sol-yellow" />}
-              <Link href={chat ? `/chat/${t.event_filter!.channel_id}` : `/triggers/${t._id}`} className={`min-w-0 flex-1 truncate text-[13px] hover:text-sol-cyan ${paused ? "text-sol-text-dim" : "text-sol-text"}`}>
+            <li
+              key={t._id}
+              className="group flex items-center gap-2 rounded px-1.5 py-1 hover:bg-sol-bg-alt"
+              data-project-source={t._id}
+            >
+              {chat ? (
+                <Hash className="h-3.5 w-3.5 shrink-0 text-sol-cyan" />
+              ) : (
+                <Zap className="h-3.5 w-3.5 shrink-0 text-sol-yellow" />
+              )}
+              <Link
+                href={
+                  chat
+                    ? `/chat/${t.event_filter!.channel_id}`
+                    : `/triggers/${t._id}`
+                }
+                className={`min-w-0 flex-1 truncate text-[13px] hover:text-sol-cyan ${paused ? "text-sol-text-dim" : "text-sol-text"}`}
+              >
                 {name}
               </Link>
               {paused && (
-                <span className="shrink-0 text-meta text-sol-orange" data-source-paused>{t.paused_by_project_id ? "Paused with project" : "Paused"}</span>
+                <span
+                  className="shrink-0 text-meta text-sol-orange"
+                  data-source-paused
+                >
+                  {t.paused_by_project_id ? "Paused with project" : "Paused"}
+                </span>
               )}
-              <span className={`shrink-0 text-meta tabular-nums ${t.last_run_failed ? "text-sol-red" : "text-sol-text-dim"}`} title={t.last_run_failed ? t.last_run_summary : undefined} data-source-last-fired>
-                {t.last_run_conversation_id && fired ? <Link href={`/conversation/${t.last_run_conversation_id}`} className="hover:text-sol-cyan">{fired}</Link> : fired ?? "Never fired"}
+              <span
+                className={`shrink-0 text-meta tabular-nums ${t.last_run_failed ? "text-sol-red" : "text-sol-text-dim"}`}
+                title={t.last_run_failed ? t.last_run_summary : undefined}
+                data-source-last-fired
+              >
+                {t.last_run_conversation_id && fired ? (
+                  <Link
+                    href={`/conversation/${t.last_run_conversation_id}`}
+                    className="hover:text-sol-cyan"
+                  >
+                    {fired}
+                  </Link>
+                ) : (
+                  (fired ?? "Never fired")
+                )}
               </span>
-              <span className="w-10 shrink-0 text-right text-meta tabular-nums text-sol-text-dim" title="Runs">{t.run_count}×</span>
+              <span
+                className="w-10 shrink-0 text-right text-meta tabular-nums text-sol-text-dim"
+                title="Runs"
+              >
+                {t.run_count}×
+              </span>
               {t.owner_name ? (
-                <span className="w-[8.5rem] shrink-0 truncate text-right text-meta text-sol-text-dim" data-source-owner>{t.owner_name}</span>
-              ) : (<>
-              <button
-                type="button"
-                disabled={stub || (paused && projectQuiet)}
-                title={paused && projectQuiet ? "Resumes with the project" : undefined}
-                onClick={() => useInboxStore.getState().triggerAction(t._id, paused ? "resume" : "pause")}
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim hover:text-sol-text disabled:opacity-40"
-                aria-label={`${paused ? "Resume" : "Pause"} ${name}`}
-                data-source-toggle
-              >
-                {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}{paused ? "Resume" : "Pause"}
-              </button>
-              <button
-                type="button"
-                disabled={stub}
-                onClick={() => useInboxStore.getState().deleteTrigger(t._id)}
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim opacity-0 transition-opacity hover:text-sol-red focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
-                aria-label={`Remove ${name}`}
-                data-source-remove
-              >
-                <Trash2 className="h-3 w-3" />Remove
-              </button>
-              </>)}
+                <span
+                  className="w-[8.5rem] shrink-0 truncate text-right text-meta text-sol-text-dim"
+                  data-source-owner
+                >
+                  {t.owner_name}
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={stub || (paused && projectQuiet)}
+                    title={
+                      paused && projectQuiet
+                        ? "Resumes with the project"
+                        : undefined
+                    }
+                    onClick={() =>
+                      useInboxStore
+                        .getState()
+                        .triggerAction(t._id, paused ? "resume" : "pause")
+                    }
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim hover:text-sol-text disabled:opacity-40"
+                    aria-label={`${paused ? "Resume" : "Pause"} ${name}`}
+                    data-source-toggle
+                  >
+                    {paused ? (
+                      <Play className="h-3 w-3" />
+                    ) : (
+                      <Pause className="h-3 w-3" />
+                    )}
+                    {paused ? "Resume" : "Pause"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={stub}
+                    onClick={() =>
+                      useInboxStore.getState().deleteTrigger(t._id)
+                    }
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim opacity-0 transition-opacity hover:text-sol-red focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
+                    aria-label={`Remove ${name}`}
+                    data-source-remove
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Remove
+                  </button>
+                </>
+              )}
             </li>
           );
         })}
       </ul>
-      <div className="mt-1.5 flex items-center gap-2 px-1.5" data-project-source-add>
-        <SelectBox variant="bare" value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Source to add" className="text-[13px]">
+      <div
+        className="mt-1.5 flex items-center gap-2 px-1.5"
+        data-project-source-add
+      >
+        <SelectBox
+          variant="bare"
+          value={pick}
+          onChange={(e) => setPick(e.target.value)}
+          aria-label="Source to add"
+          className="text-[13px]"
+        >
           <option value="">Add a channel or event</option>
           {channels.length > 0 && (
             <optgroup label="Channels">
-              {channels.map((c) => <option key={c._id} value={`ch:${c._id}`} disabled={watched.has(String(c._id))}>#{c.name}</option>)}
+              {channels.map((c) => (
+                <option
+                  key={c._id}
+                  value={`ch:${c._id}`}
+                  disabled={watched.has(String(c._id))}
+                >
+                  #{c.name}
+                </option>
+              ))}
             </optgroup>
           )}
           <optgroup label="Events">
-            {EVENTS.map((n) => <option key={n} value={`ev:${n}`} disabled={watched.has(`event:${n}`)}>{triggerEventLabel(n)}</option>)}
+            {EVENTS.map((n) => (
+              <option
+                key={n}
+                value={`ev:${n}`}
+                disabled={watched.has(`event:${n}`)}
+              >
+                {triggerEventLabel(n)}
+              </option>
+            ))}
           </optgroup>
         </SelectBox>
         <button
@@ -153,9 +317,18 @@ export function ProjectSources({ project }: { project: ProjectRow & { _id: strin
       </div>
       {reviewing && picked && (
         <SwitchReview
-          ledger={sourceLedger({ source: picked.title, project: project.title, mainSession: mainTitle, channel: !!picked.channel_id, othersSession })}
+          ledger={sourceLedger({
+            source: picked.title,
+            project: project.title,
+            mainSession: mainTitle,
+            channel: !!picked.channel_id,
+            othersSession,
+          })}
           onClose={() => setReviewing(false)}
-          onConfirm={() => { setReviewing(false); add(); }}
+          onConfirm={() => {
+            setReviewing(false);
+            add();
+          }}
         />
       )}
     </RecordSection>

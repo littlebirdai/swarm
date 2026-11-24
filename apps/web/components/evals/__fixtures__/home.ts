@@ -8,19 +8,34 @@ import { evalsFixtureWorld, fixtureWorldNow } from "./world";
 
 export const HOME_NOW = fixtureWorldNow();
 
-export function homeFixture(opts: { now?: number; cadence?: string } = {}): Promise<OverviewResponse> {
-  return evalsFixtureWorld({ now: opts.now ?? HOME_NOW }).answer("GET /overview", {}, { cadence: opts.cadence ?? "all" });
+export function homeFixture(
+  opts: { now?: number; cadence?: string } = {},
+): Promise<OverviewResponse> {
+  return evalsFixtureWorld({ now: opts.now ?? HOME_NOW }).answer(
+    "GET /overview",
+    {},
+    { cadence: opts.cadence ?? "all" },
+  );
 }
 
 /** The same wall with every story taken out: no row separated worse and nothing to report. */
-export async function quietHomeFixture(opts: { now?: number } = {}): Promise<OverviewResponse> {
+export async function quietHomeFixture(
+  opts: { now?: number } = {},
+): Promise<OverviewResponse> {
   const base = await homeFixture(opts);
   return {
     ...base,
     surfaces: base.surfaces.map((s) => ({
       ...s,
       landing: false,
-      latest: s.latest ? { ...s.latest, separation: { kind: "not-separated", p: 0.5 }, regression: false, flips: [] } : null,
+      latest: s.latest
+        ? {
+            ...s.latest,
+            separation: { kind: "not-separated", p: 0.5 },
+            regression: false,
+            flips: [],
+          }
+        : null,
     })),
     moved: [],
     bisects: [],

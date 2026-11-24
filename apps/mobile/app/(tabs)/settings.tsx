@@ -1,11 +1,15 @@
-import { StyleSheet, TouchableOpacity, View as RNView } from 'react-native';
-import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Text as RNText } from '@/components/Themed';
-import { Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { useAuth } from '@/lib/auth';
-import { useDevices } from '@/components/DevicesSection';
-import { SettingsScroll, SettingsGroup, NavRow } from '@/components/settings/SettingsUI';
+import { StyleSheet, TouchableOpacity, View as RNView } from "react-native";
+import { useRouter } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Text as RNText } from "@/components/Themed";
+import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { useAuth } from "@/lib/auth";
+import { useDevices } from "@/components/DevicesSection";
+import {
+  SettingsScroll,
+  SettingsGroup,
+  NavRow,
+} from "@/components/settings/SettingsUI";
 import {
   UserAvatar,
   appVersionLabel,
@@ -13,13 +17,13 @@ import {
   useActiveTeamSettings,
   useSettingsUser,
   themeLabelOf,
-} from '@/components/settings/SettingsPages';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { LANE_COPY, meterWords } from '@codecast/web/components/simple/lane';
-import { usePlanMeter } from '@codecast/web/components/simple/usePlanFigures';
-import { useLaneMailAbilities } from '@codecast/web/components/simple/useLaneMail';
-import { useSecrets } from '@codecast/web/hooks/useSyncSecrets';
-import { appAlert } from '@/lib/popups';
+} from "@/components/settings/SettingsPages";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { LANE_COPY, meterWords } from "@codecast/web/components/simple/lane";
+import { usePlanMeter } from "@codecast/web/components/simple/usePlanFigures";
+import { useLaneMailAbilities } from "@codecast/web/components/simple/useLaneMail";
+import { useSecrets } from "@codecast/web/hooks/useSyncSecrets";
+import { appAlert } from "@/lib/popups";
 
 // The settings home is a short list of rows; each opens its own screen
 // (app/settings/[section].tsx), so every switch is one tap deeper and the
@@ -36,31 +40,46 @@ export default function SettingsScreen() {
   const online = devices.filter((d) => d.online).length;
   const meter = usePlanMeter();
   const mail = useLaneMailAbilities();
-  const vaultAsks = useSecrets().filter((r) => r.status === 'requested').length;
+  const vaultAsks = useSecrets().filter((r) => r.status === "requested").length;
   // The route is cast for the same reason the inbox's pushes are: expo's
   // typed-route union only regenerates when Metro runs.
-  const open = (section: string) => router.push(`/settings/${section}` as never);
+  const open = (section: string) =>
+    router.push(`/settings/${section}` as never);
 
   const handleSignOut = () => {
-    appAlert('Sign out?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    appAlert("Sign out?", undefined, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: signOut },
     ]);
   };
 
   return (
     <SettingsScroll>
       <SettingsGroup>
-        <TouchableOpacity style={styles.profile} onPress={() => open('profile')} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel="Profile">
+        <TouchableOpacity
+          style={styles.profile}
+          onPress={() => open("profile")}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="Profile"
+        >
           <UserAvatar user={currentUser} size={48} />
           <RNView style={styles.profileText}>
-            <RNText style={styles.name} numberOfLines={1}>{currentUser?.name || 'User'}</RNText>
+            <RNText style={styles.name} numberOfLines={1}>
+              {currentUser?.name || "User"}
+            </RNText>
             <RNView style={styles.statusLine}>
               <FontAwesome name={status.icon} size={10} color={status.color} />
-              <RNText style={styles.email} numberOfLines={1}>{status.label} · {currentUser?.email}</RNText>
+              <RNText style={styles.email} numberOfLines={1}>
+                {status.label} · {currentUser?.email}
+              </RNText>
             </RNView>
           </RNView>
-          <FontAwesome name="chevron-right" size={10} color={Theme.textMuted0} />
+          <FontAwesome
+            name="chevron-right"
+            size={10}
+            color={Theme.textMuted0}
+          />
         </TouchableOpacity>
       </SettingsGroup>
 
@@ -71,87 +90,133 @@ export default function SettingsScreen() {
           label="Plan"
           description={meter.known ? meterWords(meter.figures) : undefined}
           detail={meter.known ? meter.plan.label : undefined}
-          onPress={() => open('plan')}
+          onPress={() => open("plan")}
         />
         <NavRow
           icon="envelope-o"
           label={LANE_COPY.connections.mail}
-          detail={mail.known ? (mail.connected ? LANE_COPY.connections.on : mail.available === false ? LANE_COPY.connections.coming : LANE_COPY.connections.off) : undefined}
-          onPress={() => open('mail')}
+          detail={
+            mail.known
+              ? mail.connected
+                ? LANE_COPY.connections.on
+                : mail.available === false
+                  ? LANE_COPY.connections.coming
+                  : LANE_COPY.connections.off
+              : undefined
+          }
+          onPress={() => open("mail")}
         />
       </SettingsGroup>
 
       <SettingsGroup>
-        <NavRow icon="key" label="Accounts" onPress={() => router.push('/accounts' as never)} />
+        <NavRow
+          icon="key"
+          label="Accounts"
+          onPress={() => router.push("/accounts" as never)}
+        />
         <NavRow
           icon="bell-o"
           label="Notifications"
-          detail={currentUser?.notifications_enabled ? 'On' : 'Off'}
-          onPress={() => open('notifications')}
+          detail={currentUser?.notifications_enabled ? "On" : "Off"}
+          onPress={() => open("notifications")}
         />
         <NavRow
           icon="laptop"
           label="Devices"
           detail={devices.length ? `${online} online` : undefined}
-          onPress={() => open('devices')}
+          onPress={() => open("devices")}
         />
-        <NavRow icon="shield" label="Vault" detail={vaultAsks ? `${vaultAsks} requested` : undefined} onPress={() => open('vault')} />
-        <NavRow icon="adjust" label="Appearance" detail={themeLabelOf(storeTheme).label} onPress={() => open('appearance')} />
+        <NavRow
+          icon="shield"
+          label="Vault"
+          detail={vaultAsks ? `${vaultAsks} requested` : undefined}
+          onPress={() => open("vault")}
+        />
+        <NavRow
+          icon="adjust"
+          label="Appearance"
+          detail={themeLabelOf(storeTheme).label}
+          onPress={() => open("appearance")}
+        />
         <NavRow
           icon="lock"
           label="Security"
-          detail={isBiometricAvailable ? (isBiometricEnabled ? 'On' : 'Off') : undefined}
-          onPress={() => open('security')}
+          detail={
+            isBiometricAvailable
+              ? isBiometricEnabled
+                ? "On"
+                : "Off"
+              : undefined
+          }
+          onPress={() => open("security")}
         />
-        {activeTeam ? <NavRow icon="users" label="Team" detail={activeTeam.name} onPress={() => open('team')} /> : null}
-        <NavRow icon="info-circle" label="About" detail={appVersionLabel().version} onPress={() => open('about')} />
+        {activeTeam ? (
+          <NavRow
+            icon="users"
+            label="Team"
+            detail={activeTeam.name}
+            onPress={() => open("team")}
+          />
+        ) : null}
+        <NavRow
+          icon="info-circle"
+          label="About"
+          detail={appVersionLabel().version}
+          onPress={() => open("about")}
+        />
       </SettingsGroup>
 
-      <TouchableOpacity style={styles.signOut} onPress={handleSignOut} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.signOut}
+        onPress={handleSignOut}
+        activeOpacity={0.7}
+      >
         <RNText style={styles.signOutText}>Sign Out</RNText>
       </TouchableOpacity>
     </SettingsScroll>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  profile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  profileText: {
-    flex: 1,
-    marginHorizontal: Spacing.md,
-  },
-  name: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Theme.text,
-  },
-  statusLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 3,
-  },
-  email: {
-    fontSize: 13,
-    color: Theme.textMuted,
-    flexShrink: 1,
-  },
-  signOut: {
-    marginTop: Spacing.xl,
-    backgroundColor: Theme.bgAlt,
-    padding: Spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  signOutText: {
-    color: Theme.red,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    profile: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: Spacing.lg,
+    },
+    profileText: {
+      flex: 1,
+      marginHorizontal: Spacing.md,
+    },
+    name: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: Theme.text,
+    },
+    statusLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 3,
+    },
+    email: {
+      fontSize: 13,
+      color: Theme.textMuted,
+      flexShrink: 1,
+    },
+    signOut: {
+      marginTop: Spacing.xl,
+      backgroundColor: Theme.bgAlt,
+      padding: Spacing.lg,
+      borderRadius: 12,
+      alignItems: "center",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    signOutText: {
+      color: Theme.red,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  }),
+);

@@ -17,7 +17,11 @@ describe("tokenize", () => {
 
   test("keeps a quoted string together", () => {
     // Without this, `type #e7 "hello world"` types "hello" and drops the rest.
-    expect(tokenize('type #e7 "hello world"')).toEqual(["type", "#e7", "hello world"]);
+    expect(tokenize('type #e7 "hello world"')).toEqual([
+      "type",
+      "#e7",
+      "hello world",
+    ]);
   });
 
   test("handles single quotes", () => {
@@ -25,7 +29,12 @@ describe("tokenize", () => {
   });
 
   test("keeps flags after a quoted value", () => {
-    expect(tokenize('type #e7 "a b" --submit')).toEqual(["type", "#e7", "a b", "--submit"]);
+    expect(tokenize('type #e7 "a b" --submit')).toEqual([
+      "type",
+      "#e7",
+      "a b",
+      "--submit",
+    ]);
   });
 
   test("preserves an intentionally empty string", () => {
@@ -34,7 +43,11 @@ describe("tokenize", () => {
   });
 
   test("allows an escaped quote inside a quoted value", () => {
-    expect(tokenize('type #e1 "say \\"hi\\""')).toEqual(["type", "#e1", 'say "hi"']);
+    expect(tokenize('type #e1 "say \\"hi\\""')).toEqual([
+      "type",
+      "#e1",
+      'say "hi"',
+    ]);
   });
 
   test("collapses runs of whitespace", () => {
@@ -53,15 +66,30 @@ function ctx(overrides: Partial<BatchContext> = {}): BatchContext {
     targetId: "t",
     // settle() asks for [readyState, mutationCount]; a page that never reports
     // "complete" would make every settling step wait out its timeout.
-    conn: { send: async () => ({ result: { value: JSON.stringify(["complete", 0]) } }) },
+    conn: {
+      send: async () => ({
+        result: { value: JSON.stringify(["complete", 0]) },
+      }),
+    },
   } as unknown as PageSession;
-  return { page, shots: [], capture: async () => "/tmp/shot.png", navigate: async (u) => `went to ${u}`, ...overrides };
+  return {
+    page,
+    shots: [],
+    capture: async () => "/tmp/shot.png",
+    navigate: async (u) => `went to ${u}`,
+    ...overrides,
+  };
 }
 
 describe("runBatch", () => {
   test("runs the steps in order", async () => {
     const seen: string[] = [];
-    const c = ctx({ navigate: async (u) => { seen.push(u); return u; } });
+    const c = ctx({
+      navigate: async (u) => {
+        seen.push(u);
+        return u;
+      },
+    });
     const r = await runBatch(c, ["open a.test", "open b.test"]);
     expect(seen).toEqual(["a.test", "b.test"]);
     expect(r.every((x) => x.ok)).toBe(true);

@@ -33,8 +33,17 @@ import {
   endWalkie,
   type LiveBurstRow,
 } from "../lib/calls/walkie";
-import { dmRoomEmptied, otherJoinedLive, senderHearingFrom, useWalkieStatus } from "./useWalkie";
-import { machineDoorNow, subscribeMachineDoor, walkieDoorOpen } from "../lib/calls/walkieDoor";
+import {
+  dmRoomEmptied,
+  otherJoinedLive,
+  senderHearingFrom,
+  useWalkieStatus,
+} from "./useWalkie";
+import {
+  machineDoorNow,
+  subscribeMachineDoor,
+  walkieDoorOpen,
+} from "../lib/calls/walkieDoor";
 import { voiceHostElsewhere } from "../lib/desktop";
 import { readJoinPrefs } from "../lib/calls/joinPrefs";
 import { setCamera } from "../lib/calls/callManager";
@@ -55,7 +64,11 @@ export function useWalkieSync(): void {
   // IS A PERSON AT THIS MACHINE, AND IS THIS THE WINDOW THAT SPEAKS FOR THE APP.
   // Two facts about the world outside this window, gathered in one place and
   // read here as one value (lib/calls/walkieDoor).
-  const machine = useSyncExternalStore(subscribeMachineDoor, machineDoorNow, machineDoorNow);
+  const machine = useSyncExternalStore(
+    subscribeMachineDoor,
+    machineDoorNow,
+    machineDoorNow,
+  );
 
   // The DM rooms worth watching. Subscribed as a signature of exactly those
   // ids — the rail re-pushes on every message in every channel, and none of
@@ -63,7 +76,9 @@ export function useWalkieSync(): void {
   const s = useTrackedStore([
     (st: any) =>
       (st.chatRail ?? [])
-        .map((r: any) => (st.chatChannels?.[r.channel_id]?.kind === "dm" ? r.channel_id : ""))
+        .map((r: any) =>
+          st.chatChannels?.[r.channel_id]?.kind === "dm" ? r.channel_id : "",
+        )
         .filter(Boolean)
         .sort()
         .join("|"),
@@ -80,7 +95,8 @@ export function useWalkieSync(): void {
   const channelIds = useMemo(() => {
     const ids = new Set<string>();
     for (const row of s.chatRail ?? []) {
-      if (s.chatChannels?.[row.channel_id]?.kind === "dm") ids.add(String(row.channel_id));
+      if (s.chatChannels?.[row.channel_id]?.kind === "dm")
+        ids.add(String(row.channel_id));
     }
     return [...ids].sort();
   }, [s.chatRail, s.chatChannels]);
@@ -92,7 +108,9 @@ export function useWalkieSync(): void {
   const hears = !machine.leader ? false : true;
   const { data: bursts } = useQueryNoThrow(
     api.chat.listLiveVoiceBursts,
-    isAuthenticated && callsOn && hears && channelIds.length > 0 ? { channel_ids: channelIds } : "skip",
+    isAuthenticated && callsOn && hears && channelIds.length > 0
+      ? { channel_ids: channelIds }
+      : "skip",
   );
 
   // The snooze runs out on a clock rather than on an event, so the door has to
@@ -131,13 +149,19 @@ export function useWalkieSync(): void {
     return { bursts: rows, doorOpen };
   }, [bursts, doorOpen]);
 
-  useConvexSync(report, useCallback((r: { bursts: LiveBurstRow[]; doorOpen: boolean }) => {
-    observeWalkie(r);
-  }, []));
+  useConvexSync(
+    report,
+    useCallback((r: { bursts: LiveBurstRow[]; doorOpen: boolean }) => {
+      observeWalkie(r);
+    }, []),
+  );
   // The other half of the engine's answer: where the call plane is. Leaving a
   // huddle gives push-to-talk back, and joining one takes it away, neither of
   // which moves the burst list.
-  useConvexSync(callSig, useCallback(() => refreshWalkie(), []));
+  useConvexSync(
+    callSig,
+    useCallback(() => refreshWalkie(), []),
+  );
 
   useWalkieUpgrade();
   useRoomEmptiesOut();
@@ -179,7 +203,10 @@ function useWalkieAwayTick(): void {
       ? `${sending!.clientId}:${room}`
       : undefined;
 
-  useConvexSync(unheard, useCallback(() => noteBurstUnheard(), []));
+  useConvexSync(
+    unheard,
+    useCallback(() => noteBurstUnheard(), []),
+  );
 }
 
 /**
@@ -233,14 +260,18 @@ function useWalkieUpgrade(): void {
   // upgraded from its first tick: no mute on release, a join announced that
   // nobody made, and the strip handed straight to the call dock. A stamp older
   // than the moment this client entered the room is a leftover, not news.
-  const upgraded = mine && otherJoinedLive(roster, s.currentUser?._id, live?.since ?? 0);
+  const upgraded =
+    mine && otherJoinedLive(roster, s.currentUser?._id, live?.since ?? 0);
 
   // Fired through the same change-driven hook the rest of this file uses: it
   // runs when its value CHANGES and skips `undefined`, which is exactly one
   // run per room somebody steps into and none at all the rest of the time.
   useConvexSync(
     upgraded && roomKey ? roomKey : undefined,
-    useCallback((room: string) => observeWalkieUpgrade(room, joinerName(room)), []),
+    useCallback(
+      (room: string) => observeWalkieUpgrade(room, joinerName(room)),
+      [],
+    ),
   );
 }
 
@@ -256,7 +287,9 @@ function joinerName(room: string): string {
     (m) => !!m?.walkie_joined_at && String(m?.user_id ?? "") !== me,
   );
   if (!seat) return "";
-  const member = teamMembersOf(st).find((m: any) => String(m?._id) === String(seat.user_id ?? ""));
+  const member = teamMembersOf(st).find(
+    (m: any) => String(m?._id) === String(seat.user_id ?? ""),
+  );
   return memberDisplayName(member, seat.user_name ?? "");
 }
 
@@ -290,8 +323,6 @@ export function observeWalkieUpgrade(room: string, name: string): void {
   }
 }
 
-
-
 /** How long an emptied DM room is given before this side hangs up too: the
  *  roster lags a leave by a push, and a reconnect blip must not end a call. */
 const ROOM_EMPTY_GRACE_MS = 4_000;
@@ -314,12 +345,16 @@ function useRoomEmptiesOut(): void {
       if (!joined) return "";
       const me = String(st.currentUser?._id ?? "");
       const seats = (st.callOccupancy?.[joined] as any[]) ?? [];
-      return seats.some((r) => String(r?.user_id ?? "") !== me) ? "with" : "alone";
+      return seats.some((r) => String(r?.user_id ?? "") !== me)
+        ? "with"
+        : "alone";
     },
     (st: any) => st.call?.phase ?? "idle",
   ]);
   const me = String(s.currentUser?._id ?? "");
-  const seats = joined ? (((s as any).callOccupancy?.[joined] as any[]) ?? []) : [];
+  const seats = joined
+    ? (((s as any).callOccupancy?.[joined] as any[]) ?? [])
+    : [];
   const together = seats.some((r) => String(r?.user_id ?? "") !== me);
   if (together) sawOther.current = true;
   if (!joined) sawOther.current = false;
@@ -335,7 +370,8 @@ function useRoomEmptiesOut(): void {
       const room = walkieJoinedRoom(getWalkieStatus());
       if (!room) return;
       const now = (st.callOccupancy?.[room] as any[]) ?? [];
-      if (dmRoomEmptied({ roomKey: room, seats: now, me, sawOther: true })) void endWalkie();
+      if (dmRoomEmptied({ roomKey: room, seats: now, me, sawOther: true }))
+        void endWalkie();
     }, ROOM_EMPTY_GRACE_MS);
     return () => clearTimeout(t);
   }, [emptied, joined, me]);

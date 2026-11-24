@@ -15,27 +15,52 @@ import {
   deviceHealthInput,
   OVERLOADED_HOUR_MS,
 } from "../useDaemonHealth";
-import { describeDaemonHealth, describeDeviceFreeze } from "../../lib/daemonHealthCopy";
+import {
+  describeDaemonHealth,
+  describeDeviceFreeze,
+} from "../../lib/daemonHealthCopy";
 
 const NOW = 1_000_000_000_000;
 
 describe("computeDaemonHealth", () => {
   it("reports stalled transcripts with no queued messages and clears when they recover", () => {
-    const input = { daemon_last_seen: NOW - 5000, daemon_pending_sync_count: 27,
-      daemon_pending_sync_messages: 0, daemon_pending_sync_conversations: 27,
-      daemon_oldest_pending_ms: 6 * 60_000 };
+    const input = {
+      daemon_last_seen: NOW - 5000,
+      daemon_pending_sync_count: 27,
+      daemon_pending_sync_messages: 0,
+      daemon_pending_sync_conversations: 27,
+      daemon_oldest_pending_ms: 6 * 60_000,
+    };
     const health = computeDaemonHealth(input, NOW);
     expect(health.kind).toBe("sync_stalled");
     expect(describeDaemonHealth(health)).toMatchObject({
       label: "sync stalled · 27 conversations",
       short: "stalled · 27",
-      detail: "The CLI daemon is online but 27 conversations have been waiting to sync for 6 min.",
+      detail:
+        "The CLI daemon is online but 27 conversations have been waiting to sync for 6 min.",
       command: "cast status",
     });
-    expect(describeDaemonHealth(computeDaemonHealth({ ...input, daemon_pending_sync_count: 1,
-      daemon_pending_sync_conversations: 1 }, NOW))?.detail).toContain("1 conversation has been waiting");
-    const recovered = computeDaemonHealth({ ...input, daemon_pending_sync_count: 0,
-      daemon_pending_sync_conversations: 0, daemon_oldest_pending_ms: 0 }, NOW);
+    expect(
+      describeDaemonHealth(
+        computeDaemonHealth(
+          {
+            ...input,
+            daemon_pending_sync_count: 1,
+            daemon_pending_sync_conversations: 1,
+          },
+          NOW,
+        ),
+      )?.detail,
+    ).toContain("1 conversation has been waiting");
+    const recovered = computeDaemonHealth(
+      {
+        ...input,
+        daemon_pending_sync_count: 0,
+        daemon_pending_sync_conversations: 0,
+        daemon_oldest_pending_ms: 0,
+      },
+      NOW,
+    );
     expect(describeDaemonHealth(recovered)).toBeNull();
   });
   it("returns unknown when no daemon has ever checked in", () => {
@@ -49,13 +74,31 @@ describe("computeDaemonHealth", () => {
   });
 
   it("escalates offline tiers by staleness", () => {
-    expect(computeDaemonHealth({ daemon_last_seen: NOW - OFFLINE_WARN_AFTER_MS }, NOW)).toMatchObject({ kind: "offline", tier: "warn" });
-    expect(computeDaemonHealth({ daemon_last_seen: NOW - OFFLINE_ALERT_AFTER_MS }, NOW)).toMatchObject({ kind: "offline", tier: "alert" });
-    expect(computeDaemonHealth({ daemon_last_seen: NOW - OFFLINE_SEVERE_AFTER_MS }, NOW)).toMatchObject({ kind: "offline", tier: "severe" });
+    expect(
+      computeDaemonHealth(
+        { daemon_last_seen: NOW - OFFLINE_WARN_AFTER_MS },
+        NOW,
+      ),
+    ).toMatchObject({ kind: "offline", tier: "warn" });
+    expect(
+      computeDaemonHealth(
+        { daemon_last_seen: NOW - OFFLINE_ALERT_AFTER_MS },
+        NOW,
+      ),
+    ).toMatchObject({ kind: "offline", tier: "alert" });
+    expect(
+      computeDaemonHealth(
+        { daemon_last_seen: NOW - OFFLINE_SEVERE_AFTER_MS },
+        NOW,
+      ),
+    ).toMatchObject({ kind: "offline", tier: "severe" });
   });
 
   it("falls back to last_heartbeat when daemon_last_seen is missing", () => {
-    const health = computeDaemonHealth({ last_heartbeat: NOW - OFFLINE_ALERT_AFTER_MS }, NOW);
+    const health = computeDaemonHealth(
+      { last_heartbeat: NOW - OFFLINE_ALERT_AFTER_MS },
+      NOW,
+    );
     expect(health).toMatchObject({ kind: "offline", tier: "alert" });
   });
 
@@ -106,17 +149,29 @@ describe("computeDaemonHealth", () => {
       short: "syncing · 904",
       command: "cast status",
     });
-    expect(describeDaemonHealth(health)?.detail).toContain("working through a backlog of 904 messages across 12 conversations");
-    expect(describeDaemonHealth(health)?.detail).toContain("oldest has waited 9 min");
+    expect(describeDaemonHealth(health)?.detail).toContain(
+      "working through a backlog of 904 messages across 12 conversations",
+    );
+    expect(describeDaemonHealth(health)?.detail).toContain(
+      "oldest has waited 9 min",
+    );
     // The echo of a sent message is still late while the daemon catches up.
     expect(blocksDelivery(health)).toBe(true);
 
     // Progress that stopped a stall window ago is a stall again.
-    expect(computeDaemonHealth({ ...input, daemon_sync_no_progress_ms: SYNC_STALL_AFTER_MS }, NOW).kind).toBe("sync_stalled");
+    expect(
+      computeDaemonHealth(
+        { ...input, daemon_sync_no_progress_ms: SYNC_STALL_AFTER_MS },
+        NOW,
+      ).kind,
+    ).toBe("sync_stalled");
     // A daemon that never reports progress keeps the stall verdict.
     const { daemon_sync_no_progress_ms: _omit, ...older } = input;
     expect(computeDaemonHealth(older, NOW).kind).toBe("sync_stalled");
-    expect(computeDaemonHealth({ ...older, daemon_sync_no_progress_ms: null }, NOW).kind).toBe("sync_stalled");
+    expect(
+      computeDaemonHealth({ ...older, daemon_sync_no_progress_ms: null }, NOW)
+        .kind,
+    ).toBe("sync_stalled");
   });
 
   it("defaults message/conversation backlog to zero for older daemons", () => {
@@ -167,15 +222,21 @@ describe("computeDaemonHealth", () => {
     // A subscription that froze while we were asleep must not read as offline
     // until the recovery poll has had a chance to refresh the true value.
     const stale = { daemon_last_seen: NOW - OFFLINE_ALERT_AFTER_MS };
-    expect(computeDaemonHealth(stale, NOW, { recentlyWoke: true }).kind).toBe("ok");
-    expect(computeDaemonHealth(stale, NOW, { recentlyWoke: false })).toMatchObject({
+    expect(computeDaemonHealth(stale, NOW, { recentlyWoke: true }).kind).toBe(
+      "ok",
+    );
+    expect(
+      computeDaemonHealth(stale, NOW, { recentlyWoke: false }),
+    ).toMatchObject({
       kind: "offline",
       tier: "alert",
     });
   });
 
   it("still reports unknown during grace when no daemon ever checked in", () => {
-    expect(computeDaemonHealth(null, NOW, { recentlyWoke: true })).toEqual({ kind: "unknown" });
+    expect(computeDaemonHealth(null, NOW, { recentlyWoke: true })).toEqual({
+      kind: "unknown",
+    });
   });
 });
 
@@ -186,11 +247,21 @@ describe("computeDaemonHealth", () => {
 // kill & restart). These states are what the header and the bubble now read.
 describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
   it("is quiet after several missed beats, before the offline banner", () => {
-    const health = computeDaemonHealth({ daemon_last_seen: NOW - QUIET_AFTER_MS }, NOW);
+    const health = computeDaemonHealth(
+      { daemon_last_seen: NOW - QUIET_AFTER_MS },
+      NOW,
+    );
     expect(health).toEqual({ kind: "quiet", quietMs: QUIET_AFTER_MS });
     // A live daemon is never more than ~80s stale (30s beat + 50s server throttle).
-    expect(computeDaemonHealth({ daemon_last_seen: NOW - 90_000 }, NOW).kind).toBe("ok");
-    expect(computeDaemonHealth({ daemon_last_seen: NOW - OFFLINE_WARN_AFTER_MS }, NOW).kind).toBe("offline");
+    expect(
+      computeDaemonHealth({ daemon_last_seen: NOW - 90_000 }, NOW).kind,
+    ).toBe("ok");
+    expect(
+      computeDaemonHealth(
+        { daemon_last_seen: NOW - OFFLINE_WARN_AFTER_MS },
+        NOW,
+      ).kind,
+    ).toBe("offline");
   });
 
   // The chip clears on the daemon's next beat, not on a timer. The boot beat
@@ -198,12 +269,21 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
   // throttles last_seen to one write per 45 to 50 seconds, so a last_seen well
   // past the boot stamp can only be a later beat.
   it("is restarting while the beat we hold is the boot beat", () => {
-    const bootBeat = { daemon_last_seen: NOW - 38_000, daemon_started_at: NOW - 40_000 };
-    expect(computeDaemonHealth(bootBeat, NOW)).toEqual({ kind: "restarting", sinceMs: 40_000 });
+    const bootBeat = {
+      daemon_last_seen: NOW - 38_000,
+      daemon_started_at: NOW - 40_000,
+    };
+    expect(computeDaemonHealth(bootBeat, NOW)).toEqual({
+      kind: "restarting",
+      sinceMs: 40_000,
+    });
   });
 
   it("clears on the next beat after the boot beat", () => {
-    const laterBeat = { daemon_last_seen: NOW - 1000, daemon_started_at: NOW - 51_000 };
+    const laterBeat = {
+      daemon_last_seen: NOW - 1000,
+      daemon_started_at: NOW - 51_000,
+    };
     expect(computeDaemonHealth(laterBeat, NOW).kind).toBe("ok");
   });
 
@@ -213,15 +293,24 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
   it("still says restarting when the boot beat is older than the timer it replaced", () => {
     // 60s after boot with no second beat yet: the old fixed 45s window had
     // already expired while the daemon was still recovering.
-    const slowBoot = { daemon_last_seen: NOW - 58_000, daemon_started_at: NOW - 60_000 };
-    expect(computeDaemonHealth(slowBoot, NOW)).toEqual({ kind: "restarting", sinceMs: 60_000 });
+    const slowBoot = {
+      daemon_last_seen: NOW - 58_000,
+      daemon_started_at: NOW - 60_000,
+    };
+    expect(computeDaemonHealth(slowBoot, NOW)).toEqual({
+      kind: "restarting",
+      sinceMs: 60_000,
+    });
   });
 
   it("clears on a second beat that lands inside the timer it replaced", () => {
     // A beat 44s past boot is past the grace, so it is a later beat and the
     // daemon is beating normally; the old timer would still have said
     // restarting for another second.
-    const earlySecondBeat = { daemon_last_seen: NOW - 500, daemon_started_at: NOW - 44_000 };
+    const earlySecondBeat = {
+      daemon_last_seen: NOW - 500,
+      daemon_started_at: NOW - 44_000,
+    };
     expect(computeDaemonHealth(earlySecondBeat, NOW).kind).toBe("ok");
   });
 
@@ -232,23 +321,43 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
   it("compares roster stamps on the roster's own grid", () => {
     const bootedAt = Math.floor(NOW / 60_000) * 60_000 - 5_000; // 55s into a minute
     const bucket = (t: number) => Math.floor(t / 60_000) * 60_000;
-    const bootBeat = { device_id: "r", last_seen: bucket(bootedAt + 2_000), daemon_started_at: bootedAt };
-    expect(computeDaemonHealth(deviceHealthInput(bootBeat), bootedAt + 3_000).kind).toBe("restarting");
+    const bootBeat = {
+      device_id: "r",
+      last_seen: bucket(bootedAt + 2_000),
+      daemon_started_at: bootedAt,
+    };
+    expect(
+      computeDaemonHealth(deviceHealthInput(bootBeat), bootedAt + 3_000).kind,
+    ).toBe("restarting");
 
     const nextBeat = { ...bootBeat, last_seen: bucket(bootedAt + 60_000) };
-    expect(computeDaemonHealth(deviceHealthInput(nextBeat), bootedAt + 61_000).kind).toBe("ok");
+    expect(
+      computeDaemonHealth(deviceHealthInput(nextBeat), bootedAt + 61_000).kind,
+    ).toBe("ok");
   });
 
   it("stops claiming restarting once the boot beat is older than the ceiling", () => {
     // A daemon that booted and then died: offline and quiet take it from here.
-    const stuck = { daemon_last_seen: NOW - RESTART_CEILING_MS + 1000, daemon_started_at: NOW - RESTART_CEILING_MS };
+    const stuck = {
+      daemon_last_seen: NOW - RESTART_CEILING_MS + 1000,
+      daemon_started_at: NOW - RESTART_CEILING_MS,
+    };
     expect(computeDaemonHealth(stuck, NOW).kind).not.toBe("restarting");
   });
 
   it("is overloaded when the loop was frozen for a chunk of the last minute", () => {
-    const busy = { daemon_last_seen: NOW - 1000, daemon_loop_freeze_ms: 31_000 };
-    expect(computeDaemonHealth(busy, NOW)).toEqual({ kind: "overloaded", freezeMs: 31_000 });
-    const light = { daemon_last_seen: NOW - 1000, daemon_loop_freeze_ms: OVERLOADED_FREEZE_MS - 1 };
+    const busy = {
+      daemon_last_seen: NOW - 1000,
+      daemon_loop_freeze_ms: 31_000,
+    };
+    expect(computeDaemonHealth(busy, NOW)).toEqual({
+      kind: "overloaded",
+      freezeMs: 31_000,
+    });
+    const light = {
+      daemon_last_seen: NOW - 1000,
+      daemon_loop_freeze_ms: OVERLOADED_FREEZE_MS - 1,
+    };
     expect(computeDaemonHealth(light, NOW).kind).toBe("ok");
   });
 
@@ -269,7 +378,10 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
       maxMs: 42_000,
       topCause: "walk@recursiveWatcher.ts:138 60%",
     });
-    const quietHour = { daemon_last_seen: NOW - 1000, daemon_loop_freeze_1h_ms: OVERLOADED_HOUR_MS - 5_000 };
+    const quietHour = {
+      daemon_last_seen: NOW - 1000,
+      daemon_loop_freeze_1h_ms: OVERLOADED_HOUR_MS - 5_000,
+    };
     expect(computeDaemonHealth(quietHour, NOW).kind).toBe("ok");
   });
 
@@ -325,9 +437,14 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
     expect(hourTier?.label).toBe("daemon under load");
     expect(hourTier?.detail).toContain("215s in the last hour");
     expect(hourTier?.detail).toContain("worst freeze 42s");
-    expect(hourTier?.detail).toContain("Top cause: walk@recursiveWatcher.ts:138 60%");
+    expect(hourTier?.detail).toContain(
+      "Top cause: walk@recursiveWatcher.ts:138 60%",
+    );
 
-    const minuteTier = describeDaemonHealth({ kind: "overloaded", freezeMs: 31_000 });
+    const minuteTier = describeDaemonHealth({
+      kind: "overloaded",
+      freezeMs: 31_000,
+    });
     expect(minuteTier?.detail).toContain("31s of the last minute");
 
     // Both tiers at once. This is the only verdict the note on a stuck message
@@ -341,7 +458,9 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
     });
     expect(bothTiers?.detail).toContain("31s of the last minute");
     expect(bothTiers?.detail).toContain("215s in the last hour");
-    expect(bothTiers?.detail).toContain("Top cause: walk@recursiveWatcher.ts:138 60%");
+    expect(bothTiers?.detail).toContain(
+      "Top cause: walk@recursiveWatcher.ts:138 60%",
+    );
   });
 
   it("the devices page line names the hour, the worst freeze and the cause", () => {
@@ -357,18 +476,29 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
       colorVar: "--sol-orange",
     });
     // Under the bar the machine still reports, dimly rather than in alarm.
-    expect(describeDeviceFreeze({ online: true, loop_freeze_1h_ms: 30_000 })?.colorVar).toBe("--sol-text-dim");
+    expect(
+      describeDeviceFreeze({ online: true, loop_freeze_1h_ms: 30_000 })
+        ?.colorVar,
+    ).toBe("--sol-text-dim");
     // A machine that has reported no freeze shows no line at all.
     expect(describeDeviceFreeze({ online: true })).toBeNull();
-    expect(describeDeviceFreeze({ online: true, loop_freeze_1h_ms: 0 })).toBeNull();
+    expect(
+      describeDeviceFreeze({ online: true, loop_freeze_1h_ms: 0 }),
+    ).toBeNull();
     // A machine that stopped beating keeps its last number to itself: it says
     // nothing about how that machine is doing now.
-    expect(describeDeviceFreeze({ online: false, loop_freeze_1h_ms: 215_000 })).toBeNull();
+    expect(
+      describeDeviceFreeze({ online: false, loop_freeze_1h_ms: 215_000 }),
+    ).toBeNull();
   });
 
   it("silence outranks a fresh boot or load (those need a live beat to mean anything)", () => {
     const h = computeDaemonHealth(
-      { daemon_last_seen: NOW - QUIET_AFTER_MS, daemon_started_at: NOW - 10_000, daemon_loop_freeze_ms: 50_000 },
+      {
+        daemon_last_seen: NOW - QUIET_AFTER_MS,
+        daemon_started_at: NOW - 10_000,
+        daemon_loop_freeze_ms: 50_000,
+      },
       NOW,
     );
     expect(h.kind).toBe("quiet");
@@ -376,12 +506,21 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
 
   it("restart outranks load, load outranks a sync backlog", () => {
     const boot = computeDaemonHealth(
-      { daemon_last_seen: NOW - 1000, daemon_started_at: NOW - 10_000, daemon_loop_freeze_ms: 50_000 },
+      {
+        daemon_last_seen: NOW - 1000,
+        daemon_started_at: NOW - 10_000,
+        daemon_loop_freeze_ms: 50_000,
+      },
       NOW,
     );
     expect(boot.kind).toBe("restarting");
     const load = computeDaemonHealth(
-      { daemon_last_seen: NOW - 1000, daemon_loop_freeze_ms: 50_000, daemon_pending_sync_count: 4, daemon_oldest_pending_ms: SYNC_STALL_AFTER_MS },
+      {
+        daemon_last_seen: NOW - 1000,
+        daemon_loop_freeze_ms: 50_000,
+        daemon_pending_sync_count: 4,
+        daemon_oldest_pending_ms: SYNC_STALL_AFTER_MS,
+      },
       NOW,
     );
     expect(load.kind).toBe("overloaded");
@@ -391,24 +530,56 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
     expect(isDegradedDaemonHealth({ kind: "ok" })).toBe(false);
     expect(isDegradedDaemonHealth({ kind: "unknown" })).toBe(false);
     expect(isDegradedDaemonHealth({ kind: "quiet", quietMs: 1 })).toBe(true);
-    expect(isDegradedDaemonHealth({ kind: "restarting", sinceMs: 1 })).toBe(true);
-    expect(isDegradedDaemonHealth({ kind: "overloaded", freezeMs: 1 })).toBe(true);
-    expect(isDegradedDaemonHealth({ kind: "offline", tier: "warn", offlineMs: 1 })).toBe(true);
-    expect(isDegradedDaemonHealth({ kind: "sync_stalled", pending: 1, messages: 1, conversations: 1, stalledMs: 1 })).toBe(true);
-    expect(isDegradedDaemonHealth({ kind: "syncing", pending: 1, messages: 1, conversations: 1, behindMs: 1, noProgressMs: 0 })).toBe(true);
+    expect(isDegradedDaemonHealth({ kind: "restarting", sinceMs: 1 })).toBe(
+      true,
+    );
+    expect(isDegradedDaemonHealth({ kind: "overloaded", freezeMs: 1 })).toBe(
+      true,
+    );
+    expect(
+      isDegradedDaemonHealth({ kind: "offline", tier: "warn", offlineMs: 1 }),
+    ).toBe(true);
+    expect(
+      isDegradedDaemonHealth({
+        kind: "sync_stalled",
+        pending: 1,
+        messages: 1,
+        conversations: 1,
+        stalledMs: 1,
+      }),
+    ).toBe(true);
+    expect(
+      isDegradedDaemonHealth({
+        kind: "syncing",
+        pending: 1,
+        messages: 1,
+        conversations: 1,
+        behindMs: 1,
+        noProgressMs: 0,
+      }),
+    ).toBe(true);
   });
 
   // The hour tier reports an SLO, not a live symptom. Letting it decide the
   // delivery verdict hid the stuck-message note and its kill & restart button
   // for a whole hour after two minutes of freeze anywhere inside it.
   it("the hour tier alone does not blame the daemon for a late message", () => {
-    const hourOnly = { kind: "overloaded" as const, freezeMs: 0, hourMs: 200_000, maxMs: 40_000 };
+    const hourOnly = {
+      kind: "overloaded" as const,
+      freezeMs: 0,
+      hourMs: 200_000,
+      maxMs: 40_000,
+    };
     expect(isDegradedDaemonHealth(hourOnly)).toBe(true);
     expect(blocksDelivery(hourOnly)).toBe(false);
     // A minute the loop really is frozen in still does.
-    expect(blocksDelivery({ kind: "overloaded", freezeMs: OVERLOADED_FREEZE_MS })).toBe(true);
+    expect(
+      blocksDelivery({ kind: "overloaded", freezeMs: OVERLOADED_FREEZE_MS }),
+    ).toBe(true);
     expect(blocksDelivery({ kind: "quiet", quietMs: 1 })).toBe(true);
-    expect(blocksDelivery({ kind: "offline", tier: "warn", offlineMs: 1 })).toBe(true);
+    expect(
+      blocksDelivery({ kind: "offline", tier: "warn", offlineMs: 1 }),
+    ).toBe(true);
     expect(blocksDelivery({ kind: "ok" })).toBe(false);
   });
 
@@ -416,10 +587,25 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
   // the reason a message never reached a session the daemon had refused to start.
   it("an upload backlog never explains a message the daemon has not delivered", () => {
     const backlog = { pending: 1, messages: 0, conversations: 1 };
-    expect(holdsUndeliveredMessage({ kind: "sync_stalled", ...backlog, stalledMs: 5_236_450 })).toBe(false);
-    expect(holdsUndeliveredMessage({ kind: "syncing", ...backlog, behindMs: 600_000, noProgressMs: 1_000 })).toBe(false);
+    expect(
+      holdsUndeliveredMessage({
+        kind: "sync_stalled",
+        ...backlog,
+        stalledMs: 5_236_450,
+      }),
+    ).toBe(false);
+    expect(
+      holdsUndeliveredMessage({
+        kind: "syncing",
+        ...backlog,
+        behindMs: 600_000,
+        noProgressMs: 1_000,
+      }),
+    ).toBe(false);
     expect(holdsUndeliveredMessage({ kind: "quiet", quietMs: 1 })).toBe(true);
-    expect(holdsUndeliveredMessage({ kind: "offline", tier: "warn", offlineMs: 1 })).toBe(true);
+    expect(
+      holdsUndeliveredMessage({ kind: "offline", tier: "warn", offlineMs: 1 }),
+    ).toBe(true);
   });
 });
 
@@ -432,7 +618,9 @@ describe("computeDaemonHealth: quiet / restarting / overloaded", () => {
 // roster.
 describe("sigCell", () => {
   it("strips the separators the roster decode reads by position", () => {
-    expect(sigCell("walk@recursiveWatcher.ts:138 60%")).toBe("walk@recursiveWatcher.ts:138 60%");
+    expect(sigCell("walk@recursiveWatcher.ts:138 60%")).toBe(
+      "walk@recursiveWatcher.ts:138 60%",
+    );
     expect(sigCell("a|b")).toBe("a b");
     expect(sigCell("two\nlines")).toBe("two lines");
     expect(sigCell("carriage\r\nreturn")).toBe("carriage return");

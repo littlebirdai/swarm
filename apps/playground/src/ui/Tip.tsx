@@ -9,6 +9,10 @@ export function useTip(content: ReactNode, side: "above" | "below" = "above") {
   const id = useId();
   return {
     describedBy: { "aria-describedby": id },
-    tip: <span id={id} className={`${s.tip} ${s[side]}`} aria-hidden>{content}</span>,
+    tip: (
+      <span id={id} className={`${s.tip} ${s[side]}`} aria-hidden>
+        {content}
+      </span>
+    ),
   };
 }

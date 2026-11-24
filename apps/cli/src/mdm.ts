@@ -16,12 +16,19 @@ import {
   type PolicySource,
 } from "@codecast/shared/contracts/managedPolicy";
 import type { Config } from "./config/types.js";
-import { effectivePolicy, managedProfilePaths, readManagedProfile } from "./config/managedPolicy.js";
+import {
+  effectivePolicy,
+  managedProfilePaths,
+  readManagedProfile,
+} from "./config/managedPolicy.js";
 import { isManagedInstall } from "./managedInstall.js";
 import { MANAGED_UPDATE_NOTE } from "./update.js";
 
 export interface MdmStatus {
-  profile: { paths: Array<{ path: string; installed: boolean }>; installed: boolean };
+  profile: {
+    paths: Array<{ path: string; installed: boolean }>;
+    installed: boolean;
+  };
   team: { team_id: string; team_name: string; enrolled: boolean } | null;
   enrollment: NonNullable<Config["managed_enrollment"]> | null;
   signed_in: boolean;
@@ -32,20 +39,36 @@ export interface MdmStatus {
 
 function sourceLabel(source: PolicySource | undefined): string {
   if (!source) return "unknown";
-  return source.kind === "profile" ? "device profile" : `team ${source.team_name}`;
+  return source.kind === "profile"
+    ? "device profile"
+    : `team ${source.team_name}`;
 }
 
-export function mdmStatus(config: Config | null, eff: EffectivePolicy = effectivePolicy(config)): MdmStatus {
-  const paths = managedProfilePaths().map((p) => ({ path: p, installed: fs.existsSync(p) }));
+export function mdmStatus(
+  config: Config | null,
+  eff: EffectivePolicy = effectivePolicy(config),
+): MdmStatus {
+  const paths = managedProfilePaths().map((p) => ({
+    path: p,
+    installed: fs.existsSync(p),
+  }));
   const team = config?.team_policy;
   // Folder lists are a union, so name every source that adds to it, not only the first.
   const pathSources = [
     ...(readManagedProfile().excluded_paths?.length ? ["device profile"] : []),
-    ...(team && parseTeamPolicy(team.policy).excluded_paths?.length ? [`team ${team.team_name}`] : []),
+    ...(team && parseTeamPolicy(team.policy).excluded_paths?.length
+      ? [`team ${team.team_name}`]
+      : []),
   ];
   return {
     profile: { paths, installed: paths.some((p) => p.installed) },
-    team: team ? { team_id: team.team_id, team_name: team.team_name, enrolled: team.enrolled } : null,
+    team: team
+      ? {
+          team_id: team.team_id,
+          team_name: team.team_name,
+          enrolled: team.enrolled,
+        }
+      : null,
     enrollment: config?.managed_enrollment ?? null,
     signed_in: !!(config?.auth_token && config.user_id),
     managed_install: isManagedInstall(),
@@ -53,8 +76,18 @@ export function mdmStatus(config: Config | null, eff: EffectivePolicy = effectiv
       const value = (eff.values as Record<string, unknown>)[d.key];
       if (value === undefined) return [];
       // The token is a credential: say it is there, never print it.
-      const source = d.kind === "paths" && pathSources.length > 0 ? pathSources.join(" + ") : sourceLabel(eff.sources[d.key]);
-      return [{ key: d.key, name: d.name, value: d.key === "enrollment_token" ? "(set)" : value, source }];
+      const source =
+        d.kind === "paths" && pathSources.length > 0
+          ? pathSources.join(" + ")
+          : sourceLabel(eff.sources[d.key]);
+      return [
+        {
+          key: d.key,
+          name: d.name,
+          value: d.key === "enrollment_token" ? "(set)" : value,
+          source,
+        },
+      ];
     }),
   };
 }
@@ -63,7 +96,11 @@ export function formatMdmStatus(s: MdmStatus): string {
   const lines: string[] = [];
   const profile = s.profile.paths.find((p) => p.installed);
   lines.push(`Profile     ${profile ? profile.path : "none installed"}`);
-  const team = s.team ? `${s.team.team_name}${s.team.enrolled ? " (enrolled)" : ""}` : s.enrollment ? `${s.enrollment.team_name} (enrolled, awaiting first heartbeat)` : "none";
+  const team = s.team
+    ? `${s.team.team_name}${s.team.enrolled ? " (enrolled)" : ""}`
+    : s.enrollment
+      ? `${s.enrollment.team_name} (enrolled, awaiting first heartbeat)`
+      : "none";
   lines.push(`Team        ${team}`);
   lines.push(`Signed in   ${s.signed_in ? "yes" : "no"}`);
   if (s.managed_install) lines.push(`Updates     ${MANAGED_UPDATE_NOTE}`);
@@ -75,8 +112,16 @@ export function formatMdmStatus(s: MdmStatus): string {
   const nameWidth = Math.max(...s.policy.map((p) => p.name.length));
   const sourceWidth = Math.max(...s.policy.map((p) => p.source.length));
   for (const p of s.policy) {
-    const value = Array.isArray(p.value) ? p.value.join(", ") : typeof p.value === "boolean" ? (p.value ? "on" : "off") : String(p.value);
-    lines.push(`${p.name.padEnd(nameWidth)}  ${p.source.padEnd(sourceWidth)}  ${value}`);
+    const value = Array.isArray(p.value)
+      ? p.value.join(", ")
+      : typeof p.value === "boolean"
+        ? p.value
+          ? "on"
+          : "off"
+        : String(p.value);
+    lines.push(
+      `${p.name.padEnd(nameWidth)}  ${p.source.padEnd(sourceWidth)}  ${value}`,
+    );
   }
   return lines.join("\n");
 }
@@ -97,16 +142,25 @@ export const ENROLL_SIGN_IN_COOLDOWN_MS = 6 * 60 * 60 * 1000;
  * so the steady state (enrolled and signed in) and a sign-in already waiting in
  * the browser both answer from config alone: no network, no new browser tab.
  */
-export function nextEnrollStep(config: Config | null, profile = readManagedProfile(), now = Date.now(), force = false): EnrollStep {
+export function nextEnrollStep(
+  config: Config | null,
+  profile = readManagedProfile(),
+  now = Date.now(),
+  force = false,
+): EnrollStep {
   const token = profile.enrollment_token;
   if (!token) return { kind: "unmanaged" };
   if (!isEnrollmentToken(token)) return { kind: "invalid_token" };
   const signedIn = !!(config?.auth_token && config.user_id);
-  const pending = config?.managed_enrollment?.token_prefix === token.slice(0, 16) ? config.managed_enrollment : undefined;
+  const pending =
+    config?.managed_enrollment?.token_prefix === token.slice(0, 16)
+      ? config.managed_enrollment
+      : undefined;
   const enrolled = !!pending || config?.team_policy?.enrolled === true;
   if (enrolled && signedIn) return { kind: "done" };
   const askedAt = pending?.sign_in_at ? Date.parse(pending.sign_in_at) : NaN;
-  if (!signedIn && !force && now - askedAt < ENROLL_SIGN_IN_COOLDOWN_MS) return { kind: "waiting" };
+  if (!signedIn && !force && now - askedAt < ENROLL_SIGN_IN_COOLDOWN_MS)
+    return { kind: "waiting" };
   return { kind: "enroll", token, signIn: !signedIn };
 }
 
@@ -126,12 +180,25 @@ export async function requestEnrollment(
     if (body && typeof body === "object" && "ok" in body) return body;
     return { ok: false, error: `Enrollment failed (HTTP ${res.status})` };
   } catch (err) {
-    return { ok: false, error: `Could not reach ${siteUrl}: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      ok: false,
+      error: `Could not reach ${siteUrl}: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 
-export function enrollRequest(token: string, deviceId: string, email: string | undefined): EnrollRequest {
-  return { enrollment_token: token, device_id: deviceId, email, hostname: os.hostname(), platform: process.platform };
+export function enrollRequest(
+  token: string,
+  deviceId: string,
+  email: string | undefined,
+): EnrollRequest {
+  return {
+    enrollment_token: token,
+    device_id: deviceId,
+    email,
+    hostname: os.hostname(),
+    platform: process.platform,
+  };
 }
 
 /**
@@ -148,6 +215,10 @@ export async function removedByTeam(
 ): Promise<string | null> {
   const token = profile.enrollment_token;
   if (!token || !isEnrollmentToken(token)) return null;
-  const result = await requestEnrollment(siteUrl, enrollRequest(token, deviceId, profile.user_email), fetchImpl);
+  const result = await requestEnrollment(
+    siteUrl,
+    enrollRequest(token, deviceId, profile.user_email),
+    fetchImpl,
+  );
   return !result.ok && result.removed_by ? result.removed_by : null;
 }

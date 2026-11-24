@@ -18,7 +18,12 @@ export function pageFrameSrc(slug: string): string {
 }
 
 // The address an embed frames a page at (shared contracts pageEmbedUrl).
-export function pageEmbedSrc(slug: string, theme: string, keys = "", version?: number): string {
+export function pageEmbedSrc(
+  slug: string,
+  theme: string,
+  keys = "",
+  version?: number,
+): string {
   return pageEmbedUrl(pagesOrigin(), slug, theme, keys, version);
 }
 

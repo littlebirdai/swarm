@@ -10,7 +10,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { undecidedSetupFeatures } from "@codecast/shared/contracts";
-import { TeamFlowShell, type TeamFlowStep } from "../../../../components/team/TeamFlowShell";
+import {
+  TeamFlowShell,
+  type TeamFlowStep,
+} from "../../../../components/team/TeamFlowShell";
 import { FeatureStep } from "../../../../components/onboarding/FeatureStep";
 import { ConnectStep } from "../../../../components/onboarding/ConnectStep";
 import { useAgentFeatureChoice } from "../../../../hooks/useAgentFeatureChoice";
@@ -28,7 +31,9 @@ export default function TeamFeaturesSetupPage() {
   const router = useRouter();
   const team = useInboxStore((s) => {
     const id = activeTeamIdOf(s);
-    return id ? (s.teams || []).find((t: any) => t && String(t._id) === id) : undefined;
+    return id
+      ? (s.teams || []).find((t: any) => t && String(t._id) === id)
+      : undefined;
   }) as any;
   const [step, setStep] = useState(0);
   const agents = useAgentFeatureChoice();
@@ -39,14 +44,20 @@ export default function TeamFeaturesSetupPage() {
   const finish = (all = false) => {
     agents.commit(all);
     const st = useInboxStore.getState();
-    if (teamId) for (const f of undecidedSetupFeatures(team)) st.setTeamFeature(teamId, f.key, false);
+    if (teamId)
+      for (const f of undecidedSetupFeatures(team))
+        st.setTeamFeature(teamId, f.key, false);
     router.push("/inbox");
     if (team) toast(`${team.name} is set up`);
   };
 
   const shell = {
     eyebrow: "Team setup",
-    crest: { icon: team?.icon, color: team?.icon_color, name: team?.name ?? "" },
+    crest: {
+      icon: team?.icon,
+      color: team?.icon_color,
+      name: team?.name ?? "",
+    },
     steps: STEPS,
     stepIndex: step,
     visitedIndex: step,
@@ -57,14 +68,29 @@ export default function TeamFeaturesSetupPage() {
     return (
       <TeamFlowShell
         {...shell}
-        heading={team ? `Everything ${team.name} can have` : "Everything your team can have"}
-        description={admin ? "Each one works for people and agents alike, for everyone on the team." : "Only a team admin can turn these on."}
+        heading={
+          team
+            ? `Everything ${team.name} can have`
+            : "Everything your team can have"
+        }
+        description={
+          admin
+            ? "Each one works for people and agents alike, for everyone on the team."
+            : "Only a team admin can turn these on."
+        }
         onBack={() => router.back()}
         backLabel="Cancel"
         onSkip={admin && !features.allOn ? () => setStep(1) : undefined}
         skipLabel={`Continue with ${features.onCount}`}
-        onContinue={() => { features.turnAllOn(); setStep(1); }}
-        continueLabel={admin && !features.allOn ? `Turn on all ${features.total}` : "Continue"}
+        onContinue={() => {
+          features.turnAllOn();
+          setStep(1);
+        }}
+        continueLabel={
+          admin && !features.allOn
+            ? `Turn on all ${features.total}`
+            : "Continue"
+        }
         enterAdvances
       >
         <FeatureStep teamId={teamId} />
@@ -81,7 +107,9 @@ export default function TeamFeaturesSetupPage() {
       onSkip={agents.allChosen ? undefined : () => finish()}
       skipLabel={`Finish with ${agents.chosen.size}`}
       onContinue={() => finish(true)}
-      continueLabel={agents.allChosen ? "Finish" : `Turn on all ${agents.total}`}
+      continueLabel={
+        agents.allChosen ? "Finish" : `Turn on all ${agents.total}`
+      }
       enterAdvances
     >
       <ConnectStep choice={agents} />

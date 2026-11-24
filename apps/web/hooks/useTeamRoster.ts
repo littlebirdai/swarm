@@ -9,7 +9,11 @@
 // rename/avatar change still re-renders.
 import { useMemo } from "react";
 import { useInboxStore } from "../store/inboxStore";
-import { roleOfUser, type IdentityPrefs, type RoleRows } from "../lib/sessionIdentity";
+import {
+  roleOfUser,
+  type IdentityPrefs,
+  type RoleRows,
+} from "../lib/sessionIdentity";
 import { useIdentityPrefs } from "./useIdentityPrefs";
 import { roleRowsOf, roleRowsSig } from "../lib/roleRows";
 import { teamMembersOf } from "../lib/activeTeam";
@@ -62,7 +66,9 @@ let _identitySig = "";
 let _identityList: RosterIdentity[] = [];
 /** The roster projected to identity fields; the array ref is stable across
  *  heartbeat pushes and only changes when an identity field changes. */
-export function rosterIdentity(members: any[] | null | undefined): RosterIdentity[] {
+export function rosterIdentity(
+  members: any[] | null | undefined,
+): RosterIdentity[] {
   if (members === _identityRef) return _identityList;
   const sig = memberListSig(members);
   _identityRef = members;
@@ -76,7 +82,11 @@ export function rosterIdentity(members: any[] | null | undefined): RosterIdentit
  *  rows, read through roleOfUser). The bot user keeps its own name on the
  *  server, where chat derives its mention handle from it; the person reads the
  *  role's given name and face. Returns `list` itself when no member is a role's. */
-export function withRoleIdentities(list: RosterIdentity[], rows: RoleRows | null | undefined, prefs?: IdentityPrefs): RosterIdentity[] {
+export function withRoleIdentities(
+  list: RosterIdentity[],
+  rows: RoleRows | null | undefined,
+  prefs?: IdentityPrefs,
+): RosterIdentity[] {
   let out: RosterIdentity[] | null = null;
   list.forEach((m, i) => {
     const role = m.is_bot ? roleOfUser(m._id, rows, prefs) : null;
@@ -94,7 +104,11 @@ export function useTeamRosterIdentity(): RosterIdentity[] {
   const prefs = useIdentityPrefs();
   return useMemo(() => {
     const st = useInboxStore.getState();
-    return withRoleIdentities(rosterIdentity(teamMembersOf(st)), roleRowsOf(st as never), prefs);
+    return withRoleIdentities(
+      rosterIdentity(teamMembersOf(st)),
+      roleRowsOf(st as never),
+      prefs,
+    );
   }, [sig, rolesSig, prefs]); // eslint-disable-line react-hooks/exhaustive-deps -- the sigs stand in for the churny arrays
 }
 
@@ -102,7 +116,9 @@ export function useTeamRosterIdentity(): RosterIdentity[] {
  *  whole user doc, which churns on daemon heartbeats; this wakes only when
  *  who-they-are changes. */
 export function useViewerIdentity(): RosterIdentity | null {
-  const sig = useInboxStore((s) => (s.currentUser?._id ? identityLine(s.currentUser) : ""));
+  const sig = useInboxStore((s) =>
+    s.currentUser?._id ? identityLine(s.currentUser) : "",
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny doc
   return useMemo(() => {
     const u = useInboxStore.getState().currentUser;

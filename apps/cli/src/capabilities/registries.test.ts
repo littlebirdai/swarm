@@ -31,13 +31,23 @@ const MIXED = fixture("mcp-registry-page.json");
 const DETAIL = fixture("mcp-registry-detail.json");
 
 /** A fetch that serves recorded bodies by URL substring, and records the calls. */
-function fakeFetch(routes: Array<{ match: string; body?: unknown; status?: number; throws?: string }>) {
+function fakeFetch(
+  routes: Array<{
+    match: string;
+    body?: unknown;
+    status?: number;
+    throws?: string;
+  }>,
+) {
   const calls: string[] = [];
   const impl = async (url: string): Promise<Response> => {
     calls.push(url);
-    const route = routes.find((r) => url.includes(r.match)) ?? routes[routes.length - 1];
+    const route =
+      routes.find((r) => url.includes(r.match)) ?? routes[routes.length - 1];
     if (route.throws) throw new Error(route.throws);
-    return new Response(JSON.stringify(route.body ?? {}), { status: route.status ?? 200 });
+    return new Response(JSON.stringify(route.body ?? {}), {
+      status: route.status ?? 200,
+    });
   };
   return { impl, calls };
 }
@@ -65,13 +75,22 @@ describe("parseRegistryPage", () => {
   });
 
   test("remotes carry their url and whether the caller must supply a secret", () => {
-    const tandem = parseRegistryPage(PAGE_1).servers.find((s) => s.name === "ac.tandem/docs-mcp");
+    const tandem = parseRegistryPage(PAGE_1).servers.find(
+      (s) => s.name === "ac.tandem/docs-mcp",
+    );
     expect(tandem?.remotes).toEqual([
-      { type: "streamable-http", url: "https://tandem.ac/mcp", headers: [], requiresAuth: false },
+      {
+        type: "streamable-http",
+        url: "https://tandem.ac/mcp",
+        headers: [],
+        requiresAuth: false,
+      },
     ]);
     expect(tandem?.repositoryUrl).toBe("https://github.com/frumu-ai/tandem");
 
-    const gated = parseRegistryPage(MIXED).servers.find((s) => s.name === "ai.agentplaybooks/agentplaybooks");
+    const gated = parseRegistryPage(MIXED).servers.find(
+      (s) => s.name === "ai.agentplaybooks/agentplaybooks",
+    );
     expect(gated?.remotes[0].requiresAuth).toBe(true);
     expect(gated?.remotes[0].headers).toEqual([
       { name: "Authorization", isRequired: true, isSecret: true },
@@ -103,7 +122,9 @@ describe("parseRegistryPage", () => {
   });
 
   test("packages carry the transport and every variable, with both flags kept apart", () => {
-    const trust = parseRegistryPage(MIXED).servers.find((s) => s.name === "ai.agenttrust/mcp-server");
+    const trust = parseRegistryPage(MIXED).servers.find(
+      (s) => s.name === "ai.agenttrust/mcp-server",
+    );
     expect(trust?.packages).toEqual([
       {
         registryType: "npm",
@@ -128,7 +149,9 @@ describe("parseRegistryPage", () => {
                 registryType: "npm",
                 identifier: "chatty",
                 transport: { type: "stdio" },
-                environmentVariables: [{ name: "LOG_LEVEL", isRequired: false, isSecret: false }],
+                environmentVariables: [
+                  { name: "LOG_LEVEL", isRequired: false, isSecret: false },
+                ],
               },
             ],
           },
@@ -147,8 +170,13 @@ describe("parseRegistryPage", () => {
   });
 
   test("the command a package would run survives: runtime hint, arguments, digest", () => {
-    const armory = parseRegistryPage(MIXED).servers.find((s) => s.name === "com.mcparmory/github");
-    expect(armory?.packages.map((p) => p.runtimeHint)).toEqual(["uvx", "docker"]);
+    const armory = parseRegistryPage(MIXED).servers.find(
+      (s) => s.name === "com.mcparmory/github",
+    );
+    expect(armory?.packages.map((p) => p.runtimeHint)).toEqual([
+      "uvx",
+      "docker",
+    ]);
 
     const [server] = parseRegistryPage({
       servers: [
@@ -163,11 +191,17 @@ describe("parseRegistryPage", () => {
                 fileSha256: "abc123",
                 transport: { type: "stdio" },
                 runtimeArguments: [
-                  { type: "named", name: "--mount", value: "type=bind,src={dir}" },
+                  {
+                    type: "named",
+                    name: "--mount",
+                    value: "type=bind,src={dir}",
+                  },
                   { type: "positional", valueHint: "image" },
                   { type: "named", isRequired: true },
                 ],
-                packageArguments: [{ type: "positional", value: "serve", isRequired: true }],
+                packageArguments: [
+                  { type: "positional", value: "serve", isRequired: true },
+                ],
               },
             ],
           },
@@ -178,10 +212,17 @@ describe("parseRegistryPage", () => {
     expect(pkg.runtimeHint).toBe("docker");
     expect(pkg.fileSha256).toBe("abc123");
     expect(pkg.runtimeArguments).toEqual([
-      { kind: "named", name: "--mount", value: "type=bind,src={dir}", isRequired: false },
+      {
+        kind: "named",
+        name: "--mount",
+        value: "type=bind,src={dir}",
+        isRequired: false,
+      },
       { kind: "positional", value: "image", isRequired: false },
     ]);
-    expect(pkg.packageArguments).toEqual([{ kind: "positional", value: "serve", isRequired: true }]);
+    expect(pkg.packageArguments).toEqual([
+      { kind: "positional", value: "serve", isRequired: true },
+    ]);
   });
 
   test("a deprecated server keeps its status and the publisher's reason", () => {
@@ -193,13 +234,28 @@ describe("parseRegistryPage", () => {
   });
 
   test("a server with neither remotes nor packages parses with both empty", () => {
-    const page = parseRegistryPage({ servers: [{ server: { name: "bare/thing" } }] });
-    expect(page.servers[0]).toMatchObject({ name: "bare/thing", remotes: [], packages: [], isLatest: false });
+    const page = parseRegistryPage({
+      servers: [{ server: { name: "bare/thing" } }],
+    });
+    expect(page.servers[0]).toMatchObject({
+      name: "bare/thing",
+      remotes: [],
+      packages: [],
+      isLatest: false,
+    });
     expect(page.servers[0].status).toBe("unknown");
   });
 
   test("malformed payloads yield an empty page, never a throw", () => {
-    for (const input of [null, undefined, {}, [], "text", 7, { servers: "nope" }]) {
+    for (const input of [
+      null,
+      undefined,
+      {},
+      [],
+      "text",
+      7,
+      { servers: "nope" },
+    ]) {
       expect(parseRegistryPage(input).servers).toEqual([]);
     }
   });
@@ -221,7 +277,12 @@ describe("parseRegistryPage", () => {
   test("the provenance block is read by its literal reverse-DNS key", () => {
     const wrongKey = parseRegistryServer({
       server: { name: "x/y" },
-      _meta: { [OFFICIAL_META_KEY.replace("/official", "")]: { status: "active", isLatest: true } },
+      _meta: {
+        [OFFICIAL_META_KEY.replace("/official", "")]: {
+          status: "active",
+          isLatest: true,
+        },
+      },
     });
     // A near miss must not be adopted as official metadata.
     expect(wrongKey?.status).toBe("unknown");
@@ -242,7 +303,9 @@ describe("browsableServers", () => {
     const all = parseRegistryPage(MIXED).servers;
     expect(all.length).toBe(6);
     const browsable = browsableServers(all);
-    expect(browsable.map((s) => s.name)).not.toContain("ai.agentplaybooks/agentplaybooks");
+    expect(browsable.map((s) => s.name)).not.toContain(
+      "ai.agentplaybooks/agentplaybooks",
+    );
     expect(browsable.length).toBe(5);
   });
 
@@ -260,8 +323,14 @@ describe("browsableServers", () => {
   test("a deleted entry is hidden too", () => {
     const rows = parseRegistryPage({
       servers: [
-        { server: { name: "gone/x" }, _meta: { [OFFICIAL_META_KEY]: { status: "deleted" } } },
-        { server: { name: "here/y" }, _meta: { [OFFICIAL_META_KEY]: { status: "active" } } },
+        {
+          server: { name: "gone/x" },
+          _meta: { [OFFICIAL_META_KEY]: { status: "deleted" } },
+        },
+        {
+          server: { name: "here/y" },
+          _meta: { [OFFICIAL_META_KEY]: { status: "active" } },
+        },
       ],
     }).servers;
     expect(browsableServers(rows).map((s) => s.name)).toEqual(["here/y"]);
@@ -312,23 +381,30 @@ test("a secret named by both a remote and a package is listed once", () => {
       },
     ],
   }).servers;
-  expect(describeServerSurface(server).secretNames).toEqual(["API_KEY", "OTHER_KEY"]);
+  expect(describeServerSurface(server).secretNames).toEqual([
+    "API_KEY",
+    "OTHER_KEY",
+  ]);
 });
 
 /* --------------------------------------------------------------------- urls */
 
 describe("buildServersUrl", () => {
   test("always sends version=latest, without which the registry returns every version", () => {
-    expect(buildServersUrl()).toBe("https://registry.modelcontextprotocol.io/v0/servers?version=latest");
+    expect(buildServersUrl()).toBe(
+      "https://registry.modelcontextprotocol.io/v0/servers?version=latest",
+    );
   });
 
   test("carries the incremental sync, search and cursor parameters", () => {
-    const url = new URL(buildServersUrl({
-      updatedSince: "2026-08-01T00:00:00Z",
-      search: "github mcp",
-      cursor: "a/b:1.0.0",
-      limit: 50,
-    }));
+    const url = new URL(
+      buildServersUrl({
+        updatedSince: "2026-08-01T00:00:00Z",
+        search: "github mcp",
+        cursor: "a/b:1.0.0",
+        limit: 50,
+      }),
+    );
     expect(url.searchParams.get("version")).toBe("latest");
     expect(url.searchParams.get("updated_since")).toBe("2026-08-01T00:00:00Z");
     expect(url.searchParams.get("search")).toBe("github mcp");
@@ -337,13 +413,21 @@ describe("buildServersUrl", () => {
   });
 
   test("clamps the page size to what the registry accepts", () => {
-    expect(new URL(buildServersUrl({ limit: 5000 })).searchParams.get("limit")).toBe("100");
-    expect(new URL(buildServersUrl({ limit: 0 })).searchParams.get("limit")).toBe("1");
-    expect(new URL(buildServersUrl({ limit: Number.NaN })).searchParams.has("limit")).toBe(false);
+    expect(
+      new URL(buildServersUrl({ limit: 5000 })).searchParams.get("limit"),
+    ).toBe("100");
+    expect(
+      new URL(buildServersUrl({ limit: 0 })).searchParams.get("limit"),
+    ).toBe("1");
+    expect(
+      new URL(buildServersUrl({ limit: Number.NaN })).searchParams.has("limit"),
+    ).toBe(false);
   });
 
   test("a custom base url with a trailing slash does not double up", () => {
-    expect(buildServersUrl({ baseUrl: "http://localhost:9000/" })).toStartWith("http://localhost:9000/v0/servers?");
+    expect(buildServersUrl({ baseUrl: "http://localhost:9000/" })).toStartWith(
+      "http://localhost:9000/v0/servers?",
+    );
   });
 
   test("a namespaced name is encoded into the detail path", () => {
@@ -371,14 +455,17 @@ describe("fetchRegistryPage", () => {
   });
 
   test("a timeout is a phrase, not an exception", async () => {
-    const { impl } = fakeFetch([{ match: "/v0/servers", throws: "Request timed out after 45000ms" }]);
+    const { impl } = fakeFetch([
+      { match: "/v0/servers", throws: "Request timed out after 45000ms" },
+    ]);
     const result = await fetchRegistryPage({ fetchImpl: impl });
     expect(result.page.servers).toEqual([]);
     expect(result.error).toContain("timed out");
   });
 
   test("a body that is not JSON at all is a phrase, not an exception", async () => {
-    const impl = async () => new Response("<html>502 Bad Gateway</html>", { status: 200 });
+    const impl = async () =>
+      new Response("<html>502 Bad Gateway</html>", { status: 200 });
     const result = await fetchRegistryPage({ fetchImpl: impl });
     expect(result.page.servers).toEqual([]);
     expect(result.error).toBeDefined();
@@ -387,13 +474,16 @@ describe("fetchRegistryPage", () => {
 
 test("fetchRegistryServer reads one server and tolerates a failure", async () => {
   const ok = fakeFetch([{ match: "/versions/latest", body: DETAIL }]);
-  expect((await fetchRegistryServer("ac.tandem/docs-mcp", { fetchImpl: ok.impl })).server?.name).toBe(
-    "ac.tandem/docs-mcp",
-  );
+  expect(
+    (await fetchRegistryServer("ac.tandem/docs-mcp", { fetchImpl: ok.impl }))
+      .server?.name,
+  ).toBe("ac.tandem/docs-mcp");
   expect(ok.calls[0]).toContain("ac.tandem%2Fdocs-mcp");
 
   const bad = fakeFetch([{ match: "/versions", status: 404 }]);
-  const result = await fetchRegistryServer("nope/nope", { fetchImpl: bad.impl });
+  const result = await fetchRegistryServer("nope/nope", {
+    fetchImpl: bad.impl,
+  });
   expect(result.server).toBeNull();
   expect(result.error).toBe("registry returned HTTP 404");
 });
@@ -420,7 +510,10 @@ describe("listRegistryServers", () => {
     // The registry silently ignores unknown parameters, so a future rename of
     // `version=latest` would resurface duplicate versions rather than error.
     const dupes = {
-      servers: [...(PAGE_1 as { servers: unknown[] }).servers, ...(PAGE_1 as { servers: unknown[] }).servers],
+      servers: [
+        ...(PAGE_1 as { servers: unknown[] }).servers,
+        ...(PAGE_1 as { servers: unknown[] }).servers,
+      ],
       metadata: {},
     };
     const { impl } = fakeFetch([{ match: "/v0/servers", body: dupes }]);
@@ -433,7 +526,10 @@ describe("listRegistryServers", () => {
   });
 
   test("a server that hands back the same cursor forever does not loop", async () => {
-    const stuck = { servers: (PAGE_1 as { servers: unknown[] }).servers, metadata: { nextCursor: "same" } };
+    const stuck = {
+      servers: (PAGE_1 as { servers: unknown[] }).servers,
+      metadata: { nextCursor: "same" },
+    };
     const { impl } = fakeFetch([{ match: "/v0/servers", body: stuck }]);
     const result = await listRegistryServers({ fetchImpl: impl, maxPages: 50 });
     // First page yields the cursor, second page repeats it, and the walk stops —
@@ -491,5 +587,7 @@ test("the directories we deliberately do not read are written down with reasons"
   const names = UNINTEGRATED_MCP_DIRECTORIES.map((d) => d.name);
   expect(names).toContain("Smithery");
   expect(names).toContain("PulseMCP");
-  expect(UNINTEGRATED_MCP_DIRECTORIES.every((d) => d.reason.length > 0)).toBe(true);
+  expect(UNINTEGRATED_MCP_DIRECTORIES.every((d) => d.reason.length > 0)).toBe(
+    true,
+  );
 });

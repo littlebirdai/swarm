@@ -9,19 +9,31 @@ import { getTerminalEndpoint, termWsUrl } from "./endpoint";
 function memoryStorage(): Storage {
   const m = new Map<string, string>();
   return {
-    get length() { return m.size; },
+    get length() {
+      return m.size;
+    },
     clear: () => m.clear(),
     getItem: (k) => (m.has(k) ? m.get(k)! : null),
     key: (i) => [...m.keys()][i] ?? null,
-    removeItem: (k) => { m.delete(k); },
-    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: (k) => {
+      m.delete(k);
+    },
+    setItem: (k, v) => {
+      m.set(k, String(v));
+    },
   };
 }
 
 const g = globalThis as { localStorage?: Storage; sessionStorage?: Storage };
 const saved = { local: g.localStorage, session: g.sessionStorage };
-beforeEach(() => { g.localStorage = memoryStorage(); g.sessionStorage = memoryStorage(); });
-afterEach(() => { g.localStorage = saved.local; g.sessionStorage = saved.session; });
+beforeEach(() => {
+  g.localStorage = memoryStorage();
+  g.sessionStorage = memoryStorage();
+});
+afterEach(() => {
+  g.localStorage = saved.local;
+  g.sessionStorage = saved.session;
+});
 
 const convex = {} as ConvexReactClient;
 
@@ -29,7 +41,9 @@ const convex = {} as ConvexReactClient;
 function expectOpenable(ep: Awaited<ReturnType<typeof getTerminalEndpoint>>) {
   if (ep === null) return;
   expect(() => new URL(termWsUrl(ep))).not.toThrow();
-  expect(Number.isInteger(ep.port) && ep.port >= 1 && ep.port <= 65535).toBe(true);
+  expect(Number.isInteger(ep.port) && ep.port >= 1 && ep.port <= 65535).toBe(
+    true,
+  );
 }
 
 test("a dev override with an unparseable port yields no endpoint", async () => {
@@ -47,7 +61,10 @@ test("a dev override with an out-of-range port yields no endpoint", async () => 
 });
 
 test("a malformed cached endpoint is not handed back", async () => {
-  sessionStorage.setItem("cast_term_endpoint", JSON.stringify({ port: "abc", token: "t", deviceId: "d", tmux: true }));
+  sessionStorage.setItem(
+    "cast_term_endpoint",
+    JSON.stringify({ port: "abc", token: "t", deviceId: "d", tmux: true }),
+  );
   const ep = await getTerminalEndpoint(convex, { trustCache: true });
   expectOpenable(ep);
 });

@@ -31,7 +31,8 @@ export const TONE = {
 } as const;
 export type Tone = keyof typeof TONE;
 
-const toneStyle = (tone?: Tone) => (tone ? ({ "--tone": TONE[tone] } as CSSProperties) : undefined);
+const toneStyle = (tone?: Tone) =>
+  tone ? ({ "--tone": TONE[tone] } as CSSProperties) : undefined;
 
 function CopyPageLink() {
   const [copied, setCopied] = useState(false);
@@ -59,12 +60,20 @@ function Dead({ noun, onRetry }: { noun: string; onRetry?: () => void }) {
       <div className="share-dead">
         <div>
           <Unlink size={36} style={{ color: "var(--ink-dim)" }} />
-          <h1>{onRetry ? `This ${noun} could not be loaded` : "This link is closed"}</h1>
+          <h1>
+            {onRetry
+              ? `This ${noun} could not be loaded`
+              : "This link is closed"}
+          </h1>
           <p>
             {onRetry
               ? "The server didn't answer. "
               : `The ${noun} was made private, or the link never pointed anywhere.`}
-            {onRetry && <button type="button" onClick={onRetry}>Try again</button>}
+            {onRetry && (
+              <button type="button" onClick={onRetry}>
+                Try again
+              </button>
+            )}
           </p>
         </div>
       </div>
@@ -72,7 +81,8 @@ function Dead({ noun, onRetry }: { noun: string; onRetry?: () => void }) {
   );
 }
 
-const wideAttr = (w: boolean | "full" | undefined) => (w === "full" ? "full" : w ? "" : undefined);
+const wideAttr = (w: boolean | "full" | undefined) =>
+  w === "full" ? "full" : w ? "" : undefined;
 
 export function SharedObjectPage<T>({
   kind,
@@ -96,11 +106,20 @@ export function SharedObjectPage<T>({
   const token = useParams().token as string;
   // The preloaded payload paints when the live read fails, so a server error
   // costs the page its freshness, not its content.
-  const { data: live, error, retry } = useQueryNoThrow(query, { share_token: token }) as { data: T | null | undefined; error: Error | undefined; retry: () => void };
+  const {
+    data: live,
+    error,
+    retry,
+  } = useQueryNoThrow(query, { share_token: token }) as {
+    data: T | null | undefined;
+    error: Error | undefined;
+    retry: () => void;
+  };
   const data = live !== undefined ? live : readSharePreload<T>(kind, token);
 
   if (data === undefined && error) return <Dead noun={noun} onRetry={retry} />;
-  if (data === undefined) return <AppLoader className="min-h-0 h-screen bg-sol-bg" />;
+  if (data === undefined)
+    return <AppLoader className="min-h-0 h-screen bg-sol-bg" />;
   if (data === null) return <Dead noun={noun} />;
 
   const rail = aside?.(data);
@@ -115,12 +134,17 @@ export function SharedObjectPage<T>({
         <span className="share-kind">shared {noun}</span>
         <CopyPageLink />
       </header>
-      <div className="share-layout" data-aside={rail ? "" : undefined} data-wide={wideAttr(typeof wide === "function" ? wide(data) : wide)}>
+      <div
+        className="share-layout"
+        data-aside={rail ? "" : undefined}
+        data-wide={wideAttr(typeof wide === "function" ? wide(data) : wide)}
+      >
         {rail}
         <article className="share-col">{children(data)}</article>
       </div>
       <footer className="share-foot">
-        Shared from <a href="https://codecast.sh">Codecast</a>, where people and their agents work in the open.
+        Shared from <a href="https://codecast.sh">Codecast</a>, where people and
+        their agents work in the open.
       </footer>
     </main>
   );
@@ -128,9 +152,21 @@ export function SharedObjectPage<T>({
 
 // ── Pieces ───────────────────────────────────────────────────────────────
 
-export function Pill({ tone, quiet, children }: { tone?: Tone; quiet?: boolean; children: ReactNode }) {
+export function Pill({
+  tone,
+  quiet,
+  children,
+}: {
+  tone?: Tone;
+  quiet?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <span className="share-pill" data-quiet={quiet ? "" : undefined} style={toneStyle(tone)}>
+    <span
+      className="share-pill"
+      data-quiet={quiet ? "" : undefined}
+      style={toneStyle(tone)}
+    >
       {children}
     </span>
   );
@@ -158,7 +194,9 @@ export function ShareHead({
       {(user?.name || at || meta) && (
         <div className="share-meta">
           {user?.name && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
               {user.image && <AvatarImg src={user.image} alt="" />}
               <strong>{user.name}</strong>
             </span>
@@ -171,7 +209,15 @@ export function ShareHead({
   );
 }
 
-export function Callout({ label, tone, children }: { label: string; tone?: Tone; children: ReactNode }) {
+export function Callout({
+  label,
+  tone,
+  children,
+}: {
+  label: string;
+  tone?: Tone;
+  children: ReactNode;
+}) {
   return (
     <div className="share-callout" style={toneStyle(tone)}>
       <span>{label}</span>
@@ -180,7 +226,15 @@ export function Callout({ label, tone, children }: { label: string; tone?: Tone;
   );
 }
 
-export function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+export function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   return (
     <section className="share-section">
       <h2>
@@ -232,7 +286,13 @@ export function Bullets({ items, tone }: { items: ReactNode[]; tone?: Tone }) {
 }
 
 /** Markdown set for reading; `compact` for comments and notes. */
-export function Prose({ content, compact }: { content: string; compact?: boolean }) {
+export function Prose({
+  content,
+  compact,
+}: {
+  content: string;
+  compact?: boolean;
+}) {
   return (
     <div className="share-prose" data-compact={compact ? "" : undefined}>
       <MarkdownRenderer content={content} />
@@ -242,7 +302,11 @@ export function Prose({ content, compact }: { content: string; compact?: boolean
 
 /** A calendar day, for due and target dates: "Dec 31, 2026". */
 export function fmtDay(ts: number): string {
-  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(ts).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /** "In progress" from "in_progress". */

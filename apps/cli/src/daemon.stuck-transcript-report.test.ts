@@ -13,22 +13,49 @@ describe("stuckTranscriptLines", () => {
     const lines = stuckTranscriptLines(
       [FILE],
       NOW,
-      () => ({ lastSyncedAt: Date.parse("2026-11-05T20:35:01Z"), lastSyncedPosition: 123 }),
-      new Map([[SID, { at: Date.parse("2026-11-05T21:41:30Z"), reason: "ingest transaction deadline" }]]),
+      () => ({
+        lastSyncedAt: Date.parse("2026-11-05T20:35:01Z"),
+        lastSyncedPosition: 123,
+      }),
+      new Map([
+        [
+          SID,
+          {
+            at: Date.parse("2026-11-05T21:41:30Z"),
+            reason: "ingest transaction deadline",
+          },
+        ],
+      ]),
     );
-    expect(lines).toEqual([{
-      sessionId: SID,
-      message: `Sync stuck: session ${SID} unsynced since 2026-11-05T20:35:01.000Z at byte 123; last failure 2026-11-05T21:41:30.000Z: ingest transaction deadline`,
-    }]);
+    expect(lines).toEqual([
+      {
+        sessionId: SID,
+        message: `Sync stuck: session ${SID} unsynced since 2026-11-05T20:35:01.000Z at byte 123; last failure 2026-11-05T21:41:30.000Z: ingest transaction deadline`,
+      },
+    ]);
   });
 
   test("a file that synced minutes ago, or never, is not reported as stuck", () => {
-    expect(stuckTranscriptLines([FILE], NOW, () => ({ lastSyncedAt: NOW - 60_000, lastSyncedPosition: 1 }), new Map())).toEqual([]);
-    expect(stuckTranscriptLines([FILE], NOW, () => null, new Map())).toEqual([]);
+    expect(
+      stuckTranscriptLines(
+        [FILE],
+        NOW,
+        () => ({ lastSyncedAt: NOW - 60_000, lastSyncedPosition: 1 }),
+        new Map(),
+      ),
+    ).toEqual([]);
+    expect(stuckTranscriptLines([FILE], NOW, () => null, new Map())).toEqual(
+      [],
+    );
   });
 
   test("says so when no pass failure was recorded", () => {
-    const [line] = stuckTranscriptLines([FILE], NOW, () => ({ lastSyncedAt: NOW - 3_600_000, lastSyncedPosition: 9 }), new Map());
+    const [line] = stuckTranscriptLines(
+      [FILE],
+      NOW,
+      () => ({ lastSyncedAt: NOW - 3_600_000, lastSyncedPosition: 9 }),
+      new Map(),
+    );
     expect(line.message.endsWith("no pass failure recorded")).toBe(true);
   });
 });

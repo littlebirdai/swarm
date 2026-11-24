@@ -28,7 +28,12 @@ export type JudgeFixGroup = {
 
 /** few_controls: the ruled cases separate, but too few kept findings ran to show the edit keeps them. */
 /** empties_proposal: the edit stops finding what a waiting proposal rests on (JudgeFixRest); that proposal would read "evidence gone" while its own measurement stands. */
-export type JudgeFixVerdict = "better" | "not_separated" | "worse" | "few_controls" | "empties_proposal";
+export type JudgeFixVerdict =
+  | "better"
+  | "not_separated"
+  | "worse"
+  | "few_controls"
+  | "empties_proposal";
 
 /** One ruled case on the card: what the judge said, what a correct judgment does, and how often each arm still says it. */
 export type JudgeFixCase = {
@@ -73,7 +78,8 @@ export type JudgeFixKept = {
 };
 
 /** Whether the edit moved a case: the edited copy files it at most half as often as what is published (5/5 to 4/5 is the same case still filed). */
-export const caseMoved = (c: Pick<JudgeFixCase, "base" | "arm">) => c.base > 0 && c.arm * 2 <= c.base;
+export const caseMoved = (c: Pick<JudgeFixCase, "base" | "arm">) =>
+  c.base > 0 && c.arm * 2 <= c.base;
 
 export type JudgeFixCard = {
   kind: "judge_fix";
@@ -138,13 +144,20 @@ function hyper(a: number, n1: number, n2: number, k: number): number {
  * base's (`less`) or HIGHER (`greater`): x hits of n on the arm, y of m on the
  * base. Null when the rates are equal or a side ran nothing.
  */
-export function fisherOneSided(x: number, n: number, y: number, m: number, alt: "less" | "greater"): number | null {
+export function fisherOneSided(
+  x: number,
+  n: number,
+  y: number,
+  m: number,
+  alt: "less" | "greater",
+): number | null {
   if (n <= 0 || m <= 0 || x * m === y * n) return null;
   const k = x + y;
   const lo = Math.max(0, k - m);
   const hi = Math.min(n, k);
   let p = 0;
-  for (let a = lo; a <= hi; a++) if (alt === "less" ? a <= x : a >= x) p += hyper(a, n, m, k);
+  for (let a = lo; a <= hi; a++)
+    if (alt === "less" ? a <= x : a >= x) p += hyper(a, n, m, k);
   return Math.min(1, p);
 }
 
@@ -161,40 +174,99 @@ export function fisherOneSided(x: number, n: number, y: number, m: number, alt: 
  * 1/5 to 0/5 move nothing), and blocking on one sent working fixes back to
  * be rewritten (ct-60174, 2026-10-16).
  */
-export function restEmptied(r: Pick<JudgeFixRest, "base" | "arm" | "reps">): boolean {
+export function restEmptied(
+  r: Pick<JudgeFixRest, "base" | "arm" | "reps">,
+): boolean {
   const p = fisherOneSided(r.arm, r.reps, r.base, r.reps, "less");
   return p !== null && p <= JUDGE_FIX_ALPHA;
 }
 
-export function judgeFixVerdict(ruled: JudgeFixGroup, controls: JudgeFixGroup, rests: Array<Pick<JudgeFixRest, "base" | "arm" | "reps">> = []): JudgeFixVerdict {
-  const worse = controls.runs > 0 && fisherOneSided(controls.arm, controls.runs, controls.base, controls.runs, "less");
-  if (worse !== false && worse !== null && worse <= JUDGE_FIX_ALPHA) return "worse";
+export function judgeFixVerdict(
+  ruled: JudgeFixGroup,
+  controls: JudgeFixGroup,
+  rests: Array<Pick<JudgeFixRest, "base" | "arm" | "reps">> = [],
+): JudgeFixVerdict {
+  const worse =
+    controls.runs > 0 &&
+    fisherOneSided(
+      controls.arm,
+      controls.runs,
+      controls.base,
+      controls.runs,
+      "less",
+    );
+  if (worse !== false && worse !== null && worse <= JUDGE_FIX_ALPHA)
+    return "worse";
   if (rests.some(restEmptied)) return "empties_proposal";
-  const better = fisherOneSided(ruled.arm, ruled.runs, ruled.base, ruled.runs, "less");
-  if (better === null || better > JUDGE_FIX_ALPHA || ruled.arm >= ruled.base) return "not_separated";
+  const better = fisherOneSided(
+    ruled.arm,
+    ruled.runs,
+    ruled.base,
+    ruled.runs,
+    "less",
+  );
+  if (better === null || better > JUDGE_FIX_ALPHA || ruled.arm >= ruled.base)
+    return "not_separated";
   return controls.moments < JUDGE_FIX_MIN_CONTROLS ? "few_controls" : "better";
 }
 
 /** A group's counts with its p in the direction it wants. */
-export function judgeFixGroup(moments: number, runs: number, base: number, arm: number, wants: "fewer" | "more"): JudgeFixGroup {
-  return { moments, runs, base, arm, p: fisherOneSided(arm, runs, base, runs, wants === "fewer" ? "less" : "greater") };
+export function judgeFixGroup(
+  moments: number,
+  runs: number,
+  base: number,
+  arm: number,
+  wants: "fewer" | "more",
+): JudgeFixGroup {
+  return {
+    moments,
+    runs,
+    base,
+    arm,
+    p: fisherOneSided(
+      arm,
+      runs,
+      base,
+      runs,
+      wants === "fewer" ? "less" : "greater",
+    ),
+  };
 }
 
 export function isJudgeFixCard(raw: unknown): raw is { kind: "judge_fix" } {
-  return !!raw && typeof raw === "object" && (raw as { kind?: unknown }).kind === "judge_fix";
+  return (
+    !!raw &&
+    typeof raw === "object" &&
+    (raw as { kind?: unknown }).kind === "judge_fix"
+  );
 }
 
 /** What a judge-fix card must carry before a reviewer is asked; the errors say what is missing. */
-export function validateJudgeFixCard(raw: unknown): { ok: true; card: JudgeFixCard } | { ok: false; errors: string[] } {
+export function validateJudgeFixCard(
+  raw: unknown,
+): { ok: true; card: JudgeFixCard } | { ok: false; errors: string[] } {
   const errors: string[] = [];
-  if (!isJudgeFixCard(raw)) return { ok: false, errors: ['kind is "judge_fix"'] };
+  if (!isJudgeFixCard(raw))
+    return { ok: false, errors: ['kind is "judge_fix"'] };
   const c = raw as Partial<JudgeFixCard>;
-  if (!/^ct-\d+$/.test(c.problem ?? "")) errors.push("problem names the problem (ct-N)");
-  if (!c.question?.trim()) errors.push("question is the one line the reviewer answers");
-  if (!c.change?.trim()) errors.push("change says in one sentence what the edit makes the judge do");
-  if (!c.part?.file || !c.part?.name) errors.push("part names the edited part and its file");
-  if (!Array.isArray(c.diff) || !c.diff.some((d) => d.added?.length || d.removed?.length)) errors.push("diff holds the edited lines");
-  if (!c.ab?.ruled || !c.ab?.controls || !c.ab?.verdict) errors.push("ab holds the ruled and control groups and the verdict");
-  if (!Array.isArray(c.cases) || !c.cases.length) errors.push("cases holds at least one ruled case");
-  return errors.length ? { ok: false, errors } : { ok: true, card: c as JudgeFixCard };
+  if (!/^ct-\d+$/.test(c.problem ?? ""))
+    errors.push("problem names the problem (ct-N)");
+  if (!c.question?.trim())
+    errors.push("question is the one line the reviewer answers");
+  if (!c.change?.trim())
+    errors.push("change says in one sentence what the edit makes the judge do");
+  if (!c.part?.file || !c.part?.name)
+    errors.push("part names the edited part and its file");
+  if (
+    !Array.isArray(c.diff) ||
+    !c.diff.some((d) => d.added?.length || d.removed?.length)
+  )
+    errors.push("diff holds the edited lines");
+  if (!c.ab?.ruled || !c.ab?.controls || !c.ab?.verdict)
+    errors.push("ab holds the ruled and control groups and the verdict");
+  if (!Array.isArray(c.cases) || !c.cases.length)
+    errors.push("cases holds at least one ruled case");
+  return errors.length
+    ? { ok: false, errors }
+    : { ok: true, card: c as JudgeFixCard };
 }

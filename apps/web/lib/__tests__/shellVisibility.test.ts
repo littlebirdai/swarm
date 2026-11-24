@@ -8,8 +8,13 @@ describe("applyShellVisibility", () => {
   let dom: JSDOM;
   const saved: Record<string, unknown> = {};
   beforeAll(() => {
-    dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
-    for (const k of ["document", "Document", "Event"]) { saved[k] = (globalThis as any)[k]; (globalThis as any)[k] = (dom.window as any)[k]; }
+    dom = new JSDOM("<!doctype html><html><body></body></html>", {
+      pretendToBeVisual: true,
+    });
+    for (const k of ["document", "Document", "Event"]) {
+      saved[k] = (globalThis as any)[k];
+      (globalThis as any)[k] = (dom.window as any)[k];
+    }
   });
   afterAll(() => {
     for (const k of Object.keys(saved)) (globalThis as any)[k] = saved[k];
@@ -19,7 +24,9 @@ describe("applyShellVisibility", () => {
   test("a window the shell hides reads hidden, and comes back visible, with one event each way", async () => {
     const { applyShellVisibility } = await import("../windowRole");
     const events: string[] = [];
-    document.addEventListener("visibilitychange", () => events.push(document.visibilityState));
+    document.addEventListener("visibilitychange", () =>
+      events.push(document.visibilityState),
+    );
     expect(document.visibilityState).toBe("visible");
     applyShellVisibility(null);
     expect(events).toEqual([]);

@@ -11,7 +11,17 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { useConvex } from "convex/react";
-import { Plus, X, Trash2, ChevronDown, ChevronUp, RotateCw, TerminalSquare, Eye, Users } from "lucide-react";
+import {
+  Plus,
+  X,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  RotateCw,
+  TerminalSquare,
+  Eye,
+  Users,
+} from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
 import { DEFAULT_TERMINAL_HEIGHT } from "../../lib/terminal/panelPrefs";
 import {
@@ -37,7 +47,12 @@ import {
   takeControl,
   type TermTabState,
 } from "../../lib/terminal/termSessions";
-import { ContextMenu, useContextMenu, CtxItem, CtxSeparator } from "../ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxSeparator,
+} from "../ui/context-menu";
 import { SplitResizeHandle } from "../SplitResizeHandle";
 import "@xterm/xterm/css/xterm.css";
 
@@ -69,7 +84,8 @@ export function TerminalPanel() {
   // Open state and height are the dock slot's — one layout model, and
   // SLOT_PERSISTENCE keeps this region device-local without its own store.
   const open = useInboxStore((st) => st.workspace.dock.pane != null);
-  const storedHeight = useInboxStore((st) => st.workspace.dock.size) ?? DEFAULT_TERMINAL_HEIGHT;
+  const storedHeight =
+    useInboxStore((st) => st.workspace.dock.size) ?? DEFAULT_TERMINAL_HEIGHT;
 
   const convex = useConvex();
   const [ep, setEp] = useState<EndpointState>({ phase: "idle" });
@@ -81,7 +97,11 @@ export function TerminalPanel() {
   const restoredOnce = useRef(false);
 
   const tabCtxMenu = useContextMenu<TermTabState>();
-  const tabsVersion = useSyncExternalStore(subscribeTerminals, getTerminalsVersion, getTerminalsVersion);
+  const tabsVersion = useSyncExternalStore(
+    subscribeTerminals,
+    getTerminalsVersion,
+    getTerminalsVersion,
+  );
   const tabs = listTabs();
   const activeId = getActiveTabId();
   const activeTab = tabs.find((t) => t.id === activeId) ?? null;
@@ -90,12 +110,19 @@ export function TerminalPanel() {
   const defaultCwd = useCallback((): string | undefined => {
     const st = useInboxStore.getState();
     const convId = st.currentSessionId;
-    const meta = convId ? (st.conversations[convId] ?? st.sessions[convId]) : null;
-    return (meta as { project_path?: string } | null)?.project_path ?? undefined;
+    const meta = convId
+      ? (st.conversations[convId] ?? st.sessions[convId])
+      : null;
+    return (
+      (meta as { project_path?: string } | null)?.project_path ?? undefined
+    );
   }, []);
 
   const openShellTab = useCallback(
-    (endpoint: TerminalEndpoint, opts?: { name?: string; cwd?: string; title?: string }) => {
+    (
+      endpoint: TerminalEndpoint,
+      opts?: { name?: string; cwd?: string; title?: string },
+    ) => {
       openTerminal({
         endpoint,
         kind: "shell",
@@ -114,14 +141,21 @@ export function TerminalPanel() {
       setEp({ phase: "resolving" });
       const endpoint = await getTerminalEndpoint(convex, { force });
       if (!endpoint) {
-        setEp({ phase: "unavailable", reason: unreachableReason(lastDiscoveryFailure()) });
+        setEp({
+          phase: "unavailable",
+          reason: unreachableReason(lastDiscoveryFailure()),
+        });
         return;
       }
       setEp({ phase: "ready", endpoint });
       if (!restoredOnce.current) {
         const existing = await probeEndpoint(endpoint);
         if (existing === null) {
-          setEp({ phase: "unavailable", reason: "Terminal sessions are temporarily unavailable. Retry in a moment." });
+          setEp({
+            phase: "unavailable",
+            reason:
+              "Terminal sessions are temporarily unavailable. Retry in a moment.",
+          });
           return;
         }
         restoredOnce.current = true;
@@ -131,7 +165,10 @@ export function TerminalPanel() {
           // reject (guards against list-format skew between versions).
           if (!/^cast-term-[A-Za-z0-9_-]+$/.test(sess.name)) continue;
           if (!openNames.has(sess.name)) {
-            openShellTab(endpoint, { name: sess.name, cwd: sess.path || undefined });
+            openShellTab(endpoint, {
+              name: sess.name,
+              cwd: sess.path || undefined,
+            });
           }
         }
         if (listTabs().length === 0) openShellTab(endpoint);
@@ -175,14 +212,20 @@ export function TerminalPanel() {
       const contentEl = panelEl?.previousElementSibling as HTMLElement | null;
       const maxH =
         panelEl && contentEl
-          ? Math.round(panelEl.getBoundingClientRect().bottom - contentEl.getBoundingClientRect().top)
+          ? Math.round(
+              panelEl.getBoundingClientRect().bottom -
+                contentEl.getBoundingClientRect().top,
+            )
           : Math.round(window.innerHeight * 0.9);
       let latest = startHeight;
       // Window-level listeners (not pointer capture): the terminal body is an
       // iframe-free but event-hungry surface, and window listeners keep the
       // drag alive wherever the cursor goes, including outside the viewport.
       const onMove = (ev: PointerEvent) => {
-        latest = Math.min(Math.max(startHeight + (startY - ev.clientY), MIN_HEIGHT), maxH);
+        latest = Math.min(
+          Math.max(startHeight + (startY - ev.clientY), MIN_HEIGHT),
+          maxH,
+        );
         setDragHeight(latest);
       };
       const onUp = () => {
@@ -193,7 +236,8 @@ export function TerminalPanel() {
         document.body.style.cursor = "";
         heightRef.current = latest;
         setDragHeight(null);
-        if (latest !== startHeight) useInboxStore.getState().wsSetSize("dock", latest);
+        if (latest !== startHeight)
+          useInboxStore.getState().wsSetSize("dock", latest);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -225,13 +269,18 @@ export function TerminalPanel() {
     if (reconnectTab(tab.id, endpoint)) return;
     const { kind, sessionName, cwd, target, title } = tab;
     closeTab(tab.id);
-    if (kind === "shell") openShellTab(endpoint, { name: sessionName, cwd, title });
+    if (kind === "shell")
+      openShellTab(endpoint, { name: sessionName, cwd, title });
     else if (target) openTerminal({ endpoint, kind: "attach", target, title });
   };
 
   const handleKill = (tab: TermTabState) => {
     if (tab.kind === "shell" && tab.sessionName && endpoint) {
-      if (tab.status === "exited" || tab.status === "error" || tab.status === "offline") {
+      if (
+        tab.status === "exited" ||
+        tab.status === "error" ||
+        tab.status === "offline"
+      ) {
         void killTerminalSession(endpoint, tab.sessionName);
         closeTab(tab.id);
       } else {
@@ -251,7 +300,11 @@ export function TerminalPanel() {
       // space (the flex-1 content sibling collapses to ~0) — no pixel math,
       // and it tracks window resizes for free.
       className={`flex-col bg-sol-bg ${island.className} ${open ? "flex" : "hidden"} ${maximized ? "flex-[999_1_0%] min-h-0" : "flex-shrink-0"}`}
-      style={maximized ? island.style : { ...island.style, height: open ? height : 0 }}
+      style={
+        maximized
+          ? island.style
+          : { ...island.style, height: open ? height : 0 }
+      }
     >
       {/* drag handle */}
       <SplitResizeHandle
@@ -290,14 +343,20 @@ export function TerminalPanel() {
                   }`}
                 />
                 <span className="truncate font-mono">{tab.title}</span>
-                {tab.readOnly && <Eye className="w-3 h-3 text-sol-text-dim/50 flex-shrink-0" />}
+                {tab.readOnly && (
+                  <Eye className="w-3 h-3 text-sol-text-dim/50 flex-shrink-0" />
+                )}
                 <span
                   role="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
-                  title={tab.kind === "shell" ? "Close tab (shell keeps running in tmux)" : "Close tab"}
+                  title={
+                    tab.kind === "shell"
+                      ? "Close tab (shell keeps running in tmux)"
+                      : "Close tab"
+                  }
                   className={`flex-shrink-0 rounded-sm p-0.5 -mr-1 transition-colors ${
                     isActive
                       ? "text-sol-text-dim/50 hover:text-sol-text hover:bg-sol-text-dim/15"
@@ -320,15 +379,18 @@ export function TerminalPanel() {
 
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {activeTab?.status === "open" && <TerminalSeat tab={activeTab} />}
-          {activeTab && (activeTab.status === "exited" || activeTab.status === "error" || activeTab.status === "offline") && (
-            <button
-              onClick={() => handleRestart(activeTab)}
-              title="Restart terminal"
-              className="p-1 rounded text-sol-text-dim/50 hover:text-sol-cyan transition-colors"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </button>
-          )}
+          {activeTab &&
+            (activeTab.status === "exited" ||
+              activeTab.status === "error" ||
+              activeTab.status === "offline") && (
+              <button
+                onClick={() => handleRestart(activeTab)}
+                title="Restart terminal"
+                className="p-1 rounded text-sol-text-dim/50 hover:text-sol-cyan transition-colors"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
+            )}
           {activeTab && activeTab.kind === "shell" && (
             <button
               onClick={() => handleKill(activeTab)}
@@ -343,7 +405,11 @@ export function TerminalPanel() {
             title={maximized ? "Restore panel size" : "Maximize panel"}
             className="p-1 rounded text-sol-text-dim/50 hover:text-sol-text-muted transition-colors"
           >
-            {maximized ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            {maximized ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronUp className="w-3.5 h-3.5" />
+            )}
           </button>
           <button
             onClick={() => useInboxStore.getState().setDockOpen(false)}
@@ -364,7 +430,8 @@ export function TerminalPanel() {
           // by a few pixels must never leave keystrokes routed to whatever
           // input the app focused last (that's how a stray Enter can send a
           // drafted message). Skip real controls (Retry button etc.).
-          if ((e.target as HTMLElement).closest("button, a, input, textarea")) return;
+          if ((e.target as HTMLElement).closest("button, a, input, textarea"))
+            return;
           if (activeId) {
             const inst = getInstance(activeId);
             if (inst && inst.state.status === "open") {
@@ -374,7 +441,9 @@ export function TerminalPanel() {
           }
         }}
       >
-        {ep.phase === "resolving" && <ConnectingNote label="Connecting to local daemon…" />}
+        {ep.phase === "resolving" && (
+          <ConnectingNote label="Connecting to local daemon…" />
+        )}
         {ep.phase === "unavailable" && (
           <CenteredNote>
             <div className="space-y-2">
@@ -399,7 +468,10 @@ export function TerminalPanel() {
         {activeTab?.status === "offline" && (
           <div className="absolute inset-x-0 bottom-0 px-3 py-1.5 text-meta font-mono bg-sol-bg/90 border-t border-sol-yellow/30">
             <span className="text-sol-yellow">no connection</span>
-            <span className="text-sol-text-dim"> — the terminal needs the daemon reachable on this machine · </span>
+            <span className="text-sol-text-dim">
+              {" "}
+              — the terminal needs the daemon reachable on this machine ·{" "}
+            </span>
             <button
               onClick={() => handleRestart(activeTab)}
               className="text-sol-cyan hover:underline"
@@ -408,7 +480,6 @@ export function TerminalPanel() {
             </button>
           </div>
         )}
-
       </div>
 
       {/* One menu instance serves the whole tab strip; tabs call open(e, tab).
@@ -419,7 +490,9 @@ export function TerminalPanel() {
             <CtxItem icon={Plus} onSelect={handleNewTab}>
               New terminal
             </CtxItem>
-            {(tab.status === "exited" || tab.status === "error" || tab.status === "offline") && (
+            {(tab.status === "exited" ||
+              tab.status === "error" ||
+              tab.status === "offline") && (
               <CtxItem icon={RotateCw} onSelect={() => handleRestart(tab)}>
                 Restart terminal
               </CtxItem>
@@ -465,7 +538,8 @@ export function ConnectingNote({ label }: { label: string }) {
  * per-conversation split.
  */
 export function TerminalSeat({ tab }: { tab: TermTabState }) {
-  const chip = "inline-flex items-center gap-1 h-[18px] px-1.5 rounded text-meta font-mono border bg-sol-bg/80";
+  const chip =
+    "inline-flex items-center gap-1 h-[18px] px-1.5 rounded text-meta font-mono border bg-sol-bg/80";
   if (tab.reconnecting) {
     return (
       <span className={`${chip} text-sol-yellow border-sol-yellow/30`}>
@@ -475,14 +549,24 @@ export function TerminalSeat({ tab }: { tab: TermTabState }) {
     );
   }
   if (tab.readOnly && !tab.canControl) {
-    return <span className={`${chip} text-sol-violet border-sol-violet/30 pointer-events-none`}>read-only</span>;
+    return (
+      <span
+        className={`${chip} text-sol-violet border-sol-violet/30 pointer-events-none`}
+      >
+        read-only
+      </span>
+    );
   }
   if (tab.role === "observer") {
     return (
       <span className="inline-flex items-center gap-1">
         <span
           className={`${chip} ${tab.controlTaken ? "text-sol-orange border-sol-orange/30" : "text-sol-text-dim border-sol-border/40"}`}
-          title={tab.controlledElsewhere ? "Another view is typing here" : "Nobody is typing here"}
+          title={
+            tab.controlledElsewhere
+              ? "Another view is typing here"
+              : "Nobody is typing here"
+          }
         >
           <Eye className="w-3 h-3" />
           {tab.controlTaken ? "taken over" : "watching"}
@@ -492,14 +576,21 @@ export function TerminalSeat({ tab }: { tab: TermTabState }) {
           disabled={tab.takeoverPending}
           className={`${chip} text-sol-cyan border-sol-cyan/40 hover:bg-sol-cyan/10 disabled:opacity-60 disabled:hover:bg-transparent transition-colors`}
         >
-          {tab.takeoverPending ? "Taking…" : tab.controlTaken ? "Take back" : "Take control"}
+          {tab.takeoverPending
+            ? "Taking…"
+            : tab.controlTaken
+              ? "Take back"
+              : "Take control"}
         </button>
       </span>
     );
   }
   if (tab.role === "controller" && (tab.viewers ?? 1) > 1) {
     return (
-      <span className={`${chip} text-sol-text-dim border-sol-border/40`} title={`${tab.viewers} views on this terminal; you are typing`}>
+      <span
+        className={`${chip} text-sol-text-dim border-sol-border/40`}
+        title={`${tab.viewers} views on this terminal; you are typing`}
+      >
         <Users className="w-3 h-3" />
         {tab.viewers}
       </span>
@@ -508,7 +599,13 @@ export function TerminalSeat({ tab }: { tab: TermTabState }) {
   return null;
 }
 
-function TermContainer({ tab, active }: { tab: TermTabState; active: boolean }) {
+function TermContainer({
+  tab,
+  active,
+}: {
+  tab: TermTabState;
+  active: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useWatchEffect(() => {
     if (ref.current) attachToContainer(tab.id, ref.current);

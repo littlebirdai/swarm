@@ -16,10 +16,23 @@ const SCRIPT = join(REPO, "scripts/vendor-platform.sh");
 const SHARED = "platform/vendor-platform.sh";
 
 /** The script's own environment stripped of every pointer to a canonical repo. */
-const NO_CANONICAL_REPO = { ...Bun.env, HOME: "/nonexistent", PLATFORM_DIR: undefined, PLATFORM_SRC: undefined };
+const NO_CANONICAL_REPO = {
+  ...Bun.env,
+  HOME: "/nonexistent",
+  PLATFORM_DIR: undefined,
+  PLATFORM_SRC: undefined,
+};
 
-async function run(script: string, mode: string, env: Record<string, any> = NO_CANONICAL_REPO) {
-  const proc = Bun.spawn(["bash", script, mode], { env, stdout: "pipe", stderr: "pipe" });
+async function run(
+  script: string,
+  mode: string,
+  env: Record<string, any> = NO_CANONICAL_REPO,
+) {
+  const proc = Bun.spawn(["bash", script, mode], {
+    env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const [stdout, stderr] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
@@ -43,7 +56,9 @@ describe("the committed mirror", () => {
     const listed = result.stdout.trim().split("\n");
     expect(listed.length).toBeGreaterThan(0);
     for (const pkg of listed) {
-      const name = await Bun.file(join(REPO, "platform/packages", pkg, "package.json")).json();
+      const name = await Bun.file(
+        join(REPO, "platform/packages", pkg, "package.json"),
+      ).json();
       expect(name.name, `${pkg} package.json name`).toBe(`@platform/${pkg}`);
     }
   });
@@ -62,18 +77,28 @@ describe("the committed mirror", () => {
 // Nothing here touches the checkout.
 const fixtures: string[] = [];
 afterEach(() => {
-  for (const dir of fixtures.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of fixtures.splice(0))
+    rmSync(dir, { recursive: true, force: true });
 });
 
 async function fixture(): Promise<{ root: string; script: string }> {
   const root = mkdtempSync(join(tmpdir(), "vendor-manifest-"));
   fixtures.push(root);
-  await Bun.write(join(root, "scripts/vendor-platform.sh"), await Bun.file(SCRIPT).text());
-  await Bun.write(join(root, SHARED), await Bun.file(join(REPO, SHARED)).text());
+  await Bun.write(
+    join(root, "scripts/vendor-platform.sh"),
+    await Bun.file(SCRIPT).text(),
+  );
+  await Bun.write(
+    join(root, SHARED),
+    await Bun.file(join(REPO, SHARED)).text(),
+  );
   await Bun.write(
     join(root, "packages/app/package.json"),
     JSON.stringify(
-      { name: "@codecast/app", dependencies: { "@platform/foo": "file:../../platform/packages/foo" } },
+      {
+        name: "@codecast/app",
+        dependencies: { "@platform/foo": "file:../../platform/packages/foo" },
+      },
       null,
       2,
     ),
@@ -82,7 +107,10 @@ async function fixture(): Promise<{ root: string; script: string }> {
     join(root, "platform/packages/foo/package.json"),
     JSON.stringify({ name: "@platform/foo" }, null, 2),
   );
-  await Bun.write(join(root, "platform/packages/foo/src/index.ts"), "export const foo = 1;\n");
+  await Bun.write(
+    join(root, "platform/packages/foo/src/index.ts"),
+    "export const foo = 1;\n",
+  );
   return { root, script: join(root, "scripts/vendor-platform.sh") };
 }
 
@@ -94,7 +122,9 @@ describe("a clone that lacks the shared script", () => {
     rmSync(join(root, SHARED));
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(2);
-    expect(result.out).toContain("platform/vendor-platform.sh is not committed");
+    expect(result.out).toContain(
+      "platform/vendor-platform.sh is not committed",
+    );
   });
 });
 
@@ -111,19 +141,29 @@ describe("--check-manifest", () => {
     // Nothing enforced it before this check.
     const { root, script } = await fixture();
     await run(script, "--write-manifest");
-    await Bun.write(join(root, "platform/packages/foo/src/index.ts"), "export const foo = 2;\n");
+    await Bun.write(
+      join(root, "platform/packages/foo/src/index.ts"),
+      "export const foo = 2;\n",
+    );
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("platform/packages/foo does not match the manifest");
+    expect(result.out).toContain(
+      "platform/packages/foo does not match the manifest",
+    );
   });
 
   test("catches a new file dropped into the mirror", async () => {
     const { root, script } = await fixture();
     await run(script, "--write-manifest");
-    await Bun.write(join(root, "platform/packages/foo/src/extra.ts"), "export const extra = 1;\n");
+    await Bun.write(
+      join(root, "platform/packages/foo/src/extra.ts"),
+      "export const extra = 1;\n",
+    );
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("platform/packages/foo does not match the manifest");
+    expect(result.out).toContain(
+      "platform/packages/foo does not match the manifest",
+    );
   });
 
   test("catches a package adopted without a re-vendor", async () => {
@@ -145,7 +185,9 @@ describe("--check-manifest", () => {
     );
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("platform/packages/bar is declared as a dep but not mirrored");
+    expect(result.out).toContain(
+      "platform/packages/bar is declared as a dep but not mirrored",
+    );
   });
 
   test("catches a mirrored package nothing depends on", async () => {
@@ -157,7 +199,9 @@ describe("--check-manifest", () => {
     await run(script, "--write-manifest");
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("platform/packages/orphan is mirrored but no workspace package");
+    expect(result.out).toContain(
+      "platform/packages/orphan is mirrored but no workspace package",
+    );
   });
 
   test("catches a dep pointing outside the checkout", async () => {
@@ -168,14 +212,19 @@ describe("--check-manifest", () => {
     await Bun.write(
       join(root, "packages/app/package.json"),
       JSON.stringify(
-        { name: "@codecast/app", dependencies: { "@platform/foo": "file:~/src/platform/packages/foo" } },
+        {
+          name: "@codecast/app",
+          dependencies: { "@platform/foo": "file:~/src/platform/packages/foo" },
+        },
         null,
         2,
       ),
     );
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("do not point at file:../../platform/packages/<name>");
+    expect(result.out).toContain(
+      "do not point at file:../../platform/packages/<name>",
+    );
   });
 
   test("reads past an @platform key that declares no path", async () => {
@@ -203,7 +252,10 @@ describe("--check-manifest", () => {
     await Bun.write(
       join(root, "packages/app/package.json"),
       JSON.stringify(
-        { name: "@codecast/app", dependencies: { "@platform/bar": "file:../../platform/packages/foo" } },
+        {
+          name: "@codecast/app",
+          dependencies: { "@platform/bar": "file:../../platform/packages/foo" },
+        },
         null,
         2,
       ),
@@ -211,7 +263,9 @@ describe("--check-manifest", () => {
     await run(script, "--write-manifest");
     const result = await run(script, "--check-manifest");
     expect(result.code).toBe(1);
-    expect(result.out).toContain("@platform deps whose name and directory disagree");
+    expect(result.out).toContain(
+      "@platform deps whose name and directory disagree",
+    );
   });
 
   test("ignores what a per-package bun install leaves behind", async () => {
@@ -220,8 +274,14 @@ describe("--check-manifest", () => {
     const { root, script } = await fixture();
     await run(script, "--write-manifest");
     await Bun.write(join(root, "platform/packages/foo/bun.lock"), "{}\n");
-    await Bun.write(join(root, "platform/packages/foo/node_modules/dep/index.js"), "module.exports={}\n");
-    await Bun.write(join(root, "platform/packages/foo/dist/index.js"), "export const foo=1\n");
+    await Bun.write(
+      join(root, "platform/packages/foo/node_modules/dep/index.js"),
+      "module.exports={}\n",
+    );
+    await Bun.write(
+      join(root, "platform/packages/foo/dist/index.js"),
+      "export const foo=1\n",
+    );
     expect((await run(script, "--check-manifest")).code).toBe(0);
   });
 });
@@ -233,18 +293,27 @@ describe("--check-manifest", () => {
 describe("--list-with-tests", () => {
   test("names every mirrored package that bun would find tests in", async () => {
     const all = (await run(SCRIPT, "--list")).stdout.trim().split("\n");
-    const testable = (await run(SCRIPT, "--list-with-tests")).stdout.trim().split("\n");
+    const testable = (await run(SCRIPT, "--list-with-tests")).stdout
+      .trim()
+      .split("\n");
     for (const pkg of all) {
       const dir = join(REPO, "platform/packages", pkg);
-      const found = new Bun.Glob("**/*.{test,spec}.{js,jsx,ts,tsx}").scanSync({ cwd: dir });
+      const found = new Bun.Glob("**/*.{test,spec}.{js,jsx,ts,tsx}").scanSync({
+        cwd: dir,
+      });
       const hasTests = !found.next().done;
-      expect(testable.includes(pkg), `${pkg} hasTests=${hasTests}`).toBe(hasTests);
+      expect(testable.includes(pkg), `${pkg} hasTests=${hasTests}`).toBe(
+        hasTests,
+      );
     }
   }, 30_000);
 
   test("counts a JavaScript suite, not just a TypeScript one", async () => {
     const { root, script } = await fixture();
-    await Bun.write(join(root, "platform/packages/foo/src/thing.test.js"), "test('x', () => {});\n");
+    await Bun.write(
+      join(root, "platform/packages/foo/src/thing.test.js"),
+      "test('x', () => {});\n",
+    );
     expect((await run(script, "--list-with-tests")).stdout.trim()).toBe("foo");
   });
 
@@ -257,7 +326,10 @@ describe("--list-with-tests", () => {
 
   test("does not count a dependency's tests as the package's own", async () => {
     const { root, script } = await fixture();
-    await Bun.write(join(root, "platform/packages/foo/node_modules/dep/x.test.ts"), "test('x',()=>{});\n");
+    await Bun.write(
+      join(root, "platform/packages/foo/node_modules/dep/x.test.ts"),
+      "test('x',()=>{});\n",
+    );
     const result = await run(script, "--list-with-tests");
     expect(result.stdout.trim()).toBe("");
     expect(result.out).toContain("platform/packages/foo has no tests");

@@ -32,7 +32,7 @@ Open a pull request from a conversation, a task, or **Code** in the sidebar. The
 A review in codecast works like one on GitHub, and the result goes to GitHub:
 
 1. In **Files**, hover a line and press **+** to write a note. Choose **Start a review** to hold it, or **Post now** to send it straight away.
-2. Held notes are yours alone until you finish. A bar at the bottom of the page counts them: *2 notes not sent yet*.
+2. Held notes are yours alone until you finish. A bar at the bottom of the page counts them: _2 notes not sent yet_.
 3. Click **Review** (or press **r**). Your notes are listed, each linking back to its line. Add a summary, pick **Comment**, **Approve** or **Request changes**, and click **Submit review**.
 
 ![The review panel with held notes and a verdict](/documentation/pull-requests/review.webp "Held notes, a summary and the verdict, ready to submit.")
@@ -47,14 +47,14 @@ The **Shepherd** line names the session that owns the pull request. Agents that 
 
 The shepherd wakes for things that need the author's hands, and stays quiet otherwise:
 
-| What happens on the pull request | Wakes the shepherd |
-|----------------------------------|--------------------|
-| A check fails | Yes |
-| A reviewer requests changes, or leaves a review with comments | Yes |
-| Someone comments on a line | Yes |
-| The branch no longer merges cleanly | Yes |
-| The branch falls behind main | No, it's only noted |
-| Checks go green, new commits, a review is requested | No |
+| What happens on the pull request                              | Wakes the shepherd  |
+| ------------------------------------------------------------- | ------------------- |
+| A check fails                                                 | Yes                 |
+| A reviewer requests changes, or leaves a review with comments | Yes                 |
+| Someone comments on a line                                    | Yes                 |
+| The branch no longer merges cleanly                           | Yes                 |
+| The branch falls behind main                                  | No, it's only noted |
+| Checks go green, new commits, a review is requested           | No                  |
 
 Comments from bots and from the pull request's own author don't wake it. When it wakes, the agent fixes what's outstanding in one pass, pushes to the same branch, replies on GitHub to each point it addressed and resolves those threads. It doesn't merge unless a person asked it to. When the pull request merges or closes, the shepherd is released.
 
@@ -71,14 +71,14 @@ Under **Settings**, **Integrations**, the Linear and GitHub cards each have an *
 ![Issues as tasks on the GitHub integration card](/documentation/pull-requests/issues.webp "One repository importing into a project, with its delegate label.")
 
 - **It stays in step both ways.** Title, description, status, assignee and labels follow each other. A comment on the task posts on the issue, and marking the task done closes it. Priority syncs with Linear (GitHub issues have none).
-- **Hand an issue to an agent from the tracker.** Set a **Delegate label** (for example *agent*) or a **Delegate assignee**, and turn on **Spawn a session on delegation**. Labeling or assigning an issue that way starts a session on it, and the issue gets a comment linking to that session.
+- **Hand an issue to an agent from the tracker.** Set a **Delegate label** (for example _agent_) or a **Delegate assignee**, and turn on **Spawn a session on delegation**. Labeling or assigning an issue that way starts a session on it, and the issue gets a comment linking to that session.
 - **Issue text is the task, never instructions.** Anyone who can open an issue can write text an agent will read, so agents do the work an issue describes but never let its text override their own rules.
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| A pull request has no page in codecast | Give the codecast GitHub app access to that repository under **Settings**, **Integrations** |
-| Submitting a review fails with a note about your GitHub account | Connect GitHub to your own codecast account, or review on github.com |
-| The shepherd didn't react to a review | Check its line reads **Wakes on changes**, not **Paused**. Reviews from bots and from the author don't wake it |
-| GitHub refuses a merge | The branch is behind, conflicted or blocked by a rule. GitHub's reason is shown; ask the shepherd to update the branch |
+| What you notice                                                 | What to do                                                                                                             |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| A pull request has no page in codecast                          | Give the codecast GitHub app access to that repository under **Settings**, **Integrations**                            |
+| Submitting a review fails with a note about your GitHub account | Connect GitHub to your own codecast account, or review on github.com                                                   |
+| The shepherd didn't react to a review                           | Check its line reads **Wakes on changes**, not **Paused**. Reviews from bots and from the author don't wake it         |
+| GitHub refuses a merge                                          | The branch is behind, conflicted or blocked by a rule. GitHub's reason is shown; ask the shepherd to update the branch |

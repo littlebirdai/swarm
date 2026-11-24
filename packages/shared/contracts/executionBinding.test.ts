@@ -27,11 +27,21 @@ describe("parseStartedDeliveryPermit", () => {
   });
 
   it("rejects a merely claimed permit and malformed fence fields", () => {
-    expect(() => parseStartedDeliveryPermit({ ...wirePermit, state: "claimed" })).toThrow();
-    expect(() => parseStartedDeliveryPermit({ ...wirePermit, runtimeId: "" })).toThrow();
-    expect(() => parseStartedDeliveryPermit({ ...wirePermit, executionEpoch: -1 })).toThrow();
-    expect(() => parseStartedDeliveryPermit({ ...wirePermit, executionEpoch: 0 })).toThrow();
-    expect(() => parseStartedDeliveryPermit({ ...wirePermit, configurationRevision: 0 })).toThrow();
+    expect(() =>
+      parseStartedDeliveryPermit({ ...wirePermit, state: "claimed" }),
+    ).toThrow();
+    expect(() =>
+      parseStartedDeliveryPermit({ ...wirePermit, runtimeId: "" }),
+    ).toThrow();
+    expect(() =>
+      parseStartedDeliveryPermit({ ...wirePermit, executionEpoch: -1 }),
+    ).toThrow();
+    expect(() =>
+      parseStartedDeliveryPermit({ ...wirePermit, executionEpoch: 0 }),
+    ).toThrow();
+    expect(() =>
+      parseStartedDeliveryPermit({ ...wirePermit, configurationRevision: 0 }),
+    ).toThrow();
   });
 });
 
@@ -62,9 +72,17 @@ describe("delivery fence matching", () => {
     const permit = parseStartedDeliveryPermit(wirePermit);
     expect(readyBindingMatchesPermit(binding, permit)).toBe(true);
     expect(deliveryMatchesPermit(delivery, permit)).toBe(true);
-    expect(readyBindingMatchesPermit({ ...binding, actualAgent: "claude" }, permit)).toBe(false);
-    expect(readyBindingMatchesPermit({ ...binding, runtimeId: "runtime-2" }, permit)).toBe(false);
-    expect(readyBindingMatchesPermit({ ...binding, daemonBootId: "boot-2" }, permit)).toBe(false);
-    expect(deliveryMatchesPermit({ ...delivery, deliveryId: "delivery-2" }, permit)).toBe(false);
+    expect(
+      readyBindingMatchesPermit({ ...binding, actualAgent: "claude" }, permit),
+    ).toBe(false);
+    expect(
+      readyBindingMatchesPermit({ ...binding, runtimeId: "runtime-2" }, permit),
+    ).toBe(false);
+    expect(
+      readyBindingMatchesPermit({ ...binding, daemonBootId: "boot-2" }, permit),
+    ).toBe(false);
+    expect(
+      deliveryMatchesPermit({ ...delivery, deliveryId: "delivery-2" }, permit),
+    ).toBe(false);
   });
 });

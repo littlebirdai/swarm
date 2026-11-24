@@ -15,19 +15,30 @@ import { sharedResolve } from "../../vite.shared";
  * stayed green. Nothing else in the suite watches this, so it is watched here.
  */
 describe("SSR build config", () => {
-  const config = prerenderConfig as { resolve?: { alias?: Record<string, string> } };
+  const config = prerenderConfig as {
+    resolve?: { alias?: Record<string, string> };
+  };
   const alias = config.resolve?.alias;
 
   test("carries path aliases", () => {
-    expect(alias, "SSR config has no resolve.alias — every @/… import will fail to resolve").toBeDefined();
+    expect(
+      alias,
+      "SSR config has no resolve.alias — every @/… import will fail to resolve",
+    ).toBeDefined();
     expect(Object.keys(alias!).length).toBeGreaterThan(0);
   });
 
   test("resolves @ to this package, and the compat shims to real files", () => {
     expect(alias!["@"]).toBe(join(import.meta.dir, "..", ".."));
     for (const key of ["@", "next/link", "next/navigation"]) {
-      expect(alias![key], `alias "${key}" missing from the SSR build`).toBeDefined();
-      expect(existsSync(alias![key]), `alias "${key}" points at ${alias![key]}, which does not exist`).toBe(true);
+      expect(
+        alias![key],
+        `alias "${key}" missing from the SSR build`,
+      ).toBeDefined();
+      expect(
+        existsSync(alias![key]),
+        `alias "${key}" points at ${alias![key]}, which does not exist`,
+      ).toBe(true);
     }
   });
 

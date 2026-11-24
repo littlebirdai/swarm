@@ -26,7 +26,18 @@ export type OpsChartProps = {
   ariaLabel?: string;
 };
 
-export function OpsChart({ option, deps, height = 200, className, style, group, replace = true, onReady, onDraw, ariaLabel }: OpsChartProps) {
+export function OpsChart({
+  option,
+  deps,
+  height = 200,
+  className,
+  style,
+  group,
+  replace = true,
+  onReady,
+  onDraw,
+  ariaLabel,
+}: OpsChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<ECharts | null>(null);
   const theme = useChartTheme();
@@ -41,22 +52,43 @@ export function OpsChart({ option, deps, height = 200, className, style, group, 
     if (!el.current) return;
     const c = echarts.init(el.current, undefined, { renderer: "canvas" });
     chart.current = c;
-    if (group) { c.group = group; echarts.connect(group); }
-    const ro = new ResizeObserver(() => { c.resize(); drawRef.current?.(c, themeRef.current); });
+    if (group) {
+      c.group = group;
+      echarts.connect(group);
+    }
+    const ro = new ResizeObserver(() => {
+      c.resize();
+      drawRef.current?.(c, themeRef.current);
+    });
     ro.observe(el.current);
-    return () => { ro.disconnect(); c.dispose(); chart.current = null; };
+    return () => {
+      ro.disconnect();
+      c.dispose();
+      chart.current = null;
+    };
   });
 
   useWatchEffect(() => {
     const c = chart.current;
     if (!c) return;
     const first = !c.getOption();
-    c.setOption(option(theme), replace ? { replaceMerge: ["series", "graphic"] } : undefined);
+    c.setOption(
+      option(theme),
+      replace ? { replaceMerge: ["series", "graphic"] } : undefined,
+    );
     // Handlers and global cursors (a brush) bind once the first option has made their components.
     if (first) readyRef.current?.(c);
     drawRef.current?.(c, theme);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, ...deps]);
 
-  return <div ref={el} className={className} style={{ height, width: "100%", ...style }} role="img" aria-label={ariaLabel} />;
+  return (
+    <div
+      ref={el}
+      className={className}
+      style={{ height, width: "100%", ...style }}
+      role="img"
+      aria-label={ariaLabel}
+    />
+  );
 }

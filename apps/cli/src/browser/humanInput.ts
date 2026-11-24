@@ -35,12 +35,18 @@ import { readSharedConfig } from "../config/sharedConfig.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
 export type Point = { x: number; y: number };
-export type Send = (method: string, params: Record<string, unknown>) => Promise<unknown>;
+export type Send = (
+  method: string,
+  params: Record<string, unknown>,
+) => Promise<unknown>;
 
 /** The explicit choice: the env override when set, else the machine
  *  setting; undefined when neither says, which means "only on challenged
  *  tabs". */
-export function humanInputChoice(env: NodeJS.ProcessEnv = process.env, setting: () => boolean | undefined = machineSetting): boolean | undefined {
+export function humanInputChoice(
+  env: NodeJS.ProcessEnv = process.env,
+  setting: () => boolean | undefined = machineSetting,
+): boolean | undefined {
   const v = env.CAST_BROWSER_HUMAN_INPUT?.trim();
   if (v) return !/^(0|false|off|no)$/i.test(v);
   return setting();
@@ -77,7 +83,9 @@ function readChallenged(): Record<string, number> {
  *  bridge host's numeric tab id). Best effort: losing it costs pacing, never
  *  correctness. */
 export function markChallengedTab(tabId: number, now = Date.now()): void {
-  const live = Object.fromEntries(Object.entries(readChallenged()).filter(([, until]) => until > now));
+  const live = Object.fromEntries(
+    Object.entries(readChallenged()).filter(([, until]) => until > now),
+  );
   live[String(tabId)] = now + CHALLENGED_TTL_MS;
   try {
     fs.mkdirSync(path.dirname(challengedFile()), { recursive: true });
@@ -89,9 +97,11 @@ export function markChallengedTab(tabId: number, now = Date.now()): void {
   }
 }
 
-let challengedCache: { at: number; value: Record<string, number> } | null = null;
+let challengedCache: { at: number; value: Record<string, number> } | null =
+  null;
 function isChallengedTab(tabKey: string | number): boolean {
-  if (!challengedCache || Date.now() - challengedCache.at >= 5_000) challengedCache = { at: Date.now(), value: readChallenged() };
+  if (!challengedCache || Date.now() - challengedCache.at >= 5_000)
+    challengedCache = { at: Date.now(), value: readChallenged() };
   return (challengedCache.value[String(tabKey)] ?? 0) > Date.now();
 }
 
@@ -111,17 +121,27 @@ function machineSetting(): boolean | undefined {
 }
 
 type Rand = () => number;
-const between = (rand: Rand, min: number, max: number) => min + rand() * (max - min);
+const between = (rand: Rand, min: number, max: number) =>
+  min + rand() * (max - min);
 /** Normal-ish noise (sum of uniforms), mean 0. */
-const noise = (rand: Rand, scale: number) => (rand() + rand() + rand() - 1.5) * scale;
+const noise = (rand: Rand, scale: number) =>
+  (rand() + rand() + rand() - 1.5) * scale;
 /** Minimum-jerk position profile: slow start, fast middle, slow arrival. */
 const minimumJerk = (t: number) => t * t * t * (10 - 15 * t + 6 * t * t);
 
 function bezier(p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point {
   const u = 1 - t;
   return {
-    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
-    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+    x:
+      u * u * u * p0.x +
+      3 * u * u * t * p1.x +
+      3 * u * t * t * p2.x +
+      t * t * t * p3.x,
+    y:
+      u * u * u * p0.y +
+      3 * u * u * t * p1.y +
+      3 * u * t * t * p2.y +
+      t * t * t * p3.y,
   };
 }
 
@@ -130,21 +150,39 @@ export const MAX_MOVE_MS = 1100;
 
 /** Points (each with the delay before it) for one movement from `from` to
  *  `to`, ending just short of `to`: the caller's own event lands there. */
-export function trajectory(from: Point, to: Point, rand: Rand = Math.random): Array<{ point: Point; delay: number }> {
+export function trajectory(
+  from: Point,
+  to: Point,
+  rand: Rand = Math.random,
+): Array<{ point: Point; delay: number }> {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.hypot(dx, dy);
   if (distance < 2) return [];
   // Fitts' law with a ~40px target, plus personal variation.
-  const duration = Math.min(MAX_MOVE_MS, (90 + 110 * Math.log2(distance / 40 + 1)) * between(rand, 0.85, 1.25));
+  const duration = Math.min(
+    MAX_MOVE_MS,
+    (90 + 110 * Math.log2(distance / 40 + 1)) * between(rand, 0.85, 1.25),
+  );
   // Bow the path to one side, never past ~18% of the distance.
   const normal = { x: -dy / distance, y: dx / distance };
   const bow = (rand() < 0.5 ? -1 : 1) * between(rand, 0.04, 0.18) * distance;
-  const c1 = { x: from.x + dx * between(rand, 0.2, 0.35) + normal.x * bow, y: from.y + dy * between(rand, 0.2, 0.35) + normal.y * bow };
-  const c2 = { x: from.x + dx * between(rand, 0.65, 0.8) + normal.x * bow * 0.6, y: from.y + dy * between(rand, 0.65, 0.8) + normal.y * bow * 0.6 };
+  const c1 = {
+    x: from.x + dx * between(rand, 0.2, 0.35) + normal.x * bow,
+    y: from.y + dy * between(rand, 0.2, 0.35) + normal.y * bow,
+  };
+  const c2 = {
+    x: from.x + dx * between(rand, 0.65, 0.8) + normal.x * bow * 0.6,
+    y: from.y + dy * between(rand, 0.65, 0.8) + normal.y * bow * 0.6,
+  };
   // Long moves sometimes overshoot slightly and come back.
   const overshoot = distance > 250 && rand() < 0.25;
-  const end = overshoot ? { x: to.x + (dx / distance) * between(rand, 4, 12), y: to.y + (dy / distance) * between(rand, 4, 12) } : to;
+  const end = overshoot
+    ? {
+        x: to.x + (dx / distance) * between(rand, 4, 12),
+        y: to.y + (dy / distance) * between(rand, 4, 12),
+      }
+    : to;
   const points: Array<{ point: Point; delay: number }> = [];
   let elapsed = 0;
   while (elapsed < duration) {
@@ -154,22 +192,41 @@ export function trajectory(from: Point, to: Point, rand: Rand = Math.random): Ar
     const p = bezier(from, c1, c2, end, s);
     // Tremor fades as the hand settles on the target.
     const tremor = (1 - s) * 0.9;
-    points.push({ point: { x: p.x + noise(rand, tremor), y: p.y + noise(rand, tremor) }, delay: step });
+    points.push({
+      point: { x: p.x + noise(rand, tremor), y: p.y + noise(rand, tremor) },
+      delay: step,
+    });
   }
   if (overshoot) {
     const back = Math.max(3, Math.round(between(rand, 4, 7)));
     for (let i = 1; i <= back; i++) {
       const s = minimumJerk(i / back);
-      points.push({ point: { x: end.x + (to.x - end.x) * s, y: end.y + (to.y - end.y) * s }, delay: between(rand, 10, 18) });
+      points.push({
+        point: { x: end.x + (to.x - end.x) * s, y: end.y + (to.y - end.y) * s },
+        delay: between(rand, 10, 18),
+      });
     }
   }
   points.pop();
-  return points.map(({ point, delay }) => ({ point: { x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 }, delay }));
+  return points.map(({ point, delay }) => ({
+    point: {
+      x: Math.round(point.x * 10) / 10,
+      y: Math.round(point.y * 10) / 10,
+    },
+    delay,
+  }));
 }
 
 /** Keep a pointer on screen: never negative, inside the viewport when known. */
-export function clampPoint(p: Point, bounds?: { width: number; height: number }): Point {
-  const clamp = (v: number, max: number | undefined) => Math.min(Math.max(v, 0), max === undefined ? Infinity : Math.max(0, max - 1));
+export function clampPoint(
+  p: Point,
+  bounds?: { width: number; height: number },
+): Point {
+  const clamp = (v: number, max: number | undefined) =>
+    Math.min(
+      Math.max(v, 0),
+      max === undefined ? Infinity : Math.max(0, max - 1),
+    );
   return { x: clamp(p.x, bounds?.width), y: clamp(p.y, bounds?.height) };
 }
 
@@ -207,14 +264,19 @@ const PACED = new Set(["Input.dispatchMouseEvent", "Input.dispatchKeyEvent"]);
  * before it.
  */
 export function createHumanInput(deps: HumanInputDeps = {}) {
-  const sleep = deps.sleep ?? ((ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve()));
+  const sleep =
+    deps.sleep ??
+    ((ms: number) =>
+      ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve());
   const now = deps.now ?? Date.now;
   const rand = deps.rand ?? Math.random;
-  const enabled = deps.enabled ?? ((tabKey: string | number) => humanInputEnabled(tabKey));
+  const enabled =
+    deps.enabled ?? ((tabKey: string | number) => humanInputEnabled(tabKey));
   const tabs = new Map<string | number, TabState>();
   const state = (key: string | number): TabState => {
     let t = tabs.get(key);
-    if (!t) tabs.set(key, (t = { arrivedAt: 0, burst: 0, queue: Promise.resolve() }));
+    if (!t)
+      tabs.set(key, (t = { arrivedAt: 0, burst: 0, queue: Promise.resolve() }));
     return t;
   };
 
@@ -228,18 +290,33 @@ export function createHumanInput(deps: HumanInputDeps = {}) {
   };
 
   const viewport = async (send: Send) => {
-    const m = (await send("Page.getLayoutMetrics", {}).catch(() => undefined)) as
+    const m = (await send("Page.getLayoutMetrics", {}).catch(
+      () => undefined,
+    )) as
       | { cssLayoutViewport?: { clientWidth?: number; clientHeight?: number } }
       | undefined;
     const w = m?.cssLayoutViewport?.clientWidth;
     const h = m?.cssLayoutViewport?.clientHeight;
-    return typeof w === "number" && typeof h === "number" && w > 0 && h > 0 ? { width: w, height: h } : undefined;
+    return typeof w === "number" && typeof h === "number" && w > 0 && h > 0
+      ? { width: w, height: h }
+      : undefined;
   };
 
-  const travel = async (tab: TabState, to: Point, params: Record<string, unknown>, send: Send) => {
+  const travel = async (
+    tab: TabState,
+    to: Point,
+    params: Record<string, unknown>,
+    send: Send,
+  ) => {
     // The first movement on a page starts somewhere plausible inside the viewport, not the corner.
     const bounds = tab.pointer ? undefined : await viewport(send);
-    const from = clampPoint(tab.pointer ?? { x: to.x + between(rand, -260, 260), y: to.y + between(rand, -180, 180) }, bounds);
+    const from = clampPoint(
+      tab.pointer ?? {
+        x: to.x + between(rand, -260, 260),
+        y: to.y + between(rand, -180, 180),
+      },
+      bounds,
+    );
     for (const { point, delay } of trajectory(from, to, rand)) {
       const p = clampPoint(point, bounds);
       await pace(delay, () =>
@@ -247,27 +324,53 @@ export function createHumanInput(deps: HumanInputDeps = {}) {
           type: "mouseMoved",
           x: p.x,
           y: p.y,
-          ...(typeof params.buttons === "number" ? { buttons: params.buttons } : {}),
-          ...(typeof params.modifiers === "number" ? { modifiers: params.modifiers } : {}),
+          ...(typeof params.buttons === "number"
+            ? { buttons: params.buttons }
+            : {}),
+          ...(typeof params.modifiers === "number"
+            ? { modifiers: params.modifiers }
+            : {}),
         }),
       );
     }
     tab.arrivedAt = now();
   };
 
-  const paceMouse = async (tab: TabState, params: Record<string, unknown>, send: Send) => {
+  const paceMouse = async (
+    tab: TabState,
+    params: Record<string, unknown>,
+    send: Send,
+  ) => {
     const type = params.type;
-    if (typeof params.x !== "number" || typeof params.y !== "number" || type === "mouseWheel") return;
+    if (
+      typeof params.x !== "number" ||
+      typeof params.y !== "number" ||
+      type === "mouseWheel"
+    )
+      return;
     // People land a few pixels off centre, the same way for the move, press and release on one target.
-    if (!tab.aim || Math.hypot(tab.aim.x - params.x, tab.aim.y - params.y) >= 1) {
-      tab.aim = { x: params.x, y: params.y, dx: noise(rand, 2.2), dy: noise(rand, 1.6) };
+    if (
+      !tab.aim ||
+      Math.hypot(tab.aim.x - params.x, tab.aim.y - params.y) >= 1
+    ) {
+      tab.aim = {
+        x: params.x,
+        y: params.y,
+        dx: noise(rand, 2.2),
+        dy: noise(rand, 1.6),
+      };
     }
     const x = Math.round((params.x + tab.aim.dx) * 10) / 10;
     const y = Math.round((params.y + tab.aim.dy) * 10) / 10;
     params.x = x;
     params.y = y;
-    const far = !tab.pointer || Math.hypot(tab.pointer.x - x, tab.pointer.y - y) >= 2;
-    if (type === "mouseMoved" || ((type === "mousePressed" || type === "mouseReleased") && far)) await travel(tab, { x, y }, params, send);
+    const far =
+      !tab.pointer || Math.hypot(tab.pointer.x - x, tab.pointer.y - y) >= 2;
+    if (
+      type === "mouseMoved" ||
+      ((type === "mousePressed" || type === "mouseReleased") && far)
+    )
+      await travel(tab, { x, y }, params, send);
     if (type === "mousePressed") {
       await sleep(between(rand, ...SETTLE_MS) - (now() - tab.arrivedAt));
       tab.pressedAt = now();
@@ -280,19 +383,36 @@ export function createHumanInput(deps: HumanInputDeps = {}) {
   };
 
   const paceKey = async (tab: TabState, params: Record<string, unknown>) => {
-    if (params.type !== "keyDown" && params.type !== "rawKeyDown" && params.type !== "char") return;
+    if (
+      params.type !== "keyDown" &&
+      params.type !== "rawKeyDown" &&
+      params.type !== "char"
+    )
+      return;
     if (params.type === "char") return; // part of the keyDown before it
-    const since = tab.lastKeyAt === undefined ? Infinity : now() - tab.lastKeyAt;
+    const since =
+      tab.lastKeyAt === undefined ? Infinity : now() - tab.lastKeyAt;
     tab.burst = since < 1000 ? tab.burst + 1 : 0;
-    if (since < 1000 && tab.burst < KEY_PACED_BURST) await sleep(between(rand, ...KEY_GAP_MS) - since);
+    if (since < 1000 && tab.burst < KEY_PACED_BURST)
+      await sleep(between(rand, ...KEY_GAP_MS) - since);
     tab.lastKeyAt = now();
   };
 
   return {
-    beforeInput(tabKey: string | number, method: string, params: Record<string, unknown>, send: Send): Promise<void> {
-      if (!PACED.has(method) || !params || !enabled(tabKey)) return Promise.resolve();
+    beforeInput(
+      tabKey: string | number,
+      method: string,
+      params: Record<string, unknown>,
+      send: Send,
+    ): Promise<void> {
+      if (!PACED.has(method) || !params || !enabled(tabKey))
+        return Promise.resolve();
       const tab = state(tabKey);
-      const run = tab.queue.then(() => (method === "Input.dispatchKeyEvent" ? paceKey(tab, params) : paceMouse(tab, params, send)));
+      const run = tab.queue.then(() =>
+        method === "Input.dispatchKeyEvent"
+          ? paceKey(tab, params)
+          : paceMouse(tab, params, send),
+      );
       tab.queue = run.catch(() => undefined);
       return run;
     },

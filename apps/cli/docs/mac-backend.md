@@ -83,12 +83,14 @@ For SandboxBackend.readFile/writeFile (single file API), use `scp` directly. For
 ## Credentials and provisioning
 
 **Per-user credentials needed:**
+
 - `SCALEWAY_API_TOKEN` — used to provision/start/stop hosts via Scaleway API
 - `SCALEWAY_PROJECT_ID` — Scaleway project the host lives in
 - Generated per-host SSH keypair stored locally under `~/.codecast/scaleway/<host-id>/`
 - Apple Silicon dedicated hosts must be enabled in the user's Scaleway console first (manual step — can't automate)
 
 **Provisioning flow:**
+
 1. User runs `cast workspace acquire feat-x --backend mac` for the first time.
 2. CLI looks for an existing usable host in `~/.codecast/scaleway/hosts.json`.
 3. If none: provision a new M1 host via Scaleway API (POST /apple-silicon/v1alpha1/zones/<zone>/servers). Wait for `ready` state (typically 8-15 min).
@@ -123,7 +125,7 @@ Concrete policy:
 
 - Hosts in `~/.codecast/scaleway/hosts.json` carry `lastUsedAt`.
 - `autoStopIdleHosts()` powers a host off after idle (default 30 min) to stop
-  *additional* charges beyond the committed window and free the hardware — but
+  _additional_ charges beyond the committed window and free the hardware — but
   understand the first 24h is already sunk.
 - `autoDestroyOldHosts()` destroys hosts idle > 24h (after the committed window
   elapses, so destruction wastes nothing).
@@ -134,15 +136,15 @@ Concrete policy:
 
 How the standard interface maps onto this substrate:
 
-| SandboxBackend method | MacMiniBackend implementation |
-|---|---|
-| `acquire(repoRoot, name, opts)` | Ensure host exists (provision if needed). Create tart VM. SSH in. Git clone repoRoot's HEAD. Run setup commands. Return Workspace pointing at the VM. |
-| `release(repoRoot, name)` | Stop the tart VM. Delete it. Update host's `lastUsedAt`. Host stays running for next claim (until idle-stop kicks in). |
-| `exec(repoRoot, name, cmd, opts)` | SSH to host, then `tart ssh <vm> -- bash -lc "<cmd>"`. Pipe stdin if provided. Return stdout/stderr/exitCode. |
-| `readFile(repoRoot, name, path)` | `scp host:<vm-mounted-path>/<path> -` or via `tart ssh ... cat <path>` |
-| `writeFile(repoRoot, name, path, content)` | `cat | tart ssh ... tee <path>` or scp |
-| `validate(repoRoot, name)` | Standard contract checks via SSH probes (worktree exists, deps installed, etc). |
-| `list(repoRoot)` | Combine local state (which workspaces exist) + tart list of running VMs on the host. |
+| SandboxBackend method                      | MacMiniBackend implementation                                                                                                                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acquire(repoRoot, name, opts)`            | Ensure host exists (provision if needed). Create tart VM. SSH in. Git clone repoRoot's HEAD. Run setup commands. Return Workspace pointing at the VM. |
+| `release(repoRoot, name)`                  | Stop the tart VM. Delete it. Update host's `lastUsedAt`. Host stays running for next claim (until idle-stop kicks in).                                |
+| `exec(repoRoot, name, cmd, opts)`          | SSH to host, then `tart ssh <vm> -- bash -lc "<cmd>"`. Pipe stdin if provided. Return stdout/stderr/exitCode.                                         |
+| `readFile(repoRoot, name, path)`           | `scp host:<vm-mounted-path>/<path> -` or via `tart ssh ... cat <path>`                                                                                |
+| `writeFile(repoRoot, name, path, content)` | `cat                                                                                                                                                  | tart ssh ... tee <path>` or scp |
+| `validate(repoRoot, name)`                 | Standard contract checks via SSH probes (worktree exists, deps installed, etc).                                                                       |
+| `list(repoRoot)`                           | Combine local state (which workspaces exist) + tart list of running VMs on the host.                                                                  |
 
 ## What this looks like for the codecast user
 

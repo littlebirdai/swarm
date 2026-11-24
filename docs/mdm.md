@@ -11,17 +11,17 @@ Works with any MDM that can deploy a signed installer package and a custom confi
 
 ## The two files
 
-| File | Where to get it | What it does |
-|---|---|---|
-| `Codecast.pkg` | Team settings > Managed devices | Installs the app and the command line tool for the whole Mac |
+| File                    | Where to get it                                    | What it does                                                                  |
+| ----------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `Codecast.pkg`          | Team settings > Managed devices                    | Installs the app and the command line tool for the whole Mac                  |
 | `Codecast.mobileconfig` | Team settings > Managed devices > Download profile | Tells each Mac which team to join and which features your organization allows |
 
 ### What the installer puts on the Mac
 
-| Path | What it is |
-|---|---|
-| `/Applications/Codecast.app` | The desktop app |
-| `/usr/local/bin/codecast`, `/usr/local/bin/cast` | The command line tool and its short name |
+| Path                                             | What it is                                          |
+| ------------------------------------------------ | --------------------------------------------------- |
+| `/Applications/Codecast.app`                     | The desktop app                                     |
+| `/usr/local/bin/codecast`, `/usr/local/bin/cast` | The command line tool and its short name            |
 | `/Library/LaunchAgents/sh.codecast.enroll.plist` | Runs `codecast mdm enroll` for each person at login |
 
 At login, the enroll agent reads the profile, joins the Mac to your team, opens the browser once so the person can sign in, and starts the background service that syncs their agent sessions. It runs again whenever the profile arrives or changes, so the order in which your MDM delivers the profile and the installer doesn't matter. If someone is logged in during the install, enrollment starts right away without a logout.
@@ -40,18 +40,18 @@ Download it from **Team settings > Managed devices**. It already contains your t
 
 The settings live in the preference domain `sh.codecast`. If you prefer to write the profile yourself, these are the keys:
 
-| Key | Type | What it does |
-|---|---|---|
-| `EnrollmentToken` | string | Joins the Mac to your team. Required for enrollment. |
-| `UserEmail` | string | The person this Mac belongs to. Their sign-in must match it. Use your MDM's email variable (below). |
-| `WebURL` | string | The Codecast web address. Only for a self-hosted Codecast. |
-| `ServerURL` | string | The Codecast server address. Only for a self-hosted Codecast. |
-| `PublicSharingDisabled` | boolean | No published pages and no public share links. |
-| `BrowserControlDisabled` | boolean | Agents can't drive a web browser. |
-| `ComputerControlDisabled` | boolean | Agents can't drive desktop apps. |
-| `CloudHostsDisabled` | boolean | No cloud hosts: agents run only on the Mac itself. |
-| `AutoUpdate` | boolean | Forces the app's own updates on (true) or off (false). Leave it out to let each person choose. |
-| `ExcludedPaths` | array of strings | Folders whose sessions never leave the Mac. `~` means each person's home folder. |
+| Key                       | Type             | What it does                                                                                        |
+| ------------------------- | ---------------- | --------------------------------------------------------------------------------------------------- |
+| `EnrollmentToken`         | string           | Joins the Mac to your team. Required for enrollment.                                                |
+| `UserEmail`               | string           | The person this Mac belongs to. Their sign-in must match it. Use your MDM's email variable (below). |
+| `WebURL`                  | string           | The Codecast web address. Only for a self-hosted Codecast.                                          |
+| `ServerURL`               | string           | The Codecast server address. Only for a self-hosted Codecast.                                       |
+| `PublicSharingDisabled`   | boolean          | No published pages and no public share links.                                                       |
+| `BrowserControlDisabled`  | boolean          | Agents can't drive a web browser.                                                                   |
+| `ComputerControlDisabled` | boolean          | Agents can't drive desktop apps.                                                                    |
+| `CloudHostsDisabled`      | boolean          | No cloud hosts: agents run only on the Mac itself.                                                  |
+| `AutoUpdate`              | boolean          | Forces the app's own updates on (true) or off (false). Leave it out to let each person choose.      |
+| `ExcludedPaths`           | array of strings | Folders whose sessions never leave the Mac. `~` means each person's home folder.                    |
 
 Restrictions set here combine with the ones a team admin sets in Team settings. If either side turns a feature off, it stays off, and folders excluded on either side are all excluded.
 
@@ -59,12 +59,12 @@ Restrictions set here combine with the ones a team admin sets in Team settings. 
 
 Replace the `UserEmail` value with your MDM's variable for the assigned user's email. Your MDM fills it in per Mac before installing the profile.
 
-| MDM | Variable | Notes |
-|---|---|---|
-| Jamf Pro | `$EMAIL` | Taken from the computer's User and Location record. Case sensitive. |
-| Kandji | `$EMAIL` | The email of the device's assigned user. |
-| Microsoft Intune | `{{mail}}` | Resolves only on Macs enrolled with user affinity. Case sensitive. |
-| Mosyle | `%Email%` | Resolves only on Macs with an assigned user. Leave "Enable variables for this profile" turned on when you upload. |
+| MDM              | Variable   | Notes                                                                                                             |
+| ---------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| Jamf Pro         | `$EMAIL`   | Taken from the computer's User and Location record. Case sensitive.                                               |
+| Kandji           | `$EMAIL`   | The email of the device's assigned user.                                                                          |
+| Microsoft Intune | `{{mail}}` | Resolves only on Macs enrolled with user affinity. Case sensitive.                                                |
+| Mosyle           | `%Email%`  | Resolves only on Macs with an assigned user. Leave "Enable variables for this profile" turned on when you upload. |
 
 If a Mac has no assigned user, leave `UserEmail` out. The person can then sign in with any account, and enrollment still joins the Mac to your team.
 

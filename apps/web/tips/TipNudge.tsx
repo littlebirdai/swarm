@@ -1,9 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import type { NudgeState } from './useTips';
-import { formatShortcutParts, getShortcutsForAction } from '../shortcuts/registry';
-import { KeyCap } from '../components/KeyCap';
+import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
+import type { NudgeState } from "./useTips";
+import {
+  formatShortcutParts,
+  getShortcutsForAction,
+} from "../shortcuts/registry";
+import { KeyCap } from "../components/KeyCap";
 
 interface TipNudgeProps {
   nudge: NudgeState | null;
@@ -16,7 +19,10 @@ export function TipNudge({ nudge, onDismiss }: TipNudgeProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!nudge) { setOpacity(0); return; }
+    if (!nudge) {
+      setOpacity(0);
+      return;
+    }
 
     let anchor: HTMLElement | null = null;
     if (nudge.anchorId) {
@@ -36,10 +42,10 @@ export function TipNudge({ nudge, onDismiss }: TipNudgeProps) {
   useEffect(() => {
     if (!nudge) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss(nudge.tip.id);
+      if (e.key === "Escape") onDismiss(nudge.tip.id);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [nudge, onDismiss]);
 
   if (!nudge) return null;
@@ -50,21 +56,21 @@ export function TipNudge({ nudge, onDismiss }: TipNudgeProps) {
 
   const style: React.CSSProperties = pos
     ? {
-        position: 'fixed',
+        position: "fixed",
         left: pos.x,
         top: pos.y,
         transform: `translateY(-50%) translateX(${opacity ? 0 : -8}px)`,
         opacity,
-        transition: 'opacity 200ms ease, transform 200ms ease',
+        transition: "opacity 200ms ease, transform 200ms ease",
         zIndex: 500,
       }
     : {
-        position: 'fixed',
+        position: "fixed",
         bottom: 80,
         right: 24,
         transform: `translateY(${opacity ? 0 : 8}px)`,
         opacity,
-        transition: 'opacity 200ms ease, transform 200ms ease',
+        transition: "opacity 200ms ease, transform 200ms ease",
         // Under the call dock that shares this corner (z 155-160 in
         // DashboardLayout): a tip must never cover the call's controls.
         zIndex: 150,
@@ -77,7 +83,11 @@ export function TipNudge({ nudge, onDismiss }: TipNudgeProps) {
           <p className="text-sm text-sol-text">{nudge.tip.content}</p>
           {shortcutLabel && (
             <div className="flex items-center gap-1 mt-1.5">
-              {shortcutLabel.map((part, i) => <KeyCap key={i} size="xs">{part}</KeyCap>)}
+              {shortcutLabel.map((part, i) => (
+                <KeyCap key={i} size="xs">
+                  {part}
+                </KeyCap>
+              ))}
             </div>
           )}
         </div>

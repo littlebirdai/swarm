@@ -1,82 +1,191 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { chatPrefetchTargets, createChatPrefetcher, offRailChatNotificationMessageIds, CHAT_PREFETCH_INTERVAL, type ChatPrefetchNotification, type ChatPrefetchTarget } from "../chatPrefetch";
+import {
+  chatPrefetchTargets,
+  createChatPrefetcher,
+  offRailChatNotificationMessageIds,
+  CHAT_PREFETCH_INTERVAL,
+  type ChatPrefetchNotification,
+  type ChatPrefetchTarget,
+} from "../chatPrefetch";
 import type { ChatMessageRow, ChatRailRow } from "../../store/chatSlice";
 
-const row = (channelId: string, tip = `${channelId}-tip`, at = 1, rootId?: string): ChatRailRow => ({
-  channel_id: channelId, unread: 1, unread_mentions: 0, notify_level: "all", joined: true, sort_at: at,
-  last_message: { _id: tip, user_id: "other", created_at: at, preview: "preview", thread_root_id: rootId },
+const row = (
+  channelId: string,
+  tip = `${channelId}-tip`,
+  at = 1,
+  rootId?: string,
+): ChatRailRow => ({
+  channel_id: channelId,
+  unread: 1,
+  unread_mentions: 0,
+  notify_level: "all",
+  joined: true,
+  sort_at: at,
+  last_message: {
+    _id: tip,
+    user_id: "other",
+    created_at: at,
+    preview: "preview",
+    thread_root_id: rootId,
+  },
 });
-const notification = (channelId: string, messageId: string, at = 1): ChatPrefetchNotification => ({
-  entity_type: "chat_channel", entity_id: channelId, chat_message_id: messageId, read: false, created_at: at,
+const notification = (
+  channelId: string,
+  messageId: string,
+  at = 1,
+): ChatPrefetchNotification => ({
+  entity_type: "chat_channel",
+  entity_id: channelId,
+  chat_message_id: messageId,
+  read: false,
+  created_at: at,
 });
-const message = (id: string, channelId: string, rootId?: string): ChatMessageRow => ({
-  _id: id, channel_id: channelId, user_id: "other", content: "full message", created_at: 1, updated_at: 1, thread_root_id: rootId,
+const message = (
+  id: string,
+  channelId: string,
+  rootId?: string,
+): ChatMessageRow => ({
+  _id: id,
+  channel_id: channelId,
+  user_id: "other",
+  content: "full message",
+  created_at: 1,
+  updated_at: 1,
+  thread_root_id: rootId,
 });
 const none = () => undefined;
-const pause = (ms = 15) => new Promise(resolve => setTimeout(resolve, ms));
+const pause = (ms = 15) => new Promise((resolve) => setTimeout(resolve, ms));
 // A chain of fetches lands at the runner's pace, not on a fixed clock.
 const until = async (done: () => boolean, ms = 2000) => {
-  for (const end = Date.now() + ms; !done() && Date.now() < end;) await pause(5);
+  for (const end = Date.now() + ms; !done() && Date.now() < end;)
+    await pause(5);
 };
 const workers: ReturnType<typeof createChatPrefetcher>[] = [];
-afterEach(() => { for (const worker of workers.splice(0)) worker.dispose(); });
+afterEach(() => {
+  for (const worker of workers.splice(0)) worker.dispose();
+});
 
 // A worker over an in-memory cache. `load` defaults to a page holding just the
 // target's message, the shape of a one-row channel.
-function harness(load?: (target: ChatPrefetchTarget) => Promise<any>, cache: Record<string, ChatMessageRow> = {}) {
+function harness(
+  load?: (target: ChatPrefetchTarget) => Promise<any>,
+  cache: Record<string, ChatMessageRow> = {},
+) {
   const calls: ChatPrefetchTarget[] = [];
   const ingested: any[] = [];
   const errors: unknown[] = [];
   let allowed = true;
   const worker = createChatPrefetcher({
-    read: id => cache[id], allowed: () => allowed,
-    load: async target => { calls.push(target); return load ? load(target) : { messages: [message(target.messageId, target.channelId)] }; },
-    ingest: data => {
-      ingested.push(data);
-      for (const value of data.messages ?? [data.message, data.root, ...(data.replies ?? [])].filter(Boolean)) cache[value._id] = value;
+    read: (id) => cache[id],
+    allowed: () => allowed,
+    load: async (target) => {
+      calls.push(target);
+      return load
+        ? load(target)
+        : { messages: [message(target.messageId, target.channelId)] };
     },
-    onError: error => errors.push(error),
+    ingest: (data) => {
+      ingested.push(data);
+      for (const value of data.messages ??
+        [data.message, data.root, ...(data.replies ?? [])].filter(Boolean))
+        cache[value._id] = value;
+    },
+    onError: (error) => errors.push(error),
   });
   workers.push(worker);
-  return { worker, calls, cache, ingested, errors, revoke: () => { allowed = false; } };
+  return {
+    worker,
+    calls,
+    cache,
+    ingested,
+    errors,
+    revoke: () => {
+      allowed = false;
+    },
+  };
 }
 
 describe("which rows the prefetch asks for", () => {
   test("every room whose newest line is not held, read and muted ones included, newest first", () => {
-    const rail = Array.from({ length: 50 }, (_, i) => row(`c${i}`, undefined, i));
-    rail.push({ ...row("muted", undefined, 2000), notify_level: "none" }, { ...row("read", undefined, 1999), unread: 0 });
+    const rail = Array.from({ length: 50 }, (_, i) =>
+      row(`c${i}`, undefined, i),
+    );
+    rail.push(
+      { ...row("muted", undefined, 2000), notify_level: "none" },
+      { ...row("read", undefined, 1999), unread: 0 },
+    );
     const targets = chatPrefetchTargets(rail, [], none);
     expect(targets.length).toBe(52);
-    expect(targets.slice(0, 3).map(t => t.channelId)).toEqual(["muted", "read", "c49"]);
+    expect(targets.slice(0, 3).map((t) => t.channelId)).toEqual([
+      "muted",
+      "read",
+      "c49",
+    ]);
     expect(targets.at(-1)?.channelId).toBe("c0");
   });
 
   test("rows already in the cache cost nothing: a reload, or a channel open on screen", () => {
-    const cache = { tip: message("tip", "c"), reply: message("reply", "t", "root"), root: message("root", "t") };
-    const targets = chatPrefetchTargets([row("c", "tip"), row("t", "reply", 2, "root")], [notification("t", "reply", 2)], id => cache[id as keyof typeof cache]);
+    const cache = {
+      tip: message("tip", "c"),
+      reply: message("reply", "t", "root"),
+      root: message("root", "t"),
+    };
+    const targets = chatPrefetchTargets(
+      [row("c", "tip"), row("t", "reply", 2, "root")],
+      [notification("t", "reply", 2)],
+      (id) => cache[id as keyof typeof cache],
+    );
     expect(targets).toEqual([]);
   });
 
   test("notifications reach a muted channel, but never a room off the rail or a notification about something else", () => {
     const rail = [{ ...row("allowed"), notify_level: "none" as const }];
-    const targets = chatPrefetchTargets(rail, [notification("allowed", "allowed-tip"), notification("revoked", "secret"), { ...notification("allowed", "old"), read: true }, { ...notification("allowed", "task"), entity_type: "task" }], none);
-    expect(targets.map(t => `${t.kind}:${t.id}`)).toEqual(["channel:allowed"]);
+    const targets = chatPrefetchTargets(
+      rail,
+      [
+        notification("allowed", "allowed-tip"),
+        notification("revoked", "secret"),
+        { ...notification("allowed", "old"), read: true },
+        { ...notification("allowed", "task"), entity_type: "task" },
+      ],
+      none,
+    );
+    expect(targets.map((t) => `${t.kind}:${t.id}`)).toEqual([
+      "channel:allowed",
+    ]);
   });
 
   test("a reply on the rail goes straight to its thread, with no lookup of the row first", () => {
-    const targets = chatPrefetchTargets([row("c", "reply", 5, "root")], [notification("c", "reply", 5)], none);
-    expect(targets.map(t => t.kind).sort()).toEqual(["channel", "thread"]);
+    const targets = chatPrefetchTargets(
+      [row("c", "reply", 5, "root")],
+      [notification("c", "reply", 5)],
+      none,
+    );
+    expect(targets.map((t) => t.kind).sort()).toEqual(["channel", "thread"]);
   });
 
   test("an unknown notified row waits for its channel's page instead of a lone lookup", () => {
-    const targets = chatPrefetchTargets([row("c", "tip", 10)], Array.from({ length: 500 }, (_, i) => notification("c", `older${i}`, i)), none);
-    expect(targets.map(t => t.kind)).toEqual(["channel"]);
+    const targets = chatPrefetchTargets(
+      [row("c", "tip", 10)],
+      Array.from({ length: 500 }, (_, i) => notification("c", `older${i}`, i)),
+      none,
+    );
+    expect(targets.map((t) => t.kind)).toEqual(["channel"]);
   });
 
   test("a cached reply whose root is missing asks for its thread once", () => {
-    const cache = { tip: message("tip", "c"), reply: message("reply", "c", "root") };
-    const targets = chatPrefetchTargets([row("c", "tip")], [notification("c", "reply"), notification("c", "reply", 2)], id => cache[id as keyof typeof cache]);
-    expect(targets).toEqual([{ kind: "thread", id: "root", channelId: "c", messageId: "reply", at: 2 }]);
+    const cache = {
+      tip: message("tip", "c"),
+      reply: message("reply", "c", "root"),
+    };
+    const targets = chatPrefetchTargets(
+      [row("c", "tip")],
+      [notification("c", "reply"), notification("c", "reply", 2)],
+      (id) => cache[id as keyof typeof cache],
+    );
+    expect(targets).toEqual([
+      { kind: "thread", id: "root", channelId: "c", messageId: "reply", at: 2 },
+    ]);
   });
 });
 
@@ -87,27 +196,41 @@ describe("the prefetch worker", () => {
     h.worker.update(rail, []);
     await pause();
     expect(h.cache["c-tip"]?.content).toBe("full message");
-    for (let i = 0; i < 1_000; i++) h.worker.update(rail.map(r => ({ ...r })), []);
+    for (let i = 0; i < 1_000; i++)
+      h.worker.update(
+        rail.map((r) => ({ ...r })),
+        [],
+      );
     await pause(CHAT_PREFETCH_INTERVAL + 20);
     expect(h.calls).toHaveLength(1);
   });
 
   test("a room read on another device still gets its new line, and a held line costs nothing", async () => {
     const h = harness(undefined, { old: message("old", "dm") });
-    const read = (id: string, tip: string, notify: "all" | "none" = "all") => ({ ...row(id, tip), unread: 0, notify_level: notify });
+    const read = (id: string, tip: string, notify: "all" | "none" = "all") => ({
+      ...row(id, tip),
+      unread: 0,
+      notify_level: notify,
+    });
     h.worker.update([read("dm", "old")], []);
     await pause();
     expect(h.calls).toHaveLength(0);
     h.worker.update([read("dm", "new"), read("muted", "m-new", "none")], []);
     await until(() => h.calls.length >= 2);
-    expect(h.calls.map(t => `${t.kind}:${t.messageId}`).sort()).toEqual(["channel:m-new", "channel:new"]);
+    expect(h.calls.map((t) => `${t.kind}:${t.messageId}`).sort()).toEqual([
+      "channel:m-new",
+      "channel:new",
+    ]);
     expect(h.cache.new).toBeDefined();
   });
 
   test("runs two requests at most, and a disposed worker writes nothing late", async () => {
     const resolvers: Array<(data: any) => void> = [];
-    const h = harness(() => new Promise(resolve => resolvers.push(resolve)));
-    h.worker.update(Array.from({ length: 20 }, (_, i) => row(`c${i}`, undefined, i)), []);
+    const h = harness(() => new Promise((resolve) => resolvers.push(resolve)));
+    h.worker.update(
+      Array.from({ length: 20 }, (_, i) => row(`c${i}`, undefined, i)),
+      [],
+    );
     await pause();
     expect(h.calls).toHaveLength(2);
     resolvers[0]({ messages: [] });
@@ -115,7 +238,8 @@ describe("the prefetch worker", () => {
     expect(h.calls).toHaveLength(3);
     h.worker.dispose();
     const before = h.ingested.length;
-    for (const resolve of resolvers) resolve({ messages: [message("late", "c")] });
+    for (const resolve of resolvers)
+      resolve({ messages: [message("late", "c")] });
     await pause();
     expect(h.ingested).toHaveLength(before);
     expect(h.calls).toHaveLength(3);
@@ -125,23 +249,36 @@ describe("the prefetch worker", () => {
     const h = harness();
     h.worker.update([row("c", "first", 1)], []);
     await pause();
-    for (let i = 2; i <= 100; i++) h.worker.update([row("c", `tip${i}`, i)], []);
+    for (let i = 2; i <= 100; i++)
+      h.worker.update([row("c", `tip${i}`, i)], []);
     await pause(100);
     expect(h.calls).toHaveLength(1);
     await pause(CHAT_PREFETCH_INTERVAL);
-    expect(h.calls.map(t => t.messageId)).toEqual(["first", "tip100"]);
+    expect(h.calls.map((t) => t.messageId)).toEqual(["first", "tip100"]);
     expect(h.cache.tip100).toBeDefined();
   });
 
   test("a notified reply is found and its thread fetched without opening chat", async () => {
-    const h = harness(async target => target.kind === "message"
-      ? { message: message(target.id, "c", "root") }
-      : target.kind === "thread"
-        ? { root: message("root", "c"), replies: [message("reply", "c", "root"), message("sibling", "c", "root")] }
-        : { messages: [message("channel-tip", "c")] });
+    const h = harness(async (target) =>
+      target.kind === "message"
+        ? { message: message(target.id, "c", "root") }
+        : target.kind === "thread"
+          ? {
+              root: message("root", "c"),
+              replies: [
+                message("reply", "c", "root"),
+                message("sibling", "c", "root"),
+              ],
+            }
+          : { messages: [message("channel-tip", "c")] },
+    );
     h.worker.update([row("c", "channel-tip")], [notification("c", "reply")]);
     await until(() => h.calls.length >= 3 && !!h.cache.sibling);
-    expect(h.calls.map(t => t.kind)).toEqual(["channel", "message", "thread"]);
+    expect(h.calls.map((t) => t.kind)).toEqual([
+      "channel",
+      "message",
+      "thread",
+    ]);
     expect(h.cache.sibling).toBeDefined();
     h.worker.update([row("c", "channel-tip")], [notification("c", "reply")]);
     await pause(CHAT_PREFETCH_INTERVAL + 20);
@@ -150,9 +287,16 @@ describe("the prefetch worker", () => {
 
   test("a thread answer that lands first does not throw away the channel page beside it", async () => {
     let page!: (value: any) => void;
-    const h = harness(target => target.kind === "thread"
-      ? Promise.resolve({ root: message("root", "c"), replies: [message("reply", "c", "root")] })
-      : new Promise(done => { page = done; }));
+    const h = harness((target) =>
+      target.kind === "thread"
+        ? Promise.resolve({
+            root: message("root", "c"),
+            replies: [message("reply", "c", "root")],
+          })
+        : new Promise((done) => {
+            page = done;
+          }),
+    );
     h.worker.update([row("c", "reply", 1, "root")], []);
     await pause();
     expect(h.cache.reply).toBeDefined();
@@ -163,7 +307,12 @@ describe("the prefetch worker", () => {
 
   test("losing access drops the answer in flight and starts nothing more", async () => {
     let resolve!: (value: any) => void;
-    const h = harness(() => new Promise(done => { resolve = done; }));
+    const h = harness(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
     h.worker.update([row("c")], []);
     await pause();
     h.worker.update([], []);
@@ -175,7 +324,12 @@ describe("the prefetch worker", () => {
 
   test("the caller's own gate is asked again when the answer lands", async () => {
     let resolve!: (value: any) => void;
-    const h = harness(() => new Promise(done => { resolve = done; }));
+    const h = harness(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
     h.worker.update([row("c")], []);
     await pause();
     h.revoke();
@@ -185,7 +339,7 @@ describe("the prefetch worker", () => {
   });
 
   test("a failure is reported once, never retried in a loop, and blocks no other room", async () => {
-    const h = harness(async target => {
+    const h = harness(async (target) => {
       if (target.channelId === "bad") throw new Error("offline");
       return { messages: [message(target.messageId, target.channelId)] };
     });
@@ -211,16 +365,53 @@ describe("off-rail chat notifications (personal or other-team workspace)", () =>
     const held = new Set([msgB]);
     const list = [
       // Fresh DM in another workspace while in Personal/Codecast workspace -> must fetch!
-      { entity_type: "chat_channel", entity_id: "ch-littlebird-dm", chat_message_id: msgA, read: false, created_at: now - 1_000 },
+      {
+        entity_type: "chat_channel",
+        entity_id: "ch-littlebird-dm",
+        chat_message_id: msgA,
+        read: false,
+        created_at: now - 1_000,
+      },
       // Duplicate notification pointing at same message -> deduped
-      { entity_type: "chat_channel", entity_id: "ch-littlebird-dm", chat_message_id: msgA, read: false, created_at: now - 500 },
+      {
+        entity_type: "chat_channel",
+        entity_id: "ch-littlebird-dm",
+        chat_message_id: msgA,
+        read: false,
+        created_at: now - 500,
+      },
       // Already in store -> skipped
-      { entity_type: "chat_channel", entity_id: "ch-littlebird-dm", chat_message_id: msgB, read: false, created_at: now - 1_000 },
+      {
+        entity_type: "chat_channel",
+        entity_id: "ch-littlebird-dm",
+        chat_message_id: msgB,
+        read: false,
+        created_at: now - 1_000,
+      },
       // Channel already on active rail (handled by rail prefetcher) -> skipped
-      { entity_type: "chat_channel", entity_id: "ch-active", chat_message_id: "j17sxbc0000000000000000000000004", read: false, created_at: now - 1_000 },
+      {
+        entity_type: "chat_channel",
+        entity_id: "ch-active",
+        chat_message_id: "j17sxbc0000000000000000000000004",
+        read: false,
+        created_at: now - 1_000,
+      },
       // Stale historical notification -> skipped so cold boot never fetches old departed rooms
-      { entity_type: "chat_channel", entity_id: "ch-departed", chat_message_id: msgOld, read: false, created_at: now - 10 * 60_000 },
+      {
+        entity_type: "chat_channel",
+        entity_id: "ch-departed",
+        chat_message_id: msgOld,
+        read: false,
+        created_at: now - 10 * 60_000,
+      },
     ];
-    expect(offRailChatNotificationMessageIds(list, activeRail, id => held.has(id), now)).toEqual([msgA]);
+    expect(
+      offRailChatNotificationMessageIds(
+        list,
+        activeRail,
+        (id) => held.has(id),
+        now,
+      ),
+    ).toEqual([msgA]);
   });
 });

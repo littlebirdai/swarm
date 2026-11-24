@@ -21,18 +21,36 @@ import {
 const NOW = Date.parse("2026-07-31T12:00:00Z");
 
 function fakeIdToken(claims: Record<string, unknown>): string {
-  const enc = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const enc = (o: unknown) =>
+    Buffer.from(JSON.stringify(o)).toString("base64url");
   return `${enc({ alg: "RS256" })}.${enc(claims)}.sig`;
 }
 
-function authJson(opts: { email?: string; accountId?: string; plan?: string; lastRefresh?: string; tokens?: boolean } = {}): string {
-  const { email = "ashot@almostcandid.com", accountId = "acct-1", plan = "pro", lastRefresh = "2026-07-30T00:00:00Z", tokens = true } = opts;
+function authJson(
+  opts: {
+    email?: string;
+    accountId?: string;
+    plan?: string;
+    lastRefresh?: string;
+    tokens?: boolean;
+  } = {},
+): string {
+  const {
+    email = "ashot@almostcandid.com",
+    accountId = "acct-1",
+    plan = "pro",
+    lastRefresh = "2026-07-30T00:00:00Z",
+    tokens = true,
+  } = opts;
   return JSON.stringify({
     auth_mode: tokens ? "chatgpt" : "apikey",
     OPENAI_API_KEY: tokens ? null : "sk-test",
     tokens: tokens
       ? {
-          id_token: fakeIdToken({ email, "https://api.openai.com/auth": { chatgpt_plan_type: plan } }),
+          id_token: fakeIdToken({
+            email,
+            "https://api.openai.com/auth": { chatgpt_plan_type: plan },
+          }),
           access_token: "at-1",
           refresh_token: "rt-1",
           account_id: accountId,
@@ -48,7 +66,11 @@ function rpcResult(weeklyPercent: number, plan = "pro"): any {
     rateLimits: {
       limitId: "codex",
       planType: plan,
-      primary: { usedPercent: weeklyPercent, windowDurationMins: 10080, resetsAt: 1786011679 },
+      primary: {
+        usedPercent: weeklyPercent,
+        windowDurationMins: 10080,
+        resetsAt: 1786011679,
+      },
     },
     rateLimitResetCredits: { availableCount: 1 },
   };
@@ -66,7 +88,8 @@ describe("codexAccounts", () => {
 
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "codex-accounts-test-"));
-    for (const k of ["CODECAST_CODEX_HOME", "CODECAST_DIR"]) origEnv[k] = process.env[k];
+    for (const k of ["CODECAST_CODEX_HOME", "CODECAST_DIR"])
+      origEnv[k] = process.env[k];
     process.env.CODECAST_CODEX_HOME = path.join(tmp, "codex");
     process.env.CODECAST_DIR = path.join(tmp, "codecast");
     invalidateCodexAccountsCache();
@@ -103,9 +126,14 @@ describe("codexAccounts", () => {
       const saved = saveCodexProfile("almostcandid");
       expect(saved.email).toBe("ashot@almostcandid.com");
       expect(saved.plan).toBe("pro");
-      const stored = fs.readFileSync(path.join(profileDir("almostcandid"), "auth.json"), "utf-8");
+      const stored = fs.readFileSync(
+        path.join(profileDir("almostcandid"), "auth.json"),
+        "utf-8",
+      );
       expect(JSON.parse(stored).tokens.account_id).toBe("acct-1");
-      expect(readProfileIndex().profiles.almostcandid.account_id).toBe("acct-1");
+      expect(readProfileIndex().profiles.almostcandid.account_id).toBe(
+        "acct-1",
+      );
     });
 
     it("refuses to save without a usable login", () => {
@@ -122,9 +150,13 @@ describe("codexAccounts", () => {
     it("migrates legacy domain-derived names, moving the snapshot dir", () => {
       writeActiveAuth(authJson());
       saveCodexProfile("almostcandid"); // old auto-derived name for ashot@almostcandid.com
-      expect(migrateLegacyCodexProfileNames()).toEqual([{ from: "almostcandid", to: "ashot" }]);
+      expect(migrateLegacyCodexProfileNames()).toEqual([
+        { from: "almostcandid", to: "ashot" },
+      ]);
       expect(Object.keys(readProfileIndex().profiles)).toEqual(["ashot"]);
-      expect(fs.existsSync(path.join(profileDir("ashot"), "auth.json"))).toBe(true);
+      expect(fs.existsSync(path.join(profileDir("ashot"), "auth.json"))).toBe(
+        true,
+      );
       expect(fs.existsSync(profileDir("almostcandid"))).toBe(false);
       // Idempotent, and hand-picked names stay.
       expect(migrateLegacyCodexProfileNames()).toEqual([]);
@@ -136,7 +168,12 @@ describe("codexAccounts", () => {
       expect(resnapshotIfActiveCodexFresher()).toBeNull(); // in step
       writeActiveAuth(authJson({ lastRefresh: "2026-07-31T00:00:00Z" }));
       expect(resnapshotIfActiveCodexFresher()).toBe("almostcandid");
-      const stored = decodeCodexAuth(fs.readFileSync(path.join(profileDir("almostcandid"), "auth.json"), "utf-8"));
+      const stored = decodeCodexAuth(
+        fs.readFileSync(
+          path.join(profileDir("almostcandid"), "auth.json"),
+          "utf-8",
+        ),
+      );
       expect(stored.last_refresh).toBe(Date.parse("2026-07-31T00:00:00Z"));
     });
   });
@@ -144,7 +181,13 @@ describe("codexAccounts", () => {
   describe("refreshCodexUsageSnapshots", () => {
     it("probes the active account via the real home, dormant via snapshot dirs, and skips the covered profile", async () => {
       // Dormant profile for a second account.
-      writeActiveAuth(authJson({ email: "ashot@footage.com", accountId: "acct-2", plan: "plus" }));
+      writeActiveAuth(
+        authJson({
+          email: "ashot@footage.com",
+          accountId: "acct-2",
+          plan: "plus",
+        }),
+      );
       saveCodexProfile("footage");
       // Active login is a different account (auto-enrolled by the refresh).
       writeActiveAuth(authJson());
@@ -172,7 +215,10 @@ describe("codexAccounts", () => {
       writeActiveAuth(authJson());
       let calls = 0;
       const probeOnce = () =>
-        refreshCodexUsageSnapshots({ now: NOW, rpcFetch: async () => (calls++, rpcResult(10)) });
+        refreshCodexUsageSnapshots({
+          now: NOW,
+          rpcFetch: async () => (calls++, rpcResult(10)),
+        });
       await probeOnce();
       const second = await refreshCodexUsageSnapshots({
         now: NOW + 60_000,
@@ -203,20 +249,33 @@ describe("codexAccounts", () => {
       await refreshCodexUsageSnapshots({
         now: NOW,
         rpcFetch: async () => rpcResult(80),
-        backendFetch: async () => ({ fetched_at: NOW, plan_type: "pro", weekly: { percent: 80, resets_at: 1786011679 * 1000 } }),
+        backendFetch: async () => ({
+          fetched_at: NOW,
+          plan_type: "pro",
+          weekly: { percent: 80, resets_at: 1786011679 * 1000 },
+        }),
       });
-      expect(readUsageCache().backend_retries?.["acct-1"]?.reason).toBe("no session window on this plan");
+      expect(readUsageCache().backend_retries?.["acct-1"]?.reason).toBe(
+        "no session window on this plan",
+      );
       const homes: string[] = [];
       await refreshCodexUsageSnapshots({
         now: NOW + 10 * 60_000,
         rpcFetch: async () => null,
         backendFetch: async (home) => {
           homes.push(home);
-          return { fetched_at: NOW + 10 * 60_000, plan_type: "pro", weekly: { percent: 100, resets_at: 1789829744 * 1000 } };
+          return {
+            fetched_at: NOW + 10 * 60_000,
+            plan_type: "pro",
+            weekly: { percent: 100, resets_at: 1789829744 * 1000 },
+          };
         },
       });
       expect(homes).toHaveLength(1);
-      expect(readUsageCache().accounts["acct-1"].weekly).toEqual({ percent: 100, resets_at: 1789829744 * 1000 });
+      expect(readUsageCache().accounts["acct-1"].weekly).toEqual({
+        percent: 100,
+        resets_at: 1789829744 * 1000,
+      });
     });
 
     it("keeps a previous weekly when RPC misses and logs only have placeholders", async () => {
@@ -238,7 +297,11 @@ describe("codexAccounts", () => {
             info: { total_token_usage: { total_tokens: 1000 } },
             rate_limits: {
               primary: { used_percent: 0, window_minutes: 300, resets_at: 0 },
-              secondary: { used_percent: 0, window_minutes: 10080, resets_at: 0 },
+              secondary: {
+                used_percent: 0,
+                window_minutes: 10080,
+                resets_at: 0,
+              },
             },
           },
         }) + "\n",
@@ -257,7 +320,10 @@ describe("codexAccounts", () => {
   describe("getCodexAccountsHeartbeatPayload", () => {
     it("returns the Claude-inventory shape with plan as subscription and no plan_type inside usage", async () => {
       writeActiveAuth(authJson());
-      await refreshCodexUsageSnapshots({ now: NOW, rpcFetch: async () => rpcResult(15, "pro") });
+      await refreshCodexUsageSnapshots({
+        now: NOW,
+        rpcFetch: async () => rpcResult(15, "pro"),
+      });
       const payload = getCodexAccountsHeartbeatPayload()!;
       expect(payload.active_email).toBe("ashot@almostcandid.com");
       expect(payload.active_uuid).toBe("acct-1");
@@ -279,8 +345,14 @@ describe("codexAccounts", () => {
     it("reads the ACTIVE account through the real codex home, never a snapshot", async () => {
       writeActiveAuth(authJson());
       saveCodexProfile("ashot");
-      await refreshCodexUsageSnapshots({ now: NOW, rpcFetch: async () => rpcResult(80, "pro") });
-      for (const target of [resolveCodexAccount(), resolveCodexAccount("ashot")]) {
+      await refreshCodexUsageSnapshots({
+        now: NOW,
+        rpcFetch: async () => rpcResult(80, "pro"),
+      });
+      for (const target of [
+        resolveCodexAccount(),
+        resolveCodexAccount("ashot"),
+      ]) {
         expect(target.name).toBe("ashot");
         expect(target.account).toBe("acct-1");
         expect(target.active).toBe(true);
@@ -303,7 +375,9 @@ describe("codexAccounts", () => {
 
     it("names what is missing rather than guessing", () => {
       expect(() => resolveCodexAccount("nope")).toThrow(CodexAccountError);
-      expect(() => resolveCodexAccount()).toThrow(/No Codex account is signed in/);
+      expect(() => resolveCodexAccount()).toThrow(
+        /No Codex account is signed in/,
+      );
     });
   });
 });

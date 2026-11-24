@@ -8,10 +8,16 @@ test("a cold inbox deep link paints its fetched conversation and preserves Back"
   const directory = mkdtempSync(join(tmpdir(), "inbox-cold-link-"));
   const resultPath = join(directory, "result");
   try {
-    execFileSync(process.execPath, [join(import.meta.dir, "fixtures/inboxColdDeepLink.tsx"), resultPath], {
-      timeout: 120_000,
-    });
-    expect(readFileSync(resultPath, "utf8")).toContain("cold inbox deep link verified");
+    execFileSync(
+      process.execPath,
+      [join(import.meta.dir, "fixtures/inboxColdDeepLink.tsx"), resultPath],
+      {
+        timeout: 120_000,
+      },
+    );
+    expect(readFileSync(resultPath, "utf8")).toContain(
+      "cold inbox deep link verified",
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

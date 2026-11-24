@@ -11,7 +11,10 @@ export function readLocalConversationMap(): Record<string, string> {
   try {
     const cacheFile = path.join(defaultConfigDir(), "conversations.json");
     if (!fs.existsSync(cacheFile)) return {};
-    return JSON.parse(fs.readFileSync(cacheFile, "utf-8")) as Record<string, string>;
+    return JSON.parse(fs.readFileSync(cacheFile, "utf-8")) as Record<
+      string,
+      string
+    >;
   } catch {
     return {};
   }
@@ -30,10 +33,16 @@ export interface CachedSessionLink {
 const SESSION_LINKS_FILE = "session-links.json";
 const SESSION_LINK_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function readSessionLinkCache(configDir = defaultConfigDir()): Record<string, CachedSessionLink> {
+export function readSessionLinkCache(
+  configDir = defaultConfigDir(),
+): Record<string, CachedSessionLink> {
   try {
-    const parsed = JSON.parse(fs.readFileSync(path.join(configDir, SESSION_LINKS_FILE), "utf-8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    const parsed = JSON.parse(
+      fs.readFileSync(path.join(configDir, SESSION_LINKS_FILE), "utf-8"),
+    );
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
   } catch {
     return {};
   }
@@ -41,12 +50,17 @@ export function readSessionLinkCache(configDir = defaultConfigDir()): Record<str
 
 /** Records one session's link. Atomic (temp file + rename), so a hook running
  *  in another session never reads half a file; a failed write costs nothing. */
-export function writeSessionLinkCache(sessionId: string, link: CachedSessionLink, configDir = defaultConfigDir()): void {
+export function writeSessionLinkCache(
+  sessionId: string,
+  link: CachedSessionLink,
+  configDir = defaultConfigDir(),
+): void {
   try {
     const all = readSessionLinkCache(configDir);
     all[sessionId] = link;
     for (const [id, l] of Object.entries(all)) {
-      if (!(l?.checked_at > link.checked_at - SESSION_LINK_KEEP_MS)) delete all[id];
+      if (!(l?.checked_at > link.checked_at - SESSION_LINK_KEEP_MS))
+        delete all[id];
     }
     const file = path.join(configDir, SESSION_LINKS_FILE);
     const tmp = `${file}.${process.pid}.tmp`;

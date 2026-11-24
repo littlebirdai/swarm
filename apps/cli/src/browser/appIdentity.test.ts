@@ -12,12 +12,24 @@ describe("agent browser branding scope", () => {
     expect(shouldBrandBrowser(chrome, true, "darwin", "")).toBe(false);
     expect(shouldBrandBrowser(chrome, false, "linux", "")).toBe(false);
     expect(shouldBrandBrowser(chrome, false, "win32", "")).toBe(false);
-    expect(shouldBrandBrowser(chrome.replaceAll("Google Chrome", "Google Chrome Canary"), false, "darwin", "")).toBe(false);
+    expect(
+      shouldBrandBrowser(
+        chrome.replaceAll("Google Chrome", "Google Chrome Canary"),
+        false,
+        "darwin",
+        "",
+      ),
+    ).toBe(false);
     expect(shouldBrandBrowser(chrome, false, "darwin", chrome)).toBe(false);
-    expect(shouldBrandBrowser("/custom/chromium", false, "darwin", "")).toBe(false);
+    expect(shouldBrandBrowser("/custom/chromium", false, "darwin", "")).toBe(
+      false,
+    );
   });
 
   test("a source checkout without the compiled helper keeps Chrome usable", () => {
-    expect(prepareBrowserApp(chrome, false)).toEqual({ binary: chrome, branded: false });
+    expect(prepareBrowserApp(chrome, false)).toEqual({
+      binary: chrome,
+      branded: false,
+    });
   });
 });

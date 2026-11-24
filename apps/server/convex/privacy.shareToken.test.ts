@@ -14,21 +14,32 @@ type Rec = Record<string, any>;
 // eq constraints the builder declares (same shape as the pendingMessages tests).
 function createDb(seed: Record<string, Rec[]>) {
   const tables: Record<string, Rec[]> = {};
-  for (const [table, rows] of Object.entries(seed)) tables[table] = rows.map((r) => ({ ...r }));
+  for (const [table, rows] of Object.entries(seed))
+    tables[table] = rows.map((r) => ({ ...r }));
   const db = {
     query(table: string) {
       const constraints: Array<{ field: string; val: any }> = [];
       const q: any = {
-        eq(field: string, val: any) { constraints.push({ field, val }); return q; },
+        eq(field: string, val: any) {
+          constraints.push({ field, val });
+          return q;
+        },
       };
       const run = () =>
         (tables[table] ?? []).filter((r) =>
-          constraints.every((c) => String(r[c.field]) === String(c.val))
+          constraints.every((c) => String(r[c.field]) === String(c.val)),
         );
       const chain = {
-        withIndex(_name: string, builder: (q: any) => unknown) { builder(q); return chain; },
-        async collect() { return run(); },
-        async first() { return run()[0] ?? null; },
+        withIndex(_name: string, builder: (q: any) => unknown) {
+          builder(q);
+          return chain;
+        },
+        async collect() {
+          return run();
+        },
+        async first() {
+          return run()[0] ?? null;
+        },
       };
       return chain;
     },
@@ -44,53 +55,95 @@ const tokenedConv = {
 } as any;
 
 function ctxWith(redemptions: Rec[] = []) {
-  return { db: createDb({ team_memberships: [], session_owners: [], share_redemptions: redemptions }).db } as any;
+  return {
+    db: createDb({
+      team_memberships: [],
+      session_owners: [],
+      share_redemptions: redemptions,
+    }).db,
+  } as any;
 }
 
 describe("checkConversationAccess — share token must be presented", () => {
   test("THE BUG: a signed-in stranger with only the conversation id is denied", async () => {
-    expect(await checkConversationAccess(ctxWith(), "uStranger" as any, tokenedConv)).toBe("denied");
+    expect(
+      await checkConversationAccess(ctxWith(), "uStranger" as any, tokenedConv),
+    ).toBe("denied");
   });
 
   test("an anonymous viewer with only the conversation id is denied", async () => {
-    expect(await checkConversationAccess(ctxWith(), null, tokenedConv)).toBe("denied");
+    expect(await checkConversationAccess(ctxWith(), null, tokenedConv)).toBe(
+      "denied",
+    );
   });
 
   test("an anonymous viewer presenting the token gets 'shared'", async () => {
-    expect(await checkConversationAccess(ctxWith(), null, tokenedConv, "tok-real")).toBe("shared");
+    expect(
+      await checkConversationAccess(ctxWith(), null, tokenedConv, "tok-real"),
+    ).toBe("shared");
   });
 
   test("presenting a WRONG token is denied", async () => {
-    expect(await checkConversationAccess(ctxWith(), null, tokenedConv, "tok-guess")).toBe("denied");
+    expect(
+      await checkConversationAccess(ctxWith(), null, tokenedConv, "tok-guess"),
+    ).toBe("denied");
   });
 
   test("a signed-in viewer with a redemption of the current token gets 'shared'", async () => {
     const ctx = ctxWith([
-      { _id: "r1", conversation_id: "conv1", user_id: "uStranger", token: "tok-real", created_at: 1 },
+      {
+        _id: "r1",
+        conversation_id: "conv1",
+        user_id: "uStranger",
+        token: "tok-real",
+        created_at: 1,
+      },
     ]);
-    expect(await checkConversationAccess(ctx, "uStranger" as any, tokenedConv)).toBe("shared");
+    expect(
+      await checkConversationAccess(ctx, "uStranger" as any, tokenedConv),
+    ).toBe("shared");
   });
 
   test("token rotation revokes past redeemers: stale redemption is denied", async () => {
     const ctx = ctxWith([
-      { _id: "r1", conversation_id: "conv1", user_id: "uStranger", token: "tok-old", created_at: 1 },
+      {
+        _id: "r1",
+        conversation_id: "conv1",
+        user_id: "uStranger",
+        token: "tok-old",
+        created_at: 1,
+      },
     ]);
-    expect(await checkConversationAccess(ctx, "uStranger" as any, tokenedConv)).toBe("denied");
+    expect(
+      await checkConversationAccess(ctx, "uStranger" as any, tokenedConv),
+    ).toBe("denied");
   });
 
   test("an anonymous redemption row cannot exist, and null viewer never matches one", async () => {
     const ctx = ctxWith([
-      { _id: "r1", conversation_id: "conv1", user_id: "uStranger", token: "tok-real", created_at: 1 },
+      {
+        _id: "r1",
+        conversation_id: "conv1",
+        user_id: "uStranger",
+        token: "tok-real",
+        created_at: 1,
+      },
     ]);
-    expect(await checkConversationAccess(ctx, null, tokenedConv)).toBe("denied");
+    expect(await checkConversationAccess(ctx, null, tokenedConv)).toBe(
+      "denied",
+    );
   });
 
   test("a conversation with NO share_token denies even a presented token", async () => {
     const conv = { ...tokenedConv, share_token: undefined };
-    expect(await checkConversationAccess(ctxWith(), null, conv, "tok-real")).toBe("denied");
+    expect(
+      await checkConversationAccess(ctxWith(), null, conv, "tok-real"),
+    ).toBe("denied");
   });
 
   test("the owner needs no token", async () => {
-    expect(await checkConversationAccess(ctxWith(), "uOwner" as any, tokenedConv)).toBe("owner");
+    expect(
+      await checkConversationAccess(ctxWith(), "uOwner" as any, tokenedConv),
+    ).toBe("owner");
   });
 });

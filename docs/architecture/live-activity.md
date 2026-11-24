@@ -4,16 +4,16 @@ One iOS Live Activity per phone shows every live session's work state. The serve
 
 ## The pieces
 
-| Piece | Where | Owns |
-|---|---|---|
-| Wire contract and merge | `packages/shared/contracts/liveActivity.ts` | The content state shape, the ordering (waiting, failed, done, working), the linger clocks, the change keys |
-| Swift twin | `apps/mobile/targets/widget/CodecastActivityAttributes.swift` and its copy in the native module | The same struct, decoded by name (`attributes-type`) |
-| Refresh and push | `apps/server/convex/liveActivity.ts` | Session collection, the pure start / update / end / wait decision, the APNs send |
-| Refresh scheduling | `apps/server/convex/lib/liveActivityRefresh.ts` | One job per user; write sites call it |
-| APNs core | `apps/server/convex/apns.ts` | The provider JWT and the HTTP send, shared with VoIP rings |
-| Native module | `apps/mobile/modules/codecast-live-activity` | Streams the push-to-start token and each activity's token to JS; starts locally on phones without push-to-start |
-| Widget extension | `apps/mobile/targets/widget` | The Lock Screen strip and the Dynamic Island |
-| App hook | `apps/mobile/hooks/useLiveActivity.ts` | Registers tokens, starts locally when the server cannot |
+| Piece                   | Where                                                                                           | Owns                                                                                                            |
+| ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Wire contract and merge | `packages/shared/contracts/liveActivity.ts`                                                     | The content state shape, the ordering (waiting, failed, done, working), the linger clocks, the change keys      |
+| Swift twin              | `apps/mobile/targets/widget/CodecastActivityAttributes.swift` and its copy in the native module | The same struct, decoded by name (`attributes-type`)                                                            |
+| Refresh and push        | `apps/server/convex/liveActivity.ts`                                                            | Session collection, the pure start / update / end / wait decision, the APNs send                                |
+| Refresh scheduling      | `apps/server/convex/lib/liveActivityRefresh.ts`                                                 | One job per user; write sites call it                                                                           |
+| APNs core               | `apps/server/convex/apns.ts`                                                                    | The provider JWT and the HTTP send, shared with VoIP rings                                                      |
+| Native module           | `apps/mobile/modules/codecast-live-activity`                                                    | Streams the push-to-start token and each activity's token to JS; starts locally on phones without push-to-start |
+| Widget extension        | `apps/mobile/targets/widget`                                                                    | The Lock Screen strip and the Dynamic Island                                                                    |
+| App hook                | `apps/mobile/hooks/useLiveActivity.ts`                                                          | Registers tokens, starts locally when the server cannot                                                         |
 
 ## One classifier
 

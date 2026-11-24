@@ -4,10 +4,21 @@
 // wherever it appears. The label is optional: a ghost carries a caption of
 // typed text instead, a teammate carries their name.
 
-export function CursorArrow({ color, label }: { color: string; label?: string }) {
+export function CursorArrow({
+  color,
+  label,
+}: {
+  color: string;
+  label?: string;
+}) {
   return (
     <>
-      <svg width="28" height="36" viewBox="0 0 28 36" className="absolute left-0 top-0 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
+      <svg
+        width="28"
+        height="36"
+        viewBox="0 0 28 36"
+        className="absolute left-0 top-0 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+      >
         <path
           d="M3 2 L3 27 L9 21 L13 31 L17 29 L13 20 L22 20 Z"
           fill={color}

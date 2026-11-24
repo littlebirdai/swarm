@@ -1,6 +1,13 @@
-import { directChildren, subtaskProgressOf, type ProgressInput } from "@codecast/shared/tasks";
+import {
+  directChildren,
+  subtaskProgressOf,
+  type ProgressInput,
+} from "@codecast/shared/tasks";
 
-const cache = new WeakMap<object, { children: Map<string, ProgressInput[]>; tallies: Map<string, string> }>();
+const cache = new WeakMap<
+  object,
+  { children: Map<string, ProgressInput[]>; tallies: Map<string, string> }
+>();
 
 function taskIndex(tasks: Record<string, ProgressInput>) {
   let index = cache.get(tasks);
@@ -12,7 +19,7 @@ function taskIndex(tasks: Record<string, ProgressInput>) {
       if (!row.parent_id) continue;
       const parent = String(row.parent_id);
       let siblings = children.get(parent);
-      if (!siblings) children.set(parent, siblings = []);
+      if (!siblings) children.set(parent, (siblings = []));
       siblings.push(row);
     }
     index = { children, tallies: new Map() };
@@ -21,11 +28,20 @@ function taskIndex(tasks: Record<string, ProgressInput>) {
   return index;
 }
 
-export function taskChildren<T extends ProgressInput>(taskId: string, tasks: Record<string, T>): T[] {
-  return directChildren(taskIndex(tasks).children.get(taskId) ?? [], taskId) as T[];
+export function taskChildren<T extends ProgressInput>(
+  taskId: string,
+  tasks: Record<string, T>,
+): T[] {
+  return directChildren(
+    taskIndex(tasks).children.get(taskId) ?? [],
+    taskId,
+  ) as T[];
 }
 
-export function subtaskTally(taskId: string, tasks: Record<string, ProgressInput>): string {
+export function subtaskTally(
+  taskId: string,
+  tasks: Record<string, ProgressInput>,
+): string {
   const { tallies } = taskIndex(tasks);
   const cached = tallies.get(taskId);
   if (cached !== undefined) return cached;

@@ -2,13 +2,8 @@
   "asOf": "2026-10-06T12:00:00.000Z",
   "notes": "Typecheck through the shared watcher.",
   "label": {
-    "want": [
-      "cast\\s+check\\b"
-    ],
-    "avoid": [
-      "\\btsc\\b",
-      "(bun|npm|pnpm|yarn) (run )?typecheck"
-    ]
+    "want": ["cast\\s+check\\b"],
+    "avoid": ["\\btsc\\b", "(bun|npm|pnpm|yarn) (run )?typecheck"]
   },
   "snapshot": {
     "captured_at": "2026-10-06T12:00:00.000Z",

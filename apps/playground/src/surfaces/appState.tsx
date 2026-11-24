@@ -5,7 +5,13 @@
 // the text itself is a draft store only the field subscribes to, so a
 // keystroke re-renders the field and nothing else). AppPage owns them; the
 // room, capsule and timeline read them.
-import { createContext, useCallback, useContext, useSyncExternalStore, type Context } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useSyncExternalStore,
+  type Context,
+} from "react";
 import type { AppView } from "../../convex/apps";
 import type { MessageView } from "../../convex/messages";
 import type { TimelineEntry } from "../../convex/versions";
@@ -68,7 +74,11 @@ export type StreamState = {
 
 /** The composer's text, outside React state so typing re-renders only the
  *  field that reads it (useDraft). */
-export type Draft = { get: () => string; set: (text: string) => void; subscribe: (listener: () => void) => () => void };
+export type Draft = {
+  get: () => string;
+  set: (text: string) => void;
+  subscribe: (listener: () => void) => () => void;
+};
 
 export function createDraft(): Draft {
   let text = "";
@@ -87,7 +97,8 @@ export function createDraft(): Draft {
   };
 }
 
-export const useDraft = (draft: Draft) => useSyncExternalStore(draft.subscribe, draft.get);
+export const useDraft = (draft: Draft) =>
+  useSyncExternalStore(draft.subscribe, draft.get);
 
 export type ComposerState = {
   draft: Draft;
@@ -103,7 +114,8 @@ export type ComposerState = {
 
 /** A focus ask this recent still applies to a part that just mounted. */
 const FOCUS_FRESH_MS = 1000;
-export const freshFocus = (at: number) => at > 0 && Date.now() - at < FOCUS_FRESH_MS;
+export const freshFocus = (at: number) =>
+  at > 0 && Date.now() - at < FOCUS_FRESH_MS;
 
 export const AppStateContext = createContext<AppState | null>(null);
 export const HereContext = createContext<Here | null>(null);
@@ -123,7 +135,10 @@ export const useComposer = () => use(ComposerContext, "useComposer");
 
 /** Put a change request in the composer, unsent, in Change it mode: Fix it,
  *  Edit, an idea. An element given replaces the attached one. */
-export function useAskChange(): (text: string, element?: ElementRef | null) => void {
+export function useAskChange(): (
+  text: string,
+  element?: ElementRef | null,
+) => void {
   const { setMode, draft, setElement, focus } = useComposer();
   return useCallback(
     (text: string, element?: ElementRef | null) => {

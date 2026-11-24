@@ -21,27 +21,54 @@ const DOOR_WORDS: Record<OrgLogDoor, string> = {
 };
 
 /** Where the change was made, in words: "proposal op-7", "Settings". */
-export function orgLogDoorWords(entry: Pick<OrgLogEntry, "door" | "actor">): string {
-  if (entry.door === "proposal" && entry.actor.proposal?.short_id) return `proposal ${entry.actor.proposal.short_id}`;
+export function orgLogDoorWords(
+  entry: Pick<OrgLogEntry, "door" | "actor">,
+): string {
+  if (entry.door === "proposal" && entry.actor.proposal?.short_id)
+    return `proposal ${entry.actor.proposal.short_id}`;
   return DOOR_WORDS[entry.door] ?? "another page";
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 /** What an undo cannot take back, said once in the preview (S21). */
-export function orgUndoCannotLine(c: OrgUndoPreview["cannot_take_back"][number]): string {
+export function orgUndoCannotLine(
+  c: OrgUndoPreview["cannot_take_back"][number],
+): string {
   switch (c.kind) {
-    case "message_sent": return `${plural(c.count, "message")} a role already sent ${c.count === 1 ? "stays" : "stay"} sent.`;
-    case "wake_ran": return `${plural(c.count, "wake")} that already ran ${c.count === 1 ? "stays" : "stay"} run.`;
-    case "session_worked": return `The work ${plural(c.count, "session")} already did stays done.`;
-    default: return "Some of what this change set in motion has already happened.";
+    case "message_sent":
+      return `${plural(c.count, "message")} a role already sent ${c.count === 1 ? "stays" : "stay"} sent.`;
+    case "wake_ran":
+      return `${plural(c.count, "wake")} that already ran ${c.count === 1 ? "stays" : "stay"} run.`;
+    case "session_worked":
+      return `The work ${plural(c.count, "session")} already did stays done.`;
+    default:
+      return "Some of what this change set in motion has already happened.";
   }
 }
 
 const DAY_MS = 86_400_000;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const dayStart = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const dayStart = (t: number) => {
+  const d = new Date(t);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
 
 /** "Today", "Yesterday", else "Mon, Sep 14" (with the year once it differs). */
 export function orgLogDayLabel(at: number, now: number = Date.now()): string {
@@ -49,7 +76,10 @@ export function orgLogDayLabel(at: number, now: number = Date.now()): string {
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
   const d = new Date(at);
-  const year = d.getFullYear() === new Date(now).getFullYear() ? "" : `, ${d.getFullYear()}`;
+  const year =
+    d.getFullYear() === new Date(now).getFullYear()
+      ? ""
+      : `, ${d.getFullYear()}`;
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}${year}`;
 }
 
@@ -61,7 +91,10 @@ export function orgLogClock(at: number): string {
 }
 
 /** Newest first, grouped by the local day each entry falls on. */
-export function groupOrgLogByDay<E extends Pick<OrgLogEntry, "at" | "seq">>(entries: readonly E[], now: number = Date.now()): { day: number; label: string; entries: E[] }[] {
+export function groupOrgLogByDay<E extends Pick<OrgLogEntry, "at" | "seq">>(
+  entries: readonly E[],
+  now: number = Date.now(),
+): { day: number; label: string; entries: E[] }[] {
   const sorted = [...entries].sort((a, b) => b.at - a.at || b.seq - a.seq);
   const groups: { day: number; label: string; entries: E[] }[] = [];
   for (const e of sorted) {

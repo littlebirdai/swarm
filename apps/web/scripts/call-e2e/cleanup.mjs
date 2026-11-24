@@ -21,23 +21,40 @@ import { CONVEX_DIR, die, parseArgs } from "./livekit.mjs";
 
 const { flags, positionals } = parseArgs(process.argv.slice(2));
 const room = positionals[0];
-if (!room) die("usage: node cleanup.mjs <room> [--since <epoch ms | ISO time>]", 2);
+if (!room)
+  die("usage: node cleanup.mjs <room> [--since <epoch ms | ISO time>]", 2);
 let since;
 if (flags.since !== undefined) {
-  since = /^\d+$/.test(flags.since) ? Number(flags.since) : Date.parse(flags.since);
-  if (!Number.isFinite(since)) die(`--since ${flags.since} is not a time (epoch ms or ISO)`, 2);
+  since = /^\d+$/.test(flags.since)
+    ? Number(flags.since)
+    : Date.parse(flags.since);
+  if (!Number.isFinite(since))
+    die(`--since ${flags.since} is not a time (epoch ms or ISO)`, 2);
 }
 
-const args = JSON.stringify({ room_key: room, ...(since !== undefined ? { since } : {}) });
+const args = JSON.stringify({
+  room_key: room,
+  ...(since !== undefined ? { since } : {}),
+});
 let out;
 try {
-  out = execFileSync(join(CONVEX_DIR, "run.sh"), ["callGuests:revokeRoomGuestLinks", args], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    timeout: 300_000,
-  });
+  out = execFileSync(
+    join(CONVEX_DIR, "run.sh"),
+    ["callGuests:revokeRoomGuestLinks", args],
+    {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 300_000,
+    },
+  );
 } catch (err) {
-  die(`Could not revoke the room's links: ${String(err.stderr || err.message).trim()}`);
+  die(
+    `Could not revoke the room's links: ${String(err.stderr || err.message).trim()}`,
+  );
 }
 const revoked = JSON.parse(out.slice(out.indexOf("{"))).revoked;
-console.log(revoked.length ? `Turned off ${revoked.length} guest link(s) into ${room}: ${revoked.join(", ")}` : `No open guest links into ${room}.`);
+console.log(
+  revoked.length
+    ? `Turned off ${revoked.length} guest link(s) into ${room}: ${revoked.join(", ")}`
+    : `No open guest links into ${room}.`,
+);

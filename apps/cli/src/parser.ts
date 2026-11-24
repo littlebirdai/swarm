@@ -1,6 +1,10 @@
 import type { AgentClientId } from "@codecast/shared/contracts";
 import { extractInlineImages } from "./inlineImage.js";
-import { parseMirrorTranscript, type MirrorReadOptions, type MirrorTextRewrite } from "./cloudAgents/transcript.js";
+import {
+  parseMirrorTranscript,
+  type MirrorReadOptions,
+  type MirrorTextRewrite,
+} from "./cloudAgents/transcript.js";
 import { extractSentFiles, type SyncFile } from "./userFiles.js";
 import { codexTurnErrorMessage } from "./codexTurnError.js";
 import { parseMuseSessionFile } from "./museTranscript.js";
@@ -8,17 +12,47 @@ export { parseMuseSessionFile, extractMuseCwd } from "./museTranscript.js";
 import { parseAntigravityTranscript } from "./antigravityTranscript.js";
 export { parseAntigravityTranscript } from "./antigravityTranscript.js";
 import type { CodexTurnError } from "@codecast/shared/contracts";
-import { CLIENT_ERROR_BANNER_PREFIX, claudeAutoContinueBanner, isAgentContextMessage, isModelSwitchLimitBanner, isTransientRateLimit429, throttleBannerContent } from "@codecast/shared/contracts";
+import {
+  CLIENT_ERROR_BANNER_PREFIX,
+  claudeAutoContinueBanner,
+  isAgentContextMessage,
+  isModelSwitchLimitBanner,
+  isTransientRateLimit429,
+  throttleBannerContent,
+} from "@codecast/shared/contracts";
 
 type ContentBlock =
   | { type: "text"; text: string }
   | { type: "thinking"; thinking: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean }
-  | { type: "image"; source: { type: string; media_type: string; data: string } };
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
+      is_error?: boolean;
+    }
+  | {
+      type: "image";
+      source: { type: string; media_type: string; data: string };
+    };
 
 export interface ClaudeSessionEntry {
-  type: "user" | "assistant" | "human" | "summary" | "ai-title" | "custom-title" | "file-history-snapshot" | "system" | "queue-operation" | "attachment";
+  type:
+    | "user"
+    | "assistant"
+    | "human"
+    | "summary"
+    | "ai-title"
+    | "custom-title"
+    | "file-history-snapshot"
+    | "system"
+    | "queue-operation"
+    | "attachment";
   subtype?: "local_command" | "stop_hook_summary" | "compact_boundary";
   uuid?: string;
   parentUuid?: string;
@@ -35,14 +69,21 @@ export interface ClaudeSessionEntry {
   timestamp?: string;
   content?: string;
   cwd?: string;
-  message?: string | {
-    role: "user" | "assistant";
-    content: string | ContentBlock[];
-    id?: string;
-    model?: string;
-    stop_reason?: string | null;
-    usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
-  };
+  message?:
+    | string
+    | {
+        role: "user" | "assistant";
+        content: string | ContentBlock[];
+        id?: string;
+        model?: string;
+        stop_reason?: string | null;
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+        };
+      };
   summary?: string;
   aiTitle?: string;
   customTitle?: string;
@@ -141,25 +182,36 @@ export interface ClaudeUsage {
 export function usageOf(message: unknown): ClaudeUsage | undefined {
   const u = (message as any)?.usage;
   if (!u || typeof u !== "object") return undefined;
-  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
-  const input = n(u.input_tokens), output = n(u.output_tokens);
+  const n = (x: unknown) =>
+    typeof x === "number" && Number.isFinite(x) ? x : undefined;
+  const input = n(u.input_tokens),
+    output = n(u.output_tokens);
   if (input === undefined && output === undefined) return undefined;
   return {
     input_tokens: input ?? 0,
     output_tokens: output ?? 0,
-    ...(n(u.cache_creation_input_tokens) !== undefined ? { cache_creation_input_tokens: n(u.cache_creation_input_tokens) } : {}),
-    ...(n(u.cache_read_input_tokens) !== undefined ? { cache_read_input_tokens: n(u.cache_read_input_tokens) } : {}),
+    ...(n(u.cache_creation_input_tokens) !== undefined
+      ? { cache_creation_input_tokens: n(u.cache_creation_input_tokens) }
+      : {}),
+    ...(n(u.cache_read_input_tokens) !== undefined
+      ? { cache_read_input_tokens: n(u.cache_read_input_tokens) }
+      : {}),
   };
 }
 
-export function parseSessionLine(line: string, opts?: { quiet?: boolean }): ClaudeSessionEntry | null {
+export function parseSessionLine(
+  line: string,
+  opts?: { quiet?: boolean },
+): ClaudeSessionEntry | null {
   if (!line.trim()) return null;
   try {
     return JSON.parse(line) as ClaudeSessionEntry;
   } catch (err) {
     if (!opts?.quiet) {
-      const preview = line.length > 100 ? line.slice(0, 100) + '...' : line;
-      console.warn(`[parser] Failed to parse session line: ${err instanceof Error ? err.message : String(err)}`);
+      const preview = line.length > 100 ? line.slice(0, 100) + "..." : line;
+      console.warn(
+        `[parser] Failed to parse session line: ${err instanceof Error ? err.message : String(err)}`,
+      );
       console.warn(`[parser] Line content: ${preview}`);
     }
     return null;
@@ -177,7 +229,9 @@ export const CODECAST_IMPORT_NOTICE_PREFIX = "[Codecast import]";
  *  every client parser drops it, so it can never sync back into the
  *  conversation as a new turn — not on the first pass, not after a daemon
  *  restart re-parses the file from scratch. */
-export function isCodecastImportNotice(text: string | undefined | null): boolean {
+export function isCodecastImportNotice(
+  text: string | undefined | null,
+): boolean {
   return !!text && text.trimStart().startsWith(CODECAST_IMPORT_NOTICE_PREFIX);
 }
 
@@ -202,34 +256,72 @@ function stripControlPrefix(text: unknown): string {
 // form is a spent model window whose 429 payload is identical to a burst's,
 // so the words alone decide and it keeps the CLI's own text (kind "limit").
 export function claudeBannerText(
-  entry: Pick<ClaudeSessionEntry, "isApiErrorMessage" | "apiErrorStatus" | "errorDetails" | "apiError">,
+  entry: Pick<
+    ClaudeSessionEntry,
+    "isApiErrorMessage" | "apiErrorStatus" | "errorDetails" | "apiError"
+  >,
   text: string,
 ): string {
-  if (entry.isApiErrorMessage && !isModelSwitchLimitBanner(text) && isTransientRateLimit429(entry.apiErrorStatus, entry.errorDetails, entry.apiError)) {
+  if (
+    entry.isApiErrorMessage &&
+    !isModelSwitchLimitBanner(text) &&
+    isTransientRateLimit429(
+      entry.apiErrorStatus,
+      entry.errorDetails,
+      entry.apiError,
+    )
+  ) {
     return throttleBannerContent(text);
   }
   return text;
 }
 
-export type TranscriptEmission = { occurrence: number; timestampPresent: boolean; nativeTimestamp: unknown; receiptTimestamp: number; queued?: boolean; dequeue?: { timestampPresent: boolean; nativeTimestamp: unknown } };
-export type TranscriptEmissionObserver = (message: ParsedMessage, source: TranscriptEmission) => void;
-type ClaudeEmissionObserver = (message: ParsedMessage, entry: ClaudeSessionEntry, receiptTimestamp: number, dequeue?: { timestampPresent: boolean; nativeTimestamp: unknown }) => void;
+export type TranscriptEmission = {
+  occurrence: number;
+  timestampPresent: boolean;
+  nativeTimestamp: unknown;
+  receiptTimestamp: number;
+  queued?: boolean;
+  dequeue?: { timestampPresent: boolean; nativeTimestamp: unknown };
+};
+export type TranscriptEmissionObserver = (
+  message: ParsedMessage,
+  source: TranscriptEmission,
+) => void;
+type ClaudeEmissionObserver = (
+  message: ParsedMessage,
+  entry: ClaudeSessionEntry,
+  receiptTimestamp: number,
+  dequeue?: { timestampPresent: boolean; nativeTimestamp: unknown },
+) => void;
 
 /** The file behind a Read image: Claude Code writes `toolUseResult.file`
  *  with the original's byte size and dimensions beside the (possibly
  *  downscaled, recompressed) picture it gave the model. */
 function readImageSource(result: unknown): ImageBlock["source"] | undefined {
-  const r = result as { type?: unknown; file?: { originalSize?: unknown; dimensions?: { originalWidth?: unknown; originalHeight?: unknown } } } | null;
-  if (!r || r.type !== "image" || typeof r.file?.originalSize !== "number") return undefined;
+  const r = result as {
+    type?: unknown;
+    file?: {
+      originalSize?: unknown;
+      dimensions?: { originalWidth?: unknown; originalHeight?: unknown };
+    };
+  } | null;
+  if (!r || r.type !== "image" || typeof r.file?.originalSize !== "number")
+    return undefined;
   const d = r.file.dimensions;
   return {
     bytes: r.file.originalSize,
     ...(typeof d?.originalWidth === "number" ? { width: d.originalWidth } : {}),
-    ...(typeof d?.originalHeight === "number" ? { height: d.originalHeight } : {}),
+    ...(typeof d?.originalHeight === "number"
+      ? { height: d.originalHeight }
+      : {}),
   };
 }
 
-export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEmissionObserver): ParsedMessage[] {
+export function extractMessages(
+  entries: ClaudeSessionEntry[],
+  onEmit?: ClaudeEmissionObserver,
+): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   // A slash command's expansion (the command's .md body) is flagged isMeta by Claude Code,
   // so the generic meta-skip below drops it. Keep it when it directly follows the command
@@ -245,12 +337,20 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
   // instead: the queue-operation "remove" for the same text (written just
   // before it) carries that time; failing one, never earlier than the turn
   // already emitted in this pass.
-  let lastDequeue: { content: string; timestamp: number; receiptTimestamp: number; timestampPresent: boolean; nativeTimestamp: unknown } | null = null;
+  let lastDequeue: {
+    content: string;
+    timestamp: number;
+    receiptTimestamp: number;
+    timestampPresent: boolean;
+    nativeTimestamp: unknown;
+  } | null = null;
   let lastEmittedTimestamp = 0;
   let lastEmittedReceiptTimestamp = 0;
 
   for (const entry of entries) {
-    const timestamp = entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now();
+    const timestamp = entry.timestamp
+      ? new Date(entry.timestamp).getTime()
+      : Date.now();
     const receiptTimestamp = entry.timestamp ? timestamp : 0;
 
     if (entry.type === "system") {
@@ -258,16 +358,36 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
         // Claude Code's auto-continue wait is the only record of that limit
         // park, so it syncs as the canonical limit banner every reader parks on.
         const limitBanner = claudeAutoContinueBanner(entry.content);
-        messages.push(limitBanner
-          ? { uuid: entry.uuid, role: "assistant", content: limitBanner, timestamp }
-          : { uuid: entry.uuid, role: "system", content: entry.content, timestamp, subtype: entry.subtype });
+        messages.push(
+          limitBanner
+            ? {
+                uuid: entry.uuid,
+                role: "assistant",
+                content: limitBanner,
+                timestamp,
+              }
+            : {
+                uuid: entry.uuid,
+                role: "system",
+                content: entry.content,
+                timestamp,
+                subtype: entry.subtype,
+              },
+        );
         onEmit?.(messages[messages.length - 1], entry, receiptTimestamp);
       }
       continue;
     }
 
     if (entry.type === "queue-operation") {
-      if (entry.operation === "remove" && typeof entry.content === "string") lastDequeue = { content: entry.content, timestamp, receiptTimestamp, timestampPresent: Object.hasOwn(entry, "timestamp"), nativeTimestamp: entry.timestamp };
+      if (entry.operation === "remove" && typeof entry.content === "string")
+        lastDequeue = {
+          content: entry.content,
+          timestamp,
+          receiptTimestamp,
+          timestampPresent: Object.hasOwn(entry, "timestamp"),
+          nativeTimestamp: entry.timestamp,
+        };
       continue;
     }
 
@@ -292,7 +412,10 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
             if (block.type === "text") {
               promptText += block.text;
             } else if (block.type === "image" && block.source) {
-              promptImages.push({ mediaType: block.source.media_type, data: block.source.data });
+              promptImages.push({
+                mediaType: block.source.media_type,
+                data: block.source.data,
+              });
             }
           }
         } else {
@@ -300,9 +423,20 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
         }
         const prompt = stripControlPrefix(promptText);
         if (prompt.trim() || promptImages.length > 0) {
-          const deliveredAt = lastDequeue && lastDequeue.content === promptText ? lastDequeue.timestamp : 0;
-          const queuedTimestamp = Math.max(timestamp, deliveredAt, lastEmittedTimestamp);
-          const sourceUuid = typeof entry.attachment.source_uuid === "string" && entry.attachment.source_uuid !== entry.uuid ? entry.attachment.source_uuid : undefined;
+          const deliveredAt =
+            lastDequeue && lastDequeue.content === promptText
+              ? lastDequeue.timestamp
+              : 0;
+          const queuedTimestamp = Math.max(
+            timestamp,
+            deliveredAt,
+            lastEmittedTimestamp,
+          );
+          const sourceUuid =
+            typeof entry.attachment.source_uuid === "string" &&
+            entry.attachment.source_uuid !== entry.uuid
+              ? entry.attachment.source_uuid
+              : undefined;
           messages.push({
             uuid: entry.uuid,
             role: "user",
@@ -311,19 +445,41 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
             images: promptImages.length > 0 ? promptImages : undefined,
             ...(sourceUuid ? { sourceUuid } : {}),
           });
-          const matchedDequeue = lastDequeue?.content === promptText ? lastDequeue : undefined;
-          const queuedReceiptTimestamp = Math.max(receiptTimestamp, matchedDequeue?.receiptTimestamp ?? 0, lastEmittedReceiptTimestamp);
-          onEmit?.(messages[messages.length - 1], entry, queuedReceiptTimestamp, matchedDequeue);
-          lastEmittedReceiptTimestamp = Math.max(lastEmittedReceiptTimestamp, queuedReceiptTimestamp);
-          lastEmittedTimestamp = Math.max(lastEmittedTimestamp, queuedTimestamp);
+          const matchedDequeue =
+            lastDequeue?.content === promptText ? lastDequeue : undefined;
+          const queuedReceiptTimestamp = Math.max(
+            receiptTimestamp,
+            matchedDequeue?.receiptTimestamp ?? 0,
+            lastEmittedReceiptTimestamp,
+          );
+          onEmit?.(
+            messages[messages.length - 1],
+            entry,
+            queuedReceiptTimestamp,
+            matchedDequeue,
+          );
+          lastEmittedReceiptTimestamp = Math.max(
+            lastEmittedReceiptTimestamp,
+            queuedReceiptTimestamp,
+          );
+          lastEmittedTimestamp = Math.max(
+            lastEmittedTimestamp,
+            queuedTimestamp,
+          );
         }
       }
       continue;
     }
 
     const isUserEntry = entry.type === "user" || entry.type === "human";
-    const isCommandExpansion = isUserEntry && entry.isMeta === true && prevWasCommandInvocation;
-    if (!isCommandExpansion && (entry.isMeta || (entry.isVisibleInTranscriptOnly && !entry.isCompactSummary))) continue;
+    const isCommandExpansion =
+      isUserEntry && entry.isMeta === true && prevWasCommandInvocation;
+    if (
+      !isCommandExpansion &&
+      (entry.isMeta ||
+        (entry.isVisibleInTranscriptOnly && !entry.isCompactSummary))
+    )
+      continue;
 
     // Handle old format: type is "human" instead of "user"
     const normalizedType = entry.type === "human" ? "user" : entry.type;
@@ -359,14 +515,23 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
           } else if (block.type === "thinking") {
             thinking += block.thinking;
           } else if (block.type === "tool_use") {
-            toolCalls.push({ id: block.id, name: block.name, input: block.input });
+            toolCalls.push({
+              id: block.id,
+              name: block.name,
+              input: block.input,
+            });
             // A file the agent sent the human rides the message the same way a
             // screenshot does — see userFiles.ts.
             files.push(...extractSentFiles(block, entry.cwd));
           } else if (block.type === "tool_result") {
             let toolResultContent = block.content;
             if (Array.isArray(block.content)) {
-              const contentArray = block.content as Array<{ type: string; text?: string; tool_name?: string; source?: { type: string; media_type: string; data: string } }>;
+              const contentArray = block.content as Array<{
+                type: string;
+                text?: string;
+                tool_name?: string;
+                source?: { type: string; media_type: string; data: string };
+              }>;
               // One text block per step is how the browser extension reports a
               // batch ("[computer:click] …", "[computer:wait] …"); gluing them
               // with "" ran the steps into one line. Join on a newline unless
@@ -374,9 +539,21 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
               // tool_reference blocks; dropping them showed "(empty)" for a
               // search that loaded tools.
               toolResultContent = contentArray
-                .map((c) => c.type === "text" ? c.text : c.type === "tool_reference" && c.tool_name ? `Loaded tool: ${c.tool_name}` : undefined)
+                .map((c) =>
+                  c.type === "text"
+                    ? c.text
+                    : c.type === "tool_reference" && c.tool_name
+                      ? `Loaded tool: ${c.tool_name}`
+                      : undefined,
+                )
                 .filter((text): text is string => !!text)
-                .reduce((acc, text) => (acc === "" || acc.endsWith("\n") || text.startsWith("\n") ? acc + text : `${acc}\n${text}`), "");
+                .reduce(
+                  (acc, text) =>
+                    acc === "" || acc.endsWith("\n") || text.startsWith("\n")
+                      ? acc + text
+                      : `${acc}\n${text}`,
+                  "",
+                );
               const source = readImageSource(entry.toolUseResult);
               for (const item of contentArray) {
                 if (item.type === "image" && item.source) {
@@ -396,7 +573,11 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
             if (typeof toolResultContent === "string") {
               const inline = extractInlineImages(toolResultContent);
               for (const localPath of inline.paths) {
-                images.push({ mediaType: "image/png", localPath, toolUseId: block.tool_use_id });
+                images.push({
+                  mediaType: "image/png",
+                  localPath,
+                  toolUseId: block.tool_use_id,
+                });
               }
               toolResultContent = inline.text;
             }
@@ -415,7 +596,8 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
       }
     }
 
-    if (role === "assistant" && entry.isApiErrorMessage) textContent = claudeBannerText(entry, textContent);
+    if (role === "assistant" && entry.isApiErrorMessage)
+      textContent = claudeBannerText(entry, textContent);
 
     // A user row that carries tool results is the harness answering the agent's
     // tool calls; nothing a person typed ever shares that row (typed input lands
@@ -426,20 +608,33 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
     // bubble, seed titles, and count as a prompt on every surface.
     if (role === "user" && toolResults.length > 0 && textContent.trim()) {
       const last = toolResults[toolResults.length - 1];
-      last.content = last.content ? `${last.content}\n\n${textContent}` : textContent;
+      last.content = last.content
+        ? `${last.content}\n\n${textContent}`
+        : textContent;
       textContent = "";
     }
 
-    const isImportNotice = role === "user" && isCodecastImportNotice(textContent);
+    const isImportNotice =
+      role === "user" && isCodecastImportNotice(textContent);
 
-    if (!isImportNotice && (textContent || thinking || toolCalls.length > 0 || toolResults.length > 0 || images.length > 0)) {
-      const stopReason = typeof entry.message === "object" && entry.message.stop_reason
-        ? entry.message.stop_reason
-        : undefined;
+    if (
+      !isImportNotice &&
+      (textContent ||
+        thinking ||
+        toolCalls.length > 0 ||
+        toolResults.length > 0 ||
+        images.length > 0)
+    ) {
+      const stopReason =
+        typeof entry.message === "object" && entry.message.stop_reason
+          ? entry.message.stop_reason
+          : undefined;
       // "<synthetic>" marks system-generated assistant entries (error banners,
       // interrupts) — not a real generation, so don't report a model for it.
-      const rawModel = typeof entry.message === "object" ? entry.message.model : undefined;
-      const model = rawModel && !rawModel.startsWith("<") ? rawModel : undefined;
+      const rawModel =
+        typeof entry.message === "object" ? entry.message.model : undefined;
+      const model =
+        rawModel && !rawModel.startsWith("<") ? rawModel : undefined;
       messages.push({
         uuid: entry.uuid,
         role,
@@ -452,30 +647,46 @@ export function extractMessages(entries: ClaudeSessionEntry[], onEmit?: ClaudeEm
         files: files.length > 0 ? files : undefined,
         stopReason,
         model,
-        usage: role === "assistant" && model ? usageOf(entry.message) : undefined,
-        apiMessageId: role === "assistant" && typeof entry.message === "object" && typeof entry.message.id === "string" ? entry.message.id : undefined,
+        usage:
+          role === "assistant" && model ? usageOf(entry.message) : undefined,
+        apiMessageId:
+          role === "assistant" &&
+          typeof entry.message === "object" &&
+          typeof entry.message.id === "string"
+            ? entry.message.id
+            : undefined,
       });
       onEmit?.(messages[messages.length - 1], entry, receiptTimestamp);
-      lastEmittedReceiptTimestamp = Math.max(lastEmittedReceiptTimestamp, receiptTimestamp);
+      lastEmittedReceiptTimestamp = Math.max(
+        lastEmittedReceiptTimestamp,
+        receiptTimestamp,
+      );
       lastEmittedTimestamp = Math.max(lastEmittedTimestamp, timestamp);
     }
 
     // Remember whether this was a slash-command invocation so the next entry (its isMeta
     // .md expansion) is kept rather than skipped.
     prevWasCommandInvocation =
-      normalizedType === "user" && entry.isMeta !== true &&
-      (textContent.trimStart().startsWith("<command-name>") || textContent.trimStart().startsWith("<command-message>"));
+      normalizedType === "user" &&
+      entry.isMeta !== true &&
+      (textContent.trimStart().startsWith("<command-name>") ||
+        textContent.trimStart().startsWith("<command-message>"));
   }
 
   return messages;
 }
 
-export function parseSessionFile(content: string, onEmit?: TranscriptEmissionObserver): ParsedMessage[] {
+export function parseSessionFile(
+  content: string,
+  onEmit?: TranscriptEmissionObserver,
+): ParsedMessage[] {
   const lines = content.split("\n");
-  const offsets = onEmit ? new WeakMap<ClaudeSessionEntry, number>() : undefined;
+  const offsets = onEmit
+    ? new WeakMap<ClaudeSessionEntry, number>()
+    : undefined;
   let offset = 0;
   const entries = lines
-    .map(line => {
+    .map((line) => {
       const entry = parseSessionLine(line);
       if (offsets) {
         if (entry && typeof entry === "object") offsets.set(entry, offset);
@@ -484,10 +695,31 @@ export function parseSessionFile(content: string, onEmit?: TranscriptEmissionObs
       return entry;
     })
     .filter((e): e is ClaudeSessionEntry => e !== null);
-  return extractMessages(entries, onEmit ? (message, entry, receiptTimestamp, dequeue) => onEmit(message, {
-    occurrence: offsets!.get(entry)!, timestampPresent: Object.hasOwn(entry, "timestamp"), nativeTimestamp: entry.timestamp, receiptTimestamp,
-    ...(entry.type === "attachment" ? { queued: true, ...(dequeue ? { dequeue: { timestampPresent: dequeue.timestampPresent, nativeTimestamp: dequeue.nativeTimestamp } } : {}) } : {}),
-  }) : undefined);
+  return extractMessages(
+    entries,
+    onEmit
+      ? (message, entry, receiptTimestamp, dequeue) =>
+          onEmit(message, {
+            occurrence: offsets!.get(entry)!,
+            timestampPresent: Object.hasOwn(entry, "timestamp"),
+            nativeTimestamp: entry.timestamp,
+            receiptTimestamp,
+            ...(entry.type === "attachment"
+              ? {
+                  queued: true,
+                  ...(dequeue
+                    ? {
+                        dequeue: {
+                          timestampPresent: dequeue.timestampPresent,
+                          nativeTimestamp: dequeue.nativeTimestamp,
+                        },
+                      }
+                    : {}),
+                }
+              : {}),
+          })
+      : undefined,
+  );
 }
 
 export function extractSlug(content: string): string | undefined {
@@ -515,11 +747,15 @@ export function extractParentUuid(content: string): string | undefined {
 // A sidechain transcript is a subagent wherever its file sits (older Claude
 // Code wrote them beside top-level sessions, not under subagents/). Its first
 // message names the session it runs inside.
-export function extractSidechain(content: string): { parentSessionId?: string } | undefined {
+export function extractSidechain(
+  content: string,
+): { parentSessionId?: string } | undefined {
   for (const line of content.split("\n")) {
     const entry = parseSessionLine(line, { quiet: true });
     if (entry?.type === "user" || entry?.type === "assistant") {
-      return entry.isSidechain === true ? { parentSessionId: entry.sessionId || undefined } : undefined;
+      return entry.isSidechain === true
+        ? { parentSessionId: entry.sessionId || undefined }
+        : undefined;
     }
   }
   return undefined;
@@ -534,9 +770,12 @@ export function extractSummaryTitle(content: string): string | undefined {
   let summary: string | undefined;
   for (const line of content.split("\n")) {
     const entry = parseSessionLine(line);
-    if (entry?.type === "custom-title" && entry.customTitle?.trim()) custom = entry.customTitle.trim();
-    else if (entry?.type === "ai-title" && entry.aiTitle?.trim()) ai = entry.aiTitle.trim();
-    else if (entry?.type === "summary" && entry.summary && !summary) summary = entry.summary;
+    if (entry?.type === "custom-title" && entry.customTitle?.trim())
+      custom = entry.customTitle.trim();
+    else if (entry?.type === "ai-title" && entry.aiTitle?.trim())
+      ai = entry.aiTitle.trim();
+    else if (entry?.type === "summary" && entry.summary && !summary)
+      summary = entry.summary;
   }
   return custom ?? ai ?? summary;
 }
@@ -545,7 +784,9 @@ export function extractSummaryTitle(content: string): string | undefined {
 // ClaudeSessionEntry.teamName). Any stamped line identifies the session's team
 // and member name; the lead's transcript carries no stamps, so undefined here
 // means "not a teammate" (or the stamped lines haven't been written yet).
-export function extractTeamInfo(content: string): { teamName: string; agentName: string } | undefined {
+export function extractTeamInfo(
+  content: string,
+): { teamName: string; agentName: string } | undefined {
   const lines = content.split("\n");
   for (const line of lines) {
     const entry = parseSessionLine(line);
@@ -556,7 +797,10 @@ export function extractTeamInfo(content: string): { teamName: string; agentName:
   return undefined;
 }
 
-export function extractCwd(content: string, opts?: { quiet?: boolean }): string | undefined {
+export function extractCwd(
+  content: string,
+  opts?: { quiet?: boolean },
+): string | undefined {
   const lines = content.split("\n");
   for (const line of lines) {
     const entry = parseSessionLine(line, opts);
@@ -569,7 +813,9 @@ export function extractCwd(content: string, opts?: { quiet?: boolean }): string 
 
 export function detectCliFlags(content: string): string | null {
   const flags: string[] = [];
-  const firstUserLine = content.split("\n").find(l => l.includes('"type":"user"'));
+  const firstUserLine = content
+    .split("\n")
+    .find((l) => l.includes('"type":"user"'));
   if (firstUserLine) {
     try {
       const parsed = JSON.parse(firstUserLine);
@@ -582,7 +828,10 @@ export function detectCliFlags(content: string): string | null {
       else if (parsed.entrypoint === "sdk-cli") flags.push("--print");
     } catch {}
   }
-  if (content.includes("mcp__claude-in-chrome__") || content.includes('"claude-in-chrome"')) {
+  if (
+    content.includes("mcp__claude-in-chrome__") ||
+    content.includes('"claude-in-chrome"')
+  ) {
     flags.push("--chrome");
   }
   return flags.length > 0 ? flags.join(" ") : null;
@@ -603,8 +852,10 @@ export function parseLine(line: string): ClaudeMessage | null {
   try {
     return JSON.parse(line) as ClaudeMessage;
   } catch (err) {
-    const preview = line.length > 100 ? line.slice(0, 100) + '...' : line;
-    console.warn(`[parser] Failed to parse line: ${err instanceof Error ? err.message : String(err)}`);
+    const preview = line.length > 100 ? line.slice(0, 100) + "..." : line;
+    console.warn(
+      `[parser] Failed to parse line: ${err instanceof Error ? err.message : String(err)}`,
+    );
     console.warn(`[parser] Line content: ${preview}`);
     return null;
   }
@@ -620,8 +871,10 @@ export function parseCodexLine(line: string): CodexMessage | null {
   try {
     return JSON.parse(line) as CodexMessage;
   } catch (err) {
-    const preview = line.length > 100 ? line.slice(0, 100) + '...' : line;
-    console.warn(`[parser] Failed to parse codex line: ${err instanceof Error ? err.message : String(err)}`);
+    const preview = line.length > 100 ? line.slice(0, 100) + "..." : line;
+    console.warn(
+      `[parser] Failed to parse codex line: ${err instanceof Error ? err.message : String(err)}`,
+    );
     console.warn(`[parser] Line content: ${preview}`);
     return null;
   }
@@ -640,26 +893,30 @@ interface CodexSessionEntry {
     type?: string;
     status?: string;
     role?: "developer" | "user" | "assistant" | "system";
-    content?: Array<{
-      type: string;
-      text?: string;
-      image_url?: string;
-      image_data?: string;
-      media_type?: string;
-      url?: string;
-    }> | string;
+    content?:
+      | Array<{
+          type: string;
+          text?: string;
+          image_url?: string;
+          image_data?: string;
+          media_type?: string;
+          url?: string;
+        }>
+      | string;
     summary?: Array<{ type: string; text?: string }> | string;
     name?: string;
     call_id?: string;
     arguments?: string;
-    output?: Array<{
-      type: string;
-      text?: string;
-      image_url?: string;
-      image_data?: string;
-      media_type?: string;
-      url?: string;
-    }> | string;
+    output?:
+      | Array<{
+          type: string;
+          text?: string;
+          image_url?: string;
+          image_data?: string;
+          media_type?: string;
+          url?: string;
+        }>
+      | string;
     input?: string;
   };
 }
@@ -676,18 +933,22 @@ function parseCodexImageItem(item: {
   media_type?: string;
   url?: string;
 }): ImageBlock | null {
-  if (typeof item.image_data === "string" && typeof item.media_type === "string") {
+  if (
+    typeof item.image_data === "string" &&
+    typeof item.media_type === "string"
+  ) {
     return {
       mediaType: item.media_type,
       data: item.image_data,
     };
   }
 
-  const imageUrl = typeof item.image_url === "string"
-    ? item.image_url
-    : typeof item.url === "string"
-      ? item.url
-      : undefined;
+  const imageUrl =
+    typeof item.image_url === "string"
+      ? item.image_url
+      : typeof item.url === "string"
+        ? item.url
+        : undefined;
 
   if (!imageUrl) return null;
   const match = imageUrl.match(/^data:([^;,]+);base64,([\s\S]+)$/i);
@@ -700,14 +961,17 @@ function parseCodexImageItem(item: {
 }
 
 function extractCodexTextAndImages(
-  content: Array<{
-    type: string;
-    text?: string;
-    image_url?: string;
-    image_data?: string;
-    media_type?: string;
-    url?: string;
-  }> | string | undefined,
+  content:
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: string;
+        image_data?: string;
+        media_type?: string;
+        url?: string;
+      }>
+    | string
+    | undefined,
 ): { text: string; images: ImageBlock[] } {
   if (typeof content === "string") {
     return { text: sanitizeCodexText(content), images: [] };
@@ -720,14 +984,22 @@ function extractCodexTextAndImages(
   const images: ImageBlock[] = [];
 
   for (const item of content) {
-    if (item.type === "input_text" || item.type === "output_text" || item.type === "text") {
+    if (
+      item.type === "input_text" ||
+      item.type === "output_text" ||
+      item.type === "text"
+    ) {
       if (typeof item.text === "string" && item.text.length > 0) {
         textParts.push(item.text);
       }
       continue;
     }
 
-    if (item.type === "input_image" || item.type === "output_image" || item.type === "image") {
+    if (
+      item.type === "input_image" ||
+      item.type === "output_image" ||
+      item.type === "image"
+    ) {
       const parsedImage = parseCodexImageItem(item);
       if (parsedImage) {
         images.push(parsedImage);
@@ -768,7 +1040,10 @@ function codexItemUuid(entry: CodexSessionEntry, kind: string): string {
   })}`;
 }
 
-export function parseCodexSessionFile(content: string, state: { model?: string } = {}): ParsedMessage[] {
+export function parseCodexSessionFile(
+  content: string,
+  state: { model?: string } = {},
+): ParsedMessage[] {
   const lines = content.split("\n");
   const messages: ParsedMessage[] = [];
   let pendingAssistantThinking = "";
@@ -793,7 +1068,12 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
   }) => {
     const contentText = message.content?.trim() || "";
     const { thinking, uuid: thinkingUuid } = takePendingThinking();
-    if (!contentText && !thinking && !(message.toolCalls && message.toolCalls.length > 0) && !(message.images && message.images.length > 0)) {
+    if (
+      !contentText &&
+      !thinking &&
+      !(message.toolCalls && message.toolCalls.length > 0) &&
+      !(message.images && message.images.length > 0)
+    ) {
       return;
     }
     messages.push({
@@ -803,8 +1083,14 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
       model: currentModel,
       timestamp: message.timestamp,
       thinking,
-      toolCalls: message.toolCalls && message.toolCalls.length > 0 ? message.toolCalls : undefined,
-      images: message.images && message.images.length > 0 ? message.images : undefined,
+      toolCalls:
+        message.toolCalls && message.toolCalls.length > 0
+          ? message.toolCalls
+          : undefined,
+      images:
+        message.images && message.images.length > 0
+          ? message.images
+          : undefined,
     });
   };
 
@@ -819,7 +1105,11 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
     const output = extractInlineImages(message.content);
     const images = [
       ...(message.images ?? []),
-      ...output.paths.map(localPath => ({ mediaType: "image/png", localPath, toolUseId: message.toolUseId })),
+      ...output.paths.map((localPath) => ({
+        mediaType: "image/png",
+        localPath,
+        toolUseId: message.toolUseId,
+      })),
     ];
     messages.push({
       uuid: message.uuid,
@@ -827,11 +1117,13 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
       content: "",
       timestamp: message.timestamp,
       model: currentModel,
-      toolResults: [{
-        toolUseId: message.toolUseId,
-        content: output.text,
-        isError: message.isError,
-      }],
+      toolResults: [
+        {
+          toolUseId: message.toolUseId,
+          content: output.text,
+          isError: message.isError,
+        },
+      ],
       images: images.length > 0 ? images : undefined,
     });
   };
@@ -846,19 +1138,34 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
     }
 
     if (entry.type === "turn_context") {
-      if (pendingAssistantThinking) pushAssistantMessage({ timestamp: lastTimestamp });
+      if (pendingAssistantThinking)
+        pushAssistantMessage({ timestamp: lastTimestamp });
       currentModel = entry.payload.model;
       state.model = currentModel;
       continue;
     }
-    if (entry.type === "event_msg" && entry.payload.type === "task_complete" && entry.payload.error) {
-      if (pendingAssistantThinking) pushAssistantMessage({ timestamp: lastTimestamp });
-      messages.push(codexTurnErrorMessage(entry.payload.turn_id ?? entry.timestamp, entry.payload.error, new Date(entry.timestamp).getTime(), currentModel));
+    if (
+      entry.type === "event_msg" &&
+      entry.payload.type === "task_complete" &&
+      entry.payload.error
+    ) {
+      if (pendingAssistantThinking)
+        pushAssistantMessage({ timestamp: lastTimestamp });
+      messages.push(
+        codexTurnErrorMessage(
+          entry.payload.turn_id ?? entry.timestamp,
+          entry.payload.error,
+          new Date(entry.timestamp).getTime(),
+          currentModel,
+        ),
+      );
     }
     if (entry.type !== "response_item" || entry.isMeta) continue;
 
     const payload = entry.payload;
-    const timestamp = entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now();
+    const timestamp = entry.timestamp
+      ? new Date(entry.timestamp).getTime()
+      : Date.now();
     lastTimestamp = timestamp;
 
     if (payload.type === "message") {
@@ -870,7 +1177,10 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
       const trimmedText = text.trim();
 
       if (role === "user") {
-        if ((trimmedText || images.length > 0) && !isAgentContextMessage(trimmedText)) {
+        if (
+          (trimmedText || images.length > 0) &&
+          !isAgentContextMessage(trimmedText)
+        ) {
           messages.push({
             uuid,
             role: "user",
@@ -888,14 +1198,21 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
         });
       }
     } else if (payload.type === "reasoning") {
-      const contentArray = Array.isArray(payload.content) ? payload.content : [];
-      const summaryArray = Array.isArray(payload.summary) ? payload.summary : [];
-      const thinkingText = contentArray.length > 0
-        ? contentArray.map((c) => c.text || "").join("\n")
-        : summaryArray.map((c) => c.text || "").join("\n");
+      const contentArray = Array.isArray(payload.content)
+        ? payload.content
+        : [];
+      const summaryArray = Array.isArray(payload.summary)
+        ? payload.summary
+        : [];
+      const thinkingText =
+        contentArray.length > 0
+          ? contentArray.map((c) => c.text || "").join("\n")
+          : summaryArray.map((c) => c.text || "").join("\n");
       if (thinkingText) {
-        pendingAssistantThinking += (pendingAssistantThinking ? "\n" : "") + thinkingText;
-        pendingAssistantThinkingUuid = pendingAssistantThinkingUuid || codexItemUuid(entry, "reasoning");
+        pendingAssistantThinking +=
+          (pendingAssistantThinking ? "\n" : "") + thinkingText;
+        pendingAssistantThinkingUuid =
+          pendingAssistantThinkingUuid || codexItemUuid(entry, "reasoning");
       }
     } else if (payload.type === "function_call") {
       let args: Record<string, unknown> = {};
@@ -918,11 +1235,13 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
       pushAssistantMessage({
         uuid: codexItemUuid(entry, "function-call"),
         timestamp,
-        toolCalls: [{
-          id: payload.call_id || "",
-          name: payload.name || "",
-          input: args,
-        }],
+        toolCalls: [
+          {
+            id: payload.call_id || "",
+            name: payload.name || "",
+            input: args,
+          },
+        ],
       });
     } else if (payload.type === "function_call_output") {
       const outputParsed = extractCodexTextAndImages(payload.output);
@@ -930,9 +1249,10 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
         uuid: codexItemUuid(entry, "function-output"),
         timestamp,
         toolUseId: payload.call_id || "",
-        content: typeof payload.output === "string"
-          ? payload.output
-          : outputParsed.text,
+        content:
+          typeof payload.output === "string"
+            ? payload.output
+            : outputParsed.text,
         images: outputParsed.images.map((img) => ({
           mediaType: img.mediaType,
           data: img.data,
@@ -943,11 +1263,13 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
       pushAssistantMessage({
         uuid: codexItemUuid(entry, "custom-tool-call"),
         timestamp,
-        toolCalls: [{
-          id: payload.call_id || "",
-          name: payload.name || "",
-          input: payload.input ? { input: payload.input } : {},
-        }],
+        toolCalls: [
+          {
+            id: payload.call_id || "",
+            name: payload.name || "",
+            input: payload.input ? { input: payload.input } : {},
+          },
+        ],
       });
     } else if (payload.type === "custom_tool_call_output") {
       const outputParsed = extractCodexTextAndImages(payload.output);
@@ -955,9 +1277,10 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
         uuid: codexItemUuid(entry, "custom-tool-output"),
         timestamp,
         toolUseId: payload.call_id || "",
-        content: typeof payload.output === "string"
-          ? payload.output
-          : outputParsed.text,
+        content:
+          typeof payload.output === "string"
+            ? payload.output
+            : outputParsed.text,
         images: outputParsed.images.map((img) => ({
           mediaType: img.mediaType,
           data: img.data,
@@ -967,7 +1290,8 @@ export function parseCodexSessionFile(content: string, state: { model?: string }
     }
   }
 
-  const { thinking: trailingThinking, uuid: trailingThinkingUuid } = takePendingThinking();
+  const { thinking: trailingThinking, uuid: trailingThinkingUuid } =
+    takePendingThinking();
   if (trailingThinking) {
     messages.push({
       uuid: trailingThinkingUuid,
@@ -1021,7 +1345,9 @@ export function parseCursorPrompts(dbValue: string): ParsedMessage[] {
     for (const item of data) {
       if (!item || typeof item !== "object") continue;
 
-      const timestamp = parseTimestamp(item.timestamp || item.createdAt || item.created_at);
+      const timestamp = parseTimestamp(
+        item.timestamp || item.createdAt || item.created_at,
+      );
 
       const role = item.role === "user" ? "user" : "assistant";
       const content = typeof item.text === "string" ? item.text : "";
@@ -1048,7 +1374,9 @@ export function parseCursorPrompts(dbValue: string): ParsedMessage[] {
  */
 export function isCursorRoleHeaderLine(line: string): boolean {
   const trimmed = line.trim().toLowerCase();
-  return trimmed === "user:" || trimmed === "assistant:" || trimmed === "system:";
+  return (
+    trimmed === "user:" || trimmed === "assistant:" || trimmed === "system:"
+  );
 }
 
 /**
@@ -1065,11 +1393,15 @@ export function isCursorJsonlTranscript(content: string): boolean {
 // `<timestamp>Tuesday, Sep 29, 2026, 2:29 AM (UTC-4)</timestamp>`, which the
 // JSONL format prefixes to each user query; it is the only clock it records.
 function cursorQueryTimestamp(text: string): number | undefined {
-  const m = text.match(/<timestamp>\s*(?:\w+,\s*)?(\w+ \d{1,2}, \d{4}),?\s*(\d{1,2}:\d{2}(?::\d{2})?\s*[AP]M)\s*\(UTC([+-]\d{1,2})(?::?(\d{2}))?\)\s*<\/timestamp>/i);
+  const m = text.match(
+    /<timestamp>\s*(?:\w+,\s*)?(\w+ \d{1,2}, \d{4}),?\s*(\d{1,2}:\d{2}(?::\d{2})?\s*[AP]M)\s*\(UTC([+-]\d{1,2})(?::?(\d{2}))?\)\s*<\/timestamp>/i,
+  );
   if (!m) return undefined;
   const local = Date.parse(`${m[1]} ${m[2]} UTC`);
   if (Number.isNaN(local)) return undefined;
-  const offsetMin = parseInt(m[3], 10) * 60 + Math.sign(parseInt(m[3], 10) || 1) * parseInt(m[4] ?? "0", 10);
+  const offsetMin =
+    parseInt(m[3], 10) * 60 +
+    Math.sign(parseInt(m[3], 10) || 1) * parseInt(m[4] ?? "0", 10);
   return local - offsetMin * 60_000;
 }
 
@@ -1082,16 +1414,30 @@ function cursorQueryTimestamp(text: string): number | undefined {
  * something the person typed. Null for any other text.
  */
 export function cursorTaskNotification(text: string): string | null {
-  const notice = text.match(/<system_notification>([\s\S]*?)<\/system_notification>/);
+  const notice = text.match(
+    /<system_notification>([\s\S]*?)<\/system_notification>/,
+  );
   if (!notice) return null;
-  const blocks = [...notice[1].matchAll(/<task>([\s\S]*?)<\/task>/g)].map((m) => {
-    const field = (name: string) => m[1].match(new RegExp(`^${name}:\\s*(.*)$`, "m"))?.[1].trim();
-    const ok = field("status") === "success" || field("status") === "completed";
-    const status = ok ? "completed" : field("status") === "cancelled" ? "killed" : "failed";
-    const detail = m[1].match(/^detail:\s*([\s\S]*)$/m)?.[1].replace(/^This is the last output of the subagent:\s*/, "").trim() ?? "";
-    const title = field("title") ?? field("task_id") ?? "task";
-    return `<task-notification>\n<task-id>${field("task_id") ?? ""}</task-id>\n<status>${status}</status>\n<summary>Agent "${title}" ${status === "completed" ? "completed" : status}</summary>\n<result>${detail}</result>\n</task-notification>`;
-  });
+  const blocks = [...notice[1].matchAll(/<task>([\s\S]*?)<\/task>/g)].map(
+    (m) => {
+      const field = (name: string) =>
+        m[1].match(new RegExp(`^${name}:\\s*(.*)$`, "m"))?.[1].trim();
+      const ok =
+        field("status") === "success" || field("status") === "completed";
+      const status = ok
+        ? "completed"
+        : field("status") === "cancelled"
+          ? "killed"
+          : "failed";
+      const detail =
+        m[1]
+          .match(/^detail:\s*([\s\S]*)$/m)?.[1]
+          .replace(/^This is the last output of the subagent:\s*/, "")
+          .trim() ?? "";
+      const title = field("title") ?? field("task_id") ?? "task";
+      return `<task-notification>\n<task-id>${field("task_id") ?? ""}</task-id>\n<status>${status}</status>\n<summary>Agent "${title}" ${status === "completed" ? "completed" : status}</summary>\n<result>${detail}</result>\n</task-notification>`;
+    },
+  );
   return blocks.length ? blocks.join("\n") : null;
 }
 
@@ -1101,7 +1447,10 @@ export function cursorTaskNotification(text: string): string | null {
 // is the mirror's (parseMirrorTranscript); Cursor adds its wrappers around the
 // text: the dated `<user_query>`, task notifications, and the `[REDACTED]`
 // reasoning marker.
-function cursorRecordText(role: "user" | "assistant", text: string): MirrorTextRewrite {
+function cursorRecordText(
+  role: "user" | "assistant",
+  text: string,
+): MirrorTextRewrite {
   let body = text;
   let clock: number | undefined;
   if (role === "user") {
@@ -1121,22 +1470,48 @@ function cursorRecordText(role: "user" | "assistant", text: string): MirrorTextR
  * JSONL is that format, and its cloud mirror carries the same wrappers. A
  * type with no entry reads its records as written.
  */
-const MIRROR_TEXT_BY_AGENT: Record<string, Pick<MirrorReadOptions, "rewrite" | "toolIdPrefix">> = {
+const MIRROR_TEXT_BY_AGENT: Record<
+  string,
+  Pick<MirrorReadOptions, "rewrite" | "toolIdPrefix">
+> = {
   cursor: { rewrite: cursorRecordText, toolIdPrefix: "cursor" },
 };
 
 /** A transcript in the mirror format (a cloud agent's mirror, cloudAgents/), read for the agent type its session runs under. */
-export function parseMirrorTranscriptFile(agentType: string, content: string, sessionId?: string, fallbackClock?: number): ParsedMessage[] {
-  return parseMirrorTranscript(content, { sessionId, fallbackClock, ...MIRROR_TEXT_BY_AGENT[agentType] });
+export function parseMirrorTranscriptFile(
+  agentType: string,
+  content: string,
+  sessionId?: string,
+  fallbackClock?: number,
+): ParsedMessage[] {
+  return parseMirrorTranscript(content, {
+    sessionId,
+    fallbackClock,
+    ...MIRROR_TEXT_BY_AGENT[agentType],
+  });
 }
 
 /** cursor-agent's own JSONL: the mirror format's plain reading, so its ordinals count only what cursor-agent writes. */
-function parseCursorJsonlTranscript(content: string, sessionId?: string, fallbackClock?: number): ParsedMessage[] {
-  return parseMirrorTranscript(content, { sessionId, fallbackClock, ...MIRROR_TEXT_BY_AGENT.cursor, plain: true });
+function parseCursorJsonlTranscript(
+  content: string,
+  sessionId?: string,
+  fallbackClock?: number,
+): ParsedMessage[] {
+  return parseMirrorTranscript(content, {
+    sessionId,
+    fallbackClock,
+    ...MIRROR_TEXT_BY_AGENT.cursor,
+    plain: true,
+  });
 }
 
-export function parseCursorTranscriptFile(content: string, sessionId?: string, fallbackClock?: number): ParsedMessage[] {
-  if (isCursorJsonlTranscript(content)) return parseCursorJsonlTranscript(content, sessionId, fallbackClock);
+export function parseCursorTranscriptFile(
+  content: string,
+  sessionId?: string,
+  fallbackClock?: number,
+): ParsedMessage[] {
+  if (isCursorJsonlTranscript(content))
+    return parseCursorJsonlTranscript(content, sessionId, fallbackClock);
   const messages: ParsedMessage[] = [];
   const lines = content.split("\n");
   let currentRole: "user" | "assistant" | "system" | null = null;
@@ -1190,7 +1565,10 @@ export function parseCursorTranscriptFile(content: string, sessionId?: string, f
   for (const line of lines) {
     if (isCursorRoleHeaderLine(line)) {
       flush();
-      currentRole = line.trim().toLowerCase().slice(0, -1) as "user" | "assistant" | "system";
+      currentRole = line.trim().toLowerCase().slice(0, -1) as
+        | "user"
+        | "assistant"
+        | "system";
       continue;
     }
     buffer.push(line);
@@ -1206,7 +1584,14 @@ interface GeminiSessionMessage {
   type: "user" | "gemini" | "info";
   content: Array<{ text: string }> | string;
   thoughts?: Array<{ subject: string; description: string; timestamp: string }>;
-  tokens?: { input: number; output: number; cached: number; thoughts: number; tool: number; total: number };
+  tokens?: {
+    input: number;
+    output: number;
+    cached: number;
+    thoughts: number;
+    tool: number;
+    total: number;
+  };
   model?: string;
   toolCalls?: Array<{
     id: string;
@@ -1225,7 +1610,10 @@ interface GeminiSessionFile {
   messages: GeminiSessionMessage[];
 }
 
-export function parseGeminiSessionFile(content: string, onEmit?: TranscriptEmissionObserver): ParsedMessage[] {
+export function parseGeminiSessionFile(
+  content: string,
+  onEmit?: TranscriptEmissionObserver,
+): ParsedMessage[] {
   let session: GeminiSessionFile;
   try {
     session = JSON.parse(content);
@@ -1242,7 +1630,9 @@ export function parseGeminiSessionFile(content: string, onEmit?: TranscriptEmiss
   for (const [occurrence, msg] of session.messages.entries()) {
     if (msg.type === "info") continue;
 
-    const timestamp = msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now();
+    const timestamp = msg.timestamp
+      ? new Date(msg.timestamp).getTime()
+      : Date.now();
     let role: "user" | "assistant";
     let textContent = "";
 
@@ -1267,18 +1657,28 @@ export function parseGeminiSessionFile(content: string, onEmit?: TranscriptEmiss
     let thinking: string | undefined;
     if (msg.thoughts && msg.thoughts.length > 0) {
       thinking = msg.thoughts
-        .map((t) => (t.subject ? `${t.subject}: ${t.description}` : t.description))
+        .map((t) =>
+          t.subject ? `${t.subject}: ${t.description}` : t.description,
+        )
         .join("\n\n");
     }
 
-    const toolCalls = msg.type === "gemini" && Array.isArray(msg.toolCalls)
-      ? msg.toolCalls.map((call) => ({ id: call.id, name: call.name, input: call.args ?? {} }))
-      : [];
+    const toolCalls =
+      msg.type === "gemini" && Array.isArray(msg.toolCalls)
+        ? msg.toolCalls.map((call) => ({
+            id: call.id,
+            name: call.name,
+            input: call.args ?? {},
+          }))
+        : [];
     const toolResults = (msg.toolCalls ?? [])
       .filter((call) => ["success", "error", "cancelled"].includes(call.status))
       .map((call) => ({
         toolUseId: call.id,
-        content: typeof call.result === "string" ? call.result : JSON.stringify(call.result ?? ""),
+        content:
+          typeof call.result === "string"
+            ? call.result
+            : JSON.stringify(call.result ?? ""),
         isError: call.status !== "success",
       }));
 
@@ -1293,7 +1693,12 @@ export function parseGeminiSessionFile(content: string, onEmit?: TranscriptEmiss
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
       });
-      onEmit?.(messages[messages.length - 1], { occurrence, timestampPresent: Object.hasOwn(msg, "timestamp"), nativeTimestamp: msg.timestamp, receiptTimestamp: msg.timestamp ? timestamp : 0 });
+      onEmit?.(messages[messages.length - 1], {
+        occurrence,
+        timestampPresent: Object.hasOwn(msg, "timestamp"),
+        nativeTimestamp: msg.timestamp,
+        receiptTimestamp: msg.timestamp ? timestamp : 0,
+      });
     }
   }
 
@@ -1356,7 +1761,10 @@ interface OpencodeAssembledSession {
  *  Returns null for non-data urls (a remote http/file path carries no inline
  *  bytes) or a non-image mime — matching the image-only `images` field every
  *  other client populates. */
-function parseDataUrlImage(url: string | undefined, mime: string | undefined): ImageBlock | null {
+function parseDataUrlImage(
+  url: string | undefined,
+  mime: string | undefined,
+): ImageBlock | null {
   if (typeof url !== "string") return null;
   const match = url.match(/^data:([^;,]+);base64,([\s\S]+)$/i);
   if (!match) return null;
@@ -1375,7 +1783,9 @@ function foldOpencodeParts(parts: OpencodePart[]): {
 } {
   // Part ids are monotonic within a message; sort by id so streaming/interleaved
   // writes read back in author order regardless of directory listing order.
-  const ordered = [...parts].sort((a, b) => (a.id ?? "").localeCompare(b.id ?? ""));
+  const ordered = [...parts].sort((a, b) =>
+    (a.id ?? "").localeCompare(b.id ?? ""),
+  );
   const textChunks: string[] = [];
   const thinkingChunks: string[] = [];
   const toolCalls: ToolCall[] = [];
@@ -1444,17 +1854,28 @@ export function parseOpencodeSessionFile(content: string): ParsedMessage[] {
     const role = info.role;
     if (role !== "user" && role !== "assistant") continue;
 
-    const { content: text, thinking, toolCalls, toolResults, images } = foldOpencodeParts(entry.parts ?? []);
+    const {
+      content: text,
+      thinking,
+      toolCalls,
+      toolResults,
+      images,
+    } = foldOpencodeParts(entry.parts ?? []);
     if (role === "user" && isCodecastImportNotice(text)) continue;
     const hasBody =
-      text.trim().length > 0 || thinking.length > 0 || toolCalls.length > 0 || toolResults.length > 0 || images.length > 0;
+      text.trim().length > 0 ||
+      thinking.length > 0 ||
+      toolCalls.length > 0 ||
+      toolResults.length > 0 ||
+      images.length > 0;
 
     // A failed assistant turn carries only `error` and no body. Surface the
     // provider's message as the content (instead of dropping the message) so it
     // syncs, the shared apiErrorBanner classifier can flag it (auth/setup errors
     // → the "Authentication required" card, with the client-correct fix), and the
     // user sees WHY the turn stopped rather than a silently dead session.
-    const errorText = role === "assistant" ? info.error?.data?.message?.trim() : undefined;
+    const errorText =
+      role === "assistant" ? info.error?.data?.message?.trim() : undefined;
     if (!hasBody) {
       if (!errorText) continue;
       // Stamp the shared client-error marker so the apiErrorBanner classifier
@@ -1522,7 +1943,13 @@ interface PiMessage {
   model?: string;
   stopReason?: string;
   // assistant: tokens for this one model call. pi also prices it in `cost`.
-  usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number };
+  usage?: {
+    input?: number;
+    output?: number;
+    cacheRead?: number;
+    cacheWrite?: number;
+    totalTokens?: number;
+  };
   // toolResult
   toolCallId?: string;
   toolName?: string;
@@ -1549,7 +1976,12 @@ function extractPiBlocks(content: string | PiContentBlock[] | undefined): {
   toolCalls: ToolCall[];
   images: ImageBlock[];
 } {
-  const out = { text: "", thinking: "", toolCalls: [] as ToolCall[], images: [] as ImageBlock[] };
+  const out = {
+    text: "",
+    thinking: "",
+    toolCalls: [] as ToolCall[],
+    images: [] as ImageBlock[],
+  };
   if (typeof content === "string") {
     out.text = content;
     return out;
@@ -1561,7 +1993,11 @@ function extractPiBlocks(content: string | PiContentBlock[] | undefined): {
     } else if (b.type === "thinking" && typeof b.thinking === "string") {
       out.thinking += b.thinking;
     } else if (b.type === "toolCall") {
-      out.toolCalls.push({ id: b.id ?? "", name: b.name ?? "", input: b.arguments ?? {} });
+      out.toolCalls.push({
+        id: b.id ?? "",
+        name: b.name ?? "",
+        input: b.arguments ?? {},
+      });
     } else if (b.type === "image" && typeof b.data === "string") {
       out.images.push({ mediaType: b.mimeType ?? "image/png", data: b.data });
     }
@@ -1626,7 +2062,9 @@ export function parsePiSessionFile(content: string): ParsedMessage[] {
   // assistant message; the message's own model wins, model_change is the fallback.
   let currentModel: string | undefined;
   for (const entry of branch) {
-    const timestamp = entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now();
+    const timestamp = entry.timestamp
+      ? new Date(entry.timestamp).getTime()
+      : Date.now();
 
     if (entry.type === "model_change") {
       if (entry.modelId) currentModel = entry.modelId;
@@ -1654,7 +2092,8 @@ export function parsePiSessionFile(content: string): ParsedMessage[] {
       }
     } else if (m.role === "assistant") {
       if (text || thinking || toolCalls.length > 0 || images.length > 0) {
-        const model = m.model && !m.model.startsWith("<") ? m.model : currentModel;
+        const model =
+          m.model && !m.model.startsWith("<") ? m.model : currentModel;
         messages.push({
           uuid: entry.id,
           role: "assistant",
@@ -1674,14 +2113,17 @@ export function parsePiSessionFile(content: string): ParsedMessage[] {
         role: "assistant",
         content: "",
         timestamp,
-        toolResults: [{
-          toolUseId: m.toolCallId ?? "",
-          content: text,
-          isError: m.isError,
-        }],
-        images: images.length > 0
-          ? images.map((img) => ({ ...img, toolUseId: m.toolCallId }))
-          : undefined,
+        toolResults: [
+          {
+            toolUseId: m.toolCallId ?? "",
+            content: text,
+            isError: m.isError,
+          },
+        ],
+        images:
+          images.length > 0
+            ? images.map((img) => ({ ...img, toolUseId: m.toolCallId }))
+            : undefined,
       });
     }
   }
@@ -1783,9 +2225,16 @@ function grokLineUpdate(parsed: GrokEnvelope): GrokUpdate | undefined {
 
 /** Fold a chunk's `content` (one block or an array) into text + images. Non-text
  *  block types other than image are skipped — they carry no renderable body. */
-function extractGrokChunk(content: GrokUpdate["content"]): { text: string; images: ImageBlock[] } {
+function extractGrokChunk(content: GrokUpdate["content"]): {
+  text: string;
+  images: ImageBlock[];
+} {
   const out = { text: "", images: [] as ImageBlock[] };
-  const blocks = Array.isArray(content) ? content : content && typeof content === "object" ? [content] : [];
+  const blocks = Array.isArray(content)
+    ? content
+    : content && typeof content === "object"
+      ? [content]
+      : [];
   for (const b of blocks as GrokContentBlock[]) {
     if (b.type === "text" && typeof b.text === "string") {
       out.text += b.text;
@@ -1804,18 +2253,35 @@ function extractGrokChunk(content: GrokUpdate["content"]): { text: string; image
  *  as a minimal unified diff; dropping it left every file edit with an empty
  *  result. */
 function extractGrokToolResultText(content: GrokUpdate["content"]): string {
-  const blocks = Array.isArray(content) ? content : content && typeof content === "object" ? [content] : [];
+  const blocks = Array.isArray(content)
+    ? content
+    : content && typeof content === "object"
+      ? [content]
+      : [];
   let text = "";
-  for (const b of blocks as (GrokContentBlock & { content?: GrokContentBlock })[]) {
+  for (const b of blocks as (GrokContentBlock & {
+    content?: GrokContentBlock;
+  })[]) {
     if (b.type === "text" && typeof b.text === "string") text += b.text;
-    else if (b.type === "content" && b.content?.type === "text" && typeof b.content.text === "string") {
+    else if (
+      b.type === "content" &&
+      b.content?.type === "text" &&
+      typeof b.content.text === "string"
+    ) {
       text += b.content.text;
     } else if (b.type === "diff") {
       const prefixLines = (s: string, prefix: string) =>
-        s ? s.replace(/\n$/, "").split("\n").map((l) => `${prefix}${l}`).join("\n") + "\n" : "";
-      text += (typeof b.path === "string" && b.path ? `${b.path}\n` : "")
-        + prefixLines(typeof b.oldText === "string" ? b.oldText : "", "- ")
-        + prefixLines(typeof b.newText === "string" ? b.newText : "", "+ ");
+        s
+          ? s
+              .replace(/\n$/, "")
+              .split("\n")
+              .map((l) => `${prefix}${l}`)
+              .join("\n") + "\n"
+          : "";
+      text +=
+        (typeof b.path === "string" && b.path ? `${b.path}\n` : "") +
+        prefixLines(typeof b.oldText === "string" ? b.oldText : "", "- ") +
+        prefixLines(typeof b.newText === "string" ? b.newText : "", "+ ");
     }
   }
   return text;
@@ -1839,7 +2305,10 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
   // in_progress update carries the tool DESCRIPTION, the terminal update the
   // full output — accumulating across updates prefixed every command result
   // with its description). The result is emitted once the status turns terminal.
-  const pendingTools = new Map<string, { resultText: string; emitted: boolean }>();
+  const pendingTools = new Map<
+    string,
+    { resultText: string; emitted: boolean }
+  >();
 
   const push = (msg: ParsedMessage) => {
     tracked.push({ msg, promptIndex });
@@ -1869,16 +2338,23 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
         if (update._meta?.modelId) currentModel = update._meta.modelId;
         const metaIndex = update._meta?.promptIndex;
         const newTurn =
-          open?.role !== "user" || (metaIndex != null && metaIndex !== promptIndex);
+          open?.role !== "user" ||
+          (metaIndex != null && metaIndex !== promptIndex);
         if (newTurn) {
           close();
           promptIndex = metaIndex ?? promptIndex + 1;
           turnHasAssistantText = false;
-          open = push({ uuid: `grok-u${i}`, role: "user", content: "", timestamp: ts });
+          open = push({
+            uuid: `grok-u${i}`,
+            role: "user",
+            content: "",
+            timestamp: ts,
+          });
         }
         const { text, images } = extractGrokChunk(update.content);
         open!.content += text;
-        if (images.length > 0) open!.images = [...(open!.images ?? []), ...images];
+        if (images.length > 0)
+          open!.images = [...(open!.images ?? []), ...images];
         break;
       }
       case "agent_message_chunk":
@@ -1918,7 +2394,10 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
           update.rawInput && typeof update.rawInput === "object"
             ? (update.rawInput as Record<string, unknown>)
             : {};
-        open!.toolCalls = [...(open!.toolCalls ?? []), { id, name: update.title ?? "", input }];
+        open!.toolCalls = [
+          ...(open!.toolCalls ?? []),
+          { id, name: update.title ?? "", input },
+        ];
         if (id) pendingTools.set(id, { resultText: "", emitted: false });
         break;
       }
@@ -1928,7 +2407,8 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
         if (!pending || pending.emitted) break; // unknown id (fork/rewind edge) -> ignore
         // Replace, never append (see pendingTools above). An update with no
         // `content` field keeps the last known result.
-        if (update.content !== undefined) pending.resultText = extractGrokToolResultText(update.content);
+        if (update.content !== undefined)
+          pending.resultText = extractGrokToolResultText(update.content);
         if (update.status === "completed" || update.status === "failed") {
           pending.emitted = true;
           close();
@@ -1955,9 +2435,19 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
         close();
         const lastAssistant = [...tracked]
           .reverse()
-          .find((t) => t.promptIndex === promptIndex && t.msg.role === "assistant" && !t.msg.toolResults);
-        if (lastAssistant && update.stop_reason) lastAssistant.msg.stopReason = update.stop_reason;
-        if (!turnHasAssistantText && typeof update.agent_result === "string" && update.agent_result.trim()) {
+          .find(
+            (t) =>
+              t.promptIndex === promptIndex &&
+              t.msg.role === "assistant" &&
+              !t.msg.toolResults,
+          );
+        if (lastAssistant && update.stop_reason)
+          lastAssistant.msg.stopReason = update.stop_reason;
+        if (
+          !turnHasAssistantText &&
+          typeof update.agent_result === "string" &&
+          update.agent_result.trim()
+        ) {
           push({
             uuid: `grok-r${i}`,
             role: "assistant",
@@ -1999,14 +2489,16 @@ export function parseGrokSessionFile(content: string): ParsedMessage[] {
     }
   }
 
-  return tracked.map((t) => t.msg).filter(
-    (m) =>
-      m.content.trim().length > 0 ||
-      (m.thinking?.length ?? 0) > 0 ||
-      (m.toolCalls?.length ?? 0) > 0 ||
-      (m.toolResults?.length ?? 0) > 0 ||
-      (m.images?.length ?? 0) > 0,
-  );
+  return tracked
+    .map((t) => t.msg)
+    .filter(
+      (m) =>
+        m.content.trim().length > 0 ||
+        (m.thinking?.length ?? 0) > 0 ||
+        (m.toolCalls?.length ?? 0) > 0 ||
+        (m.toolResults?.length ?? 0) > 0 ||
+        (m.images?.length ?? 0) > 0,
+    );
 }
 
 /** cwd of a grok session, from its summary.json sibling (`info.cwd`) —
@@ -2033,7 +2525,10 @@ export function isGrokInternalSession(summaryContent: string): boolean {
   try {
     const summary = JSON.parse(summaryContent);
     if (summary?.hidden === true) return true;
-    return summary?.session_kind === "subagent" || summary?.session_kind === "subagent_fork";
+    return (
+      summary?.session_kind === "subagent" ||
+      summary?.session_kind === "subagent_fork"
+    );
   } catch {
     return false;
   }
@@ -2049,7 +2544,11 @@ export function isGrokInternalSession(summaryContent: string): boolean {
  * blob path uses parseCursorPrompts directly. OpenCode reads an assembled
  * multi-file snapshot (see parseOpencodeSessionFile).
  */
-export function parseTranscriptFor(clientId: AgentClientId, content: string, onEmit?: TranscriptEmissionObserver): ParsedMessage[] {
+export function parseTranscriptFor(
+  clientId: AgentClientId,
+  content: string,
+  onEmit?: TranscriptEmissionObserver,
+): ParsedMessage[] {
   switch (clientId) {
     case "codex":
       return parseCodexSessionFile(content);

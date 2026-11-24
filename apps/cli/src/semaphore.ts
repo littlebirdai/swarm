@@ -29,7 +29,10 @@ export function countingSemaphore(limit: number): Semaphore {
     active--;
     waiters.shift()?.();
   };
-  const run = async <T>(fn: () => Promise<T>, opts?: { front?: boolean }): Promise<T> => {
+  const run = async <T>(
+    fn: () => Promise<T>,
+    opts?: { front?: boolean },
+  ): Promise<T> => {
     await acquire(opts?.front === true);
     try {
       return await fn();

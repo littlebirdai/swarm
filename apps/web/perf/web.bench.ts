@@ -9,12 +9,24 @@ import { bench, script, type Case } from "@hona/strobe";
 
 type Report = { counts: Record<string, number> };
 
-const COUNTS = ["commits", "storeWrites", "domMutations", "layoutReads", "convexSubscribes", "convexQueries", "convexMutations", "convexActions"];
+const COUNTS = [
+  "commits",
+  "storeWrites",
+  "domMutations",
+  "layoutReads",
+  "convexSubscribes",
+  "convexQueries",
+  "convexMutations",
+  "convexActions",
+];
 
 function harnessCase(extra: string[] = []): Case<{}> {
   return {
     primary: "cpu.work",
-    metrics: ["run.duration", ...[...COUNTS, ...extra].map((name) => `count.${name}`)],
+    metrics: [
+      "run.duration",
+      ...[...COUNTS, ...extra].map((name) => `count.${name}`),
+    ],
     async run(ctx) {
       const report = await ctx.call<Report>("run");
       for (const [name, n] of Object.entries(report.counts)) ctx.count(name, n);
@@ -42,7 +54,9 @@ export default bench({
   targets: {
     // A git ref's worktree has no node_modules until this runs; a checkout
     // that has them (head, usually a shared tree) is left alone.
-    web: script("./harness.tsx", { build: "test -d node_modules || bun install --frozen-lockfile" }),
+    web: script("./harness.tsx", {
+      build: "test -d node_modules || bun install --frozen-lockfile",
+    }),
   },
   async setup(ctx) {
     await ctx.call("setup", WORKLOAD[ctx.case]);

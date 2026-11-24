@@ -21,9 +21,16 @@ function stubPlayer() {
     t: 0,
     on: false,
     seeks: [] as number[],
-    play() { p.on = true; },
-    pause() { p.on = false; },
-    seek(t: number) { p.t = t; p.seeks.push(t); },
+    play() {
+      p.on = true;
+    },
+    pause() {
+      p.on = false;
+    },
+    seek(t: number) {
+      p.t = t;
+      p.seeks.push(t);
+    },
     getTime: () => p.t,
     getDuration: () => 10,
     isPlaying: () => p.on,
@@ -33,8 +40,19 @@ function stubPlayer() {
 
 type Win = JSDOM["window"] & Record<string, any>;
 
-async function motionPage(opts: { data?: boolean; manifest?: boolean; html?: string; timeline?: unknown } = {}) {
-  const dom = new JSDOM(opts.html ?? COMPOSITION, { runScripts: "outside-only", pretendToBeVisual: true, url: "https://pages.test/cli/a/slug/" });
+async function motionPage(
+  opts: {
+    data?: boolean;
+    manifest?: boolean;
+    html?: string;
+    timeline?: unknown;
+  } = {},
+) {
+  const dom = new JSDOM(opts.html ?? COMPOSITION, {
+    runScripts: "outside-only",
+    pretendToBeVisual: true,
+    url: "https://pages.test/cli/a/slug/",
+  });
   const win = dom.window as Win;
   const player = stubPlayer();
   win.__player = player;
@@ -47,21 +65,46 @@ async function motionPage(opts: { data?: boolean; manifest?: boolean; html?: str
   const subs: Record<string, (r: unknown) => void> = {};
   if (opts.data) {
     win.cast = {
-      data: async () => ({ columns: ["hour", "empty"], rows: [["7:00", 3], ["8:15", 1234.4]], refreshed_at: 1, query_text: "q", stale: false }),
-      subscribe: (id: string, cb: (r: unknown) => void) => { subs[id] = cb; return () => {}; },
+      data: async () => ({
+        columns: ["hour", "empty"],
+        rows: [
+          ["7:00", 3],
+          ["8:15", 1234.4],
+        ],
+        refreshed_at: 1,
+        query_text: "q",
+        stale: false,
+      }),
+      subscribe: (id: string, cb: (r: unknown) => void) => {
+        subs[id] = cb;
+        return () => {};
+      },
     };
   }
   const fetched: string[] = [];
   win.fetch = async (url: string) => {
     fetched.push(url);
     if (!opts.manifest) return { ok: false, json: async () => null };
-    return { ok: true, json: async () => ({ mp4: "cast-render/motion.mp4", rendered_at: 1_700_000_000_000 }) };
+    return {
+      ok: true,
+      json: async () => ({
+        mp4: "cast-render/motion.mp4",
+        rendered_at: 1_700_000_000_000,
+      }),
+    };
   };
   let readyEvents = 0;
   win.addEventListener("cast:timeline-ready", () => readyEvents++);
   win.eval(CAST_MOTION_JS);
   await new Promise((r) => setTimeout(r, 30));
-  return { win, doc: win.document, player, subs, fetched, readyEvents: () => readyEvents };
+  return {
+    win,
+    doc: win.document,
+    player,
+    subs,
+    fetched,
+    readyEvents: () => readyEvents,
+  };
 }
 
 const frame = () => new Promise((r) => setTimeout(r, 40));
@@ -87,7 +130,10 @@ test("the page opens on a poster still and play starts from the top", async () =
   expect(plain.player.t).toBe(0);
   plain.win.__castTimeline.pause();
   // The first beat's tweens end at 1.4s: the poster is just after it settles.
-  const parts = [{ startTime: () => 0.2, endTime: () => 1.4 }, { startTime: () => 5, endTime: () => 9 }];
+  const parts = [
+    { startTime: () => 0.2, endTime: () => 1.4 },
+    { startTime: () => 5, endTime: () => 9 },
+  ];
   const settled = await motionPage({ timeline: { getChildren: () => parts } });
   expect(settled.win.__castTimeline.time()).toBeCloseTo(1.5, 5);
   expect(settled.doc.querySelector("#__cm_time b")!.textContent).toBe("0:01.5");
@@ -97,7 +143,12 @@ test("the page opens on a poster still and play starts from the top", async () =
   expect(settled.player.t).toBe(6);
   settled.win.__castTimeline.pause();
   // The composition names its own poster.
-  const named = await motionPage({ html: COMPOSITION.replace('data-duration="10">', 'data-duration="10" data-poster="7.25">') });
+  const named = await motionPage({
+    html: COMPOSITION.replace(
+      'data-duration="10">',
+      'data-duration="10" data-poster="7.25">',
+    ),
+  });
   expect(named.win.__castTimeline.time()).toBe(7.25);
 });
 
@@ -150,7 +201,9 @@ test("markers draw on the scrubber at their times and a click seeks there and re
   expect(mk.length).toBe(2);
   expect(mk[0].style.left).toBe("25%");
   expect(mk[0].textContent).toBe("1");
-  expect(mk[1].querySelector("img")!.getAttribute("src")).toBe("https://x.test/a.png");
+  expect(mk[1].querySelector("img")!.getAttribute("src")).toBe(
+    "https://x.test/a.png",
+  );
   mk[0].dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
   expect(tl.time()).toBe(2.5);
   expect(clicked).toEqual([{ id: "c1", t: 2.5, n: 1 }]);
@@ -163,7 +216,9 @@ test("keyboard steps the timeline but leaves typing alone", async () => {
   const tl = win.__castTimeline;
   tl.seek(0);
   const key = (k: string, target: EventTarget = doc.body, shiftKey = false) =>
-    target.dispatchEvent(new win.KeyboardEvent("keydown", { key: k, bubbles: true, shiftKey }));
+    target.dispatchEvent(
+      new win.KeyboardEvent("keydown", { key: k, bubbles: true, shiftKey }),
+    );
   key("ArrowRight");
   expect(tl.time()).toBe(1);
   key("ArrowRight", doc.body, true);
@@ -188,7 +243,13 @@ test("live numbers fill bound elements from window.cast.data and follow updates"
   expect(doc.getElementById("n")!.textContent).toBe("1,234");
   expect(doc.getElementById("first")!.textContent).toBe("3");
   expect(doc.getElementById("sum")!.textContent).toBe("1,237");
-  subs.docks({ columns: ["hour", "empty"], rows: [["8:15", 40]], refreshed_at: 2, query_text: "q", stale: true });
+  subs.docks({
+    columns: ["hour", "empty"],
+    rows: [["8:15", 40]],
+    refreshed_at: 2,
+    query_text: "q",
+    stale: true,
+  });
   expect(doc.getElementById("n")!.textContent).toBe("40");
   expect(doc.getElementById("n")!.hasAttribute("data-cast-stale")).toBe(true);
   expect(await win.castMotion.value("docks", "empty", -1)).toBe(1234.4);
@@ -206,13 +267,19 @@ test("without a data runtime the authored numbers stay", async () => {
 test("a directory with a render offers the MP4 as a download", async () => {
   const { doc, fetched } = await motionPage({ manifest: true });
   await frame();
-  expect(fetched).toEqual(["https://pages.test/cli/a/slug/cast-render/motion.json"]);
+  expect(fetched).toEqual([
+    "https://pages.test/cli/a/slug/cast-render/motion.json",
+  ]);
   const a = doc.getElementById("__cm_dl") as HTMLAnchorElement;
   expect(a.hidden).toBe(false);
-  expect(a.getAttribute("href")).toBe("https://pages.test/cli/a/slug/cast-render/motion.mp4?download=Hill-docks.mp4");
+  expect(a.getAttribute("href")).toBe(
+    "https://pages.test/cli/a/slug/cast-render/motion.mp4?download=Hill-docks.mp4",
+  );
   const none = await motionPage();
   await frame();
-  expect((none.doc.getElementById("__cm_dl") as HTMLAnchorElement).hidden).toBe(true);
+  expect((none.doc.getElementById("__cm_dl") as HTMLAnchorElement).hidden).toBe(
+    true,
+  );
 });
 
 const VIDEO_PAGE = `<!doctype html><html><body>
@@ -220,18 +287,28 @@ const VIDEO_PAGE = `<!doctype html><html><body>
 </body></html>`;
 
 async function videoPage(prelude?: (win: Win) => void) {
-  const dom = new JSDOM(VIDEO_PAGE, { runScripts: "outside-only", pretendToBeVisual: true, url: "https://pages.test/cli/a/v" });
+  const dom = new JSDOM(VIDEO_PAGE, {
+    runScripts: "outside-only",
+    pretendToBeVisual: true,
+    url: "https://pages.test/cli/a/v",
+  });
   const win = dom.window as Win;
   // jsdom has no media engine.
   win.HTMLMediaElement.prototype.load = () => {};
-  win.HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+  win.HTMLMediaElement.prototype.play = function () {
+    return Promise.resolve();
+  };
   win.HTMLMediaElement.prototype.pause = () => {};
   let ready = 0;
   win.addEventListener("cast:timeline-ready", () => ready++);
   prelude?.(win);
   win.eval(castPlayerScript({ upgradeVideos: true }));
   await new Promise((r) => setTimeout(r, 30));
-  return { win, ready: () => ready, player: win.document.getElementById("p") as any };
+  return {
+    win,
+    ready: () => ready,
+    player: win.document.getElementById("p") as any,
+  };
 }
 
 test("<cast-player> answers the page timeline over its whole film, with markers on its scrubber", async () => {
@@ -242,7 +319,10 @@ test("<cast-player> answers the page timeline over its whole film, with markers 
   expect(tl.duration()).toBe(50);
   tl.seek(25);
   expect(player.chapterIndex).toBe(1);
-  tl.setMarkers([{ t: 5, n: 1, label: "tighten this cut" }, { t: 42, n: 2, label: "" }]);
+  tl.setMarkers([
+    { t: 5, n: 1, label: "tighten this cut" },
+    { t: 42, n: 2, label: "" },
+  ]);
   const marks = player.shadowRoot.querySelectorAll(".mk");
   expect(marks.length).toBe(2);
   expect(marks[0].textContent).toBe("1");
@@ -255,7 +335,14 @@ test("<cast-player> answers the page timeline over its whole film, with markers 
 });
 
 test("<cast-player> leaves a motion page's timeline alone", async () => {
-  const motion = { __source: "motion", time: () => 0, duration: () => 1, seek: () => {} };
-  const { win } = await videoPage((w) => { w.__castTimeline = motion; });
+  const motion = {
+    __source: "motion",
+    time: () => 0,
+    duration: () => 1,
+    seek: () => {},
+  };
+  const { win } = await videoPage((w) => {
+    w.__castTimeline = motion;
+  });
   expect(win.__castTimeline).toBe(motion);
 });

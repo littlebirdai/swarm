@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { sanitizeDeviceDisplayName, sanitizeDeviceIcon, sanitizeDeviceIconColor } from "./deviceAppearance";
+import {
+  sanitizeDeviceDisplayName,
+  sanitizeDeviceIcon,
+  sanitizeDeviceIconColor,
+} from "./deviceAppearance";
 
 describe("sanitizeDeviceDisplayName", () => {
   test("collapses whitespace, trims, and caps at 64", () => {

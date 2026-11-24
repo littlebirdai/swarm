@@ -4,47 +4,90 @@
 // migration batches. Everything renders from the store; this hook only joins.
 import { useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { type MachineResourceSnapshot, type ResourcePoint } from "@codecast/shared/contracts";
+import {
+  type MachineResourceSnapshot,
+  type ResourcePoint,
+} from "@codecast/shared/contracts";
 import { useSyncCollection } from "./useSyncCollection";
 import { useIsSyncHost } from "./useSyncRole";
 import { useInboxStore } from "../store/inboxStore";
 import { useCollectionRows } from "./useCollectionRows";
 import { useCoarseNow } from "./useCoarseNow";
 import { useManagedSessions } from "./useSyncManagedSessions";
-import { useMigrationBatches, useMigrationCandidates, useMoveRehearsals } from "./useSyncMigrations";
+import {
+  useMigrationBatches,
+  useMigrationCandidates,
+  useMoveRehearsals,
+} from "./useSyncMigrations";
 import { deviceDisplayName } from "@codecast/shared/contracts";
 import type { Device } from "../lib/deviceRow";
 import { useSyncDevices } from "./useSyncDevices";
 import { buildOffloadPlan } from "../lib/resourceOffload";
-import { batchAwaitingEcho, effectiveRowStatus, isRowTerminal, type MigrationBatch } from "../lib/migrationPlan";
-import type { MachineRole, OffloadPlan, OffloadRun, ResourceMachine, ResourceSession, ResourceSessionState } from "../components/resources/types";
+import {
+  batchAwaitingEcho,
+  effectiveRowStatus,
+  isRowTerminal,
+  type MigrationBatch,
+} from "../lib/migrationPlan";
+import type {
+  MachineRole,
+  OffloadPlan,
+  OffloadRun,
+  ResourceMachine,
+  ResourceSession,
+  ResourceSessionState,
+} from "../components/resources/types";
 
 const api = _api as any;
 
-type MachineResourceRow = { _id: string; device_id: string; received_at: number; snapshot: MachineResourceSnapshot; history: ResourcePoint[]; background_sessions?: string[] };
+type MachineResourceRow = {
+  _id: string;
+  device_id: string;
+  received_at: number;
+  snapshot: MachineResourceSnapshot;
+  history: ResourcePoint[];
+  background_sessions?: string[];
+};
 
-const rowSig = (r: MachineResourceRow) => `${r.device_id}|${r.received_at}|${(r.background_sessions ?? []).join(",")}`;
+const rowSig = (r: MachineResourceRow) =>
+  `${r.device_id}|${r.received_at}|${(r.background_sessions ?? []).join(",")}`;
 
 // One subscription per device: a report from any daemon used to change the
 // one list answer, re-sending every device's snapshot and history.
-const ONE_REPORT = { select: (row: MachineResourceRow | null) => (row ? [row] : []) };
+const ONE_REPORT = {
+  select: (row: MachineResourceRow | null) => (row ? [row] : []),
+};
 
 /** Feeder: one device's machine report (MachineResourceFeeders mounts one per
  *  device on the sync host; followers get the rows by replication). */
 export function useSyncMachineResource(deviceId: string) {
-  return useSyncCollection("machineResources", api.machineResources.getMine, { device_id: deviceId }, ONE_REPORT);
+  return useSyncCollection(
+    "machineResources",
+    api.machineResources.getMine,
+    { device_id: deviceId },
+    ONE_REPORT,
+  );
 }
 
 /** The device ids the feeders follow, as one string: the roster's heartbeats
  *  change its rows every few seconds, its membership rarely. */
 export function useMachineResourceDeviceIds(): string[] {
   const host = useIsSyncHost();
-  const ids = useInboxStore((s) => (host ? (s.machineRoster as Array<{ device_id: string }>).map((d) => d.device_id).sort().join(",") : ""));
+  const ids = useInboxStore((s) =>
+    host
+      ? (s.machineRoster as Array<{ device_id: string }>)
+          .map((d) => d.device_id)
+          .sort()
+          .join(",")
+      : "",
+  );
   return useMemo(() => (ids ? ids.split(",") : []), [ids]);
 }
 
 export function useMachineResourceRows(): MachineResourceRow[] {
-  return useCollectionRows<MachineResourceRow>("machineResources", { sig: rowSig });
+  return useCollectionRows<MachineResourceRow>("machineResources", {
+    sig: rowSig,
+  });
 }
 
 function roleOf(d: Pick<Device, "is_remote" | "platform">): MachineRole {
@@ -53,39 +96,63 @@ function roleOf(d: Pick<Device, "is_remote" | "platform">): MachineRole {
 }
 
 /** Machines: every registered device, with its report when it has sent one. */
-export function joinMachines(devices: Device[], rows: MachineResourceRow[]): ResourceMachine[] {
+export function joinMachines(
+  devices: Device[],
+  rows: MachineResourceRow[],
+): ResourceMachine[] {
   const byDevice = new Map(rows.map((r) => [r.device_id, r]));
-  return devices.map((d) => {
-    const r = byDevice.get(d.device_id);
-    return {
-      deviceId: d.device_id,
-      name: deviceDisplayName(d),
-      role: roleOf(d),
-      platform: d.platform,
-      online: d.online,
-      asleep: d.is_remote && !d.online && !!d.cloud_host,
-      receivedAt: r?.received_at,
-      snapshot: r?.snapshot,
-      history: r?.history ?? [],
-      backgroundSessions: r?.background_sessions ?? [],
-    };
-  }).sort((a, b) => Number(b.role === "local") - Number(a.role === "local") || Number(!!b.snapshot) - Number(!!a.snapshot) || a.name.localeCompare(b.name));
+  return devices
+    .map((d) => {
+      const r = byDevice.get(d.device_id);
+      return {
+        deviceId: d.device_id,
+        name: deviceDisplayName(d),
+        role: roleOf(d),
+        platform: d.platform,
+        online: d.online,
+        asleep: d.is_remote && !d.online && !!d.cloud_host,
+        receivedAt: r?.received_at,
+        snapshot: r?.snapshot,
+        history: r?.history ?? [],
+        backgroundSessions: r?.background_sessions ?? [],
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.role === "local") - Number(a.role === "local") ||
+        Number(!!b.snapshot) - Number(!!a.snapshot) ||
+        a.name.localeCompare(b.name),
+    );
 }
 
-const WORKING = new Set(["working", "thinking", "compacting", "starting", "resuming"]);
+const WORKING = new Set([
+  "working",
+  "thinking",
+  "compacting",
+  "starting",
+  "resuming",
+]);
 const WAITING = new Set(["permission_blocked", "waiting"]);
 
 export function toResourceSession(m: any, pinned: boolean): ResourceSession {
-  const state: ResourceSessionState = m.agent_status === "hibernated" ? "hibernated"
-    : m.is_killed || m.agent_status === "stopped" || m.agent_status === "done" ? "dead"
-    : WORKING.has(m.agent_status) ? "working"
-    : WAITING.has(m.agent_status) ? "needs_input"
-    : "idle";
+  const state: ResourceSessionState =
+    m.agent_status === "hibernated"
+      ? "hibernated"
+      : m.is_killed || m.agent_status === "stopped" || m.agent_status === "done"
+        ? "dead"
+        : WORKING.has(m.agent_status)
+          ? "working"
+          : WAITING.has(m.agent_status)
+            ? "needs_input"
+            : "idle";
   return {
     sessionId: m.session_id,
     conversationId: m.conversation_id ?? undefined,
     shortId: m.short_id ?? undefined,
-    title: m.conversation_title || m.headline || `Session ${String(m.session_id).slice(0, 7)}`,
+    title:
+      m.conversation_title ||
+      m.headline ||
+      `Session ${String(m.session_id).slice(0, 7)}`,
     projectPath: m.project_path ?? undefined,
     agentType: m.agent_type ?? undefined,
     deviceId: m.owner_device_id ?? undefined,
@@ -97,23 +164,35 @@ export function toResourceSession(m: any, pinned: boolean): ResourceSession {
 }
 
 /** A batch as a run, with relief measured only from a sample taken after it finished. */
-export function batchToRun(b: MigrationBatch, sessionByConversation: Map<string, string>, machines: ResourceMachine[]): OffloadRun {
-  const status = (r: MigrationBatch["rows"][number]) => effectiveRowStatus(b, r);
-  const terminal = b.rows.length > 0 && b.rows.every((r) => isRowTerminal(status(r)));
-  const finishedAt = terminal ? Math.max(...b.rows.map((r) => r.finished_at ?? r.updated_at)) : undefined;
+export function batchToRun(
+  b: MigrationBatch,
+  sessionByConversation: Map<string, string>,
+  machines: ResourceMachine[],
+): OffloadRun {
+  const status = (r: MigrationBatch["rows"][number]) =>
+    effectiveRowStatus(b, r);
+  const terminal =
+    b.rows.length > 0 && b.rows.every((r) => isRowTerminal(status(r)));
+  const finishedAt = terminal
+    ? Math.max(...b.rows.map((r) => r.finished_at ?? r.updated_at))
+    : undefined;
   const source = machines.find((m) => m.deviceId === b.rows[0]?.from_device_id);
   const hist = source?.history ?? [];
   const before = [...hist].reverse().find((p) => p.at <= b.created_at);
-  const after = finishedAt !== undefined ? hist.find((p) => p.at > finishedAt) : undefined;
+  const after =
+    finishedAt !== undefined ? hist.find((p) => p.at > finishedAt) : undefined;
   return {
     batchId: b.batch_id,
     clientBatchId: b.resource_offload?.client_batch_id,
     createdAt: b.created_at,
     waitForTurnMs: b.wait_for_idle_ms,
     finishedAt,
-    cancelUnavailable: batchAwaitingEcho(b) ? "Finishing preflight before cancellation is available" : undefined,
+    cancelUnavailable: batchAwaitingEcho(b)
+      ? "Finishing preflight before cancellation is available"
+      : undefined,
     rows: b.rows.map((r) => ({
-      sessionId: sessionByConversation.get(r.conversation_id) ?? r.conversation_id,
+      sessionId:
+        sessionByConversation.get(r.conversation_id) ?? r.conversation_id,
       destinationId: r.to_device_id,
       status: status(r),
       error: r.error ?? undefined,
@@ -141,12 +220,17 @@ export function useResourceMonitor() {
   const { candidates } = useMigrationCandidates();
   const { batches } = useMigrationBatches();
   const { rehearsals } = useMoveRehearsals();
-  const pinnedIds = useCollectionRows<any>("sessions", { where: isPinnedRow, sig: rowIdSig });
+  const pinnedIds = useCollectionRows<any>("sessions", {
+    where: isPinnedRow,
+    sig: rowIdSig,
+  });
 
   const machines = useMemo(() => joinMachines(devices, rows), [devices, rows]);
   const sessions = useMemo(() => {
     const pinned = new Set(pinnedIds.map((r) => r._id));
-    return managed.filter((m) => !m.is_killed).map((m) => toResourceSession(m, pinned.has(m.conversation_id)));
+    return managed
+      .filter((m) => !m.is_killed)
+      .map((m) => toResourceSession(m, pinned.has(m.conversation_id)));
   }, [managed, pinnedIds]);
 
   const plans = useMemo(() => {
@@ -159,21 +243,46 @@ export function useResourceMonitor() {
     const out: OffloadPlan[] = [];
     for (const source of machines) {
       if (source.role !== "local") continue;
-      const plan = buildOffloadPlan({ source, machines, sessions, devices: devices as any, candidates, now });
+      const plan = buildOffloadPlan({
+        source,
+        machines,
+        sessions,
+        devices: devices as any,
+        candidates,
+        now,
+      });
       if (plan) out.push(plan);
     }
     return out;
   }, [machines, sessions, devices, candidates, managedReady, now]);
 
   const runs = useMemo(() => {
-    const byConv = new Map(sessions.filter((s) => s.conversationId).map((s) => [s.conversationId!, s.sessionId]));
-    return (batches ?? [])
-      // Only moves started here: they carry their intent and never interrupt a turn.
-      .filter((b) => !!b.resource_offload)
-      .filter((b) => now - b.created_at < RUN_WINDOW_MS || b.rows.some((r) => !isRowTerminal(r.status)))
-      .map((b) => batchToRun(b, byConv, machines));
+    const byConv = new Map(
+      sessions
+        .filter((s) => s.conversationId)
+        .map((s) => [s.conversationId!, s.sessionId]),
+    );
+    return (
+      (batches ?? [])
+        // Only moves started here: they carry their intent and never interrupt a turn.
+        .filter((b) => !!b.resource_offload)
+        .filter(
+          (b) =>
+            now - b.created_at < RUN_WINDOW_MS ||
+            b.rows.some((r) => !isRowTerminal(r.status)),
+        )
+        .map((b) => batchToRun(b, byConv, machines))
+    );
   }, [batches, sessions, machines, now]);
 
-  return { machines, sessions, plans, runs, batches: batches ?? [], rehearsals: rehearsals ?? [], now, ready: loaded || rows.length > 0 };
+  return {
+    machines,
+    sessions,
+    plans,
+    runs,
+    batches: batches ?? [],
+    rehearsals: rehearsals ?? [],
+    now,
+    ready: loaded || rows.length > 0,
+  };
 }
-

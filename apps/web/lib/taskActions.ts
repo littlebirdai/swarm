@@ -3,7 +3,12 @@
 // the shared guards so callers get local-first behavior plus the same
 // refusals the server enforces — never a draft the echo will undo.
 import { useInboxStore, type TaskItem } from "../store/inboxStore";
-import { MAX_TASK_DEPTH, isCountableSubtask, taskDepth, wouldCreateTaskCycle } from "@codecast/shared/tasks";
+import {
+  MAX_TASK_DEPTH,
+  isCountableSubtask,
+  taskDepth,
+  wouldCreateTaskCycle,
+} from "@codecast/shared/tasks";
 import { undoGroup } from "@platform/engine";
 import { counted, undoAsOne } from "../store/undo/labels";
 import { taskEditLabel } from "../store/undo/policies/work";
@@ -11,8 +16,14 @@ import { taskEditLabel } from "../store/undo/policies/work";
 // This module is shared by web AND mobile (which has no sonner), so it can't
 // import a toast lib. Surfaces that want a toast on a create refusal pass a
 // reporter; the default just warns. Set once at app start via setTaskErrorReporter.
-let reportError: (msg: string) => void = (msg) => { try { console.warn(msg); } catch {} };
-export function setTaskErrorReporter(fn: (msg: string) => void) { reportError = fn; }
+let reportError: (msg: string) => void = (msg) => {
+  try {
+    console.warn(msg);
+  } catch {}
+};
+export function setTaskErrorReporter(fn: (msg: string) => void) {
+  reportError = fn;
+}
 
 /** Direct children of a task that are still open, from the live store. Uses the
  *  shared countable predicate so the client's "N open subtasks" matches the
@@ -20,7 +31,10 @@ export function setTaskErrorReporter(fn: (msg: string) => void) { reportError = 
 export function openSubtasksOf(taskId: string): TaskItem[] {
   const tasks = useInboxStore.getState().tasks;
   return (Object.values(tasks) as TaskItem[]).filter(
-    (t: any) => t.parent_id && String(t.parent_id) === String(taskId) && isCountableSubtask(t),
+    (t: any) =>
+      t.parent_id &&
+      String(t.parent_id) === String(taskId) &&
+      isCountableSubtask(t),
   );
 }
 
@@ -42,20 +56,33 @@ export function closeTaskWithGuard(
   statusId?: string,
 ): { needsConfirm: boolean } {
   const s = useInboxStore.getState();
-  const task = (Object.values(s.tasks) as TaskItem[]).find((t) => t.short_id === shortId);
+  const task = (Object.values(s.tasks) as TaskItem[]).find(
+    (t) => t.short_id === shortId,
+  );
   if (task && !resolution) {
     const open = openSubtasksOf(task._id);
     if (open.length > 0) {
       // A gesture over several parents asks once: each guarded parent joins
       // the dialog already waiting for the same close.
       const waiting = s.taskCloseGuard;
-      const joins = waiting && waiting.status === status && waiting.statusId === statusId;
-      const parents = joins ? waiting.parents.filter((p) => p.shortId !== shortId) : [];
-      s.setTaskCloseGuard({ status, statusId, parents: [...parents, { shortId, open }] });
+      const joins =
+        waiting && waiting.status === status && waiting.statusId === statusId;
+      const parents = joins
+        ? waiting.parents.filter((p) => p.shortId !== shortId)
+        : [];
+      s.setTaskCloseGuard({
+        status,
+        statusId,
+        parents: [...parents, { shortId, open }],
+      });
       return { needsConfirm: true };
     }
   }
-  s.updateTask(shortId, { status, ...(statusId !== undefined ? { status_id: statusId } : {}), subtask_resolution: resolution });
+  s.updateTask(shortId, {
+    status,
+    ...(statusId !== undefined ? { status_id: statusId } : {}),
+    subtask_resolution: resolution,
+  });
   return { needsConfirm: false };
 }
 
@@ -65,17 +92,25 @@ export function closeTaskWithGuard(
  * the palette both land here. A terminal status goes through the close
  * gateway; returns whether any close waits on its dialog.
  */
-export function updateTasksAsOne(shortIds: string[], fields: Record<string, any>): { needsConfirm: boolean } {
+export function updateTasksAsOne(
+  shortIds: string[],
+  fields: Record<string, any>,
+): { needsConfirm: boolean } {
   const closing = fields.status === "done" || fields.status === "dropped";
   const label = (entries: unknown[]) => {
     const s = useInboxStore.getState();
-    const first = (Object.values(s.tasks) as TaskItem[]).find((t) => t.short_id === shortIds[0]);
+    const first = (Object.values(s.tasks) as TaskItem[]).find(
+      (t) => t.short_id === shortIds[0],
+    );
     return taskEditLabel(s, first, counted(entries.length, "task"), fields);
   };
   return undoAsOne(label, () => {
     let needsConfirm = false;
     for (const id of shortIds) {
-      if (closing) needsConfirm = closeTaskWithGuard(id, fields.status, undefined, fields.status_id).needsConfirm || needsConfirm;
+      if (closing)
+        needsConfirm =
+          closeTaskWithGuard(id, fields.status, undefined, fields.status_id)
+            .needsConfirm || needsConfirm;
       else useInboxStore.getState().updateTask(id, fields);
     }
     return { needsConfirm };
@@ -90,7 +125,10 @@ export function updateTasksAsOne(shortIds: string[], fields: Record<string, any>
  * carrying it records no undo, and the field edit riding with it would lose
  * its undo too. Terminal statuses go through the close gateway.
  */
-export function applyTaskDrop(shortId: string, updates: Record<string, any>): { needsConfirm: boolean } {
+export function applyTaskDrop(
+  shortId: string,
+  updates: Record<string, any>,
+): { needsConfirm: boolean } {
   // status_id travels WITH the status through the close gateway: sent on its
   // own it would move the category server-side and bypass the guard.
   const { status, status_id, sort_order, ...fields } = updates;
@@ -105,7 +143,9 @@ export function applyTaskDrop(shortId: string, updates: Record<string, any>): { 
       const s = useInboxStore.getState();
       if (hasFields) s.updateTask(shortId, fields);
       if (sort_order !== undefined) s.updateTask(shortId, { sort_order });
-      return closing ? closeTaskWithGuard(shortId, status, undefined, status_id) : { needsConfirm: false };
+      return closing
+        ? closeTaskWithGuard(shortId, status, undefined, status_id)
+        : { needsConfirm: false };
     },
   );
 }
@@ -117,16 +157,24 @@ export function resolveTaskCloseGuard(resolution: "cascade" | "only_parent") {
   const g = s.taskCloseGuard;
   if (!g) return;
   s.setTaskCloseGuard(null);
-  const fields = { status: g.status, ...(g.statusId !== undefined ? { status_id: g.statusId } : {}) };
+  const fields = {
+    status: g.status,
+    ...(g.statusId !== undefined ? { status_id: g.statusId } : {}),
+  };
   const shortIds = g.parents.map((p) => p.shortId);
   undoAsOne(
     () => {
       const st = useInboxStore.getState();
-      const first = (Object.values(st.tasks) as TaskItem[]).find((t) => t.short_id === shortIds[0]);
+      const first = (Object.values(st.tasks) as TaskItem[]).find(
+        (t) => t.short_id === shortIds[0],
+      );
       return taskEditLabel(st, first, counted(shortIds.length, "task"), fields);
     },
     () => {
-      for (const id of shortIds) useInboxStore.getState().updateTask(id, { ...fields, subtask_resolution: resolution });
+      for (const id of shortIds)
+        useInboxStore
+          .getState()
+          .updateTask(id, { ...fields, subtask_resolution: resolution });
     },
   );
 }
@@ -136,7 +184,10 @@ export function resolveTaskCloseGuard(resolution: "cascade" | "only_parent") {
  * resolveParentTask), so an invalid move is refused before any draft write
  * instead of silently reverting on the echo. Pass "" to detach.
  */
-export function setTaskParent(shortId: string, parentShortId: string): { ok: true } | { ok: false; reason: string } {
+export function setTaskParent(
+  shortId: string,
+  parentShortId: string,
+): { ok: true } | { ok: false; reason: string } {
   const s = useInboxStore.getState();
   const all = Object.values(s.tasks) as any[];
   const task = all.find((t) => t.short_id === shortId);
@@ -145,22 +196,33 @@ export function setTaskParent(shortId: string, parentShortId: string): { ok: tru
     s.updateTask(shortId, { parent: "" });
     return { ok: true };
   }
-  const parent = all.find((t) => t.short_id === parentShortId || t._id === parentShortId);
+  const parent = all.find(
+    (t) => t.short_id === parentShortId || t._id === parentShortId,
+  );
   if (!parent) return { ok: false, reason: "Parent task not found" };
   if ((parent.team_id ?? null) !== (task.team_id ?? null)) {
-    return { ok: false, reason: "Parent and subtask must live in the same workspace" };
+    return {
+      ok: false,
+      reason: "Parent and subtask must live in the same workspace",
+    };
   }
   const parentOf = (id: string) => {
     const row = all.find((t) => String(t._id) === String(id));
     return row?.parent_id ? String(row.parent_id) : undefined;
   };
   if (wouldCreateTaskCycle(String(task._id), String(parent._id), parentOf)) {
-    return { ok: false, reason: `${parent.short_id} already sits below ${task.short_id}` };
+    return {
+      ok: false,
+      reason: `${parent.short_id} already sits below ${task.short_id}`,
+    };
   }
   const childHeight = subtreeHeight(all, String(task._id));
   const newDepth = taskDepth(String(parent._id), parentOf) + 1 + childHeight;
   if (newDepth > MAX_TASK_DEPTH) {
-    return { ok: false, reason: `Too deep — subtasks nest at most ${MAX_TASK_DEPTH} levels` };
+    return {
+      ok: false,
+      reason: `Too deep — subtasks nest at most ${MAX_TASK_DEPTH} levels`,
+    };
   }
   s.updateTask(shortId, { parent: parentShortId });
   return { ok: true };
@@ -173,7 +235,8 @@ function subtreeHeight(all: any[], rootId: string): number {
   while (frontier.length > 0 && guard++ < 64) {
     const next: string[] = [];
     for (const id of frontier) {
-      for (const t of all) if (t.parent_id && String(t.parent_id) === id) next.push(String(t._id));
+      for (const t of all)
+        if (t.parent_id && String(t.parent_id) === id) next.push(String(t._id));
     }
     if (next.length === 0) break;
     height += 1;
@@ -191,23 +254,36 @@ function subtreeHeight(all: any[], rootId: string): number {
  * removed here and the caller is toasted. Returns the server {id, short_id}.
  */
 export async function createTaskAndAdopt(
-  opts: Parameters<ReturnType<typeof useInboxStore.getState>["createTask"]>[0] extends infer O ? O & Record<string, any> : never,
+  opts: Parameters<
+    ReturnType<typeof useInboxStore.getState>["createTask"]
+  >[0] extends infer O
+    ? O & Record<string, any>
+    : never,
 ): Promise<{ id: string; short_id: string } | null> {
   const s = useInboxStore.getState();
   const client_key = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   try {
     const result = await s.createTask({ ...opts, client_key });
-    return result && result.id && result.short_id ? { id: String(result.id), short_id: String(result.short_id) } : null;
+    return result && result.id && result.short_id
+      ? { id: String(result.id), short_id: String(result.short_id) }
+      : null;
   } catch (err: any) {
     // The server refused (or dispatch is unwired past retry) — the stub can
     // never be superseded, so drop it rather than strand a ghost row.
     useInboxStore.getState().removeTaskStub(client_key);
-    reportError(err?.message ? cleanTaskError(err.message) : "Could not create task");
+    reportError(
+      err?.message ? cleanTaskError(err.message) : "Could not create task",
+    );
     return null;
   }
 }
 
 // Convex prefixes thrown errors with "Uncaught …" and a stack; show the message.
 function cleanTaskError(raw: string): string {
-  return String(raw).split(/\n\s*at\s/)[0].replace(/^\s*(Uncaught\s+)?(Convex)?Error:\s*/i, "").trim() || "Could not create task";
+  return (
+    String(raw)
+      .split(/\n\s*at\s/)[0]
+      .replace(/^\s*(Uncaught\s+)?(Convex)?Error:\s*/i, "")
+      .trim() || "Could not create task"
+  );
 }

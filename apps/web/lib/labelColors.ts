@@ -5,37 +5,160 @@ import { createContext, useContext } from "react";
 // dot is a saturated -500 that reads on both. Tailwind's JIT only emits classes
 // that appear as complete literal strings, so every dark: variant is written out
 // in full below — do not build these names dynamically.
-const LABEL_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  bug: { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-400", border: "border-red-500/30", dot: "bg-red-500 dark:bg-red-400" },
-  feature: { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", border: "border-blue-500/30", dot: "bg-blue-500 dark:bg-blue-400" },
-  improvement: { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-400", border: "border-cyan-500/30", dot: "bg-cyan-500 dark:bg-cyan-400" },
-  refactor: { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-400", border: "border-amber-500/30", dot: "bg-amber-500 dark:bg-amber-400" },
-  docs: { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-400", border: "border-indigo-500/30", dot: "bg-indigo-500 dark:bg-indigo-400" },
-  infra: { bg: "bg-slate-500/10", text: "text-slate-700 dark:text-slate-400", border: "border-slate-500/30", dot: "bg-slate-500 dark:bg-slate-400" },
-  design: { bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-400", border: "border-pink-500/30", dot: "bg-pink-500 dark:bg-pink-400" },
-  perf: { bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-400", border: "border-orange-500/30", dot: "bg-orange-500 dark:bg-orange-400" },
-  security: { bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-400", border: "border-yellow-500/30", dot: "bg-yellow-500 dark:bg-yellow-400" },
-  testing: { bg: "bg-green-500/10", text: "text-green-700 dark:text-green-400", border: "border-green-500/30", dot: "bg-green-500 dark:bg-green-400" },
-  urgent: { bg: "bg-rose-500/10", text: "text-rose-700 dark:text-rose-400", border: "border-rose-500/30", dot: "bg-rose-500 dark:bg-rose-400" },
-  blocked: { bg: "bg-neutral-500/10", text: "text-neutral-700 dark:text-neutral-400", border: "border-neutral-500/30", dot: "bg-neutral-500 dark:bg-neutral-400" },
+const LABEL_COLORS: Record<
+  string,
+  { bg: string; text: string; border: string; dot: string }
+> = {
+  bug: {
+    bg: "bg-red-500/10",
+    text: "text-red-700 dark:text-red-400",
+    border: "border-red-500/30",
+    dot: "bg-red-500 dark:bg-red-400",
+  },
+  feature: {
+    bg: "bg-blue-500/10",
+    text: "text-blue-700 dark:text-blue-400",
+    border: "border-blue-500/30",
+    dot: "bg-blue-500 dark:bg-blue-400",
+  },
+  improvement: {
+    bg: "bg-cyan-500/10",
+    text: "text-cyan-700 dark:text-cyan-400",
+    border: "border-cyan-500/30",
+    dot: "bg-cyan-500 dark:bg-cyan-400",
+  },
+  refactor: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-700 dark:text-amber-400",
+    border: "border-amber-500/30",
+    dot: "bg-amber-500 dark:bg-amber-400",
+  },
+  docs: {
+    bg: "bg-indigo-500/10",
+    text: "text-indigo-700 dark:text-indigo-400",
+    border: "border-indigo-500/30",
+    dot: "bg-indigo-500 dark:bg-indigo-400",
+  },
+  infra: {
+    bg: "bg-slate-500/10",
+    text: "text-slate-700 dark:text-slate-400",
+    border: "border-slate-500/30",
+    dot: "bg-slate-500 dark:bg-slate-400",
+  },
+  design: {
+    bg: "bg-pink-500/10",
+    text: "text-pink-700 dark:text-pink-400",
+    border: "border-pink-500/30",
+    dot: "bg-pink-500 dark:bg-pink-400",
+  },
+  perf: {
+    bg: "bg-orange-500/10",
+    text: "text-orange-700 dark:text-orange-400",
+    border: "border-orange-500/30",
+    dot: "bg-orange-500 dark:bg-orange-400",
+  },
+  security: {
+    bg: "bg-yellow-500/10",
+    text: "text-yellow-700 dark:text-yellow-400",
+    border: "border-yellow-500/30",
+    dot: "bg-yellow-500 dark:bg-yellow-400",
+  },
+  testing: {
+    bg: "bg-green-500/10",
+    text: "text-green-700 dark:text-green-400",
+    border: "border-green-500/30",
+    dot: "bg-green-500 dark:bg-green-400",
+  },
+  urgent: {
+    bg: "bg-rose-500/10",
+    text: "text-rose-700 dark:text-rose-400",
+    border: "border-rose-500/30",
+    dot: "bg-rose-500 dark:bg-rose-400",
+  },
+  blocked: {
+    bg: "bg-neutral-500/10",
+    text: "text-neutral-700 dark:text-neutral-400",
+    border: "border-neutral-500/30",
+    dot: "bg-neutral-500 dark:bg-neutral-400",
+  },
 };
 
 // Ordered so neighboring entries contrast: linear probing (below) resolves a
 // collision onto the adjacent slot, and a hue-wheel ordering would make the
 // probed color a near-twin of the one it collided with.
 const HASH_PALETTE = [
-  { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-400", border: "border-red-500/30", dot: "bg-red-500 dark:bg-red-400" },
-  { bg: "bg-teal-500/10", text: "text-teal-700 dark:text-teal-400", border: "border-teal-500/30", dot: "bg-teal-500 dark:bg-teal-400" },
-  { bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-400", border: "border-amber-500/30", dot: "bg-amber-500 dark:bg-amber-400" },
-  { bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", border: "border-blue-500/30", dot: "bg-blue-500 dark:bg-blue-400" },
-  { bg: "bg-lime-600/10", text: "text-lime-700 dark:text-lime-400", border: "border-lime-600/30", dot: "bg-lime-600 dark:bg-lime-400" },
-  { bg: "bg-fuchsia-500/10", text: "text-fuchsia-700 dark:text-fuchsia-400", border: "border-fuchsia-500/30", dot: "bg-fuchsia-500 dark:bg-fuchsia-400" },
-  { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-500/30", dot: "bg-emerald-500 dark:bg-emerald-400" },
-  { bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-400", border: "border-indigo-500/30", dot: "bg-indigo-500 dark:bg-indigo-400" },
-  { bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-400", border: "border-orange-500/30", dot: "bg-orange-500 dark:bg-orange-400" },
-  { bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-400", border: "border-cyan-500/30", dot: "bg-cyan-500 dark:bg-cyan-400" },
-  { bg: "bg-rose-500/10", text: "text-rose-700 dark:text-rose-400", border: "border-rose-500/30", dot: "bg-rose-500 dark:bg-rose-400" },
-  { bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-400", border: "border-violet-500/30", dot: "bg-violet-500 dark:bg-violet-400" },
+  {
+    bg: "bg-red-500/10",
+    text: "text-red-700 dark:text-red-400",
+    border: "border-red-500/30",
+    dot: "bg-red-500 dark:bg-red-400",
+  },
+  {
+    bg: "bg-teal-500/10",
+    text: "text-teal-700 dark:text-teal-400",
+    border: "border-teal-500/30",
+    dot: "bg-teal-500 dark:bg-teal-400",
+  },
+  {
+    bg: "bg-amber-500/10",
+    text: "text-amber-700 dark:text-amber-400",
+    border: "border-amber-500/30",
+    dot: "bg-amber-500 dark:bg-amber-400",
+  },
+  {
+    bg: "bg-blue-500/10",
+    text: "text-blue-700 dark:text-blue-400",
+    border: "border-blue-500/30",
+    dot: "bg-blue-500 dark:bg-blue-400",
+  },
+  {
+    bg: "bg-lime-600/10",
+    text: "text-lime-700 dark:text-lime-400",
+    border: "border-lime-600/30",
+    dot: "bg-lime-600 dark:bg-lime-400",
+  },
+  {
+    bg: "bg-fuchsia-500/10",
+    text: "text-fuchsia-700 dark:text-fuchsia-400",
+    border: "border-fuchsia-500/30",
+    dot: "bg-fuchsia-500 dark:bg-fuchsia-400",
+  },
+  {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-700 dark:text-emerald-400",
+    border: "border-emerald-500/30",
+    dot: "bg-emerald-500 dark:bg-emerald-400",
+  },
+  {
+    bg: "bg-indigo-500/10",
+    text: "text-indigo-700 dark:text-indigo-400",
+    border: "border-indigo-500/30",
+    dot: "bg-indigo-500 dark:bg-indigo-400",
+  },
+  {
+    bg: "bg-orange-500/10",
+    text: "text-orange-700 dark:text-orange-400",
+    border: "border-orange-500/30",
+    dot: "bg-orange-500 dark:bg-orange-400",
+  },
+  {
+    bg: "bg-cyan-500/10",
+    text: "text-cyan-700 dark:text-cyan-400",
+    border: "border-cyan-500/30",
+    dot: "bg-cyan-500 dark:bg-cyan-400",
+  },
+  {
+    bg: "bg-rose-500/10",
+    text: "text-rose-700 dark:text-rose-400",
+    border: "border-rose-500/30",
+    dot: "bg-rose-500 dark:bg-rose-400",
+  },
+  {
+    bg: "bg-violet-500/10",
+    text: "text-violet-700 dark:text-violet-400",
+    border: "border-violet-500/30",
+    dot: "bg-violet-500 dark:bg-violet-400",
+  },
 ];
 
 function fnv1a(str: string): number {
@@ -70,7 +193,9 @@ function slotRegistry(storageKey: string, n: number) {
   const takenSlots = new Set<number>();
   if (canRegister) {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(storageKey) || "{}") as Record<string, unknown>;
+      const saved = JSON.parse(
+        window.localStorage.getItem(storageKey) || "{}",
+      ) as Record<string, unknown>;
       for (const [name, slot] of Object.entries(saved)) {
         if (typeof slot !== "number" || slot < 0 || slot >= n) continue;
         assignedSlot.set(name, slot);
@@ -80,7 +205,10 @@ function slotRegistry(storageKey: string, n: number) {
   }
   const save = () => {
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(assignedSlot)));
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(Object.fromEntries(assignedSlot)),
+      );
     } catch {}
   };
   return (lower: string): number => {
@@ -99,7 +227,10 @@ function slotRegistry(storageKey: string, n: number) {
   };
 }
 
-const slotFor = slotRegistry(`codecast:label-color-slots:${HASH_PALETTE.length}`, HASH_PALETTE.length);
+const slotFor = slotRegistry(
+  `codecast:label-color-slots:${HASH_PALETTE.length}`,
+  HASH_PALETTE.length,
+);
 
 export type LabelColor = (typeof HASH_PALETTE)[number];
 
@@ -118,7 +249,9 @@ export function getLabelColor(name: string): LabelColor {
  */
 export function peekLabelColor(name: string): LabelColor {
   const lower = name.toLowerCase();
-  return LABEL_COLORS[lower] ?? HASH_PALETTE[fnv1a(lower) % HASH_PALETTE.length];
+  return (
+    LABEL_COLORS[lower] ?? HASH_PALETTE[fnv1a(lower) % HASH_PALETTE.length]
+  );
 }
 
 /** True inside a surface whose label names must never claim colour slots (the marketing hero sets it, app/(marketing)/heroFly/sandbox.tsx). */
@@ -137,21 +270,51 @@ export const DEFAULT_LABELS = Object.keys(LABEL_COLORS);
 // alarm; and workspaces claim slots among themselves, so a handful of them
 // stay apart however many labels exist.
 const WORKSPACE_PALETTE = [
-  { text: "text-blue-600 dark:text-blue-400", dot: "bg-blue-500 dark:bg-blue-400" },
-  { text: "text-teal-600 dark:text-teal-400", dot: "bg-teal-500 dark:bg-teal-400" },
-  { text: "text-violet-600 dark:text-violet-400", dot: "bg-violet-500 dark:bg-violet-400" },
-  { text: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500 dark:bg-amber-400" },
-  { text: "text-fuchsia-600 dark:text-fuchsia-400", dot: "bg-fuchsia-500 dark:bg-fuchsia-400" },
-  { text: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500 dark:bg-emerald-400" },
+  {
+    text: "text-blue-600 dark:text-blue-400",
+    dot: "bg-blue-500 dark:bg-blue-400",
+  },
+  {
+    text: "text-teal-600 dark:text-teal-400",
+    dot: "bg-teal-500 dark:bg-teal-400",
+  },
+  {
+    text: "text-violet-600 dark:text-violet-400",
+    dot: "bg-violet-500 dark:bg-violet-400",
+  },
+  {
+    text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500 dark:bg-amber-400",
+  },
+  {
+    text: "text-fuchsia-600 dark:text-fuchsia-400",
+    dot: "bg-fuchsia-500 dark:bg-fuchsia-400",
+  },
+  {
+    text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500 dark:bg-emerald-400",
+  },
   { text: "text-sky-600 dark:text-sky-400", dot: "bg-sky-500 dark:bg-sky-400" },
-  { text: "text-lime-700 dark:text-lime-400", dot: "bg-lime-600 dark:bg-lime-400" },
-  { text: "text-pink-600 dark:text-pink-400", dot: "bg-pink-500 dark:bg-pink-400" },
-  { text: "text-cyan-600 dark:text-cyan-400", dot: "bg-cyan-500 dark:bg-cyan-400" },
+  {
+    text: "text-lime-700 dark:text-lime-400",
+    dot: "bg-lime-600 dark:bg-lime-400",
+  },
+  {
+    text: "text-pink-600 dark:text-pink-400",
+    dot: "bg-pink-500 dark:bg-pink-400",
+  },
+  {
+    text: "text-cyan-600 dark:text-cyan-400",
+    dot: "bg-cyan-500 dark:bg-cyan-400",
+  },
 ] as const;
 
 export type WorkspaceColor = (typeof WORKSPACE_PALETTE)[number];
 
-const workspaceSlotFor = slotRegistry(`codecast:workspace-color-slots:${WORKSPACE_PALETTE.length}`, WORKSPACE_PALETTE.length);
+const workspaceSlotFor = slotRegistry(
+  `codecast:workspace-color-slots:${WORKSPACE_PALETTE.length}`,
+  WORKSPACE_PALETTE.length,
+);
 
 export function getWorkspaceColor(name: string): WorkspaceColor {
   return WORKSPACE_PALETTE[workspaceSlotFor(name.toLowerCase())];
@@ -159,9 +322,13 @@ export function getWorkspaceColor(name: string): WorkspaceColor {
 
 /** The natural slot only, claiming nothing (the marketing hero's fixtures). */
 export function peekWorkspaceColor(name: string): WorkspaceColor {
-  return WORKSPACE_PALETTE[fnv1a(name.toLowerCase()) % WORKSPACE_PALETTE.length];
+  return WORKSPACE_PALETTE[
+    fnv1a(name.toLowerCase()) % WORKSPACE_PALETTE.length
+  ];
 }
 
 export function useWorkspaceColor(): (name: string) => WorkspaceColor {
-  return useContext(LabelColorsReadOnly) ? peekWorkspaceColor : getWorkspaceColor;
+  return useContext(LabelColorsReadOnly)
+    ? peekWorkspaceColor
+    : getWorkspaceColor;
 }

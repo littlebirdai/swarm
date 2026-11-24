@@ -17,25 +17,35 @@ const WEB = join(import.meta.dir, "..", "..");
 const CONVEX = join(WEB, "..", "..", "apps", "server", "convex");
 
 /** Files under the store machinery that own the keys themselves. */
-const OWNERS = new Set(["hooks/useSyncTrial.ts", "store/clientSyncRegistry.ts", "store/inboxStore.ts", "store/trialSlice.ts"]);
+const OWNERS = new Set([
+  "hooks/useSyncTrial.ts",
+  "store/clientSyncRegistry.ts",
+  "store/inboxStore.ts",
+  "store/trialSlice.ts",
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) continue;
+    if (name === "node_modules" || name === "__tests__" || name.startsWith("."))
+      continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(p);
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(p);
   }
   return out;
 }
 
 describe("superseded work is read through its chokepoints", () => {
   test("no web file reads the trial store keys except through the trial hooks", () => {
-    const raw = /\b(?:s|st|state)\.(trialCards|trialRuns)\b|["'](trialCards|trialRuns)["']/;
+    const raw =
+      /\b(?:s|st|state)\.(trialCards|trialRuns)\b|["'](trialCards|trialRuns)["']/;
     const offenders = ["app", "components", "lib", "hooks", "store"]
       .flatMap((d) => walk(join(WEB, d)))
       .map((p) => relative(WEB, p))
-      .filter((p) => !OWNERS.has(p) && raw.test(readFileSync(join(WEB, p), "utf8")));
+      .filter(
+        (p) => !OWNERS.has(p) && raw.test(readFileSync(join(WEB, p), "utf8")),
+      );
     expect(offenders).toEqual([]);
   });
 
@@ -47,7 +57,8 @@ describe("superseded work is read through its chokepoints", () => {
   test("every server read that lists or counts decisions filters superseded ones", () => {
     const decisions = readFileSync(join(CONVEX, "sessionDecisions.ts"), "utf8");
     const stacks = readFileSync(join(CONVEX, "decisionStacks.ts"), "utf8");
-    const body = (src: string, head: string) => src.slice(src.indexOf(head), src.indexOf("\n}\n", src.indexOf(head)));
+    const body = (src: string, head: string) =>
+      src.slice(src.indexOf(head), src.indexOf("\n}\n", src.indexOf(head)));
     for (const [src, head] of [
       [decisions, "export async function listForUserCore("],
       [decisions, "export async function pendingOnLadder("],

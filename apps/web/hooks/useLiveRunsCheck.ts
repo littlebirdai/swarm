@@ -26,32 +26,58 @@ type LiveAnswer = { workspaces: string[]; ids: string[]; complete: boolean };
 type RunRow = { _id: string; status?: string; workspace?: string };
 
 /** Wakes on what the walk reads, only for live rows: a run's status or workspace, never its heartbeats. */
-const liveRunsSig = makeCollectionSig((r: RunRow) => (LIVE.has(r.status ?? "") ? `${r.status}|${r.workspace ?? ""}` : null));
+const liveRunsSig = makeCollectionSig((r: RunRow) =>
+  LIVE.has(r.status ?? "") ? `${r.status}|${r.workspace ?? ""}` : null,
+);
 
 /** The runs the store holds as live, in a workspace the answer covers, that the answer does not name. */
-export function staleLiveRuns(runs: Record<string, RunRow>, answer: LiveAnswer, max = ASK_MAX): string[] {
+export function staleLiveRuns(
+  runs: Record<string, RunRow>,
+  answer: LiveAnswer,
+  max = ASK_MAX,
+): string[] {
   if (!answer.complete) return [];
   const covered = new Set(answer.workspaces);
   const live = new Set(answer.ids);
   const out: string[] = [];
   for (const r of Object.values(runs)) {
     if (out.length >= max) break;
-    if (r.workspace && covered.has(r.workspace) && LIVE.has(r.status ?? "") && !live.has(r._id) && isConvexId(r._id)) out.push(r._id);
+    if (
+      r.workspace &&
+      covered.has(r.workspace) &&
+      LIVE.has(r.status ?? "") &&
+      !live.has(r._id) &&
+      isConvexId(r._id)
+    )
+      out.push(r._id);
   }
   return out.sort();
 }
 
 export function LiveRunsCheck(): null {
   const { data: answer } = useQueryNoThrow(LIVE_IDS, {});
-  const sig = useInboxStore((s) => liveRunsSig((s as unknown as { workflowRuns?: Record<string, RunRow> }).workflowRuns ?? {}));
+  const sig = useInboxStore((s) =>
+    liveRunsSig(
+      (s as unknown as { workflowRuns?: Record<string, RunRow> })
+        .workflowRuns ?? {},
+    ),
+  );
   const stale = useMemo(() => {
-    const runs = (useInboxStore.getState() as unknown as { workflowRuns?: Record<string, RunRow> }).workflowRuns;
+    const runs = (
+      useInboxStore.getState() as unknown as {
+        workflowRuns?: Record<string, RunRow>;
+      }
+    ).workflowRuns;
     return answer && runs ? staleLiveRuns(runs, answer as LiveAnswer) : [];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature carries every field the walk reads
   }, [answer, sig]);
   const key = stale.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the ids, so a walk that finds the same rows keeps the subscription
   const args = useMemo(() => (stale.length ? { ids: stale } : "skip"), [key]);
-  useSyncCollection("workflowRuns", RUNS_BY_IDS, args as { ids: string[] } | "skip");
+  useSyncCollection(
+    "workflowRuns",
+    RUNS_BY_IDS,
+    args as { ids: string[] } | "skip",
+  );
   return null;
 }

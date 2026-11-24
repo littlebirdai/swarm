@@ -10,7 +10,10 @@ import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
 import { useInboxStore } from "../store/inboxStore";
-import { visibleCatalog, type CatalogTemplate } from "../components/org/templateCatalog";
+import {
+  visibleCatalog,
+  type CatalogTemplate,
+} from "../components/org/templateCatalog";
 
 /** Dev builds only: a fixture set from the console stands in for the server
  *  (`window.__orgTemplateFixture = { catalog?: [...], instance?: { role_id, ... } }`,
@@ -19,50 +22,101 @@ import { visibleCatalog, type CatalogTemplate } from "../components/org/template
  *  hold. Read at render; set it before opening the dialog or the role page. */
 function fixture(): { catalog?: any[]; instance?: any } | null {
   if (!import.meta.env.DEV || typeof window === "undefined") return null;
-  if ((window as any).__orgTemplateFixture) return (window as any).__orgTemplateFixture;
+  if ((window as any).__orgTemplateFixture)
+    return (window as any).__orgTemplateFixture;
   // The same fixture as JSON in localStorage survives a navigation to a role page.
-  try { const raw = window.localStorage.getItem("__orgTemplateFixture"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  try {
+    const raw = window.localStorage.getItem("__orgTemplateFixture");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The templates this workspace may hire: its own and Codecast's (H1). */
 export function useTemplateCatalog(teamId: string | undefined) {
-  const { data, error } = useQueryNoThrow(api.orgTemplates.catalog, teamId === undefined ? {} : { team_id: teamId as Id<"teams"> });
+  const { data, error } = useQueryNoThrow(
+    api.orgTemplates.catalog,
+    teamId === undefined ? {} : { team_id: teamId as Id<"teams"> },
+  );
   const fx = fixture();
-  if (fx?.catalog) return { templates: visibleCatalog(fx.catalog), ready: true, error: undefined };
-  return { templates: visibleCatalog((data ?? []) as CatalogTemplate[]), ready: data !== undefined, error };
+  if (fx?.catalog)
+    return {
+      templates: visibleCatalog(fx.catalog),
+      ready: true,
+      error: undefined,
+    };
+  return {
+    templates: visibleCatalog((data ?? []) as CatalogTemplate[]),
+    ready: data !== undefined,
+    error,
+  };
 }
 
 /** A digest of the whole row: its enriched fields are nested objects the store's identity reuse does not compare. */
-const stampRev = (row: any) => (row ? [{ ...row, rev: fnv1a32(JSON.stringify(row)) }] : []);
+const stampRev = (row: any) =>
+  row ? [{ ...row, rev: fnv1a32(JSON.stringify(row)) }] : [];
 // The rows' wake signature: the digest, and `config`, which an optimistic answer changes without changing `rev`.
-const instanceSig = (row: any) => `${row.rev}:${JSON.stringify(row.config ?? {})}`;
+const instanceSig = (row: any) =>
+  `${row.rev}:${JSON.stringify(row.config ?? {})}`;
 
 /** The instance a role was hired as, with its record and readiness, from the store; null for an ordinary role. */
 export function useTemplateInstance(roleId: string | undefined) {
-  const { ready, error } = useSyncCollection("orgTemplateInstances", api.orgTemplates.instanceForRole, roleId ? { role_id: roleId as Id<"org_roles"> } : "skip", { select: stampRev });
+  const { ready, error } = useSyncCollection(
+    "orgTemplateInstances",
+    api.orgTemplates.instanceForRole,
+    roleId ? { role_id: roleId as Id<"org_roles"> } : "skip",
+    { select: stampRev },
+  );
   const where = useCallback((row: any) => row.role_id === roleId, [roleId]);
-  const rows = useCollectionRows<any>("orgTemplateInstances", { where, sig: instanceSig });
+  const rows = useCollectionRows<any>("orgTemplateInstances", {
+    where,
+    sig: instanceSig,
+  });
   const fx = fixture();
   // A fixture instance stands in only for the role it names (`role_id`): one
   // left in localStorage would otherwise dress every role as a template hire.
-  if (fx && "instance" in fx && fx.instance?.role_id === roleId) return { instance: fx.instance as any, ready: true, error: undefined };
+  if (fx && "instance" in fx && fx.instance?.role_id === roleId)
+    return { instance: fx.instance as any, ready: true, error: undefined };
   // The role's live instance, newest first, as the server picks; a retired one only while it has no other.
-  const newest = [...rows].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
-  const instance = newest.find((r) => r.phase !== "retired") ?? newest[0] ?? null;
+  const newest = [...rows].sort(
+    (a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
+  );
+  const instance =
+    newest.find((r) => r.phase !== "retired") ?? newest[0] ?? null;
   return { instance, ready: ready || rows.length > 0, error };
 }
 
 /** The workspace's choice to let Codecast learn from its template roles (H12): its state and whether this person may change it. */
 export function useTemplateLearning(teamId: string | undefined) {
-  const { data } = useQueryNoThrow(api.orgTemplateLearning.learning, teamId === undefined ? {} : { team_id: teamId as Id<"teams"> });
+  const { data } = useQueryNoThrow(
+    api.orgTemplateLearning.learning,
+    teamId === undefined ? {} : { team_id: teamId as Id<"teams"> },
+  );
   const fx = fixture() as any;
-  if (fx?.learning) return { learning: fx.learning as { enabled: boolean; can_change: boolean; changed_by: string | null }, ready: true };
-  return { learning: data as { enabled: boolean; can_change: boolean; changed_by: string | null } | undefined, ready: data !== undefined };
+  if (fx?.learning)
+    return {
+      learning: fx.learning as {
+        enabled: boolean;
+        can_change: boolean;
+        changed_by: string | null;
+      },
+      ready: true,
+    };
+  return {
+    learning: data as
+      | { enabled: boolean; can_change: boolean; changed_by: string | null }
+      | undefined,
+    ready: data !== undefined,
+  };
 }
 
 /** The lessons that left this instance's workspace (H9, H12) and where each stands with the publisher. */
 export function useInstanceLessons(instanceKey: string | undefined) {
-  const { data } = useQueryNoThrow(api.orgTemplates.listLessons, instanceKey ? { instance_key: instanceKey } : "skip");
+  const { data } = useQueryNoThrow(
+    api.orgTemplates.listLessons,
+    instanceKey ? { instance_key: instanceKey } : "skip",
+  );
   const fx = fixture() as any;
   if (fx?.lessons) return { lessons: fx.lessons as any[], ready: true };
   return { lessons: (data ?? []) as any[], ready: data !== undefined };
@@ -75,14 +129,51 @@ export function useTemplateActions() {
   // classified and listed in the org record like every other org gesture.
   const store = useInboxStore.getState;
   return {
-    propose: (args: { team_id?: string; title: string; summary_md: string; mode: string; changes: unknown[]; asks: unknown[] }) => propose({ ...args, team_id: args.team_id as Id<"teams"> | undefined }) as Promise<any>,
-    markSetup: (instanceKey: string, id: string, status: "done" | "open" | "skipped") => store().markOrgTemplateSetup(instanceKey, id, status),
-    answer: (instanceKey: string, key: string, value: string) => store().answerOrgTemplateInput(instanceKey, key, value) as Promise<unknown>,
+    propose: (args: {
+      team_id?: string;
+      title: string;
+      summary_md: string;
+      mode: string;
+      changes: unknown[];
+      asks: unknown[];
+    }) =>
+      propose({
+        ...args,
+        team_id: args.team_id as Id<"teams"> | undefined,
+      }) as Promise<any>,
+    markSetup: (
+      instanceKey: string,
+      id: string,
+      status: "done" | "open" | "skipped",
+    ) => store().markOrgTemplateSetup(instanceKey, id, status),
+    answer: (instanceKey: string, key: string, value: string) =>
+      store().answerOrgTemplateInput(
+        instanceKey,
+        key,
+        value,
+      ) as Promise<unknown>,
     activate: (taskId: string) => store().activateOrgTemplateRoutine(taskId),
-    setLearning: (teamId: string | undefined, enabled: boolean) => store().setOrgTemplateLearning(teamId, enabled) as Promise<any>,
+    setLearning: (teamId: string | undefined, enabled: boolean) =>
+      store().setOrgTemplateLearning(teamId, enabled) as Promise<any>,
     /** The host step (H3): the daemon on the machine with the checkout runs bind. Secrets are sealed
      *  to that machine's key in the browser (sealSecret) before they reach here; never a plain value. */
-    requestBind: (instanceKey: string, secrets: { key: string; payload: { provider: string; epk: string; iv: string; ct: string } }[], deviceId?: string) => store().requestOrgTemplateBind(instanceKey, secrets, deviceId) as Promise<{ command_id: string; device: { device_id: string; label: string }; already_pending: boolean }>,
+    requestBind: (
+      instanceKey: string,
+      secrets: {
+        key: string;
+        payload: { provider: string; epk: string; iv: string; ct: string };
+      }[],
+      deviceId?: string,
+    ) =>
+      store().requestOrgTemplateBind(
+        instanceKey,
+        secrets,
+        deviceId,
+      ) as Promise<{
+        command_id: string;
+        device: { device_id: string; label: string };
+        already_pending: boolean;
+      }>,
   };
 }
 

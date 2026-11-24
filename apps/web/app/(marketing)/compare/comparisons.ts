@@ -17,7 +17,12 @@
 import { SHARED_ROWS, type Comparison } from "./comparisonRows";
 import { TOOL_COMPARISONS } from "./comparisons.tools";
 
-export type { ComparisonRow, ProsCons, DeepDive, Comparison } from "./comparisonRows";
+export type {
+  ComparisonRow,
+  ProsCons,
+  DeepDive,
+  Comparison,
+} from "./comparisonRows";
 
 export const COMPARISONS: Comparison[] = [
   {
@@ -36,7 +41,8 @@ export const COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "Starts and drives agent threads itself; a thread exists because T3 Code launched it",
+        competitor:
+          "Starts and drives agent threads itself; a thread exists because T3 Code launched it",
       },
       {
         dimension: "Sessions you started elsewhere",
@@ -47,7 +53,8 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         ...SHARED_ROWS.agents,
-        competitor: "Claude Code, Codex, Cursor, Grok Build, OpenCode and Antigravity, plus pi, Muse and other ACP agents",
+        competitor:
+          "Claude Code, Codex, Cursor, Grok Build, OpenCode and Antigravity, plus pi, Muse and other ACP agents",
       },
       {
         dimension: "Machines",
@@ -61,7 +68,10 @@ export const COMPARISONS: Comparison[] = [
         competitor:
           "Find threads by title and search your messages and the agent's final answers; no search over tool output and no memory agents consult",
       },
-      { ...SHARED_ROWS.blame, competitor: "Not offered; each turn shows its own diff" },
+      {
+        ...SHARED_ROWS.blame,
+        competitor: "Not offered; each turn shows its own diff",
+      },
       {
         ...SHARED_ROWS.remote,
         competitor:
@@ -85,24 +95,32 @@ export const COMPARISONS: Comparison[] = [
         dimension: "Automation",
         codecast:
           "Triggers on a delay, a schedule or an event, workflows with approval gates, plans run in waves, a decisions queue, and sessions that resume on another saved account at a usage limit",
-        competitor: "Scheduled tasks and webhook triggers per project, /goal to keep working until a goal is met, resume at limit reset",
+        competitor:
+          "Scheduled tasks and webhook triggers per project, /goal to keep working until a goal is met, resume at limit reset",
       },
       {
         dimension: "What agents can reach",
         codecast:
           "Your own signed in Chrome, native macOS apps, iOS simulators, published pages at a link, and messages to other sessions",
-        competitor: "A built in terminal, an iOS Simulator or Android Emulator panel the agent can drive, and an MCP server other agents connect to",
+        competitor:
+          "A built in terminal, an iOS Simulator or Android Emulator panel the agent can drive, and an MCP server other agents connect to",
       },
       {
         ...SHARED_ROWS.team,
-        competitor: "None: access is per paired device, with no shared threads, share links or organizations",
+        competitor:
+          "None: access is per paired device, with no shared threads, share links or organizations",
       },
       {
         dimension: "Status",
-        codecast: "Generally available; free for individuals, per seat for teams",
-        competitor: "Version 0.0.x with several nightly builds a day; the README says to expect bugs; free",
+        codecast:
+          "Generally available; free for individuals, per seat for teams",
+        competitor:
+          "Version 0.0.x with several nightly builds a day; the README says to expect bugs; free",
       },
-      { ...SHARED_ROWS.oss, competitor: "MIT; mostly not accepting outside contributions" },
+      {
+        ...SHARED_ROWS.oss,
+        competitor: "MIT; mostly not accepting outside contributions",
+      },
     ],
     strengths: {
       codecast: {
@@ -250,7 +268,8 @@ export const COMPARISONS: Comparison[] = [
         dimension: "Core model",
         codecast:
           "Records and steers the agents you already run, from the transcripts they write on your machines",
-        competitor: "Is the agent: its own harness, with threads stored on Amp's servers",
+        competitor:
+          "Is the agent: its own harness, with threads stored on Amp's servers",
       },
       {
         ...SHARED_ROWS.agents,
@@ -261,7 +280,8 @@ export const COMPARISONS: Comparison[] = [
         dimension: "Sessions you already have",
         codecast:
           "Every session on a supported agent syncs live, whether it started in a terminal, an IDE or another app, and history already on disk is picked up",
-        competitor: "No import or view of sessions from Claude Code, Codex, Cursor or other agents; history starts with your first Amp thread",
+        competitor:
+          "No import or view of sessions from Claude Code, Codex, Cursor or other agents; history starts with your first Amp thread",
       },
       {
         dimension: "Models",
@@ -279,8 +299,10 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Where history lives",
-        codecast: "A backend you can host yourself; transcripts stay on disk where your agents wrote them",
-        competitor: "Amp's servers on Google Cloud, encrypted at rest; no self hosting",
+        codecast:
+          "A backend you can host yourself; transcripts stay on disk where your agents wrote them",
+        competitor:
+          "Amp's servers on Google Cloud, encrypted at rest; no self hosting",
       },
       {
         ...SHARED_ROWS.memory,
@@ -292,7 +314,8 @@ export const COMPARISONS: Comparison[] = [
         dimension: "Branching and handoff",
         codecast:
           "Fork from any message in several directions at once; spawn workers on any agent that report back; cast handoff writes context for a fresh session",
-        competitor: "Handoff starts a fresh thread with the context that matters; fork was removed in January 2026",
+        competitor:
+          "Handoff starts a fresh thread with the context that matters; fork was removed in January 2026",
       },
       {
         dimension: "Permissions",
@@ -317,7 +340,8 @@ export const COMPARISONS: Comparison[] = [
         dimension: "Coordinating agents",
         codecast:
           "Sessions message each other; cast spawn, fork and plan orchestrate run work in parallel; org roles keep standing sessions on an area",
-        competitor: "Agents spawn and message each other; Puck starts, monitors and splits work across agents, by voice, in Slack or over MCP",
+        competitor:
+          "Agents spawn and message each other; Puck starts, monitors and splits work across agents, by voice, in Slack or over MCP",
       },
       {
         dimension: "Pull requests and review",
@@ -333,13 +357,17 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Around the sessions",
-        codecast: "Team chat, calls, tasks, plans, docs, decisions and published pages, with agents taking part in each",
-        competitor: "Slack through Puck, a voice and video Space in each thread",
+        codecast:
+          "Team chat, calls, tasks, plans, docs, decisions and published pages, with agents taking part in each",
+        competitor:
+          "Slack through Puck, a voice and video Space in each thread",
       },
       {
         dimension: "Enterprise controls",
-        codecast: "Per conversation privacy levels, hashed project paths, optional encryption the server cannot read, self hosting",
-        competitor: "SSO, SCIM, groups, allowed model lists, an MCP allowlist, audit logs, IP allowlisting and SOC 2 Type II",
+        codecast:
+          "Per conversation privacy levels, hashed project paths, optional encryption the server cannot read, self hosting",
+        competitor:
+          "SSO, SCIM, groups, allowed model lists, an MCP allowlist, audit logs, IP allowlisting and SOC 2 Type II",
       },
       { ...SHARED_ROWS.oss, competitor: "Closed source" },
     ],
@@ -524,8 +552,10 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Rewind",
-        codecast: "Fork the conversation from any message; the fork's files start from the current checkout",
-        competitor: "Revert the conversation and the files together to any earlier point",
+        codecast:
+          "Fork the conversation from any message; the fork's files start from the current checkout",
+        competitor:
+          "Revert the conversation and the files together to any earlier point",
       },
       {
         dimension: "The working tree for teammates",
@@ -564,8 +594,10 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Conversation branching",
-        codecast: "Fork from any message, several directions at once, locally or on a cloud host",
-        competitor: "Subthreads one level deep; branching is on the roadmap as up next",
+        codecast:
+          "Fork from any message, several directions at once, locally or on a cloud host",
+        competitor:
+          "Subthreads one level deep; branching is on the roadmap as up next",
       },
       {
         ...SHARED_ROWS.memory,
@@ -574,7 +606,8 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         ...SHARED_ROWS.blame,
-        competitor: "Not documented as a feature; Delta's references anchor to changes rather than line numbers",
+        competitor:
+          "Not documented as a feature; Delta's references anchor to changes rather than line numbers",
       },
       {
         dimension: "Automation",
@@ -599,20 +632,28 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Platforms",
-        codecast: "Daemon on macOS, Linux and Windows; web everywhere, a macOS desktop app, an iOS app, and blame in VS Code, Cursor and vim",
-        competitor: "Native desktop apps on macOS 13 or later with Apple Silicon, Linux and Windows; one app instance at a time; a browser viewer",
+        codecast:
+          "Daemon on macOS, Linux and Windows; web everywhere, a macOS desktop app, an iOS app, and blame in VS Code, Cursor and vim",
+        competitor:
+          "Native desktop apps on macOS 13 or later with Apple Silicon, Linux and Windows; one app instance at a time; a browser viewer",
       },
       {
         dimension: "Sign in",
         codecast: "Email and password or GitHub",
-        competitor: "GitHub through a Zed account; no organization sign on documented",
+        competitor:
+          "GitHub through a Zed account; no organization sign on documented",
       },
       {
         dimension: "Status",
-        codecast: "Generally available; free for individuals, per seat for teams",
-        competitor: "Public beta; free during the beta, with paid plans announced as coming on the Zed editor's billing",
+        codecast:
+          "Generally available; free for individuals, per seat for teams",
+        competitor:
+          "Public beta; free during the beta, with paid plans announced as coming on the Zed editor's billing",
       },
-      { ...SHARED_ROWS.oss, competitor: "Closed source, built by Zed Industries" },
+      {
+        ...SHARED_ROWS.oss,
+        competitor: "Closed source, built by Zed Industries",
+      },
     ],
     strengths: {
       codecast: {
@@ -806,19 +847,35 @@ export const COMPARISONS: Comparison[] = [
         competitor:
           "Launches and manages agent runs itself, in worktrees it creates on your Mac",
       },
-      { ...SHARED_ROWS.agents, competitor: "Claude Code, Codex, and Cursor agents" },
+      {
+        ...SHARED_ROWS.agents,
+        competitor: "Claude Code, Codex, and Cursor agents",
+      },
       {
         dimension: "Where it runs",
-        codecast: "Daemon on every machine where agents run; clients on web, desktop, iOS",
-        competitor: "A macOS app; runs execute locally or in Conductor's cloud sandboxes",
+        codecast:
+          "Daemon on every machine where agents run; clients on web, desktop, iOS",
+        competitor:
+          "A macOS app; runs execute locally or in Conductor's cloud sandboxes",
       },
-      { ...SHARED_ROWS.team, competitor: "Live collaboration in shared workspaces through Conductor Multiplayer on its Pro, Teams and Enterprise plans" },
+      {
+        ...SHARED_ROWS.team,
+        competitor:
+          "Live collaboration in shared workspaces through Conductor Multiplayer on its Pro, Teams and Enterprise plans",
+      },
       {
         ...SHARED_ROWS.memory,
         competitor: "Session history within the app for your local runs",
       },
-      { ...SHARED_ROWS.blame, competitor: "Not a goal; review happens per-run before merge" },
-      { ...SHARED_ROWS.remote, competitor: "The Mac app, plus web access and a mobile app on Pro and higher plans" },
+      {
+        ...SHARED_ROWS.blame,
+        competitor: "Not a goal; review happens per-run before merge",
+      },
+      {
+        ...SHARED_ROWS.remote,
+        competitor:
+          "The Mac app, plus web access and a mobile app on Pro and higher plans",
+      },
       { ...SHARED_ROWS.oss, competitor: "Closed source" },
     ],
     whenCompetitor: [
@@ -848,16 +905,24 @@ export const COMPARISONS: Comparison[] = [
         ...SHARED_ROWS.model,
         competitor: "Task board first: cards dispatch agent runs it manages",
       },
-      { ...SHARED_ROWS.agents, competitor: "Claude Code, Codex, Gemini, Amp, and others" },
+      {
+        ...SHARED_ROWS.agents,
+        competitor: "Claude Code, Codex, Gemini, Amp, and others",
+      },
       {
         dimension: "Unit of work",
-        codecast: "The session — tasks and plans link to the conversations that did the work",
+        codecast:
+          "The session — tasks and plans link to the conversations that did the work",
         competitor: "The card — sessions exist inside tasks",
       },
-      { ...SHARED_ROWS.team, competitor: "Board-level: shared view of tasks and their runs" },
+      {
+        ...SHARED_ROWS.team,
+        competitor: "Board-level: shared view of tasks and their runs",
+      },
       {
         ...SHARED_ROWS.memory,
-        competitor: "History of tasks and their runs; not a cross-session search layer for agents",
+        competitor:
+          "History of tasks and their runs; not a cross-session search layer for agents",
       },
       { ...SHARED_ROWS.blame, competitor: "Per-task diffs and review" },
       { ...SHARED_ROWS.remote, competitor: "Web UI to the machine running it" },
@@ -870,7 +935,7 @@ export const COMPARISONS: Comparison[] = [
     whenCodecast: [
       "Your team already runs agents ad hoc in terminals and IDEs, and you want that reality captured rather than replaced.",
       "You want agents to remember: search past sessions, recall decisions, avoid redoing work.",
-      "You need to answer \"which conversation wrote this line?\" months later.",
+      'You need to answer "which conversation wrote this line?" months later.',
     ],
   },
   {
@@ -886,20 +951,29 @@ export const COMPARISONS: Comparison[] = [
     rows: [
       {
         ...SHARED_ROWS.model,
-        competitor: "Connects you to one of your own Claude Code sessions while it runs",
+        competitor:
+          "Connects you to one of your own Claude Code sessions while it runs",
       },
       { ...SHARED_ROWS.agents, competitor: "Claude Code" },
       {
         dimension: "What gets captured",
-        codecast: "Every session automatically — the daemon watches the history files agents already write",
-        competitor: "The sessions you switch it on for, per session or by enabling it for all of them",
+        codecast:
+          "Every session automatically — the daemon watches the history files agents already write",
+        competitor:
+          "The sessions you switch it on for, per session or by enabling it for all of them",
       },
       {
         dimension: "After the session ends",
-        codecast: "The conversation stays: searchable, linkable, and readable by your agents",
-        competitor: "Remote Control is a live connection; it is not a history layer",
+        codecast:
+          "The conversation stays: searchable, linkable, and readable by your agents",
+        competitor:
+          "Remote Control is a live connection; it is not a history layer",
       },
-      { ...SHARED_ROWS.team, competitor: "Your own sessions; a teammate's session is not yours to see or steer" },
+      {
+        ...SHARED_ROWS.team,
+        competitor:
+          "Your own sessions; a teammate's session is not yours to see or steer",
+      },
       {
         ...SHARED_ROWS.memory,
         competitor: "None across sessions — each session keeps its own context",
@@ -907,12 +981,14 @@ export const COMPARISONS: Comparison[] = [
       { ...SHARED_ROWS.blame, competitor: "Not a goal" },
       {
         ...SHARED_ROWS.remote,
-        competitor: "claude.ai/code plus the iOS and Android Claude apps, with push notifications for permission prompts",
+        competitor:
+          "claude.ai/code plus the iOS and Android Claude apps, with push notifications for permission prompts",
       },
       {
         dimension: "Requirements",
         codecast: "Free for individuals; MIT, and the backend is self-hostable",
-        competitor: "A Pro, Max, Team, or Enterprise plan (API keys are not supported); on Team and Enterprise an owner enables it first",
+        competitor:
+          "A Pro, Max, Team, or Enterprise plan (API keys are not supported); on Team and Enterprise an owner enables it first",
       },
       { ...SHARED_ROWS.oss, competitor: "Closed source, built by Anthropic" },
     ],
@@ -974,8 +1050,10 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         dimension: "Link in the commit",
-        codecast: "A Codecast-Session line in commits from sessions shared with your team",
-        competitor: "An Entire-Checkpoint trailer with the checkpoint ID on every linked commit",
+        codecast:
+          "A Codecast-Session line in commits from sessions shared with your team",
+        competitor:
+          "An Entire-Checkpoint trailer with the checkpoint ID on every linked commit",
       },
       {
         ...SHARED_ROWS.memory,
@@ -984,7 +1062,8 @@ export const COMPARISONS: Comparison[] = [
       },
       {
         ...SHARED_ROWS.remote,
-        competitor: "Not documented: entire.io shows captured sessions, and entire session resume continues past work, including in another agent",
+        competitor:
+          "Not documented: entire.io shows captured sessions, and entire session resume continues past work, including in another agent",
       },
       {
         dimension: "Beyond sessions",
@@ -993,8 +1072,16 @@ export const COMPARISONS: Comparison[] = [
         competitor:
           "Git hosting and regional GitHub mirrors, multi agent review and investigate commands, Dispatch summaries of recent work, and entire-graph code navigation for agents",
       },
-      { dimension: "Pricing", codecast: "Free for one person, per seat for teams", competitor: "Not published on its site" },
-      { ...SHARED_ROWS.oss, competitor: "The CLI is MIT licensed; the source of the entire.io service is not stated" },
+      {
+        dimension: "Pricing",
+        codecast: "Free for one person, per seat for teams",
+        competitor: "Not published on its site",
+      },
+      {
+        ...SHARED_ROWS.oss,
+        competitor:
+          "The CLI is MIT licensed; the source of the entire.io service is not stated",
+      },
     ],
     strengths: {
       codecast: {
@@ -1029,7 +1116,7 @@ export const COMPARISONS: Comparison[] = [
     },
     deepDives: [
       {
-        heading: "How each one answers \"which session wrote this line?\"",
+        heading: 'How each one answers "which session wrote this line?"',
         paragraphs: [
           "Entire starts from git. entire blame runs git blame, then looks at the commit that introduced each line: if that commit carries an Entire-Checkpoint trailer, the checkpoint holds the session, prompt and transcript behind it. entire why takes a file and line and returns that commit, checkpoint, prompt and session. Entire's FAQ is explicit that the answer describes the whole commit, so a line a person edited inside an agent commit still reads as AI, and a rebase or squash moves the line to whichever commit git now credits.",
           "Codecast also starts from git blame, then resolves each line two ways: the session that committed it, from the Codecast-Session line or its own record of the session's commits, and the session whose edit wrote that exact line, by matching the line against the edits sessions made. The authoring session wins when both are known, and the result links to the message where the edit happened. In the web repository view, setting Blame to Sessions shows the same thing in the gutter, with a strip that sums how much of the file each session wrote.",

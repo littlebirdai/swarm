@@ -10,21 +10,38 @@ import { tmuxLiteralArg } from "../src/tmuxPaste.js";
 
 const hasTmux = spawnSync("tmux", ["-V"]).status === 0;
 const socket = `cc-learning-${process.pid}`;
-const tmux = (...args: string[]) => spawnSync("tmux", ["-L", socket, "-f", "/dev/null", ...args], { encoding: "utf8" });
+const tmux = (...args: string[]) =>
+  spawnSync("tmux", ["-L", socket, "-f", "/dev/null", ...args], {
+    encoding: "utf8",
+  });
 
 async function typed(text: string): Promise<string> {
   tmux("send-keys", "-t", "learn", "C-u");
   tmux("send-keys", "-t", "learn", "-l", text);
   await Bun.sleep(150);
-  return tmux("capture-pane", "-p", "-t", "learn").stdout.split("\n")[0].trimEnd();
+  return tmux("capture-pane", "-p", "-t", "learn")
+    .stdout.split("\n")[0]
+    .trimEnd();
 }
 
 describe.skipIf(!hasTmux)("tmux send-keys -l", () => {
   beforeAll(() => {
     // A pane whose line discipline echoes what is typed; C-u erases the line.
-    tmux("new-session", "-d", "-s", "learn", "-x", "120", "-y", "5", "cat >/dev/null");
+    tmux(
+      "new-session",
+      "-d",
+      "-s",
+      "learn",
+      "-x",
+      "120",
+      "-y",
+      "5",
+      "cat >/dev/null",
+    );
   });
-  afterAll(() => { tmux("kill-server"); });
+  afterAll(() => {
+    tmux("kill-server");
+  });
 
   test("drops a trailing unescaped ;", async () => {
     expect(await typed("abc;")).toBe("abc");

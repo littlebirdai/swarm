@@ -33,10 +33,17 @@ export function rosterWithGuests<T extends { user_id: unknown }>(
   if (!guests?.length) return seats as Array<T | StageRosterRow>;
   const seen = new Set(seats.map((m) => String(m.user_id)));
   const extra: StageRosterRow[] = [];
-  for (const g of [...guests].sort((a, b) => a.joined_at - b.joined_at || a.identity.localeCompare(b.identity))) {
+  for (const g of [...guests].sort(
+    (a, b) => a.joined_at - b.joined_at || a.identity.localeCompare(b.identity),
+  )) {
     if (seen.has(g.identity)) continue;
     seen.add(g.identity);
-    extra.push({ user_id: g.identity, user_name: g.name, joined_at: g.joined_at, guest: true });
+    extra.push({
+      user_id: g.identity,
+      user_name: g.name,
+      joined_at: g.joined_at,
+      guest: true,
+    });
   }
   return [...seats, ...extra];
 }
@@ -46,10 +53,9 @@ export function rosterWithGuests<T extends { user_id: unknown }>(
  *  is not drawn as in the call, and a guest it does have wears their real
  *  microphone (a guest has no seat to carry it). `media` null means nobody
  *  can say (not connected, an older voice host): the server's list stands. */
-export function withGuestMedia<T extends { user_id: unknown; guest?: boolean; muted?: boolean }>(
-  roster: readonly T[],
-  media: readonly GuestMedia[] | null,
-): T[] {
+export function withGuestMedia<
+  T extends { user_id: unknown; guest?: boolean; muted?: boolean },
+>(roster: readonly T[], media: readonly GuestMedia[] | null): T[] {
   if (!media) return roster as T[];
   const by = new Map(media.map((g) => [g.identity, g]));
   const out: T[] = [];
@@ -82,8 +88,12 @@ export function guestsJoining<T extends { user_id: unknown; guest?: boolean }>(
 
 /** A signature of a room's guests, for a store subscription that should wake
  *  when somebody is let in, leaves or is renamed, and never on a heartbeat. */
-export function guestsSig(guests: readonly LiveRoomGuest[] | undefined): string {
-  return (guests ?? []).map((g) => `${g.identity}:${g.name}:${g.joined_at}`).join("|");
+export function guestsSig(
+  guests: readonly LiveRoomGuest[] | undefined,
+): string {
+  return (guests ?? [])
+    .map((g) => `${g.identity}:${g.name}:${g.joined_at}`)
+    .join("|");
 }
 
 const MIN = 60_000;
@@ -108,9 +118,14 @@ export function guestLinkExpiry(expiresAt: number, now: number): string {
   if (left <= 0) return "expired";
   if (left < HOUR) return `closes in ${Math.max(1, Math.ceil(left / MIN))} min`;
   const at = new Date(expiresAt);
-  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  if (left < 20 * HOUR && at.getDate() === new Date(now).getDate()) return `open until ${time}`;
-  if (left < 6 * DAY) return `open until ${at.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
+  const time = at.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (left < 20 * HOUR && at.getDate() === new Date(now).getDate())
+    return `open until ${time}`;
+  if (left < 6 * DAY)
+    return `open until ${at.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
   return `open until ${at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
@@ -119,6 +134,14 @@ export { isGuestParticipant };
 
 /** What a meeting is called on the guest's page: the name the inviter could
  *  see (callGuests.linkTitle), else who invited them ("A call with Sam"). */
-export function meetingTitle(title: string | null | undefined, inviter: { name: string | null } | null | undefined): string {
-  return title?.trim() || (inviter?.name ? `A call with ${firstName(inviter.name)}` : "A codecast call");
+export function meetingTitle(
+  title: string | null | undefined,
+  inviter: { name: string | null } | null | undefined,
+): string {
+  return (
+    title?.trim() ||
+    (inviter?.name
+      ? `A call with ${firstName(inviter.name)}`
+      : "A codecast call")
+  );
 }

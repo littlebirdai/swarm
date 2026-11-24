@@ -36,12 +36,23 @@ export type KeyCommands = {
 
 /** A dialog, popover or menu (not a tooltip) is open over the page: its keys are its own. */
 function overlayOpen(): boolean {
-  if (document.querySelector("[role=dialog][data-state=open], [role=menu], [role=listbox]")) return true;
+  if (
+    document.querySelector(
+      "[role=dialog][data-state=open], [role=menu], [role=listbox]",
+    )
+  )
+    return true;
   // A popover owns its keys; a tooltip (shown just by hovering a board button) owns none.
-  return Array.from(document.querySelectorAll("[data-radix-popper-content-wrapper]")).some((w) => !w.querySelector("[role=tooltip]"));
+  return Array.from(
+    document.querySelectorAll("[data-radix-popper-content-wrapper]"),
+  ).some((w) => !w.querySelector("[role=tooltip]"));
 }
 
-export function useBoardKeys(cmds: KeyCommands, spaceHeld: React.MutableRefObject<boolean>, rootRef: React.RefObject<HTMLDivElement | null>) {
+export function useBoardKeys(
+  cmds: KeyCommands,
+  spaceHeld: React.MutableRefObject<boolean>,
+  rootRef: React.RefObject<HTMLDivElement | null>,
+) {
   const ref = useRef(cmds);
   ref.current = cmds;
   // The board owns the keyboard (and paste) from the moment it opens until a
@@ -62,17 +73,43 @@ export function useBoardKeys(cmds: KeyCommands, spaceHeld: React.MutableRefObjec
     const onKey = (e: KeyboardEvent) => {
       // The page's own Escape goes back to the list; on a board, a stray Escape (after a popover closed, a press in the header) must not.
       // An open app panel (the ? shortcuts list) closes on its own Escape.
-      if (e.key === "Escape" && (useInboxStore.getState() as { shortcutsPanelOpen?: boolean }).shortcutsPanelOpen) return;
+      if (
+        e.key === "Escape" &&
+        (useInboxStore.getState() as { shortcutsPanelOpen?: boolean })
+          .shortcutsPanelOpen
+      )
+        return;
       // A version view (or a read-only board) belongs to the page: its Escape goes back to the current board.
       if (e.key === "Escape" && ref.current.readOnly) return;
-      if (e.key === "Escape" && !active.current && !e.defaultPrevented && !keyBelongsElsewhere(e.target)) {
+      if (
+        e.key === "Escape" &&
+        !active.current &&
+        !e.defaultPrevented &&
+        !keyBelongsElsewhere(e.target)
+      ) {
         const root = rootRef.current;
-        if (root?.isConnected && !overlayOpen()) { e.preventDefault(); claimed = true; ref.current.clearSelection(); return; }
+        if (root?.isConnected && !overlayOpen()) {
+          e.preventDefault();
+          claimed = true;
+          ref.current.clearSelection();
+          return;
+        }
       }
-      if (!active.current || keyBelongsElsewhere(e.target) || e.defaultPrevented) return;
+      if (
+        !active.current ||
+        keyBelongsElsewhere(e.target) ||
+        e.defaultPrevented
+      )
+        return;
       // A control outside the board (the header's Share, History, "...") keeps its own keys.
       const t = e.target as Node | null;
-      if (t && t !== document.body && rootRef.current && !rootRef.current.contains(t)) return;
+      if (
+        t &&
+        t !== document.body &&
+        rootRef.current &&
+        !rootRef.current.contains(t)
+      )
+        return;
       // Only when the board is on screen and no dialog sits over it.
       const root = rootRef.current;
       if (!root || !root.isConnected || overlayOpen()) return;
@@ -80,7 +117,10 @@ export function useBoardKeys(cmds: KeyCommands, spaceHeld: React.MutableRefObjec
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
       // stop() marks the key claimed: it never also reaches the app's global shortcuts.
-      const stop = () => { e.preventDefault(); claimed = true; };
+      const stop = () => {
+        e.preventDefault();
+        claimed = true;
+      };
       if (e.key === " " && !e.repeat) {
         spaceHeld.current = true;
         root.dataset.space = "1";
@@ -88,49 +128,149 @@ export function useBoardKeys(cmds: KeyCommands, spaceHeld: React.MutableRefObjec
         return;
       }
       // Plain + and - zoom too, as in FigJam and tldraw.
-      if ((k === "=" || k === "+") && !e.altKey) { stop(); c.zoomBy(1.25); return; }
-      if ((k === "-" || k === "_") && !e.altKey) { stop(); c.zoomBy(0.8); return; }
-      if (mod && k === "0") { stop(); c.zoomTo(1); return; }
-      if (e.shiftKey && (e.key === "!" || e.code === "Digit1")) { stop(); c.fit(false); return; }
-      if (e.shiftKey && (e.key === "@" || e.code === "Digit2")) { stop(); c.fit(true); return; }
+      if ((k === "=" || k === "+") && !e.altKey) {
+        stop();
+        c.zoomBy(1.25);
+        return;
+      }
+      if ((k === "-" || k === "_") && !e.altKey) {
+        stop();
+        c.zoomBy(0.8);
+        return;
+      }
+      if (mod && k === "0") {
+        stop();
+        c.zoomTo(1);
+        return;
+      }
+      if (e.shiftKey && (e.key === "!" || e.code === "Digit1")) {
+        stop();
+        c.fit(false);
+        return;
+      }
+      if (e.shiftKey && (e.key === "@" || e.code === "Digit2")) {
+        stop();
+        c.fit(true);
+        return;
+      }
       // Escape belongs to the board while it is in use: it backs out of a menu, a selection or a tool, never out of the page.
-      if (e.key === "Escape") { if (!c.clearSelection()) { walked.current = false; leaving.current = true; } c.setTool("select"); stop(); return; }
+      if (e.key === "Escape") {
+        if (!c.clearSelection()) {
+          walked.current = false;
+          leaving.current = true;
+        }
+        c.setTool("select");
+        stop();
+        return;
+      }
       // Tab walks the board's elements (with Shift, backwards). With nothing selected after an Escape, Tab moves on through the page.
       if (e.key === "Tab" && !mod && !e.altKey) {
         // Anywhere in the board (the canvas, a button on it) Tab walks elements; after an Escape with nothing selected it moves on through the page.
         const focus = document.activeElement;
         // An Escape with nothing left to clear lets the next Tab leave the board, so Tab never traps focus.
-        if (leaving.current) { leaving.current = false; return; }
-        const inBoard = c.hasSelection() || walked.current || !!(focus && root.contains(focus)) || focus === document.body;
-        if (inBoard && c.cycle(e.shiftKey ? -1 : 1)) { walked.current = true; stop(); return; }
+        if (leaving.current) {
+          leaving.current = false;
+          return;
+        }
+        const inBoard =
+          c.hasSelection() ||
+          walked.current ||
+          !!(focus && root.contains(focus)) ||
+          focus === document.body;
+        if (inBoard && c.cycle(e.shiftKey ? -1 : 1)) {
+          walked.current = true;
+          stop();
+          return;
+        }
         return;
       }
       // A version open in history, or a viewer without edit rights: nothing below writes.
       if (c.readOnly) return;
-      if (mod && k === "z") { stop(); if (e.shiftKey) c.redo(); else c.undo(); return; }
-      if (mod && k === "y") { stop(); c.redo(); return; }
-      if (mod && k === "a") { stop(); c.selectAll(); return; }
-      if (mod && k === "c") { c.copy(false); return; }
-      if (mod && k === "x") { c.copy(true); return; }
-      if (mod && k === "d") { stop(); c.duplicate(); return; }
+      if (mod && k === "z") {
+        stop();
+        if (e.shiftKey) c.redo();
+        else c.undo();
+        return;
+      }
+      if (mod && k === "y") {
+        stop();
+        c.redo();
+        return;
+      }
+      if (mod && k === "a") {
+        stop();
+        c.selectAll();
+        return;
+      }
+      if (mod && k === "c") {
+        c.copy(false);
+        return;
+      }
+      if (mod && k === "x") {
+        c.copy(true);
+        return;
+      }
+      if (mod && k === "d") {
+        stop();
+        c.duplicate();
+        return;
+      }
       // Option changes the letter a key types on a Mac: match the key's place, not its character.
-      if (mod && e.altKey && e.code === "KeyG") { stop(); c.frameSelection(); return; }
-      if (mod && k === "g") { stop(); c.group(e.shiftKey); return; }
-      if (e.key === "Backspace" || e.key === "Delete") { stop(); c.deleteSelection(); return; }
-      if (e.key === "]") { stop(); c.order("front"); return; }
-      if (e.key === "[") { stop(); c.order("back"); return; }
-      if (e.key === "Enter") { stop(); c.editSelection(); return; }
+      if (mod && e.altKey && e.code === "KeyG") {
+        stop();
+        c.frameSelection();
+        return;
+      }
+      if (mod && k === "g") {
+        stop();
+        c.group(e.shiftKey);
+        return;
+      }
+      if (e.key === "Backspace" || e.key === "Delete") {
+        stop();
+        c.deleteSelection();
+        return;
+      }
+      if (e.key === "]") {
+        stop();
+        c.order("front");
+        return;
+      }
+      if (e.key === "[") {
+        stop();
+        c.order("back");
+        return;
+      }
+      if (e.key === "Enter") {
+        stop();
+        c.editSelection();
+        return;
+      }
       if (e.key.startsWith("Arrow")) {
         stop();
         const step = e.shiftKey ? 10 : 1;
-        c.nudge(e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
+        c.nudge(
+          e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+          e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
+        );
         return;
       }
       if (mod || e.altKey) return;
-      if (k === "a") { stop(); c.ask(); return; }
-      if (k === "q") { stop(); c.toggleLock(); return; }
+      if (k === "a") {
+        stop();
+        c.ask();
+        return;
+      }
+      if (k === "q") {
+        stop();
+        c.toggleLock();
+        return;
+      }
       const tool = TOOL_KEYS[k];
-      if (tool) { stop(); c.setTool(tool); }
+      if (tool) {
+        stop();
+        c.setTool(tool);
+      }
     };
     const onUp = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -143,7 +283,11 @@ export function useBoardKeys(cmds: KeyCommands, spaceHeld: React.MutableRefObjec
     window.addEventListener("focusin", onPress, { capture: true });
     // Claimed in the app's first key listener: a tool key (C, S, T...) acts on the board, never
     // reaching an app shortcut registered earlier (C would make a new note and leave the board).
-    const release = claimKeys((e) => { claimed = false; onKey(e); return claimed; });
+    const release = claimKeys((e) => {
+      claimed = false;
+      onKey(e);
+      return claimed;
+    });
     window.addEventListener("keyup", onUp);
     return () => {
       window.removeEventListener("pointerdown", onPress, { capture: true });

@@ -30,7 +30,15 @@ export const MACHINES = (now: number) => [
     is_remote: true,
     online: true,
     local_project_roots: ["~/src"],
-    cloud_host: { managed_by: LAPTOP, instance_id: "i-0acme7linux", name: "acme-linux", provider: "aws", region: "us-east-1", instance_type: "m7i.xlarge", state: "running" },
+    cloud_host: {
+      managed_by: LAPTOP,
+      instance_id: "i-0acme7linux",
+      name: "acme-linux",
+      provider: "aws",
+      region: "us-east-1",
+      instance_type: "m7i.xlarge",
+      state: "running",
+    },
   },
 ];
 
@@ -40,13 +48,29 @@ export const RECENT_PROJECTS = (now: number) =>
     ["~/src/web", 18, 6 * MIN],
     ["~/src/gateway", 9, 4 * MIN],
     ["~/src/infra", 6, 47 * MIN],
-  ].map(([path, count, ago]) => ({ path: path as string, count: count as number, lastActive: now - (ago as number), team_id: TEAM_ID, team_name: "Acme" }));
+  ].map(([path, count, ago]) => ({
+    path: path as string,
+    count: count as number,
+    lastActive: now - (ago as number),
+    team_id: TEAM_ID,
+    team_name: "Acme",
+  }));
 
 /* ── Org ───────────────────────────────────────────────────────────────── */
 
-const counts = (c: Partial<Record<"working" | "needs_input" | "done" | "dormant" | "idle", number>>) => ({ working: 0, needs_input: 0, done: 0, dormant: 0, idle: 0, ...c });
+const counts = (
+  c: Partial<
+    Record<"working" | "needs_input" | "done" | "dormant" | "idle", number>
+  >,
+) => ({ working: 0, needs_input: 0, done: 0, dormant: 0, idle: 0, ...c });
 
-const orgSession = (s: { _id: string; short_id: string; title: string; agent_type: string }, state: string, ago: number, now: number, extra: Record<string, unknown> = {}) => ({
+const orgSession = (
+  s: { _id: string; short_id: string; title: string; agent_type: string },
+  state: string,
+  ago: number,
+  now: number,
+  extra: Record<string, unknown> = {},
+) => ({
   _id: s._id,
   short_id: s.short_id,
   title: s.title,
@@ -65,7 +89,16 @@ const ROLE_PEOPLE = cid("rolepeople");
 const ROLE_HOOKS = cid("rolewebhooks");
 
 export const ORG_TREE = (now: number) => {
-  const role = (o: { _id: string; short_id: string; name: string; handle: string; reports_to: string; sessions: any[]; c: ReturnType<typeof counts>; line: string }) => ({
+  const role = (o: {
+    _id: string;
+    short_id: string;
+    name: string;
+    handle: string;
+    reports_to: string;
+    sessions: any[];
+    c: ReturnType<typeof counts>;
+    line: string;
+  }) => ({
     _id: o._id,
     short_id: o.short_id,
     scope_type: "team" as const,
@@ -82,7 +115,11 @@ export const ORG_TREE = (now: number) => {
     counts: o.c,
     sessions: o.sessions,
     total: o.sessions.length,
-    standing: { state: "working" as const, state_line: o.line, state_at: now - 3 * MIN },
+    standing: {
+      state: "working" as const,
+      state_line: o.line,
+      state_at: now - 3 * MIN,
+    },
     scope_names: { projects: [], plans: [] },
   });
   return {
@@ -90,7 +127,17 @@ export const ORG_TREE = (now: number) => {
     generated_at: now,
     anchors: [],
     people: [
-      { user_id: PEOPLE.sarah._id, name: PEOPLE.sarah.name, image: PEOPLE.sarah.image, role: "owner" as const, is_me: false, presence: "online" as const, counts: counts({}), sessions: [], total: 0 },
+      {
+        user_id: PEOPLE.sarah._id,
+        name: PEOPLE.sarah.name,
+        image: PEOPLE.sarah.image,
+        role: "owner" as const,
+        is_me: false,
+        presence: "online" as const,
+        counts: counts({}),
+        sessions: [],
+        total: 0,
+      },
       {
         user_id: PEOPLE.me._id,
         name: PEOPLE.me.name,
@@ -102,12 +149,27 @@ export const ORG_TREE = (now: number) => {
         counts: counts({ needs_input: 2, working: 1 }),
         sessions: [
           orgSession(SESSIONS.api, "needs_input", MIN, now),
-          orgSession(SESSIONS.e2e, "needs_input", 6 * MIN, now, { project_path: "~/src/web" }),
-          orgSession(SESSIONS.rate, "working", 4 * MIN, now, { project_path: "~/src/gateway" }),
+          orgSession(SESSIONS.e2e, "needs_input", 6 * MIN, now, {
+            project_path: "~/src/web",
+          }),
+          orgSession(SESSIONS.rate, "working", 4 * MIN, now, {
+            project_path: "~/src/gateway",
+          }),
         ],
         total: 3,
       },
-      { user_id: PEOPLE.maya._id, name: PEOPLE.maya.name, image: PEOPLE.maya.image, role: "member" as const, is_me: false, reports_to_user_id: PEOPLE.sarah._id, presence: "online" as const, counts: counts({}), sessions: [], total: 0 },
+      {
+        user_id: PEOPLE.maya._id,
+        name: PEOPLE.maya.name,
+        image: PEOPLE.maya.image,
+        role: "member" as const,
+        is_me: false,
+        reports_to_user_id: PEOPLE.sarah._id,
+        presence: "online" as const,
+        counts: counts({}),
+        sessions: [],
+        total: 0,
+      },
     ],
     roles: [
       role({
@@ -127,8 +189,12 @@ export const ORG_TREE = (now: number) => {
         handle: "webhooks",
         reports_to: PEOPLE.me._id,
         sessions: [
-          orgSession(SESSIONS.lead, "working", 0, now, { org_role_id: ROLE_HOOKS }),
-          orgSession(SESSIONS.ui, "working", 0, now, { org_role_id: ROLE_HOOKS }),
+          orgSession(SESSIONS.lead, "working", 0, now, {
+            org_role_id: ROLE_HOOKS,
+          }),
+          orgSession(SESSIONS.ui, "working", 0, now, {
+            org_role_id: ROLE_HOOKS,
+          }),
         ],
         c: counts({ working: 2 }),
         line: "Retry queue in review, dashboard next",
@@ -152,7 +218,11 @@ export const PERMISSIONS = (now: number) => [
   },
 ];
 
-const call = (id: string, name: string, input: unknown) => ({ id, name, input: JSON.stringify(input) });
+const call = (id: string, name: string, input: unknown) => ({
+  id,
+  name,
+  input: JSON.stringify(input),
+});
 const result = (id: string, content: string) => ({ tool_use_id: id, content });
 
 const RETRY_TS = `const DELAYS_MS = [2_000, 4_000, 8_000, 16_000];
@@ -194,8 +264,20 @@ describe("webhook retries", () => {
 export const LEAD_TRANSCRIPT = (now: number) => {
   const t = (minsAgo: number) => now - minsAgo * MIN;
   return [
-    { _id: "hero-lead-m1", role: "user", content: "Failed Stripe webhooks should retry instead of dropping. Split the API and the dashboard across workers and keep me posted.", timestamp: t(40) },
-    { _id: "hero-lead-m2", role: "assistant", content: "Two workers are on it: the API half builds POST /v2/hooks/retry, the dashboard half adds a Retry button and attempt history.", timestamp: t(38) },
+    {
+      _id: "hero-lead-m1",
+      role: "user",
+      content:
+        "Failed Stripe webhooks should retry instead of dropping. Split the API and the dashboard across workers and keep me posted.",
+      timestamp: t(40),
+    },
+    {
+      _id: "hero-lead-m2",
+      role: "assistant",
+      content:
+        "Two workers are on it: the API half builds POST /v2/hooks/retry, the dashboard half adds a Retry button and attempt history.",
+      timestamp: t(38),
+    },
     // The queue itself, built here: folded tool lines, an edit the diff panel
     // shows, and the retry suite running in the background.
     {
@@ -204,42 +286,86 @@ export const LEAD_TRANSCRIPT = (now: number) => {
       content: "Reading how a delivery fails today before adding the queue.",
       tool_calls: [
         call("hero-lead-tc1", "Read", { file_path: "webhooks/deliver.ts" }),
-        call("hero-lead-tc2", "Grep", { pattern: "deliver\\(", path: "webhooks" }),
+        call("hero-lead-tc2", "Grep", {
+          pattern: "deliver\\(",
+          path: "webhooks",
+        }),
         call("hero-lead-tc3", "Read", { file_path: "webhooks/queue.ts" }),
       ],
       tool_results: [
-        result("hero-lead-tc1", "export async function deliver(event: WebhookEvent): Promise<number> {\n  const res = await fetch(event.endpoint, signed(event));\n  return res.status;\n}"),
-        result("hero-lead-tc2", "webhooks/receive.ts:22:  await deliver(event)\nwebhooks/replay.ts:9:  return deliver(event)"),
-        result("hero-lead-tc3", "export const queue = createQueue<WebhookEvent>(\"webhooks\");"),
+        result(
+          "hero-lead-tc1",
+          "export async function deliver(event: WebhookEvent): Promise<number> {\n  const res = await fetch(event.endpoint, signed(event));\n  return res.status;\n}",
+        ),
+        result(
+          "hero-lead-tc2",
+          "webhooks/receive.ts:22:  await deliver(event)\nwebhooks/replay.ts:9:  return deliver(event)",
+        ),
+        result(
+          "hero-lead-tc3",
+          'export const queue = createQueue<WebhookEvent>("webhooks");',
+        ),
       ],
       timestamp: t(30),
     },
     {
       _id: "hero-lead-m2b",
       role: "assistant",
-      content: "A failed delivery goes back on the queue with a growing delay. The schedule lives in one function so the dashboard can show the next attempt.",
+      content:
+        "A failed delivery goes back on the queue with a growing delay. The schedule lives in one function so the dashboard can show the next attempt.",
       tool_calls: [
-        call("hero-lead-tc4", "Write", { file_path: "webhooks/retry.ts", content: RETRY_TS }),
-        call("hero-lead-tc5", "Edit", { file_path: "webhooks/receive.ts", old_string: "  await deliver(event)", new_string: "  const status = await deliver(event)\n  if (isRetryable(status)) await scheduleRetry(event, 1)" }),
-        call("hero-lead-tc6", "Write", { file_path: "webhooks/retry.test.ts", content: RETRY_TEST_TS }),
+        call("hero-lead-tc4", "Write", {
+          file_path: "webhooks/retry.ts",
+          content: RETRY_TS,
+        }),
+        call("hero-lead-tc5", "Edit", {
+          file_path: "webhooks/receive.ts",
+          old_string: "  await deliver(event)",
+          new_string:
+            "  const status = await deliver(event)\n  if (isRetryable(status)) await scheduleRetry(event, 1)",
+        }),
+        call("hero-lead-tc6", "Write", {
+          file_path: "webhooks/retry.test.ts",
+          content: RETRY_TEST_TS,
+        }),
       ],
       tool_results: [
-        result("hero-lead-tc4", "File created successfully at: webhooks/retry.ts"),
-        result("hero-lead-tc5", "The file webhooks/receive.ts has been updated."),
-        result("hero-lead-tc6", "File created successfully at: webhooks/retry.test.ts"),
+        result(
+          "hero-lead-tc4",
+          "File created successfully at: webhooks/retry.ts",
+        ),
+        result(
+          "hero-lead-tc5",
+          "The file webhooks/receive.ts has been updated.",
+        ),
+        result(
+          "hero-lead-tc6",
+          "File created successfully at: webhooks/retry.test.ts",
+        ),
       ],
       timestamp: t(18),
     },
     {
       _id: "hero-lead-m2c",
       role: "assistant",
-      content: "Running the retry suite against the real queue in the background; it replays 200 failed deliveries.",
+      content:
+        "Running the retry suite against the real queue in the background; it replays 200 failed deliveries.",
       tool_calls: [
-        call("hero-lead-tc7", "Bash", { command: "bun test webhooks/retry.test.ts", description: "Run the webhook retry tests", run_in_background: true }),
-        call("hero-lead-tc8", "Bash", { command: "bun run typecheck", description: "Typecheck the billing service" }),
+        call("hero-lead-tc7", "Bash", {
+          command: "bun test webhooks/retry.test.ts",
+          description: "Run the webhook retry tests",
+          run_in_background: true,
+        }),
+        call("hero-lead-tc8", "Bash", {
+          command: "bun run typecheck",
+          description: "Typecheck the billing service",
+        }),
       ],
       tool_results: [
-        result("hero-lead-tc7", "Command running in background with ID: b7r2k9. Output is being written to: /tmp/retry-tests.log"),
+        result(
+          "hero-lead-tc7",
+          "Command running in background with ID: b7r2k9. Output is being written to: /tmp/retry-tests.log",
+        ),
         result("hero-lead-tc8", "Checked 214 files, 0 errors. [3.1s]"),
       ],
       timestamp: t(6),
@@ -270,7 +396,13 @@ const CANVAS = `\`\`\`cast-canvas
 export const UI_TRANSCRIPT = (now: number) => {
   const t = (minsAgo: number) => now - minsAgo * MIN;
   return [
-    { _id: "hero-ui-m1", role: "user", content: "Which backoff should the dashboard's Retry button use? Compare the options on last week's failures.", timestamp: t(9) },
+    {
+      _id: "hero-ui-m1",
+      role: "user",
+      content:
+        "Which backoff should the dashboard's Retry button use? Compare the options on last week's failures.",
+      timestamp: t(9),
+    },
     {
       _id: "hero-ui-m2",
       role: "assistant",
@@ -284,34 +416,87 @@ export const UI_TRANSCRIPT = (now: number) => {
 
 /** Sessions across the team whose title or messages match: Alex's own and
  *  two teammates', the way a team search reads. */
-const SEARCH_HITS = (now: number) => [
-  { s: SESSIONS.lead, who: PEOPLE.me, ago: 0, project: "~/src/billing", msgs: 64, hit: "a failed delivery now goes to a retry queue with exponential backoff" },
-  { s: { _id: cid("smayahooks"), title: "Webhook signature rotation", agent_type: "claude_code" }, who: PEOPLE.maya, ago: 3 * HOUR, project: "~/src/billing", msgs: 41, hit: "rotate the webhook signing secret without dropping in-flight events" },
-  { s: SESSIONS.api, who: PEOPLE.me, ago: MIN, project: "~/src/billing", msgs: 22, hit: "Should a 410 Gone count as a failed webhook delivery?" },
-  { s: { _id: cid("ssarahreplay"), title: "Replay dropped Stripe webhooks", agent_type: "codex" }, who: PEOPLE.sarah, ago: 26 * HOUR, project: "~/src/support-tools", msgs: 18, hit: "replayed 212 webhook events from the Stripe dashboard export" },
-].map(({ s, who, ago, project, msgs, hit }, i) => ({
-  conversationId: s._id,
-  title: s.title,
-  matchCount: 1,
-  matches: [{ messageId: `${s._id}-hit`, content: hit, role: "assistant", timestamp: now - ago - MIN }],
-  updatedAt: now - ago,
-  authorName: who.name,
-  authorAvatar: who.image,
-  isOwn: who._id === PEOPLE.me._id,
-  messageCount: msgs,
-  relevance: 10 - i,
-  workerCount: 0,
-  titleMatch: /webhook/i.test(s.title),
-  projectPath: project,
-  agentType: s.agent_type,
-  workspace: `team:${TEAM_ID}`,
-  teamName: "Acme",
-}));
+const SEARCH_HITS = (now: number) =>
+  [
+    {
+      s: SESSIONS.lead,
+      who: PEOPLE.me,
+      ago: 0,
+      project: "~/src/billing",
+      msgs: 64,
+      hit: "a failed delivery now goes to a retry queue with exponential backoff",
+    },
+    {
+      s: {
+        _id: cid("smayahooks"),
+        title: "Webhook signature rotation",
+        agent_type: "claude_code",
+      },
+      who: PEOPLE.maya,
+      ago: 3 * HOUR,
+      project: "~/src/billing",
+      msgs: 41,
+      hit: "rotate the webhook signing secret without dropping in-flight events",
+    },
+    {
+      s: SESSIONS.api,
+      who: PEOPLE.me,
+      ago: MIN,
+      project: "~/src/billing",
+      msgs: 22,
+      hit: "Should a 410 Gone count as a failed webhook delivery?",
+    },
+    {
+      s: {
+        _id: cid("ssarahreplay"),
+        title: "Replay dropped Stripe webhooks",
+        agent_type: "codex",
+      },
+      who: PEOPLE.sarah,
+      ago: 26 * HOUR,
+      project: "~/src/support-tools",
+      msgs: 18,
+      hit: "replayed 212 webhook events from the Stripe dashboard export",
+    },
+  ].map(({ s, who, ago, project, msgs, hit }, i) => ({
+    conversationId: s._id,
+    title: s.title,
+    matchCount: 1,
+    matches: [
+      {
+        messageId: `${s._id}-hit`,
+        content: hit,
+        role: "assistant",
+        timestamp: now - ago - MIN,
+      },
+    ],
+    updatedAt: now - ago,
+    authorName: who.name,
+    authorAvatar: who.image,
+    isOwn: who._id === PEOPLE.me._id,
+    messageCount: msgs,
+    relevance: 10 - i,
+    workerCount: 0,
+    titleMatch: /webhook/i.test(s.title),
+    projectPath: project,
+    agentType: s.agent_type,
+    workspace: `team:${TEAM_ID}`,
+    teamName: "Acme",
+  }));
 
 const search = (args: any) => {
   const q = String(args?.query ?? args?.q ?? "").toLowerCase();
-  const results = q.length >= 2 ? SEARCH_HITS(Date.now()).filter((r) => (r.title + " " + r.matches[0].content).toLowerCase().includes(q)) : [];
-  return { results, totalMatches: results.length, totalSessions: results.length };
+  const results =
+    q.length >= 2
+      ? SEARCH_HITS(Date.now()).filter((r) =>
+          (r.title + " " + r.matches[0].content).toLowerCase().includes(q),
+        )
+      : [];
+  return {
+    results,
+    totalMatches: results.length,
+    totalSessions: results.length,
+  };
 };
 
 /* ── Wiring ────────────────────────────────────────────────────────────── */
@@ -324,14 +509,19 @@ export const EXTRA_ANSWERS: Record<string, (args: any) => unknown> = {
   // No links yet, and the viewer may make one: the call screen offers "Invite a guest".
   "callGuests:listGuestLinks": () => [],
   "conversations:searchConversations": search,
-  "conversations:searchConversationTitles": (args) => ({ ...search(args), results: search(args).results.filter((r) => r.titleMatch) }),
+  "conversations:searchConversationTitles": (args) => ({
+    ...search(args),
+    results: search(args).results.filter((r) => r.titleMatch),
+  }),
   "chat:searchMessages": () => ({ results: [] }),
 };
 
 /** Rows no query feeds on these screens, written through the store's sync writers. */
 export function seedAcmeExtras(s: any, now: number) {
   // The #eng huddle with recording set up, so the call screen offers Record.
-  applyLiveRoomsPush(LIVE_ROOMS.map((r) => ({ ...r, recording_configured: true })));
+  applyLiveRoomsPush(
+    LIVE_ROOMS.map((r) => ({ ...r, recording_configured: true })),
+  );
   s.syncTable("pendingPermissions", PERMISSIONS(now));
   s.applyTailMessages(SESSIONS.lead._id, 0, LEAD_TRANSCRIPT(now) as any, null);
   s.applyTailMessages(SESSIONS.ui._id, 0, UI_TRANSCRIPT(now) as any, null);

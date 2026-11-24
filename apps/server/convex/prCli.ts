@@ -26,7 +26,13 @@ import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { bindShepherd } from "./prShepherd";
 import { submitReviewWithNotes } from "./reviews";
 import { withoutOthersPending } from "./codeComments";
-import { foldShepherdState, normalizeRepository, prUrl, PASSING_CONCLUSIONS, type CheckEntry } from "./lib/gitRefs";
+import {
+  foldShepherdState,
+  normalizeRepository,
+  prUrl,
+  PASSING_CONCLUSIONS,
+  type CheckEntry,
+} from "./lib/gitRefs";
 import { parsePrRef, codecastPrUrl } from "@codecast/shared/contracts";
 import { pullRequestsLinkedToConversation } from "./lib/prSessions";
 import { canAccessConversation, canAccessTask } from "./lib/access";
@@ -59,7 +65,10 @@ type PR = Doc<"pull_requests">;
  * surfaces, which is what lets the web page and `cast pr` share every verb
  * below instead of each carrying its own copy.
  */
-async function requireCaller(ctx: any, apiToken?: string): Promise<Id<"users">> {
+async function requireCaller(
+  ctx: any,
+  apiToken?: string,
+): Promise<Id<"users">> {
   if (apiToken) {
     const auth = await verifyApiToken(ctx, apiToken);
     if (!auth) throw new Error("Unauthorized");
@@ -71,7 +80,10 @@ async function requireCaller(ctx: any, apiToken?: string): Promise<Id<"users">> 
 }
 
 /** The teams the caller belongs to. A pull request is readable in exactly these. */
-async function callerTeams(ctx: any, userId: Id<"users">): Promise<Id<"teams">[]> {
+async function callerTeams(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<Id<"teams">[]> {
   const memberships = await ctx.db
     .query("team_memberships")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
@@ -132,7 +144,9 @@ export async function resolvePullRequest(
   const parsed = locator.ref ? parsePrRef(locator.ref) : null;
   // A person types the repository, so its case is whatever they typed. Rows are
   // stored under one spelling, and every index below is a byte comparison.
-  const repository = normalizeRepository(parsed?.repository ?? locator.repository);
+  const repository = normalizeRepository(
+    parsed?.repository ?? locator.repository,
+  );
   const number = parsed?.number ?? locator.number;
 
   const teams = await callerTeams(ctx, userId);
@@ -142,28 +156,41 @@ export async function resolvePullRequest(
   if (number != null && repository) {
     const rows = await ctx.db
       .query("pull_requests")
-      .withIndex("by_repository_number", (q: any) => q.eq("repository", repository).eq("number", number))
+      .withIndex("by_repository_number", (q: any) =>
+        q.eq("repository", repository).eq("number", number),
+      )
       .collect();
     return rows.filter(mine).sort(newestFirst)[0] ?? null;
   }
 
   if (number != null) {
-    const matches = await pullRequestsForCaller(ctx, teams, (pr) => pr.number === number);
+    const matches = await pullRequestsForCaller(
+      ctx,
+      teams,
+      (pr) => pr.number === number,
+    );
     return matches.sort(openFirst)[0] ?? null;
   }
 
   if (locator.session) {
-    const conversation = await findConversationByAnyRef(ctx, locator.session, userId);
+    const conversation = await findConversationByAnyRef(
+      ctx,
+      locator.session,
+      userId,
+    );
     if (conversation) {
       const shepherded = await ctx.db
         .query("pull_requests")
         .withIndex("by_shepherd_conversation", (q: any) =>
-          q.eq("shepherd_conversation_id", conversation._id))
+          q.eq("shepherd_conversation_id", conversation._id),
+        )
         .collect();
       const bound = shepherded.filter(mine).sort(openFirst)[0];
       if (bound) return bound;
 
-      const linked = (await pullRequestsLinkedToConversation(ctx, conversation._id)).filter(mine);
+      const linked = (
+        await pullRequestsLinkedToConversation(ctx, conversation._id)
+      ).filter(mine);
       const hit = linked.sort(openFirst)[0];
       if (hit) return hit;
     }
@@ -174,7 +201,9 @@ export async function resolvePullRequest(
       .query("pull_requests")
       .withIndex("by_repository", (q: any) => q.eq("repository", repository))
       .collect();
-    const onBranch = rows.filter((pr) => mine(pr) && pr.head_ref === locator.branch);
+    const onBranch = rows.filter(
+      (pr) => mine(pr) && pr.head_ref === locator.branch,
+    );
     return onBranch.sort(openFirst)[0] ?? null;
   }
 
@@ -218,7 +247,9 @@ const shepherdState = (pr: PR) =>
 
 /** The session shepherding this pull request, when it has one. */
 const shepherdSessionFor = async (ctx: any, pr: PR) =>
-  pr.shepherd_conversation_id ? await ctx.db.get(pr.shepherd_conversation_id) : null;
+  pr.shepherd_conversation_id
+    ? await ctx.db.get(pr.shepherd_conversation_id)
+    : null;
 
 /**
  * The compact row `ls` and `watch` return. `session` is the already loaded
@@ -226,7 +257,8 @@ const shepherdSessionFor = async (ctx: any, pr: PR) =>
  */
 async function compactRow(ctx: any, pr: PR, session?: any) {
   const counts = countChecks(pr.checks);
-  const shepherdSession = session !== undefined ? session : await shepherdSessionFor(ctx, pr);
+  const shepherdSession =
+    session !== undefined ? session : await shepherdSessionFor(ctx, pr);
   return {
     id: String(pr._id),
     repository: pr.repository,
@@ -257,7 +289,9 @@ async function compactRow(ctx: any, pr: PR, session?: any) {
 async function fullRow(ctx: any, pr: PR) {
   const shepherdSession = await shepherdSessionFor(ctx, pr);
   const compact = await compactRow(ctx, pr, shepherdSession);
-  const trigger = pr.shepherd_task_id ? await ctx.db.get(pr.shepherd_task_id) : null;
+  const trigger = pr.shepherd_task_id
+    ? await ctx.db.get(pr.shepherd_task_id)
+    : null;
 
   return {
     ...compact,
@@ -272,7 +306,9 @@ async function fullRow(ctx: any, pr: PR) {
     deletions: pr.deletions ?? null,
     changed_files: pr.changed_files ?? null,
     shepherd: {
-      session_id: pr.shepherd_conversation_id ? String(pr.shepherd_conversation_id) : null,
+      session_id: pr.shepherd_conversation_id
+        ? String(pr.shepherd_conversation_id)
+        : null,
       session_short_id: shepherdSession?.short_id ?? null,
       session_title: shepherdSession?.title ?? null,
       enabled: pr.shepherd_enabled ?? false,
@@ -319,14 +355,22 @@ export const ls = query({
     const userId = await requireCaller(ctx, args.api_token);
     const user = await ctx.db.get(userId);
     const limit = args.limit ?? LIST_LIMIT;
-    const repository = args.repository ? normalizeRepository(args.repository) : null;
-    const wanted = await pullRequestsForCaller(ctx, await callerTeams(ctx, userId), (pr) => {
-      if (repository && pr.repository !== repository) return false;
-      if (args.state && pr.state !== args.state) return false;
-      if (args.mine && pr.author_github_username !== user?.github_username) return false;
-      if (args.shepherded && !pr.shepherd_conversation_id) return false;
-      return true;
-    }, limit);
+    const repository = args.repository
+      ? normalizeRepository(args.repository)
+      : null;
+    const wanted = await pullRequestsForCaller(
+      ctx,
+      await callerTeams(ctx, userId),
+      (pr) => {
+        if (repository && pr.repository !== repository) return false;
+        if (args.state && pr.state !== args.state) return false;
+        if (args.mine && pr.author_github_username !== user?.github_username)
+          return false;
+        if (args.shepherded && !pr.shepherd_conversation_id) return false;
+        return true;
+      },
+      limit,
+    );
 
     wanted.sort(newestFirst);
     const page = wanted.slice(0, limit);
@@ -352,10 +396,15 @@ export const show = query({
     const pr = await resolvePullRequest(ctx, userId, args);
     if (!pr) return { pull_request: null };
 
-    const comments = withoutOthersPending(await ctx.db
-      .query("review_comments")
-      .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pr._id))
-      .collect(), userId);
+    const comments = withoutOthersPending(
+      await ctx.db
+        .query("review_comments")
+        .withIndex("by_pull_request", (q: any) =>
+          q.eq("pull_request_id", pr._id),
+        )
+        .collect(),
+      userId,
+    );
     const open = comments
       .filter((comment: any) => !comment.resolved && !comment.pending_review)
       .sort((a: any, b: any) => a.created_at - b.created_at)
@@ -392,7 +441,11 @@ export const show = query({
       const conversation = await ctx.db.get(id);
       // Reading the pull request is team membership; a linked session keeps its
       // own rule, so a private one never shows its title here.
-      if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) continue;
+      if (
+        !conversation ||
+        !(await canAccessConversation(ctx, userId, conversation))
+      )
+        continue;
       sessions.push({
         id: String(conversation._id),
         short_id: conversation.short_id ?? null,
@@ -406,7 +459,12 @@ export const show = query({
       const task = await ctx.db.get(id);
       // Reading the pull request is team membership; a linked task keeps its own rule.
       if (!task || !(await canAccessTask(ctx, userId, task))) continue;
-      tasks.push({ id: String(task._id), short_id: task.short_id, title: task.title, status: task.status });
+      tasks.push({
+        id: String(task._id),
+        short_id: task.short_id,
+        title: task.title,
+        status: task.status,
+      });
     }
 
     return {
@@ -420,7 +478,11 @@ export const show = query({
 });
 
 export const events = query({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, limit: v.optional(v.number()) },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const pr = await resolvePullRequest(ctx, userId, args);
@@ -446,16 +508,28 @@ export const watchPRs = query({
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const wantedIds = args.pr_ids ? new Set(args.pr_ids) : null;
-    const watched = await pullRequestsForCaller(ctx, await callerTeams(ctx, userId), (pr) => {
-      if (wantedIds) return wantedIds.has(String(pr._id));
-      if (args.repository && pr.repository !== normalizeRepository(args.repository)) return false;
-      // Without an explicit set, a closed pull request has nothing left to
-      // report, and leaving it in makes every watcher carry dead rows forever.
-      return pr.state === "open";
-    });
+    const watched = await pullRequestsForCaller(
+      ctx,
+      await callerTeams(ctx, userId),
+      (pr) => {
+        if (wantedIds) return wantedIds.has(String(pr._id));
+        if (
+          args.repository &&
+          pr.repository !== normalizeRepository(args.repository)
+        )
+          return false;
+        // Without an explicit set, a closed pull request has nothing left to
+        // report, and leaving it in makes every watcher carry dead rows forever.
+        return pr.state === "open";
+      },
+    );
     watched.sort(newestFirst);
 
-    return { pull_requests: await Promise.all(watched.map((pr) => compactRow(ctx, pr))) };
+    return {
+      pull_requests: await Promise.all(
+        watched.map((pr) => compactRow(ctx, pr)),
+      ),
+    };
   },
 });
 
@@ -481,9 +555,15 @@ export const shepherd = mutation({
 
     let conversationId: Id<"conversations"> | undefined;
     if (args.action === "on") {
-      if (!args.bind_session) throw new Error("Naming a session is required to start shepherding");
-      const conversation = await findConversationByAnyRef(ctx, args.bind_session, userId);
-      if (!conversation) throw new Error(`No session of yours matches "${args.bind_session}"`);
+      if (!args.bind_session)
+        throw new Error("Naming a session is required to start shepherding");
+      const conversation = await findConversationByAnyRef(
+        ctx,
+        args.bind_session,
+        userId,
+      );
+      if (!conversation)
+        throw new Error(`No session of yours matches "${args.bind_session}"`);
       conversationId = conversation._id as Id<"conversations">;
     }
 
@@ -491,13 +571,20 @@ export const shepherd = mutation({
     // refreshes the session card in the same write.
     const previous = pr.shepherd_conversation_id;
     await bindShepherd(ctx, pr, conversationId, args.action === "on");
-    if (conversationId && previous && String(previous) !== String(conversationId)) {
+    if (
+      conversationId &&
+      previous &&
+      String(previous) !== String(conversationId)
+    ) {
       // A pull request shepherds one session at a time, so a rebind has to
       // clear the card it left behind.
       await ctx.db.patch(previous, { pr_status: undefined });
     }
 
-    return { pull_request: await fullRow(ctx, (await ctx.db.get(pr._id)) as PR), changed: true };
+    return {
+      pull_request: await fullRow(ctx, (await ctx.db.get(pr._id)) as PR),
+      changed: true,
+    };
   },
 });
 
@@ -510,12 +597,18 @@ export const shepherd = mutation({
 /** The short form of a comment id: its last 8 characters, as triggers do. */
 const shortCommentId = (id: string) => String(id).slice(-8);
 
-async function commentRows(ctx: any, pr: PR, userId: Id<"users">): Promise<any[]> {
+async function commentRows(
+  ctx: any,
+  pr: PR,
+  userId: Id<"users">,
+): Promise<any[]> {
   const rows = await ctx.db
     .query("review_comments")
     .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pr._id))
     .collect();
-  return withoutOthersPending(rows, userId).sort((a: any, b: any) => a.created_at - b.created_at);
+  return withoutOthersPending(rows, userId).sort(
+    (a: any, b: any) => a.created_at - b.created_at,
+  );
 }
 
 /** Who wrote a comment: the GitHub login, or the session an agent wrote it from. */
@@ -548,7 +641,11 @@ async function threadRow(ctx: any, comment: any) {
 }
 
 export const threads = query({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, all: v.optional(v.boolean()) },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    all: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const pr = await resolvePullRequest(ctx, userId, args);
@@ -570,7 +667,9 @@ const looksLikeId = (text: string) => /^[a-z0-9]{32}$/.test(text);
 const looksLikeShortId = (text: string) => /^[a-z0-9]{8}$/.test(text);
 
 /** "src/auth.ts:12" and "src/auth.ts" both name a place in the diff. */
-export function parseCommentLocation(selector: string): { file: string; line?: number } | null {
+export function parseCommentLocation(
+  selector: string,
+): { file: string; line?: number } | null {
   const text = selector.trim();
   if (!text || looksLikeId(text)) return null;
   const withLine = text.match(/^(.+):(\d+)$/);
@@ -586,7 +685,11 @@ export function parseCommentLocation(selector: string): { file: string; line?: n
  * settled one and a genuine tie comes back for the caller to break.
  */
 export const findComment = query({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, selector: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    selector: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const pr = await resolvePullRequest(ctx, userId, args);
@@ -594,7 +697,8 @@ export const findComment = query({
 
     const rows = await commentRows(ctx, pr, userId);
     const selector = args.selector.trim();
-    const shaped = async (list: any[]) => await Promise.all(list.map((c: any) => threadRow(ctx, c)));
+    const shaped = async (list: any[]) =>
+      await Promise.all(list.map((c: any) => threadRow(ctx, c)));
 
     const byId = rows.filter(
       (c: any) =>
@@ -602,12 +706,20 @@ export const findComment = query({
         (looksLikeShortId(selector) && shortCommentId(c._id) === selector),
     );
     if (byId.length) {
-      return { pull_request: await compactRow(ctx, pr), comment_id: String(byId[0]._id), matches: await shaped(byId) };
+      return {
+        pull_request: await compactRow(ctx, pr),
+        comment_id: String(byId[0]._id),
+        matches: await shaped(byId),
+      };
     }
 
     const location = parseCommentLocation(selector);
     if (!location) {
-      return { pull_request: await compactRow(ctx, pr), comment_id: null, matches: [] };
+      return {
+        pull_request: await compactRow(ctx, pr),
+        comment_id: null,
+        matches: [],
+      };
     }
 
     const atLocation = rows.filter(
@@ -698,7 +810,11 @@ export const review = action({
   args: {
     api_token: v.optional(v.string()),
     ...locatorArgs,
-    event: v.union(v.literal("APPROVE"), v.literal("REQUEST_CHANGES"), v.literal("COMMENT")),
+    event: v.union(
+      v.literal("APPROVE"),
+      v.literal("REQUEST_CHANGES"),
+      v.literal("COMMENT"),
+    ),
     body: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
@@ -714,7 +830,13 @@ export const review = action({
 
     // The same submission the page makes: the verdict, the summary, and every
     // note the caller holds pending on this pull request, as one review.
-    return await submitReviewWithNotes(ctx, actor.user_id, actor.pr.id, args.event, args.body);
+    return await submitReviewWithNotes(
+      ctx,
+      actor.user_id,
+      actor.pr.id,
+      args.event,
+      args.body,
+    );
   },
 });
 
@@ -723,10 +845,14 @@ async function operationToken(
   ctx: any,
   actor: any,
 ): Promise<{ token: string; as: string } | null> {
-  if (actor.github_token) return { token: actor.github_token, as: actor.github_username ?? "you" };
-  const installation: string | null = await ctx.runAction(internal.prShepherd.tokenForPR, {
-    pr_id: actor.pr.id,
-  });
+  if (actor.github_token)
+    return { token: actor.github_token, as: actor.github_username ?? "you" };
+  const installation: string | null = await ctx.runAction(
+    internal.prShepherd.tokenForPR,
+    {
+      pr_id: actor.pr.id,
+    },
+  );
   return installation ? { token: installation, as: "the codecast app" } : null;
 }
 
@@ -737,7 +863,9 @@ const NO_TOKEN =
 // refuses when the branch has moved since, so a push that lands while they
 // read is never merged, queued or updated unseen.
 const headGuard = { expected_head_sha: v.optional(v.string()) };
-const mergeMethod = v.optional(v.union(v.literal("merge"), v.literal("squash"), v.literal("rebase")));
+const mergeMethod = v.optional(
+  v.union(v.literal("merge"), v.literal("squash"), v.literal("rebase")),
+);
 
 // GitHub's merge states that branch protection holds: required reviews or
 // checks unmet (BLOCKED), or a branch that must be up to date and is not
@@ -745,13 +873,22 @@ const mergeMethod = v.optional(v.union(v.literal("merge"), v.literal("squash"), 
 const HELD_BY_PROTECTION = new Set(["BLOCKED", "BEHIND"]);
 
 /** Why GitHub is holding a pull request, and whether this identity may skip it. */
-export function heldMessage(pr: { repository: string; number: number }, mergeState: string, canBypass: boolean, as: string): string {
-  const why = mergeState === "BEHIND"
-    ? "its branch must be up to date with the base first"
-    : "required reviews or checks have not passed";
-  return `Branch protection holds ${pr.repository}#${pr.number}: ${why}. ` + (canBypass
-    ? `${as} may bypass it: cast pr merge --admin, or Bypass protection and merge on the pull request page.`
-    : `GitHub does not let ${as} bypass it.`);
+export function heldMessage(
+  pr: { repository: string; number: number },
+  mergeState: string,
+  canBypass: boolean,
+  as: string,
+): string {
+  const why =
+    mergeState === "BEHIND"
+      ? "its branch must be up to date with the base first"
+      : "required reviews or checks have not passed";
+  return (
+    `Branch protection holds ${pr.repository}#${pr.number}: ${why}. ` +
+    (canBypass
+      ? `${as} may bypass it: cast pr merge --admin, or Bypass protection and merge on the pull request page.`
+      : `GitHub does not let ${as} bypass it.`)
+  );
 }
 
 /**
@@ -771,34 +908,52 @@ export const merge = action({
     bypass: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const access: any = await ctx.runAction(internal.githubApi.pullRequestMergeability, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        github_access_token: acting.token,
-      });
-      const held = HELD_BY_PROTECTION.has(access.merge_state);
-      if (held && !(args.bypass && access.can_bypass)) {
-        throw new Error(heldMessage(actor.pr, access.merge_state, access.can_bypass, acting.as));
-      }
-      const result: any = await ctx.runAction(internal.githubApi.mergePullRequest, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        method: args.method ?? "squash",
-        github_access_token: acting.token,
-        delete_branch: args.delete_branch,
-        head_ref: actor.pr.head_ref ?? undefined,
-        expected_head_sha: args.expected_head_sha,
-        bypass_node_id: held ? access.id : undefined,
-      });
-      return {
-        merged: result.merged,
-        sha: result.sha,
-        branch_deleted: result.branch_deleted,
-        head_ref: actor.pr.head_ref,
-        bypassed: held,
-      };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const access: any = await ctx.runAction(
+          internal.githubApi.pullRequestMergeability,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            github_access_token: acting.token,
+          },
+        );
+        const held = HELD_BY_PROTECTION.has(access.merge_state);
+        if (held && !(args.bypass && access.can_bypass)) {
+          throw new Error(
+            heldMessage(
+              actor.pr,
+              access.merge_state,
+              access.can_bypass,
+              acting.as,
+            ),
+          );
+        }
+        const result: any = await ctx.runAction(
+          internal.githubApi.mergePullRequest,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            method: args.method ?? "squash",
+            github_access_token: acting.token,
+            delete_branch: args.delete_branch,
+            head_ref: actor.pr.head_ref ?? undefined,
+            expected_head_sha: args.expected_head_sha,
+            bypass_node_id: held ? access.id : undefined,
+          },
+        );
+        return {
+          merged: result.merged,
+          sha: result.sha,
+          branch_deleted: result.branch_deleted,
+          head_ref: actor.pr.head_ref,
+          bypassed: held,
+        };
+      },
+    ),
 });
 
 /**
@@ -810,51 +965,86 @@ export const merge = action({
 export const mergeAccess = action({
   args: { api_token: v.optional(v.string()), ...locatorArgs },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const access: any = await ctx.runAction(internal.githubApi.pullRequestMergeability, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        github_access_token: acting.token,
-      });
-      return {
-        merge_state: access.merge_state,
-        held: HELD_BY_PROTECTION.has(access.merge_state),
-        can_bypass: access.can_bypass,
-        head_sha: access.head_sha,
-      };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const access: any = await ctx.runAction(
+          internal.githubApi.pullRequestMergeability,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            github_access_token: acting.token,
+          },
+        );
+        return {
+          merge_state: access.merge_state,
+          held: HELD_BY_PROTECTION.has(access.merge_state),
+          can_bypass: access.can_bypass,
+          head_sha: access.head_sha,
+        };
+      },
+    ),
 });
 
 /** GitHub's auto-merge: on (merge by `method` once checks and reviews pass) or off. */
 export const autoMerge = action({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, ...headGuard, enabled: v.boolean(), method: mergeMethod },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    ...headGuard,
+    enabled: v.boolean(),
+    method: mergeMethod,
+  },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.setAutoMerge, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        enabled: args.enabled,
-        method: args.method,
-        expected_head_sha: args.enabled ? args.expected_head_sha : undefined,
-        github_access_token: acting.token,
-      });
-      return { auto_merge: result.auto_merge, method: args.enabled ? args.method ?? "squash" : undefined };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const result: any = await ctx.runAction(
+          internal.githubApi.setAutoMerge,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            enabled: args.enabled,
+            method: args.method,
+            expected_head_sha: args.enabled
+              ? args.expected_head_sha
+              : undefined,
+            github_access_token: acting.token,
+          },
+        );
+        return {
+          auto_merge: result.auto_merge,
+          method: args.enabled ? (args.method ?? "squash") : undefined,
+        };
+      },
+    ),
 });
 
 /** Merge the base branch into the pull request's branch. */
 export const updateBranch = action({
   args: { api_token: v.optional(v.string()), ...locatorArgs, ...headGuard },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.updatePullRequestBranch, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        expected_head_sha: args.expected_head_sha,
-        github_access_token: acting.token,
-      });
-      return { updated: true, message: result.message };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const result: any = await ctx.runAction(
+          internal.githubApi.updatePullRequestBranch,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            expected_head_sha: args.expected_head_sha,
+            github_access_token: acting.token,
+          },
+        );
+        return { updated: true, message: result.message };
+      },
+    ),
 });
 
 /**
@@ -867,7 +1057,10 @@ async function pullRequestVerb(
   ctx: any,
   args: Locator & { api_token?: string },
   options: { requireState?: "open" | "closed" },
-  run: (actor: any, acting: { token: string; as: string }) => Promise<Record<string, unknown>>,
+  run: (
+    actor: any,
+    acting: { token: string; as: string },
+  ) => Promise<Record<string, unknown>>,
 ): Promise<any> {
   const actor: any = await ctx.runQuery(internal.prCli.actorFor, {
     api_token: args.api_token,
@@ -879,13 +1072,20 @@ async function pullRequestVerb(
   });
   if (!actor) return { error: NO_MATCH };
   if (options.requireState && actor.pr.state !== options.requireState) {
-    return { error: `${actor.pr.repository}#${actor.pr.number} is ${actor.pr.state}, not ${options.requireState}.` };
+    return {
+      error: `${actor.pr.repository}#${actor.pr.number} is ${actor.pr.state}, not ${options.requireState}.`,
+    };
   }
   const acting = await operationToken(ctx, actor);
   if (!acting) return { error: NO_TOKEN };
   try {
     const result = await run(actor, acting);
-    return { repository: actor.pr.repository, number: actor.pr.number, as: acting.as, ...result };
+    return {
+      repository: actor.pr.repository,
+      number: actor.pr.number,
+      as: acting.as,
+      ...result,
+    };
   } catch (error) {
     return { error: failureText(error) };
   }
@@ -894,28 +1094,48 @@ async function pullRequestVerb(
 export const reopen = action({
   args: { api_token: v.optional(v.string()), ...locatorArgs },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "closed" }, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.reopenPullRequest, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        github_access_token: acting.token,
-      });
-      return { state: result.state };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "closed" },
+      async (actor, acting) => {
+        const result: any = await ctx.runAction(
+          internal.githubApi.reopenPullRequest,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            github_access_token: acting.token,
+          },
+        );
+        return { state: result.state };
+      },
+    ),
 });
 
 export const draft = action({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, draft: v.boolean() },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    draft: v.boolean(),
+  },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.setPullRequestDraft, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        draft: args.draft,
-        github_access_token: acting.token,
-      });
-      return { draft: result.draft };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const result: any = await ctx.runAction(
+          internal.githubApi.setPullRequestDraft,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            draft: args.draft,
+            github_access_token: acting.token,
+          },
+        );
+        return { draft: result.draft };
+      },
+    ),
 });
 
 export const reviewers = action({
@@ -926,29 +1146,45 @@ export const reviewers = action({
     remove: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<any> =>
-    pullRequestVerb(ctx, args, { requireState: "open" }, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.setRequestedReviewers, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        add: args.add,
-        remove: args.remove,
-        github_access_token: acting.token,
-      });
-      return { requested_reviewers: result.requested_reviewers };
-    }),
+    pullRequestVerb(
+      ctx,
+      args,
+      { requireState: "open" },
+      async (actor, acting) => {
+        const result: any = await ctx.runAction(
+          internal.githubApi.setRequestedReviewers,
+          {
+            repository: actor.pr.repository,
+            pr_number: actor.pr.number,
+            add: args.add,
+            remove: args.remove,
+            github_access_token: acting.token,
+          },
+        );
+        return { requested_reviewers: result.requested_reviewers };
+      },
+    ),
 });
 
 export const edit = action({
-  args: { api_token: v.optional(v.string()), ...locatorArgs, title: v.optional(v.string()), body: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    ...locatorArgs,
+    title: v.optional(v.string()),
+    body: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<any> =>
     pullRequestVerb(ctx, args, {}, async (actor, acting) => {
-      const result: any = await ctx.runAction(internal.githubApi.updatePullRequest, {
-        repository: actor.pr.repository,
-        pr_number: actor.pr.number,
-        title: args.title,
-        body: args.body,
-        github_access_token: acting.token,
-      });
+      const result: any = await ctx.runAction(
+        internal.githubApi.updatePullRequest,
+        {
+          repository: actor.pr.repository,
+          pr_number: actor.pr.number,
+          title: args.title,
+          body: args.body,
+          github_access_token: acting.token,
+        },
+      );
       return { title: result.title, body: result.body };
     }),
 });
@@ -966,7 +1202,9 @@ export const close = action({
     });
     if (!actor) return { error: NO_MATCH };
     if (actor.pr.state !== "open") {
-      return { error: `${actor.pr.repository}#${actor.pr.number} is already ${actor.pr.state}.` };
+      return {
+        error: `${actor.pr.repository}#${actor.pr.number} is already ${actor.pr.state}.`,
+      };
     }
 
     const acting = await operationToken(ctx, actor);
@@ -978,7 +1216,12 @@ export const close = action({
         pr_number: actor.pr.number,
         github_access_token: acting.token,
       });
-      return { repository: actor.pr.repository, number: actor.pr.number, state: "closed", as: acting.as };
+      return {
+        repository: actor.pr.repository,
+        number: actor.pr.number,
+        state: "closed",
+        as: acting.as,
+      };
     } catch (error) {
       return { error: failureText(error) };
     }

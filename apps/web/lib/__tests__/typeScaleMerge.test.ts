@@ -7,10 +7,16 @@ import config from "../../tailwind.config";
 // or a size next to a colour is dropped without a word.
 describe("cn() and the type scale", () => {
   test("a scale size and a text colour both survive", () => {
-    expect(cn("text-meta", "text-sol-text-dim")).toBe("text-meta text-sol-text-dim");
-    expect(cn("text-sol-text-dim", "text-mark")).toBe("text-sol-text-dim text-mark");
+    expect(cn("text-meta", "text-sol-text-dim")).toBe(
+      "text-meta text-sol-text-dim",
+    );
+    expect(cn("text-sol-text-dim", "text-mark")).toBe(
+      "text-sol-text-dim text-mark",
+    );
     for (const step of TYPE_SCALE) {
-      expect(cn(`text-${step}`, "text-sol-cyan")).toBe(`text-${step} text-sol-cyan`);
+      expect(cn(`text-${step}`, "text-sol-cyan")).toBe(
+        `text-${step} text-sol-cyan`,
+      );
     }
   });
 
@@ -23,12 +29,19 @@ describe("cn() and the type scale", () => {
   });
 
   test("variants stay separate groups", () => {
-    expect(cn("text-meta", "sm:text-ui", "text-sol-text-dim")).toBe("text-meta sm:text-ui text-sol-text-dim");
+    expect(cn("text-meta", "sm:text-ui", "text-sol-text-dim")).toBe(
+      "text-meta sm:text-ui text-sol-text-dim",
+    );
     expect(cn("sm:text-[11px]", "sm:text-meta")).toBe("sm:text-meta");
   });
 
   test("the names cn() knows are exactly the ones tailwind.config.ts defines", () => {
-    const sizes = (config.theme?.extend as { fontSize?: Record<string, unknown> } | undefined)?.fontSize ?? {};
+    const sizes =
+      (
+        config.theme?.extend as
+          | { fontSize?: Record<string, unknown> }
+          | undefined
+      )?.fontSize ?? {};
     expect(Object.keys(sizes).sort()).toEqual([...TYPE_SCALE].sort());
   });
 });

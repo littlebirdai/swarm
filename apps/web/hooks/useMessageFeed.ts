@@ -13,9 +13,12 @@ import { useWorkspaceCollection } from "./useWorkspaceCollection";
 const api = _api as any;
 const PAGE = 100;
 
-const feedKey = (filter: "my" | "team", team: string | undefined) => `msg:${filter}:${team ?? "personal"}`;
-const byTimestampDesc = (a: any, b: any) => (b.timestamp ?? 0) - (a.timestamp ?? 0);
-const msgSig = (m: any) => `${m.content?.length ?? 0}|${m.conversation_title ?? ""}|${m.author_name ?? ""}`;
+const feedKey = (filter: "my" | "team", team: string | undefined) =>
+  `msg:${filter}:${team ?? "personal"}`;
+const byTimestampDesc = (a: any, b: any) =>
+  (b.timestamp ?? 0) - (a.timestamp ?? 0);
+const msgSig = (m: any) =>
+  `${m.content?.length ?? 0}|${m.conversation_title ?? ""}|${m.author_name ?? ""}`;
 
 export function useMessageFeed(filter: "my" | "team"): {
   messages: any[];
@@ -26,8 +29,11 @@ export function useMessageFeed(filter: "my" | "team"): {
 } {
   // The workspace the feed reads: the subscription names it, so a switch is a
   // new query, and the paging cursor is kept per workspace.
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as string | undefined;
-  const teamArg = activeTeamId && isConvexId(activeTeamId) ? activeTeamId : undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as string | undefined;
+  const teamArg =
+    activeTeamId && isConvexId(activeTeamId) ? activeTeamId : undefined;
   const key = feedKey(filter, teamArg);
   const convex = useConvex();
   const setFeedCursor = useInboxStore((s) => s.setFeedCursor);
@@ -35,7 +41,12 @@ export function useMessageFeed(filter: "my" | "team"): {
   // feedCursors is stringly typed (the activity feed's cursors are strings);
   // this feed's cursor is a timestamp, stored as its decimal string.
   const cursorRaw = useInboxStore((s) => s.feedCursors[key]);
-  const cursor: number | null | undefined = cursorRaw === undefined ? undefined : cursorRaw === null ? null : Number(cursorRaw);
+  const cursor: number | null | undefined =
+    cursorRaw === undefined
+      ? undefined
+      : cursorRaw === null
+        ? null
+        : Number(cursorRaw);
   const hasMoreStored = useInboxStore((s) => s.feedHasMore[key]);
 
   // Newest page, live. Its nextCursor seeds the continuation only while no
@@ -45,18 +56,29 @@ export function useMessageFeed(filter: "my" | "team"): {
       if (data && cursor === undefined) {
         // Written from inside select (a sync-time hook) is fine: these are
         // sync() actions, no dispatch.
-        setFeedCursor(key, data.nextCursor == null ? null : String(data.nextCursor));
+        setFeedCursor(
+          key,
+          data.nextCursor == null ? null : String(data.nextCursor),
+        );
         setFeedHasMore(key, !!data.nextCursor);
       }
       return data?.messages ?? [];
     },
     [cursor, key, setFeedCursor, setFeedHasMore],
   );
-  const { ready } = useSyncCollection("messageFeed", api.conversations.getMessageFeed, { filter, limit: PAGE, activeTeamId: teamArg }, { select });
+  const { ready } = useSyncCollection(
+    "messageFeed",
+    api.conversations.getMessageFeed,
+    { filter, limit: PAGE, activeTeamId: teamArg },
+    { select },
+  );
 
   const rows = useWorkspaceCollection<any>("messageFeed", msgSig);
   const messages = useMemo(
-    () => (filter === "my" ? rows.filter((m) => m.is_own) : rows).sort(byTimestampDesc),
+    () =>
+      (filter === "my" ? rows.filter((m) => m.is_own) : rows).sort(
+        byTimestampDesc,
+      ),
     [rows, filter],
   );
 
@@ -69,15 +91,39 @@ export function useMessageFeed(filter: "my" | "team"): {
     if (!from) return;
     setLoadingMore(true);
     void convex
-      .query(api.conversations.getMessageFeed, { filter, limit: PAGE, cursor: from, activeTeamId: teamArg })
+      .query(api.conversations.getMessageFeed, {
+        filter,
+        limit: PAGE,
+        cursor: from,
+        activeTeamId: teamArg,
+      })
       .then((page: any) => {
         useInboxStore.getState().syncTable("messageFeed", page?.messages ?? []);
-        setFeedCursor(key, page?.nextCursor == null ? null : String(page.nextCursor));
+        setFeedCursor(
+          key,
+          page?.nextCursor == null ? null : String(page.nextCursor),
+        );
         setFeedHasMore(key, !!page?.nextCursor);
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false));
-  }, [convex, cursor, filter, isLoadingMore, key, messages, setFeedCursor, setFeedHasMore, teamArg]);
+  }, [
+    convex,
+    cursor,
+    filter,
+    isLoadingMore,
+    key,
+    messages,
+    setFeedCursor,
+    setFeedHasMore,
+    teamArg,
+  ]);
 
-  return { messages, ready, hasMore: hasMoreStored !== false && cursor !== null, isLoadingMore, loadMore };
+  return {
+    messages,
+    ready,
+    hasMore: hasMoreStored !== false && cursor !== null,
+    isLoadingMore,
+    loadMore,
+  };
 }

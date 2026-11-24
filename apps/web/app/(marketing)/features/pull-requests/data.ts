@@ -18,8 +18,18 @@ export const TASK = { id: "ct-4102", title: "Retry failed webhook deliveries" };
 export const TRIGGER = "tr-318";
 
 export const NOTES = [
-  { id: "q4c7b2xm", file: "src/retry.ts", line: 42, text: "Jitter can push the delay past the cap." },
-  { id: "r81kd0ve", file: "src/retry.ts", line: 88, text: "Log the attempt number so a stuck delivery is findable." },
+  {
+    id: "q4c7b2xm",
+    file: "src/retry.ts",
+    line: 42,
+    text: "Jitter can push the delay past the cap.",
+  },
+  {
+    id: "r81kd0ve",
+    file: "src/retry.ts",
+    line: 88,
+    text: "Log the attempt number so a stuck delivery is findable.",
+  },
 ];
 
 /** The wake reasons in the order a pile of them is ranked (WAKE_SEVERITY). */
@@ -34,13 +44,33 @@ export const SEVERITY = [
 /** What wakes the shepherd and what only lands in the timeline (docs: the owning session). */
 export const WAKE_TABLE: { event: string; wakes: boolean; note: string }[] = [
   { event: "A check fails", wakes: true, note: "check_failed" },
-  { event: "A person requests changes, or leaves a review with a body", wakes: true, note: "changes_requested" },
-  { event: "A person comments on a line", wakes: true, note: "review_comment_created" },
-  { event: "The branch no longer merges cleanly", wakes: true, note: "conflict" },
-  { event: "The branch falls behind its base", wakes: false, note: "recorded as pr_behind" },
+  {
+    event: "A person requests changes, or leaves a review with a body",
+    wakes: true,
+    note: "changes_requested",
+  },
+  {
+    event: "A person comments on a line",
+    wakes: true,
+    note: "review_comment_created",
+  },
+  {
+    event: "The branch no longer merges cleanly",
+    wakes: true,
+    note: "conflict",
+  },
+  {
+    event: "The branch falls behind its base",
+    wakes: false,
+    note: "recorded as pr_behind",
+  },
   { event: "Checks go green", wakes: false, note: "recorded" },
   { event: "New commits are pushed", wakes: false, note: "recorded" },
   { event: "A review is requested", wakes: false, note: "recorded" },
   { event: "The branch merges cleanly again", wakes: false, note: "recorded" },
-  { event: "Anything from a bot, or from the PR's own author", wakes: false, note: "ignored" },
+  {
+    event: "Anything from a bot, or from the PR's own author",
+    wakes: false,
+    note: "ignored",
+  },
 ];

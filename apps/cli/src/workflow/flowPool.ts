@@ -6,10 +6,22 @@
 // flows to this machine's cache.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { defaultFlowOf, foldFlow, flowPathWords, type PoolFlowSummary } from "@codecast/shared/contracts/flowPool";
-import { graphExtends, parseWorkflowSource, validateWorkflow } from "./parser.js";
+import {
+  defaultFlowOf,
+  foldFlow,
+  flowPathWords,
+  type PoolFlowSummary,
+} from "@codecast/shared/contracts/flowPool";
+import {
+  graphExtends,
+  parseWorkflowSource,
+  validateWorkflow,
+} from "./parser.js";
 import { BUILTIN_WORKFLOW_TEMPLATES } from "./templates.js";
-import { DEFAULT_LINE_SLUG, DEFAULT_STEPS_LABEL } from "@codecast/shared/contracts/lineSlug";
+import {
+  DEFAULT_LINE_SLUG,
+  DEFAULT_STEPS_LABEL,
+} from "@codecast/shared/contracts/lineSlug";
 import type { WorkflowGraph } from "./types.js";
 import { defaultFlowsCache, writeTeamFlowIndex } from "./teamFlowIndex.js";
 
@@ -43,7 +55,10 @@ export type PushedPoolRow = {
   /** Each station's text as pushed (its own file's text, includes taken in). */
   nodes: Array<{ id: string; prompt?: string; script?: string }>;
   /** Where the graph and its station files sat in the publisher's checkout, repo-relative. */
-  origin?: { file: string; files: Array<{ node: string; prompt?: string; script?: string }> } | null;
+  origin?: {
+    file: string;
+    files: Array<{ node: string; prompt?: string; script?: string }>;
+  } | null;
 };
 
 /**
@@ -53,12 +68,17 @@ export type PushedPoolRow = {
  * checkout. A path that would leave the directory is not written. Returns the
  * graph file.
  */
-export function materializePushedFlow(row: PushedPoolRow, cacheRoot = defaultFlowsCache(), base?: PushedPoolRow): string {
+export function materializePushedFlow(
+  row: PushedPoolRow,
+  cacheRoot = defaultFlowsCache(),
+  base?: PushedPoolRow,
+): string {
   const dir = path.resolve(cacheRoot, row._id.replace(/[^\w-]/g, ""));
   const write = (rel: string, text: string): string | null => {
     const abs = path.resolve(dir, rel);
     if (!abs.startsWith(dir + path.sep)) return null;
-    if (fs.existsSync(abs) && fs.readFileSync(abs, "utf-8") === text) return abs;
+    if (fs.existsSync(abs) && fs.readFileSync(abs, "utf-8") === text)
+      return abs;
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, text);
     return abs;
@@ -71,10 +91,20 @@ export function materializePushedFlow(row: PushedPoolRow, cacheRoot = defaultFlo
       if (f.script && n?.script !== undefined) write(f.script, n.script);
     }
   };
-  const file = write(row.origin?.file ?? `${row.slug}.cast`, row.source) ?? write(`${row.slug}.cast`, row.source)!;
+  const file =
+    write(row.origin?.file ?? `${row.slug}.cast`, row.source) ??
+    write(`${row.slug}.cast`, row.source)!;
   // A variant's base sits where its `extends` reads it, with its stations' files, so the variant parses here.
   const ext = graphExtendsOf(row.source);
-  if (base && ext && write(path.relative(dir, path.resolve(path.dirname(file), ext)), base.source)) files(base);
+  if (
+    base &&
+    ext &&
+    write(
+      path.relative(dir, path.resolve(path.dirname(file), ext)),
+      base.source,
+    )
+  )
+    files(base);
   files(row);
   return file;
 }
@@ -93,22 +123,62 @@ export function repoFlowsDir(cwd: string): string | null {
  * published ones (`pushed`) neither names, each slug once. A draft (an import its session has not made general yet)
  * is offered only to that session (`session`, its id or short id).
  */
-export function poolFlows(cwd: string, session?: string | null, pushed: ReadonlyArray<PushedPoolRow> = [], cacheRoot = defaultFlowsCache()): PoolFlow[] {
+export function poolFlows(
+  cwd: string,
+  session?: string | null,
+  pushed: ReadonlyArray<PushedPoolRow> = [],
+  cacheRoot = defaultFlowsCache(),
+): PoolFlow[] {
   const out: PoolFlow[] = [];
   const dir = repoFlowsDir(cwd);
   // Every team flow the repo and the shipped flows do not name is written and indexed before any flow is read, so a
   // flow here (or another team flow) can use one as a segment (teamFlowIndex.ts).
-  const repoSlugs = new Set((dir ? fs.readdirSync(dir) : []).filter((f) => f.endsWith(".cast")).map((f) => f.replace(/\.cast$/, "")));
-  const team = pushed.filter((row) => row.source && !repoSlugs.has(row.slug) && !Object.prototype.hasOwnProperty.call(BUILTIN_WORKFLOW_TEMPLATES, row.slug));
-  writeTeamFlowIndex(new Map(team.map((row) => [row.slug, materializePushedFlow(row, cacheRoot)] as const)), cacheRoot);
+  const repoSlugs = new Set(
+    (dir ? fs.readdirSync(dir) : [])
+      .filter((f) => f.endsWith(".cast"))
+      .map((f) => f.replace(/\.cast$/, "")),
+  );
+  const team = pushed.filter(
+    (row) =>
+      row.source &&
+      !repoSlugs.has(row.slug) &&
+      !Object.prototype.hasOwnProperty.call(
+        BUILTIN_WORKFLOW_TEMPLATES,
+        row.slug,
+      ),
+  );
+  writeTeamFlowIndex(
+    new Map(
+      team.map(
+        (row) => [row.slug, materializePushedFlow(row, cacheRoot)] as const,
+      ),
+    ),
+    cacheRoot,
+  );
   const own = new Set<string>();
   if (dir) {
-    for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".cast")).sort()) {
+    for (const f of fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(".cast"))
+      .sort()) {
       const slug = f.replace(/\.cast$/, "");
       own.add(slug);
       const file = path.join(dir, f);
-      const flow = describeFlow(slug, fs.readFileSync(file, "utf-8"), "repo", file, dir);
-      if (flow.draft && !(session && (session.startsWith(flow.draft) || flow.draft.startsWith(session)))) continue;
+      const flow = describeFlow(
+        slug,
+        fs.readFileSync(file, "utf-8"),
+        "repo",
+        file,
+        dir,
+      );
+      if (
+        flow.draft &&
+        !(
+          session &&
+          (session.startsWith(flow.draft) || flow.draft.startsWith(session))
+        )
+      )
+        continue;
       out.push(flow);
     }
   }
@@ -118,14 +188,19 @@ export function poolFlows(cwd: string, session?: string | null, pushed: Readonly
   }
   const named = new Set(out.map((f) => f.slug));
   const newest = new Map<string, PushedPoolRow>();
-  for (const row of pushed) if (!newest.has(row.slug)) newest.set(row.slug, row);
+  for (const row of pushed)
+    if (!newest.has(row.slug)) newest.set(row.slug, row);
   for (const row of pushed) {
     if (named.has(row.slug) || !row.source) continue;
     named.add(row.slug);
     const base = newest.get(extendsSlug(graphExtendsOf(row.source)) ?? "");
     const file = materializePushedFlow(row, cacheRoot, base);
     const where = row.workspace?.startsWith("team:") ? "team" : "pushed";
-    out.push({ ...describeFlow(row.slug, row.source, where, file), by: row.mine ? null : row.by ?? null, runs_from: row.runs_from ?? null });
+    out.push({
+      ...describeFlow(row.slug, row.source, where, file),
+      by: row.mine ? null : (row.by ?? null),
+      runs_from: row.runs_from ?? null,
+    });
   }
   return out;
 }
@@ -140,18 +215,40 @@ export function joinsPool(slug: string, src: string): boolean {
 }
 
 /** One flow in the pool's terms, from its source. A flow that does not parse is listed with why. */
-export function describeFlow(slug: string, src: string, where: PoolWhere, file: string | null, dir?: string): PoolFlow {
+export function describeFlow(
+  slug: string,
+  src: string,
+  where: PoolWhere,
+  file: string | null,
+  dir?: string,
+): PoolFlow {
   let graph: WorkflowGraph;
   try {
     graph = parseWorkflowSource(src, file ? path.dirname(file) : dir);
   } catch (err) {
-    return { slug, kind: "line", label: slug, description: null, takes: [], draft: null, where, file, extends: extendsSlug(graphExtendsOf(src)), stations: [], ends: [], uses: [], errors: [err instanceof Error ? err.message : String(err)] };
+    return {
+      slug,
+      kind: "line",
+      label: slug,
+      description: null,
+      takes: [],
+      draft: null,
+      where,
+      file,
+      extends: extendsSlug(graphExtendsOf(src)),
+      stations: [],
+      ends: [],
+      uses: [],
+      errors: [err instanceof Error ? err.message : String(err)],
+    };
   }
   return {
     slug,
     kind: graph.kind ?? "line",
     // The shipped template's graph names no label; people read it as the Standard steps.
-    label: graph.label ?? (slug === DEFAULT_LINE_SLUG ? DEFAULT_STEPS_LABEL : titleOf(slug)),
+    label:
+      graph.label ??
+      (slug === DEFAULT_LINE_SLUG ? DEFAULT_STEPS_LABEL : titleOf(slug)),
     description: graph.description ?? null,
     takes: graph.takes ?? ["task"],
     draft: graph.draft ?? null,
@@ -165,18 +262,30 @@ export function describeFlow(slug: string, src: string, where: PoolWhere, file: 
 
 /** A graph's `extends` as written, or undefined when it names none or does not parse. */
 function graphExtendsOf(src: string): string | undefined {
-  try { return graphExtends(src); } catch { return undefined; }
+  try {
+    return graphExtends(src);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The flow an `extends` path names, by slug: `agentwatch.cast` and `../line/agentwatch.cast` are `agentwatch`. */
-export const extendsSlug = (ext: string | null | undefined): string | null => (ext ? path.basename(ext).replace(/\.cast$/, "") : null);
+export const extendsSlug = (ext: string | null | undefined): string | null =>
+  ext ? path.basename(ext).replace(/\.cast$/, "") : null;
 
-const titleOf = (slug: string) => slug.replace(/[-_]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+const titleOf = (slug: string) =>
+  slug.replace(/[-_]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 /** The flow a nameless `cast flow run` sends a change through: the workspace's default (`default_flow` on its pool read)
  *  by the web's rule (defaultFlowOf), among the flows here that parse. Null when no flow here takes a session's change. */
-export const workspaceDefaultFlow = (pool: ReadonlyArray<PoolFlow>, workspaceSlug: string | null | undefined): PoolFlow | null =>
-  defaultFlowOf(pool.filter((f) => !f.errors.length && !f.draft), workspaceSlug);
+export const workspaceDefaultFlow = (
+  pool: ReadonlyArray<PoolFlow>,
+  workspaceSlug: string | null | undefined,
+): PoolFlow | null =>
+  defaultFlowOf(
+    pool.filter((f) => !f.errors.length && !f.draft),
+    workspaceSlug,
+  );
 
 /** One line for a flow: `check  segment  branch  Verify` style, for `cast flow ls`. */
 export function flowLine(f: PoolFlow): string {

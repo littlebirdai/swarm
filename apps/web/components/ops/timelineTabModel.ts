@@ -28,7 +28,11 @@ export function laneGutter(sources: readonly string[]): number {
   if (!sources.length) return 140;
   const counts = new Map<string, number>();
   for (const s of sources) counts.set(s, (counts.get(s) ?? 0) + 1);
-  const widest = Math.max(...[...counts].map(([name, n]) => name.length * 7.2 + n.toLocaleString().length * 6.6));
+  const widest = Math.max(
+    ...[...counts].map(
+      ([name, n]) => name.length * 7.2 + n.toLocaleString().length * 6.6,
+    ),
+  );
   return Math.round(Math.min(190, Math.max(140, widest + 58)));
 }
 
@@ -47,15 +51,26 @@ const STATUS_WORD: Record<string, string> = {
   metric_recovered: "recovered",
   deploy: "deployed",
 };
-export const statusWord = (s: string | null) => (s ? STATUS_WORD[s] ?? externalEventStyle(s).verb ?? s : "");
-export const statusInk = (s: string | null) => (s && STACK_INK[s]) || "var(--sol-text-muted)";
-export const kindLabel = (k: string) => (k === "deploy" ? "deploy" : KIND_LOOK[k as keyof typeof KIND_LOOK]?.label ?? k);
+export const statusWord = (s: string | null) =>
+  s ? (STATUS_WORD[s] ?? externalEventStyle(s).verb ?? s) : "";
+export const statusInk = (s: string | null) =>
+  (s && STACK_INK[s]) || "var(--sol-text-muted)";
+export const kindLabel = (k: string) =>
+  k === "deploy"
+    ? "deploy"
+    : (KIND_LOOK[k as keyof typeof KIND_LOOK]?.label ?? k);
 
 /** An axis tick: a date past three days, else a clock time; on a dated window (windowDated) the first tick and each midnight carry the day. */
 export const tickLabel = (at: number, span: number, dayAt = false) => {
-  const day = new Date(at).toLocaleDateString([], { month: "short", day: "numeric" });
+  const day = new Date(at).toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
   if (span > 3 * 86_400_000) return day;
-  const time = new Date(at).toLocaleTimeString([], { hour: "numeric", minute: span <= 6 * HOUR ? "2-digit" : undefined });
+  const time = new Date(at).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: span <= 6 * HOUR ? "2-digit" : undefined,
+  });
   if (!dayAt) return time;
   const d = new Date(at);
   return d.getHours() === 0 && d.getMinutes() === 0 ? day : `${day} ${time}`;
@@ -65,26 +80,46 @@ export const tickLabel = (at: number, span: number, dayAt = false) => {
  * under it, and while a row is open the panel follows the cursor. Typing in a
  * field never moves it.
  */
-export function useListKeys(ids: readonly string[], cursor: string | null, setCursor: (id: string | null) => void, open: string | null, setOpen: (id: string | null) => void) {
+export function useListKeys(
+  ids: readonly string[],
+  cursor: string | null,
+  setCursor: (id: string | null) => void,
+  open: string | null,
+  setOpen: (id: string | null) => void,
+) {
   const state = useRef({ ids, cursor, open });
   state.current = { ids, cursor, open };
   useWatchEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isEditableTarget(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isEditableTarget(e.target))
+        return;
       const { ids: list, cursor: at, open: opened } = state.current;
       if (!list.length) return;
       const down = e.key === "j" || e.key === "ArrowDown";
       const up = e.key === "k" || e.key === "ArrowUp";
       if (down || up) {
         const i = list.indexOf(at ?? opened ?? "");
-        const next = list[Math.max(0, Math.min(list.length - 1, i < 0 ? 0 : i + (down ? 1 : -1)))];
+        const next =
+          list[
+            Math.max(
+              0,
+              Math.min(list.length - 1, i < 0 ? 0 : i + (down ? 1 : -1)),
+            )
+          ];
         e.preventDefault();
         setCursor(next);
         if (opened) setOpen(next);
-        const el = document.querySelector<HTMLElement>(`[data-ops-row="${CSS.escape(next)}"]`);
+        const el = document.querySelector<HTMLElement>(
+          `[data-ops-row="${CSS.escape(next)}"]`,
+        );
         el?.focus({ preventScroll: true });
         el?.scrollIntoView({ block: "nearest" });
-      } else if (e.key === "Enter" && at && list.includes(at) && !(e.target as Element | null)?.closest?.("a, button, [data-ops-row]")) {
+      } else if (
+        e.key === "Enter" &&
+        at &&
+        list.includes(at) &&
+        !(e.target as Element | null)?.closest?.("a, button, [data-ops-row]")
+      ) {
         e.preventDefault();
         setOpen(opened === at ? null : at);
       }

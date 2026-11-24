@@ -1,6 +1,15 @@
 // Metrics series as the server answers them (metrics.series, metricsSeriesMany),
 // and the period change every Metrics surface shows. Pure: no React, no store.
-import { continuousTail, DAY, formatValue, METRIC_RANGES, MIN, type MetricRange, type Pt, type Win } from "./metricModel";
+import {
+  continuousTail,
+  DAY,
+  formatValue,
+  METRIC_RANGES,
+  MIN,
+  type MetricRange,
+  type Pt,
+  type Win,
+} from "./metricModel";
 import { weightedMean } from "./metricStats";
 import type { OpsWatch } from "./opsTypes";
 
@@ -29,13 +38,23 @@ export type OpsWatchSeries = {
 };
 
 /** Which window a chart asks for: a named range ending now, the period before it, or an exact zoom. */
-export type SeriesSpec = { kind: "range"; range: MetricRange } | { kind: "prev"; range: MetricRange } | { kind: "zoom"; win: Win };
+export type SeriesSpec =
+  | { kind: "range"; range: MetricRange }
+  | { kind: "prev"; range: MetricRange }
+  | { kind: "zoom"; win: Win };
 
 export const DETAIL_BUCKETS = 300;
 export const CARD_BUCKETS = 80;
 
-export function seriesKey(watchId: string, spec: SeriesSpec, buckets: number): string {
-  const w = spec.kind === "zoom" ? `z${Math.round(spec.win.from)}-${Math.round(spec.win.to)}` : `${spec.kind === "prev" ? "p" : ""}${spec.range}`;
+export function seriesKey(
+  watchId: string,
+  spec: SeriesSpec,
+  buckets: number,
+): string {
+  const w =
+    spec.kind === "zoom"
+      ? `z${Math.round(spec.win.from)}-${Math.round(spec.win.to)}`
+      : `${spec.kind === "prev" ? "p" : ""}${spec.range}`;
   return `${watchId}|${w}|${buckets}`;
 }
 
@@ -66,9 +85,16 @@ export function changeRange(range: MetricRange): MetricRange {
  * different comparison in its place. The percent is dropped for a tiny
  * baseline and the change reads as an amount.
  */
-export function periodChange(points: readonly Pt[], prev: readonly Pt[] | null | undefined, span: number, end: number): WindowDelta | null {
+export function periodChange(
+  points: readonly Pt[],
+  prev: readonly Pt[] | null | undefined,
+  span: number,
+  end: number,
+): WindowDelta | null {
   const cur = points.filter((p) => p.at > end - span && p.at <= end);
-  const before = (prev ?? []).filter((p) => p.at > end - 2 * span && p.at <= end - span);
+  const before = (prev ?? []).filter(
+    (p) => p.at > end - 2 * span && p.at <= end - span,
+  );
   if (!cur.length || !before.length) return null;
   return windowDelta(cur, span, before);
 }
@@ -81,12 +107,23 @@ export function periodChange(points: readonly Pt[], prev: readonly Pt[] | null |
  * buckets differently and moves the prior mean by a few tenths, so it never
  * feeds this number.
  */
-export function rangeChange(cur: Pick<OpsWatchSeries, "points"> | undefined, prev: Pick<OpsWatchSeries, "points"> | undefined, tail: readonly Pt[], range: MetricRange, now: number): WindowDelta | null {
+export function rangeChange(
+  cur: Pick<OpsWatchSeries, "points"> | undefined,
+  prev: Pick<OpsWatchSeries, "points"> | undefined,
+  tail: readonly Pt[],
+  range: MetricRange,
+  now: number,
+): WindowDelta | null {
   if (!cur) return null;
   const pts = chartPoints(cur, tail);
   // The window ends at the newest value held, never at a surface's own clock: the card ticks a coarse minute and the page half a minute, and an end set by either moves the mean by a few tenths between them.
   const end = pts.reduce((m, p) => Math.max(m, p.at), -Infinity);
-  return periodChange(pts, prev?.points ?? null, changeSpan(range), Number.isFinite(end) ? end : now);
+  return periodChange(
+    pts,
+    prev?.points ?? null,
+    changeSpan(range),
+    Number.isFinite(end) ? end : now,
+  );
 }
 
 /**
@@ -96,8 +133,14 @@ export function rangeChange(cur: Pick<OpsWatchSeries, "points"> | undefined, pre
  * (the detail series folds its buckets apart from the card-size one the
  * change and the overview read). Otherwise, the mean of what the chart draws.
  */
-export function stripMean(drawnMean: number | null, change: WindowDelta | null, range: MetricRange, zoomed: boolean): number | null {
-  if (!zoomed && range !== "all" && change && change.vs === "prior") return change.now;
+export function stripMean(
+  drawnMean: number | null,
+  change: WindowDelta | null,
+  range: MetricRange,
+  zoomed: boolean,
+): number | null {
+  if (!zoomed && range !== "all" && change && change.vs === "prior")
+    return change.now;
   return drawnMean;
 }
 
@@ -105,7 +148,10 @@ export function stripMean(drawnMean: number | null, change: WindowDelta | null, 
  * The change stat's state: a number, a read still on its way (never told as
  * absence), or a read that came back with nothing in one of the two periods.
  */
-export function changeState(change: WindowDelta | null, answered: boolean): "value" | "reading" | "none" {
+export function changeState(
+  change: WindowDelta | null,
+  answered: boolean,
+): "value" | "reading" | "none" {
   return change ? "value" : answered ? "none" : "reading";
 }
 
@@ -115,19 +161,34 @@ export function changeState(change: WindowDelta | null, answered: boolean): "val
  * answer is on its way: the one reaching furthest back, so the page never
  * shows less history than the card it was opened from; ties go to the newer.
  */
-export function fullestHeld<S extends Pick<OpsWatchSeries, "points" | "to" | "held_from">>(...held: (S | undefined)[]): S | undefined {
+export function fullestHeld<
+  S extends Pick<OpsWatchSeries, "points" | "to" | "held_from">,
+>(...held: (S | undefined)[]): S | undefined {
   let best: S | undefined;
   const first = (s: S) => (s.points.length ? s.points[0].at : Infinity);
   for (const s of held) {
     if (!s) continue;
-    if (!best || first(s) < first(best) || (first(s) === first(best) && s.to > best.to)) best = s;
+    if (
+      !best ||
+      first(s) < first(best) ||
+      (first(s) === first(best) && s.to > best.to)
+    )
+      best = s;
   }
   return best;
 }
 
 /** The query args a spec names (watch ref and scope added by the caller); null when there is nothing to ask. */
-export function seriesArgs(spec: SeriesSpec, buckets: number): Record<string, number> | null {
-  if (spec.kind === "zoom") return { from: Math.round(spec.win.from), to: Math.round(spec.win.to), buckets };
+export function seriesArgs(
+  spec: SeriesSpec,
+  buckets: number,
+): Record<string, number> | null {
+  if (spec.kind === "zoom")
+    return {
+      from: Math.round(spec.win.from),
+      to: Math.round(spec.win.to),
+      buckets,
+    };
   const ms = rangeMs(spec.range);
   if (spec.kind === "prev") {
     const span = changeSpan(spec.range);
@@ -141,10 +202,18 @@ export function seriesArgs(spec: SeriesSpec, buckets: number): Record<string, nu
  * row already holds appended (the row moves with each poll, the answer a beat
  * later), else the row's own values when no answer has come.
  */
-export function chartPoints(series: Pick<OpsWatchSeries, "points"> | undefined, tail: readonly Pt[]): SeriesPt[] {
+export function chartPoints(
+  series: Pick<OpsWatchSeries, "points"> | undefined,
+  tail: readonly Pt[],
+): SeriesPt[] {
   if (!series) return [...tail].sort((a, b) => a.at - b.at);
-  const last = series.points.length ? series.points[series.points.length - 1].at : -Infinity;
-  return [...series.points, ...tail.filter((p) => p.at > last).sort((a, b) => a.at - b.at)];
+  const last = series.points.length
+    ? series.points[series.points.length - 1].at
+    : -Infinity;
+  return [
+    ...series.points,
+    ...tail.filter((p) => p.at > last).sort((a, b) => a.at - b.at),
+  ];
 }
 
 /**
@@ -155,14 +224,32 @@ export function chartPoints(series: Pick<OpsWatchSeries, "points"> | undefined, 
  * stretch after it is judged against those polls, so it reads as missing
  * data (dataHoles) rather than as one more day of the daily cadence.
  */
-export function withAnnouncedReads(points: readonly SeriesPt[], announced: readonly { at: number; value: number | null; inferred?: boolean }[], step_ms: number): SeriesPt[] {
+export function withAnnouncedReads(
+  points: readonly SeriesPt[],
+  announced: readonly {
+    at: number;
+    value: number | null;
+    inferred?: boolean;
+  }[],
+  step_ms: number,
+): SeriesPt[] {
   if (!points.length) return points.slice();
   const first = points[0].at;
   const last = points[points.length - 1].at;
   const near = Math.max(1, step_ms);
-  const add = announced.filter((t) => !t.inferred && t.value !== null && t.at > first && t.at < last && !points.some((p) => Math.abs(p.at - t.at) <= near));
+  const add = announced.filter(
+    (t) =>
+      !t.inferred &&
+      t.value !== null &&
+      t.at > first &&
+      t.at < last &&
+      !points.some((p) => Math.abs(p.at - t.at) <= near),
+  );
   if (!add.length) return points.slice();
-  return [...points, ...add.map((t) => ({ at: t.at, value: t.value as number }))].sort((a, b) => a.at - b.at);
+  return [
+    ...points,
+    ...add.map((t) => ({ at: t.at, value: t.value as number })),
+  ].sort((a, b) => a.at - b.at);
 }
 
 /** Points moved forward by `ms`: the period before, laid over this one. */
@@ -176,10 +263,17 @@ export function shiftPoints(points: readonly Pt[], ms: number): Pt[] {
  * data" do), so a 12h watch is not a sliver at the edge of a 7d frame.
  * `fitted` is the span shown when it was cut.
  */
-export function cardWindow(win: Win, heldFrom: number | null): { win: Win; fitted: number | null } {
+export function cardWindow(
+  win: Win,
+  heldFrom: number | null,
+): { win: Win; fitted: number | null } {
   const span = win.to - win.from;
-  if (heldFrom === null || heldFrom <= win.from + span * 0.1) return { win, fitted: null };
-  const from = Math.max(win.from, heldFrom - Math.max(MIN, (win.to - heldFrom) * 0.03));
+  if (heldFrom === null || heldFrom <= win.from + span * 0.1)
+    return { win, fitted: null };
+  const from = Math.max(
+    win.from,
+    heldFrom - Math.max(MIN, (win.to - heldFrom) * 0.03),
+  );
   return { win: { from, to: win.to }, fitted: win.to - heldFrom };
 }
 
@@ -189,13 +283,31 @@ export function cardWindow(win: Win, heldFrom: number | null): { win: Win; fitte
  * only across the stretch after the last real break (breaksIn), never from
  * a lone value weeks before the rest. `since` is where it was measured from.
  */
-export function windowChange(points: readonly Pt[], step_ms?: number): { first: number; last: number; change: number; pct: number | null; since: number } | null {
-  const sorted = step_ms === undefined ? [...points].sort((a, b) => a.at - b.at) : continuousTail(points, step_ms);
+export function windowChange(
+  points: readonly Pt[],
+  step_ms?: number,
+): {
+  first: number;
+  last: number;
+  change: number;
+  pct: number | null;
+  since: number;
+} | null {
+  const sorted =
+    step_ms === undefined
+      ? [...points].sort((a, b) => a.at - b.at)
+      : continuousTail(points, step_ms);
   if (sorted.length < 2) return null;
   const first = sorted[0].value;
   const last = sorted[sorted.length - 1].value;
   const change = last - first;
-  return { first, last, change, pct: first === 0 ? null : change / Math.abs(first), since: sorted[0].at };
+  return {
+    first,
+    last,
+    change,
+    pct: first === 0 ? null : change / Math.abs(first),
+    since: sorted[0].at,
+  };
 }
 
 /** How small a baseline is, against the values' own spread, before a change reads as an amount instead of a percent. */
@@ -215,7 +327,14 @@ export function tinyBaseline(base: number, values: readonly number[]): boolean {
 }
 
 /** A window's change as the stat and the overview show it. `vs` names the baseline: the previous period's mean, or the window's first value. `pct` is null when the baseline is too small to divide by. */
-export type WindowDelta = { change: number; pct: number | null; base: number; now: number; vs: "prior" | "first"; since: number };
+export type WindowDelta = {
+  change: number;
+  pct: number | null;
+  base: number;
+  now: number;
+  vs: "prior" | "first";
+  since: number;
+};
 
 const mean = (pts: readonly Pt[]) => weightedMean(pts);
 
@@ -226,27 +345,52 @@ const mean = (pts: readonly Pt[]) => weightedMean(pts);
  * stretch (windowChange). Either way the percent is dropped for a tiny
  * baseline and the change reads as an amount.
  */
-export function windowDelta(points: readonly Pt[], step_ms: number, prev?: readonly Pt[] | null): WindowDelta | null {
+export function windowDelta(
+  points: readonly Pt[],
+  step_ms: number,
+  prev?: readonly Pt[] | null,
+): WindowDelta | null {
   if (prev && prev.length && points.length) {
     const now = mean(points);
     const base = mean(prev);
     const change = now - base;
     const all = [...points, ...prev].map((p) => p.value);
-    return { change, pct: tinyBaseline(base, all) ? null : change / Math.abs(base), base, now, vs: "prior", since: Math.min(...points.map((p) => p.at)) };
+    return {
+      change,
+      pct: tinyBaseline(base, all) ? null : change / Math.abs(base),
+      base,
+      now,
+      vs: "prior",
+      since: Math.min(...points.map((p) => p.at)),
+    };
   }
   const w = windowChange(points, step_ms);
   if (!w) return null;
   const tail = continuousTail(points, step_ms).map((p) => p.value);
-  return { change: w.change, pct: tinyBaseline(w.first, tail) ? null : w.pct, base: w.first, now: w.last, vs: "first", since: w.since };
+  return {
+    change: w.change,
+    pct: tinyBaseline(w.first, tail) ? null : w.pct,
+    base: w.first,
+    now: w.last,
+    vs: "first",
+    since: w.since,
+  };
 }
 
 /** A change read as an amount from its baseline: "+126 from 9". */
-export function changeAmount(change: number, base: number, unit?: string | null): string {
+export function changeAmount(
+  change: number,
+  base: number,
+  unit?: string | null,
+): string {
   return `${change >= 0 ? "+" : "-"}${formatValue(Math.abs(change), unit)} from ${formatValue(base, unit)}`;
 }
 
 /** Whether a change moved toward the alerting side: bad, good, or flat when there is no line or no move. */
-export function changeTone(w: Pick<OpsWatch, "threshold" | "direction">, change: number): "bad" | "good" | "flat" {
+export function changeTone(
+  w: Pick<OpsWatch, "threshold" | "direction">,
+  change: number,
+): "bad" | "good" | "flat" {
   if (w.threshold === undefined || change === 0) return "flat";
   return (w.direction === "above") === change > 0 ? "bad" : "good";
 }

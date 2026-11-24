@@ -3,8 +3,16 @@
 import { Unlink, UserMinus } from "lucide-react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { agentFaceConversationId, callParticipantKind, guestIdFromIdentity } from "@codecast/shared/contracts";
-import { ContextMenu, CtxItem, type ContextMenuState } from "../ui/context-menu";
+import {
+  agentFaceConversationId,
+  callParticipantKind,
+  guestIdFromIdentity,
+} from "@codecast/shared/contracts";
+import {
+  ContextMenu,
+  CtxItem,
+  type ContextMenuState,
+} from "../ui/context-menu";
 import { useGuestLinks } from "../../hooks/useGuestLinks";
 import { removeGuest } from "../../lib/calls/guestDoorActions";
 import { sayRefusal } from "../../lib/calls/sayRefusal";
@@ -17,7 +25,15 @@ export type StagePerson = { identity: string; name: string };
  *  at once. An agent goes with its feed (callFace.removeAgent), a guest the
  *  way the door puts one out, a teammate by the media server dropping them
  *  (calls.putOutOfCall). */
-export function StagePersonMenu({ roomKey, state, selfId }: { roomKey: string; state: ContextMenuState<StagePerson>; selfId: string | null }) {
+export function StagePersonMenu({
+  roomKey,
+  state,
+  selfId,
+}: {
+  roomKey: string;
+  state: ContextMenuState<StagePerson>;
+  selfId: string | null;
+}) {
   const removeAgent = useAction(api.callFace.removeAgent);
   const putOutOfCall = useAction(api.calls.putOutOfCall);
   const { canInvite } = useGuestLinks(roomKey);
@@ -35,7 +51,13 @@ export function StagePersonMenu({ roomKey, state, selfId }: { roomKey: string; s
               icon={UserMinus}
               danger
               disabled={!conversationId}
-              onSelect={() => conversationId && void removeAgent({ room_key: roomKey, conversation_id: conversationId }).catch(fail)}
+              onSelect={() =>
+                conversationId &&
+                void removeAgent({
+                  room_key: roomKey,
+                  conversation_id: conversationId,
+                }).catch(fail)
+              }
             >
               Remove {who} from the call
             </CtxItem>
@@ -46,10 +68,24 @@ export function StagePersonMenu({ roomKey, state, selfId }: { roomKey: string; s
           const off = !guestId || !canInvite;
           return (
             <>
-              <CtxItem icon={UserMinus} danger disabled={off} onSelect={() => guestId && void removeGuest(roomKey, guestId, false, refused)}>
+              <CtxItem
+                icon={UserMinus}
+                danger
+                disabled={off}
+                onSelect={() =>
+                  guestId && void removeGuest(roomKey, guestId, false, refused)
+                }
+              >
                 Remove {who} from the call
               </CtxItem>
-              <CtxItem icon={Unlink} danger disabled={off} onSelect={() => guestId && void removeGuest(roomKey, guestId, true, refused)}>
+              <CtxItem
+                icon={Unlink}
+                danger
+                disabled={off}
+                onSelect={() =>
+                  guestId && void removeGuest(roomKey, guestId, true, refused)
+                }
+              >
                 Remove {who} and turn off their link
               </CtxItem>
             </>
@@ -60,7 +96,9 @@ export function StagePersonMenu({ roomKey, state, selfId }: { roomKey: string; s
             icon={UserMinus}
             danger
             disabled={identity === selfId}
-            onSelect={() => void putOutOfCall({ room_key: roomKey, identity }).catch(fail)}
+            onSelect={() =>
+              void putOutOfCall({ room_key: roomKey, identity }).catch(fail)
+            }
           >
             Remove {who} from the call
           </CtxItem>

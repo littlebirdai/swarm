@@ -11,28 +11,47 @@
     if (text != null) n.textContent = text;
     return n;
   }
-  function plural(n, one, many) { return n + " " + (n === 1 ? one : many || one + "s"); }
+  function plural(n, one, many) {
+    return n + " " + (n === 1 ? one : many || one + "s");
+  }
 
   // ── Messages ──────────────────────────────────────────────────────────────
   function trimEdges(box) {
-    var first = box.firstChild, last = box.lastChild;
-    if (first && first.nodeType === 3) first.nodeValue = first.nodeValue.replace(/^\s+/, "");
-    if (last && last.nodeType === 3) last.nodeValue = last.nodeValue.replace(/\s+$/, "");
+    var first = box.firstChild,
+      last = box.lastChild;
+    if (first && first.nodeType === 3)
+      first.nodeValue = first.nodeValue.replace(/^\s+/, "");
+    if (last && last.nodeType === 3)
+      last.nodeValue = last.nodeValue.replace(/\s+$/, "");
   }
 
   // Union writes its messages in markdown and the person saw them rendered, so
   // **bold** and [text](link) in a pasted message draw as they arrived.
   function renderEmphasis(root) {
-    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT),
+      nodes = [],
+      n;
     var MD = /\*\*([^*\n]+?)\*\*|\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g;
-    while ((n = walker.nextNode())) { MD.lastIndex = 0; if (MD.test(n.nodeValue)) nodes.push(n); }
+    while ((n = walker.nextNode())) {
+      MD.lastIndex = 0;
+      if (MD.test(n.nodeValue)) nodes.push(n);
+    }
     nodes.forEach(function (node) {
-      var text = node.nodeValue, frag = document.createDocumentFragment(), at = 0, m;
+      var text = node.nodeValue,
+        frag = document.createDocumentFragment(),
+        at = 0,
+        m;
       MD.lastIndex = 0;
       while ((m = MD.exec(text))) {
         frag.appendChild(document.createTextNode(text.slice(at, m.index)));
         if (m[1] != null) frag.appendChild(el("strong", null, m[1]));
-        else { var a = el("a", null, m[2]); a.href = m[3]; a.target = "_blank"; a.rel = "noreferrer"; frag.appendChild(a); }
+        else {
+          var a = el("a", null, m[2]);
+          a.href = m[3];
+          a.target = "_blank";
+          a.rel = "noreferrer";
+          frag.appendChild(a);
+        }
         at = MD.lastIndex;
       }
       frag.appendChild(document.createTextNode(text.slice(at)));
@@ -48,16 +67,21 @@
     renderEmphasis(body);
 
     var meta = el("div", "dk-meta");
-    if (m.getAttribute("from")) meta.appendChild(el("b", null, m.getAttribute("from")));
-    if (m.getAttribute("channel")) meta.appendChild(el("span", null, m.getAttribute("channel")));
-    if (m.getAttribute("time")) meta.appendChild(el("span", "dk-time", m.getAttribute("time")));
+    if (m.getAttribute("from"))
+      meta.appendChild(el("b", null, m.getAttribute("from")));
+    if (m.getAttribute("channel"))
+      meta.appendChild(el("span", null, m.getAttribute("channel")));
+    if (m.getAttribute("time"))
+      meta.appendChild(el("span", "dk-time", m.getAttribute("time")));
     if (meta.firstChild) m.appendChild(meta);
 
     var bubble = el("div", "dk-bubble");
-    if (m.getAttribute("subject")) bubble.appendChild(el("div", "dk-subject", m.getAttribute("subject")));
+    if (m.getAttribute("subject"))
+      bubble.appendChild(el("div", "dk-subject", m.getAttribute("subject")));
     bubble.appendChild(body);
     m.appendChild(bubble);
-    if (m.getAttribute("note")) m.appendChild(el("div", "dk-note", m.getAttribute("note")));
+    if (m.getAttribute("note"))
+      m.appendChild(el("div", "dk-note", m.getAttribute("note")));
     // A mark's note inside a message reads under it, so the sentence stays whole.
     [].forEach.call(body.querySelectorAll("mark[note]"), function (mk) {
       var n = el("div", "dk-note", mk.getAttribute("note"));
@@ -68,10 +92,20 @@
 
     // The text a decision turns on is shown whole: the message at fault, and
     // any message set as a before or an after.
-    if (m.hasAttribute("miss") || m.hasAttribute("full") || m.closest("dk-side")) return;
+    if (
+      m.hasAttribute("miss") ||
+      m.hasAttribute("full") ||
+      m.closest("dk-side")
+    )
+      return;
 
     // A brief message shows the paragraphs holding its marks; the rest folds.
-    if (m.hasAttribute("brief") && body.querySelector("mark") && briefen(body, bubble)) return;
+    if (
+      m.hasAttribute("brief") &&
+      body.querySelector("mark") &&
+      briefen(body, bubble)
+    )
+      return;
 
     // A long message folds. Length is judged by the text, not the rendered
     // height, so a short email in a narrow column stays whole.
@@ -80,7 +114,10 @@
       body.setAttribute("data-clamped", "");
       var more = el("button", "dk-more", "Show the whole message");
       more.type = "button";
-      more.addEventListener("click", function () { body.removeAttribute("data-clamped"); more.remove(); });
+      more.addEventListener("click", function () {
+        body.removeAttribute("data-clamped");
+        more.remove();
+      });
       bubble.appendChild(more);
     }
   }
@@ -88,31 +125,80 @@
   // Splits a message body into paragraphs and hides each run of unmarked ones
   // behind a fold that names how much it holds. False when nothing would fold.
   function briefen(body, bubble) {
-    var paras = [], cur = document.createDocumentFragment(), marked = false;
-    function close() { var p = el("div", "dk-para"); p.appendChild(cur); if (marked) p.setAttribute("data-marked", ""); paras.push(p); cur = document.createDocumentFragment(); marked = false; }
+    var paras = [],
+      cur = document.createDocumentFragment(),
+      marked = false;
+    function close() {
+      var p = el("div", "dk-para");
+      p.appendChild(cur);
+      if (marked) p.setAttribute("data-marked", "");
+      paras.push(p);
+      cur = document.createDocumentFragment();
+      marked = false;
+    }
     [].slice.call(body.childNodes).forEach(function (n) {
       if (n.nodeType === 3 && /\n\s*\n/.test(n.nodeValue)) {
         var bits = n.nodeValue.split(/\n\s*\n/);
-        bits.forEach(function (b, i) { if (i) close(); if (b) cur.appendChild(document.createTextNode(b)); });
-      } else { if (n.nodeType === 1 && (n.tagName === "MARK" || n.querySelector && n.querySelector("mark"))) marked = true; cur.appendChild(n); }
+        bits.forEach(function (b, i) {
+          if (i) close();
+          if (b) cur.appendChild(document.createTextNode(b));
+        });
+      } else {
+        if (
+          n.nodeType === 1 &&
+          (n.tagName === "MARK" || (n.querySelector && n.querySelector("mark")))
+        )
+          marked = true;
+        cur.appendChild(n);
+      }
     });
     close();
-    paras = paras.filter(function (p) { return p.textContent.trim(); });
-    if (paras.every(function (p) { return p.hasAttribute("data-marked"); })) { body.textContent = ""; paras.forEach(function (p) { body.appendChild(p); }); return true; }
+    paras = paras.filter(function (p) {
+      return p.textContent.trim();
+    });
+    if (
+      paras.every(function (p) {
+        return p.hasAttribute("data-marked");
+      })
+    ) {
+      body.textContent = "";
+      paras.forEach(function (p) {
+        body.appendChild(p);
+      });
+      return true;
+    }
     body.textContent = "";
     var hidden = [];
     function fold() {
       if (!hidden.length) return;
-      var group = hidden, words = group.reduce(function (n, p) { return n + (p.textContent.match(/\S+/g) || []).length; }, 0);
-      var skip = el("button", "dk-skip dk-para-skip", "… " + plural(words, "more word"));
+      var group = hidden,
+        words = group.reduce(function (n, p) {
+          return n + (p.textContent.match(/\S+/g) || []).length;
+        }, 0);
+      var skip = el(
+        "button",
+        "dk-skip dk-para-skip",
+        "… " + plural(words, "more word"),
+      );
       skip.type = "button";
-      skip.addEventListener("click", function () { group.forEach(function (p) { p.hidden = false; }); skip.remove(); });
+      skip.addEventListener("click", function () {
+        group.forEach(function (p) {
+          p.hidden = false;
+        });
+        skip.remove();
+      });
       body.appendChild(skip);
       hidden = [];
     }
     paras.forEach(function (p) {
-      if (p.hasAttribute("data-marked")) { fold(); body.appendChild(p); }
-      else { p.hidden = true; hidden.push(p); body.appendChild(p); }
+      if (p.hasAttribute("data-marked")) {
+        fold();
+        body.appendChild(p);
+      } else {
+        p.hidden = true;
+        hidden.push(p);
+        body.appendChild(p);
+      }
     });
     fold();
     return true;
@@ -120,11 +206,14 @@
 
   function drawThread(t) {
     if (t.hasAttribute("data-dk")) return;
-    var items = [].filter.call(t.children, function (c) { return /^DK-(MSG|EVENT)$/.test(c.tagName); });
+    var items = [].filter.call(t.children, function (c) {
+      return /^DK-(MSG|EVENT)$/.test(c.tagName);
+    });
     if (t.getAttribute("who")) {
       var who = el("div", "dk-who");
       who.appendChild(el("b", null, t.getAttribute("who")));
-      if (t.getAttribute("role")) who.appendChild(el("span", null, t.getAttribute("role")));
+      if (t.getAttribute("role"))
+        who.appendChild(el("span", null, t.getAttribute("role")));
       t.insertBefore(who, t.firstChild);
     }
     t.setAttribute("data-dk", "");
@@ -132,16 +221,33 @@
     if (!(show > 0)) show = items.length <= 6 ? items.length : 4;
     // The first message the page points at (the miss, or one carrying a mark)
     // and everything after it always show.
-    var anchor = items.findIndex(function (c) { return c.hasAttribute("miss") || !!c.querySelector("mark"); });
+    var anchor = items.findIndex(function (c) {
+      return c.hasAttribute("miss") || !!c.querySelector("mark");
+    });
     var from = Math.max(0, items.length - show);
     if (anchor >= 0) from = Math.min(from, anchor);
     var earlier = items.slice(0, from);
     if (!earlier.length) return;
-    earlier.forEach(function (c) { c.hidden = true; });
-    var count = earlier.filter(function (c) { return c.tagName === "DK-MSG"; }).length;
-    var more = el("button", "dk-more", count ? "Show " + plural(count, "earlier message") : "Show what came before");
+    earlier.forEach(function (c) {
+      c.hidden = true;
+    });
+    var count = earlier.filter(function (c) {
+      return c.tagName === "DK-MSG";
+    }).length;
+    var more = el(
+      "button",
+      "dk-more",
+      count
+        ? "Show " + plural(count, "earlier message")
+        : "Show what came before",
+    );
     more.type = "button";
-    more.addEventListener("click", function () { earlier.forEach(function (c) { c.hidden = false; }); more.remove(); });
+    more.addEventListener("click", function () {
+      earlier.forEach(function (c) {
+        c.hidden = false;
+      });
+      more.remove();
+    });
     t.insertBefore(more, items[0]);
   }
 
@@ -149,13 +255,19 @@
   // A screenshot of the product, fit to the column and a tap from full size.
   function drawShot(s) {
     if (s.hasAttribute("data-dk")) return;
-    var src = s.getAttribute("src"), note = s.textContent.trim();
+    var src = s.getAttribute("src"),
+      note = s.textContent.trim();
     s.textContent = "";
-    if (s.getAttribute("label")) s.appendChild(el("div", "dk-shot-label", s.getAttribute("label")));
+    if (s.getAttribute("label"))
+      s.appendChild(el("div", "dk-shot-label", s.getAttribute("label")));
     if (src) {
-      var a = el("a", "dk-shot-frame"), img = el("img");
-      a.href = src; a.target = "_blank"; a.rel = "noreferrer";
-      img.src = src; img.alt = s.getAttribute("alt") || note || s.getAttribute("label") || "";
+      var a = el("a", "dk-shot-frame"),
+        img = el("img");
+      a.href = src;
+      a.target = "_blank";
+      a.rel = "noreferrer";
+      img.src = src;
+      img.alt = s.getAttribute("alt") || note || s.getAttribute("label") || "";
       a.appendChild(img);
       s.appendChild(a);
     }
@@ -169,20 +281,30 @@
   function drawShots(g) {
     if (g.hasAttribute("data-dk")) return;
     var shots = [].slice.call(g.querySelectorAll(":scope > dk-shot"));
-    if (shots.length < 2) { g.setAttribute("data-dk", ""); return; }
-    var tabs = el("div", "dk-shot-tabs"), stack = el("div", "dk-shot-stack");
+    if (shots.length < 2) {
+      g.setAttribute("data-dk", "");
+      return;
+    }
+    var tabs = el("div", "dk-shot-tabs"),
+      stack = el("div", "dk-shot-stack");
     tabs.setAttribute("role", "group");
     var buttons = shots.map(function (s, i) {
       var b = el("button", null, s.getAttribute("label") || "Shot " + (i + 1));
       b.type = "button";
-      b.addEventListener("click", function () { show(i); });
+      b.addEventListener("click", function () {
+        show(i);
+      });
       tabs.appendChild(b);
       stack.appendChild(s);
       return b;
     });
     function show(n) {
-      shots.forEach(function (s, i) { s.toggleAttribute("data-off", i !== n); });
-      buttons.forEach(function (b, i) { b.setAttribute("aria-pressed", String(i === n)); });
+      shots.forEach(function (s, i) {
+        s.toggleAttribute("data-off", i !== n);
+      });
+      buttons.forEach(function (b, i) {
+        b.setAttribute("aria-pressed", String(i === n));
+      });
     }
     var cap = g.querySelector(":scope > figcaption");
     g.textContent = "";
@@ -201,75 +323,157 @@
     var cases = el("div", "dk-cases");
     while (group.firstChild) cases.appendChild(group.firstChild);
     group.appendChild(cases);
-    [].forEach.call(cases.querySelectorAll(":scope > dk-example"), function (ex) {
-      var says = el("div", "dk-says"), shows = el("div", "dk-shows");
-      [].slice.call(ex.children).forEach(function (c) {
-        (/^DK-(MSG|PAIR|GAP|VIEW|THREAD|DIFF|SHOTS?)$/.test(c.tagName) ? shows : says).appendChild(c);
-      });
-      ex.textContent = "";
-      ex.appendChild(says);
-      if (shows.firstChild) ex.appendChild(shows);
-      ex.setAttribute("data-dk", "");
-    });
+    [].forEach.call(
+      cases.querySelectorAll(":scope > dk-example"),
+      function (ex) {
+        var says = el("div", "dk-says"),
+          shows = el("div", "dk-shows");
+        [].slice.call(ex.children).forEach(function (c) {
+          (/^DK-(MSG|PAIR|GAP|VIEW|THREAD|DIFF|SHOTS?)$/.test(c.tagName)
+            ? shows
+            : says
+          ).appendChild(c);
+        });
+        ex.textContent = "";
+        ex.appendChild(says);
+        if (shows.firstChild) ex.appendChild(shows);
+        ex.setAttribute("data-dk", "");
+      },
+    );
     // Messages are drawn first, so a compact case reads its marks from their bodies.
     if (group.hasAttribute("compact")) compactExamples(group);
     group.setAttribute("data-dk", "");
   }
 
   // ── Diffs ─────────────────────────────────────────────────────────────────
-  var PROSE_EXT = /\.(md|mdx|markdown|txt|njk|j2|jinja|hbs|mustache|liquid|prompt|tmpl|rst)$/i;
+  var PROSE_EXT =
+    /\.(md|mdx|markdown|txt|njk|j2|jinja|hbs|mustache|liquid|prompt|tmpl|rst)$/i;
 
   function parseUnified(text) {
-    var files = [], file = null, hunk = null, lines = text.replace(/\r\n/g, "\n").split("\n");
-    function open(name) { file = { name: name || "", hunks: [], added: 0, removed: 0 }; files.push(file); hunk = null; }
+    var files = [],
+      file = null,
+      hunk = null,
+      lines = text.replace(/\r\n/g, "\n").split("\n");
+    function open(name) {
+      file = { name: name || "", hunks: [], added: 0, removed: 0 };
+      files.push(file);
+      hunk = null;
+    }
     for (var i = 0; i < lines.length; i++) {
       var l = lines[i];
       // A hunk's own counts say how long it runs, but a pasted diff is often
       // trimmed: a line no hunk row can be (a file or hunk header) ends it.
-      var header = /^diff --git /.test(l) || /^@@ /.test(l) ||
-        (/^--- /.test(l) && /^\+\+\+ /.test(lines[i + 1] || "") && /^@@ /.test(lines[i + 2] || ""));
-      if (hunk && !header && (hunk.oldLeft > 0 || hunk.newLeft > 0) && /^([ +\-\\]|$)/.test(l)) {
+      var header =
+        /^diff --git /.test(l) ||
+        /^@@ /.test(l) ||
+        (/^--- /.test(l) &&
+          /^\+\+\+ /.test(lines[i + 1] || "") &&
+          /^@@ /.test(lines[i + 2] || ""));
+      if (
+        hunk &&
+        !header &&
+        (hunk.oldLeft > 0 || hunk.newLeft > 0) &&
+        /^([ +\-\\]|$)/.test(l)
+      ) {
         var c = l.charAt(0);
         if (c === "\\") continue;
-        if (c === "+") { hunk.rows.push({ t: "+", s: l.slice(1) }); hunk.newLeft--; file.added++; continue; }
-        if (c === "-") { hunk.rows.push({ t: "-", s: l.slice(1) }); hunk.oldLeft--; file.removed++; continue; }
-        hunk.rows.push({ t: " ", s: l.slice(1) }); hunk.oldLeft--; hunk.newLeft--; continue;
+        if (c === "+") {
+          hunk.rows.push({ t: "+", s: l.slice(1) });
+          hunk.newLeft--;
+          file.added++;
+          continue;
+        }
+        if (c === "-") {
+          hunk.rows.push({ t: "-", s: l.slice(1) });
+          hunk.oldLeft--;
+          file.removed++;
+          continue;
+        }
+        hunk.rows.push({ t: " ", s: l.slice(1) });
+        hunk.oldLeft--;
+        hunk.newLeft--;
+        continue;
       }
       var m;
-      if ((m = /^diff --git a\/(.+?) b\/(.+)$/.exec(l))) { open(m[2]); continue; }
-      if ((m = /^\+\+\+ (?:b\/)?(.+)$/.exec(l))) { if (!file || file.hunks.length) open(""); if (m[1] !== "/dev/null") file.name = m[1].trim(); continue; }
-      if ((m = /^--- (?:a\/)?(.+)$/.exec(l))) { if (!file || file.hunks.length) open(""); if (m[1] !== "/dev/null" && !file.name) file.name = m[1].trim(); continue; }
+      if ((m = /^diff --git a\/(.+?) b\/(.+)$/.exec(l))) {
+        open(m[2]);
+        continue;
+      }
+      if ((m = /^\+\+\+ (?:b\/)?(.+)$/.exec(l))) {
+        if (!file || file.hunks.length) open("");
+        if (m[1] !== "/dev/null") file.name = m[1].trim();
+        continue;
+      }
+      if ((m = /^--- (?:a\/)?(.+)$/.exec(l))) {
+        if (!file || file.hunks.length) open("");
+        if (m[1] !== "/dev/null" && !file.name) file.name = m[1].trim();
+        continue;
+      }
       if ((m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$/.exec(l))) {
         if (!file) open("");
-        hunk = { oldStart: +m[1], newStart: +m[3], oldLeft: m[2] == null ? 1 : +m[2], newLeft: m[4] == null ? 1 : +m[4], context: m[5] || "", rows: [] };
+        hunk = {
+          oldStart: +m[1],
+          newStart: +m[3],
+          oldLeft: m[2] == null ? 1 : +m[2],
+          newLeft: m[4] == null ? 1 : +m[4],
+          context: m[5] || "",
+          rows: [],
+        };
         file.hunks.push(hunk);
       }
     }
-    return files.filter(function (f) { return f.hunks.length; });
+    return files.filter(function (f) {
+      return f.hunks.length;
+    });
   }
 
-  function tokens(s) { return s.match(/\s+|[A-Za-z0-9_]+|[^\sA-Za-z0-9_]/g) || []; }
+  function tokens(s) {
+    return s.match(/\s+|[A-Za-z0-9_]+|[^\sA-Za-z0-9_]/g) || [];
+  }
 
   // Word-level difference of two texts as [{t: "=" | "-" | "+", s}], or null when they are too long to compare.
   function wordDiff(a, b) {
-    return seqDiff(tokens(a), tokens(b), function (t, s) { return { t: t, s: s }; }, true);
+    return seqDiff(
+      tokens(a),
+      tokens(b),
+      function (t, s) {
+        return { t: t, s: s };
+      },
+      true,
+    );
   }
 
   // Longest common subsequence of two token or line lists, as ops; `join`
   // merges neighbouring ops of one kind into a single run of text.
   function seqDiff(A, B, make, join) {
-    var n = A.length, m = B.length;
+    var n = A.length,
+      m = B.length;
     if (n * m > 6e6) return null;
-    var w = m + 1, L = new Uint32Array((n + 1) * w), i, j;
-    for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) {
-      L[i * w + j] = A[i] === B[j] ? L[(i + 1) * w + j + 1] + 1 : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
-    }
+    var w = m + 1,
+      L = new Uint32Array((n + 1) * w),
+      i,
+      j;
+    for (i = n - 1; i >= 0; i--)
+      for (j = m - 1; j >= 0; j--) {
+        L[i * w + j] =
+          A[i] === B[j]
+            ? L[(i + 1) * w + j + 1] + 1
+            : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
+      }
     var ops = [];
-    function push(t, s) { var last = ops[ops.length - 1]; if (join && last && last.t === t) last.s += s; else ops.push(make(t, s)); }
-    i = 0; j = 0;
+    function push(t, s) {
+      var last = ops[ops.length - 1];
+      if (join && last && last.t === t) last.s += s;
+      else ops.push(make(t, s));
+    }
+    i = 0;
+    j = 0;
     while (i < n && j < m) {
-      if (A[i] === B[j]) { push("=", A[i]); i++; j++; }
-      else if (L[(i + 1) * w + j] >= L[i * w + j + 1]) push("-", A[i++]);
+      if (A[i] === B[j]) {
+        push("=", A[i]);
+        i++;
+        j++;
+      } else if (L[(i + 1) * w + j] >= L[i * w + j + 1]) push("-", A[i++]);
       else push("+", B[j++]);
     }
     while (i < n) push("-", A[i++]);
@@ -280,25 +484,43 @@
   // Group into runs of unchanged text and changes, then fold a few stray shared
   // words between two changes into one change: "the" matching "the" is not news.
   function segments(ops) {
-    var segs = [], cur = null;
+    var segs = [],
+      cur = null;
     ops.forEach(function (o) {
-      if (o.t === "=") { segs.push({ eq: o.s }); cur = null; return; }
-      if (!cur) { cur = { del: "", ins: "" }; segs.push(cur); }
-      if (o.t === "-") cur.del += o.s; else cur.ins += o.s;
+      if (o.t === "=") {
+        segs.push({ eq: o.s });
+        cur = null;
+        return;
+      }
+      if (!cur) {
+        cur = { del: "", ins: "" };
+        segs.push(cur);
+      }
+      if (o.t === "-") cur.del += o.s;
+      else cur.ins += o.s;
     });
     var out = [];
     for (var i = 0; i < segs.length; i++) {
-      var s = segs[i], prev = out[out.length - 1], next = segs[i + 1];
-      var small = s.eq != null && s.eq.length < 28 && (s.eq.match(/[A-Za-z0-9_]+/g) || []).length < 4;
+      var s = segs[i],
+        prev = out[out.length - 1],
+        next = segs[i + 1];
+      var small =
+        s.eq != null &&
+        s.eq.length < 28 &&
+        (s.eq.match(/[A-Za-z0-9_]+/g) || []).length < 4;
       if (small && prev && prev.eq == null && next && next.eq == null) {
-        prev.del += s.eq + next.del; prev.ins += s.eq + next.ins; i++;
+        prev.del += s.eq + next.del;
+        prev.ins += s.eq + next.ins;
+        i++;
       } else out.push(s.eq != null ? { eq: s.eq } : { del: s.del, ins: s.ins });
     }
     return out;
   }
   function similarity(segs, a, b) {
     var same = 0;
-    segs.forEach(function (s) { if (s.eq != null) same += s.eq.length; });
+    segs.forEach(function (s) {
+      if (s.eq != null) same += s.eq.length;
+    });
     return same / Math.max(1, Math.max(a.length, b.length));
   }
 
@@ -309,26 +531,46 @@
   // mid-clause. A sentence too long to keep whole is cut at a line break or a space.
   var SENTENCE_END = /[.!?:;]["'\u201d\u2019)\]]?(?=\s|$)|\n/g;
   function appendUnchanged(parent, text) {
-    var KEEP = 110, MIN = 320, LONG = 420;
-    if (text.length < MIN) { parent.appendChild(document.createTextNode(text)); return; }
-    var ends = [], m;
+    var KEEP = 110,
+      MIN = 320,
+      LONG = 420;
+    if (text.length < MIN) {
+      parent.appendChild(document.createTextNode(text));
+      return;
+    }
+    var ends = [],
+      m;
     SENTENCE_END.lastIndex = 0;
     while ((m = SENTENCE_END.exec(text))) ends.push(m.index + m[0].length);
-    var first = ends[0], last = ends.length ? ends[ends.length - 1] : -1;
-    if (last === text.length || /^\s*$/.test(text.slice(last))) last = ends.length > 1 ? ends[ends.length - 2] : -1;
-    var headAt = first != null && first <= LONG ? first : (text.indexOf(" ", KEEP) + 1 || KEEP);
-    var tailAt = last > 0 && text.length - last <= LONG ? last : text.lastIndexOf(" ", text.length - KEEP);
+    var first = ends[0],
+      last = ends.length ? ends[ends.length - 1] : -1;
+    if (last === text.length || /^\s*$/.test(text.slice(last)))
+      last = ends.length > 1 ? ends[ends.length - 2] : -1;
+    var headAt =
+      first != null && first <= LONG
+        ? first
+        : text.indexOf(" ", KEEP) + 1 || KEEP;
+    var tailAt =
+      last > 0 && text.length - last <= LONG
+        ? last
+        : text.lastIndexOf(" ", text.length - KEEP);
     while (/\s/.test(text.charAt(headAt))) headAt++;
     var head = text.slice(0, headAt);
     tailAt = Math.max(head.length, tailAt);
-    var mid = text.slice(head.length, tailAt), tail = text.slice(tailAt);
-    if (mid.length < 120) { parent.appendChild(document.createTextNode(text)); return; }
+    var mid = text.slice(head.length, tailAt),
+      tail = text.slice(tailAt);
+    if (mid.length < 120) {
+      parent.appendChild(document.createTextNode(text));
+      return;
+    }
     if (head) parent.appendChild(document.createTextNode(head));
     var words = (mid.match(/\S+/g) || []).length;
     var skip = el("button", "dk-skip", "…");
     skip.type = "button";
     skip.title = "Show " + plural(words, "unchanged word");
-    skip.addEventListener("click", function () { skip.replaceWith(document.createTextNode(mid)); });
+    skip.addEventListener("click", function () {
+      skip.replaceWith(document.createTextNode(mid));
+    });
     parent.appendChild(skip);
     if (tail) parent.appendChild(document.createTextNode(tail));
   }
@@ -340,22 +582,42 @@
         else parent.appendChild(document.createTextNode(s.eq));
         return;
       }
-      if (s.del) parent.appendChild(/\S/.test(s.del) ? el("del", null, s.del) : document.createTextNode(""));
-      if (s.ins) parent.appendChild(/\S/.test(s.ins) ? el("ins", null, s.ins) : document.createTextNode(s.ins));
+      if (s.del)
+        parent.appendChild(
+          /\S/.test(s.del)
+            ? el("del", null, s.del)
+            : document.createTextNode(""),
+        );
+      if (s.ins)
+        parent.appendChild(
+          /\S/.test(s.ins)
+            ? el("ins", null, s.ins)
+            : document.createTextNode(s.ins),
+        );
     });
   }
 
   // A hunk as runs: unchanged lines, and changes (the lines removed, the lines added).
   function runs(hunk) {
-    var out = [], oldNo = hunk.oldStart, newNo = hunk.newStart, cur = null;
+    var out = [],
+      oldNo = hunk.oldStart,
+      newNo = hunk.newStart,
+      cur = null;
     hunk.rows.forEach(function (r) {
       if (r.t === " ") {
-        if (!cur || cur.kind !== "same") { cur = { kind: "same", rows: [] }; out.push(cur); }
+        if (!cur || cur.kind !== "same") {
+          cur = { kind: "same", rows: [] };
+          out.push(cur);
+        }
         cur.rows.push({ s: r.s, oldNo: oldNo++, newNo: newNo++ });
         return;
       }
-      if (!cur || cur.kind !== "change") { cur = { kind: "change", del: [], ins: [], oldNo: oldNo, newNo: newNo }; out.push(cur); }
-      if (r.t === "-") cur.del.push({ s: r.s, no: oldNo++ }); else cur.ins.push({ s: r.s, no: newNo++ });
+      if (!cur || cur.kind !== "change") {
+        cur = { kind: "change", del: [], ins: [], oldNo: oldNo, newNo: newNo };
+        out.push(cur);
+      }
+      if (r.t === "-") cur.del.push({ s: r.s, no: oldNo++ });
+      else cur.ins.push({ s: r.s, no: newNo++ });
     });
     return out;
   }
@@ -370,13 +632,21 @@
 
   // Template tags in a prompt ({% if %}, {{ }}) are set apart from its words.
   function dimTemplate(root) {
-    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
-    while ((n = walker.nextNode())) if (/\{[%{#]|[%}#]\}/.test(n.nodeValue)) nodes.push(n);
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT),
+      nodes = [],
+      n;
+    while ((n = walker.nextNode()))
+      if (/\{[%{#]|[%}#]\}/.test(n.nodeValue)) nodes.push(n);
     nodes.forEach(function (node) {
-      var parts = node.nodeValue.split(/(\{%[\s\S]*?%\}|\{#[\s\S]*?#\}|\{\{-?|-?\}\})/), frag = document.createDocumentFragment();
+      var parts = node.nodeValue.split(
+          /(\{%[\s\S]*?%\}|\{#[\s\S]*?#\}|\{\{-?|-?\}\})/,
+        ),
+        frag = document.createDocumentFragment();
       parts.forEach(function (part, i) {
         if (!part) return;
-        frag.appendChild(i % 2 ? el("span", "dk-tpl", part) : document.createTextNode(part));
+        frag.appendChild(
+          i % 2 ? el("span", "dk-tpl", part) : document.createTextNode(part),
+        );
       });
       node.parentNode.replaceChild(frag, node);
     });
@@ -385,26 +655,37 @@
   // A prompt's markdown reads as what it marks: **bold** as bold and `code` as
   // code, with the marks themselves gone, also where a change split them.
   function renderMarkdown(root) {
-    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
-    while ((n = walker.nextNode())) if (/\*\*[^*\n]+\*\*|`[^`\n]+`/.test(n.nodeValue)) nodes.push(n);
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT),
+      nodes = [],
+      n;
+    while ((n = walker.nextNode()))
+      if (/\*\*[^*\n]+\*\*|`[^`\n]+`/.test(n.nodeValue)) nodes.push(n);
     nodes.forEach(function (node) {
-      var parts = node.nodeValue.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/), frag = document.createDocumentFragment();
+      var parts = node.nodeValue.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/),
+        frag = document.createDocumentFragment();
       parts.forEach(function (part, i) {
         if (!part) return;
         if (i % 2 === 0) frag.appendChild(document.createTextNode(part));
-        else if (part.charAt(0) === "`") frag.appendChild(el("code", null, part.slice(1, -1)));
+        else if (part.charAt(0) === "`")
+          frag.appendChild(el("code", null, part.slice(1, -1)));
         else frag.appendChild(el("strong", null, part.slice(2, -2)));
       });
       node.parentNode.replaceChild(frag, node);
     });
     // A heading reads as a heading, without its marks.
-    walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); nodes = [];
-    while ((n = walker.nextNode())) if (/(^|\n)#{1,6} \S/.test(n.nodeValue)) nodes.push(n);
+    walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    nodes = [];
+    while ((n = walker.nextNode()))
+      if (/(^|\n)#{1,6} \S/.test(n.nodeValue)) nodes.push(n);
     nodes.forEach(function (node) {
-      var parts = node.nodeValue.split(/((?:^|\n)#{1,6} [^\n]*)/), frag = document.createDocumentFragment();
+      var parts = node.nodeValue.split(/((?:^|\n)#{1,6} [^\n]*)/),
+        frag = document.createDocumentFragment();
       parts.forEach(function (part, i) {
         if (!part) return;
-        if (i % 2 === 0) { frag.appendChild(document.createTextNode(part)); return; }
+        if (i % 2 === 0) {
+          frag.appendChild(document.createTextNode(part));
+          return;
+        }
         var nl = part.charAt(0) === "\n";
         if (nl) frag.appendChild(document.createTextNode("\n"));
         frag.appendChild(el("strong", "dk-h", part.replace(/^\n?#{1,6} /, "")));
@@ -413,17 +694,24 @@
     });
     // A bold mark a change split in two has nothing left to mark: drop it.
     walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    while ((n = walker.nextNode())) if (n.nodeValue.indexOf("**") >= 0) n.nodeValue = n.nodeValue.replace(/\*\*/g, "");
+    while ((n = walker.nextNode()))
+      if (n.nodeValue.indexOf("**") >= 0)
+        n.nodeValue = n.nodeValue.replace(/\*\*/g, "");
   }
 
   // Prose reads as paragraphs and list items, as markdown does: a source's hard
   // wrap inside a paragraph is a space, so every box reflows alike.
   // A heading is a line of its own, never the start of the paragraph under it.
   function reflow(s) {
-    var lines = s.split("\n"), out = lines[0];
+    var lines = s.split("\n"),
+      out = lines[0];
     for (var i = 1; i < lines.length; i++) {
-      var prev = lines[i - 1], cur = lines[i];
-      var joins = prev.length > 0 && !/^\s*#{1,6}\s/.test(prev) && /^[ \t]*(?:[^\s\-*+#>\d]|\d+[^.\d]|\d+\.\S)/.test(cur);
+      var prev = lines[i - 1],
+        cur = lines[i];
+      var joins =
+        prev.length > 0 &&
+        !/^\s*#{1,6}\s/.test(prev) &&
+        /^[ \t]*(?:[^\s\-*+#>\d]|\d+[^.\d]|\d+\.\S)/.test(cur);
       out += joins ? " " + cur.replace(/^[ \t]+/, "") : "\n" + cur;
     }
     return out;
@@ -439,25 +727,53 @@
         // change in a long text reads as the change, and the whole text is a
         // click away.
         if (run.kind !== "change") {
-          var kept = reflow(run.rows.map(function (x) { return x.s; }).join("\n")).trim();
+          var kept = reflow(
+            run.rows
+              .map(function (x) {
+                return x.s;
+              })
+              .join("\n"),
+          ).trim();
           if (!kept) return;
-          var k = el("div", "dk-change dk-kept"), paras = kept.split(/\n{2,}/), last = paras.length - 1;
-          var before = all[r + 1] && all[r + 1].kind === "change", after = all[r - 1] && all[r - 1].kind === "change";
+          var k = el("div", "dk-change dk-kept"),
+            paras = kept.split(/\n{2,}/),
+            last = paras.length - 1;
+          var before = all[r + 1] && all[r + 1].kind === "change",
+            after = all[r - 1] && all[r - 1].kind === "change";
           var hidden = [];
           var flush = function () {
             if (!hidden.length) return;
-            var held = hidden; hidden = [];
-            var more = el("button", "dk-skip", plural(held.length, "unchanged paragraph"));
+            var held = hidden;
+            hidden = [];
+            var more = el(
+              "button",
+              "dk-skip",
+              plural(held.length, "unchanged paragraph"),
+            );
             more.type = "button";
-            more.addEventListener("click", function () { held.forEach(function (q) { q.hidden = false; }); more.remove(); });
+            more.addEventListener("click", function () {
+              held.forEach(function (q) {
+                q.hidden = false;
+              });
+              more.remove();
+            });
             k.appendChild(more);
-            held.forEach(function (q) { q.hidden = true; k.appendChild(q); });
+            held.forEach(function (q) {
+              q.hidden = true;
+              k.appendChild(q);
+            });
           };
           paras.forEach(function (para, i) {
             var q = el("p", "dk-prose");
             appendUnchanged(q, para);
-            var shown = paras.length <= 3 || (i === 0 && (after || r === 0)) || (i === last && before);
-            if (shown) { flush(); k.appendChild(q); } else hidden.push(q);
+            var shown =
+              paras.length <= 3 ||
+              (i === 0 && (after || r === 0)) ||
+              (i === last && before);
+            if (shown) {
+              flush();
+              k.appendChild(q);
+            } else hidden.push(q);
           });
           flush();
           renderMarkdown(k);
@@ -465,14 +781,32 @@
           box.appendChild(k);
           return;
         }
-        var a = reflow(run.del.map(function (x) { return x.s; }).join("\n")), b = reflow(run.ins.map(function (x) { return x.s; }).join("\n"));
+        var a = reflow(
+            run.del
+              .map(function (x) {
+                return x.s;
+              })
+              .join("\n"),
+          ),
+          b = reflow(
+            run.ins
+              .map(function (x) {
+                return x.s;
+              })
+              .join("\n"),
+          );
         var change = el("div", "dk-change");
         if (!a.trim()) change.appendChild(proseBlock("ins", b));
         else if (!b.trim()) change.appendChild(proseBlock("del", a));
         else {
-          var ops = wordDiff(a, b), segs = ops && segments(ops);
+          var ops = wordDiff(a, b),
+            segs = ops && segments(ops);
           // Mostly kept old text reads best inline, however much was added to it.
-          var kept = segs ? segs.reduce(function (n, s) { return n + (s.eq != null ? s.eq.length : 0); }, 0) / Math.max(1, a.length) : 0;
+          var kept = segs
+            ? segs.reduce(function (n, s) {
+                return n + (s.eq != null ? s.eq.length : 0);
+              }, 0) / Math.max(1, a.length)
+            : 0;
           if (!segs || (similarity(segs, a, b) < 0.3 && kept < 0.7)) {
             change.appendChild(proseBlock("del", a));
             change.appendChild(proseBlock("ins", b));
@@ -494,55 +828,113 @@
     row.appendChild(el("span", "dk-ln", no == null ? "" : String(no)));
     row.appendChild(el("span", "dk-sign", sign));
     var code = el("span", "dk-text");
-    if (typeof fill === "string") code.textContent = fill || " "; else fill(code);
+    if (typeof fill === "string") code.textContent = fill || " ";
+    else fill(code);
     row.appendChild(code);
     return row;
   }
 
   // Rows past the first `head` and before the last `tail` wait behind one button.
   function foldRows(box, rows, head, tail, label) {
-    if (rows.length <= head + tail + 2) { rows.forEach(function (r) { box.appendChild(r); }); return; }
+    if (rows.length <= head + tail + 2) {
+      rows.forEach(function (r) {
+        box.appendChild(r);
+      });
+      return;
+    }
     var hidden = rows.slice(head, rows.length - tail);
-    rows.slice(0, head).forEach(function (r) { box.appendChild(r); });
+    rows.slice(0, head).forEach(function (r) {
+      box.appendChild(r);
+    });
     var skip = el("button", "dk-skip", label(hidden.length));
     skip.type = "button";
-    skip.addEventListener("click", function () { hidden.forEach(function (r) { r.hidden = false; }); skip.remove(); });
+    skip.addEventListener("click", function () {
+      hidden.forEach(function (r) {
+        r.hidden = false;
+      });
+      skip.remove();
+    });
     box.appendChild(skip);
-    hidden.forEach(function (r) { r.hidden = true; box.appendChild(r); });
-    rows.slice(rows.length - tail).forEach(function (r) { box.appendChild(r); });
+    hidden.forEach(function (r) {
+      r.hidden = true;
+      box.appendChild(r);
+    });
+    rows.slice(rows.length - tail).forEach(function (r) {
+      box.appendChild(r);
+    });
   }
 
   function drawCode(box, file) {
     var code = el("div", "dk-code");
     file.hunks.forEach(function (hunk, h) {
-      if (h > 0 || hunk.context) code.appendChild(el("span", "dk-hunk", hunk.context || "⋯"));
+      if (h > 0 || hunk.context)
+        code.appendChild(el("span", "dk-hunk", hunk.context || "⋯"));
       var all = runs(hunk);
       all.forEach(function (run, r) {
         if (run.kind === "same") {
-          var same = run.rows.map(function (x) { return codeRow("", x.newNo, "", x.s); });
+          var same = run.rows.map(function (x) {
+            return codeRow("", x.newNo, "", x.s);
+          });
           var edge = r === 0 ? [0, 3] : r === all.length - 1 ? [3, 0] : [3, 3];
-          foldRows(code, same, edge[0], edge[1], function (n) { return plural(n, "unchanged line"); });
+          foldRows(code, same, edge[0], edge[1], function (n) {
+            return plural(n, "unchanged line");
+          });
           return;
         }
         var paired = run.del.length === run.ins.length;
         var rows = [];
         run.del.forEach(function (d, i) {
-          var segs = paired ? segments(wordDiff(d.s, run.ins[i].s) || []) : null;
-          var close = segs && segs.length && similarity(segs, d.s, run.ins[i].s) >= 0.5;
+          var segs = paired
+            ? segments(wordDiff(d.s, run.ins[i].s) || [])
+            : null;
+          var close =
+            segs && segs.length && similarity(segs, d.s, run.ins[i].s) >= 0.5;
           d.segs = close ? segs : null;
-          rows.push(codeRow("dk-minus", d.no, "−", close ? function (c) {
-            segs.forEach(function (s) { if (s.eq != null) c.appendChild(document.createTextNode(s.eq)); else if (s.del) c.appendChild(el("del", null, s.del)); });
-          } : d.s));
+          rows.push(
+            codeRow(
+              "dk-minus",
+              d.no,
+              "−",
+              close
+                ? function (c) {
+                    segs.forEach(function (s) {
+                      if (s.eq != null)
+                        c.appendChild(document.createTextNode(s.eq));
+                      else if (s.del) c.appendChild(el("del", null, s.del));
+                    });
+                  }
+                : d.s,
+            ),
+          );
         });
         run.ins.forEach(function (a, i) {
           var segs = paired ? run.del[i].segs : null;
-          rows.push(codeRow("dk-plus", a.no, "+", segs ? function (c) {
-            segs.forEach(function (s) { if (s.eq != null) c.appendChild(document.createTextNode(s.eq)); else if (s.ins) c.appendChild(el("ins", null, s.ins)); });
-          } : a.s));
+          rows.push(
+            codeRow(
+              "dk-plus",
+              a.no,
+              "+",
+              segs
+                ? function (c) {
+                    segs.forEach(function (s) {
+                      if (s.eq != null)
+                        c.appendChild(document.createTextNode(s.eq));
+                      else if (s.ins) c.appendChild(el("ins", null, s.ins));
+                    });
+                  }
+                : a.s,
+            ),
+          );
         });
         // A long run of new or removed lines (a new file) shows its start.
-        if (!run.del.length || !run.ins.length) foldRows(code, rows, 14, 2, function (n) { return plural(n, "more line"); });
-        else rows.forEach(function (x) { code.appendChild(x); });
+        if (!run.del.length || !run.ins.length)
+          foldRows(code, rows, 14, 2, function (n) {
+            return plural(n, "more line");
+          });
+        else
+          rows.forEach(function (x) {
+            code.appendChild(x);
+          });
       });
     });
     box.appendChild(code);
@@ -551,27 +943,65 @@
   function looksLikeProse(file) {
     if (PROSE_EXT.test(file.name)) return true;
     var lens = [];
-    file.hunks.forEach(function (h) { h.rows.forEach(function (r) { if (r.t !== " ") lens.push(r.s.length); }); });
-    lens.sort(function (a, b) { return a - b; });
+    file.hunks.forEach(function (h) {
+      h.rows.forEach(function (r) {
+        if (r.t !== " ") lens.push(r.s.length);
+      });
+    });
+    lens.sort(function (a, b) {
+      return a - b;
+    });
     return lens.length > 0 && lens[lens.length >> 1] > 160;
   }
 
   function drawDiff(d) {
     if (d.hasAttribute("data-dk")) return;
     // The label is the file path, or a <figcaption> in words (any quotes are safe there).
-    var caption = d.querySelector(":scope > figcaption"), named = caption ? caption.textContent.replace(/\s+/g, " ").trim() : d.getAttribute("file");
+    var caption = d.querySelector(":scope > figcaption"),
+      named = caption
+        ? caption.textContent.replace(/\s+/g, " ").trim()
+        : d.getAttribute("file");
     if (caption) caption.remove();
-    var before = d.querySelector("template[data-before]"), after = d.querySelector("template[data-after]");
+    var before = d.querySelector("template[data-before]"),
+      after = d.querySelector("template[data-after]");
     var files;
     if (before && after) {
-      var a = before.content.textContent.replace(/^\n+|\s+$/g, "").split("\n"), b = after.content.textContent.replace(/^\n+|\s+$/g, "").split("\n");
-      var rows = seqDiff(a, b, function (t, s) { return { t: t === "=" ? " " : t, s: s }; }, false)
-        || a.map(function (s) { return { t: "-", s: s }; }).concat(b.map(function (s) { return { t: "+", s: s }; }));
-      files = [{ name: named || "", hunks: [{ oldStart: 1, newStart: 1, context: "", rows: rows }] }];
+      var a = before.content.textContent.replace(/^\n+|\s+$/g, "").split("\n"),
+        b = after.content.textContent.replace(/^\n+|\s+$/g, "").split("\n");
+      var rows =
+        seqDiff(
+          a,
+          b,
+          function (t, s) {
+            return { t: t === "=" ? " " : t, s: s };
+          },
+          false,
+        ) ||
+        a
+          .map(function (s) {
+            return { t: "-", s: s };
+          })
+          .concat(
+            b.map(function (s) {
+              return { t: "+", s: s };
+            }),
+          );
+      files = [
+        {
+          name: named || "",
+          hunks: [{ oldStart: 1, newStart: 1, context: "", rows: rows }],
+        },
+      ];
       if (!d.hasAttribute("as")) d.setAttribute("as", "prose");
     } else {
-      var src = d.querySelector('script[type="text/plain"], template, pre, textarea');
-      var text = src ? (src.content ? src.content.textContent : src.textContent) : d.textContent;
+      var src = d.querySelector(
+        'script[type="text/plain"], template, pre, textarea',
+      );
+      var text = src
+        ? src.content
+          ? src.content.textContent
+          : src.textContent
+        : d.textContent;
       files = parseUnified(text);
     }
     if (!files.length) return;
@@ -581,30 +1011,66 @@
     // drawn as code waits behind one line naming what changed, so the page
     // leads with its words and pictures. Prose (the words a person or an agent
     // meets) stays open, since those words are the behaviour.
-    var code = null, codeNames = [], added = 0, removed = 0;
+    var code = null,
+      codeNames = [],
+      added = 0,
+      removed = 0;
     files.forEach(function (file) {
       if (files.length === 1 && named) file.name = named;
-      var box = el("div", "dk-file"), head = el("div", "dk-file-head"), name = el("span");
+      var box = el("div", "dk-file"),
+        head = el("div", "dk-file-head"),
+        name = el("span");
       // A file path reads as a path; any other name is a caption in words.
       var isPath = /^[^\s]+$/.test(file.name) && /[\/.]/.test(file.name);
       if (!isPath) head.classList.add("dk-caption");
       var cut = isPath ? file.name.lastIndexOf("/") : -1;
-      if (cut >= 0) name.appendChild(document.createTextNode(file.name.slice(0, cut + 1)));
+      if (cut >= 0)
+        name.appendChild(document.createTextNode(file.name.slice(0, cut + 1)));
       var label = file.name.slice(cut + 1) || "The change";
-      name.appendChild(el("b", null, isPath ? label : label.charAt(0).toUpperCase() + label.slice(1)));
+      name.appendChild(
+        el(
+          "b",
+          null,
+          isPath ? label : label.charAt(0).toUpperCase() + label.slice(1),
+        ),
+      );
       head.appendChild(name);
       box.appendChild(head);
-      if (as === "prose" || (as !== "code" && looksLikeProse(file))) { drawProse(box, file); d.appendChild(box); return; }
+      if (as === "prose" || (as !== "code" && looksLikeProse(file))) {
+        drawProse(box, file);
+        d.appendChild(box);
+        return;
+      }
       drawCode(box, file);
-      if (!code) { code = el("details", "dk-code-fold"); code.appendChild(el("summary")); d.appendChild(code); }
+      if (!code) {
+        code = el("details", "dk-code-fold");
+        code.appendChild(el("summary"));
+        d.appendChild(code);
+      }
       code.appendChild(box);
       codeNames.push(isPath ? label : file.name);
-      file.hunks.forEach(function (h) { h.rows.forEach(function (r) { if (r.t === "+") added++; else if (r.t === "-") removed++; }); });
+      file.hunks.forEach(function (h) {
+        h.rows.forEach(function (r) {
+          if (r.t === "+") added++;
+          else if (r.t === "-") removed++;
+        });
+      });
     });
     if (code) {
-      var what = named && !/^[^\s]+$/.test(named) ? named.charAt(0).toUpperCase() + named.slice(1)
-        : "The code: " + (codeNames.length > 3 ? plural(codeNames.length, "file") : codeNames.join(", "));
-      code.firstChild.textContent = what + " · +" + added + " −" + removed + (added + removed === 1 ? " line" : " lines");
+      var what =
+        named && !/^[^\s]+$/.test(named)
+          ? named.charAt(0).toUpperCase() + named.slice(1)
+          : "The code: " +
+            (codeNames.length > 3
+              ? plural(codeNames.length, "file")
+              : codeNames.join(", "));
+      code.firstChild.textContent =
+        what +
+        " · +" +
+        added +
+        " −" +
+        removed +
+        (added + removed === 1 ? " line" : " lines");
     }
     d.setAttribute("data-dk", "");
   }
@@ -613,25 +1079,41 @@
   // Where codecast runs: the app framing this page, or the public one.
   function appOrigin() {
     var meta = document.querySelector('meta[name="codecast-app"]');
-    if (meta && /^https?:\/\//i.test(meta.content)) return meta.content.replace(/\/+$/, "");
+    if (meta && /^https?:\/\//i.test(meta.content))
+      return meta.content.replace(/\/+$/, "");
     try {
       var up = location.ancestorOrigins && location.ancestorOrigins[0];
-      if (up && /^https?:\/\/(localhost|127\.0\.0\.1|([a-z0-9-]+\.)?codecast\.sh)(:\d+)?$/i.test(up)) return up;
-    } catch (e) { /* not framed */ }
+      if (
+        up &&
+        /^https?:\/\/(localhost|127\.0\.0\.1|([a-z0-9-]+\.)?codecast\.sh)(:\d+)?$/i.test(
+          up,
+        )
+      )
+        return up;
+    } catch (e) {
+      /* not framed */
+    }
     return "https://codecast.sh";
   }
 
   function drawView(v) {
     if (v.hasAttribute("data-dk")) return;
-    var label = v.textContent.trim() || "Open it in the product", href = v.getAttribute("href"), ref = (v.getAttribute("ref") || "").trim();
-    if (!(href && /^https?:\/\//i.test(href))) href = ref ? appOrigin() + "/view?ref=" + encodeURIComponent(ref) : null;
+    var label = v.textContent.trim() || "Open it in the product",
+      href = v.getAttribute("href"),
+      ref = (v.getAttribute("ref") || "").trim();
+    if (!(href && /^https?:\/\//i.test(href)))
+      href = ref ? appOrigin() + "/view?ref=" + encodeURIComponent(ref) : null;
     v.textContent = "";
     if (href) {
       // The arrow travels with the label's last word, so a wrap never strands it.
-      var a = el("a"), cut = label.lastIndexOf(" ");
-      if (cut > 0) a.appendChild(document.createTextNode(label.slice(0, cut + 1)));
+      var a = el("a"),
+        cut = label.lastIndexOf(" ");
+      if (cut > 0)
+        a.appendChild(document.createTextNode(label.slice(0, cut + 1)));
       a.appendChild(el("span", "dk-out", label.slice(cut + 1)));
-      a.href = href; a.target = "_blank"; a.rel = "noreferrer";
+      a.href = href;
+      a.target = "_blank";
+      a.rel = "noreferrer";
       if (ref) a.title = ref;
       v.appendChild(a);
     } else v.appendChild(el("span", null, label));
@@ -646,7 +1128,8 @@
     while (ev.firstChild) body.appendChild(ev.firstChild);
     trimEdges(body);
     ev.appendChild(body);
-    if (body.textContent.replace(/\s+/g, " ").trim().length > 60) ev.setAttribute("long", "");
+    if (body.textContent.replace(/\s+/g, " ").trim().length > 60)
+      ev.setAttribute("long", "");
     ev.setAttribute("data-dk", "");
   }
 
@@ -662,15 +1145,19 @@
   // ── Counts drawn ──────────────────────────────────────────────────────────
   // "41 of 300" read once, wherever a count is drawn: the count, the whole, and
   // the share, or null when the text is not a count out of a whole.
-  function num(s) { return parseFloat(String(s).replace(/,/g, "")); }
+  function num(s) {
+    return parseFloat(String(s).replace(/,/g, ""));
+  }
   function outOf(text) {
     var m = /^\s*([\d,.]+)\s+of\s+([\d,.]+)/.exec(text || "");
     if (!m) return null;
-    var n = num(m[1]), of = num(m[2]);
+    var n = num(m[1]),
+      of = num(m[2]);
     return of > 0 && n <= of ? { n: m[1], of: m[2], share: n / of } : null;
   }
   function bar(share, cls) {
-    var track = el("span", "dk-bar" + (cls ? " " + cls : "")), fill = el("i");
+    var track = el("span", "dk-bar" + (cls ? " " + cls : "")),
+      fill = el("i");
     fill.style.width = (share * 100).toFixed(1) + "%";
     if (!share) fill.setAttribute("data-zero", "");
     track.appendChild(fill);
@@ -681,7 +1168,8 @@
   // "57 of 300" and "466 of 1,370" read at their real sizes, not as two big numbers.
   function drawFact(f) {
     if (f.hasAttribute("data-dk")) return;
-    var b = f.querySelector(":scope > :is(b, strong):first-child"), c = b && outOf(b.textContent);
+    var b = f.querySelector(":scope > :is(b, strong):first-child"),
+      c = b && outOf(b.textContent);
     if (c) {
       b.textContent = c.n + " ";
       b.appendChild(el("span", "dk-of", "of " + c.of));
@@ -692,27 +1180,40 @@
 
   // The page's findings at a glance: one row each, its count drawn, and what
   // the change does about it. A row opens its section.
-  var FINDING = { fixed: "Fixed by the change", open: "Not fixed here", unchanged: "Left as is" };
+  var FINDING = {
+    fixed: "Fixed by the change",
+    open: "Not fixed here",
+    unchanged: "Left as is",
+  };
   function drawBoard(board) {
     if (board.hasAttribute("data-dk")) return;
-    [].forEach.call(board.querySelectorAll(":scope > dk-finding"), function (f, i) {
-      var row = el(f.getAttribute("href") ? "a" : "div", "dk-finding-row");
-      if (f.getAttribute("href")) row.href = f.getAttribute("href");
-      row.appendChild(el("span", "dk-finding-n", String(i + 1)));
-      var what = el("span", "dk-finding-what");
-      while (f.firstChild) what.appendChild(f.firstChild);
-      trimEdges(what);
-      row.appendChild(what);
-      var count = el("span", "dk-finding-count"), c = outOf(f.getAttribute("count"));
-      if (c) count.appendChild(bar(c.share));
-      if (f.getAttribute("count")) count.appendChild(el("span", null, f.getAttribute("count")));
-      row.appendChild(count);
-      var state = f.getAttribute("state") || "";
-      var tag = el("span", "dk-finding-state", f.getAttribute("label") || FINDING[state] || "");
-      tag.setAttribute("data-state", state);
-      row.appendChild(tag);
-      f.appendChild(row);
-    });
+    [].forEach.call(
+      board.querySelectorAll(":scope > dk-finding"),
+      function (f, i) {
+        var row = el(f.getAttribute("href") ? "a" : "div", "dk-finding-row");
+        if (f.getAttribute("href")) row.href = f.getAttribute("href");
+        row.appendChild(el("span", "dk-finding-n", String(i + 1)));
+        var what = el("span", "dk-finding-what");
+        while (f.firstChild) what.appendChild(f.firstChild);
+        trimEdges(what);
+        row.appendChild(what);
+        var count = el("span", "dk-finding-count"),
+          c = outOf(f.getAttribute("count"));
+        if (c) count.appendChild(bar(c.share));
+        if (f.getAttribute("count"))
+          count.appendChild(el("span", null, f.getAttribute("count")));
+        row.appendChild(count);
+        var state = f.getAttribute("state") || "";
+        var tag = el(
+          "span",
+          "dk-finding-state",
+          f.getAttribute("label") || FINDING[state] || "",
+        );
+        tag.setAttribute("data-state", state);
+        row.appendChild(tag);
+        f.appendChild(row);
+      },
+    );
     board.setAttribute("data-dk", "");
   }
 
@@ -724,21 +1225,38 @@
   // with no moment or shade's edge inside it, so the crowded moments get the
   // width. `edges` (where shades begin and end) stretch the line but crowd
   // nothing.
-  var CUT_SHARE = 0.28, CROWDED = 0.05;
+  var CUT_SHARE = 0.28,
+    CROWDED = 0.05;
   function timelineScale(moments, edges) {
-    function sorted(vs) { return vs.filter(function (v, i) { return !isNaN(v) && vs.indexOf(v) === i; }).sort(function (a, b) { return a - b; }); }
-    var at = sorted(moments), all = sorted(moments.concat(edges || []));
+    function sorted(vs) {
+      return vs
+        .filter(function (v, i) {
+          return !isNaN(v) && vs.indexOf(v) === i;
+        })
+        .sort(function (a, b) {
+          return a - b;
+        });
+    }
+    var at = sorted(moments),
+      all = sorted(moments.concat(edges || []));
     if (!all.length) return null;
-    var lo = all[0], hi = all[all.length - 1], span = hi - lo || 1, cut = null, crowded = false;
-    for (var i = 1; i < all.length; i++) if (!cut || all[i] - all[i - 1] > cut.b - cut.a) cut = { a: all[i - 1], b: all[i] };
-    for (var j = 1; j < at.length; j++) if ((at[j] - at[j - 1]) / span < CROWDED) crowded = true;
+    var lo = all[0],
+      hi = all[all.length - 1],
+      span = hi - lo || 1,
+      cut = null,
+      crowded = false;
+    for (var i = 1; i < all.length; i++)
+      if (!cut || all[i] - all[i - 1] > cut.b - cut.a)
+        cut = { a: all[i - 1], b: all[i] };
+    for (var j = 1; j < at.length; j++)
+      if ((at[j] - at[j - 1]) / span < CROWDED) crowded = true;
     if (!crowded || !cut || (cut.b - cut.a) / span <= 0.5) cut = null;
     function x(v) {
       if (!cut) return (v - lo) / span;
       var per = (1 - CUT_SHARE) / (span - (cut.b - cut.a) || 1);
       if (v <= cut.a) return (v - lo) * per;
       if (v >= cut.b) return (cut.a - lo) * per + CUT_SHARE + (v - cut.b) * per;
-      return (cut.a - lo) * per + CUT_SHARE * (v - cut.a) / (cut.b - cut.a);
+      return (cut.a - lo) * per + (CUT_SHARE * (v - cut.a)) / (cut.b - cut.a);
     }
     return { lo: lo, hi: hi, cut: cut, x: x };
   }
@@ -747,17 +1265,34 @@
   // a rule draws and the stretches a shade covers.
   function drawTimeline(t) {
     if (t.hasAttribute("data-dk")) return;
-    var marks = [].slice.call(t.querySelectorAll(":scope > dk-mark")), spans = [].slice.call(t.querySelectorAll(":scope > dk-span"));
-    var rule = t.hasAttribute("rule") ? num(t.getAttribute("rule")) : null, edges = [];
-    spans.forEach(function (s) { edges.push(num(s.getAttribute("from")), num(s.getAttribute("to"))); });
-    var scale = timelineScale(marks.map(function (m) { return num(m.getAttribute("at")); }).concat(rule == null ? [] : [rule]), edges);
+    var marks = [].slice.call(t.querySelectorAll(":scope > dk-mark")),
+      spans = [].slice.call(t.querySelectorAll(":scope > dk-span"));
+    var rule = t.hasAttribute("rule") ? num(t.getAttribute("rule")) : null,
+      edges = [];
+    spans.forEach(function (s) {
+      edges.push(num(s.getAttribute("from")), num(s.getAttribute("to")));
+    });
+    var scale = timelineScale(
+      marks
+        .map(function (m) {
+          return num(m.getAttribute("at"));
+        })
+        .concat(rule == null ? [] : [rule]),
+      edges,
+    );
     if (!scale) return;
-    var x = scale.x, cut = scale.cut, brk = cut && ((x(cut.a) + CUT_SHARE / 2) * 100).toFixed(2) + "%";
-    function pct(v) { return (x(v) * 100).toFixed(2) + "%"; }
-    var axis = el("div", "dk-axis"), unit = t.getAttribute("unit") || "day";
+    var x = scale.x,
+      cut = scale.cut,
+      brk = cut && ((x(cut.a) + CUT_SHARE / 2) * 100).toFixed(2) + "%";
+    function pct(v) {
+      return (x(v) * 100).toFixed(2) + "%";
+    }
+    var axis = el("div", "dk-axis"),
+      unit = t.getAttribute("unit") || "day";
     spans.forEach(function (s) {
       var band = el("span", "dk-tl-span");
-      var from = num(s.getAttribute("from")), to = num(s.getAttribute("to"));
+      var from = num(s.getAttribute("from")),
+        to = num(s.getAttribute("to"));
       if (isNaN(from)) from = scale.lo;
       if (isNaN(to)) to = scale.hi;
       band.style.left = pct(from);
@@ -768,25 +1303,42 @@
         var lbl = el("span", "dk-tl-span-label", s.textContent.trim());
         // A shade the cut runs through is named at the break, over the stretch it stands for; any other at its own start.
         var through = cut && from <= cut.a && to >= cut.b;
-        lbl.style.left = through ? brk : "calc(" + band.style.left + " + 0.5rem)";
+        lbl.style.left = through
+          ? brk
+          : "calc(" + band.style.left + " + 0.5rem)";
         if (through) lbl.setAttribute("data-mid", "");
         axis.appendChild(lbl);
       }
     });
-    if (cut) { var b = el("span", "dk-tl-break"); b.style.left = brk; axis.appendChild(b); }
+    if (cut) {
+      var b = el("span", "dk-tl-break");
+      b.style.left = brk;
+      axis.appendChild(b);
+    }
     if (rule != null) {
       var r = el("span", "dk-tl-rule");
       r.style.left = pct(rule);
       var rl = el("span", null);
-      rl.appendChild(el("b", null, unit.charAt(0).toUpperCase() + unit.slice(1) + " " + t.getAttribute("rule")));
-      if (t.getAttribute("rule-label")) rl.appendChild(el("span", null, t.getAttribute("rule-label")));
+      rl.appendChild(
+        el(
+          "b",
+          null,
+          unit.charAt(0).toUpperCase() +
+            unit.slice(1) +
+            " " +
+            t.getAttribute("rule"),
+        ),
+      );
+      if (t.getAttribute("rule-label"))
+        rl.appendChild(el("span", null, t.getAttribute("rule-label")));
       r.appendChild(rl);
       r.style.order = String(Math.round(rule * 1000));
       axis.appendChild(r);
     }
     // Labels alternate above and below the line; settleTimeline moves apart any that still touch.
     marks.forEach(function (m, j) {
-      var at = num(m.getAttribute("at")), dot = el("span", "dk-tl-mark");
+      var at = num(m.getAttribute("at")),
+        dot = el("span", "dk-tl-mark");
       if (isNaN(at)) return;
       dot.style.left = pct(at);
       // On a phone the line stands upright and its moments read in order.
@@ -794,8 +1346,17 @@
       if (m.hasAttribute("miss")) dot.setAttribute("data-miss", "");
       dot.setAttribute("data-side", j % 2 ? "up" : "down");
       if (j === 0) dot.setAttribute("data-edge", "start");
-      else if (j === marks.length - 1 && x(at) > 0.85) dot.setAttribute("data-edge", "end");
-      var label = el("span", "dk-tl-label"), when = el("b", null, (m.getAttribute("date") ? m.getAttribute("date") + " · " : "") + unit + " " + m.getAttribute("at"));
+      else if (j === marks.length - 1 && x(at) > 0.85)
+        dot.setAttribute("data-edge", "end");
+      var label = el("span", "dk-tl-label"),
+        when = el(
+          "b",
+          null,
+          (m.getAttribute("date") ? m.getAttribute("date") + " · " : "") +
+            unit +
+            " " +
+            m.getAttribute("at"),
+        );
       label.appendChild(when);
       var words = el("span");
       while (m.firstChild) words.appendChild(m.firstChild);
@@ -804,14 +1365,24 @@
       dot.appendChild(label);
       axis.appendChild(dot);
     });
-    marks.concat(spans).forEach(function (n) { n.remove(); });
+    marks.concat(spans).forEach(function (n) {
+      n.remove();
+    });
     t.appendChild(axis);
     t.setAttribute("data-dk", "");
     // Where labels land depends on the line's width and on the fonts, so the layout runs again when either changes.
-    var width = -1, settle = function () { width = t.clientWidth; settleTimeline(t); };
-    if (window.ResizeObserver) new ResizeObserver(function () { if (t.clientWidth !== width) settle(); }).observe(t);
+    var width = -1,
+      settle = function () {
+        width = t.clientWidth;
+        settleTimeline(t);
+      };
+    if (window.ResizeObserver)
+      new ResizeObserver(function () {
+        if (t.clientWidth !== width) settle();
+      }).observe(t);
     else settle();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+    if (document.fonts && document.fonts.ready)
+      document.fonts.ready.then(settle);
   }
 
   // No label on a timeline covers another. Each side of the line is laid out
@@ -821,75 +1392,145 @@
   // all. On a phone the line stands upright and its labels sit in order, so
   // none moves.
   function settleTimeline(t) {
-    var axis = t.querySelector(":scope > .dk-axis"), rule = axis && axis.querySelector(":scope > .dk-tl-rule");
+    var axis = t.querySelector(":scope > .dk-axis"),
+      rule = axis && axis.querySelector(":scope > .dk-tl-rule");
     if (!axis) return;
-    var up = [].slice.call(axis.querySelectorAll(":scope > .dk-tl-span-label, :scope > .dk-tl-mark[data-side='up'] > .dk-tl-label"));
-    var down = [].slice.call(axis.querySelectorAll(":scope > .dk-tl-mark[data-side='down'] > .dk-tl-label"));
-    up.concat(down).forEach(function (n) { n.style.translate = ""; });
+    var up = [].slice.call(
+      axis.querySelectorAll(
+        ":scope > .dk-tl-span-label, :scope > .dk-tl-mark[data-side='up'] > .dk-tl-label",
+      ),
+    );
+    var down = [].slice.call(
+      axis.querySelectorAll(
+        ":scope > .dk-tl-mark[data-side='down'] > .dk-tl-label",
+      ),
+    );
+    up.concat(down).forEach(function (n) {
+      n.style.translate = "";
+    });
     if (rule) rule.style.top = "";
     t.style.paddingTop = t.style.paddingBottom = "";
     if (!axis.offsetWidth || getComputedStyle(axis).display === "flex") return;
-    var line = axis.getBoundingClientRect(), GAP = 4, placed = { up: [], down: [] }, top = line.top, bottom = line.bottom;
+    var line = axis.getBoundingClientRect(),
+      GAP = 4,
+      placed = { up: [], down: [] },
+      top = line.top,
+      bottom = line.bottom;
     // How far a label must move out from the line to clear every label already placed on its side.
     function place(box, side) {
-      var dir = side === "up" ? -1 : 1, s = 0, moved = true;
+      var dir = side === "up" ? -1 : 1,
+        s = 0,
+        moved = true;
       while (moved) {
         moved = false;
         placed[side].forEach(function (p) {
-          if (box.left < p.right + GAP && box.right > p.left - GAP && box.top + dir * s < p.bottom + GAP && box.bottom + dir * s > p.top - GAP) {
+          if (
+            box.left < p.right + GAP &&
+            box.right > p.left - GAP &&
+            box.top + dir * s < p.bottom + GAP &&
+            box.bottom + dir * s > p.top - GAP
+          ) {
             s = dir < 0 ? box.bottom - p.top + GAP : p.bottom - box.top + GAP;
             moved = true;
           }
         });
       }
-      placed[side].push({ left: box.left, right: box.right, top: box.top + dir * s, bottom: box.bottom + dir * s });
+      placed[side].push({
+        left: box.left,
+        right: box.right,
+        top: box.top + dir * s,
+        bottom: box.bottom + dir * s,
+      });
       top = Math.min(top, box.top + dir * s);
       bottom = Math.max(bottom, box.bottom + dir * s);
       return s;
     }
-    up.forEach(function (n) { var s = place(n.getBoundingClientRect(), "up"); if (s) n.style.translate = "0 " + -s + "px"; });
-    if (rule) { var s = place(rule.firstChild.getBoundingClientRect(), "up"); if (s) rule.style.top = "calc(-2.8rem - " + s + "px)"; }
-    down.forEach(function (n) { var s = place(n.getBoundingClientRect(), "down"); if (s) n.style.translate = "0 " + s + "px"; });
+    up.forEach(function (n) {
+      var s = place(n.getBoundingClientRect(), "up");
+      if (s) n.style.translate = "0 " + -s + "px";
+    });
+    if (rule) {
+      var s = place(rule.firstChild.getBoundingClientRect(), "up");
+      if (s) rule.style.top = "calc(-2.8rem - " + s + "px)";
+    }
+    down.forEach(function (n) {
+      var s = place(n.getBoundingClientRect(), "down");
+      if (s) n.style.translate = "0 " + s + "px";
+    });
     var room = getComputedStyle(t);
-    t.style.paddingTop = Math.max(parseFloat(room.paddingTop), line.top - top + 8) + "px";
-    t.style.paddingBottom = Math.max(parseFloat(room.paddingBottom), bottom - line.bottom + 8) + "px";
+    t.style.paddingTop =
+      Math.max(parseFloat(room.paddingTop), line.top - top + 8) + "px";
+    t.style.paddingBottom =
+      Math.max(parseFloat(room.paddingBottom), bottom - line.bottom + 8) + "px";
   }
 
   // Cases read compact: one row each, the words the change moves (the first
   // mark on each side) beside each other, the whole case one click away.
   function snippet(side) {
-    var body = side && side.querySelector(".dk-body"), mk = body && body.querySelector("mark");
+    var body = side && side.querySelector(".dk-body"),
+      mk = body && body.querySelector("mark");
     var q = el("q");
-    if (!mk) { q.textContent = body ? body.textContent.trim().split(/\s+/).slice(0, 10).join(" ") + "…" : ""; return q; }
-    var before = "", after = "", n = mk.previousSibling;
-    while (n) { before = n.textContent + before; n = n.previousSibling; }
+    if (!mk) {
+      q.textContent = body
+        ? body.textContent.trim().split(/\s+/).slice(0, 10).join(" ") + "…"
+        : "";
+      return q;
+    }
+    var before = "",
+      after = "",
+      n = mk.previousSibling;
+    while (n) {
+      before = n.textContent + before;
+      n = n.previousSibling;
+    }
     for (n = mk.nextSibling; n; n = n.nextSibling) after += n.textContent;
-    if (/\S/.test(before.split("\n").pop())) q.appendChild(document.createTextNode("…"));
+    if (/\S/.test(before.split("\n").pop()))
+      q.appendChild(document.createTextNode("…"));
     var m = el("mark", null, mk.textContent);
     if (mk.closest("dk-msg[miss]")) m.setAttribute("data-miss", "");
     q.appendChild(m);
     var tail = after.split("\n")[0].trim().split(/\s+/).filter(Boolean);
-    if (tail.length) q.appendChild(document.createTextNode(" " + tail.slice(0, 4).join(" ") + "…"));
+    if (tail.length)
+      q.appendChild(
+        document.createTextNode(" " + tail.slice(0, 4).join(" ") + "…"),
+      );
     return q;
   }
   function compactExamples(group) {
-    var cases = group.querySelector(".dk-cases"), labels = null;
-    [].forEach.call(cases.querySelectorAll(":scope > dk-example"), function (ex) {
-      var sides = ex.querySelectorAll("dk-pair > dk-side");
-      if (sides.length !== 2) return;
-      if (!labels) labels = [sides[0].getAttribute("label") || "Before", sides[1].getAttribute("label") || "After"];
-      var says = ex.querySelector(".dk-says"), fold = el("details", "dk-case-fold"), sum = el("summary"), who = el("span", "dk-case-who");
-      while (says.firstChild) who.appendChild(says.firstChild);
-      sum.appendChild(who);
-      [0, 1].forEach(function (k) { var q = snippet(sides[k]); q.setAttribute("data-label", labels[k]); sum.appendChild(q); });
-      fold.appendChild(sum);
-      while (ex.firstChild) fold.appendChild(ex.firstChild);
-      says.remove();
-      ex.appendChild(fold);
-    });
+    var cases = group.querySelector(".dk-cases"),
+      labels = null;
+    [].forEach.call(
+      cases.querySelectorAll(":scope > dk-example"),
+      function (ex) {
+        var sides = ex.querySelectorAll("dk-pair > dk-side");
+        if (sides.length !== 2) return;
+        if (!labels)
+          labels = [
+            sides[0].getAttribute("label") || "Before",
+            sides[1].getAttribute("label") || "After",
+          ];
+        var says = ex.querySelector(".dk-says"),
+          fold = el("details", "dk-case-fold"),
+          sum = el("summary"),
+          who = el("span", "dk-case-who");
+        while (says.firstChild) who.appendChild(says.firstChild);
+        sum.appendChild(who);
+        [0, 1].forEach(function (k) {
+          var q = snippet(sides[k]);
+          q.setAttribute("data-label", labels[k]);
+          sum.appendChild(q);
+        });
+        fold.appendChild(sum);
+        while (ex.firstChild) fold.appendChild(ex.firstChild);
+        says.remove();
+        ex.appendChild(fold);
+      },
+    );
     if (labels) {
       var head = el("div", "dk-cases-head");
-      ["", labels[0], labels[1]].forEach(function (l) { head.appendChild(el("span", null, l)); });
+      ["", labels[0], labels[1]].forEach(function (l) {
+        head.appendChild(el("span", null, l));
+      });
       cases.insertBefore(head, cases.firstChild);
     }
   }
@@ -897,51 +1538,112 @@
   // Counts across many runs, today against the change, each row out of its
   // own whole on one shared scale: a range for today when it was drawn more
   // than once, a dot for the change, coloured by what the change did.
-  var EFFECT = { fixed: "Fixed", same: "About the same", cost: "The cost", worse: "Worse" };
+  var EFFECT = {
+    fixed: "Fixed",
+    same: "About the same",
+    cost: "The cost",
+    worse: "Worse",
+  };
   function drawMeasures(g) {
     if (g.hasAttribute("data-dk")) return;
-    var rows = [].slice.call(g.querySelectorAll(":scope > dk-measure")), max = 0, used = {};
+    var rows = [].slice.call(g.querySelectorAll(":scope > dk-measure")),
+      max = 0,
+      used = {};
     var data = rows.map(function (r) {
-      var of = num(r.getAttribute("of")), t = (r.getAttribute("today") || "").split(/\s*(?:-|–|to)\s*/).map(num), c = num(r.getAttribute("change"));
-      var d = { lo: t[0] / of, hi: (t.length > 1 ? t[1] : t[0]) / of, c: c / of, raw: r.getAttribute("today"), cn: r.getAttribute("change"), of: r.getAttribute("of") };
+      var of = num(r.getAttribute("of")),
+        t = (r.getAttribute("today") || "").split(/\s*(?:-|–|to)\s*/).map(num),
+        c = num(r.getAttribute("change"));
+      var d = {
+        lo: t[0] / of,
+        hi: (t.length > 1 ? t[1] : t[0]) / of,
+        c: c / of,
+        raw: r.getAttribute("today"),
+        cn: r.getAttribute("change"),
+        of: r.getAttribute("of"),
+      };
       max = Math.max(max, d.hi || 0, d.c || 0);
       return d;
     });
-    var scale = Math.min(1, Math.ceil((max * 1.08) * 10) / 10) || 1;
-    function pos(v) { return ((v / scale) * 100).toFixed(2) + "%"; }
-    var labels = (g.getAttribute("labels") || "Today|With the change").split("|");
+    var scale = Math.min(1, Math.ceil(max * 1.08 * 10) / 10) || 1;
+    function pos(v) {
+      return ((v / scale) * 100).toFixed(2) + "%";
+    }
+    var labels = (g.getAttribute("labels") || "Today|With the change").split(
+      "|",
+    );
     rows.forEach(function (r, i) {
-      var d = data[i], effect = r.getAttribute("effect") || "fixed";
+      var d = data[i],
+        effect = r.getAttribute("effect") || "fixed";
       used[effect] = true;
       var name = el("span", "dk-m-name");
       while (r.firstChild) name.appendChild(r.firstChild);
       trimEdges(name);
-      var plot = el("span", "dk-m-plot"), range = el("i", "dk-m-range"), dot = el("i", "dk-m-dot");
-      range.style.left = pos(d.lo); range.style.width = "calc(" + pos(d.hi) + " - " + pos(d.lo) + ")";
-      dot.style.left = pos(d.c); dot.setAttribute("data-effect", effect);
-      plot.title = labels[0] + ": " + d.raw + " of " + d.of + " · " + labels[1] + ": " + d.cn + " of " + d.of;
-      plot.appendChild(range); plot.appendChild(dot);
+      var plot = el("span", "dk-m-plot"),
+        range = el("i", "dk-m-range"),
+        dot = el("i", "dk-m-dot");
+      range.style.left = pos(d.lo);
+      range.style.width = "calc(" + pos(d.hi) + " - " + pos(d.lo) + ")";
+      dot.style.left = pos(d.c);
+      dot.setAttribute("data-effect", effect);
+      plot.title =
+        labels[0] +
+        ": " +
+        d.raw +
+        " of " +
+        d.of +
+        " · " +
+        labels[1] +
+        ": " +
+        d.cn +
+        " of " +
+        d.of;
+      plot.appendChild(range);
+      plot.appendChild(dot);
       var n = el("span", "dk-m-n");
-      n.appendChild(document.createTextNode(d.raw.replace(/\s*(?:-|to)\s*/, "–") + " → "));
+      n.appendChild(
+        document.createTextNode(d.raw.replace(/\s*(?:-|to)\s*/, "–") + " → "),
+      );
       n.appendChild(el("b", null, d.cn));
       n.appendChild(document.createTextNode(" of " + d.of));
-      r.appendChild(name); r.appendChild(plot); r.appendChild(n);
+      r.appendChild(name);
+      r.appendChild(plot);
+      r.appendChild(n);
     });
     var legend = el("p", "dk-m-legend");
-    var k = el("span"); k.appendChild(el("i", "dk-m-range")); k.appendChild(document.createTextNode(labels[0])); legend.appendChild(k);
+    var k = el("span");
+    k.appendChild(el("i", "dk-m-range"));
+    k.appendChild(document.createTextNode(labels[0]));
+    legend.appendChild(k);
     Object.keys(EFFECT).forEach(function (e) {
       if (!used[e]) return;
-      var s = el("span"), i = el("i", "dk-m-dot"); i.setAttribute("data-effect", e);
-      s.appendChild(i); s.appendChild(document.createTextNode(labels[1] + (Object.keys(used).length > 1 ? ": " + EFFECT[e].toLowerCase() : "")));
+      var s = el("span"),
+        i = el("i", "dk-m-dot");
+      i.setAttribute("data-effect", e);
+      s.appendChild(i);
+      s.appendChild(
+        document.createTextNode(
+          labels[1] +
+            (Object.keys(used).length > 1
+              ? ": " + EFFECT[e].toLowerCase()
+              : ""),
+        ),
+      );
       legend.appendChild(s);
     });
-    legend.appendChild(el("span", "dk-m-scale", "Scale 0 to " + Math.round(scale * 100) + "%"));
+    legend.appendChild(
+      el("span", "dk-m-scale", "Scale 0 to " + Math.round(scale * 100) + "%"),
+    );
     g.appendChild(legend);
     g.setAttribute("data-dk", "");
   }
 
   function draw() {
-    try { if (window.self !== window.top) document.documentElement.classList.add("dk-framed"); } catch (e) { document.documentElement.classList.add("dk-framed"); }
+    try {
+      if (window.self !== window.top)
+        document.documentElement.classList.add("dk-framed");
+    } catch (e) {
+      document.documentElement.classList.add("dk-framed");
+    }
     [].forEach.call(document.querySelectorAll("mark[note]"), drawMarkNote);
     [].forEach.call(document.querySelectorAll("dk-event"), drawEvent);
     [].forEach.call(document.querySelectorAll("dk-msg"), drawMessage);
@@ -980,9 +1682,16 @@
       r.appendChild(el("span", "dk-cells-note", r.getAttribute("note") || ""));
     });
     var legend = el("p", "dk-cells-legend");
-    [["pass", "pass"], ["fail", "fail"], ["none", "not run"]].forEach(function (k) {
-      var i = el("i"); i.setAttribute("data-v", k[0]);
-      var s = el("span"); s.appendChild(i); s.appendChild(document.createTextNode(k[1]));
+    [
+      ["pass", "pass"],
+      ["fail", "fail"],
+      ["none", "not run"],
+    ].forEach(function (k) {
+      var i = el("i");
+      i.setAttribute("data-v", k[0]);
+      var s = el("span");
+      s.appendChild(i);
+      s.appendChild(document.createTextNode(k[1]));
       legend.appendChild(s);
     });
     g.appendChild(legend);
@@ -1000,18 +1709,34 @@
       var h = g.querySelector(":scope > h3");
       if (h) h.insertBefore(el("b", "dk-count", String(n)), h.firstChild);
       // A long group shows its first people and keeps the rest one click away.
-      var list = g.querySelector(":scope > ul, :scope > ol"), items = list ? [].slice.call(list.children) : [];
+      var list = g.querySelector(":scope > ul, :scope > ol"),
+        items = list ? [].slice.call(list.children) : [];
       if (items.length > 10) {
         var hidden = items.slice(8);
-        hidden.forEach(function (li) { li.hidden = true; });
+        hidden.forEach(function (li) {
+          li.hidden = true;
+        });
         var more = el("button", "dk-skip", hidden.length + " more");
         more.type = "button";
-        more.addEventListener("click", function () { hidden.forEach(function (li) { li.hidden = false; }); more.remove(); });
+        more.addEventListener("click", function () {
+          hidden.forEach(function (li) {
+            li.hidden = false;
+          });
+          more.remove();
+        });
         g.appendChild(more);
       }
     });
     var of = t.getAttribute("of");
-    if (of) t.insertBefore(el("p", "dk-tally-of", plural(total, of, t.getAttribute("of-many") || of)), t.firstChild);
+    if (of)
+      t.insertBefore(
+        el(
+          "p",
+          "dk-tally-of",
+          plural(total, of, t.getAttribute("of-many") || of),
+        ),
+        t.firstChild,
+      );
     t.setAttribute("data-dk", "");
   }
 
@@ -1019,13 +1744,30 @@
   // as label and value instead of pushing its last columns out of view.
   function drawTable(t) {
     if (t.hasAttribute("data-dk")) return;
-    var heads = [].map.call(t.querySelectorAll("thead th, tr:first-child > th"), function (h) { return h.textContent.trim(); });
+    var heads = [].map.call(
+      t.querySelectorAll("thead th, tr:first-child > th"),
+      function (h) {
+        return h.textContent.trim();
+      },
+    );
     [].forEach.call(t.querySelectorAll("tr"), function (tr) {
-      [].forEach.call(tr.children, function (c, i) { if (c.tagName === "TD" && heads[i]) c.setAttribute("data-label", heads[i]); });
+      [].forEach.call(tr.children, function (c, i) {
+        if (c.tagName === "TD" && heads[i])
+          c.setAttribute("data-label", heads[i]);
+      });
     });
     if (heads.length > 2) t.setAttribute("data-stack", "");
     t.setAttribute("data-dk", "");
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", draw); else draw();
-  window.decisionKit = { draw: draw, parseUnified: parseUnified, wordDiff: wordDiff, segments: segments, outOf: outOf, timelineScale: timelineScale };
+  if (document.readyState === "loading")
+    document.addEventListener("DOMContentLoaded", draw);
+  else draw();
+  window.decisionKit = {
+    draw: draw,
+    parseUnified: parseUnified,
+    wordDiff: wordDiff,
+    segments: segments,
+    outOf: outOf,
+    timelineScale: timelineScale,
+  };
 })();

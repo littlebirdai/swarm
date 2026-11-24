@@ -6,7 +6,10 @@ export const PROMPT = "settings ui looks like crap - also it is";
 // Builds an IO whose capture() walks through `frames` (sticking on the last),
 // recording every action the loop takes. `extra` adds the optional evidence
 // sources; a pane with none of them is the shape the pane-reading tests use.
-export function scriptedIO(frames: string[], extra: Partial<TmuxSubmitVerifyIO> = {}) {
+export function scriptedIO(
+  frames: string[],
+  extra: Partial<TmuxSubmitVerifyIO> = {},
+) {
   const actions: string[] = [];
   let i = 0;
   const io: TmuxSubmitVerifyIO = {

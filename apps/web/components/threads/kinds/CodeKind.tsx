@@ -1,10 +1,19 @@
 import { useMemo } from "react";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
-import { CheckCircle2, FileCode2, GitCommitHorizontal, GitPullRequest } from "lucide-react";
+import {
+  CheckCircle2,
+  FileCode2,
+  GitCommitHorizontal,
+  GitPullRequest,
+} from "lucide-react";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useCodeThreadRows } from "../../../hooks/useThreadPreviews";
 import { useLineComments } from "../../../hooks/useLineComments";
-import { serverCommentId, threadResolved, threadSide } from "../../../lib/prView";
+import {
+  serverCommentId,
+  threadResolved,
+  threadSide,
+} from "../../../lib/prView";
 import type { ThreadCardModel } from "../../../lib/threadCards";
 import { codeAnchorOf as anchorOf, rowOf } from "../../../lib/threadRows";
 import { PRLineThread } from "../../pr/PRThread";
@@ -20,7 +29,9 @@ import { useReaderFold } from "../../../hooks/useReaderFold";
 
 /** The pull request's number, when the row names one the store has seen. */
 function usePrNumber(prId: string | undefined): number | undefined {
-  return useInboxStore((s) => (prId ? (s.pullRequests as Record<string, any>)[prId]?.number : undefined));
+  return useInboxStore((s) =>
+    prId ? (s.pullRequests as Record<string, any>)[prId]?.number : undefined,
+  );
 }
 
 export function CodeLabel({ card }: { card: ThreadCardModel }) {
@@ -42,19 +53,36 @@ export function CodeLabel({ card }: { card: ThreadCardModel }) {
   );
 }
 
-function AnchorLine({ filePath, lineNumber, prNumber }: { filePath?: string; lineNumber?: number; prNumber?: number }) {
+function AnchorLine({
+  filePath,
+  lineNumber,
+  prNumber,
+}: {
+  filePath?: string;
+  lineNumber?: number;
+  prNumber?: number;
+}) {
   if (filePath) {
     return (
       <div className="th-card-anchor">
         <FileCode2 className="w-3 h-3 shrink-0" />
-        <span className="th-card-anchor-text">{filePath}{lineNumber ? `:${lineNumber}` : ""}</span>
+        <span className="th-card-anchor-text">
+          {filePath}
+          {lineNumber ? `:${lineNumber}` : ""}
+        </span>
       </div>
     );
   }
   return (
     <div className="th-card-anchor">
-      {prNumber ? <GitPullRequest className="w-3 h-3 shrink-0" /> : <GitCommitHorizontal className="w-3 h-3 shrink-0" />}
-      <span className="th-card-anchor-text">{prNumber ? "The pull request" : "The commit"}</span>
+      {prNumber ? (
+        <GitPullRequest className="w-3 h-3 shrink-0" />
+      ) : (
+        <GitCommitHorizontal className="w-3 h-3 shrink-0" />
+      )}
+      <span className="th-card-anchor-text">
+        {prNumber ? "The pull request" : "The commit"}
+      </span>
     </div>
   );
 }
@@ -67,7 +95,11 @@ export function CodeMeta({ card }: { card: ThreadCardModel }) {
   const resolved = comments.length > 0 && threadResolved(comments);
   return (
     <div className="th-card-anchorrow">
-      <AnchorLine filePath={filePath} lineNumber={lineNumber} prNumber={prNumber} />
+      <AnchorLine
+        filePath={filePath}
+        lineNumber={lineNumber}
+        prNumber={prNumber}
+      />
       {resolved && (
         <span className="th-card-chip th-card-chip-resolved">
           <CheckCircle2 className="w-3 h-3" /> Resolved
@@ -77,11 +109,25 @@ export function CodeMeta({ card }: { card: ThreadCardModel }) {
   );
 }
 
-export function CodeExpanded({ card, seen, frozenReadAt }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function CodeExpanded({
+  card,
+  seen,
+  frozenReadAt,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const row = rowOf(card);
   const anchor = anchorOf(row);
   const comments = useCodeThreadRows(card);
-  const lineComments = useLineComments({ repository: anchor.repository, ref: anchor.ref, comments });
+  const lineComments = useLineComments({
+    repository: anchor.repository,
+    ref: anchor.ref,
+    comments,
+  });
 
   // The read law, as the comment kind keeps it: the row is open and the
   // reader is here, and never while the store holds nothing for an unread
@@ -91,7 +137,14 @@ export function CodeExpanded({ card, seen, frozenReadAt }: { card: ThreadCardMod
     if (row.unread > 0 && comments.length === 0) return;
     if (row.last_read_at >= row.last_activity_at && row.unread === 0) return;
     useInboxStore.getState().markThreadRead("code", row.root_key);
-  }, [seen, row.root_key, row.last_activity_at, row.last_read_at, row.unread, comments.length]);
+  }, [
+    seen,
+    row.root_key,
+    row.last_activity_at,
+    row.last_read_at,
+    row.unread,
+    comments.length,
+  ]);
 
   // The first comment is what the thread hangs on and always shows; its
   // replies fold to what is new. Replies and resolves act on the whole thread.
@@ -110,14 +163,22 @@ export function CodeExpanded({ card, seen, frozenReadAt }: { card: ThreadCardMod
         lineNumber={anchor.lineNumber}
         onReply={(content) =>
           lineComments.post({
-            ...(anchor.filePath ? { file_path: anchor.filePath, line_number: anchor.lineNumber } : {}),
-            ...(comments.length && anchor.filePath ? { side: threadSide(comments) } : {}),
+            ...(anchor.filePath
+              ? { file_path: anchor.filePath, line_number: anchor.lineNumber }
+              : {}),
+            ...(comments.length && anchor.filePath
+              ? { side: threadSide(comments) }
+              : {}),
             content,
             parent_id: serverCommentId(comments[0]?._id),
-            ...(row.pull_request_id ? { pull_request_id: row.pull_request_id } : {}),
+            ...(row.pull_request_id
+              ? { pull_request_id: row.pull_request_id }
+              : {}),
           })
         }
-        onResolve={(resolved) => lineComments.setThreadResolved(comments, resolved)}
+        onResolve={(resolved) =>
+          lineComments.setThreadResolved(comments, resolved)
+        }
         onClose={() => {}}
       />
     </div>

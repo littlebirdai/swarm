@@ -14,7 +14,12 @@ import { useRef } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { Mic, Radio, Video, Volume2, X } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
-import { rememberCamera, rememberMic, rememberDeviceCheck, rememberMicAutoOpen } from "../../lib/calls/joinPrefs";
+import {
+  rememberCamera,
+  rememberMic,
+  rememberDeviceCheck,
+  rememberMicAutoOpen,
+} from "../../lib/calls/joinPrefs";
 import { useWalkieDoor } from "../../hooks/useWalkie";
 import { Switch } from "../ui/switch";
 import { SettingsRow, SettingsSection } from "../settings/ui";
@@ -26,11 +31,19 @@ export function CallSettings({ compact = false }: { compact?: boolean }) {
   // Read straight off the store so a toggle made mid-call (setCamera/setMuted
   // remember on the person's own presses) shows here without a refresh.
   // Absent means ON — see lib/calls/joinPrefs — so only an explicit false is off.
-  const cameraOn = useInboxStore((s) => s.clientState?.ui?.call_camera_on !== false);
+  const cameraOn = useInboxStore(
+    (s) => s.clientState?.ui?.call_camera_on !== false,
+  );
   const micOn = useInboxStore((s) => s.clientState?.ui?.call_mic_on !== false);
-  const micAutoOpen = useInboxStore((s) => s.clientState?.ui?.call_mic_auto_open !== false);
-  const deviceCheck = useInboxStore((s) => s.clientState?.ui?.call_device_check !== false);
-  const soundsOn = useInboxStore((s) => s.clientState?.ui?.sounds_enabled !== false);
+  const micAutoOpen = useInboxStore(
+    (s) => s.clientState?.ui?.call_mic_auto_open !== false,
+  );
+  const deviceCheck = useInboxStore(
+    (s) => s.clientState?.ui?.call_device_check !== false,
+  );
+  const soundsOn = useInboxStore(
+    (s) => s.clientState?.ui?.sounds_enabled !== false,
+  );
   const updateUI = useInboxStore((s) => s.updateClientUI);
   const door = useWalkieDoor();
   const pad = compact ? "px-3 sm:px-3" : undefined;
@@ -41,14 +54,38 @@ export function CallSettings({ compact = false }: { compact?: boolean }) {
         icon={Video}
         description="How every call starts for you. Turning your camera or mic on or off during a call sets this too, so the next call starts the way the last one ended."
       >
-        <SettingsRow label="Camera on" description="You are seen from the first second." className={pad}>
-          <Switch checked={cameraOn} onCheckedChange={rememberCamera} aria-label="Camera on when I join" />
+        <SettingsRow
+          label="Camera on"
+          description="You are seen from the first second."
+          className={pad}
+        >
+          <Switch
+            checked={cameraOn}
+            onCheckedChange={rememberCamera}
+            aria-label="Camera on when I join"
+          />
         </SettingsRow>
-        <SettingsRow label="Microphone on" description="You are heard from the first word." className={pad}>
-          <Switch checked={micOn} onCheckedChange={rememberMic} aria-label="Microphone on when I join" />
+        <SettingsRow
+          label="Microphone on"
+          description="You are heard from the first word."
+          className={pad}
+        >
+          <Switch
+            checked={micOn}
+            onCheckedChange={rememberMic}
+            aria-label="Microphone on when I join"
+          />
         </SettingsRow>
-        <SettingsRow label="Check camera and mic first" description="Starting or answering a call shows your camera and mic before you go in." className={pad}>
-          <Switch checked={deviceCheck} onCheckedChange={rememberDeviceCheck} aria-label="Check camera and mic before a call" />
+        <SettingsRow
+          label="Check camera and mic first"
+          description="Starting or answering a call shows your camera and mic before you go in."
+          className={pad}
+        >
+          <Switch
+            checked={deviceCheck}
+            onCheckedChange={rememberDeviceCheck}
+            aria-label="Check camera and mic before a call"
+          />
         </SettingsRow>
       </SettingsSection>
 
@@ -67,7 +104,11 @@ export function CallSettings({ compact = false }: { compact?: boolean }) {
           alignTop
           className={pad}
         >
-          <Switch checked={micAutoOpen} onCheckedChange={rememberMicAutoOpen} aria-label="Microphone opens before I press" />
+          <Switch
+            checked={micAutoOpen}
+            onCheckedChange={rememberMicAutoOpen}
+            aria-label="Microphone opens before I press"
+          />
         </SettingsRow>
       </SettingsSection>
 
@@ -97,7 +138,11 @@ export function CallSettings({ compact = false }: { compact?: boolean }) {
           alignTop
           className={pad}
         >
-          <Switch checked={door.open} onCheckedChange={door.setOpen} aria-label="Let teammates talk to me" />
+          <Switch
+            checked={door.open}
+            onCheckedChange={door.setOpen}
+            aria-label="Let teammates talk to me"
+          />
         </SettingsRow>
       </SettingsSection>
 
@@ -106,8 +151,16 @@ export function CallSettings({ compact = false }: { compact?: boolean }) {
         icon={Volume2}
         description="The cues a call and a walkie make on this machine."
       >
-        <SettingsRow label="Sound effects" description="Every cue in the app, on or off." className={pad}>
-          <Switch checked={soundsOn} onCheckedChange={(v) => updateUI({ sounds_enabled: v })} aria-label="Sound effects" />
+        <SettingsRow
+          label="Sound effects"
+          description="Every cue in the app, on or off."
+          className={pad}
+        >
+          <Switch
+            checked={soundsOn}
+            onCheckedChange={(v) => updateUI({ sounds_enabled: v })}
+            aria-label="Sound effects"
+          />
         </SettingsRow>
         <WalkieCuesBlock />
       </SettingsSection>
@@ -143,10 +196,20 @@ export function CallSettingsSheet({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="people-sheet-head">
-        <h2 id="call-settings-heading" ref={headRef} tabIndex={-1} className="people-sheet-title">
+        <h2
+          id="call-settings-heading"
+          ref={headRef}
+          tabIndex={-1}
+          className="people-sheet-title"
+        >
           Call settings
         </h2>
-        <button type="button" onClick={onClose} aria-label="Close call settings" className="people-sheet-close">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close call settings"
+          className="people-sheet-close"
+        >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>

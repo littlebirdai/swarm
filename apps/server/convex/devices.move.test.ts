@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { performMoveSessionToDevice, performReassignToDevice, moveToRemote, reassignToDevice } from "./devices";
+import {
+  performMoveSessionToDevice,
+  performReassignToDevice,
+  moveToRemote,
+  reassignToDevice,
+} from "./devices";
 import { forConversation, results } from "./sessionCommands";
 import { MACHINE_SWITCH_NOTICE_PREFIX } from "@codecast/shared/contracts";
 
@@ -16,8 +21,23 @@ function fixtures(convOverrides: Record<string, any> = {}) {
   return makeFakeDb({
     users: [{ _id: ME, name: "Me", email: "me@x.ai" }],
     devices: [
-      { _id: "d1", user_id: ME, device_id: LAPTOP, label: "My-MacBook", platform: "darwin", last_seen: Date.now() },
-      { _id: "d2", user_id: ME, device_id: BOX, label: "Linux - ip-172-31-40-243", platform: "linux", is_remote: true, last_seen: Date.now() },
+      {
+        _id: "d1",
+        user_id: ME,
+        device_id: LAPTOP,
+        label: "My-MacBook",
+        platform: "darwin",
+        last_seen: Date.now(),
+      },
+      {
+        _id: "d2",
+        user_id: ME,
+        device_id: BOX,
+        label: "Linux - ip-172-31-40-243",
+        platform: "linux",
+        is_remote: true,
+        last_seen: Date.now(),
+      },
     ],
     conversations: [
       {
@@ -33,8 +53,13 @@ function fixtures(convOverrides: Record<string, any> = {}) {
   });
 }
 
-const conv = (db: any) => db._tables.conversations.find((c: any) => c._id === "conv1");
-const commands = (db: any) => db._tables.daemon_commands ?? db._inserted.filter((i: any) => i.table === "daemon_commands").map((i: any) => i.doc);
+const conv = (db: any) =>
+  db._tables.conversations.find((c: any) => c._id === "conv1");
+const commands = (db: any) =>
+  db._tables.daemon_commands ??
+  db._inserted
+    .filter((i: any) => i.table === "daemon_commands")
+    .map((i: any) => i.doc);
 
 describe("performMoveSessionToDevice", () => {
   test("moving to the box resumes THERE and releases the laptop", async () => {
@@ -51,11 +76,17 @@ describe("performMoveSessionToDevice", () => {
       ["resume_session", BOX],
       ["release_session", LAPTOP],
     ]);
-    expect(JSON.parse(cmds[1].args)).toEqual({ conversation_id: "conv1", session_id: "sess1" });
+    expect(JSON.parse(cmds[1].args)).toEqual({
+      conversation_id: "conv1",
+      session_id: "sess1",
+    });
   });
 
   test("bringing it back releases the box — the return trip is what leaked", async () => {
-    const db = fixtures({ owner_device_id: BOX, project_path: "/home/ubuntu/work/repo" });
+    const db = fixtures({
+      owner_device_id: BOX,
+      project_path: "/home/ubuntu/work/repo",
+    });
     await performMoveSessionToDevice({ db }, ME as any, {
       conversation_id: "conv1" as any,
       owner_device_id: LAPTOP,
@@ -96,7 +127,9 @@ describe("performMoveSessionToDevice", () => {
       project_path: "/home/ubuntu/work/repo",
       resume: false,
     });
-    expect(commands(db).map((c: any) => [c.command, c.target_device_id])).toEqual([["release_session", LAPTOP]]);
+    expect(
+      commands(db).map((c: any) => [c.command, c.target_device_id]),
+    ).toEqual([["release_session", LAPTOP]]);
   });
 
   test("a box switch inserts a now-running-on notice", async () => {
@@ -106,19 +139,34 @@ describe("performMoveSessionToDevice", () => {
       owner_device_id: BOX,
       project_path: "/home/ubuntu/work/repo",
     });
-    const notices = (db._tables.messages ?? []).filter((m: any) => m.subtype === "machine_switch");
+    const notices = (db._tables.messages ?? []).filter(
+      (m: any) => m.subtype === "machine_switch",
+    );
     expect(notices).toHaveLength(1);
-    expect(notices[0].content.startsWith(MACHINE_SWITCH_NOTICE_PREFIX)).toBe(true);
+    expect(notices[0].content.startsWith(MACHINE_SWITCH_NOTICE_PREFIX)).toBe(
+      true,
+    );
     expect(notices[0].content).toContain("Cloud Linux");
     expect(notices[0].content).toContain("My-MacBook");
   });
 
   test("Move to Cloud Linux inserts the divider as soon as the picker fires", async () => {
     const db = fixtures();
-    const ctx: any = { db, auth: { getUserIdentity: async () => ({ subject: `${ME}|sess`, tokenIdentifier: "x" }) } };
-    const handler = (moveToRemote as any)._handler ?? (moveToRemote as any).handler;
+    const ctx: any = {
+      db,
+      auth: {
+        getUserIdentity: async () => ({
+          subject: `${ME}|sess`,
+          tokenIdentifier: "x",
+        }),
+      },
+    };
+    const handler =
+      (moveToRemote as any)._handler ?? (moveToRemote as any).handler;
     await handler(ctx, { conversation_id: "conv1", to_device_id: BOX });
-    const notices = (db._tables.messages ?? []).filter((m: any) => m.subtype === "machine_switch");
+    const notices = (db._tables.messages ?? []).filter(
+      (m: any) => m.subtype === "machine_switch",
+    );
     expect(notices).toHaveLength(1);
     expect(notices[0].content).toContain("Cloud Linux");
     expect(notices[0].content).toContain("My-MacBook");
@@ -131,7 +179,11 @@ describe("performMoveSessionToDevice", () => {
       owner_device_id: LAPTOP,
       project_path: "/Users/me/src/repo",
     });
-    expect((db._tables.messages ?? []).filter((m: any) => m.subtype === "machine_switch")).toHaveLength(0);
+    expect(
+      (db._tables.messages ?? []).filter(
+        (m: any) => m.subtype === "machine_switch",
+      ),
+    ).toHaveLength(0);
   });
 
   test("someone else's conversation is refused", async () => {
@@ -150,30 +202,77 @@ describe("performMoveSessionToDevice", () => {
 // command whose outcome IS the move, a replay of the same dispatch queues
 // nothing, and both store feeds hand back the row under that id.
 describe("device moves from the store carry the request id", () => {
-  const authAs: any = { getUserIdentity: async () => ({ subject: `${ME}|sess`, tokenIdentifier: "x" }) };
-  const run = (fn: any, db: any, args: any) => (fn._handler ?? fn.handler)({ db, auth: authAs }, args);
+  const authAs: any = {
+    getUserIdentity: async () => ({
+      subject: `${ME}|sess`,
+      tokenIdentifier: "x",
+    }),
+  };
+  const run = (fn: any, db: any, args: any) =>
+    (fn._handler ?? fn.handler)({ db, auth: authAs }, args);
 
   test("a remote move binds the source's move_to_device, once", async () => {
     const db = fixtures();
-    const first = await run(moveToRemote, db, { conversation_id: "conv1", to_device_id: BOX, request_id: "move-1" });
-    const again = await run(moveToRemote, db, { conversation_id: "conv1", to_device_id: BOX, request_id: "move-1" });
-    const moves = commands(db).filter((c: any) => c.command === "move_to_device");
+    const first = await run(moveToRemote, db, {
+      conversation_id: "conv1",
+      to_device_id: BOX,
+      request_id: "move-1",
+    });
+    const again = await run(moveToRemote, db, {
+      conversation_id: "conv1",
+      to_device_id: BOX,
+      request_id: "move-1",
+    });
+    const moves = commands(db).filter(
+      (c: any) => c.command === "move_to_device",
+    );
     expect(moves).toHaveLength(1);
-    expect(moves[0]).toMatchObject({ request_id: "move-1", target_device_id: LAPTOP });
+    expect(moves[0]).toMatchObject({
+      request_id: "move-1",
+      target_device_id: LAPTOP,
+    });
     expect(again.command_id).toBe(first.command_id);
-    const [row] = await (results as any)._handler({ db, auth: authAs }, { request_ids: ["move-1"] });
-    expect(row).toMatchObject({ _id: "move-1", conversation_id: "conv1", command: "move_to_device", device_id: LAPTOP, executed_at: null });
+    const [row] = await (results as any)._handler(
+      { db, auth: authAs },
+      { request_ids: ["move-1"] },
+    );
+    expect(row).toMatchObject({
+      _id: "move-1",
+      conversation_id: "conv1",
+      command: "move_to_device",
+      device_id: LAPTOP,
+      executed_at: null,
+    });
   });
 
   test("a local re-home binds the resume on the destination, and the conversation feed keys it the same", async () => {
     const db = fixtures({ owner_device_id: BOX });
-    await run(reassignToDevice, db, { conversation_id: "conv1", device_id: LAPTOP, request_id: "move-2" });
-    await run(reassignToDevice, db, { conversation_id: "conv1", device_id: LAPTOP, request_id: "move-2" });
-    const resumes = commands(db).filter((c: any) => c.command === "resume_session");
+    await run(reassignToDevice, db, {
+      conversation_id: "conv1",
+      device_id: LAPTOP,
+      request_id: "move-2",
+    });
+    await run(reassignToDevice, db, {
+      conversation_id: "conv1",
+      device_id: LAPTOP,
+      request_id: "move-2",
+    });
+    const resumes = commands(db).filter(
+      (c: any) => c.command === "resume_session",
+    );
     expect(resumes).toHaveLength(1);
-    expect(resumes[0]).toMatchObject({ request_id: "move-2", target_device_id: LAPTOP });
-    const rows = await (forConversation as any)._handler({ db, auth: authAs }, { conversation_id: "conv1" });
-    expect(rows.map((r: any) => [r._id, r.command])).toContainEqual(["move-2", "resume_session"]);
+    expect(resumes[0]).toMatchObject({
+      request_id: "move-2",
+      target_device_id: LAPTOP,
+    });
+    const rows = await (forConversation as any)._handler(
+      { db, auth: authAs },
+      { conversation_id: "conv1" },
+    );
+    expect(rows.map((r: any) => [r._id, r.command])).toContainEqual([
+      "move-2",
+      "resume_session",
+    ]);
   });
 });
 
@@ -186,26 +285,41 @@ describe("a run-it-there move of a closed session ends the close", () => {
 
   test("a move that resumes it there un-closes it", async () => {
     const db = fixtures(CLOSED);
-    await performMoveSessionToDevice({ db }, ME as any, { conversation_id: "conv1" as any, owner_device_id: BOX, project_path: "/home/ubuntu/work/repo" });
+    await performMoveSessionToDevice({ db }, ME as any, {
+      conversation_id: "conv1" as any,
+      owner_device_id: BOX,
+      project_path: "/home/ubuntu/work/repo",
+    });
     expect(conv(db).inbox_dismissed_at).toBeUndefined();
     expect(commands(db).map((c: any) => c.command)).toContain("resume_session");
   });
 
   test("a move without a resume keeps it closed", async () => {
     const db = fixtures(CLOSED);
-    await performMoveSessionToDevice({ db }, ME as any, { conversation_id: "conv1" as any, owner_device_id: BOX, project_path: "/home/ubuntu/work/repo", resume: false });
+    await performMoveSessionToDevice({ db }, ME as any, {
+      conversation_id: "conv1" as any,
+      owner_device_id: BOX,
+      project_path: "/home/ubuntu/work/repo",
+      resume: false,
+    });
     expect(conv(db).inbox_dismissed_at).toBe(50);
   });
 
   test("Run on this device un-closes it", async () => {
     const db = fixtures(CLOSED);
-    await performReassignToDevice({ db }, ME as any, { conversation_id: "conv1" as any, device_id: BOX });
+    await performReassignToDevice({ db }, ME as any, {
+      conversation_id: "conv1" as any,
+      device_id: BOX,
+    });
     expect(conv(db).inbox_dismissed_at).toBeUndefined();
   });
 
   test("a killed session's dismissal is not touched: a kill is not a close", async () => {
     const db = fixtures({ inbox_dismissed_at: 50, inbox_killed_at: 50 });
-    await performReassignToDevice({ db }, ME as any, { conversation_id: "conv1" as any, device_id: BOX });
+    await performReassignToDevice({ db }, ME as any, {
+      conversation_id: "conv1" as any,
+      device_id: BOX,
+    });
     expect(conv(db).inbox_dismissed_at).toBe(50);
   });
 });

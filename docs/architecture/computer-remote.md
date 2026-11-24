@@ -185,21 +185,21 @@ cast computer remote revoke --host <id>
 
 Each names what is missing and the one step that fixes it. All refusals carry the new code `remote_refused`, so the local setup card never appears under a laptop's problem.
 
-| Situation | Message (host side) |
-|---|---|
-| `--on laptop` on a machine that is not a remote device | `--on laptop is for a cloud host; this machine is the laptop, drop --on` |
-| No link file | `no laptop is linked to this host right now: the laptop is off, asleep or offline, or this host is shared with teammates` |
-| Several laptops, `--on laptop` | `2 laptops are linked to this host: mbp-182 (8a1f02c4), mbp-2 (3d5c7f9b). Name one with --on <laptop name or device id>` |
-| Link file, `/healthz` unreachable | `<laptop> is not reachable over its link (off, asleep or offline)` |
-| Proof fails | `<laptop> refused this host's key (revoked there)`, plus the Run card to link again |
-| Bridge too old (no `/computer`) | `<laptop> runs a cast too old to share its apps: cast devices update <laptop>` |
-| No grant | `<laptop> has not let this host drive its apps. Ask your person:` plus the Run card for `cast computer remote grant --host <id>` on the laptop |
-| Grant is session-scoped, different session | `<laptop> let session <x> on this host drive its apps, not this one`, plus the card |
-| Grant expired | `this host's access to <laptop>'s apps expired <when>`, plus the card |
-| Helper not granted on the laptop | `remote_refused`: `<laptop>'s computer helper lacks <accessibility/screen recording>: cast devices setup <laptop> computer --start` (existing command) |
-| Helper busy | the existing `action_timeout` text, prefixed with the laptop's name |
-| Revoked while a socket is open | `<laptop> revoked this host's access to its apps` (the laptop rechecks every 2 s) |
-| Link dropped mid-process | `the link to <laptop> closed mid-command; nothing after <verb> ran` (no silent retry of an action) |
+| Situation                                              | Message (host side)                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--on laptop` on a machine that is not a remote device | `--on laptop is for a cloud host; this machine is the laptop, drop --on`                                                                               |
+| No link file                                           | `no laptop is linked to this host right now: the laptop is off, asleep or offline, or this host is shared with teammates`                              |
+| Several laptops, `--on laptop`                         | `2 laptops are linked to this host: mbp-182 (8a1f02c4), mbp-2 (3d5c7f9b). Name one with --on <laptop name or device id>`                               |
+| Link file, `/healthz` unreachable                      | `<laptop> is not reachable over its link (off, asleep or offline)`                                                                                     |
+| Proof fails                                            | `<laptop> refused this host's key (revoked there)`, plus the Run card to link again                                                                    |
+| Bridge too old (no `/computer`)                        | `<laptop> runs a cast too old to share its apps: cast devices update <laptop>`                                                                         |
+| No grant                                               | `<laptop> has not let this host drive its apps. Ask your person:` plus the Run card for `cast computer remote grant --host <id>` on the laptop         |
+| Grant is session-scoped, different session             | `<laptop> let session <x> on this host drive its apps, not this one`, plus the card                                                                    |
+| Grant expired                                          | `this host's access to <laptop>'s apps expired <when>`, plus the card                                                                                  |
+| Helper not granted on the laptop                       | `remote_refused`: `<laptop>'s computer helper lacks <accessibility/screen recording>: cast devices setup <laptop> computer --start` (existing command) |
+| Helper busy                                            | the existing `action_timeout` text, prefixed with the laptop's name                                                                                    |
+| Revoked while a socket is open                         | `<laptop> revoked this host's access to its apps` (the laptop rechecks every 2 s)                                                                      |
+| Link dropped mid-process                               | `the link to <laptop> closed mid-command; nothing after <verb> ran` (no silent retry of an action)                                                     |
 
 ## Latency
 
@@ -211,12 +211,12 @@ p95s carry its noise. A background text area takes no click (macOS drops a
 press on a background window, and the remote path never raises), so the
 action measured is `set-value` (`--action set-value`).
 
-| verb | local p50 / p95 | remote run 1 p50 / p95 | remote run 2 p50 / p95 |
-|---|---|---|---|
-| first call (connect + read) | 51 ms | 1017 ms | 582 ms |
-| read, no screenshot | 9 / 20 ms | 202 / 509 ms | 239 / 5111 ms |
-| read, with screenshot (646x418 PNG, 18 KB) | 48 / 118 ms | 246 / 378 ms | 265 / 1066 ms |
-| set-value | 389 / 439 ms | 634 / 857 ms | 757 / 1726 ms |
+| verb                                       | local p50 / p95 | remote run 1 p50 / p95 | remote run 2 p50 / p95 |
+| ------------------------------------------ | --------------- | ---------------------- | ---------------------- |
+| first call (connect + read)                | 51 ms           | 1017 ms                | 582 ms                 |
+| read, no screenshot                        | 9 / 20 ms       | 202 / 509 ms           | 239 / 5111 ms          |
+| read, with screenshot (646x418 PNG, 18 KB) | 48 / 118 ms     | 246 / 378 ms           | 265 / 1066 ms          |
+| set-value                                  | 389 / 439 ms    | 634 / 857 ms           | 757 / 1726 ms          |
 
 The tunnel costs about 1.5 RTT per verb (190 to 370 ms here); the screenshot's
 bytes add almost nothing over a plain read. A fresh TCP connection through the

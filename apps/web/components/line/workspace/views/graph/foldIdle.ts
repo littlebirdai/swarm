@@ -4,7 +4,11 @@
 // a branch that fans out and joins again, or a straight stretch) folds into one step
 // that says how many it holds, so the busy part of the flow sits close
 // together. Pressing a fold opens it. Pure.
-import type { LineGraphModel, ModelEdge, ModelNode } from "../../../../../lib/line/lineModel";
+import type {
+  LineGraphModel,
+  ModelEdge,
+  ModelNode,
+} from "../../../../../lib/line/lineModel";
 
 export const FOLD_PREFIX = "fold:";
 /** The shortest stretch worth folding: one idle step reads fine as itself. */
@@ -18,7 +22,11 @@ export const isFold = (id: string) => id.startsWith(FOLD_PREFIX);
  * open); `open` names the folds (by that id) a person opened. Edges into and out of a stretch meet its fold; the
  * edges inside it go. The same graph comes back when nothing folds.
  */
-export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open: ReadonlySet<string> = new Set()): LineGraphModel {
+export function foldIdle(
+  g: LineGraphModel,
+  busy: (id: string) => boolean,
+  open: ReadonlySet<string> = new Set(),
+): LineGraphModel {
   const ins = new Map<string, ModelEdge[]>();
   const outs = new Map<string, ModelEdge[]>();
   for (const e of g.edges) {
@@ -28,7 +36,11 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
   }
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
   const idle = (n: ModelNode | undefined): n is ModelNode =>
-    !!n && n.kind !== "end" && !busy(n.id) && (ins.get(n.id)?.length ?? 0) === 1 && (outs.get(n.id)?.length ?? 0) === 1;
+    !!n &&
+    n.kind !== "end" &&
+    !busy(n.id) &&
+    (ins.get(n.id)?.length ?? 0) === 1 &&
+    (outs.get(n.id)?.length ?? 0) === 1;
   const prevOf = (n: ModelNode) => byId.get(ins.get(n.id)![0].from);
   const nextOf = (n: ModelNode) => byId.get(outs.get(n.id)![0].to);
 
@@ -45,7 +57,8 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
   // half. When work enters that region only at its start, from at most one step, and leaves it to one step (a branch
   // that fans out and joins again, a straight run), the region is one fold. A way back (a loop edge) is neither a way in
   // nor a way out: the fold keeps it.
-  const quiet = (n: ModelNode | undefined): n is ModelNode => !!n && n.kind !== "end" && !busy(n.id) && !foldOf.has(n.id);
+  const quiet = (n: ModelNode | undefined): n is ModelNode =>
+    !!n && n.kind !== "end" && !busy(n.id) && !foldOf.has(n.id);
   const forward = g.edges.filter((e) => e.kind !== "loop" && e.from !== e.to);
   for (const s0 of g.nodes) {
     if (!quiet(s0)) continue;
@@ -56,14 +69,21 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
       for (const e of forward) {
         if (e.from !== at || inside.has(e.to)) continue;
         const next = byId.get(e.to);
-        if (quiet(next) && next.half === s0.half) { inside.add(next.id); queue.push(next.id); }
+        if (quiet(next) && next.half === s0.half) {
+          inside.add(next.id);
+          queue.push(next.id);
+        }
       }
     }
     if (inside.size < MIN_FOLD) continue;
-    const from = new Set<string>(), to = new Set<string>();
+    const from = new Set<string>(),
+      to = new Set<string>();
     let entersElsewhere = false;
     for (const e of forward) {
-      if (inside.has(e.to) && !inside.has(e.from)) { from.add(e.from); if (e.to !== s0.id) entersElsewhere = true; }
+      if (inside.has(e.to) && !inside.has(e.from)) {
+        from.add(e.from);
+        if (e.to !== s0.id) entersElsewhere = true;
+      }
       if (inside.has(e.from) && !inside.has(e.to)) to.add(e.to);
     }
     if (entersElsewhere || from.size > 1 || to.size > 1) continue;
@@ -76,10 +96,21 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
     // From the stretch's first step, forward while the next is idle, in the same half, and not seen.
     let first = n;
     const back = new Set([n.id]);
-    for (let p = prevOf(first); idle(p) && p.half === n.half && !foldOf.has(p.id) && !back.has(p.id); p = prevOf(p)) { first = p; back.add(p.id); }
+    for (
+      let p = prevOf(first);
+      idle(p) && p.half === n.half && !foldOf.has(p.id) && !back.has(p.id);
+      p = prevOf(p)
+    ) {
+      first = p;
+      back.add(p.id);
+    }
     const chain: ModelNode[] = [];
     const seen = new Set<string>();
-    for (let c: ModelNode | undefined = first; idle(c) && c.half === n.half && !seen.has(c.id) && !foldOf.has(c.id); c = nextOf(c)) {
+    for (
+      let c: ModelNode | undefined = first;
+      idle(c) && c.half === n.half && !seen.has(c.id) && !foldOf.has(c.id);
+      c = nextOf(c)
+    ) {
       chain.push(c);
       seen.add(c.id);
     }
@@ -91,7 +122,20 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
   const nodes: ModelNode[] = [];
   for (const n of g.nodes) {
     const f = firstOf.get(n.id);
-    if (f) nodes.push({ ...n, id: f.id, label: `${f.nodes.length} steps`, fileLabel: null, kind: "script", end: null, visits: 0, runs: 0, failed: 0, cutOff: 0, medianMs: null });
+    if (f)
+      nodes.push({
+        ...n,
+        id: f.id,
+        label: `${f.nodes.length} steps`,
+        fileLabel: null,
+        kind: "script",
+        end: null,
+        visits: 0,
+        runs: 0,
+        failed: 0,
+        cutOff: 0,
+        medianMs: null,
+      });
     else if (!foldOf.has(n.id)) nodes.push(n);
   }
   const at = (id: string) => foldOf.get(id) ?? id;
@@ -106,6 +150,9 @@ export function foldIdle(g: LineGraphModel, busy: (id: string) => boolean, open:
     kept.add(id);
     edges.push(from === e.from && to === e.to ? e : { ...e, id, from, to });
   }
-  const stages = g.stages.map((s) => ({ ...s, nodes: [...new Set(s.nodes.map(at))] }));
+  const stages = g.stages.map((s) => ({
+    ...s,
+    nodes: [...new Set(s.nodes.map(at))],
+  }));
   return { ...g, nodes, edges, stages };
 }

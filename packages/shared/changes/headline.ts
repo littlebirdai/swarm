@@ -25,7 +25,10 @@ export function clipToSentence(text: string, max: number): string {
   const t = text.trim();
   if (t.length <= max) return t;
   const head = t.slice(0, max + 1);
-  const end = Math.max(...[...head.matchAll(/[.!?](?=\s)/g)].map((m) => m.index!), -1);
+  const end = Math.max(
+    ...[...head.matchAll(/[.!?](?=\s)/g)].map((m) => m.index!),
+    -1,
+  );
   return end > max / 2 ? t.slice(0, end + 1) : clip(t, max);
 }
 
@@ -33,13 +36,33 @@ export function clipToSentence(text: string, max: number): string {
 const CLAUSE_BREAKS = [", ", "; ", " and ", " while ", " with "];
 
 /** Words a cut line must not end on: they promise more ("stop asking for"). */
-const DANGLING = new Set(["and", "or", "but", "for", "to", "of", "with", "the", "a", "an", "in", "on", "at", "by", "from"]);
+const DANGLING = new Set([
+  "and",
+  "or",
+  "but",
+  "for",
+  "to",
+  "of",
+  "with",
+  "the",
+  "a",
+  "an",
+  "in",
+  "on",
+  "at",
+  "by",
+  "from",
+]);
 
 /** Drop trailing punctuation and dangling function words, until the line ends on a word that carries meaning. */
 function endWhole(text: string): string {
   let t = text;
   for (;;) {
-    const next = t.replace(/[\s,;:.\-]+$/, "").replace(/\s+(\S+)$/, (m, w: string) => (DANGLING.has(w.toLowerCase()) ? "" : m));
+    const next = t
+      .replace(/[\s,;:.\-]+$/, "")
+      .replace(/\s+(\S+)$/, (m, w: string) =>
+        DANGLING.has(w.toLowerCase()) ? "" : m,
+      );
     if (next === t) return t;
     t = next;
   }
@@ -66,7 +89,11 @@ export function fitProse(text: string, max: number, hard: number): string {
 }
 
 /** Sentences of prose. A sentence ends at a terminator followed by space, so file names and versions stay whole. */
-export const splitSentences = (text: string): string[] => text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+export const splitSentences = (text: string): string[] =>
+  text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
@@ -75,7 +102,10 @@ const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
  * and what follows it. The first sentence always leads, however long, so a
  * long first sentence is never split.
  */
-export function leadSentences(text: string, maxWords: number): { lead: string; rest: string } {
+export function leadSentences(
+  text: string,
+  maxWords: number,
+): { lead: string; rest: string } {
   const all = splitSentences(text);
   let n = 0;
   let words = 0;
@@ -87,7 +117,17 @@ export function leadSentences(text: string, maxWords: number): { lead: string; r
 }
 
 /** Tools whose names are written in lowercase; a subject leading with one keeps it. */
-const LOWERCASE_NAMES = new Set(["npm", "npx", "pnpm", "bunx", "gh", "tmux", "iterm", "eas", "cast"]);
+const LOWERCASE_NAMES = new Set([
+  "npm",
+  "npx",
+  "pnpm",
+  "bunx",
+  "gh",
+  "tmux",
+  "iterm",
+  "eas",
+  "cast",
+]);
 
 /** Capitalize a plain leading word only: `jx7c6zk`, `#412`, `cast_check`, `foo.ts` and `npm` stay verbatim. */
 const capitalize = (s: string) => {
@@ -108,17 +148,25 @@ export function cleanSubject(subject: string): string {
   const git = GIT_REVERT.exec(s);
   if (git) return `Revert "${cleanSubject(git[1])}"`;
   const conv = parseConventional(s);
-  if (conv?.type === "revert") return `Revert "${cleanSubject(conv.description)}"`;
+  if (conv?.type === "revert")
+    return `Revert "${cleanSubject(conv.description)}"`;
   const text = (conv ? conv.description : s).replace(/\.+$/, "").trim();
   return capitalize(text);
 }
 
 /** One commit's share of a story: the whole commit, or its slice of one area. */
-export type HeadlineUnit = { sha: string; subject: string; timestamp: number; lines: number };
+export type HeadlineUnit = {
+  sha: string;
+  subject: string;
+  timestamp: number;
+  lines: number;
+};
 
 /** Largest first; ties go to the earlier commit, then the sha, so the pick never flips. */
 function byWeight(a: HeadlineUnit, b: HeadlineUnit): number {
-  return b.lines - a.lines || a.timestamp - b.timestamp || a.sha.localeCompare(b.sha);
+  return (
+    b.lines - a.lines || a.timestamp - b.timestamp || a.sha.localeCompare(b.sha)
+  );
 }
 
 /** The cleaned subject of the story's largest commit. */
@@ -131,13 +179,18 @@ export function storyHeadline(units: readonly HeadlineUnit[]): string {
  * The other subjects, cleaned, deduped and joined in time order. A story of
  * one commit falls back to the first paragraph of its body.
  */
-export function storyDek(units: readonly HeadlineUnit[], body?: string): string {
+export function storyDek(
+  units: readonly HeadlineUnit[],
+  body?: string,
+): string {
   const top = [...units].sort(byWeight)[0];
   if (!top) return "";
   const headline = cleanSubject(top.subject);
   const seen = new Set([headline]);
   const others: string[] = [];
-  for (const u of [...units].sort((a, b) => a.timestamp - b.timestamp || a.sha.localeCompare(b.sha))) {
+  for (const u of [...units].sort(
+    (a, b) => a.timestamp - b.timestamp || a.sha.localeCompare(b.sha),
+  )) {
     const c = cleanSubject(u.subject);
     if (seen.has(c)) continue;
     seen.add(c);
@@ -150,15 +203,25 @@ export function storyDek(units: readonly HeadlineUnit[], body?: string): string 
 
 /** The facts of a batch commit's leftover slices, for a story made of nothing else. */
 export function sliceDek(areaCounts: Record<string, number>): string {
-  const areas = Object.entries(areaCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const areas = Object.entries(areaCounts).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  );
   const files = areas.reduce((n, [, c]) => n + c, 0);
-  return clip(`${files} ${files === 1 ? "file" : "files"} across ${areas.map(([a]) => a).join(", ")}`, DEK_MAX);
+  return clip(
+    `${files} ${files === 1 ? "file" : "files"} across ${areas.map(([a]) => a).join(", ")}`,
+    DEK_MAX,
+  );
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 /** The edition headline before prose: the day's counts in large type (spec 4.3). */
-export function statsHeadline(stats: { commits: number; stories: number; releases: number }): string {
+export function statsHeadline(stats: {
+  commits: number;
+  stories: number;
+  releases: number;
+}): string {
   const parts = [plural(stats.commits, "commit")];
   if (stats.releases) parts.push(plural(stats.releases, "release"));
   parts.push(plural(stats.stories, "story", "stories"));

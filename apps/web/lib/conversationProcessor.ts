@@ -1,8 +1,21 @@
-
-
 import { SYSTEM_MESSAGE_PREFIXES } from "./sessionFilters";
-import { classifyApiErrorBanner, isAgentContextMessage, isCompactionSummaryMessage, isAgentSwitchNotice, isMachineSwitchNotice, parseSlashCommand, stripMentionContext } from "@codecast/shared/contracts";
-import { stripTeammateFraming, parseSpawnedTaskPrompt, parseChatWakePrompt, chatWakePlace, isSkillExpansion, extractSkillInfo } from "../components/sessionMessage";
+import {
+  classifyApiErrorBanner,
+  isAgentContextMessage,
+  isCompactionSummaryMessage,
+  isAgentSwitchNotice,
+  isMachineSwitchNotice,
+  parseSlashCommand,
+  stripMentionContext,
+} from "@codecast/shared/contracts";
+import {
+  stripTeammateFraming,
+  parseSpawnedTaskPrompt,
+  parseChatWakePrompt,
+  chatWakePlace,
+  isSkillExpansion,
+  extractSkillInfo,
+} from "../components/sessionMessage";
 export { isSkillExpansion, extractSkillInfo };
 
 const COMMAND_PATTERNS = [
@@ -18,7 +31,7 @@ const COMMAND_PATTERNS = [
 ];
 
 export function isSystemMessage(content: string): boolean {
-  return SYSTEM_MESSAGE_PREFIXES.some(prefix => content.startsWith(prefix));
+  return SYSTEM_MESSAGE_PREFIXES.some((prefix) => content.startsWith(prefix));
 }
 
 // Claude Code writes terminal status lines into the transcript as system
@@ -27,10 +40,19 @@ export function isSystemMessage(content: string): boolean {
 // connection notices ("Remote Control disconnected — …", "Remote Control not
 // started here · …") only tell the person at the terminal which slash command
 // to run next. Every renderer (web thread, mobile thread) hides those.
-const REMOTE_CONTROL_NOTICE_RE = /^Remote Control (?:disconnected|not started here)\b/;
+const REMOTE_CONTROL_NOTICE_RE =
+  /^Remote Control (?:disconnected|not started here)\b/;
 
-export function isHiddenSystemNotice(content: string | null | undefined, subtype?: string | null): boolean {
-  return isAgentContextMessage(content) || (subtype === "informational" && !!content && REMOTE_CONTROL_NOTICE_RE.test(content.trim()));
+export function isHiddenSystemNotice(
+  content: string | null | undefined,
+  subtype?: string | null,
+): boolean {
+  return (
+    isAgentContextMessage(content) ||
+    (subtype === "informational" &&
+      !!content &&
+      REMOTE_CONTROL_NOTICE_RE.test(content.trim()))
+  );
 }
 
 // The usage-limit notices among those status lines ("Usage limit reached ·
@@ -41,8 +63,15 @@ export function isHiddenSystemNotice(content: string | null | undefined, subtype
 const LIMIT_NOTICE_RE =
   /^(?:(?:claude (?:ai )?)?usage limit reached\b|automatic continue cancelled\b|approaching (?:your )?usage limit\b|you['’]ve (?:hit|reached) your [\w -]{1,40}limit\b)/i;
 
-export function isWarningSystemNotice(content: string | null | undefined, subtype?: string | null): boolean {
-  return subtype === "informational" && !!content && LIMIT_NOTICE_RE.test(content.trim());
+export function isWarningSystemNotice(
+  content: string | null | undefined,
+  subtype?: string | null,
+): boolean {
+  return (
+    subtype === "informational" &&
+    !!content &&
+    LIMIT_NOTICE_RE.test(content.trim())
+  );
 }
 
 // Claude Code's own limit notice restates the park with the CLI's retry plan
@@ -59,8 +88,11 @@ export function isLimitNoticeSuperseded(
   nextIsRecoveryContinue: boolean,
 ): boolean {
   if (!isWarningSystemNotice(content, subtype)) return false;
-  return nextIsRecoveryContinue ||
-    (previous?.role === "assistant" && classifyApiErrorBanner((previous.content ?? "").trim()) === "limit");
+  return (
+    nextIsRecoveryContinue ||
+    (previous?.role === "assistant" &&
+      classifyApiErrorBanner((previous.content ?? "").trim()) === "limit")
+  );
 }
 
 /** Synthetic truncation notice the CLI injects into imported sessions for the
@@ -71,17 +103,26 @@ export function isImportNotice(content: string | null | undefined): boolean {
   return !!content && content.trimStart().startsWith(IMPORT_NOTICE_PREFIX);
 }
 
-export function isContextOnlyUserMessage(content: string | null | undefined): boolean {
+export function isContextOnlyUserMessage(
+  content: string | null | undefined,
+): boolean {
   return isImportNotice(content) || isAgentContextMessage(content);
 }
 
 export function initialSubagentPromptId(
-  messages: readonly { _id: string; role: string; content?: string | null; from_user_id?: string | null }[],
+  messages: readonly {
+    _id: string;
+    role: string;
+    content?: string | null;
+    from_user_id?: string | null;
+  }[],
   parentId: string | null | undefined,
   hasMoreAbove: boolean | undefined,
 ): string | undefined {
   if (!parentId || hasMoreAbove) return undefined;
-  const first = messages.find(m => m.role !== "system" && !isContextOnlyUserMessage(m.content));
+  const first = messages.find(
+    (m) => m.role !== "system" && !isContextOnlyUserMessage(m.content),
+  );
   return first?.role === "user" && !first.from_user_id ? first._id : undefined;
 }
 
@@ -95,7 +136,9 @@ export function parseBashInput(content: string): string | null {
   return m ? m[1].trim() : null;
 }
 
-export function parseBashOutput(content: string): { stdout: string; stderr: string } | null {
+export function parseBashOutput(
+  content: string,
+): { stdout: string; stderr: string } | null {
   const t = content.trim();
   if (!/^<bash-(?:stdout|stderr)>/.test(t)) return null;
   const stdout = t.match(/<bash-stdout>([\s\S]*?)<\/bash-stdout>/)?.[1] ?? "";
@@ -105,17 +148,23 @@ export function parseBashOutput(content: string): { stdout: string; stderr: stri
 
 export function isCommandMessage(content: string): boolean {
   const trimmed = content.trim();
-  return COMMAND_PATTERNS.some(pattern => pattern.test(trimmed));
+  return COMMAND_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 // Legacy stored form of an invocation: older sync versions dropped the tags and
 // kept their values on their own lines ("model\n/model\nopus"), so line 2 is
 // "/" + line 1. isCommandMessage misses it (no leading tag, no leading slash),
 // so every surface that classifies commands checks this too.
-export function isStrippedCommand(content: string): { cmdName: string; rest: string } | null {
+export function isStrippedCommand(
+  content: string,
+): { cmdName: string; rest: string } | null {
   const lines = content.split("\n");
   const first = lines[0]?.trim() ?? "";
-  if (lines.length >= 2 && /^[A-Za-z][\w-]*$/.test(first) && lines[1].trim() === "/" + first) {
+  if (
+    lines.length >= 2 &&
+    /^[A-Za-z][\w-]*$/.test(first) &&
+    lines[1].trim() === "/" + first
+  ) {
     return { cmdName: first, rest: lines.slice(2).join("\n") };
   }
   return null;
@@ -142,9 +191,11 @@ export function commandExpansionName(
   // The invocation leads with its tags (name/message order varies by CC
   // version), or, when it was sent from the app, holds the typed "/cmd args"
   // the pending row adopted onto Claude Code's tagged echo.
-  const command = /^<command-(?:name|message)>/.test(prevContent) || prevContent.startsWith("/")
-    ? parseSlashCommand(prevContent)
-    : null;
+  const command =
+    /^<command-(?:name|message)>/.test(prevContent) ||
+    prevContent.startsWith("/")
+      ? parseSlashCommand(prevContent)
+      : null;
   if (!command) return null;
   if (prev?.timestamp == null || msg.timestamp == null) return null;
   const gap = Math.abs(msg.timestamp - prev.timestamp);
@@ -164,7 +215,12 @@ export function getCommandType(content: string): string | undefined {
 
 export function cleanContent(content: string): string {
   if (!content) return "";
-  if (!content.includes("<") && !content.includes("\x1b") && !content.includes("Caveat:")) return content.trim();
+  if (
+    !content.includes("<") &&
+    !content.includes("\x1b") &&
+    !content.includes("Caveat:")
+  )
+    return content.trim();
 
   return content
     .replace(/<command-name>[^<]*<\/command-name>\s*/g, "")
@@ -178,7 +234,6 @@ export function cleanContent(content: string): string {
     .trim();
 }
 
-
 export function cleanTitle(title: string): string {
   // `!` bash-mode input: show it as the user typed it.
   const bashCmd = parseBashInput(title);
@@ -188,17 +243,27 @@ export function cleanTitle(title: string): string {
   const cmdNameMatch = title.match(/<command-name>([^<]*)<\/command-name>/);
   if (cmdNameMatch) return `/${cmdNameMatch[1].replace(/^\//, "")}`;
 
-  const cmdMsgMatch = title.match(/<command-message>([^<]*)<\/command-message>/);
+  const cmdMsgMatch = title.match(
+    /<command-message>([^<]*)<\/command-message>/,
+  );
   if (cmdMsgMatch) return `/${cmdMsgMatch[1].replace(/^\//, "")}`;
 
   // Strip complete tags, then also strip truncated/broken tags (e.g. "<command..." from title truncation)
-  const cleaned = cleanContent(title).replace(/<[^>]*$/, "").trim();
+  const cleaned = cleanContent(title)
+    .replace(/<[^>]*$/, "")
+    .trim();
   if (cleaned.length > 0) return cleaned;
 
   if (title.trim().startsWith("Caveat:")) return "System message";
   if (title.includes("<local-command-stdout>")) return "Command output";
 
-  return title.replace(/<[^>]+>/g, "").replace(/<[^>]*$/, "").trim().slice(0, 50) || "Untitled";
+  return (
+    title
+      .replace(/<[^>]+>/g, "")
+      .replace(/<[^>]*$/, "")
+      .trim()
+      .slice(0, 50) || "Untitled"
+  );
 }
 
 // ── Structured / machine user-messages ──────────────────────────────────────
@@ -251,16 +316,21 @@ export function isCompactionPrompt(content: string): boolean {
 // stopped by the user.` It carries no isMeta flag, so without special handling it
 // renders as a real user turn (avatar + bubble). It's a control event like an
 // interrupt — hide it from previews, render it as a status line in the thread.
-const BACKGROUND_AGENT_STOPPED_RE = /^Background agent "(.*)" was stopped by the user\.?$/;
+const BACKGROUND_AGENT_STOPPED_RE =
+  /^Background agent "(.*)" was stopped by the user\.?$/;
 
 /** The agent's name if `content` is a background-agent-stopped notice, else null. */
-export function backgroundAgentStoppedName(content: string | null | undefined): string | null {
+export function backgroundAgentStoppedName(
+  content: string | null | undefined,
+): string | null {
   if (!content) return null;
   const m = content.trim().match(BACKGROUND_AGENT_STOPPED_RE);
   return m ? m[1] : null;
 }
 
-export function isBackgroundAgentStoppedNotice(content: string | null | undefined): boolean {
+export function isBackgroundAgentStoppedNotice(
+  content: string | null | undefined,
+): boolean {
   return !!content && BACKGROUND_AGENT_STOPPED_RE.test(content.trim());
 }
 
@@ -268,13 +338,17 @@ export function isBackgroundAgentStoppedNotice(content: string | null | undefine
  * Only Codex emits the tag, so the check is on the message alone — never on the
  * conversation's current agent_type, which moves when the conversation is
  * switched to another agent and would strand every earlier notice. */
-export function isCodexTurnAbortedMessage(content: string | null | undefined): boolean {
+export function isCodexTurnAbortedMessage(
+  content: string | null | undefined,
+): boolean {
   return !!content && content.trimStart().startsWith("<turn_aborted>");
 }
 
 /** True when a user-role message is machine-generated noise that no person
  * typed — so feeds and previews hide it instead of dumping the raw XML. */
-export function isNoiseUserMessage(content: string | null | undefined): boolean {
+export function isNoiseUserMessage(
+  content: string | null | undefined,
+): boolean {
   if (!content) return true;
   const raw = content.trim();
   if (!raw) return true;
@@ -291,7 +365,11 @@ export function isNoiseUserMessage(content: string | null | undefined): boolean 
   if (isInterruptNotice(raw)) return true;
   if (TOOL_OUTPUT_POINTER_PREFIXES.some((p) => raw.startsWith(p))) return true;
   const noReminders = stripSystemTags(raw);
-  if (isCompactionSummaryMessage(raw) || CONTINUATION_PREFIXES.some((p) => noReminders.startsWith(p))) return true;
+  if (
+    isCompactionSummaryMessage(raw) ||
+    CONTINUATION_PREFIXES.some((p) => noReminders.startsWith(p))
+  )
+    return true;
   // Nothing a person wrote survives stripping the wrappers/tags.
   if (!cleanContent(raw)) return true;
   if (isSystemMessage(noReminders)) return true;
@@ -303,7 +381,9 @@ export type FeedDisplay = { kind: "hidden" } | { kind: "text"; text: string };
 /** Single classifier for list/preview surfaces: returns the cleaned text to
  * show, or `hidden` for machine noise. Slash commands collapse to "/cmd args".
  * (Session→session messages are handled separately by their own renderer.) */
-export function classifyFeedMessage(content: string | null | undefined): FeedDisplay {
+export function classifyFeedMessage(
+  content: string | null | undefined,
+): FeedDisplay {
   if (isNoiseUserMessage(content)) return { kind: "hidden" };
   const raw = (content || "").trim();
   const bashCmd = parseBashInput(raw);
@@ -316,15 +396,19 @@ export function classifyFeedMessage(content: string | null | undefined): FeedDis
   // thread, not the briefing around it.
   const chatWake = parseChatWakePrompt(raw);
   if (chatWake) {
-    const lines = chatWake.entries.map((e) => `${e.name}: ${e.content}`).join("\n");
+    const lines = chatWake.entries
+      .map((e) => `${e.name}: ${e.content}`)
+      .join("\n");
     return { kind: "text", text: `${chatWakePlace(chatWake)} — ${lines}` };
   }
-  const text = stripTeammateFraming(stripSystemTags(raw)
-    .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
-    .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
-    .replace(/\[Image[:\s][^\]]*\]/gi, "")
-    .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
-    .trim());
+  const text = stripTeammateFraming(
+    stripSystemTags(raw)
+      .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
+      .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
+      .replace(/\[Image[:\s][^\]]*\]/gi, "")
+      .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
+      .trim(),
+  );
   return text ? { kind: "text", text } : { kind: "hidden" };
 }
 
@@ -352,7 +436,13 @@ export function msgCountColor(count: number): string {
 
 export type SkillItem = { name: string; description: string };
 
-export function extractSkillsFromMessages(messages: Array<{ role: string; content?: string; tool_calls?: Array<{ name: string; input: string }> }>): SkillItem[] {
+export function extractSkillsFromMessages(
+  messages: Array<{
+    role: string;
+    content?: string;
+    tool_calls?: Array<{ name: string; input: string }>;
+  }>,
+): SkillItem[] {
   const skills: SkillItem[] = [];
   const seen = new Set<string>();
   for (const msg of messages) {
@@ -360,7 +450,11 @@ export function extractSkillsFromMessages(messages: Array<{ role: string; conten
     const lines = msg.content.split("\n");
     let inSkillSection = false;
     for (const line of lines) {
-      if (/following skills|available.*skills|available-deferred-tools/i.test(line)) {
+      if (
+        /following skills|available.*skills|available-deferred-tools/i.test(
+          line,
+        )
+      ) {
         inSkillSection = true;
         continue;
       }
@@ -413,7 +507,13 @@ export function extractSkillsFromMessages(messages: Array<{ role: string; conten
   return skills;
 }
 
-export function extractFilePaths(messages: Array<{ role: string; content?: string; tool_calls?: Array<{ name: string; input: string }> }>): string[] {
+export function extractFilePaths(
+  messages: Array<{
+    role: string;
+    content?: string;
+    tool_calls?: Array<{ name: string; input: string }>;
+  }>,
+): string[] {
   const paths: string[] = [];
   const seen = new Set<string>();
   const addPath = (p: string) => {

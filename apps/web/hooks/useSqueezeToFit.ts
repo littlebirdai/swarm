@@ -28,7 +28,11 @@ import { useLayoutEffect, type RefObject } from "react";
  * One measured pass: the smallest level whose content fits, applied to the row.
  * Exported so a harness (and a test) can drive the real logic, not a copy.
  */
-export function applySqueeze(row: HTMLElement, maxLevel: number, from = 0): number {
+export function applySqueeze(
+  row: HTMLElement,
+  maxLevel: number,
+  from = 0,
+): number {
   // Each trial restyles the page and reads a width back, a full style and
   // layout pass, so the search starts at the last answer instead of zero:
   // shedding more never widens the row, so the smallest level that fits is
@@ -36,12 +40,17 @@ export function applySqueeze(row: HTMLElement, maxLevel: number, from = 0): numb
   // does. A pass where nothing moved costs two trials, not every level.
   let applied = -1;
   const apply = (level: number) => {
-    const tokens = Array.from({ length: level }, (_, i) => String(i + 1)).join(" ");
+    const tokens = Array.from({ length: level }, (_, i) => String(i + 1)).join(
+      " ",
+    );
     if (tokens) row.setAttribute("data-squeeze", tokens);
     else row.removeAttribute("data-squeeze");
     applied = level;
   };
-  const fits = (level: number) => { apply(level); return row.scrollWidth <= row.clientWidth + 1; };
+  const fits = (level: number) => {
+    apply(level);
+    return row.scrollWidth <= row.clientWidth + 1;
+  };
   let level = Math.max(0, Math.min(from, maxLevel));
   if (fits(level)) {
     while (level > 0 && fits(level - 1)) level--;
@@ -82,12 +91,18 @@ export function useSqueezeToFit(
       schedule();
     });
     ro.observe(row);
-    const mo = typeof MutationObserver === "undefined" ? null : new MutationObserver(schedule);
+    const mo =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(schedule);
     mo?.observe(row, { childList: true, subtree: true, characterData: true });
     // A style or theme switch (a class on <html>: Modern's larger title and
     // pills) restyles the row without touching it or its width, so the root's
     // class is watched too; it changes rarely.
-    mo?.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    mo?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
     // Web fonts land after first layout and change every measured width.
     document.fonts?.ready.then(schedule).catch(() => {});
     return () => {

@@ -9,10 +9,15 @@
 // tools, and the user's installed binary rather than the SDK's bundled copy.
 
 import type { Options, PermissionMode } from "@anthropic-ai/claude-agent-sdk";
-import { AGENT_LAUNCH_UNSET_ENV, AGENT_SCRUBBED_ENV_VARS, EFFORT_OVERRIDE_ENV, FORCE_PERSISTENCE_VAR, SDK_SESSION_ENV } from "../agentEnv.js";
+import {
+  AGENT_LAUNCH_UNSET_ENV,
+  AGENT_SCRUBBED_ENV_VARS,
+  EFFORT_OVERRIDE_ENV,
+  FORCE_PERSISTENCE_VAR,
+  SDK_SESSION_ENV,
+} from "../agentEnv.js";
 
 export { SDK_SESSION_ENV };
-
 
 export interface SdkLaunchSpec {
   /** Which agent the host drives: Claude through the Agent SDK (the default), or Grok over ACP (grokSession.ts). */
@@ -50,20 +55,48 @@ export interface ParsedClaudeArgs {
   extraArgs: Record<string, string | null>;
 }
 
-const VARIADIC = new Set(["--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir"]);
+const VARIADIC = new Set([
+  "--allowedTools",
+  "--allowed-tools",
+  "--disallowedTools",
+  "--disallowed-tools",
+  "--add-dir",
+]);
 /** Flags whose next argument is always their value, even one that starts with "-" (a prompt opening with a bullet). */
-const VALUE = new Set(["--model", "--effort", "--permission-mode", "--session-id", "--resume", "-r", "--append-system-prompt", "--system-prompt"]);
+const VALUE = new Set([
+  "--model",
+  "--effort",
+  "--permission-mode",
+  "--session-id",
+  "--resume",
+  "-r",
+  "--append-system-prompt",
+  "--system-prompt",
+]);
 /** Flags that take no value, whatever follows them. */
 const BOOLEAN = new Set([
-  "--allow-dangerously-skip-permissions", "--dangerously-skip-permissions", "--verbose", "--debug",
-  "--continue", "-c", "--ide", "--strict-mcp-config", "--fork-session",
+  "--allow-dangerously-skip-permissions",
+  "--dangerously-skip-permissions",
+  "--verbose",
+  "--debug",
+  "--continue",
+  "-c",
+  "--ide",
+  "--strict-mcp-config",
+  "--fork-session",
 ]);
 
 /** Read a claude launch argv into SDK options. Unknown flags ride `extraArgs`. */
 export function parseClaudeArgs(args: string[]): ParsedClaudeArgs {
   const out: ParsedClaudeArgs = { extraArgs: {} };
-  const list = (key: "allowedTools" | "disallowedTools" | "additionalDirectories", values: string[]) => {
-    const items = values.flatMap((v) => v.split(",")).map((v) => v.trim()).filter(Boolean);
+  const list = (
+    key: "allowedTools" | "disallowedTools" | "additionalDirectories",
+    values: string[],
+  ) => {
+    const items = values
+      .flatMap((v) => v.split(","))
+      .map((v) => v.trim())
+      .filter(Boolean);
     out[key] = [...(out[key] ?? []), ...items];
   };
   for (let i = 0; i < args.length; i++) {
@@ -75,32 +108,63 @@ export function parseClaudeArgs(args: string[]): ParsedClaudeArgs {
     const inline = eq > 0 ? raw.slice(eq + 1) : undefined;
     if (VARIADIC.has(flag)) {
       const values: string[] = inline !== undefined ? [inline] : [];
-      while (inline === undefined && i + 1 < args.length && !args[i + 1].startsWith("-")) values.push(args[++i]);
+      while (
+        inline === undefined &&
+        i + 1 < args.length &&
+        !args[i + 1].startsWith("-")
+      )
+        values.push(args[++i]);
       if (flag === "--add-dir") list("additionalDirectories", values);
-      else list(flag.startsWith("--allowed") ? "allowedTools" : "disallowedTools", values);
+      else
+        list(
+          flag.startsWith("--allowed") ? "allowedTools" : "disallowedTools",
+          values,
+        );
       continue;
     }
     if (BOOLEAN.has(flag)) {
-      if (flag === "--allow-dangerously-skip-permissions") out.allowDangerouslySkipPermissions = true;
+      if (flag === "--allow-dangerously-skip-permissions")
+        out.allowDangerouslySkipPermissions = true;
       else if (flag === "--dangerously-skip-permissions") {
         out.permissionMode = "bypassPermissions";
         out.allowDangerouslySkipPermissions = true;
       } else out.extraArgs[flag.replace(/^-+/, "")] = null;
       continue;
     }
-    const value = inline ?? (i + 1 < args.length && (VALUE.has(flag) || !args[i + 1].startsWith("-")) ? args[++i] : undefined);
+    const value =
+      inline ??
+      (i + 1 < args.length && (VALUE.has(flag) || !args[i + 1].startsWith("-"))
+        ? args[++i]
+        : undefined);
     switch (flag) {
-      case "--model": out.model = value; break;
-      case "--effort": out.effort = value; break;
-      case "--permission-mode": out.permissionMode = value as PermissionMode; break;
-      case "--session-id": out.sessionId = value; break;
-      case "--resume": case "-r": out.resume = value; break;
-      case "--append-system-prompt": out.appendSystemPrompt = value; break;
-      case "--system-prompt": out.systemPrompt = value; break;
-      default: out.extraArgs[flag.replace(/^-+/, "")] = value ?? null;
+      case "--model":
+        out.model = value;
+        break;
+      case "--effort":
+        out.effort = value;
+        break;
+      case "--permission-mode":
+        out.permissionMode = value as PermissionMode;
+        break;
+      case "--session-id":
+        out.sessionId = value;
+        break;
+      case "--resume":
+      case "-r":
+        out.resume = value;
+        break;
+      case "--append-system-prompt":
+        out.appendSystemPrompt = value;
+        break;
+      case "--system-prompt":
+        out.systemPrompt = value;
+        break;
+      default:
+        out.extraArgs[flag.replace(/^-+/, "")] = value ?? null;
     }
   }
-  if (out.permissionMode === "bypassPermissions") out.allowDangerouslySkipPermissions = true;
+  if (out.permissionMode === "bypassPermissions")
+    out.allowDangerouslySkipPermissions = true;
   return out;
 }
 
@@ -109,7 +173,11 @@ export function parseClaudeArgs(args: string[]): ParsedClaudeArgs {
  * account the tmux path would source), minus the markers that silence or
  * confuse a nested Claude, plus the launch line's variables.
  */
-export function sdkSessionEnv(base: Record<string, string | undefined>, spec: Pick<SdkLaunchSpec, "env">, opts: { effortSet: boolean }): Record<string, string | undefined> {
+export function sdkSessionEnv(
+  base: Record<string, string | undefined>,
+  spec: Pick<SdkLaunchSpec, "env">,
+  opts: { effortSet: boolean },
+): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = { ...base, ...spec.env };
   for (const v of AGENT_SCRUBBED_ENV_VARS) delete env[v];
   for (const v of AGENT_LAUNCH_UNSET_ENV) delete env[v];
@@ -122,24 +190,42 @@ export function sdkSessionEnv(base: Record<string, string | undefined>, spec: Pi
 }
 
 /** The SDK options for a spec. canUseTool is attached by the session. */
-export function sdkQueryOptions(spec: SdkLaunchSpec, base: Record<string, string | undefined>): Options & { sessionId?: string; resume?: string } {
+export function sdkQueryOptions(
+  spec: SdkLaunchSpec,
+  base: Record<string, string | undefined>,
+): Options & { sessionId?: string; resume?: string } {
   const parsed = parseClaudeArgs(spec.args);
   const effort = parsed.effort as Options["effort"] | undefined;
-  const append = [parsed.appendSystemPrompt, spec.appendSystemPrompt].filter(Boolean).join("\n\n") || undefined;
+  const append =
+    [parsed.appendSystemPrompt, spec.appendSystemPrompt]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
   const options: Options & { sessionId?: string; resume?: string } = {
     pathToClaudeCodeExecutable: spec.executable,
     cwd: spec.cwd,
     env: sdkSessionEnv(base, spec, { effortSet: !!effort }),
-    systemPrompt: parsed.systemPrompt ?? { type: "preset", preset: "claude_code", ...(append ? { append } : {}) },
+    systemPrompt: parsed.systemPrompt ?? {
+      type: "preset",
+      preset: "claude_code",
+      ...(append ? { append } : {}),
+    },
     persistSession: true,
     extraArgs: parsed.extraArgs,
     ...(parsed.model ? { model: parsed.model } : {}),
     ...(effort ? { effort } : {}),
     ...(parsed.permissionMode ? { permissionMode: parsed.permissionMode } : {}),
-    ...(parsed.allowDangerouslySkipPermissions ? { allowDangerouslySkipPermissions: true } : {}),
-    ...(parsed.allowedTools?.length ? { allowedTools: parsed.allowedTools } : {}),
-    ...(parsed.disallowedTools?.length ? { disallowedTools: parsed.disallowedTools } : {}),
-    ...(parsed.additionalDirectories?.length ? { additionalDirectories: parsed.additionalDirectories } : {}),
+    ...(parsed.allowDangerouslySkipPermissions
+      ? { allowDangerouslySkipPermissions: true }
+      : {}),
+    ...(parsed.allowedTools?.length
+      ? { allowedTools: parsed.allowedTools }
+      : {}),
+    ...(parsed.disallowedTools?.length
+      ? { disallowedTools: parsed.disallowedTools }
+      : {}),
+    ...(parsed.additionalDirectories?.length
+      ? { additionalDirectories: parsed.additionalDirectories }
+      : {}),
   };
   if (spec.resume) options.resume = spec.sessionId;
   else options.sessionId = spec.sessionId;

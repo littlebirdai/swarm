@@ -14,7 +14,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { CdpTimeout, type CdpClient } from "./cdp.js";
 import type { InstanceState } from "./instance.js";
-import { authorizesTeardown, type LivenessVerdict } from "@codecast/shared/contracts";
+import {
+  authorizesTeardown,
+  type LivenessVerdict,
+} from "@codecast/shared/contracts";
 
 /** Raised when a tab's renderer will not answer, with the way out. */
 export class TabUnresponsive extends Error {
@@ -34,7 +37,10 @@ export class TabUnresponsive extends Error {
 
 /** Is this the wedged-tab failure? By name too, so a copy of the error that lost its class still counts. */
 export function isTabUnresponsive(err: unknown): boolean {
-  return err instanceof TabUnresponsive || (err instanceof Error && err.name === "TabUnresponsive");
+  return (
+    err instanceof TabUnresponsive ||
+    (err instanceof Error && err.name === "TabUnresponsive")
+  );
 }
 
 /**
@@ -53,7 +59,10 @@ export interface EnablePatience {
   attemptsMs: [number, number];
   pauseMs: number;
 }
-export const DEFAULT_ENABLE_PATIENCE: EnablePatience = { attemptsMs: [10_000, 15_000], pauseMs: 500 };
+export const DEFAULT_ENABLE_PATIENCE: EnablePatience = {
+  attemptsMs: [10_000, 15_000],
+  pauseMs: 500,
+};
 
 export async function enablePageDomains(
   conn: CdpClient,
@@ -78,7 +87,8 @@ export async function enablePageDomains(
     try {
       await enableAll(patience.attemptsMs[1]);
     } catch (retryErr) {
-      if (retryErr instanceof CdpTimeout) throw new TabUnresponsive(targetId, retryErr.message);
+      if (retryErr instanceof CdpTimeout)
+        throw new TabUnresponsive(targetId, retryErr.message);
       throw retryErr;
     }
   }
@@ -87,12 +97,15 @@ export async function enablePageDomains(
 /** True when a CDP session id no longer exists — the tab was closed under us. */
 export function isStaleSession(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /Session with given id not found|Target closed|No session with given id/i.test(msg);
+  return /Session with given id not found|Target closed|No session with given id/i.test(
+    msg,
+  );
 }
 
 /** Name the likely killer when the socket dies under a command. */
 export function explainConnectionLoss(msg: string): string {
-  return msg.includes("CDP connection closed") || msg.includes("CDP connection is not open")
+  return msg.includes("CDP connection closed") ||
+    msg.includes("CDP connection is not open")
     ? `${msg} — the browser was stopped or restarted (usually by another agent) mid-command. Run the command again.`
     : msg;
 }
@@ -112,7 +125,9 @@ export class BrowserNotLive extends Error {
     public readonly liveness: LivenessVerdict,
     public readonly state: InstanceState | null,
   ) {
-    super(livenessProblem(liveness, state)?.message ?? `browser is ${liveness}`);
+    super(
+      livenessProblem(liveness, state)?.message ?? `browser is ${liveness}`,
+    );
     this.name = "BrowserNotLive";
   }
   get problem(): Problem {
@@ -140,7 +155,10 @@ export function isReachable(verdict: LivenessVerdict): boolean {
  * for on "no browser is running" is stop/start, which kills every other
  * agent's tabs. Returns null when the browser is fine.
  */
-export function livenessProblem(liveness: LivenessVerdict, state: InstanceState | null): Problem | null {
+export function livenessProblem(
+  liveness: LivenessVerdict,
+  state: InstanceState | null,
+): Problem | null {
   if (isReachable(liveness)) return null;
   if (!authorizesTeardown(liveness)) {
     return {

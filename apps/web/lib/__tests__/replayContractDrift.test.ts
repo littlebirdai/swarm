@@ -1,12 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import * as platform from "@platform/analytics/replay";
-import { CODECAST_BATCH_LIMITS, isReportedLogLevel, type CodecastIngestItem } from "@platform/analytics/codecast";
+import {
+  CODECAST_BATCH_LIMITS,
+  isReportedLogLevel,
+  type CodecastIngestItem,
+} from "@platform/analytics/codecast";
 import * as shared from "@codecast/shared/contracts/replay";
 import * as player from "@codecast/shared/contracts/replayPlayer";
-import { parseCodecastJson, REPLAY_DOM_MODES as PLATFORM_DOM_MODES } from "@platform/analytics/codecast";
-import { parseCodecastConfig, REPLAY_DOM_MODES } from "@codecast/shared/contracts/codecastConfig";
+import {
+  parseCodecastJson,
+  REPLAY_DOM_MODES as PLATFORM_DOM_MODES,
+} from "@platform/analytics/codecast";
+import {
+  parseCodecastConfig,
+  REPLAY_DOM_MODES,
+} from "@codecast/shared/contracts/codecastConfig";
 import codecastJson from "../../codecast.json";
-import { INGEST_LIMITS, isGroupedLogLevel, LOG_LEVELS, type IngestItem } from "@codecast/shared/contracts/ingest";
+import {
+  INGEST_LIMITS,
+  isGroupedLogLevel,
+  LOG_LEVELS,
+  type IngestItem,
+} from "@codecast/shared/contracts/ingest";
 
 // @platform/analytics may not import codecast, so its recorder and sink spell
 // the replay event types, the ingest item types, the batch caps and the
@@ -21,16 +36,28 @@ describe("the platform recorder speaks codecast's replay contract", () => {
   test("event types, keys, console levels and limits match", () => {
     expect(sameEvents && sameItems).toBe(true);
     expect([...platform.REPLAY_KEYS]).toEqual([...shared.REPLAY_KEYS]);
-    expect([...platform.REPLAY_CONSOLE_LEVELS]).toEqual([...shared.REPLAY_CONSOLE_LEVELS]);
+    expect([...platform.REPLAY_CONSOLE_LEVELS]).toEqual([
+      ...shared.REPLAY_CONSOLE_LEVELS,
+    ]);
     expect(platform.REPLAY_LIMITS).toEqual(shared.REPLAY_LIMITS);
   });
 
   test("keep reasons and the stylesheet caps match", () => {
-    expect([...platform.REPLAY_KEEP_REASONS]).toEqual([...shared.REPLAY_KEEP_REASONS]);
-    expect(platform.REPLAY_KEEP_REASON_PATTERN.source).toBe(shared.REPLAY_KEEP_REASON_PATTERN.source);
-    expect(platform.REPLAY_KEEP_REASONS_MAX).toBe(shared.REPLAY_KEEP_REASONS_MAX);
-    expect(platform.REPLAY_STYLE_MAX).toBe(player.REPLAY_STYLE_LIMITS.max_per_replay);
-    expect(platform.REPLAY_STYLE_MAX_BYTES).toBe(player.REPLAY_STYLE_LIMITS.max_bytes);
+    expect([...platform.REPLAY_KEEP_REASONS]).toEqual([
+      ...shared.REPLAY_KEEP_REASONS,
+    ]);
+    expect(platform.REPLAY_KEEP_REASON_PATTERN.source).toBe(
+      shared.REPLAY_KEEP_REASON_PATTERN.source,
+    );
+    expect(platform.REPLAY_KEEP_REASONS_MAX).toBe(
+      shared.REPLAY_KEEP_REASONS_MAX,
+    );
+    expect(platform.REPLAY_STYLE_MAX).toBe(
+      player.REPLAY_STYLE_LIMITS.max_per_replay,
+    );
+    expect(platform.REPLAY_STYLE_MAX_BYTES).toBe(
+      player.REPLAY_STYLE_LIMITS.max_bytes,
+    );
   });
 
   test("the DOM capture's caps and modes match, and both read a codecast.json's replay block alike", () => {
@@ -42,7 +69,10 @@ describe("the platform recorder speaks codecast's replay contract", () => {
       { sources: {}, replay: { dom: "always", sampleRate: 2, extra: 1 } },
       { sources: {}, replay: "on" },
     ];
-    for (const file of files) expect(parseCodecastJson(file)).toEqual(parseCodecastConfig(file) as never);
+    for (const file of files)
+      expect(parseCodecastJson(file)).toEqual(
+        parseCodecastConfig(file) as never,
+      );
   });
 
   // The capture runs only while a person attends the page and ships only when
@@ -62,13 +92,19 @@ describe("the platform recorder speaks codecast's replay contract", () => {
       ["not a url?secret=1"],
       [`https://a.test/${"p".repeat(3000)}?k=v`],
     ];
-    for (const [raw, base] of urls) expect(shared.cleanUrl(raw, base)).toBe(platform.cleanUrl(raw, base));
+    for (const [raw, base] of urls)
+      expect(shared.cleanUrl(raw, base)).toBe(platform.cleanUrl(raw, base));
   });
 });
 
 describe("the platform sink speaks codecast's ingest contract", () => {
   test("batch caps and the log levels it reports match the door", () => {
-    expect(CODECAST_BATCH_LIMITS).toEqual({ max_items: INGEST_LIMITS.max_items, max_bytes: INGEST_LIMITS.max_bytes });
-    expect(LOG_LEVELS.filter(isReportedLogLevel)).toEqual(LOG_LEVELS.filter(isGroupedLogLevel));
+    expect(CODECAST_BATCH_LIMITS).toEqual({
+      max_items: INGEST_LIMITS.max_items,
+      max_bytes: INGEST_LIMITS.max_bytes,
+    });
+    expect(LOG_LEVELS.filter(isReportedLogLevel)).toEqual(
+      LOG_LEVELS.filter(isGroupedLogLevel),
+    );
   });
 });

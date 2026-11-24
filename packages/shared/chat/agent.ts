@@ -32,8 +32,10 @@ export function isSilentAgentRow(row: {
   author_kind?: string;
   agent_status?: string;
 }): boolean {
-  return row.author_kind === "agent"
-    && (row.agent_status === "listening" || row.agent_status === "passed");
+  return (
+    row.author_kind === "agent" &&
+    (row.agent_status === "listening" || row.agent_status === "passed")
+  );
 }
 
 /** A thinking row that closed without becoming the answer. It is a tombstone
@@ -49,7 +51,9 @@ export function isClosedAgentPlaceholder(row: {
 
 /** A turn the anchor is still working on, visible or not. */
 export function isAgentTurnInFlight(status: string | undefined): boolean {
-  return status === "thinking" || status === "streaming" || status === "listening";
+  return (
+    status === "thinking" || status === "streaming" || status === "listening"
+  );
 }
 
 /** A placeholder that shows a spinner to people in the thread. */
@@ -67,8 +71,10 @@ export function isSettledLine(row: {
   agent_status?: string;
   voice?: { status?: string } | null;
 }): boolean {
-  return !row.deleted_at
-    && !isSilentAgentRow(row)
-    && !isVisibleAgentPending(row.agent_status)
-    && !isLiveVoiceRow(row);
+  return (
+    !row.deleted_at &&
+    !isSilentAgentRow(row) &&
+    !isVisibleAgentPending(row.agent_status) &&
+    !isLiveVoiceRow(row)
+  );
 }

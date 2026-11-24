@@ -28,7 +28,10 @@ export function matchDirectoryMapping<M extends DirectoryRuleFacts>(
         conversationPath === mapping.path_prefix ||
         conversationPath.startsWith(mapping.path_prefix + "/")
       ) {
-        if (!bestMatch || mapping.path_prefix.length > bestMatch.path_prefix.length) {
+        if (
+          !bestMatch ||
+          mapping.path_prefix.length > bestMatch.path_prefix.length
+        ) {
           bestMatch = mapping;
         }
       }
@@ -37,7 +40,13 @@ export function matchDirectoryMapping<M extends DirectoryRuleFacts>(
   if (!bestMatch && repository) {
     for (const mapping of userMappings) {
       if (mapping.repository !== repository) continue;
-      if (!bestMatch || (!!mapping.private && !bestMatch.private) || (!!mapping.private === !!bestMatch.private && mapping.path_prefix.length > bestMatch.path_prefix.length)) bestMatch = mapping;
+      if (
+        !bestMatch ||
+        (!!mapping.private && !bestMatch.private) ||
+        (!!mapping.private === !!bestMatch.private &&
+          mapping.path_prefix.length > bestMatch.path_prefix.length)
+      )
+        bestMatch = mapping;
     }
   }
   return bestMatch;

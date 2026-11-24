@@ -14,10 +14,20 @@ for (const c of commits) {
   const tree = await git(repo, ["rev-parse", `${sha}^{tree}`]);
   const changes = frozenChanges(await treeDiff(repo, base, tree));
   const started = Date.now();
-  const stale = await findStaleCopies(repo, { base, tree, upstream: base, changes, claimed: () => true });
-  console.log(`## ${c}: ${stale.size} of ${changes.length} changed file(s) held, ${Date.now() - started}ms`);
+  const stale = await findStaleCopies(repo, {
+    base,
+    tree,
+    upstream: base,
+    changes,
+    claimed: () => true,
+  });
+  console.log(
+    `## ${c}: ${stale.size} of ${changes.length} changed file(s) held, ${Date.now() - started}ms`,
+  );
   for (const ch of changes) {
     const s = stale.get(ch.path);
-    console.log(`${s ? "HELD " : "ships"} ${ch.path}${s ? ` | ${s.reason} | ${s.reverts.slice(0, 4).join("; ")}` : ""}`);
+    console.log(
+      `${s ? "HELD " : "ships"} ${ch.path}${s ? ` | ${s.reason} | ${s.reverts.slice(0, 4).join("; ")}` : ""}`,
+    );
   }
 }

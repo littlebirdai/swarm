@@ -12,20 +12,42 @@ import { clickProjectChip } from "../../store/chipFilterClicks";
 import { projectDotClass } from "../../lib/projectColors";
 import { cn } from "../../lib/utils";
 
-export function SessionWorkProject({ sig, className }: { sig: string; className?: string }) {
+export function SessionWorkProject({
+  sig,
+  className,
+}: {
+  sig: string;
+  className?: string;
+}) {
   if (!sig) return null;
   const [pid, color, title] = sig.split(WORK_PROJECT_SEP);
   return (
     <>
-      <span aria-hidden className="flex-shrink-0 text-meta text-sol-text-dim/50">·</span>
+      <span
+        aria-hidden
+        className="flex-shrink-0 text-meta text-sol-text-dim/50"
+      >
+        ·
+      </span>
       <button
         type="button"
         data-session-work-project={pid}
         title={`In ${title}. Click to show only this project's sessions`}
-        onClick={(e) => { e.stopPropagation(); clickProjectChip(workProjectChipKey(pid), null, e.altKey, e.shiftKey); }}
-        className={cn("inline-flex min-w-0 max-w-[12rem] items-center gap-1 -m-0.5 p-0.5 rounded-sm text-meta font-medium text-sol-text-muted transition-colors hover:bg-sol-bg-highlight/60 hover:text-sol-text", className)}
+        onClick={(e) => {
+          e.stopPropagation();
+          clickProjectChip(workProjectChipKey(pid), null, e.altKey, e.shiftKey);
+        }}
+        className={cn(
+          "inline-flex min-w-0 max-w-[12rem] items-center gap-1 -m-0.5 p-0.5 rounded-sm text-meta font-medium text-sol-text-muted transition-colors hover:bg-sol-bg-highlight/60 hover:text-sol-text",
+          className,
+        )}
       >
-        <span className={cn("w-1.5 h-1.5 rotate-45 rounded-[1px] flex-shrink-0", projectDotClass({ color: color || undefined, title }))} />
+        <span
+          className={cn(
+            "w-1.5 h-1.5 rotate-45 rounded-[1px] flex-shrink-0",
+            projectDotClass({ color: color || undefined, title }),
+          )}
+        />
         <span className="truncate">{title}</span>
       </button>
     </>

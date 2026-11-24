@@ -23,28 +23,111 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BellOff, Check, History, Loader2, Plus, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  BellOff,
+  Check,
+  History,
+  Loader2,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { useOpsGroup, useOpsSources, useOpsWatches, useSyncOpsGroup, useSyncOpsGroupTransitions } from "../../hooks/useSyncOps";
-import { useActiveWorkspaceKey, useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
-import { useHeldSeries, useWatchSeries, useWatchSeriesLive } from "../../hooks/useSyncOpsMetrics";
+import {
+  useOpsGroup,
+  useOpsSources,
+  useOpsWatches,
+  useSyncOpsGroup,
+  useSyncOpsGroupTransitions,
+} from "../../hooks/useSyncOps";
+import {
+  useActiveWorkspaceKey,
+  useWorkspaceCollection,
+} from "../../hooks/useWorkspaceCollection";
+import {
+  useHeldSeries,
+  useWatchSeries,
+  useWatchSeriesLive,
+} from "../../hooks/useSyncOpsMetrics";
 import { useInboxStore } from "../../store/inboxStore";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { relTimeShort } from "../../lib/utils";
 import { MONITOR_LIMITS } from "@codecast/shared/contracts/metricMonitor";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { HealthPill, MetricChart } from "./MetricChart";
-import { HEALTH_LOOK, KIND_LABEL, METRIC_RANGES, crossings, durationShort, formatMeasure, formatPct, formatValue, inWindow, measuresCount, isMetricRange, isMutedAt, rangeWindow, spanLabel, stampLabel, watchHealth, windowName, type MetricRange, type Pt, type Win } from "./metricModel";
+import {
+  HEALTH_LOOK,
+  KIND_LABEL,
+  METRIC_RANGES,
+  crossings,
+  durationShort,
+  formatMeasure,
+  formatPct,
+  formatValue,
+  inWindow,
+  measuresCount,
+  isMetricRange,
+  isMutedAt,
+  rangeWindow,
+  spanLabel,
+  stampLabel,
+  watchHealth,
+  windowName,
+  type MetricRange,
+  type Pt,
+  type Win,
+} from "./metricModel";
 import { stats, weekHourCells } from "./metricStats";
-import { CARD_BUCKETS, DETAIL_BUCKETS, changeRange, changeSpan, changeState, changeTone, chartPoints, fullestHeld, periodChange, rangeChange, shiftPoints, stripMean, withAnnouncedReads, type SeriesSpec } from "./metricSeries";
-import { currentEpisodeSince, episodeSummary, runningCrossing, relatedShips, shipMarks, SHIPS_SHOWN_MAX, transitionRows, transitionsIn, watchErrorText, watchMarks, windowAround, type ChartMark, type ShipTask, type TransitionRow } from "./metricEvents";
+import {
+  CARD_BUCKETS,
+  DETAIL_BUCKETS,
+  changeRange,
+  changeSpan,
+  changeState,
+  changeTone,
+  chartPoints,
+  fullestHeld,
+  periodChange,
+  rangeChange,
+  shiftPoints,
+  stripMean,
+  withAnnouncedReads,
+  type SeriesSpec,
+} from "./metricSeries";
+import {
+  currentEpisodeSince,
+  episodeSummary,
+  runningCrossing,
+  relatedShips,
+  shipMarks,
+  SHIPS_SHOWN_MAX,
+  transitionRows,
+  transitionsIn,
+  watchErrorText,
+  watchMarks,
+  windowAround,
+  type ChartMark,
+  type ShipTask,
+  type TransitionRow,
+} from "./metricEvents";
 import { allWindow, intervalLabel } from "./metricEditing";
 import { opsHref } from "./opsPaths";
 import { ShareControl } from "../ShareControl";
 import { OpsNotFound } from "./OpsShellParts";
-import { OpsFeedEmpty, ProviderIcon, SOURCE_PROVIDER_LABEL, useOpsFeed } from "./parts";
+import {
+  OpsFeedEmpty,
+  ProviderIcon,
+  SOURCE_PROVIDER_LABEL,
+  useOpsFeed,
+} from "./parts";
 import { QueryEditor, WatchSettings } from "./WatchEditor";
 import { AlertRule } from "./AlertRule";
 import { removeWatchLedger } from "./watchQuery";
@@ -67,7 +150,14 @@ const autoBackfilled = new Set<string>();
 const ELSEWHERE_SPEC: SeriesSpec = { kind: "range", range: "7d" };
 const ELSEWHERE_PREV_SPEC: SeriesSpec = { kind: "prev", range: "7d" };
 /** The labels of the page's stat strip, painted at once while the watch list is on its way. */
-const SKELETON_STATS = ["Now", "Last 7d vs prior 7d", "Line", "Range", "Mean", "Episodes"];
+const SKELETON_STATS = [
+  "Now",
+  "Last 7d vs prior 7d",
+  "Line",
+  "Range",
+  "Mean",
+  "Episodes",
+];
 /** A read of older values newer than this is the answer: the page does not ask again by itself. */
 const BACKFILL_FRESH_MS = 6 * 3_600_000;
 
@@ -84,18 +174,39 @@ export function MetricPage({ id }: { id: string }) {
  * workspace the person can read) names where it lives, so a shared alert link
  * offers the switch instead of a dead end, the way issues and replays do.
  */
-function MetricNotFound({ id, feed }: { id: string; feed: ReturnType<typeof useOpsFeed> }) {
+function MetricNotFound({
+  id,
+  feed,
+}: {
+  id: string;
+  feed: ReturnType<typeof useOpsFeed>;
+}) {
   const one = useQueryNoThrow(api.metrics.getWatch, { watch: id });
   const active = useActiveWorkspaceKey();
   const elsewhere = one.data?.watch as OpsWatch | undefined;
   const found = elsewhere?.workspace ?? null;
   const workspace = found && found !== active ? found : null;
-  if (feed?.error && !feed.ready && !workspace) return <div className="mx-page"><OpsFeedEmpty feeds={[feed]} what={id} title={id} /></div>;
+  if (feed?.error && !feed.ready && !workspace)
+    return (
+      <div className="mx-page">
+        <OpsFeedEmpty feeds={[feed]} what={id} title={id} />
+      </div>
+    );
   if (!feed?.ready && !workspace) return <MetricPageSkeleton id={id} />;
   return (
     <>
-      {workspace && elsewhere && <ElsewherePreview watch={elsewhere} issue={(one.data?.group as ElsewhereIssue | null | undefined) ?? null} />}
-      <OpsNotFound id={id} kind="metric" workspace={workspace} checking={!workspace && !one.data && !one.error} />
+      {workspace && elsewhere && (
+        <ElsewherePreview
+          watch={elsewhere}
+          issue={(one.data?.group as ElsewhereIssue | null | undefined) ?? null}
+        />
+      )}
+      <OpsNotFound
+        id={id}
+        kind="metric"
+        workspace={workspace}
+        checking={!workspace && !one.data && !one.error}
+      />
     </>
   );
 }
@@ -115,20 +226,49 @@ function MetricPageSkeleton({ id }: { id: string }) {
       <header className="mxp-head">
         <div className="mxp-title">
           <h1 className="ops-mono mxp-dim">{id}</h1>
-          <div className="mxp-facts"><span className="mx-skel" style={{ width: 64 }} /><span className="mx-skel" style={{ width: 96 }} /></div>
+          <div className="mxp-facts">
+            <span className="mx-skel" style={{ width: 64 }} />
+            <span className="mx-skel" style={{ width: 96 }} />
+          </div>
         </div>
       </header>
       <div className="mxp-hero" data-loading="">
-        <div className="mxp-now"><b className="mxp-now-value">–</b></div>
-        <StatLine items={SKELETON_STATS.slice(1).map((l) => ({ key: l, label: l, value: "–" }))} />
+        <div className="mxp-now">
+          <b className="mxp-now-value">–</b>
+        </div>
+        <StatLine
+          items={SKELETON_STATS.slice(1).map((l) => ({
+            key: l,
+            label: l,
+            value: "–",
+          }))}
+        />
       </div>
       <section className="mxp-plot">
         <div className="mxp-bar">
           <span className="mx-seg" role="group" aria-label="Time range">
-            {METRIC_RANGES.map((r) => <button key={r.key} type="button" aria-pressed={range === r.key} disabled>{r.label}</button>)}
+            {METRIC_RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                aria-pressed={range === r.key}
+                disabled
+              >
+                {r.label}
+              </button>
+            ))}
           </span>
         </div>
-        <MetricChart points={[]} win={win} interval_ms={60_000} direction="above" height={340} full loading label={`${id}, loading`} />
+        <MetricChart
+          points={[]}
+          win={win}
+          interval_ms={60_000}
+          direction="above"
+          height={340}
+          full
+          loading
+          label={`${id}, loading`}
+        />
       </section>
     </div>
   );
@@ -139,15 +279,33 @@ function MetricPageSkeleton({ id }: { id: string }) {
  * judge from: its state, value, line and source, the last 7 days drawn, and
  * its issue. The switch below it is the way to change anything.
  */
-type ElsewhereIssue = { short_id: string; title?: string; last_transition?: string | null; last_transition_at?: number | null };
+type ElsewhereIssue = {
+  short_id: string;
+  title?: string;
+  last_transition?: string | null;
+  last_transition_at?: number | null;
+};
 
-function ElsewherePreview({ watch, issue }: { watch: OpsWatch; issue: ElsewhereIssue | null }) {
+function ElsewherePreview({
+  watch,
+  issue,
+}: {
+  watch: OpsWatch;
+  issue: ElsewhereIssue | null;
+}) {
   const now = useCoarseNow(30_000);
   const series = useWatchSeries(watch._id, ELSEWHERE_SPEC, DETAIL_BUCKETS);
   // The change reads the same card-size pair the watch page and the overview read (rangeChange), so the preview says the number they say.
   const changeCur = useWatchSeries(watch._id, ELSEWHERE_SPEC, CARD_BUCKETS);
-  const changePrev = useWatchSeries(watch._id, ELSEWHERE_PREV_SPEC, CARD_BUCKETS);
-  const points = useMemo(() => chartPoints(series, watch.points), [series, watch.points]);
+  const changePrev = useWatchSeries(
+    watch._id,
+    ELSEWHERE_PREV_SPEC,
+    CARD_BUCKETS,
+  );
+  const points = useMemo(
+    () => chartPoints(series, watch.points),
+    [series, watch.points],
+  );
   const win = rangeWindow("7d", points, now);
   const visible = points.filter((p) => p.at >= win.from && p.at <= win.to);
   const st = series ? stats(visible) : null;
@@ -155,9 +313,20 @@ function ElsewherePreview({ watch, issue }: { watch: OpsWatch; issue: ElsewhereI
   const fmt = (v: number) => formatMeasure(v, watch.unit, integral);
   const change = rangeChange(changeCur, changePrev, watch.points, "7d", now);
   // The alert's start the monitor announced, the same one the watch page and the overview time from.
-  const since = currentEpisodeSince(watch, issue ? { last_transition: issue.last_transition ?? undefined, last_transition_at: issue.last_transition_at ?? undefined } : null);
+  const since = currentEpisodeSince(
+    watch,
+    issue
+      ? {
+          last_transition: issue.last_transition ?? undefined,
+          last_transition_at: issue.last_transition_at ?? undefined,
+        }
+      : null,
+  );
   return (
-    <div className="mx-page mxp mx-elsewhere" data-metric-elsewhere={watch.short_id}>
+    <div
+      className="mx-page mxp mx-elsewhere"
+      data-metric-elsewhere={watch.short_id}
+    >
       <header className="mxp-head">
         <div className="mxp-title">
           <h1>{watch.name}</h1>
@@ -165,27 +334,86 @@ function ElsewherePreview({ watch, issue }: { watch: OpsWatch; issue: ElsewhereI
             {watch.source_name && <span>{watch.source_name}</span>}
             <span>{KIND_LABEL[watch.query_kind] ?? watch.query_kind}</span>
             <span>every {intervalLabel(watch.interval_ms)}</span>
-            {issue && <span className="ops-mono" title={issue.title}>{issue.short_id}</span>}
+            {issue && (
+              <span className="ops-mono" title={issue.title}>
+                {issue.short_id}
+              </span>
+            )}
           </div>
         </div>
         <div className="mxp-actions">
-          <ShareControl label="metric" path={opsHref.metric(watch.short_id || watch._id)} />
+          <ShareControl
+            label="metric"
+            path={opsHref.metric(watch.short_id || watch._id)}
+          />
         </div>
       </header>
       <div className="mxp-hero">
         <div className="mxp-now">
-          <b className="mxp-now-value" data-tone={watchHealth(watch) === "alert" ? "bad" : undefined}>{watch.last_value === null || watch.last_value === undefined ? "–" : formatValue(watch.last_value, watch.unit)}</b>
+          <b
+            className="mxp-now-value"
+            data-tone={watchHealth(watch) === "alert" ? "bad" : undefined}
+          >
+            {watch.last_value === null || watch.last_value === undefined
+              ? "–"
+              : formatValue(watch.last_value, watch.unit)}
+          </b>
           <div className="mxp-now-side">
             <HealthPill watch={watch} now={now} since={since} />
-            {watch.last_at ? <span className="mxp-dim">read {relTimeShort(watch.last_at, now)}</span> : null}
+            {watch.last_at ? (
+              <span className="mxp-dim">
+                read {relTimeShort(watch.last_at, now)}
+              </span>
+            ) : null}
           </div>
         </div>
-        <StatLine items={[
-          { key: "change", label: "Last 7d vs prior", value: change ? (change.pct === null ? `${change.change >= 0 ? "+" : "-"}${fmt(Math.abs(change.change))}` : formatPct(change.pct)) : "–", tone: change ? changeTone(watch, change.change) : undefined, sub: change ? `${fmt(change.now)} vs ${fmt(change.base)}` : !changeCur || !changePrev ? "reading…" : "no values 7d earlier" },
-          { key: "line", label: "Line", value: watch.threshold === undefined ? "none" : `${watch.direction === "above" ? ">" : "<"} ${formatValue(watch.threshold, watch.unit)}`, sub: watch.warn !== undefined ? `warn ${formatValue(watch.warn, watch.unit)}` : undefined },
-          { key: "range", label: "Range 7d", value: st ? (st.min === st.max ? fmt(st.min) : `${fmt(st.min)} – ${fmt(st.max)}`) : "–" },
-          { key: "mean", label: "Mean 7d", value: ((m) => (m !== null ? fmt(m) : "–"))(stripMean(st ? st.avg : null, change, "7d", false)) },
-        ]} />
+        <StatLine
+          items={[
+            {
+              key: "change",
+              label: "Last 7d vs prior",
+              value: change
+                ? change.pct === null
+                  ? `${change.change >= 0 ? "+" : "-"}${fmt(Math.abs(change.change))}`
+                  : formatPct(change.pct)
+                : "–",
+              tone: change ? changeTone(watch, change.change) : undefined,
+              sub: change
+                ? `${fmt(change.now)} vs ${fmt(change.base)}`
+                : !changeCur || !changePrev
+                  ? "reading…"
+                  : "no values 7d earlier",
+            },
+            {
+              key: "line",
+              label: "Line",
+              value:
+                watch.threshold === undefined
+                  ? "none"
+                  : `${watch.direction === "above" ? ">" : "<"} ${formatValue(watch.threshold, watch.unit)}`,
+              sub:
+                watch.warn !== undefined
+                  ? `warn ${formatValue(watch.warn, watch.unit)}`
+                  : undefined,
+            },
+            {
+              key: "range",
+              label: "Range 7d",
+              value: st
+                ? st.min === st.max
+                  ? fmt(st.min)
+                  : `${fmt(st.min)} – ${fmt(st.max)}`
+                : "–",
+            },
+            {
+              key: "mean",
+              label: "Mean 7d",
+              value: ((m) => (m !== null ? fmt(m) : "–"))(
+                stripMean(st ? st.avg : null, change, "7d", false),
+              ),
+            },
+          ]}
+        />
       </div>
       <section className="mxp-plot">
         <MetricChart
@@ -208,7 +436,11 @@ function ElsewherePreview({ watch, issue }: { watch: OpsWatch; issue: ElsewhereI
 }
 
 /** The range and zoom in the address (?range=7d, ?from=&to=), so a view survives a reload and can be shared. */
-function useChartWindowParams(): { range: MetricRange; zoom: Win | null; set: (range: MetricRange, zoom: Win | null) => void } {
+function useChartWindowParams(): {
+  range: MetricRange;
+  zoom: Win | null;
+  set: (range: MetricRange, zoom: Win | null) => void;
+} {
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -260,18 +492,37 @@ function WatchView({ watch }: { watch: OpsWatch }) {
   // overview's card-size one, whichever reaches further back: fullestHeld);
   // with neither, the plot is loading. Nothing that only a live answer can
   // tell (no values held, no values earlier, too few values) is said meanwhile.
-  const rangeSpec = useMemo<SeriesSpec>(() => ({ kind: "range", range }), [range]);
-  const { series: rangeSeries, live: rangeLive } = useWatchSeriesLive(watch._id, rangeSpec, DETAIL_BUCKETS);
+  const rangeSpec = useMemo<SeriesSpec>(
+    () => ({ kind: "range", range }),
+    [range],
+  );
+  const { series: rangeSeries, live: rangeLive } = useWatchSeriesLive(
+    watch._id,
+    rangeSpec,
+    DETAIL_BUCKETS,
+  );
   const heldRange = useHeldSeries(watch._id, rangeSpec);
-  const zoomSpec = useMemo<SeriesSpec | null>(() => (zoom ? { kind: "zoom", win: zoom } : null), [zoom]);
-  const { series: zoomSeries, live: zoomLive } = useWatchSeriesLive(zoomSpec ? watch._id : null, zoomSpec, DETAIL_BUCKETS);
-  const rangeAnswer = rangeLive ? rangeSeries : fullestHeld(rangeSeries, heldRange);
+  const zoomSpec = useMemo<SeriesSpec | null>(
+    () => (zoom ? { kind: "zoom", win: zoom } : null),
+    [zoom],
+  );
+  const { series: zoomSeries, live: zoomLive } = useWatchSeriesLive(
+    zoomSpec ? watch._id : null,
+    zoomSpec,
+    DETAIL_BUCKETS,
+  );
+  const rangeAnswer = rangeLive
+    ? rangeSeries
+    : fullestHeld(rangeSeries, heldRange);
   const shown = zoomSeries ?? rangeAnswer;
   const loading = !shown;
   // The answer on screen is not this window's own live one yet.
   const pending = zoom ? !zoomLive : !rangeLive;
   const refreshing = !loading && pending;
-  const points = useMemo(() => (shown ? chartPoints(shown, watch.points) : []), [shown, watch.points]);
+  const points = useMemo(
+    () => (shown ? chartPoints(shown, watch.points) : []),
+    [shown, watch.points],
+  );
   const heldFrom = rangeAnswer?.held_from ?? null;
   const step = Math.max(watch.interval_ms, shown?.step_ms ?? 0);
 
@@ -280,42 +531,117 @@ function WatchView({ watch }: { watch: OpsWatch }) {
   // All runs from the earliest thing known about the watch (its first value, its first announced alert, its issue's first sighting), so the episodes it counts are the issue's.
   const firstAnnounced = announced[0]?.at ?? null;
   const all = useMemo(
-    () => (range === "all" && !loading ? allWindow({ heldFrom, firstAnnounced, firstSeen: group?.first_seen ?? null, points, now, step }) : null),
-    [range, loading, heldFrom, firstAnnounced, group?.first_seen, points, now, step],
+    () =>
+      range === "all" && !loading
+        ? allWindow({
+            heldFrom,
+            firstAnnounced,
+            firstSeen: group?.first_seen ?? null,
+            points,
+            now,
+            step,
+          })
+        : null,
+    [
+      range,
+      loading,
+      heldFrom,
+      firstAnnounced,
+      group?.first_seen,
+      points,
+      now,
+      step,
+    ],
   );
   const base = all?.win ?? rangeWindow(range, points, now);
   // A value or two held weeks before the rest: named on the bar, one press shows the window from it.
-  const stray = zoom ? null : all?.stray ?? null;
+  const stray = zoom ? null : (all?.stray ?? null);
   const win = zoom ?? base;
   const span = win.to - win.from;
   // The stretch of the window before the first value held, named on the chart.
-  const held = all?.stray ? base.from : heldFrom ?? points[0]?.at ?? null;
-  const gap = !loading && !pending && (held === null || held - win.from > span / 50) ? { from: win.from, to: Math.min(win.to, held ?? win.to) } : null;
-  const episodeBands = useMemo(() => episodes.map((e) => ({ from: e.from, to: e.to ?? now })), [episodes, now]);
+  const held = all?.stray ? base.from : (heldFrom ?? points[0]?.at ?? null);
+  const gap =
+    !loading && !pending && (held === null || held - win.from > span / 50)
+      ? { from: win.from, to: Math.min(win.to, held ?? win.to) }
+      : null;
+  const episodeBands = useMemo(
+    () => episodes.map((e) => ({ from: e.from, to: e.to ?? now })),
+    [episodes, now],
+  );
   // The period before, from the server, laid over this one.
-  const prevSpec = useMemo<SeriesSpec | null>(() => (zoom ? { kind: "zoom", win: { from: zoom.from - (zoom.to - zoom.from), to: zoom.from } } : range === "all" ? null : { kind: "prev", range }), [zoom, range]);
-  const { series: prevSeries, live: prevLive } = useWatchSeriesLive(prevSpec ? watch._id : null, prevSpec, DETAIL_BUCKETS);
-  const prev = useMemo(() => (prevSeries ? shiftPoints(prevSeries.points, span) : []), [prevSeries, span]);
+  const prevSpec = useMemo<SeriesSpec | null>(
+    () =>
+      zoom
+        ? {
+            kind: "zoom",
+            win: { from: zoom.from - (zoom.to - zoom.from), to: zoom.from },
+          }
+        : range === "all"
+          ? null
+          : { kind: "prev", range },
+    [zoom, range],
+  );
+  const { series: prevSeries, live: prevLive } = useWatchSeriesLive(
+    prevSpec ? watch._id : null,
+    prevSpec,
+    DETAIL_BUCKETS,
+  );
+  const prev = useMemo(
+    () => (prevSeries ? shiftPoints(prevSeries.points, span) : []),
+    [prevSeries, span],
+  );
   // The change stat, one rule at every range (rangeChange), read off the very
   // series the overview's card reads (card size, changeRange: All reads the
   // last 7 days), so the page and the card say the same number whichever
   // answer arrived first. A zoom compares its span with the one before it.
   const cRange = changeRange(range);
-  const changeCurSpec = useMemo<SeriesSpec | null>(() => (zoom ? null : { kind: "range", range: cRange }), [zoom, cRange]);
-  const changePrevSpec = useMemo<SeriesSpec | null>(() => (zoom ? null : { kind: "prev", range: cRange }), [zoom, cRange]);
-  const changeCur = useWatchSeriesLive(changeCurSpec ? watch._id : null, changeCurSpec, CARD_BUCKETS);
-  const changePrev = useWatchSeriesLive(changePrevSpec ? watch._id : null, changePrevSpec, CARD_BUCKETS);
+  const changeCurSpec = useMemo<SeriesSpec | null>(
+    () => (zoom ? null : { kind: "range", range: cRange }),
+    [zoom, cRange],
+  );
+  const changePrevSpec = useMemo<SeriesSpec | null>(
+    () => (zoom ? null : { kind: "prev", range: cRange }),
+    [zoom, cRange],
+  );
+  const changeCur = useWatchSeriesLive(
+    changeCurSpec ? watch._id : null,
+    changeCurSpec,
+    CARD_BUCKETS,
+  );
+  const changePrev = useWatchSeriesLive(
+    changePrevSpec ? watch._id : null,
+    changePrevSpec,
+    CARD_BUCKETS,
+  );
   const cspan = zoom ? span : changeSpan(range);
 
-  const visible = useMemo(() => inWindow(points, win).filter((p) => p.at >= win.from && p.at <= win.to), [points, win]);
+  const visible = useMemo(
+    () =>
+      inWindow(points, win).filter((p) => p.at >= win.from && p.at <= win.to),
+    [points, win],
+  );
   const st = loading ? null : stats(visible);
   const change = zoom
-    ? (zoomSeries ? periodChange(points, prevSeries?.points ?? null, cspan, win.to) : null)
-    : rangeChange(changeCur.series, changePrev.series, watch.points, range, now);
-  const changeIs = changeState(change, zoom ? zoomLive && prevLive : changeCur.live && changePrev.live);
+    ? zoomSeries
+      ? periodChange(points, prevSeries?.points ?? null, cspan, win.to)
+      : null
+    : rangeChange(
+        changeCur.series,
+        changePrev.series,
+        watch.points,
+        range,
+        now,
+      );
+  const changeIs = changeState(
+    change,
+    zoom ? zoomLive && prevLive : changeCur.live && changePrev.live,
+  );
   const mean = stripMean(st ? st.avg : null, change, range, !!zoom);
   const named = windowName(win, range === "all" && !zoom);
-  const integral = useMemo(() => measuresCount(watch.points, visible), [watch.points, visible]);
+  const integral = useMemo(
+    () => measuresCount(watch.points, visible),
+    [watch.points, visible],
+  );
   const fmt = (v: number) => formatMeasure(v, watch.unit, integral);
   const health = watchHealth(watch);
   const muted = isMutedAt(watch, now);
@@ -327,18 +653,44 @@ function WatchView({ watch }: { watch: OpsWatch }) {
   useWatchEffect(() => {
     if (!gap || !backfillable || reading || pending) return;
     const key = `${watch._id}:${range}`;
-    if (autoBackfilled.has(key) || (watch.history && Date.now() - watch.history.at < BACKFILL_FRESH_MS)) return;
+    if (
+      autoBackfilled.has(key) ||
+      (watch.history && Date.now() - watch.history.at < BACKFILL_FRESH_MS)
+    )
+      return;
     autoBackfilled.add(key);
     useInboxStore.getState().loadOpsWatchHistory(watch._id);
   }, [!!gap, backfillable, reading, pending, range, watch._id]);
 
   // The chart draws the announced transitions' own reads where the series holds no value near them, so a recovery sits on its line.
-  const drawnPoints = useMemo(() => (watch.threshold === undefined ? points : withAnnouncedReads(points, announced, step)), [points, announced, step, watch.threshold]);
-  const tolerance = Math.max(watch.interval_ms * ((watch.eval_reads ?? 1) + 1), step * 2);
-  const transitions = useMemo(() => transitionRows(announced, crossings(points, watch.threshold, watch.direction, true), tolerance), [announced, points, watch.threshold, watch.direction, tolerance]);
+  const drawnPoints = useMemo(
+    () =>
+      watch.threshold === undefined
+        ? points
+        : withAnnouncedReads(points, announced, step),
+    [points, announced, step, watch.threshold],
+  );
+  const tolerance = Math.max(
+    watch.interval_ms * ((watch.eval_reads ?? 1) + 1),
+    step * 2,
+  );
+  const transitions = useMemo(
+    () =>
+      transitionRows(
+        announced,
+        crossings(points, watch.threshold, watch.direction, true),
+        tolerance,
+      ),
+    [announced, points, watch.threshold, watch.direction, tolerance],
+  );
   const inWin = episodeSummary(episodes, win, now);
 
-  const taskStatus = useInboxStore((s) => (group?.signal_task_id ? (s.tasks as Record<string, { status?: string }>)[group.signal_task_id]?.status : undefined));
+  const taskStatus = useInboxStore((s) =>
+    group?.signal_task_id
+      ? (s.tasks as Record<string, { status?: string }>)[group.signal_task_id]
+          ?.status
+      : undefined,
+  );
   const stage = group ? fixStage(group, taskStatus) : null;
   const ownMarks = useWatchMarks(watch, group, announced);
   const ships = useShipMarks(win, ownMarks, source, sources);
@@ -348,58 +700,173 @@ function WatchView({ watch }: { watch: OpsWatch }) {
   const zoomTo = (w: Win | null) => set(range, w);
   const error = watchErrorText(watch);
 
-  const lineText = watch.threshold === undefined ? "none" : `${watch.direction === "above" ? ">" : "<"} ${formatValue(watch.threshold, watch.unit)}`;
+  const lineText =
+    watch.threshold === undefined
+      ? "none"
+      : `${watch.direction === "above" ? ">" : "<"} ${formatValue(watch.threshold, watch.unit)}`;
   const statItems: StatItem[] = [
     {
       key: "change",
-      label: zoom ? `Zoom vs prior ${spanLabel(cspan)}` : `Last ${spanLabel(cspan)} vs prior`,
-      value: change ? (change.pct === null ? `${change.change >= 0 ? "+" : "-"}${fmt(Math.abs(change.change))}` : formatPct(change.pct)) : "–",
+      label: zoom
+        ? `Zoom vs prior ${spanLabel(cspan)}`
+        : `Last ${spanLabel(cspan)} vs prior`,
+      value: change
+        ? change.pct === null
+          ? `${change.change >= 0 ? "+" : "-"}${fmt(Math.abs(change.change))}`
+          : formatPct(change.pct)
+        : "–",
       tone: change ? changeTone(watch, change.change) : undefined,
-      sub: change ? `${fmt(change.now)} vs ${fmt(change.base)}` : changeIs === "reading" ? "reading…" : `no values ${spanLabel(cspan)} earlier`,
+      sub: change
+        ? `${fmt(change.now)} vs ${fmt(change.base)}`
+        : changeIs === "reading"
+          ? "reading…"
+          : `no values ${spanLabel(cspan)} earlier`,
       title: `The mean of the ${zoom ? "zoomed span" : `last ${spanLabel(cspan)}`} against the mean of the ${spanLabel(cspan)} before it`,
     },
-    { key: "line", label: "Line", value: lineText, sub: watch.warn !== undefined ? `warn ${formatValue(watch.warn, watch.unit)}` : undefined },
-    { key: "range", label: `Range ${named.short}`, value: st ? (st.min === st.max ? fmt(st.min) : `${fmt(st.min)} – ${fmt(st.max)}`) : "–" },
-    { key: "mean", label: "Mean", value: mean !== null ? fmt(mean) : "–", sub: st?.uneven ? "time-weighted" : undefined, title: st?.uneven ? "Each value counts for as long as it stood" : undefined },
-    ...(watch.threshold !== undefined ? [{ key: "episodes", label: `Episodes ${named.short}`, value: inWin.count ? String(inWin.count) : "none", tone: inWin.count ? ("bad" as const) : undefined, sub: inWin.count ? `${durationShort(inWin.total)} alerting` : undefined }] : []),
-    ...(since !== null ? [{ key: "current", label: "This episode", value: durationShort(now - since), tone: "bad" as const, sub: `since ${stampLabel(since)}` }] : []),
+    {
+      key: "line",
+      label: "Line",
+      value: lineText,
+      sub:
+        watch.warn !== undefined
+          ? `warn ${formatValue(watch.warn, watch.unit)}`
+          : undefined,
+    },
+    {
+      key: "range",
+      label: `Range ${named.short}`,
+      value: st
+        ? st.min === st.max
+          ? fmt(st.min)
+          : `${fmt(st.min)} – ${fmt(st.max)}`
+        : "–",
+    },
+    {
+      key: "mean",
+      label: "Mean",
+      value: mean !== null ? fmt(mean) : "–",
+      sub: st?.uneven ? "time-weighted" : undefined,
+      title: st?.uneven
+        ? "Each value counts for as long as it stood"
+        : undefined,
+    },
+    ...(watch.threshold !== undefined
+      ? [
+          {
+            key: "episodes",
+            label: `Episodes ${named.short}`,
+            value: inWin.count ? String(inWin.count) : "none",
+            tone: inWin.count ? ("bad" as const) : undefined,
+            sub: inWin.count
+              ? `${durationShort(inWin.total)} alerting`
+              : undefined,
+          },
+        ]
+      : []),
+    ...(since !== null
+      ? [
+          {
+            key: "current",
+            label: "This episode",
+            value: durationShort(now - since),
+            tone: "bad" as const,
+            sub: `since ${stampLabel(since)}`,
+          },
+        ]
+      : []),
   ];
-  const heat = useMemo(() => (span >= 6 * 86_400_000 ? weekHourCells(visible) : []), [visible, span]);
+  const heat = useMemo(
+    () => (span >= 6 * 86_400_000 ? weekHourCells(visible) : []),
+    [visible, span],
+  );
 
   return (
-    <div className="mx-page mxp" data-metric-page={watch.short_id} data-health={health}>
+    <div
+      className="mx-page mxp"
+      data-metric-page={watch.short_id}
+      data-health={health}
+    >
       <header className="mxp-head">
         <div className="mxp-title">
           <h1>{watch.name}</h1>
           <div className="mxp-facts">
             {source && (
-              <Link href={opsHref.tab("metrics", { source: source.name })} className="mxp-src">
-                <ProviderIcon provider={source.provider} />{source.name}
+              <Link
+                href={opsHref.tab("metrics", { source: source.name })}
+                className="mxp-src"
+              >
+                <ProviderIcon provider={source.provider} />
+                {source.name}
               </Link>
             )}
             <span>{KIND_LABEL[watch.query_kind] ?? watch.query_kind}</span>
             <span>every {intervalLabel(watch.interval_ms)}</span>
-            {(watch.eval_reads ?? 1) > 1 && <span>{watch.eval_reads} reads in a row</span>}
-            {group && <Link href={opsHref.issue(group.short_id)} className="ops-mono mxp-link">{group.short_id}</Link>}
+            {(watch.eval_reads ?? 1) > 1 && (
+              <span>{watch.eval_reads} reads in a row</span>
+            )}
+            {group && (
+              <Link
+                href={opsHref.issue(group.short_id)}
+                className="ops-mono mxp-link"
+              >
+                {group.short_id}
+              </Link>
+            )}
           </div>
         </div>
         <div className="mxp-actions">
-          {watch.threshold !== undefined && <MuteControl watch={watch} muted={muted} onMute={(until) => update(watch._id, { muted_until: until })} />}
-          {group && stage && <FixAction group={group} source={source} stage={stage} now={now} />}
-          <ShareControl label="metric" path={opsHref.metric(watch.short_id || watch._id)} />
+          {watch.threshold !== undefined && (
+            <MuteControl
+              watch={watch}
+              muted={muted}
+              onMute={(until) => update(watch._id, { muted_until: until })}
+            />
+          )}
+          {group && stage && (
+            <FixAction group={group} source={source} stage={stage} now={now} />
+          )}
+          <ShareControl
+            label="metric"
+            path={opsHref.metric(watch.short_id || watch._id)}
+          />
         </div>
       </header>
 
-      {error && !paused && <ReadError watch={watch} source={source} error={error} now={now} />}
+      {error && !paused && (
+        <ReadError watch={watch} source={source} error={error} now={now} />
+      )}
 
       <div className="mxp-hero" data-loading={pending ? "" : undefined}>
         <div className="mxp-now">
-          <b className="mxp-now-value" data-tone={health === "alert" ? "bad" : undefined}>{watch.last_value === null || watch.last_value === undefined ? "–" : formatValue(watch.last_value, watch.unit)}</b>
+          <b
+            className="mxp-now-value"
+            data-tone={health === "alert" ? "bad" : undefined}
+          >
+            {watch.last_value === null || watch.last_value === undefined
+              ? "–"
+              : formatValue(watch.last_value, watch.unit)}
+          </b>
           <div className="mxp-now-side">
             {health === "series" && !muted ? (
-              <button type="button" className="mx-health mx-noline" style={{ ["--ink" as string]: HEALTH_LOOK.series.ink }} onClick={focusLine} data-health="series" data-add-line><span>No line</span><span>Add line</span></button>
-            ) : <HealthPill watch={watch} now={now} since={since} />}
-            {watch.last_at ? <span className="mxp-dim">read {relTimeShort(watch.last_at, now)}</span> : null}
+              <button
+                type="button"
+                className="mx-health mx-noline"
+                style={{ ["--ink" as string]: HEALTH_LOOK.series.ink }}
+                onClick={focusLine}
+                data-health="series"
+                data-add-line
+              >
+                <span>No line</span>
+                <span>Add line</span>
+              </button>
+            ) : (
+              <HealthPill watch={watch} now={now} since={since} />
+            )}
+            {watch.last_at ? (
+              <span className="mxp-dim">
+                read {relTimeShort(watch.last_at, now)}
+              </span>
+            ) : null}
           </div>
         </div>
         <StatLine items={statItems} />
@@ -409,45 +876,113 @@ function WatchView({ watch }: { watch: OpsWatch }) {
         <div className="mxp-bar">
           <span className="mx-seg" role="group" aria-label="Time range">
             {METRIC_RANGES.map((r) => (
-              <button key={r.key} type="button" aria-pressed={!zoom && range === r.key} onClick={() => set(r.key, null)} data-metric-range={r.key}>{r.label}</button>
+              <button
+                key={r.key}
+                type="button"
+                aria-pressed={!zoom && range === r.key}
+                onClick={() => set(r.key, null)}
+                data-metric-range={r.key}
+              >
+                {r.label}
+              </button>
             ))}
           </span>
           {zoom && (
-            <button type="button" className="mxp-chip" data-on="" onClick={() => zoomTo(null)} data-metric-unzoom>
-              {stampLabel(zoom.from)} – {stampLabel(zoom.to)}<span aria-hidden>✕</span>
+            <button
+              type="button"
+              className="mxp-chip"
+              data-on=""
+              onClick={() => zoomTo(null)}
+              data-metric-unzoom
+            >
+              {stampLabel(zoom.from)} – {stampLabel(zoom.to)}
+              <span aria-hidden>✕</span>
             </button>
           )}
           {stray && (
-            <button type="button" className="mxp-chip" onClick={() => zoomTo({ from: stray.at - (now - stray.at) * 0.02, to: now })} title="Show the window from the earliest value" data-metric-stray={stray.count}>
-              {stray.count === 1 ? "1 value" : `${stray.count} values`} {shortDate(stray.at)}
+            <button
+              type="button"
+              className="mxp-chip"
+              onClick={() =>
+                zoomTo({ from: stray.at - (now - stray.at) * 0.02, to: now })
+              }
+              title="Show the window from the earliest value"
+              data-metric-stray={stray.count}
+            >
+              {stray.count === 1 ? "1 value" : `${stray.count} values`}{" "}
+              {shortDate(stray.at)}
             </button>
           )}
           {prevSpec && (
-            <button type="button" className="mxp-chip" aria-pressed={compare} data-on={compare ? "" : undefined} onClick={() => setCompare(!compare)} data-metric-compare>
-              <i data-k="prev" />vs previous {spanLabel(span)}
+            <button
+              type="button"
+              className="mxp-chip"
+              aria-pressed={compare}
+              data-on={compare ? "" : undefined}
+              onClick={() => setCompare(!compare)}
+              data-metric-compare
+            >
+              <i data-k="prev" />
+              vs previous {spanLabel(span)}
             </button>
           )}
           {ships.length > 0 && (
-            <button type="button" className="mxp-chip" aria-pressed={showShips} data-on={showShips ? "" : undefined} onClick={() => setShowShips(!showShips)} data-metric-ships={ships.length}>
-              <i data-k="deploy" />ships <b>{ships.length}</b>
+            <button
+              type="button"
+              className="mxp-chip"
+              aria-pressed={showShips}
+              data-on={showShips ? "" : undefined}
+              onClick={() => setShowShips(!showShips)}
+              data-metric-ships={ships.length}
+            >
+              <i data-k="deploy" />
+              ships <b>{ships.length}</b>
             </button>
           )}
           <span className="mxp-fill" />
           <span className="mxp-legend" aria-hidden>
-            {watch.threshold !== undefined && <span><i data-k="past" />past the line</span>}
-            {shown?.step_ms ? <span><i data-k="range" />min–max per {spanLabel(shown.step_ms)}</span> : null}
-            {watch.warn !== undefined && <span><i data-k="warn" />warn</span>}
-            {preview && <span><i data-k="preview" />query run</span>}
+            {watch.threshold !== undefined && (
+              <span>
+                <i data-k="past" />
+                past the line
+              </span>
+            )}
+            {shown?.step_ms ? (
+              <span>
+                <i data-k="range" />
+                min–max per {spanLabel(shown.step_ms)}
+              </span>
+            ) : null}
+            {watch.warn !== undefined && (
+              <span>
+                <i data-k="warn" />
+                warn
+              </span>
+            )}
+            {preview && (
+              <span>
+                <i data-k="preview" />
+                query run
+              </span>
+            )}
           </span>
           <button
             type="button"
             className="mxp-chip"
-            title={watch.history?.note ?? "Read the past values the source holds"}
+            title={
+              watch.history?.note ?? "Read the past values the source holds"
+            }
             disabled={reading}
-            onClick={() => useInboxStore.getState().loadOpsWatchHistory(watch._id)}
+            onClick={() =>
+              useInboxStore.getState().loadOpsWatchHistory(watch._id)
+            }
             data-ops-load-history
           >
-            {reading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <History className="w-3.5 h-3.5" />}
+            {reading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <History className="w-3.5 h-3.5" />
+            )}
             History
           </button>
         </div>
@@ -477,36 +1012,109 @@ function WatchView({ watch }: { watch: OpsWatch }) {
           gap={gap}
           episodes={watch.threshold !== undefined ? episodeBands : undefined}
           transitions={watch.threshold !== undefined ? transitions : undefined}
-          gapAction={gap && backfillable ? (
-            reading || !watch.history ? (
-              <span className="ops-dim inline-flex items-center gap-1" data-gap-reading><Loader2 className="w-3.5 h-3.5 animate-spin" />reading older values</span>
-            ) : (
-              <button type="button" className="ops-btn" title={watch.history.note} onClick={() => useInboxStore.getState().loadOpsWatchHistory(watch._id)} data-gap-backfill>
-                <History className="w-3.5 h-3.5" />{watch.history.note ? "Read again" : "Read older values"}
-              </button>
-            )
-          ) : null}
+          gapAction={
+            gap && backfillable ? (
+              reading || !watch.history ? (
+                <span
+                  className="ops-dim inline-flex items-center gap-1"
+                  data-gap-reading
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  reading older values
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="ops-btn"
+                  title={watch.history.note}
+                  onClick={() =>
+                    useInboxStore.getState().loadOpsWatchHistory(watch._id)
+                  }
+                  data-gap-backfill
+                >
+                  <History className="w-3.5 h-3.5" />
+                  {watch.history.note ? "Read again" : "Read older values"}
+                </button>
+              )
+            ) : null
+          }
         />
-        <AlertRule watch={watch} announced={episodes} history={visible} win={win} within={named.within} now={now} onDraft={setGhost} />
+        <AlertRule
+          watch={watch}
+          announced={episodes}
+          history={visible}
+          win={win}
+          within={named.within}
+          now={now}
+          onDraft={setGhost}
+        />
       </section>
 
       <div className="mxp-cols">
         <div className="mxp-main">
-          <TransitionsCard watch={watch} rows={transitions} win={win} within={named.within} since={since} now={now} provisional={refreshing} onZoom={(at) => zoomTo(windowAround(at, span, now))} />
-          {group && stage && <FixPanel group={group} source={source} stage={stage} episodes={episodes} now={now} />}
+          <TransitionsCard
+            watch={watch}
+            rows={transitions}
+            win={win}
+            within={named.within}
+            since={since}
+            now={now}
+            provisional={refreshing}
+            onZoom={(at) => zoomTo(windowAround(at, span, now))}
+          />
+          {group && stage && (
+            <FixPanel
+              group={group}
+              source={source}
+              stage={stage}
+              episodes={episodes}
+              now={now}
+            />
+          )}
           <div className="mxp-pair">
-            <DistributionCard watch={watch} history={visible} named={named} loading={loading || (pending && visible.length < 3)} provisional={refreshing} onDraft={setGhost} />
+            <DistributionCard
+              watch={watch}
+              history={visible}
+              named={named}
+              loading={loading || (pending && visible.length < 3)}
+              provisional={refreshing}
+              onDraft={setGhost}
+            />
             {heat.length >= 24 && (
               <OpsSection title="By weekday and hour" meta={named.short}>
-                <WeekHourHeatmap cells={heat} ink={watch.threshold !== undefined && watch.direction === "above" ? "orange" : "cyan"} noun={watch.unit ?? "value"} unit={watch.unit} height={190} />
+                <WeekHourHeatmap
+                  cells={heat}
+                  ink={
+                    watch.threshold !== undefined && watch.direction === "above"
+                      ? "orange"
+                      : "cyan"
+                  }
+                  noun={watch.unit ?? "value"}
+                  unit={watch.unit}
+                  height={190}
+                />
               </OpsSection>
             )}
           </div>
-          <QueryEditor watch={watch} source={source} onPreview={setPreview} highlight={highlightSql} />
+          <QueryEditor
+            watch={watch}
+            source={source}
+            onPreview={setPreview}
+            highlight={highlightSql}
+          />
         </div>
         <aside className="mxp-rail">
-          <WatchSettings watch={watch} source={source} removeLedger={removeWatchLedger(watch, group?.short_id ?? null)} />
-          <SourceCard watch={watch} source={source} heldFrom={heldFrom} now={now} />
+          <WatchSettings
+            watch={watch}
+            source={source}
+            removeLedger={removeWatchLedger(watch, group?.short_id ?? null)}
+          />
+          <SourceCard
+            watch={watch}
+            source={source}
+            heldFrom={heldFrom}
+            now={now}
+          />
         </aside>
       </div>
     </div>
@@ -514,21 +1122,53 @@ function WatchView({ watch }: { watch: OpsWatch }) {
 }
 
 /** The watch's story as chart markers, from the store: announced transitions, the problem task, the fix session, its commit, the resolve. */
-function useWatchMarks(watch: OpsWatch, group: OpsGroup | undefined, transitions: TransitionRow[]) {
+function useWatchMarks(
+  watch: OpsWatch,
+  group: OpsGroup | undefined,
+  transitions: TransitionRow[],
+) {
   const taskSig = useInboxStore((s) => {
-    const t = group?.signal_task_id ? (s.tasks as Record<string, any>)[group.signal_task_id] : undefined;
-    return t ? JSON.stringify([t.short_id, t.status, t.created_at, t.closed_at, t.landed?.sha]) : "";
+    const t = group?.signal_task_id
+      ? (s.tasks as Record<string, any>)[group.signal_task_id]
+      : undefined;
+    return t
+      ? JSON.stringify([
+          t.short_id,
+          t.status,
+          t.created_at,
+          t.closed_at,
+          t.landed?.sha,
+        ])
+      : "";
   });
   return useMemo(() => {
-    const task = group?.signal_task_id && taskSig ? (useInboxStore.getState().tasks as Record<string, any>)[group.signal_task_id] : null;
-    return watchMarks({ transitions, unit: watch.unit, group: group ?? null, task: task ? { ...task, _id: group!.signal_task_id! } : null, issueHref: group ? opsHref.issue(group.short_id) : undefined });
+    const task =
+      group?.signal_task_id && taskSig
+        ? (useInboxStore.getState().tasks as Record<string, any>)[
+            group.signal_task_id
+          ]
+        : null;
+    return watchMarks({
+      transitions,
+      unit: watch.unit,
+      group: group ?? null,
+      task: task ? { ...task, _id: group!.signal_task_id! } : null,
+      issueHref: group ? opsHref.issue(group.short_id) : undefined,
+    });
   }, [transitions, watch.unit, group, taskSig]);
 }
 
-const deploySig = (e: OpsEvent) => (e.kind === "deploy" ? `${e.created_at}|${e.sha ?? ""}|${e.title}` : "");
-const landedSig = (t: { landed?: { sha: string; at: number }; project_id?: string }) => (t.landed ? `${t.landed.sha}|${t.landed.at}|${t.project_id ?? ""}` : "");
+const deploySig = (e: OpsEvent) =>
+  e.kind === "deploy" ? `${e.created_at}|${e.sha ?? ""}|${e.title}` : "";
+const landedSig = (t: {
+  landed?: { sha: string; at: number };
+  project_id?: string;
+}) => (t.landed ? `${t.landed.sha}|${t.landed.at}|${t.project_id ?? ""}` : "");
 
-type LandedTask = ShipTask & { project_id?: string; landed: ShipTask["landed"] & { repository?: string } };
+type LandedTask = ShipTask & {
+  project_id?: string;
+  landed: ShipTask["landed"] & { repository?: string };
+};
 
 /**
  * The ships in the window that can move this watch, from the store: deploys
@@ -536,76 +1176,210 @@ type LandedTask = ShipTask & { project_id?: string; landed: ShipTask["landed"] &
  * tasks of the same project or repository (relatedShips). The watch's own
  * fix commit is already one of its own markers, so it is not drawn twice.
  */
-function useShipMarks(win: Win, own: ChartMark[], source: OpsSource | undefined, sources: OpsSource[]): ChartMark[] {
+function useShipMarks(
+  win: Win,
+  own: ChartMark[],
+  source: OpsSource | undefined,
+  sources: OpsSource[],
+): ChartMark[] {
   const events = useWorkspaceCollection<OpsEvent>("opsEvents", deploySig);
-  const tasks = useWorkspaceCollection<Omit<LandedTask, "landed"> & { landed?: LandedTask["landed"] }>("tasks", landedSig);
+  const tasks = useWorkspaceCollection<
+    Omit<LandedTask, "landed"> & { landed?: LandedTask["landed"] }
+  >("tasks", landedSig);
   return useMemo(() => {
-    const deploys = events.filter((e) => e.kind === "deploy").map((e) => ({ at: e.created_at, title: e.title, sha: e.sha, url: e.url, source: e.data?.source_name, source_id: e.source_id }));
+    const deploys = events
+      .filter((e) => e.kind === "deploy")
+      .map((e) => ({
+        at: e.created_at,
+        title: e.title,
+        sha: e.sha,
+        url: e.url,
+        source: e.data?.source_name,
+        source_id: e.source_id,
+      }));
     const landed = tasks.filter((t): t is LandedTask => !!t.landed);
     const related = relatedShips({ source, sources, deploys, tasks: landed });
-    const skip = own.filter((m) => m.kind === "ship").map((m) => m.label.replace(/^Landed /, ""));
-    return shipMarks({ deploys: related.deploys, tasks: related.tasks, win, skip });
+    const skip = own
+      .filter((m) => m.kind === "ship")
+      .map((m) => m.label.replace(/^Landed /, ""));
+    return shipMarks({
+      deploys: related.deploys,
+      tasks: related.tasks,
+      win,
+      skip,
+    });
   }, [events, tasks, win, own, source, sources]);
 }
 
 /** One Mute button with its durations in a menu; while muted, when it ends and Unmute. */
-function MuteControl({ watch, muted, onMute }: { watch: OpsWatch; muted: boolean; onMute: (until: number | null) => void }) {
+function MuteControl({
+  watch,
+  muted,
+  onMute,
+}: {
+  watch: OpsWatch;
+  muted: boolean;
+  onMute: (until: number | null) => void;
+}) {
   if (muted) {
     return (
       <span className="mx-muted" data-watch-muted>
         <BellOff className="w-3.5 h-3.5" />
         <span>Muted until {stampLabel(watch.muted_until!)}</span>
-        <button type="button" className="ops-btn" onClick={() => onMute(null)} data-watch-unmute>Unmute</button>
+        <button
+          type="button"
+          className="ops-btn"
+          onClick={() => onMute(null)}
+          data-watch-unmute
+        >
+          Unmute
+        </button>
       </span>
     );
   }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="ops-btn" aria-label="Mute alerts" data-watch-mute><BellOff className="w-3.5 h-3.5" />Mute</button>
+        <button
+          type="button"
+          className="ops-btn"
+          aria-label="Mute alerts"
+          data-watch-mute
+        >
+          <BellOff className="w-3.5 h-3.5" />
+          Mute
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Hold alerts for</DropdownMenuLabel>
-        {MUTES.map((m) => <DropdownMenuItem key={m.label} onSelect={() => onMute(Date.now() + m.ms)} data-watch-mute-for={m.ms}>{m.label}</DropdownMenuItem>)}
+        {MUTES.map((m) => (
+          <DropdownMenuItem
+            key={m.label}
+            onSelect={() => onMute(Date.now() + m.ms)}
+            data-watch-mute-for={m.ms}
+          >
+            {m.label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 /** A read that failed: what failed (the reader and its error), how often, and the two things to do about it. */
-function ReadError({ watch, source, error, now }: { watch: OpsWatch; source: OpsSource | undefined; error: string; now: number }) {
+function ReadError({
+  watch,
+  source,
+  error,
+  now,
+}: {
+  watch: OpsWatch;
+  source: OpsSource | undefined;
+  error: string;
+  now: number;
+}) {
   const { asking, readNow } = useReadNow([watch]);
   return (
     <div className="mx-error" role="alert" data-watch-error>
       <AlertTriangle className="w-3.5 h-3.5" />
       <span className="flex-1 min-w-0" style={{ overflowWrap: "anywhere" }}>
         <b className="font-medium">{error}</b>
-        <span className="ops-dim"> · {watch.missed && watch.missed > 1 ? `${watch.missed} reads failed in a row` : "last read failed"} · {watch.last_at ? `last value ${relTimeShort(watch.last_at, now)}` : "never read"}</span>
+        <span className="ops-dim">
+          {" "}
+          ·{" "}
+          {watch.missed && watch.missed > 1
+            ? `${watch.missed} reads failed in a row`
+            : "last read failed"}{" "}
+          ·{" "}
+          {watch.last_at
+            ? `last value ${relTimeShort(watch.last_at, now)}`
+            : "never read"}
+        </span>
       </span>
-      <button type="button" className="ops-btn" disabled={asking} onClick={readNow} data-watch-read-now>
-        {asking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}Read now
+      <button
+        type="button"
+        className="ops-btn"
+        disabled={asking}
+        onClick={readNow}
+        data-watch-read-now
+      >
+        {asking ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <RefreshCw className="w-3.5 h-3.5" />
+        )}
+        Read now
       </button>
-      {source && <Link href={opsHref.home({ source: source.name })} className="ops-btn" data-watch-check-source>Check {source.name}</Link>}
+      {source && (
+        <Link
+          href={opsHref.home({ source: source.name })}
+          className="ops-btn"
+          data-watch-check-source
+        >
+          Check {source.name}
+        </Link>
+      )}
     </div>
   );
 }
 
-function SourceCard({ watch, source, heldFrom, now }: { watch: OpsWatch; source: OpsSource | undefined; heldFrom: number | null; now: number }) {
+function SourceCard({
+  watch,
+  source,
+  heldFrom,
+  now,
+}: {
+  watch: OpsWatch;
+  source: OpsSource | undefined;
+  heldFrom: number | null;
+  now: number;
+}) {
   const paused = watch.status === "paused";
   return (
     <OpsSection title="Source">
       <dl className="mx-kv">
         <dt>source</dt>
-        <dd className="inline-flex items-center gap-1.5">{source ? <><ProviderIcon provider={source.provider} />{source.name} <span className="ops-dim">{SOURCE_PROVIDER_LABEL[source.provider]}</span></> : <span className="ops-dim">removed</span>}</dd>
-        {source && source.status !== "active" && <><dt>status</dt><dd style={{ color: "var(--sol-orange)" }}>{source.status}{source.last_error ? `: ${source.last_error}` : ""}</dd></>}
+        <dd className="inline-flex items-center gap-1.5">
+          {source ? (
+            <>
+              <ProviderIcon provider={source.provider} />
+              {source.name}{" "}
+              <span className="ops-dim">
+                {SOURCE_PROVIDER_LABEL[source.provider]}
+              </span>
+            </>
+          ) : (
+            <span className="ops-dim">removed</span>
+          )}
+        </dd>
+        {source && source.status !== "active" && (
+          <>
+            <dt>status</dt>
+            <dd style={{ color: "var(--sol-orange)" }}>
+              {source.status}
+              {source.last_error ? `: ${source.last_error}` : ""}
+            </dd>
+          </>
+        )}
         <dt>polls</dt>
-        <dd>every {intervalLabel(watch.interval_ms)}{paused ? ", paused" : ""}</dd>
+        <dd>
+          every {intervalLabel(watch.interval_ms)}
+          {paused ? ", paused" : ""}
+        </dd>
         <dt>last value</dt>
         <dd>{watch.last_at ? stampLabel(watch.last_at) : "never"}</dd>
         <dt>history</dt>
-        <dd className="ops-num">{heldFrom !== null ? `since ${stampLabel(heldFrom)}` : "–"}</dd>
+        <dd className="ops-num">
+          {heldFrom !== null ? `since ${stampLabel(heldFrom)}` : "–"}
+        </dd>
         {watch.history && !watch.history.reading && (
-          <><dt>backfill</dt><dd className="ops-dim" title={watch.history.note}>{watch.history.added ? `+${watch.history.added} values` : "none"}, {relTimeShort(watch.history.at, now)}</dd></>
+          <>
+            <dt>backfill</dt>
+            <dd className="ops-dim" title={watch.history.note}>
+              {watch.history.added ? `+${watch.history.added} values` : "none"},{" "}
+              {relTimeShort(watch.history.at, now)}
+            </dd>
+          </>
         )}
       </dl>
     </OpsSection>
@@ -625,81 +1399,205 @@ function focusLine() {
  * as outside it. Announced ones are the alert's; inferred ones (read off the
  * values, never announced) are dimmed and counted apart.
  */
-function TransitionsCard({ watch, rows: oldestFirst, win, within, since, now, provisional = false, onZoom }: { watch: OpsWatch; rows: TransitionRow[]; win: Win; within: string; /** When the running alert began (currentEpisodeSince); null when not alerting. */ since: number | null; now: number; /** Read off a stored answer while the window's own is on its way: the counts may still move. */ provisional?: boolean; onZoom: (at: number) => void }) {
+function TransitionsCard({
+  watch,
+  rows: oldestFirst,
+  win,
+  within,
+  since,
+  now,
+  provisional = false,
+  onZoom,
+}: {
+  watch: OpsWatch;
+  rows: TransitionRow[];
+  win: Win;
+  within: string;
+  /** When the running alert began (currentEpisodeSince); null when not alerting. */ since:
+    | number
+    | null;
+  now: number;
+  /** Read off a stored answer while the window's own is on its way: the counts may still move. */ provisional?: boolean;
+  onZoom: (at: number) => void;
+}) {
   const rows = useMemo(() => [...oldestFirst].reverse(), [oldestFirst]);
   const [showInferred, setShowInferred] = useState(false);
   const [showAll, setShowAll] = useState(false);
   if (watch.threshold === undefined) return null;
   const kept = showInferred ? rows : rows.filter((r) => !r.inferred);
   const { inside, outside } = transitionsIn(kept, win);
-  const announcedIn = transitionsIn(rows.filter((r) => !r.inferred), win).inside.length;
-  const inferredIn = transitionsIn(rows.filter((r) => r.inferred), win).inside.length;
+  const announcedIn = transitionsIn(
+    rows.filter((r) => !r.inferred),
+    win,
+  ).inside.length;
+  const inferredIn = transitionsIn(
+    rows.filter((r) => r.inferred),
+    win,
+  ).inside.length;
   // The running alert stays in view whatever the range (as a monitor's status does): its crossing pinned first when it began before the window.
   const running = runningCrossing(oldestFirst, since);
   const pinned = running && !showAll && running.at < win.from ? running : null;
-  const list = pinned ? [pinned, ...inside.filter((r) => r !== pinned)] : showAll ? kept : inside;
-  const sent = deliveriesByRow(oldestFirst, watch.deliveries, Math.max(watch.interval_ms * 2, 120_000));
+  const list = pinned
+    ? [pinned, ...inside.filter((r) => r !== pinned)]
+    : showAll
+      ? kept
+      : inside;
+  const sent = deliveriesByRow(
+    oldestFirst,
+    watch.deliveries,
+    Math.max(watch.interval_ms * 2, 120_000),
+  );
   // An announced alert routing reached nobody on: routed now, but not then (the deliveries kept reach back past it, or are not full).
   const unrouted = (r: TransitionRow) => routedSilently(r, watch);
   // The duration of an announced crossing runs to the next announced recovery.
   const until = (r: TransitionRow) => {
     const i = oldestFirst.indexOf(r);
-    return oldestFirst.slice(i + 1).find((x) => !x.inferred && x.kind === "recovered")?.at ?? null;
+    return (
+      oldestFirst
+        .slice(i + 1)
+        .find((x) => !x.inferred && x.kind === "recovered")?.at ?? null
+    );
   };
   const isOut = (r: TransitionRow) => r.at < win.from || r.at > win.to;
   return (
     <OpsSection
       className="mxp-trans"
       title="Transitions"
-      meta={<span className="ops-num" data-transitions-count={announcedIn}>{announcedIn} {within}</span>}
-      action={(inferredIn > 0 || outside > 0) ? (
-        <span className="mx-trans-toggles">
-          {/* Each toggle adds its rows to the list (tagged on the row) and says so in its own state. */}
-          {inferredIn > 0 && (
-            <button type="button" className="mxp-chip" aria-pressed={showInferred} data-on={showInferred ? "" : undefined} onClick={() => setShowInferred(!showInferred)} title="Crossings the values show that the monitor never announced" data-transitions-inferred>
-              {showInferred ? <Check aria-hidden className="w-3 h-3" /> : <Plus aria-hidden className="w-3 h-3" />}not announced <b>{inferredIn}</b>
-            </button>
-          )}
-          {outside > 0 && (
-            <button type="button" className="mxp-chip" aria-pressed={showAll} data-on={showAll ? "" : undefined} onClick={() => setShowAll(!showAll)} data-transitions-outside={outside}>
-              {showAll ? <Check aria-hidden className="w-3 h-3" /> : <Plus aria-hidden className="w-3 h-3" />}outside range <b>{outside}</b>
-            </button>
-          )}
+      meta={
+        <span className="ops-num" data-transitions-count={announcedIn}>
+          {announcedIn} {within}
         </span>
-      ) : undefined}
+      }
+      action={
+        inferredIn > 0 || outside > 0 ? (
+          <span className="mx-trans-toggles">
+            {/* Each toggle adds its rows to the list (tagged on the row) and says so in its own state. */}
+            {inferredIn > 0 && (
+              <button
+                type="button"
+                className="mxp-chip"
+                aria-pressed={showInferred}
+                data-on={showInferred ? "" : undefined}
+                onClick={() => setShowInferred(!showInferred)}
+                title="Crossings the values show that the monitor never announced"
+                data-transitions-inferred
+              >
+                {showInferred ? (
+                  <Check aria-hidden className="w-3 h-3" />
+                ) : (
+                  <Plus aria-hidden className="w-3 h-3" />
+                )}
+                not announced <b>{inferredIn}</b>
+              </button>
+            )}
+            {outside > 0 && (
+              <button
+                type="button"
+                className="mxp-chip"
+                aria-pressed={showAll}
+                data-on={showAll ? "" : undefined}
+                onClick={() => setShowAll(!showAll)}
+                data-transitions-outside={outside}
+              >
+                {showAll ? (
+                  <Check aria-hidden className="w-3 h-3" />
+                ) : (
+                  <Plus aria-hidden className="w-3 h-3" />
+                )}
+                outside range <b>{outside}</b>
+              </button>
+            )}
+          </span>
+        ) : undefined
+      }
     >
-      <div data-watch-transitions data-provisional={provisional ? "" : undefined} aria-busy={provisional || undefined}>
-      {list.length === 0 ? (
-        <div className="mxp-none">{outside ? `None ${within}` : inferredIn ? "None announced" : "Never past the line"}</div>
-      ) : (
-        <table className="mx-trans">
-          <tbody>
-            {list.slice(0, 60).map((r) => {
-              const end = !r.inferred && r.kind === "crossed" && r !== pinned ? until(r) : null;
-              const told = !r.inferred ? sent.get(rowKey(r)) : undefined;
-              return (
-                <Fragment key={`${r.at}-${r.kind}-${r.inferred ? "i" : "a"}`}>
-                <tr onClick={() => onZoom(r.at)} tabIndex={0} title={r.inferred ? "Read off the values; no alert was sent" : undefined} onKeyDown={(e) => { if (e.key === "Enter") onZoom(r.at); }} data-transition={r.kind} data-inferred={r.inferred ? "" : undefined} data-outside={isOut(r) && r !== pinned ? "" : undefined} data-running={r === pinned ? "" : undefined}>
-                  <td data-kind={r.kind}>{r.kind === "crossed" ? "crossed" : "recovered"}{r.inferred && <span className="mx-inferred">not announced</span>}{r === pinned && <span className="mx-inferred">before range</span>}</td>
-                  <td>{r.value === null ? "" : formatValue(r.value, watch.unit)}</td>
-                  <td className="ops-dim">{stampLabel(r.at)}</td>
-                  <td className="ops-dim" style={{ textAlign: "right" }}>{!r.inferred && r.kind === "crossed" ? (end ? `for ${durationShort(end - r.at)}` : watch.state === "alert" || r === pinned ? `ongoing, ${durationShort(now - r.at)}` : "") : ""}</td>
-                </tr>
-                {told ? (
-                  <tr className="mx-sent" data-transition-sent={told.length}>
-                    <td colSpan={4}><SentList told={told} /></td>
-                  </tr>
-                ) : unrouted(r) ? (
-                  <tr className="mx-sent" data-transition-sent="0">
-                    <td colSpan={4}><span className="mx-sent-list">no routes then</span></td>
-                  </tr>
-                ) : null}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      <div
+        data-watch-transitions
+        data-provisional={provisional ? "" : undefined}
+        aria-busy={provisional || undefined}
+      >
+        {list.length === 0 ? (
+          <div className="mxp-none">
+            {outside
+              ? `None ${within}`
+              : inferredIn
+                ? "None announced"
+                : "Never past the line"}
+          </div>
+        ) : (
+          <table className="mx-trans">
+            <tbody>
+              {list.slice(0, 60).map((r) => {
+                const end =
+                  !r.inferred && r.kind === "crossed" && r !== pinned
+                    ? until(r)
+                    : null;
+                const told = !r.inferred ? sent.get(rowKey(r)) : undefined;
+                return (
+                  <Fragment key={`${r.at}-${r.kind}-${r.inferred ? "i" : "a"}`}>
+                    <tr
+                      onClick={() => onZoom(r.at)}
+                      tabIndex={0}
+                      title={
+                        r.inferred
+                          ? "Read off the values; no alert was sent"
+                          : undefined
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") onZoom(r.at);
+                      }}
+                      data-transition={r.kind}
+                      data-inferred={r.inferred ? "" : undefined}
+                      data-outside={isOut(r) && r !== pinned ? "" : undefined}
+                      data-running={r === pinned ? "" : undefined}
+                    >
+                      <td data-kind={r.kind}>
+                        {r.kind === "crossed" ? "crossed" : "recovered"}
+                        {r.inferred && (
+                          <span className="mx-inferred">not announced</span>
+                        )}
+                        {r === pinned && (
+                          <span className="mx-inferred">before range</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.value === null
+                          ? ""
+                          : formatValue(r.value, watch.unit)}
+                      </td>
+                      <td className="ops-dim">{stampLabel(r.at)}</td>
+                      <td className="ops-dim" style={{ textAlign: "right" }}>
+                        {!r.inferred && r.kind === "crossed"
+                          ? end
+                            ? `for ${durationShort(end - r.at)}`
+                            : watch.state === "alert" || r === pinned
+                              ? `ongoing, ${durationShort(now - r.at)}`
+                              : ""
+                          : ""}
+                      </td>
+                    </tr>
+                    {told ? (
+                      <tr
+                        className="mx-sent"
+                        data-transition-sent={told.length}
+                      >
+                        <td colSpan={4}>
+                          <SentList told={told} />
+                        </td>
+                      </tr>
+                    ) : unrouted(r) ? (
+                      <tr className="mx-sent" data-transition-sent="0">
+                        <td colSpan={4}>
+                          <span className="mx-sent-list">no routes then</span>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </OpsSection>
   );
@@ -711,27 +1609,63 @@ function SentList({ told }: { told: AlertDelivery[] }) {
     <span className="mx-sent-list">
       {told.map((d, i) => {
         const what = `${d.kind === "still" ? "again " : ""}${d.to}${d.note ? ` (${d.note})` : ""}`;
-        return d.href
-          ? <Link key={i} href={d.href} data-ok={String(d.ok)} title={stampLabel(d.at)}>{d.ok ? "→ " : "✕ "}{what}</Link>
-          : <span key={i} data-ok={String(d.ok)} title={stampLabel(d.at)}>{d.ok ? "→ " : "✕ "}{what}</span>;
+        return d.href ? (
+          <Link
+            key={i}
+            href={d.href}
+            data-ok={String(d.ok)}
+            title={stampLabel(d.at)}
+          >
+            {d.ok ? "→ " : "✕ "}
+            {what}
+          </Link>
+        ) : (
+          <span key={i} data-ok={String(d.ok)} title={stampLabel(d.at)}>
+            {d.ok ? "→ " : "✕ "}
+            {what}
+          </span>
+        );
       })}
     </span>
   );
 }
 
-const SQL_KEYWORDS = /^(select|from|where|and|or|not|group|by|order|limit|as|on|join|left|right|inner|outer|having|interval|day|hour|minute|week|month|in|is|null|case|when|then|else|end|distinct|count|countif|sum|avg|min|max|uniq|now|today|toStartOfDay|toDate|desc|asc|between|like|ilike)$/i;
+const SQL_KEYWORDS =
+  /^(select|from|where|and|or|not|group|by|order|limit|as|on|join|left|right|inner|outer|having|interval|day|hour|minute|week|month|in|is|null|case|when|then|else|end|distinct|count|countif|sum|avg|min|max|uniq|now|today|toStartOfDay|toDate|desc|asc|between|like|ilike)$/i;
 
 /** HogQL lit by token: keywords, strings, numbers and calls. Text only, never markup from the query. */
 function highlightSql(sql: string) {
-  const parts = sql.split(/('(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b)/g);
+  const parts = sql.split(
+    /('(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b)/g,
+  );
   return parts.map((p, i) => {
     if (!p) return null;
-    if (p.startsWith("'")) return <span key={i} className="s">{p}</span>;
-    if (/^\d/.test(p)) return <span key={i} className="n">{p}</span>;
+    if (p.startsWith("'"))
+      return (
+        <span key={i} className="s">
+          {p}
+        </span>
+      );
+    if (/^\d/.test(p))
+      return (
+        <span key={i} className="n">
+          {p}
+        </span>
+      );
     if (/^[A-Za-z_]/.test(p)) {
       const call = parts[i + 1]?.startsWith("(");
-      if (SQL_KEYWORDS.test(p) && !call) return <span key={i} className="k">{p}</span>;
-      if (call) return <span key={i} className="f">{p}</span>;
+      if (SQL_KEYWORDS.test(p) && !call)
+        return (
+          <span key={i} className="k">
+            {p}
+          </span>
+        );
+      if (call)
+        return (
+          <span key={i} className="f">
+            {p}
+          </span>
+        );
     }
     return p;
   });
@@ -739,5 +1673,8 @@ function highlightSql(sql: string) {
 
 /** A day as the bar names it: "Sep 6". */
 function shortDate(at: number): string {
-  return new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }

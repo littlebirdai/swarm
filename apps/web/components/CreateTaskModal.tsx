@@ -8,12 +8,25 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 import { AssigneeSelect } from "./AssigneeSelect";
 import type { AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
 import { Switch } from "./ui/switch";
-import { CreateDialog, CreateDialogTitle, CreateChipCaret, createChipClass, createMenuItemClass, CREATE_MENU_CLASS, CREATE_MENU_SEARCH_CLASS } from "./CreateDialog";
+import {
+  CreateDialog,
+  CreateDialogTitle,
+  CreateChipCaret,
+  createChipClass,
+  createMenuItemClass,
+  CREATE_MENU_CLASS,
+  CREATE_MENU_SEARCH_CLASS,
+} from "./CreateDialog";
 import { DocEditor } from "./editor/DocEditor";
 import type { MentionItem } from "./editor/MentionList";
 import { toast } from "sonner";
 import { getLabelColor, DEFAULT_LABELS } from "../lib/labelColors";
-import { statusByKey, statusEntityOptions, statusWriteFields, useTeamTaskStatusList } from "../lib/taskStatuses";
+import {
+  statusByKey,
+  statusEntityOptions,
+  statusWriteFields,
+  useTeamTaskStatusList,
+} from "../lib/taskStatuses";
 import {
   Plus,
   AlertTriangle,
@@ -29,7 +42,12 @@ import {
 const api = _api as any;
 
 const CREATE_PRIORITY_OPTIONS = [
-  { key: "urgent", label: "Urgent", icon: AlertTriangle, color: "text-sol-red" },
+  {
+    key: "urgent",
+    label: "Urgent",
+    icon: AlertTriangle,
+    color: "text-sol-red",
+  },
   { key: "high", label: "High", icon: ArrowUp, color: "text-sol-orange" },
   { key: "medium", label: "Medium", icon: Minus, color: "text-sol-text-muted" },
   { key: "low", label: "Low", icon: ArrowDown, color: "text-sol-text-dim" },
@@ -52,7 +70,8 @@ function PropertyChip<T extends string>({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -78,12 +97,17 @@ function PropertyChip<T extends string>({
               <button
                 key={opt.key}
                 type="button"
-                onClick={() => { onChange(opt.key); setOpen(false); }}
+                onClick={() => {
+                  onChange(opt.key);
+                  setOpen(false);
+                }}
                 className={createMenuItemClass(opt.key === value)}
               >
                 <OptIcon className={`w-3.5 h-3.5 ${opt.color || ""}`} />
                 <span className="flex-1">{opt.label}</span>
-                {opt.key === value && <Check className="w-3.5 h-3.5 text-sol-cyan" />}
+                {opt.key === value && (
+                  <Check className="w-3.5 h-3.5 text-sol-cyan" />
+                )}
               </button>
             );
           })}
@@ -93,7 +117,13 @@ function PropertyChip<T extends string>({
   );
 }
 
-function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+function LabelsChip({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -103,19 +133,27 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
     if (!open) return;
     setTimeout(() => inputRef.current?.focus(), 0);
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const filtered = [...new Set([...DEFAULT_LABELS, ...value])]
-    .filter((l) => !search.trim() || l.toLowerCase().includes(search.toLowerCase()));
+  const filtered = [...new Set([...DEFAULT_LABELS, ...value])].filter(
+    (l) => !search.trim() || l.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  const canCreate = search.trim() && !filtered.some((l) => l.toLowerCase() === search.trim().toLowerCase());
+  const canCreate =
+    search.trim() &&
+    !filtered.some((l) => l.toLowerCase() === search.trim().toLowerCase());
 
   const toggle = (label: string) => {
-    onChange(value.includes(label) ? value.filter((l) => l !== label) : [...value, label]);
+    onChange(
+      value.includes(label)
+        ? value.filter((l) => l !== label)
+        : [...value, label],
+    );
   };
 
   const createAndAdd = () => {
@@ -136,7 +174,9 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
       >
         <Tag className="w-3.5 h-3.5" />
         {value.length > 0 ? (
-          <span>{value.length === 1 ? value[0] : `${value.length} labels`}</span>
+          <span>
+            {value.length === 1 ? value[0] : `${value.length} labels`}
+          </span>
         ) : (
           <span>Labels</span>
         )}
@@ -154,7 +194,10 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
               className="flex-1 text-xs bg-transparent text-sol-text placeholder:text-sol-text-dim outline-none"
               onKeyDown={(e) => {
                 if (e.key === "Escape") setOpen(false);
-                if (e.key === "Enter" && canCreate) { e.preventDefault(); createAndAdd(); }
+                if (e.key === "Enter" && canCreate) {
+                  e.preventDefault();
+                  createAndAdd();
+                }
               }}
             />
           </div>
@@ -166,7 +209,9 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
                 className={`${createMenuItemClass()} text-sol-cyan hover:text-sol-cyan`}
               >
                 <Plus className="w-3 h-3 flex-shrink-0" />
-                <span className="flex-1 text-left">Create &quot;{search.trim()}&quot;</span>
+                <span className="flex-1 text-left">
+                  Create &quot;{search.trim()}&quot;
+                </span>
               </button>
             )}
             {filtered.map((label) => {
@@ -178,9 +223,13 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
                   onClick={() => toggle(label)}
                   className={createMenuItemClass(value.includes(label))}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color.dot}`} />
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color.dot}`}
+                  />
                   <span className="flex-1 text-left">{label}</span>
-                  {value.includes(label) && <Check className="w-3.5 h-3.5 text-sol-cyan flex-shrink-0" />}
+                  {value.includes(label) && (
+                    <Check className="w-3.5 h-3.5 text-sol-cyan flex-shrink-0" />
+                  )}
                 </button>
               );
             })}
@@ -191,20 +240,39 @@ function LabelsChip({ value, onChange }: { value: string[]; onChange: (v: string
   );
 }
 
-export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }: { onClose: () => void; teamMembers?: any[] | null; currentUser?: any; defaults?: { project_id?: string; plan_id?: string } | null }) {
+export function CreateTaskModal({
+  onClose,
+  teamMembers,
+  currentUser,
+  defaults,
+}: {
+  onClose: () => void;
+  teamMembers?: any[] | null;
+  currentUser?: any;
+  defaults?: { project_id?: string; plan_id?: string } | null;
+}) {
   const workspaceArgs = useWorkspaceArgs();
 
   // The team's full status list (per-team custom statuses; personal = the six
   // defaults), same options every other picker offers. Value is a status id.
-  const teamId = workspaceArgs !== "skip" && workspaceArgs.workspace === "team" ? workspaceArgs.team_id : null;
+  const teamId =
+    workspaceArgs !== "skip" && workspaceArgs.workspace === "team"
+      ? workspaceArgs.team_id
+      : null;
   const taskStatuses = useTeamTaskStatusList(teamId);
-  const statusOptions = useMemo(() => statusEntityOptions(taskStatuses), [taskStatuses]);
+  const statusOptions = useMemo(
+    () => statusEntityOptions(taskStatuses),
+    [taskStatuses],
+  );
 
   const [title, setTitle] = useState("");
   const descriptionRef = useRef("");
   const [priority, setPriority] = useState<string>("medium");
   const [status, setStatus] = useState<string>(
-    () => statusOptions.find((o) => o.category === "open")?.key ?? statusOptions[0]?.key ?? "open",
+    () =>
+      statusOptions.find((o) => o.category === "open")?.key ??
+      statusOptions[0]?.key ??
+      "open",
   );
   const [assignee, setAssignee] = useState<string | null>(null);
   const [assigneeInfo, setAssigneeInfo] = useState<AssigneeInfo | null>(null);
@@ -214,7 +282,10 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
 
   const titleRef = useRef<HTMLInputElement>(null);
 
-  const mentionResults = useQuery(api.docs.mentionSearch, { query: "", limit: 20 });
+  const mentionResults = useQuery(api.docs.mentionSearch, {
+    query: "",
+    limit: 20,
+  });
   const mentionResultsRef = useRef<MentionItem[]>([]);
   if (mentionResults) mentionResultsRef.current = mentionResults;
 
@@ -227,10 +298,10 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
       return results.filter(
         (r: MentionItem) =>
           r.label.toLowerCase().includes(q) ||
-          (r.sublabel && r.sublabel.toLowerCase().includes(q))
+          (r.sublabel && r.sublabel.toLowerCase().includes(q)),
       );
     },
-    []
+    [],
   );
 
   // Shared uploader (handles client-side compression + storage round-trip).
@@ -243,7 +314,9 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
     // status holds a team status id; the write carries the category, plus the
     // id only when it refines the category default (statusWriteFields).
     const picked = statusByKey(taskStatuses, status);
-    const statusFields = picked ? statusWriteFields(picked) : { status: "open" as const, status_id: "" };
+    const statusFields = picked
+      ? statusWriteFields(picked)
+      : { status: "open" as const, status_id: "" };
     const opts: any = {
       title: title.trim(),
       description: desc || undefined,
@@ -271,7 +344,18 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
     } else {
       onClose();
     }
-  }, [title, priority, status, taskStatuses, assignee, labels, createMore, onClose, workspaceArgs, defaults]);
+  }, [
+    title,
+    priority,
+    status,
+    taskStatuses,
+    assignee,
+    labels,
+    createMore,
+    onClose,
+    workspaceArgs,
+    defaults,
+  ]);
 
   return (
     <CreateDialog
@@ -284,7 +368,11 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
       width="lg"
       footerStart={
         <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-sol-text-dim transition-colors hover:text-sol-text">
-          <Switch checked={createMore} onCheckedChange={setCreateMore} aria-label="Create another" />
+          <Switch
+            checked={createMore}
+            onCheckedChange={setCreateMore}
+            aria-label="Create another"
+          />
           <span>Create another</span>
         </label>
       }
@@ -296,7 +384,8 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) e.preventDefault();
+            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey)
+              e.preventDefault();
           }}
         />
       </div>
@@ -305,7 +394,9 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
         <DocEditor
           key={editorKey}
           content=""
-          onUpdate={(md) => { descriptionRef.current = md; }}
+          onUpdate={(md) => {
+            descriptionRef.current = md;
+          }}
           onMentionQuery={handleMentionQuery}
           onImageUpload={handleImageUpload}
           placeholder="Add description... use @ to mention, paste images"
@@ -314,13 +405,24 @@ export function CreateTaskModal({ onClose, teamMembers, currentUser, defaults }:
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 px-5 pb-3.5">
-        <PropertyChip value={status as any} options={statusOptions as any} onChange={(v) => setStatus(v)} />
-        <PropertyChip value={priority as any} options={CREATE_PRIORITY_OPTIONS as any} onChange={(v) => setPriority(v)} />
+        <PropertyChip
+          value={status as any}
+          options={statusOptions as any}
+          onChange={(v) => setStatus(v)}
+        />
+        <PropertyChip
+          value={priority as any}
+          options={CREATE_PRIORITY_OPTIONS as any}
+          onChange={(v) => setPriority(v)}
+        />
         <LabelsChip value={labels} onChange={setLabels} />
         <AssigneeSelect
           value={assignee}
           valueInfo={assigneeInfo}
-          onChange={(id, info) => { setAssignee(id); setAssigneeInfo(info); }}
+          onChange={(id, info) => {
+            setAssignee(id);
+            setAssigneeInfo(info);
+          }}
           teamMembers={teamMembers}
           currentUser={currentUser}
         />

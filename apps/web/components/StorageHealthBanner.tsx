@@ -20,9 +20,10 @@ export function StorageHealthBanner() {
       ? {
           tone: "orange",
           icon: HardDrive,
-          title: degraded === "blocked"
-            ? "Another Codecast window is blocking a storage update"
-            : "Local storage is not keeping up",
+          title:
+            degraded === "blocked"
+              ? "Another Codecast window is blocking a storage update"
+              : "Local storage is not keeping up",
           detail:
             degraded === "blocked"
               ? "close or reload your other Codecast windows. Messages still send meanwhile."

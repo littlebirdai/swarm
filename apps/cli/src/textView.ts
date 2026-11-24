@@ -52,7 +52,12 @@ export function resolveLineRange(
 
   const pages = Math.max(1, Math.ceil(safeTotal / size));
   const page = Math.min(pages, Math.max(1, opts.page ?? 1));
-  return { start: (page - 1) * size + 1, end: Math.min(total, page * size), page, pages };
+  return {
+    start: (page - 1) * size + 1,
+    end: Math.min(total, page * size),
+    page,
+    pages,
+  };
 }
 
 /**
@@ -77,10 +82,15 @@ export function buildMatcher(pattern: string, ignoreCase = false): Matcher {
   try {
     source = new RegExp(pattern, flags).source;
   } catch {
-    source = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), flags).source;
+    source = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), flags)
+      .source;
     literal = true;
   }
-  return { test: new RegExp(source, flags), all: new RegExp(source, flags + "g"), literal };
+  return {
+    test: new RegExp(source, flags),
+    all: new RegExp(source, flags + "g"),
+    literal,
+  };
 }
 
 /** 0-based indices of the lines the matcher hits. */
@@ -99,7 +109,11 @@ export function matchingLines(lines: string[], matcher: Matcher): number[] {
  * each: hits in order, overlapping windows merged, and `null` wherever a gap
  * was skipped so the caller can print an elision marker.
  */
-export function contextWindow(hits: number[], ctx: number, total: number): (number | null)[] {
+export function contextWindow(
+  hits: number[],
+  ctx: number,
+  total: number,
+): (number | null)[] {
   const out: (number | null)[] = [];
   let last = -1;
   for (const hit of hits) {

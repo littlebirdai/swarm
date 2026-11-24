@@ -17,18 +17,23 @@ async function notificationsFor(conv: Record<string, unknown>) {
       { _id: "tm_sam", team_id: TEAM, user_id: SAM, visibility: "summary" },
       { _id: "tm_ada", team_id: TEAM, user_id: ADA, visibility: "summary" },
     ],
-    conversations: [{
-      _id: CONV,
-      user_id: SAM,
-      team_id: TEAM,
-      is_private: false,
-      title: "Daily fleet sweep",
-      started_at: Date.now(),
-      ...conv,
-    }],
+    conversations: [
+      {
+        _id: CONV,
+        user_id: SAM,
+        team_id: TEAM,
+        is_private: false,
+        title: "Daily fleet sweep",
+        started_at: Date.now(),
+        ...conv,
+      },
+    ],
     notifications: [],
   });
-  await (notifyTeamSessionStart as any)._handler({ db }, { conversation_id: CONV, user_id: SAM });
+  await (notifyTeamSessionStart as any)._handler(
+    { db },
+    { conversation_id: CONV, user_id: SAM },
+  );
   return db.query("notifications").collect();
 }
 
@@ -38,6 +43,8 @@ describe("notifyTeamSessionStart", () => {
   });
 
   test("a trigger run never announces itself as a teammate starting to code", async () => {
-    expect(await notificationsFor({ agent_task_id: "agent_tasks_1" })).toHaveLength(0);
+    expect(
+      await notificationsFor({ agent_task_id: "agent_tasks_1" }),
+    ).toHaveLength(0);
   });
 });

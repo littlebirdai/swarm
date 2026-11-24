@@ -46,12 +46,17 @@ function fakeConvex() {
   const calls: { args: any; answer: (v: any) => void }[] = [];
   const results = new Map<string, unknown>();
   const listeners = new Set<() => void>();
-  const pend = (_name: unknown, args: any) => new Promise((answer) => calls.push({ args, answer }));
+  const pend = (_name: unknown, args: any) =>
+    new Promise((answer) => calls.push({ args, answer }));
   (client as any).action = pend;
   (client as any).mutation = pend;
   (client as any).watchQuery = (query: any, args: any) => ({
-    onUpdate: (cb: () => void) => (listeners.add(cb), () => listeners.delete(cb)),
-    localQueryResult: () => results.get(`${getFunctionName(query)}:${JSON.stringify(args ?? {})}`),
+    onUpdate: (cb: () => void) => (
+      listeners.add(cb),
+      () => listeners.delete(cb)
+    ),
+    localQueryResult: () =>
+      results.get(`${getFunctionName(query)}:${JSON.stringify(args ?? {})}`),
     localQueryLogs: () => undefined,
     journal: () => undefined,
   });
@@ -85,8 +90,19 @@ beforeEach(() => {
   useInboxStore.setState({
     currentUser: { _id: USER, name: "Tester" },
     teams: [{ _id: TEAM, name: "Acme" }],
-    teamMembers: [{ user_id: USER, name: "Tester" }, { user_id: "user_other", name: "Other" }],
-    machineRoster: [{ device_id: "dev-1", label: "mbp", online: true, is_remote: false, last_seen: 1 }],
+    teamMembers: [
+      { user_id: USER, name: "Tester" },
+      { user_id: "user_other", name: "Other" },
+    ],
+    machineRoster: [
+      {
+        device_id: "dev-1",
+        label: "mbp",
+        online: true,
+        is_remote: false,
+        last_seen: 1,
+      },
+    ],
     secrets: {},
     syncMeta: {},
   } as any);
@@ -96,10 +112,20 @@ async function mount(node: React.ReactNode, client: unknown) {
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<MemoryRouter><ConvexProvider client={client as any}>{node}</ConvexProvider></MemoryRouter>));
+  await act(async () =>
+    root.render(
+      <MemoryRouter>
+        <ConvexProvider client={client as any}>{node}</ConvexProvider>
+      </MemoryRouter>,
+    ),
+  );
   return {
     // The share review is a dialog, portalled to the body; the rest stays in this mount.
-    q: (sel: string) => (container.querySelector(sel) ?? (sel.startsWith("[data-switch") ? w.document.querySelector(sel) : null)) as HTMLElement | null,
+    q: (sel: string) =>
+      (container.querySelector(sel) ??
+        (sel.startsWith("[data-switch")
+          ? w.document.querySelector(sel)
+          : null)) as HTMLElement | null,
     text: () => container.textContent ?? "",
     unmount: async () => {
       await act(async () => root.unmount());
@@ -108,29 +134,51 @@ async function mount(node: React.ReactNode, client: unknown) {
   };
 }
 
-const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+const settle = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 10));
+  });
 
 /** React (on the old-IE path above) reads the focused field on keyup. */
 async function typeInto(el: HTMLInputElement, value: string) {
   await act(async () => {
     el.focus();
-    Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, "value")!.set!.call(el, value);
+    Object.getOwnPropertyDescriptor(
+      w.HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(el, value);
     el.dispatchEvent(new w.Event("input", { bubbles: true }));
     el.dispatchEvent(new w.KeyboardEvent("keyup", { bubbles: true }));
   });
 }
 
 async function fillAndSave(t: Awaited<ReturnType<typeof mount>>) {
-  await typeInto(t.q("input[name=vault-value]") as HTMLInputElement, "zz-fixture-value-1234567890");
-  await act(async () => { t.q("[data-vault-value-editor]")!.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true })); });
+  await typeInto(
+    t.q("input[name=vault-value]") as HTMLInputElement,
+    "zz-fixture-value-1234567890",
+  );
+  await act(async () => {
+    t.q("[data-vault-value-editor]")!.dispatchEvent(
+      new w.Event("submit", { bubbles: true, cancelable: true }),
+    );
+  });
 }
 
-const stored = () => (useInboxStore.getState() as any).secrets.secret_fill_1 as SecretMeta;
+const stored = () =>
+  (useInboxStore.getState() as any).secrets.secret_fill_1 as SecretMeta;
 
 test("the request card reads Ready the moment Save is pressed", async () => {
   useInboxStore.getState().stageSecret(row({}));
   const fake = fakeConvex();
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="" isError={false} />, fake.client);
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output=""
+      isError={false}
+    />,
+    fake.client,
+  );
   expect(t.q('[data-vault-request-state="open"]')).not.toBeNull();
 
   await fillAndSave(t);
@@ -150,11 +198,21 @@ test("the request card reads Ready the moment Save is pressed", async () => {
 test("a refused fill puts the request back, with the reason", async () => {
   useInboxStore.getState().stageSecret(row({}));
   const fake = fakeConvex();
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="" isError={false} />, fake.client);
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output=""
+      isError={false}
+    />,
+    fake.client,
+  );
   await fillAndSave(t);
   expect(stored().status).toBe("ready");
 
-  await act(async () => fake.calls[0]!.answer({ error: "Only the team's members can fill it" }));
+  await act(async () =>
+    fake.calls[0]!.answer({ error: "Only the team's members can fill it" }),
+  );
   await settle();
   expect(stored().status).toBe("requested");
   expect(t.q('[data-vault-request-state="open"]')).not.toBeNull();
@@ -164,52 +222,130 @@ test("a refused fill puts the request back, with the reason", async () => {
 
 test("Decline on the card: a session that asked is woken only through the confirm, then the card rests declined", async () => {
   const sent: unknown[][] = [];
-  (useInboxStore.getState() as any)._setDispatch(async (action: string, args: unknown[]) => { sent.push([action, ...args]); });
-  useInboxStore.getState().stageSecret(row({ requested_from_conversation: "conv_asker" }));
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="" isError={false} />, fakeConvex().client);
-  await act(async () => (t.q("[data-vault-request-decline]") as HTMLButtonElement).click());
-  expect(t.q("[data-switch-review]")?.getAttribute("data-switch-review")).toBe("Decline zz-stripe-test");
+  (useInboxStore.getState() as any)._setDispatch(
+    async (action: string, args: unknown[]) => {
+      sent.push([action, ...args]);
+    },
+  );
+  useInboxStore
+    .getState()
+    .stageSecret(row({ requested_from_conversation: "conv_asker" }));
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output=""
+      isError={false}
+    />,
+    fakeConvex().client,
+  );
+  await act(async () =>
+    (t.q("[data-vault-request-decline]") as HTMLButtonElement).click(),
+  );
+  expect(t.q("[data-switch-review]")?.getAttribute("data-switch-review")).toBe(
+    "Decline zz-stripe-test",
+  );
   expect(stored()).toBeDefined();
 
-  await act(async () => (t.q("[data-switch-confirm]") as HTMLButtonElement).click());
+  await act(async () =>
+    (t.q("[data-switch-confirm]") as HTMLButtonElement).click(),
+  );
   await settle();
   expect(stored()).toBeUndefined();
-  expect(sent.find((c) => c[0] === "removeSecret")).toEqual(["removeSecret", "secret_fill_1", "requested"]);
+  expect(sent.find((c) => c[0] === "removeSecret")).toEqual([
+    "removeSecret",
+    "secret_fill_1",
+    "requested",
+  ]);
   expect(t.q('[data-vault-request-state="declined"]')).not.toBeNull();
   await t.unmount();
 });
 
 test("Decline on a request no session made closes on the press", async () => {
   useInboxStore.getState().stageSecret(row({}));
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="" isError={false} />, fakeConvex().client);
-  await act(async () => (t.q("[data-vault-request-decline]") as HTMLButtonElement).click());
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output=""
+      isError={false}
+    />,
+    fakeConvex().client,
+  );
+  await act(async () =>
+    (t.q("[data-vault-request-decline]") as HTMLButtonElement).click(),
+  );
   expect(t.q("[data-switch-review]")).toBeNull();
   expect(stored()).toBeUndefined();
   await t.unmount();
 });
 
 const signinRow = (over: Partial<SecretMeta> = {}) =>
-  row({ _id: "secret_fill_2", name: "zz-vercel-signin", kind: "signin", sites: ["vercel.com"], workspace: `team:${TEAM}`, team_id: TEAM, ...over } as Partial<SecretMeta>);
+  row({
+    _id: "secret_fill_2",
+    name: "zz-vercel-signin",
+    kind: "signin",
+    sites: ["vercel.com"],
+    workspace: `team:${TEAM}`,
+    team_id: TEAM,
+    ...over,
+  } as Partial<SecretMeta>);
 
 async function pressChrome(t: Awaited<ReturnType<typeof mount>>) {
-  await act(async () => (t.q("[data-vault-signin-chrome]") as HTMLButtonElement).click());
+  await act(async () =>
+    (t.q("[data-vault-signin-chrome]") as HTMLButtonElement).click(),
+  );
 }
 
 test("a card whose short id no longer resolves rests as gone, never as a same-named secret elsewhere", async () => {
-  useInboxStore.getState().recordSyncMeta(syncMetaKey("secrets", "viewer"), { backfilledAt: 1 });
+  useInboxStore
+    .getState()
+    .recordSyncMeta(syncMetaKey("secrets", "viewer"), { backfilledAt: 1 });
   // Same name, another row: a ready secret in the team that the card's request is not.
-  useInboxStore.getState().stageSecret(row({ _id: "secret_other", short_id: "sec-77", status: "ready", workspace: `team:${TEAM}` }));
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="Asked for zz-stripe-test (sec-901)" isError={false} />, fakeConvex().client);
+  useInboxStore.getState().stageSecret(
+    row({
+      _id: "secret_other",
+      short_id: "sec-77",
+      status: "ready",
+      workspace: `team:${TEAM}`,
+    }),
+  );
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output="Asked for zz-stripe-test (sec-901)"
+      isError={false}
+    />,
+    fakeConvex().client,
+  );
   expect(t.q('[data-vault-request-state="gone"]')).not.toBeNull();
   expect(t.text()).not.toContain("Ready");
   await t.unmount();
 });
 
 test("a card names its row by short id in any of the viewer's workspaces", async () => {
-  useInboxStore.getState().recordSyncMeta(syncMetaKey("secrets", "viewer"), { backfilledAt: 1 });
-  useInboxStore.getState().stageSecret(row({ workspace: "team:team_elsewhere" }));
-  useInboxStore.setState({ teams: [{ _id: TEAM, name: "Acme" }, { _id: "team_elsewhere", name: "Other" }] } as any);
-  const t = await mount(<VaultRequestCard name="zz-stripe-test" kind="key" output="Asked for zz-stripe-test (sec-901)" isError={false} />, fakeConvex().client);
+  useInboxStore
+    .getState()
+    .recordSyncMeta(syncMetaKey("secrets", "viewer"), { backfilledAt: 1 });
+  useInboxStore
+    .getState()
+    .stageSecret(row({ workspace: "team:team_elsewhere" }));
+  useInboxStore.setState({
+    teams: [
+      { _id: TEAM, name: "Acme" },
+      { _id: "team_elsewhere", name: "Other" },
+    ],
+  } as any);
+  const t = await mount(
+    <VaultRequestCard
+      name="zz-stripe-test"
+      kind="key"
+      output="Asked for zz-stripe-test (sec-901)"
+      isError={false}
+    />,
+    fakeConvex().client,
+  );
   expect(t.q("input[name=vault-value]")).not.toBeNull();
   await t.unmount();
 });
@@ -218,26 +354,70 @@ test("a team sign-in: the check finds cookies, the share review opens, confirmin
   const fake = fakeConvex();
   const t = await mount(<SigninRequestFill row={signinRow()} />, fake.client);
   await pressChrome(t);
-  expect(fake.calls[0]!.args).toMatchObject({ site: "vercel.com", name: "zz-vercel-signin", device_id: "dev-1", check: true, team_id: TEAM });
-  await act(async () => fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }));
-  expect(t.q("[data-vault-signin-button]")!.getAttribute("data-vault-signin-button")).toBe("checking");
+  expect(fake.calls[0]!.args).toMatchObject({
+    site: "vercel.com",
+    name: "zz-vercel-signin",
+    device_id: "dev-1",
+    check: true,
+    team_id: TEAM,
+  });
+  await act(async () =>
+    fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }),
+  );
+  expect(
+    t.q("[data-vault-signin-button]")!.getAttribute("data-vault-signin-button"),
+  ).toBe("checking");
   // No review before the laptop answers.
   expect(t.q("[data-switch-review]")).toBeNull();
 
-  await act(async () => fake.setResult("users:getCommandResult", { command_id: "cmd-check" }, { result: JSON.stringify({ host: "vercel.com", cookies: 4, account_hint: "zz@acme.dev" }) }));
+  await act(async () =>
+    fake.setResult(
+      "users:getCommandResult",
+      { command_id: "cmd-check" },
+      {
+        result: JSON.stringify({
+          host: "vercel.com",
+          cookies: 4,
+          account_hint: "zz@acme.dev",
+        }),
+      },
+    ),
+  );
   await settle();
-  expect(t.q("[data-switch-review]")?.getAttribute("data-switch-review")).toBe("Share your vercel.com sign-in");
+  expect(t.q("[data-switch-review]")?.getAttribute("data-switch-review")).toBe(
+    "Share your vercel.com sign-in",
+  );
   expect(fake.calls).toHaveLength(1);
 
-  await act(async () => (t.q("[data-switch-confirm]") as HTMLButtonElement).click());
+  await act(async () =>
+    (t.q("[data-switch-confirm]") as HTMLButtonElement).click(),
+  );
   await settle();
   expect(t.q("[data-switch-review]")).toBeNull();
   expect(fake.calls).toHaveLength(2);
   expect(fake.calls[1]!.args.check).toBeUndefined();
-  await act(async () => fake.calls[1]!.answer({ command_id: "cmd-save", label: "mbp" }));
-  await act(async () => fake.setResult("users:getCommandResult", { command_id: "cmd-save" }, { result: JSON.stringify({ short_id: "sec-902", name: "zz-vercel-signin", host: "vercel.com", cookies: 4, action: "filled" }) }));
+  await act(async () =>
+    fake.calls[1]!.answer({ command_id: "cmd-save", label: "mbp" }),
+  );
+  await act(async () =>
+    fake.setResult(
+      "users:getCommandResult",
+      { command_id: "cmd-save" },
+      {
+        result: JSON.stringify({
+          short_id: "sec-902",
+          name: "zz-vercel-signin",
+          host: "vercel.com",
+          cookies: 4,
+          action: "filled",
+        }),
+      },
+    ),
+  );
   await settle();
-  expect(t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state")).toBe("saved");
+  expect(
+    t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state"),
+  ).toBe("saved");
   expect(t.text()).toContain("4 cookies");
   await t.unmount();
 });
@@ -246,14 +426,26 @@ test("backing out of the share review saves nothing", async () => {
   const fake = fakeConvex();
   const t = await mount(<SigninRequestFill row={signinRow()} />, fake.client);
   await pressChrome(t);
-  await act(async () => fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }));
-  await act(async () => fake.setResult("users:getCommandResult", { command_id: "cmd-check" }, { result: JSON.stringify({ host: "vercel.com", cookies: 2 }) }));
+  await act(async () =>
+    fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }),
+  );
+  await act(async () =>
+    fake.setResult(
+      "users:getCommandResult",
+      { command_id: "cmd-check" },
+      { result: JSON.stringify({ host: "vercel.com", cookies: 2 }) },
+    ),
+  );
   await settle();
-  await act(async () => (t.q("[data-switch-cancel]") as HTMLButtonElement).click());
+  await act(async () =>
+    (t.q("[data-switch-cancel]") as HTMLButtonElement).click(),
+  );
   await settle();
   expect(t.q("[data-switch-review]")).toBeNull();
   expect(fake.calls).toHaveLength(1);
-  expect(t.q("[data-vault-signin-button]")!.getAttribute("data-vault-signin-button")).toBe("idle");
+  expect(
+    t.q("[data-vault-signin-button]")!.getAttribute("data-vault-signin-button"),
+  ).toBe("idle");
   await t.unmount();
 });
 
@@ -261,14 +453,32 @@ test("no cookies in Chrome: not signed in, with Check again and a link to the si
   const fake = fakeConvex();
   const t = await mount(<SigninRequestFill row={signinRow()} />, fake.client);
   await pressChrome(t);
-  await act(async () => fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }));
-  await act(async () => fake.setResult("users:getCommandResult", { command_id: "cmd-check" }, { result: JSON.stringify({ host: "vercel.com", cookies: 0, profile: "Default" }) }));
+  await act(async () =>
+    fake.calls[0]!.answer({ command_id: "cmd-check", label: "mbp" }),
+  );
+  await act(async () =>
+    fake.setResult(
+      "users:getCommandResult",
+      { command_id: "cmd-check" },
+      {
+        result: JSON.stringify({
+          host: "vercel.com",
+          cookies: 0,
+          profile: "Default",
+        }),
+      },
+    ),
+  );
   await settle();
   expect(t.q("[data-switch-review]")).toBeNull();
-  expect(t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state")).toBe("signed-out");
+  expect(
+    t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state"),
+  ).toBe("signed-out");
   expect(t.text()).toContain("Not signed in to vercel.com");
   expect(t.text()).toContain("Check again");
-  expect(t.q("[data-vault-signin-open]")?.getAttribute("href")).toBe("https://vercel.com");
+  expect(t.q("[data-vault-signin-open]")?.getAttribute("href")).toBe(
+    "https://vercel.com",
+  );
   await t.unmount();
 });
 
@@ -276,14 +486,26 @@ test("a refused request and a laptop that never picks it up each say why", async
   const fake = fakeConvex();
   const t = await mount(<SigninRequestFill row={signinRow()} />, fake.client);
   await pressChrome(t);
-  await act(async () => fake.calls[0]!.answer({ error: "That laptop is not yours" }));
+  await act(async () =>
+    fake.calls[0]!.answer({ error: "That laptop is not yours" }),
+  );
   await settle();
-  expect(t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state")).toBe("failed");
+  expect(
+    t.q("[data-vault-signin-state]")?.getAttribute("data-vault-signin-state"),
+  ).toBe("failed");
   expect(t.text()).toContain("That laptop is not yours");
 
   await pressChrome(t);
-  await act(async () => fake.calls[1]!.answer({ command_id: "cmd-late", label: "mbp" }));
-  await act(async () => fake.setResult("users:getCommandResult", { command_id: "cmd-late" }, { error: "expired_ttl" }));
+  await act(async () =>
+    fake.calls[1]!.answer({ command_id: "cmd-late", label: "mbp" }),
+  );
+  await act(async () =>
+    fake.setResult(
+      "users:getCommandResult",
+      { command_id: "cmd-late" },
+      { error: "expired_ttl" },
+    ),
+  );
   await settle();
   expect(t.text()).toContain("mbp never picked it up");
   await t.unmount();

@@ -18,10 +18,19 @@ import { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./lib/auth";
 import { canAccessConversation } from "./lib/access";
 import { normalizeRepository } from "./lib/gitRefs";
-import { repositoryFromRemote, SESSION_ACTIVITY_FRESH_MS } from "@codecast/shared/contracts";
+import {
+  repositoryFromRemote,
+  SESSION_ACTIVITY_FRESH_MS,
+} from "@codecast/shared/contracts";
 import { pathInRepository } from "@codecast/shared/search";
 import { profilePublicSessionVisible } from "./privacy";
-import { blameSessionsFor, cacheKeyFor, cacheRowByKey, canBrowseRepository, localSourcesFor } from "./repos";
+import {
+  blameSessionsFor,
+  cacheKeyFor,
+  cacheRowByKey,
+  canBrowseRepository,
+  localSourcesFor,
+} from "./repos";
 import { type BlameViewer, type ResolvedSession } from "./blame";
 
 /** One session as a reader may see it, whichever surface names it. */
@@ -42,25 +51,53 @@ export type SessionRefForReader = {
 type OwnerInfo = { name?: string; image?: string };
 type OwnerCache = Map<string, OwnerInfo>;
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /**
  * What a stranger reads for a session its owner has not made public: the
  * owner's first name and the day it started. The year is spelled out only when
  * it is not this year, the way a person writes a date.
  */
-export function anonymousSessionTitle(ownerName: string | undefined, startedAt: number, now = Date.now()): string {
+export function anonymousSessionTitle(
+  ownerName: string | undefined,
+  startedAt: number,
+  now = Date.now(),
+): string {
   const first = ownerName?.trim().split(/\s+/)[0] || "A";
   const date = new Date(startedAt);
   const day = `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
-  const when = date.getUTCFullYear() === new Date(now).getUTCFullYear() ? day : `${day}, ${date.getUTCFullYear()}`;
+  const when =
+    date.getUTCFullYear() === new Date(now).getUTCFullYear()
+      ? day
+      : `${day}, ${date.getUTCFullYear()}`;
   const whose = first === "A" ? "A session" : `${first}'s session`;
   return `${whose} on ${when}`;
 }
 
 /** A session reduced to what a reader with no account may see. */
 export function publicSessionRef(
-  conv: Pick<Doc<"conversations">, "_id" | "title" | "short_id" | "share_token" | "profile_pinned_at" | "started_at">,
+  conv: Pick<
+    Doc<"conversations">,
+    | "_id"
+    | "title"
+    | "short_id"
+    | "share_token"
+    | "profile_pinned_at"
+    | "started_at"
+  >,
   owner: OwnerInfo,
   now = Date.now(),
 ): SessionRefForReader {
@@ -103,11 +140,18 @@ export function privateSessionKey(id: string): string {
   return `private-${fnv(0x811c9dc5)}${fnv(0x9747b28c)}`;
 }
 
-async function ownerOf(ctx: { db: any }, userId: Id<"users">, owners: OwnerCache): Promise<OwnerInfo> {
+async function ownerOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+  owners: OwnerCache,
+): Promise<OwnerInfo> {
   const key = userId.toString();
   if (!owners.has(key)) {
     const user = await ctx.db.get(userId);
-    owners.set(key, { name: user?.name ?? undefined, image: user?.image ?? user?.github_avatar_url ?? undefined });
+    owners.set(key, {
+      name: user?.name ?? undefined,
+      image: user?.image ?? user?.github_avatar_url ?? undefined,
+    });
   }
   return owners.get(key)!;
 }
@@ -122,8 +166,11 @@ export function sessionInRepository(
   repo: string,
   publishedRoots: ReadonlySet<string>,
 ): boolean {
-  if (conv.git_remote_url) return repositoryFromRemote(conv.git_remote_url) === repo;
-  return !!conv.git_root && publishedRoots.has(conv.git_root.replace(/\/+$/, ""));
+  if (conv.git_remote_url)
+    return repositoryFromRemote(conv.git_remote_url) === repo;
+  return (
+    !!conv.git_root && publishedRoots.has(conv.git_root.replace(/\/+$/, ""))
+  );
 }
 
 export { pathInRepository };
@@ -134,7 +181,14 @@ export type RepoSessionRow = SessionRefForReader & {
   started_at: number;
   updated_at: number;
   branch?: string;
-  commits: { sha: string; subject: string; timestamp: number; insertions: number; deletions: number; files_changed: number }[];
+  commits: {
+    sha: string;
+    subject: string;
+    timestamp: number;
+    insertions: number;
+    deletions: number;
+    files_changed: number;
+  }[];
   /** Repository paths the session edited or committed, newest first, capped. */
   files: string[];
   files_total: number;
@@ -154,7 +208,10 @@ const MAX_ROWS = 80;
  * pulse both start from this set; what each may say about a session is
  * decided after.
  */
-export async function repoSessionCandidates(ctx: { db: any }, repository: string): Promise<{
+export async function repoSessionCandidates(
+  ctx: { db: any },
+  repository: string,
+): Promise<{
   repo: string;
   candidates: Map<string, Doc<"conversations">>;
   commitsBySession: Map<string, Doc<"commits">[]>;
@@ -176,13 +233,16 @@ export async function repoSessionCandidates(ctx: { db: any }, repository: string
 
   const candidates = new Map<string, Doc<"conversations">>();
   const consider = (conv: Doc<"conversations"> | null) => {
-    if (conv && !candidates.has(conv._id.toString())) candidates.set(conv._id.toString(), conv);
+    if (conv && !candidates.has(conv._id.toString()))
+      candidates.set(conv._id.toString(), conv);
   };
-  for (const key of commitsBySession.keys()) consider(await ctx.db.get(key as Id<"conversations">));
+  for (const key of commitsBySession.keys())
+    consider(await ctx.db.get(key as Id<"conversations">));
 
   const publishers = new Map<string, Set<string>>();
   for (const source of await localSourcesFor(ctx, repository)) {
-    const roots = publishers.get(source.user_id.toString()) ?? new Set<string>();
+    const roots =
+      publishers.get(source.user_id.toString()) ?? new Set<string>();
     roots.add(String(source.root).replace(/\/+$/, ""));
     publishers.set(source.user_id.toString(), roots);
   }
@@ -190,19 +250,25 @@ export async function repoSessionCandidates(ctx: { db: any }, repository: string
     for (const root of roots) {
       const inRoot: Doc<"conversations">[] = await ctx.db
         .query("conversations")
-        .withIndex("by_user_git_root", (q: any) => q.eq("user_id", userId).eq("git_root", root))
+        .withIndex("by_user_git_root", (q: any) =>
+          q.eq("user_id", userId).eq("git_root", root),
+        )
         .order("desc")
         .take(MAX_SESSIONS_PER_CHECKOUT);
-      for (const conv of inRoot) if (sessionInRepository(conv, repo, roots)) consider(conv);
+      for (const conv of inRoot)
+        if (sessionInRepository(conv, repo, roots)) consider(conv);
     }
     // A public session is the one thing a stranger can open, so every one the
     // publisher pinned is listed however old it is.
     const pinned: Doc<"conversations">[] = await ctx.db
       .query("conversations")
-      .withIndex("by_user_profile_pinned", (q: any) => q.eq("user_id", userId).gt("profile_pinned_at", 0))
+      .withIndex("by_user_profile_pinned", (q: any) =>
+        q.eq("user_id", userId).gt("profile_pinned_at", 0),
+      )
       .order("desc")
       .take(MAX_SESSIONS_PER_CHECKOUT);
-    for (const conv of pinned) if (sessionInRepository(conv, repo, roots)) consider(conv);
+    for (const conv of pinned)
+      if (sessionInRepository(conv, repo, roots)) consider(conv);
   }
 
   return { repo, candidates, commitsBySession };
@@ -216,38 +282,56 @@ export async function repoSessionCandidates(ctx: { db: any }, repository: string
  * session denormalizes as it edits (recent_files) and from the commits it
  * made, never from the edit rows themselves, whose bodies are whole files.
  */
-export async function gatherRepoSessions(ctx: { db: any }, viewer: BlameViewer, repository: string): Promise<RepoSessionRow[]> {
+export async function gatherRepoSessions(
+  ctx: { db: any },
+  viewer: BlameViewer,
+  repository: string,
+): Promise<RepoSessionRow[]> {
   const now = Date.now();
   const owners: OwnerCache = new Map();
-  const { repo, candidates, commitsBySession } = await repoSessionCandidates(ctx, repository);
+  const { repo, candidates, commitsBySession } = await repoSessionCandidates(
+    ctx,
+    repository,
+  );
 
   const rows: RepoSessionRow[] = [];
   for (const conv of candidates.values()) {
     // A subagent's transcript belongs to the session that spawned it, which
     // is the row that names the work; listing both says one thing twice.
     if (conv.parent_conversation_id) continue;
-    const visible = viewer === null ? profilePublicSessionVisible(conv) : await canAccessConversation(ctx, viewer, conv);
+    const visible =
+      viewer === null
+        ? profilePublicSessionVisible(conv)
+        : await canAccessConversation(ctx, viewer, conv);
     if (!visible) continue;
     const owner = await ownerOf(ctx, conv.user_id, owners);
-    const ref = viewer === null
-      ? publicSessionRef(conv, owner, now)
-      : {
-          conversation_id: conv._id,
-          title: conv.title || "Untitled",
-          public: profilePublicSessionVisible(conv),
-          short_id: conv.short_id ?? undefined,
-          author_name: owner.name,
-          author_image: owner.image,
-        };
-    const made = (commitsBySession.get(conv._id.toString()) ?? []).sort((a, b) => b.timestamp - a.timestamp);
+    const ref =
+      viewer === null
+        ? publicSessionRef(conv, owner, now)
+        : {
+            conversation_id: conv._id,
+            title: conv.title || "Untitled",
+            public: profilePublicSessionVisible(conv),
+            short_id: conv.short_id ?? undefined,
+            author_name: owner.name,
+            author_image: owner.image,
+          };
+    const made = (commitsBySession.get(conv._id.toString()) ?? []).sort(
+      (a, b) => b.timestamp - a.timestamp,
+    );
 
     const files: string[] = [];
     const seen = new Set<string>();
     const add = (path: string | null) => {
-      if (path && !seen.has(path)) { seen.add(path); files.push(path); }
+      if (path && !seen.has(path)) {
+        seen.add(path);
+        files.push(path);
+      }
     };
-    for (const filePath of conv.recent_files ?? []) add(pathInRepository(filePath, conv.git_root));
-    for (const commit of made) for (const file of commit.files ?? []) add(file.filename);
+    for (const filePath of conv.recent_files ?? [])
+      add(pathInRepository(filePath, conv.git_root));
+    for (const commit of made)
+      for (const file of commit.files ?? []) add(file.filename);
 
     rows.push({
       ...ref,
@@ -312,10 +396,18 @@ export const publicSessions = internalQuery({
  * last few minutes, on a session nobody tore down.
  */
 export function isSessionOnRepoNow(
-  conv: Pick<Doc<"conversations">, "activity" | "status" | "inbox_killed_at" | "parent_conversation_id">,
+  conv: Pick<
+    Doc<"conversations">,
+    "activity" | "status" | "inbox_killed_at" | "parent_conversation_id"
+  >,
   now: number,
 ): boolean {
-  if (conv.parent_conversation_id || conv.inbox_killed_at || conv.status !== "active") return false;
+  if (
+    conv.parent_conversation_id ||
+    conv.inbox_killed_at ||
+    conv.status !== "active"
+  )
+    return false;
   return !!conv.activity && now - conv.activity.at <= SESSION_ACTIVITY_FRESH_MS;
 }
 
@@ -325,7 +417,8 @@ export const publicPulse = internalQuery({
     const now = Date.now();
     const { candidates } = await repoSessionCandidates(ctx, args.repository);
     let live = 0;
-    for (const conv of candidates.values()) if (isSessionOnRepoNow(conv, now)) live++;
+    for (const conv of candidates.values())
+      if (isSessionOnRepoNow(conv, now)) live++;
     return { live };
   },
 });
@@ -333,7 +426,10 @@ export const publicPulse = internalQuery({
 /** The session behind each of a page of commits, from the commits table alone, the way getLog joins them. */
 export const publicCommitSessions = internalQuery({
   args: { repository: v.string(), shas: v.array(v.string()) },
-  handler: async (ctx, args): Promise<{ by_sha: Record<string, SessionRefForReader> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ by_sha: Record<string, SessionRefForReader> }> => {
     const repo = normalizeRepository(args.repository);
     const owners: OwnerCache = new Map();
     const conversations = new Map<string, Doc<"conversations"> | null>();
@@ -344,13 +440,20 @@ export const publicCommitSessions = internalQuery({
         .query("commits")
         .withIndex("by_sha", (q: any) => q.eq("sha", sha))
         .collect();
-      const row = rows.find((r) => r.conversation_id && normalizeRepository(r.repository) === repo);
+      const row = rows.find(
+        (r) => r.conversation_id && normalizeRepository(r.repository) === repo,
+      );
       if (!row?.conversation_id) continue;
       const key = row.conversation_id.toString();
-      if (!conversations.has(key)) conversations.set(key, await ctx.db.get(row.conversation_id));
+      if (!conversations.has(key))
+        conversations.set(key, await ctx.db.get(row.conversation_id));
       const conv = conversations.get(key);
       if (!conv) continue;
-      by_sha[sha] = publicSessionRef(conv, await ownerOf(ctx, conv.user_id, owners), now);
+      by_sha[sha] = publicSessionRef(
+        conv,
+        await ownerOf(ctx, conv.user_id, owners),
+        now,
+      );
     }
     return { by_sha };
   },
@@ -359,24 +462,49 @@ export const publicCommitSessions = internalQuery({
 /** Session blame for a public file: the signed in join, then every session reduced. */
 export const publicBlameSessions = internalQuery({
   args: { repository: v.string(), ref: v.string(), path: v.string() },
-  handler: async (ctx, args): Promise<{ by_sha: Record<string, SessionRefForReader>; line_matches: (SessionRefForReader & { line: string })[] } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    by_sha: Record<string, SessionRefForReader>;
+    line_matches: (SessionRefForReader & { line: string })[];
+  } | null> => {
     const { ref, path } = cacheKeyFor("blame", args);
     const row = await cacheRowByKey(ctx, args.repository, "blame", ref, path);
     if (!row) return null;
-    const joined = await blameSessionsFor(ctx, null, args.repository, ref, path, JSON.parse(row.content));
+    const joined = await blameSessionsFor(
+      ctx,
+      null,
+      args.repository,
+      ref,
+      path,
+      JSON.parse(row.content),
+    );
     const owners: OwnerCache = new Map();
     const now = Date.now();
-    const reduce = async (session: ResolvedSession): Promise<SessionRefForReader> => {
-      const conv = joined.conversations.get(session.conversation_id.toString())!;
-      const ref = publicSessionRef(conv, await ownerOf(ctx, conv.user_id, owners), now);
+    const reduce = async (
+      session: ResolvedSession,
+    ): Promise<SessionRefForReader> => {
+      const conv = joined.conversations.get(
+        session.conversation_id.toString(),
+      )!;
+      const ref = publicSessionRef(
+        conv,
+        await ownerOf(ctx, conv.user_id, owners),
+        now,
+      );
       // Where the line was written stays: it is the message inside a public
       // session's share page, and means nothing for a private one.
-      return ref.public ? { ...ref, message_id: session.message_id, via: session.via } : { ...ref, via: session.via };
+      return ref.public
+        ? { ...ref, message_id: session.message_id, via: session.via }
+        : { ...ref, via: session.via };
     };
     const by_sha: Record<string, SessionRefForReader> = {};
-    for (const [sha, session] of Object.entries(joined.by_sha)) by_sha[sha] = await reduce(session);
+    for (const [sha, session] of Object.entries(joined.by_sha))
+      by_sha[sha] = await reduce(session);
     const line_matches = [];
-    for (const match of joined.line_matches) line_matches.push({ ...(await reduce(match)), line: match.line });
+    for (const match of joined.line_matches)
+      line_matches.push({ ...(await reduce(match)), line: match.line });
     return { by_sha, line_matches };
   },
 });

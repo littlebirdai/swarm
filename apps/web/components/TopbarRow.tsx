@@ -39,15 +39,33 @@ export function TopbarRow({
   const rowRef = useRef<HTMLDivElement>(null);
   useSqueezeToFit(rowRef, TOPBAR_SQUEEZE_LEVELS);
   return (
-    <div ref={rowRef} data-cc-topbar-row className="px-2 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-3">
+    <div
+      ref={rowRef}
+      data-cc-topbar-row
+      className="px-2 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-3"
+    >
       <div className="flex items-center gap-0.5 flex-shrink-0">{nav}</div>
-      <div className="hidden sm:flex items-center gap-2 flex-shrink-0 min-w-0">{workspace}</div>
-      <div data-cc-topbar-search className="hidden sm:flex flex-1 items-center justify-center gap-2 min-w-min">{search}</div>
-      <div data-cc-topbar-actions className="ml-auto flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+      <div className="hidden sm:flex items-center gap-2 flex-shrink-0 min-w-0">
+        {workspace}
+      </div>
+      <div
+        data-cc-topbar-search
+        className="hidden sm:flex flex-1 items-center justify-center gap-2 min-w-min"
+      >
+        {search}
+      </div>
+      <div
+        data-cc-topbar-actions
+        className="ml-auto flex items-center gap-1.5 sm:gap-3 flex-shrink-0"
+      >
         {status}
-        <div data-cc-topbar-group className="flex items-center gap-0.5">{actions}</div>
+        <div data-cc-topbar-group className="flex items-center gap-0.5">
+          {actions}
+        </div>
         <TopbarDivider />
-        <div data-cc-topbar-group className="flex items-center gap-0.5">{panels}</div>
+        <div data-cc-topbar-group className="flex items-center gap-0.5">
+          {panels}
+        </div>
       </div>
     </div>
   );

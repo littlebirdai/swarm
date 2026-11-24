@@ -20,7 +20,11 @@ export function ThreadFindField({
 }) {
   const q = query.trim();
   return (
-    <span className="rt-find" data-filled={query ? "" : undefined} role="search">
+    <span
+      className="rt-find"
+      data-filled={query ? "" : undefined}
+      role="search"
+    >
       <Search className="rt-find-icon h-3 w-3" aria-hidden="true" />
       <input
         ref={inputRef}
@@ -45,13 +49,30 @@ export function ThreadFindField({
       />
       {q && (
         <>
-          <span className={`rt-find-count${count ? "" : " rt-find-none"}`} aria-live="polite">
+          <span
+            className={`rt-find-count${count ? "" : " rt-find-none"}`}
+            aria-live="polite"
+          >
             {count ? `${current + 1}/${count}` : "0/0"}
           </span>
-          <button type="button" className="rt-find-btn" onClick={() => step(-1)} disabled={!count} aria-label="Previous match" title="Previous match">
+          <button
+            type="button"
+            className="rt-find-btn"
+            onClick={() => step(-1)}
+            disabled={!count}
+            aria-label="Previous match"
+            title="Previous match"
+          >
             <ChevronUp className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className="rt-find-btn" onClick={() => step(1)} disabled={!count} aria-label="Next match" title="Next match">
+          <button
+            type="button"
+            className="rt-find-btn"
+            onClick={() => step(1)}
+            disabled={!count}
+            aria-label="Next match"
+            title="Next match"
+          >
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
         </>

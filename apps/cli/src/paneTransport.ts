@@ -6,7 +6,10 @@ export type PaneTransport = {
   /** Which terminal and pane, for the log line. */
   name: string;
   /** Message text. Calls `beforeInput` right before writing, when given. */
-  sendText: (text: string, beforeInput?: () => Promise<void>) => Promise<unknown>;
+  sendText: (
+    text: string,
+    beforeInput?: () => Promise<void>,
+  ) => Promise<unknown>;
   /** One named key from a poll step: Escape, Enter, Up, a digit. */
   sendKey: (key: string) => Promise<unknown>;
   /** A payload that IS keys (the permission "\r" / "\x1b"), never bracketed. */

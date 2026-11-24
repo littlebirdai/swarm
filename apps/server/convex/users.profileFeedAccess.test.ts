@@ -25,36 +25,117 @@ function tables(): Record<string, any[]> {
       { _id: OTHER_TEAM, _creationTime: 4, name: "Other" },
     ],
     team_memberships: [
-      { _id: "m_owner", _creationTime: 5, user_id: OWNER, team_id: TEAM, role: "admin" },
-      { _id: "m_member", _creationTime: 6, user_id: MEMBER, team_id: TEAM, role: "member" },
-      { _id: "m_owner2", _creationTime: 6, user_id: OWNER, team_id: OTHER_TEAM, role: "member" },
+      {
+        _id: "m_owner",
+        _creationTime: 5,
+        user_id: OWNER,
+        team_id: TEAM,
+        role: "admin",
+      },
+      {
+        _id: "m_member",
+        _creationTime: 6,
+        user_id: MEMBER,
+        team_id: TEAM,
+        role: "member",
+      },
+      {
+        _id: "m_owner2",
+        _creationTime: 6,
+        user_id: OWNER,
+        team_id: OTHER_TEAM,
+        role: "member",
+      },
     ],
     conversations: [],
     messages: [],
     tasks: [
-      { _id: "task_personal", _creationTime: 10, user_id: OWNER, title: "Personal task", status: "open", workspace: `user:${OWNER}`, created_at: 10, updated_at: 10 },
-      { _id: "task_team", _creationTime: 11, user_id: OWNER, team_id: TEAM, title: "Team task", status: "open", workspace: `team:${TEAM}`, created_at: 11, updated_at: 11 },
+      {
+        _id: "task_personal",
+        _creationTime: 10,
+        user_id: OWNER,
+        title: "Personal task",
+        status: "open",
+        workspace: `user:${OWNER}`,
+        created_at: 10,
+        updated_at: 10,
+      },
+      {
+        _id: "task_team",
+        _creationTime: 11,
+        user_id: OWNER,
+        team_id: TEAM,
+        title: "Team task",
+        status: "open",
+        workspace: `team:${TEAM}`,
+        created_at: 11,
+        updated_at: 11,
+      },
     ],
     docs: [
-      { _id: "doc_personal", _creationTime: 12, user_id: OWNER, title: "Personal doc", workspace: `user:${OWNER}`, created_at: 12, updated_at: 12 },
-      { _id: "doc_team", _creationTime: 13, user_id: OWNER, team_id: TEAM, title: "Team doc", workspace: `team:${TEAM}`, created_at: 13, updated_at: 13 },
+      {
+        _id: "doc_personal",
+        _creationTime: 12,
+        user_id: OWNER,
+        title: "Personal doc",
+        workspace: `user:${OWNER}`,
+        created_at: 12,
+        updated_at: 12,
+      },
+      {
+        _id: "doc_team",
+        _creationTime: 13,
+        user_id: OWNER,
+        team_id: TEAM,
+        title: "Team doc",
+        workspace: `team:${TEAM}`,
+        created_at: 13,
+        updated_at: 13,
+      },
     ],
     team_activity_events: [
-      { _id: "ev_team", _creationTime: 14, actor_user_id: OWNER, team_id: TEAM, event_type: "commit_pushed", title: "Team commit", timestamp: 14 },
-      { _id: "ev_other", _creationTime: 15, actor_user_id: OWNER, team_id: OTHER_TEAM, event_type: "commit_pushed", title: "Other team commit", timestamp: 15 },
+      {
+        _id: "ev_team",
+        _creationTime: 14,
+        actor_user_id: OWNER,
+        team_id: TEAM,
+        event_type: "commit_pushed",
+        title: "Team commit",
+        timestamp: 14,
+      },
+      {
+        _id: "ev_other",
+        _creationTime: 15,
+        actor_user_id: OWNER,
+        team_id: OTHER_TEAM,
+        event_type: "commit_pushed",
+        title: "Other team commit",
+        timestamp: 15,
+      },
     ],
   };
 }
 
 function ctx(userId: string) {
   return {
-    auth: { async getUserIdentity() { return { subject: `${userId}|session` }; } },
+    auth: {
+      async getUserIdentity() {
+        return { subject: `${userId}|session` };
+      },
+    },
     db: makeFakeDb(tables(), { indexes: schemaIndexes(schema as any) }),
   } as any;
 }
 
-async function titles(viewer: string, args: Record<string, any> = {}): Promise<string[]> {
-  const res = await (getUserProfileFeed as any)._handler(ctx(viewer), { user_id: OWNER, paginationOpts: { numItems: 30, cursor: null }, ...args });
+async function titles(
+  viewer: string,
+  args: Record<string, any> = {},
+): Promise<string[]> {
+  const res = await (getUserProfileFeed as any)._handler(ctx(viewer), {
+    user_id: OWNER,
+    paginationOpts: { numItems: 30, cursor: null },
+    ...args,
+  });
   return res.page.map((i: any) => i.entity_title ?? i.preview).sort();
 }
 
@@ -75,7 +156,8 @@ describe("profile feed access", () => {
 
   test("the owner reads all of their own rows", async () => {
     const seen = await titles(OWNER);
-    for (const t of ["Personal task", "Personal doc", "Team task", "Team doc"]) expect(seen).toContain(t);
+    for (const t of ["Personal task", "Personal doc", "Team task", "Team doc"])
+      expect(seen).toContain(t);
   });
 });
 
@@ -86,35 +168,100 @@ describe("profile feed messages", () => {
   function sendTables(): Record<string, any[]> {
     const t = tables();
     t.conversations = [
-      { _id: "c_team", _creationTime: 20, user_id: OWNER, team_id: TEAM, is_private: false, team_visibility: "full", title: "Team session", message_count: 3, started_at: 20, updated_at: 30 },
-      { _id: "c_private", _creationTime: 21, user_id: OWNER, team_id: TEAM, is_private: true, title: "Private session", message_count: 1, started_at: 21, updated_at: 31 },
+      {
+        _id: "c_team",
+        _creationTime: 20,
+        user_id: OWNER,
+        team_id: TEAM,
+        is_private: false,
+        team_visibility: "full",
+        title: "Team session",
+        message_count: 3,
+        started_at: 20,
+        updated_at: 30,
+      },
+      {
+        _id: "c_private",
+        _creationTime: 21,
+        user_id: OWNER,
+        team_id: TEAM,
+        is_private: true,
+        title: "Private session",
+        message_count: 1,
+        started_at: 21,
+        updated_at: 31,
+      },
     ];
     t.messages = [
-      { _id: "m_restart", _creationTime: 40, conversation_id: "c_team", role: "user", timestamp: 40, content: "Your agent process exited while this work was still in progress, and codecast restarted the session." },
+      {
+        _id: "m_restart",
+        _creationTime: 40,
+        conversation_id: "c_team",
+        role: "user",
+        timestamp: 40,
+        content:
+          "Your agent process exited while this work was still in progress, and codecast restarted the session.",
+      },
     ];
     t.user_sends = Array.from({ length: 5 }, (_, i) => ({
-      _id: `s_${i}`, _creationTime: 50 + i, user_id: OWNER, team_id: TEAM, conversation_id: "c_team", message_id: `m_${i}`, timestamp: 50 + i, words: 2, text: `typed ${i}`, clipped: false,
+      _id: `s_${i}`,
+      _creationTime: 50 + i,
+      user_id: OWNER,
+      team_id: TEAM,
+      conversation_id: "c_team",
+      message_id: `m_${i}`,
+      timestamp: 50 + i,
+      words: 2,
+      text: `typed ${i}`,
+      clipped: false,
     }));
-    t.user_sends.push({ _id: "s_private", _creationTime: 60, user_id: OWNER, team_id: TEAM, conversation_id: "c_private", message_id: "m_p", timestamp: 60, words: 2, text: "private typed", clipped: false });
+    t.user_sends.push({
+      _id: "s_private",
+      _creationTime: 60,
+      user_id: OWNER,
+      team_id: TEAM,
+      conversation_id: "c_private",
+      message_id: "m_p",
+      timestamp: 60,
+      words: 2,
+      text: "private typed",
+      clipped: false,
+    });
     return t;
   }
   const run = (viewer: string, paginationOpts: any) =>
     (getUserProfileFeed as any)._handler(
-      { auth: ctx(viewer).auth, db: makeFakeDb(sendTables(), { indexes: schemaIndexes(schema as any) }) },
+      {
+        auth: ctx(viewer).auth,
+        db: makeFakeDb(sendTables(), { indexes: schemaIndexes(schema as any) }),
+      },
       { user_id: OWNER, team_id: TEAM, paginationOpts },
     );
-  const messages = (res: any) => res.page.filter((i: any) => i.type === "message").map((i: any) => i.preview);
+  const messages = (res: any) =>
+    res.page
+      .filter((i: any) => i.type === "message")
+      .map((i: any) => i.preview);
 
   test("shows logged sends only, never a machine message in the transcript", async () => {
     const res = await run(OWNER, { numItems: 10, cursor: null });
-    expect(messages(res)).toEqual(["private typed", "typed 4", "typed 3", "typed 2", "typed 1", "typed 0"]);
+    expect(messages(res)).toEqual([
+      "private typed",
+      "typed 4",
+      "typed 3",
+      "typed 2",
+      "typed 1",
+      "typed 0",
+    ]);
   });
 
   test("load more continues through older sends", async () => {
     const first = await run(OWNER, { numItems: 3, cursor: null });
     expect(messages(first)).toEqual(["private typed", "typed 4", "typed 3"]);
     expect(first.isDone).toBe(false);
-    const second = await run(OWNER, { numItems: 3, cursor: first.continueCursor });
+    const second = await run(OWNER, {
+      numItems: 3,
+      cursor: first.continueCursor,
+    });
     expect(messages(second)).toEqual(["typed 2", "typed 1", "typed 0"]);
   });
 

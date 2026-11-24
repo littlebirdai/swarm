@@ -13,12 +13,31 @@ import path from "node:path";
 import { Option, type Command } from "commander";
 import { fmt } from "./colors.js";
 import { apiPost, type PublishDeps } from "./castApi.js";
-import { JUDGES_DIR, MOMENTS_DIR, fileVersion, judgeHere, noteHostRoot, shadowDir, tickMoments } from "./momentsHost.js";
-import { MOMENT_KIND, durationWords, parseExtractorHeader, publishedFor } from "@codecast/shared/contracts/moments";
+import {
+  JUDGES_DIR,
+  MOMENTS_DIR,
+  fileVersion,
+  judgeHere,
+  noteHostRoot,
+  shadowDir,
+  tickMoments,
+} from "./momentsHost.js";
+import {
+  MOMENT_KIND,
+  durationWords,
+  parseExtractorHeader,
+  publishedFor,
+} from "@codecast/shared/contracts/moments";
 import { parseJudgeSpec } from "@codecast/shared/contracts/judges";
-import { AGENT_LIMITS, type AgentJudgeSpec } from "@codecast/shared/contracts/agentJudges";
+import {
+  AGENT_LIMITS,
+  type AgentJudgeSpec,
+} from "@codecast/shared/contracts/agentJudges";
 import { createHash } from "node:crypto";
-import { budgetWords, type BudgetSummary } from "@codecast/shared/contracts/modelCall";
+import {
+  budgetWords,
+  type BudgetSummary,
+} from "@codecast/shared/contracts/modelCall";
 import { execFileAsync } from "./proc.js";
 
 function fail(message: string, code = 2): never {
@@ -28,50 +47,109 @@ function fail(message: string, code = 2): never {
 
 async function repoRoot(cwd: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" } as any);
+    const { stdout } = await execFileAsync(
+      "git",
+      ["rev-parse", "--show-toplevel"],
+      { cwd, encoding: "utf8" } as any,
+    );
     return String(stdout).trim();
   } catch {
-    fail("Run from inside the product's repository: its extractors and judges live in .codecast/");
+    fail(
+      "Run from inside the product's repository: its extractors and judges live in .codecast/",
+    );
   }
 }
 
 export type PublishSet = {
-  extractors: Array<{ kind: string; path: string; version: string; quiet_ms: number; timeout_ms: number }>;
-  judges: Array<{ name: string; path: string; version: string; moment: string; model: string; max_tokens: number; projects: string[]; parts?: string[]; mode: "shadow" | "live"; prompt: string; agent?: PublishedAgent }>;
+  extractors: Array<{
+    kind: string;
+    path: string;
+    version: string;
+    quiet_ms: number;
+    timeout_ms: number;
+  }>;
+  judges: Array<{
+    name: string;
+    path: string;
+    version: string;
+    moment: string;
+    model: string;
+    max_tokens: number;
+    projects: string[];
+    parts?: string[];
+    mode: "shadow" | "live";
+    prompt: string;
+    agent?: PublishedAgent;
+  }>;
   /** Every file the publish carries at its own blob sha, for the archive (an agent judge's version covers its companion files too). */
   files: Array<{ path: string; version: string }>;
   problems: string[];
 };
 
 /** An agent judge's session as published: its header's spec, with the CLAUDE.md read in and the gateway as a path from the repo root. */
-export type PublishedAgent = { tools: string[]; cwd: string; max_turns: number; timeout_ms: number; claude_md?: string; gateway?: string };
+export type PublishedAgent = {
+  tools: string[];
+  cwd: string;
+  max_turns: number;
+  timeout_ms: number;
+  claude_md?: string;
+  gateway?: string;
+};
 
 /**
  * An agent judge's files beside it (agentJudges.ts): the CLAUDE.md read in,
  * the gateway checked. Its version covers them all, so changing either is a
  * new version of the judge.
  */
-async function agentPart(root: string, rel: string, spec: AgentJudgeSpec, problems: string[]): Promise<{ agent: PublishedAgent; versions: string[]; files: Array<{ path: string; version: string }> }> {
+async function agentPart(
+  root: string,
+  rel: string,
+  spec: AgentJudgeSpec,
+  problems: string[],
+): Promise<{
+  agent: PublishedAgent;
+  versions: string[];
+  files: Array<{ path: string; version: string }>;
+}> {
   const beside = (f: string) => path.join(root, JUDGES_DIR, f);
-  const agent: PublishedAgent = { tools: spec.tools, cwd: spec.cwd, max_turns: spec.max_turns, timeout_ms: spec.timeout_ms };
+  const agent: PublishedAgent = {
+    tools: spec.tools,
+    cwd: spec.cwd,
+    max_turns: spec.max_turns,
+    timeout_ms: spec.timeout_ms,
+  };
   const versions: string[] = [];
   const files: Array<{ path: string; version: string }> = [];
-  if (!fs.existsSync(path.join(root, spec.cwd))) problems.push(`${rel}: cwd ${spec.cwd} is not a directory of the repo`);
+  if (!fs.existsSync(path.join(root, spec.cwd)))
+    problems.push(`${rel}: cwd ${spec.cwd} is not a directory of the repo`);
   if (spec.claude_md) {
-    if (!fs.existsSync(beside(spec.claude_md))) problems.push(`${rel}: claude_md ${spec.claude_md} is not in ${JUDGES_DIR}`);
+    if (!fs.existsSync(beside(spec.claude_md)))
+      problems.push(
+        `${rel}: claude_md ${spec.claude_md} is not in ${JUDGES_DIR}`,
+      );
     else {
       agent.claude_md = fs.readFileSync(beside(spec.claude_md), "utf8");
-      if (agent.claude_md.length > AGENT_LIMITS.claude_md_chars) problems.push(`${rel}: claude_md is over ${AGENT_LIMITS.claude_md_chars} characters`);
+      if (agent.claude_md.length > AGENT_LIMITS.claude_md_chars)
+        problems.push(
+          `${rel}: claude_md is over ${AGENT_LIMITS.claude_md_chars} characters`,
+        );
       versions.push(await fileVersion(beside(spec.claude_md)));
-      files.push({ path: `${JUDGES_DIR}/${spec.claude_md}`, version: versions.at(-1)! });
+      files.push({
+        path: `${JUDGES_DIR}/${spec.claude_md}`,
+        version: versions.at(-1)!,
+      });
     }
   }
   if (spec.gateway) {
-    if (!fs.existsSync(beside(spec.gateway))) problems.push(`${rel}: gateway ${spec.gateway} is not in ${JUDGES_DIR}`);
+    if (!fs.existsSync(beside(spec.gateway)))
+      problems.push(`${rel}: gateway ${spec.gateway} is not in ${JUDGES_DIR}`);
     else {
       agent.gateway = spec.gateway;
       versions.push(await fileVersion(beside(spec.gateway)));
-      files.push({ path: `${JUDGES_DIR}/${spec.gateway}`, version: versions.at(-1)! });
+      files.push({
+        path: `${JUDGES_DIR}/${spec.gateway}`,
+        version: versions.at(-1)!,
+      });
     }
   }
   return { agent, versions, files };
@@ -79,30 +157,97 @@ async function agentPart(root: string, rel: string, spec: AgentJudgeSpec, proble
 
 /** What a checkout holds: every extractor with its header, every judge parsed, each at its file's version. */
 /** The extractors and judges a publish carries; to `source`, only the files publishedFor picks (each file's `source:` header). */
-export async function readPublishSet(root: string, source?: string): Promise<PublishSet> {
-  const set: PublishSet = { extractors: [], judges: [], problems: [], files: [] };
+export async function readPublishSet(
+  root: string,
+  source?: string,
+): Promise<PublishSet> {
+  const set: PublishSet = {
+    extractors: [],
+    judges: [],
+    problems: [],
+    files: [],
+  };
   // Each extractor and judge, with the source its header names, the files it carries and what is wrong with it.
-  const named: Array<{ source?: string; extractor?: PublishSet["extractors"][number]; judge?: PublishSet["judges"][number]; files: PublishSet["files"]; problems: string[] }> = [];
-  const list = (dir: string, ext: string) => (fs.existsSync(path.join(root, dir)) ? fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith(ext)).sort() : []);
+  const named: Array<{
+    source?: string;
+    extractor?: PublishSet["extractors"][number];
+    judge?: PublishSet["judges"][number];
+    files: PublishSet["files"];
+    problems: string[];
+  }> = [];
+  const list = (dir: string, ext: string) =>
+    fs.existsSync(path.join(root, dir))
+      ? fs
+          .readdirSync(path.join(root, dir))
+          .filter((f) => f.endsWith(ext))
+          .sort()
+      : [];
   for (const file of list(MOMENTS_DIR, ".ts")) {
     const kind = file.slice(0, -3);
     if (file.endsWith(".test.ts")) continue;
-    if (!MOMENT_KIND.test(kind)) { set.problems.push(`${MOMENTS_DIR}/${file}: the file name is the moment kind (lowercase letters, digits, - and _)`); continue; }
+    if (!MOMENT_KIND.test(kind)) {
+      set.problems.push(
+        `${MOMENTS_DIR}/${file}: the file name is the moment kind (lowercase letters, digits, - and _)`,
+      );
+      continue;
+    }
     const rel = `${MOMENTS_DIR}/${file}`;
-    const header = parseExtractorHeader(fs.readFileSync(path.join(root, rel), "utf8"));
-    const extractor = { kind, path: rel, version: await fileVersion(path.join(root, rel)), quiet_ms: header.quiet_ms, timeout_ms: header.timeout_ms };
-    named.push({ ...(header.source ? { source: header.source } : {}), extractor, files: [{ path: rel, version: extractor.version }], problems: header.problems.map((p) => `${rel}: ${p}`) });
+    const header = parseExtractorHeader(
+      fs.readFileSync(path.join(root, rel), "utf8"),
+    );
+    const extractor = {
+      kind,
+      path: rel,
+      version: await fileVersion(path.join(root, rel)),
+      quiet_ms: header.quiet_ms,
+      timeout_ms: header.timeout_ms,
+    };
+    named.push({
+      ...(header.source ? { source: header.source } : {}),
+      extractor,
+      files: [{ path: rel, version: extractor.version }],
+      problems: header.problems.map((p) => `${rel}: ${p}`),
+    });
   }
   for (const file of list(JUDGES_DIR, ".md")) {
     const rel = `${JUDGES_DIR}/${file}`;
-    const spec = parseJudgeSpec(file.slice(0, -3), fs.readFileSync(path.join(root, rel), "utf8"));
-    if ("error" in spec) { set.problems.push(`${rel}: ${spec.error}`); continue; }
+    const spec = parseJudgeSpec(
+      file.slice(0, -3),
+      fs.readFileSync(path.join(root, rel), "utf8"),
+    );
+    if ("error" in spec) {
+      set.problems.push(`${rel}: ${spec.error}`);
+      continue;
+    }
     const own = await fileVersion(path.join(root, rel));
     const problems: string[] = [];
-    const extra = spec.agent ? await agentPart(root, rel, spec.agent, problems) : null;
-    const version = extra?.versions.length ? createHash("sha1").update([own, ...extra.versions].join(" ")).digest("hex") : own;
-    const judge = { name: spec.name, path: rel, version, moment: spec.moment, model: spec.model, max_tokens: spec.max_tokens, projects: spec.projects, ...(spec.parts ? { parts: spec.parts } : {}), mode: spec.mode, prompt: spec.prompt, ...(extra ? { agent: extra.agent } : {}) };
-    named.push({ ...(spec.source ? { source: spec.source } : {}), judge, files: [{ path: rel, version: own }, ...(extra?.files ?? [])], problems });
+    const extra = spec.agent
+      ? await agentPart(root, rel, spec.agent, problems)
+      : null;
+    const version = extra?.versions.length
+      ? createHash("sha1")
+          .update([own, ...extra.versions].join(" "))
+          .digest("hex")
+      : own;
+    const judge = {
+      name: spec.name,
+      path: rel,
+      version,
+      moment: spec.moment,
+      model: spec.model,
+      max_tokens: spec.max_tokens,
+      projects: spec.projects,
+      ...(spec.parts ? { parts: spec.parts } : {}),
+      mode: spec.mode,
+      prompt: spec.prompt,
+      ...(extra ? { agent: extra.agent } : {}),
+    };
+    named.push({
+      ...(spec.source ? { source: spec.source } : {}),
+      judge,
+      files: [{ path: rel, version: own }, ...(extra?.files ?? [])],
+      problems,
+    });
   }
   for (const n of source ? publishedFor(named, source) : named) {
     if (n.extractor) set.extractors.push(n.extractor);
@@ -113,65 +258,141 @@ export async function readPublishSet(root: string, source?: string): Promise<Pub
   return set;
 }
 
-const age = (ms: number) => `${durationWords(Math.max(0, Date.now() - ms))} ago`;
+const age = (ms: number) =>
+  `${durationWords(Math.max(0, Date.now() - ms))} ago`;
 
-export function registerMomentsCommands(line: Command, deps: PublishDeps): void {
+export function registerMomentsCommands(
+  line: Command,
+  deps: PublishDeps,
+): void {
   const scope = async (team?: string) => {
     const { scopeFor } = await import("./lineScope.js");
-    const s: Record<string, unknown> = { ...(await scopeFor(deps, team, true)) };
+    const s: Record<string, unknown> = {
+      ...(await scopeFor(deps, team, true)),
+    };
     delete s.project;
     return s;
   };
-  const moments = line.command("moments").description("Moments a product brings for codecast to judge: its extractors and judges, and what they found (learning-loop.md LL7)");
+  const moments = line
+    .command("moments")
+    .description(
+      "Moments a product brings for codecast to judge: its extractors and judges, and what they found (learning-loop.md LL7)",
+    );
 
   moments
     .command("publish")
-    .description("Publish this repo's .codecast/moments extractors and .codecast/judges judges for a source; this machine runs the extractors")
-    .requiredOption("--source <name>", "The ingest source the product posts its moment events to")
+    .description(
+      "Publish this repo's .codecast/moments extractors and .codecast/judges judges for a source; this machine runs the extractors",
+    )
+    .requiredOption(
+      "--source <name>",
+      "The ingest source the product posts its moment events to",
+    )
     .option("--dry-run", "Read and check the files, publish nothing")
     .option("--json", "Machine-readable output")
-    .action(async (options: { source: string; dryRun?: boolean; json?: boolean }) => {
-      const root = await repoRoot(process.env.CODECAST_CWD || process.cwd());
-      const set = await readPublishSet(root, options.source);
-      if (options.dryRun) {
-        if (options.json) console.log(JSON.stringify({ root, ...set }, null, 2));
-        else {
-          for (const e of set.extractors) console.log(`extractor ${e.kind}  ${e.version.slice(0, 10)}  quiet ${durationWords(e.quiet_ms)}`);
-          for (const j of set.judges) console.log(`judge ${j.name}  ${j.version.slice(0, 10)}  reads ${j.moment}, ${j.mode}, ${j.model}, ${j.agent ? `an agent session (${j.agent.tools.join(", ")} in ${j.agent.cwd}), files into` : "against"} ${j.projects.join(", ")}`);
-          for (const p of set.problems) console.log(fmt.warning(p));
+    .action(
+      async (options: { source: string; dryRun?: boolean; json?: boolean }) => {
+        const root = await repoRoot(process.env.CODECAST_CWD || process.cwd());
+        const set = await readPublishSet(root, options.source);
+        if (options.dryRun) {
+          if (options.json)
+            console.log(JSON.stringify({ root, ...set }, null, 2));
+          else {
+            for (const e of set.extractors)
+              console.log(
+                `extractor ${e.kind}  ${e.version.slice(0, 10)}  quiet ${durationWords(e.quiet_ms)}`,
+              );
+            for (const j of set.judges)
+              console.log(
+                `judge ${j.name}  ${j.version.slice(0, 10)}  reads ${j.moment}, ${j.mode}, ${j.model}, ${j.agent ? `an agent session (${j.agent.tools.join(", ")} in ${j.agent.cwd}), files into` : "against"} ${j.projects.join(", ")}`,
+              );
+            for (const p of set.problems) console.log(fmt.warning(p));
+          }
+          return;
         }
-        return;
-      }
-      if (set.problems.length) fail(`Fix these first:\n${set.problems.map((p) => `  ${p}`).join("\n")}`);
-      const { deviceId } = await import("./remote/device.js");
-      const result = await apiPost(deps, "/cli/moments/publish", { ...(await scope()), source: options.source, device_id: deviceId(), root, extractors: set.extractors, judges: set.judges.map(({ moment, ...j }) => ({ ...j, moment })) });
-      noteHostRoot(root, set.extractors.length > 0);
-      // Every published version stays readable by its version id, outside the checkout (publishedSources.ts).
-      let kept: string;
-      try {
-        const { archivePublished } = await import("./publishedSources.js");
-        const archived = archivePublished(root, options.source, set.files);
-        kept = `Sources kept by version in ${archived.dir}${archived.commit ? ` (${archived.commit.slice(0, 10)})` : ""}.`;
-      } catch (err) {
-        kept = fmt.warning(`Published, but the sources were not kept by version: ${err instanceof Error ? err.message : err}`);
-      }
-      if (options.json) return console.log(JSON.stringify({ ...result, kept }, null, 2));
-      console.log(`Published ${result.extractors} extractor${result.extractors === 1 ? "" : "s"} and ${result.judges} judge${result.judges === 1 ? "" : "s"} for ${result.source}. This machine runs the extractors.`);
-      console.log(result.storage === "codecast" ? "Moment bodies are kept in codecast for 30 days." : `Moment bodies stay on this machine (${shadowDir()}), 30 days.`);
-      for (const p of result.problems ?? []) console.log(`  ${p}`);
-      console.log(kept);
-    });
+        if (set.problems.length)
+          fail(
+            `Fix these first:\n${set.problems.map((p) => `  ${p}`).join("\n")}`,
+          );
+        const { deviceId } = await import("./remote/device.js");
+        const result = await apiPost(deps, "/cli/moments/publish", {
+          ...(await scope()),
+          source: options.source,
+          device_id: deviceId(),
+          root,
+          extractors: set.extractors,
+          judges: set.judges.map(({ moment, ...j }) => ({ ...j, moment })),
+        });
+        noteHostRoot(root, set.extractors.length > 0);
+        // Every published version stays readable by its version id, outside the checkout (publishedSources.ts).
+        let kept: string;
+        try {
+          const { archivePublished } = await import("./publishedSources.js");
+          const archived = archivePublished(root, options.source, set.files);
+          kept = `Sources kept by version in ${archived.dir}${archived.commit ? ` (${archived.commit.slice(0, 10)})` : ""}.`;
+        } catch (err) {
+          kept = fmt.warning(
+            `Published, but the sources were not kept by version: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+        if (options.json)
+          return console.log(JSON.stringify({ ...result, kept }, null, 2));
+        console.log(
+          `Published ${result.extractors} extractor${result.extractors === 1 ? "" : "s"} and ${result.judges} judge${result.judges === 1 ? "" : "s"} for ${result.source}. This machine runs the extractors.`,
+        );
+        console.log(
+          result.storage === "codecast"
+            ? "Moment bodies are kept in codecast for 30 days."
+            : `Moment bodies stay on this machine (${shadowDir()}), 30 days.`,
+        );
+        for (const p of result.problems ?? []) console.log(`  ${p}`);
+        console.log(kept);
+      },
+    );
 
-  type Freshness = { source: string; live: number; stale: number; stale_judge: number; stale_extractor: number; stale_moments: string[] };
+  type Freshness = {
+    source: string;
+    live: number;
+    stale: number;
+    stale_judge: number;
+    stale_extractor: number;
+    stale_moments: string[];
+  };
   // A judged source's findings are counted a page at a time: its projects hold more than one read can (Oct 26).
   const findingFreshness = async (sources: string[]): Promise<Freshness[]> => {
     const out: Freshness[] = [];
     for (const source of sources) {
-      const sum: Freshness = { source, live: 0, stale: 0, stale_judge: 0, stale_extractor: 0, stale_moments: [] };
-      for (let at: { project: number; cursor: string | null } | null = { project: 0, cursor: null }; at;) {
-        const page = await apiPost(deps, "/cli/moments/freshness", { ...(await scope()), source, ...at }, { read: true });
-        for (const k of ["live", "stale", "stale_judge", "stale_extractor"] as const) sum[k] += page[k];
-        sum.stale_moments = [...new Set([...sum.stale_moments, ...page.stale_moments])].sort();
+      const sum: Freshness = {
+        source,
+        live: 0,
+        stale: 0,
+        stale_judge: 0,
+        stale_extractor: 0,
+        stale_moments: [],
+      };
+      for (
+        let at: { project: number; cursor: string | null } | null = {
+          project: 0,
+          cursor: null,
+        };
+        at;
+      ) {
+        const page = await apiPost(
+          deps,
+          "/cli/moments/freshness",
+          { ...(await scope()), source, ...at },
+          { read: true },
+        );
+        for (const k of [
+          "live",
+          "stale",
+          "stale_judge",
+          "stale_extractor",
+        ] as const)
+          sum[k] += page[k];
+        sum.stale_moments = [
+          ...new Set([...sum.stale_moments, ...page.stale_moments]),
+        ].sort();
         at = page.next;
       }
       out.push(sum);
@@ -181,123 +402,339 @@ export function registerMomentsCommands(line: Command, deps: PublishDeps): void 
 
   moments
     .command("ls")
-    .description("The newest moments, and the extractors and judges each source has")
+    .description(
+      "The newest moments, and the extractors and judges each source has",
+    )
     .option("--source <name>", "One source")
     .option("--limit <n>", "How many moments", "30")
-    .option("--stale", "Print only the moments whose live findings came from an older extractor or judge, one per line (feed them to retry --again)")
-    .option("--freshness", "Also count each judged source's live findings and how many came from an older extractor or judge (reads every finding, a page at a time)")
+    .option(
+      "--stale",
+      "Print only the moments whose live findings came from an older extractor or judge, one per line (feed them to retry --again)",
+    )
+    .option(
+      "--freshness",
+      "Also count each judged source's live findings and how many came from an older extractor or judge (reads every finding, a page at a time)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (options: { source?: string; limit: string; stale?: boolean; freshness?: boolean; json?: boolean }) => {
-      const result = await apiPost(deps, "/cli/moments/ls", { ...(await scope()), ...(options.source ? { source: options.source } : {}), limit: Number(options.limit) || 30 }, { read: true });
-      const freshness = options.stale || options.freshness ? await findingFreshness([...new Set<string>(result.judges.map((j: { source: string }) => j.source))]) : [];
-      if (options.stale) return console.log(freshness.flatMap((f) => f.stale_moments).join("\n"));
-      if (options.json) return console.log(JSON.stringify({ ...result, ...(options.freshness ? { findings: freshness } : {}) }, null, 2));
-      for (const e of result.extractors) console.log(`${fmt.muted("extractor")} ${e.source}/${e.kind} ${e.version.slice(0, 10)}, quiet ${durationWords(e.quiet_ms)}`);
-      for (const j of result.judges) console.log(`${fmt.muted("judge")} ${j.name} reads ${j.source}/${j.moment}, ${j.mode}, ${j.model}`);
-      for (const f of freshness) {
-        const line = `${fmt.muted("findings")} ${f.source}: ${f.live} live, ${f.stale} stale (${f.stale_extractor} from an older extractor, ${f.stale_judge} from an older judge)`;
-        console.log(f.stale ? fmt.warning(`${line}; ${f.stale_moments.length} moment${f.stale_moments.length === 1 ? "" : "s"} to read again: cast line moments retry --again $(cast line moments ls --source ${f.source} --stale)`) : line);
-      }
-      if (!result.moments.length) return console.log("No moments yet.");
-      for (const m of result.moments) {
-        const facts = [m.status, `${m.events} event${m.events === 1 ? "" : "s"}`, m.gap_ms !== undefined ? `read ${durationWords(m.gap_ms)} after` : null, m.judged_at ? "judged" : null, m.error].filter(Boolean).join(", ");
-        console.log(`${m.short_id}  ${m.kind}/${m.subject}  ${facts}  (${age(m.event_at)})`);
-      }
-    });
+    .action(
+      async (options: {
+        source?: string;
+        limit: string;
+        stale?: boolean;
+        freshness?: boolean;
+        json?: boolean;
+      }) => {
+        const result = await apiPost(
+          deps,
+          "/cli/moments/ls",
+          {
+            ...(await scope()),
+            ...(options.source ? { source: options.source } : {}),
+            limit: Number(options.limit) || 30,
+          },
+          { read: true },
+        );
+        const freshness =
+          options.stale || options.freshness
+            ? await findingFreshness([
+                ...new Set<string>(
+                  result.judges.map((j: { source: string }) => j.source),
+                ),
+              ])
+            : [];
+        if (options.stale)
+          return console.log(
+            freshness.flatMap((f) => f.stale_moments).join("\n"),
+          );
+        if (options.json)
+          return console.log(
+            JSON.stringify(
+              {
+                ...result,
+                ...(options.freshness ? { findings: freshness } : {}),
+              },
+              null,
+              2,
+            ),
+          );
+        for (const e of result.extractors)
+          console.log(
+            `${fmt.muted("extractor")} ${e.source}/${e.kind} ${e.version.slice(0, 10)}, quiet ${durationWords(e.quiet_ms)}`,
+          );
+        for (const j of result.judges)
+          console.log(
+            `${fmt.muted("judge")} ${j.name} reads ${j.source}/${j.moment}, ${j.mode}, ${j.model}`,
+          );
+        for (const f of freshness) {
+          const line = `${fmt.muted("findings")} ${f.source}: ${f.live} live, ${f.stale} stale (${f.stale_extractor} from an older extractor, ${f.stale_judge} from an older judge)`;
+          console.log(
+            f.stale
+              ? fmt.warning(
+                  `${line}; ${f.stale_moments.length} moment${f.stale_moments.length === 1 ? "" : "s"} to read again: cast line moments retry --again $(cast line moments ls --source ${f.source} --stale)`,
+                )
+              : line,
+          );
+        }
+        if (!result.moments.length) return console.log("No moments yet.");
+        for (const m of result.moments) {
+          const facts = [
+            m.status,
+            `${m.events} event${m.events === 1 ? "" : "s"}`,
+            m.gap_ms !== undefined
+              ? `read ${durationWords(m.gap_ms)} after`
+              : null,
+            m.judged_at ? "judged" : null,
+            m.error,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          console.log(
+            `${m.short_id}  ${m.kind}/${m.subject}  ${facts}  (${age(m.event_at)})`,
+          );
+        }
+      },
+    );
 
   moments
     .command("show <moment>")
     .description("One moment and what each judge found in it")
-    .option("--body", "Print the moment itself: from codecast when it keeps it, else from this machine")
+    .option(
+      "--body",
+      "Print the moment itself: from codecast when it keeps it, else from this machine",
+    )
     .addOption(new Option("--full", "Same as --body").hideHelp())
     .option("--json", "Machine-readable output")
-    .action(async (ref: string, options: { body?: boolean; full?: boolean; json?: boolean }) => {
-      if (options.full) options.body = true;
-      const result = await apiPost(deps, "/cli/moments/show", { ...(await scope()), moment: ref }, { read: true });
-      let body: unknown = null;
-      if (options.body) {
-        body = result.moment.kept ? await apiPost(deps, "/cli/moments/body", { ...(await scope()), moment: ref }, { read: true }) : null;
-        const local = path.join(shadowDir(), String(result.moment.source ?? "").replace(/[^A-Za-z0-9_-]/g, "_"), `${result.moment.short_id}.json`);
-        if (!body && fs.existsSync(local)) body = JSON.parse(fs.readFileSync(local, "utf8"));
-      }
-      if (options.json) return console.log(JSON.stringify({ ...result, ...(options.body ? { body } : {}) }, null, 2));
-      const m = result.moment;
-      console.log(`${m.short_id}  ${m.kind}/${m.subject}  ${m.status}, ${m.events} event${m.events === 1 ? "" : "s"}, last ${age(m.event_at)}`);
-      if (m.extractor_version) console.log(`  extracted by ${m.extractor_version.slice(0, 10)}, ${durationWords(m.gap_ms ?? 0)} after its last event; kept ${m.storage === "codecast" ? (m.kept ? "in codecast" : "in codecast, now expired") : "on the host"}`);
-      if (m.error) console.log(`  ${m.error}`);
-      for (const r of result.runs) {
-        console.log(`\n${r.judge} ${r.judge_version.slice(0, 10)} (${r.mode}): ${r.status}${r.reason ? `, ${r.reason}` : ""}, ${r.findings.length} finding${r.findings.length === 1 ? "" : "s"}${r.filed ? `, ${r.filed} filed` : ""}, $${r.cost_usd.toFixed(4)}`);
-        for (const f of r.findings) console.log(`  ${f.expectation} severity ${f.severity}: ${f.what_happened}${f.quote ? `\n    "${f.quote}"` : ""}`);
-      }
-      if (options.body) console.log(body ? `\n${JSON.stringify(body, null, 2)}` : "\nThe body is not kept anywhere this machine can read.");
-    });
+    .action(
+      async (
+        ref: string,
+        options: { body?: boolean; full?: boolean; json?: boolean },
+      ) => {
+        if (options.full) options.body = true;
+        const result = await apiPost(
+          deps,
+          "/cli/moments/show",
+          { ...(await scope()), moment: ref },
+          { read: true },
+        );
+        let body: unknown = null;
+        if (options.body) {
+          body = result.moment.kept
+            ? await apiPost(
+                deps,
+                "/cli/moments/body",
+                { ...(await scope()), moment: ref },
+                { read: true },
+              )
+            : null;
+          const local = path.join(
+            shadowDir(),
+            String(result.moment.source ?? "").replace(/[^A-Za-z0-9_-]/g, "_"),
+            `${result.moment.short_id}.json`,
+          );
+          if (!body && fs.existsSync(local))
+            body = JSON.parse(fs.readFileSync(local, "utf8"));
+        }
+        if (options.json)
+          return console.log(
+            JSON.stringify(
+              { ...result, ...(options.body ? { body } : {}) },
+              null,
+              2,
+            ),
+          );
+        const m = result.moment;
+        console.log(
+          `${m.short_id}  ${m.kind}/${m.subject}  ${m.status}, ${m.events} event${m.events === 1 ? "" : "s"}, last ${age(m.event_at)}`,
+        );
+        if (m.extractor_version)
+          console.log(
+            `  extracted by ${m.extractor_version.slice(0, 10)}, ${durationWords(m.gap_ms ?? 0)} after its last event; kept ${m.storage === "codecast" ? (m.kept ? "in codecast" : "in codecast, now expired") : "on the host"}`,
+          );
+        if (m.error) console.log(`  ${m.error}`);
+        for (const r of result.runs) {
+          console.log(
+            `\n${r.judge} ${r.judge_version.slice(0, 10)} (${r.mode}): ${r.status}${r.reason ? `, ${r.reason}` : ""}, ${r.findings.length} finding${r.findings.length === 1 ? "" : "s"}${r.filed ? `, ${r.filed} filed` : ""}, $${r.cost_usd.toFixed(4)}`,
+          );
+          for (const f of r.findings)
+            console.log(
+              `  ${f.expectation} severity ${f.severity}: ${f.what_happened}${f.quote ? `\n    "${f.quote}"` : ""}`,
+            );
+        }
+        if (options.body)
+          console.log(
+            body
+              ? `\n${JSON.stringify(body, null, 2)}`
+              : "\nThe body is not kept anywhere this machine can read.",
+          );
+      },
+    );
 
   moments
     .command("retry <moments...>")
-    .description("Send failed moments round again, tries reset, once what failed them is fixed")
-    .option("--again", "Ready moments too: extract and judge them again with the current extractor and judges")
-    .option("--lines <ids>", "Comma-separated expectations whose facts changed: the judging files and retires only under these")
-    .action(async (refs: string[], options: { again?: boolean; lines?: string }) => {
-      const result: Array<{ moment: string; status: string; retried: boolean }> = [];
-      const lines = linesOption(options.lines);
-      for (let i = 0; i < refs.length; i += 200) result.push(...(await apiPost(deps, "/cli/moments/retry", { ...(await scope()), moments: refs.slice(i, i + 200), ...(options.again ? { again: true } : {}), ...(lines ? { lines } : {}) })));
-      for (const r of result) console.log(`${r.moment}  ${r.retried ? "waiting again" : `left ${r.status}: only a failed moment goes again${options.again ? " (or a ready one with --again)" : ""}`}`);
-    });
+    .description(
+      "Send failed moments round again, tries reset, once what failed them is fixed",
+    )
+    .option(
+      "--again",
+      "Ready moments too: extract and judge them again with the current extractor and judges",
+    )
+    .option(
+      "--lines <ids>",
+      "Comma-separated expectations whose facts changed: the judging files and retires only under these",
+    )
+    .action(
+      async (refs: string[], options: { again?: boolean; lines?: string }) => {
+        const result: Array<{
+          moment: string;
+          status: string;
+          retried: boolean;
+        }> = [];
+        const lines = linesOption(options.lines);
+        for (let i = 0; i < refs.length; i += 200)
+          result.push(
+            ...(await apiPost(deps, "/cli/moments/retry", {
+              ...(await scope()),
+              moments: refs.slice(i, i + 200),
+              ...(options.again ? { again: true } : {}),
+              ...(lines ? { lines } : {}),
+            })),
+          );
+        for (const r of result)
+          console.log(
+            `${r.moment}  ${r.retried ? "waiting again" : `left ${r.status}: only a failed moment goes again${options.again ? " (or a ready one with --again)" : ""}`}`,
+          );
+      },
+    );
 
   moments
     .command("rejudge <moments...>")
-    .description("Judge ready moments again with their kind's current judges; what a judge filed from them before and does not find again leaves its problems")
-    .option("--lines <ids>", "Comma-separated expectations to file and retire under; the judge still reads every line")
+    .description(
+      "Judge ready moments again with their kind's current judges; what a judge filed from them before and does not find again leaves its problems",
+    )
+    .option(
+      "--lines <ids>",
+      "Comma-separated expectations to file and retire under; the judge still reads every line",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (refs: string[], options: { json?: boolean; lines?: string }) => {
-      const lines = linesOption(options.lines);
-      const all: Array<{ moment: string; judged?: Array<{ judge: string; status: string; findings: number; filed: number; reason?: string; cost_usd: number }>; error?: string }> = [];
-      // Two a request: each is a model call or more, and a request waits 45 seconds. One that times out
-      // is still judged on the server; the next batch goes on regardless.
-      for (let i = 0; i < refs.length; i += 2) {
-        const batch = await apiPost(deps, "/cli/moments/rejudge", { ...(await scope()), moments: refs.slice(i, i + 2), ...(lines ? { lines } : {}) }, { exitOnError: false }).catch((e: Error) =>
-          refs.slice(i, i + 2).map((moment) => ({ moment, error: `no answer in time, may still be judged: ${e.message.slice(0, 80)}` })));
-        // A source that judges on subscription hands its judging back to this machine.
-        for (const r of batch) {
-          if (!r.judge_here) continue;
-          const here = await judgeHere(r.judge_here, (route, body) => apiPost(deps, route, body, { exitOnError: false }), await scope()).catch((e: Error) => [{ judge: "*", status: "failed", findings: 0, filed: 0, reason: e.message.slice(0, 200), cost_usd: 0 }]);
-          r.judged = [...(r.judged ?? []), ...here];
-          delete r.judge_here;
+    .action(
+      async (refs: string[], options: { json?: boolean; lines?: string }) => {
+        const lines = linesOption(options.lines);
+        const all: Array<{
+          moment: string;
+          judged?: Array<{
+            judge: string;
+            status: string;
+            findings: number;
+            filed: number;
+            reason?: string;
+            cost_usd: number;
+          }>;
+          error?: string;
+        }> = [];
+        // Two a request: each is a model call or more, and a request waits 45 seconds. One that times out
+        // is still judged on the server; the next batch goes on regardless.
+        for (let i = 0; i < refs.length; i += 2) {
+          const batch = await apiPost(
+            deps,
+            "/cli/moments/rejudge",
+            {
+              ...(await scope()),
+              moments: refs.slice(i, i + 2),
+              ...(lines ? { lines } : {}),
+            },
+            { exitOnError: false },
+          ).catch((e: Error) =>
+            refs.slice(i, i + 2).map((moment) => ({
+              moment,
+              error: `no answer in time, may still be judged: ${e.message.slice(0, 80)}`,
+            })),
+          );
+          // A source that judges on subscription hands its judging back to this machine.
+          for (const r of batch) {
+            if (!r.judge_here) continue;
+            const here = await judgeHere(
+              r.judge_here,
+              (route, body) =>
+                apiPost(deps, route, body, { exitOnError: false }),
+              await scope(),
+            ).catch((e: Error) => [
+              {
+                judge: "*",
+                status: "failed",
+                findings: 0,
+                filed: 0,
+                reason: e.message.slice(0, 200),
+                cost_usd: 0,
+              },
+            ]);
+            r.judged = [...(r.judged ?? []), ...here];
+            delete r.judge_here;
+          }
+          all.push(...batch);
+          if (!options.json)
+            for (const r of batch)
+              console.log(
+                r.error
+                  ? `${r.moment}  ${fmt.warning(r.error)}`
+                  : `${r.moment}  ${(r.judged ?? []).map((j: any) => `${j.judge} ${j.status}: ${j.findings} found, ${j.filed} filed, $${j.cost_usd.toFixed(4)}${j.reason ? ` (${j.reason})` : ""}`).join("; ") || "no judges"}`,
+              );
         }
-        all.push(...batch);
-        if (!options.json) for (const r of batch) console.log(r.error ? `${r.moment}  ${fmt.warning(r.error)}` : `${r.moment}  ${(r.judged ?? []).map((j: any) => `${j.judge} ${j.status}: ${j.findings} found, ${j.filed} filed, $${j.cost_usd.toFixed(4)}${j.reason ? ` (${j.reason})` : ""}`).join("; ") || "no judges"}`);
-      }
-      if (options.json) console.log(JSON.stringify(all, null, 2));
-    });
+        if (options.json) console.log(JSON.stringify(all, null, 2));
+      },
+    );
 
   moments
     .command("extract")
-    .description("Claim and extract what is due on this machine now, the pass the daemon runs every minute")
+    .description(
+      "Claim and extract what is due on this machine now, the pass the daemon runs every minute",
+    )
     .option("--json", "Machine-readable output")
     .action(async (options: { json?: boolean }) => {
       const { deviceId } = await import("./remote/device.js");
-      const results = await tickMoments({ post: (route, body) => apiPost(deps, route, body, { exitOnError: false }), deviceId: deviceId(), log: options.json ? undefined : console.log });
+      const results = await tickMoments({
+        post: (route, body) =>
+          apiPost(deps, route, body, { exitOnError: false }),
+        deviceId: deviceId(),
+        log: options.json ? undefined : console.log,
+      });
       if (options.json) console.log(JSON.stringify(results, null, 2));
       else if (!results.length) console.log("Nothing is due on this machine.");
     });
 
   line
     .command("budget")
-    .description("The team's monthly model budget that judging, grouping and graph calls draw from; a team admin sets it (0 is off)")
+    .description(
+      "The team's monthly model budget that judging, grouping and graph calls draw from; a team admin sets it (0 is off)",
+    )
     .option("--set <usd>", "The monthly cap in dollars")
-    .option("--team <name>", "The team whose budget it is (default: the workspace this directory reads)")
+    .option(
+      "--team <name>",
+      "The team whose budget it is (default: the workspace this directory reads)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (options: { set?: string; team?: string; json?: boolean }) => {
-      const set = options.set === undefined ? undefined : Number(options.set.replace(/^\$/, ""));
-      if (set !== undefined && !(Number.isFinite(set) && set >= 0)) fail(`--set takes dollars, not "${options.set}"`);
-      const result: BudgetSummary = await apiPost(deps, "/cli/model/budget", { ...(await scope(options.team)), ...(set !== undefined ? { set_usd: set } : {}) });
-      if (options.json) return console.log(JSON.stringify(result, null, 2));
-      console.log(budgetWords(result));
-    });
+    .action(
+      async (options: { set?: string; team?: string; json?: boolean }) => {
+        const set =
+          options.set === undefined
+            ? undefined
+            : Number(options.set.replace(/^\$/, ""));
+        if (set !== undefined && !(Number.isFinite(set) && set >= 0))
+          fail(`--set takes dollars, not "${options.set}"`);
+        const result: BudgetSummary = await apiPost(deps, "/cli/model/budget", {
+          ...(await scope(options.team)),
+          ...(set !== undefined ? { set_usd: set } : {}),
+        });
+        if (options.json) return console.log(JSON.stringify(result, null, 2));
+        console.log(budgetWords(result));
+      },
+    );
 }
 
 /** `--lines ex-34,ex-35` as ids, or undefined when absent or empty. */
 const linesOption = (raw?: string) => {
-  const ids = (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const ids = (raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return ids.length ? ids : undefined;
 };

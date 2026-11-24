@@ -2,11 +2,31 @@
 // the layout tests. Ids and ordering are deterministic; timestamps hang off the
 // hour the module loaded so the relative ages read as recent.
 import type { WorkState } from "@codecast/shared/contracts";
-import { countStates, sortOrgSessions, type OrgSession, type OrgTree } from "./orgTypes";
+import {
+  countStates,
+  sortOrgSessions,
+  type OrgSession,
+  type OrgTree,
+} from "./orgTypes";
 
 const T0 = Math.floor(Date.now() / 3_600_000) * 3_600_000;
-const STATES: WorkState[] = ["working", "needs_input", "done", "dormant", "idle"];
-const AGENTS = ["claude", "codex", "claude", "gemini", "claude", "cursor", "claude", "opencode"];
+const STATES: WorkState[] = [
+  "working",
+  "needs_input",
+  "done",
+  "dormant",
+  "idle",
+];
+const AGENTS = [
+  "claude",
+  "codex",
+  "claude",
+  "gemini",
+  "claude",
+  "cursor",
+  "claude",
+  "opencode",
+];
 const TITLES = [
   "Fix the auth race on team switch",
   "Migrate sync layer to wake signatures",
@@ -20,11 +40,16 @@ const TITLES = [
   "Backfill short ids on plans",
 ];
 
-function session(i: number, opts: { owner?: string; role?: string }): OrgSession {
+function session(
+  i: number,
+  opts: { owner?: string; role?: string },
+): OrgSession {
   return {
     _id: `fixture-session-${i}`,
-    short_id: `jx7f${(i + 10).toString(36)}${(i * 7 % 36).toString(36)}`,
-    title: TITLES[i % TITLES.length] + (i >= TITLES.length ? ` (${Math.floor(i / TITLES.length) + 1})` : ""),
+    short_id: `jx7f${(i + 10).toString(36)}${((i * 7) % 36).toString(36)}`,
+    title:
+      TITLES[i % TITLES.length] +
+      (i >= TITLES.length ? ` (${Math.floor(i / TITLES.length) + 1})` : ""),
     agent_type: AGENTS[i % AGENTS.length],
     state: STATES[(i * 3) % STATES.length],
     updated_at: T0 - i * 7 * 60_000,
@@ -42,8 +67,12 @@ const SAM = "fixture-user-sam";
 const ROLE = "fixture-role-growth";
 
 const mine = Array.from({ length: 22 }, (_, i) => session(i, { owner: ME }));
-const sams = Array.from({ length: 11 }, (_, i) => session(100 + i, { owner: SAM }));
-const growth = Array.from({ length: 7 }, (_, i) => session(200 + i, { owner: ME, role: ROLE }));
+const sams = Array.from({ length: 11 }, (_, i) =>
+  session(100 + i, { owner: SAM }),
+);
+const growth = Array.from({ length: 7 }, (_, i) =>
+  session(200 + i, { owner: ME, role: ROLE }),
+);
 
 export const ORG_FIXTURE: OrgTree = {
   workspace: { kind: "team", id: "fixture-team", name: "Codecast" },
@@ -78,7 +107,10 @@ export const ORG_FIXTURE: OrgTree = {
       host_user_id: ME,
       name: "Head of Growth",
       handle: "growth",
-      scope: { project_ids: ["fixture-project-growth"], plan_ids: ["fixture-plan-seo"] },
+      scope: {
+        project_ids: ["fixture-project-growth"],
+        plan_ids: ["fixture-plan-seo"],
+      },
       reports_to: { kind: "user", user_id: ME },
       status: "active",
       charter: "Owns organic search, paid search and the weekly growth review.",
@@ -97,8 +129,16 @@ export const ORG_FIXTURE: OrgTree = {
         state_at: T0 - 1_200_000,
       },
       scope_names: {
-        projects: [{ id: "fixture-project-growth", title: "Growth", short_id: "pr-4" }],
-        plans: [{ id: "fixture-plan-seo", title: "SEO and AI citations", short_id: "pl-88" }],
+        projects: [
+          { id: "fixture-project-growth", title: "Growth", short_id: "pr-4" },
+        ],
+        plans: [
+          {
+            id: "fixture-plan-seo",
+            title: "SEO and AI citations",
+            short_id: "pl-88",
+          },
+        ],
       },
     },
   ],
@@ -123,12 +163,27 @@ export const ORG_FIXTURE: OrgTree = {
 };
 
 /** All fixture sessions, for tests that page through sessionsUnder. */
-export const ORG_FIXTURE_ALL_SESSIONS: OrgSession[] = [...mine, ...sams, ...growth];
+export const ORG_FIXTURE_ALL_SESSIONS: OrgSession[] = [
+  ...mine,
+  ...sams,
+  ...growth,
+];
 
 /** The tree with a Head of People seated, its standing conversation
  *  `fixture-head-conv`: the org screen's preview tree and the mount tests'
  *  head-of-people tree. */
 export const ORG_FIXTURE_WITH_HEAD: OrgTree = {
   ...ORG_FIXTURE,
-  roles: [...ORG_FIXTURE.roles, { ...ORG_FIXTURE.roles[0], _id: "fixture-role-head", short_id: "or-9", handle: "head-of-people", name: "Head of People", avatar: "owl", standing: { conversation_id: "fixture-head-conv", short_id: "jx7ch1f" } }],
+  roles: [
+    ...ORG_FIXTURE.roles,
+    {
+      ...ORG_FIXTURE.roles[0],
+      _id: "fixture-role-head",
+      short_id: "or-9",
+      handle: "head-of-people",
+      name: "Head of People",
+      avatar: "owl",
+      standing: { conversation_id: "fixture-head-conv", short_id: "jx7ch1f" },
+    },
+  ],
 };

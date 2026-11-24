@@ -39,7 +39,10 @@ function KeyBindingsSync() {
   useWatchEffect(() => {
     setKeyBindings(bindings);
     // The desktop menu bar repeats a few chords natively; it follows too.
-    if (storeReady) bridge("setMenuKeys")?.(desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac));
+    if (storeReady)
+      bridge("setMenuKeys")?.(
+        desktopMenuKeys(bindings, shortcutCatalog.shortcuts, isMac),
+      );
   }, [bindings, storeReady]);
   return null;
 }
@@ -52,8 +55,10 @@ function KeyBindingsSync() {
 // closes the old channel, so a switched-away account stops listening.
 function GestureBridge() {
   useMountEffect(() => {
-    const currentUserId = () => useInboxStore.getState().currentUser?._id?.toString?.() ?? null;
-    const bind = () => subscribeGestures(currentUserId(), currentUserId, applyBridgedGesture);
+    const currentUserId = () =>
+      useInboxStore.getState().currentUser?._id?.toString?.() ?? null;
+    const bind = () =>
+      subscribeGestures(currentUserId(), currentUserId, applyBridgedGesture);
     let boundTo = currentUserId();
     let stop = bind();
     const unsubscribe = useInboxStore.subscribe(() => {
@@ -74,8 +79,15 @@ function GestureBridge() {
 // "Set session model didn't go through — not authorized". The command name
 // rides convCommand's args; the reason is the last server refusal in the
 // (possibly nested) error message, minus stack-frame and client-suffix noise.
-function describeDispatchFailure(f: { action: string; args: unknown; message: string }): string {
-  const command = f.action === "convCommand" && Array.isArray(f.args) ? String(f.args[1]) : f.action;
+function describeDispatchFailure(f: {
+  action: string;
+  args: unknown;
+  message: string;
+}): string {
+  const command =
+    f.action === "convCommand" && Array.isArray(f.args)
+      ? String(f.args[1])
+      : f.action;
   const label = command
     .replace(/([A-Z])/g, " $1")
     .toLowerCase()
@@ -98,7 +110,9 @@ function DispatchFailureToast() {
     toast.error(text);
     // The server's reason reaches no log it can be read back from later, so
     // record it. The action name only: args can carry what the person typed.
-    captureException(new Error(text), { tags: { source: "dispatch-failure", dispatch_action: failure.action } });
+    captureException(new Error(text), {
+      tags: { source: "dispatch-failure", dispatch_action: failure.action },
+    });
   }, [failure]);
   return null;
 }
@@ -118,7 +132,11 @@ function AnalyticsIdentify() {
     });
     // A person's first week is where the product loses them: every one of those sessions is worth watching.
     const createdAt = user!._creationTime as number | undefined;
-    if (typeof createdAt === "number" && Date.now() - createdAt < NEW_USER_REPLAY_MS) keepReplay("new_user");
+    if (
+      typeof createdAt === "number" &&
+      Date.now() - createdAt < NEW_USER_REPLAY_MS
+    )
+      keepReplay("new_user");
   } else if (!id && lastId.current) {
     lastId.current = null;
     resetUser();
@@ -128,11 +146,11 @@ function AnalyticsIdentify() {
 
 const convex: ConvexReactClient = DOCS_SHOTS
   ? docsShotsConvex()
-  : import.meta.hot?.data?.convexClient ??
-  new ConvexReactClient(CONVEX_URL, {
-    unsavedChangesWarning: false,
-    webSocketConstructor: recoveringWebSocket(),
-  });
+  : (import.meta.hot?.data?.convexClient ??
+    new ConvexReactClient(CONVEX_URL, {
+      unsavedChangesWarning: false,
+      webSocketConstructor: recoveringWebSocket(),
+    }));
 
 if (import.meta.hot) {
   import.meta.hot.data.convexClient = convex;
@@ -152,26 +170,26 @@ export function Providers({ children }: { children: ReactNode }) {
     <CodecastAuthRoot client={convex}>
       <ThemeProvider>
         <ShortcutProvider>
-        <TipProvider>
-        {/* Docs shots capture what a person sees from an agent's tab, on an
+          <TipProvider>
+            {/* Docs shots capture what a person sees from an agent's tab, on an
             origin holding only the fixture world; elsewhere no override. */}
-        <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
-        {children}
-        </AgentTabOverride.Provider>
-        <ErrorBoundary name="DesktopProvider" level="inline">
-          <DesktopProvider />
-          <DesktopBadge />
-        </ErrorBoundary>
-        <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
-          <OpenInDesktopHandoff />
-        </ErrorBoundary>
-        <KeyBindingsSync />
-        <GestureBridge />
-        <AnalyticsIdentify />
-        <ClientResourceTelemetry />
-        <DispatchFailureToast />
-        <Toaster position="bottom-right" />
-        </TipProvider>
+            <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
+              {children}
+            </AgentTabOverride.Provider>
+            <ErrorBoundary name="DesktopProvider" level="inline">
+              <DesktopProvider />
+              <DesktopBadge />
+            </ErrorBoundary>
+            <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
+              <OpenInDesktopHandoff />
+            </ErrorBoundary>
+            <KeyBindingsSync />
+            <GestureBridge />
+            <AnalyticsIdentify />
+            <ClientResourceTelemetry />
+            <DispatchFailureToast />
+            <Toaster position="bottom-right" />
+          </TipProvider>
         </ShortcutProvider>
       </ThemeProvider>
     </CodecastAuthRoot>

@@ -26,6 +26,7 @@ All backend changes follow the same pattern: add `team_id: v.optional(v.id("team
 ### Task 1: Verify `setActiveTeam` mutation handles null
 
 **Files:**
+
 - Review: `packages/convex/convex/teams.ts:758-790`
 
 - [ ] **Step 1: Verify the mutation already handles undefined**
@@ -37,11 +38,13 @@ The mutation already has `v.optional(v.id("teams"))` for `team_id` and an `else`
 ### Task 2: Update `plans.webList` to accept explicit workspace args
 
 **Files:**
+
 - Modify: `packages/convex/convex/plans.ts:755-795`
 
 - [ ] **Step 1: Add workspace args and replace team resolution**
 
 Add to the `args` object:
+
 ```typescript
 team_id: v.optional(v.id("teams")),
 workspace: v.optional(v.union(v.literal("personal"), v.literal("team"))),
@@ -58,17 +61,20 @@ let plans;
 if (args.project_id) {
   // existing project_id path -- unchanged
 } else if (args.workspace === "team" && args.team_id) {
-  plans = await ctx.db.query("plans")
+  plans = await ctx.db
+    .query("plans")
     .withIndex("by_team_id", (q) => q.eq("team_id", args.team_id!))
     .collect();
 } else if (args.workspace === "personal") {
-  plans = await ctx.db.query("plans")
+  plans = await ctx.db
+    .query("plans")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
   plans = plans.filter((p) => !p.team_id);
 } else {
   // Backwards compat: no workspace specified = all user's plans
-  plans = await ctx.db.query("plans")
+  plans = await ctx.db
+    .query("plans")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
 }
@@ -90,6 +96,7 @@ git commit -m "feat(convex): add workspace scoping to plans.webList"
 ### Task 3: Update `tasks.webList` to accept explicit workspace args
 
 **Files:**
+
 - Modify: `packages/convex/convex/tasks.ts:658-773`
 
 - [ ] **Step 1: Add workspace args and replace team resolution**
@@ -97,6 +104,7 @@ git commit -m "feat(convex): add workspace scoping to plans.webList"
 Same pattern as Task 2. Add `team_id` and `workspace` to args. Replace the block that reads `user.active_team_id` with workspace-based branching.
 
 **IMPORTANT:** Preserve all existing logic after the query resolution block:
+
 - Status filtering (lines ~697-699 default status filter)
 - `include_derived` filter (lines ~702-704)
 - `ready` filter with dependency checking (lines ~706-715)
@@ -119,6 +127,7 @@ git commit -m "feat(convex): add workspace scoping to tasks.webList"
 ### Task 4: Update `docs.webList` to use workspace scoping
 
 **Files:**
+
 - Modify: `packages/convex/convex/docs.ts:294-435`
 
 - [ ] **Step 1: Add workspace args and replace merge logic**
@@ -126,6 +135,7 @@ git commit -m "feat(convex): add workspace scoping to tasks.webList"
 Add `team_id` and `workspace` to args. Replace the dual-fetch + merge + dedupe logic with workspace-scoped queries.
 
 **IMPORTANT:** This function has substantial post-query logic that must be preserved:
+
 - `resolveConvTeamId` for conversation-based team resolution
 - `scope` arg handling for project views
 - `projectPaths` computation and return value
@@ -149,6 +159,7 @@ git commit -m "feat(convex): add workspace scoping to docs.webList"
 ### Task 5: Update `projects.webList` to accept workspace scoping
 
 **Files:**
+
 - Modify: `packages/convex/convex/projects.ts:134-169`
 
 - [ ] **Step 1: Add workspace args and replace query logic**
@@ -177,6 +188,7 @@ git commit -m "feat(convex): add workspace scoping to projects.webList"
 ### Task 6: Add "Personal" entry to TeamSwitcher
 
 **Files:**
+
 - Modify: `packages/web/components/TeamSwitcher.tsx`
 
 - [ ] **Step 1: Rework the useEffect auto-select logic**
@@ -187,7 +199,9 @@ To distinguish "never selected" from "selected Personal": add a `workspace_initi
 
 ```typescript
 // In TeamSwitcher:
-const workspaceInitialized = useInboxStore((s) => s.clientState.ui?.workspace_initialized);
+const workspaceInitialized = useInboxStore(
+  (s) => s.clientState.ui?.workspace_initialized,
+);
 
 useEffect(() => {
   if (teams && teams.length > 0 && !workspaceInitialized) {
@@ -231,22 +245,29 @@ Import `User` from `lucide-react`.
 - [ ] **Step 4: Update the trigger to show "Personal" when no team selected**
 
 ```tsx
-{activeTeam ? (
-  <>
-    <TeamIcon icon={activeTeam.icon} color={activeTeam.icon_color} size={16} />
-    <span className="truncate max-w-[120px]">{activeTeam.name}</span>
-  </>
-) : (
-  <>
-    <User className="h-4 w-4 text-sol-dim" />
-    <span>Personal</span>
-  </>
-)}
+{
+  activeTeam ? (
+    <>
+      <TeamIcon
+        icon={activeTeam.icon}
+        color={activeTeam.icon_color}
+        size={16}
+      />
+      <span className="truncate max-w-[120px]">{activeTeam.name}</span>
+    </>
+  ) : (
+    <>
+      <User className="h-4 w-4 text-sol-dim" />
+      <span>Personal</span>
+    </>
+  );
+}
 ```
 
 - [ ] **Step 5: Verify in browser**
 
 Open `http://local.codecast.sh`. Verify:
+
 1. Team switcher shows "Personal" at top with separator below
 2. Selecting Personal clears the active team, shows "Personal" in trigger
 3. Selecting a team works as before
@@ -262,6 +283,7 @@ git commit -m "feat(web): add Personal workspace entry to TeamSwitcher"
 ### Task 7: Create `useWorkspaceArgs` hook
 
 **Files:**
+
 - Create: `packages/web/hooks/useWorkspaceArgs.ts`
 
 - [ ] **Step 1: Create the hook**
@@ -279,10 +301,10 @@ type WorkspaceArgs =
 
 export function useWorkspaceArgs(): WorkspaceArgs {
   const activeTeamId = useInboxStore(
-    (s) => s.clientState.ui?.active_team_id
+    (s) => s.clientState.ui?.active_team_id,
   ) as Id<"teams"> | undefined;
   const initialized = useInboxStore(
-    (s) => s.clientState.ui?.workspace_initialized
+    (s) => s.clientState.ui?.workspace_initialized,
   );
 
   if (!initialized) return "skip";
@@ -304,6 +326,7 @@ git commit -m "feat(web): add useWorkspaceArgs hook for workspace-scoped queries
 ### Task 8: Wire plans page to workspace scoping
 
 **Files:**
+
 - Modify: `packages/web/app/plans/page.tsx`
 
 - [ ] **Step 1: Use useWorkspaceArgs in the plans page**
@@ -314,12 +337,17 @@ import { useWorkspaceArgs } from "../../hooks/useWorkspaceArgs";
 // Inside PlansPage:
 const workspaceArgs = useWorkspaceArgs();
 
-const activePlans = useQuery(api.plans.webList,
-  workspaceArgs === "skip" ? "skip" : { ...workspaceArgs }
+const activePlans = useQuery(
+  api.plans.webList,
+  workspaceArgs === "skip" ? "skip" : { ...workspaceArgs },
 );
-const donePlans = useQuery(api.plans.webList,
-  workspaceArgs === "skip" ? "skip"
-    : showDone ? { status: "done", ...workspaceArgs } : "skip"
+const donePlans = useQuery(
+  api.plans.webList,
+  workspaceArgs === "skip"
+    ? "skip"
+    : showDone
+      ? { status: "done", ...workspaceArgs }
+      : "skip",
 );
 ```
 
@@ -337,6 +365,7 @@ git commit -m "feat(web): scope plans page by workspace"
 ### Task 9: Wire tasks page to workspace scoping
 
 **Files:**
+
 - Modify: `packages/web/hooks/useSyncTasks.ts`
 
 - [ ] **Step 1: Update useSyncTasks to pass workspace args**
@@ -346,11 +375,14 @@ import { useWorkspaceArgs } from "./useWorkspaceArgs";
 
 export function useSyncTasks(statusFilter?: string) {
   const workspaceArgs = useWorkspaceArgs();
-  const tasks = useQuery(api.tasks.webList,
-    workspaceArgs === "skip" ? "skip" : {
-      status: statusFilter || undefined,
-      ...workspaceArgs,
-    }
+  const tasks = useQuery(
+    api.tasks.webList,
+    workspaceArgs === "skip"
+      ? "skip"
+      : {
+          status: statusFilter || undefined,
+          ...workspaceArgs,
+        },
   );
   const syncTable = useInboxStore((s) => s.syncTable);
 
@@ -376,6 +408,7 @@ git commit -m "feat(web): scope tasks page by workspace"
 ### Task 10: Wire docs page to workspace scoping
 
 **Files:**
+
 - Modify: `packages/web/hooks/useSyncDocs.ts`
 
 - [ ] **Step 1: Update useSyncDocs to pass workspace args**
@@ -383,16 +416,33 @@ git commit -m "feat(web): scope tasks page by workspace"
 ```typescript
 import { useWorkspaceArgs } from "./useWorkspaceArgs";
 
-export function useSyncDocs(typeFilter?: string, searchQuery?: string, projectFilter?: string, scope?: string) {
+export function useSyncDocs(
+  typeFilter?: string,
+  searchQuery?: string,
+  projectFilter?: string,
+  scope?: string,
+) {
   const workspaceArgs = useWorkspaceArgs();
-  const queryArgs = workspaceArgs === "skip" ? "skip" as const
-    : searchQuery
-      ? { query: searchQuery, doc_type: typeFilter || undefined, scope: scope || undefined, ...workspaceArgs }
-      : { doc_type: typeFilter || undefined, project_path: projectFilter || undefined, scope: scope || undefined, ...workspaceArgs };
+  const queryArgs =
+    workspaceArgs === "skip"
+      ? ("skip" as const)
+      : searchQuery
+        ? {
+            query: searchQuery,
+            doc_type: typeFilter || undefined,
+            scope: scope || undefined,
+            ...workspaceArgs,
+          }
+        : {
+            doc_type: typeFilter || undefined,
+            project_path: projectFilter || undefined,
+            scope: scope || undefined,
+            ...workspaceArgs,
+          };
 
   const result = useQuery(
     searchQuery ? api.docs.webSearch : api.docs.webList,
-    queryArgs
+    queryArgs,
   );
   // ... rest unchanged
 }
@@ -408,6 +458,7 @@ git commit -m "feat(web): scope docs page by workspace"
 ### Task 11: Wire projects queries and prefetch to workspace scoping
 
 **Files:**
+
 - Modify: `packages/web/hooks/usePrefetch.ts`
 - Modify: any component calling `api.projects.webList` (search for `useQuery(api.projects.webList`)
 
@@ -419,14 +470,17 @@ import { useWorkspaceArgs } from "./useWorkspaceArgs";
 export function usePrefetch() {
   const pathname = usePathname();
   const workspaceArgs = useWorkspaceArgs();
-  const isOnTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
+  const isOnTasksPage =
+    pathname === "/tasks" || pathname?.startsWith("/tasks/");
   const isOnDocsPage = pathname === "/docs" || pathname?.startsWith("/docs/");
 
-  const tasks = useQuery(api.tasks.webList,
-    isOnTasksPage || workspaceArgs === "skip" ? "skip" : { ...workspaceArgs }
+  const tasks = useQuery(
+    api.tasks.webList,
+    isOnTasksPage || workspaceArgs === "skip" ? "skip" : { ...workspaceArgs },
   );
-  const docsResult = useQuery(api.docs.webList,
-    isOnDocsPage || workspaceArgs === "skip" ? "skip" : { ...workspaceArgs }
+  const docsResult = useQuery(
+    api.docs.webList,
+    isOnDocsPage || workspaceArgs === "skip" ? "skip" : { ...workspaceArgs },
   );
   // ... rest unchanged
 }
@@ -450,6 +504,7 @@ git commit -m "feat(web): scope prefetch and projects queries by workspace"
 ### Task 12: Ensure creation mutations respect workspace
 
 **Files:**
+
 - Review: `packages/convex/convex/plans.ts` (create mutation)
 - Review: `packages/convex/convex/tasks.ts` (create mutation)
 - Review: `packages/convex/convex/docs.ts` (create mutation)
@@ -459,6 +514,7 @@ git commit -m "feat(web): scope prefetch and projects queries by workspace"
 The web-facing create mutations likely read `user.active_team_id` to set `team_id` on new items. Since the TeamSwitcher already writes to `user.active_team_id` via `setActiveTeam`, creation should automatically inherit the correct workspace.
 
 Read each create mutation to verify:
+
 - `plans.create` or `plans.webCreate` -- does it use `user.active_team_id`?
 - `tasks.create` or `tasks.webCreate` -- same
 - `docs.create` or `docs.webCreate` -- same
@@ -481,6 +537,7 @@ git commit -m "fix(convex): ensure create mutations respect workspace selection"
 ### Task 13: Scope conversation archive "my" filter by workspace
 
 **Files:**
+
 - Modify: `packages/web/hooks/useConversationsWithError.ts`
 - Review: `packages/convex/convex/conversations.ts` (listConversations handler)
 
@@ -497,14 +554,16 @@ Update the query call to also pass workspace info when filter is "my":
 ```typescript
 const workspaceArgs = useWorkspaceArgs();
 // Build query args based on filter
-const queryTeamId = filter === "team" && activeTeamId
-  ? activeTeamId
-  : workspaceArgs !== "skip" && workspaceArgs.workspace === "team"
-    ? workspaceArgs.team_id
-    : undefined;
+const queryTeamId =
+  filter === "team" && activeTeamId
+    ? activeTeamId
+    : workspaceArgs !== "skip" && workspaceArgs.workspace === "team"
+      ? workspaceArgs.team_id
+      : undefined;
 ```
 
 Then update the `listConversations` handler in Convex to:
+
 - When `activeTeamId` is provided: filter by that team (existing behavior)
 - When a new `workspace: "personal"` arg is provided: filter for conversations with no `team_id`
 
@@ -526,6 +585,7 @@ git commit -m "feat: scope conversation archive by workspace"
 ### Task 14: Add team badges to inbox session cards
 
 **Files:**
+
 - Modify: `packages/web/components/ActivityFeed.tsx:229-367`
 - Review: `packages/web/hooks/useSyncInboxSessions.ts` (check if session data includes team_id)
 
@@ -546,15 +606,13 @@ In the SessionCard header row, after the project tag, add a small team badge:
 import { TeamIcon } from "./TeamIcon";
 
 // In the header row:
-{item.team_id && teamInfo && (
-  <span className="flex items-center gap-1">
-    <TeamIcon
-      icon={teamInfo.icon}
-      color={teamInfo.icon_color}
-      size={12}
-    />
-  </span>
-)}
+{
+  item.team_id && teamInfo && (
+    <span className="flex items-center gap-1">
+      <TeamIcon icon={teamInfo.icon} color={teamInfo.icon_color} size={12} />
+    </span>
+  );
+}
 ```
 
 - [ ] **Step 4: Verify in browser**
@@ -575,6 +633,7 @@ git commit -m "feat(web): add team badges to inbox session cards"
 ### Task 15: Update CLI task/plan commands to resolve team from directory
 
 **Files:**
+
 - Modify: `packages/cli/src/index.ts` (search for task create, plan create commands)
 
 - [ ] **Step 1: Find CLI task/plan create commands**
@@ -584,6 +643,7 @@ Search `packages/cli/src/index.ts` for where `cast task create` and `cast plan c
 - [ ] **Step 2: Add directory-based team resolution**
 
 Before calling the API, the CLI should:
+
 1. Get `cwd` (current working directory)
 2. Query `directory_team_mappings` for the user to find a matching path prefix
 3. If found and `auto_share: true`, use that mapping's `team_id`
@@ -612,6 +672,7 @@ git commit -m "feat(cli): resolve team from directory mappings instead of active
 ### Task 16: Handle workspace switch while viewing detail pages
 
 **Files:**
+
 - Modify: `packages/web/app/plans/[id]/page.tsx`
 - Modify: `packages/web/app/tasks/[id]/page.tsx`
 
@@ -627,7 +688,8 @@ const workspaceArgs = useWorkspaceArgs();
 useEffect(() => {
   if (workspaceArgs === "skip" || !plan) return;
   const mismatch =
-    (workspaceArgs.workspace === "team" && String(plan.team_id) !== String(workspaceArgs.team_id)) ||
+    (workspaceArgs.workspace === "team" &&
+      String(plan.team_id) !== String(workspaceArgs.team_id)) ||
     (workspaceArgs.workspace === "personal" && plan.team_id);
   if (mismatch) router.push("/plans");
 }, [workspaceArgs, plan]);

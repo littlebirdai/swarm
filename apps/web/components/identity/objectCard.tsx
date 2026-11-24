@@ -10,7 +10,14 @@ import { useRouter } from "next/navigation";
 import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
 import { HoverCardClose } from "../../lib/hoverCardsOff";
 
-export function ObjectCardBody({ kind, refId, label, onOpen, children, ...data }: {
+export function ObjectCardBody({
+  kind,
+  refId,
+  label,
+  onOpen,
+  children,
+  ...data
+}: {
   kind: OrgObjectKind;
   /** The ref its address takes: a short id, a person's handle or id. */
   refId: string;
@@ -48,7 +55,13 @@ export function ObjectCardBody({ kind, refId, label, onOpen, children, ...data }
       tabIndex={0}
       aria-label={label}
       onClick={open}
-      onKeyDown={(e) => { if (e.key !== "Enter" || e.target !== e.currentTarget) return; e.stopPropagation(); e.preventDefault(); closeCard?.(); go(e.metaKey || e.ctrlKey); }}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" || e.target !== e.currentTarget) return;
+        e.stopPropagation();
+        e.preventDefault();
+        closeCard?.();
+        go(e.metaKey || e.ctrlKey);
+      }}
       className="block cursor-pointer rounded-[inherit] p-3 text-xs transition-colors hover:bg-sol-bg-highlight/30"
       data-object-card={kind}
       {...data}

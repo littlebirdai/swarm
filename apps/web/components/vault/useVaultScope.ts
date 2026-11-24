@@ -23,7 +23,8 @@ import {
 import type { DocItem } from "../../store/inboxStore";
 
 const sessionScopeSig = makeCollectionSig<InboxSession>(
-  (s) => `${s.git_root || s.project_path || ""}|${s.team_id ?? ""}|${s.is_private ? 1 : 0}`,
+  (s) =>
+    `${s.git_root || s.project_path || ""}|${s.team_id ?? ""}|${s.is_private ? 1 : 0}`,
 );
 
 // Docs churn far less than sessions, but a doc EDIT rewrites the row on every
@@ -60,8 +61,13 @@ export function useDocForFile(
  * row. Identical verdicts collapse into weighted rows, so the per-row cost is
  * the number of DIRECTORIES the user works in, not the number of sessions.
  */
-export function useVaultTeamResolver(): (root: string | undefined) => VaultTeamScope {
-  const state = useTrackedStore([(s) => sessionScopeSig(s.sessions), (s) => s.teams]);
+export function useVaultTeamResolver(): (
+  root: string | undefined,
+) => VaultTeamScope {
+  const state = useTrackedStore([
+    (s) => sessionScopeSig(s.sessions),
+    (s) => s.teams,
+  ]);
   const sig = sessionScopeSig(state.sessions);
   const teams = state.teams;
 

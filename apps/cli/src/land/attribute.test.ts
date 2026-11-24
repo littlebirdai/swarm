@@ -18,7 +18,9 @@ const repo = (dir: string) => {
   spawnSync("git", ["init", "-q", dir]);
 };
 beforeEach(() => {
-  tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "attr-relpaths-")));
+  tmp = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "attr-relpaths-")),
+  );
   root = path.join(tmp, "app");
   other = path.join(tmp, "union");
   repo(root);
@@ -30,9 +32,13 @@ const WRITE = "sed -i '' 's/a/b/' .codecast/flows/change.cast";
 
 describe("a shell command's relative paths", () => {
   test("are this checkout's when the command ran in it, from its root or a directory inside it", () => {
-    expect(shellWrites(WRITE, root, root)).toEqual([".codecast/flows/change.cast"]);
+    expect(shellWrites(WRITE, root, root)).toEqual([
+      ".codecast/flows/change.cast",
+    ]);
     fs.mkdirSync(path.join(root, "apps", "cli"), { recursive: true });
-    expect(shellWrites(WRITE, path.join(root, "apps", "cli"), root)).toEqual([".codecast/flows/change.cast"]);
+    expect(shellWrites(WRITE, path.join(root, "apps", "cli"), root)).toEqual([
+      ".codecast/flows/change.cast",
+    ]);
   });
 
   test("are never this checkout's when the command ran in another repository", () => {
@@ -44,11 +50,21 @@ describe("a shell command's relative paths", () => {
     const wt = path.join(root, ".conductor", "feat");
     fs.mkdirSync(path.join(wt, ".codecast", "flows"), { recursive: true });
     fs.writeFileSync(path.join(wt, ".git"), "gitdir: elsewhere\n");
-    expect(shellWrites("sed -i '' 's/a/b/' .codecast/flows/missing.cast", wt, root)).toEqual([]);
-    expect(shellWrites(WRITE, wt, root)).not.toContain(".codecast/flows/change.cast");
+    expect(
+      shellWrites("sed -i '' 's/a/b/' .codecast/flows/missing.cast", wt, root),
+    ).toEqual([]);
+    expect(shellWrites(WRITE, wt, root)).not.toContain(
+      ".codecast/flows/change.cast",
+    );
   });
 
   test("an absolute path inside this checkout is its own wherever the command ran", () => {
-    expect(shellWrites(`sed -i '' 's/a/b/' ${path.join(root, ".codecast/flows/change.cast")}`, other, root)).toEqual([".codecast/flows/change.cast"]);
+    expect(
+      shellWrites(
+        `sed -i '' 's/a/b/' ${path.join(root, ".codecast/flows/change.cast")}`,
+        other,
+        root,
+      ),
+    ).toEqual([".codecast/flows/change.cast"]);
   });
 });

@@ -18,7 +18,11 @@ import { useWatchEffect } from "./useWatchEffect";
 export function useBoundedDeferredValue<T>(value: T, maxMs = 1000): T {
   const deferred = useDeferredValue(value);
   const [, kick] = useState(0);
-  const track = useRef<{ v: T; since: number; floor: { v: T } | null }>({ v: value, since: 0, floor: null });
+  const track = useRef<{ v: T; since: number; floor: { v: T } | null }>({
+    v: value,
+    since: 0,
+    floor: null,
+  });
   const now = performance.now();
   let t = track.current;
   if (!Object.is(t.v, value)) {
@@ -33,7 +37,10 @@ export function useBoundedDeferredValue<T>(value: T, maxMs = 1000): T {
   const since = t.since;
   useWatchEffect(() => {
     if (!behind) return;
-    const timer = setTimeout(() => kick((n) => n + 1), Math.max(0, since + maxMs - performance.now()));
+    const timer = setTimeout(
+      () => kick((n) => n + 1),
+      Math.max(0, since + maxMs - performance.now()),
+    );
     return () => clearTimeout(timer);
   }, [behind, since, maxMs]);
   if (!behind) return deferred;

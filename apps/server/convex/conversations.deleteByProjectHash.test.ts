@@ -69,7 +69,11 @@ describe("deleteByProjectHash conv_id branch", () => {
 
   test("the owner still deletes their own conversation by id", async () => {
     const t = tables();
-    const res = await run(VICTIM, { project_hash: "hash_v", conv_id: "conv_victim" }, t);
+    const res = await run(
+      VICTIM,
+      { project_hash: "hash_v", conv_id: "conv_victim" },
+      t,
+    );
     expect(res.deleted).toBe(1);
     expect(t.conversations.some((c) => c._id === "conv_victim")).toBe(false);
     expect(t.messages.some((m) => m._id === "msg_v1")).toBe(false);
@@ -77,7 +81,11 @@ describe("deleteByProjectHash conv_id branch", () => {
 
   test("a nonexistent conv_id is a no-op, not a crash", async () => {
     const t = tables();
-    const res = await run(ATTACKER, { project_hash: "x", conv_id: "conv_gone" }, t);
+    const res = await run(
+      ATTACKER,
+      { project_hash: "x", conv_id: "conv_gone" },
+      t,
+    );
     expect(res).toEqual({ deleted: 0, hasMore: false, conv_id: null });
   });
 

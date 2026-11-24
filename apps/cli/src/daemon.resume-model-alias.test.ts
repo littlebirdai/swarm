@@ -3,7 +3,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { claudeTranscriptModel } from "./jsonlGenerator.js";
-import { claudeModelAlias, resumeModelFlag, resumeModelFlagFromFile } from "./resumeCommand.js";
+import {
+  claudeModelAlias,
+  resumeModelFlag,
+  resumeModelFlagFromFile,
+} from "./resumeCommand.js";
 
 // Regression test for the recurring "There's an issue with the selected model
 // (claude-opus-4-6-20260205) ... it may not exist" crash on resume (2026-05-25).
@@ -24,7 +28,14 @@ import { claudeModelAlias, resumeModelFlag, resumeModelFlagFromFile } from "./re
 // usable Claude model (claudeTranscriptModel).
 
 const asst = (model: string) =>
-  JSON.stringify({ type: "assistant", message: { role: "assistant", model, content: [{ type: "text", text: "hi" }] } });
+  JSON.stringify({
+    type: "assistant",
+    message: {
+      role: "assistant",
+      model,
+      content: [{ type: "text", text: "hi" }],
+    },
+  });
 
 const user = (content: string) =>
   JSON.stringify({ type: "user", message: { role: "user", content } });
@@ -53,10 +64,14 @@ describe("claudeModelAlias", () => {
     // Third incident (2026-06-11): a session started on opus, the user switched
     // to fable via /model, and every subsequent resume re-pinned `--model opus`
     // because the alias scan matched the FIRST model in the transcript.
-    const transcript = [asst("claude-opus-4-6"), asst("claude-fable-5")].join("\n");
+    const transcript = [asst("claude-opus-4-6"), asst("claude-fable-5")].join(
+      "\n",
+    );
     expect(claudeModelAlias(transcript)).toBe("fable");
     // And back: a fable session switched to opus resumes on opus.
-    const reverse = [asst("claude-fable-5"), asst("claude-opus-4-8")].join("\n");
+    const reverse = [asst("claude-fable-5"), asst("claude-opus-4-8")].join(
+      "\n",
+    );
     expect(claudeModelAlias(reverse)).toBe("opus");
   });
 
@@ -67,21 +82,30 @@ describe("claudeModelAlias", () => {
   // Real ESC chars in the content: JSON.stringify renders them as `\u001b`
   // text, byte-for-byte what Claude Code writes to the transcript.
   const setModel = (name: string) =>
-    user(`<local-command-stdout>Set model to \u001b[1m${name}\u001b[22m and saved as your default for new sessions</local-command-stdout>`);
+    user(
+      `<local-command-stdout>Set model to \u001b[1m${name}\u001b[22m and saved as your default for new sessions</local-command-stdout>`,
+    );
 
   test("a /model switch with no turn since wins over earlier assistant lines", () => {
-    const transcript = [asst("claude-opus-4-8"), setModel("Fable 5")].join("\n");
+    const transcript = [asst("claude-opus-4-8"), setModel("Fable 5")].join(
+      "\n",
+    );
     expect(claudeModelAlias(transcript)).toBe("fable");
   });
 
   test("a turn after the /model switch wins over the switch line", () => {
     // The assistant line records what actually ran — it is the newer signal.
-    const transcript = [setModel("Fable 5"), asst("claude-opus-4-8")].join("\n");
+    const transcript = [setModel("Fable 5"), asst("claude-opus-4-8")].join(
+      "\n",
+    );
     expect(claudeModelAlias(transcript)).toBe("opus");
   });
 
   test("matches the switch line without ANSI escapes", () => {
-    const transcript = [asst("claude-opus-4-8"), user("<local-command-stdout>Set model to Fable 5</local-command-stdout>")].join("\n");
+    const transcript = [
+      asst("claude-opus-4-8"),
+      user("<local-command-stdout>Set model to Fable 5</local-command-stdout>"),
+    ].join("\n");
     expect(claudeModelAlias(transcript)).toBe("fable");
   });
 
@@ -89,18 +113,25 @@ describe("claudeModelAlias", () => {
     // Verbatim from a 2026-09 transcript: the name sits in backticks, no ANSI.
     const transcript = [
       asst("claude-fable-5"),
-      user("<local-command-stdout>Set model to `Opus 5` and saved as your default for new sessions</local-command-stdout>"),
+      user(
+        "<local-command-stdout>Set model to `Opus 5` and saved as your default for new sessions</local-command-stdout>",
+      ),
     ].join("\n");
     expect(claudeModelAlias(transcript)).toBe("opus");
   });
 
   test("ignores a message merely quoting 'Set model to ...'", () => {
-    const transcript = [asst("claude-fable-5"), user("the log said: Set model to Opus 4.8")].join("\n");
+    const transcript = [
+      asst("claude-fable-5"),
+      user("the log said: Set model to Opus 4.8"),
+    ].join("\n");
     expect(claudeModelAlias(transcript)).toBe("fable");
   });
 
   test("switching to Default yields no override", () => {
-    const transcript = [asst("claude-opus-4-8"), setModel("Default")].join("\n");
+    const transcript = [asst("claude-opus-4-8"), setModel("Default")].join(
+      "\n",
+    );
     expect(claudeModelAlias(transcript)).toBeNull();
   });
 
@@ -114,16 +145,27 @@ describe("resumeModelFlag", () => {
   test("rescues a normal (non-fork) resume off a retired snapshot", () => {
     // This is the exact bug: the gate used to be fork-only, so a plain resume of
     // a pre-4.7 session got no override and crashed.
-    expect(resumeModelFlag(asst("claude-opus-4-6-20260205"), "")).toBe(" --model opus");
+    expect(resumeModelFlag(asst("claude-opus-4-6-20260205"), "")).toBe(
+      " --model opus",
+    );
   });
 
   test("preserves the session's model line", () => {
-    expect(resumeModelFlag(asst("claude-sonnet-4-6-20260205"), "")).toBe(" --model sonnet");
+    expect(resumeModelFlag(asst("claude-sonnet-4-6-20260205"), "")).toBe(
+      " --model sonnet",
+    );
   });
 
   test("an explicit --model flag always wins", () => {
-    expect(resumeModelFlag(asst("claude-opus-4-6-20260205"), "--model haiku")).toBe("");
-    expect(resumeModelFlag(asst("claude-opus-4-6-20260205"), "--dangerously-skip-permissions --model=sonnet")).toBe("");
+    expect(
+      resumeModelFlag(asst("claude-opus-4-6-20260205"), "--model haiku"),
+    ).toBe("");
+    expect(
+      resumeModelFlag(
+        asst("claude-opus-4-6-20260205"),
+        "--dangerously-skip-permissions --model=sonnet",
+      ),
+    ).toBe("");
   });
 
   test("no override when the recorded model is unrecognized", () => {
@@ -133,7 +175,10 @@ describe("resumeModelFlag", () => {
 
 describe("resumeModelFlagFromFile", () => {
   const writeTmpJsonl = (lines: string[]): string => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "model-alias-")), "session.jsonl");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "model-alias-")),
+      "session.jsonl",
+    );
     fs.writeFileSync(file, lines.join("\n") + "\n");
     return file;
   };
@@ -144,7 +189,12 @@ describe("resumeModelFlagFromFile", () => {
     // (first model field) started at byte ~17K, beyond the 5KB head window the
     // daemon used to scan, so the dead snapshot was never aliased.
     const longUser = user("look deeply at this codebase ".repeat(250)); // ~7KB each
-    const file = writeTmpJsonl([longUser, longUser, longUser, asst("claude-opus-4-6-20260205")]);
+    const file = writeTmpJsonl([
+      longUser,
+      longUser,
+      longUser,
+      asst("claude-opus-4-6-20260205"),
+    ]);
     expect(resumeModelFlagFromFile(file, "")).toBe(" --model opus");
   });
 
@@ -163,13 +213,17 @@ describe("resumeModelFlagFromFile", () => {
   });
 
   test("missing file yields no flag", () => {
-    expect(resumeModelFlagFromFile("/nonexistent/path/session.jsonl", "")).toBe("");
+    expect(resumeModelFlagFromFile("/nonexistent/path/session.jsonl", "")).toBe(
+      "",
+    );
   });
 });
 
 describe("claudeTranscriptModel", () => {
   test("preserves a recorded claude model", () => {
-    expect(claudeTranscriptModel("claude-sonnet-4-6-20260205")).toBe("claude-sonnet-4-6-20260205");
+    expect(claudeTranscriptModel("claude-sonnet-4-6-20260205")).toBe(
+      "claude-sonnet-4-6-20260205",
+    );
   });
 
   test("stamps the never-stale alias when the conversation has no model", () => {

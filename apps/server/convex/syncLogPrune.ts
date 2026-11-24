@@ -68,9 +68,16 @@ export async function pruneScope(
       const dead: { _id: any }[] = await db
         .query("sync_actions")
         .withIndex("by_scope_position", (q: any) =>
-          q.eq("scope_key", head.scope_key).lt("position", (head.floor ?? 0) + 1))
+          q
+            .eq("scope_key", head.scope_key)
+            .lt("position", (head.floor ?? 0) + 1),
+        )
         .take(Math.min(PER_SCOPE_PAGE, budget));
-      for (const row of dead) { await db.delete(row._id); pruned++; budget--; }
+      for (const row of dead) {
+        await db.delete(row._id);
+        pruned++;
+        budget--;
+      }
       if (dead.length < Math.min(PER_SCOPE_PAGE, budget + dead.length)) break;
     }
     if (budget <= 0) return { pruned, budget, done: false };
@@ -80,7 +87,8 @@ export async function pruneScope(
   const oldest = await db
     .query("sync_actions")
     .withIndex("by_scope_position", (q: any) =>
-      q.eq("scope_key", head.scope_key).gt("position", head.floor ?? 0))
+      q.eq("scope_key", head.scope_key).gt("position", head.floor ?? 0),
+    )
     .order("asc")
     .first();
   if (!oldest) {
@@ -104,7 +112,8 @@ export async function pruneScope(
     const page: { _id: any; ts: number; position: number }[] = await db
       .query("sync_actions")
       .withIndex("by_scope_position", (q: any) =>
-        q.eq("scope_key", head.scope_key).gt("position", from))
+        q.eq("scope_key", head.scope_key).gt("position", from),
+      )
       .order("asc")
       .take(pageLimit);
     const { toDelete, stoppedEarly } = prunablePrefix(page, cutoff);
@@ -114,8 +123,14 @@ export async function pruneScope(
       pruned++;
       budget--;
     }
-    if (stoppedEarly) { stoppedAtYoung = true; break; }
-    if (page.length < pageLimit) { sawEnd = true; break; }
+    if (stoppedEarly) {
+      stoppedAtYoung = true;
+      break;
+    }
+    if (page.length < pageLimit) {
+      sawEnd = true;
+      break;
+    }
     from = page[page.length - 1].position;
   }
   // The scope drained: every remaining position up to the head is a hole (a
@@ -147,7 +162,8 @@ export const pruneSyncActions = internalMutation({
     const heads = await ctx.db
       .query("sync_heads")
       .withIndex("by_scope", (q: any) =>
-        args.after_scope_key ? q.gt("scope_key", args.after_scope_key) : q)
+        args.after_scope_key ? q.gt("scope_key", args.after_scope_key) : q,
+      )
       .order("asc")
       .take(HEADS_PER_RUN + 1);
     const batch = heads.slice(0, HEADS_PER_RUN);
@@ -164,12 +180,17 @@ export const pruneSyncActions = internalMutation({
     if (!done) {
       // Self-continue: next batch of heads (or re-enter this one when the
       // delete budget ran out before its scopes drained).
-      const nextAfter = budget > 0 && batch.length > 0
-        ? batch[batch.length - 1].scope_key
-        : args.after_scope_key;
-      await ctx.scheduler.runAfter(1000, internal.syncLogPrune.pruneSyncActions, {
-        ...(nextAfter ? { after_scope_key: nextAfter } : {}),
-      });
+      const nextAfter =
+        budget > 0 && batch.length > 0
+          ? batch[batch.length - 1].scope_key
+          : args.after_scope_key;
+      await ctx.scheduler.runAfter(
+        1000,
+        internal.syncLogPrune.pruneSyncActions,
+        {
+          ...(nextAfter ? { after_scope_key: nextAfter } : {}),
+        },
+      );
     } else {
       // End of chain: the D10 alarm condition. The oldest retained action
       // anywhere should never exceed ~32 days if pruning keeps up.
@@ -181,9 +202,13 @@ export const pruneSyncActions = internalMutation({
       if (oldestOverall) {
         const ageDays = (Date.now() - oldestOverall.ts) / (24 * 60 * 60 * 1000);
         if (Date.now() - oldestOverall.ts > RETENTION_ALARM_MS) {
-          console.error(`[syncLogPrune] RETENTION STALLED: oldest retained action is ${ageDays.toFixed(1)}d old (alarm at 32d)`);
+          console.error(
+            `[syncLogPrune] RETENTION STALLED: oldest retained action is ${ageDays.toFixed(1)}d old (alarm at 32d)`,
+          );
         } else {
-          console.log(`[syncLogPrune] chain done; oldest retained action ${ageDays.toFixed(1)}d old`);
+          console.log(
+            `[syncLogPrune] chain done; oldest retained action ${ageDays.toFixed(1)}d old`,
+          );
         }
       }
     }
@@ -206,7 +231,8 @@ export const markResyncAll = internalMutation({
     const heads = await ctx.db
       .query("sync_heads")
       .withIndex("by_scope", (q: any) =>
-        args.after_scope_key ? q.gt("scope_key", args.after_scope_key) : q)
+        args.after_scope_key ? q.gt("scope_key", args.after_scope_key) : q,
+      )
       .order("asc")
       .take(HEADS_PER_RUN + 1);
     const batch = heads.slice(0, HEADS_PER_RUN);
@@ -216,7 +242,11 @@ export const markResyncAll = internalMutation({
       // old head) must still fall below the floor — and the head change fires
       // getHeads, so open tabs resync immediately (review blocker).
       const p = head.position + 1;
-      await ctx.db.patch(head._id, { position: p, floor: p, updated_at: Date.now() });
+      await ctx.db.patch(head._id, {
+        position: p,
+        floor: p,
+        updated_at: Date.now(),
+      });
     }
     const done = heads.length <= HEADS_PER_RUN;
     if (!done) {

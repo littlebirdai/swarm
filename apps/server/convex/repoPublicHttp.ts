@@ -62,7 +62,11 @@ export const PUBLIC_KINDS = [
 ] as const;
 
 /** The kinds a session join answers; each maps to one internal query in repoSessions. */
-export const SESSION_KINDS: readonly PublicKind[] = ["sessions", "commitsessions", "blamesessions"];
+export const SESSION_KINDS: readonly PublicKind[] = [
+  "sessions",
+  "commitsessions",
+  "blamesessions",
+];
 
 const SHA_LIST_LIMIT = 100;
 const FULL_SHA = /^[0-9a-f]{40}$/;
@@ -72,7 +76,11 @@ export type PublicKind = (typeof PUBLIC_KINDS)[number];
 export function json(body: unknown, status: number, cache: string): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": cache, ...CORS },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": cache,
+      ...CORS,
+    },
   });
 }
 
@@ -90,7 +98,10 @@ export function notFound(): Response {
  * Not installed and private are the same answer on purpose: the caller learns
  * only that this route has nothing for them.
  */
-export function publicGate(visibility: { installed: boolean; private: boolean }): Response | null {
+export function publicGate(visibility: {
+  installed: boolean;
+  private: boolean;
+}): Response | null {
   if (!visibility.installed) return notFound();
   if (visibility.private) return notFound();
   return null;
@@ -100,7 +111,9 @@ export function publicGate(visibility: { installed: boolean; private: boolean })
 export function parsePublicRepoPath(
   pathname: string,
 ): { repository: string; kind: PublicKind } | null {
-  const prefix = PUBLIC_REPO_PREFIXES.find((candidate) => pathname.startsWith(candidate));
+  const prefix = PUBLIC_REPO_PREFIXES.find((candidate) =>
+    pathname.startsWith(candidate),
+  );
   if (!prefix) return null;
 
   const parts = pathname.slice(prefix.length).split("/").filter(Boolean);
@@ -113,13 +126,17 @@ export function parsePublicRepoPath(
   // owners are letters, digits and hyphens; repository names also allow dots,
   // which is why "." and ".." have to be named separately.
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/.test(owner)) return null;
-  if (!/^[A-Za-z0-9._-]{1,100}$/.test(name) || name === "." || name === "..") return null;
+  if (!/^[A-Za-z0-9._-]{1,100}$/.test(name) || name === "." || name === "..")
+    return null;
 
   return { repository: `${owner}/${name}`, kind: kind as PublicKind };
 }
 
 /** Query params for one kind. Reads only the fields that kind uses. */
-export function paramsForKind(kind: PublicKind, q: URLSearchParams): Record<string, unknown> {
+export function paramsForKind(
+  kind: PublicKind,
+  q: URLSearchParams,
+): Record<string, unknown> {
   const ref = q.get("ref") || undefined;
   const path = q.get("path") || undefined;
   const page = q.get("page") ? Number(q.get("page")) : undefined;
@@ -132,7 +149,12 @@ export function paramsForKind(kind: PublicKind, q: URLSearchParams): Record<stri
     case "blamesessions":
       return { ref, path };
     case "commitsessions":
-      return { shas: (q.get("shas") ?? "").split(",").map((sha) => sha.trim().toLowerCase()).filter(Boolean) };
+      return {
+        shas: (q.get("shas") ?? "")
+          .split(",")
+          .map((sha) => sha.trim().toLowerCase())
+          .filter(Boolean),
+      };
     case "readme":
       return { ref };
     case "lastcommits":
@@ -140,7 +162,10 @@ export function paramsForKind(kind: PublicKind, q: URLSearchParams): Record<stri
     case "log":
       return { ref, path, page, author: q.get("author") || undefined };
     case "compare":
-      return { base: q.get("base") || undefined, head: q.get("head") || undefined };
+      return {
+        base: q.get("base") || undefined,
+        head: q.get("head") || undefined,
+      };
     case "search":
       return { q: q.get("q") || "", page };
     case "pulls":
@@ -158,10 +183,25 @@ export function paramsForKind(kind: PublicKind, q: URLSearchParams): Record<stri
  * failure. They are bad requests, and saying so here keeps them from spending a
  * GitHub call and from being reported as our outage.
  */
-export function paramsComplete(kind: PublicKind, params: Record<string, unknown>): boolean {
-  if (params.page !== undefined && (!Number.isInteger(params.page) || Number(params.page) < 1 || Number(params.page) > 1000)) return false;
-  if (kind === "pulls" && params.state !== undefined && !["open", "closed", "all"].includes(String(params.state))) return false;
-  const filled = (key: string) => typeof params[key] === "string" && params[key] !== "";
+export function paramsComplete(
+  kind: PublicKind,
+  params: Record<string, unknown>,
+): boolean {
+  if (
+    params.page !== undefined &&
+    (!Number.isInteger(params.page) ||
+      Number(params.page) < 1 ||
+      Number(params.page) > 1000)
+  )
+    return false;
+  if (
+    kind === "pulls" &&
+    params.state !== undefined &&
+    !["open", "closed", "all"].includes(String(params.state))
+  )
+    return false;
+  const filled = (key: string) =>
+    typeof params[key] === "string" && params[key] !== "";
   switch (kind) {
     case "blob":
     case "blame":
@@ -169,7 +209,12 @@ export function paramsComplete(kind: PublicKind, params: Record<string, unknown>
       return filled("ref") && filled("path");
     case "commitsessions": {
       const shas = params.shas;
-      return Array.isArray(shas) && shas.length > 0 && shas.length <= SHA_LIST_LIMIT && shas.every((sha) => FULL_SHA.test(String(sha)));
+      return (
+        Array.isArray(shas) &&
+        shas.length > 0 &&
+        shas.length <= SHA_LIST_LIMIT &&
+        shas.every((sha) => FULL_SHA.test(String(sha)))
+      );
     }
     case "tree":
     case "readme":
@@ -190,7 +235,9 @@ export function cacheHeaderFor(_params: Record<string, unknown>): string {
   return "no-store";
 }
 
-export const preflight = httpAction(async () => new Response(null, { status: 204, headers: CORS }));
+export const preflight = httpAction(
+  async () => new Response(null, { status: 204, headers: CORS }),
+);
 
 export const serve = httpAction(async (ctx, request) => {
   const url = new URL(request.url);
@@ -202,17 +249,37 @@ export const serve = httpAction(async (ctx, request) => {
   // second bounds one repository across every caller and fails CLOSED, because
   // contention on a single counter row is what a flood at one repository looks
   // like; the third is code search, which is the expensive one at GitHub.
-  const perCaller = await ipRateLimited(ctx, request, "public-repo", 240, 60_000);
+  const perCaller = await ipRateLimited(
+    ctx,
+    request,
+    "public-repo",
+    240,
+    60_000,
+  );
   if (perCaller) return perCaller;
   if (kind === "search") {
-    const searchLimit = await ipRateLimited(ctx, request, "public-repo-search", 20, 60_000);
+    const searchLimit = await ipRateLimited(
+      ctx,
+      request,
+      "public-repo-search",
+      20,
+      60_000,
+    );
     if (searchLimit) return searchLimit;
   }
-  const perRepo = await keyRateLimited(ctx, `public-repo:${repository}`, 600, 60_000, true);
+  const perRepo = await keyRateLimited(
+    ctx,
+    `public-repo:${repository}`,
+    600,
+    60_000,
+    true,
+  );
   if (perRepo) return perRepo;
 
   // --- Visibility, before anything is read ---
-  let visibility = await ctx.runQuery(internal.repos.repoVisibility, { repository });
+  let visibility = await ctx.runQuery(internal.repos.repoVisibility, {
+    repository,
+  });
   let installed = true;
   if (!visibility.known || visibility.stale) {
     try {
@@ -222,7 +289,9 @@ export const serve = httpAction(async (ctx, request) => {
       });
       installed = refreshed.installed;
       if (installed) {
-        visibility = await ctx.runQuery(internal.repos.repoVisibility, { repository });
+        visibility = await ctx.runQuery(internal.repos.repoVisibility, {
+          repository,
+        });
       }
     } catch {
       // GitHub refusing the repository through the installation that supposedly
@@ -239,7 +308,8 @@ export const serve = httpAction(async (ctx, request) => {
   if (!paramsComplete(kind, params)) {
     return json({ error: "bad_request" }, 400, "no-store");
   }
-  if (SESSION_KINDS.includes(kind)) return await serveSessions(ctx, repository, kind, params);
+  if (SESSION_KINDS.includes(kind))
+    return await serveSessions(ctx, repository, kind, params);
   if (kind === "pulse") return await servePulse(ctx, repository);
   if (kind !== "meta") {
     try {
@@ -260,7 +330,12 @@ export const serve = httpAction(async (ctx, request) => {
   }
 
   const { ref, path } = cacheKeyFor(kind, params);
-  const data = await ctx.runQuery(internal.repos.publicRead, { repository, kind, ref, path });
+  const data = await ctx.runQuery(internal.repos.publicRead, {
+    repository,
+    kind,
+    ref,
+    path,
+  });
   if (data === null) return notFound();
 
   return json(data, 200, cacheHeaderFor(params));
@@ -271,14 +346,22 @@ export const serve = httpAction(async (ctx, request) => {
  * was stale, so stars come from the cache as written and cost no GitHub call;
  * the live count is codecast's own (repoSessions.publicPulse).
  */
-export function pulseBody(meta: { stargazers_count?: number } | null, pulse: { live: number }): { stargazers_count: number | null; live: number } {
+export function pulseBody(
+  meta: { stargazers_count?: number } | null,
+  pulse: { live: number },
+): { stargazers_count: number | null; live: number } {
   return { stargazers_count: meta?.stargazers_count ?? null, live: pulse.live };
 }
 
 async function servePulse(ctx: any, repository: string): Promise<Response> {
   const { ref, path } = cacheKeyFor("meta", {});
   const [meta, pulse] = await Promise.all([
-    ctx.runQuery(internal.repos.publicRead, { repository, kind: "meta", ref, path }),
+    ctx.runQuery(internal.repos.publicRead, {
+      repository,
+      kind: "meta",
+      ref,
+      path,
+    }),
     ctx.runQuery(internal.repoSessions.publicPulse, { repository }),
   ]);
   return json(pulseBody(meta, pulse), 200, "no-store");
@@ -290,22 +373,47 @@ async function servePulse(ctx: any, repository: string): Promise<Response> {
  * Each answer is a public reduction (repoSessions.publicSessionRef) or the one
  * refusal.
  */
-async function serveSessions(ctx: any, repository: string, kind: PublicKind, params: Record<string, unknown>): Promise<Response> {
+async function serveSessions(
+  ctx: any,
+  repository: string,
+  kind: PublicKind,
+  params: Record<string, unknown>,
+): Promise<Response> {
   if (kind === "sessions") {
-    return json(await ctx.runQuery(internal.repoSessions.publicSessions, { repository }), 200, "no-store");
+    return json(
+      await ctx.runQuery(internal.repoSessions.publicSessions, { repository }),
+      200,
+      "no-store",
+    );
   }
   if (kind === "commitsessions") {
-    return json(await ctx.runQuery(internal.repoSessions.publicCommitSessions, { repository, shas: params.shas as string[] }), 200, "no-store");
+    return json(
+      await ctx.runQuery(internal.repoSessions.publicCommitSessions, {
+        repository,
+        shas: params.shas as string[],
+      }),
+      200,
+      "no-store",
+    );
   }
   try {
-    const filled = await ctx.runAction(internal.repos.ensureCachedPublic, { repository, kind: "blame", ref: params.ref, path: params.path });
+    const filled = await ctx.runAction(internal.repos.ensureCachedPublic, {
+      repository,
+      kind: "blame",
+      ref: params.ref,
+      path: params.path,
+    });
     if (!filled.installed) return notFound();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("404")) return notFound();
     return json({ error: "upstream_unavailable" }, 502, "no-store");
   }
-  const data = await ctx.runQuery(internal.repoSessions.publicBlameSessions, { repository, ref: params.ref as string, path: params.path as string });
+  const data = await ctx.runQuery(internal.repoSessions.publicBlameSessions, {
+    repository,
+    ref: params.ref as string,
+    path: params.path as string,
+  });
   if (data === null) return notFound();
   return json(data, 200, "no-store");
 }

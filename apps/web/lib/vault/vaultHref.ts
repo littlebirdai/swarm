@@ -27,7 +27,9 @@ export function legacyFilesHref(path: string): string | null {
   const m = path.match(/^\/vault\/?\?([^#]*)/);
   if (!m) return null;
   const query = new URLSearchParams(m[1]);
-  return FILES_QUERY_KEYS.some((k) => query.has(k)) ? `${FILES_ROUTE}?${m[1]}` : null;
+  return FILES_QUERY_KEYS.some((k) => query.has(k))
+    ? `${FILES_ROUTE}?${m[1]}`
+    : null;
 }
 
 /** True for a path on the Files surface: /files, or an old /vault Files link. */
@@ -48,7 +50,12 @@ export function isFilesPath(path: string): boolean {
  * vault a file belongs to; the machine that has the files does.
  */
 export function filesHref(
-  opts: { path?: string | null; line?: number; graph?: boolean; localPath?: string | null } = {},
+  opts: {
+    path?: string | null;
+    line?: number;
+    graph?: boolean;
+    localPath?: string | null;
+  } = {},
 ): string {
   const params = new URLSearchParams();
   if (opts.localPath) params.set("path", opts.localPath);
@@ -76,7 +83,10 @@ export interface VaultTarget {
  * yields that vault's root joined with the rest of the path, outermost folder
  * first; the caller asks the daemon which of them exist.
  */
-export function sameNamedCheckoutPaths(abs: string, roots: ReadonlyArray<string>): string[] {
+export function sameNamedCheckoutPaths(
+  abs: string,
+  roots: ReadonlyArray<string>,
+): string[] {
   const segs = abs.split("/").filter(Boolean);
   const found: { at: number; mapped: string }[] = [];
   for (const root of roots) {
@@ -85,7 +95,8 @@ export function sameNamedCheckoutPaths(abs: string, roots: ReadonlyArray<string>
     const at = segs.indexOf(name);
     if (!name || at < 0) continue;
     const mapped = [clean, ...segs.slice(at + 1)].join("/");
-    if (mapped !== abs && !found.some((f) => f.mapped === mapped)) found.push({ at, mapped });
+    if (mapped !== abs && !found.some((f) => f.mapped === mapped))
+      found.push({ at, mapped });
   }
   // The outermost folder first: in `/code/app/docs/x.md` the checkout is
   // `app`, and a vault that happens to be called `docs` is a worse guess.
@@ -110,10 +121,13 @@ export function resolveVaultTarget(
   let best: { id: string; root: string } | null = null;
   for (const v of vaults) {
     if (!v.root) continue;
-    if (abs !== v.root && !abs.startsWith(v.root.replace(/\/$/, "") + "/")) continue;
-    if (!best || v.root.length > best.root.length) best = { id: v.id, root: v.root };
+    if (abs !== v.root && !abs.startsWith(v.root.replace(/\/$/, "") + "/"))
+      continue;
+    if (!best || v.root.length > best.root.length)
+      best = { id: v.id, root: v.root };
   }
   if (!best) return null;
-  const rel = abs === best.root ? "" : abs.slice(best.root.length).replace(/^\/+/, "");
+  const rel =
+    abs === best.root ? "" : abs.slice(best.root.length).replace(/^\/+/, "");
   return { vaultId: best.id, rel, abs };
 }

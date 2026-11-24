@@ -1,9 +1,40 @@
 import { describe, expect, test } from "bun:test";
 import { isTitledRule } from "./interactivePrompt.js";
-import { tmuxComposerHoldsPayload, tmuxComposerText, autoContinueArmedOnPane, inputGuard, classifyStartedPane, parsePermissionModeFooter, stepPermissionMode, clearUnresolvablePane, extractTmuxLiveRegion, limitDialogOnPane, noteUnresolvablePane, paneContentAfterLaunchEcho, parseInteractivePrompt, planHighlightStep, planTrustPromptStep, selectRowHasLabel } from "./daemon.js";
-import { classifyGlyphlessClientPaneState, classifyLivePaneFor, classifyTmuxLiveState, composerScrolledPastCaret, GROK_TRUST_PANE_CAPTURE_LINES, isClaudeIdleResumeDialog, isClaudeRewindDialog, isGrokTrustDialog, isIdleResumeOptionRow } from "./tmuxPaneState.js";
+import {
+  tmuxComposerHoldsPayload,
+  tmuxComposerText,
+  autoContinueArmedOnPane,
+  inputGuard,
+  classifyStartedPane,
+  parsePermissionModeFooter,
+  stepPermissionMode,
+  clearUnresolvablePane,
+  extractTmuxLiveRegion,
+  limitDialogOnPane,
+  noteUnresolvablePane,
+  paneContentAfterLaunchEcho,
+  parseInteractivePrompt,
+  planHighlightStep,
+  planTrustPromptStep,
+  selectRowHasLabel,
+} from "./daemon.js";
+import {
+  classifyGlyphlessClientPaneState,
+  classifyLivePaneFor,
+  classifyTmuxLiveState,
+  composerScrolledPastCaret,
+  GROK_TRUST_PANE_CAPTURE_LINES,
+  isClaudeIdleResumeDialog,
+  isClaudeRewindDialog,
+  isGrokTrustDialog,
+  isIdleResumeOptionRow,
+} from "./tmuxPaneState.js";
 import { AGENT_CLIENTS } from "@codecast/shared/contracts";
-import { CLAUDE_BYPASS_WARNING_PANE, CODEX_TRUST_PANE, GROK_TRUST_PANE } from "./test-helpers/trustDialogFrames.js";
+import {
+  CLAUDE_BYPASS_WARNING_PANE,
+  CODEX_TRUST_PANE,
+  GROK_TRUST_PANE,
+} from "./test-helpers/trustDialogFrames.js";
 
 // Real pane captures from cc-resume-f61304a3 (the session that surfaced this bug)
 // and synthesized variants are used as test fixtures so the classifier is grounded
@@ -205,7 +236,9 @@ describe("classifyTmuxLiveState", () => {
       "─".repeat(80),
       "  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents",
     ].join("\n");
-    expect(autoContinueArmedOnPane(extractTmuxLiveRegion(cancelled))).toBe(false);
+    expect(autoContinueArmedOnPane(extractTmuxLiveRegion(cancelled))).toBe(
+      false,
+    );
   });
 
   test("rewind: Restore dialog with 'Enter to continue · Esc to cancel'", () => {
@@ -239,7 +272,10 @@ describe("classifyTmuxLiveState", () => {
   ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents
 `;
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(running))).toBe("busy");
-    const finished = running.replace("✶ Perambulating… (50s · ↓ 161 tokens)", "✻ Churned for 1s · done 10:22 AM");
+    const finished = running.replace(
+      "✶ Perambulating… (50s · ↓ 161 tokens)",
+      "✻ Churned for 1s · done 10:22 AM",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(finished))).toBe("idle");
   });
 
@@ -280,7 +316,10 @@ describe("classifyTmuxLiveState", () => {
   ⏵⏵ bypass permissions on · 1 shell · ← for agents
 `;
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(running))).toBe("busy");
-    const finished = running.replace(/✻ Considering…[^\n]*/, "✻ Churned for 1s · done 10:22 AM");
+    const finished = running.replace(
+      /✻ Considering…[^\n]*/,
+      "✻ Churned for 1s · done 10:22 AM",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(finished))).toBe("idle");
   });
 
@@ -314,7 +353,10 @@ ${box}`;
                                                           ✔ Update installed · Restart to update
 ${box}`;
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(notice))).toBe("busy");
-    const finished = queued.replace("· Gitifying… (3m 23s · ↓ 282 tokens)", "✻ Cooked for 3s · done 9:09 PM");
+    const finished = queued.replace(
+      "· Gitifying… (3m 23s · ↓ 282 tokens)",
+      "✻ Cooked for 3s · done 9:09 PM",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(finished))).toBe("idle");
     // A status-shaped line above the newest transcript item is scrollback.
     const quoted = `⏺ Bash(cat old-capture.txt)
@@ -338,7 +380,11 @@ ${box}`;
     // Warning may appear with the prompt also visible — classifier checks region
     // and returns 'idle' if the separator-bracketed body is empty. To exercise the
     // warning path, run the classifier directly on the warning text region.
-    expect(classifyTmuxLiveState("  Update available: 1.1.36 → 1.1.40\n  Press enter to continue")).toBe("warning");
+    expect(
+      classifyTmuxLiveState(
+        "  Update available: 1.1.36 → 1.1.40\n  Press enter to continue",
+      ),
+    ).toBe("warning");
   });
 
   test("idle beats 'Update available' persistent footer when input prompt is visible", () => {
@@ -352,12 +398,15 @@ ${box}`;
     // tmux session could ever receive a message while any Claude update was
     // available. Real blocker warnings replace the input box, so prompt-visible
     // is a reliable "no modal" signal.
-    const region = "❯  \n──────────────\n  ⏵⏵ bypass permissions on (shift+tab to cycle)\n     Update available! Run: brew upgrade claude-code";
+    const region =
+      "❯  \n──────────────\n  ⏵⏵ bypass permissions on (shift+tab to cycle)\n     Update available! Run: brew upgrade claude-code";
     expect(classifyTmuxLiveState(region)).toBe("idle");
   });
 
   test("exited: 'Resume this session with:' surfaced in the live region", () => {
-    expect(classifyTmuxLiveState("Resume this session with: claude --resume abc123")).toBe("exited");
+    expect(
+      classifyTmuxLiveState("Resume this session with: claude --resume abc123"),
+    ).toBe("exited");
   });
 
   test("rewind beats interrupted when both keywords would match (Rewind dialog mentions interrupted requests in its option list)", () => {
@@ -372,7 +421,9 @@ ${box}`;
   });
 
   test("unknown: no recognizable pattern → defer rather than guess", () => {
-    expect(classifyTmuxLiveState("  some weird state we have never seen before")).toBe("unknown");
+    expect(
+      classifyTmuxLiveState("  some weird state we have never seen before"),
+    ).toBe("unknown");
   });
 
   test("idle tolerates cursor placeholder glyphs after ❯", () => {
@@ -392,13 +443,21 @@ ${box}`;
 
   test("modal patterns still beat ❯-with-draft-text — modal check runs first", () => {
     // If a modal happens to render with ❯ AND a modal marker, the modal wins.
-    expect(classifyTmuxLiveState("Interrupted prompt\n❯ \nWhat should Claude do instead?")).toBe("interrupted");
+    expect(
+      classifyTmuxLiveState(
+        "Interrupted prompt\n❯ \nWhat should Claude do instead?",
+      ),
+    ).toBe("interrupted");
     expect(classifyTmuxLiveState("❯ (current)\nEsc to cancel")).toBe("rewind");
   });
 
   test("no prompt glyph + no modal marker → unknown (defer rather than guess)", () => {
-    expect(classifyTmuxLiveState("  some weird state we have never seen")).toBe("unknown");
-    expect(classifyTmuxLiveState("Files touched:\n  foo.ts\n  bar.ts")).toBe("unknown");
+    expect(classifyTmuxLiveState("  some weird state we have never seen")).toBe(
+      "unknown",
+    );
+    expect(classifyTmuxLiveState("Files touched:\n  foo.ts\n  bar.ts")).toBe(
+      "unknown",
+    );
   });
 });
 
@@ -459,15 +518,23 @@ describe("teammate panel (in-process agents)", () => {
   });
 
   test("a single-teammate panel (⏺ main + one ◯ chip) also classifies busy", () => {
-    expect(classifyTmuxLiveState("  ⏺ main\n  ◯ navigator   Run… 15s")).toBe("busy");
+    expect(classifyTmuxLiveState("  ⏺ main\n  ◯ navigator   Run… 15s")).toBe(
+      "busy",
+    );
   });
 
   test("one stray ◯ line without any panel signature stays unknown", () => {
-    expect(classifyTmuxLiveState("  ◯ some bullet in odd output")).toBe("unknown");
+    expect(classifyTmuxLiveState("  ◯ some bullet in odd output")).toBe(
+      "unknown",
+    );
   });
 
   test("modal patterns still beat the chip list", () => {
-    expect(classifyTmuxLiveState("  ◯ navigator   Run… 15s\n  ◯ reviewer-1  Run… 14s\nWhat should Claude do instead?")).toBe("interrupted");
+    expect(
+      classifyTmuxLiveState(
+        "  ◯ navigator   Run… 15s\n  ◯ reviewer-1  Run… 14s\nWhat should Claude do instead?",
+      ),
+    ).toBe("interrupted");
   });
 });
 
@@ -526,7 +593,8 @@ complete:13: command not found: compdef
   });
 
   test("keeps agent output below the echo, including real fatal errors", () => {
-    const pane = RC_NOISE + `No conversation found with session ID 6760480d\n~: `;
+    const pane =
+      RC_NOISE + `No conversation found with session ID 6760480d\n~: `;
     const scanned = paneContentAfterLaunchEcho(pane);
     expect(scanned).toContain("No conversation found");
   });
@@ -546,7 +614,11 @@ complete:13: command not found: compdef
 codecast@ip-172-31-36-163 codecast-mv-a9dad4b2 % . '/Users/codecast/.codecast/launch-scripts/34fa668d-fbd4-4b4c-9d0e-0c7a1f7f4a11.sh'
 `;
     expect(paneContentAfterLaunchEcho(pane)).not.toContain("command not found");
-    expect(paneContentAfterLaunchEcho(pane + "No conversation found with session ID x\n")).toContain("No conversation found");
+    expect(
+      paneContentAfterLaunchEcho(
+        pane + "No conversation found with session ID x\n",
+      ),
+    ).toContain("No conversation found");
   });
 
   test("returns empty when the echo is the last line (command not yet executed)", () => {
@@ -598,13 +670,18 @@ describe("agent update menu", () => {
 
   test("the '›' cursor alone must never read as an idle composer", () => {
     // The regression in one line: '›' is a menu cursor here, not a prompt.
-    expect(classifyTmuxLiveState("› 1. Update now\n  2. Skip\n  Press enter to continue"))
-      .not.toBe("idle");
+    expect(
+      classifyTmuxLiveState(
+        "› 1. Update now\n  2. Skip\n  Press enter to continue",
+      ),
+    ).not.toBe("idle");
   });
 
   test("a real composer showing '›' still reads idle", () => {
     // The narrow match must not cost us ordinary readiness detection.
-    expect(classifyTmuxLiveState("› Ask Codex to do anything\n  gpt-5.6-sol · /tmp")).toBe("idle");
+    expect(
+      classifyTmuxLiveState("› Ask Codex to do anything\n  gpt-5.6-sol · /tmp"),
+    ).toBe("idle");
   });
 
   test("parseInteractivePrompt sees all three options and the cursor", () => {
@@ -612,7 +689,7 @@ describe("agent update menu", () => {
     expect(prompt).not.toBeNull();
     // Before the fix the '›' row failed the option regex, so the menu parsed as
     // two options with no cursor indicator.
-    expect(prompt!.options.map(o => o.label)).toEqual([
+    expect(prompt!.options.map((o) => o.label)).toEqual([
       "Update now (runs `bun install -g @openai/codex`)",
       "Skip",
       "Skip until next version",
@@ -636,7 +713,9 @@ describe("codex trust dialog", () => {
     // codex renders the question five lines above the menu, and the live region
     // is the tight tail (no box separators on this pane).
     const region = extractTmuxLiveRegion(CODEX_TRUST_PANE);
-    expect(region).not.toContain("Do you trust the contents of this directory?");
+    expect(region).not.toContain(
+      "Do you trust the contents of this directory?",
+    );
     expect(region.split("\n")).toEqual([
       "",
       "› 1. Yes, continue",
@@ -647,7 +726,9 @@ describe("codex trust dialog", () => {
   });
 
   test("classifies as trust, not update_menu", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_TRUST_PANE))).toBe("trust");
+    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_TRUST_PANE))).toBe(
+      "trust",
+    );
   });
 
   test("the corrective answers Enter on the Yes row, never Escape", () => {
@@ -660,13 +741,21 @@ describe("codex trust dialog", () => {
   test("'> You are in <cwd>' is not mistaken for the highlight", () => {
     // That line carries a bare '>' five rows above the menu. Read as the
     // highlight it sent Down keystrokes at a dialog already sitting on "Yes".
-    const onQuit = CODEX_TRUST_PANE.replace("› 1. Yes, continue", "  1. Yes, continue")
-      .replace("  2. No, quit", "› 2. No, quit");
-    expect(planTrustPromptStep(onQuit.split("\n"))).toEqual({ action: "move", key: "Up", times: 1 });
+    const onQuit = CODEX_TRUST_PANE.replace(
+      "› 1. Yes, continue",
+      "  1. Yes, continue",
+    ).replace("  2. No, quit", "› 2. No, quit");
+    expect(planTrustPromptStep(onQuit.split("\n"))).toEqual({
+      action: "move",
+      key: "Up",
+      times: 1,
+    });
   });
 
   test("codex's update menu is untouched by the trust rule", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_UPDATE_MENU_PANE))).toBe("update_menu");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_UPDATE_MENU_PANE)),
+    ).toBe("update_menu");
   });
 });
 
@@ -688,12 +777,16 @@ describe("grok trust dialog", () => {
     const lines = GROK_TRUST_PANE.replace(/\s+$/, "").split("\n");
     expect(isGrokTrustDialog(lines.slice(-25).join("\n"))).toBe(false);
     expect(GROK_TRUST_PANE_CAPTURE_LINES).toBeGreaterThanOrEqual(80);
-    expect(isGrokTrustDialog(lines.slice(-GROK_TRUST_PANE_CAPTURE_LINES).join("\n"))).toBe(true);
+    expect(
+      isGrokTrustDialog(lines.slice(-GROK_TRUST_PANE_CAPTURE_LINES).join("\n")),
+    ).toBe(true);
   });
 
   test("whole-pane grok classification is trust, not unknown", () => {
     expect(isGrokTrustDialog(GROK_TRUST_PANE)).toBe(true);
-    expect(classifyGlyphlessClientPaneState(GROK_TRUST_PANE, grokReady)).toBe("trust");
+    expect(classifyGlyphlessClientPaneState(GROK_TRUST_PANE, grokReady)).toBe(
+      "trust",
+    );
     expect(classifyLivePaneFor("grok", GROK_TRUST_PANE)).toBe("trust");
   });
 
@@ -702,7 +795,8 @@ describe("grok trust dialog", () => {
   });
 
   test("an idle grok composer is not a trust dialog", () => {
-    const idle = "│ ❯ \nShift+Tab:mode  │  Ctrl+x:shortcuts\n  Grok Build  1.0.30 [stable]";
+    const idle =
+      "│ ❯ \nShift+Tab:mode  │  Ctrl+x:shortcuts\n  Grok Build  1.0.30 [stable]";
     expect(isGrokTrustDialog(idle)).toBe(false);
     expect(classifyLivePaneFor("grok", idle)).toBe("idle");
   });
@@ -715,7 +809,9 @@ describe("grok trust dialog", () => {
   });
 
   test("the highlight walker cannot confirm grok's dialog (no cursor — send y)", () => {
-    expect(planTrustPromptStep(GROK_TRUST_PANE.split("\n")).action).toBe("none");
+    expect(planTrustPromptStep(GROK_TRUST_PANE.split("\n")).action).toBe(
+      "none",
+    );
   });
 });
 
@@ -775,15 +871,23 @@ const CODEX_RESUMED_PANE = `${CODEX_RESUMING_PANE_REPAINTED}
 
 describe("codex resume", () => {
   test("a pane still replaying its session is 'starting', not idle", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_RESUMING_PANE))).toBe("starting");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_RESUMING_PANE)),
+    ).toBe("starting");
   });
 
   test("a repaint that leaves the earlier frame in the capture still reads 'starting'", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_RESUMING_PANE_REPAINTED))).toBe("starting");
+    expect(
+      classifyTmuxLiveState(
+        extractTmuxLiveRegion(CODEX_RESUMING_PANE_REPAINTED),
+      ),
+    ).toBe("starting");
   });
 
   test("a finished replay reads idle — the marker above the newest frame is scrollback", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_RESUMED_PANE))).toBe("idle");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(CODEX_RESUMED_PANE)),
+    ).toBe("idle");
   });
 });
 
@@ -791,8 +895,13 @@ describe("codex resume", () => {
 describe("noteUnresolvablePane", () => {
   test("rebuilds only after the threshold, counting well-spaced failures", () => {
     const store = new Map<string, { count: number; last: number }>();
-    const results = [1, 2, 3, 4, 5].map(i =>
-      noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE: deferring", 20_000 * i, store),
+    const results = [1, 2, 3, 4, 5].map((i) =>
+      noteUnresolvablePane(
+        "s1",
+        "AGENT_UNKNOWN_STATE: deferring",
+        20_000 * i,
+        store,
+      ),
     );
     expect(results).toEqual([false, false, false, false, true]);
   });
@@ -801,7 +910,7 @@ describe("noteUnresolvablePane", () => {
     // The first deploy tore down a pane that was merely booting: it failed this
     // check five times in four seconds while its TUI painted.
     const store = new Map<string, { count: number; last: number }>();
-    const burst = [0, 900, 1800, 2700, 3600, 4500].map(t =>
+    const burst = [0, 900, 1800, 2700, 3600, 4500].map((t) =>
       noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE: deferring", t, store),
     );
     expect(burst).toEqual([false, false, false, false, false, false]);
@@ -813,33 +922,51 @@ describe("noteUnresolvablePane", () => {
     noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE", 0, store);
     noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE", 20_000, store);
     // Long gap: unrelated failures must not accumulate into a teardown.
-    expect(noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE", 60 * 60_000, store)).toBe(false);
+    expect(
+      noteUnresolvablePane("s1", "AGENT_UNKNOWN_STATE", 60 * 60_000, store),
+    ).toBe(false);
     expect(store.get("s1")!.count).toBe(1);
   });
 
   test("a success clears the streak", () => {
     const store = new Map<string, { count: number; last: number }>();
-    for (const i of [1, 2, 3, 4]) noteUnresolvablePane("s1", "AGENT_STUCK_WARNING", 20_000 * i, store);
+    for (const i of [1, 2, 3, 4])
+      noteUnresolvablePane("s1", "AGENT_STUCK_WARNING", 20_000 * i, store);
     clearUnresolvablePane("s1", store);
-    expect(noteUnresolvablePane("s1", "AGENT_STUCK_WARNING", 100_000, store)).toBe(false);
+    expect(
+      noteUnresolvablePane("s1", "AGENT_STUCK_WARNING", 100_000, store),
+    ).toBe(false);
   });
 
   test("ignores errors that already terminate in a rebuild", () => {
     const store = new Map<string, { count: number; last: number }>();
     for (const i of [1, 2, 3, 4, 5, 6]) {
-      expect(noteUnresolvablePane("s1", "SESSION_EXITED: no agent process in the pane", 20_000 * i, store)).toBe(false);
+      expect(
+        noteUnresolvablePane(
+          "s1",
+          "SESSION_EXITED: no agent process in the pane",
+          20_000 * i,
+          store,
+        ),
+      ).toBe(false);
     }
   });
 
   test("counts every state we cannot act on", () => {
-    for (const err of ["AGENT_UNKNOWN_STATE: deferring", "AGENT_NOT_READY: live state", "AGENT_STUCK_WARNING: x", "AGENT_CAPTURE_FAILED: x"]) {
+    for (const err of [
+      "AGENT_UNKNOWN_STATE: deferring",
+      "AGENT_NOT_READY: live state",
+      "AGENT_STUCK_WARNING: x",
+      "AGENT_CAPTURE_FAILED: x",
+    ]) {
       const store = new Map<string, { count: number; last: number }>();
-      const last = [1, 2, 3, 4, 5].map(i => noteUnresolvablePane("s", err, 20_000 * i, store)).pop();
+      const last = [1, 2, 3, 4, 5]
+        .map((i) => noteUnresolvablePane("s", err, 20_000 * i, store))
+        .pop();
       expect(last).toBe(true);
     }
   });
 });
-
 
 // ── Workspace trust dialog (jx745rs5, 2026-09-03) ──────────────────────────
 // Verbatim from Claude Code 2.1.259 in an untrusted directory. The detail that
@@ -859,12 +986,21 @@ const TRUST_DIALOG = [
 
 describe("planTrustPromptStep", () => {
   test("moves the highlight onto the affirmative option instead of confirming", () => {
-    expect(planTrustPromptStep(TRUST_DIALOG)).toEqual({ action: "move", key: "Down", times: 1 });
+    expect(planTrustPromptStep(TRUST_DIALOG)).toEqual({
+      action: "move",
+      key: "Down",
+      times: 1,
+    });
   });
 
   test("confirms only once the highlight is on the affirmative option", () => {
-    const moved = TRUST_DIALOG.map(l =>
-      l.includes("No, exit") ? "   No, exit" : l.includes("Yes, I trust") ? " \u276f Yes, I trust this folder" : l);
+    const moved = TRUST_DIALOG.map((l) =>
+      l.includes("No, exit")
+        ? "   No, exit"
+        : l.includes("Yes, I trust")
+          ? " \u276f Yes, I trust this folder"
+          : l,
+    );
     expect(planTrustPromptStep(moved)).toEqual({
       action: "confirm",
       option: "\u276f Yes, I trust this folder",
@@ -872,18 +1008,21 @@ describe("planTrustPromptStep", () => {
   });
 
   test("presses nothing when the highlight is not visible", () => {
-    const noCursor = TRUST_DIALOG.map(l => l.replace("\u276f", " "));
+    const noCursor = TRUST_DIALOG.map((l) => l.replace("\u276f", " "));
     expect(planTrustPromptStep(noCursor).action).toBe("none");
   });
 
   test("presses nothing on a dialog with no affirmative option", () => {
     // A future dialog we do not understand must not be answered by guessing.
-    expect(planTrustPromptStep([" \u276f No, exit", " Enter to confirm"]).action).toBe("none");
+    expect(
+      planTrustPromptStep([" \u276f No, exit", " Enter to confirm"]).action,
+    ).toBe("none");
   });
 
   test("walks upward when the affirmative option is above the highlight", () => {
-    expect(planTrustPromptStep(["   Yes, I trust this folder", " \u276f No, exit"]))
-      .toEqual({ action: "move", key: "Up", times: 1 });
+    expect(
+      planTrustPromptStep(["   Yes, I trust this folder", " \u276f No, exit"]),
+    ).toEqual({ action: "move", key: "Up", times: 1 });
   });
 });
 
@@ -906,34 +1045,73 @@ const EFFORT_DIALOG_TAIL = [
 
 describe("unnumbered select dialog", () => {
   test("classifies as a menu only a human can answer, not idle", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(EFFORT_DIALOG_TAIL))).toBe("menu");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(EFFORT_DIALOG_TAIL)),
+    ).toBe("menu");
   });
 
   test("a composer holding a draft stays idle", () => {
-    const composer = ["─".repeat(80), "❯ Keep high", "─".repeat(80), "  ? for shortcuts"].join("\n");
+    const composer = [
+      "─".repeat(80),
+      "❯ Keep high",
+      "─".repeat(80),
+      "  ? for shortcuts",
+    ].join("\n");
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(composer))).toBe("idle");
   });
 
   test("the highlight walks to the chosen label, then confirms", () => {
     const lines = EFFORT_DIALOG_TAIL.split("\n");
-    const target = (line: string) => selectRowHasLabel(line, "Switch Opus 5 to medium effort");
-    expect(planHighlightStep(lines, target)).toEqual({ action: "move", key: "Down", times: 1 });
-    const moved = lines.map((l) => l === "   ❯ Keep high" ? "     Keep high" : l === "     Switch Opus 5 to medium effort" ? "   ❯ Switch Opus 5 to medium effort" : l);
-    expect(planHighlightStep(moved, target)).toEqual({ action: "confirm", option: "❯ Switch Opus 5 to medium effort" });
+    const target = (line: string) =>
+      selectRowHasLabel(line, "Switch Opus 5 to medium effort");
+    expect(planHighlightStep(lines, target)).toEqual({
+      action: "move",
+      key: "Down",
+      times: 1,
+    });
+    const moved = lines.map((l) =>
+      l === "   ❯ Keep high"
+        ? "     Keep high"
+        : l === "     Switch Opus 5 to medium effort"
+          ? "   ❯ Switch Opus 5 to medium effort"
+          : l,
+    );
+    expect(planHighlightStep(moved, target)).toEqual({
+      action: "confirm",
+      option: "❯ Switch Opus 5 to medium effort",
+    });
   });
 
   test("a label that is only in the title is never confirmed", () => {
-    expect(planHighlightStep(EFFORT_DIALOG_TAIL.split("\n"), (l) => selectRowHasLabel(l, "Medium")).action).toBe("none");
+    expect(
+      planHighlightStep(EFFORT_DIALOG_TAIL.split("\n"), (l) =>
+        selectRowHasLabel(l, "Medium"),
+      ).action,
+    ).toBe("none");
   });
 });
 
 describe("parsePermissionModeFooter", () => {
   test("names every mode Claude Code paints in its footer", () => {
-    expect(parsePermissionModeFooter("❯\n  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents")).toBe("bypassPermissions");
-    expect(parsePermissionModeFooter("  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents")).toBe("auto");
-    expect(parsePermissionModeFooter("  ⏸ manual mode on · ← for agents")).toBe("default");
-    expect(parsePermissionModeFooter("  ⏵⏵ accept edits on (shift+tab to cycle)")).toBe("acceptEdits");
-    expect(parsePermissionModeFooter("  ⏸ plan mode on (shift+tab to cycle)")).toBe("plan");
+    expect(
+      parsePermissionModeFooter(
+        "❯\n  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents",
+      ),
+    ).toBe("bypassPermissions");
+    expect(
+      parsePermissionModeFooter(
+        "  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents",
+      ),
+    ).toBe("auto");
+    expect(parsePermissionModeFooter("  ⏸ manual mode on · ← for agents")).toBe(
+      "default",
+    );
+    expect(
+      parsePermissionModeFooter("  ⏵⏵ accept edits on (shift+tab to cycle)"),
+    ).toBe("acceptEdits");
+    expect(
+      parsePermissionModeFooter("  ⏸ plan mode on (shift+tab to cycle)"),
+    ).toBe("plan");
   });
 
   test("a fresh default session paints no mode line", () => {
@@ -941,20 +1119,37 @@ describe("parsePermissionModeFooter", () => {
   });
 
   test("the live footer (lowest line) wins over one scrolled into history", () => {
-    expect(parsePermissionModeFooter("  ⏸ plan mode on\nsome output\n  ⏵⏵ auto mode on (shift+tab to cycle)")).toBe("auto");
+    expect(
+      parsePermissionModeFooter(
+        "  ⏸ plan mode on\nsome output\n  ⏵⏵ auto mode on (shift+tab to cycle)",
+      ),
+    ).toBe("auto");
   });
 });
 
 describe("stepPermissionMode", () => {
   // Claude Code 2.1.269 with bypass enabled, measured 2026-09-12.
-  const CC_2_1_CYCLE = ["bypassPermissions", "auto", "default", "acceptEdits", "plan"] as const;
-  function fakePane(cycle: readonly string[], startAt: string, opts?: { deaf?: boolean }) {
+  const CC_2_1_CYCLE = [
+    "bypassPermissions",
+    "auto",
+    "default",
+    "acceptEdits",
+    "plan",
+  ] as const;
+  function fakePane(
+    cycle: readonly string[],
+    startAt: string,
+    opts?: { deaf?: boolean },
+  ) {
     let idx = cycle.indexOf(startAt);
     let presses = 0;
     return {
       presses: () => presses,
       io: {
-        press: async () => { presses++; if (!opts?.deaf) idx = (idx + 1) % cycle.length; },
+        press: async () => {
+          presses++;
+          if (!opts?.deaf) idx = (idx + 1) % cycle.length;
+        },
         readMode: async () => cycle[idx] as any,
         sleep: async () => {},
       },
@@ -963,26 +1158,40 @@ describe("stepPermissionMode", () => {
 
   test("one press reports where the TUI's own cycle landed, never a predicted order", async () => {
     const pane = fakePane(CC_2_1_CYCLE, "bypassPermissions");
-    expect(await stepPermissionMode(pane.io)).toEqual({ mode: "auto", presses: 1 });
-    expect(await stepPermissionMode(pane.io)).toEqual({ mode: "default", presses: 1 });
+    expect(await stepPermissionMode(pane.io)).toEqual({
+      mode: "auto",
+      presses: 1,
+    });
+    expect(await stepPermissionMode(pane.io)).toEqual({
+      mode: "default",
+      presses: 1,
+    });
   });
 
   test("a target keeps pressing until the footer names it", async () => {
     const pane = fakePane(CC_2_1_CYCLE, "acceptEdits");
-    expect(await stepPermissionMode(pane.io, "bypassPermissions")).toEqual({ mode: "bypassPermissions", presses: 2 });
+    expect(await stepPermissionMode(pane.io, "bypassPermissions")).toEqual({
+      mode: "bypassPermissions",
+      presses: 2,
+    });
     expect(pane.presses()).toBe(2);
   });
 
   test("already on the target: no press at all", async () => {
     const pane = fakePane(CC_2_1_CYCLE, "plan");
-    expect(await stepPermissionMode(pane.io, "plan")).toEqual({ mode: "plan", presses: 0 });
+    expect(await stepPermissionMode(pane.io, "plan")).toEqual({
+      mode: "plan",
+      presses: 0,
+    });
     expect(pane.presses()).toBe(0);
   });
 
   test("a launch without bypass in its cycle stops after one full lap, back where it started", async () => {
     const pane = fakePane(["default", "acceptEdits", "plan"], "plan");
     const out = await stepPermissionMode(pane.io, "bypassPermissions");
-    expect(out).toEqual({ error: "bypass permissions is not in this session's shift+tab cycle" });
+    expect(out).toEqual({
+      error: "bypass permissions is not in this session's shift+tab cycle",
+    });
     expect(await pane.io.readMode()).toBe("plan");
   });
 
@@ -1000,7 +1209,7 @@ describe("stepPermissionMode", () => {
 // the dialog and every later message waited hours behind that paste.
 const SESSION_PAUSED_PANE = [
   "  Reading Web B's health feeder and how singleton meta slots initialise",
-  "  ⎿  $ cat hooks/useSyncOrgHealth.ts; echo \"=== meta keys ===\"; grep -n META store/inboxStore.ts | head -6",
+  '  ⎿  $ cat hooks/useSyncOrgHealth.ts; echo "=== meta keys ==="; grep -n META store/inboxStore.ts | head -6',
   "",
   "─".repeat(120),
   " Session paused",
@@ -1018,20 +1227,31 @@ const SESSION_PAUSED_PANE = [
 
 describe("safeguards Session paused interstitial", () => {
   test("classifies as menu, with and without the API retry banner", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(SESSION_PAUSED_PANE))).toBe("menu");
-    const settled = SESSION_PAUSED_PANE.replace(/\n✻ Waiting for API response[^\n]*/, "");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(SESSION_PAUSED_PANE)),
+    ).toBe("menu");
+    const settled = SESSION_PAUSED_PANE.replace(
+      /\n✻ Waiting for API response[^\n]*/,
+      "",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(settled))).toBe("menu");
   });
 
   test("the paste guard parses it as a dialog despite the retry banner", () => {
     for (const structural of [false, true]) {
       const prompt = parseInteractivePrompt(SESSION_PAUSED_PANE, structural);
-      expect(prompt?.options.map((o) => o.label)).toEqual(["Switch to Opus 4.8", "Edit prompt and retry with Fable 5.1"]);
+      expect(prompt?.options.map((o) => o.label)).toEqual([
+        "Switch to Opus 4.8",
+        "Edit prompt and retry with Fable 5.1",
+      ]);
     }
   });
 
   test("a real turn status line under a scrolled menu still proves a live composer", () => {
-    const scrolled = SESSION_PAUSED_PANE.replace(/\n✻ Waiting for API response[^\n]*/, "\n✶ Perambulating… (50s · ↓ 161 tokens)");
+    const scrolled = SESSION_PAUSED_PANE.replace(
+      /\n✻ Waiting for API response[^\n]*/,
+      "\n✶ Perambulating… (50s · ↓ 161 tokens)",
+    );
     expect(parseInteractivePrompt(scrolled)).toBeNull();
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(scrolled))).toBe("busy");
   });
@@ -1039,7 +1259,9 @@ describe("safeguards Session paused interstitial", () => {
 
 describe("Claude Code's bypass-permissions warning (ct-55193)", () => {
   test("reads as a confirmation to accept, never as the Rewind modal Escape would cancel", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(CLAUDE_BYPASS_WARNING_PANE))).toBe("trust");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(CLAUDE_BYPASS_WARNING_PANE)),
+    ).toBe("trust");
   });
 
   test("a freshly launched pane showing it is answered, not left booting", () => {
@@ -1048,9 +1270,20 @@ describe("Claude Code's bypass-permissions warning (ct-55193)", () => {
 
   test("the answer moves the highlight off the default No, exit onto Yes, I accept", () => {
     const lines = CLAUDE_BYPASS_WARNING_PANE.split("\n");
-    expect(planTrustPromptStep(lines)).toEqual({ action: "move", key: "Down", times: 1 });
-    const moved = lines.map((l) => l.replace("❯ No, exit", "  No, exit").replace("  Yes, I accept", "❯ Yes, I accept"));
-    expect(planTrustPromptStep(moved)).toEqual({ action: "confirm", option: expect.stringContaining("Yes, I accept") });
+    expect(planTrustPromptStep(lines)).toEqual({
+      action: "move",
+      key: "Down",
+      times: 1,
+    });
+    const moved = lines.map((l) =>
+      l
+        .replace("❯ No, exit", "  No, exit")
+        .replace("  Yes, I accept", "❯ Yes, I accept"),
+    );
+    expect(planTrustPromptStep(moved)).toEqual({
+      action: "confirm",
+      option: expect.stringContaining("Yes, I accept"),
+    });
   });
 });
 
@@ -1069,22 +1302,34 @@ const LIMIT_DIALOG_PANE = [
 describe("Claude Code's limit dialog (2026-10-04)", () => {
   test("is a park dismissed with Escape, not a Rewind modal or a question", () => {
     expect(limitDialogOnPane(LIMIT_DIALOG_PANE)).toBe(true);
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(LIMIT_DIALOG_PANE))).toBe("limit_dialog");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(LIMIT_DIALOG_PANE)),
+    ).toBe("limit_dialog");
   });
 
   test("with no usage credits to offer, its two rows are still the park", () => {
     // Oct 26: a line build read this as a question and its station settled on needs_input in 90s.
-    const twoRows = LIMIT_DIALOG_PANE
-      .replace("resets Oct 5 at 3pm (America/New_York)", "resets Oct 28, 10pm (UTC)")
-      .replace("Wait here, then continue automatically at Oct 5 at 3pm", "Wait here, then continue automatically at Oct 28, 10pm")
+    const twoRows = LIMIT_DIALOG_PANE.replace(
+      "resets Oct 5 at 3pm (America/New_York)",
+      "resets Oct 28, 10pm (UTC)",
+    )
+      .replace(
+        "Wait here, then continue automatically at Oct 5 at 3pm",
+        "Wait here, then continue automatically at Oct 28, 10pm",
+      )
       .replace("     3. Switch to usage credits\n", "");
     expect(limitDialogOnPane(twoRows)).toBe(true);
   });
 
   test("an ordinary numbered question is not one", () => {
-    const question = LIMIT_DIALOG_PANE
-      .replace("Stop and wait for limit to reset", "Keep the old schema")
-      .replace("Wait here, then continue automatically at Oct 5 at 3pm", "Migrate now")
+    const question = LIMIT_DIALOG_PANE.replace(
+      "Stop and wait for limit to reset",
+      "Keep the old schema",
+    )
+      .replace(
+        "Wait here, then continue automatically at Oct 5 at 3pm",
+        "Migrate now",
+      )
       .replace("Switch to usage credits", "Ask me later");
     expect(limitDialogOnPane(question)).toBe(false);
   });
@@ -1095,34 +1340,54 @@ describe("Claude Code's limit dialog (2026-10-04)", () => {
 // jx76rqh held two messages for 90 minutes on exactly this pane.
 describe("a composer box taller than the live tail", () => {
   const rule = "─".repeat(120);
-  const draft = Array.from({ length: 40 }, (_, i) => `  line ${i} of a long typed report from a worker session`);
-  const pane = (footer: string[]) => [
-    "⏺ Checks: 310 tests pass across these changes.",
-    "✻ Cogitated for 29m 14s · done 11:24 AM",
-    rule,
-    "❯ <session-message from=\"jx7f680\">",
-    ...draft,
-    "  </session-message>",
-    rule,
-    ...footer,
-  ].join("\n");
+  const draft = Array.from(
+    { length: 40 },
+    (_, i) => `  line ${i} of a long typed report from a worker session`,
+  );
+  const pane = (footer: string[]) =>
+    [
+      "⏺ Checks: 310 tests pass across these changes.",
+      "✻ Cogitated for 29m 14s · done 11:24 AM",
+      rule,
+      '❯ <session-message from="jx7f680">',
+      ...draft,
+      "  </session-message>",
+      rule,
+      ...footer,
+    ].join("\n");
 
   test("reads as the idle composer holding the draft", () => {
-    const region = extractTmuxLiveRegion(pane(["  session 34%, resets in 2h 55m", "  ⏵⏵ bypass permissions on (shift+tab to cycle)"]));
+    const region = extractTmuxLiveRegion(
+      pane([
+        "  session 34%, resets in 2h 55m",
+        "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
+      ]),
+    );
     expect(region).toContain("❯ <session-message");
     expect(classifyTmuxLiveState(region)).toBe("idle");
   });
 
   test("a report divider inside the draft is not a composer boundary", () => {
-    const screen = pane(["  ⏵⏵ bypass permissions on (shift+tab to cycle)"])
-      .replace("  </session-message>", `  ${"─".repeat(40)}\n  check: prompt fidelity\n  </session-message>`);
+    const screen = pane([
+      "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
+    ]).replace(
+      "  </session-message>",
+      `  ${"─".repeat(40)}\n  check: prompt fidelity\n  </session-message>`,
+    );
     const region = extractTmuxLiveRegion(screen);
     expect(region).toContain("❯ <session-message");
     expect(classifyTmuxLiveState(region)).toBe("idle");
   });
 
   test("a dialog under a lone rule is still read as that dialog", () => {
-    const region = extractTmuxLiveRegion(pane([" Do you want to proceed?", " ❯ 1. Yes", "   2. No", " Esc to cancel · Tab to amend"]));
+    const region = extractTmuxLiveRegion(
+      pane([
+        " Do you want to proceed?",
+        " ❯ 1. Yes",
+        "   2. No",
+        " Esc to cancel · Tab to amend",
+      ]),
+    );
     expect(region).not.toContain("<session-message");
   });
 });
@@ -1132,9 +1397,9 @@ describe("a composer box taller than the live tail", () => {
 // footer rule, the pane classified "unknown" and held five messages for hours.
 describe("a composer whose top rule a status line painted over", () => {
   const pane = [
-    "⏺ Task \"until ! pgrep -f \"cast check backend\" >/dev/null; do sleep 20; done\" still running in background",
+    '⏺ Task "until ! pgrep -f "cast check backend" >/dev/null; do sleep 20; done" still running in background',
     "",
-    "⏺ Compacted while idle, before the prompt cache expired · turn off with \"idleCompaction\": false in settings.json",
+    '⏺ Compacted while idle, before the prompt cache expired · turn off with "idleCompaction": false in settings.json',
     "",
     `✽─Jitterbugging… ───────────────────────────1──────4──13${"─".repeat(160)}`,
     "❯ ",
@@ -1163,8 +1428,16 @@ describe("Claude idle-resume dialog", () => {
 
   test("is recognized by its inactivity line and its start-new option", () => {
     expect(isClaudeIdleResumeDialog(pane)).toBe(true);
-    expect(isClaudeIdleResumeDialog("Resume from summary?\n❯ 1. Resume from summary\n  2. Resume full session")).toBe(false);
-    expect(isClaudeIdleResumeDialog("The user said the job has been inactive for days.\n❯ ")).toBe(false);
+    expect(
+      isClaudeIdleResumeDialog(
+        "Resume from summary?\n❯ 1. Resume from summary\n  2. Resume full session",
+      ),
+    ).toBe(false);
+    expect(
+      isClaudeIdleResumeDialog(
+        "The user said the job has been inactive for days.\n❯ ",
+      ),
+    ).toBe(false);
   });
 
   test("the Resume row matches exactly, never the question text or a longer option", () => {
@@ -1194,8 +1467,12 @@ const LIMIT_REWIND_PANE = [
 describe("Claude Code's Rewind picker (2026-11-11)", () => {
   test("is cancelled by delivery, never held as a question", async () => {
     expect(isClaudeRewindDialog(LIMIT_REWIND_PANE)).toBe(true);
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(LIMIT_REWIND_PANE))).toBe("rewind");
-    await expect(inputGuard(async () => LIMIT_REWIND_PANE)()).resolves.toBeUndefined();
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(LIMIT_REWIND_PANE)),
+    ).toBe("rewind");
+    await expect(
+      inputGuard(async () => LIMIT_REWIND_PANE)(),
+    ).resolves.toBeUndefined();
   });
 
   test("a real numbered question is still held", async () => {
@@ -1206,7 +1483,9 @@ describe("Claude Code's Rewind picker (2026-11-11)", () => {
       "   Enter to confirm · Esc to cancel",
     ].join("\n");
     expect(isClaudeRewindDialog(question)).toBe(false);
-    await expect(inputGuard(async () => question)()).rejects.toThrow(/waiting for a human answer/);
+    await expect(inputGuard(async () => question)()).rejects.toThrow(
+      /waiting for a human answer/,
+    );
   });
 });
 
@@ -1232,14 +1511,21 @@ const COMPACT_OFFER_PANE = `⏺ The batch finished; results are in the run log.
 
 describe("Claude Code suggestion dialog (esc not now)", () => {
   test("classifies as offer_dialog, not idle", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(COMPACT_OFFER_PANE))).toBe("offer_dialog");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(COMPACT_OFFER_PANE)),
+    ).toBe("offer_dialog");
   });
 
   // The next unknown dialog will not say "esc not now". A › or ❯ inside a row
   // is never a composer caret, so such a dialog must not read idle.
   test("a mid-row › in an unrecognised dialog does not read idle", () => {
-    const unknownFooter = COMPACT_OFFER_PANE.replace("esc not now", "esc maybe later");
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(unknownFooter))).not.toBe("idle");
+    const unknownFooter = COMPACT_OFFER_PANE.replace(
+      "esc not now",
+      "esc maybe later",
+    );
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(unknownFooter)),
+    ).not.toBe("idle");
   });
 });
 
@@ -1265,12 +1551,18 @@ describe("composer whose top rule carries the session title (GitHub #88)", () =>
   });
 
   test("a running turn above a titled composer still reads busy", () => {
-    const pane = TITLED_IDLE_PANE.replace("◐ medium · /effort", "\n✶ Perambulating… (50s · ↓ 161 tokens)\n");
+    const pane = TITLED_IDLE_PANE.replace(
+      "◐ medium · /effort",
+      "\n✶ Perambulating… (50s · ↓ 161 tokens)\n",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(pane))).toBe("busy");
   });
 
   test("a draft opening with a numbered line under a titled rule is the composer, not a menu", () => {
-    const pane = TITLED_IDLE_PANE.replace(`❯ Try "fix typecheck errors"`, "❯ 5) and then the rest of the draft");
+    const pane = TITLED_IDLE_PANE.replace(
+      `❯ Try "fix typecheck errors"`,
+      "❯ 5) and then the rest of the draft",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(pane))).toBe("idle");
   });
 
@@ -1279,12 +1571,16 @@ describe("composer whose top rule carries the session title (GitHub #88)", () =>
     expect(isTitledRule(TITLED_RULE_TOP)).toBe(true);
     expect(isTitledRule("── note ──")).toBe(false);
     expect(isTitledRule(`${"─".repeat(30)}`)).toBe(false);
-    expect(isTitledRule("the build ── which failed ── is green now")).toBe(false);
+    expect(isTitledRule("the build ── which failed ── is green now")).toBe(
+      false,
+    );
   });
 
   test("the usage limit dialog in a titled session is still the limit park", () => {
     const pane = [TITLED_RULE_TOP, ...LIMIT_DIALOG_PANE.split("\n")].join("\n");
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(pane))).toBe("limit_dialog");
+    expect(classifyTmuxLiveState(extractTmuxLiveRegion(pane))).toBe(
+      "limit_dialog",
+    );
   });
 });
 
@@ -1301,25 +1597,31 @@ describe("a composer scrolled past its ❯ row", () => {
     "  3. If sd-2749 is option 1: prepare the press pitch. Esc to cancel is not a dialog here.",
     "  4. End with cast state.",
   ];
-  const pane = (top: string, bottom = rule) => [
-    "❯ continue",
-    "⏺ Both launch cards are now current and waiting on Ashot's yes.",
-    "✻ Churned for 32s · done Monday 5:29 PM",
-    "",
-    top,
-    ...draft,
-    bottom,
-    "",
-    "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
-  ].join("\n");
+  const pane = (top: string, bottom = rule) =>
+    [
+      "❯ continue",
+      "⏺ Both launch cards are now current and waiting on Ashot's yes.",
+      "✻ Churned for 32s · done Monday 5:29 PM",
+      "",
+      top,
+      ...draft,
+      bottom,
+      "",
+      "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
+    ].join("\n");
   const scrolledTop = `─── ↑ 2 more ${"─".repeat(100)}`;
 
   test("reads as the idle composer, not unknown", () => {
-    expect(classifyTmuxLiveState(extractTmuxLiveRegion(pane(scrolledTop)))).toBe("idle");
+    expect(
+      classifyTmuxLiveState(extractTmuxLiveRegion(pane(scrolledTop))),
+    ).toBe("idle");
   });
 
   test("a running turn above it still reads busy", () => {
-    const busy = pane(scrolledTop).replace("✻ Churned for 32s · done Monday 5:29 PM", "✶ Perambulating… (50s · ↓ 161 tokens)");
+    const busy = pane(scrolledTop).replace(
+      "✻ Churned for 32s · done Monday 5:29 PM",
+      "✶ Perambulating… (50s · ↓ 161 tokens)",
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(busy))).toBe("busy");
   });
 
@@ -1328,14 +1630,24 @@ describe("a composer scrolled past its ❯ row", () => {
   });
 
   test("a payload whose tail fills the box is recognized as its tail", () => {
-    const payload = ["<scheduled-task title=\"Launch morning\">", "Steps:", ...draft.map((l) => l.trim())].join("\n");
+    const payload = [
+      '<scheduled-task title="Launch morning">',
+      "Steps:",
+      ...draft.map((l) => l.trim()),
+    ].join("\n");
     expect(tmuxComposerHoldsPayload(pane(scrolledTop), payload)).toBe(false);
-    expect(tmuxComposerText(pane(scrolledTop))?.replace(/^\s+/gm, "")).toBe(draft.map((l) => l.trim()).join("\n"));
+    expect(tmuxComposerText(pane(scrolledTop))?.replace(/^\s+/gm, "")).toBe(
+      draft.map((l) => l.trim()).join("\n"),
+    );
   });
 
   test("a bottom rule counting lines below ends the composer", () => {
-    const head = pane(rule, `─── ↓ 5 more ${"─".repeat(100)}`).replace("❯ continue\n", "").replace(draft[0], `❯ ${draft[0].trim()}`);
-    expect(tmuxComposerText(head)).toBe([` ${draft[0].trim()}`, ...draft.slice(1)].join("\n"));
+    const head = pane(rule, `─── ↓ 5 more ${"─".repeat(100)}`)
+      .replace("❯ continue\n", "")
+      .replace(draft[0], `❯ ${draft[0].trim()}`);
+    expect(tmuxComposerText(head)).toBe(
+      [` ${draft[0].trim()}`, ...draft.slice(1)].join("\n"),
+    );
   });
 });
 
@@ -1345,17 +1657,33 @@ describe("a composer scrolled past its ❯ row", () => {
 // Ten sessions held their queues behind this pane, one for 11 hours.
 describe("a fullscreen composer whose draft overflows the box", () => {
   const rule = "─".repeat(220);
-  const overflowRule = (hidden: number) => `─── ↑ ${hidden} more ${"─".repeat(203)}`;
-  const shown = Array.from({ length: 19 }, (_, i) => `  line ${i + 52} of the long typed message, with enough words to look like real text`);
-  const pane = (footer: string[], above = ["❯ <scheduled-task title=\"Worker jx74bhg ended its turn\">", "⏺ This notice is from the worker's restart turn.", "✻ Cogitated for 15s · done 11:30 PM"]) => [
-    ...above,
-    overflowRule(51),
-    ...shown,
-    "  </session-message>",
-    rule,
-    ...footer,
-  ].join("\n");
-  const FOOTER = ["  [someone] ~/code/project (main) Opus 5.5 | ctx 20% | 7d:70%", "  ⏵⏵ bypass permissions on (shift+tab to cycle)"];
+  const overflowRule = (hidden: number) =>
+    `─── ↑ ${hidden} more ${"─".repeat(203)}`;
+  const shown = Array.from(
+    { length: 19 },
+    (_, i) =>
+      `  line ${i + 52} of the long typed message, with enough words to look like real text`,
+  );
+  const pane = (
+    footer: string[],
+    above = [
+      '❯ <scheduled-task title="Worker jx74bhg ended its turn">',
+      "⏺ This notice is from the worker's restart turn.",
+      "✻ Cogitated for 15s · done 11:30 PM",
+    ],
+  ) =>
+    [
+      ...above,
+      overflowRule(51),
+      ...shown,
+      "  </session-message>",
+      rule,
+      ...footer,
+    ].join("\n");
+  const FOOTER = [
+    "  [someone] ~/code/project (main) Opus 5.5 | ctx 20% | 7d:70%",
+    "  ⏵⏵ bypass permissions on (shift+tab to cycle)",
+  ];
 
   test("reads as the idle composer", () => {
     const region = extractTmuxLiveRegion(pane(FOOTER));
@@ -1365,23 +1693,51 @@ describe("a fullscreen composer whose draft overflows the box", () => {
   });
 
   test("reads as busy while a turn runs above it", () => {
-    const region = extractTmuxLiveRegion(pane(FOOTER, ["⏺ Reading the report", "✶ Spelunking… (39s · ↓ 2.6k tokens · thought for 1s)"]));
+    const region = extractTmuxLiveRegion(
+      pane(FOOTER, [
+        "⏺ Reading the report",
+        "✶ Spelunking… (39s · ↓ 2.6k tokens · thought for 1s)",
+      ]),
+    );
     expect(classifyTmuxLiveState(region)).toBe("busy");
   });
 
   test("a taller window, where the box outgrows the live tail, reads the same", () => {
-    const tall = pane(FOOTER).replace(shown[0], Array.from({ length: 30 }, (_, i) => `  earlier row ${i}`).join("\n") + "\n" + shown[0]);
+    const tall = pane(FOOTER).replace(
+      shown[0],
+      Array.from({ length: 30 }, (_, i) => `  earlier row ${i}`).join("\n") +
+        "\n" +
+        shown[0],
+    );
     expect(classifyTmuxLiveState(extractTmuxLiveRegion(tall))).toBe("idle");
   });
 
   test("the composer text is the visible end of the draft, and only this box counts as scrolled", () => {
-    expect(tmuxComposerText(pane(FOOTER))?.split("\n")).toEqual([...shown, "  </session-message>"]);
+    expect(tmuxComposerText(pane(FOOTER))?.split("\n")).toEqual([
+      ...shown,
+      "  </session-message>",
+    ]);
     expect(composerScrolledPastCaret(pane(FOOTER))).toBe(true);
     // A quoted overflow rule in the transcript above a plain composer is not the box.
-    const quoted = [overflowRule(48), "  ## Service tiers", rule, "❯ ", rule, ...FOOTER].join("\n");
+    const quoted = [
+      overflowRule(48),
+      "  ## Service tiers",
+      rule,
+      "❯ ",
+      rule,
+      ...FOOTER,
+    ].join("\n");
     expect(composerScrolledPastCaret(quoted)).toBe(false);
-    expect(composerScrolledPastCaret(["⏺ Done.", rule, "❯ short draft", rule, ...FOOTER].join("\n"))).toBe(false);
+    expect(
+      composerScrolledPastCaret(
+        ["⏺ Done.", rule, "❯ short draft", rule, ...FOOTER].join("\n"),
+      ),
+    ).toBe(false);
     // A select list's own overflow marker is not a composer.
-    expect(composerScrolledPastCaret(["   ↑ 16 more above", " ❯ option", rule, " Esc to cancel"].join("\n"))).toBe(false);
+    expect(
+      composerScrolledPastCaret(
+        ["   ↑ 16 more above", " ❯ option", rule, " Esc to cancel"].join("\n"),
+      ),
+    ).toBe(false);
   });
 });

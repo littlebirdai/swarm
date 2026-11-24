@@ -39,8 +39,15 @@ import {
   setSyncServiceForTests,
   trackSessionPaneForTests,
 } from "./daemon.js";
-import { cleanupShimScript, writeShimScript } from "./test-helpers/fakeClaudeShim.js";
-import { spawnHarness, waitFor, type Harness } from "./test-helpers/messagingHarness.js";
+import {
+  cleanupShimScript,
+  writeShimScript,
+} from "./test-helpers/fakeClaudeShim.js";
+import {
+  spawnHarness,
+  waitFor,
+  type Harness,
+} from "./test-helpers/messagingHarness.js";
 import type { SyncService } from "./syncService.js";
 import { hasTmux, tmuxRun } from "./tmux.js";
 
@@ -49,11 +56,16 @@ const EXTRA = 3;
 const FLEET = MAX_LIVE + EXTRA;
 const TIMEOUT = 120_000;
 
-const paneAlive = (tmux: string): boolean => tmuxRun(["has-session", "-t", tmux]).status === 0;
+const paneAlive = (tmux: string): boolean =>
+  tmuxRun(["has-session", "-t", tmux]).status === 0;
 
 // Every agent-status write the daemon made, in order. Enough of a SyncService
 // for the park and the wake.
-type StatusWrite = { conversationId: string; status: string; hibernatedAt?: number | null };
+type StatusWrite = {
+  conversationId: string;
+  status: string;
+  hibernatedAt?: number | null;
+};
 
 function recordingSyncService(writes: StatusWrite[]): SyncService {
   return {
@@ -65,8 +77,17 @@ function recordingSyncService(writes: StatusWrite[]): SyncService {
       _tasks?: unknown,
       _presumed?: boolean,
       hibernatedAt?: number | null,
-    ) => { writes.push({ conversationId, status, hibernatedAt }); return true; },
-    getConversationLifecycle: async () => ({ status: "active", source: "lifecycle", hideStateKnown: true, inboxPinnedAt: null, hasPendingMessages: false }),
+    ) => {
+      writes.push({ conversationId, status, hibernatedAt });
+      return true;
+    },
+    getConversationLifecycle: async () => ({
+      status: "active",
+      source: "lifecycle",
+      hideStateKnown: true,
+      inboxPinnedAt: null,
+      hasPendingMessages: false,
+    }),
   } as unknown as SyncService;
 }
 
@@ -83,88 +104,126 @@ describe.skipIf(!hasTmux())("hibernation with real panes", () => {
       const sessionId = crypto.randomUUID();
       const shim = writeShimScript({ sessionId });
       shims.push(shim);
-// home: this process's own. The hibernation pass finds a pane's transcript through
-// the daemon's session file index, which is rooted at process.env.HOME — a pane
-// writing into a home of its own is invisible to it (ct-49770).
-      harnesses.push(spawnHarness({ sessionId, home: os.homedir(), tmuxPrefix: `cc-e1-${process.pid}`, command: `exec '${shim}' --session-id ${sessionId}` }));
+      // home: this process's own. The hibernation pass finds a pane's transcript through
+      // the daemon's session file index, which is rooted at process.env.HOME — a pane
+      // writing into a home of its own is invisible to it (ct-49770).
+      harnesses.push(
+        spawnHarness({
+          sessionId,
+          home: os.homedir(),
+          tmuxPrefix: `cc-e1-${process.pid}`,
+          command: `exec '${shim}' --session-id ${sessionId}`,
+        }),
+      );
     }
     // The teardown re-checks the pane is idle in the instant before the kill,
     // so every pane must have reached its prompt before the pass runs.
     for (const h of harnesses) {
-      await waitFor(() => h.paneHasPrompt(), { timeoutMs: 30_000, label: `prompt for ${h.tmuxSession}` });
+      await waitFor(() => h.paneHasPrompt(), {
+        timeoutMs: 30_000,
+        label: `prompt for ${h.tmuxSession}`,
+      });
     }
-    for (const h of harnesses) trackSessionPaneForTests(h.sessionId, h.tmuxSession, { status: "idle" });
+    for (const h of harnesses)
+      trackSessionPaneForTests(h.sessionId, h.tmuxSession, { status: "idle" });
   }, TIMEOUT);
 
   afterAll(() => {
     setSyncServiceForTests(null);
     for (const h of harnesses) {
       trackSessionPaneForTests(h.sessionId, null);
-      try { h.tearDown(); } catch {}
+      try {
+        h.tearDown();
+      } catch {}
     }
     for (const shim of shims) cleanupShimScript(shim);
     fs.rmSync(registryDir, { recursive: true, force: true });
   });
 
   const passIo = (idleOf?: Map<string, number>) => ({
-    inspectTarget: (id: string, tmux: string, conv: string) => inspectHibernationTarget(id, tmux, conv, registryDir),
+    inspectTarget: (id: string, tmux: string, conv: string) =>
+      inspectHibernationTarget(id, tmux, conv, registryDir),
     policy: () => ({ maxLive: MAX_LIVE, idleMs: 0, maxPerPass: 5 }),
     awakeIdleMs: (id: string) => idleOf?.get(id) ?? 0,
     // Synthetic ids: the fleet has no real conversations, and the recording
     // sync service above is what receives the writes they address.
-    conversationIds: () => Object.fromEntries(harnesses.map((h) => [h.sessionId, convOf(h.sessionId)])),
+    conversationIds: () =>
+      Object.fromEntries(
+        harnesses.map((h) => [h.sessionId, convOf(h.sessionId)]),
+      ),
   });
 
-  test("parks exactly the overage, longest idle first, and leaves the rest alone", async () => {
-    // Ascending idle, so the last EXTRA sessions are the oldest.
-    const idleOf = new Map(harnesses.map((h, i) => [h.sessionId, i * 60_000]));
-    const expected = harnesses.slice(-EXTRA).reverse();
+  test(
+    "parks exactly the overage, longest idle first, and leaves the rest alone",
+    async () => {
+      // Ascending idle, so the last EXTRA sessions are the oldest.
+      const idleOf = new Map(
+        harnesses.map((h, i) => [h.sessionId, i * 60_000]),
+      );
+      const expected = harnesses.slice(-EXTRA).reverse();
 
-    const hibernated = await runHibernationPass(passIo(idleOf));
-    await flushHibernationStamps();
-    expect(hibernated).toBe(EXTRA);
+      const hibernated = await runHibernationPass(passIo(idleOf));
+      await flushHibernationStamps();
+      expect(hibernated).toBe(EXTRA);
 
-    for (const h of expected) {
-      await waitFor(() => !paneAlive(h.tmuxSession), { timeoutMs: 15_000, label: `pane gone for ${h.tmuxSession}` });
-      const state = sessionParkStateForTests(h.sessionId);
-      expect(state.parked).toBe(true);
-      // The status half of the park: the row reads "hibernated" and carries the
-      // stamp, so the inbox can tell a parked session from a crashed one.
-      expect(state.status).toBe("hibernated");
-      const write = writes.filter((w) => w.conversationId === convOf(h.sessionId)).at(-1);
-      expect(write?.status).toBe("hibernated");
-      expect(typeof write?.hibernatedAt).toBe("number");
-      // Still beating (or the server collects the row), and no longer tracked
-      // as having a pane (or the health check would reconstitute it).
-      expect(state.beating).toBe(true);
-      expect(state.paneTracked).toBe(false);
-    }
+      for (const h of expected) {
+        await waitFor(() => !paneAlive(h.tmuxSession), {
+          timeoutMs: 15_000,
+          label: `pane gone for ${h.tmuxSession}`,
+        });
+        const state = sessionParkStateForTests(h.sessionId);
+        expect(state.parked).toBe(true);
+        // The status half of the park: the row reads "hibernated" and carries the
+        // stamp, so the inbox can tell a parked session from a crashed one.
+        expect(state.status).toBe("hibernated");
+        const write = writes
+          .filter((w) => w.conversationId === convOf(h.sessionId))
+          .at(-1);
+        expect(write?.status).toBe("hibernated");
+        expect(typeof write?.hibernatedAt).toBe("number");
+        // Still beating (or the server collects the row), and no longer tracked
+        // as having a pane (or the health check would reconstitute it).
+        expect(state.beating).toBe(true);
+        expect(state.paneTracked).toBe(false);
+      }
 
-    for (const h of harnesses.slice(0, MAX_LIVE)) {
-      expect(paneAlive(h.tmuxSession)).toBe(true);
-      expect(sessionParkStateForTests(h.sessionId).parked).toBe(false);
-    }
-  }, TIMEOUT);
+      for (const h of harnesses.slice(0, MAX_LIVE)) {
+        expect(paneAlive(h.tmuxSession)).toBe(true);
+        expect(sessionParkStateForTests(h.sessionId).parked).toBe(false);
+      }
+    },
+    TIMEOUT,
+  );
 
-  test("a second pass parks nothing more: the fleet is back under its cap", async () => {
-    expect(await runHibernationPass(passIo())).toBe(0);
-  }, TIMEOUT);
+  test(
+    "a second pass parks nothing more: the fleet is back under its cap",
+    async () => {
+      expect(await runHibernationPass(passIo())).toBe(0);
+    },
+    TIMEOUT,
+  );
 
-  test("the wake clears the park instead of re-asserting it", async () => {
-    // Not a resume: the chokepoint every resume path funnels through, for the
-    // reason in the file comment above.
-    const woken = harnesses.at(-1)!;
-    expect(sessionParkStateForTests(woken.sessionId).parked).toBe(true);
+  test(
+    "the wake clears the park instead of re-asserting it",
+    async () => {
+      // Not a resume: the chokepoint every resume path funnels through, for the
+      // reason in the file comment above.
+      const woken = harnesses.at(-1)!;
+      expect(sessionParkStateForTests(woken.sessionId).parked).toBe(true);
 
-    clearHibernationPark(woken.sessionId, convOf(woken.sessionId));
-    await flushHibernationStamps();
+      clearHibernationPark(woken.sessionId, convOf(woken.sessionId));
+      await flushHibernationStamps();
 
-    const state = sessionParkStateForTests(woken.sessionId);
-    expect(state.parked).toBe(false);
-    // Not "hibernated": the heartbeat re-sends this value every 30s.
-    expect(state.status).toBe("connected");
-    const write = writes.filter((w) => w.conversationId === convOf(woken.sessionId)).at(-1);
-    expect(write?.status).toBe("connected");
-    expect(write?.hibernatedAt).toBeNull();
-  }, TIMEOUT);
+      const state = sessionParkStateForTests(woken.sessionId);
+      expect(state.parked).toBe(false);
+      // Not "hibernated": the heartbeat re-sends this value every 30s.
+      expect(state.status).toBe("connected");
+      const write = writes
+        .filter((w) => w.conversationId === convOf(woken.sessionId))
+        .at(-1);
+      expect(write?.status).toBe("connected");
+      expect(write?.hibernatedAt).toBeNull();
+    },
+    TIMEOUT,
+  );
 });

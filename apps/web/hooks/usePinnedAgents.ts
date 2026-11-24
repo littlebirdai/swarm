@@ -1,5 +1,12 @@
 import { useMemo } from "react";
-import { fromConvexAgentType, pinnedAgentIds, pinnedPickerOptions, type AgentClientId, type AgentPickerOption, type ConvexAgentType } from "@codecast/shared/contracts";
+import {
+  fromConvexAgentType,
+  pinnedAgentIds,
+  pinnedPickerOptions,
+  type AgentClientId,
+  type AgentPickerOption,
+  type ConvexAgentType,
+} from "@codecast/shared/contracts";
 // Relative, not "@/": mobile reaches this file and its "@/" is a different tree.
 import { useInboxStore } from "../store/inboxStore";
 import { defaultAgentType, onlyHostedAgent } from "../lib/defaultAgent";
@@ -9,16 +16,25 @@ import { defaultAgentType, onlyHostedAgent } from "../lib/defaultAgent";
  *  one. A joined string keeps the subscription quiet across user pushes. */
 function usePinKey(): string | null {
   return useInboxStore((s) => {
-    const user = s.currentUser as { pinned_agents?: string[]; pinned_agents_known?: string[] } | null | undefined;
+    const user = s.currentUser as
+      | { pinned_agents?: string[]; pinned_agents_known?: string[] }
+      | null
+      | undefined;
     if (!user?.pinned_agents) return null;
     return `${user.pinned_agents.join(",")}|${user.pinned_agents_known ? user.pinned_agents_known.join(",") : "-"}`;
   });
 }
 
-function splitPins(key: string | null): { pins: string[] | null; known: string[] | null } {
+function splitPins(key: string | null): {
+  pins: string[] | null;
+  known: string[] | null;
+} {
   if (key === null) return { pins: null, known: null };
   const [pins = "", known = "-"] = key.split("|");
-  return { pins: pins.split(",").filter(Boolean), known: known === "-" ? null : known.split(",").filter(Boolean) };
+  return {
+    pins: pins.split(",").filter(Boolean),
+    known: known === "-" ? null : known.split(",").filter(Boolean),
+  };
 }
 
 /** The agents the viewer has pinned, in registry order. */
@@ -32,7 +48,9 @@ export function usePinnedAgentIds(): AgentClientId[] {
 
 /** A new-conversation picker's agent row (local and hosted): the pinned
  *  agents plus `keep`, the agent already chosen. */
-export function usePinnedPickerOptions(keep?: AgentClientId | null): AgentPickerOption[] {
+export function usePinnedPickerOptions(
+  keep?: AgentClientId | null,
+): AgentPickerOption[] {
   const key = usePinKey();
   return useMemo(() => {
     const { pins, known } = splitPins(key);
@@ -69,13 +87,23 @@ function useAgentUseKey(active: boolean): string {
 
 /** A picker's agent options, the ones the viewer runs most first. Ties keep
  *  the given (registry) order. */
-export function useAgentsByUse<T extends { id: AgentClientId }>(options: T[], active = true): T[] {
+export function useAgentsByUse<T extends { id: AgentClientId }>(
+  options: T[],
+  active = true,
+): T[] {
   const key = useAgentUseKey(active);
   return useMemo(() => {
-    const uses = new Map(key.split(",").filter(Boolean).map((pair) => {
-      const [id, n] = pair.split(":");
-      return [id, Number(n)] as const;
-    }));
-    return [...options].sort((a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0));
+    const uses = new Map(
+      key
+        .split(",")
+        .filter(Boolean)
+        .map((pair) => {
+          const [id, n] = pair.split(":");
+          return [id, Number(n)] as const;
+        }),
+    );
+    return [...options].sort(
+      (a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0),
+    );
   }, [options, key]);
 }

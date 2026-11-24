@@ -8,7 +8,10 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // the app makes THROUGH THE CLI, and `openOsPermissionSettings` is the one
 // gesture, so a test that drives those two drives the whole surface.
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
-let answer: Record<string, string> = { computerAccessibility: "unknown", computerScreen: "unknown" };
+let answer: Record<string, string> = {
+  computerAccessibility: "unknown",
+  computerScreen: "unknown",
+};
 let settle: (() => void) | null = null;
 const opened: string[] = [];
 const bridge = {
@@ -29,7 +32,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
@@ -38,7 +41,8 @@ afterAll(() => {
 
 // Imported after the globals swap: the module installs its focus listener on
 // whatever `window` is when it first subscribes.
-const { ComputerPermissionRows } = await import("../permissions/ComputerPermissionRows");
+const { ComputerPermissionRows } =
+  await import("../permissions/ComputerPermissionRows");
 
 const container = dom.window.document.createElement("div");
 const root = createRoot(container as unknown as Element);
@@ -66,9 +70,14 @@ test("the rows report the helper's grants, and only a click takes the screen", a
 
   // A read launches the helper and takes seconds, so the surface says it is
   // looking rather than letting two rows appear out of nowhere.
-  expect(container.textContent).toContain("Checking what codecast computer is allowed to do");
+  expect(container.textContent).toContain(
+    "Checking what codecast computer is allowed to do",
+  );
 
-  await land({ computerAccessibility: "not-a-state", computerScreen: "not-a-state" });
+  await land({
+    computerAccessibility: "not-a-state",
+    computerScreen: "not-a-state",
+  });
   // An answer we cannot read is "unknown", and an unknown draws no row at all
   // — never nag on unknown.
   expect(container.textContent).toBe("");
@@ -79,7 +88,9 @@ test("the rows report the helper's grants, and only a click takes the screen", a
   expect(container.textContent).toContain("Computer screenshots");
   // The missing one names the helper, not Codecast, and offers the only
   // gesture that fixes it.
-  expect(container.textContent).toContain("codecast computer is not turned on in the Accessibility list yet.");
+  expect(container.textContent).toContain(
+    "codecast computer is not turned on in the Accessibility list yet.",
+  );
   expect(container.textContent).toContain("Open System Settings");
   // The granted one is done, with nothing to press.
   expect(container.textContent).toContain("On");
@@ -87,10 +98,14 @@ test("the rows report the helper's grants, and only a click takes the screen", a
   // Nothing has been opened by the read itself.
   expect(opened).toEqual([]);
 
-  const button = [...container.querySelectorAll("button")].find((b) => b.textContent === "Open System Settings");
+  const button = [...container.querySelectorAll("button")].find(
+    (b) => b.textContent === "Open System Settings",
+  );
   expect(button).toBeTruthy();
   await act(async () => {
-    button!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    button!.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
     await Promise.resolve();
   });
   // The click opens the pane for THAT grant, through the helper's own window.

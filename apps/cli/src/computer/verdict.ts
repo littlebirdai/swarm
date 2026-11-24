@@ -26,18 +26,46 @@ export type ActionVerdict =
 
 export function actionVerdict(result: ComputerActionResult): ActionVerdict {
   const v = result.action?.verification;
-  if (v?.state === "verified") return { state: "confirmed", why: `the ${v.property === "focusedText" ? "text" : v.property} reads back as written` };
-  if (v?.reason === "web_content_echo") return { state: "unverifiable", why: "web content reads back a write it may not have applied" };
-  if (v?.reason === "window_changed") return { state: "confirmed", why: "the target window closed" };
-  if (v?.reason === "value_mismatch") return { state: "suspected_no_op", why: "the value reads back different from what was written" };
-  if (result.baselineTreeText === undefined) return { state: "unverifiable", why: "the helper sent no tree from before the action" };
+  if (v?.state === "verified")
+    return {
+      state: "confirmed",
+      why: `the ${v.property === "focusedText" ? "text" : v.property} reads back as written`,
+    };
+  if (v?.reason === "web_content_echo")
+    return {
+      state: "unverifiable",
+      why: "web content reads back a write it may not have applied",
+    };
+  if (v?.reason === "window_changed")
+    return { state: "confirmed", why: "the target window closed" };
+  if (v?.reason === "value_mismatch")
+    return {
+      state: "suspected_no_op",
+      why: "the value reads back different from what was written",
+    };
+  if (result.baselineTreeText === undefined)
+    return {
+      state: "unverifiable",
+      why: "the helper sent no tree from before the action",
+    };
   const diff = diffTrees(result.baselineTreeText, result.snapshot.treeText);
-  if (diff.added.length || diff.removed.length || focusChanged(diff)) return { state: "confirmed", why: "the window changed" };
+  if (diff.added.length || diff.removed.length || focusChanged(diff))
+    return { state: "confirmed", why: "the window changed" };
   const pixels = pixelVerdict(result.pixelChange);
-  if (pixels?.state === "changed") return { state: "confirmed", why: "the window's pixels changed" };
-  if (pixels?.state === "repainting") return { state: "unverifiable", why: "the window repaints on its own" };
-  if (pixels) return { state: "suspected_no_op", why: "neither the tree nor the pixels changed" };
-  if (result.action?.path !== "accessibility") return { state: "unverifiable", why: "input like this can change what the tree does not show" };
+  if (pixels?.state === "changed")
+    return { state: "confirmed", why: "the window's pixels changed" };
+  if (pixels?.state === "repainting")
+    return { state: "unverifiable", why: "the window repaints on its own" };
+  if (pixels)
+    return {
+      state: "suspected_no_op",
+      why: "neither the tree nor the pixels changed",
+    };
+  if (result.action?.path !== "accessibility")
+    return {
+      state: "unverifiable",
+      why: "input like this can change what the tree does not show",
+    };
   return { state: "suspected_no_op", why: "nothing in the tree changed" };
 }
 
@@ -48,6 +76,9 @@ export function failedActionVerdict(error: ComputerError): ActionVerdict {
 }
 
 export function verdictLine(verdict: ActionVerdict): string {
-  const label = verdict.state === "suspected_no_op" ? "suspected no-op" : verdict.state.replaceAll("_", " ");
+  const label =
+    verdict.state === "suspected_no_op"
+      ? "suspected no-op"
+      : verdict.state.replaceAll("_", " ");
   return `Verdict: ${label}, ${verdict.why}.`;
 }

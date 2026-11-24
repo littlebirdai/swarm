@@ -5,15 +5,28 @@ import { Suspense } from "react";
 import { viewRefFromPayload } from "../../../lib/productViewRefs";
 import { lazyNamed } from "../../../lib/lazyNamed";
 
-const ProductViewEmbed = lazyNamed(() => import("./ProductView"), "ProductViewEmbed");
-const ProductViewPill = lazyNamed(() => import("./ProductView"), "ProductViewPill");
+const ProductViewEmbed = lazyNamed(
+  () => import("./ProductView"),
+  "ProductViewEmbed",
+);
+const ProductViewPill = lazyNamed(
+  () => import("./ProductView"),
+  "ProductViewPill",
+);
 
 /** The view a link's payload names, as an embed (`block`) or a pill; null when the payload is not a view reference. */
 export function productViewLink(payload: string, block: boolean) {
   const ref = viewRefFromPayload(payload);
   if (!ref) return null;
   return block ? (
-    <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}>
+    <Suspense
+      fallback={
+        <div
+          className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+          aria-busy
+        />
+      }
+    >
       <ProductViewEmbed viewRef={ref} />
     </Suspense>
   ) : (

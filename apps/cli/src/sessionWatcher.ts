@@ -3,7 +3,12 @@ import * as path from "path";
 import * as fs from "fs";
 import { RecursiveWatcher } from "./recursiveWatcher.js";
 import { type WalkFile } from "./fsWalk.js";
-import { isTestProjectDir, isWorkflowSnapshot, watchFilter, watchDirFilter } from "./syncScope.js";
+import {
+  isTestProjectDir,
+  isWorkflowSnapshot,
+  watchFilter,
+  watchDirFilter,
+} from "./syncScope.js";
 import { claudeProjectsDirs } from "./claudeConfigDirs.js";
 
 export interface SessionEvent {
@@ -24,7 +29,7 @@ export interface SessionWatcherEvents {
 export declare interface SessionWatcher {
   on<K extends keyof SessionWatcherEvents>(
     event: K,
-    listener: SessionWatcherEvents[K]
+    listener: SessionWatcherEvents[K],
   ): this;
   emit<K extends keyof SessionWatcherEvents>(
     event: K,
@@ -34,7 +39,13 @@ export declare interface SessionWatcher {
 
 // The file-shape rules live in syncScope.ts so the startup and wake sweeps,
 // reconciliation and `cast status` judge a path exactly as this watcher does.
-export { isTestProjectDir, isWorkflowSnapshot, isWorkflowAgentTranscript, watchFilter, watchDirFilter } from "./syncScope.js";
+export {
+  isTestProjectDir,
+  isWorkflowSnapshot,
+  isWorkflowAgentTranscript,
+  watchFilter,
+  watchDirFilter,
+} from "./syncScope.js";
 
 // One recursive watch per Claude config dir's projects tree (claudeConfigDirs.ts):
 // ~/.claude/projects, plus every CLAUDE_CONFIG_DIR a person runs Claude Code
@@ -46,12 +57,19 @@ export class SessionWatcher extends EventEmitter {
 
   constructor(projectsPath?: string | string[]) {
     super();
-    this.fixedRoots = projectsPath === undefined ? null : Array.isArray(projectsPath) ? projectsPath : [projectsPath];
+    this.fixedRoots =
+      projectsPath === undefined
+        ? null
+        : Array.isArray(projectsPath)
+          ? projectsPath
+          : [projectsPath];
   }
 
   /** The projects dirs this watcher covers (or would cover on start). */
   roots(): string[] {
-    return this.watchers.length > 0 ? this.watchers.map((w) => w.root) : this.fixedRoots ?? claudeProjectsDirs();
+    return this.watchers.length > 0
+      ? this.watchers.map((w) => w.root)
+      : (this.fixedRoots ?? claudeProjectsDirs());
   }
 
   /** Resolves once the priming walk has emitted the existing recent files,
@@ -69,13 +87,19 @@ export class SessionWatcher extends EventEmitter {
         this.emit("error", err as Error);
         continue;
       }
-      const entry: { root: string; watcher: RecursiveWatcher } = { root, watcher: null as unknown as RecursiveWatcher };
+      const entry: { root: string; watcher: RecursiveWatcher } = {
+        root,
+        watcher: null as unknown as RecursiveWatcher,
+      };
       entry.watcher = new RecursiveWatcher({
         path: root,
         scanPolicy: { dirs: "claudeWatch", files: "claudeWatch" },
         filter: watchFilter,
         dirFilter: watchDirFilter,
-        callback: (filePath, eventType) => { if (eventType !== "unlink") this.handleFileEvent(root, filePath, eventType); },
+        callback: (filePath, eventType) => {
+          if (eventType !== "unlink")
+            this.handleFileEvent(root, filePath, eventType);
+        },
         onExisting: (files) => this.emitExistingFilesSorted(entry, files),
         // Deep enough for workflow agent transcripts (6 segments); watchFilter keeps
         // the extra depth from matching anything else.
@@ -89,27 +113,37 @@ export class SessionWatcher extends EventEmitter {
     // One "ready" for the whole set, once every root's watch is up.
     let pending = this.watchers.length;
     for (const { watcher } of this.watchers) {
-      watcher.on("ready", () => { if (--pending === 0) this.emit("ready"); });
+      watcher.on("ready", () => {
+        if (--pending === 0) this.emit("ready");
+      });
       watcher.start();
     }
     return this.whenPrimed();
   }
 
   whenPrimed(): Promise<void> {
-    return Promise.all(this.watchers.map((w) => w.watcher.whenPrimed())).then(() => {});
+    return Promise.all(this.watchers.map((w) => w.watcher.whenPrimed())).then(
+      () => {},
+    );
   }
 
   // Files the watcher's priming walk found (one walk serves both), newest
   // first, limited to ones touched recently: the rest are already synced and
   // the watchdog's stale sweep covers any that are not.
-  private async emitExistingFilesSorted(entry: { root: string; watcher: RecursiveWatcher }, files: WalkFile[]): Promise<void> {
+  private async emitExistingFilesSorted(
+    entry: { root: string; watcher: RecursiveWatcher },
+    files: WalkFile[],
+  ): Promise<void> {
     const watcher = entry.watcher;
     const RECENT_THRESHOLD_MS = 10 * 60 * 1000;
     const now = Date.now();
-    const recentFiles = files.filter(f => now - f.stat.mtimeMs < RECENT_THRESHOLD_MS);
+    const recentFiles = files.filter(
+      (f) => now - f.stat.mtimeMs < RECENT_THRESHOLD_MS,
+    );
     recentFiles.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     for (let i = 0; i < recentFiles.length; i++) {
-      if (i % 128 === 0) await new Promise<void>(resolve => setImmediate(resolve));
+      if (i % 128 === 0)
+        await new Promise<void>((resolve) => setImmediate(resolve));
       if (!this.watchers.some((w) => w.watcher === watcher)) return;
       const file = recentFiles[i];
       this.handleFileEvent(entry.root, file.path, "add");
@@ -138,7 +172,7 @@ export class SessionWatcher extends EventEmitter {
   private handleFileEvent(
     root: string,
     filePath: string,
-    eventType: "add" | "change"
+    eventType: "add" | "change",
   ): void {
     const relative = path.relative(root, filePath);
     const parts = relative.split(path.sep);

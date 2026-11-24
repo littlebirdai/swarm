@@ -14,7 +14,13 @@ export type SendOutcome =
   | { kind: "sent"; sent_ids: string[] }
   | { kind: "queued"; sent_ids: string[]; waiting: SendWaiting }
   | { kind: "sent_and_resolved"; sent_ids: string[]; waiting?: SendWaiting }
-  | { kind: "resolve_failed"; sent_ids: string[]; open_ids: string[]; reason: string; waiting?: SendWaiting }
+  | {
+      kind: "resolve_failed";
+      sent_ids: string[];
+      open_ids: string[];
+      reason: string;
+      waiting?: SendWaiting;
+    }
   | { kind: "failed"; reason: string };
 
 /**
@@ -28,7 +34,12 @@ export function deliveredOutcome(
 ): SendOutcome {
   const wait = waiting ?? undefined;
   if (resolve) {
-    if (resolve.open_ids.length === 0) return { kind: "sent_and_resolved", sent_ids: sentIds, ...(wait ? { waiting: wait } : {}) };
+    if (resolve.open_ids.length === 0)
+      return {
+        kind: "sent_and_resolved",
+        sent_ids: sentIds,
+        ...(wait ? { waiting: wait } : {}),
+      };
     return {
       kind: "resolve_failed",
       sent_ids: sentIds,
@@ -37,11 +48,18 @@ export function deliveredOutcome(
       ...(wait ? { waiting: wait } : {}),
     };
   }
-  return wait ? { kind: "queued", sent_ids: sentIds, waiting: wait } : { kind: "sent", sent_ids: sentIds };
+  return wait
+    ? { kind: "queued", sent_ids: sentIds, waiting: wait }
+    : { kind: "sent", sent_ids: sentIds };
 }
 
 export function failedOutcome(reason: unknown): SendOutcome {
-  const text = reason instanceof Error ? reason.message : typeof reason === "string" ? reason : String(reason ?? "");
+  const text =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === "string"
+        ? reason
+        : String(reason ?? "");
   return { kind: "failed", reason: text.trim() || "The send failed" };
 }
 
@@ -58,13 +76,23 @@ function count(n: number, noun: string): string {
  * One line for a toast or a terminal. `noun` names what was sent ("note",
  * "comment"); `to` names the session when the caller knows it.
  */
-export function describeSendOutcome(outcome: SendOutcome, opts: { noun?: string; to?: string | null } = {}): string {
+export function describeSendOutcome(
+  outcome: SendOutcome,
+  opts: { noun?: string; to?: string | null } = {},
+): string {
   const noun = opts.noun ?? "note";
   if (outcome.kind === "failed") return `Not sent: ${outcome.reason}`;
-  const what = outcome.sent_ids.length ? count(outcome.sent_ids.length, noun) : "Review";
+  const what = outcome.sent_ids.length
+    ? count(outcome.sent_ids.length, noun)
+    : "Review";
   const where = opts.to ? ` to ${opts.to}` : " to the session";
   const waiting = "waiting" in outcome ? outcome.waiting : undefined;
-  const wait = waiting === "busy" ? ", queued until its turn ends" : waiting === "offline" ? ", queued until it is back online" : "";
+  const wait =
+    waiting === "busy"
+      ? ", queued until its turn ends"
+      : waiting === "offline"
+        ? ", queued until it is back online"
+        : "";
   switch (outcome.kind) {
     case "sent":
     case "queued":

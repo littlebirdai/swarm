@@ -14,9 +14,19 @@ import { execFileSync } from "../proc.js";
  * time on one host. One add on Union's repository takes about 3 s, so ten
  * queued adds wait about half a minute.
  */
-export async function withWorktreeAdd<T>(repoRoot: string, add: () => Promise<T> | T): Promise<T> {
-  const common = execFileSync("git", ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf-8" }).trim();
-  const release = await acquireFileLock(path.join(common, "codecast-worktree-add.lock"), { waitMs: 10 * 60_000, staleMs: 30 * 60_000, describe: "git worktree add" });
+export async function withWorktreeAdd<T>(
+  repoRoot: string,
+  add: () => Promise<T> | T,
+): Promise<T> {
+  const common = execFileSync(
+    "git",
+    ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    { encoding: "utf-8" },
+  ).trim();
+  const release = await acquireFileLock(
+    path.join(common, "codecast-worktree-add.lock"),
+    { waitMs: 10 * 60_000, staleMs: 30 * 60_000, describe: "git worktree add" },
+  );
   try {
     return await add();
   } finally {

@@ -11,12 +11,18 @@
 // Pure on purpose (the phone and the desktop each pass their browser and
 // their Convex client), so it is reachable from the mobile bundle and testable.
 
-import type { PresenceAction, PresenceChallengeState, PresenceGrant } from "@codecast/shared/contracts/secrets";
+import type {
+  PresenceAction,
+  PresenceChallengeState,
+  PresenceGrant,
+} from "@codecast/shared/contracts/secrets";
 
 type Status = PresenceChallengeState["status"];
 
 /** What presenceBegin and registrationBegin answer; presenceBegin's carries the grant string. */
-export type OpenedChallenge = { challenge_id: string; grant?: PresenceGrant } | { error: string; needs_passkey?: boolean };
+export type OpenedChallenge =
+  | { challenge_id: string; grant?: PresenceGrant }
+  | { error: string; needs_passkey?: boolean };
 
 export interface PresenceHandoffDeps {
   /** The web origin the /confirm page is served from. */
@@ -29,7 +35,10 @@ export interface PresenceHandoffDeps {
   /** Close the page this opened, once the challenge settled. */
   close: () => void;
   /** Follow one challenge's status; returns the unsubscribe. */
-  watch: (challengeId: string, onStatus: (status: Status | null) => void) => () => void;
+  watch: (
+    challengeId: string,
+    onStatus: (status: Status | null) => void,
+  ) => () => void;
   /** The challenge's status right now. */
   read: (challengeId: string) => Promise<Status | null>;
   /** How long a challenge waits for its assertion (PRESENCE_TTL_MS). */
@@ -41,17 +50,24 @@ export function confirmPageUrl(webBase: string, challengeId: string): string {
 }
 
 /** The grant string once the person confirmed `action` on `target`, else null. Throws with the server's words when the challenge cannot open. */
-export async function confirmPresenceViaWeb(action: PresenceAction, target: string, deps: PresenceHandoffDeps): Promise<PresenceGrant | null> {
+export async function confirmPresenceViaWeb(
+  action: PresenceAction,
+  target: string,
+  deps: PresenceHandoffDeps,
+): Promise<PresenceGrant | null> {
   let opened = await deps.begin(action, target);
   if ("needs_passkey" in opened && opened.needs_passkey) {
     const enrolled = await deps.enroll();
     if ("error" in enrolled) throw new Error(enrolled.error);
     // A finished enrollment uses its challenge up.
-    if ((await onConfirmPage(enrolled.challenge_id, deps)) !== "used") return null;
+    if ((await onConfirmPage(enrolled.challenge_id, deps)) !== "used")
+      return null;
     opened = await deps.begin(action, target);
   }
   if ("error" in opened) throw new Error(opened.error);
-  return (await onConfirmPage(opened.challenge_id, deps)) === "granted" ? opened.grant ?? null : null;
+  return (await onConfirmPage(opened.challenge_id, deps)) === "granted"
+    ? (opened.grant ?? null)
+    : null;
 }
 
 /**
@@ -59,7 +75,10 @@ export async function confirmPresenceViaWeb(action: PresenceAction, target: stri
  * once; another first confirms add_passkey with one already there, then
  * enrolls spending that grant. True once the new passkey is stored.
  */
-export async function addPasskeyViaWeb(hasPasskeys: boolean, deps: PresenceHandoffDeps): Promise<boolean> {
+export async function addPasskeyViaWeb(
+  hasPasskeys: boolean,
+  deps: PresenceHandoffDeps,
+): Promise<boolean> {
   let grant: PresenceGrant | undefined;
   if (hasPasskeys) {
     const granted = await confirmPresenceViaWeb("add_passkey", "self", deps);
@@ -76,7 +95,10 @@ export async function addPasskeyViaWeb(hasPasskeys: boolean, deps: PresenceHando
  * pending, closing the page then. A person who closes the page first settles
  * it on a fresh read, since the grant can land a moment before its push.
  */
-function onConfirmPage(challengeId: string, deps: PresenceHandoffDeps): Promise<Status | null> {
+function onConfirmPage(
+  challengeId: string,
+  deps: PresenceHandoffDeps,
+): Promise<Status | null> {
   return new Promise((resolve) => {
     let done = false;
     let stop = () => {};
@@ -88,19 +110,17 @@ function onConfirmPage(challengeId: string, deps: PresenceHandoffDeps): Promise<
       clearTimeout(timer);
       resolve(status);
     };
-    const settleNow = () => void deps.read(challengeId).then(finish, () => finish(null));
+    const settleNow = () =>
+      void deps.read(challengeId).then(finish, () => finish(null));
     stop = deps.watch(challengeId, (status) => {
       if (!status || status === "pending") return;
       deps.close();
       finish(status);
     });
     if (done) stop();
-    void deps.open(confirmPageUrl(deps.webBase, challengeId)).then(
-      (how) => {
-        if (how === "closed") settleNow();
-        else timer = setTimeout(settleNow, deps.ttlMs);
-      },
-      settleNow,
-    );
+    void deps.open(confirmPageUrl(deps.webBase, challengeId)).then((how) => {
+      if (how === "closed") settleNow();
+      else timer = setTimeout(settleNow, deps.ttlMs);
+    }, settleNow);
   });
 }

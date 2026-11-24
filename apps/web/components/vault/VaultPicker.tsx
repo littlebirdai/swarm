@@ -7,7 +7,15 @@
 // from a notes folder until you open it.
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Cloud, FolderGit2, FolderTree, Laptop, Users } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Cloud,
+  FolderGit2,
+  FolderTree,
+  Laptop,
+  Users,
+} from "lucide-react";
 import type { VaultInfo } from "@codecast/shared/contracts";
 import {
   Command,
@@ -32,13 +40,19 @@ import {
 } from "../../lib/vault/scopeModel";
 import { useVaultTeamResolver } from "./useVaultScope";
 
-const KIND_ICON: Record<VaultSourceKind, React.ComponentType<{ className?: string }>> = {
+const KIND_ICON: Record<
+  VaultSourceKind,
+  React.ComponentType<{ className?: string }>
+> = {
   vault: FolderTree,
   project: FolderGit2,
   remote: Cloud,
 };
 
-const PRESENCE_ICON: Record<VaultPresence, React.ComponentType<{ className?: string }>> = {
+const PRESENCE_ICON: Record<
+  VaultPresence,
+  React.ComponentType<{ className?: string }>
+> = {
   "this-machine": Laptop,
   both: Cloud,
   "other-machine": Cloud,
@@ -69,10 +83,18 @@ function facts(choice: { root?: string; noteCount?: number }): string {
     choice.noteCount === undefined
       ? null
       : `${choice.noteCount} ${choice.noteCount === 1 ? "note" : "notes"}`;
-  return [choice.root && shortenVaultRoot(choice.root), notes].filter(Boolean).join(" · ");
+  return [choice.root && shortenVaultRoot(choice.root), notes]
+    .filter(Boolean)
+    .join(" · ");
 }
 
-function PresenceChip({ presence, title }: { presence: VaultPresence; title: string }) {
+function PresenceChip({
+  presence,
+  title,
+}: {
+  presence: VaultPresence;
+  title: string;
+}) {
   const Icon = PRESENCE_ICON[presence];
   return (
     <span
@@ -99,7 +121,10 @@ export function VaultPicker({
   onSelect: (id: string, kind: VaultSourceKind) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const groups = useMemo(() => groupVaultChoices(vaults, remoteVaults), [vaults, remoteVaults]);
+  const groups = useMemo(
+    () => groupVaultChoices(vaults, remoteVaults),
+    [vaults, remoteVaults],
+  );
   const active =
     groups.flatMap((g) => g.items).find((c) => c.id === activeVaultId) ?? null;
   const ActiveIcon = KIND_ICON[active?.kind ?? "vault"];
@@ -108,10 +133,21 @@ export function VaultPicker({
 
   // Both questions a row has to answer, together: where the files are, and who
   // sees what you sync out of them.
-  const scopeOf = (choice: { kind: VaultSourceKind; root?: string; mirror?: boolean }) => {
-    const presence = vaultPresence({ remote: choice.kind === "remote", mirror: choice.mirror });
+  const scopeOf = (choice: {
+    kind: VaultSourceKind;
+    root?: string;
+    mirror?: boolean;
+  }) => {
+    const presence = vaultPresence({
+      remote: choice.kind === "remote",
+      mirror: choice.mirror,
+    });
     const team = teamForRoot(choice.root);
-    return { presence, team, sentence: describeVaultScope({ root: choice.root, presence, team }) };
+    return {
+      presence,
+      team,
+      sentence: describeVaultScope({ root: choice.root, presence, team }),
+    };
   };
 
   const activeSentence = active ? scopeOf(active).sentence : undefined;
@@ -181,7 +217,9 @@ export function VaultPicker({
                     >
                       <Icon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-sol-text-dim" />
                       <span className="flex-1 min-w-0">
-                        <span className="block truncate text-[13px] text-sol-text">{choice.name}</span>
+                        <span className="block truncate text-[13px] text-sol-text">
+                          {choice.name}
+                        </span>
                         {/* One meta line: where on disk, how much, and who can
                             see what you sync from it. */}
                         <span className="flex items-center gap-1 min-w-0 text-meta text-sol-text-dim">
@@ -196,16 +234,25 @@ export function VaultPicker({
                           )}
                           <span
                             className={`flex items-center gap-0.5 flex-shrink-0 ${
-                              scope.team.kind === "team" && scope.team.shared ? "text-sol-green" : ""
+                              scope.team.kind === "team" && scope.team.shared
+                                ? "text-sol-green"
+                                : ""
                             }`}
                           >
-                            {scope.team.kind === "team" && <Users className="w-2.5 h-2.5" />}
+                            {scope.team.kind === "team" && (
+                              <Users className="w-2.5 h-2.5" />
+                            )}
                             {teamScopeLabel(scope.team)}
                           </span>
                         </span>
                       </span>
-                      <PresenceChip presence={scope.presence} title={scope.sentence} />
-                      {selected && <Check className="w-3 h-3 flex-shrink-0 mt-0.5 text-sol-cyan" />}
+                      <PresenceChip
+                        presence={scope.presence}
+                        title={scope.sentence}
+                      />
+                      {selected && (
+                        <Check className="w-3 h-3 flex-shrink-0 mt-0.5 text-sol-cyan" />
+                      )}
                     </CommandItem>
                   );
                 })}

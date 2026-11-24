@@ -13,7 +13,8 @@ export type ZoomLevel = "far" | "mid" | "close";
  *  falls under about 8px on screen. */
 export const ZOOM_STOPS = { mid: 0.8, close: 1.15 } as const;
 
-export const zoomLevelOf = (zoom: number): ZoomLevel => (zoom < ZOOM_STOPS.mid ? "far" : zoom < ZOOM_STOPS.close ? "mid" : "close");
+export const zoomLevelOf = (zoom: number): ZoomLevel =>
+  zoom < ZOOM_STOPS.mid ? "far" : zoom < ZOOM_STOPS.close ? "mid" : "close";
 
 /** A chart that keeps one layout at every zoom (the people chart) pins its
  *  cards' level here; zooming it scales the picture and the text keeps itself
@@ -32,4 +33,5 @@ export function useZoomLevel(): ZoomLevel {
 /** A font size that holds its size on screen as the canvas zooms out, from
  *  `px` at 100% up to `max` (the size the card's box is booked for), then
  *  shrinks with the canvas. `--orgz` is the canvas zoom, set on every move. */
-export const zoomText = (px: number, max: number) => `clamp(${px}px, calc(${px}px / var(--orgz, 1)), ${max}px)`;
+export const zoomText = (px: number, max: number) =>
+  `clamp(${px}px, calc(${px}px / var(--orgz, 1)), ${max}px)`;

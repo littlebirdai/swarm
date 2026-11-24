@@ -14,14 +14,31 @@ import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 
 mock.module("sonner", () => {
   const noop = () => 1;
-  return { toast: Object.assign(noop, { error: noop, info: noop, success: noop, warning: noop, dismiss: () => {}, loading: noop, custom: noop, promise: (p: any) => p }), Toaster: () => null };
+  return {
+    toast: Object.assign(noop, {
+      error: noop,
+      info: noop,
+      success: noop,
+      warning: noop,
+      dismiss: () => {},
+      loading: noop,
+      custom: noop,
+      promise: (p: any) => p,
+    }),
+    Toaster: () => null,
+  };
 });
 // The draft save is debounced (300ms after the last key) by design: it runs on
 // a pause, not per keystroke. Held here so a slow test keystroke cannot let it
 // fire mid-burst; the test checks it was scheduled instead.
 const realDraftWrites = await import("../../lib/pendingDraftWrites");
 let draftWritesScheduled = 0;
-mock.module("../../lib/pendingDraftWrites", () => ({ ...realDraftWrites, scheduleDraftWrite: () => { draftWritesScheduled++; } }));
+mock.module("../../lib/pendingDraftWrites", () => ({
+  ...realDraftWrites,
+  scheduleDraftWrite: () => {
+    draftWritesScheduled++;
+  },
+}));
 import { act, Profiler } from "react";
 import { createRoot } from "react-dom/client";
 import { ConvexProvider } from "convex/react";
@@ -46,7 +63,12 @@ function fakeConvex() {
   const client = offlineConvexClient("https://example.convex.cloud");
   (client as any).mutation = async () => null;
   (client as any).query = async () => null;
-  (client as any).watchQuery = () => ({ onUpdate: () => () => {}, localQueryResult: () => undefined, localQueryLogs: () => undefined, journal: () => undefined });
+  (client as any).watchQuery = () => ({
+    onUpdate: () => () => {},
+    localQueryResult: () => undefined,
+    localQueryLogs: () => undefined,
+    journal: () => undefined,
+  });
   return client;
 }
 
@@ -55,46 +77,108 @@ function syntheticSessions(n: number): Record<string, any> {
   const now = Date.now();
   for (let i = 0; i < n; i++) {
     const id = `jx7${String(i).padStart(29, "0")}`;
-    out[id] = { _id: id, session_id: `s-${i}`, title: `Session ${i}`, user_id: "user_type_budget", agent_type: "claude_code", status: i % 9 ? "completed" : "active", is_idle: i % 9 !== 0, message_count: 20 + (i % 50), updated_at: now - i * 60_000, started_at: now - i * 120_000, project_path: `/src/p${i % 40}` };
+    out[id] = {
+      _id: id,
+      session_id: `s-${i}`,
+      title: `Session ${i}`,
+      user_id: "user_type_budget",
+      agent_type: "claude_code",
+      status: i % 9 ? "completed" : "active",
+      is_idle: i % 9 !== 0,
+      message_count: 20 + (i % 50),
+      updated_at: now - i * 60_000,
+      started_at: now - i * 120_000,
+      project_path: `/src/p${i % 40}`,
+    };
   }
-  out[CONV_ID] = { _id: CONV_ID, session_id: "s-typebud", title: "Typing budget", user_id: "user_type_budget", agent_type: "claude_code", status: "active", is_idle: true, message_count: 3, updated_at: now, started_at: now };
+  out[CONV_ID] = {
+    _id: CONV_ID,
+    session_id: "s-typebud",
+    title: "Typing budget",
+    user_id: "user_type_budget",
+    agent_type: "claude_code",
+    status: "active",
+    is_idle: true,
+    message_count: 3,
+    updated_at: now,
+    started_at: now,
+  };
   return out;
 }
 
 // jsdom has no canvas; the composer measures its draft on one, so give it a
 // context that answers, or the measuring path never runs here.
-(w.HTMLCanvasElement.prototype as any).getContext = () => ({ font: "", measureText: (t: string) => ({ width: t.length * 7 }) });
+(w.HTMLCanvasElement.prototype as any).getContext = () => ({
+  font: "",
+  measureText: (t: string) => ({ width: t.length * 7 }),
+});
 
 // Chrome (web and desktop) sizes the box with CSS field-sizing; the Safari
 // fallback that measures scrollHeight per key is not what this budget holds.
-(globalThis as any).CSS = { supports: (prop: string) => prop === "field-sizing" };
+(globalThis as any).CSS = {
+  supports: (prop: string) => prop === "field-sizing",
+};
 
 // Every read that makes the browser lay out the page when it is dirty, named
 // with the app line that made it.
-const readSite = (name: string) => `${name} ${new Error().stack!.split("\n").find((l) => l.includes("/apps/web/") && !l.includes("__tests__"))?.trim() ?? "?"}`;
+const readSite = (name: string) =>
+  `${name} ${
+    new Error()
+      .stack!.split("\n")
+      .find((l) => l.includes("/apps/web/") && !l.includes("__tests__"))
+      ?.trim() ?? "?"
+  }`;
 const LAYOUT_GETTERS: Array<[any, string]> = [
-  [w.HTMLElement.prototype, "offsetWidth"], [w.HTMLElement.prototype, "offsetHeight"],
-  [w.Element.prototype, "clientWidth"], [w.Element.prototype, "clientHeight"],
-  [w.Element.prototype, "scrollWidth"], [w.Element.prototype, "scrollHeight"],
+  [w.HTMLElement.prototype, "offsetWidth"],
+  [w.HTMLElement.prototype, "offsetHeight"],
+  [w.Element.prototype, "clientWidth"],
+  [w.Element.prototype, "clientHeight"],
+  [w.Element.prototype, "scrollWidth"],
+  [w.Element.prototype, "scrollHeight"],
 ];
 let layoutReads: string[] = [];
 for (const [proto, name] of LAYOUT_GETTERS) {
   const desc = Object.getOwnPropertyDescriptor(proto, name)!;
-  Object.defineProperty(proto, name, { ...desc, get() { layoutReads.push(readSite(name)); return desc.get!.call(this); } });
+  Object.defineProperty(proto, name, {
+    ...desc,
+    get() {
+      layoutReads.push(readSite(name));
+      return desc.get!.call(this);
+    },
+  });
 }
-for (const [owner, name] of [[w.Element.prototype, "getBoundingClientRect"], [w, "getComputedStyle"], [globalThis, "getComputedStyle"]] as Array<[any, string]>) {
+for (const [owner, name] of [
+  [w.Element.prototype, "getBoundingClientRect"],
+  [w, "getComputedStyle"],
+  [globalThis, "getComputedStyle"],
+] as Array<[any, string]>) {
   const real = owner[name];
-  owner[name] = function (this: unknown, ...args: unknown[]) { layoutReads.push(readSite(name)); return real.apply(this, args); };
+  owner[name] = function (this: unknown, ...args: unknown[]) {
+    layoutReads.push(readSite(name));
+    return real.apply(this, args);
+  };
 }
 
-type Tally = { commits: number; storeWrites: number; outsideMutations: string[]; layoutReads: string[] };
+type Tally = {
+  commits: number;
+  storeWrites: number;
+  outsideMutations: string[];
+  layoutReads: string[];
+};
 let measure: (fn: () => void) => Promise<Tally>;
 let totalCommits = 0;
 let textarea: HTMLTextAreaElement;
 
 beforeAll(async () => {
   (useInboxStore.getState() as any)._setDispatch(async () => undefined);
-  useInboxStore.setState({ sessions: syntheticSessions(SESSIONS), conversations: {}, pendingMessages: {}, drafts: {}, currentSessionId: CONV_ID, currentUser: { _id: "user_type_budget", name: "Typist" } } as any);
+  useInboxStore.setState({
+    sessions: syntheticSessions(SESSIONS),
+    conversations: {},
+    pendingMessages: {},
+    drafts: {},
+    currentSessionId: CONV_ID,
+    currentUser: { _id: "user_type_budget", name: "Typist" },
+  } as any);
   const { MessageInput } = await import("../MessageInput");
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
@@ -103,33 +187,70 @@ beforeAll(async () => {
   await act(async () => {
     root.render(
       <ConvexProvider client={fakeConvex()}>
-        <Profiler id="composer" onRender={() => { commits++; totalCommits++; }}>
-          <MessageInput conversationId={CONV_ID} status="active" sessionId="s-typebud" agentType="claude_code" agentStatus={"idle" as any} isSessionReady />
+        <Profiler
+          id="composer"
+          onRender={() => {
+            commits++;
+            totalCommits++;
+          }}
+        >
+          <MessageInput
+            conversationId={CONV_ID}
+            status="active"
+            sessionId="s-typebud"
+            agentType="claude_code"
+            agentStatus={"idle" as any}
+            isSessionReady
+          />
         </Profiler>
       </ConvexProvider>,
     );
   });
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
   // The store's boot hydration (inboxStore bootPersistence) ends with a write of its own; on a loaded machine it can
   // land inside a keystroke's window and count as typing's. Let it settle before anything is measured.
-  for (let i = 0; i < 400 && !useInboxStore.getState().clientStateInitialized; i++) await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-  textarea = container.querySelector("textarea[data-composer-field]") as HTMLTextAreaElement;
+  for (
+    let i = 0;
+    i < 400 && !useInboxStore.getState().clientStateInitialized;
+    i++
+  )
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+  textarea = container.querySelector(
+    "textarea[data-composer-field]",
+  ) as HTMLTextAreaElement;
   measure = async (fn) => {
     commits = 0;
     let storeWrites = 0;
-    const unsub = useInboxStore.subscribe(() => { storeWrites++; });
+    const unsub = useInboxStore.subscribe(() => {
+      storeWrites++;
+    });
     const outsideMutations: string[] = [];
     const record = (records: MutationRecord[]) => {
       for (const r of records) {
         const target = r.target as Node;
-        const el = (target.nodeType === 1 ? target : target.parentNode) as Element;
-        outsideMutations.push(`${r.type}${r.attributeName ? `:${r.attributeName}` : ""} on <${el?.tagName?.toLowerCase()} class="${String(el?.getAttribute?.("class") ?? "").slice(0, 60)}">`);
+        const el = (
+          target.nodeType === 1 ? target : target.parentNode
+        ) as Element;
+        outsideMutations.push(
+          `${r.type}${r.attributeName ? `:${r.attributeName}` : ""} on <${el?.tagName?.toLowerCase()} class="${String(el?.getAttribute?.("class") ?? "").slice(0, 60)}">`,
+        );
       }
     };
     const mo = new w.MutationObserver(record);
-    mo.observe(container, { subtree: true, childList: true, attributes: true, characterData: true });
+    mo.observe(container, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
     layoutReads = [];
-    await act(async () => { fn(); });
+    await act(async () => {
+      fn();
+    });
     const reads = layoutReads;
     record(mo.takeRecords());
     mo.disconnect();
@@ -147,18 +268,43 @@ async function settle() {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
     const before = totalCommits;
-    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+    });
     if (totalCommits === before) return;
   }
 }
 
 function typeChar(ch: string) {
-  const propsKey = Object.keys(textarea).find((k) => k.startsWith("__reactProps"))!;
+  const propsKey = Object.keys(textarea).find((k) =>
+    k.startsWith("__reactProps"),
+  )!;
   const props = (textarea as any)[propsKey];
-  const keyEvent = { key: ch, code: `Key${ch.toUpperCase()}`, target: textarea, currentTarget: textarea, nativeEvent: new w.KeyboardEvent("keydown", { key: ch }), preventDefault() {}, stopPropagation() {}, isComposing: false, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, repeat: false };
+  const keyEvent = {
+    key: ch,
+    code: `Key${ch.toUpperCase()}`,
+    target: textarea,
+    currentTarget: textarea,
+    nativeEvent: new w.KeyboardEvent("keydown", { key: ch }),
+    preventDefault() {},
+    stopPropagation() {},
+    isComposing: false,
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    repeat: false,
+  };
   props.onKeyDown?.(keyEvent);
-  Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, textarea.value + ch);
-  props.onChange?.({ target: textarea, currentTarget: textarea, nativeEvent: new w.Event("input") });
+  Object.getOwnPropertyDescriptor(
+    w.HTMLTextAreaElement.prototype,
+    "value",
+  )!.set!.call(textarea, textarea.value + ch);
+  props.onChange?.({
+    target: textarea,
+    currentTarget: textarea,
+    nativeEvent: new w.Event("input"),
+  });
 }
 
 test("a keystroke into a box with text commits once, writes nothing to the store, changes nothing in the DOM tree, and reads no layout", async () => {
@@ -181,9 +327,15 @@ test("a keystroke into a box with text commits once, writes nothing to the store
     for (const r of t.layoutReads) reads.add(r);
   }
   expect(textarea.value.startsWith("hello there")).toBe(true);
-  expect({ worstCommitsPerKey: worstCommits }).toEqual({ worstCommitsPerKey: 1 });
-  expect({ storeWritesWhileTyping: storeWrites }).toEqual({ storeWritesWhileTyping: 0 });
+  expect({ worstCommitsPerKey: worstCommits }).toEqual({
+    worstCommitsPerKey: 1,
+  });
+  expect({ storeWritesWhileTyping: storeWrites }).toEqual({
+    storeWritesWhileTyping: 0,
+  });
   expect([...outside]).toEqual([]);
-  expect({ layoutReadsWhileTyping: [...reads] }).toEqual({ layoutReadsWhileTyping: [] });
+  expect({ layoutReadsWhileTyping: [...reads] }).toEqual({
+    layoutReadsWhileTyping: [],
+  });
   expect(draftWritesScheduled).toBeGreaterThan(0);
 });

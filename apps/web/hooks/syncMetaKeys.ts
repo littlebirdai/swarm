@@ -50,12 +50,18 @@ export function crawlScopesClearedBy(scopeKey: string): string[] {
 }
 
 /** The inbox floor's workspace key for one principal. */
-export function inboxCrawlWsKey(principalId: string | null | undefined): string {
+export function inboxCrawlWsKey(
+  principalId: string | null | undefined,
+): string {
   return principalId ? `inbox:${principalId}` : "skip";
 }
 
 /** The floor has been cut for this principal: every session in the horizon
  *  is in the cache, so an empty cache means there are none (store/firstRunState.ts). */
-export function inboxFloorStamped(s: { syncMeta: Record<string, { backfilledAt?: number } | undefined> }, principalId: string | null | undefined): boolean {
-  return !!s.syncMeta[syncMetaKey("sessions", inboxCrawlWsKey(principalId))]?.backfilledAt;
+export function inboxFloorStamped(
+  s: { syncMeta: Record<string, { backfilledAt?: number } | undefined> },
+  principalId: string | null | undefined,
+): boolean {
+  return !!s.syncMeta[syncMetaKey("sessions", inboxCrawlWsKey(principalId))]
+    ?.backfilledAt;
 }

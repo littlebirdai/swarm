@@ -20,7 +20,14 @@
 //    line-deploy graph.
 
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserOrToken } from "./lib/auth";
@@ -38,18 +45,40 @@ import {
   type DeployLiveReader,
 } from "@codecast/shared/contracts/deployTargets";
 import { liveDeployOf } from "@codecast/shared/contracts/deploys";
-import { checkSuiteCi, ciOf, recordCommitCi, recordGithubDeployStatus, teamKey, workflowRunCi } from "./deployTargetsCi";
-import { COMMITS_MAX, commitBySha, deployCommitsOf, mainAtOf, mainCommitsAfter, repositoryArg, targetDeploys, targetRows, targetState, upsertMainCommits } from "./deployTargetsState";
+import {
+  checkSuiteCi,
+  ciOf,
+  recordCommitCi,
+  recordGithubDeployStatus,
+  teamKey,
+  workflowRunCi,
+} from "./deployTargetsCi";
+import {
+  COMMITS_MAX,
+  commitBySha,
+  deployCommitsOf,
+  mainAtOf,
+  mainCommitsAfter,
+  repositoryArg,
+  targetDeploys,
+  targetRows,
+  targetState,
+  upsertMainCommits,
+} from "./deployTargetsState";
 import { requestTargetDeployCore } from "./deployTargetRequest";
 export { requestTargetDeployCore };
 import { liveReaderUrlRefusal } from "./lib/liveReaderUrl";
 import { guardedFetch, RefusedHostError } from "./lib/guardedFetch";
 
-
 const liveReaderValidator = v.union(
   v.object({ kind: v.literal("marker") }),
   v.object({ kind: v.literal("github-status"), context: v.string() }),
-  v.object({ kind: v.literal("json"), url: v.string(), sha_field: v.string(), version_field: v.optional(v.string()) }),
+  v.object({
+    kind: v.literal("json"),
+    url: v.string(),
+    sha_field: v.string(),
+    version_field: v.optional(v.string()),
+  }),
 );
 
 const targetValidator = v.object({
@@ -60,12 +89,23 @@ const targetValidator = v.object({
   rollback: v.optional(v.string()),
   policy: v.union(v.literal("press"), v.literal("release"), v.literal("auto")),
   paths: v.array(v.string()),
-  ship_stage: v.optional(v.union(v.literal("before_push"), v.literal("after_push"), v.literal("press"))),
+  ship_stage: v.optional(
+    v.union(
+      v.literal("before_push"),
+      v.literal("after_push"),
+      v.literal("press"),
+    ),
+  ),
   workflow: v.optional(v.string()),
 });
 
 /** The team a CLI call means: the one it names (a member), else the repository's (deployTeamFor). */
-export async function teamFor(ctx: any, userId: Id<"users">, repository: string, teamId?: Id<"teams">): Promise<Id<"teams">> {
+export async function teamFor(
+  ctx: any,
+  userId: Id<"users">,
+  repository: string,
+  teamId?: Id<"teams">,
+): Promise<Id<"teams">> {
   if (teamId) {
     await requireTeamMembership(ctx, userId, teamId);
     return teamId;
@@ -95,22 +135,44 @@ export const publish = mutation({
     const now = Date.now();
     const existing: Doc<"deploy_targets">[] = await ctx.db
       .query("deploy_targets")
-      .withIndex("by_workspace_repository", (q) => q.eq("workspace", workspace).eq("repository", repository))
+      .withIndex("by_workspace_repository", (q) =>
+        q.eq("workspace", workspace).eq("repository", repository),
+      )
       .take(200);
     // The newest commit's targets stand: a publish from an older one (or one that names no commit, once one did) is refused.
-    const newest = existing.filter((r) => !r.retired_at && r.head_at !== undefined).sort((a, b) => b.head_at! - a.head_at!)[0];
-    if (newest && (args.head_at === undefined || args.head_at < newest.head_at!) && args.head_sha !== newest.head_sha) {
-      return { team_id: teamId, repository, targets: [], refused: `the published targets are from a newer commit (${String(newest.head_sha ?? "").slice(0, 10)})` };
+    const newest = existing
+      .filter((r) => !r.retired_at && r.head_at !== undefined)
+      .sort((a, b) => b.head_at! - a.head_at!)[0];
+    if (
+      newest &&
+      (args.head_at === undefined || args.head_at < newest.head_at!) &&
+      args.head_sha !== newest.head_sha
+    ) {
+      return {
+        team_id: teamId,
+        repository,
+        targets: [],
+        refused: `the published targets are from a newer commit (${String(newest.head_sha ?? "").slice(0, 10)})`,
+      };
     }
     const declared = new Set<string>();
     const out: Array<{ name: string; changed: boolean }> = [];
     for (const t of args.targets) {
       const name = t.name.trim().toLowerCase();
-      if (!DEPLOY_TARGET_NAME_RE.test(name)) throw new Error(`"${t.name}" is not a target name`);
-      if (declared.has(name)) throw new Error(`target ${name} is declared twice`);
+      if (!DEPLOY_TARGET_NAME_RE.test(name))
+        throw new Error(`"${t.name}" is not a target name`);
+      if (declared.has(name))
+        throw new Error(`target ${name} is declared twice`);
       declared.add(name);
-      if (t.workflow && args.targets.some((o) => o !== t && o.workflow === t.workflow)) throw new Error(`target ${name}: workflow ${t.workflow} is named by another target; a run of it is one deploy of one target`);
-      const readerRefusal = t.live.kind === "json" ? liveReaderUrlRefusal(t.live.url) : null;
+      if (
+        t.workflow &&
+        args.targets.some((o) => o !== t && o.workflow === t.workflow)
+      )
+        throw new Error(
+          `target ${name}: workflow ${t.workflow} is named by another target; a run of it is one deploy of one target`,
+        );
+      const readerRefusal =
+        t.live.kind === "json" ? liveReaderUrlRefusal(t.live.url) : null;
       if (readerRefusal) throw new Error(`target ${name}: ${readerRefusal}`);
       const fields = {
         command: t.command,
@@ -126,28 +188,66 @@ export const publish = mutation({
       };
       const row = existing.find((r) => r.name === name);
       if (row) {
-        const changed = JSON.stringify(Object.entries(fields).map(([k, val]) => [k, (row as any)[k]])) !== JSON.stringify(Object.entries(fields).map(([k, val]) => [k, val])) || !!row.retired_at;
+        const changed =
+          JSON.stringify(
+            Object.entries(fields).map(([k, val]) => [k, (row as any)[k]]),
+          ) !==
+            JSON.stringify(
+              Object.entries(fields).map(([k, val]) => [k, val]),
+            ) || !!row.retired_at;
         // A changed reader reads afresh.
-        const readerChanged = JSON.stringify(row.live) !== JSON.stringify(t.live);
-        await ctx.db.patch(row._id, { ...fields, head_sha: args.head_sha, head_at: args.head_at, publisher_user_id: userId, retired_at: undefined, published_at: now, updated_at: now, ...(readerChanged ? { last_read: undefined } : {}) });
+        const readerChanged =
+          JSON.stringify(row.live) !== JSON.stringify(t.live);
+        await ctx.db.patch(row._id, {
+          ...fields,
+          head_sha: args.head_sha,
+          head_at: args.head_at,
+          publisher_user_id: userId,
+          retired_at: undefined,
+          published_at: now,
+          updated_at: now,
+          ...(readerChanged ? { last_read: undefined } : {}),
+        });
         out.push({ name, changed });
       } else {
-        await ctx.db.insert("deploy_targets", { workspace, team_id: teamId, repository, name, ...fields, head_sha: args.head_sha, head_at: args.head_at, publisher_user_id: userId, published_at: now, updated_at: now });
+        await ctx.db.insert("deploy_targets", {
+          workspace,
+          team_id: teamId,
+          repository,
+          name,
+          ...fields,
+          head_sha: args.head_sha,
+          head_at: args.head_at,
+          publisher_user_id: userId,
+          published_at: now,
+          updated_at: now,
+        });
         out.push({ name, changed: true });
       }
     }
-    for (const row of existing) if (!declared.has(row.name) && !row.retired_at) await ctx.db.patch(row._id, { retired_at: now, updated_at: now });
-    if (args.targets.some((t) => t.live.kind === "json")) await ctx.scheduler.runAfter(0, internal.deployTargets.pollLiveReaders, { workspace });
+    for (const row of existing)
+      if (!declared.has(row.name) && !row.retired_at)
+        await ctx.db.patch(row._id, { retired_at: now, updated_at: now });
+    if (args.targets.some((t) => t.live.kind === "json"))
+      await ctx.scheduler.runAfter(0, internal.deployTargets.pollLiveReaders, {
+        workspace,
+      });
     return { team_id: teamId, repository, targets: out };
   },
 });
 
 /** A repository's CI per commit, for shas a reader names (newest first as given). */
 export const ciForCommits = query({
-  args: { api_token: v.optional(v.string()), team_id: v.id("teams"), repository: v.string(), shas: v.array(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.id("teams"),
+    repository: v.string(),
+    shas: v.array(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    if (!(await workspaceGrantsAccess(ctx, userId, teamKey(args.team_id)))) return [];
+    if (!(await workspaceGrantsAccess(ctx, userId, teamKey(args.team_id))))
+      return [];
     const repository = repositoryArg(args.repository);
     const out = [];
     for (const sha of args.shas.slice(0, 100)) {
@@ -160,17 +260,32 @@ export const ciForCommits = query({
 
 /** Every deploy target of a team: live, going out, history and the waiting queue grouped by session (DP12). */
 export const view = query({
-  args: { api_token: v.optional(v.string()), team_id: v.optional(v.id("teams")), repository: v.optional(v.string()), target: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.optional(v.id("teams")),
+    repository: v.optional(v.string()),
+    target: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    if (!args.team_id && !args.repository) throw new Error("Name a team or a repository");
+    if (!args.team_id && !args.repository)
+      throw new Error("Name a team or a repository");
     // A repository none of the caller's teams works on has no targets they can see; a
     // flow's deploy wait polls this, so an empty answer lets it pass instead of retrying a throw.
-    const teamId = args.team_id ?? (await findDeployTeam(ctx, userId, repositoryArg(args.repository!)));
+    const teamId =
+      args.team_id ??
+      (await findDeployTeam(ctx, userId, repositoryArg(args.repository!)));
     if (!teamId) return { targets: [] };
     const workspace = teamKey(teamId);
-    if (!(await workspaceGrantsAccess(ctx, userId, workspace))) return { targets: [] };
-    const rows = (await targetRows(ctx, workspace, args.repository ? repositoryArg(args.repository) : undefined)).filter((r) => !args.target || r.name === args.target);
+    if (!(await workspaceGrantsAccess(ctx, userId, workspace)))
+      return { targets: [] };
+    const rows = (
+      await targetRows(
+        ctx,
+        workspace,
+        args.repository ? repositoryArg(args.repository) : undefined,
+      )
+    ).filter((r) => !args.target || r.name === args.target);
     const targets = [];
     for (const t of rows) targets.push(await targetState(ctx, t));
     return { team_id: teamId, targets };
@@ -179,12 +294,20 @@ export const view = query({
 
 /** A team's recent `cast ship checkout` passes, newest first. */
 export const shipPasses = query({
-  args: { api_token: v.optional(v.string()), team_id: v.id("teams"), limit: v.optional(v.number()) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.id("teams"),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const workspace = teamKey(args.team_id);
     if (!(await workspaceGrantsAccess(ctx, userId, workspace))) return [];
-    return await ctx.db.query("ship_passes").withIndex("by_workspace_finished", (q) => q.eq("workspace", workspace)).order("desc").take(Math.min(args.limit ?? 20, 100));
+    return await ctx.db
+      .query("ship_passes")
+      .withIndex("by_workspace_finished", (q) => q.eq("workspace", workspace))
+      .order("desc")
+      .take(Math.min(args.limit ?? 20, 100));
   },
 });
 
@@ -196,14 +319,23 @@ export const shipPasses = query({
  * target, when it did not say) and the commits between, touching the target's
  * paths. Called once a deploy goes live.
  */
-export async function fillDeployRange(ctx: any, deployId: Id<"deploys">): Promise<void> {
+export async function fillDeployRange(
+  ctx: any,
+  deployId: Id<"deploys">,
+): Promise<void> {
   const d: Doc<"deploys"> | null = await ctx.db.get(deployId);
   if (!d || d.status !== "live" || !d.sha) return;
   const patch: Partial<Doc<"deploys">> = {};
   if (!d.repository) {
     // A source's marker names its environment, not a repository (Union's errors source posts `production`): the
     // repository is the one whose published target has that name in the workspace, when exactly one does.
-    const repos = [...new Set((await targetRows(ctx, d.workspace)).filter((r) => r.name === d.target).map((r) => r.repository))];
+    const repos = [
+      ...new Set(
+        (await targetRows(ctx, d.workspace))
+          .filter((r) => r.name === d.target)
+          .map((r) => r.repository),
+      ),
+    ];
     if (repos.length !== 1) return;
     d.repository = patch.repository = repos[0];
   }
@@ -216,25 +348,50 @@ export async function fillDeployRange(ctx: any, deployId: Id<"deploys">): Promis
     // The live deploys created just before this one, however far back it is.
     const earlier: Doc<"deploys">[] = await ctx.db
       .query("deploys")
-      .withIndex("by_workspace_target_created", (q: any) => q.eq("workspace", d.workspace).eq("target", d.target).lte("created_at", d.created_at))
+      .withIndex("by_workspace_target_created", (q: any) =>
+        q
+          .eq("workspace", d.workspace)
+          .eq("target", d.target)
+          .lte("created_at", d.created_at),
+      )
       .order("desc")
       .take(30);
     // The deploy that went live last before it.
-    const before = liveDeployOf(earlier.filter((x) => x._id !== d._id && x.sha && (x.live_at ?? x.created_at) <= (d.live_at ?? d.created_at)), { repository: d.repository });
-    if (before?.sha && before.sha !== d.sha) previous = patch.previous_sha = before.sha;
+    const before = liveDeployOf(
+      earlier.filter(
+        (x) =>
+          x._id !== d._id &&
+          x.sha &&
+          (x.live_at ?? x.created_at) <= (d.live_at ?? d.created_at),
+      ),
+      { repository: d.repository },
+    );
+    if (before?.sha && before.sha !== d.sha)
+      previous = patch.previous_sha = before.sha;
   }
   if (!d.commits?.length && previous) {
-    const t = (await targetRows(ctx, d.workspace, d.repository)).find((r) => r.name === d.target);
+    const t = (await targetRows(ctx, d.workspace, d.repository)).find(
+      (r) => r.name === d.target,
+    );
     const range = await mainCommitsAfter(ctx, d.repository!, previous, d.sha);
     if (range.known) {
-      const commits = await deployCommitsOf(ctx, range.commits
-        .filter((c) => commitTouchesTarget(t?.paths ?? [], (c.files ?? []).map((f) => f.filename)))
-        .reverse()
-        .slice(0, COMMITS_MAX));
+      const commits = await deployCommitsOf(
+        ctx,
+        range.commits
+          .filter((c) =>
+            commitTouchesTarget(
+              t?.paths ?? [],
+              (c.files ?? []).map((f) => f.filename),
+            ),
+          )
+          .reverse()
+          .slice(0, COMMITS_MAX),
+      );
       if (commits.length) patch.commits = commits;
     }
   }
-  if (Object.keys(patch).length) await ctx.db.patch(deployId, { ...patch, updated_at: Date.now() });
+  if (Object.keys(patch).length)
+    await ctx.db.patch(deployId, { ...patch, updated_at: Date.now() });
 }
 
 // ── deploying a target from codecast (DP13) ──────────────────────────────────
@@ -245,7 +402,13 @@ export const request = mutation({
     team_id: v.optional(v.id("teams")),
     target: v.string(),
     repository: v.optional(v.string()),
-    action: v.optional(v.union(v.literal("deploy"), v.literal("redeploy"), v.literal("rollback"))),
+    action: v.optional(
+      v.union(
+        v.literal("deploy"),
+        v.literal("redeploy"),
+        v.literal("rollback"),
+      ),
+    ),
     of: v.optional(v.string()),
     /** A deploy's commit to make live (a commit on the default branch); default main's head. */
     sha: v.optional(v.string()),
@@ -254,9 +417,16 @@ export const request = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    if (!args.team_id && !args.repository) throw new Error("Name a team or a repository");
-    const team_id = args.team_id ?? (await teamFor(ctx, userId, repositoryArg(args.repository!)));
-    return await requestTargetDeployCore(ctx, userId, { ...args, team_id, cli: !!args.api_token });
+    if (!args.team_id && !args.repository)
+      throw new Error("Name a team or a repository");
+    const team_id =
+      args.team_id ??
+      (await teamFor(ctx, userId, repositoryArg(args.repository!)));
+    return await requestTargetDeployCore(ctx, userId, {
+      ...args,
+      team_id,
+      cli: !!args.api_token,
+    });
   },
 });
 
@@ -265,10 +435,20 @@ export const forDeploy = query({
   args: { api_token: v.optional(v.string()), deploy: v.string() },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    const d = await ctx.db.query("deploys").withIndex("by_short_id", (q) => q.eq("short_id", args.deploy.toLowerCase())).first();
-    if (!d || !(await workspaceGrantsAccess(ctx, userId, d.workspace))) return null;
-    const t = (await targetRows(ctx, d.workspace, d.repository)).find((r) => r.name === d.target);
-    return t ? { name: t.name, repository: t.repository, live: t.live, runs: t.runs } : null;
+    const d = await ctx.db
+      .query("deploys")
+      .withIndex("by_short_id", (q) =>
+        q.eq("short_id", args.deploy.toLowerCase()),
+      )
+      .first();
+    if (!d || !(await workspaceGrantsAccess(ctx, userId, d.workspace)))
+      return null;
+    const t = (await targetRows(ctx, d.workspace, d.repository)).find(
+      (r) => r.name === d.target,
+    );
+    return t
+      ? { name: t.name, repository: t.repository, live: t.live, runs: t.runs }
+      : null;
   },
 });
 
@@ -278,27 +458,60 @@ export const forDeploy = query({
  * out, CI on the newest waiting commit is green, and the last deploy did not
  * fail on that same head.
  */
-export async function autoDeployTargetsCore(ctx: any): Promise<Array<{ target: string; deploy?: string; why?: string }>> {
+export async function autoDeployTargetsCore(
+  ctx: any,
+): Promise<Array<{ target: string; deploy?: string; why?: string }>> {
   const out: Array<{ target: string; deploy?: string; why?: string }> = [];
-  const rows: Doc<"deploy_targets">[] = (await ctx.db.query("deploy_targets").take(500)).filter((r: Doc<"deploy_targets">) => r.policy === "auto" && r.runs === "here" && !r.retired_at && r.command && r.device_id && r.root);
+  const rows: Doc<"deploy_targets">[] = (
+    await ctx.db.query("deploy_targets").take(500)
+  ).filter(
+    (r: Doc<"deploy_targets">) =>
+      r.policy === "auto" &&
+      r.runs === "here" &&
+      !r.retired_at &&
+      r.command &&
+      r.device_id &&
+      r.root,
+  );
   for (const t of rows) {
     const s = await targetState(ctx, t);
     if (s.open || !s.queue.known || !s.queue.commits) continue;
-    const newest = s.queue.groups.flatMap((g) => g.commits).sort((a, b) => b.at - a.at)[0];
-    if (newest?.ci !== "passed") { out.push({ target: t.name, why: `CI on ${newest?.sha.slice(0, 7)} is ${newest?.ci}` }); continue; }
+    const newest = s.queue.groups
+      .flatMap((g) => g.commits)
+      .sort((a, b) => b.at - a.at)[0];
+    if (newest?.ci !== "passed") {
+      out.push({
+        target: t.name,
+        why: `CI on ${newest?.sha.slice(0, 7)} is ${newest?.ci}`,
+      });
+      continue;
+    }
     const last = s.history[0];
-    if (last?.status === "failed" && (last.created_at >= newest.at)) { out.push({ target: t.name, why: `${last.short_id} failed on this head` }); continue; }
+    if (last?.status === "failed" && last.created_at >= newest.at) {
+      out.push({ target: t.name, why: `${last.short_id} failed on this head` });
+      continue;
+    }
     try {
-      const asked = await requestTargetDeployCore(ctx, t.publisher_user_id, { team_id: t.team_id!, target: t.name, repository: t.repository });
+      const asked = await requestTargetDeployCore(ctx, t.publisher_user_id, {
+        team_id: t.team_id!,
+        target: t.name,
+        repository: t.repository,
+      });
       out.push({ target: t.name, deploy: asked.short_id });
     } catch (err) {
-      out.push({ target: t.name, why: err instanceof Error ? err.message : String(err) });
+      out.push({
+        target: t.name,
+        why: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return out;
 }
 
-export const autoDeployTargets = internalMutation({ args: {}, handler: async (ctx) => autoDeployTargetsCore(ctx) });
+export const autoDeployTargets = internalMutation({
+  args: {},
+  handler: async (ctx) => autoDeployTargetsCore(ctx),
+});
 
 // ── a ship pass (DP11) ───────────────────────────────────────────────────────
 
@@ -321,21 +534,42 @@ export const recordShipPass = mutation({
     tip: v.optional(v.string()),
     pushed: v.optional(v.string()),
     pr_url: v.optional(v.string()),
-    commits: v.array(v.object({ sha: v.optional(v.string()), message: v.string(), files: v.number(), session_id: v.optional(v.string()), conversation_id: v.optional(v.string()) })),
-    held: v.array(v.object({ group: v.string(), paths: v.number(), note: v.optional(v.string()) })),
-    deploys: v.array(v.object({
-      name: v.string(), stage: v.string(), ok: v.boolean(), target: v.optional(v.string()), output: v.optional(v.string()), dirty: v.optional(v.number()),
-      // The push the step made, as deploy.sh reports it (changesDeploy.markDeploy takes the same): the machine, the
-      // path, the names it put on the target and took off it, and how long before this call its diff read prod.
-      machine: v.optional(v.string()),
-      via: v.optional(v.literal("deploy.sh")),
-      adds: v.optional(v.array(v.string())),
-      drops: v.optional(v.array(v.string())),
-      changes_read_age_ms: v.optional(v.number()),
-      // How long before this call the step's push finished (ms, by the shipper's clock): the pass records at its end,
-      // minutes after the push, and the deploy went live when it pushed.
-      pushed_age_ms: v.optional(v.number()),
-    })),
+    commits: v.array(
+      v.object({
+        sha: v.optional(v.string()),
+        message: v.string(),
+        files: v.number(),
+        session_id: v.optional(v.string()),
+        conversation_id: v.optional(v.string()),
+      }),
+    ),
+    held: v.array(
+      v.object({
+        group: v.string(),
+        paths: v.number(),
+        note: v.optional(v.string()),
+      }),
+    ),
+    deploys: v.array(
+      v.object({
+        name: v.string(),
+        stage: v.string(),
+        ok: v.boolean(),
+        target: v.optional(v.string()),
+        output: v.optional(v.string()),
+        dirty: v.optional(v.number()),
+        // The push the step made, as deploy.sh reports it (changesDeploy.markDeploy takes the same): the machine, the
+        // path, the names it put on the target and took off it, and how long before this call its diff read prod.
+        machine: v.optional(v.string()),
+        via: v.optional(v.literal("deploy.sh")),
+        adds: v.optional(v.array(v.string())),
+        drops: v.optional(v.array(v.string())),
+        changes_read_age_ms: v.optional(v.number()),
+        // How long before this call the step's push finished (ms, by the shipper's clock): the pass records at its end,
+        // minutes after the push, and the deploy went live when it pushed.
+        pushed_age_ms: v.optional(v.number()),
+      }),
+    ),
     started_at: v.number(),
   },
   handler: async (ctx, args) => {
@@ -357,8 +591,16 @@ export const recordShipPass = mutation({
       ...(args.pushed ? { pushed: args.pushed } : {}),
       ...(args.pr_url ? { pr_url: args.pr_url } : {}),
       commits: args.commits.slice(0, 200).map((c) => {
-        const conv = c.conversation_id ? ctx.db.normalizeId("conversations", c.conversation_id) : null;
-        return { ...(c.sha ? { sha: c.sha } : {}), message: c.message.slice(0, 300), files: c.files, ...(c.session_id ? { session_id: c.session_id } : {}), ...(conv ? { conversation_id: conv } : {}) };
+        const conv = c.conversation_id
+          ? ctx.db.normalizeId("conversations", c.conversation_id)
+          : null;
+        return {
+          ...(c.sha ? { sha: c.sha } : {}),
+          message: c.message.slice(0, 300),
+          files: c.files,
+          ...(c.session_id ? { session_id: c.session_id } : {}),
+          ...(conv ? { conversation_id: conv } : {}),
+        };
       }),
       held: args.held.slice(0, 100),
       deploys: [],
@@ -366,7 +608,11 @@ export const recordShipPass = mutation({
       finished_at: now,
     });
     const user = await ctx.db.get(userId);
-    const startedBy = { kind: "person" as const, name: user?.name ?? user?.github_username ?? "someone", user_id: userId };
+    const startedBy = {
+      kind: "person" as const,
+      name: user?.name ?? user?.github_username ?? "someone",
+      user_id: userId,
+    };
     const sha = (args.pushed ?? args.tip)?.toLowerCase();
     const deploys = [];
     for (const step of args.deploys) {
@@ -381,24 +627,47 @@ export const recordShipPass = mutation({
           source: "cast ship checkout",
           started_by: startedBy,
           status: step.ok ? "live" : "failed",
-          ...(step.ok ? {} : { note: (step.output ?? "").slice(-1500) || `${step.name} failed` }),
-          ...(!args.pushed && step.ok ? { note: `deployed from ${sha.slice(0, 10)}, which the ship did not push` } : {}),
+          ...(step.ok
+            ? {}
+            : {
+                note: (step.output ?? "").slice(-1500) || `${step.name} failed`,
+              }),
+          ...(!args.pushed && step.ok
+            ? {
+                note: `deployed from ${sha.slice(0, 10)}, which the ship did not push`,
+              }
+            : {}),
           ...(step.dirty ? { dirty: step.dirty } : {}),
           ...(step.machine?.trim() ? { machine: step.machine.trim() } : {}),
           ...(step.via ? { pushed_via: step.via } : {}),
           // Sent exactly when the push's diff ran, empty or not: a deploy whose diff ran is evidence of what its tree held.
           ...(step.adds ? { adds: step.adds } : {}),
           ...(step.drops ? { drops: step.drops } : {}),
-          ...(step.changes_read_age_ms != null ? { changes_read_at: now - Math.max(0, step.changes_read_age_ms) } : {}),
+          ...(step.changes_read_age_ms != null
+            ? { changes_read_at: now - Math.max(0, step.changes_read_age_ms) }
+            : {}),
           ship_pass_id: passId,
           push: true,
-          at: step.pushed_age_ms != null ? now - Math.max(0, step.pushed_age_ms) : now,
+          at:
+            step.pushed_age_ms != null
+              ? now - Math.max(0, step.pushed_age_ms)
+              : now,
         });
       }
-      deploys.push({ name: step.name, stage: step.stage, ok: step.ok, ...(step.target ? { target: step.target } : {}), ...(deploy ? { deploy } : {}), ...(step.output ? { output: step.output.slice(-3000) } : {}) });
+      deploys.push({
+        name: step.name,
+        stage: step.stage,
+        ok: step.ok,
+        ...(step.target ? { target: step.target } : {}),
+        ...(deploy ? { deploy } : {}),
+        ...(step.output ? { output: step.output.slice(-3000) } : {}),
+      });
     }
     await ctx.db.patch(passId, { deploys });
-    return { pass: String(passId), deploys: deploys.map((d) => ({ name: d.name, deploy: d.deploy ?? null })) };
+    return {
+      pass: String(passId),
+      deploys: deploys.map((d) => ({ name: d.name, deploy: d.deploy ?? null })),
+    };
   },
 });
 
@@ -408,25 +677,55 @@ export const jsonReaderTargets = internalQuery({
   args: { workspace: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const rows: Doc<"deploy_targets">[] = args.workspace
-      ? await ctx.db.query("deploy_targets").withIndex("by_workspace_repository", (q) => q.eq("workspace", args.workspace!)).take(200)
+      ? await ctx.db
+          .query("deploy_targets")
+          .withIndex("by_workspace_repository", (q) =>
+            q.eq("workspace", args.workspace!),
+          )
+          .take(200)
       : await ctx.db.query("deploy_targets").take(500);
-    return rows.filter((r) => !r.retired_at && r.live.kind === "json").map((r) => ({ _id: r._id, live: r.live as Extract<DeployLiveReader, { kind: "json" }>, last: r.last_read ?? null }));
+    return rows
+      .filter((r) => !r.retired_at && r.live.kind === "json")
+      .map((r) => ({
+        _id: r._id,
+        live: r.live as Extract<DeployLiveReader, { kind: "json" }>,
+        last: r.last_read ?? null,
+      }));
   },
 });
 
 /** What a json reader read: a changed sha records the deploy that put it there. */
 export const recordLiveRead = internalMutation({
-  args: { target_id: v.id("deploy_targets"), sha: v.optional(v.string()), version: v.optional(v.string()), error: v.optional(v.string()) },
+  args: {
+    target_id: v.id("deploy_targets"),
+    sha: v.optional(v.string()),
+    version: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const t = await ctx.db.get(args.target_id);
     if (!t) return null;
     const now = Date.now();
     if (args.error || !args.sha) {
-      await ctx.db.patch(t._id, { last_read: { ...(t.last_read ?? {}), at: now, error: args.error ?? "the document names no commit" } });
+      await ctx.db.patch(t._id, {
+        last_read: {
+          ...(t.last_read ?? {}),
+          at: now,
+          error: args.error ?? "the document names no commit",
+        },
+      });
       return null;
     }
-    const changed = t.last_read?.sha !== args.sha || (args.version && t.last_read?.version !== args.version);
-    await ctx.db.patch(t._id, { last_read: { sha: args.sha, ...(args.version ? { version: args.version } : {}), at: now } });
+    const changed =
+      t.last_read?.sha !== args.sha ||
+      (args.version && t.last_read?.version !== args.version);
+    await ctx.db.patch(t._id, {
+      last_read: {
+        sha: args.sha,
+        ...(args.version ? { version: args.version } : {}),
+        at: now,
+      },
+    });
     if (!changed) return null;
     return await recordDeployMarker(ctx, {
       workspace: t.workspace,
@@ -446,7 +745,10 @@ export const recordLiveRead = internalMutation({
 export const pollLiveReaders = internalAction({
   args: { workspace: v.optional(v.string()) },
   handler: async (ctx, args): Promise<number> => {
-    const targets = await ctx.runQuery(internal.deployTargets.jsonReaderTargets, { workspace: args.workspace });
+    const targets = await ctx.runQuery(
+      internal.deployTargets.jsonReaderTargets,
+      { workspace: args.workspace },
+    );
     let recorded = 0;
     for (const t of targets) {
       try {
@@ -455,40 +757,85 @@ export const pollLiveReaders = internalAction({
         // Every redirect hop, and every address a name resolves to, is checked before it is requested.
         let res: Response;
         try {
-          res = await guardedFetch(t.live.url, { headers: { Accept: "application/json", "Cache-Control": "no-cache" }, signal: AbortSignal.timeout(10_000) }, { maxRedirects: 5 });
+          res = await guardedFetch(
+            t.live.url,
+            {
+              headers: {
+                Accept: "application/json",
+                "Cache-Control": "no-cache",
+              },
+              signal: AbortSignal.timeout(10_000),
+            },
+            { maxRedirects: 5 },
+          );
         } catch (err) {
           // A refusal names only the host; any other failure says nothing about what answered inside the network.
-          throw err instanceof RefusedHostError ? err : new Error(`${t.live.url} could not be read`);
+          throw err instanceof RefusedHostError
+            ? err
+            : new Error(`${t.live.url} could not be read`);
         }
-        if (res.status >= 300 && res.status < 400) throw new Error(`${t.live.url} redirected more than 5 times`);
+        if (res.status >= 300 && res.status < 400)
+          throw new Error(`${t.live.url} redirected more than 5 times`);
         if (!res.ok) throw new Error(`${t.live.url} answered ${res.status}`);
         const { sha, version } = readJsonLive(t.live, await res.json());
-        const r = await ctx.runMutation(internal.deployTargets.recordLiveRead, { target_id: t._id, ...(sha ? { sha } : {}), ...(version ? { version } : {}) });
+        const r = await ctx.runMutation(internal.deployTargets.recordLiveRead, {
+          target_id: t._id,
+          ...(sha ? { sha } : {}),
+          ...(version ? { version } : {}),
+        });
         if (r) recorded++;
       } catch (err) {
-        await ctx.runMutation(internal.deployTargets.recordLiveRead, { target_id: t._id, error: (err instanceof Error ? err.message : String(err)).slice(0, 300) });
+        await ctx.runMutation(internal.deployTargets.recordLiveRead, {
+          target_id: t._id,
+          error: (err instanceof Error ? err.message : String(err)).slice(
+            0,
+            300,
+          ),
+        });
       }
     }
     return recorded;
   },
 });
 
-
 // ── backfill: main's order, CI and GitHub deploy statuses (DP14) ─────────────
 
 async function gh(token: string, path: string): Promise<any | null> {
-  const res = await fetch(`https://api.github.com${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } });
+  const res = await fetch(`https://api.github.com${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
   return res.ok ? await res.json() : null;
 }
 
 export const backfillTarget = internalQuery({
   args: { repository: v.string() },
-  handler: async (ctx, args): Promise<{ team_id: Id<"teams">; contexts: string[] } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ team_id: Id<"teams">; contexts: string[] } | null> => {
     const repository = normalizeRepository(args.repository);
     const team = await resolveTeamForRepository(ctx, repository);
     if (!team) return null;
-    const targets = (await ctx.db.query("deploy_targets").withIndex("by_repository_name", (q) => q.eq("repository", repository)).take(50)).filter((r) => !r.retired_at);
-    return { team_id: team, contexts: [...new Set(targets.flatMap((t) => (t.live.kind === "github-status" ? [t.live.context] : [])))] };
+    const targets = (
+      await ctx.db
+        .query("deploy_targets")
+        .withIndex("by_repository_name", (q) => q.eq("repository", repository))
+        .take(50)
+    ).filter((r) => !r.retired_at);
+    return {
+      team_id: team,
+      contexts: [
+        ...new Set(
+          targets.flatMap((t) =>
+            t.live.kind === "github-status" ? [t.live.context] : [],
+          ),
+        ),
+      ],
+    };
   },
 });
 
@@ -498,12 +845,30 @@ export const backfillMainCommits = internalMutation({
     repository: v.string(),
     team_id: v.id("teams"),
     branch: v.string(),
-    commits: v.array(v.object({ sha: v.string(), message: v.string(), author_name: v.string(), author_email: v.string(), author_login: v.optional(v.string()), at: v.number(), files: v.optional(v.array(v.string())) })),
+    commits: v.array(
+      v.object({
+        sha: v.string(),
+        message: v.string(),
+        author_name: v.string(),
+        author_email: v.string(),
+        author_login: v.optional(v.string()),
+        at: v.number(),
+        files: v.optional(v.array(v.string())),
+      }),
+    ),
   },
   handler: async (ctx, args) => upsertMainCommits(ctx, args),
 });
 
-const mainCommitValidator = v.object({ sha: v.string(), message: v.string(), author_name: v.string(), author_email: v.string(), author_login: v.optional(v.string()), at: v.number(), files: v.optional(v.array(v.string())) });
+const mainCommitValidator = v.object({
+  sha: v.string(),
+  message: v.string(),
+  author_name: v.string(),
+  author_email: v.string(),
+  author_login: v.optional(v.string()),
+  at: v.number(),
+  files: v.optional(v.array(v.string())),
+});
 
 /**
  * Main's commits as a checkout reports them, for a repository no GitHub installation routes (a local bare remote,
@@ -511,29 +876,75 @@ const mainCommitValidator = v.object({ sha: v.string(), message: v.string(), aut
  * covers is left to its webhooks and backfill.
  */
 export const reportMainCommits = mutation({
-  args: { api_token: v.optional(v.string()), team_id: v.id("teams"), repository: v.string(), branch: v.string(), commits: v.array(mainCommitValidator) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.id("teams"),
+    repository: v.string(),
+    branch: v.string(),
+    commits: v.array(mainCommitValidator),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     await requireTeamMembership(ctx, userId, args.team_id);
     const repository = repositoryArg(args.repository);
-    if (await resolveTeamForRepository(ctx, repository)) return { skipped: "GitHub reports this repository's commits" };
-    return await upsertMainCommits(ctx, { repository, team_id: args.team_id, branch: args.branch, commits: args.commits.slice(0, 300) });
+    if (await resolveTeamForRepository(ctx, repository))
+      return { skipped: "GitHub reports this repository's commits" };
+    return await upsertMainCommits(ctx, {
+      repository,
+      team_id: args.team_id,
+      branch: args.branch,
+      commits: args.commits.slice(0, 300),
+    });
   },
 });
 export const backfillCi = internalMutation({
-  args: { team_id: v.id("teams"), rows: v.array(v.object({ repository: v.string(), sha: v.string(), name: v.string(), kind: v.union(v.literal("workflow"), v.literal("suite")), run_id: v.optional(v.string()), status: v.string(), conclusion: v.optional(v.string()), url: v.optional(v.string()), started_at: v.number() })) },
+  args: {
+    team_id: v.id("teams"),
+    rows: v.array(
+      v.object({
+        repository: v.string(),
+        sha: v.string(),
+        name: v.string(),
+        kind: v.union(v.literal("workflow"), v.literal("suite")),
+        run_id: v.optional(v.string()),
+        status: v.string(),
+        conclusion: v.optional(v.string()),
+        url: v.optional(v.string()),
+        started_at: v.number(),
+      }),
+    ),
+  },
   handler: async (ctx, args) => {
     let n = 0;
-    for (const r of args.rows) if (await recordCommitCi(ctx, r, args.team_id)) n++;
+    for (const r of args.rows)
+      if (await recordCommitCi(ctx, r, args.team_id)) n++;
     return n;
   },
 });
 
 export const backfillStatuses = internalMutation({
-  args: { rows: v.array(v.object({ repository: v.string(), sha: v.string(), context: v.string(), state: v.string(), url: v.optional(v.string()), description: v.optional(v.string()), at: v.number() })) },
+  args: {
+    rows: v.array(
+      v.object({
+        repository: v.string(),
+        sha: v.string(),
+        context: v.string(),
+        state: v.string(),
+        url: v.optional(v.string()),
+        description: v.optional(v.string()),
+        at: v.number(),
+      }),
+    ),
+  },
   handler: async (ctx, args) => {
     const out: string[] = [];
-    for (const r of args.rows) out.push(...(await recordGithubDeployStatus(ctx, { ...r, on_default_branch: true })));
+    for (const r of args.rows)
+      out.push(
+        ...(await recordGithubDeployStatus(ctx, {
+          ...r,
+          on_default_branch: true,
+        })),
+      );
     return out;
   },
 });
@@ -546,20 +957,43 @@ export const backfillStatuses = internalMutation({
  */
 export const backfill = internalAction({
   // offset: commits back from main's head to start at, so a long history is read in passes of up to 500, newest first.
-  args: { repository: v.string(), commits: v.optional(v.number()), files: v.optional(v.boolean()), offset: v.optional(v.number()), ci: v.optional(v.boolean()) },
+  args: {
+    repository: v.string(),
+    commits: v.optional(v.number()),
+    files: v.optional(v.boolean()),
+    offset: v.optional(v.number()),
+    ci: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<Record<string, unknown>> => {
     const repository = normalizeRepository(args.repository);
-    const target: { team_id: Id<"teams">; contexts: string[] } | null = await ctx.runQuery(internal.deployTargets.backfillTarget, { repository });
-    const installation: any = target ? await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, { repository, team_id: target.team_id }) : null;
-    if (!target || !installation?.installation_id) return { error: "no team installation routes this repository" };
-    const { token } = await ctx.runAction(internal.githubApp.getInstallationToken, { installation_id: installation.installation_id });
+    const target: { team_id: Id<"teams">; contexts: string[] } | null =
+      await ctx.runQuery(internal.deployTargets.backfillTarget, { repository });
+    const installation: any = target
+      ? await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, {
+          repository,
+          team_id: target.team_id,
+        })
+      : null;
+    if (!target || !installation?.installation_id)
+      return { error: "no team installation routes this repository" };
+    const { token } = await ctx.runAction(
+      internal.githubApp.getInstallationToken,
+      { installation_id: installation.installation_id },
+    );
     const repo = await gh(token, `/repos/${repository}`);
     const branch: string = repo?.default_branch ?? "main";
     const want = Math.min(args.commits ?? 150, 500);
     const offset = Math.max(0, Math.floor((args.offset ?? 0) / 100) * 100);
     const listed: any[] = [];
-    for (let page = offset / 100 + 1; listed.length < want && page <= offset / 100 + 5; page++) {
-      const batch = await gh(token, `/repos/${repository}/commits?sha=${encodeURIComponent(branch)}&per_page=100&page=${page}`);
+    for (
+      let page = offset / 100 + 1;
+      listed.length < want && page <= offset / 100 + 5;
+      page++
+    ) {
+      const batch = await gh(
+        token,
+        `/repos/${repository}/commits?sha=${encodeURIComponent(branch)}&per_page=100&page=${page}`,
+      );
       if (!Array.isArray(batch) || !batch.length) break;
       listed.push(...batch);
       if (batch.length < 100) break;
@@ -571,9 +1005,13 @@ export const backfill = internalAction({
       let files: string[] | undefined;
       if (args.files !== false) {
         const full = await gh(token, `/repos/${repository}/commits/${c.sha}`);
-        files = Array.isArray(full?.files) ? full.files.map((f: any) => String(f.filename)).slice(0, 300) : undefined;
+        files = Array.isArray(full?.files)
+          ? full.files.map((f: any) => String(f.filename)).slice(0, 300)
+          : undefined;
       }
-      const at = Date.parse(c.commit?.committer?.date ?? c.commit?.author?.date ?? "");
+      const at = Date.parse(
+        c.commit?.committer?.date ?? c.commit?.author?.date ?? "",
+      );
       commits.push({
         sha: c.sha,
         message: String(c.commit?.message ?? ""),
@@ -587,42 +1025,94 @@ export const backfill = internalAction({
     let inserted = 0;
     let stamped = 0;
     for (let i = 0; i < commits.length; i += 25) {
-      const r = await ctx.runMutation(internal.deployTargets.backfillMainCommits, { repository, team_id: target.team_id, branch, commits: commits.slice(i, i + 25) });
+      const r = await ctx.runMutation(
+        internal.deployTargets.backfillMainCommits,
+        {
+          repository,
+          team_id: target.team_id,
+          branch,
+          commits: commits.slice(i, i + 25),
+        },
+      );
       inserted += r.inserted;
       stamped += r.ordered;
     }
     // CI: the default branch's workflow runs, newest pages, and each recent commit's other apps' suites.
     const ciRows: any[] = [];
     for (let page = 1; args.ci !== false && page <= 4; page++) {
-      const body = await gh(token, `/repos/${repository}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=100&page=${page}`);
-      const runs: any[] = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+      const body = await gh(
+        token,
+        `/repos/${repository}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=100&page=${page}`,
+      );
+      const runs: any[] = Array.isArray(body?.workflow_runs)
+        ? body.workflow_runs
+        : [];
       for (const run of runs) {
-        const row = workflowRunCi({ workflow_run: run, repository: { full_name: repository, default_branch: branch }, workflow: { name: run.name } });
+        const row = workflowRunCi({
+          workflow_run: run,
+          repository: { full_name: repository, default_branch: branch },
+          workflow: { name: run.name },
+        });
         if (row) ciRows.push(row);
       }
       if (runs.length < 100) break;
     }
     const statusRows: any[] = [];
     for (const c of args.ci === false ? [] : ordered.slice(-60)) {
-      const suites = await gh(token, `/repos/${repository}/commits/${c.sha}/check-suites?per_page=50`);
+      const suites = await gh(
+        token,
+        `/repos/${repository}/commits/${c.sha}/check-suites?per_page=50`,
+      );
       for (const s of suites?.check_suites ?? []) {
-        const row = checkSuiteCi({ check_suite: { ...s, head_branch: branch }, repository: { full_name: repository, default_branch: branch } });
+        const row = checkSuiteCi({
+          check_suite: { ...s, head_branch: branch },
+          repository: { full_name: repository, default_branch: branch },
+        });
         if (row) ciRows.push(row);
       }
       if (target.contexts.length) {
-        const st = await gh(token, `/repos/${repository}/commits/${c.sha}/status`);
+        const st = await gh(
+          token,
+          `/repos/${repository}/commits/${c.sha}/status`,
+        );
         for (const s of st?.statuses ?? []) {
           if (!target.contexts.includes(s.context)) continue;
           const at = Date.parse(s.updated_at ?? s.created_at ?? "");
-          statusRows.push({ repository, sha: c.sha, context: s.context, state: s.state, ...(s.target_url ? { url: s.target_url } : {}), ...(s.description ? { description: String(s.description).slice(0, 500) } : {}), at: Number.isFinite(at) ? at : Date.now() });
+          statusRows.push({
+            repository,
+            sha: c.sha,
+            context: s.context,
+            state: s.state,
+            ...(s.target_url ? { url: s.target_url } : {}),
+            ...(s.description
+              ? { description: String(s.description).slice(0, 500) }
+              : {}),
+            at: Number.isFinite(at) ? at : Date.now(),
+          });
         }
       }
     }
     let ci = 0;
-    for (let i = 0; i < ciRows.length; i += 50) ci += await ctx.runMutation(internal.deployTargets.backfillCi, { team_id: target.team_id, rows: ciRows.slice(i, i + 50) });
+    for (let i = 0; i < ciRows.length; i += 50)
+      ci += await ctx.runMutation(internal.deployTargets.backfillCi, {
+        team_id: target.team_id,
+        rows: ciRows.slice(i, i + 50),
+      });
     statusRows.sort((a, b) => a.at - b.at);
-    const deploys = statusRows.length ? await ctx.runMutation(internal.deployTargets.backfillStatuses, { rows: statusRows }) : [];
-    return { branch, commits: commits.length, inserted, stamped, ci, statuses: statusRows.length, deploys };
+    const deploys = statusRows.length
+      ? await ctx.runMutation(internal.deployTargets.backfillStatuses, {
+          rows: statusRows,
+        })
+      : [];
+    return {
+      branch,
+      commits: commits.length,
+      inserted,
+      stamped,
+      ci,
+      statuses: statusRows.length,
+      deploys,
+    };
   },
 });
 
@@ -630,8 +1120,13 @@ export const backfill = internalAction({
 export const pollNow = action({
   args: { api_token: v.optional(v.string()), team_id: v.id("teams") },
   handler: async (ctx, args): Promise<number> => {
-    await ctx.runQuery(internal.deployTargets.assertMember, { api_token: args.api_token, team_id: args.team_id });
-    return await ctx.runAction(internal.deployTargets.pollLiveReaders, { workspace: teamKey(args.team_id) });
+    await ctx.runQuery(internal.deployTargets.assertMember, {
+      api_token: args.api_token,
+      team_id: args.team_id,
+    });
+    return await ctx.runAction(internal.deployTargets.pollLiveReaders, {
+      workspace: teamKey(args.team_id),
+    });
   },
 });
 
@@ -639,7 +1134,8 @@ export const assertMember = internalQuery({
   args: { api_token: v.optional(v.string()), team_id: v.id("teams") },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    if (!(await workspaceGrantsAccess(ctx, userId, teamKey(args.team_id)))) throw new Error("Not a member of that team");
+    if (!(await workspaceGrantsAccess(ctx, userId, teamKey(args.team_id))))
+      throw new Error("Not a member of that team");
     return true;
   },
 });
@@ -650,14 +1146,37 @@ export const assertMember = internalQuery({
  *   apps/server/run.sh deployTargets:recordPastDeploy '{"repository":"o/r","target":"desktop","sha":"…","version":"1.1.128","at":1793000000000,"source":"release history"}'
  */
 export const recordPastDeploy = internalMutation({
-  args: { repository: v.string(), target: v.string(), sha: v.string(), version: v.optional(v.string()), at: v.number(), source: v.string(), note: v.optional(v.string()) },
+  args: {
+    repository: v.string(),
+    target: v.string(),
+    sha: v.string(),
+    version: v.optional(v.string()),
+    at: v.number(),
+    source: v.string(),
+    note: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const repository = normalizeRepository(args.repository);
-    const t = (await ctx.db.query("deploy_targets").withIndex("by_repository_name", (q) => q.eq("repository", repository).eq("name", args.target)).take(5)).find((r) => !r.retired_at);
-    if (!t) throw new Error(`No target ${args.target} published for ${repository}`);
+    const t = (
+      await ctx.db
+        .query("deploy_targets")
+        .withIndex("by_repository_name", (q) =>
+          q.eq("repository", repository).eq("name", args.target),
+        )
+        .take(5)
+    ).find((r) => !r.retired_at);
+    if (!t)
+      throw new Error(`No target ${args.target} published for ${repository}`);
     return await recordDeployMarker(ctx, {
-      workspace: t.workspace, ...(t.team_id ? { team_id: t.team_id } : {}), target: t.name, sha: args.sha.toLowerCase(),
-      ...(args.version ? { version: args.version } : {}), repository, source: args.source, ...(args.note ? { note: args.note } : {}), at: args.at,
+      workspace: t.workspace,
+      ...(t.team_id ? { team_id: t.team_id } : {}),
+      target: t.name,
+      sha: args.sha.toLowerCase(),
+      ...(args.version ? { version: args.version } : {}),
+      repository,
+      source: args.source,
+      ...(args.note ? { note: args.note } : {}),
+      at: args.at,
     });
   },
 });
@@ -666,11 +1185,25 @@ export const recordPastDeploy = internalMutation({
 export const correctDeploySha = internalMutation({
   args: { deploy: v.string(), sha: v.string() },
   handler: async (ctx, args) => {
-    const d = await ctx.db.query("deploys").withIndex("by_short_id", (q) => q.eq("short_id", args.deploy.toLowerCase())).first();
+    const d = await ctx.db
+      .query("deploys")
+      .withIndex("by_short_id", (q) =>
+        q.eq("short_id", args.deploy.toLowerCase()),
+      )
+      .first();
     if (!d) throw new Error(`No deploy ${args.deploy}`);
-    if (d.trigger !== "outside") throw new Error(`${d.short_id} was sent by codecast; its sha is what its path reported`);
+    if (d.trigger !== "outside")
+      throw new Error(
+        `${d.short_id} was sent by codecast; its sha is what its path reported`,
+      );
     // Its place on main is the corrected sha's: fillDeployRange stamps it again.
-    await ctx.db.patch(d._id, { sha: args.sha.toLowerCase(), cut_at: undefined, commits: undefined, previous_sha: undefined, updated_at: Date.now() });
+    await ctx.db.patch(d._id, {
+      sha: args.sha.toLowerCase(),
+      cut_at: undefined,
+      commits: undefined,
+      previous_sha: undefined,
+      updated_at: Date.now(),
+    });
     await fillDeployRange(ctx, d._id);
     return { short_id: d.short_id, sha: args.sha.toLowerCase() };
   },
@@ -681,13 +1214,28 @@ export const correctDeploySha = internalMutation({
  * deploy with no commits gets its range on main, and carried commits get the tasks they link and their session.
  */
 export const backfillDeployRanges = internalMutation({
-  args: { team_id: v.id("teams"), target: v.string(), take: v.optional(v.number()) },
+  args: {
+    team_id: v.id("teams"),
+    target: v.string(),
+    take: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
-    let ranged = 0, linked = 0, uncarried = 0;
+    let ranged = 0,
+      linked = 0,
+      uncarried = 0;
     // A target no line deploys to carries no line fixes (deployCarries.carriesForMarker); earlier markers gave it them all.
-    const lineTarget = (await lineDeployTargets(ctx, teamKey(args.team_id))).has(args.target);
+    const lineTarget = (
+      await lineDeployTargets(ctx, teamKey(args.team_id))
+    ).has(args.target);
     // Oldest first, so each deploy's previous live deploy is already settled when its range is read.
-    for (const d of (await targetDeploys(ctx, teamKey(args.team_id), args.target, args.take ?? 60)).reverse()) {
+    for (const d of (
+      await targetDeploys(
+        ctx,
+        teamKey(args.team_id),
+        args.target,
+        args.take ?? 60,
+      )
+    ).reverse()) {
       if (!lineTarget && d.carries.length) {
         await ctx.db.patch(d._id, { carries: [], updated_at: Date.now() });
         uncarried++;
@@ -701,7 +1249,8 @@ export const backfillDeployRanges = internalMutation({
       if (!d.repository) continue;
       // Re-read each carried commit, so it keeps the tasks it links and the session behind it (commitSession).
       const rows = [];
-      for (const c of d.commits) rows.push(await commitBySha(ctx, d.repository, c.sha));
+      for (const c of d.commits)
+        rows.push(await commitBySha(ctx, d.repository, c.sha));
       if (rows.some((r) => !r)) continue;
       const commits = await deployCommitsOf(ctx, rows as Doc<"commits">[]);
       if (JSON.stringify(commits) !== JSON.stringify(d.commits)) {

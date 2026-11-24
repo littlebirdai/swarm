@@ -6,7 +6,15 @@ import "./chat.css";
 // same drop handler MessageInput fills, so they land in its attachment strip and
 // upload pipeline exactly like a paste or a drop. `anyFile` (a session's
 // composer) takes any file; otherwise it picks images.
-export function ComposerAttachButton({ dropRef, className = "ch-composer-attach", anyFile = false }: { dropRef: MutableRefObject<((files: File[]) => void) | null>; className?: string; anyFile?: boolean }) {
+export function ComposerAttachButton({
+  dropRef,
+  className = "ch-composer-attach",
+  anyFile = false,
+}: {
+  dropRef: MutableRefObject<((files: File[]) => void) | null>;
+  className?: string;
+  anyFile?: boolean;
+}) {
   const label = anyFile ? "Attach files" : "Attach an image";
   return (
     <button
@@ -14,9 +22,17 @@ export function ComposerAttachButton({ dropRef, className = "ch-composer-attach"
       className={className}
       title={label}
       aria-label={label}
-      onClick={() => pickFiles(anyFile ? undefined : "image/*", (files) => dropRef.current?.(files))}
+      onClick={() =>
+        pickFiles(anyFile ? undefined : "image/*", (files) =>
+          dropRef.current?.(files),
+        )
+      }
     >
-      {anyFile ? <Paperclip className="w-3.5 h-3.5" /> : <ImagePlus className="w-3.5 h-3.5" />}
+      {anyFile ? (
+        <Paperclip className="w-3.5 h-3.5" />
+      ) : (
+        <ImagePlus className="w-3.5 h-3.5" />
+      )}
     </button>
   );
 }
@@ -24,7 +40,10 @@ export function ComposerAttachButton({ dropRef, className = "ch-composer-attach"
 // The file input exists only while the picker is open. Kept mounted, it went
 // in and out of the page with every conversation switch (the composer remounts
 // per session), and the browser rewrote its attributes each time.
-function pickFiles(accept: string | undefined, onPick: (files: File[]) => void) {
+function pickFiles(
+  accept: string | undefined,
+  onPick: (files: File[]) => void,
+) {
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = true;

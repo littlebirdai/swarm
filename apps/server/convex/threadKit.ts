@@ -1,7 +1,11 @@
 // The kit every Threads kind resolver shares (threads.ts, threadPageCodeKinds.ts):
 // the per-request page cache, the resolver contract, and the Threads badge rule.
 
-import type { ListMinePayload, ThreadLastReply, ThreadRead } from "./threadsTypes";
+import type {
+  ListMinePayload,
+  ThreadLastReply,
+  ThreadRead,
+} from "./threadsTypes";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { extractMentionHandles } from "@codecast/shared/chat";
@@ -47,12 +51,20 @@ export function newPageCache(): PageCache {
   };
 }
 
-export async function memo<T>(map: Map<string, T>, key: string, load: () => Promise<T>): Promise<T> {
+export async function memo<T>(
+  map: Map<string, T>,
+  key: string,
+  load: () => Promise<T>,
+): Promise<T> {
   if (!map.has(key)) map.set(key, await load());
   return map.get(key)!;
 }
 
-export async function userFor(ctx: ReadCtx, cache: PageCache, userId: Id<"users"> | undefined): Promise<Doc<"users"> | null> {
+export async function userFor(
+  ctx: ReadCtx,
+  cache: PageCache,
+  userId: Id<"users"> | undefined,
+): Promise<Doc<"users"> | null> {
   if (!userId) return null;
   return await memo(cache.users, String(userId), () => ctx.db.get(userId));
 }
@@ -65,29 +77,70 @@ export function displayName(user: Doc<"users"> | null): string | undefined {
  *  thread still renders and replies in place. */
 export const THREAD_PAYLOAD_ROWS = 50;
 
-export function capped(counted: number): { unread: number; unread_capped: boolean } {
-  return { unread: Math.min(counted, UNREAD_CAP), unread_capped: counted > UNREAD_CAP };
+export function capped(counted: number): {
+  unread: number;
+  unread_capped: boolean;
+} {
+  return {
+    unread: Math.min(counted, UNREAD_CAP),
+    unread_capped: counted > UNREAD_CAP,
+  };
 }
 
 export type ThreadKindResolver = {
-  access(ctx: ReadCtx, userId: Id<"users">, row: ThreadRead, cache: PageCache): Promise<boolean>;
-  unread(ctx: ReadCtx, userId: Id<"users">, row: ThreadRead, cache: PageCache): Promise<{ unread: number; unread_capped: boolean }>;
+  access(
+    ctx: ReadCtx,
+    userId: Id<"users">,
+    row: ThreadRead,
+    cache: PageCache,
+  ): Promise<boolean>;
+  unread(
+    ctx: ReadCtx,
+    userId: Id<"users">,
+    row: ThreadRead,
+    cache: PageCache,
+  ): Promise<{ unread: number; unread_capped: boolean }>;
   /** The newest counted row's stamp, 0 when none. A read mark clamps to it. */
   newestAt(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<number>;
-  load(ctx: ReadCtx, userId: Id<"users">, row: ThreadRead, cache: PageCache, payload: ListMinePayload): Promise<void>;
+  load(
+    ctx: ReadCtx,
+    userId: Id<"users">,
+    row: ThreadRead,
+    cache: PageCache,
+    payload: ListMinePayload,
+  ): Promise<void>;
   /** The reply the collapsed row previews: the newest one that is news for
    *  the viewer, else the newest at all. */
-  preview(ctx: ReadCtx, userId: Id<"users">, row: ThreadRead, cache: PageCache): Promise<ThreadLastReply | null>;
-  title?(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<string | undefined>;
+  preview(
+    ctx: ReadCtx,
+    userId: Id<"users">,
+    row: ThreadRead,
+    cache: PageCache,
+  ): Promise<ThreadLastReply | null>;
+  title?(
+    ctx: ReadCtx,
+    row: ThreadRead,
+    cache: PageCache,
+  ): Promise<string | undefined>;
   /** Whether the unread part waits on the viewer (waitsOnViewer's rule).
    *  Only these threads count on the Threads badge; the rest read as
    *  activity. A kind without it never counts (a decision's thread is the
    *  Decisions badge's). */
-  forYou?(ctx: ReadCtx, userId: Id<"users">, row: ThreadRead, cache: PageCache): Promise<boolean>;
+  forYou?(
+    ctx: ReadCtx,
+    userId: Id<"users">,
+    row: ThreadRead,
+    cache: PageCache,
+  ): Promise<boolean>;
 };
 
 /** Does this text @-name the viewer? */
-export async function namesViewer(ctx: ReadCtx, cache: PageCache, userId: Id<"users">, text: string | undefined): Promise<boolean> {
+export async function namesViewer(
+  ctx: ReadCtx,
+  cache: PageCache,
+  userId: Id<"users">,
+  text: string | undefined,
+): Promise<boolean> {
   const handles = extractMentionHandles(text ?? "");
   if (!handles.length) return false;
   const viewer = await userFor(ctx, cache, userId);
@@ -103,7 +156,11 @@ export async function waitsOnViewer<T>(
   cache: PageCache,
   userId: Id<"users">,
   unread: T[],
-  rule: { isAgent: (c: T) => boolean; answersViewer: (c: T) => boolean; text: (c: T) => string | undefined },
+  rule: {
+    isAgent: (c: T) => boolean;
+    answersViewer: (c: T) => boolean;
+    text: (c: T) => string | undefined;
+  },
 ): Promise<boolean> {
   for (const c of unread) {
     if (!rule.isAgent(c) || rule.answersViewer(c)) return true;

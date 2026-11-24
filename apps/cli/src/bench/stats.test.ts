@@ -31,14 +31,30 @@ describe("summarizeLatency", () => {
 
   test("empty input has null quantiles", () => {
     const s = summarizeLatency([]);
-    expect(s).toEqual({ n: 0, p50: null, p90: null, p99: null, max: null, over1s: 0 });
+    expect(s).toEqual({
+      n: 0,
+      p50: null,
+      p90: null,
+      p99: null,
+      max: null,
+      over1s: 0,
+    });
   });
 });
 
 describe("histogram", () => {
   test("buckets by edges and reports mean and max per bucket", () => {
-    const h = histogram([100, 2000, 2500, 7000, 30000], [2000, 5000, 10000, 20000]);
-    expect(h.map((b) => b.label)).toEqual(["<2000ms", "2000-5000ms", "5000-10000ms", "10000-20000ms", ">=20000ms"]);
+    const h = histogram(
+      [100, 2000, 2500, 7000, 30000],
+      [2000, 5000, 10000, 20000],
+    );
+    expect(h.map((b) => b.label)).toEqual([
+      "<2000ms",
+      "2000-5000ms",
+      "5000-10000ms",
+      "10000-20000ms",
+      ">=20000ms",
+    ]);
     expect(h.map((b) => b.count)).toEqual([1, 2, 1, 0, 1]);
     expect(h[1].meanMs).toBe(2250);
     expect(h[1].maxMs).toBe(2500);
@@ -47,6 +63,9 @@ describe("histogram", () => {
   });
 });
 
-for (const value of [NaN, Infinity, -1]) test(`rejects invalid latency ${value}`, () => {
-  expect(() => summarizeLatency([1, value])).toThrow("invalid latency sample");
-});
+for (const value of [NaN, Infinity, -1])
+  test(`rejects invalid latency ${value}`, () => {
+    expect(() => summarizeLatency([1, value])).toThrow(
+      "invalid latency sample",
+    );
+  });

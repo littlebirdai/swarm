@@ -50,7 +50,14 @@ interface TeamFlowShellProps {
 
 // Elements that answer Enter themselves; the shell's Enter-advance must
 // leave them alone (SUMMARY toggles its disclosure, A follows its link).
-const TEXT_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"]);
+const TEXT_TAGS = new Set([
+  "INPUT",
+  "TEXTAREA",
+  "SELECT",
+  "BUTTON",
+  "A",
+  "SUMMARY",
+]);
 
 /**
  * Shared shell for the create and join team flows: progress rail on the
@@ -114,7 +121,12 @@ export function TeamFlowShell({
       if (e.key === "Escape") {
         const el = e.target as HTMLElement | null;
         // Esc inside a text field only leaves the field. A second Esc goes back.
-        if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+        if (
+          el &&
+          (el.tagName === "INPUT" ||
+            el.tagName === "TEXTAREA" ||
+            el.isContentEditable)
+        ) {
           e.preventDefault();
           el.blur();
           return;
@@ -124,7 +136,12 @@ export function TeamFlowShell({
         onBack();
         return;
       }
-      if (e.key === "Enter" && enterAdvances && onContinue && !continueDisabled) {
+      if (
+        e.key === "Enter" &&
+        enterAdvances &&
+        onContinue &&
+        !continueDisabled
+      ) {
         const el = e.target as HTMLElement | null;
         // A focused radio advances: selection already follows focus in
         // these groups (arrows move and select, Space selects), so Enter
@@ -132,7 +149,12 @@ export function TeamFlowShell({
         // stops the native button click, and the step moves on. Real
         // buttons and text fields keep Enter for themselves.
         const isRadio = el?.getAttribute("role") === "radio";
-        if (!isRadio && el && (TEXT_TAGS.has(el.tagName) || el.isContentEditable)) return;
+        if (
+          !isRadio &&
+          el &&
+          (TEXT_TAGS.has(el.tagName) || el.isContentEditable)
+        )
+          return;
         e.preventDefault();
         onContinue();
       }
@@ -142,20 +164,36 @@ export function TeamFlowShell({
   }, [onBack, onContinue, continueDisabled, enterAdvances]);
 
   const accent = crest.color ? `var(--sol-${crest.color})` : undefined;
-  const style = accent ? ({ "--team-flow-accent": accent } as CSSProperties) : undefined;
+  const style = accent
+    ? ({ "--team-flow-accent": accent } as CSSProperties)
+    : undefined;
   // The keycap is a promise that Enter works, so it hides while the action
   // is disabled.
   const showEnterHint = (enterAdvances || !!formId) && !continueDisabled;
   const namePlaceholder = !crest.name?.trim();
 
   return (
-    <div className="tf-root flex flex-col sm:flex-row gap-6 sm:gap-10" style={style}>
-      <aside className="sm:w-40 shrink-0 tf-reveal" style={{ "--tf-i": 0 } as CSSProperties}>
+    <div
+      className="tf-root flex flex-col sm:flex-row gap-6 sm:gap-10"
+      style={style}
+    >
+      <aside
+        className="sm:w-40 shrink-0 tf-reveal"
+        style={{ "--tf-i": 0 } as CSSProperties}
+      >
         <div className="flex sm:flex-col items-center sm:items-start gap-3 sm:gap-2 mb-4 sm:mb-6">
           {/* The subject of the whole surface, so it takes the fuller tile. */}
-          <TeamCrest icon={crest.icon} color={crest.color} size="lg" tone="strong" className="tf-crest" />
+          <TeamCrest
+            icon={crest.icon}
+            color={crest.color}
+            size="lg"
+            tone="strong"
+            className="tf-crest"
+          />
           <div className="min-w-0">
-            <div className="tf-eyebrow text-mark uppercase tracking-wider">{eyebrow}</div>
+            <div className="tf-eyebrow text-mark uppercase tracking-wider">
+              {eyebrow}
+            </div>
             {/* No aria-live: on step 1 this mirrors the name field on every
                 keystroke, and a live region would announce each character a
                 second time on top of the input's own echo. */}
@@ -174,9 +212,13 @@ export function TeamFlowShell({
         {/* flex-wrap: below sm the rail is a horizontal row, and four labels
             outgrow a 390px viewport; wrapping keeps every step readable
             without clipping or page-level horizontal scroll. */}
-        <ol className="flex flex-wrap sm:flex-col gap-x-4 gap-y-2 sm:gap-0" aria-label="Steps">
+        <ol
+          className="flex flex-wrap sm:flex-col gap-x-4 gap-y-2 sm:gap-0"
+          aria-label="Steps"
+        >
           {steps.map((s, i) => {
-            const state = i === stepIndex ? "active" : i <= visited ? "done" : "todo";
+            const state =
+              i === stepIndex ? "active" : i <= visited ? "done" : "todo";
             // A done step is a button to that step, in either direction:
             // one click beats pressing Esc or Continue several times.
             const clickable = state === "done" && !!onStepSelect;
@@ -184,7 +226,8 @@ export function TeamFlowShell({
               <div
                 className={cn(
                   "tf-marker flex h-6 w-6 items-center justify-center rounded-full text-meta font-semibold shrink-0",
-                  state === "todo" && "bg-sol-bg-alt text-sol-text-dim border border-sol-border/60",
+                  state === "todo" &&
+                    "bg-sol-bg-alt text-sol-text-dim border border-sol-border/60",
                 )}
                 data-state={state}
               >
@@ -195,7 +238,9 @@ export function TeamFlowShell({
               <span
                 className={cn(
                   "text-sm leading-6 transition-colors",
-                  state === "active" ? "text-sol-text font-medium" : "text-sol-text-dim",
+                  state === "active"
+                    ? "text-sol-text font-medium"
+                    : "text-sol-text-dim",
                   clickable && "group-hover:text-sol-text",
                 )}
               >
@@ -210,7 +255,10 @@ export function TeamFlowShell({
                 // aria-current belongs on the list item, so a screen reader
                 // hears "current step" while reading the step name itself.
                 aria-current={state === "active" ? "step" : undefined}
-                className={cn("relative flex items-center", i < steps.length - 1 && "sm:pb-8")}
+                className={cn(
+                  "relative flex items-center",
+                  i < steps.length - 1 && "sm:pb-8",
+                )}
               >
                 {clickable ? (
                   <button
@@ -241,18 +289,35 @@ export function TeamFlowShell({
       </aside>
 
       <section
-        className={cn("flex-1 min-w-0 flex flex-col", navigated && "tf-step-enter")}
-        style={navigated ? ({ "--tf-dir": stepDir } as CSSProperties) : undefined}
+        className={cn(
+          "flex-1 min-w-0 flex flex-col",
+          navigated && "tf-step-enter",
+        )}
+        style={
+          navigated ? ({ "--tf-dir": stepDir } as CSSProperties) : undefined
+        }
         key={stepIndex}
       >
-        <header className={cn("mb-6", !navigated && "tf-reveal")} style={{ "--tf-i": 1 } as CSSProperties}>
-          <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold text-sol-text focus:outline-none">
+        <header
+          className={cn("mb-6", !navigated && "tf-reveal")}
+          style={{ "--tf-i": 1 } as CSSProperties}
+        >
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-2xl font-semibold text-sol-text focus:outline-none"
+          >
             {heading}
           </h1>
-          {description && <p className="mt-1.5 text-sm text-sol-text-dim">{description}</p>}
+          {description && (
+            <p className="mt-1.5 text-sm text-sol-text-dim">{description}</p>
+          )}
         </header>
 
-        <div className={cn("flex-1 min-w-0", !navigated && "tf-reveal")} style={{ "--tf-i": 2 } as CSSProperties}>
+        <div
+          className={cn("flex-1 min-w-0", !navigated && "tf-reveal")}
+          style={{ "--tf-i": 2 } as CSSProperties}
+        >
           {children}
         </div>
 
@@ -263,14 +328,18 @@ export function TeamFlowShell({
           )}
           style={{ "--tf-i": 3 } as CSSProperties}
         >
-          {onBack && <button
-            type="button"
-            onClick={onBack}
-            className="tf-ghost -ml-3 inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--team-flow-accent)]"
-          >
-            {backLabel}
-            <span className="tf-key-hint"><KeyCap size="xs">Esc</KeyCap></span>
-          </button>}
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="tf-ghost -ml-3 inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--team-flow-accent)]"
+            >
+              {backLabel}
+              <span className="tf-key-hint">
+                <KeyCap size="xs">Esc</KeyCap>
+              </span>
+            </button>
+          )}
           <div className="flex-1" />
           {onSkip && (
             <button
@@ -290,7 +359,11 @@ export function TeamFlowShell({
               className="tf-primary inline-flex items-center gap-2 h-9 px-4 rounded-md text-sm font-medium disabled:opacity-50 disabled:pointer-events-none"
             >
               {continueLabel}
-              {showEnterHint && <span className="tf-key-hint"><KeyCap size="xs">↵</KeyCap></span>}
+              {showEnterHint && (
+                <span className="tf-key-hint">
+                  <KeyCap size="xs">↵</KeyCap>
+                </span>
+              )}
             </button>
           )}
         </footer>

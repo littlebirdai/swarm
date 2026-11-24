@@ -1,21 +1,31 @@
-import { toast } from 'sonner';
-import type { TipDef } from './registry';
-import { MenuKeyCaps } from '../components/KeyboardShortcutsHelp';
+import { toast } from "sonner";
+import type { TipDef } from "./registry";
+import { MenuKeyCaps } from "../components/KeyboardShortcutsHelp";
 
 // A tip that teaches a chord shows it as KeyCaps under the line, so no key
 // name is ever written into the copy as plain text.
 export function showMilestoneTip(tip: TipDef) {
-  const keys = tip.shortcutAction ? { description: <MenuKeyCaps action={tip.shortcutAction} className="mt-1 flex items-center gap-[2px]" /> } : {};
+  const keys = tip.shortcutAction
+    ? {
+        description: (
+          <MenuKeyCaps
+            action={tip.shortcutAction}
+            className="mt-1 flex items-center gap-[2px]"
+          />
+        ),
+      }
+    : {};
   toast(tip.content, {
     duration: 4000,
     ...keys,
-    className: 'tip-milestone',
+    className: "tip-milestone",
     style: {
-      background: 'var(--sol-bg-alt)',
-      border: '1px solid color-mix(in srgb, var(--sol-cyan) 30%, transparent)',
-      color: 'var(--sol-text)',
-      fontSize: '13px',
-      boxShadow: '0 0 20px color-mix(in srgb, var(--sol-cyan) 10%, transparent)',
+      background: "var(--sol-bg-alt)",
+      border: "1px solid color-mix(in srgb, var(--sol-cyan) 30%, transparent)",
+      color: "var(--sol-text)",
+      fontSize: "13px",
+      boxShadow:
+        "0 0 20px color-mix(in srgb, var(--sol-cyan) 10%, transparent)",
     },
     icon: <MilestoneIcon />,
   });

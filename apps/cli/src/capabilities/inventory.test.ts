@@ -44,11 +44,19 @@ write(
   path.join(HOME, ".claude", "skills", "lowercase", "skill.md"),
   "---\nname: lowercase\ndescription: lower manifest\n---\n",
 );
-write(path.join(HOME, ".claude", "commands", "commit.md"), "---\ndescription: Commit changes\n---\n");
-write(path.join(HOME, ".claude", "agents", "critic.md"), "---\ndescription: Finds bugs\n---\n");
+write(
+  path.join(HOME, ".claude", "commands", "commit.md"),
+  "---\ndescription: Commit changes\n---\n",
+);
+write(
+  path.join(HOME, ".claude", "agents", "critic.md"),
+  "---\ndescription: Finds bugs\n---\n",
+);
 write(
   path.join(HOME, ".claude", "settings.json"),
-  JSON.stringify({ enabledPlugins: { "code-simplifier@claude-plugins-official": true } }),
+  JSON.stringify({
+    enabledPlugins: { "code-simplifier@claude-plugins-official": true },
+  }),
 );
 write(
   path.join(HOME, ".claude", "plugins", "known_marketplaces.json"),
@@ -65,23 +73,40 @@ write(
     version: 2,
     plugins: {
       "code-simplifier@claude-plugins-official": [
-        { scope: "user", version: "1.0.0", gitCommitSha: "b36fd4b753018b0b340803579399992a32e43502" },
+        {
+          scope: "user",
+          version: "1.0.0",
+          gitCommitSha: "b36fd4b753018b0b340803579399992a32e43502",
+        },
       ],
       // Downloaded, but no settings file declares it — the third state.
       "ralph-loop@claude-plugins-official": [
-        { scope: "user", version: "1.0.0", gitCommitSha: "aaa1111111111111111111111111111111111111" },
+        {
+          scope: "user",
+          version: "1.0.0",
+          gitCommitSha: "aaa1111111111111111111111111111111111111",
+        },
       ],
       // Installed at project scope for a DIFFERENT checkout. On this disk, but
       // not a capability of the project we are asking about.
       "other-project@claude-plugins-official": [
-        { scope: "project", projectPath: "/somewhere/else", version: "2.0.0", gitCommitSha: "bbb2222222222222222222222222222222222222" },
+        {
+          scope: "project",
+          projectPath: "/somewhere/else",
+          version: "2.0.0",
+          gitCommitSha: "bbb2222222222222222222222222222222222222",
+        },
       ],
     },
   }),
 );
 write(
   path.join(HOME, ".claude.json"),
-  JSON.stringify({ mcpServers: { electron: { command: "node", args: ["server.js", "--port", "1"] } } }),
+  JSON.stringify({
+    mcpServers: {
+      electron: { command: "node", args: ["server.js", "--port", "1"] },
+    },
+  }),
 );
 
 // --- project + local scope --------------------------------------------------
@@ -103,7 +128,9 @@ write(
 );
 write(
   path.join(PROJ, ".claude", "settings.local.json"),
-  JSON.stringify({ enabledPlugins: { "local-only@claude-plugins-official": true } }),
+  JSON.stringify({
+    enabledPlugins: { "local-only@claude-plugins-official": true },
+  }),
 );
 write(
   path.join(PROJ, ".mcp.json"),
@@ -124,15 +151,22 @@ afterAll(() => {
 });
 const restoreModes: string[] = [];
 
-const find = (inv: ReturnType<typeof readInventory>, kind: string, name: string) =>
-  inv.items.find((i) => i.kind === kind && i.name === name);
+const find = (
+  inv: ReturnType<typeof readInventory>,
+  kind: string,
+  name: string,
+) => inv.items.find((i) => i.kind === kind && i.name === name);
 
 describe("skills", () => {
   const inv = readInventory(HOME, PROJ);
 
   test("reads both the directory and bare-file layouts", () => {
-    expect(find(inv, "skill", "domain-search")?.description).toBe("Check domain availability");
-    expect(find(inv, "skill", "grill-me")?.description).toBe("Interview the user");
+    expect(find(inv, "skill", "domain-search")?.description).toBe(
+      "Check domain availability",
+    );
+    expect(find(inv, "skill", "grill-me")?.description).toBe(
+      "Interview the user",
+    );
   });
 
   test("finds a lowercase skill.md manifest", () => {
@@ -163,9 +197,15 @@ describe("plugins", () => {
   const inv = readInventory(HOME, PROJ);
 
   test("reports each scope that enabled a plugin", () => {
-    expect(find(inv, "plugin", "code-simplifier@claude-plugins-official")?.scope).toBe("user");
-    expect(find(inv, "plugin", "frontend-design@claude-plugins-official")?.scope).toBe("project");
-    expect(find(inv, "plugin", "local-only@claude-plugins-official")?.scope).toBe("local");
+    expect(
+      find(inv, "plugin", "code-simplifier@claude-plugins-official")?.scope,
+    ).toBe("user");
+    expect(
+      find(inv, "plugin", "frontend-design@claude-plugins-official")?.scope,
+    ).toBe("project");
+    expect(
+      find(inv, "plugin", "local-only@claude-plugins-official")?.scope,
+    ).toBe("local");
   });
 
   // Three states, and the UI has to tell them apart. `claude plugin list --json`
@@ -178,41 +218,62 @@ describe("plugins", () => {
   });
 
   test("switched-on plugins are marked enabled", () => {
-    expect(find(inv, "plugin", "frontend-design@claude-plugins-official")?.enabled).toBe(true);
+    expect(
+      find(inv, "plugin", "frontend-design@claude-plugins-official")?.enabled,
+    ).toBe(true);
   });
 
   test("a plugin installed but declared nowhere is reported as installed and off", () => {
     // ralph-loop is in installed_plugins.json only — no settings file mentions it.
     const orphan = find(inv, "plugin", "ralph-loop@claude-plugins-official");
-    expect(orphan).toMatchObject({ enabled: false, installed: true, scope: "user" });
+    expect(orphan).toMatchObject({
+      enabled: false,
+      installed: true,
+      scope: "user",
+    });
     expect(orphan?.meta?.sha).toBe("aaa1111111111111111111111111111111111111");
   });
 
   test("a declared plugin that was never downloaded is marked not installed", () => {
-    expect(find(inv, "plugin", "frontend-design@claude-plugins-official")?.installed).toBe(false);
+    expect(
+      find(inv, "plugin", "frontend-design@claude-plugins-official")?.installed,
+    ).toBe(false);
   });
 
-
   test("a plugin installed for another project is not reported here", () => {
-    expect(find(inv, "plugin", "other-project@claude-plugins-official")).toBeUndefined();
+    expect(
+      find(inv, "plugin", "other-project@claude-plugins-official"),
+    ).toBeUndefined();
   });
 
   test("…but is reported when that project is the one being asked about", () => {
     const other = readInventory(HOME, "/somewhere/else");
-    const p = other.items.find((i) => i.kind === "plugin" && i.name === "other-project@claude-plugins-official");
-    expect(p).toMatchObject({ scope: "project", installed: true, enabled: false });
+    const p = other.items.find(
+      (i) =>
+        i.kind === "plugin" &&
+        i.name === "other-project@claude-plugins-official",
+    );
+    expect(p).toMatchObject({
+      scope: "project",
+      installed: true,
+      enabled: false,
+    });
     expect(p?.meta?.projectPath).toBe("/somewhere/else");
   });
 
   test("splits the id into plugin and marketplace", () => {
-    expect(find(inv, "plugin", "frontend-design@claude-plugins-official")?.meta).toMatchObject({
+    expect(
+      find(inv, "plugin", "frontend-design@claude-plugins-official")?.meta,
+    ).toMatchObject({
       plugin: "frontend-design",
       marketplace: "claude-plugins-official",
     });
   });
 
   test("folds the recorded sha and version onto the row", () => {
-    expect(find(inv, "plugin", "code-simplifier@claude-plugins-official")?.meta).toMatchObject({
+    expect(
+      find(inv, "plugin", "code-simplifier@claude-plugins-official")?.meta,
+    ).toMatchObject({
       version: "1.0.0",
       sha: "b36fd4b753018b0b340803579399992a32e43502",
     });
@@ -222,12 +283,19 @@ describe("plugins", () => {
     const names = inv.marketplaces.map((m) => m.name).sort();
     expect(names).toContain("claude-plugins-official");
     expect(names).toContain("acme-internal");
-    expect(inv.marketplaces.find((m) => m.name === "acme-internal")?.repo).toBe("acme/plugins");
+    expect(inv.marketplaces.find((m) => m.name === "acme-internal")?.repo).toBe(
+      "acme/plugins",
+    );
   });
 
   test("readKnownMarketplaces and readInstalledPluginPins read standalone", () => {
-    expect(readKnownMarketplaces(HOME)[0]?.repo).toBe("anthropics/claude-plugins-official");
-    expect(readInstalledPluginPins(HOME)["code-simplifier@claude-plugins-official"]?.sha).toHaveLength(40);
+    expect(readKnownMarketplaces(HOME)[0]?.repo).toBe(
+      "anthropics/claude-plugins-official",
+    );
+    expect(
+      readInstalledPluginPins(HOME)["code-simplifier@claude-plugins-official"]
+        ?.sha,
+    ).toHaveLength(40);
   });
 });
 
@@ -237,13 +305,19 @@ describe("mcp servers", () => {
   test("reads a stdio server from the user scope and shows its command line", () => {
     const s = find(inv, "mcp", "electron");
     expect(s?.scope).toBe("user");
-    expect(s?.meta).toMatchObject({ transport: "stdio", command: "node server.js --port 1" });
+    expect(s?.meta).toMatchObject({
+      transport: "stdio",
+      command: "node server.js --port 1",
+    });
   });
 
   test("reads a remote server from the project .mcp.json", () => {
     const s = find(inv, "mcp", "sentry");
     expect(s?.scope).toBe("project");
-    expect(s?.meta).toMatchObject({ transport: "http", url: "https://mcp.sentry.dev/mcp" });
+    expect(s?.meta).toMatchObject({
+      transport: "http",
+      url: "https://mcp.sentry.dev/mcp",
+    });
   });
 });
 
@@ -276,7 +350,10 @@ describe("robustness", () => {
 
   test("a skill without frontmatter falls back to its file name", () => {
     const bare = path.join(ROOT, "bare");
-    write(path.join(bare, ".claude", "skills", "no-meta", "SKILL.md"), "just a body\n");
+    write(
+      path.join(bare, ".claude", "skills", "no-meta", "SKILL.md"),
+      "just a body\n",
+    );
     expect(find(readInventory(bare), "skill", "no-meta")).toBeDefined();
   });
 });
@@ -310,7 +387,9 @@ describe("unreadable", () => {
 
   test("an unreadable directory is distinguishable from an empty one", () => {
     const emptyHome = path.join(ROOT, "empty-skills");
-    fs.mkdirSync(path.join(emptyHome, ".claude", "skills"), { recursive: true });
+    fs.mkdirSync(path.join(emptyHome, ".claude", "skills"), {
+      recursive: true,
+    });
     expect(readInventory(emptyHome).unreadable).toEqual([]);
 
     const deniedHome = path.join(ROOT, "denied-skills");
@@ -318,7 +397,10 @@ describe("unreadable", () => {
     fs.mkdirSync(skillsDir, { recursive: true });
     fs.chmodSync(skillsDir, 0o000);
     restoreModes.push(skillsDir);
-    expect(readInventory(deniedHome).unreadable).toContainEqual({ path: skillsDir, error: "EACCES" });
+    expect(readInventory(deniedHome).unreadable).toContainEqual({
+      path: skillsDir,
+      error: "EACCES",
+    });
   });
 
   // The client gate stats `~/.codex` / `~/.cursor`. With exec denied on HOME
@@ -337,7 +419,10 @@ describe("unreadable", () => {
   test("a dangling symlink is unknown: readdir listed it, so ENOENT is recorded", () => {
     const home = path.join(ROOT, "dangling");
     const skillsDir = path.join(home, ".claude", "skills");
-    write(path.join(skillsDir, "ok", "SKILL.md"), "---\nname: ok\ndescription: fine\n---\n");
+    write(
+      path.join(skillsDir, "ok", "SKILL.md"),
+      "---\nname: ok\ndescription: fine\n---\n",
+    );
     const link = path.join(skillsDir, "gone");
     fs.symlinkSync(path.join(home, "no-such-target"), link);
     const inv = readInventory(home);
@@ -355,26 +440,26 @@ describe("codex", () => {
   write(
     path.join(home, ".codex", "config.toml"),
     [
-      "model = \"gpt-5\"",
+      'model = "gpt-5"',
       "",
       "[mcp_servers]",
-      "inline = { command = \"uvx\", args = [\"inline-mcp\"] }",
+      'inline = { command = "uvx", args = ["inline-mcp"] }',
       "",
       "[mcp_servers.docs]",
-      "command = \"npx\"",
-      "args = [\"-y\", \"docs-mcp\"]",
+      'command = "npx"',
+      'args = ["-y", "docs-mcp"]',
       "",
-      "[mcp_servers.\"dotted.name\"]",
-      "url = \"https://mcp.example.dev/mcp\"",
+      '[mcp_servers."dotted.name"]',
+      'url = "https://mcp.example.dev/mcp"',
       "",
       "[mcp_servers.docs.env] # a nested table must not bleed into the next server",
-      "KEY = \"v\"",
+      'KEY = "v"',
       "",
       "[mcp_servers.longpkg]",
-      "command = \"npx\"",
+      'command = "npx"',
       "args = [",
-      "  \"-y\",",
-      "  \"@scope/very-long-package\",",
+      '  "-y",',
+      '  "@scope/very-long-package",',
       "]",
       "",
       "[features]",
@@ -385,7 +470,11 @@ describe("codex", () => {
   // declared by codex's descriptor (mcpConfig.project, skillsDir.project).
   write(
     path.join(proj, ".codex", "config.toml"),
-    ["[mcp_servers.projsrv]", "command = \"deno\"", "args = [\"run\", \"srv.ts\"]"].join("\n"),
+    [
+      "[mcp_servers.projsrv]",
+      'command = "deno"',
+      'args = ["run", "srv.ts"]',
+    ].join("\n"),
   );
   write(
     path.join(proj, ".agents", "skills", "proj-skill", "SKILL.md"),
@@ -395,7 +484,17 @@ describe("codex", () => {
     path.join(home, ".codex", "hooks.json"),
     JSON.stringify({
       hooks: {
-        SessionStart: [{ hooks: [{ type: "command", command: "/x/.codecast/hooks/stable-feed-codex.sh", additionalContextLimit: 0 }] }],
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: "/x/.codecast/hooks/stable-feed-codex.sh",
+                additionalContextLimit: 0,
+              },
+            ],
+          },
+        ],
       },
     }),
   );
@@ -405,8 +504,15 @@ describe("codex", () => {
   test("one mcp item per [mcp_servers.*] section, tagged client codex", () => {
     const inv = readInventory(home);
     const docs = find(inv, "mcp", "docs");
-    expect(docs).toMatchObject({ client: "codex", scope: "user", enabled: true });
-    expect(docs?.meta).toMatchObject({ transport: "stdio", command: "npx -y docs-mcp" });
+    expect(docs).toMatchObject({
+      client: "codex",
+      scope: "user",
+      enabled: true,
+    });
+    expect(docs?.meta).toMatchObject({
+      transport: "stdio",
+      command: "npx -y docs-mcp",
+    });
     expect(find(inv, "mcp", "dotted.name")?.meta).toMatchObject({
       transport: "http",
       url: "https://mcp.example.dev/mcp",
@@ -414,7 +520,9 @@ describe("codex", () => {
     // The nested [mcp_servers.docs.env] table is docs's config, not a server.
     // The real ~/.codex/config.toml has one, and the first parser cut minted a
     // phantom `node_repl.env` server from it.
-    expect(inv.items.filter((i) => i.client === "codex" && i.kind === "mcp")).toHaveLength(4);
+    expect(
+      inv.items.filter((i) => i.client === "codex" && i.kind === "mcp"),
+    ).toHaveLength(4);
     expect(inv.unreadable).toEqual([]);
   });
 
@@ -439,22 +547,33 @@ describe("codex", () => {
   // the registry is scanned without this module learning a path.
   test("the project .codex/config.toml and .agents/skills report at project scope", () => {
     const inv = readInventory(home, proj);
-    expect(find(inv, "mcp", "projsrv")).toMatchObject({ client: "codex", scope: "project" });
+    expect(find(inv, "mcp", "projsrv")).toMatchObject({
+      client: "codex",
+      scope: "project",
+    });
     expect(find(inv, "mcp", "projsrv")?.meta?.command).toBe("deno run srv.ts");
-    expect(find(inv, "skill", "proj-skill")).toMatchObject({ client: "codex", scope: "project" });
+    expect(find(inv, "skill", "proj-skill")).toMatchObject({
+      client: "codex",
+      scope: "project",
+    });
   });
 
   test("hooks.json entries report as hook items", () => {
     const hook = readInventory(home).items.find((i) => i.kind === "hook");
     expect(hook).toMatchObject({ client: "codex", scope: "user" });
-    expect(hook?.meta).toMatchObject({ event: "SessionStart", command: "/x/.codecast/hooks/stable-feed-codex.sh" });
+    expect(hook?.meta).toMatchObject({
+      event: "SessionStart",
+      command: "/x/.codecast/hooks/stable-feed-codex.sh",
+    });
   });
 
   test("AGENTS.md presence reports at user and project scope", () => {
     const inv = readInventory(home, proj);
     const files = inv.items.filter((i) => i.name === "AGENTS.md");
     expect(files.map((f) => f.scope).sort()).toEqual(["project", "user"]);
-    expect(files.every((f) => f.client === "codex" && f.kind === "snippet")).toBe(true);
+    expect(
+      files.every((f) => f.client === "codex" && f.kind === "snippet"),
+    ).toBe(true);
   });
 
   test("a HOME with no ~/.codex yields zero codex items and zero unreadable", () => {
@@ -471,22 +590,48 @@ describe("cursor", () => {
   const proj = path.join(ROOT, "cursor-proj");
   write(
     path.join(home, ".cursor", "mcp.json"),
-    JSON.stringify({ mcpServers: { linear: { url: "https://mcp.linear.app/sse" } } }),
+    JSON.stringify({
+      mcpServers: { linear: { url: "https://mcp.linear.app/sse" } },
+    }),
   );
   write(
     path.join(proj, ".cursor", "mcp.json"),
-    JSON.stringify({ mcpServers: { repodb: { command: "npx", args: ["repodb-mcp"] } } }),
+    JSON.stringify({
+      mcpServers: { repodb: { command: "npx", args: ["repodb-mcp"] } },
+    }),
   );
-  write(path.join(home, ".cursor", "rules", "style.mdc"), "---\ndescription: Style rules\n---\nBe terse.\n");
-  write(path.join(proj, ".cursor", "rules", "repo.mdc"), "---\ndescription: Repo rules\n---\nUse the store.\n");
-  write(path.join(home, ".cursor", "skills", "uskill", "SKILL.md"), "---\nname: uskill\ndescription: cursor user skill\n---\n");
-  write(path.join(proj, ".cursor", "skills", "pskill", "SKILL.md"), "---\nname: pskill\ndescription: cursor project skill\n---\n");
+  write(
+    path.join(home, ".cursor", "rules", "style.mdc"),
+    "---\ndescription: Style rules\n---\nBe terse.\n",
+  );
+  write(
+    path.join(proj, ".cursor", "rules", "repo.mdc"),
+    "---\ndescription: Repo rules\n---\nUse the store.\n",
+  );
+  write(
+    path.join(home, ".cursor", "skills", "uskill", "SKILL.md"),
+    "---\nname: uskill\ndescription: cursor user skill\n---\n",
+  );
+  write(
+    path.join(proj, ".cursor", "skills", "pskill", "SKILL.md"),
+    "---\nname: pskill\ndescription: cursor project skill\n---\n",
+  );
 
   test("mcp.json reports with client cursor at both scopes", () => {
     const inv = readInventory(home, proj);
-    expect(find(inv, "mcp", "linear")).toMatchObject({ client: "cursor", scope: "user" });
-    expect(find(inv, "mcp", "repodb")).toMatchObject({ client: "cursor", scope: "project" });
-    expect(find(inv, "snippet", "repo")).toMatchObject({ client: "cursor", scope: "project", description: "Repo rules" });
+    expect(find(inv, "mcp", "linear")).toMatchObject({
+      client: "cursor",
+      scope: "user",
+    });
+    expect(find(inv, "mcp", "repodb")).toMatchObject({
+      client: "cursor",
+      scope: "project",
+    });
+    expect(find(inv, "snippet", "repo")).toMatchObject({
+      client: "cursor",
+      scope: "project",
+      description: "Repo rules",
+    });
     expect(inv.unreadable).toEqual([]);
   });
 
@@ -500,8 +645,14 @@ describe("cursor", () => {
 
   test("the descriptor's skills dirs report at both scopes", () => {
     const inv = readInventory(home, proj);
-    expect(find(inv, "skill", "uskill")).toMatchObject({ client: "cursor", scope: "user" });
-    expect(find(inv, "skill", "pskill")).toMatchObject({ client: "cursor", scope: "project" });
+    expect(find(inv, "skill", "uskill")).toMatchObject({
+      client: "cursor",
+      scope: "user",
+    });
+    expect(find(inv, "skill", "pskill")).toMatchObject({
+      client: "cursor",
+      scope: "project",
+    });
   });
 
   test("a HOME with no ~/.cursor yields zero cursor items and zero unreadable", () => {
@@ -515,7 +666,10 @@ describe("shared ~/.agents/skills", () => {
   const home = path.join(ROOT, "shared-home");
   const proj = path.join(ROOT, "shared-proj");
   const sharedDir = path.join(home, ".agents", "skills", "review");
-  write(path.join(sharedDir, "SKILL.md"), "---\nname: review\ndescription: shared review skill\n---\n");
+  write(
+    path.join(sharedDir, "SKILL.md"),
+    "---\nname: review\ndescription: shared review skill\n---\n",
+  );
   fs.mkdirSync(path.join(home, ".claude", "skills"), { recursive: true });
   fs.mkdirSync(path.join(proj, ".claude", "skills"), { recursive: true });
   const userLink = path.join(home, ".claude", "skills", "review");
@@ -525,7 +679,9 @@ describe("shared ~/.agents/skills", () => {
 
   test("a skill symlinked into two client dirs is one item with two links", () => {
     const inv = readInventory(home, proj);
-    const rows = inv.items.filter((i) => i.kind === "skill" && i.name === "review");
+    const rows = inv.items.filter(
+      (i) => i.kind === "skill" && i.name === "review",
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].client).toBe("shared");
     // The narrowest link scope wins: a project link is the most specific
@@ -540,7 +696,10 @@ describe("shared ~/.agents/skills", () => {
     const onlyHome = path.join(ROOT, "projlink-home");
     const onlyProj = path.join(ROOT, "projlink-proj");
     const target = path.join(onlyHome, ".agents", "skills", "solo");
-    write(path.join(target, "SKILL.md"), "---\nname: solo\ndescription: shared\n---\n");
+    write(
+      path.join(target, "SKILL.md"),
+      "---\nname: solo\ndescription: shared\n---\n",
+    );
     fs.mkdirSync(path.join(onlyProj, ".claude", "skills"), { recursive: true });
     fs.symlinkSync(target, path.join(onlyProj, ".claude", "skills", "solo"));
     const row = find(readInventory(onlyHome, onlyProj), "skill", "solo");
@@ -566,20 +725,37 @@ describe("shared ~/.agents/skills", () => {
     expect(declared.length).toBeGreaterThan(0);
     const descHome = path.join(ROOT, "descriptor-shared");
     for (const [i, template] of declared.entries()) {
-      const dir = path.join(descHome, template.replace(/^~\//, ""), `desc-skill-${i}`);
-      write(path.join(dir, "SKILL.md"), `---\nname: desc-skill-${i}\ndescription: from a declared slot\n---\n`);
+      const dir = path.join(
+        descHome,
+        template.replace(/^~\//, ""),
+        `desc-skill-${i}`,
+      );
+      write(
+        path.join(dir, "SKILL.md"),
+        `---\nname: desc-skill-${i}\ndescription: from a declared slot\n---\n`,
+      );
     }
     const inv = readInventory(descHome);
     for (const [i] of declared.entries()) {
-      expect(find(inv, "skill", `desc-skill-${i}`)).toMatchObject({ client: "shared" });
+      expect(find(inv, "skill", `desc-skill-${i}`)).toMatchObject({
+        client: "shared",
+      });
     }
   });
 
   test("a real (non-link) client skill with the same name still reports separately", () => {
     const twinHome = path.join(ROOT, "twin-home");
-    write(path.join(twinHome, ".agents", "skills", "dup", "SKILL.md"), "---\nname: dup\ndescription: shared\n---\n");
-    write(path.join(twinHome, ".claude", "skills", "dup", "SKILL.md"), "---\nname: dup\ndescription: local copy\n---\n");
-    const rows = readInventory(twinHome).items.filter((i) => i.kind === "skill" && i.name === "dup");
+    write(
+      path.join(twinHome, ".agents", "skills", "dup", "SKILL.md"),
+      "---\nname: dup\ndescription: shared\n---\n",
+    );
+    write(
+      path.join(twinHome, ".claude", "skills", "dup", "SKILL.md"),
+      "---\nname: dup\ndescription: local copy\n---\n",
+    );
+    const rows = readInventory(twinHome).items.filter(
+      (i) => i.kind === "skill" && i.name === "dup",
+    );
     expect(rows.map((r) => r.client).sort()).toEqual(["claude", "shared"]);
   });
 
@@ -588,7 +764,10 @@ describe("shared ~/.agents/skills", () => {
   // one shared item must not silently remove it. An unlinked shared skill is
   // another client's and stays out.
   test("a linked shared skill stays in the / menu; an unlinked one stays out", () => {
-    write(path.join(home, ".agents", "skills", "codex-only", "SKILL.md"), "---\nname: codex-only\ndescription: n\n---\n");
+    write(
+      path.join(home, ".agents", "skills", "codex-only", "SKILL.md"),
+      "---\nname: codex-only\ndescription: n\n---\n",
+    );
     const names = toInvocableList(readInventory(home, proj)).map((s) => s.name);
     expect(names).toContain("review");
     expect(names).not.toContain("codex-only");
@@ -600,14 +779,19 @@ describe("shared ~/.agents/skills", () => {
   test("a shared skill linked only from a cursor dir stays out of the / menu", () => {
     const xHome = path.join(ROOT, "xlink-home");
     const target = path.join(xHome, ".agents", "skills", "curside");
-    write(path.join(target, "SKILL.md"), "---\nname: curside\ndescription: n\n---\n");
+    write(
+      path.join(target, "SKILL.md"),
+      "---\nname: curside\ndescription: n\n---\n",
+    );
     fs.mkdirSync(path.join(xHome, ".cursor", "skills"), { recursive: true });
     fs.symlinkSync(target, path.join(xHome, ".cursor", "skills", "curside"));
     const inv = readInventory(xHome);
     // The link still attaches to the one shared item…
     const row = find(inv, "skill", "curside");
     expect(row?.client).toBe("shared");
-    expect(row?.meta?.links).toBe(path.join(xHome, ".cursor", "skills", "curside"));
+    expect(row?.meta?.links).toBe(
+      path.join(xHome, ".cursor", "skills", "curside"),
+    );
     // …but does not make it claude-invocable.
     expect(toInvocableList(inv).map((s) => s.name)).not.toContain("curside");
   });
@@ -617,11 +801,23 @@ describe("shared ~/.agents/skills", () => {
   // The membership half alone would let the position mechanics regress silently.
   test("a linked shared skill keeps its symlink's position in the / menu", () => {
     const ordHome = path.join(ROOT, "order-home");
-    write(path.join(ordHome, ".agents", "skills", "mid", "SKILL.md"), "---\nname: mid\ndescription: shared\n---\n");
+    write(
+      path.join(ordHome, ".agents", "skills", "mid", "SKILL.md"),
+      "---\nname: mid\ndescription: shared\n---\n",
+    );
     const skillsDir = path.join(ordHome, ".claude", "skills");
-    write(path.join(skillsDir, "aaa", "SKILL.md"), "---\nname: aaa\ndescription: a\n---\n");
-    write(path.join(skillsDir, "zzz", "SKILL.md"), "---\nname: zzz\ndescription: z\n---\n");
-    fs.symlinkSync(path.join(ordHome, ".agents", "skills", "mid"), path.join(skillsDir, "mid"));
+    write(
+      path.join(skillsDir, "aaa", "SKILL.md"),
+      "---\nname: aaa\ndescription: a\n---\n",
+    );
+    write(
+      path.join(skillsDir, "zzz", "SKILL.md"),
+      "---\nname: zzz\ndescription: z\n---\n",
+    );
+    fs.symlinkSync(
+      path.join(ordHome, ".agents", "skills", "mid"),
+      path.join(skillsDir, "mid"),
+    );
     // The truth to match is the directory listing order the daemon itself
     // iterates — not an assumed alphabetical order.
     const listed = fs.readdirSync(skillsDir);
@@ -645,17 +841,33 @@ describe("inventory rows survive the fleet diff", () => {
   // One of every kind the reader can emit: skill, command, subagent, mcp and
   // plugin from claude, plus the two the CLI's kind list used to be missing —
   // `hook` from codex's hooks.json and `snippet` from its AGENTS.md.
-  write(path.join(home, ".claude", "skills", "s1", "SKILL.md"), "---\nname: s1\ndescription: a skill\n---\n");
-  write(path.join(home, ".claude", "commands", "c1.md"), "---\ndescription: a command\n---\n");
-  write(path.join(home, ".claude", "agents", "a1.md"), "---\ndescription: a subagent\n---\n");
-  write(path.join(home, ".claude.json"), JSON.stringify({ mcpServers: { m1: { command: "node", args: ["s.js"] } } }));
+  write(
+    path.join(home, ".claude", "skills", "s1", "SKILL.md"),
+    "---\nname: s1\ndescription: a skill\n---\n",
+  );
+  write(
+    path.join(home, ".claude", "commands", "c1.md"),
+    "---\ndescription: a command\n---\n",
+  );
+  write(
+    path.join(home, ".claude", "agents", "a1.md"),
+    "---\ndescription: a subagent\n---\n",
+  );
+  write(
+    path.join(home, ".claude.json"),
+    JSON.stringify({ mcpServers: { m1: { command: "node", args: ["s.js"] } } }),
+  );
   write(
     path.join(home, ".claude", "settings.json"),
     JSON.stringify({ enabledPlugins: { "p1@claude-plugins-official": true } }),
   );
   write(
     path.join(home, ".codex", "hooks.json"),
-    JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: "/x/h.sh" }] }] } }),
+    JSON.stringify({
+      hooks: {
+        SessionStart: [{ hooks: [{ type: "command", command: "/x/h.sh" }] }],
+      },
+    }),
   );
   // AGENTS.md at BOTH scopes on purpose: scopes stack, so this is two items that
   // must fold to one row. Without it the row-count test below could pass while
@@ -664,7 +876,9 @@ describe("inventory rows survive the fleet diff", () => {
   write(path.join(proj, "AGENTS.md"), "# project instructions\n");
 
   const inv = readInventory(home, proj);
-  const distinctCapabilities = new Set(inv.items.map((i) => `${i.kind} ${i.name}`));
+  const distinctCapabilities = new Set(
+    inv.items.map((i) => `${i.kind} ${i.name}`),
+  );
 
   test("the fixture really exercises hook and snippet", () => {
     // Without this the sweep below would pass vacuously the day the scanner
@@ -675,7 +889,9 @@ describe("inventory rows survive the fleet diff", () => {
   });
 
   test("every kind the scanner emits reaches the diff as a row", () => {
-    const diff = buildFleetDiff([{ deviceId: "d1", inventory: { items: inv.items } }]);
+    const diff = buildFleetDiff([
+      { deviceId: "d1", inventory: { items: inv.items } },
+    ]);
     const emitted = [...new Set(inv.items.map((i) => i.kind))].sort();
     const ranked = [...new Set(diff.rows.map((r) => r.kind as string))].sort();
     // Not `toContain` per kind: an equality names WHICH kind vanished when this
@@ -684,7 +900,9 @@ describe("inventory rows survive the fleet diff", () => {
   });
 
   test("no row is lost — one row per distinct capability, count for count", () => {
-    const diff = buildFleetDiff([{ deviceId: "d1", inventory: { items: inv.items } }]);
+    const diff = buildFleetDiff([
+      { deviceId: "d1", inventory: { items: inv.items } },
+    ]);
     // Distinct (kind, name) pairs rather than the raw item count, because the
     // diff folds by identity and AGENTS.md is legitimately two items and one row.
     expect(inv.items.length).toBeGreaterThan(distinctCapabilities.size);
@@ -697,8 +915,16 @@ describe("inventory rows survive the fleet diff", () => {
     // tests above would pass no matter what the kind list said. It does not:
     // an invented kind vanishes, and the real kinds survive only because they
     // are ranked.
-    const junk = { kind: "not-a-kind", name: "x", scope: "user", enabled: true, source: "/x" };
-    const diff = buildFleetDiff([{ deviceId: "d1", inventory: { items: [...inv.items, junk] } }]);
+    const junk = {
+      kind: "not-a-kind",
+      name: "x",
+      scope: "user",
+      enabled: true,
+      source: "/x",
+    };
+    const diff = buildFleetDiff([
+      { deviceId: "d1", inventory: { items: [...inv.items, junk] } },
+    ]);
     expect(diff.rows.map((r) => r.kind as string)).not.toContain("not-a-kind");
     expect(diff.rows).toHaveLength(distinctCapabilities.size);
   });
@@ -723,7 +949,9 @@ describe("toInvocableList", () => {
       path.join(dup, "proj", ".claude", "skills", "shared", "SKILL.md"),
       "---\nname: shared\ndescription: from project\n---\n",
     );
-    const list = toInvocableList(readInventory(path.join(dup, "home"), path.join(dup, "proj")));
+    const list = toInvocableList(
+      readInventory(path.join(dup, "home"), path.join(dup, "proj")),
+    );
     const shared = list.filter((s) => s.name === "shared");
     expect(shared).toHaveLength(1);
     expect(shared[0].description).toBe("from user");
@@ -731,7 +959,10 @@ describe("toInvocableList", () => {
 
   test("commands list before skills, and a command beats a same-named skill", () => {
     const kinds = path.join(ROOT, "kinds");
-    write(path.join(kinds, "home", ".claude", "commands", "deploy.md"), "---\ndescription: the command\n---\n");
+    write(
+      path.join(kinds, "home", ".claude", "commands", "deploy.md"),
+      "---\ndescription: the command\n---\n",
+    );
     write(
       path.join(kinds, "home", ".claude", "skills", "deploy", "SKILL.md"),
       "---\nname: deploy\ndescription: the skill\n---\n",
@@ -743,24 +974,39 @@ describe("toInvocableList", () => {
     const list = toInvocableList(readInventory(path.join(kinds, "home")));
     // The daemon reads all command dirs first, so the command's description
     // wins the cross-kind collision (the real machine has two such names).
-    expect(list.filter((s) => s.name === "deploy")).toEqual([{ name: "deploy", description: "the command" }]);
-    expect(list.findIndex((s) => s.name === "deploy")).toBeLessThan(list.findIndex((s) => s.name === "other"));
+    expect(list.filter((s) => s.name === "deploy")).toEqual([
+      { name: "deploy", description: "the command" },
+    ]);
+    expect(list.findIndex((s) => s.name === "deploy")).toBeLessThan(
+      list.findIndex((s) => s.name === "other"),
+    );
   });
 
   test("a shared skill linked at project scope loses to a real user skill, as the daemon answers", () => {
     const tie = path.join(ROOT, "tie");
     const home = path.join(tie, "home");
     const proj = path.join(tie, "proj");
-    write(path.join(home, ".agents", "skills", "foo", "SKILL.md"), "---\nname: foo\ndescription: shared linked\n---\n");
-    write(path.join(home, ".claude", "skills", "foo", "SKILL.md"), "---\nname: foo\ndescription: user real\n---\n");
+    write(
+      path.join(home, ".agents", "skills", "foo", "SKILL.md"),
+      "---\nname: foo\ndescription: shared linked\n---\n",
+    );
+    write(
+      path.join(home, ".claude", "skills", "foo", "SKILL.md"),
+      "---\nname: foo\ndescription: user real\n---\n",
+    );
     fs.mkdirSync(path.join(proj, ".claude", "skills"), { recursive: true });
-    fs.symlinkSync(path.join(home, ".agents", "skills", "foo"), path.join(proj, ".claude", "skills", "foo"));
+    fs.symlinkSync(
+      path.join(home, ".agents", "skills", "foo"),
+      path.join(proj, ".claude", "skills", "foo"),
+    );
     const list = toInvocableList(readInventory(home, proj));
     // The daemon lists the user dir first and first-wins, so the real user
     // skill's description is the payload — pinned here because the old
     // narrowest-scope rule answered "shared linked" and the two silently
     // diverged.
-    expect(list.filter((s) => s.name === "foo")).toEqual([{ name: "foo", description: "user real" }]);
+    expect(list.filter((s) => s.name === "foo")).toEqual([
+      { name: "foo", description: "user real" },
+    ]);
   });
 
   test("lists skills and commands but not plugins or mcp servers", () => {

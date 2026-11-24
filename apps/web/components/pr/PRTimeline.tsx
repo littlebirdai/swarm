@@ -1,4 +1,11 @@
-import { CheckCircle, MessageSquare, XCircle, Clock, Ban, Link2 } from "lucide-react";
+import {
+  CheckCircle,
+  MessageSquare,
+  XCircle,
+  Clock,
+  Ban,
+  Link2,
+} from "lucide-react";
 import { ExternalEventRow } from "../feed/ExternalEventRow";
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { CommentMarkdown } from "../comments/CommentMarkdown";
@@ -6,7 +13,12 @@ import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { PRCommentCard, PRComposer } from "./PRThread";
 import { ResolveTool } from "../comments/CommentCard";
 import { codeThreadRootKey } from "@codecast/shared/comments";
-import { accentSoft, accentVar, externalEventRowToExternalEvent, type ExternalEventRecord } from "../../lib/externalEvents";
+import {
+  accentSoft,
+  accentVar,
+  externalEventRowToExternalEvent,
+  type ExternalEventRecord,
+} from "../../lib/externalEvents";
 import { relTimeShort } from "../../lib/utils";
 import { copyText } from "../../lib/copyText";
 import { StampTime } from "../StampTime";
@@ -63,14 +75,21 @@ function ReviewItem({
     <div
       id={`review-${review._id}`}
       className="group/review rounded-lg border px-3 py-2"
-      style={{ borderColor: accentSoft(accent, 30), background: accentSoft(accent, 6) }}
+      style={{
+        borderColor: accentSoft(accent, 30),
+        background: accentSoft(accent, 6),
+      }}
     >
       <div className="flex items-center gap-2 text-[12px]">
         <Icon className="w-3.5 h-3.5" style={{ color: accentVar(accent) }} />
         <CommentAvatar name={review.author_github_username ?? "?"} size={18} />
-        <span className="font-medium text-sol-text">{review.author_github_username ?? "A reviewer"}</span>
+        <span className="font-medium text-sol-text">
+          {review.author_github_username ?? "A reviewer"}
+        </span>
         <span style={{ color: accentVar(accent) }}>{verb}</span>
-        <span className="text-sol-text-dim"><StampTime ts={review.submitted_at} format={relTimeShort} /></span>
+        <span className="text-sol-text-dim">
+          <StampTime ts={review.submitted_at} format={relTimeShort} />
+        </span>
         {linkUrl && (
           <button
             type="button"
@@ -108,9 +127,17 @@ function ReviewItem({
                 onClick={() => onJump?.(note)}
                 title="Open this thread in Files"
               >
-                <span className="font-mono text-meta text-sol-cyan shrink-0">{notePlace(note)}</span>
-                <span className="text-[12px] text-sol-text-muted truncate">{note.content}</span>
-                {note.resolved && <span className="ml-auto shrink-0 text-meta text-sol-green">resolved</span>}
+                <span className="font-mono text-meta text-sol-cyan shrink-0">
+                  {notePlace(note)}
+                </span>
+                <span className="text-[12px] text-sol-text-muted truncate">
+                  {note.content}
+                </span>
+                {note.resolved && (
+                  <span className="ml-auto shrink-0 text-meta text-sol-green">
+                    resolved
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -153,27 +180,50 @@ export function PRTimeline({
   // nothing is new, or when this is the first visit.
   // The description card says who opened it and when, so the "opened" event
   // would only repeat the description's first lines under it.
-  const opened = pr.body ? items.find((item) => item.kind === "event" && (item.event as any).kind === "pr_opened") : undefined;
+  const opened = pr.body
+    ? items.find(
+        (item) =>
+          item.kind === "event" && (item.event as any).kind === "pr_opened",
+      )
+    : undefined;
   const shown = items.filter((item) => item !== opened);
-  const firstNew = lastSeenAt ? shown.find((item) => item.at > lastSeenAt)?.key : undefined;
+  const firstNew = lastSeenAt
+    ? shown.find((item) => item.at > lastSeenAt)?.key
+    : undefined;
   const openedAt = opened?.at ?? pr.github_created_at ?? pr.created_at;
 
   return (
     <div className="px-5 py-4">
       {pr.body ? (
-        <div className="pr-rise min-w-0 rounded-xl border border-sol-border/50 bg-sol-card [overflow-wrap:anywhere]" style={{ ["--d" as string]: "220ms" }}>
+        <div
+          className="pr-rise min-w-0 rounded-xl border border-sol-border/50 bg-sol-card [overflow-wrap:anywhere]"
+          style={{ ["--d" as string]: "220ms" }}
+        >
           <div className="flex items-center gap-2 border-b border-sol-border/40 px-4 py-2 text-[12px] text-sol-text-muted">
-            <CommentAvatar name={pr.author_github_username ?? "?"} image={pr.author_avatar_url} size={18} />
+            <CommentAvatar
+              name={pr.author_github_username ?? "?"}
+              image={pr.author_avatar_url}
+              size={18}
+            />
             <span className="text-sol-text">{pr.author_github_username}</span>
             <span className="text-sol-text-dim">opened this</span>
-            {openedAt ? <span className="ml-auto text-meta text-sol-text-dim" title={new Date(openedAt).toLocaleString()}><StampTime ts={openedAt} format={relTimeShort} /></span> : null}
+            {openedAt ? (
+              <span
+                className="ml-auto text-meta text-sol-text-dim"
+                title={new Date(openedAt).toLocaleString()}
+              >
+                <StampTime ts={openedAt} format={relTimeShort} />
+              </span>
+            ) : null}
           </div>
           <div className="px-4 py-3">
             <MarkdownRenderer content={pr.body} />
           </div>
         </div>
       ) : (
-        <p className="text-[13px] text-sol-text-dim italic">This pull request has no description.</p>
+        <p className="text-[13px] text-sol-text-dim italic">
+          This pull request has no description.
+        </p>
       )}
 
       <div className="mt-4 space-y-2">
@@ -186,19 +236,25 @@ export function PRTimeline({
               {item.key === firstNew && (
                 <div className="pr-since -mx-1 mb-2 mt-4 flex items-center gap-3 py-1">
                   <span className="h-px flex-1 bg-sol-cyan/50" />
-                  <span className="text-mark uppercase tracking-wider text-sol-cyan">Since you last looked</span>
+                  <span className="text-mark uppercase tracking-wider text-sol-cyan">
+                    Since you last looked
+                  </span>
                   <span className="h-px flex-1 bg-sol-cyan/50" />
                 </div>
               )}
               {divider && (
                 <div className="pr-day -mx-1 mb-2 mt-4 flex items-center gap-3 bg-sol-bg/80 py-1 first:mt-0">
-                  <span className="text-mark uppercase tracking-wider text-sol-text-dim">{divider}</span>
+                  <span className="text-mark uppercase tracking-wider text-sol-text-dim">
+                    {divider}
+                  </span>
                   <span className="h-px flex-1 bg-sol-border/40" />
                 </div>
               )}
               {item.kind === "event" && (
                 <ExternalEventRow
-                  event={externalEventRowToExternalEvent(item.event as ExternalEventRecord)}
+                  event={externalEventRowToExternalEvent(
+                    item.event as ExternalEventRecord,
+                  )}
                   density="feed"
                   showActor
                   // The page is the pull request, and its sessions are named in
@@ -208,7 +264,14 @@ export function PRTimeline({
                   onNavigate={onNavigate}
                 />
               )}
-              {item.kind === "review" && <ReviewItem review={item.review} comments={comments} onJump={onJumpToThread} linkUrl={anchorLink?.(`review-${item.review._id}`)} />}
+              {item.kind === "review" && (
+                <ReviewItem
+                  review={item.review}
+                  comments={comments}
+                  onJump={onJumpToThread}
+                  linkUrl={anchorLink?.(`review-${item.review._id}`)}
+                />
+              )}
               {item.kind === "comment" && (
                 <div
                   id={`comment-${item.comment._id}`}
@@ -219,14 +282,38 @@ export function PRTimeline({
                   }`}
                 >
                   {(() => {
-                    const resolved = threadResolved([item.comment, ...item.replies]);
-                    const tools = authed ? <><ResolveTool resolved={resolved} onToggle={() => onResolve(item.comment._id, !resolved)} /><span className="cc-cmt-tools-sep" aria-hidden /></> : undefined;
+                    const resolved = threadResolved([
+                      item.comment,
+                      ...item.replies,
+                    ]);
+                    const tools = authed ? (
+                      <>
+                        <ResolveTool
+                          resolved={resolved}
+                          onToggle={() =>
+                            onResolve(item.comment._id, !resolved)
+                          }
+                        />
+                        <span className="cc-cmt-tools-sep" aria-hidden />
+                      </>
+                    ) : undefined;
                     return (
                       <>
-                        <PRCommentCard comment={item.comment} linkUrl={anchorLink?.(`comment-${item.comment._id}`)} threadTools={tools} />
+                        <PRCommentCard
+                          comment={item.comment}
+                          linkUrl={anchorLink?.(`comment-${item.comment._id}`)}
+                          threadTools={tools}
+                        />
                         {item.replies.map((reply) => (
-                          <div key={reply._id} id={`comment-${reply._id}`} className="pl-6">
-                            <PRCommentCard comment={reply} linkUrl={anchorLink?.(`comment-${reply._id}`)} />
+                          <div
+                            key={reply._id}
+                            id={`comment-${reply._id}`}
+                            className="pl-6"
+                          >
+                            <PRCommentCard
+                              comment={reply}
+                              linkUrl={anchorLink?.(`comment-${reply._id}`)}
+                            />
                           </div>
                         ))}
                       </>

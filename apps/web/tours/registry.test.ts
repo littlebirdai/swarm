@@ -7,7 +7,8 @@ import { TOURS, tourById } from "./registry";
 import { TOUR_AREAS } from "./types";
 
 const AREAS = new Set(TOUR_AREAS.map((a) => a.area));
-const BANNED = /\b(hands?|cap|ledger|breach|strain|span of control|model:)\b|\b(op|ct|pl|tr|or)-\d+\b|\bjx7[a-z0-9]{4}\b/i;
+const BANNED =
+  /\b(hands?|cap|ledger|breach|strain|span of control|model:)\b|\b(op|ct|pl|tr|or)-\d+\b|\bjx7[a-z0-9]{4}\b/i;
 
 describe("the tours registry", () => {
   test("ids are unique and every tour sits in a listed area", () => {
@@ -23,12 +24,20 @@ describe("the tours registry", () => {
       expect(t.teaches.length).toBeGreaterThan(20);
       expect(t.teaches.length).toBeLessThanOrEqual(120);
       expect(t.teaches.endsWith(".")).toBe(true);
-      if (t.kind === "modal" || t.kind === "guide") expect(t.steps.length).toBe(0);
+      if (t.kind === "modal" || t.kind === "guide")
+        expect(t.steps.length).toBe(0);
       else expect(t.steps.length).toBeGreaterThanOrEqual(3);
     }
-    expect(TOURS.filter((t) => t.kind === "modal").map((t) => t.id)).toEqual(["inbox"]);
+    expect(TOURS.filter((t) => t.kind === "modal").map((t) => t.id)).toEqual([
+      "inbox",
+    ]);
     // A guide runs wherever it starts, full screen (tours/guides).
-    expect(TOURS.filter((t) => t.kind === "guide").map((t) => [t.id, t.route])).toEqual([["org-guide", null], ["flows-guide", null]]);
+    expect(
+      TOURS.filter((t) => t.kind === "guide").map((t) => [t.id, t.route]),
+    ).toEqual([
+      ["org-guide", null],
+      ["flows-guide", null],
+    ]);
   });
 
   test("a step is a short title and one to three plain sentences", () => {
@@ -36,13 +45,25 @@ describe("the tours registry", () => {
       const ids = t.steps.map((s) => s.id);
       expect(new Set(ids).size).toBe(ids.length);
       for (const s of t.steps) {
-        expect(s.title.split(/\s+/).length, `${t.id}/${s.id} title`).toBeLessThanOrEqual(4);
+        expect(
+          s.title.split(/\s+/).length,
+          `${t.id}/${s.id} title`,
+        ).toBeLessThanOrEqual(4);
         const sentences = (s.body.match(/[.!?](\s|$)/g) ?? []).length;
-        expect(sentences, `${t.id}/${s.id}: ${s.body}`).toBeGreaterThanOrEqual(1);
+        expect(sentences, `${t.id}/${s.id}: ${s.body}`).toBeGreaterThanOrEqual(
+          1,
+        );
         expect(sentences, `${t.id}/${s.id}: ${s.body}`).toBeLessThanOrEqual(3);
-        expect(s.body.length, `${t.id}/${s.id} length`).toBeLessThanOrEqual(170);
-        expect(BANNED.test(`${s.title} ${s.body}`), `${t.id}/${s.id}: ${s.body}`).toBe(false);
-        if (s.target) for (const part of s.target.split(",")) expect(part.trim()).toMatch(/^[\[\].#a-zA-Z0-9=":_ >\-]+$/);
+        expect(s.body.length, `${t.id}/${s.id} length`).toBeLessThanOrEqual(
+          170,
+        );
+        expect(
+          BANNED.test(`${s.title} ${s.body}`),
+          `${t.id}/${s.id}: ${s.body}`,
+        ).toBe(false);
+        if (s.target)
+          for (const part of s.target.split(","))
+            expect(part.trim()).toMatch(/^[\[\].#a-zA-Z0-9=":_ >\-]+$/);
         if (s.action) expect(s.action.label.length).toBeLessThanOrEqual(24);
       }
     }
@@ -51,7 +72,9 @@ describe("the tours registry", () => {
   test("the org tour teaches the role's page as it works today", () => {
     const org = TOURS.filter((t) => t.area === "org").map((t) => t.id);
     expect(org).toEqual(["org-guide", "org-page", "org-role"]);
-    const text = TOURS.filter((t) => t.area === "org").flatMap((t) => t.steps.map((s) => `${s.title} ${s.body}`)).join(" ");
+    const text = TOURS.filter((t) => t.area === "org")
+      .flatMap((t) => t.steps.map((s) => `${s.title} ${s.body}`))
+      .join(" ");
     for (const must of ["Reports to", "Pause"]) expect(text).toContain(must);
   });
 

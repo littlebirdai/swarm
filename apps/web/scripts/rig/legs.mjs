@@ -27,15 +27,39 @@ export function killSide(side) {
 /** Give the runner a browser, a page and the recorder for one identity. */
 export async function bringUp(who, { fresh = true, dir, attach = false }) {
   const id = IDENTITIES[who];
-  const side = { who, id: id.id, other: who === "riley" ? JORDAN : RILEY, child: null, page: null, port: id.port, profile: `${dir}/prof-${who}`, gone: false };
+  const side = {
+    who,
+    id: id.id,
+    other: who === "riley" ? JORDAN : RILEY,
+    child: null,
+    page: null,
+    port: id.port,
+    profile: `${dir}/prof-${who}`,
+    gone: false,
+  };
   // A browser a previous run left up (--keep) is reused as it is.
-  if (attach && (await fetch(`http://127.0.0.1:${id.port}/json/version`).then((r) => r.ok, () => false))) {
+  if (
+    attach &&
+    (await fetch(`http://127.0.0.1:${id.port}/json/version`).then(
+      (r) => r.ok,
+      () => false,
+    ))
+  ) {
     side.page = await connect(id.port);
     side.child = { exitCode: null, kill: () => {} };
     await side.page.evaluate(PAGE_LIB);
     return side;
   }
-  Object.assign(side, await launchSignedIn({ port: id.port, profile: side.profile, fresh, dep: faceRigDeployment(), userId: id.id }));
+  Object.assign(
+    side,
+    await launchSignedIn({
+      port: id.port,
+      profile: side.profile,
+      fresh,
+      dep: faceRigDeployment(),
+      userId: id.id,
+    }),
+  );
   await side.page.evaluate(PAGE_LIB);
   return side;
 }
@@ -53,7 +77,9 @@ export async function settle(sides) {
   for (const s of sides) {
     if (!alive(s)) continue;
     try {
-      await s.page.evaluate(`(async () => { await window.__walkie?.end(); await window.__callManager?.leaveCall(); return "settled"; })()`);
+      await s.page.evaluate(
+        `(async () => { await window.__walkie?.end(); await window.__callManager?.leaveCall(); return "settled"; })()`,
+      );
     } catch {
       // a page mid navigation answers nothing; the next waitPresent tells the truth
     }
@@ -62,7 +88,8 @@ export async function settle(sides) {
 }
 
 /** The header bar and the card hanging under it. */
-export const BAR = ".people-bar, .people-bar .face-row-below, .people-bar .face-card";
+export const BAR =
+  ".people-bar, .people-bar .face-row-below, .people-bar .face-card";
 
 export class Leg {
   constructor(name, sides, { dir, log }) {
@@ -76,7 +103,10 @@ export class Leg {
   }
   async start() {
     this.t0 = Date.now();
-    for (const s of this.sides) await s.page.evaluate(`__rig.start(${JSON.stringify(this.name)}, ${this.t0})`);
+    for (const s of this.sides)
+      await s.page.evaluate(
+        `__rig.start(${JSON.stringify(this.name)}, ${this.t0})`,
+      );
     this.print(`\n== ${this.name} ==`);
   }
   since() {
@@ -90,7 +120,9 @@ export class Leg {
   }
   /** Wait on one side for a condition over (snap, model, call), then stamp it. */
   async until(side, name, cond, timeoutMs = 15_000) {
-    await side.page.evaluate(`__rig.waitFor(${JSON.stringify(cond)}, ${timeoutMs})`);
+    await side.page.evaluate(
+      `__rig.waitFor(${JSON.stringify(cond)}, ${timeoutMs})`,
+    );
     return this.stamp(`${name} [${side.who}]`);
   }
   async both(name, cond, timeoutMs) {
@@ -110,7 +142,14 @@ export class Leg {
   }
   /** Stop both recorders and judge the seams and the node identity. */
   async finish() {
-    const result = { name: this.name, timings: this.timings, shots: this.shots, sides: {}, ok: true, problems: [] };
+    const result = {
+      name: this.name,
+      timings: this.timings,
+      shots: this.shots,
+      sides: {},
+      ok: true,
+      problems: [],
+    };
     for (const s of this.sides) {
       if (!alive(s)) continue;
       const rec = await s.page.evaluate(`__rig.stop ? __rig.stop() : null`);
@@ -120,12 +159,25 @@ export class Leg {
       const tagged = rec.identity.find((e) => e.id === s.other);
       const startTag = rec.log.find((e) => e.init) ? true : false;
       const remounted = !!tagged && tagged.tag === null && startTag;
-      result.sides[s.who] = { other: seam.states, me: mine.states, log: rec.log, identity: rec.identity };
-      const cardSeq = rec.log.filter((e) => e.card !== undefined).map((e) => e.card);
+      result.sides[s.who] = {
+        other: seam.states,
+        me: mine.states,
+        log: rec.log,
+        identity: rec.identity,
+      };
+      const cardSeq = rec.log
+        .filter((e) => e.card !== undefined)
+        .map((e) => e.card);
       result.sides[s.who].cards = cardSeq;
-      this.print(`  ${s.who}: them ${seam.states.join(" > ")} | me ${mine.states.join(" > ") || "(absent)"} | card ${cardSeq.join(" > ") || "none"}`);
-      for (const b of seam.bad) result.problems.push(`${s.who} saw ${s.other} read ${b}`);
-      if (remounted) result.problems.push(`${s.who}: the face node for ${s.other} was remounted`);
+      this.print(
+        `  ${s.who}: them ${seam.states.join(" > ")} | me ${mine.states.join(" > ") || "(absent)"} | card ${cardSeq.join(" > ") || "none"}`,
+      );
+      for (const b of seam.bad)
+        result.problems.push(`${s.who} saw ${s.other} read ${b}`);
+      if (remounted)
+        result.problems.push(
+          `${s.who}: the face node for ${s.other} was remounted`,
+        );
     }
     if (result.problems.length) {
       result.ok = false;
@@ -135,10 +187,14 @@ export class Leg {
   }
 }
 
-const eng = (id) => `s.entries.some(e => e.id === "${id}" && (${[...ENGAGED].map((x) => `e.state === "${x}"`).join(" || ")}))`;
-const state = (id, ...st) => `s.entries.some(e => e.id === "${id}" && (${st.map((x) => `e.state === "${x}"`).join(" || ")}))`;
-const link = (id, ...k) => `s.entries.some(e => e.id === "${id}" && (${k.map((x) => `e.link === "${x}"`).join(" || ")}))`;
-const me = (id) => `s.entries[0] && s.entries[0].id === "${id}" && s.entries[0].me`;
+const eng = (id) =>
+  `s.entries.some(e => e.id === "${id}" && (${[...ENGAGED].map((x) => `e.state === "${x}"`).join(" || ")}))`;
+const state = (id, ...st) =>
+  `s.entries.some(e => e.id === "${id}" && (${st.map((x) => `e.state === "${x}"`).join(" || ")}))`;
+const link = (id, ...k) =>
+  `s.entries.some(e => e.id === "${id}" && (${k.map((x) => `e.link === "${x}"`).join(" || ")}))`;
+const me = (id) =>
+  `s.entries[0] && s.entries[0].id === "${id}" && s.entries[0].me`;
 const card = (k) => `s.card === "${k}"`;
 const noMe = `!s.entries.some(e => e.me)`;
 
@@ -152,29 +208,73 @@ export async function walkieLeg(A, B, opts) {
   await leg.start();
   await A.page.evaluate(`__rig.action("${B.id}", "talk")`);
   leg.stamp("press [riley]");
-  await leg.until(A, "row shows me + them linked warm", `${me(A.id)} && ${state(B.id, "hearing-me", "live-with-me")} && ${link(B.id, "tx", "both")}`);
+  await leg.until(
+    A,
+    "row shows me + them linked warm",
+    `${me(A.id)} && ${state(B.id, "hearing-me", "live-with-me")} && ${link(B.id, "tx", "both")}`,
+  );
   await leg.shot("holding");
-  await leg.until(B, "far side sees cool link + card", `${state(A.id, "talking-to-me")} && ${link(A.id, "rx", "both")} && ${card("incoming")}`, 20_000);
+  await leg.until(
+    B,
+    "far side sees cool link + card",
+    `${state(A.id, "talking-to-me")} && ${link(A.id, "rx", "both")} && ${card("incoming")}`,
+    20_000,
+  );
   await leg.shot("incoming");
   await B.page.evaluate(`__rig.card("join")`);
   leg.stamp("Join live pressed [jordan]");
-  await leg.until(A, "both live (sender sees the join)", `${state(B.id, "live-with-me", "speaking", "joining")} && ${link(B.id, "call", "tx", "both")}`, 20_000);
-  await leg.until(B, "both live (joiner)", `${me(B.id)} && ${state(A.id, "live-with-me", "speaking", "talking-to-me")} && (${card("live")} || ${card("joined-notice")})`, 20_000);
+  await leg.until(
+    A,
+    "both live (sender sees the join)",
+    `${state(B.id, "live-with-me", "speaking", "joining")} && ${link(B.id, "call", "tx", "both")}`,
+    20_000,
+  );
+  await leg.until(
+    B,
+    "both live (joiner)",
+    `${me(B.id)} && ${state(A.id, "live-with-me", "speaking", "talking-to-me")} && (${card("live")} || ${card("joined-notice")})`,
+    20_000,
+  );
   await leg.shot("live");
   await A.page.evaluate(`__rig.action("${B.id}", "talk")`);
   leg.stamp("key up [riley]");
   await sleep(1500);
-  await leg.until(A, "still live after key up", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && (${card("live")} || ${card("joined-notice")})`, 5_000);
-  await leg.until(B, "still live after key up (far side)", `${me(B.id)} && ${state(A.id, "live-with-me", "speaking")}`, 5_000);
+  await leg.until(
+    A,
+    "still live after key up",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && (${card("live")} || ${card("joined-notice")})`,
+    5_000,
+  );
+  await leg.until(
+    B,
+    "still live after key up (far side)",
+    `${me(B.id)} && ${state(A.id, "live-with-me", "speaking")}`,
+    5_000,
+  );
   await leg.shot("keyup");
   await A.page.evaluate(`__rig.card("end")`);
   leg.stamp("End pressed [riley]");
-  await leg.until(A, "row back to presence", `${noMe} && ${state(B.id, "online", "idle", "in-call")} && ${card("none")}`, 20_000);
-  await leg.until(B, "far side sees the end", `${state(A.id, "online", "idle")}`, 20_000);
+  await leg.until(
+    A,
+    "row back to presence",
+    `${noMe} && ${state(B.id, "online", "idle", "in-call")} && ${card("none")}`,
+    20_000,
+  );
+  await leg.until(
+    B,
+    "far side sees the end",
+    `${state(A.id, "online", "idle")}`,
+    20_000,
+  );
   if (await B.page.evaluate(`__rig.snap().card !== "none"`)) {
     await B.page.evaluate(`__rig.card("end")`);
     leg.stamp("End pressed [jordan]");
-    await leg.until(B, "far side row back to presence", `${noMe} && ${card("none")}`, 20_000);
+    await leg.until(
+      B,
+      "far side row back to presence",
+      `${noMe} && ${card("none")}`,
+      20_000,
+    );
   }
   await leg.shot("ended");
   return leg.finish();
@@ -186,22 +286,57 @@ export async function ringLeg(A, B, opts) {
   await leg.start();
   await A.page.evaluate(`__rig.action("${B.id}", "ring")`);
   leg.stamp("Ring pressed [riley]");
-  await leg.until(A, "ring out on the row", `${me(A.id)} && ${state(B.id, "ringing-them")} && ${link(B.id, "ring")} && ${card("ring-out")}`, 20_000);
+  await leg.until(
+    A,
+    "ring out on the row",
+    `${me(A.id)} && ${state(B.id, "ringing-them")} && ${link(B.id, "ring")} && ${card("ring-out")}`,
+    20_000,
+  );
   await leg.shot("ring-out");
-  await leg.until(B, "ring in on the far row", `${state(A.id, "ringing-me")} && ${card("ring-in")}`, 20_000);
+  await leg.until(
+    B,
+    "ring in on the far row",
+    `${state(A.id, "ringing-me")} && ${card("ring-in")}`,
+    20_000,
+  );
   await leg.shot("ring-in");
   await B.page.evaluate(`__rig.card("answer")`);
   leg.stamp("Answer pressed [jordan]");
-  await leg.until(A, "in call (caller)", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && (${card("live")} || ${card("joined-notice")})`, 25_000);
-  await leg.until(B, "in call (callee)", `${me(B.id)} && ${state(A.id, "live-with-me", "speaking")} && ${link(A.id, "call")} && (${card("live")} || ${card("joined-notice")})`, 25_000);
+  await leg.until(
+    A,
+    "in call (caller)",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && (${card("live")} || ${card("joined-notice")})`,
+    25_000,
+  );
+  await leg.until(
+    B,
+    "in call (callee)",
+    `${me(B.id)} && ${state(A.id, "live-with-me", "speaking")} && ${link(A.id, "call")} && (${card("live")} || ${card("joined-notice")})`,
+    25_000,
+  );
   await leg.shot("in-call");
   await B.page.evaluate(`__rig.card("end")`);
   leg.stamp("Leave pressed [jordan]");
-  await leg.until(B, "callee row back to presence", `${noMe} && ${card("none")}`, 20_000);
-  await leg.until(A, "caller sees the leave", `${state(B.id, "online", "idle")}`, 20_000);
+  await leg.until(
+    B,
+    "callee row back to presence",
+    `${noMe} && ${card("none")}`,
+    20_000,
+  );
+  await leg.until(
+    A,
+    "caller sees the leave",
+    `${state(B.id, "online", "idle")}`,
+    20_000,
+  );
   await A.page.evaluate(`__rig.card("end")`);
   leg.stamp("Leave pressed [riley]");
-  await leg.until(A, "caller row back to presence", `${noMe} && ${card("none")}`, 20_000);
+  await leg.until(
+    A,
+    "caller row back to presence",
+    `${noMe} && ${card("none")}`,
+    20_000,
+  );
   await leg.shot("ended");
   const result = await leg.finish();
   // The caller's first card is the ring out: never a live call with nobody
@@ -209,7 +344,9 @@ export async function ringLeg(A, B, opts) {
   const first = result.sides[A.who]?.cards?.[0];
   if (first && first !== "ring-out") {
     result.ok = false;
-    result.problems.push(`${A.who}: the first card after Ring was ${first}, not ring-out`);
+    result.problems.push(
+      `${A.who}: the first card after Ring was ${first}, not ring-out`,
+    );
     leg.print(`  PROBLEM: ${result.problems.at(-1)}`);
   }
   return result;
@@ -222,22 +359,52 @@ export async function reconnectLeg(A, B, opts) {
   await A.page.evaluate(`__rig.action("${B.id}", "ring")`);
   await leg.until(B, "ring in", `${card("ring-in")}`, 20_000);
   await B.page.evaluate(`__rig.card("answer")`);
-  await leg.until(A, "in call", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`, 25_000);
+  await leg.until(
+    A,
+    "in call",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`,
+    25_000,
+  );
   await A.page.evaluate(`__rig.livekit("reconnecting")`);
   leg.stamp("LiveKit Reconnecting emitted [riley]");
   await sleep(2000);
-  await leg.until(A, "still in call through Reconnecting", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && c && c.phase === "connected"`, 3_000);
+  await leg.until(
+    A,
+    "still in call through Reconnecting",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && ${link(B.id, "call")} && c && c.phase === "connected"`,
+    3_000,
+  );
   await leg.shot("reconnecting");
   await A.page.evaluate(`__rig.livekit("connected")`);
   leg.stamp("LiveKit Connected emitted [riley]");
   await sleep(1000);
-  await leg.until(A, "still in call after Connected", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`, 3_000);
+  await leg.until(
+    A,
+    "still in call after Connected",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`,
+    3_000,
+  );
   await A.page.evaluate(`__rig.card("end")`);
-  await leg.until(A, "caller row back to presence", `${noMe} && ${card("none")}`, 20_000);
-  await leg.until(B, "callee sees the end", `${state(A.id, "online", "idle")}`, 20_000);
+  await leg.until(
+    A,
+    "caller row back to presence",
+    `${noMe} && ${card("none")}`,
+    20_000,
+  );
+  await leg.until(
+    B,
+    "callee sees the end",
+    `${state(A.id, "online", "idle")}`,
+    20_000,
+  );
   if (await B.page.evaluate(`__rig.snap().card !== "none"`)) {
     await B.page.evaluate(`__rig.card("end")`);
-    await leg.until(B, "callee row back to presence", `${noMe} && ${card("none")}`, 20_000);
+    await leg.until(
+      B,
+      "callee row back to presence",
+      `${noMe} && ${card("none")}`,
+      20_000,
+    );
   }
   return leg.finish();
 }
@@ -256,18 +423,34 @@ export async function deadSeatLeg(A, B, opts) {
   await A.page.evaluate(`__rig.action("${B.id}", "ring")`);
   await leg.until(B, "ring in", `${card("ring-in")}`, 20_000);
   await B.page.evaluate(`__rig.card("answer")`);
-  await leg.until(A, "in call", `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`, 25_000);
+  await leg.until(
+    A,
+    "in call",
+    `${me(A.id)} && ${state(B.id, "live-with-me", "speaking")} && c && c.phase === "connected"`,
+    25_000,
+  );
   await leg.shot("in-call");
   const killedAt = Date.now();
   killSide(B);
   leg.stamp("far browser killed (SIGKILL)");
   await leg.until(A, "dead seat gone from the row", `!${eng(B.id)}`, 90_000);
   const gone = Date.now() - killedAt;
-  leg.stamp(`kill -> face left the row: ${gone} ms (lease 45000 + beat 15000 bound, ${Math.max(0, gone - 45_000)} ms past the lease)`, gone);
+  leg.stamp(
+    `kill -> face left the row: ${gone} ms (lease 45000 + beat 15000 bound, ${Math.max(0, gone - 45_000)} ms past the lease)`,
+    gone,
+  );
   await leg.shot("dead-gone");
   await A.page.evaluate(`__rig.card("end")`).catch(() => {});
-  await leg.until(A, "caller row back to presence", `${noMe} && ${card("none")}`, 20_000);
+  await leg.until(
+    A,
+    "caller row back to presence",
+    `${noMe} && ${card("none")}`,
+    20_000,
+  );
   const result = await leg.finish();
-  result.deadSeat = { killToGoneMs: gone, pastLeaseMs: Math.max(0, gone - 45_000) };
+  result.deadSeat = {
+    killToGoneMs: gone,
+    pastLeaseMs: Math.max(0, gone - 45_000),
+  };
   return result;
 }

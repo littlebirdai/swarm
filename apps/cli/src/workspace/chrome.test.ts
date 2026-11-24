@@ -49,7 +49,9 @@ afterEach(async () => {
 
 describe("keychainArgs", () => {
   test("a macOS home without a login keychain gets the mock keychain flag", () => {
-    expect(keychainArgs({ HOME: tmpDir }, "darwin")).toEqual(["--use-mock-keychain"]);
+    expect(keychainArgs({ HOME: tmpDir }, "darwin")).toEqual([
+      "--use-mock-keychain",
+    ]);
   });
 
   test("a macOS home with a login keychain keeps the real keychain", () => {
@@ -110,14 +112,23 @@ describe("findChromeBinary / probes", () => {
 describe("automationChromeBinary", () => {
   const platformName = process.arch === "arm64" ? "mac-arm64" : "mac-x64";
   const install = (version: string) => {
-    const p = path.join(chromeForTestingDir(tmpDir), version, `chrome-${platformName}`, "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing");
+    const p = path.join(
+      chromeForTestingDir(tmpDir),
+      version,
+      `chrome-${platformName}`,
+      "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    );
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, "");
     return p;
   };
   const run = (platform: NodeJS.Platform = "darwin") => {
     const installs: string[] = [];
-    const binary = automationChromeBinary({ home: tmpDir, platform, install: (dir) => installs.push(dir) });
+    const binary = automationChromeBinary({
+      home: tmpDir,
+      platform,
+      install: (dir) => installs.push(dir),
+    });
     return { binary, installs };
   };
 
@@ -130,11 +141,17 @@ describe("automationChromeBinary", () => {
   test("a copy a major version behind the human's Chrome still runs, and a newer one downloads", () => {
     if (humanChromeMajor() < 2) return;
     const old = install("1.0.0.0");
-    expect(run()).toEqual({ binary: old, installs: [chromeForTestingDir(tmpDir)] });
+    expect(run()).toEqual({
+      binary: old,
+      installs: [chromeForTestingDir(tmpDir)],
+    });
   });
 
   test("with none installed it downloads one and runs the human's Chrome meanwhile", () => {
-    expect(run()).toEqual({ binary: findChromeBinary(), installs: [chromeForTestingDir(tmpDir)] });
+    expect(run()).toEqual({
+      binary: findChromeBinary(),
+      installs: [chromeForTestingDir(tmpDir)],
+    });
   });
 
   test("an explicit binary override and other platforms keep the system probe and download nothing", () => {
@@ -156,8 +173,17 @@ describe("automationChromeBinary", () => {
 /** The installed Google Chrome's major version, 0 without one. */
 function humanChromeMajor(): number {
   try {
-    const plist = fs.readFileSync("/Applications/Google Chrome.app/Contents/Info.plist", "utf-8");
-    return Number(plist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>(\d+)/)?.[1]) || 0;
+    const plist = fs.readFileSync(
+      "/Applications/Google Chrome.app/Contents/Info.plist",
+      "utf-8",
+    );
+    return (
+      Number(
+        plist.match(
+          /<key>CFBundleShortVersionString<\/key>\s*<string>(\d+)/,
+        )?.[1],
+      ) || 0
+    );
   } catch {
     return 0;
   }
@@ -176,7 +202,15 @@ describe("isPidAlive", () => {
       throw new Error("invalid PID was probed");
     });
     try {
-      for (const pid of [0, -1, NaN, Infinity, 1.5, 2 ** 31, Number.MAX_SAFE_INTEGER]) {
+      for (const pid of [
+        0,
+        -1,
+        NaN,
+        Infinity,
+        1.5,
+        2 ** 31,
+        Number.MAX_SAFE_INTEGER,
+      ]) {
         expect(isPidAlive(pid)).toBe(false);
       }
       expect(kill).not.toHaveBeenCalled();
@@ -195,36 +229,49 @@ describe("stopChrome exit confirmation", () => {
 
   function stubKill(handler: (signal: string | number) => true) {
     const original = process.kill.bind(process);
-    return spyOn(process, "kill").mockImplementation((target, signal = "SIGTERM") =>
-      target === pid ? handler(signal) : original(target, signal),
+    return spyOn(process, "kill").mockImplementation(
+      (target, signal = "SIGTERM") =>
+        target === pid ? handler(signal) : original(target, signal),
     );
   }
 
-  test.each(["EPERM", "EACCES"])("treats a signal-0 %s probe as alive", async (code) => {
-    const denied = Object.assign(new Error("permission denied"), { code });
-    const kill = stubKill(() => { throw denied; });
-    try {
-      expect(isPidAlive(pid)).toBe(true);
-      await expect(stopChrome(pid)).rejects.toBe(denied);
-    } finally {
-      kill.mockRestore();
-    }
-  });
+  test.each(["EPERM", "EACCES"])(
+    "treats a signal-0 %s probe as alive",
+    async (code) => {
+      const denied = Object.assign(new Error("permission denied"), { code });
+      const kill = stubKill(() => {
+        throw denied;
+      });
+      try {
+        expect(isPidAlive(pid)).toBe(true);
+        await expect(stopChrome(pid)).rejects.toBe(denied);
+      } finally {
+        kill.mockRestore();
+      }
+    },
+  );
 
-  test.each(["EIO", undefined])("propagates an unexpected signal-0 error (%s)", async (code) => {
-    const unexpected = Object.assign(new Error("probe failed"), { code });
-    const kill = stubKill(() => { throw unexpected; });
-    try {
-      expect(() => isPidAlive(pid)).toThrow(unexpected);
-      await expect(stopChrome(pid)).rejects.toBe(unexpected);
-    } finally {
-      kill.mockRestore();
-    }
-  });
+  test.each(["EIO", undefined])(
+    "propagates an unexpected signal-0 error (%s)",
+    async (code) => {
+      const unexpected = Object.assign(new Error("probe failed"), { code });
+      const kill = stubKill(() => {
+        throw unexpected;
+      });
+      try {
+        expect(() => isPidAlive(pid)).toThrow(unexpected);
+        await expect(stopChrome(pid)).rejects.toBe(unexpected);
+      } finally {
+        kill.mockRestore();
+      }
+    },
+  );
 
   test("does not mistake a failed post-SIGKILL probe for exit", async () => {
     let killed = false;
-    const unexpected = Object.assign(new Error("probe failed"), { code: "EIO" });
+    const unexpected = Object.assign(new Error("probe failed"), {
+      code: "EIO",
+    });
     const kill = stubKill((signal) => {
       if (signal === "SIGKILL") killed = true;
       if (signal === 0 && killed) throw unexpected;
@@ -255,11 +302,14 @@ describe("stopChrome exit confirmation", () => {
     let finished = false;
     const signals: Array<string | number> = [];
     const kill = stubKill((signal) => {
-      if (!alive) throw Object.assign(new Error("process exited"), { code: "ESRCH" });
+      if (!alive)
+        throw Object.assign(new Error("process exited"), { code: "ESRCH" });
       if (signal !== 0) signals.push(signal);
       return true;
     });
-    const stopping = stopChrome(pid, { timeoutMs: 0 }).then(() => { finished = true; });
+    const stopping = stopChrome(pid, { timeoutMs: 0 }).then(() => {
+      finished = true;
+    });
     try {
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(signals).toEqual(["SIGTERM", "SIGKILL"]);
@@ -282,7 +332,9 @@ describe("stopChrome exit confirmation", () => {
       return true;
     });
     try {
-      await expect(stopChrome(pid, { timeoutMs: 0, killTimeoutMs: 0 })).rejects.toMatchObject({
+      await expect(
+        stopChrome(pid, { timeoutMs: 0, killTimeoutMs: 0 }),
+      ).rejects.toMatchObject({
         name: "ChromeStopError",
         pid,
       });
@@ -292,41 +344,53 @@ describe("stopChrome exit confirmation", () => {
     }
   });
 
-  test.each(["SIGTERM", "SIGKILL"] as const)("rejects a %s permission failure", async (deniedSignal) => {
-    const denied = Object.assign(new Error("permission denied"), { code: "EPERM" });
-    const kill = stubKill((signal) => {
-      if (signal === deniedSignal) throw denied;
-      return true;
-    });
-    try {
-      await expect(stopChrome(pid, { timeoutMs: 0 })).rejects.toBe(denied);
-    } finally {
-      kill.mockRestore();
-    }
-  });
-
-  test.each(["SIGTERM", "SIGKILL"] as const)("accepts exit just before %s", async (exitSignal) => {
-    const signals: Array<string | number> = [];
-    const kill = stubKill((signal) => {
-      if (signal !== 0) {
-        signals.push(signal);
-        if (signal === exitSignal) throw Object.assign(new Error("process exited"), { code: "ESRCH" });
+  test.each(["SIGTERM", "SIGKILL"] as const)(
+    "rejects a %s permission failure",
+    async (deniedSignal) => {
+      const denied = Object.assign(new Error("permission denied"), {
+        code: "EPERM",
+      });
+      const kill = stubKill((signal) => {
+        if (signal === deniedSignal) throw denied;
+        return true;
+      });
+      try {
+        await expect(stopChrome(pid, { timeoutMs: 0 })).rejects.toBe(denied);
+      } finally {
+        kill.mockRestore();
       }
-      return true;
-    });
-    try {
-      await stopChrome(pid, { timeoutMs: 0 });
-      expect(signals).toEqual(exitSignal === "SIGTERM" ? ["SIGTERM"] : ["SIGTERM", "SIGKILL"]);
-    } finally {
-      kill.mockRestore();
-    }
-  });
+    },
+  );
+
+  test.each(["SIGTERM", "SIGKILL"] as const)(
+    "accepts exit just before %s",
+    async (exitSignal) => {
+      const signals: Array<string | number> = [];
+      const kill = stubKill((signal) => {
+        if (signal !== 0) {
+          signals.push(signal);
+          if (signal === exitSignal)
+            throw Object.assign(new Error("process exited"), { code: "ESRCH" });
+        }
+        return true;
+      });
+      try {
+        await stopChrome(pid, { timeoutMs: 0 });
+        expect(signals).toEqual(
+          exitSignal === "SIGTERM" ? ["SIGTERM"] : ["SIGTERM", "SIGKILL"],
+        );
+      } finally {
+        kill.mockRestore();
+      }
+    },
+  );
 
   test("does not escalate after a graceful exit", async () => {
     let alive = true;
     const signals: Array<string | number> = [];
     const kill = stubKill((signal) => {
-      if (!alive) throw Object.assign(new Error("process exited"), { code: "ESRCH" });
+      if (!alive)
+        throw Object.assign(new Error("process exited"), { code: "ESRCH" });
       if (signal !== 0) {
         signals.push(signal);
         alive = false;
@@ -406,30 +470,34 @@ describe.if(HAVE_CHROME)("launchChrome — real Chrome", () => {
     expect(isPidAlive(b.pid)).toBe(true);
 
     // Both expose CDP endpoints independently.
-    const verA = (await fetch(`http://127.0.0.1:${portA}/json/version`).then((r) =>
-      r.json(),
+    const verA = (await fetch(`http://127.0.0.1:${portA}/json/version`).then(
+      (r) => r.json(),
     )) as { Browser?: string };
-    const verB = (await fetch(`http://127.0.0.1:${portB}/json/version`).then((r) =>
-      r.json(),
+    const verB = (await fetch(`http://127.0.0.1:${portB}/json/version`).then(
+      (r) => r.json(),
     )) as { Browser?: string };
     expect(verA.Browser).toBeTruthy();
     expect(verB.Browser).toBeTruthy();
   }, 25000);
 
-  test.each([3000, 0])("stopChrome terminates the process with a %ims grace period", async (timeoutMs) => {
-    const port = await pickPort(39800);
-    const inst = await launchChrome({
-      cdpPort: port,
-      userDataDir: path.join(tmpDir, "stoptest"),
-    });
-    launched.push(inst);
+  test.each([3000, 0])(
+    "stopChrome terminates the process with a %ims grace period",
+    async (timeoutMs) => {
+      const port = await pickPort(39800);
+      const inst = await launchChrome({
+        cdpPort: port,
+        userDataDir: path.join(tmpDir, "stoptest"),
+      });
+      launched.push(inst);
 
-    expect(isPidAlive(inst.pid)).toBe(true);
-    await stopChrome(inst.pid, { timeoutMs });
-    expect(isPidAlive(inst.pid)).toBe(false);
-    // CDP port released.
-    expect(await isPortFree(port)).toBe(true);
-  }, 20000);
+      expect(isPidAlive(inst.pid)).toBe(true);
+      await stopChrome(inst.pid, { timeoutMs });
+      expect(isPidAlive(inst.pid)).toBe(false);
+      // CDP port released.
+      expect(await isPortFree(port)).toBe(true);
+    },
+    20000,
+  );
 
   test("launch errors with explicit bad binary path", async () => {
     await expect(

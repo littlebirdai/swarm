@@ -4,11 +4,18 @@ import { ArrowUpRight, CornerDownRight } from "lucide-react";
 import { dmKeyFor } from "@codecast/shared/chat";
 import { useInboxStore, type ChatMessageRow } from "../../store/inboxStore";
 import { findDmChannelId } from "../../store/chatSlice";
-import { useChannelMessagesSync, useEnsureChatMessage, useThreadSync } from "../../hooks/useChatSync";
+import {
+  useChannelMessagesSync,
+  useEnsureChatMessage,
+  useThreadSync,
+} from "../../hooks/useChatSync";
 import { useOpenChatPath } from "../../hooks/useOpenDm";
 import { activeTeamIdOf } from "../../lib/activeTeam";
 import { isConvexId } from "../../lib/entityLinks";
-import { useFaceChatRecent, useFaceChatUnreadIds } from "../../lib/chat/faceChat";
+import {
+  useFaceChatRecent,
+  useFaceChatUnreadIds,
+} from "../../lib/chat/faceChat";
 import { timeAgo, viewerHandles, whereOf } from "../../lib/chat/faceChatText";
 import { toastPreview } from "../chat/ChatToast";
 import { KeyCap } from "../KeyCap";
@@ -45,8 +52,16 @@ type Row = {
 
 /** Keeps one place the card shows live: a channel's recent lines, or a
  *  thread's. Renders nothing. */
-function SyncPlace({ channelId, threadRootId }: { channelId: string; threadRootId?: string }) {
-  useChannelMessagesSync(!threadRootId && isConvexId(channelId) ? channelId : undefined);
+function SyncPlace({
+  channelId,
+  threadRootId,
+}: {
+  channelId: string;
+  threadRootId?: string;
+}) {
+  useChannelMessagesSync(
+    !threadRootId && isConvexId(channelId) ? channelId : undefined,
+  );
   useThreadSync(threadRootId);
   return null;
 }
@@ -67,7 +82,11 @@ export function Preview({ text }: { text: string }) {
     <>
       {parts.map((p, i) =>
         p.startsWith("@") ? (
-          <span key={i} className="fc-at" data-me={mine.has(p.slice(1).toLowerCase()) ? "1" : undefined}>
+          <span
+            key={i}
+            className="fc-at"
+            data-me={mine.has(p.slice(1).toLowerCase()) ? "1" : undefined}
+          >
             {p}
           </span>
         ) : (
@@ -83,23 +102,34 @@ function useDmChannelId(memberId: string): string | null {
   return useInboxStore((s: any) => {
     const viewer = s.currentUser?._id;
     if (!viewer) return null;
-    return findDmChannelId(s.chatChannels, dmKeyFor(activeTeamIdOf(s) ?? "", [viewer, memberId]));
+    return findDmChannelId(
+      s.chatChannels,
+      dmKeyFor(activeTeamIdOf(s) ?? "", [viewer, memberId]),
+    );
   });
 }
 
 /** A line a session typed under its person, or an agent's own reply: the
  *  card is the conversation between two people, so these stay in chat. */
-const typedByAgent = (m: ChatMessageRow) => m.origin === "agent" || m.author_kind === "agent";
+const typedByAgent = (m: ChatMessageRow) =>
+  m.origin === "agent" || m.author_kind === "agent";
 
 /** A place a line was said: the channel itself, or one thread in it. */
-const placeKey = (channelId: string, threadRootId?: string) => `${channelId}:${threadRootId ?? ""}`;
+const placeKey = (channelId: string, threadRootId?: string) =>
+  `${channelId}:${threadRootId ?? ""}`;
 /** The place a stored line reads in: a reply also sent to the channel reads in the channel. */
 const placeOfMessage = (m: ChatMessageRow) =>
-  placeKey(String(m.channel_id), m.thread_root_id && !m.broadcast ? String(m.thread_root_id) : undefined);
+  placeKey(
+    String(m.channel_id),
+    m.thread_root_id && !m.broadcast ? String(m.thread_root_id) : undefined,
+  );
 
 /** What the card renders of these channels, as a string: wakes only when a
  *  line in them arrives, changes or settles. */
-function channelsSig(messages: Record<string, ChatMessageRow> | undefined, channelIds: ReadonlySet<string>): string {
+function channelsSig(
+  messages: Record<string, ChatMessageRow> | undefined,
+  channelIds: ReadonlySet<string>,
+): string {
   if (!channelIds.size || !messages) return "";
   let s = "";
   for (const id in messages) {
@@ -112,7 +142,10 @@ function channelsSig(messages: Record<string, ChatMessageRow> | undefined, chann
 
 /** The channel lines from elsewhere as the card reads them: each line, its
  *  thread's root, and that root's text. Wakes when a fetch lands one. */
-function threadsSig(messages: Record<string, ChatMessageRow> | undefined, ids: string[]): string {
+function threadsSig(
+  messages: Record<string, ChatMessageRow> | undefined,
+  ids: string[],
+): string {
   let s = "";
   for (const id of ids) {
     const m = messages?.[id];
@@ -139,16 +172,29 @@ export function FaceMessages({
   const viewerId = useInboxStore((s: any) => String(s.currentUser?._id ?? ""));
   const dmId = useDmChannelId(memberId);
   useChannelMessagesSync(dmId && isConvexId(dmId) ? dmId : undefined);
-  const channels = useInboxStore((s: any) => s.chatChannels as Record<string, { kind?: string }>);
+  const channels = useInboxStore(
+    (s: any) => s.chatChannels as Record<string, { kind?: string }>,
+  );
   const recent = useFaceChatRecent(memberId);
-  const elsewhere = useMemo(() => recent.filter((a) => a.channelId !== dmId && !a.isDm), [recent, dmId]);
-  const elsewhereIds = useMemo(() => elsewhere.map((a) => a.messageId), [elsewhere]);
+  const elsewhere = useMemo(
+    () => recent.filter((a) => a.channelId !== dmId && !a.isDm),
+    [recent, dmId],
+  );
+  const elsewhereIds = useMemo(
+    () => elsewhere.map((a) => a.messageId),
+    [elsewhere],
+  );
   const sigChannels = useMemo(
-    () => new Set([...(dmId ? [dmId] : []), ...elsewhere.map((a) => a.channelId)]),
+    () =>
+      new Set([...(dmId ? [dmId] : []), ...elsewhere.map((a) => a.channelId)]),
     [dmId, elsewhere],
   );
-  const linesSig = useInboxStore((s: any) => channelsSig(s.chatMessages, sigChannels));
-  const elsewhereSig = useInboxStore((s: any) => threadsSig(s.chatMessages, elsewhereIds));
+  const linesSig = useInboxStore((s: any) =>
+    channelsSig(s.chatMessages, sigChannels),
+  );
+  const elsewhereSig = useInboxStore((s: any) =>
+    threadsSig(s.chatMessages, elsewhereIds),
+  );
   const unreadIds = useFaceChatUnreadIds(memberId);
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -157,7 +203,9 @@ export function FaceMessages({
   // keep their dot while the card is up, even once it marks them read.
   const [readFloor] = useState(() => {
     const st: any = useInboxStore.getState();
-    for (const id in st.chatReads ?? {}) if (st.chatReads[id]?.channel_id === dmId) return st.chatReads[id].last_read_at as number;
+    for (const id in st.chatReads ?? {})
+      if (st.chatReads[id]?.channel_id === dmId)
+        return st.chatReads[id].last_read_at as number;
     return 0;
   });
 
@@ -176,12 +224,22 @@ export function FaceMessages({
         me: false,
       });
     }
-    const messages = useInboxStore.getState().chatMessages as Record<string, ChatMessageRow>;
+    const messages = useInboxStore.getState().chatMessages as Record<
+      string,
+      ChatMessageRow
+    >;
     const dm: Row[] = [];
     if (dmId) {
       for (const id in messages) {
         const m = messages[id];
-        if (m.channel_id !== dmId || (m.thread_root_id && !m.broadcast) || m.deleted_at || !m.content || typedByAgent(m)) continue;
+        if (
+          m.channel_id !== dmId ||
+          (m.thread_root_id && !m.broadcast) ||
+          m.deleted_at ||
+          !m.content ||
+          typedByAgent(m)
+        )
+          continue;
         dm.push({
           id,
           channelId: dmId,
@@ -217,10 +275,20 @@ export function FaceMessages({
       const mine: Row[] = [];
       for (const id in messages) {
         const m = messages[id];
-        if (String(m.user_id) !== viewerId || m.deleted_at || !m.content || typedByAgent(m) || byId.has(id)) continue;
+        if (
+          String(m.user_id) !== viewerId ||
+          m.deleted_at ||
+          !m.content ||
+          typedByAgent(m) ||
+          byId.has(id)
+        )
+          continue;
         const from = since.get(placeOfMessage(m));
         if (from === undefined || m.created_at < from) continue;
-        const threadRootId = m.thread_root_id && !m.broadcast ? String(m.thread_root_id) : undefined;
+        const threadRootId =
+          m.thread_root_id && !m.broadcast
+            ? String(m.thread_root_id)
+            : undefined;
         mine.push({
           id,
           channelId: String(m.channel_id),
@@ -231,7 +299,10 @@ export function FaceMessages({
           at: m.created_at,
           me: true,
           failed: !!m._failedAt,
-          rootText: threadRootId && messages[threadRootId]?.content ? toastPreview(messages[threadRootId].content, 200) : undefined,
+          rootText:
+            threadRootId && messages[threadRootId]?.content
+              ? toastPreview(messages[threadRootId].content, 200)
+              : undefined,
         });
       }
       mine.sort((a, b) => a.at - b.at);
@@ -244,15 +315,29 @@ export function FaceMessages({
   // The channels and threads they spoke in, kept live so your lines there arrive.
   const places = useMemo(() => {
     const out = new Map<string, { channelId: string; threadRootId?: string }>();
-    for (const r of rows) if (!r.isDm && !r.me && !(r.inThread && !r.threadRootId)) out.set(placeKey(r.channelId, r.threadRootId), r);
-    return [...out].map(([key, r]) => ({ key, channelId: r.channelId, threadRootId: r.threadRootId }));
+    for (const r of rows)
+      if (!r.isDm && !r.me && !(r.inThread && !r.threadRootId))
+        out.set(placeKey(r.channelId, r.threadRootId), r);
+    return [...out].map(([key, r]) => ({
+      key,
+      channelId: r.channelId,
+      threadRootId: r.threadRootId,
+    }));
   }, [rows]);
 
   // Lines and thread roots the card names but the store lacks.
-  const st = useInboxStore.getState().chatMessages as Record<string, ChatMessageRow>;
-  const missing = rows.flatMap((r) => (r.isDm ? [] : [r.id, ...(r.threadRootId ? [r.threadRootId] : [])])).filter((id) => !st?.[id]);
+  const st = useInboxStore.getState().chatMessages as Record<
+    string,
+    ChatMessageRow
+  >;
+  const missing = rows
+    .flatMap((r) =>
+      r.isDm ? [] : [r.id, ...(r.threadRootId ? [r.threadRootId] : [])],
+    )
+    .filter((id) => !st?.[id]);
 
-  const isNew = (r: Row) => !r.me && (unreadIds.includes(r.id) || (r.isDm && r.at > readFloor));
+  const isNew = (r: Row) =>
+    !r.me && (unreadIds.includes(r.id) || (r.isDm && r.at > readFloor));
   const theirLast = [...rows].reverse().find((r) => !r.me);
   const newestDm = [...rows].reverse().find((r) => r.isDm);
 
@@ -260,7 +345,10 @@ export function FaceMessages({
   // been up a moment (a pointer passing over the face reads nothing).
   useWatchEffect(() => {
     if (!dmId || !newestDm || !rows.some((r) => r.isDm && isNew(r))) return;
-    const t = setTimeout(() => useInboxStore.getState().markChannelRead(dmId, newestDm.id), focus ? 0 : 1200);
+    const t = setTimeout(
+      () => useInboxStore.getState().markChannelRead(dmId, newestDm.id),
+      focus ? 0 : 1200,
+    );
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dmId, newestDm?.id, focus]);
@@ -275,14 +363,22 @@ export function FaceMessages({
   }, [newestId]);
   useLayoutEffect(() => {
     if (!focus) return;
-    const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 120);
+    const t = setTimeout(
+      () => inputRef.current?.focus({ preventScroll: true }),
+      120,
+    );
     return () => clearTimeout(t);
   }, [focus]);
 
   // The reply goes where they last spoke; with nothing from them, to the DM.
   const target = theirLast ?? null;
   const toDm = !target || target.isDm;
-  const replyWhere = toDm ? "direct message" : whereOf(target.channelId, false, target.threadRootId).replace(/^thread in (.*)$/, "in the $1 thread");
+  const replyWhere = toDm
+    ? "direct message"
+    : whereOf(target.channelId, false, target.threadRootId).replace(
+        /^thread in (.*)$/,
+        "in the $1 thread",
+      );
   // A reply in a thread whose root this window never loaded cannot be
   // answered here (it would land in the channel): the thread opens instead.
   const replyHere = !(target?.inThread && !target.threadRootId);
@@ -311,7 +407,11 @@ export function FaceMessages({
       if (!channelId) return;
       st.sendChatMessage(channelId, text);
     } else {
-      st.sendChatMessage(target.channelId, text, target.threadRootId ? { threadRootId: target.threadRootId } : undefined);
+      st.sendChatMessage(
+        target.channelId,
+        text,
+        target.threadRootId ? { threadRootId: target.threadRootId } : undefined,
+      );
     }
     input.value = "";
   };
@@ -321,11 +421,21 @@ export function FaceMessages({
   const mixed = rows.some((r) => !r.isDm);
   // A place is the DM, a channel, or one thread in it: two threads in #team
   // are two places. A reply whose thread is still loading stands alone.
-  const placeOf = (r: Row) => (r.isDm ? "dm" : `${r.channelId}:${r.threadRootId ?? (r.inThread ? r.id : "")}`);
+  const placeOf = (r: Row) =>
+    r.isDm
+      ? "dm"
+      : `${r.channelId}:${r.threadRootId ?? (r.inThread ? r.id : "")}`;
   const joins = (a: Row | undefined, b: Row | undefined) =>
-    !!a && !!b && a.me === b.me && b.at - a.at < RUN_GAP_MS && (!mixed || placeOf(a) === placeOf(b));
+    !!a &&
+    !!b &&
+    a.me === b.me &&
+    b.at - a.at < RUN_GAP_MS &&
+    (!mixed || placeOf(a) === placeOf(b));
   return (
-    <div className="fc-card-msgs" style={{ "--fc-hue": hueFor(name) } as React.CSSProperties}>
+    <div
+      className="fc-card-msgs"
+      style={{ "--fc-hue": hueFor(name) } as React.CSSProperties}
+    >
       <div className="fc-card-msgs-head">
         <span>{rows.length ? "Messages" : "No messages yet"}</span>
         <Button
@@ -344,7 +454,11 @@ export function FaceMessages({
         <EnsureMessage key={id} id={id} />
       ))}
       {places.map((p) => (
-        <SyncPlace key={p.key} channelId={p.channelId} threadRootId={p.threadRootId} />
+        <SyncPlace
+          key={p.key}
+          channelId={p.channelId}
+          threadRootId={p.threadRootId}
+        />
       ))}
       {rows.length > 0 && (
         <div ref={listRef} className="fc-list">
@@ -354,13 +468,29 @@ export function FaceMessages({
             const run = !sep && joins(prev, r);
             const tail = !joins(r, rows[i + 1]);
             return (
-              <div key={r.id} className="fc-row" data-me={r.me ? "1" : undefined} data-run={run ? "1" : undefined}>
+              <div
+                key={r.id}
+                className="fc-row"
+                data-me={r.me ? "1" : undefined}
+                data-run={run ? "1" : undefined}
+              >
                 {sep && <Place row={r} onOpen={() => openRow(r)} />}
-                <button type="button" className="fc-msg" onClick={() => openRow(r)} title="Jump to message in chat" data-new={isNew(r) ? "1" : undefined} data-failed={r.failed ? "1" : undefined}>
+                <button
+                  type="button"
+                  className="fc-msg"
+                  onClick={() => openRow(r)}
+                  title="Jump to message in chat"
+                  data-new={isNew(r) ? "1" : undefined}
+                  data-failed={r.failed ? "1" : undefined}
+                >
                   <span className="fc-text">
                     <Preview text={r.text} />
                   </span>
-                  {(tail || r.failed) && <span className="fc-at-time">{r.failed ? "not sent" : timeAgo(r.at)}</span>}
+                  {(tail || r.failed) && (
+                    <span className="fc-at-time">
+                      {r.failed ? "not sent" : timeAgo(r.at)}
+                    </span>
+                  )}
                 </button>
               </div>
             );
@@ -369,7 +499,11 @@ export function FaceMessages({
       )}
       {!replyHere ? (
         <div className="fc-reply">
-          <button type="button" className="fc-reply-thread" onClick={openChatAt}>
+          <button
+            type="button"
+            className="fc-reply-thread"
+            onClick={openChatAt}
+          >
             Reply in the thread <ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
@@ -377,7 +511,9 @@ export function FaceMessages({
         <div className="fc-reply">
           <input
             ref={inputRef}
-            placeholder={toDm ? `Message ${name.split(/\s+/)[0]}…` : `Reply ${replyWhere}…`}
+            placeholder={
+              toDm ? `Message ${name.split(/\s+/)[0]}…` : `Reply ${replyWhere}…`
+            }
             aria-label={toDm ? `Message ${name}` : `Reply ${replyWhere}`}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -400,7 +536,12 @@ function Place({ row, onOpen }: { row: Row; onOpen: () => void }) {
   const channel = whereOf(row.channelId, false).replace(/^in /, "");
   const thread = !!(row.threadRootId || row.inThread);
   return (
-    <button type="button" className="fc-sep fc-sep-link" onClick={onOpen} title={thread ? `Open the thread in ${channel}` : `Open ${channel}`}>
+    <button
+      type="button"
+      className="fc-sep fc-sep-link"
+      onClick={onOpen}
+      title={thread ? `Open the thread in ${channel}` : `Open ${channel}`}
+    >
       <span className="fc-sep-channel">{channel}</span>
       {thread && (
         <>

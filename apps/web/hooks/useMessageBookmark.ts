@@ -11,7 +11,9 @@ export function useMessageBookmark(
   messageId: string | undefined,
 ) {
   const isBookmarked = useInboxStore(
-    (s) => !!messageId && (s.bookmarks as any[]).some((b) => b.message_id === messageId),
+    (s) =>
+      !!messageId &&
+      (s.bookmarks as any[]).some((b) => b.message_id === messageId),
   );
   const toggle = useInboxStore((s) => s.toggleBookmark);
   const toggleBookmark = useCallback(() => {

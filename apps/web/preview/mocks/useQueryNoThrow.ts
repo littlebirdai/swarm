@@ -10,7 +10,10 @@ const answers: Record<string, unknown> = {
   "devices:listDevices": devices,
 };
 
-export function useQueryNoThrow(ref: unknown, args: unknown): { data: unknown; error: null } {
+export function useQueryNoThrow(
+  ref: unknown,
+  args: unknown,
+): { data: unknown; error: null } {
   if (args === "skip") return { data: undefined, error: null };
   return { data: answers[String(ref)] ?? null, error: null };
 }

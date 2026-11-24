@@ -9,11 +9,24 @@ import { resolveSpawnerConversation } from "../daemon.js";
 const dir = process.argv[2];
 let started: string[] = [];
 await startLaunch(
-  { agent: "claude", binary: "claude", binaryArgs: ["-p", "hi", "--session-id", "child-session"], childSessionId: "child-session" },
+  {
+    agent: "claude",
+    binary: "claude",
+    binaryArgs: ["-p", "hi", "--session-id", "child-session"],
+    childSessionId: "child-session",
+  },
   { cwd: dir, inheritStdin: false, capture: true },
-  async (_binary, args) => { started = args; return { code: 0, output: "" }; },
+  async (_binary, args) => {
+    started = args;
+    return { code: 0, output: "" };
+  },
   "parent-session",
 );
-const parent = await resolveSpawnerConversation(join(dir, "child.jsonl"), "child-session", "claude", { "parent-session": "parent-conversation" });
+const parent = await resolveSpawnerConversation(
+  join(dir, "child.jsonl"),
+  "child-session",
+  "claude",
+  { "parent-session": "parent-conversation" },
+);
 writeFileSync(join(dir, "result.json"), JSON.stringify({ parent, started }));
 process.exit(0);

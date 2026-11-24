@@ -62,7 +62,13 @@ import CompareIndex from "@/app/(marketing)/compare/page";
 import Compare from "@/app/(marketing)/compare/ComparePage";
 import FeatureDeepDive from "@/app/(marketing)/features/FeatureDeepDivePage";
 
-export { SEO_ROUTES, SITE_URL, seoFor, cardHeading, cardImagePath } from "@/lib/seoRoutes";
+export {
+  SEO_ROUTES,
+  SITE_URL,
+  seoFor,
+  cardHeading,
+  cardImagePath,
+} from "@/lib/seoRoutes";
 export { buildBlogFeed, BLOG_FEED_PATH } from "@/lib/blogFeed";
 export { CODECAST_MONO_MARK } from "@codecast/shared/render/codecastMark";
 
@@ -91,52 +97,118 @@ export function render(path: string): string {
   return renderToString(
     <ConvexAuthProvider client={convex}>
       <ConvexProviderWithAuth client={convex} useAuth={useSettledLoggedOutAuth}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route element={<MarketingLayout />}>
-            <Route index element={<Landing />} />
-            <Route path="about" element={<About />} />
-            <Route path="features" element={<Features />} />
-            <Route path="features/:slug" element={<FeatureDeepDive />} />
-            <Route path="documentation" element={<Documentation />} />
-            <Route path="documentation/:slug" element={<DocumentationGuide />} />
-            <Route path="privacy" element={<Privacy />} />
-            <Route path="security" element={<Security />} />
-            <Route path="support" element={<Support />} />
-            <Route path="terms" element={<Terms />} />
-            <Route path="changelog" element={<Changelog />} />
-            <Route path="pricing" element={<Pricing />} />
-            <Route path="download" element={<Download />} />
-            <Route path="blog" element={<BlogIndex />} />
-            <Route path="blog/git-blame-for-ai-agents" element={<BlogGitBlame />} />
-            <Route path="blog/an-inbox-for-your-agents" element={<BlogAgentInbox />} />
-            <Route path="blog/your-agents-forget-your-team-does-not" element={<BlogTeamMemory />} />
-            <Route path="blog/this-post-wrote-itself" element={<BlogTriggers />} />
-            <Route path="blog/a-url-for-everything-your-agent-makes" element={<BlogPublish />} />
-            <Route path="blog/agents-that-talk-to-each-other" element={<BlogAgentsTalk />} />
-            <Route path="blog/the-pull-request-that-knows-its-sessions" element={<BlogPullRequests />} />
-            <Route path="blog/what-your-team-sees" element={<BlogTeamSees />} />
-            <Route path="blog/one-repository-twenty-checkouts" element={<BlogWorktrees />} />
-            <Route path="blog/the-tree-at-the-end-of-every-turn" element={<BlogTurns />} />
-            <Route path="blog/undo-with-a-history" element={<BlogUndo />} />
-            <Route path="blog/claude-code-sessions" element={<BlogClaudeSessions />} />
-            <Route path="blog/claude-code-cursor-codex" element={<BlogAgentsTogether />} />
-            <Route path="blog/agents-in-your-own-chrome" element={<BlogOwnChrome />} />
-            <Route path="blog/the-software-factory" element={<BlogSoftwareFactory />} />
-            <Route path="blog/claude-code-history-on-day-one" element={<BlogHistoryOnDayOne />} />
-            <Route path="blog/claude-code-from-your-phone" element={<BlogFromYourPhone />} />
-            <Route path="blog/the-chart-in-the-reply" element={<BlogChartReply />} />
-            <Route path="blog/the-questions-your-agents-save-for-you" element={<BlogQuestions />} />
-            <Route path="blog/the-task-your-agent-reports-to" element={<BlogTaskPage />} />
-            <Route path="blog/codecast-in-the-cloud" element={<BlogCloud />} />
-            <Route path="blog/fewer-bigger-jumps" element={<BlogJumps />} />
-            <Route path="blog/field-manual" element={<BlogFieldManual />} />
-            <Route path="blog/field-manual/:chapter" element={<BlogFieldManualChapter />} />
-            <Route path="compare" element={<CompareIndex />} />
-            <Route path="compare/:slug" element={<Compare />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route element={<MarketingLayout />}>
+              <Route index element={<Landing />} />
+              <Route path="about" element={<About />} />
+              <Route path="features" element={<Features />} />
+              <Route path="features/:slug" element={<FeatureDeepDive />} />
+              <Route path="documentation" element={<Documentation />} />
+              <Route
+                path="documentation/:slug"
+                element={<DocumentationGuide />}
+              />
+              <Route path="privacy" element={<Privacy />} />
+              <Route path="security" element={<Security />} />
+              <Route path="support" element={<Support />} />
+              <Route path="terms" element={<Terms />} />
+              <Route path="changelog" element={<Changelog />} />
+              <Route path="pricing" element={<Pricing />} />
+              <Route path="download" element={<Download />} />
+              <Route path="blog" element={<BlogIndex />} />
+              <Route
+                path="blog/git-blame-for-ai-agents"
+                element={<BlogGitBlame />}
+              />
+              <Route
+                path="blog/an-inbox-for-your-agents"
+                element={<BlogAgentInbox />}
+              />
+              <Route
+                path="blog/your-agents-forget-your-team-does-not"
+                element={<BlogTeamMemory />}
+              />
+              <Route
+                path="blog/this-post-wrote-itself"
+                element={<BlogTriggers />}
+              />
+              <Route
+                path="blog/a-url-for-everything-your-agent-makes"
+                element={<BlogPublish />}
+              />
+              <Route
+                path="blog/agents-that-talk-to-each-other"
+                element={<BlogAgentsTalk />}
+              />
+              <Route
+                path="blog/the-pull-request-that-knows-its-sessions"
+                element={<BlogPullRequests />}
+              />
+              <Route
+                path="blog/what-your-team-sees"
+                element={<BlogTeamSees />}
+              />
+              <Route
+                path="blog/one-repository-twenty-checkouts"
+                element={<BlogWorktrees />}
+              />
+              <Route
+                path="blog/the-tree-at-the-end-of-every-turn"
+                element={<BlogTurns />}
+              />
+              <Route path="blog/undo-with-a-history" element={<BlogUndo />} />
+              <Route
+                path="blog/claude-code-sessions"
+                element={<BlogClaudeSessions />}
+              />
+              <Route
+                path="blog/claude-code-cursor-codex"
+                element={<BlogAgentsTogether />}
+              />
+              <Route
+                path="blog/agents-in-your-own-chrome"
+                element={<BlogOwnChrome />}
+              />
+              <Route
+                path="blog/the-software-factory"
+                element={<BlogSoftwareFactory />}
+              />
+              <Route
+                path="blog/claude-code-history-on-day-one"
+                element={<BlogHistoryOnDayOne />}
+              />
+              <Route
+                path="blog/claude-code-from-your-phone"
+                element={<BlogFromYourPhone />}
+              />
+              <Route
+                path="blog/the-chart-in-the-reply"
+                element={<BlogChartReply />}
+              />
+              <Route
+                path="blog/the-questions-your-agents-save-for-you"
+                element={<BlogQuestions />}
+              />
+              <Route
+                path="blog/the-task-your-agent-reports-to"
+                element={<BlogTaskPage />}
+              />
+              <Route
+                path="blog/codecast-in-the-cloud"
+                element={<BlogCloud />}
+              />
+              <Route path="blog/fewer-bigger-jumps" element={<BlogJumps />} />
+              <Route path="blog/field-manual" element={<BlogFieldManual />} />
+              <Route
+                path="blog/field-manual/:chapter"
+                element={<BlogFieldManualChapter />}
+              />
+              <Route path="compare" element={<CompareIndex />} />
+              <Route path="compare/:slug" element={<Compare />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
       </ConvexProviderWithAuth>
     </ConvexAuthProvider>,
   );

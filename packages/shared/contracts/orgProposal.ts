@@ -5,8 +5,17 @@
 // path and both tests share this one reading of the block and of the option
 // order, so an option index means the same thing everywhere.
 
-import { ORG_SESSION_KINDS, sessionDestination, type OrgFileSessionChange } from "./orgSessionFiling";
-export { ORG_SESSION_KINDS, sessionDestination, type OrgFileSessionChange, type OrgSessionDestination } from "./orgSessionFiling";
+import {
+  ORG_SESSION_KINDS,
+  sessionDestination,
+  type OrgFileSessionChange,
+} from "./orgSessionFiling";
+export {
+  ORG_SESSION_KINDS,
+  sessionDestination,
+  type OrgFileSessionChange,
+  type OrgSessionDestination,
+} from "./orgSessionFiling";
 import { autonomyOn, trustForSwitch } from "./roleAutonomy";
 import { INITIATIVE_METRICS_MAX, INITIATIVE_RECORD_MAX } from "./initiative";
 import { metricWindowNoiseError } from "./metricStanding";
@@ -15,13 +24,28 @@ export { everyWords } from "./rolePlaybook";
 import { DEFAULT_LINE_SLUG, LINE_SLUG_RE } from "./lineSlug";
 export { DEFAULT_LINE_SLUG, LINE_SLUG_RE, lineSlugOf } from "./lineSlug";
 import { andList } from "./orgProposalReply";
-export { andList, ORG_REPLY_WORDS, proposalReplyText, proposalRepliesText, type OrgChangeAnswer, type OrgChangeReply, type OrgProposalReply, type OrgReplyItem, type OrgReplyVerdict } from "./orgProposalReply";
+export {
+  andList,
+  ORG_REPLY_WORDS,
+  proposalReplyText,
+  proposalRepliesText,
+  type OrgChangeAnswer,
+  type OrgChangeReply,
+  type OrgProposalReply,
+  type OrgReplyItem,
+  type OrgReplyVerdict,
+} from "./orgProposalReply";
 
 export const ORG_PROPOSAL_FENCE = "org-proposal";
 
 /** `cards` is the line's admission cap (line-profile.md LP6): open change cards per person. */
 /** A daily limit set to null is removed: the role has no limit on it. */
-export type OrgProposalCaps = { hands_per_day?: number | null; wakes_per_day?: number | null; tokens_per_day?: number | null; cards?: number };
+export type OrgProposalCaps = {
+  hands_per_day?: number | null;
+  wakes_per_day?: number | null;
+  tokens_per_day?: number | null;
+  cards?: number;
+};
 
 export type OrgProposalScope = {
   /** Project refs: a short id, an id, or a title substring unique in the workspace. */
@@ -35,7 +59,11 @@ export type OrgProposalScope = {
  *  resolves refs into ids inside the boundary. */
 export type OrgTenureSpec =
   | { kind: "standing" }
-  | { kind: "program"; ends: { plan: string } | { project: string } | { date: number }; then: "retire" | "review" };
+  | {
+      kind: "program";
+      ends: { plan: string } | { project: string } | { date: number };
+      then: "retire" | "review";
+    };
 
 /** A session that already works as this role (org-roles-run-work.md R2).
  *  Accepting the role names it: the session becomes the role's standing
@@ -43,7 +71,12 @@ export type OrgTenureSpec =
  *  `started_at` and `helpers` are what the author read about the session (its
  *  title, when it started in unix ms, how many sessions it has started as
  *  helpers); the ghost card's sentence is built from them (seatSentence). */
-export type OrgRoleSeat = { existing: string; title?: string; started_at?: number; helpers?: number };
+export type OrgRoleSeat = {
+  existing: string;
+  title?: string;
+  started_at?: number;
+  helpers?: number;
+};
 
 export type OrgRoleProposal = {
   kind: "role";
@@ -72,10 +105,19 @@ export type OrgRoleProposal = {
 export type OrgProjectHorizon = "ongoing" | "bounded";
 
 export type OrgProjectChange =
-  | { op: "create"; title: string; description?: string; project_path?: string; horizon?: OrgProjectHorizon }
+  | {
+      op: "create";
+      title: string;
+      description?: string;
+      project_path?: string;
+      horizon?: OrgProjectHorizon;
+    }
   | { op: "merge"; from: string; into: string };
 
-export type OrgProjectsProposal = { kind: "projects"; changes: OrgProjectChange[] };
+export type OrgProjectsProposal = {
+  kind: "projects";
+  changes: OrgProjectChange[];
+};
 
 export type OrgMoveProposal = {
   kind: "move";
@@ -88,11 +130,24 @@ export type OrgMoveProposal = {
   leave_sessions?: boolean;
 };
 
-export type OrgRetireProposal = { kind: "retire"; handle: string; reason?: string };
+export type OrgRetireProposal = {
+  kind: "retire";
+  handle: string;
+  reason?: string;
+};
 
-export type OrgProposal = OrgRoleProposal | OrgProjectsProposal | OrgMoveProposal | OrgRetireProposal;
+export type OrgProposal =
+  | OrgRoleProposal
+  | OrgProjectsProposal
+  | OrgMoveProposal
+  | OrgRetireProposal;
 
-export const ORG_PROPOSAL_KINDS = ["role", "projects", "move", "retire"] as const;
+export const ORG_PROPOSAL_KINDS = [
+  "role",
+  "projects",
+  "move",
+  "retire",
+] as const;
 
 // ── Staffing changes (docs/architecture/org-staffing.md S4) ──────────────────
 // A proposal (op-N) is a list of changes decided one by one. The four stack
@@ -107,18 +162,41 @@ export type OrgPriority = "p0" | "p1" | "p2" | "p3";
  *  host and to no role (org-roles-run-work.md R1). `leave_sessions` is the
  *  person's one edit on a role, scope or adopt change: leave them where they are. */
 export type OrgLeaveSessions = { leave_sessions?: boolean };
-export type OrgScopeChange = { kind: "scope"; handle: string; add?: string[]; remove?: string[] } & OrgLeaveSessions;
-export type OrgBudgetChange = { kind: "budget"; handle: string; caps: OrgProposalCaps };
+export type OrgScopeChange = {
+  kind: "scope";
+  handle: string;
+  add?: string[];
+  remove?: string[];
+} & OrgLeaveSessions;
+export type OrgBudgetChange = {
+  kind: "budget";
+  handle: string;
+  caps: OrgProposalCaps;
+};
 /** The switch (org-staffing.md S23.1). The wire kind stays `trust` for one release; a spec may
  *  write `{ kind: "autonomy", handle, on }` and parseOrgProposalSpec maps it here. */
-export type OrgTrustChange = { kind: "trust"; handle: string; trust: OrgTrustStage };
+export type OrgTrustChange = {
+  kind: "trust";
+  handle: string;
+  trust: OrgTrustStage;
+};
 /** A spec's switch change before parsing maps it onto the stored kind. */
 export function normalizeAutonomyChange(raw: any): any {
   if (!raw || typeof raw !== "object" || raw.kind !== "autonomy") return raw;
   const { on, ...rest } = raw;
-  return { ...rest, kind: "trust", trust: typeof on === "boolean" ? trustForSwitch(on) : on };
+  return {
+    ...rest,
+    kind: "trust",
+    trust: typeof on === "boolean" ? trustForSwitch(on) : on,
+  };
 }
-export type OrgRoutineChange = { kind: "routine"; handle: string; title: string; prompt: string; every: string };
+export type OrgRoutineChange = {
+  kind: "routine";
+  handle: string;
+  title: string;
+  prompt: string;
+  every: string;
+};
 export type OrgProjectMetaChange = {
   kind: "project_meta";
   project: string;
@@ -131,7 +209,11 @@ export type OrgProjectMetaChange = {
   risks?: string[];
 };
 /** This session becomes the role's standing session (the analyzer offering to be the head of people). */
-export type OrgAdoptChange = { kind: "adopt"; handle: string; conversation: string } & OrgLeaveSessions;
+export type OrgAdoptChange = {
+  kind: "adopt";
+  handle: string;
+  conversation: string;
+} & OrgLeaveSessions;
 /** File a plan under a project (plans.project_id), so a role's scope can see it. Both are refs. */
 export type OrgFileChange = { kind: "file"; plan: string; project: string };
 
@@ -150,7 +232,11 @@ export type OrgCharterEdit =
   | { op: "replace"; before: string; after: string }
   | { op: "add"; line: string }
   | { op: "remove"; before: string };
-export type OrgCharterEditChange = { kind: "charter_edit"; handle: string; edits: OrgCharterEdit[] };
+export type OrgCharterEditChange = {
+  kind: "charter_edit";
+  handle: string;
+  edits: OrgCharterEdit[];
+};
 
 /** A role's own settings changed in place, through the role's own setters:
  *  its title (`name`), its handle (`new_handle`), the person like name it
@@ -173,7 +259,17 @@ export type OrgRoleEditChange = {
   paused?: boolean;
 };
 /** The fields a role_edit may set, in the order its words say them. */
-export const ORG_ROLE_EDIT_FIELDS = ["name", "new_handle", "given_name", "avatar", "tenure", "line", "hires_freely", "keeps_reports_inside", "paused"] as const;
+export const ORG_ROLE_EDIT_FIELDS = [
+  "name",
+  "new_handle",
+  "given_name",
+  "avatar",
+  "tenure",
+  "line",
+  "hires_freely",
+  "keeps_reports_inside",
+  "paused",
+] as const;
 
 // Bring records in line (org-staffing.md S9): a plan, task or project whose
 // evidence says it is finished gets its status set, through the same update
@@ -183,13 +279,37 @@ export const ORG_ROLE_EDIT_FIELDS = ["name", "new_handle", "given_name", "avatar
 // not hold that team's records, so the title travels with the proposal (the
 // analyzer writes it from its inputs; the server fills it at post time when
 // the record is in the workspace).
-export type OrgPlanStatusChange = { kind: "plan_status"; plan: string; status: "done" | "abandoned" | "active"; reason: string; title?: string; /** The project the plan is filed under (pr-N), so the proposal groups by it (orgRecordGroups); the server fills it at post time. */ project?: string };
+export type OrgPlanStatusChange = {
+  kind: "plan_status";
+  plan: string;
+  status: "done" | "abandoned" | "active";
+  reason: string;
+  title?: string;
+  /** The project the plan is filed under (pr-N), so the proposal groups by it (orgRecordGroups); the server fills it at post time. */ project?: string;
+};
 /** A task's status set: done or dropped closes it; open (or backlog, where the
  *  team's statuses have it) puts a row that was marked in progress but never
  *  worked back where it belongs, instead of dropping real backlog. */
-export type OrgTaskStatusChange = { kind: "task_status"; task: string; status: "done" | "dropped" | "open" | "backlog"; reason: string; title?: string; /** The plan (pl-N) and project (pr-N) the task sits under; the server fills them at post time. A task under a plan the same proposal closes is settled by that close (orgRecordRedundancyErrors). */ plan?: string; project?: string };
-export type OrgProjectStatusChange = { kind: "project_status"; project: string; status: "paused" | "done" | "active"; reason: string; title?: string };
-export type OrgRecordStatusChange = OrgPlanStatusChange | OrgTaskStatusChange | OrgProjectStatusChange;
+export type OrgTaskStatusChange = {
+  kind: "task_status";
+  task: string;
+  status: "done" | "dropped" | "open" | "backlog";
+  reason: string;
+  title?: string;
+  /** The plan (pl-N) and project (pr-N) the task sits under; the server fills them at post time. A task under a plan the same proposal closes is settled by that close (orgRecordRedundancyErrors). */ plan?: string;
+  project?: string;
+};
+export type OrgProjectStatusChange = {
+  kind: "project_status";
+  project: string;
+  status: "paused" | "done" | "active";
+  reason: string;
+  title?: string;
+};
+export type OrgRecordStatusChange =
+  | OrgPlanStatusChange
+  | OrgTaskStatusChange
+  | OrgProjectStatusChange;
 
 // Hiring from a template (org-hire.md W8). Trust is authority inside codecast;
 // `authority` is what a person lets a role do outside it: spend on an account,
@@ -197,17 +317,44 @@ export type OrgRecordStatusChange = OrgPlanStatusChange | OrgTaskStatusChange | 
 // a limit and a review boundary. A hire is the instance of a template on one
 // project; the role change of the same handle in the same proposal is its seat.
 export type OrgAuthorityKind = "spend" | "publish" | "write" | "connect";
-export type OrgAuthorityLimit = { usd_per_month?: number; usd_per_day?: number; per_day?: number };
-export type OrgAuthorityGrant = { id: string; kind: OrgAuthorityKind; label: string; scope?: string; limit?: OrgAuthorityLimit; expires?: string };
-export type OrgAuthorityChange = { kind: "authority"; handle: string; authority: OrgAuthorityGrant[] };
+export type OrgAuthorityLimit = {
+  usd_per_month?: number;
+  usd_per_day?: number;
+  per_day?: number;
+};
+export type OrgAuthorityGrant = {
+  id: string;
+  kind: OrgAuthorityKind;
+  label: string;
+  scope?: string;
+  limit?: OrgAuthorityLimit;
+  expires?: string;
+};
+export type OrgAuthorityChange = {
+  kind: "authority";
+  handle: string;
+  authority: OrgAuthorityGrant[];
+};
 export type OrgHireChange = {
-  kind: "hire"; handle: string; template: string; version: string; digest: string; instance: string; project: string;
+  kind: "hire";
+  handle: string;
+  template: string;
+  version: string;
+  digest: string;
+  instance: string;
+  project: string;
   /** Answers to the template's inputs; never a secret's value (those bind on the host). */
   config?: Record<string, string>;
   update_policy?: "manual" | "canary" | "stable";
 };
 /** Move an instance to another release of its template (H9); the host step performs it. */
-export type OrgUpgradeChange = { kind: "upgrade"; instance: string; template: string; to: string; digest: string };
+export type OrgUpgradeChange = {
+  kind: "upgrade";
+  instance: string;
+  template: string;
+  to: string;
+  digest: string;
+};
 
 // The company's goals (initiatives-projects-role-page.md "I1, revised"): a
 // reviewer that reads one shared goal in the projects' own goals, a call or a
@@ -218,51 +365,149 @@ export type OrgUpgradeChange = { kind: "upgrade"; instance: string; template: st
 // carried so the row reads cold in a store that does not hold the row.
 /** How a goal is measured: a name and the number to reach ("Weekly active teams", "1000"). At most two. */
 /** A goal's number as a proposal names it: the goal's InitiativeMetric without its key (derived from the name), read live from `series` (mw-N) when it names one, and a guardrail when the work must not make it worse. */
-export type OrgInitiativeMetric = { name: string; target: string; series?: string; guardrail?: boolean; window?: string; noise?: string };
+export type OrgInitiativeMetric = {
+  name: string;
+  target: string;
+  series?: string;
+  guardrail?: boolean;
+  window?: string;
+  noise?: string;
+};
 /** A step on the way to a goal, with the day it is due (unix ms) when one was named. */
 export type OrgInitiativeMilestone = { title: string; date?: number };
 /** The written half of a goal's intent record (I5) a change may carry: why
  *  it matters, what done looks like, milestones, where the goal was stated
  *  (`sources`: each an address, the words said, or both, read by
  *  parseIntentSource), what is still undecided and what was decided. */
-export type OrgInitiativeRecord = { why?: string; done_when?: string; milestones?: OrgInitiativeMilestone[]; sources?: string[]; questions?: string[]; decisions?: string[] };
+export type OrgInitiativeRecord = {
+  why?: string;
+  done_when?: string;
+  milestones?: OrgInitiativeMilestone[];
+  sources?: string[];
+  questions?: string[];
+  decisions?: string[];
+};
 /** Set a goal: the initiative with the sentence that says what reaching it
  *  looks like, the projects that carry it, who drives it, the top level goal
  *  it feeds (`parent`: a ref, or the title of a goal set earlier in the same
  *  proposal), the one or two numbers it is measured by, and its record. */
-export type OrgInitiativeChange = { kind: "initiative"; title: string; description: string; projects: string[]; owner?: string; target_date?: number; parent?: string; metrics?: OrgInitiativeMetric[]; evidence?: string[] } & OrgInitiativeRecord;
+export type OrgInitiativeChange = {
+  kind: "initiative";
+  title: string;
+  description: string;
+  projects: string[];
+  owner?: string;
+  target_date?: number;
+  parent?: string;
+  metrics?: OrgInitiativeMetric[];
+  evidence?: string[];
+} & OrgInitiativeRecord;
 /** Add projects to a goal that exists. */
-export type OrgInitiativeProjectsChange = { kind: "initiative_projects"; initiative: string; projects: string[]; title?: string };
+export type OrgInitiativeProjectsChange = {
+  kind: "initiative_projects";
+  initiative: string;
+  projects: string[];
+  title?: string;
+};
 /** Give a goal an owner, a person or a role. */
-export type OrgInitiativeOwnerChange = { kind: "initiative_owner"; initiative: string; owner: string; title?: string };
+export type OrgInitiativeOwnerChange = {
+  kind: "initiative_owner";
+  initiative: string;
+  owner: string;
+  title?: string;
+};
 /** Place a goal that exists in the tree, say how it is measured and write its
  *  record: `parent` is a ref or null (a top level goal), `metrics` replaces
  *  the list, `why` and `done_when` replace the words, and `milestones`,
  *  `sources`, `questions` and `decisions` are entries to ADD, never a
  *  replacement. Each is optional and an absent one is left as it is. */
-export type OrgInitiativeShapeChange = { kind: "initiative_shape"; initiative: string; parent?: string | null; metrics?: OrgInitiativeMetric[]; title?: string } & OrgInitiativeRecord;
-export type OrgGoalChange = OrgInitiativeChange | OrgInitiativeProjectsChange | OrgInitiativeOwnerChange | OrgInitiativeShapeChange;
+export type OrgInitiativeShapeChange = {
+  kind: "initiative_shape";
+  initiative: string;
+  parent?: string | null;
+  metrics?: OrgInitiativeMetric[];
+  title?: string;
+} & OrgInitiativeRecord;
+export type OrgGoalChange =
+  | OrgInitiativeChange
+  | OrgInitiativeProjectsChange
+  | OrgInitiativeOwnerChange
+  | OrgInitiativeShapeChange;
 
-export type OrgChange = OrgProposal | OrgScopeChange | OrgBudgetChange | OrgTrustChange | OrgRoutineChange | OrgProjectMetaChange | OrgAdoptChange | OrgFileChange | OrgCharterEditChange | OrgRoleEditChange
-  | OrgPlanStatusChange | OrgTaskStatusChange | OrgProjectStatusChange | OrgAuthorityChange | OrgHireChange | OrgUpgradeChange | OrgGoalChange | OrgFileSessionChange;
+export type OrgChange =
+  | OrgProposal
+  | OrgScopeChange
+  | OrgBudgetChange
+  | OrgTrustChange
+  | OrgRoutineChange
+  | OrgProjectMetaChange
+  | OrgAdoptChange
+  | OrgFileChange
+  | OrgCharterEditChange
+  | OrgRoleEditChange
+  | OrgPlanStatusChange
+  | OrgTaskStatusChange
+  | OrgProjectStatusChange
+  | OrgAuthorityChange
+  | OrgHireChange
+  | OrgUpgradeChange
+  | OrgGoalChange
+  | OrgFileSessionChange;
 
-export const ORG_CHANGE_KINDS = [...ORG_PROPOSAL_KINDS, "file", "scope", "budget", "trust", "routine", "project_meta", "adopt", "charter_edit", "role_edit", "plan_status", "task_status", "project_status", "authority", "hire", "upgrade", "initiative", "initiative_projects", "initiative_owner", "initiative_shape", "file_session"] as const;
+export const ORG_CHANGE_KINDS = [
+  ...ORG_PROPOSAL_KINDS,
+  "file",
+  "scope",
+  "budget",
+  "trust",
+  "routine",
+  "project_meta",
+  "adopt",
+  "charter_edit",
+  "role_edit",
+  "plan_status",
+  "task_status",
+  "project_status",
+  "authority",
+  "hire",
+  "upgrade",
+  "initiative",
+  "initiative_projects",
+  "initiative_owner",
+  "initiative_shape",
+  "file_session",
+] as const;
 /** The kinds the pane groups under "Bring records in line" (S9). */
-export const ORG_SYNC_KINDS: readonly OrgChangeKind[] = ["plan_status", "task_status", "project_status"];
+export const ORG_SYNC_KINDS: readonly OrgChangeKind[] = [
+  "plan_status",
+  "task_status",
+  "project_status",
+];
 /** The kinds that set, extend or staff a goal; one ask holds them (I1, revised). */
-export const ORG_GOAL_KINDS: readonly OrgChangeKind[] = ["initiative", "initiative_projects", "initiative_owner", "initiative_shape"];
+export const ORG_GOAL_KINDS: readonly OrgChangeKind[] = [
+  "initiative",
+  "initiative_projects",
+  "initiative_owner",
+  "initiative_shape",
+];
 /** Kinds a person never sees drawn (org-staffing.md S23.2): a limit is a safety
  *  net the person does not read about, so a card draws no chip and no row for
  *  it. A proposal holding nothing else says what changes in plain words, with
  *  no unit named (quietChangeSentence). */
 export const ORG_QUIET_KINDS: readonly OrgChangeKind[] = ["budget"];
-export const isOrgQuietChange = (c: { kind: string }): boolean => (ORG_QUIET_KINDS as readonly string[]).includes(c.kind);
+export const isOrgQuietChange = (c: { kind: string }): boolean =>
+  (ORG_QUIET_KINDS as readonly string[]).includes(c.kind);
 /** The plain sentence for a quiet change: what changes, never how much. */
 export function quietChangeSentence(c: OrgChange, name?: string): string {
-  const who = name ?? ("handle" in c && typeof (c as { handle?: unknown }).handle === "string" ? `@${(c as { handle: string }).handle.replace(/^@/, "")}` : "the role");
+  const who =
+    name ??
+    ("handle" in c && typeof (c as { handle?: unknown }).handle === "string"
+      ? `@${(c as { handle: string }).handle.replace(/^@/, "")}`
+      : "the role");
   return `${who} keeps a safety net on its daily work.`;
 }
-export const isOrgGoalChange = (c: { kind: string }): c is OrgGoalChange => (ORG_GOAL_KINDS as readonly string[]).includes(c.kind);
+export const isOrgGoalChange = (c: { kind: string }): c is OrgGoalChange =>
+  (ORG_GOAL_KINDS as readonly string[]).includes(c.kind);
 export type OrgChangeKind = OrgChange["kind"];
 
 // A proposal holds one kind of work: the records brought in line, the
@@ -280,47 +525,98 @@ export type OrgChangeKind = OrgChange["kind"];
 // (hire a lead and give it its threads in one approval) and is not counted
 // against the structure cap.
 export type OrgProposalWork = "records" | "structure" | "goals" | "sessions";
-export const ORG_PROPOSAL_WORKS: readonly OrgProposalWork[] = ["records", "structure", "goals", "sessions"];
-export const ORG_PROPOSAL_MAX: Record<OrgProposalWork, number | null> = { records: null, structure: 12, goals: 12, sessions: null };
+export const ORG_PROPOSAL_WORKS: readonly OrgProposalWork[] = [
+  "records",
+  "structure",
+  "goals",
+  "sessions",
+];
+export const ORG_PROPOSAL_MAX: Record<OrgProposalWork, number | null> = {
+  records: null,
+  structure: 12,
+  goals: 12,
+  sessions: null,
+};
 export function orgWorkOfChange(c: { kind: string }): OrgProposalWork {
-  return (ORG_SYNC_KINDS as readonly string[]).includes(c.kind) ? "records" : (ORG_GOAL_KINDS as readonly string[]).includes(c.kind) ? "goals" : (ORG_SESSION_KINDS as readonly string[]).includes(c.kind) ? "sessions" : "structure";
+  return (ORG_SYNC_KINDS as readonly string[]).includes(c.kind)
+    ? "records"
+    : (ORG_GOAL_KINDS as readonly string[]).includes(c.kind)
+      ? "goals"
+      : (ORG_SESSION_KINDS as readonly string[]).includes(c.kind)
+        ? "sessions"
+        : "structure";
 }
 /** The handles of the roles the changes create. */
 const createdHandles = (changes: ReadonlyArray<{ change: { kind: string } }>) =>
-  new Set(changes.filter((c) => c.change.kind === "role").map((c) => askHandle(c.change as OrgChange)).filter((h): h is string => !!h));
+  new Set(
+    changes
+      .filter((c) => c.change.kind === "role")
+      .map((c) => askHandle(c.change as OrgChange))
+      .filter((h): h is string => !!h),
+  );
 /** The role a change acts on, by handle: the role a session is filed
  *  under, else the role the change names. A change on a role the same
  *  proposal creates rides on that role and cannot apply without it. */
 export function roleActedOn(c: { kind: string }): string | null {
-  if (c.kind === "file_session") { const to = sessionDestination((c as any).to ?? ""); return to?.kind === "role" ? to.handle : null; }
+  if (c.kind === "file_session") {
+    const to = sessionDestination((c as any).to ?? "");
+    return to?.kind === "role" ? to.handle : null;
+  }
   return askHandle(c as OrgChange);
 }
 /** A session filed under a role the same changes create, its handle; else null. */
-function filingUnderCreated(c: { kind: string }, created: ReadonlySet<string>): string | null {
+function filingUnderCreated(
+  c: { kind: string },
+  created: ReadonlySet<string>,
+): string | null {
   const h = c.kind === "file_session" ? roleActedOn(c) : null;
   return h && created.has(h) ? h : null;
 }
 /** The work the changes hold, or null when they mix kinds. */
-export function orgProposalWork(changes: ReadonlyArray<{ change: { kind: string } }>): OrgProposalWork | null {
+export function orgProposalWork(
+  changes: ReadonlyArray<{ change: { kind: string } }>,
+): OrgProposalWork | null {
   const created = createdHandles(changes);
-  const works = new Set(changes.filter((c) => !filingUnderCreated(c.change, created)).map((c) => orgWorkOfChange(c.change)));
+  const works = new Set(
+    changes
+      .filter((c) => !filingUnderCreated(c.change, created))
+      .map((c) => orgWorkOfChange(c.change)),
+  );
   return works.size === 1 ? [...works][0] : null;
 }
 /** Why the changes are not one proposal: mixed work, or a structure or goal proposal too large to read whole. */
-export function orgProposalWorkErrors(changes: ReadonlyArray<{ change: { kind: string } }>): string[] {
+export function orgProposalWorkErrors(
+  changes: ReadonlyArray<{ change: { kind: string } }>,
+): string[] {
   if (!changes.length) return [];
   const created = createdHandles(changes);
   const byWork = new Map<OrgProposalWork, string[]>();
   for (const c of changes) {
-    if (filingUnderCreated(c.change, created)) continue; const w = orgWorkOfChange(c.change); byWork.set(w, [...(byWork.get(w) ?? []), c.change.kind]); }
+    if (filingUnderCreated(c.change, created)) continue;
+    const w = orgWorkOfChange(c.change);
+    byWork.set(w, [...(byWork.get(w) ?? []), c.change.kind]);
+  }
   if (byWork.size > 1) {
-    const noun: Record<OrgProposalWork, string> = { records: "record", structure: "structure", goals: "goal", sessions: "session filing" };
-    const parts = ORG_PROPOSAL_WORKS.filter((w) => byWork.has(w)).map((w) => { const kinds = byWork.get(w)!; return `${kinds.length} ${noun[w]} ${kinds.length === 1 ? "change" : "changes"} (${[...new Set(kinds)].join(", ")})`; });
-    return [`a proposal holds one kind of work, and this one mixes ${andList(parts)}: post the records as one proposal, the structure as another, the goals as a third and the session filings as a fourth, each with its own title and summary`];
+    const noun: Record<OrgProposalWork, string> = {
+      records: "record",
+      structure: "structure",
+      goals: "goal",
+      sessions: "session filing",
+    };
+    const parts = ORG_PROPOSAL_WORKS.filter((w) => byWork.has(w)).map((w) => {
+      const kinds = byWork.get(w)!;
+      return `${kinds.length} ${noun[w]} ${kinds.length === 1 ? "change" : "changes"} (${[...new Set(kinds)].join(", ")})`;
+    });
+    return [
+      `a proposal holds one kind of work, and this one mixes ${andList(parts)}: post the records as one proposal, the structure as another, the goals as a third and the session filings as a fourth, each with its own title and summary`,
+    ];
   }
   const [work, kinds] = [...byWork][0];
   const max = ORG_PROPOSAL_MAX[work];
-  if (max !== null && kinds.length > max) return [`a ${work === "goals" ? "goal" : work} proposal holds at most ${max} changes, and this one has ${kinds.length}: split it by area (one proposal per lead, project or goal) or leave the smaller changes for the next review`];
+  if (max !== null && kinds.length > max)
+    return [
+      `a ${work === "goals" ? "goal" : work} proposal holds at most ${max} changes, and this one has ${kinds.length}: split it by area (one proposal per lead, project or goal) or leave the smaller changes for the next review`,
+    ];
   return [];
 }
 
@@ -344,49 +640,121 @@ export function orgProposalWorkErrors(changes: ReadonlyArray<{ change: { kind: s
  *  settings (role_edit) land after every other change on the role, so a
  *  change that names it by the handle it had when proposed finds it. */
 export const ORG_CHANGE_APPLY_RANK: Record<OrgChangeKind, number> = {
-  task_status: 0, plan_status: 1, project_status: 2,
-  projects: 3, file: 4, role: 5, project_meta: 6, initiative: 7, initiative_projects: 8, initiative_owner: 9, initiative_shape: 10,
-  move: 11, scope: 12, charter_edit: 13, budget: 14, trust: 15, authority: 16, adopt: 17, routine: 18, hire: 19, upgrade: 20, role_edit: 21, retire: 22,
+  task_status: 0,
+  plan_status: 1,
+  project_status: 2,
+  projects: 3,
+  file: 4,
+  role: 5,
+  project_meta: 6,
+  initiative: 7,
+  initiative_projects: 8,
+  initiative_owner: 9,
+  initiative_shape: 10,
+  move: 11,
+  scope: 12,
+  charter_edit: 13,
+  budget: 14,
+  trust: 15,
+  authority: 16,
+  adopt: 17,
+  routine: 18,
+  hire: 19,
+  upgrade: 20,
+  role_edit: 21,
+  retire: 22,
   file_session: 23,
 };
 const UNRANKED = Math.max(...Object.values(ORG_CHANGE_APPLY_RANK)) + 1;
 
 /** Stable sort by apply rank; ties keep their given order. */
-export function orderOrgChanges<T>(rows: T[], changeOf: (row: T) => OrgChange | null | undefined): T[] {
-  const rank = (row: T) => { const c = changeOf(row); return c ? ORG_CHANGE_APPLY_RANK[c.kind] : UNRANKED; };
-  return rows.map((row, i) => ({ row, i, r: rank(row) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.row);
+export function orderOrgChanges<T>(
+  rows: T[],
+  changeOf: (row: T) => OrgChange | null | undefined,
+): T[] {
+  const rank = (row: T) => {
+    const c = changeOf(row);
+    return c ? ORG_CHANGE_APPLY_RANK[c.kind] : UNRANKED;
+  };
+  return rows
+    .map((row, i) => ({ row, i, r: rank(row) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.row);
 }
 
 const ORG_TRUST_STAGES: readonly string[] = ["understand", "decide", "direct"];
-export const ORG_AUTHORITY_KINDS: readonly OrgAuthorityKind[] = ["spend", "publish", "write", "connect"];
+export const ORG_AUTHORITY_KINDS: readonly OrgAuthorityKind[] = [
+  "spend",
+  "publish",
+  "write",
+  "connect",
+];
 const SLUG_RE = /^[a-z][a-z0-9-]{0,47}$/;
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const DIGEST_RE = /^[a-f0-9]{64}$/;
 const ORG_PRIORITIES: readonly string[] = ["p0", "p1", "p2", "p3"];
-export const ORG_PROJECT_HORIZONS: readonly OrgProjectHorizon[] = ["ongoing", "bounded"];
-export const ORG_TENURE_THEN: readonly ("retire" | "review")[] = ["retire", "review"];
-export const PLAN_STATUS_CHANGES: readonly OrgPlanStatusChange["status"][] = ["done", "abandoned", "active"];
-export const TASK_STATUS_CHANGES: readonly OrgTaskStatusChange["status"][] = ["done", "dropped", "open", "backlog"];
-export const PROJECT_STATUS_CHANGES: readonly OrgProjectStatusChange["status"][] = ["paused", "done", "active"];
+export const ORG_PROJECT_HORIZONS: readonly OrgProjectHorizon[] = [
+  "ongoing",
+  "bounded",
+];
+export const ORG_TENURE_THEN: readonly ("retire" | "review")[] = [
+  "retire",
+  "review",
+];
+export const PLAN_STATUS_CHANGES: readonly OrgPlanStatusChange["status"][] = [
+  "done",
+  "abandoned",
+  "active",
+];
+export const TASK_STATUS_CHANGES: readonly OrgTaskStatusChange["status"][] = [
+  "done",
+  "dropped",
+  "open",
+  "backlog",
+];
+export const PROJECT_STATUS_CHANGES: readonly OrgProjectStatusChange["status"][] =
+  ["paused", "done", "active"];
 
 /** Why a tenure is not one, or null. Shared by the spec validator and the role mutations. */
 export function orgTenureError(raw: any): string | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "tenure is { kind: standing } or { kind: program, ends, then }";
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return "tenure is { kind: standing } or { kind: program, ends, then }";
   if (raw.kind === "standing") return null;
-  if (raw.kind !== "program") return `tenure kind is standing or program, not ${JSON.stringify(raw.kind)}`;
+  if (raw.kind !== "program")
+    return `tenure kind is standing or program, not ${JSON.stringify(raw.kind)}`;
   const e = raw.ends;
-  if (!e || typeof e !== "object" || Array.isArray(e)) return "a program's ends is { plan }, { project } or { date }";
+  if (!e || typeof e !== "object" || Array.isArray(e))
+    return "a program's ends is { plan }, { project } or { date }";
   const keys = Object.keys(e).filter((k) => e[k] !== undefined);
-  if (keys.length !== 1 || !["plan", "project", "date"].includes(keys[0])) return "a program ends with exactly one of plan, project, date";
-  if (keys[0] === "date" ? !(typeof e.date === "number" && e.date > 0) : !nonEmpty(e[keys[0]])) return keys[0] === "date" ? "a program's end date is unix ms" : `a program's end ${keys[0]} is a ref`;
-  return (ORG_TENURE_THEN as readonly string[]).includes(raw.then) ? null : "a program's then is retire or review";
+  if (keys.length !== 1 || !["plan", "project", "date"].includes(keys[0]))
+    return "a program ends with exactly one of plan, project, date";
+  if (
+    keys[0] === "date"
+      ? !(typeof e.date === "number" && e.date > 0)
+      : !nonEmpty(e[keys[0]])
+  )
+    return keys[0] === "date"
+      ? "a program's end date is unix ms"
+      : `a program's end ${keys[0]} is a ref`;
+  return (ORG_TENURE_THEN as readonly string[]).includes(raw.then)
+    ? null
+    : "a program's then is retire or review";
 }
 /** Why a role's seat is not one, or null. */
 export function orgRoleSeatError(raw: any): string | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw) || !nonEmpty(raw.existing)) return "seat is { existing: the short id of the session that becomes the role's standing session }";
+  if (
+    !raw ||
+    typeof raw !== "object" ||
+    Array.isArray(raw) ||
+    !nonEmpty(raw.existing)
+  )
+    return "seat is { existing: the short id of the session that becomes the role's standing session }";
   if (!optString(raw.title)) return "seat title is the session's title";
-  const count = (x: any) => x === undefined || (typeof x === "number" && x >= 0);
-  return count(raw.started_at) && count(raw.helpers) ? null : "seat started_at is unix ms and helpers is a count";
+  const count = (x: any) =>
+    x === undefined || (typeof x === "number" && x >= 0);
+  return count(raw.started_at) && count(raw.helpers)
+    ? null
+    : "seat started_at is unix ms and helpers is a count";
 }
 
 const DAY_MS = 86_400_000;
@@ -394,12 +762,22 @@ const DAY_MS = 86_400_000;
  *  seen a role (R2): the ghost card, the derived ask and the CLI walk all print
  *  these words. The age is read at render, so it stays true while the proposal
  *  waits. */
-export function seatSentence(seat: OrgRoleSeat, now: number = Date.now()): string {
-  const days = seat.started_at ? Math.floor((now - seat.started_at) / DAY_MS) : 0;
-  const ran = days >= 1 ? `has run for ${days} ${days === 1 ? "day" : "days"}` : "";
-  const helped = seat.helpers ? `${ran ? "with" : "has started"} ${seat.helpers.toLocaleString("en-US")} helper ${seat.helpers === 1 ? "session" : "sessions"}` : "";
+export function seatSentence(
+  seat: OrgRoleSeat,
+  now: number = Date.now(),
+): string {
+  const days = seat.started_at
+    ? Math.floor((now - seat.started_at) / DAY_MS)
+    : 0;
+  const ran =
+    days >= 1 ? `has run for ${days} ${days === 1 ? "day" : "days"}` : "";
+  const helped = seat.helpers
+    ? `${ran ? "with" : "has started"} ${seat.helpers.toLocaleString("en-US")} helper ${seat.helpers === 1 ? "session" : "sessions"}`
+    : "";
   const facts = [ran, helped].filter(Boolean).join(" ");
-  const who = seat.title?.trim() ? seat.title.trim() : `the session ${seat.existing}`;
+  const who = seat.title?.trim()
+    ? seat.title.trim()
+    : `the session ${seat.existing}`;
   return `This is ${who}${facts ? `, which ${facts}` : ""}. Naming it changes nothing about how it works and gives it a place on the chart.`;
 }
 
@@ -411,184 +789,430 @@ export function orgEveryToMs(every: string): number | null {
   const m = /^(\d+)(m|h|d|w)$/.exec((every ?? "").trim());
   if (!m) return null;
   const n = Number(m[1]);
-  const unit = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 7 * 86_400_000 }[m[2] as "m" | "h" | "d" | "w"];
+  const unit = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 7 * 86_400_000 }[
+    m[2] as "m" | "h" | "d" | "w"
+  ];
   return n > 0 ? n * unit : null;
 }
 
-const nonEmpty = (x: any): x is string => typeof x === "string" && x.trim().length > 0;
+const nonEmpty = (x: any): x is string =>
+  typeof x === "string" && x.trim().length > 0;
 const strings = (x: any): boolean => Array.isArray(x) && x.every(nonEmpty);
 const optStrings = (x: any): boolean => x === undefined || strings(x);
 const optString = (x: any): boolean => x === undefined || typeof x === "string";
-const capsOk = (x: any): boolean => !!x && typeof x === "object" && !Array.isArray(x) &&
-  ["hands_per_day", "wakes_per_day", "tokens_per_day"].every((k) => x[k] === undefined || x[k] === null || (typeof x[k] === "number" && x[k] >= 0)) &&
-  ["hands_per_day", "wakes_per_day", "tokens_per_day"].some((k) => typeof x[k] === "number" || x[k] === null);
+const capsOk = (x: any): boolean =>
+  !!x &&
+  typeof x === "object" &&
+  !Array.isArray(x) &&
+  ["hands_per_day", "wakes_per_day", "tokens_per_day"].every(
+    (k) =>
+      x[k] === undefined ||
+      x[k] === null ||
+      (typeof x[k] === "number" && x[k] >= 0),
+  ) &&
+  ["hands_per_day", "wakes_per_day", "tokens_per_day"].some(
+    (k) => typeof x[k] === "number" || x[k] === null,
+  );
 
 /** Why a change is not one, or null when it is. One message, the first fault. */
-const ORG_AUTHORITY_LIMIT_KEYS = ["usd_per_month", "usd_per_day", "per_day"] as const;
+const ORG_AUTHORITY_LIMIT_KEYS = [
+  "usd_per_month",
+  "usd_per_day",
+  "per_day",
+] as const;
 // The one check of a list of authority grants, shared by the proposal card,
 // the CLI (before it posts) and the server's set-authority core.
 export function orgAuthorityGrantsError(grants: any): string | null {
-  if (!Array.isArray(grants) || grants.length > 50) return "authority is a list of at most fifty grants";
+  if (!Array.isArray(grants) || grants.length > 50)
+    return "authority is a list of at most fifty grants";
   const ids = new Set<string>();
   for (const g of grants) {
-    if (!g || typeof g !== "object" || Array.isArray(g)) return "each authority grant is an object";
-    if (!nonEmpty(g.id) || !SLUG_RE.test(g.id) || ids.has(g.id)) return `authority grant id ${JSON.stringify(g.id)} is not a unique slug (a-z, 0-9 and -)`;
+    if (!g || typeof g !== "object" || Array.isArray(g))
+      return "each authority grant is an object";
+    if (!nonEmpty(g.id) || !SLUG_RE.test(g.id) || ids.has(g.id))
+      return `authority grant id ${JSON.stringify(g.id)} is not a unique slug (a-z, 0-9 and -)`;
     ids.add(g.id);
-    if (!(ORG_AUTHORITY_KINDS as readonly string[]).includes(g.kind)) return `authority ${g.id}: kind is one of ${ORG_AUTHORITY_KINDS.join(", ")}`;
-    if (!nonEmpty(g.label) || !optString(g.scope)) return `authority ${g.id}: needs a label; scope is text`;
+    if (!(ORG_AUTHORITY_KINDS as readonly string[]).includes(g.kind))
+      return `authority ${g.id}: kind is one of ${ORG_AUTHORITY_KINDS.join(", ")}`;
+    if (!nonEmpty(g.label) || !optString(g.scope))
+      return `authority ${g.id}: needs a label; scope is text`;
     if (g.limit !== undefined) {
-      const keys = g.limit && typeof g.limit === "object" && !Array.isArray(g.limit) ? Object.keys(g.limit) : [];
-      if (!keys.length || keys.some((k) => !(ORG_AUTHORITY_LIMIT_KEYS as readonly string[]).includes(k) || typeof g.limit[k] !== "number" || !(g.limit[k] >= 0))) {
+      const keys =
+        g.limit && typeof g.limit === "object" && !Array.isArray(g.limit)
+          ? Object.keys(g.limit)
+          : [];
+      if (
+        !keys.length ||
+        keys.some(
+          (k) =>
+            !(ORG_AUTHORITY_LIMIT_KEYS as readonly string[]).includes(k) ||
+            typeof g.limit[k] !== "number" ||
+            !(g.limit[k] >= 0),
+        )
+      ) {
         return `authority ${g.id}: limit is an object of non-negative numbers keyed ${ORG_AUTHORITY_LIMIT_KEYS.join(", ")}, e.g. {"usd_per_month": 5000}; got ${JSON.stringify(g.limit)}`;
       }
     }
-    if (g.expires !== undefined && !(nonEmpty(g.expires) && EVERY_RE.test(g.expires))) return `authority ${g.id}: expires is a duration like 90d`;
+    if (
+      g.expires !== undefined &&
+      !(nonEmpty(g.expires) && EVERY_RE.test(g.expires))
+    )
+      return `authority ${g.id}: expires is a duration like 90d`;
   }
   return null;
 }
 
 export function orgChangeError(raw: any): string | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "a change is an object with a kind";
-  if (!ORG_CHANGE_KINDS.includes(raw.kind)) return `unknown change kind ${JSON.stringify(raw.kind)}; one of ${ORG_CHANGE_KINDS.join(", ")}`;
-  const handle = (): string | null => nonEmpty(raw.handle) ? (HANDLE_RE.test(raw.handle.replace(/^@/, "")) ? null : `handle ${JSON.stringify(raw.handle)} is not a-z, 0-9 and - (2 to 32 chars)`) : "handle is required";
-  if (raw.leave_sessions !== undefined && typeof raw.leave_sessions !== "boolean") return "leave_sessions is true or false";
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return "a change is an object with a kind";
+  if (!ORG_CHANGE_KINDS.includes(raw.kind))
+    return `unknown change kind ${JSON.stringify(raw.kind)}; one of ${ORG_CHANGE_KINDS.join(", ")}`;
+  const handle = (): string | null =>
+    nonEmpty(raw.handle)
+      ? HANDLE_RE.test(raw.handle.replace(/^@/, ""))
+        ? null
+        : `handle ${JSON.stringify(raw.handle)} is not a-z, 0-9 and - (2 to 32 chars)`
+      : "handle is required";
+  if (
+    raw.leave_sessions !== undefined &&
+    typeof raw.leave_sessions !== "boolean"
+  )
+    return "leave_sessions is true or false";
   switch (raw.kind as OrgChangeKind) {
-    case "role": case "projects": case "move": case "retire": {
-      if (!isOrgProposal(raw)) return `${raw.kind} is missing its required fields`;
+    case "role":
+    case "projects":
+    case "move":
+    case "retire": {
+      if (!isOrgProposal(raw))
+        return `${raw.kind} is missing its required fields`;
       if (raw.kind === "role") {
-        const h = handle(); if (h) return h;
-        if (raw.tenure !== undefined) { const t = orgTenureError(raw.tenure); if (t) return t; }
-        if (raw.avatar !== undefined && !nonEmpty(raw.avatar)) return "avatar is an avatar key";
-        if (raw.charter !== undefined && typeof raw.charter !== "string") return "charter is a string";
-        if (typeof raw.charter === "string" && raw.charter.trim().length > ORG_CHARTER_MAX) return `charter is ${raw.charter.trim().length} characters; ${ORG_CHARTER_CONDENSE}`;
-        if (raw.line !== undefined && !(typeof raw.line === "string" && LINE_SLUG_RE.test(raw.line))) return "line is a workflow slug: 1 to 64 characters of a-z, 0-9 and -";
-        if (raw.caps?.cards !== undefined && !(Number.isSafeInteger(raw.caps.cards) && raw.caps.cards > 0)) return "caps.cards is a positive whole number";
+        const h = handle();
+        if (h) return h;
+        if (raw.tenure !== undefined) {
+          const t = orgTenureError(raw.tenure);
+          if (t) return t;
+        }
+        if (raw.avatar !== undefined && !nonEmpty(raw.avatar))
+          return "avatar is an avatar key";
+        if (raw.charter !== undefined && typeof raw.charter !== "string")
+          return "charter is a string";
+        if (
+          typeof raw.charter === "string" &&
+          raw.charter.trim().length > ORG_CHARTER_MAX
+        )
+          return `charter is ${raw.charter.trim().length} characters; ${ORG_CHARTER_CONDENSE}`;
+        if (
+          raw.line !== undefined &&
+          !(typeof raw.line === "string" && LINE_SLUG_RE.test(raw.line))
+        )
+          return "line is a workflow slug: 1 to 64 characters of a-z, 0-9 and -";
+        if (
+          raw.caps?.cards !== undefined &&
+          !(Number.isSafeInteger(raw.caps.cards) && raw.caps.cards > 0)
+        )
+          return "caps.cards is a positive whole number";
         if (raw.seat !== undefined) {
-          const s = orgRoleSeatError(raw.seat); if (s) return s;
+          const s = orgRoleSeatError(raw.seat);
+          if (s) return s;
           // The card promises naming changes nothing about how the session
           // works, and who it answers to is part of that: a move is its own change.
-          if (typeof raw.reports_to === "string" && raw.reports_to.trim().startsWith("@")) return "a role that names its session keeps the session's reporting line (the person who runs it); to put it under a role, add a separate move change";
+          if (
+            typeof raw.reports_to === "string" &&
+            raw.reports_to.trim().startsWith("@")
+          )
+            return "a role that names its session keeps the session's reporting line (the person who runs it); to put it under a role, add a separate move change";
         }
       }
       if (raw.kind === "projects") {
-        const bad = raw.changes.find((c: any) => c.op === "create" && c.horizon !== undefined && !(ORG_PROJECT_HORIZONS as readonly string[]).includes(c.horizon));
-        if (bad) return `project horizon is one of ${ORG_PROJECT_HORIZONS.join(", ")}`;
+        const bad = raw.changes.find(
+          (c: any) =>
+            c.op === "create" &&
+            c.horizon !== undefined &&
+            !(ORG_PROJECT_HORIZONS as readonly string[]).includes(c.horizon),
+        );
+        if (bad)
+          return `project horizon is one of ${ORG_PROJECT_HORIZONS.join(", ")}`;
       }
       return null;
     }
     case "scope": {
-      const h = handle(); if (h) return h;
-      if (!optStrings(raw.add) || !optStrings(raw.remove)) return "scope add and remove are lists of project or plan refs";
-      if (!(raw.add?.length || raw.remove?.length)) return "scope needs at least one ref to add or remove";
+      const h = handle();
+      if (h) return h;
+      if (!optStrings(raw.add) || !optStrings(raw.remove))
+        return "scope add and remove are lists of project or plan refs";
+      if (!(raw.add?.length || raw.remove?.length))
+        return "scope needs at least one ref to add or remove";
       return null;
     }
     case "budget": {
-      const h = handle(); if (h) return h;
-      return capsOk(raw.caps) ? null : "budget caps needs at least one of hands_per_day, wakes_per_day, tokens_per_day as a non-negative number, or null for no limit";
+      const h = handle();
+      if (h) return h;
+      return capsOk(raw.caps)
+        ? null
+        : "budget caps needs at least one of hands_per_day, wakes_per_day, tokens_per_day as a non-negative number, or null for no limit";
     }
     case "trust": {
-      const h = handle(); if (h) return h;
-      return ORG_TRUST_STAGES.includes(raw.trust) ? null : "autonomy on is true or false";
+      const h = handle();
+      if (h) return h;
+      return ORG_TRUST_STAGES.includes(raw.trust)
+        ? null
+        : "autonomy on is true or false";
     }
     case "routine": {
-      const h = handle(); if (h) return h;
-      if (!nonEmpty(raw.title) || !nonEmpty(raw.prompt)) return "routine needs a title and a prompt";
-      return nonEmpty(raw.every) && EVERY_RE.test(raw.every) ? null : "routine every is a duration like 7d, 1d, 12h";
+      const h = handle();
+      if (h) return h;
+      if (!nonEmpty(raw.title) || !nonEmpty(raw.prompt))
+        return "routine needs a title and a prompt";
+      return nonEmpty(raw.every) && EVERY_RE.test(raw.every)
+        ? null
+        : "routine every is a duration like 7d, 1d, 12h";
     }
     case "project_meta": {
       if (!nonEmpty(raw.project)) return "project_meta needs a project ref";
-      if (!optString(raw.goal) || !optStrings(raw.success_metrics) || !optStrings(raw.non_goals) || !optStrings(raw.risks)) return "project_meta goal is a string; success_metrics, non_goals and risks are lists of strings";
-      if (raw.priority !== undefined && !ORG_PRIORITIES.includes(raw.priority)) return `priority is one of ${ORG_PRIORITIES.join(", ")}`;
-      if (raw.owner !== undefined && !nonEmpty(raw.owner)) return "owner is a role handle";
-      if (![raw.goal, raw.success_metrics, raw.priority, raw.owner, raw.non_goals, raw.risks].some((x) => x !== undefined)) return "project_meta changes nothing";
+      if (
+        !optString(raw.goal) ||
+        !optStrings(raw.success_metrics) ||
+        !optStrings(raw.non_goals) ||
+        !optStrings(raw.risks)
+      )
+        return "project_meta goal is a string; success_metrics, non_goals and risks are lists of strings";
+      if (raw.priority !== undefined && !ORG_PRIORITIES.includes(raw.priority))
+        return `priority is one of ${ORG_PRIORITIES.join(", ")}`;
+      if (raw.owner !== undefined && !nonEmpty(raw.owner))
+        return "owner is a role handle";
+      if (
+        ![
+          raw.goal,
+          raw.success_metrics,
+          raw.priority,
+          raw.owner,
+          raw.non_goals,
+          raw.risks,
+        ].some((x) => x !== undefined)
+      )
+        return "project_meta changes nothing";
       return null;
     }
     case "adopt": {
-      const h = handle(); if (h) return h;
-      return nonEmpty(raw.conversation) ? null : "adopt needs the conversation (a session short id) that becomes the role's standing session";
+      const h = handle();
+      if (h) return h;
+      return nonEmpty(raw.conversation)
+        ? null
+        : "adopt needs the conversation (a session short id) that becomes the role's standing session";
     }
     case "authority": {
-      const h = handle(); if (h) return h;
-      if (!Array.isArray(raw.authority) || !raw.authority.length) return "authority is a list of one to fifty grants";
+      const h = handle();
+      if (h) return h;
+      if (!Array.isArray(raw.authority) || !raw.authority.length)
+        return "authority is a list of one to fifty grants";
       return orgAuthorityGrantsError(raw.authority);
     }
     case "hire": {
-      const h = handle(); if (h) return h;
-      if (!nonEmpty(raw.template) || !SLUG_RE.test(raw.template)) return "hire names the template by its slug";
-      if (!nonEmpty(raw.version) || !VERSION_RE.test(raw.version) || !nonEmpty(raw.digest) || !DIGEST_RE.test(raw.digest)) return "hire pins a release: version like 2.0.0 and its sha256 digest";
-      if (!nonEmpty(raw.instance) || !SLUG_RE.test(raw.instance)) return "hire names the instance by a slug";
-      if (!nonEmpty(raw.project)) return "hire needs the project ref the role will lead";
-      if (raw.config !== undefined && (!raw.config || typeof raw.config !== "object" || Array.isArray(raw.config) || Object.values(raw.config).some((x) => typeof x !== "string"))) return "hire config is the answers, key to text";
-      if (raw.update_policy !== undefined && !["manual", "canary", "stable"].includes(raw.update_policy)) return "update_policy is manual, canary or stable";
+      const h = handle();
+      if (h) return h;
+      if (!nonEmpty(raw.template) || !SLUG_RE.test(raw.template))
+        return "hire names the template by its slug";
+      if (
+        !nonEmpty(raw.version) ||
+        !VERSION_RE.test(raw.version) ||
+        !nonEmpty(raw.digest) ||
+        !DIGEST_RE.test(raw.digest)
+      )
+        return "hire pins a release: version like 2.0.0 and its sha256 digest";
+      if (!nonEmpty(raw.instance) || !SLUG_RE.test(raw.instance))
+        return "hire names the instance by a slug";
+      if (!nonEmpty(raw.project))
+        return "hire needs the project ref the role will lead";
+      if (
+        raw.config !== undefined &&
+        (!raw.config ||
+          typeof raw.config !== "object" ||
+          Array.isArray(raw.config) ||
+          Object.values(raw.config).some((x) => typeof x !== "string"))
+      )
+        return "hire config is the answers, key to text";
+      if (
+        raw.update_policy !== undefined &&
+        !["manual", "canary", "stable"].includes(raw.update_policy)
+      )
+        return "update_policy is manual, canary or stable";
       return null;
     }
     case "upgrade": {
-      if (!nonEmpty(raw.instance) || !SLUG_RE.test(raw.instance) || !nonEmpty(raw.template) || !SLUG_RE.test(raw.template)) return "upgrade names the instance and its template by slug";
-      return nonEmpty(raw.to) && VERSION_RE.test(raw.to) && nonEmpty(raw.digest) && DIGEST_RE.test(raw.digest) ? null : "upgrade pins the release it moves to: version and sha256 digest";
+      if (
+        !nonEmpty(raw.instance) ||
+        !SLUG_RE.test(raw.instance) ||
+        !nonEmpty(raw.template) ||
+        !SLUG_RE.test(raw.template)
+      )
+        return "upgrade names the instance and its template by slug";
+      return nonEmpty(raw.to) &&
+        VERSION_RE.test(raw.to) &&
+        nonEmpty(raw.digest) &&
+        DIGEST_RE.test(raw.digest)
+        ? null
+        : "upgrade pins the release it moves to: version and sha256 digest";
     }
     case "file":
-      return nonEmpty(raw.plan) && nonEmpty(raw.project) ? null : "file needs a plan ref and a project ref";
+      return nonEmpty(raw.plan) && nonEmpty(raw.project)
+        ? null
+        : "file needs a plan ref and a project ref";
     case "file_session":
-      if (!nonEmpty(raw.session)) return "file_session needs the session's short id";
-      if (!optString(raw.title)) return "file_session title is the session's title, a string";
-      return nonEmpty(raw.to) && sessionDestination(raw.to) ? null : `file_session to is "@handle" (under a role), "ct-N" (onto a task) or "done" (finished, out of the inbox), not ${JSON.stringify(raw.to)}`;
+      if (!nonEmpty(raw.session))
+        return "file_session needs the session's short id";
+      if (!optString(raw.title))
+        return "file_session title is the session's title, a string";
+      return nonEmpty(raw.to) && sessionDestination(raw.to)
+        ? null
+        : `file_session to is "@handle" (under a role), "ct-N" (onto a task) or "done" (finished, out of the inbox), not ${JSON.stringify(raw.to)}`;
     case "charter_edit": {
-      const h = handle(); if (h) return h;
-      if (!Array.isArray(raw.edits) || !raw.edits.length || raw.edits.length > ORG_CHARTER_EDITS_MAX) return `charter_edit edits is a list of one to ${ORG_CHARTER_EDITS_MAX} edits: { op: "replace", before, after }, { op: "add", line } or { op: "remove", before }`;
+      const h = handle();
+      if (h) return h;
+      if (
+        !Array.isArray(raw.edits) ||
+        !raw.edits.length ||
+        raw.edits.length > ORG_CHARTER_EDITS_MAX
+      )
+        return `charter_edit edits is a list of one to ${ORG_CHARTER_EDITS_MAX} edits: { op: "replace", before, after }, { op: "add", line } or { op: "remove", before }`;
       for (const e of raw.edits) {
-        const fault = orgCharterEditError(e); if (fault) return fault;
+        const fault = orgCharterEditError(e);
+        if (fault) return fault;
       }
       return null;
     }
     case "role_edit": {
-      const h = handle(); if (h) return h;
-      if (raw.name !== undefined && !nonEmpty(raw.name)) return "role_edit name is the role's title, a non-empty string";
-      if (raw.new_handle !== undefined && !(nonEmpty(raw.new_handle) && HANDLE_RE.test(raw.new_handle.replace(/^@/, "")))) return `role_edit new_handle ${JSON.stringify(raw.new_handle)} is not a-z, 0-9 and - (2 to 32 chars)`;
-      if (raw.given_name !== undefined && raw.given_name !== null && !nonEmpty(raw.given_name)) return "role_edit given_name is a name, or null to clear it";
-      if (raw.avatar !== undefined && !nonEmpty(raw.avatar)) return "avatar is an avatar key";
-      if (raw.tenure !== undefined) { const t = orgTenureError(raw.tenure); if (t) return t; }
-      if (raw.line !== undefined && !(typeof raw.line === "string" && LINE_SLUG_RE.test(raw.line))) return "line is a workflow slug: 1 to 64 characters of a-z, 0-9 and -";
-      for (const k of ["hires_freely", "keeps_reports_inside", "paused"] as const) if (raw[k] !== undefined && typeof raw[k] !== "boolean") return `role_edit ${k} is true or false`;
-      return ORG_ROLE_EDIT_FIELDS.some((k) => raw[k] !== undefined) ? null : `role_edit changes nothing: set one of ${ORG_ROLE_EDIT_FIELDS.join(", ")}`;
+      const h = handle();
+      if (h) return h;
+      if (raw.name !== undefined && !nonEmpty(raw.name))
+        return "role_edit name is the role's title, a non-empty string";
+      if (
+        raw.new_handle !== undefined &&
+        !(
+          nonEmpty(raw.new_handle) &&
+          HANDLE_RE.test(raw.new_handle.replace(/^@/, ""))
+        )
+      )
+        return `role_edit new_handle ${JSON.stringify(raw.new_handle)} is not a-z, 0-9 and - (2 to 32 chars)`;
+      if (
+        raw.given_name !== undefined &&
+        raw.given_name !== null &&
+        !nonEmpty(raw.given_name)
+      )
+        return "role_edit given_name is a name, or null to clear it";
+      if (raw.avatar !== undefined && !nonEmpty(raw.avatar))
+        return "avatar is an avatar key";
+      if (raw.tenure !== undefined) {
+        const t = orgTenureError(raw.tenure);
+        if (t) return t;
+      }
+      if (
+        raw.line !== undefined &&
+        !(typeof raw.line === "string" && LINE_SLUG_RE.test(raw.line))
+      )
+        return "line is a workflow slug: 1 to 64 characters of a-z, 0-9 and -";
+      for (const k of [
+        "hires_freely",
+        "keeps_reports_inside",
+        "paused",
+      ] as const)
+        if (raw[k] !== undefined && typeof raw[k] !== "boolean")
+          return `role_edit ${k} is true or false`;
+      return ORG_ROLE_EDIT_FIELDS.some((k) => raw[k] !== undefined)
+        ? null
+        : `role_edit changes nothing: set one of ${ORG_ROLE_EDIT_FIELDS.join(", ")}`;
     }
     case "plan_status":
       if (!nonEmpty(raw.plan)) return "plan_status needs a plan ref";
-      if (!(PLAN_STATUS_CHANGES as readonly string[]).includes(raw.status)) return `plan_status status is one of ${PLAN_STATUS_CHANGES.join(", ")}`;
-      if (!optString(raw.title)) return "plan_status title is the plan's title, a string";
-      return nonEmpty(raw.reason) ? null : "plan_status needs a reason: the evidence the record is stale";
+      if (!(PLAN_STATUS_CHANGES as readonly string[]).includes(raw.status))
+        return `plan_status status is one of ${PLAN_STATUS_CHANGES.join(", ")}`;
+      if (!optString(raw.title))
+        return "plan_status title is the plan's title, a string";
+      return nonEmpty(raw.reason)
+        ? null
+        : "plan_status needs a reason: the evidence the record is stale";
     case "task_status":
       if (!nonEmpty(raw.task)) return "task_status needs a task ref";
-      if (!(TASK_STATUS_CHANGES as readonly string[]).includes(raw.status)) return `task_status status is one of ${TASK_STATUS_CHANGES.join(", ")}`;
-      if (!optString(raw.title)) return "task_status title is the task's title, a string";
-      return nonEmpty(raw.reason) ? null : "task_status needs a reason: the evidence the record is stale";
+      if (!(TASK_STATUS_CHANGES as readonly string[]).includes(raw.status))
+        return `task_status status is one of ${TASK_STATUS_CHANGES.join(", ")}`;
+      if (!optString(raw.title))
+        return "task_status title is the task's title, a string";
+      return nonEmpty(raw.reason)
+        ? null
+        : "task_status needs a reason: the evidence the record is stale";
     case "project_status":
       if (!nonEmpty(raw.project)) return "project_status needs a project ref";
-      if (!(PROJECT_STATUS_CHANGES as readonly string[]).includes(raw.status)) return `project_status status is one of ${PROJECT_STATUS_CHANGES.join(", ")}`;
-      if (!optString(raw.title)) return "project_status title is the project's title, a string";
-      return nonEmpty(raw.reason) ? null : "project_status needs a reason: the evidence the record is stale";
+      if (!(PROJECT_STATUS_CHANGES as readonly string[]).includes(raw.status))
+        return `project_status status is one of ${PROJECT_STATUS_CHANGES.join(", ")}`;
+      if (!optString(raw.title))
+        return "project_status title is the project's title, a string";
+      return nonEmpty(raw.reason)
+        ? null
+        : "project_status needs a reason: the evidence the record is stale";
     case "initiative":
-      if (!nonEmpty(raw.title)) return "initiative needs a title: the goal's name";
-      if (!nonEmpty(raw.description)) return "initiative needs a description: the sentence that says what reaching the goal looks like";
-      if (!strings(raw.projects) || !raw.projects.length) return "initiative projects is a non-empty list of project refs: the projects that carry the goal";
-      if (raw.owner !== undefined && !nonEmpty(raw.owner)) return "initiative owner is \"@handle\" for a role, \"me\" or a member's name for a person";
-      if (raw.target_date !== undefined && !(typeof raw.target_date === "number" && raw.target_date > 0)) return "initiative target_date is unix ms";
-      if (raw.parent !== undefined && !nonEmpty(raw.parent)) return "initiative parent is the top level goal it feeds: in-N, an id, or the title of a goal set earlier in this proposal";
-      { const m = metricsError("initiative", raw.metrics) ?? recordError("initiative", raw); if (m) return m; }
-      return optStrings(raw.evidence) ? null : "initiative evidence is a list of strings";
+      if (!nonEmpty(raw.title))
+        return "initiative needs a title: the goal's name";
+      if (!nonEmpty(raw.description))
+        return "initiative needs a description: the sentence that says what reaching the goal looks like";
+      if (!strings(raw.projects) || !raw.projects.length)
+        return "initiative projects is a non-empty list of project refs: the projects that carry the goal";
+      if (raw.owner !== undefined && !nonEmpty(raw.owner))
+        return 'initiative owner is "@handle" for a role, "me" or a member\'s name for a person';
+      if (
+        raw.target_date !== undefined &&
+        !(typeof raw.target_date === "number" && raw.target_date > 0)
+      )
+        return "initiative target_date is unix ms";
+      if (raw.parent !== undefined && !nonEmpty(raw.parent))
+        return "initiative parent is the top level goal it feeds: in-N, an id, or the title of a goal set earlier in this proposal";
+      {
+        const m =
+          metricsError("initiative", raw.metrics) ??
+          recordError("initiative", raw);
+        if (m) return m;
+      }
+      return optStrings(raw.evidence)
+        ? null
+        : "initiative evidence is a list of strings";
     case "initiative_projects":
-      if (!nonEmpty(raw.initiative)) return "initiative_projects needs a goal ref (in-N, an id or its title)";
-      if (!strings(raw.projects) || !raw.projects.length) return "initiative_projects projects is a non-empty list of project refs";
-      return optString(raw.title) ? null : "initiative_projects title is the goal's title, a string";
+      if (!nonEmpty(raw.initiative))
+        return "initiative_projects needs a goal ref (in-N, an id or its title)";
+      if (!strings(raw.projects) || !raw.projects.length)
+        return "initiative_projects projects is a non-empty list of project refs";
+      return optString(raw.title)
+        ? null
+        : "initiative_projects title is the goal's title, a string";
     case "initiative_owner":
-      if (!nonEmpty(raw.initiative)) return "initiative_owner needs a goal ref (in-N, an id or its title)";
-      if (!nonEmpty(raw.owner)) return "initiative_owner owner is \"@handle\" for a role, \"me\" or a member's name for a person";
-      return optString(raw.title) ? null : "initiative_owner title is the goal's title, a string";
+      if (!nonEmpty(raw.initiative))
+        return "initiative_owner needs a goal ref (in-N, an id or its title)";
+      if (!nonEmpty(raw.owner))
+        return 'initiative_owner owner is "@handle" for a role, "me" or a member\'s name for a person';
+      return optString(raw.title)
+        ? null
+        : "initiative_owner title is the goal's title, a string";
     case "initiative_shape":
-      if (!nonEmpty(raw.initiative)) return "initiative_shape needs a goal ref (in-N, an id or its title)";
-      if (raw.parent !== undefined && raw.parent !== null && !nonEmpty(raw.parent)) return "initiative_shape parent is the top level goal it feeds (a ref), or null for a top level goal";
-      { const m = metricsError("initiative_shape", raw.metrics) ?? recordError("initiative_shape", raw); if (m) return m; }
-      if (raw.parent === undefined && raw.metrics === undefined && !carriesRecord(raw)) return "initiative_shape needs a parent, metrics, why, done_when, milestones, sources, questions or decisions: what it changes about the goal";
-      return optString(raw.title) ? null : "initiative_shape title is the goal's title, a string";
+      if (!nonEmpty(raw.initiative))
+        return "initiative_shape needs a goal ref (in-N, an id or its title)";
+      if (
+        raw.parent !== undefined &&
+        raw.parent !== null &&
+        !nonEmpty(raw.parent)
+      )
+        return "initiative_shape parent is the top level goal it feeds (a ref), or null for a top level goal";
+      {
+        const m =
+          metricsError("initiative_shape", raw.metrics) ??
+          recordError("initiative_shape", raw);
+        if (m) return m;
+      }
+      if (
+        raw.parent === undefined &&
+        raw.metrics === undefined &&
+        !carriesRecord(raw)
+      )
+        return "initiative_shape needs a parent, metrics, why, done_when, milestones, sources, questions or decisions: what it changes about the goal";
+      return optString(raw.title)
+        ? null
+        : "initiative_shape title is the goal's title, a string";
   }
   return null;
 }
@@ -596,55 +1220,112 @@ export function orgChangeError(raw: any): string | null {
 /** Up to INITIATIVE_METRICS_MAX metrics, each { name, target, series?, guardrail?, window?, noise? }, or absent. */
 function metricsError(kind: string, raw: unknown): string | null {
   if (raw === undefined) return null;
-  if (!Array.isArray(raw) || raw.length > INITIATIVE_METRICS_MAX) return `${kind} metrics is a list of at most ${INITIATIVE_METRICS_MAX} { name, target, series?, guardrail?, window?, noise? }: the numbers the goal is measured by`;
+  if (!Array.isArray(raw) || raw.length > INITIATIVE_METRICS_MAX)
+    return `${kind} metrics is a list of at most ${INITIATIVE_METRICS_MAX} { name, target, series?, guardrail?, window?, noise? }: the numbers the goal is measured by`;
   for (const m of raw) {
-    if (!m || typeof m !== "object" || !nonEmpty((m as any).name) || !nonEmpty((m as any).target)) return `${kind} metrics entries are { name, target }, both strings ("Weekly active teams", "1000")`;
+    if (
+      !m ||
+      typeof m !== "object" ||
+      !nonEmpty((m as any).name) ||
+      !nonEmpty((m as any).target)
+    )
+      return `${kind} metrics entries are { name, target }, both strings ("Weekly active teams", "1000")`;
     const { series, guardrail, window, noise } = m as any;
-    if ((window !== undefined && typeof window !== "string") || (noise !== undefined && typeof noise !== "string")) return `${kind} metrics window and noise are strings ("3w", "poisson")`;
+    if (
+      (window !== undefined && typeof window !== "string") ||
+      (noise !== undefined && typeof noise !== "string")
+    )
+      return `${kind} metrics window and noise are strings ("3w", "poisson")`;
     const readBad = metricWindowNoiseError(window, noise);
     if (readBad) return `${kind} metrics: ${readBad}`;
-    if (series !== undefined && (typeof series !== "string" || !/^mw-\d+$/i.test(series.trim()))) return `${kind} metrics series is a metric watch's short id (mw-N), the live series the number reads`;
-    if (guardrail !== undefined && typeof guardrail !== "boolean") return `${kind} metrics guardrail is true or false`;
+    if (
+      series !== undefined &&
+      (typeof series !== "string" || !/^mw-\d+$/i.test(series.trim()))
+    )
+      return `${kind} metrics series is a metric watch's short id (mw-N), the live series the number reads`;
+    if (guardrail !== undefined && typeof guardrail !== "boolean")
+      return `${kind} metrics guardrail is true or false`;
   }
   return null;
 }
 
 /** The record lists a change may add to as plain strings, and what each entry is. */
-const RECORD_STRING_LISTS = { sources: "where the goal was stated: an address (a call, a session, a link), the words said, or both", questions: "what is still undecided", decisions: "what was decided" } as const;
+const RECORD_STRING_LISTS = {
+  sources:
+    "where the goal was stated: an address (a call, a session, a link), the words said, or both",
+  questions: "what is still undecided",
+  decisions: "what was decided",
+} as const;
 /** The lists a shape change adds to, never replaces. */
-const SHAPE_ADD_LISTS = ["milestones", "sources", "questions", "decisions"] as const;
+const SHAPE_ADD_LISTS = [
+  "milestones",
+  "sources",
+  "questions",
+  "decisions",
+] as const;
 /** A goal change's record (I5): why and done_when as words, milestones as
  *  { title, date? }, and the string lists, each within the row's own cap
  *  (INITIATIVE_RECORD_MAX). */
 function recordError(kind: string, raw: any): string | null {
-  if (raw.why !== undefined && !nonEmpty(raw.why)) return `${kind} why is a string: why the goal matters`;
-  if (raw.done_when !== undefined && !nonEmpty(raw.done_when)) return `${kind} done_when is a string: what done looks like, the sentence a result is checked against`;
+  if (raw.why !== undefined && !nonEmpty(raw.why))
+    return `${kind} why is a string: why the goal matters`;
+  if (raw.done_when !== undefined && !nonEmpty(raw.done_when))
+    return `${kind} done_when is a string: what done looks like, the sentence a result is checked against`;
   if (raw.milestones !== undefined) {
-    if (!Array.isArray(raw.milestones) || raw.milestones.length > INITIATIVE_RECORD_MAX.milestones) return `${kind} milestones is a list of at most ${INITIATIVE_RECORD_MAX.milestones} { title, date? }: the steps on the way`;
-    for (const m of raw.milestones) if (!m || typeof m !== "object" || !nonEmpty(m.title) || (m.date !== undefined && !(typeof m.date === "number" && m.date > 0))) return `${kind} milestones entries are { title, date? }: a title, and the day it is due as unix ms`;
+    if (
+      !Array.isArray(raw.milestones) ||
+      raw.milestones.length > INITIATIVE_RECORD_MAX.milestones
+    )
+      return `${kind} milestones is a list of at most ${INITIATIVE_RECORD_MAX.milestones} { title, date? }: the steps on the way`;
+    for (const m of raw.milestones)
+      if (
+        !m ||
+        typeof m !== "object" ||
+        !nonEmpty(m.title) ||
+        (m.date !== undefined && !(typeof m.date === "number" && m.date > 0))
+      )
+        return `${kind} milestones entries are { title, date? }: a title, and the day it is due as unix ms`;
   }
   for (const list of ["sources", "questions", "decisions"] as const) {
-    if (!optStrings(raw[list]) || (raw[list]?.length ?? 0) > INITIATIVE_RECORD_MAX[list]) return `${kind} ${list} is a list of at most ${INITIATIVE_RECORD_MAX[list]} strings: ${RECORD_STRING_LISTS[list]}`;
+    if (
+      !optStrings(raw[list]) ||
+      (raw[list]?.length ?? 0) > INITIATIVE_RECORD_MAX[list]
+    )
+      return `${kind} ${list} is a list of at most ${INITIATIVE_RECORD_MAX[list]} strings: ${RECORD_STRING_LISTS[list]}`;
   }
   return null;
 }
 /** Does the change write anything to the goal's record? An empty list adds nothing. */
-const carriesRecord = (c: any): boolean => c.why !== undefined || c.done_when !== undefined || SHAPE_ADD_LISTS.some((list) => c[list]?.length > 0);
+const carriesRecord = (c: any): boolean =>
+  c.why !== undefined ||
+  c.done_when !== undefined ||
+  SHAPE_ADD_LISTS.some((list) => c[list]?.length > 0);
 
-export function isOrgChange(raw: any): raw is OrgChange { return orgChangeError(raw) === null; }
+export function isOrgChange(raw: any): raw is OrgChange {
+  return orgChangeError(raw) === null;
+}
 
 export type OrgEvidenceLink = { label: string; href?: string };
 
 /** A change row's status (S4). `accepted` is the optimistic beat between a
  *  verdict and its apply; `failed` is a refusal the apply core returned. */
-export type OrgChangeStatus = "proposed" | "accepted" | "skipped" | "applied" | "failed" | "removed";
+export type OrgChangeStatus =
+  | "proposed"
+  | "accepted"
+  | "skipped"
+  | "applied"
+  | "failed"
+  | "removed";
 
 /** The statuses a person can still decide (S4): a failed change stays open
  *  until its author revises it or the person rejects it. The server's
  *  decide, acceptAll and resolve gates and the web's action rows, counts and
  *  journal all read this one set, so "still to decide" means the same thing
  *  on both sides. */
-export const ORG_DECIDABLE_STATUSES: readonly OrgChangeStatus[] = ["proposed", "failed"];
+export const ORG_DECIDABLE_STATUSES: readonly OrgChangeStatus[] = [
+  "proposed",
+  "failed",
+];
 export function isOrgChangeDecidable(status: string): boolean {
   return (ORG_DECIDABLE_STATUSES as readonly string[]).includes(status);
 }
@@ -662,7 +1343,11 @@ export function isOrgChangeApprovable(status: string): boolean {
 
 /** The author's thread bound to a proposal: the head of people's standing
  *  session, or the session that ran the review. The pane embeds it. */
-export type OrgProposalThread = { conversation_id: string; short_id?: string; title?: string };
+export type OrgProposalThread = {
+  conversation_id: string;
+  short_id?: string;
+  title?: string;
+};
 
 /** What `orgProposals.revise` did to a change (S18). A removed change keeps
  *  its row with `status: "removed"`, struck through with the note; an
@@ -679,36 +1364,67 @@ export type OrgChangeRevision = {
 
 /** A title inside a header line: `("Rank Union's projects")`. A double quote
  *  in it would end the header early for a reader, so it reads as a single one. */
-const quotedTitle = (title: string): string => `("${title.replace(/"/g, "'")}")`;
+const quotedTitle = (title: string): string =>
+  `("${title.replace(/"/g, "'")}")`;
 
 /** A message sent from the pane opens with the change the person was looking
  *  at, so the agent answers about the right row. One line, then a blank line,
  *  then the person's words. Both sides read this one format. */
-export function aboutChangeHeader(proposalShortId: string, seq: number, line: string): string {
+export function aboutChangeHeader(
+  proposalShortId: string,
+  seq: number,
+  line: string,
+): string {
   return `About ${proposalShortId} change ${seq} ${quotedTitle(line)}:`;
 }
-export function withAboutChange(content: string, proposalShortId: string, seq: number, line: string): string {
+export function withAboutChange(
+  content: string,
+  proposalShortId: string,
+  seq: number,
+  line: string,
+): string {
   return `${aboutChangeHeader(proposalShortId, seq, line)}\n\n${content}`;
 }
 /** The same header for a reply about one ask (S19). `index` is the ask's
  *  place in the resolved asks, from 0, the number `decideAsk` takes; the
  *  header counts from 1, the way a person counts the cards. */
-export function aboutAskHeader(proposalShortId: string, index: number, title: string): string {
+export function aboutAskHeader(
+  proposalShortId: string,
+  index: number,
+  title: string,
+): string {
   return `About ${proposalShortId} ask ${index + 1} ${quotedTitle(title)}:`;
 }
-export function withAboutAsk(content: string, proposalShortId: string, index: number, title: string): string {
+export function withAboutAsk(
+  content: string,
+  proposalShortId: string,
+  index: number,
+  title: string,
+): string {
   return `${aboutAskHeader(proposalShortId, index, title)}\n\n${content}`;
 }
 /** The same header for a reply about the proposal as a whole: what a
  *  conversation's card puts in the composer on Ask (org-staffing.md S24). */
-export function aboutProposalHeader(proposalShortId: string, title: string): string {
+export function aboutProposalHeader(
+  proposalShortId: string,
+  title: string,
+): string {
   return `About ${proposalShortId} ${quotedTitle(title)}:`;
 }
 const ABOUT_RE = /^About (op-\d+) change (\d+) \("([^\n]*)"\):\n\n?/;
 /** The change a message names, and the words after the header; null when it names none. */
-export function parseAboutChange(content: string): { proposal: string; seq: number; line: string; body: string } | null {
+export function parseAboutChange(
+  content: string,
+): { proposal: string; seq: number; line: string; body: string } | null {
   const m = ABOUT_RE.exec(content);
-  return m ? { proposal: m[1], seq: Number(m[2]), line: m[3], body: content.slice(m[0].length) } : null;
+  return m
+    ? {
+        proposal: m[1],
+        seq: Number(m[2]),
+        line: m[3],
+        body: content.slice(m[0].length),
+      }
+    : null;
 }
 
 /** One change as the spec carries it, with the reader's side. */
@@ -724,19 +1440,34 @@ export type OrgSpecChange = {
  *  the spec parser and by revise's add, so a change added to an open
  *  proposal passes exactly the checks a change created with it passed. */
 export function orgSpecChangeErrors(c: any): string[] {
-  if (!c || typeof c !== "object" || Array.isArray(c)) return ["an object with change and rationale"];
+  if (!c || typeof c !== "object" || Array.isArray(c))
+    return ["an object with change and rationale"];
   const errors: string[] = [];
   const fault = orgChangeError(c.change);
   if (fault) errors.push(fault);
   if (!nonEmpty(c.rationale)) errors.push("rationale is required");
-  if (c.evidence !== undefined && !(Array.isArray(c.evidence) && c.evidence.every((e: any) => e && nonEmpty(e.label) && optString(e.href)))) errors.push("evidence is a list of { label, href? }");
-  if (!optString(c.expected_effect) || !optString(c.risk)) errors.push("expected_effect and risk are strings");
+  if (
+    c.evidence !== undefined &&
+    !(
+      Array.isArray(c.evidence) &&
+      c.evidence.every((e: any) => e && nonEmpty(e.label) && optString(e.href))
+    )
+  )
+    errors.push("evidence is a list of { label, href? }");
+  if (!optString(c.expected_effect) || !optString(c.risk))
+    errors.push("expected_effect and risk are strings");
   return errors;
 }
 
 /** A validated spec change with only the keys the row stores. */
 export function normalizeOrgSpecChange(c: any): OrgSpecChange {
-  return { change: c.change, rationale: c.rationale, ...(c.evidence ? { evidence: c.evidence } : {}), ...(c.expected_effect ? { expected_effect: c.expected_effect } : {}), ...(c.risk ? { risk: c.risk } : {}) };
+  return {
+    change: c.change,
+    rationale: c.rationale,
+    ...(c.evidence ? { evidence: c.evidence } : {}),
+    ...(c.expected_effect ? { expected_effect: c.expected_effect } : {}),
+    ...(c.risk ? { risk: c.risk } : {}),
+  };
 }
 
 /**
@@ -751,7 +1482,13 @@ export function normalizeOrgSpecChange(c: any): OrgSpecChange {
  */
 export type OrgReviseOp =
   | { op: "remove"; seq: number; note?: string }
-  | { op: "amend"; seq: number; edits?: Record<string, unknown>; rationale?: string; note?: string }
+  | {
+      op: "amend";
+      seq: number;
+      edits?: Record<string, unknown>;
+      rationale?: string;
+      note?: string;
+    }
   | { op: "add"; change: OrgSpecChange; note?: string }
   | { op: "answer"; seq: number; text: string };
 export const ORG_REVISE_OPS = ["remove", "amend", "add", "answer"] as const;
@@ -759,20 +1496,28 @@ export const ORG_REVISE_OPS = ["remove", "amend", "add", "answer"] as const;
 /** The shape faults of one op; the server checks the proposal's own state
  *  (open, undecided, no duplicate subject) on top of this. */
 export function orgReviseOpError(raw: any): string | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "an op is an object: { op: \"remove\" | \"amend\", seq } or { op: \"add\", change }";
-  if (!(ORG_REVISE_OPS as readonly string[]).includes(raw.op)) return `op is one of ${ORG_REVISE_OPS.join(", ")}`;
-  if (raw.note !== undefined && !nonEmpty(raw.note)) return `${raw.op}: note is a non-empty string`;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return 'an op is an object: { op: "remove" | "amend", seq } or { op: "add", change }';
+  if (!(ORG_REVISE_OPS as readonly string[]).includes(raw.op))
+    return `op is one of ${ORG_REVISE_OPS.join(", ")}`;
+  if (raw.note !== undefined && !nonEmpty(raw.note))
+    return `${raw.op}: note is a non-empty string`;
   if (raw.op === "add") {
     const faults = orgSpecChangeErrors(raw.change);
     return faults.length ? `add: ${faults.join("; ")}` : null;
   }
-  if (!Number.isInteger(raw.seq) || raw.seq < 1) return `${raw.op}: seq is the change's number (1, 2, …)`;
-  if (raw.op === "answer" && !nonEmpty(raw.text)) return "answer: text is the answer, a non-empty string";
+  if (!Number.isInteger(raw.seq) || raw.seq < 1)
+    return `${raw.op}: seq is the change's number (1, 2, …)`;
+  if (raw.op === "answer" && !nonEmpty(raw.text))
+    return "answer: text is the answer, a non-empty string";
   if (raw.op === "amend") {
     const hasEdits = raw.edits !== undefined && raw.edits !== null;
-    if (hasEdits && (typeof raw.edits !== "object" || Array.isArray(raw.edits))) return "amend: edits is an object patch over the change's own keys";
-    if (raw.rationale !== undefined && !nonEmpty(raw.rationale)) return "amend: rationale is a non-empty string";
-    if (!hasEdits && raw.rationale === undefined) return "amend: give edits, a rationale, or both";
+    if (hasEdits && (typeof raw.edits !== "object" || Array.isArray(raw.edits)))
+      return "amend: edits is an object patch over the change's own keys";
+    if (raw.rationale !== undefined && !nonEmpty(raw.rationale))
+      return "amend: rationale is a non-empty string";
+    if (!hasEdits && raw.rationale === undefined)
+      return "amend: give edits, a rationale, or both";
   }
   return null;
 }
@@ -795,14 +1540,23 @@ export type OrgRevision = {
 };
 
 export type OrgProposalMode = "init" | "review" | "request";
-export const ORG_PROPOSAL_MODES: readonly OrgProposalMode[] = ["init", "review", "request"];
+export const ORG_PROPOSAL_MODES: readonly OrgProposalMode[] = [
+  "init",
+  "review",
+  "request",
+];
 
 /** The file `cast org propose --spec` reads and `orgProposals.create` stores. */
 /** One thing the proposal asks of the person (org-staffing.md S19): a title
  *  they can read cold, one sentence of why, one line of what accepting
  *  changes, and the changes folded inside it, by seq. The asks of a proposal
  *  partition its changes: every change is in exactly one. */
-export type OrgAsk = { title: string; why: string; effect: string; seqs: number[] };
+export type OrgAsk = {
+  title: string;
+  why: string;
+  effect: string;
+  seqs: number[];
+};
 
 export type OrgProposalSpec = {
   title: string;
@@ -816,29 +1570,61 @@ export type OrgProposalSpec = {
 /** The faults of a spec's asks against its changes as written (seq 1 is the
  *  first change). The partition is the contract: a change in no ask would
  *  never reach the person, and a change in two would be decided twice. */
-export function orgAsksErrors(asks: unknown, changes: ReadonlyArray<{ change: OrgChange }>): string[] {
-  if (!Array.isArray(asks) || !asks.length) return ["asks is a non-empty list of { title, why, effect, seqs }"];
+export function orgAsksErrors(
+  asks: unknown,
+  changes: ReadonlyArray<{ change: OrgChange }>,
+): string[] {
+  if (!Array.isArray(asks) || !asks.length)
+    return ["asks is a non-empty list of { title, why, effect, seqs }"];
   const errors: string[] = [];
   const owner = new Map<number, number[]>();
   // A seqs list that does not read says nothing about the partition, so the
   // partition is reported only once every list reads.
   let malformed = false;
   asks.forEach((a: any, i: number) => {
-    if (!a || typeof a !== "object" || !nonEmpty(a.title) || !nonEmpty(a.why) || !nonEmpty(a.effect)) errors.push(`asks[${i}]: title, why and effect are required`);
-    if (!Array.isArray(a?.seqs) || !a.seqs.length || !a.seqs.every((n: unknown) => Number.isInteger(n) && (n as number) >= 1)) { errors.push(`asks[${i}]: seqs is a non-empty list of change numbers (1 is the first change)`); malformed = true; return; }
+    if (
+      !a ||
+      typeof a !== "object" ||
+      !nonEmpty(a.title) ||
+      !nonEmpty(a.why) ||
+      !nonEmpty(a.effect)
+    )
+      errors.push(`asks[${i}]: title, why and effect are required`);
+    if (
+      !Array.isArray(a?.seqs) ||
+      !a.seqs.length ||
+      !a.seqs.every((n: unknown) => Number.isInteger(n) && (n as number) >= 1)
+    ) {
+      errors.push(
+        `asks[${i}]: seqs is a non-empty list of change numbers (1 is the first change)`,
+      );
+      malformed = true;
+      return;
+    }
     for (const n of new Set<number>(a.seqs)) {
-      if (n > changes.length) errors.push(`asks[${i}] names change ${n}, and the spec has ${changes.length}`);
+      if (n > changes.length)
+        errors.push(
+          `asks[${i}] names change ${n}, and the spec has ${changes.length}`,
+        );
       else owner.set(n, [...(owner.get(n) ?? []), i]);
     }
   });
   const partition: string[] = [];
-  if (!malformed) changes.forEach((c, i) => {
-    const in_ = owner.get(i + 1) ?? [];
-    if (in_.length === 1) return;
-    partition.push(`changes[${i}] (${describeOrgChange(c.change)}) is in ${in_.length ? in_.map((a) => `asks[${a}]`).join(" and ") : "no ask"}: every change belongs to exactly one ask`);
-  });
+  if (!malformed)
+    changes.forEach((c, i) => {
+      const in_ = owner.get(i + 1) ?? [];
+      if (in_.length === 1) return;
+      partition.push(
+        `changes[${i}] (${describeOrgChange(c.change)}) is in ${in_.length ? in_.map((a) => `asks[${a}]`).join(" and ") : "no ask"}: every change belongs to exactly one ask`,
+      );
+    });
   const SHOWN = 10;
-  errors.push(...partition.slice(0, SHOWN), ...(partition.length > SHOWN ? [`and ${partition.length - SHOWN} more changes outside the partition`] : []));
+  errors.push(
+    ...partition.slice(0, SHOWN),
+    ...(partition.length > SHOWN
+      ? [`and ${partition.length - SHOWN} more changes outside the partition`]
+      : []),
+  );
   return errors;
 }
 
@@ -846,33 +1632,74 @@ export function orgAsksErrors(asks: unknown, changes: ReadonlyArray<{ change: Or
  *  own subject, the parent a role or a move names, a charter's owner. "me"
  *  and a person's name are not roles. */
 export function orgChangeHandles(c: OrgChange): string[] {
-  const h = (x: unknown) => (typeof x === "string" && x.trim().startsWith("@") ? x.trim().slice(1).toLowerCase() : null);
+  const h = (x: unknown) =>
+    typeof x === "string" && x.trim().startsWith("@")
+      ? x.trim().slice(1).toLowerCase()
+      : null;
   const any = c as any;
-  const own = typeof any.handle === "string" ? any.handle.trim().replace(/^@/, "").toLowerCase() : null;
-  return [own, h(any.reports_to), c.kind === "project_meta" || c.kind === "initiative" || c.kind === "initiative_owner" ? h(any.owner) : null].filter((x): x is string => !!x);
+  const own =
+    typeof any.handle === "string"
+      ? any.handle.trim().replace(/^@/, "").toLowerCase()
+      : null;
+  return [
+    own,
+    h(any.reports_to),
+    c.kind === "project_meta" ||
+    c.kind === "initiative" ||
+    c.kind === "initiative_owner"
+      ? h(any.owner)
+      : null,
+  ].filter((x): x is string => !!x);
 }
 
-type AskRow = { seq: number; change: OrgChange; status?: string; rationale?: string; expected_effect?: string };
-const askHandle = (c: OrgChange): string | null => ("handle" in c && typeof c.handle === "string" ? c.handle.trim().replace(/^@/, "").toLowerCase() : null);
+type AskRow = {
+  seq: number;
+  change: OrgChange;
+  status?: string;
+  rationale?: string;
+  expected_effect?: string;
+};
+const askHandle = (c: OrgChange): string | null =>
+  "handle" in c && typeof c.handle === "string"
+    ? c.handle.trim().replace(/^@/, "").toLowerCase()
+    : null;
 
 /** Several clauses about one subject: the first names it and the rest say
  *  "it" ("move X under P", "give it two measures"). */
-const clausesAbout = (subject: string, clauses: ReadonlyArray<(s: string) => string>): string[] => clauses.map((clause, i) => clause(i ? "it" : subject));
-const isClause = (x: unknown): x is (s: string) => string => typeof x === "function";
-const number =(n: number) => n.toLocaleString("en-US");
+const clausesAbout = (
+  subject: string,
+  clauses: ReadonlyArray<(s: string) => string>,
+): string[] => clauses.map((clause, i) => clause(i ? "it" : subject));
+const isClause = (x: unknown): x is (s: string) => string =>
+  typeof x === "function";
+const number = (n: number) => n.toLocaleString("en-US");
 /** What a budget change sets, as one predicate: "may use up to 2 hands and 8
  *  wakes a day and has no daily limit on tokens". Empty when it sets nothing. */
-export function capsWords(caps: { hands_per_day?: number | null; wakes_per_day?: number | null; tokens_per_day?: number | null; cards?: number }): string {
-  const daily: string[] = [], unlimited: string[] = [];
-  const one = (n: number | null | undefined, unit: string, units: string) => { if (n === null) unlimited.push(units); else if (n !== undefined) daily.push(`${number(n)} ${n === 1 ? unit : units}`); };
+export function capsWords(caps: {
+  hands_per_day?: number | null;
+  wakes_per_day?: number | null;
+  tokens_per_day?: number | null;
+  cards?: number;
+}): string {
+  const daily: string[] = [],
+    unlimited: string[] = [];
+  const one = (n: number | null | undefined, unit: string, units: string) => {
+    if (n === null) unlimited.push(units);
+    else if (n !== undefined)
+      daily.push(`${number(n)} ${n === 1 ? unit : units}`);
+  };
   one(caps.hands_per_day, "hand", "hands");
   one(caps.wakes_per_day, "wake", "wakes");
   one(caps.tokens_per_day, "token", "tokens");
-  return andList([
-    daily.length ? `may use up to ${andList(daily)} a day` : "",
-    unlimited.length ? `has no daily limit on ${andList(unlimited)}` : "",
-    caps.cards !== undefined ? `may hold up to ${number(caps.cards)} open ${caps.cards === 1 ? "card" : "cards"}` : "",
-  ].filter(Boolean));
+  return andList(
+    [
+      daily.length ? `may use up to ${andList(daily)} a day` : "",
+      unlimited.length ? `has no daily limit on ${andList(unlimited)}` : "",
+      caps.cards !== undefined
+        ? `may hold up to ${number(caps.cards)} open ${caps.cards === 1 ? "card" : "cards"}`
+        : "",
+    ].filter(Boolean),
+  );
 }
 
 /** The names a derived ask speaks in (S19): an agent by its handle, a
@@ -901,29 +1728,66 @@ export type OrgAskNames = {
  *  verb first sentence whose only name for the goal is its title ("add the
  *  goal X under P", "have Callers carry X"), and `subject` stands in for the
  *  goal ("it"). */
-export function goalChangeSentence(c: OrgGoalChange, names?: OrgAskNames, words?: Pick<ChangeWords, "subject" | "brief" | "purpose">): string {
+export function goalChangeSentence(
+  c: OrgGoalChange,
+  names?: OrgAskNames,
+  words?: Pick<ChangeWords, "subject" | "brief" | "purpose">,
+): string {
   return andList(goalChangeClauses(c, names, words));
 }
-function goalChangeClauses(c: OrgGoalChange, names?: OrgAskNames, words: Pick<ChangeWords, "subject" | "brief" | "purpose"> = {}): string[] {
+function goalChangeClauses(
+  c: OrgGoalChange,
+  names?: OrgAskNames,
+  words: Pick<ChangeWords, "subject" | "brief" | "purpose"> = {},
+): string[] {
   const { brief } = words;
   // A handle stands as written for a reader with no card in front of them; the card names the role.
-  const owner = (ref: string | undefined) => !ref ? "" : ref.trim().toLowerCase() === "me" ? "you" : ref.trim().startsWith("@") ? (brief && names?.role?.(ref.trim().slice(1).toLowerCase())) || `@${ref.trim().slice(1)}` : names?.role?.(ref.trim().toLowerCase()) ?? ref.trim();
+  const owner = (ref: string | undefined) =>
+    !ref
+      ? ""
+      : ref.trim().toLowerCase() === "me"
+        ? "you"
+        : ref.trim().startsWith("@")
+          ? (brief && names?.role?.(ref.trim().slice(1).toLowerCase())) ||
+            `@${ref.trim().slice(1)}`
+          : (names?.role?.(ref.trim().toLowerCase()) ?? ref.trim());
   const project = (ref: string) => names?.project?.(ref) ?? ref;
-  const goal = (ref: string, title?: string) => title?.trim() || names?.initiative?.(ref) || ref;
+  const goal = (ref: string, title?: string) =>
+    title?.trim() || names?.initiative?.(ref) || ref;
   /** The goal as the sentence calls it: the caller's word, else its title (after "the goal" where the reader has no card). */
-  const subject = (name: string) => words.subject ?? (brief ? name : `the goal ${name}`);
+  const subject = (name: string) =>
+    words.subject ?? (brief ? name : `the goal ${name}`);
   switch (c.kind) {
     case "initiative":
-      if (brief) return [words.purpose ? `set ${words.subject ?? c.title.trim()} as the purpose` : `add ${words.subject ?? `the goal ${c.title.trim()}`} ${c.parent ? `under ${goal(c.parent)}` : "at the top level"}`];
-      return [`set a goal: ${words.subject ?? c.title.trim()}, carried by ${andList(c.projects.map(project))}${c.owner ? `, owned by ${owner(c.owner)}` : ""}${c.parent ? `, under ${goal(c.parent)}` : ""}${c.metrics?.length ? `, measured by ${metricsWords(c.metrics)}` : ""}${c.milestones?.length ? `, with ${count(c.milestones.length, "milestone")}` : ""}`];
+      if (brief)
+        return [
+          words.purpose
+            ? `set ${words.subject ?? c.title.trim()} as the purpose`
+            : `add ${words.subject ?? `the goal ${c.title.trim()}`} ${c.parent ? `under ${goal(c.parent)}` : "at the top level"}`,
+        ];
+      return [
+        `set a goal: ${words.subject ?? c.title.trim()}, carried by ${andList(c.projects.map(project))}${c.owner ? `, owned by ${owner(c.owner)}` : ""}${c.parent ? `, under ${goal(c.parent)}` : ""}${c.metrics?.length ? `, measured by ${metricsWords(c.metrics)}` : ""}${c.milestones?.length ? `, with ${count(c.milestones.length, "milestone")}` : ""}`,
+      ];
     case "initiative_projects": {
-      const s = subject(goal(c.initiative, c.title)), carriers = andList(c.projects.map(project));
-      return [brief ? `have ${carriers} carry ${s}` : `add ${carriers} to ${s}`];
+      const s = subject(goal(c.initiative, c.title)),
+        carriers = andList(c.projects.map(project));
+      return [
+        brief ? `have ${carriers} carry ${s}` : `add ${carriers} to ${s}`,
+      ];
     }
     case "initiative_owner": {
       const s = subject(goal(c.initiative, c.title));
-      if (brief) return [c.owner.trim() ? `make ${owner(c.owner).replace(/^you$/, "yourself")} ${s === "it" ? "its owner" : `the owner of ${s}`}` : `leave ${s} with no owner`];
-      return [c.owner.trim() ? `make ${owner(c.owner)} the owner of ${s}` : `${s} has no owner`];
+      if (brief)
+        return [
+          c.owner.trim()
+            ? `make ${owner(c.owner).replace(/^you$/, "yourself")} ${s === "it" ? "its owner" : `the owner of ${s}`}`
+            : `leave ${s} with no owner`,
+        ];
+      return [
+        c.owner.trim()
+          ? `make ${owner(c.owner)} the owner of ${s}`
+          : `${s} has no owner`,
+      ];
     }
     case "initiative_shape": {
       const s = subject(goal(c.initiative, c.title));
@@ -932,32 +1796,66 @@ function goalChangeClauses(c: OrgGoalChange, names?: OrgAskNames, words: Pick<Ch
       if (brief) {
         const { parent, metrics } = c;
         const clauses = [
-          parent !== undefined && ((g: string) => parent === null ? `move ${g} to the top level` : `move ${g} under ${goal(parent)}`),
-          metrics !== undefined && ((g: string) => metrics.length === 0 ? `stop measuring ${g} by a number` : metrics.length === 1 ? `measure ${g} by ${metrics[0].name.trim()}` : `give ${g} ${metrics.length === 2 ? "two" : metrics.length} measures`),
-          record.length > 0 && ((g: string) => `record ${andList(record)} on ${g}`),
+          parent !== undefined &&
+            ((g: string) =>
+              parent === null
+                ? `move ${g} to the top level`
+                : `move ${g} under ${goal(parent)}`),
+          metrics !== undefined &&
+            ((g: string) =>
+              metrics.length === 0
+                ? `stop measuring ${g} by a number`
+                : metrics.length === 1
+                  ? `measure ${g} by ${metrics[0].name.trim()}`
+                  : `give ${g} ${metrics.length === 2 ? "two" : metrics.length} measures`),
+          record.length > 0 &&
+            ((g: string) => `record ${andList(record)} on ${g}`),
         ].filter(isClause);
         return clauses.length ? clausesAbout(s, clauses) : [`change ${s}`];
       }
       const parts = [
-        c.parent === undefined ? "" : c.parent === null ? "a top level goal" : `under ${goal(c.parent)}`,
-        c.metrics === undefined ? "" : c.metrics.length ? `measured by ${metricsWords(c.metrics)}` : "with no metric",
+        c.parent === undefined
+          ? ""
+          : c.parent === null
+            ? "a top level goal"
+            : `under ${goal(c.parent)}`,
+        c.metrics === undefined
+          ? ""
+          : c.metrics.length
+            ? `measured by ${metricsWords(c.metrics)}`
+            : "with no metric",
       ].filter(Boolean);
-      const placed = parts.length ? `${c.parent === null && parts.length === 1 ? "make" : "put"} ${s} ${andList(parts)}` : "";
+      const placed = parts.length
+        ? `${c.parent === null && parts.length === 1 ? "make" : "put"} ${s} ${andList(parts)}`
+        : "";
       if (!record.length) return [placed || `change ${s}`];
-      return [placed ? `${placed}, and record ${andList(record)}` : `record on ${s}: ${andList(record)}`];
+      return [
+        placed
+          ? `${placed}, and record ${andList(record)}`
+          : `record on ${s}: ${andList(record)}`,
+      ];
     }
   }
 }
-const count = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
+const count = (k: number, one: string, many = `${one}s`) =>
+  `${k} ${k === 1 ? one : many}`;
 /** The words as a sentence: a full stop where the writer left none. */
-const fullStop = (text: string) => { const t = text.trim(); return /[.!?]$/.test(t) ? t : `${t}.`; };
+const fullStop = (text: string) => {
+  const t = text.trim();
+  return /[.!?]$/.test(t) ? t : `${t}.`;
+};
 /** What a shape change writes to the goal's record, each part named and counted: "why it matters", "the milestone Private beta open", "2 open questions". */
 function recordWords(c: OrgInitiativeShapeChange): string[] {
-  const some = (k: number | undefined, one: string, many: string) => !k ? "" : k === 1 ? one : `${k} ${many}`;
+  const some = (k: number | undefined, one: string, many: string) =>
+    !k ? "" : k === 1 ? one : `${k} ${many}`;
   return [
     c.why !== undefined ? "why it matters" : "",
     c.done_when !== undefined ? "what done looks like" : "",
-    some(c.milestones?.length, `the milestone ${c.milestones?.[0]?.title.trim()}`, "milestones"),
+    some(
+      c.milestones?.length,
+      `the milestone ${c.milestones?.[0]?.title.trim()}`,
+      "milestones",
+    ),
     some(c.questions?.length, "an open question", "open questions"),
     some(c.decisions?.length, "a decision", "decisions"),
     some(c.sources?.length, "where it was stated", "places it was stated"),
@@ -969,14 +1867,32 @@ function recordEffect(c: OrgInitiativeRecord): string {
   return [
     c.why?.trim() ? `Why it matters: ${stop(c.why)}` : "",
     c.done_when?.trim() ? `Done when: ${stop(c.done_when)}` : "",
-    c.milestones?.length ? `${c.milestones.length === 1 ? "Milestone" : "Milestones"}: ${c.milestones.map((m) => `${m.title.trim()}${m.date ? ` (${humanEndDate(m.date)})` : ""}`).join("; ")}.` : "",
-    c.questions?.length ? `Still open: ${c.questions.map((q) => stop(q)).join(" ")}` : "",
-    c.decisions?.length ? `Decided: ${c.decisions.map((d) => stop(d)).join(" ")}` : "",
-    c.sources?.length ? `Its record says where it was stated (${count(c.sources.length, "source")}).` : "",
-  ].filter(Boolean).join(" ");
+    c.milestones?.length
+      ? `${c.milestones.length === 1 ? "Milestone" : "Milestones"}: ${c.milestones.map((m) => `${m.title.trim()}${m.date ? ` (${humanEndDate(m.date)})` : ""}`).join("; ")}.`
+      : "",
+    c.questions?.length
+      ? `Still open: ${c.questions.map((q) => stop(q)).join(" ")}`
+      : "",
+    c.decisions?.length
+      ? `Decided: ${c.decisions.map((d) => stop(d)).join(" ")}`
+      : "",
+    c.sources?.length
+      ? `Its record says where it was stated (${count(c.sources.length, "source")}).`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 /** "Weekly active teams (target 1,000) and Paying teams (target 40)" */
-export const metricsWords = (metrics: ReadonlyArray<OrgInitiativeMetric>): string => andList(metrics.map((m) => `${m.name.trim()} (${[`target ${m.target.trim()}`, m.series ? `live from ${m.series.trim().toLowerCase()}` : "", m.window ? `read over ${m.window.trim().toLowerCase()}${m.noise ? ` with ${m.noise.trim().toLowerCase()} noise` : ""}` : "", m.guardrail ? "a guardrail" : ""].filter(Boolean).join(", ")})`));
+export const metricsWords = (
+  metrics: ReadonlyArray<OrgInitiativeMetric>,
+): string =>
+  andList(
+    metrics.map(
+      (m) =>
+        `${m.name.trim()} (${[`target ${m.target.trim()}`, m.series ? `live from ${m.series.trim().toLowerCase()}` : "", m.window ? `read over ${m.window.trim().toLowerCase()}${m.noise ? ` with ${m.noise.trim().toLowerCase()} noise` : ""}` : "", m.guardrail ? "a guardrail" : ""].filter(Boolean).join(", ")})`,
+    ),
+  );
 
 /**
  * A derived ask's words, for a person reading cold: no handle, no
@@ -986,73 +1902,151 @@ export const metricsWords = (metrics: ReadonlyArray<OrgInitiativeMetric>): strin
  */
 function askWords(names?: OrgAskNames) {
   const handle = (h: string) => h.trim().replace(/^@/, "");
-  const agent = (h: string) => names?.role?.(handle(h).toLowerCase()) ?? handle(h);
+  const agent = (h: string) =>
+    names?.role?.(handle(h).toLowerCase()) ?? handle(h);
   // "you": the card has no speaker, so the deciding person is the reader, the way the row line says it.
-  const parent = (ref: string | undefined) => !ref || ref === "me" ? "you" : ref.startsWith("@") ? agent(ref) : names?.role?.(ref) ?? ref;
-  const projects = (refs: string[]) => refs.length ? `the ${andList(refs.map((r) => names?.project?.(r) ?? r))} ${refs.length === 1 ? "project" : "projects"}` : "";
-  const plans = (refs: string[]) => refs.length ? `the ${andList(refs.map((r) => names?.plan?.(r) ?? r))} ${refs.length === 1 ? "plan" : "plans"}` : "";
+  const parent = (ref: string | undefined) =>
+    !ref || ref === "me"
+      ? "you"
+      : ref.startsWith("@")
+        ? agent(ref)
+        : (names?.role?.(ref) ?? ref);
+  const projects = (refs: string[]) =>
+    refs.length
+      ? `the ${andList(refs.map((r) => names?.project?.(r) ?? r))} ${refs.length === 1 ? "project" : "projects"}`
+      : "";
+  const plans = (refs: string[]) =>
+    refs.length
+      ? `the ${andList(refs.map((r) => names?.plan?.(r) ?? r))} ${refs.length === 1 ? "plan" : "plans"}`
+      : "";
   /** A scope a change names without saying which kind each ref is. */
-  const things = (refs: string[]) => andList(refs.map((r) => {
-    const project = names?.project?.(r), plan = names?.plan?.(r);
-    return project ? `the ${project} project` : plan ? `the ${plan} plan` : r;
-  }));
+  const things = (refs: string[]) =>
+    andList(
+      refs.map((r) => {
+        const project = names?.project?.(r),
+          plan = names?.plan?.(r);
+        return project
+          ? `the ${project} project`
+          : plan
+            ? `the ${plan} plan`
+            : r;
+      }),
+    );
   const tenure = (t: OrgRoleProposal["tenure"]): string => {
     if (!t) return "";
     if (t.kind === "standing") return " It stays until you retire it.";
     const e: any = t.ends;
-    const ends = e.plan !== undefined ? `with ${plans([String(e.plan)])}` : e.project !== undefined ? `with ${projects([String(e.project)])}` : `on ${humanEndDate(e.date)}`;
+    const ends =
+      e.plan !== undefined
+        ? `with ${plans([String(e.plan)])}`
+        : e.project !== undefined
+          ? `with ${projects([String(e.project)])}`
+          : `on ${humanEndDate(e.date)}`;
     return ` It ends ${ends}, then ${t.then === "retire" ? "retires" : "comes up for review"}.`;
   };
   /** What rides with a new agent: its limit, its routine, the session that becomes it. */
   const rider = (c: OrgChange): string => {
     switch (c.kind) {
       // A limit is a safety net the person does not read about (S23.2, ORG_QUIET_KINDS).
-      case "budget": return "";
-      case "routine": return ` It runs ${c.title} ${everyWords(c.every)}.`;
-      case "trust": return autonomyOn(c.trust) ? " It starts work in its area on its own." : " It reads and recommends; you start the work.";
-      case "adopt": return ` The session ${c.conversation} becomes it.`;
-      case "authority": return ` Outside codecast it may ${authorityWords(c.authority)}, inside the limits you set.`;
-      case "hire": return ` It is hired from the template ${c.template} ${c.version}, and leads ${c.project}.`;
-      case "file_session": return ` The session ${c.title?.trim() ? `"${c.title.trim()}"` : c.session} moves under it.`;
-      case "move": return c.reports_to ? ` A separate change puts it under ${parent(c.reports_to)}; skip that and it keeps reporting to whoever runs it today.` : "";
-      default: return "";
+      case "budget":
+        return "";
+      case "routine":
+        return ` It runs ${c.title} ${everyWords(c.every)}.`;
+      case "trust":
+        return autonomyOn(c.trust)
+          ? " It starts work in its area on its own."
+          : " It reads and recommends; you start the work.";
+      case "adopt":
+        return ` The session ${c.conversation} becomes it.`;
+      case "authority":
+        return ` Outside codecast it may ${authorityWords(c.authority)}, inside the limits you set.`;
+      case "hire":
+        return ` It is hired from the template ${c.template} ${c.version}, and leads ${c.project}.`;
+      case "file_session":
+        return ` The session ${c.title?.trim() ? `"${c.title.trim()}"` : c.session} moves under it.`;
+      case "move":
+        return c.reports_to
+          ? ` A separate change puts it under ${parent(c.reports_to)}; skip that and it keeps reporting to whoever runs it today.`
+          : "";
+      default:
+        return "";
     }
   };
   const title = (c: OrgChange): string => {
     switch (c.kind) {
-      case "role": return c.seat ? `Name ${c.name} as a role` : `Add an agent: ${c.name}`;
-      case "retire": return `Retire ${agent(c.handle)}`;
-      case "move": return `Move ${agent(c.handle)}`;
-      case "scope": return `Change what ${agent(c.handle)} looks after`;
-      case "charter_edit": return `Change what ${agent(c.handle)}'s charter says`;
-      case "trust": return `${autonomyOn(c.trust) ? "Turn on" : "Turn off"} starting work on its own for ${agent(c.handle)}`;
-      case "initiative": case "initiative_projects": case "initiative_owner": case "initiative_shape": { const s = goalChangeSentence(c, names); return s.charAt(0).toUpperCase() + s.slice(1); }
-      default: return describeOrgChange(c);
+      case "role":
+        return c.seat ? `Name ${c.name} as a role` : `Add an agent: ${c.name}`;
+      case "retire":
+        return `Retire ${agent(c.handle)}`;
+      case "move":
+        return `Move ${agent(c.handle)}`;
+      case "scope":
+        return `Change what ${agent(c.handle)} looks after`;
+      case "charter_edit":
+        return `Change what ${agent(c.handle)}'s charter says`;
+      case "trust":
+        return `${autonomyOn(c.trust) ? "Turn on" : "Turn off"} starting work on its own for ${agent(c.handle)}`;
+      case "initiative":
+      case "initiative_projects":
+      case "initiative_owner":
+      case "initiative_shape": {
+        const s = goalChangeSentence(c, names);
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      }
+      default:
+        return describeOrgChange(c);
     }
   };
-  const effect = (c: OrgChange, riders: ReadonlyArray<OrgChange> = []): string => {
+  const effect = (
+    c: OrgChange,
+    riders: ReadonlyArray<OrgChange> = [],
+  ): string => {
     switch (c.kind) {
       case "role": {
-        const scope = [projects(c.scope?.projects ?? []), plans(c.scope?.plans ?? [])].filter(Boolean).join(" and ");
-        const runsLine = c.line || c.caps?.cards !== undefined ? ` It runs the project's flow on the ${c.line ?? DEFAULT_LINE_SLUG} steps${c.caps?.cards !== undefined ? `, starting new work only while fewer than ${c.caps.cards} change cards wait on a person` : ""}.` : "";
+        const scope = [
+          projects(c.scope?.projects ?? []),
+          plans(c.scope?.plans ?? []),
+        ]
+          .filter(Boolean)
+          .join(" and ");
+        const runsLine =
+          c.line || c.caps?.cards !== undefined
+            ? ` It runs the project's flow on the ${c.line ?? DEFAULT_LINE_SLUG} steps${c.caps?.cards !== undefined ? `, starting new work only while fewer than ${c.caps.cards} change cards wait on a person` : ""}.`
+            : "";
         const line = `reporting to ${parent(c.reports_to)}${scope ? ` and looking after ${scope}` : ""}.${runsLine}${tenure(c.tenure)}${riders.map(rider).join("")}`;
-        return c.seat ? `${seatSentence(c.seat)} It becomes a role, ${line}` : `A new agent, ${c.name}, ${line}`;
+        return c.seat
+          ? `${seatSentence(c.seat)} It becomes a role, ${line}`
+          : `A new agent, ${c.name}, ${line}`;
       }
-      case "retire": return `${agent(c.handle)} retires. Its sessions go back to their owners, and anything under it reports one level up.`;
+      case "retire":
+        return `${agent(c.handle)} retires. Its sessions go back to their owners, and anything under it reports one level up.`;
       case "move": {
-        const parts = [c.reports_to ? `reports to ${parent(c.reports_to)} from now on` : "", c.scope_add?.length ? `takes on ${things(c.scope_add)}` : "", c.scope_remove?.length ? `hands off ${things(c.scope_remove)}` : ""].filter(Boolean);
+        const parts = [
+          c.reports_to ? `reports to ${parent(c.reports_to)} from now on` : "",
+          c.scope_add?.length ? `takes on ${things(c.scope_add)}` : "",
+          c.scope_remove?.length ? `hands off ${things(c.scope_remove)}` : "",
+        ].filter(Boolean);
         return `${agent(c.handle)} ${andList(parts)}.`;
       }
       case "scope": {
-        const parts = [c.add?.length ? `takes on ${things(c.add)}` : "", c.remove?.length ? `hands off ${things(c.remove)}` : ""].filter(Boolean);
+        const parts = [
+          c.add?.length ? `takes on ${things(c.add)}` : "",
+          c.remove?.length ? `hands off ${things(c.remove)}` : "",
+        ].filter(Boolean);
         return `${agent(c.handle)} ${andList(parts)}.`;
       }
-      case "charter_edit": return `${agent(c.handle)}'s charter changes in ${c.edits.length === 1 ? "one place" : `${c.edits.length} places`}; each passage is shown before and after. Its area and its reporting line stay as they are.`;
-      case "initiative": return `A new goal, ${c.title.trim()}, appears on the goals page with ${projects(c.projects)} under it${c.owner ? ` and ${parent(c.owner)} as its owner` : " and no owner yet"}${c.parent ? `, feeding ${names?.initiative?.(c.parent) ?? c.parent}` : ""}${c.metrics?.length ? `. It is read against ${metricsWords(c.metrics)}` : ""}. ${recordEffect(c) ? `${fullStop(c.description)} ${recordEffect(c)}` : c.description.trim()}`;
-      case "initiative_projects": return `${projects(c.projects)} ${c.projects.length === 1 ? "counts" : "count"} toward the goal from now on, and its owner's area grows to include ${c.projects.length === 1 ? "it" : "them"}.`;
-      case "initiative_owner": return `${parent(c.owner)} drives the goal from now on: its health is what ${c.owner.trim().toLowerCase() === "me" ? "you say" : "they say"}, and the goal's projects join their area.`;
-      case "initiative_shape": return `${c.parent !== undefined ? (c.parent ? `The goal feeds ${names?.initiative?.(c.parent) ?? c.parent} from now on, and every role under it sees that chain. ` : "The goal stands on its own at the top level. ") : ""}${c.metrics !== undefined ? (c.metrics.length ? `On track means against ${metricsWords(c.metrics)}; ${c.metrics.every((m) => m.series) ? "the numbers read live" : c.metrics.some((m) => m.series) ? "the live ones read themselves and its owner reports the rest" : "its owner reports the numbers"}. ` : "It is no longer read against a number. ") : ""}${recordEffect(c)}`.trim();
-      default: return describeOrgChange(c);
+      case "charter_edit":
+        return `${agent(c.handle)}'s charter changes in ${c.edits.length === 1 ? "one place" : `${c.edits.length} places`}; each passage is shown before and after. Its area and its reporting line stay as they are.`;
+      case "initiative":
+        return `A new goal, ${c.title.trim()}, appears on the goals page with ${projects(c.projects)} under it${c.owner ? ` and ${parent(c.owner)} as its owner` : " and no owner yet"}${c.parent ? `, feeding ${names?.initiative?.(c.parent) ?? c.parent}` : ""}${c.metrics?.length ? `. It is read against ${metricsWords(c.metrics)}` : ""}. ${recordEffect(c) ? `${fullStop(c.description)} ${recordEffect(c)}` : c.description.trim()}`;
+      case "initiative_projects":
+        return `${projects(c.projects)} ${c.projects.length === 1 ? "counts" : "count"} toward the goal from now on, and its owner's area grows to include ${c.projects.length === 1 ? "it" : "them"}.`;
+      case "initiative_owner":
+        return `${parent(c.owner)} drives the goal from now on: its health is what ${c.owner.trim().toLowerCase() === "me" ? "you say" : "they say"}, and the goal's projects join their area.`;
+      case "initiative_shape":
+        return `${c.parent !== undefined ? (c.parent ? `The goal feeds ${names?.initiative?.(c.parent) ?? c.parent} from now on, and every role under it sees that chain. ` : "The goal stands on its own at the top level. ") : ""}${c.metrics !== undefined ? (c.metrics.length ? `On track means against ${metricsWords(c.metrics)}; ${c.metrics.every((m) => m.series) ? "the numbers read live" : c.metrics.some((m) => m.series) ? "the live ones read themselves and its owner reports the rest" : "its owner reports the numbers"}. ` : "It is no longer read against a number. ") : ""}${recordEffect(c)}`.trim();
+      default:
+        return describeOrgChange(c);
     }
   };
   /** Why, when the author gave no rationale: the reason the change itself
@@ -1074,41 +2068,83 @@ function askWords(names?: OrgAskNames) {
  * accepting a seat without them leaves it half made; whatever is left is one
  * ask. Removed changes belong to no ask.
  */
-export function deriveAsks(changes: ReadonlyArray<AskRow>, names?: OrgAskNames): OrgAsk[] {
+export function deriveAsks(
+  changes: ReadonlyArray<AskRow>,
+  names?: OrgAskNames,
+): OrgAsk[] {
   const words = askWords(names);
-  const live = orderOrgChanges(changes.filter((c) => c.status !== "removed"), (c) => c.change);
+  const live = orderOrgChanges(
+    changes.filter((c) => c.status !== "removed"),
+    (c) => c.change,
+  );
   const records = live.filter((c) => ORG_SYNC_KINDS.includes(c.change.kind));
   const goals = live.filter((c) => isOrgGoalChange(c.change));
-  const created = new Map<string, AskRow>(live.filter((c) => c.change.kind === "role").map((c) => [askHandle(c.change)!, c]));
+  const created = new Map<string, AskRow>(
+    live
+      .filter((c) => c.change.kind === "role")
+      .map((c) => [askHandle(c.change)!, c]),
+  );
   const createdSet = new Set(created.keys());
   // A session filed under a role this proposal creates rides in that role's ask.
-  const filings = live.filter((c) => (ORG_SESSION_KINDS as readonly string[]).includes(c.change.kind) && !filingUnderCreated(c.change, createdSet));
+  const filings = live.filter(
+    (c) =>
+      (ORG_SESSION_KINDS as readonly string[]).includes(c.change.kind) &&
+      !filingUnderCreated(c.change, createdSet),
+  );
   // A move of a role this proposal creates rides in that role's ask (a named
   // session put under an existing role, R2), so the person can accept the
   // name and skip the move from one card; any other move is its own ask.
-  const own = live.filter((c) => c.change.kind === "role" || c.change.kind === "retire" || c.change.kind === "scope" || c.change.kind === "charter_edit" || (c.change.kind === "move" && !created.has(askHandle(c.change) ?? "")));
+  const own = live.filter(
+    (c) =>
+      c.change.kind === "role" ||
+      c.change.kind === "retire" ||
+      c.change.kind === "scope" ||
+      c.change.kind === "charter_edit" ||
+      (c.change.kind === "move" && !created.has(askHandle(c.change) ?? "")),
+  );
   const riders = new Map<AskRow, AskRow[]>();
   const rest: AskRow[] = [];
   for (const c of live) {
-    if (records.includes(c) || goals.includes(c) || filings.includes(c) || own.includes(c)) continue;
+    if (
+      records.includes(c) ||
+      goals.includes(c) ||
+      filings.includes(c) ||
+      own.includes(c)
+    )
+      continue;
     const role = created.get(roleActedOn(c.change) ?? "");
     if (role) riders.set(role, [...(riders.get(role) ?? []), c]);
     else rest.push(c);
   }
   const seqs = (rows: AskRow[]) => rows.map((c) => c.seq).sort((a, b) => a - b);
-  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  const n = (k: number, one: string, many: string) =>
+    `${k} ${k === 1 ? one : many}`;
   const out: OrgAsk[] = [];
   // One ask per group (a project, a plan, the plans settled on their own, or
   // the records filed under none): the person settles a project's records
   // together, and a group's line is its totals, never the list. A group of
   // one reads as that change.
   for (const g of orgRecordGroups(records, names)) {
-    const one = g.seqs.length === 1 ? records.find((c) => c.seq === g.seqs[0])! : null;
-    const where = g.kind === "project" ? `in ${g.title ?? g.ref}` : g.kind === "plan" ? `under the plan ${g.title ?? g.ref}` : "filed under no project";
-    const plans = g.kind === "plans" ? `${g.totals.every((t) => t.act === "done" || t.act === "abandoned") ? "Close" : "Settle"} ${g.seqs.length} plans` : null;
+    const one =
+      g.seqs.length === 1 ? records.find((c) => c.seq === g.seqs[0])! : null;
+    const where =
+      g.kind === "project"
+        ? `in ${g.title ?? g.ref}`
+        : g.kind === "plan"
+          ? `under the plan ${g.title ?? g.ref}`
+          : "filed under no project";
+    const plans =
+      g.kind === "plans"
+        ? `${g.totals.every((t) => t.act === "done" || t.act === "abandoned") ? "Close" : "Settle"} ${g.seqs.length} plans`
+        : null;
     out.push({
-      title: one ? changeLine(one.change, { names, brief: true }) : plans ?? `Settle ${n(g.seqs.length, "record", "records")} ${where}`,
-      why: one ? one.rationale?.trim() || (one.change as OrgRecordStatusChange).reason.trim() : "These plans, tasks and projects show as active, but the work on them is finished, was dropped, or never started.",
+      title: one
+        ? changeLine(one.change, { names, brief: true })
+        : (plans ?? `Settle ${n(g.seqs.length, "record", "records")} ${where}`),
+      why: one
+        ? one.rationale?.trim() ||
+          (one.change as OrgRecordStatusChange).reason.trim()
+        : "These plans, tasks and projects show as active, but the work on them is finished, was dropped, or never started.",
       effect: `${recordGroupTotalsLine(g)}. No work starts or stops.`,
       seqs: g.seqs,
     });
@@ -1120,9 +2156,17 @@ export function deriveAsks(changes: ReadonlyArray<AskRow>, names?: OrgAskNames):
     const one = goals.length === 1 ? goals[0] : null;
     const sets = goals.filter((c) => c.change.kind === "initiative").length;
     out.push({
-      title: one ? words.title(one.change) : `${n(sets, "goal", "goals")} to set${goals.length > sets ? `, and ${n(goals.length - sets, "change", "changes")} to the goals that exist` : ""}`,
-      why: one?.rationale?.trim() || "The projects' own goals, and what the company said in its calls and threads, point at these goals; the goals page does not hold them yet.",
-      effect: one?.expected_effect?.trim() || (one ? words.effect(one.change) : `${n(goals.length, "change", "changes")} on the goals page: a goal set, a project added to one, or an owner named. No work starts or stops.`),
+      title: one
+        ? words.title(one.change)
+        : `${n(sets, "goal", "goals")} to set${goals.length > sets ? `, and ${n(goals.length - sets, "change", "changes")} to the goals that exist` : ""}`,
+      why:
+        one?.rationale?.trim() ||
+        "The projects' own goals, and what the company said in its calls and threads, point at these goals; the goals page does not hold them yet.",
+      effect:
+        one?.expected_effect?.trim() ||
+        (one
+          ? words.effect(one.change)
+          : `${n(goals.length, "change", "changes")} on the goals page: a goal set, a project added to one, or an owner named. No work starts or stops.`),
       seqs: seqs(goals),
     });
   }
@@ -1133,30 +2177,52 @@ export function deriveAsks(changes: ReadonlyArray<AskRow>, names?: OrgAskNames):
     const to = new Map<string, number>();
     for (const c of filings) {
       const d = sessionDestination((c.change as OrgFileSessionChange).to);
-      const where = !d ? "elsewhere" : d.kind === "done" ? "closed as done" : d.kind === "task" ? "onto tasks" : `under ${names?.role?.(d.handle) ?? `@${d.handle}`}`;
+      const where = !d
+        ? "elsewhere"
+        : d.kind === "done"
+          ? "closed as done"
+          : d.kind === "task"
+            ? "onto tasks"
+            : `under ${names?.role?.(d.handle) ?? `@${d.handle}`}`;
       to.set(where, (to.get(where) ?? 0) + 1);
     }
     out.push({
-      title: one ? changeLine(one.change, { names, brief: true }) : `File ${n(filings.length, "session", "sessions")} where they belong`,
-      why: one?.rationale?.trim() || "Each of these sits loose in your inbox, but its work belongs to an area someone already owns, or is finished.",
+      title: one
+        ? changeLine(one.change, { names, brief: true })
+        : `File ${n(filings.length, "session", "sessions")} where they belong`,
+      why:
+        one?.rationale?.trim() ||
+        "Each of these sits loose in your inbox, but its work belongs to an area someone already owns, or is finished.",
       effect: `${andList([...to].map(([where, k]) => `${k} ${where}`))}. ${filings.length === 1 ? "It leaves" : "They leave"} your inbox; nothing stops running.`,
       seqs: seqs(filings),
     });
   }
   for (const c of own) {
     const rode = riders.get(c) ?? [];
-    out.push({ title: words.title(c.change), why: c.rationale?.trim() || words.why(c.change), effect: c.expected_effect?.trim() || words.effect(c.change, rode.map((r) => r.change)), seqs: seqs([c, ...rode]) });
+    out.push({
+      title: words.title(c.change),
+      why: c.rationale?.trim() || words.why(c.change),
+      effect:
+        c.expected_effect?.trim() ||
+        words.effect(
+          c.change,
+          rode.map((r) => r.change),
+        ),
+      seqs: seqs([c, ...rode]),
+    });
   }
   // The words count the rows a person will see: a quiet kind (a limit,
   // S23.2) rides in the ask but is never a row; an ask of quiet changes
   // alone reads as sentences, one per change, so it counts them all.
-  const restShown = rest.filter((c) => !isOrgQuietChange(c.change)).length || rest.length;
-  if (rest.length) out.push({
-    title: `${n(restShown, "smaller change", "smaller changes")}: filing, goals and settings`,
-    why: "Plans filed under the area they belong to, written goals for an area, and settings of agents that already exist.",
-    effect: `${n(restShown, "change", "changes")}, each listed inside. No agent is added or removed.`,
-    seqs: seqs(rest),
-  });
+  const restShown =
+    rest.filter((c) => !isOrgQuietChange(c.change)).length || rest.length;
+  if (rest.length)
+    out.push({
+      title: `${n(restShown, "smaller change", "smaller changes")}: filing, goals and settings`,
+      why: "Plans filed under the area they belong to, written goals for an area, and settings of agents that already exist.",
+      effect: `${n(restShown, "change", "changes")}, each listed inside. No agent is added or removed.`,
+      seqs: seqs(rest),
+    });
   return out;
 }
 
@@ -1164,22 +2230,37 @@ export function deriveAsks(changes: ReadonlyArray<AskRow>, names?: OrgAskNames):
  *  removed, plus derived asks for any change no stored ask names (a revise
  *  added it). With nothing stored, all of them derive. Always a partition of
  *  the live changes. */
-export function resolveOrgAsks(stored: ReadonlyArray<OrgAsk> | undefined | null, changes: ReadonlyArray<AskRow>, names?: OrgAskNames): OrgAsk[] {
+export function resolveOrgAsks(
+  stored: ReadonlyArray<OrgAsk> | undefined | null,
+  changes: ReadonlyArray<AskRow>,
+  names?: OrgAskNames,
+): OrgAsk[] {
   const live = changes.filter((c) => c.status !== "removed");
   if (!stored?.length) return deriveAsks(live, names);
   const liveSeqs = new Set(live.map((c) => c.seq));
-  const asks = stored.map((a) => ({ ...a, seqs: a.seqs.filter((q) => liveSeqs.has(q)) })).filter((a) => a.seqs.length);
+  const asks = stored
+    .map((a) => ({ ...a, seqs: a.seqs.filter((q) => liveSeqs.has(q)) }))
+    .filter((a) => a.seqs.length);
   const covered = new Set(asks.flatMap((a) => a.seqs));
-  return [...asks, ...deriveAsks(live.filter((c) => !covered.has(c.seq)), names)];
+  return [
+    ...asks,
+    ...deriveAsks(
+      live.filter((c) => !covered.has(c.seq)),
+      names,
+    ),
+  ];
 }
 
 /** The latest revise on a proposal's changes, or 0. Every revise stamps the
  *  rows it touches and no row is ever deleted, so this names the proposal's
  *  last revise from the rows alone: the page reads it off the rows it
  *  painted, the server off the rows it holds. */
-export function latestOrgRevisionAt(changes: ReadonlyArray<{ revision?: { at: number } | null }>): number {
+export function latestOrgRevisionAt(
+  changes: ReadonlyArray<{ revision?: { at: number } | null }>,
+): number {
   let at = 0;
-  for (const c of changes) if (c.revision && c.revision.at > at) at = c.revision.at;
+  for (const c of changes)
+    if (c.revision && c.revision.at > at) at = c.revision.at;
   return at;
 }
 
@@ -1193,18 +2274,26 @@ export type OrgVerdictSeen = { revised_at: number; seqs?: number[] };
  *  `askSeqs` is what the ask at the sent position holds today. A caller that
  *  sends nothing is taken only on a proposal nobody revised: nothing can have
  *  moved under it. */
-export function orgVerdictSeenFault(shortId: string, seen: OrgVerdictSeen | undefined | null, changes: ReadonlyArray<{ revision?: { at: number } | null }>, askSeqs?: ReadonlyArray<number>): string | null {
+export function orgVerdictSeenFault(
+  shortId: string,
+  seen: OrgVerdictSeen | undefined | null,
+  changes: ReadonlyArray<{ revision?: { at: number } | null }>,
+  askSeqs?: ReadonlyArray<number>,
+): string | null {
   const latest = latestOrgRevisionAt(changes);
-  const key = (seqs: ReadonlyArray<number>) => [...seqs].sort((a, b) => a - b).join(",");
+  const key = (seqs: ReadonlyArray<number>) =>
+    [...seqs].sort((a, b) => a - b).join(",");
   const moved = seen
-    ? seen.revised_at !== latest || (!!askSeqs && key(seen.seqs ?? []) !== key(askSeqs))
+    ? seen.revised_at !== latest ||
+      (!!askSeqs && key(seen.seqs ?? []) !== key(askSeqs))
     : latest > 0;
   return moved ? `${shortId} ${ORG_VERDICT_REVISED}` : null;
 }
 /** The tail of that refusal, in revise's own words for the other direction
  *  ("a revise never touches a change a person decided"). The page reads it to
  *  show the revised list instead of a failure. */
-export const ORG_VERDICT_REVISED = "was revised after this page read it; a verdict never lands on a change the person has not seen";
+export const ORG_VERDICT_REVISED =
+  "was revised after this page read it; a verdict never lands on a change the person has not seen";
 
 /** Validate a spec. Every fault is reported, each naming the change by index
  *  and kind, so a long spec is fixed in one pass. */
@@ -1214,27 +2303,48 @@ export const ORG_VERDICT_REVISED = "was revised after this page read it; a verdi
 export function orgChangeKey(c: OrgChange): string | null {
   const h = (x: string) => x.trim().replace(/^@/, "").toLowerCase();
   switch (c.kind) {
-    case "task_status": return `task_status:${c.task.trim()}`;
-    case "plan_status": return `plan_status:${c.plan.trim()}`;
-    case "project_status": return `project_status:${c.project.trim().toLowerCase()}`;
-    case "file": return `file:${c.plan.trim()}`;
-    case "file_session": return `file_session:${c.session.trim().toLowerCase()}`;
-    case "project_meta": return `project_meta:${c.project.trim().toLowerCase()}`;
-    case "charter_edit": return `charter_edit:${h(c.handle)}`;
-    case "role_edit": return `role_edit:${h(c.handle)}`;
-    case "role": return `role:${h(c.handle)}`;
-    case "adopt": return `adopt:${h(c.handle)}`;
-    case "retire": return `retire:${h(c.handle)}`;
-    case "budget": return `budget:${h(c.handle)}`;
-    case "trust": return `trust:${h(c.handle)}`;
-    case "authority": return `authority:${h(c.handle)}`;
-    case "hire": return `hire:${c.instance.trim().toLowerCase()}`;
-    case "upgrade": return `upgrade:${c.instance.trim().toLowerCase()}`;
-    case "initiative": return `initiative:${c.title.trim().toLowerCase()}`;
-    case "initiative_projects": return `initiative_projects:${c.initiative.trim().toLowerCase()}`;
-    case "initiative_owner": return `initiative_owner:${c.initiative.trim().toLowerCase()}`;
-    case "initiative_shape": return `initiative_shape:${c.initiative.trim().toLowerCase()}`;
-    default: return null;
+    case "task_status":
+      return `task_status:${c.task.trim()}`;
+    case "plan_status":
+      return `plan_status:${c.plan.trim()}`;
+    case "project_status":
+      return `project_status:${c.project.trim().toLowerCase()}`;
+    case "file":
+      return `file:${c.plan.trim()}`;
+    case "file_session":
+      return `file_session:${c.session.trim().toLowerCase()}`;
+    case "project_meta":
+      return `project_meta:${c.project.trim().toLowerCase()}`;
+    case "charter_edit":
+      return `charter_edit:${h(c.handle)}`;
+    case "role_edit":
+      return `role_edit:${h(c.handle)}`;
+    case "role":
+      return `role:${h(c.handle)}`;
+    case "adopt":
+      return `adopt:${h(c.handle)}`;
+    case "retire":
+      return `retire:${h(c.handle)}`;
+    case "budget":
+      return `budget:${h(c.handle)}`;
+    case "trust":
+      return `trust:${h(c.handle)}`;
+    case "authority":
+      return `authority:${h(c.handle)}`;
+    case "hire":
+      return `hire:${c.instance.trim().toLowerCase()}`;
+    case "upgrade":
+      return `upgrade:${c.instance.trim().toLowerCase()}`;
+    case "initiative":
+      return `initiative:${c.title.trim().toLowerCase()}`;
+    case "initiative_projects":
+      return `initiative_projects:${c.initiative.trim().toLowerCase()}`;
+    case "initiative_owner":
+      return `initiative_owner:${c.initiative.trim().toLowerCase()}`;
+    case "initiative_shape":
+      return `initiative_shape:${c.initiative.trim().toLowerCase()}`;
+    default:
+      return null;
   }
 }
 
@@ -1245,7 +2355,9 @@ export function orgChangeKey(c: OrgChange): string | null {
  *  honours this, and the page and the CLI print it so a person deciding row
  *  by row sees that skipping the adopt leaves the seat to be provisioned
  *  (the skip does that itself and says so). */
-export function orgChangeDependencies(rows: ReadonlyArray<{ seq: number; change: OrgChange }>): Record<number, string> {
+export function orgChangeDependencies(
+  rows: ReadonlyArray<{ seq: number; change: OrgChange }>,
+): Record<number, string> {
   const h = (x: string) => x.trim().replace(/^@/, "").toLowerCase();
   const out: Record<number, string> = {};
   const adopts = new Map<string, number>();
@@ -1253,15 +2365,36 @@ export function orgChangeDependencies(rows: ReadonlyArray<{ seq: number; change:
   const seated = new Map<string, number>();
   for (const r of rows) {
     if (r.change.kind === "adopt") adopts.set(h(r.change.handle), r.seq);
-    if (r.change.kind === "role") { roles.set(h(r.change.handle), r.seq); if (r.change.seat) seated.set(h(r.change.handle), r.seq); }
+    if (r.change.kind === "role") {
+      roles.set(h(r.change.handle), r.seq);
+      if (r.change.seat) seated.set(h(r.change.handle), r.seq);
+    }
   }
   for (const r of rows) {
     const c = r.change;
-    if (c.kind === "role") { const a = adopts.get(h(c.handle)); if (a !== undefined) out[r.seq] = `created without a standing session; #${a} seats it`; }
-    else if (c.kind === "adopt") { const ro = roles.get(h(c.handle)); if (ro !== undefined) out[r.seq] = `seats the role #${ro} creates; skip it and that role is provisioned a fresh session instead`; }
-    else if (c.kind === "routine") { const a = adopts.get(h(c.handle)) ?? seated.get(h(c.handle)); if (a !== undefined) out[r.seq] = `runs on the session #${a} seats`; }
-    else if (c.kind === "authority") { const ro = roles.get(h(c.handle)); if (ro !== undefined) out[r.seq] = `authority for the role #${ro} creates; skip that role and this is refused`; }
-    else if (c.kind === "hire") { const ro = roles.get(h(c.handle)); if (ro !== undefined) out[r.seq] = `hires the role #${ro} creates from a template; skip that role and this is refused`; }
+    if (c.kind === "role") {
+      const a = adopts.get(h(c.handle));
+      if (a !== undefined)
+        out[r.seq] = `created without a standing session; #${a} seats it`;
+    } else if (c.kind === "adopt") {
+      const ro = roles.get(h(c.handle));
+      if (ro !== undefined)
+        out[r.seq] =
+          `seats the role #${ro} creates; skip it and that role is provisioned a fresh session instead`;
+    } else if (c.kind === "routine") {
+      const a = adopts.get(h(c.handle)) ?? seated.get(h(c.handle));
+      if (a !== undefined) out[r.seq] = `runs on the session #${a} seats`;
+    } else if (c.kind === "authority") {
+      const ro = roles.get(h(c.handle));
+      if (ro !== undefined)
+        out[r.seq] =
+          `authority for the role #${ro} creates; skip that role and this is refused`;
+    } else if (c.kind === "hire") {
+      const ro = roles.get(h(c.handle));
+      if (ro !== undefined)
+        out[r.seq] =
+          `hires the role #${ro} creates from a template; skip that role and this is refused`;
+    }
   }
   return out;
 }
@@ -1269,7 +2402,9 @@ export function orgChangeDependencies(rows: ReadonlyArray<{ seq: number; change:
 /** The faults of a spec's seats (R2): a session is named by one role, and a
  *  role that names its session carries no adopt, because two changes would
  *  then seat one role and a person could accept one and skip the other. */
-export function orgSeatErrors(changes: ReadonlyArray<{ change: OrgChange }>): string[] {
+export function orgSeatErrors(
+  changes: ReadonlyArray<{ change: OrgChange }>,
+): string[] {
   const h = (x: string) => x.trim().replace(/^@/, "").toLowerCase();
   const errors: string[] = [];
   const named = new Map<string, number>();
@@ -1279,14 +2414,20 @@ export function orgSeatErrors(changes: ReadonlyArray<{ change: OrgChange }>): st
     if (c.kind !== "role" || !c.seat) return;
     const session = c.seat.existing.trim();
     const first = named.get(session);
-    if (first !== undefined) errors.push(`changes[${i}] (${describeOrgChange(c)}) names session ${session}, which changes[${first}] already names: one session is one role`);
+    if (first !== undefined)
+      errors.push(
+        `changes[${i}] (${describeOrgChange(c)}) names session ${session}, which changes[${first}] already names: one session is one role`,
+      );
     else named.set(session, i);
     seatedAt.set(h(c.handle), i);
   });
   changes.forEach((row, i) => {
     const c = row.change;
     const role = c.kind === "adopt" ? seatedAt.get(h(c.handle)) : undefined;
-    if (role !== undefined) errors.push(`changes[${i}] (${describeOrgChange(c)}) repeats the seat changes[${role}] already carries: a role that names its session needs no adopt`);
+    if (role !== undefined)
+      errors.push(
+        `changes[${i}] (${describeOrgChange(c)}) repeats the seat changes[${role}] already carries: a role that names its session needs no adopt`,
+      );
   });
   return errors;
 }
@@ -1298,56 +2439,140 @@ export function orgSeatErrors(changes: ReadonlyArray<{ change: OrgChange }>): st
  *  lists, and a project that sits in its charter list and its owner list is
  *  the ordinary way two rows meet; folding here means the post never refuses
  *  what one row could have carried, and the note says what was folded. */
-export function foldRepeatedSubjects(rows: any[]): { changes: any[]; notes: string[]; errors: string[]; index: number[] } {
-  const out: any[] = []; const notes: string[] = []; const errors: string[] = [];
+export function foldRepeatedSubjects(rows: any[]): {
+  changes: any[];
+  notes: string[];
+  errors: string[];
+  index: number[];
+} {
+  const out: any[] = [];
+  const notes: string[] = [];
+  const errors: string[] = [];
   /** Where each row as written ended up: its own place, or the row it folded into. */
   const index: number[] = [];
   const at = new Map<string, { out: number; src: number }>();
-  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-  const prose = (a?: string, b?: string) => !a ? b : !b || a.trim() === b.trim() ? a : `${a}\n\n${b}`;
+  const same = (a: unknown, b: unknown) =>
+    JSON.stringify(a) === JSON.stringify(b);
+  const prose = (a?: string, b?: string) =>
+    !a ? b : !b || a.trim() === b.trim() ? a : `${a}\n\n${b}`;
   rows.forEach((row, i) => {
     const key = orgChangeKey(row.change);
     const hit = key ? at.get(key) : undefined;
-    if (!hit) { if (key) at.set(key, { out: out.length, src: i }); index[i] = out.length; out.push(row); return; }
+    if (!hit) {
+      if (key) at.set(key, { out: out.length, src: i });
+      index[i] = out.length;
+      out.push(row);
+      return;
+    }
     index[i] = hit.out;
     const first = out[hit.out];
     // A shape change's record lists add to the goal, so two rows' lists join rather than disagree.
-    const joins = (k: string) => row.change.kind === "initiative_shape" && (SHAPE_ADD_LISTS as readonly string[]).includes(k);
-    const joined = Object.fromEntries(SHAPE_ADD_LISTS.filter((k) => joins(k) && first.change[k] && row.change[k]).map((k) => [k, [...first.change[k], ...row.change[k].filter((e: unknown) => !first.change[k].some((f: unknown) => same(e, f)))]]));
-    const conflict = Object.keys(row.change).find((k) => k !== "reason" && !joins(k) && k in first.change && !same(first.change[k], row.change[k]));
-    if (conflict) { errors.push(`changes[${i}] (${describeOrgChange(row.change)}) repeats changes[${hit.src}] with a different ${conflict}: one change per subject`); return; }
-    const evidence = [...(first.evidence ?? []), ...(row.evidence ?? []).filter((e: any) => !(first.evidence ?? []).some((f: any) => same(e, f)))];
+    const joins = (k: string) =>
+      row.change.kind === "initiative_shape" &&
+      (SHAPE_ADD_LISTS as readonly string[]).includes(k);
+    const joined = Object.fromEntries(
+      SHAPE_ADD_LISTS.filter(
+        (k) => joins(k) && first.change[k] && row.change[k],
+      ).map((k) => [
+        k,
+        [
+          ...first.change[k],
+          ...row.change[k].filter(
+            (e: unknown) => !first.change[k].some((f: unknown) => same(e, f)),
+          ),
+        ],
+      ]),
+    );
+    const conflict = Object.keys(row.change).find(
+      (k) =>
+        k !== "reason" &&
+        !joins(k) &&
+        k in first.change &&
+        !same(first.change[k], row.change[k]),
+    );
+    if (conflict) {
+      errors.push(
+        `changes[${i}] (${describeOrgChange(row.change)}) repeats changes[${hit.src}] with a different ${conflict}: one change per subject`,
+      );
+      return;
+    }
+    const evidence = [
+      ...(first.evidence ?? []),
+      ...(row.evidence ?? []).filter(
+        (e: any) => !(first.evidence ?? []).some((f: any) => same(e, f)),
+      ),
+    ];
     out[hit.out] = {
       ...first,
-      change: { ...first.change, ...row.change, ...joined, ...("reason" in first.change || "reason" in row.change ? { reason: prose(first.change.reason, row.change.reason) } : {}) },
+      change: {
+        ...first.change,
+        ...row.change,
+        ...joined,
+        ...("reason" in first.change || "reason" in row.change
+          ? { reason: prose(first.change.reason, row.change.reason) }
+          : {}),
+      },
       rationale: prose(first.rationale, row.rationale),
       ...(evidence.length ? { evidence } : {}),
-      ...(prose(first.expected_effect, row.expected_effect) ? { expected_effect: prose(first.expected_effect, row.expected_effect) } : {}),
-      ...(prose(first.risk, row.risk) ? { risk: prose(first.risk, row.risk) } : {}),
+      ...(prose(first.expected_effect, row.expected_effect)
+        ? { expected_effect: prose(first.expected_effect, row.expected_effect) }
+        : {}),
+      ...(prose(first.risk, row.risk)
+        ? { risk: prose(first.risk, row.risk) }
+        : {}),
     };
-    notes.push(`changes[${i}] (${describeOrgChange(row.change)}) folded into changes[${hit.src}]: one change per subject`);
+    notes.push(
+      `changes[${i}] (${describeOrgChange(row.change)}) folded into changes[${hit.src}]: one change per subject`,
+    );
   });
   return { changes: out, notes, errors, index };
 }
 
-export function parseOrgProposalSpec(raw: unknown): { spec: OrgProposalSpec; errors: []; notes?: string[] } | { spec: null; errors: string[] } {
+export function parseOrgProposalSpec(
+  raw: unknown,
+):
+  | { spec: OrgProposalSpec; errors: []; notes?: string[] }
+  | { spec: null; errors: string[] } {
   const errors: string[] = [];
   const r: any = raw;
-  if (!r || typeof r !== "object" || Array.isArray(r)) return { spec: null, errors: ["the spec is a JSON object with title, summary_md, mode and changes"] };
+  if (!r || typeof r !== "object" || Array.isArray(r))
+    return {
+      spec: null,
+      errors: [
+        "the spec is a JSON object with title, summary_md, mode and changes",
+      ],
+    };
   if (!nonEmpty(r.title)) errors.push("title is required");
-  if (!nonEmpty(r.summary_md)) errors.push("summary_md is required: the summary a founder reads on a phone");
-  if (!ORG_PROPOSAL_MODES.includes(r.mode)) errors.push(`mode is one of ${ORG_PROPOSAL_MODES.join(", ")}`);
-  if (Array.isArray(r.changes)) r.changes = r.changes.map((row: any) => row && typeof row === "object" && row.change ? { ...row, change: normalizeAutonomyChange(row.change) } : row);
-  if (!Array.isArray(r.changes) || r.changes.length === 0) errors.push("changes is a non-empty list");
-  else r.changes.forEach((c: any, i: number) => {
-    const at = `changes[${i}]${c?.change?.kind ? ` (${c.change.kind})` : ""}`;
-    errors.push(...orgSpecChangeErrors(c).map((e) => `${at}: ${e}`));
-  });
+  if (!nonEmpty(r.summary_md))
+    errors.push(
+      "summary_md is required: the summary a founder reads on a phone",
+    );
+  if (!ORG_PROPOSAL_MODES.includes(r.mode))
+    errors.push(`mode is one of ${ORG_PROPOSAL_MODES.join(", ")}`);
+  if (Array.isArray(r.changes))
+    r.changes = r.changes.map((row: any) =>
+      row && typeof row === "object" && row.change
+        ? { ...row, change: normalizeAutonomyChange(row.change) }
+        : row,
+    );
+  if (!Array.isArray(r.changes) || r.changes.length === 0)
+    errors.push("changes is a non-empty list");
+  else
+    r.changes.forEach((c: any, i: number) => {
+      const at = `changes[${i}]${c?.change?.kind ? ` (${c.change.kind})` : ""}`;
+      errors.push(...orgSpecChangeErrors(c).map((e) => `${at}: ${e}`));
+    });
   let changes: any[] = r.changes;
   let notes: string[] = [];
   let asks: OrgAsk[] | undefined;
-  if (!errors.length) errors.push(...orgSeatErrors(r.changes), ...orgProposalWorkErrors(r.changes), ...orgRecordRedundancyErrors(r.changes));
-  if (!errors.length && r.asks !== undefined) errors.push(...orgAsksErrors(r.asks, r.changes));
+  if (!errors.length)
+    errors.push(
+      ...orgSeatErrors(r.changes),
+      ...orgProposalWorkErrors(r.changes),
+      ...orgRecordRedundancyErrors(r.changes),
+    );
+  if (!errors.length && r.asks !== undefined)
+    errors.push(...orgAsksErrors(r.asks, r.changes));
   if (!errors.length) {
     const folded = foldRepeatedSubjects(r.changes);
     errors.push(...folded.errors);
@@ -1362,17 +2587,38 @@ export function parseOrgProposalSpec(raw: unknown): { spec: OrgProposalSpec; err
       // applies a change that rests on an agent nobody accepted. With no such
       // ask, the first one that named it keeps it.
       const written: OrgAsk[] = r.asks;
-      const creates = written.map((a) => new Set(a.seqs.map((q) => r.changes[q - 1].change).filter((c: OrgChange) => c.kind === "role").map((c: any) => askHandle(c))));
+      const creates = written.map(
+        (a) =>
+          new Set(
+            a.seqs
+              .map((q) => r.changes[q - 1].change)
+              .filter((c: OrgChange) => c.kind === "role")
+              .map((c: any) => askHandle(c)),
+          ),
+      );
       const home = new Map<number, number>();
       changes.forEach((row, out) => {
-        const named = written.map((a, i) => (a.seqs.some((q) => folded.index[q - 1] === out) ? i : -1)).filter((i) => i >= 0);
+        const named = written
+          .map((a, i) =>
+            a.seqs.some((q) => folded.index[q - 1] === out) ? i : -1,
+          )
+          .filter((i) => i >= 0);
         const refs = orgChangeHandles(row.change);
-        home.set(out + 1, named.find((i) => refs.some((h) => creates[i].has(h))) ?? named[0]);
+        home.set(
+          out + 1,
+          named.find((i) => refs.some((h) => creates[i].has(h))) ?? named[0],
+        );
       });
-      asks = written.map((a, i) => ({
-        title: a.title.trim(), why: a.why.trim(), effect: a.effect.trim(),
-        seqs: [...new Set(a.seqs.map((q) => folded.index[q - 1] + 1))].filter((q) => home.get(q) === i).sort((x, y) => x - y),
-      })).filter((a) => a.seqs.length);
+      asks = written
+        .map((a, i) => ({
+          title: a.title.trim(),
+          why: a.why.trim(),
+          effect: a.effect.trim(),
+          seqs: [...new Set(a.seqs.map((q) => folded.index[q - 1] + 1))]
+            .filter((q) => home.get(q) === i)
+            .sort((x, y) => x - y),
+        }))
+        .filter((a) => a.seqs.length);
     }
   }
   if (errors.length) return { spec: null, errors };
@@ -1392,7 +2638,8 @@ export function parseOrgProposalSpec(raw: unknown): { spec: OrgProposalSpec; err
 const at = (h: string) => `@${h.replace(/^@/, "")}`;
 const list = (xs?: string[]) => (xs ?? []).join(", ");
 
-const isPlainObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
+const isPlainObject = (x: unknown): x is Record<string, unknown> =>
+  !!x && typeof x === "object" && !Array.isArray(x);
 
 /**
  * A person's edits laid over a change (S5 "accept with edits"). Object valued
@@ -1400,7 +2647,10 @@ const isPlainObject = (x: unknown): x is Record<string, unknown> => !!x && typeo
  * others; `kind` never changes. Pure and unvalidated: the server checks the
  * result with orgChangeError before applying, the org page draws it as is.
  */
-export function editedOrgChange<T extends OrgChange>(change: T, edits: unknown): T {
+export function editedOrgChange<T extends OrgChange>(
+  change: T,
+  edits: unknown,
+): T {
   if (!isPlainObject(edits)) return change;
   const merged: Record<string, unknown> = { ...change };
   for (const [k, v] of Object.entries(edits)) {
@@ -1420,80 +2670,173 @@ export function editedOrgChange<T extends OrgChange>(change: T, edits: unknown):
  * agree: the pages that show the count before accept, and accept all, which
  * keeps one such change to a transaction because each costs hundreds of reads.
  */
-export function orgChangeTakeover(c: OrgChange): { handle: string; add: string[]; seat?: string } | null {
+export function orgChangeTakeover(
+  c: OrgChange,
+): { handle: string; add: string[]; seat?: string } | null {
   if ((c as OrgLeaveSessions).leave_sessions) return null;
-  const typed = (kind: "project" | "plan") => (ref: string) => (/^(project|plan):/.test(ref) ? ref : `${kind}:${ref}`);
-  const gains = (add: string[] | undefined) => (add?.length ? { handle: (c as { handle: string }).handle, add } : null);
+  const typed = (kind: "project" | "plan") => (ref: string) =>
+    /^(project|plan):/.test(ref) ? ref : `${kind}:${ref}`;
+  const gains = (add: string[] | undefined) =>
+    add?.length ? { handle: (c as { handle: string }).handle, add } : null;
   switch (c.kind) {
     // The session a role names becomes its seat before the takeover runs, so
     // it is never one of the sessions that move.
-    case "role": { const g = gains([...(c.scope?.projects ?? []).map(typed("project")), ...(c.scope?.plans ?? []).map(typed("plan"))]); return g && c.seat ? { ...g, seat: c.seat.existing } : g; }
-    case "scope": return gains(c.add);
-    case "move": return gains(c.scope_add);
-    case "adopt": return { handle: c.handle, add: [] };
-    default: return null;
+    case "role": {
+      const g = gains([
+        ...(c.scope?.projects ?? []).map(typed("project")),
+        ...(c.scope?.plans ?? []).map(typed("plan")),
+      ]);
+      return g && c.seat ? { ...g, seat: c.seat.existing } : g;
+    }
+    case "scope":
+      return gains(c.add);
+    case "move":
+      return gains(c.scope_add);
+    case "adopt":
+      return { handle: c.handle, add: [] };
+    default:
+      return null;
   }
 }
-export const orgChangeTakesOver = (c: OrgChange): boolean => orgChangeTakeover(c) !== null;
+export const orgChangeTakesOver = (c: OrgChange): boolean =>
+  orgChangeTakeover(c) !== null;
 
 /** What a takeover moves, as counts: the dry count before, the result after. */
-export type OrgTakeoverCounts = { sessions: number; kept_in_front: number; over_cap: number; told?: { sessions: number; deferred?: number } };
+export type OrgTakeoverCounts = {
+  sessions: number;
+  kept_in_front: number;
+  over_cap: number;
+  told?: { sessions: number; deferred?: number };
+};
 
 /** One writer for the sentence, so the note before accept, the note after
  *  apply and every page that shows the count say the same thing. `told` is
  *  what happened, so only a result that has it (after apply) says it. */
-export function takeoverPhrase(handle: string, r: { sessions: unknown[]; kept_in_front: unknown[]; over_cap: number; told?: { sessions: number; deferred?: number } } | OrgTakeoverCounts | null | undefined, applied: boolean): string {
+export function takeoverPhrase(
+  handle: string,
+  r:
+    | {
+        sessions: unknown[];
+        kept_in_front: unknown[];
+        over_cap: number;
+        told?: { sessions: number; deferred?: number };
+      }
+    | OrgTakeoverCounts
+    | null
+    | undefined,
+  applied: boolean,
+): string {
   if (!r) return "";
   const n = typeof r.sessions === "number" ? r.sessions : r.sessions.length;
   if (n === 0) return "";
   const one = n === 1;
-  const parts = [`${n} session${one ? "" : "s"} now report${one ? "s" : ""} to @${handle.replace(/^@/, "")} and leave${one ? "s" : ""} Needs You`];
-  const kept = typeof r.kept_in_front === "number" ? r.kept_in_front : r.kept_in_front.length;
-  if (kept) parts.push(`${kept} of them stay${kept === 1 ? "s" : ""} in front of you with a question still open`);
-  if (applied && r.told) parts.push(`${r.told.sessions} told now${r.told.deferred ? `, ${r.told.deferred} will read it on their next turn` : ""}`);
-  if (r.over_cap) parts.push(`${r.over_cap} more stay where they are until the next change`);
+  const parts = [
+    `${n} session${one ? "" : "s"} now report${one ? "s" : ""} to @${handle.replace(/^@/, "")} and leave${one ? "s" : ""} Needs You`,
+  ];
+  const kept =
+    typeof r.kept_in_front === "number"
+      ? r.kept_in_front
+      : r.kept_in_front.length;
+  if (kept)
+    parts.push(
+      `${kept} of them stay${kept === 1 ? "s" : ""} in front of you with a question still open`,
+    );
+  if (applied && r.told)
+    parts.push(
+      `${r.told.sessions} told now${r.told.deferred ? `, ${r.told.deferred} will read it on their next turn` : ""}`,
+    );
+  if (r.over_cap)
+    parts.push(`${r.over_cap} more stay where they are until the next change`);
   return parts.join("; ");
 }
 
 /** "spend on Google Ads and post to social", from the grants' kinds and labels. */
-export function authorityWords(grants: ReadonlyArray<OrgAuthorityGrant>): string {
-  const verbs: Record<OrgAuthorityKind, string> = { spend: "spend", publish: "publish", write: "write", connect: "connect" };
-  const parts = grants.map((g) => `${verbs[g.kind]} (${g.label}${g.limit?.usd_per_month !== undefined ? `, up to $${g.limit.usd_per_month} a month` : g.limit?.usd_per_day !== undefined ? `, up to $${g.limit.usd_per_day} a day` : g.limit?.per_day !== undefined ? `, up to ${g.limit.per_day} a day` : ""})`);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "nothing more";
+export function authorityWords(
+  grants: ReadonlyArray<OrgAuthorityGrant>,
+): string {
+  const verbs: Record<OrgAuthorityKind, string> = {
+    spend: "spend",
+    publish: "publish",
+    write: "write",
+    connect: "connect",
+  };
+  const parts = grants.map(
+    (g) =>
+      `${verbs[g.kind]} (${g.label}${g.limit?.usd_per_month !== undefined ? `, up to $${g.limit.usd_per_month} a month` : g.limit?.usd_per_day !== undefined ? `, up to $${g.limit.usd_per_day} a day` : g.limit?.per_day !== undefined ? `, up to ${g.limit.per_day} a day` : ""})`,
+  );
+  return parts.length > 1
+    ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`
+    : (parts[0] ?? "nothing more");
 }
 
 /** One line per change, the words the CLI walk and the ghost chips use. */
 export function describeOrgChange(c: OrgChange): string {
   switch (c.kind) {
-    case "role": return `${c.seat ? `name session ${c.seat.existing} as role` : "create role"} ${c.name} ${at(c.handle)}${c.reports_to ? ` reporting to ${c.reports_to}` : ""}${c.scope?.projects?.length || c.scope?.plans?.length ? ` over ${list([...(c.scope.projects ?? []), ...(c.scope.plans ?? [])])}` : ""}${c.tenure ? ` (${describeTenure(c.tenure)})` : ""}`;
-    case "projects": return c.changes.map((x) => x.op === "create" ? `create project ${x.title}${x.horizon ? ` (${x.horizon})` : ""}` : `merge project ${x.from} into ${x.into}`).join("; ");
-    case "move": return `move ${at(c.handle)}${c.reports_to ? ` under ${c.reports_to}` : ""}${c.scope_add?.length ? ` +${list(c.scope_add)}` : ""}${c.scope_remove?.length ? ` -${list(c.scope_remove)}` : ""}`;
-    case "retire": return `retire ${at(c.handle)}`;
-    case "scope": return `scope ${at(c.handle)}${c.add?.length ? ` +${list(c.add)}` : ""}${c.remove?.length ? ` -${list(c.remove)}` : ""}`;
-    case "budget": return `budget ${at(c.handle)} ${Object.entries(c.caps).filter(([, v]) => v !== undefined).map(([k, v]) => `${k.replace("_per_day", "")} ${v === null ? "no limit" : `${v}/day`}`).join(", ")}`;
-    case "trust": return `autonomy ${at(c.handle)} ${autonomyOn(c.trust) ? "on" : "off"}`;
-    case "routine": return `routine on ${at(c.handle)}: ${c.title} every ${c.every}`;
-    case "project_meta": return `charter ${c.project}${c.owner ? ` owner ${at(c.owner)}` : ""}${c.priority ? ` ${c.priority}` : ""}${c.goal ? `: ${c.goal}` : ""}`;
-    case "adopt": return `adopt session ${c.conversation} as ${at(c.handle)}'s standing session`;
-    case "authority": return `authority ${at(c.handle)}: ${c.authority.map((g) => `${g.kind} (${g.label})`).join(", ")}`;
-    case "hire": return `hire ${at(c.handle)} from template ${c.template}@${c.version} on ${c.project} as ${c.instance}`;
-    case "upgrade": return `upgrade instance ${c.instance} to ${c.template}@${c.to}`;
-    case "file": return `file plan ${c.plan} under project ${c.project}`;
-    case "file_session": return `file session ${c.session} ${sessionDestination(c.to)?.kind === "done" ? "as done" : `under ${c.to.trim()}`}`;
-    case "charter_edit": return `charter ${at(c.handle)}: ${c.edits.map(charterEditTerse).join("; ")}`;
-    case "role_edit": return `edit ${at(c.handle)}: ${roleEditTerse(c)}`;
-    case "plan_status": return `mark plan ${c.plan} ${c.status}`;
-    case "task_status": return `mark task ${c.task} ${c.status}`;
-    case "project_status": return `mark project ${c.project} ${c.status}`;
-    case "initiative": return `set goal ${c.title} over ${list(c.projects)}${c.owner ? ` owned by ${c.owner}` : ""}${c.parent ? ` under ${c.parent}` : ""}${c.metrics?.length ? ` measured by ${metricsWords(c.metrics)}` : ""}${recordTerse(c)}`;
-    case "initiative_projects": return `goal ${c.initiative} +${list(c.projects)}`;
-    case "initiative_owner": return `goal ${c.initiative} owner ${c.owner}`;
-    case "initiative_shape": return `goal ${c.initiative}${c.parent !== undefined ? ` under ${c.parent ?? "nothing"}` : ""}${c.metrics !== undefined ? ` metrics ${c.metrics.length ? metricsWords(c.metrics) : "none"}` : ""}${recordTerse(c)}`;
+    case "role":
+      return `${c.seat ? `name session ${c.seat.existing} as role` : "create role"} ${c.name} ${at(c.handle)}${c.reports_to ? ` reporting to ${c.reports_to}` : ""}${c.scope?.projects?.length || c.scope?.plans?.length ? ` over ${list([...(c.scope.projects ?? []), ...(c.scope.plans ?? [])])}` : ""}${c.tenure ? ` (${describeTenure(c.tenure)})` : ""}`;
+    case "projects":
+      return c.changes
+        .map((x) =>
+          x.op === "create"
+            ? `create project ${x.title}${x.horizon ? ` (${x.horizon})` : ""}`
+            : `merge project ${x.from} into ${x.into}`,
+        )
+        .join("; ");
+    case "move":
+      return `move ${at(c.handle)}${c.reports_to ? ` under ${c.reports_to}` : ""}${c.scope_add?.length ? ` +${list(c.scope_add)}` : ""}${c.scope_remove?.length ? ` -${list(c.scope_remove)}` : ""}`;
+    case "retire":
+      return `retire ${at(c.handle)}`;
+    case "scope":
+      return `scope ${at(c.handle)}${c.add?.length ? ` +${list(c.add)}` : ""}${c.remove?.length ? ` -${list(c.remove)}` : ""}`;
+    case "budget":
+      return `budget ${at(c.handle)} ${Object.entries(c.caps)
+        .filter(([, v]) => v !== undefined)
+        .map(
+          ([k, v]) =>
+            `${k.replace("_per_day", "")} ${v === null ? "no limit" : `${v}/day`}`,
+        )
+        .join(", ")}`;
+    case "trust":
+      return `autonomy ${at(c.handle)} ${autonomyOn(c.trust) ? "on" : "off"}`;
+    case "routine":
+      return `routine on ${at(c.handle)}: ${c.title} every ${c.every}`;
+    case "project_meta":
+      return `charter ${c.project}${c.owner ? ` owner ${at(c.owner)}` : ""}${c.priority ? ` ${c.priority}` : ""}${c.goal ? `: ${c.goal}` : ""}`;
+    case "adopt":
+      return `adopt session ${c.conversation} as ${at(c.handle)}'s standing session`;
+    case "authority":
+      return `authority ${at(c.handle)}: ${c.authority.map((g) => `${g.kind} (${g.label})`).join(", ")}`;
+    case "hire":
+      return `hire ${at(c.handle)} from template ${c.template}@${c.version} on ${c.project} as ${c.instance}`;
+    case "upgrade":
+      return `upgrade instance ${c.instance} to ${c.template}@${c.to}`;
+    case "file":
+      return `file plan ${c.plan} under project ${c.project}`;
+    case "file_session":
+      return `file session ${c.session} ${sessionDestination(c.to)?.kind === "done" ? "as done" : `under ${c.to.trim()}`}`;
+    case "charter_edit":
+      return `charter ${at(c.handle)}: ${c.edits.map(charterEditTerse).join("; ")}`;
+    case "role_edit":
+      return `edit ${at(c.handle)}: ${roleEditTerse(c)}`;
+    case "plan_status":
+      return `mark plan ${c.plan} ${c.status}`;
+    case "task_status":
+      return `mark task ${c.task} ${c.status}`;
+    case "project_status":
+      return `mark project ${c.project} ${c.status}`;
+    case "initiative":
+      return `set goal ${c.title} over ${list(c.projects)}${c.owner ? ` owned by ${c.owner}` : ""}${c.parent ? ` under ${c.parent}` : ""}${c.metrics?.length ? ` measured by ${metricsWords(c.metrics)}` : ""}${recordTerse(c)}`;
+    case "initiative_projects":
+      return `goal ${c.initiative} +${list(c.projects)}`;
+    case "initiative_owner":
+      return `goal ${c.initiative} owner ${c.owner}`;
+    case "initiative_shape":
+      return `goal ${c.initiative}${c.parent !== undefined ? ` under ${c.parent ?? "nothing"}` : ""}${c.metrics !== undefined ? ` metrics ${c.metrics.length ? metricsWords(c.metrics) : "none"}` : ""}${recordTerse(c)}`;
   }
 }
 /** The record a goal change carries, for the terse line: " why done_when +2 milestones +1 sources". */
 const recordTerse = (c: OrgInitiativeRecord): string =>
-  `${c.why !== undefined ? " why" : ""}${c.done_when !== undefined ? " done_when" : ""}${(["milestones", "questions", "decisions", "sources"] as const).map((list) => c[list]?.length ? ` +${c[list]!.length} ${list}` : "").join("")}`;
+  `${c.why !== undefined ? " why" : ""}${c.done_when !== undefined ? " done_when" : ""}${(["milestones", "questions", "decisions", "sources"] as const).map((list) => (c[list]?.length ? ` +${c[list]!.length} ${list}` : "")).join("")}`;
 
 /**
  * A record change as its row shows it (S9): the act ("mark done"), the
@@ -1503,11 +2846,28 @@ const recordTerse = (c: OrgInitiativeRecord): string =>
  * title that only repeats the ref (a project named by its title) is dropped,
  * so the ref is never said twice. Null for every other kind of change.
  */
-export function recordChangeParts(c: OrgChange): { act: string; ref: string; title: string | null } | null {
-  if (c.kind !== "plan_status" && c.kind !== "task_status" && c.kind !== "project_status") return null;
-  const ref = (c.kind === "plan_status" ? c.plan : c.kind === "task_status" ? c.task : c.project).trim();
+export function recordChangeParts(
+  c: OrgChange,
+): { act: string; ref: string; title: string | null } | null {
+  if (
+    c.kind !== "plan_status" &&
+    c.kind !== "task_status" &&
+    c.kind !== "project_status"
+  )
+    return null;
+  const ref = (
+    c.kind === "plan_status"
+      ? c.plan
+      : c.kind === "task_status"
+        ? c.task
+        : c.project
+  ).trim();
   const title = c.title?.trim() || null;
-  return { act: `mark ${c.status}`, ref, title: title && title.toLowerCase() !== ref.toLowerCase() ? title : null };
+  return {
+    act: `mark ${c.status}`,
+    ref,
+    title: title && title.toLowerCase() !== ref.toLowerCase() ? title : null,
+  };
 }
 
 /**
@@ -1526,7 +2886,12 @@ export function changeLine(change: OrgChange, words?: ChangeWords): string {
 }
 
 /** A project's priority as a sentence says it: "make Growth a high priority". */
-export const PRIORITY_WORDS: Record<OrgPriority, string> = { p0: "the top priority", p1: "a high priority", p2: "a medium priority", p3: "a low priority" };
+export const PRIORITY_WORDS: Record<OrgPriority, string> = {
+  p0: "the top priority",
+  p1: "a high priority",
+  p2: "a medium priority",
+  p3: "a low priority",
+};
 
 /** How a sentence is written for a reader who has names in hand. With nothing
  *  passed a change reads the way the log and the terminal print it. */
@@ -1566,145 +2931,329 @@ export function changeClauses(c: OrgChange, words: ChangeWords = {}): string[] {
   /** A role by the name the reader knows, else its handle as written. */
   const who = (handle: string) => names?.role?.(bare(handle)) ?? at(handle);
   /** Who a role reports to: "you" for the reader, a role by name, anyone else as the change names them. */
-  const parent = (ref: string | undefined) => !ref || ref === "me" ? "you" : names?.role?.(bare(ref)) ?? ref;
+  const parent = (ref: string | undefined) =>
+    !ref || ref === "me" ? "you" : (names?.role?.(bare(ref)) ?? ref);
   const project = (ref: string) => names?.project?.(ref) ?? ref;
   const plan = (ref: string) => names?.plan?.(ref) ?? ref;
   /** An entry of a role's area, which a change names without saying which kind it is. */
-  const thing = (ref: string) => names?.project?.(ref) ?? names?.plan?.(ref) ?? ref;
+  const thing = (ref: string) =>
+    names?.project?.(ref) ?? names?.plan?.(ref) ?? ref;
   /** The subject as the sentence calls it: the caller's word, else its name, after the noun a cold reader needs ("the role X"). */
-  const subject = (name: string, noun = "") => words.subject ?? (noun ? `${noun} ${name}` : name);
+  const subject = (name: string, noun = "") =>
+    words.subject ?? (noun ? `${noun} ${name}` : name);
   switch (c.kind) {
     case "role": {
       // A role that names a session adds nothing: the session is already there (R2).
-      const session = c.seat ? c.seat.title?.trim() || names?.session?.(c.seat.existing) || c.seat.existing : "";
-      if (brief) return [`${c.seat ? `name the session ${session} as` : "add"} ${subject(c.name, "the role")}, reporting to ${parent(c.reports_to)}`];
-      const scope = [...(c.scope?.projects ?? []).map(project), ...(c.scope?.plans ?? []).map(plan)];
-      return [`${c.seat ? `name the session ${session} as a role` : "add a role"}, ${subject(`${c.name} (${at(c.handle)})`)}, reporting to ${parent(c.reports_to)}${scope.length ? `, looking after ${andList(scope)}` : ""}`];
+      const session = c.seat
+        ? c.seat.title?.trim() ||
+          names?.session?.(c.seat.existing) ||
+          c.seat.existing
+        : "";
+      if (brief)
+        return [
+          `${c.seat ? `name the session ${session} as` : "add"} ${subject(c.name, "the role")}, reporting to ${parent(c.reports_to)}`,
+        ];
+      const scope = [
+        ...(c.scope?.projects ?? []).map(project),
+        ...(c.scope?.plans ?? []).map(plan),
+      ];
+      return [
+        `${c.seat ? `name the session ${session} as a role` : "add a role"}, ${subject(`${c.name} (${at(c.handle)})`)}, reporting to ${parent(c.reports_to)}${scope.length ? `, looking after ${andList(scope)}` : ""}`,
+      ];
     }
     case "projects": {
-      const entries = c.changes.map((x) => x.op === "create" ? `create the project ${x.title}${x.horizon ? ` (${x.horizon})` : ""}` : `fold the project ${project(x.from)} into ${project(x.into)}`);
+      const entries = c.changes.map((x) =>
+        x.op === "create"
+          ? `create the project ${x.title}${x.horizon ? ` (${x.horizon})` : ""}`
+          : `fold the project ${project(x.from)} into ${project(x.into)}`,
+      );
       return brief ? entries : [entries.join("; ")];
     }
     case "move": {
-      const s = subject(who(c.handle)), gains = andList((c.scope_add ?? []).map(thing)), loses = andList((c.scope_remove ?? []).map(thing));
+      const s = subject(who(c.handle)),
+        gains = andList((c.scope_add ?? []).map(thing)),
+        loses = andList((c.scope_remove ?? []).map(thing));
       if (brief) {
         const clauses = [
-          c.reports_to && ((r: string) => `have ${r} report to ${parent(c.reports_to)}`),
+          c.reports_to &&
+            ((r: string) => `have ${r} report to ${parent(c.reports_to)}`),
           gains && ((r: string) => `have ${r} look after ${gains}`),
           loses && ((r: string) => `have ${r} stop looking after ${loses}`),
         ].filter(isClause);
         return clauses.length ? clausesAbout(s, clauses) : [`move ${s}`];
       }
-      return [`move ${s}${c.reports_to ? ` under ${parent(c.reports_to)}` : ""}${gains ? `; now also looks after ${gains}` : ""}${loses ? `; no longer looks after ${loses}` : ""}`];
+      return [
+        `move ${s}${c.reports_to ? ` under ${parent(c.reports_to)}` : ""}${gains ? `; now also looks after ${gains}` : ""}${loses ? `; no longer looks after ${loses}` : ""}`,
+      ];
     }
-    case "retire": return [`retire ${subject(who(c.handle))}${brief ? ". Its" : "; its"} sessions go back to their owners`];
+    case "retire":
+      return [
+        `retire ${subject(who(c.handle))}${brief ? ". Its" : "; its"} sessions go back to their owners`,
+      ];
     case "scope": {
-      const s = subject(who(c.handle)), gains = andList((c.add ?? []).map(thing)), loses = andList((c.remove ?? []).map(thing));
+      const s = subject(who(c.handle)),
+        gains = andList((c.add ?? []).map(thing)),
+        loses = andList((c.remove ?? []).map(thing));
       if (brief) {
-        const clauses = [gains && ((r: string) => `have ${r} look after ${gains}`), loses && ((r: string) => `have ${r} stop looking after ${loses}`)].filter(isClause);
-        return clauses.length ? clausesAbout(s, clauses) : [`have ${s} keep its area of work`];
+        const clauses = [
+          gains && ((r: string) => `have ${r} look after ${gains}`),
+          loses && ((r: string) => `have ${r} stop looking after ${loses}`),
+        ].filter(isClause);
+        return clauses.length
+          ? clausesAbout(s, clauses)
+          : [`have ${s} keep its area of work`];
       }
-      return [`${s} ${[gains && `also looks after ${gains}`, loses && `stops looking after ${loses}`].filter(Boolean).join(" and ") || "keeps its area of work"}`];
+      return [
+        `${s} ${[gains && `also looks after ${gains}`, loses && `stops looking after ${loses}`].filter(Boolean).join(" and ") || "keeps its area of work"}`,
+      ];
     }
     // A limit's number is never the card's to print (S23.2): there the change reads as the quiet sentence.
-    case "budget": return [brief ? quietChangeSentence(c, subject(who(c.handle))).replace(/\.$/, "") : (capsWords(c.caps) ? `${subject(who(c.handle))} ${capsWords(c.caps)}` : quietChangeSentence(c, subject(who(c.handle))).replace(/\.$/, ""))];
+    case "budget":
+      return [
+        brief
+          ? quietChangeSentence(c, subject(who(c.handle))).replace(/\.$/, "")
+          : capsWords(c.caps)
+            ? `${subject(who(c.handle))} ${capsWords(c.caps)}`
+            : quietChangeSentence(c, subject(who(c.handle))).replace(/\.$/, ""),
+      ];
     case "trust": {
-      const s = subject(who(c.handle)), on = autonomyOn(c.trust);
-      if (brief) return [on ? `let ${s} start work in its area on its own` : `have ${s} ask before it starts work`];
-      return [`${s} ${on ? "starts work on its own" : "stops starting work on its own"}`];
+      const s = subject(who(c.handle)),
+        on = autonomyOn(c.trust);
+      if (brief)
+        return [
+          on
+            ? `let ${s} start work in its area on its own`
+            : `have ${s} ask before it starts work`,
+        ];
+      return [
+        `${s} ${on ? "starts work on its own" : "stops starting work on its own"}`,
+      ];
     }
     case "routine": {
       const s = subject(who(c.handle));
-      return [brief ? `have ${s} run ${c.title} ${everyWords(c.every)}` : `${s} runs "${c.title}" ${everyWords(c.every)}`];
+      return [
+        brief
+          ? `have ${s} run ${c.title} ${everyWords(c.every)}`
+          : `${s} runs "${c.title}" ${everyWords(c.every)}`,
+      ];
     }
     case "project_meta": {
       // What the change writes down is named, never printed: the words are the card's rows and the project page's.
-      const { priority, owner } = c, was = words.was?.priority;
+      const { priority, owner } = c,
+        was = words.was?.priority;
       const written = [
         c.goal != null && ((p: string) => `what ${p} is for`),
         c.success_metrics != null && ((p: string) => `how ${p} is measured`),
         c.non_goals != null && ((p: string) => `what ${p} leaves out`),
-        c.risks != null && ((p: string) => p === "it" ? "its risks" : `the risks to ${p}`),
+        c.risks != null &&
+          ((p: string) => (p === "it" ? "its risks" : `the risks to ${p}`)),
       ].filter(isClause);
       const clauses = [
-        priority && ((p: string) => priority === "p0" || !was || was === priority ? `make ${p} ${PRIORITY_WORDS[priority]}` : `${priority < was ? "raise" : "lower"} ${p} to ${PRIORITY_WORDS[priority]}`),
-        owner && ((p: string) => `make ${who(owner)} ${p === "it" ? "its lead" : `the lead of ${p}`}`),
-        written.length > 0 && ((p: string) => `write down ${andList(clausesAbout(p, written))}`),
+        priority &&
+          ((p: string) =>
+            priority === "p0" || !was || was === priority
+              ? `make ${p} ${PRIORITY_WORDS[priority]}`
+              : `${priority < was ? "raise" : "lower"} ${p} to ${PRIORITY_WORDS[priority]}`),
+        owner &&
+          ((p: string) =>
+            `make ${who(owner)} ${p === "it" ? "its lead" : `the lead of ${p}`}`),
+        written.length > 0 &&
+          ((p: string) => `write down ${andList(clausesAbout(p, written))}`),
       ].filter(isClause);
-      return clauses.length ? clausesAbout(subject(project(c.project)), clauses) : [`change ${subject(project(c.project), "the project")}`];
+      return clauses.length
+        ? clausesAbout(subject(project(c.project)), clauses)
+        : [`change ${subject(project(c.project), "the project")}`];
     }
     case "adopt": {
       const title = names?.session?.(c.conversation);
-      return [`make ${title ? `the session ${title}` : `session ${c.conversation}`} the standing session of ${subject(who(c.handle))}`];
+      return [
+        `make ${title ? `the session ${title}` : `session ${c.conversation}`} the standing session of ${subject(who(c.handle))}`,
+      ];
     }
     case "authority": {
       const s = subject(who(c.handle));
-      return [`${brief ? `let ${s}` : `${s} may`} ${authorityWords(c.authority)}, inside the limits you set`];
+      return [
+        `${brief ? `let ${s}` : `${s} may`} ${authorityWords(c.authority)}, inside the limits you set`,
+      ];
     }
-    case "hire": return [`hire ${subject(who(c.handle))} from the template ${c.template} (${c.version}) to lead ${project(c.project)}`];
-    case "upgrade": return [`move ${subject(c.instance, "the instance")} to ${c.template} ${c.to}`];
-    case "file": return [`put ${subject(plan(c.plan), brief ? "the plan" : "plan")} under the project ${project(c.project)}`];
+    case "hire":
+      return [
+        `hire ${subject(who(c.handle))} from the template ${c.template} (${c.version}) to lead ${project(c.project)}`,
+      ];
+    case "upgrade":
+      return [
+        `move ${subject(c.instance, "the instance")} to ${c.template} ${c.to}`,
+      ];
+    case "file":
+      return [
+        `put ${subject(plan(c.plan), brief ? "the plan" : "plan")} under the project ${project(c.project)}`,
+      ];
     case "file_session": {
-      const s = subject(c.title?.trim() || names?.session?.(c.session) || c.session, "the session");
+      const s = subject(
+        c.title?.trim() || names?.session?.(c.session) || c.session,
+        "the session",
+      );
       const to = sessionDestination(c.to);
-      return [to?.kind === "done" ? `close ${s} as done` : to?.kind === "task" ? `put ${s} on the task ${names?.task?.(to.task) ?? to.task}` : `put ${s} under ${who(c.to)}`];
+      return [
+        to?.kind === "done"
+          ? `close ${s} as done`
+          : to?.kind === "task"
+            ? `put ${s} on the task ${names?.task?.(to.task) ?? to.task}`
+            : `put ${s} under ${who(c.to)}`,
+      ];
     }
     case "charter_edit": {
       // What the edit does, never the words: the card shows each passage before and after.
       const s = subject(who(c.handle));
-      const own = (r: string) => (r === "it" ? "its charter" : `${r}'s charter`);
-      const k = (op: OrgCharterEdit["op"]) => c.edits.filter((e) => e.op === op).length;
+      const own = (r: string) =>
+        r === "it" ? "its charter" : `${r}'s charter`;
+      const k = (op: OrgCharterEdit["op"]) =>
+        c.edits.filter((e) => e.op === op).length;
       const clauses = [
-        k("replace") > 0 && ((r: string) => `rewrite ${k("replace") === 1 ? "a passage" : `${k("replace")} passages`} of ${own(r)}`),
-        k("add") > 0 && ((r: string) => `add ${k("add") === 1 ? "a line" : `${k("add")} lines`} to ${own(r)}`),
-        k("remove") > 0 && ((r: string) => `cut ${k("remove") === 1 ? "a passage" : `${k("remove")} passages`} from ${own(r)}`),
+        k("replace") > 0 &&
+          ((r: string) =>
+            `rewrite ${k("replace") === 1 ? "a passage" : `${k("replace")} passages`} of ${own(r)}`),
+        k("add") > 0 &&
+          ((r: string) =>
+            `add ${k("add") === 1 ? "a line" : `${k("add")} lines`} to ${own(r)}`),
+        k("remove") > 0 &&
+          ((r: string) =>
+            `cut ${k("remove") === 1 ? "a passage" : `${k("remove")} passages`} from ${own(r)}`),
       ].filter(isClause);
       // The card reads one clause per thing done; every other form is one sentence.
-      return brief ? clausesAbout(s, clauses) : [andList(clausesAbout(s, clauses))];
+      return brief
+        ? clausesAbout(s, clauses)
+        : [andList(clausesAbout(s, clauses))];
     }
     case "role_edit": {
       const s = subject(who(c.handle));
       const own = (r: string) => (r === "it" ? "its" : `${r}'s`);
-      const renamed = c.name?.trim() ? `${c.name.trim()}${c.new_handle ? ` (${at(c.new_handle)})` : ""}` : c.new_handle ? at(c.new_handle) : "";
+      const renamed = c.name?.trim()
+        ? `${c.name.trim()}${c.new_handle ? ` (${at(c.new_handle)})` : ""}`
+        : c.new_handle
+          ? at(c.new_handle)
+          : "";
       const clauses = [
         renamed && ((r: string) => `rename ${r} to ${renamed}`),
-        c.given_name !== undefined && ((r: string) => (c.given_name ? `have ${r} go by ${c.given_name.trim()}` : `drop the name ${r} goes by`)),
+        c.given_name !== undefined &&
+          ((r: string) =>
+            c.given_name
+              ? `have ${r} go by ${c.given_name.trim()}`
+              : `drop the name ${r} goes by`),
         c.avatar !== undefined && ((r: string) => `give ${r} a new face`),
-        c.tenure !== undefined && ((r: string) => (c.tenure!.kind === "standing" ? `make ${r} a standing role` : `make ${r} a program that ends ${describeTenure(c.tenure).replace(/^program · ends /, "")}`)),
-        c.line !== undefined && ((r: string) => `run ${own(r)} tasks on the ${c.line} flow`),
-        c.hires_freely !== undefined && ((r: string) => (c.hires_freely ? `let ${r} bring its hires online without approval` : `have ${own(r)} hires wait for approval`)),
-        c.keeps_reports_inside !== undefined && ((r: string) => (c.keeps_reports_inside ? `keep the roles under ${r} inside its area` : `let the roles under ${r} look after work outside its area`)),
-        c.paused !== undefined && ((r: string) => `${c.paused ? "pause" : "resume"} ${r}`),
+        c.tenure !== undefined &&
+          ((r: string) =>
+            c.tenure!.kind === "standing"
+              ? `make ${r} a standing role`
+              : `make ${r} a program that ends ${describeTenure(c.tenure).replace(/^program · ends /, "")}`),
+        c.line !== undefined &&
+          ((r: string) => `run ${own(r)} tasks on the ${c.line} flow`),
+        c.hires_freely !== undefined &&
+          ((r: string) =>
+            c.hires_freely
+              ? `let ${r} bring its hires online without approval`
+              : `have ${own(r)} hires wait for approval`),
+        c.keeps_reports_inside !== undefined &&
+          ((r: string) =>
+            c.keeps_reports_inside
+              ? `keep the roles under ${r} inside its area`
+              : `let the roles under ${r} look after work outside its area`),
+        c.paused !== undefined &&
+          ((r: string) => `${c.paused ? "pause" : "resume"} ${r}`),
       ].filter(isClause);
-      return brief ? clausesAbout(s, clauses) : [andList(clausesAbout(s, clauses))];
+      return brief
+        ? clausesAbout(s, clauses)
+        : [andList(clausesAbout(s, clauses))];
     }
-    case "plan_status": case "task_status": case "project_status": {
+    case "plan_status":
+    case "task_status":
+    case "project_status": {
       const parts = recordChangeParts(c)!;
       // The log and the terminal keep the id beside the title; the card says it as an act on the record, by its title.
-      if (!brief) return [parts.title ? `${parts.act}: ${parts.title} (${parts.ref})` : describeOrgChange(c)];
-      const noun = c.kind === "plan_status" ? "plan" : c.kind === "task_status" ? "task" : "project";
-      const s = subject(parts.title ?? (c.kind === "plan_status" ? plan(parts.ref) : c.kind === "project_status" ? project(parts.ref) : parts.ref), `the ${noun}`);
-      return [c.status === "active" || c.status === "open" ? `reopen ${s}` : c.status === "backlog" ? `move ${s} to the backlog` : `mark ${s} as ${c.status}`];
+      if (!brief)
+        return [
+          parts.title
+            ? `${parts.act}: ${parts.title} (${parts.ref})`
+            : describeOrgChange(c),
+        ];
+      const noun =
+        c.kind === "plan_status"
+          ? "plan"
+          : c.kind === "task_status"
+            ? "task"
+            : "project";
+      const s = subject(
+        parts.title ??
+          (c.kind === "plan_status"
+            ? plan(parts.ref)
+            : c.kind === "project_status"
+              ? project(parts.ref)
+              : parts.ref),
+        `the ${noun}`,
+      );
+      return [
+        c.status === "active" || c.status === "open"
+          ? `reopen ${s}`
+          : c.status === "backlog"
+            ? `move ${s} to the backlog`
+            : `mark ${s} as ${c.status}`,
+      ];
     }
-    case "initiative": case "initiative_projects": case "initiative_owner": case "initiative_shape": return goalChangeClauses(c, names, words);
+    case "initiative":
+    case "initiative_projects":
+    case "initiative_owner":
+    case "initiative_shape":
+      return goalChangeClauses(c, names, words);
     default: {
       const kind = (c as { kind?: unknown }).kind;
-      return [`a change this version of codecast cannot show yet${typeof kind === "string" && kind ? ` ("${kind}")` : ""}`];
+      return [
+        `a change this version of codecast cannot show yet${typeof kind === "string" && kind ? ` ("${kind}")` : ""}`,
+      ];
     }
   }
 }
 
 /** "standing" or "program · ends with pl-3, then retire": the chip on a node,
  *  the hire form and a proposal's role line all say it this way. */
-export function describeTenure(t: OrgTenureSpec | { kind: "standing" } | { kind: "program"; ends: { plan?: unknown; project?: unknown; date?: number }; then: "retire" | "review" } | null | undefined, names?: { plan?: string; project?: string }): string {
+export function describeTenure(
+  t:
+    | OrgTenureSpec
+    | { kind: "standing" }
+    | {
+        kind: "program";
+        ends: { plan?: unknown; project?: unknown; date?: number };
+        then: "retire" | "review";
+      }
+    | null
+    | undefined,
+  names?: { plan?: string; project?: string },
+): string {
   if (!t) return "";
   if (t.kind === "standing") return "standing";
   const e: any = t.ends;
-  const ends = e.plan !== undefined ? `with ${names?.plan ?? e.plan}` : e.project !== undefined ? `with ${names?.project ?? e.project}` : humanEndDate(e.date);
+  const ends =
+    e.plan !== undefined
+      ? `with ${names?.plan ?? e.plan}`
+      : e.project !== undefined
+        ? `with ${names?.project ?? e.project}`
+        : humanEndDate(e.date);
   return `program · ends ${ends}, then ${t.then}`;
 }
 
-const TENURE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const TENURE_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** A program's end date the way a person says it: "Oct 3". The year comes along
  *  only when it is not the current one, so a near end stays short and a distant
@@ -1712,7 +3261,9 @@ const TENURE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "
 function humanEndDate(ms: number): string {
   const d = new Date(ms);
   const day = `${TENURE_MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
-  return d.getUTCFullYear() === new Date().getUTCFullYear() ? day : `${day} ${d.getUTCFullYear()}`;
+  return d.getUTCFullYear() === new Date().getUTCFullYear()
+    ? day
+    : `${day} ${d.getUTCFullYear()}`;
 }
 
 /** Option order every org proposal decision uses. The index is the verdict. */
@@ -1721,11 +3272,16 @@ export const ORG_PROPOSAL_OPTIONS = {
   projects: ["Apply as proposed", "Apply with changes", "Skip"],
   move: ["Move as proposed", "Move with changes", "Skip"],
   retire: ["Retire as proposed", "Retire with changes", "Skip"],
-} as const satisfies Record<OrgProposal["kind"], readonly [string, string, string]>;
+} as const satisfies Record<
+  OrgProposal["kind"],
+  readonly [string, string, string]
+>;
 
 export type OrgProposalVerdict = "apply" | "apply_with_changes" | "skip";
 
-export function orgProposalVerdict(answerIndex: number | undefined): OrgProposalVerdict | null {
+export function orgProposalVerdict(
+  answerIndex: number | undefined,
+): OrgProposalVerdict | null {
   if (answerIndex === 0) return "apply";
   if (answerIndex === 1) return "apply_with_changes";
   if (answerIndex === 2) return "skip";
@@ -1734,17 +3290,31 @@ export function orgProposalVerdict(answerIndex: number | undefined): OrgProposal
 
 /** Render the block the decision context carries. */
 export function orgProposalBlock(proposal: OrgProposal): string {
-  return "```" + ORG_PROPOSAL_FENCE + "\n" + JSON.stringify(proposal, null, 2) + "\n```";
+  return (
+    "```" +
+    ORG_PROPOSAL_FENCE +
+    "\n" +
+    JSON.stringify(proposal, null, 2) +
+    "\n```"
+  );
 }
 
-const FENCE_RE = new RegExp("```" + ORG_PROPOSAL_FENCE + "[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n```");
+const FENCE_RE = new RegExp(
+  "```" + ORG_PROPOSAL_FENCE + "[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n```",
+);
 
 /** The proposal inside a decision's context, or null when there is none or it is malformed. */
-export function extractOrgProposal(md: string | undefined | null): OrgProposal | null {
+export function extractOrgProposal(
+  md: string | undefined | null,
+): OrgProposal | null {
   const m = FENCE_RE.exec(md ?? "");
   if (!m) return null;
   let raw: any;
-  try { raw = JSON.parse(m[1]); } catch { return null; }
+  try {
+    raw = JSON.parse(m[1]);
+  } catch {
+    return null;
+  }
   return isOrgProposal(raw) ? raw : null;
 }
 
@@ -1752,10 +3322,26 @@ export function isOrgProposal(raw: any): raw is OrgProposal {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
   switch (raw.kind) {
     case "role":
-      return typeof raw.name === "string" && raw.name.trim().length > 0 && typeof raw.handle === "string" && raw.handle.trim().length > 0;
+      return (
+        typeof raw.name === "string" &&
+        raw.name.trim().length > 0 &&
+        typeof raw.handle === "string" &&
+        raw.handle.trim().length > 0
+      );
     case "projects":
-      return Array.isArray(raw.changes) && raw.changes.every((c: any) =>
-        c && ((c.op === "create" && typeof c.title === "string" && c.title.trim()) || (c.op === "merge" && typeof c.from === "string" && typeof c.into === "string")));
+      return (
+        Array.isArray(raw.changes) &&
+        raw.changes.every(
+          (c: any) =>
+            c &&
+            ((c.op === "create" &&
+              typeof c.title === "string" &&
+              c.title.trim()) ||
+              (c.op === "merge" &&
+                typeof c.from === "string" &&
+                typeof c.into === "string")),
+        )
+      );
     case "move":
       return typeof raw.handle === "string" && raw.handle.trim().length > 0;
     case "retire":
@@ -1768,7 +3354,10 @@ export function isOrgProposal(raw: any): raw is OrgProposal {
 // "Create with changes" carries the person's text in the answer. JSON with the
 // proposal's own keys overrides fields; anything else is prose and rides along
 // as a note the apply path folds into the charter (a role) or the reason.
-export function applyProposalChanges<T extends OrgProposal>(proposal: T, answerText: string | undefined | null): { proposal: T; note?: string } {
+export function applyProposalChanges<T extends OrgProposal>(
+  proposal: T,
+  answerText: string | undefined | null,
+): { proposal: T; note?: string } {
   const text = (answerText ?? "").trim();
   if (!text) return { proposal };
   if (text.startsWith("{")) {
@@ -1778,7 +3367,9 @@ export function applyProposalChanges<T extends OrgProposal>(proposal: T, answerT
         const merged = { ...proposal, ...patch, kind: proposal.kind };
         if (isOrgProposal(merged)) return { proposal: merged as T };
       }
-    } catch { /* prose that happens to open with a brace */ }
+    } catch {
+      /* prose that happens to open with a brace */
+    }
   }
   return { proposal, note: text };
 }
@@ -1790,8 +3381,18 @@ export function applyProposalChanges<T extends OrgProposal>(proposal: T, answerT
 // sits under, else its plan, else the records filed under none. Removed
 // changes belong to no group.
 
-export type OrgRecordAct = "done" | "dropped" | "abandoned" | "reopened" | "backlog" | "paused";
-export type OrgRecordTotal = { noun: "project" | "plan" | "task"; act: OrgRecordAct; count: number };
+export type OrgRecordAct =
+  | "done"
+  | "dropped"
+  | "abandoned"
+  | "reopened"
+  | "backlog"
+  | "paused";
+export type OrgRecordTotal = {
+  noun: "project" | "plan" | "task";
+  act: OrgRecordAct;
+  count: number;
+};
 export type OrgRecordGroup = {
   /** "project:<ref>", "plan:<ref>", "plans" or "loose". */
   key: string;
@@ -1807,29 +3408,62 @@ export type OrgRecordGroup = {
   totals: OrgRecordTotal[];
 };
 
-const RECORD_ACTS: readonly OrgRecordAct[] = ["done", "dropped", "abandoned", "reopened", "backlog", "paused"];
+const RECORD_ACTS: readonly OrgRecordAct[] = [
+  "done",
+  "dropped",
+  "abandoned",
+  "reopened",
+  "backlog",
+  "paused",
+];
 const RECORD_NOUNS = ["project", "plan", "task"] as const;
 /** What a record change does to its record, as the totals count it: a reopen is "reopened" whatever the row's open word. */
 export function recordAct(c: OrgRecordStatusChange): OrgRecordAct {
   return c.status === "active" || c.status === "open" ? "reopened" : c.status;
 }
-const recordNoun = (c: OrgRecordStatusChange): "project" | "plan" | "task" => (c.kind === "plan_status" ? "plan" : c.kind === "task_status" ? "task" : "project");
-const recordRef = (c: OrgRecordStatusChange): string => (c.kind === "plan_status" ? c.plan : c.kind === "task_status" ? c.task : c.project).trim();
+const recordNoun = (c: OrgRecordStatusChange): "project" | "plan" | "task" =>
+  c.kind === "plan_status"
+    ? "plan"
+    : c.kind === "task_status"
+      ? "task"
+      : "project";
+const recordRef = (c: OrgRecordStatusChange): string =>
+  (c.kind === "plan_status"
+    ? c.plan
+    : c.kind === "task_status"
+      ? c.task
+      : c.project
+  ).trim();
 
-export function orgRecordGroups(changes: ReadonlyArray<{ seq: number; change: OrgChange; status?: string }>, names?: OrgAskNames): OrgRecordGroup[] {
-  const live = changes.filter((c): c is { seq: number; change: OrgRecordStatusChange; status?: string } => c.status !== "removed" && (ORG_SYNC_KINDS as readonly string[]).includes(c.change.kind));
+export function orgRecordGroups(
+  changes: ReadonlyArray<{ seq: number; change: OrgChange; status?: string }>,
+  names?: OrgAskNames,
+): OrgRecordGroup[] {
+  const live = changes.filter(
+    (c): c is { seq: number; change: OrgRecordStatusChange; status?: string } =>
+      c.status !== "removed" &&
+      (ORG_SYNC_KINDS as readonly string[]).includes(c.change.kind),
+  );
   const lc = (ref: string) => ref.trim().toLowerCase();
   // What this proposal itself knows about the records it names: a plan's project, a record's title.
   const titleOf = new Map<string, string>();
   const planProject = new Map<string, string>();
   for (const { change: c } of live) {
     if (c.title?.trim()) titleOf.set(lc(recordRef(c)), c.title.trim());
-    if (c.kind === "plan_status" && c.project?.trim()) planProject.set(lc(c.plan), c.project.trim());
+    if (c.kind === "plan_status" && c.project?.trim())
+      planProject.set(lc(c.plan), c.project.trim());
   }
-  const placeOf = (c: OrgRecordStatusChange): { kind: OrgRecordGroup["kind"]; ref?: string } => {
-    if (c.kind === "project_status") return { kind: "project", ref: c.project.trim() };
-    if (c.kind === "plan_status") return c.project?.trim() ? { kind: "project", ref: c.project.trim() } : { kind: "plan", ref: c.plan.trim() };
-    const project = c.project?.trim() || (c.plan ? planProject.get(lc(c.plan)) : undefined);
+  const placeOf = (
+    c: OrgRecordStatusChange,
+  ): { kind: OrgRecordGroup["kind"]; ref?: string } => {
+    if (c.kind === "project_status")
+      return { kind: "project", ref: c.project.trim() };
+    if (c.kind === "plan_status")
+      return c.project?.trim()
+        ? { kind: "project", ref: c.project.trim() }
+        : { kind: "plan", ref: c.plan.trim() };
+    const project =
+      c.project?.trim() || (c.plan ? planProject.get(lc(c.plan)) : undefined);
     if (project) return { kind: "project", ref: project };
     if (c.plan?.trim()) return { kind: "plan", ref: c.plan.trim() };
     return { kind: "loose" };
@@ -1838,11 +3472,24 @@ export function orgRecordGroups(changes: ReadonlyArray<{ seq: number; change: Or
   const counts = new Map<string, Map<string, number>>();
   for (const row of live) {
     const place = placeOf(row.change);
-    const key = place.kind === "loose" ? "loose" : `${place.kind}:${lc(place.ref!)}`;
+    const key =
+      place.kind === "loose" ? "loose" : `${place.kind}:${lc(place.ref!)}`;
     let g = groups.get(key);
     if (!g) {
-      const title = place.ref ? titleOf.get(lc(place.ref)) ?? (place.kind === "project" ? names?.project?.(place.ref) : names?.plan?.(place.ref)) : undefined;
-      g = { key, kind: place.kind, ...(place.ref ? { ref: place.ref } : {}), ...(title && title.toLowerCase() !== lc(place.ref!) ? { title } : {}), seqs: [], totals: [] };
+      const title = place.ref
+        ? (titleOf.get(lc(place.ref)) ??
+          (place.kind === "project"
+            ? names?.project?.(place.ref)
+            : names?.plan?.(place.ref)))
+        : undefined;
+      g = {
+        key,
+        kind: place.kind,
+        ...(place.ref ? { ref: place.ref } : {}),
+        ...(title && title.toLowerCase() !== lc(place.ref!) ? { title } : {}),
+        seqs: [],
+        totals: [],
+      };
       groups.set(key, g);
       counts.set(key, new Map());
     }
@@ -1850,28 +3497,67 @@ export function orgRecordGroups(changes: ReadonlyArray<{ seq: number; change: Or
     const k = `${recordNoun(row.change)}:${recordAct(row.change)}`;
     counts.get(key)!.set(k, (counts.get(key)!.get(k) ?? 0) + 1);
   }
-  const totalsOf = (c: Map<string, number>): OrgRecordTotal[] => RECORD_NOUNS.flatMap((noun) => RECORD_ACTS.flatMap((act) => { const n = c.get(`${noun}:${act}`); return n ? [{ noun, act, count: n }] : []; }));
+  const totalsOf = (c: Map<string, number>): OrgRecordTotal[] =>
+    RECORD_NOUNS.flatMap((noun) =>
+      RECORD_ACTS.flatMap((act) => {
+        const n = c.get(`${noun}:${act}`);
+        return n ? [{ noun, act, count: n }] : [];
+      }),
+    );
   for (const [key, g] of groups) {
     g.seqs.sort((a, b) => a - b);
     g.totals = totalsOf(counts.get(key)!);
   }
   // Two or more plans settled on their own (each group one plan_status, no
   // tasks) fold into one "N plans" group; a single one keeps its own name.
-  const alone = [...groups.values()].filter((g) => g.kind === "plan" && g.seqs.length === 1 && g.totals[0]?.noun === "plan");
+  const alone = [...groups.values()].filter(
+    (g) =>
+      g.kind === "plan" && g.seqs.length === 1 && g.totals[0]?.noun === "plan",
+  );
   if (alone.length > 1) {
     const sum = new Map<string, number>();
-    for (const g of alone) { groups.delete(g.key); for (const [k, n] of counts.get(g.key)!) sum.set(k, (sum.get(k) ?? 0) + n); }
-    groups.set("plans", { key: "plans", kind: "plans", title: `${alone.length} plans`, seqs: alone.flatMap((g) => g.seqs).sort((a, b) => a - b), totals: totalsOf(sum) });
+    for (const g of alone) {
+      groups.delete(g.key);
+      for (const [k, n] of counts.get(g.key)!)
+        sum.set(k, (sum.get(k) ?? 0) + n);
+    }
+    groups.set("plans", {
+      key: "plans",
+      kind: "plans",
+      title: `${alone.length} plans`,
+      seqs: alone.flatMap((g) => g.seqs).sort((a, b) => a - b),
+      totals: totalsOf(sum),
+    });
   }
   // The biggest group first, then the plans, the loose records last, ties by first seq.
-  const rank = (g: OrgRecordGroup) => (g.kind === "loose" ? 2 : g.kind === "plans" ? 1 : 0);
-  return [...groups.values()].sort((a, b) => rank(a) - rank(b) || b.seqs.length - a.seqs.length || a.seqs[0] - b.seqs[0]);
+  const rank = (g: OrgRecordGroup) =>
+    g.kind === "loose" ? 2 : g.kind === "plans" ? 1 : 0;
+  return [...groups.values()].sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      b.seqs.length - a.seqs.length ||
+      a.seqs[0] - b.seqs[0],
+  );
 }
 
 /** "2 plans done, 11 tasks done and 3 tasks reopened": the group's one line, in the words the card uses for each act. */
-export const RECORD_ACT_WORDS: Record<OrgRecordAct, string> = { done: "done", dropped: "dropped", abandoned: "abandoned", reopened: "reopened", backlog: "to the backlog", paused: "paused" };
-export function recordGroupTotalsLine(g: { totals: readonly OrgRecordTotal[] }): string {
-  return andList(g.totals.map((t) => `${t.count} ${t.noun}${t.count === 1 ? "" : "s"} ${RECORD_ACT_WORDS[t.act]}`));
+export const RECORD_ACT_WORDS: Record<OrgRecordAct, string> = {
+  done: "done",
+  dropped: "dropped",
+  abandoned: "abandoned",
+  reopened: "reopened",
+  backlog: "to the backlog",
+  paused: "paused",
+};
+export function recordGroupTotalsLine(g: {
+  totals: readonly OrgRecordTotal[];
+}): string {
+  return andList(
+    g.totals.map(
+      (t) =>
+        `${t.count} ${t.noun}${t.count === 1 ? "" : "s"} ${RECORD_ACT_WORDS[t.act]}`,
+    ),
+  );
 }
 
 /**
@@ -1882,11 +3568,20 @@ export function recordGroupTotalsLine(g: { totals: readonly OrgRecordTotal[] }):
  * change, which lands before the plan's by apply rank and is already closed
  * when the cascade reads the plan.
  */
-export function orgRecordRedundancyErrors(changes: ReadonlyArray<{ change: OrgChange }>): string[] {
-  const closing = new Map<string, { i: number; status: "done" | "abandoned" }>();
+export function orgRecordRedundancyErrors(
+  changes: ReadonlyArray<{ change: OrgChange }>,
+): string[] {
+  const closing = new Map<
+    string,
+    { i: number; status: "done" | "abandoned" }
+  >();
   changes.forEach((row, i) => {
     const c = row.change;
-    if (c.kind === "plan_status" && (c.status === "done" || c.status === "abandoned")) closing.set(c.plan.trim().toLowerCase(), { i, status: c.status });
+    if (
+      c.kind === "plan_status" &&
+      (c.status === "done" || c.status === "abandoned")
+    )
+      closing.set(c.plan.trim().toLowerCase(), { i, status: c.status });
   });
   if (!closing.size) return [];
   const errors: string[] = [];
@@ -1895,7 +3590,10 @@ export function orgRecordRedundancyErrors(changes: ReadonlyArray<{ change: OrgCh
     if (c.kind !== "task_status" || !c.plan?.trim()) return;
     const plan = closing.get(c.plan.trim().toLowerCase());
     if (!plan) return;
-    if (c.status === "dropped") errors.push(`changes[${i}] (${describeOrgChange(c)}) is covered by changes[${plan.i}], which marks its plan ${c.plan.trim()} ${plan.status}: closing the plan drops its open tasks, so drop this change (a task finished on its own evidence keeps its own done change)`);
+    if (c.status === "dropped")
+      errors.push(
+        `changes[${i}] (${describeOrgChange(c)}) is covered by changes[${plan.i}], which marks its plan ${c.plan.trim()} ${plan.status}: closing the plan drops its open tasks, so drop this change (a task finished on its own evidence keeps its own done change)`,
+      );
   });
   return errors;
 }
@@ -1904,35 +3602,61 @@ export function orgRecordRedundancyErrors(changes: ReadonlyArray<{ change: OrgCh
 
 /** Why one edit is not one, or null. */
 export function orgCharterEditError(e: any): string | null {
-  if (!e || typeof e !== "object" || Array.isArray(e)) return "a charter edit is { op: \"replace\", before, after }, { op: \"add\", line } or { op: \"remove\", before }";
+  if (!e || typeof e !== "object" || Array.isArray(e))
+    return 'a charter edit is { op: "replace", before, after }, { op: "add", line } or { op: "remove", before }';
   const passage = (field: string, text: unknown): string | null =>
-    !nonEmpty(text) ? `charter_edit ${e.op}: ${field} is the passage, a non-empty string` : text.trim().length > ORG_CHARTER_PASSAGE_MAX ? `charter_edit ${e.op}: ${field} is ${text.trim().length} characters; a passage is at most ${ORG_CHARTER_PASSAGE_MAX}, so quote the sentence that changes, not the whole charter` : null;
+    !nonEmpty(text)
+      ? `charter_edit ${e.op}: ${field} is the passage, a non-empty string`
+      : text.trim().length > ORG_CHARTER_PASSAGE_MAX
+        ? `charter_edit ${e.op}: ${field} is ${text.trim().length} characters; a passage is at most ${ORG_CHARTER_PASSAGE_MAX}, so quote the sentence that changes, not the whole charter`
+        : null;
   switch (e.op) {
     case "replace": {
-      const fault = passage("before", e.before) ?? passage("after", e.after); if (fault) return fault;
-      return e.before.trim() === e.after.trim() ? "charter_edit replace: after is the same as before" : null;
+      const fault = passage("before", e.before) ?? passage("after", e.after);
+      if (fault) return fault;
+      return e.before.trim() === e.after.trim()
+        ? "charter_edit replace: after is the same as before"
+        : null;
     }
-    case "add": return passage("line", e.line);
-    case "remove": return passage("before", e.before);
-    default: return `charter_edit op is replace, add or remove, not ${JSON.stringify(e.op)}`;
+    case "add":
+      return passage("line", e.line);
+    case "remove":
+      return passage("before", e.before);
+    default:
+      return `charter_edit op is replace, add or remove, not ${JSON.stringify(e.op)}`;
   }
 }
 
 /** A long passage shortened for a terminal line. */
-const clip = (text: string, n = 48): string => { const t = text.trim().replace(/\s+/g, " "); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
-const charterEditTerse = (e: OrgCharterEdit): string => (e.op === "replace" ? `replace "${clip(e.before)}" with "${clip(e.after)}"` : e.op === "add" ? `add "${clip(e.line)}"` : `remove "${clip(e.before)}"`);
+const clip = (text: string, n = 48): string => {
+  const t = text.trim().replace(/\s+/g, " ");
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+};
+const charterEditTerse = (e: OrgCharterEdit): string =>
+  e.op === "replace"
+    ? `replace "${clip(e.before)}" with "${clip(e.after)}"`
+    : e.op === "add"
+      ? `add "${clip(e.line)}"`
+      : `remove "${clip(e.before)}"`;
 const onOff = (b: boolean) => (b ? "on" : "off");
-const roleEditTerse = (c: OrgRoleEditChange): string => [
-  c.name !== undefined && `name "${c.name.trim()}"`,
-  c.new_handle !== undefined && `handle ${at(c.new_handle)}`,
-  c.given_name !== undefined && (c.given_name === null ? "given name cleared" : `called ${c.given_name.trim()}`),
-  c.avatar !== undefined && `face ${c.avatar}`,
-  c.tenure !== undefined && describeTenure(c.tenure),
-  c.line !== undefined && `line ${c.line}`,
-  c.hires_freely !== undefined && `hires freely ${onOff(c.hires_freely)}`,
-  c.keeps_reports_inside !== undefined && `keeps reports inside ${onOff(c.keeps_reports_inside)}`,
-  c.paused !== undefined && (c.paused ? "paused" : "resumed"),
-].filter(Boolean).join(", ");
+const roleEditTerse = (c: OrgRoleEditChange): string =>
+  [
+    c.name !== undefined && `name "${c.name.trim()}"`,
+    c.new_handle !== undefined && `handle ${at(c.new_handle)}`,
+    c.given_name !== undefined &&
+      (c.given_name === null
+        ? "given name cleared"
+        : `called ${c.given_name.trim()}`),
+    c.avatar !== undefined && `face ${c.avatar}`,
+    c.tenure !== undefined && describeTenure(c.tenure),
+    c.line !== undefined && `line ${c.line}`,
+    c.hires_freely !== undefined && `hires freely ${onOff(c.hires_freely)}`,
+    c.keeps_reports_inside !== undefined &&
+      `keeps reports inside ${onOff(c.keeps_reports_inside)}`,
+    c.paused !== undefined && (c.paused ? "paused" : "resumed"),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
 /**
  * The charter after the edits, or why they do not apply: a passage must
@@ -1940,23 +3664,45 @@ const roleEditTerse = (c: OrgRoleEditChange): string => [
  * whatever the spacing), and the result must fit the cap. Pure, so the
  * server applies it and a page can preview it.
  */
-export function applyCharterEdits(charter: string | null | undefined, edits: ReadonlyArray<OrgCharterEdit>): { charter: string; error?: undefined } | { charter?: undefined; error: string } {
+export function applyCharterEdits(
+  charter: string | null | undefined,
+  edits: ReadonlyArray<OrgCharterEdit>,
+):
+  | { charter: string; error?: undefined }
+  | { charter?: undefined; error: string } {
   let text = (charter ?? "").replace(/\r\n/g, "\n");
   const find = (passage: string): { at: number; len: number } | string => {
-    const words = passage.trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const words = passage
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     const re = new RegExp(words.join("\\s+"), "g");
     const hits = [...text.matchAll(re)];
-    if (!hits.length) return `the passage "${clip(passage)}" is not in the charter as it stands; quote it exactly`;
-    if (hits.length > 1) return `the passage "${clip(passage)}" appears ${hits.length} times in the charter; quote more of it so it names one place`;
+    if (!hits.length)
+      return `the passage "${clip(passage)}" is not in the charter as it stands; quote it exactly`;
+    if (hits.length > 1)
+      return `the passage "${clip(passage)}" appears ${hits.length} times in the charter; quote more of it so it names one place`;
     return { at: hits[0].index!, len: hits[0][0].length };
   };
   for (const e of edits) {
-    if (e.op === "add") { text = `${text.trim()}${text.trim() ? "\n\n" : ""}${e.line.trim()}`; continue; }
+    if (e.op === "add") {
+      text = `${text.trim()}${text.trim() ? "\n\n" : ""}${e.line.trim()}`;
+      continue;
+    }
     const hit = find(e.before);
     if (typeof hit === "string") return { error: hit };
     text = `${text.slice(0, hit.at)}${e.op === "replace" ? e.after.trim() : ""}${text.slice(hit.at + hit.len)}`;
   }
-  text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").replace(/ ([.,;:])/g, "$1").trim();
-  if (text.length > ORG_CHARTER_MAX) return { error: `the charter would be ${text.length} characters after this edit; ${ORG_CHARTER_CONDENSE}` };
+  text = text
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ ([.,;:])/g, "$1")
+    .trim();
+  if (text.length > ORG_CHARTER_MAX)
+    return {
+      error: `the charter would be ${text.length} characters after this edit; ${ORG_CHARTER_CONDENSE}`,
+    };
   return { charter: text };
 }

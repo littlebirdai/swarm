@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { requestAnsweredSince, shouldPlayWaitingSound, stillWaiting } from "../useSyncInboxSessions";
+import {
+  requestAnsweredSince,
+  shouldPlayWaitingSound,
+  stillWaiting,
+} from "../useSyncInboxSessions";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
 
 const baseSession: InboxSession = {
@@ -26,35 +30,78 @@ describe("shouldPlayWaitingSound", () => {
   it("does not replay the same waiting episode after status flaps", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false }], null, notified);
+    let result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: false }],
+      null,
+      notified,
+    );
     expect(result.play).toBe(false);
 
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: true }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(true);
 
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false }], result.nextWaiting, notified);
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: false }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(false);
 
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: true }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(false);
   });
 
   it("plays again for a new waiting episode on the same session", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false }], null, notified);
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    let result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: false }],
+      null,
+      notified,
+    );
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: true }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(true);
 
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false }], result.nextWaiting, notified);
-    result = apply([{ ...baseSession, message_count: 6, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: false }],
+      result.nextWaiting,
+      notified,
+    );
+    result = apply(
+      [
+        {
+          ...baseSession,
+          message_count: 6,
+          agent_status: "working",
+          awaiting_input: true,
+        },
+      ],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(true);
   });
 
   it("seeds already-waiting sessions without playing on first sync", () => {
     const notified = new Map<string, string>();
 
-    const result = apply([{ ...baseSession, agent_status: "permission_blocked" }], null, notified);
+    const result = apply(
+      [{ ...baseSession, agent_status: "permission_blocked" }],
+      null,
+      notified,
+    );
     expect(result.play).toBe(false);
     expect(notified.get("conv1")).toBe("conv1:5:permission_blocked");
   });
@@ -65,8 +112,30 @@ describe("shouldPlayWaitingSound", () => {
   it("stays silent for a KILLED session that would otherwise chime", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false, inbox_killed_at: 900 }], null, notified);
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true, inbox_killed_at: 900 }], result.nextWaiting, notified);
+    let result = apply(
+      [
+        {
+          ...baseSession,
+          agent_status: "working",
+          awaiting_input: false,
+          inbox_killed_at: 900,
+        },
+      ],
+      null,
+      notified,
+    );
+    result = apply(
+      [
+        {
+          ...baseSession,
+          agent_status: "working",
+          awaiting_input: true,
+          inbox_killed_at: 900,
+        },
+      ],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(false);
     expect(notified.has("conv1")).toBe(false);
   });
@@ -74,8 +143,16 @@ describe("shouldPlayWaitingSound", () => {
   it("still chimes for the equivalent LIVE session (the killed case isn't silencing everything)", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false }], null, notified);
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    let result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: false }],
+      null,
+      notified,
+    );
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: true }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(true);
   });
 
@@ -86,8 +163,30 @@ describe("shouldPlayWaitingSound", () => {
   it("stays silent for a STASHED session, matching the server's stand-down", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: false, inbox_stashed_at: 900 }], null, notified);
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true, inbox_stashed_at: 900 }], result.nextWaiting, notified);
+    let result = apply(
+      [
+        {
+          ...baseSession,
+          agent_status: "working",
+          awaiting_input: false,
+          inbox_stashed_at: 900,
+        },
+      ],
+      null,
+      notified,
+    );
+    result = apply(
+      [
+        {
+          ...baseSession,
+          agent_status: "working",
+          awaiting_input: true,
+          inbox_stashed_at: 900,
+        },
+      ],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(false);
     expect(notified.has("conv1")).toBe(false);
   });
@@ -102,19 +201,47 @@ describe("shouldPlayWaitingSound", () => {
   // ct-49429.
   function episode(overrides: Partial<InboxSession>) {
     const notified = new Map<string, string>();
-    let result = apply([{ ...baseSession, ...overrides, agent_status: "working", awaiting_input: false }], null, notified);
-    result = apply([{ ...baseSession, ...overrides, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    let result = apply(
+      [
+        {
+          ...baseSession,
+          ...overrides,
+          agent_status: "working",
+          awaiting_input: false,
+        },
+      ],
+      null,
+      notified,
+    );
+    result = apply(
+      [
+        {
+          ...baseSession,
+          ...overrides,
+          agent_status: "working",
+          awaiting_input: true,
+        },
+      ],
+      result.nextWaiting,
+      notified,
+    );
     return result;
   }
 
   it("chimes for a human-started worktree session (cloud or local --isolated)", () => {
-    const result = episode({ worktree_name: "cloud-d03aaa", worktree_branch: "codecast/cloud-d03aaa" });
+    const result = episode({
+      worktree_name: "cloud-d03aaa",
+      worktree_branch: "codecast/cloud-d03aaa",
+    });
     expect(result.play).toBe(true);
     expect(result.nextWaiting.get("conv1")).toBe(true);
   });
 
   it("chimes for a parked cloud row waiting on placement", () => {
-    const result = episode({ cloud_placement: "pending", owner_device_id: "cloud-linux" });
+    const result = episode({
+      cloud_placement: "pending",
+      owner_device_id: "cloud-linux",
+    });
     expect(result.play).toBe(true);
   });
 
@@ -122,17 +249,37 @@ describe("shouldPlayWaitingSound", () => {
     ["a parent-linked row", { parent_conversation_id: "p" }],
     ["an is_subagent row", { is_subagent: true }],
     ["a workflow sub", { is_workflow_sub: true }],
-    ["a worktree worker spawned from inside a session", { worktree_name: "cloud-d03aaa", spawned_by_conversation_id: "lead" }],
-    ["an agent-team teammate in a worktree", { worktree_name: "cloud-d03aaa", agent_name: "researcher", agent_team_name: "t", spawned_by_conversation_id: "lead" }],
+    [
+      "a worktree worker spawned from inside a session",
+      { worktree_name: "cloud-d03aaa", spawned_by_conversation_id: "lead" },
+    ],
+    [
+      "an agent-team teammate in a worktree",
+      {
+        worktree_name: "cloud-d03aaa",
+        agent_name: "researcher",
+        agent_team_name: "t",
+        spawned_by_conversation_id: "lead",
+      },
+    ],
     // New parity: a plain cast-spawn row with a spawner used to chime while the
     // push already stood down on it (reason agent_spawned).
-    ["a plain cast-spawn row with a spawner", { spawned_by_conversation_id: "lead" }],
-    ["a non-lead agent identity without a spawner", { agent_name: "researcher" }],
-  ] as Array<[string, Partial<InboxSession>]>)("never chimes for %s", (_label, overrides) => {
-    const result = episode(overrides);
-    expect(result.play).toBe(false);
-    expect(result.nextWaiting.get("conv1")).toBe(false);
-  });
+    [
+      "a plain cast-spawn row with a spawner",
+      { spawned_by_conversation_id: "lead" },
+    ],
+    [
+      "a non-lead agent identity without a spawner",
+      { agent_name: "researcher" },
+    ],
+  ] as Array<[string, Partial<InboxSession>]>)(
+    "never chimes for %s",
+    (_label, overrides) => {
+      const result = episode(overrides);
+      expect(result.play).toBe(false);
+      expect(result.nextWaiting.get("conv1")).toBe(false);
+    },
+  );
 
   it("chimes for the team lead (human-driven, no spawner)", () => {
     const result = episode({ agent_name: "team-lead", agent_team_name: "t" });
@@ -142,26 +289,50 @@ describe("shouldPlayWaitingSound", () => {
   it("chimes for a fork / plan handoff (parent link WITH a parent message)", () => {
     // isSubagentConversation still catches the parent link, so a handoff row
     // stays silent — the same verdict the push reaches (reason "subagent").
-    const result = episode({ parent_conversation_id: "p", parent_message_uuid: "plan-handoff" });
+    const result = episode({
+      parent_conversation_id: "p",
+      parent_message_uuid: "plan-handoff",
+    });
     expect(result.play).toBe(false);
   });
 
   it("does not chime on the sync right after a killed-and-waiting session is revived", () => {
     const notified = new Map<string, string>();
 
-    let result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true, inbox_killed_at: 900 }], null, notified);
+    let result = apply(
+      [
+        {
+          ...baseSession,
+          agent_status: "working",
+          awaiting_input: true,
+          inbox_killed_at: 900,
+        },
+      ],
+      null,
+      notified,
+    );
     expect(result.nextWaiting.has("conv1")).toBe(false);
 
-    result = apply([{ ...baseSession, agent_status: "working", awaiting_input: true }], result.nextWaiting, notified);
+    result = apply(
+      [{ ...baseSession, agent_status: "working", awaiting_input: true }],
+      result.nextWaiting,
+      notified,
+    );
     expect(result.play).toBe(false);
   });
 });
 
 describe("stillWaiting", () => {
   it("holds while the episode stands and lets go once the person answers or sets it aside", () => {
-    const waiting = { ...baseSession, _id: "convW", agent_status: "working", awaiting_input: true } as InboxSession;
+    const waiting = {
+      ...baseSession,
+      _id: "convW",
+      agent_status: "working",
+      awaiting_input: true,
+    } as InboxSession;
     const prev = useInboxStore.getState().sessions;
-    const put = (row: InboxSession) => useInboxStore.setState({ sessions: { ...prev, convW: row } });
+    const put = (row: InboxSession) =>
+      useInboxStore.setState({ sessions: { ...prev, convW: row } });
     try {
       put(waiting);
       const key = "convW:5:awaiting_input";
@@ -184,14 +355,24 @@ describe("requestAnsweredSince", () => {
   it("counts a request answered only when the session moved on after it was written", () => {
     const asked = 1_000;
     const prev = useInboxStore.getState().sessions;
-    const put = (row: Partial<InboxSession>) => useInboxStore.setState({ sessions: { ...prev, convR: { ...baseSession, _id: "convR", ...row } as InboxSession } });
+    const put = (row: Partial<InboxSession>) =>
+      useInboxStore.setState({
+        sessions: {
+          ...prev,
+          convR: { ...baseSession, _id: "convR", ...row } as InboxSession,
+        },
+      });
     try {
       // The request row arrived before the store heard the session stopped:
       // its status still reads working from before the request. Not answered.
       put({ agent_status: "working", agent_status_updated_at: asked - 500 });
       expect(requestAnsweredSince("convR", asked)).toBe(false);
       // Waiting on the person, as the request says.
-      put({ agent_status: "working", awaiting_input: true, agent_status_updated_at: asked + 10 });
+      put({
+        agent_status: "working",
+        awaiting_input: true,
+        agent_status_updated_at: asked + 10,
+      });
       expect(requestAnsweredSince("convR", asked)).toBe(false);
       // Answered: working again, on a status written well after the request.
       put({ agent_status: "working", agent_status_updated_at: asked + 30_000 });
@@ -200,7 +381,11 @@ describe("requestAnsweredSince", () => {
       put({ agent_status: "working", agent_status_updated_at: asked + 2_000 });
       expect(requestAnsweredSince("convR", asked)).toBe(false);
       // A pinned session waiting on a permission still owes its answer, though it never chimes.
-      put({ agent_status: "permission_blocked", is_pinned: true, agent_status_updated_at: asked + 2_000 });
+      put({
+        agent_status: "permission_blocked",
+        is_pinned: true,
+        agent_status_updated_at: asked + 2_000,
+      });
       expect(requestAnsweredSince("convR", asked)).toBe(false);
       // A session the store does not hold is never silenced on a guess.
       expect(requestAnsweredSince("convUnknown", asked)).toBe(false);

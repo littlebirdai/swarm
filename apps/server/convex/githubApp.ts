@@ -1,5 +1,12 @@
 import { v } from "convex/values";
-import { action, mutation, query, internalMutation, internalQuery, internalAction } from "./functions";
+import {
+  action,
+  mutation,
+  query,
+  internalMutation,
+  internalQuery,
+  internalAction,
+} from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { MappedPull } from "./githubApi";
 import { syncPRCommits } from "./githubWebhooks";
@@ -18,16 +25,27 @@ import {
   type AppConnectionScope,
 } from "@codecast/shared/contracts";
 import { sha256Hex } from "./lib/hash";
-import { GITHUB_API_BASE, installationScopeKey } from "./lib/githubInstallCallback";
-import { activeTeamMembershipFor, requireTeamAdmin, requireTeamMembership, effectiveTeamForResource } from "./lib/access";
-
+import {
+  GITHUB_API_BASE,
+  installationScopeKey,
+} from "./lib/githubInstallCallback";
+import {
+  activeTeamMembershipFor,
+  requireTeamAdmin,
+  requireTeamMembership,
+  effectiveTeamForResource,
+} from "./lib/access";
 
 function base64UrlEncode(str: string): string {
   const base64 = btoa(str);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-async function signJWT(header: object, payload: object, privateKeyPem: string): Promise<string> {
+async function signJWT(
+  header: object,
+  payload: object,
+  privateKeyPem: string,
+): Promise<string> {
   const headerEncoded = base64UrlEncode(JSON.stringify(header));
   const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
   const signingInput = `${headerEncoded}.${payloadEncoded}`;
@@ -49,17 +67,17 @@ async function signJWT(header: object, payload: object, privateKeyPem: string): 
       hash: "SHA-256",
     },
     false,
-    ["sign"]
+    ["sign"],
   );
 
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
     key,
-    new TextEncoder().encode(signingInput)
+    new TextEncoder().encode(signingInput),
   );
 
   const signatureBase64 = base64UrlEncode(
-    String.fromCharCode(...new Uint8Array(signature))
+    String.fromCharCode(...new Uint8Array(signature)),
   );
 
   return `${signingInput}.${signatureBase64}`;
@@ -98,7 +116,9 @@ export const generateAppJWT = internalAction({
  * needs a write (pushing a branch from a cloud host) can refuse before git
  * meets a 403 it cannot explain.
  */
-export function stringPermissions(raw: unknown): Record<string, string> | undefined {
+export function stringPermissions(
+  raw: unknown,
+): Record<string, string> | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -113,7 +133,9 @@ export function stringPermissions(raw: unknown): Record<string, string> | undefi
  * before permissions were recorded — and an unknown answer must not be read
  * as a refusal.
  */
-export function grantsContentsWrite(permissions: Record<string, string> | undefined): boolean | undefined {
+export function grantsContentsWrite(
+  permissions: Record<string, string> | undefined,
+): boolean | undefined {
   if (!permissions) return undefined;
   return permissions.contents === "write";
 }
@@ -123,11 +145,17 @@ export function grantsContentsWrite(permissions: Record<string, string> | undefi
  * `owner/name`. An installation belongs to one account, so the owner is
  * already decided by installation_id.
  */
-export function mintRepositoryName(repository: string | undefined): string | undefined {
+export function mintRepositoryName(
+  repository: string | undefined,
+): string | undefined {
   return parseOwnerRepo(repository)?.split("/")[1];
 }
 
-export const HOST_TOKEN_PERMISSIONS = { contents: "write", workflows: "write", pull_requests: "write" } as const;
+export const HOST_TOKEN_PERMISSIONS = {
+  contents: "write",
+  workflows: "write",
+  pull_requests: "write",
+} as const;
 
 export const getInstallationToken = internalAction({
   args: {
@@ -143,13 +171,21 @@ export const getInstallationToken = internalAction({
      */
     repository: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ token: string; expires_at: number; permissions?: Record<string, string> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    token: string;
+    expires_at: number;
+    permissions?: Record<string, string>;
+  }> => {
     // Scoped tokens are cached apart from the installation-wide one: same
     // installation, different authority, so they must never answer for each
     // other.
     const repository = parseOwnerRepo(args.repository) ?? undefined;
     const name = mintRepositoryName(args.repository);
-    if (args.repository && !name) throw new Error(`Not an owner/name repository: ${args.repository}`);
+    if (args.repository && !name)
+      throw new Error(`Not an owner/name repository: ${args.repository}`);
     const cachedToken = await ctx.runQuery(internal.githubApp.getCachedToken, {
       installation_id: args.installation_id,
       ...(repository ? { repository } : {}),
@@ -159,7 +195,9 @@ export const getInstallationToken = internalAction({
       return {
         token: cachedToken.token,
         expires_at: cachedToken.expires_at,
-        ...(cachedToken.permissions ? { permissions: cachedToken.permissions } : {}),
+        ...(cachedToken.permissions
+          ? { permissions: cachedToken.permissions }
+          : {}),
       };
     }
 
@@ -172,22 +210,30 @@ export const getInstallationToken = internalAction({
     // same token); an installation that has not accepted those extras still
     // pushes on contents alone.
     const mint = (permissions?: Record<string, string>) =>
-      fetch(`${GITHUB_API_BASE}/app/installations/${args.installation_id}/access_tokens`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(name ? { "Content-Type": "application/json" } : {}),
+      fetch(
+        `${GITHUB_API_BASE}/app/installations/${args.installation_id}/access_tokens`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            ...(name ? { "Content-Type": "application/json" } : {}),
+          },
+          ...(name
+            ? { body: JSON.stringify({ repositories: [name], permissions }) }
+            : {}),
         },
-        ...(name ? { body: JSON.stringify({ repositories: [name], permissions }) } : {}),
-      });
+      );
     let response = await mint(name ? HOST_TOKEN_PERMISSIONS : undefined);
-    if (name && response.status === 422) response = await mint({ contents: "write" });
+    if (name && response.status === 422)
+      response = await mint({ contents: "write" });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to get installation token: ${response.status} ${errorText}`);
+      throw new Error(
+        `Failed to get installation token: ${response.status} ${errorText}`,
+      );
     }
 
     const data = await response.json();
@@ -202,7 +248,11 @@ export const getInstallationToken = internalAction({
       ...(permissions ? { permissions } : {}),
     });
 
-    return { token: data.token, expires_at: expiresAt, ...(permissions ? { permissions } : {}) };
+    return {
+      token: data.token,
+      expires_at: expiresAt,
+      ...(permissions ? { permissions } : {}),
+    };
   },
 });
 
@@ -216,7 +266,10 @@ export const getCachedToken = internalQuery({
     return await ctx.db
       .query("github_installation_tokens")
       .withIndex("by_installation_repo", (q) =>
-        q.eq("installation_id", args.installation_id).eq("repository", args.repository))
+        q
+          .eq("installation_id", args.installation_id)
+          .eq("repository", args.repository),
+      )
       .first();
   },
 });
@@ -233,7 +286,10 @@ export const cacheToken = internalMutation({
     const existing = await ctx.db
       .query("github_installation_tokens")
       .withIndex("by_installation_repo", (q) =>
-        q.eq("installation_id", args.installation_id).eq("repository", args.repository))
+        q
+          .eq("installation_id", args.installation_id)
+          .eq("repository", args.repository),
+      )
       .first();
 
     if (existing) {
@@ -273,22 +329,42 @@ export const cacheToken = internalMutation({
  *  the two disagree about what a callback carries. */
 export const getInstallUrl = action({
   args: { scope: v.optional(v.string()), api_token: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ ok: boolean; url?: string; error?: string }> => {
-    const scope: AppConnectionScope = isAppConnectionScope(args.scope) ? args.scope : "team";
-    const me: any = await ctx.runQuery(internal.oauthConnectors.resolveTeam, { api_token: args.api_token });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; url?: string; error?: string }> => {
+    const scope: AppConnectionScope = isAppConnectionScope(args.scope)
+      ? args.scope
+      : "team";
+    const me: any = await ctx.runQuery(internal.oauthConnectors.resolveTeam, {
+      api_token: args.api_token,
+    });
     if (!me?.user_id) return { ok: false, error: "not signed in" };
     if (scope === "team" && !me.team_id) {
-      return { ok: false, error: "Join or create a team first, or install the GitHub App for yourself" };
+      return {
+        ok: false,
+        error:
+          "Join or create a team first, or install the GitHub App for yourself",
+      };
     }
     const nonce = newGithubAppInstallNonce();
-    const intent: { ok: boolean; error?: string } = await ctx.runMutation(internal.githubApp.createInstallIntent, {
-      nonce_hash: await sha256Hex(nonce),
-      user_id: me.user_id,
-      scope,
-      team_id: scope === "team" ? me.team_id : undefined,
-    });
+    const intent: { ok: boolean; error?: string } = await ctx.runMutation(
+      internal.githubApp.createInstallIntent,
+      {
+        nonce_hash: await sha256Hex(nonce),
+        user_id: me.user_id,
+        scope,
+        team_id: scope === "team" ? me.team_id : undefined,
+      },
+    );
     if (!intent.ok) return { ok: false, error: intent.error };
-    return { ok: true, url: githubAppInstallUrlFor(process.env.GITHUB_APP_SLUG || "codecast-sh", nonce) };
+    return {
+      ok: true,
+      url: githubAppInstallUrlFor(
+        process.env.GITHUB_APP_SLUG || "codecast-sh",
+        nonce,
+      ),
+    };
   },
 });
 
@@ -301,12 +377,22 @@ export const createInstallIntent = internalMutation({
   },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
     if ((args.scope === "team") !== !!args.team_id) {
-      return { ok: false, error: "An install binds to exactly one of a team or a person" };
+      return {
+        ok: false,
+        error: "An install binds to exactly one of a team or a person",
+      };
     }
     // Membership is checked here AND when the intent is spent: an intent minted
     // an hour ago by someone since removed from the team must not still bind.
-    if (args.team_id && !(await isTeamMember(ctx, args.user_id, args.team_id))) {
-      return { ok: false, error: "Join or create a team first, or install the GitHub App for yourself" };
+    if (
+      args.team_id &&
+      !(await isTeamMember(ctx, args.user_id, args.team_id))
+    ) {
+      return {
+        ok: false,
+        error:
+          "Join or create a team first, or install the GitHub App for yourself",
+      };
     }
     const now = Date.now();
     await ctx.db.insert("github_app_install_intents", {
@@ -330,7 +416,13 @@ export const consumeInstallIntent = internalMutation({
     ctx,
     args,
   ): Promise<
-    | { ok: true; user_id: Id<"users">; scope: AppConnectionScope; team_id?: Id<"teams">; created_at: number }
+    | {
+        ok: true;
+        user_id: Id<"users">;
+        scope: AppConnectionScope;
+        team_id?: Id<"teams">;
+        created_at: number;
+      }
     | { ok: false; error: string }
   > => {
     const intent = await ctx.db
@@ -346,11 +438,20 @@ export const consumeInstallIntent = internalMutation({
     }
     await ctx.db.patch(intent._id, { consumed_at: now });
     if (intent.scope === "team") {
-      if (!intent.team_id || !(await isTeamMember(ctx, intent.user_id, intent.team_id))) {
+      if (
+        !intent.team_id ||
+        !(await isTeamMember(ctx, intent.user_id, intent.team_id))
+      ) {
         return { ok: false, error: "not_a_team_member" };
       }
     }
-    return { ok: true, user_id: intent.user_id, scope: intent.scope, team_id: intent.team_id, created_at: intent.created_at };
+    return {
+      ok: true,
+      user_id: intent.user_id,
+      scope: intent.scope,
+      team_id: intent.team_id,
+      created_at: intent.created_at,
+    };
   },
 });
 
@@ -360,7 +461,9 @@ export const linkedInstallationScope = internalQuery({
   handler: async (ctx, args): Promise<string | null> => {
     const row = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
     return row ? installationScopeKey(row) : null;
   },
@@ -378,11 +481,15 @@ export const storeInstallation = internalMutation({
     account_type: v.union(v.literal("User"), v.literal("Organization")),
     account_id: v.number(),
     repository_selection: v.union(v.literal("all"), v.literal("selected")),
-    repositories: v.optional(v.array(v.object({
-      id: v.number(),
-      name: v.string(),
-      full_name: v.string(),
-    }))),
+    repositories: v.optional(
+      v.array(
+        v.object({
+          id: v.number(),
+          name: v.string(),
+          full_name: v.string(),
+        }),
+      ),
+    ),
     installed_by_user_id: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
@@ -392,24 +499,37 @@ export const storeInstallation = internalMutation({
     // install binds only to the installer themself. Any future caller of this
     // mutation inherits the rule rather than being trusted.
     if (!!args.team_id === !!args.scope_user_id) {
-      throw new Error("An installation binds to exactly one of a team or a person");
+      throw new Error(
+        "An installation binds to exactly one of a team or a person",
+      );
     }
     if (!args.installed_by_user_id) throw new Error("Installer is unknown");
-    if (args.team_id && !(await isTeamMember(ctx, args.installed_by_user_id, args.team_id))) {
+    if (
+      args.team_id &&
+      !(await isTeamMember(ctx, args.installed_by_user_id, args.team_id))
+    ) {
       throw new Error("Installer is not a member of the target team");
     }
-    if (args.scope_user_id && String(args.scope_user_id) !== String(args.installed_by_user_id)) {
+    if (
+      args.scope_user_id &&
+      String(args.scope_user_id) !== String(args.installed_by_user_id)
+    ) {
       throw new Error("A personal installation binds only to its installer");
     }
     const scope = { team_id: args.team_id, scope_user_id: args.scope_user_id };
     const existing = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
     // Don't let a fresh install silently re-point an installation that is
     // already bound to a different workspace (would move that workspace's
     // repo access).
-    if (existing && installationScopeKey(existing) !== installationScopeKey(scope)) {
+    if (
+      existing &&
+      installationScopeKey(existing) !== installationScopeKey(scope)
+    ) {
       throw new Error("Installation is already linked to another workspace");
     }
 
@@ -448,7 +568,10 @@ export const storeInstallation = internalMutation({
 /** Drop an installation and its cached token — the one removal, whoever asks. */
 export async function deleteInstallationRows(
   ctx: { db: any },
-  installation: { _id?: Id<"github_app_installations">; installation_id: number },
+  installation: {
+    _id?: Id<"github_app_installations">;
+    installation_id: number;
+  },
 ): Promise<void> {
   if (installation._id) await ctx.db.delete(installation._id);
   // Every cached token of this installation, not just the first: the cache
@@ -457,7 +580,9 @@ export async function deleteInstallationRows(
   // installation it came from is gone.
   const tokens = await ctx.db
     .query("github_installation_tokens")
-    .withIndex("by_installation_id", (q: any) => q.eq("installation_id", installation.installation_id))
+    .withIndex("by_installation_id", (q: any) =>
+      q.eq("installation_id", installation.installation_id),
+    )
     .collect();
   for (const token of tokens) await ctx.db.delete(token._id);
 }
@@ -477,8 +602,14 @@ export async function requireInstallationRevoker(
     await requireTeamAdmin(ctx as any, userId, installation.team_id);
     return;
   }
-  if (installation.scope_user_id && String(installation.scope_user_id) === String(userId)) return;
-  throw new Error("Forbidden: only the owner may disconnect a personal installation");
+  if (
+    installation.scope_user_id &&
+    String(installation.scope_user_id) === String(userId)
+  )
+    return;
+  throw new Error(
+    "Forbidden: only the owner may disconnect a personal installation",
+  );
 }
 
 /** Whether `userId` would be handed a disconnect id for this installation. */
@@ -502,9 +633,14 @@ export const removeInstallation = internalMutation({
   handler: async (ctx, args) => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
-    await deleteInstallationRows(ctx, installation ?? { installation_id: args.installation_id });
+    await deleteInstallationRows(
+      ctx,
+      installation ?? { installation_id: args.installation_id },
+    );
   },
 });
 
@@ -534,7 +670,11 @@ const MOVABLE_REPOSITORY_TABLES = {
 export const withdrawUnroutedRepositoryRows = internalMutation({
   args: {
     installation_id: v.number(),
-    table: v.union(v.literal("external_events"), v.literal("commits"), v.literal("pull_requests")),
+    table: v.union(
+      v.literal("external_events"),
+      v.literal("commits"),
+      v.literal("pull_requests"),
+    ),
     cursor: v.optional(v.union(v.string(), v.null())),
     dry: v.optional(v.boolean()),
     page_size: v.optional(v.number()),
@@ -542,22 +682,39 @@ export const withdrawUnroutedRepositoryRows = internalMutation({
   handler: async (ctx, args) => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
-    if (!installation) throw new Error(`No installation ${args.installation_id}`);
+    if (!installation)
+      throw new Error(`No installation ${args.installation_id}`);
     const team = installation.team_id;
-    if (!team) throw new Error("Only a team installation routes rows to a team");
+    if (!team)
+      throw new Error("Only a team installation routes rows to a team");
 
     const page = await (ctx.db.query(args.table) as any)
-      .withIndex(MOVABLE_REPOSITORY_TABLES[args.table], (q: any) => q.eq("team_id", team))
-      .paginate({ cursor: args.cursor ?? null, numItems: args.page_size ?? 200 });
+      .withIndex(MOVABLE_REPOSITORY_TABLES[args.table], (q: any) =>
+        q.eq("team_id", team),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: args.page_size ?? 200,
+      });
     const routes = new Map<string, boolean>();
     const withdrawn: Record<string, number> = {};
     for (const row of page.page) {
-      if (!row.repository || !installationCoversRepo(installation, row.repository)) continue;
+      if (
+        !row.repository ||
+        !installationCoversRepo(installation, row.repository)
+      )
+        continue;
       const key = normalizeRepository(row.repository);
       if (!routes.has(key)) {
-        const routed = await routingTeamForInstallation(ctx, installation, row.repository);
+        const routed = await routingTeamForInstallation(
+          ctx,
+          installation,
+          row.repository,
+        );
         routes.set(key, String(routed) === String(team));
       }
       if (routes.get(key)) continue;
@@ -566,7 +723,8 @@ export const withdrawUnroutedRepositoryRows = internalMutation({
       if (args.table === "commits" && row.conversation_id) {
         await ctx.db.patch(row._id, { team_id: undefined });
       } else {
-        if (args.table === "pull_requests") await deletePullRequestDependents(ctx, row._id);
+        if (args.table === "pull_requests")
+          await deletePullRequestDependents(ctx, row._id);
         await ctx.db.delete(row._id);
       }
     }
@@ -575,8 +733,15 @@ export const withdrawUnroutedRepositoryRows = internalMutation({
 });
 
 /** The rows that exist only beside one pull request. */
-async function deletePullRequestDependents(ctx: { db: any }, prId: Id<"pull_requests">) {
-  for (const table of ["pull_request_sessions", "reviews", "review_comments"] as const) {
+async function deletePullRequestDependents(
+  ctx: { db: any },
+  prId: Id<"pull_requests">,
+) {
+  for (const table of [
+    "pull_request_sessions",
+    "reviews",
+    "review_comments",
+  ] as const) {
     const rows = await ctx.db
       .query(table)
       .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", prId))
@@ -609,11 +774,17 @@ export function installationCoversRepo(
   // every token minted from it. Answering with it trades a clean null for a
   // failed round trip and a thrown error at the mint call.
   if (installation.suspended_at) return false;
-  if (normalizeRepository(installation.account_login) !== repositoryOwner(repository)) return false;
+  if (
+    normalizeRepository(installation.account_login) !==
+    repositoryOwner(repository)
+  )
+    return false;
   if (installation.repository_selection === "all") return true;
   // The list keeps GitHub's display case for the settings page; the match is canonical.
   const wanted = normalizeRepository(repository);
-  return !!installation.repositories?.some((r) => normalizeRepository(r.full_name) === wanted);
+  return !!installation.repositories?.some(
+    (r) => normalizeRepository(r.full_name) === wanted,
+  );
 }
 
 /** Every installation that covers `repository`, before any scoping. */
@@ -623,9 +794,13 @@ async function installationsCoveringRepo(
 ): Promise<Doc<"github_app_installations">[]> {
   const byOwner = await ctx.db
     .query("github_app_installations")
-    .withIndex("by_account_login", (q) => q.eq("account_login", repositoryOwner(repository)))
+    .withIndex("by_account_login", (q) =>
+      q.eq("account_login", repositoryOwner(repository)),
+    )
     .collect();
-  return byOwner.filter((installation) => installationCoversRepo(installation, repository));
+  return byOwner.filter((installation) =>
+    installationCoversRepo(installation, repository),
+  );
 }
 
 /**
@@ -663,7 +838,9 @@ export async function routingTeamForInstallation(
   const team = await installationScopeTeam(ctx, installation);
   const owner = installationOwner(installation);
   if (!team || !owner) return team;
-  return (await ownerSharesRepository(ctx, owner, repository, team)) ? team : undefined;
+  return (await ownerSharesRepository(ctx, owner, repository, team))
+    ? team
+    : undefined;
 }
 
 type InstallationScope = {
@@ -681,9 +858,13 @@ type InstallationScope = {
  * organization's team install. GitHub lets only the account's owner install
  * the App on a user account, so its installer is that person.
  */
-export function installationOwner(installation: InstallationScope): Id<"users"> | undefined {
+export function installationOwner(
+  installation: InstallationScope,
+): Id<"users"> | undefined {
   if (installation.scope_user_id) return installation.scope_user_id;
-  return installation.account_type === "User" ? installation.installed_by_user_id : undefined;
+  return installation.account_type === "User"
+    ? installation.installed_by_user_id
+    : undefined;
 }
 
 /** Does `ownerId`'s repository rule share `repository` with `teamId`? */
@@ -697,8 +878,18 @@ async function ownerSharesRepository(
     .query("directory_team_mappings")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", ownerId))
     .collect();
-  const share = resolveTeamForPath(mappings, undefined, undefined, undefined, normalizeRepository(repository));
-  return !share.isPrivate && !!share.teamId && String(share.teamId) === String(teamId);
+  const share = resolveTeamForPath(
+    mappings,
+    undefined,
+    undefined,
+    undefined,
+    normalizeRepository(repository),
+  );
+  return (
+    !share.isPrivate &&
+    !!share.teamId &&
+    String(share.teamId) === String(teamId)
+  );
 }
 
 async function installationScopeTeam(
@@ -707,7 +898,9 @@ async function installationScopeTeam(
 ): Promise<Id<"teams"> | undefined> {
   if (!installation.team_id) {
     if (!installation.scope_user_id) return undefined;
-    return (await activeTeamMembershipFor(ctx as any, installation.scope_user_id))?.teamId;
+    return (
+      await activeTeamMembershipFor(ctx as any, installation.scope_user_id)
+    )?.teamId;
   }
   const team = await effectiveTeamForResource(ctx as any, installation);
   if (!team) {
@@ -729,7 +922,8 @@ async function personalInstallationForRepo(
   repository: string,
 ): Promise<Doc<"github_app_installations"> | null> {
   for (const installation of await installationsCoveringRepo(ctx, repository)) {
-    if (String(installationOwner(installation)) === String(userId)) return installation;
+    if (String(installationOwner(installation)) === String(userId))
+      return installation;
   }
   return null;
 }
@@ -749,7 +943,10 @@ export const getInstallationForRepoInTeam = internalQuery({
     team_id: v.id("teams"),
   },
   handler: async (ctx, args) => {
-    for (const installation of await installationsCoveringRepo(ctx, args.repository)) {
+    for (const installation of await installationsCoveringRepo(
+      ctx,
+      args.repository,
+    )) {
       const team = await installationTeam(ctx, installation, args.repository);
       if (team && String(team) === String(args.team_id)) return installation;
     }
@@ -766,7 +963,8 @@ export const getInstallationForRepoInTeam = internalQuery({
  */
 export const getPersonalInstallationForRepo = internalQuery({
   args: { repository: v.string(), user_id: v.id("users") },
-  handler: async (ctx, args) => await personalInstallationForRepo(ctx, args.user_id, args.repository),
+  handler: async (ctx, args) =>
+    await personalInstallationForRepo(ctx, args.user_id, args.repository),
 });
 
 /**
@@ -801,10 +999,18 @@ export async function installationForRepo(
       const team = await installationTeam(ctx, installation, args.repository);
       if (team && String(team) === String(args.team_id)) return installation;
     }
-    return await personalInstallationForRepo(ctx, args.user_id, args.repository);
+    return await personalInstallationForRepo(
+      ctx,
+      args.user_id,
+      args.repository,
+    );
   }
 
-  const personal = await personalInstallationForRepo(ctx, args.user_id, args.repository);
+  const personal = await personalInstallationForRepo(
+    ctx,
+    args.user_id,
+    args.repository,
+  );
   if (personal) return personal;
   for (const installation of covering) {
     const team = await installationTeam(ctx, installation, args.repository);
@@ -841,7 +1047,9 @@ async function installationsForScope(
   }
   return await ctx.db
     .query("github_app_installations")
-    .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", scope.user_id))
+    .withIndex("by_scope_user", (q: any) =>
+      q.eq("scope_user_id", scope.user_id),
+    )
     .collect();
 }
 
@@ -852,7 +1060,10 @@ export const listInstallations = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return await installationsForScope(ctx, { team_id: args.team_id, user_id: userId });
+    return await installationsForScope(ctx, {
+      team_id: args.team_id,
+      user_id: userId,
+    });
   },
 });
 
@@ -865,9 +1076,14 @@ export const listInstallations = query({
 export const installationsForWork = internalQuery({
   args: { team_id: v.optional(v.id("teams")), user_id: v.id("users") },
   handler: async (ctx, args) => {
-    const personal = await installationsForScope(ctx, { user_id: args.user_id });
+    const personal = await installationsForScope(ctx, {
+      user_id: args.user_id,
+    });
     if (!args.team_id) return personal;
-    const team = await installationsForScope(ctx, { team_id: args.team_id, user_id: args.user_id });
+    const team = await installationsForScope(ctx, {
+      team_id: args.team_id,
+      user_id: args.user_id,
+    });
     return [...team, ...personal];
   },
 });
@@ -910,9 +1126,16 @@ const INSTALLATION_REPOS_CAP = 300;
  * both the install record (a "selected" install stores its list) and the
  * backfill (an "all" install stores none, so it asks live).
  */
-async function fetchInstallationRepositories(token: string, findRepository?: string): Promise<InstallationRepository[]> {
+async function fetchInstallationRepositories(
+  token: string,
+  findRepository?: string,
+): Promise<InstallationRepository[]> {
   const repositories: InstallationRepository[] = [];
-  for (let page = 1; findRepository || repositories.length < INSTALLATION_REPOS_CAP; page++) {
+  for (
+    let page = 1;
+    findRepository || repositories.length < INSTALLATION_REPOS_CAP;
+    page++
+  ) {
     const response = await fetch(
       `${GITHUB_API_BASE}/installation/repositories?per_page=100&page=${page}`,
       {
@@ -924,19 +1147,31 @@ async function fetchInstallationRepositories(token: string, findRepository?: str
       },
     );
     if (!response.ok) {
-      throw new Error(`Failed to list installation repositories: ${response.status} ${await response.text()}`);
+      throw new Error(
+        `Failed to list installation repositories: ${response.status} ${await response.text()}`,
+      );
     }
     const data = await response.json();
-    if (!Array.isArray(data.repositories)) throw new Error("GitHub returned an invalid installation repository list");
+    if (!Array.isArray(data.repositories))
+      throw new Error(
+        "GitHub returned an invalid installation repository list",
+      );
     const batch: InstallationRepository[] = data.repositories.map((r: any) => ({
       id: r.id,
       name: r.name,
       full_name: r.full_name,
     }));
     repositories.push(...batch);
-    if (batch.length < 100 || (findRepository && batch.some((r) => normalizeRepository(r.full_name) === findRepository))) break;
+    if (
+      batch.length < 100 ||
+      (findRepository &&
+        batch.some((r) => normalizeRepository(r.full_name) === findRepository))
+    )
+      break;
   }
-  return findRepository ? repositories : repositories.slice(0, INSTALLATION_REPOS_CAP);
+  return findRepository
+    ? repositories
+    : repositories.slice(0, INSTALLATION_REPOS_CAP);
 }
 
 export const fetchInstallationDetails = internalAction({
@@ -944,7 +1179,10 @@ export const fetchInstallationDetails = internalAction({
     installation_id: v.number(),
   },
   handler: async (ctx, args): Promise<InstallationDetails> => {
-    const jwt: string = await ctx.runAction(internal.githubApp.generateAppJWT, {});
+    const jwt: string = await ctx.runAction(
+      internal.githubApp.generateAppJWT,
+      {},
+    );
 
     const response: Response = await fetch(
       `${GITHUB_API_BASE}/app/installations/${args.installation_id}`,
@@ -954,12 +1192,14 @@ export const fetchInstallationDetails = internalAction({
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to fetch installation: ${response.status} ${errorText}`);
+      throw new Error(
+        `Failed to fetch installation: ${response.status} ${errorText}`,
+      );
     }
 
     const data = await response.json();
@@ -967,9 +1207,12 @@ export const fetchInstallationDetails = internalAction({
     let repositories: InstallationRepository[] | undefined;
 
     if (data.repository_selection === "selected") {
-      const tokenResult = await ctx.runAction(internal.githubApp.getInstallationToken, {
-        installation_id: args.installation_id,
-      });
+      const tokenResult = await ctx.runAction(
+        internal.githubApp.getInstallationToken,
+        {
+          installation_id: args.installation_id,
+        },
+      );
       try {
         repositories = await fetchInstallationRepositories(tokenResult.token);
       } catch {
@@ -985,8 +1228,12 @@ export const fetchInstallationDetails = internalAction({
       account_id: data.account.id,
       repository_selection: data.repository_selection as "all" | "selected",
       repositories,
-      suspended_at: data.suspended_at ? new Date(data.suspended_at).getTime() : undefined,
-      created_at: data.created_at ? new Date(data.created_at).getTime() : undefined,
+      suspended_at: data.suspended_at
+        ? new Date(data.suspended_at).getTime()
+        : undefined,
+      created_at: data.created_at
+        ? new Date(data.created_at).getTime()
+        : undefined,
     };
   },
 });
@@ -1002,22 +1249,39 @@ export const fetchInstallationDetails = internalAction({
 export const applyInstallationRepositoriesEvent = internalMutation({
   args: {
     installation_id: v.number(),
-    repository_selection: v.optional(v.union(v.literal("all"), v.literal("selected"))),
-    added: v.array(v.object({ id: v.number(), name: v.string(), full_name: v.string() })),
-    removed: v.array(v.object({ id: v.number(), name: v.string(), full_name: v.string() })),
+    repository_selection: v.optional(
+      v.union(v.literal("all"), v.literal("selected")),
+    ),
+    added: v.array(
+      v.object({ id: v.number(), name: v.string(), full_name: v.string() }),
+    ),
+    removed: v.array(
+      v.object({ id: v.number(), name: v.string(), full_name: v.string() }),
+    ),
   },
-  handler: async (ctx, args): Promise<{ team_id: Id<"teams"> | null; added: string[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ team_id: Id<"teams"> | null; added: string[] }> => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
     if (!installation) return { team_id: null, added: [] };
 
     const removedIds = new Set(args.removed.map((r) => r.id));
-    const kept = (installation.repositories ?? []).filter((r) => !removedIds.has(r.id));
+    const kept = (installation.repositories ?? []).filter(
+      (r) => !removedIds.has(r.id),
+    );
     const keptIds = new Set(kept.map((r) => r.id));
-    const repositories = [...kept, ...args.added.filter((r) => !keptIds.has(r.id))];
-    const selection = args.repository_selection ?? installation.repository_selection;
+    const repositories = [
+      ...kept,
+      ...args.added.filter((r) => !keptIds.has(r.id)),
+    ];
+    const selection =
+      args.repository_selection ?? installation.repository_selection;
     const now = Date.now();
     await ctx.db.patch(installation._id, {
       repository_selection: selection,
@@ -1038,19 +1302,31 @@ export const getInstallation = internalQuery({
   handler: async (ctx, args) =>
     await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first(),
 });
 
 export const stampInstallationSync = internalMutation({
-  args: { installation_id: v.number(), expected_updated_at: v.number(), error: v.optional(v.string()) },
+  args: {
+    installation_id: v.number(),
+    expected_updated_at: v.number(),
+    error: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
-    if (!installation || installation.updated_at !== args.expected_updated_at) return;
-    await ctx.db.patch(installation._id, { last_sync_at: Date.now(), last_error: args.error });
+    if (!installation || installation.updated_at !== args.expected_updated_at)
+      return;
+    await ctx.db.patch(installation._id, {
+      last_sync_at: Date.now(),
+      last_error: args.error,
+    });
   },
 });
 
@@ -1072,16 +1348,19 @@ async function ingestPull(
   },
 ): Promise<{ pr_id: Id<"pull_requests">; created: boolean }> {
   const { teamId, repository, pull, token } = args;
-  const result: { pr_id: Id<"pull_requests">; created: boolean } = await ctx.runMutation(
-    internal.pull_requests.syncPRFromGitHub,
-    {
+  const result: { pr_id: Id<"pull_requests">; created: boolean } =
+    await ctx.runMutation(internal.pull_requests.syncPRFromGitHub, {
       team_id: teamId,
       github_pr_id: pull.id,
       repository,
       number: pull.number,
       title: pull.title,
       body: pull.body,
-      state: pull.merged_at ? "merged" : pull.state === "open" ? "open" : "closed",
+      state: pull.merged_at
+        ? "merged"
+        : pull.state === "open"
+          ? "open"
+          : "closed",
       author_github_username: pull.author_login ?? "unknown",
       author_avatar_url: pull.author_avatar_url,
       head_ref: pull.head_ref,
@@ -1096,9 +1375,10 @@ async function ingestPull(
       updated_at: pull.updated_at ?? Date.now(),
       merged_at: pull.merged_at ?? undefined,
       closed_at: pull.closed_at ?? undefined,
-      ...(pull.merge_commit_sha ? { merge_commit_sha: pull.merge_commit_sha } : {}),
-    },
-  );
+      ...(pull.merge_commit_sha
+        ? { merge_commit_sha: pull.merge_commit_sha }
+        : {}),
+    });
   if (pull.state !== "open" || !result.created) return result;
   if (args.withFiles) {
     try {
@@ -1121,10 +1401,14 @@ async function ingestPull(
     }
     await syncPRCommits(ctx, result.pr_id, repository, pull.number, token);
   }
-  await ctx.scheduler.runAfter(args.mergeStateDelayMs ?? 0, internal.prShepherd.refreshMergeState, {
-    pr_id: result.pr_id,
-    attempt: 0,
-  });
+  await ctx.scheduler.runAfter(
+    args.mergeStateDelayMs ?? 0,
+    internal.prShepherd.refreshMergeState,
+    {
+      pr_id: result.pr_id,
+      attempt: 0,
+    },
+  );
   return result;
 }
 
@@ -1141,26 +1425,44 @@ export const fetchPull = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) return { ok: false, reason: "unauthenticated" };
     const repository = normalizeRepository(args.repository);
-    const installation = await ctx.runQuery(internal.githubApp.getInstallationForRepo, {
-      repository,
-      user_id: userId,
-    });
-    if (!installation?.team_id) return { ok: false, reason: "no_team_installation" };
+    const installation = await ctx.runQuery(
+      internal.githubApp.getInstallationForRepo,
+      {
+        repository,
+        user_id: userId,
+      },
+    );
+    if (!installation?.team_id)
+      return { ok: false, reason: "no_team_installation" };
     // The install's team takes the row only if the repository routes there
     // (routingTeamForInstallation): a person's unshared repository does not.
-    if (!(await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, { repository, team_id: installation.team_id }))) {
+    if (
+      !(await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, {
+        repository,
+        team_id: installation.team_id,
+      }))
+    ) {
       return { ok: false, reason: "no_team_installation" };
     }
-    const { token } = await ctx.runAction(internal.githubApp.getInstallationToken, {
-      installation_id: installation.installation_id,
-    });
+    const { token } = await ctx.runAction(
+      internal.githubApp.getInstallationToken,
+      {
+        installation_id: installation.installation_id,
+      },
+    );
     const pull = await ctx.runAction(internal.githubApi.getPull, {
       repository,
       number: args.number,
       github_access_token: token,
     });
     if (!pull) return { ok: false, reason: "not_on_github" };
-    await ingestPull(ctx, { teamId: installation.team_id, repository, pull, token, withFiles: true });
+    await ingestPull(ctx, {
+      teamId: installation.team_id,
+      repository,
+      pull,
+      token,
+      withFiles: true,
+    });
     return { ok: true };
   },
 });
@@ -1189,33 +1491,59 @@ export const backfillInstallationPulls = internalAction({
     installation_id: v.number(),
     repositories: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args): Promise<{ repositories: number; pulls: number }> => {
-    const installation = await ctx.runQuery(internal.githubApp.getInstallation, {
-      installation_id: args.installation_id,
-    });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ repositories: number; pulls: number }> => {
+    const installation = await ctx.runQuery(
+      internal.githubApp.getInstallation,
+      {
+        installation_id: args.installation_id,
+      },
+    );
     // Routing only ever comes from a team install (resolveTeamForRepository);
     // a personal credential brings nothing into a team's workspace.
-    if (!installation?.team_id || installation.suspended_at) return { repositories: 0, pulls: 0 };
+    if (!installation?.team_id || installation.suspended_at)
+      return { repositories: 0, pulls: 0 };
     const teamId = installation.team_id;
-    const syncStamp = { installation_id: args.installation_id, expected_updated_at: installation.updated_at };
+    const syncStamp = {
+      installation_id: args.installation_id,
+      expected_updated_at: installation.updated_at,
+    };
 
     let pulls = 0;
     let syncedRepositories = 0;
     let repositories: string[] = [];
     try {
-      const { token } = await ctx.runAction(internal.githubApp.getInstallationToken, {
-        installation_id: args.installation_id,
-      });
-      repositories = args.repositories
-        ?? (installation.repository_selection === "selected" && installation.repositories
-          ? installation.repositories.map((r: InstallationRepository) => r.full_name)
-          : (await fetchInstallationRepositories(token)).map((r) => r.full_name));
-      repositories = repositories.slice(0, INSTALLATION_REPOS_CAP).map(normalizeRepository);
+      const { token } = await ctx.runAction(
+        internal.githubApp.getInstallationToken,
+        {
+          installation_id: args.installation_id,
+        },
+      );
+      repositories =
+        args.repositories ??
+        (installation.repository_selection === "selected" &&
+        installation.repositories
+          ? installation.repositories.map(
+              (r: InstallationRepository) => r.full_name,
+            )
+          : (await fetchInstallationRepositories(token)).map(
+              (r) => r.full_name,
+            ));
+      repositories = repositories
+        .slice(0, INSTALLATION_REPOS_CAP)
+        .map(normalizeRepository);
 
       let filesLeft = BACKFILL_FILES_CAP;
       repositoryLoop: for (const repository of repositories) {
         // A person's repository comes in only once they share it with the team.
-        if (!(await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, { repository, team_id: teamId }))) {
+        if (
+          !(await ctx.runQuery(
+            internal.githubApp.getInstallationForRepoInTeam,
+            { repository, team_id: teamId },
+          ))
+        ) {
           continue repositoryLoop;
         }
         // One page of recently updated closed pull requests, then every open
@@ -1223,34 +1551,60 @@ export const backfillInstallationPulls = internalAction({
         for (let i = 0; i <= BACKFILL_OPEN_PAGES; i++) {
           const state = i === 0 ? "closed" : "open";
           const page = i === 0 ? 1 : i;
-          const current = await ctx.runQuery(internal.githubApp.getInstallation, {
-            installation_id: args.installation_id,
-          });
+          const current = await ctx.runQuery(
+            internal.githubApp.getInstallation,
+            {
+              installation_id: args.installation_id,
+            },
+          );
           if (!current || current.team_id !== teamId || current.suspended_at) {
             return { repositories: syncedRepositories, pulls };
           }
-          if (current.repository_selection === "selected" && current.repositories && !installationCoversRepo(current, repository)) {
+          if (
+            current.repository_selection === "selected" &&
+            current.repositories &&
+            !installationCoversRepo(current, repository)
+          ) {
             continue repositoryLoop;
           }
           let batch: MappedPull[];
           try {
-            ({ pulls: batch } = await ctx.runAction(internal.githubApi.listPulls, {
-              repository,
-              state,
-              page,
-              github_access_token: token,
-            }));
+            ({ pulls: batch } = await ctx.runAction(
+              internal.githubApi.listPulls,
+              {
+                repository,
+                state,
+                page,
+                github_access_token: token,
+              },
+            ));
           } catch (error) {
-            if (!(error instanceof Error) || !/GitHub returned 404/.test(error.message)) throw error;
-            const visible = await fetchInstallationRepositories(token, repository);
-            if (visible.some((r) => normalizeRepository(r.full_name) === repository)) throw error;
+            if (
+              !(error instanceof Error) ||
+              !/GitHub returned 404/.test(error.message)
+            )
+              throw error;
+            const visible = await fetchInstallationRepositories(
+              token,
+              repository,
+            );
+            if (
+              visible.some(
+                (r) => normalizeRepository(r.full_name) === repository,
+              )
+            )
+              throw error;
             continue repositoryLoop;
           }
           for (const pull of batch) {
             pulls++;
             const withFiles = filesLeft > 0;
             const { created } = await ingestPull(ctx, {
-              teamId, repository, pull, token, withFiles,
+              teamId,
+              repository,
+              pull,
+              token,
+              withFiles,
               // Spread the merge-state reads out so a large repository does
               // not burst the installation's rate limit in one second.
               mergeStateDelayMs: pulls * 500,
@@ -1261,7 +1615,10 @@ export const backfillInstallationPulls = internalAction({
         }
         syncedRepositories++;
       }
-      await ctx.runMutation(internal.githubApp.stampInstallationSync, syncStamp);
+      await ctx.runMutation(
+        internal.githubApp.stampInstallationSync,
+        syncStamp,
+      );
     } catch (error: any) {
       await ctx.runMutation(internal.githubApp.stampInstallationSync, {
         ...syncStamp,
@@ -1281,7 +1638,9 @@ export const suspendInstallation = internalMutation({
   handler: async (ctx, args) => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
 
     if (installation) {
@@ -1300,7 +1659,9 @@ export const unsuspendInstallation = internalMutation({
   handler: async (ctx, args) => {
     const installation = await ctx.db
       .query("github_app_installations")
-      .withIndex("by_installation_id", (q) => q.eq("installation_id", args.installation_id))
+      .withIndex("by_installation_id", (q) =>
+        q.eq("installation_id", args.installation_id),
+      )
       .first();
 
     if (installation) {

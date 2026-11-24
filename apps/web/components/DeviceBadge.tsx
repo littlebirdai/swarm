@@ -12,7 +12,11 @@ import { Loader2 } from "lucide-react";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { deviceDisplayName, deviceKindLabel, distinctDeviceNames } from "@codecast/shared/contracts";
+import {
+  deviceDisplayName,
+  deviceKindLabel,
+  distinctDeviceNames,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../store/inboxStore";
 import { localDeviceIdOf } from "../hooks/useLocalDeviceId";
 import { wakesOnUse } from "../lib/machinePicker";
@@ -57,14 +61,21 @@ import type { Device } from "../lib/deviceRow";
  * selector returns the roster's own object, so it is Object.is-stable between
  * roster pushes.
  */
-export function useRosterDevice(deviceId: string | null | undefined): Device | undefined {
-  return useInboxStore((s) => rosterDeviceOf(s.machineRoster as Device[], deviceId));
+export function useRosterDevice(
+  deviceId: string | null | undefined,
+): Device | undefined {
+  return useInboxStore((s) =>
+    rosterDeviceOf(s.machineRoster as Device[], deviceId),
+  );
 }
 
 /** The projection behind useRosterDevice, callable as one dep of a caller's own
  *  useTrackedStore — a dense list folds every row's store reads into a single
  *  subscription instead of one per hook (ct-49746). */
-export function rosterDeviceOf(roster: Device[] | null | undefined, deviceId: string | null | undefined): Device | undefined {
+export function rosterDeviceOf(
+  roster: Device[] | null | undefined,
+  deviceId: string | null | undefined,
+): Device | undefined {
   return deviceId ? roster?.find((d) => d.device_id === deviceId) : undefined;
 }
 
@@ -84,8 +95,10 @@ export { deviceDisplayName, deviceKindLabel };
 
 /** Per-kind accent classes. Literal strings so Tailwind's JIT keeps them. */
 export function deviceAccentClasses(d: Device): string {
-  if (d.is_remote) return "bg-sol-violet/10 text-sol-violet border-sol-violet/30";
-  if (/linux/i.test(d.platform)) return "bg-sol-orange/10 text-sol-orange border-sol-orange/30";
+  if (d.is_remote)
+    return "bg-sol-violet/10 text-sol-violet border-sol-violet/30";
+  if (/linux/i.test(d.platform))
+    return "bg-sol-orange/10 text-sol-orange border-sol-orange/30";
   return "bg-sol-blue/10 text-sol-blue border-sol-blue/30";
 }
 
@@ -99,39 +112,91 @@ export function relativeSeen(lastSeen: number, now = Date.now()): string {
   return `${Math.round(h / 24)}d ago`;
 }
 
-export function DeviceIcon({ d, className = "w-3 h-3" }: { d: Pick<Device, "platform"> & { is_remote?: boolean; icon?: string | null; icon_color?: string | null }; className?: string }) {
+export function DeviceIcon({
+  d,
+  className = "w-3 h-3",
+}: {
+  d: Pick<Device, "platform"> & {
+    is_remote?: boolean;
+    icon?: string | null;
+    icon_color?: string | null;
+  };
+  className?: string;
+}) {
   if (d.icon && (TEAM_ICONS as readonly string[]).includes(d.icon)) {
-    return <TeamIcon icon={d.icon} color={d.icon_color} className={className} />;
+    return (
+      <TeamIcon icon={d.icon} color={d.icon_color} className={className} />
+    );
   }
   if (d.is_remote) {
     // cloud / remote box
     return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h11a3 3 0 000-6 5 5 0 00-9.584-1.5A3.5 3.5 0 003 15z" />
+      <svg
+        className={className}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 15a4 4 0 004 4h11a3 3 0 000-6 5 5 0 00-9.584-1.5A3.5 3.5 0 003 15z"
+        />
       </svg>
     );
   }
   if (/linux/i.test(d.platform)) {
     return (
-      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      <svg
+        className={className}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
       </svg>
     );
   }
   // laptop / desktop
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+      />
     </svg>
   );
 }
 
 /** Live online/offline dot. */
-export function DeviceDot({ online, className = "" }: { online: boolean; className?: string }) {
+export function DeviceDot({
+  online,
+  className = "",
+}: {
+  online: boolean;
+  className?: string;
+}) {
   return (
     // Still, never a ping: the dot is drawn once per machine row.
-    <span className={`relative inline-flex h-1.5 w-1.5 flex-shrink-0 ${className}`}>
-      <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? "bg-sol-green ring-2 ring-sol-green/30" : "bg-sol-text-dim"}`} />
+    <span
+      className={`relative inline-flex h-1.5 w-1.5 flex-shrink-0 ${className}`}
+    >
+      <span
+        className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? "bg-sol-green ring-2 ring-sol-green/30" : "bg-sol-text-dim"}`}
+      />
     </span>
   );
 }
@@ -151,7 +216,9 @@ export function useDevices() {
     const byId = new Map(devices.map((d) => [d.device_id, d]));
     const locals = devices.filter((d) => !d.is_remote);
     const remotes = devices.filter((d) => d.is_remote);
-    const onlineLocals = locals.filter((d) => d.online).sort((a, b) => b.last_seen - a.last_seen);
+    const onlineLocals = locals
+      .filter((d) => d.online)
+      .sort((a, b) => b.last_seen - a.last_seen);
     return {
       devices,
       byId,
@@ -167,7 +234,12 @@ export function useDevices() {
 
 /** The roster fields a machine's name and icon read, as one string. */
 function rosterNamesSig(roster: Device[]): string {
-  return roster.map((d) => `${d.device_id}:${deviceDisplayName(d)}:${d.platform}:${d.is_remote ? 1 : 0}:${d.icon ?? ""}:${d.icon_color ?? ""}`).join("|");
+  return roster
+    .map(
+      (d) =>
+        `${d.device_id}:${deviceDisplayName(d)}:${d.platform}:${d.is_remote ? 1 : 0}:${d.icon ?? ""}:${d.icon_color ?? ""}`,
+    )
+    .join("|");
 }
 
 /**
@@ -178,7 +250,13 @@ function rosterNamesSig(roster: Device[]): string {
 export function useRosterMachines(): ReadonlyMap<string, Device> {
   const sig = useInboxStore((s) => rosterNamesSig(s.machineRoster as Device[]));
   return useMemo(
-    () => new Map((useInboxStore.getState().machineRoster as Device[]).map((d) => [d.device_id, d])),
+    () =>
+      new Map(
+        (useInboxStore.getState().machineRoster as Device[]).map((d) => [
+          d.device_id,
+          d,
+        ]),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sig is the wake; the body reads the roster it digests
     [sig],
   );
@@ -277,10 +355,18 @@ export function DeviceBadge({
 
 // The machine a session runs on is disabled as a target, but it is the one
 // row the reader looks for: undo the disabled dimming and mark it in blue.
-export const RUNNING_HERE_ROW = "data-[disabled]:opacity-100 bg-sol-blue/10 ring-1 ring-inset ring-sol-blue/40";
-const MOVING_HERE_ROW = "data-[disabled]:opacity-100 bg-sol-orange/10 ring-1 ring-inset ring-sol-orange/40";
+export const RUNNING_HERE_ROW =
+  "data-[disabled]:opacity-100 bg-sol-blue/10 ring-1 ring-inset ring-sol-blue/40";
+const MOVING_HERE_ROW =
+  "data-[disabled]:opacity-100 bg-sol-orange/10 ring-1 ring-inset ring-sol-orange/40";
 
-export function RunningHereTag({ online, suffix }: { online: boolean; suffix?: string }) {
+export function RunningHereTag({
+  online,
+  suffix,
+}: {
+  online: boolean;
+  suffix?: string;
+}) {
   return (
     <span className="ml-2 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-sol-blue/20 px-2 py-0.5 text-meta font-medium text-sol-blue">
       running{suffix ? ` · ${suffix}` : ""}
@@ -312,9 +398,16 @@ export function RunOnDeviceItems({
   );
   // A refusal ends the row failed and raises the dispatch-failure toast.
   const move = (d: Device, isRemote: boolean) =>
-    void requestSessionMove(conversationId, { device_id: d.device_id, is_remote: isRemote, label: deviceDisplayName(d) }).catch(() => {});
+    void requestSessionMove(conversationId, {
+      device_id: d.device_id,
+      is_remote: isRemote,
+      label: deviceDisplayName(d),
+    }).catch(() => {});
   const localDeviceId = useInboxStore(localDeviceIdOf);
-  const names = useMemo(() => distinctDeviceNames([...locals, ...remotes]), [locals, remotes]);
+  const names = useMemo(
+    () => distinctDeviceNames([...locals, ...remotes]),
+    [locals, remotes],
+  );
   const moving = useMoveInFlight(conversationId);
 
   const row = (d: Device, isRemote: boolean) => {
@@ -326,13 +419,17 @@ export function RunOnDeviceItems({
     // One move at a time: while one runs, its destination shows how far it
     // got and no other move is offered.
     const offered = !isOwner && usable && !moving;
-    const { name, host } = names.get(d.device_id) ?? { name: deviceDisplayName(d) };
+    const { name, host } = names.get(d.device_id) ?? {
+      name: deviceDisplayName(d),
+    };
     return (
       <DropdownMenuItem
         key={d.device_id}
         disabled={!offered}
         onSelect={() => offered && move(d, isRemote)}
-        className={isOwner ? RUNNING_HERE_ROW : isDest ? MOVING_HERE_ROW : undefined}
+        className={
+          isOwner ? RUNNING_HERE_ROW : isDest ? MOVING_HERE_ROW : undefined
+        }
       >
         <DeviceIcon d={d} className="w-3 h-3 mr-1.5" />
         <span className="flex-1 truncate">
@@ -340,14 +437,18 @@ export function RunOnDeviceItems({
           {host && <span className="ml-1.5 text-sol-text-dim">{host}</span>}
         </span>
         {d.device_id === localDeviceId && (
-          <span className="ml-2 shrink-0 whitespace-nowrap rounded-full border border-sol-border px-2 py-0.5 text-meta text-sol-text-muted">this device</span>
+          <span className="ml-2 shrink-0 whitespace-nowrap rounded-full border border-sol-border px-2 py-0.5 text-meta text-sol-text-muted">
+            this device
+          </span>
         )}
         {isDest ? (
           <span className="ml-2 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-sol-orange/15 px-2 py-0.5 text-meta font-medium text-sol-orange">
             <Loader2 className="h-2.5 w-2.5 animate-spin" />
             moving · {moving!.label}
           </span>
-        ) : isOwner ? <RunningHereTag online={d.online} /> : (
+        ) : isOwner ? (
+          <RunningHereTag online={d.online} />
+        ) : (
           <span className="ml-2 flex shrink-0 items-center gap-1 whitespace-nowrap text-meta text-sol-text-muted">
             {d.online ? "" : usable ? "asleep, wakes on move" : "offline"}
             <DeviceDot online={d.online} />
@@ -359,22 +460,34 @@ export function RunOnDeviceItems({
 
   return (
     <>
-      <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Run on device · which machine</DropdownMenuLabel>
+      <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+        Run on device · which machine
+      </DropdownMenuLabel>
       {foreignOwner && (
         <DropdownMenuItem disabled className={RUNNING_HERE_ROW}>
           <DeviceIcon d={foreignOwner} className="w-3 h-3 mr-1.5" />
-          <span className="flex-1 truncate">{deviceDisplayName(foreignOwner)}</span>
+          <span className="flex-1 truncate">
+            {deviceDisplayName(foreignOwner)}
+          </span>
           <RunningHereTag
             online={foreignOwner.online}
-            suffix={foreignOwner.runner?.is_bot
-              ? "agent box"
-              : foreignOwner.runner?.name
-                ? `${foreignOwner.runner.name.split(" ")[0]}'s`
-                : "teammate's"}
+            suffix={
+              foreignOwner.runner?.is_bot
+                ? "agent box"
+                : foreignOwner.runner?.name
+                  ? `${foreignOwner.runner.name.split(" ")[0]}'s`
+                  : "teammate's"
+            }
           />
         </DropdownMenuItem>
       )}
-      {[...locals].sort((a, b) => Number(b.device_id === localDeviceId) - Number(a.device_id === localDeviceId)).map((d) => row(d, false))}
+      {[...locals]
+        .sort(
+          (a, b) =>
+            Number(b.device_id === localDeviceId) -
+            Number(a.device_id === localDeviceId),
+        )
+        .map((d) => row(d, false))}
       {allowRemoteMove && remotes.length > 0 && <DropdownMenuSeparator />}
       {allowRemoteMove && remotes.map((d) => row(d, true))}
     </>
@@ -408,20 +521,47 @@ export function useDeviceMoveStatus(conversationId: string | undefined): {
   cancel?: () => void;
 } {
   const gesture = useInboxStore((s) =>
-    conversationId ? latestSessionCommand(s.sessionCommands, (r) => r.conversation_id === conversationId && r.kind === "move") : undefined);
-  const migration = useConversationMigration(conversationId, !!gesture && !gesture.to_remote && !gesture.confirmed_at);
-  const open = !!gesture && !gesture.confirmed_at && gesture.result !== DISPATCH_REFUSED;
+    conversationId
+      ? latestSessionCommand(
+          s.sessionCommands,
+          (r) => r.conversation_id === conversationId && r.kind === "move",
+        )
+      : undefined,
+  );
+  const migration = useConversationMigration(
+    conversationId,
+    !!gesture && !gesture.to_remote && !gesture.confirmed_at,
+  );
+  const open =
+    !!gesture && !gesture.confirmed_at && gesture.result !== DISPATCH_REFUSED;
   // Tick fast only while the strip shows something; a settled move is idle.
-  const busy = deviceMoveStatusOf(gesture, [], Date.now()).phase !== "idle" || (!!migration && !isRowTerminal(migration.row.status));
-  const recentMigration = !!migration && Date.now() - (migration.row.finished_at ?? migration.row.updated_at) < MIGRATION_FAILED_LINGER_MS;
+  const busy =
+    deviceMoveStatusOf(gesture, [], Date.now()).phase !== "idle" ||
+    (!!migration && !isRowTerminal(migration.row.status));
+  const recentMigration =
+    !!migration &&
+    Date.now() - (migration.row.finished_at ?? migration.row.updated_at) <
+      MIGRATION_FAILED_LINGER_MS;
   const now = useCoarseNow(busy || recentMigration ? 1_000 : 60_000);
-  const rows = useConversationCommands(conversationId, open && !sessionCommandTimedOut(gesture!, now) && !migration);
-  const { phase, stage, failure, resumed } = deviceMoveStatusOf(gesture, rows, now);
+  const rows = useConversationCommands(
+    conversationId,
+    open && !sessionCommandTimedOut(gesture!, now) && !migration,
+  );
+  const { phase, stage, failure, resumed } = deviceMoveStatusOf(
+    gesture,
+    rows,
+    now,
+  );
   const names = useMigrationNames(migration?.row);
   const view = migrationMoveView(migration, names, now);
   // A move back from a cloud host runs as a migration (sessionMigrations.runHere):
   // its row is the move's truth, and the click's own row only says it was asked.
-  const migrationSpeaks = !!view && (!gesture || view.phase === "moving" || gesture.to_device_id === migration!.row.to_device_id || migration!.batch.created_at > gesture.requested_at);
+  const migrationSpeaks =
+    !!view &&
+    (!gesture ||
+      view.phase === "moving" ||
+      gesture.to_device_id === migration!.row.to_device_id ||
+      migration!.batch.created_at > gesture.requested_at);
 
   // The destination's resume landed: stamp the row confirmed, which every
   // reader of the move takes as "running there now". A click answered by a
@@ -430,15 +570,27 @@ export function useDeviceMoveStatus(conversationId: string | undefined): {
   // since the migration line says what happened.
   useWatchEffect(() => {
     if (!gesture || gesture.confirmed_at) return;
-    if (resumed && !migrationSpeaks) { useInboxStore.getState().confirmSessionCommand(gesture._id); return; }
+    if (resumed && !migrationSpeaks) {
+      useInboxStore.getState().confirmSessionCommand(gesture._id);
+      return;
+    }
     if (!migrationSpeaks || !view) return;
-    if (view.phase === "done") useInboxStore.getState().confirmSessionCommand(gesture._id);
-    else if (view.phase === "failed" || gesture.result === DISPATCH_REFUSED) useInboxStore.getState().dismissSessionCommand(gesture._id);
+    if (view.phase === "done")
+      useInboxStore.getState().confirmSessionCommand(gesture._id);
+    else if (view.phase === "failed" || gesture.result === DISPATCH_REFUSED)
+      useInboxStore.getState().dismissSessionCommand(gesture._id);
   }, [gesture, resumed, migrationSpeaks, view?.phase]);
 
   const batchId = migration?.batch.batch_id;
   return useMemo(() => {
-    const idle = { phase: "idle" as RestartPhase, stage: null, failure: null, startedAt: null, restoredLabel: undefined, retry: () => {} };
+    const idle = {
+      phase: "idle" as RestartPhase,
+      stage: null,
+      failure: null,
+      startedAt: null,
+      restoredLabel: undefined,
+      retry: () => {},
+    };
     if (!conversationId) return idle;
     if (migrationSpeaks && view) return migrationStatus(view, batchId!);
     if (!gesture || phase === "idle") return idle;
@@ -451,27 +603,71 @@ export function useDeviceMoveStatus(conversationId: string | undefined): {
       restoredLabel: `Session is now running on ${dest}`,
       retry: () => {
         if (!gesture.to_device_id) return;
-        void requestSessionMove(conversationId, { device_id: gesture.to_device_id, is_remote: !!gesture.to_remote, label: dest }).catch(() => {});
+        void requestSessionMove(conversationId, {
+          device_id: gesture.to_device_id,
+          is_remote: !!gesture.to_remote,
+          label: dest,
+        }).catch(() => {});
       },
     };
-  }, [conversationId, gesture, phase, stage?.label, stage?.tone, failure, migrationSpeaks, view?.phase, view?.label, (view as any)?.detail, (view as any)?.tone, (view as any)?.cancellable, (view as any)?.startedAt, batchId]);
+  }, [
+    conversationId,
+    gesture,
+    phase,
+    stage?.label,
+    stage?.tone,
+    failure,
+    migrationSpeaks,
+    view?.phase,
+    view?.label,
+    (view as any)?.detail,
+    (view as any)?.tone,
+    (view as any)?.cancellable,
+    (view as any)?.startedAt,
+    batchId,
+  ]);
 }
 
 function migrationStatus(view: MigrationMoveView, batchId: string) {
   const store = () => useInboxStore.getState();
-  if (view.phase === "done") return { phase: "restored" as RestartPhase, stage: null, failure: null, startedAt: null, restoredLabel: view.label, retry: () => {} };
+  if (view.phase === "done")
+    return {
+      phase: "restored" as RestartPhase,
+      stage: null,
+      failure: null,
+      startedAt: null,
+      restoredLabel: view.label,
+      retry: () => {},
+    };
   if (view.phase === "failed") {
-    return { phase: "failed" as RestartPhase, stage: null, failure: view.label, startedAt: null, restoredLabel: undefined,
-      retry: () => void store().retryMigrationBatch(batchId).catch(() => {}) };
+    return {
+      phase: "failed" as RestartPhase,
+      stage: null,
+      failure: view.label,
+      startedAt: null,
+      restoredLabel: undefined,
+      retry: () =>
+        void store()
+          .retryMigrationBatch(batchId)
+          .catch(() => {}),
+    };
   }
   return {
     phase: "restarting" as RestartPhase,
-    stage: { label: view.detail ? `${view.label} · ${view.detail}` : view.label, tone: view.tone },
+    stage: {
+      label: view.detail ? `${view.label} · ${view.detail}` : view.label,
+      tone: view.tone,
+    },
     failure: null,
     startedAt: view.startedAt,
     restoredLabel: undefined,
     retry: () => {},
-    cancel: view.cancellable ? () => void store().cancelResourceOffload(batchId).catch(() => {}) : undefined,
+    cancel: view.cancellable
+      ? () =>
+          void store()
+            .cancelResourceOffload(batchId)
+            .catch(() => {})
+      : undefined,
   };
 }
 
@@ -481,16 +677,48 @@ function migrationStatus(view: MigrationMoveView, batchId: string) {
  * under way: the conversation carries a migration fence, the caller has a
  * move in flight (`asked`), or the cached copy still shows one running.
  */
-export function useConversationMigration(conversationId: string | undefined, asked = false): { batch: MigrationBatch; row: MigrationBatchRow } | null {
+export function useConversationMigration(
+  conversationId: string | undefined,
+  asked = false,
+): { batch: MigrationBatch; row: MigrationBatchRow } | null {
   const fenced = useInboxStore((s) =>
-    conversationId ? !!(s.sessions[conversationId]?.migration_batch_id ?? (s.conversations[conversationId] as any)?.migration_batch_id) : false);
+    conversationId
+      ? !!(
+          s.sessions[conversationId]?.migration_batch_id ??
+          (s.conversations[conversationId] as any)?.migration_batch_id
+        )
+      : false,
+  );
   const sig = useInboxStore((s) => {
     const m = conversationMigrationOf(s.migrationBatches, conversationId);
-    return m ? [m.batch.batch_id, m.batch.cancelled_at, m.row.status, m.row.stage, m.row.error, m.row.started_at, m.row.finished_at, m.row.updated_at].join("|") : "";
+    return m
+      ? [
+          m.batch.batch_id,
+          m.batch.cancelled_at,
+          m.row.status,
+          m.row.stage,
+          m.row.error,
+          m.row.started_at,
+          m.row.finished_at,
+          m.row.updated_at,
+        ].join("|")
+      : "";
   });
-  const cached = useMemo(() => conversationMigrationOf(useInboxStore.getState().migrationBatches, conversationId), [conversationId, sig]);
-  const live = !!cached && !isRowTerminal(cached.row.status) && !cached.batch.cancelled_at;
-  useSyncCollection("migrationBatches", (api as any).sessionMigrations.listBatches, conversationId && (fenced || asked || live) ? {} : "skip");
+  const cached = useMemo(
+    () =>
+      conversationMigrationOf(
+        useInboxStore.getState().migrationBatches,
+        conversationId,
+      ),
+    [conversationId, sig],
+  );
+  const live =
+    !!cached && !isRowTerminal(cached.row.status) && !cached.batch.cancelled_at;
+  useSyncCollection(
+    "migrationBatches",
+    (api as any).sessionMigrations.listBatches,
+    conversationId && (fenced || asked || live) ? {} : "skip",
+  );
   return cached;
 }
 
@@ -515,13 +743,26 @@ function useMigrationNames(row: MigrationBatchRow | undefined) {
  * a word on how far it got. A migration (back from a cloud host) reports its
  * phase; a plain move only that it is under way.
  */
-function useMoveInFlight(conversationId: string): { to_device_id: string; label: string } | null {
+function useMoveInFlight(
+  conversationId: string,
+): { to_device_id: string; label: string } | null {
   const m = useConversationMigration(conversationId);
-  const gesture = useInboxStore((s) => latestSessionCommand(s.sessionCommands, (r) => r.conversation_id === conversationId && r.kind === "move"));
+  const gesture = useInboxStore((s) =>
+    latestSessionCommand(
+      s.sessionCommands,
+      (r) => r.conversation_id === conversationId && r.kind === "move",
+    ),
+  );
   if (m && !isRowTerminal(m.row.status) && !m.batch.cancelled_at) {
-    return { to_device_id: m.row.to_device_id, label: ROW_STATUS_LABEL[m.row.status] };
+    return {
+      to_device_id: m.row.to_device_id,
+      label: ROW_STATUS_LABEL[m.row.status],
+    };
   }
-  if (gesture?.to_device_id && deviceMoveStatusOf(gesture, [], Date.now()).phase === "restarting") {
+  if (
+    gesture?.to_device_id &&
+    deviceMoveStatusOf(gesture, [], Date.now()).phase === "restarting"
+  ) {
     return { to_device_id: gesture.to_device_id, label: "starting" };
   }
   return null;

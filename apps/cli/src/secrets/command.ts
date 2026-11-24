@@ -16,7 +16,11 @@ import { commandGroup } from "../commandGroups.js";
 import { JSON_OPTION, ago, collect, emit, fail } from "../externalDataCli.js";
 import { promptHiddenSecret } from "../hiddenSecret.js";
 import { lineDefaults } from "../lineScope.js";
-import { loadWorkspaceRoster, resolveWorkspaceForWrite, workspaceLabel } from "../resolveWorkspace.js";
+import {
+  loadWorkspaceRoster,
+  resolveWorkspaceForWrite,
+  workspaceLabel,
+} from "../resolveWorkspace.js";
 import { readStdinBody } from "../sendBody.js";
 import { askLine, askYesNo } from "../terminalAsk.js";
 import {
@@ -58,18 +62,52 @@ import {
   type ValueIO,
   type ValueOptions,
 } from "./inject.js";
-import { NEEDS_APPROVAL_EXIT, exitForApproval, isNeedsApproval } from "./approval.js";
-import { envFromFiles, readEnvFiles, referencedSecrets, unresolvedRefs } from "./envFile.js";
-import { envToSecret, planProjectRead, preferredWorkspace, projectVault, unfilledGaps, varsBySecret, type VaultGap, type VaultMap } from "./projectMap.js";
+import {
+  NEEDS_APPROVAL_EXIT,
+  exitForApproval,
+  isNeedsApproval,
+} from "./approval.js";
+import {
+  envFromFiles,
+  readEnvFiles,
+  referencedSecrets,
+  unresolvedRefs,
+} from "./envFile.js";
+import {
+  envToSecret,
+  planProjectRead,
+  preferredWorkspace,
+  projectVault,
+  unfilledGaps,
+  varsBySecret,
+  type VaultGap,
+  type VaultMap,
+} from "./projectMap.js";
 import { refreshDaemonRedaction } from "./redactionSource.js";
-import { formatSecretLine, formatShow, formatVersions, pickVersion, unmappedLines, type SecretEvent } from "./format.js";
+import {
+  formatSecretLine,
+  formatShow,
+  formatVersions,
+  pickVersion,
+  unmappedLines,
+  type SecretEvent,
+} from "./format.js";
 
-const WRITE_TEAM_OPTION = ["--team <name|id|personal>", "Where it goes (default: the repo profile's team, else your active team, else personal)"] as const;
+const WRITE_TEAM_OPTION = [
+  "--team <name|id|personal>",
+  "Where it goes (default: the repo profile's team, else your active team, else personal)",
+] as const;
 /** --team on a verb over secrets you already hold: one workspace's, for a name two workspaces share. */
-const READ_TEAM_OPTION = ["--team <name|id|personal>", "The secret in that workspace (personal: yours alone), for a name more than one holds"] as const;
+const READ_TEAM_OPTION = [
+  "--team <name|id|personal>",
+  "The secret in that workspace (personal: yours alone), for a name more than one holds",
+] as const;
 const PERSONAL_OPTION = ["--personal", "The same as --team personal"] as const;
 type WorkspacePick = { team?: string; personal?: boolean };
-const WHY_OPTION = ["--why <text>", "The task, as a verb phrase ('run the billing tests'); an Ask first secret shows it to the person who approves"] as const;
+const WHY_OPTION = [
+  "--why <text>",
+  "The task, as a verb phrase ('run the billing tests'); an Ask first secret shows it to the person who approves",
+] as const;
 /** Ask first's exit, as every read verb's help states it. */
 const ASK_FIRST_EXIT = `  ${NEEDS_APPROVAL_EXIT}  Ask first: a secret marked Ask first has no approval for this session yet. Nothing was read; stderr names the decision. End your turn dormant on it and run this again once the answer wakes you`;
 /** get, env and otp: their output is the value, so every refusal is an exit code and a sentence on stderr. */
@@ -85,25 +123,31 @@ const RUN_VARS_HELP =
   "  cast vault run --env-file <(echo STRIPE_KEY=vault://stripe-test) -- npm test";
 /** How a project names its secrets for run and env with no names. */
 const PROJECT_MAP_HELP =
-  "With no names, it reads this repo's [vault] in .codecast/workspace.toml: ENV_VAR = \"secret-name\" lines, or ENV_VAR = { secret = \"secret-name\", required = true }. " +
+  'With no names, it reads this repo\'s [vault] in .codecast/workspace.toml: ENV_VAR = "secret-name" lines, or ENV_VAR = { secret = "secret-name", required = true }. ' +
   "A mapped secret the Vault lacks is skipped with its fix on stderr, unless it is required, which stops the command first. " +
   "Named secrets fill their own vars plus any [vault] var mapped to them. " +
   "A login maps its password and a file its temp path; for the username, use an env file line USER=vault://<name>/username (cast vault run --env-file).";
 const KEEP_DAYS = SECRET_VERSION_TTL_MS / DAY_MS;
 const cwd = () => process.env.CODECAST_CWD || process.cwd();
 /** A login with 2FA and no terminal: the password and the setup key as two stdin lines (or the key from --totp-from-env). */
-const totpExample = (verb: string) => `Example: printf '%s\\n%s\\n' "$PW" "$SEED" | cast vault ${verb} --totp`;
+const totpExample = (verb: string) =>
+  `Example: printf '%s\\n%s\\n' "$PW" "$SEED" | cast vault ${verb} --totp`;
 /** A verb's one-line summary, and its help: the summary followed by `rest`. */
-const helpText = (cmd: Command, summary: string, rest = "") => cmd.summary(summary).description(summary + rest);
+const helpText = (cmd: Command, summary: string, rest = "") =>
+  cmd.summary(summary).description(summary + rest);
 /** The full argv of this run, for the verbs that read past commander (run, the Files guard). */
-const rawArgsOf = (vault: Command): string[] => (vault.parent as any)?.rawArgs ?? [];
+const rawArgsOf = (vault: Command): string[] =>
+  (vault.parent as any)?.rawArgs ?? [];
 
 /**
  * Values from this terminal. Piped stdin is read once: line by line for a
  * login's hidden prompts, whole for a key (which must be one line) and byte for
  * byte for a file secret (a PEM keeps its final newline).
  */
-export function terminalIO(tty: boolean = !!process.stdin.isTTY, readStdin: () => string = () => fs.readFileSync(0, "utf-8")): ValueIO {
+export function terminalIO(
+  tty: boolean = !!process.stdin.isTTY,
+  readStdin: () => string = () => fs.readFileSync(0, "utf-8"),
+): ValueIO {
   return {
     tty,
     hidden: async (prompts) => {
@@ -129,51 +173,94 @@ function conversationOf(deps: PublishDeps): { conversation?: string } {
 }
 
 /** Where a write lands, resolved the way every CLI write resolves, then said out loud. */
-async function writeWhere(deps: PublishDeps, team: string | undefined): Promise<{ body: { team_id: string } | { personal: true }; label: string }> {
-  const roster = await loadWorkspaceRoster(async () => await apiPost(deps, "/cli/teams", {}, { read: true }));
+async function writeWhere(
+  deps: PublishDeps,
+  team: string | undefined,
+): Promise<{ body: { team_id: string } | { personal: true }; label: string }> {
+  const roster = await loadWorkspaceRoster(
+    async () => await apiPost(deps, "/cli/teams", {}, { read: true }),
+  );
   try {
     const ws = resolveWorkspaceForWrite(roster, team || lineDefaults().team);
-    return { body: ws.kind === "team" ? { team_id: ws.teamId } : { personal: true }, label: workspaceLabel(ws) };
+    return {
+      body: ws.kind === "team" ? { team_id: ws.teamId } : { personal: true },
+      label: workspaceLabel(ws),
+    };
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));
   }
 }
 
 /** The workspace --team or --personal names, as the key a secret row carries, or null when neither is given. */
-async function pickedWorkspace(deps: PublishDeps, o: WorkspacePick): Promise<{ key: string; label: string; flag: string } | null> {
+async function pickedWorkspace(
+  deps: PublishDeps,
+  o: WorkspacePick,
+): Promise<{ key: string; label: string; flag: string } | null> {
   const team = o.personal ? "personal" : o.team;
   if (!team) return null;
-  const roster = await loadWorkspaceRoster(async () => await apiPost(deps, "/cli/teams", {}, { read: true }));
+  const roster = await loadWorkspaceRoster(
+    async () => await apiPost(deps, "/cli/teams", {}, { read: true }),
+  );
   try {
     const ws = resolveWorkspaceForWrite(roster, team);
     // The personal key is user:<id>; a roster without the id still matches any personal row.
-    const key = ws.kind === "team" ? `team:${ws.teamId}` : `user:${roster.userId ?? ""}`;
-    return { key, label: workspaceLabel(ws), flag: ws.kind === "team" ? `--team ${team}` : "--personal" };
+    const key =
+      ws.kind === "team" ? `team:${ws.teamId}` : `user:${roster.userId ?? ""}`;
+    return {
+      key,
+      label: workspaceLabel(ws),
+      flag: ws.kind === "team" ? `--team ${team}` : "--personal",
+    };
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));
   }
 }
 
-const inWorkspace = (s: Pick<SecretMeta, "workspace">, key: string) => (key === "user:" ? s.workspace.startsWith("user:") : s.workspace === key);
+const inWorkspace = (s: Pick<SecretMeta, "workspace">, key: string) =>
+  key === "user:" ? s.workspace.startsWith("user:") : s.workspace === key;
 
 /** A name pinned to the workspace --team or --personal names, as its short id; any other ref as given. */
-async function pinRef(deps: PublishDeps, ref: string, o: WorkspacePick): Promise<string> {
+async function pinRef(
+  deps: PublishDeps,
+  ref: string,
+  o: WorkspacePick,
+): Promise<string> {
   const ws = await pickedWorkspace(deps, o);
   if (!ws || /^sec-\d+$/i.test(ref.trim())) return ref;
-  const all: SecretMeta[] = await apiPost(deps, "/cli/vault/list", {}, { read: true });
+  const all: SecretMeta[] = await apiPost(
+    deps,
+    "/cli/vault/list",
+    {},
+    { read: true },
+  );
   const hit = all.find((r) => r.name === ref.trim() && inWorkspace(r, ws.key));
-  if (!hit) fail(`No secret ${ref} in ${ws.label}: cast vault ls ${ws.flag} lists that workspace's`);
+  if (!hit)
+    fail(
+      `No secret ${ref} in ${ws.label}: cast vault ls ${ws.flag} lists that workspace's`,
+    );
   return hit.short_id;
 }
 
 /** What `cast vault ls` keeps: a word over name, short id, vars, sites and note; a kind; ready only; one workspace. */
-export function filterSecrets(rows: SecretMeta[], f: { query?: string; kind?: string; ready?: boolean; workspace?: string }): SecretMeta[] {
+export function filterSecrets(
+  rows: SecretMeta[],
+  f: { query?: string; kind?: string; ready?: boolean; workspace?: string },
+): SecretMeta[] {
   const q = f.query?.trim().toLowerCase();
-  return rows.filter((r) =>
-    (!q || [r.name, r.short_id, r.note ?? "", ...(r.env ?? []), ...(r.sites ?? [])].some((t) => t.toLowerCase().includes(q))) &&
-    (!f.kind || r.kind === f.kind) &&
-    (!f.ready || r.status === "ready") &&
-    (!f.workspace || inWorkspace(r, f.workspace)));
+  return rows.filter(
+    (r) =>
+      (!q ||
+        [
+          r.name,
+          r.short_id,
+          r.note ?? "",
+          ...(r.env ?? []),
+          ...(r.sites ?? []),
+        ].some((t) => t.toLowerCase().includes(q))) &&
+      (!f.kind || r.kind === f.kind) &&
+      (!f.ready || r.status === "ready") &&
+      (!f.workspace || inWorkspace(r, f.workspace)),
+  );
 }
 
 /**
@@ -182,16 +269,31 @@ export function filterSecrets(rows: SecretMeta[], f: { query?: string; kind?: st
  * machine's daemon takes the Vault's current values into redaction, so one
  * stored or rotated a moment ago is already redacted where the output lands.
  */
-export async function readSecrets(deps: PublishDeps, refs: string[], purpose: SecretReadPurpose, why?: string): Promise<ReadSecret[]> {
+export async function readSecrets(
+  deps: PublishDeps,
+  refs: string[],
+  purpose: SecretReadPurpose,
+  why?: string,
+): Promise<ReadSecret[]> {
   const prefer = await preferredWorkspace(deps);
-  const res = await apiPost(deps, "/cli/vault/read", { refs, purpose, ...(why ? { why } : {}), ...(prefer ? { prefer } : {}), ...conversationOf(deps) });
+  const res = await apiPost(deps, "/cli/vault/read", {
+    refs,
+    purpose,
+    ...(why ? { why } : {}),
+    ...(prefer ? { prefer } : {}),
+    ...conversationOf(deps),
+  });
   if (isNeedsApproval(res)) exitForApproval(res, why);
   await refreshDaemonRedaction();
   return res.secrets;
 }
 
 /** `--yes`, else a yes on a terminal; off one, `refusal` (which names the --yes command) and exit 1. */
-async function confirmed(o: { yes?: boolean }, ask: string, refusal: string): Promise<boolean> {
+async function confirmed(
+  o: { yes?: boolean },
+  ask: string,
+  refusal: string,
+): Promise<boolean> {
   if (o.yes) return true;
   if (!process.stdin.isTTY) fail(refusal);
   return askYesNo(`${ask} [y/N] `);
@@ -216,17 +318,34 @@ function projectMap(): VaultMap | null {
  */
 async function refsFor(
   deps: PublishDeps,
-  o: { names: string[]; example: string; referenced?: string[]; files: boolean; listMetas: () => Promise<SecretMeta[]> },
+  o: {
+    names: string[];
+    example: string;
+    referenced?: string[];
+    files: boolean;
+    listMetas: () => Promise<SecretMeta[]>;
+  },
 ): Promise<{ refs: string[]; project: VaultMap | null }> {
   const project = projectMap();
-  if (!o.names.length && !project && !o.referenced) fail(`Name the secrets, or map them in .codecast/workspace.toml under [vault]: ${o.example}`);
+  if (!o.names.length && !project && !o.referenced)
+    fail(
+      `Name the secrets, or map them in .codecast/workspace.toml under [vault]: ${o.example}`,
+    );
   let fromMap: string[] = [];
   if (project && !o.names.length) {
-    const plan = planProjectRead(project, await o.listMetas(), await preferredWorkspace(deps), { files: o.files });
+    const plan = planProjectRead(
+      project,
+      await o.listMetas(),
+      await preferredWorkspace(deps),
+      { files: o.files },
+    );
     reportGaps(plan.gaps);
     fromMap = plan.read;
   }
-  return { refs: [...new Set([...o.names, ...fromMap, ...(o.referenced ?? [])])], project };
+  return {
+    refs: [...new Set([...o.names, ...fromMap, ...(o.referenced ?? [])])],
+    project,
+  };
 }
 
 /** Each gap's fix on stderr, and the command goes on without it; a required one stops it first, after `cleanup`. */
@@ -234,9 +353,12 @@ function reportGaps(gaps: VaultGap[], cleanup?: () => void): void {
   const blocking = gaps.filter((g) => g.required);
   if (blocking.length) {
     cleanup?.();
-    fail(`Required in [vault], so nothing ran:\n${blocking.map((g) => g.line).join("\n")}`);
+    fail(
+      `Required in [vault], so nothing ran:\n${blocking.map((g) => g.line).join("\n")}`,
+    );
   }
-  for (const gap of gaps) console.error(fmt.muted(`${gap.line}. Going without it`));
+  for (const gap of gaps)
+    console.error(fmt.muted(`${gap.line}. Going without it`));
 }
 
 /** One /cli/vault/list per command, however many checks ask for it. */
@@ -245,20 +367,29 @@ export function metasOnce(deps: PublishDeps): () => Promise<SecretMeta[]> {
   return () => (metas ??= apiPost(deps, "/cli/vault/list", {}, { read: true }));
 }
 
-async function payloadFor(kind: SecretKind, o: ValueOptions, opts: Parameters<typeof readPayload>[3] = {}): Promise<SecretPayload> {
+async function payloadFor(
+  kind: SecretKind,
+  o: ValueOptions,
+  opts: Parameters<typeof readPayload>[3] = {},
+): Promise<SecretPayload> {
   let raw: SecretPayload;
   try {
     raw = await readPayload(kind, o, terminalIO(), opts);
   } catch (err) {
     fail(err instanceof Error ? err.message : String(err));
   }
-  const checked = opts.rotate && kind === "login" ? validateLoginChange(raw as LoginPayload) : validatePayload(kind, raw);
+  const checked =
+    opts.rotate && kind === "login"
+      ? validateLoginChange(raw as LoginPayload)
+      : validatePayload(kind, raw);
   if ("error" in checked) fail(checked.error);
   return checked.payload;
 }
 
 /** materialize, a refusal (a reserved env name, two secrets for one var) said as the sentence it is. */
-function materialized(...args: Parameters<typeof materialize>): ReturnType<typeof materialize> {
+function materialized(
+  ...args: Parameters<typeof materialize>
+): ReturnType<typeof materialize> {
   try {
     return materialize(...args);
   } catch (err) {
@@ -269,12 +400,24 @@ function materialized(...args: Parameters<typeof materialize>): ReturnType<typeo
 const valueOptions = (cmd: Command) =>
   cmd
     .option("--username <name>", "A login's username (not secret, so a flag)")
-    .option("--totp", "A login's 2FA: the setup key or otpauth:// link from a hidden prompt, or piped as the line after the password")
-    .option("--totp-from-env <VAR>", "A login's 2FA setup key or otpauth:// link from this environment variable")
+    .option(
+      "--totp",
+      "A login's 2FA: the setup key or otpauth:// link from a hidden prompt, or piped as the line after the password",
+    )
+    .option(
+      "--totp-from-env <VAR>",
+      "A login's 2FA setup key or otpauth:// link from this environment variable",
+    )
     .option("--file <path>", "A file secret's content, read from this path")
-    .option("--from-env <VAR>", "Take the value (a login's password) from this environment variable");
+    .option(
+      "--from-env <VAR>",
+      "Take the value (a login's password) from this environment variable",
+    );
 
-const kindOf = (raw: string | undefined, allowed: readonly SecretKind[]): SecretKind => {
+const kindOf = (
+  raw: string | undefined,
+  allowed: readonly SecretKind[],
+): SecretKind => {
   const kind = (raw ?? "key") as SecretKind;
   if (!allowed.includes(kind)) fail(`--kind takes ${allowed.join(", ")}`);
   return kind;
@@ -282,22 +425,36 @@ const kindOf = (raw: string | undefined, allowed: readonly SecretKind[]): Secret
 
 // ── Lines ───────────────────────────────────────────────────────────────────
 
-async function scopeNamer(deps: PublishDeps, rows: SecretMeta[]): Promise<(s: SecretMeta) => string> {
-  if (!rows.some((r) => r.workspace.startsWith("team:"))) return () => "personal";
-  const roster = await loadWorkspaceRoster(async () => await apiPost(deps, "/cli/teams", {}, { read: true }));
+async function scopeNamer(
+  deps: PublishDeps,
+  rows: SecretMeta[],
+): Promise<(s: SecretMeta) => string> {
+  if (!rows.some((r) => r.workspace.startsWith("team:")))
+    return () => "personal";
+  const roster = await loadWorkspaceRoster(
+    async () => await apiPost(deps, "/cli/teams", {}, { read: true }),
+  );
   const names = new Map(roster.teams.map((t) => [t._id, t.name]));
-  return (s) => (s.workspace.startsWith("team:") ? names.get(s.team_id ?? "") || "team" : "personal");
+  return (s) =>
+    s.workspace.startsWith("team:")
+      ? names.get(s.team_id ?? "") || "team"
+      : "personal";
 }
 
 /** One secret's workspace as a person names it: its team's name, or personal. */
-const scopeOf = async (deps: PublishDeps, s: SecretMeta): Promise<string> => (await scopeNamer(deps, [s]))(s);
-
+const scopeOf = async (deps: PublishDeps, s: SecretMeta): Promise<string> =>
+  (await scopeNamer(deps, [s]))(s);
 
 // ── Registration ────────────────────────────────────────────────────────────
 
-export function registerVaultCommand(program: Command, deps: PublishDeps): void {
+export function registerVaultCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   const filesGuard = () => {
-    const files = filesCommandFor(argsAfterGroup((program as any).rawArgs ?? []));
+    const files = filesCommandFor(
+      argsAfterGroup((program as any).rawArgs ?? []),
+    );
     if (files) fail(`Files moved: ${files}`);
   };
   const list = listAction(deps);
@@ -315,7 +472,10 @@ export function registerVaultCommand(program: Command, deps: PublishDeps): void 
     .action(async (args: string[]) => {
       filesGuard();
       const rest = args.filter((a) => a !== "--json");
-      if (rest.length) fail(`No vault verb "${rest[0]}": cast vault --help lists them, and cast vault ls ${rest[0]} finds a secret by name`);
+      if (rest.length)
+        fail(
+          `No vault verb "${rest[0]}": cast vault --help lists them, and cast vault ls ${rest[0]} finds a secret by name`,
+        );
       await list(undefined, { json: rest.length < args.length });
     });
 
@@ -327,36 +487,86 @@ export function registerVaultCommand(program: Command, deps: PublishDeps): void 
 }
 
 function listAction(deps: PublishDeps) {
-  return async (query: string | undefined, o: WorkspacePick & { json?: boolean; stale?: boolean; kind?: string; ready?: boolean }) => {
+  return async (
+    query: string | undefined,
+    o: WorkspacePick & {
+      json?: boolean;
+      stale?: boolean;
+      kind?: string;
+      ready?: boolean;
+    },
+  ) => {
     if (o.kind) kindOf(o.kind, SECRET_KINDS);
     const ws = await pickedWorkspace(deps, o);
-    const all: SecretMeta[] = await apiPost(deps, "/cli/vault/list", {}, { read: true });
+    const all: SecretMeta[] = await apiPost(
+      deps,
+      "/cli/vault/list",
+      {},
+      { read: true },
+    );
     const now = Date.now();
     const filtering = !!(query || o.kind || o.ready || ws);
-    const kept = filterSecrets(all, { query, kind: o.kind, ready: o.ready, workspace: ws?.key });
+    const kept = filterSecrets(all, {
+      query,
+      kind: o.kind,
+      ready: o.ready,
+      workspace: ws?.key,
+    });
     const rows = o.stale ? kept.filter((r) => secretHealth(r, now)) : kept;
     const map = projectMap();
     const uses = map ? varsBySecret(map) : new Map<string, string[]>();
     if (o.json) {
-      return emit(true, rows.map((r) => {
-        const health = secretHealth(r, now);
-        return { ...r, ...(uses.has(r.name) ? { project_env: uses.get(r.name) } : {}), ...(health ? { health } : {}) };
-      }), () => "");
+      return emit(
+        true,
+        rows.map((r) => {
+          const health = secretHealth(r, now);
+          return {
+            ...r,
+            ...(uses.has(r.name) ? { project_env: uses.get(r.name) } : {}),
+            ...(health ? { health } : {}),
+          };
+        }),
+        () => "",
+      );
     }
-    const missing = map && !o.stale && !filtering ? unmappedLines(map, rows) : [];
+    const missing =
+      map && !o.stale && !filtering ? unmappedLines(map, rows) : [];
     if (!rows.length && !missing.length) {
       if (filtering && all.length) {
-        const what = [query && `"${query}"`, o.kind, o.ready && "ready", ws && `in ${ws.label}`].filter(Boolean).join(", ");
-        return console.log(`No secret matches ${what} (of ${all.length}). cast vault ls lists them all; cast vault request ${query && !/\s/.test(query) ? query : "<name>"} asks a person for one`);
+        const what = [
+          query && `"${query}"`,
+          o.kind,
+          o.ready && "ready",
+          ws && `in ${ws.label}`,
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return console.log(
+          `No secret matches ${what} (of ${all.length}). cast vault ls lists them all; cast vault request ${query && !/\s/.test(query) ? query : "<name>"} asks a person for one`,
+        );
       }
-      return console.log(o.stale ? "Nothing needs a look: no secret is expired, expiring, never used or stale" : "The vault is empty. Store a key: cast vault add stripe-test --env STRIPE_SECRET_KEY");
+      return console.log(
+        o.stale
+          ? "Nothing needs a look: no secret is expired, expiring, never used or stale"
+          : "The vault is empty. Store a key: cast vault add stripe-test --env STRIPE_SECRET_KEY",
+      );
     }
     const scope = await scopeNamer(deps, rows);
-    console.log([...rows.map((s) => formatSecretLine(s, scope(s), now, uses.get(s.name))), ...missing].join("\n"));
+    console.log(
+      [
+        ...rows.map((s) =>
+          formatSecretLine(s, scope(s), now, uses.get(s.name)),
+        ),
+        ...missing,
+      ].join("\n"),
+    );
   };
 }
 
-function registerListVerb(vault: Command, list: ReturnType<typeof listAction>): void {
+function registerListVerb(
+  vault: Command,
+  list: ReturnType<typeof listAction>,
+): void {
   helpText(
     vault.command("ls").alias("list"),
     "Every secret you can use, open requests first; --stale for the ones that need a look",
@@ -369,12 +579,18 @@ function registerListVerb(vault: Command, list: ReturnType<typeof listAction>): 
       "Example: cast vault ls --kind login --ready --team personal\n" +
       "Example: cast vault ls --stale --json",
   )
-    .argument("[query]", "Only secrets whose name, sec-N, vars, sites or note contain this (any case)")
+    .argument(
+      "[query]",
+      "Only secrets whose name, sec-N, vars, sites or note contain this (any case)",
+    )
     .option("--kind <kind>", `Only this kind: ${SECRET_KINDS.join(", ")}`)
     .option("--ready", "Only secrets with a value (no open requests)")
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
-    .option("--stale", "Only secrets that need a look: expired, expiring, never used or stale")
+    .option(
+      "--stale",
+      "Only secrets that need a look: expired, expiring, never used or stale",
+    )
     .option(...JSON_OPTION)
     .action(list);
 }
@@ -390,10 +606,23 @@ function registerWriteVerbs(vault: Command, deps: PublishDeps): void {
         "Example: cast vault add stripe-test --env STRIPE_SECRET_KEY --site dashboard.stripe.com\n" +
         totpExample("add github-bot --kind login --username ci-bot"),
     )
-      .argument("<name>", "Lowercase letters, digits and hyphens, like stripe-test")
+      .argument(
+        "<name>",
+        "Lowercase letters, digits and hyphens, like stripe-test",
+      )
       .option("--kind <kind>", "key (default), login or file")
-      .option("--env <VAR>", "Env var it fills under cast vault run (repeatable; a login: one name is the password, two are username then password)", collect, [])
-      .option("--site <host>", "Site it is for (repeatable; a login needs one: browser fill types it only there)", collect, [])
+      .option(
+        "--env <VAR>",
+        "Env var it fills under cast vault run (repeatable; a login: one name is the password, two are username then password)",
+        collect,
+        [],
+      )
+      .option(
+        "--site <host>",
+        "Site it is for (repeatable; a login needs one: browser fill types it only there)",
+        collect,
+        [],
+      )
       .option("--note <text>", "What it is for"),
   )
     .option(...WRITE_TEAM_OPTION)
@@ -407,41 +636,83 @@ function registerWriteVerbs(vault: Command, deps: PublishDeps): void {
       vault.command("rotate"),
       "Replace a secret's value; same prompts as add",
       `. A login keeps each field left blank; --clear empties one (${clearable}).\n\n` +
-        "Example: printf %s \"$NEW_KEY\" | cast vault rotate stripe-test\n" +
+        'Example: printf %s "$NEW_KEY" | cast vault rotate stripe-test\n' +
         "Example: cast vault rotate github-bot --clear password --username ci-bot-2\n" +
-        totpExample("rotate github-bot") + "\n" +
+        totpExample("rotate github-bot") +
+        "\n" +
         `Example: ${seedOnlyRotate("github-bot")}   # only the 2FA seed: a blank first line keeps the password`,
     ).argument("<name>", "Name or sec-N"),
   )
-    .option("--clear <field>", `Empty a login's ${clearable} (repeatable)`, collect, [])
+    .option(
+      "--clear <field>",
+      `Empty a login's ${clearable} (repeatable)`,
+      collect,
+      [],
+    )
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
     .option(...JSON_OPTION)
-    .action(async (name: string, o: ValueOptions & WorkspacePick & { json?: boolean }) => {
-      const ref = await pinRef(deps, name, o);
-      const meta: SecretMeta = await apiPost(deps, "/cli/vault/show", { ref }, { read: true });
-      if (meta.status === "requested") fail(pendingRequestLine(meta));
-      const scope = await scopeOf(deps, meta);
-      const payload = await payloadFor(meta.kind, o, { rotate: true, name: meta.name });
-      const res = await apiPost(deps, "/cli/vault/rotate", { ref: meta.short_id, payload });
-      const print = payloadFingerprint(meta.kind, payload);
-      emit(o.json, { ...res, fingerprint: print }, () => `${fmt.success("rotated")} ${fmt.id(res.short_id)} ${res.name} in ${scope}${print ? `  ${fmt.muted(print)}` : ""}`);
-    });
+    .action(
+      async (
+        name: string,
+        o: ValueOptions & WorkspacePick & { json?: boolean },
+      ) => {
+        const ref = await pinRef(deps, name, o);
+        const meta: SecretMeta = await apiPost(
+          deps,
+          "/cli/vault/show",
+          { ref },
+          { read: true },
+        );
+        if (meta.status === "requested") fail(pendingRequestLine(meta));
+        const scope = await scopeOf(deps, meta);
+        const payload = await payloadFor(meta.kind, o, {
+          rotate: true,
+          name: meta.name,
+        });
+        const res = await apiPost(deps, "/cli/vault/rotate", {
+          ref: meta.short_id,
+          payload,
+        });
+        const print = payloadFingerprint(meta.kind, payload);
+        emit(
+          o.json,
+          { ...res, fingerprint: print },
+          () =>
+            `${fmt.success("rotated")} ${fmt.id(res.short_id)} ${res.name} in ${scope}${print ? `  ${fmt.muted(print)}` : ""}`,
+        );
+      },
+    );
 
   valueOptions(
     helpText(
       vault.command("fill").alias("fulfill"),
       "Give a requested secret its value; every session that asked is told it is ready",
-      "\n\nExample: cast vault fill github-bot --username ci-bot\n" + totpExample("fill github-bot --username ci-bot") + "\n" +
+      "\n\nExample: cast vault fill github-bot --username ci-bot\n" +
+        totpExample("fill github-bot --username ci-bot") +
+        "\n" +
         `Example: printf '\\n%s\\n' "$SEED" | cast vault fill github-bot --totp   # only a 2FA seed: a blank first line leaves no password`,
     ).argument("<name>", "Name or sec-N of the request"),
   )
     .option(...JSON_OPTION)
     .action(async (ref: string, o: ValueOptions & { json?: boolean }) => {
-      const meta: SecretMeta = await apiPost(deps, "/cli/vault/show", { ref, status: "requested" }, { read: true });
+      const meta: SecretMeta = await apiPost(
+        deps,
+        "/cli/vault/show",
+        { ref, status: "requested" },
+        { read: true },
+      );
       const payload = await payloadFor(meta.kind, o);
-      const res = await apiPost(deps, "/cli/vault/fulfill", { ref: meta.short_id, payload });
-      emit(o.json, res, () => `${fmt.success("filled")} ${fmt.id(res.short_id)} ${res.name}${res.delivered ? fmt.muted("  the asking sessions were told") : ""}`);
+      const res = await apiPost(deps, "/cli/vault/fulfill", {
+        ref: meta.short_id,
+        payload,
+      });
+      emit(
+        o.json,
+        res,
+        () =>
+          `${fmt.success("filled")} ${fmt.id(res.short_id)} ${res.name}${res.delivered ? fmt.muted("  the asking sessions were told") : ""}`,
+      );
     });
 }
 
@@ -459,7 +730,10 @@ function registerReadVerbs(vault: Command, deps: PublishDeps): void {
       `${READ_EXITS}\n\nExample: gh auth login --with-token < <(cast vault get github-token)\nExample: cast vault get github-bot --field username`,
   )
     .argument("<name>", "Name or sec-N")
-    .option("--field <field>", "value (key), password, username or totp (login), content (file); default: the kind's first")
+    .option(
+      "--field <field>",
+      "value (key), password, username or totp (login), content (file); default: the kind's first",
+    )
     .option(...WHY_OPTION)
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
@@ -479,8 +753,14 @@ function registerReadVerbs(vault: Command, deps: PublishDeps): void {
       "Example: cast vault run -- npm run dev   (the [vault] map)\n" +
       "Example: cast vault run --env-file .env.vault -- npm test   (.env.vault: STRIPE_SECRET_KEY=vault://stripe-test)",
   )
-    .argument("[names...]", "Names or sec-N (none: the [vault] map), then -- and the command")
-    .option("--env-file <path>", "An env file to load, vault:// values filled from the Vault (repeatable; a later file wins a var)")
+    .argument(
+      "[names...]",
+      "Names or sec-N (none: the [vault] map), then -- and the command",
+    )
+    .option(
+      "--env-file <path>",
+      "An env file to load, vault:// values filled from the Vault (repeatable; a later file wins a var)",
+    )
     .option(...WHY_OPTION)
     .allowUnknownOption()
     .action(runAction(deps, vault));
@@ -488,7 +768,7 @@ function registerReadVerbs(vault: Command, deps: PublishDeps): void {
   helpText(
     vault.command("env"),
     "Print export NAME='value' lines for eval, the vars cast vault run would set. File secrets and sign-ins are left out: use cast vault run for a file",
-    "\n\nPrints values. Use it only inside eval \"$(...)\"; run on its own it puts every value in your output. Prefer cast vault run." +
+    '\n\nPrints values. Use it only inside eval "$(...)"; run on its own it puts every value in your output. Prefer cast vault run.' +
       `\n\n${PROJECT_MAP_HELP}\n\n${READ_EXITS}\n\nExample: eval "$(cast vault env stripe-test)"`,
   )
     .argument("[names...]", "Names or sec-N (none: the [vault] map)")
@@ -505,7 +785,12 @@ function registerReadVerbs(vault: Command, deps: PublishDeps): void {
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
     .action(async (name: string, o: WorkspacePick & { why?: string }) => {
-      const [s] = await readSecrets(deps, [await pinRef(deps, name, o)], "otp", o.why);
+      const [s] = await readSecrets(
+        deps,
+        [await pinRef(deps, name, o)],
+        "otp",
+        o.why,
+      );
       console.log(await codeFor(s!));
     });
 }
@@ -516,13 +801,18 @@ function registerRequestVerbs(vault: Command, deps: PublishDeps): void {
     vault.command("request"),
     "Ask a person for a secret you do not have. They fill it from a card in this conversation or on the Vault page, never in chat; a message arrives here when it is ready",
     ". Then end your turn dormant: the fill wakes this session. A name the Vault already holds is not asked again; it says how to use it\n\n" +
-      "Example: cast vault request stripe-test --env STRIPE_SECRET_KEY --why \"run the billing tests\"\n" +
-      "Example: cast vault request vercel-signin --kind signin --site vercel.com --why \"check the deploy logs\"",
+      'Example: cast vault request stripe-test --env STRIPE_SECRET_KEY --why "run the billing tests"\n' +
+      'Example: cast vault request vercel-signin --kind signin --site vercel.com --why "check the deploy logs"',
   )
     .argument("<name>", "The name it should have, like stripe-test")
     .option("--kind <kind>", "key (default), login, file or signin")
     .option("--env <VAR>", "Env var it should fill (repeatable)", collect, [])
-    .option("--site <host>", "Site it is for (repeatable; a login needs one: browser fill types it only there)", collect, [])
+    .option(
+      "--site <host>",
+      "Site it is for (repeatable; a login needs one: browser fill types it only there)",
+      collect,
+      [],
+    )
     .option("--why <text>", "What you need it for, shown to the person")
     .option(...WRITE_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
@@ -536,8 +826,14 @@ function registerRequestVerbs(vault: Command, deps: PublishDeps): void {
   )
     .argument("<site>", "Host or URL, like vercel.com")
     .option("--name <name>", "Name it (default: <site>-signin)")
-    .option("--from-chrome", "Read the sign-in out of your own Chrome on this machine; run by an agent, it posts a Yes card in the conversation instead and Yes saves it as the person's")
-    .option("--check", "With --from-chrome: count the site's cookies there and store nothing")
+    .option(
+      "--from-chrome",
+      "Read the sign-in out of your own Chrome on this machine; run by an agent, it posts a Yes card in the conversation instead and Yes saves it as the person's",
+    )
+    .option(
+      "--check",
+      "With --from-chrome: count the site's cookies there and store nothing",
+    )
     .option(...WRITE_TEAM_OPTION)
     .option("--personal", "Only you can use it")
     .option(...JSON_OPTION)
@@ -557,8 +853,18 @@ function registerManageVerbs(vault: Command, deps: PublishDeps): void {
     .option(...JSON_OPTION)
     .action(async (name: string, o: WorkspacePick & { json?: boolean }) => {
       const ref = await pinRef(deps, name, o);
-      const meta: SecretMeta = await apiPost(deps, "/cli/vault/show", { ref }, { read: true });
-      const events: SecretEvent[] = await apiPost(deps, "/cli/vault/events", { ref: meta.short_id }, { read: true });
+      const meta: SecretMeta = await apiPost(
+        deps,
+        "/cli/vault/show",
+        { ref },
+        { read: true },
+      );
+      const events: SecretEvent[] = await apiPost(
+        deps,
+        "/cli/vault/events",
+        { ref: meta.short_id },
+        { read: true },
+      );
       if (o.json) return emit(true, { ...meta, events }, () => "");
       console.log(formatShow(meta, await scopeOf(deps, meta), events));
     });
@@ -581,7 +887,10 @@ function registerManageVerbs(vault: Command, deps: PublishDeps): void {
     ": when each was replaced, by whom, its fingerprint. Restoring swaps, so the value it replaces can be put back the same way. Asks on a terminal; pass --yes otherwise\n\nExample: cast vault restore stripe-test\nExample: cast vault restore stripe-test 1 --yes",
   )
     .argument("<name>", "Name or sec-N")
-    .argument("[version]", "Its number in the list (1 is the newest), or its rotated_at")
+    .argument(
+      "[version]",
+      "Its number in the list (1 is the newest), or its rotated_at",
+    )
     .option("--yes", "Restore without asking")
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
@@ -594,23 +903,56 @@ function registerManageVerbs(vault: Command, deps: PublishDeps): void {
     ", since this CLI's token is the one the gated agent holds\n\nExample: cast vault ask-first stripe-live on",
   )
     .argument("<name>", "Name or sec-N")
-    .argument("<on>", "on (off is refused here: a person turns it off on the Vault page)")
+    .argument(
+      "<on>",
+      "on (off is refused here: a person turns it off on the Vault page)",
+    )
     .option(...READ_TEAM_OPTION)
     .option(...PERSONAL_OPTION)
     .option(...JSON_OPTION)
-    .action(async (name: string, state: string, o: WorkspacePick & { json?: boolean }) => {
-      if (state === "off") fail(`Only a person turns Ask first off: switch it off in ${name}'s panel on the Vault page`);
-      if (state !== "on") fail(`Ask first takes on: cast vault ask-first ${name} on`);
-      const ref = await pinRef(deps, name, o);
-      const res = await apiPost(deps, "/cli/vault/ask-first", { ref, ask_first: true });
-      emit(o.json, res, () => `${fmt.success("ask first on")} ${fmt.id(res.short_id)} ${res.name}${fmt.muted("  each session's read waits on a person's approval")}`);
-    });
+    .action(
+      async (
+        name: string,
+        state: string,
+        o: WorkspacePick & { json?: boolean },
+      ) => {
+        if (state === "off")
+          fail(
+            `Only a person turns Ask first off: switch it off in ${name}'s panel on the Vault page`,
+          );
+        if (state !== "on")
+          fail(`Ask first takes on: cast vault ask-first ${name} on`);
+        const ref = await pinRef(deps, name, o);
+        const res = await apiPost(deps, "/cli/vault/ask-first", {
+          ref,
+          ask_first: true,
+        });
+        emit(
+          o.json,
+          res,
+          () =>
+            `${fmt.success("ask first on")} ${fmt.id(res.short_id)} ${res.name}${fmt.muted("  each session's read waits on a person's approval")}`,
+        );
+      },
+    );
 }
 
 function addAction(deps: PublishDeps) {
-  return async (name: string, o: ValueOptions & { kind?: string; env: string[]; site: string[]; note?: string; team?: string; personal?: boolean; json?: boolean }) => {
+  return async (
+    name: string,
+    o: ValueOptions & {
+      kind?: string;
+      env: string[];
+      site: string[];
+      note?: string;
+      team?: string;
+      personal?: boolean;
+      json?: boolean;
+    },
+  ) => {
     const kind = kindOf(o.kind, ["key", "login", "file"]);
-    const problem = secretNameProblem(name) ?? secretEnvProblem({ name, kind, env: o.env });
+    const problem =
+      secretNameProblem(name) ?? secretEnvProblem({ name, kind, env: o.env });
     if (problem) fail(problem);
     const where = await writeWhere(deps, o.personal ? "personal" : o.team);
     const payload = await payloadFor(kind, o);
@@ -625,16 +967,30 @@ function addAction(deps: PublishDeps) {
     });
     const print = payloadFingerprint(kind, payload);
     const vars = envFor({ name: res.name, kind, env: o.env }).map((b) => b.var);
-    emit(o.json, { ...res, fingerprint: print, env_vars: vars }, () => `${fmt.success("stored")} ${fmt.id(res.short_id)} ${res.name} in ${where.label}  ${fmt.muted(`run fills ${vars.join(", ")}`)}${print ? `  ${fmt.muted(print)}` : ""}`);
+    emit(
+      o.json,
+      { ...res, fingerprint: print, env_vars: vars },
+      () =>
+        `${fmt.success("stored")} ${fmt.id(res.short_id)} ${res.name} in ${where.label}  ${fmt.muted(`run fills ${vars.join(", ")}`)}${print ? `  ${fmt.muted(print)}` : ""}`,
+    );
   };
 }
 
 function getAction(deps: PublishDeps) {
-  return async (name: string, o: WorkspacePick & { field?: string; why?: string }) => {
+  return async (
+    name: string,
+    o: WorkspacePick & { field?: string; why?: string },
+  ) => {
     const field = o.field as GetField | undefined;
-    if (field && !GET_FIELDS.includes(field)) fail(`--field takes ${GET_FIELDS.join(", ")}`);
+    if (field && !GET_FIELDS.includes(field))
+      fail(`--field takes ${GET_FIELDS.join(", ")}`);
     const ref = await pinRef(deps, name, o);
-    const [s] = await readSecrets(deps, [ref], field === "totp" ? "otp" : "get", o.why);
+    const [s] = await readSecrets(
+      deps,
+      [ref],
+      field === "totp" ? "otp" : "get",
+      o.why,
+    );
     const refusal = field && getFieldRefusal(s!, field);
     if (refusal) fail(refusal);
     const want = field ?? defaultField(s!.kind);
@@ -645,25 +1001,43 @@ function getAction(deps: PublishDeps) {
       if ("error" in got) fail(got.error);
       value = got.value;
     }
-    process.stdout.write(process.stdout.isTTY && !value.endsWith("\n") ? `${value}\n` : value);
+    process.stdout.write(
+      process.stdout.isTTY && !value.endsWith("\n") ? `${value}\n` : value,
+    );
   };
 }
 
 function runAction(deps: PublishDeps, vault: Command) {
   return async () => {
     const split = splitRunArgs(rawArgsOf(vault));
-    if (!split || !split.command.length) fail("Put the command after --: cast vault run stripe-test -- npm test");
-    if (split.envFiles.includes("")) fail("--env-file takes a path: cast vault run --env-file .env -- npm test");
+    if (!split || !split.command.length)
+      fail("Put the command after --: cast vault run stripe-test -- npm test");
+    if (split.envFiles.includes(""))
+      fail(
+        "--env-file takes a path: cast vault run --env-file .env -- npm test",
+      );
     const stray = split.names.find((n) => n.startsWith("-"));
-    if (stray) fail(`${stray} is not a cast vault run option (it takes --env-file and --why before --). To fill a var name of your own: cast vault run --env-file <(echo STRIPE_KEY=vault://stripe-test) -- npm test`);
-    const files = readEnvFiles(split.envFiles.map((p) => path.resolve(cwd(), p)));
+    if (stray)
+      fail(
+        `${stray} is not a cast vault run option (it takes --env-file and --why before --). To fill a var name of your own: cast vault run --env-file <(echo STRIPE_KEY=vault://stripe-test) -- npm test`,
+      );
+    const files = readEnvFiles(
+      split.envFiles.map((p) => path.resolve(cwd(), p)),
+    );
     if (files.problems.length) fail(files.problems.join("\n"));
     for (const w of files.warnings) console.error(fmt.warning(w));
     const referenced = referencedSecrets(files.entries);
     const listMetas = metasOnce(deps);
     if (referenced.length) {
-      const gaps = unresolvedRefs(files.entries, await listMetas(), await preferredWorkspace(deps));
-      if (gaps.length) fail(`Unresolved vault:// references, so nothing ran:\n${gaps.join("\n")}`);
+      const gaps = unresolvedRefs(
+        files.entries,
+        await listMetas(),
+        await preferredWorkspace(deps),
+      );
+      if (gaps.length)
+        fail(
+          `Unresolved vault:// references, so nothing ran:\n${gaps.join("\n")}`,
+        );
     }
     const { refs, project } = await refsFor(deps, {
       names: split.names,
@@ -672,46 +1046,96 @@ function runAction(deps: PublishDeps, vault: Command) {
       files: true,
       listMetas,
     });
-    const secrets = refs.length ? await readSecrets(deps, refs, "run", split.why) : [];
+    const secrets = refs.length
+      ? await readSecrets(deps, refs, "run", split.why)
+      : [];
     // An empty map keeps a secret named only in an env file from adding its own env names.
-    const m = materialized(secrets, { map: project ? envToSecret(project) : {}, named: split.names });
+    const m = materialized(secrets, {
+      map: project ? envToSecret(project) : {},
+      named: split.names,
+    });
     const fromFiles = envFromFiles(files.entries, secrets, m.paths);
     if (fromFiles.problems.length) {
       m.cleanup();
-      fail(`Unresolved vault:// references, so nothing ran:\n${fromFiles.problems.join("\n")}`);
+      fail(
+        `Unresolved vault:// references, so nothing ran:\n${fromFiles.problems.join("\n")}`,
+      );
     }
     reportGaps(unfilledGaps(project ?? {}, m.unfilled), m.cleanup);
-    if (m.skipped.length) console.error(fmt.muted(`${m.skipped.join(", ")}: a saved sign-in has no env var; cast browser open uses it`));
-    process.exit(await runWith(split.command, { ...m.env, ...fromFiles.env }, m.cleanup));
+    if (m.skipped.length)
+      console.error(
+        fmt.muted(
+          `${m.skipped.join(", ")}: a saved sign-in has no env var; cast browser open uses it`,
+        ),
+      );
+    process.exit(
+      await runWith(split.command, { ...m.env, ...fromFiles.env }, m.cleanup),
+    );
   };
 }
 
 function envAction(deps: PublishDeps) {
   return async (names: string[], o: { why?: string }) => {
-    const { refs, project } = await refsFor(deps, { names, example: "eval \"$(cast vault env stripe-test)\"", files: false, listMetas: metasOnce(deps) });
-    const m = materialized(refs.length ? await readSecrets(deps, refs, "env", o.why) : [], { map: project && envToSecret(project), named: names, writeFiles: false });
+    const { refs, project } = await refsFor(deps, {
+      names,
+      example: 'eval "$(cast vault env stripe-test)"',
+      files: false,
+      listMetas: metasOnce(deps),
+    });
+    const m = materialized(
+      refs.length ? await readSecrets(deps, refs, "env", o.why) : [],
+      { map: project && envToSecret(project), named: names, writeFiles: false },
+    );
     reportGaps(unfilledGaps(project ?? {}, m.unfilled));
-    if (m.skipped.length) console.error(fmt.muted(`left out ${m.skipped.join(", ")}: use cast vault run for files and sign-ins`));
+    if (m.skipped.length)
+      console.error(
+        fmt.muted(
+          `left out ${m.skipped.join(", ")}: use cast vault run for files and sign-ins`,
+        ),
+      );
     const out = exportLines(m.env);
     if (out) console.log(out);
   };
 }
 
 function requestAction(deps: PublishDeps) {
-  return async (name: string, o: { kind?: string; env: string[]; site: string[]; why?: string; team?: string; personal?: boolean; json?: boolean }) => {
+  return async (
+    name: string,
+    o: {
+      kind?: string;
+      env: string[];
+      site: string[];
+      why?: string;
+      team?: string;
+      personal?: boolean;
+      json?: boolean;
+    },
+  ) => {
     // Sent only when given: an open request keeps the kind its first asker named.
     const kind = o.kind ? kindOf(o.kind, SECRET_KINDS) : undefined;
     const envProblem = kind && secretEnvProblem({ name, kind, env: o.env });
     if (envProblem) fail(envProblem);
     const where = await writeWhere(deps, o.personal ? "personal" : o.team);
     // Every workspace you can read, not only the one the request would land in: a name that already works anywhere needs no ask.
-    const before: SecretMeta[] = await apiPost(deps, "/cli/vault/list", {}, { read: true });
+    const before: SecretMeta[] = await apiPost(
+      deps,
+      "/cli/vault/list",
+      {},
+      { read: true },
+    );
     const ready = before.filter((r) => r.name === name && r.status === "ready");
     if (ready.length) {
       const scope = await scopeNamer(deps, ready);
-      const use = ready[0]!.kind === "signin" ? "cast browser open loads it" : `cast vault run ${name} -- <cmd>`;
+      const use =
+        ready[0]!.kind === "signin"
+          ? "cast browser open loads it"
+          : `cast vault run ${name} -- <cmd>`;
       const message = `${name} already exists in ${ready.map((r) => `${scope(r)} (${r.short_id})`).join(" and ")}: ${use}`;
-      return emit(o.json, { exists: true, short_id: ready[0]!.short_id, name, message }, () => message);
+      return emit(
+        o.json,
+        { exists: true, short_id: ready[0]!.short_id, name, message },
+        () => message,
+      );
     }
     const convo = conversationOf(deps);
     const res = await apiPost(deps, "/cli/vault/request", {
@@ -726,85 +1150,190 @@ function requestAction(deps: PublishDeps) {
     const again = before.some((r) => r.short_id === res.short_id);
     emit(o.json, again ? { ...res, asked_again: true } : res, () => {
       if (res.exists) return res.message;
-      const lines = [again
-        ? `${fmt.warning("already requested")} (${fmt.id(res.short_id)}) ${res.name} in ${where.label}, asked again`
-        : `${fmt.warning("requested")} ${fmt.id(res.short_id)} ${res.name} in ${where.label}`];
-      if (!convo.conversation) lines.push("No session detected, so no conversation will be told: a person fills it on the Vault page");
-      else lines.push(
-        "A person fills it from the card in this conversation or on the Vault page; a message arrives here when it is ready.",
-        `End your turn dormant naming it: cast state --status dormant "Waiting on ${res.short_id} (${res.name}) from the Vault"`,
-      );
+      const lines = [
+        again
+          ? `${fmt.warning("already requested")} (${fmt.id(res.short_id)}) ${res.name} in ${where.label}, asked again`
+          : `${fmt.warning("requested")} ${fmt.id(res.short_id)} ${res.name} in ${where.label}`,
+      ];
+      if (!convo.conversation)
+        lines.push(
+          "No session detected, so no conversation will be told: a person fills it on the Vault page",
+        );
+      else
+        lines.push(
+          "A person fills it from the card in this conversation or on the Vault page; a message arrives here when it is ready.",
+          `End your turn dormant naming it: cast state --status dormant "Waiting on ${res.short_id} (${res.name}) from the Vault"`,
+        );
       return lines.join("\n");
     });
   };
 }
 
 function saveSigninAction(deps: PublishDeps) {
-  return async (site: string, o: { name?: string; fromChrome?: boolean; check?: boolean; team?: string; personal?: boolean; json?: boolean }) => {
-    const { checkChromeSignin, saveSignin, SigninRefused, chromeReadIsAgents, chromeSigninAsk } = await import("./signinCommand.js");
+  return async (
+    site: string,
+    o: {
+      name?: string;
+      fromChrome?: boolean;
+      check?: boolean;
+      team?: string;
+      personal?: boolean;
+      json?: boolean;
+    },
+  ) => {
+    const {
+      checkChromeSignin,
+      saveSignin,
+      SigninRefused,
+      chromeReadIsAgents,
+      chromeSigninAsk,
+    } = await import("./signinCommand.js");
     if (o.fromChrome && !o.check && chromeReadIsAgents()) {
       const { askPersonToRun } = await import("../decideCommand.js");
       const id = await askPersonToRun(deps, chromeSigninAsk(site, o));
       if (id) {
         if (o.json) console.log(JSON.stringify({ ok: false, asked: id }));
-        else console.log(`Asked your person in this conversation (${id}): Yes saves ${site} from their Chrome as theirs. Do not paste a command for them: end your turn dormant naming ${id}; the answer wakes you with the result.`);
+        else
+          console.log(
+            `Asked your person in this conversation (${id}): Yes saves ${site} from their Chrome as theirs. Do not paste a command for them: end your turn dormant naming ${id}; the answer wakes you with the result.`,
+          );
         process.exit(3);
       }
     }
     try {
       if (o.check) {
-        if (!o.fromChrome) throw new SigninRefused("--check reads your own Chrome: pass --from-chrome too");
+        if (!o.fromChrome)
+          throw new SigninRefused(
+            "--check reads your own Chrome: pass --from-chrome too",
+          );
         const res = checkChromeSignin(site);
-        return console.log(o.json ? JSON.stringify(res) : res.cookies ? `${res.cookies} cookies for ${res.host}${res.account_hint ? `, signed in as ${res.account_hint}` : ""}` : `Chrome here is not signed in to ${res.host}`);
+        return console.log(
+          o.json
+            ? JSON.stringify(res)
+            : res.cookies
+              ? `${res.cookies} cookies for ${res.host}${res.account_hint ? `, signed in as ${res.account_hint}` : ""}`
+              : `Chrome here is not signed in to ${res.host}`,
+        );
       }
       const where = await writeWhere(deps, o.personal ? "personal" : o.team);
-      const res = await saveSignin(deps, site, { name: o.name, where: where.body, fromChrome: o.fromChrome });
+      const res = await saveSignin(deps, site, {
+        name: o.name,
+        where: where.body,
+        fromChrome: o.fromChrome,
+      });
       // One compact line under --json: the daemon reads the outcome from the last line of stdout.
-      console.log(o.json ? JSON.stringify(res) : `${fmt.success(res.action)} ${fmt.id(res.short_id)} ${res.name} in ${where.label}  ${fmt.muted(`${res.cookies} cookies for ${res.host}${res.account_hint ? `, signed in as ${res.account_hint}` : ""}`)}`);
+      console.log(
+        o.json
+          ? JSON.stringify(res)
+          : `${fmt.success(res.action)} ${fmt.id(res.short_id)} ${res.name} in ${where.label}  ${fmt.muted(`${res.cookies} cookies for ${res.host}${res.account_hint ? `, signed in as ${res.account_hint}` : ""}`)}`,
+      );
     } catch (err) {
       if (!(err instanceof SigninRefused)) throw err;
-      if (o.json) console.log(JSON.stringify({ ok: false, reason: err.message }));
+      if (o.json)
+        console.log(JSON.stringify({ ok: false, reason: err.message }));
       fail(err.message);
     }
   };
 }
 
 function rmAction(deps: PublishDeps) {
-  return async (name: string, o: WorkspacePick & { yes?: boolean; json?: boolean }) => {
+  return async (
+    name: string,
+    o: WorkspacePick & { yes?: boolean; json?: boolean },
+  ) => {
     const ref = await pinRef(deps, name, o);
-    const meta: SecretMeta = await apiPost(deps, "/cli/vault/show", { ref }, { read: true });
+    const meta: SecretMeta = await apiPost(
+      deps,
+      "/cli/vault/show",
+      { ref },
+      { read: true },
+    );
     const scope = await scopeOf(deps, meta);
     const what = `${meta.short_id} ${meta.name} in ${scope}`;
-    if (!(await confirmed(o, `Delete ${what} for everyone who uses it?`, `Deleting ${what} cannot be undone. Re-run with --yes: cast vault rm ${meta.short_id} --yes`))) return console.log("Kept");
+    if (
+      !(await confirmed(
+        o,
+        `Delete ${what} for everyone who uses it?`,
+        `Deleting ${what} cannot be undone. Re-run with --yes: cast vault rm ${meta.short_id} --yes`,
+      ))
+    )
+      return console.log("Kept");
     const res = await apiPost(deps, "/cli/vault/rm", { ref: meta.short_id });
-    emit(o.json, res, () => `${fmt.success("deleted")} ${fmt.id(res.short_id)} ${res.name} in ${scope}`);
+    emit(
+      o.json,
+      res,
+      () =>
+        `${fmt.success("deleted")} ${fmt.id(res.short_id)} ${res.name} in ${scope}`,
+    );
   };
 }
 
 function restoreAction(deps: PublishDeps) {
-  return async (name: string, version: string | undefined, o: WorkspacePick & { yes?: boolean; json?: boolean }) => {
+  return async (
+    name: string,
+    version: string | undefined,
+    o: WorkspacePick & { yes?: boolean; json?: boolean },
+  ) => {
     const ref = await pinRef(deps, name, o);
-    const meta: SecretMeta = await apiPost(deps, "/cli/vault/show", { ref }, { read: true });
-    const versions: SecretVersionMeta[] = await apiPost(deps, "/cli/vault/versions", { ref: meta.short_id }, { read: true });
+    const meta: SecretMeta = await apiPost(
+      deps,
+      "/cli/vault/show",
+      { ref },
+      { read: true },
+    );
+    const versions: SecretVersionMeta[] = await apiPost(
+      deps,
+      "/cli/vault/versions",
+      { ref: meta.short_id },
+      { read: true },
+    );
     if (version === undefined) {
       if (o.json) return emit(true, versions, () => "");
-      return console.log(versions.length ? formatVersions(meta.name, versions) : `${meta.name} has no earlier value: rotate keeps the one it replaces for ${KEEP_DAYS} days`);
+      return console.log(
+        versions.length
+          ? formatVersions(meta.name, versions)
+          : `${meta.name} has no earlier value: rotate keeps the one it replaces for ${KEEP_DAYS} days`,
+      );
     }
     const ver = pickVersion(versions, version);
-    if (!ver) fail(`${meta.name} has no version ${version}: cast vault restore ${meta.name} lists them`);
+    if (!ver)
+      fail(
+        `${meta.name} has no version ${version}: cast vault restore ${meta.name} lists them`,
+      );
     const what = `the value replaced ${ago(ver.rotated_at)}${ver.fingerprint ? ` (${ver.fingerprint})` : ""}`;
-    if (!(await confirmed(o, `Put back ${what} as ${meta.name} for everyone who uses it?`, `Restoring changes ${meta.name} for everyone who uses it. Re-run with --yes: cast vault restore ${meta.name} ${version} --yes`))) return console.log("Kept");
+    if (
+      !(await confirmed(
+        o,
+        `Put back ${what} as ${meta.name} for everyone who uses it?`,
+        `Restoring changes ${meta.name} for everyone who uses it. Re-run with --yes: cast vault restore ${meta.name} ${version} --yes`,
+      ))
+    )
+      return console.log("Kept");
     const scope = await scopeOf(deps, meta);
-    const res = await apiPost(deps, "/cli/vault/restore", { ref: meta.short_id, version: ver._id });
-    emit(o.json, res, () => `${fmt.success("restored")} ${fmt.id(res.short_id)} ${res.name} in ${scope}  ${fmt.muted(`${what}; the value it replaced is now version 1`)}`);
+    const res = await apiPost(deps, "/cli/vault/restore", {
+      ref: meta.short_id,
+      version: ver._id,
+    });
+    emit(
+      o.json,
+      res,
+      () =>
+        `${fmt.success("restored")} ${fmt.id(res.short_id)} ${res.name} in ${scope}  ${fmt.muted(`${what}; the value it replaced is now version 1`)}`,
+    );
   };
 }
 
 /** A login's current 2FA code (freshTotp), with the seconds it stays valid on stderr, where an agent reading the code sees them too. */
 async function codeFor(s: ReadSecret): Promise<string> {
-  if (s.kind !== "login") fail(`${s.name} is a ${s.kind}, not a login: otp needs a login with a 2FA seed`);
+  if (s.kind !== "login")
+    fail(
+      `${s.name} is a ${s.kind}, not a login: otp needs a login with a 2FA seed`,
+    );
   const seed = (s.payload as LoginPayload).totp_seed;
-  if (!seed) fail(`${s.name} has no 2FA seed: add one, keeping the password, with ${seedOnlyRotate(s.name)}`);
+  if (!seed)
+    fail(
+      `${s.name} has no 2FA seed: add one, keeping the password, with ${seedOnlyRotate(s.name)}`,
+    );
   try {
     const { code, remaining } = await freshTotp(seed);
     console.error(fmt.muted(`${remaining}s left`));

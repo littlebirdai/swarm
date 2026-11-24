@@ -3,10 +3,16 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { syncOnce, type CommitChange, type DataSyncApi, type RemoteRow } from "./engine.js";
+import {
+  syncOnce,
+  type CommitChange,
+  type DataSyncApi,
+  type RemoteRow,
+} from "./engine.js";
 
 const FOLDER = ".local/share/tool/freezes";
-const sha = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
+const sha = (b: Buffer | string) =>
+  createHash("sha256").update(b).digest("hex");
 
 /** The index in memory, holding what convex/dataSync.ts holds: one row per file, a seq per change, bytes by storage id. */
 function fakeServer() {
@@ -16,42 +22,85 @@ function fakeServer() {
   let ids = 0;
   const forDevice = (device: string): DataSyncApi => ({
     async declareFolders() {},
-    async folders() { return [{ path: FOLDER, declared_by: "tool", bytes: 0, files: 0 }]; },
-    async changes(since) {
-      const all = [...rows.values()].filter((r) => r.seq > since).sort((a, b) => a.seq - b.seq);
-      return { rows: all.slice(0, 2).map((r) => structuredClone(r)), more: all.length > 2 };
+    async folders() {
+      return [{ path: FOLDER, declared_by: "tool", bytes: 0, files: 0 }];
     },
-    async knownContents(shas) { return shas.filter((s) => [...rows.values()].some((r) => r.sha256 === s && r.url)); },
-    async upload(bytes) { const id = `s${++ids}`; blobs.set(id, Buffer.from(bytes)); return id; },
+    async changes(since) {
+      const all = [...rows.values()]
+        .filter((r) => r.seq > since)
+        .sort((a, b) => a.seq - b.seq);
+      return {
+        rows: all.slice(0, 2).map((r) => structuredClone(r)),
+        more: all.length > 2,
+      };
+    },
+    async knownContents(shas) {
+      return shas.filter((s) =>
+        [...rows.values()].some((r) => r.sha256 === s && r.url),
+      );
+    },
+    async upload(bytes) {
+      const id = `s${++ids}`;
+      blobs.set(id, Buffer.from(bytes));
+      return id;
+    },
     async commit(changes: CommitChange[]) {
       const seqs = changes.map((c) => {
-        const blob = c.deleted ? null : c.storage_id ?? [...rows.values()].find((r) => r.sha256 === c.sha256 && r.url)?.url;
+        const blob = c.deleted
+          ? null
+          : (c.storage_id ??
+            [...rows.values()].find((r) => r.sha256 === c.sha256 && r.url)
+              ?.url);
         if (!c.deleted && !blob) throw new Error("no content");
-        if (c.storage_id && sha(blobs.get(c.storage_id)!) !== c.sha256) throw new Error("mismatch");
-        rows.set(`${c.folder}/${c.rel}`, { folder: c.folder, rel: c.rel, sha256: c.sha256, size: c.size, mtime: c.mtime, deleted: c.deleted, seq: ++seq, device_id: device, url: blob ?? null });
+        if (c.storage_id && sha(blobs.get(c.storage_id)!) !== c.sha256)
+          throw new Error("mismatch");
+        rows.set(`${c.folder}/${c.rel}`, {
+          folder: c.folder,
+          rel: c.rel,
+          sha256: c.sha256,
+          size: c.size,
+          mtime: c.mtime,
+          deleted: c.deleted,
+          seq: ++seq,
+          device_id: device,
+          url: blob ?? null,
+        });
         return seq;
       });
       return { seqs };
     },
-    async download(url) { return blobs.get(url)!; },
+    async download(url) {
+      return blobs.get(url)!;
+    },
   });
   return { forDevice, rows };
 }
 
-function machine(server: ReturnType<typeof fakeServer>, name: string, clock: { t: number }) {
+function machine(
+  server: ReturnType<typeof fakeServer>,
+  name: string,
+  clock: { t: number },
+) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), `data-${name}-`));
   const stateDir = path.join(home, ".codecast", "data-sync");
   const file = (rel: string) => path.join(home, FOLDER, rel);
   return {
     home,
     stateDir,
-    sync: () => syncOnce({ home, stateDir, api: server.forDevice(name), now: () => clock.t }),
+    sync: () =>
+      syncOnce({
+        home,
+        stateDir,
+        api: server.forDevice(name),
+        now: () => clock.t,
+      }),
     write(rel: string, text: string, at = clock.t - 10_000) {
       fs.mkdirSync(path.dirname(file(rel)), { recursive: true });
       fs.writeFileSync(file(rel), text);
       fs.utimesSync(file(rel), new Date(at), new Date(at));
     },
-    read: (rel: string) => (fs.existsSync(file(rel)) ? fs.readFileSync(file(rel), "utf8") : null),
+    read: (rel: string) =>
+      fs.existsSync(file(rel)) ? fs.readFileSync(file(rel), "utf8") : null,
     rm: (rel: string) => fs.rmSync(file(rel)),
   };
 }
@@ -62,13 +111,17 @@ describe("data sync between machines", () => {
     const clock = { t: Date.now() };
     const laptop = machine(server, "laptop", clock);
     const host = machine(server, "host", clock);
-    laptop.write("a.json", "{\"a\":1}");
+    laptop.write("a.json", '{"a":1}');
     laptop.write("suggest/b.json", "b");
     laptop.write("suggest/c.json", "c");
     expect((await laptop.sync()).pushed).toBe(3);
     const r = await host.sync();
     expect(r.pulled).toBe(3);
-    expect([host.read("a.json"), host.read("suggest/b.json"), host.read("suggest/c.json")]).toEqual(["{\"a\":1}", "b", "c"]);
+    expect([
+      host.read("a.json"),
+      host.read("suggest/b.json"),
+      host.read("suggest/c.json"),
+    ]).toEqual(['{"a":1}', "b", "c"]);
     // Nothing changed: a pass sends and takes nothing.
     expect(await host.sync()).toMatchObject({ pushed: 0, pulled: 0 });
     expect(await laptop.sync()).toMatchObject({ pushed: 0, pulled: 0 });
@@ -118,9 +171,16 @@ describe("data sync between machines", () => {
     const r = await host.sync();
     expect(r.conflicts).toEqual([`${FOLDER}/f`]);
     await laptop.sync();
-    expect([laptop.read("f"), host.read("f")]).toEqual(["host edit, later", "host edit, later"]);
+    expect([laptop.read("f"), host.read("f")]).toEqual([
+      "host edit, later",
+      "host edit, later",
+    ]);
     const aside = path.join(host.stateDir, "conflicts", FOLDER);
-    expect(fs.readdirSync(aside).map((n) => fs.readFileSync(path.join(aside, n), "utf8"))).toEqual(["laptop edit"]);
+    expect(
+      fs
+        .readdirSync(aside)
+        .map((n) => fs.readFileSync(path.join(aside, n), "utf8")),
+    ).toEqual(["laptop edit"]);
   });
 
   test("a file still being written waits for the next pass", async () => {

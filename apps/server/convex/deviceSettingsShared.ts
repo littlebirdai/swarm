@@ -10,7 +10,11 @@
 // migration to start reporting.
 
 import { v } from "convex/values";
-import { CLOUD_AGENT_SETUP_KINDS, CLOUD_SESSION_SOURCES, type CloudSessionSyncField } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_SETUP_KINDS,
+  CLOUD_SESSION_SOURCES,
+  type CloudSessionSyncField,
+} from "@codecast/shared/contracts";
 
 const optionalBoolean = v.optional(v.boolean());
 
@@ -21,7 +25,10 @@ const optionalBoolean = v.optional(v.boolean());
  * entry in the shared contract.
  */
 export const cloudSessionSyncFields = Object.fromEntries(
-  Object.values(CLOUD_SESSION_SOURCES).map(({ field }) => [field, optionalBoolean]),
+  Object.values(CLOUD_SESSION_SOURCES).map(({ field }) => [
+    field,
+    optionalBoolean,
+  ]),
 ) as Record<CloudSessionSyncField, typeof optionalBoolean>;
 
 export const deviceSettingsValidator = v.object({
@@ -52,14 +59,16 @@ export const deviceSettingsValidator = v.object({
 // heartbeat reports it (CloudAgentSetupBlock): the provider, the kind of
 // setup problem, the provider's reason, a limit's reset, and whether it holds
 // sends alone. Never a credential.
-export const cloudAgentBlocksValidator = v.array(v.object({
-  provider: v.string(),
-  kind: v.union(...CLOUD_AGENT_SETUP_KINDS.map((k) => v.literal(k))),
-  reason: v.optional(v.string()),
-  resets_at: v.optional(v.number()),
-  sends_only: v.optional(v.boolean()),
-  cli_signed_out: v.optional(v.boolean()),
-}));
+export const cloudAgentBlocksValidator = v.array(
+  v.object({
+    provider: v.string(),
+    kind: v.union(...CLOUD_AGENT_SETUP_KINDS.map((k) => v.literal(k))),
+    reason: v.optional(v.string()),
+    resets_at: v.optional(v.number()),
+    sends_only: v.optional(v.boolean()),
+    cli_signed_out: v.optional(v.boolean()),
+  }),
+);
 
 export const modelInventoryValidator = v.object({
   hash: v.string(),

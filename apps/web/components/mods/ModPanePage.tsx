@@ -18,11 +18,17 @@ export function ModPanePage({ mod, pane }: { mod: string; pane?: string }) {
   const [showLogs, setShowLogs] = useState(false);
   const panes = row?.manifest.panes ?? [];
   const active = pane ?? panes[0]?.id;
-  const query = typeof window !== "undefined" ? Object.fromEntries(new URLSearchParams(window.location.search)) : {};
+  const query =
+    typeof window !== "undefined"
+      ? Object.fromEntries(new URLSearchParams(window.location.search))
+      : {};
   const handed = active ? takePaneProps(mod, active) : undefined;
   const propsSig = JSON.stringify([handed ?? null, query]);
   const surface = useMemo<ModSurface | null>(
-    () => (active ? { kind: "pane", id: active, props: { ...(handed ?? {}), query } } : null),
+    () =>
+      active
+        ? { kind: "pane", id: active, props: { ...(handed ?? {}), query } }
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [active, propsSig],
   );
@@ -30,25 +36,56 @@ export function ModPanePage({ mod, pane }: { mod: string; pane?: string }) {
   if (!row) {
     return (
       <div className="mx-auto max-w-xl px-6 py-16 text-center">
-        <div className="text-[15px] text-sol-text">No mod named <span className="font-mono">{mod}</span></div>
-        <div className="mt-2 text-[13px] text-sol-text-muted">It may not have synced yet, or it belongs to someone else. <button className="text-sol-blue hover:underline" onClick={() => modNavigate("/mods")}>See your mods</button></div>
+        <div className="text-[15px] text-sol-text">
+          No mod named <span className="font-mono">{mod}</span>
+        </div>
+        <div className="mt-2 text-[13px] text-sol-text-muted">
+          It may not have synced yet, or it belongs to someone else.{" "}
+          <button
+            className="text-sol-blue hover:underline"
+            onClick={() => modNavigate("/mods")}
+          >
+            See your mods
+          </button>
+        </div>
       </div>
     );
   }
   const errors = runtime?.logs.filter((l) => l.level === "error").length ?? 0;
-  const statusTone = !row.enabled ? "var(--sol-text-dim)" : runtime?.status === "failed" ? "var(--sol-red)" : runtime?.status === "ready" ? "var(--sol-green)" : "var(--sol-yellow)";
+  const statusTone = !row.enabled
+    ? "var(--sol-text-dim)"
+    : runtime?.status === "failed"
+      ? "var(--sol-red)"
+      : runtime?.status === "ready"
+        ? "var(--sol-green)"
+        : "var(--sol-yellow)";
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-sol-border px-5 py-2.5">
         <span className="flex size-7 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--sol-violet)_14%,transparent)] text-sol-violet">
-          <DynamicIcon name={(row.manifest.icon ?? "blocks") as any} size={15} />
+          <DynamicIcon
+            name={(row.manifest.icon ?? "blocks") as any}
+            size={15}
+          />
         </span>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[14px] font-semibold text-sol-text">{row.title ?? row.name}</span>
-            <span className="size-1.5 rounded-full" style={{ background: statusTone }} title={!row.enabled ? "off" : runtime?.status ?? "starting"} />
+            <span className="truncate text-[14px] font-semibold text-sol-text">
+              {row.title ?? row.name}
+            </span>
+            <span
+              className="size-1.5 rounded-full"
+              style={{ background: statusTone }}
+              title={!row.enabled ? "off" : (runtime?.status ?? "starting")}
+            />
           </div>
-          <div className="text-meta text-sol-text-dim"><span className="modern:font-mono">{row.version ? `v${row.version}` : "dev"}</span> · rev {row.rev}{row.owner_name && !row.is_mine ? ` · by ${row.owner_name}` : ""}</div>
+          <div className="text-meta text-sol-text-dim">
+            <span className="modern:font-mono">
+              {row.version ? `v${row.version}` : "dev"}
+            </span>{" "}
+            · rev {row.rev}
+            {row.owner_name && !row.is_mine ? ` · by ${row.owner_name}` : ""}
+          </div>
         </div>
         {panes.length > 1 ? (
           <nav className="ml-4 flex min-w-0 gap-1 overflow-x-auto">
@@ -68,21 +105,47 @@ export function ModPanePage({ mod, pane }: { mod: string; pane?: string }) {
             onClick={() => setShowLogs((v) => !v)}
             className={`rounded-md px-2 py-1 text-[12px] ${showLogs ? "text-sol-text" : "text-sol-text-muted hover:text-sol-text"}`}
           >
-            Logs{errors ? <span className="ml-1 text-sol-red tabular-nums">{errors}</span> : null}
+            Logs
+            {errors ? (
+              <span className="ml-1 text-sol-red tabular-nums">{errors}</span>
+            ) : null}
           </button>
-          <button onClick={() => modNavigate("/mods")} className="rounded-md px-2 py-1 text-[12px] text-sol-text-muted hover:text-sol-text">All mods</button>
-          <ShareControl label={row.title ?? row.name} path={active ? `/m/${mod}/${active}` : `/m/${mod}`} />
+          <button
+            onClick={() => modNavigate("/mods")}
+            className="rounded-md px-2 py-1 text-[12px] text-sol-text-muted hover:text-sol-text"
+          >
+            All mods
+          </button>
+          <ShareControl
+            label={row.title ?? row.name}
+            path={active ? `/m/${mod}/${active}` : `/m/${mod}`}
+          />
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
         <main className="min-w-0 flex-1 overflow-auto">
           <div className="mx-auto w-full max-w-6xl px-5 py-5">
             {!row.enabled ? (
-              <div className="py-12 text-center text-[13px] text-sol-text-muted">This mod is off. Turn it on from <button className="text-sol-blue hover:underline" onClick={() => modNavigate("/mods")}>Mods</button>.</div>
+              <div className="py-12 text-center text-[13px] text-sol-text-muted">
+                This mod is off. Turn it on from{" "}
+                <button
+                  className="text-sol-blue hover:underline"
+                  onClick={() => modNavigate("/mods")}
+                >
+                  Mods
+                </button>
+                .
+              </div>
             ) : !surface ? (
-              <div className="py-12 text-center text-[13px] text-sol-text-muted">This mod declares no panes.</div>
+              <div className="py-12 text-center text-[13px] text-sol-text-muted">
+                This mod declares no panes.
+              </div>
             ) : (
-              <ModSurfaceView runtime={runtime} surface={surface} instance="page" />
+              <ModSurfaceView
+                runtime={runtime}
+                surface={surface}
+                instance="page"
+              />
             )}
           </div>
         </main>

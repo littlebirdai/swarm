@@ -2,7 +2,10 @@
 // and the images that echo carries (messages.ts writes the paired row).
 
 import type { Id } from "../_generated/dataModel";
-import { canonicalSlashCommand, stripPastedContent } from "@codecast/shared/contracts";
+import {
+  canonicalSlashCommand,
+  stripPastedContent,
+} from "@codecast/shared/contracts";
 import { redactSecrets } from "../redact";
 import { ATTACHMENT_FILE_RE } from "../sessionImages";
 
@@ -35,15 +38,21 @@ export function injectedImageRefs(
   while ((m = re.exec(content)) !== null) {
     if (seen.has(m[1])) continue;
     seen.add(m[1]);
-    refs.push({ media_type: IMAGE_EXT_MEDIA_TYPE[m[2].toLowerCase()] || "image/png", storage_id: m[1] });
+    refs.push({
+      media_type: IMAGE_EXT_MEDIA_TYPE[m[2].toLowerCase()] || "image/png",
+      storage_id: m[1],
+    });
   }
   return refs;
 }
 
-export function pendingImageStorageIds(
-  pm: { image_storage_ids?: string[]; image_storage_id?: string },
-): string[] {
-  return pm.image_storage_ids ?? (pm.image_storage_id ? [pm.image_storage_id] : []);
+export function pendingImageStorageIds(pm: {
+  image_storage_ids?: string[];
+  image_storage_id?: string;
+}): string[] {
+  return (
+    pm.image_storage_ids ?? (pm.image_storage_id ? [pm.image_storage_id] : [])
+  );
 }
 
 // Images to store on an echoed user turn. Anything the sync already carried
@@ -58,10 +67,12 @@ export function resolveEchoImages(
 ): Array<{ media_type: string; storage_id?: string }> | undefined | null {
   if (existing && existing.length > 0) return existing;
   const pendingIds = pm ? pendingImageStorageIds(pm) : [];
-  if (pendingIds.length === 0) return injectedImageRefs(echoContent).length > 0 ? null : existing;
+  if (pendingIds.length === 0)
+    return injectedImageRefs(echoContent).length > 0 ? null : existing;
   const refs = injectedImageRefs(echoContent);
   return pendingIds.map((id) => ({
-    media_type: refs.find((r) => r.storage_id === id)?.media_type || "image/png",
+    media_type:
+      refs.find((r) => r.storage_id === id)?.media_type || "image/png",
     storage_id: id,
   }));
 }
@@ -84,7 +95,8 @@ export async function verifiedEchoImages(
   for (const ref of injectedImageRefs(echoContent)) {
     const id = ref.storage_id as Id<"_storage">;
     try {
-      if (await ctx.storage.getUrl(id)) kept.push({ media_type: ref.media_type, storage_id: id });
+      if (await ctx.storage.getUrl(id))
+        kept.push({ media_type: ref.media_type, storage_id: id });
     } catch {
       // Malformed id — not ours, ignore.
     }
@@ -98,7 +110,11 @@ export async function verifiedEchoImages(
 // holds no matter how long the session was busy before the inject. Fall back to
 // the ±120s window only for echoes with no parseable path (older/non-daemon).
 export function imageEchoMatchesPending(
-  pm: { image_storage_ids?: string[]; image_storage_id?: string; created_at?: number },
+  pm: {
+    image_storage_ids?: string[];
+    image_storage_id?: string;
+    created_at?: number;
+  },
   echoContent: string,
   msgTimestamp: number,
 ): boolean {
@@ -166,7 +182,8 @@ export function findEchoedPendingMessage<
   // sent from the app was ever adopted, and its bubble stayed at the tail.
   const cCommand = canonicalSlashCommand(c);
   const contentMatches = (pm: T) => {
-    if (cCommand) return canonicalSlashCommand(stripPastedContent(pm.content)) === cCommand;
+    if (cCommand)
+      return canonicalSlashCommand(stripPastedContent(pm.content)) === cCommand;
     // Strip image tokens from BOTH sides: the composer stamps "[Image N]" into
     // the draft text for each attachment, so the pending content carries the
     // token exactly like the echo does. Stripping only the echo side left a
@@ -208,25 +225,35 @@ export function findEchoedPendingMessage<
             // that actually shipped.
             pm.status !== "cancelled" &&
             pm.status !== "undeliverable" &&
-            pendingImageStorageIds(pm).some((id) => echoedImageIds.includes(id)),
+            pendingImageStorageIds(pm).some((id) =>
+              echoedImageIds.includes(id),
+            ),
         );
-  const firstMatch = (statuses: readonly string[]) => inDeliveryOrder.find(
-    (pm) => statuses.includes(pm.status) && !consumed?.has(pm._id) && contentMatches(pm),
-  );
+  const firstMatch = (statuses: readonly string[]) =>
+    inDeliveryOrder.find(
+      (pm) =>
+        statuses.includes(pm.status) &&
+        !consumed?.has(pm._id) &&
+        contentMatches(pm),
+    );
   // Last resort: a row the status ack already terminalized before its echo
   // synced. Adoption-only — markPendingDelivered on it is a no-op — and gated
   // on never-adopted + recency so old delivered twins can't absorb a new echo.
-  const recentlyDeliveredMatch = () => inDeliveryOrder.find(
-    (pm) =>
-      pm.status === "delivered" &&
-      !pm.echo_message_id &&
-      typeof pm.delivered_at === "number" &&
-      Math.abs(msgTimestamp - pm.delivered_at) <= DELIVERED_ECHO_ADOPTION_WINDOW_MS &&
-      !consumed?.has(pm._id) &&
-      contentMatches(pm),
+  const recentlyDeliveredMatch = () =>
+    inDeliveryOrder.find(
+      (pm) =>
+        pm.status === "delivered" &&
+        !pm.echo_message_id &&
+        typeof pm.delivered_at === "number" &&
+        Math.abs(msgTimestamp - pm.delivered_at) <=
+          DELIVERED_ECHO_ADOPTION_WINDOW_MS &&
+        !consumed?.has(pm._id) &&
+        contentMatches(pm),
+    );
+  return (
+    imageIdMatch() ??
+    firstMatch(["pending", "injected"]) ??
+    firstMatch(["failed"]) ??
+    recentlyDeliveredMatch()
   );
-  return imageIdMatch()
-    ?? firstMatch(["pending", "injected"])
-    ?? firstMatch(["failed"])
-    ?? recentlyDeliveredMatch();
 }

@@ -19,7 +19,11 @@ const restoreGlobals = replaceGlobals({
   Node: dom.window.Node,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
   IS_REACT_ACT_ENVIRONMENT: true,
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
 });
 const { createRoot } = await import("react-dom/client");
 const { AutoStage, GridStage } = await import("../StageViews");
@@ -29,9 +33,23 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const pin = (ref: string, name: string) => ({ kind: "pin" as const, key: `pin:${ref}`, identity: `pin:${ref}`, name, pin: { ref } });
-const PinTile = ({ share, small }: { share: { name: string }; small?: boolean }) => (
-  <div data-test-pin={share.name} data-small={small ? "1" : "0"}>{share.name}</div>
+const pin = (ref: string, name: string) => ({
+  kind: "pin" as const,
+  key: `pin:${ref}`,
+  identity: `pin:${ref}`,
+  name,
+  pin: { ref },
+});
+const PinTile = ({
+  share,
+  small,
+}: {
+  share: { name: string };
+  small?: boolean;
+}) => (
+  <div data-test-pin={share.name} data-small={small ? "1" : "0"}>
+    {share.name}
+  </div>
 );
 
 async function mount(node: React.ReactNode) {
@@ -45,28 +63,54 @@ async function mount(node: React.ReactNode) {
 test("the first share or pin holds the stage, and every one of them is a tab", async () => {
   const { container, root } = await mount(
     <StageHostProvider value={{ getRoom: () => null, PinTile }}>
-      <AutoStage roster={[]} cameras={[]} screens={[pin("doc:b", "Call board"), pin("a/r", "Funnel")]} speaking={new Set()} phase="connected" />
+      <AutoStage
+        roster={[]}
+        cameras={[]}
+        screens={[pin("doc:b", "Call board"), pin("a/r", "Funnel")]}
+        speaking={new Set()}
+        phase="connected"
+      />
     </StageHostProvider>,
   );
-  expect([...container.querySelectorAll("[data-test-pin]")].map((e) => e.getAttribute("data-test-pin"))).toEqual(["Call board"]);
+  expect(
+    [...container.querySelectorAll("[data-test-pin]")].map((e) =>
+      e.getAttribute("data-test-pin"),
+    ),
+  ).toEqual(["Call board"]);
   const tabs = [...container.querySelectorAll("[role=tab]")];
   expect(tabs.map((t) => t.textContent)).toEqual(["Call board", "Funnel"]);
   await act(() => (tabs[1] as HTMLButtonElement).click());
-  expect(container.querySelector("[data-test-pin]")?.getAttribute("data-test-pin")).toBe("Funnel");
+  expect(
+    container.querySelector("[data-test-pin]")?.getAttribute("data-test-pin"),
+  ).toBe("Funnel");
   await act(() => root.unmount());
 });
 
 test("a pin in the grid is a whole cell; with no pin renderer it draws nothing", async () => {
   const withHost = await mount(
     <StageHostProvider value={{ getRoom: () => null, PinTile }}>
-      <GridStage roster={[]} cameras={[]} screens={[pin("doc:b", "Call board")]} speaking={new Set()} />
+      <GridStage
+        roster={[]}
+        cameras={[]}
+        screens={[pin("doc:b", "Call board")]}
+        speaking={new Set()}
+      />
     </StageHostProvider>,
   );
-  expect(withHost.container.querySelector("[data-test-pin]")?.getAttribute("data-small")).toBe("0");
+  expect(
+    withHost.container
+      .querySelector("[data-test-pin]")
+      ?.getAttribute("data-small"),
+  ).toBe("0");
   await act(() => withHost.root.unmount());
   const guest = await mount(
     <StageHostProvider value={{ getRoom: () => null }}>
-      <GridStage roster={[]} cameras={[]} screens={[pin("doc:b", "Call board")]} speaking={new Set()} />
+      <GridStage
+        roster={[]}
+        cameras={[]}
+        screens={[pin("doc:b", "Call board")]}
+        speaking={new Set()}
+      />
     </StageHostProvider>,
   );
   expect(guest.container.querySelector("[data-test-pin]")).toBeNull();

@@ -39,7 +39,14 @@
  */
 const CALL_SIZES = ["panel", "float"];
 const CALL_WINDOW_SIZES = [...CALL_SIZES, "wall", "idle"];
-const LEGACY_FLOAT_SIZES = ["ring", "walkie", "circles", "speaker", "tiny", "faces"];
+const LEGACY_FLOAT_SIZES = [
+  "ring",
+  "walkie",
+  "circles",
+  "speaker",
+  "tiny",
+  "faces",
+];
 
 /**
  * A size name from a renderer, or "panel" if it is anything else.
@@ -84,7 +91,12 @@ function callWindowChrome(size, opts = {}) {
     // between desktops, or be an ordinary window. Its own choice, remembered
     // per machine, and never click through: it is a list you click in.
     const pinned = opts.pinned === true;
-    return { alwaysOnTop: pinned, visibleOnAllWorkspaces: pinned, clickThrough: false, resizable: true };
+    return {
+      alwaysOnTop: pinned,
+      visibleOnAllWorkspaces: pinned,
+      clickThrough: false,
+      resizable: true,
+    };
   }
   const floating = s !== "panel";
   return {

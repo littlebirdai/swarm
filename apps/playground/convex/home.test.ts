@@ -31,13 +31,23 @@ const modules = {
 
 async function setup() {
   const t = convexTest(schema, modules);
-  const register = (args: { secret: string; nonce: number }) => t.mutation(api.visitors.register, args);
+  const register = (args: { secret: string; nonce: number }) =>
+    t.mutation(api.visitors.register, args);
   const A = await mintVisitor(register);
   const B = await mintVisitor(register);
-  const make = async (name: string) => (await t.mutation(api.apps.create, { ...A, name })).app_id as Id<"apps">;
-  const enter = (who: typeof A, app_id: Id<"apps">) => t.mutation(api.presence.heartbeat, { ...who, app_id, viewing_version: null });
+  const make = async (name: string) =>
+    (await t.mutation(api.apps.create, { ...A, name })).app_id as Id<"apps">;
+  const enter = (who: typeof A, app_id: Id<"apps">) =>
+    t.mutation(api.presence.heartbeat, {
+      ...who,
+      app_id,
+      viewing_version: null,
+    });
   const gallery = async () => (await t.query(api.apps.gallery, {})).apps;
-  const image = (bytes: number, type = "image/webp") => t.run((ctx) => ctx.storage.store(new Blob([new Uint8Array(bytes)], { type })));
+  const image = (bytes: number, type = "image/webp") =>
+    t.run((ctx) =>
+      ctx.storage.store(new Blob([new Uint8Array(bytes)], { type })),
+    );
   return { t, A, B, make, enter, gallery, image };
 }
 
@@ -55,7 +65,12 @@ describe("the gallery", () => {
     await s.enter(s.A, one);
     await s.enter(s.A, two);
     await s.enter(s.B, two);
-    expect((await s.gallery()).map((c) => [c.name, c.here_count])).toEqual([["Two here", 2], ["One here", 1], ["Newest", 0], ["Quiet", 0]]);
+    expect((await s.gallery()).map((c) => [c.name, c.here_count])).toEqual([
+      ["Two here", 2],
+      ["One here", 1],
+      ["Newest", 0],
+      ["Quiet", 0],
+    ]);
   });
 
   test("follows arrivals and departures, never heartbeats", async () => {
@@ -68,7 +83,8 @@ describe("the gallery", () => {
     await s.enter(s.A, app);
     await s.enter(s.B, app);
     expect(await card()).toEqual([2, [s.A.visitor_id, s.B.visitor_id]]);
-    const crowd = async () => (await s.t.run((ctx) => ctx.db.query("crowds").collect()))[0];
+    const crowd = async () =>
+      (await s.t.run((ctx) => ctx.db.query("crowds").collect()))[0];
     const before = await crowd();
     jest.advanceTimersByTime(PRESENCE.heartbeatMs);
     await s.enter(s.A, app);
@@ -80,12 +96,17 @@ describe("the gallery", () => {
     jest.advanceTimersByTime(PRESENCE.staleMs);
     await s.t.mutation(internal.presence.prune, {});
     expect(await card()).toEqual([0, []]);
-    expect(await s.t.run((ctx) => ctx.db.query("crowds").collect())).toEqual([]);
+    expect(await s.t.run((ctx) => ctx.db.query("crowds").collect())).toEqual(
+      [],
+    );
   });
 
   test("leaves out an app Clay has not made yet, even with its maker in it", async () => {
     const s = await setup();
-    const made = await s.t.mutation(api.apps.create, { ...s.A, prompt: "a frog choir" });
+    const made = await s.t.mutation(api.apps.create, {
+      ...s.A,
+      prompt: "a frog choir",
+    });
     await s.enter(s.A, made.app_id as Id<"apps">);
     expect(await s.gallery()).toEqual([]);
   });
@@ -96,11 +117,27 @@ describe("the gallery", () => {
     jest.advanceTimersByTime(1_000);
     const again = await s.make("Shared Tally");
     await s.t.mutation(api.apps.create, { ...s.B, name: "Shared tally" });
-    const hidden = await s.t.mutation(api.apps.create, { ...s.A, name: "Harness app", unlisted: true });
-    const fork = await s.t.mutation(api.apps.fork, { ...s.B, app_id: hidden.app_id as Id<"apps">, number: 1, name: "Harness fork" });
+    const hidden = await s.t.mutation(api.apps.create, {
+      ...s.A,
+      name: "Harness app",
+      unlisted: true,
+    });
+    const fork = await s.t.mutation(api.apps.fork, {
+      ...s.B,
+      app_id: hidden.app_id as Id<"apps">,
+      number: 1,
+      name: "Harness fork",
+    });
     await s.enter(s.B, fork.app_id as Id<"apps">);
-    expect((await s.gallery()).map((c) => [c.id, c.name])).toEqual([[expect.anything(), "Shared tally"], [again, "Shared Tally"]]);
-    expect((await s.t.query(api.activity.recent, {})).map((e) => e.app_name).filter((n) => n.startsWith("Harness"))).toEqual([]);
+    expect((await s.gallery()).map((c) => [c.id, c.name])).toEqual([
+      [expect.anything(), "Shared tally"],
+      [again, "Shared Tally"],
+    ]);
+    expect(
+      (await s.t.query(api.activity.recent, {}))
+        .map((e) => e.app_name)
+        .filter((n) => n.startsWith("Harness")),
+    ).toEqual([]);
   });
 
   test("says what made the live version instead of its number", async () => {
@@ -116,20 +153,36 @@ describe("right now", () => {
   test("one row per person per app, their latest change, and never the unseen starter", async () => {
     const s = await setup();
     const app = await s.make("Tea Tally");
-    const made = await s.t.mutation(api.apps.create, { ...s.B, prompt: "a frog choir" });
+    const made = await s.t.mutation(api.apps.create, {
+      ...s.B,
+      prompt: "a frog choir",
+    });
     for (const summary of ["Turns it blue", "Adds a moon"]) {
       jest.advanceTimersByTime(1_000);
       await s.t.run(async (ctx) => {
         const a = (await ctx.db.get(app))!;
         await ctx.db.insert("versions", {
-          app_id: app, number: a.version_count + 1, parent_number: a.live_version, kind: "build", summary, author_id: s.A.visitor_id as Id<"visitors">,
-          file_count: 0, bytes: 0, files_hash: "x", created_at: Date.now(),
+          app_id: app,
+          number: a.version_count + 1,
+          parent_number: a.live_version,
+          kind: "build",
+          summary,
+          author_id: s.A.visitor_id as Id<"visitors">,
+          file_count: 0,
+          bytes: 0,
+          files_hash: "x",
+          created_at: Date.now(),
         });
-        await ctx.db.patch(app, { version_count: a.version_count + 1, live_version: a.version_count + 1 });
+        await ctx.db.patch(app, {
+          version_count: a.version_count + 1,
+          live_version: a.version_count + 1,
+        });
       });
     }
     const feed = await s.t.query(api.activity.recent, {});
-    expect(feed.map((e) => [e.app_name, e.said, e.live])).toEqual([["Tea Tally", "adds a moon", true]]);
+    expect(feed.map((e) => [e.app_name, e.said, e.live])).toEqual([
+      ["Tea Tally", "adds a moon", true],
+    ]);
     expect(feed.some((e) => e.slug === made.slug)).toBe(false);
   });
 });
@@ -140,7 +193,8 @@ describe("stills", () => {
   test("the author pictures a version first; anyone may once it has been live a while", async () => {
     const s = await setup();
     const app_id = await s.make("Tea Tally");
-    const ask = (who: typeof s.A) => s.t.mutation(api.stills.uploadUrl, { ...who, app_id, number: 1 });
+    const ask = (who: typeof s.A) =>
+      s.t.mutation(api.stills.uploadUrl, { ...who, app_id, number: 1 });
     expect(await ask(s.A)).toBeTruthy();
     expect(await ask(s.B)).toBeNull();
     jest.advanceTimersByTime(STILL_AUTHOR_FIRST_MS);
@@ -152,12 +206,26 @@ describe("stills", () => {
     const app_id = await s.make("Tea Tally");
     const first = await s.image(1_000);
     await s.t.run(async (ctx) => {
-      const v = (await ctx.db.query("versions").withIndex("by_app_number", (q) => q.eq("app_id", app_id).eq("number", 1)).unique())!;
+      const v = (await ctx.db
+        .query("versions")
+        .withIndex("by_app_number", (q) =>
+          q.eq("app_id", app_id).eq("number", 1),
+        )
+        .unique())!;
       await ctx.db.patch(v._id, { still: first });
     });
-    expect(await s.t.mutation(api.stills.uploadUrl, { ...s.A, app_id, number: 1 })).toBeNull();
+    expect(
+      await s.t.mutation(api.stills.uploadUrl, { ...s.A, app_id, number: 1 }),
+    ).toBeNull();
     const late = await s.image(1_000);
-    expect(await s.t.mutation(api.stills.attach, { ...s.A, app_id, number: 1, storage_id: late })).toBe(false);
+    expect(
+      await s.t.mutation(api.stills.attach, {
+        ...s.A,
+        app_id,
+        number: 1,
+        storage_id: late,
+      }),
+    ).toBe(false);
     expect(await s.t.run((ctx) => ctx.db.system.get(late))).toBeNull();
     expect((await s.gallery())[0].still_url).toBeTruthy();
   });
@@ -165,8 +233,18 @@ describe("stills", () => {
   test("anything not a small image is thrown away, not kept", async () => {
     const s = await setup();
     const app_id = await s.make("Tea Tally");
-    for (const file of [await s.image(STILL_MAX_BYTES + 1), await s.image(100, "text/html")]) {
-      expect(await s.t.mutation(api.stills.attach, { ...s.A, app_id, number: 1, storage_id: file })).toBe(false);
+    for (const file of [
+      await s.image(STILL_MAX_BYTES + 1),
+      await s.image(100, "text/html"),
+    ]) {
+      expect(
+        await s.t.mutation(api.stills.attach, {
+          ...s.A,
+          app_id,
+          number: 1,
+          storage_id: file,
+        }),
+      ).toBe(false);
       expect(await s.t.run((ctx) => ctx.db.system.get(file))).toBeNull();
     }
   });

@@ -1,8 +1,27 @@
 // "Who are you today?" (DESIGN 6.9): any of the 24 animals and a name. Opened
 // from any you chip; the change shows everywhere at once (optimistic `me`).
-import { createContext, useCallback, useContext, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { CHARACTER_NAMES, CHARACTER_NAME_MAX, characterNameFor, cleanCharacterName } from "@codecast/shared/contracts/sessionCharacter";
-import { AVATAR_KEYS, AVATAR_LABELS, AVATAR_URLS, type AvatarKey } from "../lib/avatars";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import {
+  CHARACTER_NAMES,
+  CHARACTER_NAME_MAX,
+  characterNameFor,
+  cleanCharacterName,
+} from "@codecast/shared/contracts/sessionCharacter";
+import {
+  AVATAR_KEYS,
+  AVATAR_LABELS,
+  AVATAR_URLS,
+  type AvatarKey,
+} from "../lib/avatars";
 import { useIdentity } from "../lib/identity";
 import { useDesktop } from "../lib/useMedia";
 import { Button, IconButton } from "../ui/Button";
@@ -29,11 +48,18 @@ export function CharacterPickerHost({ children }: { children: ReactNode }) {
 }
 
 const pick = <T,>(xs: readonly T[], not?: T): T => {
-  const pool = xs.length > 1 && not !== undefined ? xs.filter((x) => x !== not) : xs;
+  const pool =
+    xs.length > 1 && not !== undefined ? xs.filter((x) => x !== not) : xs;
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
-function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => void }) {
+function CharacterPicker({
+  here,
+  onClose,
+}: {
+  here: Person[];
+  onClose: () => void;
+}) {
   const { me, setCharacter } = useIdentity();
   const desktop = useDesktop();
   const [avatar, setAvatar] = useState<AvatarKey>(me.avatar);
@@ -44,12 +70,14 @@ function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => voi
   const countId = useId();
 
   const worn = new Map<AvatarKey, number>();
-  for (const p of here) if (p.id !== me.id) worn.set(p.avatar, (worn.get(p.avatar) ?? 0) + 1);
+  for (const p of here)
+    if (p.id !== me.id) worn.set(p.avatar, (worn.get(p.avatar) ?? 0) + 1);
 
   const choose = (next: AvatarKey) => {
     if (next === avatar) return;
     // A name that was just the old face's default follows the face.
-    if ((CHARACTER_NAMES[avatar] as readonly string[]).includes(name.trim())) setName(characterNameFor(me.id, next));
+    if ((CHARACTER_NAMES[avatar] as readonly string[]).includes(name.trim()))
+      setName(characterNameFor(me.id, next));
     setAvatar(next);
     setPopKey((k) => k + 1);
   };
@@ -71,13 +99,22 @@ function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => voi
   };
 
   const onGridKey = (e: KeyboardEvent) => {
-    const idx = AVATAR_KEYS.indexOf((document.activeElement as HTMLElement | null)?.dataset.key as AvatarKey);
+    const idx = AVATAR_KEYS.indexOf(
+      (document.activeElement as HTMLElement | null)?.dataset.key as AvatarKey,
+    );
     if (idx < 0) return;
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+    const step = {
+      ArrowRight: 1,
+      ArrowLeft: -1,
+      ArrowDown: cols,
+      ArrowUp: -cols,
+    }[e.key];
     if (step === undefined) return;
     e.preventDefault();
     const next = Math.min(Math.max(idx + step, 0), AVATAR_KEYS.length - 1);
-    grid.current?.querySelector<HTMLElement>(`[data-key="${AVATAR_KEYS[next]}"]`)?.focus();
+    grid.current
+      ?.querySelector<HTMLElement>(`[data-key="${AVATAR_KEYS[next]}"]`)
+      ?.focus();
   };
 
   return (
@@ -98,20 +135,34 @@ function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => voi
               onKeyDown={(e) => e.key === "Enter" && save()}
               spellCheck={false}
             />
-            <span className={s.count} id={countId}>{name.length} / {CHARACTER_NAME_MAX}</span>
+            <span className={s.count} id={countId}>
+              {name.length} / {CHARACTER_NAME_MAX}
+            </span>
           </div>
-          <IconButton label="Roll a name" size={44} className={s.dice} onClick={() => setName(pick(CHARACTER_NAMES[avatar], name))}>
+          <IconButton
+            label="Roll a name"
+            size={44}
+            className={s.dice}
+            onClick={() => setName(pick(CHARACTER_NAMES[avatar], name))}
+          >
             <DiceIcon />
           </IconButton>
         </div>
         <div className={s.suggest}>
           {CHARACTER_NAMES[avatar].map((n) => (
-            <button key={n} className={`${s.suggestion} ${n === name.trim() ? s.current : ""}`} aria-pressed={n === name.trim()} onClick={() => setName(n)}>
+            <button
+              key={n}
+              className={`${s.suggestion} ${n === name.trim() ? s.current : ""}`}
+              aria-pressed={n === name.trim()}
+              onClick={() => setName(n)}
+            >
               {n}
             </button>
           ))}
         </div>
-        <p className={s.footnote}>Everyone sees this face next to what you say and what you change.</p>
+        <p className={s.footnote}>
+          Everyone sees this face next to what you say and what you change.
+        </p>
       </div>
 
       <div className={s.zooSide}>
@@ -123,10 +174,19 @@ function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => voi
             </span>
           )}
         </div>
-        <div className={s.zoo} ref={grid} onKeyDown={onGridKey} role="listbox" aria-label="Animals" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter">
+        <div
+          className={s.zoo}
+          ref={grid}
+          onKeyDown={onGridKey}
+          role="listbox"
+          aria-label="Animals"
+          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
+        >
           {AVATAR_KEYS.map((k) => {
             const count = worn.get(k);
-            const label = count ? `${AVATAR_LABELS[k]} · ${count} here` : AVATAR_LABELS[k];
+            const label = count
+              ? `${AVATAR_LABELS[k]} · ${count} here`
+              : AVATAR_LABELS[k];
             return (
               <button
                 key={k}
@@ -154,7 +214,9 @@ function CharacterPicker({ here, onClose }: { here: Person[]; onClose: () => voi
         )}
         <div className={s.foot}>
           <p className={s.repeat}>Names can repeat. Faces tell you apart.</p>
-          <Button size="md" onClick={surprise}>Surprise me</Button>
+          <Button size="md" onClick={surprise}>
+            Surprise me
+          </Button>
           <Button size="md" variant="ink" className={s.be} onClick={save}>
             Be {finalName}
           </Button>

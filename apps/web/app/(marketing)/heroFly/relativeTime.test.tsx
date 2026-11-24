@@ -21,17 +21,35 @@ function Probe({ ts }: { ts: number }) {
 describe("relative time under the hero", () => {
   test("measures from the fixtures' instant, not the wall clock", () => {
     clock = spyOn(Date, "now").mockReturnValue(now + 5 * 60_000);
-    expect(renderToStaticMarkup(<RelativeTimeNow.Provider value={now}><Probe ts={now - 1_000} /></RelativeTimeNow.Provider>)).toContain("just now");
-    expect(renderToStaticMarkup(<RelativeTimeNow.Provider value={now}><Probe ts={now - 3 * 60_000} /></RelativeTimeNow.Provider>)).toContain("3m ago");
+    expect(
+      renderToStaticMarkup(
+        <RelativeTimeNow.Provider value={now}>
+          <Probe ts={now - 1_000} />
+        </RelativeTimeNow.Provider>,
+      ),
+    ).toContain("just now");
+    expect(
+      renderToStaticMarkup(
+        <RelativeTimeNow.Provider value={now}>
+          <Probe ts={now - 3 * 60_000} />
+        </RelativeTimeNow.Provider>,
+      ),
+    ).toContain("3m ago");
     // Outside a film, the wall clock as before.
-    expect(renderToStaticMarkup(<Probe ts={now - 1_000} />)).toContain("5m ago");
+    expect(renderToStaticMarkup(<Probe ts={now - 1_000} />)).toContain(
+      "5m ago",
+    );
   });
 
   test("a real view under the sandbox reads it too", () => {
     clock = spyOn(Date, "now").mockReturnValue(now + 5 * 60_000);
     const html = renderToStaticMarkup(
       <HeroSandbox now={now}>
-        <SessionMessageBlock from="jx7d2wk" body="Retry route is in." timestamp={now - 40_000} />
+        <SessionMessageBlock
+          from="jx7d2wk"
+          body="Retry route is in."
+          timestamp={now - 40_000}
+        />
       </HeroSandbox>,
     );
     expect(html).toContain("just now");

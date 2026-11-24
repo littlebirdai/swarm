@@ -93,7 +93,9 @@ function parseLock(text: string | undefined): LockInfo | undefined {
   if (text === undefined) return undefined;
   try {
     const doc = JSON.parse(text);
-    return doc && typeof doc === "object" && typeof doc.pid === "number" ? (doc as LockInfo) : undefined;
+    return doc && typeof doc === "object" && typeof doc.pid === "number"
+      ? (doc as LockInfo)
+      : undefined;
   } catch {
     return undefined;
   }
@@ -131,11 +133,18 @@ function removeStaleLock(file: string, staleText: string): boolean {
   return false;
 }
 
-export function acquireLock(root: string, log: (line: string) => void = console.error, o: LockOptions = {}): AcquireResult {
+export function acquireLock(
+  root: string,
+  log: (line: string) => void = console.error,
+  o: LockOptions = {},
+): AcquireResult {
   fs.mkdirSync(root, { recursive: true });
   const file = lockPathFor(root, o);
   const ceilingMs = o.ceilingMs ?? LOCK_CEILING_MS;
-  const info: LockInfo = { pid: process.pid, acquired_at: new Date().toISOString() };
+  const info: LockInfo = {
+    pid: process.pid,
+    acquired_at: new Date().toISOString(),
+  };
 
   for (let attempt = 0; attempt < 2; attempt++) {
     if (placeLock(file, info)) return { acquired: true };
@@ -154,7 +163,9 @@ export function acquireLock(root: string, log: (line: string) => void = console.
       // Young and unreadable: a holder mid-write, not a corrupt leftover.
       if (ageMs < UNREADABLE_LOCK_GRACE_MS) return { acquired: false };
     }
-    const age = holder?.acquired_at ? Date.now() - Date.parse(holder.acquired_at) : Infinity;
+    const age = holder?.acquired_at
+      ? Date.now() - Date.parse(holder.acquired_at)
+      : Infinity;
     const stale =
       holder === undefined || // unreadable and old = stale by definition
       !pidAlive(holder.pid) ||
@@ -168,7 +179,9 @@ export function acquireLock(root: string, log: (line: string) => void = console.
     // Lost the reclaim race to another process: that is a correct outcome.
     if (!removeStaleLock(file, text)) return { acquired: false };
     if (holder !== undefined) {
-      return placeLock(file, info) ? { acquired: true, reclaimedFrom: holder } : { acquired: false };
+      return placeLock(file, info)
+        ? { acquired: true, reclaimedFrom: holder }
+        : { acquired: false };
     }
   }
   return { acquired: false };
@@ -191,7 +204,9 @@ export function withLock<T>(
   root: string,
   fn: () => T,
   log?: (line: string) => void,
-): { ok: true; value: T; reclaimedFrom?: LockInfo } | { ok: false; heldBy?: LockInfo } {
+):
+  | { ok: true; value: T; reclaimedFrom?: LockInfo }
+  | { ok: false; heldBy?: LockInfo } {
   const result = acquireLock(root, log);
   if (!result.acquired) return { ok: false, heldBy: result.heldBy };
   try {

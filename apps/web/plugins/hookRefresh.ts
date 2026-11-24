@@ -88,7 +88,11 @@ export function hookRefreshPlugin(): Plugin[] {
       transform(code, id) {
         // `.tsx` needs no gate: plugin-react runs babel on it by its name.
         if (!isCandidateFile(id, [".ts"])) return null;
-        if (code.includes("import.meta.hot") || code.includes(REACT_PLUGIN_GATE)) return null;
+        if (
+          code.includes("import.meta.hot") ||
+          code.includes(REACT_PLUGIN_GATE)
+        )
+          return null;
         if (!HOOK_DEF_RE.test(code)) return null;
         return { code: `${code}\n${GATE_FOOTER}`, map: null };
       },
@@ -102,7 +106,8 @@ export function hookRefreshPlugin(): Plugin[] {
         // Babel emitted signatures, and plugin-react did not wire them itself.
         // Tested on the signature function, not the runtime import: a module
         // with only a class component gets the import and still no wiring.
-        if (!code.includes("$RefreshSig$()") || code.includes(SIGNATURE_FN)) return null;
+        if (!code.includes("$RefreshSig$()") || code.includes(SIGNATURE_FN))
+          return null;
         return { code: `${SIGN_HEAD}${code}${SIGN_TAIL}`, map: null };
       },
     },

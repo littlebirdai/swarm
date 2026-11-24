@@ -31,7 +31,10 @@ type ProjectRow = {
 export const WRONG_CASES_SHOWN = 20;
 
 /** The session's brief: the project, the focus, and the pass to follow. */
-export function judgingSetupPrompt(project: ProjectRow, focus: JudgingFocus = {}): string {
+export function judgingSetupPrompt(
+  project: ProjectRow,
+  focus: JudgingFocus = {},
+): string {
   const title = project.title || "this project";
   const ref = project.short_id || `"${title}"`;
   const judge = focus.judge?.trim();
@@ -46,8 +49,12 @@ export function judgingSetupPrompt(project: ProjectRow, focus: JudgingFocus = {}
   const wrong = (focus.wrong ?? []).filter((c) => c.ref?.trim());
   if (judge && wrong.length) {
     lines.push("", "Cases a person marked wrong:");
-    for (const c of wrong.slice(0, WRONG_CASES_SHOWN)) lines.push(`- ${c.ref.trim()}${c.note?.trim() ? `: ${c.note.trim()}` : ""}`);
-    if (wrong.length > WRONG_CASES_SHOWN) lines.push(`- and ${wrong.length - WRONG_CASES_SHOWN} more`);
+    for (const c of wrong.slice(0, WRONG_CASES_SHOWN))
+      lines.push(
+        `- ${c.ref.trim()}${c.note?.trim() ? `: ${c.note.trim()}` : ""}`,
+      );
+    if (wrong.length > WRONG_CASES_SHOWN)
+      lines.push(`- and ${wrong.length - WRONG_CASES_SHOWN} more`);
   }
   return lines.join("\n");
 }
@@ -57,14 +64,23 @@ export function judgingSetupPrompt(project: ProjectRow, focus: JudgingFocus = {}
  * project's line profile (the repo the judges live in), else the project's
  * folder on whatever machine starts it.
  */
-export function judgingSetupPlace(project: ProjectRow | undefined): { projectPath?: string; targetDeviceId?: string } {
+export function judgingSetupPlace(project: ProjectRow | undefined): {
+  projectPath?: string;
+  targetDeviceId?: string;
+} {
   const lp = project?.line_profile;
   const projectPath = lp?.root || project?.project_path || undefined;
-  return { ...(projectPath ? { projectPath } : {}), ...(lp?.root && lp.device_id ? { targetDeviceId: lp.device_id } : {}) };
+  return {
+    ...(projectPath ? { projectPath } : {}),
+    ...(lp?.root && lp.device_id ? { targetDeviceId: lp.device_id } : {}),
+  };
 }
 
 /** Start the session; the stub id is the session, usable at once to link to it. */
-export function startJudgingSetup(projectId: string, focus: JudgingFocus = {}): { stubId: string } {
+export function startJudgingSetup(
+  projectId: string,
+  focus: JudgingFocus = {},
+): { stubId: string } {
   const st = useInboxStore.getState() as any;
   const project: ProjectRow | undefined = st.projects?.[projectId];
   const place = judgingSetupPlace(project);
@@ -72,10 +88,18 @@ export function startJudgingSetup(projectId: string, focus: JudgingFocus = {}): 
     prompt: judgingSetupPrompt(project ?? {}, focus),
     projectPath: place.projectPath ?? defaultNewSessionPath(st) ?? undefined,
     targetDeviceId: place.targetDeviceId,
-    failureLabel: focus.judge ? "Failed to start improving the judge" : "Failed to start setting up judging",
+    failureLabel: focus.judge
+      ? "Failed to start improving the judge"
+      : "Failed to start setting up judging",
   });
-  toast.success(focus.judge ? `A session is improving ${focus.judge}` : "A session is setting up judging", {
-    description: "It will bring you one card when it has something to turn on.",
-  });
+  toast.success(
+    focus.judge
+      ? `A session is improving ${focus.judge}`
+      : "A session is setting up judging",
+    {
+      description:
+        "It will bring you one card when it has something to turn on.",
+    },
+  );
   return { stubId };
 }

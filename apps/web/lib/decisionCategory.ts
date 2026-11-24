@@ -8,7 +8,10 @@ import { isHumanOnlyCategory } from "@codecast/convex/convex/lib/decisionCategor
 // not a red chip demanding attention the decision itself deserves.
 export function categoryMeaning(category: string | undefined): string {
   if (!category) return "the asker proposed none, so a person answers it";
-  if (category === "unknown") return "a person answers it: a run's card, or a category outside the list";
+  if (category === "unknown")
+    return "a person answers it: a run's card, or a category outside the list";
   if (category === "limit") return "a usage limit — always a person";
-  return isHumanOnlyCategory(category) ? "always a person, never a role" : "a role can earn the right to answer these";
+  return isHumanOnlyCategory(category)
+    ? "always a person, never a role"
+    : "a role can earn the right to answer these";
 }

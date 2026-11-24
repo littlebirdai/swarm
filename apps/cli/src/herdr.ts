@@ -29,7 +29,10 @@ export const HERD_PROJECT_TOKEN = "codecast_project";
 export type HerdrAgentState = "idle" | "working" | "blocked" | "unknown";
 
 export function herdrConfigDir(): string {
-  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "herdr");
+  return path.join(
+    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"),
+    "herdr",
+  );
 }
 
 /** The API socket of a named session, or of the default one. */
@@ -45,9 +48,16 @@ export function herdrSocketPath(session?: string): string {
 export async function herdrSocketPaths(): Promise<string[]> {
   const dir = herdrConfigDir();
   const out: string[] = [];
-  const exists = (p: string) => fs.promises.access(p).then(() => true, () => false);
-  if (await exists(path.join(dir, "herdr.sock"))) out.push(path.join(dir, "herdr.sock"));
-  const names = await fs.promises.readdir(path.join(dir, "sessions")).catch(() => [] as string[]);
+  const exists = (p: string) =>
+    fs.promises.access(p).then(
+      () => true,
+      () => false,
+    );
+  if (await exists(path.join(dir, "herdr.sock")))
+    out.push(path.join(dir, "herdr.sock"));
+  const names = await fs.promises
+    .readdir(path.join(dir, "sessions"))
+    .catch(() => [] as string[]);
   for (const name of names) {
     const sock = path.join(dir, "sessions", name, "herdr.sock");
     if (await exists(sock)) out.push(sock);
@@ -56,7 +66,10 @@ export async function herdrSocketPaths(): Promise<string[]> {
 }
 
 export class HerdrError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -69,7 +82,12 @@ export async function herdrRequest<T = Record<string, unknown>>(
 ): Promise<T> {
   // No socket file, no server. Checked first because a connect that fails
   // with ENOENT can surface in bun as an uncaught error despite the listener.
-  if (!(await fs.promises.access(socketPath).then(() => true, () => false))) {
+  if (
+    !(await fs.promises.access(socketPath).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     throw new HerdrError("unreachable", `no herdr server at ${socketPath}`);
   }
   return new Promise((resolve, reject) => {
@@ -81,16 +99,43 @@ export async function herdrRequest<T = Record<string, unknown>>(
       if (err) reject(err);
       else resolve(value as T);
     };
-    const timer = setTimeout(() => done(new HerdrError("timeout", `herdr ${method} timed out after ${timeoutMs}ms`)), timeoutMs);
-    sock.on("connect", () => sock.write(JSON.stringify({ id: "cast", method, params }) + "\n"));
-    sock.on("error", (err) => done(new HerdrError("unreachable", `herdr socket ${socketPath}: ${err.message}`)));
+    const timer = setTimeout(
+      () =>
+        done(
+          new HerdrError(
+            "timeout",
+            `herdr ${method} timed out after ${timeoutMs}ms`,
+          ),
+        ),
+      timeoutMs,
+    );
+    sock.on("connect", () =>
+      sock.write(JSON.stringify({ id: "cast", method, params }) + "\n"),
+    );
+    sock.on("error", (err) =>
+      done(
+        new HerdrError(
+          "unreachable",
+          `herdr socket ${socketPath}: ${err.message}`,
+        ),
+      ),
+    );
     sock.on("data", (chunk) => {
       buf += chunk.toString("utf-8");
       const nl = buf.indexOf("\n");
       if (nl < 0) return;
       try {
-        const msg = JSON.parse(buf.slice(0, nl)) as { result?: T; error?: { code?: string; message?: string } };
-        if (msg.error) done(new HerdrError(msg.error.code ?? "error", msg.error.message ?? `herdr ${method} failed`));
+        const msg = JSON.parse(buf.slice(0, nl)) as {
+          result?: T;
+          error?: { code?: string; message?: string };
+        };
+        if (msg.error)
+          done(
+            new HerdrError(
+              msg.error.code ?? "error",
+              msg.error.message ?? `herdr ${method} failed`,
+            ),
+          );
         else done(null, msg.result);
       } catch (err) {
         done(err as Error);
@@ -109,19 +154,47 @@ export type HerdrPane = {
   label?: string | null;
   tokens?: Record<string, string>;
 };
-export type HerdrWorkspace = { workspace_id: string; label?: string | null; tokens?: Record<string, string> };
-export type HerdrTab = { tab_id: string; workspace_id: string; label?: string | null; pane_count?: number };
-export type HerdrSnapshot = { focused_pane_id?: string; workspaces: HerdrWorkspace[]; tabs: HerdrTab[]; panes: HerdrPane[] };
+export type HerdrWorkspace = {
+  workspace_id: string;
+  label?: string | null;
+  tokens?: Record<string, string>;
+};
+export type HerdrTab = {
+  tab_id: string;
+  workspace_id: string;
+  label?: string | null;
+  pane_count?: number;
+};
+export type HerdrSnapshot = {
+  focused_pane_id?: string;
+  workspaces: HerdrWorkspace[];
+  tabs: HerdrTab[];
+  panes: HerdrPane[];
+};
 
-export async function herdrSnapshot(socketPath: string, timeoutMs?: number): Promise<HerdrSnapshot> {
-  const r = await herdrRequest<{ snapshot: HerdrSnapshot }>(socketPath, "session.snapshot", {}, timeoutMs);
+export async function herdrSnapshot(
+  socketPath: string,
+  timeoutMs?: number,
+): Promise<HerdrSnapshot> {
+  const r = await herdrRequest<{ snapshot: HerdrSnapshot }>(
+    socketPath,
+    "session.snapshot",
+    {},
+    timeoutMs,
+  );
   return r.snapshot;
 }
 
 /** Whether a herdr server is serving this socket. A snapshot rather than a
  *  ping: a starting server accepts connections seconds before it can answer. */
-export async function herdrAlive(socketPath: string, timeoutMs = 1000): Promise<boolean> {
-  return herdrSnapshot(socketPath, timeoutMs).then(() => true, () => false);
+export async function herdrAlive(
+  socketPath: string,
+  timeoutMs = 1000,
+): Promise<boolean> {
+  return herdrSnapshot(socketPath, timeoutMs).then(
+    () => true,
+    () => false,
+  );
 }
 
 /** The herdr state that best describes a codecast agent status. herdr turns an
@@ -134,28 +207,53 @@ export function herdrStateFor(status: string | undefined): HerdrAgentState {
 }
 
 /** herdr's "done" is its own reading of an unseen idle, so it equals idle here. */
-export function sameHerdrState(reported: string | undefined, wanted: HerdrAgentState): boolean {
+export function sameHerdrState(
+  reported: string | undefined,
+  wanted: HerdrAgentState,
+): boolean {
   return reported === wanted || (wanted === "idle" && reported === "done");
 }
 
 // ── The herdr pane holding a process ────────────────────────────────────────
 
-type ProcessInfo = { shell_pid?: number; foreground_processes?: Array<{ pid: number }> };
+type ProcessInfo = {
+  shell_pid?: number;
+  foreground_processes?: Array<{ pid: number }>;
+};
 
 /** The herdr pane a terminal belongs to, across every running herdr session:
  *  the one whose shell or foreground job is a process on `tty`. */
-export async function findHerdrPaneForTty(tty: string): Promise<{ socketPath: string; paneId: string } | null> {
-  const { stdout } = await execFileAsync("ps", ["-o", "pid=", "-t", tty.replace(/^\/dev\//, "")], { encoding: "utf-8", timeout: 15_000 });
-  const wanted = new Set(String(stdout).split("\n").map((l) => Number.parseInt(l.trim(), 10)).filter((n) => n > 0));
+export async function findHerdrPaneForTty(
+  tty: string,
+): Promise<{ socketPath: string; paneId: string } | null> {
+  const { stdout } = await execFileAsync(
+    "ps",
+    ["-o", "pid=", "-t", tty.replace(/^\/dev\//, "")],
+    { encoding: "utf-8", timeout: 15_000 },
+  );
+  const wanted = new Set(
+    String(stdout)
+      .split("\n")
+      .map((l) => Number.parseInt(l.trim(), 10))
+      .filter((n) => n > 0),
+  );
   if (wanted.size === 0) return null;
   for (const socketPath of await herdrSocketPaths()) {
     const snap = await herdrSnapshot(socketPath).catch(() => null);
     if (!snap) continue;
     for (const pane of snap.panes) {
-      const info = await herdrRequest<{ process_info: ProcessInfo }>(socketPath, "pane.process_info", { pane_id: pane.pane_id })
-        .then((r) => r.process_info, () => null);
+      const info = await herdrRequest<{ process_info: ProcessInfo }>(
+        socketPath,
+        "pane.process_info",
+        { pane_id: pane.pane_id },
+      ).then(
+        (r) => r.process_info,
+        () => null,
+      );
       if (!info) continue;
-      const hit = (info.foreground_processes ?? []).some((p) => wanted.has(p.pid)) || (info.shell_pid !== undefined && wanted.has(info.shell_pid));
+      const hit =
+        (info.foreground_processes ?? []).some((p) => wanted.has(p.pid)) ||
+        (info.shell_pid !== undefined && wanted.has(info.shell_pid));
       if (hit) return { socketPath, paneId: pane.pane_id };
     }
   }
@@ -171,13 +269,21 @@ export async function openHerdrTab(
   tab: { cwd: string; label: string; line: string },
 ): Promise<string> {
   const created = await herdrRequest<{ root_pane: { pane_id: string } }>(
-    socketPath, "tab.create", { workspace_id: workspaceId, cwd: tab.cwd, label: tab.label, focus: true }, 5000,
+    socketPath,
+    "tab.create",
+    { workspace_id: workspaceId, cwd: tab.cwd, label: tab.label, focus: true },
+    5000,
   );
   const paneId = created.root_pane.pane_id;
   try {
-    await herdrRequest(socketPath, "pane.send_text", { pane_id: paneId, text: `${tab.line}\r` });
+    await herdrRequest(socketPath, "pane.send_text", {
+      pane_id: paneId,
+      text: `${tab.line}\r`,
+    });
   } catch (err) {
-    await herdrRequest(socketPath, "pane.close", { pane_id: paneId }).catch(() => {});
+    await herdrRequest(socketPath, "pane.close", { pane_id: paneId }).catch(
+      () => {},
+    );
     throw err;
   }
   return paneId;

@@ -9,7 +9,11 @@ import {
 
 // Minimal InboxSession-shaped stubs. buildForkFamily only reads the fork fields
 // plus a few scalars, so we cast loosely rather than building full sessions.
-function sess(id: string, forkedFrom: string | null, extra: Record<string, any> = {}) {
+function sess(
+  id: string,
+  forkedFrom: string | null,
+  extra: Record<string, any> = {},
+) {
   return {
     _id: id,
     session_id: id,
@@ -28,7 +32,12 @@ function sess(id: string, forkedFrom: string | null, extra: Record<string, any> 
 }
 
 function ids(flat: ReturnType<typeof buildForkFamily>) {
-  return flat.map((n) => ({ id: n.id, depth: n.depth, guides: n.guides, isLast: n.isLast }));
+  return flat.map((n) => ({
+    id: n.id,
+    depth: n.depth,
+    guides: n.guides,
+    isLast: n.isLast,
+  }));
 }
 
 describe("buildForkFamily — tree shape", () => {
@@ -42,7 +51,12 @@ describe("buildForkFamily — tree shape", () => {
     A1: sess("A1", "A", { started_at: 3 }),
     B: sess("B", "root", { started_at: 4 }),
   };
-  const conv: ForkConversationLike = { _id: "A1", forked_from: "A", message_count: 10, started_at: 3 };
+  const conv: ForkConversationLike = {
+    _id: "A1",
+    forked_from: "A",
+    message_count: 10,
+    started_at: 3,
+  };
 
   test("renders multiple levels of indent (depth grows past 1)", () => {
     const flat = buildForkFamily(conv, sessions);
@@ -83,7 +97,11 @@ describe("buildForkFamily — labels & counts", () => {
     A: sess("A", "root"),
     B: sess("B", "root"),
   };
-  const conv: ForkConversationLike = { _id: "root", message_count: 10, started_at: 0 };
+  const conv: ForkConversationLike = {
+    _id: "root",
+    message_count: 10,
+    started_at: 0,
+  };
 
   test("server tree label wins and distinguishes same-titled siblings", () => {
     const serverTree = {
@@ -132,9 +150,20 @@ describe("buildForkFamily — labels & counts", () => {
     // A forked at message uuid 'm2'; its own messages follow.
     const messagesByConv: Record<string, any[]> = {
       A: [
-        { role: "user", content: "shared history", message_uuid: "m1", timestamp: 1 },
+        {
+          role: "user",
+          content: "shared history",
+          message_uuid: "m1",
+          timestamp: 1,
+        },
         { role: "assistant", content: "...", message_uuid: "m2", timestamp: 2 },
-        { role: "user", content: "<command-message>commit</command-message> branch prompt here", message_uuid: "m3", timestamp: 3 },
+        {
+          role: "user",
+          content:
+            "<command-message>commit</command-message> branch prompt here",
+          message_uuid: "m3",
+          timestamp: 3,
+        },
       ],
     };
     const sessA = {
@@ -152,15 +181,26 @@ describe("buildForkFamily — labels & counts", () => {
     // labels across renders for the hop HUD) would otherwise carry over a
     // label set by an earlier test.
     const fresh = { rootF: sess("rootF", null), AF: sess("AF", "rootF") };
-    const convF: ForkConversationLike = { _id: "rootF", message_count: 10, started_at: 0 };
+    const convF: ForkConversationLike = {
+      _id: "rootF",
+      message_count: 10,
+      started_at: 0,
+    };
     const flat = buildForkFamily(convF, fresh);
     const a = flat.find((n) => n.id === "AF")!;
     expect(branchDisplayLabel(a)).toBe("Same Title");
   });
 
   test("after-fork count falls back to message_count minus inherited history", () => {
-    const fresh = { rootC: sess("rootC", null), AC: sess("AC", "rootC", { message_count: 50, fork_copied: 38 }) };
-    const convC: ForkConversationLike = { _id: "rootC", message_count: 10, started_at: 0 };
+    const fresh = {
+      rootC: sess("rootC", null),
+      AC: sess("AC", "rootC", { message_count: 50, fork_copied: 38 }),
+    };
+    const convC: ForkConversationLike = {
+      _id: "rootC",
+      message_count: 10,
+      started_at: 0,
+    };
     const flat = buildForkFamily(convC, fresh);
     const a = flat.find((n) => n.id === "AC")!;
     expect(branchDisplayCount(a)).toBe(12); // 50 - 38
@@ -172,7 +212,12 @@ describe("buildForkFamily — labels & counts", () => {
 // torn-down branch went on glowing amber for blockers that died with its agent.
 // Exercised through buildForkFamily (liveOf is private) — the real path. ct-41083.
 describe("buildForkFamily — killed branches never glow needs_input", () => {
-  const conv: ForkConversationLike = { _id: "root", forked_from: null, message_count: 10, started_at: 1 };
+  const conv: ForkConversationLike = {
+    _id: "root",
+    forked_from: null,
+    message_count: 10,
+    started_at: 1,
+  };
 
   function liveFor(extra: Record<string, any>) {
     const sessions = {
@@ -183,39 +228,82 @@ describe("buildForkFamily — killed branches never glow needs_input", () => {
   }
 
   test("a killed branch with a frozen open poll reads idle, not needs_input", () => {
-    expect(liveFor({ awaiting_input: true, inbox_killed_at: 1_000 })).toBe("idle");
+    expect(liveFor({ awaiting_input: true, inbox_killed_at: 1_000 })).toBe(
+      "idle",
+    );
     expect(liveFor({ awaiting_input: true })).toBe("needs_input");
   });
 
   test("likewise for a frozen permission prompt and an auth banner", () => {
-    expect(liveFor({ agent_status: "permission_blocked", inbox_killed_at: 1_000 })).toBe("idle");
-    expect(liveFor({ pending_api_error: true, inbox_killed_at: 1_000 })).toBe("idle");
+    expect(
+      liveFor({ agent_status: "permission_blocked", inbox_killed_at: 1_000 }),
+    ).toBe("idle");
+    expect(liveFor({ pending_api_error: true, inbox_killed_at: 1_000 })).toBe(
+      "idle",
+    );
     expect(liveFor({ agent_status: "permission_blocked" })).toBe("needs_input");
     expect(liveFor({ pending_api_error: true })).toBe("needs_input");
   });
 
   test("a killed branch that still claims to be working reads idle", () => {
-    expect(liveFor({ is_idle: false, agent_status: "working", inbox_killed_at: 1_000 })).toBe("idle");
-    expect(liveFor({ is_idle: false, agent_status: "working", updated_at: Date.now(), last_heartbeat: Date.now() })).toBe("working");
+    expect(
+      liveFor({
+        is_idle: false,
+        agent_status: "working",
+        inbox_killed_at: 1_000,
+      }),
+    ).toBe("idle");
+    expect(
+      liveFor({
+        is_idle: false,
+        agent_status: "working",
+        updated_at: Date.now(),
+        last_heartbeat: Date.now(),
+      }),
+    ).toBe("working");
   });
 });
 
 describe("buildForkFamily: a cloud agent's attempts", () => {
   const task = "task_e_abc";
   const sessions = {
-    t: sess("t", null, { session_id: task, agent_type: "codex", title: "Append a line", started_at: 1 }),
-    a2: sess("a2", "t", { session_id: `${task}~assttrn_2`, agent_type: "codex", title: "Attempt 2: Append a line", started_at: 2, branch_label: "a later prompt" }),
+    t: sess("t", null, {
+      session_id: task,
+      agent_type: "codex",
+      title: "Append a line",
+      started_at: 1,
+    }),
+    a2: sess("a2", "t", {
+      session_id: `${task}~assttrn_2`,
+      agent_type: "codex",
+      title: "Attempt 2: Append a line",
+      started_at: 2,
+      branch_label: "a later prompt",
+    }),
   };
-  const conv: ForkConversationLike = { _id: "t", session_id: task, agent_type: "codex", title: "Append a line", message_count: 4, started_at: 1 };
+  const conv: ForkConversationLike = {
+    _id: "t",
+    session_id: task,
+    agent_type: "codex",
+    title: "Append a line",
+    message_count: 4,
+    started_at: 1,
+  };
 
   test("each line is named by its attempt and the family counts attempts, as the branch chips do", () => {
     const flat = buildForkFamily(conv, sessions);
-    expect(flat.map(branchDisplayLabel)).toEqual(["Attempt 1", "Attempt 2: Append a line"]);
+    expect(flat.map(branchDisplayLabel)).toEqual([
+      "Attempt 1",
+      "Attempt 2: Append a line",
+    ]);
     expect(attemptsHeading(flat.slice(1))).toBe("2 attempts");
   });
 
   test("a family with an ordinary fork keeps its prompt labels", () => {
-    const flat = buildForkFamily(conv, { ...sessions, f: sess("f", "t", { agent_type: "codex", title: "Fork", started_at: 3 }) });
+    const flat = buildForkFamily(conv, {
+      ...sessions,
+      f: sess("f", "t", { agent_type: "codex", title: "Fork", started_at: 3 }),
+    });
     expect(branchDisplayLabel(flat[0])).not.toBe("Attempt 1");
     expect(attemptsHeading(flat.slice(1))).toBeNull();
   });

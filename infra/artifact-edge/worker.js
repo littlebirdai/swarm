@@ -65,7 +65,8 @@ async function fromOrigin(url) {
   // Re-wrap so the response is mutable and the Location rewrite can be made.
   const res = new Response(upstream.body, upstream);
   const loc = res.headers.get("Location");
-  if (loc && loc.startsWith("/cli/a/")) res.headers.set("Location", loc.replace(/^\/cli\/a\//, "/"));
+  if (loc && loc.startsWith("/cli/a/"))
+    res.headers.set("Location", loc.replace(/^\/cli\/a\//, "/"));
   return res;
 }
 
@@ -97,7 +98,9 @@ export default {
     if (RUNTIME_RE.test(reqUrl.pathname)) {
       originUrl = `${ORIGIN}${reqUrl.pathname}`;
     } else {
-      const rest = reqUrl.pathname.replace(/^\/cli\/a\//, "").replace(/^\//, "");
+      const rest = reqUrl.pathname
+        .replace(/^\/cli\/a\//, "")
+        .replace(/^\//, "");
       const [slug, ...tailParts] = rest.split("/");
       if (!SLUG_RE.test(slug)) {
         return new Response("Invalid artifact link", { status: 404 });
@@ -109,7 +112,11 @@ export default {
       const has = (p) => reqUrl.searchParams.has(p);
       gated = GATE_PARAMS.some(has);
       pinned = /^v\d+$/.test(reqUrl.searchParams.get("r") ?? "");
-      live = reqUrl.searchParams.get("meta") === "1" || tail === "_data" || tail.startsWith("_data/") || LIVE_PARAMS.some(has);
+      live =
+        reqUrl.searchParams.get("meta") === "1" ||
+        tail === "_data" ||
+        tail.startsWith("_data/") ||
+        LIVE_PARAMS.some(has);
       // Preserve the exact path shape: bare slug, trailing slash (bundle docs),
       // or a nested asset path.
       const tailPath = tail ? `/${tail}` : rest.endsWith("/") ? "/" : "";
@@ -121,9 +128,17 @@ export default {
     // Reopening a gated decision report then costs no request at all.
     if (gated && !live && request.method === "GET") {
       const res = await fromOrigin(originUrl);
-      return answer(res, STORED_STATUSES.has(res.status) ? browserPolicy(0, "private", pinned) : UNCACHED_POLICY);
+      return answer(
+        res,
+        STORED_STATUSES.has(res.status)
+          ? browserPolicy(0, "private", pinned)
+          : UNCACHED_POLICY,
+      );
     }
-    const cache = request.method === "GET" && !gated && !live ? globalThis.caches?.default : undefined;
+    const cache =
+      request.method === "GET" && !gated && !live
+        ? globalThis.caches?.default
+        : undefined;
     if (!cache) return answer(await fromOrigin(originUrl), UNCACHED_POLICY);
 
     // Keyed by the origin's address, so both path shapes share one entry, but
@@ -143,15 +158,22 @@ export default {
     };
 
     const held = await cache.match(key);
-    const age = held ? (Date.now() - Number(held.headers.get(STORED_AT))) / 1000 : Infinity;
+    const age = held
+      ? (Date.now() - Number(held.headers.get(STORED_AT))) / 1000
+      : Infinity;
     // A pinned copy shows one version for good: held for the whole bound, never refreshed behind a reader.
-    if (held && age < (pinned ? FRESH + STALE : FRESH)) return answer(held, browserPolicy(age, "public", pinned), "HIT");
+    if (held && age < (pinned ? FRESH + STALE : FRESH))
+      return answer(held, browserPolicy(age, "public", pinned), "HIT");
     if (held && age < FRESH + STALE) {
       const work = refresh().catch(() => {});
       if (ctx) ctx.waitUntil(work);
       return answer(held, browserPolicy(age), "STALE");
     }
     const fresh = await refresh();
-    return answer(fresh.res, fresh.held ? browserPolicy(0, "public", pinned) : "no-store", "MISS");
+    return answer(
+      fresh.res,
+      fresh.held ? browserPolicy(0, "public", pinned) : "no-store",
+      "MISS",
+    );
   },
 };

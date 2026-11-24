@@ -42,7 +42,12 @@ import {
   type VaultMirrorUpsertRequest,
   type VaultMirrorUpsertResponse,
 } from "@codecast/shared/contracts";
-import { isVaultDocumentPath, resolveVaultPath, scanVault, vaultContentHash } from "./vaultScope.js";
+import {
+  isVaultDocumentPath,
+  resolveVaultPath,
+  scanVault,
+  vaultContentHash,
+} from "./vaultScope.js";
 
 /** Notes per push. Well under the server's 500 cap; the byte bound below is
  *  what actually decides most batches. */
@@ -119,13 +124,23 @@ export interface VaultMirrorOptions {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** HTTP transport over the same /cli/* routes every other daemon call uses. */
-export function httpMirrorTransport(siteUrl: string, apiToken: string): VaultMirrorTransport {
-  const post = async (route: string, body: Record<string, unknown>): Promise<any> => {
-    const resp = await cliFetch(`${siteUrl}${route}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, api_token: apiToken }),
-    }, { timeoutMs: REQUEST_TIMEOUT_MS });
+export function httpMirrorTransport(
+  siteUrl: string,
+  apiToken: string,
+): VaultMirrorTransport {
+  const post = async (
+    route: string,
+    body: Record<string, unknown>,
+  ): Promise<any> => {
+    const resp = await cliFetch(
+      `${siteUrl}${route}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, api_token: apiToken }),
+      },
+      { timeoutMs: REQUEST_TIMEOUT_MS },
+    );
     const json = await resp.json();
     if (json?.error) throw new Error(json.error);
     return json;
@@ -136,11 +151,15 @@ export function httpMirrorTransport(siteUrl: string, apiToken: string): VaultMir
     async uploadBody(data) {
       try {
         const uploadUrl: string = await post("/cli/vault/upload-url", {});
-        const resp = await cliFetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": "text/markdown" },
-          body: new Uint8Array(data),
-        }, { timeoutMs: REQUEST_TIMEOUT_MS });
+        const resp = await cliFetch(
+          uploadUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "text/markdown" },
+            body: new Uint8Array(data),
+          },
+          { timeoutMs: REQUEST_TIMEOUT_MS },
+        );
         const { storageId } = await resp.json();
         return typeof storageId === "string" ? storageId : null;
       } catch {
@@ -159,7 +178,11 @@ export function httpMirrorTransport(siteUrl: string, apiToken: string): VaultMir
  * worker runs. Two parsers would mean the remote reader's link graph silently
  * disagreeing with the local one.
  */
-export function buildMirrorNote(relPath: string, entry: VaultFileEntry, data: Buffer): VaultMirrorNote {
+export function buildMirrorNote(
+  relPath: string,
+  entry: VaultFileEntry,
+  data: Buffer,
+): VaultMirrorNote {
   const base = {
     path: relPath,
     mtime: entry.mtime,
@@ -169,11 +192,24 @@ export function buildMirrorNote(relPath: string, entry: VaultFileEntry, data: Bu
   if (!isVaultMarkdownPath(relPath)) {
     // Attachments are listed so a remote tree renders, but they have no note
     // metadata and their bytes never ride this channel.
-    return { ...base, title: path.basename(relPath), tags: [], links: [], heading_count: 0 };
+    return {
+      ...base,
+      title: path.basename(relPath),
+      tags: [],
+      links: [],
+      heading_count: 0,
+    };
   }
   const parsed = parseNote(data.toString("utf8"));
-  const tags = [...new Set([...parsed.frontmatterTags, ...parsed.inlineTags.map((t) => t.tag)])];
-  const links = [...new Set(parsed.links.map((l) => l.target).filter((t) => t !== ""))];
+  const tags = [
+    ...new Set([
+      ...parsed.frontmatterTags,
+      ...parsed.inlineTags.map((t) => t.tag),
+    ]),
+  ];
+  const links = [
+    ...new Set(parsed.links.map((l) => l.target).filter((t) => t !== "")),
+  ];
   return {
     ...base,
     title: parsed.title ?? stripMarkdownExtension(path.basename(relPath)),
@@ -210,7 +246,8 @@ export function diffScanAgainstLedger(
     // A file still owed a body counts as changed no matter how quiet it is:
     // it is the ONLY way a body deferred by the cycle's upload budget (or lost
     // to a failed upload) ever gets a second attempt.
-    const settled = prior && prior.m === entry.mtime && prior.s === entry.size && !prior.p;
+    const settled =
+      prior && prior.m === entry.mtime && prior.s === entry.size && !prior.p;
     if (settled) unchanged.push(entry.path);
     else changed.push(entry);
   }
@@ -245,7 +282,8 @@ export class VaultMirror {
       // deletes it after the teardown lands. What does get dropped is an entry
       // so old that a teardown would be pointless anyway.
       keepOnLoad: (_vaultId, entry) =>
-        !entry?.last_scan_at || (this.now() - entry.last_scan_at) < LEDGER_MAX_AGE_MS,
+        !entry?.last_scan_at ||
+        this.now() - entry.last_scan_at < LEDGER_MAX_AGE_MS,
     });
   }
 
@@ -254,7 +292,9 @@ export class VaultMirror {
    *  Registered, not discovered: a project vault the user merely browsed has
    *  not opted into leaving this machine, and mirroring is opt-in by design. */
   private mirroredVaults(): VaultInfo[] {
-    return registeredVaults(this.opts.configDir).filter((v) => v.mirror === true);
+    return registeredVaults(this.opts.configDir).filter(
+      (v) => v.mirror === true,
+    );
   }
 
   /** Start the periodic full scan. Nothing is pushed for a vault whose mirror
@@ -262,7 +302,10 @@ export class VaultMirror {
   start(): void {
     this.stopped = false;
     void this.syncAll();
-    this.scanTimer = setInterval(() => void this.syncAll(), this.fullScanIntervalMs);
+    this.scanTimer = setInterval(
+      () => void this.syncAll(),
+      this.fullScanIntervalMs,
+    );
     this.scanTimer.unref?.();
   }
 
@@ -315,7 +358,10 @@ export class VaultMirror {
     }
     for (const vault of mirrored) {
       if (this.watches.has(vault.id)) continue;
-      this.watches.set(vault.id, this.opts.watch(vault, () => this.notify(vault.id)));
+      this.watches.set(
+        vault.id,
+        this.opts.watch(vault, () => this.notify(vault.id)),
+      );
     }
   }
 
@@ -340,10 +386,14 @@ export class VaultMirror {
           root: vault?.root ?? "",
           added_at: vault?.added_at ?? 0,
         });
-        this.opts.log?.(`[VAULT-MIRROR] removed remote copy of ${vault?.name ?? vaultId}`);
+        this.opts.log?.(
+          `[VAULT-MIRROR] removed remote copy of ${vault?.name ?? vaultId}`,
+        );
       } catch (err) {
         // Leave the ledger entry alone so the next cycle tries again.
-        this.opts.log?.(`[VAULT-MIRROR] teardown of ${vaultId} failed: ${(err as Error)?.message ?? err}`);
+        this.opts.log?.(
+          `[VAULT-MIRROR] teardown of ${vaultId} failed: ${(err as Error)?.message ?? err}`,
+        );
       }
     }
   }
@@ -363,7 +413,9 @@ export class VaultMirror {
     try {
       await this.runCycle(vault, opts.full);
     } catch (err) {
-      this.opts.log?.(`[VAULT-MIRROR] ${vault.name}: ${(err as Error)?.message ?? err}`);
+      this.opts.log?.(
+        `[VAULT-MIRROR] ${vault.name}: ${(err as Error)?.message ?? err}`,
+      );
     } finally {
       this.running.delete(vault.id);
       if (this.pending.delete(vault.id) && !this.stopped) {
@@ -402,7 +454,10 @@ export class VaultMirror {
       (f) => f.dir || isVaultDocumentPath(f.path),
     );
     const ledger = this.store.get(vault.id);
-    const { changed, unchanged, removed } = diffScanAgainstLedger(scanned, ledger);
+    const { changed, unchanged, removed } = diffScanAgainstLedger(
+      scanned,
+      ledger,
+    );
     // A scan id must be unique even when two scans start in the same
     // millisecond, or the sweep could mistake one scan's rows for another's.
     const scanId = full ? `${this.now()}-${++this.scanCounter}` : undefined;
@@ -410,7 +465,9 @@ export class VaultMirror {
     // A full scan rebuilds the watermark from what it actually saw, so a file
     // deleted while the daemon was down leaves the ledger too. An incremental
     // cycle only layers its changes onto what is already there.
-    const nextFiles: Record<string, LedgerFile> = full ? {} : { ...(ledger?.files ?? {}) };
+    const nextFiles: Record<string, LedgerFile> = full
+      ? {}
+      : { ...(ledger?.files ?? {}) };
     if (full) {
       for (const p of unchanged) {
         const prior = ledger?.files[p];
@@ -421,7 +478,11 @@ export class VaultMirror {
     const notes = await this.buildNotes(vault, changed, ledger, nextFiles);
     for (const p of removed) delete nextFiles[p];
 
-    const batches = chunkMessagesBySize(notes, MAX_NOTES_PER_BATCH, MAX_BATCH_BYTES);
+    const batches = chunkMessagesBySize(
+      notes,
+      MAX_NOTES_PER_BATCH,
+      MAX_BATCH_BYTES,
+    );
     // An incremental cycle with nothing to say still stops here rather than
     // sending an empty push nobody asked for.
     if (batches.length === 0 && removed.length === 0 && !full) return;
@@ -453,7 +514,11 @@ export class VaultMirror {
     if (full) {
       // Unchanged files ride as bare paths: they need a fresh scan stamp so the
       // sweep spares them, and nothing else.
-      for (const chunk of chunkMessagesBySize(unchanged, VAULT_MIRROR_MAX_STAMP_BATCH, MAX_BATCH_BYTES)) {
+      for (const chunk of chunkMessagesBySize(
+        unchanged,
+        VAULT_MIRROR_MAX_STAMP_BATCH,
+        MAX_BATCH_BYTES,
+      )) {
         await this.push({ ...base, stamp_paths: chunk });
         await sleep(this.batchIntervalMs);
       }
@@ -464,7 +529,10 @@ export class VaultMirror {
   }
 
   /** Declare the scan finished and drive the budgeted sweep to the end. */
-  private async completeScan(base: VaultMirrorUpsertRequest, noteCount: number): Promise<void> {
+  private async completeScan(
+    base: VaultMirrorUpsertRequest,
+    noteCount: number,
+  ): Promise<void> {
     let after: string | undefined;
     for (;;) {
       const result = await this.push({
@@ -479,7 +547,9 @@ export class VaultMirror {
     }
   }
 
-  private push(body: VaultMirrorUpsertRequest): Promise<VaultMirrorUpsertResponse> {
+  private push(
+    body: VaultMirrorUpsertRequest,
+  ): Promise<VaultMirrorUpsertResponse> {
     return this.opts.transport.upsert(body);
   }
 
@@ -547,7 +617,12 @@ export class VaultMirror {
           uploaded = true;
         }
       }
-      return { note, hash: note.content_hash, uploaded, owed: eligible && !uploaded };
+      return {
+        note,
+        hash: note.content_hash,
+        uploaded,
+        owed: eligible && !uploaded,
+      };
     });
 
     for (let i = 0; i < built.length; i++) {

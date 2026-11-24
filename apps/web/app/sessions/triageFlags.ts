@@ -1,4 +1,8 @@
-import { isSessionHidden, isSessionKilled, type InboxSession } from "../../store/inboxStore";
+import {
+  isSessionHidden,
+  isSessionKilled,
+  type InboxSession,
+} from "../../store/inboxStore";
 
 // The /sessions triage derivation, extracted from the page's classification
 // useMemo so it can be tested without mounting the component. ct-41083.
@@ -24,7 +28,12 @@ import { isSessionHidden, isSessionKilled, type InboxSession } from "../../store
 // killed row just as the hide stamps hide the other two. The per-row badge then
 // uses `killed` to name which flavor it is.
 export function deriveTriageFlags(
-  inbox: Pick<InboxSession, "inbox_killed_at" | "inbox_dismissed_at" | "inbox_stashed_at"> | undefined,
+  inbox:
+    | Pick<
+        InboxSession,
+        "inbox_killed_at" | "inbox_dismissed_at" | "inbox_stashed_at"
+      >
+    | undefined,
   rowKilled?: boolean,
 ): { killed: boolean; dismissed: boolean } {
   const killed = !!rowKilled || (!!inbox && isSessionKilled(inbox));

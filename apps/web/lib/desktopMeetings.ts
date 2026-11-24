@@ -64,7 +64,10 @@ export function isMeetingOfferWindow(): boolean {
 
 /** Report the offer window's content size; the shell reshapes the window and
  *  reveals it (without focus) on the first report. */
-export function meetingOfferSize(size: { width: number; height: number }): void {
+export function meetingOfferSize(size: {
+  width: number;
+  height: number;
+}): void {
   bridge("meetingOfferSize")?.(size);
 }
 

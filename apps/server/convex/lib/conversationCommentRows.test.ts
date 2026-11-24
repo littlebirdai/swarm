@@ -24,18 +24,38 @@ const comment = {
 
 describe("conversation comment rows", () => {
   test("a comment maps to its row and back, field for field", () => {
-    const row = { _id: "rc_1", _creationTime: 1, ...rowFromComment(comment, undefined) } as any;
+    const row = {
+      _id: "rc_1",
+      _creationTime: 1,
+      ...rowFromComment(comment, undefined),
+    } as any;
     expect(row).toMatchObject({
-      origin: "comment", author_user_id: "user_1", source_pr_id: "pr_1", source_github_comment_id: 42, resolved: false,
+      origin: "comment",
+      author_user_id: "user_1",
+      source_pr_id: "pr_1",
+      source_github_comment_id: 42,
+      resolved: false,
     });
     expect(row.pull_request_id).toBeUndefined();
     expect(row.github_comment_id).toBeUndefined();
-    expect(commentsFromRows([row])).toEqual([{ _id: "rc_1", _creationTime: 1, ...comment }]);
+    expect(commentsFromRows([row])).toEqual([
+      { _id: "rc_1", _creationTime: 1, ...comment },
+    ]);
   });
 
   test("a comment written before the move goes by its source id, and replies name parents by the id they go by", () => {
-    const legacy = { _id: "rc_old", _creationTime: 1, source_comment_id: "c_old", ...rowFromComment(comment, undefined), origin: undefined } as any;
-    const reply = { _id: "rc_new", _creationTime: 2, ...rowFromComment({ ...comment, content: "Because." }, "rc_old" as any) } as any;
+    const legacy = {
+      _id: "rc_old",
+      _creationTime: 1,
+      source_comment_id: "c_old",
+      ...rowFromComment(comment, undefined),
+      origin: undefined,
+    } as any;
+    const reply = {
+      _id: "rc_new",
+      _creationTime: 2,
+      ...rowFromComment({ ...comment, content: "Because." }, "rc_old" as any),
+    } as any;
     expect(commentIdOf(legacy)).toBe("c_old");
     expect(commentIdOf(reply)).toBe("rc_new");
     const [first, second] = commentsFromRows([legacy, reply]);
@@ -44,10 +64,20 @@ describe("conversation comment rows", () => {
   });
 
   test("resolved follows resolved_at, and the parent cannot be patched", () => {
-    expect(rowPatchFromComment({ resolved_at: 5, resolved_by: "u" as any })).toEqual({ resolved_at: 5, resolved_by: "u", resolved: true });
-    expect(rowPatchFromComment({ resolved_at: undefined, resolved_by: undefined })).toEqual({ resolved_at: undefined, resolved_by: undefined, resolved: false });
+    expect(
+      rowPatchFromComment({ resolved_at: 5, resolved_by: "u" as any }),
+    ).toEqual({ resolved_at: 5, resolved_by: "u", resolved: true });
+    expect(
+      rowPatchFromComment({ resolved_at: undefined, resolved_by: undefined }),
+    ).toEqual({
+      resolved_at: undefined,
+      resolved_by: undefined,
+      resolved: false,
+    });
     expect(rowPatchFromComment({ content: "x" })).toEqual({ content: "x" });
-    expect(() => rowPatchFromComment({ parent_comment_id: "c" } as any)).toThrow();
+    expect(() =>
+      rowPatchFromComment({ parent_comment_id: "c" } as any),
+    ).toThrow();
   });
 
   test("only quote rows and conversation comments are borrowed", () => {
@@ -58,8 +88,14 @@ describe("conversation comment rows", () => {
       { _id: "old", source_comment_id: "c_old" },
       { _id: "decision", decision_id: "sd_1" },
     ] as any[];
-    expect(rows.filter(isConversationComment).map((r) => r._id)).toEqual(["new", "old"]);
-    expect(withoutBorrowedRows(rows).map((r) => r._id)).toEqual(["code", "decision"]);
+    expect(rows.filter(isConversationComment).map((r) => r._id)).toEqual([
+      "new",
+      "old",
+    ]);
+    expect(withoutBorrowedRows(rows).map((r) => r._id)).toEqual([
+      "code",
+      "decision",
+    ]);
     expect(commentsFromRows(rows).map((c) => c._id)).toEqual(["new", "c_old"]);
   });
 });

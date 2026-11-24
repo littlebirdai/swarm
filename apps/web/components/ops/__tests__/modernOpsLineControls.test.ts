@@ -65,9 +65,26 @@ const MARKUP = `
   <div class="fs-rail-f" data-k="fs-rail-f"><button aria-selected="true" data-k="fs-rail-on">All</button><button data-k="fs-rail-off">Late</button></div>
 </div>`;
 
-const PROPS = ["height", "min-height", "padding", "border-radius", "font-size", "font-weight", "background-color", "background", "border-color", "border-width", "color", "box-shadow", "gap"] as const;
+const PROPS = [
+  "height",
+  "min-height",
+  "padding",
+  "border-radius",
+  "font-size",
+  "font-weight",
+  "background-color",
+  "background",
+  "border-color",
+  "border-width",
+  "color",
+  "box-shadow",
+  "gap",
+] as const;
 
-const dom = new JSDOM(`<!doctype html><html><head><style>${css}</style></head><body>${MARKUP}</body></html>`, { pretendToBeVisual: true });
+const dom = new JSDOM(
+  `<!doctype html><html><head><style>${css}</style></head><body>${MARKUP}</body></html>`,
+  { pretendToBeVisual: true },
+);
 afterAll(() => dom.window.close());
 const doc = dom.window.document;
 
@@ -75,11 +92,14 @@ function resolved(): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
   for (const el of doc.querySelectorAll("[data-k]")) {
     const cs = dom.window.getComputedStyle(el);
-    out[el.getAttribute("data-k")!] = Object.fromEntries(PROPS.map((p) => [p, cs.getPropertyValue(p)]));
+    out[el.getAttribute("data-k")!] = Object.fromEntries(
+      PROPS.map((p) => [p, cs.getPropertyValue(p)]),
+    );
   }
   return out;
 }
-const setModern = (on: boolean) => doc.documentElement.classList.toggle("modern-style", on);
+const setModern = (on: boolean) =>
+  doc.documentElement.classList.toggle("modern-style", on);
 
 describe("Ops and Flows controls in Modern", () => {
   test("Classic resolves every control as it did before the Modern rules", () => {
@@ -92,15 +112,58 @@ describe("Ops and Flows controls in Modern", () => {
     const r = resolved();
     setModern(false);
     const radius = (k: string) => r[k]["border-radius"];
-    for (const k of ["ops-btn", "ops-seg", "ops-chip", "ops-source-chip", "mx-seg", "mx-input", "mx-search", "mx-icon-btn", "mxp-chip", "iss-search", "lw-seg", "lw-chip", "lw-iconbtn", "lw-act", "lw-filter", "lw-pop-row"]) {
+    for (const k of [
+      "ops-btn",
+      "ops-seg",
+      "ops-chip",
+      "ops-source-chip",
+      "mx-seg",
+      "mx-input",
+      "mx-search",
+      "mx-icon-btn",
+      "mxp-chip",
+      "iss-search",
+      "lw-seg",
+      "lw-chip",
+      "lw-iconbtn",
+      "lw-act",
+      "lw-filter",
+      "lw-pop-row",
+    ]) {
       expect(`${k} ${radius(k)}`).toBe(`${k} var(--radius-control)`);
     }
-    for (const k of ["ops-btn", "lw-act", "lw-chip", "lw-iconbtn", "mx-input", "mx-search", "iss-search"]) expect(`${k} ${r[k].height}`).toBe(`${k} var(--control-sm)`);
+    for (const k of [
+      "ops-btn",
+      "lw-act",
+      "lw-chip",
+      "lw-iconbtn",
+      "mx-input",
+      "mx-search",
+      "iss-search",
+    ])
+      expect(`${k} ${r[k].height}`).toBe(`${k} var(--control-sm)`);
     // The open tab is raised in white on the hairline; the primary act is the accent.
-    for (const k of ["ops-seg-on", "mx-seg-on", "lw-seg-on", "iss-lane-on", "rp-tab-on", "fs-rail-on"]) expect(`${k} ${r[k]["background-color"]}`).toBe(`${k} var(--sol-card)`);
-    for (const k of ["ops-btn-primary", "lw-act-primary"]) expect(`${k} ${r[k]["background-color"]}`).toBe(`${k} var(--sol-class-cyan)`);
+    for (const k of [
+      "ops-seg-on",
+      "mx-seg-on",
+      "lw-seg-on",
+      "iss-lane-on",
+      "rp-tab-on",
+      "fs-rail-on",
+    ])
+      expect(`${k} ${r[k]["background-color"]}`).toBe(`${k} var(--sol-card)`);
+    for (const k of ["ops-btn-primary", "lw-act-primary"])
+      expect(`${k} ${r[k]["background-color"]}`).toBe(
+        `${k} var(--sol-class-cyan)`,
+      );
     // On-chips take the accent's soft tint.
-    for (const k of ["ops-chip-on", "ops-source-chip-on", "mxp-chip-on", "lw-filter-on"]) expect(`${k} ${r[k].color}`).toBe(`${k} var(--sol-class-cyan)`);
+    for (const k of [
+      "ops-chip-on",
+      "ops-source-chip-on",
+      "mxp-chip-on",
+      "lw-filter-on",
+    ])
+      expect(`${k} ${r[k].color}`).toBe(`${k} var(--sol-class-cyan)`);
     expect(r["lw-pop"]["border-radius"]).toBe("var(--radius-card)");
     expect(r["lw-pop"]["box-shadow"]).toBe("var(--shadow-popover)");
   });
@@ -111,8 +174,12 @@ describe("Ops and Flows controls in Modern", () => {
       const start = text.indexOf("/* ── Modern");
       if (start < 0) continue;
       const block = text.slice(start).replace(/\/\*[\s\S]*?\*\//g, "");
-      const selectors = [...block.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) => m[2].trim());
-      for (const sel of selectors) for (const part of sel.split(",")) expect(`${f}: ${part.trim()}`).toMatch(/^\S+: \.modern-style /);
+      const selectors = [...block.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) =>
+        m[2].trim(),
+      );
+      for (const sel of selectors)
+        for (const part of sel.split(","))
+          expect(`${f}: ${part.trim()}`).toMatch(/^\S+: \.modern-style /);
     }
   });
 });

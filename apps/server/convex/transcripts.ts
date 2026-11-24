@@ -79,23 +79,50 @@ import {
   unionTranscribeLanguages,
 } from "@codecast/shared/contracts";
 import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
-import { canAccessConversation, canAccessDoc, canAccessTask, requireAccessibleDoc } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessDoc,
+  canAccessTask,
+  requireAccessibleDoc,
+} from "./lib/access";
 import { verifyApiToken } from "./apiTokens";
 import { nextShortId } from "./counters";
 import { enqueuePush } from "./pushRouter";
-import { agentIdentity, claimRoomRows, liveTranscriptFor, postEvent } from "./callChat";
+import {
+  agentIdentity,
+  claimRoomRows,
+  liveTranscriptFor,
+  postEvent,
+} from "./callChat";
 import { mayPublishCall, stopRoomRecording } from "./lib/callRecordingRuns";
-import { callGuestsOnRecord, endGuestAdmissions, noteGuestAttendance } from "./lib/callGuestAdmission";
+import {
+  callGuestsOnRecord,
+  endGuestAdmissions,
+  noteGuestAttendance,
+} from "./lib/callGuestAdmission";
 import { scheduleFaceJoin, scheduleFaceLeave } from "./callFace";
 import { scheduleTriggerMatch } from "./lib/triggerMatch";
 import { siteUrl } from "./lib/siteUrl";
 import { slackSend } from "./lib/slackSend";
-import { CHEAP_MODEL, postMessages, replyText, type SurfaceRequest } from "./lib/anthropic";
+import {
+  CHEAP_MODEL,
+  postMessages,
+  replyText,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { openaiFetch } from "./lib/openai";
 import { vendorRefusalFromDb } from "./lib/vendorGuard";
-import { SEGMENT_WRITE_BATCH, parseTranscriptionSegments, transcribeAudio } from "./lib/recordingTranscription";
+import {
+  SEGMENT_WRITE_BATCH,
+  parseTranscriptionSegments,
+  transcribeAudio,
+} from "./lib/recordingTranscription";
 export { parseTranscriptionSegments };
-import { HUDDLE_GRACE_MS, quietSince, withinHuddleGrace } from "./lib/huddleGrace";
+import {
+  HUDDLE_GRACE_MS,
+  quietSince,
+  withinHuddleGrace,
+} from "./lib/huddleGrace";
 export { HUDDLE_GRACE_MS };
 
 export { asrTranscriptionSession };
@@ -171,8 +198,12 @@ export const ownRoomTarget = sessionRoomConversationId;
 export function withDefaultRoutes(roomKey: string, routes: Route[]): Route[] {
   const own = ownRoomTarget(roomKey);
   if (!own) return routes;
-  if (routes.some((r) => r.kind === "session" && r.target === own)) return routes;
-  return [...routes, { kind: "session", target: own, mode: "live", sent_seq: 0 }];
+  if (routes.some((r) => r.kind === "session" && r.target === own))
+    return routes;
+  return [
+    ...routes,
+    { kind: "session", target: own, mode: "live", sent_seq: 0 },
+  ];
 }
 
 /** Keep call_agent_feeds equal to this transcript's live session routes.
@@ -193,23 +224,43 @@ export function withDefaultRoutes(roomKey: string, routes: Route[]): Route[] {
  *  deleted while the transcript is live is an agent leaving. The wipe at the
  *  end of a call writes nothing: the call ended, nobody left. The agent's voice
  *  in the room (callFace.ts) joins and leaves with its row. */
-export async function syncAgentFeeds(ctx: any, t: Doc<"transcripts">): Promise<void> {
+export async function syncAgentFeeds(
+  ctx: any,
+  t: Doc<"transcripts">,
+): Promise<void> {
   const existing: Doc<"call_agent_feeds">[] = await ctx.db
     .query("call_agent_feeds")
     .withIndex("by_transcript", (q: any) => q.eq("transcript_id", t._id))
     .collect();
-  const wanted = new Map<string, { conversationId: Id<"conversations">; addedBy: Id<"users">; face: boolean }>();
+  const wanted = new Map<
+    string,
+    { conversationId: Id<"conversations">; addedBy: Id<"users">; face: boolean }
+  >();
   if (t.status === "live") {
     for (const r of t.routes) {
       if (r.kind !== "session") continue;
-      const conv = await findConversationByAnyRefWhere(ctx, r.target, () => true);
+      const conv = await findConversationByAnyRefWhere(
+        ctx,
+        r.target,
+        () => true,
+      );
       if (!conv) continue;
       const addedBy = (r.added_by ?? t.started_by) as Id<"users">;
       // Every session route is a lasting link, whatever its mode; only a live
       // one makes the session a participant in the room.
-      await linkCallSession(ctx, t._id, conv._id as Id<"conversations">, addedBy, { live: true });
+      await linkCallSession(
+        ctx,
+        t._id,
+        conv._id as Id<"conversations">,
+        addedBy,
+        { live: true },
+      );
       if (r.mode !== "live") continue;
-      wanted.set(String(conv._id), { conversationId: conv._id as Id<"conversations">, addedBy, face: r.face !== false });
+      wanted.set(String(conv._id), {
+        conversationId: conv._id as Id<"conversations">,
+        addedBy,
+        face: r.face !== false,
+      });
     }
   }
   for (const row of existing) {
@@ -267,7 +318,12 @@ export async function syncAgentFeeds(ctx: any, t: Doc<"transcripts">): Promise<v
   // stage: the agents keep it as the room's shared picture of the talk.
   // Scheduled, not imported: callStage reaches docs.ts, and a static import
   // from here closes an import cycle that breaks module load.
-  if (wanted.size > 0 && t.status === "live" && !isRoomlessKey(t.room_key) && !t.board_doc_id) {
+  if (
+    wanted.size > 0 &&
+    t.status === "live" &&
+    !isRoomlessKey(t.room_key) &&
+    !t.board_doc_id
+  ) {
     const first = wanted.values().next().value!;
     await ctx.scheduler.runAfter(0, internal.callStage.ensureBoardForFeed, {
       transcript_id: t._id,
@@ -291,13 +347,22 @@ export async function linkCallSession(
   how: { live: true } | { from_seq: number; to_seq: number },
 ): Promise<void> {
   const now = Date.now();
-  const existing: Doc<"call_session_links"> | null = (
-    await ctx.db
-      .query("call_session_links")
-      .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
-      .collect()
-  ).find((l: Doc<"call_session_links">) => String(l.transcript_id) === String(transcriptId)) ?? null;
-  const excerpt = "live" in how ? null : { from_seq: how.from_seq, to_seq: how.to_seq, at: now };
+  const existing: Doc<"call_session_links"> | null =
+    (
+      await ctx.db
+        .query("call_session_links")
+        .withIndex("by_conversation", (q: any) =>
+          q.eq("conversation_id", conversationId),
+        )
+        .collect()
+    ).find(
+      (l: Doc<"call_session_links">) =>
+        String(l.transcript_id) === String(transcriptId),
+    ) ?? null;
+  const excerpt =
+    "live" in how
+      ? null
+      : { from_seq: how.from_seq, to_seq: how.to_seq, at: now };
   if (!existing) {
     await ctx.db.insert("call_session_links", {
       transcript_id: transcriptId,
@@ -310,7 +375,8 @@ export async function linkCallSession(
     return;
   }
   if (!excerpt) {
-    if (!existing.live) await ctx.db.patch(existing._id, { live: true, updated_at: now });
+    if (!existing.live)
+      await ctx.db.patch(existing._id, { live: true, updated_at: now });
     return;
   }
   await ctx.db.patch(existing._id, {
@@ -325,19 +391,35 @@ export async function linkCallSession(
 export const backfillCallSessionLinks = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("transcripts").paginate({ cursor: args.cursor ?? null, numItems: 100 });
+    const page = await ctx.db
+      .query("transcripts")
+      .paginate({ cursor: args.cursor ?? null, numItems: 100 });
     let linked = 0;
     for (const t of page.page) {
       for (const r of t.routes ?? []) {
         if (r.kind !== "session") continue;
-        const conv = await findConversationByAnyRefWhere(ctx, r.target, () => true);
+        const conv = await findConversationByAnyRefWhere(
+          ctx,
+          r.target,
+          () => true,
+        );
         if (!conv) continue;
-        await linkCallSession(ctx, t._id, conv._id as Id<"conversations">, (r.added_by ?? t.started_by) as Id<"users">, { live: true });
+        await linkCallSession(
+          ctx,
+          t._id,
+          conv._id as Id<"conversations">,
+          (r.added_by ?? t.started_by) as Id<"users">,
+          { live: true },
+        );
         linked++;
       }
     }
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.transcripts.backfillCallSessionLinks, { cursor: page.continueCursor });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.transcripts.backfillCallSessionLinks,
+        { cursor: page.continueCursor },
+      );
     }
     return { linked, done: page.isDone };
   },
@@ -395,7 +477,8 @@ export const start = mutation({
     // creator, and a fresh uuid nobody has started on belongs to whoever
     // starts it here.
     const auth = await authorizeRoom(ctx, userId, args.room_key, { rec: true });
-    if (!auth.ok) throw new Error(`Cannot transcribe this room: ${auth.reason}`);
+    if (!auth.ok)
+      throw new Error(`Cannot transcribe this room: ${auth.reason}`);
     if (args.auto && (await isRoomTranscribeOff(ctx, args.room_key))) {
       return { transcript_id: null, existing: false, role: "off" };
     }
@@ -413,11 +496,24 @@ export const start = mutation({
       // presser may be on a phone, which never scribes, so the first client
       // that asks takes the seat, whoever pressed.
       if (live.scribe_open) {
-        await ctx.db.patch(live._id, { started_by: userId, scribe_open: undefined });
-        return { transcript_id: live._id, existing: true, role: "scribe", elapsed_ms };
+        await ctx.db.patch(live._id, {
+          started_by: userId,
+          scribe_open: undefined,
+        });
+        return {
+          transcript_id: live._id,
+          existing: true,
+          role: "scribe",
+          elapsed_ms,
+        };
       }
       if (String(live.started_by) === String(userId)) {
-        return { transcript_id: live._id, existing: true, role: "scribe", elapsed_ms };
+        return {
+          transcript_id: live._id,
+          existing: true,
+          role: "scribe",
+          elapsed_ms,
+        };
       }
       // A recording never reaches here (only its creator may start on its
       // key), so the seat check reads the room the huddle is actually in.
@@ -428,9 +524,15 @@ export const start = mutation({
       const scribeSeated = liveMembers(seated, Date.now()).some(
         (m: any) => String(m.user_id) === String(live.started_by),
       );
-      if (scribeSeated) return { transcript_id: live._id, existing: true, role: "observer" };
+      if (scribeSeated)
+        return { transcript_id: live._id, existing: true, role: "observer" };
       await ctx.db.patch(live._id, { started_by: userId });
-      return { transcript_id: live._id, existing: true, role: "scribe", elapsed_ms };
+      return {
+        transcript_id: live._id,
+        existing: true,
+        role: "scribe",
+        elapsed_ms,
+      };
     }
     const id = await beginCallRecord(ctx, {
       roomKey: args.room_key,
@@ -442,7 +544,12 @@ export const start = mutation({
       // client won that race says nothing worth a line.
       announce: !args.auto,
     });
-    return { transcript_id: id, existing: false, role: "scribe", elapsed_ms: 0 };
+    return {
+      transcript_id: id,
+      existing: false,
+      role: "scribe",
+      elapsed_ms: 0,
+    };
   },
 });
 
@@ -486,19 +593,29 @@ export async function beginCallRecord(
     status: "live",
     started_at: startedAt,
     short_id: await nextShortId(ctx.db, "cl"),
-    routes: (ownRoute ? withDefaultRoutes(args.roomKey, args.routes) : args.routes).map((r) => ({
+    routes: (ownRoute
+      ? withDefaultRoutes(args.roomKey, args.routes)
+      : args.routes
+    ).map((r) => ({
       ...r,
       added_by: args.userId,
     })),
     last_seq: 0,
     ...(isPrivate ? { private: true } : {}),
-    ...(args.ownRoute === false && !isPrivate && ownRoomTarget(args.roomKey) ? { own_route_owed: true } : {}),
+    ...(args.ownRoute === false && !isPrivate && ownRoomTarget(args.roomKey)
+      ? { own_route_owed: true }
+      : {}),
     ...(args.scribeOpen ? { scribe_open: true } : {}),
   });
   // A new record has no public link, whatever the room's last one had.
   await stampRoomWordsPublic(ctx, (await ctx.db.get(id))!);
   if (args.announce) {
-    await postEvent(ctx, { room_key: args.roomKey, team_id: args.teamId, user_id: args.userId, event: "transcribe_on" });
+    await postEvent(ctx, {
+      room_key: args.roomKey,
+      team_id: args.teamId,
+      user_id: args.userId,
+      event: "transcribe_on",
+    });
   }
   // What was typed in the room since this huddle began is this huddle's.
   if (!isRoomlessKey(args.roomKey)) {
@@ -509,7 +626,10 @@ export async function beginCallRecord(
         .collect(),
       startedAt,
     );
-    const began = seats.reduce((m: number, r: any) => Math.min(m, r.joined_at ?? startedAt), startedAt);
+    const began = seats.reduce(
+      (m: number, r: any) => Math.min(m, r.joined_at ?? startedAt),
+      startedAt,
+    );
     await claimRoomRows(ctx, args.roomKey, id, began);
   }
   await syncAgentFeeds(ctx, (await ctx.db.get(id))!);
@@ -522,9 +642,16 @@ export async function beginCallRecord(
  *  that lacked the route gains it. A record that owes nothing is left alone,
  *  so a route somebody removed stays removed. The route is added by whoever
  *  turned transcription on, the person it now speaks for. */
-export async function ensureOwnRoute(ctx: any, t: Doc<"transcripts">, userId: Id<"users">): Promise<void> {
+export async function ensureOwnRoute(
+  ctx: any,
+  t: Doc<"transcripts">,
+  userId: Id<"users">,
+): Promise<void> {
   if (!t.own_route_owed || t.status !== "live") return;
-  const routes = withDefaultRoutes(t.room_key, t.routes).map((r) => ({ ...r, added_by: r.added_by ?? userId }));
+  const routes = withDefaultRoutes(t.room_key, t.routes).map((r) => ({
+    ...r,
+    added_by: r.added_by ?? userId,
+  }));
   await ctx.db.patch(t._id, { routes, own_route_owed: undefined });
   await syncAgentFeeds(ctx, (await ctx.db.get(t._id))!);
 }
@@ -552,14 +679,20 @@ export const setRoutes = mutation({
     // Keep delivery watermarks (and who added what) for routes that survive
     // the edit, so changing one route never re-sends another's history.
     const routes = args.routes.map((r) => {
-      const prior = t.routes.find((p) => p.kind === r.kind && p.target === r.target);
+      const prior = t.routes.find(
+        (p) => p.kind === r.kind && p.target === r.target,
+      );
       return {
         ...r,
         sent_seq: prior?.sent_seq ?? 0,
         added_by: prior?.added_by ?? userId,
-        ...(r.face === undefined && prior?.face === false ? { face: false } : {}),
+        ...(r.face === undefined && prior?.face === false
+          ? { face: false }
+          : {}),
         ...(prior?.hold_until ? { hold_until: prior.hold_until } : {}),
-        ...(prior?.briefed_chunks !== undefined ? { briefed_chunks: prior.briefed_chunks } : {}),
+        ...(prior?.briefed_chunks !== undefined
+          ? { briefed_chunks: prior.briefed_chunks }
+          : {}),
         ...(prior?.context_at ? { context_at: prior.context_at } : {}),
       };
     });
@@ -588,7 +721,10 @@ export const addRoute = mutation({
     // guest rung into the room may point the words at their agent even
     // before they have spoken (canReadCall is the HISTORY rule — its
     // participant door would blink on only once the scribe hears them).
-    if (!t || !(await authorizeRoom(ctx, userId, t.room_key, { rec: true })).ok) {
+    if (
+      !t ||
+      !(await authorizeRoom(ctx, userId, t.room_key, { rec: true })).ok
+    ) {
       throw new Error("Transcript not found");
     }
     // A recording has exactly one participant, so "any participant" is its
@@ -599,11 +735,19 @@ export const addRoute = mutation({
       throw new Error("Transcript not found");
     }
     if (t.status !== "live") throw new Error("Transcript has ended");
-    if (t.routes.some((r) => r.kind === args.kind && r.target === args.target)) return;
+    if (t.routes.some((r) => r.kind === args.kind && r.target === args.target))
+      return;
     await ctx.db.patch(t._id, {
       routes: [
         ...t.routes,
-        { kind: args.kind, target: args.target, mode: args.mode, sent_seq: 0, added_by: userId, ...(args.face === false ? { face: false } : {}) },
+        {
+          kind: args.kind,
+          target: args.target,
+          mode: args.mode,
+          sent_seq: 0,
+          added_by: userId,
+          ...(args.face === false ? { face: false } : {}),
+        },
       ],
     });
     await syncAgentFeeds(ctx, (await ctx.db.get(t._id))!);
@@ -620,16 +764,25 @@ export const addRoute = mutation({
 // Anyone in the huddle turns an agent's video avatar on or off; the agent
 // itself stays in the room either way (its replies keep landing in the chat).
 export const setAgentFace = mutation({
-  args: { transcript_id: v.id("transcripts"), target: v.string(), face: v.boolean() },
+  args: {
+    transcript_id: v.id("transcripts"),
+    target: v.string(),
+    face: v.boolean(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const t = await ctx.db.get(args.transcript_id);
-    if (!t || !(await authorizeRoom(ctx, userId, t.room_key, { rec: true })).ok) {
+    if (
+      !t ||
+      !(await authorizeRoom(ctx, userId, t.room_key, { rec: true })).ok
+    ) {
       throw new Error("Transcript not found");
     }
     if (t.status !== "live") throw new Error("Transcript has ended");
-    const i = t.routes.findIndex((r) => r.kind === "session" && r.target === args.target);
+    const i = t.routes.findIndex(
+      (r) => r.kind === "session" && r.target === args.target,
+    );
     if (i < 0 || (t.routes[i].face !== false) === args.face) return;
     const routes = [...t.routes];
     const { face: _face, ...rest } = routes[i];
@@ -650,7 +803,9 @@ export const removeRoute = mutation({
     if (!userId) throw new Error("Not authenticated");
     const t = await ctx.db.get(args.transcript_id);
     if (!t) throw new Error("Transcript not found");
-    const route = t.routes.find((r) => r.kind === args.kind && r.target === args.target);
+    const route = t.routes.find(
+      (r) => r.kind === args.kind && r.target === args.target,
+    );
     if (!route) return;
     // The scribe and the adder may take a route back at any time. While the
     // huddle runs, so may anyone in it, through addRoute's door: an agent in
@@ -670,21 +825,36 @@ export const removeRoute = mutation({
  *  not only the scribe or whoever added it: an agent talking over the room
  *  is the room's to stop, the way a guest is. */
 export const removeAgentFromRoom = internalMutation({
-  args: { user_id: v.id("users"), room_key: v.string(), conversation_id: v.string() },
+  args: {
+    user_id: v.id("users"),
+    room_key: v.string(),
+    conversation_id: v.string(),
+  },
   handler: async (ctx, args) => {
-    if (!(await authorizeRoom(ctx, args.user_id, args.room_key)).ok) throw new Error("Not in this room");
+    if (!(await authorizeRoom(ctx, args.user_id, args.room_key)).ok)
+      throw new Error("Not in this room");
     const t = await liveTranscriptFor(ctx, args.room_key);
     if (!t) return;
     for (const r of t.routes) {
       if (r.kind !== "session") continue;
-      const conv = await findConversationByAnyRefWhere(ctx, r.target, () => true);
-      if (conv && String(conv._id) === args.conversation_id) return await dropRoute(ctx, t, r.kind, r.target);
+      const conv = await findConversationByAnyRefWhere(
+        ctx,
+        r.target,
+        () => true,
+      );
+      if (conv && String(conv._id) === args.conversation_id)
+        return await dropRoute(ctx, t, r.kind, r.target);
     }
   },
 });
 
 /** Take one route off a transcript and let the fed sessions follow. */
-async function dropRoute(ctx: any, t: Doc<"transcripts">, kind: string, target: string): Promise<void> {
+async function dropRoute(
+  ctx: any,
+  t: Doc<"transcripts">,
+  kind: string,
+  target: string,
+): Promise<void> {
   await ctx.db.patch(t._id, {
     routes: t.routes.filter((r) => !(r.kind === kind && r.target === target)),
   });
@@ -764,8 +934,12 @@ export async function writeSegments(
     const id = ctx.db.normalizeId("call_guests", guestId);
     const guest = id ? await ctx.db.get(id) : null;
     const ours = guest && guest.room_key === t.room_key ? guest : null;
-    guestNames.set(s.speaker_id, callSpeakerName(s.speaker_id, ours?.name ?? s.speaker_name));
-    if (ours?.status === "admitted") await noteGuestAttendance(ctx, ours, t._id, t.started_at + s.t0);
+    guestNames.set(
+      s.speaker_id,
+      callSpeakerName(s.speaker_id, ours?.name ?? s.speaker_name),
+    );
+    if (ours?.status === "admitted")
+      await noteGuestAttendance(ctx, ours, t._id, t.started_at + s.t0);
   }
   const nameOf = (s: { speaker_id: string; speaker_name: string }) =>
     guestNames.get(s.speaker_id) ?? s.speaker_name;
@@ -837,16 +1011,28 @@ export async function fedSessionPacing(
   ctx: any,
   target: string,
   now: number,
-): Promise<{ conversation_id: string; names: string[]; busy: boolean; killed: boolean } | null> {
+): Promise<{
+  conversation_id: string;
+  names: string[];
+  busy: boolean;
+  killed: boolean;
+} | null> {
   const conv = await findConversationByAnyRefWhere(ctx, target, () => true);
   if (!conv) return null;
   const managed = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .first();
   const beat = await heartbeatOf(ctx, managed);
   const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
-  const status = trustedAgentStatus(managed?.agent_status, managed?.agent_status_updated_at, now, heartbeatFresh);
+  const status = trustedAgentStatus(
+    managed?.agent_status,
+    managed?.agent_status_updated_at,
+    now,
+    heartbeatFresh,
+  );
   const character = characterOf({
     _id: String(conv._id),
     character_avatar: (conv as any).character_avatar,
@@ -854,7 +1040,10 @@ export async function fedSessionPacing(
   });
   return {
     conversation_id: String(conv._id),
-    names: agentSpokenNames({ name: character.name, agentType: (conv as any).agent_type }),
+    names: agentSpokenNames({
+      name: character.name,
+      agentType: (conv as any).agent_type,
+    }),
     busy: heartbeatFresh && MID_TURN_AGENT_STATUSES.has(status ?? ""),
     // A killed session is gone for the room: its route is dropped, never retried.
     killed: !!(conv as any).inbox_killed_at,
@@ -878,20 +1067,34 @@ export const cliHoldCall = mutation({
     const conv = await findConversationByAnyRefWhere(
       ctx,
       args.session,
-      (c) => c.user_id?.toString() === auth.userId.toString() || c.owner_user_id?.toString() === auth.userId.toString(),
+      (c) =>
+        c.user_id?.toString() === auth.userId.toString() ||
+        c.owner_user_id?.toString() === auth.userId.toString(),
     );
-    if (!conv) throw new Error(`No session found for "${args.session}" (you can only hold a huddle for a session you run or own)`);
+    if (!conv)
+      throw new Error(
+        `No session found for "${args.session}" (you can only hold a huddle for a session you run or own)`,
+      );
     const shortId = conv.short_id ?? conv._id.toString().slice(0, 7);
     const feed = await ctx.db
       .query("call_agent_feeds")
-      .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .first();
     const t = feed ? await ctx.db.get(feed.transcript_id) : null;
     if (!feed || !t || t.status !== "live") {
-      return { held: false as const, reason: "not_in_huddle" as const, short_id: shortId };
+      return {
+        held: false as const,
+        reason: "not_in_huddle" as const,
+        short_id: shortId,
+      };
     }
     const now = Date.now();
-    const holdUntil = args.duration_ms > 0 ? now + Math.min(args.duration_ms, HOLD_MAX_MS) : undefined;
+    const holdUntil =
+      args.duration_ms > 0
+        ? now + Math.min(args.duration_ms, HOLD_MAX_MS)
+        : undefined;
     // The route's target may be any ref of this conversation (id, short id,
     // the agent's session id); resolve each session route the way delivery
     // does rather than comparing strings.
@@ -901,7 +1104,11 @@ export const cliHoldCall = mutation({
         routes.push(r);
         continue;
       }
-      const target = await findConversationByAnyRefWhere(ctx, r.target, () => true);
+      const target = await findConversationByAnyRefWhere(
+        ctx,
+        r.target,
+        () => true,
+      );
       const mine = target && String(target._id) === String(conv._id);
       // Only the caller's own route changes: another agent's hold is its own.
       if (!mine) {
@@ -912,12 +1119,21 @@ export const cliHoldCall = mutation({
       routes.push(holdUntil ? { ...rest, hold_until: holdUntil } : rest);
     }
     await ctx.db.patch(t._id, { routes });
-    await ctx.scheduler.runAfter(holdUntil ? holdUntil - now : 0, internal.transcripts.deliverRoutes, {
-      transcript_id: t._id,
-      include_after_routes: false,
-      reason: "hold_expired",
-    });
-    return { held: !!holdUntil, held_until: holdUntil ?? null, room_key: t.room_key, short_id: shortId };
+    await ctx.scheduler.runAfter(
+      holdUntil ? holdUntil - now : 0,
+      internal.transcripts.deliverRoutes,
+      {
+        transcript_id: t._id,
+        include_after_routes: false,
+        reason: "hold_expired",
+      },
+    );
+    return {
+      held: !!holdUntil,
+      held_until: holdUntil ?? null,
+      room_key: t.room_key,
+      short_id: shortId,
+    };
   },
 });
 
@@ -928,7 +1144,10 @@ export const ROLLING_SUMMARY_GAP_MS = 90_000;
 export const ROLLING_SUMMARY_MIN_WORDS = 120;
 
 export function countWords(texts: string[]): number {
-  return texts.reduce((n, text) => n + text.split(/\s+/).filter(Boolean).length, 0);
+  return texts.reduce(
+    (n, text) => n + text.split(/\s+/).filter(Boolean).length,
+    0,
+  );
 }
 
 /** Schedule a rolling recap of a live huddle if enough has been said since
@@ -936,16 +1155,24 @@ export function countWords(texts: string[]): number {
  *  mutation as the schedule, so two flushes landing together cannot both
  *  run it. A recording has no thread to show a recap in, and its summary is
  *  written once at the end like today. */
-export async function claimRollingSummary(ctx: any, t: Doc<"transcripts">, now: number): Promise<boolean> {
+export async function claimRollingSummary(
+  ctx: any,
+  t: Doc<"transcripts">,
+  now: number,
+): Promise<boolean> {
   if (t.status !== "live" || isRecRoomKey(t.room_key)) return false;
-  if (now - (t.summary_at ?? t.started_at) < ROLLING_SUMMARY_GAP_MS) return false;
+  if (now - (t.summary_at ?? t.started_at) < ROLLING_SUMMARY_GAP_MS)
+    return false;
   const since = t.summary_seq ?? 0;
   if (t.last_seq <= since) return false;
   const fresh: Doc<"transcript_segments">[] = await ctx.db
     .query("transcript_segments")
-    .withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id).gt("seq", since))
+    .withIndex("by_transcript_seq", (q: any) =>
+      q.eq("transcript_id", t._id).gt("seq", since),
+    )
     .collect();
-  if (countWords(fresh.map((s) => s.text)) < ROLLING_SUMMARY_MIN_WORDS) return false;
+  if (countWords(fresh.map((s) => s.text)) < ROLLING_SUMMARY_MIN_WORDS)
+    return false;
   await ctx.db.patch(t._id, { summary_at: now, summary_seq: t.last_seq });
   await ctx.scheduler.runAfter(0, internal.transcripts.generateSummary, {
     transcript_id: t._id,
@@ -1094,7 +1321,11 @@ export async function endTranscript(
   // The huddle is over, so is its video. Usually already stopped when the
   // room emptied (calls.leaveRoom); this covers the record the orphan sweep
   // or a later join ends.
-  if (!isRoomlessKey(t.room_key)) await stopRoomRecording(ctx, t.room_key, { reason: "huddle_ended", transcriptId: t._id });
+  if (!isRoomlessKey(t.room_key))
+    await stopRoomRecording(ctx, t.room_key, {
+      reason: "huddle_ended",
+      transcriptId: t._id,
+    });
   await ctx.db.patch(t._id, {
     status: "ended",
     ended_at: Math.max(t.started_at, endedAt),
@@ -1117,7 +1348,10 @@ export async function endTranscript(
 }
 
 /** When the room's last leave emptied it, from the room's state row. */
-async function roomEmptiedAt(ctx: any, roomKey: string): Promise<number | undefined> {
+async function roomEmptiedAt(
+  ctx: any,
+  roomKey: string,
+): Promise<number | undefined> {
   return (await readRoomState(ctx, roomKey))?.emptied_at;
 }
 
@@ -1125,23 +1359,40 @@ async function roomEmptiedAt(ctx: any, roomKey: string): Promise<number | undefi
  *  seated, or the room emptied inside the grace. A guest alone never keeps a
  *  huddle going, the same rule acceptedInviteGrant applies to a rung-in
  *  teammate. This is what a guest's admission lasts for (callGuests). */
-export async function huddleAlive(ctx: any, roomKey: string, now: number): Promise<boolean> {
+export async function huddleAlive(
+  ctx: any,
+  roomKey: string,
+  now: number,
+): Promise<boolean> {
   const rows: Doc<"call_members">[] = await ctx.db
     .query("call_members")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
     .collect();
   if (liveMembers(rows, now).length > 0) return true;
-  return withinHuddleGrace(await liveTranscriptFor(ctx, roomKey), rows, now, await roomEmptiedAt(ctx, roomKey));
+  return withinHuddleGrace(
+    await liveTranscriptFor(ctx, roomKey),
+    rows,
+    now,
+    await roomEmptiedAt(ctx, roomKey),
+  );
 }
 
 /** The last person left the room: its live huddle waits out the grace, and
  *  ends at the moment the room emptied unless somebody comes back first
  *  (resumeOrEndHuddle). Called from calls.leaveRoom. */
-export async function idleLiveTranscriptsForRoom(ctx: any, roomKey: string, at: number): Promise<void> {
+export async function idleLiveTranscriptsForRoom(
+  ctx: any,
+  roomKey: string,
+  at: number,
+): Promise<void> {
   const t = await liveTranscriptFor(ctx, roomKey);
   if (!t || t.idle_since) return;
   await ctx.db.patch(t._id, { idle_since: at });
-  await ctx.scheduler.runAfter(HUDDLE_GRACE_MS, internal.transcripts.endIdleTranscript, { transcript_id: t._id });
+  await ctx.scheduler.runAfter(
+    HUDDLE_GRACE_MS,
+    internal.transcripts.endIdleTranscript,
+    { transcript_id: t._id },
+  );
 }
 
 /** Somebody took a seat in an empty room. Inside the grace the room's live
@@ -1173,7 +1424,8 @@ export const endIdleTranscript = internalMutation({
   handler: async (ctx, args) => {
     const t = await ctx.db.get(args.transcript_id);
     if (!t || t.status !== "live" || !t.idle_since) return { ended: false };
-    if (Date.now() - t.idle_since < HUDDLE_GRACE_MS - 5_000) return { ended: false };
+    if (Date.now() - t.idle_since < HUDDLE_GRACE_MS - 5_000)
+      return { ended: false };
     const seated = await ctx.db
       .query("call_members")
       .withIndex("by_room", (q) => q.eq("room_key", t.room_key))
@@ -1278,12 +1530,18 @@ export function callSummaryKind(roomKey: string): CallSummaryKind {
  * SUMMARY_MIN_WORDS and gets no model call. A recording's lines carry no
  * speaker; a long call keeps its last SUMMARY_MAX_CHARS characters.
  */
-export function callSummarySource(lines: Array<{ speaker: string; text: string }>, kind: CallSummaryKind): string | null {
+export function callSummarySource(
+  lines: Array<{ speaker: string; text: string }>,
+  kind: CallSummaryKind,
+): string | null {
   if (countWords(lines.map((l) => l.text)) < SUMMARY_MIN_WORDS) return null;
-  const text = kind === "recording"
-    ? lines.map((l) => l.text).join("\n")
-    : lines.map((l) => `${l.speaker}: ${l.text}`).join("\n");
-  return text.length > SUMMARY_MAX_CHARS ? text.slice(-SUMMARY_MAX_CHARS) : text;
+  const text =
+    kind === "recording"
+      ? lines.map((l) => l.text).join("\n")
+      : lines.map((l) => `${l.speaker}: ${l.text}`).join("\n");
+  return text.length > SUMMARY_MAX_CHARS
+    ? text.slice(-SUMMARY_MAX_CHARS)
+    : text;
 }
 
 /**
@@ -1292,14 +1550,20 @@ export function callSummarySource(lines: Array<{ speaker: string; text: string }
  */
 export function callSummaryRequest(
   source: string,
-  call: { kind: CallSummaryKind; started_at: number; ended_at?: number; rolling?: boolean },
+  call: {
+    kind: CallSummaryKind;
+    started_at: number;
+    ended_at?: number;
+    rolling?: boolean;
+  },
 ): SurfaceRequest {
   const durationMin = call.ended_at
     ? Math.max(1, Math.round((call.ended_at - call.started_at) / 60_000))
     : null;
-  const preamble = call.kind === "recording"
-    ? `This is the transcript of a meeting recorded on ONE microphone in the room${durationMin ? `, about ${durationMin} min` : ""}. Voices are NOT separated and nobody is identified: attribute something to a person only when the words themselves name them, and otherwise write about what was said, not who said it.`
-    : `This is the transcript of a team huddle (voice call)${durationMin ? `, about ${durationMin} min` : ""}${call.rolling ? ", still going: summarize what has been said so far" : ""}. Speakers are exactly attributed.`;
+  const preamble =
+    call.kind === "recording"
+      ? `This is the transcript of a meeting recorded on ONE microphone in the room${durationMin ? `, about ${durationMin} min` : ""}. Voices are NOT separated and nobody is identified: attribute something to a person only when the words themselves name them, and otherwise write about what was said, not who said it.`
+      : `This is the transcript of a team huddle (voice call)${durationMin ? `, about ${durationMin} min` : ""}${call.rolling ? ", still going: summarize what has been said so far" : ""}. Speakers are exactly attributed.`;
   return {
     model: CHEAP_MODEL,
     // A two-hour call's reply runs past 500 tokens; a cut-off reply has no
@@ -1321,13 +1585,21 @@ ${source}`,
  * The call summary reply as the transcript row stores it. Throws when the
  * reply holds no JSON object, which the action records as a failed summary.
  */
-export function parseCallSummaryReply(raw: string): { title?: string; summary?: string; action_items?: string[] } {
+export function parseCallSummaryReply(raw: string): {
+  title?: string;
+  summary?: string;
+  action_items?: string[];
+} {
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("No JSON in response");
   const parsed = JSON.parse(match[0]);
   return {
-    title: typeof parsed.title === "string" ? parsed.title.slice(0, 120) : undefined,
-    summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 2000) : undefined,
+    title:
+      typeof parsed.title === "string" ? parsed.title.slice(0, 120) : undefined,
+    summary:
+      typeof parsed.summary === "string"
+        ? parsed.summary.slice(0, 2000)
+        : undefined,
     action_items: Array.isArray(parsed.action_items)
       ? parsed.action_items
           .filter((a: unknown) => typeof a === "string")
@@ -1416,10 +1688,14 @@ export const setSummary = internalMutation({
     await enqueuePush(ctx, {
       user: owner,
       type: RECORDING_SUMMARY_PUSH_TYPE,
-      title: args.title || (isMeetRoomKey(t.room_key) ? "Meeting notes ready" : "Recording ready"),
+      title:
+        args.title ||
+        (isMeetRoomKey(t.room_key) ? "Meeting notes ready" : "Recording ready"),
       body: args.summary
         ? args.summary.slice(0, 200)
-        : isMeetRoomKey(t.room_key) ? "Your meeting has been transcribed." : "Your recording has been transcribed.",
+        : isMeetRoomKey(t.room_key)
+          ? "Your meeting has been transcribed."
+          : "Your recording has been transcribed.",
       data: { type: RECORDING_SUMMARY_PUSH_TYPE, recordingId: String(t._id) },
     });
   },
@@ -1457,8 +1733,10 @@ export function huddleDigestTarget(
 ): { kind: "chat" } | { kind: "session"; conversationId: string } | null {
   const parsed = parseRoomKey(roomKey);
   if (!parsed) return null;
-  if (parsed.kind === "channel" || parsed.kind === "dm") return { kind: "chat" };
-  if (parsed.kind === "session") return { kind: "session", conversationId: parsed.conversationId };
+  if (parsed.kind === "channel" || parsed.kind === "dm")
+    return { kind: "chat" };
+  if (parsed.kind === "session")
+    return { kind: "session", conversationId: parsed.conversationId };
   return null;
 }
 
@@ -1475,7 +1753,12 @@ export function huddleDigestTarget(
 async function scheduleHuddleDigest(
   ctx: any,
   t: Doc<"transcripts">,
-  verdict: { summary_status: "done" | "failed" | "skipped"; title?: string; summary?: string; action_items?: string[] },
+  verdict: {
+    summary_status: "done" | "failed" | "skipped";
+    title?: string;
+    summary?: string;
+    action_items?: string[];
+  },
 ): Promise<void> {
   const target = huddleDigestTarget(t.room_key);
   const filmed = callFilmed(t);
@@ -1515,7 +1798,10 @@ async function scheduleHuddleDigest(
     body: formatHuddleSummaryTag(String(t._id), digest, {
       callRef: t.short_id ?? null,
       heardLive: t.routes.some(
-        (r) => r.kind === "session" && r.target === target.conversationId && r.mode === "live",
+        (r) =>
+          r.kind === "session" &&
+          r.target === target.conversationId &&
+          r.mode === "live",
       ),
     }),
   });
@@ -1539,7 +1825,10 @@ async function huddleVideoStretches(ctx: any, t: Doc<"transcripts">) {
 }
 
 export const generateSummary = internalAction({
-  args: { transcript_id: v.id("transcripts"), rolling: v.optional(v.boolean()) },
+  args: {
+    transcript_id: v.id("transcripts"),
+    rolling: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const t = await ctx.runQuery(internal.transcripts.getForSummary, {
       transcript_id: args.transcript_id,
@@ -1570,13 +1859,24 @@ export const generateSummary = internalAction({
     }
     try {
       const response = await postMessages(
-        callSummaryRequest(source, { kind, started_at: t.started_at, ended_at: t.ended_at, rolling }),
+        callSummaryRequest(source, {
+          kind,
+          started_at: t.started_at,
+          ended_at: t.ended_at,
+          rolling,
+        }),
         { gate: { ctx, scope: { workspace: `team:${t.team_id}` } } },
       );
       if (!response) throw new Error("ANTHROPIC_API_KEY not configured");
-      if (!response.ok) throw new Error(`Anthropic ${response.status}: ${(await response.text()).slice(0, 300)}`);
+      if (!response.ok)
+        throw new Error(
+          `Anthropic ${response.status}: ${(await response.text()).slice(0, 300)}`,
+        );
       const data = await response.json();
-      if (data.stop_reason === "max_tokens") throw new Error(`Reply cut off at max_tokens (${data.usage?.output_tokens} tokens)`);
+      if (data.stop_reason === "max_tokens")
+        throw new Error(
+          `Reply cut off at max_tokens (${data.usage?.output_tokens} tokens)`,
+        );
       await ctx.runMutation(internal.transcripts.setSummary, {
         transcript_id: args.transcript_id,
         summary_status: "done",
@@ -1609,13 +1909,18 @@ export const retryFailedSummaries = internalMutation({
     const failed = (
       await ctx.db
         .query("transcripts")
-        .withIndex("by_status", (q) => q.eq("status", "ended").gte("_creationTime", args.since))
+        .withIndex("by_status", (q) =>
+          q.eq("status", "ended").gte("_creationTime", args.since),
+        )
         .collect()
     ).filter((t) => t.summary_status === "failed");
-    if (args.dryRun !== false) return { dryRun: true, calls: failed.map((t) => t.short_id ?? t._id) };
+    if (args.dryRun !== false)
+      return { dryRun: true, calls: failed.map((t) => t.short_id ?? t._id) };
     for (const t of failed) {
       await ctx.db.patch(t._id, { summary_status: "pending" });
-      await ctx.scheduler.runAfter(0, internal.transcripts.generateSummary, { transcript_id: t._id });
+      await ctx.scheduler.runAfter(0, internal.transcripts.generateSummary, {
+        transcript_id: t._id,
+      });
     }
     return { dryRun: false, calls: failed.map((t) => t.short_id ?? t._id) };
   },
@@ -1647,7 +1952,11 @@ export const appendRecordingSegments = internalMutation({
     const t = await ctx.db.get(args.transcript_id);
     if (!t || !isRecRoomKey(t.room_key)) return { last_seq: 0 };
     // A recording names no voices; see writeSegments.
-    return { last_seq: await writeSegments(ctx, t, args.segments, { trackParticipants: false }) };
+    return {
+      last_seq: await writeSegments(ctx, t, args.segments, {
+        trackParticipants: false,
+      }),
+    };
   },
 });
 
@@ -1700,7 +2009,10 @@ export const transcribeRecording = internalAction({
       });
       if (!row?.storage_id) throw new Error("no audio attached");
       // A regulated team's recording reaches OpenAI only once it has a BAA (lib/vendorGuard).
-      const gate = { ctx, scope: { row: { table: "transcripts", id: args.transcript_id } } };
+      const gate = {
+        ctx,
+        scope: { row: { table: "transcripts", id: args.transcript_id } },
+      };
       const audio = await ctx.storage.get(row.storage_id);
       if (!audio) throw new Error("audio missing from storage");
       // The extension is what the API reads the container off. A phone records
@@ -1722,7 +2034,10 @@ export const transcribeRecording = internalAction({
       }
       ok = true;
     } catch (err) {
-      console.error("[transcripts] recording transcription failed", String(err).slice(0, 300));
+      console.error(
+        "[transcripts] recording transcription failed",
+        String(err).slice(0, 300),
+      );
     }
     await ctx.runMutation(internal.transcripts.finishRecordingTranscript, {
       transcript_id: args.transcript_id,
@@ -1821,7 +2136,8 @@ export async function canReadCall(
   // teammates read it under the ordinary team door, feature gate included.
   // A MEETING BOT'S CALL is its sender's the same way, plus a participant
   // door for a teammate the bot heard speak (callRooms.canReadRoomlessCall).
-  if (isRoomlessKey(t.room_key)) return await canReadRoomlessCall(ctx, userId, t);
+  if (isRoomlessKey(t.room_key))
+    return await canReadRoomlessCall(ctx, userId, t);
   // The people in it: whoever spoke, whoever scribed it (started_by), and
   // whoever a recording of it showed
   // (recorded_people: seated while it was filmed, the presser included,
@@ -1844,14 +2160,22 @@ export async function canReadCall(
   // reaches the team (a team-visible session, a public channel) everywhere
   // but a people room, whose key names exactly the people it was for.
   const membershipReads = !t.private || parseRoomKey(t.room_key)?.kind === "dm";
-  if (membershipReads && (await authorizeRoomNoGrant(ctx, userId, t.room_key)).ok) return true;
+  if (
+    membershipReads &&
+    (await authorizeRoomNoGrant(ctx, userId, t.room_key)).ok
+  )
+    return true;
   // The huddle running now reads like the huddle: whoever its door admits
   // (the open door, a ring) may read the words being said in it, the way they
   // could walk in and hear them. That is this run only. Once it ends, the
   // doors above decide, so a walk-in who never spoke loses it as before.
   // The words only: a call's recordings pass `liveDoor: false`, so walking
   // past an occupied room never opens its video or its delete.
-  return opts.liveDoor !== false && t.status === "live" && (await authorizeRoom(ctx, userId, t.room_key)).ok;
+  return (
+    opts.liveDoor !== false &&
+    t.status === "live" &&
+    (await authorizeRoom(ctx, userId, t.room_key)).ok
+  );
 }
 
 function shapeCallRow(t: Doc<"transcripts">) {
@@ -1894,7 +2218,9 @@ function shapeCallRow(t: Doc<"transcripts">) {
           no_audio: !!t.screen_recording.no_audio,
           // The session it was sent to: a daemon expands its tag only there,
           // and only for a message its recorder sent (cli screenRecordingBrief).
-          conversation_id: t.screen_recording.conversation_id ? String(t.screen_recording.conversation_id) : null,
+          conversation_id: t.screen_recording.conversation_id
+            ? String(t.screen_recording.conversation_id)
+            : null,
         }
       : null,
   };
@@ -1929,8 +2255,13 @@ async function listCallsCore(ctx: any, userId: Id<"users">, limit: number) {
   // A screen recording is a message in a session, not a call: it lives in
   // that session's thread and on its own page, never in the history.
   const keep = async (t: Doc<"transcripts">) =>
-    !t.screen_recording && !(await isSilentHuddle(ctx, t)) && (await canReadCall(ctx, userId, t));
-  const walk = async (query: any, only?: (t: Doc<"transcripts">) => boolean) => {
+    !t.screen_recording &&
+    !(await isSilentHuddle(ctx, t)) &&
+    (await canReadCall(ctx, userId, t));
+  const walk = async (
+    query: any,
+    only?: (t: Doc<"transcripts">) => boolean,
+  ) => {
     const kept: Doc<"transcripts">[] = [];
     let scanned = 0;
     for await (const t of query) {
@@ -1981,8 +2312,12 @@ async function listCallsCore(ctx: any, userId: Id<"users">, limit: number) {
  *  microphone. It is no call anybody would look for, so the history leaves
  *  it out, unless it was filmed (the video is content). A recording is
  *  never silent here: its words can arrive after it ends. */
-async function isSilentHuddle(ctx: any, t: Doc<"transcripts">): Promise<boolean> {
-  if (t.status === "live" || isRoomlessKey(t.room_key) || t.last_seq > 0) return false;
+async function isSilentHuddle(
+  ctx: any,
+  t: Doc<"transcripts">,
+): Promise<boolean> {
+  if (t.status === "live" || isRoomlessKey(t.room_key) || t.last_seq > 0)
+    return false;
   // A huddle that was filmed and never transcribed is still a call: its
   // video is the content. The same rule the Video glyph reads.
   if (callFilmed(t)) return false;
@@ -2040,15 +2375,24 @@ async function getCallCore(
   };
 }
 
-async function callBoardFor(ctx: any, userId: Id<"users">, t: Doc<"transcripts">): Promise<{ doc_id: string; title: string } | null> {
+async function callBoardFor(
+  ctx: any,
+  userId: Id<"users">,
+  t: Doc<"transcripts">,
+): Promise<{ doc_id: string; title: string } | null> {
   if (!t.board_doc_id) return null;
   const doc = await ctx.db.get(t.board_doc_id);
-  if (!doc || doc.archived_at || !(await canAccessDoc(ctx, userId, doc))) return null;
+  if (!doc || doc.archived_at || !(await canAccessDoc(ctx, userId, doc)))
+    return null;
   return { doc_id: String(doc._id), title: doc.title };
 }
 
 /** The sessions a call reached that the viewer may open, newest first. */
-async function linkedSessions(ctx: any, userId: Id<"users">, transcriptId: Id<"transcripts">) {
+async function linkedSessions(
+  ctx: any,
+  userId: Id<"users">,
+  transcriptId: Id<"transcripts">,
+) {
   const links: Doc<"call_session_links">[] = await ctx.db
     .query("call_session_links")
     .withIndex("by_transcript", (q: any) => q.eq("transcript_id", transcriptId))
@@ -2060,13 +2404,23 @@ async function linkedSessions(ctx: any, userId: Id<"users">, transcriptId: Id<"t
     if (!conv || !(await canAccessConversation(ctx, userId, conv))) continue;
     const who = await agentIdentity(ctx, l.conversation_id);
     if (!who) continue;
-    out.push({ ...who, live: !!l.live, excerpts: l.excerpts ?? [], added_by: String(l.added_by), at: l.updated_at });
+    out.push({
+      ...who,
+      live: !!l.live,
+      excerpts: l.excerpts ?? [],
+      added_by: String(l.added_by),
+      at: l.updated_at,
+    });
   }
   return out;
 }
 
 /** The tasks pulled from a call (tasks.from_call) that the viewer may read. */
-async function callTasks(ctx: any, userId: Id<"users">, transcriptId: Id<"transcripts">) {
+async function callTasks(
+  ctx: any,
+  userId: Id<"users">,
+  transcriptId: Id<"transcripts">,
+) {
   const rows: Doc<"tasks">[] = await ctx.db
     .query("tasks")
     .withIndex("by_from_call", (q: any) => q.eq("from_call", transcriptId))
@@ -2074,7 +2428,12 @@ async function callTasks(ctx: any, userId: Id<"users">, transcriptId: Id<"transc
   const out = [];
   for (const t of rows) {
     if (!(await canAccessTask(ctx, userId, t))) continue;
-    out.push({ short_id: t.short_id, title: t.title, status: t.status, assignee: t.assignee ?? null });
+    out.push({
+      short_id: t.short_id,
+      title: t.title,
+      status: t.status,
+      assignee: t.assignee ?? null,
+    });
   }
   return out;
 }
@@ -2118,11 +2477,17 @@ const MOMENT_LINE_LOOKBACK = 8;
  * dozen point reads, and the few lines before it settle which one was being
  * said. A long call's card then re-runs on a handful of rows, not thousands.
  */
-export async function lineAtMoment(ctx: any, t: Doc<"transcripts">, atMs: number) {
+export async function lineAtMoment(
+  ctx: any,
+  t: Doc<"transcripts">,
+  atMs: number,
+) {
   const at = (seq: number) =>
     ctx.db
       .query("transcript_segments")
-      .withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id).gte("seq", seq))
+      .withIndex("by_transcript_seq", (q: any) =>
+        q.eq("transcript_id", t._id).gte("seq", seq),
+      )
       .first() as Promise<Doc<"transcript_segments"> | null>;
   let lo = 1;
   let hi = t.last_seq;
@@ -2140,13 +2505,24 @@ export async function lineAtMoment(ctx: any, t: Doc<"transcripts">, atMs: number
   const near: Doc<"transcript_segments">[] = await ctx.db
     .query("transcript_segments")
     .withIndex("by_transcript_seq", (q: any) =>
-      q.eq("transcript_id", t._id).gte("seq", found - MOMENT_LINE_LOOKBACK).lte("seq", found),
+      q
+        .eq("transcript_id", t._id)
+        .gte("seq", found - MOMENT_LINE_LOOKBACK)
+        .lte("seq", found),
     )
     .collect();
   const hit = lineSaidAt(near, atMs);
   if (!hit) return null;
   const s = near[hit.index];
-  return { seq: s.seq, speaker_id: s.speaker_id, speaker_name: s.speaker_name, text: s.text, t0: s.t0, t1: s.t1, during: hit.during };
+  return {
+    seq: s.seq,
+    speaker_id: s.speaker_id,
+    speaker_name: s.speaker_name,
+    text: s.text,
+    t0: s.t0,
+    t1: s.t1,
+    during: hit.during,
+  };
 }
 
 async function callRefCore(
@@ -2169,7 +2545,12 @@ async function callRefCore(
     summary: row.summary,
   };
   // A moment (`cl-42@12:34`) carries the line said then, its card's caption.
-  if (args.at_ms !== undefined) return { ...lean, turns: null, line: await lineAtMoment(ctx, t, args.at_ms) };
+  if (args.at_ms !== undefined)
+    return {
+      ...lean,
+      turns: null,
+      line: await lineAtMoment(ctx, t, args.at_ms),
+    };
   if (args.from_seq === undefined) return { ...lean, turns: null };
   const from = Math.min(args.from_seq, args.to_seq ?? args.from_seq);
   const to = Math.max(args.from_seq, args.to_seq ?? args.from_seq);
@@ -2185,15 +2566,17 @@ async function callRefCore(
       from_seq: from,
       to_seq: to,
       more: segs.length > CALL_EXCERPT_MAX_TURNS,
-      segments: segs.slice(0, CALL_EXCERPT_MAX_TURNS).map((s: Doc<"transcript_segments">) => ({
-        seq: s.seq,
-        speaker_id: s.speaker_id,
-        speaker_name: s.speaker_name,
-        text: s.text,
-        t0: s.t0,
-        t1: s.t1,
-        at: s._creationTime,
-      })),
+      segments: segs
+        .slice(0, CALL_EXCERPT_MAX_TURNS)
+        .map((s: Doc<"transcript_segments">) => ({
+          seq: s.seq,
+          speaker_id: s.speaker_id,
+          speaker_name: s.speaker_name,
+          text: s.text,
+          t0: s.t0,
+          t1: s.t1,
+          at: s._creationTime,
+        })),
     },
   };
 }
@@ -2202,7 +2585,12 @@ async function callRefCore(
 // card with those turns, `cl-42@12:34` the frame captioned with the line said
 // then. One query for all, so they cannot disagree.
 export const webGetCallRef = query({
-  args: { ref: v.string(), from_seq: v.optional(v.number()), to_seq: v.optional(v.number()), at_ms: v.optional(v.number()) },
+  args: {
+    ref: v.string(),
+    from_seq: v.optional(v.number()),
+    to_seq: v.optional(v.number()),
+    at_ms: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
@@ -2266,7 +2654,9 @@ export const webSearchCalls = query({
       calls.map(async (c) => {
         const rows = await ctx.db
           .query("transcript_segments")
-          .withSearchIndex("search_text", (s) => s.search("text", q).eq("transcript_id", c._id))
+          .withSearchIndex("search_text", (s) =>
+            s.search("text", q).eq("transcript_id", c._id),
+          )
           .take(CALL_SEARCH_LINES + 1);
         return {
           _id: c._id,
@@ -2296,7 +2686,9 @@ export const webCallsForConversation = query({
     if (!conv || !(await canAccessConversation(ctx, userId, conv))) return [];
     const links = await ctx.db
       .query("call_session_links")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
     links.sort((a, b) => b.updated_at - a.updated_at);
     const out = [];
@@ -2335,9 +2727,12 @@ export const linkExcerpt = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const t = await ctx.db.get(args.transcript_id);
-    if (!t || !(await canReadCall(ctx, userId, t))) throw new Error("Call not found");
-    const conv = await findConversationByAnyRefWhere(ctx, args.conversation, (c: any) =>
-      canAccessConversation(ctx, userId, c),
+    if (!t || !(await canReadCall(ctx, userId, t)))
+      throw new Error("Call not found");
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.conversation,
+      (c: any) => canAccessConversation(ctx, userId, c),
     );
     if (!conv) throw new Error("Session not found");
     await linkCallSession(ctx, t._id, conv._id as Id<"conversations">, userId, {
@@ -2364,7 +2759,11 @@ export const setRecordingScope = mutation({
     const t = await ctx.db.get(args.transcript_id);
     // One error for "no row", "not a recording", and "not yours": naming
     // which of the three failed would confirm the row exists.
-    if (!t || !isRoomlessKey(t.room_key) || String(t.started_by) !== String(userId)) {
+    if (
+      !t ||
+      !isRoomlessKey(t.room_key) ||
+      String(t.started_by) !== String(userId)
+    ) {
       throw new Error("Recording not found");
     }
     if (!args.team_id) {
@@ -2383,7 +2782,11 @@ export const cliListCalls = query({
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new Error("Unauthorized");
-    const rows = await listCallsCore(ctx, auth.userId, Math.min(args.limit ?? 30, 200));
+    const rows = await listCallsCore(
+      ctx,
+      auth.userId,
+      Math.min(args.limit ?? 30, 200),
+    );
     // Which calls have video, so `cast calls` can mark the ones `cast call
     // snap` can show. Here and not in listCallsCore: the web list is a live
     // subscription, and reading every call's recordings there would re-run
@@ -2434,8 +2837,16 @@ async function callPlaceNames(
   ctx: any,
   userId: Id<"users">,
   roomKey: string,
-): Promise<{ session_title: string | null; peer_name: string | null; channel_name: string | null }> {
-  const place = { session_title: null as string | null, peer_name: null as string | null, channel_name: null as string | null };
+): Promise<{
+  session_title: string | null;
+  peer_name: string | null;
+  channel_name: string | null;
+}> {
+  const place = {
+    session_title: null as string | null,
+    peer_name: null as string | null,
+    channel_name: null as string | null,
+  };
   const parsed = parseRoomKey(roomKey);
   // A key's ids are shape-checked only; a stale or foreign one names nothing.
   const get = (table: string, id: string) => {
@@ -2444,7 +2855,8 @@ async function callPlaceNames(
   };
   if (parsed?.kind === "session") {
     const conv = await get("conversations", parsed.conversationId);
-    if (conv?.title && (await canAccessConversation(ctx, userId, conv))) place.session_title = conv.title;
+    if (conv?.title && (await canAccessConversation(ctx, userId, conv)))
+      place.session_title = conv.title;
   } else if (parsed?.kind === "channel") {
     const channel = await get("chat_channels", parsed.channelId);
     if (channel?.name) place.channel_name = channel.name;
@@ -2465,13 +2877,25 @@ async function callPlaceNames(
  *  saved, "ready" when some of it plays, null when there is none. And
  *  whether a shared screen has its own full-resolution file that plays
  *  (`video_screen`), the picture an agent reading a call wants most. */
-async function callVideoState(ctx: any, transcriptId: Id<"transcripts">): Promise<{ video: "recording" | "ready" | null; video_screen: boolean }> {
+async function callVideoState(
+  ctx: any,
+  transcriptId: Id<"transcripts">,
+): Promise<{ video: "recording" | "ready" | null; video_screen: boolean }> {
   const files: Doc<"call_recordings">[] = await ctx.db
     .query("call_recordings")
     .withIndex("by_transcript", (q: any) => q.eq("transcript_id", transcriptId))
     .collect();
-  const video = files.some((f) => isRecordingActive(f.status)) ? "recording" : files.some((f) => f.status === "ready") ? "ready" : null;
-  return { video, video_screen: files.some((f) => f.kind === "screen" && f.status === "ready") };
+  const video = files.some((f) => isRecordingActive(f.status))
+    ? "recording"
+    : files.some((f) => f.status === "ready")
+      ? "ready"
+      : null;
+  return {
+    video,
+    video_screen: files.some(
+      (f) => f.kind === "screen" && f.status === "ready",
+    ),
+  };
 }
 
 export const cliGetCall = query({
@@ -2516,14 +2940,16 @@ export const mintAsrToken = action({
     ctx,
     args,
   ): Promise<
-    { client_secret: string; model: string; languages: string[] } | { error: string }
+    | { client_secret: string; model: string; languages: string[] }
+    | { error: string }
   > => {
     const grant = await ctx.runQuery(internal.transcripts.authForAsr, {
       room_key: args.room_key,
     });
     if (!grant) return { error: "Not authorized for this room" };
     if (grant.refusal) return { error: grant.refusal };
-    if (!process.env.OPENAI_API_KEY) return { error: "Transcription is not configured" };
+    if (!process.env.OPENAI_API_KEY)
+      return { error: "Transcription is not configured" };
     let model = LIVE_TRANSCRIBE_MODEL;
     let languages = unionTranscribeLanguages(args.languages, grant.languages);
     // GA realtime API: client secrets are minted at /v1/realtime/client_secrets
@@ -2531,18 +2957,25 @@ export const mintAsrToken = action({
     const mint = async (
       session: ReturnType<typeof asrTranscriptionSession>,
     ): Promise<{ error: string } | { client_secret: string }> => {
-      const resp = await openaiFetch({ ctx, scope: { workspace: grant.workspace } }, "/v1/realtime/client_secrets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session }),
-      });
+      const resp = await openaiFetch(
+        { ctx, scope: { workspace: grant.workspace } },
+        "/v1/realtime/client_secrets",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session }),
+        },
+      );
       if (!resp) return { error: "Transcription is not configured" };
       if (!resp.ok) {
         const body = (await resp.text()).slice(0, 300);
         console.error("[transcripts] mint failed", resp.status, body);
         let hint = "";
         try {
-          const parsed = JSON.parse(body) as { error?: { message?: string }; message?: string };
+          const parsed = JSON.parse(body) as {
+            error?: { message?: string };
+            message?: string;
+          };
           const msg = parsed.error?.message ?? parsed.message;
           if (typeof msg === "string" && msg) hint = `: ${msg.slice(0, 160)}`;
         } catch {
@@ -2550,7 +2983,10 @@ export const mintAsrToken = action({
         }
         return { error: `ASR session mint failed (${resp.status})${hint}` };
       }
-      const data = (await resp.json()) as { value?: string; client_secret?: { value?: string } };
+      const data = (await resp.json()) as {
+        value?: string;
+        client_secret?: { value?: string };
+      };
       const secret = data.value ?? data.client_secret?.value;
       if (!secret) return { error: "ASR session mint returned no secret" };
       return { client_secret: secret };
@@ -2593,8 +3029,17 @@ export const authForAsr = internalQuery({
       ...liveMembers(rows, Date.now()).map((m) => m.languages),
     );
     // Live transcription streams the room's audio to OpenAI: a regulated team's only once it has a BAA.
-    const refusal = await vendorRefusalFromDb(ctx, { workspace: `team:${auth.teamId}` }, "openai");
-    return { user_id: String(userId), languages, refusal, workspace: `team:${auth.teamId}` };
+    const refusal = await vendorRefusalFromDb(
+      ctx,
+      { workspace: `team:${auth.teamId}` },
+      "openai",
+    );
+    return {
+      user_id: String(userId),
+      languages,
+      refusal,
+      workspace: `team:${auth.teamId}`,
+    };
   },
 });
 
@@ -2619,11 +3064,20 @@ export const readUnsent = internalQuery({
     // The pacing of every fed session, keyed by route target, read here so
     // the action decides from one consistent snapshot.
     const now = Date.now();
-    const pacing: Record<string, { conversation_id: string; names: string[]; busy: boolean; killed: boolean }> = {};
+    const pacing: Record<
+      string,
+      {
+        conversation_id: string;
+        names: string[];
+        busy: boolean;
+        killed: boolean;
+      }
+    > = {};
     // Session routes whose target is killed or gone: delivery drops them.
     const dead: string[] = [];
     for (const r of t.routes) {
-      if (r.kind !== "session" || pacing[r.target] || dead.includes(r.target)) continue;
+      if (r.kind !== "session" || pacing[r.target] || dead.includes(r.target))
+        continue;
       const p = await fedSessionPacing(ctx, r.target, now);
       if (!p || p.killed) dead.push(r.target);
       else pacing[r.target] = p;
@@ -2674,7 +3128,8 @@ export const markRouteSent = internalMutation({
   handler: async (ctx, args) => {
     const t = await ctx.db.get(args.transcript_id);
     if (!t) return;
-    if (args.addressed_at && args.kind === "session") await markFeedAddressed(ctx, args.target, t._id, args.addressed_at);
+    if (args.addressed_at && args.kind === "session")
+      await markFeedAddressed(ctx, args.target, t._id, args.addressed_at);
     await ctx.db.patch(t._id, {
       routes: t.routes.map((r) =>
         r.kind === args.kind && r.target === args.target
@@ -2684,7 +3139,11 @@ export const markRouteSent = internalMutation({
               ...(args.context_at ? { context_at: args.context_at } : {}),
               ...(args.full_brief === undefined
                 ? {}
-                : { briefed_chunks: args.full_brief ? 1 : (r.briefed_chunks ?? 0) + 1 }),
+                : {
+                    briefed_chunks: args.full_brief
+                      ? 1
+                      : (r.briefed_chunks ?? 0) + 1,
+                  }),
             }
           : r,
       ),
@@ -2694,14 +3153,20 @@ export const markRouteSent = internalMutation({
 
 /** Someone asked this agent for something, so its voice says the reply to
  *  this turn (callChat.mirrorAgentTurn). The feed of this call only. */
-export async function markFeedAddressed(ctx: any, conversationId: string, transcriptId: Id<"transcripts">, at: number): Promise<void> {
+export async function markFeedAddressed(
+  ctx: any,
+  conversationId: string,
+  transcriptId: Id<"transcripts">,
+  at: number,
+): Promise<void> {
   const id = ctx.db.normalizeId("conversations", conversationId);
   if (!id) return;
   const feed = await ctx.db
     .query("call_agent_feeds")
     .withIndex("by_conversation", (q: any) => q.eq("conversation_id", id))
     .first();
-  if (feed && feed.transcript_id === transcriptId) await ctx.db.patch(feed._id, { addressed_at: at });
+  if (feed && feed.transcript_id === transcriptId)
+    await ctx.db.patch(feed._id, { addressed_at: at });
 }
 
 export const deliverToSession = internalMutation({
@@ -2737,7 +3202,8 @@ export const deliverToDoc = internalMutation({
     if (!docId) throw new Error("Doc not found");
     const doc = await requireAccessibleDoc(ctx, args.as_user, docId);
     const base = doc.content ?? "";
-    const head = args.header && !base.includes(args.header) ? `${args.header}\n\n` : "";
+    const head =
+      args.header && !base.includes(args.header) ? `${args.header}\n\n` : "";
     await ctx.db.patch(docId, {
       content: `${base ? base + "\n\n" : ""}${head}${args.chunk}`,
       updated_at: Date.now(),
@@ -2759,7 +3225,9 @@ export const slackTokenForChannel = internalQuery({
     for (const row of rows) {
       const install = await ctx.db
         .query("slack_installations")
-        .withIndex("by_workspace", (q: any) => q.eq("workspace_id", row.workspace_key))
+        .withIndex("by_workspace", (q: any) =>
+          q.eq("workspace_id", row.workspace_key),
+        )
         .first();
       if (install?.bot_token) return install.bot_token;
     }
@@ -2783,15 +3251,21 @@ export function sessionDeliveryVerdict(opts: {
   route: { hold_until?: number; context_at?: number };
   pacing: { names: string[]; busy: boolean } | null;
   unsent: Array<{ text: string; ended_at: number; speaker_id?: string }>;
-}): { deliver: false; wait?: "quiet" | "gap"; at?: number } | { deliver: true; lane: "ask" | "context"; held: boolean } {
+}):
+  | { deliver: false; wait?: "quiet" | "gap"; at?: number }
+  | { deliver: true; lane: "ask" | "context"; held: boolean } {
   const { reason, now, route, pacing, unsent } = opts;
   // Only the team opens the ask lane. A guest naming the agent is talking
   // about it or to it, and their words still arrive as context, but they
   // never cut into its turn: the ask lane reaches the agent at once with the
   // authority of whoever pointed the route at the call, and an outsider in
   // somebody's meeting does not get to spend that.
-  const teamWords = unsent.filter((s) => !s.speaker_id || callParticipantKind(s.speaker_id) !== "guest");
-  const addressed = !!pacing && addressesAgent(teamWords.map((s) => s.text).join("\n"), pacing.names);
+  const teamWords = unsent.filter(
+    (s) => !s.speaker_id || callParticipantKind(s.speaker_id) !== "guest",
+  );
+  const addressed =
+    !!pacing &&
+    addressesAgent(teamWords.map((s) => s.text).join("\n"), pacing.names);
   if (addressed) return { deliver: true, lane: "ask", held: false };
   const holding = (route.hold_until ?? 0) > now;
   if (pacing?.busy || holding) return { deliver: false };
@@ -2801,19 +3275,30 @@ export function sessionDeliveryVerdict(opts: {
   // gap's own closing run is a settle that arrives after the gap, so it
   // delivers; a hold's catch up and a new route's backlog are never gapped.
   const gapped = reason === "flush" || reason === "settle";
-  if (gapped && route.context_at && route.context_at + CONTEXT_MIN_GAP_MS > now) {
-    return { deliver: false, wait: "gap", at: route.context_at + CONTEXT_MIN_GAP_MS };
+  if (
+    gapped &&
+    route.context_at &&
+    route.context_at + CONTEXT_MIN_GAP_MS > now
+  ) {
+    return {
+      deliver: false,
+      wait: "gap",
+      at: route.context_at + CONTEXT_MIN_GAP_MS,
+    };
   }
   const clockDriven = reason === "settle" || reason === "hold_expired";
   if (clockDriven) {
     const lastEnd = Math.max(...unsent.map((s) => s.ended_at));
     // Not quiet yet: the caller schedules one more clock-driven run after
     // the quiet window, so the words never wait for the call's end.
-    if (now - lastEnd < CATCH_UP_QUIET_MS) return { deliver: false, wait: "quiet" };
+    if (now - lastEnd < CATCH_UP_QUIET_MS)
+      return { deliver: false, wait: "quiet" };
   }
   // Words said under a hold are a catch up however they leave: the hold's end
   // can find the agent still mid-turn, and the scribe's next lull ships them.
-  const saidUnderHold = unsent.some((s) => s.ended_at <= (route.hold_until ?? 0));
+  const saidUnderHold = unsent.some(
+    (s) => s.ended_at <= (route.hold_until ?? 0),
+  );
   return { deliver: true, lane: "context", held: clockDriven || saidUnderHold };
 }
 
@@ -2848,7 +3333,9 @@ export const deliverRoutes = internalAction({
         });
         continue;
       }
-      const unsent = segments.filter((s: { seq: number }) => s.seq > route.sent_seq);
+      const unsent = segments.filter(
+        (s: { seq: number }) => s.seq > route.sent_seq,
+      );
       if (unsent.length === 0) continue;
       const chunk = formatChunk(unsent);
       const maxSeq = unsent[unsent.length - 1].seq;
@@ -2866,7 +3353,13 @@ export const deliverRoutes = internalAction({
           // the call and bypasses the pacing: a busy agent still gets the end.
           const verdict = args.include_after_routes
             ? ({ deliver: true, lane: "context", held: false } as const)
-            : sessionDeliveryVerdict({ reason, now, route, pacing: target, unsent });
+            : sessionDeliveryVerdict({
+                reason,
+                now,
+                route,
+                pacing: target,
+                unsent,
+              });
           // The watermark stays put: the words wait for the turn's end, the
           // hold's end or the next lull, whichever delivers them.
           if (!verdict.deliver) {
@@ -2886,7 +3379,9 @@ export const deliverRoutes = internalAction({
             held: verdict.held,
             full: fullBrief,
             call: transcript.short_id ?? null,
-            board: transcript.board_doc_id ? String(transcript.board_doc_id) : null,
+            board: transcript.board_doc_id
+              ? String(transcript.board_doc_id)
+              : null,
           };
           await ctx.runMutation(internal.transcripts.deliverToSession, {
             as_user: asUser,
@@ -2902,19 +3397,28 @@ export const deliverRoutes = internalAction({
             header: `# Huddle transcript — ${new Date(transcript.started_at).toISOString().slice(0, 16).replace("T", " ")}`,
           });
         } else if (route.kind === "slack") {
-          const token = await ctx.runQuery(internal.transcripts.slackTokenForChannel, {
-            channel: route.target,
-            team_id: transcript.team_id,
-          });
+          const token = await ctx.runQuery(
+            internal.transcripts.slackTokenForChannel,
+            {
+              channel: route.target,
+              team_id: transcript.team_id,
+            },
+          );
           if (!token) throw new Error("Slack channel not linked");
-          const out = await slackSend(ctx, {
-            team_id: transcript.team_id,
-            open_url: `${siteUrl()}/calls/${transcript.short_id ?? transcript._id}`,
-          }, token, "chat.postMessage", {
-            channel: route.target,
-            // Slack renders *bold* with single asterisks.
-            text: chunk.replace(/\*\*/g, "*"),
-          });
+          const out = await slackSend(
+            ctx,
+            {
+              team_id: transcript.team_id,
+              open_url: `${siteUrl()}/calls/${transcript.short_id ?? transcript._id}`,
+            },
+            token,
+            "chat.postMessage",
+            {
+              channel: route.target,
+              // Slack renders *bold* with single asterisks.
+              text: chunk.replace(/\*\*/g, "*"),
+            },
+          );
           if (!out.ok) throw new Error(`slack: ${out.error}`);
         }
         await ctx.runMutation(internal.transcripts.markRouteSent, {
@@ -2931,7 +3435,11 @@ export const deliverRoutes = internalAction({
         // A failing route never blocks the others; the watermark stays put so
         // the next flush retries this chunk.
         failed = true;
-        console.error("[transcripts] route delivery failed", route.kind, String(err).slice(0, 200));
+        console.error(
+          "[transcripts] route delivery failed",
+          route.kind,
+          String(err).slice(0, 200),
+        );
       }
     }
     // Two runs that reschedule themselves, each a bounded number of times.
@@ -2942,30 +3450,43 @@ export const deliverRoutes = internalAction({
     // gap held back, so a room that falls silent does not keep it until the
     // call is over. Scheduled once per delivery, never per held flush.
     if (contextSent && !args.include_after_routes) {
-      await ctx.scheduler.runAfter(CONTEXT_MIN_GAP_MS, internal.transcripts.deliverRoutes, {
-        transcript_id: args.transcript_id,
-        include_after_routes: false,
-        reason: "settle",
-      });
+      await ctx.scheduler.runAfter(
+        CONTEXT_MIN_GAP_MS,
+        internal.transcripts.deliverRoutes,
+        {
+          transcript_id: args.transcript_id,
+          include_after_routes: false,
+          reason: "settle",
+        },
+      );
     }
     if (attempt >= DELIVER_RETRY_MAX) return;
-    const retry = args.include_after_routes && failed
-      ? { delay: DELIVER_RETRY_MS * 2 ** attempt, reason: args.reason }
-      : waitQuiet && (reason === "settle" || reason === "hold_expired")
-        ? { delay: CATCH_UP_QUIET_MS, reason }
-        : null;
+    const retry =
+      args.include_after_routes && failed
+        ? { delay: DELIVER_RETRY_MS * 2 ** attempt, reason: args.reason }
+        : waitQuiet && (reason === "settle" || reason === "hold_expired")
+          ? { delay: CATCH_UP_QUIET_MS, reason }
+          : null;
     if (!retry) return;
-    await ctx.scheduler.runAfter(retry.delay, internal.transcripts.deliverRoutes, {
-      transcript_id: args.transcript_id,
-      include_after_routes: args.include_after_routes,
-      reason: retry.reason,
-      attempt: attempt + 1,
-    });
+    await ctx.scheduler.runAfter(
+      retry.delay,
+      internal.transcripts.deliverRoutes,
+      {
+        transcript_id: args.transcript_id,
+        include_after_routes: args.include_after_routes,
+        reason: retry.reason,
+        attempt: attempt + 1,
+      },
+    );
   },
 });
 
 /** The pending-message client_id of one chunk to one session: the same words
  *  to the same route carry the same id, so a repeat is deduped at insert. */
-export function deliveryClientId(transcriptId: string, target: string, maxSeq: number): string {
+export function deliveryClientId(
+  transcriptId: string,
+  target: string,
+  maxSeq: number,
+): string {
   return `${transcriptId}:${target}:${maxSeq}`;
 }

@@ -17,14 +17,20 @@ export type UndoPolicyEntry = { spec: UndoSpec } | { never: string };
 export type UndoPolicy = Record<string, UndoPolicyEntry>;
 
 /** The policy files, by owner, so the guard can prove each name appears once. */
-export const UNDO_POLICY_FILES: Record<"never" | "sessions" | "triggers" | "work", UndoPolicy> = {
+export const UNDO_POLICY_FILES: Record<
+  "never" | "sessions" | "triggers" | "work",
+  UndoPolicy
+> = {
   never: NEVER_UNDO_POLICY,
   sessions: SESSIONS_UNDO_POLICY,
   triggers: TRIGGER_UNDO_POLICY,
   work: WORK_UNDO_POLICY,
 };
 
-export const UNDO_POLICY: UndoPolicy = Object.assign({}, ...Object.values(UNDO_POLICY_FILES));
+export const UNDO_POLICY: UndoPolicy = Object.assign(
+  {},
+  ...Object.values(UNDO_POLICY_FILES),
+);
 
 // Every spec gets the thin-conversation rule (./thinConversation.ts): a
 // gesture on a row with no loaded meta keeps the row on undo and restores its
@@ -35,11 +41,16 @@ const keepingConversationRows = (spec: UndoSpec): UndoSpec => {
   const own = spec.spell;
   return {
     ...spec,
-    label: (ctx) => (priorUnknown(ctx) || revivesKilledRow(ctx) ? null : spec.label(ctx)),
-    spell: own ? (cells, ctx) => own(keepConversationRows(cells, ctx), ctx) : (cells, ctx) => keepConversationRows(cells, ctx),
+    label: (ctx) =>
+      priorUnknown(ctx) || revivesKilledRow(ctx) ? null : spec.label(ctx),
+    spell: own
+      ? (cells, ctx) => own(keepConversationRows(cells, ctx), ctx)
+      : (cells, ctx) => keepConversationRows(cells, ctx),
   };
 };
 
 export const UNDO_SPECS: Record<string, UndoSpec> = Object.fromEntries(
-  Object.entries(UNDO_POLICY).flatMap(([name, entry]) => ("spec" in entry ? [[name, keepingConversationRows(entry.spec)]] : [])),
+  Object.entries(UNDO_POLICY).flatMap(([name, entry]) =>
+    "spec" in entry ? [[name, keepingConversationRows(entry.spec)]] : [],
+  ),
 );

@@ -9,7 +9,16 @@ describe("color themes in a mod manifest", () => {
     const check = validateManifest({
       name: "nord",
       themes: [
-        { id: "nord", title: "Nord", light: { bg: "#eceff4", text: "#2e3440", blue: "#5e81ac" }, dark: { bg: "#2e3440", text: "#eceff4", "font-mono": '"Iosevka", monospace' } },
+        {
+          id: "nord",
+          title: "Nord",
+          light: { bg: "#eceff4", text: "#2e3440", blue: "#5e81ac" },
+          dark: {
+            bg: "#2e3440",
+            text: "#eceff4",
+            "font-mono": '"Iosevka", monospace',
+          },
+        },
         { id: "night", title: "Night", dark: { bg: "#000" } },
       ],
     });
@@ -18,29 +27,78 @@ describe("color themes in a mod manifest", () => {
 
   test("refuses anything but hex colors and plain font lists", () => {
     const errors = themeErrors([
-      { id: "x", title: "X", light: { bg: "red", text: "url(https://evil.example/a)", "font-ui": "a; } body { display: none" } },
+      {
+        id: "x",
+        title: "X",
+        light: {
+          bg: "red",
+          text: "url(https://evil.example/a)",
+          "font-ui": "a; } body { display: none",
+        },
+      },
     ]);
     expect(errors).toHaveLength(3);
   });
 
   test("refuses unknown tokens, keys, ids and a theme with no palette", () => {
-    expect(themeErrors([{ id: "x", title: "X", light: { "sidebar-bg": "#fff" } }])[0]).toContain("not a theme token");
-    expect(themeErrors([{ id: "x", title: "X", css: "", light: {} }])[0]).toContain('unknown key "css"');
-    expect(themeErrors([{ id: "X Y", title: "X" }])[0]).toContain("must be lowercase");
-    expect(themeErrors([{ id: "x", title: "X" }])[0]).toContain("needs a light or a dark palette");
-    expect(themeErrors([{ id: "x", title: "X", dark: {} }, { id: "x", title: "X", dark: {} }])[0]).toContain("declared twice");
+    expect(
+      themeErrors([
+        { id: "x", title: "X", light: { "sidebar-bg": "#fff" } },
+      ])[0],
+    ).toContain("not a theme token");
+    expect(
+      themeErrors([{ id: "x", title: "X", css: "", light: {} }])[0],
+    ).toContain('unknown key "css"');
+    expect(themeErrors([{ id: "X Y", title: "X" }])[0]).toContain(
+      "must be lowercase",
+    );
+    expect(themeErrors([{ id: "x", title: "X" }])[0]).toContain(
+      "needs a light or a dark palette",
+    );
+    expect(
+      themeErrors([
+        { id: "x", title: "X", dark: {} },
+        { id: "x", title: "X", dark: {} },
+      ])[0],
+    ).toContain("declared twice");
   });
 
   test("a backdrop theme takes alpha colors and a tint and glass in range", () => {
-    expect(themeErrors([{ id: "lagoon", title: "Lagoon", light: { card: "#ffffff66", "bg-alt": "#fff8" }, backdrop: { tint: 0.2, glass: 16 } }])).toEqual([]);
-    expect(themeErrors([{ id: "x", title: "X", dark: {}, backdrop: { tint: 2 } }])[0]).toContain("backdrop.tint must be a number from 0 to 1");
-    expect(themeErrors([{ id: "x", title: "X", dark: {}, backdrop: { css: "x" } }])[0]).toContain('backdrop has an unknown key "css"');
-    expect(themeErrors([{ id: "x", title: "X", dark: {}, backdrop: true }])[0]).toContain("backdrop must be an object");
+    expect(
+      themeErrors([
+        {
+          id: "lagoon",
+          title: "Lagoon",
+          light: { card: "#ffffff66", "bg-alt": "#fff8" },
+          backdrop: { tint: 0.2, glass: 16 },
+        },
+      ]),
+    ).toEqual([]);
+    expect(
+      themeErrors([
+        { id: "x", title: "X", dark: {}, backdrop: { tint: 2 } },
+      ])[0],
+    ).toContain("backdrop.tint must be a number from 0 to 1");
+    expect(
+      themeErrors([
+        { id: "x", title: "X", dark: {}, backdrop: { css: "x" } },
+      ])[0],
+    ).toContain('backdrop has an unknown key "css"');
+    expect(
+      themeErrors([{ id: "x", title: "X", dark: {}, backdrop: true }])[0],
+    ).toContain("backdrop must be an object");
   });
 
   test("the authoring types name every token, so editors autocomplete the whole contract", () => {
-    const types = readFileSync(join(import.meta.dir, "..", "mods", "authoring.d.ts"), "utf8");
-    const block = types.slice(types.indexOf("export type ThemePalette"), types.indexOf("export type Manifest"));
-    for (const token of [...THEME_COLOR_TOKENS, ...THEME_FONT_TOKENS]) expect(block).toContain(`"${token}"`);
+    const types = readFileSync(
+      join(import.meta.dir, "..", "mods", "authoring.d.ts"),
+      "utf8",
+    );
+    const block = types.slice(
+      types.indexOf("export type ThemePalette"),
+      types.indexOf("export type Manifest"),
+    );
+    for (const token of [...THEME_COLOR_TOKENS, ...THEME_FONT_TOKENS])
+      expect(block).toContain(`"${token}"`);
   });
 });

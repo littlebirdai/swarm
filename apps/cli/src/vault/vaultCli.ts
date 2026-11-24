@@ -82,10 +82,16 @@ export class VaultCliError extends Error {
  * never allowed is a silent pick between unrelated vaults: `cast files write`
  * landing in the wrong one is somebody else's notes.
  */
-export function selectVault(configDir: string, spec?: string, cwd = process.cwd()): VaultInfo {
+export function selectVault(
+  configDir: string,
+  spec?: string,
+  cwd = process.cwd(),
+): VaultInfo {
   const vaults = listVaults(configDir);
   if (vaults.length === 0) {
-    throw new VaultCliError("No folders registered. Add one with: cast files add ~/notes");
+    throw new VaultCliError(
+      "No folders registered. Add one with: cast files add ~/notes",
+    );
   }
 
   if (spec) {
@@ -94,7 +100,8 @@ export function selectVault(configDir: string, spec?: string, cwd = process.cwd(
     const byName = vaults.filter((v) => v.name.toLowerCase() === lower);
     // Id and path first — they are exact by construction; a name is the fuzzy
     // one and is only consulted when it is unique.
-    const exact = vaults.find((v) => v.id === wanted) ?? matchByRoot(vaults, wanted);
+    const exact =
+      vaults.find((v) => v.id === wanted) ?? matchByRoot(vaults, wanted);
     if (exact) return exact;
     if (byName.length === 1) return byName[0];
     if (byName.length > 1) {
@@ -143,7 +150,10 @@ export function selectVault(configDir: string, spec?: string, cwd = process.cwd(
  * question the listing has to answer, and it must answer it with the SAME rule
  * selectVault applies.
  */
-export function vaultForCwd(vaults: VaultInfo[], cwd = process.cwd()): VaultInfo | null {
+export function vaultForCwd(
+  vaults: VaultInfo[],
+  cwd = process.cwd(),
+): VaultInfo | null {
   const containing = vaults
     .filter((v) => vaultRelativePath(v.root, cwd) !== null)
     .sort((a, b) => b.root.length - a.root.length);
@@ -253,7 +263,8 @@ async function indexInto(ctx: VaultCtx, content: boolean): Promise<void> {
       }),
     );
   }
-  for (const file of notes) ctx.index.upsert(file.path, ctx.contents.get(file.path) ?? "");
+  for (const file of notes)
+    ctx.index.upsert(file.path, ctx.contents.get(file.path) ?? "");
   ctx.hasContent = true;
 }
 
@@ -282,7 +293,10 @@ export interface NoteRef {
  * There is no "from" note here — a command line has no folder to prefer — so a
  * name matching several files is an error listing them, never a silent pick.
  */
-export async function resolveNote(ctx: VaultCtx, input: string): Promise<NoteRef> {
+export async function resolveNote(
+  ctx: VaultCtx,
+  input: string,
+): Promise<NoteRef> {
   const norm = normalizeVaultPath(input);
   if (norm === null || norm === "") {
     throw new VaultCliError(`"${input}" is not a path inside the folder.`);
@@ -311,7 +325,8 @@ export async function resolveNote(ctx: VaultCtx, input: string): Promise<NoteRef
     );
   }
   const abs = resolveVaultPath(ctx.vault.root, hit.path);
-  if (!abs) throw new VaultCliError(`"${hit.path}" is out of the folder's scope.`);
+  if (!abs)
+    throw new VaultCliError(`"${hit.path}" is out of the folder's scope.`);
   return { path: hit.path, abs };
 }
 
@@ -322,12 +337,16 @@ export async function resolveNote(ctx: VaultCtx, input: string): Promise<NoteRef
  * no extension the vault serves. That is Obsidian's "click the unresolved link
  * to create it" rule, which is the behaviour an agent already expects.
  */
-export async function targetNote(ctx: VaultCtx, input: string): Promise<NoteRef & { exists: boolean }> {
+export async function targetNote(
+  ctx: VaultCtx,
+  input: string,
+): Promise<NoteRef & { exists: boolean }> {
   try {
     const found = await resolveNote(ctx, input);
     return { ...found, exists: true };
   } catch (err) {
-    if (err instanceof VaultCliError && err.exitCode === VAULT_EXIT.ambiguous) throw err;
+    if (err instanceof VaultCliError && err.exitCode === VAULT_EXIT.ambiguous)
+      throw err;
   }
 
   const norm = normalizeVaultPath(input);
@@ -368,11 +387,18 @@ export async function readNote(ctx: VaultCtx, ref: NoteRef): Promise<string> {
  * an ambiguity, because in both cases the edit an agent intended is unknowable
  * and a best guess would silently corrupt a note.
  */
-export function applyEdit(content: string, oldText: string, newText: string): string {
+export function applyEdit(
+  content: string,
+  oldText: string,
+  newText: string,
+): string {
   if (oldText === "") throw new VaultCliError("--old cannot be empty.");
   const first = content.indexOf(oldText);
   if (first < 0) {
-    throw new VaultCliError("--old text is not in the note.", VAULT_EXIT.notFound);
+    throw new VaultCliError(
+      "--old text is not in the note.",
+      VAULT_EXIT.notFound,
+    );
   }
   if (content.indexOf(oldText, first + oldText.length) >= 0) {
     const count = content.split(oldText).length - 1;
@@ -381,14 +407,23 @@ export function applyEdit(content: string, oldText: string, newText: string): st
       VAULT_EXIT.ambiguous,
     );
   }
-  return content.slice(0, first) + newText + content.slice(first + oldText.length);
+  return (
+    content.slice(0, first) + newText + content.slice(first + oldText.length)
+  );
 }
 
 /** Join a body onto a note: exactly one blank line at the seam and exactly one
  *  newline at the end, however sloppily either side was terminated. */
-export function joinBody(existing: string, addition: string, where: "append" | "prepend"): string {
+export function joinBody(
+  existing: string,
+  addition: string,
+  where: "append" | "prepend",
+): string {
   const first = (where === "append" ? existing : addition).replace(/\s+$/, "");
-  const second = (where === "append" ? addition : existing).replace(/^\s+|\s+$/g, "");
+  const second = (where === "append" ? addition : existing).replace(
+    /^\s+|\s+$/g,
+    "",
+  );
   if (!first) return second ? `${second}\n` : "";
   if (!second) return `${first}\n`;
   return `${first}\n\n${second}\n`;
@@ -460,7 +495,10 @@ export function trashNote(ctx: VaultCtx, ref: NoteRef): string {
   try {
     return moveToTrash(ctx.vault.root, ref.abs);
   } catch {
-    throw new VaultCliError(`Could not move ${ref.path} to the trash.`, VAULT_EXIT.unreachable);
+    throw new VaultCliError(
+      `Could not move ${ref.path} to the trash.`,
+      VAULT_EXIT.unreachable,
+    );
   }
 }
 
@@ -478,7 +516,13 @@ export interface NoteLinkReport {
    *  people. They are ordinary markdown links to codecast URLs, so they read as
    *  links everywhere else; here they are named, because an agent asking what a
    *  note connects to wants the work items as much as the other notes. */
-  objects: { key: string; type: string; id: string; text: string; line: number }[];
+  objects: {
+    key: string;
+    type: string;
+    id: string;
+    text: string;
+    line: number;
+  }[];
 }
 
 export function linkReport(ctx: VaultCtx, path: string): NoteLinkReport {
@@ -487,7 +531,9 @@ export function linkReport(ctx: VaultCtx, path: string): NoteLinkReport {
     path,
     outgoing,
     backlinks: ctx.index.backlinks(path),
-    unresolved: [...new Set(outgoing.filter((l) => !l.resolved).map((l) => l.link.target))].sort(),
+    unresolved: [
+      ...new Set(outgoing.filter((l) => !l.resolved).map((l) => l.link.target)),
+    ].sort(),
     objects: ctx.index.entityRefs(path).map((r) => ({
       key: r.ref.key,
       type: r.ref.type,
@@ -515,12 +561,18 @@ export interface SearchHit {
  * dependency and a CLI that scores title hits above body hits, then counts
  * matches, orders a result list well enough to pick from.
  */
-export function searchNotes(ctx: VaultCtx, queryText: string, limit = 20): SearchHit[] {
+export function searchNotes(
+  ctx: VaultCtx,
+  queryText: string,
+  limit = 20,
+): SearchHit[] {
   const q = parseVaultQuery(queryText);
   if (q.isEmpty) throw new VaultCliError("Nothing to search for.");
 
   const tagged = q.tags.length
-    ? q.tags.map((t) => new Set(ctx.index.filesWithTag(t))).reduce((a, b) => intersect(a, b))
+    ? q.tags
+        .map((t) => new Set(ctx.index.filesWithTag(t)))
+        .reduce((a, b) => intersect(a, b))
     : null;
 
   const terms = q.text.toLowerCase().split(/\s+/).filter(Boolean);
@@ -557,17 +609,33 @@ function intersect(a: Set<string>, b: Set<string>): Set<string> {
   return new Set([...a].filter((x) => b.has(x)));
 }
 
-function noteTags(parsed: { frontmatterTags: string[]; inlineTags: { tag: string }[] } | null): string[] {
+function noteTags(
+  parsed: { frontmatterTags: string[]; inlineTags: { tag: string }[] } | null,
+): string[] {
   if (!parsed) return [];
-  return [...new Set([...parsed.frontmatterTags, ...parsed.inlineTags.map((t) => t.tag)])].sort();
+  return [
+    ...new Set([
+      ...parsed.frontmatterTags,
+      ...parsed.inlineTags.map((t) => t.tag),
+    ]),
+  ].sort();
 }
 
 /** null means the note does not match at all. */
-function scoreNote(title: string, body: string, terms: string[], q: VaultQuery): number | null {
+function scoreNote(
+  title: string,
+  body: string,
+  terms: string[],
+  q: VaultQuery,
+): number | null {
   const lowerTitle = title.toLowerCase();
   const lowerBody = body.toLowerCase();
   for (const phrase of q.phrases) {
-    if (!`${lowerTitle}\n${lowerBody}`.replace(/\s+/g, " ").includes(phrase.replace(/\s+/g, " "))) {
+    if (
+      !`${lowerTitle}\n${lowerBody}`
+        .replace(/\s+/g, " ")
+        .includes(phrase.replace(/\s+/g, " "))
+    ) {
       return null;
     }
   }
@@ -585,12 +653,17 @@ function scoreNote(title: string, body: string, terms: string[], q: VaultQuery):
   return score;
 }
 
-function firstMatchLine(text: string, terms: string[], phrases: string[]): string | undefined {
+function firstMatchLine(
+  text: string,
+  terms: string[],
+  phrases: string[],
+): string | undefined {
   const needles = [...phrases, ...terms];
   if (!needles.length) return undefined;
   for (const line of text.split("\n")) {
     const lower = line.toLowerCase();
-    if (needles.some((n) => lower.includes(n))) return line.trim().slice(0, 200);
+    if (needles.some((n) => lower.includes(n)))
+      return line.trim().slice(0, 200);
   }
   return undefined;
 }
@@ -605,12 +678,19 @@ export function pathGlobMatcher(pattern: string): (path: string) => boolean {
   const source = pattern
     .split(/(\*\*|\*|\?)/)
     .map((part) =>
-      part === "**" ? ".*" : part === "*" ? "[^/]*" : part === "?" ? "[^/]" : escapeRegex(part),
+      part === "**"
+        ? ".*"
+        : part === "*"
+          ? "[^/]*"
+          : part === "?"
+            ? "[^/]"
+            : escapeRegex(part),
     )
     .join("");
   const re = new RegExp(`^${source}$`, "i");
   const basenameOnly = !pattern.includes("/");
-  return (path: string) => re.test(path) || (basenameOnly && re.test(path.split("/").pop() ?? ""));
+  return (path: string) =>
+    re.test(path) || (basenameOnly && re.test(path.split("/").pop() ?? ""));
 }
 
 function escapeRegex(s: string): string {

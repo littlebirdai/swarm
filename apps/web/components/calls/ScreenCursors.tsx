@@ -3,7 +3,11 @@
 import { useReducer, useSyncExternalStore, type RefObject } from "react";
 import type { Room } from "livekit-client";
 import type { ParticipantTile } from "../../lib/calls/callMedia";
-import { getCallCursors, nextCursorExpiryAt, subscribeCallCursors } from "../../lib/calls/callCursors";
+import {
+  getCallCursors,
+  nextCursorExpiryAt,
+  subscribeCallCursors,
+} from "../../lib/calls/callCursors";
 import { mapFromFrame } from "../../lib/browserWatch";
 import { hueFor } from "../../lib/avatarInitials";
 import { useDerivedSize } from "../../hooks/useDerivedSize";
@@ -23,7 +27,8 @@ import { firstName } from "./speakers";
 // Colour is the owner's avatar hue (hueFor), the same colour their initials
 // wear when they have no picture, so the arrow and the face agree.
 
-const TRANSITION = "transform 120ms cubic-bezier(.2,.7,.2,1), opacity 300ms ease";
+const TRANSITION =
+  "transform 120ms cubic-bezier(.2,.7,.2,1), opacity 300ms ease";
 
 export function ScreenCursors({
   tile,
@@ -37,11 +42,19 @@ export function ScreenCursors({
   /** The room the share is in, for whose pointer is mine. */
   getRoom: () => Room | null;
 }) {
-  const cursors = useSyncExternalStore(subscribeCallCursors, getCallCursors, getCallCursors);
+  const cursors = useSyncExternalStore(
+    subscribeCallCursors,
+    getCallCursors,
+    getCallCursors,
+  );
   const sid = tile.track.sid ?? "";
   const me = getRoom()?.localParticipant.identity ?? null;
   // The tile only re-renders this overlay when its rounded size changes.
-  const boxSig = useDerivedSize(boxRef, (w, h) => `${Math.round(w)}x${Math.round(h)}`, () => "0x0");
+  const boxSig = useDerivedSize(
+    boxRef,
+    (w, h) => `${Math.round(w)}x${Math.round(h)}`,
+    () => "0x0",
+  );
   const [boxW, boxH] = boxSig.split("x").map(Number);
   const natural = useNaturalSize(videoRef, tile.track);
   const [, wake] = useReducer((n: number) => n + 1, 0);
@@ -55,14 +68,28 @@ export function ScreenCursors({
 
   if (!natural || !sid) return null;
   const box = { left: 0, top: 0, width: boxW, height: boxH };
-  const shown = [...cursors.values()].filter((c) => c.sid === sid && c.identity !== me);
+  const shown = [...cursors.values()].filter(
+    (c) => c.sid === sid && c.identity !== me,
+  );
   if (shown.length === 0) return null;
   return (
-    <div data-sv-screen-cursors={shown.length} className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div
+      data-sv-screen-cursors={shown.length}
+      className="absolute inset-0 overflow-hidden pointer-events-none"
+      aria-hidden="true"
+    >
       {shown.map((c) => {
         const p = mapFromFrame(c.nx, c.ny, box, natural);
         if (!p) return null;
-        return <TeammateCursor key={c.identity} identity={c.identity} name={c.name} x={p.x} y={p.y} />;
+        return (
+          <TeammateCursor
+            key={c.identity}
+            identity={c.identity}
+            name={c.name}
+            x={p.x}
+            y={p.y}
+          />
+        );
       })}
     </div>
   );
@@ -71,7 +98,17 @@ export function ScreenCursors({
 /** One teammate's arrow at (x, y) of its positioned parent: over a share tile
  *  here, and over the sharer's real screen in the shell's glass window
  *  (app/share-cursors). */
-export function TeammateCursor({ identity, name, x, y }: { identity: string; name: string; x: number; y: number }) {
+export function TeammateCursor({
+  identity,
+  name,
+  x,
+  y,
+}: {
+  identity: string;
+  name: string;
+  x: number;
+  y: number;
+}) {
   return (
     <div
       data-sv-screen-cursor={identity}

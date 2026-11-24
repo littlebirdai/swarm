@@ -1,53 +1,144 @@
-import { afterEach, beforeEach, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { LiveSyncJobs, MIRROR_ACTIVE_WINDOW_MS, MIRROR_ACTIVITY_POLL_MS, MIRROR_LAPTOP_CHECK_MS, type MirrorActivity, type MirrorReport } from "./liveSyncJobs";
+import {
+  LiveSyncJobs,
+  MIRROR_ACTIVE_WINDOW_MS,
+  MIRROR_ACTIVITY_POLL_MS,
+  MIRROR_LAPTOP_CHECK_MS,
+  type MirrorActivity,
+  type MirrorReport,
+} from "./liveSyncJobs";
 import type { HostSide } from "./liveSync";
 import { runSide, type LandResult, type SnapshotResult } from "./syncSide";
 
 setDefaultTimeout(90_000);
 
 let dir: string;
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
-const read = (p: string) => fs.existsSync(p) ? fs.readFileSync(p, "utf-8") : null;
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
+const read = (p: string) =>
+  fs.existsSync(p) ? fs.readFileSync(p, "utf-8") : null;
 beforeEach(() => {
   dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mirror-jobs-")));
   fs.mkdirSync(path.join(dir, "laptop"));
   git(path.join(dir, "laptop"), "init", "-q", "-b", "main");
   fs.writeFileSync(path.join(dir, "laptop/a.txt"), "a\n");
   git(path.join(dir, "laptop"), "add", "-A");
-  git(path.join(dir, "laptop"), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base");
-  execFileSync("git", ["clone", "-q", path.join(dir, "laptop"), path.join(dir, "host")]);
+  git(
+    path.join(dir, "laptop"),
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@t",
+    "commit",
+    "-qm",
+    "base",
+  );
+  execFileSync("git", [
+    "clone",
+    "-q",
+    path.join(dir, "laptop"),
+    path.join(dir, "host"),
+  ]);
 });
-afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => {
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
-function harness(extra: Partial<ConstructorParameters<typeof LiveSyncJobs>[0]> = {}) {
+function harness(
+  extra: Partial<ConstructorParameters<typeof LiveSyncJobs>[0]> = {},
+) {
   const reports: MirrorReport[] = [];
   let clock = 1_000_000;
   let hostCalls = 0;
-  const activity: MirrorActivity = { conversation_id: "conv1", message_count: 5, status: "active", owner_device_id: "host-dev", host_online: true };
+  const activity: MirrorActivity = {
+    conversation_id: "conv1",
+    message_count: 5,
+    status: "active",
+    owner_device_id: "host-dev",
+    host_online: true,
+  };
   const host = path.join(dir, "host");
-  const hooks: { beforeSnapshot?: () => Promise<void>; land?: () => Promise<LandResult> } = {};
+  const hooks: {
+    beforeSnapshot?: () => Promise<void>;
+    land?: () => Promise<LandResult>;
+  } = {};
   const jobs = new LiveSyncJobs({
-    report: async (_id, r) => { reports.push(r); },
+    report: async (_id, r) => {
+      reports.push(r);
+    },
     activity: async () => [{ ...activity }],
-    hostFor: () => ({ address: "h", user: "u", keyPath: "k", remoteBaseDir: "/w" } as any),
+    hostFor: () =>
+      ({ address: "h", user: "u", keyPath: "k", remoteBaseDir: "/w" }) as any,
     log: () => {},
     jobsFile: path.join(dir, "jobs.json"),
     now: () => clock,
     hostSide: (_spec, _h, local): HostSide => ({
-      snapshot: async () => { hostCalls++; await hooks.beforeSnapshot?.(); return runSide<SnapshotResult>({ op: "snapshot", cwd: host, commit: true, ref: "refs/codecast/sync/conv1" }); },
-      land: (sha, expectTree) => { hostCalls++; return hooks.land ? hooks.land() : runSide<LandResult>({ op: "land", cwd: host, sha, expectTree }); },
-      fetch: async () => { git(local, "fetch", "-q", host, "+refs/codecast/sync/conv1:refs/codecast/sync/conv1"); },
-      send: async (sha) => { git(local, "push", "-q", "--force", host, `${sha}:refs/codecast/sync/conv1-laptop`); },
+      snapshot: async () => {
+        hostCalls++;
+        await hooks.beforeSnapshot?.();
+        return runSide<SnapshotResult>({
+          op: "snapshot",
+          cwd: host,
+          commit: true,
+          ref: "refs/codecast/sync/conv1",
+        });
+      },
+      land: (sha, expectTree) => {
+        hostCalls++;
+        return hooks.land
+          ? hooks.land()
+          : runSide<LandResult>({ op: "land", cwd: host, sha, expectTree });
+      },
+      fetch: async () => {
+        git(
+          local,
+          "fetch",
+          "-q",
+          host,
+          "+refs/codecast/sync/conv1:refs/codecast/sync/conv1",
+        );
+      },
+      send: async (sha) => {
+        git(
+          local,
+          "push",
+          "-q",
+          "--force",
+          host,
+          `${sha}:refs/codecast/sync/conv1-laptop`,
+        );
+      },
     }),
     ...extra,
   });
-  return { jobs, reports, activity, host, hooks, advance: (ms: number) => { clock += ms; }, hostCalls: () => hostCalls };
+  return {
+    jobs,
+    reports,
+    activity,
+    host,
+    hooks,
+    advance: (ms: number) => {
+      clock += ms;
+    },
+    hostCalls: () => hostCalls,
+  };
 }
-const spec = () => ({ conversation_id: "conv1", host_device_id: "host-dev", remote_cwd: "/w/r", local_root: path.join(dir, "laptop") });
+const spec = () => ({
+  conversation_id: "conv1",
+  host_device_id: "host-dev",
+  remote_cwd: "/w/r",
+  local_root: path.join(dir, "laptop"),
+});
 const mirrorDir = () => path.join(dir, "laptop/.codecast/worktrees/sync-conv1");
 
 test("syncs both ways while the session works, pauses without touching the host when it idles, resumes when it works again", async () => {
@@ -60,15 +151,21 @@ test("syncs both ways while the session works, pauses without touching the host 
   expect(h.reports[1]).toMatchObject({ path: mirrorDir(), mode: "two_way" });
 
   fs.writeFileSync(path.join(mirrorDir(), "b.txt"), "from the laptop\n");
-  h.advance(5_000); await h.jobs.pass();
+  h.advance(5_000);
+  await h.jobs.pass();
   expect(read(path.join(h.host, "b.txt"))).toBe("from the laptop\n");
-  expect(h.reports.at(-1)).toMatchObject({ status: "live", to_host: 1, to_laptop: 0 });
+  expect(h.reports.at(-1)).toMatchObject({
+    status: "live",
+    to_host: 1,
+    to_laptop: 0,
+  });
 
   h.advance(MIRROR_ACTIVE_WINDOW_MS + MIRROR_ACTIVITY_POLL_MS);
   await h.jobs.pass();
   expect(h.reports.at(-1)!.status).toBe("paused");
   const calls = h.hostCalls();
-  h.advance(MIRROR_LAPTOP_CHECK_MS); await h.jobs.pass();
+  h.advance(MIRROR_LAPTOP_CHECK_MS);
+  await h.jobs.pass();
   expect(h.hostCalls()).toBe(calls);
 
   h.activity.message_count = 9;
@@ -89,12 +186,14 @@ test("a laptop edit made while the session idles reaches an awake host, and neve
   await h.jobs.pass();
   fs.writeFileSync(path.join(mirrorDir(), "idle.txt"), "typed while idle\n");
   const calls = h.hostCalls();
-  h.advance(MIRROR_ACTIVITY_POLL_MS); await h.jobs.pass();
+  h.advance(MIRROR_ACTIVITY_POLL_MS);
+  await h.jobs.pass();
   expect(h.hostCalls()).toBe(calls);
   expect(read(path.join(h.host, "idle.txt"))).toBeNull();
 
   h.activity.host_online = true;
-  h.advance(MIRROR_ACTIVITY_POLL_MS); await h.jobs.pass();
+  h.advance(MIRROR_ACTIVITY_POLL_MS);
+  await h.jobs.pass();
   expect(read(path.join(h.host, "idle.txt"))).toBe("typed while idle\n");
   await h.jobs.stop("conv1");
 });
@@ -105,11 +204,20 @@ test("a conflict is reported with its files, and a pick from the web settles it"
   await h.jobs.pass();
   fs.writeFileSync(path.join(mirrorDir(), "a.txt"), "laptop\n");
   fs.writeFileSync(path.join(h.host, "a.txt"), "host\n");
-  h.advance(5_000); await h.jobs.pass();
-  expect(h.reports.at(-1)).toMatchObject({ status: "conflict", conflicts: ["a.txt"] });
-  await h.jobs.handleCommand({ ...spec(), enable: true, resolve: { keep: "cloud" } });
+  h.advance(5_000);
+  await h.jobs.pass();
+  expect(h.reports.at(-1)).toMatchObject({
+    status: "conflict",
+    conflicts: ["a.txt"],
+  });
+  await h.jobs.handleCommand({
+    ...spec(),
+    enable: true,
+    resolve: { keep: "cloud" },
+  });
   expect(read(path.join(mirrorDir(), "a.txt"))).toBe("host\n");
-  h.advance(5_000); await h.jobs.pass();
+  h.advance(5_000);
+  await h.jobs.pass();
   expect(h.reports.at(-1)).toMatchObject({ status: "live", conflicts: [] });
   await h.jobs.stop("conv1");
 });
@@ -120,11 +228,24 @@ test("a pick that never lands, because the host's files keep changing under it, 
   await h.jobs.pass();
   fs.writeFileSync(path.join(mirrorDir(), "a.txt"), "laptop\n");
   fs.writeFileSync(path.join(h.host, "a.txt"), "host\n");
-  h.advance(5_000); await h.jobs.pass();
-  expect(h.reports.at(-1)).toMatchObject({ status: "conflict", conflicts: ["a.txt"] });
+  h.advance(5_000);
+  await h.jobs.pass();
+  expect(h.reports.at(-1)).toMatchObject({
+    status: "conflict",
+    conflicts: ["a.txt"],
+  });
   let lands = 0;
-  h.hooks.land = async () => { lands++; return { landed: false, reason: "moved", tree: "" }; };
-  await expect(h.jobs.handleCommand({ ...spec(), enable: true, resolve: { keep: "laptop" } })).rejects.toThrow(/kept changing/);
+  h.hooks.land = async () => {
+    lands++;
+    return { landed: false, reason: "moved", tree: "" };
+  };
+  await expect(
+    h.jobs.handleCommand({
+      ...spec(),
+      enable: true,
+      resolve: { keep: "laptop" },
+    }),
+  ).rejects.toThrow(/kept changing/);
   expect(lands).toBe(3);
   expect(h.jobs.describe("conv1")!.conflicts).toEqual(["a.txt"]);
   h.hooks.land = undefined;
@@ -137,8 +258,15 @@ test("a tick still in flight when the sync stops reports nothing after off", asy
   fs.writeFileSync(path.join(h.host, "a.txt"), "host edit\n");
   let release!: () => void;
   let reached!: () => void;
-  const atSnapshot = new Promise<void>((r) => { reached = r; });
-  h.hooks.beforeSnapshot = () => { reached(); return new Promise<void>((r) => { release = r; }); };
+  const atSnapshot = new Promise<void>((r) => {
+    reached = r;
+  });
+  h.hooks.beforeSnapshot = () => {
+    reached();
+    return new Promise<void>((r) => {
+      release = r;
+    });
+  };
   const pass = h.jobs.pass();
   await atSnapshot;
   await h.jobs.stop("conv1");
@@ -154,12 +282,23 @@ test("watch only: an edit in the laptop copy stops it; overwrite keeps that edit
   await h.jobs.pass();
   fs.writeFileSync(path.join(mirrorDir(), "a.txt"), "my laptop edit\n");
   fs.writeFileSync(path.join(h.host, "a.txt"), "host moved on\n");
-  h.advance(5_000); await h.jobs.pass();
-  expect(h.reports.at(-1)).toMatchObject({ status: "local_edit", files: ["a.txt"], mode: "from_cloud" });
+  h.advance(5_000);
+  await h.jobs.pass();
+  expect(h.reports.at(-1)).toMatchObject({
+    status: "local_edit",
+    files: ["a.txt"],
+    mode: "from_cloud",
+  });
   await h.jobs.handleCommand({ ...spec(), enable: true, overwrite: true });
-  h.advance(5_000); await h.jobs.pass();
+  h.advance(5_000);
+  await h.jobs.pass();
   expect(read(path.join(mirrorDir(), "a.txt"))).toBe("host moved on\n");
-  const backup = git(mirrorDir(), "for-each-ref", "--format=%(refname)", "refs/codecast/backup/").split("\n")[0]!;
+  const backup = git(
+    mirrorDir(),
+    "for-each-ref",
+    "--format=%(refname)",
+    "refs/codecast/backup/",
+  ).split("\n")[0]!;
   expect(git(mirrorDir(), "show", `${backup}:a.txt`)).toBe("my laptop edit");
   await h.jobs.stop("conv1");
 });
@@ -169,10 +308,12 @@ test("switching watch-only to two-way sends the edit that stopped it", async () 
   await h.jobs.handleCommand({ ...spec(), enable: true, mode: "from_cloud" });
   await h.jobs.pass();
   fs.writeFileSync(path.join(mirrorDir(), "a.txt"), "keep me\n");
-  h.advance(5_000); await h.jobs.pass();
+  h.advance(5_000);
+  await h.jobs.pass();
   expect(h.reports.at(-1)!.status).toBe("local_edit");
   await h.jobs.handleCommand({ ...spec(), enable: true, mode: "two_way" });
-  h.advance(5_000); await h.jobs.pass();
+  h.advance(5_000);
+  await h.jobs.pass();
   expect(read(path.join(h.host, "a.txt"))).toBe("keep me\n");
   await h.jobs.stop("conv1");
 });
@@ -181,7 +322,9 @@ test("a session that leaves the host ends its sync; jobs and their agreed state 
   const h = harness();
   await h.jobs.handleCommand({ ...spec(), enable: true });
   await h.jobs.pass();
-  const saved = JSON.parse(fs.readFileSync(path.join(dir, "jobs.json"), "utf-8"));
+  const saved = JSON.parse(
+    fs.readFileSync(path.join(dir, "jobs.json"), "utf-8"),
+  );
   expect(saved[0].spec).toEqual({ ...spec(), mode: "two_way" });
   expect(saved[0].state.base).toMatch(/^[0-9a-f]{40}$/);
 
@@ -193,9 +336,12 @@ test("a session that leaves the host ends its sync; jobs and their agreed state 
   expect(read(path.join(again.host, "down.txt"))).toBe("made while stopped\n");
 
   again.activity.owner_device_id = "my-laptop";
-  again.advance(MIRROR_ACTIVITY_POLL_MS); await again.jobs.pass();
+  again.advance(MIRROR_ACTIVITY_POLL_MS);
+  await again.jobs.pass();
   expect(again.reports.at(-1)).toEqual({ status: "off" });
-  expect(JSON.parse(fs.readFileSync(path.join(dir, "jobs.json"), "utf-8"))).toEqual([]);
+  expect(
+    JSON.parse(fs.readFileSync(path.join(dir, "jobs.json"), "utf-8")),
+  ).toEqual([]);
 });
 
 test("a session that finished keeps its sync", async () => {
@@ -203,9 +349,12 @@ test("a session that finished keeps its sync", async () => {
   await h.jobs.handleCommand({ ...spec(), enable: true });
   await h.jobs.pass();
   h.activity.status = "completed";
-  h.advance(MIRROR_ACTIVITY_POLL_MS); await h.jobs.pass();
+  h.advance(MIRROR_ACTIVITY_POLL_MS);
+  await h.jobs.pass();
   expect(h.reports.at(-1)!.status).not.toBe("off");
-  expect(JSON.parse(fs.readFileSync(path.join(dir, "jobs.json"), "utf-8"))).toHaveLength(1);
+  expect(
+    JSON.parse(fs.readFileSync(path.join(dir, "jobs.json"), "utf-8")),
+  ).toHaveLength(1);
   await h.jobs.stop("conv1");
 });
 
@@ -220,10 +369,20 @@ test("an older daemon's job file, specs only, still resumes", async () => {
 
 test("a tailnet dial that fails is retried at once on the next address, and shows no error", async () => {
   const failed: string[] = [];
-  const h = harness({ hostFailed: (id) => { failed.push(id); return failed.length === 1; } });
+  const h = harness({
+    hostFailed: (id) => {
+      failed.push(id);
+      return failed.length === 1;
+    },
+  });
   await h.jobs.handleCommand({ ...spec(), enable: true });
   let dials = 0;
-  h.hooks.beforeSnapshot = async () => { if (++dials === 1) throw new Error("on the host: ssh: connect to host 100.101.102.103 port 22: Operation timed out"); };
+  h.hooks.beforeSnapshot = async () => {
+    if (++dials === 1)
+      throw new Error(
+        "on the host: ssh: connect to host 100.101.102.103 port 22: Operation timed out",
+      );
+  };
   await h.jobs.pass();
   expect(failed).toEqual(["host-dev"]);
   expect(dials).toBe(2);
@@ -233,9 +392,16 @@ test("a tailnet dial that fails is retried at once on the next address, and show
 
 test("a failure the daemon cannot route around shows the error and backs off", async () => {
   const failed: string[] = [];
-  const h = harness({ hostFailed: (id) => { failed.push(id); return false; } });
+  const h = harness({
+    hostFailed: (id) => {
+      failed.push(id);
+      return false;
+    },
+  });
   await h.jobs.handleCommand({ ...spec(), enable: true });
-  h.hooks.beforeSnapshot = async () => { throw new Error("on the host: fatal: not a git repository"); };
+  h.hooks.beforeSnapshot = async () => {
+    throw new Error("on the host: fatal: not a git repository");
+  };
   await h.jobs.pass();
   expect(failed).toEqual(["host-dev"]);
   expect(h.reports.at(-1)).toMatchObject({ status: "error" });

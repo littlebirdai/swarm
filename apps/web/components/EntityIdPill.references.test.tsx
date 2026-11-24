@@ -50,7 +50,8 @@ const FAKE_PLAN = {
 const LONG_TITLE_TASK = {
   _id: "nx72qtvpbmmrmwcjqmhzawejsx8bq9gm",
   short_id: "ct-77",
-  title: "Rewrite the delivery pipeline so queued sends survive a daemon restart",
+  title:
+    "Rewrite the delivery pipeline so queued sends survive a daemon restart",
   status: "open",
 };
 
@@ -149,16 +150,28 @@ function fakeQuery(fn: unknown, args: any) {
     PROPOSAL_GETS.push(args?.proposal);
     return undefined;
   }
-  if (name === "entities:resolveIdType") return TYPE_OF_CONVEX_ID[args?.id] ?? null;
-  if (name === "replays:webGetReplay") return args?.ref === "rp-7" ? FAKE_REPLAY : null;
-  if (name === "ingest:webGetSource") return [FAKE_SOURCE].find((r) => r.short_id === args?.ref || r._id === args?.ref) ?? null;
+  if (name === "entities:resolveIdType")
+    return TYPE_OF_CONVEX_ID[args?.id] ?? null;
+  if (name === "replays:webGetReplay")
+    return args?.ref === "rp-7" ? FAKE_REPLAY : null;
+  if (name === "ingest:webGetSource")
+    return (
+      [FAKE_SOURCE].find(
+        (r) => r.short_id === args?.ref || r._id === args?.ref,
+      ) ?? null
+    );
   const rows = ROWS[name];
   if (!rows) return undefined;
-  return rows.find((r) =>
-    (args?.short_id != null && r.short_id === args.short_id)
-    || (args?.id != null && r._id === args.id)
-    || (args?.repository != null && r.repository === args.repository && r.number === args.number),
-  ) ?? null;
+  return (
+    rows.find(
+      (r) =>
+        (args?.short_id != null && r.short_id === args.short_id) ||
+        (args?.id != null && r._id === args.id) ||
+        (args?.repository != null &&
+          r.repository === args.repository &&
+          r.number === args.number),
+    ) ?? null
+  );
 }
 
 // Keep every other export real — the component graph imports names statically,
@@ -181,7 +194,9 @@ mock.module("../hooks/useQueryNoThrow", () => ({
 
 mock.module("next/link", () => ({
   default: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>{children}</a>
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -223,7 +238,10 @@ const MD_COMPONENTS = { a: EntityAwareLink, code: EntityAwareCode } as const;
 function render(markdown: string): string {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS as any}>
+      <ReactMarkdown
+        remarkPlugins={entityRemarkPlugins}
+        components={MD_COMPONENTS as any}
+      >
         {markdown}
       </ReactMarkdown>
     </MemoryRouter>,
@@ -233,16 +251,23 @@ function render(markdown: string): string {
 // The pill's visible text, with the surrounding markup stripped — what a reader
 // actually sees where the id was written.
 // A pull request's or commit's change segment (its track and word, last in the pill) is checked on its own; the label is the name.
-const withoutPrState = (html: string) => html.replace(/<span class="chg-seg"[\s\S]*?(?=<\/a>)/g, "");
+const withoutPrState = (html: string) =>
+  html.replace(/<span class="chg-seg"[\s\S]*?(?=<\/a>)/g, "");
 
 function pillText(html: string): string {
-  const m = withoutPrState(html).match(/<a [^>]*class="not-prose[^"]*"[^>]*>.*?<span[^>]*>([^<]*)<\/span><\/a>/);
+  const m = withoutPrState(html).match(
+    /<a [^>]*class="not-prose[^"]*"[^>]*>.*?<span[^>]*>([^<]*)<\/span><\/a>/,
+  );
   return m ? m[1] : "";
 }
 
 // Every pill's visible text, in reading order.
 function pillTexts(html: string): string[] {
-  return [...withoutPrState(html).matchAll(/<a [^>]*class="not-prose[^"]*"[^>]*>.*?<span[^>]*>([^<]*)<\/span><\/a>/g)].map((m) => m[1]);
+  return [
+    ...withoutPrState(html).matchAll(
+      /<a [^>]*class="not-prose[^"]*"[^>]*>.*?<span[^>]*>([^<]*)<\/span><\/a>/g,
+    ),
+  ].map((m) => m[1]);
 }
 
 const { EstablishedRefsProvider } = await import("../hooks/entityMentionScope");
@@ -254,7 +279,10 @@ function renderFrom(sender: string, markdown: string): string {
   return renderToStaticMarkup(
     <MemoryRouter>
       <EstablishedRefsProvider ids={[sender]}>
-        <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS as any}>
+        <ReactMarkdown
+          remarkPlugins={entityRemarkPlugins}
+          components={MD_COMPONENTS as any}
+        >
           {markdown}
         </ReactMarkdown>
       </EstablishedRefsProvider>
@@ -360,50 +388,82 @@ describe("first mention vs. repeat", () => {
   // sentence. A reader needs the title ONCE; after that the short name is
   // enough, and the title stays one hover away.
   test("the first mention shows the title, every repeat shows the short name", () => {
-    const html = render("jx7b7mx flagged the checks. jx7b7mx's owner replied, so it goes back to jx7b7mx.");
-    expect(pillTexts(html)).toEqual(["Broker context render unification", "Broker render", "Broker render"]);
+    const html = render(
+      "jx7b7mx flagged the checks. jx7b7mx's owner replied, so it goes back to jx7b7mx.",
+    );
+    expect(pillTexts(html)).toEqual([
+      "Broker context render unification",
+      "Broker render",
+      "Broker render",
+    ]);
     // The repeat still carries the full title for a reader who hovers.
     expect(html).toContain('title="Broker context render unification"');
   });
 
   test("an object without a stored short name derives one from its title", () => {
     const html = render("Blocked on ct-77; ct-77 needs the restart first.");
-    expect(pillTexts(html)).toEqual(["Rewrite the delivery pipeline so queued…", "Rewrite delivery"]);
+    expect(pillTexts(html)).toEqual([
+      "Rewrite the delivery pipeline so queued…",
+      "Rewrite delivery",
+    ]);
   });
 
   test("a mention the author spelled out (@[Title id]) always renders in full", () => {
-    const html = render("ct-38940 is close. Ship @[Retry queue ct-38940] today.");
-    expect(pillTexts(html)).toEqual(["Retry queue for failed webhooks", "Retry queue for failed webhooks"]);
+    const html = render(
+      "ct-38940 is close. Ship @[Retry queue ct-38940] today.",
+    );
+    expect(pillTexts(html)).toEqual([
+      "Retry queue for failed webhooks",
+      "Retry queue for failed webhooks",
+    ]);
   });
 
   test("different objects are counted apart", () => {
     const html = render("pl-88 covers ct-38940; ct-38940 lands under pl-88.");
     // A two-word title already IS a name, so its repeat reads the same.
-    expect(pillTexts(html)).toEqual(["Billing migration", "Retry queue for failed webhooks", "Retry queue", "Billing migration"]);
+    expect(pillTexts(html)).toEqual([
+      "Billing migration",
+      "Retry queue for failed webhooks",
+      "Retry queue",
+      "Billing migration",
+    ]);
   });
 
   test("a backticked repeat is a repeat too", () => {
     const html = render("Filed ct-38940. Ticks up on `ct-38940` now.");
-    expect(pillTexts(html)).toEqual(["Retry queue for failed webhooks", "Retry queue"]);
+    expect(pillTexts(html)).toEqual([
+      "Retry queue for failed webhooks",
+      "Retry queue",
+    ]);
   });
 
   test("inside a message-from card, the sender is already introduced", () => {
     const html = renderFrom("jx7b7mx", "I am jx7b7mx and ct-38940 is mine.");
-    expect(pillTexts(html)).toEqual(["Broker render", "Retry queue for failed webhooks"]);
+    expect(pillTexts(html)).toEqual([
+      "Broker render",
+      "Retry queue for failed webhooks",
+    ]);
   });
 
   test("a possessive glued to a reference rides on the pill", () => {
     const html = render("Check jx7b7mx's owner and ct-38940’s plan.");
-    expect(pillTexts(html)).toEqual(["Broker context render unification", "Retry queue for failed webhooks"]);
+    expect(pillTexts(html)).toEqual([
+      "Broker context render unification",
+      "Retry queue for failed webhooks",
+    ]);
     // The apostrophe-s leaves the prose text node and renders against the pill.
-    expect(html).toContain("</a><span class=\"-ml-[3px]\">&#x27;s</span> owner");
-    expect(html).toContain("</a><span class=\"-ml-[3px]\">’s</span> plan.");
+    expect(html).toContain('</a><span class="-ml-[3px]">&#x27;s</span> owner');
+    expect(html).toContain('</a><span class="-ml-[3px]">’s</span> plan.');
   });
 
   test("each message body counts from one", () => {
     // Two bodies, two parses: the second is a new reader context.
-    expect(pillText(render("First: ct-38940."))).toBe("Retry queue for failed webhooks");
-    expect(pillText(render("Again: ct-38940."))).toBe("Retry queue for failed webhooks");
+    expect(pillText(render("First: ct-38940."))).toBe(
+      "Retry queue for failed webhooks",
+    );
+    expect(pillText(render("Again: ct-38940."))).toBe(
+      "Retry queue for failed webhooks",
+    );
   });
 });
 
@@ -411,7 +471,9 @@ describe("published page links", () => {
   const PAGE_URL = `https://codecast.sh/a/${PAGE_SLUG}`;
 
   test("a publish URL alone on its line embeds the live page", () => {
-    const html = render(`Here is the report:\n\n${PAGE_URL}\n\nTell me what to change.`);
+    const html = render(
+      `Here is the report:\n\n${PAGE_URL}\n\nTell me what to change.`,
+    );
     expect(html).toContain("<iframe");
     expect(html).toContain(`/cli/a/${PAGE_SLUG}`);
     // The header carries the page's live title.
@@ -451,7 +513,9 @@ describe("published page links", () => {
   // names it "Open beside your work", the pill's glyph "Open in a pane".
   test("both the embed and the pill offer to open the page in a pane", () => {
     expect(render(PAGE_URL)).toContain('aria-label="Open beside your work"');
-    expect(render(`The numbers are in ${PAGE_URL} if you want detail.`)).toContain('aria-label="Open in a pane"');
+    expect(
+      render(`The numbers are in ${PAGE_URL} if you want detail.`),
+    ).toContain('aria-label="Open in a pane"');
   });
 });
 
@@ -462,7 +526,9 @@ describe("Claude artifact links", () => {
   // claude.ai refuses to be framed by other sites, so the card body is a tile
   // that opens the artifact — never an iframe that would paint a refusal.
   test("an artifact URL alone on its line renders a card, not a frame", () => {
-    const html = render(`Here is the mockup:\n\n${URL}\n\nTell me what to change.`);
+    const html = render(
+      `Here is the mockup:\n\n${URL}\n\nTell me what to change.`,
+    );
     expect(html).not.toContain("<iframe");
     expect(html).toContain("Claude artifact");
     expect(html).toContain("Copy link to Claude artifact");
@@ -471,7 +537,9 @@ describe("Claude artifact links", () => {
   });
 
   test("[caption](url) on its own line titles the card with the caption", () => {
-    const html = render(`[Pricing page mockup](https://claude.site/artifacts/${ID})`);
+    const html = render(
+      `[Pricing page mockup](https://claude.site/artifacts/${ID})`,
+    );
     expect(html).not.toContain("<iframe");
     expect(html).toContain("Pricing page mockup");
     // The card opens the canonical claude.ai address, whichever host was pasted.
@@ -490,7 +558,9 @@ describe("Claude artifact links", () => {
   // and this render has none, so no pane verb is offered.
   test("no pane verb without the desktop's native view", () => {
     expect(render(URL)).not.toContain('aria-label="Open in a pane"');
-    expect(render(`See ${URL} here.`)).not.toContain('aria-label="Open in a pane"');
+    expect(render(`See ${URL} here.`)).not.toContain(
+      'aria-label="Open in a pane"',
+    );
   });
 });
 
@@ -514,7 +584,10 @@ describe("local dev server links", () => {
   });
 
   test("public and LAN addresses stay ordinary links", () => {
-    for (const url of ["https://example.com/docs", "http://192.168.1.20:3000/"]) {
+    for (const url of [
+      "https://example.com/docs",
+      "http://192.168.1.20:3000/",
+    ]) {
       const html = render(`see ${url} for that`);
       expect(html).toContain(`href="${url}"`);
       expect(html).not.toContain("Open as a pane beside this conversation");
@@ -594,11 +667,20 @@ describe("pill chrome", () => {
 
 describe("pull request references", () => {
   // A conversation bound to a repository: the pill completes `#3263` from it.
-  function renderIn(repository: string | null, markdown: string, pullRequestIds: string[] = []): string {
+  function renderIn(
+    repository: string | null,
+    markdown: string,
+    pullRequestIds: string[] = [],
+  ): string {
     return renderToStaticMarkup(
       <MemoryRouter>
-        <FilePathContext.Provider value={{ repository, pullRequestIds: new Set(pullRequestIds) }}>
-          <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS as any}>
+        <FilePathContext.Provider
+          value={{ repository, pullRequestIds: new Set(pullRequestIds) }}
+        >
+          <ReactMarkdown
+            remarkPlugins={entityRemarkPlugins}
+            components={MD_COMPONENTS as any}
+          >
             {markdown}
           </ReactMarkdown>
         </FilePathContext.Provider>
@@ -607,7 +689,9 @@ describe("pull request references", () => {
   }
 
   test("a GitHub link to a synced pull request reads as the PR's title and opens in the app", () => {
-    const html = render("see https://github.com/codecast-sh/codecast/pull/482 for the fix");
+    const html = render(
+      "see https://github.com/codecast-sh/codecast/pull/482 for the fix",
+    );
     expect(pillText(html)).toBe("#482 Fix the auth race");
     expect(html).toContain('href="/pr/codecast-sh/codecast/482"');
     expect(html).not.toContain('href="https://github.com');
@@ -617,22 +701,30 @@ describe("pull request references", () => {
     // No installation covers union-mobile, so the row is unknown. The link
     // named a pull request beyond doubt, so it is a reference, not an external
     // link; the page it opens offers GitHub when it has nothing to show.
-    const html = render("merged https://github.com/Union-AI/union-mobile/pull/3263 today");
+    const html = render(
+      "merged https://github.com/Union-AI/union-mobile/pull/3263 today",
+    );
     expect(pillText(html)).toBe("union-ai/union-mobile#3263");
     expect(html).toContain('href="/pr/union-ai/union-mobile/3263"');
     expect(html).not.toContain('href="https://github.com');
   });
 
   test("a GitHub link the author gave their own words keeps them until the row resolves", () => {
-    const html = render("see [the rescue dial card](https://github.com/Union-AI/union-mobile/pull/3247)");
+    const html = render(
+      "see [the rescue dial card](https://github.com/Union-AI/union-mobile/pull/3247)",
+    );
     expect(pillText(html)).toBe("the rescue dial card");
     expect(html).toContain('href="/pr/union-ai/union-mobile/3247"');
   });
 
   test("a GitHub commit link pills the same way", () => {
-    const html = render("at https://github.com/Union-AI/union-mobile/commit/aa57b85ee0123");
+    const html = render(
+      "at https://github.com/Union-AI/union-mobile/commit/aa57b85ee0123",
+    );
     expect(pillText(html)).toBe("union-ai/union-mobile@aa57b85ee0123");
-    expect(html).toContain('href="/commit/union-ai/union-mobile/aa57b85ee0123"');
+    expect(html).toContain(
+      'href="/commit/union-ai/union-mobile/aa57b85ee0123"',
+    );
   });
 
   test("a bare owner/repo#N nobody has synced stays text (it could be a file and line)", () => {
@@ -642,7 +734,11 @@ describe("pull request references", () => {
   });
 
   test("#N and PR N inside a repository bound conversation pill and open that repository's PR", () => {
-    const html = renderIn("union-ai/union-mobile", "PRs 3247 (rescue dial card), 3230 (objection playbook) and #3263 landed", ["union-ai/union-mobile#3263"]);
+    const html = renderIn(
+      "union-ai/union-mobile",
+      "PRs 3247 (rescue dial card), 3230 (objection playbook) and #3263 landed",
+      ["union-ai/union-mobile#3263"],
+    );
     expect(pillTexts(html)).toEqual(["3247", "3230", "#3263"]);
     expect(html).toContain('href="/pr/union-ai/union-mobile/3230"');
     expect(html).toContain('href="/pr/union-ai/union-mobile/3247"');
@@ -652,25 +748,39 @@ describe("pull request references", () => {
   });
 
   test("#N in a repository bound conversation reads as the title once the row is in hand", () => {
-    const html = renderIn("codecast-sh/codecast", "landed PR #482 this morning");
+    const html = renderIn(
+      "codecast-sh/codecast",
+      "landed PR #482 this morning",
+    );
     expect(pillText(html)).toBe("#482 Fix the auth race");
     // An open pull request says where it stands as its change, the track and word the Branches page gives it.
-    expect(html).toMatch(/<span class="chg-seg" data-tone="muted" data-change-segment="check">/);
+    expect(html).toMatch(
+      /<span class="chg-seg" data-tone="muted" data-change-segment="check">/,
+    );
     expect(html).toContain('<span class="chg-word">not checked');
     expect(html).toContain('href="/pr/codecast-sh/codecast/482"');
   });
 
   test("PR #N in a session with no repository of its own opens the repository the conversation knows it in", () => {
     // A session started in a home directory: sessionRepository is null, the PR's link may be in an unloaded page.
-    const html = renderIn(null, "waiting on PR #1's fixes; then #1 merges", ["jasonbenn/sit#2", "jasonbenn/sit#1"]);
+    const html = renderIn(null, "waiting on PR #1's fixes; then #1 merges", [
+      "jasonbenn/sit#2",
+      "jasonbenn/sit#1",
+    ]);
     expect(pillTexts(html)).toEqual(["#1", "#1"]);
     expect(html).toContain('href="/pr/jasonbenn/sit/1"');
   });
 
   test("a lone #N the conversation does not know as a pull request is a rank, not a reference", () => {
-    const html = renderIn("union-ai/union", "one candidate moved from #10 to #2 at a dial of 3, and down to #144 at 0", ["union-ai/union#3263"]);
+    const html = renderIn(
+      "union-ai/union",
+      "one candidate moved from #10 to #2 at a dial of 3, and down to #144 at 0",
+      ["union-ai/union#3263"],
+    );
     expect(html).not.toContain('class="not-prose');
-    expect(html).toContain("moved from #10 to #2 at a dial of 3, and down to #144 at 0");
+    expect(html).toContain(
+      "moved from #10 to #2 at a dial of 3, and down to #144 at 0",
+    );
   });
 
   test("PR N needs no evidence; a lone #N it names is vouched for", () => {
@@ -697,13 +807,18 @@ describe("pull request references", () => {
 // place in this app. As a new tab it left the desktop app for the system browser.
 describe("codecast route links", () => {
   test("an app route opens in this window at its path", () => {
-    const html = render("See https://codecast.sh/org?proposal=op-19 for the change.");
+    const html = render(
+      "See https://codecast.sh/org?proposal=op-19 for the change.",
+    );
     expect(html).toContain('href="/org?proposal=op-19"');
     expect(html).not.toContain('target="_blank"');
   });
 
   test("a marketing page and a foreign site stay ordinary external links", () => {
-    for (const url of ["https://codecast.sh/pricing", "https://example.com/org"]) {
+    for (const url of [
+      "https://codecast.sh/pricing",
+      "https://example.com/org",
+    ]) {
       const html = render(`Read ${url} first.`);
       expect(html).toContain(`href="${url}"`);
       expect(html).toContain('target="_blank"');
@@ -717,7 +832,12 @@ describe("codecast route links", () => {
 // hover away (the link's tooltip and the hover card), so a reply that names
 // five changes of one proposal reads as a sentence, not a wall of titles.
 describe("one change of a proposal (op-N#seq)", () => {
-  const PROPOSAL = { _id: "tx72qtvpbmmrmwcjqmhzawejsx8bq9gm", short_id: "op-55", title: "Rank the projects by their goals", status: "open" };
+  const PROPOSAL = {
+    _id: "tx72qtvpbmmrmwcjqmhzawejsx8bq9gm",
+    short_id: "op-55",
+    title: "Rank the projects by their goals",
+    status: "open",
+  };
   useInboxStore.setState({ orgProposals: { [PROPOSAL._id]: PROPOSAL } } as any);
 
   test("the pill reads as the change's number, with the whole title on the tooltip", () => {
@@ -734,7 +854,9 @@ describe("one change of a proposal (op-N#seq)", () => {
   });
 
   test("the whole proposal beside it keeps its plain name and its own page", () => {
-    const html = render("Proposed in op-55, and op-55#1 is the one to read first.");
+    const html = render(
+      "Proposed in op-55, and op-55#1 is the one to read first.",
+    );
     expect(pillTexts(html)).toEqual(["Rank the projects by their goals", "#1"]);
     expect(html).toContain('href="/org?proposal=op-55"');
     expect(html).toContain('href="/org?proposal=op-55&amp;focus=1"');
@@ -768,7 +890,9 @@ describe("product sources (src-N)", () => {
   });
 
   test("a table cell of source ids becomes pills, a src- path stays text", () => {
-    const html = render("| Source |\n| --- |\n| src-13 union (app connector) |\n\nSee packages/src-tauri.");
+    const html = render(
+      "| Source |\n| --- |\n| src-13 union (app connector) |\n\nSee packages/src-tauri.",
+    );
     expect(pillTexts(html)).toEqual(["union"]);
     expect(html).toContain("src-tauri");
   });
@@ -798,13 +922,36 @@ describe("replays (rp-N)", () => {
 // sheet on the Org screen, `/org/<ref>`. A project and a role are named by
 // their short ids in prose; a person by a link to their address.
 describe("the company's objects (or-N, pj-…, @person)", () => {
-  const PROJECT = { _id: "ux72qtvpbmmrmwcjqmhzawejsx8bq9gm", short_id: "pj-mf3k2a", title: "Lead lists", status: "active" };
-  const ROLE = { _id: "vx72qtvpbmmrmwcjqmhzawejsx8bq9gm", short_id: "or-3", name: "Calling lead", handle: "calling", status: "active" };
-  const PERSON = { _id: "wx72qtvpbmmrmwcjqmhzawejsx8bq9gm", name: "Samvit", github_username: "samvit" };
+  const PROJECT = {
+    _id: "ux72qtvpbmmrmwcjqmhzawejsx8bq9gm",
+    short_id: "pj-mf3k2a",
+    title: "Lead lists",
+    status: "active",
+  };
+  const ROLE = {
+    _id: "vx72qtvpbmmrmwcjqmhzawejsx8bq9gm",
+    short_id: "or-3",
+    name: "Calling lead",
+    handle: "calling",
+    status: "active",
+  };
+  const PERSON = {
+    _id: "wx72qtvpbmmrmwcjqmhzawejsx8bq9gm",
+    name: "Samvit",
+    github_username: "samvit",
+  };
   useInboxStore.setState({
     projects: { [PROJECT._id]: PROJECT },
-    orgTree: { workspace: { kind: "team", id: "t", name: "Union" }, people: [], roles: [ROLE], anchors: [], generated_at: 0 },
-    ...withTeamRoster([PERSON], { clientState: useInboxStore.getState().clientState }),
+    orgTree: {
+      workspace: { kind: "team", id: "t", name: "Union" },
+      people: [],
+      roles: [ROLE],
+      anchors: [],
+      generated_at: 0,
+    },
+    ...withTeamRoster([PERSON], {
+      clientState: useInboxStore.getState().clientState,
+    }),
   } as any);
 
   test("a role and a project read as their names and open their sheet", () => {
@@ -821,7 +968,9 @@ describe("the company's objects (or-N, pj-…, @person)", () => {
   });
 
   test("a link to a project's board is the same project, opened as its sheet", () => {
-    const html = render(`See https://codecast.sh/projects/${PROJECT._id} for the list.`);
+    const html = render(
+      `See https://codecast.sh/projects/${PROJECT._id} for the list.`,
+    );
     expect(pillText(html)).toBe("Lead lists");
     expect(html).toContain('href="/projects/pj-mf3k2a"');
   });
@@ -831,4 +980,3 @@ describe("the company's objects (or-N, pj-…, @person)", () => {
     expect(pillTexts(html)).toEqual([]);
   });
 });
-

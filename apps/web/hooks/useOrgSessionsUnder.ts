@@ -8,7 +8,11 @@ const api = _api as any;
 
 export type OrgSessionsPage = { sessions: OrgSession[]; next_cursor?: string };
 
-export function useOrgSessionsUnder(args: { parent: OrgParentRef; team_id?: string; cursor?: string; limit: number } | "skip"): { data: OrgSessionsPage | undefined; error?: Error } {
+export function useOrgSessionsUnder(
+  args:
+    | { parent: OrgParentRef; team_id?: string; cursor?: string; limit: number }
+    | "skip",
+): { data: OrgSessionsPage | undefined; error?: Error } {
   const { data, error } = useQueryNoThrow(api.org.sessionsUnder, args);
   return { data: data as OrgSessionsPage | undefined, error };
 }

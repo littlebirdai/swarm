@@ -13,7 +13,10 @@
 // parked page is offscreen, where the browser throttles a cross-origin
 // frame's rendering and timers.
 
-import { PAGE_HEIGHT_MESSAGE, PAGE_PARK_MESSAGE } from "../../../packages/shared/render/pageTheme";
+import {
+  PAGE_HEIGHT_MESSAGE,
+  PAGE_PARK_MESSAGE,
+} from "../../../packages/shared/render/pageTheme";
 
 export type PageHeight = { height: number; preferred: number | null };
 
@@ -47,14 +50,16 @@ export function framePoolSupported(): boolean {
 function parkingLot(): HTMLElement {
   if (lot?.isConnected) return lot;
   // A lot an earlier copy of this module made (a hot reload in development) holds frames nothing tracks any more.
-  for (const stale of document.querySelectorAll("[data-page-frame-lot]")) stale.remove();
+  for (const stale of document.querySelectorAll("[data-page-frame-lot]"))
+    stale.remove();
   lot = document.createElement("div");
   lot.setAttribute("aria-hidden", "true");
   lot.setAttribute("data-page-frame-lot", "");
   lot.inert = true;
   // Offscreen, not display:none: a hidden frame is laid out at zero size, and a page re-laid out to nothing and back
   // loses its scroll and redraws on return.
-  lot.style.cssText = "position:fixed;left:-20000px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;contain:strict;";
+  lot.style.cssText =
+    "position:fixed;left:-20000px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;contain:strict;";
   document.body.appendChild(lot);
   return lot;
 }
@@ -63,11 +68,18 @@ function listen() {
   if (listening) return;
   listening = true;
   window.addEventListener("message", (e) => {
-    const m = e.data as { type?: unknown; height?: unknown; preferred?: unknown } | null;
+    const m = e.data as {
+      type?: unknown;
+      height?: unknown;
+      preferred?: unknown;
+    } | null;
     if (m?.type !== PAGE_HEIGHT_MESSAGE || typeof m.height !== "number") return;
     for (const entry of live.values()) {
       if (entry.frame.contentWindow === e.source) {
-        entry.height = { height: m.height, preferred: typeof m.preferred === "number" ? m.preferred : null };
+        entry.height = {
+          height: m.height,
+          preferred: typeof m.preferred === "number" ? m.preferred : null,
+        };
         return;
       }
     }
@@ -86,7 +98,8 @@ function evict(entry: Entry) {
 }
 
 function sweep(now = Date.now()) {
-  for (const entry of [...parked]) if (now - entry.parkedAt > PARK_TTL_MS) evict(entry);
+  for (const entry of [...parked])
+    if (now - entry.parkedAt > PARK_TTL_MS) evict(entry);
   while (parked.length > MAX_PARKED) evict(parked[0]!);
 }
 
@@ -97,7 +110,10 @@ function parkedFor(key: string | null): Entry | undefined {
 /** The pool's key for a page frame: what it shows (the page, theme and gate tokens its address names, and the version
  *  it loaded), not the literal address. A page first framed at its bare address before its version was known and
  *  later asked for pinned (r=vN) is the same page. */
-export function frameKey(src: string, version: number | undefined): string | null {
+export function frameKey(
+  src: string,
+  version: number | undefined,
+): string | null {
   return version ? `${src.replace(/&r=v\d+/, "")}#v${version}` : null;
 }
 
@@ -105,7 +121,10 @@ export function frameKey(src: string, version: number | undefined): string | nul
 export function makePageFrame(src: string): HTMLIFrameElement {
   const f = document.createElement("iframe");
   f.className = "page-embed__frame block h-full w-full";
-  f.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
+  f.setAttribute(
+    "sandbox",
+    "allow-scripts allow-popups allow-popups-to-escape-sandbox",
+  );
   f.src = src;
   return f;
 }
@@ -113,7 +132,9 @@ export function makePageFrame(src: string): HTMLIFrameElement {
 function track(frame: HTMLIFrameElement, key: string | null): Entry {
   const entry: Entry = { frame, key, loaded: false, height: null, parkedAt: 0 };
   live.set(frame, entry);
-  frame.addEventListener("load", () => { entry.loaded = true; });
+  frame.addEventListener("load", () => {
+    entry.loaded = true;
+  });
   return entry;
 }
 
@@ -123,7 +144,11 @@ export function hasParkedFrame(key: string | null): boolean {
 }
 
 /** The parked frame for `key` (its page still loaded), taken out of the pool; null when there is none. */
-export function claimFrame(key: string | null): { frame: HTMLIFrameElement; loaded: boolean; height: PageHeight | null } | null {
+export function claimFrame(key: string | null): {
+  frame: HTMLIFrameElement;
+  loaded: boolean;
+  height: PageHeight | null;
+} | null {
   listen();
   const entry = parkedFor(key);
   if (!entry) return null;
@@ -167,7 +192,8 @@ export function preloadFrame(src: string, key: string | null, width: number) {
 /** Move a frame into `slot` without reloading it. */
 export function placeFrame(frame: HTMLIFrameElement, slot: HTMLElement) {
   if (frame.parentElement === slot) return;
-  if (frame.isConnected && framePoolSupported()) (slot as any).moveBefore(frame, null);
+  if (frame.isConnected && framePoolSupported())
+    (slot as any).moveBefore(frame, null);
   else slot.appendChild(frame);
 }
 
@@ -191,7 +217,9 @@ export function releaseFrame(frame: HTMLIFrameElement, key: string | null) {
   // Out of sight but alive: a page playing video or sound stops.
   try {
     frame.contentWindow?.postMessage({ type: PAGE_PARK_MESSAGE }, "*");
-  } catch { /* mid-navigation */ }
+  } catch {
+    /* mid-navigation */
+  }
   entry.parkedAt = Date.now();
   unpark(entry);
   parked.push(entry);

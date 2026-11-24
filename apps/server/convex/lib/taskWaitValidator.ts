@@ -1,12 +1,18 @@
 import { v, type Infer } from "convex/values";
-import { WAIT_STATES, type TaskWait, type WaitTarget } from "@codecast/shared/tasks";
+import {
+  WAIT_STATES,
+  type TaskWait,
+  type WaitTarget,
+} from "@codecast/shared/tasks";
 
 // One entry of tasks.waits (task-graph.md TG2), mirroring TaskWait in
 // @codecast/shared/tasks/graph.ts: a union on `kind` so a PR wait always
 // carries its repository and number, a decision wait its sd-N, a time wait
 // its `at`. The schema field and every mutation that writes waits use these.
 
-export const waitStateValidator = v.union(...WAIT_STATES.map((s) => v.literal(s)));
+export const waitStateValidator = v.union(
+  ...WAIT_STATES.map((s) => v.literal(s)),
+);
 
 const prTarget = {
   kind: v.union(v.literal("pr_merged"), v.literal("pr_checks_green")),

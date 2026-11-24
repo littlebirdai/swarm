@@ -18,7 +18,17 @@
 // environment (auth:store mints the sessions), Google Chrome in
 // /Applications (or RIG_CHROME).
 import { mkdirSync, writeFileSync } from "node:fs";
-import { alive, bringUp, deadSeatLeg, killSide, reconnectLeg, ringLeg, settle, waitPresent, walkieLeg } from "./legs.mjs";
+import {
+  alive,
+  bringUp,
+  deadSeatLeg,
+  killSide,
+  reconnectLeg,
+  ringLeg,
+  settle,
+  waitPresent,
+  walkieLeg,
+} from "./legs.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => {
@@ -31,7 +41,12 @@ const KEEP = args.includes("--keep");
 const ATTACH = args.includes("--attach");
 mkdirSync(DIR, { recursive: true });
 
-const LEG = { walkie: walkieLeg, ring: ringLeg, reconnect: reconnectLeg, "dead-seat": deadSeatLeg };
+const LEG = {
+  walkie: walkieLeg,
+  ring: ringLeg,
+  reconnect: reconnectLeg,
+  "dead-seat": deadSeatLeg,
+};
 
 const sides = [];
 const results = [];
@@ -59,7 +74,10 @@ try {
         try {
           await s.page.screenshot(`${DIR}/${name}-failed-${s.who}.png`);
           const rec = await s.page.evaluate(`__rig.stop ? __rig.stop() : null`);
-          if (rec) console.log(`  ${s.who} log: ${JSON.stringify(rec.log).slice(0, 1500)}`);
+          if (rec)
+            console.log(
+              `  ${s.who} log: ${JSON.stringify(rec.log).slice(0, 1500)}`,
+            );
         } catch {
           // the page may be gone
         }
@@ -82,10 +100,16 @@ try {
 // ── the table ──
 console.log("\n| leg | moment | ms |");
 console.log("| --- | --- | ---: |");
-for (const r of results) for (const t of r.timings) console.log(`| ${r.name} | ${t.name} | ${t.ms} |`);
+for (const r of results)
+  for (const t of r.timings) console.log(`| ${r.name} | ${t.name} | ${t.ms} |`);
 console.log("\n| leg | verdict |");
 console.log("| --- | --- |");
-for (const r of results) console.log(`| ${r.name} | ${r.ok ? "PASS" : "FAIL: " + r.problems.join("; ")} |`);
+for (const r of results)
+  console.log(
+    `| ${r.name} | ${r.ok ? "PASS" : "FAIL: " + r.problems.join("; ")} |`,
+  );
 writeFileSync(`${DIR}/results.json`, JSON.stringify(results, null, 2));
-console.log(`\nresults: ${DIR}/results.json; shots: ${results.flatMap((r) => r.shots.map((s) => s.file)).length}`);
+console.log(
+  `\nresults: ${DIR}/results.json; shots: ${results.flatMap((r) => r.shots.map((s) => s.file)).length}`,
+);
 process.exit(results.every((r) => r.ok) ? 0 : 1);

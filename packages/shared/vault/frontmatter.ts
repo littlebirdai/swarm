@@ -15,7 +15,12 @@ export function frontmatterLineOffset(content: string): number {
   // Windows-authored files). Splitting on "\n" leaves each line's \r attached,
   // which the \s* in the closing-fence test already tolerates, and rejoining
   // with "\n" preserves every original byte.
-  if (!content.startsWith("---\n") && !content.startsWith("---\r\n") && content !== "---") return 0;
+  if (
+    !content.startsWith("---\n") &&
+    !content.startsWith("---\r\n") &&
+    content !== "---"
+  )
+    return 0;
   const lines = content.split("\n");
   for (let i = 1; i < lines.length; i++) {
     if (/^(?:---|\.\.\.)\s*$/.test(lines[i])) return i + 1;
@@ -28,5 +33,8 @@ export function splitFrontmatter(content: string): [string | null, string] {
   const offset = frontmatterLineOffset(content);
   if (!offset) return [null, content];
   const lines = content.split("\n");
-  return [lines.slice(1, offset - 1).join("\n"), lines.slice(offset).join("\n")];
+  return [
+    lines.slice(1, offset - 1).join("\n"),
+    lines.slice(offset).join("\n"),
+  ];
 }

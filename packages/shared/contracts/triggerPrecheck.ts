@@ -46,12 +46,17 @@ export const TRIGGER_PRECHECK_MESSAGE_CHARS = 4_000;
  *  gate kept its new state when it woke, so asking it again would answer
  *  "unchanged" and the work it found would never run: a continuing firing
  *  runs ungated and keeps the message it was woken with. */
-export function triggerFiringContinues(task: { retry_count?: number | null; parked_run_session_uuid?: string | null }): boolean {
+export function triggerFiringContinues(task: {
+  retry_count?: number | null;
+  parked_run_session_uuid?: string | null;
+}): boolean {
   return (task.retry_count ?? 0) > 0 || !!task.parked_run_session_uuid;
 }
 
 /** The mode a stored trigger runs its precheck in. */
-export function triggerPrecheckMode(stored: string | null | undefined): TriggerPrecheckMode {
+export function triggerPrecheckMode(
+  stored: string | null | undefined,
+): TriggerPrecheckMode {
   return stored === "changes" || stored === "state" ? stored : "exit";
 }
 
@@ -93,14 +98,26 @@ export function judgeTriggerPrecheck(
   fingerprint: (stdout: string) => string,
 ): TriggerPrecheckVerdict {
   if (mode === "exit" || !triggerPrecheckPassed(result)) {
-    return triggerPrecheckPassed(result) ? { wake: true } : { wake: false, reason: describeTriggerPrecheckFailure(result) };
+    return triggerPrecheckPassed(result)
+      ? { wake: true }
+      : { wake: false, reason: describeTriggerPrecheckFailure(result) };
   }
   const stdout = result.stdout ?? "";
   if (mode === "changes") {
-    if (result.stdoutTruncated) return { wake: false, reason: `precheck printed more than ${TRIGGER_PRECHECK_STATE_CHARS} characters; a changes gate compares its whole output` };
+    if (result.stdoutTruncated)
+      return {
+        wake: false,
+        reason: `precheck printed more than ${TRIGGER_PRECHECK_STATE_CHARS} characters; a changes gate compares its whole output`,
+      };
     const state = fingerprint(stdout);
-    if (previous === undefined) return { wake: false, reason: "precheck output recorded; the next change wakes it", state };
-    if (state === previous) return { wake: false, reason: "precheck output unchanged" };
+    if (previous === undefined)
+      return {
+        wake: false,
+        reason: "precheck output recorded; the next change wakes it",
+        state,
+      };
+    if (state === previous)
+      return { wake: false, reason: "precheck output unchanged" };
     const message = stdout.trim().slice(0, TRIGGER_PRECHECK_MESSAGE_CHARS);
     return { wake: true, state, ...(message ? { message } : {}) };
   }
@@ -110,17 +127,41 @@ export function judgeTriggerPrecheck(
   } catch {
     verdict = null;
   }
-  if (!verdict || typeof verdict !== "object" || typeof verdict.wake !== "boolean") {
-    return { wake: false, reason: 'precheck printed no {"wake": true|false, "state": ..., "message": ...} JSON' };
+  if (
+    !verdict ||
+    typeof verdict !== "object" ||
+    typeof verdict.wake !== "boolean"
+  ) {
+    return {
+      wake: false,
+      reason:
+        'precheck printed no {"wake": true|false, "state": ..., "message": ...} JSON',
+    };
   }
   let state: string | undefined;
   if ("state" in verdict) {
     state = JSON.stringify(verdict.state ?? null);
-    if (state.length > TRIGGER_PRECHECK_STATE_CHARS) return { wake: false, reason: `precheck state is over ${TRIGGER_PRECHECK_STATE_CHARS} characters; it was not kept` };
+    if (state.length > TRIGGER_PRECHECK_STATE_CHARS)
+      return {
+        wake: false,
+        reason: `precheck state is over ${TRIGGER_PRECHECK_STATE_CHARS} characters; it was not kept`,
+      };
   }
-  const message = typeof verdict.message === "string" && verdict.message.trim() ? verdict.message.trim().slice(0, TRIGGER_PRECHECK_MESSAGE_CHARS) : undefined;
-  if (!verdict.wake) return { wake: false, reason: message ? `precheck: ${message}` : "precheck said not yet", ...(state !== undefined ? { state } : {}) };
-  return { wake: true, ...(state !== undefined ? { state } : {}), ...(message ? { message } : {}) };
+  const message =
+    typeof verdict.message === "string" && verdict.message.trim()
+      ? verdict.message.trim().slice(0, TRIGGER_PRECHECK_MESSAGE_CHARS)
+      : undefined;
+  if (!verdict.wake)
+    return {
+      wake: false,
+      reason: message ? `precheck: ${message}` : "precheck said not yet",
+      ...(state !== undefined ? { state } : {}),
+    };
+  return {
+    wake: true,
+    ...(state !== undefined ? { state } : {}),
+    ...(message ? { message } : {}),
+  };
 }
 
 /** Exit 0 and nothing else. A timeout, a spawn failure and a non-zero exit all
@@ -131,7 +172,9 @@ export function triggerPrecheckPassed(result: TriggerPrecheckResult): boolean {
 
 /** One line naming why a run was skipped — the reason stored on the trigger
  *  row and shown by `cast trigger log` and the trigger detail page. */
-export function describeTriggerPrecheckFailure(result: TriggerPrecheckResult): string {
+export function describeTriggerPrecheckFailure(
+  result: TriggerPrecheckResult,
+): string {
   if (result.timedOut) {
     return `precheck timed out after ${Math.round(result.durationMs / 1000)}s`;
   }
@@ -142,7 +185,11 @@ export function describeTriggerPrecheckFailure(result: TriggerPrecheckResult): s
 /** Why a trigger is firing right now. Three of the four come from its own
  *  schedule; `manual` is a person asking — `cast trigger run tr-42` or the web
  *  Run now button. */
-export type TriggerFiringSource = "manual" | "scheduled" | "recurring" | "event";
+export type TriggerFiringSource =
+  | "manual"
+  | "scheduled"
+  | "recurring"
+  | "event";
 
 /** The source of one firing, from the trigger's schedule and whatever the run
  *  request stamped on the row. A manual request outranks the schedule: the
@@ -150,7 +197,7 @@ export type TriggerFiringSource = "manual" | "scheduled" | "recurring" | "event"
  *  when someone presses Run now. */
 export function triggerFiringSource(
   scheduleType: string | undefined,
-  requestedSource?: string
+  requestedSource?: string,
 ): TriggerFiringSource {
   if (requestedSource === "manual") return "manual";
   if (scheduleType === "recurring") return "recurring";

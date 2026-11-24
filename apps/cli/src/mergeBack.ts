@@ -28,7 +28,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileAsync, spawn } from "./proc.js";
-import { fileVerdict, parseRawDiff, readBlobs, withWorkingIndex, worktreeBase } from "./land/scan.js";
+import {
+  fileVerdict,
+  parseRawDiff,
+  readBlobs,
+  withWorkingIndex,
+  worktreeBase,
+} from "./land/scan.js";
 
 export type MergeBackResult =
   | { state: "merged"; files: string[] }
@@ -38,9 +44,14 @@ export type MergeBackResult =
 
 const ZERO = /^0+$/;
 export const MERGED_REF_PREFIX = "refs/codecast/merged/";
-export const mergedBackRef = (worktreePath: string) => `${MERGED_REF_PREFIX}${path.basename(worktreePath)}`;
+export const mergedBackRef = (worktreePath: string) =>
+  `${MERGED_REF_PREFIX}${path.basename(worktreePath)}`;
 
-async function git(cwd: string, args: string[], opts: { env?: NodeJS.ProcessEnv; buffer?: boolean } = {}): Promise<string> {
+async function git(
+  cwd: string,
+  args: string[],
+  opts: { env?: NodeJS.ProcessEnv; buffer?: boolean } = {},
+): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
     encoding: "utf-8",
     timeout: 120_000,
@@ -53,40 +64,81 @@ async function git(cwd: string, args: string[], opts: { env?: NodeJS.ProcessEnv;
 const tryGit = (cwd: string, args: string[]) => git(cwd, args).catch(() => "");
 
 /** Run git with stdin, resolving its stdout (bytes); rejects on a non-zero exit. */
-function gitWithInput(cwd: string, args: string[], input: string): Promise<Buffer> {
+function gitWithInput(
+  cwd: string,
+  args: string[],
+  input: string,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const child = spawn("git", ["-C", cwd, ...args], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("git", ["-C", cwd, ...args], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     const out: Buffer[] = [];
     const err: Buffer[] = [];
     child.stdout!.on("data", (c: Buffer) => out.push(c));
     child.stderr!.on("data", (c: Buffer) => err.push(c));
     child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve(Buffer.concat(out)) : reject(new Error(Buffer.concat(err).toString().trim() || `git ${args[0]} exited ${code}`)));
+    child.on("close", (code) =>
+      code === 0
+        ? resolve(Buffer.concat(out))
+        : reject(
+            new Error(
+              Buffer.concat(err).toString().trim() ||
+                `git ${args[0]} exited ${code}`,
+            ),
+          ),
+    );
     child.stdin!.end(input);
   });
 }
 
 /** The blob each existing path holds in `root`'s working copy, written to the shared object store. */
-async function workingBlobs(root: string, paths: string[]): Promise<Map<string, string>> {
+async function workingBlobs(
+  root: string,
+  paths: string[],
+): Promise<Map<string, string>> {
   const present = paths.filter((p) => {
-    try { return fs.lstatSync(path.join(root, p)).isFile(); } catch { return false; }
+    try {
+      return fs.lstatSync(path.join(root, p)).isFile();
+    } catch {
+      return false;
+    }
   });
   const out = new Map<string, string>();
   if (present.length === 0) return out;
-  const shas = (await gitWithInput(root, ["hash-object", "-w", "--stdin-paths"], present.join("\n") + "\n")).toString().trim().split("\n");
+  const shas = (
+    await gitWithInput(
+      root,
+      ["hash-object", "-w", "--stdin-paths"],
+      present.join("\n") + "\n",
+    )
+  )
+    .toString()
+    .trim()
+    .split("\n");
   present.forEach((p, i) => out.set(p, shas[i]));
   return out;
 }
 
 /** Three-way merge of text: the merged content, or null when the sides overlap. */
-async function mergeText(current: string, base: string, theirs: string): Promise<string | null> {
+async function mergeText(
+  current: string,
+  base: string,
+  theirs: string,
+): Promise<string | null> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-merge-back-"));
   try {
-    const [c, b, t] = ["current", "base", "theirs"].map((n) => path.join(dir, n));
+    const [c, b, t] = ["current", "base", "theirs"].map((n) =>
+      path.join(dir, n),
+    );
     fs.writeFileSync(c, current);
     fs.writeFileSync(b, base);
     fs.writeFileSync(t, theirs);
-    const { stdout } = await execFileAsync("git", ["merge-file", "-p", c, b, t], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+    const { stdout } = await execFileAsync(
+      "git",
+      ["merge-file", "-p", c, b, t],
+      { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 },
+    );
     return String(stdout);
   } catch {
     // merge-file exits with the number of conflicts (or <0 on error).
@@ -101,31 +153,72 @@ type Write =
   | { path: string; kind: "text"; text: string; mode: string }
   | { path: string; kind: "delete" };
 
-export async function mergeBack(worktreePath: string, targetPath: string): Promise<MergeBackResult> {
-  const fail = (reason: string): MergeBackResult => ({ state: "failed", files: [], reason });
-  if (!fs.existsSync(worktreePath)) return fail(`the worktree ${worktreePath} is gone`);
+export async function mergeBack(
+  worktreePath: string,
+  targetPath: string,
+): Promise<MergeBackResult> {
+  const fail = (reason: string): MergeBackResult => ({
+    state: "failed",
+    files: [],
+    reason,
+  });
+  if (!fs.existsSync(worktreePath))
+    return fail(`the worktree ${worktreePath} is gone`);
   const worktree = await tryGit(worktreePath, ["rev-parse", "--show-toplevel"]);
   const target = await tryGit(targetPath, ["rev-parse", "--show-toplevel"]);
   if (!worktree) return fail(`${worktreePath} is not a git checkout`);
-  if (!target) return fail(`the parent's checkout ${targetPath} is not a git checkout`);
-  if (fs.realpathSync(worktree) === fs.realpathSync(target)) return fail("the worker ran in the parent's own checkout");
-  const common = async (p: string) => fs.realpathSync(path.resolve(p, await git(p, ["rev-parse", "--git-common-dir"])));
-  if ((await common(worktree)) !== (await common(target))) return fail("the worktree belongs to another repository than the parent's checkout");
+  if (!target)
+    return fail(`the parent's checkout ${targetPath} is not a git checkout`);
+  if (fs.realpathSync(worktree) === fs.realpathSync(target))
+    return fail("the worker ran in the parent's own checkout");
+  const common = async (p: string) =>
+    fs.realpathSync(
+      path.resolve(p, await git(p, ["rev-parse", "--git-common-dir"])),
+    );
+  if ((await common(worktree)) !== (await common(target)))
+    return fail(
+      "the worktree belongs to another repository than the parent's checkout",
+    );
 
   // Measured from the last merge back when there was one, else from the cut.
   const ref = mergedBackRef(worktree);
-  const merged = await tryGit(worktree, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+  const merged = await tryGit(worktree, [
+    "rev-parse",
+    "--verify",
+    "--quiet",
+    `${ref}^{commit}`,
+  ]);
   const branch = await tryGit(worktree, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  const base = merged || await worktreeBase({ path: worktree, branch: branch === "HEAD" ? "" : branch, head: "", locked: false, primary: false }, "HEAD");
+  const base =
+    merged ||
+    (await worktreeBase(
+      {
+        path: worktree,
+        branch: branch === "HEAD" ? "" : branch,
+        head: "",
+        locked: false,
+        primary: false,
+      },
+      "HEAD",
+    ));
   if (!base) return fail("cannot tell which commit the worktree was cut from");
 
   const { rows, tree } = await withWorkingIndex(worktree, async (env) => ({
-    rows: parseRawDiff(await git(worktree, ["diff", "--cached", "--raw", "--no-renames", "--no-abbrev", base], { env })),
+    rows: parseRawDiff(
+      await git(
+        worktree,
+        ["diff", "--cached", "--raw", "--no-renames", "--no-abbrev", base],
+        { env },
+      ),
+    ),
     tree: await git(worktree, ["write-tree"], { env }),
   }));
   if (rows.length === 0) return { state: "empty", files: [] };
 
-  const current = await workingBlobs(target, rows.map((r) => r.path));
+  const current = await workingBlobs(
+    target,
+    rows.map((r) => r.path),
+  );
   const writes: Write[] = [];
   const conflicts: string[] = [];
   const contested: typeof rows = [];
@@ -133,19 +226,34 @@ export async function mergeBack(worktreePath: string, targetPath: string): Promi
     const verdict = fileVerdict(r.src, r.dst, current.get(r.path));
     if (verdict === "same") continue;
     if (verdict === "only") {
-      writes.push(ZERO.test(r.dst) ? { path: r.path, kind: "delete" } : { path: r.path, kind: "blob", sha: r.dst, mode: r.mode });
+      writes.push(
+        ZERO.test(r.dst)
+          ? { path: r.path, kind: "delete" }
+          : { path: r.path, kind: "blob", sha: r.dst, mode: r.mode },
+      );
       continue;
     }
     // Both sides changed it. Only an edit against an edit can merge; an add
     // against an add, or a delete against an edit, takes a person.
-    if (ZERO.test(r.src) || ZERO.test(r.dst) || !current.has(r.path)) conflicts.push(r.path);
+    if (ZERO.test(r.src) || ZERO.test(r.dst) || !current.has(r.path))
+      conflicts.push(r.path);
     else contested.push(r);
   }
-  const blobs = await readBlobs(worktree, contested.flatMap((r) => [r.src, r.dst, current.get(r.path)!]));
+  const blobs = await readBlobs(
+    worktree,
+    contested.flatMap((r) => [r.src, r.dst, current.get(r.path)!]),
+  );
   for (const r of contested) {
-    const [b, t, c] = [blobs.get(r.src), blobs.get(r.dst), blobs.get(current.get(r.path)!)];
+    const [b, t, c] = [
+      blobs.get(r.src),
+      blobs.get(r.dst),
+      blobs.get(current.get(r.path)!),
+    ];
     // A binary or oversized blob has no text to merge.
-    const text = b !== undefined && t !== undefined && c !== undefined ? await mergeText(c, b, t) : null;
+    const text =
+      b !== undefined && t !== undefined && c !== undefined
+        ? await mergeText(c, b, t)
+        : null;
     if (text === null) conflicts.push(r.path);
     else writes.push({ path: r.path, kind: "text", text, mode: r.mode });
   }
@@ -169,10 +277,21 @@ export async function mergeBack(worktreePath: string, targetPath: string): Promi
   }
 
   // Record the tree just merged, so the next merge starts from here.
-  const ident = { GIT_AUTHOR_NAME: "codecast", GIT_AUTHOR_EMAIL: "merge-back@codecast.sh", GIT_COMMITTER_NAME: "codecast", GIT_COMMITTER_EMAIL: "merge-back@codecast.sh" };
-  const commit = await git(worktree, ["commit-tree", tree, "-m", `merge back ${path.basename(worktree)}`], { env: ident });
+  const ident = {
+    GIT_AUTHOR_NAME: "codecast",
+    GIT_AUTHOR_EMAIL: "merge-back@codecast.sh",
+    GIT_COMMITTER_NAME: "codecast",
+    GIT_COMMITTER_EMAIL: "merge-back@codecast.sh",
+  };
+  const commit = await git(
+    worktree,
+    ["commit-tree", tree, "-m", `merge back ${path.basename(worktree)}`],
+    { env: ident },
+  );
   await git(worktree, ["update-ref", ref, commit]);
-  return writes.length ? { state: "merged", files: writes.map((w) => w.path).sort() } : { state: "empty", files: [] };
+  return writes.length
+    ? { state: "merged", files: writes.map((w) => w.path).sort() }
+    : { state: "empty", files: [] };
 }
 
 async function blobBytes(cwd: string, sha: string): Promise<Buffer> {
@@ -180,9 +299,18 @@ async function blobBytes(cwd: string, sha: string): Promise<Buffer> {
 }
 
 /** True when the worktree holds nothing beyond what it last merged into its parent. */
-export async function worktreeMatchesMergedBack(worktreePath: string): Promise<boolean> {
-  const merged = await tryGit(worktreePath, ["rev-parse", "--verify", "--quiet", `${mergedBackRef(worktreePath)}^{tree}`]);
+export async function worktreeMatchesMergedBack(
+  worktreePath: string,
+): Promise<boolean> {
+  const merged = await tryGit(worktreePath, [
+    "rev-parse",
+    "--verify",
+    "--quiet",
+    `${mergedBackRef(worktreePath)}^{tree}`,
+  ]);
   if (!merged) return false;
-  const tree = await withWorkingIndex(worktreePath, (env) => git(worktreePath, ["write-tree"], { env })).catch(() => "");
+  const tree = await withWorkingIndex(worktreePath, (env) =>
+    git(worktreePath, ["write-tree"], { env }),
+  ).catch(() => "");
   return tree === merged;
 }

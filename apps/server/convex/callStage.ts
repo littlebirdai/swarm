@@ -11,9 +11,19 @@
 // the board as the room's shared picture of the talk.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalMutation, mutation, query, type MutationCtx } from "./functions";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
-import { parseStagePinRef, stagePinRowId, STAGE_PIN_LIMIT, type StagePinTarget } from "@codecast/shared/contracts/stagePins";
+import {
+  parseStagePinRef,
+  stagePinRowId,
+  STAGE_PIN_LIMIT,
+  type StagePinTarget,
+} from "@codecast/shared/contracts/stagePins";
 import { liveSeat, readRoomState } from "./callRooms";
 import { liveTranscriptFor, postEvent } from "./callChat";
 import { canAccessDoc } from "./lib/access";
@@ -41,20 +51,28 @@ async function resolveTarget(
   raw: string,
 ): Promise<{ target: StagePinTarget; doc?: Doc<"docs">; title?: string }> {
   const target = parseStagePinRef(raw);
-  if (!target) throw new Error(`Nothing to pin in "${raw}": give a doc (doc:<id> or its /docs link), a page link (https://codecast.sh/a/<slug>), or an object's short id`);
+  if (!target)
+    throw new Error(
+      `Nothing to pin in "${raw}": give a doc (doc:<id> or its /docs link), a page link (https://codecast.sh/a/<slug>), or an object's short id`,
+    );
   if (target.kind === "doc") {
     const id = ctx.db.normalizeId("docs", target.id);
     if (!id) {
       // A bare 20+ character id that is not a doc: some other object.
-      if (raw.trim() === target.id) return { target: { kind: "object", ref: target.id } };
+      if (raw.trim() === target.id)
+        return { target: { kind: "object", ref: target.id } };
       throw new Error(`${raw} is not a doc id`);
     }
     const doc = await ctx.db.get(id);
-    if (!doc || doc.archived_at || !(await canAccessDoc(ctx, userId, doc))) throw new Error(`No doc ${target.id} that you can open`);
+    if (!doc || doc.archived_at || !(await canAccessDoc(ctx, userId, doc)))
+      throw new Error(`No doc ${target.id} that you can open`);
     return { target: { kind: "doc", id: String(id), ref: `doc:${id}` }, doc };
   }
   if (target.kind === "page") {
-    const page = await ctx.db.query("artifacts").withIndex("by_slug", (q: any) => q.eq("slug", target.slug)).first();
+    const page = await ctx.db
+      .query("artifacts")
+      .withIndex("by_slug", (q: any) => q.eq("slug", target.slug))
+      .first();
     if (!page) throw new Error(`No published page a/${target.slug}`);
     return { target, title: page.title };
   }
@@ -107,11 +125,17 @@ async function writePin(
   return { ref: target.ref, replaced };
 }
 
-async function removePin(ctx: MutationCtx, roomKey: string, raw: string): Promise<boolean> {
+async function removePin(
+  ctx: MutationCtx,
+  roomKey: string,
+  raw: string,
+): Promise<boolean> {
   const ref = parseStagePinRef(raw)?.ref ?? raw.trim();
   const row = await ctx.db
     .query("call_stage_pins")
-    .withIndex("by_room_ref", (q: any) => q.eq("room_key", roomKey).eq("ref", ref))
+    .withIndex("by_room_ref", (q: any) =>
+      q.eq("room_key", roomKey).eq("ref", ref),
+    )
     .first();
   if (!row) return false;
   await ctx.db.delete(row._id);
@@ -136,7 +160,11 @@ export async function ensureCallBoard(
     if (doc && !doc.archived_at) return t.board_doc_id;
   }
   const isPrivate = !!(await readRoomState(ctx, t.room_key))?.private;
-  const day = new Date(t.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const day = new Date(t.started_at).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
   const title = `${t.title?.trim() || "Huddle"} board · ${day}`;
   const { id } = await createDocAs(ctx, userId, {
     title,
@@ -146,13 +174,25 @@ export async function ensureCallBoard(
   });
   const boardId = id as Id<"docs">;
   await ctx.db.patch(t._id, { board_doc_id: boardId });
-  await writePin(ctx, t.room_key, t.team_id, userId, { kind: "doc", id: String(boardId), ref: `doc:${boardId}` }, bySession, "the call's board");
+  await writePin(
+    ctx,
+    t.room_key,
+    t.team_id,
+    userId,
+    { kind: "doc", id: String(boardId), ref: `doc:${boardId}` },
+    bySession,
+    "the call's board",
+  );
   return boardId;
 }
 
 /** The board for a call an agent just joined (transcripts.syncAgentFeeds). */
 export const ensureBoardForFeed = internalMutation({
-  args: { transcript_id: v.id("transcripts"), user_id: v.id("users"), conversation_id: v.id("conversations") },
+  args: {
+    transcript_id: v.id("transcripts"),
+    user_id: v.id("users"),
+    conversation_id: v.id("conversations"),
+  },
   handler: async (ctx, args) => {
     const t = await ctx.db.get(args.transcript_id);
     if (!t) return null;
@@ -179,15 +219,21 @@ export const listPins = query({
       let readable = true;
       if (p.kind === "doc" && p.doc_id) {
         const doc = await ctx.db.get(p.doc_id);
-        readable = !!doc && !doc.archived_at && (await canAccessDoc(ctx, userId, doc));
+        readable =
+          !!doc && !doc.archived_at && (await canAccessDoc(ctx, userId, doc));
         title = readable ? doc!.title : null;
         docType = doc?.doc_type ?? null;
       } else if (p.kind === "page" && p.slug) {
-        const page = await ctx.db.query("artifacts").withIndex("by_slug", (q: any) => q.eq("slug", p.slug)).first();
+        const page = await ctx.db
+          .query("artifacts")
+          .withIndex("by_slug", (q: any) => q.eq("slug", p.slug))
+          .first();
         title = page?.title ?? null;
         readable = !!page;
       }
-      const session = p.pinned_by_session ? await ctx.db.get(p.pinned_by_session) : null;
+      const session = p.pinned_by_session
+        ? await ctx.db.get(p.pinned_by_session)
+        : null;
       out.push({
         _id: stagePinRowId(args.room_key, p.ref),
         room_key: args.room_key,
@@ -201,8 +247,12 @@ export const listPins = query({
         readable,
         pinned_by: String(p.pinned_by),
         pinned_by_name: by?.name ?? null,
-        pinned_by_session: p.pinned_by_session ? String(p.pinned_by_session) : null,
-        pinned_by_agent: session ? characterOf({ ...(session as any), _id: String(session._id) }).name : null,
+        pinned_by_session: p.pinned_by_session
+          ? String(p.pinned_by_session)
+          : null,
+        pinned_by_agent: session
+          ? characterOf({ ...(session as any), _id: String(session._id) }).name
+          : null,
       });
     }
     return out;
@@ -215,9 +265,18 @@ export const pin = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
     const seat = await liveSeat(ctx, userId, args.room_key);
-    if (!seat) throw new Error("Only someone in the huddle can pin to its stage");
+    if (!seat)
+      throw new Error("Only someone in the huddle can pin to its stage");
     const { target, doc, title } = await resolveTarget(ctx, userId, args.ref);
-    return await writePin(ctx, args.room_key, seat.team_id, userId, target, undefined, doc?.title ?? title);
+    return await writePin(
+      ctx,
+      args.room_key,
+      seat.team_id,
+      userId,
+      target,
+      undefined,
+      doc?.title ?? title,
+    );
   },
 });
 
@@ -226,7 +285,8 @@ export const unpin = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    if (!(await liveSeat(ctx, userId, args.room_key))) throw new Error("Only someone in the huddle can change its stage");
+    if (!(await liveSeat(ctx, userId, args.room_key)))
+      throw new Error("Only someone in the huddle can change its stage");
     return { removed: await removePin(ctx, args.room_key, args.ref) };
   },
 });
@@ -239,12 +299,24 @@ export const pinCallBoard = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
     const seat = await liveSeat(ctx, userId, args.room_key);
-    if (!seat) throw new Error("Only someone in the huddle can pin to its stage");
+    if (!seat)
+      throw new Error("Only someone in the huddle can pin to its stage");
     const t = await liveTranscriptFor(ctx, args.room_key);
-    if (!t) throw new Error("The huddle has no call record yet: turn transcription on to give it a board");
+    if (!t)
+      throw new Error(
+        "The huddle has no call record yet: turn transcription on to give it a board",
+      );
     const boardId = await ensureCallBoard(ctx, t, userId);
     if (!boardId) throw new Error("The call has ended");
-    await writePin(ctx, args.room_key, seat.team_id, userId, { kind: "doc", id: String(boardId), ref: `doc:${boardId}` }, undefined, "the call's board");
+    await writePin(
+      ctx,
+      args.room_key,
+      seat.team_id,
+      userId,
+      { kind: "doc", id: String(boardId), ref: `doc:${boardId}` },
+      undefined,
+      "the call's board",
+    );
     return { doc_id: boardId };
   },
 });
@@ -258,16 +330,25 @@ async function sessionRoom(ctx: any, apiToken: string, session: string) {
   const conv = await findConversationByAnyRefWhere(
     ctx,
     session,
-    (c: any) => c.user_id?.toString() === auth.userId.toString() || c.owner_user_id?.toString() === auth.userId.toString(),
+    (c: any) =>
+      c.user_id?.toString() === auth.userId.toString() ||
+      c.owner_user_id?.toString() === auth.userId.toString(),
   );
-  if (!conv) throw new Error(`No session found for "${session}" (only a session you run or own)`);
+  if (!conv)
+    throw new Error(
+      `No session found for "${session}" (only a session you run or own)`,
+    );
   const feed = await ctx.db
     .query("call_agent_feeds")
     .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conv._id))
     .first();
-  const t: Doc<"transcripts"> | null = feed ? await ctx.db.get(feed.transcript_id) : null;
+  const t: Doc<"transcripts"> | null = feed
+    ? await ctx.db.get(feed.transcript_id)
+    : null;
   if (!feed || !t || t.status !== "live") {
-    throw new Error(`${conv.short_id ?? "This session"} is not in a live huddle: the stage belongs to a call, so pin from a session the call is feeding`);
+    throw new Error(
+      `${conv.short_id ?? "This session"} is not in a live huddle: the stage belongs to a call, so pin from a session the call is feeding`,
+    );
   }
   return { userId: auth.userId as Id<"users">, conv, t };
 }
@@ -275,9 +356,21 @@ async function sessionRoom(ctx: any, apiToken: string, session: string) {
 export const cliPin = mutation({
   args: { api_token: v.string(), session: v.string(), ref: v.string() },
   handler: async (ctx, args) => {
-    const { userId, conv, t } = await sessionRoom(ctx, args.api_token, args.session);
+    const { userId, conv, t } = await sessionRoom(
+      ctx,
+      args.api_token,
+      args.session,
+    );
     const { target, doc, title } = await resolveTarget(ctx, userId, args.ref);
-    const r = await writePin(ctx, t.room_key, t.team_id, userId, target, conv._id, doc?.title ?? title);
+    const r = await writePin(
+      ctx,
+      t.room_key,
+      t.team_id,
+      userId,
+      target,
+      conv._id,
+      doc?.title ?? title,
+    );
     return { ...r, title: doc?.title ?? null, call: t.short_id ?? null };
   },
 });
@@ -297,9 +390,20 @@ export const cliPins = mutation({
     const out = [];
     for (const p of await roomPins(ctx, t.room_key)) {
       const doc = p.doc_id ? await ctx.db.get(p.doc_id) : null;
-      out.push({ ref: p.ref, kind: p.kind, title: doc?.title ?? null, doc_type: doc?.doc_type ?? null, board: !!t.board_doc_id && String(p.doc_id) === String(t.board_doc_id), at: p.at });
+      out.push({
+        ref: p.ref,
+        kind: p.kind,
+        title: doc?.title ?? null,
+        doc_type: doc?.doc_type ?? null,
+        board: !!t.board_doc_id && String(p.doc_id) === String(t.board_doc_id),
+        at: p.at,
+      });
     }
-    return { call: t.short_id ?? null, board: t.board_doc_id ?? null, pins: out };
+    return {
+      call: t.short_id ?? null,
+      board: t.board_doc_id ?? null,
+      pins: out,
+    };
   },
 });
 
@@ -310,11 +414,20 @@ export const cliBoard = mutation({
   handler: async (ctx, args) => {
     const { userId, t } = await sessionRoom(ctx, args.api_token, args.session);
     const boardId = await ensureCallBoard(ctx, t, userId);
-    const pinned = !!boardId && !!(await ctx.db
-      .query("call_stage_pins")
-      .withIndex("by_room_ref", (q: any) => q.eq("room_key", t.room_key).eq("ref", `doc:${boardId}`))
-      .first());
+    const pinned =
+      !!boardId &&
+      !!(await ctx.db
+        .query("call_stage_pins")
+        .withIndex("by_room_ref", (q: any) =>
+          q.eq("room_key", t.room_key).eq("ref", `doc:${boardId}`),
+        )
+        .first());
     const doc = boardId ? await ctx.db.get(boardId) : null;
-    return { doc_id: boardId, title: doc?.title ?? null, pinned, call: t.short_id ?? null };
+    return {
+      doc_id: boardId,
+      title: doc?.title ?? null,
+      pinned,
+      call: t.short_id ?? null,
+    };
   },
 });

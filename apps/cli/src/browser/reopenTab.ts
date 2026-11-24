@@ -53,7 +53,10 @@ export type ReopenResult =
  * browser from here — the first candidate stands, so the reopened tab is
  * still the session's. Null only when there is no candidate at all.
  */
-export function reopenIdentityEnv(candidates: string[], stateDir = engineStateDir()): Record<string, string> | null {
+export function reopenIdentityEnv(
+  candidates: string[],
+  stateDir = engineStateDir(),
+): Record<string, string> | null {
   const envFor = (cand: string): Record<string, string> | null => {
     const m = cand.match(/^(session|env|pane):(.+)$/);
     if (!m) return null;
@@ -66,7 +69,8 @@ export function reopenIdentityEnv(candidates: string[], stateDir = engineStateDi
     const key = engineSessionKey(cand);
     for (const engineKey of [key, realSessionKey(key)]) {
       const target = sessionTarget(engineKey, stateDir);
-      if (target && (!best || target.mtimeMs > best.mtimeMs)) best = { env, mtimeMs: target.mtimeMs };
+      if (target && (!best || target.mtimeMs > best.mtimeMs))
+        best = { env, mtimeMs: target.mtimeMs };
     }
   }
   if (best) return best.env;
@@ -79,16 +83,25 @@ export function reopenIdentityEnv(candidates: string[], stateDir = engineStateDi
 
 export interface ReopenDeps {
   /** Run `cast browser open <url>` with this identity; resolves with its output. */
-  runOpen(url: string, identity: Record<string, string>): Promise<{ status: number; stdout: string; stderr: string }>;
+  runOpen(
+    url: string,
+    identity: Record<string, string>,
+  ): Promise<{ status: number; stdout: string; stderr: string }>;
   stateDir?: string;
 }
 
-function runOpenViaCli(url: string, identity: Record<string, string>): Promise<{ status: number; stdout: string; stderr: string }> {
+function runOpenViaCli(
+  url: string,
+  identity: Record<string, string>,
+): Promise<{ status: number; stdout: string; stderr: string }> {
   const { cmd, prefixArgs } = resolveCastInvocation();
   // Under launchd the daemon's PATH has no node or bun, and the engine binary
   // starts with a node shebang (agentSpawnPath.ts) — the same re-add every
   // agent spawn makes.
-  const env: Record<string, string | undefined> = { ...process.env, PATH: agentSpawnPath() };
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    PATH: agentSpawnPath(),
+  };
   for (const name of IDENTITY_ENV) delete env[name];
   Object.assign(env, identity);
   return new Promise((resolve) => {
@@ -97,8 +110,14 @@ function runOpenViaCli(url: string, identity: Record<string, string>): Promise<{
       [...prefixArgs, "browser", "open", url],
       { env, timeout: OPEN_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
       (error, stdout, stderr) => {
-        const status = error ? ((error as { code?: unknown }).code as number | undefined) ?? 1 : 0;
-        resolve({ status: typeof status === "number" ? status : 1, stdout: `${stdout ?? ""}`, stderr: `${stderr ?? ""}` });
+        const status = error
+          ? (((error as { code?: unknown }).code as number | undefined) ?? 1)
+          : 0;
+        resolve({
+          status: typeof status === "number" ? status : 1,
+          stdout: `${stdout ?? ""}`,
+          stderr: `${stderr ?? ""}`,
+        });
       },
     );
   });
@@ -116,14 +135,27 @@ function lastLine(text: string): string | undefined {
   return lines.length ? lines[lines.length - 1] : undefined;
 }
 
-export async function reopenBrowserTab(req: ReopenRequest, deps: ReopenDeps = defaultReopenDeps): Promise<ReopenResult> {
-  if (!/^https?:\/\//i.test(req.url)) return { ok: false, reason: "bad-request", detail: "url must be http(s)" };
+export async function reopenBrowserTab(
+  req: ReopenRequest,
+  deps: ReopenDeps = defaultReopenDeps,
+): Promise<ReopenResult> {
+  if (!/^https?:\/\//i.test(req.url))
+    return { ok: false, reason: "bad-request", detail: "url must be http(s)" };
   const identity = reopenIdentityEnv(req.candidates, deps.stateDir);
-  if (!identity) return { ok: false, reason: "bad-request", detail: "no session to reopen the tab for" };
+  if (!identity)
+    return {
+      ok: false,
+      reason: "bad-request",
+      detail: "no session to reopen the tab for",
+    };
   const run = await deps.runOpen(req.url, identity);
   const tabId = parseTabLine(run.stdout);
   if (run.status !== 0 || !tabId) {
-    return { ok: false, reason: "open-failed", detail: lastLine(run.stderr) ?? lastLine(run.stdout) };
+    return {
+      ok: false,
+      reason: "open-failed",
+      detail: lastLine(run.stderr) ?? lastLine(run.stdout),
+    };
   }
   return { ok: true, tabId };
 }

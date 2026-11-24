@@ -14,7 +14,10 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import type { AgentSetupTool, AgentToolSetupStatus } from "@codecast/shared/contracts";
+import type {
+  AgentSetupTool,
+  AgentToolSetupStatus,
+} from "@codecast/shared/contracts";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { captureError } from "./analytics";
 import { useWatchedCommand } from "./useProviderKeyCommand";
@@ -48,17 +51,32 @@ function subscribe(l: () => void): () => void {
 }
 
 /** Which machine to ask: a session's (its runner's device) or one of the viewer's devices. */
-export type AgentSetupTarget = { conversationId: string } | { deviceId: string };
+export type AgentSetupTarget =
+  | { conversationId: string }
+  | { deviceId: string };
 
-export function useAgentToolSetup(target: AgentSetupTarget | null, tool: AgentSetupTool, enabled: boolean) {
-  const targetKey = !target ? null : "conversationId" in target ? `c:${target.conversationId}` : `d:${target.deviceId}`;
+export function useAgentToolSetup(
+  target: AgentSetupTarget | null,
+  tool: AgentSetupTool,
+  enabled: boolean,
+) {
+  const targetKey = !target
+    ? null
+    : "conversationId" in target
+      ? `c:${target.conversationId}`
+      : `d:${target.deviceId}`;
   const key = `${targetKey}:${tool}`;
-  const entry = useSyncExternalStore(subscribe, () => entries.get(key), () => undefined);
+  const entry = useSyncExternalStore(
+    subscribe,
+    () => entries.get(key),
+    () => undefined,
+  );
   const enqueue = useMutation(api.devices.enqueueAgentToolSetupCommand);
   const checkCmd = useWatchedCommand(CHECK_TIMEOUT_MS);
   const startCmd = useWatchedCommand(CHECK_TIMEOUT_MS);
   const [waitingSince, setWaitingSince] = useState<number | null>(null);
 
+  // oxfmt-ignore
   const send = useCallback(async (op: "check" | "start"): Promise<string | null> => {
     if (!target) return null;
     try {
@@ -92,11 +110,16 @@ export function useAgentToolSetup(target: AgentSetupTarget | null, tool: AgentSe
   // The machine's answer, shared with every surface asking about it.
   const outcome = checkCmd.outcome;
   useWatchEffect(() => {
-    if (outcome?.state === "done" && outcome.setup) put(key, { status: outcome.setup, error: undefined });
+    if (outcome?.state === "done" && outcome.setup)
+      put(key, { status: outcome.setup, error: undefined });
     else if (outcome?.state === "failed") put(key, { error: outcome.error });
   }, [outcome, key]);
   useWatchEffect(() => {
-    if (checkCmd.unanswered) put(key, { error: "The machine running this session did not answer. Is it online, with codecast up to date?" });
+    if (checkCmd.unanswered)
+      put(key, {
+        error:
+          "The machine running this session did not answer. Is it online, with codecast up to date?",
+      });
   }, [checkCmd.unanswered, key]);
 
   const start = useCallback(async () => {
@@ -119,7 +142,8 @@ export function useAgentToolSetup(target: AgentSetupTarget | null, tool: AgentSe
     return () => clearTimeout(t);
   }, [waitingSince, ready, entry?.status, check]);
 
-  const startFailed = startCmd.outcome?.state === "failed" ? startCmd.outcome.error : null;
+  const startFailed =
+    startCmd.outcome?.state === "failed" ? startCmd.outcome.error : null;
   return {
     status: entry?.status,
     error: startFailed ?? entry?.error ?? null,

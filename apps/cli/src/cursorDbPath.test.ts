@@ -21,7 +21,9 @@ describe("cursorDbOpenPath", () => {
     expect(cursorDbOpenPath(file, "darwin")).toEndWith("?immutable=1");
     expect(cursorDbOpenPath(file, "linux")).toBe(file);
     const opened = new Database(cursorDbOpenPath(file), { readonly: true });
-    expect(opened.query("SELECT value FROM ItemTable").get()).toEqual({ value: "v" });
+    expect(opened.query("SELECT value FROM ItemTable").get()).toEqual({
+      value: "v",
+    });
     opened.close();
     fs.rmSync(dir, { recursive: true, force: true });
   });

@@ -51,7 +51,8 @@ function ensureStarted() {
   if (started) return;
   started = true;
   useVaultStore.subscribe((s, prev) => {
-    if (s.bodies !== prev.bodies || s.activeVaultId !== prev.activeVaultId) scheduleSync();
+    if (s.bodies !== prev.bodies || s.activeVaultId !== prev.activeVaultId)
+      scheduleSync();
   });
   scheduleSync();
 }

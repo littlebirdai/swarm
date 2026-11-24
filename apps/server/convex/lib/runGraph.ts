@@ -7,7 +7,10 @@
 import type { Doc, Id } from "../_generated/dataModel";
 
 type Ctx = { db: any };
-type PinnedRun = Pick<Doc<"workflow_runs">, "graph_version_id" | "flow_versions">;
+type PinnedRun = Pick<
+  Doc<"workflow_runs">,
+  "graph_version_id" | "flow_versions"
+>;
 export type VersionGraph = NonNullable<Doc<"workflow_versions">["snapshot"]>;
 /** A version and its graph. */
 export type Pinned = { ver: Doc<"workflow_versions">; graph: VersionGraph };
@@ -22,9 +25,17 @@ export type GraphMemo = {
   graphs: Map<string, Promise<VersionGraph | null>>;
   lines: Map<string, Promise<Doc<"workflow_versions"> | null>>;
 };
-export const newGraphMemo = (): GraphMemo => ({ versions: new Map(), graphs: new Map(), lines: new Map() });
+export const newGraphMemo = (): GraphMemo => ({
+  versions: new Map(),
+  graphs: new Map(),
+  lines: new Map(),
+});
 
-function once<T>(map: Map<string, Promise<T>>, key: string, read: () => Promise<T>): Promise<T> {
+function once<T>(
+  map: Map<string, Promise<T>>,
+  key: string,
+  read: () => Promise<T>,
+): Promise<T> {
   if (!map.has(key)) map.set(key, read());
   return map.get(key)!;
 }
@@ -38,42 +49,79 @@ function once<T>(map: Map<string, Promise<T>>, key: string, read: () => Promise<
  * line: its run resumes with its own pinned graph, which nothing replaces.
  */
 export const LIBRARY_LINE = "library";
-export const placeLine = (p: { device_id: string; root: string }) => `place:${p.device_id}:${p.root}`;
+export const placeLine = (p: { device_id: string; root: string }) =>
+  `place:${p.device_id}:${p.root}`;
 
 /** Whether a version keeps its graph, without reading it. */
-export const holdsGraph = (ver: Pick<Doc<"workflow_versions">, "snapshot" | "graph_id"> | null | undefined) => !!(ver?.snapshot || ver?.graph_id);
+export const holdsGraph = (
+  ver:
+    | Pick<Doc<"workflow_versions">, "snapshot" | "graph_id">
+    | null
+    | undefined,
+) => !!(ver?.snapshot || ver?.graph_id);
 
 /** One version by id, once per memo. */
-export function versionById(ctx: Ctx, id: Id<"workflow_versions"> | undefined | null, memo: GraphMemo = newGraphMemo()): Promise<Doc<"workflow_versions"> | null> {
-  return id ? once(memo.versions, String(id), () => ctx.db.get(id)) : Promise.resolve(null);
+export function versionById(
+  ctx: Ctx,
+  id: Id<"workflow_versions"> | undefined | null,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Doc<"workflow_versions"> | null> {
+  return id
+    ? once(memo.versions, String(id), () => ctx.db.get(id))
+    : Promise.resolve(null);
 }
 
 /** A version's graph: a library version holds its own; any other keeps it apart, shared by the versions that pushed it. */
-export async function graphOfVersion(ctx: Ctx, ver: Doc<"workflow_versions"> | null, memo: GraphMemo = newGraphMemo()): Promise<VersionGraph | null> {
+export async function graphOfVersion(
+  ctx: Ctx,
+  ver: Doc<"workflow_versions"> | null,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<VersionGraph | null> {
   if (!ver) return null;
   if (ver.snapshot) return ver.snapshot;
   if (!ver.graph_id) return null;
-  return once(memo.graphs, String(ver.graph_id), async () => ((await ctx.db.get(ver.graph_id)) as Doc<"workflow_version_graphs"> | null)?.snapshot ?? null);
+  return once(
+    memo.graphs,
+    String(ver.graph_id),
+    async () =>
+      (
+        (await ctx.db.get(
+          ver.graph_id,
+        )) as Doc<"workflow_version_graphs"> | null
+      )?.snapshot ?? null,
+  );
 }
 
 /** The id of the version a run executes: a library run's flow version, else its pin. */
-export const pinIdOf = (run: PinnedRun) => run.flow_versions?.[0]?.version_id ?? run.graph_version_id;
+export const pinIdOf = (run: PinnedRun) =>
+  run.flow_versions?.[0]?.version_id ?? run.graph_version_id;
 
 /** The version a run pinned, when it keeps a graph; its graph is not read. */
-export async function pinnedRowOf(ctx: Ctx, run: PinnedRun, memo: GraphMemo = newGraphMemo()): Promise<Doc<"workflow_versions"> | null> {
+export async function pinnedRowOf(
+  ctx: Ctx,
+  run: PinnedRun,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Doc<"workflow_versions"> | null> {
   const ver = await versionById(ctx, pinIdOf(run), memo);
   return holdsGraph(ver) ? ver : null;
 }
 
 /** The version a run executes, with its graph. */
-export async function pinnedVersionOf(ctx: Ctx, run: PinnedRun, memo: GraphMemo = newGraphMemo()): Promise<Pinned | null> {
+export async function pinnedVersionOf(
+  ctx: Ctx,
+  run: PinnedRun,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Pinned | null> {
   const ver = await pinnedRowOf(ctx, run, memo);
   const graph = await graphOfVersion(ctx, ver, memo);
   return ver && graph ? { ver, graph } : null;
 }
 
 /** The row with a version's graph laid over it: where that version was pushed from, never where the row was last pushed from. */
-export function rowAtVersion(row: Doc<"workflows">, { ver, graph: s }: Pinned): Doc<"workflows"> {
+export function rowAtVersion(
+  row: Doc<"workflows">,
+  { ver, graph: s }: Pinned,
+): Doc<"workflows"> {
   return {
     ...row,
     name: s.name,
@@ -83,21 +131,45 @@ export function rowAtVersion(row: Doc<"workflows">, { ver, graph: s }: Pinned): 
     nodes: s.nodes,
     edges: s.edges,
     model_stylesheet: s.model_stylesheet,
-    origin: ver.pushed_from ? { ...ver.pushed_from, file: s.file, files: s.files, graph_hash: ver.graph_hash, nodes: ver.nodes } : undefined,
+    origin: ver.pushed_from
+      ? {
+          ...ver.pushed_from,
+          file: s.file,
+          files: s.files,
+          graph_hash: ver.graph_hash,
+          nodes: ver.nodes,
+        }
+      : undefined,
   };
 }
 
 /** The run's workflows row as the run executes it. `row` when the caller already read it. */
-export async function runWorkflowOf(ctx: Ctx, run: PinnedRun & Pick<Doc<"workflow_runs">, "workflow_id">, row?: Doc<"workflows"> | null, memo: GraphMemo = newGraphMemo()): Promise<Doc<"workflows"> | null> {
-  const wf: Doc<"workflows"> | null = row !== undefined ? row : run.workflow_id ? await ctx.db.get(run.workflow_id) : null;
+export async function runWorkflowOf(
+  ctx: Ctx,
+  run: PinnedRun & Pick<Doc<"workflow_runs">, "workflow_id">,
+  row?: Doc<"workflows"> | null,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Doc<"workflows"> | null> {
+  const wf: Doc<"workflows"> | null =
+    row !== undefined
+      ? row
+      : run.workflow_id
+        ? await ctx.db.get(run.workflow_id)
+        : null;
   if (!wf) return null;
   const pinned = await pinnedVersionOf(ctx, run, memo);
   return pinned ? rowAtVersion(wf, pinned) : wf;
 }
 
 /** A library flow's current version: its newest that holds its content, the one a run starting now reads. */
-export async function libraryVersionOf(ctx: Ctx, workflowId: Id<"workflows">): Promise<Doc<"workflow_versions"> | null> {
-  for await (const ver of ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId)).order("desc")) {
+export async function libraryVersionOf(
+  ctx: Ctx,
+  workflowId: Id<"workflows">,
+): Promise<Doc<"workflow_versions"> | null> {
+  for await (const ver of ctx.db
+    .query("workflow_versions")
+    .withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId))
+    .order("desc")) {
     if (ver.snapshot) return ver;
   }
   return null;
@@ -111,22 +183,47 @@ export async function libraryVersionOf(ctx: Ctx, workflowId: Id<"workflows">): P
  * row stands at (workflows.version_id), else, for a row from before that, its
  * newest.
  */
-export async function versionToPin(ctx: Ctx, workflowId: Id<"workflows"> | undefined, named?: string | null): Promise<Doc<"workflow_versions"> | null> {
+export async function versionToPin(
+  ctx: Ctx,
+  workflowId: Id<"workflows"> | undefined,
+  named?: string | null,
+): Promise<Doc<"workflow_versions"> | null> {
   if (!workflowId) return null;
   const row: Doc<"workflows"> | null = await ctx.db.get(workflowId);
-  if (row?.runs_from === "library") return await libraryVersionOf(ctx, workflowId);
-  const ofRow = (ver: Doc<"workflow_versions"> | null) => (ver && String(ver.workflow_id) === String(workflowId) ? ver : null);
+  if (row?.runs_from === "library")
+    return await libraryVersionOf(ctx, workflowId);
+  const ofRow = (ver: Doc<"workflow_versions"> | null) =>
+    ver && String(ver.workflow_id) === String(workflowId) ? ver : null;
   const id = named ? ctx.db.normalizeId("workflow_versions", named) : null;
   const ver = ofRow(id ? await ctx.db.get(id) : null);
   if (ver) return ver;
-  const standing = ofRow(row?.version_id ? await ctx.db.get(row.version_id) : null);
+  const standing = ofRow(
+    row?.version_id ? await ctx.db.get(row.version_id) : null,
+  );
   if (standing) return standing;
-  return await ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId)).order("desc").first();
+  return await ctx.db
+    .query("workflow_versions")
+    .withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId))
+    .order("desc")
+    .first();
 }
 
 /** A line's newest version, read through the line's index, once per memo. */
-export function newestOfLine(ctx: Ctx, workflowId: Id<"workflows">, line: string, memo: GraphMemo = newGraphMemo()): Promise<Doc<"workflow_versions"> | null> {
-  return once(memo.lines, `${workflowId}|${line}`, () => ctx.db.query("workflow_versions").withIndex("by_workflow_line", (q: any) => q.eq("workflow_id", workflowId).eq("line", line)).order("desc").first());
+export function newestOfLine(
+  ctx: Ctx,
+  workflowId: Id<"workflows">,
+  line: string,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Doc<"workflow_versions"> | null> {
+  return once(memo.lines, `${workflowId}|${line}`, () =>
+    ctx.db
+      .query("workflow_versions")
+      .withIndex("by_workflow_line", (q: any) =>
+        q.eq("workflow_id", workflowId).eq("line", line),
+      )
+      .order("desc")
+      .first(),
+  );
 }
 
 /**
@@ -134,10 +231,16 @@ export function newestOfLine(ctx: Ctx, workflowId: Id<"workflows">, line: string
  * after the pin: what a checkout's own later push, or a library save, says the
  * line is now. Null while the pin is its line's newest (line-versions.md LV1).
  */
-export async function ownLineAfter(ctx: Ctx, pinned: Doc<"workflow_versions">, memo: GraphMemo = newGraphMemo()): Promise<Doc<"workflow_versions"> | null> {
+export async function ownLineAfter(
+  ctx: Ctx,
+  pinned: Doc<"workflow_versions">,
+  memo: GraphMemo = newGraphMemo(),
+): Promise<Doc<"workflow_versions"> | null> {
   if (!pinned.line) return null;
   const newest = await newestOfLine(ctx, pinned.workflow_id, pinned.line, memo);
-  return newest && newest._id !== pinned._id && newest.at > pinned.at ? newest : null;
+  return newest && newest._id !== pinned._id && newest.at > pinned.at
+    ? newest
+    : null;
 }
 
 /**
@@ -145,11 +248,27 @@ export async function ownLineAfter(ctx: Ctx, pinned: Doc<"workflow_versions">, m
  * newest version's, counted once for a row whose versions are from before
  * numbers.
  */
-export async function nextSeq(ctx: Ctx, workflowId: Id<"workflows">): Promise<number> {
-  const newest: Doc<"workflow_versions"> | null = await ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId)).order("desc").first();
+export async function nextSeq(
+  ctx: Ctx,
+  workflowId: Id<"workflows">,
+): Promise<number> {
+  const newest: Doc<"workflow_versions"> | null = await ctx.db
+    .query("workflow_versions")
+    .withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId))
+    .order("desc")
+    .first();
   if (!newest) return 1;
   if (newest.seq) return newest.seq + 1;
-  return (await ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId)).take(VERSION_COUNT_CAP)).length + 1;
+  return (
+    (
+      await ctx.db
+        .query("workflow_versions")
+        .withIndex("by_workflow_at", (q: any) =>
+          q.eq("workflow_id", workflowId),
+        )
+        .take(VERSION_COUNT_CAP)
+    ).length + 1
+  );
 }
 
 /** How far a count of a row's versions from before numbers reads. */
@@ -160,11 +279,23 @@ export const VERSION_COUNT_CAP = 1000;
  * read its file again and published it): the pin moves to that graph's
  * version on the pin's own line, so its origin stays the run's own checkout.
  */
-export async function repinToReported(ctx: Ctx, run: Pick<Doc<"workflow_runs">, "graph_version_id" | "workflow_id">, hash: string): Promise<{ graph_version_id?: Id<"workflow_versions"> }> {
+export async function repinToReported(
+  ctx: Ctx,
+  run: Pick<Doc<"workflow_runs">, "graph_version_id" | "workflow_id">,
+  hash: string,
+): Promise<{ graph_version_id?: Id<"workflow_versions"> }> {
   if (!run.graph_version_id || !run.workflow_id) return {};
-  const pinned: Doc<"workflow_versions"> | null = await ctx.db.get(run.graph_version_id);
+  const pinned: Doc<"workflow_versions"> | null = await ctx.db.get(
+    run.graph_version_id,
+  );
   if (!pinned?.line || pinned.graph_hash === hash) return {};
-  const recent: Doc<"workflow_versions">[] = await ctx.db.query("workflow_versions").withIndex("by_workflow_line", (q: any) => q.eq("workflow_id", run.workflow_id).eq("line", pinned.line)).order("desc").take(20);
+  const recent: Doc<"workflow_versions">[] = await ctx.db
+    .query("workflow_versions")
+    .withIndex("by_workflow_line", (q: any) =>
+      q.eq("workflow_id", run.workflow_id).eq("line", pinned.line),
+    )
+    .order("desc")
+    .take(20);
   const hit = recent.find((v) => v.graph_hash === hash && holdsGraph(v));
   return hit ? { graph_version_id: hit._id } : {};
 }

@@ -24,9 +24,23 @@ export default function FeatureDeepDivePage() {
       {feature && Body ? (
         <Body />
       ) : (
-        <main className="max-w-2xl mx-auto px-6 py-24 text-center" style={{ backgroundColor: SOL.base3 }}>
-          <h1 className="font-mono text-2xl font-bold mb-4" style={{ color: SOL.base03 }}>Feature not found</h1>
-          <Link href="/features" className="text-sm underline" style={{ color: SOL.blue }}>All features</Link>
+        <main
+          className="max-w-2xl mx-auto px-6 py-24 text-center"
+          style={{ backgroundColor: SOL.base3 }}
+        >
+          <h1
+            className="font-mono text-2xl font-bold mb-4"
+            style={{ color: SOL.base03 }}
+          >
+            Feature not found
+          </h1>
+          <Link
+            href="/features"
+            className="text-sm underline"
+            style={{ color: SOL.blue }}
+          >
+            All features
+          </Link>
         </main>
       )}
     </div>

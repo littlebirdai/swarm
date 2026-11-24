@@ -21,7 +21,9 @@ const HOST = "codecast.sh";
 
 async function main() {
   if (!process.env.RAILWAY_ENVIRONMENT && !process.env.INDEXNOW_FORCE) {
-    console.log("indexnow: not a deploy build (RAILWAY_ENVIRONMENT unset), skipping ping");
+    console.log(
+      "indexnow: not a deploy build (RAILWAY_ENVIRONMENT unset), skipping ping",
+    );
     return;
   }
 
@@ -41,7 +43,9 @@ async function main() {
   });
   // 200 = accepted, 202 = accepted-pending-key-validation; both are success.
   if (res.status !== 200 && res.status !== 202) {
-    throw new Error(`indexnow ping returned ${res.status}: ${await res.text()}`);
+    throw new Error(
+      `indexnow ping returned ${res.status}: ${await res.text()}`,
+    );
   }
   console.log(`indexnow: submitted ${urls.length} URLs (status ${res.status})`);
 }

@@ -61,11 +61,19 @@ export async function userCanAdminRole(
 // The one seat per company that reviews the chart (org-staffing.md S6, S12).
 // A leaf constant so anchors.ts and mentionResolve.ts can name the seat
 // without importing orgRoles.ts, which imports both of them.
-import { HEAD_OF_PEOPLE_HANDLE, LEGACY_HEAD_OF_PEOPLE_HANDLE, isHeadOfPeopleRole, projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import {
+  HEAD_OF_PEOPLE_HANDLE,
+  LEGACY_HEAD_OF_PEOPLE_HANDLE,
+  isHeadOfPeopleRole,
+  projectLeadOf,
+} from "@codecast/shared/contracts/orgLead";
 export { HEAD_OF_PEOPLE_HANDLE, isHeadOfPeopleRole };
 
 // A role ref from the CLI is "or-N" or a raw id; the web passes ids.
-export async function resolveRoleRef(ctx: { db: any }, ref: string): Promise<any | null> {
+export async function resolveRoleRef(
+  ctx: { db: any },
+  ref: string,
+): Promise<any | null> {
   const trimmed = (ref ?? "").trim();
   if (!trimmed) return null;
   const byShort = await ctx.db
@@ -73,43 +81,85 @@ export async function resolveRoleRef(ctx: { db: any }, ref: string): Promise<any
     .withIndex("by_short_id", (q: any) => q.eq("short_id", trimmed))
     .first();
   if (byShort) return byShort;
-  const id = typeof ctx.db.normalizeId === "function" ? ctx.db.normalizeId("org_roles", trimmed) : trimmed;
+  const id =
+    typeof ctx.db.normalizeId === "function"
+      ? ctx.db.normalizeId("org_roles", trimmed)
+      : trimmed;
   if (!id) return null;
-  try { return await ctx.db.get(id); } catch { return null; }
+  try {
+    return await ctx.db.get(id);
+  } catch {
+    return null;
+  }
 }
 
 // The role behind a ref, gated: "access" for any member of its boundary,
 // "admin" for the host, the personal owner or a team admin.
-export async function requireRole(ctx: { db: any }, userId: Id<"users">, ref: string, gate: "access" | "admin"): Promise<any> {
+export async function requireRole(
+  ctx: { db: any },
+  userId: Id<"users">,
+  ref: string,
+  gate: "access" | "admin",
+): Promise<any> {
   const role = await resolveRoleRef(ctx, ref);
   if (!role) throw new Error("Role not found");
-  const ok = gate === "admin" ? await userCanAdminRole(ctx, userId, role) : await userCanAccessRole(ctx, userId, role);
-  if (!ok) throw new Error(gate === "admin" ? "Only an admin (or the host) can reshape this role" : "Role not found");
+  const ok =
+    gate === "admin"
+      ? await userCanAdminRole(ctx, userId, role)
+      : await userCanAccessRole(ctx, userId, role);
+  if (!ok)
+    throw new Error(
+      gate === "admin"
+        ? "Only an admin (or the host) can reshape this role"
+        : "Role not found",
+    );
   return role;
 }
 
 // Live roles in an access boundary: a team's, or a person's own.
-export async function rolesInBoundary(ctx: { db: any }, seat: { team_id?: any; scope_user_id?: any }): Promise<any[]> {
-  return (await allRolesInBoundary(ctx, seat)).filter((r) => r.status !== "retired");
+export async function rolesInBoundary(
+  ctx: { db: any },
+  seat: { team_id?: any; scope_user_id?: any },
+): Promise<any[]> {
+  return (await allRolesInBoundary(ctx, seat)).filter(
+    (r) => r.status !== "retired",
+  );
 }
 
 /** Every role in the boundary, retired ones included: what the reporting
  *  chain is walked over (contracts/orgAssignee), since a retired role stays in
  *  the chain it reported to and what it still holds is read there. */
-export async function allRolesInBoundary(ctx: { db: any }, seat: { team_id?: any; scope_user_id?: any }): Promise<any[]> {
+export async function allRolesInBoundary(
+  ctx: { db: any },
+  seat: { team_id?: any; scope_user_id?: any },
+): Promise<any[]> {
   return seat.team_id
-    ? await ctx.db.query("org_roles").withIndex("by_team", (q: any) => q.eq("team_id", seat.team_id)).collect()
-    : await ctx.db.query("org_roles").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", seat.scope_user_id)).collect();
+    ? await ctx.db
+        .query("org_roles")
+        .withIndex("by_team", (q: any) => q.eq("team_id", seat.team_id))
+        .collect()
+    : await ctx.db
+        .query("org_roles")
+        .withIndex("by_scope_user", (q: any) =>
+          q.eq("scope_user_id", seat.scope_user_id),
+        )
+        .collect();
 }
 
 /** The role that leads a task's project: who answers for that work when no
  *  session does (a line run, a question from an agent account's session). */
-export async function projectLeadRole(ctx: { db: any }, task: any): Promise<any | null> {
+export async function projectLeadRole(
+  ctx: { db: any },
+  task: any,
+): Promise<any | null> {
   if (!task?.project_id) return null;
   const project = await ctx.db.get(task.project_id);
   const team_id = project?.team_id ?? task.team_id;
   if (!team_id) return null;
-  const lead = projectLeadOf(project, await allRolesInBoundary(ctx, { team_id }));
+  const lead = projectLeadOf(
+    project,
+    await allRolesInBoundary(ctx, { team_id }),
+  );
   return lead.kind === "lead" ? lead.role : null;
 }
 
@@ -118,31 +168,66 @@ export async function projectLeadRole(ctx: { db: any }, task: any): Promise<any 
 // orders equal keys by creation, so `.first()` hands back the OLDEST row: after
 // a retire and a hire again that is the retired seat. Every lookup by handle
 // goes through here so none of them can name a dead role.
-export async function liveRolesByHandle(ctx: { db: any }, boundary: { team_id?: any; scope_user_id?: any }, handle: string): Promise<any[]> {
-  return (await rolesByHandle(ctx, boundary, handle)).filter((r) => r.status !== "retired");
+export async function liveRolesByHandle(
+  ctx: { db: any },
+  boundary: { team_id?: any; scope_user_id?: any },
+  handle: string,
+): Promise<any[]> {
+  return (await rolesByHandle(ctx, boundary, handle)).filter(
+    (r) => r.status !== "retired",
+  );
 }
 
 /** Every role that ever answered to a handle in one boundary, oldest first.
  *  Only a READ may want a retired one (see roleByHandleForRead). */
-async function rolesByHandle(ctx: { db: any }, boundary: { team_id?: any; scope_user_id?: any }, handle: string): Promise<any[]> {
+async function rolesByHandle(
+  ctx: { db: any },
+  boundary: { team_id?: any; scope_user_id?: any },
+  handle: string,
+): Promise<any[]> {
   const h = handle.replace(/^@/, "").trim().toLowerCase();
   if (!h || (!boundary.team_id && !boundary.scope_user_id)) return [];
   const rows = await rowsByExactHandle(ctx, boundary, h);
   // The Head of People answered to `chief-of-staff` before 2026-10-02
   // (org-staffing.md S30), and charters, triggers and people still write it.
   // Either handle names the Head of People, whichever its row carries.
-  const other = h === LEGACY_HEAD_OF_PEOPLE_HANDLE ? HEAD_OF_PEOPLE_HANDLE : h === HEAD_OF_PEOPLE_HANDLE ? LEGACY_HEAD_OF_PEOPLE_HANDLE : null;
+  const other =
+    h === LEGACY_HEAD_OF_PEOPLE_HANDLE
+      ? HEAD_OF_PEOPLE_HANDLE
+      : h === HEAD_OF_PEOPLE_HANDLE
+        ? LEGACY_HEAD_OF_PEOPLE_HANDLE
+        : null;
   if (!other) return rows;
-  return [...rows, ...(await rowsByExactHandle(ctx, boundary, other))].filter(isHeadOfPeopleRole).sort((a, b) => a._creationTime - b._creationTime);
+  return [...rows, ...(await rowsByExactHandle(ctx, boundary, other))]
+    .filter(isHeadOfPeopleRole)
+    .sort((a, b) => a._creationTime - b._creationTime);
 }
 
-async function rowsByExactHandle(ctx: { db: any }, boundary: { team_id?: any; scope_user_id?: any }, h: string): Promise<any[]> {
+async function rowsByExactHandle(
+  ctx: { db: any },
+  boundary: { team_id?: any; scope_user_id?: any },
+  h: string,
+): Promise<any[]> {
   return boundary.team_id
-    ? await ctx.db.query("org_roles").withIndex("by_team_handle", (q: any) => q.eq("team_id", boundary.team_id).eq("handle", h)).collect()
-    : await ctx.db.query("org_roles").withIndex("by_scope_user_handle", (q: any) => q.eq("scope_user_id", boundary.scope_user_id).eq("handle", h)).collect();
+    ? await ctx.db
+        .query("org_roles")
+        .withIndex("by_team_handle", (q: any) =>
+          q.eq("team_id", boundary.team_id).eq("handle", h),
+        )
+        .collect()
+    : await ctx.db
+        .query("org_roles")
+        .withIndex("by_scope_user_handle", (q: any) =>
+          q.eq("scope_user_id", boundary.scope_user_id).eq("handle", h),
+        )
+        .collect();
 }
 
-export async function liveRoleByHandle(ctx: { db: any }, boundary: { team_id?: any; scope_user_id?: any }, handle: string): Promise<any | null> {
+export async function liveRoleByHandle(
+  ctx: { db: any },
+  boundary: { team_id?: any; scope_user_id?: any },
+  handle: string,
+): Promise<any | null> {
   return (await liveRolesByHandle(ctx, boundary, handle))[0] ?? null;
 }
 
@@ -150,12 +235,21 @@ export async function liveRoleByHandle(ctx: { db: any }, boundary: { team_id?: a
  *  retired one, so what a retired role still holds (its tasks) can be asked
  *  for by the handle a person remembers. Never for a write: a write goes
  *  through liveRoleByHandle and refuses a dead seat. */
-export async function roleByHandleForRead(ctx: { db: any }, boundary: { team_id?: any; scope_user_id?: any }, handle: string): Promise<any | null> {
+export async function roleByHandleForRead(
+  ctx: { db: any },
+  boundary: { team_id?: any; scope_user_id?: any },
+  handle: string,
+): Promise<any | null> {
   const rows = await rolesByHandle(ctx, boundary, handle);
-  return rows.find((r) => r.status !== "retired") ?? rows[rows.length - 1] ?? null;
+  return (
+    rows.find((r) => r.status !== "retired") ?? rows[rows.length - 1] ?? null
+  );
 }
 
 // The company's head of people, when one stands in the boundary.
-export async function headOfPeopleIn(ctx: { db: any }, seat: { team_id?: any; scope_user_id?: any }): Promise<any | null> {
+export async function headOfPeopleIn(
+  ctx: { db: any },
+  seat: { team_id?: any; scope_user_id?: any },
+): Promise<any | null> {
   return liveRoleByHandle(ctx, seat, HEAD_OF_PEOPLE_HANDLE);
 }

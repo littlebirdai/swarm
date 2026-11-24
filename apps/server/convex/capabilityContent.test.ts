@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import { reportCapabilityContents, webCapabilityContent } from "./capabilityContent";
+import {
+  reportCapabilityContents,
+  webCapabilityContent,
+} from "./capabilityContent";
 import { MAX_CONTENT_BODY_CHARS } from "./capabilitiesSchema";
 
 const OWNER = "u_owner";
@@ -26,7 +29,9 @@ function ctx(userId: string | null, tables: Record<string, any[]>) {
 
 async function tokenTables(extra: Record<string, any[]> = {}) {
   return {
-    api_tokens: [{ _id: "tok_1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "tok_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
     users: [{ _id: OWNER }, { _id: STRANGER }],
     capability_content: [],
     ...extra,
@@ -50,10 +55,13 @@ describe("reportCapabilityContents", () => {
     });
     expect(result.stored).toBe(1);
     expect(tables.capability_content).toHaveLength(1);
-    const read = await (webCapabilityContent as any)._handler(ctx(OWNER, tables), {
-      kind: "skill",
-      name: "deploy",
-    });
+    const read = await (webCapabilityContent as any)._handler(
+      ctx(OWNER, tables),
+      {
+        kind: "skill",
+        name: "deploy",
+      },
+    );
     expect(read.body).toContain("ship it");
     expect(read.truncated).toBe(false);
   });
@@ -67,11 +75,17 @@ describe("reportCapabilityContents", () => {
       hash: "abc123abc123abcd",
       body: "body\n",
     };
-    await (reportCapabilityContents as any)._handler(c, { api_token: TOKEN, items: [item] });
+    await (reportCapabilityContents as any)._handler(c, {
+      api_token: TOKEN,
+      items: [item],
+    });
     tables._patched = [];
     const db = c.db;
     db._patched.length = 0;
-    const second = await (reportCapabilityContents as any)._handler(c, { api_token: TOKEN, items: [item] });
+    const second = await (reportCapabilityContents as any)._handler(c, {
+      api_token: TOKEN,
+      items: [item],
+    });
     expect(second.unchanged).toBe(1);
     expect(second.stored).toBe(0);
     expect(c.db._patched).toEqual([]);
@@ -82,11 +96,25 @@ describe("reportCapabilityContents", () => {
     const c = ctx(OWNER, tables);
     await (reportCapabilityContents as any)._handler(c, {
       api_token: TOKEN,
-      items: [{ kind: "skill", name: "deploy", hash: "oldoldoldoldold1", body: "v1\n" }],
+      items: [
+        {
+          kind: "skill",
+          name: "deploy",
+          hash: "oldoldoldoldold1",
+          body: "v1\n",
+        },
+      ],
     });
     await (reportCapabilityContents as any)._handler(c, {
       api_token: TOKEN,
-      items: [{ kind: "skill", name: "deploy", hash: "newnewnewnewnew2", body: "v2\n" }],
+      items: [
+        {
+          kind: "skill",
+          name: "deploy",
+          hash: "newnewnewnewnew2",
+          body: "v2\n",
+        },
+      ],
     });
     expect(tables.capability_content).toHaveLength(1);
     expect(tables.capability_content[0].body).toContain("v2");
@@ -106,10 +134,13 @@ describe("reportCapabilityContents", () => {
         },
       ],
     });
-    const read = await (webCapabilityContent as any)._handler(ctx(STRANGER, tables), {
-      kind: "skill",
-      name: "secret",
-    });
+    const read = await (webCapabilityContent as any)._handler(
+      ctx(STRANGER, tables),
+      {
+        kind: "skill",
+        name: "secret",
+      },
+    );
     expect(read).toBeNull();
   });
 
@@ -121,7 +152,9 @@ describe("reportCapabilityContents", () => {
       api_token: TOKEN,
       items: [{ kind: "skill", name: "huge", hash: "hhhhhhhhhhhhhhhh", body }],
     });
-    expect(tables.capability_content[0].body.length).toBe(MAX_CONTENT_BODY_CHARS);
+    expect(tables.capability_content[0].body.length).toBe(
+      MAX_CONTENT_BODY_CHARS,
+    );
     expect(tables.capability_content[0].truncated).toBe(true);
   });
 });

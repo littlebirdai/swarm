@@ -8,10 +8,10 @@ What the agent sees comes back to the conversation. Screenshots appear inline, a
 
 You need desktop Chrome and codecast running on the same computer as your agents ([Getting started](/documentation#getting-started) covers connecting a computer).
 
-1. Open **Settings** and choose **Agent Features** under *Machines*. The page shows one computer at a time; pick the one your agents run on.
-2. Find **Browser** under *Hands on the machine*, switch it on, and confirm with **Turn on Browser**.
+1. Open **Settings** and choose **Agent Features** under _Machines_. The page shows one computer at a time; pick the one your agents run on.
+2. Find **Browser** under _Hands on the machine_, switch it on, and confirm with **Turn on Browser**.
 3. The card lists the two steps left. **Add to Chrome** installs Codecast from the Chrome Web Store, in the Chrome profile you want agents to use. **Pair** opens the extension in Chrome, where you click **Pair** once more.
-4. The card's footer turns green and reads *Chrome connected*.
+4. The card's footer turns green and reads _Chrome connected_.
 
 ![The Hands on the machine section of Agent features, with Browser switched on and Chrome connected](/documentation/browser/agent-features.webp "Browser and Computer live under Hands on the machine, one computer at a time.")
 
@@ -50,12 +50,12 @@ Your tabs stay where you left them. Each agent session works in one background t
 
 Every browser step lands in the conversation as a small row above the agent's reply:
 
-| On the row | What it does |
-|------------|--------------|
-| Screenshot thumbnails | Click one to see it full size |
-| **open tab** | Brings the agent's tab to the front in your Chrome |
-| **watch live** | Opens the agent's tab in a pane beside the conversation, so you can watch it work |
-| **reopen tab** | Shows when the tab was closed. Click to bring the page back |
+| On the row            | What it does                                                                      |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Screenshot thumbnails | Click one to see it full size                                                     |
+| **open tab**          | Brings the agent's tab to the front in your Chrome                                |
+| **watch live**        | Opens the agent's tab in a pane beside the conversation, so you can watch it work |
+| **reopen tab**        | Shows when the tab was closed. Click to bring the page back                       |
 
 ![The watch live pane beside a conversation, showing the agent's tab as it works](/documentation/browser/watch-live.webp "watch live shows the agent's tab beside the conversation.")
 
@@ -71,11 +71,11 @@ An agent can also offer you a page: a chip appears next to the session title, an
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The card says Chrome is not connected | Click **Pair again** on the Browser card. If Chrome is closed, pairing opens it |
-| The agent says the extension is asleep | Reload Codecast at `chrome://extensions`, then tell the agent to continue |
-| Agents open tabs in the wrong Chrome profile | Pair from the profile you want. Keep Codecast enabled in only one profile |
+| What you notice                                       | What to do                                                                                 |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| The card says Chrome is not connected                 | Click **Pair again** on the Browser card. If Chrome is closed, pairing opens it            |
+| The agent says the extension is asleep                | Reload Codecast at `chrome://extensions`, then tell the agent to continue                  |
+| Agents open tabs in the wrong Chrome profile          | Pair from the profile you want. Keep Codecast enabled in only one profile                  |
 | A session on another computer can't reach your Chrome | Chrome must run on the same computer as the session. Turn Browser on for that computer too |
 
 For anything inside a native Mac app rather than a web page, such as a file picker, System Settings or Slack, see [Computer use](/documentation/computer).

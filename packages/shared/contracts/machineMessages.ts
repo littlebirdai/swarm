@@ -1,19 +1,30 @@
 import { isContextRecoveryPrompt } from "./handoffPrompt";
 import type { AreaChange } from "./orgAreas";
-import { parseRoleCardInitiativeLine, roleCardLines, type RoleCard } from "./roleCard";
-export { roleCardInitiativeLine, roleCardLines, type RoleCard, type RoleCardInitiative } from "./roleCard";
+import {
+  parseRoleCardInitiativeLine,
+  roleCardLines,
+  type RoleCard,
+} from "./roleCard";
+export {
+  roleCardInitiativeLine,
+  roleCardLines,
+  type RoleCard,
+  type RoleCardInitiative,
+} from "./roleCard";
 // The summary Claude Code writes when it compacts a conversation, synced as a
 // user-role row. It covers everything before it, so a transcript rebuilt from
 // codecast starts at the latest one (cli jsonlGenerator), a full-context park
 // lifts on one (convex inboxFilters), and a recovery quotes it (convex handoff).
-export const COMPACTION_SUMMARY_PREFIX = "This session is being continued from a previous conversation";
+export const COMPACTION_SUMMARY_PREFIX =
+  "This session is being continued from a previous conversation";
 
 // Claude Code can open the summary with a provenance note: an
 // `<artifact-content-authored-by-others/>` tag and a sentence asking the model
 // to treat restated content as data. The summary proper starts after it, so
 // every check reads past the note and every display drops it. A preview
 // slice can end inside the note, so the note's own opening also counts.
-const SUMMARY_PROVENANCE_OPENING_RE = /^\s*<artifact-content-[\w-]*[^>]*>\s*The summarized conversation\b/;
+const SUMMARY_PROVENANCE_OPENING_RE =
+  /^\s*<artifact-content-[\w-]*[^>]*>\s*The summarized conversation\b/;
 const SUMMARY_PROVENANCE_RE = new RegExp(
   `^\\s*<(artifact-content-[\\w-]*)[^>]*>[\\s\\S]{0,2000}?(?=${COMPACTION_SUMMARY_PREFIX})`,
 );
@@ -24,10 +35,17 @@ export function stripCompactionProvenance(text: string): string {
   return text.slice(m[0].length).replace(new RegExp(`\\s*</${m[1]}>\\s*$`), "");
 }
 
-export function isCompactionSummaryMessage(rawContent: string | null | undefined): boolean {
+export function isCompactionSummaryMessage(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   const text = stripInjectionNoise(rawContent);
-  return SUMMARY_PROVENANCE_OPENING_RE.test(text) || stripCompactionProvenance(text).trimStart().startsWith(COMPACTION_SUMMARY_PREFIX);
+  return (
+    SUMMARY_PROVENANCE_OPENING_RE.test(text) ||
+    stripCompactionProvenance(text)
+      .trimStart()
+      .startsWith(COMPACTION_SUMMARY_PREFIX)
+  );
 }
 
 // Detection of user-role messages that machinery delivered into a session
@@ -53,7 +71,9 @@ export function stripPastedContent(text: string): string {
 /** A session title as one line a person reads in a list: paste markers left
  *  out, newlines and runs of spaces folded, empty when nothing is left. */
 export function titleLine(title: string | null | undefined): string {
-  return stripPastedContent(title ?? "").replace(/\s+/g, " ").trim();
+  return stripPastedContent(title ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // An `@[Title id]` mention in a sent message carries the entity's context
@@ -61,7 +81,10 @@ export function titleLine(title: string | null | undefined): string {
 // composer appends it after the mention inside this tag, so every display
 // surface can show the message as typed while the agent still reads it.
 export function wrapMentionContext(markdown: string): string {
-  return `\n\n<mention-context>\n${markdown.trim().replace(/^---\n|\n---$/g, "").trim()}\n</mention-context>\n`;
+  return `\n\n<mention-context>\n${markdown
+    .trim()
+    .replace(/^---\n|\n---$/g, "")
+    .trim()}\n</mention-context>\n`;
 }
 
 // Messages sent before the tag existed carry the same block bare: a `---`
@@ -74,8 +97,13 @@ export function stripMentionContext(text: string): string {
   // Each pattern runs only on a text that holds the words it has to start
   // with: the tag, or the rule a legacy block opens on.
   let out = text;
-  if (out.includes("<mention-context>")) out = out.replace(/\n*<mention-context>[\s\S]*?(?:<\/mention-context>\n?|$)/g, "");
-  if (out.includes("\n\n---\n")) out = out.replace(LEGACY_MENTION_CONTEXT_RE, "");
+  if (out.includes("<mention-context>"))
+    out = out.replace(
+      /\n*<mention-context>[\s\S]*?(?:<\/mention-context>\n?|$)/g,
+      "",
+    );
+  if (out.includes("\n\n---\n"))
+    out = out.replace(LEGACY_MENTION_CONTEXT_RE, "");
   return out;
 }
 
@@ -89,21 +117,37 @@ export function stripInjectionNoise(text: string): string {
   // where its closing tag is present; the checks above do the same for the
   // paste and mention patterns.
   let out = stripMentionContext(stripPastedContent(text));
-  if (out.includes("</system-reminder>")) out = out.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
-  if (out.includes("</task-reminder>")) out = out.replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "");
-  return out
-    .replace(/^[\x00-\x1f\s]+/, "")
-    // The clearing keystrokes sometimes leak a PRINTABLE character instead of a
-    // control one, leaving "h<session-message from=…". Drop up to two such
-    // characters sitting directly in front of a wire tag, or every predicate
-    // below misses the tag and the message reads as something a person typed.
-    .replace(WIRE_TAG_JUNK_PREFIX, "");
+  if (out.includes("</system-reminder>"))
+    out = out.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
+  if (out.includes("</task-reminder>"))
+    out = out.replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "");
+  return (
+    out
+      .replace(/^[\x00-\x1f\s]+/, "")
+      // The clearing keystrokes sometimes leak a PRINTABLE character instead of a
+      // control one, leaving "h<session-message from=…". Drop up to two such
+      // characters sitting directly in front of a wire tag, or every predicate
+      // below misses the tag and the message reads as something a person typed.
+      .replace(WIRE_TAG_JUNK_PREFIX, "")
+  );
 }
 
 // The wire tags a delivered turn opens with.
-const WIRE_TAGS = ["session-message", "agent-message", "user-message", "task-comment", "decision-discussion", "line-chat", "teammate-message", "scheduled-task", "session-escalation"];
+const WIRE_TAGS = [
+  "session-message",
+  "agent-message",
+  "user-message",
+  "task-comment",
+  "decision-discussion",
+  "line-chat",
+  "teammate-message",
+  "scheduled-task",
+  "session-escalation",
+];
 
-const WIRE_TAG_JUNK_PREFIX = new RegExp(`^[^<\\s]{1,2}(?=<(?:${WIRE_TAGS.join("|")})[\\s>])`);
+const WIRE_TAG_JUNK_PREFIX = new RegExp(
+  `^[^<\\s]{1,2}(?=<(?:${WIRE_TAGS.join("|")})[\\s>])`,
+);
 
 // Every tag an agent reads as framing that says who is speaking: the wire
 // tags, the proposal and reminder frames, and the nonce fence around foreign
@@ -114,7 +158,10 @@ const WIRE_TAG_JUNK_PREFIX = new RegExp(`^[^<\\s]{1,2}(?=<(?:${WIRE_TAGS.join("|
 // same everywhere and only the real wrapper carries the tag.
 const FRAME_TAGS = `${[...WIRE_TAGS, "proposal-message", "system-reminder", "task-reminder"].join("|")}|untrusted-[0-9a-f]+`;
 const FRAME_TAG_RE = new RegExp(`<(/?)(${FRAME_TAGS})(?=[\\s>/]|$)`, "gi");
-const NEUTRALIZED_FRAME_TAG_RE = new RegExp(`&lt;(/?)(${FRAME_TAGS})(?=[\\s>/]|$)`, "gi");
+const NEUTRALIZED_FRAME_TAG_RE = new RegExp(
+  `&lt;(/?)(${FRAME_TAGS})(?=[\\s>/]|$)`,
+  "gi",
+);
 
 /** A foreign body made safe to place inside a frame: it can no longer open or close one. */
 export function neutralizeFrameTags(body: string): string {
@@ -132,7 +179,11 @@ export function restoreFrameTags(body: string): string {
 // directive after an Agent fork — is the harness's postscript to the result. The
 // daemon parser folds it into the result; rows synced before that still carry it
 // as content, so the check must not depend on content being empty.
-export function isToolResultCarrier(m: { role?: string; content?: string | null; tool_results?: readonly unknown[] | null }): boolean {
+export function isToolResultCarrier(m: {
+  role?: string;
+  content?: string | null;
+  tool_results?: readonly unknown[] | null;
+}): boolean {
   return m.role === "user" && !!m.tool_results?.length;
 }
 
@@ -141,10 +192,16 @@ export function isToolResultCarrier(m: { role?: string; content?: string | null;
 // with a `__cc_poll` marker, never words a person typed, so no surface may
 // show it as the person's prompt: the feed hides it, the sticky header and
 // the navigator skip it.
-export function isPollResponsePayload(rawContent: string | null | undefined): boolean {
+export function isPollResponsePayload(
+  rawContent: string | null | undefined,
+): boolean {
   const t = stripPastedContent(rawContent ?? "").trimStart();
   if (!t.startsWith("{") || !t.includes("__cc_poll")) return false;
-  try { return !!JSON.parse(t).__cc_poll; } catch { return false; }
+  try {
+    return !!JSON.parse(t).__cc_poll;
+  } catch {
+    return false;
+  }
 }
 
 // The message the daemon's watchdog queues when a session's process died
@@ -155,8 +212,15 @@ export const MID_WORK_REVIVE_MESSAGE =
   "interrupted (a workflow resumes from its run id, with finished agents returned from cache), then carry on with the task. " +
   "A command or tool call that was running when it exited did not finish, and nothing ran it again: check what it changed before you repeat it.";
 
-export function isMidWorkReviveNotice(rawContent: string | null | undefined): boolean {
-  return !!rawContent && stripInjectionNoise(rawContent).startsWith(MID_WORK_REVIVE_MESSAGE.slice(0, 60));
+export function isMidWorkReviveNotice(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    stripInjectionNoise(rawContent).startsWith(
+      MID_WORK_REVIVE_MESSAGE.slice(0, 60),
+    )
+  );
 }
 
 // The message the server queues when a move to another machine stopped a turn
@@ -166,32 +230,49 @@ export const MOVE_INTERRUPT_MESSAGE =
   "Anything that was running in the background stopped with it. Pick up where you left off: answer what is still " +
   "unanswered, relaunch what was interrupted, then carry on with the task.";
 
-export function isMoveInterruptNotice(rawContent: string | null | undefined): boolean {
-  return !!rawContent && stripInjectionNoise(rawContent).startsWith(MOVE_INTERRUPT_MESSAGE.slice(0, 60));
+export function isMoveInterruptNotice(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    stripInjectionNoise(rawContent).startsWith(
+      MOVE_INTERRUPT_MESSAGE.slice(0, 60),
+    )
+  );
 }
 
 // A notice that the previous turn was cut off (a deliberate interrupt, a
 // process exit codecast revived, or a move to another machine). Never the person's ask: the navigator and
 // the sticky prompt skip it.
-export function isTurnInterruptionNotice(rawContent: string | null | undefined): boolean {
+export function isTurnInterruptionNotice(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   const text = stripInjectionNoise(rawContent);
-  return text.startsWith("<turn_aborted>")
-    || text.startsWith("The user interrupted the previous turn on purpose.")
-    || isMidWorkReviveNotice(text)
-    || isMoveInterruptNotice(text);
+  return (
+    text.startsWith("<turn_aborted>") ||
+    text.startsWith("The user interrupted the previous turn on purpose.") ||
+    isMidWorkReviveNotice(text) ||
+    isMoveInterruptNotice(text)
+  );
 }
 
-export function isAgentContextMessage(rawContent: string | null | undefined): boolean {
+export function isAgentContextMessage(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   const text = stripInjectionNoise(rawContent);
-  return /^<(?:recommended_plugins|environment_context|INSTRUCTIONS|collaboration_mode|app-context)>/.test(text)
+  return (
+    /^<(?:recommended_plugins|environment_context|INSTRUCTIONS|collaboration_mode|app-context)>/.test(
+      text,
+    ) ||
     // Codex re-states the thread goal to itself between turns.
-    || /^<codex_internal_context[\s>]/.test(text)
-    || /^<permissions(?:\s|>)/.test(text)
+    /^<codex_internal_context[\s>]/.test(text) ||
+    /^<permissions(?:\s|>)/.test(text) ||
     // Codex opens a session (or a project without an AGENTS.md) with a
     // "# Project context\nWorking directory: <cwd>" user turn, unflagged.
-    || /^# (?:AGENTS\.md instructions|Project context)(?:\s|$)/.test(text);
+    /^# (?:AGENTS\.md instructions|Project context)(?:\s|$)/.test(text)
+  );
 }
 
 // The wire format for a session→session message (`cast send`, a spawn's
@@ -208,37 +289,61 @@ export function isAgentContextMessage(rawContent: string | null | undefined): bo
 // written; `inform` needs no reply, and `done` closes the exchange and must
 // not be answered (the standing guidance in snippets.ts says so). Idea from
 // flopwire's intent="request|inform|done" (internal/busrender/busrender.go).
-export function formatSessionMessage(from: string, body: string, opts: { name?: string; subagent?: boolean; intent?: SessionMessageIntent } = {}): string {
-  const nameAttr = opts.name ? ` name="${neutralizeFrameTags(opts.name.replace(/"/g, "'").replace(/[\r\n]+/g, " "))}"` : "";
+export function formatSessionMessage(
+  from: string,
+  body: string,
+  opts: {
+    name?: string;
+    subagent?: boolean;
+    intent?: SessionMessageIntent;
+  } = {},
+): string {
+  const nameAttr = opts.name
+    ? ` name="${neutralizeFrameTags(opts.name.replace(/"/g, "'").replace(/[\r\n]+/g, " "))}"`
+    : "";
   const subagentAttr = opts.subagent ? ' subagent="true"' : "";
-  const intentAttr = opts.intent && opts.intent !== "request" ? ` intent="${opts.intent}"` : "";
+  const intentAttr =
+    opts.intent && opts.intent !== "request" ? ` intent="${opts.intent}"` : "";
   return `<session-message from="${from}"${nameAttr}${subagentAttr}${intentAttr}>\n${neutralizeFrameTags(body)}\n</session-message>`;
 }
 
 export const SESSION_MESSAGE_INTENTS = ["request", "inform", "done"] as const;
-export type SessionMessageIntent = typeof SESSION_MESSAGE_INTENTS[number];
+export type SessionMessageIntent = (typeof SESSION_MESSAGE_INTENTS)[number];
 
 // A session message's whole opening tag, read attribute by attribute: a
 // sender name may contain ">", never a double quote (formatSessionMessage).
 // Attribute names may carry a hyphen: repaired rows hold `source-message="…"`.
-export const SESSION_MESSAGE_OPEN_TAG = /^<session-message(?:\s+[a-z_-]+="[^"]*")*\s*>\n?/;
+export const SESSION_MESSAGE_OPEN_TAG =
+  /^<session-message(?:\s+[a-z_-]+="[^"]*")*\s*>\n?/;
 // A whole session message: group 1 the sender, group 2 the body to the LAST closing tag.
-export const SESSION_MESSAGE_RE = /<session-message\s+from="([^"]*)"(?:\s+[a-z_-]+="[^"]*")*\s*>([\s\S]*)<\/session-message>/;
+export const SESSION_MESSAGE_RE =
+  /<session-message\s+from="([^"]*)"(?:\s+[a-z_-]+="[^"]*")*\s*>([\s\S]*)<\/session-message>/;
 
 // The intent on a session message's opening tag; a tag without one is a request.
-export function sessionMessageIntentOf(rawContent: string | null | undefined): SessionMessageIntent {
-  const open = rawContent ? stripInjectionNoise(rawContent).match(SESSION_MESSAGE_OPEN_TAG)?.[0] : undefined;
+export function sessionMessageIntentOf(
+  rawContent: string | null | undefined,
+): SessionMessageIntent {
+  const open = rawContent
+    ? stripInjectionNoise(rawContent).match(SESSION_MESSAGE_OPEN_TAG)?.[0]
+    : undefined;
   const intent = open?.match(/\sintent="([a-z]+)"/)?.[1];
   return intent === "inform" || intent === "done" ? intent : "request";
 }
 
-export { sendArrival, sendArrivalPhrase, type SendArrival, type SendArrivalSession } from "./sendArrival";
+export {
+  sendArrival,
+  sendArrivalPhrase,
+  type SendArrival,
+  type SendArrivalSession,
+} from "./sendArrival";
 
 // Lightweight detection that a user message is actually an inbound
 // session→session message (delivered by `cast send`). Keys off the OPENING tag
 // only, so it still fires on a truncated preview (last_message_preview is
 // sliced to 200 chars, which can drop the closing tag).
-export function isSessionMessage(rawContent: string | null | undefined): boolean {
+export function isSessionMessage(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   return /^<session-message\s+from="/.test(stripInjectionNoise(rawContent));
 }
@@ -283,44 +388,77 @@ export function isUserMessage(rawContent: string | null | undefined): boolean {
 // agent's recorded turn by it (cli deliveryEchoLedger); uploads strip it again.
 // Every top-level frame of a row (a joint row holds several), each opening at
 // the start or right after the previous one closes; bodies cannot open one.
-const FRAME_OPEN = /(^\s*|<\/(?:session-message|user-message)>\s*)(<(?:session-message|user-message))((?:\s+[a-z-]+="[^"]*")*)>/g;
+const FRAME_OPEN =
+  /(^\s*|<\/(?:session-message|user-message)>\s*)(<(?:session-message|user-message))((?:\s+[a-z-]+="[^"]*")*)>/g;
 // Only where a frame can start: the turn's opening (inside Claude Code's paste
 // wrapper, after a few leaked keystroke bytes), a new line (sends a busy agent
 // took together), or right after another frame closes; never mid-line.
 const FRAME_LEAD = String.raw`(^(?:<pasted_content[^>]*>)?[\s\x00-\x1f]*[^<\s]{0,2}|\n[\t \x00-\x09\x0b-\x1f]*|(?<=<\/(?:session-message|user-message)>)\s*)`;
-const FRAME_DELIVERY = new RegExp(FRAME_LEAD + String.raw`(<(?:session-message|user-message)(?:\s+[a-z-]+="[^"]*")*?)\s+delivery="([A-Za-z0-9_-]{1,64})"`, "g");
-const FRAME_SPAN = new RegExp(FRAME_LEAD + String.raw`(<(session-message|user-message)(?:\s+[a-z-]+="[^"]*")*>[^]*?<\/\3>)`, "g");
+const FRAME_DELIVERY = new RegExp(
+  FRAME_LEAD +
+    String.raw`(<(?:session-message|user-message)(?:\s+[a-z-]+="[^"]*")*?)\s+delivery="([A-Za-z0-9_-]{1,64})"`,
+  "g",
+);
+const FRAME_SPAN = new RegExp(
+  FRAME_LEAD +
+    String.raw`(<(session-message|user-message)(?:\s+[a-z-]+="[^"]*")*>[^]*?<\/\3>)`,
+  "g",
+);
 
 export function stampDeliveryId(content: string, messageId: string): string {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(messageId)) return content;
-  return content.replace(FRAME_OPEN, (_, lead: string, tag: string, attrs: string) =>
-    `${lead}${tag}${attrs.replace(/\s+delivery="[^"]*"/g, "")} delivery="${messageId}">`);
+  return content.replace(
+    FRAME_OPEN,
+    (_, lead: string, tag: string, attrs: string) =>
+      `${lead}${tag}${attrs.replace(/\s+delivery="[^"]*"/g, "")} delivery="${messageId}">`,
+  );
 }
 
 export function deliveryIdsOf(content: string | undefined): string[] {
-  return content?.includes(' delivery="') ? [...content.matchAll(FRAME_DELIVERY)].map((m) => m[3]) : [];
+  return content?.includes(' delivery="')
+    ? [...content.matchAll(FRAME_DELIVERY)].map((m) => m[3])
+    : [];
 }
 
 /** The text without the frames that name these deliveries, so what is left can pair by its words. */
-export function withoutDeliveryFrames(content: string, ids: readonly string[]): string {
-  return content.replace(FRAME_SPAN, (all, lead: string, frame: string) => (ids.includes(deliveryIdsOf(frame)[0]) ? lead : all));
+export function withoutDeliveryFrames(
+  content: string,
+  ids: readonly string[],
+): string {
+  return content.replace(FRAME_SPAN, (all, lead: string, frame: string) =>
+    ids.includes(deliveryIdsOf(frame)[0]) ? lead : all,
+  );
 }
 
 /** The text with the delivery ids (these, or every one) taken out of the frames that carry them; anything else is left as written. */
-export function withoutDeliveryId(content: string, ids?: readonly string[]): string {
+export function withoutDeliveryId(
+  content: string,
+  ids?: readonly string[],
+): string {
   if (!content.includes(' delivery="')) return content;
-  return content.replace(FRAME_DELIVERY, (all, lead: string, open: string, id: string) => (!ids || ids.includes(id) ? lead + open : all));
+  return content.replace(
+    FRAME_DELIVERY,
+    (all, lead: string, open: string, id: string) =>
+      !ids || ids.includes(id) ? lead + open : all,
+  );
 }
 
 // Sender name and body. Tolerates a missing close tag (a preview sliced
 // mid-message) and the newline-to-space collapse of a tmux-injected echo that
 // never matched its pending row, so the body is trimmed rather than framed.
-export function parseUserMessage(rawContent: string | null | undefined): { from: string; body: string } | null {
+export function parseUserMessage(
+  rawContent: string | null | undefined,
+): { from: string; body: string } | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<user-message\s+from="([^"]*)"[^>]*>([\s\S]*?)(?:<\/user-message>\s*$|$)/);
+  const m = text.match(
+    /^<user-message\s+from="([^"]*)"[^>]*>([\s\S]*?)(?:<\/user-message>\s*$|$)/,
+  );
   if (!m) return null;
-  return { from: restoreFrameTags(m[1].trim()), body: restoreFrameTags(m[2].trim()) };
+  return {
+    from: restoreFrameTags(m[1].trim()),
+    body: restoreFrameTags(m[2].trim()),
+  };
 }
 
 // A person's message sent from the org page's staffing pane into the thread
@@ -329,23 +467,47 @@ export function parseUserMessage(rawContent: string | null | undefined): { from:
 // with the "About op-N change 3 (…):" header and closes with a reply note for
 // the agent; the transcript shows the person's own words under a quote of
 // the header, so the bubble reads as theirs and names the row.
-export function parseProposalMessage(rawContent: string | null | undefined): { proposal: string; change: number | null; ask?: number; from: string; about: string | null; body: string } | null {
+export function parseProposalMessage(rawContent: string | null | undefined): {
+  proposal: string;
+  change: number | null;
+  ask?: number;
+  from: string;
+  about: string | null;
+  body: string;
+} | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<proposal-message\s+([^>]*)>([\s\S]*?)(?:<\/proposal-message>\s*$|$)/);
+  const m = text.match(
+    /^<proposal-message\s+([^>]*)>([\s\S]*?)(?:<\/proposal-message>\s*$|$)/,
+  );
   if (!m) return null;
-  const attr = (k: string) => { const a = m[1].match(new RegExp(`${k}="([^"]*)"`)); return a ? a[1] : ""; };
+  const attr = (k: string) => {
+    const a = m[1].match(new RegExp(`${k}="([^"]*)"`));
+    return a ? a[1] : "";
+  };
   let body = m[2].trim();
   // The trailing reply note is for the agent, not the reader.
   body = body.replace(/\n*\(Reply here;[\s\S]*\)\s*$/, "").trim();
   let about: string | null = null;
-  const head = body.match(/^(About \S+ (?:change|ask) \d+ \("[^\n]*"\):)\s*\n+/);
-  if (head) { about = head[1]; body = body.slice(head[0].length).trim(); }
+  const head = body.match(
+    /^(About \S+ (?:change|ask) \d+ \("[^\n]*"\):)\s*\n+/,
+  );
+  if (head) {
+    about = head[1];
+    body = body.slice(head[0].length).trim();
+  }
   const change = attr("change");
   // `ask` (S19) is the index `orgProposals.decideAsk` takes, from 0; present
   // only on a reply a person sent from an ask's card.
   const ask = attr("ask");
-  return { proposal: attr("proposal"), change: change ? Number(change) : null, ...(ask ? { ask: Number(ask) } : {}), from: attr("from").trim(), about, body };
+  return {
+    proposal: attr("proposal"),
+    change: change ? Number(change) : null,
+    ...(ask ? { ask: Number(ask) } : {}),
+    from: attr("from").trim(),
+    about,
+    body,
+  };
 }
 
 // A person's comment on a task, delivered into the session that owns the
@@ -357,24 +519,39 @@ export function parseProposalMessage(rawContent: string | null | undefined): { p
 // the way a proposal message reads.
 export const TASK_COMMENT_TAG = "task-comment";
 
-export function formatTaskCommentMessage(o: { task: string; title: string; from: string; body: string }): string {
+export function formatTaskCommentMessage(o: {
+  task: string;
+  title: string;
+  from: string;
+  body: string;
+}): string {
   const q = (x: string) => x.replace(/"/g, "'");
   const tail = `(This is a comment on ${o.task}, the task you own. Act on it; when a reply is wanted, answer on the task with \`cast task comment ${o.task} "..."\`, which is where ${q(o.from)} reads.)`;
   return `<${TASK_COMMENT_TAG} task="${o.task}" from="${q(o.from)}">\nAbout ${o.task} ("${q(o.title)}"):\n\n${o.body}\n\n${tail}\n</${TASK_COMMENT_TAG}>`;
 }
 
-export function parseTaskCommentMessage(rawContent: string | null | undefined): { task: string; from: string; about: string | null; body: string } | null {
+export function parseTaskCommentMessage(
+  rawContent: string | null | undefined,
+): { task: string; from: string; about: string | null; body: string } | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<task-comment\s+([^>]*)>([\s\S]*?)(?:<\/task-comment>\s*$|$)/);
+  const m = text.match(
+    /^<task-comment\s+([^>]*)>([\s\S]*?)(?:<\/task-comment>\s*$|$)/,
+  );
   if (!m) return null;
-  const attr = (k: string) => { const a = m[1].match(new RegExp(`${k}="([^"]*)"`)); return a ? a[1] : ""; };
+  const attr = (k: string) => {
+    const a = m[1].match(new RegExp(`${k}="([^"]*)"`));
+    return a ? a[1] : "";
+  };
   let body = m[2].trim();
   // The trailing reply note is for the agent, not the reader.
   body = body.replace(/\n*\(This is a comment on [\s\S]*\)\s*$/, "").trim();
   let about: string | null = null;
   const head = body.match(/^(About \S+ \("[^\n]*"\):)\s*\n+/);
-  if (head) { about = head[1]; body = body.slice(head[0].length).trim(); }
+  if (head) {
+    about = head[1];
+    body = body.slice(head[0].length).trim();
+  }
   return { task: attr("task"), from: attr("from").trim(), about, body };
 }
 
@@ -386,24 +563,45 @@ export function parseTaskCommentMessage(rawContent: string | null | undefined): 
 // owner's next reply is what the decision surface shows under the question.
 export const DECISION_DISCUSSION_TAG = "decision-discussion";
 
-export function formatDecisionDiscussion(o: { decision: string; question: string; from: string; body: string; note?: string | null }): string {
+export function formatDecisionDiscussion(o: {
+  decision: string;
+  question: string;
+  from: string;
+  body: string;
+  note?: string | null;
+}): string {
   const q = (x: string) => x.replace(/"/g, "'").replace(/\s*\r?\n\s*/g, " ");
   // `note`: what the reply can do on this decision's surface (a line decision's widgets).
   const tail = `(A question about ${o.decision}, which you present; ${q(o.from)} reads your reply under it. Answer from the decision and its record. A change they ask for goes through the decision itself, never around it.${o.note ? ` ${o.note}` : ""})`;
   return `<${DECISION_DISCUSSION_TAG} decision="${o.decision}" from="${q(o.from)}">\nAbout ${o.decision} ("${q(o.question).slice(0, 160)}"):\n\n${o.body}\n\n${tail}\n</${DECISION_DISCUSSION_TAG}>`;
 }
 
-export function parseDecisionDiscussion(rawContent: string | null | undefined): { decision: string; from: string; about: string | null; body: string } | null {
+export function parseDecisionDiscussion(
+  rawContent: string | null | undefined,
+): {
+  decision: string;
+  from: string;
+  about: string | null;
+  body: string;
+} | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<decision-discussion\s+([^>]*)>([\s\S]*?)(?:<\/decision-discussion>\s*$|$)/);
+  const m = text.match(
+    /^<decision-discussion\s+([^>]*)>([\s\S]*?)(?:<\/decision-discussion>\s*$|$)/,
+  );
   if (!m) return null;
-  const attr = (k: string) => { const a = m[1].match(new RegExp(`${k}="([^"]*)"`)); return a ? a[1] : ""; };
+  const attr = (k: string) => {
+    const a = m[1].match(new RegExp(`${k}="([^"]*)"`));
+    return a ? a[1] : "";
+  };
   let body = m[2].trim();
   body = body.replace(/\n*\(A question about [\s\S]*\)\s*$/, "").trim();
   let about: string | null = null;
   const head = body.match(/^(About \S+ \("[^\n]*"\):)\s*\n+/);
-  if (head) { about = head[1]; body = body.slice(head[0].length).trim(); }
+  if (head) {
+    about = head[1];
+    body = body.slice(head[0].length).trim();
+  }
   return { decision: attr("decision"), from: attr("from").trim(), about, body };
 }
 
@@ -411,10 +609,14 @@ export function parseDecisionDiscussion(rawContent: string | null | undefined): 
 // <teammate-message teammate_id="…"> tags, plus a fixed boilerplate lead-in
 // ("Another Claude session sent a message:") and trailing disclaimer ("This
 // came from another Claude session — … permission laundering.").
-export const TEAMMATE_FRAMING_LEADIN = /^Another\s+\S+\s+session sent a message:?/i;
-export const TEAMMATE_FRAMING_TRAILER = /This came from another\s+\S+\s+session[\s\S]*$/i;
+export const TEAMMATE_FRAMING_LEADIN =
+  /^Another\s+\S+\s+session sent a message:?/i;
+export const TEAMMATE_FRAMING_TRAILER =
+  /This came from another\s+\S+\s+session[\s\S]*$/i;
 
-export function isTeammateMessage(rawContent: string | null | undefined): boolean {
+export function isTeammateMessage(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   if (rawContent.includes("<teammate-message")) return true;
   // SendMessage idle notifications arrive with the same framing but NO tags:
@@ -426,7 +628,10 @@ export function isTeammateMessage(rawContent: string | null | undefined): boolea
 // agent, not content). Use on the text left over after the <teammate-message>
 // tags are removed.
 export function stripTeammateFraming(text: string): string {
-  return text.replace(TEAMMATE_FRAMING_LEADIN, "").replace(TEAMMATE_FRAMING_TRAILER, "").trim();
+  return text
+    .replace(TEAMMATE_FRAMING_LEADIN, "")
+    .replace(TEAMMATE_FRAMING_TRAILER, "")
+    .trim();
 }
 
 // True when the only non-tag text is that framing — i.e. a pure teammate
@@ -438,8 +643,13 @@ export function isTeammateFramingOnly(leftover: string): boolean {
 // A `cast trigger` injection (the taskScheduler wraps the prompt). The
 // <scheduled-task> tag is the frozen wire format from before the triggers
 // rename; old transcripts carry it forever.
-export function isScheduledTaskMessage(rawContent: string | null | undefined): boolean {
-  return !!rawContent && /^<scheduled-task[\s>]/.test(stripInjectionNoise(rawContent));
+export function isScheduledTaskMessage(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    /^<scheduled-task[\s>]/.test(stripInjectionNoise(rawContent))
+  );
 }
 
 // A session that waits, as the trigger that fired for it names it
@@ -488,7 +698,10 @@ export interface ScheduledTaskFrame {
 }
 
 const tagAttrs = (pairs: Array<[string, string | undefined]>) =>
-  pairs.filter(([, v]) => v != null && v !== "").map(([k, v]) => `${k}="${escapeTagAttr(v!)}"`).join(" ");
+  pairs
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => `${k}="${escapeTagAttr(v!)}"`)
+    .join(" ");
 const tagAttr = (head: string, k: string) => {
   const a = head.match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`));
   return a ? unescapeTagAttr(a[1]) : "";
@@ -496,25 +709,74 @@ const tagAttr = (head: string, k: string) => {
 
 /** The one writer of the frame a trigger run arrives in. */
 export function formatScheduledTask(f: ScheduledTaskFrame): string {
-  const head = tagAttrs([["title", f.title], ["task-id", f.task_id], ["trigger", f.trigger], ["event", f.event], ["focus", f.focus]]);
+  const head = tagAttrs([
+    ["title", f.title],
+    ["task-id", f.task_id],
+    ["trigger", f.trigger],
+    ["event", f.event],
+    ["focus", f.focus],
+  ]);
   const w = f.waiting;
   const waiting = w
-    ? `\n<waiting-session ${tagAttrs([["id", w.short_id], ["title", w.title], ["why", w.why], ["since", String(w.since)], ["role", w.role], ["decision", w.decision], ["silent-lead", w.silent_lead]])}>${w.state.trim()}</waiting-session>\n\n`
+    ? `\n<waiting-session ${tagAttrs([
+        ["id", w.short_id],
+        ["title", w.title],
+        ["why", w.why],
+        ["since", String(w.since)],
+        ["role", w.role],
+        ["decision", w.decision],
+        ["silent-lead", w.silent_lead],
+      ])}>${w.state.trim()}</waiting-session>\n\n`
     : "";
   const c = f.change;
   const change = c
-    ? `\n<area-change ${tagAttrs(c.kind === "status"
-        ? [["kind", c.kind], ["role", c.role_handle], ["name", c.role_name], ["from", c.from ?? undefined], ["to", c.to], ["since", String(c.since)]]
-        : c.kind === "unowned_project"
-          ? [["kind", c.kind], ["project", c.project_id], ["title", c.project_title], ["since", String(c.since)]]
-          : [["kind", c.kind], ["record", c.record], ["title", c.record_title], ["since", String(c.since)]])}>${c.line.trim()}</area-change>\n\n`
+    ? `\n<area-change ${tagAttrs(
+        c.kind === "status"
+          ? [
+              ["kind", c.kind],
+              ["role", c.role_handle],
+              ["name", c.role_name],
+              ["from", c.from ?? undefined],
+              ["to", c.to],
+              ["since", String(c.since)],
+            ]
+          : c.kind === "unowned_project"
+            ? [
+                ["kind", c.kind],
+                ["project", c.project_id],
+                ["title", c.project_title],
+                ["since", String(c.since)],
+              ]
+            : [
+                ["kind", c.kind],
+                ["record", c.record],
+                ["title", c.record_title],
+                ["since", String(c.since)],
+              ],
+      )}>${c.line.trim()}</area-change>\n\n`
     : "";
   const workers = f.workers?.length
-    ? `\n${f.workers.map((w) => `<worker-report ${tagAttrs([["id", w.short_id], ["title", w.title], ["why", w.why], ["since", String(w.since)]])}>${w.state.trim()}</worker-report>`).join("\n")}\n\n`
+    ? `\n${f.workers
+        .map(
+          (w) =>
+            `<worker-report ${tagAttrs([
+              ["id", w.short_id],
+              ["title", w.title],
+              ["why", w.why],
+              ["since", String(w.since)],
+            ])}>${w.state.trim()}</worker-report>`,
+        )
+        .join("\n")}\n\n`
     : "";
   const r = f.role;
   const roleLines = r ? roleCardLines(r).join("\n") : "";
-  const role = r ? `\n<role-card ${tagAttrs([["handle", r.handle], ["name", r.name], ["reports-to", r.reports_to]])}>${roleLines}</role-card>\n` : "";
+  const role = r
+    ? `\n<role-card ${tagAttrs([
+        ["handle", r.handle],
+        ["name", r.name],
+        ["reports-to", r.reports_to],
+      ])}>${roleLines}</role-card>\n`
+    : "";
   return `<scheduled-task ${head}>${role}${waiting}${change}${workers}${f.body}</scheduled-task>`;
 }
 
@@ -528,16 +790,26 @@ export const WORKER_SETTLE_WORDS: Record<string, string> = {
 };
 
 /** The one reader. Tolerates a missing closing tag: a preview slice can cut the body. */
-export function parseScheduledTask(rawContent: string | null | undefined): ScheduledTaskFrame | null {
+export function parseScheduledTask(
+  rawContent: string | null | undefined,
+): ScheduledTaskFrame | null {
   if (!rawContent) return null;
-  const m = stripInjectionNoise(rawContent).match(/^<scheduled-task((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)(?:<\/scheduled-task>|$)/);
+  const m = stripInjectionNoise(rawContent).match(
+    /^<scheduled-task((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)(?:<\/scheduled-task>|$)/,
+  );
   if (!m) return null;
   let body = m[2];
   let role: RoleCard | null = null;
-  const rc = body.match(/^\s*<role-card((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/role-card>\s*/);
+  const rc = body.match(
+    /^\s*<role-card((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/role-card>\s*/,
+  );
   if (rc) {
     body = body.slice(rc[0].length);
-    const line = (label: string) => rc[2].split("\n").find((l) => l.startsWith(`${label}: `))?.slice(label.length + 2) ?? "";
+    const line = (label: string) =>
+      rc[2]
+        .split("\n")
+        .find((l) => l.startsWith(`${label}: `))
+        ?.slice(label.length + 2) ?? "";
     const scope = line("Looks after");
     role = {
       handle: tagAttr(rc[1], "handle"),
@@ -547,11 +819,16 @@ export function parseScheduledTask(rawContent: string | null | undefined): Sched
       ...(line("Charter") ? { charter: line("Charter") } : {}),
       goals: line("Goals") ? line("Goals").split("; ") : [],
     };
-    const serves = rc[2].split("\n").filter((l) => l.startsWith("Serves: ")).map((l) => parseRoleCardInitiativeLine(l.slice("Serves: ".length)));
+    const serves = rc[2]
+      .split("\n")
+      .filter((l) => l.startsWith("Serves: "))
+      .map((l) => parseRoleCardInitiativeLine(l.slice("Serves: ".length)));
     if (serves.length) role.initiatives = serves;
   }
   let waiting: WaitingSession | null = null;
-  const w = body.match(/^\s*<waiting-session((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/waiting-session>\s*/);
+  const w = body.match(
+    /^\s*<waiting-session((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/waiting-session>\s*/,
+  );
   if (w) {
     body = body.slice(w[0].length);
     waiting = {
@@ -560,28 +837,69 @@ export function parseScheduledTask(rawContent: string | null | undefined): Sched
       why: tagAttr(w[1], "why"),
       since: Number(tagAttr(w[1], "since")) || 0,
       ...(tagAttr(w[1], "role") ? { role: tagAttr(w[1], "role") } : {}),
-      ...(tagAttr(w[1], "decision") ? { decision: tagAttr(w[1], "decision") } : {}),
-      ...(tagAttr(w[1], "silent-lead") ? { silent_lead: tagAttr(w[1], "silent-lead") } : {}),
+      ...(tagAttr(w[1], "decision")
+        ? { decision: tagAttr(w[1], "decision") }
+        : {}),
+      ...(tagAttr(w[1], "silent-lead")
+        ? { silent_lead: tagAttr(w[1], "silent-lead") }
+        : {}),
       state: w[2].trim(),
     };
   }
   let change: AreaChange | null = null;
-  const ch = body.match(/^\s*<area-change((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/area-change>\s*/);
+  const ch = body.match(
+    /^\s*<area-change((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/area-change>\s*/,
+  );
   if (ch) {
     body = body.slice(ch[0].length);
     const at = (k: string) => tagAttr(ch[1], k);
     const since = Number(at("since")) || 0;
     const kind = at("kind");
-    change = kind === "unowned_project"
-      ? { kind: "unowned_project", project_id: at("project"), project_title: at("title"), since, line: ch[2].trim() }
-      : kind === "plan_without_project" || kind === "project_without_goal"
-      ? { kind, record: at("record"), record_title: at("title"), since, line: ch[2].trim() }
-      : { kind: "status", role_handle: at("role"), role_name: at("name"), from: (at("from") || null) as Extract<AreaChange, { kind: "status" }>["from"], to: at("to") as Extract<AreaChange, { kind: "status" }>["to"], since, line: ch[2].trim() };
+    change =
+      kind === "unowned_project"
+        ? {
+            kind: "unowned_project",
+            project_id: at("project"),
+            project_title: at("title"),
+            since,
+            line: ch[2].trim(),
+          }
+        : kind === "plan_without_project" || kind === "project_without_goal"
+          ? {
+              kind,
+              record: at("record"),
+              record_title: at("title"),
+              since,
+              line: ch[2].trim(),
+            }
+          : {
+              kind: "status",
+              role_handle: at("role"),
+              role_name: at("name"),
+              from: (at("from") || null) as Extract<
+                AreaChange,
+                { kind: "status" }
+              >["from"],
+              to: at("to") as Extract<AreaChange, { kind: "status" }>["to"],
+              since,
+              line: ch[2].trim(),
+            };
   }
   const workers: WaitingSession[] = [];
-  for (let wr; (wr = body.match(/^\s*<worker-report((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/worker-report>\s*/));) {
+  for (
+    let wr;
+    (wr = body.match(
+      /^\s*<worker-report((?:\s+[a-z-]+="[^"]*")*)\s*>([\s\S]*?)<\/worker-report>\s*/,
+    ));
+  ) {
     body = body.slice(wr[0].length);
-    workers.push({ short_id: tagAttr(wr[1], "id"), title: tagAttr(wr[1], "title"), why: tagAttr(wr[1], "why"), since: Number(tagAttr(wr[1], "since")) || 0, state: wr[2].trim() });
+    workers.push({
+      short_id: tagAttr(wr[1], "id"),
+      title: tagAttr(wr[1], "title"),
+      why: tagAttr(wr[1], "why"),
+      since: Number(tagAttr(wr[1], "since")) || 0,
+      state: wr[2].trim(),
+    });
   }
   return {
     title: tagAttr(m[1], "title"),
@@ -602,18 +920,23 @@ export function parseScheduledTask(rawContent: string | null | undefined): Sched
 // line is the wire format: `[codecast team chat — #<channel> · team <name>]`,
 // or `— a direct message · team <name>]` in a DM. Older wakes carry no team.
 // Groups: 1 = channel name, 2 = the DM phrase, 3 = team name.
-export const CHAT_WAKE_HEADER = /^\[codecast team chat — (?:#([^\]\n]+?)|(a direct message))(?: · team ([^\]\n]+))?\]\n/;
+export const CHAT_WAKE_HEADER =
+  /^\[codecast team chat — (?:#([^\]\n]+?)|(a direct message))(?: · team ([^\]\n]+))?\]\n/;
 
 // A mention of a role or session (chat.ts wakeMentionedParties) carries the
 // same wake inside <chat-mention channel=… thread=… from=…>. The wake is the
 // message; the envelope is routing for the agent.
 export function chatWakeText(rawContent: string): string {
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<chat-mention\b[^>]*>\n?([\s\S]*?)(?:\n?<\/chat-mention>\s*)?$/);
+  const m = text.match(
+    /^<chat-mention\b[^>]*>\n?([\s\S]*?)(?:\n?<\/chat-mention>\s*)?$/,
+  );
   return m ? m[1] : text;
 }
 
-export function isChatWakePrompt(rawContent: string | null | undefined): boolean {
+export function isChatWakePrompt(
+  rawContent: string | null | undefined,
+): boolean {
   return !!rawContent && CHAT_WAKE_HEADER.test(chatWakeText(rawContent));
 }
 
@@ -621,31 +944,47 @@ export function isChatWakePrompt(rawContent: string | null | undefined): boolean
 // the relayed request of the session that ran the workflow, then the task the
 // script computed for this agent. Each is one header line of boilerplate, then
 // the body indented two spaces. Group 1 names the frame.
-export const WORKFLOW_HARNESS_HEADER = /^\[Workflow harness — (user request|computed task)\][^\n]*\n/;
+export const WORKFLOW_HARNESS_HEADER =
+  /^\[Workflow harness — (user request|computed task)\][^\n]*\n/;
 
-export function parseWorkflowHarnessFrame(rawContent: string | null | undefined): { kind: "user request" | "computed task"; body: string } | null {
+export function parseWorkflowHarnessFrame(
+  rawContent: string | null | undefined,
+): { kind: "user request" | "computed task"; body: string } | null {
   const m = rawContent?.match(WORKFLOW_HARNESS_HEADER);
   if (!m) return null;
-  const body = stripPastedContent(rawContent!.slice(m[0].length).replace(/^ {2}/gm, "")).trim();
+  const body = stripPastedContent(
+    rawContent!.slice(m[0].length).replace(/^ {2}/gm, ""),
+  ).trim();
   return { kind: m[1] as "user request" | "computed task", body };
 }
 
 // A harness <task-notification> — a background task / Monitor / Workflow
 // completion the harness injected as a user turn. Keys off the opening tag
 // only, same truncated-preview rule as isSessionMessage.
-export function isTaskNotificationMessage(rawContent: string | null | undefined): boolean {
-  return !!rawContent && stripInjectionNoise(rawContent).startsWith("<task-notification>");
+export function isTaskNotificationMessage(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    stripInjectionNoise(rawContent).startsWith("<task-notification>")
+  );
 }
 
 /** The ids of the background work a turn reports back on: a harness
  *  <task-notification>'s task id, or the spawned workers a <scheduled-task>
  *  wake names. Empty for a turn that reports on no work. */
-export function reportedWorkIds(rawContent: string | null | undefined): string[] {
+export function reportedWorkIds(
+  rawContent: string | null | undefined,
+): string[] {
   if (isTaskNotificationMessage(rawContent)) {
-    const id = stripInjectionNoise(rawContent!).match(/<task-id>([^<]+)<\/task-id>/)?.[1].trim();
+    const id = stripInjectionNoise(rawContent!)
+      .match(/<task-id>([^<]+)<\/task-id>/)?.[1]
+      .trim();
     return id ? [id] : [];
   }
-  return (parseScheduledTask(rawContent)?.workers ?? []).map((w) => w.short_id).filter(Boolean);
+  return (parseScheduledTask(rawContent)?.workers ?? [])
+    .map((w) => w.short_id)
+    .filter(Boolean);
 }
 
 // A `cast send --raw` report from another session: the body was injected as a
@@ -672,12 +1011,17 @@ export function parseUnwrappedSessionReport(
   // A notice codecast sent a role before notices carried the session
   // envelope (pendingMessages.tellRole): a decision under it, a task handed
   // to it.
-  if (/^decision sd-\d+ from a session under you: /.test(first) || /^\S.{0,80} assigned you ct-\d+ "/.test(first)) {
+  if (
+    /^decision sd-\d+ from a session under you: /.test(first) ||
+    /^\S.{0,80} assigned you ct-\d+ "/.test(first)
+  ) {
     return { from: "unknown", body: text, name: "codecast" };
   }
   // A worker's name is capitalized ("Backend B follow-up:"); a lowercase
   // opener ("codecast test follow-up: ...") is a person's own prompt.
-  const followUp = first.match(/^([A-Z][\w][\w ./-]{0,40}?)\s+[Ff]ollow-up\s*:/);
+  const followUp = first.match(
+    /^([A-Z][\w][\w ./-]{0,40}?)\s+[Ff]ollow-up\s*:/,
+  );
   if (followUp) {
     const name = named(followUp[1]);
     if (name) return { from: "unknown", body: text, name };
@@ -685,7 +1029,9 @@ export function parseUnwrappedSessionReport(
   return null;
 }
 
-export function isUnwrappedSessionReport(rawContent: string | null | undefined): boolean {
+export function isUnwrappedSessionReport(
+  rawContent: string | null | undefined,
+): boolean {
   return parseUnwrappedSessionReport(rawContent) !== null;
 }
 
@@ -698,9 +1044,12 @@ export function isUnwrappedSessionReport(rawContent: string | null | undefined):
 // thread after it (web lib/anchorWindow), and the inbox card's preview, the
 // sticky prompt header and the navigator skip it through
 // isMachineDeliveredMessage, so no surface can show it as the person's words.
-export const BOOTSTRAP_PROMPT_RE = /^\s*You are (\*\*[^*]+\*\*, the (standing agent for|\*\*(team|personal)\*\* (anchor|workspace's standing agent))|the (Head of People|Chief of Staff) for |[^,\n]{1,40}, [^\n]{1,60}'s (Chief of Staff|Executive Assistant) for |the \*\*[^*]+\*\* \(@[a-z0-9-]+\) in )/;
+export const BOOTSTRAP_PROMPT_RE =
+  /^\s*You are (\*\*[^*]+\*\*, the (standing agent for|\*\*(team|personal)\*\* (anchor|workspace's standing agent))|the (Head of People|Chief of Staff) for |[^,\n]{1,40}, [^\n]{1,60}'s (Chief of Staff|Executive Assistant) for |the \*\*[^*]+\*\* \(@[a-z0-9-]+\) in )/;
 
-export function isBootstrapPrompt(rawContent: string | null | undefined): boolean {
+export function isBootstrapPrompt(
+  rawContent: string | null | undefined,
+): boolean {
   if (!rawContent) return false;
   return BOOTSTRAP_PROMPT_RE.test(stripInjectionNoise(rawContent));
 }
@@ -708,7 +1057,9 @@ export function isBootstrapPrompt(rawContent: string | null | undefined): boolea
 // A session goal's round (contracts/sessionGoal.ts): the loop's own message
 // into the session, the start, a next step or a resume.
 export function isGoalMessage(rawContent: string | null | undefined): boolean {
-  return !!rawContent && /^<codecast-goal[\s>]/.test(stripInjectionNoise(rawContent));
+  return (
+    !!rawContent && /^<codecast-goal[\s>]/.test(stripInjectionNoise(rawContent))
+  );
 }
 
 // Any user-role message delivered by machinery rather than typed by the human:
@@ -718,17 +1069,41 @@ export function isGoalMessage(rawContent: string | null | undefined): boolean {
 // report that lost its session wrapper, or the prompt that seated a standing
 // agent, the brief a context recovery restarted the session with, or a
 // session goal's round.
-export function isMachineDeliveredMessage(rawContent: string | null | undefined): boolean {
-  return isAgentContextMessage(rawContent) || isSessionMessage(rawContent) || isAgentMessage(rawContent) || isTeammateMessage(rawContent) || isScheduledTaskMessage(rawContent) || isTaskNotificationMessage(rawContent) || isChatWakePrompt(rawContent) || isUnwrappedSessionReport(rawContent) || isBootstrapPrompt(rawContent) || isSessionEscalationMessage(rawContent) || isRoleWakeFrame(rawContent) || isCodexApprovalReviewPrompt(rawContent) || isAgentDefinitionPrompt(rawContent) || isContextRecoveryPrompt(rawContent) || isGoalMessage(rawContent);
+export function isMachineDeliveredMessage(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    isAgentContextMessage(rawContent) ||
+    isSessionMessage(rawContent) ||
+    isAgentMessage(rawContent) ||
+    isTeammateMessage(rawContent) ||
+    isScheduledTaskMessage(rawContent) ||
+    isTaskNotificationMessage(rawContent) ||
+    isChatWakePrompt(rawContent) ||
+    isUnwrappedSessionReport(rawContent) ||
+    isBootstrapPrompt(rawContent) ||
+    isSessionEscalationMessage(rawContent) ||
+    isRoleWakeFrame(rawContent) ||
+    isCodexApprovalReviewPrompt(rawContent) ||
+    isAgentDefinitionPrompt(rawContent) ||
+    isContextRecoveryPrompt(rawContent) ||
+    isGoalMessage(rawContent)
+  );
 }
 
 // The prompt Codex writes into the thread it spawns to assess an approval
 // request. Rollouts mark that thread as spawned (cli isCodexProgramLaunch),
 // but sessions synced before codecast read the mark carry only this text.
-const CODEX_APPROVAL_REVIEW_RE = /^The following is the Codex agent history (?:whose request action you are assessing|added since your last approval assessment)/;
+const CODEX_APPROVAL_REVIEW_RE =
+  /^The following is the Codex agent history (?:whose request action you are assessing|added since your last approval assessment)/;
 
-export function isCodexApprovalReviewPrompt(rawContent: string | null | undefined): boolean {
-  return !!rawContent && CODEX_APPROVAL_REVIEW_RE.test(stripInjectionNoise(rawContent).trimStart());
+export function isCodexApprovalReviewPrompt(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    CODEX_APPROVAL_REVIEW_RE.test(stripInjectionNoise(rawContent).trimStart())
+  );
 }
 
 // An agent or skill definition file handed to a session as its prompt: the
@@ -737,22 +1112,36 @@ export function isCodexApprovalReviewPrompt(rawContent: string | null | undefine
 // with its definition.
 const AGENT_DEFINITION_RE = /^---\r?\nname:[^\n]*\r?\ndescription:/;
 
-export function isAgentDefinitionPrompt(rawContent: string | null | undefined): boolean {
-  return !!rawContent && AGENT_DEFINITION_RE.test(stripInjectionNoise(rawContent).trimStart());
+export function isAgentDefinitionPrompt(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    AGENT_DEFINITION_RE.test(stripInjectionNoise(rawContent).trimStart())
+  );
 }
 
 // LEGACY: the frame the role wake rail delivered into a role's standing
 // session (`<role-wake or-23 wake="rw-967" …>`). The rail is gone (roles wake
 // through triggers since 2026-09-25); threads written before then still hold
 // the frames, and they are not anything the session's person wrote.
-export function isRoleWakeFrame(rawContent: string | null | undefined): boolean {
-  return !!rawContent && /^<role-wake[\s>]/.test(stripInjectionNoise(rawContent));
+export function isRoleWakeFrame(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent && /^<role-wake[\s>]/.test(stripInjectionNoise(rawContent))
+  );
 }
 
 // --- A session moving between a role and a person (org-roles-run-work.md R1, revised) ---
 // A legacy <session-escalation> divider; sessionEscalation.ts reads it.
-export function isSessionEscalationMessage(rawContent: string | null | undefined): boolean {
-  return !!rawContent && /^<session-escalation\s/.test(stripInjectionNoise(rawContent));
+export function isSessionEscalationMessage(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    /^<session-escalation\s/.test(stripInjectionNoise(rawContent))
+  );
 }
 
 export function escapeTagAttr(s: string): string {
@@ -765,5 +1154,9 @@ export function escapeTagAttr(s: string): string {
 }
 
 export function unescapeTagAttr(s: string): string {
-  return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 }

@@ -15,7 +15,6 @@ import { requestHuddleStart } from "../../lib/calls/huddleStart";
 import { ContextMenu, CtxItem, useContextMenu } from "../ui/context-menu";
 import "./walkie.css";
 
-
 export function WalkiePttButton({
   roomKey,
   resolveChannelId,
@@ -47,12 +46,19 @@ export function WalkiePttButton({
 }) {
   const ptt = usePushToTalk(roomKey, resolveChannelId);
   const ringMenu = useContextMenu<void>();
-  const openRing = (e: { clientX: number; clientY: number; target: EventTarget | null; preventDefault(): void; stopPropagation(): void; shiftKey?: boolean }) =>
-    ringMenu.open(e as React.MouseEvent, undefined, { force: true });
+  const openRing = (e: {
+    clientX: number;
+    clientY: number;
+    target: EventTarget | null;
+    preventDefault(): void;
+    stopPropagation(): void;
+    shiftKey?: boolean;
+  }) => ringMenu.open(e as React.MouseEvent, undefined, { force: true });
   // A long press opens the ring menu; the click it ends in is spent, so it
   // does not toggle the talk the press was meant to avoid.
-  const longPress = useLongPress((at: { clientX: number; clientY: number; target: EventTarget | null }) =>
-    openRing({ ...at, preventDefault() {}, stopPropagation() {} }),
+  const longPress = useLongPress(
+    (at: { clientX: number; clientY: number; target: EventTarget | null }) =>
+      openRing({ ...at, preventDefault() {}, stopPropagation() {} }),
   );
   const cancelLongPress = longPress.cancel;
   // What a screen reader is told lives in walkieKeyName, beside the state
@@ -86,90 +92,115 @@ export function WalkiePttButton({
   // The ring only draws while this key's own mic is open, so a key on some
   // other surface is not paying for a subscription it never shows.
   const ref = useWalkieLevelVar<HTMLButtonElement>(state === "live");
-  const name = walkieKeyName(state, { reason: ptt.reason, live: ptt.live, label, title });
+  const name = walkieKeyName(state, {
+    reason: ptt.reason,
+    live: ptt.live,
+    label,
+    title,
+  });
   const toggle = talkToggleProps(ptt);
   const ringReason = ring ? walkieJoinReason(roomKey) : null;
-  const ringWord = ring && ring.toUserIds.length > 1 ? "Ring everyone" : "Ring them";
+  const ringWord =
+    ring && ring.toUserIds.length > 1 ? "Ring everyone" : "Ring them";
   const idleTitle = title ?? "Talk — click to start, click again to stop";
   return (
     <>
-    <button
-      ref={ref}
-      type="button"
-      className={`walkie-ptt walkie-key walkie-key-${size} ${label ? "walkie-key-wide" : ""} ${className ?? ""} ${
-        ptt.capturing ? "walkie-ptt-on" : ""
-      } ${opening ? "walkie-ptt-opening" : ""} ${ptt.dropped ? "walkie-ptt-dropped" : ""} ${
-        state === "locked" ? "walkie-ptt-locked" : ""
-      }`}
-      disabled={!!ptt.reason}
-      data-walkie-ptt={roomKey ?? ""}
-      data-walkie-state={state}
-      aria-label={name}
-      aria-pressed={ptt.holding}
-      title={ptt.reason ?? (state === "idle" ? (ring ? `${idleTitle}. Right click to ring` : idleTitle) : name)}
-      {...toggle}
-      onClick={(e) => {
-        if (longPress.takeSpent()) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
+      <button
+        ref={ref}
+        type="button"
+        className={`walkie-ptt walkie-key walkie-key-${size} ${label ? "walkie-key-wide" : ""} ${className ?? ""} ${
+          ptt.capturing ? "walkie-ptt-on" : ""
+        } ${opening ? "walkie-ptt-opening" : ""} ${ptt.dropped ? "walkie-ptt-dropped" : ""} ${
+          state === "locked" ? "walkie-ptt-locked" : ""
+        }`}
+        disabled={!!ptt.reason}
+        data-walkie-ptt={roomKey ?? ""}
+        data-walkie-state={state}
+        aria-label={name}
+        aria-pressed={ptt.holding}
+        title={
+          ptt.reason ??
+          (state === "idle"
+            ? ring
+              ? `${idleTitle}. Right click to ring`
+              : idleTitle
+            : name)
         }
-        toggle.onClick(e);
-      }}
-      onContextMenu={ring ? (e) => openRing(e) : undefined}
-      onPointerDown={
-        ring
-          ? (e) => {
-              if (e.button !== 0) return;
-              longPress.start({ clientX: e.clientX, clientY: e.clientY, target: e.target });
-            }
-          : undefined
-      }
-      onPointerUp={ring ? cancelLongPress : undefined}
-      onPointerLeave={ring ? cancelLongPress : undefined}
-      onPointerCancel={ring ? cancelLongPress : undefined}
-    >
-      <span className="walkie-key-ring" aria-hidden="true" />
-      <Icon className="walkie-key-glyph" aria-hidden="true" />
-      {/* Filled once the track has reached the room and a teammate at their desk
+        {...toggle}
+        onClick={(e) => {
+          if (longPress.takeSpent()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          toggle.onClick(e);
+        }}
+        onContextMenu={ring ? (e) => openRing(e) : undefined}
+        onPointerDown={
+          ring
+            ? (e) => {
+                if (e.button !== 0) return;
+                longPress.start({
+                  clientX: e.clientX,
+                  clientY: e.clientY,
+                  target: e.target,
+                });
+              }
+            : undefined
+        }
+        onPointerUp={ring ? cancelLongPress : undefined}
+        onPointerLeave={ring ? cancelLongPress : undefined}
+        onPointerCancel={ring ? cancelLongPress : undefined}
+      >
+        <span className="walkie-key-ring" aria-hidden="true" />
+        <Icon className="walkie-key-glyph" aria-hidden="true" />
+        {/* Filled once the track has reached the room and a teammate at their desk
           is hearing this as it is spoken; hollow while it is only being kept.
           Both are true states of a working burst, so neither is a warning — the
           difference is between "live" and "recorded", which is exactly the
           difference a radio's own light makes. */}
-      {state === "live" && (
-        <span
-          className={`walkie-key-heard ${ptt.live ? "walkie-key-heard-on" : ""}`}
-          aria-hidden="true"
-        />
-      )}
-      {label && (
-        <span className="walkie-key-label">
-          {state === "dropped"
-            ? "Stop"
-            : state === "opening"
-              ? "Opening"
-              : state === "live"
-                ? "Stop"
-                : state === "locked"
-                  ? "On the line"
-                  : label}
-        </span>
-      )}
-    </button>
-    {ring && (
-      <ContextMenu state={ringMenu}>
-        {() => (
-          <CtxItem
-            icon={Headphones}
-            disabled={!!ringReason || ring.toUserIds.length === 0}
-            title={ringReason ?? undefined}
-            onSelect={() => requestHuddleStart({ roomKey: roomKey!, toUserIds: ring.toUserIds, anchorTitle: ring.anchorTitle })}
-          >
-            {ringReason ? `${ringWord} — ${ringReason.toLowerCase()}` : `${ringWord} and start a huddle`}
-          </CtxItem>
+        {state === "live" && (
+          <span
+            className={`walkie-key-heard ${ptt.live ? "walkie-key-heard-on" : ""}`}
+            aria-hidden="true"
+          />
         )}
-      </ContextMenu>
-    )}
+        {label && (
+          <span className="walkie-key-label">
+            {state === "dropped"
+              ? "Stop"
+              : state === "opening"
+                ? "Opening"
+                : state === "live"
+                  ? "Stop"
+                  : state === "locked"
+                    ? "On the line"
+                    : label}
+          </span>
+        )}
+      </button>
+      {ring && (
+        <ContextMenu state={ringMenu}>
+          {() => (
+            <CtxItem
+              icon={Headphones}
+              disabled={!!ringReason || ring.toUserIds.length === 0}
+              title={ringReason ?? undefined}
+              onSelect={() =>
+                requestHuddleStart({
+                  roomKey: roomKey!,
+                  toUserIds: ring.toUserIds,
+                  anchorTitle: ring.anchorTitle,
+                })
+              }
+            >
+              {ringReason
+                ? `${ringWord} — ${ringReason.toLowerCase()}`
+                : `${ringWord} and start a huddle`}
+            </CtxItem>
+          )}
+        </ContextMenu>
+      )}
     </>
   );
 }
@@ -189,10 +220,20 @@ export function WalkiePttButton({
  * is the only thing that differs between the sending meter and the receiving
  * one — which is why they are one component and not two.
  */
-export function WalkieLevelBars({ identity, tone }: { identity?: string; tone: "tx" | "rx" }) {
+export function WalkieLevelBars({
+  identity,
+  tone,
+}: {
+  identity?: string;
+  tone: "tx" | "rx";
+}) {
   const ref = useWalkieLevelVar<HTMLSpanElement>(true, identity);
   return (
-    <span ref={ref} className={`walkie-level walkie-level-${tone}`} aria-hidden="true">
+    <span
+      ref={ref}
+      className={`walkie-level walkie-level-${tone}`}
+      aria-hidden="true"
+    >
       {/* Each bar's own multiplier, so the cluster has the shape of a meter
           rather than four columns moving as one. */}
       {[0.55, 1, 0.75, 0.4].map((b, i) => (

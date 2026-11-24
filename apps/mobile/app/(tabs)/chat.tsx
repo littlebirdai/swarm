@@ -1,29 +1,60 @@
-import { StyleSheet, TouchableOpacity, View as RNView, useWindowDimensions } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View as RNView,
+  useWindowDimensions,
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
 // Tab addresses reach the router through goToTab only (lib/tabNavigation.guard.test.ts).
-import { goToTab } from '@/lib/tabNavigation';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { teamFeatureEnabled } from '@codecast/shared/contracts';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { ChatHomeList } from '@/components/chat/ChannelList';
-import { TeamActivityList } from '@/components/team/TeamActivityList';
-import { useCallsOn, useLiveRooms } from '@/components/calls/LiveRooms';
-import { useActiveTeam, useSwitchActiveTeam } from '@/hooks/useWorkspaceArgs';
-import { getCallSnapshot, subscribeCall } from '@/lib/calls/callManager';
-import { showActionSheet } from '@/lib/popups';
-import { teamMembersOf } from '@codecast/web/lib/activeTeam';
+import { goToTab } from "@/lib/tabNavigation";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { teamFeatureEnabled } from "@codecast/shared/contracts";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { ChatHomeList } from "@/components/chat/ChannelList";
+import { TeamActivityList } from "@/components/team/TeamActivityList";
+import { useCallsOn, useLiveRooms } from "@/components/calls/LiveRooms";
+import { useActiveTeam, useSwitchActiveTeam } from "@/hooks/useWorkspaceArgs";
+import { getCallSnapshot, subscribeCall } from "@/lib/calls/callManager";
+import { showActionSheet } from "@/lib/popups";
+import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 const TEAM_ICON_EMOJI: Record<string, string> = {
-  rocket: '🚀', flame: '🔥', zap: '⚡', star: '⭐', diamond: '💎', crown: '👑',
-  shield: '🛡️', sword: '⚔️', anchor: '⚓', compass: '🧭', mountain: '⛰️', tree: '🌲',
-  sun: '☀️', moon: '🌙', cloud: '☁️', bolt: '🔩', atom: '⚛️', dna: '🧬',
-  hexagon: '⬡', triangle: '🔺', cube: '🧊', sphere: '🔵', infinity: '♾️', omega: 'Ω',
+  rocket: "🚀",
+  flame: "🔥",
+  zap: "⚡",
+  star: "⭐",
+  diamond: "💎",
+  crown: "👑",
+  shield: "🛡️",
+  sword: "⚔️",
+  anchor: "⚓",
+  compass: "🧭",
+  mountain: "⛰️",
+  tree: "🌲",
+  sun: "☀️",
+  moon: "🌙",
+  cloud: "☁️",
+  bolt: "🔩",
+  atom: "⚛️",
+  dna: "🧬",
+  hexagon: "⬡",
+  triangle: "🔺",
+  cube: "🧊",
+  sphere: "🔵",
+  infinity: "♾️",
+  omega: "Ω",
 };
 
 // The Chat tab: the team talking, top level. Live huddles at the top so a
@@ -32,10 +63,10 @@ const TEAM_ICON_EMOJI: Record<string, string> = {
 // because chat and calls are per-team rooms. The Activity segment is the
 // team's sessions, the web's team Activity page.
 
-type Segment = 'chat' | 'activity';
+type Segment = "chat" | "activity";
 const SEGMENTS: { key: Segment; label: string }[] = [
-  { key: 'chat', label: 'Chat' },
-  { key: 'activity', label: 'Activity' },
+  { key: "chat", label: "Chat" },
+  { key: "activity", label: "Activity" },
 ];
 
 export default function ChatScreen() {
@@ -48,36 +79,49 @@ export default function ChatScreen() {
   const currentUser = useInboxStore((s) => s.currentUser) as any;
   const { teamId: activeTeamId, activeTeam, validTeams } = useActiveTeam();
   const switchTeam = useSwitchActiveTeam();
-  const teamName = activeTeam?.name || 'Team';
+  const teamName = activeTeam?.name || "Team";
   // A link can name the segment (`/team/activity` routes to ?segment=activity).
   const linked = useLocalSearchParams<{ segment?: string }>().segment;
-  const [segment, setSegment] = useState<Segment>(linked === 'activity' ? 'activity' : 'chat');
+  const [segment, setSegment] = useState<Segment>(
+    linked === "activity" ? "activity" : "chat",
+  );
   useEffect(() => {
-    if (linked === 'activity' || linked === 'chat') setSegment(linked);
+    if (linked === "activity" || linked === "chat") setSegment(linked);
   }, [linked]);
 
   // Chat and calls are per-team opt-ins (default off).
-  const chatOn = teamFeatureEnabled(activeTeam as any, 'chat');
+  const chatOn = teamFeatureEnabled(activeTeam as any, "chat");
   const callsOn = useCallsOn();
 
   const teamMembers = useInboxStore(teamMembersOf) as any[];
-  const members = useMemo(() => (teamMembers ?? []).filter(Boolean), [teamMembers]);
-  const myRoomKey = useSyncExternalStore(subscribeCall, () => getCallSnapshot().roomKey, () => null);
+  const members = useMemo(
+    () => (teamMembers ?? []).filter(Boolean),
+    [teamMembers],
+  );
+  const myRoomKey = useSyncExternalStore(
+    subscribeCall,
+    () => getCallSnapshot().roomKey,
+    () => null,
+  );
   const liveRooms = useLiveRooms(callsOn);
 
   const showTeamPicker = useCallback(() => {
     if (validTeams.length <= 1) return;
     void Haptics.selectionAsync();
-    showActionSheet('Switch team', validTeams.map((t) => ({
-      label: `${TEAM_ICON_EMOJI[t.icon || ''] || t.icon || ''} ${t.name}`.trim(),
-      selected: t._id === activeTeamId,
-      onPress: () => switchTeam(t._id),
-    })));
+    showActionSheet(
+      "Switch team",
+      validTeams.map((t) => ({
+        label:
+          `${TEAM_ICON_EMOJI[t.icon || ""] || t.icon || ""} ${t.name}`.trim(),
+        selected: t._id === activeTeamId,
+        onPress: () => switchTeam(t._id),
+      })),
+    );
   }, [validTeams, switchTeam, activeTeamId]);
 
   if (currentUser?._id && !activeTeamId) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <RNView style={styles.header}>
           <RNText style={styles.headerTitle}>Chat</RNText>
         </RNView>
@@ -85,9 +129,14 @@ export default function ChatScreen() {
           <FontAwesome name="comments-o" size={30} color={Theme.textMuted0} />
           <RNText style={styles.emptyTitle}>No team yet</RNText>
           <RNText style={styles.emptySubtitle}>
-            Chat and huddles are team rooms. Join or create a team in Settings and they appear here.
+            Chat and huddles are team rooms. Join or create a team in Settings
+            and they appear here.
           </RNText>
-          <TouchableOpacity style={styles.emptyBtn} onPress={() => goToTab(router, '/(tabs)/settings')} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => goToTab(router, "/(tabs)/settings")}
+            activeOpacity={0.7}
+          >
             <RNText style={styles.emptyBtnText}>Open Settings</RNText>
           </TouchableOpacity>
         </RNView>
@@ -96,32 +145,56 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <RNView style={[styles.header, activeTeamId ? { borderBottomWidth: 0 } : null]}>
-        <RNText style={styles.headerTitle}>{segment === 'activity' ? 'Activity' : 'Chat'}</RNText>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <RNView
+        style={[styles.header, activeTeamId ? { borderBottomWidth: 0 } : null]}
+      >
+        <RNText style={styles.headerTitle}>
+          {segment === "activity" ? "Activity" : "Chat"}
+        </RNText>
         {activeTeam && (
           <TouchableOpacity
             style={styles.teamPill}
             onPress={showTeamPicker}
             activeOpacity={validTeams.length > 1 ? 0.7 : 1}
-            accessibilityLabel={validTeams.length > 1 ? `Team: ${teamName}. Switch team` : `Team: ${teamName}`}
+            accessibilityLabel={
+              validTeams.length > 1
+                ? `Team: ${teamName}. Switch team`
+                : `Team: ${teamName}`
+            }
           >
             {activeTeam.icon ? (
-              <RNText style={styles.teamIcon}>{TEAM_ICON_EMOJI[activeTeam.icon] ?? activeTeam.icon}</RNText>
+              <RNText style={styles.teamIcon}>
+                {TEAM_ICON_EMOJI[activeTeam.icon] ?? activeTeam.icon}
+              </RNText>
             ) : (
               <FontAwesome name="users" size={11} color={Theme.textMuted} />
             )}
-            <RNText style={[styles.teamName, { maxWidth: Math.max(80, width - 250) }]} numberOfLines={1}>{teamName}</RNText>
-            {validTeams.length > 1 && <FontAwesome name="angle-down" size={14} color={Theme.textMuted} />}
+            <RNText
+              style={[styles.teamName, { maxWidth: Math.max(80, width - 250) }]}
+              numberOfLines={1}
+            >
+              {teamName}
+            </RNText>
+            {validTeams.length > 1 && (
+              <FontAwesome
+                name="angle-down"
+                size={14}
+                color={Theme.textMuted}
+              />
+            )}
           </TouchableOpacity>
         )}
         <RNView style={{ flex: 1 }} />
-        {segment === 'chat' && callsOn && (
+        {segment === "chat" && callsOn && (
           <TouchableOpacity
             style={[styles.iconBtn, styles.iconBtnHuddle]}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/chat/new', params: { huddle: '1' } } as never);
+              router.push({
+                pathname: "/chat/new",
+                params: { huddle: "1" },
+              } as never);
             }}
             activeOpacity={0.7}
             accessibilityLabel="Start a huddle"
@@ -129,12 +202,12 @@ export default function ChatScreen() {
             <Ionicons name="headset" size={19} color={Theme.violet} />
           </TouchableOpacity>
         )}
-        {segment === 'chat' && chatOn && (
+        {segment === "chat" && chatOn && (
           <TouchableOpacity
             style={[styles.iconBtn, styles.iconBtnCompose]}
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/chat/new' as never);
+              router.push("/chat/new" as never);
             }}
             activeOpacity={0.7}
             accessibilityLabel="New message"
@@ -150,7 +223,10 @@ export default function ChatScreen() {
             {SEGMENTS.map((s) => (
               <TouchableOpacity
                 key={s.key}
-                style={[styles.segmentBtn, segment === s.key && styles.segmentBtnActive]}
+                style={[
+                  styles.segmentBtn,
+                  segment === s.key && styles.segmentBtnActive,
+                ]}
                 onPress={() => {
                   void Haptics.selectionAsync();
                   setSegment(s.key);
@@ -160,14 +236,21 @@ export default function ChatScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: segment === s.key }}
               >
-                <RNText style={[styles.segmentText, segment === s.key && styles.segmentTextActive]}>{s.label}</RNText>
+                <RNText
+                  style={[
+                    styles.segmentText,
+                    segment === s.key && styles.segmentTextActive,
+                  ]}
+                >
+                  {s.label}
+                </RNText>
               </TouchableOpacity>
             ))}
           </RNView>
         </RNView>
       ) : null}
 
-      {activeTeamId && segment === 'activity' ? (
+      {activeTeamId && segment === "activity" ? (
         <TeamActivityList teamName={teamName} />
       ) : activeTeamId ? (
         <ChatHomeList
@@ -184,104 +267,106 @@ export default function ChatScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Theme.bg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '80',
-    gap: 10,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Theme.text,
-  },
-  segmentBar: {
-    backgroundColor: Theme.bg,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '80',
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border,
-    borderRadius: 10,
-    padding: 3,
-  },
-  segmentBtn: {
-    flex: 1,
-    height: 34,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentBtnActive: {
-    backgroundColor: Theme.bgHighlight,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  segmentText: { fontSize: 13.5, fontWeight: '600', color: Theme.textMuted },
-  segmentTextActive: { color: Theme.text },
-  teamPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: Theme.bgHighlight,
-  },
-  teamIcon: { fontSize: 14 },
-  teamName: { fontSize: 13.5, fontWeight: '600', color: Theme.textSecondary },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtnHuddle: { backgroundColor: Theme.violet + '18' },
-  iconBtnCompose: { backgroundColor: Theme.blue + '18' },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Theme.text,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Theme.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  emptyBtn: {
-    marginTop: 4,
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: Theme.blue,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyBtnText: { fontSize: 13, fontWeight: '700', color: Theme.bg },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Theme.bg,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.sm,
+      backgroundColor: Theme.bg,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "80",
+      gap: 10,
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: "700",
+      color: Theme.text,
+    },
+    segmentBar: {
+      backgroundColor: Theme.bg,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "80",
+    },
+    segmentContainer: {
+      flexDirection: "row",
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border,
+      borderRadius: 10,
+      padding: 3,
+    },
+    segmentBtn: {
+      flex: 1,
+      height: 34,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    segmentBtnActive: {
+      backgroundColor: Theme.bgHighlight,
+      shadowColor: "#000",
+      shadowOpacity: 0.12,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+    },
+    segmentText: { fontSize: 13.5, fontWeight: "600", color: Theme.textMuted },
+    segmentTextActive: { color: Theme.text },
+    teamPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: Theme.bgHighlight,
+    },
+    teamIcon: { fontSize: 14 },
+    teamName: { fontSize: 13.5, fontWeight: "600", color: Theme.textSecondary },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconBtnHuddle: { backgroundColor: Theme.violet + "18" },
+    iconBtnCompose: { backgroundColor: Theme.blue + "18" },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 32,
+      gap: 12,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: Theme.text,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: Theme.textMuted,
+      textAlign: "center",
+      lineHeight: 20,
+    },
+    emptyBtn: {
+      marginTop: 4,
+      height: 36,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+      backgroundColor: Theme.blue,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyBtnText: { fontSize: 13, fontWeight: "700", color: Theme.bg },
+  }),
+);

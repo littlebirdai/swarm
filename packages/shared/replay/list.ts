@@ -8,7 +8,14 @@ import { replayCutAt, type ReplayEvent } from "../contracts/replay";
 import { isFailure } from "./events";
 import { RAGE_CLICK_COUNT, RAGE_CLICK_MS } from "./issues";
 
-export const REPLAY_SORTS = ["newest", "oldest", "longest", "shortest", "errors", "clicks"] as const;
+export const REPLAY_SORTS = [
+  "newest",
+  "oldest",
+  "longest",
+  "shortest",
+  "errors",
+  "clicks",
+] as const;
 
 /**
  * How many of a scope's newest recordings a browse reads (replays.browse). A
@@ -35,7 +42,13 @@ export type ReplayDate = (typeof REPLAY_DATES)[number];
 export const REPLAY_ACTIVE = ["any", "5s", "30s", "1m", "5m"] as const;
 export type ReplayActive = (typeof REPLAY_ACTIVE)[number];
 export const REPLAY_ACTIVE_DEFAULT: ReplayActive = "5s";
-const ACTIVE_MS: Record<ReplayActive, number> = { any: 0, "5s": 5_000, "30s": 30_000, "1m": 60_000, "5m": 5 * 60_000 };
+const ACTIVE_MS: Record<ReplayActive, number> = {
+  any: 0,
+  "5s": 5_000,
+  "30s": 30_000,
+  "1m": 60_000,
+  "5m": 5 * 60_000,
+};
 
 /** A filter as a person sets it (and the URL carries it). */
 export interface ReplayListFilter {
@@ -89,18 +102,28 @@ export interface ReplayMatch {
  * every path it visited (shape.paths). Plain text matches anywhere, any case;
  * with `*` it is a glob over the whole URL or path: a star on each side of /book/intro/ finds that page anywhere.
  */
-export function replayUrlMatches(row: Pick<ReplayListRow, "url" | "shape">, pattern: string): boolean {
+export function replayUrlMatches(
+  row: Pick<ReplayListRow, "url" | "shape">,
+  pattern: string,
+): boolean {
   const p = pattern.trim().toLowerCase();
   if (!p) return true;
-  const urls = [row.url, ...(row.shape?.paths ?? [])].filter((u): u is string => !!u).map((u) => u.toLowerCase());
+  const urls = [row.url, ...(row.shape?.paths ?? [])]
+    .filter((u): u is string => !!u)
+    .map((u) => u.toLowerCase());
   if (!p.includes("*")) return urls.some((u) => u.includes(p));
-  const escaped = p.split("*").map((part) => part.replace(/[.+?^$()|[\]{}\\]/g, "\\$&"));
+  const escaped = p
+    .split("*")
+    .map((part) => part.replace(/[.+?^$()|[\]{}\\]/g, "\\$&"));
   const re = new RegExp(`^${escaped.join(".*")}$`);
   return urls.some((u) => re.test(u));
 }
 
 /** Whether a recording is of `who`: their email in any case, or the vendor's id for them. */
-export function replayUserMatches(user: ReplayListRow["user"], who: string): boolean {
+export function replayUserMatches(
+  user: ReplayListRow["user"],
+  who: string,
+): boolean {
   const w = who.trim();
   if (!w || !user) return false;
   return user.email?.trim().toLowerCase() === w.toLowerCase() || user.id === w;
@@ -157,7 +180,10 @@ const SHAPE_PATH_CHARS = 80;
 /** A URL's path, without its query or hash, held to SHAPE_PATH_CHARS. */
 function pathPart(url: string): string {
   try {
-    return new URL(url, "https://x.invalid").pathname.slice(0, SHAPE_PATH_CHARS);
+    return new URL(url, "https://x.invalid").pathname.slice(
+      0,
+      SHAPE_PATH_CHARS,
+    );
   } catch {
     return url.split(/[?#]/)[0].slice(0, SHAPE_PATH_CHARS);
   }
@@ -188,36 +214,58 @@ export interface ReplayListRow {
  * Rage clicks: the more of the stream's count and the vendor's (an import cut
  * at a size cap misses what the vendor saw later); undefined when neither knows.
  */
-export function rageClicksOf(row: Pick<ReplayListRow, "shape" | "facts">): number | undefined {
+export function rageClicksOf(
+  row: Pick<ReplayListRow, "shape" | "facts">,
+): number | undefined {
   const own = row.shape?.rage_clicks;
   const theirs = row.facts?.rage_clicks;
-  return own === undefined ? theirs : theirs === undefined ? own : Math.max(own, theirs);
+  return own === undefined
+    ? theirs
+    : theirs === undefined
+      ? own
+      : Math.max(own, theirs);
 }
 
 /** Active time: the vendor's, measured over the whole recording, else the stream's. */
-export function activeMsOf(row: Pick<ReplayListRow, "shape" | "facts">): number | undefined {
+export function activeMsOf(
+  row: Pick<ReplayListRow, "shape" | "facts">,
+): number | undefined {
   return row.facts?.active_ms ?? row.shape?.active_ms;
 }
 
 const DAY = 86_400_000;
 
-export function durationRange(d: ReplayDuration | undefined): { min_ms?: number; max_ms?: number } {
+export function durationRange(d: ReplayDuration | undefined): {
+  min_ms?: number;
+  max_ms?: number;
+} {
   switch (d) {
-    case "lt30s": return { max_ms: 30_000 };
-    case "gt1m": return { min_ms: 60_000 };
-    case "gt5m": return { min_ms: 5 * 60_000 };
-    case "gt30m": return { min_ms: 30 * 60_000 };
-    default: return {};
+    case "lt30s":
+      return { max_ms: 30_000 };
+    case "gt1m":
+      return { min_ms: 60_000 };
+    case "gt5m":
+      return { min_ms: 5 * 60_000 };
+    case "gt30m":
+      return { min_ms: 30 * 60_000 };
+    default:
+      return {};
   }
 }
 
 /** The instant a date filter starts at. `now` should be coarse (an hour) so a query's args stay put. */
-export function dateSince(d: ReplayDate | undefined, now: number): number | undefined {
+export function dateSince(
+  d: ReplayDate | undefined,
+  now: number,
+): number | undefined {
   if (!d) return undefined;
   return now - (d === "24h" ? DAY : d === "7d" ? 7 * DAY : 30 * DAY);
 }
 
-export function resolveReplayFilter(f: ReplayListFilter, now: number): ReplayMatch {
+export function resolveReplayFilter(
+  f: ReplayListFilter,
+  now: number,
+): ReplayMatch {
   const q = f.q?.trim().toLowerCase();
   const since = dateSince(f.date, now);
   return {
@@ -225,10 +273,14 @@ export function resolveReplayFilter(f: ReplayListFilter, now: number): ReplayMat
     ...(f.person ? { person: f.person } : {}),
     ...(f.has?.length ? { has: [...f.has] } : {}),
     ...durationRange(f.dur),
-    ...(ACTIVE_MS[f.active ?? REPLAY_ACTIVE_DEFAULT] ? { active_min_ms: ACTIVE_MS[f.active ?? REPLAY_ACTIVE_DEFAULT] } : {}),
+    ...(ACTIVE_MS[f.active ?? REPLAY_ACTIVE_DEFAULT]
+      ? { active_min_ms: ACTIVE_MS[f.active ?? REPLAY_ACTIVE_DEFAULT] }
+      : {}),
     ...(f.group_id ? { group: f.group_id } : {}),
     ...(since !== undefined ? { since } : {}),
-    ...Object.fromEntries(REPLAY_ENV_KEYS.filter((k) => f[k]).map((k) => [k, f[k]])),
+    ...Object.fromEntries(
+      REPLAY_ENV_KEYS.filter((k) => f[k]).map((k) => [k, f[k]]),
+    ),
   };
 }
 
@@ -241,8 +293,82 @@ export function personKey(user: ReplayListRow["user"]): string | null {
   return user.email?.trim().toLowerCase() || user.id || user.name || null;
 }
 
-const HANDLE_ADJ = ["Amber", "Brisk", "Calm", "Clever", "Coral", "Cosmic", "Daring", "Dusky", "Eager", "Fern", "Gentle", "Golden", "Hazel", "Humble", "Indigo", "Jolly", "Keen", "Lively", "Lucky", "Mellow", "Misty", "Nimble", "Olive", "Plucky", "Quiet", "Rapid", "Rusty", "Sandy", "Silver", "Snowy", "Steady", "Sunny", "Swift", "Tidy", "Vivid", "Witty"] as const;
-const HANDLE_ANIMAL = ["Badger", "Bison", "Crane", "Dingo", "Falcon", "Ferret", "Finch", "Gecko", "Heron", "Ibis", "Jackal", "Koala", "Lemur", "Lynx", "Marten", "Moose", "Newt", "Ocelot", "Otter", "Panda", "Puffin", "Quail", "Raven", "Seal", "Shrew", "Stoat", "Tapir", "Toucan", "Vole", "Walrus", "Wombat", "Yak", "Zebra", "Bobcat", "Egret", "Hare"] as const;
+const HANDLE_ADJ = [
+  "Amber",
+  "Brisk",
+  "Calm",
+  "Clever",
+  "Coral",
+  "Cosmic",
+  "Daring",
+  "Dusky",
+  "Eager",
+  "Fern",
+  "Gentle",
+  "Golden",
+  "Hazel",
+  "Humble",
+  "Indigo",
+  "Jolly",
+  "Keen",
+  "Lively",
+  "Lucky",
+  "Mellow",
+  "Misty",
+  "Nimble",
+  "Olive",
+  "Plucky",
+  "Quiet",
+  "Rapid",
+  "Rusty",
+  "Sandy",
+  "Silver",
+  "Snowy",
+  "Steady",
+  "Sunny",
+  "Swift",
+  "Tidy",
+  "Vivid",
+  "Witty",
+] as const;
+const HANDLE_ANIMAL = [
+  "Badger",
+  "Bison",
+  "Crane",
+  "Dingo",
+  "Falcon",
+  "Ferret",
+  "Finch",
+  "Gecko",
+  "Heron",
+  "Ibis",
+  "Jackal",
+  "Koala",
+  "Lemur",
+  "Lynx",
+  "Marten",
+  "Moose",
+  "Newt",
+  "Ocelot",
+  "Otter",
+  "Panda",
+  "Puffin",
+  "Quail",
+  "Raven",
+  "Seal",
+  "Shrew",
+  "Stoat",
+  "Tapir",
+  "Toucan",
+  "Vole",
+  "Walrus",
+  "Wombat",
+  "Yak",
+  "Zebra",
+  "Bobcat",
+  "Egret",
+  "Hare",
+] as const;
 
 /**
  * A stable, readable name for someone known only by an id ("Quiet Otter ·3f2"):
@@ -289,7 +415,10 @@ export const REPLAY_ACTIVE_DEFAULT_MS = ACTIVE_MS[REPLAY_ACTIVE_DEFAULT];
  * hides tabs left open, never a recording an issue points at, and never one
  * whose active time nobody knows yet.
  */
-export function belowActiveFloor(row: Pick<ReplayListRow, "shape" | "facts" | "group_ids">, minMs: number): boolean {
+export function belowActiveFloor(
+  row: Pick<ReplayListRow, "shape" | "facts" | "group_ids">,
+  minMs: number,
+): boolean {
   if (!minMs || row.group_ids?.length) return false;
   const active = activeMsOf(row);
   return active !== undefined && active < minMs;
@@ -303,7 +432,15 @@ export function replayMatches(row: ReplayListRow, m: ReplayMatch): boolean {
   if (m.until !== undefined && row.started_at >= m.until) return false;
   if (m.url && !replayUrlMatches(row, m.url)) return false;
   if (m.user && !replayUserMatches(row.user, m.user)) return false;
-  if (m.failing && !(row.counts.errors > 0 || row.counts.failed_requests > 0 || (row.facts?.console_errors ?? 0) > 0)) return false;
+  if (
+    m.failing &&
+    !(
+      row.counts.errors > 0 ||
+      row.counts.failed_requests > 0 ||
+      (row.facts?.console_errors ?? 0) > 0
+    )
+  )
+    return false;
   if (m.person && personKey(row.user) !== m.person) return false;
   if (m.min_ms !== undefined || m.max_ms !== undefined) {
     // An unknown length matches no length filter: nothing says it is short or long.
@@ -317,32 +454,67 @@ export function replayMatches(row: ReplayListRow, m: ReplayMatch): boolean {
     if (h === "errors" && !(row.counts.errors > 0)) return false;
     if (h === "failed" && !(row.counts.failed_requests > 0)) return false;
     if (h === "rage" && !((rageClicksOf(row) ?? 0) > 0)) return false;
-    if (h === "partial" && replayCutAt(row.captured_ms, row.duration_ms) === null) return false;
+    if (
+      h === "partial" &&
+      replayCutAt(row.captured_ms, row.duration_ms) === null
+    )
+      return false;
   }
-  for (const k of REPLAY_ENV_KEYS) if (m[k] && row.facts?.[k] !== m[k]) return false;
+  for (const k of REPLAY_ENV_KEYS)
+    if (m[k] && row.facts?.[k] !== m[k]) return false;
   if (m.q) {
     // The pages visited and the requests that failed are searched too: "/billing", "post /api/claim".
-    const hay = [row.short_id, row.url, row.user?.email, row.user?.name, row.user?.id, row.user?.id && isAnonymous(row.user) ? anonHandle(row.user.id) : null, ...(row.shape?.paths ?? []), ...(row.shape?.endpoints ?? [])].filter(Boolean).join(" ").toLowerCase();
+    const hay = [
+      row.short_id,
+      row.url,
+      row.user?.email,
+      row.user?.name,
+      row.user?.id,
+      row.user?.id && isAnonymous(row.user) ? anonHandle(row.user.id) : null,
+      ...(row.shape?.paths ?? []),
+      ...(row.shape?.endpoints ?? []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
     if (!hay.includes(m.q)) return false;
   }
   return true;
 }
 
 /** The order a sort puts rows in. Unknown lengths sort last by length; ties go newest first. */
-export function compareReplays(sort: ReplaySort = "newest"): (a: ReplayListRow, b: ReplayListRow) => number {
-  const newest = (a: ReplayListRow, b: ReplayListRow) => b.started_at - a.started_at;
+export function compareReplays(
+  sort: ReplaySort = "newest",
+): (a: ReplayListRow, b: ReplayListRow) => number {
+  const newest = (a: ReplayListRow, b: ReplayListRow) =>
+    b.started_at - a.started_at;
   switch (sort) {
-    case "oldest": return (a, b) => a.started_at - b.started_at;
-    case "longest": return (a, b) => (b.duration_ms ?? -1) - (a.duration_ms ?? -1) || newest(a, b);
-    case "shortest": return (a, b) => (a.duration_ms ?? Infinity) - (b.duration_ms ?? Infinity) || newest(a, b);
-    case "errors": return (a, b) => (b.counts.errors + b.counts.failed_requests) - (a.counts.errors + a.counts.failed_requests) || newest(a, b);
-    case "clicks": return (a, b) => b.counts.clicks - a.counts.clicks || newest(a, b);
-    default: return newest;
+    case "oldest":
+      return (a, b) => a.started_at - b.started_at;
+    case "longest":
+      return (a, b) =>
+        (b.duration_ms ?? -1) - (a.duration_ms ?? -1) || newest(a, b);
+    case "shortest":
+      return (a, b) =>
+        (a.duration_ms ?? Infinity) - (b.duration_ms ?? Infinity) ||
+        newest(a, b);
+    case "errors":
+      return (a, b) =>
+        b.counts.errors +
+          b.counts.failed_requests -
+          (a.counts.errors + a.counts.failed_requests) || newest(a, b);
+    case "clicks":
+      return (a, b) => b.counts.clicks - a.counts.clicks || newest(a, b);
+    default:
+      return newest;
   }
 }
 
 /** Each environment value among `rows` with how many recordings ran on it, most first: the toolbar's options. */
-export function replayFacets(rows: readonly ReplayListRow[], max = 40): Record<ReplayEnvKey, [string, number][]> {
+export function replayFacets(
+  rows: readonly ReplayListRow[],
+  max = 40,
+): Record<ReplayEnvKey, [string, number][]> {
   const out = {} as Record<ReplayEnvKey, [string, number][]>;
   for (const k of REPLAY_ENV_KEYS) {
     const by = new Map<string, number>();
@@ -350,7 +522,9 @@ export function replayFacets(rows: readonly ReplayListRow[], max = 40): Record<R
       const v = r.facts?.[k];
       if (v) by.set(v, (by.get(v) ?? 0) + 1);
     }
-    out[k] = [...by.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, max);
+    out[k] = [...by.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, max);
   }
   return out;
 }
@@ -371,7 +545,12 @@ export interface ReplayPerson {
   /** Where their newest recording ran (browser, OS, country): the other way an anonymous person is told apart. */
   env?: string | null;
   /** Where their newest recording ran, as the vendor names each part, for a list to name the way its rows do. */
-  where?: { browser?: string; os?: string; country?: string; device?: string } | null;
+  where?: {
+    browser?: string;
+    os?: string;
+    country?: string;
+    device?: string;
+  } | null;
   /** Their recordings the active-time floor hides, when the list counts them (the server's tallies). */
   short?: number;
   /** Their raw id when it is not their label (an anonymous person's distinct id). */
@@ -386,34 +565,68 @@ export function envLine(facts: ReplayFacts | null | undefined): string | null {
 }
 
 /** A recording's environment, as the vendor names each part; null when it said nothing. */
-export function whereOf(facts: ReplayFacts | null | undefined): ReplayPerson["where"] {
-  if (!facts || !(facts.browser || facts.os || facts.country || facts.device)) return null;
-  return { ...(facts.browser ? { browser: facts.browser } : {}), ...(facts.os ? { os: facts.os } : {}), ...(facts.country ? { country: facts.country } : {}), ...(facts.device ? { device: facts.device } : {}) };
+export function whereOf(
+  facts: ReplayFacts | null | undefined,
+): ReplayPerson["where"] {
+  if (!facts || !(facts.browser || facts.os || facts.country || facts.device))
+    return null;
+  return {
+    ...(facts.browser ? { browser: facts.browser } : {}),
+    ...(facts.os ? { os: facts.os } : {}),
+    ...(facts.country ? { country: facts.country } : {}),
+    ...(facts.device ? { device: facts.device } : {}),
+  };
 }
 
 /** The orders the grouped list sorts people in. */
-export const REPLAY_PEOPLE_SORTS = ["recent", "recordings", "failures", "time"] as const;
+export const REPLAY_PEOPLE_SORTS = [
+  "recent",
+  "recordings",
+  "failures",
+  "time",
+] as const;
 export type ReplayPeopleSort = (typeof REPLAY_PEOPLE_SORTS)[number];
 
 /** People in a sort's order; ties go to whoever was seen last. */
-export function sortPeople(people: ReplayPerson[], sort: ReplayPeopleSort = "recent"): ReplayPerson[] {
+export function sortPeople(
+  people: ReplayPerson[],
+  sort: ReplayPeopleSort = "recent",
+): ReplayPerson[] {
   const recent = (a: ReplayPerson, b: ReplayPerson) => b.last_at - a.last_at;
-  const by: Record<ReplayPeopleSort, (a: ReplayPerson, b: ReplayPerson) => number> = {
+  const by: Record<
+    ReplayPeopleSort,
+    (a: ReplayPerson, b: ReplayPerson) => number
+  > = {
     recent,
     recordings: (a, b) => b.sessions - a.sessions || recent(a, b),
-    failures: (a, b) => b.errors + b.failed - (a.errors + a.failed) || recent(a, b),
+    failures: (a, b) =>
+      b.errors + b.failed - (a.errors + a.failed) || recent(a, b),
     time: (a, b) => b.ms - a.ms || recent(a, b),
   };
   return [...people].sort(by[sort] ?? recent);
 }
 
 /** Group rows by person, people with the newest recording first. Rows with no person are left out. */
-export function replayPeople(rows: readonly ReplayListRow[], max = Infinity): ReplayPerson[] {
+export function replayPeople(
+  rows: readonly ReplayListRow[],
+  max = Infinity,
+): ReplayPerson[] {
   const by = new Map<string, ReplayPerson>();
   for (const r of rows) {
     const key = personKey(r.user);
     if (!key) continue;
-    const p = by.get(key) ?? { key, label: personLabel(r.user), anonymous: isAnonymous(r.user), sessions: 0, ms: 0, errors: 0, failed: 0, last_at: 0, url: null, env: null };
+    const p = by.get(key) ?? {
+      key,
+      label: personLabel(r.user),
+      anonymous: isAnonymous(r.user),
+      sessions: 0,
+      ms: 0,
+      errors: 0,
+      failed: 0,
+      last_at: 0,
+      url: null,
+      env: null,
+    };
     p.sessions++;
     p.ms += r.duration_ms ?? 0;
     p.errors += r.counts.errors;
@@ -433,7 +646,13 @@ export function replayPeople(rows: readonly ReplayListRow[], max = Infinity): Re
 
 /** Events that say the person or the page did something; a page outline is the recorder's own. */
 const isActivity = (e: ReplayEvent) => e.type !== "view";
-const isPersonActivity = (e: ReplayEvent) => e.type === "click" || e.type === "input" || e.type === "key" || e.type === "scroll" || e.type === "submit" || e.type === "nav";
+const isPersonActivity = (e: ReplayEvent) =>
+  e.type === "click" ||
+  e.type === "input" ||
+  e.type === "key" ||
+  e.type === "scroll" ||
+  e.type === "submit" ||
+  e.type === "nav";
 
 /**
  * The stretches where nothing happened for longer than `gap`, each trimmed by
@@ -441,22 +660,34 @@ const isPersonActivity = (e: ReplayEvent) => e.type === "click" || e.type === "i
  * clock's end, ms from its zero). The tail after the last event counts when
  * it is long enough.
  */
-export function idleRanges(events: readonly ReplayEvent[], length: number, gap = IDLE_GAP_MS): { from: number; to: number }[] {
+export function idleRanges(
+  events: readonly ReplayEvent[],
+  length: number,
+  gap = IDLE_GAP_MS,
+): { from: number; to: number }[] {
   const out: { from: number; to: number }[] = [];
   let prev: number | null = null;
   for (const e of events) {
     if (!isActivity(e)) continue;
-    if (prev !== null && e.t - prev > gap) out.push({ from: prev + IDLE_EDGE_MS, to: e.t - IDLE_EDGE_MS });
+    if (prev !== null && e.t - prev > gap)
+      out.push({ from: prev + IDLE_EDGE_MS, to: e.t - IDLE_EDGE_MS });
     prev = prev === null ? e.t : Math.max(prev, e.t);
   }
-  if (prev !== null && length - prev > gap) out.push({ from: prev + IDLE_EDGE_MS, to: length });
+  if (prev !== null && length - prev > gap)
+    out.push({ from: prev + IDLE_EDGE_MS, to: length });
   return out;
 }
 
 /** Bursts of RAGE_CLICK_COUNT or more clicks on one element inside RAGE_CLICK_MS: when each started and how many clicks it held. */
-export function rageBursts(events: readonly ReplayEvent[]): { t: number; selector: string; label: string; clicks: number }[] {
-  const out: { t: number; selector: string; label: string; clicks: number }[] = [];
-  const open = new Map<string, { t: number; last: number; clicks: number; label: string; counted: boolean }>();
+export function rageBursts(
+  events: readonly ReplayEvent[],
+): { t: number; selector: string; label: string; clicks: number }[] {
+  const out: { t: number; selector: string; label: string; clicks: number }[] =
+    [];
+  const open = new Map<
+    string,
+    { t: number; last: number; clicks: number; label: string; counted: boolean }
+  >();
   for (const e of events) {
     if (e.type !== "click") continue;
     const key = e.selector || e.label;
@@ -467,10 +698,22 @@ export function rageBursts(events: readonly ReplayEvent[]): { t: number; selecto
       if (cur.clicks >= RAGE_CLICK_COUNT) {
         if (!cur.counted) {
           cur.counted = true;
-          out.push({ t: cur.t, selector: e.selector, label: e.label, clicks: cur.clicks });
+          out.push({
+            t: cur.t,
+            selector: e.selector,
+            label: e.label,
+            clicks: cur.clicks,
+          });
         } else out[out.length - 1].clicks = cur.clicks;
       }
-    } else open.set(key, { t: e.t, last: e.t, clicks: 1, label: e.label, counted: false });
+    } else
+      open.set(key, {
+        t: e.t,
+        last: e.t,
+        clicks: 1,
+        label: e.label,
+        counted: false,
+      });
   }
   return out;
 }
@@ -487,19 +730,42 @@ export function replayShape(events: readonly ReplayEvent[]): ReplayShape {
   const endpoints = new Set<string>();
   for (const e of events) {
     const at = (e.t - first) / span;
-    if (isPersonActivity(e)) cells[Math.min(SHAPE_CELLS - 1, Math.floor(at * SHAPE_CELLS))]++;
+    if (isPersonActivity(e))
+      cells[Math.min(SHAPE_CELLS - 1, Math.floor(at * SHAPE_CELLS))]++;
     // A visit is a change of address: a snapshot of the same page again is not another page (foldRepeatNavs).
     if (e.type === "nav" && e.url !== lastUrl) {
       lastUrl = e.url;
       pages++;
       if (paths.size < SHAPE_PATHS_MAX) paths.add(pathPart(e.url));
     }
-    if (e.type === "network" && isFailure(e) && endpoints.size < SHAPE_PATHS_MAX) endpoints.add(`${e.method} ${pathPart(e.url)}`);
-    if (isFailure(e) && marks.size < SHAPE_MARKS_MAX) marks.add(Math.min(999, Math.round(at * 1000)));
+    if (
+      e.type === "network" &&
+      isFailure(e) &&
+      endpoints.size < SHAPE_PATHS_MAX
+    )
+      endpoints.add(`${e.method} ${pathPart(e.url)}`);
+    if (isFailure(e) && marks.size < SHAPE_MARKS_MAX)
+      marks.add(Math.min(999, Math.round(at * 1000)));
   }
   const peak = Math.max(1, ...cells);
   // Square root, so one click in a quiet slice still shows beside a burst of fifty.
-  const strip = cells.map((c) => (c === 0 ? "0" : String(Math.max(1, Math.round(Math.sqrt(c / peak) * 9))))).join("");
-  const idle = idleRanges(events, last).reduce((s, r) => s + Math.max(0, r.to - r.from), 0);
-  return { v: SHAPE_VERSION, active_ms: Math.max(0, last - first - idle), pages, rage_clicks: rageBursts(events).length, strip, marks: [...marks].sort((a, b) => a - b), paths: [...paths], endpoints: [...endpoints] };
+  const strip = cells
+    .map((c) =>
+      c === 0 ? "0" : String(Math.max(1, Math.round(Math.sqrt(c / peak) * 9))),
+    )
+    .join("");
+  const idle = idleRanges(events, last).reduce(
+    (s, r) => s + Math.max(0, r.to - r.from),
+    0,
+  );
+  return {
+    v: SHAPE_VERSION,
+    active_ms: Math.max(0, last - first - idle),
+    pages,
+    rage_clicks: rageBursts(events).length,
+    strip,
+    marks: [...marks].sort((a, b) => a - b),
+    paths: [...paths],
+    endpoints: [...endpoints],
+  };
 }

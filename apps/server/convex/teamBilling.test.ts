@@ -5,7 +5,15 @@
 // wallet), and the seat sync sets the quantity to the members with proration.
 // With no seat price nothing is limited. The failure policy (fail open on an
 // unconfirmed plan, block on a confirmed lapse) is the pure `decideSeat`.
-import { afterEach, beforeEach, describe, expect, setDefaultTimeout, setSystemTime, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setDefaultTimeout,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
 import { signWebhook } from "@platform/billing";
@@ -32,7 +40,9 @@ let savedEnv: Record<string, string | undefined> = {};
 let savedFetch: typeof fetch;
 
 beforeEach(() => {
-  savedEnv = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  savedEnv = Object.fromEntries(
+    ENV_NAMES.map((name) => [name, process.env[name]]),
+  );
   Object.assign(process.env, ENV);
   savedFetch = globalThis.fetch;
 });
@@ -50,70 +60,190 @@ afterEach(() => {
 // The decision
 
 describe("decideSeat", () => {
-  const base: SeatInput = { on: true, row: null, counts: { members: 2, pending: 0 }, adding: 1, now: 1_000_000 };
-  const decide = (patch: Partial<SeatInput>) => decideSeat({ ...base, ...patch });
+  const base: SeatInput = {
+    on: true,
+    row: null,
+    counts: { members: 2, pending: 0 },
+    adding: 1,
+    now: 1_000_000,
+  };
+  const decide = (patch: Partial<SeatInput>) =>
+    decideSeat({ ...base, ...patch });
 
   test("off: everything is allowed", () => {
-    expect(decide({ on: false, counts: { members: 9, pending: 9 } })).toMatchObject({ kind: "allowed", why: "billing_off" });
+    expect(
+      decide({ on: false, counts: { members: 9, pending: 9 } }),
+    ).toMatchObject({ kind: "allowed", why: "billing_off" });
   });
 
   test("Starter allows up to three members plus pending invites, and refuses the fourth with the counts", () => {
-    expect(decide({ counts: { members: 2, pending: 0 } })).toMatchObject({ kind: "allowed", why: "within_free" });
-    const refused = decide({ counts: { members: 2, pending: 1 }, row: { stripe_customer_id: "cus_1" } as any });
+    expect(decide({ counts: { members: 2, pending: 0 } })).toMatchObject({
+      kind: "allowed",
+      why: "within_free",
+    });
+    const refused = decide({
+      counts: { members: 2, pending: 1 },
+      row: { stripe_customer_id: "cus_1" } as any,
+    });
     expect(refused).toEqual({
       kind: "blocked",
-      limit: expect.objectContaining({ code: "upgrade_required", current_seats: 2, pending_invites: 1, free_capacity: 3, action_label: "Upgrade to Pro" }),
+      limit: expect.objectContaining({
+        code: "upgrade_required",
+        current_seats: 2,
+        pending_invites: 1,
+        free_capacity: 3,
+        action_label: "Upgrade to Pro",
+      }),
     });
   });
 
   test("Pro allows any number while the subscription is live, past_due included", () => {
     for (const status of ["active", "trialing", "past_due"]) {
-      expect(decide({ counts: { members: 40, pending: 3 }, row: { subscription_status: status } as any })).toMatchObject({ kind: "allowed", plan: "pro" });
+      expect(
+        decide({
+          counts: { members: 40, pending: 3 },
+          row: { subscription_status: status } as any,
+        }),
+      ).toMatchObject({ kind: "allowed", plan: "pro" });
     }
   });
 
   test("a confirmed lapse blocks seats past the free capacity, and only those", () => {
-    const row = { stripe_customer_id: "cus_1", subscription_status: "canceled", subscription_read_at: 5 } as any;
-    expect(decide({ row, counts: { members: 5, pending: 0 } })).toMatchObject({ kind: "blocked", limit: { code: "subscription_lapsed", action_label: "Renew Pro" } });
-    expect(decide({ row, counts: { members: 1, pending: 0 } })).toMatchObject({ kind: "allowed", plan: "starter" });
+    const row = {
+      stripe_customer_id: "cus_1",
+      subscription_status: "canceled",
+      subscription_read_at: 5,
+    } as any;
+    expect(decide({ row, counts: { members: 5, pending: 0 } })).toMatchObject({
+      kind: "blocked",
+      limit: { code: "subscription_lapsed", action_label: "Renew Pro" },
+    });
+    expect(decide({ row, counts: { members: 1, pending: 0 } })).toMatchObject({
+      kind: "allowed",
+      plan: "starter",
+    });
     // A checkout opened after the lapse does not unblock it: Stripe has said no.
-    expect(decide({ row: { ...row, checkout_started_at: base.now - 1000 }, counts: { members: 5, pending: 0 } }).kind).toBe("blocked");
+    expect(
+      decide({
+        row: { ...row, checkout_started_at: base.now - 1000 },
+        counts: { members: 5, pending: 0 },
+      }).kind,
+    ).toBe("blocked");
   });
 
   test("an unconfirmed plan fails open: a checkout landing, a first payment processing, a failed Stripe read", () => {
     const over = { counts: { members: 3, pending: 0 } };
-    expect(decide({ ...over, row: { stripe_customer_id: "cus_1", checkout_started_at: base.now - 1000 } as any })).toMatchObject({ kind: "fail_open", why: "checkout_pending" });
-    expect(decide({ ...over, row: { stripe_customer_id: "cus_1", checkout_started_at: base.now - CHECKOUT_GRACE_MS - 1 } as any }).kind).toBe("blocked");
-    expect(decide({ ...over, row: { stripe_customer_id: "cus_1", subscription_status: "incomplete" } as any })).toMatchObject({ kind: "fail_open", why: "payment_processing" });
-    expect(decide({ ...over, row: { stripe_customer_id: "cus_1", subscription_status: "canceled", subscription_read_at: 5, refresh_failed_at: 9 } as any })).toMatchObject({ kind: "fail_open", why: "plan_unconfirmed" });
+    expect(
+      decide({
+        ...over,
+        row: {
+          stripe_customer_id: "cus_1",
+          checkout_started_at: base.now - 1000,
+        } as any,
+      }),
+    ).toMatchObject({ kind: "fail_open", why: "checkout_pending" });
+    expect(
+      decide({
+        ...over,
+        row: {
+          stripe_customer_id: "cus_1",
+          checkout_started_at: base.now - CHECKOUT_GRACE_MS - 1,
+        } as any,
+      }).kind,
+    ).toBe("blocked");
+    expect(
+      decide({
+        ...over,
+        row: {
+          stripe_customer_id: "cus_1",
+          subscription_status: "incomplete",
+        } as any,
+      }),
+    ).toMatchObject({ kind: "fail_open", why: "payment_processing" });
+    expect(
+      decide({
+        ...over,
+        row: {
+          stripe_customer_id: "cus_1",
+          subscription_status: "canceled",
+          subscription_read_at: 5,
+          refresh_failed_at: 9,
+        } as any,
+      }),
+    ).toMatchObject({ kind: "fail_open", why: "plan_unconfirmed" });
   });
 
   test("an open checkout fails open only up to its seats plus the one the upgrade is for (F73)", () => {
-    const row = { checkout_started_at: base.now - 1000, checkout_seats: 3 } as any;
-    expect(decide({ row, counts: { members: 3, pending: 0 } })).toMatchObject({ kind: "fail_open", why: "checkout_pending" });
-    expect(decide({ row, counts: { members: 4, pending: 0 } })).toMatchObject({ kind: "blocked" });
-    expect(decide({ row, counts: { members: 40, pending: 0 } })).toMatchObject({ kind: "blocked" });
+    const row = {
+      checkout_started_at: base.now - 1000,
+      checkout_seats: 3,
+    } as any;
+    expect(decide({ row, counts: { members: 3, pending: 0 } })).toMatchObject({
+      kind: "fail_open",
+      why: "checkout_pending",
+    });
+    expect(decide({ row, counts: { members: 4, pending: 0 } })).toMatchObject({
+      kind: "blocked",
+    });
+    expect(decide({ row, counts: { members: 40, pending: 0 } })).toMatchObject({
+      kind: "blocked",
+    });
   });
 
   test("join requests hold capacity but never grandfather a team (F74)", () => {
     // Three members and two requests anyone with a proven address could file.
     const counts = { members: 3, pending: 2, requests: 2 };
-    expect(decide({ counts, row: null })).toMatchObject({ kind: "blocked", limit: { code: "upgrade_required" } });
+    expect(decide({ counts, row: null })).toMatchObject({
+      kind: "blocked",
+      limit: { code: "upgrade_required" },
+    });
     // Pending admin invites from before the gate still grandfather.
-    expect(decide({ counts: { members: 3, pending: 2, requests: 0 } })).toMatchObject({ kind: "allowed", why: "grandfathered" });
+    expect(
+      decide({ counts: { members: 3, pending: 2, requests: 0 } }),
+    ).toMatchObject({ kind: "allowed", why: "grandfathered" });
   });
 
   test("a team over the free capacity that never subscribed is grandfathered; one that lapsed is not", () => {
-    expect(decide({ counts: { members: 5, pending: 0 } })).toMatchObject({ kind: "allowed", why: "grandfathered" });
-    expect(decide({ counts: { members: 2, pending: 0 }, row: { grandfathered_at: 1 } as any, adding: 4 })).toMatchObject({ kind: "allowed", why: "grandfathered" });
+    expect(decide({ counts: { members: 5, pending: 0 } })).toMatchObject({
+      kind: "allowed",
+      why: "grandfathered",
+    });
+    expect(
+      decide({
+        counts: { members: 2, pending: 0 },
+        row: { grandfathered_at: 1 } as any,
+        adding: 4,
+      }),
+    ).toMatchObject({ kind: "allowed", why: "grandfathered" });
   });
 
   test("grandfathering ends at its date for every team, stamped or not", () => {
     const until = base.now + 1;
-    expect(decide({ counts: { members: 5, pending: 0 }, grandfatherUntil: until })).toMatchObject({ kind: "allowed", why: "grandfathered" });
-    expect(decide({ counts: { members: 5, pending: 0 }, grandfatherUntil: base.now })).toMatchObject({ kind: "blocked", limit: { code: "upgrade_required" } });
-    expect(decide({ counts: { members: 5, pending: 0 }, row: { grandfathered_at: 1 } as any, grandfatherUntil: base.now })).toMatchObject({ kind: "blocked" });
-    expect(decide({ counts: { members: 5, pending: 0 }, row: { stripe_customer_id: "cus_1", subscription_status: "canceled" } as any }).kind).toBe("blocked");
+    expect(
+      decide({ counts: { members: 5, pending: 0 }, grandfatherUntil: until }),
+    ).toMatchObject({ kind: "allowed", why: "grandfathered" });
+    expect(
+      decide({
+        counts: { members: 5, pending: 0 },
+        grandfatherUntil: base.now,
+      }),
+    ).toMatchObject({ kind: "blocked", limit: { code: "upgrade_required" } });
+    expect(
+      decide({
+        counts: { members: 5, pending: 0 },
+        row: { grandfathered_at: 1 } as any,
+        grandfatherUntil: base.now,
+      }),
+    ).toMatchObject({ kind: "blocked" });
+    expect(
+      decide({
+        counts: { members: 5, pending: 0 },
+        row: {
+          stripe_customer_id: "cus_1",
+          subscription_status: "canceled",
+        } as any,
+      }).kind,
+    ).toBe("blocked");
   });
 });
 
@@ -121,37 +251,88 @@ describe("decideSeat", () => {
 // End to end
 
 type Sub = {
-  id: string; customer: string; status: string; metadata: Record<string, string>;
+  id: string;
+  customer: string;
+  status: string;
+  metadata: Record<string, string>;
   items: { data: { id: string; price: { id: string }; quantity: number }[] };
-  cancel_at_period_end?: boolean; trial_end?: number;
+  cancel_at_period_end?: boolean;
+  trial_end?: number;
 };
-type Call = { method: string; path: string; form: Record<string, string>; headers: Record<string, string> };
+type Call = {
+  method: string;
+  path: string;
+  form: Record<string, string>;
+  headers: Record<string, string>;
+};
 
 function fakeStripe() {
   const state = {
     calls: [] as Call[],
     subscriptions: new Map<string, Sub>(),
     unreachable: false,
-    put(sub: Sub) { state.subscriptions.set(sub.id, structuredClone(sub)); },
-    posts: (path: string) => state.calls.filter((c) => c.method === "POST" && c.path === path),
+    put(sub: Sub) {
+      state.subscriptions.set(sub.id, structuredClone(sub));
+    },
+    posts: (path: string) =>
+      state.calls.filter((c) => c.method === "POST" && c.path === path),
   };
-  globalThis.fetch = (async (url: string, init: { method: string; body?: string; headers?: Record<string, string> }) => {
+  globalThis.fetch = (async (
+    url: string,
+    init: { method: string; body?: string; headers?: Record<string, string> },
+  ) => {
     const parsed = new URL(String(url));
     const path = parsed.pathname.replace(/^\/v1\//, "");
-    const call: Call = { method: init.method, path, form: Object.fromEntries(new URLSearchParams(init.body ?? "")), headers: init.headers ?? {} };
+    const call: Call = {
+      method: init.method,
+      path,
+      form: Object.fromEntries(new URLSearchParams(init.body ?? "")),
+      headers: init.headers ?? {},
+    };
     state.calls.push(call);
     if (state.unreachable) throw new TypeError("fetch failed");
-    const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
-    if (path === "prices/price_seat") return reply(200, { id: "price_seat", active: true, unit_amount: 1200, currency: "usd", recurring: { interval: "month", interval_count: 1 } });
-    if (path === "prices/price_seat_year") return reply(200, { id: "price_seat_year", active: true, unit_amount: 11520, currency: "usd", recurring: { interval: "year", interval_count: 1 } });
-    if (path === "checkout/sessions") return reply(200, { id: "cs_team", url: "https://checkout.stripe.test/team" });
-    if (path === "billing_portal/sessions") return reply(200, { id: "bps_team", url: "https://billing.stripe.test/team" });
-    if (path === "subscriptions") return reply(200, { data: [...state.subscriptions.values()].filter((s) => s.customer === parsed.searchParams.get("customer")) });
+    const reply = (status: number, body: unknown) =>
+      new Response(JSON.stringify(body), { status });
+    if (path === "prices/price_seat")
+      return reply(200, {
+        id: "price_seat",
+        active: true,
+        unit_amount: 1200,
+        currency: "usd",
+        recurring: { interval: "month", interval_count: 1 },
+      });
+    if (path === "prices/price_seat_year")
+      return reply(200, {
+        id: "price_seat_year",
+        active: true,
+        unit_amount: 11520,
+        currency: "usd",
+        recurring: { interval: "year", interval_count: 1 },
+      });
+    if (path === "checkout/sessions")
+      return reply(200, {
+        id: "cs_team",
+        url: "https://checkout.stripe.test/team",
+      });
+    if (path === "billing_portal/sessions")
+      return reply(200, {
+        id: "bps_team",
+        url: "https://billing.stripe.test/team",
+      });
+    if (path === "subscriptions")
+      return reply(200, {
+        data: [...state.subscriptions.values()].filter(
+          (s) => s.customer === parsed.searchParams.get("customer"),
+        ),
+      });
     const item = path.match(/^subscription_items\/(.+)$/);
     if (item) {
       for (const sub of state.subscriptions.values()) {
         const it = sub.items.data.find((i) => i.id === item[1]);
-        if (it) { it.quantity = Number(call.form.quantity); return reply(200, it); }
+        if (it) {
+          it.quantity = Number(call.form.quantity);
+          return reply(200, it);
+        }
       }
       return reply(404, { error: { message: "no item" } });
     }
@@ -159,7 +340,8 @@ function fakeStripe() {
     if (subMatch) {
       const sub = state.subscriptions.get(subMatch[1]);
       if (!sub) return reply(404, { error: { message: "no sub" } });
-      if (init.method === "POST" && call.form.cancel_at_period_end) sub.cancel_at_period_end = call.form.cancel_at_period_end === "true";
+      if (init.method === "POST" && call.form.cancel_at_period_end)
+        sub.cancel_at_period_end = call.form.cancel_at_period_end === "true";
       return reply(200, sub);
     }
     return reply(404, { error: { message: `unknown ${path}` } });
@@ -168,11 +350,23 @@ function fakeStripe() {
 }
 
 let eventSeq = 0;
-async function deliver(t: ReturnType<typeof convexTest>, type: string, object: Record<string, unknown>) {
-  const payload = JSON.stringify({ id: `evt_team_${++eventSeq}`, type, created: Math.floor(Date.now() / 1000), data: { object } });
+async function deliver(
+  t: ReturnType<typeof convexTest>,
+  type: string,
+  object: Record<string, unknown>,
+) {
+  const payload = JSON.stringify({
+    id: `evt_team_${++eventSeq}`,
+    type,
+    created: Math.floor(Date.now() / 1000),
+    data: { object },
+  });
   const response = await t.fetch(STRIPE_WEBHOOK_PATH, {
     method: "POST",
-    headers: { "Stripe-Signature": await signWebhook(payload, SECRET), "Content-Type": "application/json" },
+    headers: {
+      "Stripe-Signature": await signWebhook(payload, SECRET),
+      "Content-Type": "application/json",
+    },
     body: payload,
   });
   return (await response.json()) as { outcome?: string };
@@ -181,36 +375,77 @@ async function deliver(t: ReturnType<typeof convexTest>, type: string, object: R
 async function setup(memberCount = 2) {
   const t = convexTest(schema, allModules);
   const ids = await t.run(async (ctx) => {
-    const team = await ctx.db.insert("teams", { name: "Acme", invite_code: "ACME1234", invite_code_expires_at: Date.now() + 86_400_000, created_at: 1 });
+    const team = await ctx.db.insert("teams", {
+      name: "Acme",
+      invite_code: "ACME1234",
+      invite_code_expires_at: Date.now() + 86_400_000,
+      created_at: 1,
+    });
     const users: Id<"users">[] = [];
     for (let i = 0; i < memberCount; i++) {
-      const user = await ctx.db.insert("users", { email: `m${i}@acme.test`, name: `M${i}`, team_id: team });
-      await ctx.db.insert("team_memberships", { user_id: user, team_id: team, role: i === 0 ? "admin" : "member", joined_at: i });
+      const user = await ctx.db.insert("users", {
+        email: `m${i}@acme.test`,
+        name: `M${i}`,
+        team_id: team,
+      });
+      await ctx.db.insert("team_memberships", {
+        user_id: user,
+        team_id: team,
+        role: i === 0 ? "admin" : "member",
+        joined_at: i,
+      });
       users.push(user);
     }
     // A bot is a membership but never a seat.
     const bot = await ctx.db.insert("users", { name: "Anchor", is_bot: true });
-    await ctx.db.insert("team_memberships", { user_id: bot, team_id: team, role: "member", joined_at: 99 });
+    await ctx.db.insert("team_memberships", {
+      user_id: bot,
+      team_id: team,
+      role: "member",
+      joined_at: 99,
+    });
     const outsiders: Id<"users">[] = [];
-    for (let i = 0; i < 3; i++) outsiders.push(await ctx.db.insert("users", { email: `o${i}@else.test`, name: `O${i}` }));
+    for (let i = 0; i < 3; i++)
+      outsiders.push(
+        await ctx.db.insert("users", {
+          email: `o${i}@else.test`,
+          name: `O${i}`,
+        }),
+      );
     return { team, users, outsiders };
   });
   const as = (user: Id<"users">) => t.withIdentity({ subject: user });
   const admin = as(ids.users[0]);
-  const row = () => t.run((ctx) => ctx.db.query("team_subscriptions").withIndex("by_team", (q) => q.eq("team_id", ids.team)).first());
+  const row = () =>
+    t.run((ctx) =>
+      ctx.db
+        .query("team_subscriptions")
+        .withIndex("by_team", (q) => q.eq("team_id", ids.team))
+        .first(),
+    );
   return { t, ...ids, as, admin, row };
 }
 
-const seatSub = (team: Id<"teams">, status: string, quantity = 2, extra: Partial<Sub> = {}): Sub => ({
-  id: "sub_team", customer: "cus_team", status, metadata: { kind: "team_seats", team_id: team },
-  items: { data: [{ id: "si_team", price: { id: "price_seat" }, quantity }] }, ...extra,
+const seatSub = (
+  team: Id<"teams">,
+  status: string,
+  quantity = 2,
+  extra: Partial<Sub> = {},
+): Sub => ({
+  id: "sub_team",
+  customer: "cus_team",
+  status,
+  metadata: { kind: "team_seats", team_id: team },
+  items: { data: [{ id: "si_team", price: { id: "price_seat" }, quantity }] },
+  ...extra,
 });
 
 async function seatRefusalOf(run: Promise<unknown>) {
   try {
     await run;
   } catch (error) {
-    if (error instanceof ConvexError) return error.data as Record<string, unknown>;
+    if (error instanceof ConvexError)
+      return error.data as Record<string, unknown>;
     throw error;
   }
   throw new Error("expected a seat refusal");
@@ -220,91 +455,220 @@ describe("Starter limits", () => {
   test("a third seat by invite is fine; the fourth invite answers upgrade_required with the counts", async () => {
     const { admin, team } = await setup(2);
     fakeStripe();
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new1@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new1@acme.test",
+      }),
+    ).toEqual({ sent: true });
     // Sending again to the same address takes no second seat.
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "NEW1@acme.test" })).toEqual({ sent: true });
-    const refused = await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new2@acme.test" });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "NEW1@acme.test",
+      }),
+    ).toEqual({ sent: true });
+    const refused = await admin.mutation(api.teams.sendInviteEmail, {
+      team_id: team,
+      email: "new2@acme.test",
+    });
     expect(refused).toEqual({
       sent: false,
-      upgrade_required: expect.objectContaining({ code: "upgrade_required", current_seats: 2, pending_invites: 1, free_capacity: 3 }),
+      upgrade_required: expect.objectContaining({
+        code: "upgrade_required",
+        current_seats: 2,
+        pending_invites: 1,
+        free_capacity: 3,
+      }),
     });
-    const state = await admin.query(api.teamBilling.getSeatState, { team_id: team });
-    expect(state).toMatchObject({ enforced: true, plan: "starter", members: 2, pending: 1, full: true, is_admin: true });
+    const state = await admin.query(api.teamBilling.getSeatState, {
+      team_id: team,
+    });
+    expect(state).toMatchObject({
+      enforced: true,
+      plan: "starter",
+      members: 2,
+      pending: 1,
+      full: true,
+      is_admin: true,
+    });
   });
 
   test("a new invite link revokes the pending invites and frees their seats", async () => {
     const { admin, team } = await setup(2);
-    await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new1@acme.test" });
+    await admin.mutation(api.teams.sendInviteEmail, {
+      team_id: team,
+      email: "new1@acme.test",
+    });
     await admin.mutation(api.teams.regenerateInviteCode, { team_id: team });
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new2@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new2@acme.test",
+      }),
+    ).toEqual({ sent: true });
   });
 
   test("joining by link: the invited person takes the seat their invite held; a fourth stranger is refused", async () => {
     const { t, as, admin, team, outsiders } = await setup(2);
     const code = (await t.run((ctx) => ctx.db.get(team)))!.invite_code;
-    await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "o0@else.test" });
+    await admin.mutation(api.teams.sendInviteEmail, {
+      team_id: team,
+      email: "o0@else.test",
+    });
     // A stranger cannot take the seat the invite holds.
-    expect(await seatRefusalOf(as(outsiders[1]).mutation(api.teams.joinTeam, { invite_code: code }))).toMatchObject({ code: "upgrade_required", current_seats: 2, pending_invites: 1 });
+    expect(
+      await seatRefusalOf(
+        as(outsiders[1]).mutation(api.teams.joinTeam, { invite_code: code }),
+      ),
+    ).toMatchObject({
+      code: "upgrade_required",
+      current_seats: 2,
+      pending_invites: 1,
+    });
     await as(outsiders[0]).mutation(api.teams.joinTeam, { invite_code: code });
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ members: 3, pending: 0, full: true });
-    expect(await seatRefusalOf(as(outsiders[2]).mutation(api.teams.joinTeam, { invite_code: code }))).toMatchObject({ code: "upgrade_required", current_seats: 3 });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({ members: 3, pending: 0, full: true });
+    expect(
+      await seatRefusalOf(
+        as(outsiders[2]).mutation(api.teams.joinTeam, { invite_code: code }),
+      ),
+    ).toMatchObject({ code: "upgrade_required", current_seats: 3 });
   });
 
   test("join requests past capacity do not stamp the team grandfathered; the next invite is refused (F74)", async () => {
     const { t, admin, team, outsiders, row } = await setup(3);
     await t.run(async (ctx) => {
-      for (const user of outsiders.slice(0, 2)) await ctx.db.insert("team_join_requests", { team_id: team, user_id: user, status: "pending", created_at: 1 });
+      for (const user of outsiders.slice(0, 2))
+        await ctx.db.insert("team_join_requests", {
+          team_id: team,
+          user_id: user,
+          status: "pending",
+          created_at: 1,
+        });
     });
-    const refused = await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" });
-    expect(refused).toMatchObject({ sent: false, upgrade_required: expect.objectContaining({ code: "upgrade_required" }) });
+    const refused = await admin.mutation(api.teams.sendInviteEmail, {
+      team_id: team,
+      email: "new@acme.test",
+    });
+    expect(refused).toMatchObject({
+      sent: false,
+      upgrade_required: expect.objectContaining({ code: "upgrade_required" }),
+    });
     expect((await row())?.grandfathered_at).toBeUndefined();
   });
 
   test("a stranger let in while a checkout was open never grandfathers the team (F73)", async () => {
     const { t, admin, team, outsiders, row } = await setup(3);
-    await t.run((ctx) => ctx.db.insert("team_subscriptions", { team_id: team, checkout_started_at: Date.now() - CHECKOUT_GRACE_MS - 1, checkout_seats: 3 }));
-    await t.mutation(internal.teams.addMemberByOperator, { user_id: outsiders[0], team_id: team });
-    const refused = await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" });
+    await t.run((ctx) =>
+      ctx.db.insert("team_subscriptions", {
+        team_id: team,
+        checkout_started_at: Date.now() - CHECKOUT_GRACE_MS - 1,
+        checkout_seats: 3,
+      }),
+    );
+    await t.mutation(internal.teams.addMemberByOperator, {
+      user_id: outsiders[0],
+      team_id: team,
+    });
+    const refused = await admin.mutation(api.teams.sendInviteEmail, {
+      team_id: team,
+      email: "new@acme.test",
+    });
     expect(refused).toMatchObject({ sent: false });
     expect((await row())?.grandfathered_at).toBeUndefined();
   });
 
   test("an operator add skips the gate", async () => {
     const { t, team, outsiders, admin } = await setup(3);
-    await t.mutation(internal.teams.addMemberByOperator, { user_id: outsiders[0], team_id: team });
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ members: 4 });
+    await t.mutation(internal.teams.addMemberByOperator, {
+      user_id: outsiders[0],
+      team_id: team,
+    });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({ members: 4 });
   });
 
   test("a team already over three is grandfathered and stamped once", async () => {
     const { admin, team, row } = await setup(4);
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new@acme.test",
+      }),
+    ).toEqual({ sent: true });
     expect((await row())?.grandfathered_at).toBeNumber();
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ grandfathered: true, grandfathered_until: null, full: false });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({
+      grandfathered: true,
+      grandfathered_until: null,
+      full: false,
+    });
   });
 
   test("after TEAM_SEAT_GRANDFATHER_UNTIL a grandfathered team needs Pro to add a seat, and keeps its members", async () => {
     process.env.TEAM_SEAT_GRANDFATHER_UNTIL = "2030-01-01";
     const { admin, team } = await setup(4);
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" })).toEqual({ sent: true });
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ grandfathered: true, grandfathered_until: Date.parse("2030-01-01"), needs_pro: false });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new@acme.test",
+      }),
+    ).toEqual({ sent: true });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({
+      grandfathered: true,
+      grandfathered_until: Date.parse("2030-01-01"),
+      needs_pro: false,
+    });
     setSystemTime(new Date("2030-01-02"));
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ grandfathered: false, full: true, needs_pro: true, members: 4 });
-    await expect(admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "later@acme.test" })).rejects.toThrow();
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({
+      grandfathered: false,
+      full: true,
+      needs_pro: true,
+      members: 4,
+    });
+    await expect(
+      admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "later@acme.test",
+      }),
+    ).rejects.toThrow();
   });
 
   test("with no seat price, nothing is limited and the state says billing is off", async () => {
     delete process.env.STRIPE_PRICE_TEAM_SEAT;
     const { admin, team, row } = await setup(3);
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" })).toEqual({ sent: true });
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toEqual({ enforced: false });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new@acme.test",
+      }),
+    ).toEqual({ sent: true });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toEqual({ enforced: false });
     expect(await row()).toBeNull();
-    expect(await admin.action(api.teamBilling.startSeatCheckout, { team_id: team })).toMatchObject({ ok: false, code: "unavailable" });
+    expect(
+      await admin.action(api.teamBilling.startSeatCheckout, { team_id: team }),
+    ).toMatchObject({ ok: false, code: "unavailable" });
   });
 
   test("without the Stripe secrets there is no way to upgrade, so nothing is limited", async () => {
     delete process.env.STRIPE_WEBHOOK_SECRET;
     const { admin, team } = await setup(3);
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "new@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "new@acme.test",
+      }),
+    ).toEqual({ sent: true });
   });
 });
 
@@ -312,29 +676,61 @@ describe("upgrade", () => {
   test("the offer reads the seat price from Stripe, with the trial for a first subscription", async () => {
     const { admin, team } = await setup(3);
     fakeStripe();
-    expect(await admin.action(api.teamBilling.seatOffer, { team_id: team })).toEqual({
+    expect(
+      await admin.action(api.teamBilling.seatOffer, { team_id: team }),
+    ).toEqual({
       ok: true,
-      monthly: { unit_amount: 1200, currency: "usd", interval: "month", interval_count: 1 },
-      annual: { unit_amount: 11520, currency: "usd", interval: "year", interval_count: 1 },
+      monthly: {
+        unit_amount: 1200,
+        currency: "usd",
+        interval: "month",
+        interval_count: 1,
+      },
+      annual: {
+        unit_amount: 11520,
+        currency: "usd",
+        interval: "year",
+        interval_count: 1,
+      },
       trial_days: 14,
       seats: 3,
     });
     delete process.env.STRIPE_PRICE_TEAM_SEAT_ANNUAL;
-    expect(await admin.action(api.teamBilling.seatOffer, { team_id: team })).toMatchObject({ ok: true, annual: null });
+    expect(
+      await admin.action(api.teamBilling.seatOffer, { team_id: team }),
+    ).toMatchObject({ ok: true, annual: null });
   });
 
   test("yearly checkout sells the annual price", async () => {
     const { admin, team } = await setup(3);
     const stripe = fakeStripe();
-    expect(await admin.action(api.teamBilling.startSeatCheckout, { team_id: team, billing: "annual" })).toMatchObject({ ok: true, via: "checkout" });
-    expect(stripe.posts("checkout/sessions")[0].form).toMatchObject({ "line_items[0][price]": "price_seat_year", "line_items[0][quantity]": "3" });
+    expect(
+      await admin.action(api.teamBilling.startSeatCheckout, {
+        team_id: team,
+        billing: "annual",
+      }),
+    ).toMatchObject({ ok: true, via: "checkout" });
+    expect(stripe.posts("checkout/sessions")[0].form).toMatchObject({
+      "line_items[0][price]": "price_seat_year",
+      "line_items[0][quantity]": "3",
+    });
   });
 
   test("checkout sells one seat per member on the seat price, with the trial and the team in metadata; members cannot start it", async () => {
     const { admin, as, users, team, row } = await setup(3);
     const stripe = fakeStripe();
-    expect(await as(users[1]).action(api.teamBilling.startSeatCheckout, { team_id: team })).toMatchObject({ ok: false, code: "bad_request" });
-    expect(await admin.action(api.teamBilling.startSeatCheckout, { team_id: team })).toEqual({ ok: true, url: "https://checkout.stripe.test/team", via: "checkout" });
+    expect(
+      await as(users[1]).action(api.teamBilling.startSeatCheckout, {
+        team_id: team,
+      }),
+    ).toMatchObject({ ok: false, code: "bad_request" });
+    expect(
+      await admin.action(api.teamBilling.startSeatCheckout, { team_id: team }),
+    ).toEqual({
+      ok: true,
+      url: "https://checkout.stripe.test/team",
+      via: "checkout",
+    });
     const [checkout] = stripe.posts("checkout/sessions");
     expect(checkout.form).toMatchObject({
       mode: "subscription",
@@ -346,7 +742,9 @@ describe("upgrade", () => {
       "metadata[team_id]": team,
       customer_email: "m0@acme.test",
     });
-    expect(checkout.headers["Idempotency-Key"]).toStartWith(`team-checkout:${team}:`);
+    expect(checkout.headers["Idempotency-Key"]).toStartWith(
+      `team-checkout:${team}:`,
+    );
     expect((await row())?.checkout_started_at).toBeNumber();
   });
 
@@ -356,7 +754,10 @@ describe("upgrade", () => {
     setSystemTime(new Date(1_800_000_000_000));
     await admin.action(api.teamBilling.startSeatCheckout, { team_id: team });
     const first = await row();
-    expect(first).toMatchObject({ checkout_started_at: 1_800_000_000_000, checkout_seats: 3 });
+    expect(first).toMatchObject({
+      checkout_started_at: 1_800_000_000_000,
+      checkout_seats: 3,
+    });
     setSystemTime(new Date(1_800_000_000_000 + CHECKOUT_GRACE_MS + 1));
     await admin.action(api.teamBilling.startSeatCheckout, { team_id: team });
     expect((await row())?.checkout_started_at).toBe(1_800_000_000_000);
@@ -366,23 +767,59 @@ describe("upgrade", () => {
     const { t, admin, team, row } = await setup(3);
     const stripe = fakeStripe();
     stripe.put(seatSub(team, "trialing", 3, { trial_end: 2_000_000_000 }));
-    const outcome = await deliver(t, "checkout.session.completed", { id: "cs_team", mode: "subscription", customer: "cus_team", subscription: "sub_team", metadata: { kind: "team_seats", team_id: team } });
+    const outcome = await deliver(t, "checkout.session.completed", {
+      id: "cs_team",
+      mode: "subscription",
+      customer: "cus_team",
+      subscription: "sub_team",
+      metadata: { kind: "team_seats", team_id: team },
+    });
     expect(outcome.outcome).toBe("team:trialing");
-    expect(await row()).toMatchObject({ stripe_customer_id: "cus_team", stripe_subscription_id: "sub_team", subscription_status: "trialing", quantity: 3, trial_end: 2_000_000_000_000 });
+    expect(await row()).toMatchObject({
+      stripe_customer_id: "cus_team",
+      stripe_subscription_id: "sub_team",
+      subscription_status: "trialing",
+      quantity: 3,
+      trial_end: 2_000_000_000_000,
+    });
     expect(await t.run((ctx) => ctx.db.query("wallets").collect())).toEqual([]);
-    expect(await admin.query(api.teamBilling.getSeatState, { team_id: team })).toMatchObject({ plan: "pro", status: "trialing", full: false, has_billing: true });
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "fourth@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.query(api.teamBilling.getSeatState, { team_id: team }),
+    ).toMatchObject({
+      plan: "pro",
+      status: "trialing",
+      full: false,
+      has_billing: true,
+    });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "fourth@acme.test",
+      }),
+    ).toEqual({ sent: true });
     // A team Stripe already holds a live subscription for gets the portal.
-    expect(await admin.action(api.teamBilling.startSeatCheckout, { team_id: team })).toMatchObject({ ok: true, via: "portal" });
-    expect(await admin.action(api.teamBilling.openSeatPortal, { team_id: team })).toMatchObject({ ok: true, url: "https://billing.stripe.test/team" });
+    expect(
+      await admin.action(api.teamBilling.startSeatCheckout, { team_id: team }),
+    ).toMatchObject({ ok: true, via: "portal" });
+    expect(
+      await admin.action(api.teamBilling.openSeatPortal, { team_id: team }),
+    ).toMatchObject({ ok: true, url: "https://billing.stripe.test/team" });
   });
 
   test("an older read arriving late is skipped", async () => {
     const { t, team, row } = await setup(3);
     fakeStripe();
     const later = Date.now() + 10_000;
-    await t.mutation(internal.teamBilling.applyTeamSubscription, { subscription_json: JSON.stringify(seatSub(team, "active", 3)), read_at: later });
-    expect(await t.mutation(internal.teamBilling.applyTeamSubscription, { subscription_json: JSON.stringify(seatSub(team, "incomplete", 3)), read_at: later - 5 })).toBe("ignored:stale_read");
+    await t.mutation(internal.teamBilling.applyTeamSubscription, {
+      subscription_json: JSON.stringify(seatSub(team, "active", 3)),
+      read_at: later,
+    });
+    expect(
+      await t.mutation(internal.teamBilling.applyTeamSubscription, {
+        subscription_json: JSON.stringify(seatSub(team, "incomplete", 3)),
+        read_at: later - 5,
+      }),
+    ).toBe("ignored:stale_read");
     expect((await row())?.subscription_status).toBe("active");
   });
 });
@@ -392,7 +829,13 @@ describe("seat sync", () => {
     const env = await setup(memberCount);
     const stripe = fakeStripe();
     stripe.put(seatSub(env.team, "active", memberCount));
-    await env.t.mutation(internal.teamBilling.applyTeamSubscription, { subscription_json: JSON.stringify(seatSub(env.team, "active", memberCount)), read_at: Date.now(), sync: false });
+    await env.t.mutation(internal.teamBilling.applyTeamSubscription, {
+      subscription_json: JSON.stringify(
+        seatSub(env.team, "active", memberCount),
+      ),
+      read_at: Date.now(),
+      sync: false,
+    });
     return { ...env, stripe };
   }
 
@@ -400,36 +843,88 @@ describe("seat sync", () => {
     const { t, as, admin, team, users, outsiders, stripe, row } = await pro(3);
     const code = (await t.run((ctx) => ctx.db.get(team)))!.invite_code;
     await as(outsiders[0]).mutation(api.teams.joinTeam, { invite_code: code });
-    expect(await t.action(internal.teamBilling.syncSeats, { team_id: team, reason: "member_joined" })).toBe("synced");
+    expect(
+      await t.action(internal.teamBilling.syncSeats, {
+        team_id: team,
+        reason: "member_joined",
+      }),
+    ).toBe("synced");
     const [update] = stripe.posts("subscription_items/si_team");
-    expect(update.form).toEqual({ quantity: "4", proration_behavior: "create_prorations" });
+    expect(update.form).toEqual({
+      quantity: "4",
+      proration_behavior: "create_prorations",
+    });
     expect((await row())?.quantity).toBe(4);
 
-    await admin.mutation(api.teams.removeFromTeam, { team_id: team, user_id: users[1] });
-    expect(await t.action(internal.teamBilling.syncSeats, { team_id: team, reason: "member_left" })).toBe("synced");
-    expect(stripe.posts("subscription_items/si_team").at(-1)!.form.quantity).toBe("3");
+    await admin.mutation(api.teams.removeFromTeam, {
+      team_id: team,
+      user_id: users[1],
+    });
+    expect(
+      await t.action(internal.teamBilling.syncSeats, {
+        team_id: team,
+        reason: "member_left",
+      }),
+    ).toBe("synced");
+    expect(
+      stripe.posts("subscription_items/si_team").at(-1)!.form.quantity,
+    ).toBe("3");
     // Nothing changed since: no Stripe write.
-    expect(await t.action(internal.teamBilling.syncSeats, { team_id: team, reason: "subscription_changed" })).toBe("unchanged");
+    expect(
+      await t.action(internal.teamBilling.syncSeats, {
+        team_id: team,
+        reason: "subscription_changed",
+      }),
+    ).toBe("unchanged");
     expect(stripe.posts("subscription_items/si_team")).toHaveLength(2);
   });
 
   test("a deleted team's subscription ends at the period's end", async () => {
     const { t, team, stripe, row } = await pro(2);
     await t.run((ctx) => ctx.db.patch(team, { deleted_at: Date.now() }));
-    expect(await t.action(internal.teamBilling.syncSeats, { team_id: team, reason: "team_deleted" })).toBe("cancel_at_period_end");
-    expect(stripe.posts("subscriptions/sub_team")[0].form).toEqual({ cancel_at_period_end: "true" });
+    expect(
+      await t.action(internal.teamBilling.syncSeats, {
+        team_id: team,
+        reason: "team_deleted",
+      }),
+    ).toBe("cancel_at_period_end");
+    expect(stripe.posts("subscriptions/sub_team")[0].form).toEqual({
+      cancel_at_period_end: "true",
+    });
     expect((await row())?.cancel_at_period_end).toBe(true);
   });
 
   test("Stripe unreachable: the plan is marked unconfirmed, so a lapsed team's next seat fails open", async () => {
     const { t, admin, team, stripe, row } = await pro(3);
-    await t.mutation(internal.teamBilling.applyTeamSubscription, { subscription_json: JSON.stringify(seatSub(team, "canceled", 3)), read_at: Date.now() + 1, sync: false });
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "x@acme.test" })).toMatchObject({ sent: false, upgrade_required: { code: "subscription_lapsed" } });
+    await t.mutation(internal.teamBilling.applyTeamSubscription, {
+      subscription_json: JSON.stringify(seatSub(team, "canceled", 3)),
+      read_at: Date.now() + 1,
+      sync: false,
+    });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "x@acme.test",
+      }),
+    ).toMatchObject({
+      sent: false,
+      upgrade_required: { code: "subscription_lapsed" },
+    });
     stripe.unreachable = true;
     // The failure must come after the canceled read; a fast runner can land both in one millisecond.
     setSystemTime(Date.now() + 1000);
-    expect(await t.action(internal.teamBilling.syncSeats, { team_id: team, reason: "member_joined" })).toBe("refresh_failed");
+    expect(
+      await t.action(internal.teamBilling.syncSeats, {
+        team_id: team,
+        reason: "member_joined",
+      }),
+    ).toBe("refresh_failed");
     expect((await row())?.refresh_failed_at).toBeNumber();
-    expect(await admin.mutation(api.teams.sendInviteEmail, { team_id: team, email: "x@acme.test" })).toEqual({ sent: true });
+    expect(
+      await admin.mutation(api.teams.sendInviteEmail, {
+        team_id: team,
+        email: "x@acme.test",
+      }),
+    ).toEqual({ sent: true });
   });
 });

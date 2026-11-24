@@ -76,7 +76,7 @@ function useComposedRefs<T>(...refs: (React.Ref<T> | undefined)[]) {
         };
       }
     },
-    [] // stable — reads from currentRefs, never triggers detach/attach cycle
+    [], // stable — reads from currentRefs, never triggers detach/attach cycle
   );
 }
 

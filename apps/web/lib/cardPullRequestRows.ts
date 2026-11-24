@@ -21,7 +21,11 @@ export function isFullPullRequest(row: { body?: unknown }): boolean {
  * their reader while they were read under another checks_state
  * (lib/detailRows joinPullRequestDetail).
  */
-export function overlayCardPullRequests(rows: readonly Row[] | undefined, cached: Record<string, Row> | undefined, pending?: Record<string, unknown>): Row[] {
+export function overlayCardPullRequests(
+  rows: readonly Row[] | undefined,
+  cached: Record<string, Row> | undefined,
+  pending?: Record<string, unknown>,
+): Row[] {
   const locked = lockedFields(pending);
   return (rows ?? []).map((row) => {
     const prev = cached?.[String(row._id)];
@@ -31,19 +35,23 @@ export function overlayCardPullRequests(rows: readonly Row[] | undefined, cached
     // release the lock early.
     for (const field of locked.get(String(row._id)) ?? []) delete next[field];
     for (const field of SESSION_CARD_PR_FIELDS) next[field] = row[field];
-    if (prev && (prev.state !== row.state || prev.draft !== row.draft)) next.mergeable_state = undefined;
+    if (prev && (prev.state !== row.state || prev.draft !== row.draft))
+      next.mergeable_state = undefined;
     return next;
   });
 }
 
 /** Pull request fields with a pending lock, by row id ("pullRequests:<id>:<field>"). */
-function lockedFields(pending: Record<string, unknown> | undefined): Map<string, string[]> {
+function lockedFields(
+  pending: Record<string, unknown> | undefined,
+): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const key in pending ?? {}) {
     if (!key.startsWith("pullRequests:")) continue;
     const rest = key.slice("pullRequests:".length);
     const colon = rest.lastIndexOf(":");
-    if (colon < 0 || (pending![key] as { type?: string })?.type !== "field") continue;
+    if (colon < 0 || (pending![key] as { type?: string })?.type !== "field")
+      continue;
     const id = rest.slice(0, colon);
     const list = out.get(id);
     if (list) list.push(rest.slice(colon + 1));
@@ -62,7 +70,11 @@ function lockedFields(pending: Record<string, unknown> | undefined): Map<string,
  * this window wrote and the server has not echoed is offered as the echo. A
  * row this window lacks, or holds only as a chip, lands as sent.
  */
-export function overlayReplicatedPullRequests(rows: readonly Row[], cached: Record<string, Row> | undefined, pending?: Record<string, unknown>): Row[] {
+export function overlayReplicatedPullRequests(
+  rows: readonly Row[],
+  cached: Record<string, Row> | undefined,
+  pending?: Record<string, unknown>,
+): Row[] {
   let out: Row[] | null = null;
   const locked = lockedFields(pending);
   rows.forEach((row, i) => {

@@ -11,29 +11,41 @@
 // pane's columns and the font is chosen so those columns fill the width, with
 // pinch zoom for a closer look.
 
-
 /** Solarized dark, the terminal's own palette: a dark island in either app theme. */
-export const TERMINAL_BG = '#002b36';
+export const TERMINAL_BG = "#002b36";
 const THEME = {
   background: TERMINAL_BG,
-  foreground: '#93a1a1',
-  cursor: '#93a1a1',
+  foreground: "#93a1a1",
+  cursor: "#93a1a1",
   cursorAccent: TERMINAL_BG,
-  selectionBackground: '#073642',
-  black: '#073642', red: '#dc322f', green: '#859900', yellow: '#b58900',
-  blue: '#268bd2', magenta: '#d33682', cyan: '#2aa198', white: '#eee8d5',
-  brightBlack: '#586e75', brightRed: '#cb4b16', brightGreen: '#859900', brightYellow: '#b58900',
-  brightBlue: '#268bd2', brightMagenta: '#6c71c4', brightCyan: '#2aa198', brightWhite: '#fdf6e3',
+  selectionBackground: "#073642",
+  black: "#073642",
+  red: "#dc322f",
+  green: "#859900",
+  yellow: "#b58900",
+  blue: "#268bd2",
+  magenta: "#d33682",
+  cyan: "#2aa198",
+  white: "#eee8d5",
+  brightBlack: "#586e75",
+  brightRed: "#cb4b16",
+  brightGreen: "#859900",
+  brightYellow: "#b58900",
+  brightBlue: "#268bd2",
+  brightMagenta: "#6c71c4",
+  brightCyan: "#2aa198",
+  brightWhite: "#fdf6e3",
 };
 
 // Close every </script inside the inlined source so it cannot end the tag early.
-const inline = (src: string) => src.replace(/<\/script/gi, '<\\/script');
+const inline = (src: string) => src.replace(/<\/script/gi, "<\\/script");
 
-export function buildTerminalHtml(fontFamily = 'Menlo, monospace'): string {
+export function buildTerminalHtml(fontFamily = "Menlo, monospace"): string {
   // Required here, not at the top: the half-megabyte source module is
   // evaluated only once someone opens a terminal.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { XTERM_CSS, XTERM_JS } = require('../vendor/xtermSource') as typeof import('../vendor/xtermSource');
+  const { XTERM_CSS, XTERM_JS } =
+    require("../vendor/xtermSource") as typeof import("../vendor/xtermSource");
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=5, user-scalable=yes">
 <style>${XTERM_CSS}

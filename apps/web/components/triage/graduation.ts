@@ -16,7 +16,9 @@ export function isTriageBarCompact(ui: ClientUI | undefined): boolean {
  *  graduation offer, and the palette's "Show/hide triage bar" all call it. */
 export function toggleTriageBarCompact() {
   const store = useInboxStore.getState();
-  store.updateClientUI({ triage_bar_compact: !isTriageBarCompact(store.clientState.ui) });
+  store.updateClientUI({
+    triage_bar_compact: !isTriageBarCompact(store.clientState.ui),
+  });
 }
 
 // The triage bar starts as a quiet row of verbs under the composer. Once the
@@ -48,13 +50,17 @@ export function noteTriageKeyUse() {
   if (tips?.completed?.includes(GRADUATION_TIP)) return;
   if (isTriageBarCompact(store.clientState.ui)) return;
 
-  store.updateClientTips({ completed: [...(tips?.completed ?? []), GRADUATION_TIP] });
+  store.updateClientTips({
+    completed: [...(tips?.completed ?? []), GRADUATION_TIP],
+  });
   toast("You have the triage keys down", {
-    description: "Hide the bar? \"Show triage bar\" in the command palette brings it back.",
+    description:
+      'Hide the bar? "Show triage bar" in the command palette brings it back.',
     duration: 12000,
     action: {
       label: "Hide",
-      onClick: () => useInboxStore.getState().updateClientUI({ triage_bar_compact: true }),
+      onClick: () =>
+        useInboxStore.getState().updateClientUI({ triage_bar_compact: true }),
     },
   });
 }

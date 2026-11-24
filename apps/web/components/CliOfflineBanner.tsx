@@ -18,7 +18,11 @@ import { useStatusNotice, type StatusNotice } from "../hooks/useStatusNotice";
 
 const DISMISS_DURATION_MS = 30 * 60 * 1000;
 
-const TIER_TONE: Record<OfflineTier, StatusNotice["tone"]> = { warn: "yellow", alert: "orange", severe: "red" };
+const TIER_TONE: Record<OfflineTier, StatusNotice["tone"]> = {
+  warn: "yellow",
+  alert: "orange",
+  severe: "red",
+};
 
 export function CliOfflineBanner() {
   const signedOut = useSignedOutNotice();
@@ -39,7 +43,13 @@ function useSignedOutNotice(): StatusNotice | null {
   const [authFailed, setAuthFailed] = useState(false);
   const [removedBy, setRemovedBy] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "running" | "failed">("idle");
-  const probe = () => bridge("getDaemonSetup")?.().then((m) => { setAuthFailed(m.authFailed === true); setRemovedBy(m.removedBy ?? null); }).catch(() => {});
+  const probe = () =>
+    bridge("getDaemonSetup")?.()
+      .then((m) => {
+        setAuthFailed(m.authFailed === true);
+        setRemovedBy(m.removedBy ?? null);
+      })
+      .catch(() => {});
   useMountEffect(() => {
     if (!bridge("getDaemonSetup")) return;
     void probe();
@@ -53,7 +63,12 @@ function useSignedOutNotice(): StatusNotice | null {
   const run = bridge("runDaemonSetup");
   if (!authFailed || !run) return null;
   // Removed by its team: signing in again is the admins' call, not this button's.
-  if (removedBy) return { tone: "red", icon: ShieldOff, title: `${removedBy}'s admins removed this Mac. Nothing syncs.` };
+  if (removedBy)
+    return {
+      tone: "red",
+      icon: ShieldOff,
+      title: `${removedBy}'s admins removed this Mac. Nothing syncs.`,
+    };
 
   const signIn = async () => {
     setPhase("running");
@@ -71,7 +86,13 @@ function useSignedOutNotice(): StatusNotice | null {
     tone: "red",
     icon: LogIn,
     title: "This machine is signed out. Nothing syncs.",
-    detail: phase === "failed" ? <>Sign in did not finish. Run <code className="font-mono">cast auth</code> on this machine.</> : undefined,
+    detail:
+      phase === "failed" ? (
+        <>
+          Sign in did not finish. Run{" "}
+          <code className="font-mono">cast auth</code> on this machine.
+        </>
+      ) : undefined,
     action: (
       <button
         onClick={signIn}
@@ -87,8 +108,10 @@ function useSignedOutNotice(): StatusNotice | null {
 // Every hook runs before the first early return, so the notice can bail out
 // in whatever order reads best.
 function useCliOfflineNotice(): StatusNotice | null {
-  const dismissedTs = useInboxStore(s => s.clientState.dismissed?.cli_offline ?? 0);
-  const updateDismissed = useInboxStore(s => s.updateClientDismissed);
+  const dismissedTs = useInboxStore(
+    (s) => s.clientState.dismissed?.cli_offline ?? 0,
+  );
+  const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -102,7 +125,9 @@ function useCliOfflineNotice(): StatusNotice | null {
   // because WE can't sync — that's the ConnectionBanner's story, not the CLI's.
   const { offline: appOffline } = useAppOffline();
 
-  useMountEffect(() => { setMounted(true); });
+  useMountEffect(() => {
+    setMounted(true);
+  });
 
   if (!mounted) return null;
   if (appOffline) return null;
@@ -118,9 +143,14 @@ function useCliOfflineNotice(): StatusNotice | null {
 
   // Honor dismiss only while we're in the same (or lower) tier than when it was dismissed.
   // If the situation has escalated to a worse tier since dismiss, surface the banner again.
-  const dismissedOfflineDuration = dismissedTs > 0 ? dismissedTs - lastSeen : -1;
-  const dismissedTier = dismissedOfflineDuration > 0 ? offlineTierFor(dismissedOfflineDuration) : null;
-  const dismissActive = dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
+  const dismissedOfflineDuration =
+    dismissedTs > 0 ? dismissedTs - lastSeen : -1;
+  const dismissedTier =
+    dismissedOfflineDuration > 0
+      ? offlineTierFor(dismissedOfflineDuration)
+      : null;
+  const dismissActive =
+    dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
   const tierEscalated =
     dismissedTier === null
       ? tier !== "warn" // dismiss happened before any tier, so any tier is an escalation
@@ -131,7 +161,10 @@ function useCliOfflineNotice(): StatusNotice | null {
   const command = tier === "warn" ? "cast status" : "cast restart";
   const stale = formatDuration(offlineDuration);
   const who = health.device ? `CLI on ${health.device}` : "CLI";
-  const message = tier === "warn" ? `${who} hasn't synced in ${stale}.` : `${who} offline for ${stale}.`;
+  const message =
+    tier === "warn"
+      ? `${who} hasn't synced in ${stale}.`
+      : `${who} offline for ${stale}.`;
   const action = tier === "warn" ? "Check status with " : "Restart with ";
 
   const handleCopy = async () => {

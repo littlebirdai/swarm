@@ -1,5 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { withTimeout, SyncService, chunkMessagesBySize } from "./syncService.js";
+import {
+  withTimeout,
+  SyncService,
+  chunkMessagesBySize,
+} from "./syncService.js";
 
 describe("withTimeout", () => {
   it("resolves through when the inner promise wins the race", async () => {
@@ -8,10 +12,12 @@ describe("withTimeout", () => {
   });
 
   it("rejects with a labeled error after the timeout when the inner promise hangs", async () => {
-    const hang = new Promise<never>(() => { /* never resolves */ });
+    const hang = new Promise<never>(() => {
+      /* never resolves */
+    });
     const start = Date.now();
     await expect(withTimeout(hang, 100, "hung op")).rejects.toThrow(
-      /hung op timed out after 100ms/
+      /hung op timed out after 100ms/,
     );
     const elapsed = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(95);
@@ -38,13 +44,20 @@ describe("withTimeout", () => {
 
 describe("SyncService.addMessages timeout regression", () => {
   it("throws (instead of hanging silently) when the convex mutation never resolves", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
 
     // Stub the internal Convex client so the mutation hangs forever, simulating
     // the 2026-05-13 stuck-sync incident where addMessages calls never returned.
     // Without the timeout wrapper this test would hang past the bun:test deadline.
     (sync as any).client = {
-      mutation: () => new Promise(() => { /* never resolves */ }),
+      mutation: () =>
+        new Promise(() => {
+          /* never resolves */
+        }),
     };
 
     // We can't wait the full 60s production timeout in a test, so we override
@@ -58,24 +71,24 @@ describe("SyncService.addMessages timeout regression", () => {
     await expect(
       sync.addMessages({
         conversationId: "conv",
-        messages: [
-          { role: "human", content: "hello", timestamp: Date.now() },
-        ],
-      })
+        messages: [{ role: "human", content: "hello", timestamp: Date.now() }],
+      }),
     ).rejects.toThrow(/timed out/);
   }, 5000);
 
   it("returns normally when the mutation resolves promptly", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     (sync as any).client = {
       mutation: async () => ({ inserted: 1, ids: ["m1"] }),
     };
 
     const result = await sync.addMessages({
       conversationId: "conv",
-      messages: [
-        { role: "human", content: "hello", timestamp: Date.now() },
-      ],
+      messages: [{ role: "human", content: "hello", timestamp: Date.now() }],
     });
 
     expect(result.inserted).toBe(1);
@@ -93,9 +106,18 @@ describe("SyncService.uploadImage timeout regression", () => {
   ]).toString("base64"); // Minimal signature fixture, well under MAX_IMAGE_SIZE.
 
   it("rejects a base64-encoded local path before requesting an upload URL", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     let mutations = 0;
-    (sync as any).client = { mutation: async () => { mutations++; return "unused"; } };
+    (sync as any).client = {
+      mutation: async () => {
+        mutations++;
+        return "unused";
+      },
+    };
 
     const result = await (sync as any).uploadImage(
       Buffer.from("/Users/example/screenshot.png").toString("base64"),
@@ -107,9 +129,18 @@ describe("SyncService.uploadImage timeout regression", () => {
   });
 
   it("returns null (does not hang) when generateUploadUrl never resolves", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     (sync as any).imageUploadTimeoutMs = 100;
-    (sync as any).client = { mutation: () => new Promise(() => { /* hangs forever */ }) };
+    (sync as any).client = {
+      mutation: () =>
+        new Promise(() => {
+          /* hangs forever */
+        }),
+    };
 
     const start = Date.now();
     const result = await (sync as any).uploadImage(smallPng, "image/png");
@@ -118,11 +149,20 @@ describe("SyncService.uploadImage timeout regression", () => {
   }, 5000);
 
   it("returns null (does not hang) when the upload fetch never resolves", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     (sync as any).imageUploadTimeoutMs = 100;
-    (sync as any).client = { mutation: async () => "https://upload.example/url" };
+    (sync as any).client = {
+      mutation: async () => "https://upload.example/url",
+    };
     const origFetch = globalThis.fetch;
-    globalThis.fetch = (() => new Promise(() => { /* hangs forever */ })) as any;
+    globalThis.fetch = (() =>
+      new Promise(() => {
+        /* hangs forever */
+      })) as any;
     try {
       const start = Date.now();
       const result = await (sync as any).uploadImage(smallPng, "image/png");
@@ -134,10 +174,19 @@ describe("SyncService.uploadImage timeout regression", () => {
   }, 5000);
 
   it("returns the storageId on a prompt successful upload", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
-    (sync as any).client = { mutation: async () => "https://upload.example/url" };
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
+    (sync as any).client = {
+      mutation: async () => "https://upload.example/url",
+    };
     const origFetch = globalThis.fetch;
-    globalThis.fetch = (async () => ({ ok: true, json: async () => ({ storageId: "kg123" }) })) as any;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({ storageId: "kg123" }),
+    })) as any;
     try {
       const result = await (sync as any).uploadImage(smallPng, "image/png");
       expect(result).toBe("kg123");
@@ -156,20 +205,33 @@ describe("SyncService.offloadImages", () => {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   ]);
   const smallImg = pngSignature.toString("base64");
-  const hugeImg = Buffer.concat([pngSignature, Buffer.alloc(525_000)]).toString("base64");
+  const hugeImg = Buffer.concat([pngSignature, Buffer.alloc(525_000)]).toString(
+    "base64",
+  );
 
   function make(authToken = "t") {
-    return new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken });
+    return new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken,
+    });
   }
 
   it("replaces data with storageId on successful upload (no raw base64 left)", async () => {
     const sync = make();
     (sync as any).uploadImage = async () => "kg-stored";
     const msgs: Array<{
-      images?: Array<{ mediaType: string; data?: string; storageId?: string; toolUseId?: string }>;
+      images?: Array<{
+        mediaType: string;
+        data?: string;
+        storageId?: string;
+        toolUseId?: string;
+      }>;
     }> = [{ images: [{ mediaType: "image/png", data: hugeImg }] }];
     await sync.offloadImages(msgs);
-    expect(msgs[0].images).toEqual([{ mediaType: "image/png", storageId: "kg-stored", toolUseId: undefined }]);
+    expect(msgs[0].images).toEqual([
+      { mediaType: "image/png", storageId: "kg-stored", toolUseId: undefined },
+    ]);
     expect((msgs[0].images![0] as any).data).toBeUndefined();
   });
 
@@ -186,17 +248,26 @@ describe("SyncService.offloadImages", () => {
     (sync as any).uploadImage = async () => null;
     const msgs = [{ images: [{ mediaType: "image/png", data: smallImg }] }];
     await sync.offloadImages(msgs);
-    expect(msgs[0].images).toEqual([{ mediaType: "image/png", data: smallImg }]);
+    expect(msgs[0].images).toEqual([
+      { mediaType: "image/png", data: smallImg },
+    ]);
   });
 
   it("is idempotent: an already-offloaded image is left untouched and not re-uploaded", async () => {
     const sync = make();
     let uploads = 0;
-    (sync as any).uploadImage = async () => { uploads++; return "should-not-happen"; };
-    const msgs = [{ images: [{ mediaType: "image/png", storageId: "kg-existing" }] }];
+    (sync as any).uploadImage = async () => {
+      uploads++;
+      return "should-not-happen";
+    };
+    const msgs = [
+      { images: [{ mediaType: "image/png", storageId: "kg-existing" }] },
+    ];
     await sync.offloadImages(msgs);
     expect(uploads).toBe(0);
-    expect(msgs[0].images).toEqual([{ mediaType: "image/png", storageId: "kg-existing" }]);
+    expect(msgs[0].images).toEqual([
+      { mediaType: "image/png", storageId: "kg-existing" },
+    ]);
   });
 });
 
@@ -205,7 +276,7 @@ describe("chunkMessagesBySize", () => {
     const msgs = Array.from({ length: 25 }, (_, i) => ({ id: i, body: "x" }));
     const batches = chunkMessagesBySize(msgs, 10, 1_000_000);
     // Count cap dominates here (tiny messages) → 10/10/5.
-    expect(batches.map(b => b.length)).toEqual([10, 10, 5]);
+    expect(batches.map((b) => b.length)).toEqual([10, 10, 5]);
     expect(batches.flat().length).toBe(25);
   });
 
@@ -221,12 +292,16 @@ describe("chunkMessagesBySize", () => {
 
   it("emits a single oversized message in its own batch rather than dropping it", () => {
     const huge = "a".repeat(2_000_000);
-    const msgs = [{ id: 0, body: "small" }, { id: 1, body: huge }, { id: 2, body: "small" }];
+    const msgs = [
+      { id: 0, body: "small" },
+      { id: 1, body: huge },
+      { id: 2, body: "small" },
+    ];
     const batches = chunkMessagesBySize(msgs, 10, 1_000_000);
     // small | huge-alone | small — the huge one is never merged or lost.
     expect(batches.length).toBe(3);
-    expect(batches.map(b => b.length)).toEqual([1, 1, 1]);
-    expect(batches.flat().map(m => m.id)).toEqual([0, 1, 2]);
+    expect(batches.map((b) => b.length)).toEqual([1, 1, 1]);
+    expect(batches.flat().map((m) => m.id)).toEqual([0, 1, 2]);
   });
 });
 
@@ -236,7 +311,11 @@ const MAX_CONTENT_NEAR_CAP = 100_000;
 
 describe("SyncService.addMessages oversized-batch regression", () => {
   it("splits an image-heavy run into multiple sub-cap mutations instead of one giant call", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
 
     // Capture every mutation payload so we can assert none is multi-MB. Before
     // the byte-aware split, 10 of these ~100KB-content messages would go out as
@@ -246,7 +325,10 @@ describe("SyncService.addMessages oversized-batch regression", () => {
     (sync as any).client = {
       mutation: async (_name: string, args: { messages: unknown[] }) => {
         sentBatchSizes.push(Buffer.byteLength(JSON.stringify(args.messages)));
-        return { inserted: args.messages.length, ids: args.messages.map((_, i) => `m${i}`) };
+        return {
+          inserted: args.messages.length,
+          ids: args.messages.map((_, i) => `m${i}`),
+        };
       },
     };
 
@@ -295,10 +377,18 @@ describe("SyncService.addMessages per-conversation serialization", () => {
     return { client, maxByConv: () => maxByConv, maxGlobal: () => maxGlobal };
   }
 
-  const msg = (i: number) => ({ role: "assistant" as const, content: "m" + i, timestamp: Date.now() });
+  const msg = (i: number) => ({
+    role: "assistant" as const,
+    content: "m" + i,
+    timestamp: Date.now(),
+  });
 
   it("never runs two addMessages for the SAME conversation concurrently", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     const t = trackingClient();
     (sync as any).client = t.client;
 
@@ -314,7 +404,11 @@ describe("SyncService.addMessages per-conversation serialization", () => {
   it("a stuck write on one conversation does not block another conversation", async () => {
     // Per-conversation chains must be independent: a hung addMessages for convA
     // must not wedge convB (otherwise one bad conversation stalls the whole daemon).
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     let bDone = false;
     (sync as any).client = {
       mutation: async (_n: string, args: any) => {
@@ -326,14 +420,21 @@ describe("SyncService.addMessages per-conversation serialization", () => {
       },
     };
 
-    const aHang = sync.addMessages({ conversationId: "convA", messages: [msg(1)] });
+    const aHang = sync.addMessages({
+      conversationId: "convA",
+      messages: [msg(1)],
+    });
     void aHang.catch(() => {});
     await sync.addMessages({ conversationId: "convB", messages: [msg(2)] });
     expect(bDone).toBe(true); // convB completed despite convA being stuck
   });
 
   it("a failed write does not block the next write for the same conversation", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     let calls = 0;
     (sync as any).client = {
       mutation: async (_n: string, args: any) => {
@@ -343,18 +444,33 @@ describe("SyncService.addMessages per-conversation serialization", () => {
       },
     };
 
-    const first = sync.addMessages({ conversationId: "convA", messages: [msg(1)] });
-    const second = sync.addMessages({ conversationId: "convA", messages: [msg(2)] });
+    const first = sync.addMessages({
+      conversationId: "convA",
+      messages: [msg(1)],
+    });
+    const second = sync.addMessages({
+      conversationId: "convA",
+      messages: [msg(2)],
+    });
     await expect(first).rejects.toThrow("transient server error");
     await expect(second).resolves.toMatchObject({ inserted: 1 });
   });
 });
 
 describe("SyncService.addMessages remote reconciliation", () => {
-  const msg = (uuid: string) => ({ messageUuid: uuid, role: "assistant" as const, content: uuid, timestamp: Date.now() });
+  const msg = (uuid: string) => ({
+    messageUuid: uuid,
+    role: "assistant" as const,
+    content: uuid,
+    timestamp: Date.now(),
+  });
 
   it("drops already-landed message uuids before retrying the batch", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     const sentBatches: any[] = [];
     (sync as any).client = {
       query: async () => ["u1"],
@@ -376,7 +492,11 @@ describe("SyncService.addMessages remote reconciliation", () => {
   });
 
   it("skips the mutation entirely when every message already exists remotely", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     let mutations = 0;
     (sync as any).client = {
       query: async () => ["u1", "u2"],
@@ -399,12 +519,18 @@ describe("SyncService.addMessages remote reconciliation", () => {
 
 describe("SyncService mutation queue bypass (skipQueue)", () => {
   it("runs independent mutations concurrently instead of FIFO through the client's mutation queue", async () => {
-    const sync = new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+    const sync = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     // Keep the REAL ConvexHttpClient and stub only its network leg: the client
     // FIFO-serializes queued mutations per instance, so on the default (queued)
     // path the second request cannot start while the first is still in flight.
     let releaseFirst!: () => void;
-    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
     let started = 0;
     (sync as any).client.fetch = async () => {
       started++;
@@ -425,8 +551,10 @@ describe("SyncService mutation queue bypass (skipQueue)", () => {
   });
 
   it("has no direct client.mutation call sites outside the mutate() helper", async () => {
-    const src = await Bun.file(new URL("./syncService.ts", import.meta.url)).text();
-    const direct = src.split("\n").filter((line) => line.includes("this.client.mutation("));
+    const src = await Bun.file(
+      new URL("./syncService.ts", import.meta.url),
+    ).text();
+    const direct = src.match(/\bthis\.client\s*\.mutation\([^\n]*/g) ?? [];
     // Exactly one: the body of mutate(), which pins skipQueue on every mutation.
     expect(direct).toHaveLength(1);
     expect(direct[0]).toContain("skipQueue: true");

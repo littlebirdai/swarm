@@ -38,7 +38,13 @@ function session(overrides: Record<string, any> = {}) {
 // the shared placeInboxRow (via placeConversationRow) before the tally sees
 // it. The test rows go through the same stamp.
 function stamped(s: any) {
-  const placement = placeConversationRow({ ...s, has_pending_messages: s.has_pending }, s, ownAsk(s), s.last_user_message, Date.now());
+  const placement = placeConversationRow(
+    { ...s, has_pending_messages: s.has_pending },
+    s,
+    ownAsk(s),
+    s.last_user_message,
+    Date.now(),
+  );
   return { ...s, ...placement, asking: ownAsk(s) };
 }
 
@@ -63,7 +69,9 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // The F1 regression. A killed row is an OVERLAY: it lands in `killed` AND in
   // total/work_state/pinned. Re-adding a `continue` after the tally breaks this.
   test("a killed row is listed AND counted in total, idle, pinned and killed", () => {
-    const { counts, rows } = tally([session({ inbox_killed_at: 111, is_pinned: true })]);
+    const { counts, rows } = tally([
+      session({ inbox_killed_at: 111, is_pinned: true }),
+    ]);
     expect(counts.killed).toBe(1);
     expect(counts.total).toBe(1);
     expect(counts.idle).toBe(1); // classifyWorkState collapses killed → idle
@@ -96,7 +104,10 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // rows are listed — which gutted `stashed`, whose whole purpose is telling you
   // how many agents are still running.
   test("dismissed WITH -a: still counted, and now also listed and in totals", () => {
-    const { counts, rows } = tally([session({ inbox_dismissed_at: 111 })], true);
+    const { counts, rows } = tally(
+      [session({ inbox_dismissed_at: 111 })],
+      true,
+    );
     expect(counts.dismissed).toBe(1); // NOT zeroed by -a
     expect(counts.total).toBe(1);
     expect(workStateTotal(counts)).toBe(1);
@@ -113,7 +124,9 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // Precedence at the tally, not just in the classifier: cast kill writes both
   // stamps, and the row must be reported once, as killed.
   test("a row with both kill and dismiss stamps counts once, as killed", () => {
-    const { counts } = tally([session({ inbox_killed_at: 111, inbox_dismissed_at: 111 })]);
+    const { counts } = tally([
+      session({ inbox_killed_at: 111, inbox_dismissed_at: 111 }),
+    ]);
     expect(counts.killed).toBe(1);
     expect(counts.dismissed).toBe(0);
   });
@@ -131,10 +144,23 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   test("an explicitly requested subagent row is listed; unrequested ones stay hidden", () => {
     const { counts, rows } = tallyInboxRows(
       [
-        session({ _id: "conversations_sub", session_id: "sess-sub", is_subagent: true }),
-        session({ _id: "conversations_other", session_id: "sess-other", is_subagent: true }),
+        session({
+          _id: "conversations_sub",
+          session_id: "sess-sub",
+          is_subagent: true,
+        }),
+        session({
+          _id: "conversations_other",
+          session_id: "sess-other",
+          is_subagent: true,
+        }),
       ].map(stamped),
-      { showAll: false, stateFilter: null, labelByConv, requestedIds: new Set(["conversations_sub"]) },
+      {
+        showAll: false,
+        stateFilter: null,
+        labelByConv,
+        requestedIds: new Set(["conversations_sub"]),
+      },
     );
     expect(rows.map((r) => r.id)).toEqual(["conversations_sub"]);
     expect(counts.total).toBe(1);
@@ -143,9 +169,16 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // The inbox emits a subagent through two paths (top-level recency scan and
   // the parent's child enumeration); the web dedups by _id, so must this.
   test("a requested subagent emitted twice lists and counts once", () => {
-    const sub = session({ _id: "conversations_sub", session_id: "sess-sub", is_subagent: true });
+    const sub = session({
+      _id: "conversations_sub",
+      session_id: "sess-sub",
+      is_subagent: true,
+    });
     const { counts, rows } = tallyInboxRows([sub, { ...sub }].map(stamped), {
-      showAll: false, stateFilter: null, labelByConv, requestedIds: new Set(["conversations_sub"]),
+      showAll: false,
+      stateFilter: null,
+      labelByConv,
+      requestedIds: new Set(["conversations_sub"]),
     });
     expect(rows).toHaveLength(1);
     expect(counts.total).toBe(1);
@@ -156,7 +189,9 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // inflate `pinned` — that would claim a pinned card the inbox doesn't show.
   // Moving `counts.pinned++` above the collapse breaks this.
   test("a collapsed dismissed+pinned row is not counted as pinned", () => {
-    const { counts } = tally([session({ inbox_dismissed_at: 111, is_pinned: true })]);
+    const { counts } = tally([
+      session({ inbox_dismissed_at: 111, is_pinned: true }),
+    ]);
     expect(counts.dismissed).toBe(1);
     expect(counts.pinned).toBe(0);
   });
@@ -165,7 +200,9 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   // summary line would change meaning with every --state flag.
   test("stateFilter=pinned narrows rows to pinned without touching counts", () => {
     const { counts, rows } = tallyInboxRows(
-      [session({ _id: "a", is_pinned: true }), session({ _id: "b" })].map(stamped),
+      [session({ _id: "a", is_pinned: true }), session({ _id: "b" })].map(
+        stamped,
+      ),
       { showAll: false, stateFilter: "pinned", labelByConv },
     );
     expect(counts.total).toBe(2);
@@ -178,7 +215,10 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
     // needs_input (settled-with-content routes to the user), so these two rows
     // land in different buckets by construction.
     const { counts, rows } = tallyInboxRows(
-      [session({ _id: "a", inbox_killed_at: 111, is_pinned: true }), session({ _id: "b" })].map(stamped),
+      [
+        session({ _id: "a", inbox_killed_at: 111, is_pinned: true }),
+        session({ _id: "b" }),
+      ].map(stamped),
       { showAll: false, stateFilter: "idle", labelByConv },
     );
     expect(counts.total).toBe(2);
@@ -189,7 +229,10 @@ describe("tallyInboxRows — retirement figures are tallies, not a partition", (
   test("labelByConv stamps the row label; absent entries read null", () => {
     const labels = new Map([["conversations_a", "fleet"]]);
     const { rows } = tallyInboxRows(
-      [session({ _id: "conversations_a" }), session({ _id: "conversations_b" })].map(stamped),
+      [
+        session({ _id: "conversations_a" }),
+        session({ _id: "conversations_b" }),
+      ].map(stamped),
       { showAll: false, stateFilter: null, labelByConv: labels },
     );
     expect(rows.find((r) => r.id === "conversations_a")!.label).toBe("fleet");
@@ -216,23 +259,43 @@ describe("tallyInboxRows — the activity line", () => {
   const NOW = Date.now();
   const activity = { text: "editing chat.ts", tool: "Edit", at: NOW - 10_000 };
   const working = (over: Record<string, any> = {}) =>
-    session({ agent_status: "working", is_idle: false, is_connected: true, agent_status_updated_at: NOW, last_heartbeat: NOW, ...over });
+    session({
+      agent_status: "working",
+      is_idle: false,
+      is_connected: true,
+      agent_status_updated_at: NOW,
+      last_heartbeat: NOW,
+      ...over,
+    });
 
   test("a working row with a fresh stamp carries it", () => {
-    const { rows } = tallyInboxRows([working({ activity })].map(stamped), { showAll: false, stateFilter: null, labelByConv, now: NOW });
+    const { rows } = tallyInboxRows([working({ activity })].map(stamped), {
+      showAll: false,
+      stateFilter: null,
+      labelByConv,
+      now: NOW,
+    });
     expect(rows[0].work_state).toBe("working");
     expect(rows[0].activity).toEqual(activity);
   });
 
   test("a stale stamp on a working row is hidden, never shown as current", () => {
     const stale = { ...activity, at: NOW - 10 * 60 * 1000 };
-    const { rows } = tallyInboxRows([working({ activity: stale })].map(stamped), { showAll: false, stateFilter: null, labelByConv, now: NOW });
+    const { rows } = tallyInboxRows(
+      [working({ activity: stale })].map(stamped),
+      { showAll: false, stateFilter: null, labelByConv, now: NOW },
+    );
     expect(rows[0].work_state).toBe("working");
     expect(rows[0].activity).toBeNull();
   });
 
   test("a row that is not working carries null even with a fresh stamp", () => {
-    const { rows } = tallyInboxRows([session({ activity })].map(stamped), { showAll: false, stateFilter: null, labelByConv, now: NOW });
+    const { rows } = tallyInboxRows([session({ activity })].map(stamped), {
+      showAll: false,
+      stateFilter: null,
+      labelByConv,
+      now: NOW,
+    });
     expect(rows[0].work_state).not.toBe("working");
     expect(rows[0].activity).toBeNull();
   });

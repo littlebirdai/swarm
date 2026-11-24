@@ -11,7 +11,10 @@
 import type { Options } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { entityRemarkPlugins } from "../lib/remarkEntityIds";
-import { remarkEntityCards, type EntityCardsOptions } from "../lib/remarkEntityCards";
+import {
+  remarkEntityCards,
+  type EntityCardsOptions,
+} from "../lib/remarkEntityCards";
 import { MarkdownImg, ImageRowParagraph } from "./tools/MarkdownImages";
 import { EntityAwareCode, EntityAwareLink } from "./EntityIdPill";
 import { MarkdownReplyQuote } from "./ReplyQuote";
@@ -36,10 +39,14 @@ export const MESSAGE_MD_COMPONENTS = {
   a: EntityAwareLink,
   img: MarkdownImg,
   p: ImageRowParagraph,
-  pre: ({ node, children, ...props }: any) => renderMarkdownPre(node, children, props),
+  pre: ({ node, children, ...props }: any) =>
+    renderMarkdownPre(node, children, props),
 };
 // A user's blockquote is a quote they replied to (the quote tool writes one).
-export const USER_MD_COMPONENTS = { ...MESSAGE_MD_COMPONENTS, blockquote: MarkdownReplyQuote };
+export const USER_MD_COMPONENTS = {
+  ...MESSAGE_MD_COMPONENTS,
+  blockquote: MarkdownReplyQuote,
+};
 
 // User messages are typed (or pasted) as plain text, not authored markdown: a
 // single newline is a real line break, and a literal <tag> is content, not
@@ -62,7 +69,11 @@ function remarkUserHtmlAsText() {
   };
   return (tree: any) => walk(tree, true);
 }
-export const USER_MD_REMARK = [...entityRemarkPlugins, remarkBreaks, remarkUserHtmlAsText];
+export const USER_MD_REMARK = [
+  ...entityRemarkPlugins,
+  remarkBreaks,
+  remarkUserHtmlAsText,
+];
 // An agent's body: entity pills, and a staffing proposal alone on its line
 // drawn live as a card (org-staffing.md S24: the head of people posts a small
 // proposal and writes its `op-N` on its own line), and so is a call: `cl-42`
@@ -73,5 +84,14 @@ export const USER_MD_REMARK = [...entityRemarkPlugins, remarkBreaks, remarkUserH
 // transcript keeps the inline pill it always had; team chat (ChatMessage)
 // promotes every shared reference to a card. Alone on its line only: the same
 // reference mid-sentence is a citation and keeps its pill.
-const ASSISTANT_CARDS: EntityCardsOptions = { types: ["proposal", "call", "replay", "flow"], aloneOnly: true };
-export const ASSISTANT_MD_REMARK = [...entityRemarkPlugins, [remarkEntityCards, ASSISTANT_CARDS] as [typeof remarkEntityCards, EntityCardsOptions]];
+const ASSISTANT_CARDS: EntityCardsOptions = {
+  types: ["proposal", "call", "replay", "flow"],
+  aloneOnly: true,
+};
+export const ASSISTANT_MD_REMARK = [
+  ...entityRemarkPlugins,
+  [remarkEntityCards, ASSISTANT_CARDS] as [
+    typeof remarkEntityCards,
+    EntityCardsOptions,
+  ],
+];

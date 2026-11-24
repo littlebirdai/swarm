@@ -28,12 +28,17 @@ describe("anchor inbox visibility", () => {
   });
 
   it("surfaces an anchor that is genuinely blocked on the user (open poll)", () => {
-    expect(inSorted({ a: mk("a", { is_anchor: true, awaiting_input: true }) }, "a")).toBe(true);
+    expect(
+      inSorted({ a: mk("a", { is_anchor: true, awaiting_input: true }) }, "a"),
+    ).toBe(true);
   });
 
   it("surfaces an anchor blocked on a permission prompt", () => {
     expect(
-      inSorted({ a: mk("a", { is_anchor: true, agent_status: "permission_blocked" }) }, "a"),
+      inSorted(
+        { a: mk("a", { is_anchor: true, agent_status: "permission_blocked" }) },
+        "a",
+      ),
     ).toBe(true);
   });
 
@@ -44,6 +49,8 @@ describe("anchor inbox visibility", () => {
   it("isSessionHardBlocked is narrow: idle-with-content is not 'blocked'", () => {
     expect(isSessionHardBlocked(mk("x"))).toBe(false);
     expect(isSessionHardBlocked(mk("x", { awaiting_input: true }))).toBe(true);
-    expect(isSessionHardBlocked(mk("x", { pending_api_error: true }))).toBe(true);
+    expect(isSessionHardBlocked(mk("x", { pending_api_error: true }))).toBe(
+      true,
+    );
   });
 });

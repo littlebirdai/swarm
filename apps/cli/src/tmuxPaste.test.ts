@@ -1,8 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { routeTmuxArgs, sessionSocketName, tmuxSocketDir } from "./tmuxRoute.js";
+import {
+  routeTmuxArgs,
+  sessionSocketName,
+  tmuxSocketDir,
+} from "./tmuxRoute.js";
 import {
   clientAcceptsBracketedPaste,
   deliverTextIntoPane,
@@ -19,7 +30,11 @@ import {
 // unescaped `;` (the command ends there) and turns a final `\;` into `;`
 // (cmd-parse.y, cmd_parse_from_arguments; verified on tmux 3.6a).
 const tmuxTypes = (arg: string) =>
-  arg.endsWith("\\;") ? arg.slice(0, -2) + ";" : arg.endsWith(";") ? arg.slice(0, -1) : arg;
+  arg.endsWith("\\;")
+    ? arg.slice(0, -2) + ";"
+    : arg.endsWith(";")
+      ? arg.slice(0, -1)
+      : arg;
 
 describe("clientAcceptsBracketedPaste", () => {
   test("enables only the clients verified with multiline tmux paste", () => {
@@ -37,25 +52,33 @@ describe("clientAcceptsBracketedPaste", () => {
 
 describe("prepareInjectedContent", () => {
   test("preserves multiline formatting for bracketed paste", () => {
-    expect(prepareInjectedContent("one\r\ntwo\r\n\nfour", { bracketed: true }))
-      .toBe("one\ntwo\n\nfour");
+    expect(
+      prepareInjectedContent("one\r\ntwo\r\n\nfour", { bracketed: true }),
+    ).toBe("one\ntwo\n\nfour");
   });
 
   test("flattens multiline text for an unverified client", () => {
-    expect(prepareInjectedContent("one\ntwo\n\nfour", { bracketed: false }))
-      .toBe("one two  four");
+    expect(
+      prepareInjectedContent("one\ntwo\n\nfour", { bracketed: false }),
+    ).toBe("one two  four");
   });
 
   test("drops trailing newlines and never produces an empty paste", () => {
-    expect(prepareInjectedContent("body\n\n", { bracketed: true })).toBe("body");
+    expect(prepareInjectedContent("body\n\n", { bracketed: true })).toBe(
+      "body",
+    );
     expect(prepareInjectedContent("\r\n\n", { bracketed: true })).toBe(" ");
   });
 
   test("message text cannot end the bracketed paste it is wrapped in", () => {
     for (const bracketed of [true, false]) {
-      expect(prepareInjectedContent("a\x1b[201~b\x1b[200~c", { bracketed })).toBe("abc");
+      expect(
+        prepareInjectedContent("a\x1b[201~b\x1b[200~c", { bracketed }),
+      ).toBe("abc");
       // Removing one marker must not join the pieces around it into another.
-      expect(prepareInjectedContent("x\x1b[20\x1b[201~1~y", { bracketed })).toBe("xy");
+      expect(
+        prepareInjectedContent("x\x1b[20\x1b[201~1~y", { bracketed }),
+      ).toBe("xy");
     }
     expect(prepareInjectedContent("\x1b[201~", { bracketed: true })).toBe(" ");
   });
@@ -82,12 +105,25 @@ describe("pasteTextIntoPane", () => {
   // load-buffer and delete-buffer name no target; they must reach the server
   // paste-buffer reads, or a session on its own server never gets a paste.
   test("every buffer verb reaches the target session's own server", async () => {
-    const env = { TMUX_TMPDIR: mkdtempSync(path.join(os.tmpdir(), "tmux-paste-")), CODECAST_TMUX_PER_SESSION: "1" };
+    const env = {
+      TMUX_TMPDIR: mkdtempSync(path.join(os.tmpdir(), "tmux-paste-")),
+      CODECAST_TMUX_PER_SESSION: "1",
+    };
     try {
       mkdirSync(tmuxSocketDir(env), { recursive: true });
-      writeFileSync(path.join(tmuxSocketDir(env), sessionSocketName("cc-resume-abc")), "");
+      writeFileSync(
+        path.join(tmuxSocketDir(env), sessionSocketName("cc-resume-abc")),
+        "",
+      );
       const routed: string[][] = [];
-      await pasteTextIntoPane(async (args) => { routed.push(...routeTmuxArgs(args, env)); }, "cc-resume-abc:0.0", "hello", true);
+      await pasteTextIntoPane(
+        async (args) => {
+          routed.push(...routeTmuxArgs(args, env));
+        },
+        "cc-resume-abc:0.0",
+        "hello",
+        true,
+      );
       expect(routed.map((a) => a.slice(0, 3))).toEqual([
         ["-L", sessionSocketName("cc-resume-abc"), "load-buffer"],
         ["-L", sessionSocketName("cc-resume-abc"), "paste-buffer"],
@@ -103,14 +139,19 @@ describe("pasteTextIntoPane", () => {
     let loadedPayload = "";
     let payloadMode = 0;
     let payloadPath = "";
-    await pasteTextIntoPane(async (args) => {
-      calls.push(args);
-      if (args[0] === "load-buffer") {
-        payloadPath = args[3];
-        loadedPayload = readFileSync(payloadPath, "utf8");
-        payloadMode = statSync(payloadPath).mode & 0o777;
-      }
-    }, "%4", "one\ntwo", true);
+    await pasteTextIntoPane(
+      async (args) => {
+        calls.push(args);
+        if (args[0] === "load-buffer") {
+          payloadPath = args[3];
+          loadedPayload = readFileSync(payloadPath, "utf8");
+          payloadMode = statSync(payloadPath).mode & 0o777;
+        }
+      },
+      "%4",
+      "one\ntwo",
+      true,
+    );
 
     expect(loadedPayload).toBe("one\ntwo");
     expect(payloadMode).toBe(0o600);
@@ -131,28 +172,46 @@ describe("pasteTextIntoPane", () => {
 
   test("flattens an unverified client's payload before loading the buffer", async () => {
     let loadedPayload = "";
-    await pasteTextIntoPane(async (args) => {
-      if (args[0] === "load-buffer") loadedPayload = readFileSync(args[3], "utf8");
-    }, "%6", "one\ntwo\nthree", false);
+    await pasteTextIntoPane(
+      async (args) => {
+        if (args[0] === "load-buffer")
+          loadedPayload = readFileSync(args[3], "utf8");
+      },
+      "%6",
+      "one\ntwo\nthree",
+      false,
+    );
 
     expect(loadedPayload).toBe("one two three");
   });
 
   test("escapes a final semicolon on the raw send-keys fallback", async () => {
     const calls: string[][] = [];
-    await pasteTextIntoPane(async (args) => {
-      calls.push(args);
-      if (args[0] === "load-buffer") throw new Error("tmux buffer unavailable");
-    }, "%7", "run it;", true);
+    await pasteTextIntoPane(
+      async (args) => {
+        calls.push(args);
+        if (args[0] === "load-buffer")
+          throw new Error("tmux buffer unavailable");
+      },
+      "%7",
+      "run it;",
+      true,
+    );
     expect(calls.at(-1)).toEqual(["send-keys", "-t", "%7", "-l", "run it\\;"]);
   });
 
   test("flattens before raw send-keys fallback", async () => {
     const calls: string[][] = [];
-    await pasteTextIntoPane(async (args) => {
-      calls.push(args);
-      if (args[0] === "load-buffer") throw new Error("tmux buffer unavailable");
-    }, "%7", "one\ntwo\nthree", true);
+    await pasteTextIntoPane(
+      async (args) => {
+        calls.push(args);
+        if (args[0] === "load-buffer")
+          throw new Error("tmux buffer unavailable");
+      },
+      "%7",
+      "one\ntwo\nthree",
+      true,
+    );
 
     expect(calls.at(-1)).toEqual([
       "send-keys",
@@ -165,10 +224,18 @@ describe("pasteTextIntoPane", () => {
 
   test("deletes a loaded tmux buffer when paste fails", async () => {
     const calls: string[][] = [];
-    await expect(pasteTextIntoPane(async (args) => {
-      calls.push(args);
-      if (args[0] === "paste-buffer") throw new Error("target pane disappeared");
-    }, "%9", "sensitive\nprompt", true)).rejects.toThrow("target pane disappeared");
+    await expect(
+      pasteTextIntoPane(
+        async (args) => {
+          calls.push(args);
+          if (args[0] === "paste-buffer")
+            throw new Error("target pane disappeared");
+        },
+        "%9",
+        "sensitive\nprompt",
+        true,
+      ),
+    ).rejects.toThrow("target pane disappeared");
 
     const bufferId = calls[0]?.[2];
     expect(calls.map((args) => args[0])).toEqual([
@@ -203,15 +270,17 @@ describe("pasteAndSubmitText", () => {
 
   test("does not submit when the paste itself fails", async () => {
     let submits = 0;
-    await expect(pasteAndSubmitText({
-      paste: async () => {
-        throw new Error("paste failed");
-      },
-      sleep: async () => {},
-      submit: async () => {
-        submits++;
-      },
-    })).rejects.toThrow("paste failed");
+    await expect(
+      pasteAndSubmitText({
+        paste: async () => {
+          throw new Error("paste failed");
+        },
+        sleep: async () => {},
+        submit: async () => {
+          submits++;
+        },
+      }),
+    ).rejects.toThrow("paste failed");
     expect(submits).toBe(0);
   });
 });
@@ -227,12 +296,20 @@ describe("typed delivery", () => {
       if (args[0] === "send-keys" && args.includes("-l")) screen += args.at(-1);
       return { stdout: args[0] === "capture-pane" ? screen : "", stderr: "" };
     };
-    return { calls, exec, writes: () => calls.filter((c) => c[0] === "send-keys") };
+    return {
+      calls,
+      exec,
+      writes: () => calls.filter((c) => c[0] === "send-keys"),
+    };
   };
 
   test("types into an idle Claude composer, so a long message is not wrapped as a paste", () => {
-    expect(typedNewlineKey("claude", "first line\nsecond line", true)).toBe("C-j");
-    expect(typedNewlineKey(undefined, "go ahead and ship it", true)).toBe("C-j");
+    expect(typedNewlineKey("claude", "first line\nsecond line", true)).toBe(
+      "C-j",
+    );
+    expect(typedNewlineKey(undefined, "go ahead and ship it", true)).toBe(
+      "C-j",
+    );
   });
 
   test("pastes into Claude mid-turn, where a dialog could take a typed key", () => {
@@ -252,8 +329,13 @@ describe("typed delivery", () => {
 
   test("an idle multi-line message rides in literal chunks with its newlines inside", async () => {
     const { calls, exec } = recorder();
-    await deliverTextIntoPane(exec, "s:0.0", "- first\nsecond\n", { agentType: "claude", idle: true });
-    expect(calls).toEqual([["send-keys", "-t", "s:0.0", "-l", "--", "- first\nsecond"]]);
+    await deliverTextIntoPane(exec, "s:0.0", "- first\nsecond\n", {
+      agentType: "claude",
+      idle: true,
+    });
+    expect(calls).toEqual([
+      ["send-keys", "-t", "s:0.0", "-l", "--", "- first\nsecond"],
+    ]);
   });
 
   test("each chunk waits until the pane shows the one before it", async () => {
@@ -276,7 +358,10 @@ describe("typed delivery", () => {
       return { stdout: "❯ " + lastSeen, stderr: "" };
     };
     const text = "x".repeat(100) + "y".repeat(100) + "z".repeat(100);
-    await deliverTextIntoPane(exec, "s:0.0", text, { agentType: "claude", idle: true });
+    await deliverTextIntoPane(exec, "s:0.0", text, {
+      agentType: "claude",
+      idle: true,
+    });
     expect(writes.join("")).toBe(text);
     expect(writes.length).toBe(3);
     expect(early).toBe(0);
@@ -284,9 +369,21 @@ describe("typed delivery", () => {
 
   test("a pane that never shows the text slows typing but does not stop it", async () => {
     const calls: string[][] = [];
-    const exec = async (args: string[]) => { calls.push(args); return { stdout: "", stderr: "" }; };
-    await deliverTextIntoPane(exec, "s:0.0", "a".repeat(300), { agentType: "claude", idle: true, echoBudgetMs: 50 });
-    expect(calls.filter((c) => c[0] === "send-keys").map((c) => c.at(-1)).join("")).toBe("a".repeat(300));
+    const exec = async (args: string[]) => {
+      calls.push(args);
+      return { stdout: "", stderr: "" };
+    };
+    await deliverTextIntoPane(exec, "s:0.0", "a".repeat(300), {
+      agentType: "claude",
+      idle: true,
+      echoBudgetMs: 50,
+    });
+    expect(
+      calls
+        .filter((c) => c[0] === "send-keys")
+        .map((c) => c.at(-1))
+        .join(""),
+    ).toBe("a".repeat(300));
   });
 
   test("a chunk ending on a semicolon reaches the pane whole", async () => {
@@ -297,12 +394,19 @@ describe("typed delivery", () => {
     let screen = "❯ ";
     const exec = async (args: string[]) => {
       calls.push(args);
-      if (args[0] === "send-keys" && args.includes("-l")) screen += tmuxTypes(args.at(-1)!);
+      if (args[0] === "send-keys" && args.includes("-l"))
+        screen += tmuxTypes(args.at(-1)!);
       return { stdout: args[0] === "capture-pane" ? screen : "", stderr: "" };
     };
-    const text = "a".repeat(127) + ";" + "b".repeat(127) + ";" + "c".repeat(20) + ";";
-    await deliverTextIntoPane(exec, "s:0.0", text, { agentType: "claude", idle: true });
-    const chunks = calls.filter((c) => c[0] === "send-keys").map((c) => c.at(-1)!);
+    const text =
+      "a".repeat(127) + ";" + "b".repeat(127) + ";" + "c".repeat(20) + ";";
+    await deliverTextIntoPane(exec, "s:0.0", text, {
+      agentType: "claude",
+      idle: true,
+    });
+    const chunks = calls
+      .filter((c) => c[0] === "send-keys")
+      .map((c) => c.at(-1)!);
     expect(chunks.length).toBe(3);
     expect(chunks.every((c) => c.endsWith("\\;"))).toBe(true);
     expect(chunks.map(tmuxTypes).join("")).toBe(text);
@@ -311,16 +415,28 @@ describe("typed delivery", () => {
 
   test("never leaves a lone character for the last chunk", async () => {
     const { calls, exec } = recorder();
-    await deliverTextIntoPane(exec, "s:0.0", "a".repeat(129), { agentType: "claude", idle: true });
-    const chunks = calls.filter((c) => c[0] === "send-keys").map((c) => c.at(-1)!);
+    await deliverTextIntoPane(exec, "s:0.0", "a".repeat(129), {
+      agentType: "claude",
+      idle: true,
+    });
+    const chunks = calls
+      .filter((c) => c[0] === "send-keys")
+      .map((c) => c.at(-1)!);
     expect(chunks.join("")).toBe("a".repeat(129));
     expect(Math.min(...chunks.map((c) => c.length))).toBeGreaterThan(1);
   });
 
   test("a busy Claude pane still gets the bracketed paste", async () => {
     const { calls, exec } = recorder();
-    await deliverTextIntoPane(exec, "s:0.0", "go ahead", { agentType: "claude", idle: false });
-    expect(calls.map((c) => c[0])).toEqual(["load-buffer", "paste-buffer", "delete-buffer"]);
+    await deliverTextIntoPane(exec, "s:0.0", "go ahead", {
+      agentType: "claude",
+      idle: false,
+    });
+    expect(calls.map((c) => c[0])).toEqual([
+      "load-buffer",
+      "paste-buffer",
+      "delete-buffer",
+    ]);
   });
 });
 
@@ -328,13 +444,19 @@ describe("deliveryTimeoutMsFor", () => {
   test("a payload Claude types gets one allowance per 128-char chunk on top of the base", () => {
     // 157 KB typed into jx7b88a took 409 s against a 180 s budget (2026-10-05).
     const text = "x".repeat(157_000);
-    expect(deliveryTimeoutMsFor(text, "claude", 180_000)).toBe(180_000 + Math.ceil(157_000 / 128) * TYPED_CHUNK_TIMEOUT_MS);
-    expect(deliveryTimeoutMsFor(text, "claude", 180_000)).toBeGreaterThan(409_000 * 2);
+    expect(deliveryTimeoutMsFor(text, "claude", 180_000)).toBe(
+      180_000 + Math.ceil(157_000 / 128) * TYPED_CHUNK_TIMEOUT_MS,
+    );
+    expect(deliveryTimeoutMsFor(text, "claude", 180_000)).toBeGreaterThan(
+      409_000 * 2,
+    );
     expect(deliveryTimeoutMsFor("go ahead", undefined, 180_000)).toBe(181_000);
   });
 
   test("a pasted payload keeps the base budget", () => {
-    expect(deliveryTimeoutMsFor("x".repeat(157_000), "codex", 180_000)).toBe(180_000);
+    expect(deliveryTimeoutMsFor("x".repeat(157_000), "codex", 180_000)).toBe(
+      180_000,
+    );
     expect(deliveryTimeoutMsFor("col1\tcol2", "claude", 180_000)).toBe(180_000);
   });
 });

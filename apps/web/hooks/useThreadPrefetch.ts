@@ -19,9 +19,14 @@ function fetchThread(convex: ConvexReactClient, rootId: string): Promise<void> {
   if (running) return running;
   const p = convex
     .query(api.chat.getThread, { root_id: rootId as any })
-    .then((data) => { ingestChatPage(data, convex); })
+    .then((data) => {
+      ingestChatPage(data, convex);
+    })
     .catch(() => {})
-    .finally(() => { inflight.delete(rootId); pump(convex); });
+    .finally(() => {
+      inflight.delete(rootId);
+      pump(convex);
+    });
   inflight.set(rootId, p);
   return p;
 }
@@ -37,15 +42,20 @@ function pump(convex: ConvexReactClient) {
  *  link). */
 export function useOpenThreadPrefetch(): (rootId: string) => void {
   const convex = useConvex();
-  return useCallback((rootId: string) => {
-    if (isConvexId(rootId)) void fetchThread(convex, rootId);
-  }, [convex]);
+  return useCallback(
+    (rootId: string) => {
+      if (isConvexId(rootId)) void fetchThread(convex, rootId);
+    },
+    [convex],
+  );
 }
 
 /** Keep the replies of these roots (newest first) in the store, so opening
  *  any of them paints the whole thread at once. A root's last reply time is
  *  part of the key, so a new reply fetches its thread again. */
-export function useThreadPrefetch(roots: { id: string; lastReplyAt?: number }[]): void {
+export function useThreadPrefetch(
+  roots: { id: string; lastReplyAt?: number }[],
+): void {
   const convex = useConvex();
   const key = roots.map((r) => `${r.id}:${r.lastReplyAt ?? 0}`).join(",");
   // eslint-disable-next-line no-restricted-syntax -- one-shot fetch per set of roots and reply times
@@ -57,7 +67,8 @@ export function useThreadPrefetch(roots: { id: string; lastReplyAt?: number }[])
       s.chatThreadSummaries ?? {},
       s.chatMessages ?? {},
     );
-    for (const id of missing) if (!inflight.has(id) && !queue.includes(id)) queue.push(id);
+    for (const id of missing)
+      if (!inflight.has(id) && !queue.includes(id)) queue.push(id);
     pump(convex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convex, key]);

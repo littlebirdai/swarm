@@ -59,7 +59,13 @@ const envelope = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   useInboxStore.setState({
-    sessions: { [A]: row(A), [CHILD]: row(CHILD, { parent_conversation_id: A, parent_message_uuid: "u" }) },
+    sessions: {
+      [A]: row(A),
+      [CHILD]: row(CHILD, {
+        parent_conversation_id: A,
+        parent_message_uuid: "u",
+      }),
+    },
     sessionsProjection: {},
     pending: {},
   } as any);
@@ -67,7 +73,8 @@ beforeEach(() => {
 
 describe("field list derivation (signature)", () => {
   it("the client preserve list derives from the shared fact constant", () => {
-    for (const f of INBOX_FACT_FIELDS) expect(SESSIONS_PRESERVE_FIELDS).toContain(f);
+    for (const f of INBOX_FACT_FIELDS)
+      expect(SESSIONS_PRESERVE_FIELDS).toContain(f);
   });
 
   it("the strip list IS the shared projection-stamp constant", () => {
@@ -80,9 +87,18 @@ describe("applyInboxLivenessPayload — a repeated row costs nothing", () => {
   // last one. Merging each row through draft proxies was a quarter of the
   // phone's JS time after a signed in launch. An unchanged row must not be
   // touched: same row object, same sessions object, so no subscriber wakes.
-  const facts = { agent_status: "working", is_idle: false, message_count: 7, updated_at: 123456, activity: { verb: "Editing", target: "a.ts" } };
+  const facts = {
+    agent_status: "working",
+    is_idle: false,
+    message_count: 7,
+    updated_at: 123456,
+    activity: { verb: "Editing", target: "a.ts" },
+  };
   const push = (over: Record<string, unknown> = {}) =>
-    useInboxStore.getState().applyInboxLivenessPayload("mine", { liveness: { [A]: { ...facts, ...over, ...stamp } }, projection: envelope() });
+    useInboxStore.getState().applyInboxLivenessPayload("mine", {
+      liveness: { [A]: { ...facts, ...over, ...stamp } },
+      projection: envelope(),
+    });
 
   it("keeps row and collection identity when the payload repeats, fresh objects included", () => {
     push();
@@ -100,7 +116,10 @@ describe("applyInboxLivenessPayload — a repeated row costs nothing", () => {
     push();
     push({ message_count: 8 });
     expect((useInboxStore.getState().sessions[A] as any).message_count).toBe(8);
-    useInboxStore.getState().applyInboxLivenessPayload("mine", { liveness: { [A]: { is_idle: true, ...stamp } }, projection: envelope() });
+    useInboxStore.getState().applyInboxLivenessPayload("mine", {
+      liveness: { [A]: { is_idle: true, ...stamp } },
+      projection: envelope(),
+    });
     const row = useInboxStore.getState().sessions[A] as any;
     expect(row.agent_status).toBeNull();
     expect(row.activity).toBeNull();
@@ -109,13 +128,29 @@ describe("applyInboxLivenessPayload — a repeated row costs nothing", () => {
   it("a row with a pending lock always takes the full merge", () => {
     push();
     useInboxStore.setState({
-      sessions: { ...useInboxStore.getState().sessions, [A]: { ...(useInboxStore.getState().sessions[A] as any), permission_mode: "plan" } },
-      pending: { [`sessions:${A}:permission_mode`]: { type: "field", value: "plan", ts: Date.now() } },
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        [A]: {
+          ...(useInboxStore.getState().sessions[A] as any),
+          permission_mode: "plan",
+        },
+      },
+      pending: {
+        [`sessions:${A}:permission_mode`]: {
+          type: "field",
+          value: "plan",
+          ts: Date.now(),
+        },
+      },
     } as any);
     push({ permission_mode: "bypass" });
-    expect((useInboxStore.getState().sessions[A] as any).permission_mode).toBe("plan");
+    expect((useInboxStore.getState().sessions[A] as any).permission_mode).toBe(
+      "plan",
+    );
     push({ permission_mode: "plan" });
-    expect(useInboxStore.getState().pending[`sessions:${A}:permission_mode`]).toBeUndefined();
+    expect(
+      useInboxStore.getState().pending[`sessions:${A}:permission_mode`],
+    ).toBeUndefined();
   });
 });
 
@@ -153,16 +188,41 @@ describe("applyInboxLivenessPayload — the one applier for { liveness, projecti
     expect(slot.stamps[A]).toEqual(stamp as any);
   });
 
-  it("an absent fact is null: a stale \"stopped\" does not outlive the payload that dropped it", () => {
+  it('an absent fact is null: a stale "stopped" does not outlive the payload that dropped it', () => {
     // Prod, 2026-09-01: the managed row aged out, the server's trusted status
     // became undefined, Convex dropped the key, and a merge that only wrote the
     // keys it received kept "stopped" from the day the daemon died — filing a
     // declared-done session under Needs You on every replica while the stamp
     // beside it said done.
-    useInboxStore.setState({ sessions: { [A]: row(A, { agent_status: "stopped", thread_state_status: "done", message_count: 40 }) } } as any);
+    useInboxStore.setState({
+      sessions: {
+        [A]: row(A, {
+          agent_status: "stopped",
+          thread_state_status: "done",
+          message_count: 40,
+        }),
+      },
+    } as any);
     useInboxStore.getState().applyInboxLivenessPayload("mine", {
-      liveness: { [A]: { is_idle: true, awaiting_input: false, is_connected: false, message_count: 40, updated_at: 5, ...stamp, bucket: "done", work_state: "done" } },
-      projection: { v: INBOX_PROJECTION_VERSION, epoch: 60_000, tally: null, set_digest: null, truncated: [] },
+      liveness: {
+        [A]: {
+          is_idle: true,
+          awaiting_input: false,
+          is_connected: false,
+          message_count: 40,
+          updated_at: 5,
+          ...stamp,
+          bucket: "done",
+          work_state: "done",
+        },
+      },
+      projection: {
+        v: INBOX_PROJECTION_VERSION,
+        epoch: 60_000,
+        tally: null,
+        set_digest: null,
+        truncated: [],
+      },
     });
     const s = useInboxStore.getState().sessions[A] as any;
     expect(s.agent_status).toBeNull();
@@ -200,7 +260,11 @@ describe("applyInboxLivenessPayload — the one applier for { liveness, projecti
     const mineBefore = useInboxStore.getState().sessionsProjection["mine"];
     useInboxStore.getState().applyInboxLivenessPayload("team:t1", {
       liveness: { [A]: { ...stamp, below_fold: true } },
-      projection: envelope({ scope: "team", team_id: "t1", set_digest: "team0000team0000" }),
+      projection: envelope({
+        scope: "team",
+        team_id: "t1",
+        set_digest: "team0000team0000",
+      }),
     });
     const s = useInboxStore.getState();
     expect(s.sessionsProjection["mine"].set_digest).toBe("mine0000mine0000");
@@ -220,9 +284,11 @@ describe("applyInboxLivenessPayload — the one applier for { liveness, projecti
 
 describe("single-writer enforcement on every row channel", () => {
   it("syncTable strips stamp fields from a base-list row before the merge", () => {
-    useInboxStore.getState().syncTable("sessions", [
-      { ...row(A), ...stamp, bucket: "pinned", work_state: "working" } as any,
-    ]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        { ...row(A), ...stamp, bucket: "pinned", work_state: "working" } as any,
+      ]);
     const merged = useInboxStore.getState().sessions[A] as any;
     for (const f of INBOX_PROJECTION_FIELDS) expect(merged[f]).toBeUndefined();
   });
@@ -244,9 +310,11 @@ describe("single-writer enforcement on every row channel", () => {
     });
     // …then the base list re-pushes the row with the facts stripped to null
     // (fast_fields_in_overlay): the overlay's values must survive.
-    useInboxStore.getState().syncTable("sessions", [
-      { ...row(A), agent_status: null, tmux_session: null } as any,
-    ]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        { ...row(A), agent_status: null, tmux_session: null } as any,
+      ]);
     const merged = useInboxStore.getState().sessions[A] as any;
     expect(merged.agent_status).toBe("working");
     expect(merged.tmux_session).toBe("cc-1");
@@ -263,34 +331,76 @@ describe("facts for a row the store does not hold yet are held for its arrival",
   const EPOCH = 1_800_000_000_000;
   beforeEach(() => {
     __resetHeldOverlayFactsForTests();
-    useInboxStore.setState({ sessions: {}, sessionsProjection: {}, pending: {} } as any);
+    useInboxStore.setState({
+      sessions: {},
+      sessionsProjection: {},
+      pending: {},
+    } as any);
   });
 
   it("overlay first, then the base row: the row lands with the overlay's facts and is a member at once", () => {
     const store = useInboxStore.getState();
     store.applyInboxLivenessPayload("mine", {
-      liveness: { [NEW]: { bucket: "working", work_state: "working", agent_status: "working", is_idle: false, updated_at: EPOCH - 60_000, message_count: 2 } },
-      projection: { v: INBOX_PROJECTION_VERSION, epoch: EPOCH, tally: {}, set_digest: "x", truncated: [] },
+      liveness: {
+        [NEW]: {
+          bucket: "working",
+          work_state: "working",
+          agent_status: "working",
+          is_idle: false,
+          updated_at: EPOCH - 60_000,
+          message_count: 2,
+        },
+      },
+      projection: {
+        v: INBOX_PROJECTION_VERSION,
+        epoch: EPOCH,
+        tally: {},
+        set_digest: "x",
+        truncated: [],
+      },
     });
     expect(useInboxStore.getState().sessions[NEW]).toBeUndefined();
     // The base list's shape with fast_fields_in_overlay: the facts are null.
-    useInboxStore.getState().syncTable("sessions", [{ ...row(NEW), updated_at: null, message_count: null, agent_status: null, is_idle: null }]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        ...row(NEW),
+        updated_at: null,
+        message_count: null,
+        agent_status: null,
+        is_idle: null,
+      },
+    ]);
     const landed = useInboxStore.getState().sessions[NEW];
     expect(landed.updated_at).toBe(EPOCH - 60_000);
     expect(landed.message_count).toBe(2);
     expect(landed.agent_status).toBe("working");
     expect((landed as any).bucket).toBeUndefined();
-    expect(computeInboxMembership(useInboxStore.getState().sessions, EPOCH).members.has(NEW)).toBe(true);
+    expect(
+      computeInboxMembership(
+        useInboxStore.getState().sessions,
+        EPOCH,
+      ).members.has(NEW),
+    ).toBe(true);
     // Consumed: a second sync of the same row does not re-merge stale facts.
-    useInboxStore.getState().syncTable("sessions", [{ ...row(NEW), updated_at: EPOCH, message_count: 3 }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        { ...row(NEW), updated_at: EPOCH, message_count: 3 },
+      ]);
     expect(useInboxStore.getState().sessions[NEW].updated_at).toBe(EPOCH);
   });
 
   it("a newer payload replaces the hold, so nothing outlives one overlay execution", () => {
     const store = useInboxStore.getState();
-    store.applyInboxLivenessPayload("mine", { liveness: { [NEW]: { updated_at: EPOCH - 60_000, message_count: 2 } } });
+    store.applyInboxLivenessPayload("mine", {
+      liveness: { [NEW]: { updated_at: EPOCH - 60_000, message_count: 2 } },
+    });
     store.applyInboxLivenessPayload("mine", { liveness: {} });
-    useInboxStore.getState().syncTable("sessions", [{ ...row(NEW), updated_at: null, message_count: null }]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [
+        { ...row(NEW), updated_at: null, message_count: null },
+      ]);
     expect(useInboxStore.getState().sessions[NEW].updated_at).toBeNull();
   });
 });

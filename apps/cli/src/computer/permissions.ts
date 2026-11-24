@@ -30,11 +30,26 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { spawnSync } from "../proc.js";
 import { ComputerError } from "./errors.js";
 import { resolveCastInvocation } from "../castInvocation.js";
-import { HELPER_BUNDLE_ID, helperAppPath, helperExecutablePath, materializeHelperApp, materializeLinuxHelper, withPrepareLock } from "./helperApp.js";
+import {
+  HELPER_BUNDLE_ID,
+  helperAppPath,
+  helperExecutablePath,
+  materializeHelperApp,
+  materializeLinuxHelper,
+  withPrepareLock,
+} from "./helperApp.js";
 import { stampComputerRaise } from "./instance.js";
 import { spawnObserved, type ObservedLaunch } from "./launchObserver.js";
-import { launchesThroughOpen, noDesktopSessionReason, runOpen } from "./desktopSession.js";
-import type { ComputerPermissionId, ComputerPermissionStatus, ComputerPermissionStatusResult } from "./types.js";
+import {
+  launchesThroughOpen,
+  noDesktopSessionReason,
+  runOpen,
+} from "./desktopSession.js";
+import type {
+  ComputerPermissionId,
+  ComputerPermissionStatus,
+  ComputerPermissionStatusResult,
+} from "./types.js";
 
 /**
  * How long to wait for the helper's answer, measured rather than guessed
@@ -61,23 +76,35 @@ import type { ComputerPermissionId, ComputerPermissionStatus, ComputerPermission
 export const STATUS_POLL_TIMEOUT_MS = 30_000;
 const STATUS_POLL_INTERVAL_MS = 100;
 
-export const PERMISSION_IDS: ComputerPermissionId[] = ["accessibility", "screenshots"];
+export const PERMISSION_IDS: ComputerPermissionId[] = [
+  "accessibility",
+  "screenshots",
+];
 
 function unsupported(): ComputerPermissionStatusResult {
   return {
     platform: process.platform,
     helperAppPath: null,
     helperUnavailableReason: null,
-    permissions: PERMISSION_IDS.map((id) => ({ id, status: "unsupported" as ComputerPermissionStatus })),
+    permissions: PERMISSION_IDS.map((id) => ({
+      id,
+      status: "unsupported" as ComputerPermissionStatus,
+    })),
   };
 }
 
-function unavailable(reason: string, appPath: string | null): ComputerPermissionStatusResult {
+function unavailable(
+  reason: string,
+  appPath: string | null,
+): ComputerPermissionStatusResult {
   return {
     platform: process.platform,
     helperAppPath: appPath,
     helperUnavailableReason: reason,
-    permissions: PERMISSION_IDS.map((id) => ({ id, status: "not-granted" as ComputerPermissionStatus })),
+    permissions: PERMISSION_IDS.map((id) => ({
+      id,
+      status: "not-granted" as ComputerPermissionStatus,
+    })),
   };
 }
 
@@ -94,7 +121,11 @@ export interface PermissionStatusOptions {
    *  takes one of the two routes above, never an in-process exec. A test that
    *  returns nothing gets no launch observation, which is the point: it is
    *  driving the poll, not a child. */
-  launch?: (appPath: string, statusPath: string, logFile: string) => ObservedLaunch | void;
+  launch?: (
+    appPath: string,
+    statusPath: string,
+    logFile: string,
+  ) => ObservedLaunch | void;
   /** Which launch route to take, overriding the environment. Design 3.4 asks
    *  for the two to be COMPARED on a granted machine, and that comparison is
    *  only worth anything if it runs the code that ships. */
@@ -107,30 +138,44 @@ export interface PermissionStatusOptions {
 export type PermissionProbeRoute = "disclaimed" | "open";
 
 /** Ask the helper what IT is granted. Never exec's the binary in-process. */
-export async function getPermissionStatus(opts: PermissionStatusOptions = {}): Promise<ComputerPermissionStatusResult> {
-  if (process.platform !== "darwin" && process.platform !== "linux") return unsupported();
+export async function getPermissionStatus(
+  opts: PermissionStatusOptions = {},
+): Promise<ComputerPermissionStatusResult> {
+  if (process.platform !== "darwin" && process.platform !== "linux")
+    return unsupported();
   const appPath = helperAppPath();
   const noDesktop = noDesktopSessionReason();
   if (noDesktop) return unavailable(noDesktop, appPath);
   if (!opts.launch) await installCarriedHelper();
   if (!helperIsMaterialized()) {
-    return unavailable(`${helperExecutablePath()} was not found — run \`cast computer capabilities\` to materialize the helper`, appPath);
+    return unavailable(
+      `${helperExecutablePath()} was not found — run \`cast computer capabilities\` to materialize the helper`,
+      appPath,
+    );
   }
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-computer-permissions-"));
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "codecast-computer-permissions-"),
+  );
   fs.chmodSync(tempDir, 0o700);
   const statusPath = path.join(tempDir, "status.json");
   const probe =
-    (opts.launch ?? ((app, status, log) => launchStatusProbe(app, status, log, opts.route)))(
-      appPath,
-      statusPath,
-      path.join(tempDir, "probe.log"),
-    ) || null;
-  const report = (raw: Partial<Record<ComputerPermissionId | "detail", unknown>>): ComputerPermissionStatusResult => ({
+    (
+      opts.launch ??
+      ((app, status, log) => launchStatusProbe(app, status, log, opts.route))
+    )(appPath, statusPath, path.join(tempDir, "probe.log")) || null;
+  const report = (
+    raw: Partial<Record<ComputerPermissionId | "detail", unknown>>,
+  ): ComputerPermissionStatusResult => ({
     platform: process.platform,
     helperAppPath: appPath,
     helperUnavailableReason: null,
-    permissions: PERMISSION_IDS.map((id) => ({ id, status: normalizeStatus(raw[id]) })),
-    ...(typeof raw.detail === "string" && raw.detail ? { detail: raw.detail } : {}),
+    permissions: PERMISSION_IDS.map((id) => ({
+      id,
+      status: normalizeStatus(raw[id]),
+    })),
+    ...(typeof raw.detail === "string" && raw.detail
+      ? { detail: raw.detail }
+      : {}),
   });
   const deadline = Date.now() + (opts.timeoutMs ?? STATUS_POLL_TIMEOUT_MS);
   try {
@@ -144,13 +189,21 @@ export async function getPermissionStatus(opts: PermissionStatusOptions = {}): P
       if (probe?.exitReason()) {
         const late = readStatusFile(statusPath);
         if (late) return report(late);
-        throw new ComputerError("accessibility_error", `the permission probe ${probe.explain()}`);
+        throw new ComputerError(
+          "accessibility_error",
+          `the permission probe ${probe.explain()}`,
+        );
       }
       if (Date.now() >= deadline) break;
       await sleep(STATUS_POLL_INTERVAL_MS);
     }
     const said = probe?.explain();
-    throw new ComputerError("accessibility_error", said ? `timed out checking permissions: ${said}` : "timed out checking permissions");
+    throw new ComputerError(
+      "accessibility_error",
+      said
+        ? `timed out checking permissions: ${said}`
+        : "timed out checking permissions",
+    );
   } finally {
     probe?.cleanup();
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -171,7 +224,9 @@ async function installCarriedHelper(): Promise<void> {
   }
   const { getVersion } = await import("../update.js");
   try {
-    await withPrepareLock(() => materializeHelperApp({ version: getVersion() }));
+    await withPrepareLock(() =>
+      materializeHelperApp({ version: getVersion() }),
+    );
   } catch (err) {
     // A source build carries nothing and has nothing installed: the
     // not-found report below says so.
@@ -183,11 +238,15 @@ function normalizeStatus(value: unknown): ComputerPermissionStatus {
   return value === "granted" || value === "unsupported" ? value : "not-granted";
 }
 
-function readStatusFile(statusPath: string): Partial<Record<ComputerPermissionId | "detail", unknown>> | null {
+function readStatusFile(
+  statusPath: string,
+): Partial<Record<ComputerPermissionId | "detail", unknown>> | null {
   try {
     // The helper writes atomically, so a readable file is a complete one; a
     // parse failure here means a partial write we should keep waiting on.
-    return JSON.parse(fs.readFileSync(statusPath, "utf-8")) as Partial<Record<ComputerPermissionId | "detail", unknown>>;
+    return JSON.parse(fs.readFileSync(statusPath, "utf-8")) as Partial<
+      Record<ComputerPermissionId | "detail", unknown>
+    >;
   } catch {
     return null;
   }
@@ -198,9 +257,19 @@ function useOpenRoute(route?: PermissionProbeRoute): boolean {
   return launchesThroughOpen();
 }
 
-function launchStatusProbe(appPath: string, statusPath: string, logFile: string, route?: PermissionProbeRoute): ObservedLaunch {
+function launchStatusProbe(
+  appPath: string,
+  statusPath: string,
+  logFile: string,
+  route?: PermissionProbeRoute,
+): ObservedLaunch {
   const args = ["--permission-status-file", statusPath];
-  if (process.platform === "linux") return spawnObserved("python3", [helperExecutablePath(appPath), ...args], logFile);
+  if (process.platform === "linux")
+    return spawnObserved(
+      "python3",
+      [helperExecutablePath(appPath), ...args],
+      logFile,
+    );
   if (useOpenRoute(route)) {
     // `open` is a launcher, not the probe: it hands the app to LaunchServices
     // and exits, so watching IT for an exit would report success as a death.
@@ -212,7 +281,17 @@ function launchStatusProbe(appPath: string, statusPath: string, logFile: string,
   const cast = resolveCastInvocation();
   // The disclaim wrapper execs in place, so this pid IS the helper and its
   // exit is the helper's exit.
-  return spawnObserved(cast.cmd, [...cast.prefixArgs, "_disclaimed", "--", helperExecutablePath(appPath), ...args], logFile);
+  return spawnObserved(
+    cast.cmd,
+    [
+      ...cast.prefixArgs,
+      "_disclaimed",
+      "--",
+      helperExecutablePath(appPath),
+      ...args,
+    ],
+    logFile,
+  );
 }
 
 /** Nothing to watch: the child we started was a launcher that already
@@ -235,7 +314,10 @@ export interface PermissionSetupResult extends ComputerPermissionStatusResult {
 
 function requireKnownPermissionId(permissionId?: ComputerPermissionId): void {
   if (permissionId && !PERMISSION_IDS.includes(permissionId)) {
-    throw new ComputerError("invalid_argument", '--id must be "accessibility" or "screenshots"');
+    throw new ComputerError(
+      "invalid_argument",
+      '--id must be "accessibility" or "screenshots"',
+    );
   }
 }
 
@@ -254,7 +336,12 @@ export async function readPermissionStatus(
 ): Promise<PermissionSetupResult> {
   requireKnownPermissionId(permissionId);
   const status = await getPermissionStatus(opts);
-  return { ...status, permissionId, launchedHelper: false, nextStep: nextPermissionStep(status) };
+  return {
+    ...status,
+    permissionId,
+    launchedHelper: false,
+    nextStep: nextPermissionStep(status),
+  };
 }
 
 /**
@@ -266,20 +353,31 @@ export async function readPermissionStatus(
  * stamps the raise, so the daemon's focus sentinel does not bounce the window
  * a second after it appears.
  */
-export async function openPermissionSettings(permissionId?: ComputerPermissionId): Promise<PermissionSetupResult> {
+export async function openPermissionSettings(
+  permissionId?: ComputerPermissionId,
+): Promise<PermissionSetupResult> {
   const base = await readPermissionStatus(permissionId);
   if (process.platform !== "darwin") return base;
-  if (base.helperUnavailableReason) throw new ComputerError("accessibility_error", base.helperUnavailableReason);
+  if (base.helperUnavailableReason)
+    throw new ComputerError(
+      "accessibility_error",
+      base.helperUnavailableReason,
+    );
 
   closeExistingSetupHelpers();
   const appPath = base.helperAppPath ?? helperAppPath();
-  const args = permissionId ? ["--permission", permissionId] : ["--permissions"];
+  const args = permissionId
+    ? ["--permission", permissionId]
+    : ["--permissions"];
   await stampComputerRaise();
   // LaunchServices, not a disclaimed spawn: this mode puts a window on screen,
   // and `open` is what gives a bundled app a normal activation. Synchronously,
   // because `open` exits as soon as it has handed the bundle over — and when
   // it refuses one, that exit code is the only account of why (ct-49674).
-  runOpen(["-n", appPath, "--args", ...args], "open the permission settings window");
+  runOpen(
+    ["-n", appPath, "--args", ...args],
+    "open the permission settings window",
+  );
   return { ...base, launchedHelper: true };
 }
 
@@ -293,7 +391,11 @@ export async function openPermissionSettings(permissionId?: ComputerPermissionId
 function closeExistingSetupHelpers(): void {
   if (process.platform !== "darwin") return;
   for (const flag of ["--permission", "--permissions"]) {
-    spawnSync("/usr/bin/pkill", ["-f", `codecast-computer[[:space:]]+${flag}([[:space:]]|$)`], { stdio: "ignore", timeout: 10_000 });
+    spawnSync(
+      "/usr/bin/pkill",
+      ["-f", `codecast-computer[[:space:]]+${flag}([[:space:]]|$)`],
+      { stdio: "ignore", timeout: 10_000 },
+    );
   }
 }
 
@@ -314,34 +416,61 @@ export interface PermissionResetResult extends ComputerPermissionStatusResult {
  *  after an uninstall, so a stale deny needs an explicit way out. */
 export async function resetPermissions(): Promise<PermissionResetResult> {
   // Linux keeps no grants, so there is nothing to clear: report the state.
-  if (process.platform === "linux") return { ...(await getPermissionStatus()), bundleId: HELPER_BUNDLE_ID };
-  if (process.platform !== "darwin") return { ...unsupported(), bundleId: HELPER_BUNDLE_ID };
+  if (process.platform === "linux")
+    return { ...(await getPermissionStatus()), bundleId: HELPER_BUNDLE_ID };
+  if (process.platform !== "darwin")
+    return { ...unsupported(), bundleId: HELPER_BUNDLE_ID };
   const status = await getPermissionStatus();
-  if (status.helperUnavailableReason) throw new ComputerError("accessibility_error", status.helperUnavailableReason);
+  if (status.helperUnavailableReason)
+    throw new ComputerError(
+      "accessibility_error",
+      status.helperUnavailableReason,
+    );
   const bundleId = readBundleId(status.helperAppPath ?? helperAppPath());
   closeExistingSetupHelpers();
-  for (const service of ["Accessibility", "ScreenCapture"]) resetTcc(service, bundleId);
+  for (const service of ["Accessibility", "ScreenCapture"])
+    resetTcc(service, bundleId);
   return { ...(await getPermissionStatus()), bundleId };
 }
 
 function readBundleId(appPath: string): string {
-  const result = spawnSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleIdentifier", path.join(appPath, "Contents", "Info.plist")], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    timeout: 10_000,
-  });
+  const result = spawnSync(
+    "/usr/libexec/PlistBuddy",
+    [
+      "-c",
+      "Print :CFBundleIdentifier",
+      path.join(appPath, "Contents", "Info.plist"),
+    ],
+    {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 10_000,
+    },
+  );
   const id = result.status === 0 ? (result.stdout ?? "").trim() : "";
   return id || HELPER_BUNDLE_ID;
 }
 
 function resetTcc(service: string, bundleId: string): void {
-  const result = spawnSync("/usr/bin/tccutil", ["reset", service, bundleId], { encoding: "utf8", timeout: 30_000 });
+  const result = spawnSync("/usr/bin/tccutil", ["reset", service, bundleId], {
+    encoding: "utf8",
+    timeout: 30_000,
+  });
   if (result.status === 0) return;
-  const detail = (result.stderr || result.stdout || `exit ${result.status ?? "unknown"}`).trim();
-  throw new ComputerError("accessibility_error", `could not reset ${service}: ${detail}`);
+  const detail = (
+    result.stderr ||
+    result.stdout ||
+    `exit ${result.status ?? "unknown"}`
+  ).trim();
+  throw new ComputerError(
+    "accessibility_error",
+    `could not reset ${service}: ${detail}`,
+  );
 }
 
-export function nextPermissionStep(status: ComputerPermissionStatusResult): string | null {
+export function nextPermissionStep(
+  status: ComputerPermissionStatusResult,
+): string | null {
   const missing = status.permissions.find((p) => p.status !== "granted");
   if (!missing) return null;
   // Why: the read is now the whole of a bare `cast computer permissions`
@@ -349,21 +478,32 @@ export function nextPermissionStep(status: ComputerPermissionStatusResult): stri
   // agent to grant Accessibility to an app that is not on the machine, or to a
   // feature that does not exist on this platform, sends it to System Settings
   // to look for a row that is not there.
-  if (missing.status === "unsupported") return `cast computer runs on macOS and on Linux (X11); this is ${status.platform}.`;
-  if (status.helperUnavailableReason) return `No grant can be read yet: ${status.helperUnavailableReason}`;
+  if (missing.status === "unsupported")
+    return `cast computer runs on macOS and on Linux (X11); this is ${status.platform}.`;
+  if (status.helperUnavailableReason)
+    return `No grant can be read yet: ${status.helperUnavailableReason}`;
   if (status.platform === "linux") {
-    return status.detail ?? "The display or the accessibility bus is not reachable; provision the host again from the machine that manages it (`cast hosts provision <host>`), then retry.";
+    return (
+      status.detail ??
+      "The display or the accessibility bus is not reachable; provision the host again from the machine that manages it (`cast hosts provision <host>`), then retry."
+    );
   }
-  const label = missing.id === "accessibility" ? "Accessibility" : "Screen Recording";
+  const label =
+    missing.id === "accessibility" ? "Accessibility" : "Screen Recording";
   return `Grant ${label} to codecast computer, then retry get-app-state.`;
 }
 
 /** The human-readable report for `cast computer permissions`. */
-export function formatPermissionsReport(status: ComputerPermissionStatusResult): string[] {
+export function formatPermissionsReport(
+  status: ComputerPermissionStatusResult,
+): string[] {
   const lines = ["Computer permissions checked."];
   if (status.helperAppPath) lines.push(`  Helper app: ${status.helperAppPath}`);
-  if (status.helperUnavailableReason) lines.push(`  Helper: ${status.helperUnavailableReason}`);
-  lines.push(`  Permissions: ${status.permissions.map((p) => `${p.id}=${p.status}`).join(", ")}`);
+  if (status.helperUnavailableReason)
+    lines.push(`  Helper: ${status.helperUnavailableReason}`);
+  lines.push(
+    `  Permissions: ${status.permissions.map((p) => `${p.id}=${p.status}`).join(", ")}`,
+  );
   const next = nextPermissionStep(status);
   if (next) lines.push(`  Next: ${next}`);
   return lines;

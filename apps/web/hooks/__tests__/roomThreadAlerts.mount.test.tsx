@@ -13,7 +13,10 @@ import type { ThreadRow } from "../../components/calls/roomThreadModel";
 
 let rows: ThreadRow[] | undefined;
 const realNoThrow = await import("../useQueryNoThrow");
-mock.module("../useQueryNoThrow", () => ({ ...realNoThrow, useQueryNoThrow: () => ({ data: rows }) }));
+mock.module("../useQueryNoThrow", () => ({
+  ...realNoThrow,
+  useQueryNoThrow: () => ({ data: rows }),
+}));
 
 const knocks: string[] = [];
 const realSounds = await import("../../lib/sounds");
@@ -24,14 +27,23 @@ mock.module("../../lib/sounds", () => ({
   soundAgentReply: (id: string) => chimes.push(id),
 }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, localStorage: dom.window.localStorage });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  localStorage: dom.window.localStorage,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { useRoomThreadAlerts } = await import("../useRoomThreadAlerts");
-const { setRoomThreadWatching } = await import("../../lib/calls/roomThreadSeen");
+const { setRoomThreadWatching } =
+  await import("../../lib/calls/roomThreadSeen");
 const { useRoomThreadUnread } = await import("../useRoomThreadUnread");
 
 afterAll(() => {
@@ -43,9 +55,22 @@ afterAll(() => {
 
 let n = 0;
 const row = (at: number, over: Partial<ThreadRow> = {}): ThreadRow => ({
-  _id: `m${n++}`, user_id: "u2", user_name: "Ada", text: "hi", at, mine: false, agent: null, event: null, ...over,
+  _id: `m${n++}`,
+  user_id: "u2",
+  user_name: "Ada",
+  text: "hi",
+  at,
+  mine: false,
+  agent: null,
+  event: null,
+  ...over,
 });
-const agent = { conversation_id: "c1", short_id: "jx7a", title: "Ember", agent_type: "claude_code" };
+const agent = {
+  conversation_id: "c1",
+  short_id: "jx7a",
+  title: "Ember",
+  agent_type: "claude_code",
+};
 
 function Probe() {
   useRoomThreadAlerts();
@@ -56,9 +81,15 @@ let root: Root;
 let room = 0;
 async function enter(backlog: ThreadRow[]) {
   const roomKey = `room:alerts-${room++}`;
-  useInboxStore.setState((s: any) => ({ call: { ...s.call, phase: "connected", roomKey } }));
+  useInboxStore.setState((s: any) => ({
+    call: { ...s.call, phase: "connected", roomKey },
+  }));
   rows = backlog;
-  root = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+  root = createRoot(
+    dom.window.document.body.appendChild(
+      dom.window.document.createElement("div"),
+    ),
+  );
   await act(async () => root.render(<Probe />));
   return roomKey;
 }
@@ -85,7 +116,8 @@ describe("the call chat knock", () => {
 
   test("an agent's answer chimes instead of knocking, once per push, for the newest agent line", async () => {
     await enter([row(1)]);
-    const a = row(2), b = row(3, { agent });
+    const a = row(2),
+      b = row(3, { agent });
     await land([row(1), a, b]);
     expect(chimes).toEqual([b._id]);
     expect(knocks).toEqual([]);
@@ -104,7 +136,11 @@ describe("the call chat knock", () => {
 
   test("my own lines and event rows are silent", async () => {
     await enter([row(1)]);
-    await land([row(1), row(2, { mine: true }), row(3, { event: "agent_joined" as any, agent })]);
+    await land([
+      row(1),
+      row(2, { mine: true }),
+      row(3, { event: "agent_joined" as any, agent }),
+    ]);
     expect(knocks).toEqual([]);
     expect(chimes).toEqual([]);
     await act(async () => root.unmount());
@@ -137,7 +173,11 @@ describe("the stage with the thread open", () => {
     const roomKey = `room:open-${room++}`;
     const old = row(1, { agent });
     rows = [old];
-    const r = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+    const r = createRoot(
+      dom.window.document.body.appendChild(
+        dom.window.document.createElement("div"),
+      ),
+    );
     await act(async () => r.render(<OpenRail roomKey={roomKey} />));
     expect(seen).toBeNull();
     const person = row(2);

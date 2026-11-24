@@ -71,7 +71,15 @@ const SNIPPET_MAX = 220;
 function newEngine(): MiniSearch<BlockDoc> {
   return new MiniSearch<BlockDoc>({
     fields: ["text", "title", "headings"],
-    storeFields: ["path", "title", "text", "headingPath", "line", "endLine", "blockId"],
+    storeFields: [
+      "path",
+      "title",
+      "text",
+      "headingPath",
+      "line",
+      "endLine",
+      "blockId",
+    ],
     searchOptions: {
       boost: { title: 3, headings: 2 },
       prefix: true,
@@ -107,7 +115,9 @@ export class VaultSearchIndex {
     // text only ever reaches the index through its children's headingPath.
     for (const heading of parsed.headings) {
       if (!heading.text) continue;
-      const covered = parsed.chunks.some((c) => c.line > heading.line && c.line <= heading.endLine);
+      const covered = parsed.chunks.some(
+        (c) => c.line > heading.line && c.line <= heading.endLine,
+      );
       if (covered) continue;
       docs.push({
         id: `${path}#${heading.line}`,
@@ -154,13 +164,22 @@ export class VaultSearchIndex {
   search(query: string, options: VaultSearchOptions = {}): FileSearchResult[] {
     const trimmed = query.trim();
     if (!trimmed) return [];
-    const { limit = 50, matchesPerFile = 5, boostFile, prefix = true, fuzzy = 0.15 } = options;
+    const {
+      limit = 50,
+      matchesPerFile = 5,
+      boostFile,
+      prefix = true,
+      fuzzy = 0.15,
+    } = options;
 
     const raw = this.engine.search(trimmed, {
       prefix,
       fuzzy,
       boostDocument: boostFile
-        ? (_id, _term, stored) => boostFile(String((stored as { path?: string } | undefined)?.path ?? ""))
+        ? (_id, _term, stored) =>
+            boostFile(
+              String((stored as { path?: string } | undefined)?.path ?? ""),
+            )
         : undefined,
     });
 
@@ -186,7 +205,9 @@ export class VaultSearchIndex {
       });
     }
 
-    const files = [...byFile.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+    const files = [...byFile.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
     for (const file of files) {
       file.matches.sort((a, b) => b.score - a.score || a.line - b.line);
       file.matches = file.matches.slice(0, matchesPerFile);

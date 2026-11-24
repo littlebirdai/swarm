@@ -33,8 +33,13 @@ export function projectDesiredState(state: DesiredState): {
 } {
   const entries: Record<string, string> = {};
   for (const e of state.entries) {
-    const status = e.withheld ? `withheld:${e.withheld}` : e.enabled ? "on" : "off";
-    entries[e.slug] = `${status}@${e.decidedBy.scopeKind}:${e.decidedBy.bindingId}`;
+    const status = e.withheld
+      ? `withheld:${e.withheld}`
+      : e.enabled
+        ? "on"
+        : "off";
+    entries[e.slug] =
+      `${status}@${e.decidedBy.scopeKind}:${e.decidedBy.bindingId}`;
   }
   const ignored: Record<string, string> = {};
   for (const i of state.ignored) ignored[i.bindingId] = i.reason;
@@ -57,7 +62,10 @@ export const GOLDEN_CONTEXT: ScopeContext = {
   client: "claude",
 };
 
-function binding(over: Partial<CapabilityBinding> & Pick<CapabilityBinding, "id" | "scopeKind">): CapabilityBinding {
+function binding(
+  over: Partial<CapabilityBinding> &
+    Pick<CapabilityBinding, "id" | "scopeKind">,
+): CapabilityBinding {
   const scopeKeys = {
     team: TEAM,
     user: USER,
@@ -127,7 +135,12 @@ export const GOLDEN_CASES: GoldenCase[] = [
     name: "same scope: the later write wins",
     bindings: [
       binding({ id: "b_old", scopeKind: "user", enabled: true, updatedAt: 10 }),
-      binding({ id: "b_new", scopeKind: "user", enabled: false, updatedAt: 20 }),
+      binding({
+        id: "b_new",
+        scopeKind: "user",
+        enabled: false,
+        updatedAt: 20,
+      }),
     ],
     context: GOLDEN_CONTEXT,
     entries: { "builtin/memory": "off@user:b_new" },
@@ -137,7 +150,12 @@ export const GOLDEN_CASES: GoldenCase[] = [
     name: "same scope and same instant: the lexically first row id wins",
     bindings: [
       binding({ id: "b_zzz", scopeKind: "user", enabled: true, updatedAt: 20 }),
-      binding({ id: "b_aaa", scopeKind: "user", enabled: false, updatedAt: 20 }),
+      binding({
+        id: "b_aaa",
+        scopeKind: "user",
+        enabled: false,
+        updatedAt: 20,
+      }),
     ],
     context: GOLDEN_CONTEXT,
     entries: { "builtin/memory": "off@user:b_aaa" },
@@ -147,11 +165,38 @@ export const GOLDEN_CASES: GoldenCase[] = [
     name: "bindings for somewhere else never apply",
     bindings: [
       binding({ id: "b_here", scopeKind: "user", enabled: true }),
-      binding({ id: "b_other_device", scopeKind: "device", scopeKey: "device_mbp", enabled: false }),
-      binding({ id: "b_other_project", scopeKind: "project", scopeKey: "git:github.com/ashot/mail", enabled: false }),
-      binding({ id: "b_other_session", scopeKind: "session", scopeKey: "conv_other", enabled: false }),
-      binding({ id: "b_other_team", scopeKind: "team", scopeKey: "team_other", teamId: "team_other", enabled: false }),
-      binding({ id: "b_other_user", scopeKind: "user", scopeKey: "user_sam", userId: "user_sam", enabled: false }),
+      binding({
+        id: "b_other_device",
+        scopeKind: "device",
+        scopeKey: "device_mbp",
+        enabled: false,
+      }),
+      binding({
+        id: "b_other_project",
+        scopeKind: "project",
+        scopeKey: "git:github.com/ashot/mail",
+        enabled: false,
+      }),
+      binding({
+        id: "b_other_session",
+        scopeKind: "session",
+        scopeKey: "conv_other",
+        enabled: false,
+      }),
+      binding({
+        id: "b_other_team",
+        scopeKind: "team",
+        scopeKey: "team_other",
+        teamId: "team_other",
+        enabled: false,
+      }),
+      binding({
+        id: "b_other_user",
+        scopeKind: "user",
+        scopeKey: "user_sam",
+        userId: "user_sam",
+        enabled: false,
+      }),
     ],
     context: GOLDEN_CONTEXT,
     entries: { "builtin/memory": "on@user:b_here" },
@@ -166,8 +211,16 @@ export const GOLDEN_CASES: GoldenCase[] = [
   {
     name: "a client filter excludes the client being resolved for",
     bindings: [
-      binding({ id: "b_codex_only", scopeKind: "user", clientFilter: ["codex"] }),
-      binding({ id: "b_any", scopeKind: "user", capabilitySlug: "builtin/tasks" }),
+      binding({
+        id: "b_codex_only",
+        scopeKind: "user",
+        clientFilter: ["codex"],
+      }),
+      binding({
+        id: "b_any",
+        scopeKind: "user",
+        capabilitySlug: "builtin/tasks",
+      }),
     ],
     context: GOLDEN_CONTEXT,
     entries: { "builtin/tasks": "on@user:b_any" },
@@ -201,8 +254,15 @@ export const GOLDEN_CASES: GoldenCase[] = [
   {
     name: "a malformed row costs one capability, not the machine",
     bindings: [
-      { ...binding({ id: "b_bad", scopeKind: "user" }), scopeKind: "org" as never },
-      binding({ id: "b_good", scopeKind: "user", capabilitySlug: "builtin/tasks" }),
+      {
+        ...binding({ id: "b_bad", scopeKind: "user" }),
+        scopeKind: "org" as never,
+      },
+      binding({
+        id: "b_good",
+        scopeKind: "user",
+        capabilitySlug: "builtin/tasks",
+      }),
     ],
     context: GOLDEN_CONTEXT,
     entries: { "builtin/tasks": "on@user:b_good" },

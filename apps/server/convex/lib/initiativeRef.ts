@@ -13,19 +13,38 @@ import { notFound } from "./auth";
 type Ctx = { db: any };
 
 /** The initiative, or null when it is absent or not the caller's to read. */
-export async function findInitiative(ctx: Ctx, userId: Id<"users">, ref: string): Promise<any | null> {
+export async function findInitiative(
+  ctx: Ctx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<any | null> {
   const key = normalizeInitiativeRef(ref);
-  const id = /^in-\d+$/.test(key) ? null : ctx.db.normalizeId("initiatives", key);
+  const id = /^in-\d+$/.test(key)
+    ? null
+    : ctx.db.normalizeId("initiatives", key);
   const row = id
     ? await ctx.db.get(id)
     : /^in-\d+$/.test(key)
-      ? await ctx.db.query("initiatives").withIndex("by_short_id", (q: any) => q.eq("short_id", key)).first()
-      // A client key is the caller's own: only their rows are searched.
-      : (await ctx.db.query("initiatives").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect())
-          .find((r: any) => r.client_key === key) ?? null;
+      ? await ctx.db
+          .query("initiatives")
+          .withIndex("by_short_id", (q: any) => q.eq("short_id", key))
+          .first()
+      : // A client key is the caller's own: only their rows are searched.
+        ((
+          await ctx.db
+            .query("initiatives")
+            .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+            .collect()
+        ).find((r: any) => r.client_key === key) ?? null);
   return row && (await canAccessInitiative(ctx, userId, row)) ? row : null;
 }
 
-export async function requireInitiative(ctx: Ctx, userId: Id<"users">, ref: string): Promise<any> {
-  return (await findInitiative(ctx, userId, ref)) ?? notFound("Initiative not found");
+export async function requireInitiative(
+  ctx: Ctx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<any> {
+  return (
+    (await findInitiative(ctx, userId, ref)) ?? notFound("Initiative not found")
+  );
 }

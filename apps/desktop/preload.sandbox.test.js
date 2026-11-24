@@ -27,7 +27,11 @@ test("every window main.js builds takes its preload from preloadPrefs()", () => 
   const windows = MAIN.match(/webPreferences: \{/g) ?? [];
   const shared = MAIN.match(/\.\.\.preloadPrefs\(\)/g) ?? [];
   assert.ok(windows.length > 0);
-  assert.equal(shared.length, windows.length, "a webPreferences block does not spread preloadPrefs()");
+  assert.equal(
+    shared.length,
+    windows.length,
+    "a webPreferences block does not spread preloadPrefs()",
+  );
   assert.match(MAIN, /function preloadPrefs\(\) \{[^}]*sandbox: false/);
 });
 
@@ -60,12 +64,20 @@ function runProbe(prefs) {
   writeFileSync(file, PROBE);
   const electron = require("electron");
   return new Promise((resolve, reject) => {
-    execFile(electron, [file, `--user-data-dir=${join(dir, "profile")}`, JSON.stringify(prefs)], { timeout: 60_000, killSignal: "SIGKILL" }, (err, stdout, stderr) => {
-      rmSync(dir, { recursive: true, force: true });
-      const line = String(stdout).split("\n").find((l) => l.startsWith("PROBE "));
-      if (!line) return reject(new Error(`no probe report\n${stderr}\n${err ?? ""}`));
-      resolve(JSON.parse(line.slice("PROBE ".length)));
-    });
+    execFile(
+      electron,
+      [file, `--user-data-dir=${join(dir, "profile")}`, JSON.stringify(prefs)],
+      { timeout: 60_000, killSignal: "SIGKILL" },
+      (err, stdout, stderr) => {
+        rmSync(dir, { recursive: true, force: true });
+        const line = String(stdout)
+          .split("\n")
+          .find((l) => l.startsWith("PROBE "));
+        if (!line)
+          return reject(new Error(`no probe report\n${stderr}\n${err ?? ""}`));
+        resolve(JSON.parse(line.slice("PROBE ".length)));
+      },
+    );
   });
 }
 

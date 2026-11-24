@@ -3,7 +3,10 @@
 // every surface reads, and each keeps its _id, so a parent named by
 // parent_comment_id is the seeded row of that id.
 
-import { commentsFromRows, rowFromComment } from "./lib/conversationCommentRows";
+import {
+  commentsFromRows,
+  rowFromComment,
+} from "./lib/conversationCommentRows";
 
 /** A conversation comment written in the `comments` shape, as its row. */
 export function commentRow(comment: Record<string, any>): any {
@@ -17,7 +20,10 @@ export function commentRow(comment: Record<string, any>): any {
 
 /** A twin of a `comments` row written before the write path moved: it goes
  *  by the source id. */
-export function legacyCommentRow(rowId: string, comment: Record<string, any>): any {
+export function legacyCommentRow(
+  rowId: string,
+  comment: Record<string, any>,
+): any {
   const { origin: _origin, ...row } = commentRow({ ...comment, _id: rowId });
   return { ...row, source_comment_id: comment._id };
 }

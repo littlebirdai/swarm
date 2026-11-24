@@ -156,8 +156,12 @@
 
 /* The thread the reader jumped to, lit for a moment so the eye lands on it. */
 @keyframes pr-land {
-  from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-cyan) 45%, transparent); }
-  to { box-shadow: 0 0 0 0 transparent; }
+  from {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-cyan) 45%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 .pr-thread-landed {
   animation: pr-land 1.2s ease-out both;

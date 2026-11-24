@@ -16,8 +16,16 @@
     "available_count": 2,
     "total_earned_count": 5,
     "credits": [
-      { "status": "available", "expires_at": "2026-09-30T00:00:00Z", "granted_at": "2026-09-01T00:00:00Z" },
-      { "status": "redeemed", "expires_at": null, "granted_at": "2026-08-01T00:00:00Z" }
+      {
+        "status": "available",
+        "expires_at": "2026-09-30T00:00:00Z",
+        "granted_at": "2026-09-01T00:00:00Z"
+      },
+      {
+        "status": "redeemed",
+        "expires_at": null,
+        "granted_at": "2026-08-01T00:00:00Z"
+      }
     ]
   }
 }

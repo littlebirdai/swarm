@@ -18,7 +18,10 @@ import { join } from "node:path";
 // bypass fails in this test rather than in a privacy report.
 
 const ROOT = import.meta.dir;
-const ALLOWLIST = join(import.meta.dir, "conversationVisibilityPatch.allowlist.txt");
+const ALLOWLIST = join(
+  import.meta.dir,
+  "conversationVisibilityPatch.allowlist.txt",
+);
 
 // Conversation-only access fields. team_id lives on many tables, so it counts
 // only when the row being patched is a conversation.
@@ -45,10 +48,13 @@ function rawVisibilityPatches(source: string): number {
   let hits = 0;
   while ((match = call.exec(src)) !== null) {
     const args = callArguments(src, match.index + match[0].length - 1);
-    const wroteAccessField = ACCESS_FIELDS.some((f) => new RegExp(`\\b${f}\\s*:`).test(args));
+    const wroteAccessField = ACCESS_FIELDS.some((f) =>
+      new RegExp(`\\b${f}\\s*:`).test(args),
+    );
     // `ctx.db.patch(conv._id, { team_id })` re-routes AND re-scopes the row.
     const target = args.split(",")[0] ?? "";
-    const movedConversationTeam = /conv/i.test(target) && /\bteam_id\s*[:,}]/.test(args);
+    const movedConversationTeam =
+      /conv/i.test(target) && /\bteam_id\s*[:,}]/.test(args);
     if (wroteAccessField || movedConversationTeam) hits++;
   }
   return hits;
@@ -63,12 +69,15 @@ const result = checkRatchet({
   dirs: ["."],
   exempt: (rel) =>
     // The chokepoint itself, and tests that assert on stored rows directly.
-    rel === "lib/conversationVisibility.ts" || /\.test\.ts$/.test(rel) || rel.startsWith("__tests__/"),
+    rel === "lib/conversationVisibility.ts" ||
+    /\.test\.ts$/.test(rel) ||
+    rel.startsWith("__tests__/"),
   count: rawVisibilityPatches,
   allowlist: ALLOWLIST,
   pin: PIN,
   fix: "Call patchConversationVisibility from lib/conversationVisibility.ts instead — it patches the row and rewrites the workspace key of every linked work item.",
-  pruneCommand: "cd apps/server && RATCHET_WRITE=prune bun test convex/conversationVisibilityPatch.ratchet.test.ts",
+  pruneCommand:
+    "cd apps/server && RATCHET_WRITE=prune bun test convex/conversationVisibilityPatch.ratchet.test.ts",
   minScanned: 100,
 });
 

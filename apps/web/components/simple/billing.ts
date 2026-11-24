@@ -8,7 +8,10 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { BillingRedirect, BillingStatus } from "@codecast/convex/convex/billing";
+import type {
+  BillingRedirect,
+  BillingStatus,
+} from "@codecast/convex/convex/billing";
 import type { PlanId } from "@codecast/shared/contracts/assistant";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 
@@ -17,7 +20,11 @@ import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 export type CheckoutRequest = { plan: PlanId } | { topup_usd: number };
 
 const DIDNT_OPEN = "Stripe didn't open. Try again in a moment.";
-const NOTHING_OFFERED: BillingStatus = { available: false, plans: [], topup: false };
+const NOTHING_OFFERED: BillingStatus = {
+  available: false,
+  plans: [],
+  topup: false,
+};
 
 /** Opens a Stripe page. The web leaves for it in the same tab; the phone
  *  hands it to the browser. */
@@ -56,7 +63,9 @@ export function useStripeRedirect(open: OpenBillingPage = leaveForPage) {
   return { busy, error, redirect };
 }
 
-export function useBilling(open: OpenBillingPage = leaveForPage): BillingStatus & {
+export function useBilling(
+  open: OpenBillingPage = leaveForPage,
+): BillingStatus & {
   /** The first answer (or an error) has landed. */
   known: boolean;
   busy: boolean;

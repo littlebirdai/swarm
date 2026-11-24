@@ -5,13 +5,19 @@ import type { Id } from "./_generated/dataModel";
 import { claimTaskOwnership } from "./lib/taskOwner";
 import { addConversationToWorkItem } from "./conversationLinks";
 
-export type HandlerCtx = { db: any; storage?: any; runMutation?: any; runQuery?: any };
+export type HandlerCtx = {
+  db: any;
+  storage?: any;
+  runMutation?: any;
+  runQuery?: any;
+};
 
 // The Touch ID grant string an Ask first Approve carries beside its answer
 // (the store's answerDecision input), handed to the decision patch's gate. It
 // rides the action's arguments, never a row field, so it is stored nowhere.
 export function answerPresence(action: string, args: any): string | undefined {
-  const presence = action === "answerDecision" ? args?.[1]?.presence : undefined;
+  const presence =
+    action === "answerDecision" ? args?.[1]?.presence : undefined;
   return typeof presence === "string" ? presence : undefined;
 }
 
@@ -30,14 +36,22 @@ export function isServerId(value: unknown): value is string {
 }
 
 /** The id when it names a row of `table`; null for a stub key or another table's id. */
-export function opsRowId(ctx: HandlerCtx, table: string, id: unknown): string | null {
+export function opsRowId(
+  ctx: HandlerCtx,
+  table: string,
+  id: unknown,
+): string | null {
   return typeof id === "string" && ctx.db.normalizeId(table, id) ? id : null;
 }
 
 export function deepMergeField(existing: any, incoming: any): any {
   if (
-    incoming && typeof incoming === "object" && !Array.isArray(incoming) &&
-    existing && typeof existing === "object" && !Array.isArray(existing)
+    incoming &&
+    typeof incoming === "object" &&
+    !Array.isArray(incoming) &&
+    existing &&
+    typeof existing === "object" &&
+    !Array.isArray(existing)
   ) {
     const result: Record<string, any> = {};
     for (const [k, v] of Object.entries(existing)) {
@@ -67,8 +81,12 @@ export async function linkConversationToObject(
   if (objectType === "doc") {
     const doc = await ctx.db.get(objectId as Id<"docs">);
     if (!doc || doc.user_id.toString() !== userId.toString()) return;
-    const existing = doc.related_conversation_ids || (doc.conversation_id ? [doc.conversation_id] : []);
-    if (!existing.some((id: any) => id.toString() === conversationId.toString())) {
+    const existing =
+      doc.related_conversation_ids ||
+      (doc.conversation_id ? [doc.conversation_id] : []);
+    if (
+      !existing.some((id: any) => id.toString() === conversationId.toString())
+    ) {
       await ctx.db.patch(objectId as Id<"docs">, {
         related_conversation_ids: [...existing, conversationId],
       });
@@ -83,7 +101,9 @@ export async function linkConversationToObject(
       if (!task.team_id) return;
       const membership = await ctx.db
         .query("team_memberships")
-        .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", task.team_id))
+        .withIndex("by_user_team", (q: any) =>
+          q.eq("user_id", userId).eq("team_id", task.team_id),
+        )
         .first();
       if (!membership) return;
     }
@@ -118,7 +138,11 @@ export function refuseOnError<T>(res: T): T {
  * drops it from the client too: the write settles quietly, where a refusal
  * would toast about an action that did no harm.
  */
-export async function liveSecretWrite(ctx: HandlerCtx, id: string, write: () => Promise<unknown>) {
+export async function liveSecretWrite(
+  ctx: HandlerCtx,
+  id: string,
+  write: () => Promise<unknown>,
+) {
   const rowId = opsRowId(ctx, "secrets", id);
   if (!rowId || !(await ctx.db.get(rowId))) return;
   return refuseOnError(await write());

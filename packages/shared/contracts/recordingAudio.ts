@@ -89,5 +89,8 @@ export const METER_CEIL_DB = -6;
  */
 export function meterLevelFromDb(db: number | undefined | null): number {
   if (db === undefined || db === null || Number.isNaN(db)) return 0;
-  return Math.max(0, Math.min(1, (db - METER_FLOOR_DB) / (METER_CEIL_DB - METER_FLOOR_DB)));
+  return Math.max(
+    0,
+    Math.min(1, (db - METER_FLOOR_DB) / (METER_CEIL_DB - METER_FLOOR_DB)),
+  );
 }

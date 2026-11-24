@@ -50,15 +50,25 @@ describe("externalEventRowToExternalEvent", () => {
     expect(event.refs.task_id).toBe("task1");
     expect(event.refs.plan_id).toBe("plan1");
     expect(event.refs.project_id).toBe("proj1");
-    expect(event.refs.pr).toEqual({ repository: "codecast-sh/codecast", number: 42 });
-    expect(event.refs.commit).toEqual({ repository: "codecast-sh/codecast", sha: "abcdef1234567890" });
+    expect(event.refs.pr).toEqual({
+      repository: "codecast-sh/codecast",
+      number: 42,
+    });
+    expect(event.refs.commit).toEqual({
+      repository: "codecast-sh/codecast",
+      sha: "abcdef1234567890",
+    });
     expect(event.actor?.login).toBe("ashot");
     expect(event.meta?.repository).toBe("codecast-sh/codecast");
     expect(event.meta?.branch).toBe("main");
   });
 
   it("falls back to the first task id when task_id is absent", () => {
-    const event = externalEventRowToExternalEvent({ _id: "g2", task_ids: ["taskA"], created_at: 1 });
+    const event = externalEventRowToExternalEvent({
+      _id: "g2",
+      task_ids: ["taskA"],
+      created_at: 1,
+    });
     expect(event.refs.task_id).toBe("taskA");
   });
 
@@ -86,7 +96,12 @@ describe("externalEventRowToExternalEvent", () => {
       source: "linear",
       kind: "issue_status",
       title: "Sync inbox rows on reconnect",
-      issue: { provider: "linear", key: "ENG-412", url: "https://linear.app/x/issue/ENG-412", title: "Sync inbox rows" },
+      issue: {
+        provider: "linear",
+        key: "ENG-412",
+        url: "https://linear.app/x/issue/ENG-412",
+        title: "Sync inbox rows",
+      },
       created_at: 9,
     });
     expect(event.source).toBe("linear");
@@ -100,15 +115,35 @@ describe("externalEventRowToExternalEvent", () => {
   });
 
   it("reads an unknown source as github rather than inventing one", () => {
-    expect(externalEventRowToExternalEvent({ _id: "g6", created_at: 1 }).source).toBe("github");
-    expect(externalEventRowToExternalEvent({ _id: "g7", source: "wat", created_at: 1 }).source).toBe("github");
-    expect(externalEventRowToExternalEvent({ _id: "g8", source: "codecast", created_at: 1 }).source).toBe("codecast");
+    expect(
+      externalEventRowToExternalEvent({ _id: "g6", created_at: 1 }).source,
+    ).toBe("github");
+    expect(
+      externalEventRowToExternalEvent({
+        _id: "g7",
+        source: "wat",
+        created_at: 1,
+      }).source,
+    ).toBe("github");
+    expect(
+      externalEventRowToExternalEvent({
+        _id: "g8",
+        source: "codecast",
+        created_at: 1,
+      }).source,
+    ).toBe("codecast");
   });
 
   it("builds no repository refs when the row has no repository", () => {
     const event = externalEventRowToExternalEvent({
-      _id: "g9", source: "linear", kind: "issue_opened", title: "t",
-      sha: "abc", pr_number: 4, meta: { file_path: "a.ts" }, created_at: 1,
+      _id: "g9",
+      source: "linear",
+      kind: "issue_opened",
+      title: "t",
+      sha: "abc",
+      pr_number: 4,
+      meta: { file_path: "a.ts" },
+      created_at: 1,
     });
     expect(event.refs.pr).toBeUndefined();
     expect(event.refs.commit).toBeUndefined();
@@ -126,9 +161,23 @@ describe("externalEventRowToExternalEvent", () => {
 describe("style registry", () => {
   it("knows every git kind", () => {
     for (const kind of [
-      "commit", "push", "pr_opened", "pr_synchronize", "pr_review", "pr_review_comment",
-      "pr_check", "pr_merged", "pr_closed", "pr_reopened", "pr_behind", "pr_conflict",
-      "pr_ready", "pr_review_requested", "pr_ready_for_review", "pr_draft", "pr_edited",
+      "commit",
+      "push",
+      "pr_opened",
+      "pr_synchronize",
+      "pr_review",
+      "pr_review_comment",
+      "pr_check",
+      "pr_merged",
+      "pr_closed",
+      "pr_reopened",
+      "pr_behind",
+      "pr_conflict",
+      "pr_ready",
+      "pr_review_requested",
+      "pr_ready_for_review",
+      "pr_draft",
+      "pr_edited",
       "code_comment",
     ]) {
       expect(externalEventStyle(kind)).not.toBe(DEFAULT_EXTERNAL_EVENT_STYLE);
@@ -136,11 +185,17 @@ describe("style registry", () => {
   });
 
   it("falls back to the default for a kind it has never seen", () => {
-    expect(externalEventStyle("linear_issue_moved_nowhere")).toBe(DEFAULT_EXTERNAL_EVENT_STYLE);
+    expect(externalEventStyle("linear_issue_moved_nowhere")).toBe(
+      DEFAULT_EXTERNAL_EVENT_STYLE,
+    );
   });
 
   it("takes registrations from another source", () => {
-    const style = { icon: DEFAULT_EXTERNAL_EVENT_STYLE.icon, accent: "cyan" as const, verb: "moved" };
+    const style = {
+      icon: DEFAULT_EXTERNAL_EVENT_STYLE.icon,
+      accent: "cyan" as const,
+      verb: "moved",
+    };
     registerExternalEventStyles({ linear_issue_state: style });
     expect(externalEventStyle("linear_issue_state")).toBe(style);
   });
@@ -149,17 +204,40 @@ describe("style registry", () => {
 describe("accents", () => {
   const at = 1;
   it("lets a failed check outrank its kind's color", () => {
-    const failed = { id: "1", source: "github" as const, kind: "pr_check", title: "t", at, refs: {}, meta: { conclusion: "failure" } };
+    const failed = {
+      id: "1",
+      source: "github" as const,
+      kind: "pr_check",
+      title: "t",
+      at,
+      refs: {},
+      meta: { conclusion: "failure" },
+    };
     expect(eventAccent(failed)).toBe("red");
   });
 
   it("uses the kind's color when nothing reports an outcome", () => {
-    const merged = { id: "1", source: "github" as const, kind: "pr_merged", title: "t", at, refs: {} };
+    const merged = {
+      id: "1",
+      source: "github" as const,
+      kind: "pr_merged",
+      title: "t",
+      at,
+      refs: {},
+    };
     expect(eventAccent(merged)).toBe("violet");
   });
 
   it("reads a review state case insensitively", () => {
-    const review = { id: "1", source: "github" as const, kind: "pr_review", title: "t", at, refs: {}, meta: { review_state: "APPROVED" } };
+    const review = {
+      id: "1",
+      source: "github" as const,
+      kind: "pr_review",
+      title: "t",
+      at,
+      refs: {},
+      meta: { review_state: "APPROVED" },
+    };
     expect(eventAccent(review)).toBe("green");
   });
 
@@ -172,10 +250,12 @@ describe("accents", () => {
 describe("paths", () => {
   it("addresses a pull request, a commit and a file", () => {
     expect(prPath({ repository: "o/r", number: 7 })).toBe("/pr/o/r/7");
-    expect(commitPath({ repository: "o/r", sha: "abc" })).toBe("/commit/o/r/abc");
-    expect(filePath({ repository: "o/r", path: "a/b.ts", ref: "main", line: 3 })).toBe(
-      "/repo/o/r/blob/main?path=a%2Fb.ts#L3",
+    expect(commitPath({ repository: "o/r", sha: "abc" })).toBe(
+      "/commit/o/r/abc",
     );
+    expect(
+      filePath({ repository: "o/r", path: "a/b.ts", ref: "main", line: 3 }),
+    ).toBe("/repo/o/r/blob/main?path=a%2Fb.ts#L3");
   });
 
   it("refuses a repository that is not owner/name", () => {
@@ -216,7 +296,12 @@ describe("groupExternalEvents", () => {
 
   it("drops fell-behind rows before grouping", () => {
     const groups = groupExternalEvents([
-      pr({ _id: "b", kind: "pr_behind", title: "PR #47 is behind main", created_at: 10 }),
+      pr({
+        _id: "b",
+        kind: "pr_behind",
+        title: "PR #47 is behind main",
+        created_at: 10,
+      }),
     ]);
     expect(groups).toEqual([]);
     expect(isQuietExternalEvent({ kind: "pr_behind" })).toBe(true);
@@ -225,25 +310,83 @@ describe("groupExternalEvents", () => {
 
   it("folds one PR's day into one group, newest first, failures counted once", () => {
     const groups = groupExternalEvents([
-      pr({ _id: "c1", kind: "pr_check", title: "CI failed: verify", meta: { conclusion: "failure" }, created_at: 5 }),
-      pr({ _id: "r", kind: "rebase", title: "rebased remote-mac-credential-absorb onto e7a0305", created_at: 1 }),
-      pr({ _id: "c2", kind: "pr_check", title: "CI failed: test-cli", meta: { conclusion: "failure" }, created_at: 6 }),
-      pr({ _id: "s", kind: "pr_synchronize", title: "PR #47 updated to e7a0305", created_at: 3 }),
-      pr({ _id: "ready", kind: "pr_ready", title: "PR #47 merges cleanly again", created_at: 4 }),
-      pr({ _id: "c3", kind: "pr_check", title: "CI failed: GitGuardian", meta: { conclusion: "failure" }, created_at: 7 }),
+      pr({
+        _id: "c1",
+        kind: "pr_check",
+        title: "CI failed: verify",
+        meta: { conclusion: "failure" },
+        created_at: 5,
+      }),
+      pr({
+        _id: "r",
+        kind: "rebase",
+        title: "rebased remote-mac-credential-absorb onto e7a0305",
+        created_at: 1,
+      }),
+      pr({
+        _id: "c2",
+        kind: "pr_check",
+        title: "CI failed: test-cli",
+        meta: { conclusion: "failure" },
+        created_at: 6,
+      }),
+      pr({
+        _id: "s",
+        kind: "pr_synchronize",
+        title: "PR #47 updated to e7a0305",
+        created_at: 3,
+      }),
+      pr({
+        _id: "ready",
+        kind: "pr_ready",
+        title: "PR #47 merges cleanly again",
+        created_at: 4,
+      }),
+      pr({
+        _id: "c3",
+        kind: "pr_check",
+        title: "CI failed: GitGuardian",
+        meta: { conclusion: "failure" },
+        created_at: 7,
+      }),
     ]);
     expect(groups).toHaveLength(1);
     const [g] = groups;
     expect(g.at).toBe(7);
-    expect(g.events.map((e) => e._id)).toEqual(["c3", "c2", "c1", "ready", "s", "r"]);
-    expect(g.phrases.map((p) => p.text)).toEqual(["3 checks failed", "merges cleanly", "PR updated", "rebased"]);
+    expect(g.events.map((e) => e._id)).toEqual([
+      "c3",
+      "c2",
+      "c1",
+      "ready",
+      "s",
+      "r",
+    ]);
+    expect(g.phrases.map((p) => p.text)).toEqual([
+      "3 checks failed",
+      "merges cleanly",
+      "PR updated",
+      "rebased",
+    ]);
     expect(g.phrases[0].accent).toBe("red");
   });
 
   it("keeps a checkout on another branch in its own group and names where it went", () => {
     const groups = groupExternalEvents([
-      pr({ _id: "co", kind: "checkout", pr_number: undefined, branch: "main", title: "switched to main", meta: { to_ref: "main", from_ref: "x" }, created_at: 9 }),
-      pr({ _id: "c1", kind: "pr_check", meta: { conclusion: "failure" }, created_at: 5 }),
+      pr({
+        _id: "co",
+        kind: "checkout",
+        pr_number: undefined,
+        branch: "main",
+        title: "switched to main",
+        meta: { to_ref: "main", from_ref: "x" },
+        created_at: 9,
+      }),
+      pr({
+        _id: "c1",
+        kind: "pr_check",
+        meta: { conclusion: "failure" },
+        created_at: 5,
+      }),
     ]);
     expect(groups.map((g) => g.events.length)).toEqual([1, 1]);
     expect(groups[0].phrases[0].text).toBe("switched to main");
@@ -252,13 +395,38 @@ describe("groupExternalEvents", () => {
 
   it("keeps a repeated announcement once, at its newest time", () => {
     const groups = groupExternalEvents([
-      pr({ _id: "x1", kind: "pr_conflict", title: "PR #47 has conflicts", created_at: 1 }),
-      pr({ _id: "x2", kind: "pr_conflict", title: "PR #47 has conflicts", created_at: 3 }),
-      pr({ _id: "v1", kind: "pr_check", title: "CI failed: verify", meta: { conclusion: "failure" }, created_at: 2 }),
-      pr({ _id: "v2", kind: "pr_check", title: "CI failed: verify", meta: { conclusion: "failure" }, created_at: 4 }),
+      pr({
+        _id: "x1",
+        kind: "pr_conflict",
+        title: "PR #47 has conflicts",
+        created_at: 1,
+      }),
+      pr({
+        _id: "x2",
+        kind: "pr_conflict",
+        title: "PR #47 has conflicts",
+        created_at: 3,
+      }),
+      pr({
+        _id: "v1",
+        kind: "pr_check",
+        title: "CI failed: verify",
+        meta: { conclusion: "failure" },
+        created_at: 2,
+      }),
+      pr({
+        _id: "v2",
+        kind: "pr_check",
+        title: "CI failed: verify",
+        meta: { conclusion: "failure" },
+        created_at: 4,
+      }),
     ]);
     expect(groups[0].events.map((e) => e._id)).toEqual(["v2", "x2"]);
-    expect(groups[0].phrases.map((p) => p.text)).toEqual(["1 check failed", "conflicts"]);
+    expect(groups[0].phrases.map((p) => p.text)).toEqual([
+      "1 check failed",
+      "conflicts",
+    ]);
   });
 
   it("sums the commits a push moved and pluralises commits", () => {
@@ -268,12 +436,20 @@ describe("groupExternalEvents", () => {
       pr({ _id: "k1", kind: "commit" }),
       pr({ _id: "k2", kind: "commit" }),
     ]);
-    expect(phrases.map((p) => p.text)).toEqual(["2 commits", "pushed 3 commits"]);
+    expect(phrases.map((p) => p.text)).toEqual([
+      "2 commits",
+      "pushed 3 commits",
+    ]);
   });
 });
 
 describe("mergeExternalEventGroups", () => {
-  const commit = (id: string, branch: string, at: number, actor = "u1"): ExternalEventRecord => ({
+  const commit = (
+    id: string,
+    branch: string,
+    at: number,
+    actor = "u1",
+  ): ExternalEventRecord => ({
     _id: id,
     repository: "codecast-sh/codecast",
     kind: "commit",
@@ -294,11 +470,16 @@ describe("mergeExternalEventGroups", () => {
     const run = mergeExternalEventGroups(groups);
     expect(run.events.map((e) => e._id)).toEqual(["a", "b", "c"]);
     expect(run.at).toBe(30);
-    expect(run.phrases).toEqual([{ kind: "commit", count: 3, text: "3 commits" }]);
+    expect(run.phrases).toEqual([
+      { kind: "commit", count: 3, text: "3 commits" },
+    ]);
   });
 
   it("names no single actor for a group two people share", () => {
-    const [group] = groupExternalEvents([commit("a", "main", 2, "u1"), commit("b", "main", 1, "u2")]);
+    const [group] = groupExternalEvents([
+      commit("a", "main", 2, "u1"),
+      commit("b", "main", 1, "u2"),
+    ]);
     expect(externalEventGroupActor(group)).toBeUndefined();
   });
 });

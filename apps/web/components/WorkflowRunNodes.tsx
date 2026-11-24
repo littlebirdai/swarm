@@ -10,14 +10,39 @@
 // step row in the same gutter.
 
 import Link from "next/link";
-import { Bot, CheckCircle2, Circle, GitFork, Loader2, Merge, MessageSquare, Terminal, User, XCircle, Zap } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Circle,
+  GitFork,
+  Loader2,
+  Merge,
+  MessageSquare,
+  Terminal,
+  User,
+  XCircle,
+  Zap,
+} from "lucide-react";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 import { useOpenLinkedSession } from "../hooks/useOpenLinkedSession";
-import { formatRunDuration, runNodeGroups, runNodeLine, scriptLine, wfFmtTokens, type RunNodeRow } from "../lib/workflowRun";
-import { TaskSessionRow, type TaskLinkedSession } from "./tasks/TaskSessionList";
+import {
+  formatRunDuration,
+  runNodeGroups,
+  runNodeLine,
+  scriptLine,
+  wfFmtTokens,
+  type RunNodeRow,
+} from "../lib/workflowRun";
+import {
+  TaskSessionRow,
+  type TaskLinkedSession,
+} from "./tasks/TaskSessionList";
 import { RailProgress } from "./ContextRail";
 
-const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+const TYPE_ICONS: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   agent: Bot,
   prompt: Zap,
   // One model call, one answer (learning-loop.md LL1).
@@ -31,10 +56,25 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 
 function StepMark({ row }: { row: RunNodeRow }) {
   const cls = "w-3.5 h-3.5 flex-shrink-0";
-  if (row.status === "completed") return <CheckCircle2 className={`${cls} text-sol-green`} aria-label="completed" />;
-  if (row.status === "failed") return <XCircle className={`${cls} text-sol-red`} aria-label="failed" />;
-  if (row.status === "running" || row.current) return <Loader2 className={`${cls} text-sol-cyan animate-spin`} aria-label="running" />;
-  return <Circle className={`${cls} text-sol-text-dim/50`} aria-label="pending" />;
+  if (row.status === "completed")
+    return (
+      <CheckCircle2
+        className={`${cls} text-sol-green`}
+        aria-label="completed"
+      />
+    );
+  if (row.status === "failed")
+    return <XCircle className={`${cls} text-sol-red`} aria-label="failed" />;
+  if (row.status === "running" || row.current)
+    return (
+      <Loader2
+        className={`${cls} text-sol-cyan animate-spin`}
+        aria-label="running"
+      />
+    );
+  return (
+    <Circle className={`${cls} text-sol-text-dim/50`} aria-label="pending" />
+  );
 }
 
 function stepTone(row: RunNodeRow): "failed" | "current" | undefined {
@@ -54,15 +94,27 @@ function outcomeText(row: RunNodeRow): string | null {
 }
 
 function StepMeta({ row, now }: { row: RunNodeRow; now: number }) {
-  const duration = row.started_at ? formatRunDuration(row.started_at, row.completed_at, now) : null;
+  const duration = row.started_at
+    ? formatRunDuration(row.started_at, row.completed_at, now)
+    : null;
   const outcome = outcomeText(row);
   const tokens = wfFmtTokens(row.tokens);
   if (!duration && !outcome && !tokens) return null;
   return (
     <>
-      {duration && <span className="tabular-nums flex-shrink-0">{duration}</span>}
-      {tokens && <span className="tabular-nums flex-shrink-0">{tokens} tok</span>}
-      {outcome && <span className={`truncate ${row.status === "failed" ? "text-sol-red/80" : ""}`}>{outcome}</span>}
+      {duration && (
+        <span className="tabular-nums flex-shrink-0">{duration}</span>
+      )}
+      {tokens && (
+        <span className="tabular-nums flex-shrink-0">{tokens} tok</span>
+      )}
+      {outcome && (
+        <span
+          className={`truncate ${row.status === "failed" ? "text-sol-red/80" : ""}`}
+        >
+          {outcome}
+        </span>
+      )}
     </>
   );
 }
@@ -75,7 +127,15 @@ function NodeLabelChip({ label }: { label: string }) {
   );
 }
 
-function SessionNodeRow({ row, now, onOpen }: { row: RunNodeRow; now: number; onOpen: (conv: TaskLinkedSession) => void }) {
+function SessionNodeRow({
+  row,
+  now,
+  onOpen,
+}: {
+  row: RunNodeRow;
+  now: number;
+  onOpen: (conv: TaskLinkedSession) => void;
+}) {
   const s = row.session!;
   const snapshot: TaskLinkedSession = {
     _id: s._id,
@@ -95,7 +155,11 @@ function SessionNodeRow({ row, now, onOpen }: { row: RunNodeRow; now: number; on
       now={now}
       onOpen={onOpen}
       tone={stepTone(row)}
-      leading={<span className="mt-0.5 flex-shrink-0" data-step-status={row.status}><StepMark row={row} /></span>}
+      leading={
+        <span className="mt-0.5 flex-shrink-0" data-step-status={row.status}>
+          <StepMark row={row} />
+        </span>
+      }
       badge={titled ? <NodeLabelChip label={row.label} /> : undefined}
       fallbackLine={scriptLine(runNodeLine(row))}
       meta={<StepMeta row={row} now={now} />}
@@ -110,15 +174,27 @@ function StepRow({ row, now }: { row: RunNodeRow; now: number }) {
   const href = row.session_id ? `/conversation/${row.session_id}` : null;
   const body = (
     <>
-      <span className="mt-0.5 flex-shrink-0" data-step-status={row.status}><StepMark row={row} /></span>
+      <span className="mt-0.5 flex-shrink-0" data-step-status={row.status}>
+        <StepMark row={row} />
+      </span>
       <TypeIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-sol-text-dim/70" />
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-xs leading-tight ${
-          row.status === "failed" ? "text-sol-red" : row.status === "pending" && !row.current ? "text-sol-text-dim" : "text-sol-text"
-        } ${row.current ? "font-medium" : ""}`}>
+        <div
+          className={`truncate text-xs leading-tight ${
+            row.status === "failed"
+              ? "text-sol-red"
+              : row.status === "pending" && !row.current
+                ? "text-sol-text-dim"
+                : "text-sol-text"
+          } ${row.current ? "font-medium" : ""}`}
+        >
           {row.label}
         </div>
-        {line && <p className="mt-0.5 text-meta text-sol-text-muted truncate leading-snug">{line}</p>}
+        {line && (
+          <p className="mt-0.5 text-meta text-sol-text-muted truncate leading-snug">
+            {line}
+          </p>
+        )}
         <div className="mt-0.5 flex items-center gap-1.5 text-meta text-sol-text-dim/70 min-w-0 empty:hidden">
           <StepMeta row={row} now={now} />
         </div>
@@ -126,14 +202,20 @@ function StepRow({ row, now }: { row: RunNodeRow; now: number }) {
     </>
   );
   const cls = `flex items-start gap-2 px-2 py-1.5 rounded-md border-l-2 ${
-    tone === "failed" ? "border-l-sol-red/40 bg-sol-red/[0.03]"
-      : tone === "current" ? "border-l-sol-cyan/50 bg-sol-cyan/[0.04]"
+    tone === "failed"
+      ? "border-l-sol-red/40 bg-sol-red/[0.03]"
+      : tone === "current"
+        ? "border-l-sol-cyan/50 bg-sol-cyan/[0.04]"
         : "border-l-transparent"
   }`;
   return (
     <div data-step={row.id}>
       {href ? (
-        <Link href={href} className={`${cls} transition-colors hover:bg-sol-bg-alt/70`} onClick={(e) => e.stopPropagation()}>
+        <Link
+          href={href}
+          className={`${cls} transition-colors hover:bg-sol-bg-alt/70`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {body}
         </Link>
       ) : (
@@ -145,7 +227,17 @@ function StepRow({ row, now }: { row: RunNodeRow; now: number }) {
 
 /** `page` heads each phase the way a page heads a section (its title, what
  *  it was for, and how far it got); the default is the compact panel header. */
-export function WorkflowRunNodes({ run, workflow, className, headings = "panel" }: { run: any; workflow?: any | null; className?: string; headings?: "panel" | "page" }) {
+export function WorkflowRunNodes({
+  run,
+  workflow,
+  className,
+  headings = "panel",
+}: {
+  run: any;
+  workflow?: any | null;
+  className?: string;
+  headings?: "panel" | "page";
+}) {
   const now = useCoarseNow(30_000);
   const openLinkedSession = useOpenLinkedSession();
   const groups = runNodeGroups(run, workflow);
@@ -155,25 +247,61 @@ export function WorkflowRunNodes({ run, workflow, className, headings = "panel" 
   return (
     <div className={className ?? "space-y-2"} data-run-nodes={run?._id ?? ""}>
       {groups.map((g, i) => (
-        <section key={g.title ?? `group-${i}`} className="space-y-0.5" data-run-phase={g.title ?? ""}>
-          {g.title && (headings === "page" ? (
-            <div className="flex items-baseline gap-3 px-2 pb-1.5">
-              <h2 className="text-mark font-semibold uppercase tracking-wider text-sol-text-dim flex-shrink-0">{g.title}</h2>
-              {g.detail && <span className="min-w-0 truncate text-meta text-sol-text-dim/80" title={g.detail}>{g.detail}</span>}
-              <span className="ml-auto flex items-center gap-1.5 self-center text-meta">
-                <RailProgress done={g.rows.filter((r) => r.status === "completed").length} total={g.rows.length} bar={g.rows.some((r) => r.status === "failed") ? "bg-sol-red" : "bg-sol-violet"} />
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2 pt-1" title={g.detail}>
-              <span className="text-mark uppercase tracking-wider text-sol-cyan/70 font-semibold">{g.title}</span>
-              <span className="text-meta text-sol-text-dim/60 tabular-nums">{g.rows.length}</span>
-            </div>
-          ))}
+        <section
+          key={g.title ?? `group-${i}`}
+          className="space-y-0.5"
+          data-run-phase={g.title ?? ""}
+        >
+          {g.title &&
+            (headings === "page" ? (
+              <div className="flex items-baseline gap-3 px-2 pb-1.5">
+                <h2 className="text-mark font-semibold uppercase tracking-wider text-sol-text-dim flex-shrink-0">
+                  {g.title}
+                </h2>
+                {g.detail && (
+                  <span
+                    className="min-w-0 truncate text-meta text-sol-text-dim/80"
+                    title={g.detail}
+                  >
+                    {g.detail}
+                  </span>
+                )}
+                <span className="ml-auto flex items-center gap-1.5 self-center text-meta">
+                  <RailProgress
+                    done={g.rows.filter((r) => r.status === "completed").length}
+                    total={g.rows.length}
+                    bar={
+                      g.rows.some((r) => r.status === "failed")
+                        ? "bg-sol-red"
+                        : "bg-sol-violet"
+                    }
+                  />
+                </span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1.5 px-2 pt-1"
+                title={g.detail}
+              >
+                <span className="text-mark uppercase tracking-wider text-sol-cyan/70 font-semibold">
+                  {g.title}
+                </span>
+                <span className="text-meta text-sol-text-dim/60 tabular-nums">
+                  {g.rows.length}
+                </span>
+              </div>
+            ))}
           {g.rows.map((row) =>
-            row.session
-              ? <SessionNodeRow key={row.id} row={row} now={now} onOpen={openLinkedSession} />
-              : <StepRow key={row.id} row={row} now={now} />,
+            row.session ? (
+              <SessionNodeRow
+                key={row.id}
+                row={row}
+                now={now}
+                onOpen={openLinkedSession}
+              />
+            ) : (
+              <StepRow key={row.id} row={row} now={now} />
+            ),
           )}
         </section>
       ))}

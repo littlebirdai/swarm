@@ -6,9 +6,11 @@ import { IdentityProvider, useMaybeIdentity } from "./lib/identity";
 import { parseRoute, useLocation } from "./lib/router";
 import { ToastProvider, useToast } from "./ui/Toast";
 import { AppPage } from "./surfaces/AppPage";
-import { CharacterPickerHost, useCharacterPicker } from "./surfaces/CharacterPicker";
+import {
+  CharacterPickerHost,
+  useCharacterPicker,
+} from "./surfaces/CharacterPicker";
 import { Home, NotFound } from "./surfaces/pages";
-
 
 export function App() {
   return (
@@ -30,7 +32,10 @@ function Routes() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route.kind === "app" ? route.slug : route.kind]);
-  if (route.kind === "app") return <AppPage slug={route.slug} version={route.version} room={route.room} />;
+  if (route.kind === "app")
+    return (
+      <AppPage slug={route.slug} version={route.version} room={route.room} />
+    );
   return route.kind === "home" ? <Home /> : <NotFound />;
 }
 
@@ -42,7 +47,11 @@ function Hello() {
   const fresh = identity?.fresh ?? false;
   useEffect(() => {
     if (!fresh || !identity) return;
-    toast({ face: identity.me, text: `You're ${identity.me.name}.`, action: { label: "Pick another", onClick: () => openPicker() } });
+    toast({
+      face: identity.me,
+      text: `You're ${identity.me.name}.`,
+      action: { label: "Pick another", onClick: () => openPicker() },
+    });
   }, [fresh]);
   return null;
 }

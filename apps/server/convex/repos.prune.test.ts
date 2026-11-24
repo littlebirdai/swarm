@@ -24,11 +24,14 @@ function row(id: string, ageDays: number) {
   };
 }
 
-const run = (ctx: any, args: any = {}) => (pruneRepoCache as any)._handler(ctx, args);
+const run = (ctx: any, args: any = {}) =>
+  (pruneRepoCache as any)._handler(ctx, args);
 
 describe("pruneRepoCache", () => {
   test("deletes only what has gone a week without a read", async () => {
-    const db = makeFakeDb({ repo_cache: [row("stale_a", 9), row("fresh", 1), row("stale_b", 30)] });
+    const db = makeFakeDb({
+      repo_cache: [row("stale_a", 9), row("fresh", 1), row("stale_b", 30)],
+    });
     const out = await run({ db });
 
     expect(out.deleted).toBe(2);
@@ -48,13 +51,19 @@ describe("pruneRepoCache", () => {
 
   test("takes the oldest first when there is more than one batch", async () => {
     const db = makeFakeDb({
-      repo_cache: [row("newer_stale", 8), row("oldest", 400), row("middle", 60)],
+      repo_cache: [
+        row("newer_stale", 8),
+        row("oldest", 400),
+        row("middle", 60),
+      ],
     });
     const out = await run({ db }, { limit: 2 });
 
     expect(out.deleted).toBe(2);
     // The two oldest went; the least stale one waits for the next sweep.
-    expect(db._tables.repo_cache.map((r: any) => r._id)).toEqual(["newer_stale"]);
+    expect(db._tables.repo_cache.map((r: any) => r._id)).toEqual([
+      "newer_stale",
+    ]);
   });
 
   test("an entirely warm cache is a no-op", async () => {

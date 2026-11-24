@@ -40,7 +40,9 @@ export function browserPaneRecents(): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((u): u is string => typeof u === "string" && !!u).slice(0, CAP);
+    return parsed
+      .filter((u): u is string => typeof u === "string" && !!u)
+      .slice(0, CAP);
   } catch {
     return [];
   }
@@ -50,7 +52,10 @@ export function browserPaneRecents(): string[] {
  *  instead of doubling it, so the ring reads as places, not as a log. */
 export function rememberBrowserPaneUrl(url: string): void {
   if (!url) return;
-  const next = [url, ...browserPaneRecents().filter((u) => u !== url)].slice(0, CAP);
+  const next = [url, ...browserPaneRecents().filter((u) => u !== url)].slice(
+    0,
+    CAP,
+  );
   try {
     storage()?.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -81,7 +86,11 @@ const SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//;
  * inline), then pages whose host or path holds it. Case does not matter, and
  * a typed "www." is matched with or without one.
  */
-export function suggestAddresses(typed: string, recents: string[], limit = 6): AddressSuggestion[] {
+export function suggestAddresses(
+  typed: string,
+  recents: string[],
+  limit = 6,
+): AddressSuggestion[] {
   const q = typed.trim().toLowerCase();
   if (!q) return [];
   const full = SCHEME.test(q);
@@ -89,10 +98,19 @@ export function suggestAddresses(typed: string, recents: string[], limit = 6): A
   for (const url of recents) {
     const label = full ? url : pageAddress(url);
     const hay = label.toLowerCase();
-    const rank = hay.startsWith(q) ? 0 : hay.startsWith(q.replace(/^www\./, "")) ? 0 : hay.includes(q) ? 1 : -1;
+    const rank = hay.startsWith(q)
+      ? 0
+      : hay.startsWith(q.replace(/^www\./, ""))
+        ? 0
+        : hay.includes(q)
+          ? 1
+          : -1;
     if (rank >= 0) ranked.push({ s: { url, label }, rank });
   }
-  return ranked.sort((a, b) => a.rank - b.rank).slice(0, limit).map((r) => r.s);
+  return ranked
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, limit)
+    .map((r) => r.s);
 }
 
 /**
@@ -100,7 +118,12 @@ export function suggestAddresses(typed: string, recents: string[], limit = 6): A
  * replaces it: the top suggestion's remainder when that suggestion starts
  * with the typed text, else nothing.
  */
-export function inlineCompletion(typed: string, top: AddressSuggestion | undefined): string {
+export function inlineCompletion(
+  typed: string,
+  top: AddressSuggestion | undefined,
+): string {
   if (!typed || !top) return "";
-  return top.label.toLowerCase().startsWith(typed.toLowerCase()) ? top.label.slice(typed.length) : "";
+  return top.label.toLowerCase().startsWith(typed.toLowerCase())
+    ? top.label.slice(typed.length)
+    : "";
 }

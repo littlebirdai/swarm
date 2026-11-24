@@ -30,21 +30,38 @@ export function SlackMirrorsSummary() {
     (st) => Object.keys(st.chatChannels ?? {}).length,
     (st) => st.clientState?.ui?.active_team_id,
   ]);
-  const teamId = s.clientState?.ui?.active_team_id ? String(s.clientState.ui.active_team_id) : undefined;
+  const teamId = s.clientState?.ui?.active_team_id
+    ? String(s.clientState.ui.active_team_id)
+    : undefined;
   const [browsing, setBrowsing] = useState(false);
   const [people, setPeople] = useState(false);
-  const team = useQueryNoThrow(api.slackSync.getTeamSlack, teamId ? ({ team_id: teamId } as any) : "skip").data as
-    | { missing_scopes?: string[]; is_admin?: boolean; you_missing_scopes?: string[]; installations?: Array<{ workspace_id: string; workspace_name: string | null }> }
+  const team = useQueryNoThrow(
+    api.slackSync.getTeamSlack,
+    teamId ? ({ team_id: teamId } as any) : "skip",
+  ).data as
+    | {
+        missing_scopes?: string[];
+        is_admin?: boolean;
+        you_missing_scopes?: string[];
+        installations?: Array<{
+          workspace_id: string;
+          workspace_name: string | null;
+        }>;
+      }
     | null
     | undefined;
   const [dmsOpen, setDmsOpen] = useState(false);
   // The active team's mirrors only: the store holds every team's links.
-  const links = (Object.values(s.chatSlackLinks ?? {}) as ChatSlackLinkRow[]).filter((l) => !!teamId && String(l.team_id) === teamId);
+  const links = (
+    Object.values(s.chatSlackLinks ?? {}) as ChatSlackLinkRow[]
+  ).filter((l) => !!teamId && String(l.team_id) === teamId);
   const rows = links
     .filter((l) => l.kind !== "dm")
     .map((l) => ({ link: l, channel: s.chatChannels[l.chat_channel_id] }))
     .filter((r) => !!r.channel)
-    .sort((a, b) => (a.channel!.name ?? "").localeCompare(b.channel!.name ?? ""));
+    .sort((a, b) =>
+      (a.channel!.name ?? "").localeCompare(b.channel!.name ?? ""),
+    );
   // A mirrored DM is named the way the chat rail names it: the other side.
   const rail = useChatRail();
   const { members } = useChatMembers();
@@ -52,40 +69,70 @@ export function SlackMirrorsSummary() {
   const dmRows = dmLinks
     .map((link) => {
       const view = rail.find((c) => c.id === link.chat_channel_id);
-      return { link, name: view ? channelDisplayName(view, members) : "Direct message" };
+      return {
+        link,
+        name: view ? channelDisplayName(view, members) : "Direct message",
+      };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   const dmTrouble = dmLinks.filter((l) => !l.paused && l.last_error).length;
   // Mirrors whose workspace is no longer connected carry nothing until an
   // admin adds that workspace again.
-  const connected = new Set((team?.installations ?? []).map((i) => i.workspace_id));
-  const orphaned = team?.installations ? links.filter((l) => !connected.has(l.workspace_id)) : [];
+  const connected = new Set(
+    (team?.installations ?? []).map((i) => i.workspace_id),
+  );
+  const orphaned = team?.installations
+    ? links.filter((l) => !connected.has(l.workspace_id))
+    : [];
 
   return (
     <div className="mt-3 border-t border-sol-border/40 pt-3">
       <div className="flex items-center gap-2">
-        <div className="text-mark font-semibold uppercase tracking-[0.09em] text-sol-text-dim">Mirrored from Slack</div>
+        <div className="text-mark font-semibold uppercase tracking-[0.09em] text-sol-text-dim">
+          Mirrored from Slack
+        </div>
         {teamId && (
           <span className="ml-auto inline-flex items-center gap-2">
             <QuietButton onClick={() => setPeople(true)}>
-              <span className="inline-flex items-center gap-1"><UserRound className="w-3 h-3" /> People</span>
+              <span className="inline-flex items-center gap-1">
+                <UserRound className="w-3 h-3" /> People
+              </span>
             </QuietButton>
             <QuietButton onClick={() => setBrowsing(true)}>
-              <span className="inline-flex items-center gap-1"><Plus className="w-3 h-3" /> Add channels from Slack</span>
+              <span className="inline-flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Add channels from Slack
+              </span>
             </QuietButton>
           </span>
         )}
       </div>
       {teamId && team?.installations && (
-        <SlackWorkspaces teamId={teamId} installations={team.installations} orphaned={orphaned.length} isAdmin={!!team.is_admin} />
+        <SlackWorkspaces
+          teamId={teamId}
+          installations={team.installations}
+          orphaned={orphaned.length}
+          isAdmin={!!team.is_admin}
+        />
       )}
       {teamId && !!team?.missing_scopes?.length && (
-        <SlackReconnect teamId={teamId} returnTo="/settings/integrations?slack=connected" isAdmin={!!team.is_admin} isPrivate={false} />
+        <SlackReconnect
+          teamId={teamId}
+          returnTo="/settings/integrations?slack=connected"
+          isAdmin={!!team.is_admin}
+          isPrivate={false}
+        />
       )}
       {teamId && !!team?.you_missing_scopes?.length && (
-        <SelfReconnect teamId={teamId} reactions={team.you_missing_scopes.includes("reactions:write")} />
+        <SelfReconnect
+          teamId={teamId}
+          reactions={team.you_missing_scopes.includes("reactions:write")}
+        />
       )}
-      {teamId && <div className="mt-2"><SlackDmSwitch teamId={teamId} compact /></div>}
+      {teamId && (
+        <div className="mt-2">
+          <SlackDmSwitch teamId={teamId} compact />
+        </div>
+      )}
       {dmRows.length > 0 && (
         <div className="mt-1">
           <button
@@ -94,18 +141,41 @@ export function SlackMirrorsSummary() {
             aria-expanded={dmsOpen}
             onClick={() => setDmsOpen((o) => !o)}
           >
-            <ChevronRight className={`w-3 h-3 transition-transform ${dmsOpen ? "rotate-90" : ""}`} />
-            {dmsOpen ? "Hide" : "Show"} {dmRows.length} direct message{dmRows.length === 1 ? "" : "s"}
-            {dmTrouble > 0 && <span className="text-sol-orange"> · {dmTrouble} need{dmTrouble === 1 ? "s" : ""} attention</span>}
+            <ChevronRight
+              className={`w-3 h-3 transition-transform ${dmsOpen ? "rotate-90" : ""}`}
+            />
+            {dmsOpen ? "Hide" : "Show"} {dmRows.length} direct message
+            {dmRows.length === 1 ? "" : "s"}
+            {dmTrouble > 0 && (
+              <span className="text-sol-orange">
+                {" "}
+                · {dmTrouble} need{dmTrouble === 1 ? "s" : ""} attention
+              </span>
+            )}
           </button>
           {dmsOpen && (
             <ul className="mt-1 ml-4 flex flex-col gap-1">
               {dmRows.map(({ link, name }) => (
-                <li key={link._id} className="flex items-center gap-2 text-meta">
-                  <Link href={`/chat/${link.chat_channel_id}`} className="truncate text-sol-text hover:underline">{name}</Link>
-                  {link.paused && <span className="text-meta text-sol-text-dim">paused</span>}
+                <li
+                  key={link._id}
+                  className="flex items-center gap-2 text-meta"
+                >
+                  <Link
+                    href={`/chat/${link.chat_channel_id}`}
+                    className="truncate text-sol-text hover:underline"
+                  >
+                    {name}
+                  </Link>
+                  {link.paused && (
+                    <span className="text-meta text-sol-text-dim">paused</span>
+                  )}
                   {!link.paused && link.last_error && (
-                    <span className="text-meta text-sol-orange" title={link.last_error}>needs attention</span>
+                    <span
+                      className="text-meta text-sol-orange"
+                      title={link.last_error}
+                    >
+                      needs attention
+                    </span>
                   )}
                 </li>
               ))}
@@ -113,49 +183,75 @@ export function SlackMirrorsSummary() {
           )}
         </div>
       )}
-      {browsing && teamId && <SlackChannelBrowser teamId={teamId} onClose={() => setBrowsing(false)} />}
-      {people && teamId && <SlackPeopleDialog teamId={teamId} onClose={() => setPeople(false)} />}
+      {browsing && teamId && (
+        <SlackChannelBrowser
+          teamId={teamId}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+      {people && teamId && (
+        <SlackPeopleDialog teamId={teamId} onClose={() => setPeople(false)} />
+      )}
       {rows.length > 0 && (
-        <div className="mt-3 text-mark font-semibold uppercase tracking-[0.09em] text-sol-text-dim">Channels</div>
+        <div className="mt-3 text-mark font-semibold uppercase tracking-[0.09em] text-sol-text-dim">
+          Channels
+        </div>
       )}
       {rows.length === 0 ? (
         <p className="mt-1.5 text-meta leading-relaxed text-sol-text-dim">
-          None yet. Bring Slack channels over with the button above, or open a channel in Chat and choose{" "}
-          <span className="text-sol-text-muted">Mirror with Slack</span> from its menu.
+          None yet. Bring Slack channels over with the button above, or open a
+          channel in Chat and choose{" "}
+          <span className="text-sol-text-muted">Mirror with Slack</span> from
+          its menu.
         </p>
       ) : (
         <ul className="mt-1.5 flex flex-col gap-1">
           {rows.map(({ link, channel }) => {
             return (
               <li key={link._id} className="flex items-center gap-2 text-meta">
-                <Link href={`/chat/${link.chat_channel_id}`} className="inline-flex items-center gap-0.5 text-sol-text hover:underline">
+                <Link
+                  href={`/chat/${link.chat_channel_id}`}
+                  className="inline-flex items-center gap-0.5 text-sol-text hover:underline"
+                >
                   <Hash className="w-3 h-3 text-sol-text-dim" />
                   {channel!.name}
                 </Link>
-                <span className="text-sol-text-dim">{DIRECTION_ARROW[link.direction]}</span>
+                <span className="text-sol-text-dim">
+                  {DIRECTION_ARROW[link.direction]}
+                </span>
                 {/* The channel wears the Slack name, so the far side is just
                     "Slack"; a name kept apart (taken on our side) is spelled out. */}
                 <span className="inline-flex items-center gap-0.5 text-sol-text-muted">
-                  {(link.slack_channel_name ?? link.slack_channel_id) === channel!.name ? (
+                  {(link.slack_channel_name ?? link.slack_channel_id) ===
+                  channel!.name ? (
                     "Slack"
                   ) : (
                     <>
-                      {link.slack_channel_private ? <Lock className="w-3 h-3" /> : <Hash className="w-3 h-3" />}
+                      {link.slack_channel_private ? (
+                        <Lock className="w-3 h-3" />
+                      ) : (
+                        <Hash className="w-3 h-3" />
+                      )}
                       {link.slack_channel_name ?? link.slack_channel_id}
                     </>
                   )}
                 </span>
                 {link.backfill?.status === "running" && (
                   <span className="inline-flex items-center gap-1 text-meta text-sol-green">
-                    <Loader2 className="w-3 h-3 animate-spin" /> importing · {link.backfill.fetched.toLocaleString()} lines
+                    <Loader2 className="w-3 h-3 animate-spin" /> importing ·{" "}
+                    {link.backfill.fetched.toLocaleString()} lines
                   </span>
                 )}
                 {!connected.has(link.workspace_id) ? (
-                  <span className="text-meta text-sol-orange">workspace not connected</span>
+                  <span className="text-meta text-sol-orange">
+                    workspace not connected
+                  </span>
                 ) : link.paused ? (
                   <span className="text-meta text-sol-text-dim">paused</span>
                 ) : link.last_error ? (
-                  <span className="text-meta text-sol-orange">needs attention</span>
+                  <span className="text-meta text-sol-orange">
+                    needs attention
+                  </span>
                 ) : null}
               </li>
             );
@@ -168,26 +264,52 @@ export function SlackMirrorsSummary() {
 
 // The team's connected Slack workspaces, and the admin's way to add one (or
 // add back one whose mirrors lost it).
-function SlackWorkspaces({ teamId, installations, orphaned, isAdmin }: {
+function SlackWorkspaces({
+  teamId,
+  installations,
+  orphaned,
+  isAdmin,
+}: {
   teamId: string;
   installations: Array<{ workspace_id: string; workspace_name: string | null }>;
   orphaned: number;
   isAdmin: boolean;
 }) {
-  const conn = useSlackConnect(teamId, "/settings/integrations?slack=connected", "team");
+  const conn = useSlackConnect(
+    teamId,
+    "/settings/integrations?slack=connected",
+    "team",
+  );
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 text-meta">
       {installations.map((i) => (
-        <span key={i.workspace_id} className="rounded border border-sol-border/50 px-1.5 py-0.5 text-sol-text-muted">
+        <span
+          key={i.workspace_id}
+          className="rounded border border-sol-border/50 px-1.5 py-0.5 text-sol-text-muted"
+        >
           {i.workspace_name ?? i.workspace_id}
         </span>
       ))}
       {orphaned > 0 && (
-        <span className="text-sol-orange">{orphaned} mirror{orphaned === 1 ? "" : "s"} on a disconnected workspace</span>
+        <span className="text-sol-orange">
+          {orphaned} mirror{orphaned === 1 ? "" : "s"} on a disconnected
+          workspace
+        </span>
       )}
       {isAdmin && (
-        <button type="button" className="ch-roster-reconnect-btn" disabled={conn.busy} onClick={conn.connect}>
-          {conn.started ? "Opened Slack" : conn.busy ? "Opening" : orphaned > 0 ? "Connect workspace" : "Add workspace"}
+        <button
+          type="button"
+          className="ch-roster-reconnect-btn"
+          disabled={conn.busy}
+          onClick={conn.connect}
+        >
+          {conn.started
+            ? "Opened Slack"
+            : conn.busy
+              ? "Opening"
+              : orphaned > 0
+                ? "Connect workspace"
+                : "Add workspace"}
         </button>
       )}
       {conn.error && <span className="text-sol-orange">{conn.error}</span>}
@@ -196,16 +318,35 @@ function SlackWorkspaces({ teamId, installations, orphaned, isAdmin }: {
 }
 
 // The person's own Slack connection predates a scope codecast now asks for.
-function SelfReconnect({ teamId, reactions }: { teamId: string; reactions: boolean }) {
-  const conn = useSlackConnect(teamId, "/settings/integrations?slack=connected", "self");
+function SelfReconnect({
+  teamId,
+  reactions,
+}: {
+  teamId: string;
+  reactions: boolean;
+}) {
+  const conn = useSlackConnect(
+    teamId,
+    "/settings/integrations?slack=connected",
+    "self",
+  );
   return (
     <div className="ch-roster-reconnect">
       <SlackLogo className="w-3 h-3 shrink-0" muted />
       <span className="flex-1 min-w-0">
-        {reactions ? "Your reactions show in Slack as Codecast" : "Your Slack account needs a newer permission"}
-        {conn.error && <span className="ch-roster-err-inline"> {conn.error}</span>}
+        {reactions
+          ? "Your reactions show in Slack as Codecast"
+          : "Your Slack account needs a newer permission"}
+        {conn.error && (
+          <span className="ch-roster-err-inline"> {conn.error}</span>
+        )}
       </span>
-      <button type="button" className="ch-roster-reconnect-btn" disabled={conn.busy} onClick={conn.connect}>
+      <button
+        type="button"
+        className="ch-roster-reconnect-btn"
+        disabled={conn.busy}
+        onClick={conn.connect}
+      >
         {conn.started ? "Opened" : conn.busy ? "Opening" : "Reconnect"}
       </button>
     </div>

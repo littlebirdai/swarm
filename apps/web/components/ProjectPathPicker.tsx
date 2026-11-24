@@ -4,8 +4,17 @@ import { useMemo, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { Folder, FolderPlus, X } from "lucide-react";
 import { TeamIcon } from "./TeamIcon";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { effectiveMembershipVisibility, isVisibilityShareable, teamVisibilityFor } from "../lib/teamVisibility";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
+import {
+  effectiveMembershipVisibility,
+  isVisibilityShareable,
+  teamVisibilityFor,
+} from "../lib/teamVisibility";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
 import { useRecentProjectsFeed } from "../hooks/useRecentProjectsFeed";
@@ -26,26 +35,51 @@ import {
  *  folder that is only the viewer's, and nothing when the viewer's level for
  *  the team (Hidden, Activity only) keeps every session out of its feed, since
  *  then the sharing rule on the folder shares nothing. */
-export function SharedWithMark({ teamId, team, className = "" }: { teamId?: string | null; team?: string | null; className?: string }) {
+export function SharedWithMark({
+  teamId,
+  team,
+  className = "",
+}: {
+  teamId?: string | null;
+  team?: string | null;
+  className?: string;
+}) {
   // Woken by the fields the mark renders, never by a teams list re-push that
   // changed nothing it shows.
   const sig = useInboxStore((s) => {
     const t = teamVisibilityFor(s.teams, teamId) as any;
-    return t ? `${t.icon ?? ""}|${t.icon_color ?? ""}|${t.visibility ?? ""}|${JSON.stringify(t.visibility_history ?? [])}` : "";
+    return t
+      ? `${t.icon ?? ""}|${t.icon_color ?? ""}|${t.visibility ?? ""}|${JSON.stringify(t.visibility_history ?? [])}`
+      : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
-  const membership = useMemo(() => teamVisibilityFor(useInboxStore.getState().teams, teamId) as any, [sig, teamId]);
+  const membership = useMemo(
+    () => teamVisibilityFor(useInboxStore.getState().teams, teamId) as any,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sig stands in for the churny list
+    [sig, teamId],
+  );
   if (!teamId || !team || !membership) return null;
-  if (!isVisibilityShareable(effectiveMembershipVisibility(membership, null))) return null;
+  if (!isVisibilityShareable(effectiveMembershipVisibility(membership, null)))
+    return null;
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={`inline-flex shrink-0 items-center ${className}`} aria-label={`shared with ${team}`}>
-            <TeamIcon icon={membership.icon} color={membership.icon_color} className="h-3 w-3" />
+          <span
+            className={`inline-flex shrink-0 items-center ${className}`}
+            aria-label={`shared with ${team}`}
+          >
+            <TeamIcon
+              icon={membership.icon}
+              color={membership.icon_color}
+              className="h-3 w-3"
+            />
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6} className="border bg-popover px-2 py-1 text-meta text-popover-foreground shadow-md">
+        <TooltipContent
+          side="bottom"
+          sideOffset={6}
+          className="border bg-popover px-2 py-1 text-meta text-popover-foreground shadow-md"
+        >
           Sessions here are shared with {team}
         </TooltipContent>
       </Tooltip>
@@ -83,10 +117,16 @@ export function ProjectPathPicker({
   // The team a session in each recent folder will be shared with, so the
   // choice of folder shows its consequence before the session starts.
   const sharedWith = useMemo(
-    () => new Map(recents.map((p) => {
-      const r = p as { team_id?: string | null; team_name?: string | null };
-      return [p.path, { teamId: r.team_id ?? null, team: r.team_name ?? null }] as const;
-    })),
+    () =>
+      new Map(
+        recents.map((p) => {
+          const r = p as { team_id?: string | null; team_name?: string | null };
+          return [
+            p.path,
+            { teamId: r.team_id ?? null, team: r.team_name ?? null },
+          ] as const;
+        }),
+      ),
     [recents],
   );
 
@@ -104,10 +144,21 @@ export function ProjectPathPicker({
     [value, recents],
   );
   const base = useMemo(
-    () => inferProjectBase(value || undefined, recents.map((p) => p.path), inferredHome),
+    () =>
+      inferProjectBase(
+        value || undefined,
+        recents.map((p) => p.path),
+        inferredHome,
+      ),
     [value, recents, inferredHome],
   );
-  const { listing, home: diskHome } = useDirListing(convex, query, inferredHome, base, { enabled: open });
+  const { listing, home: diskHome } = useDirListing(
+    convex,
+    query,
+    inferredHome,
+    base,
+    { enabled: open },
+  );
   // The daemon's real home beats the guess from path shapes.
   const home = diskHome ?? inferredHome;
 
@@ -131,7 +182,9 @@ export function ProjectPathPicker({
       // Optimistic: the path is the value either way; creation just has to
       // land before a session starts there, and the daemon's mkdir is fast.
       createProjectFolder(convex, o.path).catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Couldn't create folder");
+        toast.error(
+          err instanceof Error ? err.message : "Couldn't create folder",
+        );
       });
     }
     onChange(o.path);
@@ -157,7 +210,8 @@ export function ProjectPathPicker({
     const q = query.trim();
     if (q) {
       const custom = resolveCustomPath(q, home, base);
-      if (custom && (isExplicitPath(q) || options.some((o) => o.custom))) onChange(custom);
+      if (custom && (isExplicitPath(q) || options.some((o) => o.custom)))
+        onChange(custom);
     }
     setQuery("");
     setOpen(false);
@@ -171,7 +225,12 @@ export function ProjectPathPicker({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHi(Math.max(clampedHi - 1, 0));
-    } else if (e.key === "Tab" && open && options[clampedHi] && !options[clampedHi].custom) {
+    } else if (
+      e.key === "Tab" &&
+      open &&
+      options[clampedHi] &&
+      !options[clampedHi].custom
+    ) {
       e.preventDefault();
       descend(options[clampedHi]);
     } else if (e.key === "Enter") {
@@ -247,23 +306,37 @@ export function ProjectPathPicker({
                   onClick={() => select(o)}
                   {...hoverFocus(() => setHi(i))}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm ${
-                    i === clampedHi ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted"
+                    i === clampedHi
+                      ? "bg-sol-bg-highlight text-sol-text"
+                      : "text-sol-text-muted"
                   }`}
                 >
                   {o.custom ? (
                     <FolderPlus className="w-3.5 h-3.5 shrink-0 text-sol-cyan" />
                   ) : (
-                    <Folder className={`w-3.5 h-3.5 shrink-0 ${o.disk && !o.repo ? "text-sol-text-dim/50" : "text-sol-text-dim"}`} />
+                    <Folder
+                      className={`w-3.5 h-3.5 shrink-0 ${o.disk && !o.repo ? "text-sol-text-dim/50" : "text-sol-text-dim"}`}
+                    />
                   )}
                   {o.custom ? (
                     <span className="font-mono text-xs truncate">
-                      <span className="font-sans text-sol-text-dim">{o.create ? "create " : "open "}</span>
+                      <span className="font-sans text-sol-text-dim">
+                        {o.create ? "create " : "open "}
+                      </span>
                       {displayPath(o.path, home)}
                     </span>
                   ) : (
                     <>
-                      <span className={`truncate ${o.disk && !o.repo ? "" : "font-medium"}`}>{name}</span>
-                      {o.repo && <span className="text-meta font-mono text-sol-text-dim/70">git</span>}
+                      <span
+                        className={`truncate ${o.disk && !o.repo ? "" : "font-medium"}`}
+                      >
+                        {name}
+                      </span>
+                      {o.repo && (
+                        <span className="text-meta font-mono text-sol-text-dim/70">
+                          git
+                        </span>
+                      )}
                       <SharedWithMark {...sharedWith.get(o.path)} />
                       <span className="ml-auto font-mono text-meta text-sol-text-dim truncate pl-2">
                         {displayPath(o.path, home)}

@@ -17,7 +17,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { browserCookies, localCookiesForHost } from "../browser/credentials.js";
-import { CdpConnection, listTargetsVia, type CdpClient, type CdpEndpoint } from "../browser/cdp.js";
+import {
+  CdpConnection,
+  listTargetsVia,
+  type CdpClient,
+  type CdpEndpoint,
+} from "../browser/cdp.js";
 import { readState } from "../browser/instance.js";
 import { listRealProfiles, chromeUserDataRoot } from "../browser/profile.js";
 import { pickLaptopProfile } from "../cloud/browserSync.js";
@@ -25,7 +30,14 @@ import { cliFetch } from "../cliHttp.js";
 import { defaultConfigDir } from "../config/configDir.js";
 import { bearerFromStored } from "../bearerToken.js";
 import { isRemoteDevice } from "../remote/device.js";
-import { keepsOwnLogin, signinSite, type SecretMeta, type SecretNeedsApproval, type SigninCookie, type SigninPayload } from "@codecast/shared/contracts/secrets";
+import {
+  keepsOwnLogin,
+  signinSite,
+  type SecretMeta,
+  type SecretNeedsApproval,
+  type SigninCookie,
+  type SigninPayload,
+} from "@codecast/shared/contracts/secrets";
 import { exitForApproval, isNeedsApproval } from "./approval.js";
 import {
   accountHint,
@@ -50,14 +62,21 @@ type Storage = Record<string, Record<string, string>>;
 /** A browser socket; a test stands in for Chrome with its own. `dispose` closes what the socket opened (bridgeBrowserConn's scratch tab). */
 export type BrowserConn = CdpClient & { dispose?: () => Promise<void> };
 /** A signed-out read names the Chrome profile it read (`profile`, as Chrome's switcher shows it), so a person knows where to sign in. */
-export type Captured = { cookies: SigninCookie[]; local_storage?: Storage; account_hint?: string } | { error: string; signed_out?: true; profile?: string };
+export type Captured =
+  | { cookies: SigninCookie[]; local_storage?: Storage; account_hint?: string }
+  | { error: string; signed_out?: true; profile?: string };
 
 const SCRATCH_PATH = "/__cast_vault__";
 const SCRATCH_PAGE = "<!doctype html><title>cast vault</title>";
 
 // ── localStorage through a scratch document ─────────────────────────────────
 
-type ScratchTab = { targetId: string; sessionId: string; evaluate: (expression: string) => Promise<any>; close: () => Promise<void> };
+type ScratchTab = {
+  targetId: string;
+  sessionId: string;
+  evaluate: (expression: string) => Promise<any>;
+  close: () => Promise<void>;
+};
 
 /**
  * A background tab showing an empty document at `origin` (Fetch answers the
@@ -66,34 +85,72 @@ type ScratchTab = { targetId: string; sessionId: string; evaluate: (expression: 
  * sites its tabs show (bridge/guardrails.ts), and a tab at the sign-in's
  * origin is what puts that site in scope.
  */
-async function openScratchTab(conn: BrowserConn, origin?: string): Promise<ScratchTab> {
-  const { targetId } = await conn.send<{ targetId: string }>("Target.createTarget", { url: "about:blank", background: true }, undefined, 8_000);
+async function openScratchTab(
+  conn: BrowserConn,
+  origin?: string,
+): Promise<ScratchTab> {
+  const { targetId } = await conn.send<{ targetId: string }>(
+    "Target.createTarget",
+    { url: "about:blank", background: true },
+    undefined,
+    8_000,
+  );
   let off = () => {};
   const close = async () => {
     off();
-    await conn.send("Target.closeTarget", { targetId }, undefined, 5_000).catch(() => {});
+    await conn
+      .send("Target.closeTarget", { targetId }, undefined, 5_000)
+      .catch(() => {});
   };
   try {
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId, flatten: true }, undefined, 8_000);
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId, flatten: true },
+      undefined,
+      8_000,
+    );
     const evaluate = async (expression: string) =>
-      (await conn.send<any>("Runtime.evaluate", { expression, returnByValue: true }, sessionId, 5_000)).result?.value;
+      (
+        await conn.send<any>(
+          "Runtime.evaluate",
+          { expression, returnByValue: true },
+          sessionId,
+          5_000,
+        )
+      ).result?.value;
     if (origin) {
       const url = `${origin}${SCRATCH_PATH}`;
-      await conn.send("Fetch.enable", { patterns: [{ urlPattern: `${url}*` }] }, sessionId, 5_000);
+      await conn.send(
+        "Fetch.enable",
+        { patterns: [{ urlPattern: `${url}*` }] },
+        sessionId,
+        5_000,
+      );
       off = conn.on((ev) => {
-        if (ev.sessionId !== sessionId || ev.method !== "Fetch.requestPaused") return;
+        if (ev.sessionId !== sessionId || ev.method !== "Fetch.requestPaused")
+          return;
         void conn
-          .send("Fetch.fulfillRequest", {
-            requestId: ev.params.requestId,
-            responseCode: 200,
-            responseHeaders: [{ name: "Content-Type", value: "text/html" }],
-            body: Buffer.from(SCRATCH_PAGE).toString("base64"),
-          }, sessionId, 5_000)
+          .send(
+            "Fetch.fulfillRequest",
+            {
+              requestId: ev.params.requestId,
+              responseCode: 200,
+              responseHeaders: [{ name: "Content-Type", value: "text/html" }],
+              body: Buffer.from(SCRATCH_PAGE).toString("base64"),
+            },
+            sessionId,
+            5_000,
+          )
           .catch(() => {});
       });
       await conn.send("Page.navigate", { url }, sessionId, 10_000);
       for (let i = 0; i < 50; i++) {
-        if ((await evaluate("location.origin + ' ' + document.readyState").catch(() => "")) === `${origin} complete`) break;
+        if (
+          (await evaluate("location.origin + ' ' + document.readyState").catch(
+            () => "",
+          )) === `${origin} complete`
+        )
+          break;
         await new Promise((r) => setTimeout(r, 100));
       }
     }
@@ -104,7 +161,11 @@ async function openScratchTab(conn: BrowserConn, origin?: string): Promise<Scrat
   }
 }
 
-async function withOriginDocument<T>(conn: BrowserConn, origin: string, fn: (evaluate: (expression: string) => Promise<any>) => Promise<T>): Promise<T> {
+async function withOriginDocument<T>(
+  conn: BrowserConn,
+  origin: string,
+  fn: (evaluate: (expression: string) => Promise<any>) => Promise<T>,
+): Promise<T> {
   const tab = await openScratchTab(conn, origin);
   try {
     return await fn(tab.evaluate);
@@ -113,31 +174,50 @@ async function withOriginDocument<T>(conn: BrowserConn, origin: string, fn: (eva
   }
 }
 
-const READ_STORAGE = "JSON.stringify(Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)])))";
+const READ_STORAGE =
+  "JSON.stringify(Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)])))";
 
 /** One origin's localStorage, or null when it could not be read (a CDP error or a timeout is not an empty origin). */
-async function readOriginStorage(conn: BrowserConn, origin: string): Promise<Record<string, string> | null> {
+async function readOriginStorage(
+  conn: BrowserConn,
+  origin: string,
+): Promise<Record<string, string> | null> {
   try {
-    const json = await withOriginDocument(conn, origin, (evaluate) => evaluate(READ_STORAGE));
+    const json = await withOriginDocument(conn, origin, (evaluate) =>
+      evaluate(READ_STORAGE),
+    );
     return typeof json === "string" ? JSON.parse(json) : null;
   } catch {
     return null;
   }
 }
 
-async function writeOriginStorage(conn: BrowserConn, origin: string, items: Record<string, string>): Promise<void> {
+async function writeOriginStorage(
+  conn: BrowserConn,
+  origin: string,
+  items: Record<string, string>,
+): Promise<void> {
   const expression = `(() => { const items = ${JSON.stringify(items)}; for (const k of Object.keys(items)) localStorage.setItem(k, items[k]); return true; })()`;
   await withOriginDocument(conn, origin, (evaluate) => evaluate(expression));
 }
 
 /** The origins whose storage belongs to the sign-in: the site's own, and any covered origin a tab shows now. */
-async function siteOrigins(conn: BrowserConn, sites: string[]): Promise<string[]> {
+async function siteOrigins(
+  conn: BrowserConn,
+  sites: string[],
+): Promise<string[]> {
   const origins = new Set(sites.map((s) => `https://${s}`));
   for (const t of await listTargetsVia(conn).catch(() => [])) {
     try {
       const u = new URL(t.url);
-      if ((u.protocol === "https:" || u.protocol === "http:") && inSiteScope(u.hostname, sites)) origins.add(u.origin);
-    } catch { /* about:blank and friends */ }
+      if (
+        (u.protocol === "https:" || u.protocol === "http:") &&
+        inSiteScope(u.hostname, sites)
+      )
+        origins.add(u.origin);
+    } catch {
+      /* about:blank and friends */
+    }
   }
   return [...origins];
 }
@@ -148,10 +228,21 @@ async function siteOrigins(conn: BrowserConn, sites: string[]): Promise<string[]
  * in there, and an origin that was not read or failed keeps its saved items
  * (mergeStorage).
  */
-async function captureJar(conn: BrowserConn, sites: string[], saved: Storage = {}): Promise<{ cookies: SigninCookie[]; local_storage?: Storage }> {
-  const cookies = aliveCookies((await browserCookies(conn)).filter((c) => inSiteScope(c.domain, sites)), Date.now());
+async function captureJar(
+  conn: BrowserConn,
+  sites: string[],
+  saved: Storage = {},
+): Promise<{ cookies: SigninCookie[]; local_storage?: Storage }> {
+  const cookies = aliveCookies(
+    (await browserCookies(conn)).filter((c) => inSiteScope(c.domain, sites)),
+    Date.now(),
+  );
   const read: Record<string, Record<string, string> | null> = {};
-  for (const origin of new Set([...(await siteOrigins(conn, sites)), ...Object.keys(saved)])) read[origin] = await readOriginStorage(conn, origin);
+  for (const origin of new Set([
+    ...(await siteOrigins(conn, sites)),
+    ...Object.keys(saved),
+  ]))
+    read[origin] = await readOriginStorage(conn, origin);
   const local_storage = boundedStorage(mergeStorage(saved, read));
   return { cookies, ...(local_storage ? { local_storage } : {}) };
 }
@@ -164,7 +255,10 @@ async function captureJar(conn: BrowserConn, sites: string[], saved: Storage = {
  * so saving the human's sign-in is the human's step; a cloud host's browser
  * is its own and takes the laptop's login over `cast browser sync`.
  */
-export function agentBrowserSignInStep(host: string, remote: boolean = isRemoteDevice()): string {
+export function agentBrowserSignInStep(
+  host: string,
+  remote: boolean = isRemoteDevice(),
+): string {
   return remote
     ? `run cast browser sync ${host} to carry the laptop's login onto this host, then run this again`
     : `agents here drive the human's own Chrome, which already holds their login, so your own browsing needs no saved sign-in. Saving it to the vault is the human's step: ask them to press Save sign-in on the Vault page`;
@@ -174,7 +268,8 @@ export function agentBrowserSignInStep(host: string, remote: boolean = isRemoteD
 export async function captureFromAgentBrowser(host: string): Promise<Captured> {
   const state = readState();
   const signIn = agentBrowserSignInStep(host);
-  if (!state?.port) return { error: `No agent browser is running here: ${signIn}` };
+  if (!state?.port)
+    return { error: `No agent browser is running here: ${signIn}` };
   let conn: CdpConnection;
   try {
     conn = await CdpConnection.fromPort(state.port, 5_000);
@@ -183,7 +278,10 @@ export async function captureFromAgentBrowser(host: string): Promise<Captured> {
   }
   try {
     const jar = await captureJar(conn, [host]);
-    if (!jar.cookies.length) return { error: `The agent browser has no cookies for ${host}: ${signIn}` };
+    if (!jar.cookies.length)
+      return {
+        error: `The agent browser has no cookies for ${host}: ${signIn}`,
+      };
     const hint = accountHint(jar.cookies);
     return { ...jar, ...(hint ? { account_hint: hint } : {}) };
   } finally {
@@ -193,13 +291,23 @@ export async function captureFromAgentBrowser(host: string): Promise<Captured> {
 
 /** The site's sign-in out of the person's own Chrome on this laptop: its cookies (Chrome keeps localStorage where we can't read it). */
 export function captureFromChrome(host: string): Captured {
-  if (isRemoteDevice()) return { error: "This is a cloud host, which has no Chrome of the person's: save the sign-in from a laptop" };
+  if (isRemoteDevice())
+    return {
+      error:
+        "This is a cloud host, which has no Chrome of the person's: save the sign-in from a laptop",
+    };
   const state = readState();
   const profiles = state?.sourceProfile ? [] : listRealProfiles("chrome");
   const source = pickLaptopProfile(state, profiles);
-  const profile = profiles.find((p) => p.dir === source.profileDir)?.name || source.profileDir;
+  const profile =
+    profiles.find((p) => p.dir === source.profileDir)?.name ||
+    source.profileDir;
   const root = chromeUserDataRoot(source.channel);
-  if (!root) return { error: "No Chrome profile on this machine: sign in through the agent browser instead (cast vault save-signin <site>)" };
+  if (!root)
+    return {
+      error:
+        "No Chrome profile on this machine: sign in through the agent browser instead (cast vault save-signin <site>)",
+    };
   const read = localCookiesForHost(root, host, source.profileDir);
   if (read.reason) {
     return {
@@ -209,7 +317,12 @@ export function captureFromChrome(host: string): Captured {
     };
   }
   const cookies = read.cookies.filter((c) => inSiteScope(c.domain, [host]));
-  if (!cookies.length) return { error: `Chrome on this machine is not signed in to ${host} (profile ${profile}): sign in there, then save again`, signed_out: true, profile };
+  if (!cookies.length)
+    return {
+      error: `Chrome on this machine is not signed in to ${host} (profile ${profile}): sign in there, then save again`,
+      signed_out: true,
+      profile,
+    };
   const hint = accountHint(cookies);
   return { cookies, ...(hint ? { account_hint: hint } : {}) };
 }
@@ -221,22 +334,38 @@ type Endpoint = { siteUrl: string; apiToken: string };
 /** This machine's backend and token, or null when it is signed out. Never exits: `open` goes on either way. */
 export function cliEndpoint(): Endpoint | null {
   try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8"));
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8"),
+    );
     if (!cfg.auth_token || !cfg.convex_url) return null;
-    return { siteUrl: cfg.convex_url.replace(".cloud", ".site"), apiToken: bearerFromStored(cfg.auth_token) };
+    return {
+      siteUrl: cfg.convex_url.replace(".cloud", ".site"),
+      apiToken: bearerFromStored(cfg.auth_token),
+    };
   } catch {
     return null;
   }
 }
 
 /** A /cli/vault call with a short leash: `open` must not wait 45s on a slow backend. Throws the server's sentence. */
-async function vaultPost(ep: Endpoint, route: string, body: Record<string, unknown>, timeoutMs = 8_000): Promise<any> {
-  const res = await cliFetch(`${ep.siteUrl}${route}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_token: ep.apiToken, ...body }),
-  }, { timeoutMs });
-  const out = await res.json().catch(() => ({ error: `HTTP ${res.status} from ${route}` }));
+async function vaultPost(
+  ep: Endpoint,
+  route: string,
+  body: Record<string, unknown>,
+  timeoutMs = 8_000,
+): Promise<any> {
+  const res = await cliFetch(
+    `${ep.siteUrl}${route}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_token: ep.apiToken, ...body }),
+    },
+    { timeoutMs },
+  );
+  const out = await res
+    .json()
+    .catch(() => ({ error: `HTTP ${res.status} from ${route}` }));
   if (out?.error) throw new Error(String(out.error));
   return out;
 }
@@ -276,7 +405,10 @@ export type SigninUseDeps = {
  * Keychain, so a cloud host runs it unchanged: the sign-in comes from the
  * backend.
  */
-export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promise<SecretNeedsApproval | void> {
+export async function useVaultSignin(
+  rawUrl: string,
+  deps: SigninUseDeps,
+): Promise<SecretNeedsApproval | void> {
   const host = signinSite(rawUrl);
   if (!host || keepsOwnLogin(host)) return;
   const ep = (deps.endpoint ?? cliEndpoint)();
@@ -293,14 +425,34 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
   const ref = meta.short_id || meta._id;
   const sites = meta.sites ?? [];
   /** An Ask first sign-in's memory names the sessions approved to read it out of the shared browser (signin.ts unapprovedSignins). */
-  const approvals = (prev?: SigninMemory) => (meta.ask_first ? askFirstMemory(prev, sites, deps.conversation(), now()) : {});
-  const remember = (cookies: SigninCookie[], from: SigninPayload, updatedAt?: number) =>
-    writeSigninMemory(meta._id, { ...rememberJar(meta.name, cookies, from, now(), updatedAt), ...approvals(readSigninState(deps.stateFile)[meta._id]) }, deps.stateFile);
+  const approvals = (prev?: SigninMemory) =>
+    meta.ask_first
+      ? askFirstMemory(prev, sites, deps.conversation(), now())
+      : {};
+  const remember = (
+    cookies: SigninCookie[],
+    from: SigninPayload,
+    updatedAt?: number,
+  ) =>
+    writeSigninMemory(
+      meta._id,
+      {
+        ...rememberJar(meta.name, cookies, from, now(), updatedAt),
+        ...approvals(readSigninState(deps.stateFile)[meta._id]),
+      },
+      deps.stateFile,
+    );
   let held: SecretNeedsApproval | undefined;
   /** The saved jar with its value_updated_at; undefined when there is none, or Ask first holds the read (`held`). */
-  const readSaved = async (): Promise<{ payload: SigninPayload; value_updated_at?: number } | undefined> => {
+  const readSaved = async (): Promise<
+    { payload: SigninPayload; value_updated_at?: number } | undefined
+  > => {
     const conversation = deps.conversation();
-    const res = await vaultPost(ep, "/cli/vault/read", { refs: [ref], purpose: "signin", ...(conversation ? { conversation } : {}) });
+    const res = await vaultPost(ep, "/cli/vault/read", {
+      refs: [ref],
+      purpose: "signin",
+      ...(conversation ? { conversation } : {}),
+    });
     if (isNeedsApproval(res)) held = res;
     const saved = res.secrets?.[0];
     return saved?.payload?.cookies?.length ? saved : undefined;
@@ -313,18 +465,33 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
     // else, and the open stops on a hold.
     const askedFirst = meta.ask_first ? await readSaved() : undefined;
     if (held) return held;
-    conn = await (deps.connect ?? ((port) => CdpConnection.fromPort(port, 5_000)))(deps.port, sites);
+    conn = await (
+      deps.connect ?? ((port) => CdpConnection.fromPort(port, 5_000))
+    )(deps.port, sites);
     const browser = conn;
     /** Only the saved jar's part in the sign-in's own scope goes in (signin.ts scopedJar). */
     const putIn = async (jar: ReturnType<typeof scopedJar>) => {
-      await browser.send("Storage.setCookies", { cookies: jar.cookies }, undefined, 10_000);
-      for (const [origin, items] of Object.entries(jar.local_storage)) await writeOriginStorage(browser, origin, items);
+      await browser.send(
+        "Storage.setCookies",
+        { cookies: jar.cookies },
+        undefined,
+        10_000,
+      );
+      for (const [origin, items] of Object.entries(jar.local_storage))
+        await writeOriginStorage(browser, origin, items);
     };
-    const present = (await browserCookies(conn)).filter((c) => inSiteScope(c.domain, sites));
+    const present = (await browserCookies(conn)).filter((c) =>
+      inSiteScope(c.domain, sites),
+    );
     const memory = readSigninState(deps.stateFile)[meta._id];
     // This session's read was approved: say so now, since a browser already
     // signed in may need no write below.
-    if (memory && meta.ask_first) writeSigninMemory(meta._id, { ...memory, ...approvals(memory) }, deps.stateFile);
+    if (memory && meta.ask_first)
+      writeSigninMemory(
+        meta._id,
+        { ...memory, ...approvals(memory) },
+        deps.stateFile,
+      );
 
     if (memory && stillSignedIn(memory, present)) {
       const fresh = writeBackJar(memory, aliveCookies(present, now()), now());
@@ -332,10 +499,23 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
       // A refresh replaces the whole payload: the saved jar's storage is what
       // an origin the browser cannot read now keeps.
       const before = askedFirst ?? (await readSaved());
-      const jar = await captureJar(conn, sites, before ? scopedJar(before.payload, sites, now()).local_storage : {});
-      const payload: SigninPayload = { cookies: jar.cookies, captured_from: memory.captured_from, ...(jar.local_storage ? { local_storage: jar.local_storage } : {}), ...(memory.account_hint ? { account_hint: memory.account_hint } : {}) };
+      const jar = await captureJar(
+        conn,
+        sites,
+        before ? scopedJar(before.payload, sites, now()).local_storage : {},
+      );
+      const payload: SigninPayload = {
+        cookies: jar.cookies,
+        captured_from: memory.captured_from,
+        ...(jar.local_storage ? { local_storage: jar.local_storage } : {}),
+        ...(memory.account_hint ? { account_hint: memory.account_hint } : {}),
+      };
       const writeBack = (expected?: number) =>
-        vaultPost(ep, "/cli/vault/refresh", { ref, payload, ...(expected !== undefined ? { expected_updated_at: expected } : {}) });
+        vaultPost(ep, "/cli/vault/refresh", {
+          ref,
+          payload,
+          ...(expected !== undefined ? { expected_updated_at: expected } : {}),
+        });
       let res = await writeBack(memory.updated_at);
       if (res.stale) {
         const saved = await readSaved();
@@ -344,14 +524,21 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
           const savedJar = scopedJar(saved.payload, sites, now());
           await putIn(savedJar);
           remember(savedJar.cookies, saved.payload, saved.value_updated_at);
-          deps.log(`signed in with vault sign-in ${meta.name}: it was saved again since this browser last used it`);
+          deps.log(
+            `signed in with vault sign-in ${meta.name}: it was saved again since this browser last used it`,
+          );
           return;
         }
         res = await writeBack(saved.value_updated_at);
-        if (res.stale) return deps.log(`vault sign-in ${meta.name} changed again while writing back; left as saved`);
+        if (res.stale)
+          return deps.log(
+            `vault sign-in ${meta.name} changed again while writing back; left as saved`,
+          );
       }
       remember(jar.cookies, payload, res.value_updated_at);
-      deps.log(`refreshed vault sign-in ${meta.name} with this browser's newer cookies`);
+      deps.log(
+        `refreshed vault sign-in ${meta.name} with this browser's newer cookies`,
+      );
       return;
     }
 
@@ -361,15 +548,22 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
     // Every saved cookie has expired (or none is in scope): nothing to put in,
     // and nothing to remember, or the next open would take this browser's
     // signed-out cookies for a newer session and write them over the saved one.
-    if (!savedJar.cookies.length) return deps.log(`vault sign-in ${meta.name} has expired: save it again with cast vault save-signin ${host}`);
+    if (!savedJar.cookies.length)
+      return deps.log(
+        `vault sign-in ${meta.name} has expired: save it again with cast vault save-signin ${host}`,
+      );
     const cookies = cookiesToPutIn(savedJar.cookies, present, memory, now());
     if (cookies.length) {
       await putIn({ ...savedJar, cookies });
-      deps.log(`signed in with vault sign-in ${meta.name}${saved.payload.account_hint ? ` (${saved.payload.account_hint})` : ""}`);
+      deps.log(
+        `signed in with vault sign-in ${meta.name}${saved.payload.account_hint ? ` (${saved.payload.account_hint})` : ""}`,
+      );
     }
     remember(savedJar.cookies, saved.payload, saved.value_updated_at);
   } catch (err) {
-    deps.log(`vault sign-in ${meta.name} not used: ${(err as Error).message.split("\n")[0]}`);
+    deps.log(
+      `vault sign-in ${meta.name} not used: ${(err as Error).message.split("\n")[0]}`,
+    );
   } finally {
     if (conn?.dispose) await conn.dispose();
     else conn?.close();
@@ -388,7 +582,8 @@ export async function useVaultSignin(rawUrl: string, deps: SigninUseDeps): Promi
  */
 export async function bridgeBrowserConn(
   ep: CdpEndpoint,
-  connect: (ep: CdpEndpoint) => Promise<CdpClient> = (e) => CdpConnection.fromPort(e, 5_000),
+  connect: (ep: CdpEndpoint) => Promise<CdpClient> = (e) =>
+    CdpConnection.fromPort(e, 5_000),
   sites: readonly string[] = [],
 ): Promise<BrowserConn> {
   const conn = await connect(ep);
@@ -396,24 +591,45 @@ export async function bridgeBrowserConn(
   // One scratch tab per site, each at the site's origin: the bridge answers a
   // socket's cookie calls only for the sites its tabs show.
   const scratchSession = async () =>
-    (await (scratch ??= (async () => {
-      const tabs: ScratchTab[] = [];
-      try {
-        for (const origin of sites.length ? sites.map((s) => `https://${s}`) : [undefined]) tabs.push(await openScratchTab(conn, origin));
-      } catch (err) {
-        await Promise.all(tabs.map((t) => t.close()));
-        throw err;
-      }
-      return tabs;
-    })()))[0];
+    (
+      await (scratch ??= (async () => {
+        const tabs: ScratchTab[] = [];
+        try {
+          for (const origin of sites.length
+            ? sites.map((s) => `https://${s}`)
+            : [undefined])
+            tabs.push(await openScratchTab(conn, origin));
+        } catch (err) {
+          await Promise.all(tabs.map((t) => t.close()));
+          throw err;
+        }
+        return tabs;
+      })())
+    )[0];
   return {
-    send: async <T = any>(method: string, params?: Record<string, unknown>, sessionId?: string, timeoutMs?: number): Promise<T> =>
-      conn.send<T>(method, params, sessionId ?? (method.startsWith("Storage.") ? (await scratchSession()).sessionId : undefined), timeoutMs),
+    send: async <T = any>(
+      method: string,
+      params?: Record<string, unknown>,
+      sessionId?: string,
+      timeoutMs?: number,
+    ): Promise<T> =>
+      conn.send<T>(
+        method,
+        params,
+        sessionId ??
+          (method.startsWith("Storage.")
+            ? (await scratchSession()).sessionId
+            : undefined),
+        timeoutMs,
+      ),
     on: (handler) => conn.on(handler),
     waitFor: (predicate, timeoutMs) => conn.waitFor(predicate, timeoutMs),
     close: () => conn.close(),
     dispose: async () => {
-      if (scratch) await scratch.then((tabs) => Promise.all(tabs.map((t) => t.close()))).catch(() => {});
+      if (scratch)
+        await scratch
+          .then((tabs) => Promise.all(tabs.map((t) => t.close())))
+          .catch(() => {});
       conn.close();
     },
   };
@@ -427,9 +643,24 @@ export async function bridgeBrowserConn(
  * NEEDS_APPROVAL_EXIT), so the agent never works the site signed out
  * believing it was signed in.
  */
-export async function signInOnOpen(url: string, conversation: () => string | null, log: (line: string) => void, bridge?: CdpEndpoint): Promise<void> {
+export async function signInOnOpen(
+  url: string,
+  conversation: () => string | null,
+  log: (line: string) => void,
+  bridge?: CdpEndpoint,
+): Promise<void> {
   const port = bridge ?? readState()?.port;
   if (!port) return;
-  const held = await useVaultSignin(url, { port, conversation, log, ...(bridge ? { connect: (ep: CdpEndpoint, sites: string[]) => bridgeBrowserConn(ep, undefined, sites) } : {}) });
+  const held = await useVaultSignin(url, {
+    port,
+    conversation,
+    log,
+    ...(bridge
+      ? {
+          connect: (ep: CdpEndpoint, sites: string[]) =>
+            bridgeBrowserConn(ep, undefined, sites),
+        }
+      : {}),
+  });
   if (held) exitForApproval(held);
 }

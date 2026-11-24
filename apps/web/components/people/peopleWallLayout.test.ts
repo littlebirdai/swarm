@@ -9,7 +9,10 @@ import {
   wallFacePx,
   wallTier,
 } from "./peopleWallLayout";
-import { memberPresenceVisual, type FleetSummary } from "../presence/memberPresence";
+import {
+  memberPresenceVisual,
+  type FleetSummary,
+} from "../presence/memberPresence";
 
 const fleet = (over: Partial<FleetSummary> = {}): FleetSummary => ({
   working: 0,
@@ -72,9 +75,14 @@ describe("how big a face is drawn", () => {
   });
 
   it("only ever gets smaller as presence fades", () => {
-    const sizes = (["active", "idle", "away", "offline"] as const).map((v) => wallFacePx(v, null));
-    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeLessThan(sizes[i - 1]);
-    expect(wallFacePx("active", fleet({ working: 1 }))).toBeGreaterThan(wallFacePx("active", null));
+    const sizes = (["active", "idle", "away", "offline"] as const).map((v) =>
+      wallFacePx(v, null),
+    );
+    for (let i = 1; i < sizes.length; i++)
+      expect(sizes[i]).toBeLessThan(sizes[i - 1]);
+    expect(wallFacePx("active", fleet({ working: 1 }))).toBeGreaterThan(
+      wallFacePx("active", null),
+    );
   });
 
   it("reads a real member row the same way the badge does", () => {
@@ -94,7 +102,12 @@ describe("how big a face is drawn", () => {
 });
 
 describe("the wall's layout", () => {
-  type M = { _id: string; name: string; presence_state?: string; status?: string };
+  type M = {
+    _id: string;
+    name: string;
+    presence_state?: string;
+    status?: string;
+  };
   const wallOf = (members: M[], fleets: Record<string, FleetSummary> = {}) =>
     buildWall(
       members,

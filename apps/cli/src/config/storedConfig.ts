@@ -11,6 +11,7 @@ import type { Config } from "./types.js";
 
 export function writeStoredConfig(file: string, config: Config): void {
   const toWrite = { ...stripManagedPolicy(config) };
-  if (toWrite.auth_token) toWrite.auth_token = storedFromBearer(toWrite.auth_token);
+  if (toWrite.auth_token)
+    toWrite.auth_token = storedFromBearer(toWrite.auth_token);
   atomicWriteFile(file, JSON.stringify(toWrite, null, 2), { mode: 0o600 });
 }

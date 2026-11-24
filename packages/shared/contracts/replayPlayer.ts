@@ -103,23 +103,41 @@ export function replayDomWindow(
   if (total <= budget) return null;
   const at = t0 + Math.max(0, t_ms);
   let from = -1;
-  for (let i = 0; i < meta.length; i++) if (meta[i].full !== undefined && meta[i].full! <= at) from = i;
-  if (from < 0) from = Math.max(0, meta.findIndex((m) => m.full !== undefined));
+  for (let i = 0; i < meta.length; i++)
+    if (meta[i].full !== undefined && meta[i].full! <= at) from = i;
+  if (from < 0)
+    from = Math.max(
+      0,
+      meta.findIndex((m) => m.full !== undefined),
+    );
   let holding = from;
   while (holding + 1 < meta.length && meta[holding + 1].first <= at) holding++;
   let to = from;
   let sum = meta[from].raw;
-  while (to + 1 < meta.length && (to + 1 <= holding || sum + meta[to + 1].raw <= budget)) sum += meta[++to].raw;
+  while (
+    to + 1 < meta.length &&
+    (to + 1 <= holding || sum + meta[to + 1].raw <= budget)
+  )
+    sum += meta[++to].raw;
   return {
     from,
     to,
-    start_ms: from === 0 ? 0 : Math.max(0, Math.round((meta[from].full ?? meta[from].first) - t0)),
-    end_ms: to === meta.length - 1 ? null : Math.max(0, Math.round(meta[to].last - t0)),
+    start_ms:
+      from === 0
+        ? 0
+        : Math.max(0, Math.round((meta[from].full ?? meta[from].first) - t0)),
+    end_ms:
+      to === meta.length - 1
+        ? null
+        : Math.max(0, Math.round(meta[to].last - t0)),
   };
 }
 
 /** Whether a player load holding `w` can show replay time t without opening another stretch. */
-export function replayWindowHolds(w: Pick<ReplayDomWindow, "start_ms" | "end_ms"> | null | undefined, t: number): boolean {
+export function replayWindowHolds(
+  w: Pick<ReplayDomWindow, "start_ms" | "end_ms"> | null | undefined,
+  t: number,
+): boolean {
   if (!w) return true;
   return t >= w.start_ms && (w.end_ms === null || t <= w.end_ms);
 }
@@ -168,20 +186,39 @@ const RRWEB_MUTATION = 0;
  * player's CSP never sees a remote stylesheet. Walks full snapshots and the
  * nodes mutations add. Edits the events in place; answers how many links it filled.
  */
-export function applyReplayStyles(events: readonly unknown[], css: ReadonlyMap<string, string>): number {
+export function applyReplayStyles(
+  events: readonly unknown[],
+  css: ReadonlyMap<string, string>,
+): number {
   if (!css.size) return 0;
   let filled = 0;
   const stack: unknown[] = [];
   for (const e of events as Array<{ type?: number; data?: any }>) {
-    if (e?.type === RRWEB_FULL_SNAPSHOT && e.data?.node) stack.push(e.data.node);
-    else if (e?.type === RRWEB_INCREMENTAL && e.data?.source === RRWEB_MUTATION && Array.isArray(e.data.adds)) {
+    if (e?.type === RRWEB_FULL_SNAPSHOT && e.data?.node)
+      stack.push(e.data.node);
+    else if (
+      e?.type === RRWEB_INCREMENTAL &&
+      e.data?.source === RRWEB_MUTATION &&
+      Array.isArray(e.data.adds)
+    ) {
       for (const add of e.data.adds) if (add?.node) stack.push(add.node);
     }
     while (stack.length) {
-      const n = stack.pop() as { type?: number; tagName?: string; attributes?: Record<string, unknown>; childNodes?: unknown[] };
+      const n = stack.pop() as {
+        type?: number;
+        tagName?: string;
+        attributes?: Record<string, unknown>;
+        childNodes?: unknown[];
+      };
       if (!n || typeof n !== "object") continue;
       const a = n.attributes;
-      if (n.type === RRWEB_ELEMENT && n.tagName === "link" && a && typeof a.href === "string" && /\bstylesheet\b/i.test(String(a.rel ?? ""))) {
+      if (
+        n.type === RRWEB_ELEMENT &&
+        n.tagName === "link" &&
+        a &&
+        typeof a.href === "string" &&
+        /\bstylesheet\b/i.test(String(a.rel ?? ""))
+      ) {
         const text = css.get(a.href);
         if (text !== undefined) {
           a._cssText = text;
@@ -190,7 +227,8 @@ export function applyReplayStyles(events: readonly unknown[], css: ReadonlyMap<s
           filled++;
         }
       }
-      if (Array.isArray(n.childNodes)) for (const c of n.childNodes) stack.push(c);
+      if (Array.isArray(n.childNodes))
+        for (const c of n.childNodes) stack.push(c);
     }
   }
   return filled;
@@ -203,18 +241,28 @@ export function applyReplayStyles(events: readonly unknown[], css: ReadonlyMap<s
  * the player says this instead of showing white. A PostHog mobile recording
  * stored before the import converted its wireframes is the known case.
  */
-export function replayCaptureProblem(events: readonly unknown[]): string | null {
+export function replayCaptureProblem(
+  events: readonly unknown[],
+): string | null {
   let snapshot = false;
   let wireframes = false;
   for (const e of events as readonly { type?: unknown; data?: any }[]) {
     if (e?.type !== 2) continue;
     snapshot = true;
     const node = e.data?.node;
-    if (node && typeof node === "object" && node.type === 0 && Array.isArray(node.childNodes)) return null;
+    if (
+      node &&
+      typeof node === "object" &&
+      node.type === 0 &&
+      Array.isArray(node.childNodes)
+    )
+      return null;
     if (Array.isArray(e.data?.wireframes)) wireframes = true;
   }
-  if (!snapshot) return "This capture has no full snapshot of the page, so there is nothing to draw.";
-  if (wireframes) return "This mobile recording was stored before its screens could be drawn. Reading the replay again (cast replay show, or its page) imports it in a form the player draws.";
+  if (!snapshot)
+    return "This capture has no full snapshot of the page, so there is nothing to draw.";
+  if (wireframes)
+    return "This mobile recording was stored before its screens could be drawn. Reading the replay again (cast replay show, or its page) imports it in a form the player draws.";
   return "This recording is in a format the player cannot draw, so there is no frame to show. Its text timeline still reads.";
 }
 
@@ -248,9 +296,13 @@ export interface ReplayPlayerParams {
  * rides the path so the page reads it without a query parser and so it never
  * reaches the replayed document as a referrer (the page sends no-referrer).
  */
-export function replayPlayerUrl(p: ReplayPlayerParams, origin: string = REPLAY_PLAYER_ORIGIN): string {
+export function replayPlayerUrl(
+  p: ReplayPlayerParams,
+  origin: string = REPLAY_PLAYER_ORIGIN,
+): string {
   const q = new URLSearchParams();
-  if (p.t_ms != null && Number.isFinite(p.t_ms)) q.set("t", String(Math.max(0, Math.round(p.t_ms))));
+  if (p.t_ms != null && Number.isFinite(p.t_ms))
+    q.set("t", String(Math.max(0, Math.round(p.t_ms))));
   if (p.mode === "frame") q.set("mode", "frame");
   if (p.controls === false) q.set("controls", "0");
   if (p.autoplay) q.set("autoplay", "1");
@@ -271,14 +323,16 @@ export function parseReplayPlayerUrl(href: string): ReplayPlayerParams | null {
   if (!m) return null;
   const t = u.searchParams.get("t");
   const tMs = t !== null && /^\d+$/.test(t) ? Number(t) : null;
-  const mode: ReplayPlayerMode = u.searchParams.get("mode") === "frame" ? "frame" : "interactive";
+  const mode: ReplayPlayerMode =
+    u.searchParams.get("mode") === "frame" ? "frame" : "interactive";
   return {
     cap: decodeURIComponent(m[1]),
     t_ms: tMs,
     mode,
     controls: u.searchParams.get("controls") !== "0",
     autoplay: u.searchParams.get("autoplay") === "1",
-    remote_assets: mode === "interactive" && u.searchParams.get("assets") === "remote",
+    remote_assets:
+      mode === "interactive" && u.searchParams.get("assets") === "remote",
   };
 }
 
@@ -351,41 +405,94 @@ export type ReplayPlayerMessage =
    * replay clock, which can fall well short of `duration_ms` when an import
    * stopped early. Both are absent from players older than the field.
    */
-  | { source: typeof REPLAY_PLAYER_SOURCE; type: "ready"; duration_ms: number; width: number; height: number; t_ms: number; below_px?: number; capture_end_ms?: number }
+  | {
+      source: typeof REPLAY_PLAYER_SOURCE;
+      type: "ready";
+      duration_ms: number;
+      width: number;
+      height: number;
+      t_ms: number;
+      below_px?: number;
+      capture_end_ms?: number;
+    }
   /** The recorded window changed size during playback (an rrweb viewport resize or a new page's Meta): the host refits the stage. */
-  | { source: typeof REPLAY_PLAYER_SOURCE; type: "size"; width: number; height: number }
+  | {
+      source: typeof REPLAY_PLAYER_SOURCE;
+      type: "size";
+      width: number;
+      height: number;
+    }
   /** Posted on every seek, and about four times a second while playing. */
-  | { source: typeof REPLAY_PLAYER_SOURCE; type: "time"; t_ms: number; playing: boolean }
-  | { source: typeof REPLAY_PLAYER_SOURCE; type: "state"; playing: boolean; speed: number }
+  | {
+      source: typeof REPLAY_PLAYER_SOURCE;
+      type: "time";
+      t_ms: number;
+      playing: boolean;
+    }
+  | {
+      source: typeof REPLAY_PLAYER_SOURCE;
+      type: "state";
+      playing: boolean;
+      speed: number;
+    }
   /** Frame mode: the page is drawn as it was at t_ms (images loaded or given up on). */
-  | { source: typeof REPLAY_PLAYER_SOURCE; type: "frame"; t_ms: number; url: string | null; width: number; height: number }
+  | {
+      source: typeof REPLAY_PLAYER_SOURCE;
+      type: "frame";
+      t_ms: number;
+      url: string | null;
+      width: number;
+      height: number;
+    }
   | { source: typeof REPLAY_PLAYER_SOURCE; type: "error"; message: string };
 
 /** Host to player. */
 export type ReplayHostMessage =
   /** The answer to the player's `hello`: it tells the player the host's origin and does nothing else. */
   | { source: typeof REPLAY_HOST_SOURCE; type: "hello" }
-  | { source: typeof REPLAY_HOST_SOURCE; type: "seek"; t_ms: number; play?: boolean }
+  | {
+      source: typeof REPLAY_HOST_SOURCE;
+      type: "seek";
+      t_ms: number;
+      play?: boolean;
+    }
   | { source: typeof REPLAY_HOST_SOURCE; type: "play" }
   | { source: typeof REPLAY_HOST_SOURCE; type: "pause" }
   | { source: typeof REPLAY_HOST_SOURCE; type: "speed"; speed: number };
 
 export const REPLAY_PLAYER_SPEEDS = [0.5, 1, 2, 4, 8] as const;
 
-const isObj = (d: unknown): d is Record<string, unknown> => !!d && typeof d === "object";
+const isObj = (d: unknown): d is Record<string, unknown> =>
+  !!d && typeof d === "object";
 
 export function isReplayPlayerMessage(d: unknown): d is ReplayPlayerMessage {
-  return isObj(d) && d.source === REPLAY_PLAYER_SOURCE && typeof d.type === "string";
+  return (
+    isObj(d) && d.source === REPLAY_PLAYER_SOURCE && typeof d.type === "string"
+  );
 }
 
 /** A host message, checked field by field (the player reads it from whatever page embeds it). */
 export function parseReplayHostMessage(d: unknown): ReplayHostMessage | null {
   if (!isObj(d) || d.source !== REPLAY_HOST_SOURCE) return null;
-  if (d.type === "seek" && typeof d.t_ms === "number" && Number.isFinite(d.t_ms)) {
-    return { source: REPLAY_HOST_SOURCE, type: "seek", t_ms: Math.max(0, d.t_ms), ...(d.play === true ? { play: true } : {}) };
+  if (
+    d.type === "seek" &&
+    typeof d.t_ms === "number" &&
+    Number.isFinite(d.t_ms)
+  ) {
+    return {
+      source: REPLAY_HOST_SOURCE,
+      type: "seek",
+      t_ms: Math.max(0, d.t_ms),
+      ...(d.play === true ? { play: true } : {}),
+    };
   }
-  if (d.type === "play" || d.type === "pause" || d.type === "hello") return { source: REPLAY_HOST_SOURCE, type: d.type };
-  if (d.type === "speed" && typeof d.speed === "number" && (REPLAY_PLAYER_SPEEDS as readonly number[]).includes(d.speed)) {
+  if (d.type === "play" || d.type === "pause" || d.type === "hello")
+    return { source: REPLAY_HOST_SOURCE, type: d.type };
+  if (
+    d.type === "speed" &&
+    typeof d.speed === "number" &&
+    (REPLAY_PLAYER_SPEEDS as readonly number[]).includes(d.speed)
+  ) {
     return { source: REPLAY_HOST_SOURCE, type: "speed", speed: d.speed };
   }
   return null;
@@ -455,7 +562,9 @@ export interface ReplayRef {
 }
 
 /** A replay reference split into the replay and its moment or stretch, or null. */
-export function parseReplayRef(text: string | null | undefined): ReplayRef | null {
+export function parseReplayRef(
+  text: string | null | undefined,
+): ReplayRef | null {
   const s = (text || "").trim();
   const m = /^(rp-\d+)(?:@([^-\s]+)(?:-([^-\s]+))?)?$/i.exec(s);
   if (!m) return null;
@@ -485,16 +594,27 @@ export function replayFrameSeenText(ref: string): string {
 }
 
 /** The moment a tool result's text says the agent looked at, or null. */
-export function replayFrameSeenRef(text: string | null | undefined): string | null {
-  const m = /(?:^|\n)Frame of the replay: (rp-\d+@[0-9:]+s?)[ \t]*(?:\n|$)/.exec(text ?? "");
+export function replayFrameSeenRef(
+  text: string | null | undefined,
+): string | null {
+  const m =
+    /(?:^|\n)Frame of the replay: (rp-\d+@[0-9:]+s?)[ \t]*(?:\n|$)/.exec(
+      text ?? "",
+    );
   return m ? m[1] : null;
 }
 
 /** The times a stretch is sampled at: every `everyMs` from its start, its end included, at most `max`. */
-export function replayFrameTimes(range: { from_ms: number; to_ms: number }, everyMs: number, max: number = REPLAY_FRAME_LIMITS.max_frames): number[] {
+export function replayFrameTimes(
+  range: { from_ms: number; to_ms: number },
+  everyMs: number,
+  max: number = REPLAY_FRAME_LIMITS.max_frames,
+): number[] {
   const step = Math.max(1000, everyMs);
   const out: number[] = [];
-  for (let t = range.from_ms; t <= range.to_ms && out.length < max; t += step) out.push(t);
-  if (out[out.length - 1] !== range.to_ms && out.length < max) out.push(range.to_ms);
+  for (let t = range.from_ms; t <= range.to_ms && out.length < max; t += step)
+    out.push(t);
+  if (out[out.length - 1] !== range.to_ms && out.length < max)
+    out.push(range.to_ms);
   return out;
 }

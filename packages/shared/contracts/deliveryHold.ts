@@ -14,13 +14,18 @@ const SUFFIX = ", which Codecast can't type into";
 // for Ghostty on that Mac, 2026-11-08), so the sender is told what to fix.
 const HINT_SEPARATOR = ": ";
 
-export function unreachableTerminalHoldReason(terminalLabel: string, hint?: string | null): string {
+export function unreachableTerminalHoldReason(
+  terminalLabel: string,
+  hint?: string | null,
+): string {
   const base = `${PREFIX}${terminalLabel}${SUFFIX}`;
   return hint ? `${base}${HINT_SEPARATOR}${hint}` : base;
 }
 
 /** The terminal named by an unreachable-terminal hold reason, or null for any other reason. */
-export function unreachableTerminalOf(reason: string | null | undefined): string | null {
+export function unreachableTerminalOf(
+  reason: string | null | undefined,
+): string | null {
   if (!reason || !reason.startsWith(PREFIX)) return null;
   const end = reason.indexOf(SUFFIX, PREFIX.length);
   if (end < 0) return null;

@@ -12,10 +12,24 @@ export interface Filters {
   failing: boolean; // only triggers whose last run failed
 }
 
-export const EMPTY_FILTERS: Filters = { search: "", mode: "all", type: "all", project: "all", agent: "all", failing: false };
+export const EMPTY_FILTERS: Filters = {
+  search: "",
+  mode: "all",
+  type: "all",
+  project: "all",
+  agent: "all",
+  failing: false,
+};
 
 export function filtersActive(f: Filters): boolean {
-  return f.search.trim() !== "" || f.mode !== "all" || f.type !== "all" || f.project !== "all" || f.agent !== "all" || f.failing;
+  return (
+    f.search.trim() !== "" ||
+    f.mode !== "all" ||
+    f.type !== "all" ||
+    f.project !== "all" ||
+    f.agent !== "all" ||
+    f.failing
+  );
 }
 
 export function matchesFilters(t: any, f: Filters): boolean {
@@ -26,7 +40,8 @@ export function matchesFilters(t: any, f: Filters): boolean {
   if (f.project !== "all" && t.project_path !== f.project) return false;
   const q = f.search.trim().toLowerCase();
   if (q) {
-    const hay = `${t.title ?? ""} ${t.display_title ?? ""} ${t.display_summary ?? ""} ${t.prompt ?? ""} ${t.last_run_summary ?? ""}`.toLowerCase();
+    const hay =
+      `${t.title ?? ""} ${t.display_title ?? ""} ${t.display_summary ?? ""} ${t.prompt ?? ""} ${t.last_run_summary ?? ""}`.toLowerCase();
     if (!hay.includes(q)) return false;
   }
   return true;

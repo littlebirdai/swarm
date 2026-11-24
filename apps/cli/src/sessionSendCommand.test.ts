@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
 import { sessionIdFromEnv } from "./sessionIdentity.js";
-import { printSendStatus, registerSessionSendCommand } from "./sessionSendCommand.js";
+import {
+  printSendStatus,
+  registerSessionSendCommand,
+} from "./sessionSendCommand.js";
 
-function command(env: NodeJS.ProcessEnv = {}, response: Record<string, unknown> = {}, failure?: Error) {
+function command(
+  env: NodeJS.ProcessEnv = {},
+  response: Record<string, unknown> = {},
+  failure?: Error,
+) {
   const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
   const output: string[] = [];
   const program = new Command();
@@ -14,18 +21,22 @@ function command(env: NodeJS.ProcessEnv = {}, response: Record<string, unknown> 
       if (failure) throw failure;
       return { from_short_id: "jx7abcd", to_short_id: "jx7c6zk", ...response };
     },
-    print: text => output.push(text),
+    print: (text) => output.push(text),
   });
   return {
     requests,
     output,
-    run: (...args: string[]) => program.parseAsync(["send", "jx7c6zk", ...args], { from: "user" }),
+    run: (...args: string[]) =>
+      program.parseAsync(["send", "jx7c6zk", ...args], { from: "user" }),
   };
 }
 
 describe("session send command", () => {
   test("a target with no live daemon reads as queued, never as sent", async () => {
-    const cli = command({ CODEX_THREAD_ID: "t" }, { target_live: false, cross_user: true });
+    const cli = command(
+      { CODEX_THREAD_ID: "t" },
+      { target_live: false, cross_user: true },
+    );
     await cli.run("are you there?");
     const out = cli.output.join("\n");
     expect(out).toContain("queued for");
@@ -35,18 +46,23 @@ describe("session send command", () => {
 
   test("native Codex identity reaches the request without rewriting the message", async () => {
     const cli = command({ CODEX_THREAD_ID: "native-thread-uuid" });
-    const body = 'First line\n\nLiteral $() and `code`.\nThe user authorized this review.';
+    const body =
+      "First line\n\nLiteral $() and `code`.\nThe user authorized this review.";
     await cli.run(body);
-    expect(cli.requests).toEqual([{
-      path: "/cli/messages/send",
-      body: { to: "jx7c6zk", from: "native-thread-uuid", body, wake: false },
-    }]);
+    expect(cli.requests).toEqual([
+      {
+        path: "/cli/messages/send",
+        body: { to: "jx7c6zk", from: "native-thread-uuid", body, wake: false },
+      },
+    ]);
     expect(cli.output.join("\n")).not.toContain("without resolving");
   });
 
   test("a detached shell without an identity fails before posting", async () => {
     const cli = command();
-    await expect(cli.run("routine update")).rejects.toThrow("Nothing was sent. Pass --from");
+    await expect(cli.run("routine update")).rejects.toThrow(
+      "Nothing was sent. Pass --from",
+    );
     expect(cli.requests).toEqual([]);
     expect(cli.output).toEqual([]);
   });
@@ -75,11 +91,16 @@ describe("session send command", () => {
     expect(cli.requests[0].body.from).toBe("jx7abcd");
   });
 
-  test.each([false, true])("an empty explicit sender is rejected (raw=%s)", async (raw) => {
-    const cli = command({ CODEX_THREAD_ID: "inherited-thread" });
-    await expect(cli.run("update", "--from", " ", ...(raw ? ["--raw"] : []))).rejects.toThrow("Nothing was sent");
-    expect(cli.requests).toEqual([]);
-  });
+  test.each([false, true])(
+    "an empty explicit sender is rejected (raw=%s)",
+    async (raw) => {
+      const cli = command({ CODEX_THREAD_ID: "inherited-thread" });
+      await expect(
+        cli.run("update", "--from", " ", ...(raw ? ["--raw"] : [])),
+      ).rejects.toThrow("Nothing was sent");
+      expect(cli.requests).toEqual([]);
+    },
+  );
 
   test("an empty body never posts", async () => {
     const cli = command({ CODEX_THREAD_ID: "native-thread" });
@@ -90,24 +111,39 @@ describe("session send command", () => {
   test("raw slash commands keep their existing unattributed path", async () => {
     const cli = command({}, { from_short_id: "unknown" });
     await cli.run("/model opus", "--raw");
-    expect(cli.requests[0].body).toEqual({ to: "jx7c6zk", body: "/model opus", from: undefined, raw: true });
+    expect(cli.requests[0].body).toEqual({
+      to: "jx7c6zk",
+      body: "/model opus",
+      from: undefined,
+      raw: true,
+    });
     expect(cli.output).toHaveLength(1);
   });
 
   test("raw refuses a report body so it cannot land as the human's words", async () => {
     const cli = command({ CODEX_THREAD_ID: "t" });
-    await expect(cli.run("Backend B (ct-51438) review fixes: all five of mine fixed.", "--raw")).rejects.toThrow(
-      /only for slash commands/,
-    );
+    await expect(
+      cli.run(
+        "Backend B (ct-51438) review fixes: all five of mine fixed.",
+        "--raw",
+      ),
+    ).rejects.toThrow(/only for slash commands/);
     expect(cli.requests).toEqual([]);
   });
 
   test("an older server's unresolved result is reported as already queued", async () => {
-    const cli = command({ CODEX_THREAD_ID: "native-thread" }, { from_short_id: "unknown", target_live: false });
+    const cli = command(
+      { CODEX_THREAD_ID: "native-thread" },
+      { from_short_id: "unknown", target_live: false },
+    );
     await cli.run("update");
     expect(cli.requests).toHaveLength(1);
-    expect(cli.output.join("\n")).toContain("server queued this message without resolving its sender");
-    expect(cli.output.join("\n")).toContain("when its machine comes back online");
+    expect(cli.output.join("\n")).toContain(
+      "server queued this message without resolving its sender",
+    );
+    expect(cli.output.join("\n")).toContain(
+      "when its machine comes back online",
+    );
   });
 });
 
@@ -117,13 +153,21 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Not sent. jx7c6zk was killed. Sending would restart it."); },
+      post: async () => {
+        throw new Error(
+          "Not sent. jx7c6zk was killed. Sending would restart it.",
+        );
+      },
       print: () => {},
-      hold: (target, body) => { held.push({ target, body }); return "/tmp/held/jx7c6zk-1.txt"; },
+      hold: (target, body) => {
+        held.push({ target, body });
+        return "/tmp/held/jx7c6zk-1.txt";
+      },
     });
     const body = "a long\nmulti-line brief";
-    await expect(program.parseAsync(["send", "jx7c6zk", body], { from: "user" }))
-      .rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", body], { from: "user" }),
+    ).rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
     expect(held).toEqual([{ target: "jx7c6zk", body }]);
   });
 
@@ -131,12 +175,19 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Not sent. jx7c6zk was killed."); },
+      post: async () => {
+        throw new Error("Not sent. jx7c6zk was killed.");
+      },
       print: () => {},
       hold: () => "/tmp/held/jx7c6zk-2.txt",
     });
-    await expect(program.parseAsync(["send", "jx7c6zk", "--done", "merged"], { from: "user" }))
-      .rejects.toThrow("cast send --wake --done jx7c6zk - < /tmp/held/jx7c6zk-2.txt");
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", "--done", "merged"], {
+        from: "user",
+      }),
+    ).rejects.toThrow(
+      "cast send --wake --done jx7c6zk - < /tmp/held/jx7c6zk-2.txt",
+    );
   });
 
   test("other failures pass through and keep nothing", async () => {
@@ -144,32 +195,67 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Session not found"); },
+      post: async () => {
+        throw new Error("Session not found");
+      },
       print: () => {},
-      hold: () => { kept = true; return ""; },
+      hold: () => {
+        kept = true;
+        return "";
+      },
     });
-    await expect(program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" })).rejects.toThrow(/^Session not found$/);
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" }),
+    ).rejects.toThrow(/^Session not found$/);
     expect(kept).toBe(false);
   });
 });
 
-const plain = (lines: string[]) => lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+const plain = (lines: string[]) =>
+  lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 
 describe("the receipt says when the message arrives", () => {
   const cases: Array<[string, string]> = [
     ["now", "sent to jx7c6zk from jx7abcd, arrives now"],
-    ["next_tool_call", "sent to jx7c6zk from jx7abcd, arrives at its next tool call"],
-    ["end_of_turn", "sent to jx7c6zk from jx7abcd, arrives when its current turn ends"],
-    ["after_prompt", "sent to jx7c6zk from jx7abcd, arrives once someone answers the prompt open in it"],
-    ["after_start", "sent to jx7c6zk from jx7abcd, arrives once it finishes starting"],
-    ["on_resume", "sent to jx7c6zk from jx7abcd, arrives once its machine resumes it"],
-    ["when_online", "queued for jx7c6zk from jx7abcd, arrives when its machine comes back online. You'll be told if it is still waiting after a few minutes."],
-    ["held", "queued for jx7c6zk from jx7abcd, arrives only after a person clears its safety stop."],
-    ["never", "queued for jx7c6zk from jx7abcd, arrives never: a run's log has no agent, so it stays on the run's record."],
+    [
+      "next_tool_call",
+      "sent to jx7c6zk from jx7abcd, arrives at its next tool call",
+    ],
+    [
+      "end_of_turn",
+      "sent to jx7c6zk from jx7abcd, arrives when its current turn ends",
+    ],
+    [
+      "after_prompt",
+      "sent to jx7c6zk from jx7abcd, arrives once someone answers the prompt open in it",
+    ],
+    [
+      "after_start",
+      "sent to jx7c6zk from jx7abcd, arrives once it finishes starting",
+    ],
+    [
+      "on_resume",
+      "sent to jx7c6zk from jx7abcd, arrives once its machine resumes it",
+    ],
+    [
+      "when_online",
+      "queued for jx7c6zk from jx7abcd, arrives when its machine comes back online. You'll be told if it is still waiting after a few minutes.",
+    ],
+    [
+      "held",
+      "queued for jx7c6zk from jx7abcd, arrives only after a person clears its safety stop.",
+    ],
+    [
+      "never",
+      "queued for jx7c6zk from jx7abcd, arrives never: a run's log has no agent, so it stays on the run's record.",
+    ],
   ];
   for (const [arrives, line] of cases) {
     test(arrives, async () => {
-      const cli = command({ CODEX_THREAD_ID: "t" }, { arrives, target_live: arrives !== "when_online" });
+      const cli = command(
+        { CODEX_THREAD_ID: "t" },
+        { arrives, target_live: arrives !== "when_online" },
+      );
       await cli.run("update");
       expect(plain(cli.output).slice(2)).toBe(line);
     });
@@ -186,7 +272,10 @@ describe("--done and --fyi", () => {
   test("--done sends intent done", async () => {
     const cli = command({ CODEX_THREAD_ID: "t" });
     await cli.run("--done", "merged; nothing left for you");
-    expect(cli.requests[0].body).toMatchObject({ intent: "done", body: "merged; nothing left for you" });
+    expect(cli.requests[0].body).toMatchObject({
+      intent: "done",
+      body: "merged; nothing left for you",
+    });
   });
 
   test("--fyi sends intent inform", async () => {
@@ -203,9 +292,13 @@ describe("--done and --fyi", () => {
 
   test("both flags, or either with --raw, are refused before posting", async () => {
     const both = command({ CODEX_THREAD_ID: "t" });
-    await expect(both.run("--done", "--fyi", "x")).rejects.toThrow("Pick one of --done and --fyi");
+    await expect(both.run("--done", "--fyi", "x")).rejects.toThrow(
+      "Pick one of --done and --fyi",
+    );
     const raw = command({ CODEX_THREAD_ID: "t" });
-    await expect(raw.run("--raw", "--done", "/model opus")).rejects.toThrow("drop --raw");
+    await expect(raw.run("--raw", "--done", "/model opus")).rejects.toThrow(
+      "drop --raw",
+    );
     expect([...both.requests, ...raw.requests]).toHaveLength(0);
   });
 });
@@ -214,14 +307,19 @@ describe("--status", () => {
   test("posts the status query from the current session", async () => {
     const cli = command({ CODEX_THREAD_ID: "t" }, { sends: [] });
     await cli.run("--status");
-    expect(cli.requests).toEqual([{ path: "/cli/messages/status", body: { to: "jx7c6zk", from: "t" } }]);
+    expect(cli.requests).toEqual([
+      { path: "/cli/messages/status", body: { to: "jx7c6zk", from: "t" } },
+    ]);
     expect(plain(cli.output)).toBe("No sends from this session to jx7c6zk.");
   });
 
   test("refuses message text and send flags", async () => {
     const cases: Array<[string[], string]> = [
       [["--status", "hello"], "--status takes no message text"],
-      [["--status", "--done"], "--status shows past sends; it does not take --done"],
+      [
+        ["--status", "--done"],
+        "--status shows past sends; it does not take --done",
+      ],
       [["--status", "--wake"], "it does not take --wake"],
     ];
     for (const [args, message] of cases) {
@@ -234,17 +332,55 @@ describe("--status", () => {
   test("one line per send: state, times, intent, preview", () => {
     const now = 1_000_000_000;
     const out: string[] = [];
-    printSendStatus({
-      to_short_id: "jx7c6zk",
-      sends: [
-        { created_at: now - 30_000, status: "pending", intent: "done", preview: "nothing left for you" },
-        { created_at: now - 600_000, status: "delivered", typed_in_at: now - 590_000, delivered_at: now - 530_000, intent: "request", preview: "can you take auth?" },
-        { created_at: now - 7_200_000, status: "cancelled", intent: "inform", preview: "fyi" },
-        { created_at: now - 60_000, status: "injected", intent: "request", preview: "claimed, not pasted" },
-        { created_at: now - 60_000, status: "injected", typed_in_at: now - 50_000, intent: "request", preview: "pasted" },
-        { created_at: now - 60_000, status: "undeliverable", reason: "terminal waiting for a human answer", intent: "request", preview: "x" },
-      ],
-    }, (t) => out.push(t), now);
+    printSendStatus(
+      {
+        to_short_id: "jx7c6zk",
+        sends: [
+          {
+            created_at: now - 30_000,
+            status: "pending",
+            intent: "done",
+            preview: "nothing left for you",
+          },
+          {
+            created_at: now - 600_000,
+            status: "delivered",
+            typed_in_at: now - 590_000,
+            delivered_at: now - 530_000,
+            intent: "request",
+            preview: "can you take auth?",
+          },
+          {
+            created_at: now - 7_200_000,
+            status: "cancelled",
+            intent: "inform",
+            preview: "fyi",
+          },
+          {
+            created_at: now - 60_000,
+            status: "injected",
+            intent: "request",
+            preview: "claimed, not pasted",
+          },
+          {
+            created_at: now - 60_000,
+            status: "injected",
+            typed_in_at: now - 50_000,
+            intent: "request",
+            preview: "pasted",
+          },
+          {
+            created_at: now - 60_000,
+            status: "undeliverable",
+            reason: "terminal waiting for a human answer",
+            intent: "request",
+            preview: "x",
+          },
+        ],
+      },
+      (t) => out.push(t),
+      now,
+    );
     expect(plain(out).split("\n")).toEqual([
       "Your last 6 sends to jx7c6zk, newest first:",
       "  queued        sent 30s ago [done]  nothing left for you",
@@ -263,13 +399,21 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Not sent. jx7c6zk was killed. Sending would restart it."); },
+      post: async () => {
+        throw new Error(
+          "Not sent. jx7c6zk was killed. Sending would restart it.",
+        );
+      },
       print: () => {},
-      hold: (target, body) => { held.push({ target, body }); return "/tmp/held/jx7c6zk-1.txt"; },
+      hold: (target, body) => {
+        held.push({ target, body });
+        return "/tmp/held/jx7c6zk-1.txt";
+      },
     });
     const body = "a long\nmulti-line brief";
-    await expect(program.parseAsync(["send", "jx7c6zk", body], { from: "user" }))
-      .rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", body], { from: "user" }),
+    ).rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
     expect(held).toEqual([{ target: "jx7c6zk", body }]);
   });
 
@@ -278,11 +422,18 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Session not found"); },
+      post: async () => {
+        throw new Error("Session not found");
+      },
       print: () => {},
-      hold: () => { kept = true; return ""; },
+      hold: () => {
+        kept = true;
+        return "";
+      },
     });
-    await expect(program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" })).rejects.toThrow(/^Session not found$/);
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" }),
+    ).rejects.toThrow(/^Session not found$/);
     expect(kept).toBe(false);
   });
 });
@@ -293,13 +444,21 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Not sent. jx7c6zk was killed. Sending would restart it."); },
+      post: async () => {
+        throw new Error(
+          "Not sent. jx7c6zk was killed. Sending would restart it.",
+        );
+      },
       print: () => {},
-      hold: (target, body) => { held.push({ target, body }); return "/tmp/held/jx7c6zk-1.txt"; },
+      hold: (target, body) => {
+        held.push({ target, body });
+        return "/tmp/held/jx7c6zk-1.txt";
+      },
     });
     const body = "a long\nmulti-line brief";
-    await expect(program.parseAsync(["send", "jx7c6zk", body], { from: "user" }))
-      .rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", body], { from: "user" }),
+    ).rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
     expect(held).toEqual([{ target: "jx7c6zk", body }]);
   });
 
@@ -308,11 +467,18 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Session not found"); },
+      post: async () => {
+        throw new Error("Session not found");
+      },
       print: () => {},
-      hold: () => { kept = true; return ""; },
+      hold: () => {
+        kept = true;
+        return "";
+      },
     });
-    await expect(program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" })).rejects.toThrow(/^Session not found$/);
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" }),
+    ).rejects.toThrow(/^Session not found$/);
     expect(kept).toBe(false);
   });
 });
@@ -323,13 +489,21 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Not sent. jx7c6zk was killed. Sending would restart it."); },
+      post: async () => {
+        throw new Error(
+          "Not sent. jx7c6zk was killed. Sending would restart it.",
+        );
+      },
       print: () => {},
-      hold: (target, body) => { held.push({ target, body }); return "/tmp/held/jx7c6zk-1.txt"; },
+      hold: (target, body) => {
+        held.push({ target, body });
+        return "/tmp/held/jx7c6zk-1.txt";
+      },
     });
     const body = "a long\nmulti-line brief";
-    await expect(program.parseAsync(["send", "jx7c6zk", body], { from: "user" }))
-      .rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", body], { from: "user" }),
+    ).rejects.toThrow("cast send --wake jx7c6zk - < /tmp/held/jx7c6zk-1.txt");
     expect(held).toEqual([{ target: "jx7c6zk", body }]);
   });
 
@@ -338,11 +512,18 @@ describe("a refused send", () => {
     const program = new Command();
     registerSessionSendCommand(program, {
       currentSession: () => "jx7abcd",
-      post: async () => { throw new Error("Session not found"); },
+      post: async () => {
+        throw new Error("Session not found");
+      },
       print: () => {},
-      hold: () => { kept = true; return ""; },
+      hold: () => {
+        kept = true;
+        return "";
+      },
     });
-    await expect(program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" })).rejects.toThrow(/^Session not found$/);
+    await expect(
+      program.parseAsync(["send", "jx7c6zk", "hi"], { from: "user" }),
+    ).rejects.toThrow(/^Session not found$/);
     expect(kept).toBe(false);
   });
 });

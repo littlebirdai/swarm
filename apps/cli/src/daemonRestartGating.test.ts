@@ -12,7 +12,8 @@ import { daemonBuildUnchanged } from "./daemonBuildGate.js";
 // The check is a source scan because the deciding code is inline in two module
 // tails that cannot be imported without running the CLI.
 
-const src = (rel: string) => fs.readFileSync(path.join(import.meta.dir, rel), "utf-8");
+const src = (rel: string) =>
+  fs.readFileSync(path.join(import.meta.dir, rel), "utf-8");
 
 /** The body of `function <name>(...)`, by brace balance from its opening `{`. */
 function functionBody(source: string, name: string): string {
@@ -22,7 +23,8 @@ function functionBody(source: string, name: string): string {
   let depth = 0;
   for (let i = open; i < source.length; i++) {
     if (source[i] === "{") depth++;
-    else if (source[i] === "}" && --depth === 0) return source.slice(open, i + 1);
+    else if (source[i] === "}" && --depth === 0)
+      return source.slice(open, i + 1);
   }
   throw new Error(`unbalanced body for ${name}`);
 }
@@ -45,92 +47,175 @@ describe("daemonBuildUnchanged", () => {
 describe("daemon restart gating", () => {
   const index = src("index.ts");
 
-  test.each(["headers", "body"])("command polling bounds stalled %s, coalesces ticks, then recovers", async (stall) => {
-    let healthy = false;
-    let requests = 0;
-    let failures = 0;
-    let successes = 0;
-    let delivered = 0;
-    let finishCommand: (() => void) | undefined;
-    let holdCommand = false;
-    const timeouts: number[] = [];
-    const server = Bun.serve({
-      port: 0,
-      fetch: () => {
-        requests++;
-        if (healthy) return Response.json({ commands: [{ id: "recovered", command: "test" }] });
-        if (stall === "headers") return new Promise<Response>(() => {});
-        return new Response(new ReadableStream({ start: (stream) => stream.enqueue(new TextEncoder().encode('{"commands":')) }));
-      },
-    });
-    const deps = {
-      readConfig: () => ({ auth_token: "test", convex_url: `http://127.0.0.1:${server.port}` }),
-      fetch, AbortSignal: { timeout: (ms: number) => { timeouts.push(ms); return AbortSignal.timeout(healthy ? 5_000 : 300); } },
-      daemonVersion: "test", platform: "test", process: { pid: 1 },
-      isAutostartEnabled: () => false, hasTmux: () => false, deviceId: () => "test", deviceLabel: () => "test",
-      BOOT_ID: "test", syncHealthFields: () => ({}),
-      backendOutage: { markFailure: () => { failures++; }, markSuccess: () => { successes++; return 0; } },
-      // A free variable of the lifted function: in daemon.ts it marks the
-      // outage and logs at most once a minute, so the harness counts the mark.
-      notePollFailure: () => { failures++; },
-      log: () => {}, executeCommandBatch: async () => { delivered++; if (holdCommand) await new Promise<void>((resolve) => { finishCommand = resolve; }); },
-    };
-    const code = new Bun.Transpiler({ loader: "ts" }).transformSync(`let daemonCommandPollInFlight = false; async function poll() ${functionBody(src("daemon.ts"), "pollDaemonCommands")}`);
-    const poll = new Function(...Object.keys(deps), `${code}\nreturn poll;`)(...Object.values(deps));
-    try {
-      const first = poll();
-      const overlapping = [poll(), poll()];
-      expect(await Promise.race([Promise.all([first, ...overlapping]).then(() => true), Bun.sleep(3_000).then(() => false)])).toBe(true);
-      expect({ requests, failures, successes, delivered }).toEqual({ requests: 1, failures: 1, successes: 0, delivered: 0 });
-      healthy = true;
-      await poll();
-      expect({ requests, failures, successes, delivered }).toEqual({ requests: 2, failures: 1, successes: 1, delivered: 1 });
-      expect(timeouts).toEqual([15_000, 15_000]);
-      holdCommand = true;
-      const slowCommand = poll();
-      for (let i = 0; i < 100 && !finishCommand; i++) await Bun.sleep(10);
-      expect(finishCommand).toBeDefined();
-      holdCommand = false;
-      await poll();
-      expect(requests).toBe(4);
-      expect(delivered).toBe(3);
-      finishCommand?.();
-      await slowCommand;
-    } finally {
-      finishCommand?.();
-      server.stop(true);
-    }
-  });
+  test.each(["headers", "body"])(
+    "command polling bounds stalled %s, coalesces ticks, then recovers",
+    async (stall) => {
+      let healthy = false;
+      let requests = 0;
+      let failures = 0;
+      let successes = 0;
+      let delivered = 0;
+      let finishCommand: (() => void) | undefined;
+      let holdCommand = false;
+      const timeouts: number[] = [];
+      const server = Bun.serve({
+        port: 0,
+        fetch: () => {
+          requests++;
+          if (healthy)
+            return Response.json({
+              commands: [{ id: "recovered", command: "test" }],
+            });
+          if (stall === "headers") return new Promise<Response>(() => {});
+          return new Response(
+            new ReadableStream({
+              start: (stream) =>
+                stream.enqueue(new TextEncoder().encode('{"commands":')),
+            }),
+          );
+        },
+      });
+      const deps = {
+        readConfig: () => ({
+          auth_token: "test",
+          convex_url: `http://127.0.0.1:${server.port}`,
+        }),
+        fetch,
+        AbortSignal: {
+          timeout: (ms: number) => {
+            timeouts.push(ms);
+            return AbortSignal.timeout(healthy ? 5_000 : 300);
+          },
+        },
+        daemonVersion: "test",
+        platform: "test",
+        process: { pid: 1 },
+        isAutostartEnabled: () => false,
+        hasTmux: () => false,
+        deviceId: () => "test",
+        deviceLabel: () => "test",
+        BOOT_ID: "test",
+        syncHealthFields: () => ({}),
+        backendOutage: {
+          markFailure: () => {
+            failures++;
+          },
+          markSuccess: () => {
+            successes++;
+            return 0;
+          },
+        },
+        // A free variable of the lifted function: in daemon.ts it marks the
+        // outage and logs at most once a minute, so the harness counts the mark.
+        notePollFailure: () => {
+          failures++;
+        },
+        log: () => {},
+        executeCommandBatch: async () => {
+          delivered++;
+          if (holdCommand)
+            await new Promise<void>((resolve) => {
+              finishCommand = resolve;
+            });
+        },
+      };
+      const code = new Bun.Transpiler({ loader: "ts" }).transformSync(
+        `let daemonCommandPollInFlight = false; async function poll() ${functionBody(src("daemon.ts"), "pollDaemonCommands")}`,
+      );
+      const poll = new Function(...Object.keys(deps), `${code}\nreturn poll;`)(
+        ...Object.values(deps),
+      );
+      try {
+        const first = poll();
+        const overlapping = [poll(), poll()];
+        expect(
+          await Promise.race([
+            Promise.all([first, ...overlapping]).then(() => true),
+            Bun.sleep(3_000).then(() => false),
+          ]),
+        ).toBe(true);
+        expect({ requests, failures, successes, delivered }).toEqual({
+          requests: 1,
+          failures: 1,
+          successes: 0,
+          delivered: 0,
+        });
+        healthy = true;
+        await poll();
+        expect({ requests, failures, successes, delivered }).toEqual({
+          requests: 2,
+          failures: 1,
+          successes: 1,
+          delivered: 1,
+        });
+        expect(timeouts).toEqual([15_000, 15_000]);
+        holdCommand = true;
+        const slowCommand = poll();
+        for (let i = 0; i < 100 && !finishCommand; i++) await Bun.sleep(10);
+        expect(finishCommand).toBeDefined();
+        holdCommand = false;
+        await poll();
+        expect(requests).toBe(4);
+        expect(delivered).toBe(3);
+        finishCommand?.();
+        await slowCommand;
+      } finally {
+        finishCommand?.();
+        server.stop(true);
+      }
+    },
+  );
 
   test.each([
     { version: "1.1.125", build: "def456def456", restarts: 1 },
     { version: "1.1.124", build: "def456def456", restarts: 0 },
     { version: "1.1.125", build: "abc123abc123", restarts: 0 },
     { version: "invalid", build: null, restarts: 0 },
-  ])("disk update poll uses the installed package version: %j", async ({ version, build, restarts }) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cast-disk-version-"));
-    const moduleDir = path.join(root, "src");
-    const restarted: string[] = [];
-    try {
-      fs.mkdirSync(moduleDir);
-      fs.writeFileSync(path.join(moduleDir, "update.ts"), src("update.ts"));
-      fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "@codecast/cli", version }));
-      const deps = {
-        fs, path, fixtureModuleDir: moduleDir, daemonVersion: "1.1.124",
-        daemonBuildUnchanged, DAEMON_BUILD_ID: "abc123abc123",
-        readDiskBuildId: async () => build, vetoedDiskVersion: null,
-        log: () => {}, logLifecycle: () => {}, flushRemoteLogs: async () => {},
-        restartDaemonProcess: (reason: string) => restarted.push(reason),
-      };
-      const code = new Bun.Transpiler({ loader: "ts", define: { __dirname: "fixtureModuleDir" } }).transformSync(`async function diskPoll() ${functionBody(src("daemon.ts"), "checkDiskVersionMismatch")}`);
-      const poll = new Function(...Object.keys(deps), `${code}\nreturn diskPoll();`);
-      await poll(...Object.values(deps));
-      expect(restarted).toHaveLength(restarts);
-      if (restarts) expect(restarted).toEqual(["disk version mismatch"]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
-  });
+  ])(
+    "disk update poll uses the installed package version: %j",
+    async ({ version, build, restarts }) => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "cast-disk-version-"));
+      const moduleDir = path.join(root, "src");
+      const restarted: string[] = [];
+      try {
+        fs.mkdirSync(moduleDir);
+        fs.writeFileSync(path.join(moduleDir, "update.ts"), src("update.ts"));
+        fs.writeFileSync(
+          path.join(root, "package.json"),
+          JSON.stringify({ name: "@codecast/cli", version }),
+        );
+        const deps = {
+          fs,
+          path,
+          fixtureModuleDir: moduleDir,
+          daemonVersion: "1.1.124",
+          daemonBuildUnchanged,
+          DAEMON_BUILD_ID: "abc123abc123",
+          readDiskBuildId: async () => build,
+          vetoedDiskVersion: null,
+          log: () => {},
+          logLifecycle: () => {},
+          flushRemoteLogs: async () => {},
+          restartDaemonProcess: (reason: string) => restarted.push(reason),
+        };
+        const code = new Bun.Transpiler({
+          loader: "ts",
+          define: { __dirname: "fixtureModuleDir" },
+        }).transformSync(
+          `async function diskPoll() ${functionBody(src("daemon.ts"), "checkDiskVersionMismatch")}`,
+        );
+        const poll = new Function(
+          ...Object.keys(deps),
+          `${code}\nreturn diskPoll();`,
+        );
+        await poll(...Object.values(deps));
+        expect(restarted).toHaveLength(restarts);
+        if (restarts) expect(restarted).toEqual(["disk version mismatch"]);
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   test("ensureDaemonRunning consults the build id only where the CLI is newer", () => {
     const body = functionBody(index, "ensureDaemonRunning");
@@ -144,23 +229,39 @@ describe("daemon restart gating", () => {
   // the three drifted apart before it existed.
   test("every gate asks the shared predicate", () => {
     const daemon = src("daemon.ts");
-    expect(functionBody(index, "ensureDaemonRunning")).toContain("daemonBuildUnchanged(");
-    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain("daemonBuildUnchanged(");
-    expect(functionBody(daemon, "checkDiskVersionMismatch")).toContain("daemonBuildUnchanged(");
+    expect(functionBody(index, "ensureDaemonRunning")).toContain(
+      "daemonBuildUnchanged(",
+    );
+    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain(
+      "daemonBuildUnchanged(",
+    );
+    expect(functionBody(daemon, "checkDiskVersionMismatch")).toContain(
+      "daemonBuildUnchanged(",
+    );
   });
 
   test("bounceDaemonIfBuildChanged restarts unless the ids match", () => {
     const body = functionBody(index, "bounceDaemonIfBuildChanged");
-    expect(body).toContain("if (daemonBuildUnchanged(runningBuild, installedBuild)) return false;");
+    expect(body).toContain(
+      "if (daemonBuildUnchanged(runningBuild, installedBuild)) return false;",
+    );
     expect(body).toContain("stopDaemon();");
     expect(body).toContain("startDaemon({ afterStop: true });");
   });
 
   test("ordinary CLI use and automatic updates both respect the configured installation", () => {
-    expect(functionBody(index, "ensureDaemonRunning")).toContain("ownsDaemonInstallation()");
-    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain("ownsDaemonInstallation()");
-    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain("if (!ownsInstallation) return false;");
-    expect(functionBody(index, "ownsDaemonInstallation")).toContain("daemonLauncherMatchesCommand(");
+    expect(functionBody(index, "ensureDaemonRunning")).toContain(
+      "ownsDaemonInstallation()",
+    );
+    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain(
+      "ownsDaemonInstallation()",
+    );
+    expect(functionBody(index, "bounceDaemonIfBuildChanged")).toContain(
+      "if (!ownsInstallation) return false;",
+    );
+    expect(functionBody(index, "ownsDaemonInstallation")).toContain(
+      "daemonLauncherMatchesCommand(",
+    );
   });
 
   test("the update paths no longer stop the daemon before performUpdate", () => {
@@ -175,8 +276,12 @@ describe("daemon restart gating", () => {
 
   test("the split brain sweeps match off the process table, not pgrep", () => {
     const daemon = src("daemon.ts");
-    expect(functionBody(index, "stopDaemon")).toContain("ownDaemonPids(snapshotProcessTable(");
-    expect(functionBody(daemon, "sweepOrphanDaemons")).toContain("findOtherDaemonRows(await snapshotProcessTableAsync(");
+    expect(functionBody(index, "stopDaemon")).toContain(
+      "ownDaemonPids(\n        snapshotProcessTable(",
+    );
+    expect(functionBody(daemon, "sweepOrphanDaemons")).toMatch(
+      /findOtherDaemonRows\(\s*await snapshotProcessTableAsync\(/,
+    );
     for (const source of [index, daemon]) {
       expect(source).not.toContain("pgrep -f 'daemon");
     }
@@ -209,7 +314,9 @@ describe("daemon restart gating", () => {
   // before the pid file release and the stop lifecycle line.
   test("the shutdown flush and the claim release are each guarded", () => {
     const daemon = src("daemon.ts");
-    const flushAt = daemon.indexOf("Flushing ${pendingOps} pending retry operation(s) before exit");
+    const flushAt = daemon.indexOf(
+      "Flushing ${pendingOps} pending retry operation(s) before exit",
+    );
     expect(flushAt).toBeGreaterThan(-1);
     const around = daemon.slice(flushAt - 600, flushAt + 1400);
     expect(around).toContain("Retry flush failed:");
@@ -224,14 +331,18 @@ describe("daemon restart gating", () => {
   test("the version and build stamps survive a stop by a daemon that does not hold the lock", () => {
     const daemon = src("daemon.ts");
     const body = functionBody(daemon, "clearDaemonStampsIfUnheld");
-    expect(body).toContain("if (stampHolder && stampHolder !== process.pid && isProcessRunning(stampHolder)) return;");
+    expect(body).toContain(
+      "if (\n    stampHolder &&\n    stampHolder !== process.pid &&\n    isProcessRunning(stampHolder)\n  )\n    return;",
+    );
     expect(body).toContain("fs.unlinkSync(VERSION_FILE)");
     expect(body).toContain("fs.unlinkSync(BUILD_FILE)");
     // Both exit paths use it. The hard exit timer used to unlink the two files
     // outright, so a second daemon that timed out on the way out erased the
     // live daemon's stamps and turned the veto off for every later gate.
     expect(daemon.split("clearDaemonStampsIfUnheld();").length - 1).toBe(2);
-    const hardExit = daemon.slice(daemon.indexOf("Hard exit after shutdown timeout"));
+    const hardExit = daemon.slice(
+      daemon.indexOf("Hard exit after shutdown timeout"),
+    );
     expect(hardExit.slice(0, 400)).toContain("clearDaemonStampsIfUnheld();");
     // And nowhere else may unlink them.
     expect(daemon.split("fs.unlinkSync(BUILD_FILE)").length - 1).toBe(1);
@@ -250,7 +361,9 @@ describe("daemon restart gating", () => {
     // has to carry ITS id, because only the holder may let go.
     expect(body).toContain("boot_id: opts.bootId ?? BOOT_ID");
     expect(body).toContain("AbortSignal.timeout(");
-    expect(functionBody(daemon, "releaseHeldCommandClaims")).toContain("release: true");
+    expect(functionBody(daemon, "releaseHeldCommandClaims")).toContain(
+      "release: true",
+    );
   });
 
   // The claim runs after all three delivery paths have already marked the
@@ -291,25 +404,41 @@ describe("daemon restart gating", () => {
     expect(executeAt).toBeGreaterThan(primeAt);
     // Serial: every command waits for the one before it, except the few that
     // wait minutes on a provider and report their own result.
-    expect(body).toContain("if (DETACHED_COMMANDS.has(cmd.command)) void run.catch(");
+    expect(body).toContain(
+      "if (DETACHED_COMMANDS.has(cmd.command))\n        void run.catch(",
+    );
     expect(body).toContain("else await run;");
     // The bypass is pinned by name. A command added here runs unordered with
     // the rest of its batch, so a state change (restart, kill, escape) must
     // never join it without a reviewed edit to this list.
-    const detached = /const DETACHED_COMMANDS: ReadonlySet<string> = new Set\((\[[^\]]*\])\);/.exec(daemon);
+    const detached =
+      /const DETACHED_COMMANDS: ReadonlySet<string> = new Set\((\[[^\]]*\])\);/.exec(
+        daemon,
+      );
     expect(detached, "DETACHED_COMMANDS is one Set literal").not.toBeNull();
-    expect(JSON.parse(detached![1])).toEqual(["cloud_agent_action", "switch_claude_backend", "export_folder", "export_session"]);
+    expect(JSON.parse(detached![1].replace(/,\s*\]$/, "]"))).toEqual([
+      "cloud_agent_action",
+      "switch_claude_backend",
+      "export_folder",
+      "export_session",
+    ]);
     // And the old per-path loops are gone: one call site, inside the batch.
-    expect(daemon.split(/(?<!function )executeRemoteCommand\(/).length - 1).toBe(1);
+    expect(
+      daemon.split(/(?<!function )executeRemoteCommand\(/).length - 1,
+    ).toBe(1);
   });
 
   // Priming ahead of the owner guard is safe only because the guard hands the
   // lease back when it defers the command to the device that owns the session.
   test("the owner guard gives back a lease it primed", () => {
     const daemon = src("daemon.ts");
-    const at = daemon.indexOf("leave the rest of the command for the owner device");
+    const at = daemon.indexOf(
+      "leave the rest of the command for the owner device",
+    );
     expect(at).toBeGreaterThan(-1);
-    expect(daemon.slice(at - 400, at)).toContain("discardPrimedClaim(commandId, siteUrl, config.auth_token);");
+    expect(daemon.slice(at - 400, at)).toContain(
+      "discardPrimedClaim(commandId, siteUrl, config.auth_token);",
+    );
   });
 
   // Most restarts never reach the graceful shutdown: launchd kickstart kills
@@ -320,8 +449,12 @@ describe("daemon restart gating", () => {
     const daemon = src("daemon.ts");
     expect(functionBody(daemon, "holdClaim")).toContain("persistHeldClaims()");
     expect(functionBody(daemon, "dropClaim")).toContain("persistHeldClaims()");
-    expect(functionBody(daemon, "persistHeldClaims")).toContain("heldClaimsFile(BOOT_ID)");
-    expect(functionBody(daemon, "releaseHeldCommandClaims")).toContain("persistHeldClaims()");
+    expect(functionBody(daemon, "persistHeldClaims")).toContain(
+      "heldClaimsFile(BOOT_ID)",
+    );
+    expect(functionBody(daemon, "releaseHeldCommandClaims")).toContain(
+      "persistHeldClaims()",
+    );
     // Boot releases them after the port answers, off the boot path.
     expect(daemon).toContain("void releaseStrandedCommandClaims(config)");
     // The raw set is touched only inside those helpers, so no write can skip
@@ -340,8 +473,10 @@ describe("daemon restart gating", () => {
     const body = functionBody(src("daemon.ts"), "checkDiskVersionMismatch");
     // The only early return is the case where the ids match. A null id falls
     // through and still restarts.
-    expect(body).toContain("if (daemonBuildUnchanged(DAEMON_BUILD_ID, diskBuildId)) {");
-    expect(body).toContain("restartDaemonProcess(\"disk version mismatch\")");
+    expect(body).toContain(
+      "if (daemonBuildUnchanged(DAEMON_BUILD_ID, diskBuildId)) {",
+    );
+    expect(body).toContain('restartDaemonProcess("disk version mismatch")');
   });
 
   // The veto is a steady state and this check runs every five minutes, so the

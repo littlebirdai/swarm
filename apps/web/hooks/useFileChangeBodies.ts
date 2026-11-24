@@ -5,7 +5,10 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { shareTokenArg } from "../lib/shareTokenScope";
 import { isConvexId } from "../store/inboxStore";
-import { useDiffViewerStore, type FileChangeEntry } from "../store/diffViewerStore";
+import {
+  useDiffViewerStore,
+  type FileChangeEntry,
+} from "../store/diffViewerStore";
 
 // Bytes one request asks for, by the sizes the index carries. Under the
 // server's own budget (fileChangeBodies.FILE_CHANGE_BODY_BUDGET) so a batch
@@ -21,7 +24,10 @@ const BATCH_KEYS = 200;
  * when nothing is. Changes the server cannot answer for are marked missing
  * so they never block the batch after them.
  */
-export function useFileChangeBodies(conversationId: string | undefined, needed: FileChangeEntry[]): void {
+export function useFileChangeBodies(
+  conversationId: string | undefined,
+  needed: FileChangeEntry[],
+): void {
   const bodies = useDiffViewerStore((s) => s.bodies);
   const missingBodies = useDiffViewerStore((s) => s.missingBodies);
   const addBodies = useDiffViewerStore((s) => s.addBodies);
@@ -30,7 +36,12 @@ export function useFileChangeBodies(conversationId: string | undefined, needed: 
     const keys: string[] = [];
     let bytes = 0;
     for (const change of needed) {
-      if (change.newContent !== undefined || bodies[change.id] || missingBodies[change.id]) continue;
+      if (
+        change.newContent !== undefined ||
+        bodies[change.id] ||
+        missingBodies[change.id]
+      )
+        continue;
       const size = (change.oldBytes ?? 0) + (change.newBytes ?? 0);
       if (keys.length > 0 && bytes + size > BATCH_BYTES) break;
       keys.push(change.id);
@@ -44,7 +55,11 @@ export function useFileChangeBodies(conversationId: string | undefined, needed: 
   const { data } = useQueryNoThrow(
     api.messages.getFileChangeBodies,
     live
-      ? { conversation_id: conversationId as Id<"conversations">, ...shareTokenArg(conversationId), change_keys: batch }
+      ? {
+          conversation_id: conversationId as Id<"conversations">,
+          ...shareTokenArg(conversationId),
+          change_keys: batch,
+        }
       : "skip",
   );
 
@@ -54,8 +69,12 @@ export function useFileChangeBodies(conversationId: string | undefined, needed: 
     // A truncated answer stops at the budget: the keys after its last body
     // are not missing, they are the next batch.
     let lastAnswered = batch.length - 1;
-    if (data.truncated) while (lastAnswered >= 0 && !answered.has(batch[lastAnswered])) lastAnswered--;
-    const missing = batch.slice(0, lastAnswered + 1).filter((key) => !answered.has(key));
+    if (data.truncated)
+      while (lastAnswered >= 0 && !answered.has(batch[lastAnswered]))
+        lastAnswered--;
+    const missing = batch
+      .slice(0, lastAnswered + 1)
+      .filter((key) => !answered.has(key));
     addBodies(conversationId, data.bodies, missing);
   }, [data]);
 }

@@ -7,7 +7,14 @@
 import { makeCollectionSig } from "./wakeSig";
 import { identitySig } from "../lib/sessionIdentity";
 import { mentionKey, mentionUserIds } from "@codecast/shared/chat";
-import type { ChatChannelRow, ChatMessageRow, ChatRailRow, ChatReactionRow, ChatReadRow, ChatSlackLinkRow } from "./inboxStore";
+import type {
+  ChatChannelRow,
+  ChatMessageRow,
+  ChatRailRow,
+  ChatReactionRow,
+  ChatReadRow,
+  ChatSlackLinkRow,
+} from "./inboxStore";
 
 /** Cheap content digest. Included so a same-length edit still wakes the reader;
  *  the raw string is not, because a channel of 8k-character messages would
@@ -83,12 +90,14 @@ export const railMessagesSig = makeCollectionSig<ChatMessageRow>(
  *  raw collection — this wakes it only when a session is renamed, retyped, or
  *  appears. */
 export const sessionOriginSig = makeCollectionSig<any>(
-  (s) => `${s._id ?? ""}|${s.session_id ?? ""}|${s.display_title || s.title || ""}|${s.agent_type ?? ""}|${identitySig(s)}`,
+  (s) =>
+    `${s._id ?? ""}|${s.session_id ?? ""}|${s.display_title || s.title || ""}|${s.agent_type ?? ""}|${identitySig(s)}`,
 );
 
 /** Role seats: what a role's standing agent's chat lines show (seatAuthorFor). */
 export const seatSig = makeCollectionSig<any>(
-  (a) => `${a.bot_user_id ?? ""}|${a.status}|${a.team_name ?? ""}|${a.role ? `${a.role.short_id}|${a.role.name}|${a.role.handle}|${a.role.avatar ?? ""}|${a.role.given_name ?? ""}|${a.role.assistant?.reach ?? ""}` : ""}`,
+  (a) =>
+    `${a.bot_user_id ?? ""}|${a.status}|${a.team_name ?? ""}|${a.role ? `${a.role.short_id}|${a.role.name}|${a.role.handle}|${a.role.avatar ?? ""}|${a.role.given_name ?? ""}|${a.role.assistant?.reach ?? ""}` : ""}`,
 );
 
 /** Slack mirrors: everything the header pill and the settings dialog branch on. */
@@ -96,18 +105,22 @@ export const slackLinksSig = makeCollectionSig<ChatSlackLinkRow>(
   (l) =>
     `${l._id}|${l.chat_channel_id}|${l.slack_channel_id}|${l.slack_channel_name ?? ""}|${l.direction}|${l.paused ? 1 : 0}` +
     `|${l.kind ?? ""}|${l.team_id}|${l.viewer_user_id ?? ""}|${l.viewer_slack_auth ?? ""}` +
-    `|${Object.entries(l.options ?? {}).map(([k, val]) => `${k}=${val ? 1 : 0}`).join(",")}` +
+    `|${Object.entries(l.options ?? {})
+      .map(([k, val]) => `${k}=${val ? 1 : 0}`)
+      .join(",")}` +
     `|${l.last_inbound_at ?? 0}|${l.last_outbound_at ?? 0}|${l.inbound_count ?? 0}|${l.outbound_count ?? 0}|${l.last_error ?? ""}` +
     `|${l.backfill ? `${l.backfill.status}:${l.backfill.fetched}:${l.backfill.capped ? 1 : 0}` : ""}` +
     `|${l.member_writer ?? ""}|${(l.slack_member_ids ?? []).join(",")}|${l.member_error?.at ?? 0}`,
 );
 
 export const channelsSig = makeCollectionSig<ChatChannelRow>(
-  (c) => `${c._id}|${c.client_id ?? ""}|${c.name}|${c.topic ?? ""}|${c.archived_at ?? 0}|${c.created_at}`,
+  (c) =>
+    `${c._id}|${c.client_id ?? ""}|${c.name}|${c.topic ?? ""}|${c.archived_at ?? 0}|${c.created_at}`,
 );
 
 export const readsSig = makeCollectionSig<ChatReadRow>(
-  (r) => `${r._id}|${r.channel_id}|${r.last_read_at}|${r.notify_level}|${r.joined_at ?? 0}`,
+  (r) =>
+    `${r._id}|${r.channel_id}|${r.last_read_at}|${r.notify_level}|${r.joined_at ?? 0}`,
 );
 
 export const reactionsSig = makeCollectionSig<ChatReactionRow>(
@@ -118,7 +131,9 @@ export function railSig(rail: ChatRailRow[]): string {
   let out = "";
   for (const r of rail ?? []) {
     // The rosters too: the member panel paints the people and agents in a room from these rows.
-    const agents = (r.agents ?? []).map((a) => (a.kind === "role" ? a.role_id : a.conversation_id)).join(",");
+    const agents = (r.agents ?? [])
+      .map((a) => (a.kind === "role" ? a.role_id : a.conversation_id))
+      .join(",");
     out += `${r.channel_id}|${r.sort_at}|${r.unread}|${r.unread_mentions}|${r.notify_level}|${r.joined}|${r.last_message?._id ?? ""}|${(r.member_ids ?? []).join(",")}|${agents};`;
   }
   return out;

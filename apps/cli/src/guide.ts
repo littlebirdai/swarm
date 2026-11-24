@@ -51,7 +51,9 @@ export function guidePayload(descriptor: SnippetDescriptor): GuidePayload {
 /** What an unknown topic prints. Names every topic, so a typo costs one run. */
 export function unknownTopicMessage(input: string): string {
   const slugs = guideTopics().map((t) => t.slug);
-  const near = didYouMean(nearMatches(input, slugs).map((slug) => `'cast guide ${slug}'`));
+  const near = didYouMean(
+    nearMatches(input, slugs).map((slug) => `'cast guide ${slug}'`),
+  );
   return (
     `unknown guide topic: ${input}\n` +
     (near ? `${near}\n` : "") +
@@ -69,19 +71,29 @@ function topicFor(input: string): SnippetDescriptor | undefined {
 function printList(json: boolean): void {
   const topics = guideTopics();
   if (json) {
-    console.log(JSON.stringify(
-      {
-        version: getVersion(),
-        build_id: DAEMON_BUILD_ID,
-        topics: topics.map((t) => ({ topic: t.slug, name: t.name, desc: t.desc })),
-      },
-      null,
-      2,
-    ));
+    console.log(
+      JSON.stringify(
+        {
+          version: getVersion(),
+          build_id: DAEMON_BUILD_ID,
+          topics: topics.map((t) => ({
+            topic: t.slug,
+            name: t.name,
+            desc: t.desc,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
   console.log("");
-  console.log(fmt.muted(`  cast guide — cast v${getVersion()} (daemon build ${DAEMON_BUILD_ID})`));
+  console.log(
+    fmt.muted(
+      `  cast guide — cast v${getVersion()} (daemon build ${DAEMON_BUILD_ID})`,
+    ),
+  );
   console.log("");
   const width = Math.max(...topics.map((t) => t.slug.length));
   for (const t of topics) {
@@ -96,25 +108,35 @@ export function registerGuideCommand(program: Command): void {
   program
     .command("guide")
     .description(commandGroup("guide").description)
-    .argument("[topic]", `topic to print (${guideTopics().map((t) => t.slug).join(", ")})`)
+    .argument(
+      "[topic]",
+      `topic to print (${guideTopics()
+        .map((t) => t.slug)
+        .join(", ")})`,
+    )
     .option("--list", "List every topic instead of printing one")
     .option("--json", "Machine-readable output")
-    .action((topic: string | undefined, options: { list?: boolean; json?: boolean }) => {
-      if (options.list || !topic) {
-        printList(options.json === true);
-        return;
-      }
-      const descriptor = topicFor(topic);
-      if (!descriptor) {
-        console.error(unknownTopicMessage(topic));
-        process.exit(1);
-      }
-      if (options.json) {
-        console.log(JSON.stringify(guidePayload(descriptor), null, 2));
-        return;
-      }
-      console.log(guideHeader(descriptor.slug));
-      console.log("");
-      console.log(guideText(descriptor));
-    });
+    .action(
+      (
+        topic: string | undefined,
+        options: { list?: boolean; json?: boolean },
+      ) => {
+        if (options.list || !topic) {
+          printList(options.json === true);
+          return;
+        }
+        const descriptor = topicFor(topic);
+        if (!descriptor) {
+          console.error(unknownTopicMessage(topic));
+          process.exit(1);
+        }
+        if (options.json) {
+          console.log(JSON.stringify(guidePayload(descriptor), null, 2));
+          return;
+        }
+        console.log(guideHeader(descriptor.slug));
+        console.log("");
+        console.log(guideText(descriptor));
+      },
+    );
 }

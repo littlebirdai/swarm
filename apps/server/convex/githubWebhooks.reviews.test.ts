@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { armedTriggerRows, makeFakeDb } from "./testDb";
 import { getFunctionName } from "convex/server";
-import { processReviewEvent, processReviewCommentEvent, processPushEvent } from "./githubWebhooks";
+import {
+  processReviewEvent,
+  processReviewCommentEvent,
+  processPushEvent,
+} from "./githubWebhooks";
 import { wake } from "./prShepherd";
 
 const TEAM = "team_1" as any;
@@ -32,7 +36,12 @@ function pullRequest(extra: Record<string, any> = {}) {
   };
 }
 
-function context(payload: any, action: string | undefined, eventType: string, seed: Record<string, any[]> = {}) {
+function context(
+  payload: any,
+  action: string | undefined,
+  eventType: string,
+  seed: Record<string, any[]> = {},
+) {
   const scheduled: Array<{ delay: number; reference: any; args: any }> = [];
   const db = makeFakeDb({
     github_webhook_events: [
@@ -47,16 +56,39 @@ function context(payload: any, action: string | undefined, eventType: string, se
       },
     ],
     pull_requests: [pullRequest()],
-    conversations: [{ _id: CONV, user_id: "user_1", is_private: true, title: "Git backend", git_branch: "ct-48298-git-backend" }],
+    conversations: [
+      {
+        _id: CONV,
+        user_id: "user_1",
+        is_private: true,
+        title: "Git backend",
+        git_branch: "ct-48298-git-backend",
+      },
+    ],
     agent_tasks: [
       {
-        _id: TASK, user_id: "user_1", title: "Shepherd PR #12", prompt: "old", status: "scheduled",
-        schedule_type: "event", originating_conversation_id: CONV, retry_count: 0, run_count: 0, created_at: 0, mode: "apply",
+        _id: TASK,
+        user_id: "user_1",
+        title: "Shepherd PR #12",
+        prompt: "old",
+        status: "scheduled",
+        schedule_type: "event",
+        originating_conversation_id: CONV,
+        retry_count: 0,
+        run_count: 0,
+        created_at: 0,
+        mode: "apply",
       },
       ...armedTriggerRows("pr_review", "pr_approved", "pr_changes_requested"),
     ],
     github_app_installations: [
-      { _id: "inst_1", team_id: TEAM, installation_id: 7, account_login: "codecast-sh", repository_selection: "all" },
+      {
+        _id: "inst_1",
+        team_id: TEAM,
+        installation_id: 7,
+        account_login: "codecast-sh",
+        repository_selection: "all",
+      },
     ],
     external_events: [],
     reviews: [],
@@ -94,7 +126,11 @@ const reviewPayload = (state: string, body?: string) => ({
 
 describe("pull_request_review", () => {
   test("a request for changes writes the review, the decision, the event and the wake", async () => {
-    const ctx = context(reviewPayload("changes_requested", "needs a test"), "submitted", "pull_request_review");
+    const ctx = context(
+      reviewPayload("changes_requested", "needs a test"),
+      "submitted",
+      "pull_request_review",
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
 
     const review = ctx.db._tables.reviews[0];
@@ -117,45 +153,89 @@ describe("pull_request_review", () => {
     expect(event.title).toBe("Review: requested changes by samvit on PR #12");
     expect(event.summary).toBe("needs a test");
 
-    expect(ctx._scheduled.some((s: any) => s.args?.event_type === "pr_review")).toBe(true);
-    expect(ctx._scheduled.some((s: any) => s.args?.event_type === "pr_changes_requested")).toBe(true);
-    expect(ctx.db._tables.agent_tasks[0].prompt).toContain("samvit requested changes");
+    expect(
+      ctx._scheduled.some((s: any) => s.args?.event_type === "pr_review"),
+    ).toBe(true);
+    expect(
+      ctx._scheduled.some(
+        (s: any) => s.args?.event_type === "pr_changes_requested",
+      ),
+    ).toBe(true);
+    expect(ctx.db._tables.agent_tasks[0].prompt).toContain(
+      "samvit requested changes",
+    );
     // F56: the shepherd reads the body fenced with the author's standing.
-    expect(ctx.db._tables.agent_tasks[0].prompt).toContain('source="GitHub review (changes_requested) by @samvit (author_association COLLABORATOR)"');
+    expect(ctx.db._tables.agent_tasks[0].prompt).toContain(
+      'source="GitHub review (changes_requested) by @samvit (author_association COLLABORATOR)"',
+    );
   });
 
   test("an approval fires its own trigger and folds to approved", async () => {
-    const ctx = context(reviewPayload("approved"), "submitted", "pull_request_review");
+    const ctx = context(
+      reviewPayload("approved"),
+      "submitted",
+      "pull_request_review",
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.pull_requests[0].review_decision).toBe("approved");
     expect(ctx.db._tables.pull_requests[0].shepherd_state).toBe("approved");
-    expect(ctx._scheduled.some((s: any) => s.args?.event_type === "pr_approved")).toBe(true);
+    expect(
+      ctx._scheduled.some((s: any) => s.args?.event_type === "pr_approved"),
+    ).toBe(true);
   });
 
   test("an empty comment review is recorded and wakes nobody", async () => {
-    const ctx = context(reviewPayload("commented"), "submitted", "pull_request_review");
+    const ctx = context(
+      reviewPayload("commented"),
+      "submitted",
+      "pull_request_review",
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.reviews[0].state).toBe("commented");
     expect(ctx.db._tables.agent_tasks[0].prompt).toBe("old");
   });
 
   test("a redelivered review updates the row it already wrote", async () => {
-    const ctx = context(reviewPayload("approved"), "submitted", "pull_request_review", {
-      reviews: [
-        { _id: "r1", pull_request_id: PR, github_review_id: 77, author_github_username: "samvit", state: "changes_requested", submitted_at: 1 },
-      ],
-    });
+    const ctx = context(
+      reviewPayload("approved"),
+      "submitted",
+      "pull_request_review",
+      {
+        reviews: [
+          {
+            _id: "r1",
+            pull_request_id: PR,
+            github_review_id: 77,
+            author_github_username: "samvit",
+            state: "changes_requested",
+            submitted_at: 1,
+          },
+        ],
+      },
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.reviews).toHaveLength(1);
     expect(ctx.db._tables.reviews[0].state).toBe("approved");
   });
 
   test("a dismissed review stops counting", async () => {
-    const ctx = context(reviewPayload("dismissed"), "dismissed", "pull_request_review", {
-      reviews: [
-        { _id: "r1", pull_request_id: PR, github_review_id: 77, author_github_username: "samvit", state: "changes_requested", submitted_at: 1 },
-      ],
-    });
+    const ctx = context(
+      reviewPayload("dismissed"),
+      "dismissed",
+      "pull_request_review",
+      {
+        reviews: [
+          {
+            _id: "r1",
+            pull_request_id: PR,
+            github_review_id: 77,
+            author_github_username: "samvit",
+            state: "changes_requested",
+            submitted_at: 1,
+          },
+        ],
+      },
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.reviews[0].state).toBe("dismissed");
     expect(ctx.db._tables.pull_requests[0].review_decision).toBe("none");
@@ -185,8 +265,14 @@ const commentPayload = (over: Record<string, any> = {}) => ({
 
 describe("pull_request_review_comment", () => {
   test("an inbound comment is stored as a code comment, recorded and woken on", async () => {
-    const ctx = context(commentPayload(), "created", "pull_request_review_comment");
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    const ctx = context(
+      commentPayload(),
+      "created",
+      "pull_request_review_comment",
+    );
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
 
     const comment = ctx.db._tables.review_comments[0];
     expect(comment).toMatchObject({
@@ -210,39 +296,88 @@ describe("pull_request_review_comment", () => {
     expect(event.title).toBe("samvit commented on src/foo.ts:42 in PR #12");
     expect(event.comment_id).toBe(comment._id);
 
-    expect(ctx.db._tables.agent_tasks[0].prompt).toContain("samvit on src/foo.ts:42");
-    expect(ctx.db._tables.agent_tasks[0].prompt).toContain('source="GitHub review comment by @samvit (author_association NONE) on src/foo.ts:42"');
+    expect(ctx.db._tables.agent_tasks[0].prompt).toContain(
+      "samvit on src/foo.ts:42",
+    );
+    expect(ctx.db._tables.agent_tasks[0].prompt).toContain(
+      'source="GitHub review comment by @samvit (author_association NONE) on src/foo.ts:42"',
+    );
   });
 
   test("the echo of a note codecast submitted in a review is adopted, not stored twice", async () => {
-    const ctx = context(commentPayload(), "created", "pull_request_review_comment", {
-      review_comments: [
-        { _id: "rc_pending", pull_request_id: PR, file_path: "src/foo.ts", line_number: 42, content: "this leaks",
-          resolved: false, created_at: 1, codecast_origin: true, pending_review: true, author_user_id: "u1" },
-      ],
+    const ctx = context(
+      commentPayload(),
+      "created",
+      "pull_request_review_comment",
+      {
+        review_comments: [
+          {
+            _id: "rc_pending",
+            pull_request_id: PR,
+            file_path: "src/foo.ts",
+            line_number: 42,
+            content: "this leaks",
+            resolved: false,
+            created_at: 1,
+            codecast_origin: true,
+            pending_review: true,
+            author_user_id: "u1",
+          },
+        ],
+      },
+    );
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
     });
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.review_comments).toHaveLength(1);
-    const patch = ctx.db._patched.find((p: any) => p._id === "rc_pending")!.patch;
-    expect(patch).toMatchObject({ github_comment_id: 4242, github_review_id: 77, html_url: "https://github.com/c/4242", pending_review: undefined });
+    const patch = ctx.db._patched.find(
+      (p: any) => p._id === "rc_pending",
+    )!.patch;
+    expect(patch).toMatchObject({
+      github_comment_id: 4242,
+      github_review_id: 77,
+      html_url: "https://github.com/c/4242",
+      pending_review: undefined,
+    });
     expect(ctx.db._tables.external_events).toHaveLength(0);
   });
 
   test("a comment codecast posted comes back and is skipped", async () => {
-    const ctx = context(commentPayload(), "created", "pull_request_review_comment", {
-      review_comments: [
-        { _id: "rc_ours", pull_request_id: PR, github_comment_id: 4242, content: "this leaks", resolved: false, created_at: 1, codecast_origin: true },
-      ],
+    const ctx = context(
+      commentPayload(),
+      "created",
+      "pull_request_review_comment",
+      {
+        review_comments: [
+          {
+            _id: "rc_ours",
+            pull_request_id: PR,
+            github_comment_id: 4242,
+            content: "this leaks",
+            resolved: false,
+            created_at: 1,
+            codecast_origin: true,
+          },
+        ],
+      },
+    );
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
     });
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.review_comments).toHaveLength(1);
     expect(ctx.db._tables.external_events).toHaveLength(0);
     expect(ctx.db._tables.agent_tasks[0].prompt).toBe("old");
   });
 
   test("the delivery is marked processed either way", async () => {
-    const ctx = context(commentPayload(), "created", "pull_request_review_comment");
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    const ctx = context(
+      commentPayload(),
+      "created",
+      "pull_request_review_comment",
+    );
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
     expect(ctx.db._tables.github_webhook_events[0].processed).toBe(true);
   });
 });
@@ -272,13 +407,42 @@ describe("push", () => {
   test("stores the commit with its team, branch, task links and session", async () => {
     const ctx = context(pushPayload(), undefined, "push", {
       tasks: [
-        { _id: "task_a", short_id: "ct-48301", team_id: TEAM, workspace: `team:${TEAM}`, plan_id: "plan_x", project_id: "proj_x", title: "Linking" },
+        {
+          _id: "task_a",
+          short_id: "ct-48301",
+          team_id: TEAM,
+          workspace: `team:${TEAM}`,
+          plan_id: "plan_x",
+          project_id: "proj_x",
+          title: "Linking",
+        },
         // Another tenant's task named in the same branch: never linked (F9).
-        { _id: "task_foreign", short_id: "ct-9", team_id: "team_other", workspace: "team:team_other", title: "Secret" },
+        {
+          _id: "task_foreign",
+          short_id: "ct-9",
+          team_id: "team_other",
+          workspace: "team:team_other",
+          title: "Secret",
+        },
       ],
-      file_changes: [{ _id: "fc_1", conversation_id: CONV, commit_hash: "1111111", change_type: "commit", file_path: "a.ts", new_content: "", timestamp: 1, change_key: "k", message_id: "m", seq: 1 }],
+      file_changes: [
+        {
+          _id: "fc_1",
+          conversation_id: CONV,
+          commit_hash: "1111111",
+          change_type: "commit",
+          file_path: "a.ts",
+          new_content: "",
+          timestamp: 1,
+          change_key: "k",
+          message_id: "m",
+          seq: 1,
+        },
+      ],
     });
-    const result = await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
+    const result = await (processPushEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
     expect(result.commits_created).toBe(1);
 
     const commit = ctx.db._tables.commits[0];
@@ -296,15 +460,21 @@ describe("push", () => {
     expect(kinds).toContain("commit");
     expect(kinds).toContain("push");
 
-    const push = ctx.db._tables.external_events.find((e: any) => e.kind === "push");
+    const push = ctx.db._tables.external_events.find(
+      (e: any) => e.kind === "push",
+    );
     expect(push.title).toBe("Pushed 1 commit to ct-48301-linking");
     expect(push.meta.commit_count).toBe(1);
     // The branch names ct-48301 too, so the push carries the same links.
     expect(push.task_ids).toEqual(["task_a"]);
     expect(push.plan_ids).toEqual(["plan_x"]);
 
-    const commitEvent = ctx.db._tables.external_events.find((e: any) => e.kind === "commit");
-    expect(commitEvent.title).toBe("fix: link commits to sessions (ct-48301, ct-9)");
+    const commitEvent = ctx.db._tables.external_events.find(
+      (e: any) => e.kind === "commit",
+    );
+    expect(commitEvent.title).toBe(
+      "fix: link commits to sessions (ct-48301, ct-9)",
+    );
     expect(commitEvent.plan_ids).toEqual(["plan_x"]);
     expect(commitEvent.project_ids).toEqual(["proj_x"]);
     expect(commitEvent.conversation_id).toBe(CONV);
@@ -316,23 +486,70 @@ describe("push", () => {
     const MATE = "m".repeat(32);
     const FOREIGN = "f".repeat(32);
     const sha = "1111111111111111111111111111111111111111";
-    const trailed = (id: string) => pushPayload({
-      commits: [{ ...pushPayload().commits[0], message: `fix: a thing\n\nCodecast-Session: https://codecast.sh/conversation/${id}` }],
-    });
+    const trailed = (id: string) =>
+      pushPayload({
+        commits: [
+          {
+            ...pushPayload().commits[0],
+            message: `fix: a thing\n\nCodecast-Session: https://codecast.sh/conversation/${id}`,
+          },
+        ],
+      });
     const conversations = [
-      { _id: CONV, user_id: "user_1", is_private: true, title: "Git backend", git_branch: "ct-48301-linking" },
+      {
+        _id: CONV,
+        user_id: "user_1",
+        is_private: true,
+        title: "Git backend",
+        git_branch: "ct-48301-linking",
+      },
       // Same person as CONV, shared with the team.
-      { _id: TRAILED, user_id: "user_1", team_id: TEAM, is_private: false, title: "Trailed" },
+      {
+        _id: TRAILED,
+        user_id: "user_1",
+        team_id: TEAM,
+        is_private: false,
+        title: "Trailed",
+      },
       // Routed to the team but private: routing grants nothing.
-      { _id: ROUTED_PRIVATE, user_id: "user_1", team_id: TEAM, is_private: true, title: "Private" },
+      {
+        _id: ROUTED_PRIVATE,
+        user_id: "user_1",
+        team_id: TEAM,
+        is_private: true,
+        title: "Private",
+      },
       // Shared with the team, but somebody else's.
-      { _id: MATE, user_id: "user_2", team_id: TEAM, is_private: false, title: "Mate" },
-      { _id: FOREIGN, user_id: "user_3", team_id: "team_other", is_private: false, title: "Elsewhere" },
+      {
+        _id: MATE,
+        user_id: "user_2",
+        team_id: TEAM,
+        is_private: false,
+        title: "Mate",
+      },
+      {
+        _id: FOREIGN,
+        user_id: "user_3",
+        team_id: "team_other",
+        is_private: false,
+        title: "Elsewhere",
+      },
     ];
     // The row exists, linked by an earlier guess (the one session on the branch).
     const seeded = (conversation_id?: string) => ({
       conversations,
-      commits: [{ _id: "commit_1", sha, message: "fix: a thing", timestamp: 1, repository: "codecast-sh/codecast", author_name: "A", author_email: "", conversation_id }],
+      commits: [
+        {
+          _id: "commit_1",
+          sha,
+          message: "fix: a thing",
+          timestamp: 1,
+          repository: "codecast-sh/codecast",
+          author_name: "A",
+          author_email: "",
+          conversation_id,
+        },
+      ],
     });
     const run = async (id: string, linked?: string) => {
       const ctx = context(trailed(id), undefined, "push", seeded(linked));
@@ -343,28 +560,46 @@ describe("push", () => {
     // Same owner as the guess, team-readable: the trailer corrects the guess.
     const ctx = await run(TRAILED, CONV);
     expect(ctx.db._tables.commits[0].conversation_id).toBe(TRAILED);
-    expect(ctx.db._tables.external_events.find((e: any) => e.kind === "commit").conversation_id).toBe(TRAILED);
+    expect(
+      ctx.db._tables.external_events.find((e: any) => e.kind === "commit")
+        .conversation_id,
+    ).toBe(TRAILED);
 
     // A private session routed to the team is not linked, even on an empty row
     // (the branch guess fills that row instead).
-    expect((await run(ROUTED_PRIVATE)).db._tables.commits[0].conversation_id).not.toBe(ROUTED_PRIVATE);
-    expect((await run(ROUTED_PRIVATE, CONV)).db._tables.commits[0].conversation_id).toBe(CONV);
+    expect(
+      (await run(ROUTED_PRIVATE)).db._tables.commits[0].conversation_id,
+    ).not.toBe(ROUTED_PRIVATE);
+    expect(
+      (await run(ROUTED_PRIVATE, CONV)).db._tables.commits[0].conversation_id,
+    ).toBe(CONV);
     // Another person's session links an empty row but never replaces a link.
     expect((await run(MATE)).db._tables.commits[0].conversation_id).toBe(MATE);
-    expect((await run(MATE, CONV)).db._tables.commits[0].conversation_id).toBe(CONV);
+    expect((await run(MATE, CONV)).db._tables.commits[0].conversation_id).toBe(
+      CONV,
+    );
     // A trailer naming a session outside the repository's team is ignored.
-    expect((await run(FOREIGN, CONV)).db._tables.commits[0].conversation_id).toBe(CONV);
+    expect(
+      (await run(FOREIGN, CONV)).db._tables.commits[0].conversation_id,
+    ).toBe(CONV);
   });
 
   // The session on the branch is the pusher's own. A branch name links only a
   // session the pusher owns or the team may read (lib/gitRefs.isConversationLinkable).
   const pusherSeed = {
     users: [{ _id: "user_1", github_username: "ashot" }],
-    team_memberships: [{ _id: "tm_1", user_id: "user_1", team_id: TEAM, role: "member" }],
+    team_memberships: [
+      { _id: "tm_1", user_id: "user_1", team_id: TEAM, role: "member" },
+    ],
   };
 
   test("with no edit row naming the sha, one session on the branch is enough", async () => {
-    const ctx = context(pushPayload({ ref: "refs/heads/ct-48298-git-backend" }), undefined, "push", pusherSeed);
+    const ctx = context(
+      pushPayload({ ref: "refs/heads/ct-48298-git-backend" }),
+      undefined,
+      "push",
+      pusherSeed,
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.commits[0].conversation_id).toBe(CONV);
   });
@@ -372,70 +607,158 @@ describe("push", () => {
   test("merging main into the branch does not hand main's commits to the session on it", async () => {
     const mainSha = "2222222222222222222222222222222222222222";
     const mergeSha = "3333333333333333333333333333333333333333";
-    const ctx = context(pushPayload({
-      ref: "refs/heads/ct-48298-git-backend",
-      after: mergeSha,
-      commits: [
-        { id: mainSha, distinct: false, message: "fix: someone else's work on main", timestamp: "2026-09-02T10:00:00Z", author: { name: "Sam", username: "sam" } },
-        { id: mergeSha, distinct: true, message: "Merge branch 'main' into ct-48298-git-backend", timestamp: "2026-09-03T10:00:00Z", author: { name: "Ashot", username: "ashot" } },
-      ],
-    }), undefined, "push", {
-      ...pusherSeed,
-      // main's own push already stored the commit, unlinked.
-      commits: [{ _id: "commit_main", sha: mainSha, message: "fix: someone else's work on main", timestamp: 1, repository: "codecast-sh/codecast", branch: "main", author_name: "Sam", author_email: "" }],
-    });
+    const ctx = context(
+      pushPayload({
+        ref: "refs/heads/ct-48298-git-backend",
+        after: mergeSha,
+        commits: [
+          {
+            id: mainSha,
+            distinct: false,
+            message: "fix: someone else's work on main",
+            timestamp: "2026-09-02T10:00:00Z",
+            author: { name: "Sam", username: "sam" },
+          },
+          {
+            id: mergeSha,
+            distinct: true,
+            message: "Merge branch 'main' into ct-48298-git-backend",
+            timestamp: "2026-09-03T10:00:00Z",
+            author: { name: "Ashot", username: "ashot" },
+          },
+        ],
+      }),
+      undefined,
+      "push",
+      {
+        ...pusherSeed,
+        // main's own push already stored the commit, unlinked.
+        commits: [
+          {
+            _id: "commit_main",
+            sha: mainSha,
+            message: "fix: someone else's work on main",
+            timestamp: 1,
+            repository: "codecast-sh/codecast",
+            branch: "main",
+            author_name: "Sam",
+            author_email: "",
+          },
+        ],
+      },
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
-    const bySha = (sha: string) => ctx.db._tables.commits.find((c: any) => c.sha === sha);
+    const bySha = (sha: string) =>
+      ctx.db._tables.commits.find((c: any) => c.sha === sha);
     expect(bySha(mainSha).conversation_id).toBeUndefined();
     expect(bySha(mergeSha).conversation_id).toBe(CONV);
     const events = ctx.db._tables.external_events;
-    expect(events.find((e: any) => e.sha === mainSha && e.kind === "commit").conversation_id).toBeUndefined();
-    expect(events.find((e: any) => e.kind === "push").conversation_id).toBe(CONV);
+    expect(
+      events.find((e: any) => e.sha === mainSha && e.kind === "commit")
+        .conversation_id,
+    ).toBeUndefined();
+    expect(events.find((e: any) => e.kind === "push").conversation_id).toBe(
+      CONV,
+    );
   });
 
   test("a merged commit its session recorded still links through the edit row", async () => {
-    const ctx = context(pushPayload({
-      ref: "refs/heads/some-other-branch",
-      commits: [{ ...pushPayload().commits[0], distinct: false }],
-    }), undefined, "push", {
-      file_changes: [{ _id: "fc_1", conversation_id: CONV, commit_hash: "1111111", change_type: "commit", file_path: "a.ts", new_content: "", timestamp: 1, change_key: "k", message_id: "m", seq: 1 }],
-    });
+    const ctx = context(
+      pushPayload({
+        ref: "refs/heads/some-other-branch",
+        commits: [{ ...pushPayload().commits[0], distinct: false }],
+      }),
+      undefined,
+      "push",
+      {
+        file_changes: [
+          {
+            _id: "fc_1",
+            conversation_id: CONV,
+            commit_hash: "1111111",
+            change_type: "commit",
+            file_path: "a.ts",
+            new_content: "",
+            timestamp: 1,
+            change_key: "k",
+            message_id: "m",
+            seq: 1,
+          },
+        ],
+      },
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.commits[0].conversation_id).toBe(CONV);
   });
 
   test("a branch name never links a session the pusher does not own and the team cannot read", async () => {
-    const ctx = context(pushPayload({ ref: "refs/heads/ct-48298-git-backend" }), undefined, "push");
+    const ctx = context(
+      pushPayload({ ref: "refs/heads/ct-48298-git-backend" }),
+      undefined,
+      "push",
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.commits[0].conversation_id).toBeUndefined();
   });
 
   test("two sessions on one branch is not evidence", async () => {
-    const ctx = context(pushPayload({ ref: "refs/heads/ct-48298-git-backend" }), undefined, "push", {
-      users: pusherSeed.users,
-      team_memberships: [...pusherSeed.team_memberships, { _id: "tm_2", user_id: "user_2", team_id: TEAM, role: "member" }],
-      conversations: [
-        { _id: CONV, user_id: "user_1", is_private: true, git_branch: "ct-48298-git-backend" },
-        { _id: "conv_2", user_id: "user_2", team_id: TEAM, is_private: false, git_branch: "ct-48298-git-backend" },
-      ],
-    });
+    const ctx = context(
+      pushPayload({ ref: "refs/heads/ct-48298-git-backend" }),
+      undefined,
+      "push",
+      {
+        users: pusherSeed.users,
+        team_memberships: [
+          ...pusherSeed.team_memberships,
+          { _id: "tm_2", user_id: "user_2", team_id: TEAM, role: "member" },
+        ],
+        conversations: [
+          {
+            _id: CONV,
+            user_id: "user_1",
+            is_private: true,
+            git_branch: "ct-48298-git-backend",
+          },
+          {
+            _id: "conv_2",
+            user_id: "user_2",
+            team_id: TEAM,
+            is_private: false,
+            git_branch: "ct-48298-git-backend",
+          },
+        ],
+      },
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
     expect(ctx.db._tables.commits[0].conversation_id).toBeUndefined();
   });
 
   test("a push to a base branch asks every PR aimed at it to recheck", async () => {
-    const ctx = context(pushPayload({ ref: "refs/heads/main" }), undefined, "push", {
-      conversations: [],
-    });
+    const ctx = context(
+      pushPayload({ ref: "refs/heads/main" }),
+      undefined,
+      "push",
+      {
+        conversations: [],
+      },
+    );
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
-    const refresh = ctx._scheduled.filter((s: any) => s.args?.pr_ids?.includes(PR) && s.args?.attempt === 0);
+    const refresh = ctx._scheduled.filter(
+      (s: any) => s.args?.pr_ids?.includes(PR) && s.args?.attempt === 0,
+    );
     expect(refresh).toHaveLength(1);
     expect(refresh[0].delay).toBe(15000);
   });
 
   test("a tag push is not a branch push: it stores no commits (changesDeploy.test.ts covers the release it records)", async () => {
-    const ctx = context(pushPayload({ ref: "refs/tags/v1" }), undefined, "push");
-    const result = await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
+    const ctx = context(
+      pushPayload({ ref: "refs/tags/v1" }),
+      undefined,
+      "push",
+    );
+    const result = await (processPushEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
     expect(result.reason).toBe("Tag names no version");
     expect(ctx.db._tables.commits).toHaveLength(0);
   });
@@ -444,10 +767,14 @@ describe("push", () => {
     const ctx = context(pushPayload(), undefined, "push");
     await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
     ctx.db._tables.github_webhook_events[0].processed = false;
-    const again = await (processPushEvent as any)._handler(ctx, { event_id: "event_1" });
+    const again = await (processPushEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
     expect(again.commits_created).toBe(0);
     expect(ctx.db._tables.commits).toHaveLength(1);
-    expect(ctx.db._tables.external_events.filter((e: any) => e.kind === "commit")).toHaveLength(1);
+    expect(
+      ctx.db._tables.external_events.filter((e: any) => e.kind === "commit"),
+    ).toHaveLength(1);
   });
 });
 
@@ -465,14 +792,25 @@ describe("a review comment on a range of lines", () => {
       "created",
       "pull_request_review_comment",
     );
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
 
-    expect(ctx.db._tables.review_comments[0]).toMatchObject({ line_number: 10, line_end: 20 });
+    expect(ctx.db._tables.review_comments[0]).toMatchObject({
+      line_number: 10,
+      line_end: 20,
+    });
   });
 
   test("a single line comment keeps no range", async () => {
-    const ctx = context(commentPayload(), "created", "pull_request_review_comment");
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    const ctx = context(
+      commentPayload(),
+      "created",
+      "pull_request_review_comment",
+    );
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
 
     const comment = ctx.db._tables.review_comments[0];
     expect(comment.line_number).toBe(42);
@@ -485,22 +823,36 @@ describe("a review comment on a range of lines", () => {
       "created",
       "pull_request_review_comment",
     );
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
 
-    expect(ctx.db._tables.external_events[0].title).toContain("src/foo.ts:10-20");
+    expect(ctx.db._tables.external_events[0].title).toContain(
+      "src/foo.ts:10-20",
+    );
   });
 
   test("a comment on a range GitHub only half describes still anchors", async () => {
     // original_line / original_start_line are what arrives once the diff the
     // comment was written against has moved on.
     const ctx = context(
-      commentPayload({ line: null, start_line: null, original_line: 20, original_start_line: 10 }),
+      commentPayload({
+        line: null,
+        start_line: null,
+        original_line: 20,
+        original_start_line: 10,
+      }),
       "created",
       "pull_request_review_comment",
     );
-    await (processReviewCommentEvent as any)._handler(ctx, { event_id: "event_1" });
+    await (processReviewCommentEvent as any)._handler(ctx, {
+      event_id: "event_1",
+    });
 
-    expect(ctx.db._tables.review_comments[0]).toMatchObject({ line_number: 10, line_end: 20 });
+    expect(ctx.db._tables.review_comments[0]).toMatchObject({
+      line_number: 10,
+      line_end: 20,
+    });
   });
 });
 
@@ -508,25 +860,51 @@ describe("a review comment on a range of lines", () => {
 // reviews.deliverSubmittedReview. GitHub's webhook for the same review can land
 // before that delivery is recorded, so its wake waits and then stands down.
 describe("a review whose author can submit through codecast", () => {
-  const codecastUser = { users: [{ _id: "user_2", name: "Sam", github_username: "samvit" }] };
+  const codecastUser = {
+    users: [{ _id: "user_2", name: "Sam", github_username: "samvit" }],
+  };
 
   test("the webhook wake waits for the direct delivery instead of firing at once", async () => {
-    const ctx = context(reviewPayload("changes_requested", "needs a test"), "submitted", "pull_request_review", codecastUser);
+    const ctx = context(
+      reviewPayload("changes_requested", "needs a test"),
+      "submitted",
+      "pull_request_review",
+      codecastUser,
+    );
     await (processReviewEvent as any)._handler(ctx, { event_id: "event_1" });
 
-    const delayed = ctx._scheduled.filter((s: any) => getFunctionName(s.reference).includes("prShepherd:wake"));
+    const delayed = ctx._scheduled.filter((s: any) =>
+      getFunctionName(s.reference).includes("prShepherd:wake"),
+    );
     expect(delayed.length).toBe(1);
     expect(delayed[0].delay).toBe(20_000);
-    expect(delayed[0].args).toMatchObject({ pr_id: PR, reason: "changes_requested", unless_delivered_review: 77 });
+    expect(delayed[0].args).toMatchObject({
+      pr_id: PR,
+      reason: "changes_requested",
+      unless_delivered_review: 77,
+    });
     // Nothing was handed to the trigger yet.
     expect(ctx.db._tables.agent_tasks[0].prompt).toBe("old");
   });
 
   test("the delayed wake stands down once the session has heard the review", async () => {
     const ctx = context({}, undefined, "pull_request_review", {
-      reviews: [{ _id: "rev_1", pull_request_id: PR, github_review_id: 77, state: "changes_requested", submitted_at: 1, session_delivered_at: 5 }],
+      reviews: [
+        {
+          _id: "rev_1",
+          pull_request_id: PR,
+          github_review_id: 77,
+          state: "changes_requested",
+          submitted_at: 1,
+          session_delivered_at: 5,
+        },
+      ],
     });
-    const out = await (wake as any)._handler(ctx, { pr_id: PR, reason: "changes_requested", unless_delivered_review: 77 });
+    const out = await (wake as any)._handler(ctx, {
+      pr_id: PR,
+      reason: "changes_requested",
+      unless_delivered_review: 77,
+    });
     expect(out).toEqual({ woken: false, reason: "delivered_directly" });
     expect(ctx.db._tables.agent_tasks[0].prompt).toBe("old");
   });
@@ -534,9 +912,21 @@ describe("a review whose author can submit through codecast", () => {
   test("the delayed wake fires when the review went out on GitHub alone", async () => {
     const ctx = context({}, undefined, "pull_request_review", {
       pull_requests: [pullRequest({ review_decision: "changes_requested" })],
-      reviews: [{ _id: "rev_1", pull_request_id: PR, github_review_id: 77, state: "changes_requested", submitted_at: 1 }],
+      reviews: [
+        {
+          _id: "rev_1",
+          pull_request_id: PR,
+          github_review_id: 77,
+          state: "changes_requested",
+          submitted_at: 1,
+        },
+      ],
     });
-    const out = await (wake as any)._handler(ctx, { pr_id: PR, reason: "changes_requested", unless_delivered_review: 77 });
+    const out = await (wake as any)._handler(ctx, {
+      pr_id: PR,
+      reason: "changes_requested",
+      unless_delivered_review: 77,
+    });
     expect(out.woken).toBe(true);
     expect(ctx.db._tables.agent_tasks[0].prompt).not.toBe("old");
   });

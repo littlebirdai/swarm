@@ -44,19 +44,38 @@ const VERBS: Partial<Record<RowKind, Verbs>> = {
   shell: { done: "Ran", plain: "Run", failed: "Command failed" },
   search: { done: "Searched", plain: "Search", failed: "Search failed" },
   fetch: { done: "Fetched", plain: "Fetch", failed: "Fetch failed" },
-  web: { done: "Searched the web", plain: "Search the web", failed: "Web search failed" },
+  web: {
+    done: "Searched the web",
+    plain: "Search the web",
+    failed: "Web search failed",
+  },
 };
 
 export function toolRowKind(name: string): RowKind {
-  if (name === "apply_patch" || name === "fileChange" || name === "MultiEdit" || name === "NotebookEdit" || isEditTool(name)) return "edit";
+  if (
+    name === "apply_patch" ||
+    name === "fileChange" ||
+    name === "MultiEdit" ||
+    name === "NotebookEdit" ||
+    isEditTool(name)
+  )
+    return "edit";
   if (isWriteTool(name)) return "write";
   if (isReadTool(name)) return "read";
   if (isShellTool(name) || name === "exec") return "shell";
-  if (isGrepTool(name) || isGlobTool(name) || name === "code_search" || name === "code_analysis") return "search";
+  if (
+    isGrepTool(name) ||
+    isGlobTool(name) ||
+    name === "code_search" ||
+    name === "code_analysis"
+  )
+    return "search";
   if (name === "WebFetch" || name === "web_fetch") return "fetch";
   if (name === "WebSearch" || name === "web_search") return "web";
-  if (name === BROWSER_BATCH_TOOL || name.startsWith("mcp__claude-in-chrome__")) return "browser";
-  if (name === "Task" || name === "Agent" || name === "spawn_subagent") return "agent";
+  if (name === BROWSER_BATCH_TOOL || name.startsWith("mcp__claude-in-chrome__"))
+    return "browser";
+  if (name === "Task" || name === "Agent" || name === "spawn_subagent")
+    return "agent";
   if (name === "Skill") return "skill";
   if (isTodoTool(name)) return "todo";
   if (name.startsWith("mcp__")) return "mcp";
@@ -66,7 +85,11 @@ export function toolRowKind(name: string): RowKind {
 /** The first line of a failure, without the harness's wrapper tags: what failed. */
 export function failureLine(content: string | undefined): string {
   const text = (content ?? "").replace(/<\/?[a-z_-]+>/gi, "");
-  const line = text.split("\n").map((l) => l.trim()).find(Boolean) ?? "";
+  const line =
+    text
+      .split("\n")
+      .map((l) => l.trim())
+      .find(Boolean) ?? "";
   return line.length > 140 ? `${line.slice(0, 139)}…` : line;
 }
 
@@ -89,11 +112,19 @@ export function modernToolHead({
   const kind = toolRowKind(name);
   const failed = !!result?.is_error;
   const verbs = VERBS[kind];
-  const verb = verbs ? (failed ? verbs.failed : result ? verbs.done : verbs.plain) : displayName;
+  const verb = verbs
+    ? failed
+      ? verbs.failed
+      : result
+        ? verbs.done
+        : verbs.plain
+    : displayName;
   const meta = failed
     ? failureLine(result?.content) || "failed"
     : resultSummary
-      ? resultSummary.replace(/^\((.*)\)$/, "$1").replace(/^\+(\d+) -(\d+)$/, "+$1 −$2")
+      ? resultSummary
+          .replace(/^\((.*)\)$/, "$1")
+          .replace(/^\+(\d+) -(\d+)$/, "+$1 −$2")
       : null;
   return { kind, verb, meta, failed };
 }
@@ -105,7 +136,8 @@ type GroupResult = { content: string; is_error?: boolean } | undefined;
 function groupSubject(call: GroupCall, kind: RowKind): string {
   const summary = toolSummary(call).replace(/\s+/g, " ").trim();
   if (kind === "shell") return shellLead(summary) || summary;
-  if (kind === "read" || kind === "edit" || kind === "write") return splitPath(summary).base;
+  if (kind === "read" || kind === "edit" || kind === "write")
+    return splitPath(summary).base;
   return summary;
 }
 
@@ -122,14 +154,34 @@ export function modernGroupHead(
   calls: readonly GroupCall[],
   counted: string,
   resultOf: (call: GroupCall) => GroupResult,
-): { kind: RowKind | "group"; verb: string; object: string; path: boolean; meta: string | null; failed: number } {
+): {
+  kind: RowKind | "group";
+  verb: string;
+  object: string;
+  path: boolean;
+  meta: string | null;
+  failed: number;
+} {
   if (calls.length === 1) {
     const call = calls[0];
     const result = resultOf(call);
-    const head = modernToolHead({ name: call.name, displayName: formatToolName(call.name) || call.name, result, resultSummary: toolResultHint(call, result) });
+    const head = modernToolHead({
+      name: call.name,
+      displayName: formatToolName(call.name) || call.name,
+      result,
+      resultSummary: toolResultHint(call, result),
+    });
     const object = toolSummary(call).replace(/\s+/g, " ").trim();
-    const path = head.kind === "read" || head.kind === "edit" || head.kind === "write";
-    return { kind: head.kind, verb: head.verb, object, path: path && !!object, meta: head.meta, failed: head.failed ? 1 : 0 };
+    const path =
+      head.kind === "read" || head.kind === "edit" || head.kind === "write";
+    return {
+      kind: head.kind,
+      verb: head.verb,
+      object,
+      path: path && !!object,
+      meta: head.meta,
+      failed: head.failed ? 1 : 0,
+    };
   }
   const kinds = new Set<RowKind>();
   const subjects: string[] = [];
@@ -142,6 +194,18 @@ export function modernGroupHead(
     if (subject && !subjects.includes(subject)) subjects.push(subject);
   }
   const kind = kinds.size === 1 ? [...kinds][0] : "group";
-  const meta = failed > 0 ? `${failed} failed` : kind === "group" ? `${calls.length} calls` : null;
-  return { kind, verb: counted, object: subjects.join(" · "), path: false, meta, failed };
+  const meta =
+    failed > 0
+      ? `${failed} failed`
+      : kind === "group"
+        ? `${calls.length} calls`
+        : null;
+  return {
+    kind,
+    verb: counted,
+    object: subjects.join(" · "),
+    path: false,
+    meta,
+    failed,
+  };
 }

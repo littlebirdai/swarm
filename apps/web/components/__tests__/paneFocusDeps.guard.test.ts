@@ -27,7 +27,8 @@ test("every effect gated on paneActive lists it as a dependency", () => {
     // Only files that gate an effect on the pane's focus.
     if (!src.includes("const paneActive = useTabActive()")) continue;
     if (!src.includes("!paneActive")) continue;
-    if (!/\}, \[[^\]]*\bpaneActive\b[^\]]*\]/.test(src)) offenders.push(file.slice(webRoot.length + 1));
+    if (!/\}, \[[^\]]*\bpaneActive\b[^\]]*\]/.test(src))
+      offenders.push(file.slice(webRoot.length + 1));
   }
   expect(offenders).toEqual([]);
 });

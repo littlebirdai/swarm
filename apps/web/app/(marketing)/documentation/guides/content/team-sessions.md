@@ -10,13 +10,13 @@ Each teammate installs Codecast once ([Getting started](/documentation#getting-s
 
 **Inbox** files your sessions by who has to act next:
 
-| Section | What is in it |
-|---------|---------------|
+| Section       | What is in it                                                                   |
+| ------------- | ------------------------------------------------------------------------------- |
 | **Decisions** | Questions agents are waiting on you for ([Decisions](/documentation/decisions)) |
-| **Needs You** | Blocked on you: a question, a permission prompt, a finished turn to review |
-| **Done** | Delivered. Read it when you have time |
-| **Working** | The agent is still going |
-| **Dormant** | Waiting on something scheduled, such as a test run or a reply |
+| **Needs You** | Blocked on you: a question, a permission prompt, a finished turn to review      |
+| **Done**      | Delivered. Read it when you have time                                           |
+| **Working**   | The agent is still going                                                        |
+| **Dormant**   | Waiting on something scheduled, such as a test run or a reply                   |
 
 ![The inbox with sessions under Needs You, Done and Working, and one conversation open beside it](/documentation/shots/inbox.webp "The inbox files sessions by who acts next, from every machine and every agent.")
 
@@ -56,9 +56,9 @@ Because every session lands in one place, the record keeps paying off after the 
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| Your sessions are missing from Activity | Activity shows *Your sessions are hidden from* your team. Click **Share workspaces** and share the repositories you work in |
-| A teammate's sessions are missing | They haven't shared that repository yet, or their computer hasn't connected. Shared sessions appear as soon as their Codecast is running |
-| Old sessions showed up after you shared | You picked *Everything, past sessions included*. Open the repository in **Sync & Privacy** and change it to **From today on**, or untick the sessions to keep private |
-| A folder should never reach the team | Set it to **Never share** in **Sync & Privacy** |
+| What you notice                         | What to do                                                                                                                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Your sessions are missing from Activity | Activity shows _Your sessions are hidden from_ your team. Click **Share workspaces** and share the repositories you work in                                           |
+| A teammate's sessions are missing       | They haven't shared that repository yet, or their computer hasn't connected. Shared sessions appear as soon as their Codecast is running                              |
+| Old sessions showed up after you shared | You picked _Everything, past sessions included_. Open the repository in **Sync & Privacy** and change it to **From today on**, or untick the sessions to keep private |
+| A folder should never reach the team    | Set it to **Never share** in **Sync & Privacy**                                                                                                                       |

@@ -9,7 +9,10 @@ import { useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { DynamicIcon } from "./ModIcon";
-import { objectStatusIsDone, type ModObjectKind } from "@codecast/shared/contracts/mods";
+import {
+  objectStatusIsDone,
+  type ModObjectKind,
+} from "@codecast/shared/contracts/mods";
 import { objectHref, objectKind, statusTone } from "../../lib/mods/objects";
 import { useObjectRow } from "../../lib/mods/useMods";
 import { useHoverCard } from "../../hooks/useHoverCard";
@@ -34,15 +37,29 @@ export function ModObjectPill({ shortId }: { shortId: string }) {
   const href = objectHref(id);
   const kindTitle = kind?.title ?? "Object";
 
-  const { open: hoverOpen, setOpen: setHoverOpen, openSoon, closeSoon, closeNow } = useHoverCard();
+  const {
+    open: hoverOpen,
+    setOpen: setHoverOpen,
+    openSoon,
+    closeSoon,
+    closeNow,
+  } = useHoverCard();
   const linkRef = useRef<HTMLAnchorElement>(null);
   const openLabel = `Open ${kindTitle.toLowerCase()}`;
   const onOpen = useCallback(() => closeNow(), [closeNow]);
-  const revealTarget = useMemo(() => ({ href, title: `${kindTitle}: ${label}`, onOpen, openLabel }), [href, kindTitle, label, onOpen, openLabel]);
-  const { host: revealHost, open: revealOpen, toggle: toggleReveal } = useRevealRef(revealTarget, linkRef);
+  const revealTarget = useMemo(
+    () => ({ href, title: `${kindTitle}: ${label}`, onOpen, openLabel }),
+    [href, kindTitle, label, onOpen, openLabel],
+  );
+  const {
+    host: revealHost,
+    open: revealOpen,
+    toggle: toggleReveal,
+  } = useRevealRef(revealTarget, linkRef);
   const canReveal = !!revealHost && !!row;
   // The status's own color on the icon, the way a task's disc says where it stands.
-  const iconTone = kind && row?.status ? statusTone(kind, row.status) : undefined;
+  const iconTone =
+    kind && row?.status ? statusTone(kind, row.status) : undefined;
 
   return (
     <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
@@ -56,14 +73,23 @@ export function ModObjectPill({ shortId }: { shortId: string }) {
           data-reveal-open={revealOpen ? "" : undefined}
           className={`not-prose entity-ref${canReveal ? " entity-ref--split" : ""} inline-flex items-center gap-[0.2em] px-[0.2em] rounded-[0.2em] text-[1em] font-medium leading-none ${revealOpen ? "underline" : "no-underline"} hover:underline decoration-current/40 underline-offset-2 align-baseline cursor-pointer transition-colors text-sol-violet bg-sol-violet/[0.08] hover:bg-sol-violet/[0.16] ${done ? "opacity-60" : ""}`}
         >
-          <DynamicIcon name={(kind?.icon ?? "box") as any} className="w-[1em] h-[1em] block flex-shrink-0 opacity-80" style={iconTone ? { color: iconTone } : undefined} />
+          <DynamicIcon
+            name={(kind?.icon ?? "box") as any}
+            className="w-[1em] h-[1em] block flex-shrink-0 opacity-80"
+            style={iconTone ? { color: iconTone } : undefined}
+          />
           <span className="self-baseline">{label}</span>
         </Link>
       </PopoverAnchor>
       {canReveal && (
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeNow(); toggleReveal(); }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeNow();
+            toggleReveal();
+          }}
           onMouseEnter={closeNow}
           aria-expanded={revealOpen}
           aria-label={revealOpen ? "Hide full page" : "Show full page here"}
@@ -85,8 +111,20 @@ export function ModObjectPill({ shortId }: { shortId: string }) {
       >
         <span aria-hidden className="absolute inset-x-0 top-full h-2" />
         <HoverCardClose.Provider value={closeNow}>
-          <Link href={href} onClick={onOpen} className="block p-3 no-underline cursor-pointer">
-            {row && kind ? <ObjectHoverContent row={row} kind={kind} /> : <div className="text-meta text-sol-text-dim">{loading ? `Loading ${kindTitle.toLowerCase()} ${id}…` : error ?? `${kindTitle} ${id} is not in this workspace`}</div>}
+          <Link
+            href={href}
+            onClick={onOpen}
+            className="block p-3 no-underline cursor-pointer"
+          >
+            {row && kind ? (
+              <ObjectHoverContent row={row} kind={kind} />
+            ) : (
+              <div className="text-meta text-sol-text-dim">
+                {loading
+                  ? `Loading ${kindTitle.toLowerCase()} ${id}…`
+                  : (error ?? `${kindTitle} ${id} is not in this workspace`)}
+              </div>
+            )}
           </Link>
           {canReveal && (
             <div className="flex items-center justify-between gap-2 border-t border-sol-border/60 px-3 py-1.5 text-meta text-sol-text-dim">
@@ -94,7 +132,12 @@ export function ModObjectPill({ shortId }: { shortId: string }) {
                 <ChevronDown className="h-3 w-3 shrink-0" />
                 <span className="truncate">The arrow opens it here</span>
               </span>
-              <RevealOpenLink href={href} label={openLabel} onOpen={onOpen} variant="compact" />
+              <RevealOpenLink
+                href={href}
+                label={openLabel}
+                onOpen={onOpen}
+                variant="compact"
+              />
             </div>
           )}
         </HoverCardClose.Provider>
@@ -104,38 +147,74 @@ export function ModObjectPill({ shortId }: { shortId: string }) {
 }
 
 /** The preview of one object: what it is and where it stands, its filled fields, the start of its notes. */
-function ObjectHoverContent({ row, kind }: { row: any; kind: ModObjectKind & { modTitle?: string } }) {
+function ObjectHoverContent({
+  row,
+  kind,
+}: {
+  row: any;
+  kind: ModObjectKind & { modTitle?: string };
+}) {
   const fields = Object.entries(kind.fields ?? {})
-    .filter(([name, f]) => f.type !== "markdown" && row.fields?.[name] !== undefined && row.fields?.[name] !== null && row.fields?.[name] !== "")
+    .filter(
+      ([name, f]) =>
+        f.type !== "markdown" &&
+        row.fields?.[name] !== undefined &&
+        row.fields?.[name] !== null &&
+        row.fields?.[name] !== "",
+    )
     .slice(0, CARD_FIELDS);
   const notes = row.body ? stripMarkdown(row.body).slice(0, 220) : "";
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-2">
-        <DynamicIcon name={(kind.icon ?? "box") as any} className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-sol-violet" />
+        <DynamicIcon
+          name={(kind.icon ?? "box") as any}
+          className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-sol-violet"
+        />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-sol-text leading-snug">{row.title || row.short_id}</div>
-          {row.status ? <div className="mt-1"><StatusBadge kind={kind} status={row.status} /></div> : null}
+          <div className="text-xs font-medium text-sol-text leading-snug">
+            {row.title || row.short_id}
+          </div>
+          {row.status ? (
+            <div className="mt-1">
+              <StatusBadge kind={kind} status={row.status} />
+            </div>
+          ) : null}
         </div>
       </div>
       {fields.length ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 pl-[22px] text-meta">
           {fields.map(([name, f]) => (
             <div key={name} className="contents">
-              <dt className="text-sol-text-dim whitespace-nowrap">{f.label ?? name.replace(/_/g, " ")}</dt>
-              <dd className="min-w-0 truncate text-sol-text-muted"><FieldValue field={f} value={row.fields[name]} /></dd>
+              <dt className="text-sol-text-dim whitespace-nowrap">
+                {f.label ?? name.replace(/_/g, " ")}
+              </dt>
+              <dd className="min-w-0 truncate text-sol-text-muted">
+                <FieldValue field={f} value={row.fields[name]} />
+              </dd>
             </div>
           ))}
         </dl>
       ) : null}
-      {notes ? <p className="pl-[22px] text-meta leading-relaxed text-sol-text-muted line-clamp-3">{notes}</p> : null}
+      {notes ? (
+        <p className="pl-[22px] text-meta leading-relaxed text-sol-text-muted line-clamp-3">
+          {notes}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2 border-t border-sol-border/60 pt-1.5 text-meta text-sol-text-dim">
         <span className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap">
           <ShortId id={row.short_id} />
           <span>·</span>
-          <span className="truncate">{kind.title}{kind.modTitle ? ` · ${kind.modTitle}` : ""}</span>
+          <span className="truncate">
+            {kind.title}
+            {kind.modTitle ? ` · ${kind.modTitle}` : ""}
+          </span>
         </span>
-        {row.updated_at ? <span className="shrink-0">updated {formatRelativeTime(row.updated_at)}</span> : null}
+        {row.updated_at ? (
+          <span className="shrink-0">
+            updated {formatRelativeTime(row.updated_at)}
+          </span>
+        ) : null}
       </div>
     </div>
   );

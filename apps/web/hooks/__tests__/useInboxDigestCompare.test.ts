@@ -12,7 +12,11 @@ import { useInboxStore } from "../../store/inboxStore";
 
 describe("startInboxDigestCompare", () => {
   it("subscribes at INBOX_COMPARE_TICK_MS, ticks the comparer on each tick, and unsubscribes on dispose", () => {
-    useInboxStore.setState({ sessions: {}, sessionsProjection: {}, currentUser: null } as any);
+    useInboxStore.setState({
+      sessions: {},
+      sessionsProjection: {},
+      currentUser: null,
+    } as any);
     let listener: (() => void) | null = null;
     let subscribedAt = 0;
     let unsubscribed = 0;
@@ -33,6 +37,8 @@ describe("startInboxDigestCompare", () => {
     handle.dispose();
     expect(unsubscribed).toBe(1);
     // A disposed comparer answers "disabled" to any further tick.
-    expect(handle.comparer.tick(useInboxStore.getState() as any)).toEqual({ kind: "disabled" });
+    expect(handle.comparer.tick(useInboxStore.getState() as any)).toEqual({
+      kind: "disabled",
+    });
   });
 });

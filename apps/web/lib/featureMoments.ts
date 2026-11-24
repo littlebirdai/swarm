@@ -48,10 +48,13 @@ const CHART_CHARS = /[█▇▆▅▄▃▂▁▏▎▍▌▋▊▉░▒▓■�
 /** A chart or diagram drawn in characters: three or more lines of block or
  *  box-drawing glyphs inside a code block. A lone separator line is not one. */
 export function hasTextChart(text: string): boolean {
-  return codeBlocks(text).some((block) => block.split("\n").filter((l) => CHART_CHARS.test(l)).length >= 3);
+  return codeBlocks(text).some(
+    (block) => block.split("\n").filter((l) => CHART_CHARS.test(l)).length >= 3,
+  );
 }
 
-const LOCAL_HTML = /(^|[\s(`'"<])(file:\/\/)?(~|\.{1,2})?\/[^\s`'")<>]*\.html?(?=$|[\s`'")<>.,:;!?])/im;
+const LOCAL_HTML =
+  /(^|[\s(`'"<])(file:\/\/)?(~|\.{1,2})?\/[^\s`'")<>]*\.html?(?=$|[\s`'")<>.,:;!?])/im;
 
 /** Points at an HTML file on disk (`/tmp/report.html`, `file://…`, `./out/index.html`)
  *  rather than at a URL someone else could open. */
@@ -73,14 +76,17 @@ export function endsWithQuestion(text: string): boolean {
 }
 
 /** Two or more lines that open as labelled options: (a) (b), a) b), 1. 2., Option A. */
-const OPTION_LINE = /^(?:[-*]\s*)?(?:\*\*)?(?:\(?[a-e]\)|\(?[1-5][.)]|option\s+[a-e1-5]\b)/i;
+const OPTION_LINE =
+  /^(?:[-*]\s*)?(?:\*\*)?(?:\(?[a-e]\)|\(?[1-5][.)]|option\s+[a-e1-5]\b)/i;
 
 /** "X or Y?": two alternatives in the question itself, not a yes/no with a
  *  trailing escape ("…or not?", "…or something else?"). */
-const TWO_ALTERNATIVES = /\S\s+or\s+(?!not\b|something\b|anything\b|else\b|other\b|should i\b|do you\b|would you\b)\S/i;
+const TWO_ALTERNATIVES =
+  /\S\s+or\s+(?!not\b|something\b|anything\b|else\b|other\b|should i\b|do you\b|would you\b)\S/i;
 
 /** Asking for permission or a check-in, not a choice between paths. */
-const CHECK_IN = /^(?:want me to|do you want me to|shall i|should i (?:go ahead|proceed|continue|keep|start|commit|ship|push|deploy|merge)|ready (?:for|to)|does (?:this|that) (?:look|sound|work)|sound good|ok(?:ay)?\b|anything else|any (?:thoughts|questions)|let me know)/i;
+const CHECK_IN =
+  /^(?:want me to|do you want me to|shall i|should i (?:go ahead|proceed|continue|keep|start|commit|ship|push|deploy|merge)|ready (?:for|to)|does (?:this|that) (?:look|sound|work)|sound good|ok(?:ay)?\b|anything else|any (?:thoughts|questions)|let me know)/i;
 
 /**
  * Ends on a judgment call the human must make between named alternatives:
@@ -92,7 +98,8 @@ export function asksForChoice(text: string): boolean {
   if (!endsWithQuestion(text)) return false;
   const lines = proseLines(text);
   const question = lines[lines.length - 1].replace(/^[*_>\s]+/, "");
-  const listed = lines.slice(-15).filter((l) => OPTION_LINE.test(l)).length >= 2;
+  const listed =
+    lines.slice(-15).filter((l) => OPTION_LINE.test(l)).length >= 2;
   if (listed) return true;
   return !CHECK_IN.test(question) && TWO_ALTERNATIVES.test(question);
 }
@@ -104,7 +111,9 @@ export function hasCanvas(text: string): boolean {
 
 /** A published codecast page, linked on its own line (how the thread embeds one). */
 export function hasPublishedPage(text: string): boolean {
-  return /^\s*(?:\[[^\]]*\]\()?https?:\/\/(?:[\w-]+\.)*codecast\.sh\/a\/[\w-]+/im.test(text);
+  return /^\s*(?:\[[^\]]*\]\()?https?:\/\/(?:[\w-]+\.)*codecast\.sh\/a\/[\w-]+/im.test(
+    text,
+  );
 }
 
 export interface MomentContext {
@@ -115,10 +124,22 @@ export interface MomentContext {
 }
 
 /** The feature this one assistant message makes the case for, if any. */
-export function momentForMessage(text: string, ctx: MomentContext): FeatureMoment | null {
-  const missing = (slug: MomentFeature): FeatureMoment => ({ slug, kind: "missing", reason: REASONS[slug] });
-  const shown = (slug: MomentFeature): FeatureMoment => ({ slug, kind: "shown", reason: SHOWN[slug]! });
-  if (ctx.isLast && ctx.needsInput && asksForChoice(text)) return missing("decide");
+export function momentForMessage(
+  text: string,
+  ctx: MomentContext,
+): FeatureMoment | null {
+  const missing = (slug: MomentFeature): FeatureMoment => ({
+    slug,
+    kind: "missing",
+    reason: REASONS[slug],
+  });
+  const shown = (slug: MomentFeature): FeatureMoment => ({
+    slug,
+    kind: "shown",
+    reason: SHOWN[slug]!,
+  });
+  if (ctx.isLast && ctx.needsInput && asksForChoice(text))
+    return missing("decide");
   if (hasLocalHtmlPath(text)) return missing("publish");
   if (hasTextChart(text)) return missing("visual");
   if (hasPublishedPage(text)) return shown("publish");
@@ -133,11 +154,17 @@ export function momentForMessage(text: string, ctx: MomentContext): FeatureMomen
  */
 export function pickFeatureMoment(
   messages: { id: string; text: string }[],
-  ctx: { needsInput: boolean; /** The agent is still writing the newest message. */ working?: boolean },
+  ctx: {
+    needsInput: boolean;
+    /** The agent is still writing the newest message. */ working?: boolean;
+  },
   offered: (slug: MomentFeature) => boolean,
 ): { id: string; moment: FeatureMoment } | null {
   for (let i = messages.length - 1 - (ctx.working ? 1 : 0); i >= 0; i--) {
-    const moment = momentForMessage(messages[i].text, { isLast: i === messages.length - 1, needsInput: ctx.needsInput });
+    const moment = momentForMessage(messages[i].text, {
+      isLast: i === messages.length - 1,
+      needsInput: ctx.needsInput,
+    });
     if (moment && offered(moment.slug)) return { id: messages[i].id, moment };
   }
   return null;

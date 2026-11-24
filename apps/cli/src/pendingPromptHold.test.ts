@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { PROMPT_HOLD_MS, clearPromptHolds, holdConversationForPrompt, promptHoldRemainingMs, releasePromptHold, setPendingRedrive } from "./pendingPromptHold.js";
+import {
+  PROMPT_HOLD_MS,
+  clearPromptHolds,
+  holdConversationForPrompt,
+  promptHoldRemainingMs,
+  releasePromptHold,
+  setPendingRedrive,
+} from "./pendingPromptHold.js";
 
 afterEach(() => clearPromptHolds());
 
@@ -29,10 +36,16 @@ describe("prompt hold expiry", () => {
     const realSetTimeout = globalThis.setTimeout;
     let fire: (() => void) | undefined;
     let delay = 0;
-    globalThis.setTimeout = ((fn: () => void, ms: number) => { fire = fn; delay = ms; return realSetTimeout(() => {}, 0); }) as typeof setTimeout;
+    globalThis.setTimeout = ((fn: () => void, ms: number) => {
+      fire = fn;
+      delay = ms;
+      return realSetTimeout(() => {}, 0);
+    }) as typeof setTimeout;
     let redriven = 0;
     try {
-      setPendingRedrive(() => { redriven++; });
+      setPendingRedrive(() => {
+        redriven++;
+      });
       holdConversationForPrompt("c1");
       expect(delay).toBe(PROMPT_HOLD_MS);
       fire!();
@@ -47,10 +60,15 @@ describe("prompt hold expiry", () => {
   test("a hold renewed before it lapses is not cut short by the older timer", () => {
     const realSetTimeout = globalThis.setTimeout;
     const fires: Array<() => void> = [];
-    globalThis.setTimeout = ((fn: () => void) => { fires.push(fn); return realSetTimeout(() => {}, 0); }) as typeof setTimeout;
+    globalThis.setTimeout = ((fn: () => void) => {
+      fires.push(fn);
+      return realSetTimeout(() => {}, 0);
+    }) as typeof setTimeout;
     let redriven = 0;
     try {
-      setPendingRedrive(() => { redriven++; });
+      setPendingRedrive(() => {
+        redriven++;
+      });
       holdConversationForPrompt("c1", 1_000);
       holdConversationForPrompt("c1", 2_000);
       fires[0]!();

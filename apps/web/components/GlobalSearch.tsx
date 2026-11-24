@@ -10,9 +10,16 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore, type InboxSession } from "../store/inboxStore";
 import { ContextMenu, useContextMenu } from "./ui/context-menu";
 import { SessionMenuItems } from "./menus/ObjectContextMenus";
-import { highlightMatch, getSnippet, parseSearchTerms } from "../lib/searchHighlight";
+import {
+  highlightMatch,
+  getSnippet,
+  parseSearchTerms,
+} from "../lib/searchHighlight";
 import { parseSessionQuery, searchedTermsText } from "@codecast/shared/search";
-import { useInstantSessionRows, mergeSearchRows } from "../lib/instantSessionSearch";
+import {
+  useInstantSessionRows,
+  mergeSearchRows,
+} from "../lib/instantSessionSearch";
 import { SessionQuerySuggestList } from "./SessionQuerySuggestList";
 import { useSessionQueryAutocomplete } from "../hooks/useSessionQuerySuggestions";
 import { SearchField, SearchGlyph } from "./search/SearchField";
@@ -40,7 +47,9 @@ export function GlobalSearch() {
   // it. As the slot tightens the field sheds the ⌘/ hint first, then folds
   // into the icon.
   const rootRef = useRef<HTMLDivElement>(null);
-  const [slotSize, setSlotSize] = useState<"wide" | "medium" | "compact">("wide");
+  const [slotSize, setSlotSize] = useState<"wide" | "medium" | "compact">(
+    "wide",
+  );
   useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -60,7 +69,9 @@ export function GlobalSearch() {
   // stored index would silently move the highlight onto a different session.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userOnly, setUserOnly] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const [panelTop, setPanelTop] = useState(0);
   const router = useRouter();
@@ -90,7 +101,12 @@ export function GlobalSearch() {
     ...(selectedTeamId ? { activeTeamId: selectedTeamId } : { allTeams: true }),
     debounceMs: 200,
   });
-  const { debouncedQuery, searchError, contentData: searchData, titleData } = remote;
+  const {
+    debouncedQuery,
+    searchError,
+    contentData: searchData,
+    titleData,
+  } = remote;
   const searchResults = remote.contentLoaded ? searchData : undefined;
 
   // A broad term scans the whole message history and can exceed Convex's per-query
@@ -114,15 +130,22 @@ export function GlobalSearch() {
 
   // Content-match rows win, title-only rows next, cache rows fill the tail.
   const groupedResults = useMemo(
-    () => mergeSearchRows(searchData?.results as any, titleData?.results as any, instantRows) as any[],
-    [searchData, titleData, instantRows]
+    () =>
+      mergeSearchRows(
+        searchData?.results as any,
+        titleData?.results as any,
+        instantRows,
+      ) as any[],
+    [searchData, titleData, instantRows],
   );
 
   // Nothing selected (or the selected session dropped out of the list) falls
   // back to the first row, so Enter always has a target.
   const selectedIndex = useMemo(() => {
     if (!selectedId) return 0;
-    const i = groupedResults.findIndex((r: any) => r.conversationId === selectedId);
+    const i = groupedResults.findIndex(
+      (r: any) => r.conversationId === selectedId,
+    );
     return i >= 0 ? i : 0;
   }, [groupedResults, selectedId]);
 
@@ -133,32 +156,42 @@ export function GlobalSearch() {
   const nameCount = groupedResults.filter((r: any) => r.titleMatch).length;
   // What the header line may claim. Content is the slow tier; until it answers
   // the count on screen is "what we can already see", never a total.
-  const contentPending = debouncedQuery.length >= 2 && !searchData && !searchError;
+  const contentPending =
+    debouncedQuery.length >= 2 && !searchData && !searchError;
 
-  useShortcutAction('search.open', useCallback(() => {
-    setIsOpen(true);
-    setIconOpen(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }, []));
+  useShortcutAction(
+    "search.open",
+    useCallback(() => {
+      setIsOpen(true);
+      setIconOpen(true);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }, []),
+  );
 
-  useEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      // With a context menu open, Escape belongs to the menu (Radix closes it
-      // itself) — don't tear down the whole search panel on the same press.
-      if (sessionCtxMenu.menu) return;
-      setIsOpen(false);
-      setIconOpen(false);
-      setQuery("");
-      inputRef.current?.blur();
-    }
-  }, document);
+  useEventListener(
+    "keydown",
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // With a context menu open, Escape belongs to the menu (Radix closes it
+        // itself) — don't tear down the whole search panel on the same press.
+        if (sessionCtxMenu.menu) return;
+        setIsOpen(false);
+        setIconOpen(false);
+        setQuery("");
+        inputRef.current?.blur();
+      }
+    },
+    document,
+  );
 
   useWatchEffect(() => {
     setSelectedId(null);
   }, [query]);
 
   const goToFullSearch = useCallback(() => {
-    router.push(`/search?q=${encodeURIComponent(query.trim())}${userOnly ? "&user=1" : ""}`);
+    router.push(
+      `/search?q=${encodeURIComponent(query.trim())}${userOnly ? "&user=1" : ""}`,
+    );
     setIsOpen(false);
     setIconOpen(false);
     setQuery("");
@@ -188,9 +221,10 @@ export function GlobalSearch() {
       const results = groupedResults;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        const next = e.key === "ArrowDown"
-          ? Math.min(selectedIndex + 1, results.length - 1)
-          : Math.max(selectedIndex - 1, 0);
+        const next =
+          e.key === "ArrowDown"
+            ? Math.min(selectedIndex + 1, results.length - 1)
+            : Math.max(selectedIndex - 1, 0);
         setSelectedId(results[next]?.conversationId ?? null);
       } else if (e.key === "Enter") {
         e.preventDefault();
@@ -205,19 +239,32 @@ export function GlobalSearch() {
         }
       }
     },
-    [autocomplete, groupedResults, selectedIndex, router, query, goToFullSearch]
+    [
+      autocomplete,
+      groupedResults,
+      selectedIndex,
+      router,
+      query,
+      goToFullSearch,
+    ],
   );
 
   // One cursor menu for all result rows. The full triage menu (pin, label,
   // stash…) mutates the inbox-store row, so it needs both proof of ownership
   // (server-computed isOwn) AND the session present in the store; anything
   // else gets the read-only foreign menu.
-  const sessionCtxMenu = useContextMenu<{ session: InboxSession; isForeign: boolean; conversationId: string }>();
+  const sessionCtxMenu = useContextMenu<{
+    session: InboxSession;
+    isForeign: boolean;
+    conversationId: string;
+  }>();
   const openSessionMenu = (e: React.MouseEvent, row: any) => {
     const stored = useInboxStore.getState().sessions[row.conversationId];
     const isForeign = !(row.isOwn === true && stored);
     sessionCtxMenu.open(e, {
-      session: stored ?? ({ _id: row.conversationId, title: row.title } as InboxSession),
+      session:
+        stored ??
+        ({ _id: row.conversationId, title: row.title } as InboxSession),
       isForeign,
       conversationId: row.conversationId,
     });
@@ -229,7 +276,10 @@ export function GlobalSearch() {
     // z-[240]: above every page surface and z-[200] overlay, but BELOW the
     // dropdown-menu portal layer (z-[250]) so the right-click context menu on
     // result rows paints over this panel. CommandPalette (9999) still wins.
-    <div ref={rootRef} className={`relative flex-1 min-w-7 z-[240] flex justify-center ${isExpanded ? "max-w-[680px]" : "max-w-[230px]"}`}>
+    <div
+      ref={rootRef}
+      className={`relative flex-1 min-w-7 z-[240] flex justify-center ${isExpanded ? "max-w-[680px]" : "max-w-[230px]"}`}
+    >
       {/* Slot too tight for a usable field: it folds into this one button;
           clicking it expands the field as a fixed overlay centered over the
           header (.tb-search-overlay in globals.css). */}
@@ -263,12 +313,25 @@ export function GlobalSearch() {
         }}
         inputProps={{
           onSelect: autocomplete.inputHandlers.onSelect,
-          onFocus: () => { setIsFocused(true); setIsOpen(true); autocomplete.inputHandlers.onFocus(); },
-          onBlur: () => { setIsFocused(false); setIconOpen(false); autocomplete.inputHandlers.onBlur(); },
+          onFocus: () => {
+            setIsFocused(true);
+            setIsOpen(true);
+            autocomplete.inputHandlers.onFocus();
+          },
+          onBlur: () => {
+            setIsFocused(false);
+            setIconOpen(false);
+            autocomplete.inputHandlers.onBlur();
+          },
           onKeyDown: handleKeyDown,
         }}
       >
-        {autocomplete.open && <SessionQuerySuggestList {...autocomplete.listProps} className="z-[250]" />}
+        {autocomplete.open && (
+          <SessionQuerySuggestList
+            {...autocomplete.listProps}
+            className="z-[250]"
+          />
+        )}
       </SearchField>
 
       {isOpen && query.length >= 2 && (
@@ -276,52 +339,80 @@ export function GlobalSearch() {
           style={{ top: panelTop }}
           className="fixed left-1/2 -translate-x-1/2 w-[min(1200px,calc(100vw-2rem))] bg-sol-bg border border-sol-border rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-[240] modern:rounded-card modern:bg-sol-card modern:shadow-popover"
         >
-            {groupedResults.length === 0 && !searchData ? (
-              searchIsSlow || searchError ? (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-sol-text-secondary mb-2">
-                    {searchError ? "Search timed out" : "This search is taking a while"}
-                  </p>
-                  <p className="text-xs text-sol-text-dim mb-3">
-                    Broad terms scan your whole history and can time out. Try a more specific word, or wrap an exact phrase in quotes.
-                  </p>
-                  <button
-                    onClick={goToFullSearch}
-                    className={`text-xs text-sol-text-secondary hover:text-sol-text px-2.5 py-1 rounded-md border border-sol-border bg-sol-bg-alt hover:bg-sol-bg-highlight transition-colors ${modernButton({ variant: "outline", size: "sm" })}`}
-                  >
-                    Open full search to narrow by time or scope
-                  </button>
-                </div>
-              ) : (
-                <AppLoader className="min-h-0 bg-transparent py-8" size={24} />
-              )
-            ) : groupedResults.length === 0 ? (
+          {groupedResults.length === 0 && !searchData ? (
+            searchIsSlow || searchError ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm text-sol-text-secondary mb-2">No conversations match</p>
-                <p className="text-xs text-sol-text-dim">Try different keywords</p>
+                <p className="text-sm text-sol-text-secondary mb-2">
+                  {searchError
+                    ? "Search timed out"
+                    : "This search is taking a while"}
+                </p>
+                <p className="text-xs text-sol-text-dim mb-3">
+                  Broad terms scan your whole history and can time out. Try a
+                  more specific word, or wrap an exact phrase in quotes.
+                </p>
+                <button
+                  onClick={goToFullSearch}
+                  className={`text-xs text-sol-text-secondary hover:text-sol-text px-2.5 py-1 rounded-md border border-sol-border bg-sol-bg-alt hover:bg-sol-bg-highlight transition-colors ${modernButton({ variant: "outline", size: "sm" })}`}
+                >
+                  Open full search to narrow by time or scope
+                </button>
               </div>
             ) : (
-              <div className="max-h-[80vh] overflow-y-auto">
-                <div className="relative px-4 py-2 border-b border-sol-border text-xs text-sol-text-secondary">
-                  {searchData
-                    ? <>{totalMatches} match{totalMatches !== 1 ? "es" : ""} in {sessionCount} {noun(sessionCount)}</>
-                    : nameCount === sessionCount
-                    ? <>{sessionCount} {noun(sessionCount)} matched by name</>
-                    : nameCount > 0
-                    ? <>{nameCount} by name, {sessionCount - nameCount} in summaries</>
-                    : <>{sessionCount} {noun(sessionCount)} matched in summaries</>}
-                  {contentPending && <span className="text-sol-text-dim"> · searching message content…</span>}
-                  {searchError && <span className="text-sol-text-dim"> · content search timed out</span>}
-                  {/* The one thing a moving bar should say: the slower tier is
+              <AppLoader className="min-h-0 bg-transparent py-8" size={24} />
+            )
+          ) : groupedResults.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm text-sol-text-secondary mb-2">
+                No conversations match
+              </p>
+              <p className="text-xs text-sol-text-dim">
+                Try different keywords
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[80vh] overflow-y-auto">
+              <div className="relative px-4 py-2 border-b border-sol-border text-xs text-sol-text-secondary">
+                {searchData ? (
+                  <>
+                    {totalMatches} match{totalMatches !== 1 ? "es" : ""} in{" "}
+                    {sessionCount} {noun(sessionCount)}
+                  </>
+                ) : nameCount === sessionCount ? (
+                  <>
+                    {sessionCount} {noun(sessionCount)} matched by name
+                  </>
+                ) : nameCount > 0 ? (
+                  <>
+                    {nameCount} by name, {sessionCount - nameCount} in summaries
+                  </>
+                ) : (
+                  <>
+                    {sessionCount} {noun(sessionCount)} matched in summaries
+                  </>
+                )}
+                {contentPending && (
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    · searching message content…
+                  </span>
+                )}
+                {searchError && (
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    · content search timed out
+                  </span>
+                )}
+                {/* The one thing a moving bar should say: the slower tier is
                       still running. It rides the header's bottom edge so rows
                       never shift when it appears or goes. */}
-                  {contentPending && (
-                    <span className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 overflow-hidden">
-                      <span className="search-scan-bar block h-full w-1/3 bg-gradient-to-r from-transparent via-sol-cyan to-transparent" />
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1 py-1">
+                {contentPending && (
+                  <span className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 overflow-hidden">
+                    <span className="search-scan-bar block h-full w-1/3 bg-gradient-to-r from-transparent via-sol-cyan to-transparent" />
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1 py-1">
                 {groupedResults.map((session, sessionIndex) => (
                   <SessionHit
                     key={session.conversationId}
@@ -334,64 +425,68 @@ export function GlobalSearch() {
                     onSessionMenu={(e) => openSessionMenu(e, session)}
                   />
                 ))}
-                </div>
-              </div>
-            )}
-            <div className="px-3 py-2 bg-sol-bg-alt/80 border-t border-sol-border flex items-center justify-between text-meta text-sol-text-dim">
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none text-sol-text-secondary hover:text-sol-text transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={userOnly}
-                    onChange={(e) => setUserOnly(e.target.checked)}
-                    className="w-3 h-3 rounded border-sol-border bg-sol-bg text-sol-cyan focus:ring-sol-cyan/50 focus:ring-offset-0 cursor-pointer"
-                  />
-                  user only
-                </label>
-                {userTeams && userTeams.length > 1 && (
-                  <>
-                    <span className="text-sol-border">|</span>
-                    <select
-                      value={selectedTeamId ?? ""}
-                      onChange={(e) => setSelectedTeamId(e.target.value ? e.target.value as Id<"teams"> : null)}
-                      className="px-1.5 py-0.5 bg-sol-bg rounded border border-sol-border text-sol-text-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-sol-cyan/50"
-                    >
-                      <option value="">All teams</option>
-                      {userTeams.map((team: any) => (
-                        <option key={team?._id} value={team?._id}>
-                          {team?.name}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                <span className="text-sol-border">|</span>
-                <span className="flex items-center gap-1">
-                  <KeyCap size="xs">↑</KeyCap>
-                  <KeyCap size="xs">↓</KeyCap>
-                  navigate
-                </span>
-                <span className="flex items-center gap-1">
-                  <KeyCap size="xs">↵</KeyCap>
-                  open
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={goToFullSearch}
-                  className="flex items-center gap-1 cursor-pointer text-sol-text-secondary hover:text-sol-text transition-colors"
-                >
-                  <KeyCap size="xs">⇧</KeyCap>
-                  <KeyCap size="xs">↵</KeyCap>
-                  full search
-                </button>
-                <span className="flex items-center gap-1">
-                  <KeyCap size="xs">Esc</KeyCap>
-                  close
-                </span>
               </div>
             </div>
+          )}
+          <div className="px-3 py-2 bg-sol-bg-alt/80 border-t border-sol-border flex items-center justify-between text-meta text-sol-text-dim">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-sol-text-secondary hover:text-sol-text transition-colors">
+                <input
+                  type="checkbox"
+                  checked={userOnly}
+                  onChange={(e) => setUserOnly(e.target.checked)}
+                  className="w-3 h-3 rounded border-sol-border bg-sol-bg text-sol-cyan focus:ring-sol-cyan/50 focus:ring-offset-0 cursor-pointer"
+                />
+                user only
+              </label>
+              {userTeams && userTeams.length > 1 && (
+                <>
+                  <span className="text-sol-border">|</span>
+                  <select
+                    value={selectedTeamId ?? ""}
+                    onChange={(e) =>
+                      setSelectedTeamId(
+                        e.target.value ? (e.target.value as Id<"teams">) : null,
+                      )
+                    }
+                    className="px-1.5 py-0.5 bg-sol-bg rounded border border-sol-border text-sol-text-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-sol-cyan/50"
+                  >
+                    <option value="">All teams</option>
+                    {userTeams.map((team: any) => (
+                      <option key={team?._id} value={team?._id}>
+                        {team?.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <span className="text-sol-border">|</span>
+              <span className="flex items-center gap-1">
+                <KeyCap size="xs">↑</KeyCap>
+                <KeyCap size="xs">↓</KeyCap>
+                navigate
+              </span>
+              <span className="flex items-center gap-1">
+                <KeyCap size="xs">↵</KeyCap>
+                open
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={goToFullSearch}
+                className="flex items-center gap-1 cursor-pointer text-sol-text-secondary hover:text-sol-text transition-colors"
+              >
+                <KeyCap size="xs">⇧</KeyCap>
+                <KeyCap size="xs">↵</KeyCap>
+                full search
+              </button>
+              <span className="flex items-center gap-1">
+                <KeyCap size="xs">Esc</KeyCap>
+                close
+              </span>
+            </div>
+          </div>
         </div>
       )}
 

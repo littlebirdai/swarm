@@ -2,13 +2,22 @@
 // engine's typed notice (NOTICE_KINDS in contracts/assistant), its tone, and
 // how an inbox row names a conversation that ended on one. A leaf, so the
 // pure row view and the transcript read one rule.
-import { APPROVAL_ANSWERS, NOTICE_KINDS, noticeKindOf, type NoticeKind } from "@codecast/shared/contracts/assistant";
+import {
+  APPROVAL_ANSWERS,
+  NOTICE_KINDS,
+  noticeKindOf,
+  type NoticeKind,
+} from "@codecast/shared/contracts/assistant";
 import { isHostedAgentType } from "@codecast/shared/contracts";
 
 /** The notice kind of a transcript row, or null for any other row. A notice
  *  the engine wrote before notices were typed is known by its key
  *  (`notice:<turn>`) and read by its words. */
-export function hostedNoticeKind(row: { subtype?: string | null; message_uuid?: string | null; content?: string | null }): NoticeKind | null {
+export function hostedNoticeKind(row: {
+  subtype?: string | null;
+  message_uuid?: string | null;
+  content?: string | null;
+}): NoticeKind | null {
   const typed = noticeKindOf(row.subtype);
   if (typed) return typed;
   if (!row.message_uuid?.startsWith("notice:")) return null;
@@ -21,17 +30,34 @@ export function hostedNoticeKind(row: { subtype?: string | null; message_uuid?: 
 
 /** The kind of notice a conversation's transcript ends on, or null when it
  *  ends on anything else. The inbox row reads it to say the turn stopped. */
-export function lastNoticeKind(messages: readonly { role?: string; subtype?: string | null; message_uuid?: string | null; content?: string | null }[] | undefined): NoticeKind | null {
+export function lastNoticeKind(
+  messages:
+    | readonly {
+        role?: string;
+        subtype?: string | null;
+        message_uuid?: string | null;
+        content?: string | null;
+      }[]
+    | undefined,
+): NoticeKind | null {
   const last = messages?.[messages.length - 1];
   return last?.role === "assistant" ? hostedNoticeKind(last) : null;
 }
 
-type NoticeRow = { role?: string; subtype?: string | null; message_uuid?: string | null; content?: string | null };
+type NoticeRow = {
+  role?: string;
+  subtype?: string | null;
+  message_uuid?: string | null;
+  content?: string | null;
+};
 
 /** A hosted conversation row as the stop rule reads it: its agent, and the
  *  stop the engine stamped on it (conversations.hosted_stop). */
 type StopRow = { agent_type?: string | null; hosted_stop?: string | null };
-const stopsSigCache = new WeakMap<object, { rows: Array<[string, StopRow]>; byMessages: WeakMap<object, string> }>();
+const stopsSigCache = new WeakMap<
+  object,
+  { rows: Array<[string, StopRow]>; byMessages: WeakMap<object, string> }
+>();
 
 /** The stop a hosted conversation ended on, or null: for any other agent, or
  *  one whose last turn ended on anything else. The row's own stamp
@@ -41,10 +67,15 @@ const stopsSigCache = new WeakMap<object, { rows: Array<[string, StopRow]>; byMe
  *  inbox files such a row under "Couldn't finish" rather than the person's
  *  turn, and keeps it out of the needs-input count: the assistant failed
  *  them, they owe no reply. */
-export function hostedStopOf(row: StopRow | undefined, messages: readonly NoticeRow[] | undefined): NoticeKind | null {
+export function hostedStopOf(
+  row: StopRow | undefined,
+  messages: readonly NoticeRow[] | undefined,
+): NoticeKind | null {
   if (!row || !isHostedAgentType(row.agent_type)) return null;
   if (row.hosted_stop !== undefined) {
-    return (NOTICE_KINDS as readonly string[]).includes(row.hosted_stop ?? "") ? (row.hosted_stop as NoticeKind) : null;
+    return (NOTICE_KINDS as readonly string[]).includes(row.hosted_stop ?? "")
+      ? (row.hosted_stop as NoticeKind)
+      : null;
   }
   return lastNoticeKind(messages);
 }
@@ -57,7 +88,8 @@ export function splitHostedStops<T extends { _id: string } & StopRow>(
 ): { asks: T[]; stopped: T[] } {
   const asks: T[] = [];
   const stopped: T[] = [];
-  for (const row of rows) (hostedStopOf(row, messagesOf(row._id)) ? stopped : asks).push(row);
+  for (const row of rows)
+    (hostedStopOf(row, messagesOf(row._id)) ? stopped : asks).push(row);
   return { asks, stopped };
 }
 
@@ -94,7 +126,9 @@ const ANSWER_WORDS = new Set<string>(Object.values(APPROVAL_ANSWERS));
 /** The person's last request in a hosted transcript, which Try again sends
  *  again: their last own words, passing over approval answers and wrapped
  *  system rows. */
-export function lastAskOf(messages: readonly NoticeRow[] | undefined): string | undefined {
+export function lastAskOf(
+  messages: readonly NoticeRow[] | undefined,
+): string | undefined {
   for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
     const m = messages![i];
     if (m.role !== "user") continue;
@@ -120,7 +154,10 @@ export const NOTICE_ROW_WORD: Record<NoticeKind, string> = {
 /** The notice card's tone: a stop the person can fix reads warm, a wait
  *  reads calm. Named by palette colour so the web (NOTICE_DOT) and the phone
  *  draw the same dot. */
-export const NOTICE_TONE: Record<NoticeKind, "red" | "yellow" | "orange" | "blue"> = {
+export const NOTICE_TONE: Record<
+  NoticeKind,
+  "red" | "yellow" | "orange" | "blue"
+> = {
   error: "red",
   unavailable: "yellow",
   budget: "orange",
@@ -131,7 +168,12 @@ export const NOTICE_TONE: Record<NoticeKind, "red" | "yellow" | "orange" | "blue
   vendor: "orange",
 };
 
-const TONE_DOT = { red: "bg-sol-red/70", yellow: "bg-sol-yellow", orange: "bg-sol-orange", blue: "bg-sol-blue/70" } as const;
+const TONE_DOT = {
+  red: "bg-sol-red/70",
+  yellow: "bg-sol-yellow",
+  orange: "bg-sol-orange",
+  blue: "bg-sol-blue/70",
+} as const;
 
 /** The notice card's dot on the web, from its tone. */
 export const NOTICE_DOT = Object.fromEntries(
@@ -146,13 +188,28 @@ export const KEEP_GOING = "Keep going";
  *  words it sends into the conversation or that it opens the plan. The web's
  *  notice and bulk retry (HostedNotice actionFor) and the phone's notice
  *  (components/hosted/Notice) both read it, so the three never disagree. */
-export type NoticeMove = { label: string; busy?: string; send?: string; opensPlan?: true };
+export type NoticeMove = {
+  label: string;
+  busy?: string;
+  send?: string;
+  opensPlan?: true;
+};
 
-export function noticeMove(kind: NoticeKind, retryText: string | undefined, upgradesOpen: boolean): NoticeMove | null {
+export function noticeMove(
+  kind: NoticeKind,
+  retryText: string | undefined,
+  upgradesOpen: boolean,
+): NoticeMove | null {
   switch (kind) {
     case "error":
     case "unavailable":
-      return retryText ? { label: kind === "unavailable" ? "Try now" : "Try again", busy: "Trying again…", send: retryText } : null;
+      return retryText
+        ? {
+            label: kind === "unavailable" ? "Try now" : "Try again",
+            busy: "Trying again…",
+            send: retryText,
+          }
+        : null;
     case "time":
       return { label: KEEP_GOING, busy: "Going on…", send: KEEP_GOING };
     case "budget":
@@ -173,9 +230,16 @@ export function noticeMove(kind: NoticeKind, retryText: string | undefined, upgr
  *  moved past, the engine's closing invitation to ask again no longer says
  *  anything (`dropInvite`), so it goes; a stop that repeated is one line
  *  with the count. */
-export function noticeWords(content: string, retries: number, dropInvite: boolean): string {
-  if (retries > 0) return `Still can't get through after ${retries + 1} tries. The trouble is on our side, not yours.`;
-  return dropInvite ? content.replace(/\s*You can ask me to try again\.?\s*$/i, "") : content;
+export function noticeWords(
+  content: string,
+  retries: number,
+  dropInvite: boolean,
+): string {
+  if (retries > 0)
+    return `Still can't get through after ${retries + 1} tries. The trouble is on our side, not yours.`;
+  return dropInvite
+    ? content.replace(/\s*You can ask me to try again\.?\s*$/i, "")
+    : content;
 }
 
 /** A transcript row as the retry fold reads it. `person` marks a user row
@@ -197,7 +261,10 @@ export type RetryFoldRow = {
  *  and the repeated requests; `attempts` the count for each notice still
  *  shown. One pass decides both, so a request and the notice it answered
  *  always fold together. */
-export function foldHostedRetries(rows: readonly RetryFoldRow[]): { hidden: Set<string>; attempts: Map<string, number> } {
+export function foldHostedRetries(rows: readonly RetryFoldRow[]): {
+  hidden: Set<string>;
+  attempts: Map<string, number>;
+} {
   const hidden = new Set<string>();
   const attempts = new Map<string, number>();
   let asked: string | undefined;

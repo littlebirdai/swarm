@@ -1,5 +1,20 @@
-import { Fragment, memo, useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Captions, ChevronRight, ExternalLink, Sparkles, UserPlus } from "lucide-react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  Captions,
+  ChevronRight,
+  ExternalLink,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -17,7 +32,10 @@ import { useInboxStore, useMyUserId } from "../../store/inboxStore";
 import { navigateMainWindow } from "../../lib/desktop";
 import { settleComposerAttachments } from "../../lib/draftImages";
 import { getRoom, startTranscribing } from "../../lib/calls/callManager";
-import { getScribeStatus, subscribeScribe } from "../../lib/calls/transcription";
+import {
+  getScribeStatus,
+  subscribeScribe,
+} from "../../lib/calls/transcription";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { scrollIntoContainer } from "../../lib/scrollWithin";
 import { useRoomTranscribeOff } from "../../hooks/useRoomTranscribeOff";
@@ -35,8 +53,19 @@ import { TranscriptTurnList } from "./TranscriptTurns";
 import { ThreadFindField } from "./ThreadFind";
 import { passageHits, useThreadFind } from "../../hooks/useThreadFind";
 import { usePaneShortcutAction } from "../../shortcuts/ShortcutProvider";
-import { ChatLine, EventLine, PassageBlock, RecapCard, type LocalRow, type RoomThreadSelection } from "./RoomThreadRows";
-import { useAddToCall, useAgentsInRoom, useRemoveLiveFeed } from "./useCallFeed";
+import {
+  ChatLine,
+  EventLine,
+  PassageBlock,
+  RecapCard,
+  type LocalRow,
+  type RoomThreadSelection,
+} from "./RoomThreadRows";
+import {
+  useAddToCall,
+  useAgentsInRoom,
+  useRemoveLiveFeed,
+} from "./useCallFeed";
 import { teamHasFeature } from "../../lib/teamFeatures";
 import {
   HEARS,
@@ -52,7 +81,12 @@ import "../chat/chat.css";
 import "./roomThread.css";
 import { CallTasks, makeCallTask, useCallTasks } from "./CallTasks";
 import { taskForItem } from "../../lib/calls/followThrough";
-import { AgentFaceToggle, DensityControl, WorkingDots, type Density } from "./RoomThreadControls";
+import {
+  AgentFaceToggle,
+  DensityControl,
+  WorkingDots,
+  type Density,
+} from "./RoomThreadControls";
 
 // THE HUDDLE HAS ONE THREAD. Everything that happens in a room lands here in
 // time order: what people SAID (the transcript, folded into passages so it
@@ -77,7 +111,13 @@ import { AgentFaceToggle, DensityControl, WorkingDots, type Density } from "./Ro
 export type { RoomThreadSelection } from "./RoomThreadRows";
 export { SegmentedRadio } from "./RoomThreadControls";
 
-export type RoomThreadRoute = { kind: string; target: string; mode: string; added_by: string; face?: boolean };
+export type RoomThreadRoute = {
+  kind: string;
+  target: string;
+  mode: string;
+  added_by: string;
+  face?: boolean;
+};
 
 /** What the thread reads of transcripts.webGetCall. */
 export type RoomThreadCall = {
@@ -97,7 +137,8 @@ export type RoomThreadCall = {
 
 type Surface = "stage" | "page";
 
-const DENSITY_KEY = (surface: Surface) => `codecast.roomThread.words.${surface}`;
+const DENSITY_KEY = (surface: Surface) =>
+  `codecast.roomThread.words.${surface}`;
 
 function readDensity(surface: Surface): Density {
   try {
@@ -109,7 +150,10 @@ function readDensity(surface: Surface): Density {
   return surface === "page" ? "full" : "folded";
 }
 
-function echoKey(text: string, attachments?: { storage_id: string }[] | null): string {
+function echoKey(
+  text: string,
+  attachments?: { storage_id: string }[] | null,
+): string {
   return `${text}\0${(attachments ?? []).map((a) => a.storage_id).join(",")}`;
 }
 
@@ -156,13 +200,22 @@ export const RoomThread = memo(function RoomThread({
   // The tasks pulled from this call, and the one each action item became.
   const callTasks = useCallTasks(call);
   const post = useMutation(api.callChat.post);
-  const [pending, setPending] = useState<Array<{ key: string; text: string; attachments: ChatAttachment[]; at: number }>>([]);
+  const [pending, setPending] = useState<
+    Array<{
+      key: string;
+      text: string;
+      attachments: ChatAttachment[];
+      at: number;
+    }>
+  >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Follow the tail while the call is live (the newest words are the point);
   // an ended call opens at the top, where the recap is. The stage only shows
   // the rail during a live huddle, so it always starts at the bottom, even
   // before the first word is transcribed.
-  const stuckRef = useRef(surface === "stage" || (!!call && call.status === "live"));
+  const stuckRef = useRef(
+    surface === "stage" || (!!call && call.status === "live"),
+  );
   useWatchEffect(() => {
     // A rail that watched transcription start follows the new passage.
     if (liveTranscriptId) stuckRef.current = true;
@@ -179,7 +232,9 @@ export const RoomThread = memo(function RoomThread({
   } = useConversationFileDrop();
   const idPrefix = useId();
   const draftKey = `huddle:${roomKey}`;
-  const mentionTeamId = useInboxStore((s: any) => s.clientState?.ui?.active_team_id as string | undefined);
+  const mentionTeamId = useInboxStore(
+    (s: any) => s.clientState?.ui?.active_team_id as string | undefined,
+  );
   const myUserId = useMyUserId();
   // The room's opt-out (liveRooms): "off" because somebody switched it off
   // reads differently from "nobody has started yet".
@@ -188,17 +243,27 @@ export const RoomThread = memo(function RoomThread({
   // it), so words are flowing only while the record is live and the room has
   // not opted out.
   const transcribing = !!liveTranscriptId && !switchedOff;
-  const scribeError = useSyncExternalStore(subscribeScribe, () => getScribeStatus().error, () => null);
+  const scribeError = useSyncExternalStore(
+    subscribeScribe,
+    () => getScribeStatus().error,
+    () => null,
+  );
   // The viewer's own mute (callManager writes it) and the room's: every
   // seat muted means nobody can say anything for the scribe to hear.
-  const muted = useInboxStore((s: any) => s.call?.roomKey === roomKey && !!s.call?.muted);
-  const seats = useInboxStore((s: any) => ((s.callOccupancy?.[roomKey] ?? []) as any[]).length);
+  const muted = useInboxStore(
+    (s: any) => s.call?.roomKey === roomKey && !!s.call?.muted,
+  );
+  const seats = useInboxStore(
+    (s: any) => ((s.callOccupancy?.[roomKey] ?? []) as any[]).length,
+  );
   const allMuted = useInboxStore((s: any) => {
     const r = (s.callOccupancy?.[roomKey] ?? []) as any[];
     return r.length > 0 && r.every((m) => m.muted);
   });
 
-  const [storedDensity, setDensityState] = useState<Density>(() => readDensity(surface));
+  const [storedDensity, setDensityState] = useState<Density>(() =>
+    readDensity(surface),
+  );
   // A recording is only spoken words and has no density control, so the
   // page's stored choice never applies to it: "hidden" would blank the page
   // and "folded" would leave every passage a preview with no way to unfold.
@@ -215,12 +280,18 @@ export const RoomThread = memo(function RoomThread({
   };
 
   const chatRows = useMemo<LocalRow[]>(() => {
-    const server: ThreadRow[] = recording ? [] : rows ?? [];
+    const server: ThreadRow[] = recording ? [] : (rows ?? []);
     // A pending row retires once the server echoes a row of mine with the
     // same text and the same attached storage ids (image-only lines have
     // empty text, so text alone would retire the wrong row).
-    const echoed = new Set(server.filter((r) => r.mine && !r.event).map((r) => echoKey(r.text, r.attachments)));
-    const stillPending = pending.filter((p) => !echoed.has(echoKey(p.text, p.attachments)));
+    const echoed = new Set(
+      server
+        .filter((r) => r.mine && !r.event)
+        .map((r) => echoKey(r.text, r.attachments)),
+    );
+    const stillPending = pending.filter(
+      (p) => !echoed.has(echoKey(p.text, p.attachments)),
+    );
     return [
       ...server,
       ...stillPending.map<LocalRow>((p) => ({
@@ -242,14 +313,23 @@ export const RoomThread = memo(function RoomThread({
   // Only rows the server has echoed split passages: the call page builds its
   // flat turn list from the same server rows, and a pending row's client
   // clock would move the indices under a selection until the echo landed.
-  const breakAts = useMemo(() => chatRows.filter((r) => !r.pending).map((r) => r.at), [chatRows]);
-  const passages = useMemo(() => buildPassages(segments ?? [], breakAts, { recording }), [segments, breakAts, recording]);
+  const breakAts = useMemo(
+    () => chatRows.filter((r) => !r.pending).map((r) => r.at),
+    [chatRows],
+  );
+  const passages = useMemo(
+    () => buildPassages(segments ?? [], breakAts, { recording }),
+    [segments, breakAts, recording],
+  );
   // Find (the page's header field, Cmd/Ctrl+F): the passages holding a match
   // open and show whatever the words control says, and the hook below
   // highlights and steps through the matches in the rendered thread.
   const [findQuery, setFindQuery] = useState("");
   const findInputRef = useRef<HTMLInputElement>(null);
-  const hits = useMemo(() => passageHits(passages, findQuery), [passages, findQuery]);
+  const hits = useMemo(
+    () => passageHits(passages, findQuery),
+    [passages, findQuery],
+  );
   const find = useThreadFind(scrollRef, findQuery, () => {
     stuckRef.current = false;
   });
@@ -276,7 +356,10 @@ export const RoomThread = memo(function RoomThread({
   const ofThisCall = (r: LocalRow) =>
     r.transcript_id
       ? r.transcript_id === callId
-      : !!r.pending || (sinceAnchor !== undefined && r.at >= sinceAnchor && (endedAt === undefined || r.at <= endedAt));
+      : !!r.pending ||
+        (sinceAnchor !== undefined &&
+          r.at >= sinceAnchor &&
+          (endedAt === undefined || r.at <= endedAt));
   // An event row is one huddle's log: an agent that came and went in another
   // huddle is not this one's. Typed and agent lines from earlier huddles in
   // the room stay on the stage, folded under the divider below; the call
@@ -286,7 +369,10 @@ export const RoomThread = memo(function RoomThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatRows, callId, sinceAnchor, endedAt],
   );
-  const timeline = useMemo(() => mergeTimeline(passages, visibleRows), [passages, visibleRows]);
+  const timeline = useMemo(
+    () => mergeTimeline(passages, visibleRows),
+    [passages, visibleRows],
+  );
 
   const routes = call?.routes ?? [];
   // After the call the routes are history: the chips still say who was in
@@ -301,18 +387,30 @@ export const RoomThread = memo(function RoomThread({
   // withDefaultRoutes). Its name is read here for the empty card, so the
   // card can promise who answers. Until the session row lands the name is
   // "new agent", which is nobody: the card says "this session's agent".
-  const ownAgent = useAgentsInRoom(ownRoomId && routes.length === 0 ? [{ kind: "session", target: ownRoomId, added_by: "" }] : [])[0];
+  const ownAgent = useAgentsInRoom(
+    ownRoomId && routes.length === 0
+      ? [{ kind: "session", target: ownRoomId, added_by: "" }]
+      : [],
+  )[0];
   const ownName = ownAgent?.row ? ownAgent.name : "this session's agent";
   // In an own room the empty card's button adds a second agent beside the
   // room's own; the words say so.
   const addLabel = ownRoomId ? "Add another agent" : "Add an agent";
-  const addTitle = "Ring a teammate in, or bring in a role or an agent that hears the room";
+  const addTitle =
+    "Ring a teammate in, or bring in a role or an agent that hears the room";
 
   // The header's button and the empty card's open the call's one add list
   // (AddPeople.tsx): teammates, roles and agents.
-  const { open: openAddAgent, adding } = useAddToCall({ roomKey, liveTranscriptId, routes, teamId: call?.team_id });
+  const { open: openAddAgent, adding } = useAddToCall({
+    roomKey,
+    liveTranscriptId,
+    routes,
+    teamId: call?.team_id,
+  });
   const removeFeed = useRemoveLiveFeed(liveTranscriptId);
-  const facesOn = useInboxStore((st) => teamHasFeature(st.teams, call?.team_id, "agent_faces"));
+  const facesOn = useInboxStore((st) =>
+    teamHasFeature(st.teams, call?.team_id, "agent_faces"),
+  );
   // What an agent did is in the past once the call ended or nothing is live
   // (the stage after the switch went off): "was in the room", and none of
   // the present tense promise about what it does here.
@@ -326,19 +424,29 @@ export const RoomThread = memo(function RoomThread({
     () =>
       new Map(
         chatRows.flatMap((r) =>
-          r.event === "record_deleted" && r.event_run_id ? [[r.event_run_id, r.event_span ?? null] as const] : [],
+          r.event === "record_deleted" && r.event_run_id
+            ? [[r.event_run_id, r.event_span ?? null] as const]
+            : [],
         ),
       ),
     [chatRows],
   );
-  const explainEventId = past ? undefined : chatRows.find((r) => r.event === "agent_joined" && ofThisCall(r))?._id;
+  const explainEventId = past
+    ? undefined
+    : chatRows.find((r) => r.event === "agent_joined" && ofThisCall(r))?._id;
   // No room means the server has not let this client into the huddle yet
   // (or refused it), so nothing can be started; a refusal past that point
   // is most often another scribe, but the server does not say which.
   const transcribeAlone = () => {
-    if (!getRoom()) return void toast.error("Not connected to the huddle yet. Try again in a moment.");
+    if (!getRoom())
+      return void toast.error(
+        "Not connected to the huddle yet. Try again in a moment.",
+      );
     void startTranscribing(roomKey).then((ok) => {
-      if (!ok) toast.error("Could not start transcribing. Somebody else may be the scribe already.");
+      if (!ok)
+        toast.error(
+          "Could not start transcribing. Somebody else may be the scribe already.",
+        );
     });
   };
 
@@ -366,9 +474,13 @@ export const RoomThread = memo(function RoomThread({
     // never watches a long animated scroll, and a smooth scroll never
     // crosses the 160px line that onScroll reads as "scrolled away".
     const delta = el.scrollHeight - el.clientHeight - el.scrollTop;
-    const behavior = smooth && delta > 0 && delta < 160 && !prefersReducedMotion() ? "smooth" : "auto";
+    const behavior =
+      smooth && delta > 0 && delta < 160 && !prefersReducedMotion()
+        ? "smooth"
+        : "auto";
     // The test DOM has no scrollTo.
-    if (typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior });
+    if (typeof el.scrollTo === "function")
+      el.scrollTo({ top: el.scrollHeight, behavior });
     else el.scrollTop = el.scrollHeight;
   };
   const lastPassage = passages[passages.length - 1];
@@ -387,13 +499,17 @@ export const RoomThread = memo(function RoomThread({
   // stuck reader stays at the end when it settles.
   const onFoldSettled = (e: React.TransitionEvent) => {
     const el = scrollRef.current;
-    if (el && stuckRef.current && e.propertyName === "grid-template-rows") scrollToEnd(el, false);
+    if (el && stuckRef.current && e.propertyName === "grid-template-rows")
+      scrollToEnd(el, false);
   };
   const jumpToEnd = () => {
     const el = scrollRef.current;
     if (!el) return;
     stuckRef.current = true;
-    el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
     setBehind(0);
   };
   // Rows that arrive after the thread mounted rise in; opening the rail does
@@ -408,7 +524,9 @@ export const RoomThread = memo(function RoomThread({
     void post({
       room_key: roomKey,
       // The call page writes into the huddle it shows, ended or not.
-      ...(surface === "page" && callId ? { transcript_id: callId as Id<"transcripts"> } : {}),
+      ...(surface === "page" && callId
+        ? { transcript_id: callId as Id<"transcripts"> }
+        : {}),
       text: body,
       attachments: attachments.length
         ? attachments.map((a) => ({
@@ -463,7 +581,8 @@ export const RoomThread = memo(function RoomThread({
     hits.has(p.index) ||
     (activeIndex !== null && p.turns.some((t) => t.index === activeIndex)) ||
     (!recording && p.turns.length === 1) ||
-    (overrides[p.index] ?? (density === "full" || (transcribing && p.index === newestIndex)));
+    (overrides[p.index] ??
+      (density === "full" || (transcribing && p.index === newestIndex)));
   const toggle = (p: Passage) => {
     const opening = !isOpen(p);
     // Opening history pushes the tail down without a scroll event; a reader
@@ -483,7 +602,13 @@ export const RoomThread = memo(function RoomThread({
   const landedRef = useRef<string | null>(null);
   const focusTurn =
     focus?.kind === "turns"
-      ? passages.flatMap((p) => p.turns).find((t) => t.segments.some((sg) => sg.seq >= focus.from_seq && sg.seq <= focus.to_seq))
+      ? passages
+          .flatMap((p) => p.turns)
+          .find((t) =>
+            t.segments.some(
+              (sg) => sg.seq >= focus.from_seq && sg.seq <= focus.to_seq,
+            ),
+          )
       : undefined;
   const hasSummary = !!call?.summary;
   useWatchEffect(() => {
@@ -496,13 +621,22 @@ export const RoomThread = memo(function RoomThread({
     stuckRef.current = false;
     if (focus.kind === "turns") {
       const held = passages.filter((p) =>
-        p.turns.some((t) => t.segments.some((sg) => sg.seq >= focus.from_seq && sg.seq <= focus.to_seq)),
+        p.turns.some((t) =>
+          t.segments.some(
+            (sg) => sg.seq >= focus.from_seq && sg.seq <= focus.to_seq,
+          ),
+        ),
       );
       if (density === "hidden") setDensityState("full");
-      setOverrides((o) => ({ ...o, ...Object.fromEntries(held.map((p) => [p.index, true])) }));
+      setOverrides((o) => ({
+        ...o,
+        ...Object.fromEntries(held.map((p) => [p.index, true])),
+      }));
     }
     const selector =
-      focus.kind === "turns" ? `[data-turn="${focusTurn!.index}"]` : `[data-call-anchor="${focus.kind === "summary" ? "summary" : `action-${focus.index}`}"]`;
+      focus.kind === "turns"
+        ? `[data-turn="${focusTurn!.index}"]`
+        : `[data-call-anchor="${focus.kind === "summary" ? "summary" : `action-${focus.index}`}"]`;
     // After the fold has mounted what it holds. A timer, not a frame: frames
     // stall in a background tab and the link may open in one.
     setTimeout(() => {
@@ -519,12 +653,16 @@ export const RoomThread = memo(function RoomThread({
   // ever seen agents come and go is still empty.
   const empty = passages.length === 0 && chatRows.every((r) => r.event);
   // The pick on its way shows as a chip until its route lands among the real ones.
-  const joining = adding && !("id" in adding && routes.some((r) => r.target === adding.id)) ? adding : null;
+  const joining =
+    adding && !("id" in adding && routes.some((r) => r.target === adding.id))
+      ? adding
+      : null;
   const showChips = routes.length > 0 || !!joining;
   // Nothing to fold, open or hide until someone has spoken.
   const showDensity = !recording && passages.length > 0;
   const showSwitch = seated && !recording;
-  const showFind = canFind && (passages.length > 0 || chatRows.some((r) => !r.event));
+  const showFind =
+    canFind && (passages.length > 0 || chatRows.some((r) => !r.event));
   const showHead = showChips || canAdd || showDensity || showSwitch || showFind;
   // Only the density control: no band, no rule, it sits with the recap row.
   const quietHead = showHead && !showChips && !canAdd && !showSwitch;
@@ -534,7 +672,12 @@ export const RoomThread = memo(function RoomThread({
   // The pinned line is about the silence since transcription started, not
   // about the room's history: a typed line from earlier does not say the
   // room is being listened to now.
-  const listening = transcribing && !recording && passages.length === 0 && density !== "hidden" && agents.length > 0;
+  const listening =
+    transcribing &&
+    !recording &&
+    passages.length === 0 &&
+    density !== "hidden" &&
+    agents.length > 0;
   // A muted room says nothing, so "listening" alone reads as a broken scribe
   // to somebody whose mic is off. The words name the silence; the switch
   // stays green, because transcription is on.
@@ -546,17 +689,25 @@ export const RoomThread = memo(function RoomThread({
       : allMuted
         ? "Listening, but everyone is muted."
         : "Listening. Words show up here.");
-  const listeningShort = scribeError ?? (soloMuted ? "Your mic is muted" : allMuted ? "Everyone is muted" : "Nothing said yet");
+  const listeningShort =
+    scribeError ??
+    (soloMuted
+      ? "Your mic is muted"
+      : allMuted
+        ? "Everyone is muted"
+        : "Nothing said yet");
   const spokenHidden = density === "hidden" && passages.length > 0;
   // Huddles in a room never overlap, so other huddles' lines sit before or
   // after this one's: the leading run is "Earlier in this room", folded until
   // asked for (it is another conversation), and a trailing run is "Later".
   // With nothing to anchor on, there is nothing to set apart.
-  const isThisCalls = (i: TimelineItem) => i.kind === "passage" || ofThisCall(i.row);
+  const isThisCalls = (i: TimelineItem) =>
+    i.kind === "passage" || ofThisCall(i.row);
   let earlier = 0;
   let laterAt = timeline.length;
   if (sinceAnchor !== undefined) {
-    while (earlier < timeline.length && !isThisCalls(timeline[earlier])) earlier++;
+    while (earlier < timeline.length && !isThisCalls(timeline[earlier]))
+      earlier++;
     while (laterAt > earlier && !isThisCalls(timeline[laterAt - 1])) laterAt--;
     if (earlier === timeline.length) laterAt = timeline.length;
   }
@@ -584,12 +735,19 @@ export const RoomThread = memo(function RoomThread({
       {showHead && (
         <div className={`rt-head${quietHead ? " rt-head-quiet" : ""}`}>
           {routes.map((r) => {
-            const agent = r.kind === "session" ? roster.find((a) => a.target === r.target) : null;
+            const agent =
+              r.kind === "session"
+                ? roster.find((a) => a.target === r.target)
+                : null;
             return (
               <span
                 key={`${r.kind}:${r.target}`}
                 className="rt-chip"
-                title={agent ? `An agent in the room: it ${HEARS}. The arrow opens its session.` : undefined}
+                title={
+                  agent
+                    ? `An agent in the room: it ${HEARS}. The arrow opens its session.`
+                    : undefined
+                }
               >
                 <FeedChip
                   route={r}
@@ -598,16 +756,27 @@ export const RoomThread = memo(function RoomThread({
                   onRemove={() => void removeFeed(r.kind, r.target)}
                 />
                 {agent?.working && transcribing && (
-                  <WorkingDots className="text-sol-violet" title={`${agent.name} is working`} />
+                  <WorkingDots
+                    className="text-sol-violet"
+                    title={`${agent.name} is working`}
+                  />
                 )}
                 {agent && transcribing && facesOn && liveTranscriptId && (
                   <AgentFaceToggle
                     on={r.face !== false}
                     name={agent.name}
                     onChange={(face) =>
-                      void useInboxStore.getState().setCallAgentFace(liveTranscriptId, r.target, face).catch((e) =>
-                        toast.error(humanizeConvexError(e, "Could not change the video avatar")),
-                      )
+                      void useInboxStore
+                        .getState()
+                        .setCallAgentFace(liveTranscriptId, r.target, face)
+                        .catch((e) =>
+                          toast.error(
+                            humanizeConvexError(
+                              e,
+                              "Could not change the video avatar",
+                            ),
+                          ),
+                        )
                     }
                   />
                 )}
@@ -628,14 +797,29 @@ export const RoomThread = memo(function RoomThread({
           {joining && (
             <span className="rt-chip" title="Joining the room">
               <FeedChip
-                route={{ kind: joining.kind === "new-session" ? "session" : joining.kind, target: "", mode: "live" }}
-                label={joining.kind === "new-session" ? "new agent" : "label" in joining ? joining.label : undefined}
+                route={{
+                  kind:
+                    joining.kind === "new-session" ? "session" : joining.kind,
+                  target: "",
+                  mode: "live",
+                }}
+                label={
+                  joining.kind === "new-session"
+                    ? "new agent"
+                    : "label" in joining
+                      ? joining.label
+                      : undefined
+                }
                 removable={false}
                 onRemove={() => {}}
               />
               <WorkingDots
                 className="text-sol-violet"
-                title={joining.kind === "new-session" ? "Starting the agent's session" : "Joining the room"}
+                title={
+                  joining.kind === "new-session"
+                    ? "Starting the agent's session"
+                    : "Joining the room"
+                }
               />
             </span>
           )}
@@ -648,7 +832,9 @@ export const RoomThread = memo(function RoomThread({
               title={adding ? "An agent is joining the room" : addTitle}
             >
               <UserPlus className="h-3 w-3" />
-              <span className="rt-add-word">{surface === "stage" ? "Add" : "Add to the call"}</span>
+              <span className="rt-add-word">
+                {surface === "stage" ? "Add" : "Add to the call"}
+              </span>
             </button>
           )}
           <span className="rt-head-right">
@@ -657,7 +843,10 @@ export const RoomThread = memo(function RoomThread({
                 leave. The switch beside it already pulses and says "on", so
                 the line only says what is missing; the title has the long form. */}
             {listening && surface === "stage" && (
-              <span className="rt-listening rt-head-listening" title={listeningText}>
+              <span
+                className="rt-listening rt-head-listening"
+                title={listeningText}
+              >
                 <span className="truncate">{listeningShort}</span>
               </span>
             )}
@@ -671,7 +860,9 @@ export const RoomThread = memo(function RoomThread({
                 inputRef={findInputRef}
               />
             )}
-            {showDensity && <DensityControl value={density} onChange={setDensity} />}
+            {showDensity && (
+              <DensityControl value={density} onChange={setDensity} />
+            )}
             {showSwitch && <TranscribeSwitch live={transcribing} />}
           </span>
         </div>
@@ -702,8 +893,16 @@ export const RoomThread = memo(function RoomThread({
             live={!ended}
             callId={callPathRef(call)}
             focus={focus && focus.kind !== "turns" ? focusKey : null}
-            taskFor={surface === "page" ? (item) => taskForItem(item, callTasks) : undefined}
-            onMakeTask={surface === "page" ? (item) => makeCallTask(call, item) : undefined}
+            taskFor={
+              surface === "page"
+                ? (item) => taskForItem(item, callTasks)
+                : undefined
+            }
+            onMakeTask={
+              surface === "page"
+                ? (item) => makeCallTask(call, item)
+                : undefined
+            }
           />
         ) : ended && !recording && passages.length > 0 ? (
           // A call with no spoken words has nothing a summary would cover:
@@ -719,16 +918,28 @@ export const RoomThread = memo(function RoomThread({
         ) : null}
 
         {/* The tasks pulled from the call, under its recap on the page. */}
-        {surface === "page" && call && (call.summary || callTasks.length > 0) && <CallTasks call={call} tasks={callTasks} />}
+        {surface === "page" &&
+          call &&
+          (call.summary || callTasks.length > 0) && (
+            <CallTasks call={call} tasks={callTasks} />
+          )}
 
         {/* How selecting works: one quiet line after the recap, before the
             first turn it explains, and only while a turn is open to click. */}
-        {selection?.hint && density !== "hidden" && passages.some(isOpen) && <p className="rt-hint">{selection.hint}</p>}
+        {selection?.hint && density !== "hidden" && passages.some(isOpen) && (
+          <p className="rt-hint">{selection.hint}</p>
+        )}
 
         {spokenHidden && (
           <p className="rt-note">
-            Spoken words hidden · {passages.length} passage{passages.length === 1 ? "" : "s"}{" "}
-            <button type="button" className="rt-note-btn" onClick={() => setDensity("full")} title="Show every spoken word">
+            Spoken words hidden · {passages.length} passage
+            {passages.length === 1 ? "" : "s"}{" "}
+            <button
+              type="button"
+              className="rt-note-btn"
+              onClick={() => setDensity("full")}
+              title="Show every spoken word"
+            >
               show them
             </button>
           </p>
@@ -800,7 +1011,12 @@ export const RoomThread = memo(function RoomThread({
                   </button>
                 )}
                 {!transcribing && seated && (
-                  <button type="button" onClick={transcribeAlone} className="rt-btn rt-btn-green" title="Transcribe the huddle with no agent: what people say shows up in this thread">
+                  <button
+                    type="button"
+                    onClick={transcribeAlone}
+                    className="rt-btn rt-btn-green"
+                    title="Transcribe the huddle with no agent: what people say shows up in this thread"
+                  >
                     <Captions className="h-3.5 w-3.5" />
                     Transcribe without one
                   </button>
@@ -837,10 +1053,18 @@ export const RoomThread = memo(function RoomThread({
                   className="rt-note rt-divider"
                   aria-expanded={earlierOpen}
                   onClick={() => setEarlierOverride(!earlierOpen)}
-                  title={earlierOpen ? "Fold what was typed here before this call" : "Show what was typed here before this call"}
+                  title={
+                    earlierOpen
+                      ? "Fold what was typed here before this call"
+                      : "Show what was typed here before this call"
+                  }
                 >
-                  <ChevronRight className="rt-chevron h-3 w-3" aria-hidden="true" />
-                  Earlier in this room · {earlier} line{earlier === 1 ? "" : "s"}
+                  <ChevronRight
+                    className="rt-chevron h-3 w-3"
+                    aria-hidden="true"
+                  />
+                  Earlier in this room · {earlier} line
+                  {earlier === 1 ? "" : "s"}
                 </button>
               ) : earlier > 0 && i === earlier && earlierOpen ? (
                 <p className="rt-note rt-divider">This call</p>
@@ -848,7 +1072,10 @@ export const RoomThread = memo(function RoomThread({
                 <p className="rt-note rt-divider">Later in this room</p>
               ) : null;
             const hidden =
-              (inEarlier && !earlierOpen) || (item.kind === "passage" && density === "hidden" && !hits.has(item.index));
+              (inEarlier && !earlierOpen) ||
+              (item.kind === "passage" &&
+                density === "hidden" &&
+                !hits.has(item.index));
             if (hidden && !divider) return null;
             let node: React.ReactNode = null;
             if (hidden) {
@@ -896,9 +1123,19 @@ export const RoomThread = memo(function RoomThread({
               // place with the same words; it arrived already, so it does
               // not rise a second time.
               const fresh = m.at > mountedAt.current && !(m.mine && !m.pending);
-              node = <ChatLine m={m} sameAuthor={sameAuthor} fresh={fresh} dayOf={anchorAt} stage={surface === "stage"} onOpen={openSession} />;
+              node = (
+                <ChatLine
+                  m={m}
+                  sameAuthor={sameAuthor}
+                  fresh={fresh}
+                  dayOf={anchorAt}
+                  stage={surface === "stage"}
+                  onOpen={openSession}
+                />
+              );
             }
-            const key = item.kind === "passage" ? `p${item.index}` : item.row._id;
+            const key =
+              item.kind === "passage" ? `p${item.index}` : item.row._id;
             return (
               <Fragment key={key}>
                 {divider}

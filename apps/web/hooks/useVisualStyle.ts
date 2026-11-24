@@ -17,6 +17,8 @@ export function useIsModernStyle(): boolean {
  *  Appearance; inboxStore.isModernFocused). The trims branch on this. */
 export function useIsModernFocused(): boolean {
   const modern = useIsModernStyle();
-  const minimal = useInboxStore((s) => s.clientState.ui?.modern_focused === true);
+  const minimal = useInboxStore(
+    (s) => s.clientState.ui?.modern_focused === true,
+  );
   return modern && minimal;
 }

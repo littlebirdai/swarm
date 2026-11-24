@@ -9,9 +9,26 @@ import type { GuestNotice } from "@codecast/shared/contracts";
 // to it (callGuests.acceptGuestNotice keeps it, and their next reconnect is
 // let through, callGuests.test.ts), while the banner's other presses are
 // choices about the news and agree to nothing.
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test/meet/x", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test/meet/x", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const { GuestInCall } = await import("./GuestInCall");
@@ -21,8 +38,22 @@ const fakeCall = () => {
     phase: "connected",
     ended: null,
     people: [
-      { identity: "guest:g1", name: "Ada", kind: "guest", isLocal: true, muted: false, sharing: false },
-      { identity: "u1", name: "Sam Lee", kind: "person", isLocal: false, muted: true, sharing: false },
+      {
+        identity: "guest:g1",
+        name: "Ada",
+        kind: "guest",
+        isLocal: true,
+        muted: false,
+        sharing: false,
+      },
+      {
+        identity: "u1",
+        name: "Sam Lee",
+        kind: "person",
+        isLocal: false,
+        muted: true,
+        sharing: false,
+      },
     ],
     tiles: [],
     speaking: [],
@@ -56,7 +87,11 @@ beforeEach(() => {
 });
 afterEach(() => act(() => root.unmount()));
 
-const mount = async (call: any, agreed: GuestNotice[], over: Record<string, unknown> = {}) =>
+const mount = async (
+  call: any,
+  agreed: GuestNotice[],
+  over: Record<string, unknown> = {},
+) =>
   act(async () =>
     root.render(
       <GuestInCall
@@ -77,7 +112,10 @@ const mount = async (call: any, agreed: GuestNotice[], over: Record<string, unkn
     ),
   );
 const button = (label: string) =>
-  [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === label || b.getAttribute("aria-label") === label) as HTMLButtonElement | undefined;
+  [...document.querySelectorAll("button")].find(
+    (b) =>
+      b.textContent?.trim() === label || b.getAttribute("aria-label") === label,
+  ) as HTMLButtonElement | undefined;
 const press = (label: string) => act(async () => button(label)!.click());
 
 describe("a guest told of a recording that started inside", () => {
@@ -87,8 +125,17 @@ describe("a guest told of a recording that started inside", () => {
     await mount(call, agreed);
     expect(document.body.textContent).toContain("This call is being recorded");
     await press("Dismiss");
-    expect(agreed).toEqual([{ recording: true, transcribed: true, video_public: false, words_public: false }]);
-    expect(document.body.textContent).not.toContain("This call is being recorded");
+    expect(agreed).toEqual([
+      {
+        recording: true,
+        transcribed: true,
+        video_public: false,
+        words_public: false,
+      },
+    ]);
+    expect(document.body.textContent).not.toContain(
+      "This call is being recorded",
+    );
   });
 
   test("turning the camera off or asking to stop is a choice, not agreement", async () => {
@@ -104,11 +151,22 @@ describe("a guest told of a recording that started inside", () => {
   test("a transcript line put away agrees to the words, and not to a recording still unread", async () => {
     const { call } = fakeCall();
     const agreed: GuestNotice[] = [];
-    await mount(call, agreed, { accepted: { recording: false, transcribed: false } });
-    const dismissals = [...document.querySelectorAll("button[aria-label='Dismiss']")] as HTMLButtonElement[];
+    await mount(call, agreed, {
+      accepted: { recording: false, transcribed: false },
+    });
+    const dismissals = [
+      ...document.querySelectorAll("button[aria-label='Dismiss']"),
+    ] as HTMLButtonElement[];
     expect(dismissals.length).toBe(2);
     // The second line is the transcript's (guestNoticeLines puts the recording first).
     await act(async () => dismissals[1].click());
-    expect(agreed).toEqual([{ recording: false, transcribed: true, video_public: false, words_public: false }]);
+    expect(agreed).toEqual([
+      {
+        recording: false,
+        transcribed: true,
+        video_public: false,
+        words_public: false,
+      },
+    ]);
   });
 });

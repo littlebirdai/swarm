@@ -10,10 +10,21 @@ import { paneDragProps, railRowClass, railRowTone } from "../../lib/railRow";
 
 /** A group label in the rail. Hidden when the rail is narrow, where the icons
  *  stand on their own and a heading would just be a stripe of unreadable text. */
-export function RailHeading({ label, isNarrow, action }: { label: string; isNarrow: boolean; action?: React.ReactNode }) {
+export function RailHeading({
+  label,
+  isNarrow,
+  action,
+}: {
+  label: string;
+  isNarrow: boolean;
+  action?: React.ReactNode;
+}) {
   if (isNarrow) return null;
   return (
-    <div data-rail-heading={label} className="group/rail flex items-center text-xs font-medium text-sol-text-dim uppercase tracking-wide px-4 mb-2 mt-4 first:mt-0">
+    <div
+      data-rail-heading={label}
+      className="group/rail flex items-center text-xs font-medium text-sol-text-dim uppercase tracking-wide px-4 mb-2 mt-4 first:mt-0"
+    >
       <span className="flex-1">{label}</span>
       {/* An action that belongs to the whole group, revealed on hover the
           way a section row reveals its own. */}
@@ -47,13 +58,24 @@ export type SectionRowSpec = {
   /** Hover text when it should say more than the name ("Message Sam"). */
   title?: string;
   /** Hover actions, in order. Each is its own small button. */
-  actions?: Array<{ key: string; title: string; icon: React.ReactNode; onClick: (e?: React.MouseEvent) => void }>;
+  actions?: Array<{
+    key: string;
+    title: string;
+    icon: React.ReactNode;
+    onClick: (e?: React.MouseEvent) => void;
+  }>;
   onSelect: () => void;
   /** Right-click, for rows that have a context menu. */
   onContextMenu?: (e: React.MouseEvent) => void;
 };
 
-export function SectionRow({ row, className }: { row: SectionRowSpec; className?: string }) {
+export function SectionRow({
+  row,
+  className,
+}: {
+  row: SectionRowSpec;
+  className?: string;
+}) {
   return (
     <div
       onContextMenu={row.onContextMenu}
@@ -78,7 +100,11 @@ export function SectionRow({ row, className }: { row: SectionRowSpec; className?
         aria-current={row.active ? "page" : undefined}
       >
         {row.icon}
-        <span className={`truncate text-[13px] min-w-0 ${row.active ? "text-sol-text" : ""}`}>{row.name}</span>
+        <span
+          className={`truncate text-[13px] min-w-0 ${row.active ? "text-sol-text" : ""}`}
+        >
+          {row.name}
+        </span>
       </button>
       {/* A control is the point of the row it sits on, so it survives the
           hover swap below and shares the width with the actions. */}
@@ -87,7 +113,13 @@ export function SectionRow({ row, className }: { row: SectionRowSpec; className?
           row's width — otherwise the name of the row you are pointing at is the
           first thing to truncate. */}
       {row.trailing && (
-        <span className={row.actions?.length ? "flex group-hover/v:hidden group-focus-within/v:hidden" : "flex"}>
+        <span
+          className={
+            row.actions?.length
+              ? "flex group-hover/v:hidden group-focus-within/v:hidden"
+              : "flex"
+          }
+        >
           {row.trailing}
         </span>
       )}
@@ -98,7 +130,10 @@ export function SectionRow({ row, className }: { row: SectionRowSpec; className?
           {row.actions.map((action) => (
             <button
               key={action.key}
-              onClick={(e) => { e.stopPropagation(); action.onClick(e); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                action.onClick(e);
+              }}
               className="p-1 rounded text-sol-text-dim hover:text-sol-text flex-shrink-0"
               title={action.title}
               aria-label={action.title}
@@ -121,7 +156,17 @@ export function SectionRow({ row, className }: { row: SectionRowSpec; className?
  *  because that number is "someone named you", not a volume count.
  *  `kind: "alert"` is the same red for a count that pages (Ops: alerting
  *  watches, regressions, sources down). */
-export function NavCount({ n, tone, small, kind }: { n: number; tone: string; small?: boolean; kind?: "mention" | "alert" }) {
+export function NavCount({
+  n,
+  tone,
+  small,
+  kind,
+}: {
+  n: number;
+  tone: string;
+  small?: boolean;
+  kind?: "mention" | "alert";
+}) {
   return (
     <span
       data-sv-count={kind ?? ""}
@@ -188,18 +233,27 @@ export function NavSection({
   const inOtherWindow = usePoppedOut(popped);
   // Only the wide rail nests children; the narrow rail stays icon-only, and
   // a section living in another window keeps its list there.
-  const hasChildren = !isNarrow && !!items && items.length > 0 && !inOtherWindow;
+  const hasChildren =
+    !isNarrow && !!items && items.length > 0 && !inOtherWindow;
   const away = inOtherWindow ? " opacity-55 hover:opacity-90" : "";
-  const rowTitle = inOtherWindow && popped ? `${label}: opens in the ${DESKTOP_APPS[popped].title} window` : (title ?? label);
+  const rowTitle =
+    inOtherWindow && popped
+      ? `${label}: opens in the ${DESKTOP_APPS[popped].title} window`
+      : (title ?? label);
   return (
     <div data-simple-hide={simpleHide ? "" : undefined}>
-      <div className={`group/nav flex items-center border-l-2 transition-colors motion-reduce:transition-none ${railRowTone(isActive && !inOtherWindow)}${away}`}>
+      <div
+        className={`group/nav flex items-center border-l-2 transition-colors motion-reduce:transition-none ${railRowTone(isActive && !inOtherWindow)}${away}`}
+      >
         <Link
           href={href}
           onClick={(e) => {
             if (onDrill && !inOtherWindow) {
               onDrill();
-              if (isActive) { e.preventDefault(); return; }
+              if (isActive) {
+                e.preventDefault();
+                return;
+              }
             }
             onMobileClose?.();
             // Going into a section opens its list: landing on a channel while
@@ -209,7 +263,13 @@ export function NavSection({
             // On a SPLIT stage a plain click is ambiguous — which pane? Hand
             // the choice to the user (StagePickLayer) instead of guessing.
             // Modified clicks keep their browser meaning.
-            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && requestStagePlacement(href, label)) {
+            if (
+              !e.metaKey &&
+              !e.ctrlKey &&
+              !e.shiftKey &&
+              !e.altKey &&
+              requestStagePlacement(href, label)
+            ) {
               e.preventDefault();
             }
           }}
@@ -223,18 +283,44 @@ export function NavSection({
           title={rowTitle}
         >
           {icon}
-          {!isNarrow && <span className={unread && !isActive ? "font-semibold text-sol-text" : undefined}>{label}</span>}
+          {!isNarrow && (
+            <span
+              className={
+                unread && !isActive ? "font-semibold text-sol-text" : undefined
+              }
+            >
+              {label}
+            </span>
+          )}
         </Link>
         {!isNarrow && headerAction}
         {hasChildren && !alwaysOpen && (
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle?.(); }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggle?.();
+            }}
             className="p-1 text-sol-text-dim hover:text-sol-text transition-colors"
-            title={expanded ? `Collapse ${label.toLowerCase()}` : `Expand ${label.toLowerCase()}`}
+            title={
+              expanded
+                ? `Collapse ${label.toLowerCase()}`
+                : `Expand ${label.toLowerCase()}`
+            }
             aria-expanded={expanded}
           >
-            <svg className={`w-3 h-3 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            <svg
+              className={`w-3 h-3 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
         )}
@@ -255,11 +341,25 @@ export function NavSection({
             {badge}
           </Link>
         )}
-        {!isNarrow && (onDrill && !inOtherWindow ? (
-          <svg className="w-3 h-3 mx-0.5 flex-shrink-0 text-sol-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        ) : <span className="w-4 flex-shrink-0" aria-hidden="true" />)}
+        {!isNarrow &&
+          (onDrill && !inOtherWindow ? (
+            <svg
+              className="w-3 h-3 mx-0.5 flex-shrink-0 text-sol-text-dim"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          ) : (
+            <span className="w-4 flex-shrink-0" aria-hidden="true" />
+          ))}
       </div>
       {/* Rows that always show: on a guide line from this row's icon, each
           row's own icon starting under the label above. */}
@@ -271,31 +371,35 @@ export function NavSection({
         </div>
       )}
       {/* Nested rows — a slide-open list aligned under this row's icon. */}
-      {hasChildren && !alwaysOpen && (
-        // A grid whose single row animates 0fr → 1fr opens to the list's own
-        // height, so a section with twenty channels shows twenty. The old
-        // max-height capped it at 384px and hid the rest behind a second
-        // scrollbar inside a sidebar that already scrolls.
-        <div
-          className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
-          // Inline, not a Tailwind class: `grid-rows-[1fr]` compiles to
-          // minmax(0, 1fr), whose zero minimum collapses the track to nothing in
-          // an auto-height container. A bare 1fr sizes to the list's content.
-          style={{ gridTemplateRows: expanded ? '1fr' : '0fr', opacity: expanded ? 1 : 0 }}
-        >
-          <div className="overflow-hidden">
-            {/* The panel spans the full rail; its rows indent to sit under
+      {hasChildren &&
+        !alwaysOpen && (
+          // A grid whose single row animates 0fr → 1fr opens to the list's own
+          // height, so a section with twenty channels shows twenty. The old
+          // max-height capped it at 384px and hid the rest behind a second
+          // scrollbar inside a sidebar that already scrolls.
+          <div
+            className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
+            // Inline, not a Tailwind class: `grid-rows-[1fr]` compiles to
+            // minmax(0, 1fr), whose zero minimum collapses the track to nothing in
+            // an auto-height container. A bare 1fr sizes to the list's content.
+            style={{
+              gridTemplateRows: expanded ? "1fr" : "0fr",
+              opacity: expanded ? 1 : 0,
+            }}
+          >
+            <div className="overflow-hidden">
+              {/* The panel spans the full rail; its rows indent to sit under
                 this row's icon. */}
-            <div className="nav-subsection my-0.5">
-              <div className="ml-[18px]">
-                {items!.map((child) => (
-                  <SectionRow key={child.id} row={child} />
-                ))}
+              <div className="nav-subsection my-0.5">
+                <div className="ml-[18px]">
+                  {items!.map((child) => (
+                    <SectionRow key={child.id} row={child} />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

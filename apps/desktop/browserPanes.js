@@ -82,7 +82,9 @@ const REGISTRY_FILE = "desktop-panes.json";
 function defaultRegistryPath() {
   const os = require("os");
   const path = require("path");
-  const root = process.env.CODECAST_DIR || path.join(process.env.HOME || os.homedir(), ".codecast");
+  const root =
+    process.env.CODECAST_DIR ||
+    path.join(process.env.HOME || os.homedir(), ".codecast");
   return path.join(root, "browser", REGISTRY_FILE);
 }
 
@@ -91,7 +93,10 @@ function defaultRegistryPath() {
  * testable apart from the file: `panes` are the manager's records, and only
  * the fields an agent needs to find and own a view go out.
  */
-function registryDocument(panes, { port, pid = process.pid, now = Date.now() } = {}) {
+function registryDocument(
+  panes,
+  { port, pid = process.pid, now = Date.now() } = {},
+) {
   return {
     version: REGISTRY_VERSION,
     port: Number(port),
@@ -153,7 +158,10 @@ function cleanSessionKey(session) {
  * on their own lets the view drift a pixel away from the strip above it at
  * fractional zooms, and that gap is visible.
  */
-function paneViewBounds(rect, { zoomFactor = 1, contentWidth = 0, contentHeight = 0 } = {}) {
+function paneViewBounds(
+  rect,
+  { zoomFactor = 1, contentWidth = 0, contentHeight = 0 } = {},
+) {
   const zoom = Number.isFinite(zoomFactor) && zoomFactor > 0 ? zoomFactor : 1;
   const left = Math.round((rect?.x ?? 0) * zoom);
   const top = Math.round((rect?.y ?? 0) * zoom);
@@ -185,12 +193,17 @@ function isEmptyBounds(b) {
  * site could ask the shell to browse for it.
  */
 function createBrowserPanes({
-  WebContentsView, session, ipcMain, BrowserWindow, isTrusted,
+  WebContentsView,
+  session,
+  ipcMain,
+  BrowserWindow,
+  isTrusted,
   // The CDP port the app listens on, or nothing when it does not (the
   // registry above), and where the registry lands. No path, no registry at
   // all: the shell opts in (main.js passes defaultRegistryPath()), so a
   // manager built anywhere else — a test — never touches the real file.
-  cdpPort = null, registryPath = null,
+  cdpPort = null,
+  registryPath = null,
 }) {
   /** key `${hostWebContentsId}:${paneId}` → pane record. */
   const panes = new Map();
@@ -220,7 +233,10 @@ function createBrowserPanes({
   function writeRegistry() {
     if (!registryPath) return false;
     const port = Number(cdpPort);
-    return writeRegistryFile(registryPath, port > 0 ? registryDocument(panes.values(), { port }) : null);
+    return writeRegistryFile(
+      registryPath,
+      port > 0 ? registryDocument(panes.values(), { port }) : null,
+    );
   }
 
   /**
@@ -259,7 +275,9 @@ function createBrowserPanes({
   function ensureSession() {
     if (paneSession) return paneSession;
     paneSession = session.fromPartition(PANE_PARTITION);
-    paneSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+    paneSession.setPermissionRequestHandler((_wc, _permission, callback) =>
+      callback(false),
+    );
     paneSession.setPermissionCheckHandler(() => false);
     return paneSession;
   }
@@ -301,13 +319,21 @@ function createBrowserPanes({
   function setVisible(pane, visible) {
     if (pane.visible === visible) return;
     pane.visible = visible;
-    if (typeof pane.view.setVisible === "function") pane.view.setVisible(visible);
+    if (typeof pane.view.setVisible === "function")
+      pane.view.setVisible(visible);
     else if (!visible) pane.view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
     // A hidden view that still holds focus swallows every keystroke, so the
     // palette the person just opened would never see a key. Hand focus back to
     // the app the moment the view goes away.
-    if (!visible && pane.view.webContents && !pane.view.webContents.isDestroyed()) {
-      if (pane.view.webContents.isFocused && pane.view.webContents.isFocused()) {
+    if (
+      !visible &&
+      pane.view.webContents &&
+      !pane.view.webContents.isDestroyed()
+    ) {
+      if (
+        pane.view.webContents.isFocused &&
+        pane.view.webContents.isFocused()
+      ) {
         if (!pane.host.isDestroyed()) pane.host.focus();
       }
     }
@@ -318,7 +344,14 @@ function createBrowserPanes({
   }
 
   const HOST_DROP_EVENTS = ["destroyed", "render-process-gone", "did-navigate"];
-  const WINDOW_REFRESH_EVENTS = ["minimize", "restore", "show", "hide", "resize", "move"];
+  const WINDOW_REFRESH_EVENTS = [
+    "minimize",
+    "restore",
+    "show",
+    "hide",
+    "resize",
+    "move",
+  ];
 
   /**
    * The views belong to the renderer that asked for them. When that renderer
@@ -348,7 +381,8 @@ function createBrowserPanes({
       try {
         for (const event of HOST_DROP_EVENTS) host.removeListener(event, drop);
         if (win) {
-          for (const event of WINDOW_REFRESH_EVENTS) win.removeListener(event, refresh);
+          for (const event of WINDOW_REFRESH_EVENTS)
+            win.removeListener(event, refresh);
           win.removeListener("closed", drop);
         }
       } catch {}
@@ -363,10 +397,13 @@ function createBrowserPanes({
   /** Wire one view's webContents to the renderer that owns the pane. */
   function watchView(pane) {
     const wc = pane.view.webContents;
-    const send = (event, extra) => emit(pane.host, { paneId: pane.paneId, event, ...extra });
+    const send = (event, extra) =>
+      emit(pane.host, { paneId: pane.paneId, event, ...extra });
 
     wc.on("page-title-updated", (_e, title) => send("title", { title }));
-    wc.on("page-favicon-updated", (_e, favicons) => send("favicon", { favicon: favicons?.[0] ?? null }));
+    wc.on("page-favicon-updated", (_e, favicons) =>
+      send("favicon", { favicon: favicons?.[0] ?? null }),
+    );
     wc.on("did-start-loading", () => send("loading", { loading: true }));
     wc.on("did-stop-loading", () => send("loading", { loading: false }));
     // The registry follows the page, not the request: a redirect or a link
@@ -382,12 +419,15 @@ function createBrowserPanes({
       scheduleRegistry();
       send("url", { url, inPage: true });
     });
-    wc.on("did-fail-load", (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      // -3 is ABORTED: a navigation the page itself replaced. Reporting it
-      // would paint an error over a page that is loading fine.
-      if (!isMainFrame || errorCode === -3) return;
-      send("fail", { errorCode, errorDescription, url: validatedURL });
-    });
+    wc.on(
+      "did-fail-load",
+      (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        // -3 is ABORTED: a navigation the page itself replaced. Reporting it
+        // would paint an error over a page that is loading fine.
+        if (!isMainFrame || errorCode === -3) return;
+        send("fail", { errorCode, errorDescription, url: validatedURL });
+      },
+    );
     // A click in the view is how a person moves between panes: the stage's
     // focus ring has to follow, and only the shell can see this happen.
     wc.on("focus", () => send("focus", {}));
@@ -410,7 +450,10 @@ function createBrowserPanes({
     // palette while the person is reading a page in a pane.
     wc.on("before-input-event", (event, input) => {
       if (input.type !== "keyDown") return;
-      const chord = process.platform === "darwin" ? input.meta && !input.control : input.control;
+      const chord =
+        process.platform === "darwin"
+          ? input.meta && !input.control
+          : input.control;
       if (!chord || input.alt) return;
       const k = String(input.key || "").toLowerCase();
       if (!APP_CHORD_KEYS.has(k)) return;
@@ -438,7 +481,8 @@ function createBrowserPanes({
     const k = key(host.id, paneId);
     const existing = panes.get(k);
     if (existing) {
-      if (url && isLoadableUrl(url) && url !== existing.url) navigate(existing, url);
+      if (url && isLoadableUrl(url) && url !== existing.url)
+        navigate(existing, url);
       if (rect) existing.rect = rect;
       if (visible !== undefined) existing.wanted = visible !== false;
       const owner = cleanSessionKey(sessionKey);
@@ -522,7 +566,8 @@ function createBrowserPanes({
 
   function destroyAllFor(host) {
     const hostId = typeof host === "number" ? host : host?.id;
-    for (const pane of [...panes.values()]) if (pane.hostId === hostId) destroy(pane);
+    for (const pane of [...panes.values()])
+      if (pane.hostId === hostId) destroy(pane);
   }
 
   /** Every command the renderer can send, by name. Each one is handed the
@@ -530,11 +575,13 @@ function createBrowserPanes({
    *  renderer unmounting and a window closing race by design. */
   const COMMANDS = {
     create: (host, payload) => create(host, payload),
-    navigate: (_host, payload, pane) => (pane ? navigate(pane, payload.url) : { ok: false }),
+    navigate: (_host, payload, pane) =>
+      pane ? navigate(pane, payload.url) : { ok: false },
     bounds: (_host, payload, pane) => {
       if (!pane) return { ok: false };
       if (payload.rect) pane.rect = payload.rect;
-      if (payload.visible !== undefined) pane.wanted = payload.visible !== false;
+      if (payload.visible !== undefined)
+        pane.wanted = payload.visible !== false;
       apply(pane);
       return { ok: true, visible: pane.visible };
     },
@@ -612,7 +659,9 @@ function createBrowserPanes({
     if (!isTrusted(host)) return { ok: false, reason: "untrusted" };
     const run = COMMANDS[cmd];
     if (!run) return { ok: false, reason: "unknown-command" };
-    const pane = payload.paneId ? panes.get(key(host.id, payload.paneId)) : null;
+    const pane = payload.paneId
+      ? panes.get(key(host.id, payload.paneId))
+      : null;
     if (pane && (pane.view.webContents?.isDestroyed?.() ?? false)) {
       panes.delete(key(host.id, payload.paneId));
       return { ok: false, reason: "gone" };
@@ -636,7 +685,15 @@ function createBrowserPanes({
     writeRegistry();
   }
 
-  return { install, handle, destroyAllFor, panes, PANE_PARTITION, writeRegistry, registryPath };
+  return {
+    install,
+    handle,
+    destroyAllFor,
+    panes,
+    PANE_PARTITION,
+    writeRegistry,
+    registryPath,
+  };
 }
 
 module.exports = {

@@ -44,11 +44,24 @@ type Node =
   | { kind: "cmp"; op: string; left: Operand; right: Operand }
   | { kind: "truthy"; operand: Operand };
 
-const CMP_OPS = new Set(["=", "==", "!=", ">", "<", ">=", "<=", "contains", "touches"]);
+const CMP_OPS = new Set([
+  "=",
+  "==",
+  "!=",
+  ">",
+  "<",
+  ">=",
+  "<=",
+  "contains",
+  "touches",
+]);
 
 /** Whether any of `paths` (space-separated) matches any of `globs` (comma- or space-separated). */
 export function pathsTouch(paths: string, globs: string): boolean {
-  const files = paths.split(/\s+/).filter(Boolean).map((f) => f.replace(/^\.\//, ""));
+  const files = paths
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((f) => f.replace(/^\.\//, ""));
   return whenPaths(globs).some((raw) => {
     const g = raw.replace(/^\.\//, "");
     if (!/[*?[{]/.test(g)) {
@@ -65,14 +78,29 @@ function tokenize(src: string): Token[] {
   let i = 0;
   while (i < src.length) {
     const ch = src[i];
-    if (/\s/.test(ch)) { i++; continue; }
-    if (ch === "(") { tokens.push({ kind: "lparen" }); i++; continue; }
-    if (ch === ")") { tokens.push({ kind: "rparen" }); i++; continue; }
+    if (/\s/.test(ch)) {
+      i++;
+      continue;
+    }
+    if (ch === "(") {
+      tokens.push({ kind: "lparen" });
+      i++;
+      continue;
+    }
+    if (ch === ")") {
+      tokens.push({ kind: "rparen" });
+      i++;
+      continue;
+    }
     if (ch === '"' || ch === "'") {
       let j = i + 1;
       let value = "";
       while (j < src.length && src[j] !== ch) {
-        if (src[j] === "\\" && j + 1 < src.length) { value += src[j + 1]; j += 2; continue; }
+        if (src[j] === "\\" && j + 1 < src.length) {
+          value += src[j + 1];
+          j += 2;
+          continue;
+        }
         value += src[j++];
       }
       if (j >= src.length) throw new Error(`unterminated string at ${i}`);
@@ -81,14 +109,29 @@ function tokenize(src: string): Token[] {
       continue;
     }
     const two = src.slice(i, i + 2);
-    if (["==", "!=", ">=", "<=", "&&", "||"].includes(two)) { tokens.push({ kind: "op", value: two }); i += 2; continue; }
-    if ("=<>!".includes(ch)) { tokens.push({ kind: "op", value: ch }); i++; continue; }
+    if (["==", "!=", ">=", "<=", "&&", "||"].includes(two)) {
+      tokens.push({ kind: "op", value: two });
+      i += 2;
+      continue;
+    }
+    if ("=<>!".includes(ch)) {
+      tokens.push({ kind: "op", value: ch });
+      i++;
+      continue;
+    }
     let j = i;
     while (j < src.length && !/[\s()"'=<>!&|]/.test(src[j])) j++;
     if (j === i) throw new Error(`unexpected '${ch}' at ${i}`);
     const word = src.slice(i, j);
     const lower = word.toLowerCase();
-    if (lower === "and" || lower === "or" || lower === "not" || lower === "contains" || lower === "touches") tokens.push({ kind: "op", value: lower });
+    if (
+      lower === "and" ||
+      lower === "or" ||
+      lower === "not" ||
+      lower === "contains" ||
+      lower === "touches"
+    )
+      tokens.push({ kind: "op", value: lower });
     else tokens.push({ kind: "word", value: word });
     i = j;
   }
@@ -108,7 +151,11 @@ export function parseCondition(src: string): Node {
     const t = tokens[pos++];
     if (t?.kind === "str") return { quoted: true, text: t.value };
     if (t?.kind === "word") return { quoted: false, text: t.value };
-    throw new Error(t ? `expected a value, got '${"value" in t ? t.value : t.kind}'` : "expected a value at end");
+    throw new Error(
+      t
+        ? `expected a value, got '${"value" in t ? t.value : t.kind}'`
+        : "expected a value at end",
+    );
   };
 
   const primary = (): Node => {
@@ -122,31 +169,46 @@ export function parseCondition(src: string): Node {
     const t = peek();
     if (t?.kind === "op" && CMP_OPS.has(t.value)) {
       pos++;
-      return { kind: "cmp", op: t.value === "==" ? "=" : t.value, left, right: operand() };
+      return {
+        kind: "cmp",
+        op: t.value === "==" ? "=" : t.value,
+        left,
+        right: operand(),
+      };
     }
     return { kind: "truthy", operand: left };
   };
 
   const not = (): Node => {
-    if (isOp("not", "!")) { pos++; return { kind: "not", inner: not() }; }
+    if (isOp("not", "!")) {
+      pos++;
+      return { kind: "not", inner: not() };
+    }
     return primary();
   };
 
   const and = (): Node => {
     let left = not();
-    while (isOp("and", "&&")) { pos++; left = { kind: "and", left, right: not() }; }
+    while (isOp("and", "&&")) {
+      pos++;
+      left = { kind: "and", left, right: not() };
+    }
     return left;
   };
 
   const or = (): Node => {
     let left = and();
-    while (isOp("or", "||")) { pos++; left = { kind: "or", left, right: and() }; }
+    while (isOp("or", "||")) {
+      pos++;
+      left = { kind: "or", left, right: and() };
+    }
     return left;
   };
 
   if (tokens.length === 0) throw new Error("empty condition");
   const tree = or();
-  if (pos < tokens.length) throw new Error(`unexpected trailing input in "${src}"`);
+  if (pos < tokens.length)
+    throw new Error(`unexpected trailing input in "${src}"`);
   return tree;
 }
 
@@ -155,7 +217,8 @@ function walkJson(value: unknown, path: string[]): string | undefined {
   let cur: any = value;
   for (const part of path) {
     if (cur === null || typeof cur !== "object") return undefined;
-    cur = Array.isArray(cur) && /^\d+$/.test(part) ? cur[Number(part)] : cur[part];
+    cur =
+      Array.isArray(cur) && /^\d+$/.test(part) ? cur[Number(part)] : cur[part];
   }
   if (cur === undefined) return undefined;
   if (cur === null) return "null";
@@ -166,7 +229,10 @@ function walkJson(value: unknown, path: string[]): string | undefined {
 // A context key as a $var or a condition names it. `<node>.json.<path>`
 // reads the node's JSON output (stored whole under `<node>.json`); an array
 // reads as its length, so `$monitor.json.tasks > 0` counts.
-export function lookupContextVar(context: Record<string, string>, key: string): string | undefined {
+export function lookupContextVar(
+  context: Record<string, string>,
+  key: string,
+): string | undefined {
   if (context[key] !== undefined) return context[key];
   const m = key.match(/^(.+?)\.json\.(.+)$/);
   if (m && context[`${m[1]}.json`] !== undefined) {
@@ -176,7 +242,8 @@ export function lookupContextVar(context: Record<string, string>, key: string): 
       return undefined;
     }
   }
-  if (key.startsWith("context.")) return lookupContextVar(context, key.slice("context.".length));
+  if (key.startsWith("context."))
+    return lookupContextVar(context, key.slice("context.".length));
   // A station that has not run in this attempt has made no visits. A resume clears the counts (clearVisits), and
   // unset, `propose.visits < 3` and `propose.visits >= 3` were both false: a build sent back to propose fell through
   // to its failure edge (ct-62191, Oct 27).
@@ -191,13 +258,19 @@ function asNumber(s: string): number | null {
 }
 
 function evalNode(node: Node, context: Record<string, string>): boolean {
-  const value = (o: Operand) => (o.quoted ? o.text : lookupContextVar(context, o.text) ?? o.text);
+  const value = (o: Operand) =>
+    o.quoted ? o.text : (lookupContextVar(context, o.text) ?? o.text);
   switch (node.kind) {
-    case "or": return evalNode(node.left, context) || evalNode(node.right, context);
-    case "and": return evalNode(node.left, context) && evalNode(node.right, context);
-    case "not": return !evalNode(node.inner, context);
+    case "or":
+      return evalNode(node.left, context) || evalNode(node.right, context);
+    case "and":
+      return evalNode(node.left, context) && evalNode(node.right, context);
+    case "not":
+      return !evalNode(node.inner, context);
     case "truthy": {
-      const v = node.operand.quoted ? node.operand.text : lookupContextVar(context, node.operand.text);
+      const v = node.operand.quoted
+        ? node.operand.text
+        : lookupContextVar(context, node.operand.text);
       return v !== undefined && v !== "" && v !== "false" && v !== "0";
     }
     case "cmp": {
@@ -205,19 +278,27 @@ function evalNode(node: Node, context: Record<string, string>): boolean {
       const b = value(node.right);
       if (node.op === "contains") return a.includes(b);
       if (node.op === "touches") {
-        const paths = node.left.quoted ? a : lookupContextVar(context, node.left.text);
+        const paths = node.left.quoted
+          ? a
+          : lookupContextVar(context, node.left.text);
         return paths === undefined || !paths.trim() || pathsTouch(paths, b);
       }
       const na = asNumber(a);
       const nb = asNumber(b);
       const numeric = na !== null && nb !== null;
       switch (node.op) {
-        case "=": return numeric ? na === nb : a === b;
-        case "!=": return numeric ? na !== nb : a !== b;
-        case ">": return numeric && na! > nb!;
-        case "<": return numeric && na! < nb!;
-        case ">=": return numeric && na! >= nb!;
-        case "<=": return numeric && na! <= nb!;
+        case "=":
+          return numeric ? na === nb : a === b;
+        case "!=":
+          return numeric ? na !== nb : a !== b;
+        case ">":
+          return numeric && na! > nb!;
+        case "<":
+          return numeric && na! < nb!;
+        case ">=":
+          return numeric && na! >= nb!;
+        case "<=":
+          return numeric && na! <= nb!;
       }
       return false;
     }
@@ -225,7 +306,10 @@ function evalNode(node: Node, context: Record<string, string>): boolean {
 }
 
 // A malformed condition never fires (validateWorkflow reports it up front).
-export function evalCondition(condition: string, context: Record<string, string>): boolean {
+export function evalCondition(
+  condition: string,
+  context: Record<string, string>,
+): boolean {
   try {
     return evalNode(parseCondition(condition), context);
   } catch {

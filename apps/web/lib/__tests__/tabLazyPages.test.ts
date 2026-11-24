@@ -79,10 +79,20 @@ describe("scheduleTabRouteWarmup", () => {
 
 describe("loadPage", () => {
   const page = { default: () => null };
-  const chunkError = () => new TypeError("Failed to fetch dynamically imported module: /app/inbox/page.tsx?t=1");
+  const chunkError = () =>
+    new TypeError(
+      "Failed to fetch dynamically imported module: /app/inbox/page.tsx?t=1",
+    );
 
-  function createRecovery(plan: { updates: boolean[]; reimports: Array<"ok" | "fail"> }) {
-    const calls = { waits: 0, reimports: [] as string[], timeouts: [] as number[] };
+  function createRecovery(plan: {
+    updates: boolean[];
+    reimports: Array<"ok" | "fail">;
+  }) {
+    const calls = {
+      waits: 0,
+      reimports: [] as string[],
+      timeouts: [] as number[],
+    };
     const recovery: LazyPageRecovery = {
       async waitForUpdate(timeoutMs) {
         calls.timeouts.push(timeoutMs);
@@ -100,16 +110,41 @@ describe("loadPage", () => {
   }
 
   test("retries once right away and heals without waiting", async () => {
-    const { recovery, calls } = createRecovery({ updates: [], reimports: ["ok"] });
-    const loaded = await loadPage("@/app/inbox/page", async () => { throw chunkError(); }, recovery, 20_000);
+    const { recovery, calls } = createRecovery({
+      updates: [],
+      reimports: ["ok"],
+    });
+    const loaded = await loadPage(
+      "@/app/inbox/page",
+      async () => {
+        throw chunkError();
+      },
+      recovery,
+      20_000,
+    );
     expect(loaded).toBe(page);
-    expect(calls).toEqual({ waits: 0, reimports: ["@/app/inbox/page"], timeouts: [] });
+    expect(calls).toEqual({
+      waits: 0,
+      reimports: ["@/app/inbox/page"],
+      timeouts: [],
+    });
   });
 
   test("retries after each dev server update until the page loads", async () => {
-    const { recovery, calls } = createRecovery({ updates: [true, true], reimports: ["fail", "fail", "ok"] });
+    const { recovery, calls } = createRecovery({
+      updates: [true, true],
+      reimports: ["fail", "fail", "ok"],
+    });
     let clock = 1_000;
-    const loaded = await loadPage("@/app/inbox/page", async () => { throw chunkError(); }, recovery, 20_000, () => (clock += 100));
+    const loaded = await loadPage(
+      "@/app/inbox/page",
+      async () => {
+        throw chunkError();
+      },
+      recovery,
+      20_000,
+      () => (clock += 100),
+    );
     expect(loaded).toBe(page);
     expect(calls.waits).toBe(2);
     expect(calls.reimports).toHaveLength(3);
@@ -119,31 +154,77 @@ describe("loadPage", () => {
   });
 
   test("gives up with the last rejection when no update arrives in the window", async () => {
-    const { recovery, calls } = createRecovery({ updates: [false], reimports: ["fail"] });
+    const { recovery, calls } = createRecovery({
+      updates: [false],
+      reimports: ["fail"],
+    });
     const last = chunkError();
-    recovery.reimport = async () => { throw last; };
-    await expect(loadPage("@/app/inbox/page", async () => { throw chunkError(); }, recovery, 20_000)).rejects.toBe(last);
+    recovery.reimport = async () => {
+      throw last;
+    };
+    await expect(
+      loadPage(
+        "@/app/inbox/page",
+        async () => {
+          throw chunkError();
+        },
+        recovery,
+        20_000,
+      ),
+    ).rejects.toBe(last);
     expect(calls.waits).toBe(1);
   });
 
   test("stops at the deadline even while updates keep coming", async () => {
-    const { recovery, calls } = createRecovery({ updates: [true, true, true, true], reimports: ["fail", "fail", "fail", "fail", "fail"] });
+    const { recovery, calls } = createRecovery({
+      updates: [true, true, true, true],
+      reimports: ["fail", "fail", "fail", "fail", "fail"],
+    });
     let clock = 0;
     await expect(
-      loadPage("@/app/inbox/page", async () => { throw chunkError(); }, recovery, 1_000, () => (clock += 600)),
+      loadPage(
+        "@/app/inbox/page",
+        async () => {
+          throw chunkError();
+        },
+        recovery,
+        1_000,
+        () => (clock += 600),
+      ),
     ).rejects.toBeInstanceOf(TypeError);
     expect(calls.reimports.length).toBeLessThanOrEqual(2);
   });
 
   test("rethrows a page's own error without retrying", async () => {
-    const { recovery, calls } = createRecovery({ updates: [true], reimports: ["ok"] });
+    const { recovery, calls } = createRecovery({
+      updates: [true],
+      reimports: ["ok"],
+    });
     const bug = new TypeError("x is not a function");
-    await expect(loadPage("@/app/inbox/page", async () => { throw bug; }, recovery, 20_000)).rejects.toBe(bug);
+    await expect(
+      loadPage(
+        "@/app/inbox/page",
+        async () => {
+          throw bug;
+        },
+        recovery,
+        20_000,
+      ),
+    ).rejects.toBe(bug);
     expect(calls).toEqual({ waits: 0, reimports: [], timeouts: [] });
   });
 
   test("rethrows when there is no dev server to wait on", async () => {
     const err = chunkError();
-    await expect(loadPage("@/app/inbox/page", async () => { throw err; }, null, 20_000)).rejects.toBe(err);
+    await expect(
+      loadPage(
+        "@/app/inbox/page",
+        async () => {
+          throw err;
+        },
+        null,
+        20_000,
+      ),
+    ).rejects.toBe(err);
   });
 });

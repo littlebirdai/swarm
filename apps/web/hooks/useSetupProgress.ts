@@ -11,17 +11,33 @@ import { SETUP_FEATURES } from "./useSetupFeatures";
 import { snippetEnabledOn } from "../lib/newSnippets";
 import { nativeAppOffer } from "../lib/nativeApps";
 import { teamFeatureEnabled } from "@codecast/shared/contracts";
-import { TEAM_VISIBILITY_RANK, currentMembershipVisibility } from "../lib/teamVisibility";
-import { setupSteps, type SetupFacts, type SetupStep, type SetupTeamFacts } from "../lib/setupProgress";
+import {
+  TEAM_VISIBILITY_RANK,
+  currentMembershipVisibility,
+} from "../lib/teamVisibility";
+import {
+  setupSteps,
+  type SetupFacts,
+  type SetupStep,
+  type SetupTeamFacts,
+} from "../lib/setupProgress";
 
 /** The team the steps are about: the one the person works in now, else
  *  the first they belong to. */
 function focusTeam(teams: any[] | undefined, activeId: string | undefined) {
   const list = (teams || []).filter(Boolean);
-  return list.find((t) => String(t._id) === String(activeId)) ?? list[0] ?? null;
+  return (
+    list.find((t) => String(t._id) === String(activeId)) ?? list[0] ?? null
+  );
 }
 
-export function useSetupProgress(): { steps: SetupStep[]; done: number; total: number; team: any | null; ready: boolean } {
+export function useSetupProgress(): {
+  steps: SetupStep[];
+  done: number;
+  total: number;
+  team: any | null;
+  ready: boolean;
+} {
   const { user } = useCurrentUser();
   const s = useTrackedStore([
     (s) => s.teams,
@@ -38,24 +54,34 @@ export function useSetupProgress(): { steps: SetupStep[]; done: number; total: n
 
   return useMemo(() => {
     const reporting = devices.filter((d) => !d.is_remote && d.settings);
-    const agentsOn = features.filter((f) => reporting.some((d) => snippetEnabledOn(d.settings, f))).length;
+    const agentsOn = features.filter((f) =>
+      reporting.some((d) => snippetEnabledOn(d.settings, f)),
+    ).length;
     const teamFacts: SetupTeamFacts | null = team
       ? {
           _id: String(team._id),
           name: team.name,
           member_count: team.member_count,
           shared_project_count: team.shared_project_count,
-          sharesFull: TEAM_VISIBILITY_RANK[currentMembershipVisibility(team)] >= TEAM_VISIBILITY_RANK.full,
+          sharesFull:
+            TEAM_VISIBILITY_RANK[currentMembershipVisibility(team)] >=
+            TEAM_VISIBILITY_RANK.full,
           isAdmin: team.role === "admin",
           // Tasks are always on, so they count toward both sides.
           features: {
-            on: SETUP_FEATURES.filter((f) => teamFeatureEnabled(team, f.key)).length + 1,
+            on:
+              SETUP_FEATURES.filter((f) => teamFeatureEnabled(team, f.key))
+                .length + 1,
             total: SETUP_FEATURES.length + 1,
           },
         }
       : null;
     const facts: SetupFacts = {
-      connected: !!(user?.cli_version || user?.daemon_last_seen || devices.some((d) => !d.is_remote)),
+      connected: !!(
+        user?.cli_version ||
+        user?.daemon_last_seen ||
+        devices.some((d) => !d.is_remote)
+      ),
       team: teamFacts,
       agentFeatures: { on: agentsOn, total: features.length },
       notifications: readiness,
@@ -69,7 +95,15 @@ export function useSetupProgress(): { steps: SetupStep[]; done: number; total: n
       team,
       ready: !!user && !!s.clientStateInitialized,
     };
-  }, [user, devices, features, readiness, team, usesDesktop, s.clientStateInitialized]);
+  }, [
+    user,
+    devices,
+    features,
+    readiness,
+    team,
+    usesDesktop,
+    s.clientStateInitialized,
+  ]);
 }
 
 /** Close the meter for a week. */

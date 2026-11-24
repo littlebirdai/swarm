@@ -18,7 +18,8 @@ import { beforeEach, describe, expect, test } from "bun:test";
 // Read from the module rather than restated here: another test file in this
 // process stubs VITE_CONVEX_URL, which moves both the endpoint and the token's
 // storage key. localAuth owns that layout and has its own contract test.
-const { AUTH_JWT_STORAGE_KEY: KEY, CONVEX_URL: CONVEX } = await import("../localAuth");
+const { AUTH_JWT_STORAGE_KEY: KEY, CONVEX_URL: CONVEX } =
+  await import("../localAuth");
 
 let store: Record<string, string> = {};
 const calls: Array<{ url: string; init: any }> = [];
@@ -29,8 +30,12 @@ const calls: Array<{ url: string; init: any }> = [];
 function installStubs(fetchImpl?: (url: string, init: any) => any) {
   (globalThis as any).localStorage = {
     getItem: (k: string) => (k in store ? store[k] : null),
-    setItem: (k: string, v: string) => { store[k] = v; },
-    removeItem: (k: string) => { delete store[k]; },
+    setItem: (k: string, v: string) => {
+      store[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
   };
   (globalThis as any).fetch =
     fetchImpl ??
@@ -75,7 +80,11 @@ describe("mutateOnUnload", () => {
 
   test("a thrown fetch never reaches the unloading page", () => {
     store[KEY] = "jwt-abc";
-    installStubs(() => { throw new Error("network is gone"); });
-    expect(() => mutateOnUnload((api as any).calls.leaveRoom, { room_key: "dm:a:b" })).not.toThrow();
+    installStubs(() => {
+      throw new Error("network is gone");
+    });
+    expect(() =>
+      mutateOnUnload((api as any).calls.leaveRoom, { room_key: "dm:a:b" }),
+    ).not.toThrow();
   });
 });

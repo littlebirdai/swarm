@@ -7,7 +7,12 @@ import { WhereBuilder } from "./WhereBuilder";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCommittedDraft } from "../../hooks/useCommittedDraft";
 import { Trash2 } from "lucide-react";
-import { dashboard, type ArtifactElement, type ArtifactOp, type Json } from "@codecast/shared/artifacts";
+import {
+  dashboard,
+  type ArtifactElement,
+  type ArtifactOp,
+  type Json,
+} from "@codecast/shared/artifacts";
 import { PanelShell, Field } from "./CheckPanel";
 import { resultFor } from "../../hooks/useDashboardData";
 import { useRef } from "react";
@@ -15,24 +20,77 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import type { BlockEnv } from "./blocks";
 import { teamMembersOf } from "../../lib/activeTeam";
 
-const KIND_LABEL: Record<string, string> = { kpi: "KPI", chart: "Chart", table: "Table", text: "Text", section: "Section" };
+const KIND_LABEL: Record<string, string> = {
+  kpi: "KPI",
+  chart: "Chart",
+  table: "Table",
+  text: "Text",
+  section: "Section",
+};
 const FORMATS = ["number", "compact", "usd", "percent"] as const;
 /** What a block's rows are shaped by. A new source drops them: another source's columns would only break the block. */
-const SHAPING = ["field", "agg", "label", "compare", "format", "x", "y", "series", "chart", "columns", "sort", "group", "where", "limit"] as const;
+const SHAPING = [
+  "field",
+  "agg",
+  "label",
+  "compare",
+  "format",
+  "x",
+  "y",
+  "series",
+  "chart",
+  "columns",
+  "sort",
+  "group",
+  "where",
+  "limit",
+] as const;
 
-export function BlockEditor({ docId, block, env, apply, onClose, onRemove }: { docId: string; block: ArtifactElement | undefined; env: BlockEnv; apply: (ops: ArtifactOp[]) => void; onClose: () => void; onRemove: () => void }) {
+export function BlockEditor({
+  docId,
+  block,
+  env,
+  apply,
+  onClose,
+  onRemove,
+}: {
+  docId: string;
+  block: ArtifactElement | undefined;
+  env: BlockEnv;
+  apply: (ops: ArtifactOp[]) => void;
+  onClose: () => void;
+  onRemove: () => void;
+}) {
   // A source picked here gets the same starting fields as "From a source" (sum of merged, compared by halves), filled in once its first rows arrive.
   const suggestFor = useRef<string | null>(null);
   const fresh = block ? resultFor(env.results, block) : undefined;
   useWatchEffect(() => {
-    if (!block || !suggestFor.current || !fresh?.refreshed_at || fresh.error) return;
-    if (dashboard.blockQuery({ query: block.query })?.source !== suggestFor.current) return;
+    if (!block || !suggestFor.current || !fresh?.refreshed_at || fresh.error)
+      return;
+    if (
+      dashboard.blockQuery({ query: block.query })?.source !==
+      suggestFor.current
+    )
+      return;
     suggestFor.current = null;
-    if (block.kind !== "kpi" && block.kind !== "chart" && block.kind !== "table") return;
-    const sample = fresh.rows.find((r) => r.some((v) => v !== null && v !== undefined));
+    if (
+      block.kind !== "kpi" &&
+      block.kind !== "chart" &&
+      block.kind !== "table"
+    )
+      return;
+    const sample = fresh.rows.find((r) =>
+      r.some((v) => v !== null && v !== undefined),
+    );
     const fields = dashboard.suggestFields(block.kind, fresh.columns, sample);
-    const value = typeof fields.field === "string" ? fields.field : typeof fields.y === "string" ? fields.y : null;
-    if (value && !fields.format && formatFor(value) !== "number") fields.format = formatFor(value);
+    const value =
+      typeof fields.field === "string"
+        ? fields.field
+        : typeof fields.y === "string"
+          ? fields.y
+          : null;
+    if (value && !fields.format && formatFor(value) !== "number")
+      fields.format = formatFor(value);
     if (Object.keys(fields).length) apply([{ k: block.key, set: fields }]);
   }, [fresh, block, apply]);
   if (!block) {
@@ -42,18 +100,35 @@ export function BlockEditor({ docId, block, env, apply, onClose, onRemove }: { d
       </PanelShell>
     );
   }
-  const set = (fields: Record<string, Json>) => apply([{ k: block.key, set: fields }]);
+  const set = (fields: Record<string, Json>) =>
+    apply([{ k: block.key, set: fields }]);
   const result = resultFor(env.results, block);
   const columns = result?.columns ?? [];
-  const sample = result?.rows.find((r) => r.some((v) => v !== null && v !== undefined)) ?? [];
+  const sample =
+    result?.rows.find((r) => r.some((v) => v !== null && v !== undefined)) ??
+    [];
   const numeric = columns.filter((_, i) => typeof sample[i] === "number");
   const labels = columns.filter((_, i) => typeof sample[i] !== "number");
   // Grouped, a table has the group, its summed numbers and a row count; sorting picks among those.
-  const tableCols = typeof block.group === "string" && block.group ? [block.group, ...numeric, "rows"] : columns;
-  const kpis = [...env.blocks.values()].filter((b) => b.kind === "kpi").sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
+  const tableCols =
+    typeof block.group === "string" && block.group
+      ? [block.group, ...numeric, "rows"]
+      : columns;
+  const kpis = [...env.blocks.values()]
+    .filter((b) => b.kind === "kpi")
+    .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
   const preview = (key: string, part: dashboard.TokenPart) => {
     const k = env.blocks.get(key);
-    return k ? dashboard.kpiPartText(dashboard.evaluateKpi(k as dashboard.KpiBlock, resultFor(env.results, k), env.scope), part) : "";
+    return k
+      ? dashboard.kpiPartText(
+          dashboard.evaluateKpi(
+            k as dashboard.KpiBlock,
+            resultFor(env.results, k),
+            env.scope,
+          ),
+          part,
+        )
+      : "";
   };
   const q = dashboard.blockQuery(block);
   return (
@@ -61,15 +136,45 @@ export function BlockEditor({ docId, block, env, apply, onClose, onRemove }: { d
       title={`${KIND_LABEL[block.kind] ?? block.kind}${block.title ? ` · ${block.title}` : ""}`}
       onClose={onClose}
       actions={
-        <button type="button" onClick={onRemove} title="Remove block" aria-label="Remove block" className="p-1 rounded text-sol-text-muted hover:text-sol-red hover:bg-sol-red/10">
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove block"
+          aria-label="Remove block"
+          className="p-1 rounded text-sol-text-muted hover:text-sol-red hover:bg-sol-red/10"
+        >
           <Trash2 className="w-4 h-4" />
         </button>
       }
     >
-      {block.kind !== "text" ? <TextField label="Title" value={block.title} onCommit={(v) => set({ title: v || null })} /> : null}
-      {block.kind === "text" ? <LiveTextField label="Text" value={block.text} kpis={kpis} preview={preview} multiline holdKey={`${docId}:${block.key}:text`} onCommit={(v) => set({ text: v })} /> : <TextField label="Caption" value={block.caption} onCommit={(v) => set({ caption: v || null })} />}
+      {block.kind !== "text" ? (
+        <TextField
+          label="Title"
+          value={block.title}
+          onCommit={(v) => set({ title: v || null })}
+        />
+      ) : null}
+      {block.kind === "text" ? (
+        <LiveTextField
+          label="Text"
+          value={block.text}
+          kpis={kpis}
+          preview={preview}
+          multiline
+          holdKey={`${docId}:${block.key}:text`}
+          onCommit={(v) => set({ text: v })}
+        />
+      ) : (
+        <TextField
+          label="Caption"
+          value={block.caption}
+          onCommit={(v) => set({ caption: v || null })}
+        />
+      )}
 
-      {block.kind === "kpi" || block.kind === "chart" || block.kind === "table" ? (
+      {block.kind === "kpi" ||
+      block.kind === "chart" ||
+      block.kind === "table" ? (
         <>
           <QueryField
             docId={docId}
@@ -77,76 +182,287 @@ export function BlockEditor({ docId, block, env, apply, onClose, onRemove }: { d
             onCommit={(query, newSource) => {
               if (!newSource) return set({ query: query as unknown as Json });
               suggestFor.current = query?.source ?? null;
-              const label = dashboard.DATA_SOURCES.find((d) => d.id === query?.source)?.label;
+              const label = dashboard.DATA_SOURCES.find(
+                (d) => d.id === query?.source,
+              )?.label;
               // A title that only named the old source follows the new one; a title someone wrote stays.
-              const was = dashboard.DATA_SOURCES.find((d) => d.id === dashboard.blockQuery({ query: block.query })?.source)?.label;
+              const was = dashboard.DATA_SOURCES.find(
+                (d) =>
+                  d.id === dashboard.blockQuery({ query: block.query })?.source,
+              )?.label;
               const named = !block.title || block.title === was;
-              set({ query: query as unknown as Json, ...Object.fromEntries(SHAPING.map((f) => [f, null])), ...(named && label ? { title: label } : {}) });
+              set({
+                query: query as unknown as Json,
+                ...Object.fromEntries(SHAPING.map((f) => [f, null])),
+                ...(named && label ? { title: label } : {}),
+              });
             }}
-            problem={result?.error && !result.refreshed_at ? result.error : undefined} />
+            problem={
+              result?.error && !result.refreshed_at ? result.error : undefined
+            }
+          />
           {block.kind === "kpi" ? (
             <>
               <Row>
-                <Select label="Value" value={block.agg ?? (block.field ? "sum" : "count")} options={dashboard.KPI_AGGS} onChange={(v) => set({ agg: v })} />
-                <Select label="of" value={block.field} options={columns} empty="–" onChange={(v) => set({ field: v || null, ...(v && formatFor(v) !== (block.format ?? "number") ? { format: formatFor(v) } : {}) })} />
+                <Select
+                  label="Value"
+                  value={block.agg ?? (block.field ? "sum" : "count")}
+                  options={dashboard.KPI_AGGS}
+                  onChange={(v) => set({ agg: v })}
+                />
+                <Select
+                  label="of"
+                  value={block.field}
+                  options={columns}
+                  empty="–"
+                  onChange={(v) =>
+                    set({
+                      field: v || null,
+                      ...(v && formatFor(v) !== (block.format ?? "number")
+                        ? { format: formatFor(v) }
+                        : {}),
+                    })
+                  }
+                />
               </Row>
-              {block.agg === "top" ? <Select label="Named by" value={block.label} options={columns} empty="auto" onChange={(v) => set({ label: v || null })} /> : null}
-              <Select label="Format" value={block.format ?? "number"} options={FORMATS} onChange={(v) => set({ format: v })} />
-              <Select label="Compare to" value={block.compare} options={["halves", "prev", ...columns]} labels={{ halves: "the prior period", prev: "the previous row" }} empty="nothing" onChange={(v) => set({ compare: v || null })} />
-              {block.compare ? <Select label="Good when" value={block.good} options={["up", "down"]} empty="neutral" onChange={(v) => set({ good: v || null })} /> : null}
-              {!q ? <TextField label="Typed value (not verified)" value={block.value === undefined ? undefined : String(block.value)} onCommit={(v) => set({ value: v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : v })} /> : null}
+              {block.agg === "top" ? (
+                <Select
+                  label="Named by"
+                  value={block.label}
+                  options={columns}
+                  empty="auto"
+                  onChange={(v) => set({ label: v || null })}
+                />
+              ) : null}
+              <Select
+                label="Format"
+                value={block.format ?? "number"}
+                options={FORMATS}
+                onChange={(v) => set({ format: v })}
+              />
+              <Select
+                label="Compare to"
+                value={block.compare}
+                options={["halves", "prev", ...columns]}
+                labels={{
+                  halves: "the prior period",
+                  prev: "the previous row",
+                }}
+                empty="nothing"
+                onChange={(v) => set({ compare: v || null })}
+              />
+              {block.compare ? (
+                <Select
+                  label="Good when"
+                  value={block.good}
+                  options={["up", "down"]}
+                  empty="neutral"
+                  onChange={(v) => set({ good: v || null })}
+                />
+              ) : null}
+              {!q ? (
+                <TextField
+                  label="Typed value (not verified)"
+                  value={
+                    block.value === undefined ? undefined : String(block.value)
+                  }
+                  onCommit={(v) =>
+                    set({
+                      value:
+                        v === ""
+                          ? null
+                          : Number.isFinite(Number(v))
+                            ? Number(v)
+                            : v,
+                    })
+                  }
+                />
+              ) : null}
               {q ? (
                 <AlertFields
                   block={block}
                   result={result}
                   onSet={(alert) => set({ alert })}
-                  schedule={dashboard.readSchedule(env.blocks.get(dashboard.LAYOUT_KEY))}
-                  onReadHourly={() => apply(dashboard.scheduleOps(env.blocks.has(dashboard.LAYOUT_KEY), "hourly"))}
+                  schedule={dashboard.readSchedule(
+                    env.blocks.get(dashboard.LAYOUT_KEY),
+                  )}
+                  onReadHourly={() =>
+                    apply(
+                      dashboard.scheduleOps(
+                        env.blocks.has(dashboard.LAYOUT_KEY),
+                        "hourly",
+                      ),
+                    )
+                  }
                 />
               ) : null}
             </>
           ) : null}
           {block.kind === "chart" ? (
             <>
-              <Select label="Chart" value={block.chart ?? "line"} options={dashboard.CHART_TYPES} labels={{ hbar: "ranked bars", stacked: "stacked bars" }} onChange={(v) => set({ chart: v })} />
+              <Select
+                label="Chart"
+                value={block.chart ?? "line"}
+                options={dashboard.CHART_TYPES}
+                labels={{ hbar: "ranked bars", stacked: "stacked bars" }}
+                onChange={(v) => set({ chart: v })}
+              />
               <Row>
-                <Select label="X" value={block.x} options={labels.length ? labels : columns} empty="first" onChange={(v) => set({ x: v || null })} />
-                <Select label="Series" value={block.series} options={labels.filter((c) => c !== (block.x ?? columns[0]))} empty="none" onChange={(v) => set({ series: v || null, ...(v && String(block.y ?? "").includes(",") ? { y: String(block.y).split(",")[0] } : {}) })} />
+                <Select
+                  label="X"
+                  value={block.x}
+                  options={labels.length ? labels : columns}
+                  empty="first"
+                  onChange={(v) => set({ x: v || null })}
+                />
+                <Select
+                  label="Series"
+                  value={block.series}
+                  options={labels.filter((c) => c !== (block.x ?? columns[0]))}
+                  empty="none"
+                  onChange={(v) =>
+                    set({
+                      series: v || null,
+                      ...(v && String(block.y ?? "").includes(",")
+                        ? { y: String(block.y).split(",")[0] }
+                        : {}),
+                    })
+                  }
+                />
               </Row>
-              <SeriesPicker value={block.y} options={numeric} single={!!block.series} onChange={(v) => set({ y: v, ...(v && formatFor(v.split(",")[0]) !== (block.format ?? "number") ? { format: formatFor(v.split(",")[0]) } : {}) })} />
+              <SeriesPicker
+                value={block.y}
+                options={numeric}
+                single={!!block.series}
+                onChange={(v) =>
+                  set({
+                    y: v,
+                    ...(v &&
+                    formatFor(v.split(",")[0]) !== (block.format ?? "number")
+                      ? { format: formatFor(v.split(",")[0]) }
+                      : {}),
+                  })
+                }
+              />
               <Row>
-                <Select label="Format" value={block.format ?? "number"} options={FORMATS} onChange={(v) => set({ format: v })} />
+                <Select
+                  label="Format"
+                  value={block.format ?? "number"}
+                  options={FORMATS}
+                  onChange={(v) => set({ format: v })}
+                />
               </Row>
               <label className="flex items-center gap-2 text-sm text-sol-text-secondary">
-                <input type="checkbox" checked={!!block.cumulative} onChange={(e) => set({ cumulative: e.target.checked ? true : null })} className="accent-[var(--sol-blue)]" />
+                <input
+                  type="checkbox"
+                  checked={!!block.cumulative}
+                  onChange={(e) =>
+                    set({ cumulative: e.target.checked ? true : null })
+                  }
+                  className="accent-[var(--sol-blue)]"
+                />
                 Running total
               </label>
             </>
           ) : null}
           {block.kind === "table" ? (
             <>
-              <Select label="One row per" value={block.group} options={labels} empty="source row" onChange={(v) => set({ group: v || null, columns: null, sort: v ? `-${numeric[0] ?? "rows"}` : null })} />
-              <TextField label="Columns" placeholder="all, or a,b,c" value={block.columns} onCommit={(v) => set({ columns: v || null })} />
+              <Select
+                label="One row per"
+                value={block.group}
+                options={labels}
+                empty="source row"
+                onChange={(v) =>
+                  set({
+                    group: v || null,
+                    columns: null,
+                    sort: v ? `-${numeric[0] ?? "rows"}` : null,
+                  })
+                }
+              />
+              <TextField
+                label="Columns"
+                placeholder="all, or a,b,c"
+                value={block.columns}
+                onCommit={(v) => set({ columns: v || null })}
+              />
               <Row>
-                <Select label="Sort" value={block.sort} options={tableCols.flatMap((c) => [`-${c}`, c])} labels={Object.fromEntries(tableCols.flatMap((c) => [[`-${c}`, `${c} ↓`], [c, `${c} ↑`]]))} empty="source order" onChange={(v) => set({ sort: v || null })} />
-                <TextField label="Limit" value={block.limit === undefined ? undefined : String(block.limit)} onCommit={(v) => set({ limit: v && Number(v) > 0 ? Number(v) : null })} />
+                <Select
+                  label="Sort"
+                  value={block.sort}
+                  options={tableCols.flatMap((c) => [`-${c}`, c])}
+                  labels={Object.fromEntries(
+                    tableCols.flatMap((c) => [
+                      [`-${c}`, `${c} ↓`],
+                      [c, `${c} ↑`],
+                    ]),
+                  )}
+                  empty="source order"
+                  onChange={(v) => set({ sort: v || null })}
+                />
+                <TextField
+                  label="Limit"
+                  value={
+                    block.limit === undefined ? undefined : String(block.limit)
+                  }
+                  onCommit={(v) =>
+                    set({ limit: v && Number(v) > 0 ? Number(v) : null })
+                  }
+                />
               </Row>
             </>
           ) : null}
           <Field label="Filter rows">
-            <WhereBuilder where={block.where as dashboard.Where | undefined} columns={columns} rows={result?.rows ?? []} onChange={(w) => set({ where: (w ?? null) as Json })} />
+            <WhereBuilder
+              where={block.where as dashboard.Where | undefined}
+              columns={columns}
+              rows={result?.rows ?? []}
+              onChange={(w) => set({ where: (w ?? null) as Json })}
+            />
           </Field>
         </>
       ) : null}
 
-      <Select label="Width" value={String(dashboard.blockSpan(block))} options={dashboard.SPANS.map(String)} labels={{ "3": "quarter", "4": "third", "6": "half", "8": "two thirds", "12": "full" }} onChange={(v) => set({ span: Number(v) })} />
+      <Select
+        label="Width"
+        value={String(dashboard.blockSpan(block))}
+        options={dashboard.SPANS.map(String)}
+        labels={{
+          "3": "quarter",
+          "4": "third",
+          "6": "half",
+          "8": "two thirds",
+          "12": "full",
+        }}
+        onChange={(v) => set({ span: Number(v) })}
+      />
 
       <Field label="In a story">
-        <LiveTextField label="Story title" value={block.say_title} kpis={kpis} preview={preview} holdKey={`${docId}:${block.key}:say_title`} onCommit={(v) => set({ say_title: v || null })} />
+        <LiveTextField
+          label="Story title"
+          value={block.say_title}
+          kpis={kpis}
+          preview={preview}
+          holdKey={`${docId}:${block.key}:say_title`}
+          onCommit={(v) => set({ say_title: v || null })}
+        />
         <div className="h-2" />
-        <LiveTextField label="Story line" value={block.say} kpis={kpis} preview={preview} multiline holdKey={`${docId}:${block.key}:say`} onCommit={(v) => set({ say: v || null })} />
+        <LiveTextField
+          label="Story line"
+          value={block.say}
+          kpis={kpis}
+          preview={preview}
+          multiline
+          holdKey={`${docId}:${block.key}:say`}
+          onCommit={(v) => set({ say: v || null })}
+        />
         <label className="mt-2 flex items-center gap-2 text-sm text-sol-text-secondary">
-          <input type="checkbox" checked={block.in_story !== false} onChange={(e) => set({ in_story: e.target.checked ? null : false })} className="accent-[var(--sol-blue)]" />
+          <input
+            type="checkbox"
+            checked={block.in_story !== false}
+            onChange={(e) => set({ in_story: e.target.checked ? null : false })}
+            className="accent-[var(--sol-blue)]"
+          />
           Show in stories
         </label>
       </Field>
@@ -158,9 +474,30 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-2">{children}</div>;
 }
 
-const inputCls = "w-full rounded-md bg-sol-bg border border-sol-border/60 px-2 h-8 text-sm text-sol-text outline-none focus:border-sol-blue";
+const inputCls =
+  "w-full rounded-md bg-sol-bg border border-sol-border/60 px-2 h-8 text-sm text-sol-text outline-none focus:border-sol-blue";
 
-function TextField({ label, value, onCommit, multiline, mono, placeholder, hint, validate, warn }: { label: string; value: unknown; onCommit: (v: string) => void; multiline?: boolean; mono?: boolean; placeholder?: string; hint?: string; validate?: (v: string) => string | null; warn?: (v: string) => string | null }) {
+function TextField({
+  label,
+  value,
+  onCommit,
+  multiline,
+  mono,
+  placeholder,
+  hint,
+  validate,
+  warn,
+}: {
+  label: string;
+  value: unknown;
+  onCommit: (v: string) => void;
+  multiline?: boolean;
+  mono?: boolean;
+  placeholder?: string;
+  hint?: string;
+  validate?: (v: string) => string | null;
+  warn?: (v: string) => string | null;
+}) {
   const shown = value === undefined || value === null ? "" : String(value);
   const { draft, setDraft, onFocus, onBlur } = useCommittedDraft(shown);
   const error = validate ? validate(draft) : null;
@@ -168,7 +505,8 @@ function TextField({ label, value, onCommit, multiline, mono, placeholder, hint,
   const caution = !error && warn ? warn(draft) : null;
   const props = {
     value: draft,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft(e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setDraft(e.target.value),
     onFocus,
     onBlur: () => {
       onBlur();
@@ -183,23 +521,61 @@ function TextField({ label, value, onCommit, multiline, mono, placeholder, hint,
     <label className="block space-y-1">
       <span className="text-meta text-sol-text-dim">{label}</span>
       {multiline ? (
-        <textarea {...props} rows={4} className={`${inputCls} h-auto py-1.5 resize-y leading-6 ${bad}`} />
+        <textarea
+          {...props}
+          rows={4}
+          className={`${inputCls} h-auto py-1.5 resize-y leading-6 ${bad}`}
+        />
       ) : (
-        <input {...props} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} className={`${inputCls} ${mono ? "font-mono text-[12px]" : ""} ${bad}`} />
+        <input
+          {...props}
+          onKeyDown={(e) =>
+            e.key === "Enter" && (e.target as HTMLInputElement).blur()
+          }
+          className={`${inputCls} ${mono ? "font-mono text-[12px]" : ""} ${bad}`}
+        />
       )}
-      {error ? <span className="block text-meta text-sol-red">{error}</span> : caution ? <span className="block text-meta text-sol-yellow">{caution}</span> : hint ? <span className="block text-meta text-sol-text-dim truncate" title={hint}>{hint}</span> : null}
+      {error ? (
+        <span className="block text-meta text-sol-red">{error}</span>
+      ) : caution ? (
+        <span className="block text-meta text-sol-yellow">{caution}</span>
+      ) : hint ? (
+        <span
+          className="block text-meta text-sol-text-dim truncate"
+          title={hint}
+        >
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-
-function Select({ label, value, options, labels, empty, onChange }: { label: string; value: unknown; options: readonly string[]; labels?: Record<string, string>; empty?: string; onChange: (v: string) => void }) {
+function Select({
+  label,
+  value,
+  options,
+  labels,
+  empty,
+  onChange,
+}: {
+  label: string;
+  value: unknown;
+  options: readonly string[];
+  labels?: Record<string, string>;
+  empty?: string;
+  onChange: (v: string) => void;
+}) {
   const v = value === undefined || value === null ? "" : String(value);
   const opts = v && !options.includes(v) ? [v, ...options] : options;
   return (
     <label className="block space-y-1 min-w-0">
       <span className="text-meta text-sol-text-dim">{label}</span>
-      <select value={v} onChange={(e) => onChange(e.target.value)} className={`${inputCls} pr-6`}>
+      <select
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputCls} pr-6`}
+      >
         {empty !== undefined ? <option value="">{empty}</option> : null}
         {opts.map((o) => (
           <option key={o} value={o}>
@@ -211,7 +587,17 @@ function Select({ label, value, options, labels, empty, onChange }: { label: str
   );
 }
 
-function QueryField({ docId, block, onCommit, problem }: { docId: string; block: ArtifactElement; onCommit: (q: dashboard.DataQuery | null, newSource?: boolean) => void; problem?: string }) {
+function QueryField({
+  docId,
+  block,
+  onCommit,
+  problem,
+}: {
+  docId: string;
+  block: ArtifactElement;
+  onCommit: (q: dashboard.DataQuery | null, newSource?: boolean) => void;
+  problem?: string;
+}) {
   // The query as the block stores it. blockQuery(block) is what is read (a period KPI reads twice its window); editing that would double the window on every change.
   const q = dashboard.blockQuery({ query: block.query });
   return (
@@ -220,7 +606,12 @@ function QueryField({ docId, block, onCommit, problem }: { docId: string; block:
         value={q?.source ?? ""}
         onChange={(e) => {
           const s = e.target.value;
-          onCommit(s ? { source: s, args: (dashboard.DEFAULT_ARGS[s] ?? {}) as any } : null, true);
+          onCommit(
+            s
+              ? { source: s, args: (dashboard.DEFAULT_ARGS[s] ?? {}) as any }
+              : null,
+            true,
+          );
         }}
         className={`${inputCls} pr-6`}
         aria-label="Source"
@@ -232,32 +623,77 @@ function QueryField({ docId, block, onCommit, problem }: { docId: string; block:
           </option>
         ))}
       </select>
-      {q ? <ArgsEditor docId={docId} source={q.source} args={(q.args ?? {}) as Record<string, Json>} onChange={(args) => onCommit({ ...q, args })} /> : null}
-      {problem ? <div className="text-meta text-sol-red break-words">{problem}</div> : null}
+      {q ? (
+        <ArgsEditor
+          docId={docId}
+          source={q.source}
+          args={(q.args ?? {}) as Record<string, Json>}
+          onChange={(args) => onCommit({ ...q, args })}
+        />
+      ) : null}
+      {problem ? (
+        <div className="text-meta text-sol-red break-words">{problem}</div>
+      ) : null}
     </Field>
   );
 }
 
 /** The value columns a chart draws: any number of them, or one when the chart splits by a column. Auto picks the numeric ones. */
-function SeriesPicker({ value, options, single, onChange }: { value: unknown; options: string[]; single: boolean; onChange: (v: string | null) => void }) {
-  const chosen = typeof value === "string" && value ? value.split(",").map((s) => s.trim()).filter(Boolean) : [];
+function SeriesPicker({
+  value,
+  options,
+  single,
+  onChange,
+}: {
+  value: unknown;
+  options: string[];
+  single: boolean;
+  onChange: (v: string | null) => void;
+}) {
+  const chosen =
+    typeof value === "string" && value
+      ? value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   // Chips stay where they are when picked; a chosen column the source no longer has goes last.
   const all = [...options, ...chosen.filter((c) => !options.includes(c))];
   const toggle = (c: string) => {
     // Values share one axis and one format: a column in another unit (spend beside tokens) replaces the pick rather than joining it.
     const unlike = chosen.length > 0 && formatFor(chosen[0]) !== formatFor(c);
-    const next = single || unlike ? (chosen[0] === c ? [] : [c]) : chosen.includes(c) ? chosen.filter((x) => x !== c) : [...chosen, c];
+    const next =
+      single || unlike
+        ? chosen[0] === c
+          ? []
+          : [c]
+        : chosen.includes(c)
+          ? chosen.filter((x) => x !== c)
+          : [...chosen, c];
     onChange(next.length ? next.join(",") : null);
   };
   return (
     <div className="space-y-1">
-      <span className="text-meta text-sol-text-dim">{single ? "Value" : "Values"}</span>
+      <span className="text-meta text-sol-text-dim">
+        {single ? "Value" : "Values"}
+      </span>
       <div className="flex flex-wrap gap-1" role="group" aria-label="Values">
-        <button type="button" aria-pressed={!chosen.length} onClick={() => onChange(null)} className={`h-7 px-2 rounded-md border text-xs ${!chosen.length ? "border-sol-blue/50 bg-sol-blue/10 text-sol-text" : "border-sol-border/60 text-sol-text-muted hover:text-sol-text"}`}>
+        <button
+          type="button"
+          aria-pressed={!chosen.length}
+          onClick={() => onChange(null)}
+          className={`h-7 px-2 rounded-md border text-xs ${!chosen.length ? "border-sol-blue/50 bg-sol-blue/10 text-sol-text" : "border-sol-border/60 text-sol-text-muted hover:text-sol-text"}`}
+        >
           auto
         </button>
         {all.map((c) => (
-          <button key={c} type="button" aria-pressed={chosen.includes(c)} onClick={() => toggle(c)} className={`h-7 px-2 rounded-md border text-xs ${chosen.includes(c) ? "border-sol-blue/50 bg-sol-blue/10 text-sol-text" : "border-sol-border/60 text-sol-text-muted hover:text-sol-text"} ${options.includes(c) ? "" : "line-through"}`}>
+          <button
+            key={c}
+            type="button"
+            aria-pressed={chosen.includes(c)}
+            onClick={() => toggle(c)}
+            className={`h-7 px-2 rounded-md border text-xs ${chosen.includes(c) ? "border-sol-blue/50 bg-sol-blue/10 text-sol-text" : "border-sol-border/60 text-sol-text-muted hover:text-sol-text"} ${options.includes(c) ? "" : "line-through"}`}
+          >
             {c}
           </button>
         ))}
@@ -267,8 +703,22 @@ function SeriesPicker({ value, options, single, onChange }: { value: unknown; op
 }
 
 /** Notify me when this number goes above or below a line. Empty both to stop. The alert fires whenever the number is read: while the page is open, or on the dashboard's schedule. */
-function AlertFields({ block, result, onSet, schedule, onReadHourly }: { block: ArtifactElement; result: ReturnType<typeof resultFor>; onSet: (alert: Json) => void; schedule: dashboard.Schedule | null; onReadHourly: () => void }) {
-  const me = useInboxStore((s: any) => (s.currentUser?._id ? String(s.currentUser._id) : undefined));
+function AlertFields({
+  block,
+  result,
+  onSet,
+  schedule,
+  onReadHourly,
+}: {
+  block: ArtifactElement;
+  result: ReturnType<typeof resultFor>;
+  onSet: (alert: Json) => void;
+  schedule: dashboard.Schedule | null;
+  onReadHourly: () => void;
+}) {
+  const me = useInboxStore((s: any) =>
+    s.currentUser?._id ? String(s.currentUser._id) : undefined,
+  );
   const alert = dashboard.readAlert(block);
   // Editing someone else's alert keeps it theirs: changing a line never moves who hears it.
   const owner = alert?.by ?? me;
@@ -279,29 +729,59 @@ function AlertFields({ block, result, onSet, schedule, onReadHourly }: { block: 
     if (!t) return undefined;
     const m = t.match(/^(-?\d*\.?\d+)([kmb])?$/i);
     if (!m) return null;
-    const n = Number(m[1]) * (m[2] ? { k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase() as "k" | "m" | "b"] : 1);
+    const n =
+      Number(m[1]) *
+      (m[2]
+        ? { k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase() as "k" | "m" | "b"]
+        : 1);
     return percent ? n / 100 : n;
   };
   // The line reads back the way it was typed: 10M, not 10000000.
   const short = (n: number) => {
-    for (const [unit, size] of [["B", 1e9], ["M", 1e6], ["K", 1e3]] as const) if (Math.abs(n) >= size && Number.isInteger((n / size) * 100)) return `${n / size}${unit}`;
+    for (const [unit, size] of [
+      ["B", 1e9],
+      ["M", 1e6],
+      ["K", 1e3],
+    ] as const)
+      if (Math.abs(n) >= size && Number.isInteger((n / size) * 100))
+        return `${n / size}${unit}`;
     return String(n);
   };
-  const shownLine = (n: number | undefined) => (n === undefined ? undefined : percent ? String(Math.round(n * 1e6) / 1e4) : short(n));
+  const shownLine = (n: number | undefined) =>
+    n === undefined
+      ? undefined
+      : percent
+        ? String(Math.round(n * 1e6) / 1e4)
+        : short(n);
   const write = (side: "above" | "below", v: string) => {
     const n = parse(v);
     if (n === null) return;
     const next = { ...(alert ?? {}), [side]: n };
     const above = next.above;
     const below = next.below;
-    onSet(above === undefined && below === undefined ? null : { ...(above !== undefined ? { above } : {}), ...(below !== undefined ? { below } : {}), ...(owner ? { by: owner } : {}) });
+    onSet(
+      above === undefined && below === undefined
+        ? null
+        : {
+            ...(above !== undefined ? { above } : {}),
+            ...(below !== undefined ? { below } : {}),
+            ...(owner ? { by: owner } : {}),
+          },
+    );
   };
   const check = (side: "above" | "below") => (v: string) => {
     const n = parse(v);
     if (n === null) return "A number, like 20K";
     // An upper line under the lower one would always be alerting.
     const other = side === "above" ? alert?.below : alert?.above;
-    if (n !== undefined && other !== undefined && (side === "above" ? n < other : n > other)) return side === "above" ? "Above sits under Below" : "Below sits over Above";
+    if (
+      n !== undefined &&
+      other !== undefined &&
+      (side === "above" ? n < other : n > other)
+    )
+      return side === "above"
+        ? "Above sits under Below"
+        : "Below sits over Above";
     return null;
   };
   const ev = dashboard.evaluateKpi(block as dashboard.KpiBlock, result);
@@ -310,30 +790,75 @@ function AlertFields({ block, result, onSet, schedule, onReadHourly }: { block: 
   // A line the value already crosses notifies at the next read: say so while it is typed, not after it is saved.
   const crossing = (side: "above" | "below") => (v: string) => {
     const n = parse(v);
-    if (typeof n !== "number" || ev.state !== "ok" || typeof ev.value !== "number") return null;
-    return (side === "above" ? ev.value > n : ev.value < n) ? `Already past (${ev.display}): alerts on the next read` : null;
+    if (
+      typeof n !== "number" ||
+      ev.state !== "ok" ||
+      typeof ev.value !== "number"
+    )
+      return null;
+    return (side === "above" ? ev.value > n : ev.value < n)
+      ? `Already past (${ev.display}): alerts on the next read`
+      : null;
   };
   const whoName = useInboxStore((s: any) => {
     if (!alert?.by || alert.by === me) return null;
-    const m = teamMembersOf(s).find((t: any) => String(t?._id ?? t?.user_id) === alert.by);
+    const m = teamMembersOf(s).find(
+      (t: any) => String(t?._id ?? t?.user_id) === alert.by,
+    );
     return m?.name ? String(m.name) : null;
   });
   return (
     <Field label="Alert when it goes">
       <Row>
-        <TextField label={percent ? "Above (%)" : "Above"} value={shownLine(alert?.above)} placeholder={now} validate={check("above")} warn={crossing("above")} onCommit={(v) => write("above", v)} />
-        <TextField label={percent ? "Below (%)" : "Below"} value={shownLine(alert?.below)} placeholder={now} validate={check("below")} warn={crossing("below")} onCommit={(v) => write("below", v)} />
+        <TextField
+          label={percent ? "Above (%)" : "Above"}
+          value={shownLine(alert?.above)}
+          placeholder={now}
+          validate={check("above")}
+          warn={crossing("above")}
+          onCommit={(v) => write("above", v)}
+        />
+        <TextField
+          label={percent ? "Below (%)" : "Below"}
+          value={shownLine(alert?.below)}
+          placeholder={now}
+          validate={check("below")}
+          warn={crossing("below")}
+          onCommit={(v) => write("below", v)}
+        />
       </Row>
-      <div className="flex flex-wrap gap-x-2 text-meta text-sol-text-dim tabular-nums" data-alert-status>
+      <div
+        className="flex flex-wrap gap-x-2 text-meta text-sol-text-dim tabular-nums"
+        data-alert-status
+      >
         {ev.state === "ok" ? <span>Now {ev.display}</span> : null}
-        {alert ? <span>· notifies {!alert.by || alert.by === me ? "you" : whoName ?? "the person who set it"}{schedule ? `, checked ${schedule}` : ""}</span> : null}
-        {state && state.state !== "ok" ? <span className="text-sol-red">· past the line now: an alert goes out on the next read</span> : null}
+        {alert ? (
+          <span>
+            · notifies{" "}
+            {!alert.by || alert.by === me
+              ? "you"
+              : (whoName ?? "the person who set it")}
+            {schedule ? `, checked ${schedule}` : ""}
+          </span>
+        ) : null}
+        {state && state.state !== "ok" ? (
+          <span className="text-sol-red">
+            · past the line now: an alert goes out on the next read
+          </span>
+        ) : null}
       </div>
       {/* With no schedule the number is read only while someone has the dashboard open, so the alert would stay quiet the rest of the time. */}
       {alert && !schedule ? (
-        <div className="flex items-center gap-2 text-meta text-sol-yellow" data-alert-unscheduled>
+        <div
+          className="flex items-center gap-2 text-meta text-sol-yellow"
+          data-alert-unscheduled
+        >
           <span className="flex-1">Checked only while open</span>
-          <button type="button" onClick={onReadHourly} className="h-6 px-2 rounded-md border border-sol-border/60 text-sol-text hover:bg-sol-bg-alt">
+          <button
+            type="button"
+            onClick={onReadHourly}
+            className="h-6 px-2 rounded-md border border-sol-border/60 text-sol-text hover:bg-sol-bg-alt"
+          >
             Check hourly
           </button>
         </div>

@@ -59,7 +59,10 @@ export function codexPanes(): CodexPane[] {
 
 /** A Codex pane just started (or was resumed, which is the same thing: a new
  *  process reading auth.json afresh). */
-export function markCodexPaneLive(id: string, pane: Omit<CodexPane, "id"> = {}): void {
+export function markCodexPaneLive(
+  id: string,
+  pane: Omit<CodexPane, "id"> = {},
+): void {
   panes.set(id, entry({ id, ...pane }));
   void persist();
 }
@@ -92,7 +95,13 @@ export function reconcileCodexPanes(alive: readonly CodexPane[]): void {
     // conversation is the opposite — a resumed pane carries no conversation
     // stamp, so forgetting it would lose the only link back to the row.
     const known = panes.get(pane.id);
-    panes.set(pane.id, entry({ ...pane, conversationId: pane.conversationId ?? known?.conversationId }));
+    panes.set(
+      pane.id,
+      entry({
+        ...pane,
+        conversationId: pane.conversationId ?? known?.conversationId,
+      }),
+    );
   }
   for (const id of [...panes.keys()]) if (!seen.has(id)) panes.delete(id);
   void persist();
@@ -108,7 +117,9 @@ export function reconcileCodexPanes(alive: readonly CodexPane[]): void {
  */
 export function staleCodexPanes(current: string | undefined): CodexPane[] {
   if (!current) return [];
-  return codexPanes().filter((pane) => !!pane.account && pane.account !== current);
+  return codexPanes().filter(
+    (pane) => !!pane.account && pane.account !== current,
+  );
 }
 
 /** Restore the registry from disk at daemon start. */
@@ -125,7 +136,10 @@ export async function seedCodexPanes(): Promise<CodexPane[]> {
     const row = entry({
       id: pane.id,
       account: typeof pane.account === "string" ? pane.account : undefined,
-      conversationId: typeof pane.conversationId === "string" ? pane.conversationId : undefined,
+      conversationId:
+        typeof pane.conversationId === "string"
+          ? pane.conversationId
+          : undefined,
     });
     panes.set(row.id, row);
     restored.push(row);
@@ -149,7 +163,9 @@ async function persist(): Promise<void> {
     const temp = `${file}.${process.pid}.tmp`;
     try {
       await fs.promises.mkdir(path.dirname(file), { recursive: true });
-      await fs.promises.writeFile(temp, JSON.stringify(snapshot, null, 2), { mode: 0o644 });
+      await fs.promises.writeFile(temp, JSON.stringify(snapshot, null, 2), {
+        mode: 0o644,
+      });
       await fs.promises.rename(temp, file);
     } catch {
       // The registry still holds in memory; the next mark retries the write.
@@ -188,7 +204,13 @@ export function parseCodexPaneRows(stdout: string, sep: string): CodexPane[] {
     const agentType = expanded(parts.pop()!);
     const id = parts.join(sep).trim();
     if (!id || agentType !== "codex") continue;
-    out.push(entry({ id, account: account || undefined, conversationId: conversationId || undefined }));
+    out.push(
+      entry({
+        id,
+        account: account || undefined,
+        conversationId: conversationId || undefined,
+      }),
+    );
   }
   return out;
 }

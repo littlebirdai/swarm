@@ -36,7 +36,13 @@ describe("presignUrl", () => {
       expiresSeconds: 60,
       now: new Date("2026-09-24T00:00:00Z"),
     });
-    expect(url.startsWith("https://acct.r2.cloudflarestorage.com/codecast/media/abc%201.mp4?")).toBe(true);
-    expect(url).toContain("X-Amz-Credential=k%2F20260924%2Fauto%2Fs3%2Faws4_request");
+    expect(
+      url.startsWith(
+        "https://acct.r2.cloudflarestorage.com/codecast/media/abc%201.mp4?",
+      ),
+    ).toBe(true);
+    expect(url).toContain(
+      "X-Amz-Credential=k%2F20260924%2Fauto%2Fs3%2Faws4_request",
+    );
   });
 });

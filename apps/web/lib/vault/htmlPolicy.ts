@@ -33,7 +33,14 @@ import type { Options as SanitizeSchema } from "rehype-sanitize";
  *  renderer's own payload carriers (see remarkWikiLink) and never reach the
  *  network; the rest are the three a document legitimately links out with.
  *  `data:` is absent on purpose — see the note on the schema below. */
-const HREF_PROTOCOLS = ["http", "https", "mailto", "wiki", "wikiembed", "vaulttag"];
+const HREF_PROTOCOLS = [
+  "http",
+  "https",
+  "mailto",
+  "wiki",
+  "wikiembed",
+  "vaulttag",
+];
 
 /** An `src` may only be a vault-relative path or a plain web URL. */
 const SRC_PROTOCOLS = ["http", "https"];
@@ -108,16 +115,48 @@ const STRIP_WITH_CONTENT = [
 export const VAULT_HTML_SCHEMA: SanitizeSchema = {
   tagNames: [
     // Presentational HTML that READMEs actually open with.
-    "p", "div", "span", "a", "img", "br", "hr",
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "strong", "b", "em", "i", "code", "pre", "blockquote",
-    "ul", "ol", "li",
-    "table", "thead", "tbody", "tr", "th", "td",
-    "kbd", "sub", "sup", "small", "center", "picture",
-    "details", "summary",
+    "p",
+    "div",
+    "span",
+    "a",
+    "img",
+    "br",
+    "hr",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "code",
+    "pre",
+    "blockquote",
+    "ul",
+    "ol",
+    "li",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "kbd",
+    "sub",
+    "sup",
+    "small",
+    "center",
+    "picture",
+    "details",
+    "summary",
     // Emitted by the markdown pipeline itself, not by note authors: GFM
     // strikethrough, task-list checkboxes, and the footnotes section.
-    "del", "input", "section",
+    "del",
+    "input",
+    "section",
   ],
 
   attributes: {
@@ -137,16 +176,26 @@ export const VAULT_HTML_SCHEMA: SanitizeSchema = {
     // `language-*` drives syntax highlighting; `math-*` is how remark-math
     // marks a formula for KaTeX, which runs after this pass.
     code: [["className", /^language-./, "math-inline", "math-display"]],
-    li: [["className", "task-list-item"], ["id", /^user-content-fn-\d+$/]],
+    li: [
+      ["className", "task-list-item"],
+      ["id", /^user-content-fn-\d+$/],
+    ],
     ul: [["className", "contains-task-list"]],
-    h2: [["className", "sr-only"], ["id", "footnote-label"]],
+    h2: [
+      ["className", "sr-only"],
+      ["id", "footnote-label"],
+    ],
     section: [["className", "footnotes"], "dataFootnotes"],
     td: ["colSpan", "rowSpan"],
     th: ["colSpan", "rowSpan"],
     details: ["open"],
     // Pinned, and none of these three names appear in `'*'`, so a raw
     // `<input type="text">` cannot fall through to a permissive default.
-    input: [["type", "checkbox"], ["disabled", true], ["checked", true]],
+    input: [
+      ["type", "checkbox"],
+      ["disabled", true],
+      ["checked", true],
+    ],
     "*": ["align", "width", "height", "title"],
   },
 

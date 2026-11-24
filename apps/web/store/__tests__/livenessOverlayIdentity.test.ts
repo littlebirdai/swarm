@@ -15,22 +15,43 @@ function seed() {
   const st = useInboxStore.getState() as any;
   st._setDispatch?.(async () => undefined);
   useInboxStore.setState({
-    sessions: {}, conversations: {}, pending: {}, pendingMessages: {},
-    currentUser: { _id: "me", name: "Me" }, clientStateInitialized: true,
+    sessions: {},
+    conversations: {},
+    pending: {},
+    pendingMessages: {},
+    currentUser: { _id: "me", name: "Me" },
+    clientStateInitialized: true,
   } as any);
-  useInboxStore.getState().syncTable("sessions", [{
-    _id: ID, user_id: "me", status: "active", title: "Live", message_count: 10,
-    updated_at: NOW, started_at: NOW - 60_000, agent_status: "working", is_idle: false,
-    last_heartbeat: NOW, activity: { text: "editing a.ts", tool: "Edit", at: NOW },
-    open_tasks: [{ id: "t1", kind: "background", started_at: NOW, description: "build" }],
-  }] as any);
+  useInboxStore.getState().syncTable("sessions", [
+    {
+      _id: ID,
+      user_id: "me",
+      status: "active",
+      title: "Live",
+      message_count: 10,
+      updated_at: NOW,
+      started_at: NOW - 60_000,
+      agent_status: "working",
+      is_idle: false,
+      last_heartbeat: NOW,
+      activity: { text: "editing a.ts", tool: "Edit", at: NOW },
+      open_tasks: [
+        { id: "t1", kind: "background", started_at: NOW, description: "build" },
+      ],
+    },
+  ] as any);
 }
 
 function beat(patch: Record<string, unknown>) {
   const row = useInboxStore.getState().sessions[ID] as Record<string, unknown>;
   const facts: Record<string, unknown> = {};
   for (const key of INBOX_FACT_FIELDS) facts[key] = row[key] ?? null;
-  useInboxStore.getState().applyInboxLivenessPayload("mine", structuredClone({ liveness: { [ID]: { ...facts, ...patch } } }));
+  useInboxStore
+    .getState()
+    .applyInboxLivenessPayload(
+      "mine",
+      structuredClone({ liveness: { [ID]: { ...facts, ...patch } } }),
+    );
   return useInboxStore.getState().sessions[ID] as Record<string, any>;
 }
 
@@ -47,7 +68,9 @@ describe("liveness overlay keeps equal structured facts", () => {
 
   it("a changed structured fact still lands", () => {
     const before = useInboxStore.getState().sessions[ID] as Record<string, any>;
-    const after = beat({ activity: { text: "running tests", tool: "Bash", at: NOW + 2_000 } });
+    const after = beat({
+      activity: { text: "running tests", tool: "Bash", at: NOW + 2_000 },
+    });
     expect(after.activity).not.toBe(before.activity);
     expect(after.activity.text).toBe("running tests");
     expect(after.open_tasks).toBe(before.open_tasks);

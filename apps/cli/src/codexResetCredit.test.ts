@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, setDefaultTimeout } from "bun:test";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  setDefaultTimeout,
+} from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -64,19 +71,35 @@ const OFFER_BODY = {
   available_count: 1,
   total_earned_count: 3,
   credits: [
-    { status: "available", expires_at: "2026-09-20T00:00:00Z", granted_at: "2026-09-01T00:00:00Z" },
-    { status: "redeemed", expires_at: null, granted_at: "2026-08-01T00:00:00Z" },
+    {
+      status: "available",
+      expires_at: "2026-09-20T00:00:00Z",
+      granted_at: "2026-09-01T00:00:00Z",
+    },
+    {
+      status: "redeemed",
+      expires_at: null,
+      granted_at: "2026-08-01T00:00:00Z",
+    },
   ],
 };
 
 /** A fake fetch that answers the GET with `offer` and the POST with `code`,
  *  recording every request for assertions. */
-function fakeBackend(opts: { offer?: any; code?: ResetCreditOutcome; postStatus?: number }) {
+function fakeBackend(opts: {
+  offer?: any;
+  code?: ResetCreditOutcome;
+  postStatus?: number;
+}) {
   const calls: Array<{ url: string; body?: any }> = [];
   const fetchImpl = (async (url: any, init?: any) => {
     const href = String(url);
-    calls.push({ url: href, body: init?.body ? JSON.parse(init.body) : undefined });
-    if (href === CODEX_RESET_CREDITS_URL) return jsonResponse(opts.offer ?? OFFER_BODY);
+    calls.push({
+      url: href,
+      body: init?.body ? JSON.parse(init.body) : undefined,
+    });
+    if (href === CODEX_RESET_CREDITS_URL)
+      return jsonResponse(opts.offer ?? OFFER_BODY);
     if (href === CODEX_RESET_CREDITS_CONSUME_URL) {
       if (opts.postStatus && opts.postStatus >= 400) {
         return jsonResponse({ detail: "nope" }, opts.postStatus);
@@ -93,14 +116,22 @@ describe("parseResetCreditsResponse", () => {
     const offer = parseResetCreditsResponse(OFFER_BODY)!;
     expect(offer.available).toBe(1);
     expect(offer.total_earned).toBe(3);
-    expect(offer.credits[0].granted_at).toBe(Date.parse("2026-09-01T00:00:00Z"));
+    expect(offer.credits[0].granted_at).toBe(
+      Date.parse("2026-09-01T00:00:00Z"),
+    );
     expect(offer.next_expires_at).toBe(Date.parse("2026-09-20T00:00:00Z"));
   });
 
   it("normalizes epoch seconds and milliseconds alike", () => {
     const offer = parseResetCreditsResponse({
       available_count: 1,
-      credits: [{ status: "AVAILABLE", expires_at: 1_790_000_000, granted_at: 1_790_000_000_000 }],
+      credits: [
+        {
+          status: "AVAILABLE",
+          expires_at: 1_790_000_000,
+          granted_at: 1_790_000_000_000,
+        },
+      ],
     })!;
     expect(offer.credits[0].status).toBe("available");
     expect(offer.credits[0].expires_at).toBe(1_790_000_000_000);
@@ -110,7 +141,11 @@ describe("parseResetCreditsResponse", () => {
 
   it("counts available rows when the endpoint sends no count", () => {
     const offer = parseResetCreditsResponse({
-      credits: [{ status: "available" }, { status: "available" }, { status: "expired" }],
+      credits: [
+        { status: "available" },
+        { status: "available" },
+        { status: "expired" },
+      ],
     })!;
     expect(offer.available).toBe(2);
   });
@@ -126,7 +161,9 @@ describe("offerRevision", () => {
     available: 1,
     total_earned: 3,
     next_expires_at: 1_790_000_000_000,
-    credits: [{ status: "available", expires_at: 1_790_000_000_000, granted_at: null }],
+    credits: [
+      { status: "available", expires_at: 1_790_000_000_000, granted_at: null },
+    ],
   };
 
   it("is stable across credit-row ordering", () => {
@@ -139,17 +176,24 @@ describe("offerRevision", () => {
     };
     const other: ResetCreditOffer = {
       ...offer,
-      credits: [offer.credits[0], { status: "expired", expires_at: 1, granted_at: null }],
+      credits: [
+        offer.credits[0],
+        { status: "expired", expires_at: 1, granted_at: null },
+      ],
     };
     expect(offerRevision(shuffled)).toBe(offerRevision(other));
   });
 
   it("moves when the balance moves", () => {
-    expect(offerRevision({ ...offer, available: 2 })).not.toBe(offerRevision(offer));
+    expect(offerRevision({ ...offer, available: 2 })).not.toBe(
+      offerRevision(offer),
+    );
   });
 
   it("moves when the usage windows move", () => {
-    const a = offerRevision(offer, { session: { percent: 100, resets_at: 10 } });
+    const a = offerRevision(offer, {
+      session: { percent: 100, resets_at: 10 },
+    });
     const b = offerRevision(offer, { session: { percent: 0, resets_at: 10 } });
     expect(a).not.toBe(b);
     expect(a).not.toBe(offerRevision(offer));
@@ -185,35 +229,44 @@ describe("fetchCodexResetCredits", () => {
   });
 
   it("throws a CloudApiError when the endpoint refuses", async () => {
-    const fetchImpl = (async () => jsonResponse({}, 401)) as unknown as typeof fetch;
-    await expect(fetchCodexResetCredits(codexHome, { fetchImpl })).rejects.toBeInstanceOf(
-      CloudApiError,
-    );
+    const fetchImpl = (async () =>
+      jsonResponse({}, 401)) as unknown as typeof fetch;
+    await expect(
+      fetchCodexResetCredits(codexHome, { fetchImpl }),
+    ).rejects.toBeInstanceOf(CloudApiError);
   });
 });
 
 describe("consumeCodexResetCredit", () => {
-  for (const code of ["reset", "nothing_to_reset", "no_credit", "already_redeemed"] as const) {
+  for (const code of [
+    "reset",
+    "nothing_to_reset",
+    "no_credit",
+    "already_redeemed",
+  ] as const) {
     it(`maps the "${code}" outcome`, async () => {
       const { fetchImpl, calls } = fakeBackend({ code });
-      expect(await consumeCodexResetCredit(codexHome, "key-1", { fetchImpl })).toBe(code);
+      expect(
+        await consumeCodexResetCredit(codexHome, "key-1", { fetchImpl }),
+      ).toBe(code);
       expect(calls[0].url).toBe(CODEX_RESET_CREDITS_CONSUME_URL);
       expect(calls[0].body).toEqual({ redeem_request_id: "key-1" });
     });
   }
 
   it("refuses an unknown outcome code rather than calling it harmless", async () => {
-    const fetchImpl = (async () => jsonResponse({ code: "shrug" })) as unknown as typeof fetch;
-    await expect(consumeCodexResetCredit(codexHome, "key-1", { fetchImpl })).rejects.toThrow(
-      /Unknown Codex reset outcome/,
-    );
+    const fetchImpl = (async () =>
+      jsonResponse({ code: "shrug" })) as unknown as typeof fetch;
+    await expect(
+      consumeCodexResetCredit(codexHome, "key-1", { fetchImpl }),
+    ).rejects.toThrow(/Unknown Codex reset outcome/);
   });
 
   it("requires a redeem request id", async () => {
     const { fetchImpl } = fakeBackend({});
-    await expect(consumeCodexResetCredit(codexHome, "  ", { fetchImpl })).rejects.toThrow(
-      /required/,
-    );
+    await expect(
+      consumeCodexResetCredit(codexHome, "  ", { fetchImpl }),
+    ).rejects.toThrow(/required/);
   });
 });
 
@@ -223,14 +276,24 @@ describe("the ledger", () => {
     writeResetCreditLedger({
       version: 1,
       attempts: [
-        { key: "k", account: "acct-1", offer_revision: "v1:x", state: "settled", outcome: "reset", at: 1 },
+        {
+          key: "k",
+          account: "acct-1",
+          offer_revision: "v1:x",
+          state: "settled",
+          outcome: "reset",
+          at: 1,
+        },
       ],
     });
     expect(readResetCreditLedger().attempts[0].outcome).toBe("reset");
   });
 
   it("fails closed on a corrupt file instead of reminting keys", () => {
-    fs.writeFileSync(resetCreditLedgerPath(), JSON.stringify({ version: 1, attempts: [{ key: 1 }] }));
+    fs.writeFileSync(
+      resetCreditLedgerPath(),
+      JSON.stringify({ version: 1, attempts: [{ key: 1 }] }),
+    );
     expect(() => readResetCreditLedger()).toThrow(/corrupt/);
   });
 
@@ -264,14 +327,28 @@ describe("redeemCodexResetCredit", () => {
       newKey: () => "key-1",
       now: 1000,
     });
-    expect(result).toMatchObject({ status: "redeemed", outcome: "reset", key: "key-1", replayed: false });
+    expect(result).toMatchObject({
+      status: "redeemed",
+      outcome: "reset",
+      key: "key-1",
+      replayed: false,
+    });
     expect(calls[1].body).toEqual({ redeem_request_id: "key-1" });
     const attempts = readResetCreditLedger().attempts;
     expect(attempts).toHaveLength(1);
-    expect(attempts[0]).toMatchObject({ key: "key-1", account, state: "settled", outcome: "reset" });
+    expect(attempts[0]).toMatchObject({
+      key: "key-1",
+      account,
+      state: "settled",
+      outcome: "reset",
+    });
   });
 
-  for (const code of ["nothing_to_reset", "no_credit", "already_redeemed"] as const) {
+  for (const code of [
+    "nothing_to_reset",
+    "no_credit",
+    "already_redeemed",
+  ] as const) {
     it(`settles a "${code}" answer without leaving the attempt pending`, async () => {
       const { fetchImpl } = fakeBackend({ code });
       const result = await redeemCodexResetCredit({
@@ -286,8 +363,14 @@ describe("redeemCodexResetCredit", () => {
   }
 
   it("refuses before the provider call when the account has no credit", async () => {
-    const { fetchImpl, calls } = fakeBackend({ offer: { available_count: 0, credits: [] } });
-    const result = await redeemCodexResetCredit({ account, codexHomeDir: codexHome, fetchImpl });
+    const { fetchImpl, calls } = fakeBackend({
+      offer: { available_count: 0, credits: [] },
+    });
+    const result = await redeemCodexResetCredit({
+      account,
+      codexHomeDir: codexHome,
+      fetchImpl,
+    });
     expect(result).toMatchObject({ status: "refused", reason: "no_offer" });
     expect(calls.map((c) => c.url)).toEqual([CODEX_RESET_CREDITS_URL]);
     expect(readResetCreditLedger().attempts).toHaveLength(0);
@@ -328,7 +411,9 @@ describe("redeemCodexResetCredit", () => {
       codexHomeDir: codexHome,
       fetchImpl,
       readWindows: () => ({ session: { percent: 0 } }),
-      expectedRevision: offerRevision(offer, { session: { percent: 100, resets_at: 5 } }),
+      expectedRevision: offerRevision(offer, {
+        session: { percent: 100, resets_at: 5 },
+      }),
       newKey: () => "key-1",
     });
     expect(result).toMatchObject({ status: "refused", reason: "stale_offer" });
@@ -365,7 +450,10 @@ describe("redeemCodexResetCredit", () => {
     });
     const second = fakeBackend({
       code: "reset",
-      offer: { available_count: 1, credits: [{ status: "available", granted_at: 5 }] },
+      offer: {
+        available_count: 1,
+        credits: [{ status: "available", granted_at: 5 }],
+      },
     });
     const result = await redeemCodexResetCredit({
       account,
@@ -387,7 +475,10 @@ describe("redeemCodexResetCredit", () => {
         newKey: () => "key-1",
       }),
     ).rejects.toBeInstanceOf(CloudApiError);
-    expect(readResetCreditLedger().attempts[0]).toMatchObject({ key: "key-1", state: "pending" });
+    expect(readResetCreditLedger().attempts[0]).toMatchObject({
+      key: "key-1",
+      state: "pending",
+    });
 
     // The retry re-sends the SAME redeem_request_id, so the provider dedupes and
     // one credit is spent in total.
@@ -398,7 +489,12 @@ describe("redeemCodexResetCredit", () => {
       fetchImpl: retry.fetchImpl,
       newKey: () => "key-2",
     });
-    expect(result).toMatchObject({ status: "redeemed", outcome: "already_redeemed", key: "key-1", replayed: true });
+    expect(result).toMatchObject({
+      status: "redeemed",
+      outcome: "already_redeemed",
+      key: "key-1",
+      replayed: true,
+    });
     expect(retry.calls[1].body).toEqual({ redeem_request_id: "key-1" });
     expect(readResetCreditLedger().attempts).toHaveLength(1);
   });
@@ -414,13 +510,20 @@ describe("redeemCodexResetCredit", () => {
       }),
     ).rejects.toBeInstanceOf(CloudApiError);
 
-    const retry = fakeBackend({ code: "already_redeemed", offer: { available_count: 0, credits: [] } });
+    const retry = fakeBackend({
+      code: "already_redeemed",
+      offer: { available_count: 0, credits: [] },
+    });
     const result = await redeemCodexResetCredit({
       account,
       codexHomeDir: codexHome,
       fetchImpl: retry.fetchImpl,
     });
-    expect(result).toMatchObject({ status: "redeemed", key: "key-1", replayed: true });
+    expect(result).toMatchObject({
+      status: "redeemed",
+      key: "key-1",
+      replayed: true,
+    });
   });
 
   it("collapses two concurrent redeems for one account into one spend", async () => {
@@ -430,11 +533,23 @@ describe("redeemCodexResetCredit", () => {
     let minted = 0;
     const newKey = () => `key-${++minted}`;
     const [a, b] = await Promise.all([
-      redeemCodexResetCredit({ account, codexHomeDir: codexHome, fetchImpl, newKey }),
-      redeemCodexResetCredit({ account, codexHomeDir: codexHome, fetchImpl, newKey }),
+      redeemCodexResetCredit({
+        account,
+        codexHomeDir: codexHome,
+        fetchImpl,
+        newKey,
+      }),
+      redeemCodexResetCredit({
+        account,
+        codexHomeDir: codexHome,
+        fetchImpl,
+        newKey,
+      }),
     ]);
     expect(a).toEqual(b);
-    const ids = calls.filter((c) => c.body).map((c) => c.body.redeem_request_id);
+    const ids = calls
+      .filter((c) => c.body)
+      .map((c) => c.body.redeem_request_id);
     expect(ids).toEqual(["key-1"]);
     expect(readResetCreditLedger().attempts).toHaveLength(1);
   });
@@ -443,7 +558,11 @@ describe("redeemCodexResetCredit", () => {
     const empty = path.join(sandbox, "empty");
     fs.mkdirSync(empty);
     const { fetchImpl, calls } = fakeBackend({});
-    const result = await redeemCodexResetCredit({ account, codexHomeDir: empty, fetchImpl });
+    const result = await redeemCodexResetCredit({
+      account,
+      codexHomeDir: empty,
+      fetchImpl,
+    });
     expect(result).toMatchObject({ status: "refused", reason: "signed_out" });
     expect(calls).toHaveLength(0);
   });
@@ -495,9 +614,17 @@ describe("two processes redeeming the same offer", () => {
 
     const run = () =>
       new Promise<any>((resolve, reject) => {
-        const proc = spawn(process.execPath, [child, origin, codexHome, "acct-1"], {
-          env: { ...process.env, CODECAST_DIR: process.env.CODECAST_DIR, HOME: sandbox },
-        });
+        const proc = spawn(
+          process.execPath,
+          [child, origin, codexHome, "acct-1"],
+          {
+            env: {
+              ...process.env,
+              CODECAST_DIR: process.env.CODECAST_DIR,
+              HOME: sandbox,
+            },
+          },
+        );
         let out = "";
         proc.stdout.on("data", (d) => (out += d));
         proc.stderr.on("data", (d) => (out += d));
@@ -518,7 +645,11 @@ describe("two processes redeeming the same offer", () => {
 
       const attempts = readResetCreditLedger().attempts;
       expect(attempts).toHaveLength(1);
-      expect(attempts[0]).toMatchObject({ account: "acct-1", state: "settled", outcome: "reset" });
+      expect(attempts[0]).toMatchObject({
+        account: "acct-1",
+        state: "settled",
+        outcome: "reset",
+      });
       expect(attempts[0].key).toBe(seenIds[0]);
 
       // One spent it; the other, holding the lock afterwards, found that exact

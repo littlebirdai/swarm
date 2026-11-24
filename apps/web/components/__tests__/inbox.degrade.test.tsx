@@ -9,7 +9,14 @@
 // still be a card and no part of the page may fall into an ErrorBoundary.
 // Run: cd apps/web && bun test --isolate components/__tests__/inbox.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, fixtureId, installDom, installMissingBackend, seedViewer, VIEWER_ID } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+  VIEWER_ID,
+} from "../../test-helpers/missingBackend";
 
 const { mountPage } = installDom("https://app.test/inbox");
 const backend = await installMissingBackend();
@@ -20,26 +27,30 @@ const { default: InboxPage } = await import("../../app/inbox/page");
 
 const SESSION = fixtureId("inboxcached");
 const now = Date.now();
-useInboxStore.getState().syncTable("sessions", [{
-  _id: SESSION,
-  session_id: "s-inbox-cached",
-  user_id: VIEWER_ID,
-  owned_by_me: true,
-  title: "Port the importer to bun",
-  status: "active",
-  started_at: now - 3_600_000,
-  updated_at: now - 60_000,
-  message_count: 4,
-  is_idle: true,
-  agent_type: "claude_code",
-  project_path: "/src/importer",
-}] as any);
+useInboxStore.getState().syncTable("sessions", [
+  {
+    _id: SESSION,
+    session_id: "s-inbox-cached",
+    user_id: VIEWER_ID,
+    owned_by_me: true,
+    title: "Port the importer to bun",
+    status: "active",
+    started_at: now - 3_600_000,
+    updated_at: now - 60_000,
+    message_count: 4,
+    is_idle: true,
+    agent_type: "claude_code",
+    project_path: "/src/importer",
+  },
+] as any);
 
 test("the inbox paints its cached session with every query missing", async () => {
   const page = await mountPage("/inbox", { inbox: <InboxPage /> });
   try {
     expect(describeFailures(page)).toBe("");
-    expect(page.container.querySelector(`[data-session-id="${SESSION}"]`)).not.toBeNull();
+    expect(
+      page.container.querySelector(`[data-session-id="${SESSION}"]`),
+    ).not.toBeNull();
     expect(page.text()).toContain("Port the importer to bun");
     // The shell's own enrichment ran and was refused, so the page above was
     // rendered through those failures and not around them.

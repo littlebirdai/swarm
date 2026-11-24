@@ -3,10 +3,26 @@
 // Pure, over store rows, so the calls page derives it at render and a task
 // moving anywhere moves its row here at once.
 
-export type FollowStage = "unfiled" | "guessed" | "filed" | "working" | "deciding" | "review" | "done" | "dropped";
+export type FollowStage =
+  | "unfiled"
+  | "guessed"
+  | "filed"
+  | "working"
+  | "deciding"
+  | "review"
+  | "done"
+  | "dropped";
 
 /** Left to right, the way an ask travels. */
-export const FOLLOW_STAGES: FollowStage[] = ["unfiled", "guessed", "filed", "working", "deciding", "review", "done"];
+export const FOLLOW_STAGES: FollowStage[] = [
+  "unfiled",
+  "guessed",
+  "filed",
+  "working",
+  "deciding",
+  "review",
+  "done",
+];
 
 export type FollowItem = {
   key: string;
@@ -33,7 +49,9 @@ export type FollowCall = {
 };
 
 const STOP = new Set(
-  "the and for with that this from into about what when then them they their have will should would could make take each look check start keep after before also just like more some than over onto your ours".split(" "),
+  "the and for with that this from into about what when then them they their have will should would could make take each look check start keep after before also just like more some than over onto your ours".split(
+    " ",
+  ),
 );
 
 const words = (s: string) =>
@@ -46,7 +64,8 @@ const words = (s: string) =>
   );
 
 /** Normalized title, so an action item finds the task made from it word for word. */
-export const itemKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.]+$/, "");
+export const itemKey = (s: string) =>
+  s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.]+$/, "");
 
 function overlap(item: string, title: string): number {
   const a = words(item);
@@ -62,7 +81,10 @@ function overlap(item: string, title: string): number {
 /** The task made from a call's action item: the same title, word for word
  *  (with or without the "Name:" prefix). The only rule that counts an ask as
  *  filed, on the call page and the board alike. */
-export function taskForItem<T extends { title?: string }>(item: string, tasks: T[]): T | undefined {
+export function taskForItem<T extends { title?: string }>(
+  item: string,
+  tasks: T[],
+): T | undefined {
   const keys = [itemKey(item), itemKey(splitAsk(item).text)];
   return tasks.find((t) => keys.includes(itemKey(t.title ?? "")));
 }
@@ -70,7 +92,10 @@ export function taskForItem<T extends { title?: string }>(item: string, tasks: T
 /** The task whose title reads most like an action item the listener may have
  *  reworded: three shared content words and most of the shorter. A guess for a
  *  person to confirm, since one common extra word can carry it. */
-export function likelyTaskForItem<T extends { title?: string }>(item: string, tasks: T[]): T | undefined {
+export function likelyTaskForItem<T extends { title?: string }>(
+  item: string,
+  tasks: T[],
+): T | undefined {
   const text = splitAsk(item).text;
   let best: T | undefined;
   let bestScore = 0.6;
@@ -84,16 +109,25 @@ export function likelyTaskForItem<T extends { title?: string }>(item: string, ta
 /** "Samvit: look into X" → { who: "Samvit", text: "look into X" }, when the
  *  prefix names someone on the call; "Note: ..." stays whole. With no names
  *  given, any short capitalized prefix counts. */
-export function splitAsk(item: string, names?: string[]): { who?: string; text: string } {
+export function splitAsk(
+  item: string,
+  names?: string[],
+): { who?: string; text: string } {
   const m = /^([A-Z][\w.' -]{0,40}?):\s+(.+)$/.exec(item.trim());
   if (!m) return { text: item.trim() };
   const who = m[1].trim();
-  const known = (n: string) => n.toLowerCase() === who.toLowerCase() || n.split(/\s+/)[0]?.toLowerCase() === who.toLowerCase();
+  const known = (n: string) =>
+    n.toLowerCase() === who.toLowerCase() ||
+    n.split(/\s+/)[0]?.toLowerCase() === who.toLowerCase();
   if (names && !names.some(known)) return { text: item.trim() };
   return { who, text: m[2].trim() };
 }
 
-function taskStage(task: any, sessions: string[], decisions: any[]): FollowStage {
+function taskStage(
+  task: any,
+  sessions: string[],
+  decisions: any[],
+): FollowStage {
   if (task.status === "done") return "done";
   if (task.status === "dropped") return "dropped";
   if (decisions.some((d) => d.status === "pending")) return "deciding";
@@ -147,24 +181,58 @@ export function buildFollowThrough(
   }
 
   return calls.map((call) => {
-    const callTasks = (tasksByCall.get(String(call._id)) ?? []).sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+    const callTasks = (tasksByCall.get(String(call._id)) ?? []).sort(
+      (a, b) => (a.created_at ?? 0) - (b.created_at ?? 0),
+    );
     const items: FollowItem[] = callTasks.map((task) => {
-      const filer = task.created_from_conversation ? String(task.created_from_conversation) : null;
-      const sessions = [...(task.conversation_ids ?? [])].map(String).filter((id) => id !== filer).reverse();
-      const decs = (decisionsByTask.get(String(task._id)) ?? []).sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
-      return { key: String(task._id), title: task.title, task, sessions, decisions: decs, stage: taskStage(task, sessions, decs) };
+      const filer = task.created_from_conversation
+        ? String(task.created_from_conversation)
+        : null;
+      const sessions = [...(task.conversation_ids ?? [])]
+        .map(String)
+        .filter((id) => id !== filer)
+        .reverse();
+      const decs = (decisionsByTask.get(String(task._id)) ?? []).sort(
+        (a, b) => (b.created_at ?? 0) - (a.created_at ?? 0),
+      );
+      return {
+        key: String(task._id),
+        title: task.title,
+        task,
+        sessions,
+        decisions: decs,
+        stage: taskStage(task, sessions, decs),
+      };
     });
     // A summary's action item no task took up is an ask nobody filed.
-    const names = (call.participants ?? []).map((p: any) => String(p.name ?? ""));
+    const names = (call.participants ?? []).map((p: any) =>
+      String(p.name ?? ""),
+    );
     for (const raw of call.action_items ?? []) {
       if (taskForItem(raw, callTasks)) continue;
       const { who, text } = splitAsk(raw, names);
       const guess = likelyTaskForItem(raw, callTasks);
-      items.push({ key: `ask:${raw}`, raw, title: text, askedOf: who, guess, sessions: [], decisions: [], stage: guess ? "guessed" : "unfiled" });
+      items.push({
+        key: `ask:${raw}`,
+        raw,
+        title: text,
+        askedOf: who,
+        guess,
+        sessions: [],
+        decisions: [],
+        stage: guess ? "guessed" : "unfiled",
+      });
     }
-    const counts = Object.fromEntries([...FOLLOW_STAGES, "dropped"].map((s) => [s, 0])) as Record<FollowStage, number>;
+    const counts = Object.fromEntries(
+      [...FOLLOW_STAGES, "dropped"].map((s) => [s, 0]),
+    ) as Record<FollowStage, number>;
     for (const it of items) counts[it.stage]++;
     const num = Number(/^cl-(\d+)$/.exec(call.short_id ?? "")?.[1]);
-    return { call, items, sweepDocs: Number.isFinite(num) ? docsByCall.get(num) ?? [] : [], counts };
+    return {
+      call,
+      items,
+      sweepDocs: Number.isFinite(num) ? (docsByCall.get(num) ?? []) : [],
+      counts,
+    };
   });
 }

@@ -40,7 +40,13 @@ import {
   type SecretMeta,
 } from "@codecast/shared/contracts/secrets";
 import { freshTotp, type ReadSecret } from "../secrets/inject.js";
-import { checkUrl, isInternalUrl, loadSitePolicy, parsePattern, type SitePolicy } from "./policy.js";
+import {
+  checkUrl,
+  isInternalUrl,
+  loadSitePolicy,
+  parsePattern,
+  type SitePolicy,
+} from "./policy.js";
 import type { CdpClient } from "./cdp.js";
 import { childFrames } from "./oopif.js";
 import type { Command } from "commander";
@@ -53,7 +59,12 @@ import type { TargetChoice } from "./cliEngine.js";
 import { openSessionTab, type SessionTab } from "./sessionTab.js";
 
 /** What `type-secret --field` takes. The default is the one value a kind is about. */
-export const SECRET_TYPE_FIELDS = ["value", "password", "username", "otp"] as const;
+export const SECRET_TYPE_FIELDS = [
+  "value",
+  "password",
+  "username",
+  "otp",
+] as const;
 export type SecretTypeField = (typeof SECRET_TYPE_FIELDS)[number];
 
 export interface SecretTypeResult {
@@ -65,7 +76,10 @@ export interface SecretTypeResult {
 
 /** A refusal: nothing was typed. `hint` is the one thing to do about it. */
 export class SecretTypeRefusal extends Error {
-  constructor(message: string, readonly hint?: string) {
+  constructor(
+    message: string,
+    readonly hint?: string,
+  ) {
     super(message);
     this.name = "SecretTypeRefusal";
   }
@@ -86,17 +100,38 @@ export function webOrigin(url: string): string | null {
 /** A secret's site as patterns: a named host and its subdomains; an IP, a port or a `*.` pattern as written. */
 export function withSubdomains(site: string): string[] {
   const p = parsePattern(site);
-  if (!p || p.wildcard || p.port !== null || p.scheme || !/[a-z]/i.test(p.host.split(".").pop() ?? "") || !p.host.includes(".")) return [site];
+  if (
+    !p ||
+    p.wildcard ||
+    p.port !== null ||
+    p.scheme ||
+    !/[a-z]/i.test(p.host.split(".").pop() ?? "") ||
+    !p.host.includes(".")
+  )
+    return [site];
   return [site, `*.${p.host}`];
 }
 
 /** The field a kind types by default, or why `field` does not fit it. */
-export function fieldFor(kind: SecretKind, field: SecretTypeField | undefined, name: string): SecretTypeField {
-  if (kind === "signin") throw new SecretTypeRefusal(`${name} is a saved sign-in: cast browser open <site> loads it, there is no value to type`);
-  if (kind === "file") throw new SecretTypeRefusal(`${name} is a file secret: type-secret types a key or a login`);
+export function fieldFor(
+  kind: SecretKind,
+  field: SecretTypeField | undefined,
+  name: string,
+): SecretTypeField {
+  if (kind === "signin")
+    throw new SecretTypeRefusal(
+      `${name} is a saved sign-in: cast browser open <site> loads it, there is no value to type`,
+    );
+  if (kind === "file")
+    throw new SecretTypeRefusal(
+      `${name} is a file secret: type-secret types a key or a login`,
+    );
   const fits = kind === "key" ? ["value"] : ["password", "username", "otp"];
   const chosen = field ?? (kind === "key" ? "value" : "password");
-  if (!fits.includes(chosen)) throw new SecretTypeRefusal(`${name} is a ${kind}: use --field ${fits.join(", ")}`);
+  if (!fits.includes(chosen))
+    throw new SecretTypeRefusal(
+      `${name} is a ${kind}: use --field ${fits.join(", ")}`,
+    );
   return chosen;
 }
 
@@ -124,16 +159,41 @@ export function originVerdict(
     );
   }
   const origin = webOrigin(url);
-  if (!origin || isInternalUrl(url)) throw new SecretTypeRefusal(`the page is ${url || "blank"}, which is no site ${name} belongs to`);
+  if (!origin || isInternalUrl(url))
+    throw new SecretTypeRefusal(
+      `the page is ${url || "blank"}, which is no site ${name} belongs to`,
+    );
   const u = new URL(url);
   if (u.protocol !== "https:" && !LOOPBACK.test(u.hostname)) {
-    throw new SecretTypeRefusal(`${origin} is not https, so ${name} is not typed there`);
+    throw new SecretTypeRefusal(
+      `${origin} is not https, so ${name} is not typed there`,
+    );
   }
-  if (!checkUrl({ sources: [{ file: "the Vault", key: name, patterns: sites.flatMap(withSubdomains) }], errors: [] }, url).allowed) {
-    throw new SecretTypeRefusal(`${origin} is not a site of ${name} (${sites.join(", ")})`, "Open the secret's own site, or ask a person to add this one to its Sites");
+  if (
+    !checkUrl(
+      {
+        sources: [
+          {
+            file: "the Vault",
+            key: name,
+            patterns: sites.flatMap(withSubdomains),
+          },
+        ],
+        errors: [],
+      },
+      url,
+    ).allowed
+  ) {
+    throw new SecretTypeRefusal(
+      `${origin} is not a site of ${name} (${sites.join(", ")})`,
+      "Open the secret's own site, or ask a person to add this one to its Sites",
+    );
   }
   const allow = checkUrl(session, url);
-  if (!allow.allowed) throw new SecretTypeRefusal(`${origin} is outside this session's site allowlist: ${allow.reason}`);
+  if (!allow.allowed)
+    throw new SecretTypeRefusal(
+      `${origin} is outside this session's site allowlist: ${allow.reason}`,
+    );
   return { origin };
 }
 
@@ -143,10 +203,18 @@ export function originVerdict(
  * wherever it might surface later; a shorter one than SECRET_REDACTION_MIN is
  * refused for that reason.
  */
-export async function valueFor(s: ReadSecret, field: SecretTypeField, otp = freshTotp): Promise<string> {
+export async function valueFor(
+  s: ReadSecret,
+  field: SecretTypeField,
+  otp = freshTotp,
+): Promise<string> {
   const p = s.payload as LoginPayload & { value?: string };
   if (field === "otp") {
-    if (!p.totp_seed) throw new SecretTypeRefusal(`${s.name} has no 2FA seed`, `A person adds one with \`cast vault rotate ${s.name} --totp\``);
+    if (!p.totp_seed)
+      throw new SecretTypeRefusal(
+        `${s.name} has no 2FA seed`,
+        `A person adds one with \`cast vault rotate ${s.name} --totp\``,
+      );
     return (await otp(p.totp_seed)).code;
   }
   if (field === "username") {
@@ -155,8 +223,14 @@ export async function valueFor(s: ReadSecret, field: SecretTypeField, otp = fres
   }
   const value = field === "value" ? p.value : p.password;
   if (!value) throw new SecretTypeRefusal(`${s.name} has no ${field}`);
-  if (value.length < SECRET_REDACTION_MIN || !redactionValuesOf(s.kind, s.payload).includes(value)) {
-    throw new SecretTypeRefusal(`${s.name}'s ${field} is too short to redact from transcripts, so it is not typed`, `Store one of at least ${SECRET_REDACTION_MIN} characters`);
+  if (
+    value.length < SECRET_REDACTION_MIN ||
+    !redactionValuesOf(s.kind, s.payload).includes(value)
+  ) {
+    throw new SecretTypeRefusal(
+      `${s.name}'s ${field} is too short to redact from transcripts, so it is not typed`,
+      `Store one of at least ${SECRET_REDACTION_MIN} characters`,
+    );
   }
   return value;
 }
@@ -236,13 +310,23 @@ export interface SecretTypeDeps {
 
 /** The checks on what has focus: an editable field, in a document of the checked origin. */
 function checkFocus(probe: FocusProbe, origin: string): void {
-  if (probe.frame === "cross") throw new SecretTypeRefusal("the field is inside a cross-origin iframe, so nothing is typed there");
-  if (probe.docOrigin !== origin) throw new SecretTypeRefusal(`the field's frame is ${probe.docOrigin ?? "unknown"}, not ${origin}`);
+  if (probe.frame === "cross")
+    throw new SecretTypeRefusal(
+      "the field is inside a cross-origin iframe, so nothing is typed there",
+    );
+  if (probe.docOrigin !== origin)
+    throw new SecretTypeRefusal(
+      `the field's frame is ${probe.docOrigin ?? "unknown"}, not ${origin}`,
+    );
   requireEditable(probe);
 }
 
 function requireEditable(probe: FocusProbe): void {
-  if (!probe.editable) throw new SecretTypeRefusal("the target is not an editable text field (or did not take focus)", "Point it at the input itself: a ref from `cast browser snapshot -i`, or a CSS selector");
+  if (!probe.editable)
+    throw new SecretTypeRefusal(
+      "the target is not an editable text field (or did not take focus)",
+      "Point it at the input itself: a ref from `cast browser snapshot -i`, or a CSS selector",
+    );
 }
 
 /**
@@ -250,23 +334,43 @@ function requireEditable(probe: FocusProbe): void {
  * target, by the same CDP insert as a Vault value, so it never becomes an
  * engine argument. No Sites check: the value is not the Vault's.
  */
-export async function typeText(text: string, opts: { append?: boolean }, page: SecretTypePage): Promise<{ typed: true; origin: string }> {
+export async function typeText(
+  text: string,
+  opts: { append?: boolean },
+  page: SecretTypePage,
+): Promise<{ typed: true; origin: string }> {
   await page.focus();
-  const frame = (await page.probe()).frame === "cross" ? await focusedFrame(page) : null;
+  const frame =
+    (await page.probe()).frame === "cross" ? await focusedFrame(page) : null;
   const target: SecretTypeDoc = frame ?? { ...page, url: page.topUrl };
   const probe = await target.probe();
-  if (probe.frame === "cross") throw new SecretTypeRefusal("the field is inside a cross-origin iframe, so nothing is typed there");
+  if (probe.frame === "cross")
+    throw new SecretTypeRefusal(
+      "the field is inside a cross-origin iframe, so nothing is typed there",
+    );
   requireEditable(probe);
   if (!opts.append) await target.selectAll();
   await target.insertText(text);
-  return { typed: true, origin: probe.docOrigin ?? webOrigin(await target.url()) ?? "" };
+  return {
+    typed: true,
+    origin: probe.docOrigin ?? webOrigin(await target.url()) ?? "",
+  };
 }
 
 /** Type `name` into the target. Every refusal is thrown before the value is read or inserted. */
-export async function typeSecret(name: string, opts: { field?: SecretTypeField; append?: boolean }, d: SecretTypeDeps): Promise<SecretTypeResult> {
+export async function typeSecret(
+  name: string,
+  opts: { field?: SecretTypeField; append?: boolean },
+  d: SecretTypeDeps,
+): Promise<SecretTypeResult> {
   const meta = await d.meta(name);
-  if (!meta) throw new SecretTypeRefusal(`no secret named ${name}`, "cast vault ls lists the ones you can use");
-  if (meta.status !== "ready") throw new SecretTypeRefusal(`${name} is requested and has no value yet`);
+  if (!meta)
+    throw new SecretTypeRefusal(
+      `no secret named ${name}`,
+      "cast vault ls lists the ones you can use",
+    );
+  if (meta.status !== "ready")
+    throw new SecretTypeRefusal(`${name} is requested and has no value yet`);
   const field = fieldFor(meta.kind, opts.field, name);
   const first = await d.page.topUrl();
   const top = webOrigin(first) ?? first;
@@ -274,9 +378,15 @@ export async function typeSecret(name: string, opts: { field?: SecretTypeField; 
   await d.page.focus();
   // The top frame first: a page that navigated on focus would otherwise read as a field in a foreign frame.
   const afterFocus = await d.page.topUrl();
-  if ((webOrigin(afterFocus) ?? afterFocus) !== top) throw new SecretTypeRefusal(`the page moved from ${top} to ${webOrigin(afterFocus) ?? afterFocus} when the field took focus, so nothing is typed`);
+  if ((webOrigin(afterFocus) ?? afterFocus) !== top)
+    throw new SecretTypeRefusal(
+      `the page moved from ${top} to ${webOrigin(afterFocus) ?? afterFocus} when the field took focus, so nothing is typed`,
+    );
   // The document holding the field: the top page, or the cross-origin frame that has focus.
-  const frame = (await d.page.probe()).frame === "cross" ? await focusedFrame(d.page) : null;
+  const frame =
+    (await d.page.probe()).frame === "cross"
+      ? await focusedFrame(d.page)
+      : null;
   // Sites guard every field, the username included: they say which account, on which site.
   const fieldUrl = frame ? await frame.url() : afterFocus;
   const { origin } = originVerdict(meta, fieldUrl, d.policy);
@@ -289,12 +399,21 @@ export async function typeSecret(name: string, opts: { field?: SecretTypeField; 
 
   // Again, right before the insert: the read and a 2FA wait take time a page can use.
   const last = await d.page.topUrl();
-  if ((webOrigin(last) ?? last) !== top) throw new SecretTypeRefusal(`the page moved from ${top} to ${webOrigin(last) ?? last} before the value went in, so nothing is typed`);
+  if ((webOrigin(last) ?? last) !== top)
+    throw new SecretTypeRefusal(
+      `the page moved from ${top} to ${webOrigin(last) ?? last} before the value went in, so nothing is typed`,
+    );
   const lastField = frame ? await frame.url() : last;
-  if (webOrigin(lastField) !== origin) throw new SecretTypeRefusal(`the field's frame moved from ${origin} to ${webOrigin(lastField) ?? (lastField || "nowhere")} before the value went in, so nothing is typed`);
+  if (webOrigin(lastField) !== origin)
+    throw new SecretTypeRefusal(
+      `the field's frame moved from ${origin} to ${webOrigin(lastField) ?? (lastField || "nowhere")} before the value went in, so nothing is typed`,
+    );
   originVerdict(secret, lastField, d.policy);
   // Focus must still sit inside that frame, seen from the top as well as from the frame.
-  if (frame && (await d.page.probe()).frame !== "cross") throw new SecretTypeRefusal("focus left the frame before the value went in, so nothing is typed");
+  if (frame && (await d.page.probe()).frame !== "cross")
+    throw new SecretTypeRefusal(
+      "focus left the frame before the value went in, so nothing is typed",
+    );
   checkFocus(await target.probe(), origin);
   if (!opts.append) await target.selectAll();
   await target.insertText(text);
@@ -304,14 +423,20 @@ export async function typeSecret(name: string, opts: { field?: SecretTypeField; 
 /** The cross-origin frame holding focus, or the refusal for a field the browser shows in no frame we can read. */
 async function focusedFrame(page: SecretTypePage): Promise<SecretTypeDoc> {
   const frame = page.focusedFrame ? await page.focusedFrame() : null;
-  if (!frame) throw new SecretTypeRefusal("the field is inside a cross-origin iframe whose document could not be read, so nothing is typed there");
+  if (!frame)
+    throw new SecretTypeRefusal(
+      "the field is inside a cross-origin iframe whose document could not be read, so nothing is typed there",
+    );
   return frame;
 }
 
 /** A field in a frame still lives on the top page, which answers to the session allowlist. */
 function inAllowlist(topUrl: string, session: SitePolicy | null): void {
   const allow = checkUrl(session, topUrl);
-  if (!allow.allowed) throw new SecretTypeRefusal(`the page ${webOrigin(topUrl) ?? topUrl} is outside this session's site allowlist: ${allow.reason}`);
+  if (!allow.allowed)
+    throw new SecretTypeRefusal(
+      `the page ${webOrigin(topUrl) ?? topUrl} is outside this session's site allowlist: ${allow.reason}`,
+    );
 }
 
 // ── CDP ─────────────────────────────────────────────────────────────────────
@@ -329,29 +454,59 @@ interface FrameTree {
 
 /** A frame's URL as the browser knows it; a document whose security origin disagrees with its URL (opaque, sandboxed) is no site. */
 function browserUrl(f: FrameNode): string {
-  if (f.securityOrigin && webOrigin(f.url) !== f.securityOrigin) return f.securityOrigin === "null" ? "about:blank" : f.securityOrigin;
+  if (f.securityOrigin && webOrigin(f.url) !== f.securityOrigin)
+    return f.securityOrigin === "null" ? "about:blank" : f.securityOrigin;
   return f.url;
 }
 
-const treeOf = async (conn: CdpClient, sessionId: string) => (await conn.send<{ frameTree: FrameTree }>("Page.getFrameTree", {}, sessionId)).frameTree;
-const flatten = (t: FrameTree): FrameNode[] => [t.frame, ...(t.childFrames ?? []).flatMap(flatten)];
+const treeOf = async (conn: CdpClient, sessionId: string) =>
+  (
+    await conn.send<{ frameTree: FrameTree }>(
+      "Page.getFrameTree",
+      {},
+      sessionId,
+    )
+  ).frameTree;
+const flatten = (t: FrameTree): FrameNode[] => [
+  t.frame,
+  ...(t.childFrames ?? []).flatMap(flatten),
+];
 
 /**
  * Script in an isolated world of one frame (found by `frame` each call), made
  * once and made again if the frame navigated.
  */
-function frameWorld(conn: CdpClient, sessionId: string, frame: () => Promise<FrameNode | undefined>) {
+function frameWorld(
+  conn: CdpClient,
+  sessionId: string,
+  frame: () => Promise<FrameNode | undefined>,
+) {
   let world: { frameId: string; contextId: number } | null = null;
   const run = async (expression: string, retried = false): Promise<any> => {
     const f = await frame();
-    if (!f) throw new SecretTypeRefusal("the field's frame is gone from the page, so nothing is typed");
+    if (!f)
+      throw new SecretTypeRefusal(
+        "the field's frame is gone from the page, so nothing is typed",
+      );
     if (!world || world.frameId !== f.id) {
-      const { executionContextId } = await conn.send<{ executionContextId: number }>("Page.createIsolatedWorld", { frameId: f.id, worldName: "cast-secret-type" }, sessionId);
+      const { executionContextId } = await conn.send<{
+        executionContextId: number;
+      }>(
+        "Page.createIsolatedWorld",
+        { frameId: f.id, worldName: "cast-secret-type" },
+        sessionId,
+      );
       world = { frameId: f.id, contextId: executionContextId };
     }
-    const ev = async () => conn.send<{ result: { value?: unknown }; exceptionDetails?: { text?: string } }>(
-      "Runtime.evaluate", { expression, contextId: world!.contextId, returnByValue: true }, sessionId,
-    );
+    const ev = async () =>
+      conn.send<{
+        result: { value?: unknown };
+        exceptionDetails?: { text?: string };
+      }>(
+        "Runtime.evaluate",
+        { expression, contextId: world!.contextId, returnByValue: true },
+        sessionId,
+      );
     let res;
     try {
       res = await ev();
@@ -361,7 +516,8 @@ function frameWorld(conn: CdpClient, sessionId: string, frame: () => Promise<Fra
       if (retried) throw err;
       return run(expression, true);
     }
-    if (res.exceptionDetails) throw new Error(res.exceptionDetails.text || "the page probe failed");
+    if (res.exceptionDetails)
+      throw new Error(res.exceptionDetails.text || "the page probe failed");
     return res.result.value;
   };
   return run;
@@ -375,10 +531,14 @@ const FRAME_FOCUS = `(() => document.hasFocus() ? ${FOCUS_PROBE} : { frame: "top
  * the tab's renderer through the tab's session, out-of-process ones through
  * their child sessions (oopif.ts).
  */
-async function crossFrames(conn: CdpClient, sessionId: string): Promise<SecretTypeDoc[]> {
+async function crossFrames(
+  conn: CdpClient,
+  sessionId: string,
+): Promise<SecretTypeDoc[]> {
   const docs: SecretTypeDoc[] = [];
   const add = (sid: string, frameId: string) => {
-    const frame = async () => flatten(await treeOf(conn, sid)).find((f) => f.id === frameId);
+    const frame = async () =>
+      flatten(await treeOf(conn, sid)).find((f) => f.id === frameId);
     const run = frameWorld(conn, sid, frame);
     docs.push({
       url: async () => {
@@ -387,14 +547,18 @@ async function crossFrames(conn: CdpClient, sessionId: string): Promise<SecretTy
       },
       probe: async () => (await run(FRAME_FOCUS)) as FocusProbe,
       selectAll: async () => void (await run(SELECT_FOCUSED)),
-      insertText: async (text) => void (await conn.send("Input.insertText", { text }, sid)),
+      insertText: async (text) =>
+        void (await conn.send("Input.insertText", { text }, sid)),
     });
   };
   const top = await treeOf(conn, sessionId);
-  const children = await childFrames({ conn, sessionId, targetId: "" }).catch(() => []);
+  const children = await childFrames({ conn, sessionId, targetId: "" }).catch(
+    () => [],
+  );
   const remote = new Set(children.map((c) => c.targetId));
   // An out-of-process frame shows in the tab's tree too, but only its own session can run script in it.
-  for (const f of flatten(top).slice(1)) if (!remote.has(f.id)) add(sessionId, f.id);
+  for (const f of flatten(top).slice(1))
+    if (!remote.has(f.id)) add(sessionId, f.id);
   for (const c of children) {
     const own = await treeOf(conn, c.sessionId).catch(() => null);
     if (own) for (const f of flatten(own)) add(c.sessionId, f.id);
@@ -408,17 +572,32 @@ async function crossFrames(conn: CdpClient, sessionId: string): Promise<SecretTy
  * none). The probe and the select run in an isolated world of the top frame,
  * or of the cross-origin frame that holds focus.
  */
-export function cdpSecretPage(conn: CdpClient, sessionId: string, target: string, focus?: () => Promise<void>): SecretTypePage {
-  const run = frameWorld(conn, sessionId, async () => (await treeOf(conn, sessionId)).frame);
+export function cdpSecretPage(
+  conn: CdpClient,
+  sessionId: string,
+  target: string,
+  focus?: () => Promise<void>,
+): SecretTypePage {
+  const run = frameWorld(
+    conn,
+    sessionId,
+    async () => (await treeOf(conn, sessionId)).frame,
+  );
   return {
     topUrl: async () => browserUrl((await treeOf(conn, sessionId)).frame),
-    focus: focus ?? (async () => {
-      const ok = await run(`(() => { const el = document.querySelector(${JSON.stringify(target)}); if (!el) return false; el.focus(); return true; })()`);
-      if (!ok) throw new SecretTypeRefusal(`nothing on the page matches ${target}`);
-    }),
+    focus:
+      focus ??
+      (async () => {
+        const ok = await run(
+          `(() => { const el = document.querySelector(${JSON.stringify(target)}); if (!el) return false; el.focus(); return true; })()`,
+        );
+        if (!ok)
+          throw new SecretTypeRefusal(`nothing on the page matches ${target}`);
+      }),
     probe: async () => (await run(FOCUS_PROBE)) as FocusProbe,
     selectAll: async () => void (await run(SELECT_FOCUSED)),
-    insertText: async (text) => void (await conn.send("Input.insertText", { text }, sessionId)),
+    insertText: async (text) =>
+      void (await conn.send("Input.insertText", { text }, sessionId)),
     focusedFrame: async () => {
       const held: SecretTypeDoc[] = [];
       for (const doc of await crossFrames(conn, sessionId)) {
@@ -434,12 +613,26 @@ export function cdpSecretPage(conn: CdpClient, sessionId: string, target: string
 // ── The verb ────────────────────────────────────────────────────────────────
 
 /** `cast browser type-secret <target> <secret>`. */
-export function registerTypeSecretCommand(br: Command, deps: PublishDeps): void {
+export function registerTypeSecretCommand(
+  br: Command,
+  deps: PublishDeps,
+): void {
   targetFlags(br.command("type-secret <target> <secret>"))
-    .description("Type a Vault secret into a field without seeing it, only on a site the secret names (target: #e12 ref or CSS selector)")
-    .option("--field <field>", `Which value: ${SECRET_TYPE_FIELDS.join(", ")} (default: a key's value, a login's password)`)
-    .option("--append", "Insert at the caret instead of replacing what the field holds")
-    .option("--why <text>", "The task, as a verb phrase; an Ask first secret shows it to the person who approves")
+    .description(
+      "Type a Vault secret into a field without seeing it, only on a site the secret names (target: #e12 ref or CSS selector)",
+    )
+    .option(
+      "--field <field>",
+      `Which value: ${SECRET_TYPE_FIELDS.join(", ")} (default: a key's value, a login's password)`,
+    )
+    .option(
+      "--append",
+      "Insert at the caret instead of replacing what the field holds",
+    )
+    .option(
+      "--why <text>",
+      "The task, as a verb phrase; an Ask first secret shows it to the person who approves",
+    )
     .option("--json", "Print {typed, name, origin, field}")
     .addHelpText(
       "after",
@@ -456,38 +649,69 @@ moved to another origin before the insert is refused.
   cast browser type-secret '#email' acme-login --field username
   cast browser type-secret #e20 acme-login --field otp     # the current 2FA code`,
     )
-    .action(async (target: string, name: string, o: TargetChoice & { field?: string; append?: boolean; why?: string; json?: boolean }) => {
-      if (o.field && !(SECRET_TYPE_FIELDS as readonly string[]).includes(o.field)) fail(`--field takes ${SECRET_TYPE_FIELDS.join(", ")}`);
-      let tab: SessionTab | null = null;
-      try {
-        tab = await openSessionTab(o, deps);
-        const res = await typeSecret(name, { field: o.field as SecretTypeField | undefined, append: o.append }, {
-          ...vaultReads(deps, o.why),
-          policy: loadSitePolicy(),
-          page: secretPageFor(tab, target),
-        });
-        if (o.json) console.log(JSON.stringify(res));
-        else console.log(typedLine(res));
-      } catch (err) {
-        fail(refusalText(err));
-      } finally {
-        tab?.conn.close();
-      }
-    });
+    .action(
+      async (
+        target: string,
+        name: string,
+        o: TargetChoice & {
+          field?: string;
+          append?: boolean;
+          why?: string;
+          json?: boolean;
+        },
+      ) => {
+        if (
+          o.field &&
+          !(SECRET_TYPE_FIELDS as readonly string[]).includes(o.field)
+        )
+          fail(`--field takes ${SECRET_TYPE_FIELDS.join(", ")}`);
+        let tab: SessionTab | null = null;
+        try {
+          tab = await openSessionTab(o, deps);
+          const res = await typeSecret(
+            name,
+            { field: o.field as SecretTypeField | undefined, append: o.append },
+            {
+              ...vaultReads(deps, o.why),
+              policy: loadSitePolicy(),
+              page: secretPageFor(tab, target),
+            },
+          );
+          if (o.json) console.log(JSON.stringify(res));
+          else console.log(typedLine(res));
+        } catch (err) {
+          fail(refusalText(err));
+        } finally {
+          tab?.conn.close();
+        }
+      },
+    );
 }
 
 /** The page typeSecret drives for `target` on a session tab: a snapshot ref is focused by the driver that made it, a CSS selector here. */
 export function secretPageFor(tab: SessionTab, target: string): SecretTypePage {
-  const ref = /^[#@]?e\d+$/i.test(target) ? `#${target.replace(/^[#@]/, "")}` : null;
-  return cdpSecretPage(tab.conn, tab.sessionId, target, ref ? () => tab.focusRef(ref) : undefined);
+  const ref = /^[#@]?e\d+$/i.test(target)
+    ? `#${target.replace(/^[#@]/, "")}`
+    : null;
+  return cdpSecretPage(
+    tab.conn,
+    tab.sessionId,
+    target,
+    ref ? () => tab.focusRef(ref) : undefined,
+  );
 }
 
 /** typeSecret's Vault reads for this session; `why` words an Ask first question. */
-export function vaultReads(deps: PublishDeps, why?: string): Pick<SecretTypeDeps, "meta" | "read"> {
+export function vaultReads(
+  deps: PublishDeps,
+  why?: string,
+): Pick<SecretTypeDeps, "meta" | "read"> {
   const metas = metasOnce(deps);
   return {
-    meta: async (n) => (await metas()).find((m) => m.name === n || m.short_id === n) ?? null,
-    read: async (n, field) => (await readSecrets(deps, [n], field === "otp" ? "otp" : "get", why))[0],
+    meta: async (n) =>
+      (await metas()).find((m) => m.name === n || m.short_id === n) ?? null,
+    read: async (n, field) =>
+      (await readSecrets(deps, [n], field === "otp" ? "otp" : "get", why))[0],
   };
 }
 

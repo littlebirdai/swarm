@@ -9,7 +9,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { closeTaskWithGuard, createTaskAndAdopt } from "../lib/taskActions";
-import { mergeLiveTasks, computePlanProgress, findEntityInStore, lookup } from "../lib/liveEntities";
+import {
+  mergeLiveTasks,
+  computePlanProgress,
+  findEntityInStore,
+  lookup,
+} from "../lib/liveEntities";
 import { Badge } from "./ui/badge";
 import { AppLoader } from "./AppLoader";
 import { TaskStatusBadge, getExecStatusConfig } from "./TaskStatusBadge";
@@ -17,8 +22,15 @@ import { LivenessDot, ActiveSessionBadge } from "./LivenessDot";
 import { WorkflowContextPanel } from "./WorkflowContextPanel";
 import { EntryTimeline } from "./EntryTimeline";
 import { ExternalEventRow } from "./feed/ExternalEventRow";
-import { externalEventRowToExternalEvent, type ExternalEventRecord } from "../lib/externalEvents";
-import { useSyncPlanExternalEvents, useExternalEvents, externalEventsNewestFirst } from "../hooks/useSyncExternalEvents";
+import {
+  externalEventRowToExternalEvent,
+  type ExternalEventRecord,
+} from "../lib/externalEvents";
+import {
+  useSyncPlanExternalEvents,
+  useExternalEvents,
+  externalEventsNewestFirst,
+} from "../hooks/useSyncExternalEvents";
 import { toast } from "sonner";
 import {
   Circle,
@@ -57,7 +69,11 @@ import { usePlanActiveSessions, usePlanStoreTasks } from "./work/planWakeRows";
 import { useTaskHref } from "../lib/taskHrefContext";
 import { SwitchReview } from "./consequential/ConsequentialSwitch";
 import { useRunCost } from "./consequential/useRunCost";
-import { workflowAgentSteps, workflowRunLedger, workflowSteps } from "./work/startLedgers";
+import {
+  workflowAgentSteps,
+  workflowRunLedger,
+  workflowSteps,
+} from "./work/startLedgers";
 import { useWorkflow } from "../hooks/useSyncWorkflows";
 import { teamMembersOf } from "../lib/activeTeam";
 
@@ -67,25 +83,41 @@ export { PLAN_STATUS_CONFIG };
 
 const STATUS_CONFIG = PLAN_STATUS_CONFIG;
 
-const TASK_STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; label: string }> = {
+const TASK_STATUS_CONFIG: Record<
+  string,
+  { icon: typeof Circle; color: string; label: string }
+> = {
   open: { icon: Circle, color: "text-sol-blue", label: "Open" },
-  in_progress: { icon: CircleDot, color: "text-sol-yellow", label: "In Progress" },
+  in_progress: {
+    icon: CircleDot,
+    color: "text-sol-yellow",
+    label: "In Progress",
+  },
   in_review: { icon: CircleDot, color: "text-sol-violet", label: "Review" },
   done: { icon: CheckCircle2, color: "text-sol-green", label: "Done" },
   dropped: { icon: XCircle, color: "text-sol-text-dim", label: "Dropped" },
   draft: { icon: Circle, color: "text-sol-text-dim", label: "Draft" },
 };
 
-
 const TASK_STATUS_CYCLE = ["open", "in_progress", "done"];
 
 const PRIORITY_CYCLE = ["low", "medium", "high", "urgent"];
 
-const ALL_TASK_STATUSES = ["open", "in_progress", "in_review", "done", "dropped", "backlog"];
+const ALL_TASK_STATUSES = [
+  "open",
+  "in_progress",
+  "in_review",
+  "done",
+  "dropped",
+  "backlog",
+];
 
 function formatTimestamp(ts: number): string {
   return new Date(ts).toLocaleString("en-US", {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
@@ -109,14 +141,33 @@ function formatDuration(startMs: number, endMs: number): string {
   return rem > 0 ? `${hours}h ${rem}m` : `${hours}h`;
 }
 
-const OUTCOME_STYLES: Record<string, { border: string; label: string; badge: string }> = {
-  shipped: { border: "border-l-sol-green/60", label: "shipped", badge: "bg-sol-green/10 text-sol-green/70" },
-  progress: { border: "border-l-sol-yellow/40", label: "progress", badge: "bg-sol-yellow/8 text-sol-yellow/60" },
-  blocked: { border: "border-l-sol-red/50", label: "blocked", badge: "bg-sol-red/12 text-sol-red/70" },
+const OUTCOME_STYLES: Record<
+  string,
+  { border: string; label: string; badge: string }
+> = {
+  shipped: {
+    border: "border-l-sol-green/60",
+    label: "shipped",
+    badge: "bg-sol-green/10 text-sol-green/70",
+  },
+  progress: {
+    border: "border-l-sol-yellow/40",
+    label: "progress",
+    badge: "bg-sol-yellow/8 text-sol-yellow/60",
+  },
+  blocked: {
+    border: "border-l-sol-red/50",
+    label: "blocked",
+    badge: "bg-sol-red/12 text-sol-red/70",
+  },
   unknown: { border: "border-l-sol-text-dim/15", label: "", badge: "" },
 };
 
-export function PlanProgressBar({ progress }: { progress: { total: number; done: number; in_progress: number; open: number } }) {
+export function PlanProgressBar({
+  progress,
+}: {
+  progress: { total: number; done: number; in_progress: number; open: number };
+}) {
   const { total, done, in_progress, open } = progress;
   const donePct = (done / total) * 100;
   const ipPct = (in_progress / total) * 100;
@@ -135,10 +186,16 @@ export function PlanProgressBar({ progress }: { progress: { total: number; done:
             <Circle className="w-3.5 h-3.5 text-sol-text-dim" />
           )}
           <span className="text-xs font-semibold text-sol-text">
-            {isComplete ? "Complete" : in_progress > 0 ? "In Progress" : "Planned"}
+            {isComplete
+              ? "Complete"
+              : in_progress > 0
+                ? "In Progress"
+                : "Planned"}
           </span>
         </div>
-        <span className={`text-xs font-mono font-bold tabular-nums ${isComplete ? "text-sol-green" : "text-sol-text-dim"}`}>
+        <span
+          className={`text-xs font-mono font-bold tabular-nums ${isComplete ? "text-sol-green" : "text-sol-text-dim"}`}
+        >
           {pctComplete}%
         </span>
       </div>
@@ -157,25 +214,37 @@ export function PlanProgressBar({ progress }: { progress: { total: number; done:
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-sol-green/80" />
-          <span className="text-meta text-sol-text-dim tabular-nums">{done} done</span>
+          <span className="text-meta text-sol-text-dim tabular-nums">
+            {done} done
+          </span>
         </div>
         {in_progress > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-sol-yellow/60" />
-            <span className="text-meta text-sol-text-dim tabular-nums">{in_progress} active</span>
+            <span className="text-meta text-sol-text-dim tabular-nums">
+              {in_progress} active
+            </span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-sol-border/50" />
-          <span className="text-meta text-sol-text-dim tabular-nums">{open} open</span>
+          <span className="text-meta text-sol-text-dim tabular-nums">
+            {open} open
+          </span>
         </div>
-        <span className="text-meta text-sol-text-dim tabular-nums ml-auto">{done}/{total} tasks</span>
+        <span className="text-meta text-sol-text-dim tabular-nums ml-auto">
+          {done}/{total} tasks
+        </span>
       </div>
     </div>
   );
 }
 
-export function DriveRoundIndicator({ driveState }: { driveState: { current_round: number; total_rounds: number; rounds: any[] } }) {
+export function DriveRoundIndicator({
+  driveState,
+}: {
+  driveState: { current_round: number; total_rounds: number; rounds: any[] };
+}) {
   const { current_round, total_rounds, rounds } = driveState;
   if (total_rounds === 0) return null;
 
@@ -200,8 +269,8 @@ export function DriveRoundIndicator({ driveState }: { driveState: { current_roun
                 isCompleted
                   ? "bg-sol-green"
                   : isCurrent
-                  ? "bg-sol-violet animate-pulse"
-                  : "bg-sol-border/40"
+                    ? "bg-sol-violet animate-pulse"
+                    : "bg-sol-border/40"
               }`}
               title={`Round ${roundNum}${isCompleted ? " (done)" : isCurrent ? " (active)" : ""}`}
             />
@@ -223,15 +292,25 @@ function CollapsibleDoc({ content }: { content: string }) {
 
   return (
     <div className="mb-6 border border-sol-border/30 rounded-lg bg-sol-bg-alt/30 overflow-hidden">
-      <div className="relative overflow-hidden" style={expanded ? undefined : { maxHeight: MAX_HEIGHT, ...clipFade() }}>
-        <div className="p-6 prose prose-invert prose-sm max-w-none
+      <div
+        className="relative overflow-hidden"
+        style={expanded ? undefined : { maxHeight: MAX_HEIGHT, ...clipFade() }}
+      >
+        <div
+          className="p-6 prose prose-invert prose-sm max-w-none
           prose-headings:text-sol-text prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
           prose-p:text-sol-text-muted prose-p:leading-relaxed
           prose-li:text-sol-text-muted prose-li:marker:text-sol-text-dim
           prose-code:text-sol-cyan prose-code:bg-sol-bg-highlight prose-code:px-1 prose-code:rounded prose-code:text-xs
           prose-strong:text-sol-text prose-a:text-sol-cyan
-          [&_pre]:overflow-x-auto [&_pre]:max-w-full">
-          <Markdown remarkPlugins={entityRemarkPlugins} components={{ a: EntityAwareLink, code: EntityAwareCode }}>{content}</Markdown>
+          [&_pre]:overflow-x-auto [&_pre]:max-w-full"
+        >
+          <Markdown
+            remarkPlugins={entityRemarkPlugins}
+            components={{ a: EntityAwareLink, code: EntityAwareCode }}
+          >
+            {content}
+          </Markdown>
         </div>
       </div>
       <button
@@ -240,7 +319,11 @@ function CollapsibleDoc({ content }: { content: string }) {
       >
         <FileText className="w-3 h-3" />
         {expanded ? "Collapse document" : "Expand full document"}
-        {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {expanded ? (
+          <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronRight className="w-3 h-3" />
+        )}
       </button>
     </div>
   );
@@ -250,7 +333,10 @@ function PlanSessionCard({ session: s }: { session: any }) {
   const outcome = OUTCOME_STYLES[s.outcome_type] || OUTCOME_STYLES.unknown;
   const isActive = s.is_active;
   const project = s.project_path?.split("/").filter(Boolean).pop();
-  const duration = s.started_at && s.updated_at ? formatDuration(s.started_at, s.updated_at) : null;
+  const duration =
+    s.started_at && s.updated_at
+      ? formatDuration(s.started_at, s.updated_at)
+      : null;
   const time = getRelativeTime(s.updated_at || s.started_at);
   const msgCount = s.message_count || 0;
 
@@ -266,7 +352,9 @@ function PlanSessionCard({ session: s }: { session: any }) {
         {isActive && (
           <span className="flex items-center gap-0.5 shrink-0">
             <LivePulseDot className="w-1.5 h-1.5" still />
-            <span className="text-mark text-sol-green/60 font-medium uppercase tracking-wider">live</span>
+            <span className="text-mark text-sol-green/60 font-medium uppercase tracking-wider">
+              live
+            </span>
           </span>
         )}
         {project && project !== "unknown" && (
@@ -276,7 +364,9 @@ function PlanSessionCard({ session: s }: { session: any }) {
         )}
         <span className="flex-1" />
         {outcome.label && (
-          <span className={`rounded-full px-1.5 py-px shrink-0 font-medium text-meta ${outcome.badge}`}>
+          <span
+            className={`rounded-full px-1.5 py-px shrink-0 font-medium text-meta ${outcome.badge}`}
+          >
             {outcome.label}
           </span>
         )}
@@ -292,9 +382,9 @@ function PlanSessionCard({ session: s }: { session: any }) {
       <div className="mt-0.5 flex items-center gap-2 text-meta text-sol-text-dim font-mono">
         {duration && <span>{duration}</span>}
         {msgCount > 0 && <span>{msgCount} msgs</span>}
-        {s.git_branch && s.git_branch !== "main" && s.git_branch !== "master" && (
-          <span>{s.git_branch}</span>
-        )}
+        {s.git_branch &&
+          s.git_branch !== "main" &&
+          s.git_branch !== "master" && <span>{s.git_branch}</span>}
       </div>
     </Link>
   );
@@ -302,7 +392,12 @@ function PlanSessionCard({ session: s }: { session: any }) {
 
 function TaskExecutionDetail({ task }: { task: any }) {
   const hasExec = !!getExecStatusConfig(task.execution_status);
-  const hasDetail = task.acceptance_criteria?.length || task.steps?.length || task.execution_concerns || task.files_changed?.length || task.verification_evidence;
+  const hasDetail =
+    task.acceptance_criteria?.length ||
+    task.steps?.length ||
+    task.execution_concerns ||
+    task.files_changed?.length ||
+    task.verification_evidence;
   if (!hasDetail && !hasExec) return null;
 
   return (
@@ -318,7 +413,10 @@ function TaskExecutionDetail({ task }: { task: any }) {
       {task.acceptance_criteria?.length > 0 && (
         <div className="space-y-0.5">
           {task.acceptance_criteria.map((ac: string, i: number) => (
-            <div key={i} className="flex items-start gap-1.5 text-xs text-sol-text-muted">
+            <div
+              key={i}
+              className="flex items-start gap-1.5 text-xs text-sol-text-muted"
+            >
               <span className="text-sol-text-dim mt-px">-</span>
               <span>{ac}</span>
             </div>
@@ -329,10 +427,20 @@ function TaskExecutionDetail({ task }: { task: any }) {
         <div className="space-y-0.5">
           {task.steps.map((s: any, i: number) => (
             <div key={i} className="flex items-start gap-1.5 text-xs">
-              <span className={`mt-px ${s.done ? "text-sol-green" : "text-sol-text-dim"}`}>
+              <span
+                className={`mt-px ${s.done ? "text-sol-green" : "text-sol-text-dim"}`}
+              >
                 {s.done ? "✓" : String(i + 1)}
               </span>
-              <span className={s.done ? "text-sol-text-dim line-through" : "text-sol-text-muted"}>{s.title}</span>
+              <span
+                className={
+                  s.done
+                    ? "text-sol-text-dim line-through"
+                    : "text-sol-text-muted"
+                }
+              >
+                {s.title}
+              </span>
             </div>
           ))}
         </div>
@@ -340,7 +448,10 @@ function TaskExecutionDetail({ task }: { task: any }) {
       {task.files_changed?.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {task.files_changed.map((f: string, i: number) => (
-            <span key={i} className="text-meta font-mono px-1 py-px rounded bg-sol-bg-alt text-sol-text-dim">
+            <span
+              key={i}
+              className="text-meta font-mono px-1 py-px rounded bg-sol-bg-alt text-sol-text-dim"
+            >
               {f.split("/").pop()}
             </span>
           ))}
@@ -348,7 +459,9 @@ function TaskExecutionDetail({ task }: { task: any }) {
       )}
       {(task.estimated_minutes || task.actual_minutes) && (
         <div className="flex items-center gap-2 text-meta text-sol-text-dim">
-          {task.estimated_minutes && <span>est: {task.estimated_minutes}m</span>}
+          {task.estimated_minutes && (
+            <span>est: {task.estimated_minutes}m</span>
+          )}
           {task.actual_minutes && <span>actual: {task.actual_minutes}m</span>}
         </div>
       )}
@@ -378,77 +491,126 @@ function TaskSessionCards({ sessions }: { sessions: any[] }) {
           {s.is_active && (
             <span className="flex items-center gap-0.5 flex-shrink-0">
               <LivePulseDot className="w-1.5 h-1.5" still />
-              <span className="text-mark text-sol-green/60 font-medium uppercase">live</span>
+              <span className="text-mark text-sol-green/60 font-medium uppercase">
+                live
+              </span>
             </span>
           )}
           <span className="flex-1" />
           {s.message_count > 0 && (
-            <span className="text-meta text-sol-text-dim font-mono tabular-nums">{s.message_count} msgs</span>
+            <span className="text-meta text-sol-text-dim font-mono tabular-nums">
+              {s.message_count} msgs
+            </span>
           )}
-          <span className="text-meta text-sol-text-dim font-mono tabular-nums">{getRelativeTime(s.updated_at || s.started_at)}</span>
+          <span className="text-meta text-sol-text-dim font-mono tabular-nums">
+            {getRelativeTime(s.updated_at || s.started_at)}
+          </span>
         </Link>
       ))}
     </div>
   );
 }
 
-export function OrchestrationHeader({ tasks, sessions }: { tasks: any[]; sessions: any[] }) {
+export function OrchestrationHeader({
+  tasks,
+  sessions,
+}: {
+  tasks: any[];
+  sessions: any[];
+}) {
   const taskActiveSessions = usePlanActiveSessions(tasks);
   const activeAgents = tasks.filter((t: any) => taskActiveSessions[t._id]);
   const doneTasks = tasks.filter((t: any) => t.status === "done");
-  const blockedTasks = tasks.filter((t: any) => t.execution_status === "blocked" || t.execution_status === "needs_context");
-  const concernTasks = tasks.filter((t: any) => t.execution_status === "done_with_concerns");
+  const blockedTasks = tasks.filter(
+    (t: any) =>
+      t.execution_status === "blocked" ||
+      t.execution_status === "needs_context",
+  );
+  const concernTasks = tasks.filter(
+    (t: any) => t.execution_status === "done_with_concerns",
+  );
 
-  const totalActual = tasks.reduce((sum: number, t: any) => sum + (t.actual_minutes || 0), 0);
+  const totalActual = tasks.reduce(
+    (sum: number, t: any) => sum + (t.actual_minutes || 0),
+    0,
+  );
   const remainingEstimated = tasks
     .filter((t: any) => t.status !== "done" && t.status !== "dropped")
     .reduce((sum: number, t: any) => sum + (t.estimated_minutes || 0), 0);
 
   if (tasks.length === 0) return null;
 
-  const hasActiveWork = activeAgents.length > 0 || sessions.some((s: any) => s.is_active);
+  const hasActiveWork =
+    activeAgents.length > 0 || sessions.some((s: any) => s.is_active);
 
   return (
-    <div className={`mb-5 rounded-lg border overflow-hidden ${hasActiveWork ? "border-sol-green/30 bg-sol-green/5" : "border-sol-border/20 bg-sol-bg-alt/20"}`}>
+    <div
+      className={`mb-5 rounded-lg border overflow-hidden ${hasActiveWork ? "border-sol-green/30 bg-sol-green/5" : "border-sol-border/20 bg-sol-bg-alt/20"}`}
+    >
       <div className="px-4 py-3">
         <div className="flex items-center gap-3 mb-2.5">
-          <Zap className={`w-4 h-4 ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`} />
-          <span className={`text-xs font-semibold uppercase tracking-wider ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}>
+          <Zap
+            className={`w-4 h-4 ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}
+          />
+          <span
+            className={`text-xs font-semibold uppercase tracking-wider ${hasActiveWork ? "text-sol-green" : "text-sol-text-dim"}`}
+          >
             {hasActiveWork ? "Live Orchestration" : "Orchestration"}
           </span>
-          {hasActiveWork && <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />}
+          {hasActiveWork && (
+            <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
-            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">Agents</div>
+            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">
+              Agents
+            </div>
             <div className="flex items-center gap-1.5">
-              <span className={`text-lg font-semibold tabular-nums ${activeAgents.length > 0 ? "text-sol-green" : "text-sol-text-dim"}`}>
+              <span
+                className={`text-lg font-semibold tabular-nums ${activeAgents.length > 0 ? "text-sol-green" : "text-sol-text-dim"}`}
+              >
                 {activeAgents.length}
               </span>
               <span className="text-meta text-sol-text-dim">
-                / {tasks.filter((t: any) => t.status === "in_progress").length} assigned
+                / {tasks.filter((t: any) => t.status === "in_progress").length}{" "}
+                assigned
               </span>
             </div>
           </div>
 
           <div>
-            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">Completed</div>
+            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">
+              Completed
+            </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-lg font-semibold tabular-nums text-sol-green">{doneTasks.length}</span>
-              <span className="text-meta text-sol-text-dim">/ {tasks.length}</span>
+              <span className="text-lg font-semibold tabular-nums text-sol-green">
+                {doneTasks.length}
+              </span>
+              <span className="text-meta text-sol-text-dim">
+                / {tasks.length}
+              </span>
             </div>
           </div>
 
           <div>
-            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">Issues</div>
+            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">
+              Issues
+            </div>
             <div className="flex items-center gap-2">
               {blockedTasks.length > 0 ? (
-                <span className="text-lg font-semibold tabular-nums text-sol-red">{blockedTasks.length}</span>
+                <span className="text-lg font-semibold tabular-nums text-sol-red">
+                  {blockedTasks.length}
+                </span>
               ) : concernTasks.length > 0 ? (
-                <span className="text-lg font-semibold tabular-nums text-sol-yellow">{concernTasks.length}</span>
+                <span className="text-lg font-semibold tabular-nums text-sol-yellow">
+                  {concernTasks.length}
+                </span>
               ) : (
-                <span className="text-lg font-semibold tabular-nums text-sol-text-dim">0</span>
+                <span className="text-lg font-semibold tabular-nums text-sol-text-dim">
+                  0
+                </span>
               )}
               {blockedTasks.length > 0 && (
                 <span className="text-meta text-sol-red">blocked</span>
@@ -460,13 +622,17 @@ export function OrchestrationHeader({ tasks, sessions }: { tasks: any[]; session
           </div>
 
           <div>
-            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">Time</div>
+            <div className="text-mark text-sol-text-dim uppercase tracking-wider mb-0.5">
+              Time
+            </div>
             <div className="flex items-center gap-1.5">
               {remainingEstimated > 0 ? (
                 <>
                   <Timer className="w-3 h-3 text-sol-text-dim" />
                   <span className="text-sm font-semibold tabular-nums text-sol-text">
-                    {remainingEstimated < 60 ? `${remainingEstimated}m` : `${Math.floor(remainingEstimated / 60)}h ${remainingEstimated % 60}m`}
+                    {remainingEstimated < 60
+                      ? `${remainingEstimated}m`
+                      : `${Math.floor(remainingEstimated / 60)}h ${remainingEstimated % 60}m`}
                   </span>
                   <span className="text-meta text-sol-text-dim">left</span>
                 </>
@@ -474,7 +640,9 @@ export function OrchestrationHeader({ tasks, sessions }: { tasks: any[]; session
                 <>
                   <Timer className="w-3 h-3 text-sol-green" />
                   <span className="text-sm font-semibold tabular-nums text-sol-green">
-                    {totalActual < 60 ? `${totalActual}m` : `${Math.floor(totalActual / 60)}h ${totalActual % 60}m`}
+                    {totalActual < 60
+                      ? `${totalActual}m`
+                      : `${Math.floor(totalActual / 60)}h ${totalActual % 60}m`}
                   </span>
                   <span className="text-meta text-sol-text-dim">total</span>
                 </>
@@ -496,7 +664,10 @@ export function OrchestrationHeader({ tasks, sessions }: { tasks: any[]; session
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sol-green/10 hover:bg-sol-green/20 transition-colors group/agent"
               >
                 <LivenessDot state="active" size="xs" />
-                <ShortId id={t.short_id} className="text-xs text-sol-text-dim" />
+                <ShortId
+                  id={t.short_id}
+                  className="text-xs text-sol-text-dim"
+                />
                 <span className="text-xs text-sol-green truncate max-w-[200px] group-hover/agent:text-sol-text transition-colors">
                   {t.title}
                 </span>
@@ -510,7 +681,15 @@ export function OrchestrationHeader({ tasks, sessions }: { tasks: any[]; session
   );
 }
 
-export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId: string; tasks: any[]; sessions: any[] }) {
+export function PlanTaskSection({
+  planShortId,
+  tasks,
+  sessions,
+}: {
+  planShortId: string;
+  tasks: any[];
+  sessions: any[];
+}) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [showDone, setShowDone] = useState(false);
@@ -522,18 +701,25 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
   const taskActiveSessions = usePlanActiveSessions(tasks);
 
   // The row's own icon shows the change at once; no toast per click.
-  const cycleStatus = useCallback((shortId: string, currentStatus: string) => {
-    const idx = TASK_STATUS_CYCLE.indexOf(currentStatus);
-    const next = TASK_STATUS_CYCLE[(idx + 1) % TASK_STATUS_CYCLE.length];
-    if (next === "done" || next === "dropped") closeTaskWithGuard(shortId, next as "done" | "dropped");
-    else updateTask(shortId, { status: next });
-  }, [updateTask]);
+  const cycleStatus = useCallback(
+    (shortId: string, currentStatus: string) => {
+      const idx = TASK_STATUS_CYCLE.indexOf(currentStatus);
+      const next = TASK_STATUS_CYCLE[(idx + 1) % TASK_STATUS_CYCLE.length];
+      if (next === "done" || next === "dropped")
+        closeTaskWithGuard(shortId, next as "done" | "dropped");
+      else updateTask(shortId, { status: next });
+    },
+    [updateTask],
+  );
 
-  const cyclePriority = useCallback((shortId: string, currentPriority: string) => {
-    const idx = PRIORITY_CYCLE.indexOf(currentPriority || "medium");
-    const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length];
-    updateTask(shortId, { priority: next });
-  }, [updateTask]);
+  const cyclePriority = useCallback(
+    (shortId: string, currentPriority: string) => {
+      const idx = PRIORITY_CYCLE.indexOf(currentPriority || "medium");
+      const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length];
+      updateTask(shortId, { priority: next });
+    },
+    [updateTask],
+  );
   const taskHref = useTaskHref();
 
   const handleAdd = useCallback(() => {
@@ -556,27 +742,42 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
     }
   }
 
-  const matchesFilter = useCallback((task: any) => {
-    if (statusFilter && statusFilter !== "all" && task.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = task.title?.toLowerCase().includes(q);
-      const matchId = task.short_id?.toLowerCase().includes(q);
-      if (!matchTitle && !matchId) return false;
-    }
-    return true;
-  }, [searchQuery, statusFilter]);
+  const matchesFilter = useCallback(
+    (task: any) => {
+      if (
+        statusFilter &&
+        statusFilter !== "all" &&
+        task.status !== statusFilter
+      )
+        return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = task.title?.toLowerCase().includes(q);
+        const matchId = task.short_id?.toLowerCase().includes(q);
+        if (!matchTitle && !matchId) return false;
+      }
+      return true;
+    },
+    [searchQuery, statusFilter],
+  );
 
   const activeTasks = useMemo(
-    () => tasks.filter(t => t.status !== "done" && t.status !== "dropped").filter(matchesFilter),
-    [tasks, matchesFilter]
+    () =>
+      tasks
+        .filter((t) => t.status !== "done" && t.status !== "dropped")
+        .filter(matchesFilter),
+    [tasks, matchesFilter],
   );
   const doneTasks = useMemo(
-    () => tasks.filter(t => t.status === "done" || t.status === "dropped").filter(matchesFilter),
-    [tasks, matchesFilter]
+    () =>
+      tasks
+        .filter((t) => t.status === "done" || t.status === "dropped")
+        .filter(matchesFilter),
+    [tasks, matchesFilter],
   );
 
-  const hasActiveFilter = searchQuery || (statusFilter && statusFilter !== "all");
+  const hasActiveFilter =
+    searchQuery || (statusFilter && statusFilter !== "all");
 
   return (
     <div className="mb-6">
@@ -595,7 +796,9 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
             <button
               onClick={() => setShowFilterBar(!showFilterBar)}
               className={`flex items-center gap-1 text-xs transition-colors p-1 rounded ${
-                showFilterBar || hasActiveFilter ? "text-sol-cyan bg-sol-cyan/10" : "text-sol-text-dim hover:text-sol-text"
+                showFilterBar || hasActiveFilter
+                  ? "text-sol-cyan bg-sol-cyan/10"
+                  : "text-sol-text-dim hover:text-sol-text"
               }`}
               title="Search and filter tasks"
             >
@@ -619,24 +822,29 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
             <input
               autoFocus
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter tasks..."
               className="w-full text-xs pl-7 pr-3 py-1.5 rounded-lg bg-sol-bg-alt border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-cyan"
             />
           </div>
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
+            onChange={(e) => setStatusFilter(e.target.value)}
             className="text-xs px-2 py-1.5 rounded-lg bg-sol-bg-alt border border-sol-border/50 text-sol-text focus:outline-none focus:border-sol-cyan appearance-none cursor-pointer"
           >
             <option value="all">All statuses</option>
-            {ALL_TASK_STATUSES.map(s => (
-              <option key={s} value={s}>{TASK_STATUS_CONFIG[s]?.label || s}</option>
+            {ALL_TASK_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {TASK_STATUS_CONFIG[s]?.label || s}
+              </option>
             ))}
           </select>
           {hasActiveFilter && (
             <button
-              onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+              }}
               className="text-meta text-sol-text-dim hover:text-sol-text transition-colors whitespace-nowrap"
             >
               Clear
@@ -650,12 +858,21 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
           <input
             autoFocus
             value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+              if (e.key === "Escape") setShowAdd(false);
+            }}
             placeholder="Task title..."
             className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-sol-bg-alt border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-cyan"
           />
-          <Button variant="cyan" size="sm" onClick={handleAdd} disabled={!newTitle.trim()} className="rounded-lg">
+          <Button
+            variant="cyan"
+            size="sm"
+            onClick={handleAdd}
+            disabled={!newTitle.trim()}
+            className="rounded-lg"
+          >
             Create
           </Button>
         </div>
@@ -667,12 +884,22 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
           const TaskIcon = tc.icon;
           const pc = taskPriority(task.priority);
           const PriorityIcon = pc?.icon;
-          const hasExec = task.execution_status && !!getExecStatusConfig(task.execution_status);
+          const hasExec =
+            task.execution_status &&
+            !!getExecStatusConfig(task.execution_status);
           const isExpanded = expandedTask === task._id;
           const taskSessions = sessionsByTask.get(task._id.toString()) || [];
-          const hasDetail = task.acceptance_criteria?.length || task.steps?.length || task.execution_concerns || task.files_changed?.length || taskSessions.length > 0;
+          const hasDetail =
+            task.acceptance_criteria?.length ||
+            task.steps?.length ||
+            task.execution_concerns ||
+            task.files_changed?.length ||
+            taskSessions.length > 0;
           return (
-            <div key={task._id} className="border-b border-sol-border/10 last:border-b-0">
+            <div
+              key={task._id}
+              className="border-b border-sol-border/10 last:border-b-0"
+            >
               <div className="flex items-center gap-2.5 px-3 py-2 group">
                 <button
                   onClick={() => cycleStatus(task.short_id, task.status)}
@@ -683,15 +910,27 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
                   <TaskIcon className={`w-3.5 h-3.5 ${tc.color}`} />
                 </button>
                 {/* The title opens the task; renaming happens on its page. */}
-                <Link href={taskHref(task.short_id)} className="flex-1 min-w-0 flex items-center gap-2 group/title">
-                  <ShortId id={task.short_id} className="text-xs text-sol-text-dim" />
-                  <span className="text-sm text-sol-text truncate group-hover/title:text-sol-cyan transition-colors">{task.title}</span>
+                <Link
+                  href={taskHref(task.short_id)}
+                  className="flex-1 min-w-0 flex items-center gap-2 group/title"
+                >
+                  <ShortId
+                    id={task.short_id}
+                    className="text-xs text-sol-text-dim"
+                  />
+                  <span className="text-sm text-sol-text truncate group-hover/title:text-sol-cyan transition-colors">
+                    {task.title}
+                  </span>
                 </Link>
                 {taskActiveSessions[task._id] && (
                   <ActiveSessionBadge session={taskActiveSessions[task._id]} />
                 )}
                 {hasExec && (
-                  <TaskStatusBadge status={task.execution_status} type="execution" className="flex-shrink-0" />
+                  <TaskStatusBadge
+                    status={task.execution_status}
+                    type="execution"
+                    className="flex-shrink-0"
+                  />
                 )}
                 {taskSessions.length > 0 && !taskActiveSessions[task._id] && (
                   <span className="text-meta text-sol-text-dim flex-shrink-0 font-mono">
@@ -705,7 +944,9 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
                 </span>
                 {PriorityIcon && pc && (
                   <button
-                    onClick={() => cyclePriority(task.short_id, task.priority || "medium")}
+                    onClick={() =>
+                      cyclePriority(task.short_id, task.priority || "medium")
+                    }
                     title={`${pc.label} priority (click to cycle)`}
                     aria-label={`${pc.label} priority; cycle`}
                     className="flex-shrink-0 p-1 -m-1 hover:scale-110 transition-transform"
@@ -715,12 +956,16 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
                 )}
                 {hasDetail ? (
                   <button
-                    onClick={() => setExpandedTask(isExpanded ? null : task._id)}
+                    onClick={() =>
+                      setExpandedTask(isExpanded ? null : task._id)
+                    }
                     aria-label={isExpanded ? "Hide details" : "Show details"}
                     aria-expanded={isExpanded}
                     className="p-1 -m-1"
                   >
-                    <ChevronRight className={`w-3 h-3 text-sol-text-dim transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    <ChevronRight
+                      className={`w-3 h-3 text-sol-text-dim transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                    />
                   </button>
                 ) : (
                   <span className="w-3 flex-shrink-0" aria-hidden />
@@ -741,46 +986,70 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
               onClick={() => setShowDone(!showDone)}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-sol-text-dim hover:text-sol-text border-b border-sol-border/10 last:border-b-0 transition-colors"
             >
-              {showDone ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              {showDone ? (
+                <ChevronDown className="w-3 h-3" />
+              ) : (
+                <ChevronRight className="w-3 h-3" />
+              )}
               {doneTasks.length} completed
             </button>
-            {showDone && doneTasks.map((task: any) => {
-              const tc = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.done;
-              const TaskIcon = tc.icon;
-              const taskSessions = sessionsByTask.get(task._id.toString()) || [];
-              const isExpanded = expandedTask === task._id;
-              return (
-                <div key={task._id} className="border-b border-sol-border/10 last:border-b-0">
+            {showDone &&
+              doneTasks.map((task: any) => {
+                const tc =
+                  TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.done;
+                const TaskIcon = tc.icon;
+                const taskSessions =
+                  sessionsByTask.get(task._id.toString()) || [];
+                const isExpanded = expandedTask === task._id;
+                return (
                   <div
-                    className="flex items-center gap-2.5 px-3 py-2 opacity-50 cursor-pointer hover:opacity-70 transition-opacity"
-                    onClick={() => setExpandedTask(isExpanded ? null : task._id)}
+                    key={task._id}
+                    className="border-b border-sol-border/10 last:border-b-0"
                   >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); cycleStatus(task.short_id, task.status); }}
-                      title={`${tc.label} (click to cycle)`}
-                      className="flex-shrink-0 hover:scale-110 transition-transform"
+                    <div
+                      className="flex items-center gap-2.5 px-3 py-2 opacity-50 cursor-pointer hover:opacity-70 transition-opacity"
+                      onClick={() =>
+                        setExpandedTask(isExpanded ? null : task._id)
+                      }
                     >
-                      <TaskIcon className={`w-3.5 h-3.5 ${tc.color}`} />
-                    </button>
-                    <Link href={taskHref(task.short_id)} onClick={(e) => e.stopPropagation()} className="min-w-0 flex items-center gap-2.5 group/title">
-                      <ShortId id={task.short_id} className="text-xs text-sol-text-dim" />
-                      <span className="text-sm text-sol-text-muted line-through truncate group-hover/title:text-sol-cyan">{task.title}</span>
-                    </Link>
-                    {taskSessions.length > 0 && (
-                      <span className="text-meta text-sol-text-dim flex-shrink-0 font-mono ml-auto">
-                        {taskSessions.length} sess
-                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cycleStatus(task.short_id, task.status);
+                        }}
+                        title={`${tc.label} (click to cycle)`}
+                        className="flex-shrink-0 hover:scale-110 transition-transform"
+                      >
+                        <TaskIcon className={`w-3.5 h-3.5 ${tc.color}`} />
+                      </button>
+                      <Link
+                        href={taskHref(task.short_id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="min-w-0 flex items-center gap-2.5 group/title"
+                      >
+                        <ShortId
+                          id={task.short_id}
+                          className="text-xs text-sol-text-dim"
+                        />
+                        <span className="text-sm text-sol-text-muted line-through truncate group-hover/title:text-sol-cyan">
+                          {task.title}
+                        </span>
+                      </Link>
+                      {taskSessions.length > 0 && (
+                        <span className="text-meta text-sol-text-dim flex-shrink-0 font-mono ml-auto">
+                          {taskSessions.length} sess
+                        </span>
+                      )}
+                    </div>
+                    {isExpanded && (
+                      <>
+                        <TaskExecutionDetail task={task} />
+                        <TaskSessionCards sessions={taskSessions} />
+                      </>
                     )}
                   </div>
-                  {isExpanded && (
-                    <>
-                      <TaskExecutionDetail task={task} />
-                      <TaskSessionCards sessions={taskSessions} />
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
           </>
         )}
         {tasks.length === 0 && (
@@ -788,11 +1057,14 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
             No tasks yet
           </div>
         )}
-        {hasActiveFilter && activeTasks.length === 0 && doneTasks.length === 0 && tasks.length > 0 && (
-          <div className="px-3 py-4 text-center text-xs text-sol-text-dim">
-            No tasks match filter
-          </div>
-        )}
+        {hasActiveFilter &&
+          activeTasks.length === 0 &&
+          doneTasks.length === 0 &&
+          tasks.length > 0 && (
+            <div className="px-3 py-4 text-center text-xs text-sol-text-dim">
+              No tasks match filter
+            </div>
+          )}
       </div>
 
       {unlinkedSessions.length > 0 && (
@@ -809,13 +1081,25 @@ export function PlanTaskSection({ planShortId, tasks, sessions }: { planShortId:
   );
 }
 
-export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: any[] }) {
+export function OrchestrationTab({
+  tasks,
+  sessions,
+}: {
+  tasks: any[];
+  sessions: any[];
+}) {
   const taskActiveSessions = usePlanActiveSessions(tasks);
   const taskHref = useTaskHref();
   const activeSessions = sessions.filter((s: any) => s.is_active);
-  const recentSessions = [...sessions].sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
+  const recentSessions = [...sessions].sort(
+    (a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0),
+  );
 
-  const taskTimeline = [...tasks].sort((a: any, b: any) => (b.updated_at || b._creationTime || 0) - (a.updated_at || a._creationTime || 0));
+  const taskTimeline = [...tasks].sort(
+    (a: any, b: any) =>
+      (b.updated_at || b._creationTime || 0) -
+      (a.updated_at || a._creationTime || 0),
+  );
 
   return (
     <div className="space-y-6">
@@ -826,7 +1110,9 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
           <h2 className="flex items-center gap-2 text-sm font-medium text-sol-text mb-3">
             <Activity className="w-4 h-4 text-sol-green" />
             Active Sessions
-            <span className="text-xs text-sol-green/70 font-normal">({activeSessions.length})</span>
+            <span className="text-xs text-sol-green/70 font-normal">
+              ({activeSessions.length})
+            </span>
           </h2>
           <div className="space-y-1.5">
             {activeSessions.map((s: any) => (
@@ -843,7 +1129,9 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
                   <div className="flex items-center gap-2 mt-0.5 text-meta text-sol-text-dim font-mono">
                     {s.message_count > 0 && <span>{s.message_count} msgs</span>}
                     {s.project_path && (
-                      <span>{s.project_path.split("/").filter(Boolean).pop()}</span>
+                      <span>
+                        {s.project_path.split("/").filter(Boolean).pop()}
+                      </span>
                     )}
                     {s.git_branch && s.git_branch !== "main" && (
                       <span className="text-sol-green/70">{s.git_branch}</span>
@@ -864,7 +1152,9 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
         <h2 className="flex items-center gap-2 text-sm font-medium text-sol-text mb-3">
           <Layers className="w-4 h-4 text-sol-text-dim" />
           Task Timeline
-          <span className="text-xs text-sol-text-dim font-normal">({taskTimeline.length})</span>
+          <span className="text-xs text-sol-text-dim font-normal">
+            ({taskTimeline.length})
+          </span>
         </h2>
         {taskTimeline.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-sol-text-dim border border-sol-border/15 rounded-lg">
@@ -875,30 +1165,53 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
             <div className="absolute left-[18px] top-3 bottom-3 w-px bg-sol-border/30" />
             <div className="space-y-0">
               {taskTimeline.map((task: any) => {
-                const tc = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.open;
+                const tc =
+                  TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.open;
                 const TaskIcon = tc.icon;
-                const time = task.updated_at ? getRelativeTime(task.updated_at) : task._creationTime ? getRelativeTime(task._creationTime) : "";
-                const hasExec = task.execution_status && !!getExecStatusConfig(task.execution_status);
+                const time = task.updated_at
+                  ? getRelativeTime(task.updated_at)
+                  : task._creationTime
+                    ? getRelativeTime(task._creationTime)
+                    : "";
+                const hasExec =
+                  task.execution_status &&
+                  !!getExecStatusConfig(task.execution_status);
 
                 return (
-                  <div key={task._id} className="flex items-start gap-3 py-2 pl-1 pr-3 relative">
+                  <div
+                    key={task._id}
+                    className="flex items-start gap-3 py-2 pl-1 pr-3 relative"
+                  >
                     <div className="relative z-10 flex-shrink-0 mt-0.5 bg-sol-bg rounded-full p-0.5">
                       <TaskIcon className={`w-4 h-4 ${tc.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <Link href={taskHref(task.short_id)} className="flex items-center gap-2 min-w-0 group/title">
-                        <ShortId id={task.short_id} className="text-xs text-sol-text-dim" />
-                        <span className={`text-sm truncate group-hover/title:text-sol-cyan ${task.status === "done" || task.status === "dropped" ? "text-sol-text-muted line-through" : "text-sol-text"}`}>
+                      <Link
+                        href={taskHref(task.short_id)}
+                        className="flex items-center gap-2 min-w-0 group/title"
+                      >
+                        <ShortId
+                          id={task.short_id}
+                          className="text-xs text-sol-text-dim"
+                        />
+                        <span
+                          className={`text-sm truncate group-hover/title:text-sol-cyan ${task.status === "done" || task.status === "dropped" ? "text-sol-text-muted line-through" : "text-sol-text"}`}
+                        >
                           {task.title}
                         </span>
                       </Link>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <TaskStatusBadge status={task.status} type="task" />
                         {hasExec && (
-                          <TaskStatusBadge status={task.execution_status} type="execution" />
+                          <TaskStatusBadge
+                            status={task.execution_status}
+                            type="execution"
+                          />
                         )}
                         {taskActiveSessions[task._id] && (
-                          <ActiveSessionBadge session={taskActiveSessions[task._id]} />
+                          <ActiveSessionBadge
+                            session={taskActiveSessions[task._id]}
+                          />
                         )}
                         {task.actual_minutes && (
                           <span className="text-meta text-sol-text-dim font-mono">
@@ -923,7 +1236,9 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
           <h2 className="flex items-center gap-2 text-sm font-medium text-sol-text mb-3">
             <MessageSquare className="w-4 h-4 text-sol-text-dim" />
             All Sessions
-            <span className="text-xs text-sol-text-dim font-normal">({recentSessions.length})</span>
+            <span className="text-xs text-sol-text-dim font-normal">
+              ({recentSessions.length})
+            </span>
           </h2>
           <div className="space-y-1">
             {recentSessions.map((s: any) => (
@@ -936,7 +1251,15 @@ export function OrchestrationTab({ tasks, sessions }: { tasks: any[]; sessions: 
   );
 }
 
-export function StartWorkflowButton({ workflowId, planId, planTitle }: { workflowId: string; planId: string; planTitle?: string }) {
+export function StartWorkflowButton({
+  workflowId,
+  planId,
+  planTitle,
+}: {
+  workflowId: string;
+  planId: string;
+  planTitle?: string;
+}) {
   const createRun = useMutation(api.workflow_runs.create);
   const [pending, setPending] = useState(false);
   // A run starts paid agent sessions: the press opens the shared review, and
@@ -970,14 +1293,20 @@ export function StartWorkflowButton({ workflowId, planId, planTitle }: { workflo
       </button>
       {reviewing && (
         <SwitchReview
-          ledger={workflowRunLedger({
-            name: workflow?.name ?? "workflow",
-            subject: planTitle,
-            agentSteps: workflowAgentSteps(workflow?.nodes),
-            steps: workflowSteps(workflow?.nodes),
-          }, runCost)}
+          ledger={workflowRunLedger(
+            {
+              name: workflow?.name ?? "workflow",
+              subject: planTitle,
+              agentSteps: workflowAgentSteps(workflow?.nodes),
+              steps: workflowSteps(workflow?.nodes),
+            },
+            runCost,
+          )}
           onClose={() => setReviewing(false)}
-          onConfirm={() => { setReviewing(false); void handleClick(); }}
+          onConfirm={() => {
+            setReviewing(false);
+            void handleClick();
+          }}
         />
       )}
     </div>
@@ -998,7 +1327,8 @@ type PlanTab = "overview" | "orchestration" | "board" | "graph";
 export function PlanExternalEvents({ planId }: { planId: string }) {
   useSyncPlanExternalEvents(planId);
   const where = useMemo(
-    () => (row: ExternalEventRecord) => !!planId && !!row.plan_ids?.includes(planId),
+    () => (row: ExternalEventRecord) =>
+      !!planId && !!row.plan_ids?.includes(planId),
     [planId],
   );
   const events = useExternalEvents(where, externalEventsNewestFirst);
@@ -1023,8 +1353,16 @@ export function PlanExternalEvents({ planId }: { planId: string }) {
   );
 }
 
-export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Where ✕ returns to (the list under this panel). */ closeHref?: string }) {
-  const queryArgs = planId.startsWith("pl-") ? { short_id: planId } : { id: planId };
+export function PlanDetailPanel({
+  planId,
+  closeHref,
+}: {
+  planId: string;
+  /** Where ✕ returns to (the list under this panel). */ closeHref?: string;
+}) {
+  const queryArgs = planId.startsWith("pl-")
+    ? { short_id: planId }
+    : { id: planId };
   const queryPlan = useQuery(api.plans.webGet, queryArgs);
   const teamMembers = useInboxStore(teamMembersOf);
   const currentUser = useInboxStore((s) => s.currentUser);
@@ -1038,7 +1376,9 @@ export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Whe
   // comments pop in). A NULL answer is an access verdict and never falls
   // back to cache. Selector returns the row ref (stable), not a built object.
   const cachedRow = useInboxStore((s) =>
-    queryPlan !== undefined ? null : ((findEntityInStore(s, "plan", planId) as any) ?? null),
+    queryPlan !== undefined
+      ? null
+      : ((findEntityInStore(s, "plan", planId) as any) ?? null),
   );
   // The share token as the store holds it (setObjectShareLink writes it there
   // first): `undefined` when there is no store row, `null` when revoked.
@@ -1048,7 +1388,9 @@ export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Whe
   });
   // The plan's tasks, by the snapshot's list or the cached row's ids.
   const planTaskIds = useMemo(
-    () => ((queryPlan as any)?.tasks?.map((t: any) => String(t._id)) ?? (cachedRow?.task_ids ?? []).map(String)) as string[],
+    () =>
+      ((queryPlan as any)?.tasks?.map((t: any) => String(t._id)) ??
+        (cachedRow?.task_ids ?? []).map(String)) as string[],
     [queryPlan, cachedRow],
   );
   const storeTasks = usePlanStoreTasks(planTaskIds);
@@ -1069,12 +1411,21 @@ export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Whe
   // Overlay the live store tasks (canonical helper) so status circles, active/
   // done buckets, assignee avatars and the progress bar all update instantly.
   const liveTasks = useMemo(
-    () => mergeLiveTasks((plan as any)?.tasks, storeTasks, teamMembers as any[], currentUser as any),
+    () =>
+      mergeLiveTasks(
+        (plan as any)?.tasks,
+        storeTasks,
+        teamMembers as any[],
+        currentUser as any,
+      ),
     [plan, storeTasks, teamMembers, currentUser],
   );
   const liveProgress = useMemo(() => {
     if (!Array.isArray(liveTasks)) return (plan as any)?.progress;
-    return { ...((plan as any)?.progress || {}), ...computePlanProgress(liveTasks) };
+    return {
+      ...((plan as any)?.progress || {}),
+      ...computePlanProgress(liveTasks),
+    };
   }, [liveTasks, plan]);
 
   if (plan === undefined) {
@@ -1085,7 +1436,14 @@ export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Whe
     return (
       <div className="flex flex-col items-center justify-center gap-2 h-48 text-sol-text-dim">
         <span className="text-sm">Plan not found</span>
-        {closeHref && <Link href={closeHref} className="text-xs text-sol-cyan hover:underline">Back to plans</Link>}
+        {closeHref && (
+          <Link
+            href={closeHref}
+            className="text-xs text-sol-cyan hover:underline"
+          >
+            Back to plans
+          </Link>
+        )}
       </div>
     );
   }
@@ -1099,128 +1457,158 @@ export function PlanDetailPanel({ planId, closeHref }: { planId: string; /** Whe
     // The panel is drawn into a fixed-height, clipped stage (DetailSplitLayout),
     // so it owns its scroller.
     <div className="h-full overflow-y-auto">
-    {modern && <PlanPanelBar {...head} />}
-    <div className="max-w-3xl mx-auto px-6 py-6">
-      <div className="mb-6">
-        {!modern && <PlanPanelTitleRow {...head} />}
-        <div className="flex items-center gap-3 text-xs text-sol-text-dim flex-wrap">
-          {plan.author?.image && (
-            <AvatarImg src={plan.author.image} className="w-4 h-4 rounded-full" alt="" />
+      {modern && <PlanPanelBar {...head} />}
+      <div className="max-w-3xl mx-auto px-6 py-6">
+        <div className="mb-6">
+          {!modern && <PlanPanelTitleRow {...head} />}
+          <div className="flex items-center gap-3 text-xs text-sol-text-dim flex-wrap">
+            {plan.author?.image && (
+              <AvatarImg
+                src={plan.author.image}
+                className="w-4 h-4 rounded-full"
+                alt=""
+              />
+            )}
+            {plan.author?.name && <span>{plan.author.name}</span>}
+            <ShortId id={plan.short_id} />
+            <span>Created {formatTimestamp(plan.created_at)}</span>
+            <span>Updated {formatTimestamp(plan.updated_at)}</span>
+            {plan.drive_state && plan.drive_state.total_rounds > 0 && (
+              <DriveRoundIndicator driveState={plan.drive_state} />
+            )}
+          </div>
+          <PlanOriginSession plan={plan} className="mt-3" />
+          <RepositoryLinks
+            planId={plan._id}
+            sessions={plan.sessions || []}
+            conversationIds={plan.conversation_ids || []}
+          />
+          {plan.goal && (
+            <p className="mt-3 text-sm text-sol-text-muted leading-relaxed">
+              {plan.goal}
+            </p>
           )}
-          {plan.author?.name && <span>{plan.author.name}</span>}
-          <ShortId id={plan.short_id} />
-          <span>Created {formatTimestamp(plan.created_at)}</span>
-          <span>Updated {formatTimestamp(plan.updated_at)}</span>
-          {plan.drive_state && plan.drive_state.total_rounds > 0 && (
-            <DriveRoundIndicator driveState={plan.drive_state} />
+          {plan.acceptance_criteria?.length > 0 && (
+            <div className="mt-3">
+              <h3 className="text-xs font-medium text-sol-text-dim uppercase tracking-wider mb-1">
+                Acceptance Criteria
+              </h3>
+              <ul className="text-sm text-sol-text-muted space-y-0.5">
+                {plan.acceptance_criteria.map((c: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="text-sol-text-dim mt-0.5">-</span>
+                    <span>{c}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
-        <PlanOriginSession plan={plan} className="mt-3" />
-        <RepositoryLinks planId={plan._id} sessions={plan.sessions || []} conversationIds={plan.conversation_ids || []} />
-        {plan.goal && (
-          <p className="mt-3 text-sm text-sol-text-muted leading-relaxed">{plan.goal}</p>
+
+        {plan.doc_content && <CollapsibleDoc content={plan.doc_content} />}
+
+        {liveProgress && liveProgress.total > 0 && (
+          <PlanProgressBar progress={liveProgress} />
         )}
-        {plan.acceptance_criteria?.length > 0 && (
-          <div className="mt-3">
-            <h3 className="text-xs font-medium text-sol-text-dim uppercase tracking-wider mb-1">Acceptance Criteria</h3>
-            <ul className="text-sm text-sol-text-muted space-y-0.5">
-              {plan.acceptance_criteria.map((c: string, i: number) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-sol-text-dim mt-0.5">-</span>
-                  <span>{c}</span>
-                </li>
-              ))}
-            </ul>
+
+        {(plan as any).workflow_id && !(plan as any).workflow_run_id && (
+          <StartWorkflowButton
+            workflowId={(plan as any).workflow_id}
+            planId={plan._id}
+            planTitle={plan.title}
+          />
+        )}
+
+        {(plan as any).workflow_run_id && (
+          <div className="mb-5">
+            <WorkflowContextPanel
+              workflowRunId={(plan as any).workflow_run_id}
+            />
           </div>
         )}
+
+        {hasTasks && (
+          <div className="flex items-center gap-1 mb-5 border-b border-sol-border/15">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === "overview"
+                  ? "text-sol-text border-sol-cyan"
+                  : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("orchestration")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === "orchestration"
+                  ? "text-sol-text border-sol-cyan"
+                  : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
+              }`}
+            >
+              <Zap
+                className={`w-3.5 h-3.5 ${hasActiveSessions ? "text-sol-green" : ""}`}
+              />
+              Orchestration
+              {hasActiveSessions && (
+                <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("board")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === "board"
+                  ? "text-sol-text border-sol-cyan"
+                  : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Board
+            </button>
+            <button
+              onClick={() => setActiveTab("graph")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === "graph"
+                  ? "text-sol-text border-sol-cyan"
+                  : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Graph
+            </button>
+          </div>
+        )}
+
+        {activeTab === "graph" ? (
+          <PlanGraphView tasks={liveTasks || []} />
+        ) : activeTab === "board" ? (
+          <PlanBoardView tasks={liveTasks || []} planShortId={plan.short_id} />
+        ) : activeTab === "overview" ? (
+          <>
+            <OrchestrationHeader
+              tasks={liveTasks || []}
+              sessions={plan.sessions || []}
+            />
+
+            <PlanTaskSection
+              planShortId={plan.short_id}
+              tasks={liveTasks || []}
+              sessions={plan.sessions || []}
+            />
+
+            <EntryTimeline entries={plan.comments} />
+
+            <PlanExternalEvents planId={plan._id} />
+          </>
+        ) : (
+          <OrchestrationTab
+            tasks={liveTasks || []}
+            sessions={plan.sessions || []}
+          />
+        )}
       </div>
-
-      {plan.doc_content && <CollapsibleDoc content={plan.doc_content} />}
-
-      {liveProgress && liveProgress.total > 0 && (
-        <PlanProgressBar progress={liveProgress} />
-      )}
-
-      {(plan as any).workflow_id && !(plan as any).workflow_run_id && (
-        <StartWorkflowButton workflowId={(plan as any).workflow_id} planId={plan._id} planTitle={plan.title} />
-      )}
-
-      {(plan as any).workflow_run_id && (
-        <div className="mb-5">
-          <WorkflowContextPanel workflowRunId={(plan as any).workflow_run_id} />
-        </div>
-      )}
-
-      {hasTasks && (
-        <div className="flex items-center gap-1 mb-5 border-b border-sol-border/15">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === "overview"
-                ? "text-sol-text border-sol-cyan"
-                : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("orchestration")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === "orchestration"
-                ? "text-sol-text border-sol-cyan"
-                : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
-            }`}
-          >
-            <Zap className={`w-3.5 h-3.5 ${hasActiveSessions ? "text-sol-green" : ""}`} />
-            Orchestration
-            {hasActiveSessions && (
-              <span className="w-1.5 h-1.5 rounded-full bg-sol-green" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("board")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === "board"
-                ? "text-sol-text border-sol-cyan"
-                : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Board
-          </button>
-          <button
-            onClick={() => setActiveTab("graph")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === "graph"
-                ? "text-sol-text border-sol-cyan"
-                : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
-            }`}
-          >
-            <GitBranch className="w-3.5 h-3.5" />
-            Graph
-          </button>
-        </div>
-      )}
-
-      {activeTab === "graph" ? (
-        <PlanGraphView tasks={liveTasks || []} />
-      ) : activeTab === "board" ? (
-        <PlanBoardView tasks={liveTasks || []} planShortId={plan.short_id} />
-      ) : activeTab === "overview" ? (
-        <>
-          <OrchestrationHeader tasks={liveTasks || []} sessions={plan.sessions || []} />
-
-          <PlanTaskSection planShortId={plan.short_id} tasks={liveTasks || []} sessions={plan.sessions || []} />
-
-          <EntryTimeline entries={plan.comments} />
-
-          <PlanExternalEvents planId={plan._id} />
-        </>
-      ) : (
-        <OrchestrationTab tasks={liveTasks || []} sessions={plan.sessions || []} />
-      )}
-    </div>
     </div>
   );
 }

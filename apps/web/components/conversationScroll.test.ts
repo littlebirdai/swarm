@@ -1,7 +1,18 @@
 import { test, expect, describe } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isJumpReadyToScroll, shouldFollowStreaming, shouldLoadOlder, shouldLoadNewer, shouldAdjustScrollForResize, jumpRowForMessage, initialScrollEdge, shouldResumeFollow, isUnrenderedBox, loadOlderNeedsNoRead } from "./conversationScroll";
+import {
+  isJumpReadyToScroll,
+  shouldFollowStreaming,
+  shouldLoadOlder,
+  shouldLoadNewer,
+  shouldAdjustScrollForResize,
+  jumpRowForMessage,
+  initialScrollEdge,
+  shouldResumeFollow,
+  isUnrenderedBox,
+  loadOlderNeedsNoRead,
+} from "./conversationScroll";
 
 describe("shouldFollowStreaming", () => {
   test("follows normally before the user scrolls away", () => {
@@ -20,16 +31,24 @@ describe("shouldFollowStreaming", () => {
 
 describe("initialScrollEdge", () => {
   test("signed-in viewers open at the live tail", () => {
-    expect(initialScrollEdge({ guest: false, hasExplicitTarget: false })).toBe("bottom");
+    expect(initialScrollEdge({ guest: false, hasExplicitTarget: false })).toBe(
+      "bottom",
+    );
   });
 
   test("unsigned share-link visitors open at the top", () => {
-    expect(initialScrollEdge({ guest: true, hasExplicitTarget: false })).toBe("top");
+    expect(initialScrollEdge({ guest: true, hasExplicitTarget: false })).toBe(
+      "top",
+    );
   });
 
   test("a message hash or highlight keeps ownership of the landing spot", () => {
-    expect(initialScrollEdge({ guest: true, hasExplicitTarget: true })).toBe(null);
-    expect(initialScrollEdge({ guest: false, hasExplicitTarget: true })).toBe(null);
+    expect(initialScrollEdge({ guest: true, hasExplicitTarget: true })).toBe(
+      null,
+    );
+    expect(initialScrollEdge({ guest: false, hasExplicitTarget: true })).toBe(
+      null,
+    );
   });
 });
 
@@ -59,20 +78,34 @@ describe("isJumpReadyToScroll", () => {
 
   // THE REGRESSION: jump-to-top must hold while the first page is loading.
   test("does NOT scroll while the top page is still loading", () => {
-    expect(isJumpReadyToScroll({ ...ready, direction: "start", isLoadingOlder: true })).toBe(false);
+    expect(
+      isJumpReadyToScroll({
+        ...ready,
+        direction: "start",
+        isLoadingOlder: true,
+      }),
+    ).toBe(false);
   });
 
   // THE REGRESSION the user reported: jump-to-bottom scrolled against stale
   // content because the normal-mode LoadingFirstPage state (mapped into
   // isLoadingNewer) wasn't treated as "still loading".
   test("does NOT scroll while the bottom page is still loading", () => {
-    expect(isJumpReadyToScroll({ ...ready, direction: "end", isLoadingNewer: true })).toBe(false);
+    expect(
+      isJumpReadyToScroll({ ...ready, direction: "end", isLoadingNewer: true }),
+    ).toBe(false);
   });
 
   test("a still-loading jump only becomes ready once loading clears", () => {
-    const loading = { ...ready, direction: "end" as const, isLoadingNewer: true };
+    const loading = {
+      ...ready,
+      direction: "end" as const,
+      isLoadingNewer: true,
+    };
     expect(isJumpReadyToScroll(loading)).toBe(false);
-    expect(isJumpReadyToScroll({ ...loading, isLoadingNewer: false })).toBe(true);
+    expect(isJumpReadyToScroll({ ...loading, isLoadingNewer: false })).toBe(
+      true,
+    );
   });
 });
 
@@ -109,7 +142,9 @@ describe("shouldLoadOlder", () => {
 
   test("does NOT load on initial open before the user has scrolled", () => {
     // Initial render snaps to the bottom; userScrolled starts false.
-    expect(shouldLoadOlder({ ...can, userScrolled: false, nearTop: true })).toBe(false);
+    expect(
+      shouldLoadOlder({ ...can, userScrolled: false, nearTop: true }),
+    ).toBe(false);
   });
 
   test("does NOT load when the user is scrolled up but not near the top", () => {
@@ -137,7 +172,14 @@ describe("shouldLoadOlder", () => {
   // the reply above it: the reader saw a blank conversation. A list that cannot
   // scroll loads older pages until it can, without waiting for intent.
   test("loads while the window does not fill the viewport, with no scroll intent", () => {
-    expect(shouldLoadOlder({ ...can, userScrolled: false, nearTop: true, underfilled: true })).toBe(true);
+    expect(
+      shouldLoadOlder({
+        ...can,
+        userScrolled: false,
+        nearTop: true,
+        underfilled: true,
+      }),
+    ).toBe(true);
   });
 
   test("an underfilled window still waits for in-flight loads and the cooldown", () => {
@@ -195,7 +237,12 @@ describe("shouldLoadNewer", () => {
 });
 
 describe("shouldAdjustScrollForResize", () => {
-  const above = { itemStart: 1000, scrollOffset: 5000, held: false, scrollDirection: null as const };
+  const above = {
+    itemStart: 1000,
+    scrollOffset: 5000,
+    held: false,
+    scrollDirection: null as const,
+  };
 
   test("a row above the viewport shifts scrollTop by its delta", () => {
     expect(shouldAdjustScrollForResize(above)).toBe(true);
@@ -207,16 +254,24 @@ describe("shouldAdjustScrollForResize", () => {
   // the correction was skipped whenever the scroll direction was backward, so
   // every estimate error became a visible jump.
   test("still shifts while scrolling UP (backward)", () => {
-    expect(shouldAdjustScrollForResize({ ...above, scrollDirection: "backward" })).toBe(true);
+    expect(
+      shouldAdjustScrollForResize({ ...above, scrollDirection: "backward" }),
+    ).toBe(true);
   });
 
   test("still shifts while scrolling down (forward)", () => {
-    expect(shouldAdjustScrollForResize({ ...above, scrollDirection: "forward" })).toBe(true);
+    expect(
+      shouldAdjustScrollForResize({ ...above, scrollDirection: "forward" }),
+    ).toBe(true);
   });
 
   test("a row at or below the viewport top leaves scrollTop alone", () => {
-    expect(shouldAdjustScrollForResize({ ...above, itemStart: 5000 })).toBe(false);
-    expect(shouldAdjustScrollForResize({ ...above, itemStart: 7000 })).toBe(false);
+    expect(shouldAdjustScrollForResize({ ...above, itemStart: 5000 })).toBe(
+      false,
+    );
+    expect(shouldAdjustScrollForResize({ ...above, itemStart: 7000 })).toBe(
+      false,
+    );
   });
 
   test("a held row (in-row disclosure just toggled) leaves scrollTop alone even above the viewport", () => {
@@ -238,19 +293,31 @@ describe("jumpRowForMessage", () => {
   };
 
   test("full density scrolls the message itself", () => {
-    expect(jumpRowForMessage("absorbed", "full", aggregates)).toEqual({ scrollToId: "absorbed", expandKey: null });
+    expect(jumpRowForMessage("absorbed", "full", aggregates)).toEqual({
+      scrollToId: "absorbed",
+      expandKey: null,
+    });
   });
 
   test("condensed expands the owner receipt and scrolls the owner", () => {
-    expect(jumpRowForMessage("absorbed", "condensed", aggregates)).toEqual({ scrollToId: "owner", expandKey: "owner" });
+    expect(jumpRowForMessage("absorbed", "condensed", aggregates)).toEqual({
+      scrollToId: "owner",
+      expandKey: "owner",
+    });
   });
 
   test("condensed on the owner itself still opens its receipt", () => {
-    expect(jumpRowForMessage("owner", "condensed", aggregates)).toEqual({ scrollToId: "owner", expandKey: "owner" });
+    expect(jumpRowForMessage("owner", "condensed", aggregates)).toEqual({
+      scrollToId: "owner",
+      expandKey: "owner",
+    });
   });
 
   test("compact opens the turn containing the message", () => {
-    expect(jumpRowForMessage("absorbed", "compact", aggregates)).toEqual({ scrollToId: "absorbed", expandKey: "turn-1" });
+    expect(jumpRowForMessage("absorbed", "compact", aggregates)).toEqual({
+      scrollToId: "absorbed",
+      expandKey: "turn-1",
+    });
   });
 
   test("a folded nudge jumps to the run head in every density", () => {
@@ -261,24 +328,47 @@ describe("jumpRowForMessage", () => {
         ["later", "head"],
       ]),
     };
-    expect(jumpRowForMessage("later", "full", withNudges)).toEqual({ scrollToId: "head", expandKey: null });
-    expect(jumpRowForMessage("later", "condensed", withNudges)).toEqual({ scrollToId: "head", expandKey: null });
-    expect(jumpRowForMessage("head", "full", withNudges)).toEqual({ scrollToId: "head", expandKey: null });
+    expect(jumpRowForMessage("later", "full", withNudges)).toEqual({
+      scrollToId: "head",
+      expandKey: null,
+    });
+    expect(jumpRowForMessage("later", "condensed", withNudges)).toEqual({
+      scrollToId: "head",
+      expandKey: null,
+    });
+    expect(jumpRowForMessage("head", "full", withNudges)).toEqual({
+      scrollToId: "head",
+      expandKey: null,
+    });
   });
 });
 
 describe("unsigned share-link wiring", () => {
-  const view = readFileSync(join(import.meta.dir, "ConversationView.tsx"), "utf8");
-  const page = readFileSync(join(import.meta.dir, "../app/conversation/[id]/ConversationPageClient.tsx"), "utf8");
+  const view = readFileSync(
+    join(import.meta.dir, "ConversationView.tsx"),
+    "utf8",
+  );
+  const page = readFileSync(
+    join(
+      import.meta.dir,
+      "../app/conversation/[id]/ConversationPageClient.tsx",
+    ),
+    "utf8",
+  );
 
   test("ConversationView asks initialScrollEdge and holds guests at the top", () => {
     expect(view).toContain("initialScrollEdge");
     expect(view).toContain("guestStayAtTop");
-    expect(view).toContain("shouldFollowStreaming(userScrolled, guestStayAtTop)");
+    expect(view).toContain(
+      "shouldFollowStreaming(userScrolled, guestStayAtTop)",
+    );
   });
 
   test("the unauthenticated share path marks the view as guest", () => {
-    const guestView = page.slice(page.indexOf("function GuestConversationView"), page.indexOf("function ConversationLoadingSkeleton"));
+    const guestView = page.slice(
+      page.indexOf("function GuestConversationView"),
+      page.indexOf("function ConversationLoadingSkeleton"),
+    );
     expect(guestView).toMatch(/^\s*guest$/m);
     expect(page).toContain("if (!treatAsAuthed)");
   });
@@ -286,17 +376,35 @@ describe("unsigned share-link wiring", () => {
 
 describe("shouldResumeFollow", () => {
   test("resumes when the reader scrolls down to the bottom", () => {
-    expect(shouldResumeFollow({ nearBottom: true, scrolledDown: true, readerMovingDown: true })).toBe(true);
+    expect(
+      shouldResumeFollow({
+        nearBottom: true,
+        scrolledDown: true,
+        readerMovingDown: true,
+      }),
+    ).toBe(true);
   });
 
   test("does not resume when the virtualizer shifts the view down near the bottom", () => {
     // A streamed chunk grows the tall last row; the view shifts by the growth
     // and the reader who scrolled up a little stays scrolled up.
-    expect(shouldResumeFollow({ nearBottom: true, scrolledDown: true, readerMovingDown: false })).toBe(false);
+    expect(
+      shouldResumeFollow({
+        nearBottom: true,
+        scrolledDown: true,
+        readerMovingDown: false,
+      }),
+    ).toBe(false);
   });
 
   test("does not resume away from the bottom", () => {
-    expect(shouldResumeFollow({ nearBottom: false, scrolledDown: true, readerMovingDown: true })).toBe(false);
+    expect(
+      shouldResumeFollow({
+        nearBottom: false,
+        scrolledDown: true,
+        readerMovingDown: true,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -316,11 +424,19 @@ describe("isUnrenderedBox", () => {
 });
 
 describe("loadOlderNeedsNoRead", () => {
-  const g = { armed: false, viewport: 800, totalSize: 12_000, scrollOffset: 9_000, triggerPx: 600 };
+  const g = {
+    armed: false,
+    viewport: 800,
+    totalSize: 12_000,
+    scrollOffset: 9_000,
+    triggerPx: 600,
+  };
 
   test("a hidden pane has no geometry to read, armed or not", () => {
     expect(loadOlderNeedsNoRead({ ...g, viewport: 0 })).toBe(true);
-    expect(loadOlderNeedsNoRead({ ...g, viewport: 0, armed: true, scrollOffset: 0 })).toBe(true);
+    expect(
+      loadOlderNeedsNoRead({ ...g, viewport: 0, armed: true, scrollOffset: 0 }),
+    ).toBe(true);
   });
 
   test("an unarmed list whose rows overflow the viewport needs none", () => {
@@ -330,13 +446,21 @@ describe("loadOlderNeedsNoRead", () => {
 
   test("rows no taller than the viewport may be underfilled, so the page is read", () => {
     expect(loadOlderNeedsNoRead({ ...g, totalSize: 800 })).toBe(false);
-    expect(loadOlderNeedsNoRead({ ...g, totalSize: 300, armed: true })).toBe(false);
+    expect(loadOlderNeedsNoRead({ ...g, totalSize: 300, armed: true })).toBe(
+      false,
+    );
   });
 
   test("an armed load far from the top needs none; inside twice the trigger band it reads the page", () => {
     expect(loadOlderNeedsNoRead({ ...g, armed: true })).toBe(true);
-    expect(loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 1_201 })).toBe(true);
-    expect(loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 1_200 })).toBe(false);
-    expect(loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 0 })).toBe(false);
+    expect(
+      loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 1_201 }),
+    ).toBe(true);
+    expect(
+      loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 1_200 }),
+    ).toBe(false);
+    expect(loadOlderNeedsNoRead({ ...g, armed: true, scrollOffset: 0 })).toBe(
+      false,
+    );
   });
 });

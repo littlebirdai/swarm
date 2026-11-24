@@ -14,7 +14,13 @@
  *   the rewind unless `overwrite`).
  * keep: keep the rewound files and drop the backup.
  */
-export const REWIND_FILES_OPS = ["plan", "diff", "stage", "put_back", "keep"] as const;
+export const REWIND_FILES_OPS = [
+  "plan",
+  "diff",
+  "stage",
+  "put_back",
+  "keep",
+] as const;
 export type RewindFilesOp = (typeof REWIND_FILES_OPS)[number];
 
 export type RewindFilesArgs = {
@@ -58,7 +64,13 @@ export type RewindFilesReply = {
   total?: number;
   /** plan and stage: the files and what happens to each. Capped at REWIND_FILES_LIST_CAP; counts are exact. */
   files?: Array<{ path: string; action: RewindFileAction; conflict: boolean }>;
-  counts?: { restore: number; delete: number; recreate: number; conflict: number; total: number };
+  counts?: {
+    restore: number;
+    delete: number;
+    recreate: number;
+    conflict: number;
+    total: number;
+  };
   fingerprint?: string;
   /** The session's snapshots after the message that the files were read from. */
   turns?: number;
@@ -90,4 +102,10 @@ export const REWIND_FILES_LIST_CAP = 500;
 export const REWIND_ROWS_CAP = 500;
 
 /** A staged rewind as its conversation row carries it (conversations.rewind_staged): what the header chip reads. */
-export type RewindStagedMark = { id: string; files: number; staged_at: number; at: number; /** The machine that holds the rewind. */ device_id?: string };
+export type RewindStagedMark = {
+  id: string;
+  files: number;
+  staged_at: number;
+  at: number;
+  /** The machine that holds the rewind. */ device_id?: string;
+};

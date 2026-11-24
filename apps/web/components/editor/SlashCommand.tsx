@@ -27,19 +27,22 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     title: "Heading 1",
     description: "Large section heading",
     icon: Heading1,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 1 }).run(),
   },
   {
     title: "Heading 2",
     description: "Medium section heading",
     icon: Heading2,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 2 }).run(),
   },
   {
     title: "Heading 3",
     description: "Small section heading",
     icon: Heading3,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 3 }).run(),
   },
   {
     title: "Bullet List",
@@ -100,7 +103,7 @@ export const SlashCommandList = forwardRef<any, SlashCommandListProps>(
         const item = items[index];
         if (item) command(item);
       },
-      [items, command]
+      [items, command],
     );
 
     useImperativeHandle(ref, () => ({
@@ -124,7 +127,9 @@ export const SlashCommandList = forwardRef<any, SlashCommandListProps>(
     if (!items.length) {
       return (
         <div className="bg-sol-bg border border-sol-border/50 rounded-lg shadow-xl p-3 min-w-[200px]">
-          <p className="text-xs text-sol-text-dim text-center">No matching commands</p>
+          <p className="text-xs text-sol-text-dim text-center">
+            No matching commands
+          </p>
         </div>
       );
     }
@@ -144,21 +149,27 @@ export const SlashCommandList = forwardRef<any, SlashCommandListProps>(
                   : "text-sol-text-muted hover:bg-sol-bg-alt"
               }`}
             >
-              <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${
-                i === selectedIndex ? "bg-sol-cyan/15 text-sol-cyan" : "bg-sol-bg-alt text-sol-text-dim"
-              }`}>
+              <div
+                className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${
+                  i === selectedIndex
+                    ? "bg-sol-cyan/15 text-sol-cyan"
+                    : "bg-sol-bg-alt text-sol-text-dim"
+                }`}
+              >
                 <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{item.title}</p>
-                <p className="text-meta text-sol-text-dim">{item.description}</p>
+                <p className="text-meta text-sol-text-dim">
+                  {item.description}
+                </p>
               </div>
             </button>
           );
         })}
       </div>
     );
-  }
+  },
 );
 
 SlashCommandList.displayName = "SlashCommandList";

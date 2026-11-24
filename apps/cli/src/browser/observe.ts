@@ -221,8 +221,16 @@ export async function armRecorder(page: PageSession): Promise<void> {
   const src = recorderSource();
   // Independent registrations, so both round trips overlap.
   await Promise.all([
-    page.conn.send("Page.addScriptToEvaluateOnNewDocument", { source: src }, page.sessionId).catch(() => {}),
-    page.conn.send("Runtime.evaluate", { expression: src }, page.sessionId).catch(() => {}),
+    page.conn
+      .send(
+        "Page.addScriptToEvaluateOnNewDocument",
+        { source: src },
+        page.sessionId,
+      )
+      .catch(() => {}),
+    page.conn
+      .send("Runtime.evaluate", { expression: src }, page.sessionId)
+      .catch(() => {}),
   ]);
 }
 
@@ -237,11 +245,26 @@ export async function readRecording(page: PageSession): Promise<Recording> {
       page.sessionId,
     )
     .catch(() => null);
-  if (!res?.result?.value) return { console: [], network: [], errors: [], armed: false, late: true, dialogs: [] };
+  if (!res?.result?.value)
+    return {
+      console: [],
+      network: [],
+      errors: [],
+      armed: false,
+      late: true,
+      dialogs: [],
+    };
   try {
     return JSON.parse(res.result.value) as Recording;
   } catch {
-    return { console: [], network: [], errors: [], armed: false, late: true, dialogs: [] };
+    return {
+      console: [],
+      network: [],
+      errors: [],
+      armed: false,
+      late: true,
+      dialogs: [],
+    };
   }
 }
 
@@ -249,7 +272,9 @@ export async function clearRecording(page: PageSession): Promise<void> {
   await page.conn
     .send(
       "Runtime.evaluate",
-      { expression: `(() => { if (window.__cast) { __cast.console.length = 0; __cast.network.length = 0; __cast.errors.length = 0; if (__cast.dialogs) __cast.dialogs.length = 0; } })()` },
+      {
+        expression: `(() => { if (window.__cast) { __cast.console.length = 0; __cast.network.length = 0; __cast.errors.length = 0; if (__cast.dialogs) __cast.dialogs.length = 0; } })()`,
+      },
       page.sessionId,
     )
     .catch(() => {});

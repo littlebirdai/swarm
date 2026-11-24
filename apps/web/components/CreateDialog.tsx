@@ -1,4 +1,11 @@
-import { forwardRef, useCallback, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useRef,
+  type InputHTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { ChevronDown, X } from "lucide-react";
 import { useInboxStore } from "../store/inboxStore";
@@ -57,7 +64,9 @@ export function CreateDialog({
   // Focus goes back where it was when the dialog closes.
   useMountEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    return () => { if (prev?.isConnected) prev.focus?.(); };
+    return () => {
+      if (prev?.isConnected) prev.focus?.();
+    };
   });
   // Tab stays inside the dialog: it wraps at the first and last control
   // (the same rule as the settings modal).
@@ -93,7 +102,11 @@ export function CreateDialog({
         // mousedown, not click: a text selection dragged out of a field and
         // released over the backdrop must not throw the draft away. A press
         // on the overlay's own scrollbar is not a press on the backdrop.
-        if (e.target === e.currentTarget && e.clientX < e.currentTarget.clientWidth) onClose();
+        if (
+          e.target === e.currentTarget &&
+          e.clientX < e.currentTarget.clientWidth
+        )
+          onClose();
       }}
       onKeyDown={(e) => {
         if (e.key === "Tab") {
@@ -101,12 +114,17 @@ export function CreateDialog({
         } else if (e.key === "Escape") {
           e.stopPropagation();
           onClose();
-        } else if (e.key === "Enter" && !e.shiftKey && (e.metaKey || e.ctrlKey || submitOnEnter)) {
+        } else if (
+          e.key === "Enter" &&
+          !e.shiftKey &&
+          (e.metaKey || e.ctrlKey || submitOnEnter)
+        ) {
           // A plain Enter an inner control already took (a picker choosing a
           // person) stays its own. Cmd/Ctrl+Enter always submits, even though
           // the description editor marks it handled.
           const chord = e.metaKey || e.ctrlKey;
-          if (e.nativeEvent.isComposing || (!chord && e.defaultPrevented)) return;
+          if (e.nativeEvent.isComposing || (!chord && e.defaultPrevented))
+            return;
           e.preventDefault();
           submit();
         }
@@ -120,7 +138,9 @@ export function CreateDialog({
         className={`w-full flex-shrink-0 ${width === "lg" ? "max-w-[640px]" : "max-w-[500px]"} rounded-xl border border-sol-border/70 bg-sol-bg shadow-[0_24px_64px_-12px_rgba(0,0,0,0.55),0_2px_6px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.04)] animate-in fade-in zoom-in-[0.98] slide-in-from-top-2 duration-200`}
       >
         <div className="flex items-center gap-2 pl-5 pr-3 pt-3.5 text-xs text-sol-text-dim">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sol-bg-alt">{icon}</span>
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sol-bg-alt">
+            {icon}
+          </span>
           <span>
             New {noun}
             {workspaceName && (
@@ -143,7 +163,9 @@ export function CreateDialog({
         {children}
 
         <div className="flex items-center gap-2 rounded-b-xl border-t border-sol-border/50 bg-sol-bg-alt/40 px-5 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">{footerStart}</div>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {footerStart}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -151,12 +173,22 @@ export function CreateDialog({
           >
             Cancel
           </button>
-          <Button type="button" variant="cyan" size="sm" onClick={submit} disabled={!canSubmit}>
+          <Button
+            type="button"
+            variant="cyan"
+            size="sm"
+            onClick={submit}
+            disabled={!canSubmit}
+          >
             {submitLabel}
             <span className="inline-flex gap-0.5 opacity-80">
-              {(submitOnEnter ? ["↵"] : [isMac ? "⌘" : "Ctrl", "↵"]).map((k) => (
-                <KeyCap key={k} size="xs">{k}</KeyCap>
-              ))}
+              {(submitOnEnter ? ["↵"] : [isMac ? "⌘" : "Ctrl", "↵"]).map(
+                (k) => (
+                  <KeyCap key={k} size="xs">
+                    {k}
+                  </KeyCap>
+                ),
+              )}
             </span>
           </Button>
         </div>
@@ -166,22 +198,26 @@ export function CreateDialog({
 }
 
 /** The dialog's headline field: what the thing is called. */
-export const CreateDialogTitle = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function CreateDialogTitle({ className, ...props }, ref) {
-    return (
-      <input
-        ref={ref}
-        autoFocus
-        spellCheck={false}
-        {...props}
-        className={`w-full bg-transparent text-xl font-semibold tracking-[-0.01em] text-sol-text outline-none placeholder:text-sol-text-dim/60 ${className ?? ""}`}
-      />
-    );
-  },
-);
+export const CreateDialogTitle = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement>
+>(function CreateDialogTitle({ className, ...props }, ref) {
+  return (
+    <input
+      ref={ref}
+      autoFocus
+      spellCheck={false}
+      {...props}
+      className={`w-full bg-transparent text-xl font-semibold tracking-[-0.01em] text-sol-text outline-none placeholder:text-sol-text-dim/60 ${className ?? ""}`}
+    />
+  );
+});
 
 /** A one-line field under the title: a topic, a goal. */
-export function CreateDialogSubtitle({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function CreateDialogSubtitle({
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -219,7 +255,9 @@ export const CREATE_MENU_CLASS =
 /** A row in that menu; the chosen one carries a soft accent and a check. */
 export function createMenuItemClass(selected = false): string {
   return `flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-    selected ? "bg-sol-cyan/10 text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text"
+    selected
+      ? "bg-sol-cyan/10 text-sol-text"
+      : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text"
   }`;
 }
 

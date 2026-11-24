@@ -27,7 +27,8 @@ import {
 
 const FIXTURES = path.join(import.meta.dir, "__fixtures__", "manifests");
 const fixture = (...parts: string[]) => path.join(FIXTURES, ...parts);
-const read = (...parts: string[]) => fs.readFileSync(fixture(...parts), "utf-8");
+const read = (...parts: string[]) =>
+  fs.readFileSync(fixture(...parts), "utf-8");
 
 /* ------------------------------------------------------------------ SKILL.md */
 
@@ -47,16 +48,33 @@ describe("readSkillObservation", () => {
   test("license and a metadata map come through as portable fields", () => {
     const obs = readSkillObservation(fixture("skills", "improve"));
     expect(obs!.portable.license).toBe("MIT");
-    expect(obs!.portable.metadata).toEqual({ author: "shadcn", version: "1.0.0" });
+    expect(obs!.portable.metadata).toEqual({
+      author: "shadcn",
+      version: "1.0.0",
+    });
     expect(obs!.issues).toEqual([]);
   });
 
   test("argument-hint parses and is marked claude-only; allowed-tools stays portable", () => {
     const obs = readSkillObservation(fixture("skills", "example-command"));
-    expect(obs!.claudeOnly["argument-hint"]).toBe("<required-arg> [optional-arg]");
-    expect(obs!.portable.allowedTools).toEqual(["Read", "Glob", "Grep", "Bash"]);
-    expect(obs!.manifest.allowedTools).toEqual(["Read", "Glob", "Grep", "Bash"]);
-    expect(deriveExecutionSurfaces(obs!.manifest)).toContain("declares_allowed_tools");
+    expect(obs!.claudeOnly["argument-hint"]).toBe(
+      "<required-arg> [optional-arg]",
+    );
+    expect(obs!.portable.allowedTools).toEqual([
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash",
+    ]);
+    expect(obs!.manifest.allowedTools).toEqual([
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash",
+    ]);
+    expect(deriveExecutionSurfaces(obs!.manifest)).toContain(
+      "declares_allowed_tools",
+    );
     expect(obs!.issues).toEqual([]);
   });
 
@@ -85,17 +103,23 @@ describe("readSkillObservation", () => {
   });
 
   test("a scalar-valued metadata entry stays a string", () => {
-    const obs = readSkillObservation(fixture("skills", "remotion-best-practices"));
+    const obs = readSkillObservation(
+      fixture("skills", "remotion-best-practices"),
+    );
     expect(obs!.portable.metadata?.tags).toContain("remotion");
   });
 
   test("a bare .md file is read with the file stem as its identity", () => {
-    const obs = readSkillObservation(fixture("plugins", "example-plugin", "commands", "example-command.md"));
+    const obs = readSkillObservation(
+      fixture("plugins", "example-plugin", "commands", "example-command.md"),
+    );
     expect(obs!.name).toBe("example-command");
   });
 
   test("a path with nothing to observe yields null", () => {
-    expect(readSkillObservation(fixture("skills", "does-not-exist"))).toBeNull();
+    expect(
+      readSkillObservation(fixture("skills", "does-not-exist")),
+    ).toBeNull();
   });
 });
 
@@ -111,12 +135,16 @@ describe("parseSkillMd frontmatter forms", () => {
 
   test("allowed-tools accepts comma and space separated strings", () => {
     expect(
-      parseSkillMd("---\nname: a\ndescription: d\nallowed-tools: Read, Grep, Bash(git:*)\n---\n", "a")
-        .portable.allowedTools,
+      parseSkillMd(
+        "---\nname: a\ndescription: d\nallowed-tools: Read, Grep, Bash(git:*)\n---\n",
+        "a",
+      ).portable.allowedTools,
     ).toEqual(["Read", "Grep", "Bash(git:*)"]);
     expect(
-      parseSkillMd("---\nname: a\ndescription: d\nallowed-tools: Read Grep\n---\n", "a").portable
-        .allowedTools,
+      parseSkillMd(
+        "---\nname: a\ndescription: d\nallowed-tools: Read Grep\n---\n",
+        "a",
+      ).portable.allowedTools,
     ).toEqual(["Read", "Grep"]);
   });
 
@@ -124,13 +152,17 @@ describe("parseSkillMd frontmatter forms", () => {
     // Splitting "Bash(git add, git commit)" in half would put two mangled
     // grants on the consent screen.
     expect(
-      parseSkillMd("---\nname: a\ndescription: d\nallowed-tools: Read, Bash(git add, git commit)\n---\n", "a")
-        .portable.allowedTools,
+      parseSkillMd(
+        "---\nname: a\ndescription: d\nallowed-tools: Read, Bash(git add, git commit)\n---\n",
+        "a",
+      ).portable.allowedTools,
     ).toEqual(["Read", "Bash(git add, git commit)"]);
     // Space separated, with the only comma inside parens: still space mode.
     expect(
-      parseSkillMd("---\nname: a\ndescription: d\nallowed-tools: Read Bash(git add, git commit)\n---\n", "a")
-        .portable.allowedTools,
+      parseSkillMd(
+        "---\nname: a\ndescription: d\nallowed-tools: Read Bash(git add, git commit)\n---\n",
+        "a",
+      ).portable.allowedTools,
     ).toEqual(["Read", "Bash(git add, git commit)"]);
   });
 
@@ -159,7 +191,17 @@ describe("parseSkillMd frontmatter forms", () => {
 describe("parsePluginJson", () => {
   test("the real ralph-loop manifest parses clean", () => {
     const obs = parsePluginJson(
-      read("home", ".claude", "plugins", "cache", "claude-plugins-official", "ralph-loop", "1.0.0", ".claude-plugin", "plugin.json"),
+      read(
+        "home",
+        ".claude",
+        "plugins",
+        "cache",
+        "claude-plugins-official",
+        "ralph-loop",
+        "1.0.0",
+        ".claude-plugin",
+        "plugin.json",
+      ),
     );
     expect(obs.name).toBe("ralph-loop");
     expect(obs.author?.name).toBe("Anthropic");
@@ -167,12 +209,18 @@ describe("parsePluginJson", () => {
   });
 
   test("a missing name is an issue; garbage is unparseable", () => {
-    expect(parsePluginJson("{}").issues.map((i) => i.code)).toContain("missing_name");
-    expect(parsePluginJson("not json").issues.map((i) => i.code)).toContain("unparseable");
+    expect(parsePluginJson("{}").issues.map((i) => i.code)).toContain(
+      "missing_name",
+    );
+    expect(parsePluginJson("not json").issues.map((i) => i.code)).toContain(
+      "unparseable",
+    );
   });
 
   test("userConfig options keep their sensitive flag", () => {
-    const obs = parsePluginJson(read("plugins", "declared", ".claude-plugin", "plugin.json"));
+    const obs = parsePluginJson(
+      read("plugins", "declared", ".claude-plugin", "plugin.json"),
+    );
     expect(obs.userConfig?.apiKey?.sensitive).toBe(true);
     expect(obs.userConfig?.apiKey?.required).toBe(true);
     expect(obs.userConfig?.workdir?.sensitive).toBe(false);
@@ -182,7 +230,10 @@ describe("parsePluginJson", () => {
 describe("readPluginObservation", () => {
   test("skills paths ADD to the default scan while commands paths REPLACE it", () => {
     const obs = readPluginObservation(fixture("plugins", "declared"));
-    expect(obs!.manifest.components?.skill).toEqual(["added-skill", "default-skill"]);
+    expect(obs!.manifest.components?.skill).toEqual([
+      "added-skill",
+      "default-skill",
+    ]);
     expect(obs!.manifest.components?.command).toEqual(["alt-cmd"]);
   });
 
@@ -195,21 +246,38 @@ describe("readPluginObservation", () => {
   test("the real example-plugin: skills, a command, and a bare-map .mcp.json", () => {
     const obs = readPluginObservation(fixture("plugins", "example-plugin"));
     expect(obs!.name).toBe("example-plugin");
-    expect(obs!.manifest.components?.skill).toEqual(["example-command", "example-skill"]);
+    expect(obs!.manifest.components?.skill).toEqual([
+      "example-command",
+      "example-skill",
+    ]);
     expect(obs!.manifest.components?.command).toEqual(["example-command"]);
     // The plugin's .mcp.json has NO mcpServers wrapper — servers sit at the
     // top level. Verified real shape.
     expect(obs!.manifest.components?.mcp).toEqual(["example-server"]);
-    expect(obs!.manifest.mcp).toEqual([{ name: "example-server", url: "https://mcp.example.com/api" }]);
+    expect(obs!.manifest.mcp).toEqual([
+      { name: "example-server", url: "https://mcp.example.com/api" },
+    ]);
   });
 
   test("the real ralph-loop install: hooks and scripts observed", () => {
     const obs = readPluginObservation(
-      fixture("home", ".claude", "plugins", "cache", "claude-plugins-official", "ralph-loop", "1.0.0"),
+      fixture(
+        "home",
+        ".claude",
+        "plugins",
+        "cache",
+        "claude-plugins-official",
+        "ralph-loop",
+        "1.0.0",
+      ),
     );
     expect(obs!.manifest.hooks).toEqual(["Stop"]);
     expect(obs!.manifest.components?.hook).toEqual(["Stop"]);
-    expect(obs!.manifest.components?.command).toEqual(["cancel-ralph", "help", "ralph-loop"]);
+    expect(obs!.manifest.components?.command).toEqual([
+      "cancel-ralph",
+      "help",
+      "ralph-loop",
+    ]);
     expect(obs!.manifest.scripts).toEqual(["scripts/setup-ralph-loop.sh"]);
     const surfaces = deriveExecutionSurfaces(obs!.manifest);
     expect(surfaces).toContain("declares_hooks");
@@ -225,7 +293,9 @@ describe("readPluginObservation", () => {
 
   test("a component path escaping the plugin directory is refused and reported", () => {
     // Built on the fly so no fixture carries a live traversal.
-    const dir = fs.mkdtempSync(path.join(fs.realpathSync(require("os").tmpdir()), "manifests-escape-"));
+    const dir = fs.mkdtempSync(
+      path.join(fs.realpathSync(require("os").tmpdir()), "manifests-escape-"),
+    );
     try {
       fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
       fs.writeFileSync(
@@ -233,7 +303,9 @@ describe("readPluginObservation", () => {
         JSON.stringify({ name: "escapee", skills: ["../outside"] }),
       );
       const obs = readPluginObservation(dir);
-      expect(obs!.issues.map((i) => i.code)).toContain("component_path_invalid");
+      expect(obs!.issues.map((i) => i.code)).toContain(
+        "component_path_invalid",
+      );
       expect(obs!.manifest.components?.skill).toBeUndefined();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -244,11 +316,16 @@ describe("readPluginObservation", () => {
     // The lexical guard alone would pass "./link": the string resolves inside
     // the plugin while the link points outside it. Git carries symlinks, so a
     // cloned plugin cache can ship exactly this.
-    const base = fs.mkdtempSync(path.join(fs.realpathSync(require("os").tmpdir()), "manifests-symlink-"));
+    const base = fs.mkdtempSync(
+      path.join(fs.realpathSync(require("os").tmpdir()), "manifests-symlink-"),
+    );
     try {
       const outside = path.join(base, "outside", "sneaky");
       fs.mkdirSync(outside, { recursive: true });
-      fs.writeFileSync(path.join(outside, "SKILL.md"), "---\nname: sneaky\ndescription: not yours\n---\n");
+      fs.writeFileSync(
+        path.join(outside, "SKILL.md"),
+        "---\nname: sneaky\ndescription: not yours\n---\n",
+      );
       const plugin = path.join(base, "plugin");
       fs.mkdirSync(path.join(plugin, ".claude-plugin"), { recursive: true });
       fs.writeFileSync(
@@ -258,29 +335,41 @@ describe("readPluginObservation", () => {
       fs.symlinkSync(path.join(base, "outside"), path.join(plugin, "link"));
       const obs = readPluginObservation(plugin);
       expect(obs!.manifest.components?.skill).toBeUndefined();
-      expect(obs!.issues.map((i) => i.code)).toContain("component_path_invalid");
+      expect(obs!.issues.map((i) => i.code)).toContain(
+        "component_path_invalid",
+      );
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }
   });
 
   test("a declared path with nothing on disk is an issue, never a component — and never a fallback", () => {
-    const dir = fs.mkdtempSync(path.join(fs.realpathSync(require("os").tmpdir()), "manifests-phantom-"));
+    const dir = fs.mkdtempSync(
+      path.join(fs.realpathSync(require("os").tmpdir()), "manifests-phantom-"),
+    );
     try {
       fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
       // The default commands/ dir holds a real command, but plugin.json
       // REPLACES it with a path that does not exist.
       fs.mkdirSync(path.join(dir, "commands"));
-      fs.writeFileSync(path.join(dir, "commands", "real.md"), "---\ndescription: d\n---\n");
+      fs.writeFileSync(
+        path.join(dir, "commands", "real.md"),
+        "---\ndescription: d\n---\n",
+      );
       fs.writeFileSync(
         path.join(dir, ".claude-plugin", "plugin.json"),
-        JSON.stringify({ name: "phantom", commands: ["./commands/not-there.md"] }),
+        JSON.stringify({
+          name: "phantom",
+          commands: ["./commands/not-there.md"],
+        }),
       );
       const obs = readPluginObservation(dir);
       // Not the phantom (it is not on disk), and not "real" either (the
       // declaration replaced the default directory).
       expect(obs!.manifest.components?.command).toBeUndefined();
-      const issue = obs!.issues.find((i) => i.code === "component_path_invalid");
+      const issue = obs!.issues.find(
+        (i) => i.code === "component_path_invalid",
+      );
       expect(issue?.detail).toContain("not-there.md");
       expect(issue?.detail).toContain("does not exist");
     } finally {
@@ -329,7 +418,10 @@ describe("parseMcpJson", () => {
           url: "https://example.com/${REGION}/mcp",
           headers: { Authorization: "Bearer ${MY_TOKEN}" },
         },
-        local: { command: "run", args: ["--root", "${CLAUDE_PLUGIN_ROOT}/bin"] },
+        local: {
+          command: "run",
+          args: ["--root", "${CLAUDE_PLUGIN_ROOT}/bin"],
+        },
       },
     });
     const remote = doc.servers.find((s) => s.name === "remote");
@@ -337,20 +429,28 @@ describe("parseMcpJson", () => {
     expect(remote?.envKeys).toEqual(["MY_TOKEN", "REGION"]);
     expect(JSON.stringify(doc)).not.toContain("Bearer ");
     // Variables Claude Code itself supplies are not wants.
-    expect(doc.servers.find((s) => s.name === "local")?.envKeys).toBeUndefined();
+    expect(
+      doc.servers.find((s) => s.name === "local")?.envKeys,
+    ).toBeUndefined();
   });
 
   test("toManifestMcp joins the command line the way the inventory does", () => {
     const doc = parseMcpJson({ srv: { command: "npx", args: ["-y", "pkg"] } });
-    expect(toManifestMcp(doc.servers)).toEqual([{ name: "srv", command: "npx -y pkg" }]);
+    expect(toManifestMcp(doc.servers)).toEqual([
+      { name: "srv", command: "npx -y pkg" },
+    ]);
   });
 
   test("garbage is an issue, not a throw", () => {
-    expect(parseMcpJson("nope").issues.map((i) => i.code)).toContain("unparseable");
+    expect(parseMcpJson("nope").issues.map((i) => i.code)).toContain(
+      "unparseable",
+    );
   });
 
   test("a server with neither command nor url is reported by name, not dropped silently", () => {
-    const doc = parseMcpJson({ mcpServers: { broken: { type: "http" }, ok: { command: "run" } } });
+    const doc = parseMcpJson({
+      mcpServers: { broken: { type: "http" }, ok: { command: "run" } },
+    });
     expect(doc.servers.map((s) => s.name)).toEqual(["ok"]);
     const issue = doc.issues.find((i) => i.code === "mcp_server_invalid");
     expect(issue?.detail).toContain('"broken"');
@@ -372,9 +472,10 @@ describe("parseMarketplaceManifest", () => {
       "ralph-loop",
     ]);
     // The sha pin survives through the reused parser.
-    expect(manifest.catalog.plugins.find((p) => p.name === "amd-skills")?.source?.sha).toBe(
-      "11c8edb0aee051b87640146bae38c82b22dff86f",
-    );
+    expect(
+      manifest.catalog.plugins.find((p) => p.name === "amd-skills")?.source
+        ?.sha,
+    ).toBe("11c8edb0aee051b87640146bae38c82b22dff86f");
   });
 
   test("strict:false lets the marketplace entry own the component definitions", () => {

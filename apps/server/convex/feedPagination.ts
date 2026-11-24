@@ -18,7 +18,14 @@ export async function batchScanConversations(opts: {
   batchSize: number;
   maxBatches?: number;
 }): Promise<{ rows: any[]; oldestSeen: number | null; exhausted: boolean }> {
-  const { fetchPage, startCursor, want, accept, batchSize, maxBatches = 5 } = opts;
+  const {
+    fetchPage,
+    startCursor,
+    want,
+    accept,
+    batchSize,
+    maxBatches = 5,
+  } = opts;
   const rows: any[] = [];
   let cursor = startCursor;
   let oldestSeen: number | null = null;
@@ -71,7 +78,8 @@ export function parseFeedCursor(cursor: string | null | undefined): {
   members: Record<string, MemberBound> | null;
 } {
   if (!cursor) return { legacy: null, members: null };
-  if (/^\d+$/.test(cursor)) return { legacy: parseInt(cursor, 10), members: null };
+  if (/^\d+$/.test(cursor))
+    return { legacy: parseInt(cursor, 10), members: null };
   try {
     const parsed = JSON.parse(cursor);
     if (parsed && parsed.v === 2 && parsed.m && typeof parsed.m === "object") {
@@ -83,7 +91,9 @@ export function parseFeedCursor(cursor: string | null | undefined): {
   return { legacy: null, members: null };
 }
 
-export function encodeFeedCursor(members: Record<string, MemberBound>): string | null {
+export function encodeFeedCursor(
+  members: Record<string, MemberBound>,
+): string | null {
   const values = Object.values(members);
   // End of history only when EVERY member is explicitly done — an undefined
   // bound (member not yet started / no progress made) still has rows to serve.
@@ -100,20 +110,40 @@ export async function paginateTeamFeed(opts: {
   memberIds: string[];
   cursor: string | null;
   limit: number;
-  fetchPage: (memberId: string, cursor: number | null, take: number) => Promise<any[]>;
+  fetchPage: (
+    memberId: string,
+    cursor: number | null,
+    take: number,
+  ) => Promise<any[]>;
   accept: (c: any) => boolean;
   perMemberFetch: number;
   perMemberWant: number;
   maxBatches?: number;
 }): Promise<{ rows: any[]; nextCursor: string | null }> {
-  const { memberIds, limit, fetchPage, accept, perMemberFetch, perMemberWant, maxBatches = 4 } = opts;
+  const {
+    memberIds,
+    limit,
+    fetchPage,
+    accept,
+    perMemberFetch,
+    perMemberWant,
+    maxBatches = 4,
+  } = opts;
   const { legacy, members } = parseFeedCursor(opts.cursor);
-  const boundOf = (id: string): MemberBound => (members ? members[id] : legacy ?? undefined);
+  const boundOf = (id: string): MemberBound =>
+    members ? members[id] : (legacy ?? undefined);
 
   const scans = await Promise.all(
     memberIds.map(async (id) => {
       const bound = boundOf(id);
-      if (bound === null) return { id, bound, rows: [] as any[], oldestSeen: null, exhausted: true };
+      if (bound === null)
+        return {
+          id,
+          bound,
+          rows: [] as any[],
+          oldestSeen: null,
+          exhausted: true,
+        };
       const scan = await batchScanConversations({
         fetchPage: (cursor, take) => fetchPage(id, cursor, take),
         startCursor: bound ?? null,
@@ -123,10 +153,12 @@ export async function paginateTeamFeed(opts: {
         maxBatches,
       });
       return { id, bound, ...scan };
-    })
+    }),
   );
 
-  const merged = scans.flatMap((s) => s.rows.map((row) => ({ row, memberId: s.id })));
+  const merged = scans.flatMap((s) =>
+    s.rows.map((row) => ({ row, memberId: s.id })),
+  );
   merged.sort((a, b) => b.row.updated_at - a.row.updated_at);
   const returned = merged.slice(0, limit);
   const returnedRows = returned.map((r) => r.row);
@@ -147,7 +179,8 @@ export async function paginateTeamFeed(opts: {
     }
     const returnedOfMember = returned.filter((r) => r.memberId === s.id);
     if (returnedOfMember.length > 0) {
-      const oldestReturned = returnedOfMember[returnedOfMember.length - 1].row.updated_at;
+      const oldestReturned =
+        returnedOfMember[returnedOfMember.length - 1].row.updated_at;
       const hasCutRows = s.rows.length > returnedOfMember.length;
       nextBounds[s.id] = s.exhausted && !hasCutRows ? null : oldestReturned;
     } else if (s.rows.length > 0) {
@@ -189,16 +222,23 @@ export async function pageNewestFirst<R extends StreamRow>(opts: {
     const r = await streams[i].next();
     return r.done ? undefined : r.value;
   };
-  const heads: (R | undefined)[] = await Promise.all(streams.map((_, i) => pull(i)));
+  const heads: (R | undefined)[] = await Promise.all(
+    streams.map((_, i) => pull(i)),
+  );
   const rows: R[] = [];
   let next: StreamPosition | null = null;
   for (let taken = 0; ; taken++) {
     let i = -1;
     heads.forEach((h, j) => {
-      if (h && (i < 0 || isAfter(heads[i]!, { t: h.updated_at, c: h._creationTime }))) i = j;
+      if (
+        h &&
+        (i < 0 || isAfter(heads[i]!, { t: h.updated_at, c: h._creationTime }))
+      )
+        i = j;
     });
     if (i < 0) return { rows, next: null };
-    if (rows.length === opts.limit || taken === opts.budget) return { rows, next };
+    if (rows.length === opts.limit || taken === opts.budget)
+      return { rows, next };
     const row = heads[i]!;
     next = { t: row.updated_at, c: row._creationTime };
     if (opts.accept(row)) rows.push(row);

@@ -11,7 +11,10 @@
 
 export type MemberKind = "person" | "slack" | "agent";
 
-type KindFacts = { is_bot?: boolean | null; bot_kind?: string | null } | null | undefined;
+type KindFacts =
+  | { is_bot?: boolean | null; bot_kind?: string | null }
+  | null
+  | undefined;
 
 export function memberKind(m: KindFacts): MemberKind {
   if (!m?.is_bot) return "person";
@@ -29,6 +32,8 @@ export function isAgentMember(m: KindFacts): boolean {
 }
 
 /** The people in a roster, nulls dropped. */
-export function peopleOf<T extends KindFacts>(members: readonly T[] | null | undefined): NonNullable<T>[] {
+export function peopleOf<T extends KindFacts>(
+  members: readonly T[] | null | undefined,
+): NonNullable<T>[] {
   return (members ?? []).filter(isPerson);
 }

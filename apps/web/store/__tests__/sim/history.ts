@@ -15,17 +15,36 @@
 // A leaf: it imports no store, so the runner's --list stays instant.
 
 import { createHash } from "node:crypto";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import type { SimRunRow, SimSession } from "@codecast/shared/contracts/evalsApi";
+import type {
+  SimRunRow,
+  SimSession,
+} from "@codecast/shared/contracts/evalsApi";
 
 export const SIM_HOME_ENV = "CODECAST_SIM_HOME";
 /** The newest sessions kept whole; older ones survive only when something in them failed. */
 export const KEEP_SESSIONS = 200;
 /** What the sim loads: a dirty file outside these cannot change a run. */
-export const SIM_SOURCES = ["apps/web", "apps/server", "packages/shared", "platform/packages"];
+export const SIM_SOURCES = [
+  "apps/web",
+  "apps/server",
+  "packages/shared",
+  "platform/packages",
+];
 
 type Env = Record<string, string | undefined>;
 
@@ -35,7 +54,8 @@ export function simHome(env: Env = process.env): string {
 
 export const sessionsDir = (home = simHome()) => join(home, "sessions");
 export const treesDir = (home = simHome()) => join(home, "trees");
-export const treePatchPath = (sha: string, home = simHome()) => join(treesDir(home), `${sha}.patch.gz`);
+export const treePatchPath = (sha: string, home = simHome()) =>
+  join(treesDir(home), `${sha}.patch.gz`);
 
 /** A folder name that sorts by time: the UTC start to the millisecond, then the pid. */
 export function sessionStamp(at: Date, pid = process.pid): string {
@@ -48,9 +68,21 @@ function writeJsonAtomic(path: string, value: unknown): void {
   renameSync(tmp, path);
 }
 
-function git(root: string, args: string[], env?: Env): { ok: boolean; code: number; out: Buffer } {
-  const r = Bun.spawnSync(["git", "-C", root, ...args], { env: { ...process.env, ...env }, stdout: "pipe", stderr: "ignore" });
-  return { ok: r.exitCode === 0, code: r.exitCode ?? -1, out: r.stdout ?? Buffer.alloc(0) };
+function git(
+  root: string,
+  args: string[],
+  env?: Env,
+): { ok: boolean; code: number; out: Buffer } {
+  const r = Bun.spawnSync(["git", "-C", root, ...args], {
+    env: { ...process.env, ...env },
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  return {
+    ok: r.exitCode === 0,
+    code: r.exitCode ?? -1,
+    out: r.stdout ?? Buffer.alloc(0),
+  };
 }
 
 // A copy of the index with every untracked source file added as intent to
@@ -59,7 +91,9 @@ function git(root: string, args: string[], env?: Env): { ok: boolean; code: numb
 function shadowIndex(root: string): { env: Env; dispose: () => void } {
   const dir = mkdtempSync(join(tmpdir(), "sim-index-"));
   const index = join(dir, "index");
-  const real = git(root, ["rev-parse", "--git-path", "index"]).out.toString().trim();
+  const real = git(root, ["rev-parse", "--git-path", "index"])
+    .out.toString()
+    .trim();
   if (real) copyFileSync(real.startsWith("/") ? real : join(root, real), index);
   const env = { GIT_INDEX_FILE: index };
   git(root, ["add", "--intent-to-add", "--", ...SIM_SOURCES], env);
@@ -78,7 +112,12 @@ export function treeState(root: string): TreeState {
   if (!head.ok) return { gitHead: null, dirty: false };
   const shadow = shadowIndex(root);
   try {
-    return { gitHead: head.out.toString().trim(), dirty: git(root, ["diff", "--quiet", "HEAD", "--", ...SIM_SOURCES], shadow.env).code === 1 };
+    return {
+      gitHead: head.out.toString().trim(),
+      dirty:
+        git(root, ["diff", "--quiet", "HEAD", "--", ...SIM_SOURCES], shadow.env)
+          .code === 1,
+    };
   } finally {
     shadow.dispose();
   }
@@ -89,11 +128,17 @@ export function treeState(root: string): TreeState {
  * as trees/<sha256>.patch.gz and returns the sha, or null on a clean tree.
  * `git apply` of the unzipped patch on gitHead rebuilds the tree the run saw.
  */
-export async function storeTreePatch(root: string, home = simHome()): Promise<string | null> {
+export async function storeTreePatch(
+  root: string,
+  home = simHome(),
+): Promise<string | null> {
   const shadow = shadowIndex(root);
   try {
     const env = { ...process.env, ...shadow.env };
-    const proc = Bun.spawn(["git", "-C", root, "diff", "HEAD", "--binary", "--", ...SIM_SOURCES], { env, stdout: "pipe", stderr: "ignore" });
+    const proc = Bun.spawn(
+      ["git", "-C", root, "diff", "HEAD", "--binary", "--", ...SIM_SOURCES],
+      { env, stdout: "pipe", stderr: "ignore" },
+    );
     const patch = Buffer.from(await new Response(proc.stdout).arrayBuffer());
     if ((await proc.exited) !== 0 || patch.length === 0) return null;
     const sha = createHash("sha256").update(patch).digest("hex");
@@ -111,7 +156,9 @@ export async function storeTreePatch(root: string, home = simHome()): Promise<st
 
 export function readSession(dir: string): SimSession | null {
   try {
-    return JSON.parse(readFileSync(join(dir, "session.json"), "utf8")) as SimSession;
+    return JSON.parse(
+      readFileSync(join(dir, "session.json"), "utf8"),
+    ) as SimSession;
   } catch {
     return null;
   }
@@ -124,27 +171,49 @@ export function readRuns(dir: string): SimRunRow[] {
   } catch {
     return [];
   }
-  return text.split("\n").filter(Boolean).flatMap((line) => {
-    try {
-      return [JSON.parse(line) as SimRunRow];
-    } catch {
-      return [];
-    }
-  });
+  return text
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as SimRunRow];
+      } catch {
+        return [];
+      }
+    });
 }
 
 /** Opens a session folder and writes its session.json; finishedAt and exit stay null until closeSession. */
-export function openSession(argv: string[], tree: TreeState, opts: { home?: string; at?: Date } = {}): { dir: string; session: SimSession } {
+export function openSession(
+  argv: string[],
+  tree: TreeState,
+  opts: { home?: string; at?: Date } = {},
+): { dir: string; session: SimSession } {
   const at = opts.at ?? new Date();
   const id = sessionStamp(at);
   const dir = join(sessionsDir(opts.home), id);
   mkdirSync(dir, { recursive: true });
-  const session: SimSession = { id, argv, gitHead: tree.gitHead, dirty: tree.dirty, treePatch: null, startedAt: at.toISOString(), finishedAt: null, exit: null };
+  const session: SimSession = {
+    id,
+    argv,
+    gitHead: tree.gitHead,
+    dirty: tree.dirty,
+    treePatch: null,
+    startedAt: at.toISOString(),
+    finishedAt: null,
+    exit: null,
+  };
   writeJsonAtomic(join(dir, "session.json"), session);
   return { dir, session };
 }
 
-export function closeSession(dir: string, session: SimSession, exit: number, treePatch: string | null, at = new Date()): SimSession {
+export function closeSession(
+  dir: string,
+  session: SimSession,
+  exit: number,
+  treePatch: string | null,
+  at = new Date(),
+): SimSession {
   const done = { ...session, treePatch, finishedAt: at.toISOString(), exit };
   writeJsonAtomic(join(dir, "session.json"), done);
   return done;
@@ -157,7 +226,12 @@ export function appendRun(dir: string, row: SimRunRow): void {
 
 const failed = (dir: string) => {
   const session = readSession(dir);
-  return (session?.exit !== null && session?.exit !== undefined && session.exit !== 0) || readRuns(dir).some((r) => !r.passed);
+  return (
+    (session?.exit !== null &&
+      session?.exit !== undefined &&
+      session.exit !== 0) ||
+    readRuns(dir).some((r) => !r.passed)
+  );
 };
 
 /**
@@ -167,34 +241,58 @@ const failed = (dir: string) => {
  * running); after that it was killed, and counts like any other. Returns the
  * ids removed.
  */
-export function pruneSessions(home = simHome(), keep = KEEP_SESSIONS, now = Date.now()): string[] {
+export function pruneSessions(
+  home = simHome(),
+  keep = KEEP_SESSIONS,
+  now = Date.now(),
+): string[] {
   const root = sessionsDir(home);
   if (!existsSync(root)) return [];
-  const ids = readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort().reverse();
+  const ids = readdirSync(root, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort()
+    .reverse();
   const removed: string[] = [];
   for (const id of ids.slice(keep)) {
     const dir = join(root, id);
     const session = readSession(dir);
-    if (session && session.finishedAt === null && now - Date.parse(session.startedAt) < 86_400_000) continue;
+    if (
+      session &&
+      session.finishedAt === null &&
+      now - Date.parse(session.startedAt) < 86_400_000
+    )
+      continue;
     if (failed(dir)) continue;
     rmSync(dir, { recursive: true, force: true });
     removed.push(id);
   }
   const trees = treesDir(home);
   if (removed.length && existsSync(trees)) {
-    const named = new Set(readdirSync(root).map((id) => readSession(join(root, id))?.treePatch).filter(Boolean));
+    const named = new Set(
+      readdirSync(root)
+        .map((id) => readSession(join(root, id))?.treePatch)
+        .filter(Boolean),
+    );
     for (const file of readdirSync(trees)) {
       const sha = file.replace(/\.patch\.gz$/, "");
-      if (sha !== file && !named.has(sha)) rmSync(join(trees, file), { force: true });
+      if (sha !== file && !named.has(sha))
+        rmSync(join(trees, file), { force: true });
     }
   }
   return removed;
 }
 
-const PROVENANCE = new Map<string, { gitHead?: string | null; dirty?: boolean }>();
+const PROVENANCE = new Map<
+  string,
+  { gitHead?: string | null; dirty?: boolean }
+>();
 
 /** The provenance a run's result.json carries, read once per process from SIM_SESSION's session.json. */
-export function sessionProvenance(env: Env = process.env): { gitHead?: string | null; dirty?: boolean } {
+export function sessionProvenance(env: Env = process.env): {
+  gitHead?: string | null;
+  dirty?: boolean;
+} {
   const dir = env.SIM_SESSION;
   if (!dir) return {};
   const cached = PROVENANCE.get(dir);
@@ -204,4 +302,3 @@ export function sessionProvenance(env: Env = process.env): { gitHead?: string | 
   PROVENANCE.set(dir, out);
   return out;
 }
-

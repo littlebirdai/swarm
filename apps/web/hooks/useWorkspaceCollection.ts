@@ -19,8 +19,15 @@
 // membership-only when they truly render no row fields.
 import { useMemo } from "react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
-import { activeWorkspaceKeyOf, inWorkspace, type WorkspaceKey } from "../lib/workspaceScope";
-import { collectionRowListed, type WorkspaceScopedStoreKey } from "../store/clientSyncRegistry";
+import {
+  activeWorkspaceKeyOf,
+  inWorkspace,
+  type WorkspaceKey,
+} from "../lib/workspaceScope";
+import {
+  collectionRowListed,
+  type WorkspaceScopedStoreKey,
+} from "../store/clientSyncRegistry";
 import { useWorkspaceScope } from "./useWorkspaceScope";
 
 // Derived from the registry: a collection declares `workspaceScoped: true`
@@ -61,11 +68,18 @@ function feed(d: Digest, s: string): void {
 }
 function finish(d: Digest): string {
   let { h1, h2 } = d;
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  h1 =
+    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 =
+    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return `${(h1 >>> 0).toString(36)}.${(h2 >>> 0).toString(36)}`;
 }
-const sigCache = new WeakMap<object, Map<((row: any) => string) | null, Map<WorkspaceKey | null, SigEntry>>>();
+const sigCache = new WeakMap<
+  object,
+  Map<((row: any) => string) | null, Map<WorkspaceKey | null, SigEntry>>
+>();
 // `table` names the collection, whose registry `listed` rule (a soft-deleted
 // row stays held but leaves lists) applies here too.
 export function membershipSig(
@@ -92,9 +106,17 @@ export function membershipSig(
       if (fieldSig) feed(fields, fieldSig(row) + "\n");
     }
   }
-  const sig = fieldSig ? `${n}.${finish(ids)}.${finish(fields)}` : `${n}.${finish(ids)}`;
-  if (!perFn) { perFn = new Map(); sigCache.set(collection, perFn); }
-  if (!perKey) { perKey = new Map(); perFn.set(fieldSig, perKey); }
+  const sig = fieldSig
+    ? `${n}.${finish(ids)}.${finish(fields)}`
+    : `${n}.${finish(ids)}`;
+  if (!perFn) {
+    perFn = new Map();
+    sigCache.set(collection, perFn);
+  }
+  if (!perKey) {
+    perKey = new Map();
+    perFn.set(fieldSig, perKey);
+  }
   perKey.set(key, { table, sig });
   return sig;
 }
@@ -120,7 +142,11 @@ export function defaultFieldSig(row: any): string {
  */
 const workspaceRowsCache = new WeakMap<object, Map<string, unknown[]>>();
 
-export function workspaceRows<T = any>(table: WorkspaceScopedTable, coll: Record<string, T>, key: WorkspaceKey | null): T[] {
+export function workspaceRows<T = any>(
+  table: WorkspaceScopedTable,
+  coll: Record<string, T>,
+  key: WorkspaceKey | null,
+): T[] {
   if (!key) return [];
   let cached = workspaceRowsCache.get(coll);
   const cacheKey = `${table}\0${key}`;
@@ -134,7 +160,10 @@ export function workspaceRows<T = any>(table: WorkspaceScopedTable, coll: Record
     if (id !== String((row as any)?._id) || (listed && !listed(row))) continue;
     if (inWorkspace(row as any, key)) rows.push(row);
   }
-  if (!cached) { cached = new Map(); workspaceRowsCache.set(coll, cached); }
+  if (!cached) {
+    cached = new Map();
+    workspaceRowsCache.set(coll, cached);
+  }
   cached.set(cacheKey, rows);
   return rows.slice();
 }
@@ -152,9 +181,11 @@ export function useWorkspaceCollection<T = any>(
    *  lives (a project opened from another team) instead of the active one. */
   workspace?: WorkspaceKey | null,
 ): T[] {
-  const fieldSig = sig === null ? null : (sig ?? (defaultFieldSig as (row: T) => string));
+  const fieldSig =
+    sig === null ? null : (sig ?? (defaultFieldSig as (row: T) => string));
   const scope = useWorkspaceScope();
-  const keyOf = (st: Parameters<typeof activeWorkspaceKeyOf>[0]) => workspace || scope || activeWorkspaceKeyOf(st);
+  const keyOf = (st: Parameters<typeof activeWorkspaceKeyOf>[0]) =>
+    workspace || scope || activeWorkspaceKeyOf(st);
   const s = useTrackedStore([
     (st) => keyOf(st),
     (st) => membershipSig((st as any)[table], keyOf(st), fieldSig, table),
@@ -179,11 +210,21 @@ export function useWorkspacesCollection<T = any>(
   sig: ((row: T) => string) | null | undefined,
   keys: readonly (WorkspaceKey | null)[],
 ): T[] {
-  const fieldSig = sig === null ? null : (sig ?? (defaultFieldSig as (row: T) => string));
+  const fieldSig =
+    sig === null ? null : (sig ?? (defaultFieldSig as (row: T) => string));
+  // oxfmt-ignore
   const list = useMemo(() => [...new Set(keys.filter((k): k is WorkspaceKey => !!k))].sort(), [keys.join("\n")]); // eslint-disable-line react-hooks/exhaustive-deps
-  const s = useTrackedStore([(st) => list.map((k) => membershipSig((st as any)[table], k, fieldSig, table)).join("\u0001")]);
+  const s = useTrackedStore([
+    (st) =>
+      list
+        .map((k) => membershipSig((st as any)[table], k, fieldSig, table))
+        .join("\u0001"),
+  ]);
   const coll = (s as any)[table] as Record<string, T>;
-  const memberSig = list.map((k) => membershipSig(coll, k, fieldSig, table)).join("\u0001");
+  const memberSig = list
+    .map((k) => membershipSig(coll, k, fieldSig, table))
+    .join("\u0001");
+  // oxfmt-ignore
   // eslint-disable-next-line react-hooks/exhaustive-deps -- memberSig stands in for the churny collection ref
   return useMemo(() => list.flatMap((k) => workspaceRows(table, coll, k)), [memberSig, list, fieldSig ? coll : null]);
 }

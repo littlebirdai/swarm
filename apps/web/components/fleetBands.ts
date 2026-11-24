@@ -21,7 +21,10 @@ import {
   getProjectName,
   teamInboxIdsOf,
 } from "../store/inboxStore";
-import { isLivenessStale, THREAD_STATE_STALE_MSGS } from "@codecast/shared/contracts";
+import {
+  isLivenessStale,
+  THREAD_STATE_STALE_MSGS,
+} from "@codecast/shared/contracts";
 import { makeCollectionSig } from "../store/wakeSig";
 import { agentStatusAt } from "../lib/liveness";
 import { threadStateView, compactAge } from "../lib/threadState";
@@ -48,13 +51,15 @@ const inFlight = (s: InboxSession, opts: FleetBandOpts) =>
 // idle) is the user's to revive, while a cleanly finished one (stopped and
 // idle) is FINISHED here even though the inbox verdict files it needs_input.
 // A killed row is retired whatever its frozen status says.
-const isProducing = (s: InboxSession, now: number) => !s.inbox_killed_at && (isAgentActive(s, now) || !s.is_idle);
+const isProducing = (s: InboxSession, now: number) =>
+  !s.inbox_killed_at && (isAgentActive(s, now) || !s.is_idle);
 
 export function fleetBandFor(s: InboxSession, opts: FleetBandOpts): FleetBand {
   // A message on its way to the agent reads as running, whatever the stale
   // status claims — the same precedence the pending_send overlay gives in-flight.
   if (inFlight(s, opts)) return "running";
-  if (s.inbox_snoozed_until && s.inbox_snoozed_until <= opts.now) return "needsYou";
+  if (s.inbox_snoozed_until && s.inbox_snoozed_until <= opts.now)
+    return "needsYou";
   // Concrete blockers only. Deliberately NOT isSessionHardBlocked: its "dead
   // agent with output" arm counts every cleanly finished session ("stopped" +
   // idle is the NORMAL end state of a run), which floods this band and makes
@@ -69,7 +74,9 @@ export function fleetBandFor(s: InboxSession, opts: FleetBandOpts): FleetBand {
     // "Active" per status, but the liveness TTL says the agent went silent
     // (or the daemon marked it unresponsive): a quietly dead worker is the
     // user's to revive, not a running one.
-    return isLivenessStale(s, opts.now) || s.is_unresponsive ? "needsYou" : "running";
+    return isLivenessStale(s, opts.now) || s.is_unresponsive
+      ? "needsYou"
+      : "running";
   }
   // Idle, but the agent's own pinned state still declares it blocked — the
   // agent said "your move" in words. (A stale declaration has no view, so it
@@ -106,7 +113,14 @@ export function fleetCountedSessions(
   const focusedId = state.currentSessionId ?? null;
   const rows = new Map<string, InboxSession>();
   const collect = (placed: PlacedInbox) => {
-    for (const s of [...placed.questions, ...placed.pinned, ...placed.needsInput, ...placed.done, ...placed.dormant, ...placed.working]) {
+    for (const s of [
+      ...placed.questions,
+      ...placed.pinned,
+      ...placed.needsInput,
+      ...placed.done,
+      ...placed.dormant,
+      ...placed.working,
+    ]) {
       rows.set(s._id, s);
     }
     for (const s of placed.newSessions) {
@@ -189,7 +203,8 @@ export function fleetSessionSig(s: InboxSession): string {
 
 /** The same signature over the whole session map, memoized by the map ref —
  *  what an always-mounted fleet surface subscribes to instead of `s.sessions`. */
-export const fleetSessionsWakeSig = makeCollectionSig<InboxSession>(fleetSessionSig);
+export const fleetSessionsWakeSig =
+  makeCollectionSig<InboxSession>(fleetSessionSig);
 
 export interface FleetBands {
   needsYou: InboxSession[];
@@ -208,7 +223,14 @@ export function splitFleetBands(
   opts: FleetBandOpts,
 ): FleetBands {
   const out: FleetBands = { needsYou: [], running: [], finished: [] };
-  for (const s of [...(cat.questions ?? []), ...cat.pinned, ...cat.needsInput, ...(cat.done ?? []), ...(cat.dormant ?? []), ...cat.working]) {
+  for (const s of [
+    ...(cat.questions ?? []),
+    ...cat.pinned,
+    ...cat.needsInput,
+    ...(cat.done ?? []),
+    ...(cat.dormant ?? []),
+    ...cat.working,
+  ]) {
     out[fleetBandFor(s, opts)].push(s);
   }
   // Blanks: a just-spawned worker (agent starting, or a first send in flight)
@@ -221,7 +243,9 @@ export function splitFleetBands(
   // Stable order (creation time), NOT last-activity: running tiles must not
   // reshuffle on every coarse tick or the board is unscannable.
   out.running.sort(
-    (a, b) => ((b.started_at ?? b.updated_at ?? 0) - (a.started_at ?? a.updated_at ?? 0)) || a._id.localeCompare(b._id),
+    (a, b) =>
+      (b.started_at ?? b.updated_at ?? 0) -
+        (a.started_at ?? a.updated_at ?? 0) || a._id.localeCompare(b._id),
   );
   out.finished.sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
   return out;
@@ -229,7 +253,8 @@ export function splitFleetBands(
 
 export type FleetTileTone = "amber" | "red" | "green" | "dim";
 
-const firstLine = (t: string) => (t.split("\n").find((l) => l.trim()) ?? "").trim();
+const firstLine = (t: string) =>
+  (t.split("\n").find((l) => l.trim()) ?? "").trim();
 
 /**
  * The tile's context line — what tells two similarly-titled sessions apart:
@@ -238,8 +263,12 @@ const firstLine = (t: string) => (t.split("\n").find((l) => l.trim()) ?? "").tri
  */
 export function fleetTileContext(s: InboxSession): string {
   const parts: string[] = [];
-  const proj = getProjectName(s.git_root ?? undefined, s.project_path ?? undefined);
-  if (proj && proj !== "unknown") parts.push(s.worktree_name ? `${proj}/${s.worktree_name}` : proj);
+  const proj = getProjectName(
+    s.git_root ?? undefined,
+    s.project_path ?? undefined,
+  );
+  if (proj && proj !== "unknown")
+    parts.push(s.worktree_name ? `${proj}/${s.worktree_name}` : proj);
   const model = formatModel(s.model ?? undefined);
   if (model) parts.push(model);
   if ((s.message_count ?? 0) > 0) parts.push(`${s.message_count} msgs`);
@@ -276,40 +305,64 @@ export function fleetTileMeta(
   now: number,
 ): { text: string; tone: FleetTileTone } {
   if (band === "needsYou") {
-    if (s.session_error) return { text: `error · ${firstLine(s.session_error)}`, tone: "red" };
+    if (s.session_error)
+      return { text: `error · ${firstLine(s.session_error)}`, tone: "red" };
     if (s.pending_api_error) {
       const kind = s.pending_api_error_kind;
-      if (kind === "limit") return { text: "usage limit · parked", tone: "red" };
+      if (kind === "limit")
+        return { text: "usage limit · parked", tone: "red" };
       if (kind === "auth") return { text: "needs sign-in", tone: "red" };
-      if (kind === "throttle") return { text: "rate limited · retrying", tone: "amber" };
-      if (kind === "connection") return { text: "connection dropped", tone: "red" };
-      if (kind === "fatal") return { text: "api error · send continue", tone: "red" };
-      if (kind === "context") return { text: "context full · compact or clear", tone: "amber" };
+      if (kind === "throttle")
+        return { text: "rate limited · retrying", tone: "amber" };
+      if (kind === "connection")
+        return { text: "connection dropped", tone: "red" };
+      if (kind === "fatal")
+        return { text: "api error · send continue", tone: "red" };
+      if (kind === "context")
+        return { text: "context full · compact or clear", tone: "amber" };
       return { text: "api error · retrying", tone: "red" };
     }
     const ts = threadStateView(s, s.message_count ?? 0, now);
-    const blocker = (ts?.status === "blocked" ? ts.cardLine : "") || sessionCardSummary(s);
+    const blocker =
+      (ts?.status === "blocked" ? ts.cardLine : "") || sessionCardSummary(s);
     const status = agentStatusAt(s, now);
     if (status === "permission_blocked") {
-      return { text: blocker ? `permission: ${blocker}` : "permission needed", tone: "amber" };
+      return {
+        text: blocker ? `permission: ${blocker}` : "permission needed",
+        tone: "amber",
+      };
     }
     if (s.awaiting_input) {
-      return { text: blocker ? `asks: ${blocker}` : "waiting for your answer", tone: "amber" };
+      return {
+        text: blocker ? `asks: ${blocker}` : "waiting for your answer",
+        tone: "amber",
+      };
     }
     if (status === "stopped") return { text: "agent stopped", tone: "amber" };
     if (isLivenessStale(s, now) && isProducing(s, now)) {
-      return { text: `went quiet ${compactAge(now - (s.updated_at ?? now))} ago`, tone: "amber" };
+      return {
+        text: `went quiet ${compactAge(now - (s.updated_at ?? now))} ago`,
+        tone: "amber",
+      };
     }
     return { text: blocker || "needs your attention", tone: "amber" };
   }
   if (band === "running") {
-    if ((s.message_count ?? 0) === 0) return { text: "starting", tone: "green" };
+    if ((s.message_count ?? 0) === 0)
+      return { text: "starting", tone: "green" };
     const age = compactAge(now - (s.updated_at ?? now));
-    const status = RUNNING_STATUS_LABEL[agentStatusAt(s, now) ?? ""] ?? "working";
-    return { text: `${status} · ${age === "just now" ? "<1m" : age}`, tone: "green" };
+    const status =
+      RUNNING_STATUS_LABEL[agentStatusAt(s, now) ?? ""] ?? "working";
+    return {
+      text: `${status} · ${age === "just now" ? "<1m" : age}`,
+      tone: "green",
+    };
   }
   const age = compactAge(now - (s.updated_at ?? now));
-  return { text: age === "just now" ? "finished just now" : `finished · ${age} ago`, tone: "dim" };
+  return {
+    text: age === "just now" ? "finished just now" : `finished · ${age} ago`,
+    tone: "dim",
+  };
 }
 
 /**
@@ -320,7 +373,8 @@ export function fleetTileMeta(
  */
 export function fleetProgress(s: InboxSession, now: number): number {
   const total = s.workflow_run_agents_total;
-  if (total && total > 0) return Math.min(1, Math.max(0, (s.workflow_run_agents_done ?? 0) / total));
+  if (total && total > 0)
+    return Math.min(1, Math.max(0, (s.workflow_run_agents_done ?? 0) / total));
   const elapsed = Math.max(0, now - (s.updated_at ?? now));
   return Math.max(0.05, Math.min(1, 1 - elapsed / (15 * 60_000)));
 }

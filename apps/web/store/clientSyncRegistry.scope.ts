@@ -261,6 +261,8 @@ export const EPHEMERAL_SLOT_SCOPE = {
 
 /** Keys whose scope is "workspace" or "team": read only through their selectors. */
 export const SCOPED_READ_KEYS: readonly string[] = [
-  ...Object.entries(DATA_SCOPE).filter(([, s]) => s === "workspace" || s === "team").map(([k]) => k),
+  ...Object.entries(DATA_SCOPE)
+    .filter(([, s]) => s === "workspace" || s === "team")
+    .map(([k]) => k),
   ...Object.keys(EPHEMERAL_SLOT_SCOPE),
 ];

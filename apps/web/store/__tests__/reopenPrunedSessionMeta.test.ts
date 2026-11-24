@@ -14,7 +14,9 @@ const seed = (id: string) => {
   state()._setDispatch(async () => null, { owner: {} });
   useInboxStore.setState({
     pending: {},
-    sessions: { [id]: { _id: id, title: "Teammate session", updated_at: 1 } } as any,
+    sessions: {
+      [id]: { _id: id, title: "Teammate session", updated_at: 1 },
+    } as any,
     conversations: {} as any,
   });
 };
@@ -25,8 +27,16 @@ test("reopening a pruned session lets its meta load again", () => {
   state().pruneGhostSessions([ID]);
   expect(state().pending[`conversations:${ID}`]?.type).toBe("exclude");
 
-  state().injectSession({ _id: ID, title: "Teammate session", updated_at: 2, user_id: "u1" });
-  state().syncRecord("conversations", ID, { _id: ID, owner_device_id: "dev-1" });
+  state().injectSession({
+    _id: ID,
+    title: "Teammate session",
+    updated_at: 2,
+    user_id: "u1",
+  });
+  state().syncRecord("conversations", ID, {
+    _id: ID,
+    owner_device_id: "dev-1",
+  });
 
   expect(state().conversations[ID]?.owner_device_id).toBe("dev-1");
   expect(state().pending[`conversations:${ID}`]).toBeUndefined();
@@ -36,6 +46,9 @@ test("a pruned session that stays out keeps its meta blocked", () => {
   const ID = "jx7prunedstaysout000000000000000";
   seed(ID);
   state().pruneGhostSessions([ID]);
-  state().syncRecord("conversations", ID, { _id: ID, owner_device_id: "dev-1" });
+  state().syncRecord("conversations", ID, {
+    _id: ID,
+    owner_device_id: "dev-1",
+  });
   expect(state().conversations[ID]).toBeUndefined();
 });

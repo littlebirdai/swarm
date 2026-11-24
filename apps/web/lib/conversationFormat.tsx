@@ -16,33 +16,57 @@ import { ansiSpans } from "./ansi";
 function linkShareToken(conversationId: string): string | undefined {
   const presented = getShareTokenScope(conversationId);
   if (presented) return presented;
-  const row = useInboxStore.getState().conversations[conversationId] as { share_token?: string | null; is_own?: boolean } | undefined;
+  const row = useInboxStore.getState().conversations[conversationId] as
+    | { share_token?: string | null; is_own?: boolean }
+    | undefined;
   return row?.share_token && row.is_own !== false ? row.share_token : undefined;
 }
 
-export function messageLink(conversationId: string | undefined, messageId: string, block?: number) {
+export function messageLink(
+  conversationId: string | undefined,
+  messageId: string,
+  block?: number,
+) {
   const token = conversationId ? linkShareToken(conversationId) : undefined;
   const query = token ? `?share=${encodeURIComponent(token)}` : "";
   return `${shareOrigin()}/conversation/${conversationId}${query}${formatMessageHash(messageId, block)}`;
 }
 
-export function copyMessageLink(conversationId: string | undefined, messageId: string) {
+export function copyMessageLink(
+  conversationId: string | undefined,
+  messageId: string,
+) {
   const url = messageLink(conversationId, messageId);
-  setTimeout(() => { copyToClipboard(url).then(() => toast.success("Link copied!")).catch(() => toast.error("Failed to copy link")); });
+  setTimeout(() => {
+    copyToClipboard(url)
+      .then(() => toast.success("Link copied!"))
+      .catch(() => toast.error("Failed to copy link"));
+  });
 }
 
-export function forwardMessageToChat(conversationId: string | undefined, messageId: string) {
-  openForwardToChat({ url: messageLink(conversationId, messageId), label: "message" });
+export function forwardMessageToChat(
+  conversationId: string | undefined,
+  messageId: string,
+) {
+  openForwardToChat({
+    url: messageLink(conversationId, messageId),
+    label: "message",
+  });
 }
 
 /** Ensure a value is a string before rendering as a React child.
  *  Guards against intermittent race conditions where content fields
  *  are briefly non-string during store hydration or subscription updates. */
 export function safeString(value: any): string {
-  if (typeof value === 'string') return value;
-  if (value == null) return '';
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  try { return JSON.stringify(value); } catch { return String(value); }
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 export function formatMessagePartsForCopy(
@@ -57,7 +81,9 @@ export function formatMessagePartsForCopy(
   if (toolCalls?.length) {
     for (const tc of toolCalls) {
       let input = tc.input;
-      try { input = JSON.stringify(JSON.parse(tc.input), null, 2); } catch {}
+      try {
+        input = JSON.stringify(JSON.parse(tc.input), null, 2);
+      } catch {}
       parts.push(`[Tool: ${tc.name}]\n${input}`);
     }
   }
@@ -70,18 +96,22 @@ export function formatMessagePartsForCopy(
   return parts.join("\n\n");
 }
 
-const formatTimestamp = cacheLocalDateFormat((date) => date.toLocaleTimeString([], {
-  hour: "2-digit",
-  minute: "2-digit",
-}));
+const formatTimestamp = cacheLocalDateFormat((date) =>
+  date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  }),
+);
 
-const formatCalendarDate = cacheLocalDateFormat((date) => date.toLocaleDateString([], { month: "short", day: "numeric" }));
+const formatCalendarDate = cacheLocalDateFormat((date) =>
+  date.toLocaleDateString([], { month: "short", day: "numeric" }),
+);
 
 /** How long from `startTs` to `endTs` (now, unless the session's span ended: a mirrored cloud task's last message). */
 export function formatDuration(startTs: number, endTs = Date.now()): string {
   const diff = endTs - startTs;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '';
+  if (minutes < 1) return "";
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const remainMin = minutes % 60;
@@ -95,9 +125,18 @@ export { stripAnsiCodes } from "./ansi";
 export function renderAnsi(text: string): React.ReactNode {
   const spans = ansiSpans(text);
   if (spans.length === 0) return text;
-  return spans.map((sp, i) => sp.color || sp.bold
-    ? <span key={i} style={{ color: sp.color, fontWeight: sp.bold ? 700 : undefined }}>{sp.text}</span>
-    : sp.text);
+  return spans.map((sp, i) =>
+    sp.color || sp.bold ? (
+      <span
+        key={i}
+        style={{ color: sp.color, fontWeight: sp.bold ? 700 : undefined }}
+      >
+        {sp.text}
+      </span>
+    ) : (
+      sp.text
+    ),
+  );
 }
 
 /**
@@ -142,11 +181,13 @@ export function formatRelativeTime(ts: number, now = Date.now()): string {
   return formatCalendarDate(ts);
 }
 
-export const formatFullTimestamp = cacheLocalDateFormat((date) => date.toLocaleString([], {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-}));
+export const formatFullTimestamp = cacheLocalDateFormat((date) =>
+  date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }),
+);

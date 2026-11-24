@@ -68,7 +68,8 @@ export const SHARED_ROWS = {
   },
   blame: {
     dimension: "Line-level attribution",
-    codecast: "cast blame traces any line of code to the conversation that wrote it",
+    codecast:
+      "cast blame traces any line of code to the conversation that wrote it",
   },
   remote: {
     dimension: "Remote steering",

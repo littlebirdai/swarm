@@ -5,26 +5,39 @@
 // the shell ending: a session sat "waiting" on an open task for days after
 // every worker it watched had finished.
 
-import { normalizeWorkStateFilter, threadStateHeadline, WORK_STATES } from "@codecast/shared/contracts";
+import {
+  normalizeWorkStateFilter,
+  threadStateHeadline,
+  WORK_STATES,
+} from "@codecast/shared/contracts";
 
 // Everything but "working": the session's turn is over, whoever acts next.
-export const SETTLED_STATES: readonly string[] = WORK_STATES.filter((s) => s !== "working");
+export const SETTLED_STATES: readonly string[] = WORK_STATES.filter(
+  (s) => s !== "working",
+);
 
 /** The states `--until` waits for: "settled" (the default when the flag has no
  *  value), or a comma list of work states in either spelling ("needs-input",
  *  "needs_input"). Throws on anything else so a typo cannot become a wait that
  *  never ends. */
-export function parseUntilStates(value: string | boolean | undefined): Set<string> {
+export function parseUntilStates(
+  value: string | boolean | undefined,
+): Set<string> {
   const raw = typeof value === "string" ? value : "settled";
   const out = new Set<string>();
-  for (const part of raw.split(",").map((p) => p.trim()).filter(Boolean)) {
+  for (const part of raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)) {
     if (part.toLowerCase() === "settled") {
       SETTLED_STATES.forEach((s) => out.add(s));
       continue;
     }
     const state = normalizeWorkStateFilter(part);
     if (!state || !(WORK_STATES as readonly string[]).includes(state)) {
-      throw new Error(`--until takes settled or work states: ${WORK_STATES.map((s) => s.replace("_", "-")).join(", ")} (comma separated); '${part}' is not one`);
+      throw new Error(
+        `--until takes settled or work states: ${WORK_STATES.map((s) => s.replace("_", "-")).join(", ")} (comma separated); '${part}' is not one`,
+      );
     }
     out.add(state);
   }
@@ -35,7 +48,11 @@ export function parseUntilStates(value: string | boolean | undefined): Set<strin
 /** -w --until may stop: it has seen at least one session, and every session it
  *  still holds rests in one of `states`. A session that left the set (killed,
  *  dismissed) has nothing more to report, so it does not hold the watch open. */
-export function untilReached(states: ReadonlySet<string>, current: Record<string, { state: string }>, seenAny: boolean): boolean {
+export function untilReached(
+  states: ReadonlySet<string>,
+  current: Record<string, { state: string }>,
+  seenAny: boolean,
+): boolean {
   if (!seenAny) return false;
   return Object.values(current).every((r) => states.has(r.state));
 }
@@ -52,7 +69,12 @@ export interface SettleEvent {
  * The watched rows that newly reached a wanted state (or were killed: a
  * retired session will not settle any further), marking them in `settled`.
  */
-export function settleRows(rows: any[], watched: Set<string>, settled: Set<string>, wanted: Set<string>): SettleEvent[] {
+export function settleRows(
+  rows: any[],
+  watched: Set<string>,
+  settled: Set<string>,
+  wanted: Set<string>,
+): SettleEvent[] {
   const out: SettleEvent[] = [];
   for (const r of rows) {
     if (!watched.has(r.id) || settled.has(r.id)) continue;

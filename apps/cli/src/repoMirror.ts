@@ -22,7 +22,10 @@ import { execFile } from "./proc.js";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import * as path from "node:path";
-import { extractRepoFromRemoteUrl, repositoryKeyOfRemote } from "@codecast/shared/contracts";
+import {
+  extractRepoFromRemoteUrl,
+  repositoryKeyOfRemote,
+} from "@codecast/shared/contracts";
 import { extractSessionTrailer } from "@codecast/shared/blame";
 
 const execFileAsync = promisify(execFile);
@@ -94,8 +97,15 @@ export async function runGit(cwd: string, args: string[]): Promise<string> {
  * one row; the last two path segments of any other remote; and, with no
  * remote at all, `local/<folder>`.
  */
-export function repositoryKeyFor(root: string, originUrl: string | undefined | null): string {
-  return extractRepoFromRemoteUrl(originUrl) ?? repositoryKeyOfRemote(originUrl) ?? `local/${path.basename(root).toLowerCase()}`;
+export function repositoryKeyFor(
+  root: string,
+  originUrl: string | undefined | null,
+): string {
+  return (
+    extractRepoFromRemoteUrl(originUrl) ??
+    repositoryKeyOfRemote(originUrl) ??
+    `local/${path.basename(root).toLowerCase()}`
+  );
 }
 
 /** A GitHub origin's web URL, for the meta row; empty for anything else. */
@@ -109,16 +119,29 @@ function htmlUrlFor(originUrl: string | undefined): string {
  * checkout again only when this moves, so an idle repository costs one git
  * call per sweep and no upload.
  */
-export async function refsFingerprint(root: string, run: GitRunner = runGit): Promise<string> {
+export async function refsFingerprint(
+  root: string,
+  run: GitRunner = runGit,
+): Promise<string> {
   const [refs, head] = await Promise.all([
-    run(root, ["for-each-ref", "--format=%(refname) %(objectname)"]).catch(() => ""),
+    run(root, ["for-each-ref", "--format=%(refname) %(objectname)"]).catch(
+      () => "",
+    ),
     run(root, ["rev-parse", "HEAD"]).catch(() => ""),
   ]);
-  return createHash("sha1").update(refs).update("\n").update(head).digest("hex");
+  return createHash("sha1")
+    .update(refs)
+    .update("\n")
+    .update(head)
+    .digest("hex");
 }
 
 /** Raw stdout, or undefined when git refuses. Blob contents come through here untouched. */
-async function tryGit(run: GitRunner, cwd: string, args: string[]): Promise<string | undefined> {
+async function tryGit(
+  run: GitRunner,
+  cwd: string,
+  args: string[],
+): Promise<string | undefined> {
   try {
     return await run(cwd, args);
   } catch {
@@ -127,22 +150,49 @@ async function tryGit(run: GitRunner, cwd: string, args: string[]): Promise<stri
 }
 
 /** One value on one line: a sha, a ref name, a URL, a count. */
-export async function tryGitLine(run: GitRunner, cwd: string, args: string[]): Promise<string | undefined> {
+export async function tryGitLine(
+  run: GitRunner,
+  cwd: string,
+  args: string[],
+): Promise<string | undefined> {
   const out = await tryGit(run, cwd, args);
   return out === undefined ? undefined : out.trim();
 }
 
 /** origin/HEAD when the remote told us, else main, else master, else whatever is checked out. */
-export async function defaultBranchFor(run: GitRunner, root: string, current: string | undefined): Promise<string> {
-  const originHead = await tryGitLine(run, root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+export async function defaultBranchFor(
+  run: GitRunner,
+  root: string,
+  current: string | undefined,
+): Promise<string> {
+  const originHead = await tryGitLine(run, root, [
+    "symbolic-ref",
+    "--short",
+    "refs/remotes/origin/HEAD",
+  ]);
   if (originHead) return originHead.replace(/^origin\//, "");
   for (const candidate of ["main", "master"]) {
-    if ((await tryGit(run, root, ["rev-parse", "--verify", "--quiet", `refs/heads/${candidate}`])) !== undefined) return candidate;
+    if (
+      (await tryGit(run, root, [
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        `refs/heads/${candidate}`,
+      ])) !== undefined
+    )
+      return candidate;
   }
   return current && current !== "HEAD" ? current : "HEAD";
 }
 
-type RefLine = { name: string; sha: string; committed_at: number; subject: string; author_name: string; author_email: string };
+type RefLine = {
+  name: string;
+  sha: string;
+  committed_at: number;
+  subject: string;
+  author_name: string;
+  author_email: string;
+};
 
 async function branchLines(run: GitRunner, root: string): Promise<RefLine[]> {
   const out = await tryGit(run, root, [
@@ -153,14 +203,30 @@ async function branchLines(run: GitRunner, root: string): Promise<RefLine[]> {
     "refs/heads",
   ]);
   if (!out) return [];
-  return out.split("\n").filter(Boolean).map((line) => {
-    const [name, sha, at, subject, author_name, author_email] = line.split(NUL);
-    return { name, sha, committed_at: Number(at) * 1000, subject: subject ?? "", author_name: author_name ?? "", author_email: (author_email ?? "").replace(/^<|>$/g, "") };
-  });
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [name, sha, at, subject, author_name, author_email] =
+        line.split(NUL);
+      return {
+        name,
+        sha,
+        committed_at: Number(at) * 1000,
+        subject: subject ?? "",
+        author_name: author_name ?? "",
+        author_email: (author_email ?? "").replace(/^<|>$/g, ""),
+      };
+    });
 }
 
 /** Tags point at a commit directly (lightweight) or through a tag object (annotated); `*` fields are the peeled commit. */
-async function tagLines(run: GitRunner, root: string): Promise<{ name: string; sha: string; committed_at?: number; subject?: string }[]> {
+async function tagLines(
+  run: GitRunner,
+  root: string,
+): Promise<
+  { name: string; sha: string; committed_at?: number; subject?: string }[]
+> {
   const out = await tryGit(run, root, [
     "for-each-ref",
     `--count=${MAX_REFS}`,
@@ -169,29 +235,51 @@ async function tagLines(run: GitRunner, root: string): Promise<{ name: string; s
     "refs/tags",
   ]);
   if (!out) return [];
-  return out.split("\n").filter(Boolean).map((line) => {
-    const [name, peeledSha, sha, peeledAt, at, peeledSubject, subject] = line.split(NUL);
-    const when = Number(peeledAt || at);
-    return {
-      name,
-      sha: peeledSha || sha,
-      committed_at: when ? when * 1000 : undefined,
-      subject: peeledSubject || subject || undefined,
-    };
-  });
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [name, peeledSha, sha, peeledAt, at, peeledSubject, subject] =
+        line.split(NUL);
+      const when = Number(peeledAt || at);
+      return {
+        name,
+        sha: peeledSha || sha,
+        committed_at: when ? when * 1000 : undefined,
+        subject: peeledSubject || subject || undefined,
+      };
+    });
 }
 
 type TreeEntry = { path: string; type: string; sha: string; size?: number };
 
 /** `git ls-tree -l`: `<mode> <type> <sha> <size>\t<path>`; size is "-" for a tree. */
-async function lsTree(run: GitRunner, root: string, ref: string, recursive = false): Promise<TreeEntry[] | undefined> {
-  const out = await tryGit(run, root, ["ls-tree", "-l", ...(recursive ? ["-r"] : []), ref]);
+async function lsTree(
+  run: GitRunner,
+  root: string,
+  ref: string,
+  recursive = false,
+): Promise<TreeEntry[] | undefined> {
+  const out = await tryGit(run, root, [
+    "ls-tree",
+    "-l",
+    ...(recursive ? ["-r"] : []),
+    ref,
+  ]);
   if (out === undefined) return undefined;
-  return out.split("\n").filter(Boolean).map((line) => {
-    const [meta, entryPath] = line.split("\t");
-    const [, type, sha, size] = meta.trim().split(/\s+/);
-    return { path: entryPath, type, sha, ...(size !== "-" ? { size: Number(size) } : {}) };
-  });
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [meta, entryPath] = line.split("\t");
+      const [, type, sha, size] = meta.trim().split(/\s+/);
+      return {
+        path: entryPath,
+        type,
+        sha,
+        ...(size !== "-" ? { size: Number(size) } : {}),
+      };
+    });
 }
 
 /**
@@ -205,7 +293,13 @@ async function logPage(
   root: string,
   ref: string,
   htmlBase: string,
-  opts: { skip?: number; path?: string; author?: string; limit?: number; branch?: string } = {},
+  opts: {
+    skip?: number;
+    path?: string;
+    author?: string;
+    limit?: number;
+    branch?: string;
+  } = {},
 ): Promise<{ payload: any; commits: MirrorCommit[] }> {
   const out = await tryGit(run, root, [
     "log",
@@ -237,8 +331,11 @@ async function logPage(
       insertions += add;
       deletions += del;
       // A rename prints "old => new" (or "{a => b}/rest"); the new name is the area.
-      const filename = m[3].includes(" => ") ? m[3].replace(/\{[^}]* => ([^}]*)\}/g, "$1").replace(/^.* => /, "") : m[3];
-      if (touched.length < MIRROR_FILES_CAP) touched.push({ filename, additions: add, deletions: del });
+      const filename = m[3].includes(" => ")
+        ? m[3].replace(/\{[^}]* => ([^}]*)\}/g, "$1").replace(/^.* => /, "")
+        : m[3];
+      if (touched.length < MIRROR_FILES_CAP)
+        touched.push({ filename, additions: add, deletions: del });
     }
     commits.push({
       sha,
@@ -272,14 +369,53 @@ async function logPage(
 
 /** A rough languages map from file sizes by extension, the way GitHub's meta names them. */
 const LANGUAGE_BY_EXT: Record<string, string> = {
-  ts: "TypeScript", tsx: "TypeScript", js: "JavaScript", jsx: "JavaScript", mjs: "JavaScript", cjs: "JavaScript",
-  py: "Python", go: "Go", rs: "Rust", rb: "Ruby", swift: "Swift", kt: "Kotlin", java: "Java", scala: "Scala",
-  c: "C", h: "C", cpp: "C++", cc: "C++", hpp: "C++", m: "Objective-C", cs: "C#", php: "PHP", dart: "Dart",
-  css: "CSS", scss: "SCSS", html: "HTML", vue: "Vue", svelte: "Svelte", sh: "Shell", bash: "Shell", zsh: "Shell",
-  sql: "SQL", lua: "Lua", ex: "Elixir", exs: "Elixir", erl: "Erlang", hs: "Haskell", clj: "Clojure", r: "R", jl: "Julia",
+  ts: "TypeScript",
+  tsx: "TypeScript",
+  js: "JavaScript",
+  jsx: "JavaScript",
+  mjs: "JavaScript",
+  cjs: "JavaScript",
+  py: "Python",
+  go: "Go",
+  rs: "Rust",
+  rb: "Ruby",
+  swift: "Swift",
+  kt: "Kotlin",
+  java: "Java",
+  scala: "Scala",
+  c: "C",
+  h: "C",
+  cpp: "C++",
+  cc: "C++",
+  hpp: "C++",
+  m: "Objective-C",
+  cs: "C#",
+  php: "PHP",
+  dart: "Dart",
+  css: "CSS",
+  scss: "SCSS",
+  html: "HTML",
+  vue: "Vue",
+  svelte: "Svelte",
+  sh: "Shell",
+  bash: "Shell",
+  zsh: "Shell",
+  sql: "SQL",
+  lua: "Lua",
+  ex: "Elixir",
+  exs: "Elixir",
+  erl: "Erlang",
+  hs: "Haskell",
+  clj: "Clojure",
+  r: "R",
+  jl: "Julia",
 };
 
-async function languagesFor(run: GitRunner, root: string, ref: string): Promise<Record<string, number>> {
+async function languagesFor(
+  run: GitRunner,
+  root: string,
+  ref: string,
+): Promise<Record<string, number>> {
   const out = await tryGit(run, root, ["ls-tree", "-r", "-l", ref]);
   const totals: Record<string, number> = {};
   for (const line of (out ?? "").split("\n")) {
@@ -287,7 +423,10 @@ async function languagesFor(run: GitRunner, root: string, ref: string): Promise<
     if (tab === -1) continue;
     const [, type, , size] = line.slice(0, tab).trim().split(/\s+/);
     if (type !== "blob") continue;
-    const ext = path.extname(line.slice(tab + 1)).slice(1).toLowerCase();
+    const ext = path
+      .extname(line.slice(tab + 1))
+      .slice(1)
+      .toLowerCase();
     const language = LANGUAGE_BY_EXT[ext];
     if (!language) continue;
     totals[language] = (totals[language] ?? 0) + (Number(size) || 0);
@@ -302,7 +441,11 @@ async function languagesFor(run: GitRunner, root: string, ref: string): Promise<
 // answerable on demand from the same builder.
 
 /** Branches, twice: the plain list, and the detailed list the branches page reads. */
-async function branchRows(run: GitRunner, root: string, defaultBranch: string): Promise<[MirrorRow, MirrorRow]> {
+async function branchRows(
+  run: GitRunner,
+  root: string,
+  defaultBranch: string,
+): Promise<[MirrorRow, MirrorRow]> {
   const branches = await branchLines(run, root);
   const truncated = branches.length === MAX_REFS;
   const details = [];
@@ -310,33 +453,79 @@ async function branchRows(run: GitRunner, root: string, defaultBranch: string): 
     let ahead_by: number | undefined;
     let behind_by: number | undefined;
     if (index < MAX_AHEAD_BEHIND && b.name !== defaultBranch) {
-      const counts = await tryGitLine(run, root, ["rev-list", "--left-right", "--count", `${defaultBranch}...${b.name}`]);
+      const counts = await tryGitLine(run, root, [
+        "rev-list",
+        "--left-right",
+        "--count",
+        `${defaultBranch}...${b.name}`,
+      ]);
       const m = counts?.match(/^(\d+)\s+(\d+)$/);
       if (m) {
         behind_by = Number(m[1]);
         ahead_by = Number(m[2]);
       }
     }
-    details.push({ name: b.name, sha: b.sha, subject: b.subject, committed_at: b.committed_at, author_name: b.author_name, ahead_by, behind_by, open_pr: null });
+    details.push({
+      name: b.name,
+      sha: b.sha,
+      subject: b.subject,
+      committed_at: b.committed_at,
+      author_name: b.author_name,
+      ahead_by,
+      behind_by,
+      open_pr: null,
+    });
   }
-  const plain = { default_branch: defaultBranch, truncated, branches: branches.map((b) => ({ name: b.name, sha: b.sha, protected: false })) };
+  const plain = {
+    default_branch: defaultBranch,
+    truncated,
+    branches: branches.map((b) => ({
+      name: b.name,
+      sha: b.sha,
+      protected: false,
+    })),
+  };
   return [
     { kind: "branches", ref: "-", path: "", content: JSON.stringify(plain) },
-    { kind: "branchdetails", ref: "-", path: "", content: JSON.stringify({ default_branch: defaultBranch, truncated, branches: details }) },
+    {
+      kind: "branchdetails",
+      ref: "-",
+      path: "",
+      content: JSON.stringify({
+        default_branch: defaultBranch,
+        truncated,
+        branches: details,
+      }),
+    },
   ];
 }
 
 async function tagsRow(run: GitRunner, root: string): Promise<MirrorRow> {
   const tags = await tagLines(run, root);
-  return { kind: "tags", ref: "-", path: "", content: JSON.stringify({ truncated: tags.length === MAX_REFS, tags }) };
+  return {
+    kind: "tags",
+    ref: "-",
+    path: "",
+    content: JSON.stringify({ truncated: tags.length === MAX_REFS, tags }),
+  };
 }
 
 /**
  * Meta. A checkout says nothing about GitHub-side counts, so those are zero
  * and private stays true: the public route must never open on a local row.
  */
-async function metaRow(run: GitRunner, root: string, defaultBranch: string, htmlBase: string): Promise<MirrorRow> {
-  const headAt = await tryGitLine(run, root, ["log", "-1", "--format=%ct", defaultBranch]);
+async function metaRow(
+  run: GitRunner,
+  root: string,
+  defaultBranch: string,
+  htmlBase: string,
+): Promise<MirrorRow> {
+  const headAt = await tryGitLine(run, root, [
+    "log",
+    "-1",
+    "--format=%ct",
+    defaultBranch,
+  ]);
   const payload = {
     private: true,
     description: null,
@@ -361,17 +550,36 @@ async function metaRow(run: GitRunner, root: string, defaultBranch: string, html
  * Everything the daemon publishes for one checkout, or null when the folder
  * is not a repository with at least one commit.
  */
-export async function buildRepoMirror(root: string, run: GitRunner = runGit): Promise<RepoMirror | null> {
+export async function buildRepoMirror(
+  root: string,
+  run: GitRunner = runGit,
+): Promise<RepoMirror | null> {
   const headSha = await tryGitLine(run, root, ["rev-parse", "HEAD"]);
   if (!headSha) return null;
-  const current = await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const current = await tryGitLine(run, root, [
+    "rev-parse",
+    "--abbrev-ref",
+    "HEAD",
+  ]);
   const origin = await tryGitLine(run, root, ["remote", "get-url", "origin"]);
   const repository = repositoryKeyFor(root, origin);
   const htmlBase = htmlUrlFor(origin);
   const defaultBranch = await defaultBranchFor(run, root, current);
   const rows: MirrorRow[] = [];
-  const row = (kind: string, ref: string, rowPath: string, payload: unknown, extra: Partial<MirrorRow> = {}) => {
-    rows.push({ kind, ref, path: rowPath, content: JSON.stringify(payload), ...extra });
+  const row = (
+    kind: string,
+    ref: string,
+    rowPath: string,
+    payload: unknown,
+    extra: Partial<MirrorRow> = {},
+  ) => {
+    rows.push({
+      kind,
+      ref,
+      path: rowPath,
+      content: JSON.stringify(payload),
+      ...extra,
+    });
   };
 
   rows.push(...(await branchRows(run, root, defaultBranch)));
@@ -379,17 +587,31 @@ export async function buildRepoMirror(root: string, run: GitRunner = runGit): Pr
 
   // The root tree under the branch name (what the home page asks for) and
   // under its own sha (what the walk asks for), then each subdirectory by sha.
-  const rootTreeSha = await tryGitLine(run, root, ["rev-parse", `${defaultBranch}^{tree}`]);
+  const rootTreeSha = await tryGitLine(run, root, [
+    "rev-parse",
+    `${defaultBranch}^{tree}`,
+  ]);
   const rootEntries = (await lsTree(run, root, defaultBranch)) ?? [];
-  const treePayload = { sha: rootTreeSha ?? "", truncated: false, entries: rootEntries };
+  const treePayload = {
+    sha: rootTreeSha ?? "",
+    truncated: false,
+    entries: rootEntries,
+  };
   row("tree", defaultBranch, "", treePayload, { sha: rootTreeSha });
-  if (rootTreeSha) row("tree", rootTreeSha, "", treePayload, { sha: rootTreeSha });
+  if (rootTreeSha)
+    row("tree", rootTreeSha, "", treePayload, { sha: rootTreeSha });
   let treeRows = 2;
   for (const entry of rootEntries) {
     if (entry.type !== "tree" || treeRows >= MAX_TREE_ROWS) continue;
     const entries = await lsTree(run, root, entry.sha);
     if (!entries) continue;
-    row("tree", entry.sha, "", { sha: entry.sha, truncated: false, entries }, { sha: entry.sha });
+    row(
+      "tree",
+      entry.sha,
+      "",
+      { sha: entry.sha, truncated: false, entries },
+      { sha: entry.sha },
+    );
     treeRows++;
   }
 
@@ -411,48 +633,106 @@ export async function buildRepoMirror(root: string, run: GitRunner = runGit): Pr
     }
   };
   const pages = [defaultBranch];
-  if (current && current !== "HEAD" && current !== defaultBranch) pages.push(current);
+  if (current && current !== "HEAD" && current !== defaultBranch)
+    pages.push(current);
   for (const branch of pages) {
     const page = await logPage(run, root, branch, htmlBase);
     row("log", branch, "#1#", page.payload);
     take(page);
-    const upstream = await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", `${branch}@{upstream}`]);
-    if (upstream) take(await logPage(run, root, `${upstream}..${branch}`, htmlBase, { limit: MAX_UNPUSHED, branch }));
+    const upstream = await tryGitLine(run, root, [
+      "rev-parse",
+      "--abbrev-ref",
+      `${branch}@{upstream}`,
+    ]);
+    if (upstream)
+      take(
+        await logPage(run, root, `${upstream}..${branch}`, htmlBase, {
+          limit: MAX_UNPUSHED,
+          branch,
+        }),
+      );
   }
   if (pages.length > 1 && current) {
-    const currentTreeSha = await tryGitLine(run, root, ["rev-parse", `${current}^{tree}`]);
+    const currentTreeSha = await tryGitLine(run, root, [
+      "rev-parse",
+      `${current}^{tree}`,
+    ]);
     const entries = await lsTree(run, root, current);
-    if (entries) row("tree", current, "", { sha: currentTreeSha ?? "", truncated: false, entries }, { sha: currentTreeSha });
+    if (entries)
+      row(
+        "tree",
+        current,
+        "",
+        { sha: currentTreeSha ?? "", truncated: false, entries },
+        { sha: currentTreeSha },
+      );
   }
 
   // The last commit that touched each root entry, the column beside the tree.
   const last: Record<string, unknown> = {};
   for (const entry of rootEntries.slice(0, MAX_LAST_COMMIT_ENTRIES)) {
-    const line = await tryGitLine(run, root, ["log", "-1", "--format=%H%x00%s%x00%ct%x00%an", defaultBranch, "--", entry.path]);
+    const line = await tryGitLine(run, root, [
+      "log",
+      "-1",
+      "--format=%H%x00%s%x00%ct%x00%an",
+      defaultBranch,
+      "--",
+      entry.path,
+    ]);
     if (!line) continue;
     const [sha, subject, at, author_name] = line.split(NUL);
-    last[entry.path] = { sha, subject: subject ?? "", committed_at: Number(at) * 1000, author_name };
+    last[entry.path] = {
+      sha,
+      subject: subject ?? "",
+      committed_at: Number(at) * 1000,
+      author_name,
+    };
   }
   row("lastcommits", defaultBranch, "", last);
 
   rows.push(await metaRow(run, root, defaultBranch, htmlBase));
 
-  return { repository, remote_url: origin || undefined, default_branch: defaultBranch, head_sha: headSha, rows, commits };
+  return {
+    repository,
+    remote_url: origin || undefined,
+    default_branch: defaultBranch,
+    head_sha: headSha,
+    rows,
+    commits,
+  };
 }
 
 /** One commit in the commits-table shape, or null when the sha is not in this checkout. */
-export async function describeCommit(run: GitRunner, root: string, sha: string): Promise<MirrorCommit | null> {
+export async function describeCommit(
+  run: GitRunner,
+  root: string,
+  sha: string,
+): Promise<MirrorCommit | null> {
   const page = await logPage(run, root, sha, "", { limit: 1 });
   const commit = page.commits[0];
   return commit && commit.sha === sha ? { ...commit, branch: undefined } : null;
 }
 
 /** The readme row at a ref: the first README* blob in the root tree, or a row saying there is none. */
-async function readmeRow(run: GitRunner, root: string, ref: string, entries?: TreeEntry[]): Promise<MirrorRow> {
+async function readmeRow(
+  run: GitRunner,
+  root: string,
+  ref: string,
+  entries?: TreeEntry[],
+): Promise<MirrorRow> {
   const rootEntries = entries ?? (await lsTree(run, root, ref)) ?? [];
-  const readme = rootEntries.find((e) => e.type === "blob" && /^readme(\.[a-z0-9]+)?$/i.test(e.path));
-  if (!readme) return { kind: "readme", ref, path: "", content: JSON.stringify({ found: false }) };
-  const content = (await tryGit(run, root, ["show", `${ref}:${readme.path}`])) ?? "";
+  const readme = rootEntries.find(
+    (e) => e.type === "blob" && /^readme(\.[a-z0-9]+)?$/i.test(e.path),
+  );
+  if (!readme)
+    return {
+      kind: "readme",
+      ref,
+      path: "",
+      content: JSON.stringify({ found: false }),
+    };
+  const content =
+    (await tryGit(run, root, ["show", `${ref}:${readme.path}`])) ?? "";
   const truncated = Buffer.byteLength(content, "utf-8") > MAX_README_BYTES;
   return {
     kind: "readme",
@@ -460,7 +740,12 @@ async function readmeRow(run: GitRunner, root: string, ref: string, entries?: Tr
     path: "",
     sha: readme.sha,
     truncated,
-    content: JSON.stringify({ found: true, path: readme.path, content: truncated ? content.slice(0, MAX_README_BYTES) : content, sha: readme.sha }),
+    content: JSON.stringify({
+      found: true,
+      path: readme.path,
+      content: truncated ? content.slice(0, MAX_README_BYTES) : content,
+      sha: readme.sha,
+    }),
   };
 }
 
@@ -516,15 +801,26 @@ const MAX_COMPARE_COMMITS = 250;
 
 /** Raw bytes of one blob, for images and the size-exact text path. */
 async function readBlobBytes(root: string, spec: string): Promise<Buffer> {
-  const { stdout } = await execFileAsync("git", ["-C", root, "cat-file", "blob", spec], {
-    encoding: "buffer",
-    timeout: GIT_TIMEOUT_MS,
-    maxBuffer: 64 * 1024 * 1024,
-  } as any);
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-C", root, "cat-file", "blob", spec],
+    {
+      encoding: "buffer",
+      timeout: GIT_TIMEOUT_MS,
+      maxBuffer: 64 * 1024 * 1024,
+    } as any,
+  );
   return stdout as unknown as Buffer;
 }
 
-const STATUS_WORD: Record<string, string> = { A: "added", D: "removed", M: "modified", R: "renamed", C: "copied", T: "modified" };
+const STATUS_WORD: Record<string, string> = {
+  A: "added",
+  D: "removed",
+  M: "modified",
+  R: "renamed",
+  C: "copied",
+  T: "modified",
+};
 
 /** `diff --git` sections keyed by the new path. */
 export function splitPatches(diff: string): Map<string, string> {
@@ -542,46 +838,86 @@ export function splitPatches(diff: string): Map<string, string> {
  * compare pages read: numstat for the counts, name-status for the verb, and
  * the patch text per file. `range` is a commit sha or `base...head`.
  */
-async function changedFiles(run: GitRunner, root: string, range: string, isCommit: boolean): Promise<{ files: DiffFileRow[]; additions: number; deletions: number }> {
+async function changedFiles(
+  run: GitRunner,
+  root: string,
+  range: string,
+  isCommit: boolean,
+): Promise<{ files: DiffFileRow[]; additions: number; deletions: number }> {
   const verb = isCommit ? ["show", "--format="] : ["diff"];
-  const numstat = (await tryGit(run, root, [...verb, "--numstat", "-M", range])) ?? "";
-  const names = (await tryGit(run, root, [...verb, "--name-status", "-M", range])) ?? "";
-  const patches = splitPatches((await tryGit(run, root, [...verb, "--patch", "-M", "--no-color", "--no-ext-diff", range])) ?? "");
+  const numstat =
+    (await tryGit(run, root, [...verb, "--numstat", "-M", range])) ?? "";
+  const names =
+    (await tryGit(run, root, [...verb, "--name-status", "-M", range])) ?? "";
+  const patches = splitPatches(
+    (await tryGit(run, root, [
+      ...verb,
+      "--patch",
+      "-M",
+      "--no-color",
+      "--no-ext-diff",
+      range,
+    ])) ?? "",
+  );
   const statusLines = names.split("\n").filter(Boolean);
   const files: DiffFileRow[] = [];
   let additions = 0;
   let deletions = 0;
   let budget = MAX_PATCH_BUDGET_CHARS;
-  numstat.split("\n").filter(Boolean).forEach((line, index) => {
-    const m = /^(\d+|-)\t(\d+|-)\t(.*)$/.exec(line);
-    if (!m) return;
-    const status = statusLines[index]?.split("\t") ?? [];
-    const filename = status.length >= 3 ? status[2] : m[3].includes("\t") ? m[3].split("\t").pop()! : m[3];
-    const add = m[1] === "-" ? 0 : Number(m[1]);
-    const del = m[2] === "-" ? 0 : Number(m[2]);
-    additions += add;
-    deletions += del;
-    if (files.length >= MAX_CHANGED_FILES) return;
-    const patch = patches.get(filename);
-    const keep = !!patch && patch.length <= MAX_PATCH_CHARS && patch.length <= budget;
-    if (keep) budget -= patch!.length;
-    files.push({
-      filename,
-      status: STATUS_WORD[(status[0] ?? "M")[0]] ?? "modified",
-      additions: add,
-      deletions: del,
-      changes: add + del,
-      ...(keep ? { patch } : {}),
+  numstat
+    .split("\n")
+    .filter(Boolean)
+    .forEach((line, index) => {
+      const m = /^(\d+|-)\t(\d+|-)\t(.*)$/.exec(line);
+      if (!m) return;
+      const status = statusLines[index]?.split("\t") ?? [];
+      const filename =
+        status.length >= 3
+          ? status[2]
+          : m[3].includes("\t")
+            ? m[3].split("\t").pop()!
+            : m[3];
+      const add = m[1] === "-" ? 0 : Number(m[1]);
+      const del = m[2] === "-" ? 0 : Number(m[2]);
+      additions += add;
+      deletions += del;
+      if (files.length >= MAX_CHANGED_FILES) return;
+      const patch = patches.get(filename);
+      const keep =
+        !!patch && patch.length <= MAX_PATCH_CHARS && patch.length <= budget;
+      if (keep) budget -= patch!.length;
+      files.push({
+        filename,
+        status: STATUS_WORD[(status[0] ?? "M")[0]] ?? "modified",
+        additions: add,
+        deletions: del,
+        changes: add + del,
+        ...(keep ? { patch } : {}),
+      });
     });
-  });
   return { files, additions, deletions };
 }
 
 /** `git blame --porcelain`, folded into the ranges the blame gutter draws. */
-async function blameRanges(run: GitRunner, root: string, ref: string, filePath: string) {
+async function blameRanges(
+  run: GitRunner,
+  root: string,
+  ref: string,
+  filePath: string,
+) {
   const out = await run(root, ["blame", "--porcelain", ref, "--", filePath]);
-  const meta = new Map<string, { author_name?: string; committed_at?: number; message?: string }>();
-  const ranges: { start_line: number; end_line: number; sha: string; message: string; author_name?: string; committed_at: number }[] = [];
+  const meta = new Map<
+    string,
+    { author_name?: string; committed_at?: number; message?: string }
+  >();
+  const ranges: {
+    start_line: number;
+    end_line: number;
+    sha: string;
+    message: string;
+    author_name?: string;
+    committed_at: number;
+  }[] = [];
   let current: string | null = null;
   let line = 0;
   for (const raw of out.split("\n")) {
@@ -591,14 +927,23 @@ async function blameRanges(run: GitRunner, root: string, ref: string, filePath: 
       line = Number(header[2]);
       if (!meta.has(current)) meta.set(current, {});
       const last = ranges[ranges.length - 1];
-      if (last && last.sha === current && last.end_line === line - 1) last.end_line = line;
-      else ranges.push({ start_line: line, end_line: line, sha: current, message: "", committed_at: 0 });
+      if (last && last.sha === current && last.end_line === line - 1)
+        last.end_line = line;
+      else
+        ranges.push({
+          start_line: line,
+          end_line: line,
+          sha: current,
+          message: "",
+          committed_at: 0,
+        });
       continue;
     }
     if (!current) continue;
     const info = meta.get(current)!;
     if (raw.startsWith("author ")) info.author_name = raw.slice(7);
-    else if (raw.startsWith("author-time ")) info.committed_at = Number(raw.slice(12)) * 1000;
+    else if (raw.startsWith("author-time "))
+      info.committed_at = Number(raw.slice(12)) * 1000;
     else if (raw.startsWith("summary ")) info.message = raw.slice(8);
   }
   const sessions = await sessionTrailers(run, root, [...meta.keys()]);
@@ -615,12 +960,21 @@ async function blameRanges(run: GitRunner, root: string, ref: string, filePath: 
 
 /** Each commit's Codecast-Session trailer, read from its full message (blame
  *  gives only the subject), in one git call. A failure costs only the trailers. */
-async function sessionTrailers(run: GitRunner, root: string, shas: string[]): Promise<Map<string, string>> {
+async function sessionTrailers(
+  run: GitRunner,
+  root: string,
+  shas: string[],
+): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   const real = shas.filter((sha) => !/^0+$/.test(sha));
   if (real.length === 0) return found;
   try {
-    const out = await run(root, ["log", "--no-walk=unsorted", "--format=%H%x00%B%x1e", ...real]);
+    const out = await run(root, [
+      "log",
+      "--no-walk=unsorted",
+      "--format=%H%x00%B%x1e",
+      ...real,
+    ]);
     for (const record of out.split("\x1e")) {
       const [sha, body] = record.replace(/^\n+/, "").split("\0");
       const session = extractSessionTrailer(body);
@@ -632,35 +986,67 @@ async function sessionTrailers(run: GitRunner, root: string, shas: string[]): Pr
   return found;
 }
 
-export async function answerLocalRead(request: LocalReadRequest, run: GitRunner = runGit): Promise<LocalReadAnswer> {
+export async function answerLocalRead(
+  request: LocalReadRequest,
+  run: GitRunner = runGit,
+): Promise<LocalReadAnswer> {
   const { root, kind, params } = request;
   const ref = String(params.ref ?? request.ref);
-  const rowOf = (payload: unknown, extra: Partial<MirrorRow> = {}): LocalReadAnswer => ({
-    row: { kind, ref: request.ref, path: request.path, content: JSON.stringify(payload), ...extra },
+  const rowOf = (
+    payload: unknown,
+    extra: Partial<MirrorRow> = {},
+  ): LocalReadAnswer => ({
+    row: {
+      kind,
+      ref: request.ref,
+      path: request.path,
+      content: JSON.stringify(payload),
+      ...extra,
+    },
   });
   try {
     switch (kind) {
       case "blob": {
         const filePath = String(params.path ?? request.path);
         const spec = `${ref}:${filePath}`;
-        const size = Number(await tryGitLine(run, root, ["cat-file", "-s", spec]));
-        if (!Number.isFinite(size)) return { error: `${filePath} does not exist at ${ref}` };
+        const size = Number(
+          await tryGitLine(run, root, ["cat-file", "-s", spec]),
+        );
+        if (!Number.isFinite(size))
+          return { error: `${filePath} does not exist at ${ref}` };
         const sha = (await tryGitLine(run, root, ["rev-parse", spec])) ?? "";
-        if (size > MAX_BLOB_BYTES) return rowOf({ content: "", size, truncated: true, sha }, { sha, size, truncated: true });
+        if (size > MAX_BLOB_BYTES)
+          return rowOf(
+            { content: "", size, truncated: true, sha },
+            { sha, size, truncated: true },
+          );
         const bytes = await readBlobBytes(root, spec);
         return rowOf(
-          { content: bytes.toString("utf-8"), ...(IMAGE_RE.test(filePath) ? { base64: bytes.toString("base64") } : {}), size, truncated: false, sha },
+          {
+            content: bytes.toString("utf-8"),
+            ...(IMAGE_RE.test(filePath)
+              ? { base64: bytes.toString("base64") }
+              : {}),
+            size,
+            truncated: false,
+            sha,
+          },
           { sha, size, truncated: false },
         );
       }
       case "tree": {
         const entries = await lsTree(run, root, ref, !!params.recursive);
         if (!entries) return { error: `${ref} is not a tree` };
-        const sha = (await tryGitLine(run, root, ["rev-parse", `${ref}^{tree}`])) ?? ref;
+        const sha =
+          (await tryGitLine(run, root, ["rev-parse", `${ref}^{tree}`])) ?? ref;
         return rowOf({ sha, truncated: false, entries }, { sha });
       }
       case "log": {
-        const origin = await tryGitLine(run, root, ["remote", "get-url", "origin"]);
+        const origin = await tryGitLine(run, root, [
+          "remote",
+          "get-url",
+          "origin",
+        ]);
         const page = Number(params.page ?? 1);
         const result = await logPage(run, root, ref, htmlUrlFor(origin), {
           skip: (page - 1) * LOG_PAGE,
@@ -673,60 +1059,131 @@ export async function answerLocalRead(request: LocalReadRequest, run: GitRunner 
         return { row: await readmeRow(run, root, ref) };
       case "branches":
       case "branchdetails": {
-        const [plain, details] = await branchRows(run, root, await defaultBranchFor(run, root, await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", "HEAD"])));
+        const [plain, details] = await branchRows(
+          run,
+          root,
+          await defaultBranchFor(
+            run,
+            root,
+            await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", "HEAD"]),
+          ),
+        );
         return { row: kind === "branches" ? plain : details };
       }
       case "tags":
         return { row: await tagsRow(run, root) };
       case "meta": {
-        const origin = await tryGitLine(run, root, ["remote", "get-url", "origin"]);
-        const current = await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", "HEAD"]);
-        return { row: await metaRow(run, root, await defaultBranchFor(run, root, current), htmlUrlFor(origin)) };
+        const origin = await tryGitLine(run, root, [
+          "remote",
+          "get-url",
+          "origin",
+        ]);
+        const current = await tryGitLine(run, root, [
+          "rev-parse",
+          "--abbrev-ref",
+          "HEAD",
+        ]);
+        return {
+          row: await metaRow(
+            run,
+            root,
+            await defaultBranchFor(run, root, current),
+            htmlUrlFor(origin),
+          ),
+        };
       }
       case "lastcommits": {
         const dir = String(params.path ?? "");
         let paths: string[] = Array.isArray(params.paths) ? params.paths : [];
         if (!paths.length) {
-          const entries = (await lsTree(run, root, dir ? `${ref}:${dir}` : ref)) ?? [];
+          const entries =
+            (await lsTree(run, root, dir ? `${ref}:${dir}` : ref)) ?? [];
           paths = entries.map((e) => (dir ? `${dir}/${e.path}` : e.path));
         }
         const last: Record<string, unknown> = {};
         for (const entryPath of paths.slice(0, MAX_LAST_COMMIT_ENTRIES)) {
-          const line = await tryGitLine(run, root, ["log", "-1", "--format=%H%x00%s%x00%ct%x00%an", ref, "--", entryPath]);
+          const line = await tryGitLine(run, root, [
+            "log",
+            "-1",
+            "--format=%H%x00%s%x00%ct%x00%an",
+            ref,
+            "--",
+            entryPath,
+          ]);
           if (!line) continue;
           const [sha, subject, at, author_name] = line.split(NUL);
-          last[entryPath] = { sha, subject: subject ?? "", committed_at: Number(at) * 1000, author_name };
+          last[entryPath] = {
+            sha,
+            subject: subject ?? "",
+            committed_at: Number(at) * 1000,
+            author_name,
+          };
         }
         return rowOf(last);
       }
       case "blame":
-        return rowOf(await blameRanges(run, root, ref, String(params.path ?? request.path)));
+        return rowOf(
+          await blameRanges(
+            run,
+            root,
+            ref,
+            String(params.path ?? request.path),
+          ),
+        );
       case "compare": {
         const base = String(params.base ?? request.ref);
         const head = String(params.head ?? request.path);
-        const counts = await tryGitLine(run, root, ["rev-list", "--left-right", "--count", `${base}...${head}`]);
+        const counts = await tryGitLine(run, root, [
+          "rev-list",
+          "--left-right",
+          "--count",
+          `${base}...${head}`,
+        ]);
         const m = counts?.match(/^(\d+)\s+(\d+)$/);
         if (!m) return { error: `${base} or ${head} is not a known ref` };
         const behind_by = Number(m[1]);
         const ahead_by = Number(m[2]);
-        const log = (await tryGit(run, root, ["log", `-${MAX_COMPARE_COMMITS}`, "--reverse", "--format=%H%x00%an%x00%at%x00%s", `${base}..${head}`])) ?? "";
-        const commits = log.split("\n").filter(Boolean).map((line) => {
-          const [sha, author_name, at, subject] = line.split(NUL);
-          return { sha, message: subject ?? "", author_name: author_name ?? "", timestamp: Number(at) * 1000 };
-        });
+        const log =
+          (await tryGit(run, root, [
+            "log",
+            `-${MAX_COMPARE_COMMITS}`,
+            "--reverse",
+            "--format=%H%x00%an%x00%at%x00%s",
+            `${base}..${head}`,
+          ])) ?? "";
+        const commits = log
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            const [sha, author_name, at, subject] = line.split(NUL);
+            return {
+              sha,
+              message: subject ?? "",
+              author_name: author_name ?? "",
+              timestamp: Number(at) * 1000,
+            };
+          });
         const diff = await changedFiles(run, root, `${base}...${head}`, false);
         return rowOf({
           ahead_by,
           behind_by,
           total_commits: ahead_by,
-          status: ahead_by && behind_by ? "diverged" : ahead_by ? "ahead" : behind_by ? "behind" : "identical",
+          status:
+            ahead_by && behind_by
+              ? "diverged"
+              : ahead_by
+                ? "ahead"
+                : behind_by
+                  ? "behind"
+                  : "identical",
           commits,
           files: diff.files,
         });
       }
       case "commit": {
         const sha = request.ref;
-        if ((await tryGitLine(run, root, ["cat-file", "-t", sha])) !== "commit") return { error: `${sha} is not a commit in this checkout` };
+        if ((await tryGitLine(run, root, ["cat-file", "-t", sha])) !== "commit")
+          return { error: `${sha} is not a commit in this checkout` };
         return { commit: await changedFiles(run, root, sha, true) };
       }
       default:
@@ -734,6 +1191,8 @@ export async function answerLocalRead(request: LocalReadRequest, run: GitRunner 
     }
   } catch (e) {
     const err = e as { stderr?: string | Buffer; message?: string };
-    return { error: (err.stderr?.toString() || err.message || String(e)).slice(0, 300) };
+    return {
+      error: (err.stderr?.toString() || err.message || String(e)).slice(0, 300),
+    };
   }
 }

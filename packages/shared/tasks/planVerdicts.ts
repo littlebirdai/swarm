@@ -19,21 +19,43 @@ import {
   type WaitLabelOptions,
 } from "./graph";
 
-type RefRow = { _id?: unknown; short_id?: string | null; status?: string | null };
+type RefRow = {
+  _id?: unknown;
+  short_id?: string | null;
+  status?: string | null;
+};
 
 /** plans.get's `graph_outside`: the rows the plan's blockers and parents name
  *  outside it, and every ref it looked up. */
 export type GraphOutside = { tasks: RefRow[]; searched: string[] };
 
 /** Each task's verdict, and the lookup that decided it. */
-export function planVerdicts<T extends GraphTask & RefRow>(tasks: T[], outside?: GraphOutside | null): { statusOf: StatusOf; verdicts: Map<T, Readiness> } {
-  const statusOf = statusLookup([...tasks, ...(outside?.tasks ?? [])], outside?.searched);
+export function planVerdicts<T extends GraphTask & RefRow>(
+  tasks: T[],
+  outside?: GraphOutside | null,
+): { statusOf: StatusOf; verdicts: Map<T, Readiness> } {
+  const statusOf = statusLookup(
+    [...tasks, ...(outside?.tasks ?? [])],
+    outside?.searched,
+  );
   const parentStatusOf = parentStatusLookup(statusOf);
-  return { statusOf, verdicts: new Map(tasks.map((t) => [t, readinessOf(t, { statusOf, parentStatusOf, viewer: null })])) };
+  return {
+    statusOf,
+    verdicts: new Map(
+      tasks.map((t) => [
+        t,
+        readinessOf(t, { statusOf, parentStatusOf, viewer: null }),
+      ]),
+    ),
+  };
 }
 
 /** What still holds a plan task back, one label each ("ct-12", "PR #42
  *  merges"), against the lookup `planVerdicts` built. */
-export function openBlockerLabels(task: GraphTask, statusOf: StatusOf, words: WaitLabelOptions = {}): string[] {
+export function openBlockerLabels(
+  task: GraphTask,
+  statusOf: StatusOf,
+  words: WaitLabelOptions = {},
+): string[] {
   return blockersHoldingBack(task, statusOf).map((b) => blockerLabel(b, words));
 }

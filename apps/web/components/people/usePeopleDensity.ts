@@ -10,9 +10,13 @@ import { densityFor, type PeopleDensity } from "./peopleDensity";
  * before the observer's first callback: a strip window must never flash the
  * full header for one frame.
  */
-export function usePeopleDensity(ref: RefObject<HTMLElement | null>): PeopleDensity {
+export function usePeopleDensity(
+  ref: RefObject<HTMLElement | null>,
+): PeopleDensity {
   return useDerivedSize(ref, densityFor, () =>
-    typeof window === "undefined" ? "full" : densityFor(window.innerWidth, window.innerHeight),
+    typeof window === "undefined"
+      ? "full"
+      : densityFor(window.innerWidth, window.innerHeight),
   );
 }
 

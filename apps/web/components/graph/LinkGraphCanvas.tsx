@@ -22,8 +22,15 @@ import Graph from "graphology";
 import Sigma from "sigma";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { runGraphLayout, seedPosition, type LayoutInput } from "../../lib/vault/graphLayout";
-import type { LayoutRequest, LayoutResponse } from "../../lib/vault/graphLayout.worker";
+import {
+  runGraphLayout,
+  seedPosition,
+  type LayoutInput,
+} from "../../lib/vault/graphLayout";
+import type {
+  LayoutRequest,
+  LayoutResponse,
+} from "../../lib/vault/graphLayout.worker";
 import { cssVar, observeTheme, withAlpha } from "../../lib/solTheme";
 
 const MIN_NODE_SIZE = 2;
@@ -65,13 +72,17 @@ export interface LinkGraph {
  *  sessions, so the picture stays recognizable. */
 export function hashedTone(key: string): GraphTone {
   let hash = 5381;
-  for (let i = 0; i < key.length; i++) hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
+  for (let i = 0; i < key.length; i++)
+    hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
   return GRAPH_ACCENTS[Math.abs(hash) % GRAPH_ACCENTS.length][0];
 }
 
 /** The nodes a text filter keeps lit: the direct hits plus their neighbors,
  *  because a match is only meaningful with what it connects to. */
-export function matchWithNeighbors(graph: LinkGraph, hit: (node: LinkGraphNode) => boolean): { ids: Set<string>; hits: number } {
+export function matchWithNeighbors(
+  graph: LinkGraph,
+  hit: (node: LinkGraphNode) => boolean,
+): { ids: Set<string>; hits: number } {
   const direct = new Set(graph.nodes.filter(hit).map((n) => n.id));
   const ids = new Set(direct);
   for (const edge of graph.edges) {
@@ -96,7 +107,12 @@ function readPalette(): GraphPalette {
   const dim = cssVar(styles, "--sol-text-dim", "#657b83");
   const border = cssVar(styles, "--sol-border", "#93a1a1");
   return {
-    tones: new Map(GRAPH_ACCENTS.map(([token, fallback]) => [token, cssVar(styles, token, fallback)])),
+    tones: new Map(
+      GRAPH_ACCENTS.map(([token, fallback]) => [
+        token,
+        cssVar(styles, token, fallback),
+      ]),
+    ),
     ghost: withAlpha(dim, 0.5),
     dim: withAlpha(dim, 0.75),
     edge: withAlpha(border, 0.45),
@@ -134,7 +150,9 @@ interface DisplayState {
  * can't be constructed (strict CSP, or an environment without module workers).
  * Ticks from superseded runs are dropped by run id.
  */
-function useLayoutRunner(onTick: (positions: Float32Array, done: boolean) => void) {
+function useLayoutRunner(
+  onTick: (positions: Float32Array, done: boolean) => void,
+) {
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
@@ -171,9 +189,12 @@ function useLayoutRunner(onTick: (positions: Float32Array, done: boolean) => voi
         try {
           // The URL must stay a literal here: it's how Vite finds and bundles
           // the worker.
-          const worker = new Worker(new URL("../../lib/vault/graphLayout.worker.ts", import.meta.url), {
-            type: "module",
-          });
+          const worker = new Worker(
+            new URL("../../lib/vault/graphLayout.worker.ts", import.meta.url),
+            {
+              type: "module",
+            },
+          );
           worker.onmessage = (event: MessageEvent<LayoutResponse>) => {
             if (event.data.runId !== runIdRef.current) return;
             onTickRef.current(event.data.positions, event.data.done);
@@ -192,7 +213,13 @@ function useLayoutRunner(onTick: (positions: Float32Array, done: boolean) => voi
 
       const worker = workerRef.current;
       if (worker) {
-        const request: LayoutRequest = { type: "layout", runId, nodes, edges, positions };
+        const request: LayoutRequest = {
+          type: "layout",
+          runId,
+          nodes,
+          edges,
+          positions,
+        };
         worker.postMessage(request);
       } else {
         runLocally(runId);
@@ -214,12 +241,23 @@ export interface LinkGraphCanvasProps {
   onSettlingChange?: (settling: boolean) => void;
 }
 
-export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonce = 0, onSettlingChange }: LinkGraphCanvasProps) {
+export function LinkGraphCanvas({
+  graph,
+  matched,
+  active,
+  onNavigate,
+  layoutNonce = 0,
+  onSettlingChange,
+}: LinkGraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
   const paletteRef = useRef<GraphPalette | null>(null);
-  const displayRef = useRef<DisplayState>({ hovered: null, matched: null, active: null });
+  const displayRef = useRef<DisplayState>({
+    hovered: null,
+    matched: null,
+    active: null,
+  });
   /** Node ids in the order the layout indexes positions by. */
   const orderRef = useRef<string[]>([]);
   /** Nodes the user has dragged. Layout ticks leave these alone. */
@@ -277,13 +315,19 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
       nodeReducer: (node, data) => {
         const palette = paletteRef.current!;
         const { hovered, matched, active } = displayRef.current;
-        const res = { ...data } as typeof data & { forceLabel?: boolean; zIndex?: number };
+        const res = { ...data } as typeof data & {
+          forceLabel?: boolean;
+          zIndex?: number;
+        };
         // `hovered` can name a node that a mid-hover update removed:
         // graphology throws on areNeighbors with an unknown node, and a throw
         // inside a reducer takes down the whole render.
         const hoverLive = hovered !== null && g.hasNode(hovered);
-        const neighborOfHover = hoverLive && (node === hovered || g.areNeighbors(hovered!, node));
-        const dimmed = (hoverLive && !neighborOfHover) || (matched !== null && !matched.has(node));
+        const neighborOfHover =
+          hoverLive && (node === hovered || g.areNeighbors(hovered!, node));
+        const dimmed =
+          (hoverLive && !neighborOfHover) ||
+          (matched !== null && !matched.has(node));
 
         if (dimmed) {
           res.color = palette.faded;
@@ -306,11 +350,14 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
         const { hovered, matched } = displayRef.current;
         const res = { ...data };
         const [source, target] = g.extremities(edge);
-        const touchesHover = hovered !== null && (source === hovered || target === hovered);
+        const touchesHover =
+          hovered !== null && (source === hovered || target === hovered);
         const hoverLive = hovered !== null && g.hasNode(hovered);
-        const inMatch = matched === null || (matched.has(source) && matched.has(target));
+        const inMatch =
+          matched === null || (matched.has(source) && matched.has(target));
 
-        if ((hoverLive && !touchesHover) || !inMatch) res.color = palette.fadedEdge;
+        if ((hoverLive && !touchesHover) || !inMatch)
+          res.color = palette.fadedEdge;
         else if (touchesHover) res.color = palette.label;
         return res;
       },
@@ -374,7 +421,13 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
       const palette = paletteRef.current;
       renderer.setSetting("labelColor", { color: palette.label });
       renderer.setSetting("defaultEdgeColor", palette.edge);
-      g.forEachNode((node, attributes) => g.setNodeAttribute(node, "color", toneColor(attributes.tone as string, palette)));
+      g.forEachNode((node, attributes) =>
+        g.setNodeAttribute(
+          node,
+          "color",
+          toneColor(attributes.tone as string, palette),
+        ),
+      );
       g.forEachEdge((edge) => g.setEdgeAttribute(edge, "color", palette.edge));
       renderer.refresh();
     });
@@ -402,7 +455,10 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
     if (!g || !renderer) return;
 
     const palette = paletteRef.current ?? readPalette();
-    const maxDegree = graph.nodes.reduce((max, n) => Math.max(max, n.degree), 0);
+    const maxDegree = graph.nodes.reduce(
+      (max, n) => Math.max(max, n.degree),
+      0,
+    );
     const reseed = lastNonceRef.current !== layoutNonce;
     lastNonceRef.current = layoutNonce;
 
@@ -410,7 +466,12 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
     // re-settles from where the picture already is. A reseed deliberately
     // doesn't: the point of it is to throw the arrangement away.
     const previous = new Map<string, { x: number; y: number }>();
-    g.forEachNode((node, attributes) => previous.set(node, { x: attributes.x as number, y: attributes.y as number }));
+    g.forEachNode((node, attributes) =>
+      previous.set(node, {
+        x: attributes.x as number,
+        y: attributes.y as number,
+      }),
+    );
 
     g.clear();
     renderer.setCustomBBox(null);
@@ -419,7 +480,9 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
     graph.nodes.forEach((node, i) => {
       // New nodes start where the layout will seed them, so the first frame
       // is a ring rather than a pile at the origin.
-      const at = (reseed ? undefined : previous.get(node.id)) ?? seedPosition(i, graph.nodes.length);
+      const at =
+        (reseed ? undefined : previous.get(node.id)) ??
+        seedPosition(i, graph.nodes.length);
       g.addNode(node.id, {
         x: at.x,
         y: at.y,
@@ -431,7 +494,11 @@ export function LinkGraphCanvas({ graph, matched, active, onNavigate, layoutNonc
       });
     });
     for (const edge of graph.edges) {
-      if (g.hasNode(edge.source) && g.hasNode(edge.target) && !g.hasEdge(edge.source, edge.target)) {
+      if (
+        g.hasNode(edge.source) &&
+        g.hasNode(edge.target) &&
+        !g.hasEdge(edge.source, edge.target)
+      ) {
         g.addEdge(edge.source, edge.target, { color: palette.edge, size: 0.6 });
       }
     }

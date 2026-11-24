@@ -6,7 +6,13 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { verifyApiToken } from "../apiTokens";
 import { requireAccessibleDoc, resolveSessionConversation } from "./access";
-import { ARTIFACT_SPECS, isArtifactDocType, type ArtifactType, presenceColor, PRESENCE_TTL_MS } from "@codecast/shared/artifacts";
+import {
+  ARTIFACT_SPECS,
+  isArtifactDocType,
+  type ArtifactType,
+  presenceColor,
+  PRESENCE_TTL_MS,
+} from "@codecast/shared/artifacts";
 
 export type Caller = {
   userId: Id<"users">;
@@ -18,10 +24,18 @@ export type Caller = {
   conversation?: Doc<"conversations"> | null;
 };
 
-export const vCaller = { api_token: v.optional(v.string()), session_id: v.optional(v.string()) };
+export const vCaller = {
+  api_token: v.optional(v.string()),
+  session_id: v.optional(v.string()),
+};
 
 export function userName(user: any): string {
-  return user?.name || user?.github_username || user?.email?.split("@")[0] || "Someone";
+  return (
+    user?.name ||
+    user?.github_username ||
+    user?.email?.split("@")[0] ||
+    "Someone"
+  );
 }
 
 /**
@@ -29,18 +43,32 @@ export function userName(user: any): string {
  * in acts as that session (its own name, color and cursor); the session must
  * be one the token's account runs.
  */
-export async function resolveCaller(ctx: any, args: { api_token?: string; session_id?: string }): Promise<Caller> {
+export async function resolveCaller(
+  ctx: any,
+  args: { api_token?: string; session_id?: string },
+): Promise<Caller> {
   let userId: Id<"users"> | null = null;
   if (args.api_token) {
     const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth) throw new ConvexError({ code: "UNAUTHENTICATED", message: "Unauthorized" });
+    if (!auth)
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Unauthorized",
+      });
     userId = auth.userId as Id<"users">;
   } else {
     userId = await getAuthUserId(ctx);
   }
-  if (!userId) throw new ConvexError({ code: "UNAUTHENTICATED", message: "Not authenticated" });
+  if (!userId)
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Not authenticated",
+    });
   const user = await ctx.db.get(userId);
-  const conversation = args.api_token && args.session_id ? await resolveSessionConversation(ctx, userId, args.session_id) : null;
+  const conversation =
+    args.api_token && args.session_id
+      ? await resolveSessionConversation(ctx, userId, args.session_id)
+      : null;
   if (conversation && String(conversation.user_id) === String(userId)) {
     return {
       userId,
@@ -50,14 +78,30 @@ export async function resolveCaller(ctx: any, args: { api_token?: string; sessio
       conversation,
     };
   }
-  return { userId, actor: `u:${userId}`, name: userName(user), kind: "person", image: user?.image || user?.github_avatar_url || undefined };
+  return {
+    userId,
+    actor: `u:${userId}`,
+    name: userName(user),
+    kind: "person",
+    image: user?.image || user?.github_avatar_url || undefined,
+  };
 }
 
-export async function requireLiveDoc(ctx: any, userId: Id<"users">, docId: Id<"docs">, opts: { archived?: "allow" } = {}): Promise<Doc<"docs">> {
+export async function requireLiveDoc(
+  ctx: any,
+  userId: Id<"users">,
+  docId: Id<"docs">,
+  opts: { archived?: "allow" } = {},
+): Promise<Doc<"docs">> {
   const doc = await requireAccessibleDoc(ctx, userId, docId);
-  if (!isArtifactDocType(doc.doc_type)) throw new ConvexError(`${doc.title} is a ${doc.doc_type}, not a board, sheet or dashboard`);
+  if (!isArtifactDocType(doc.doc_type))
+    throw new ConvexError(
+      `${doc.title} is a ${doc.doc_type}, not a board, sheet or dashboard`,
+    );
   if (doc.archived_at && opts.archived !== "allow") {
-    throw new ConvexError(`This ${doc.doc_type} is archived, so it is read only. \`cast ${ARTIFACT_SPECS[doc.doc_type as ArtifactType].cli} unarchive ${doc._id}\` brings it back.`);
+    throw new ConvexError(
+      `This ${doc.doc_type} is archived, so it is read only. \`cast ${ARTIFACT_SPECS[doc.doc_type as ArtifactType].cli} unarchive ${doc._id}\` brings it back.`,
+    );
   }
   return doc;
 }
@@ -70,26 +114,42 @@ export async function requireLiveDoc(ctx: any, userId: Id<"users">, docId: Id<"d
 export function refuseArtifactBodyWrite(doc: Doc<"docs">): void {
   if (!isArtifactDocType(doc.doc_type)) return;
   const cli = ARTIFACT_SPECS[doc.doc_type].cli;
-  throw new ConvexError(`This ${doc.doc_type}'s content is its elements, not text: read it with \`cast ${cli} read ${doc._id}\` and change it with \`cast ${cli} apply\` or the \`cast ${cli}\` verbs. A new title goes through \`cast ${cli} rename\`.`);
+  throw new ConvexError(
+    `This ${doc.doc_type}'s content is its elements, not text: read it with \`cast ${cli} read ${doc._id}\` and change it with \`cast ${cli} apply\` or the \`cast ${cli}\` verbs. A new title goes through \`cast ${cli} rename\`.`,
+  );
 }
-
 
 /** Whether this user may change an artifact: everyone who can open it, unless its owner limited editing to editors. */
-export function mayEditLive(doc: Doc<"docs">, head: Doc<"live_heads"> | null, userId: Id<"users">): boolean {
+export function mayEditLive(
+  doc: Doc<"docs">,
+  head: Doc<"live_heads"> | null,
+  userId: Id<"users">,
+): boolean {
   if (head?.edit !== "owners") return true;
-  return String(doc.user_id) === String(userId) || (head.editors ?? []).some((e) => String(e) === String(userId));
+  return (
+    String(doc.user_id) === String(userId) ||
+    (head.editors ?? []).some((e) => String(e) === String(userId))
+  );
 }
 
-export const VIEW_ONLY_MESSAGE = "You can view and comment on this artifact; its owner limited who can edit it";
+export const VIEW_ONLY_MESSAGE =
+  "You can view and comment on this artifact; its owner limited who can edit it";
 
 /**
  * Refuse a write to a board, sheet or dashboard (its elements, or its doc
  * row: title, type, labels, archive) from someone its owner did not let edit.
  * Any other doc passes.
  */
-export async function requireArtifactEditor(ctx: any, doc: Doc<"docs">, userId: Id<"users">): Promise<void> {
+export async function requireArtifactEditor(
+  ctx: any,
+  doc: Doc<"docs">,
+  userId: Id<"users">,
+): Promise<void> {
   if (!isArtifactDocType(doc.doc_type)) return;
-  const head = await ctx.db.query("live_heads").withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id)).first();
+  const head = await ctx.db
+    .query("live_heads")
+    .withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id))
+    .first();
   if (!mayEditLive(doc, head, userId)) throw new ConvexError(VIEW_ONLY_MESSAGE);
 }
 
@@ -100,18 +160,25 @@ export async function upsertPresence(
   caller: Caller,
   actor: string,
   at: { position?: any; selection?: string[]; status?: string },
-) : Promise<boolean> {
+): Promise<boolean> {
   const existing = await ctx.db
     .query("live_presence")
-    .withIndex("by_doc_actor", (q: any) => q.eq("doc_id", docId).eq("actor", actor))
+    .withIndex("by_doc_actor", (q: any) =>
+      q.eq("doc_id", docId).eq("actor", actor),
+    )
     .first();
   const fields = {
     kind: caller.kind,
     user_id: caller.userId,
     name: caller.name,
-    color: presenceColor(caller.kind === "agent" ? caller.actor : `u:${caller.userId}`, caller.kind),
+    color: presenceColor(
+      caller.kind === "agent" ? caller.actor : `u:${caller.userId}`,
+      caller.kind,
+    ),
     image: caller.image,
-    session_id: caller.conversation?._id ? String(caller.conversation._id) : undefined,
+    session_id: caller.conversation?._id
+      ? String(caller.conversation._id)
+      : undefined,
     session_short_id: (caller.conversation as any)?.short_id ?? undefined,
     position: at.position,
     selection: at.selection?.slice(0, 200),
@@ -126,7 +193,11 @@ export async function upsertPresence(
     // A new arrival sweeps out whoever left without saying so (a closed tab, a finished session).
     const stale = await ctx.db
       .query("live_presence")
-      .withIndex("by_doc_updated", (q: any) => q.eq("doc_id", docId).lt("updated_at", Date.now() - PRESENCE_TTL_MS.agent))
+      .withIndex("by_doc_updated", (q: any) =>
+        q
+          .eq("doc_id", docId)
+          .lt("updated_at", Date.now() - PRESENCE_TTL_MS.agent),
+      )
       .take(50);
     for (const r of stale) await ctx.db.delete(r._id);
     return true;

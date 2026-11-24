@@ -16,11 +16,17 @@ export const append = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
 
-    const plan_id = await accessiblePlanIdForShortId(ctx, auth.userId, args.plan_short_id);
+    const plan_id = await accessiblePlanIdForShortId(
+      ctx,
+      auth.userId,
+      args.plan_short_id,
+    );
 
     const existing = await ctx.db
       .query("progress_events")
-      .withIndex("by_plan_short_id", (q) => q.eq("plan_short_id", args.plan_short_id))
+      .withIndex("by_plan_short_id", (q) =>
+        q.eq("plan_short_id", args.plan_short_id),
+      )
       .order("desc")
       .first();
 
@@ -54,15 +60,18 @@ export const replay = query({
 
     let q = ctx.db
       .query("progress_events")
-      .withIndex("by_plan_short_id", (q) => q.eq("plan_short_id", args.plan_short_id));
+      .withIndex("by_plan_short_id", (q) =>
+        q.eq("plan_short_id", args.plan_short_id),
+      );
 
     const events = await q.collect();
 
-    const filtered = args.from_sequence !== undefined
-      ? events.filter(e => e.sequence >= args.from_sequence!)
-      : events;
+    const filtered =
+      args.from_sequence !== undefined
+        ? events.filter((e) => e.sequence >= args.from_sequence!)
+        : events;
 
-    return (args.limit ? filtered.slice(0, args.limit) : filtered);
+    return args.limit ? filtered.slice(0, args.limit) : filtered;
   },
 });
 
@@ -78,7 +87,9 @@ export const latest = query({
 
     const events = await ctx.db
       .query("progress_events")
-      .withIndex("by_plan_short_id", (q) => q.eq("plan_short_id", args.plan_short_id))
+      .withIndex("by_plan_short_id", (q) =>
+        q.eq("plan_short_id", args.plan_short_id),
+      )
       .order("desc")
       .take(1);
 
@@ -86,7 +97,9 @@ export const latest = query({
 
     const all = await ctx.db
       .query("progress_events")
-      .withIndex("by_plan_short_id", (q) => q.eq("plan_short_id", args.plan_short_id))
+      .withIndex("by_plan_short_id", (q) =>
+        q.eq("plan_short_id", args.plan_short_id),
+      )
       .collect();
 
     const byType: Record<string, number> = {};

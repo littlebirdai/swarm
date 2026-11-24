@@ -39,12 +39,17 @@ import { SHIPPED } from "./shipped.mjs";
 const extDir = path.dirname(new URL(import.meta.url).pathname);
 const manifestPath = path.join(extDir, "manifest.json");
 
-
 const API = "https://chromewebstore.googleapis.com";
 const SCOPE = "https://www.googleapis.com/auth/chromewebstore";
 
 function parseArgs(argv) {
-  const o = { bump: "patch", version: null, upload: false, publish: false, dryRun: false };
+  const o = {
+    bump: "patch",
+    version: null,
+    upload: false,
+    publish: false,
+    dryRun: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--bump") o.bump = argv[++i];
@@ -54,10 +59,16 @@ function parseArgs(argv) {
     else if (a === "--dry-run") o.dryRun = true;
     else throw new Error(`unknown argument ${a}`);
   }
-  if (!["patch", "minor", "major"].includes(o.bump)) throw new Error(`--bump takes patch, minor or major, not ${o.bump}`);
-  if (o.version && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(o.version)) throw new Error(`--version must be X.Y.Z, not ${o.version}`);
+  if (!["patch", "minor", "major"].includes(o.bump))
+    throw new Error(`--bump takes patch, minor or major, not ${o.bump}`);
+  if (
+    o.version &&
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(o.version)
+  )
+    throw new Error(`--version must be X.Y.Z, not ${o.version}`);
   if (o.publish && !o.upload) throw new Error("--publish needs --upload");
-  if (o.dryRun && o.upload) throw new Error("--dry-run uploads nothing; drop --upload");
+  if (o.dryRun && o.upload)
+    throw new Error("--dry-run uploads nothing; drop --upload");
   return o;
 }
 
@@ -76,7 +87,10 @@ export function storeManifest(manifest, version) {
   const { key: _key, ...rest } = manifest;
   for (const [field, max] of Object.entries(STORE_LIMITS)) {
     const len = String(rest[field] ?? "").length;
-    if (len > max) throw new Error(`manifest ${field} is ${len} characters; the Chrome Web Store allows ${max}`);
+    if (len > max)
+      throw new Error(
+        `manifest ${field} is ${len} characters; the Chrome Web Store allows ${max}`,
+      );
   }
   return { ...rest, version };
 }
@@ -90,19 +104,28 @@ export function buildZip(version, outDir) {
     if (!fs.existsSync(src)) throw new Error(`shipped file missing: ${name}`);
     fs.cpSync(src, path.join(stage, name), { recursive: true });
   }
-  fs.writeFileSync(path.join(stage, "manifest.json"), JSON.stringify(storeManifest(manifest, version), null, 2) + "\n");
+  fs.writeFileSync(
+    path.join(stage, "manifest.json"),
+    JSON.stringify(storeManifest(manifest, version), null, 2) + "\n",
+  );
   fs.mkdirSync(outDir, { recursive: true });
   const zipPath = path.join(outDir, `codecast-extension-${version}.zip`);
   fs.rmSync(zipPath, { force: true });
   // -X drops the extra file attributes; -D drops directory entries; both keep the archive reproducible across hosts.
-  execFileSync("zip", ["-q", "-r", "-X", "-D", zipPath, "."], { cwd: stage, stdio: "inherit" });
+  execFileSync("zip", ["-q", "-r", "-X", "-D", zipPath, "."], {
+    cwd: stage,
+    stdio: "inherit",
+  });
   fs.rmSync(stage, { recursive: true, force: true });
   return zipPath;
 }
 
 function requireEnv(names) {
   const missing = names.filter((n) => !process.env[n]);
-  if (missing.length) throw new Error(`missing store credentials in the environment: ${missing.join(", ")}`);
+  if (missing.length)
+    throw new Error(
+      `missing store credentials in the environment: ${missing.join(", ")}`,
+    );
   return Object.fromEntries(names.map((n) => [n, process.env[n]]));
 }
 
@@ -118,15 +141,24 @@ async function accessToken(env) {
     }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.access_token) throw new Error(`token refresh failed (${res.status}): ${JSON.stringify(body).slice(0, 300)}`);
-  if (body.scope && !body.scope.includes(SCOPE)) throw new Error(`the refresh token lacks the ${SCOPE} scope (has: ${body.scope})`);
+  if (!res.ok || !body.access_token)
+    throw new Error(
+      `token refresh failed (${res.status}): ${JSON.stringify(body).slice(0, 300)}`,
+    );
+  if (body.scope && !body.scope.includes(SCOPE))
+    throw new Error(
+      `the refresh token lacks the ${SCOPE} scope (has: ${body.scope})`,
+    );
   return body.access_token;
 }
 
 async function storeCall(token, method, url, body, contentType) {
   const res = await fetch(url, {
     method,
-    headers: { authorization: `Bearer ${token}`, ...(contentType ? { "content-type": contentType } : {}) },
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(contentType ? { "content-type": contentType } : {}),
+    },
     body,
   });
   const text = await res.text();
@@ -136,21 +168,39 @@ async function storeCall(token, method, url, body, contentType) {
   } catch {
     json = { raw: text.slice(0, 500) };
   }
-  if (!res.ok) throw new Error(`${method} ${url} → ${res.status}: ${JSON.stringify(json).slice(0, 500)}`);
+  if (!res.ok)
+    throw new Error(
+      `${method} ${url} → ${res.status}: ${JSON.stringify(json).slice(0, 500)}`,
+    );
   return json;
 }
 
 /** Upload the zip as a draft and wait for the store to accept it. Returns what publish() needs. */
 async function upload(zipPath, version) {
-  const env = requireEnv(["CWS_CLIENT_ID", "CWS_CLIENT_SECRET", "CWS_REFRESH_TOKEN", "CWS_PUBLISHER_ID", "CWS_ITEM_ID"]);
+  const env = requireEnv([
+    "CWS_CLIENT_ID",
+    "CWS_CLIENT_SECRET",
+    "CWS_REFRESH_TOKEN",
+    "CWS_PUBLISHER_ID",
+    "CWS_ITEM_ID",
+  ]);
   const token = await accessToken(env);
   const item = `${API}/v2/publishers/${env.CWS_PUBLISHER_ID}/items/${env.CWS_ITEM_ID}`;
-  const uploaded = await storeCall(token, "POST", `${API}/upload/v2/publishers/${env.CWS_PUBLISHER_ID}/items/${env.CWS_ITEM_ID}:upload`, fs.readFileSync(zipPath), "application/zip");
+  const uploaded = await storeCall(
+    token,
+    "POST",
+    `${API}/upload/v2/publishers/${env.CWS_PUBLISHER_ID}/items/${env.CWS_ITEM_ID}:upload`,
+    fs.readFileSync(zipPath),
+    "application/zip",
+  );
   console.log(`uploaded: ${JSON.stringify(uploaded)}`);
   // A large package is processed after the request returns; wait for the store to accept it before publishing.
   const deadline = Date.now() + 5 * 60_000;
   let status = uploaded;
-  while (JSON.stringify(status).includes("IN_PROGRESS") && Date.now() < deadline) {
+  while (
+    JSON.stringify(status).includes("IN_PROGRESS") &&
+    Date.now() < deadline
+  ) {
     await new Promise((r) => setTimeout(r, 5000));
     status = await storeCall(token, "GET", `${item}:fetchStatus`);
     console.log(`status: ${JSON.stringify(status)}`);
@@ -161,7 +211,10 @@ async function upload(zipPath, version) {
         `if the package was accepted, submit it for review there and set manifest.json's version to ${version} by hand; if it was rejected, run this command again`,
     );
   }
-  if (/FAIL|ERROR|INVALID/.test(JSON.stringify(status).toUpperCase())) throw new Error(`the store rejected the package: ${JSON.stringify(status)}`);
+  if (/FAIL|ERROR|INVALID/.test(JSON.stringify(status).toUpperCase()))
+    throw new Error(
+      `the store rejected the package: ${JSON.stringify(status)}`,
+    );
   return { token, item };
 }
 
@@ -172,7 +225,11 @@ async function publish({ token, item }) {
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
-  if (o.upload) execFileSync("bash", ["scripts/lib/fork-guard.sh"], { cwd: path.join(extDir, "../.."), stdio: "inherit" });
+  if (o.upload)
+    execFileSync("bash", ["scripts/lib/fork-guard.sh"], {
+      cwd: path.join(extDir, "../.."),
+      stdio: "inherit",
+    });
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
   const version = o.version ?? nextVersion(manifest.version, o.bump);
   const zipPath = buildZip(version, path.join(extDir, "dist"));
@@ -189,17 +246,24 @@ async function main() {
   // the store has this one (or, without --upload, once the zip is built), and
   // before the publish call: a failed submit must not lose the bump.
   const draft = o.upload ? await upload(zipPath, version) : null;
-  fs.writeFileSync(manifestPath, JSON.stringify({ ...manifest, version }, null, 2) + "\n");
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({ ...manifest, version }, null, 2) + "\n",
+  );
   console.log(`manifest.json now says ${version}; commit it with the release`);
   if (!draft) return;
   if (!o.publish) {
-    console.log("draft uploaded; submit it for review from the developer dashboard");
+    console.log(
+      "draft uploaded; submit it for review from the developer dashboard",
+    );
     return;
   }
   try {
     await publish(draft);
   } catch (err) {
-    throw new Error(`${err.message}; the store holds ${version} as a draft and manifest.json says ${version}: commit the manifest, then submit the draft for review from the developer dashboard (do not upload again)`);
+    throw new Error(
+      `${err.message}; the store holds ${version} as a draft and manifest.json says ${version}: commit the manifest, then submit the draft for review from the developer dashboard (do not upload again)`,
+    );
   }
 }
 

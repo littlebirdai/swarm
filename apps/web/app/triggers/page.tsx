@@ -24,15 +24,33 @@ import { useLaneMailAbilities } from "../../components/simple/useLaneMail";
 import { serverErrorText } from "../../lib/errorCause";
 import { copyToClipboard } from "../../lib/utils";
 import { ShortcutTooltip } from "../../components/KeyboardShortcutsHelp";
-import { isTriggerFailing, isTriggerTerminal, taskDisplayTitle, groupTriggerRowsByHome, type TaskRow, type TriggerRow, type TriggerHomeGroup } from "../../components/triggerTasks";
+import {
+  isTriggerFailing,
+  isTriggerTerminal,
+  taskDisplayTitle,
+  groupTriggerRowsByHome,
+  type TaskRow,
+  type TriggerRow,
+  type TriggerHomeGroup,
+} from "../../components/triggerTasks";
 import { TriggerRowItem, TriggerHomeHeader } from "../../components/TriggerRow";
 import { HorizonRail } from "../../components/triggers/HorizonRail";
-import { EMPTY_FILTERS, filtersActive, matchesFilters, type Filters } from "./triggerFilters";
+import {
+  EMPTY_FILTERS,
+  filtersActive,
+  matchesFilters,
+  type Filters,
+} from "./triggerFilters";
 import { useTriggers, fetchTriggerRuns } from "../../hooks/useSyncTriggers";
 import { openRunInStore } from "../../components/TriggerRunHistory";
 import { SelectBox } from "../../components/ui/select-box";
 import { SegmentedToggle } from "../../components/SegmentedToggle";
-import { useInboxStore, useTrackedStore, filterInboxScopeFromState, type TriggerEdit } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  filterInboxScopeFromState,
+  type TriggerEdit,
+} from "../../store/inboxStore";
 import { runValuesOf, triggerFormFields } from "./triggerFormFields";
 import { gestureToast } from "../../store/undoStack";
 import { isTriggerEditable } from "../../lib/triggerEditable";
@@ -60,13 +78,22 @@ import { Button } from "../../components/ui/button";
 import { SwitchReview } from "../../components/consequential/ConsequentialSwitch";
 import { useRunCost } from "../../components/consequential/useRunCost";
 import { newTriggerLedger } from "../../components/work/startLedgers";
-import { modernButton, modernChip, modernField, modernLook, modernToneOf } from "../../components/ui/modernLook";
+import {
+  modernButton,
+  modernChip,
+  modernField,
+  modernLook,
+  modernToneOf,
+} from "../../components/ui/modernLook";
 const api = _api as any;
 
 // ── Time helpers (parseDuration is a parity port of `cast trigger add --in/--every`) ──
 
 function parseDuration(input: string): number | undefined {
-  const match = input.toLowerCase().trim().match(/^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day)s?$/);
+  const match = input
+    .toLowerCase()
+    .trim()
+    .match(/^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day)s?$/);
   if (!match) return undefined;
   const num = parseInt(match[1]);
   const unit = match[2][0];
@@ -76,8 +103,6 @@ function parseDuration(input: string): number | undefined {
   if (unit === "d") return num * 24 * 60 * 60 * 1000;
   return undefined;
 }
-
-
 
 function projectName(path?: string): string {
   if (!path) return "";
@@ -95,23 +120,26 @@ function projectName(path?: string): string {
 function useOpenLatestRun() {
   const router = useRouter();
   const convex = useConvex();
-  return useCallback(async (task: any) => {
-    try {
-      const runs = await fetchTriggerRuns(convex, task._id);
-      const run = runs?.[0]; // newest first — the dot is the latest run
-      if (run) {
-        openRunInStore(run);
-        router.push(`/inbox?s=${run._id}`);
-        return;
+  return useCallback(
+    async (task: any) => {
+      try {
+        const runs = await fetchTriggerRuns(convex, task._id);
+        const run = runs?.[0]; // newest first — the dot is the latest run
+        if (run) {
+          openRunInStore(run);
+          router.push(`/inbox?s=${run._id}`);
+          return;
+        }
+      } catch {
+        // fall through to the coarse target
       }
-    } catch {
-      // fall through to the coarse target
-    }
-    if (task.last_run_conversation_id) {
-      useInboxStore.getState().requestNavigate(task.last_run_conversation_id);
-      router.push(`/inbox?s=${task.last_run_conversation_id}`);
-    }
-  }, [convex, router]);
+      if (task.last_run_conversation_id) {
+        useInboxStore.getState().requestNavigate(task.last_run_conversation_id);
+        router.push(`/inbox?s=${task.last_run_conversation_id}`);
+      }
+    },
+    [convex, router],
+  );
 }
 
 // The rail's past dots open the latest run through the page's navigation.
@@ -139,7 +167,12 @@ function deriveInitial(t: any | undefined) {
     // does the task. Read-only is the marked exception (the checkbox below).
     // Agent-created schedules (cast trigger add) still default to propose —
     // their prompts were never reviewed by a person.
-    return { ...runValuesOf(undefined), kind: "in" as SchedKind, duration: "30m", eventKey: "pr_comment" };
+    return {
+      ...runValuesOf(undefined),
+      kind: "in" as SchedKind,
+      duration: "30m",
+      eventKey: "pr_comment",
+    };
   }
   let kind: SchedKind = "in";
   let duration = "30m";
@@ -164,34 +197,59 @@ function deriveInitial(t: any | undefined) {
 const LOCKED_TITLE = "Only its owner can change this";
 
 /** The form's example once the person's mail is connected. */
-const MAIL_ROUTINE_PLACEHOLDER = 'What should the assistant do? e.g. "Summarize my unread mail and flag anything urgent"';
+const MAIL_ROUTINE_PLACEHOLDER =
+  'What should the assistant do? e.g. "Summarize my unread mail and flag anything urgent"';
 
 // A labeled row on a hairline: label in a fixed column, the control bare
 // beside it. The rule under each row is the control's line; it turns cyan
 // while the row holds focus. Same grammar as the settings kit's rows.
 // Module scope on purpose: declared inside TriggerForm it was a new component
 // type each render, so every field remounted and lost focus.
-function FormRow({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function FormRow({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`flex items-start gap-4 border-b border-sol-border/40 focus-within:border-sol-cyan/70 transition-colors ${className}`}>
-      <span className="w-14 flex-shrink-0 pt-2 select-none text-mark uppercase tracking-widest text-sol-text-dim">{label}</span>
-      <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-1">{children}</div>
+    <div
+      className={`flex items-start gap-4 border-b border-sol-border/40 focus-within:border-sol-cyan/70 transition-colors ${className}`}
+    >
+      <span className="w-14 flex-shrink-0 pt-2 select-none text-mark uppercase tracking-widest text-sol-text-dim">
+        {label}
+      </span>
+      <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {children}
+      </div>
     </div>
   );
 }
 
-export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
+export function TriggerForm({
+  onClose,
+  editTask,
+  seedTask,
+  embedded,
+}: {
   onClose: () => void;
   editTask?: any;
   seedTask?: any;
   embedded?: boolean;
 }) {
   const isEdit = !!editTask;
-  const init = useMemo(() => deriveInitial(editTask ?? seedTask), [editTask, seedTask]);
+  const init = useMemo(
+    () => deriveInitial(editTask ?? seedTask),
+    [editTask, seedTask],
+  );
   // What a trigger runs (prompt, agent, read-only, checkout) is its owner's to
   // change; a teammate may still retitle and reschedule it.
-  const viewerId = useTrackedStore([(s) => s.currentUser?._id]).currentUser?._id;
-  const runLocked = isEdit && !!viewerId && String(editTask.user_id) !== String(viewerId);
+  const viewerId = useTrackedStore([(s) => s.currentUser?._id]).currentUser
+    ?._id;
+  const runLocked =
+    isEdit && !!viewerId && String(editTask.user_id) !== String(viewerId);
   const create = useMutation(api.agentTasks.webCreate);
   const [prompt, setPrompt] = useState(init.prompt);
   const [title, setTitle] = useState(init.title);
@@ -221,18 +279,24 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
     const seen = new Map<string, number>();
     // Scoped enumeration: cached sessions from other scopes/teams must not
     // leak their project paths into this workspace's suggestions.
-    for (const s of Object.values(filterInboxScopeFromState(useInboxStore.getState()))) {
+    for (const s of Object.values(
+      filterInboxScopeFromState(useInboxStore.getState()),
+    )) {
       const p = (s as any)?.project_path;
       if (!p) continue;
       const u = (s as any)?.updated_at ?? 0;
       if ((seen.get(p) ?? 0) < u) seen.set(p, u);
     }
-    return [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p).slice(0, 12);
+    return [...seen.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([p]) => p)
+      .slice(0, 12);
   });
 
   const parsed = parseDuration(duration);
   const needsDuration = kind === "in" || kind === "every";
-  const valid = prompt.trim().length > 0 && (!needsDuration || parsed !== undefined);
+  const valid =
+    prompt.trim().length > 0 && (!needsDuration || parsed !== undefined);
 
   const preview = !needsDuration
     ? null
@@ -252,12 +316,19 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
     if (!valid || submitting) return;
     setSubmitting(true);
     try {
-      const args: TriggerEdit & Record<string, any> = triggerFormFields(init, { prompt, title, mode, agent, project }, { isEdit, hosted: hostedRoutine });
+      const args: TriggerEdit & Record<string, any> = triggerFormFields(
+        init,
+        { prompt, title, mode, agent, project },
+        { isEdit, hosted: hostedRoutine },
+      );
       if (kind === "on") {
         args.schedule_type = "event";
         // Keeps a --source or --repo the trigger was armed with; the form
         // offers only the event, and saving must not widen it.
-        args.event_filter = eventFilterForSave(eventKey, (editTask ?? seedTask)?.event_filter);
+        args.event_filter = eventFilterForSave(
+          eventKey,
+          (editTask ?? seedTask)?.event_filter,
+        );
       } else if (kind === "every") {
         args.schedule_type = "recurring";
         args.interval_ms = parsed;
@@ -269,18 +340,27 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
       if (isEdit) {
         // Through the store: the edit paints at once and is one undo.
         const state = useInboxStore.getState();
-        const row = state.agentTasks[editTask._id] ?? state.foreignTriggers[editTask._id];
-        if (!isTriggerEditable((row ?? editTask).status)) { toast.error("Can't edit — it may be running or finished"); return; }
+        const row =
+          state.agentTasks[editTask._id] ?? state.foreignTriggers[editTask._id];
+        if (!isTriggerEditable((row ?? editTask).status)) {
+          toast.error("Can't edit — it may be running or finished");
+          return;
+        }
         gestureToast("Saved", () => state.editTrigger(editTask._id, args));
       } else {
         await create(args);
-        toast.success(kind === "now" ? "Queued, runs within a minute" : "Trigger set");
+        toast.success(
+          kind === "now" ? "Queued, runs within a minute" : "Trigger set",
+        );
       }
       onClose();
     } catch (e) {
       // A hosted routine's refusal (the plan's limits) is the sentence to show.
       const reason = hostedRoutine ? serverErrorText(e) : "";
-      toast.error(isEdit ? "Failed to save" : "Failed to set trigger", reason ? { description: reason } : undefined);
+      toast.error(
+        isEdit ? "Failed to save" : "Failed to set trigger",
+        reason ? { description: reason } : undefined,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -291,10 +371,31 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
   // A hosted routine asks what to do with what it finds as a positive choice:
   // report back, or act (approvals still guard every send and change).
   const hostedModeChoice = (
-    <div role="radiogroup" aria-label="What to do" className="flex flex-col gap-1.5 py-2">
-      {([["propose", "Just tell me what you find"], ["apply", "Go ahead and do it (I'll still ask before sending or changing anything)"]] as const).map(([value, label]) => (
-        <label key={value} className="inline-flex items-start gap-2 text-[13px] text-sol-text cursor-pointer select-none">
-          <input type="radio" name="routine-mode" checked={mode === value} onChange={() => setMode(value)} className="mt-[3px] accent-sol-orange" />
+    <div
+      role="radiogroup"
+      aria-label="What to do"
+      className="flex flex-col gap-1.5 py-2"
+    >
+      {(
+        [
+          ["propose", "Just tell me what you find"],
+          [
+            "apply",
+            "Go ahead and do it (I'll still ask before sending or changing anything)",
+          ],
+        ] as const
+      ).map(([value, label]) => (
+        <label
+          key={value}
+          className="inline-flex items-start gap-2 text-[13px] text-sol-text cursor-pointer select-none"
+        >
+          <input
+            type="radio"
+            name="routine-mode"
+            checked={mode === value}
+            onChange={() => setMode(value)}
+            className="mt-[3px] accent-sol-orange"
+          />
           {label}
         </label>
       ))}
@@ -302,7 +403,10 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
   );
   // Beside the agent.
   const readOnlyBox = (
-    <label className={`inline-flex items-center gap-1.5 py-1 text-xs text-sol-text-muted select-none ${runLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`} title={runLocked ? LOCKED_TITLE : undefined}>
+    <label
+      className={`inline-flex items-center gap-1.5 py-1 text-xs text-sol-text-muted select-none ${runLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+      title={runLocked ? LOCKED_TITLE : undefined}
+    >
       <input
         type="checkbox"
         disabled={runLocked}
@@ -318,7 +422,9 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
     // Standalone: a band between hairlines on the page. Embedded: sits under
     // the row's own divider. Either way, nothing inside draws a box; the
     // primary button is the page's one fill.
-    <div className={embedded ? "pt-1" : "border-t border-sol-border/40 pt-1 mb-6"}>
+    <div
+      className={embedded ? "pt-1" : "border-t border-sol-border/40 pt-1 mb-6"}
+    >
       {isEdit && (
         <div className="flex items-center gap-1.5 text-mark uppercase tracking-widest text-sol-cyan pt-2 pb-1">
           <Pencil className="w-3 h-3" /> Editing trigger
@@ -332,10 +438,17 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); press(); }
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              press();
+            }
             if (e.key === "Escape") onClose();
           }}
-          placeholder={hostedRoutine && mailAbilities.connected ? MAIL_ROUTINE_PLACEHOLDER : 'What should the agent do? e.g. "Check if CI is green on main and report"'}
+          placeholder={
+            hostedRoutine && mailAbilities.connected
+              ? MAIL_ROUTINE_PLACEHOLDER
+              : 'What should the agent do? e.g. "Check if CI is green on main and report"'
+          }
           rows={3}
           className={`w-full ${bareInput} text-sm leading-relaxed resize-none disabled:text-sol-text-muted disabled:cursor-not-allowed`}
         />
@@ -367,16 +480,32 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
               onChange={(e) => setDuration(e.target.value)}
               aria-invalid={parsed === undefined}
               className={`w-14 ${bareInput} font-mono border-b ${
-                parsed === undefined ? "border-sol-red text-sol-red" : "border-sol-border/60 focus:border-sol-cyan"
+                parsed === undefined
+                  ? "border-sol-red text-sol-red"
+                  : "border-sol-border/60 focus:border-sol-cyan"
               }`}
             />
-            <span className={`text-meta ${parsed === undefined ? "text-sol-red" : "text-sol-text-dim"}`}>{preview}</span>
+            <span
+              className={`text-meta ${parsed === undefined ? "text-sol-red" : "text-sol-text-dim"}`}
+            >
+              {preview}
+            </span>
           </span>
         )}
         {kind === "on" && (
-          <SelectBox variant="bare" value={eventKey} onChange={(e) => setEventKey(e.target.value)}>
-            {TRIGGER_EVENT_NAMES.filter((k) => !(isChatTriggerEvent(k) || isPageTriggerEvent(k)) || k === eventKey).map((k) => (
-              <option key={k} value={k}>{TRIGGER_EVENT_LABELS[k] ?? k}</option>
+          <SelectBox
+            variant="bare"
+            value={eventKey}
+            onChange={(e) => setEventKey(e.target.value)}
+          >
+            {TRIGGER_EVENT_NAMES.filter(
+              (k) =>
+                !(isChatTriggerEvent(k) || isPageTriggerEvent(k)) ||
+                k === eventKey,
+            ).map((k) => (
+              <option key={k} value={k}>
+                {TRIGGER_EVENT_LABELS[k] ?? k}
+              </option>
             ))}
           </SelectBox>
         )}
@@ -389,8 +518,18 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
             value={agent}
             onChange={(a) => setAgent(a as "claude" | "codex")}
             items={[
-              { key: "claude", label: "claude", disabled: runLocked, title: runLocked ? LOCKED_TITLE : undefined },
-              { key: "codex", label: "codex", disabled: runLocked, title: runLocked ? LOCKED_TITLE : undefined },
+              {
+                key: "claude",
+                label: "claude",
+                disabled: runLocked,
+                title: runLocked ? LOCKED_TITLE : undefined,
+              },
+              {
+                key: "codex",
+                label: "codex",
+                disabled: runLocked,
+                title: runLocked ? LOCKED_TITLE : undefined,
+              },
             ]}
           />
           {readOnlyBox}
@@ -408,14 +547,19 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
             className={`w-full ${bareInput} font-mono disabled:text-sol-text-muted disabled:cursor-not-allowed`}
           />
           <datalist id="trigger-project-roots">
-            {projectOptions.map((p) => <option key={p} value={p} />)}
+            {projectOptions.map((p) => (
+              <option key={p} value={p} />
+            ))}
           </datalist>
         </FormRow>
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 pt-3 pb-1">
         <div className="ml-auto flex items-center gap-3 whitespace-nowrap">
-          <button onClick={onClose} className={`text-xs text-sol-text-dim hover:text-sol-text transition-colors ${modernButton({ variant: "ghost", size: "sm" })}`}>
+          <button
+            onClick={onClose}
+            className={`text-xs text-sol-text-dim hover:text-sol-text transition-colors ${modernButton({ variant: "ghost", size: "sm" })}`}
+          >
             Cancel
           </button>
           <Button
@@ -426,30 +570,52 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
             aria-haspopup={isEdit ? undefined : "dialog"}
           >
             {isEdit
-              ? submitting ? "Saving…" : "Save changes"
-              : submitting ? "Setting…" : "Set trigger"}
+              ? submitting
+                ? "Saving…"
+                : "Save changes"
+              : submitting
+                ? "Setting…"
+                : "Set trigger"}
           </Button>
         </div>
       </div>
       {reviewing && (
         <SwitchReview
-          ledger={newTriggerLedger({
-            title: title.trim() || prompt.trim().split("\n")[0].slice(0, 80),
-            cadence: kind === "every" && parsed ? `Every ${fmtDuration(parsed)}`
-              : kind === "in" && parsed ? `Once, in ${fmtDuration(parsed)}`
-              : kind === "on" ? `On ${TRIGGER_EVENT_LABELS[eventKey] ?? eventKey}`
-              : "Now",
-            schedule: kind === "every" ? "recurring" : kind === "on" ? "event" : "once",
-            intervalMs: kind === "every" ? parsed ?? null : null,
-            agent: hostedRoutine ? null : agent,
-            project: hostedRoutine ? null : project.trim() || null,
-            applies: mode === "apply",
-            hosted: hostedRoutine,
-            firstAt: needsDuration && parsed !== undefined ? Date.now() + parsed : null,
-            now: kind === "now",
-          }, runCost)}
+          ledger={newTriggerLedger(
+            {
+              title: title.trim() || prompt.trim().split("\n")[0].slice(0, 80),
+              cadence:
+                kind === "every" && parsed
+                  ? `Every ${fmtDuration(parsed)}`
+                  : kind === "in" && parsed
+                    ? `Once, in ${fmtDuration(parsed)}`
+                    : kind === "on"
+                      ? `On ${TRIGGER_EVENT_LABELS[eventKey] ?? eventKey}`
+                      : "Now",
+              schedule:
+                kind === "every"
+                  ? "recurring"
+                  : kind === "on"
+                    ? "event"
+                    : "once",
+              intervalMs: kind === "every" ? (parsed ?? null) : null,
+              agent: hostedRoutine ? null : agent,
+              project: hostedRoutine ? null : project.trim() || null,
+              applies: mode === "apply",
+              hosted: hostedRoutine,
+              firstAt:
+                needsDuration && parsed !== undefined
+                  ? Date.now() + parsed
+                  : null,
+              now: kind === "now",
+            },
+            runCost,
+          )}
           onClose={() => setReviewing(false)}
-          onConfirm={() => { setReviewing(false); void submit(); }}
+          onConfirm={() => {
+            setReviewing(false);
+            void submit();
+          }}
         />
       )}
     </div>
@@ -458,7 +624,13 @@ export function TriggerForm({ onClose, editTask, seedTask, embedded }: {
 
 // ── Page ──
 
-function Section({ title, count, subtitle, children, defaultOpen = true }: {
+function Section({
+  title,
+  count,
+  subtitle,
+  children,
+  defaultOpen = true,
+}: {
   title: string;
   count: number;
   subtitle?: string;
@@ -474,14 +646,26 @@ function Section({ title, count, subtitle, children, defaultOpen = true }: {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-mark font-medium uppercase tracking-widest text-sol-text-dim hover:text-sol-text-muted transition-colors mb-2 select-none w-full modern:text-meta modern:font-semibold modern:normal-case modern:tracking-normal"
       >
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {open ? (
+          <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronRight className="w-3 h-3" />
+        )}
         {title}
-        <span className="text-sol-text-dim/70 normal-case tracking-normal font-mono">{count}</span>
+        <span className="text-sol-text-dim/70 normal-case tracking-normal font-mono">
+          {count}
+        </span>
         {subtitle && (
-          <span className="text-sol-text-dim/60 normal-case tracking-normal font-normal ml-1">· {subtitle}</span>
+          <span className="text-sol-text-dim/60 normal-case tracking-normal font-normal ml-1">
+            · {subtitle}
+          </span>
         )}
       </button>
-      {open && <div className="flex flex-col border-t border-sol-border/40">{children}</div>}
+      {open && (
+        <div className="flex flex-col border-t border-sol-border/40">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -506,7 +690,12 @@ interface SchedStats {
 }
 
 function computeStats(all: any[], now: number): SchedStats {
-  let active = 0, recurring = 0, oneTime = 0, totalRuns = 0, failing = 0, running = 0;
+  let active = 0,
+    recurring = 0,
+    oneTime = 0,
+    totalRuns = 0,
+    failing = 0,
+    running = 0;
   let nextRunAt: number | null = null;
   for (const t of all) {
     totalRuns += t.run_count ?? 0;
@@ -529,7 +718,12 @@ function computeStats(all: any[], now: number): SchedStats {
 // number here is also said by a section header, a filter pill or a row label,
 // so it earns only a line. The clickable parts are the same toggles the filter
 // pills drive (type, failing); the rest is plain text.
-function OverviewLine({ stats, now, filters, update }: {
+function OverviewLine({
+  stats,
+  now,
+  filters,
+  update,
+}: {
   stats: SchedStats;
   now: number;
   filters: Filters;
@@ -543,11 +737,15 @@ function OverviewLine({ stats, now, filters, update }: {
     } ${modernButton({ variant: on ? "soft" : "ghost", tone: modernToneOf(accent), size: "xs" }, "modern:mx-0 modern:px-1.5 modern:font-normal")}`;
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-sol-text-muted">
-      <span><span className={num}>{stats.active}</span> active</span>
+      <span>
+        <span className={num}>{stats.active}</span> active
+      </span>
       {sep}
       <ShortcutTooltip label="Standing triggers that fire on an interval: click to filter">
         <button
-          onClick={() => update({ type: filters.type === "recurring" ? "all" : "recurring" })}
+          onClick={() =>
+            update({ type: filters.type === "recurring" ? "all" : "recurring" })
+          }
           className={toggle(filters.type === "recurring", "text-sol-violet")}
         >
           <span className={num}>{stats.recurring}</span> recurring
@@ -556,7 +754,9 @@ function OverviewLine({ stats, now, filters, update }: {
       {sep}
       <ShortcutTooltip label="Triggers that fire once and finish: click to filter">
         <button
-          onClick={() => update({ type: filters.type === "once" ? "all" : "once" })}
+          onClick={() =>
+            update({ type: filters.type === "once" ? "all" : "once" })
+          }
           className={toggle(filters.type === "once", "text-sol-cyan")}
         >
           <span className={num}>{stats.oneTime}</span> one-time
@@ -566,13 +766,19 @@ function OverviewLine({ stats, now, filters, update }: {
         <>
           {sep}
           <span className="text-sol-green">
-            <span className="tabular-nums font-medium">{stats.running}</span> running now
+            <span className="tabular-nums font-medium">{stats.running}</span>{" "}
+            running now
           </span>
         </>
       ) : stats.nextRunAt ? (
         <>
           {sep}
-          <span className="text-sol-cyan">next in <span className="tabular-nums font-medium">{fmtDuration(Math.max(stats.nextRunAt - now, 0))}</span></span>
+          <span className="text-sol-cyan">
+            next in{" "}
+            <span className="tabular-nums font-medium">
+              {fmtDuration(Math.max(stats.nextRunAt - now, 0))}
+            </span>
+          </span>
         </>
       ) : null}
       {sep}
@@ -624,11 +830,15 @@ function AttentionBanner({ tasks }: { tasks: any[] }) {
                 {taskDisplayTitle(t)}
               </span>
               {t.retry_count > 0 && ` — retry ${t.retry_count}`}
-              {t.last_run_summary ? ` · ${t.last_run_summary.replace(/^Failed:?\s*/, "")}` : ""}
+              {t.last_run_summary
+                ? ` · ${t.last_run_summary.replace(/^Failed:?\s*/, "")}`
+                : ""}
             </button>
           ))}
           {tasks.length > 3 && (
-            <span className="text-sol-text-dim px-1">+{tasks.length - 3} more</span>
+            <span className="text-sol-text-dim px-1">
+              +{tasks.length - 3} more
+            </span>
           )}
         </div>
       </div>
@@ -653,7 +863,17 @@ const TYPE_TOGGLES: { key: string; label: string; Icon: any; on: string }[] = [
 // draws its own box; the bar's rules are the only lines.
 type Grouping = "session" | "project" | "none";
 
-function FilterBar({ filters, update, projects, hasCodex, hasEvent, shown, total, grouping, setGrouping }: {
+function FilterBar({
+  filters,
+  update,
+  projects,
+  hasCodex,
+  hasEvent,
+  shown,
+  total,
+  grouping,
+  setGrouping,
+}: {
   filters: Filters;
   update: (patch: Partial<Filters>) => void;
   projects: string[];
@@ -696,33 +916,58 @@ function FilterBar({ filters, update, projects, hasCodex, hasEvent, shown, total
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-meta">
         <div className="flex items-center gap-3">
-          {TYPE_TOGGLES.filter((p) => p.key !== "event" || hasEvent).map(({ key, label, Icon, on }) => (
-            <button
-              key={key}
-              onClick={() => update({ type: filters.type === key ? "all" : key })}
-              aria-pressed={filters.type === key}
-              className={`inline-flex items-center gap-1 py-1 font-medium transition-colors ${
-                filters.type === key ? on : "text-sol-text-dim hover:text-sol-text"
-              } ${modernChip({ active: filters.type === key })}`}
-            >
-              <Icon className="w-3 h-3" />
-              {label}
-            </button>
-          ))}
+          {TYPE_TOGGLES.filter((p) => p.key !== "event" || hasEvent).map(
+            ({ key, label, Icon, on }) => (
+              <button
+                key={key}
+                onClick={() =>
+                  update({ type: filters.type === key ? "all" : key })
+                }
+                aria-pressed={filters.type === key}
+                className={`inline-flex items-center gap-1 py-1 font-medium transition-colors ${
+                  filters.type === key
+                    ? on
+                    : "text-sol-text-dim hover:text-sol-text"
+                } ${modernChip({ active: filters.type === key })}`}
+              >
+                <Icon className="w-3 h-3" />
+                {label}
+              </button>
+            ),
+          )}
         </div>
-        <SelectBox variant="bare" className="text-meta" value={filters.mode} onChange={(e) => update({ mode: e.target.value })}>
+        <SelectBox
+          variant="bare"
+          className="text-meta"
+          value={filters.mode}
+          onChange={(e) => update({ mode: e.target.value })}
+        >
           <option value="all">all modes</option>
           <option value="apply">makes changes</option>
           <option value="propose">read-only</option>
         </SelectBox>
         {projects.length > 1 && (
-          <SelectBox variant="bare" className="text-meta" value={filters.project} onChange={(e) => update({ project: e.target.value })}>
+          <SelectBox
+            variant="bare"
+            className="text-meta"
+            value={filters.project}
+            onChange={(e) => update({ project: e.target.value })}
+          >
             <option value="all">all projects</option>
-            {projects.map((p) => <option key={p} value={p}>{projectName(p)}</option>)}
+            {projects.map((p) => (
+              <option key={p} value={p}>
+                {projectName(p)}
+              </option>
+            ))}
           </SelectBox>
         )}
         {hasCodex && (
-          <SelectBox variant="bare" className="text-meta" value={filters.agent} onChange={(e) => update({ agent: e.target.value })}>
+          <SelectBox
+            variant="bare"
+            className="text-meta"
+            value={filters.agent}
+            onChange={(e) => update({ agent: e.target.value })}
+          >
             <option value="all">all agents</option>
             <option value="claude">claude</option>
             <option value="codex">codex</option>
@@ -746,8 +991,13 @@ function FilterBar({ filters, update, projects, hasCodex, hasEvent, shown, total
         </span>
         {active && (
           <span className="ml-auto inline-flex items-center gap-2 text-sol-text-dim">
-            <span className="tabular-nums">{shown} of {total}</span>
-            <button onClick={() => update(EMPTY_FILTERS)} className="hover:text-sol-text underline underline-offset-2">
+            <span className="tabular-nums">
+              {shown} of {total}
+            </span>
+            <button
+              onClick={() => update(EMPTY_FILTERS)}
+              className="hover:text-sol-text underline underline-offset-2"
+            >
               clear
             </button>
           </span>
@@ -766,7 +1016,13 @@ function FilterBar({ filters, update, projects, hasCodex, hasEvent, shown, total
 // or &duplicate=1 from the palette) can open it from above.
 type RowForm = { id: string; mode: "edit" | "duplicate" } | null;
 
-function PageRow({ task, isNext, form, setForm, deepLinked }: {
+function PageRow({
+  task,
+  isNext,
+  form,
+  setForm,
+  deepLinked,
+}: {
   task: TaskRow;
   isNext?: boolean;
   form: RowForm;
@@ -784,7 +1040,11 @@ function PageRow({ task, isNext, form, setForm, deepLinked }: {
   // openId only feeds the row's "active session" tint, which this page never
   // shows (no activeSessionId here): the row's click opens the trigger page.
   const row = useMemo<TriggerRow>(
-    () => ({ task, openId: task.originating_conversation_id ?? task.last_run_conversation_id, unread: false }),
+    () => ({
+      task,
+      openId: task.originating_conversation_id ?? task.last_run_conversation_id,
+      unread: false,
+    }),
     [task],
   );
   const terminal = isTriggerTerminal(task.status);
@@ -799,7 +1059,14 @@ function PageRow({ task, isNext, form, setForm, deepLinked }: {
         onOpen={() => router.push(`/triggers/${task.short_id ?? task._id}`)}
         onEdit={() => setForm({ id: task._id, mode: "edit" })}
         onDuplicate={() => setForm({ id: task._id, mode: "duplicate" })}
-        onDelete={terminal ? () => { deleteTrigger(task._id); toast.success("Deleted"); } : undefined}
+        onDelete={
+          terminal
+            ? () => {
+                deleteTrigger(task._id);
+                toast.success("Deleted");
+              }
+            : undefined
+        }
       />
       {mode && (
         <div className="px-4 pb-3 border-b border-sol-border/40 bg-sol-bg-alt/25 animate-fadeSlideIn">
@@ -816,7 +1083,8 @@ function PageRow({ task, isNext, form, setForm, deepLinked }: {
 }
 
 // The band above a group of rows — a project, a day, a home session.
-const bandCls = "flex items-center gap-1.5 text-meta text-sol-text-dim py-1.5 px-4 bg-sol-bg-alt/30 border-b border-sol-border/40";
+const bandCls =
+  "flex items-center gap-1.5 text-meta text-sol-text-dim py-1.5 px-4 bg-sol-bg-alt/30 border-b border-sol-border/40";
 
 function groupByProjectPath(tasks: TaskRow[]): [string, TaskRow[]][] {
   const groups = new Map<string, TaskRow[]>();
@@ -830,15 +1098,38 @@ function groupByProjectPath(tasks: TaskRow[]): [string, TaskRow[]][] {
 
 // A home-session header for the page: the roster's header, fed from the
 // store's session row so the state word and dot are live.
-function PageHomeHeader({ group, now, showProject }: { group: TriggerHomeGroup; now: number; showProject: boolean }) {
+function PageHomeHeader({
+  group,
+  now,
+  showProject,
+}: {
+  group: TriggerHomeGroup;
+  now: number;
+  showProject: boolean;
+}) {
   const router = useRouter();
-  const home = useInboxStore((st) => (group.homeId ? st.sessions[group.homeId] : undefined));
+  const home = useInboxStore((st) =>
+    group.homeId ? st.sessions[group.homeId] : undefined,
+  );
   const first = group.rows[0].task;
   const open = () => {
-    const id = group.homeId ?? first.last_run_conversation_id ?? first.created_by_conversation_id;
+    const id =
+      group.homeId ??
+      first.last_run_conversation_id ??
+      first.created_by_conversation_id;
     if (id) router.push(`/conversation/${id}`);
   };
-  return <TriggerHomeHeader group={group} home={home} now={now} isActive={false} showProject={showProject} onOpen={open} size="md" />;
+  return (
+    <TriggerHomeHeader
+      group={group}
+      home={home}
+      now={now}
+      isActive={false}
+      showProject={showProject}
+      onOpen={open}
+      size="md"
+    />
+  );
 }
 
 type RowListProps = {
@@ -852,10 +1143,28 @@ type RowListProps = {
   showProject: boolean;
 };
 
-function RowList({ tasks, now, grouping, nextId, form, setForm, deepLinkId, showProject }: RowListProps) {
-  const isTarget = (t: TaskRow) => !!deepLinkId && (deepLinkId === t._id || deepLinkId.toLowerCase() === t.short_id);
+function RowList({
+  tasks,
+  now,
+  grouping,
+  nextId,
+  form,
+  setForm,
+  deepLinkId,
+  showProject,
+}: RowListProps) {
+  const isTarget = (t: TaskRow) =>
+    !!deepLinkId &&
+    (deepLinkId === t._id || deepLinkId.toLowerCase() === t.short_id);
   const rowOf = (t: TaskRow) => (
-    <PageRow key={t._id} task={t} isNext={t._id === nextId} form={form} setForm={setForm} deepLinked={isTarget(t)} />
+    <PageRow
+      key={t._id}
+      task={t}
+      isNext={t._id === nextId}
+      form={form}
+      setForm={setForm}
+      deepLinked={isTarget(t)}
+    />
   );
   if (grouping === "none") return <>{tasks.map(rowOf)}</>;
   if (grouping === "project") {
@@ -865,7 +1174,9 @@ function RowList({ tasks, now, grouping, nextId, form, setForm, deepLinkId, show
           <div key={proj} className="flex flex-col">
             <div className={bandCls}>
               {proj.startsWith("—") ? proj : projectName(proj)}
-              <span className="font-mono text-sol-text-dim/60">{rows.length}</span>
+              <span className="font-mono text-sol-text-dim/60">
+                {rows.length}
+              </span>
             </div>
             {rows.map(rowOf)}
           </div>
@@ -873,7 +1184,9 @@ function RowList({ tasks, now, grouping, nextId, form, setForm, deepLinkId, show
       </>
     );
   }
-  const groups = groupTriggerRowsByHome(tasks.map((task) => ({ task, unread: false })));
+  const groups = groupTriggerRowsByHome(
+    tasks.map((task) => ({ task, unread: false })),
+  );
   return (
     <>
       {groups.map((g) => (
@@ -901,7 +1214,13 @@ function dayBucket(ts: number, now: number): string {
   return "Older";
 }
 
-const DAY_ORDER = ["Today", "Yesterday", "Earlier this week", "Earlier this month", "Older"];
+const DAY_ORDER = [
+  "Today",
+  "Yesterday",
+  "Earlier this week",
+  "Earlier this month",
+  "Older",
+];
 
 function groupByDay(tasks: TaskRow[], now: number): [string, TaskRow[]][] {
   const groups = new Map<string, TaskRow[]>();
@@ -915,7 +1234,14 @@ function groupByDay(tasks: TaskRow[], now: number): [string, TaskRow[]][] {
 
 const HISTORY_PAGE = 25;
 
-function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
+function HistoryBody({
+  tasks,
+  now,
+  grouping,
+  form,
+  setForm,
+  deepLinkId,
+}: {
   tasks: TaskRow[];
   now: number;
   grouping: Grouping;
@@ -926,11 +1252,16 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
   const [failuresOnly, setFailuresOnly] = useState(false);
   const [limit, setLimit] = useState(HISTORY_PAGE);
 
-  const succeeded = useMemo(() => tasks.filter((t) => t.status === "completed").length, [tasks]);
+  const succeeded = useMemo(
+    () => tasks.filter((t) => t.status === "completed").length,
+    [tasks],
+  );
   const failed = tasks.length - succeeded;
   const rate = tasks.length ? Math.round((succeeded / tasks.length) * 100) : 0;
 
-  const shown = failuresOnly ? tasks.filter((t) => t.status === "failed") : tasks;
+  const shown = failuresOnly
+    ? tasks.filter((t) => t.status === "failed")
+    : tasks;
   const visible = shown.slice(0, limit);
   const rowOf = (t: TaskRow) => (
     <PageRow
@@ -938,7 +1269,10 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
       task={t}
       form={form}
       setForm={setForm}
-      deepLinked={!!deepLinkId && (deepLinkId === t._id || deepLinkId.toLowerCase() === t.short_id)}
+      deepLinked={
+        !!deepLinkId &&
+        (deepLinkId === t._id || deepLinkId.toLowerCase() === t.short_id)
+      }
     />
   );
 
@@ -949,13 +1283,28 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
         <div className="flex items-center justify-between text-meta mb-1.5">
           <span className="text-sol-text-dim">
             <span className="text-sol-green">{succeeded} succeeded</span>
-            {failed > 0 && <> · <span className="text-sol-red">{failed} failed</span></>}
+            {failed > 0 && (
+              <>
+                {" "}
+                · <span className="text-sol-red">{failed} failed</span>
+              </>
+            )}
           </span>
-          <span className="text-sol-text-muted tabular-nums">{rate}% success</span>
+          <span className="text-sol-text-muted tabular-nums">
+            {rate}% success
+          </span>
         </div>
         <div className="h-1.5 rounded-full bg-sol-bg-alt overflow-hidden flex">
-          <div className="bg-sol-green/70 h-full transition-all" style={{ width: `${(succeeded / Math.max(tasks.length, 1)) * 100}%` }} />
-          <div className="bg-sol-red/70 h-full transition-all" style={{ width: `${(failed / Math.max(tasks.length, 1)) * 100}%` }} />
+          <div
+            className="bg-sol-green/70 h-full transition-all"
+            style={{
+              width: `${(succeeded / Math.max(tasks.length, 1)) * 100}%`,
+            }}
+          />
+          <div
+            className="bg-sol-red/70 h-full transition-all"
+            style={{ width: `${(failed / Math.max(tasks.length, 1)) * 100}%` }}
+          />
         </div>
       </div>
 
@@ -975,13 +1324,17 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
       )}
 
       {shown.length === 0 ? (
-        <p className="text-meta text-sol-text-dim py-3 px-4">No failures — every finished run succeeded.</p>
+        <p className="text-meta text-sol-text-dim py-3 px-4">
+          No failures — every finished run succeeded.
+        </p>
       ) : grouping === "project" ? (
         groupByProjectPath(visible).map(([proj, rows]) => (
           <div key={proj} className="flex flex-col">
             <div className={bandCls}>
               {proj.startsWith("—") ? proj : projectName(proj)}
-              <span className="font-mono text-sol-text-dim/60">{rows.length}</span>
+              <span className="font-mono text-sol-text-dim/60">
+                {rows.length}
+              </span>
             </div>
             {rows.map(rowOf)}
           </div>
@@ -991,7 +1344,12 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
         // a finished one-time's home session is history too.
         groupByDay(visible, now).map(([label, rows]) => (
           <div key={label} className="flex flex-col">
-            <div className={bandCls}>{label}<span className="font-mono text-sol-text-dim/60">{rows.length}</span></div>
+            <div className={bandCls}>
+              {label}
+              <span className="font-mono text-sol-text-dim/60">
+                {rows.length}
+              </span>
+            </div>
             {rows.map(rowOf)}
           </div>
         ))
@@ -1002,7 +1360,8 @@ function HistoryBody({ tasks, now, grouping, form, setForm, deepLinkId }: {
           onClick={() => setLimit((l) => l + HISTORY_PAGE)}
           className="self-start text-meta text-sol-cyan hover:underline underline-offset-2 mt-2 px-4"
         >
-          show {Math.min(HISTORY_PAGE, shown.length - limit)} more · {shown.length - limit} hidden
+          show {Math.min(HISTORY_PAGE, shown.length - limit)} more ·{" "}
+          {shown.length - limit} hidden
         </button>
       )}
     </div>
@@ -1013,7 +1372,9 @@ function FilteredEmpty({ onClear }: { onClear: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <ListFilter className="w-7 h-7 text-sol-text-dim" />
-      <p className="text-sm text-sol-text-muted">No triggers match these filters</p>
+      <p className="text-sm text-sol-text-muted">
+        No triggers match these filters
+      </p>
       <button
         onClick={onClear}
         className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-sol-bg-alt text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-highlight transition-colors ${modernButton({ variant: "outline", size: "sm" })}`}
@@ -1029,19 +1390,40 @@ function TriggersContent() {
   // synchronously; the feeder keeps it fresh. `undefined` only while the cache
   // is empty AND the first answer is in flight.
   const { tasks: taskRows, ready: tasksReady } = useTriggers();
-  const tasks: TaskRow[] | undefined = tasksReady || taskRows.length > 0 ? taskRows : undefined;
+  const tasks: TaskRow[] | undefined =
+    tasksReady || taskRows.length > 0 ? taskRows : undefined;
   // Deep links, read REACTIVELY (tab-context searchParams): the tab shell
   // keeps this page mounted, so a later click on another trigger changes only
   // the query. ?new=1 (the dock's "+ New") lands with the create form open;
   // ?task=<id|tr-N> scrolls to that row; &edit=1 / &duplicate=1 open its form.
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("task") ?? undefined;
-  const deepLinkMode = searchParams.get("edit") === "1" ? "edit" : searchParams.get("duplicate") === "1" ? "duplicate" : null;
-  const [showForm, setShowForm] = useState(() => searchParams.get("new") === "1");
+  const deepLinkMode =
+    searchParams.get("edit") === "1"
+      ? "edit"
+      : searchParams.get("duplicate") === "1"
+        ? "duplicate"
+        : null;
+  const [showForm, setShowForm] = useState(
+    () => searchParams.get("new") === "1",
+  );
   // The event a link names (?new=1&on=error_new, an issue's "Add trigger").
-  const eventSeed = (on: string | null) => (on && TRIGGER_EVENT_SHORTHANDS[on] ? ({ schedule_type: "event", event_filter: TRIGGER_EVENT_SHORTHANDS[on], prompt: "", title: "" } as const) : null);
-  const [formSeed, setFormSeed] = useState<ReturnType<typeof eventSeed>>(() => (searchParams.get("new") === "1" ? eventSeed(searchParams.get("on")) : null));
-  const closeForm = () => { setShowForm(false); setFormSeed(null); };
+  const eventSeed = (on: string | null) =>
+    on && TRIGGER_EVENT_SHORTHANDS[on]
+      ? ({
+          schedule_type: "event",
+          event_filter: TRIGGER_EVENT_SHORTHANDS[on],
+          prompt: "",
+          title: "",
+        } as const)
+      : null;
+  const [formSeed, setFormSeed] = useState<ReturnType<typeof eventSeed>>(() =>
+    searchParams.get("new") === "1" ? eventSeed(searchParams.get("on")) : null,
+  );
+  const closeForm = () => {
+    setShowForm(false);
+    setFormSeed(null);
+  };
   const [form, setForm] = useState<RowForm>(null);
   useWatchEffect(() => {
     if (searchParams.get("new") !== "1") return;
@@ -1052,10 +1434,13 @@ function TriggersContent() {
   // The deep-linked row's form opens once its row can be found — by Convex id
   // or by short id (the palette links by whichever it has).
   const deepLinkTaskId = deepLinkId
-    ? tasks?.find((t) => t._id === deepLinkId || t.short_id === deepLinkId.toLowerCase())?._id
+    ? tasks?.find(
+        (t) => t._id === deepLinkId || t.short_id === deepLinkId.toLowerCase(),
+      )?._id
     : undefined;
   useWatchEffect(() => {
-    if (deepLinkTaskId && deepLinkMode) setForm({ id: deepLinkTaskId, mode: deepLinkMode });
+    if (deepLinkTaskId && deepLinkMode)
+      setForm({ id: deepLinkTaskId, mode: deepLinkMode });
   }, [deepLinkId, deepLinkTaskId, deepLinkMode]);
   const [now, setNow] = useState(() => Date.now());
 
@@ -1066,14 +1451,15 @@ function TriggersContent() {
   });
 
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const update = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
+  const update = (patch: Partial<Filters>) =>
+    setFilters((f) => ({ ...f, ...patch }));
   const [grouping, setGrouping] = useState<Grouping>("session");
 
   // Filters drive the list AND the rail so what's shown stays consistent. Stats
   // and the failure banner stay global — they're a health overview of everything.
   const filtered = useMemo(
     () => (tasks ?? []).filter((t) => matchesFilters(t, filters)),
-    [tasks, filters]
+    [tasks, filters],
   );
 
   const { active, paused, history } = useMemo(() => {
@@ -1082,30 +1468,54 @@ function TriggersContent() {
       active: filtered
         .filter((t) => t.status === "scheduled" || t.status === "running")
         .sort((a, b) => {
-          const ra = a.status === "running" ? 0 : 1, rb = b.status === "running" ? 0 : 1;
-          return ra !== rb ? ra - rb : (a.run_at ?? Infinity) - (b.run_at ?? Infinity);
+          const ra = a.status === "running" ? 0 : 1,
+            rb = b.status === "running" ? 0 : 1;
+          return ra !== rb
+            ? ra - rb
+            : (a.run_at ?? Infinity) - (b.run_at ?? Infinity);
         }),
       paused: filtered.filter((t) => t.status === "paused"),
       history: filtered
         .filter((t) => isTriggerTerminal(t.status))
-        .sort((a, b) => (b.last_run_at ?? b.created_at) - (a.last_run_at ?? a.created_at)),
+        .sort(
+          (a, b) =>
+            (b.last_run_at ?? b.created_at) - (a.last_run_at ?? a.created_at),
+        ),
     };
   }, [filtered]);
 
   const stats = useMemo(() => computeStats(tasks ?? [], now), [tasks, now]);
   const failingActive = useMemo(
-    () => (tasks ?? []).filter((t) => (t.status === "scheduled" || t.status === "running") && isTriggerFailing(t)),
-    [tasks]
+    () =>
+      (tasks ?? []).filter(
+        (t) =>
+          (t.status === "scheduled" || t.status === "running") &&
+          isTriggerFailing(t),
+      ),
+    [tasks],
   );
   const projects = useMemo(
-    () => ([...new Set((tasks ?? []).map((t) => t.project_path).filter(Boolean))] as string[]).sort(),
-    [tasks]
+    () =>
+      (
+        [
+          ...new Set((tasks ?? []).map((t) => t.project_path).filter(Boolean)),
+        ] as string[]
+      ).sort(),
+    [tasks],
   );
-  const hasCodex = useMemo(() => (tasks ?? []).some((t) => t.agent_type === "codex"), [tasks]);
-  const hasEvent = useMemo(() => (tasks ?? []).some((t) => t.schedule_type === "event"), [tasks]);
+  const hasCodex = useMemo(
+    () => (tasks ?? []).some((t) => t.agent_type === "codex"),
+    [tasks],
+  );
+  const hasEvent = useMemo(
+    () => (tasks ?? []).some((t) => t.schedule_type === "event"),
+    [tasks],
+  );
 
   const activeSubtitle = useMemo(() => {
-    const recurring = active.filter((t) => t.schedule_type === "recurring").length;
+    const recurring = active.filter(
+      (t) => t.schedule_type === "recurring",
+    ).length;
     const oneTime = active.filter((t) => t.schedule_type === "once").length;
     const events = active.filter((t) => t.schedule_type === "event").length;
     const parts: string[] = [];
@@ -1114,115 +1524,175 @@ function TriggersContent() {
     if (events > 0) parts.push(`${events} on event`);
     return parts.join(" · ") || undefined;
   }, [active]);
-  const historyFailed = useMemo(() => history.filter((t) => t.status === "failed").length, [history]);
+  const historyFailed = useMemo(
+    () => history.filter((t) => t.status === "failed").length,
+    [history],
+  );
 
   // The soonest upcoming run gets an "up next" accent. active is sorted by run_at
   // ascending, so the first scheduled row with a future run_at is the winner.
   const nextId = useMemo(() => {
-    const next = active.find((t) => t.status === "scheduled" && t.run_at && t.run_at > now);
+    const next = active.find(
+      (t) => t.status === "scheduled" && t.run_at && t.run_at > now,
+    );
     return next?._id as string | undefined;
   }, [active, now]);
 
   const hasTasks = tasks !== undefined && tasks.length > 0;
   const anyShown = active.length + paused.length + history.length > 0;
-  const listProps = { now, grouping, form, setForm, deepLinkId, showProject: projects.length > 1 };
+  const listProps = {
+    now,
+    grouping,
+    form,
+    setForm,
+    deepLinkId,
+    showProject: projects.length > 1,
+  };
 
   // One way to start a trigger at a time: the empty state offers its own, and
   // an open form is already the new trigger.
-  const newTrigger = !showForm && hasTasks ? (
-    <Button data-tour="triggers-new" onClick={() => setShowForm(true)} variant="amber" size="sm" className="ml-auto shrink-0">
-      <Plus /> New trigger
-    </Button>
-  ) : null;
+  const newTrigger =
+    !showForm && hasTasks ? (
+      <Button
+        data-tour="triggers-new"
+        onClick={() => setShowForm(true)}
+        variant="amber"
+        size="sm"
+        className="ml-auto shrink-0"
+      >
+        <Plus /> New trigger
+      </Button>
+    ) : null;
   return (
     <PageFrame
-      header={<PageHeader legacy={<TriggersLegacyHeader action={newTrigger} />} title="Triggers" icon={Zap} actions={newTrigger} />}
+      header={
+        <PageHeader
+          legacy={<TriggersLegacyHeader action={newTrigger} />}
+          title="Triggers"
+          icon={Zap}
+          actions={newTrigger}
+        />
+      }
       legacyScroll="h-full overflow-y-auto bg-sol-bg"
       legacyScrollProps={{ "data-main-scroll": true }}
       legacyColumn="mx-auto w-full max-w-3xl px-5 sm:px-6 py-8"
       column="mx-auto w-full max-w-3xl px-5 sm:px-6 py-6"
     >
-        <FeatureUpsell
-          slug="triggers"
-          className="mb-5"
-          reason="Agents can set their own follow-ups here, like checking CI half an hour after a push, so work continues after the session goes quiet."
+      <FeatureUpsell
+        slug="triggers"
+        className="mb-5"
+        reason="Agents can set their own follow-ups here, like checking CI half an hour after a push, so work continues after the session goes quiet."
+      />
+
+      {showForm && (
+        <TriggerForm
+          key={formSeed?.prompt ?? "new"}
+          seedTask={formSeed ?? undefined}
+          onClose={closeForm}
         />
+      )}
 
-        {showForm && <TriggerForm key={formSeed?.prompt ?? "new"} seedTask={formSeed ?? undefined} onClose={closeForm} />}
-
-        {tasks === undefined ? (
-          <PaneLoader />
-        ) : tasks.length === 0 ? (
-          // Nothing to filter or search yet: no bar, no filtered-empty line.
-          showForm ? null : (
+      {tasks === undefined ? (
+        <PaneLoader />
+      ) : tasks.length === 0 ? (
+        // Nothing to filter or search yet: no bar, no filtered-empty line.
+        showForm ? null : (
           <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
             <Zap className="w-8 h-8 text-sol-text-dim" />
             <p className="text-sm text-sol-text-muted">No triggers yet</p>
             <div className="mt-2 flex items-center gap-2">
-              <Button variant="amber" size="sm" onClick={() => setShowForm(true)}>
+              <Button
+                variant="amber"
+                size="sm"
+                onClick={() => setShowForm(true)}
+              >
                 <Plus /> New trigger
               </Button>
               {/* The CLI form is data for whoever wants it, behind a copy. */}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { void copyToClipboard('cast trigger add "Check CI on main" --in 30m').then(() => toast.success("CLI command copied")); }}
+                onClick={() => {
+                  void copyToClipboard(
+                    'cast trigger add "Check CI on main" --in 30m',
+                  ).then(() => toast.success("CLI command copied"));
+                }}
               >
                 <Terminal /> Copy CLI command
               </Button>
             </div>
           </div>
-          )
-        ) : (
-          <>
-            {/* The overview sits on the page, not in a box: one line of
+        )
+      ) : (
+        <>
+          {/* The overview sits on the page, not in a box: one line of
                 numbers under the title, the ±24h rail beneath it, the failed
                 names if any — everything on the title's left edge. The sticky
                 filter bar's hairline closes it. The rail plots all filtered
                 tasks, not just active: finished one-times and paused loops
                 still own dots on the past half. */}
-            {hasTasks && (
-              <div className="reveal mb-4">
-                <OverviewLine stats={stats} now={now} filters={filters} update={update} />
-                <PageHorizonRail tasks={filtered} now={now} />
-                <AttentionBanner tasks={failingActive} />
-              </div>
-            )}
-            <FilterBar
-              filters={filters}
-              update={update}
-              projects={projects}
-              hasCodex={hasCodex}
-              hasEvent={hasEvent}
-              shown={filtered.length}
-              total={tasks.length}
-              grouping={grouping}
-              setGrouping={setGrouping}
-            />
-            {!anyShown ? (
-              <FilteredEmpty onClear={() => update(EMPTY_FILTERS)} />
-            ) : (
-              <div className="reveal reveal-2">
-                {/* The overview line already says the split; repeat it here
+          {hasTasks && (
+            <div className="reveal mb-4">
+              <OverviewLine
+                stats={stats}
+                now={now}
+                filters={filters}
+                update={update}
+              />
+              <PageHorizonRail tasks={filtered} now={now} />
+              <AttentionBanner tasks={failingActive} />
+            </div>
+          )}
+          <FilterBar
+            filters={filters}
+            update={update}
+            projects={projects}
+            hasCodex={hasCodex}
+            hasEvent={hasEvent}
+            shown={filtered.length}
+            total={tasks.length}
+            grouping={grouping}
+            setGrouping={setGrouping}
+          />
+          {!anyShown ? (
+            <FilteredEmpty onClear={() => update(EMPTY_FILTERS)} />
+          ) : (
+            <div className="reveal reveal-2">
+              {/* The overview line already says the split; repeat it here
                     only when a filter makes the section's split differ. */}
-                <Section title="Active" count={active.length} subtitle={filtersActive(filters) ? activeSubtitle : undefined}>
-                  <RowList tasks={active} nextId={nextId} {...listProps} />
-                </Section>
-                <Section title="Paused" count={paused.length}>
-                  <RowList tasks={paused} {...listProps} />
-                </Section>
-                <Section
-                  title="History"
-                  count={history.length}
-                  subtitle={historyFailed > 0 ? `${historyFailed} failed` : "all succeeded"}
-                  defaultOpen={active.length === 0}
-                >
-                  <HistoryBody tasks={history} now={now} grouping={grouping} form={form} setForm={setForm} deepLinkId={deepLinkId} />
-                </Section>
-              </div>
-            )}
-          </>
-        )}
+              <Section
+                title="Active"
+                count={active.length}
+                subtitle={filtersActive(filters) ? activeSubtitle : undefined}
+              >
+                <RowList tasks={active} nextId={nextId} {...listProps} />
+              </Section>
+              <Section title="Paused" count={paused.length}>
+                <RowList tasks={paused} {...listProps} />
+              </Section>
+              <Section
+                title="History"
+                count={history.length}
+                subtitle={
+                  historyFailed > 0
+                    ? `${historyFailed} failed`
+                    : "all succeeded"
+                }
+                defaultOpen={active.length === 0}
+              >
+                <HistoryBody
+                  tasks={history}
+                  now={now}
+                  grouping={grouping}
+                  form={form}
+                  setForm={setForm}
+                  deepLinkId={deepLinkId}
+                />
+              </Section>
+            </div>
+          )}
+        </>
+      )}
     </PageFrame>
   );
 }

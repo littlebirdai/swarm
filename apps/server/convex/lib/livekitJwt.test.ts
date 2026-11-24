@@ -5,9 +5,10 @@ import { signLivekitJwt } from "./livekitJwt";
 function b64urlToJson(part: string): any {
   const pad = part.length % 4 === 0 ? "" : "=".repeat(4 - (part.length % 4));
   return JSON.parse(
-    Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64").toString(
-      "utf8",
-    ),
+    Buffer.from(
+      part.replace(/-/g, "+").replace(/_/g, "/") + pad,
+      "base64",
+    ).toString("utf8"),
   );
 }
 

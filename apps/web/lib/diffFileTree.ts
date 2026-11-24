@@ -15,7 +15,7 @@ export function shortenPrefix(prefix: string): string {
   const parts = prefix.split("/").filter(Boolean);
   // Detect home-dir-relative paths: /Users/x/src/project/... or /home/x/...
   // Show from the first directory after common base dirs (Users/x, home/x, etc.)
-  const homeIdx = parts.findIndex(p => p === "Users" || p === "home");
+  const homeIdx = parts.findIndex((p) => p === "Users" || p === "home");
   if (homeIdx >= 0) {
     // Skip Users/<name> or home/<name>, then show from next meaningful dir
     const startAfterHome = homeIdx + 2;
@@ -38,13 +38,13 @@ export function findCommonPrefix(paths: string[]): string {
     return parts.slice(0, -1).join("/");
   }
 
-  const splitPaths = paths.map(p => p.split("/"));
-  const minLen = Math.min(...splitPaths.map(p => p.length));
+  const splitPaths = paths.map((p) => p.split("/"));
+  const minLen = Math.min(...splitPaths.map((p) => p.length));
 
   let commonParts: string[] = [];
   for (let i = 0; i < minLen - 1; i++) {
     const part = splitPaths[0][i];
-    if (splitPaths.every(p => p[i] === part)) {
+    if (splitPaths.every((p) => p[i] === part)) {
       commonParts.push(part);
     } else {
       break;
@@ -55,16 +55,16 @@ export function findCommonPrefix(paths: string[]): string {
 }
 
 export function stripCommonPrefix(files: DiffFile[]): DiffFile[] {
-  const prefix = findCommonPrefix(files.map(f => f.filename));
+  const prefix = findCommonPrefix(files.map((f) => f.filename));
   if (!prefix) return files;
 
   const prefixWithSlash = prefix + "/";
-  return files.map(f => ({
+  return files.map((f) => ({
     ...f,
     originalFilename: f.originalFilename ?? f.filename,
     filename: f.filename.startsWith(prefixWithSlash)
       ? f.filename.slice(prefixWithSlash.length)
-      : f.filename
+      : f.filename,
   }));
 }
 

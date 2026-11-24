@@ -7,16 +7,25 @@ const base = { conversations: [], pr_ids: [], task_ids: [] };
 const ctx = { ships: [], linked: true };
 
 /** A commit's story, its size read off the commit the way buildDay sums it. */
-const storyOf = (c: ReturnType<typeof commit>) => ({ ...base, units: [{ commit: c, area: null }], insertions: c.insertions, deletions: c.deletions });
+const storyOf = (c: ReturnType<typeof commit>) => ({
+  ...base,
+  units: [{ commit: c, area: null }],
+  insertions: c.insertions,
+  deletions: c.deletions,
+});
 
 describe("bulk", () => {
   test("a brand commit that is mostly fonts and snapshots is not bulk", () => {
     const paths: Record<string, number> = {};
-    for (let i = 0; i < 40; i++) paths[`apps/web/public/fonts/face-${i}.woff2`] = 400;
-    for (let i = 0; i < 30; i++) paths[`apps/web/public/brand/mark-${i}.png`] = 120;
-    for (let i = 0; i < 10; i++) paths[`packages/db/drizzle/meta/00${i}_snapshot.json`] = 900;
+    for (let i = 0; i < 40; i++)
+      paths[`apps/web/public/fonts/face-${i}.woff2`] = 400;
+    for (let i = 0; i < 30; i++)
+      paths[`apps/web/public/brand/mark-${i}.png`] = 120;
+    for (let i = 0; i < 10; i++)
+      paths[`packages/db/drizzle/meta/00${i}_snapshot.json`] = 900;
     paths["bun.lock"] = 600;
-    for (let i = 0; i < 14; i++) paths[`apps/web/components/brand/Part${i}.tsx`] = 60;
+    for (let i = 0; i < 14; i++)
+      paths[`apps/web/components/brand/Part${i}.tsx`] = 60;
     expect(Object.keys(paths)).toHaveLength(95);
     const c = commit({ sha: "brand", paths });
     expect(c.insertions).toBeGreaterThan(BULK_LINES * 10);
@@ -25,7 +34,8 @@ describe("bulk", () => {
 
   test("the same source lines without the generated files around them still count", () => {
     const paths: Record<string, number> = {};
-    for (let i = 0; i < 20; i++) paths[`apps/web/components/x/Part${i}.tsx`] = 80;
+    for (let i = 0; i < 20; i++)
+      paths[`apps/web/components/x/Part${i}.tsx`] = 80;
     paths["bun.lock"] = 5000;
     const risks = computeRisks(storyOf(commit({ sha: "big", paths })), ctx);
     expect(risks.map((r) => r.code)).toEqual(["bulk"]);
@@ -33,8 +43,20 @@ describe("bulk", () => {
   });
 
   test("a slice counts only its own area's generated lines", () => {
-    const c = commit({ sha: "s", paths: { "apps/web/a.tsx": 1600, "apps/cli/bun.lock": 3000, "docs/x.png": 10 } });
-    const slice = { ...base, units: [{ commit: c, area: "web" }], insertions: 1600, deletions: 0 };
+    const c = commit({
+      sha: "s",
+      paths: {
+        "apps/web/a.tsx": 1600,
+        "apps/cli/bun.lock": 3000,
+        "docs/x.png": 10,
+      },
+    });
+    const slice = {
+      ...base,
+      units: [{ commit: c, area: "web" }],
+      insertions: 1600,
+      deletions: 0,
+    };
     expect(computeRisks(slice, ctx).map((r) => r.code)).toEqual(["bulk"]);
   });
 });
@@ -42,12 +64,29 @@ describe("bulk", () => {
 describe("isGeneratedPath", () => {
   test("lockfiles, snapshots, generated code, fixtures, fonts and images", () => {
     for (const p of [
-      "bun.lock", "apps/web/package-lock.json", "yarn.lock", "pnpm-lock.yaml", "go.sum",
-      "drizzle/meta/0007_snapshot.json", "apps/server/convex/_generated/api.d.ts",
-      "apps/cli/src/__fixtures__/x/calls.md", "src/__snapshots__/a.test.ts.snap", "x.snap",
-      "public/fonts/Inter.woff2", "a/b.ttf", "public/og.PNG", "icon.svg",
-    ]) expect([p, isGeneratedPath(p)]).toEqual([p, true]);
-    for (const p of ["apps/web/app/globals.css", "drizzle/0007_add.sql", "src/lock.ts", "docs/fixtures.md", "meta/notes.json"]) {
+      "bun.lock",
+      "apps/web/package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "go.sum",
+      "drizzle/meta/0007_snapshot.json",
+      "apps/server/convex/_generated/api.d.ts",
+      "apps/cli/src/__fixtures__/x/calls.md",
+      "src/__snapshots__/a.test.ts.snap",
+      "x.snap",
+      "public/fonts/Inter.woff2",
+      "a/b.ttf",
+      "public/og.PNG",
+      "icon.svg",
+    ])
+      expect([p, isGeneratedPath(p)]).toEqual([p, true]);
+    for (const p of [
+      "apps/web/app/globals.css",
+      "drizzle/0007_add.sql",
+      "src/lock.ts",
+      "docs/fixtures.md",
+      "meta/notes.json",
+    ]) {
       expect([p, isGeneratedPath(p)]).toEqual([p, false]);
     }
   });

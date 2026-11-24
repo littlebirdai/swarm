@@ -5,13 +5,34 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ThreadRow } from "../../components/calls/roomThreadModel";
-import { countUnread, getRoomThreadSeen, markRoomThreadSeen, setRoomThreadWatching, unreadArrivals } from "../calls/roomThreadSeen";
+import {
+  countUnread,
+  getRoomThreadSeen,
+  markRoomThreadSeen,
+  setRoomThreadWatching,
+  unreadArrivals,
+} from "../calls/roomThreadSeen";
 
 let n = 0;
 function row(at: number, over: Partial<ThreadRow> = {}): ThreadRow {
-  return { _id: `r${n++}`, user_id: "u2", user_name: "Ada", text: "hi", at, mine: false, agent: null, event: null, ...over };
+  return {
+    _id: `r${n++}`,
+    user_id: "u2",
+    user_name: "Ada",
+    text: "hi",
+    at,
+    mine: false,
+    agent: null,
+    event: null,
+    ...over,
+  };
 }
-const agent = { conversation_id: "c1", short_id: "jx7a", title: "Ember", agent_type: "claude_code" };
+const agent = {
+  conversation_id: "c1",
+  short_id: "jx7a",
+  title: "Ember",
+  agent_type: "claude_code",
+};
 
 describe("room thread unread", () => {
   test("the backlog of a room walked into is seen, later lines count", () => {
@@ -27,7 +48,11 @@ describe("room thread unread", () => {
   test("own lines and events never count", () => {
     const room = "room:mine";
     markRoomThreadSeen(room, [row(1)], false);
-    const rows = [row(1), row(2, { mine: true }), row(3, { event: "agent_joined" as any, agent })];
+    const rows = [
+      row(1),
+      row(2, { mine: true }),
+      row(3, { event: "agent_joined" as any, agent }),
+    ];
     expect(countUnread(rows, getRoomThreadSeen(room))).toBe(0);
   });
 
@@ -48,10 +73,19 @@ describe("room thread unread", () => {
   test("the newest unread arrival says whether an agent sent it", () => {
     const room = "room:latest";
     markRoomThreadSeen(room, [row(1)], false);
-    const answered = [row(1), row(2), row(3, { agent }), row(4, { mine: true })];
-    expect(unreadArrivals(answered, getRoomThreadSeen(room)).at(-1)?.agent?.title).toBe("Ember");
+    const answered = [
+      row(1),
+      row(2),
+      row(3, { agent }),
+      row(4, { mine: true }),
+    ];
+    expect(
+      unreadArrivals(answered, getRoomThreadSeen(room)).at(-1)?.agent?.title,
+    ).toBe("Ember");
     const followed = [...answered, row(5)];
-    expect(unreadArrivals(followed, getRoomThreadSeen(room)).at(-1)?.agent).toBeNull();
+    expect(
+      unreadArrivals(followed, getRoomThreadSeen(room)).at(-1)?.agent,
+    ).toBeNull();
   });
 
   test("an unknown room counts nothing until it has been seen once", () => {

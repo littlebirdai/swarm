@@ -69,7 +69,10 @@ export async function readStepPlan(steps: string[]): Promise<string[]> {
     process.stdin.on("data", (d) => (buf += d));
     process.stdin.on("end", () => resolve(buf));
   });
-  return stdin.split("\n").map((l) => l.trim()).filter(Boolean);
+  return stdin
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 }
 
 export interface RunStepsOptions {
@@ -100,7 +103,12 @@ export async function runSteps(
       const note = await opts.afterStep?.(args).catch(() => null);
       if (note) results[results.length - 1].output += `\n! ${note}`;
     } catch (err) {
-      results.push({ step, ok: false, output: "", error: err instanceof Error ? err.message : String(err) });
+      results.push({
+        step,
+        ok: false,
+        output: "",
+        error: err instanceof Error ? err.message : String(err),
+      });
       if (!opts.keepGoing) break;
     }
   }
@@ -109,11 +117,23 @@ export async function runSteps(
 
 /** One line per step with its output indented under it, then the tally.
  *  Returns the number of failed steps. */
-export function printStepResults(results: StepResult[], planLength: number, startedAt: number): number {
+export function printStepResults(
+  results: StepResult[],
+  planLength: number,
+  startedAt: number,
+): number {
   for (const r of results) {
-    console.log(`${r.ok ? fmt.success(icons.check) : fmt.error(icons.cross)} ${fmt.highlight(r.step)}`);
+    console.log(
+      `${r.ok ? fmt.success(icons.check) : fmt.error(icons.cross)} ${fmt.highlight(r.step)}`,
+    );
     const body = r.ok ? r.output : (r.error ?? "");
-    if (body) console.log(body.split("\n").map((l) => `    ${l}`).join("\n"));
+    if (body)
+      console.log(
+        body
+          .split("\n")
+          .map((l) => `    ${l}`)
+          .join("\n"),
+      );
   }
   const failed = results.filter((r) => !r.ok).length;
   const skipped = planLength - results.length;

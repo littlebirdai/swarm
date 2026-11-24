@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -32,27 +40,37 @@ function expireWait() {
 
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>((done) => { resolve = done; });
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
 describe("reservation-specific lock", () => {
   test("publishes complete owner metadata atomically and removes the temporary file", async () => {
     const linkSync = fs.linkSync;
-    const publish = spyOn(fs, "linkSync").mockImplementation((source, destination) => {
-      expect(destination).toBe(lock);
-      expect(fs.existsSync(lock)).toBe(false);
-      const owner = JSON.parse(fs.readFileSync(source, "utf8"));
-      expect(owner.pid).toBe(process.pid);
-      expect(owner.pid).toBeGreaterThan(0);
-      expect(owner.token).toMatch(/^[0-9a-f-]{36}$/);
-      linkSync(source, destination);
-      expect(fs.readFileSync(destination, "utf8")).toBe(fs.readFileSync(source, "utf8"));
-    });
-    expect(await withPortReservations(root, async () => {
-      expect(fs.readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
-      return "reserved";
-    })).toBe("reserved");
+    const publish = spyOn(fs, "linkSync").mockImplementation(
+      (source, destination) => {
+        expect(destination).toBe(lock);
+        expect(fs.existsSync(lock)).toBe(false);
+        const owner = JSON.parse(fs.readFileSync(source, "utf8"));
+        expect(owner.pid).toBe(process.pid);
+        expect(owner.pid).toBeGreaterThan(0);
+        expect(owner.token).toMatch(/^[0-9a-f-]{36}$/);
+        linkSync(source, destination);
+        expect(fs.readFileSync(destination, "utf8")).toBe(
+          fs.readFileSync(source, "utf8"),
+        );
+      },
+    );
+    expect(
+      await withPortReservations(root, async () => {
+        expect(
+          fs.readdirSync(directory).filter((name) => name.endsWith(".tmp")),
+        ).toEqual([]);
+        return "reserved";
+      }),
+    ).toBe("reserved");
     expect(publish).toHaveBeenCalledTimes(1);
     expect(fs.readdirSync(directory)).toEqual(["repositories.json"]);
   });
@@ -71,7 +89,9 @@ describe("reservation-specific lock", () => {
     const callback = mock(async () => "entered");
     const kill = spyOn(process, "kill");
     expireWait();
-    await expect(withPortReservations(root, callback)).rejects.toThrow(`inspect ${lock}`);
+    await expect(withPortReservations(root, callback)).rejects.toThrow(
+      `inspect ${lock}`,
+    );
     expect(callback).not.toHaveBeenCalled();
     expect(kill).not.toHaveBeenCalled();
     expect(fs.statSync(lock).ino).toBe(inode);
@@ -83,7 +103,9 @@ describe("reservation-specific lock", () => {
     fs.mkdirSync(lock);
     const callback = mock(async () => "entered");
     expireWait();
-    await expect(withPortReservations(root, callback)).rejects.toThrow("unreadable owner");
+    await expect(withPortReservations(root, callback)).rejects.toThrow(
+      "unreadable owner",
+    );
     expect(callback).not.toHaveBeenCalled();
     expect(fs.statSync(lock).isDirectory()).toBe(true);
   });
@@ -91,10 +113,14 @@ describe("reservation-specific lock", () => {
   test("unknown PID liveness fails closed", async () => {
     const contents = JSON.stringify({ pid: process.pid, token: "holder" });
     fs.writeFileSync(lock, contents);
-    spyOn(process, "kill").mockImplementation(() => { throw Object.assign(new Error("denied"), { code: "EPERM" }); });
+    spyOn(process, "kill").mockImplementation(() => {
+      throw Object.assign(new Error("denied"), { code: "EPERM" });
+    });
     const callback = mock(async () => "entered");
     expireWait();
-    await expect(withPortReservations(root, callback)).rejects.toThrow(`pid ${process.pid}`);
+    await expect(withPortReservations(root, callback)).rejects.toThrow(
+      `pid ${process.pid}`,
+    );
     expect(callback).not.toHaveBeenCalled();
     expect(fs.readFileSync(lock, "utf8")).toBe(contents);
   });
@@ -105,7 +131,9 @@ describe("reservation-specific lock", () => {
       const callback = mock(async () => "entered");
       const clock = expireWait();
       try {
-        await expect(withPortReservations(root, callback)).rejects.toThrow("Timed out waiting for workspace port reservations");
+        await expect(withPortReservations(root, callback)).rejects.toThrow(
+          "Timed out waiting for workspace port reservations",
+        );
         expect(callback).not.toHaveBeenCalled();
         expect(fs.readFileSync(lock, "utf8")).toBe(contents);
       } finally {
@@ -147,14 +175,21 @@ describe("reservation-specific lock", () => {
   test("a separate live process cannot enter until the holder releases", async () => {
     const release = deferred();
     const first = withPortReservations(root, () => release.promise);
-    const child = Bun.spawn([process.execPath, "-e", `
+    const child = Bun.spawn(
+      [
+        process.execPath,
+        "-e",
+        `
       import { withPortReservations } from ${JSON.stringify(path.join(import.meta.dir, "portReservations.ts"))};
       const pending = withPortReservations(${JSON.stringify(root)}, async () => {
         console.log("entered");
       });
       console.log("attempted");
       await pending;
-    `], { stdout: "pipe", stderr: "pipe", env: process.env });
+    `,
+      ],
+      { stdout: "pipe", stderr: "pipe", env: process.env },
+    );
     const reader = child.stdout.getReader();
     const stderr = new Response(child.stderr).text();
     try {
@@ -183,19 +218,28 @@ describe("reservation-specific lock", () => {
   });
 
   test("a dead owner fails closed with its path for manual recovery", async () => {
-    const child = Bun.spawn([process.execPath, "-e", "process.exit(0)"], { stdout: "ignore", stderr: "ignore" });
+    const child = Bun.spawn([process.execPath, "-e", "process.exit(0)"], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
     expect(await child.exited).toBe(0);
     const contents = JSON.stringify({ pid: child.pid, token: "dead-holder" });
     fs.writeFileSync(lock, contents);
     const callback = mock(async () => "entered");
-    await expect(withPortReservations(root, callback)).rejects.toThrow(`inspect remaining child processes before manually removing ${lock}`);
+    await expect(withPortReservations(root, callback)).rejects.toThrow(
+      `inspect remaining child processes before manually removing ${lock}`,
+    );
     expect(callback).not.toHaveBeenCalled();
     expect(fs.readFileSync(lock, "utf8")).toBe(contents);
   });
 
   test("callback exceptions release only the acquired lock", async () => {
     const failure = new Error("reservation failed");
-    await expect(withPortReservations(root, async () => { throw failure; })).rejects.toBe(failure);
+    await expect(
+      withPortReservations(root, async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
     expect(fs.existsSync(lock)).toBe(false);
     expect(await withPortReservations(root, async () => "retry")).toBe("retry");
   });
@@ -209,7 +253,10 @@ describe("reservation-specific lock", () => {
   });
 
   test("release retains another token even when its PID is the same", async () => {
-    const replacement = JSON.stringify({ pid: process.pid, token: "different-operation" });
+    const replacement = JSON.stringify({
+      pid: process.pid,
+      token: "different-operation",
+    });
     await withPortReservations(root, async () => {
       fs.writeFileSync(lock, replacement);
     });
@@ -225,21 +272,31 @@ describe("reservation-specific lock", () => {
 
   test("publication errors clean up the temporary file without entering", async () => {
     const failure = Object.assign(new Error("link denied"), { code: "EACCES" });
-    spyOn(fs, "linkSync").mockImplementation(() => { throw failure; });
+    spyOn(fs, "linkSync").mockImplementation(() => {
+      throw failure;
+    });
     const callback = mock(async () => "entered");
     await expect(withPortReservations(root, callback)).rejects.toBe(failure);
     expect(callback).not.toHaveBeenCalled();
     expect(fs.readdirSync(directory)).toEqual([]);
   });
 
-  test.each(["", JSON.stringify({ pid: process.pid, acquired_at: new Date(0).toISOString() })])(
+  test.each([
+    "",
+    JSON.stringify({
+      pid: process.pid,
+      acquired_at: new Date(0).toISOString(),
+    }),
+  ])(
     "refuses an existing legacy lock without reclaiming it: %s",
     async (contents) => {
       const legacy = path.join(directory, ".codecast-capability.lock");
       fs.writeFileSync(legacy, contents);
       const callback = mock(async () => "entered");
       expireWait();
-      await expect(withPortReservations(root, callback)).rejects.toThrow("Timed out waiting for workspace port reservations");
+      await expect(withPortReservations(root, callback)).rejects.toThrow(
+        "Timed out waiting for workspace port reservations",
+      );
       expect(callback).not.toHaveBeenCalled();
       expect(fs.readFileSync(legacy, "utf8")).toBe(contents);
       expect(fs.readdirSync(directory)).toEqual([path.basename(legacy)]);
@@ -249,7 +306,9 @@ describe("reservation-specific lock", () => {
     expect(acquireLock(directory).acquired).toBe(true);
     const clock = expireWait();
     try {
-      await expect(withPortReservations(root, async () => "wrong")).rejects.toThrow("Timed out");
+      await expect(
+        withPortReservations(root, async () => "wrong"),
+      ).rejects.toThrow("Timed out");
     } finally {
       clock.mockRestore();
       releaseLock(directory);
@@ -261,5 +320,4 @@ describe("reservation-specific lock", () => {
     });
     expect(fs.existsSync(lock)).toBe(false);
   });
-
 });

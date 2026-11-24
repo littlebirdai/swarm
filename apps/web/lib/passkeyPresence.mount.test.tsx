@@ -12,7 +12,12 @@ import { JSDOM } from "jsdom";
 import { getFunctionName } from "convex/server";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
-import { APPROVE_FOR_SESSION, DENY, NOT_CONFIRMED, presenceRequiredMessage } from "@codecast/shared/contracts/secrets";
+import {
+  APPROVE_FOR_SESSION,
+  DENY,
+  NOT_CONFIRMED,
+  presenceRequiredMessage,
+} from "@codecast/shared/contracts/secrets";
 import { AGENT_TAB_KEY } from "./desktopHandoff";
 
 // Each prompt answers with its action button unless a test says otherwise.
@@ -22,14 +27,26 @@ const realSonner = await import("sonner");
 const fakeToast = Object.assign(
   (title: string, opts: any = {}) => {
     toasts.push({ title, opts });
-    if (opts.action && !opts.id) queueMicrotask(() => (promptAnswer === "action" ? opts.action.onClick() : opts.cancel?.onClick()));
+    if (opts.action && !opts.id)
+      queueMicrotask(() =>
+        promptAnswer === "action"
+          ? opts.action.onClick()
+          : opts.cancel?.onClick(),
+      );
     return title;
   },
-  { error: (title: string) => void toasts.push({ title: `error:${title}`, opts: {} }), success: () => {}, dismiss: () => {} },
+  {
+    error: (title: string) =>
+      void toasts.push({ title: `error:${title}`, opts: {} }),
+    success: () => {},
+    dismiss: () => {},
+  },
 );
 mock.module("sonner", () => ({ ...realSonner, toast: fakeToast }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://codecast.sh/vault" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://codecast.sh/vault",
+});
 const opened: string[] = [];
 const restoreGlobals = replaceGlobals({
   window: dom.window,
@@ -46,7 +63,13 @@ const restoreGlobals = replaceGlobals({
 });
 (dom.window as any).open = (url: string) => void opened.push(url);
 
-const { confirmPresence, withPresence, useApproveGate, deviceName, confirmPath } = await import("./passkeyPresence");
+const {
+  confirmPresence,
+  withPresence,
+  useApproveGate,
+  deviceName,
+  confirmPath,
+} = await import("./passkeyPresence");
 const { ConvexProvider } = await import("convex/react");
 const { createRoot } = await import("react-dom/client");
 const { useReveal } = await import("../hooks/useReveal");
@@ -56,7 +79,8 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const bytes = (n: number) => new Uint8Array(Array.from({ length: n }, (_, i) => i + 1)).buffer;
+const bytes = (n: number) =>
+  new Uint8Array(Array.from({ length: n }, (_, i) => i + 1)).buffer;
 
 // What a platform authenticator hands back: an assertion for get, an attestation for create.
 function credential(kind: "get" | "create") {
@@ -68,12 +92,24 @@ function credential(kind: "get" | "create") {
     getClientExtensionResults: () => ({}),
     response:
       kind === "get"
-        ? { authenticatorData: bytes(37), clientDataJSON: bytes(20), signature: bytes(64), userHandle: null }
-        : { attestationObject: bytes(40), clientDataJSON: bytes(20), getTransports: () => ["internal"] },
+        ? {
+            authenticatorData: bytes(37),
+            clientDataJSON: bytes(20),
+            signature: bytes(64),
+            userHandle: null,
+          }
+        : {
+            attestationObject: bytes(40),
+            clientDataJSON: bytes(20),
+            getTransports: () => ["internal"],
+          },
   };
 }
 
-type Credentials = { get: (o: any) => Promise<any>; create: (o: any) => Promise<any> };
+type Credentials = {
+  get: (o: any) => Promise<any>;
+  create: (o: any) => Promise<any>;
+};
 const ceremonies: string[] = [];
 function setCredentials(over: Partial<Credentials> = {}) {
   const creds: Credentials = {
@@ -81,17 +117,29 @@ function setCredentials(over: Partial<Credentials> = {}) {
     create: async () => (ceremonies.push("create"), credential("create")),
     ...over,
   };
-  Object.defineProperty(dom.window.navigator, "credentials", { value: creds, configurable: true });
+  Object.defineProperty(dom.window.navigator, "credentials", {
+    value: creds,
+    configurable: true,
+  });
 }
 
-const AUTH_OPTIONS = { challenge: "Y2hhbGxlbmdl", rpId: "codecast.sh", allowCredentials: [{ id: "AQIDBA", type: "public-key" }], userVerification: "required", timeout: 120000 };
+const AUTH_OPTIONS = {
+  challenge: "Y2hhbGxlbmdl",
+  rpId: "codecast.sh",
+  allowCredentials: [{ id: "AQIDBA", type: "public-key" }],
+  userVerification: "required",
+  timeout: 120000,
+};
 const REG_OPTIONS = {
   challenge: "Y2hhbGxlbmdl",
   rp: { id: "codecast.sh", name: "Codecast" },
   user: { id: "dXNlcg", name: "a@b.c", displayName: "A" },
   pubKeyCredParams: [{ type: "public-key", alg: -7 }],
   excludeCredentials: [],
-  authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+  authenticatorSelection: {
+    residentKey: "preferred",
+    userVerification: "required",
+  },
   attestation: "none",
   timeout: 120000,
 };
@@ -122,9 +170,18 @@ function fakeClient(answers: Record<string, (args: any) => any>) {
   };
 }
 
-const granted = { granted: true, action: "reveal", expires_at: Date.now() + 120_000 };
+const granted = {
+  granted: true,
+  action: "reveal",
+  expires_at: Date.now() + 120_000,
+};
 const GRANT = "ch-1.only-this-tab-knows";
-const begun = { challenge_id: "ch-1", options: AUTH_OPTIONS, expires_at: Date.now() + 120_000, grant: GRANT };
+const begun = {
+  challenge_id: "ch-1",
+  options: AUTH_OPTIONS,
+  expires_at: Date.now() + 120_000,
+  grant: GRANT,
+};
 
 beforeEach(() => {
   toasts.length = 0;
@@ -133,39 +190,81 @@ beforeEach(() => {
   promptAnswer = "action";
   sessionStorage.clear();
   setCredentials();
-  Object.defineProperty(dom.window.navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/140.0 Safari/537.36", configurable: true });
+  Object.defineProperty(dom.window.navigator, "userAgent", {
+    value:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/140.0 Safari/537.36",
+    configurable: true,
+  });
 });
 
 describe("confirmPresence", () => {
   test("asks the platform for an assertion of the challenge, finishes it, and answers the grant string", async () => {
-    const client = fakeClient({ "passkeys:presenceBegin": () => begun, "passkeys:presenceFinish": () => granted });
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => begun,
+      "passkeys:presenceFinish": () => granted,
+    });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBe(GRANT);
-    expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin", "passkeys:presenceFinish"]);
-    expect(client.calls[0].args).toEqual({ action: "reveal", target: "sec-1", origin: "https://codecast.sh" });
+    expect(client.calls.map((c) => c.name)).toEqual([
+      "passkeys:presenceBegin",
+      "passkeys:presenceFinish",
+    ]);
+    expect(client.calls[0].args).toEqual({
+      action: "reveal",
+      target: "sec-1",
+      origin: "https://codecast.sh",
+    });
     expect(client.calls[1].args.challenge_id).toBe("ch-1");
     // The finish, which the /confirm page also makes, never carries the grant string.
     expect(JSON.stringify(client.calls[1].args)).not.toContain(GRANT);
-    expect(client.calls[1].args.response).toMatchObject({ id: "AQIDBA", type: "public-key", response: { signature: expect.any(String) } });
+    expect(client.calls[1].args.response).toMatchObject({
+      id: "AQIDBA",
+      type: "public-key",
+      response: { signature: expect.any(String) },
+    });
     expect(ceremonies).toEqual(["get"]);
   });
 
   test("a cancelled prompt answers null quietly and finishes nothing", async () => {
-    setCredentials({ get: async () => Promise.reject(Object.assign(new Error("The operation either timed out or was not allowed."), { name: "NotAllowedError" })) });
-    const client = fakeClient({ "passkeys:presenceBegin": () => begun, "passkeys:presenceFinish": () => granted });
+    setCredentials({
+      get: async () =>
+        Promise.reject(
+          Object.assign(
+            new Error("The operation either timed out or was not allowed."),
+            { name: "NotAllowedError" },
+          ),
+        ),
+    });
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => begun,
+      "passkeys:presenceFinish": () => granted,
+    });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBeNull();
     expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin"]);
     expect(toasts.filter((t) => t.title.startsWith("error:"))).toEqual([]);
   });
 
   test("a refusal from the server is said and answers null", async () => {
-    const client = fakeClient({ "passkeys:presenceBegin": () => begun, "passkeys:presenceFinish": () => ({ error: "The passkey could not be verified" }) });
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => begun,
+      "passkeys:presenceFinish": () => ({
+        error: "The passkey could not be verified",
+      }),
+    });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBeNull();
-    expect(toasts.map((t) => t.title)).toContain("error:The passkey could not be verified");
+    expect(toasts.map((t) => t.title)).toContain(
+      "error:The passkey could not be verified",
+    );
   });
 
   test("a second press while the prompt is up joins the first", async () => {
-    const client = fakeClient({ "passkeys:presenceBegin": () => begun, "passkeys:presenceFinish": () => granted });
-    const [a, b] = await Promise.all([confirmPresence(client as any, "approve", "d-1"), confirmPresence(client as any, "approve", "d-1")]);
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => begun,
+      "passkeys:presenceFinish": () => granted,
+    });
+    const [a, b] = await Promise.all([
+      confirmPresence(client as any, "approve", "d-1"),
+      confirmPresence(client as any, "approve", "d-1"),
+    ]);
     expect([a, b]).toEqual([GRANT, GRANT]);
     expect(ceremonies).toEqual(["get"]);
   });
@@ -173,22 +272,49 @@ describe("confirmPresence", () => {
   test("with no passkey yet it sets one up inline, then confirms on a press of its own", async () => {
     let enrolled = false;
     const client = fakeClient({
-      "passkeys:presenceBegin": () => (enrolled ? begun : { error: "Set up Touch ID first", needs_passkey: true }),
-      "passkeys:registrationBegin": () => ({ challenge_id: "reg-1", options: REG_OPTIONS, expires_at: Date.now() + 120_000 }),
-      "passkeys:registrationFinish": () => ((enrolled = true), { id: "pk-1", name: "Chrome on Mac", first: true }),
+      "passkeys:presenceBegin": () =>
+        enrolled
+          ? begun
+          : { error: "Set up Touch ID first", needs_passkey: true },
+      "passkeys:registrationBegin": () => ({
+        challenge_id: "reg-1",
+        options: REG_OPTIONS,
+        expires_at: Date.now() + 120_000,
+      }),
+      "passkeys:registrationFinish": () => (
+        (enrolled = true),
+        { id: "pk-1", name: "Chrome on Mac", first: true }
+      ),
       "passkeys:presenceFinish": () => granted,
     });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBe(GRANT);
-    expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin", "passkeys:registrationBegin", "passkeys:registrationFinish", "passkeys:presenceBegin", "passkeys:presenceFinish"]);
-    expect(client.calls[1].args).toEqual({ origin: "https://codecast.sh", grant: undefined });
+    expect(client.calls.map((c) => c.name)).toEqual([
+      "passkeys:presenceBegin",
+      "passkeys:registrationBegin",
+      "passkeys:registrationFinish",
+      "passkeys:presenceBegin",
+      "passkeys:presenceFinish",
+    ]);
+    expect(client.calls[1].args).toEqual({
+      origin: "https://codecast.sh",
+      grant: undefined,
+    });
     expect(client.calls[2].args.name).toBe("Chrome on Mac");
     expect(ceremonies).toEqual(["create", "get"]);
-    expect(toasts.map((t) => t.opts.action?.label)).toEqual(["Set up Touch ID", "Confirm"]);
+    expect(toasts.map((t) => t.opts.action?.label)).toEqual([
+      "Set up Touch ID",
+      "Confirm",
+    ]);
   });
 
   test("declining the set-up prompt sends nothing", async () => {
     promptAnswer = "cancel";
-    const client = fakeClient({ "passkeys:presenceBegin": () => ({ error: "Set up Touch ID first", needs_passkey: true }) });
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => ({
+        error: "Set up Touch ID first",
+        needs_passkey: true,
+      }),
+    });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBeNull();
     expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin"]);
     expect(ceremonies).toEqual([]);
@@ -196,29 +322,53 @@ describe("confirmPresence", () => {
 
   test("an agent's tab is refused a first passkey before anything is asked", async () => {
     sessionStorage.setItem(AGENT_TAB_KEY, "1");
-    const client = fakeClient({ "passkeys:presenceBegin": () => ({ error: "Set up Touch ID first", needs_passkey: true }) });
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => ({
+        error: "Set up Touch ID first",
+        needs_passkey: true,
+      }),
+    });
     expect(await confirmPresence(client as any, "reveal", "sec-1")).toBeNull();
     expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin"]);
     expect(ceremonies).toEqual([]);
-    expect(toasts.map((t) => t.title)).toEqual(["error:A person sets up Touch ID"]);
+    expect(toasts.map((t) => t.title)).toEqual([
+      "error:A person sets up Touch ID",
+    ]);
   });
 
   test("the desktop app opens /confirm in the browser and goes on when the challenge is granted", async () => {
-    Object.defineProperty(dom.window.navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh) Codecast/1.1.200 Chrome/140.0 Electron/44.0.0 Safari/537.36", configurable: true });
+    Object.defineProperty(dom.window.navigator, "userAgent", {
+      value:
+        "Mozilla/5.0 (Macintosh) Codecast/1.1.200 Chrome/140.0 Electron/44.0.0 Safari/537.36",
+      configurable: true,
+    });
     const client = fakeClient({ "passkeys:presenceBegin": () => begun });
     const done = confirmPresence(client as any, "approve", "d-1");
     await new Promise((r) => setTimeout(r, 0));
     expect(opened).toEqual([`https://codecast.sh${confirmPath("ch-1")}`]);
     expect(toasts.at(-1)?.title).toBe("Confirm in your browser");
-    client.push({ purpose: "presence", status: "pending", action: "approve", expires_at: begun.expires_at });
-    client.push({ purpose: "presence", status: "granted", action: "approve", expires_at: begun.expires_at });
+    client.push({
+      purpose: "presence",
+      status: "pending",
+      action: "approve",
+      expires_at: begun.expires_at,
+    });
+    client.push({
+      purpose: "presence",
+      status: "granted",
+      action: "approve",
+      expires_at: begun.expires_at,
+    });
     // The grant string came from the begin, kept in memory while the browser confirmed.
     expect(await done).toBe(GRANT);
     expect(ceremonies).toEqual([]);
   });
 
   test("the desktop app's Cancel stops waiting", async () => {
-    Object.defineProperty(dom.window.navigator, "userAgent", { value: "Mozilla/5.0 Electron/44.0.0", configurable: true });
+    Object.defineProperty(dom.window.navigator, "userAgent", {
+      value: "Mozilla/5.0 Electron/44.0.0",
+      configurable: true,
+    });
     const client = fakeClient({ "passkeys:presenceBegin": () => begun });
     const done = confirmPresence(client as any, "reveal", "sec-2");
     await new Promise((r) => setTimeout(r, 0));
@@ -234,7 +384,13 @@ describe("withPresence", () => {
 
   test("not confirmed up front, it never calls", async () => {
     let calls = 0;
-    expect(await withPresence(async () => null, async () => ++calls, true)).toBe(NOT_CONFIRMED);
+    expect(
+      await withPresence(
+        async () => null,
+        async () => ++calls,
+        true,
+      ),
+    ).toBe(NOT_CONFIRMED);
     expect(calls).toBe(0);
   });
 
@@ -242,14 +398,22 @@ describe("withPresence", () => {
     let confirms = 0;
     const answers = [refusal, { payload: "v" }];
     const grants: (string | undefined)[] = [];
-    expect(await withPresence(async () => `g${++confirms}`, async (grant) => (grants.push(grant), answers.shift()), true)).toEqual({ payload: "v" });
+    expect(
+      await withPresence(
+        async () => `g${++confirms}`,
+        async (grant) => (grants.push(grant), answers.shift()),
+        true,
+      ),
+    ).toEqual({ payload: "v" });
     expect(confirms).toBe(2);
     expect(grants).toEqual(["g1", "g2"]);
     let thrown = true;
     const call = async () => {
       if (thrown) {
         thrown = false;
-        throw new Error(`[CONVEX M(dispatch)] Uncaught Error: ${refusal.error}`);
+        throw new Error(
+          `[CONVEX M(dispatch)] Uncaught Error: ${refusal.error}`,
+        );
       }
       return "ok";
     };
@@ -258,15 +422,28 @@ describe("withPresence", () => {
 
   test("it retries once: a second refusal is the answer", async () => {
     let calls = 0;
-    expect(await withPresence(async () => "g", async () => (++calls, refusal), true)).toEqual(refusal);
+    expect(
+      await withPresence(
+        async () => "g",
+        async () => (++calls, refusal),
+        true,
+      ),
+    ).toEqual(refusal);
     expect(calls).toBe(2);
   });
 });
 
 describe("useApproveGate", () => {
   test("Approve of an Ask first read confirms before it sends; Deny sends at once", async () => {
-    const client = fakeClient({ "passkeys:presenceBegin": () => begun, "passkeys:presenceFinish": () => granted });
-    const decision = { _id: "d-9", category: "access", options: [{ label: APPROVE_FOR_SESSION }, { label: DENY }] };
+    const client = fakeClient({
+      "passkeys:presenceBegin": () => begun,
+      "passkeys:presenceFinish": () => granted,
+    });
+    const decision = {
+      _id: "d-9",
+      category: "access",
+      options: [{ label: APPROVE_FOR_SESSION }, { label: DENY }],
+    };
     let gate: any;
     function Probe() {
       gate = useApproveGate(decision);
@@ -274,23 +451,49 @@ describe("useApproveGate", () => {
     }
     const container = document.createElement("div");
     const root = createRoot(container);
-    await act(() => root.render(<ConvexProvider client={client as any}><Probe /></ConvexProvider>));
+    await act(() =>
+      root.render(
+        <ConvexProvider client={client as any}>
+          <Probe />
+        </ConvexProvider>,
+      ),
+    );
     expect([gate.gated(0), gate.gated(1)]).toEqual([true, false]);
 
     const sent: number[] = [];
     const presences: (string | undefined)[] = [];
-    gate.answer(1, (presence: string | undefined) => (presences.push(presence), sent.push(1)));
+    gate.answer(
+      1,
+      (presence: string | undefined) => (
+        presences.push(presence),
+        sent.push(1)
+      ),
+    );
     expect(sent).toEqual([1]);
     expect(client.calls).toEqual([]);
 
-    await gate.answer(0, (presence: string | undefined) => (presences.push(presence), sent.push(0)));
+    await gate.answer(
+      0,
+      (presence: string | undefined) => (
+        presences.push(presence),
+        sent.push(0)
+      ),
+    );
     expect(sent).toEqual([1, 0]);
     // Deny went with no grant; Approve with the one its confirmation earned.
     expect(presences).toEqual([undefined, GRANT]);
-    expect(client.calls.map((c) => c.name)).toEqual(["passkeys:presenceBegin", "passkeys:presenceFinish"]);
+    expect(client.calls.map((c) => c.name)).toEqual([
+      "passkeys:presenceBegin",
+      "passkeys:presenceFinish",
+    ]);
     expect(client.calls[0].args.target).toBe("d-9");
 
-    setCredentials({ get: async () => Promise.reject(Object.assign(new Error("cancelled"), { name: "NotAllowedError" })) });
+    setCredentials({
+      get: async () =>
+        Promise.reject(
+          Object.assign(new Error("cancelled"), { name: "NotAllowedError" }),
+        ),
+    });
     expect(await gate.answer(0, () => sent.push(0))).toBe(NOT_CONFIRMED);
     expect(sent).toEqual([1, 0]);
     await act(() => root.unmount());
@@ -310,30 +513,57 @@ describe("useReveal of an Ask first secret", () => {
       return null;
     }
     const root = createRoot(document.createElement("div"));
-    await act(() => root.render(<ConvexProvider client={client as any}><Probe /></ConvexProvider>));
+    await act(() =>
+      root.render(
+        <ConvexProvider client={client as any}>
+          <Probe />
+        </ConvexProvider>,
+      ),
+    );
     let got: any;
     await act(async () => {
       got = await hook.load();
     });
     await act(() => root.unmount());
-    return { got, names: client.calls.map((c) => c.name), args: client.calls.map((c) => c.args) };
+    return {
+      got,
+      names: client.calls.map((c) => c.name),
+      args: client.calls.map((c) => c.args),
+    };
   }
 
   test("confirms with Touch ID before the value is fetched, and fetches with the grant string", async () => {
     const r = await reveal(true, [{ payload: { value: "zz-value" } }]);
-    expect(r.names).toEqual(["passkeys:presenceBegin", "passkeys:presenceFinish", "secrets:reveal"]);
+    expect(r.names).toEqual([
+      "passkeys:presenceBegin",
+      "passkeys:presenceFinish",
+      "secrets:reveal",
+    ]);
     expect(r.args.at(-1)).toEqual({ ref: "sec-1", grant: GRANT });
     expect(r.got).toEqual({ value: "zz-value" });
   });
 
   test("a secret switched to Ask first meanwhile is refused, confirmed, and fetched again", async () => {
-    const r = await reveal(false, [{ error: presenceRequiredMessage("reveal") }, { payload: { value: "zz-value" } }]);
-    expect(r.names).toEqual(["secrets:reveal", "passkeys:presenceBegin", "passkeys:presenceFinish", "secrets:reveal"]);
+    const r = await reveal(false, [
+      { error: presenceRequiredMessage("reveal") },
+      { payload: { value: "zz-value" } },
+    ]);
+    expect(r.names).toEqual([
+      "secrets:reveal",
+      "passkeys:presenceBegin",
+      "passkeys:presenceFinish",
+      "secrets:reveal",
+    ]);
     expect(r.got).toEqual({ value: "zz-value" });
   });
 
   test("cancelled, nothing is fetched", async () => {
-    setCredentials({ get: async () => Promise.reject(Object.assign(new Error("cancelled"), { name: "NotAllowedError" })) });
+    setCredentials({
+      get: async () =>
+        Promise.reject(
+          Object.assign(new Error("cancelled"), { name: "NotAllowedError" }),
+        ),
+    });
     const r = await reveal(true, []);
     expect(r.names).toEqual(["passkeys:presenceBegin"]);
     expect(r.got).toBeNull();
@@ -341,8 +571,20 @@ describe("useReveal of an Ask first secret", () => {
 });
 
 test("a new passkey is named for the device it was made on", () => {
-  expect(deviceName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15")).toBe("Safari on Mac");
-  expect(deviceName("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1")).toBe("Safari on iPhone");
-  expect(deviceName("Mozilla/5.0 (Windows NT 10.0) Chrome/140.0 Safari/537.36 Edg/140.0")).toBe("Edge on Windows");
+  expect(
+    deviceName(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+    ),
+  ).toBe("Safari on Mac");
+  expect(
+    deviceName(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1",
+    ),
+  ).toBe("Safari on iPhone");
+  expect(
+    deviceName(
+      "Mozilla/5.0 (Windows NT 10.0) Chrome/140.0 Safari/537.36 Edg/140.0",
+    ),
+  ).toBe("Edge on Windows");
   expect(deviceName("")).toBe("Passkey");
 });

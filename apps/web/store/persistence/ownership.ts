@@ -8,4 +8,9 @@ const ownershipApi = createCacheOwnership({
   pendingInputPrefix: PENDING_INPUT_PREFIX,
   onServed: markCacheServed,
 });
-export const { persistenceOwned, writeOwnerStamp, ensureCacheOwnership, _cacheOwnerForTests } = ownershipApi;
+export const {
+  persistenceOwned,
+  writeOwnerStamp,
+  ensureCacheOwnership,
+  _cacheOwnerForTests,
+} = ownershipApi;

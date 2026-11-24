@@ -1,5 +1,16 @@
 import { test, expect, describe } from "bun:test";
-import { classifyFeedMessage, isNoiseUserMessage, isHiddenSystemNotice, isWarningSystemNotice, isLimitNoticeSuperseded, isBackgroundAgentStoppedNotice, backgroundAgentStoppedName, parseBashInput, parseBashOutput, cleanTitle } from "./conversationProcessor";
+import {
+  classifyFeedMessage,
+  isNoiseUserMessage,
+  isHiddenSystemNotice,
+  isWarningSystemNotice,
+  isLimitNoticeSuperseded,
+  isBackgroundAgentStoppedNotice,
+  backgroundAgentStoppedName,
+  parseBashInput,
+  parseBashOutput,
+  cleanTitle,
+} from "./conversationProcessor";
 
 // Regression: the message feed was dumping raw <task-notification> XML and other
 // structured/machine messages as cards. classifyFeedMessage is the single shared
@@ -16,16 +27,22 @@ describe("classifyFeedMessage — structured/noise messages are hidden", () => {
       "Your task is to create a detailed summary of the conversation so far. <summary>",
     "session continuation":
       "This session is being continued from a previous conversation that ran out of context.",
-    "interrupt": "[Request interrupted by user]",
-    "background agent stopped": 'Background agent "Build P2.6 shadow-soak sweep" was stopped by the user.',
+    interrupt: "[Request interrupted by user]",
+    "background agent stopped":
+      'Background agent "Build P2.6 shadow-soak sweep" was stopped by the user.',
     "codex turn aborted": "<turn_aborted>user aborted</turn_aborted>",
-    "tool-output pointer": "Read the output file to retrieve the result: /tmp/x.output",
-    "import notice": "[Codecast import] earlier messages were truncated for context.",
-    "agent switch divider": "[codecast] Now using Codex (was Claude).\n\nThis session continues here.",
-    "machine switch divider": "[codecast] Now running on Cloud Linux (was MacBook-Pro-168).\n\nThis session continues here.",
-    "machine move notice": "[codecast] This session just moved to a different machine. It now runs on Cloud Linux in /home/ubuntu/work.",
+    "tool-output pointer":
+      "Read the output file to retrieve the result: /tmp/x.output",
+    "import notice":
+      "[Codecast import] earlier messages were truncated for context.",
+    "agent switch divider":
+      "[codecast] Now using Codex (was Claude).\n\nThis session continues here.",
+    "machine switch divider":
+      "[codecast] Now running on Cloud Linux (was MacBook-Pro-168).\n\nThis session continues here.",
+    "machine move notice":
+      "[codecast] This session just moved to a different machine. It now runs on Cloud Linux in /home/ubuntu/work.",
     "system-reminder only": "<system-reminder>be concise</system-reminder>",
-    "empty": "   ",
+    empty: "   ",
   };
 
   for (const [name, content] of Object.entries(noiseSamples)) {
@@ -39,7 +56,10 @@ describe("classifyFeedMessage — structured/noise messages are hidden", () => {
 describe("classifyFeedMessage — real messages show cleaned", () => {
   test("plain prompt passes through", () => {
     const d = classifyFeedMessage("Can you investigate the dispatch job?");
-    expect(d).toEqual({ kind: "text", text: "Can you investigate the dispatch job?" });
+    expect(d).toEqual({
+      kind: "text",
+      text: "Can you investigate the dispatch job?",
+    });
   });
 
   test("strips a trailing system-reminder but keeps the prose", () => {
@@ -51,19 +71,29 @@ describe("classifyFeedMessage — real messages show cleaned", () => {
   });
 
   test("slash command collapses to /cmd", () => {
-    const d = classifyFeedMessage("<command-name>commit</command-name><command-args>all</command-args>");
+    const d = classifyFeedMessage(
+      "<command-name>commit</command-name><command-args>all</command-args>",
+    );
     expect(d).toEqual({ kind: "text", text: "/commit" });
   });
 
   test("a real message that merely mentions task-notification is not hidden", () => {
-    const d = classifyFeedMessage("Why does the <task-notification> handling drop messages?");
+    const d = classifyFeedMessage(
+      "Why does the <task-notification> handling drop messages?",
+    );
     expect(d.kind).toBe("text");
   });
 
   test("a real message that merely mentions a background agent is not hidden", () => {
-    const d = classifyFeedMessage("Why did the background agent stop unexpectedly?");
+    const d = classifyFeedMessage(
+      "Why did the background agent stop unexpectedly?",
+    );
     expect(d.kind).toBe("text");
-    expect(isBackgroundAgentStoppedNotice("Why did the background agent stop unexpectedly?")).toBe(false);
+    expect(
+      isBackgroundAgentStoppedNotice(
+        "Why did the background agent stop unexpectedly?",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -73,25 +103,39 @@ describe("classifyFeedMessage — real messages show cleaned", () => {
 describe("bash-mode messages", () => {
   test("parseBashInput extracts the typed command", () => {
     expect(parseBashInput("<bash-input>pwd</bash-input>")).toBe("pwd");
-    expect(parseBashInput("<bash-input>git log --oneline | head -3</bash-input>")).toBe("git log --oneline | head -3");
-    expect(parseBashInput("run <bash-input>pwd</bash-input> for me")).toBeNull();
+    expect(
+      parseBashInput("<bash-input>git log --oneline | head -3</bash-input>"),
+    ).toBe("git log --oneline | head -3");
+    expect(
+      parseBashInput("run <bash-input>pwd</bash-input> for me"),
+    ).toBeNull();
     expect(parseBashInput("plain message")).toBeNull();
   });
 
   test("parseBashOutput extracts stdout and stderr", () => {
-    expect(parseBashOutput("<bash-stdout>/Users/m1/work/codecast</bash-stdout><bash-stderr></bash-stderr>"))
-      .toEqual({ stdout: "/Users/m1/work/codecast", stderr: "" });
-    expect(parseBashOutput("<bash-stdout></bash-stdout><bash-stderr>not found</bash-stderr>"))
-      .toEqual({ stdout: "", stderr: "not found" });
+    expect(
+      parseBashOutput(
+        "<bash-stdout>/Users/m1/work/codecast</bash-stdout><bash-stderr></bash-stderr>",
+      ),
+    ).toEqual({ stdout: "/Users/m1/work/codecast", stderr: "" });
+    expect(
+      parseBashOutput(
+        "<bash-stdout></bash-stdout><bash-stderr>not found</bash-stderr>",
+      ),
+    ).toEqual({ stdout: "", stderr: "not found" });
     expect(parseBashOutput("plain message")).toBeNull();
   });
 
   test("feed shows the input as '! cmd'", () => {
-    expect(classifyFeedMessage("<bash-input>pwd</bash-input>")).toEqual({ kind: "text", text: "! pwd" });
+    expect(classifyFeedMessage("<bash-input>pwd</bash-input>")).toEqual({
+      kind: "text",
+      text: "! pwd",
+    });
   });
 
   test("feed hides the output echo", () => {
-    const output = "<bash-stdout>/Users/m1/work/codecast</bash-stdout><bash-stderr></bash-stderr>";
+    const output =
+      "<bash-stdout>/Users/m1/work/codecast</bash-stdout><bash-stderr></bash-stderr>";
     expect(isNoiseUserMessage(output)).toBe(true);
     expect(classifyFeedMessage(output)).toEqual({ kind: "hidden" });
   });
@@ -103,12 +147,19 @@ describe("bash-mode messages", () => {
 
 describe("backgroundAgentStoppedName", () => {
   test("extracts the quoted agent name from the notice", () => {
-    expect(backgroundAgentStoppedName('Background agent "Build P2.6 shadow-soak sweep" was stopped by the user.'))
-      .toBe("Build P2.6 shadow-soak sweep");
+    expect(
+      backgroundAgentStoppedName(
+        'Background agent "Build P2.6 shadow-soak sweep" was stopped by the user.',
+      ),
+    ).toBe("Build P2.6 shadow-soak sweep");
   });
 
   test("tolerates a missing trailing period and surrounding whitespace", () => {
-    expect(isBackgroundAgentStoppedNotice('  Background agent "x" was stopped by the user  ')).toBe(true);
+    expect(
+      isBackgroundAgentStoppedNotice(
+        '  Background agent "x" was stopped by the user  ',
+      ),
+    ).toBe(true);
   });
 
   test("returns null for non-notice content", () => {
@@ -129,20 +180,54 @@ describe("backgroundAgentStoppedName", () => {
 // are hidden; the rest (usage-limit pauses, typo hints) still render.
 describe("isHiddenSystemNotice — Remote Control notices are hidden", () => {
   test("Remote Control disconnected / not started here", () => {
-    expect(isHiddenSystemNotice("Remote Control disconnected — signed-in claude.ai account or organization changed on this machine — run /remote-control to start a session", "informational")).toBe(true);
-    expect(isHiddenSystemNotice("Remote Control disconnected — OAuth token unavailable — run /login", "informational")).toBe(true);
-    expect(isHiddenSystemNotice("Remote Control not started here · another Claude Code on this machine (started 5m ago) owns it", "informational")).toBe(true);
+    expect(
+      isHiddenSystemNotice(
+        "Remote Control disconnected — signed-in claude.ai account or organization changed on this machine — run /remote-control to start a session",
+        "informational",
+      ),
+    ).toBe(true);
+    expect(
+      isHiddenSystemNotice(
+        "Remote Control disconnected — OAuth token unavailable — run /login",
+        "informational",
+      ),
+    ).toBe(true);
+    expect(
+      isHiddenSystemNotice(
+        "Remote Control not started here · another Claude Code on this machine (started 5m ago) owns it",
+        "informational",
+      ),
+    ).toBe(true);
   });
 
   test("other informational lines stay visible", () => {
-    expect(isHiddenSystemNotice("Usage limit reached · continuing automatically at 5:50pm · esc or type to cancel", "informational")).toBe(false);
-    expect(isHiddenSystemNotice("Automatic continue cancelled · /rate-limit-options to re-arm", "informational")).toBe(false);
-    expect(isHiddenSystemNotice("Unknown command: /loginq. Did you mean /login?", "informational")).toBe(false);
+    expect(
+      isHiddenSystemNotice(
+        "Usage limit reached · continuing automatically at 5:50pm · esc or type to cancel",
+        "informational",
+      ),
+    ).toBe(false);
+    expect(
+      isHiddenSystemNotice(
+        "Automatic continue cancelled · /rate-limit-options to re-arm",
+        "informational",
+      ),
+    ).toBe(false);
+    expect(
+      isHiddenSystemNotice(
+        "Unknown command: /loginq. Did you mean /login?",
+        "informational",
+      ),
+    ).toBe(false);
   });
 
   test("the text alone is not enough — a user typing it is not a notice", () => {
-    expect(isHiddenSystemNotice("Remote Control disconnected", undefined)).toBe(false);
-    expect(isHiddenSystemNotice("Remote Control disconnected", "local_command")).toBe(false);
+    expect(isHiddenSystemNotice("Remote Control disconnected", undefined)).toBe(
+      false,
+    );
+    expect(
+      isHiddenSystemNotice("Remote Control disconnected", "local_command"),
+    ).toBe(false);
   });
 });
 
@@ -150,20 +235,52 @@ describe("isHiddenSystemNotice — Remote Control notices are hidden", () => {
 // informational lines keep the neutral system gray.
 describe("isWarningSystemNotice — usage-limit notices are warnings", () => {
   test("limit pauses, cancelled auto-continue, hit-your-limit forms", () => {
-    expect(isWarningSystemNotice("Usage limit reached · continuing automatically at 5:50pm · esc or type to cancel", "informational")).toBe(true);
-    expect(isWarningSystemNotice("Claude usage limit reached. Your limit will reset at 3am (America/New_York)", "informational")).toBe(true);
-    expect(isWarningSystemNotice("Automatic continue cancelled · /rate-limit-options to re-arm", "informational")).toBe(true);
-    expect(isWarningSystemNotice("You've hit your session limit · resets 11:30pm (America/New_York)", "informational")).toBe(true);
+    expect(
+      isWarningSystemNotice(
+        "Usage limit reached · continuing automatically at 5:50pm · esc or type to cancel",
+        "informational",
+      ),
+    ).toBe(true);
+    expect(
+      isWarningSystemNotice(
+        "Claude usage limit reached. Your limit will reset at 3am (America/New_York)",
+        "informational",
+      ),
+    ).toBe(true);
+    expect(
+      isWarningSystemNotice(
+        "Automatic continue cancelled · /rate-limit-options to re-arm",
+        "informational",
+      ),
+    ).toBe(true);
+    expect(
+      isWarningSystemNotice(
+        "You've hit your session limit · resets 11:30pm (America/New_York)",
+        "informational",
+      ),
+    ).toBe(true);
   });
 
   test("other informational lines stay neutral", () => {
-    expect(isWarningSystemNotice("Unknown command: /loginq. Did you mean /login?", "informational")).toBe(false);
-    expect(isWarningSystemNotice("Remote Control disconnected — OAuth token unavailable — run /login", "informational")).toBe(false);
+    expect(
+      isWarningSystemNotice(
+        "Unknown command: /loginq. Did you mean /login?",
+        "informational",
+      ),
+    ).toBe(false);
+    expect(
+      isWarningSystemNotice(
+        "Remote Control disconnected — OAuth token unavailable — run /login",
+        "informational",
+      ),
+    ).toBe(false);
   });
 
   test("the text alone is not enough — a user typing it is not a notice", () => {
     expect(isWarningSystemNotice("Usage limit reached", undefined)).toBe(false);
-    expect(isWarningSystemNotice("Usage limit reached", "local_command")).toBe(false);
+    expect(isWarningSystemNotice("Usage limit reached", "local_command")).toBe(
+      false,
+    );
   });
 });
 
@@ -171,21 +288,40 @@ describe("isWarningSystemNotice — usage-limit notices are warnings", () => {
 // plan account recovery overrides; the park card, then the recovery's own
 // continue, own that moment.
 describe("isLimitNoticeSuperseded", () => {
-  const notice = "Usage limit reached · continuing automatically at 6am · esc to cancel";
-  const banner = { role: "assistant", content: "You've hit your session limit · resets 6am (America/Los_Angeles)" };
+  const notice =
+    "Usage limit reached · continuing automatically at 6am · esc to cancel";
+  const banner = {
+    role: "assistant",
+    content: "You've hit your session limit · resets 6am (America/Los_Angeles)",
+  };
   const prompt = { role: "user", content: "validate this end-to-end" };
 
   test("hidden right under the limit banner", () => {
-    expect(isLimitNoticeSuperseded(notice, "informational", banner, false)).toBe(true);
+    expect(
+      isLimitNoticeSuperseded(notice, "informational", banner, false),
+    ).toBe(true);
   });
 
   test("hidden once recovery continued the session and the banner was retracted", () => {
-    expect(isLimitNoticeSuperseded(notice, "informational", prompt, true)).toBe(true);
+    expect(isLimitNoticeSuperseded(notice, "informational", prompt, true)).toBe(
+      true,
+    );
   });
 
   test("kept anywhere else, where it is the only word on the pause", () => {
-    expect(isLimitNoticeSuperseded(notice, "informational", prompt, false)).toBe(false);
-    expect(isLimitNoticeSuperseded(notice, "informational", null, false)).toBe(false);
-    expect(isLimitNoticeSuperseded("Unknown command: /x", "informational", banner, true)).toBe(false);
+    expect(
+      isLimitNoticeSuperseded(notice, "informational", prompt, false),
+    ).toBe(false);
+    expect(isLimitNoticeSuperseded(notice, "informational", null, false)).toBe(
+      false,
+    );
+    expect(
+      isLimitNoticeSuperseded(
+        "Unknown command: /x",
+        "informational",
+        banner,
+        true,
+      ),
+    ).toBe(false);
   });
 });

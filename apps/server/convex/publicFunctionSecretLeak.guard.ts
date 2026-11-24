@@ -22,7 +22,13 @@ import type { Doc, TableNames } from "./_generated/dataModel";
 
 /** Credentials and ciphertexts, by table. Nothing here crosses a public boundary. */
 export const SECRET_FIELDS = {
-  users: ["github_access_token", "encryption_master_key", "push_token", "voip_push_token", "email_unsub_token"],
+  users: [
+    "github_access_token",
+    "encryption_master_key",
+    "push_token",
+    "voip_push_token",
+    "email_unsub_token",
+  ],
   github_installation_tokens: ["token"],
   cli_auth_requests: ["token"],
   vault_upload_tickets: ["token"],
@@ -34,19 +40,22 @@ export const SECRET_FIELDS = {
 } as const satisfies { [T in TableNames]?: readonly (keyof Doc<T>)[] };
 
 type SecretTable = keyof typeof SECRET_FIELDS;
-type SecretFieldOf<N> = N extends SecretTable ? (typeof SECRET_FIELDS)[N][number] : never;
+type SecretFieldOf<N> = N extends SecretTable
+  ? (typeof SECRET_FIELDS)[N][number]
+  : never;
 type TableOf<T> = T extends { _id: GenericId<infer N> } ? N : never;
 
 // The secret keys an object type carries, as "table.field".
-type OwnSecrets<T> = TableOf<T> extends infer N
-  ? N extends string
-    ? Extract<keyof T, SecretFieldOf<N>> extends infer F
-      ? F extends string
-        ? `${N}.${F}`
+type OwnSecrets<T> =
+  TableOf<T> extends infer N
+    ? N extends string
+      ? Extract<keyof T, SecretFieldOf<N>> extends infer F
+        ? F extends string
+          ? `${N}.${F}`
+          : never
         : never
       : never
-    : never
-  : never;
+    : never;
 
 // Depth budget: returns nest rows inside receipts, pages and arrays.
 type Next = [never, 0, 1, 2, 3, 4, 5];
@@ -62,12 +71,19 @@ export type SecretsIn<T, D extends number = 5> = [D] extends [never]
       : T extends readonly (infer E)[]
         ? SecretsIn<E, Next[D]>
         : T extends object
-          ? OwnSecrets<T> | { [K in keyof T]-?: SecretsIn<T[K], Next[D]> }[keyof T]
+          ?
+              | OwnSecrets<T>
+              | { [K in keyof T]-?: SecretsIn<T[K], Next[D]> }[keyof T]
           : never;
 
 /** "module.function: table.field" for every public function that can return a secret. */
 export type PublicSecretReturns<A, P extends string = ""> = {
-  [K in keyof A & string]: A[K] extends FunctionReference<any, "public", any, infer R>
+  [K in keyof A & string]: A[K] extends FunctionReference<
+    any,
+    "public",
+    any,
+    infer R
+  >
     ? [SecretsIn<R>] extends [never]
       ? never
       : `${P}${K}: ${SecretsIn<R>}`
@@ -79,13 +95,29 @@ export type PublicSecretReturns<A, P extends string = ""> = {
 // field from what the handler returns (see getCurrentUserRow in users.ts), or
 // project the row to the fields its callers render.
 type NoneOf<T extends never> = T;
-export type NoPublicFunctionReturnsASecret = NoneOf<PublicSecretReturns<typeof api>>;
+export type NoPublicFunctionReturnsASecret = NoneOf<
+  PublicSecretReturns<typeof api>
+>;
 
 // The guard must not pass by detecting nothing: a raw row nested in a
 // receipt is caught, and the same row with its secrets removed is not.
 type Expect<T extends true> = T;
 export type GuardSelfTest = [
-  Expect<[SecretsIn<Promise<{ page: { row: Doc<"users"> | null }[] }>>] extends [never] ? false : true>,
-  Expect<[SecretsIn<Omit<Doc<"users">, SecretFieldOf<"users">>>] extends [never] ? true : false>,
-  Expect<[SecretsIn<Doc<"github_installation_tokens">>] extends [never] ? false : true>,
+  Expect<
+    [SecretsIn<Promise<{ page: { row: Doc<"users"> | null }[] }>>] extends [
+      never,
+    ]
+      ? false
+      : true
+  >,
+  Expect<
+    [SecretsIn<Omit<Doc<"users">, SecretFieldOf<"users">>>] extends [never]
+      ? true
+      : false
+  >,
+  Expect<
+    [SecretsIn<Doc<"github_installation_tokens">>] extends [never]
+      ? false
+      : true
+  >,
 ];

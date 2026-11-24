@@ -13,8 +13,16 @@ type IdRect = Rect & { id: string };
 export type OrgViewportNode = Rect & { id: string; kind: string };
 function boundsOf(nodes: readonly OrgViewportNode[]): Rect | null {
   if (nodes.length === 0) return null;
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const n of nodes) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h); }
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
+  for (const n of nodes) {
+    x0 = Math.min(x0, n.x);
+    y0 = Math.min(y0, n.y);
+    x1 = Math.max(x1, n.x + n.w);
+    y1 = Math.max(y1, n.y + n.h);
+  }
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
@@ -35,14 +43,23 @@ export function fitTarget(
   const roots = boundsOf(nodes.filter((n) => ROOT_KINDS.has(n.kind)));
   // Both columns of the goals map need the width at the readable floor; when
   // they do not have it, the outline is what the fit shows first.
-  const spine = !roots && nodes.some((n) => n.kind === "owner") && all.w * readableZoom > freeW ? boundsOf(nodes.filter((n) => n.kind !== "owner")) : null;
+  const spine =
+    !roots &&
+    nodes.some((n) => n.kind === "owner") &&
+    all.w * readableZoom > freeW
+      ? boundsOf(nodes.filter((n) => n.kind !== "owner"))
+      : null;
   const rect = roots ?? spine ?? all;
   const byWidth = Math.min(1, freeW / rect.w);
   if (byWidth >= readableZoom) return { rect, zoom: byWidth, whole: false };
   // Even that column is wider than the pane at the floor, so shrinking buys
   // nothing: read as large as the height allows (a shallow, wide org at full
   // size), start at the left, and let the edge pills reach the rest.
-  return { rect, zoom: Math.max(readableZoom, Math.min(1, freeH / all.h)), whole: false };
+  return {
+    rect,
+    zoom: Math.max(readableZoom, Math.min(1, freeH / all.h)),
+    whole: false,
+  };
 }
 
 /**
@@ -80,7 +97,8 @@ export function computeOrgViewport(
     // possible show (the viewer sorts first), unless the focus node would then
     // be off screen, in which case bring it into view at the left.
     const focus = focusId ? nodes.find((n) => n.id === focusId) : undefined;
-    const startX = focus && (focus.x + focus.w) * zoom > freeW ? focus.x : target.x;
+    const startX =
+      focus && (focus.x + focus.w) * zoom > freeW ? focus.x : target.x;
     x = FIT_PAD - startX * zoom;
   }
   const y = FIT_PAD - target.y * zoom;
@@ -92,10 +110,14 @@ export function computeOrgViewport(
  *  container's edge, so a canvas running on under the panel would only scroll
  *  once the pointer crossed the whole panel, and a far manager stayed out of
  *  reach. The viewport's origin is the container's top left either way. */
-export function freeCanvasSize(panelWidth: number, panelHeightFraction = 0): { width: string; height: string } {
+export function freeCanvasSize(
+  panelWidth: number,
+  panelHeightFraction = 0,
+): { width: string; height: string } {
   return {
     width: panelWidth > 0 ? `calc(100% - ${panelWidth}px)` : "100%",
-    height: panelHeightFraction > 0 ? `${(1 - panelHeightFraction) * 100}%` : "100%",
+    height:
+      panelHeightFraction > 0 ? `${(1 - panelHeightFraction) * 100}%` : "100%",
   };
 }
 
@@ -104,7 +126,13 @@ export function freeCanvasSize(panelWidth: number, panelHeightFraction = 0): { w
  *  when it cannot fit whole), then held to the tree: a tree longer than the
  *  area never leaves a blank strip at its start or end, and a tree that fits
  *  is never pushed out. Zero when the span is already inside. */
-function axisPan(pos: number, size: number, treePos: number, treeSize: number, extent: number): number {
+function axisPan(
+  pos: number,
+  size: number,
+  treePos: number,
+  treeSize: number,
+  extent: number,
+): number {
   if (pos >= 0 && pos + size <= extent) return 0;
   let d = pos + size > extent ? extent - FIT_PAD - (pos + size) : 0;
   if (pos + d < FIT_PAD) d = FIT_PAD - pos;
@@ -113,14 +141,26 @@ function axisPan(pos: number, size: number, treePos: number, treeSize: number, e
 
 /** The pan that puts a span's centre in the middle of `extent`, held to the
  *  tree the same way (a card near the tree's end stops short of the middle). */
-function axisCenter(pos: number, size: number, treePos: number, treeSize: number, extent: number): number {
+function axisCenter(
+  pos: number,
+  size: number,
+  treePos: number,
+  treeSize: number,
+  extent: number,
+): number {
   return holdToTree(extent / 2 - (pos + size / 2), treePos, treeSize, extent);
 }
 
 /** A pan `d` corrected so the tree never leaves a blank strip at its start or
  *  end when it is longer than `extent`, and never leaves the area when not. */
-function holdToTree(d: number, treePos: number, treeSize: number, extent: number): number {
-  const t0 = treePos + d, t1 = treePos + treeSize + d;
+function holdToTree(
+  d: number,
+  treePos: number,
+  treeSize: number,
+  extent: number,
+): number {
+  const t0 = treePos + d,
+    t1 = treePos + treeSize + d;
   if (treeSize > extent - FIT_PAD * 2) {
     if (t0 > FIT_PAD) d += FIT_PAD - t0;
     else if (t1 < extent - FIT_PAD) d += extent - FIT_PAD - t1;
@@ -161,8 +201,14 @@ export function panIntoView(
   let at = vp;
   if (mode !== "least" && vp.zoom < MIN_READABLE_ZOOM) {
     // Zoom about the card's centre, so the pans below start from where it is.
-    const cx = n.x + n.w / 2, cy = n.y + n.h / 2, z = MIN_READABLE_ZOOM;
-    at = { x: cx * vp.zoom + vp.x - cx * z, y: cy * vp.zoom + vp.y - cy * z, zoom: z };
+    const cx = n.x + n.w / 2,
+      cy = n.y + n.h / 2,
+      z = MIN_READABLE_ZOOM;
+    at = {
+      x: cx * vp.zoom + vp.x - cx * z,
+      y: cy * vp.zoom + vp.y - cy * z,
+      zoom: z,
+    };
   }
   const z = at.zoom;
   const across = mode === "least" ? axisPan : axisCenter;
@@ -183,14 +229,26 @@ export function panIntoView(
  * the one nearest it; `next` is the new layout at the zero origin. The cards
  * then slide to their places around the anchor, and the canvas is not moved.
  */
-export function bandOrigin(prev: readonly IdRect[], next: readonly IdRect[], point: { x: number; y: number }): { x: number; y: number } {
+export function bandOrigin(
+  prev: readonly IdRect[],
+  next: readonly IdRect[],
+  point: { x: number; y: number },
+): { x: number; y: number } {
   const to = new Map(next.map((n) => [n.id, n]));
-  const away = (n: IdRect) => Math.hypot(Math.max(n.x - point.x, 0, point.x - (n.x + n.w)), Math.max(n.y - point.y, 0, point.y - (n.y + n.h)));
-  let anchor: IdRect | null = null, best = Infinity;
+  const away = (n: IdRect) =>
+    Math.hypot(
+      Math.max(n.x - point.x, 0, point.x - (n.x + n.w)),
+      Math.max(n.y - point.y, 0, point.y - (n.y + n.h)),
+    );
+  let anchor: IdRect | null = null,
+    best = Infinity;
   for (const n of prev) {
     if (!to.has(n.id)) continue;
     const d = away(n);
-    if (d < best) { best = d; anchor = n; }
+    if (d < best) {
+      best = d;
+      anchor = n;
+    }
   }
   if (!anchor) return { x: 0, y: 0 };
   const n = to.get(anchor.id)!;
@@ -202,7 +260,12 @@ export function bandOrigin(prev: readonly IdRect[], next: readonly IdRect[], poi
  *  the fade and the "+N more" pill say there is more that way. The cards are
  *  the root row by default; `pick` names another set (the goals map's owner
  *  column, which stands in one column down the right). */
-export function hiddenRoots<T extends { x: number; y: number; w: number }>(nodes: readonly T[], vp: Viewport, freeW: number, pick?: (n: T) => boolean): { left: T[]; right: T[] } {
+export function hiddenRoots<T extends { x: number; y: number; w: number }>(
+  nodes: readonly T[],
+  vp: Viewport,
+  freeW: number,
+  pick?: (n: T) => boolean,
+): { left: T[]; right: T[] } {
   // The top row, wherever the layout's origin sits (bandOrigin moves it).
   const top = Math.min(...nodes.map((n) => n.y));
   const roots = nodes.filter(pick ?? ((n) => n.y === top));

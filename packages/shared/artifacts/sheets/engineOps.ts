@@ -67,7 +67,13 @@ function binaryScalar(op: string, a: Scalar, b: Scalar): Scalar {
     const x = a === null ? (typeof b === "string" ? "" : 0) : a;
     const y = b === null ? (typeof a === "string" ? "" : 0) : b;
     const c = compareScalars(x, y);
-    return op === "<" ? c < 0 : op === ">" ? c > 0 : op === "<=" ? c <= 0 : c >= 0;
+    return op === "<"
+      ? c < 0
+      : op === ">"
+        ? c > 0
+        : op === "<="
+          ? c <= 0
+          : c >= 0;
   }
   const x = toNumber(a);
   if (isError(x)) return x;

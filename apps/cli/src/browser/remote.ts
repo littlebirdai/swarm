@@ -22,7 +22,11 @@ import { spawn } from "../proc.js";
 import { setTimeout as sleep } from "node:timers/promises";
 import { isCdpAlive } from "./cdp.js";
 import { freePort } from "./instance.js";
-import { sshDestination, sshIdentity, type RemoteHost } from "../remote/session-move.js";
+import {
+  sshDestination,
+  sshIdentity,
+  type RemoteHost,
+} from "../remote/session-move.js";
 
 /** The profile the remote browser uses. Never a copy of ours. `$HOME`, not
  *  `~`: a tilde after `--user-data-dir=` is not expanded, so Chrome took it
@@ -87,20 +91,32 @@ export function detectRemoteOs(host: RemoteHost): RemoteOs {
  * multiplexed calls run over a socket that is already authenticated.
  */
 function sshArgs(host: RemoteHost): string[] {
-  const socket = path.join(os.tmpdir(), `cast-ssh-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`);
+  const socket = path.join(
+    os.tmpdir(),
+    `cast-ssh-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`,
+  );
   return [
     ...sshIdentity(host),
-    "-o", "IdentitiesOnly=yes",
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "ConnectTimeout=20",
-    "-o", "BatchMode=yes",
+    "-o",
+    "IdentitiesOnly=yes",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "BatchMode=yes",
     // Keepalives so a master whose link died is torn down instead of
     // wedging every later client (see ensureUp in cloudHost.ts).
-    "-o", "ServerAliveInterval=15",
-    "-o", "ServerAliveCountMax=3",
-    "-o", "ControlMaster=auto",
-    "-o", `ControlPath=${socket}`,
-    "-o", "ControlPersist=60",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "ControlMaster=auto",
+    "-o",
+    `ControlPath=${socket}`,
+    "-o",
+    "ControlPersist=60",
   ];
 }
 
@@ -113,20 +129,43 @@ function sshArgs(host: RemoteHost): string[] {
  * Re-throwing with stderr and the exit status attached is the difference
  * between a debuggable failure and a guess.
  */
-export function remoteExec(host: RemoteHost, command: string, timeoutMs = 30_000): string {
+export function remoteExec(
+  host: RemoteHost,
+  command: string,
+  timeoutMs = 30_000,
+): string {
   try {
-    return execFileSync("ssh", [...sshArgs(host), sshDestination(host), command], {
-      encoding: "utf-8",
-      timeout: timeoutMs,
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
+    return execFileSync(
+      "ssh",
+      [...sshArgs(host), sshDestination(host), command],
+      {
+        encoding: "utf-8",
+        timeout: timeoutMs,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    ).trim();
   } catch (err) {
-    const e = err as { stderr?: string | Buffer; status?: number; signal?: string; message?: string };
+    const e = err as {
+      stderr?: string | Buffer;
+      status?: number;
+      signal?: string;
+      message?: string;
+    };
     const stderr = (e.stderr ? String(e.stderr) : "").trim();
-    const why = e.signal === "SIGTERM" ? `timed out after ${timeoutMs}ms` : `exit ${e.status ?? "?"}`;
+    const why =
+      e.signal === "SIGTERM"
+        ? `timed out after ${timeoutMs}ms`
+        : `exit ${e.status ?? "?"}`;
     // The last lines name what failed; the first is often a warning printed before it.
-    const tail = stderr.split("\n").map((l) => l.trim()).filter(Boolean).slice(-3).join(" | ");
-    throw new Error(`ssh ${host.user}@${host.address}: ${why}${tail ? ` — ${tail}` : ""}`);
+    const tail = stderr
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-3)
+      .join(" | ");
+    throw new Error(
+      `ssh ${host.user}@${host.address}: ${why}${tail ? ` — ${tail}` : ""}`,
+    );
   }
 }
 
@@ -135,21 +174,48 @@ export function remoteExec(host: RemoteHost, command: string, timeoutMs = 30_000
  * 0, else an Error naming the exit and the tail of stderr. `input` is written
  * to the remote command's stdin.
  */
-export function remoteExecAsync(host: RemoteHost, command: string, opts: { input?: string; timeoutMs?: number } = {}): Promise<string> {
+export function remoteExecAsync(
+  host: RemoteHost,
+  command: string,
+  opts: { input?: string; timeoutMs?: number } = {},
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn("ssh", [...sshArgs(host), sshDestination(host), command], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(
+      "ssh",
+      [...sshArgs(host), sshDestination(host), command],
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
     let out = "";
     let err = "";
-    child.stdout?.on("data", (d: Buffer) => { out += d; });
-    child.stderr?.on("data", (d: Buffer) => { err += d; });
+    child.stdout?.on("data", (d: Buffer) => {
+      out += d;
+    });
+    child.stderr?.on("data", (d: Buffer) => {
+      err += d;
+    });
     const timeoutMs = opts.timeoutMs ?? 30_000;
     const timer = setTimeout(() => child.kill(), timeoutMs);
-    child.on("error", (e) => { clearTimeout(timer); reject(e); });
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
     child.on("exit", (code, signal) => {
       clearTimeout(timer);
       if (code === 0) return resolve(out.trim());
-      const tail = err.split("\n").map((l) => l.trim()).filter(Boolean).slice(-3).join(" | ");
-      reject(Object.assign(new Error(`ssh ${host.user}@${host.address}: ${signal ? `timed out after ${timeoutMs}ms` : `exit ${code}`}${tail ? ` — ${tail}` : ""}`), { code }));
+      const tail = err
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(-3)
+        .join(" | ");
+      reject(
+        Object.assign(
+          new Error(
+            `ssh ${host.user}@${host.address}: ${signal ? `timed out after ${timeoutMs}ms` : `exit ${code}`}${tail ? ` — ${tail}` : ""}`,
+          ),
+          { code },
+        ),
+      );
     });
     child.stdin?.on("error", () => {});
     child.stdin?.end(opts.input ?? "");
@@ -165,10 +231,14 @@ export function remoteExecAsync(host: RemoteHost, command: string, opts: { input
  * checks directly.
  */
 function launchDetached(host: RemoteHost, command: string): void {
-  const child = spawn("ssh", [...sshArgs(host), "-n", sshDestination(host), command], {
-    stdio: ["ignore", "ignore", "ignore"],
-    detached: true,
-  });
+  const child = spawn(
+    "ssh",
+    [...sshArgs(host), "-n", sshDestination(host), command],
+    {
+      stdio: ["ignore", "ignore", "ignore"],
+      detached: true,
+    },
+  );
   child.on("error", () => {});
   child.unref();
 }
@@ -180,7 +250,11 @@ function launchDetached(host: RemoteHost, command: string): void {
  * master moved the bytes fine. Ten minutes because the bundles are the only
  * big thing that ever travels this way.
  */
-export function scpTo(host: RemoteHost, localPath: string, remotePath: string): void {
+export function scpTo(
+  host: RemoteHost,
+  localPath: string,
+  remotePath: string,
+): void {
   execFileSync(
     "scp",
     [...sshArgs(host), localPath, `${sshDestination(host)}:${remotePath}`],
@@ -223,7 +297,12 @@ export interface RemoteBrowser {
  */
 export async function startRemoteBrowser(
   host: RemoteHost,
-  opts: { localPort: number; remotePort?: number; windowSize?: { width: number; height: number }; spawn?: typeof spawn },
+  opts: {
+    localPort: number;
+    remotePort?: number;
+    windowSize?: { width: number; height: number };
+    spawn?: typeof spawn;
+  },
 ): Promise<RemoteBrowser> {
   const remotePort = opts.remotePort ?? 9222;
 
@@ -231,7 +310,10 @@ export async function startRemoteBrowser(
   let chromeVersion: string;
   try {
     os = detectRemoteOs(host);
-    chromeVersion = remoteExec(host, `${REMOTE_TARGETS[os].binary} --version 2>/dev/null || echo MISSING`);
+    chromeVersion = remoteExec(
+      host,
+      `${REMOTE_TARGETS[os].binary} --version 2>/dev/null || echo MISSING`,
+    );
   } catch (err) {
     throw new RemoteUnreachable(host, (err as Error).message.split("\n")[0]);
   }
@@ -262,9 +344,15 @@ export async function startRemoteBrowser(
   let display = "";
   if (os === "linux") {
     try {
-      const disp = remoteExec(host, `[ -S /tmp/.X11-unix/X99 ] && echo :99 || true`, 15_000);
+      const disp = remoteExec(
+        host,
+        `[ -S /tmp/.X11-unix/X99 ] && echo :99 || true`,
+        15_000,
+      );
       if (disp === ":99") display = disp;
-    } catch { /* no display service — fall back to headless */ }
+    } catch {
+      /* no display service — fall back to headless */
+    }
   }
   const mode = display
     ? `env DISPLAY=${display} ` // set for the launch below via prefix
@@ -292,7 +380,11 @@ export async function startRemoteBrowser(
 
   // Bind the remote CDP port to loopback here. `-N` runs no command, so the
   // process exists only to hold the forward open.
-  const tunnel = (opts.spawn ?? spawn)("ssh", cdpTunnelArgs(host, opts.localPort, remotePort), { stdio: ["ignore", "ignore", "ignore"], detached: true });
+  const tunnel = (opts.spawn ?? spawn)(
+    "ssh",
+    cdpTunnelArgs(host, opts.localPort, remotePort),
+    { stdio: ["ignore", "ignore", "ignore"], detached: true },
+  );
   tunnel.unref();
   if (!tunnel.pid) throw new Error("could not start the SSH tunnel");
 
@@ -303,7 +395,14 @@ export async function startRemoteBrowser(
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (await isCdpAlive(opts.localPort)) {
-      return { localPort: opts.localPort, remotePort, sshPid: tunnel.pid, chromeVersion, os, display: display || undefined };
+      return {
+        localPort: opts.localPort,
+        remotePort,
+        sshPid: tunnel.pid,
+        chromeVersion,
+        os,
+        display: display || undefined,
+      };
     }
     await sleep(400);
   }
@@ -312,7 +411,10 @@ export async function startRemoteBrowser(
   } catch {
     /* ignore */
   }
-  const log = remoteExec(host, `tail -5 /tmp/cast-browser.log 2>/dev/null || true`).slice(0, 400);
+  const log = remoteExec(
+    host,
+    `tail -5 /tmp/cast-browser.log 2>/dev/null || true`,
+  ).slice(0, 400);
   throw new Error(
     `the remote Chrome never answered on port ${remotePort}.` +
       (log ? `\n  Its log said:\n  ${log.split("\n").join("\n  ")}` : ""),
@@ -330,25 +432,37 @@ export async function startRemoteBrowser(
  * (which keeps its tunnel open past this process) and the cookie carry into
  * a cloud host's Chrome (withCdpTunnel, which closes it when done).
  */
-export function cdpTunnelArgs(host: RemoteHost, localPort: number, remotePort: number): string[] {
+export function cdpTunnelArgs(
+  host: RemoteHost,
+  localPort: number,
+  remotePort: number,
+): string[] {
   return [
     ...sshIdentity(host),
-    "-o", "IdentitiesOnly=yes",
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "ConnectTimeout=20",
-    "-o", "BatchMode=yes",
+    "-o",
+    "IdentitiesOnly=yes",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "BatchMode=yes",
     // Notice a dead peer instead of holding a tunnel to nothing.
-    "-o", "ServerAliveInterval=30",
-    "-o", "ServerAliveCountMax=3",
+    "-o",
+    "ServerAliveInterval=30",
+    "-o",
+    "ServerAliveCountMax=3",
     "-N",
     // Bind the near end to IPv4 explicitly. Left to itself ssh may listen on
     // [::1] only, and every probe of 127.0.0.1 then misses a tunnel that is
     // working perfectly — which looks exactly like the remote being down.
     // The far end is 127.0.0.1 too: the managed Chrome binds its debugging
     // port to loopback only (instance.ts).
-    "-L", `127.0.0.1:${localPort}:127.0.0.1:${remotePort}`,
+    "-L",
+    `127.0.0.1:${localPort}:127.0.0.1:${remotePort}`,
     // Fail loudly if the port is taken rather than running a tunnel to nowhere.
-    "-o", "ExitOnForwardFailure=yes",
+    "-o",
+    "ExitOnForwardFailure=yes",
     sshDestination(host),
   ];
 }
@@ -384,33 +498,69 @@ export async function withCdpTunnel<T>(
   const alive = opts.isCdpAlive ?? isCdpAlive;
   const localPort = await freePort();
   let stderr = "";
-  const tunnel = (opts.spawn ?? spawn)("ssh", cdpTunnelArgs(host, localPort, remotePort), { stdio: ["ignore", "ignore", "pipe"] });
-  tunnel.stderr?.on("data", (d) => { if (stderr.length < 2000) stderr += d.toString(); });
+  const tunnel = (opts.spawn ?? spawn)(
+    "ssh",
+    cdpTunnelArgs(host, localPort, remotePort),
+    { stdio: ["ignore", "ignore", "pipe"] },
+  );
+  tunnel.stderr?.on("data", (d) => {
+    if (stderr.length < 2000) stderr += d.toString();
+  });
   let exited = false;
   let exitCode: number | null = null;
   let spawnError: Error | null = null;
   const exit = new Promise<void>((resolve) => {
-    tunnel.on("exit", (code) => { exited = true; exitCode = code; resolve(); });
-    tunnel.on("error", (err) => { exited = true; spawnError = err; resolve(); });
+    tunnel.on("exit", (code) => {
+      exited = true;
+      exitCode = code;
+      resolve();
+    });
+    tunnel.on("error", (err) => {
+      exited = true;
+      spawnError = err;
+      resolve();
+    });
   });
   const close = async () => {
     if (exited) return;
-    try { tunnel.kill("SIGTERM"); } catch { /* already gone */ }
+    try {
+      tunnel.kill("SIGTERM");
+    } catch {
+      /* already gone */
+    }
     await Promise.race([exit, sleep(5_000)]);
-    if (!exited) { try { tunnel.kill("SIGKILL"); } catch { /* gone */ } }
+    if (!exited) {
+      try {
+        tunnel.kill("SIGKILL");
+      } catch {
+        /* gone */
+      }
+    }
   };
   // The reason ssh is gone, so a laptop-side failure (no ssh binary, a bad
   // key path, a refused connection) is never reported as the host's Chrome.
   const sshFailure = (): string | null => {
-    if (spawnError) return `ssh could not start: ${(spawnError as Error).message}`;
+    if (spawnError)
+      return `ssh could not start: ${(spawnError as Error).message}`;
     if (!exited) return null;
-    const first = stderr.split("\n").map((l) => l.trim()).find(Boolean);
+    const first = stderr
+      .split("\n")
+      .map((l) => l.trim())
+      .find(Boolean);
     return `ssh exited with code ${exitCode ?? "?"} before the forward came up${first ? `: ${first}` : ""}`;
   };
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     if (opts.deadlineMs === undefined) return;
-    deadlineTimer = setTimeout(() => reject(new Error(`the login carry did not finish within ${Math.round(opts.deadlineMs! / 1000)}s; the tunnel was closed`)), opts.deadlineMs);
+    deadlineTimer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `the login carry did not finish within ${Math.round(opts.deadlineMs! / 1000)}s; the tunnel was closed`,
+          ),
+        ),
+      opts.deadlineMs,
+    );
   });
   const work = async (): Promise<T> => {
     const until = Date.now() + connectMs;
@@ -419,8 +569,13 @@ export async function withCdpTunnel<T>(
       const failed = sshFailure();
       if (failed) throw new Error(failed);
       if (Date.now() >= until) {
-        const first = stderr.split("\n").map((l) => l.trim()).find(Boolean);
-        throw new Error(`the host's Chrome on port ${remotePort} never answered through the tunnel${first ? `: ${first}` : ""}`);
+        const first = stderr
+          .split("\n")
+          .map((l) => l.trim())
+          .find(Boolean);
+        throw new Error(
+          `the host's Chrome on port ${remotePort} never answered through the tunnel${first ? `: ${first}` : ""}`,
+        );
       }
       await sleep(400);
     }
@@ -443,7 +598,13 @@ export async function withCdpTunnel<T>(
  * browser was not started on is the one thing stop must not do.
  */
 export function recordedRemoteHost(
-  remote: { host: string; user: string; keyPath?: string; remoteBaseDir?: string; homeDir?: string },
+  remote: {
+    host: string;
+    user: string;
+    keyPath?: string;
+    remoteBaseDir?: string;
+    homeDir?: string;
+  },
   known: () => RemoteHost[] = () => [],
 ): RemoteHost | null {
   if (remote.keyPath) {
@@ -451,18 +612,26 @@ export function recordedRemoteHost(
       address: remote.host,
       user: remote.user,
       keyPath: remote.keyPath,
-      remoteBaseDir: remote.remoteBaseDir ?? `${remote.homeDir ?? `/Users/${remote.user}`}/work`,
+      remoteBaseDir:
+        remote.remoteBaseDir ??
+        `${remote.homeDir ?? `/Users/${remote.user}`}/work`,
       ...(remote.homeDir ? { homeDir: remote.homeDir } : {}),
     };
   }
-  return known().find((h) => h.address === remote.host && h.user === remote.user) ?? null;
+  return (
+    known().find((h) => h.address === remote.host && h.user === remote.user) ??
+    null
+  );
 }
 
 /**
  * Close the tunnel and stop the remote browser. With no host (a recorded
  * browser whose machine is no longer known) only the tunnel is closed.
  */
-export async function stopRemoteBrowser(host: RemoteHost | null, sshPid?: number): Promise<void> {
+export async function stopRemoteBrowser(
+  host: RemoteHost | null,
+  sshPid?: number,
+): Promise<void> {
   if (sshPid) {
     try {
       process.kill(sshPid, "SIGTERM");

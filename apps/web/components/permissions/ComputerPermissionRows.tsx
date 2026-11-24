@@ -22,7 +22,9 @@ const noReadOnClick = () => {};
 
 export function ComputerPermissionRows() {
   const { permissions, checking } = useComputerPermissions();
-  const answered = COMPUTER_PERMISSION_KINDS.some((k) => permissions[k] !== "unknown");
+  const answered = COMPUTER_PERMISSION_KINDS.some(
+    (k) => permissions[k] !== "unknown",
+  );
 
   // A browser tab has no helper and no grant to show, so it says nothing at
   // all — not even that it is looking.
@@ -30,7 +32,9 @@ export function ComputerPermissionRows() {
 
   if (checking && !answered) {
     return (
-      <div className="px-4 py-3 text-xs text-sol-text-muted sm:px-5">Checking what codecast computer is allowed to do…</div>
+      <div className="px-4 py-3 text-xs text-sol-text-muted sm:px-5">
+        Checking what codecast computer is allowed to do…
+      </div>
     );
   }
 
@@ -41,14 +45,21 @@ export function ComputerPermissionRows() {
   return (
     <>
       <div className="px-4 pt-3 pb-1 sm:px-5">
-        <div className="text-mark font-medium uppercase tracking-wide text-sol-text-dim">Agent computer use</div>
+        <div className="text-mark font-medium uppercase tracking-wide text-sol-text-dim">
+          Agent computer use
+        </div>
         <p className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">
-          These two belong to codecast computer, a small helper app installed with Codecast, so Codecast itself
-          never holds them.
+          These two belong to codecast computer, a small helper app installed
+          with Codecast, so Codecast itself never holds them.
         </p>
       </div>
       {COMPUTER_PERMISSION_KINDS.map((kind) => (
-        <PermissionRow key={kind} kind={kind} readiness={permissions[kind]} onChange={noReadOnClick} />
+        <PermissionRow
+          key={kind}
+          kind={kind}
+          readiness={permissions[kind]}
+          onChange={noReadOnClick}
+        />
       ))}
     </>
   );

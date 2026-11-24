@@ -11,7 +11,14 @@ import type { DeployTargetPolicy, DeployTargetRuns } from "./deployTargets";
 import type { LineDeployStep } from "./lineDeploy";
 
 /** Who does a station's work. `rule` is a branch, a join or a routing step that decides without doing. */
-export const PIPELINE_WHO = ["agent", "command", "person", "rule", "eval", "deploy"] as const;
+export const PIPELINE_WHO = [
+  "agent",
+  "command",
+  "person",
+  "rule",
+  "eval",
+  "deploy",
+] as const;
 export type PipelineWho = (typeof PIPELINE_WHO)[number];
 
 /**
@@ -88,7 +95,12 @@ export const PIPELINE_SUBJECT_MAX = 120;
 export const PIPELINE_RECENT_MAX_BYTES = 64 * 1024;
 
 /** A commit as git reads it, before packing. */
-export type PipelineCommitIn = { sha: string; subject: string; at: number; files: string[] };
+export type PipelineCommitIn = {
+  sha: string;
+  subject: string;
+  at: number;
+  files: string[];
+};
 
 /**
  * The default branch's last commits, newest first, each path stored once: a commit's `files` index into `paths`.
@@ -102,26 +114,46 @@ export type PipelineRecent = {
   dropped: number;
 };
 
-export const EMPTY_RECENT: PipelineRecent = { paths: [], commits: [], dropped: 0 };
+export const EMPTY_RECENT: PipelineRecent = {
+  paths: [],
+  commits: [],
+  dropped: 0,
+};
 
-const byteLength = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length;
+const byteLength = (v: unknown) =>
+  new TextEncoder().encode(JSON.stringify(v)).length;
 
-function packFirst(commits: ReadonlyArray<PipelineCommitIn>, n: number): Omit<PipelineRecent, "dropped"> {
+function packFirst(
+  commits: ReadonlyArray<PipelineCommitIn>,
+  n: number,
+): Omit<PipelineRecent, "dropped"> {
   const index = new Map<string, number>();
   const paths: string[] = [];
   const at = (p: string) => {
     let i = index.get(p);
-    if (i === undefined) { i = paths.length; paths.push(p); index.set(p, i); }
+    if (i === undefined) {
+      i = paths.length;
+      paths.push(p);
+      index.set(p, i);
+    }
     return i;
   };
   return {
     paths,
-    commits: commits.slice(0, n).map((c) => ({ sha: c.sha, subject: c.subject.split("\n")[0].slice(0, PIPELINE_SUBJECT_MAX), at: c.at, files: c.files.slice(0, PIPELINE_COMMIT_FILES_MAX).map(at) })),
+    commits: commits.slice(0, n).map((c) => ({
+      sha: c.sha,
+      subject: c.subject.split("\n")[0].slice(0, PIPELINE_SUBJECT_MAX),
+      at: c.at,
+      files: c.files.slice(0, PIPELINE_COMMIT_FILES_MAX).map(at),
+    })),
   };
 }
 
 /** Pack commits (newest first) into a PipelineRecent under the byte cap, leaving out the oldest until it fits. */
-export function packRecent(commits: ReadonlyArray<PipelineCommitIn>, maxBytes = PIPELINE_RECENT_MAX_BYTES): PipelineRecent {
+export function packRecent(
+  commits: ReadonlyArray<PipelineCommitIn>,
+  maxBytes = PIPELINE_RECENT_MAX_BYTES,
+): PipelineRecent {
   const window = commits.slice(0, PIPELINE_RECENT_MAX);
   for (let n = window.length; n > 0; n--) {
     const packed = { ...packFirst(window, n), dropped: window.length - n };
@@ -131,14 +163,29 @@ export function packRecent(commits: ReadonlyArray<PipelineCommitIn>, maxBytes = 
 }
 
 /** A packed commit's paths. */
-export const recentFiles = (r: PipelineRecent, c: PipelineRecent["commits"][number]): string[] => c.files.map((i) => r.paths[i]);
+export const recentFiles = (
+  r: PipelineRecent,
+  c: PipelineRecent["commits"][number],
+): string[] => c.files.map((i) => r.paths[i]);
 
 /** Why a published recent block is not one packRecent makes, or null. */
 export function recentRefusal(r: PipelineRecent): string | null {
-  if (r.commits.length > PIPELINE_RECENT_MAX) return `recent holds ${r.commits.length} commits, over ${PIPELINE_RECENT_MAX}`;
-  if (r.commits.some((c) => c.files.length > PIPELINE_COMMIT_FILES_MAX || c.files.some((i) => !Number.isInteger(i) || i < 0 || i >= r.paths.length))) return "recent names a path index it does not hold";
+  if (r.commits.length > PIPELINE_RECENT_MAX)
+    return `recent holds ${r.commits.length} commits, over ${PIPELINE_RECENT_MAX}`;
+  if (
+    r.commits.some(
+      (c) =>
+        c.files.length > PIPELINE_COMMIT_FILES_MAX ||
+        c.files.some(
+          (i) => !Number.isInteger(i) || i < 0 || i >= r.paths.length,
+        ),
+    )
+  )
+    return "recent names a path index it does not hold";
   const bytes = byteLength(r);
-  return bytes > PIPELINE_RECENT_MAX_BYTES ? `recent is ${bytes} bytes, over ${PIPELINE_RECENT_MAX_BYTES}` : null;
+  return bytes > PIPELINE_RECENT_MAX_BYTES
+    ? `recent is ${bytes} bytes, over ${PIPELINE_RECENT_MAX_BYTES}`
+    : null;
 }
 
 export type Pipeline = {
@@ -168,7 +215,9 @@ export function ownWords(s: Pick<PipelineStation, "own" | "changed">): string {
 }
 
 /** A station's command in words: what it runs, that it passes, or that targets differ; null for no command. */
-export function runsWords(s: Pick<PipelineStation, "runs" | "varies" | "waits">): string | null {
+export function runsWords(
+  s: Pick<PipelineStation, "runs" | "varies" | "waits">,
+): string | null {
   if (s.varies) return "varies by target";
   if (s.runs === undefined) return null;
   return s.runs === null ? "no command: passes" : s.runs;

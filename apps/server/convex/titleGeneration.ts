@@ -1,10 +1,25 @@
-import { FOREIGN_TEXT_CAPS, escapeForeignControlChars, fenceForeignText, inlineForeignText } from "@codecast/shared/contracts";
-import { internalMutation, internalAction, internalQuery, type ActionCtx, type MutationCtx } from "./functions";
+import {
+  FOREIGN_TEXT_CAPS,
+  escapeForeignControlChars,
+  fenceForeignText,
+  inlineForeignText,
+} from "@codecast/shared/contracts";
+import {
+  internalMutation,
+  internalAction,
+  internalQuery,
+  type ActionCtx,
+  type MutationCtx,
+} from "./functions";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { isRefusalProse } from "./idleSummary";
-import { isHostedAgentType, isToolResultCarrier, parseWorkflowHarnessFrame } from "@codecast/shared/contracts";
+import {
+  isHostedAgentType,
+  isToolResultCarrier,
+  parseWorkflowHarnessFrame,
+} from "@codecast/shared/contracts";
 import { callModel, CHEAP_MODEL, type SurfaceRequest } from "./lib/anthropic";
 import { earlierTitlesAfter } from "./searchCore";
 import { redactSecrets } from "./redact";
@@ -30,14 +45,25 @@ export async function maybeScheduleTitleGeneration(
   if (conversation.skip_title_generation) return;
   let shouldGen = false;
   for (let c = prevMessageCount + 1; c <= newMessageCount; c++) {
-    if (shouldGenerateTitle(c)) { shouldGen = true; break; }
+    if (shouldGenerateTitle(c)) {
+      shouldGen = true;
+      break;
+    }
   }
-  if (!shouldGen && conversation.subtitle === undefined && newMessageCount > 2) {
+  if (
+    !shouldGen &&
+    conversation.subtitle === undefined &&
+    newMessageCount > 2
+  ) {
     shouldGen = true;
   }
   if (!shouldGen) return;
   const now = Date.now();
-  if (now - (conversation.title_gen_scheduled_at ?? 0) < TITLE_GEN_MIN_INTERVAL_MS) return;
+  if (
+    now - (conversation.title_gen_scheduled_at ?? 0) <
+    TITLE_GEN_MIN_INTERVAL_MS
+  )
+    return;
   await ctx.db.patch(conversation._id, { title_gen_scheduled_at: now });
   await ctx.scheduler.runAfter(0, internal.titleGeneration.generateTitle, {
     conversation_id: conversation._id,
@@ -50,10 +76,20 @@ export async function maybeScheduleTitleGeneration(
  *  above then holds every later pass of a short conversation, which leaves the
  *  ask itself as the title. Only while no pass has titled it (a pass always
  *  writes a subtitle), so later turns follow the usual milestones. */
-export async function titleAfterHostedAnswer(ctx: MutationCtx, conversation: Doc<"conversations">): Promise<void> {
-  if (conversation.skip_title_generation || conversation.title_is_custom || conversation.subtitle !== undefined) return;
+export async function titleAfterHostedAnswer(
+  ctx: MutationCtx,
+  conversation: Doc<"conversations">,
+): Promise<void> {
+  if (
+    conversation.skip_title_generation ||
+    conversation.title_is_custom ||
+    conversation.subtitle !== undefined
+  )
+    return;
   await ctx.db.patch(conversation._id, { title_gen_scheduled_at: Date.now() });
-  await ctx.scheduler.runAfter(0, internal.titleGeneration.generateTitle, { conversation_id: conversation._id });
+  await ctx.scheduler.runAfter(0, internal.titleGeneration.generateTitle, {
+    conversation_id: conversation._id,
+  });
 }
 
 export const setTitleAndSubtitle = internalMutation({
@@ -71,7 +107,12 @@ export const setTitleAndSubtitle = internalMutation({
   handler: async (ctx, args) => {
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv) return;
-    const patch: { title?: string; subtitle?: string; short_title?: string; earlier_titles?: string[] } = {};
+    const patch: {
+      title?: string;
+      subtitle?: string;
+      short_title?: string;
+      earlier_titles?: string[];
+    } = {};
     if (args.subtitle !== undefined) patch.subtitle = args.subtitle;
     if (!conv.title_is_custom) {
       patch.title = args.title;
@@ -79,7 +120,10 @@ export const setTitleAndSubtitle = internalMutation({
       // The title being replaced stays findable (searchCore.searchFieldsOf).
       // Only a title a previous pass generated: a daemon placeholder is the
       // opening prompt cut short, which first_prompt already holds.
-      const earlier = conv.subtitle !== undefined ? earlierTitlesAfter(conv, args.title) : undefined;
+      const earlier =
+        conv.subtitle !== undefined
+          ? earlierTitlesAfter(conv, args.title)
+          : undefined;
       if (earlier) patch.earlier_titles = earlier;
     }
     if (Object.keys(patch).length === 0) return;
@@ -88,8 +132,15 @@ export const setTitleAndSubtitle = internalMutation({
     // switch) takes the session's title until a person renames it.
     if (patch.title && conv.project_id) {
       const project = await ctx.db.get(conv.project_id);
-      if (project?.title_from_session && String(project.default_session_id) === String(conv._id) && project.title !== patch.title) {
-        await ctx.db.patch(project._id, { title: patch.title, updated_at: Date.now() });
+      if (
+        project?.title_from_session &&
+        String(project.default_session_id) === String(conv._id) &&
+        project.title !== patch.title
+      ) {
+        await ctx.db.patch(project._id, {
+          title: patch.title,
+          updated_at: Date.now(),
+        });
       }
     }
   },
@@ -105,16 +156,26 @@ export const generateTitle = internalAction({
       return;
     }
 
-    const conversation = await ctx.runQuery(internal.titleGeneration.getConversationForTitle, {
-      conversation_id: args.conversation_id,
-    });
+    const conversation = await ctx.runQuery(
+      internal.titleGeneration.getConversationForTitle,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
 
-    if (!conversation || (conversation.spine.length === 0 && conversation.recent.length === 0)) {
+    if (
+      !conversation ||
+      (conversation.spine.length === 0 && conversation.recent.length === 0)
+    ) {
       return;
     }
 
     try {
-      const reply = await callModel({ ...titleRequest(conversation), label: "Title generation", gate: { ctx, scope: { conversationId: args.conversation_id } } });
+      const reply = await callModel({
+        ...titleRequest(conversation),
+        label: "Title generation",
+        gate: { ctx, scope: { conversationId: args.conversation_id } },
+      });
       if (!reply) return;
       const text = reply.text;
 
@@ -129,7 +190,8 @@ export const generateTitle = internalAction({
         // conversation…"). Guard the value itself; on refusal keep the last
         // good subtitle by omitting the field.
         const rawSubtitle = parsed?.subtitle?.trim() || "";
-        const subtitle = rawSubtitle && isRefusalProse(rawSubtitle) ? undefined : rawSubtitle;
+        const subtitle =
+          rawSubtitle && isRefusalProse(rawSubtitle) ? undefined : rawSubtitle;
         await ctx.runMutation(internal.titleGeneration.setTitleAndSubtitle, {
           conversation_id: args.conversation_id,
           title,
@@ -137,7 +199,10 @@ export const generateTitle = internalAction({
           ...(shortTitle ? { short_title: shortTitle } : {}),
         });
       } else {
-        console.error("Title generation returned no usable JSON:", text.slice(0, 120));
+        console.error(
+          "Title generation returned no usable JSON:",
+          text.slice(0, 120),
+        );
       }
     } catch (error) {
       console.error("Failed to generate title:", error);
@@ -156,7 +221,11 @@ export const generateTitle = internalAction({
 // tokens, and it never touches the title itself.
 // ---------------------------------------------------------------------------
 
-const shortTitleTarget = v.union(v.id("conversations"), v.id("tasks"), v.id("plans"));
+const shortTitleTarget = v.union(
+  v.id("conversations"),
+  v.id("tasks"),
+  v.id("plans"),
+);
 
 export const generateShortTitle = internalAction({
   args: { id: shortTitleTarget },
@@ -169,21 +238,40 @@ export const generateShortTitles = internalAction({
   args: { ids: v.array(shortTitleTarget) },
   handler: async (ctx, args) => {
     for (let i = 0; i < args.ids.length; i += SHORT_TITLE_CONCURRENCY) {
-      await Promise.all(args.ids.slice(i, i + SHORT_TITLE_CONCURRENCY).map((id) => nameRow(ctx, id)));
+      await Promise.all(
+        args.ids
+          .slice(i, i + SHORT_TITLE_CONCURRENCY)
+          .map((id) => nameRow(ctx, id)),
+      );
     }
   },
 });
 
-async function nameRow(ctx: ActionCtx, id: Id<"conversations"> | Id<"tasks"> | Id<"plans">): Promise<void> {
+async function nameRow(
+  ctx: ActionCtx,
+  id: Id<"conversations"> | Id<"tasks"> | Id<"plans">,
+): Promise<void> {
   if (!process.env.ANTHROPIC_API_KEY) return;
-  const row = await ctx.runQuery(internal.titleGeneration.getRowForShortTitle, { id });
+  const row = await ctx.runQuery(internal.titleGeneration.getRowForShortTitle, {
+    id,
+  });
   // Named since it was queued (by an earlier tick's job, or a title pass).
   if (!row?.title || row.short_title !== undefined) return;
   try {
     const reply = await callModel({
-      ...shortTitleRequest({ kind: row.kind, title: row.title, context: row.context }),
+      ...shortTitleRequest({
+        kind: row.kind,
+        title: row.title,
+        context: row.context,
+      }),
       label: "Short title generation",
-      gate: { ctx, scope: row.kind === "session" ? { conversationId: id as Id<"conversations"> } : { workspace: row.workspace } },
+      gate: {
+        ctx,
+        scope:
+          row.kind === "session"
+            ? { conversationId: id as Id<"conversations"> }
+            : { workspace: row.workspace },
+      },
     });
     if (!reply) return;
     // An answer that fails the name rule is stored as "" (asked, no usable
@@ -191,8 +279,12 @@ async function nameRow(ctx: ActionCtx, id: Id<"conversations"> | Id<"tasks"> | I
     // again mostly gets the same answer: leaving the field unset re-asked
     // the same 80 rows every two minutes and held the scheduler's slots
     // doing it.
-    const shortTitle = cleanShortTitle(extractTitleJson(reply.text)?.short_title) ?? "";
-    await ctx.runMutation(internal.titleGeneration.setShortTitle, { id, short_title: shortTitle });
+    const shortTitle =
+      cleanShortTitle(extractTitleJson(reply.text)?.short_title) ?? "";
+    await ctx.runMutation(internal.titleGeneration.setShortTitle, {
+      id,
+      short_title: shortTitle,
+    });
   } catch (error) {
     console.error("Failed to generate short title:", error);
   }
@@ -209,12 +301,30 @@ export const getRowForShortTitle = internalQuery({
     // Whose words the title is (lib/vendorGuard); a session's answers to its conversation's team.
     const workspace = (row.workspace as string | undefined) ?? null;
     if ("goal" in row || "acceptance_criteria" in row) {
-      return { kind: "plan" as const, title: row.title as string | undefined, context: row.goal as string | undefined, short_title, workspace };
+      return {
+        kind: "plan" as const,
+        title: row.title as string | undefined,
+        context: row.goal as string | undefined,
+        short_title,
+        workspace,
+      };
     }
     if ("session_id" in row && "agent_type" in row) {
-      return { kind: "session" as const, title: row.title as string | undefined, context: row.subtitle as string | undefined, short_title, workspace };
+      return {
+        kind: "session" as const,
+        title: row.title as string | undefined,
+        context: row.subtitle as string | undefined,
+        short_title,
+        workspace,
+      };
     }
-    return { kind: "task" as const, title: row.title as string | undefined, context: (row.description as string | undefined)?.slice(0, 300), short_title, workspace };
+    return {
+      kind: "task" as const,
+      title: row.title as string | undefined,
+      context: (row.description as string | undefined)?.slice(0, 300),
+      short_title,
+      workspace,
+    };
   },
 });
 
@@ -229,7 +339,11 @@ export const setShortTitle = internalMutation({
 });
 
 /** The name-only request: one task, plan or session title in, a short name out. */
-export function shortTitleRequest(input: { kind: "session" | "task" | "plan"; title: string; context?: string }): SurfaceRequest {
+export function shortTitleRequest(input: {
+  kind: "session" | "task" | "plan";
+  title: string;
+  context?: string;
+}): SurfaceRequest {
   return {
     model: CHEAP_MODEL,
     max_tokens: 60,
@@ -237,7 +351,11 @@ export function shortTitleRequest(input: { kind: "session" | "task" | "plan"; ti
   };
 }
 
-export function buildShortTitlePrompt(kind: "session" | "task" | "plan", title: string, context?: string): string {
+export function buildShortTitlePrompt(
+  kind: "session" | "task" | "plan",
+  title: string,
+  context?: string,
+): string {
   const noun = kind === "session" ? "work session" : kind;
   return `Give this ${noun} a short name: 1-2 words, 20 characters max. The NAME a teammate would say out loud to refer to it, never a generic word alone ("Fix", "Update"). Prefer the title's most specific noun.
 Examples: "Auth redirect" for "Auth redirect fix", "Chokidar" for "Replace chokidar", "Italy trip" for "Italy trip planning".
@@ -268,7 +386,12 @@ export const fillShortTitles = internalMutation({
         .take(FILL_SHORT_TITLES_BATCH);
       for (const row of rows) if (row.title?.trim()) ids.push(row._id);
     }
-    if (ids.length) await ctx.scheduler.runAfter(0, internal.titleGeneration.generateShortTitles, { ids });
+    if (ids.length)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.titleGeneration.generateShortTitles,
+        { ids },
+      );
     return { scheduled: ids.length };
   },
 });
@@ -293,7 +416,8 @@ export const sweepMissingShortTitles = internalMutation({
       .take(batch);
     let scheduled = 0;
     for (const c of rows) {
-      if (c.short_title !== undefined || !c.title || c.skip_title_generation) continue;
+      if (c.short_title !== undefined || !c.title || c.skip_title_generation)
+        continue;
       if (!c.subtitle && !c.title_is_custom) continue;
       await ctx.scheduler.runAfter(
         scheduled * (args.spread_s ?? 1) * 1000,
@@ -317,8 +441,20 @@ export const sweepMissingShortTitles = internalMutation({
 // each stamp is a write to a conversation doc, which every open inbox reads.
 //   apps/server/run.sh titleGeneration:sweepFirstPrompts '{"cursor": <start_ms>}'
 export const sweepFirstPrompts = internalMutation({
-  args: { cursor: v.number(), batch: v.optional(v.number()), stamped: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ stamped: number; scanned: number; cursor: number; done: boolean }> => {
+  args: {
+    cursor: v.number(),
+    batch: v.optional(v.number()),
+    stamped: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    stamped: number;
+    scanned: number;
+    cursor: number;
+    done: boolean;
+  }> => {
     const batch = args.batch ?? 25;
     const rows = await ctx.db
       .query("conversations")
@@ -327,19 +463,29 @@ export const sweepFirstPrompts = internalMutation({
     let stamped = args.stamped ?? 0;
     for (const c of rows) {
       if (c.first_prompt || (c.message_count ?? 0) === 0) continue;
-      const opening = firstPromptOf(await ctx.db
-        .query("messages")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", c._id))
-        .order("asc")
-        .take(12));
+      const opening = firstPromptOf(
+        await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_id", (q) =>
+            q.eq("conversation_id", c._id),
+          )
+          .order("asc")
+          .take(12),
+      );
       if (!opening) continue;
       await ctx.db.patch(c._id, { first_prompt: redactSecrets(opening) });
       stamped++;
     }
     const done = rows.length < batch;
-    const cursor = rows.length ? rows[rows.length - 1]._creationTime : args.cursor;
+    const cursor = rows.length
+      ? rows[rows.length - 1]._creationTime
+      : args.cursor;
     if (!done) {
-      await ctx.scheduler.runAfter(250, internal.titleGeneration.sweepFirstPrompts, { cursor, batch, stamped });
+      await ctx.scheduler.runAfter(
+        250,
+        internal.titleGeneration.sweepFirstPrompts,
+        { cursor, batch, stamped },
+      );
     }
     return { stamped, scanned: rows.length, cursor, done };
   },
@@ -380,11 +526,25 @@ export function isLowSignalPrompt(content: string): boolean {
 const FIRST_PROMPT_CHARS = 400;
 export const FIRST_PROMPT_STAMP_WINDOW = 50;
 export function firstPromptOf(
-  rows: ReadonlyArray<{ role: string; content?: string | null; tool_results?: readonly unknown[] | null }>,
+  rows: ReadonlyArray<{
+    role: string;
+    content?: string | null;
+    tool_results?: readonly unknown[] | null;
+  }>,
 ): string | undefined {
   for (const m of rows) {
-    if (m.role !== "user" || !m.content || isToolResultCarrier(m) || isLowSignalPrompt(m.content)) continue;
-    const text = (parseWorkflowHarnessFrame(m.content.trimStart())?.body ?? m.content).replace(/\s+/g, " ").trim();
+    if (
+      m.role !== "user" ||
+      !m.content ||
+      isToolResultCarrier(m) ||
+      isLowSignalPrompt(m.content)
+    )
+      continue;
+    const text = (
+      parseWorkflowHarnessFrame(m.content.trimStart())?.body ?? m.content
+    )
+      .replace(/\s+/g, " ")
+      .trim();
     if (text) return text.slice(0, FIRST_PROMPT_CHARS);
   }
   return undefined;
@@ -414,7 +574,10 @@ export type TitleInput = {
 // The [t0, t1) time buckets the spine samples across. Empty when the prompts
 // span no time, so a session whose prompts share one timestamp reads only the
 // opening and trailing windows.
-export function spineBucketBounds(lo: number, hi: number): Array<[number, number]> {
+export function spineBucketBounds(
+  lo: number,
+  hi: number,
+): Array<[number, number]> {
   if (!(hi > lo)) return [];
   const span = hi + 1 - lo;
   return Array.from({ length: SPINE_BUCKETS }, (_, k) => [
@@ -429,16 +592,22 @@ export function spineBucketBounds(lo: number, hi: number): Array<[number, number
 // instead of a database. `rows` is the whole transcript, oldest first.
 export function pickSpineRows<R extends TitleRow>(rows: R[]): R[] {
   const prompts = rows
-    .filter((m) => m.role === "user" && m.tool_results == null && m.content != null)
+    .filter(
+      (m) => m.role === "user" && m.tool_results == null && m.content != null,
+    )
     .sort((a, b) => a.timestamp - b.timestamp);
   const firstPrompts = prompts.slice(0, SPINE_END_FETCH);
   const lastPrompts = [...prompts].reverse().slice(0, SPINE_END_FETCH);
   const lo = firstPrompts[0]?.timestamp;
   const hi = lastPrompts[0]?.timestamp;
-  const buckets = lo !== undefined && hi !== undefined
-    ? spineBucketBounds(lo, hi).map(([t0, t1]) =>
-        prompts.filter((m) => m.timestamp >= t0 && m.timestamp < t1).slice(0, SPINE_PER_BUCKET))
-    : [];
+  const buckets =
+    lo !== undefined && hi !== undefined
+      ? spineBucketBounds(lo, hi).map(([t0, t1]) =>
+          prompts
+            .filter((m) => m.timestamp >= t0 && m.timestamp < t1)
+            .slice(0, SPINE_PER_BUCKET),
+        )
+      : [];
   return [...firstPrompts, ...lastPrompts, ...buckets.flat()];
 }
 
@@ -447,7 +616,13 @@ export function pickSpineRows<R extends TitleRow>(rows: R[]): R[] {
 // newest 20 rows of any role, newest first.
 export function selectTitleInput(
   rows: { spine: TitleRow[]; latest: TitleRow[] },
-  conversation: { title?: string; subtitle?: string; title_is_custom?: boolean; message_count?: number; agent_type?: string },
+  conversation: {
+    title?: string;
+    subtitle?: string;
+    title_is_custom?: boolean;
+    message_count?: number;
+    agent_type?: string;
+  },
 ): TitleInput {
   const isHumanText = (m: TitleRow) => !!m.content && !isToolResultCarrier(m);
 
@@ -468,12 +643,13 @@ export function selectTitleInput(
       (m) =>
         (m.role === "user" || m.role === "assistant") &&
         isHumanText(m) &&
-        !isLowSignalPrompt(m.content!)
+        !isLowSignalPrompt(m.content!),
     );
 
   const recentIds = new Set(recent.map((m) => m._id));
   const spine = orderedSpine.filter(
-    (m) => isHumanText(m) && !isLowSignalPrompt(m.content!) && !recentIds.has(m._id)
+    (m) =>
+      isHumanText(m) && !isLowSignalPrompt(m.content!) && !recentIds.has(m._id),
   );
 
   // Anchor on the existing title only when it came from a previous LLM pass
@@ -484,7 +660,10 @@ export function selectTitleInput(
 
   // A workflow subagent's task opens with a header of harness boilerplate
   // longer than the excerpt the model sees; read past it to the task.
-  const text = (m: TitleRow) => ({ role: m.role, content: parseWorkflowHarnessFrame(m.content)?.body ?? m.content });
+  const text = (m: TitleRow) => ({
+    role: m.role,
+    content: parseWorkflowHarnessFrame(m.content)?.body ?? m.content,
+  });
   return {
     spine: spine.map(text),
     recent: recent.map(text),
@@ -506,14 +685,14 @@ export const getConversationForTitle = internalQuery({
       ctx.db
         .query("messages")
         .withIndex("by_conversation_role_timestamp", (q) =>
-          q.eq("conversation_id", args.conversation_id).eq("role", "user")
+          q.eq("conversation_id", args.conversation_id).eq("role", "user"),
         )
         .order(dir)
         .filter((q) =>
           q.and(
             q.eq(q.field("tool_results"), undefined),
-            q.neq(q.field("content"), undefined)
-          )
+            q.neq(q.field("content"), undefined),
+          ),
         );
 
     // Prompts cluster in time, so buckets alone under-sample dense stretches.
@@ -535,24 +714,26 @@ export const getConversationForTitle = internalQuery({
               .eq("conversation_id", args.conversation_id)
               .eq("role", "user")
               .gte("timestamp", t0)
-              .lt("timestamp", t1)
+              .lt("timestamp", t1),
           )
           .filter((q) =>
             q.and(
               q.eq(q.field("tool_results"), undefined),
-              q.neq(q.field("content"), undefined)
-            )
+              q.neq(q.field("content"), undefined),
+            ),
           )
           .take(SPINE_PER_BUCKET);
 
-      const bucketRows = await Promise.all(spineBucketBounds(lo, hi).map(([t0, t1]) => promptsInRange(t0, t1)));
+      const bucketRows = await Promise.all(
+        spineBucketBounds(lo, hi).map(([t0, t1]) => promptsInRange(t0, t1)),
+      );
       spineRows.push(...bucketRows.flat());
     }
 
     const latest = await ctx.db
       .query("messages")
       .withIndex("by_conversation_id", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("desc")
       .take(20);
@@ -654,7 +835,9 @@ export function buildTitleMessageContext(
 ): string {
   const truncate = (content: string | undefined, maxLen: number) => {
     if (!content) return "[no text]";
-    return content.length <= maxLen ? content : content.slice(0, maxLen) + "...";
+    return content.length <= maxLen
+      ? content
+      : content.slice(0, maxLen) + "...";
   };
   const fmt = (m: { role: string; content?: string }, maxLen: number) =>
     `${m.role === "assistant" ? "Assistant" : "User"}: ${truncate(m.content, maxLen)}`;
@@ -667,12 +850,12 @@ export function buildTitleMessageContext(
     sections.push(
       `=== User requests across the session (oldest to newest) ===\n${sampledSpine
         .map((m) => fmt(m, SPINE_CHARS))
-        .join("\n\n")}`
+        .join("\n\n")}`,
     );
   }
   if (recentWindow.length) {
     sections.push(
-      `=== Most recent activity ===\n${recentWindow.map((m) => fmt(m, RECENT_CHARS)).join("\n\n")}`
+      `=== Most recent activity ===\n${recentWindow.map((m) => fmt(m, RECENT_CHARS)).join("\n\n")}`,
     );
   }
   return sections.join("\n\n");
@@ -693,8 +876,10 @@ export function extractTitleJson(
     if (typeof parsed !== "object" || parsed === null) return null;
     return {
       title: typeof parsed.title === "string" ? parsed.title : undefined,
-      subtitle: typeof parsed.subtitle === "string" ? parsed.subtitle : undefined,
-      short_title: typeof parsed.short_title === "string" ? parsed.short_title : undefined,
+      subtitle:
+        typeof parsed.subtitle === "string" ? parsed.subtitle : undefined,
+      short_title:
+        typeof parsed.short_title === "string" ? parsed.short_title : undefined,
     };
   } catch {
     return null;
@@ -708,7 +893,10 @@ export function extractTitleJson(
 export const SHORT_TITLE_MAX_CHARS = 22;
 export function cleanShortTitle(raw: unknown): string | undefined {
   if (typeof raw !== "string") return undefined;
-  const t = raw.trim().replace(/^["'`]+|["'`.:;,]+$/g, "").trim();
+  const t = raw
+    .trim()
+    .replace(/^["'`]+|["'`.:;,]+$/g, "")
+    .trim();
   if (!t) return undefined;
   if (t.length > SHORT_TITLE_MAX_CHARS) return undefined;
   if (t.split(/\s+/).length > 3) return undefined;

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 
 /** Keep something mounted while it plays its exit, then drop it. */
-export function useExit(open: boolean, ms: number): { mounted: boolean; leaving: boolean } {
+export function useExit(
+  open: boolean,
+  ms: number,
+): { mounted: boolean; leaving: boolean } {
   const [mounted, setMounted] = useState(open);
   useEffect(() => {
     if (open) {

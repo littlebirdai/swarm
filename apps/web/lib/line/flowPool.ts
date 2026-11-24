@@ -4,13 +4,40 @@
 // teammates published to the workspace's pool, workflows.webPool). Each reads through the one fold
 // (shared/contracts/flowPool.ts) the CLI's `cast flow ls` uses, so both say
 // the same stations in the same order. Pure: no store, no React.
-import { flowBase, flowFills, flowGraphAttr as graphAttr, flowNodeAttrOf, flowPathWords, flowSlotsOf, foldFlow, publishableFlowSource, segmentTopOf, type FlowEdgeIn, type FlowNodeIn, type PoolFlowSummary } from "@codecast/shared/contracts/flowPool";
+import {
+  flowBase,
+  flowFills,
+  flowGraphAttr as graphAttr,
+  flowNodeAttrOf,
+  flowPathWords,
+  flowSlotsOf,
+  foldFlow,
+  publishableFlowSource,
+  segmentTopOf,
+  type FlowEdgeIn,
+  type FlowNodeIn,
+  type PoolFlowSummary,
+} from "@codecast/shared/contracts/flowPool";
 import type { RepoFlow } from "@codecast/shared/contracts/repoFlows";
 import { SHIPPED_FLOWS } from "./shippedFlows.generated";
-import { DEFAULT_LINE_SLUG, DEFAULT_STEPS_LABEL } from "@codecast/shared/contracts/lineSlug";
-import { stationsOfNodes, type FlowStations, type StationDetail } from "./flowStations";
+import {
+  DEFAULT_LINE_SLUG,
+  DEFAULT_STEPS_LABEL,
+} from "@codecast/shared/contracts/lineSlug";
+import {
+  stationsOfNodes,
+  type FlowStations,
+  type StationDetail,
+} from "./flowStations";
 
-export type ShippedFlow = PoolFlowSummary & { name: string; nodes: FlowNodeIn[]; edges: FlowEdgeIn[]; /** The flow it extends, as the generator reads it (cli workflow/flowPool.ts PoolFlow). */ extends?: string | null };
+export type ShippedFlow = PoolFlowSummary & {
+  name: string;
+  nodes: FlowNodeIn[];
+  edges: FlowEdgeIn[];
+  /** The flow it extends, as the generator reads it (cli workflow/flowPool.ts PoolFlow). */ extends?:
+    | string
+    | null;
+};
 
 export type AppFlow = ShippedFlow & {
   /** `team`: published to a team's pool; `pushed`: the viewer's own; `repo`: the session's repository's own (`.codecast/flows`). */
@@ -36,11 +63,19 @@ export type PushedFlowRow = {
   /** The nodes the graph fills with steps it wrote in place, for a row that carries no source. */
   fills?: ReadonlyArray<string> | null;
   variant_of?: string | null;
-  nodes: ReadonlyArray<{ id: string; label: string; type: string; shape?: string } & StationDetail>;
-  edges: ReadonlyArray<{ from: string; to: string; label?: string; condition?: string }>;
+  nodes: ReadonlyArray<
+    { id: string; label: string; type: string; shape?: string } & StationDetail
+  >;
+  edges: ReadonlyArray<{
+    from: string;
+    to: string;
+    label?: string;
+    condition?: string;
+  }>;
 };
 
-const titleOf = (slug: string) => slug.replace(/[-_]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+const titleOf = (slug: string) =>
+  slug.replace(/[-_]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 /** A pushed row in the pool's terms. Its stored nodes carry no segment fields, so its segments read from their ids. */
 export function pushedFlow(row: PushedFlowRow): AppFlow {
@@ -55,20 +90,33 @@ export function pushedFlow(row: PushedFlowRow): AppFlow {
   const stops = flowNodeAttrOf(row.source, "stop");
   const nodes: FlowNodeIn[] = row.nodes.map((n) => {
     const top = segmentTopOf(n.id);
-    const entry = top === n.id && row.nodes.some((x) => x.id.startsWith(`${n.id}__`));
+    const entry =
+      top === n.id && row.nodes.some((x) => x.id.startsWith(`${n.id}__`));
     const written = fills.has(top);
     // A segment's exit is the one step inside it whose every route leaves it (parser.ts expandFlows writes it so).
     const out = top !== n.id ? row.edges.filter((e) => e.from === n.id) : [];
-    const exit = out.length > 0 && out.every((e) => segmentTopOf(e.to) !== top) ? (out.every((e) => /\boutcome\s*=\s*failure\b/.test(e.condition ?? "")) ? "stop" : "done") : null;
+    const exit =
+      out.length > 0 && out.every((e) => segmentTopOf(e.to) !== top)
+        ? out.every((e) => /\boutcome\s*=\s*failure\b/.test(e.condition ?? ""))
+          ? "stop"
+          : "done"
+        : null;
     return {
-      id: n.id, label: n.label, type: n.type, shape: n.shape,
+      id: n.id,
+      label: n.label,
+      type: n.type,
+      shape: n.shape,
       ...(backends[n.id] ? { backend: backends[n.id] } : {}),
-      ...(Number(maxVisits[n.id]) > 0 ? { max_visits: Number(maxVisits[n.id]) } : {}),
+      ...(Number(maxVisits[n.id]) > 0
+        ? { max_visits: Number(maxVisits[n.id]) }
+        : {}),
       ...(machine[n.id] === "true" ? { machine: true } : {}),
       ...(stops[n.id] ? { stop: stops[n.id] } : {}),
       ...(top !== n.id ? { segment: top } : {}),
       ...(exit ? { segment_exit: exit } : {}),
-      ...(entry ? { segment_entry: true, ...(written ? {} : { segment_flow: n.id }) } : {}),
+      ...(entry
+        ? { segment_entry: true, ...(written ? {} : { segment_flow: n.id }) }
+        : {}),
       ...(written ? { segment_generated: true } : {}),
       ...(top === n.id && slots[n.id] ? { slot: slots[n.id] } : {}),
     };
@@ -78,7 +126,10 @@ export function pushedFlow(row: PushedFlowRow): AppFlow {
   return {
     slug: row.slug,
     name: row.name,
-    kind: (row.kind ?? graphAttr(row.source, "kind")) === "segment" ? "segment" : "line",
+    kind:
+      (row.kind ?? graphAttr(row.source, "kind")) === "segment"
+        ? "segment"
+        : "line",
     label: row.label ?? graphAttr(row.source, "label") ?? titleOf(row.name),
     description: graphAttr(row.source, "description"),
     takes: takes ? takes.split(/[\s,]+/).filter(Boolean) : ["task"],
@@ -99,10 +150,20 @@ export function pushedFlow(row: PushedFlowRow): AppFlow {
 // parses every pushed graph's source. The answer is kept for the last few row
 // lists, matched row by row. Callers read it and never change it.
 const POOL_SLOTS = 4;
-const poolMemo: { rows: ReadonlyArray<PushedFlowRow>; repo: ReadonlyArray<RepoFlow>; pool: AppFlow[] }[] = [];
-const sameRows = <T,>(a: ReadonlyArray<T>, b: ReadonlyArray<T>) => a.length === b.length && a.every((r, i) => r === b[i]);
-export function appPool(pushed: ReadonlyArray<PushedFlowRow> = [], repo: ReadonlyArray<RepoFlow> = []): AppFlow[] {
-  const hit = poolMemo.find((m) => sameRows(m.rows, pushed) && sameRows(m.repo, repo));
+const poolMemo: {
+  rows: ReadonlyArray<PushedFlowRow>;
+  repo: ReadonlyArray<RepoFlow>;
+  pool: AppFlow[];
+}[] = [];
+const sameRows = <T>(a: ReadonlyArray<T>, b: ReadonlyArray<T>) =>
+  a.length === b.length && a.every((r, i) => r === b[i]);
+export function appPool(
+  pushed: ReadonlyArray<PushedFlowRow> = [],
+  repo: ReadonlyArray<RepoFlow> = [],
+): AppFlow[] {
+  const hit = poolMemo.find(
+    (m) => sameRows(m.rows, pushed) && sameRows(m.repo, repo),
+  );
   if (hit) return hit.pool;
   const pool = buildPool(pushed, repo);
   poolMemo.unshift({ rows: pushed.slice(), repo: repo.slice(), pool });
@@ -110,29 +171,69 @@ export function appPool(pushed: ReadonlyArray<PushedFlowRow> = [], repo: Readonl
   return pool;
 }
 
-function buildPool(pushed: ReadonlyArray<PushedFlowRow>, repo: ReadonlyArray<RepoFlow>): AppFlow[] {
-  const own: AppFlow[] = repo.map((f) => ({ ...f, ...foldFlow(f.nodes, f.edges), where: "repo" as const, workflowId: null }));
+function buildPool(
+  pushed: ReadonlyArray<PushedFlowRow>,
+  repo: ReadonlyArray<RepoFlow>,
+): AppFlow[] {
+  const own: AppFlow[] = repo.map((f) => ({
+    ...f,
+    ...foldFlow(f.nodes, f.edges),
+    where: "repo" as const,
+    workflowId: null,
+  }));
   const ownSlugs = new Set(own.map((f) => f.slug));
   // The shipped template's graph names no label of its own; people read it as the Standard steps.
-  const local = [...own, ...SHIPPED_FLOWS.filter((f) => !ownSlugs.has(f.slug)).map((f) => ({ ...f, ...(f.slug === DEFAULT_LINE_SLUG && f.label === "Line" ? { label: DEFAULT_STEPS_LABEL } : {}), where: "shipped" as const, workflowId: null }))];
+  const local = [
+    ...own,
+    ...SHIPPED_FLOWS.filter((f) => !ownSlugs.has(f.slug)).map((f) => ({
+      ...f,
+      ...(f.slug === DEFAULT_LINE_SLUG && f.label === "Line"
+        ? { label: DEFAULT_STEPS_LABEL }
+        : {}),
+      where: "shipped" as const,
+      workflowId: null,
+    })),
+  ];
   const names = new Set(local.map((f) => f.slug));
   // A pushed graph joins the pool only when it says what kind of flow it is and is no session's draft, never a probe or a trial's copy.
-  const joins = pushed.filter((r) => !names.has(r.slug) && r.nodes.length && publishableFlowSource(r.source));
-  const pushedFlows = joins.filter((r, i) => joins.findIndex((x) => x.slug === r.slug) === i).map((r) => ({ flow: pushedFlow(r), saysTakes: !!graphAttr(r.source, "takes") }));
+  const joins = pushed.filter(
+    (r) =>
+      !names.has(r.slug) && r.nodes.length && publishableFlowSource(r.source),
+  );
+  const pushedFlows = joins
+    .filter((r, i) => joins.findIndex((x) => x.slug === r.slug) === i)
+    .map((r) => ({
+      flow: pushedFlow(r),
+      saysTakes: !!graphAttr(r.source, "takes"),
+    }));
   const all: AppFlow[] = [...local, ...pushedFlows.map((p) => p.flow)];
   // A flow that extends another and says nothing of what it takes takes what its base takes (a team's variant of Change takes a session's change).
   for (const p of pushedFlows) {
-    const base = !p.saysTakes && p.flow.base ? all.find((f) => f.slug === p.flow.base) : null;
+    const base =
+      !p.saysTakes && p.flow.base
+        ? all.find((f) => f.slug === p.flow.base)
+        : null;
     if (base) p.flow.takes = base.takes;
   }
   return all;
 }
 
-export const flowBySlug = (pool: ReadonlyArray<AppFlow>, slug: string | null | undefined) => (slug ? pool.find((f) => f.slug === slug) ?? null : null);
+export const flowBySlug = (
+  pool: ReadonlyArray<AppFlow>,
+  slug: string | null | undefined,
+) => (slug ? (pool.find((f) => f.slug === slug) ?? null) : null);
 
 /** The flow a run ran, from its workflow name or slug. */
-export function flowOfRun(pool: ReadonlyArray<AppFlow>, run: { workflow_slug?: string | null; workflow_name?: string | null }): AppFlow | null {
-  return flowBySlug(pool, run.workflow_slug ?? null) ?? flowBySlug(pool, run.workflow_name ?? null) ?? pool.find((f) => f.name === run.workflow_name) ?? null;
+export function flowOfRun(
+  pool: ReadonlyArray<AppFlow>,
+  run: { workflow_slug?: string | null; workflow_name?: string | null },
+): AppFlow | null {
+  return (
+    flowBySlug(pool, run.workflow_slug ?? null) ??
+    flowBySlug(pool, run.workflow_name ?? null) ??
+    pool.find((f) => f.name === run.workflow_name) ??
+    null
+  );
 }
 
 /** A flow's path for a list row; nothing when it only repeats the flow's own name (a one-step segment). */
@@ -142,4 +243,7 @@ export function flowRowPath(f: Pick<AppFlow, "label" | "stations">): string {
 }
 
 /** Lines first, then segments, each in the pool's own order. */
-export const linesFirst = (pool: ReadonlyArray<AppFlow>): AppFlow[] => [...pool.filter((f) => f.kind === "line"), ...pool.filter((f) => f.kind !== "line")];
+export const linesFirst = (pool: ReadonlyArray<AppFlow>): AppFlow[] => [
+  ...pool.filter((f) => f.kind === "line"),
+  ...pool.filter((f) => f.kind !== "line"),
+];

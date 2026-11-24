@@ -81,8 +81,16 @@ export interface RealmOptions {
 
 // -- State of the installed realm --
 
-type FacadeApi = Pick<SimStore, "getState" | "setState" | "subscribe" | "getInitialState">;
-const FACADE_KEYS = ["getState", "setState", "subscribe", "getInitialState"] as const;
+type FacadeApi = Pick<
+  SimStore,
+  "getState" | "setState" | "subscribe" | "getInitialState"
+>;
+const FACADE_KEYS = [
+  "getState",
+  "setState",
+  "subscribe",
+  "getInitialState",
+] as const;
 
 interface WindowState {
   slots: SlotSnapshot;
@@ -132,12 +140,21 @@ export function stream(name: string): Rng {
 // Replaces obj[key] (with a getter when `accessor`) and returns the undo. An inherited property (crypto's
 // randomUUID lives on the prototype) is shadowed and the undo deletes the
 // shadow; an own one is put back with its original descriptor.
-function swap(obj: object, key: string, value: unknown, accessor = false): () => void {
+function swap(
+  obj: object,
+  key: string,
+  value: unknown,
+  accessor = false,
+): () => void {
   const own = Object.getOwnPropertyDescriptor(obj, key);
   const enumerable = own?.enumerable ?? false;
-  Object.defineProperty(obj, key, accessor
-    ? { get: value as () => unknown, configurable: true, enumerable }
-    : { value, configurable: true, writable: true, enumerable });
+  Object.defineProperty(
+    obj,
+    key,
+    accessor
+      ? { get: value as () => unknown, configurable: true, enumerable }
+      : { value, configurable: true, writable: true, enumerable },
+  );
   return () => {
     if (own) Object.defineProperty(obj, key, own);
     else delete (obj as any)[key];
@@ -174,7 +191,10 @@ export function uuidFrom(rng: Rng): string {
  * a window's or a server call's stream.
  */
 export function createWindowStore(name: string): SimStore {
-  if (building) throw new Error("sim realm: createWindowStore() inside another store's creation");
+  if (building)
+    throw new Error(
+      "sim realm: createWindowStore() inside another store's creation",
+    );
   building = stream(`store:${name}`);
   try {
     return __createInboxStoreForTests();
@@ -212,7 +232,10 @@ class SimTimer {
 
 function arm(r: Installed, t: SimTimer, delay: number): void {
   const sink = r.opts.timers;
-  if (!sink) throw new Error(`sim realm: ${t.label} armed before a net was attached (attachRealm({ timers }))`);
+  if (!sink)
+    throw new Error(
+      `sim realm: ${t.label} armed before a net was attached (attachRealm({ timers }))`,
+    );
   const owner = t.owner?.name ?? "global";
   t.seq = sink.enqueue(`timer:${owner}`, {
     due: now() + delay,
@@ -229,13 +252,23 @@ function arm(r: Installed, t: SimTimer, delay: number): void {
   });
 }
 
-function setTimer(handler: unknown, ms: unknown, args: unknown[], repeat: boolean): SimTimer {
+function setTimer(
+  handler: unknown,
+  ms: unknown,
+  args: unknown[],
+  repeat: boolean,
+): SimTimer {
   const r = installed("a timer");
-  if (typeof handler !== "function") throw new Error("sim realm: string timer handlers are not supported");
+  if (typeof handler !== "function")
+    throw new Error("sim realm: string timer handlers are not supported");
   const delay = Math.max(repeat ? 1 : 0, Math.floor(Number(ms) || 0));
   const name = (handler as Function).name || "anonymous";
-  const t = new SimTimer(r.nextTimerId++, active, repeat ? delay : null, `${repeat ? "setInterval" : "setTimeout"}(${name}, ${delay})`, () =>
-    (handler as Function)(...args),
+  const t = new SimTimer(
+    r.nextTimerId++,
+    active,
+    repeat ? delay : null,
+    `${repeat ? "setInterval" : "setTimeout"}(${name}, ${delay})`,
+    () => (handler as Function)(...args),
   );
   r.timers.set(t.id, t);
   arm(r, t, delay);
@@ -250,10 +283,15 @@ class SimMessagePort {
   private pending = new Set<SimTimer>();
   postMessage(data: unknown): void {
     const to = this.other;
-    const t = setTimer(function messagePort() {
-      to.pending.delete(t);
-      to.onmessage?.({ data });
-    }, 0, [], false);
+    const t = setTimer(
+      function messagePort() {
+        to.pending.delete(t);
+        to.onmessage?.({ data });
+      },
+      0,
+      [],
+      false,
+    );
     to.pending.add(t);
   }
   close(): void {
@@ -319,9 +357,12 @@ export function bindStoreFacade(inst: SimStore | null): void {
  * needs the backend; the world passes them here or later through attachRealm.
  */
 export function installRealm(seed: number, opts: RealmOptions = {}): void {
-  if (realm) throw new Error("sim realm: already installed; uninstallRealm() first");
+  if (realm)
+    throw new Error("sim realm: already installed; uninstallRealm() first");
   const facade = useInboxStore as unknown as FacadeApi;
-  const baseFacade = Object.fromEntries(FACADE_KEYS.map((k) => [k, facade[k]])) as unknown as FacadeApi;
+  const baseFacade = Object.fromEntries(
+    FACADE_KEYS.map((k) => [k, facade[k]]),
+  ) as unknown as FacadeApi;
   resetClock();
   const r: Installed = {
     seed,
@@ -344,8 +385,12 @@ export function installRealm(seed: number, opts: RealmOptions = {}): void {
     swap(performance, "now", () => mono()),
     swap(Math, "random", () => currentRng(r)()),
     swap(g.crypto, "randomUUID", () => uuidFrom(currentRng(r))),
-    swap(g, "setTimeout", (fn: unknown, ms?: unknown, ...args: unknown[]) => setTimer(fn, ms, args, false)),
-    swap(g, "setInterval", (fn: unknown, ms?: unknown, ...args: unknown[]) => setTimer(fn, ms, args, true)),
+    swap(g, "setTimeout", (fn: unknown, ms?: unknown, ...args: unknown[]) =>
+      setTimer(fn, ms, args, false),
+    ),
+    swap(g, "setInterval", (fn: unknown, ms?: unknown, ...args: unknown[]) =>
+      setTimer(fn, ms, args, true),
+    ),
     swap(g, "clearTimeout", clearTimer),
     swap(g, "clearInterval", clearTimer),
     swap(g, "MessageChannel", SimMessageChannel),
@@ -356,7 +401,9 @@ export function installRealm(seed: number, opts: RealmOptions = {}): void {
 }
 
 /** Late wiring: the world builds its net and backend after the realm is installed. */
-export function attachRealm(opts: Pick<RealmOptions, "timers" | "serverCall">): void {
+export function attachRealm(
+  opts: Pick<RealmOptions, "timers" | "serverCall">,
+): void {
   Object.assign(installed("attachRealm()").opts, opts);
 }
 
@@ -364,7 +411,10 @@ export function attachRealm(opts: Pick<RealmOptions, "timers" | "serverCall">): 
 export function uninstallRealm(): void {
   const r = realm;
   if (!r) return;
-  if (active) throw new Error(`sim realm: uninstallRealm() while window "${active.name}" is running`);
+  if (active)
+    throw new Error(
+      `sim realm: uninstallRealm() while window "${active.name}" is running`,
+    );
   for (const t of r.timers.values()) t.cleared = true;
   // The facade's own methods come back with the rest.
   for (const undo of r.restores.reverse()) undo();
@@ -378,7 +428,9 @@ export function uninstallRealm(): void {
 
 /** Timers still pending (armed or queued), by label: a settled world has only the ones it expects. */
 export function pendingTimers(): string[] {
-  return [...(realm?.timers.values() ?? [])].map((t) => `${t.owner?.name ?? "global"}: ${t.label}`);
+  return [...(realm?.timers.values() ?? [])].map(
+    (t) => `${t.owner?.name ?? "global"}: ${t.label}`,
+  );
 }
 
 // -- Windows --
@@ -390,7 +442,10 @@ export function activeWindow(): RealmWindow | null {
 function windowState(r: Installed, w: RealmWindow): WindowState {
   let s = r.windows.get(w);
   if (!s) {
-    s = { slots: freshSlots(), rng: makeRng(fnv1a32(`${r.seed}:window:${w.name}`)) };
+    s = {
+      slots: freshSlots(),
+      rng: makeRng(fnv1a32(`${r.seed}:window:${w.name}`)),
+    };
     r.windows.set(w, s);
   }
   return s;
@@ -402,10 +457,16 @@ function windowState(r: Installed, w: RealmWindow): WindowState {
  * and the next window starts from its own bindings. A call for the window
  * already running joins its turn.
  */
-export async function runInWindow<T>(w: RealmWindow, fn: () => T | Promise<T>): Promise<T> {
+export async function runInWindow<T>(
+  w: RealmWindow,
+  fn: () => T | Promise<T>,
+): Promise<T> {
   const r = installed("runInWindow()");
   if (active === w) return await fn();
-  if (active) throw new Error(`sim realm: runInWindow("${w.name}") while "${active.name}" is running`);
+  if (active)
+    throw new Error(
+      `sim realm: runInWindow("${w.name}") while "${active.name}" is running`,
+    );
   enter(r, w);
   try {
     return await fn();
@@ -446,7 +507,10 @@ function leave(): void {
 export function runInWindowSync<T>(w: RealmWindow, fn: () => T): T {
   const r = installed("runInWindowSync()");
   if (active === w) return fn();
-  if (active) throw new Error(`sim realm: runInWindowSync("${w.name}") while "${active.name}" is running`);
+  if (active)
+    throw new Error(
+      `sim realm: runInWindowSync("${w.name}") while "${active.name}" is running`,
+    );
   enter(r, w);
   try {
     return fn();

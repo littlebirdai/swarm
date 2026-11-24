@@ -64,7 +64,8 @@ export type Shot = {
   quality?: number;
 };
 
-const batch = (name: string, shots: Shot[]) => shots.map((s) => ({ ...s, batch: name }));
+const batch = (name: string, shots: Shot[]) =>
+  shots.map((s) => ({ ...s, batch: name }));
 
 export const SHOTS: Shot[] = [
   ...batch("main-page", MAIN_PAGE),

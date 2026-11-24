@@ -35,7 +35,9 @@ describe("resolveChannelStub", () => {
     const t0 = Date.now();
     const out = await resolveChannelStub({
       lookup: never,
-      inFlight: Promise.reject(new Error("Jordan Lee is not a member of this team")),
+      inFlight: Promise.reject(
+        new Error("Jordan Lee is not a member of this team"),
+      ),
       done: () => false,
       deadlineMs: 5_000,
       tickMs: 10,

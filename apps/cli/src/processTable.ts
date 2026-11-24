@@ -14,7 +14,10 @@
 import * as fs from "node:fs";
 import { execFileAsync, execFileSync } from "./proc.js";
 import { TTY_TOKEN, noTerminal } from "./psTerminal.js";
-import { agentBinaryFromPsRow, isRecognizedAgentComm } from "./sessionProcessMatcher.js";
+import {
+  agentBinaryFromPsRow,
+  isRecognizedAgentComm,
+} from "./sessionProcessMatcher.js";
 import { tmuxRunAsync } from "./tmux.js";
 import { CLAUDE_VERSIONED_BINARY_RE } from "./stableClaudeBinary.js";
 
@@ -53,8 +56,11 @@ export type ProcRow = {
 // `ps -o lstart=` is five space-separated fields of fixed shape, and it is the
 // only column between the numbers and the command line that is not itself a
 // number, so it anchors the wide form unambiguously.
-const LSTART_RE = "[A-Za-z]{3}\\s+[A-Za-z]{3}\\s+\\d{1,2}\\s+\\d{1,2}:\\d{2}:\\d{2}\\s+\\d{4}";
-const WITH_IDENTITY = new RegExp(`^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(-?\\d+)\\s+(?:(${TTY_TOKEN.source.slice(2, -2)})\\s+)?(${LSTART_RE})\\s+(\\S.*)$`);
+const LSTART_RE =
+  "[A-Za-z]{3}\\s+[A-Za-z]{3}\\s+\\d{1,2}\\s+\\d{1,2}:\\d{2}:\\d{2}\\s+\\d{4}";
+const WITH_IDENTITY = new RegExp(
+  `^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(-?\\d+)\\s+(?:(${TTY_TOKEN.source.slice(2, -2)})\\s+)?(${LSTART_RE})\\s+(\\S.*)$`,
+);
 
 // `ps -o command` prints a multi-line command line with its newlines intact,
 // so a row can span lines: a line that does not start with a pid continues
@@ -65,7 +71,10 @@ const WITH_IDENTITY = new RegExp(`^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(-?\\d+)\\s
 // table keeps working. The widest form is tried first: its four leading numbers
 // followed by a date would otherwise be read as `pid ppid uid` plus a command
 // line beginning with a number and a weekday.
-export function parseProcessTable(stdout: string, capturedAtMs?: number): ProcRow[] {
+export function parseProcessTable(
+  stdout: string,
+  capturedAtMs?: number,
+): ProcRow[] {
   const procs: ProcRow[] = [];
   for (const line of stdout.split("\n")) {
     // macOS prints the uid of a `nobody` process as -2, so the owner column is
@@ -92,7 +101,12 @@ export function parseProcessTable(stdout: string, capturedAtMs?: number): ProcRo
     if (m) {
       procs.push(
         withUid
-          ? { pid: Number(m[1]), ppid: Number(m[2]), uid: Number(m[3]), command: m[4] }
+          ? {
+              pid: Number(m[1]),
+              ppid: Number(m[2]),
+              uid: Number(m[3]),
+              command: m[4],
+            }
           : { pid: Number(m[1]), ppid: Number(m[2]), command: m[3] },
       );
     } else if (procs.length && line.length) {
@@ -110,7 +124,11 @@ export function parseProcessTable(stdout: string, capturedAtMs?: number): ProcRo
 // process group still agree (ct-49537).
 // The terminal rides along for reapTargets: on macOS as a device number, since
 // `tty` names it by searching /dev, which is slow under load (resourceMonitor.ts).
-const PS_ARGS = ["-axww", "-o", `pid=,ppid=,pgid=,uid=,${process.platform === "darwin" ? "tdev" : "tty"}=,lstart=,command=`];
+const PS_ARGS = [
+  "-axww",
+  "-o",
+  `pid=,ppid=,pgid=,uid=,${process.platform === "darwin" ? "tdev" : "tty"}=,lstart=,command=`,
+];
 // LC_ALL=C because lstart is localized: two captures under different locales
 // would print the same instant differently and never compare equal.
 const PS_OPTS = {
@@ -131,13 +149,18 @@ export interface ProcessTableOptions {
 }
 
 /** The live process table (pid, ppid, full command line). Empty on failure. */
-export function snapshotProcessTable(opts: ProcessTableOptions = {}): ProcRow[] {
+export function snapshotProcessTable(
+  opts: ProcessTableOptions = {},
+): ProcRow[] {
   // Stamped before the spawn: the capture second a row is judged against must
   // never be later than the scan that produced it.
   const capturedAtMs = Date.now();
   try {
     return parseProcessTable(
-      execFileSync("ps", PS_ARGS, { ...PS_OPTS, timeout: opts.timeout ?? PS_TIMEOUT_MS }) as string,
+      execFileSync("ps", PS_ARGS, {
+        ...PS_OPTS,
+        timeout: opts.timeout ?? PS_TIMEOUT_MS,
+      }) as string,
       capturedAtMs,
     );
   } catch {
@@ -147,7 +170,9 @@ export function snapshotProcessTable(opts: ProcessTableOptions = {}): ProcRow[] 
 
 /** The same snapshot off the event loop. The daemon uses this one: a `ps` that
  *  runs for seconds under load must never be the thing holding the loop. */
-export async function snapshotProcessTableAsync(opts: ProcessTableOptions = {}): Promise<ProcRow[]> {
+export async function snapshotProcessTableAsync(
+  opts: ProcessTableOptions = {},
+): Promise<ProcRow[]> {
   const capturedAtMs = Date.now();
   try {
     const { stdout } = await execFileAsync("ps", PS_ARGS, {
@@ -206,13 +231,18 @@ export function descendantRows(procs: ProcRow[], root: number): ProcRow[] {
  * Read while the tree is still linked; an orphan loses its link once its parent
  * dies. Never `self`, its own group, or init.
  */
-export function processGroupTree(procs: ProcRow[], group: number, self = process.pid): ProcRow[] {
+export function processGroupTree(
+  procs: ProcRow[],
+  group: number,
+  self = process.pid,
+): ProcRow[] {
   const children = new Map<number, ProcRow[]>();
   const members = new Map<number, ProcRow[]>();
   let selfGroup: number | undefined;
   for (const p of procs) {
     children.set(p.ppid, [...(children.get(p.ppid) ?? []), p]);
-    if (p.pgid !== undefined) members.set(p.pgid, [...(members.get(p.pgid) ?? []), p]);
+    if (p.pgid !== undefined)
+      members.set(p.pgid, [...(members.get(p.pgid) ?? []), p]);
     if (p.pid === self) selfGroup = p.pgid;
   }
   if (group === selfGroup) return [];
@@ -236,8 +266,15 @@ export function processGroupTree(procs: ProcRow[], group: number, self = process
 export type AncestryRow = { ppid: number; comm: string; args: string };
 
 /** The agent client a process is (agentBinaryFromPsRow, or the claude launcher's versioned binary), else null. */
-export function agentOfRow(row: Pick<AncestryRow, "comm" | "args">): string | null {
-  return agentBinaryFromPsRow(row.comm, row.args) ?? (CLAUDE_VERSIONED_BINARY_RE.test(row.args.trim().split(/\s+/)[0] ?? "") ? "claude" : null);
+export function agentOfRow(
+  row: Pick<AncestryRow, "comm" | "args">,
+): string | null {
+  return (
+    agentBinaryFromPsRow(row.comm, row.args) ??
+    (CLAUDE_VERSIONED_BINARY_RE.test(row.args.trim().split(/\s+/)[0] ?? "")
+      ? "claude"
+      : null)
+  );
 }
 
 /**
@@ -251,7 +288,7 @@ export function agentAncestor(
   stopAt?: number | null,
 ): { pid: number; bin: string; args: string } | null {
   const seen = new Set<number>();
-  for (let pid = from; pid > 1 && pid !== stopAt && !seen.has(pid); ) {
+  for (let pid = from; pid > 1 && pid !== stopAt && !seen.has(pid);) {
     seen.add(pid);
     const row = rowOf(pid);
     if (!row) return null;
@@ -265,7 +302,15 @@ export function agentAncestor(
 /** One `ps -p` row for the ancestry walk; null when the process is gone or ps fails. */
 export function psAncestryRow(pid: number): AncestryRow | null {
   try {
-    const out = execFileSync("ps", ["-o", "ppid=,comm=,args=", "-p", String(pid)], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 5_000 }) as string;
+    const out = execFileSync(
+      "ps",
+      ["-o", "ppid=,comm=,args=", "-p", String(pid)],
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 5_000,
+      },
+    ) as string;
     const m = out.trim().match(/^\s*(\d+)\s+(\S+)\s+(.*)$/);
     return m ? { ppid: Number(m[1]), comm: m[2], args: m[3] } : null;
   } catch {
@@ -274,7 +319,9 @@ export function psAncestryRow(pid: number): AncestryRow | null {
 }
 
 /** The agent this command runs under, read from the live process tree; the walk stops at `stopAt`. */
-export function findAgentAncestor(stopAt?: number | null): { pid: number; bin: string; args: string } | null {
+export function findAgentAncestor(
+  stopAt?: number | null,
+): { pid: number; bin: string; args: string } | null {
   return agentAncestor(process.ppid, psAncestryRow, stopAt);
 }
 
@@ -282,7 +329,8 @@ export function findAgentAncestor(stopAt?: number | null): { pid: number; bin: s
  *  major/minor on macOS, the name under /dev elsewhere. Undefined when the
  *  device is gone. */
 export function terminalOfPath(ttyPath: string): string | undefined {
-  if (process.platform !== "darwin") return ttyPath.replace(/^\/dev\//, "") || undefined;
+  if (process.platform !== "darwin")
+    return ttyPath.replace(/^\/dev\//, "") || undefined;
   try {
     const rdev = fs.statSync(ttyPath).rdev;
     return `${(rdev >>> 24) & 0xff}/${rdev & 0xffffff}`;
@@ -298,7 +346,11 @@ export interface ReapTargetOptions {
   /** Ownership the table cannot show any more: was this process, now outside
    *  the tree, once under one of its members (processLineage.ts)? `table` is
    *  the whole read, by pid (null where a pid appears twice). */
-  descendsFrom?: (row: ProcRow, tree: ReadonlyMap<number, ProcRow>, table: ReadonlyMap<number, ProcRow | null>) => boolean;
+  descendsFrom?: (
+    row: ProcRow,
+    tree: ReadonlyMap<number, ProcRow>,
+    table: ReadonlyMap<number, ProcRow | null>,
+  ) => boolean;
   /** Terminals the caller owns (its panes', from terminalOfPath), read while
    *  those panes are alive. */
   terminals?: string[];
@@ -330,7 +382,11 @@ export interface ReapTargetOptions {
  * This process, its ancestors and its descendants are never targets, whatever
  * the rules say, and neither is anything on a terminal one of them sits on.
  */
-export function reapTargets(procs: ProcRow[], roots: number[], opts: ReapTargetOptions = {}): { targets: ProcRow[]; tree: Map<number, ProcRow> } {
+export function reapTargets(
+  procs: ProcRow[],
+  roots: number[],
+  opts: ReapTargetOptions = {},
+): { targets: ProcRow[]; tree: Map<number, ProcRow> } {
   const selfPid = opts.selfPid ?? process.pid;
   const byPid = new Map<number, ProcRow | null>();
   for (const p of procs) byPid.set(p.pid, byPid.has(p.pid) ? null : p);
@@ -345,17 +401,26 @@ export function reapTargets(procs: ProcRow[], roots: number[], opts: ReapTargetO
   // their groups are ever claimed; the walk passes through the ancestors to
   // reach their other children, and stops at this process.
   const self = new Set<number>();
-  for (let pid: number | undefined = selfPid, hops = 0; pid && pid > 1 && hops < 64; hops++) {
+  for (
+    let pid: number | undefined = selfPid, hops = 0;
+    pid && pid > 1 && hops < 64;
+    hops++
+  ) {
     self.add(pid);
     pid = byPid.get(pid)?.ppid;
   }
   const own = new Set<number>([selfPid]);
-  for (let queue = [selfPid]; queue.length; ) {
+  for (let queue = [selfPid]; queue.length;) {
     for (const child of children.get(queue.pop()!) ?? []) {
-      if (!own.has(child.pid)) { own.add(child.pid); queue.push(child.pid); }
+      if (!own.has(child.pid)) {
+        own.add(child.pid);
+        queue.push(child.pid);
+      }
     }
   }
-  const terminals = new Set((opts.terminals ?? []).filter((t) => !noTerminal(t)));
+  const terminals = new Set(
+    (opts.terminals ?? []).filter((t) => !noTerminal(t)),
+  );
   for (const pid of [...self, ...own]) {
     const tty = byPid.get(pid)?.tty;
     if (tty) terminals.delete(tty);
@@ -375,11 +440,13 @@ export function reapTargets(procs: ProcRow[], roots: number[], opts: ReapTargetO
   if (tree.size === 0) return { targets: [], tree };
 
   const mine = (p: ProcRow) => opts.uid === undefined || p.uid === opts.uid;
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const p of byPid.values()) {
-      if (!p || visited.has(p.pid) || self.has(p.pid) || p.pid <= 1 || !mine(p)) continue;
-      const groupInTree = p.pgid !== undefined && tree.get(p.pgid)?.pgid === p.pgid;
+      if (!p || visited.has(p.pid) || self.has(p.pid) || p.pid <= 1 || !mine(p))
+        continue;
+      const groupInTree =
+        p.pgid !== undefined && tree.get(p.pgid)?.pgid === p.pgid;
       const onTerminal = p.tty !== undefined && terminals.has(p.tty);
       if (groupInTree || onTerminal || opts.descendsFrom?.(p, tree, byPid)) {
         add(p);
@@ -394,7 +461,9 @@ export function reapTargets(procs: ProcRow[], roots: number[], opts: ReapTargetO
     for (let c = tree.get(row.ppid); c && d < 64; c = tree.get(c.ppid)) d++;
     return d;
   };
-  const targets = [...tree.values()].filter((p) => !keep.has(p.pid) && p.pid > 1);
+  const targets = [...tree.values()].filter(
+    (p) => !keep.has(p.pid) && p.pid > 1,
+  );
   const depths = new Map(targets.map((p) => [p.pid, depth(p)]));
   targets.sort((a, b) => depths.get(b.pid)! - depths.get(a.pid)!);
   return { targets, tree };
@@ -416,7 +485,10 @@ export function isAgentCommand(command: string): boolean {
  *  a `claude` binary, or the CLI script under an interpreter? */
 export function isClaudeCommand(command: string): boolean {
   const argv0 = command.trim().split(/\s+/)[0] ?? "";
-  return CLAUDE_VERSIONED_BINARY_RE.test(argv0) || agentBinaryFromPsRow("", command) === "claude";
+  return (
+    CLAUDE_VERSIONED_BINARY_RE.test(argv0) ||
+    agentBinaryFromPsRow("", command) === "claude"
+  );
 }
 
 /** Program names that can be argv0 of a daemon. Anything else naming `_daemon`
@@ -440,7 +512,10 @@ const DAEMON_ARGV0_RE = /^(codecast|cast|bun|node|deno)(\.exe)?$/;
  * `codecast _worker <kind>`: those are meant to live.
  */
 export function isDaemonCommand(command: string): boolean {
-  const argv = command.trim().split(/\s+/).filter((t) => t.length > 0);
+  const argv = command
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
   if (argv.length < 2) return false;
   const argv0 = argv[0].split("/").pop() ?? "";
   if (!DAEMON_ARGV0_RE.test(argv0)) return false;
@@ -448,26 +523,45 @@ export function isDaemonCommand(command: string): boolean {
   // separator, and bun's own `run` subcommand sit before the entry point;
   // nothing else may. `bun run x/daemon.ts` executes the file in this process,
   // so it is a daemon like any other shape.
-  const rest = /^(bun|deno)(\.exe)?$/.test(argv0) && argv[1] === "run" ? argv.slice(2) : argv.slice(1);
+  const rest =
+    /^(bun|deno)(\.exe)?$/.test(argv0) && argv[1] === "run"
+      ? argv.slice(2)
+      : argv.slice(1);
   const first = rest.find((t) => t !== "--" && !t.startsWith("-"));
   if (!first) return false;
-  return first === "_daemon" || first.endsWith("/daemon.ts") || first.endsWith("/daemon.js");
+  return (
+    first === "_daemon" ||
+    first.endsWith("/daemon.ts") ||
+    first.endsWith("/daemon.js")
+  );
 }
 
 /** Every other daemon process on this machine, as the rows it was seen in — a
  *  killer needs the identity, not just the slot number. */
-export function findOtherDaemonRows(procs: ProcRow[], selfPid = process.pid): ProcRow[] {
+export function findOtherDaemonRows(
+  procs: ProcRow[],
+  selfPid = process.pid,
+): ProcRow[] {
   return procs.filter((p) => p.pid !== selfPid && isDaemonCommand(p.command));
 }
 
 /** This user's other daemons: on a shared box every person runs one, and
  *  `cast stop` stops only its own. A row without a uid column is kept. */
-export function ownDaemonPids(procs: ProcRow[], selfPid = process.pid, uid = process.getuid?.()): number[] {
-  return findOtherDaemonRows(procs, selfPid).filter((p) => uid === undefined || p.uid === undefined || p.uid === uid).map((p) => p.pid);
+export function ownDaemonPids(
+  procs: ProcRow[],
+  selfPid = process.pid,
+  uid = process.getuid?.(),
+): number[] {
+  return findOtherDaemonRows(procs, selfPid)
+    .filter((p) => uid === undefined || p.uid === undefined || p.uid === uid)
+    .map((p) => p.pid);
 }
 
 /** The same list, as pids, for callers that only probe or signal once. */
-export function findOtherDaemonPids(procs: ProcRow[], selfPid = process.pid): number[] {
+export function findOtherDaemonPids(
+  procs: ProcRow[],
+  selfPid = process.pid,
+): number[] {
   return findOtherDaemonRows(procs, selfPid).map((p) => p.pid);
 }
 
@@ -503,21 +597,36 @@ export function tmuxServerRows(procs: ProcRow[], ownerUid?: number): ProcRow[] {
     const argv = p.command.trim().split(/\s+/);
     const base = argv[0]?.split("/").pop();
     if (base !== "tmux") return false;
-    return !argv.some((a, i) => i > 0 && (a === "-L" || a === "-S" || a.startsWith("-L") || a.startsWith("-S")));
+    return !argv.some(
+      (a, i) =>
+        i > 0 &&
+        (a === "-L" || a === "-S" || a.startsWith("-L") || a.startsWith("-S")),
+    );
   });
 }
 
 /** Servers on the default socket other than the one tmux itself answers from.
  *  `livePid` null (tmux unreachable) reports every server, since none can be
  *  the live one. */
-export function findStaleTmuxServers(procs: ProcRow[], livePid: number | null, ownerUid?: number): StaleTmuxServer[] {
+export function findStaleTmuxServers(
+  procs: ProcRow[],
+  livePid: number | null,
+  ownerUid?: number,
+): StaleTmuxServer[] {
   return tmuxServerRows(procs, ownerUid)
     .filter((s) => s.pid !== livePid)
     .map((s) => {
       const tree = descendantRows(procs, s.pid);
       const agents = tree.filter((p) => isAgentCommand(p.command)).length;
       const ambiguous = procs.filter((p) => p.pid === s.pid).length > 1;
-      return { pid: s.pid, command: s.command, row: s, tree, agents, ambiguous };
+      return {
+        pid: s.pid,
+        command: s.command,
+        row: s,
+        tree,
+        agents,
+        ambiguous,
+      };
     });
 }
 
@@ -553,21 +662,43 @@ export function staleTmuxServerKillPlan(
   livePid: number | null,
   ownerUid?: number,
   selfPid: number = process.pid,
-): { kill: StaleTmuxServer[]; restore: StaleTmuxServer[]; selfHosted: StaleTmuxServer[]; refused: "tmux-unreachable" | "owner-unknown" | null } {
-  if (!Number.isInteger(livePid) || livePid! <= 1) return { kill: [], restore: [], selfHosted: [], refused: "tmux-unreachable" };
-  if (!Number.isInteger(ownerUid) || ownerUid! < 0) return { kill: [], restore: [], selfHosted: [], refused: "owner-unknown" };
-  const liveAgents = descendantRows(procs, livePid!).filter((p) => isAgentCommand(p.command)).length;
+): {
+  kill: StaleTmuxServer[];
+  restore: StaleTmuxServer[];
+  selfHosted: StaleTmuxServer[];
+  refused: "tmux-unreachable" | "owner-unknown" | null;
+} {
+  if (!Number.isInteger(livePid) || livePid! <= 1)
+    return {
+      kill: [],
+      restore: [],
+      selfHosted: [],
+      refused: "tmux-unreachable",
+    };
+  if (!Number.isInteger(ownerUid) || ownerUid! < 0)
+    return { kill: [], restore: [], selfHosted: [], refused: "owner-unknown" };
+  const liveAgents = descendantRows(procs, livePid!).filter((p) =>
+    isAgentCommand(p.command),
+  ).length;
   const kill: StaleTmuxServer[] = [];
   const selfHosted: StaleTmuxServer[] = [];
   for (const server of findStaleTmuxServers(procs, livePid, ownerUid)) {
     // An ambiguous server is spared for the same reason a self-hosting one is:
     // its tree walk returned nothing, so the table cannot say what it holds,
     // and "holds nothing" and "holds this daemon" look identical from here.
-    if (server.ambiguous || server.pid === selfPid || server.tree.some((p) => p.pid === selfPid)) selfHosted.push(server);
+    if (
+      server.ambiguous ||
+      server.pid === selfPid ||
+      server.tree.some((p) => p.pid === selfPid)
+    )
+      selfHosted.push(server);
     else kill.push(server);
   }
   // One socket, one winner: the largest generation that outnumbers the live one.
-  const fleet = kill.reduce<StaleTmuxServer | null>((best, s) => (s.agents > (best?.agents ?? liveAgents) ? s : best), null);
+  const fleet = kill.reduce<StaleTmuxServer | null>(
+    (best, s) => (s.agents > (best?.agents ?? liveAgents) ? s : best),
+    null,
+  );
   return fleet
     ? { kill: [], restore: [fleet], selfHosted, refused: null }
     : { kill, restore: [], selfHosted, refused: null };
@@ -579,7 +710,10 @@ export function staleTmuxServerKillPlan(
  * that replaced it becomes the unreachable one. True once tmux answers from
  * `pid` again.
  */
-export async function restoreTmuxServerSocket(pid: number, waitMs = 10_000): Promise<boolean> {
+export async function restoreTmuxServerSocket(
+  pid: number,
+  waitMs = 10_000,
+): Promise<boolean> {
   try {
     process.kill(pid, "SIGUSR1");
   } catch {
@@ -603,7 +737,10 @@ export async function restoreTmuxServerSocket(pid: number, waitMs = 10_000): Pro
  *  /opt/homebrew/bin, so a bare `tmux` is simply not found and every server
  *  reads stale. */
 export async function liveTmuxServerPid(): Promise<number | null> {
-  const { status, stdout } = await tmuxRunAsync(["display-message", "-p", "#{pid}"], { timeout: 10_000 });
+  const { status, stdout } = await tmuxRunAsync(
+    ["display-message", "-p", "#{pid}"],
+    { timeout: 10_000 },
+  );
   const pid = parseInt(String(stdout ?? "").trim(), 10);
   return status === 0 && Number.isFinite(pid) && pid > 0 ? pid : null;
 }
@@ -645,9 +782,13 @@ export function bornBeforeCaptureSecond(row: ProcRow): boolean {
  * time must be older than its capture second. Anything missing fails closed:
  * a table without the identity columns cannot license a SIGKILL.
  */
-export function sameProcess(snapshot: ProcRow, live: ProcRow | null | undefined): boolean {
+export function sameProcess(
+  snapshot: ProcRow,
+  live: ProcRow | null | undefined,
+): boolean {
   if (!live || live.pid !== snapshot.pid) return false;
-  if (!snapshot.startedAt || snapshot.startedAt !== live.startedAt) return false;
+  if (!snapshot.startedAt || snapshot.startedAt !== live.startedAt)
+    return false;
   if (snapshot.pgid === undefined || snapshot.pgid !== live.pgid) return false;
   return bornBeforeCaptureSecond(snapshot);
 }
@@ -686,14 +827,24 @@ export async function killProcessTree(
     isAlive?: (pid: number) => boolean;
   } = {},
 ): Promise<KillTreeResult> {
-  const readTable = deps.readTable ?? (() => snapshotProcessTableAsync({ timeout: 10_000 }));
+  const readTable =
+    deps.readTable ?? (() => snapshotProcessTableAsync({ timeout: 10_000 }));
   const alive = deps.isAlive ?? isAlive;
-  const sendSignal = deps.sendSignal ?? ((pid, signal) => { try { process.kill(pid, signal); } catch {} });
+  const sendSignal =
+    deps.sendSignal ??
+    ((pid, signal) => {
+      try {
+        process.kill(pid, signal);
+      } catch {}
+    });
 
   // Never signal this process or an init-like pid, whatever a caller hands over.
-  const signalled = targets.filter((t) => Number.isInteger(t.pid) && t.pid > 1 && t.pid !== process.pid);
+  const signalled = targets.filter(
+    (t) => Number.isInteger(t.pid) && t.pid > 1 && t.pid !== process.pid,
+  );
   for (const t of signalled) sendSignal(t.pid, "SIGTERM");
-  if (signalled.length === 0) return { terminated: 0, killed: 0, unverified: 0 };
+  if (signalled.length === 0)
+    return { terminated: 0, killed: 0, unverified: 0 };
 
   // Poll rather than sleep the whole window: the common case is a tree that
   // dies at once, and a caller waiting on teardown should not pay 2s for it.
@@ -704,7 +855,8 @@ export async function killProcessTree(
     await new Promise((r) => setTimeout(r, 250));
     survivors = survivors.filter((t) => alive(t.pid));
   }
-  if (survivors.length === 0) return { terminated: signalled.length, killed: 0, unverified: 0 };
+  if (survivors.length === 0)
+    return { terminated: signalled.length, killed: 0, unverified: 0 };
 
   // `process.kill(pid, 0)` above says the slot is occupied, not by whom. Only a
   // fresh table answers that, and only for the few pids still standing.
@@ -721,9 +873,16 @@ export async function killProcessTree(
     const now = live.get(t.pid);
     // Absent from the fresh table: it exited between the last poll and the read.
     if (now === undefined) continue;
-    if (!sameProcess(t, now)) { unverified++; continue; }
+    if (!sameProcess(t, now)) {
+      unverified++;
+      continue;
+    }
     sendSignal(t.pid, "SIGKILL");
     killed++;
   }
-  return { terminated: signalled.length - killed - unverified, killed, unverified };
+  return {
+    terminated: signalled.length - killed - unverified,
+    killed,
+    unverified,
+  };
 }

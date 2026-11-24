@@ -36,9 +36,18 @@ describe("hookJson export is what the hook modules import", () => {
     const { TASK_CONTEXT_HOOK } = await import("./taskContextHook.js");
     const { CODECAST_STATUSLINE_HOOK } = await import("./statuslineHook.js");
     const count = (s: string, needle: string) => s.split(needle).length - 1;
-    const scripts = { USER_PROMPT_HOOK, THREAD_STATE_HOOK, CODECAST_STATUS_HOOK, SESSION_REGISTER_HOOK, TASK_CONTEXT_HOOK, CODECAST_STATUSLINE_HOOK };
+    const scripts = {
+      USER_PROMPT_HOOK,
+      THREAD_STATE_HOOK,
+      CODECAST_STATUS_HOOK,
+      SESSION_REGISTER_HOOK,
+      TASK_CONTEXT_HOOK,
+      CODECAST_STATUSLINE_HOOK,
+    };
     for (const [name, script] of Object.entries(scripts)) {
-      expect(count(script, "function envelope_str("), name).toBeLessThanOrEqual(1);
+      expect(count(script, "function envelope_str("), name).toBeLessThanOrEqual(
+        1,
+      );
       expect(count(script, "feature_on() {"), name).toBeLessThanOrEqual(1);
       // The one place a script spells the default directory.
       expect(count(script, HOOK_STATE_DIR), name).toBe(1);

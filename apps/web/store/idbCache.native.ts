@@ -1,6 +1,18 @@
 import { captureException } from "./pendingInputError";
-import { readPendingMessageJournal, writePendingMessageJournal, type PendingJournalStorage } from "./pendingMessageJournal";
-import { importLegacyQueuedMessages, queuedMessagesFromPending, applyPendingMessageWrite, pendingMessageWrites, pendingMessagesFromRecords, retireStalePendingRecords, type PendingMessages } from "./pendingMessageJournal";
+import {
+  readPendingMessageJournal,
+  writePendingMessageJournal,
+  type PendingJournalStorage,
+} from "./pendingMessageJournal";
+import {
+  importLegacyQueuedMessages,
+  queuedMessagesFromPending,
+  applyPendingMessageWrite,
+  pendingMessageWrites,
+  pendingMessagesFromRecords,
+  retireStalePendingRecords,
+  type PendingMessages,
+} from "./pendingMessageJournal";
 // expo-sqlite's kv-store default export is an AsyncStorage-compatible, SQLite-backed
 // key-value store (getItem/setItem/removeItem + multiGet). It is durable and survives
 // app restart — the RN replacement for the web Dexie engine. Metro resolves this
@@ -20,16 +32,43 @@ import { importLegacyQueuedMessages, queuedMessagesFromPending, applyPendingMess
 import type { Patch } from "mutative";
 import type { AuthTokenState } from "@platform/auth/web";
 import { cacheOwnershipVerdict } from "./cacheOwnershipRule";
-import { collectionRowValidator, collectionRowHydrator, isPersistedClientStoreKey } from "./clientSyncRegistry";
 import {
-  COLLECTION_TABLES, META_KEYS, COLLECTION_PREFIX, META_PREFIX, CONVMSG_PREFIX, CONVUSERMSG_PREFIX, OUTBOX_KEY,
-  PENDING_INPUT_PREFIX, SPLIT_PREFIX, PER_ROW_META_KEYS, collectionBlobKey, collectionRowKey, readPlan, readPlanSql,
-  rowsToMap, collectReadKeys, isPurgeable, ownedKeysWhere,
+  collectionRowValidator,
+  collectionRowHydrator,
+  isPersistedClientStoreKey,
+} from "./clientSyncRegistry";
+import {
+  COLLECTION_TABLES,
+  META_KEYS,
+  COLLECTION_PREFIX,
+  META_PREFIX,
+  CONVMSG_PREFIX,
+  CONVUSERMSG_PREFIX,
+  OUTBOX_KEY,
+  PENDING_INPUT_PREFIX,
+  SPLIT_PREFIX,
+  PER_ROW_META_KEYS,
+  collectionBlobKey,
+  collectionRowKey,
+  readPlan,
+  readPlanSql,
+  rowsToMap,
+  collectReadKeys,
+  isPurgeable,
+  ownedKeysWhere,
 } from "./idbCacheKeys.native";
-import { batchStatements, createWriteBehind } from "./idbCacheWriteBehind.native";
+import {
+  batchStatements,
+  createWriteBehind,
+} from "./idbCacheWriteBehind.native";
 export { readPlan, readPlanSql };
 import { diffCollection, durableDeletes } from "./idbCollectionDiff";
-import { partitionSessionRetention, COLLECTION_RETENTION, expireExcludeTombstones, persistedMessageTail } from "./cacheRetention";
+import {
+  partitionSessionRetention,
+  COLLECTION_RETENTION,
+  expireExcludeTombstones,
+  persistedMessageTail,
+} from "./cacheRetention";
 
 let Storage: any = null;
 // Send writes the pending-input journal with setItemSync. That used to hit the
@@ -46,9 +85,10 @@ try {
   const kv = require("expo-sqlite/kv-store");
   Storage = kv.default;
   sqliteBacked = Storage != null;
-  PendingStorage = typeof kv.SQLiteStorage === "function"
-    ? new kv.SQLiteStorage("codecast-pending-input")
-    : kv.default;
+  PendingStorage =
+    typeof kv.SQLiteStorage === "function"
+      ? new kv.SQLiteStorage("codecast-pending-input")
+      : kv.default;
 } catch {
   // Tests can't reach this require with bun's mock.module (it intercepts the
   // ESM path only), so the suite injects an AsyncStorage-compatible shim via
@@ -70,7 +110,6 @@ export type OutboxEntry = {
   ts: number;
 };
 
-
 let _hydrating = false;
 
 // What each collection currently holds on disk, by id → row reference. Seeded
@@ -89,10 +128,14 @@ export const PERSISTENCE_AVAILABLE = Storage != null;
 // (the native module hands back the one it has for a name, so nothing here
 // can find the database locked by the other). Throwing sends the batch down
 // the per-key path: no connection, or kv-store has not made its table yet.
-async function writeBatch(puts: Array<[string, string]>, removes: string[]): Promise<void> {
+async function writeBatch(
+  puts: Array<[string, string]>,
+  removes: string[],
+): Promise<void> {
   const db = await openCacheDb();
   if (!db) throw new Error("cache database unavailable");
-  for (const { sql, params } of batchStatements(puts, removes)) await db.runAsync(sql, params);
+  for (const { sql, params } of batchStatements(puts, removes))
+    await db.runAsync(sql, params);
 }
 
 // Scheduled writes (idbCacheWriteBehind.native).
@@ -121,12 +164,14 @@ export function isPersistedStoreKey(key: string): boolean {
 }
 
 const pendingJournalStorage: PendingJournalStorage = {
-  getItem: key => PendingStorage.getItemSync(key),
+  getItem: (key) => PendingStorage.getItemSync(key),
   setItem: (key, value) => PendingStorage.setItemSync(key, value),
-  removeItem: key => PendingStorage.removeItemSync(key),
+  removeItem: (key) => PendingStorage.removeItemSync(key),
   getAllKeys: () => PendingStorage.getAllKeysSync(),
-  key: index => PendingStorage.getAllKeysSync()[index] ?? null,
-  get length() { return PendingStorage.getAllKeysSync().length; },
+  key: (index) => PendingStorage.getAllKeysSync()[index] ?? null,
+  get length() {
+    return PendingStorage.getAllKeysSync().length;
+  },
 };
 
 async function flushPendingInputJournal(): Promise<void> {
@@ -136,21 +181,36 @@ async function flushPendingInputJournal(): Promise<void> {
     for (const write of batch.writes) {
       const key = `${PENDING_INPUT_PREFIX}${batch.ownerId}:${write.id}`;
       const raw = await Storage.getItem(key);
-      const value = applyPendingMessageWrite(raw ? JSON.parse(raw) : undefined, write);
+      const value = applyPendingMessageWrite(
+        raw ? JSON.parse(raw) : undefined,
+        write,
+      );
       await Storage.setItem(key, JSON.stringify(value));
     }
     PendingStorage.removeItemSync(batch.key);
   }
 }
 
-export function persistPendingMessageChanges(before: PendingMessages, after: PendingMessages, ownerId?: string): void {
+export function persistPendingMessageChanges(
+  before: PendingMessages,
+  after: PendingMessages,
+  ownerId?: string,
+): void {
   if (before === after) return;
   const writes = pendingMessageWrites(before, after);
   if (!writes.length) return;
-  if (!PendingStorage?.setItemSync) throw new Error("Update Codecast before sending so your messages can be saved safely.");
-  if (!ownerId) throw new Error("Sign in before sending a message so it can be saved safely.");
+  if (!PendingStorage?.setItemSync)
+    throw new Error(
+      "Update Codecast before sending so your messages can be saved safely.",
+    );
+  if (!ownerId)
+    throw new Error(
+      "Sign in before sending a message so it can be saved safely.",
+    );
   writePendingMessageJournal(pendingJournalStorage, ownerId, writes);
-  void flushPendingInputJournal().catch(error => captureException(error, { tags: { source: "pending-input-journal" } }));
+  void flushPendingInputJournal().catch((error) =>
+    captureException(error, { tags: { source: "pending-input-journal" } }),
+  );
 }
 
 async function loadPendingInput(ownerId?: string): Promise<PendingMessages> {
@@ -163,21 +223,33 @@ async function loadPendingInput(ownerId?: string): Promise<PendingMessages> {
     for (const write of pendingMessageWrites({}, JSON.parse(legacy))) {
       const key = prefix + write.id;
       if (Storage.getItemSync(key) !== null) continue;
-      Storage.setItemSync(key, JSON.stringify(applyPendingMessageWrite(undefined, write)));
+      Storage.setItemSync(
+        key,
+        JSON.stringify(applyPendingMessageWrite(undefined, write)),
+      );
     }
     await Storage.removeItem(META_PREFIX + "pendingMessages");
   }
   const queued = await Storage.getItem(META_PREFIX + "queuedMessages");
   if (queued && user && JSON.parse(user)?._id === ownerId) {
-    for (const write of pendingMessageWrites({}, importLegacyQueuedMessages(JSON.parse(queued)))) {
-      Storage.setItemSync(prefix + write.id, JSON.stringify(applyPendingMessageWrite(undefined, write)));
+    for (const write of pendingMessageWrites(
+      {},
+      importLegacyQueuedMessages(JSON.parse(queued)),
+    )) {
+      Storage.setItemSync(
+        prefix + write.id,
+        JSON.stringify(applyPendingMessageWrite(undefined, write)),
+      );
     }
     await Storage.removeItem(META_PREFIX + "queuedMessages");
   }
   const keys: string[] = Storage.getAllKeysSync();
-  const rows = keys.filter(key => key.startsWith(prefix)).map(key => JSON.parse(Storage.getItemSync(key)));
+  const rows = keys
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => JSON.parse(Storage.getItemSync(key)));
   const { kept, retired } = retireStalePendingRecords(rows, Date.now());
-  for (const row of retired) Storage.setItemSync(prefix + row.id, JSON.stringify(row));
+  for (const row of retired)
+    Storage.setItemSync(prefix + row.id, JSON.stringify(row));
   return pendingMessagesFromRecords(kept);
 }
 
@@ -196,7 +268,13 @@ function persistKeyedRows(
 ) {
   const prevShadow = lastPersisted.get(storeKey);
   const { puts, deletes: rawDeletes, next } = diffCollection(prevShadow, data);
-  const deletes = durableDeletes(storeKey, rawDeletes, pending, prevShadow, next);
+  const deletes = durableDeletes(
+    storeKey,
+    rawDeletes,
+    pending,
+    prevShadow,
+    next,
+  );
   lastPersisted.set(storeKey, next);
   if (puts.length || deletes.length) {
     for (const row of puts) {
@@ -224,12 +302,20 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
     if (COLLECTION_TABLES.has(key)) {
       const data = state[key];
       if (data && typeof data === "object") {
-        persistKeyedRows(key, data, pending, collectionBlobKey(key), (id) => collectionRowKey(key, id));
+        persistKeyedRows(key, data, pending, collectionBlobKey(key), (id) =>
+          collectionRowKey(key, id),
+        );
       }
     } else if (PER_ROW_META_KEYS.has(key)) {
       const data = state[key];
       if (data && typeof data === "object") {
-        persistKeyedRows(key, data, pending, META_PREFIX + key, (id) => META_PREFIX + key + ":" + id);
+        persistKeyedRows(
+          key,
+          data,
+          pending,
+          META_PREFIX + key,
+          (id) => META_PREFIX + key + ":" + id,
+        );
       }
     } else if (META_KEYS.has(key)) {
       scheduleWrite(META_PREFIX + key, () => JSON.stringify(state[key]));
@@ -254,9 +340,10 @@ function openCacheDb(): Promise<any> | null {
   try {
     const name = Storage?.databaseName;
     const { openDatabaseAsync } = require("expo-sqlite");
-    cacheDb = typeof name === "string" && typeof openDatabaseAsync === "function"
-      ? openDatabaseAsync(name).catch(() => null)
-      : null;
+    cacheDb =
+      typeof name === "string" && typeof openDatabaseAsync === "function"
+        ? openDatabaseAsync(name).catch(() => null)
+        : null;
   } catch {
     cacheDb = null;
   }
@@ -269,7 +356,10 @@ function openCacheDbSync(): any | null {
   try {
     const name = Storage?.databaseName;
     const { openDatabaseSync } = require("expo-sqlite");
-    cacheDbSync = typeof name === "string" && typeof openDatabaseSync === "function" ? openDatabaseSync(name) : null;
+    cacheDbSync =
+      typeof name === "string" && typeof openDatabaseSync === "function"
+        ? openDatabaseSync(name)
+        : null;
   } catch {
     cacheDbSync = null;
   }
@@ -277,8 +367,10 @@ function openCacheDbSync(): any | null {
 }
 
 async function storageKeys(): Promise<string[]> {
-  if (typeof Storage.getAllKeysSync === "function") return Storage.getAllKeysSync();
-  if (typeof Storage.getAllKeys === "function") return await Storage.getAllKeys();
+  if (typeof Storage.getAllKeysSync === "function")
+    return Storage.getAllKeysSync();
+  if (typeof Storage.getAllKeys === "function")
+    return await Storage.getAllKeys();
   return [];
 }
 
@@ -288,8 +380,10 @@ function materializeLoadedCache(
 ): Record<string, any> | null {
   const result: Record<string, any> = {};
   let hasData = false;
-  const collectionKeys = [...COLLECTION_TABLES].filter(key => !wanted || wanted.has(key));
-  const metaKeys = [...META_KEYS].filter(key => !wanted || wanted.has(key));
+  const collectionKeys = [...COLLECTION_TABLES].filter(
+    (key) => !wanted || wanted.has(key),
+  );
+  const metaKeys = [...META_KEYS].filter((key) => !wanted || wanted.has(key));
   // Meta lookup first — the pending map gates hydrateRow (an unsynced local
   // edit keeps its body), and the sessions retention pass below needs
   // liveInboxIdList and lastFocusedConversationId from the same snapshot.
@@ -297,7 +391,9 @@ function materializeLoadedCache(
     try {
       const raw = byKey.get(META_PREFIX + key);
       return raw == null ? undefined : JSON.parse(raw);
-    } catch { return undefined; }
+    } catch {
+      return undefined;
+    }
   };
   const metaPending = readMeta("pending") as Record<string, any> | undefined;
 
@@ -317,161 +413,179 @@ function materializeLoadedCache(
   }
 
   for (const key of collectionKeys) {
-      const rows: any[] = [];
-      const seen = new Set<string>();
-      for (const raw of rowValues.get(key) ?? []) {
-        try {
-          const row = JSON.parse(raw);
-          if (row?._id == null || seen.has(row._id)) continue;
-          seen.add(row._id);
-          rows.push(row);
-        } catch { /* skip a corrupt row; the next put overwrites it */ }
+    const rows: any[] = [];
+    const seen = new Set<string>();
+    for (const raw of rowValues.get(key) ?? []) {
+      try {
+        const row = JSON.parse(raw);
+        if (row?._id == null || seen.has(row._id)) continue;
+        seen.add(row._id);
+        rows.push(row);
+      } catch {
+        /* skip a corrupt row; the next put overwrites it */
       }
-      const blobRaw = byKey.get(collectionBlobKey(key));
-      let hadLegacyBlob = false;
-      if (blobRaw != null) {
-        hadLegacyBlob = true;
-        try {
-          const blobRows = JSON.parse(blobRaw) as any[];
-          if (Array.isArray(blobRows)) {
-            for (const row of blobRows) {
-              if (row?._id == null || seen.has(row._id)) continue;
-              seen.add(row._id);
-              rows.push(row);
-            }
+    }
+    const blobRaw = byKey.get(collectionBlobKey(key));
+    let hadLegacyBlob = false;
+    if (blobRaw != null) {
+      hadLegacyBlob = true;
+      try {
+        const blobRows = JSON.parse(blobRaw) as any[];
+        if (Array.isArray(blobRows)) {
+          for (const row of blobRows) {
+            if (row?._id == null || seen.has(row._id)) continue;
+            seen.add(row._id);
+            rows.push(row);
           }
-        } catch { /* drop a corrupt blob; per-row keys still load */ }
+        }
+      } catch {
+        /* drop a corrupt blob; per-row keys still load */
       }
-      if (rows.length === 0 && !hadLegacyBlob) {
-        lastPersisted.set(key, new Map());
+    }
+    if (rows.length === 0 && !hadLegacyBlob) {
+      lastPersisted.set(key, new Map());
+      continue;
+    }
+    // Seed the persistence shadow with what's on disk so the first write after
+    // hydrate diffs against reality (see persistence/bootLoader.ts).
+    const shadow = new Map<string, any>();
+    const validRow = collectionRowValidator(key);
+    const hydrateRow = collectionRowHydrator(key);
+    const hydrateCtx = {
+      pending: (metaPending as Record<string, any> | undefined) ?? {},
+    };
+    let keptRows = rows;
+    const dropped = new Set<string>();
+    if (key === "sessions" && keptRows.length > 0) {
+      const { keep, drop } = partitionSessionRetention(
+        keptRows,
+        readMeta("liveInboxIdList"),
+        readMeta("lastFocusedConversationId"),
+        Date.now(),
+      );
+      keptRows = keep;
+      for (const id of drop) dropped.add(id);
+    }
+    // Collections that bound themselves at boot (COLLECTION_RETENTION).
+    const retain = COLLECTION_RETENTION[key];
+    if (retain && keptRows.length > 0) {
+      const { keep, drop } = retain(keptRows, Date.now());
+      keptRows = keep;
+      for (const id of drop) dropped.add(id);
+    }
+    const map: Record<string, any> = {};
+    let anyTrimmed = false;
+    for (const row of keptRows) {
+      // Foreign documents persisted under the wrong collection (see validRow
+      // in the registry) never enter the store or the shadow; dropping the
+      // row key is how the prune reaches disk.
+      if (validRow && !validRow(row)) {
+        dropped.add(row._id);
         continue;
       }
-      // Seed the persistence shadow with what's on disk so the first write after
-      // hydrate diffs against reality (see persistence/bootLoader.ts).
-      const shadow = new Map<string, any>();
-      const validRow = collectionRowValidator(key);
-      const hydrateRow = collectionRowHydrator(key);
-      const hydrateCtx = { pending: (metaPending as Record<string, any> | undefined) ?? {} };
-      let keptRows = rows;
-      const dropped = new Set<string>();
-      if (key === "sessions" && keptRows.length > 0) {
-        const { keep, drop } = partitionSessionRetention(
-          keptRows,
-          readMeta("liveInboxIdList"),
-          readMeta("lastFocusedConversationId"),
-          Date.now(),
-        );
-        keptRows = keep;
-        for (const id of drop) dropped.add(id);
-      }
-      // Collections that bound themselves at boot (COLLECTION_RETENTION).
-      const retain = COLLECTION_RETENTION[key];
-      if (retain && keptRows.length > 0) {
-        const { keep, drop } = retain(keptRows, Date.now());
-        keptRows = keep;
-        for (const id of drop) dropped.add(id);
-      }
-      const map: Record<string, any> = {};
-      let anyTrimmed = false;
-      for (const row of keptRows) {
-        // Foreign documents persisted under the wrong collection (see validRow
-        // in the registry) never enter the store or the shadow; dropping the
-        // row key is how the prune reaches disk.
-        if (validRow && !validRow(row)) {
-          dropped.add(row._id);
-          continue;
-        }
-        // Trimmed on the way in (registry hydrateRow). The shadow holds the
-        // trimmed row (the original would pin the dropped bytes); the row key
-        // is rewritten below so disk shrinks too.
-        const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;
-        if (kept !== row) anyTrimmed = true;
-        map[row._id] = kept; shadow.set(row._id, kept);
-      }
-      if (anyTrimmed) {
-        for (const row of Object.values(map)) {
-          scheduleWrite(collectionRowKey(key, String(row._id)), () => JSON.stringify(row));
-        }
-      }
-      for (const id of dropped) scheduleRemove(collectionRowKey(key, id));
-      if (hadLegacyBlob) {
-        // Split the leftover whole-table blob into per-row keys so the next
-        // heartbeat cannot stringify the table again.
-        if (!anyTrimmed) {
-          for (const row of Object.values(map)) {
-            scheduleWrite(collectionRowKey(key, String(row._id)), () => JSON.stringify(row));
-          }
-        }
-        dropLegacyBlob(collectionBlobKey(key));
-      }
-      if (Object.keys(map).length > 0) {
-        result[key] = map;
-        hasData = true;
-      }
-      lastPersisted.set(key, shadow);
+      // Trimmed on the way in (registry hydrateRow). The shadow holds the
+      // trimmed row (the original would pin the dropped bytes); the row key
+      // is rewritten below so disk shrinks too.
+      const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;
+      if (kept !== row) anyTrimmed = true;
+      map[row._id] = kept;
+      shadow.set(row._id, kept);
     }
-
-    for (const key of metaKeys) {
-      if (PER_ROW_META_KEYS.has(key)) continue;
-      const raw = byKey.get(META_PREFIX + key);
-      if (raw == null) continue;
-      result[key] = JSON.parse(raw);
+    if (anyTrimmed) {
+      for (const row of Object.values(map)) {
+        scheduleWrite(collectionRowKey(key, String(row._id)), () =>
+          JSON.stringify(row),
+        );
+      }
+    }
+    for (const id of dropped) scheduleRemove(collectionRowKey(key, id));
+    if (hadLegacyBlob) {
+      // Split the leftover whole-table blob into per-row keys so the next
+      // heartbeat cannot stringify the table again.
+      if (!anyTrimmed) {
+        for (const row of Object.values(map)) {
+          scheduleWrite(collectionRowKey(key, String(row._id)), () =>
+            JSON.stringify(row),
+          );
+        }
+      }
+      dropLegacyBlob(collectionBlobKey(key));
+    }
+    if (Object.keys(map).length > 0) {
+      result[key] = map;
       hasData = true;
     }
+    lastPersisted.set(key, shadow);
+  }
 
-    // conversations is the sessions twin. Load per-row keys (and a leftover
-    // whole-map blob), then apply the same retention policy.
-    if (!wanted || wanted.has("conversations")) {
-      const convPrefix = META_PREFIX + "conversations:";
-      const convBlobKey = META_PREFIX + "conversations";
-      const convMap: Record<string, any> = {};
-      for (const [storageKey, raw] of byKey) {
-        if (!storageKey.startsWith(convPrefix) || raw == null) continue;
-        try {
-          const row = JSON.parse(raw);
-          if (row?._id != null) convMap[row._id] = row;
-        } catch { /* skip a corrupt row */ }
-      }
-      const convBlob = byKey.get(convBlobKey);
-      let hadConvBlob = false;
-      if (convBlob != null) {
-        hadConvBlob = true;
-        try {
-          const parsed = JSON.parse(convBlob);
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            for (const row of Object.values(parsed) as any[]) {
-              if (row?._id != null && convMap[row._id] == null) convMap[row._id] = row;
-            }
-          }
-        } catch { /* drop a corrupt blob; per-row keys still load */ }
-      }
-      if (Object.keys(convMap).length > 0) {
-        const { keep, drop } = partitionSessionRetention(
-          Object.values(convMap),
-          readMeta("liveInboxIdList"),
-          readMeta("lastFocusedConversationId"),
-          Date.now(),
-        );
-        const pruned: Record<string, any> = {};
-        const shadow = new Map<string, any>();
-        for (const row of keep) {
-          pruned[row._id] = row;
-          shadow.set(row._id, row);
-        }
-        result.conversations = pruned;
-        lastPersisted.set("conversations", shadow);
-        hasData = true;
-        for (const id of drop) scheduleRemove(convPrefix + id);
-        if (hadConvBlob) {
-          for (const row of keep) {
-            scheduleWrite(convPrefix + String(row._id), () => JSON.stringify(row));
-          }
-          dropLegacyBlob(convBlobKey);
-        }
-      } else {
-        lastPersisted.set("conversations", new Map());
+  for (const key of metaKeys) {
+    if (PER_ROW_META_KEYS.has(key)) continue;
+    const raw = byKey.get(META_PREFIX + key);
+    if (raw == null) continue;
+    result[key] = JSON.parse(raw);
+    hasData = true;
+  }
+
+  // conversations is the sessions twin. Load per-row keys (and a leftover
+  // whole-map blob), then apply the same retention policy.
+  if (!wanted || wanted.has("conversations")) {
+    const convPrefix = META_PREFIX + "conversations:";
+    const convBlobKey = META_PREFIX + "conversations";
+    const convMap: Record<string, any> = {};
+    for (const [storageKey, raw] of byKey) {
+      if (!storageKey.startsWith(convPrefix) || raw == null) continue;
+      try {
+        const row = JSON.parse(raw);
+        if (row?._id != null) convMap[row._id] = row;
+      } catch {
+        /* skip a corrupt row */
       }
     }
+    const convBlob = byKey.get(convBlobKey);
+    let hadConvBlob = false;
+    if (convBlob != null) {
+      hadConvBlob = true;
+      try {
+        const parsed = JSON.parse(convBlob);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const row of Object.values(parsed) as any[]) {
+            if (row?._id != null && convMap[row._id] == null)
+              convMap[row._id] = row;
+          }
+        }
+      } catch {
+        /* drop a corrupt blob; per-row keys still load */
+      }
+    }
+    if (Object.keys(convMap).length > 0) {
+      const { keep, drop } = partitionSessionRetention(
+        Object.values(convMap),
+        readMeta("liveInboxIdList"),
+        readMeta("lastFocusedConversationId"),
+        Date.now(),
+      );
+      const pruned: Record<string, any> = {};
+      const shadow = new Map<string, any>();
+      for (const row of keep) {
+        pruned[row._id] = row;
+        shadow.set(row._id, row);
+      }
+      result.conversations = pruned;
+      lastPersisted.set("conversations", shadow);
+      hasData = true;
+      for (const id of drop) scheduleRemove(convPrefix + id);
+      if (hadConvBlob) {
+        for (const row of keep) {
+          scheduleWrite(convPrefix + String(row._id), () =>
+            JSON.stringify(row),
+          );
+        }
+        dropLegacyBlob(convBlobKey);
+      }
+    } else {
+      lastPersisted.set("conversations", new Map());
+    }
+  }
 
   if (result.pending && typeof result.pending === "object") {
     result.pending = expireExcludeTombstones(result.pending, Date.now());
@@ -503,7 +617,10 @@ export function loadCacheSync(
       }
     } else {
       byKey = new Map<string, string | null>();
-      for (const key of collectReadKeys(Storage.getAllKeysSync() as string[], wanted)) {
+      for (const key of collectReadKeys(
+        Storage.getAllKeysSync() as string[],
+        wanted,
+      )) {
         byKey.set(key, scheduledValue(key) ?? Storage.getItemSync(key));
       }
     }
@@ -516,13 +633,20 @@ export function loadCacheSync(
 export function loadPaintCacheSync(): Record<string, any> | null {
   if (!Storage || typeof Storage.getItemSync !== "function") return null;
   if (!cacheAccess().serve) return null;
-  const t0 = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+  const t0 =
+    typeof performance !== "undefined" && performance.now
+      ? performance.now()
+      : Date.now();
   try {
     const readMeta = (key: string): any => {
       try {
-        const raw = scheduledValue(META_PREFIX + key) ?? Storage.getItemSync(META_PREFIX + key);
+        const raw =
+          scheduledValue(META_PREFIX + key) ??
+          Storage.getItemSync(META_PREFIX + key);
         return raw == null ? undefined : JSON.parse(raw);
-      } catch { return undefined; }
+      } catch {
+        return undefined;
+      }
     };
     const liveInboxIdList = readMeta("liveInboxIdList");
     const lastFocusedConversationId = readMeta("lastFocusedConversationId");
@@ -534,9 +658,11 @@ export function loadPaintCacheSync(): Record<string, any> | null {
     if (Array.isArray(liveInboxIdList)) {
       for (const id of liveInboxIdList) if (typeof id === "string") ids.add(id);
     }
-    if (typeof lastFocusedConversationId === "string") ids.add(lastFocusedConversationId);
+    if (typeof lastFocusedConversationId === "string")
+      ids.add(lastFocusedConversationId);
     if (Array.isArray(teamInboxIdSnapshot?.ids)) {
-      for (const id of teamInboxIdSnapshot.ids) if (typeof id === "string") ids.add(id);
+      for (const id of teamInboxIdSnapshot.ids)
+        if (typeof id === "string") ids.add(id);
     }
 
     if (ids.size === 0) {
@@ -555,31 +681,46 @@ export function loadPaintCacheSync(): Record<string, any> | null {
 
     const sessions: Record<string, any> = {};
     for (const id of ids) {
-      const raw = scheduledValue(collectionRowKey("sessions", id)) ?? Storage.getItemSync(collectionRowKey("sessions", id));
+      const raw =
+        scheduledValue(collectionRowKey("sessions", id)) ??
+        Storage.getItemSync(collectionRowKey("sessions", id));
       if (raw == null) continue;
       try {
         const row = JSON.parse(raw);
         if (row?._id) sessions[row._id] = row;
-      } catch { /* skip a corrupt row */ }
+      } catch {
+        /* skip a corrupt row */
+      }
     }
     const result: Record<string, any> = {};
     if (Object.keys(sessions).length > 0) result.sessions = sessions;
     if (liveInboxIdList != null) result.liveInboxIdList = liveInboxIdList;
-    if (lastFocusedConversationId != null) result.lastFocusedConversationId = lastFocusedConversationId;
-    if (teamInboxIdSnapshot != null) result.teamInboxIdSnapshot = teamInboxIdSnapshot;
+    if (lastFocusedConversationId != null)
+      result.lastFocusedConversationId = lastFocusedConversationId;
+    if (teamInboxIdSnapshot != null)
+      result.teamInboxIdSnapshot = teamInboxIdSnapshot;
     if (clientState != null) result.clientState = clientState;
     if (pending != null) result.pending = pending;
     if (collapsedSections != null) result.collapsedSections = collapsedSections;
     if (Object.keys(result).length === 0) return null;
-    const dt = Math.round((typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - t0);
-    console.log(`[boot] ${dt}ms paintCache sessions=${Object.keys(sessions).length} ids=${ids.size}`);
+    const dt = Math.round(
+      (typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now()) - t0,
+    );
+    console.log(
+      `[boot] ${dt}ms paintCache sessions=${Object.keys(sessions).length} ids=${ids.size}`,
+    );
     return result;
   } catch {
     return null;
   }
 }
 
-export async function loadCache(keys?: readonly string[], context: Record<string, any> = {}): Promise<Record<string, any> | null> {
+export async function loadCache(
+  keys?: readonly string[],
+  context: Record<string, any> = {},
+): Promise<Record<string, any> | null> {
   if (!Storage) return null;
   try {
     const wanted = keys ? new Set(keys) : null;
@@ -590,12 +731,23 @@ export async function loadCache(keys?: readonly string[], context: Record<string
       // owner and survives the purge of everyone else's rows.
       if (purging) await purging;
       const principal = access.principal;
-      const wantsPending = !wanted || wanted.has("pendingMessages") || wanted.has("queuedMessages");
+      const wantsPending =
+        !wanted ||
+        wanted.has("pendingMessages") ||
+        wanted.has("queuedMessages");
       const claimed = context.currentUser?._id;
-      if (!principal || !wantsPending || (claimed !== undefined && claimed !== principal)) return null;
+      if (
+        !principal ||
+        !wantsPending ||
+        (claimed !== undefined && claimed !== principal)
+      )
+        return null;
       const pendingMessages = await loadPendingInput(principal);
       if (Object.keys(pendingMessages).length === 0) return null;
-      return { pendingMessages, queuedMessages: queuedMessagesFromPending(pendingMessages) };
+      return {
+        pendingMessages,
+        queuedMessages: queuedMessagesFromPending(pendingMessages),
+      };
     }
     const db = await openCacheDb();
     let byKey: Map<string, string | null>;
@@ -604,17 +756,29 @@ export async function loadCache(keys?: readonly string[], context: Record<string
       byKey = rowsToMap(await db.getAllAsync(sql, params));
     } else {
       const allKeys = await storageKeys();
-      byKey = new Map(await Storage.multiGet(collectReadKeys(allKeys, wanted))) as Map<string, string | null>;
+      byKey = new Map(
+        await Storage.multiGet(collectReadKeys(allKeys, wanted)),
+      ) as Map<string, string | null>;
     }
-    const result: Record<string, any> = materializeLoadedCache(byKey, wanted) ?? {};
+    const result: Record<string, any> =
+      materializeLoadedCache(byKey, wanted) ?? {};
     let hasData = Object.keys(result).length > 0;
 
-    if (!wanted || wanted.has("pendingMessages") || wanted.has("queuedMessages")) {
+    if (
+      !wanted ||
+      wanted.has("pendingMessages") ||
+      wanted.has("queuedMessages")
+    ) {
       const rawUser = await Storage.getItem(META_PREFIX + "currentUser");
-      const ownerId = context.currentUser?._id ?? result.currentUser?._id ?? (rawUser ? JSON.parse(rawUser)?._id : undefined);
+      const ownerId =
+        context.currentUser?._id ??
+        result.currentUser?._id ??
+        (rawUser ? JSON.parse(rawUser)?._id : undefined);
       if (ownerId) {
         result.pendingMessages = await loadPendingInput(ownerId);
-        result.queuedMessages = queuedMessagesFromPending(result.pendingMessages);
+        result.queuedMessages = queuedMessagesFromPending(
+          result.pendingMessages,
+        );
         hasData = true;
       }
     }
@@ -630,28 +794,47 @@ export function setHydrating(v: boolean) {
 }
 
 /** The rows held for one split query at the last flush, with their hashes. */
-export async function loadSplitRows(name: string): Promise<Array<{ id: string; hash: string; row: unknown }>> {
+export async function loadSplitRows(
+  name: string,
+): Promise<Array<{ id: string; hash: string; row: unknown }>> {
   if (!Storage || !cacheAccess().serve) return [];
   const prefix = SPLIT_PREFIX + name + ":";
-  const t0 = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+  const t0 =
+    typeof performance !== "undefined" && performance.now
+      ? performance.now()
+      : Date.now();
   try {
     const db = await openCacheDb();
     let entries: Array<[string, string | null]>;
     if (db) {
       const { sql, params } = readPlanSql({ prefixes: [prefix], exact: [] });
-      entries = (await db.getAllAsync(sql, params)).map((r: { key: string; value: string | null }) => [r.key, r.value]);
+      entries = (await db.getAllAsync(sql, params)).map(
+        (r: { key: string; value: string | null }) => [r.key, r.value],
+      );
     } else {
-      entries = await Storage.multiGet((await storageKeys()).filter((k) => k.startsWith(prefix)));
+      entries = await Storage.multiGet(
+        (await storageKeys()).filter((k) => k.startsWith(prefix)),
+      );
     }
     const out: Array<{ id: string; hash: string; row: unknown }> = [];
     for (const [key, raw] of entries) {
       const cut = raw?.indexOf("\n") ?? -1;
       if (!raw || cut < 1) continue;
       try {
-        out.push({ id: key.slice(prefix.length), hash: raw.slice(0, cut), row: JSON.parse(raw.slice(cut + 1)) });
-      } catch { /* a corrupt row is refetched with the whole result */ }
+        out.push({
+          id: key.slice(prefix.length),
+          hash: raw.slice(0, cut),
+          row: JSON.parse(raw.slice(cut + 1)),
+        });
+      } catch {
+        /* a corrupt row is refetched with the whole result */
+      }
     }
-    const dt = Math.round((typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - t0);
+    const dt = Math.round(
+      (typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now()) - t0,
+    );
     console.log(`[boot] ${dt}ms splitRows ${name} rows=${out.length}`);
     return out;
   } catch {
@@ -660,10 +843,15 @@ export async function loadSplitRows(name: string): Promise<Array<{ id: string; h
 }
 
 /** Write the rows that changed since the last flush and drop the ones that left. */
-export function persistSplitRows(name: string, upserts: Array<{ id: string; hash: string; row: unknown }>, removes: readonly string[]): void {
+export function persistSplitRows(
+  name: string,
+  upserts: Array<{ id: string; hash: string; row: unknown }>,
+  removes: readonly string[],
+): void {
   if (!Storage) return;
   const prefix = SPLIT_PREFIX + name + ":";
-  for (const { id, hash, row } of upserts) scheduleWrite(prefix + id, () => hash + "\n" + JSON.stringify(row));
+  for (const { id, hash, row } of upserts)
+    scheduleWrite(prefix + id, () => hash + "\n" + JSON.stringify(row));
   for (const id of removes) scheduleRemove(prefix + id);
 }
 
@@ -678,40 +866,73 @@ export type CachedConversation = {
 
 async function loadUserMessages(convId: string): Promise<any[] | undefined> {
   try {
-    const raw = scheduledValue(CONVUSERMSG_PREFIX + convId) ?? await Storage.getItem(CONVUSERMSG_PREFIX + convId);
+    const raw =
+      scheduledValue(CONVUSERMSG_PREFIX + convId) ??
+      (await Storage.getItem(CONVUSERMSG_PREFIX + convId));
     return raw == null ? undefined : JSON.parse(raw);
   } catch {
     return undefined;
   }
 }
 
-export async function loadConversationMessages(convId: string): Promise<CachedConversation | null> {
+export async function loadConversationMessages(
+  convId: string,
+): Promise<CachedConversation | null> {
   if (!Storage || !cacheAccess().serve) return null;
   try {
     const userMessages = await loadUserMessages(convId);
-    const raw = scheduledValue(CONVMSG_PREFIX + convId) ?? await Storage.getItem(CONVMSG_PREFIX + convId);
-    if (raw == null) return userMessages ? { messages: [], pagination: undefined, latestTimestamp: 0, userMessages } : null;
+    const raw =
+      scheduledValue(CONVMSG_PREFIX + convId) ??
+      (await Storage.getItem(CONVMSG_PREFIX + convId));
+    if (raw == null)
+      return userMessages
+        ? {
+            messages: [],
+            pagination: undefined,
+            latestTimestamp: 0,
+            userMessages,
+          }
+        : null;
     const row = JSON.parse(raw);
-    return { messages: row.messages, pagination: row.pagination, latestTimestamp: row.latestTimestamp, userMessages };
+    return {
+      messages: row.messages,
+      pagination: row.pagination,
+      latestTimestamp: row.latestTimestamp,
+      userMessages,
+    };
   } catch {
     return null;
   }
 }
 
-export function writeConversationUserMessages(convId: string, userMessages: any[]) {
+export function writeConversationUserMessages(
+  convId: string,
+  userMessages: any[],
+) {
   if (!Storage || _hydrating) return;
-  scheduleWrite(CONVUSERMSG_PREFIX + convId, () => JSON.stringify(userMessages));
+  scheduleWrite(CONVUSERMSG_PREFIX + convId, () =>
+    JSON.stringify(userMessages),
+  );
 }
 
-export function writeConversationMessages(convId: string, messages: any[], pagination: any) {
+export function writeConversationMessages(
+  convId: string,
+  messages: any[],
+  pagination: any,
+) {
   if (!Storage || _hydrating) return;
   // Everything runs at flush time: the array is the store's own, finalized by
   // then, and a spread over thousands of rows would overflow the call stack.
   scheduleWrite(CONVMSG_PREFIX + convId, () => {
     const tail = persistedMessageTail(messages, pagination);
     let latestTimestamp = 0;
-    for (const m of tail.messages) if ((m?.timestamp || 0) > latestTimestamp) latestTimestamp = m.timestamp;
-    return JSON.stringify({ messages: tail.messages, pagination: tail.pagination, latestTimestamp });
+    for (const m of tail.messages)
+      if ((m?.timestamp || 0) > latestTimestamp) latestTimestamp = m.timestamp;
+    return JSON.stringify({
+      messages: tail.messages,
+      pagination: tail.pagination,
+      latestTimestamp,
+    });
   });
 }
 
@@ -734,12 +955,17 @@ function mutateOutbox(transform: (entries: OutboxEntry[]) => OutboxEntry[]) {
   if (!Storage) return;
   _outboxQueue = _outboxQueue
     .then(() => readOutbox())
-    .then((entries) => Storage.setItem(OUTBOX_KEY, JSON.stringify(transform(entries))))
+    .then((entries) =>
+      Storage.setItem(OUTBOX_KEY, JSON.stringify(transform(entries))),
+    )
     .catch(() => {});
 }
 
 export function enqueueDispatch(entry: OutboxEntry) {
-  mutateOutbox((entries) => [...entries.filter((e) => e.id !== entry.id), entry]);
+  mutateOutbox((entries) => [
+    ...entries.filter((e) => e.id !== entry.id),
+    entry,
+  ]);
 }
 
 export function removeDispatch(id: string) {
@@ -770,14 +996,19 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
 // installs the token reader at its entry (mobile/lib/cachePrincipal), before
 // the store's first synchronous paint read. Without one installed (tests, a
 // bundle that never wires it) every read serves, as before.
-export type CachePrincipal = { principal: string | null; tokenState: AuthTokenState };
+export type CachePrincipal = {
+  principal: string | null;
+  tokenState: AuthTokenState;
+};
 let principalSource: (() => CachePrincipal) | null = null;
 // The principal this process already confirmed as the cache's owner. Reset by
 // every purge, which the app runs at each sign-out and account change, so the
 // keychain is read once per account rather than once per conversation open.
 let servedTo: string | null = null;
 
-export function setCachePrincipalSource(source: (() => CachePrincipal) | null): void {
+export function setCachePrincipalSource(
+  source: (() => CachePrincipal) | null,
+): void {
   principalSource = source;
   servedTo = null;
 }
@@ -792,7 +1023,9 @@ function readCachePrincipal(): CachePrincipal {
 
 function diskOwnerSync(): string | null {
   try {
-    const raw = scheduledValue(META_PREFIX + "currentUser") ?? Storage.getItemSync(META_PREFIX + "currentUser");
+    const raw =
+      scheduledValue(META_PREFIX + "currentUser") ??
+      Storage.getItemSync(META_PREFIX + "currentUser");
     const id = raw == null ? null : JSON.parse(raw)?._id;
     return typeof id === "string" ? id : null;
   } catch {
@@ -809,9 +1042,16 @@ function hasForeignRowsSync(principal: string | null): boolean {
     const db = openCacheDbSync();
     if (db) {
       const { where, params } = ownedKeysWhere(keep);
-      return db.getFirstSync(`SELECT 1 AS hit FROM storage WHERE ${where} LIMIT 1`, params) != null;
+      return (
+        db.getFirstSync(
+          `SELECT 1 AS hit FROM storage WHERE ${where} LIMIT 1`,
+          params,
+        ) != null
+      );
     }
-    return (Storage.getAllKeysSync() as string[]).some((key) => isPurgeable(key, keep));
+    return (Storage.getAllKeysSync() as string[]).some((key) =>
+      isPurgeable(key, keep),
+    );
   } catch {
     return true;
   }
@@ -822,19 +1062,27 @@ function hasForeignRowsSync(principal: string | null): boolean {
 function cacheAccess(): { serve: boolean; principal: string | null } {
   // The owner row is read synchronously; a binary without kv-store's sync API
   // has no paint read either and keeps serving as before.
-  if (!principalSource || !Storage || typeof Storage.getItemSync !== "function") return { serve: true, principal: null };
+  if (!principalSource || !Storage || typeof Storage.getItemSync !== "function")
+    return { serve: true, principal: null };
   if (servedTo !== null) return { serve: true, principal: servedTo };
   const { principal, tokenState } = readCachePrincipal();
-  const verdict = cacheOwnershipVerdict({ principal, owner: diskOwnerSync(), tokenState });
+  const verdict = cacheOwnershipVerdict({
+    principal,
+    owner: diskOwnerSync(),
+    tokenState,
+  });
   if (verdict === "serve") {
     servedTo = principal;
     return { serve: true, principal };
   }
   if (verdict === "withhold") {
-    console.warn(`[cache] the stored token is ${tokenState}; keeping the cache as it is`);
+    console.warn(
+      `[cache] the stored token is ${tokenState}; keeping the cache as it is`,
+    );
     return { serve: false, principal: null };
   }
-  if (hasForeignRowsSync(principal)) void purgeLocalCache({ keepPendingInputFor: principal });
+  if (hasForeignRowsSync(principal))
+    void purgeLocalCache({ keepPendingInputFor: principal });
   return { serve: false, principal };
 }
 
@@ -844,9 +1092,17 @@ let purging: Promise<void> | null = null;
 /** Delete everything this module persisted. `keepPendingInputFor` keeps that
  *  principal's own typed-but-unsent messages (a purge from under a signed-in
  *  account); sign-out passes nothing and keeps nothing. */
-export function purgeLocalCache(opts?: { keepPendingInputFor?: string | null; reason?: string; detail?: Record<string, unknown> }): Promise<void> {
+export function purgeLocalCache(opts?: {
+  keepPendingInputFor?: string | null;
+  reason?: string;
+  detail?: Record<string, unknown>;
+}): Promise<void> {
   if (purging) return purging;
-  purging = purgeLocalCacheNow(opts?.keepPendingInputFor ?? null).finally(() => { purging = null; });
+  purging = purgeLocalCacheNow(opts?.keepPendingInputFor ?? null).finally(
+    () => {
+      purging = null;
+    },
+  );
   return purging;
 }
 
@@ -886,7 +1142,9 @@ async function deleteOwnedKeys(keepPrefix: string | null): Promise<void> {
 
 // Mobile runs one process on one connection, so a schema upgrade is never
 // blocked by another window. Present so the store wires one code path.
-export function setUpgradeBlockedListener(_fn: ((blocked: boolean) => void) | null) {}
+export function setUpgradeBlockedListener(
+  _fn: ((blocked: boolean) => void) | null,
+) {}
 
 // Names the web's cross-window sync lock and channel (syncReplication.ts).
 // Mobile has one process and no other window to elect against, so any value

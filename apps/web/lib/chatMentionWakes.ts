@@ -11,7 +11,12 @@
 
 import { SESSION_SHORT_ID_RE } from "@codecast/shared/chat";
 
-export type MentionWakes = { roles: number; sessions: number; folded: number; skipped: string[] };
+export type MentionWakes = {
+  roles: number;
+  sessions: number;
+  folded: number;
+  skipped: string[];
+};
 
 // Same vocabulary and boundary as lib/remarkChatMentions and the server.
 const HANDLE_RE = /(^|[\s(<[{,:;"'*~])@([A-Za-z0-9][A-Za-z0-9_-]{0,38})/g;
@@ -38,7 +43,8 @@ function skippedTargets(skipped: string[] | undefined): Set<string> {
 // A role that could not be reached, and what the sender can do about it.
 // Every other skip reason (a relay) is the system working and stays silent.
 const HOLD_LINES: Record<string, (handle: string) => string> = {
-  role_has_no_session: (h) => `@${h} has no agent yet: bring it online from its page`,
+  role_has_no_session: (h) =>
+    `@${h} has no agent yet: bring it online from its page`,
 };
 
 function holdLines(skipped: string[] | undefined): string[] {
@@ -66,7 +72,9 @@ export function mentionWakeLine(
   const skipped = skippedTargets(wakes.skipped);
   const typed = typedHandles(content);
   const wokeRoles = typed.filter((h) => roleHandles.has(h) && !skipped.has(h));
-  const wokeSessions = typed.filter((h) => SESSION_SHORT_ID_RE.test(h) && !skipped.has(h));
+  const wokeSessions = typed.filter(
+    (h) => SESSION_SHORT_ID_RE.test(h) && !skipped.has(h),
+  );
   const parts: string[] = [];
   if (roles > 0) {
     parts.push(

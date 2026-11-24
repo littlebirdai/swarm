@@ -13,10 +13,15 @@ import { isNonTabRoute } from "./tabRoutes";
 type Shown = { focused: string | null; paths: string[] };
 
 /** What the active tab shows: every pane's path, and the focused one. */
-export function shownPaths(st: { tabs: any[]; activeTabId: string | null }): Shown {
+export function shownPaths(st: {
+  tabs: any[];
+  activeTabId: string | null;
+}): Shown {
   const tab = st.tabs.find((t) => t.id === st.activeTabId);
   if (!tab) return { focused: null, paths: [] };
-  const paths = tab.layout ? leavesOf(tab.layout).map((l) => l.path) : [tab.path];
+  const paths = tab.layout
+    ? leavesOf(tab.layout).map((l) => l.path)
+    : [tab.path];
   return { focused: tab.path ?? null, paths: paths.filter(Boolean) };
 }
 
@@ -31,7 +36,12 @@ export function visitForPath(path: string): Omit<RecentVisit, "ts"> | null {
   }
   const clean = path.split("#")[0];
   if (isNonTabRoute(clean)) return null;
-  return { kind: "page", key: `page:${clean}`, path: clean, label: pathLabel(clean) };
+  return {
+    kind: "page",
+    key: `page:${clean}`,
+    path: clean,
+    label: pathLabel(clean),
+  };
 }
 
 /** Panes that appeared since `prev`, then the focused path when it changed,

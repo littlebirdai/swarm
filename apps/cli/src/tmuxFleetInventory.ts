@@ -28,22 +28,43 @@ const tag = (i: number) => `@@ccinv${i}@@`;
 const TAG_RE = /^@@ccinv(\d+)@@/;
 
 type Answer = { ok: true; stdout: string } | { ok: false; error: unknown };
-type Pass = { generation: number; at: number; keys: Set<string>; done: Promise<Map<string, Answer>> };
-type Server = { generation: number; at: number; answers: Map<string, Answer>; pass?: Pass };
+type Pass = {
+  generation: number;
+  at: number;
+  keys: Set<string>;
+  done: Promise<Map<string, Answer>>;
+};
+type Server = {
+  generation: number;
+  at: number;
+  answers: Map<string, Answer>;
+  pass?: Pass;
+};
 type Exec = (argv: string[]) => Promise<string>;
 
 /** Errors that say the server itself did not answer: every command on it would fail the same way. */
 function serverWideFailure(error: unknown): boolean {
-  const e = error as { killed?: boolean; signal?: unknown; stderr?: unknown; message?: unknown } | null;
+  const e = error as {
+    killed?: boolean;
+    signal?: unknown;
+    stderr?: unknown;
+    message?: unknown;
+  } | null;
   if (e?.killed || e?.signal === "SIGKILL") return true;
   const text = `${typeof e?.stderr === "string" ? e.stderr : ""} ${String(e?.message ?? "")}`;
-  return /no server running on |error connecting to |Connection refused|ETIMEDOUT/i.test(text);
+  return /no server running on |error connecting to |Connection refused|ETIMEDOUT/i.test(
+    text,
+  );
 }
 
 /** A command can ride in a batch when its rows can be tagged and none of its words would split the batch. */
 function batchable(cmd: string[]): boolean {
   const f = cmd.indexOf("-F");
-  return f >= 0 && f + 1 < cmd.length && cmd.every((word) => word !== ";" && !word.endsWith(";"));
+  return (
+    f >= 0 &&
+    f + 1 < cmd.length &&
+    cmd.every((word) => word !== ";" && !word.endsWith(";"))
+  );
 }
 
 function tagged(cmd: string[], i: number): string[] {
@@ -74,21 +95,37 @@ export class FleetInventory {
   /** Clients spawned for listings, for tests and the benchmark. */
   spawns = 0;
 
-  constructor(private readonly now: () => number = Date.now, private readonly ttlMs = FLEET_INVENTORY_TTL_MS) {}
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly ttlMs = FLEET_INVENTORY_TTL_MS,
+  ) {}
 
   /** `cmd` (no server flags) on `server`, from a pass no older than the TTL. `exec` runs one argv on that server. */
   async read(server: string, cmd: string[], exec: Exec): Promise<string> {
     const key = JSON.stringify(cmd);
     const now = this.now();
     this.commands.set(key, { cmd, askedAt: now });
-    const state: Server = this.servers.get(server) ?? { generation: 0, at: -Infinity, answers: new Map() };
+    const state: Server = this.servers.get(server) ?? {
+      generation: 0,
+      at: -Infinity,
+      answers: new Map(),
+    };
     this.servers.set(server, state);
-    while (state.pass && (state.pass.generation !== state.generation || !state.pass.keys.has(key))) {
+    while (
+      state.pass &&
+      (state.pass.generation !== state.generation || !state.pass.keys.has(key))
+    ) {
       await state.pass.done;
     }
-    let answer = this.now() - state.at < this.ttlMs ? state.answers.get(key) : undefined;
+    let answer =
+      this.now() - state.at < this.ttlMs ? state.answers.get(key) : undefined;
     if (!answer) {
-      const pass = state.pass && state.pass.generation === state.generation && state.pass.keys.has(key) ? state.pass : this.startPass(server, state, exec);
+      const pass =
+        state.pass &&
+        state.pass.generation === state.generation &&
+        state.pass.keys.has(key)
+          ? state.pass
+          : this.startPass(server, state, exec);
       answer = (await pass.done).get(key)!;
     }
     if (!answer.ok) throw answer.error;
@@ -106,10 +143,18 @@ export class FleetInventory {
 
   private startPass(server: string, state: Server, exec: Exec): Pass {
     const now = this.now();
-    for (const [key, c] of this.commands) if (now - c.askedAt > COMMAND_IDLE_MS) this.commands.delete(key);
-    for (const [name, s] of this.servers) if (!s.pass && now - s.at > 60_000 && name !== server) this.servers.delete(name);
+    for (const [key, c] of this.commands)
+      if (now - c.askedAt > COMMAND_IDLE_MS) this.commands.delete(key);
+    for (const [name, s] of this.servers)
+      if (!s.pass && now - s.at > 60_000 && name !== server)
+        this.servers.delete(name);
     const cmds = [...this.commands.entries()];
-    const pass: Pass = { generation: state.generation, at: now, keys: new Set(cmds.map(([k]) => k)), done: this.runPass(cmds, exec) };
+    const pass: Pass = {
+      generation: state.generation,
+      at: now,
+      keys: new Set(cmds.map(([k]) => k)),
+      done: this.runPass(cmds, exec),
+    };
     state.pass = pass;
     void pass.done.then((answers) => {
       if (state.pass === pass) state.pass = undefined;
@@ -121,11 +166,20 @@ export class FleetInventory {
     return pass;
   }
 
-  private async runPass(cmds: Array<[string, { cmd: string[] }]>, exec: Exec): Promise<Map<string, Answer>> {
+  private async runPass(
+    cmds: Array<[string, { cmd: string[] }]>,
+    exec: Exec,
+  ): Promise<Map<string, Answer>> {
     const answers = new Map<string, Answer>();
     const one = async (key: string, cmd: string[]) => {
       this.spawns++;
-      answers.set(key, await exec(cmd).then((stdout) => ({ ok: true as const, stdout }), (error) => ({ ok: false as const, error })));
+      answers.set(
+        key,
+        await exec(cmd).then(
+          (stdout) => ({ ok: true as const, stdout }),
+          (error) => ({ ok: false as const, error }),
+        ),
+      );
     };
     const batch = cmds.filter(([, c]) => batchable(c.cmd));
     const alone = cmds.filter(([, c]) => !batchable(c.cmd));
@@ -133,14 +187,19 @@ export class FleetInventory {
     if (batch.length === 1) await one(batch[0][0], batch[0][1].cmd);
     else if (batch.length > 1) {
       this.spawns++;
-      const argv = batch.flatMap(([, c], i) => (i ? [";", ...tagged(c.cmd, i)] : tagged(c.cmd, i)));
+      const argv = batch.flatMap(([, c], i) =>
+        i ? [";", ...tagged(c.cmd, i)] : tagged(c.cmd, i),
+      );
       try {
         const outputs = splitBatchOutput(await exec(argv), batch.length);
-        batch.forEach(([key], i) => answers.set(key, { ok: true, stdout: outputs[i] }));
+        batch.forEach(([key], i) =>
+          answers.set(key, { ok: true, stdout: outputs[i] }),
+        );
       } catch (error) {
         // One command failing stops the rest of the chain, so each is asked
         // on its own, unless the server itself did not answer.
-        if (serverWideFailure(error)) for (const [key] of batch) answers.set(key, { ok: false, error });
+        if (serverWideFailure(error))
+          for (const [key] of batch) answers.set(key, { ok: false, error });
         else for (const [key, c] of batch) await one(key, c.cmd);
       }
     }

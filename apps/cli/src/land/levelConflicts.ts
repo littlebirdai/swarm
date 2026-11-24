@@ -26,7 +26,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { formatSessionMessage } from "@codecast/shared/contracts";
-import { LEVEL_FORBID, levelAskWords, shellWord, type LevelMerge } from "@codecast/shared/contracts/checkouts";
+import {
+  LEVEL_FORBID,
+  levelAskWords,
+  shellWord,
+  type LevelMerge,
+} from "@codecast/shared/contracts/checkouts";
 import { execFileAsync } from "../proc.js";
 import { gitTry } from "../wipSnapshot.js";
 import { attributeEdits, type Attribution } from "./attribute.js";
@@ -37,7 +42,11 @@ import type { LevelResult } from "./level.js";
  * retry land once. "unreachable": the server refuses for good (a teammate's
  * session, which this machine's token may not message).
  */
-export type SendBrief = (to: string, body: string, clientId: string) => Promise<"sent" | "failed" | "unreachable">;
+export type SendBrief = (
+  to: string,
+  body: string,
+  clientId: string,
+) => Promise<"sent" | "failed" | "unreachable">;
 
 /** What the server answers for a send no retry will change: another user's conversation, one that is gone, a hosted one, a malformed call. */
 const PERMANENT_REFUSALS = [
@@ -54,13 +63,19 @@ const PERMANENT_REFUSALS = [
  */
 export function classifySendError(e: unknown): "failed" | "unreachable" {
   const text = String((e as Error)?.message ?? e);
-  return PERMANENT_REFUSALS.some((r) => r.test(text)) ? "unreachable" : "failed";
+  return PERMANENT_REFUSALS.some((r) => r.test(text))
+    ? "unreachable"
+    : "failed";
 }
 
 export interface BriefDeps {
   /** Absent when this machine cannot reach the server: then nothing is attributed or briefed. */
   send?: SendBrief;
-  attribute?: (root: string, paths: string[], opts: { since: number }) => Pick<Attribution, "owners">;
+  attribute?: (
+    root: string,
+    paths: string[],
+    opts: { since: number },
+  ) => Pick<Attribution, "owners">;
   now?: number;
 }
 
@@ -72,9 +87,11 @@ const SYMLINK = "120000";
 const COMMITS_MAX = 10;
 
 /** Merge files of conflicts holding the checkout back; cleared once it levels. */
-export const mergeDir = (gitDir: string) => path.join(gitDir, "codecast", "level-conflicts");
+export const mergeDir = (gitDir: string) =>
+  path.join(gitDir, "codecast", "level-conflicts");
 /** Merge files of stale copies a raced level left behind; kept past the level, pruned after STALE_KEEP_MS. */
-export const staleDir = (gitDir: string) => path.join(gitDir, "codecast", "level-stale");
+export const staleDir = (gitDir: string) =>
+  path.join(gitDir, "codecast", "level-stale");
 /** Beside a merge directory: which upstream commit each of its merge files was made against, and what it made. */
 const madeFile = (dir: string) => `${dir}.made.json`;
 const STALE_KEEP_MS = 86_400_000;
@@ -88,12 +105,18 @@ export function pruneStale(gitDir: string): void {
     let empty = true;
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const f = path.join(d, e.name);
-      if (e.isDirectory() ? walk(f) : fs.statSync(f).mtimeMs < cutoff) fs.rmSync(f, { recursive: true, force: true });
+      if (e.isDirectory() ? walk(f) : fs.statSync(f).mtimeMs < cutoff)
+        fs.rmSync(f, { recursive: true, force: true });
       else empty = false;
     }
     return empty;
   };
-  try { if (walk(dir)) { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(madeFile(dir), { force: true }); } } catch {}
+  try {
+    if (walk(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(madeFile(dir), { force: true });
+    }
+  } catch {}
 }
 
 /** Forget the held conflicts' merge files: the checkout is level again. */
@@ -101,12 +124,27 @@ export function clearMerges(gitDir: string): void {
   fs.rmSync(mergeDir(gitDir), { recursive: true, force: true });
   fs.rmSync(madeFile(mergeDir(gitDir)), { force: true });
   // An earlier daemon's per-path brief record, which nothing reads now.
-  fs.rmSync(path.join(gitDir, "codecast", "level-conflicts.json"), { force: true });
+  fs.rmSync(path.join(gitDir, "codecast", "level-conflicts.json"), {
+    force: true,
+  });
 }
 
 /** Each path's mode in `rev`; "" when it has none. */
-async function upstreamModes(root: string, rev: string, paths: string[]): Promise<Map<string, string>> {
-  const out = (await gitTry(root, ["--literal-pathspecs", "ls-tree", "-r", "-z", rev, "--", ...paths])) ?? "";
+async function upstreamModes(
+  root: string,
+  rev: string,
+  paths: string[],
+): Promise<Map<string, string>> {
+  const out =
+    (await gitTry(root, [
+      "--literal-pathspecs",
+      "ls-tree",
+      "-r",
+      "-z",
+      rev,
+      "--",
+      ...paths,
+    ])) ?? "";
   const modes = new Map(paths.map((p) => [p, ""]));
   for (const entry of out.split("\0")) {
     const tab = entry.indexOf("\t");
@@ -116,9 +154,19 @@ async function upstreamModes(root: string, rev: string, paths: string[]): Promis
   return modes;
 }
 
-async function blobAt(root: string, rev: string, rel: string): Promise<Buffer | null> {
+async function blobAt(
+  root: string,
+  rev: string,
+  rel: string,
+): Promise<Buffer | null> {
   try {
-    return (await execFileAsync("git", ["-C", root, "cat-file", "blob", `${rev}:${rel}`], { encoding: "buffer", maxBuffer: BLOB_MAX_BUFFER })).stdout;
+    return (
+      await execFileAsync(
+        "git",
+        ["-C", root, "cat-file", "blob", `${rev}:${rel}`],
+        { encoding: "buffer", maxBuffer: BLOB_MAX_BUFFER },
+      )
+    ).stdout;
   } catch {
     return null;
   }
@@ -132,7 +180,14 @@ const isBinary = (b: Buffer) => b.subarray(0, 8000).includes(0);
  * Never throws: a merge file that cannot be written (a long path, a full disk,
  * a directory in the way) is "none", and the brief still goes out.
  */
-async function writeMerge(root: string, dir: string, rel: string, from: string, to: string, upMode: string): Promise<LevelMerge> {
+async function writeMerge(
+  root: string,
+  dir: string,
+  rel: string,
+  from: string,
+  to: string,
+  upMode: string,
+): Promise<LevelMerge> {
   try {
     const out = path.resolve(dir, rel);
     if (!out.startsWith(dir + path.sep)) return { kind: "none" };
@@ -140,7 +195,9 @@ async function writeMerge(root: string, dir: string, rel: string, from: string, 
     const other = await blobAt(root, to, rel);
     if (!other) return { kind: "upstream-deleted" };
     let st: fs.Stats | null = null;
-    try { st = fs.lstatSync(path.join(root, rel)); } catch {}
+    try {
+      st = fs.lstatSync(path.join(root, rel));
+    } catch {}
     if (upMode === SYMLINK || st?.isSymbolicLink()) return { kind: "binary" };
     fs.mkdirSync(path.dirname(out), { recursive: true });
     if (!st) {
@@ -149,14 +206,26 @@ async function writeMerge(root: string, dir: string, rel: string, from: string, 
     }
     const current = fs.readFileSync(path.join(root, rel));
     const base = (await blobAt(root, from, rel)) ?? Buffer.alloc(0);
-    if (isBinary(current) || isBinary(other) || isBinary(base)) return { kind: "binary" };
+    if (isBinary(current) || isBinary(other) || isBinary(base))
+      return { kind: "binary" };
     fs.writeFileSync(out, current);
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cast-level-conflict-"));
     try {
       fs.writeFileSync(path.join(tmp, "base"), base);
       fs.writeFileSync(path.join(tmp, "other"), other);
       // merge-file writes into `out` and exits with the conflict count.
-      await execFileAsync("git", ["merge-file", "-L", "yours", "-L", from.slice(0, 9), "-L", `upstream ${to.slice(0, 9)}`, out, path.join(tmp, "base"), path.join(tmp, "other")]).catch(() => {});
+      await execFileAsync("git", [
+        "merge-file",
+        "-L",
+        "yours",
+        "-L",
+        from.slice(0, 9),
+        "-L",
+        `upstream ${to.slice(0, 9)}`,
+        out,
+        path.join(tmp, "base"),
+        path.join(tmp, "other"),
+      ]).catch(() => {});
       return { kind: "merged", file: out };
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -171,12 +240,28 @@ async function writeMerge(root: string, dir: string, rel: string, from: string, 
  * already made against this `to` is left alone: its writer may be resolving the markers in it (a retried ask, the
  * finding filed again). Never throws.
  */
-export async function writeMerges(root: string, dir: string, paths: string[], from: string, to: string): Promise<Map<string, LevelMerge>> {
+export async function writeMerges(
+  root: string,
+  dir: string,
+  paths: string[],
+  from: string,
+  to: string,
+): Promise<Map<string, LevelMerge>> {
   let made: Record<string, { to: string; merge: LevelMerge }> = {};
-  try { made = JSON.parse(fs.readFileSync(madeFile(dir), "utf-8")) ?? {}; } catch {}
+  try {
+    made = JSON.parse(fs.readFileSync(madeFile(dir), "utf-8")) ?? {};
+  } catch {}
   const fresh = paths.filter((p) => made[p]?.to !== to);
-  const modes = fresh.length ? await upstreamModes(root, to, fresh).catch(() => new Map<string, string>()) : new Map<string, string>();
-  for (const p of fresh) made[p] = { to, merge: await writeMerge(root, dir, p, from, to, modes.get(p) ?? "") };
+  const modes = fresh.length
+    ? await upstreamModes(root, to, fresh).catch(
+        () => new Map<string, string>(),
+      )
+    : new Map<string, string>();
+  for (const p of fresh)
+    made[p] = {
+      to,
+      merge: await writeMerge(root, dir, p, from, to, modes.get(p) ?? ""),
+    };
   if (fresh.length) {
     try {
       fs.mkdirSync(path.dirname(dir), { recursive: true });
@@ -187,11 +272,26 @@ export async function writeMerges(root: string, dir: string, paths: string[], fr
 }
 
 /** The upstream commits in from..to that touched any of `paths`, newest first, capped. */
-async function upstreamCommits(root: string, from: string, to: string, paths: string[]): Promise<string[]> {
-  const log = (await gitTry(root, ["--literal-pathspecs", "log", "--format=- %h %s", `${from}..${to}`, "--", ...paths])) ?? "";
+async function upstreamCommits(
+  root: string,
+  from: string,
+  to: string,
+  paths: string[],
+): Promise<string[]> {
+  const log =
+    (await gitTry(root, [
+      "--literal-pathspecs",
+      "log",
+      "--format=- %h %s",
+      `${from}..${to}`,
+      "--",
+      ...paths,
+    ])) ?? "";
   const lines = log.split("\n").filter(Boolean);
   if (!lines.length) return ["- (upstream's history does not name them)"];
-  return lines.length > COMMITS_MAX ? [...lines.slice(0, COMMITS_MAX), `- +${lines.length - COMMITS_MAX} more`] : lines;
+  return lines.length > COMMITS_MAX
+    ? [...lines.slice(0, COMMITS_MAX), `- +${lines.length - COMMITS_MAX} more`]
+    : lines;
 }
 
 /**
@@ -202,19 +302,42 @@ async function upstreamCommits(root: string, from: string, to: string, paths: st
  * which the pipeline page's ask shares.
  */
 export async function heldBrief(c: {
-  root: string; gitDir: string; upstream: string | null; behind: number | null; level: { files: string[]; since: number };
-  mine: string[]; from: string; to: string; list: string; host: string; whose: "session" | "nobody";
+  root: string;
+  gitDir: string;
+  upstream: string | null;
+  behind: number | null;
+  level: { files: string[]; since: number };
+  mine: string[];
+  from: string;
+  to: string;
+  list: string;
+  host: string;
+  whose: "session" | "nobody";
 }): Promise<{ title: string; body: string }> {
   const dir = mergeDir(c.gitDir);
   const merges = await writeMerges(c.root, dir, c.mine, c.from, c.to);
   const commits = await upstreamCommits(c.root, c.from, c.to, c.mine);
-  return levelAskWords({ path: c.root, upstream: c.upstream, behind: c.behind }, c.level, c.mine, { list: c.list, mergeDir: dir, merges: Object.fromEntries(merges), commits, to: c.to }, { host: c.host, whose: c.whose });
+  return levelAskWords(
+    { path: c.root, upstream: c.upstream, behind: c.behind },
+    c.level,
+    c.mine,
+    {
+      list: c.list,
+      mergeDir: dir,
+      merges: Object.fromEntries(merges),
+      commits,
+      to: c.to,
+    },
+    { host: c.host, whose: c.whose },
+  );
 }
 
 function oldestMtime(root: string, paths: string[], now: number): number {
   let oldest = now;
   for (const p of paths) {
-    try { oldest = Math.min(oldest, fs.statSync(path.join(root, p)).mtimeMs); } catch {}
+    try {
+      oldest = Math.min(oldest, fs.statSync(path.join(root, p)).mtimeMs);
+    } catch {}
   }
   return oldest;
 }
@@ -222,22 +345,45 @@ function oldestMtime(root: string, paths: string[], now: number): number {
 function action(root: string, p: string, m: LevelMerge, to: string): string {
   const show = `git -C ${shellWord(root)} show ${shellWord(`${to.slice(0, 9)}:${p}`)}`;
   switch (m.kind) {
-    case "merged": return `Three-way merge with conflict markers: ${m.file}. Resolve the markers there and write the result over ${p}, or redo your edit on upstream's version (${show}).`;
-    case "upstream-deleted": return `Upstream deletes ${p}. Delete your copy, or move your edit to where upstream moved that code.`;
-    case "local-deleted": return `You deleted ${p} here and upstream changed it. If it should stay, write upstream's version back over it by hand: it is saved at ${m.file ?? "(not saved)"} (or ${show}).`;
-    case "binary": return `${p} is binary or a symlink, so there is no merge file: take upstream's version (${show}) or redo your edit on it.`;
-    case "none": return `No merge file could be written; upstream's version is ${show}.`;
+    case "merged":
+      return `Three-way merge with conflict markers: ${m.file}. Resolve the markers there and write the result over ${p}, or redo your edit on upstream's version (${show}).`;
+    case "upstream-deleted":
+      return `Upstream deletes ${p}. Delete your copy, or move your edit to where upstream moved that code.`;
+    case "local-deleted":
+      return `You deleted ${p} here and upstream changed it. If it should stay, write upstream's version back over it by hand: it is saved at ${m.file ?? "(not saved)"} (or ${show}).`;
+    case "binary":
+      return `${p} is binary or a symlink, so there is no merge file: take upstream's version (${show}) or redo your edit on it.`;
+    case "none":
+      return `No merge file could be written; upstream's version is ${show}.`;
   }
 }
 
-async function racedBrief(root: string, r: LevelResult, paths: string[], merges: Map<string, LevelMerge>): Promise<string> {
+async function racedBrief(
+  root: string,
+  r: LevelResult,
+  paths: string[],
+  merges: Map<string, LevelMerge>,
+): Promise<string> {
   const one = paths.length === 1;
-  const lines = [`The shared checkout ${root} moved to upstream ${r.to.slice(0, 9)}, but your ${paths.join(", ")} changed while it moved and still ${one ? "lacks" : "lack"} upstream's change: as ${one ? "it stands" : "they stand"}, ${one ? "it" : "they"} would revert that change when shipped.`];
+  const lines = [
+    `The shared checkout ${root} moved to upstream ${r.to.slice(0, 9)}, but your ${paths.join(", ")} changed while it moved and still ${one ? "lacks" : "lack"} upstream's change: as ${one ? "it stands" : "they stand"}, ${one ? "it" : "they"} would revert that change when shipped.`,
+  ];
   for (const p of paths) {
-    lines.push("", `${p} changed upstream in:`, ...(await upstreamCommits(root, r.from, r.to, [p])), action(root, p, merges.get(p) ?? { kind: "none" }, r.to));
+    lines.push(
+      "",
+      `${p} changed upstream in:`,
+      ...(await upstreamCommits(root, r.from, r.to, [p])),
+      action(root, p, merges.get(p) ?? { kind: "none" }, r.to),
+    );
   }
-  lines.push("", `Edit only the ${one ? "file" : "files"} named here. ${LEVEL_FORBID}`, "Once your file carries upstream's change, nothing else is needed.");
-  return formatSessionMessage("codecast", lines.join("\n"), { name: "level sweep" });
+  lines.push(
+    "",
+    `Edit only the ${one ? "file" : "files"} named here. ${LEVEL_FORBID}`,
+    "Once your file carries upstream's change, nothing else is needed.",
+  );
+  return formatSessionMessage("codecast", lines.join("\n"), {
+    name: "level sweep",
+  });
 }
 
 /**
@@ -245,13 +391,24 @@ async function racedBrief(root: string, r: LevelResult, paths: string[], merges:
  * sweep finds the checkout level and will not see it. Returns a short account
  * for the log line, or null when the level did not race (HEAD is not on `to`).
  */
-export async function briefRacedStale(root: string, gitDir: string, r: LevelResult, deps: BriefDeps): Promise<string | null> {
+export async function briefRacedStale(
+  root: string,
+  gitDir: string,
+  r: LevelResult,
+  deps: BriefDeps,
+): Promise<string | null> {
   if (r.ok || !r.conflicts.length) return null;
   if ((await gitTry(root, ["rev-parse", "HEAD"])) !== r.to) return null;
-  if (!deps.send) return `cannot brief writers of ${r.conflicts.join(", ")}: not signed in`;
+  if (!deps.send)
+    return `cannot brief writers of ${r.conflicts.join(", ")}: not signed in`;
   const now = deps.now ?? Date.now();
-  const since = Math.max(oldestMtime(root, r.conflicts, now) - 60_000, now - ATTRIBUTION_HORIZON_MS);
-  const { owners } = (deps.attribute ?? attributeEdits)(root, r.conflicts, { since });
+  const since = Math.max(
+    oldestMtime(root, r.conflicts, now) - 60_000,
+    now - ATTRIBUTION_HORIZON_MS,
+  );
+  const { owners } = (deps.attribute ?? attributeEdits)(root, r.conflicts, {
+    since,
+  });
   const byOwner = new Map<string, string[]>();
   const nobody: string[] = [];
   for (const p of r.conflicts) {
@@ -262,12 +419,26 @@ export async function briefRacedStale(root: string, gitDir: string, r: LevelResu
   const notes: string[] = [];
   for (const [owner, paths] of byOwner) {
     paths.sort();
-    const body = await racedBrief(root, r, paths, await writeMerges(root, staleDir(gitDir), paths, r.from, r.to));
-    const clientId = `level-raced:${createHash("sha256").update([gitDir, owner, r.to, ...paths].join("\n")).digest("hex").slice(0, 24)}`;
-    const outcome = await deps.send(owner, body, clientId).catch(() => "failed" as const);
-    notes.push(outcome === "sent" ? `briefed ${owner.slice(0, 7)} (${paths.join(", ")})`
-      : outcome === "unreachable" ? `${owner.slice(0, 7)} is a teammate's session; brief not sent (${paths.join(", ")})`
-      : `brief failed to ${owner.slice(0, 7)} (${paths.join(", ")})`);
+    const body = await racedBrief(
+      root,
+      r,
+      paths,
+      await writeMerges(root, staleDir(gitDir), paths, r.from, r.to),
+    );
+    const clientId = `level-raced:${createHash("sha256")
+      .update([gitDir, owner, r.to, ...paths].join("\n"))
+      .digest("hex")
+      .slice(0, 24)}`;
+    const outcome = await deps
+      .send(owner, body, clientId)
+      .catch(() => "failed" as const);
+    notes.push(
+      outcome === "sent"
+        ? `briefed ${owner.slice(0, 7)} (${paths.join(", ")})`
+        : outcome === "unreachable"
+          ? `${owner.slice(0, 7)} is a teammate's session; brief not sent (${paths.join(", ")})`
+          : `brief failed to ${owner.slice(0, 7)} (${paths.join(", ")})`,
+    );
   }
   if (nobody.length) notes.push(`no writer for ${nobody.join(", ")}`);
   return notes.join("; ") || null;

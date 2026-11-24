@@ -5,7 +5,14 @@
 // text stays reachable behind a source toggle for anything it couldn't type.
 
 import { memo, useContext, useState } from "react";
-import { Calendar, Check, ChevronRight, Hash, Text as TextIcon, X } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ChevronRight,
+  Hash,
+  Text as TextIcon,
+  X,
+} from "lucide-react";
 import { VaultLinkContext } from "./VaultMarkdown";
 import { parseWikiInner } from "../../lib/vault/remarkWikiLink";
 import { modernPill } from "../ui/modernLook";
@@ -41,7 +48,9 @@ function PropValue({ value }: { value: unknown }) {
   }
   if (typeof value === "string") {
     // A quoted "[[Note]]" property value is a live link.
-    const wiki = parseWikiInner(value.trim().startsWith("[[") ? value.trim() : `[[${""}]]`);
+    const wiki = parseWikiInner(
+      value.trim().startsWith("[[") ? value.trim() : `[[${""}]]`,
+    );
     if (value.trim().startsWith("[[") && wiki && ctx) {
       const inner = parseWikiInner(value.trim());
       if (inner) {
@@ -52,7 +61,8 @@ function PropValue({ value }: { value: unknown }) {
             className={`wiki-link ${res.path ? "" : "wiki-link-unresolved"}`}
             onClick={(e) => {
               e.preventDefault();
-              if (res.path) ctx.navigate(res.path, inner.subpath, inner.subpathType);
+              if (res.path)
+                ctx.navigate(res.path, inner.subpath, inner.subpathType);
               else ctx.createNote?.(inner.target);
             }}
           >
@@ -77,7 +87,8 @@ function PropValue({ value }: { value: unknown }) {
 
 function keyIcon(key: string, value: unknown) {
   if (key === "tags" || key === "tag") return <Hash className="w-3 h-3" />;
-  if (typeof value === "string" && ISO_DATE_RE.test(value)) return <Calendar className="w-3 h-3" />;
+  if (typeof value === "string" && ISO_DATE_RE.test(value))
+    return <Calendar className="w-3 h-3" />;
   return <TextIcon className="w-3 h-3" />;
 }
 
@@ -97,14 +108,19 @@ export const VaultProperties = memo(function VaultProperties({
   if (!entries.length && !raw) return null;
 
   return (
-    <div className="mb-4 border border-sol-border/30 rounded" data-vault-properties>
+    <div
+      className="mb-4 border border-sol-border/30 rounded"
+      data-vault-properties
+    >
       <div className="flex items-center">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex-1 flex items-center gap-1 text-left px-2.5 py-1.5 text-meta text-sol-text-dim hover:text-sol-text-muted"
         >
-          <ChevronRight className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} />
+          <ChevronRight
+            className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`}
+          />
           Properties
           <span className="tabular-nums">({entries.length})</span>
         </button>
@@ -120,7 +136,9 @@ export const VaultProperties = memo(function VaultProperties({
       </div>
       {open &&
         (showSource || !entries.length ? (
-          <pre className="px-3 pb-2 text-meta text-sol-text-muted whitespace-pre-wrap font-mono">{raw}</pre>
+          <pre className="px-3 pb-2 text-meta text-sol-text-muted whitespace-pre-wrap font-mono">
+            {raw}
+          </pre>
         ) : (
           <table className="w-full text-[12px] mb-1">
             <tbody>
@@ -133,7 +151,9 @@ export const VaultProperties = memo(function VaultProperties({
                     </span>
                   </td>
                   <td className="pr-3 py-[3px]">
-                    {(key === "tags" || key === "tag") && Array.isArray(value) && onTagClick ? (
+                    {(key === "tags" || key === "tag") &&
+                    Array.isArray(value) &&
+                    onTagClick ? (
                       <span className="flex flex-wrap gap-1">
                         {value.map((t, i) => (
                           <a

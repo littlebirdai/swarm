@@ -19,22 +19,41 @@ describe("message tail diff", () => {
     const diff = diffMessageTail(previous, [second, third]);
     expect(diff.puts.map(({ message }) => message)).toEqual([third]);
     expect(diff.deletes).toEqual(["0:id:a"]);
-    expect([...diff.next.values()].map(({ message }) => message)).toEqual([second, third]);
+    expect([...diff.next.values()].map(({ message }) => message)).toEqual([
+      second,
+      third,
+    ]);
   });
 
   it("fits an insert between the existing positions", () => {
     const diff = diffMessageTail(previous, [first, third, second]);
-    expect(diff.puts).toEqual([{ messageKey: "0:id:c", position: 0.5, message: third }]);
+    expect(diff.puts).toEqual([
+      { messageKey: "0:id:c", position: 0.5, message: third },
+    ]);
   });
 
   it("preserves order after repeated inserts exhaust the gap between positions", () => {
     let results = diffMessageTail(new Map(), [first, second, third]);
     let neighbor = third;
     for (let i = 0; i < 64; i++) {
-      const inserted = { _id: `insert-${i}`, content: "inserted between neighbors" };
-      results = diffMessageTail(results.next, [first, second, inserted, neighbor]);
-      const positions = [...results.next.values()].map(({ position }) => position);
-      expect(positions.every((position, j) => j === 0 || position > positions[j - 1])).toBe(true);
+      const inserted = {
+        _id: `insert-${i}`,
+        content: "inserted between neighbors",
+      };
+      results = diffMessageTail(results.next, [
+        first,
+        second,
+        inserted,
+        neighbor,
+      ]);
+      const positions = [...results.next.values()].map(
+        ({ position }) => position,
+      );
+      expect(
+        positions.every(
+          (position, j) => j === 0 || position > positions[j - 1],
+        ),
+      ).toBe(true);
       neighbor = inserted;
     }
   });
@@ -44,8 +63,16 @@ describe("message tail diff", () => {
     const replay = { ...first, images: [] };
     const original = diffMessageTail(new Map(), [first, optimistic, replay]);
     expect(original.next.size).toBe(3);
-    const reordered = diffMessageTail(original.next, [optimistic, first, replay]);
-    expect([...reordered.next.values()].map(({ message }) => message)).toEqual([optimistic, first, replay]);
+    const reordered = diffMessageTail(original.next, [
+      optimistic,
+      first,
+      replay,
+    ]);
+    expect([...reordered.next.values()].map(({ message }) => message)).toEqual([
+      optimistic,
+      first,
+      replay,
+    ]);
     expect(reordered.puts.map(({ message }) => message)).toEqual([first]);
     expect(reordered.deletes).toEqual([]);
   });

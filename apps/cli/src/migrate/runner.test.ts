@@ -18,18 +18,44 @@ type Call = [string, ...unknown[]];
 
 function row(over: Partial<RunnerRow> = {}): RunnerRow {
   return {
-    migration_id: "m1", conversation_id: "c1", session_id: "s1", title: "A", short_id: "aaaaaaa",
-    direction: "to_cloud", from_device_id: "laptop", to_device_id: "box", status: "queued", position: 0,
-    source_path: null, destination_path: null, ...over,
+    migration_id: "m1",
+    conversation_id: "c1",
+    session_id: "s1",
+    title: "A",
+    short_id: "aaaaaaa",
+    direction: "to_cloud",
+    from_device_id: "laptop",
+    to_device_id: "box",
+    status: "queued",
+    position: 0,
+    source_path: null,
+    destination_path: null,
+    ...over,
   };
 }
 
-function facts(over: Partial<Extract<BeginResult, { ok: true }>> = {}): Extract<BeginResult, { ok: true }> {
+function facts(
+  over: Partial<Extract<BeginResult, { ok: true }>> = {},
+): Extract<BeginResult, { ok: true }> {
   return {
-    ok: true, conversation_id: "c1", session_id: "s1", direction: "to_cloud", owner_device_id: "laptop",
-    owner_is_remote: false, owner_online: true, owner_label: "MacBook", to_device_id: "box", to_label: "Linux box",
-    project_path: "/Users/me/src/repo/.codecast/worktrees/a", git_root: "/Users/me/src/repo", git_remote_url: null,
-    worktree_name: "a", worktree_branch: "feat", agent_status: null, title: "A", ...over,
+    ok: true,
+    conversation_id: "c1",
+    session_id: "s1",
+    direction: "to_cloud",
+    owner_device_id: "laptop",
+    owner_is_remote: false,
+    owner_online: true,
+    owner_label: "MacBook",
+    to_device_id: "box",
+    to_label: "Linux box",
+    project_path: "/Users/me/src/repo/.codecast/worktrees/a",
+    git_root: "/Users/me/src/repo",
+    git_remote_url: null,
+    worktree_name: "a",
+    worktree_branch: "feat",
+    agent_status: null,
+    title: "A",
+    ...over,
   };
 }
 
@@ -42,7 +68,15 @@ function world(opts: {
   rows?: RunnerRow[];
   begin?: Record<string, BeginResult>;
   statuses?: string[];
-  quiesceResults?: Array<{ quiesced: boolean; reason?: string; had_pane?: boolean; outside?: Array<{ pid: number; name: string; via?: string }> } | { error: string }>;
+  quiesceResults?: Array<
+    | {
+        quiesced: boolean;
+        reason?: string;
+        had_pane?: boolean;
+        outside?: Array<{ pid: number; name: string; via?: string }>;
+      }
+    | { error: string }
+  >;
   resumeError?: string | null;
   resumeNeverExecutes?: boolean;
   transferError?: string;
@@ -58,65 +92,171 @@ function world(opts: {
   let now = 1_000_000;
   const statuses = [...(opts.statuses ?? [])];
   const quiesce = [...(opts.quiesceResults ?? [{ quiesced: true }])];
-  const commands = new Map<string, { executed_at: number | null; result: string | null; error: string | null }>();
+  const commands = new Map<
+    string,
+    { executed_at: number | null; result: string | null; error: string | null }
+  >();
   let commandSeq = 0;
   let polls = 0;
   const rows = opts.rows ?? [row()];
-  const batch: RunnerBatch = { batch_id: "mg-test", to_device_id: "box", cancelled_at: null, wait_for_idle_ms: 10 * 60_000, concurrency: 1, rows, ...(opts.batch ?? {}) };
+  const batch: RunnerBatch = {
+    batch_id: "mg-test",
+    to_device_id: "box",
+    cancelled_at: null,
+    wait_for_idle_ms: 10 * 60_000,
+    concurrency: 1,
+    rows,
+    ...(opts.batch ?? {}),
+  };
   const io: RunnerIo = {
     now: () => now,
-    sleep: async (ms) => { now += ms; calls.push(["sleep", ms]); },
-    log: (line) => { calls.push(["log", line]); },
+    sleep: async (ms) => {
+      now += ms;
+      calls.push(["sleep", ms]);
+    },
+    log: (line) => {
+      calls.push(["log", line]);
+    },
     deviceId: () => "laptop",
     loadBatch: async () => batch,
-    begin: async (id) => { calls.push(["begin", id]); return opts.begin?.[id] ?? facts({ agent_status: statuses.shift() ?? null }); },
+    begin: async (id) => {
+      calls.push(["begin", id]);
+      return (
+        opts.begin?.[id] ?? facts({ agent_status: statuses.shift() ?? null })
+      );
+    },
     facts: async (id) => {
       calls.push(["facts", id]);
       polls++;
-      return { status: "waiting_idle", batch_cancelled: opts.cancelAfterPolls !== undefined && polls >= opts.cancelAfterPolls, owner_device_id: "laptop", owner_online: true, agent_status: statuses.length ? statuses.shift()! : null, fenced: true };
+      return {
+        status: "waiting_idle",
+        batch_cancelled:
+          opts.cancelAfterPolls !== undefined && polls >= opts.cancelAfterPolls,
+        owner_device_id: "laptop",
+        owner_online: true,
+        agent_status: statuses.length ? statuses.shift()! : null,
+        fenced: true,
+      };
     },
-    report: async (id, patch) => { calls.push(["report", id, patch.status, patch.stage]); },
+    report: async (id, patch) => {
+      calls.push(["report", id, patch.status, patch.stage]);
+    },
     enqueueQuiesce: async (id, mode) => {
       calls.push(["quiesce", id, mode]);
       const cmdId = `q${++commandSeq}`;
       const r = quiesce.shift() ?? { quiesced: true };
-      commands.set(cmdId, "error" in r ? { executed_at: now + 1, result: null, error: r.error } : { executed_at: now + 1, result: JSON.stringify(r), error: null });
+      commands.set(
+        cmdId,
+        "error" in r
+          ? { executed_at: now + 1, result: null, error: r.error }
+          : { executed_at: now + 1, result: JSON.stringify(r), error: null },
+      );
       return { command_id: cmdId, target_device_id: "laptop" };
     },
-    commandStatus: async (cmdId) => { calls.push(["commandStatus", cmdId]); return commands.get(cmdId) ?? null; },
+    commandStatus: async (cmdId) => {
+      calls.push(["commandStatus", cmdId]);
+      return commands.get(cmdId) ?? null;
+    },
     finish: async (id, args) => {
       calls.push(["finish", id, args]);
       const cmdId = `r${++commandSeq}`;
-      commands.set(cmdId, opts.resumeNeverExecutes ? { executed_at: null, result: null, error: null } : { executed_at: now + 1, result: "{}", error: opts.resumeError ?? null });
+      commands.set(
+        cmdId,
+        opts.resumeNeverExecutes
+          ? { executed_at: null, result: null, error: null }
+          : {
+              executed_at: now + 1,
+              result: "{}",
+              error: opts.resumeError ?? null,
+            },
+      );
       return { ok: true, resume_command_id: cmdId };
     },
-    confirm: async (id, ok, detail) => { calls.push(["confirm", id, ok, detail?.error ?? detail?.stage]); },
-    fail: async (id, error, cancelled, restore) => { calls.push(["fail", id, error, !!cancelled]); if (restore) calls.push(["restore", id]); },
-    sendNotice: async (convId, text) => { calls.push(["notice", convId, text]); },
-    deviceOnline: async (d) => { calls.push(["deviceOnline", d]); return opts.deviceOnline ?? true; },
-    prepareHost: async (d) => { calls.push(["prepareHost", d]); },
+    confirm: async (id, ok, detail) => {
+      calls.push(["confirm", id, ok, detail?.error ?? detail?.stage]);
+    },
+    fail: async (id, error, cancelled, restore) => {
+      calls.push(["fail", id, error, !!cancelled]);
+      if (restore) calls.push(["restore", id]);
+    },
+    sendNotice: async (convId, text) => {
+      calls.push(["notice", convId, text]);
+    },
+    deviceOnline: async (d) => {
+      calls.push(["deviceOnline", d]);
+      return opts.deviceOnline ?? true;
+    },
+    prepareHost: async (d) => {
+      calls.push(["prepareHost", d]);
+    },
     hostLoginGap: async () => opts.hostLoginGap ?? null,
     hostCastGap: async () => opts.hostCastGap ?? null,
     hostRoom: async () => opts.hostRoom ?? {},
     rehearse: async (f, bring) => {
       calls.push(["rehearse", bring]);
-      return { session_id: f.session_id, destination_id: f.to_device_id, at: now, blockers: opts.rehearsalBlockers ?? [], transfer: { method: "git" }, missing: (opts.rehearsalMissing ?? []).map((p) => ({ path: p, kind: "folder", writes: 1, uses: 0 })), services: [], tools: { missing: [], installs: [] }, machine: [] };
+      return {
+        session_id: f.session_id,
+        destination_id: f.to_device_id,
+        at: now,
+        blockers: opts.rehearsalBlockers ?? [],
+        transfer: { method: "git" },
+        missing: (opts.rehearsalMissing ?? []).map((p) => ({
+          path: p,
+          kind: "folder",
+          writes: 1,
+          uses: 0,
+        })),
+        services: [],
+        tools: { missing: [], installs: [] },
+        machine: [],
+      };
     },
     transferToCloud: async (f, o) => {
       calls.push(["transferToCloud", f.session_id, o.skipTree, o.pushedHead]);
       if (o.bring.length) calls.push(["bring", o.bring]);
       if (opts.transferError) throw new Error(opts.transferError);
-      return { destinationPath: `/home/ubuntu/work/${f.worktree_name}`, gitRoot: `/home/ubuntu/work/${f.worktree_name}`, sourcePath: f.project_path!, verification: "heads match", localCwd: f.project_path!, ...(o.skipTree ? {} : { pushedHead: `snap-${f.session_id}` }) };
+      return {
+        destinationPath: `/home/ubuntu/work/${f.worktree_name}`,
+        gitRoot: `/home/ubuntu/work/${f.worktree_name}`,
+        sourcePath: f.project_path!,
+        verification: "heads match",
+        localCwd: f.project_path!,
+        ...(o.skipTree ? {} : { pushedHead: `snap-${f.session_id}` }),
+      };
     },
     transferToLocal: async (f) => {
       calls.push(["transferToLocal", f.session_id]);
       if (opts.transferError) throw new Error(opts.transferError);
-      return { destinationPath: `/Users/me/src/repo/.codecast/worktrees/${f.worktree_name}`, sourcePath: f.project_path!, verification: "pulled" };
+      return {
+        destinationPath: `/Users/me/src/repo/.codecast/worktrees/${f.worktree_name}`,
+        sourcePath: f.project_path!,
+        verification: "pulled",
+      };
     },
-    notice: (_f, _t, stopped, rehearsal) => { calls.push(["noticeFacts", stopped]); if (rehearsal?.missing.length) calls.push(["noticeMissing", rehearsal.missing.map((m) => m.path)]); return "you moved"; },
+    notice: (_f, _t, stopped, rehearsal) => {
+      calls.push(["noticeFacts", stopped]);
+      if (rehearsal?.missing.length)
+        calls.push(["noticeMissing", rehearsal.missing.map((m) => m.path)]);
+      return "you moved";
+    },
   };
   // The rehearsal and its stage line run on every move to the cloud; the tests that care about it look for them by name.
-  const kinds = () => calls.filter((c) => !["log", "sleep", "commandStatus", "noticeFacts", "noticeMissing", "rehearse", "bring"].includes(c[0] as string) && !(c[0] === "report" && c[3] === "rehearsing the move")).map((c) => c[0]);
+  const kinds = () =>
+    calls
+      .filter(
+        (c) =>
+          ![
+            "log",
+            "sleep",
+            "commandStatus",
+            "noticeFacts",
+            "noticeMissing",
+            "rehearse",
+            "bring",
+          ].includes(c[0] as string) &&
+          !(c[0] === "report" && c[3] === "rehearsing the move"),
+      )
+      .map((c) => c[0]);
   return { io, batch, calls, kinds, clock: () => now };
 }
 
@@ -126,30 +266,88 @@ describe("migrateRow — a session to the cloud", () => {
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
     expect(w.kinds()).toEqual([
-      "begin", "quiesce", "report", "prepareHost", "deviceOnline", "report", "transferToCloud", "report", "finish", "notice", "confirm",
+      "begin",
+      "quiesce",
+      "report",
+      "prepareHost",
+      "deviceOnline",
+      "report",
+      "transferToCloud",
+      "report",
+      "finish",
+      "notice",
+      "confirm",
     ]);
-    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual(["quiesce", "m1", "idle"]);
-    expect(w.calls.find((c) => c[0] === "transferToCloud")).toEqual(["transferToCloud", "s1", false, undefined]);
-    expect(w.calls.find((c) => c[0] === "finish")).toEqual(["finish", "m1", {
-      project_path: "/home/ubuntu/work/a", git_root: "/home/ubuntu/work/a", verification: "heads match", source_path: "/Users/me/src/repo/.codecast/worktrees/a",
-    }]);
-    expect(w.calls.find((c) => c[0] === "confirm")).toEqual(["confirm", "m1", true, "running on Linux box"]);
+    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual([
+      "quiesce",
+      "m1",
+      "idle",
+    ]);
+    expect(w.calls.find((c) => c[0] === "transferToCloud")).toEqual([
+      "transferToCloud",
+      "s1",
+      false,
+      undefined,
+    ]);
+    expect(w.calls.find((c) => c[0] === "finish")).toEqual([
+      "finish",
+      "m1",
+      {
+        project_path: "/home/ubuntu/work/a",
+        git_root: "/home/ubuntu/work/a",
+        verification: "heads match",
+        source_path: "/Users/me/src/repo/.codecast/worktrees/a",
+      },
+    ]);
+    expect(w.calls.find((c) => c[0] === "confirm")).toEqual([
+      "confirm",
+      "m1",
+      true,
+      "running on Linux box",
+    ]);
     expect(w.calls.some((c) => c[0] === "fail")).toBe(false);
   });
 
   test("what the source's quiesce names outside the agent's tree reaches the destination's notice", async () => {
-    const outside = [{ pid: 7, name: "ffmpeg", via: "background" }, { pid: 8, name: "bun", via: "tmux" }];
-    const w = world({ statuses: ["idle"], quiesceResults: [{ quiesced: true, had_pane: true, outside }] });
-    expect((await migrateRow(w.io, w.batch, row(), new SharedTreeLedger())).outcome).toBe("done");
-    expect(w.calls.find((c) => c[0] === "noticeFacts")).toEqual(["noticeFacts", outside]);
+    const outside = [
+      { pid: 7, name: "ffmpeg", via: "background" },
+      { pid: 8, name: "bun", via: "tmux" },
+    ];
+    const w = world({
+      statuses: ["idle"],
+      quiesceResults: [{ quiesced: true, had_pane: true, outside }],
+    });
+    expect(
+      (await migrateRow(w.io, w.batch, row(), new SharedTreeLedger())).outcome,
+    ).toBe("done");
+    expect(w.calls.find((c) => c[0] === "noticeFacts")).toEqual([
+      "noticeFacts",
+      outside,
+    ]);
   });
 
   test("siblings from one folder: the first pushes, the second skips the tree and verifies against the first one's snapshot", async () => {
-    const w = world({ begin: { m1: facts(), m2: facts({ session_id: "s2", conversation_id: "c2" }) } });
+    const w = world({
+      begin: {
+        m1: facts(),
+        m2: facts({ session_id: "s2", conversation_id: "c2" }),
+      },
+    });
     const ledger = new SharedTreeLedger();
-    const [a, b] = await Promise.all([migrateRow(w.io, w.batch, row(), ledger), migrateRow(w.io, w.batch, row({ migration_id: "m2", conversation_id: "c2", session_id: "s2" }), ledger)]);
+    const [a, b] = await Promise.all([
+      migrateRow(w.io, w.batch, row(), ledger),
+      migrateRow(
+        w.io,
+        w.batch,
+        row({ migration_id: "m2", conversation_id: "c2", session_id: "s2" }),
+        ledger,
+      ),
+    ]);
     expect([a.outcome, b.outcome]).toEqual(["done", "done"]);
-    expect(w.calls.filter((c) => c[0] === "transferToCloud")).toEqual([["transferToCloud", "s1", false, undefined], ["transferToCloud", "s2", true, "snap-s1"]]);
+    expect(w.calls.filter((c) => c[0] === "transferToCloud")).toEqual([
+      ["transferToCloud", "s1", false, undefined],
+      ["transferToCloud", "s2", true, "snap-s1"],
+    ]);
   });
 
   test("a sibling whose push failed hands the push to the next one instead of letting it skip the tree", async () => {
@@ -160,14 +358,34 @@ describe("migrateRow — a session to the cloud", () => {
     expect(await waiting).toEqual({ pushed: false });
     expect(ledger.claim("k")).toBe(true);
     ledger.settle("k", "snap");
-    expect(await ledger.awaitPushed("k")).toEqual({ pushed: true, head: "snap" });
+    expect(await ledger.awaitPushed("k")).toEqual({
+      pushed: true,
+      head: "snap",
+    });
   });
 
   test("a running session stopped for a move that then fails is restarted where it is; one that was not running is left alone", async () => {
-    const stopped = world({ quiesceResults: [{ quiesced: true, had_pane: true }], transferError: "push refused" });
-    expect((await migrateRow(stopped.io, stopped.batch, row(), new SharedTreeLedger())).outcome).toBe("failed");
-    expect(stopped.calls.filter((c) => c[0] === "restore")).toEqual([["restore", "m1"]]);
-    const parked = world({ quiesceResults: [{ quiesced: true, had_pane: false }], transferError: "push refused" });
+    const stopped = world({
+      quiesceResults: [{ quiesced: true, had_pane: true }],
+      transferError: "push refused",
+    });
+    expect(
+      (
+        await migrateRow(
+          stopped.io,
+          stopped.batch,
+          row(),
+          new SharedTreeLedger(),
+        )
+      ).outcome,
+    ).toBe("failed");
+    expect(stopped.calls.filter((c) => c[0] === "restore")).toEqual([
+      ["restore", "m1"],
+    ]);
+    const parked = world({
+      quiesceResults: [{ quiesced: true, had_pane: false }],
+      transferError: "push refused",
+    });
     await migrateRow(parked.io, parked.batch, row(), new SharedTreeLedger());
     expect(parked.calls.some((c) => c[0] === "restore")).toBe(false);
   });
@@ -176,39 +394,72 @@ describe("migrateRow — a session to the cloud", () => {
     const w = world({ statuses: ["working", "working", "thinking", "idle"] });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
-    const waits = w.calls.filter((c) => c[0] === "report" && c[2] === "waiting_idle" && c[3] !== "rehearsing the move");
+    const waits = w.calls.filter(
+      (c) =>
+        c[0] === "report" &&
+        c[2] === "waiting_idle" &&
+        c[3] !== "rehearsing the move",
+    );
     expect(waits).toHaveLength(3);
-    expect(String(waits[0][3])).toContain("waiting for the current turn to finish (working");
+    expect(String(waits[0][3])).toContain(
+      "waiting for the current turn to finish (working",
+    );
     expect(w.calls.filter((c) => c[0] === "facts")).toHaveLength(3);
-    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual(["quiesce", "m1", "idle"]);
+    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual([
+      "quiesce",
+      "m1",
+      "idle",
+    ]);
     // The fence went up BEFORE the wait: begin precedes every facts poll.
     expect(w.kinds().indexOf("begin")).toBeLessThan(w.kinds().indexOf("facts"));
   });
 
   test("past the idle window the turn is interrupted, and the confirmation says so", async () => {
-    const w = world({ batch: { wait_for_idle_ms: 12_000 }, statuses: Array(10).fill("working") });
+    const w = world({
+      batch: { wait_for_idle_ms: 12_000 },
+      statuses: Array(10).fill("working"),
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
-    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual(["quiesce", "m1", "force"]);
-    expect(w.calls.find((c) => c[0] === "confirm")?.[3]).toContain("interrupted");
+    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual([
+      "quiesce",
+      "m1",
+      "force",
+    ]);
+    expect(w.calls.find((c) => c[0] === "confirm")?.[3]).toContain(
+      "interrupted",
+    );
     // Bounded: only as many polls as the window allows (5s cadence into 12s).
-    expect(w.calls.filter((c) => c[0] === "facts").length).toBeLessThanOrEqual(3);
+    expect(w.calls.filter((c) => c[0] === "facts").length).toBeLessThanOrEqual(
+      3,
+    );
   });
 
   test("a resource offload timeout leaves the live turn and its files untouched", async () => {
-    const w = world({ batch: { wait_for_idle_ms: 12_000, interrupt_on_timeout: false }, statuses: Array(10).fill("working") });
+    const w = world({
+      batch: { wait_for_idle_ms: 12_000, interrupt_on_timeout: false },
+      statuses: Array(10).fill("working"),
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(w.kinds()).not.toContain("quiesce");
     expect(w.kinds()).not.toContain("transferToCloud");
-    expect(w.calls.find(c => c[0] === "fail")?.join(" ")).toContain("left running");
+    expect(w.calls.find((c) => c[0] === "fail")?.join(" ")).toContain(
+      "left running",
+    );
   });
 
   test("a turn racing the safe offload stop is never force-stopped", async () => {
-    const w = world({ batch: { wait_for_idle_ms: 0, interrupt_on_timeout: false }, statuses: ["idle"], quiesceResults: [{ quiesced: false, reason: "working" }] });
+    const w = world({
+      batch: { wait_for_idle_ms: 0, interrupt_on_timeout: false },
+      statuses: ["idle"],
+      quiesceResults: [{ quiesced: false, reason: "working" }],
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
-    expect(w.calls.filter(c => c[0] === "quiesce")).toEqual([["quiesce", "m1", "idle"]]);
+    expect(w.calls.filter((c) => c[0] === "quiesce")).toEqual([
+      ["quiesce", "m1", "idle"],
+    ]);
     expect(w.kinds()).not.toContain("transferToCloud");
   });
 
@@ -216,30 +467,54 @@ describe("migrateRow — a session to the cloud", () => {
     const w = world({ batch: { wait_for_idle_ms: 0 }, statuses: ["working"] });
     await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(w.calls.filter((c) => c[0] === "facts")).toHaveLength(0);
-    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual(["quiesce", "m1", "force"]);
+    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual([
+      "quiesce",
+      "m1",
+      "force",
+    ]);
   });
 
   test("a permission prompt is not waited on — the answer could never arrive through the fence", async () => {
     const w = world({ statuses: ["permission_blocked"] });
     await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(w.calls.filter((c) => c[0] === "facts")).toHaveLength(0);
-    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual(["quiesce", "m1", "idle"]);
+    expect(w.calls.find((c) => c[0] === "quiesce")).toEqual([
+      "quiesce",
+      "m1",
+      "idle",
+    ]);
     expect(WAIT_FOR_STATUSES.has("permission_blocked")).toBe(false);
     expect(WAIT_FOR_STATUSES.has("working")).toBe(true);
   });
 
   test("a turn that starts between the check and the stop is waited out, then stopped", async () => {
-    const w = world({ statuses: ["idle"], quiesceResults: [{ quiesced: false, reason: "status-working" }, { quiesced: true }] });
+    const w = world({
+      statuses: ["idle"],
+      quiesceResults: [
+        { quiesced: false, reason: "status-working" },
+        { quiesced: true },
+      ],
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
-    expect(w.calls.filter((c) => c[0] === "quiesce").map((c) => c[2])).toEqual(["idle", "idle"]);
-    expect(w.calls.some((c) => c[0] === "report" && String(c[3]).includes("a turn started"))).toBe(true);
+    expect(w.calls.filter((c) => c[0] === "quiesce").map((c) => c[2])).toEqual([
+      "idle",
+      "idle",
+    ]);
+    expect(
+      w.calls.some(
+        (c) => c[0] === "report" && String(c[3]).includes("a turn started"),
+      ),
+    ).toBe(true);
   });
 
   test("the stop command dying in the queue fails the row before anything is transferred", async () => {
     const w = world({ statuses: ["idle"] });
     // Never executes: commandStatus keeps answering "not yet".
-    w.io.enqueueQuiesce = async () => ({ command_id: "dead", target_device_id: "laptop" });
+    w.io.enqueueQuiesce = async () => ({
+      command_id: "dead",
+      target_device_id: "laptop",
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(out.detail).toContain("did not pick up the stop command");
@@ -248,35 +523,75 @@ describe("migrateRow — a session to the cloud", () => {
   });
 
   test("a transfer error fails the row (fence lifted by fail) and never flips ownership", async () => {
-    const w = world({ statuses: ["idle"], transferError: "rsync: connection unexpectedly closed" });
+    const w = world({
+      statuses: ["idle"],
+      transferError: "rsync: connection unexpectedly closed",
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
-    expect(out).toEqual({ migration_id: "m1", outcome: "failed", detail: "rsync: connection unexpectedly closed" });
+    expect(out).toEqual({
+      migration_id: "m1",
+      outcome: "failed",
+      detail: "rsync: connection unexpectedly closed",
+    });
     expect(w.calls.some((c) => c[0] === "finish")).toBe(false);
-    expect(w.calls.find((c) => c[0] === "fail")).toEqual(["fail", "m1", "rsync: connection unexpectedly closed", false]);
+    expect(w.calls.find((c) => c[0] === "fail")).toEqual([
+      "fail",
+      "m1",
+      "rsync: connection unexpectedly closed",
+      false,
+    ]);
   });
 
   // jx758nr: moved to a host whose login had lapsed, it lost its background
   // workflow to the stop and resumed on "Login expired".
   test("a rehearsal that finds the transfer would fail refuses the move before the session is stopped", async () => {
-    const w = world({ statuses: ["idle"], rehearsalBlockers: ["this folder and the host checkout both changed a.ts; nothing was moved"] });
+    const w = world({
+      statuses: ["idle"],
+      rehearsalBlockers: [
+        "this folder and the host checkout both changed a.ts; nothing was moved",
+      ],
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(out.detail).toContain("both changed a.ts");
     expect(out.detail).toContain("left running here");
-    expect(w.calls.some((c) => c[0] === "quiesce" || c[0] === "transferToCloud")).toBe(false);
+    expect(
+      w.calls.some((c) => c[0] === "quiesce" || c[0] === "transferToCloud"),
+    ).toBe(false);
   });
 
   test("the row's paths to bring reach the rehearsal and the transfer, and what is still missing reaches the notice", async () => {
-    const w = world({ statuses: ["idle"], rehearsalMissing: ["/Users/me/.data"] });
-    const out = await migrateRow(w.io, w.batch, row({ bring_paths: ["/Users/me/src/other"] }), new SharedTreeLedger());
+    const w = world({
+      statuses: ["idle"],
+      rehearsalMissing: ["/Users/me/.data"],
+    });
+    const out = await migrateRow(
+      w.io,
+      w.batch,
+      row({ bring_paths: ["/Users/me/src/other"] }),
+      new SharedTreeLedger(),
+    );
     expect(out.outcome).toBe("done");
-    expect(w.calls.find((c) => c[0] === "rehearse")).toEqual(["rehearse", ["/Users/me/src/other"]]);
-    expect(w.calls.find((c) => c[0] === "bring")).toEqual(["bring", ["/Users/me/src/other"]]);
-    expect(w.calls.find((c) => c[0] === "noticeMissing")).toEqual(["noticeMissing", ["/Users/me/.data"]]);
+    expect(w.calls.find((c) => c[0] === "rehearse")).toEqual([
+      "rehearse",
+      ["/Users/me/src/other"],
+    ]);
+    expect(w.calls.find((c) => c[0] === "bring")).toEqual([
+      "bring",
+      ["/Users/me/src/other"],
+    ]);
+    expect(w.calls.find((c) => c[0] === "noticeMissing")).toEqual([
+      "noticeMissing",
+      ["/Users/me/.data"],
+    ]);
   });
 
   test("a host with no Claude login is refused before the session is stopped", async () => {
-    const w = world({ statuses: ["idle"], hostLoginGap: "this machine has none to give it: logged-out stub (empty tokens)" });
+    const w = world({
+      statuses: ["idle"],
+      hostLoginGap:
+        "this machine has none to give it: logged-out stub (empty tokens)",
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(out.detail).toContain("has no Claude login");
@@ -284,7 +599,11 @@ describe("migrateRow — a session to the cloud", () => {
   });
 
   test("a host whose cast cannot be brought to this laptop's version is refused before the session is stopped", async () => {
-    const w = world({ statuses: ["idle"], hostCastGap: "the host runs cast 1.1.200, behind this laptop's 1.1.213, and installing 1.1.213 failed: ssh: timeout" });
+    const w = world({
+      statuses: ["idle"],
+      hostCastGap:
+        "the host runs cast 1.1.200, behind this laptop's 1.1.213, and installing 1.1.213 failed: ssh: timeout",
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(out.detail).toContain("behind this laptop's 1.1.213");
@@ -295,20 +614,34 @@ describe("migrateRow — a session to the cloud", () => {
   // jx72f3a: moved onto a t3.medium with swap 80% full, where its typecheck
   // was OOM-killed and its dev server died within seconds.
   test("a host out of memory is refused before the session is stopped", async () => {
-    const w = world({ statuses: ["idle"], hostRoom: { refuse: "swap 1.6 of 2.0 GB used" } });
+    const w = world({
+      statuses: ["idle"],
+      hostRoom: { refuse: "swap 1.6 of 2.0 GB used" },
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
-    expect(out.detail).toContain("has no room for another session (swap 1.6 of 2.0 GB used)");
+    expect(out.detail).toContain(
+      "has no room for another session (swap 1.6 of 2.0 GB used)",
+    );
     expect(out.detail).toContain("left running here");
     expect(w.kinds()).toEqual(["begin", "fail"]);
   });
 
   test("a host smaller than the repo needs takes the session, and the notice says what will not run there", async () => {
-    const w = world({ statuses: ["idle"], hostRoom: { small: "it has 3.7 GB of memory and this repo needs 12.0 GB" } });
+    const w = world({
+      statuses: ["idle"],
+      hostRoom: {
+        small: "it has 3.7 GB of memory and this repo needs 12.0 GB",
+      },
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
-    const finish = w.calls.find((c) => c[0] === "finish")?.[2] as { verification: string };
-    expect(finish.verification).toStartWith("heads match. This host is too small");
+    const finish = w.calls.find((c) => c[0] === "finish")?.[2] as {
+      verification: string;
+    };
+    expect(finish.verification).toStartWith(
+      "heads match. This host is too small",
+    );
     expect(finish.verification).toContain("3.7 GB of memory");
     expect(finish.verification).toContain("cast check");
   });
@@ -317,14 +650,21 @@ describe("migrateRow — a session to the cloud", () => {
     const w = world({ statuses: ["idle"], resumeError: "No local checkout" });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
-    expect(w.calls.find((c) => c[0] === "confirm")).toEqual(["confirm", "m1", false, "moved, but the resume on Linux box failed: No local checkout"]);
+    expect(w.calls.find((c) => c[0] === "confirm")).toEqual([
+      "confirm",
+      "m1",
+      false,
+      "moved, but the resume on Linux box failed: No local checkout",
+    ]);
   });
 
   test("a resume nobody confirms still counts as moved, with an honest stage", async () => {
     const w = world({ statuses: ["idle"], resumeNeverExecutes: true });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("done");
-    expect(w.calls.find((c) => c[0] === "confirm")?.[3]).toContain("has not confirmed the resume yet");
+    expect(w.calls.find((c) => c[0] === "confirm")?.[3]).toContain(
+      "has not confirmed the resume yet",
+    );
   });
 
   test("safe offload never marks an unconfirmed destination resume successful", async () => {
@@ -337,17 +677,31 @@ describe("migrateRow — a session to the cloud", () => {
   });
 
   test("a refused begin is a skip, not a failure", async () => {
-    const w = world({ begin: { m1: { ok: false, reason: "row is cancelled" } } });
+    const w = world({
+      begin: { m1: { ok: false, reason: "row is cancelled" } },
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
-    expect(out).toEqual({ migration_id: "m1", outcome: "skipped", detail: "row is cancelled" });
+    expect(out).toEqual({
+      migration_id: "m1",
+      outcome: "skipped",
+      detail: "row is cancelled",
+    });
     expect(w.kinds()).toEqual(["begin"]);
   });
 
   test("cancelling the batch during the idle wait releases the row as cancelled", async () => {
-    const w = world({ statuses: ["working", "working", "working"], cancelAfterPolls: 2 });
+    const w = world({
+      statuses: ["working", "working", "working"],
+      cancelAfterPolls: 2,
+    });
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("cancelled");
-    expect(w.calls.find((c) => c[0] === "fail")).toEqual(["fail", "m1", "cancelled before the transfer started", true]);
+    expect(w.calls.find((c) => c[0] === "fail")).toEqual([
+      "fail",
+      "m1",
+      "cancelled before the transfer started",
+      true,
+    ]);
     expect(w.calls.some((c) => c[0] === "quiesce")).toBe(false);
   });
 
@@ -365,18 +719,60 @@ describe("migrateRow — a session to the cloud", () => {
     const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
     expect(out.outcome).toBe("failed");
     expect(out.detail).toContain("left running locally");
-    expect(w.calls.some(c => c[0] === "quiesce" || c[0] === "transferToCloud")).toBe(false);
+    expect(
+      w.calls.some((c) => c[0] === "quiesce" || c[0] === "transferToCloud"),
+    ).toBe(false);
   });
 });
 
 describe("migrateRow — a session back to the laptop", () => {
   test("wakes the box, stops the session THERE, pulls, flips to this machine", async () => {
-    const w = world({ begin: { m1: facts({ direction: "to_local", owner_device_id: "box", owner_is_remote: true, owner_label: "Linux box", to_device_id: "laptop", to_label: "MacBook", project_path: "/home/ubuntu/work/repo/.codecast/worktrees/a", agent_status: "idle" }) } });
-    const out = await migrateRow(w.io, w.batch, row({ direction: "to_local", from_device_id: "box", to_device_id: "laptop" }), new SharedTreeLedger());
+    const w = world({
+      begin: {
+        m1: facts({
+          direction: "to_local",
+          owner_device_id: "box",
+          owner_is_remote: true,
+          owner_label: "Linux box",
+          to_device_id: "laptop",
+          to_label: "MacBook",
+          project_path: "/home/ubuntu/work/repo/.codecast/worktrees/a",
+          agent_status: "idle",
+        }),
+      },
+    });
+    const out = await migrateRow(
+      w.io,
+      w.batch,
+      row({
+        direction: "to_local",
+        from_device_id: "box",
+        to_device_id: "laptop",
+      }),
+      new SharedTreeLedger(),
+    );
     expect(out.outcome).toBe("done");
-    expect(w.kinds()).toEqual(["begin", "report", "prepareHost", "deviceOnline", "quiesce", "report", "transferToLocal", "report", "finish", "notice", "confirm"]);
-    expect(w.calls.find((c) => c[0] === "prepareHost")).toEqual(["prepareHost", "box"]);
-    expect(w.calls.find((c) => c[0] === "finish")?.[2]).toMatchObject({ project_path: "/Users/me/src/repo/.codecast/worktrees/a", source_path: "/home/ubuntu/work/repo/.codecast/worktrees/a" });
+    expect(w.kinds()).toEqual([
+      "begin",
+      "report",
+      "prepareHost",
+      "deviceOnline",
+      "quiesce",
+      "report",
+      "transferToLocal",
+      "report",
+      "finish",
+      "notice",
+      "confirm",
+    ]);
+    expect(w.calls.find((c) => c[0] === "prepareHost")).toEqual([
+      "prepareHost",
+      "box",
+    ]);
+    expect(w.calls.find((c) => c[0] === "finish")?.[2]).toMatchObject({
+      project_path: "/Users/me/src/repo/.codecast/worktrees/a",
+      source_path: "/home/ubuntu/work/repo/.codecast/worktrees/a",
+    });
   });
 });
 
@@ -384,8 +780,24 @@ describe("shared worktrees", () => {
   test("two sessions in one worktree push the tree once; the second waits and pushes only its transcript", async () => {
     const w = world({
       batch: { concurrency: 2 },
-      rows: [row(), row({ migration_id: "m2", conversation_id: "c2", session_id: "s2", short_id: "bbbbbbb", position: 1 })],
-      begin: { m1: facts({ agent_status: "idle" }), m2: facts({ conversation_id: "c2", session_id: "s2", agent_status: "idle" }) },
+      rows: [
+        row(),
+        row({
+          migration_id: "m2",
+          conversation_id: "c2",
+          session_id: "s2",
+          short_id: "bbbbbbb",
+          position: 1,
+        }),
+      ],
+      begin: {
+        m1: facts({ agent_status: "idle" }),
+        m2: facts({
+          conversation_id: "c2",
+          session_id: "s2",
+          agent_status: "idle",
+        }),
+      },
     });
     const outcomes = await runBatch(w.io);
     expect(outcomes.map((o) => o.outcome)).toEqual(["done", "done"]);
@@ -396,7 +808,9 @@ describe("shared worktrees", () => {
     expect(trees).toHaveLength(1);
     expect(transcripts).toHaveLength(1);
     // The tree push finished before the transcript-only push began.
-    expect(w.calls.indexOf(trees[0])).toBeLessThan(w.calls.indexOf(transcripts[0]));
+    expect(w.calls.indexOf(trees[0])).toBeLessThan(
+      w.calls.indexOf(transcripts[0]),
+    );
   });
 
   test("a failed tree push releases the followers to push the tree themselves", async () => {
@@ -404,7 +818,9 @@ describe("shared worktrees", () => {
     expect(ledger.claim("k")).toBe(true);
     expect(ledger.claim("k")).toBe(false);
     let followerRan = false;
-    const follower = ledger.awaitPushed("k").then(() => { followerRan = true; });
+    const follower = ledger.awaitPushed("k").then(() => {
+      followerRan = true;
+    });
     ledger.release("k");
     await follower;
     expect(followerRan).toBe(true);
@@ -416,20 +832,46 @@ describe("shared worktrees", () => {
 describe("runBatch", () => {
   test("takes only this batch's queued rows, in position order, and tallies", async () => {
     const w = world({
-      rows: [row({ migration_id: "m3", position: 2 }), row({ migration_id: "m1", position: 0 }), row({ migration_id: "m2", position: 1, status: "done" })],
-      begin: { m1: facts({ agent_status: "idle" }), m3: facts({ agent_status: "idle" }) },
+      rows: [
+        row({ migration_id: "m3", position: 2 }),
+        row({ migration_id: "m1", position: 0 }),
+        row({ migration_id: "m2", position: 1, status: "done" }),
+      ],
+      begin: {
+        m1: facts({ agent_status: "idle" }),
+        m3: facts({ agent_status: "idle" }),
+      },
     });
     const outcomes = await runBatch(w.io);
     expect(outcomes.map((o) => o.migration_id)).toEqual(["m1", "m3"]);
-    expect(w.calls.filter((c) => c[0] === "begin").map((c) => c[1])).toEqual(["m1", "m3"]);
+    expect(w.calls.filter((c) => c[0] === "begin").map((c) => c[1])).toEqual([
+      "m1",
+      "m3",
+    ]);
     expect(String(w.calls.at(-1)?.[1])).toContain("2 done");
   });
 
   test("a row whose failure report itself throws fails alone; the runner moves the rest", async () => {
     const w = world({
       batch: { concurrency: 1 },
-      rows: [row(), row({ migration_id: "m2", conversation_id: "c2", session_id: "s2", short_id: "bbbbbbb", position: 1 })],
-      begin: { m1: facts({ agent_status: "idle" }), m2: facts({ conversation_id: "c2", session_id: "s2", agent_status: "idle" }) },
+      rows: [
+        row(),
+        row({
+          migration_id: "m2",
+          conversation_id: "c2",
+          session_id: "s2",
+          short_id: "bbbbbbb",
+          position: 1,
+        }),
+      ],
+      begin: {
+        m1: facts({ agent_status: "idle" }),
+        m2: facts({
+          conversation_id: "c2",
+          session_id: "s2",
+          agent_status: "idle",
+        }),
+      },
     });
     const transfer = w.io.transferToCloud;
     w.io.transferToCloud = async (f, o) => {
@@ -437,9 +879,17 @@ describe("runBatch", () => {
       return transfer(f, o);
     };
     let failCalls = 0;
-    w.io.fail = async () => { failCalls++; throw new Error("ECONNRESET: The socket connection was closed unexpectedly"); };
+    w.io.fail = async () => {
+      failCalls++;
+      throw new Error(
+        "ECONNRESET: The socket connection was closed unexpectedly",
+      );
+    };
     const outcomes = await runBatch(w.io);
-    expect(outcomes.map((o) => [o.migration_id, o.outcome])).toEqual([["m1", "failed"], ["m2", "done"]]);
+    expect(outcomes.map((o) => [o.migration_id, o.outcome])).toEqual([
+      ["m1", "failed"],
+      ["m2", "done"],
+    ]);
     expect(failCalls).toBe(2);
   });
 
@@ -450,7 +900,6 @@ describe("runBatch", () => {
   });
 });
 
-
 test("safe offload cannot report success when no destination resume was queued", async () => {
   const w = world({ statuses: ["idle"] });
   w.batch.interrupt_on_timeout = false;
@@ -458,19 +907,30 @@ test("safe offload cannot report success when no destination resume was queued",
   const out = await migrateRow(w.io, w.batch, row(), new SharedTreeLedger());
   expect(out.outcome).toBe("failed");
   expect(out.detail).toContain("no destination resume was queued");
-  expect(w.calls.find(c => c[0] === "confirm")?.[2]).toBe(false);
+  expect(w.calls.find((c) => c[0] === "confirm")?.[2]).toBe(false);
 });
 
 describe("whileReporting", () => {
   test("a long transfer re-reports its stage with the time so far, and stops once it ends", async () => {
     const reports: string[] = [];
     let now = 0;
-    const io = { now: () => now, report: async (_id: string, p: { stage?: string }) => { reports.push(p.stage ?? ""); } };
-    const out = await whileReporting(io as any, "m1", "pulling", async () => {
-      now = 3 * 60_000;
-      await new Promise((r) => setTimeout(r, 30));
-      return "ok";
-    }, 5);
+    const io = {
+      now: () => now,
+      report: async (_id: string, p: { stage?: string }) => {
+        reports.push(p.stage ?? "");
+      },
+    };
+    const out = await whileReporting(
+      io as any,
+      "m1",
+      "pulling",
+      async () => {
+        now = 3 * 60_000;
+        await new Promise((r) => setTimeout(r, 30));
+        return "ok";
+      },
+      5,
+    );
     expect(out).toBe("ok");
     expect(reports[0]).toBe("pulling");
     expect(reports.slice(1).length).toBeGreaterThan(0);

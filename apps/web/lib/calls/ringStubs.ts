@@ -22,16 +22,26 @@ export type RingStub = {
   until: number;
 };
 
-export const ringStubId = (roomKey: string, userId: string): string => `${RING_STUB}${roomKey}:${userId}`;
-export const isRingStub = (r: any): r is RingStub => typeof r?._id === "string" && r._id.startsWith(RING_STUB);
+export const ringStubId = (roomKey: string, userId: string): string =>
+  `${RING_STUB}${roomKey}:${userId}`;
+export const isRingStub = (r: any): r is RingStub =>
+  typeof r?._id === "string" && r._id.startsWith(RING_STUB);
 
 /** The merge for myCalls.outgoing: the incoming list, less any expired stub,
  *  plus every live local stub the incoming list says nothing about. */
-export function carryRingStubs(local: any[] | undefined, incoming: any[] | undefined, now = Date.now()): any[] {
+export function carryRingStubs(
+  local: any[] | undefined,
+  incoming: any[] | undefined,
+  now = Date.now(),
+): any[] {
   const rows = incoming ?? [];
   const kept = rows.filter((r) => !isRingStub(r) || r.until > now);
-  const names = (r: any, s: any) => String(s._id) === String(r._id) || (s.room_key === r.room_key && String(s.to_user) === String(r.to_user));
-  const carried = (local ?? []).filter((r) => isRingStub(r) && r.until > now && !rows.some((s) => names(r, s)));
+  const names = (r: any, s: any) =>
+    String(s._id) === String(r._id) ||
+    (s.room_key === r.room_key && String(s.to_user) === String(r.to_user));
+  const carried = (local ?? []).filter(
+    (r) => isRingStub(r) && r.until > now && !rows.some((s) => names(r, s)),
+  );
   return carried.length ? [...kept, ...carried] : kept;
 }
 
@@ -45,7 +55,11 @@ export function carryRingStubs(local: any[] | undefined, incoming: any[] | undef
 export const RING_SETTLED_MS = 30_000;
 const settledRings = new Map<string, number>();
 
-export function settleRingIn(inviteId: string, ms = RING_SETTLED_MS, now = Date.now()): void {
+export function settleRingIn(
+  inviteId: string,
+  ms = RING_SETTLED_MS,
+  now = Date.now(),
+): void {
   settledRings.set(inviteId, now + ms);
 }
 
@@ -57,8 +71,14 @@ export function unsettleRingIn(inviteId: string): void {
 
 /** The merge for myCalls.incoming: the server's list, less every ring this
  *  window answered or declined that the server has not caught up on. */
-export function dropSettledRings(incoming: any[] | undefined, now = Date.now()): any[] {
-  for (const [id, until] of settledRings) if (until <= now) settledRings.delete(id);
+export function dropSettledRings(
+  incoming: any[] | undefined,
+  now = Date.now(),
+): any[] {
+  for (const [id, until] of settledRings)
+    if (until <= now) settledRings.delete(id);
   const rows = incoming ?? [];
-  return settledRings.size ? rows.filter((r) => !settledRings.has(String(r._id))) : rows;
+  return settledRings.size
+    ? rows.filter((r) => !settledRings.has(String(r._id)))
+    : rows;
 }

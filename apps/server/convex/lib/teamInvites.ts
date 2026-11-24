@@ -5,10 +5,16 @@ import type { Id } from "../_generated/dataModel";
 // How long a team invite code lives from the moment it is generated.
 export const INVITE_CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-function inviteRowFor(ctx: { db: any }, teamId: Id<"teams">, email: string): Promise<any | null> {
+function inviteRowFor(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  email: string,
+): Promise<any | null> {
   return ctx.db
     .query("team_invites")
-    .withIndex("by_team_email", (q: any) => q.eq("team_id", teamId).eq("email", email))
+    .withIndex("by_team_email", (q: any) =>
+      q.eq("team_id", teamId).eq("email", email),
+    )
     .first();
 }
 
@@ -28,13 +34,21 @@ export async function recordAdminRemoval(
   const now = Date.now();
   const row = await inviteRowFor(ctx, team._id, key);
   if (row) {
-    await ctx.db.patch(row._id, { removed_at: now, ...(row.accepted_at ? {} : { accepted_at: now }) });
+    await ctx.db.patch(row._id, {
+      removed_at: now,
+      ...(row.accepted_at ? {} : { accepted_at: now }),
+    });
     return;
   }
   // accepted_at keeps this row from holding a seat as a pending invite.
   await ctx.db.insert("team_invites", {
-    team_id: team._id, email: key, invite_code: team.invite_code ?? "", invited_by: adminId,
-    created_at: now, accepted_at: now, removed_at: now,
+    team_id: team._id,
+    email: key,
+    invite_code: team.invite_code ?? "",
+    invited_by: adminId,
+    created_at: now,
+    accepted_at: now,
+    removed_at: now,
   });
 }
 
@@ -48,6 +62,8 @@ export async function removedSinceCodeIssued(
   const row = await inviteRowFor(ctx, team._id, key);
   if (!row?.removed_at) return false;
   if (row.created_at > row.removed_at) return false; // invited again since
-  const issuedAt = team.invite_code_expires_at ? team.invite_code_expires_at - INVITE_CODE_TTL_MS : 0;
+  const issuedAt = team.invite_code_expires_at
+    ? team.invite_code_expires_at - INVITE_CODE_TTL_MS
+    : 0;
   return issuedAt <= row.removed_at;
 }

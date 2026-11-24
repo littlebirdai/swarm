@@ -48,7 +48,11 @@ const sampleManifest = (): WorkspaceManifest => ({
   services: {},
   env: {},
   teardown: { run: [] },
-  browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
+  browser: {
+    enabled: false,
+    headless: true,
+    cdpPort: { base: 9222, range: 100 },
+  },
   backend: "local",
 });
 
@@ -114,7 +118,9 @@ describe("allocatePorts (noProbe)", () => {
   test("five simultaneous workspaces get unique ports per name (sequential indices)", async () => {
     const m = sampleManifest();
     const results = await Promise.all(
-      [0, 1, 2, 3, 4].map((i) => allocatePorts(m, { startIndex: i, noProbe: true })),
+      [0, 1, 2, 3, 4].map((i) =>
+        allocatePorts(m, { startIndex: i, noProbe: true }),
+      ),
     );
     const webPorts = results.map((r) => r.ports.web);
     const apiPorts = results.map((r) => r.ports.api);
@@ -173,7 +179,11 @@ describe("allocatePorts (live probe)", () => {
     };
     await holdPort(34100);
     try {
-      await allocatePorts(m, { startIndex: 0, maxIndices: 1, maxExtensions: 0 });
+      await allocatePorts(m, {
+        startIndex: 0,
+        maxIndices: 1,
+        maxExtensions: 0,
+      });
       throw new Error("expected throw");
     } catch (e) {
       expect(e).toBeInstanceOf(PortAllocationError);
@@ -202,10 +212,13 @@ describe("allocatePorts (reservations)", () => {
   });
 
   test("reports reserved conflicts when every candidate is claimed", async () => {
-    await expect(allocatePorts(sampleManifest(), {
-      maxIndices: 2, maxExtensions: 0,
-      reservedPorts: new Set([33000, 33101]),
-    })).rejects.toMatchObject({
+    await expect(
+      allocatePorts(sampleManifest(), {
+        maxIndices: 2,
+        maxExtensions: 0,
+        reservedPorts: new Set([33000, 33101]),
+      }),
+    ).rejects.toMatchObject({
       name: "PortAllocationError",
       conflicts: [{ name: "api", port: 33101 }],
     });
@@ -235,7 +248,9 @@ describe("allocatePorts (pool extension)", () => {
   });
 
   function block(from: number, count: number): Set<number> {
-    return new Set(Array.from({ length: count }, (_unused, i) => 35000 + (from + i) * 10));
+    return new Set(
+      Array.from({ length: count }, (_unused, i) => 35000 + (from + i) * 10),
+    );
   }
 
   test("extends upward by the pool's own size once every pooled index is taken", async () => {
@@ -259,7 +274,10 @@ describe("allocatePorts (pool extension)", () => {
   });
 
   test("an allocation inside the pool reports no extension", async () => {
-    const allocation = await allocatePorts(pooled(), { maxIndices: 4, noProbe: true });
+    const allocation = await allocatePorts(pooled(), {
+      maxIndices: 4,
+      noProbe: true,
+    });
     expect(allocation.resourceIndex).toBe(0);
     expect(allocation.extendedRange).toBeUndefined();
   });
@@ -272,6 +290,8 @@ describe("allocatePorts (pool extension)", () => {
         noProbe: true,
         reservedPorts: block(0, 12),
       }),
-    ).rejects.toThrow("indices 0-11 are all taken (pool of 4, extended 2 times)");
+    ).rejects.toThrow(
+      "indices 0-11 are all taken (pool of 4, extended 2 times)",
+    );
   });
 });

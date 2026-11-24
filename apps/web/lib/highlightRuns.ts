@@ -4,7 +4,10 @@ export function highlightRuns(
   indices: [number, number][],
 ): { text: string; hit: boolean }[] {
   const spans = [...indices]
-    .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+    .filter(
+      ([start, end]) =>
+        Number.isFinite(start) && Number.isFinite(end) && end > start,
+    )
     .sort((a, b) => a[0] - b[0]);
 
   const runs: { text: string; hit: boolean }[] = [];

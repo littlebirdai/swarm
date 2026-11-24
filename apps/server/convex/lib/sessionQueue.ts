@@ -14,7 +14,9 @@ export type QueueRow = {
   queued?: boolean;
 };
 
-export function queueOrder(row: Pick<QueueRow, "queue_at" | "created_at" | "_creationTime">): number {
+export function queueOrder(
+  row: Pick<QueueRow, "queue_at" | "created_at" | "_creationTime">,
+): number {
   return row.queue_at ?? row.created_at ?? row._creationTime ?? 0;
 }
 
@@ -27,7 +29,9 @@ const IN_DELIVERY = new Set(["claimed", "delivery-started", "ambiguous"]);
 /** Whether a row still waits in line: queued for the turn's end, or pending and not mid delivery. Only these move or merge. */
 export function isWaitingInQueue(row: QueueRow): boolean {
   if (row.status === "held") return !!row.queued;
-  return row.status === "pending" && !IN_DELIVERY.has(row.delivery_status ?? "");
+  return (
+    row.status === "pending" && !IN_DELIVERY.has(row.delivery_status ?? "")
+  );
 }
 
 /**
@@ -36,8 +40,12 @@ export function isWaitingInQueue(row: QueueRow): boolean {
  * `beforeId` is null. Null when the target is not a waiting row: nothing may
  * jump ahead of a message the session is already taking.
  */
-export function queueAtBefore(rows: readonly QueueRow[], beforeId: string | null): number | null {
-  if (beforeId === null) return rows.length ? queueOrder(rows[rows.length - 1]) + 1 : Date.now();
+export function queueAtBefore(
+  rows: readonly QueueRow[],
+  beforeId: string | null,
+): number | null {
+  if (beforeId === null)
+    return rows.length ? queueOrder(rows[rows.length - 1]) + 1 : Date.now();
   const at = rows.findIndex((r) => String(r._id) === beforeId);
   if (at < 0 || !isWaitingInQueue(rows[at])) return null;
   const next = queueOrder(rows[at]);
@@ -56,7 +64,12 @@ export function queueAtBefore(rows: readonly QueueRow[], beforeId: string | null
 export function isControlMessage(content: string): boolean {
   try {
     const parsed = JSON.parse(content);
-    return parsed?.__cc_poll === true && (Array.isArray(parsed.keys) || Array.isArray(parsed.steps) || typeof parsed.text === "string");
+    return (
+      parsed?.__cc_poll === true &&
+      (Array.isArray(parsed.keys) ||
+        Array.isArray(parsed.steps) ||
+        typeof parsed.text === "string")
+    );
   } catch {
     return false;
   }
@@ -78,10 +91,19 @@ export function isControlMessage(content: string): boolean {
 // session sat stuck until someone answered in the terminal (Alex Green's
 // jx78ys8, 2026-10-25: a typed message sent while the card was open, then
 // three card answers and two messages, none delivered).
-export function headOfEachQueue<T extends { conversation_id: unknown; content?: string; created_at?: number; queue_at?: number; _creationTime?: number }>(rows: T[]): T[] {
+export function headOfEachQueue<
+  T extends {
+    conversation_id: unknown;
+    content?: string;
+    created_at?: number;
+    queue_at?: number;
+    _creationTime?: number;
+  },
+>(rows: T[]): T[] {
   const head = new Map<string, T>();
   const ahead = (a: T, b: T) => {
-    const pollA = isControlMessage(a.content ?? ""), pollB = isControlMessage(b.content ?? "");
+    const pollA = isControlMessage(a.content ?? ""),
+      pollB = isControlMessage(b.content ?? "");
     return pollA !== pollB ? pollA : queueOrder(a) < queueOrder(b);
   };
   for (const row of rows) {

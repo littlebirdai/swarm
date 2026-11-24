@@ -1,7 +1,10 @@
 import { describe, it, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "./test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "./test-helpers/codecastDir.js";
 import {
   flushLiveClaudeGate,
   hasLiveClaudeOnActiveCredential,
@@ -47,7 +50,9 @@ describe("live claude gate on the OAuth refresh", () => {
   it("does not hold for a session pinned to a saved profile", () => {
     markClaudeSessionLive("cc-claude-pinned", "work");
     expect(hasLiveClaudeOnActiveCredential()).toBe(false);
-    expect(liveClaudeSessions()).toEqual([{ id: "cc-claude-pinned", account: "work" }]);
+    expect(liveClaudeSessions()).toEqual([
+      { id: "cc-claude-pinned", account: "work" },
+    ]);
   });
 
   it("fires the drain listener once, on the 1 to 0 transition", () => {
@@ -71,17 +76,25 @@ describe("live claude gate on the OAuth refresh", () => {
     markClaudeSessionLive("cc-claude-abc");
     markClaudeSessionLive("cc-claude-pinned", "work");
     await flushLiveClaudeGate();
-    expect(readGateFile()).toEqual([{ id: "cc-claude-abc" }, { id: "cc-claude-pinned", account: "work" }]);
+    expect(readGateFile()).toEqual([
+      { id: "cc-claude-abc" },
+      { id: "cc-claude-pinned", account: "work" },
+    ]);
     markClaudeSessionEnded("cc-claude-abc");
     await flushLiveClaudeGate();
-    expect(readGateFile()).toEqual([{ id: "cc-claude-pinned", account: "work" }]);
+    expect(readGateFile()).toEqual([
+      { id: "cc-claude-pinned", account: "work" },
+    ]);
   });
 
   // The restart the gate exists for: a claude that outlived the daemon still
   // holds the credential, and an empty in-memory set would let the first
   // maintenance tick rotate the single-use refresh token out from under it.
   it("seeds a restored session as unconfirmed and holds the gate closed on it", async () => {
-    fs.writeFileSync(gateFile(), JSON.stringify({ sessions: [{ id: "cc-claude-survivor" }] }));
+    fs.writeFileSync(
+      gateFile(),
+      JSON.stringify({ sessions: [{ id: "cc-claude-survivor" }] }),
+    );
     const restored = await seedLiveClaudeSessions();
     expect(restored).toEqual([{ id: "cc-claude-survivor" }]);
     expect(hasUnconfirmedClaudeSessions()).toBe(true);
@@ -89,7 +102,10 @@ describe("live claude gate on the OAuth refresh", () => {
   });
 
   it("releases a seeded session the live tmux list no longer carries", async () => {
-    fs.writeFileSync(gateFile(), JSON.stringify({ sessions: [{ id: "cc-claude-dead" }] }));
+    fs.writeFileSync(
+      gateFile(),
+      JSON.stringify({ sessions: [{ id: "cc-claude-dead" }] }),
+    );
     await seedLiveClaudeSessions();
     let drains = 0;
     onLiveClaudeDrained(() => drains++);
@@ -100,7 +116,10 @@ describe("live claude gate on the OAuth refresh", () => {
   });
 
   it("keeps a seeded session the live tmux list still carries", async () => {
-    fs.writeFileSync(gateFile(), JSON.stringify({ sessions: [{ id: "cc-claude-alive" }] }));
+    fs.writeFileSync(
+      gateFile(),
+      JSON.stringify({ sessions: [{ id: "cc-claude-alive" }] }),
+    );
     await seedLiveClaudeSessions();
     reconcileLiveClaudeSessions([{ id: "cc-claude-alive" }]);
     expect(hasLiveClaudeOnActiveCredential()).toBe(true);
@@ -121,7 +140,9 @@ describe("live claude gate on the OAuth refresh", () => {
     // The pane's own stamp says it runs on a profile's setup-token after all.
     reconcileLiveClaudeSessions([{ id: "cc-claude-abc", account: "work" }]);
     expect(hasLiveClaudeOnActiveCredential()).toBe(false);
-    expect(liveClaudeSessions()).toEqual([{ id: "cc-claude-abc", account: "work" }]);
+    expect(liveClaudeSessions()).toEqual([
+      { id: "cc-claude-abc", account: "work" },
+    ]);
   });
 
   it("drops every id the live list omits", async () => {
@@ -136,29 +157,45 @@ describe("live claude gate on the OAuth refresh", () => {
   it("ignores a malformed gate file rather than throwing at startup", async () => {
     fs.writeFileSync(gateFile(), "{not json");
     expect(await seedLiveClaudeSessions()).toEqual([]);
-    fs.writeFileSync(gateFile(), JSON.stringify({ sessions: [{ nope: 1 }, { id: "" }, { id: "ok" }] }));
+    fs.writeFileSync(
+      gateFile(),
+      JSON.stringify({ sessions: [{ nope: 1 }, { id: "" }, { id: "ok" }] }),
+    );
     expect(await seedLiveClaudeSessions()).toEqual([{ id: "ok" }]);
   });
 });
 
 describe("unstampedClaudeHolders", () => {
-  const row = (pid: number, ppid: number, command: string, uid = 501) => ({ pid, ppid, uid, command });
+  const row = (pid: number, ppid: number, command: string, uid = 501) => ({
+    pid,
+    ppid,
+    uid,
+    command,
+  });
   const procs = [
     row(100, 1, "tmux new -s work"),
     row(101, 100, "-zsh"),
     row(102, 101, "claude"),
     row(103, 102, "/Users/d/.local/share/claude/versions/2.1.240 -p summarize"),
     row(200, 100, "-zsh"),
-    row(201, 200, "/Users/d/.codecast/bin/claude --resume abc --permission-mode bypassPermissions"),
+    row(
+      201,
+      200,
+      "/Users/d/.codecast/bin/claude --resume abc --permission-mode bypassPermissions",
+    ),
     row(300, 1, "node /opt/homebrew/bin/claude", 502),
     row(400, 1, "vim claude.md"),
   ];
 
   test("counts a claude started by hand and nothing a stamped pane already covers", () => {
-    expect(unstampedClaudeHolders(procs, new Set([200]), 501)).toEqual([{ id: "pid:102" }]);
+    expect(unstampedClaudeHolders(procs, new Set([200]), 501)).toEqual([
+      { id: "pid:102" },
+    ]);
   });
 
   test("counts the codecast claude too when its pane is not stamped", () => {
-    expect(unstampedClaudeHolders(procs, new Set(), 501).map((s) => s.id)).toEqual(["pid:102", "pid:201"]);
+    expect(
+      unstampedClaudeHolders(procs, new Set(), 501).map((s) => s.id),
+    ).toEqual(["pid:102", "pid:201"]);
   });
 });

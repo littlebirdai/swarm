@@ -4,13 +4,28 @@
 // test stops them drifting apart and quietly turning a skipped job into a pass
 // (ct-49562).
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { AREAS, ADVISORY_JOBS, GATED_JOBS, jobFlag } from "./changed-path-scope";
+import {
+  AREAS,
+  ADVISORY_JOBS,
+  GATED_JOBS,
+  jobFlag,
+} from "./changed-path-scope";
 
-const WORKFLOW_PATH = new URL("../../.github/workflows/ci.yml", import.meta.url);
+const WORKFLOW_PATH = new URL(
+  "../../.github/workflows/ci.yml",
+  import.meta.url,
+);
 // Bun's YAML parser: no dependency, and the same runtime CI pins.
 const workflow = Bun.YAML.parse(await Bun.file(WORKFLOW_PATH).text()) as {
   jobs: Record<string, any>;
@@ -21,7 +36,9 @@ const jobs = workflow.jobs;
 const SETUP_BUN = "./.github/actions/setup-bun";
 const SETUP_DEPS = ["install", "cache", "none"];
 const setupBun = Bun.YAML.parse(
-  await Bun.file(new URL("../../.github/actions/setup-bun/action.yml", import.meta.url)).text(),
+  await Bun.file(
+    new URL("../../.github/actions/setup-bun/action.yml", import.meta.url),
+  ).text(),
 ) as { inputs: Record<string, any>; runs: { using: string; steps: any[] } };
 /** The verify env var carrying a job's result. */
 const envVar = (job: string) => job.replace(/-/g, "_").toUpperCase();
@@ -43,7 +60,9 @@ describe("ci.yml job graph", () => {
 
   test("every job declares a timeout", () => {
     for (const [name, job] of Object.entries(jobs)) {
-      expect(typeof job["timeout-minutes"], `${name} timeout-minutes`).toBe("number");
+      expect(typeof job["timeout-minutes"], `${name} timeout-minutes`).toBe(
+        "number",
+      );
     }
   });
 
@@ -55,38 +74,75 @@ describe("ci.yml job graph", () => {
       const steps: any[] = job.steps ?? [];
       for (const step of steps) {
         const uses = String(step.uses ?? "");
-        expect(uses.startsWith("oven-sh/setup-bun@"), `${name} uses setup-bun directly`).toBe(false);
-        expect(uses.startsWith("actions/cache@"), `${name} caches the bun store itself`).toBe(false);
-        expect(step.run, `${name} runs the root install itself`).not.toBe("bun install");
+        expect(
+          uses.startsWith("oven-sh/setup-bun@"),
+          `${name} uses setup-bun directly`,
+        ).toBe(false);
+        expect(
+          uses.startsWith("actions/cache@"),
+          `${name} caches the bun store itself`,
+        ).toBe(false);
+        expect(step.run, `${name} runs the root install itself`).not.toBe(
+          "bun install",
+        );
       }
-      if (!steps.some((step) => /\bbun\b/.test(String(step.run ?? "")))) continue;
+      if (!steps.some((step) => /\bbun\b/.test(String(step.run ?? ""))))
+        continue;
       const setup = steps.findIndex((step) => step.uses === SETUP_BUN);
       expect(setup, `${name} sets up bun`).toBeGreaterThan(-1);
-      expect(SETUP_DEPS, `${name} deps`).toContain(steps[setup].with?.deps ?? "install");
-      expect(String(steps[setup].with?.["bun-version"] ?? "0.0.0"), `${name} bun-version`).toMatch(/^\d+\.\d+\.\d+$/);
-      const firstBun = steps.findIndex((step) => /\bbun\b/.test(String(step.run ?? "")));
-      expect(setup, `${name} sets up bun before its first bun step`).toBeLessThan(firstBun);
+      expect(SETUP_DEPS, `${name} deps`).toContain(
+        steps[setup].with?.deps ?? "install",
+      );
+      expect(
+        String(steps[setup].with?.["bun-version"] ?? "0.0.0"),
+        `${name} bun-version`,
+      ).toMatch(/^\d+\.\d+\.\d+$/);
+      const firstBun = steps.findIndex((step) =>
+        /\bbun\b/.test(String(step.run ?? "")),
+      );
+      expect(
+        setup,
+        `${name} sets up bun before its first bun step`,
+      ).toBeLessThan(firstBun);
     }
   });
 
   // The release workflows build with the same bun as CI; a pin of their own
   // is how the two drift apart.
   test("the release workflows set bun up through the same composite action", () => {
-    for (const file of ["cut-cli-release", "finalize-cli-release", "cut-extension-release"]) {
+    for (const file of [
+      "cut-cli-release",
+      "finalize-cli-release",
+      "cut-extension-release",
+    ]) {
       const release = Bun.YAML.parse(
-        readFileSync(new URL(`../../.github/workflows/${file}.yml`, import.meta.url), "utf8"),
+        readFileSync(
+          new URL(`../../.github/workflows/${file}.yml`, import.meta.url),
+          "utf8",
+        ),
       ) as { jobs: Record<string, any> };
       for (const [name, job] of Object.entries(release.jobs)) {
         const steps: any[] = job.steps ?? [];
         for (const step of steps) {
-          expect(String(step.uses ?? "").startsWith("oven-sh/setup-bun@"), `${file} ${name} uses setup-bun directly`).toBe(false);
-          expect(step.with?.["bun-version"], `${file} ${name} pins its own bun`).toBeUndefined();
+          expect(
+            String(step.uses ?? "").startsWith("oven-sh/setup-bun@"),
+            `${file} ${name} uses setup-bun directly`,
+          ).toBe(false);
+          expect(
+            step.with?.["bun-version"],
+            `${file} ${name} pins its own bun`,
+          ).toBeUndefined();
         }
-        const firstBun = steps.findIndex((step) => /\bbun\b/.test(String(step.run ?? "")));
+        const firstBun = steps.findIndex((step) =>
+          /\bbun\b/.test(String(step.run ?? "")),
+        );
         if (firstBun < 0) continue;
         const setup = steps.findIndex((step) => step.uses === SETUP_BUN);
         expect(setup, `${file} ${name} sets up bun`).toBeGreaterThan(-1);
-        expect(setup, `${file} ${name} sets up bun before its first bun step`).toBeLessThan(firstBun);
+        expect(
+          setup,
+          `${file} ${name} sets up bun before its first bun step`,
+        ).toBeLessThan(firstBun);
       }
     }
   });
@@ -96,23 +152,33 @@ describe("ci.yml job graph", () => {
     expect(setupBun.runs.using).toBe("composite");
     expect(Object.keys(setupBun.inputs)).toEqual(["deps", "bun-version"]);
     expect(setupBun.inputs.deps.default).toBe("install");
-    expect(String(setupBun.inputs["bun-version"].default)).toMatch(/^\d+\.\d+\.\d+$/);
-    const bun = steps.findIndex((step) => String(step.uses ?? "").startsWith("oven-sh/setup-bun@"));
-    const cache = steps.findIndex((step) => String(step.uses ?? "").startsWith("actions/cache@"));
+    expect(String(setupBun.inputs["bun-version"].default)).toMatch(
+      /^\d+\.\d+\.\d+$/,
+    );
+    const bun = steps.findIndex((step) =>
+      String(step.uses ?? "").startsWith("oven-sh/setup-bun@"),
+    );
+    const cache = steps.findIndex((step) =>
+      String(step.uses ?? "").startsWith("actions/cache@"),
+    );
     const install = steps.findIndex((step) => step.run === "bun install");
     expect(bun).toBe(0);
     expect(steps[bun].with["bun-version"]).toBe("${{ inputs.bun-version }}");
     expect(cache).toBeGreaterThan(bun);
     expect(steps[cache].if).toBe("inputs.deps != 'none'");
     expect(steps[cache].with.path).toBe("~/.bun/install/cache");
-    expect(steps[cache].with.key).toBe("bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}");
+    expect(steps[cache].with.key).toBe(
+      "bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}",
+    );
     expect(install).toBeGreaterThan(cache);
     expect(steps[install].if).toBe("inputs.deps == 'install'");
   });
 });
 
 describe("code_paths", () => {
-  const diffStep = jobs.code_paths.steps.find((step: any) => step.id === "diff");
+  const diffStep = jobs.code_paths.steps.find(
+    (step: any) => step.id === "diff",
+  );
 
   test("lists changed paths once, from a full but blobless history", () => {
     const checkout = jobs.code_paths.steps.find((step: any) =>
@@ -131,8 +197,12 @@ describe("code_paths", () => {
     expect(diffStep.run).toContain("--no-renames");
     expect(diffStep.run).not.toContain("set -e");
     for (const id of ["scope", "computer_scope", "injection_scope"]) {
-      const classify = jobs.code_paths.steps.find((step: any) => step.id === id);
-      expect(classify.run, id).toContain('bun scripts/ci/changed-path-scope.ts');
+      const classify = jobs.code_paths.steps.find(
+        (step: any) => step.id === id,
+      );
+      expect(classify.run, id).toContain(
+        "bun scripts/ci/changed-path-scope.ts",
+      );
       expect(classify.run, id).toContain('< "${{ steps.diff.outputs.list }}"');
       expect(classify.run, id).toContain('tee -a "$GITHUB_OUTPUT"');
     }
@@ -142,8 +212,13 @@ describe("code_paths", () => {
   // it, for each event shape, and read back the list it hands the classifiers.
   describe("diff step", () => {
     const git = (cwd: string, ...args: string[]) => {
-      const proc = Bun.spawnSync(["git", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
-      if (proc.exitCode !== 0) throw new Error(`git ${args.join(" ")}: ${proc.stderr}`);
+      const proc = Bun.spawnSync(["git", ...args], {
+        cwd,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      if (proc.exitCode !== 0)
+        throw new Error(`git ${args.join(" ")}: ${proc.stderr}`);
       return proc.stdout.toString().trim();
     };
     const scratch = mkdtempSync(join(tmpdir(), "ci-diff-"));
@@ -173,7 +248,17 @@ describe("code_paths", () => {
       writeFileSync(output, "");
       const proc = Bun.spawnSync(["bash", "-e", "-c", diffStep.run], {
         cwd: repo,
-        env: { PATH: Bun.env.PATH!, RUNNER_TEMP: temp, GITHUB_OUTPUT: output, EVENT_NAME: "", PR_BASE_SHA: "", PR_HEAD_SHA: "", PUSH_BEFORE_SHA: "", PUSH_SHA: "", ...env },
+        env: {
+          PATH: Bun.env.PATH!,
+          RUNNER_TEMP: temp,
+          GITHUB_OUTPUT: output,
+          EVENT_NAME: "",
+          PR_BASE_SHA: "",
+          PR_HEAD_SHA: "",
+          PUSH_BEFORE_SHA: "",
+          PUSH_SHA: "",
+          ...env,
+        },
         stdout: "pipe",
         stderr: "pipe",
       });
@@ -183,30 +268,62 @@ describe("code_paths", () => {
     };
 
     test("a pull request diffs its head against the merge base", () => {
-      expect(run({ EVENT_NAME: "pull_request", PR_BASE_SHA: docs, PR_HEAD_SHA: cli })).toEqual(["apps/cli/b.ts"]);
+      expect(
+        run({
+          EVENT_NAME: "pull_request",
+          PR_BASE_SHA: docs,
+          PR_HEAD_SHA: cli,
+        }),
+      ).toEqual(["apps/cli/b.ts"]);
     });
 
     test("a push diffs against the commit main pointed at before it", () => {
-      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: web, PUSH_SHA: docs })).toEqual(["docs/c.md"]);
-      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: first, PUSH_SHA: docs })).toEqual(["apps/web/a.ts", "docs/c.md"]);
+      expect(
+        run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: web, PUSH_SHA: docs }),
+      ).toEqual(["docs/c.md"]);
+      expect(
+        run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: first, PUSH_SHA: docs }),
+      ).toEqual(["apps/web/a.ts", "docs/c.md"]);
     });
 
     test("no usable base leaves the list empty, which runs every job", () => {
       const zeros = "0000000000000000000000000000000000000000";
-      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: zeros, PUSH_SHA: docs })).toEqual([]);
-      expect(run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: "1234567890123456789012345678901234567890", PUSH_SHA: docs })).toEqual([]);
+      expect(
+        run({ EVENT_NAME: "push", PUSH_BEFORE_SHA: zeros, PUSH_SHA: docs }),
+      ).toEqual([]);
+      expect(
+        run({
+          EVENT_NAME: "push",
+          PUSH_BEFORE_SHA: "1234567890123456789012345678901234567890",
+          PUSH_SHA: docs,
+        }),
+      ).toEqual([]);
       expect(run({ EVENT_NAME: "push", PUSH_SHA: docs })).toEqual([]);
-      expect(run({ EVENT_NAME: "workflow_dispatch", PUSH_SHA: docs })).toEqual([]);
-      expect(run({ EVENT_NAME: "pull_request", PR_BASE_SHA: "1234567890123456789012345678901234567890", PR_HEAD_SHA: cli })).toEqual([]);
+      expect(run({ EVENT_NAME: "workflow_dispatch", PUSH_SHA: docs })).toEqual(
+        [],
+      );
+      expect(
+        run({
+          EVENT_NAME: "pull_request",
+          PR_BASE_SHA: "1234567890123456789012345678901234567890",
+          PR_HEAD_SHA: cli,
+        }),
+      ).toEqual([]);
     });
   });
 
   test("publishes every area and every job gate the classifier emits", () => {
     const expected = [...AREAS, ...GATED_JOBS.map(jobFlag)];
     const STEP_FLAGS = ["run_test_computer", "run_test_injection"];
-    expect(Object.keys(jobs.code_paths.outputs).filter((name) => !STEP_FLAGS.includes(name))).toEqual(expected);
+    expect(
+      Object.keys(jobs.code_paths.outputs).filter(
+        (name) => !STEP_FLAGS.includes(name),
+      ),
+    ).toEqual(expected);
     for (const name of expected) {
-      expect(jobs.code_paths.outputs[name]).toBe(`\${{ steps.scope.outputs.${name} }}`);
+      expect(jobs.code_paths.outputs[name]).toBe(
+        `\${{ steps.scope.outputs.${name} }}`,
+      );
     }
   });
 });
@@ -219,7 +336,10 @@ describe("typecheck", () => {
   // `cast check mobile`. Drop it from this list when the job includes it.
   const NOT_IN_TYPECHECK_JOB = ["mobile"];
   const checkToml = Bun.TOML.parse(
-    readFileSync(new URL("../../.codecast/check.toml", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../.codecast/check.toml", import.meta.url),
+      "utf8",
+    ),
   ) as { projects: Record<string, string> };
   const typecheckRun: string = jobs.typecheck.steps.find((step: any) =>
     String(step.run ?? "").startsWith("bun run typecheck"),
@@ -229,12 +349,23 @@ describe("typecheck", () => {
     for (const [name, tsconfig] of Object.entries(checkToml.projects)) {
       if (NOT_IN_TYPECHECK_JOB.includes(name)) continue;
       const pkgDir = tsconfig.split("/").slice(0, 2).join("/");
-      const pkg = JSON.parse(readFileSync(new URL(`../../${pkgDir}/package.json`, import.meta.url), "utf8"));
-      expect(typecheckRun, `${name}: ${pkg.name} filtered`).toContain(`--filter=${pkg.name}`);
+      const pkg = JSON.parse(
+        readFileSync(
+          new URL(`../../${pkgDir}/package.json`, import.meta.url),
+          "utf8",
+        ),
+      );
+      expect(typecheckRun, `${name}: ${pkg.name} filtered`).toContain(
+        `--filter=${pkg.name}`,
+      );
       const rel = tsconfig.slice(pkgDir.length + 1);
       const script: string = pkg.scripts?.typecheck ?? "";
-      const runsIt = script.includes(`-p ${rel}`) || (rel === "tsconfig.json" && /tsc --noEmit(?! -p)/.test(script));
-      expect(runsIt, `${name}: ${pkg.name} typecheck script runs ${rel}`).toBe(true);
+      const runsIt =
+        script.includes(`-p ${rel}`) ||
+        (rel === "tsconfig.json" && /tsc --noEmit(?! -p)/.test(script));
+      expect(runsIt, `${name}: ${pkg.name} typecheck script runs ${rel}`).toBe(
+        true,
+      );
     }
   });
 });
@@ -253,9 +384,15 @@ describe("gates", () => {
   // suite into a job that concludes "success", and verify passes it.
   test("no gated job, and no step of one, may continue on error", () => {
     for (const job of GATED_JOBS) {
-      expect(jobs[job]["continue-on-error"], `${job} continue-on-error`).toBeUndefined();
+      expect(
+        jobs[job]["continue-on-error"],
+        `${job} continue-on-error`,
+      ).toBeUndefined();
       for (const [i, step] of (jobs[job].steps ?? []).entries()) {
-        expect(step["continue-on-error"], `${job} step ${i} (${step.name ?? step.uses}) continue-on-error`).toBeUndefined();
+        expect(
+          step["continue-on-error"],
+          `${job} step ${i} (${step.name ?? step.uses}) continue-on-error`,
+        ).toBeUndefined();
       }
     }
   });
@@ -267,16 +404,19 @@ describe("gates", () => {
     expect(jobs["test-always"].needs).toBeUndefined();
     expect(jobs["test-always"]["continue-on-error"]).toBeUndefined();
     expect(
-      jobs["test-always"].steps.some((step: any) => step.run === "bun scripts/ci/always-run-tests.ts"),
+      jobs["test-always"].steps.some(
+        (step: any) => step.run === "bun scripts/ci/always-run-tests.ts",
+      ),
     ).toBe(true);
     expect(jobs["ci-contract"].if).toBeUndefined();
     expect(jobs["ci-contract"].needs).toBeUndefined();
     expect(
-      jobs["ci-contract"].steps.some((step: any) => step.run === "bun test scripts/ci/"),
+      jobs["ci-contract"].steps.some(
+        (step: any) => step.run === "bun test scripts/ci/",
+      ),
     ).toBe(true);
   });
 });
-
 
 // An advisory job reports; it never gates. Two properties make that true, and
 // losing either one turns a lane nobody trusts yet into a merge blocker or,
@@ -284,7 +424,9 @@ describe("gates", () => {
 describe("advisory jobs", () => {
   test("carry continue-on-error, so a red one cannot fail the run", () => {
     for (const job of ADVISORY_JOBS) {
-      expect(jobs[job]["continue-on-error"], `${job} continue-on-error`).toBe(true);
+      expect(jobs[job]["continue-on-error"], `${job} continue-on-error`).toBe(
+        true,
+      );
     }
   });
 
@@ -299,8 +441,12 @@ describe("advisory jobs", () => {
     for (const job of ADVISORY_JOBS) {
       expect(jobs[job].needs, `${job} needs`).toEqual(["code_paths"]);
       const gate = String(jobs[job].if ?? "");
-      expect(gate, `${job} if`).toMatch(/^needs\.code_paths\.outputs\.(\w+) == 'true'$/);
-      expect(Object.keys(jobs.code_paths.outputs)).toContain(gate.match(/outputs\.(\w+)/)![1]);
+      expect(gate, `${job} if`).toMatch(
+        /^needs\.code_paths\.outputs\.(\w+) == 'true'$/,
+      );
+      expect(Object.keys(jobs.code_paths.outputs)).toContain(
+        gate.match(/outputs\.(\w+)/)![1],
+      );
     }
   });
 
@@ -327,32 +473,47 @@ describe("verify", () => {
     ]);
     // Every job is either required by verify or declared advisory. A new job
     // that is neither would run without anything checking its result.
-    expect(Object.keys(jobs)).toEqual([...verify.needs, ...ADVISORY_JOBS, "verify"]);
+    expect(Object.keys(jobs)).toEqual([
+      ...verify.needs,
+      ...ADVISORY_JOBS,
+      "verify",
+    ]);
   });
 
   test("fails when the ungated jobs did not succeed", () => {
     expect(assertStep.env.CODE_PATHS).toBe("${{ needs.code_paths.result }}");
     expect(assertStep.env.CI_CONTRACT).toBe("${{ needs.ci-contract.result }}");
     expect(assertStep.run).toContain('if [ "$CODE_PATHS" != "success" ]; then');
-    expect(assertStep.run).toContain('if [ "$CI_CONTRACT" != "success" ]; then');
+    expect(assertStep.run).toContain(
+      'if [ "$CI_CONTRACT" != "success" ]; then',
+    );
     expect(assertStep.env.TEST_ALWAYS).toBe("${{ needs.test-always.result }}");
-    expect(assertStep.run).toContain('if [ "$TEST_ALWAYS" != "success" ]; then');
+    expect(assertStep.run).toContain(
+      'if [ "$TEST_ALWAYS" != "success" ]; then',
+    );
   });
 
   test("pairs every gated job's result with the flag that gated it", () => {
     for (const job of GATED_JOBS) {
       const name = envVar(job);
-      expect(assertStep.env[name], `${job} result`).toBe(`\${{ needs.${job}.result }}`);
+      expect(assertStep.env[name], `${job} result`).toBe(
+        `\${{ needs.${job}.result }}`,
+      );
       expect(assertStep.env[`${name}_SHOULD_RUN`], `${job} gate`).toBe(
         `\${{ needs.code_paths.outputs.${jobFlag(job)} }}`,
       );
-      expect(assertStep.run).toContain(`check_job ${job} "$${name}" "$${name}_SHOULD_RUN"`);
+      expect(assertStep.run).toContain(
+        `check_job ${job} "$${name}" "$${name}_SHOULD_RUN"`,
+      );
     }
   });
 
   // Run the aggregate's own shell the way GitHub runs it (`bash -e`), so the
   // assertions are proven rather than pattern-matched.
-  const runVerify = async (results: Record<string, string>, gates: Record<string, string>) => {
+  const runVerify = async (
+    results: Record<string, string>,
+    gates: Record<string, string>,
+  ) => {
     const script = `${Bun.env.TMPDIR ?? "/tmp"}/ci-verify-${Bun.randomUUIDv7()}.sh`;
     await Bun.write(script, assertStep.run);
     const env: Record<string, string> = {
@@ -360,20 +521,31 @@ describe("verify", () => {
       CI_CONTRACT: "success",
       TEST_ALWAYS: "success",
       ...Object.fromEntries(GATED_JOBS.map((job) => [envVar(job), "skipped"])),
-      ...Object.fromEntries(GATED_JOBS.map((job) => [`${envVar(job)}_SHOULD_RUN`, "false"])),
+      ...Object.fromEntries(
+        GATED_JOBS.map((job) => [`${envVar(job)}_SHOULD_RUN`, "false"]),
+      ),
       ...results,
-      ...Object.fromEntries(Object.entries(gates).map(([k, v]) => [`${k}_SHOULD_RUN`, v])),
+      ...Object.fromEntries(
+        Object.entries(gates).map(([k, v]) => [`${k}_SHOULD_RUN`, v]),
+      ),
     };
-    const proc = Bun.spawn(["bash", "-e", script], { env, stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn(["bash", "-e", script], {
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const stdout = await new Response(proc.stdout).text();
     return { code: await proc.exited, stdout };
   };
 
   test("passes when every job matched its gate", async () => {
-    const run = await runVerify({ BUILD: "success", TEST_CLI: "success" }, {
-      BUILD: "true",
-      TEST_CLI: "true",
-    });
+    const run = await runVerify(
+      { BUILD: "success", TEST_CLI: "success" },
+      {
+        BUILD: "true",
+        TEST_CLI: "true",
+      },
+    );
     expect(run.code).toBe(0);
   });
 
@@ -414,25 +586,32 @@ describe("darwin-only cli tests", () => {
   const NOT_DARWIN = String.raw`process\.platform\s*!==?\s*["']darwin["']`;
   const IS_DARWIN = String.raw`process\.platform\s*===?\s*["']darwin["']`;
   const SKIPS_OFF_DARWIN = [
-    new RegExp(String.raw`\.skipIf\(.*${NOT_DARWIN}`),
+    new RegExp(String.raw`\.skipIf\((?:(?!\)\s*\()[\s\S])*?${NOT_DARWIN}`),
     new RegExp(String.raw`\.(if|runIf)\(\s*${IS_DARWIN}\s*\)`),
     new RegExp(String.raw`\bif\s*\(\s*${NOT_DARWIN}\s*\)\s*return\b`),
   ];
   const step = (jobs["computer-macos"].steps as any[]).find((s) =>
-    String(s.name ?? "").startsWith("Unit and e2e tests (cli files that only run on darwin)"),
+    String(s.name ?? "").startsWith(
+      "Unit and e2e tests (cli files that only run on darwin)",
+    ),
   );
-  const listed: string[] = String(step?.run ?? "").split(/\s+/).filter((t) => t.startsWith("src/"));
+  const listed: string[] = String(step?.run ?? "")
+    .split(/\s+/)
+    .filter((t) => t.startsWith("src/"));
 
   test("every cli file with a darwin-only case runs on the macOS lane", () => {
     const darwinOnly = (readdirSync(CLI_SRC, { recursive: true }) as string[])
       .filter((f) => /\.test\.tsx?$/.test(f) && !f.startsWith("computer/"))
-      .filter((f) => SKIPS_OFF_DARWIN.some((re) => re.test(readFileSync(new URL(f, CLI_SRC), "utf8"))))
+      .filter((f) =>
+        SKIPS_OFF_DARWIN.some((re) =>
+          re.test(readFileSync(new URL(f, CLI_SRC), "utf8")),
+        ),
+      )
       .map((f) => `src/${f}`)
       .sort();
     expect(listed).toEqual(darwinOnly);
   });
 });
-
 
 // The injection suites are a step of test-cli that runs only for a change to
 // the injection path. The flag comes from code_paths, whose diff covers every
@@ -440,23 +619,43 @@ describe("darwin-only cli tests", () => {
 // injection change earlier in a multi-commit push.
 describe("injection suites", () => {
   test("gate on the classifier's flag, not on a diff of their own", () => {
-    expect(jobs.code_paths.outputs.run_test_injection).toBe("${{ steps.injection_scope.outputs.run_test_injection }}");
-    const classify = jobs.code_paths.steps.find((step: any) => step.id === "injection_scope");
+    expect(jobs.code_paths.outputs.run_test_injection).toBe(
+      "${{ steps.injection_scope.outputs.run_test_injection }}",
+    );
+    const classify = jobs.code_paths.steps.find(
+      (step: any) => step.id === "injection_scope",
+    );
     expect(classify.run).toContain("--injection-only");
     const steps: any[] = jobs["test-cli"].steps;
-    const suites = steps.find((step) => String(step.name ?? "").startsWith("Injection suites"));
-    expect(suites.if).toBe("needs.code_paths.outputs.run_test_injection == 'true'");
-    for (const step of steps) expect(String(step.run ?? ""), step.name).not.toContain("git diff");
+    const suites = steps.find((step) =>
+      String(step.name ?? "").startsWith("Injection suites"),
+    );
+    expect(suites.if).toBe(
+      "needs.code_paths.outputs.run_test_injection == 'true'",
+    );
+    for (const step of steps)
+      expect(String(step.run ?? ""), step.name).not.toContain("git diff");
   });
 });
 
 // Tests under scripts/ and infra/ belong to no package job.
 describe("tests outside packages/", () => {
   test("run in test-always", () => {
-    const step = (jobs["test-always"].steps as any[]).find((s) => String(s.name ?? "").startsWith("Tests outside packages/"));
-    for (const file of ["./scripts/line.test.ts", "./infra/artifact-edge/worker.test.js", "./infra/replay-player/src/clock.test.ts", "infra/call-face-worker/turns.test.mjs"]) {
+    const step = (jobs["test-always"].steps as any[]).find((s) =>
+      String(s.name ?? "").startsWith("Tests outside packages/"),
+    );
+    for (const file of [
+      "./scripts/line.test.ts",
+      "./infra/artifact-edge/worker.test.js",
+      "./infra/replay-player/src/clock.test.ts",
+      "infra/call-face-worker/turns.test.mjs",
+    ]) {
       expect(step.run, file).toContain(file);
-      expect(Bun.file(new URL(`../../${file.replace(/^\.\//, "")}`, import.meta.url)).size, file).toBeGreaterThan(0);
+      expect(
+        Bun.file(new URL(`../../${file.replace(/^\.\//, "")}`, import.meta.url))
+          .size,
+        file,
+      ).toBeGreaterThan(0);
     }
   });
 });
@@ -464,29 +663,57 @@ describe("tests outside packages/", () => {
 describe("workflow concurrency", () => {
   test("a pull request's newer run cancels the older one, and a push to main keeps its own", () => {
     const top = workflow as any;
-    expect(top.concurrency.group).toBe("ci-${{ github.event.pull_request.number || github.sha }}");
-    expect(top.concurrency["cancel-in-progress"]).toBe("${{ github.event_name == 'pull_request' }}");
+    expect(top.concurrency.group).toBe(
+      "ci-${{ github.event.pull_request.number || github.sha }}",
+    );
+    expect(top.concurrency["cancel-in-progress"]).toBe(
+      "${{ github.event_name == 'pull_request' }}",
+    );
   });
 });
 
 describe("computer tests are opt-in", () => {
   test("the default CLI suite excludes computer tests and the dedicated command restores them", () => {
-    const config = Bun.TOML.parse(readFileSync(new URL("../../apps/cli/bunfig.toml", import.meta.url), "utf8")) as any;
-    const pkg = JSON.parse(readFileSync(new URL("../../apps/cli/package.json", import.meta.url), "utf8"));
+    const config = Bun.TOML.parse(
+      readFileSync(
+        new URL("../../apps/cli/bunfig.toml", import.meta.url),
+        "utf8",
+      ),
+    ) as any;
+    const pkg = JSON.parse(
+      readFileSync(
+        new URL("../../apps/cli/package.json", import.meta.url),
+        "utf8",
+      ),
+    );
     expect(config.test.pathIgnorePatterns).toContain("**/src/computer/**");
-    expect(pkg.scripts["test:computer"]).toBe("bun test ./src/computer/ --isolate --path-ignore-patterns=''");
+    expect(pkg.scripts["test:computer"]).toBe(
+      "bun test ./src/computer/ --isolate --path-ignore-patterns=''",
+    );
   });
 
   test("only computer changes build and exercise the helper in CI", () => {
-    expect(jobs.code_paths.outputs.run_test_computer).toBe("${{ steps.computer_scope.outputs.run_test_computer }}");
+    expect(jobs.code_paths.outputs.run_test_computer).toBe(
+      "${{ steps.computer_scope.outputs.run_test_computer }}",
+    );
     // Reads the same changed-path list as the scope step (see "diff step"
     // above), where a missing base yields an empty list the classifier runs on.
-    const classify = jobs.code_paths.steps.find((step: any) => step.id === "computer_scope");
+    const classify = jobs.code_paths.steps.find(
+      (step: any) => step.id === "computer_scope",
+    );
     expect(classify.run).toContain("--computer-only");
     expect(classify.run).toContain('< "${{ steps.diff.outputs.list }}"');
-    for (const name of ["Swift unit tests (helper core)", "Build and sign the computer helper", "Unit and e2e tests (cast computer, ungranted half)"]) {
-      const step = jobs["computer-macos"].steps.find((step: any) => step.name === name);
-      expect(step.if).toBe("needs.code_paths.outputs.run_test_computer == 'true'");
+    for (const name of [
+      "Swift unit tests (helper core)",
+      "Build and sign the computer helper",
+      "Unit and e2e tests (cast computer, ungranted half)",
+    ]) {
+      const step = jobs["computer-macos"].steps.find(
+        (step: any) => step.name === name,
+      );
+      expect(step.if).toBe(
+        "needs.code_paths.outputs.run_test_computer == 'true'",
+      );
     }
   });
 });

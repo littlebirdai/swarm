@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { stageTiles, type ParticipantTile } from "./callMedia";
 
 const tile = (identity: string, kind: "camera" | "screen", isLocal: boolean) =>
-  ({ key: `${identity}:${kind}`, identity, name: identity, isLocal, kind, track: {} as any }) as ParticipantTile;
+  ({
+    key: `${identity}:${kind}`,
+    identity,
+    name: identity,
+    isLocal,
+    kind,
+    track: {} as any,
+  }) as ParticipantTile;
 
 describe("stageTiles", () => {
   test("keeps your own screen share, after everyone else's, and every camera", () => {

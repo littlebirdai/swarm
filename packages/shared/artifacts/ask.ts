@@ -29,7 +29,8 @@ export function askAgentBrief(input: AskBriefInput): string {
   ];
   if (input.selected?.length) {
     lines.push("", `Selected (${input.selected.length}):`);
-    for (const el of input.selected.slice(0, 40)) lines.push(`  ${el.key} ${el.kind} ${formatFields(el)}`);
+    for (const el of input.selected.slice(0, 40))
+      lines.push(`  ${el.key} ${el.kind} ${formatFields(el)}`);
   }
   lines.push(
     "",
@@ -37,15 +38,33 @@ export function askAgentBrief(input: AskBriefInput): string {
     `  ${cli} read ${id}            what is there now`,
     `  ${cli} apply ${id}${input.draft ? " --draft" : ""} < ops.json   write ops: [{"k":key,"put":{"kind":...}}, {"k":key,"set":{...}}, {"k":key,"del":true}]`,
   );
-  for (const verb of Object.values(spec.verbs ?? {})) lines.push(`  ${cli} ${verb.usage.replace("<doc>", id)}   ${verb.summary.toLowerCase()}`);
-  for (const verb of Object.values(spec.remote ?? {})) lines.push(`  ${cli} ${verb.usage.replace("<doc>", id)}   ${verb.summary.toLowerCase()}`);
-  if (input.draft) lines.push("", `Write into the draft (--draft) so it can be reviewed, then leave it: the person saves or discards it.`);
-  if (input.comment_key) lines.push("", `This came from comment ${input.comment_key}. Reply there when done: ${cli} comment ${id} ${input.comment_key} "<what you did>"`);
+  for (const verb of Object.values(spec.verbs ?? {}))
+    lines.push(
+      `  ${cli} ${verb.usage.replace("<doc>", id)}   ${verb.summary.toLowerCase()}`,
+    );
+  for (const verb of Object.values(spec.remote ?? {}))
+    lines.push(
+      `  ${cli} ${verb.usage.replace("<doc>", id)}   ${verb.summary.toLowerCase()}`,
+    );
+  if (input.draft)
+    lines.push(
+      "",
+      `Write into the draft (--draft) so it can be reviewed, then leave it: the person saves or discards it.`,
+    );
+  if (input.comment_key)
+    lines.push(
+      "",
+      `This came from comment ${input.comment_key}. Reply there when done: ${cli} comment ${id} ${input.comment_key} "<what you did>"`,
+    );
   lines.push("", spec.agentGuide);
   return lines.join("\n");
 }
 
 /** The describe() text for a set of elements. */
-export function describeElements(type: ArtifactType, title: string, elements: ArtifactElement[]): string {
+export function describeElements(
+  type: ArtifactType,
+  title: string,
+  elements: ArtifactElement[],
+): string {
   return artifactSpec(type).describe(artifactView(type, title, elements));
 }

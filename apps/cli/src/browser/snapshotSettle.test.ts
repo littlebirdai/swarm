@@ -5,16 +5,29 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  captureSettled, judgeCapture, MAX_CAPTURES, parseSettleProbe, SETTLE_CAP_MS, settleProbeSource, type SettleProbe,
+  captureSettled,
+  judgeCapture,
+  MAX_CAPTURES,
+  parseSettleProbe,
+  SETTLE_CAP_MS,
+  settleProbeSource,
+  type SettleProbe,
 } from "./snapshotSettle.js";
 
 /** A page on a fake clock. `mutations` are page-relative times the DOM
  *  changed; `navigations` are clock times a new document started. */
-function fakePage(opts: { mutations?: number[]; navigations?: number[]; captureMs?: number; clockInstalled?: boolean; mutateEvery?: number }) {
+function fakePage(opts: {
+  mutations?: number[];
+  navigations?: number[];
+  captureMs?: number;
+  clockInstalled?: boolean;
+  mutateEvery?: number;
+}) {
   let clock = 1000;
   let installed = opts.clockInstalled ?? true;
   const captures: number[] = [];
-  const docStart = () => Math.max(0, ...(opts.navigations ?? []).filter((t) => t <= clock));
+  const docStart = () =>
+    Math.max(0, ...(opts.navigations ?? []).filter((t) => t <= clock));
   const lastMutation = () => {
     if (opts.mutateEvery) return clock - (clock % opts.mutateEvery);
     const seen = (opts.mutations ?? []).filter((t) => t <= clock);
@@ -41,7 +54,11 @@ function fakePage(opts: { mutations?: number[]; navigations?: number[]; captureM
         return {
           url: `https://a.test/${docStart()}`,
           sinceLoad: clock - docStart(),
-          sinceMutation: fresh ? null : last < docStart() ? clock - docStart() : clock - last,
+          sinceMutation: fresh
+            ? null
+            : last < docStart()
+              ? clock - docStart()
+              : clock - last,
           doc: `d${docStart()}`,
           goneAt: null,
           hidden: [],
@@ -53,16 +70,64 @@ function fakePage(opts: { mutations?: number[]; navigations?: number[]; captureM
 
 describe("judgeCapture", () => {
   test("a document younger than the capture navigated", () => {
-    expect(judgeCapture({ url: "", sinceLoad: 30, sinceMutation: 30, doc: null, goneAt: null, hidden: [] }, 45)).toBe("navigated");
+    expect(
+      judgeCapture(
+        {
+          url: "",
+          sinceLoad: 30,
+          sinceMutation: 30,
+          doc: null,
+          goneAt: null,
+          hidden: [],
+        },
+        45,
+      ),
+    ).toBe("navigated");
   });
   test("a mutation inside the capture window", () => {
-    expect(judgeCapture({ url: "", sinceLoad: 9000, sinceMutation: 10, doc: null, goneAt: null, hidden: [] }, 45)).toBe("mutated");
+    expect(
+      judgeCapture(
+        {
+          url: "",
+          sinceLoad: 9000,
+          sinceMutation: 10,
+          doc: null,
+          goneAt: null,
+          hidden: [],
+        },
+        45,
+      ),
+    ).toBe("mutated");
   });
   test("an old mutation is stable", () => {
-    expect(judgeCapture({ url: "", sinceLoad: 9000, sinceMutation: 400, doc: null, goneAt: null, hidden: [] }, 45)).toBe("stable");
+    expect(
+      judgeCapture(
+        {
+          url: "",
+          sinceLoad: 9000,
+          sinceMutation: 400,
+          doc: null,
+          goneAt: null,
+          hidden: [],
+        },
+        45,
+      ),
+    ).toBe("stable");
   });
   test("a freshly installed clock cannot know", () => {
-    expect(judgeCapture({ url: "", sinceLoad: 9000, sinceMutation: null, doc: null, goneAt: null, hidden: [] }, 45)).toBe("unknown");
+    expect(
+      judgeCapture(
+        {
+          url: "",
+          sinceLoad: 9000,
+          sinceMutation: null,
+          doc: null,
+          goneAt: null,
+          hidden: [],
+        },
+        45,
+      ),
+    ).toBe("unknown");
   });
 });
 
@@ -119,7 +184,10 @@ describe("captureSettled", () => {
   });
 
   test("a failed capture or probe is returned as is", () => {
-    const failed = captureSettled({ ...fakePage({}).deps, capture: () => ({ status: 1, stdout: "", stderr: "x" }) });
+    const failed = captureSettled({
+      ...fakePage({}).deps,
+      capture: () => ({ status: 1, stdout: "", stderr: "x" }),
+    });
     expect(failed.res.status).toBe(1);
     const blind = captureSettled({ ...fakePage({}).deps, probe: () => null });
     expect(blind.page).toBeNull();
@@ -128,8 +196,19 @@ describe("captureSettled", () => {
 });
 
 describe("the probe", () => {
-  const pageLike = (fields: Array<{ type?: string; name?: string; id?: string; autocomplete?: string; value: string }>) => {
-    const g: any = { location: { href: "https://a.test/x" }, performance: { now: () => 500 } };
+  const pageLike = (
+    fields: Array<{
+      type?: string;
+      name?: string;
+      id?: string;
+      autocomplete?: string;
+      value: string;
+    }>,
+  ) => {
+    const g: any = {
+      location: { href: "https://a.test/x" },
+      performance: { now: () => 500 },
+    };
     g.document = { querySelectorAll: () => fields };
     g.window = g;
     g.MutationObserver = class {
@@ -138,9 +217,14 @@ describe("the probe", () => {
     return (all = false) =>
       parseSettleProbe(
         JSON.stringify(
-          new Function("window", "location", "performance", "document", "MutationObserver", `return ${settleProbeSource(all)}`)(
-            g, g.location, g.performance, g.document, g.MutationObserver,
-          ),
+          new Function(
+            "window",
+            "location",
+            "performance",
+            "document",
+            "MutationObserver",
+            `return ${settleProbeSource(all)}`,
+          )(g, g.location, g.performance, g.document, g.MutationObserver),
         ),
       );
   };
@@ -148,7 +232,14 @@ describe("the probe", () => {
   test("is one expression that evaluates to the probe JSON in a page-like global", () => {
     const probe = pageLike([]);
     const first = probe();
-    expect(first).toEqual({ url: "https://a.test/x", sinceLoad: 500, sinceMutation: null, doc: expect.any(String), goneAt: null, hidden: [] });
+    expect(first).toEqual({
+      url: "https://a.test/x",
+      sinceLoad: 500,
+      sinceMutation: null,
+      doc: expect.any(String),
+      goneAt: null,
+      hidden: [],
+    });
     const second = probe();
     expect(second?.sinceMutation).toBe(500);
     // Same document: the token holds.
@@ -168,22 +259,62 @@ describe("the probe", () => {
     ]);
     // By type, autocomplete and whole words: passenger and passport are not passwords.
     expect(probe()?.hidden).toEqual(["hunter2", "123456", "321"]);
-    expect(probe(true)?.hidden).toEqual(["ada@a.test", "hunter2", "123456", "94110", "John", "X1234567", "321"]);
+    expect(probe(true)?.hidden).toEqual([
+      "ada@a.test",
+      "hunter2",
+      "123456",
+      "94110",
+      "John",
+      "X1234567",
+      "321",
+    ]);
   });
 
   test("reads fields inside same-origin frames and open shadow roots, and past the fiftieth field", () => {
-    const g: any = { location: { href: "https://a.test/x" }, performance: { now: () => 500 } };
+    const g: any = {
+      location: { href: "https://a.test/x" },
+      performance: { now: () => 500 },
+    };
     const doc = (fields: any[], frames: any[] = [], hosts: any[] = []) => ({
-      querySelectorAll: (sel: string) => (sel === "input, textarea" ? fields : sel === "iframe, frame" ? frames : hosts),
+      querySelectorAll: (sel: string) =>
+        sel === "input, textarea"
+          ? fields
+          : sel === "iframe, frame"
+            ? frames
+            : hosts,
     });
     const shadow = doc([{ type: "password", value: "in-shadow" }]);
     const framed = doc([{ type: "password", value: "in-frame" }]);
-    const crossOrigin = { get contentDocument() { throw new Error("SecurityError"); } };
-    const many = Array.from({ length: 60 }, (_, i) => ({ type: "password", value: `pw-${i}` }));
-    g.document = doc(many, [{ contentDocument: framed }, crossOrigin], [{ shadowRoot: shadow }, {}]);
+    const crossOrigin = {
+      get contentDocument() {
+        throw new Error("SecurityError");
+      },
+    };
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      type: "password",
+      value: `pw-${i}`,
+    }));
+    g.document = doc(
+      many,
+      [{ contentDocument: framed }, crossOrigin],
+      [{ shadowRoot: shadow }, {}],
+    );
     g.window = g;
-    g.MutationObserver = class { observe() {} };
-    const probe = parseSettleProbe(JSON.stringify(new Function("window", "location", "performance", "document", "MutationObserver", `return ${settleProbeSource()}`)(g, g.location, g.performance, g.document, g.MutationObserver)));
+    g.MutationObserver = class {
+      observe() {}
+    };
+    const probe = parseSettleProbe(
+      JSON.stringify(
+        new Function(
+          "window",
+          "location",
+          "performance",
+          "document",
+          "MutationObserver",
+          `return ${settleProbeSource()}`,
+        )(g, g.location, g.performance, g.document, g.MutationObserver),
+      ),
+    );
     expect(probe?.hidden).toHaveLength(62);
     expect(probe?.hidden).toContain("pw-59");
     expect(probe?.hidden).toContain("in-frame");
@@ -192,7 +323,11 @@ describe("the probe", () => {
 
   test("parses the engine's JSON envelope and bare output alike", () => {
     const inner = JSON.stringify({ url: "u", sinceLoad: 1, sinceMutation: 2 });
-    expect(parseSettleProbe(JSON.stringify({ success: true, data: { result: inner } }))?.url).toBe("u");
+    expect(
+      parseSettleProbe(
+        JSON.stringify({ success: true, data: { result: inner } }),
+      )?.url,
+    ).toBe("u");
     expect(parseSettleProbe(JSON.stringify(inner))?.sinceMutation).toBe(2);
     expect(parseSettleProbe("garbage")).toBeNull();
   });

@@ -5,15 +5,29 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { collectionRowValidator } from "../store/clientSyncRegistry";
 import { useConvexSync } from "./useConvexSync";
-import { countLogMissedRows, crawlResetsFor, runReconcileCrawl, syncMetaKey } from "./reconcileCrawl";
+import {
+  countLogMissedRows,
+  crawlResetsFor,
+  runReconcileCrawl,
+  syncMetaKey,
+} from "./reconcileCrawl";
 import { useBootstrapCollection } from "./useBootstrapCollection";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 import { track } from "../lib/analytics";
-import { useWorkspaceArgs, useFeederWorkspace, type WorkspaceArgs } from "./useWorkspaceArgs";
+import {
+  useWorkspaceArgs,
+  useFeederWorkspace,
+  type WorkspaceArgs,
+} from "./useWorkspaceArgs";
 import { useSyncCollection } from "./useSyncCollection";
 import { useIsSyncHost } from "./useSyncRole";
 import { isConvexId } from "../lib/entityLinks";
-import { pinDetailRows, taskCommentsRow, taskThreadStale, type TaskCommentsRow } from "../lib/detailRows";
+import {
+  pinDetailRows,
+  taskCommentsRow,
+  taskThreadStale,
+  type TaskCommentsRow,
+} from "../lib/detailRows";
 import { useServerAuthState } from "./useServerAuthSettled";
 import { useWatchEffect } from "./useWatchEffect";
 
@@ -49,13 +63,21 @@ const RECONCILE_THROTTLE_MS = 24 * 60 * 60 * 1000;
  */
 /** `next` with each entry that is value-equal to `prev`'s kept at its old
  *  reference; `prev` itself when no entry was added, dropped or changed. */
-export function keepEqualEntries<V>(prev: Record<string, V> | null | undefined, next: Record<string, V>): Record<string, V> {
+export function keepEqualEntries<V>(
+  prev: Record<string, V> | null | undefined,
+  next: Record<string, V>,
+): Record<string, V> {
   if (!prev) return next;
   let changed = Object.keys(prev).length !== Object.keys(next).length;
   const out: Record<string, V> = {};
   for (const id in next) {
-    const old = Object.prototype.hasOwnProperty.call(prev, id) ? prev[id] : undefined;
-    const kept = old !== undefined && JSON.stringify(old) === JSON.stringify(next[id]) ? old : next[id];
+    const old = Object.prototype.hasOwnProperty.call(prev, id)
+      ? prev[id]
+      : undefined;
+    const kept =
+      old !== undefined && JSON.stringify(old) === JSON.stringify(next[id])
+        ? old
+        : next[id];
     if (kept !== old) changed = true;
     out[id] = kept;
   }
@@ -76,29 +98,37 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
   // inside webList made every message re-run the multi-MB query (isolate memory
   // churn + "too many system operations" timeouts). See tasks.webTaskOrigins.
   const requestedOrigins = useRef<Set<string>>(new Set());
-  const fetchOriginBadges = useCallback((rows: any[]) => {
-    const have = useInboxStore.getState().taskOriginBadges;
-    const need: string[] = [];
-    for (const t of rows) {
-      const id = t?.created_from_conversation ?? t?.conversation_ids?.[0];
-      if (id && !have[id] && !requestedOrigins.current.has(id)) {
-        requestedOrigins.current.add(id);
-        need.push(id);
+  const fetchOriginBadges = useCallback(
+    (rows: any[]) => {
+      const have = useInboxStore.getState().taskOriginBadges;
+      const need: string[] = [];
+      for (const t of rows) {
+        const id = t?.created_from_conversation ?? t?.conversation_ids?.[0];
+        if (id && !have[id] && !requestedOrigins.current.has(id)) {
+          requestedOrigins.current.add(id);
+          need.push(id);
+        }
       }
-    }
-    for (let i = 0; i < need.length; i += ORIGIN_BADGE_CHUNK) {
-      const chunk = need.slice(i, i + ORIGIN_BADGE_CHUNK);
-      convex.query(api.tasks.webTaskOrigins, { conversation_ids: chunk })
-        .then((map: any) => {
-          if (map && Object.keys(map).length) {
-            useInboxStore.setState((s: any) => ({ taskOriginBadges: { ...s.taskOriginBadges, ...map } }));
-          }
-        })
-        // On failure, allow a retry on the next sync tick. Ids the server
-        // omitted (inaccessible/gone) stay in requestedOrigins — no refetch loop.
-        .catch(() => { for (const id of chunk) requestedOrigins.current.delete(id); });
-    }
-  }, [convex]);
+      for (let i = 0; i < need.length; i += ORIGIN_BADGE_CHUNK) {
+        const chunk = need.slice(i, i + ORIGIN_BADGE_CHUNK);
+        convex
+          .query(api.tasks.webTaskOrigins, { conversation_ids: chunk })
+          .then((map: any) => {
+            if (map && Object.keys(map).length) {
+              useInboxStore.setState((s: any) => ({
+                taskOriginBadges: { ...s.taskOriginBadges, ...map },
+              }));
+            }
+          })
+          // On failure, allow a retry on the next sync tick. Ids the server
+          // omitted (inaccessible/gone) stay in requestedOrigins — no refetch loop.
+          .catch(() => {
+            for (const id of chunk) requestedOrigins.current.delete(id);
+          });
+      }
+    },
+    [convex],
+  );
   // Gate the watermark reads on hydration so the cursor/backfill we resume from is
   // the restored one, not an empty map mid-hydration (which would re-snapshot +
   // re-crawl unnecessarily). syncMeta is on the critical hydration path.
@@ -118,30 +148,42 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
   const { ready } = useBootstrapCollection(
     "tasks",
     api.tasks.webList,
-    wsArgs === "skip" ? "skip" : { ...(wsArgs as object), include_derived: true },
-    { select: (r: any) => r?.items ?? r, liveLoadingScope: "tasks", onRows: fetchOriginBadges },
+    wsArgs === "skip"
+      ? "skip"
+      : { ...(wsArgs as object), include_derived: true },
+    {
+      select: (r: any) => r?.items ?? r,
+      liveLoadingScope: "tasks",
+      onRows: fetchOriginBadges,
+    },
   );
 
-  const activeMap = useQueryNoThrow(api.tasks.webActiveSessions,
-    wsArgs === "skip" ? "skip" : {}
+  const activeMap = useQueryNoThrow(
+    api.tasks.webActiveSessions,
+    wsArgs === "skip" ? "skip" : {},
   ).data;
 
   // Active sessions stored separately — lightweight update, no task resync.
   // Each push is a fresh decode of the whole map: keep every entry that did
   // not change at its old reference and write nothing when none did, so a
   // task row's agent pill wakes only when its own agent changes.
-  useConvexSync(activeMap, useCallback((data: any) => {
-    if (!data) return;
-    const prev = useInboxStore.getState().taskActiveSessions;
-    const next = keepEqualEntries(prev, data);
-    if (next !== prev) useInboxStore.setState({ taskActiveSessions: next });
-  }, []));
+  useConvexSync(
+    activeMap,
+    useCallback((data: any) => {
+      if (!data) return;
+      const prev = useInboxStore.getState().taskActiveSessions;
+      const next = keepEqualEntries(prev, data);
+      if (next !== prev) useInboxStore.setState({ taskActiveSessions: next });
+    }, []),
+  );
 
   // Origin badges for rows that arrive through the sync log (they never pass a
   // list callback): whenever the applier lands cargo, sweep the workspace's
   // task rows (through the enumeration chokepoint) for missing badges and
   // fetch them one-shot. Membership-only reactivity — badge data is stable.
-  const applied = useInboxStore((s) => s.syncLogApplyStats.direct + s.syncLogApplyStats.refetch);
+  const applied = useInboxStore(
+    (s) => s.syncLogApplyStats.direct + s.syncLogApplyStats.refetch,
+  );
   const workspaceTasks = useWorkspaceCollection<any>("tasks", null);
   useEffect(() => {
     if (wsArgs === "skip") return;
@@ -160,7 +202,10 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
   // Shared with the docs crawl via runReconcileCrawl — see reconcileCrawl.ts.
   const [reconcileNonce, setReconcileNonce] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setReconcileNonce((n) => n + 1), RECONCILE_THROTTLE_MS);
+    const id = setInterval(
+      () => setReconcileNonce((n) => n + 1),
+      RECONCILE_THROTTLE_MS,
+    );
     return () => clearInterval(id);
   }, []);
   // A resync cleared this watermark: relaunch, so the full backfill it asked
@@ -190,16 +235,27 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
           ...(crawlSince !== undefined ? { since: crawlSince } : {}),
           paginationOpts: { numItems: RECONCILE_PAGE_SIZE, cursor },
         });
-        return { rows: page.page ?? [], isDone: page.isDone, continueCursor: page.continueCursor };
+        return {
+          rows: page.page ?? [],
+          isDone: page.isDone,
+          continueCursor: page.continueCursor,
+        };
       },
       onPage: (rows) => {
-        if (crawlSince !== undefined) healedRef.count += countLogMissedRows(useInboxStore.getState().tasks, rows);
+        if (crawlSince !== undefined)
+          healedRef.count += countLogMissedRows(
+            useInboxStore.getState().tasks,
+            rows,
+          );
         // An authorized crawl returning a row proves it is visible again — lift
         // any exclude (feed prune, team-revocation purge) before the delta
         // merge, or the engine drops the row forever (excludes only retire on
         // snapshot omission, which delta channels never produce). This is what
         // makes a team REJOIN heal (review C7).
-        useInboxStore.getState().clearFeedExcludes("tasks", rows.map((r: any) => String(r._id)));
+        useInboxStore.getState().clearFeedExcludes(
+          "tasks",
+          rows.map((r: any) => String(r._id)),
+        );
         syncTable("tasks", rows, { isDelta: true });
         fetchOriginBadges(rows);
       },
@@ -215,8 +271,13 @@ export function useSyncTasksWithArgs(wsArgs: WorkspaceArgs) {
         // removal condition is "two weeks of zeros", and absence of nonzero
         // events is indistinguishable from the crawl not running.
         if (crawlSince !== undefined) {
-          track("synclog_crawl_healed", { namespace: "tasks", count: healedRef.count });
-          console.info(`[synclog] tasks safety-net crawl healed ${healedRef.count} row(s)`);
+          track("synclog_crawl_healed", {
+            namespace: "tasks",
+            count: healedRef.count,
+          });
+          console.info(
+            `[synclog] tasks safety-net crawl healed ${healedRef.count} row(s)`,
+          );
           healedRef.count = 0;
         }
       },
@@ -241,14 +302,29 @@ export function useSyncTasks() {
  * above covers the active workspace, so this one subscribes only when
  * `workspace` names another.
  */
-export function useSyncProjectTasks(projectId: string | null | undefined, workspace: string | null | undefined, enabled = true) {
+export function useSyncProjectTasks(
+  projectId: string | null | undefined,
+  workspace: string | null | undefined,
+  enabled = true,
+) {
   const { args } = useFeederWorkspace(workspace);
-  const teamId = args === "skip" ? "skip" : args.team_id ?? "";
+  const teamId = args === "skip" ? "skip" : (args.team_id ?? "");
   const queryArgs = useMemo(
-    () => (!enabled || !workspace || teamId === "skip" ? "skip" : { ...(teamId ? { team_id: teamId, workspace: "team" } : { workspace: "personal" }), ...(projectId ? { project_id: projectId } : {}), include_derived: true }),
+    () =>
+      !enabled || !workspace || teamId === "skip"
+        ? "skip"
+        : {
+            ...(teamId
+              ? { team_id: teamId, workspace: "team" }
+              : { workspace: "personal" }),
+            ...(projectId ? { project_id: projectId } : {}),
+            include_derived: true,
+          },
     [enabled, projectId, workspace, teamId],
   );
-  return useSyncCollection("tasks", api.tasks.webList, queryArgs as any, { select: selectTaskItems });
+  return useSyncCollection("tasks", api.tasks.webList, queryArgs as any, {
+    select: selectTaskItems,
+  });
 }
 const selectTaskItems = (r: any) => r?.items ?? r;
 
@@ -260,11 +336,19 @@ const selectTaskItems = (r: any) => r?.items ?? r;
  */
 export function useSyncMentionTasks() {
   const syncMentionIndex = useInboxStore((s) => s.syncMentionIndex);
-  const result = useQueryNoThrow(api.tasks.webMentionList, { workspace: "all" } as any).data;
+  const result = useQueryNoThrow(api.tasks.webMentionList, {
+    workspace: "all",
+  } as any).data;
 
-  useConvexSync(result, useCallback((data: any) => {
-    syncMentionIndex("tasks", data?.items ?? []);
-  }, [syncMentionIndex]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        syncMentionIndex("tasks", data?.items ?? []);
+      },
+      [syncMentionIndex],
+    ),
+  );
 }
 
 /** Store one task detail row (taskMining.webGetTaskDetail shape: the task plus
@@ -273,7 +357,10 @@ export function useSyncMentionTasks() {
  *  The task lands thin in `tasks` and its thread in `taskComments`
  *  (lib/detailRows): this is one of the surfaces that opens a thread, so it
  *  writes the row whether or not the store held one. */
-export function ingestTaskDetail(d: any, opts?: { partialComments?: boolean }): void {
+export function ingestTaskDetail(
+  d: any,
+  opts?: { partialComments?: boolean },
+): void {
   // Only persist genuine tasks. The detail route can be loaded with a foreign
   // id (/tasks/<conversationId>); storing whatever comes back plants a phantom
   // task in the never-pruned cache (see validRow in clientSyncRegistry).
@@ -295,11 +382,17 @@ export function ingestTaskDetail(d: any, opts?: { partialComments?: boolean }): 
       // next detail push. A partial set is not the thread as of the task's
       // last comment either, so it keeps the stamp it had (none: unread).
       const incoming = new Set(comments.map((c: any) => String(c._id)));
-      const keep = (prev?.comments ?? []).filter((c: any) => !incoming.has(String(c._id)));
+      const keep = (prev?.comments ?? []).filter(
+        (c: any) => !incoming.has(String(c._id)),
+      );
       thread = {
         ...thread,
         as_of: prev?.as_of ?? 0,
-        comments: keep.length ? [...keep, ...comments].sort((a: any, b: any) => a.created_at - b.created_at) : comments,
+        comments: keep.length
+          ? [...keep, ...comments].sort(
+              (a: any, b: any) => a.created_at - b.created_at,
+            )
+          : comments,
       };
     }
     store.syncTable("taskComments", [thread]);
@@ -312,13 +405,22 @@ export function ingestTaskDetail(d: any, opts?: { partialComments?: boolean }): 
   // tasks its graph names (lib/taskGraph graphNeighbors) so Blocked by reads
   // their live state. Each joins the one tasks collection, merged over any
   // row the list already holds so its enriched fields survive.
-  const linked = [...(Array.isArray(subtasks) ? subtasks : []), ...(Array.isArray(graph_tasks) ? graph_tasks : [])];
+  const linked = [
+    ...(Array.isArray(subtasks) ? subtasks : []),
+    ...(Array.isArray(graph_tasks) ? graph_tasks : []),
+  ];
   if (linked.length) {
     const tasks = useInboxStore.getState().tasks as Record<string, any>;
     for (const child of linked) {
       if (!child || !collectionRowValidator("tasks")!(child)) continue;
       const prev = tasks[String(child._id)];
-      useInboxStore.getState().syncRecord("tasks", String(child._id), prev ? { ...prev, ...child } : child);
+      useInboxStore
+        .getState()
+        .syncRecord(
+          "tasks",
+          String(child._id),
+          prev ? { ...prev, ...child } : child,
+        );
     }
   }
 }
@@ -326,7 +428,7 @@ export function ingestTaskDetail(d: any, opts?: { partialComments?: boolean }): 
 export function useSyncTaskDetail(id?: string) {
   const data = useQueryNoThrow(
     api.taskMining.webGetTaskDetail,
-    id ? { id: id as any } : "skip"
+    id ? { id: id as any } : "skip",
   ).data;
 
   useConvexSync(data, ingestTaskDetail);
@@ -342,8 +444,17 @@ const NO_COMMENTS: any[] = [];
  *  thread changes. A mounted reader has the thread on screen, so it holds it
  *  against the collection's cap (lib/detailRows pinDetailRows). */
 export function useTaskComments(taskId: string | null | undefined): any[] {
-  useWatchEffect(() => (taskId ? pinDetailRows("taskComments", [taskId]) : undefined), [taskId]);
-  return useInboxStore((s) => (taskId ? (s.taskComments as Record<string, TaskCommentsRow>)[taskId]?.comments : undefined)) ?? NO_COMMENTS;
+  useWatchEffect(
+    () => (taskId ? pinDetailRows("taskComments", [taskId]) : undefined),
+    [taskId],
+  );
+  return (
+    useInboxStore((s) =>
+      taskId
+        ? (s.taskComments as Record<string, TaskCommentsRow>)[taskId]?.comments
+        : undefined,
+    ) ?? NO_COMMENTS
+  );
 }
 
 // What this window has asked the server for, keyed by the signed-in person
@@ -384,17 +495,34 @@ export function resetTaskThreadReads(): void {
  * which is not "these tasks have no thread". The threads it reads are on
  * screen, so it holds them against the collection's cap.
  */
-export function useSyncTaskThreads(tasks: ReadonlyArray<{ _id: string; last_comment_at?: number | null }>, enabled = true): void {
+export function useSyncTaskThreads(
+  tasks: ReadonlyArray<{ _id: string; last_comment_at?: number | null }>,
+  enabled = true,
+): void {
   const convex = useConvex();
-  const threads = useInboxStore((s) => s.taskComments) as Record<string, TaskCommentsRow>;
-  const principal = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : ""));
+  const threads = useInboxStore((s) => s.taskComments) as Record<
+    string,
+    TaskCommentsRow
+  >;
+  const principal = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : "",
+  );
   const auth = useServerAuthState();
   const confirmed = auth.settled && !auth.identityLost;
   // Read when an answer lands: the socket may have lost its identity while the read was out.
   const confirmedRef = useRef(confirmed);
   confirmedRef.current = confirmed;
 
-  useWatchEffect(() => (enabled ? pinDetailRows("taskComments", tasks.map((t) => String(t._id))) : undefined), [tasks, enabled]);
+  useWatchEffect(
+    () =>
+      enabled
+        ? pinDetailRows(
+            "taskComments",
+            tasks.map((t) => String(t._id)),
+          )
+        : undefined,
+    [tasks, enabled],
+  );
 
   useWatchEffect(() => {
     if (!enabled || !confirmed) return;
@@ -407,13 +535,19 @@ export function useSyncTaskThreads(tasks: ReadonlyArray<{ _id: string; last_comm
       const stamp = t.last_comment_at ?? 0;
       if (threadsInFlight.get(key) === stamp) continue;
       const leftOut = threadsLeftOut.get(key);
-      if (leftOut && leftOut.stamp === stamp && now - leftOut.at < LEFT_OUT_RETRY_MS) continue;
+      if (
+        leftOut &&
+        leftOut.stamp === stamp &&
+        now - leftOut.at < LEFT_OUT_RETRY_MS
+      )
+        continue;
       threadsInFlight.set(key, stamp);
       need.push({ id, key, stamp });
     }
     if (!need.length) return;
     const chunks: Array<typeof need> = [];
-    for (let i = 0; i < need.length; i += THREAD_CHUNK) chunks.push(need.slice(i, i + THREAD_CHUNK));
+    for (let i = 0; i < need.length; i += THREAD_CHUNK)
+      chunks.push(need.slice(i, i + THREAD_CHUNK));
     void (async () => {
       const rows: any[] = [];
       // The tasks a confirmed caller's answer left out.
@@ -423,7 +557,12 @@ export function useSyncTaskThreads(tasks: ReadonlyArray<{ _id: string; last_comm
         while (next < chunks.length) {
           const chunk = chunks[next++];
           try {
-            const items: any[] = (await convex.query(api.tasks.webGetByIds, { ids: chunk.map((c) => c.id) }))?.items ?? [];
+            const items: any[] =
+              (
+                await convex.query(api.tasks.webGetByIds, {
+                  ids: chunk.map((c) => c.id),
+                })
+              )?.items ?? [];
             rows.push(...items);
             // An answer that arrives while the socket has no identity is a
             // stranger's: it names no task, and says nothing about any.
@@ -436,11 +575,19 @@ export function useSyncTaskThreads(tasks: ReadonlyArray<{ _id: string; last_comm
           }
         }
       };
-      await Promise.all(Array.from({ length: Math.min(THREAD_CALLS_AT_ONCE, chunks.length) }, worker));
+      await Promise.all(
+        Array.from(
+          { length: Math.min(THREAD_CALLS_AT_ONCE, chunks.length) },
+          worker,
+        ),
+      );
       if (rows.length) holdTaskThreads(rows);
       const at = Date.now();
-      for (const c of leftOut) threadsLeftOut.set(c.key, { stamp: c.stamp, at });
-      for (const c of need) if (threadsInFlight.get(c.key) === c.stamp) threadsInFlight.delete(c.key);
+      for (const c of leftOut)
+        threadsLeftOut.set(c.key, { stamp: c.stamp, at });
+      for (const c of need)
+        if (threadsInFlight.get(c.key) === c.stamp)
+          threadsInFlight.delete(c.key);
     })();
   }, [convex, tasks, threads, enabled, confirmed, principal]);
 }
@@ -451,7 +598,9 @@ export function holdTaskThreads(rows: any[]): void {
   const store = useInboxStore.getState();
   const held = store.taskComments as Record<string, TaskCommentsRow>;
   const now = Date.now();
-  const threadRows = rows.map((row) => taskCommentsRow(row, held[String(row._id)], now)).filter((r): r is TaskCommentsRow => !!r);
+  const threadRows = rows
+    .map((row) => taskCommentsRow(row, held[String(row._id)], now))
+    .filter((r): r is TaskCommentsRow => !!r);
   if (threadRows.length) store.syncTable("taskComments", threadRows);
   store.syncTable("tasks", rows, { isDelta: true });
 }

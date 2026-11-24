@@ -55,7 +55,10 @@ export function buildServersUrl(opts: McpRegistryOptions = {}): string {
   const base = (opts.baseUrl ?? MCP_REGISTRY_BASE_URL).replace(/\/+$/, "");
   const params = new URLSearchParams({ version: "latest" });
   if (opts.limit !== undefined && Number.isFinite(opts.limit)) {
-    params.set("limit", String(Math.max(1, Math.min(100, Math.floor(opts.limit)))));
+    params.set(
+      "limit",
+      String(Math.max(1, Math.min(100, Math.floor(opts.limit)))),
+    );
   }
   if (opts.updatedSince) params.set("updated_since", opts.updatedSince);
   if (opts.search) params.set("search", opts.search);
@@ -64,7 +67,10 @@ export function buildServersUrl(opts: McpRegistryOptions = {}): string {
 }
 
 /** The URL for one server's current version. */
-export function buildServerDetailUrl(name: string, opts: McpRegistryOptions = {}): string {
+export function buildServerDetailUrl(
+  name: string,
+  opts: McpRegistryOptions = {},
+): string {
   const base = (opts.baseUrl ?? MCP_REGISTRY_BASE_URL).replace(/\/+$/, "");
   return `${base}/v0/servers/${encodeURIComponent(name)}/versions/latest`;
 }
@@ -86,10 +92,13 @@ async function getJson(
       ));
   try {
     const response = await doFetch(url);
-    if (!response.ok) return { error: `registry returned HTTP ${response.status}` };
+    if (!response.ok)
+      return { error: `registry returned HTTP ${response.status}` };
     return { body: await response.json() };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "registry request failed" };
+    return {
+      error: err instanceof Error ? err.message : "registry request failed",
+    };
   }
 }
 
@@ -99,7 +108,9 @@ export interface McpRegistryPageResult {
 }
 
 /** One page. Never throws: a failure is an empty page plus a phrase. */
-export async function fetchRegistryPage(opts: McpRegistryOptions = {}): Promise<McpRegistryPageResult> {
+export async function fetchRegistryPage(
+  opts: McpRegistryOptions = {},
+): Promise<McpRegistryPageResult> {
   const { body, error } = await getJson(buildServersUrl(opts), opts);
   if (error) return { page: { servers: [] }, error };
   return { page: parseRegistryPage(body) };
@@ -126,7 +137,11 @@ export interface McpRegistryListOptions extends McpRegistryOptions {
  * whole catalog; the rest all mean it is a prefix, and a caller that renders
  * "247 servers" off a prefix is stating something false.
  */
-export type McpRegistryStopReason = "complete" | "page_cap" | "repeated_cursor" | "error";
+export type McpRegistryStopReason =
+  | "complete"
+  | "page_cap"
+  | "repeated_cursor"
+  | "error";
 
 export interface McpRegistryListResult {
   servers: McpRegistryServer[];
@@ -180,7 +195,10 @@ export async function listRegistryServers(
     }
     for (const server of result.page.servers) {
       if (!byName.has(server.name)) byName.set(server.name, server);
-      if (server.updatedAt && (!newestUpdatedAt || server.updatedAt > newestUpdatedAt)) {
+      if (
+        server.updatedAt &&
+        (!newestUpdatedAt || server.updatedAt > newestUpdatedAt)
+      ) {
         newestUpdatedAt = server.updatedAt;
       }
     }
@@ -232,7 +250,8 @@ export const UNINTEGRATED_MCP_DIRECTORIES = [
   { name: "Glama", reason: "terms of use unread" },
   {
     name: "PulseMCP",
-    reason: "open endpoint on a published failure schedule reaching 100% in September 2026; its successor is key gated",
+    reason:
+      "open endpoint on a published failure schedule reaching 100% in September 2026; its successor is key gated",
   },
   { name: "mcp.so", reason: "no verifiable API" },
 ] as const;

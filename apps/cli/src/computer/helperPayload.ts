@@ -14,7 +14,9 @@ import linuxHelperSource from "./linux/helper.py" with { type: "text" };
  * works and reports the feature unavailable.
  */
 export function computerHelperTar(): Buffer | null {
-  const asset = path.isAbsolute(helperTar) ? helperTar : fileURLToPath(new URL(helperTar, import.meta.url));
+  const asset = path.isAbsolute(helperTar)
+    ? helperTar
+    : fileURLToPath(new URL(helperTar, import.meta.url));
   const bytes = fs.existsSync(asset) ? fs.readFileSync(asset) : Buffer.alloc(0);
   return bytes.length > 0 ? bytes : null;
 }
@@ -29,7 +31,9 @@ export function computerLinuxHelperSource(): string {
 }
 
 /** This CLI can put a helper on disk for the platform it runs on. */
-export function helperIsEmbedded(platform: NodeJS.Platform = process.platform): boolean {
+export function helperIsEmbedded(
+  platform: NodeJS.Platform = process.platform,
+): boolean {
   if (platform === "linux") return linuxHelperSource.length > 0;
   return computerHelperTar() !== null;
 }

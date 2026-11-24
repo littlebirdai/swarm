@@ -27,7 +27,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { CloudHost } from "../browser/cloudHost.js";
 import { isRemoteDevice } from "../remote/device.js";
-import { sshDestination, sshIdentity, type RemoteHost } from "../remote/session-move.js";
+import {
+  sshDestination,
+  sshIdentity,
+  type RemoteHost,
+} from "../remote/session-move.js";
 
 /** Where the host daemon and every session on the box find the forwarded agent. */
 export const HOST_AGENT_SOCK_REL = ".codecast/ssh-agent.sock";
@@ -51,17 +55,29 @@ export const AGENT_BRIDGE_REMOTE =
  * session, never the shared control socket, so it neither dies with that
  * socket nor counts as more than one connection to the idle watchdog.
  */
-export function heldSshArgs(host: RemoteHost, remoteCommand: string, opts: { forwardAgent?: boolean; extra?: string[] } = {}): string[] {
+export function heldSshArgs(
+  host: RemoteHost,
+  remoteCommand: string,
+  opts: { forwardAgent?: boolean; extra?: string[] } = {},
+): string[] {
   return [
     ...sshIdentity(host),
-    "-o", "IdentitiesOnly=yes",
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "BatchMode=yes",
-    "-o", "ConnectTimeout=20",
-    "-o", "ServerAliveInterval=15",
-    "-o", "ServerAliveCountMax=3",
-    "-o", "ControlMaster=no",
-    "-o", "ControlPath=none",
+    "-o",
+    "IdentitiesOnly=yes",
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=20",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+    "-o",
+    "ControlMaster=no",
+    "-o",
+    "ControlPath=none",
     ...(opts.forwardAgent ? ["-o", "ForwardAgent=yes"] : []),
     ...(opts.extra ?? []),
     "-T",
@@ -81,8 +97,17 @@ export function agentBridgeArgs(host: RemoteHost): string[] {
  * agent to forward, and the host's watchdog is new enough not to be kept
  * awake by the bridge's own connection.
  */
-export function shouldRunBridge(cloud: CloudHost, reachable: boolean, laptopAgentSock: string | undefined): boolean {
-  return cloud.forwardAgent === true && reachable && !!laptopAgentSock && (cloud.watchdogVersion ?? 0) >= AGENT_BRIDGE_MIN_WATCHDOG;
+export function shouldRunBridge(
+  cloud: CloudHost,
+  reachable: boolean,
+  laptopAgentSock: string | undefined,
+): boolean {
+  return (
+    cloud.forwardAgent === true &&
+    reachable &&
+    !!laptopAgentSock &&
+    (cloud.watchdogVersion ?? 0) >= AGENT_BRIDGE_MIN_WATCHDOG
+  );
 }
 
 /**
@@ -90,8 +115,16 @@ export function shouldRunBridge(cloud: CloudHost, reachable: boolean, laptopAgen
  * host's public address or on the address the laptop dials now (its tailnet
  * IP); one on the public address after a tailnet fallback is not stale.
  */
-export function bridgeAddressStale(cloud: CloudHost, bridgeAddress: string, dialAddress: string): boolean {
-  return !!cloud.address && bridgeAddress !== cloud.address && bridgeAddress !== dialAddress;
+export function bridgeAddressStale(
+  cloud: CloudHost,
+  bridgeAddress: string,
+  dialAddress: string,
+): boolean {
+  return (
+    !!cloud.address &&
+    bridgeAddress !== cloud.address &&
+    bridgeAddress !== dialAddress
+  );
 }
 
 /** The laptop daemon's bridge maintenance cadence. */
@@ -101,7 +134,10 @@ export const AGENT_BRIDGE_MAX_BACKOFF_MS = 5 * 60 * 1000;
 /** A bridge that lived this long was working: its exit starts the backoff over. */
 export const AGENT_BRIDGE_HEALTHY_MS = 2 * AGENT_BRIDGE_TICK_MS;
 
-export interface BridgeBackoff { failures: number; notBefore: number }
+export interface BridgeBackoff {
+  failures: number;
+  notBefore: number;
+}
 
 /**
  * The backoff after a bridge exited on its own: consecutive fast failures
@@ -111,9 +147,18 @@ export interface BridgeBackoff { failures: number; notBefore: number }
  * past AGENT_BRIDGE_HEALTHY_MS was working, so its exit counts as the first
  * failure again.
  */
-export function nextBridgeBackoff(prev: BridgeBackoff | undefined, livedMs: number, now = Date.now(), firstWaitMs = AGENT_BRIDGE_TICK_MS): BridgeBackoff {
-  const failures = livedMs >= AGENT_BRIDGE_HEALTHY_MS ? 1 : (prev?.failures ?? 0) + 1;
-  const wait = Math.min(AGENT_BRIDGE_MAX_BACKOFF_MS, firstWaitMs * 2 ** (failures - 1));
+export function nextBridgeBackoff(
+  prev: BridgeBackoff | undefined,
+  livedMs: number,
+  now = Date.now(),
+  firstWaitMs = AGENT_BRIDGE_TICK_MS,
+): BridgeBackoff {
+  const failures =
+    livedMs >= AGENT_BRIDGE_HEALTHY_MS ? 1 : (prev?.failures ?? 0) + 1;
+  const wait = Math.min(
+    AGENT_BRIDGE_MAX_BACKOFF_MS,
+    firstWaitMs * 2 ** (failures - 1),
+  );
   return { failures, notBefore: now + wait };
 }
 

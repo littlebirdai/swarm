@@ -39,7 +39,12 @@ import {
   toRemoteHost,
   type CloudHost,
 } from "../browser/cloudHost.js";
-import { describeHostSetup, runHostSetup, type HostSetupReport, type ResolvedHostSpec } from "./hostSetup.js";
+import {
+  describeHostSetup,
+  runHostSetup,
+  type HostSetupReport,
+  type ResolvedHostSpec,
+} from "./hostSetup.js";
 import { readLocalConfig } from "../config/readLocalConfig.js";
 import { isCloudMirrorEnabled, type Config } from "../config/types.js";
 import {
@@ -64,11 +69,23 @@ import {
   type CredentialPushOutcome,
   type RemoteHost,
 } from "../remote/session-move.js";
-import { ensureHostGitReady, grantAccountKey, noPushReason, parseOrigin, type HostGitState } from "./hostGit.js";
+import {
+  ensureHostGitReady,
+  grantAccountKey,
+  noPushReason,
+  parseOrigin,
+  type HostGitState,
+} from "./hostGit.js";
 import { isGitHubHost, originHost } from "./gitOrigin.js";
 
 const AUTO_GRANT_RETRY_MS = 24 * 3600_000;
-import { requiredHostTools, runHostTools, summarizeHostTools, type HostToolRequirement, type HostToolsReport } from "./hostTools.js";
+import {
+  requiredHostTools,
+  runHostTools,
+  summarizeHostTools,
+  type HostToolRequirement,
+  type HostToolsReport,
+} from "./hostTools.js";
 import { readProjectRegistrations } from "./mirror/projectRefresh.js";
 import type { HostCastPlatform } from "../hosts/updateHost.js";
 import { HostCastBehind } from "../hosts/installRelease.js";
@@ -85,7 +102,13 @@ import {
   type CloudSeed,
 } from "./transfer.js";
 import { ROOT_WORKSPACE_NAME } from "../workspace/lifecycle.js";
-import { otherSessionInCheckout, sharedCheckoutOccupant, type CheckoutOccupantRow, type CloudStartFrom, type CloudWorkspaceMode } from "@codecast/shared/contracts";
+import {
+  otherSessionInCheckout,
+  sharedCheckoutOccupant,
+  type CheckoutOccupantRow,
+  type CloudStartFrom,
+  type CloudWorkspaceMode,
+} from "@codecast/shared/contracts";
 export { refreshRemoteCheckout, type CloudSeed } from "./transfer.js";
 export type { HostGitState } from "./hostGit.js";
 export type { CloudStartFrom } from "@codecast/shared/contracts";
@@ -127,29 +150,63 @@ export interface PreparedHost {
  * lives under `<super>/.git/modules/<name>`, so there the toplevel is the
  * repo. Outside a repo both are the cwd (the manifest preflight then decides).
  */
-export function resolveSeedRoots(cwd: string): { seedCwd: string; repoRoot: string } {
+export function resolveSeedRoots(cwd: string): {
+  seedCwd: string;
+  repoRoot: string;
+} {
   const out = (args: string[]): string | undefined => {
-    const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf-8", stdio: "pipe" });
+    const r = spawnSync("git", ["-C", cwd, ...args], {
+      encoding: "utf-8",
+      stdio: "pipe",
+    });
     return r.error || r.status !== 0 ? undefined : r.stdout.trim() || undefined;
   };
   const seedCwd = out(["rev-parse", "--show-toplevel"]);
   if (!seedCwd) return { seedCwd: cwd, repoRoot: cwd };
-  const common = out(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
-  return { seedCwd, repoRoot: common && path.basename(common) === ".git" ? path.dirname(common) : seedCwd };
+  const common = out([
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-common-dir",
+  ]);
+  return {
+    seedCwd,
+    repoRoot:
+      common && path.basename(common) === ".git"
+        ? path.dirname(common)
+        : seedCwd,
+  };
 }
 
 /** `--from checkout|origin-main` (either spelling) to the wire value; garbage throws. */
-export function parseStartFrom(value: string | null | undefined): CloudStartFrom {
-  if (value === undefined || value === null || value === "" || value === "checkout") return "checkout";
+export function parseStartFrom(
+  value: string | null | undefined,
+): CloudStartFrom {
+  if (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    value === "checkout"
+  )
+    return "checkout";
   if (value === "origin-main" || value === "origin_main") return "origin_main";
-  throw new Error(`--from takes checkout or origin-main, not ${JSON.stringify(value)}`);
+  throw new Error(
+    `--from takes checkout or origin-main, not ${JSON.stringify(value)}`,
+  );
 }
 
 /** Two origins name the same repository (host + path, ignoring scheme, user, `.git`, trailing slash). */
-export function sameGitOrigin(a: string | null | undefined, b: string | null | undefined): boolean {
+export function sameGitOrigin(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
   if (!a || !b) return true;
-  const pa = parseOrigin(a), pb = parseOrigin(b);
-  if (pa && pb) return pa.host === pb.host && pa.repo.replace(/\/+$/, "") === pb.repo.replace(/\/+$/, "");
+  const pa = parseOrigin(a),
+    pb = parseOrigin(b);
+  if (pa && pb)
+    return (
+      pa.host === pb.host &&
+      pa.repo.replace(/\/+$/, "") === pb.repo.replace(/\/+$/, "")
+    );
   return a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
 }
 
@@ -166,9 +223,16 @@ type Progress = (message: string) => void;
 export { remoteRepoPath } from "../remote/session-move.js";
 
 /** The box's codecast device id, read from its own `cast remote hosts` line. */
-export function readHostDeviceId(host: RemoteHost, run = ssh): string | undefined {
+export function readHostDeviceId(
+  host: RemoteHost,
+  run = ssh,
+): string | undefined {
   try {
-    const line = run(host, `${HOST_PATH}; cast remote hosts 2>/dev/null | head -1`, 60_000);
+    const line = run(
+      host,
+      `${HOST_PATH}; cast remote hosts 2>/dev/null | head -1`,
+      60_000,
+    );
     return /\(([0-9a-f-]{8,})\)/.exec(line)?.[1];
   } catch {
     return undefined;
@@ -180,7 +244,10 @@ export function readHostDeviceId(host: RemoteHost, run = ssh): string | undefine
  * over SSH — and then remembered, so the daemon can map a wake request (which
  * names a device) back to the instance it must boot.
  */
-export async function learnHostDeviceId(cloud: CloudHost, host: RemoteHost): Promise<string | undefined> {
+export async function learnHostDeviceId(
+  cloud: CloudHost,
+  host: RemoteHost,
+): Promise<string | undefined> {
   if (cloud.deviceId) return cloud.deviceId;
   const deviceId = readHostDeviceId(host);
   if (deviceId) patchHost(cloud.id, { deviceId });
@@ -213,26 +280,51 @@ export async function mirrorForPrepare(
   const config = opts.config === undefined ? readLocalConfig() : opts.config;
   if (!isCloudMirrorEnabled(config)) return "config mirror disabled";
   try {
-    const mirror = opts.mirror ?? (await import("./mirror/push.js")).mirrorHomeToHost;
-    const r = await mirror(host, { onProgress: log, force: opts.force, config, localGitRoot: opts.localGitRoot });
+    const mirror =
+      opts.mirror ?? (await import("./mirror/push.js")).mirrorHomeToHost;
+    const r = await mirror(host, {
+      onProgress: log,
+      force: opts.force,
+      config,
+      localGitRoot: opts.localGitRoot,
+    });
     let line: string;
     // A file the host edited is newer there, not missing: the host keeps it and
     // the session starts. Only a file that could not be written stops it.
-    if (r.result?.errors.length) throw new Error(r.result.errors.map((e) => `${e.path}: ${e.error}`).join("; "));
-    const hostEditsOnly = !r.pushed && !!r.result && !r.result.refused && !r.result.errors.length && r.result.host_edited.length > 0;
-    if (r.skipped === "in step") line = `config mirror in step (${(r.hash ?? "").slice(0, 8)})`;
+    if (r.result?.errors.length)
+      throw new Error(
+        r.result.errors.map((e) => `${e.path}: ${e.error}`).join("; "),
+      );
+    const hostEditsOnly =
+      !r.pushed &&
+      !!r.result &&
+      !r.result.refused &&
+      !r.result.errors.length &&
+      r.result.host_edited.length > 0;
+    if (r.skipped === "in step")
+      line = `config mirror in step (${(r.hash ?? "").slice(0, 8)})`;
     else if (r.pushed || hostEditsOnly) {
       const extra = [
-        r.result?.host_edited.length ? `${r.result.host_edited.length} host-edited kept (${r.result.host_edited.slice(0, 3).join(", ")}${r.result.host_edited.length > 3 ? ", …" : ""})` : "",
+        r.result?.host_edited.length
+          ? `${r.result.host_edited.length} host-edited kept (${r.result.host_edited.slice(0, 3).join(", ")}${r.result.host_edited.length > 3 ? ", …" : ""})`
+          : "",
         r.result?.pruned.length ? `${r.result.pruned.length} pruned` : "",
         r.result?.errors.length ? `${r.result.errors.length} error(s)` : "",
-      ].filter(Boolean).join(", ");
+      ]
+        .filter(Boolean)
+        .join(", ");
       line = `mirrored ${r.changed} changed config file(s) (${(r.hash ?? "").slice(0, 8)})${extra ? ` — ${extra}` : ""}`;
     } else {
-      const hint = r.reason === "unprovisioned" ? ` — cast hosts provision ${cloudId}`
-        : r.reason === "other_device" ? " — cast hosts sync --take-over to take it over"
-        : r.reason === "other_home" ? " — the bundle was built for a different home directory than the host's"
-        : r.reason?.startsWith("host cast older") ? ` ${cloudId}` : "";
+      const hint =
+        r.reason === "unprovisioned"
+          ? ` — cast hosts provision ${cloudId}`
+          : r.reason === "other_device"
+            ? " — cast hosts sync --take-over to take it over"
+            : r.reason === "other_home"
+              ? " — the bundle was built for a different home directory than the host's"
+              : r.reason?.startsWith("host cast older")
+                ? ` ${cloudId}`
+                : "";
       throw new Error(`${r.reason ?? "incomplete mirror"}${hint}`);
     }
     log(line);
@@ -254,14 +346,24 @@ async function mirrorProjectContext(
   localGitRoot: string,
   targetRoot: string,
   log: Progress,
-  opts: { cloudId?: string; previousAddress?: string; mirroredAlready?: boolean } = {},
+  opts: {
+    cloudId?: string;
+    previousAddress?: string;
+    mirroredAlready?: boolean;
+  } = {},
 ): Promise<void> {
   if (!isCloudMirrorEnabled(readLocalConfig())) return;
   const { registerProjectContext } = await import("./mirror/projectRefresh.js");
-  const changed = await registerProjectContext(host, localGitRoot, targetRoot, { hostId: opts.cloudId, previousAddress: opts.previousAddress });
+  const changed = await registerProjectContext(host, localGitRoot, targetRoot, {
+    hostId: opts.cloudId,
+    previousAddress: opts.previousAddress,
+  });
   // An already registered target was in the push readyHostHome just made; a
   // second full collect and sync of the home only repeats it.
-  if (changed || !opts.mirroredAlready) await mirrorForPrepare(host, opts.cloudId ?? host.address, log, { localGitRoot });
+  if (changed || !opts.mirroredAlready)
+    await mirrorForPrepare(host, opts.cloudId ?? host.address, log, {
+      localGitRoot,
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +385,11 @@ export interface AgentLoginsSources {
  * no per-worktree entry). Pure, so tests can pin that nothing else in it is
  * path-derived.
  */
-export function agentLoginsBundleFor(host: RemoteHost, localGitRoot: string | undefined, sources: AgentLoginsSources): ReturnType<typeof collectAgentAuthBundle> {
+export function agentLoginsBundleFor(
+  host: RemoteHost,
+  localGitRoot: string | undefined,
+  sources: AgentLoginsSources,
+): ReturnType<typeof collectAgentAuthBundle> {
   return collectAgentAuthBundle({
     home: sources.home,
     env: sources.env,
@@ -333,7 +439,10 @@ export interface PushAgentLoginsOptions {
  * `cast hosts sync-auth`). Never throws: a host with the Claude login alone
  * is still useful. Every skip, kept file and refusal is logged.
  */
-export function pushAgentLoginsNow(host: RemoteHost, opts: PushAgentLoginsOptions = {}): AgentLoginsReport {
+export function pushAgentLoginsNow(
+  host: RemoteHost,
+  opts: PushAgentLoginsOptions = {},
+): AgentLoginsReport {
   const log = opts.onProgress ?? (() => {});
   const config = opts.config === undefined ? readLocalConfig() : opts.config;
   const pushClaude = opts.deps?.pushClaude ?? copyCredentialToRemote;
@@ -341,41 +450,104 @@ export function pushAgentLoginsNow(host: RemoteHost, opts: PushAgentLoginsOption
   try {
     claude = pushClaude(host);
   } catch (err) {
-    claude = { pushed: false, reason: `push failed: ${err instanceof Error ? err.message : String(err)}` };
+    claude = {
+      pushed: false,
+      reason: `push failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
-  if (!claude.pushed) log(`claude credential not pushed: ${claude.reason} — sessions there need a healthy local login`);
-  const base: Omit<AgentLoginsReport, "pushed" | "shipped"> = { skipped: [], envSkipped: [], kept: [], claude };
+  if (!claude.pushed)
+    log(
+      `claude credential not pushed: ${claude.reason} — sessions there need a healthy local login`,
+    );
+  const base: Omit<AgentLoginsReport, "pushed" | "shipped"> = {
+    skipped: [],
+    envSkipped: [],
+    kept: [],
+    claude,
+  };
   if (!config?.user_id) {
     log("agent logins not pushed: not logged in on this laptop — cast login");
-    return { ...base, pushed: false, reason: "not logged in on this laptop — cast login", shipped: "" };
+    return {
+      ...base,
+      pushed: false,
+      reason: "not logged in on this laptop — cast login",
+      shipped: "",
+    };
   }
-  const src = opts.deps?.sources?.() ?? { home: laptopHome(), now: Date.now(), deviceId: localDeviceId() };
-  const { bundle, skipped, envSkipped } = agentLoginsBundleFor(host, opts.localGitRoot, { ...src, userId: config.user_id });
-  for (const s of skipped) log(`${s.id} login not pushed: ${s.reason}${s.reason === "access token expired" || s.reason === "logged-out stub" ? ` — run ${s.id} login on this machine` : ""}`);
-  if (envSkipped.length) log(`settings.json env keys left behind: ${envSkipped.map((e) => `${e.key} (${e.reason})`).join(", ")}`);
+  const src = opts.deps?.sources?.() ?? {
+    home: laptopHome(),
+    now: Date.now(),
+    deviceId: localDeviceId(),
+  };
+  const { bundle, skipped, envSkipped } = agentLoginsBundleFor(
+    host,
+    opts.localGitRoot,
+    { ...src, userId: config.user_id },
+  );
+  for (const s of skipped)
+    log(
+      `${s.id} login not pushed: ${s.reason}${s.reason === "access token expired" || s.reason === "logged-out stub" ? ` — run ${s.id} login on this machine` : ""}`,
+    );
+  if (envSkipped.length)
+    log(
+      `settings.json env keys left behind: ${envSkipped.map((e) => `${e.key} (${e.reason})`).join(", ")}`,
+    );
   try {
     assertNoLaptopPaths(bundle, src.home);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     log(`agent logins not pushed: ${reason}`);
-    return { ...base, skipped, envSkipped, pushed: false, reason, shipped: describeBundle(bundle) };
+    return {
+      ...base,
+      skipped,
+      envSkipped,
+      pushed: false,
+      reason,
+      shipped: describeBundle(bundle),
+    };
   }
   const shipped = describeBundle(bundle);
   let receiver: AgentAuthPushOutcome;
   try {
     receiver = (opts.deps?.push ?? copyAgentAuthToRemote)(host, bundle);
   } catch (err) {
-    receiver = { pushed: false, kept: [], reason: err instanceof Error ? err.message : String(err) };
+    receiver = {
+      pushed: false,
+      kept: [],
+      reason: err instanceof Error ? err.message : String(err),
+    };
   }
   if (!receiver.pushed) {
     log(`agent logins not pushed: ${receiver.reason}`);
-    return { ...base, skipped, envSkipped, pushed: false, reason: receiver.reason, receiver, shipped };
+    return {
+      ...base,
+      skipped,
+      envSkipped,
+      pushed: false,
+      reason: receiver.reason,
+      receiver,
+      shipped,
+    };
   }
   for (const k of receiver.kept) log(keptLoginNote(k));
-  for (const e of receiver.errors ?? []) log(`agent login not written on the host: ${e}`);
-  if (receiver.unparseableSettings) log("the host's ~/.claude/settings.json is not valid JSON — provider keys not merged");
-  log(`agent logins pushed: ${shipped}${receiver.env?.length ? ` (env: ${receiver.env.join(", ")})` : ""}`);
-  return { ...base, skipped, envSkipped, kept: receiver.kept, pushed: true, receiver, shipped };
+  for (const e of receiver.errors ?? [])
+    log(`agent login not written on the host: ${e}`);
+  if (receiver.unparseableSettings)
+    log(
+      "the host's ~/.claude/settings.json is not valid JSON — provider keys not merged",
+    );
+  log(
+    `agent logins pushed: ${shipped}${receiver.env?.length ? ` (env: ${receiver.env.join(", ")})` : ""}`,
+  );
+  return {
+    ...base,
+    skipped,
+    envSkipped,
+    kept: receiver.kept,
+    pushed: true,
+    receiver,
+    shipped,
+  };
 }
 
 export interface ToolsForPrepareOptions {
@@ -385,7 +557,10 @@ export interface ToolsForPrepareOptions {
   /** Check only (a non-Linux host, `--check`). */
   install?: boolean;
   /** Injection for tests. */
-  deps?: Partial<{ required: () => ReturnType<typeof requiredHostTools>; run: typeof runHostTools }>;
+  deps?: Partial<{
+    required: () => ReturnType<typeof requiredHostTools>;
+    run: typeof runHostTools;
+  }>;
 }
 
 /**
@@ -393,21 +568,53 @@ export interface ToolsForPrepareOptions {
  * checked and installed user-locally (cloud/hostTools.ts). Non-fatal and
  * logged: a missing tool is a readiness fact, not a lost session.
  */
-export function toolsForPrepare(host: RemoteHost, log: Progress, opts: ToolsForPrepareOptions = {}): HostToolsReport | undefined {
+export function toolsForPrepare(
+  host: RemoteHost,
+  log: Progress,
+  opts: ToolsForPrepareOptions = {},
+): HostToolsReport | undefined {
   try {
     // The MCP roster covers the project MCP the mirror ships too, remapped to this host's roots, so a project-only pin is never cleared.
-    const required = opts.deps?.required ? opts.deps.required() : requiredHostTools({ repoRoot: opts.localGitRoot, extraTools: opts.extraTools, laptopHome: laptopHome(), hostHome: remoteHome(host), projects: readProjectRegistrations(host) });
-    const report = (opts.deps?.run ?? runHostTools)(host, required, { install: opts.install });
-    log(`host tools: ${summarizeHostTools(report)}${report.installed.length ? ` (installed ${report.installed.map((i) => i.tool).join(", ")})` : ""}`);
-    for (const m of report.missing) log(`host tools: missing ${m.tool}${m.referenced_by ? ` (for ${m.referenced_by})` : ""}${m.error ? ` — ${m.error}` : ""}`);
-    for (const u of report.unsupported) log(`host tools: ${u.tool} cannot run on Linux (${u.reason})`);
+    const required = opts.deps?.required
+      ? opts.deps.required()
+      : requiredHostTools({
+          repoRoot: opts.localGitRoot,
+          extraTools: opts.extraTools,
+          laptopHome: laptopHome(),
+          hostHome: remoteHome(host),
+          projects: readProjectRegistrations(host),
+        });
+    const report = (opts.deps?.run ?? runHostTools)(host, required, {
+      install: opts.install,
+    });
+    log(
+      `host tools: ${summarizeHostTools(report)}${report.installed.length ? ` (installed ${report.installed.map((i) => i.tool).join(", ")})` : ""}`,
+    );
+    for (const m of report.missing)
+      log(
+        `host tools: missing ${m.tool}${m.referenced_by ? ` (for ${m.referenced_by})` : ""}${m.error ? ` — ${m.error}` : ""}`,
+      );
+    for (const u of report.unsupported)
+      log(`host tools: ${u.tool} cannot run on Linux (${u.reason})`);
     // MCP: every Linux adjustment is reported, never silently applied.
-    for (const m of report.mcp ?? []) if (m.status !== "ok") log(`host tools: mcp ${m.harness}/${m.name}${m.scope ? ` in ${m.scope}` : ""} (${m.command}) ${m.status}${m.reason ? ` — ${m.reason}` : ""}; ${m.action}`);
-    if (report.mcpOverridesInvalid) log(`host tools: the host's ~/.codecast/host-mcp-overrides.json did not parse (${report.mcpOverridesInvalid}); treated as empty`);
-    if (report.mcpOverridesWritten) log("host tools: ~/.codecast/host-mcp-overrides.json rewritten on the host");
+    for (const m of report.mcp ?? [])
+      if (m.status !== "ok")
+        log(
+          `host tools: mcp ${m.harness}/${m.name}${m.scope ? ` in ${m.scope}` : ""} (${m.command}) ${m.status}${m.reason ? ` — ${m.reason}` : ""}; ${m.action}`,
+        );
+    if (report.mcpOverridesInvalid)
+      log(
+        `host tools: the host's ~/.codecast/host-mcp-overrides.json did not parse (${report.mcpOverridesInvalid}); treated as empty`,
+      );
+    if (report.mcpOverridesWritten)
+      log(
+        "host tools: ~/.codecast/host-mcp-overrides.json rewritten on the host",
+      );
     return report;
   } catch (err) {
-    log(`host tools check skipped: ${err instanceof Error ? err.message : String(err)}`);
+    log(
+      `host tools check skipped: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return undefined;
   }
 }
@@ -433,13 +640,20 @@ export interface ReadyHostHomeOptions {
   /** Tools: check only, install nothing. */
   toolsInstall?: boolean;
   /** Injection for tests: the declared host setup step (default: runHostSetup over ssh). */
-  hostSetup?: (host: RemoteHost, opts: { repoRoot?: string; repoPath?: string; force?: boolean }) => { report: HostSetupReport; spec: ResolvedHostSpec };
+  hostSetup?: (
+    host: RemoteHost,
+    opts: { repoRoot?: string; repoPath?: string; force?: boolean },
+  ) => { report: HostSetupReport; spec: ResolvedHostSpec };
   /** Injection for tests: the logins, tools and mirror steps. */
   loginsDeps?: PushAgentLoginsOptions["deps"];
   toolsDeps?: ToolsForPrepareOptions["deps"];
   mirrorDeps?: MirrorForPrepareOptions["mirror"];
   /** Injection for tests: the host cast step (default: hosts/updateHost castForPrepare). */
-  castStep?: (host: RemoteHost, platform: HostCastPlatform, log: Progress) => string;
+  castStep?: (
+    host: RemoteHost,
+    platform: HostCastPlatform,
+    log: Progress,
+  ) => string;
   /** Injection for tests: free bytes in the host home (default: `df` over ssh). */
   diskStep?: (host: RemoteHost) => number;
 }
@@ -492,7 +706,9 @@ export function gitForPrepare(
       onProgress: log,
     });
   } catch (err) {
-    log(`host git setup skipped: ${err instanceof Error ? err.message : String(err)}`);
+    log(
+      `host git setup skipped: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return undefined;
   }
   // The App token path pushes on its own, so the key matters only to a host
@@ -501,28 +717,67 @@ export function gitForPrepare(
   // without a private key ever leaving the laptop. Tried at most once a day.
   if (git.access.origin && !git.access.write && !git.app?.write) {
     const tried = entry?.gitAutoGrantAt ?? 0;
-    if (git.pubkey && isGitHubHost(originHost(git.access.origin) ?? "") && Date.now() - tried > AUTO_GRANT_RETRY_MS) {
+    if (
+      git.pubkey &&
+      isGitHubHost(originHost(git.access.origin) ?? "") &&
+      Date.now() - tried > AUTO_GRANT_RETRY_MS
+    ) {
       patchHost(cloudId, { gitAutoGrantAt: Date.now() });
       const r = grantAccountKey(git.pubkey, cloudId);
       if (r.ok || r.alreadyInUse) {
-        log(r.ok ? "host key added to your GitHub account — re-probing" : "host key already on GitHub — re-probing");
+        log(
+          r.ok
+            ? "host key added to your GitHub account — re-probing"
+            : "host key already on GitHub — re-probing",
+        );
         try {
-          git = ensureHostGitReady(host, { localGitRoot: opts.localGitRoot, repoPath: opts.repoPath, gitIdentity: opts.gitIdentity, identitiesOnly: false, keyComment: cloudId, onProgress: log });
-        } catch { /* keep the first probe's answer */ }
+          git = ensureHostGitReady(host, {
+            localGitRoot: opts.localGitRoot,
+            repoPath: opts.repoPath,
+            gitIdentity: opts.gitIdentity,
+            identitiesOnly: false,
+            keyComment: cloudId,
+            onProgress: log,
+          });
+        } catch {
+          /* keep the first probe's answer */
+        }
       } else {
         log(`could not add the host key to GitHub: ${r.error}`);
       }
     }
-    if (!git.access.write && !git.app?.write) log(`host has no push access to ${git.access.origin} (${noPushReason(git.access)}) — cast hosts key ${cloudId}`);
+    if (!git.access.write && !git.app?.write)
+      log(
+        `host has no push access to ${git.access.origin} (${noPushReason(git.access)}) — cast hosts key ${cloudId}`,
+      );
   }
   if (entry) {
     const { origin, read, write, readonly, error } = git.access;
     const app = git.app;
     patchHost(cloudId, {
       gitPubkey: git.pubkey ?? undefined,
-      ...(origin ? { gitAccess: { origin, read, write, ...(readonly ? { readonly } : {}), checkedAt: git.checkedAt, ...(error ? { error } : {}) } } : {}),
+      ...(origin
+        ? {
+            gitAccess: {
+              origin,
+              read,
+              write,
+              ...(readonly ? { readonly } : {}),
+              checkedAt: git.checkedAt,
+              ...(error ? { error } : {}),
+            },
+          }
+        : {}),
       ...(app
-        ? { gitAppAccess: { origin: app.origin, read: app.read, write: app.write, checkedAt: git.checkedAt, ...(app.error ? { error: app.error } : {}) } }
+        ? {
+            gitAppAccess: {
+              origin: app.origin,
+              read: app.read,
+              write: app.write,
+              checkedAt: git.checkedAt,
+              ...(app.error ? { error: app.error } : {}),
+            },
+          }
         : {}),
     });
   }
@@ -540,13 +795,20 @@ export async function readyHostCast(
   host: RemoteHost,
   cloudId: string,
   log: Progress,
-  step?: (host: RemoteHost, platform: HostCastPlatform, log: Progress) => string,
+  step?: (
+    host: RemoteHost,
+    platform: HostCastPlatform,
+    log: Progress,
+  ) => string,
 ): Promise<string | undefined> {
   // `cast remote move` knows a host by its address, not its id.
-  const entry = readHosts().find((h) => h.id === cloudId || h.address === cloudId);
+  const entry = readHosts().find(
+    (h) => h.id === cloudId || h.address === cloudId,
+  );
   if (!entry) return undefined;
   // Lazy: hosts/updateHost reaches browser/provisionLinux, which imports this module.
-  const { castForPrepare, hostCastPlatform } = await import("../hosts/updateHost.js");
+  const { castForPrepare, hostCastPlatform } =
+    await import("../hosts/updateHost.js");
   return (step ?? castForPrepare)(host, hostCastPlatform(entry), log);
 }
 
@@ -560,14 +822,19 @@ export async function readyHostCast(
  * `cast hosts wake`, `cast hosts sync-auth`, provisionLinuxHost (with
  * force), performMoveToRemote.
  */
-export async function readyHostHome(host: RemoteHost, opts: ReadyHostHomeOptions = {}): Promise<ReadyHostHomeReport> {
+export async function readyHostHome(
+  host: RemoteHost,
+  opts: ReadyHostHomeOptions = {},
+): Promise<ReadyHostHomeReport> {
   const log = opts.onProgress ?? (() => {});
   const cloudId = opts.cloudId ?? host.address;
   // A full disk fails every later step, the last of them after many minutes
   // and as a crash (2026-10-05: a worktree install died as a bare Bun banner).
   const free = (opts.diskStep ?? hostFreeBytes)(host);
   if (Number.isFinite(free) && free < HOST_MIN_FREE_BYTES) {
-    throw new Error(`the host's disk is full (${(free / 1024 ** 2).toFixed(0)} MiB free): remove old worktrees there with cast ws ls and cast ws destroy`);
+    throw new Error(
+      `the host's disk is full (${(free / 1024 ** 2).toFixed(0)} MiB free): remove old worktrees there with cast ws ls and cast ws destroy`,
+    );
   }
   let logins: AgentLoginsReport | undefined;
   let tools: HostToolsReport | undefined;
@@ -586,24 +853,62 @@ export async function readyHostHome(host: RemoteHost, opts: ReadyHostHomeOptions
   // The declared machine setup first: packages and services the repo's own setup may need.
   if (!opts.skipLogins) {
     try {
-      const repoPath = opts.repoPath ?? (opts.localGitRoot ? remoteRepoPath(host, opts.localGitRoot) : undefined);
-      const { report, spec } = (opts.hostSetup ?? runHostSetup)(host, { repoRoot: opts.localGitRoot, repoPath, force: opts.force });
+      const repoPath =
+        opts.repoPath ??
+        (opts.localGitRoot
+          ? remoteRepoPath(host, opts.localGitRoot)
+          : undefined);
+      const { report, spec } = (opts.hostSetup ?? runHostSetup)(host, {
+        repoRoot: opts.localGitRoot,
+        repoPath,
+        force: opts.force,
+      });
       if (!report.skipped || !report.ok) log(describeHostSetup(report, spec));
     } catch (err) {
-      log(`host setup step failed: ${err instanceof Error ? err.message : String(err)}`);
+      log(
+        `host setup step failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
   if (!opts.skipLogins && opts.pushLogins !== false) {
     try {
-      logins = pushAgentLoginsNow(host, { localGitRoot: opts.localGitRoot, onProgress: log, deps: opts.loginsDeps });
+      logins = pushAgentLoginsNow(host, {
+        localGitRoot: opts.localGitRoot,
+        onProgress: log,
+        deps: opts.loginsDeps,
+      });
     } catch (err) {
-      log(`agent logins step failed: ${err instanceof Error ? err.message : String(err)}`);
+      log(
+        `agent logins step failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-    tools = toolsForPrepare(host, log, { localGitRoot: opts.localGitRoot, extraTools: opts.extraTools, install: opts.toolsInstall, deps: opts.toolsDeps });
+    tools = toolsForPrepare(host, log, {
+      localGitRoot: opts.localGitRoot,
+      extraTools: opts.extraTools,
+      install: opts.toolsInstall,
+      deps: opts.toolsDeps,
+    });
   }
-  const git = opts.skipGit ? undefined : gitForPrepare(host, cloudId, log, { localGitRoot: opts.localGitRoot, repoPath: opts.repoPath, gitIdentity: opts.gitIdentity });
-  const mirror = await mirrorForPrepare(host, cloudId, log, { force: opts.force, localGitRoot: opts.localGitRoot, mirror: opts.mirrorDeps });
-  return { mirror, ...(cast ? { cast } : {}), ...(castBehind ? { castBehind } : {}), ...(git ? { git } : {}), ...(logins ? { logins } : {}), ...(tools ? { tools } : {}) };
+  const git = opts.skipGit
+    ? undefined
+    : gitForPrepare(host, cloudId, log, {
+        localGitRoot: opts.localGitRoot,
+        repoPath: opts.repoPath,
+        gitIdentity: opts.gitIdentity,
+      });
+  const mirror = await mirrorForPrepare(host, cloudId, log, {
+    force: opts.force,
+    localGitRoot: opts.localGitRoot,
+    mirror: opts.mirrorDeps,
+  });
+  return {
+    mirror,
+    ...(cast ? { cast } : {}),
+    ...(castBehind ? { castBehind } : {}),
+    ...(git ? { git } : {}),
+    ...(logins ? { logins } : {}),
+    ...(tools ? { tools } : {}),
+  };
 }
 
 export interface PrepareCloudHostOptions {
@@ -628,24 +933,45 @@ export interface PrepareCloudHostOptions {
  * runs BEFORE its Convex claim, so a refused claim has changed nothing on
  * the box.
  */
-export async function wakeCloudHost(opts: PrepareCloudHostOptions): Promise<PreparedHost> {
+export async function wakeCloudHost(
+  opts: PrepareCloudHostOptions,
+): Promise<PreparedHost> {
   const log = opts.onProgress ?? (() => {});
   cloudCopyFiles(opts.seedCwd);
-  const cloud = opts.hostArg ? resolveCloudHost(opts.hostArg) : await defaultCloudHost();
+  const cloud = opts.hostArg
+    ? resolveCloudHost(opts.hostArg)
+    : await defaultCloudHost();
   opts.onStep?.("wake");
   const up = await ensureUp(cloud, log);
   const host = toRemoteHost(up);
   const deviceId = await learnHostDeviceId(up, host);
   if (!deviceId) {
-    throw new Error(`${up.id} runs no codecast daemon — provision it first: cast hosts provision ${up.id}`);
+    throw new Error(
+      `${up.id} runs no codecast daemon — provision it first: cast hosts provision ${up.id}`,
+    );
   }
   const repoPath = remoteRepoPath(host, opts.repoRoot);
   // Host-home steps BEFORE the checkout: the known_hosts pin and the device
   // key are what let the host's own clone/fetch succeed.
   opts.onStep?.("config");
-  const home = await readyHostHome(host, { localGitRoot: opts.repoRoot, repoPath, cloudId: up.id, onProgress: log, castStep: opts.castStep });
+  const home = await readyHostHome(host, {
+    localGitRoot: opts.repoRoot,
+    repoPath,
+    cloudId: up.id,
+    onProgress: log,
+    castStep: opts.castStep,
+  });
   if (home.castBehind) throw new HostCastBehind(home.castBehind);
-  return { cloud: { ...up, deviceId }, host, deviceId, repoPath, repoRoot: opts.repoRoot, seedCwd: opts.seedCwd, previousAddress: cloud.address, ...(home.git ? { git: home.git } : {}) };
+  return {
+    cloud: { ...up, deviceId },
+    host,
+    deviceId,
+    repoPath,
+    repoRoot: opts.repoRoot,
+    seedCwd: opts.seedCwd,
+    previousAddress: cloud.address,
+    ...(home.git ? { git: home.git } : {}),
+  };
 }
 
 /**
@@ -662,10 +988,16 @@ export function refreshCloudCheckout(
   opts: { moveHead: boolean },
   onProgress: Progress = () => {},
 ): ReturnType<typeof refreshRemoteCheckout> {
-  const r = refreshRemoteCheckout(prepared.host, prepared.repoRoot, prepared.repoPath, onProgress, {
-    moveHead: opts.moveHead,
-    appToken: prepared.git?.app?.write === true,
-  });
+  const r = refreshRemoteCheckout(
+    prepared.host,
+    prepared.repoRoot,
+    prepared.repoPath,
+    onProgress,
+    {
+      moveHead: opts.moveHead,
+      appToken: prepared.git?.app?.write === true,
+    },
+  );
   prepared.mainHead = r.head;
   return r;
 }
@@ -675,12 +1007,24 @@ export function refreshCloudCheckout(
  * wakeCloudHost, then a fetch-only refresh — the root's HEAD is never moved
  * here, so spawn, fork and the web coexist with a live shared session.
  */
-export async function prepareCloudHost(opts: PrepareCloudHostOptions): Promise<PreparedHost> {
+export async function prepareCloudHost(
+  opts: PrepareCloudHostOptions,
+): Promise<PreparedHost> {
   const log = opts.onProgress ?? (() => {});
   const prepared = await wakeCloudHost(opts);
   opts.onStep?.("checkout");
   refreshCloudCheckout(prepared, { moveHead: false }, log);
-  await mirrorProjectContext(prepared.host, opts.repoRoot, prepared.repoPath, log, { cloudId: prepared.cloud.id, previousAddress: prepared.previousAddress, mirroredAlready: true });
+  await mirrorProjectContext(
+    prepared.host,
+    opts.repoRoot,
+    prepared.repoPath,
+    log,
+    {
+      cloudId: prepared.cloud.id,
+      previousAddress: prepared.previousAddress,
+      mirroredAlready: true,
+    },
+  );
   return prepared;
 }
 
@@ -689,7 +1033,11 @@ export async function prepareCloudHost(opts: PrepareCloudHostOptions): Promise<P
 // ---------------------------------------------------------------------------
 
 function checkRefFormatBranch(name: string): boolean {
-  return spawnSync("git", ["check-ref-format", "--branch", name], { stdio: "ignore" }).status === 0;
+  return (
+    spawnSync("git", ["check-ref-format", "--branch", name], {
+      stdio: "ignore",
+    }).status === 0
+  );
 }
 
 /**
@@ -700,16 +1048,27 @@ function checkRefFormatBranch(name: string): boolean {
  * seeds `codecast/<name>` with no alternate. Both names pass git's own
  * branch-name check here, before anything reaches the host.
  */
-export function seedBranchNames(laptopBranch: string | undefined, worktreeName: string): { primary: string; alt?: string } {
+export function seedBranchNames(
+  laptopBranch: string | undefined,
+  worktreeName: string,
+): { primary: string; alt?: string } {
   if (!laptopBranch || laptopBranch === "HEAD") {
     const primary = `codecast/${worktreeName}`;
-    if (!checkRefFormatBranch(primary)) throw new Error(`invalid worktree branch name ${JSON.stringify(primary)}`);
+    if (!checkRefFormatBranch(primary))
+      throw new Error(
+        `invalid worktree branch name ${JSON.stringify(primary)}`,
+      );
     return { primary };
   }
-  const suffix = worktreeName.includes("-") ? worktreeName.slice(worktreeName.lastIndexOf("-") + 1) : worktreeName;
+  const suffix = worktreeName.includes("-")
+    ? worktreeName.slice(worktreeName.lastIndexOf("-") + 1)
+    : worktreeName;
   const names = { primary: laptopBranch, alt: `${laptopBranch}-${suffix}` };
   for (const n of [names.primary, names.alt]) {
-    if (!checkRefFormatBranch(n)) throw new Error(`laptop branch ${JSON.stringify(laptopBranch)} is not a usable branch name for the host (${n})`);
+    if (!checkRefFormatBranch(n))
+      throw new Error(
+        `laptop branch ${JSON.stringify(laptopBranch)} is not a usable branch name for the host (${n})`,
+      );
   }
   return names;
 }
@@ -738,8 +1097,12 @@ export function hostSupportsStartPoint(host: RemoteHost): boolean {
     help = ssh(host, `${HOST_PATH}; cast ws acquire --help`, 60_000);
   } catch (err) {
     const e = err as { stderr?: string | Buffer; message?: string };
-    const detail = lastErrorLine(e.stderr?.toString() || e.message || String(err));
-    throw new Error(`cannot check whether the host's cast supports seeded worktrees${detail ? `: ${detail}` : ""}`);
+    const detail = lastErrorLine(
+      e.stderr?.toString() || e.message || String(err),
+    );
+    throw new Error(
+      `cannot check whether the host's cast supports seeded worktrees${detail ? `: ${detail}` : ""}`,
+    );
   }
   const supported = help.includes("--start-point");
   startPointSupport.set(host.address, supported);
@@ -755,13 +1118,32 @@ export function hostSupportsStartPoint(host: RemoteHost): boolean {
  * or the host's cast predates `--start-point`. Any other failure is fatal:
  * a user who asked for their checkout must not silently get origin/main.
  */
-export async function seedForHost(prepared: PreparedHost, opts: { startFrom: CloudStartFrom }): Promise<CloudSeed> {
-  if (!prepared.mainHead) throw new Error("seedForHost needs a refreshed checkout (refreshCloudCheckout first)");
-  const deviceId = (() => { try { return localDeviceId(); } catch { return undefined; } })();
-  const originMain = (reason?: string): CloudSeed => ({ source: "origin_main", base: prepared.mainHead!, ...(deviceId ? { deviceId } : {}), ...(reason ? { reason } : {}) });
+export async function seedForHost(
+  prepared: PreparedHost,
+  opts: { startFrom: CloudStartFrom },
+): Promise<CloudSeed> {
+  if (!prepared.mainHead)
+    throw new Error(
+      "seedForHost needs a refreshed checkout (refreshCloudCheckout first)",
+    );
+  const deviceId = (() => {
+    try {
+      return localDeviceId();
+    } catch {
+      return undefined;
+    }
+  })();
+  const originMain = (reason?: string): CloudSeed => ({
+    source: "origin_main",
+    base: prepared.mainHead!,
+    ...(deviceId ? { deviceId } : {}),
+    ...(reason ? { reason } : {}),
+  });
   if (opts.startFrom === "origin_main") return originMain();
   if (!hostSupportsStartPoint(prepared.host)) {
-    return originMain(`host cast predates seeded worktrees — cast hosts provision ${prepared.cloud.id}`);
+    return originMain(
+      `host cast predates seeded worktrees — cast hosts provision ${prepared.cloud.id}`,
+    );
   }
   try {
     const seed = await planLaptopSeed(prepared.seedCwd);
@@ -787,9 +1169,22 @@ export async function fetchRootOccupant(
   excludeId?: string,
   opts: { merging?: boolean } = {},
 ): Promise<RootOccupant | null> {
-  const rows = (await client.query(api.cloud.hostSessions, { api_token: token, device_id: deviceId })) as CheckoutOccupantRow[];
-  const hit = sharedCheckoutOccupant(rows ?? [], { projectPath: repoPath, excludeId, merging: opts.merging });
-  return hit ? { conversation_id: hit.conversation_id, short_id: hit.short_id ?? hit.conversation_id.slice(0, 7), title: hit.title ?? null } : null;
+  const rows = (await client.query(api.cloud.hostSessions, {
+    api_token: token,
+    device_id: deviceId,
+  })) as CheckoutOccupantRow[];
+  const hit = sharedCheckoutOccupant(rows ?? [], {
+    projectPath: repoPath,
+    excludeId,
+    merging: opts.merging,
+  });
+  return hit
+    ? {
+        conversation_id: hit.conversation_id,
+        short_id: hit.short_id ?? hit.conversation_id.slice(0, 7),
+        title: hit.title ?? null,
+      }
+    : null;
 }
 
 /**
@@ -797,9 +1192,18 @@ export async function fetchRootOccupant(
  * no other live session on that device works in it (otherSessionInCheckout),
  * which is what lets the departing session's leftovers be cleared.
  */
-export function checkoutAloneProbe(client: any, api: any, token: string, deviceId: string, conversationId: string): (root: string) => Promise<boolean> {
+export function checkoutAloneProbe(
+  client: any,
+  api: any,
+  token: string,
+  deviceId: string,
+  conversationId: string,
+): (root: string) => Promise<boolean> {
   return async (root) => {
-    const rows = (await client.query(api.cloud.hostSessions, { api_token: token, device_id: deviceId })) as CheckoutOccupantRow[];
+    const rows = (await client.query(api.cloud.hostSessions, {
+      api_token: token,
+      device_id: deviceId,
+    })) as CheckoutOccupantRow[];
     return otherSessionInCheckout(rows ?? [], root, conversationId) === null;
   };
 }
@@ -812,7 +1216,9 @@ export function checkoutAloneProbe(client: any, api: any, token: string, deviceI
  * the caller asks `reason()` after each step and turns it into the error it
  * stamps on the row. A second signal exits at once.
  */
-export function armInterruptGuard(signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"]): { reason: () => string | null; disarm: () => void } {
+export function armInterruptGuard(
+  signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"],
+): { reason: () => string | null; disarm: () => void } {
   let seen: string | null = null;
   const onSignal = (signal: string): void => {
     if (seen) process.exit(130);
@@ -827,7 +1233,10 @@ export function armInterruptGuard(signals: NodeJS.Signals[] = ["SIGINT", "SIGTER
     reason: () => (seen ? `spawn interrupted (${seen})` : null),
     // bun-types narrows removeListener past Node's signal overloads (see
     // browser/instance.ts); the EventEmitter surface is what both implement.
-    disarm: () => { for (const [signal, h] of handlers) (process as NodeJS.EventEmitter).removeListener(signal, h); },
+    disarm: () => {
+      for (const [signal, h] of handlers)
+        (process as NodeJS.EventEmitter).removeListener(signal, h);
+    },
   };
 }
 
@@ -849,7 +1258,10 @@ export interface AcquireRemoteOptions {
 
 const HOST_PATH = HOST_PATH_EXPORT;
 
-export type AcquiredRemoteWorkspace = RemoteWorkspace & { head: string; seed: CloudSeed };
+export type AcquiredRemoteWorkspace = RemoteWorkspace & {
+  head: string;
+  seed: CloudSeed;
+};
 
 /**
  * Acquire a worktree on the host with ITS `cast ws acquire --json`. Install
@@ -876,21 +1288,36 @@ export async function acquireRemoteWorkspace(
 ): Promise<AcquiredRemoteWorkspace> {
   // A checkout seed's ref name and branch names are checked here, before
   // any ssh: a name git would refuse must not reserve anything on the host.
-  const names = seed?.source === "checkout" ? (cloudSeedRef(name), seedBranchNames(seed.branch, name)) : null;
-  const inputRoot = stageCloudInputs(host, seedCwd, repoPath, name, { warn: opts.onProgress });
-  const sshRun = (command: string) => spawnSync("ssh", [...sshBase(host), sshDestination(host), command],
-    { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 });
+  const names =
+    seed?.source === "checkout"
+      ? (cloudSeedRef(name), seedBranchNames(seed.branch, name))
+      : null;
+  const inputRoot = stageCloudInputs(host, seedCwd, repoPath, name, {
+    warn: opts.onProgress,
+  });
+  const sshRun = (command: string) =>
+    spawnSync("ssh", [...sshBase(host), sshDestination(host), command], {
+      encoding: "utf-8",
+      stdio: "pipe",
+      env: process.env,
+      timeout: 15 * 60_000,
+      maxBuffer: 64 * 1024 * 1024,
+    });
   const acquireArgs = `--input-root ${shq(inputRoot)} --skip-pool --json`;
   const failed = (result: ReturnType<typeof sshRun>): Error => {
     const detail = lastErrorLine(result.stderr);
-    return new Error(`cast ws acquire ${name} failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}; workspace retained for inspection`);
+    return new Error(
+      `cast ws acquire ${name} failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}; workspace retained for inspection`,
+    );
   };
   let ws: RemoteWorkspace;
   let effective: CloudSeed;
   if (seed?.source === "checkout" && names) {
     effective = pushLaptopSeed(host, seedCwd, repoPath, name, seed);
     try {
-      const result = sshRun(`${HOST_PATH}; export CODECAST_CLOUD_WORKSPACE=1; cd ${shq(repoPath)} && cast ws acquire ${shq(name)} ${acquireArgs} --branch ${shq(names.primary)}${names.alt ? ` --alt-branch ${shq(names.alt)}` : ""} --start-point ${shq(effective.ref!)}`);
+      const result = sshRun(
+        `${HOST_PATH}; export CODECAST_CLOUD_WORKSPACE=1; cd ${shq(repoPath)} && cast ws acquire ${shq(name)} ${acquireArgs} --branch ${shq(names.primary)}${names.alt ? ` --alt-branch ${shq(names.alt)}` : ""} --start-point ${shq(effective.ref!)}`,
+      );
       if (result.error || result.status !== 0) throw failed(result);
       ws = parseAcquireOutput(name, result.stdout);
       finishSeededWorktree(host, ws.path, effective);
@@ -899,20 +1326,35 @@ export async function acquireRemoteWorkspace(
       throw err;
     }
   } else {
-    const result = sshRun(`${HOST_PATH}; export CODECAST_CLOUD_WORKSPACE=1; cd ${shq(repoPath)} && git branch --no-track ${shq(`codecast/${name}`)} refs/remotes/origin/main 2>/dev/null || true; cast ws acquire ${shq(name)} ${acquireArgs}`);
+    const result = sshRun(
+      `${HOST_PATH}; export CODECAST_CLOUD_WORKSPACE=1; cd ${shq(repoPath)} && git branch --no-track ${shq(`codecast/${name}`)} refs/remotes/origin/main 2>/dev/null || true; cast ws acquire ${shq(name)} ${acquireArgs}`,
+    );
     if (result.error || result.status !== 0) throw failed(result);
     ws = parseAcquireOutput(name, result.stdout);
-    effective = seed ?? { source: "origin_main", base: originMainHead(host, repoPath) };
+    effective = seed ?? {
+      source: "origin_main",
+      base: originMainHead(host, repoPath),
+    };
   }
-  await mirrorProjectContext(host, seedCwd, ws.path, opts.onProgress ?? (() => {}));
+  await mirrorProjectContext(
+    host,
+    seedCwd,
+    ws.path,
+    opts.onProgress ?? (() => {}),
+  );
   await opts.onTargetAcquired?.(ws.path);
   return { ...ws, head: effective.base, seed: effective };
 }
 
 /** origin/main's commit in the host checkout (a caller that brought no seed); a base is never empty. */
 function originMainHead(host: RemoteHost, repoPath: string): string {
-  const head = ssh(host, `cd ${shq(repoPath)} && git rev-parse --verify refs/remotes/origin/main^{commit}`, 60_000).trim();
-  if (!/^[0-9a-f]{40}$/.test(head)) throw new Error(`cannot resolve origin/main in ${repoPath} on the host`);
+  const head = ssh(
+    host,
+    `cd ${shq(repoPath)} && git rev-parse --verify refs/remotes/origin/main^{commit}`,
+    60_000,
+  ).trim();
+  if (!/^[0-9a-f]{40}$/.test(head))
+    throw new Error(`cannot resolve origin/main in ${repoPath} on the host`);
   return head;
 }
 
@@ -926,45 +1368,115 @@ function originMainHead(host: RemoteHost, repoPath: string): string {
  * placement naming the files, so the fix lands upstream (commit the lockfile)
  * instead of in a `git checkout -- .` that would destroy legitimate outputs.
  */
-export async function acquireRemoteRootCheckout(host: RemoteHost, repoPath: string, seedCwd: string, branch: string, opts: AcquireRemoteOptions = {}): Promise<RemoteWorkspace> {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(branch) || branch.includes("..") || branch.endsWith("/")) {
+export async function acquireRemoteRootCheckout(
+  host: RemoteHost,
+  repoPath: string,
+  seedCwd: string,
+  branch: string,
+  opts: AcquireRemoteOptions = {},
+): Promise<RemoteWorkspace> {
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(branch) ||
+    branch.includes("..") ||
+    branch.endsWith("/")
+  ) {
     throw new Error(`invalid shared checkout branch ${JSON.stringify(branch)}`);
   }
   const q = shq(repoPath);
-  const co = spawnSync("ssh", [...sshBase(host), sshDestination(host),
-    `cd ${q} && git checkout -q -b ${shq(branch)} refs/remotes/origin/main`,
-  ], { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 300_000 });
+  const co = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      `cd ${q} && git checkout -q -b ${shq(branch)} refs/remotes/origin/main`,
+    ],
+    { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 300_000 },
+  );
   if (co.error || co.status !== 0) {
-    throw new Error(`checkout of ${branch} from origin/main failed in the host checkout (${co.signal ?? `exit ${co.status}`})`);
+    throw new Error(
+      `checkout of ${branch} from origin/main failed in the host checkout (${co.signal ?? `exit ${co.status}`})`,
+    );
   }
-  const inputRoot = stageCloudInputs(host, seedCwd, repoPath, ROOT_WORKSPACE_NAME, { warn: opts.onProgress, reuse: true });
-  const result = spawnSync("ssh", [...sshBase(host), sshDestination(host),
-    `${HOST_PATH}; cd ${q} && cast ws root --input-root ${shq(inputRoot)} --json`,
-  ], { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 });
+  const inputRoot = stageCloudInputs(
+    host,
+    seedCwd,
+    repoPath,
+    ROOT_WORKSPACE_NAME,
+    { warn: opts.onProgress, reuse: true },
+  );
+  const result = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      `${HOST_PATH}; cd ${q} && cast ws root --input-root ${shq(inputRoot)} --json`,
+    ],
+    {
+      encoding: "utf-8",
+      stdio: "pipe",
+      env: process.env,
+      timeout: 15 * 60_000,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
   if (result.error || result.status !== 0) {
     // Only commander's own refusal (or no cast at all, 127) means an old
     // host; any other failure is reported as itself, with its last line.
-    if (result.status === 127 || /error: unknown command/i.test(result.stderr ?? "")) {
-      throw new Error(`host cast predates shared checkouts — re-provision it: cast hosts provision ${host.address}`);
+    if (
+      result.status === 127 ||
+      /error: unknown command/i.test(result.stderr ?? "")
+    ) {
+      throw new Error(
+        `host cast predates shared checkouts — re-provision it: cast hosts provision ${host.address}`,
+      );
     }
     const detail = lastErrorLine(result.stderr);
-    throw new Error(`cast ws root failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}; the checkout is on ${branch} for inspection`);
+    throw new Error(
+      `cast ws root failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}; the checkout is on ${branch} for inspection`,
+    );
   }
   const ws = parseAcquireOutput(ROOT_WORKSPACE_NAME, result.stdout);
   // `cast ws root` prints the checkout's real path; stageCloudInputs has
   // already refused a symlink anywhere in repoPath, so the two agree unless
   // the host answered for another repo.
-  if (ws.path !== repoPath) throw new Error(`cast ws root on the host reported ${ws.path}, not the checkout ${repoPath}`);
-  const status = spawnSync("ssh", [...sshBase(host), sshDestination(host),
-    `cd ${q} && git status --porcelain --untracked-files=all`,
-  ], { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 300_000 });
-  if (status.error || status.status !== 0) throw new Error("could not read the host checkout's status after setup");
-  const dirtied = status.stdout.split("\n").map((l) => l.trimEnd()).filter(Boolean);
+  if (ws.path !== repoPath)
+    throw new Error(
+      `cast ws root on the host reported ${ws.path}, not the checkout ${repoPath}`,
+    );
+  const status = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      `cd ${q} && git status --porcelain --untracked-files=all`,
+    ],
+    { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 300_000 },
+  );
+  if (status.error || status.status !== 0)
+    throw new Error("could not read the host checkout's status after setup");
+  const dirtied = status.stdout
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .filter(Boolean);
   if (dirtied.length) {
-    throw new Error(`setup left the host checkout dirty (${dirtied.slice(0, 5).join(", ")}${dirtied.length > 5 ? ", …" : ""}) — fix that upstream (e.g. commit the lockfile) or run isolated`);
+    throw new Error(
+      `setup left the host checkout dirty (${dirtied.slice(0, 5).join(", ")}${dirtied.length > 5 ? ", …" : ""}) — fix that upstream (e.g. commit the lockfile) or run isolated`,
+    );
   }
-  const target: RemoteWorkspace = { name: ROOT_WORKSPACE_NAME, path: repoPath, branch, ports: ws.ports, created: ws.created };
-  await mirrorProjectContext(host, opts.localGitRoot ?? seedCwd, target.path, opts.onProgress ?? (() => {}), { cloudId: opts.cloudId, previousAddress: opts.previousAddress });
+  const target: RemoteWorkspace = {
+    name: ROOT_WORKSPACE_NAME,
+    path: repoPath,
+    branch,
+    ports: ws.ports,
+    created: ws.created,
+  };
+  await mirrorProjectContext(
+    host,
+    opts.localGitRoot ?? seedCwd,
+    target.path,
+    opts.onProgress ?? (() => {}),
+    { cloudId: opts.cloudId, previousAddress: opts.previousAddress },
+  );
   await opts.onTargetAcquired?.(target.path);
   return target;
 }
@@ -977,12 +1489,31 @@ export async function acquireRemoteRootCheckout(host: RemoteHost, repoPath: stri
  * secret files already, so no input snapshot is staged. Never throws: the
  * session moves either way, and the line says what the agent will find.
  */
-export function readyMovedCheckout(host: RemoteHost, remoteRoot: string, run: typeof spawnSync = spawnSync): string {
-  const r = run("ssh", [...sshBase(host), sshDestination(host),
-    `${HOST_PATH}; cd ${shq(remoteRoot)} && cast ws root --skip-browser --json`,
-  ], { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 15 * 60_000, maxBuffer: 64 * 1024 * 1024 });
-  if (!r.error && r.status === 0) return "its setup ran there (cast ws root: secret files, dependencies installed)";
-  const detail = lastErrorLine(String(r.stderr ?? "")) ?? (r.error ? r.error.message : `exit ${r.status}`);
+export function readyMovedCheckout(
+  host: RemoteHost,
+  remoteRoot: string,
+  run: typeof spawnSync = spawnSync,
+): string {
+  const r = run(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      `${HOST_PATH}; cd ${shq(remoteRoot)} && cast ws root --skip-browser --json`,
+    ],
+    {
+      encoding: "utf-8",
+      stdio: "pipe",
+      env: process.env,
+      timeout: 15 * 60_000,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  if (!r.error && r.status === 0)
+    return "its setup ran there (cast ws root: secret files, dependencies installed)";
+  const detail =
+    lastErrorLine(String(r.stderr ?? "")) ??
+    (r.error ? r.error.message : `exit ${r.status}`);
   return `its setup FAILED there (cast ws root: ${detail}); install its dependencies before typechecking or starting a dev server`;
 }
 
@@ -993,13 +1524,33 @@ export function readyMovedCheckout(host: RemoteHost, remoteRoot: string, run: ty
  * a failure is reported, never thrown — the placement refusal is the outcome
  * the caller prints, and an orphan is cheaper than a crashed child.
  */
-export function releaseRemoteWorkspace(host: RemoteHost, repoPath: string, name: string): { removed: boolean; error?: string } {
-  const result = spawnSync("ssh", [...sshBase(host), sshDestination(host),
+export function releaseRemoteWorkspace(
+  host: RemoteHost,
+  repoPath: string,
+  name: string,
+): { removed: boolean; error?: string } {
+  const result = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
       `${HOST_PATH}; cd ${shq(repoPath)} && cast ws destroy ${shq(name)}`,
-  ], { encoding: "utf-8", stdio: "pipe", env: process.env, timeout: 5 * 60_000, maxBuffer: 16 * 1024 * 1024 });
+    ],
+    {
+      encoding: "utf-8",
+      stdio: "pipe",
+      env: process.env,
+      timeout: 5 * 60_000,
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
   if (result.error || result.status !== 0) {
-    const detail = (result.stderr || result.stdout || "").trim().split("\n").pop() ?? "";
-    return { removed: false, error: `cast ws destroy ${name} failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}` };
+    const detail =
+      (result.stderr || result.stdout || "").trim().split("\n").pop() ?? "";
+    return {
+      removed: false,
+      error: `cast ws destroy ${name} failed on the host (${result.signal ?? `exit ${result.status}`})${detail ? `: ${detail}` : ""}`,
+    };
   }
   return { removed: true };
 }
@@ -1010,26 +1561,63 @@ export function releaseRemoteWorkspace(host: RemoteHost, repoPath: string, name:
  * like JSON is the answer. A broken contract is an error, not a workspace.
  */
 export function parseAcquireOutput(name: string, out: string): RemoteWorkspace {
-  const line = out.trim().split("\n").reverse().find((l) => l.trimStart().startsWith("{"));
-  if (!line) throw new Error(`cast ws acquire ${name} printed no JSON on the host`);
+  const line = out
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.trimStart().startsWith("{"));
+  if (!line)
+    throw new Error(`cast ws acquire ${name} printed no JSON on the host`);
   let ws;
   try {
     ws = JSON.parse(line);
   } catch {
     throw new Error(`cast ws acquire ${name} printed invalid JSON on the host`);
   }
-  if (ws.name !== name) throw new Error(`cast ws acquire ${name} returned a different workspace`);
-  if (ws.state !== "ready" || ws.contract?.ok !== true || !Array.isArray(ws.contract.failures) || ws.contract.failures.length > 0) {
-    throw new Error(`workspace ${name} on the host is broken: ready state and a successful contract are required`);
+  if (ws.name !== name)
+    throw new Error(`cast ws acquire ${name} returned a different workspace`);
+  if (
+    ws.state !== "ready" ||
+    ws.contract?.ok !== true ||
+    !Array.isArray(ws.contract.failures) ||
+    ws.contract.failures.length > 0
+  ) {
+    throw new Error(
+      `workspace ${name} on the host is broken: ready state and a successful contract are required`,
+    );
   }
-  if (typeof ws.path !== "string" || !ws.path.startsWith("/") || ws.path === "/"
-    || /[\x00-\x1f\x7f\\]/.test(ws.path) || path.posix.normalize(ws.path) !== ws.path
-    || typeof ws.branch !== "string" || !ws.branch.trim() || /[\x00-\x20\x7f]/.test(ws.branch)
-    || typeof ws.created !== "boolean" || !ws.ports || typeof ws.ports !== "object" || Array.isArray(ws.ports)
-    || Object.values(ws.ports).some((port) => typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535)) {
-    throw new Error(`cast ws acquire ${name} returned invalid workspace fields`);
+  if (
+    typeof ws.path !== "string" ||
+    !ws.path.startsWith("/") ||
+    ws.path === "/" ||
+    /[\x00-\x1f\x7f\\]/.test(ws.path) ||
+    path.posix.normalize(ws.path) !== ws.path ||
+    typeof ws.branch !== "string" ||
+    !ws.branch.trim() ||
+    /[\x00-\x20\x7f]/.test(ws.branch) ||
+    typeof ws.created !== "boolean" ||
+    !ws.ports ||
+    typeof ws.ports !== "object" ||
+    Array.isArray(ws.ports) ||
+    Object.values(ws.ports).some(
+      (port) =>
+        typeof port !== "number" ||
+        !Number.isInteger(port) ||
+        port < 1 ||
+        port > 65535,
+    )
+  ) {
+    throw new Error(
+      `cast ws acquire ${name} returned invalid workspace fields`,
+    );
   }
-  return { name: ws.name, path: ws.path, branch: ws.branch, ports: ws.ports, created: ws.created };
+  return {
+    name: ws.name,
+    path: ws.path,
+    branch: ws.branch,
+    ports: ws.ports,
+    created: ws.created,
+  };
 }
 
 /** A worktree name nobody has to think about: cloud-<6 hex>. */
@@ -1054,11 +1642,21 @@ export async function waitForDeviceOnline(
   const deadline = Date.now() + timeoutMs;
   let said = false;
   for (;;) {
-    const devices = await client.query(api.devices.listDevices, { api_token: token });
-    const d = (devices as Array<{ device_id: string; online: boolean }>).find((x) => x.device_id === deviceId);
+    const devices = await client.query(api.devices.listDevices, {
+      api_token: token,
+    });
+    const d = (devices as Array<{ device_id: string; online: boolean }>).find(
+      (x) => x.device_id === deviceId,
+    );
     if (d?.online) return;
-    if (Date.now() > deadline) throw new Error(`the daemon on device ${deviceId.slice(0, 8)} never came online`);
-    if (!said) { onProgress("waiting for the host's daemon to come online…"); said = true; }
+    if (Date.now() > deadline)
+      throw new Error(
+        `the daemon on device ${deviceId.slice(0, 8)} never came online`,
+      );
+    if (!said) {
+      onProgress("waiting for the host's daemon to come online…");
+      said = true;
+    }
     await new Promise((r) => setTimeout(r, 5000));
   }
 }

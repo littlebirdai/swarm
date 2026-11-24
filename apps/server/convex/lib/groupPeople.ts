@@ -4,11 +4,16 @@
 // carries is a key of that one person: event_group_users stores each key as
 // an alias, and a person counts once whichever of their keys arrives.
 
-export type UserLike = { id?: string | null; email?: string | null; name?: string | null } | null | undefined;
+export type UserLike =
+  | { id?: string | null; email?: string | null; name?: string | null }
+  | null
+  | undefined;
 
 /** Every identifier an occurrence names its person by, normalized. */
 export function userKeys(user: UserLike): string[] {
-  const keys = [user?.id, user?.email, user?.name].map((k) => (k ?? "").trim().toLowerCase().slice(0, 200)).filter(Boolean);
+  const keys = [user?.id, user?.email, user?.name]
+    .map((k) => (k ?? "").trim().toLowerCase().slice(0, 200))
+    .filter(Boolean);
   return [...new Set(keys)];
 }
 
@@ -44,7 +49,10 @@ export function clusterPeople(users: UserLike[]): string[][] {
  * once. `stored` is the group's alias rows; the answer is how many to take
  * off and which aliases to add so the next occurrence matches.
  */
-export function mergeStoredPeople(clusters: string[][], stored: ReadonlySet<string>): { over: number; add: string[] } {
+export function mergeStoredPeople(
+  clusters: string[][],
+  stored: ReadonlySet<string>,
+): { over: number; add: string[] } {
   let over = 0;
   const add: string[] = [];
   for (const c of clusters) {

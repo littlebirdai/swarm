@@ -17,9 +17,13 @@ describe("parked convCommand caller policy", () => {
     expect(restartHook).toContain("if (isParkedDispatchError(err)) return;");
     // A parked restart keeps its row in flight; any other refusal settles the
     // row failed, which is what the hook's phase reads.
-    expect(commands).toContain("if (!isParkedDispatchError(error)) recordSessionCommandDispatchError(requestId, error);");
+    expect(commands).toMatch(
+      /if \(!isParkedDispatchError\(error\)\)\s*recordSessionCommandDispatchError\(requestId, error\);/,
+    );
     expect(restartHook).toContain("restartPhaseOf(gesture, now)");
-    expect(queuePage.match(/isParkedDispatchError/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(
+      queuePage.match(/isParkedDispatchError/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(3);
     expect(queuePage).toContain('setResumeState("failed")');
   });
 
@@ -38,9 +42,7 @@ describe("parked convCommand caller policy", () => {
     // action and its undo), never a convCommand of its own.
     expect(sessionsPage).toContain("killWithNotice(s.conversation_id)");
     expect(sessionsPage).not.toContain('"killSession"');
-    expect(globalPanel).toContain(
-      'if (isParkedDispatchError(err)) return;',
-    );
+    expect(globalPanel).toContain("if (isParkedDispatchError(err)) return;");
     // Any other failure is still reported: once, in words (toastWriteError
     // stays quiet only when the dispatch failure toast already said it).
     expect(globalPanel).toContain('toastWriteError(err, "Kill failed")');
@@ -55,22 +57,29 @@ describe("parked convCommand caller policy", () => {
       await source("../../hooks/useSessionComposerControls.ts"),
     ].join("\n");
 
-    for (const command of [
-      "setPermissionMode",
-      "rewindSession",
-    ]) {
+    for (const command of ["setPermissionMode", "rewindSession"]) {
       expect(conversationView).toMatch(
-        new RegExp(`convCommand\\([^\\n]+, "${command}"[^\\n]*\\)\\.catch\\(\\(err\\)`),
+        new RegExp(
+          `convCommand\\(\\s*[^,;]+,\\s*"${command}"[^;]*?\\)\\.catch\\(\\(err\\)`,
+        ),
       );
     }
     // Escape rides the store's sendEscape (it stamps the press time), which is
     // the same convCommand, and the composer observes its rejection.
-    expect(conversationView).toMatch(/sendEscape\(conversationId\)\.catch\(\(err\)/);
-    expect(await source("../inboxStore.ts")).toMatch(/sendEscape: \(convId: string\) => get\(\)\.convCommand\(convId, "sendEscapeToSession"/);
+    expect(conversationView).toMatch(
+      /sendEscape\(conversationId\)\.catch\(\(err\)/,
+    );
+    expect(await source("../inboxStore.ts")).toMatch(
+      /sendEscape: \(convId: string\) =>\s*get\(\)\.convCommand\(convId, "sendEscapeToSession"/,
+    );
     expect(conversationView).toContain(
       "Escape queued — it will send when the connection recovers",
     );
-    expect(conversationView).toContain("if (isParkedDispatchError(err)) return;");
-    expect(conversationView).toContain('toast.error(err instanceof Error ? err.message : "Failed to send Escape")');
+    expect(conversationView).toContain(
+      "if (isParkedDispatchError(err)) return;",
+    );
+    expect(conversationView).toContain(
+      'toast.error(err instanceof Error ? err.message : "Failed to send Escape")',
+    );
   });
 });

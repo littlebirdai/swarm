@@ -7,17 +7,10 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "moduleSuffixes": [".native", ""],
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
   "exclude": [
     "node_modules",
     // Same rule as apps/web: test files run under `bun test`, which supplies

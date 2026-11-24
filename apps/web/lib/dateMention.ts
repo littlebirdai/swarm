@@ -3,9 +3,15 @@
 // Pure, so the web chip and the phone agree.
 
 const RELATIVE_DATE_LABELS = new Set([
-  "today", "yesterday", "tomorrow",
-  "this week", "last week", "next week",
-  "this month", "last month", "next month",
+  "today",
+  "yesterday",
+  "tomorrow",
+  "this week",
+  "last week",
+  "next week",
+  "this month",
+  "last month",
+  "next month",
 ]);
 
 function recomputeRelativeLabel(iso: string): string | null {
@@ -22,10 +28,26 @@ function recomputeRelativeLabel(iso: string): string | null {
   return null;
 }
 
-const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function resolveDateDisplay(iso: string, storedLabel?: string | null): {
+export function resolveDateDisplay(
+  iso: string,
+  storedLabel?: string | null,
+): {
   label: string;
   resolved: string;
 } {

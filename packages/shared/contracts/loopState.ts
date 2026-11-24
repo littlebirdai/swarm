@@ -34,7 +34,10 @@ export const LOOP_OVERDUE_GRACE_MS = 15 * 60_000;
 export const LOOP_WAKING_TTL_MS = 30 * 60_000;
 
 /** Is this loop still a live standing intent at `now`? */
-export function isLoopFresh(loop: Pick<LoopState, "status" | "wakeup_at" | "fired_at" | "event_at">, now: number): boolean {
+export function isLoopFresh(
+  loop: Pick<LoopState, "status" | "wakeup_at" | "fired_at" | "event_at">,
+  now: number,
+): boolean {
   if (loop.status === "stopped") return false;
   return loop.status === "waking"
     ? now - (loop.fired_at ?? loop.event_at) < LOOP_WAKING_TTL_MS

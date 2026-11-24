@@ -10,13 +10,29 @@
 // No Convex imports: tests and the step query both load this leaf.
 
 import { countMatches } from "@codecast/shared/search";
-import { formatToolName, isEditTool, isWriteTool, toolPathFromInput, toolSummary } from "@codecast/shared/render";
+import {
+  formatToolName,
+  isEditTool,
+  isWriteTool,
+  toolPathFromInput,
+  toolSummary,
+} from "@codecast/shared/render";
 import { CHEAP_MODEL, type SurfaceRequest } from "./anthropic";
 import { citationSpans, spanLines } from "./sessionAskCitations";
 import { clipText, wellFormedString } from "./wellFormed";
-import { isCompactionMessage, isNavigableUserMessage, stripContextTags, type FilterableMessage } from "../userMessagesFilter";
+import {
+  isCompactionMessage,
+  isNavigableUserMessage,
+  stripContextTags,
+  type FilterableMessage,
+} from "../userMessagesFilter";
 
-export type AskLineKind = "human" | "agent" | "result" | "compaction" | "context";
+export type AskLineKind =
+  | "human"
+  | "agent"
+  | "result"
+  | "compaction"
+  | "context";
 
 export interface AskLine {
   /** Order in the session as read: 1 is the oldest line read. */
@@ -41,18 +57,28 @@ export interface AskLine {
 // Clip sizes. A matching line keeps enough to judge it; the rest keep a head.
 const HIT_TEXT_CHARS = 3000;
 const COMPACTION_TEXT_CHARS = 6000;
-const PLAIN_TEXT_CHARS = { human: 1200, agent: 400, result: 0, compaction: 1500, context: 200 } as const;
+const PLAIN_TEXT_CHARS = {
+  human: 1200,
+  agent: 400,
+  result: 0,
+  compaction: 1500,
+  context: 200,
+} as const;
 const HIT_RESULT_CHARS = 700;
 const ERROR_RESULT_CHARS = 200;
 const TOOL_LINE_CHARS = 160;
 const MAX_TERMS = 14;
 
-const STOP_WORDS = new Set([
-  "the and for with that this what when where which who whom why how did does was were are is has have had",
-  "been being not but you your our their its any all can could would should will about into from than then",
-  "there here they them these those some such only also just more most much very over under again ever",
-  "later first last say said tell told",
-].join(" ").split(" "));
+const STOP_WORDS = new Set(
+  [
+    "the and for with that this what when where which who whom why how did does was were are is has have had",
+    "been being not but you your our their its any all can could would should will about into from than then",
+    "there here they them these those some such only also just more most much very over under again ever",
+    "later first last say said tell told",
+  ]
+    .join(" ")
+    .split(" "),
+);
 
 /**
  * Search terms from the question itself: identifiers, paths, quoted phrases
@@ -60,10 +86,14 @@ const STOP_WORDS = new Set([
  */
 export function questionTerms(question: string): string[] {
   const terms: string[] = [];
-  for (const m of question.matchAll(/"([^"]{3,})"|`([^`]{3,})`/g)) terms.push((m[1] ?? m[2]).toLowerCase());
+  for (const m of question.matchAll(/"([^"]{3,})"|`([^`]{3,})`/g))
+    terms.push((m[1] ?? m[2]).toLowerCase());
   const bare = question.replace(/"[^"]*"|`[^`]*`/g, " ");
   for (const raw of bare.split(/[\s,;:!?()[\]{}]+/)) {
-    const word = raw.replace(/^[^\w./@-]+|[^\w./@-]+$/g, "").replace(/'s$/, "").toLowerCase();
+    const word = raw
+      .replace(/^[^\w./@-]+|[^\w./@-]+$/g, "")
+      .replace(/'s$/, "")
+      .toLowerCase();
     if (word.length < 3 || STOP_WORDS.has(word) || /^\d+$/.test(word)) continue;
     terms.push(word);
   }
@@ -107,13 +137,22 @@ export function clipAround(text: string, terms: string[], max: number): string {
     end = from + window;
   }
   // A window can open or close inside an emoji; keep each cut half from failing the reply.
-  return wellFormedString(`${parts.join(" […] ")}${end < text.length ? " […]" : ""}`);
+  return wellFormedString(
+    `${parts.join(" […] ")}${end < text.length ? " […]" : ""}`,
+  );
 }
 
 type ToolCall = { id?: string; name: string; input: string };
-type ToolResult = { tool_use_id?: string; content?: string; is_error?: boolean };
+type ToolResult = {
+  tool_use_id?: string;
+  content?: string;
+  is_error?: boolean;
+};
 
-export type AskMessage = Omit<FilterableMessage, "tool_calls" | "tool_results"> & {
+export type AskMessage = Omit<
+  FilterableMessage,
+  "tool_calls" | "tool_results"
+> & {
   tool_calls?: ToolCall[] | null;
   tool_results?: ToolResult[] | null;
 };
@@ -122,7 +161,8 @@ function kindOf(m: AskMessage): AskLineKind {
   if (isCompactionMessage(m)) return "compaction";
   if (m.role === "assistant") return "agent";
   if (isNavigableUserMessage(m)) return "human";
-  if (m.tool_results?.length && !stripContextTags(m.content ?? "")) return "result";
+  if (m.tool_results?.length && !stripContextTags(m.content ?? ""))
+    return "result";
   return "context";
 }
 
@@ -136,7 +176,11 @@ function parseInput(input: string): Record<string, unknown> {
 }
 
 /** One non-empty message as the question sees it. Pure; the step query calls it per row. */
-export function toAskLine(m: AskMessage, line: number, terms: string[]): AskLine {
+export function toAskLine(
+  m: AskMessage,
+  line: number,
+  terms: string[],
+): AskLine {
   const kind = kindOf(m);
   const prose = stripContextTags(m.content ?? "");
   const calls = m.tool_calls ?? [];
@@ -145,14 +189,22 @@ export function toAskLine(m: AskMessage, line: number, terms: string[]): AskLine
   const hits: number[] = [];
   terms.forEach((term, i) => {
     const t = [term];
-    if (countMatches(prose, t) > 0
-      || calls.some((c) => countMatches(c.input ?? "", t) > 0)
-      || results.some((r) => countMatches(r.content ?? "", t) > 0)) hits.push(i);
+    if (
+      countMatches(prose, t) > 0 ||
+      calls.some((c) => countMatches(c.input ?? "", t) > 0) ||
+      results.some((r) => countMatches(r.content ?? "", t) > 0)
+    )
+      hits.push(i);
   });
   const matchedTerms = hits.map((i) => terms[i]);
   const hit = hits.length > 0;
 
-  const textMax = kind === "compaction" ? COMPACTION_TEXT_CHARS : hit ? HIT_TEXT_CHARS : PLAIN_TEXT_CHARS[kind];
+  const textMax =
+    kind === "compaction"
+      ? COMPACTION_TEXT_CHARS
+      : hit
+        ? HIT_TEXT_CHARS
+        : PLAIN_TEXT_CHARS[kind];
   const files: string[] = [];
   const tools = calls.map((c) => {
     if (isEditTool(c.name) || isWriteTool(c.name)) {
@@ -160,13 +212,22 @@ export function toAskLine(m: AskMessage, line: number, terms: string[]): AskLine
       if (path && !files.includes(path)) files.push(path);
     }
     const summary = toolSummary(c as { name: string; input: string });
-    return clipText(`${formatToolName(c.name)}${summary ? ` ${summary}` : ""}`, TOOL_LINE_CHARS);
+    return clipText(
+      `${formatToolName(c.name)}${summary ? ` ${summary}` : ""}`,
+      TOOL_LINE_CHARS,
+    );
   });
   const error = results.some((r) => r.is_error) || undefined;
   const keptResults = results
     .filter((r) => r.content && (hit || r.is_error))
     .slice(0, 3)
-    .map((r) => clipAround(r.content!.trim(), matchedTerms, hit ? HIT_RESULT_CHARS : ERROR_RESULT_CHARS));
+    .map((r) =>
+      clipAround(
+        r.content!.trim(),
+        matchedTerms,
+        hit ? HIT_RESULT_CHARS : ERROR_RESULT_CHARS,
+      ),
+    );
 
   return {
     line,
@@ -232,19 +293,32 @@ export async function readSession(
   let cursor: AskCursor | undefined;
   let tailDone = false;
   // The tail stops at half the budget so the start is always read too.
-  while (!tailDone && steps < Math.max(1, Math.floor(budget.maxSteps / 2)) && now() - started < budget.maxMs / 2) {
+  while (
+    !tailDone &&
+    steps < Math.max(1, Math.floor(budget.maxSteps / 2)) &&
+    now() - started < budget.maxMs / 2
+  ) {
     const page = await step({ order: "desc", after: cursor });
     steps++;
     tail.push(...page.lines);
     cursor = page.cursor;
     tailDone = !page.cursor;
   }
-  const number = (ls: AskScanLine[]) => ls.map(({ creation_time: _t, ...l }, i) => ({ ...l, line: i + 1 }));
-  if (tailDone) return { lines: number(tail.reverse()), complete: true, headLines: 0, tailLines: 0 };
+  const number = (ls: AskScanLine[]) =>
+    ls.map(({ creation_time: _t, ...l }, i) => ({ ...l, line: i + 1 }));
+  if (tailDone)
+    return {
+      lines: number(tail.reverse()),
+      complete: true,
+      headLines: 0,
+      tailLines: 0,
+    };
 
   // The tail's cursor is its oldest row; rows at that instant it already read are skipped by id.
   const boundary = cursor!.creation_time;
-  const tailIdsAtBoundary = new Set(tail.filter((l) => l.creation_time === boundary).map((l) => l.id));
+  const tailIdsAtBoundary = new Set(
+    tail.filter((l) => l.creation_time === boundary).map((l) => l.id),
+  );
   const head: AskScanLine[] = [];
   let after: AskCursor | undefined;
   let met = false;
@@ -257,9 +331,22 @@ export async function readSession(
   } while (!met && steps < budget.maxSteps && now() - started < budget.maxMs);
 
   tail.reverse();
-  if (met) return { lines: number([...head, ...tail]), complete: true, headLines: 0, tailLines: 0 };
-  const lines = number([...head, ...tail]).map((l, i) => (i < head.length ? l : { ...l, ref: i - head.length - tail.length }));
-  return { lines, complete: false, headLines: head.length, tailLines: tail.length };
+  if (met)
+    return {
+      lines: number([...head, ...tail]),
+      complete: true,
+      headLines: 0,
+      tailLines: 0,
+    };
+  const lines = number([...head, ...tail]).map((l, i) =>
+    i < head.length ? l : { ...l, ref: i - head.length - tail.length },
+  );
+  return {
+    lines,
+    complete: false,
+    headLines: head.length,
+    tailLines: tail.length,
+  };
 }
 
 /**
@@ -267,9 +354,21 @@ export async function readSession(
  * way the scan numbers a session it reads whole. The evals take this path to
  * the lines the action would have read.
  */
-export function readRows(rows: Array<AskMessage & { _id: string }>, terms: string[]): Promise<AskRead> {
-  const newestFirst = rows.map((m) => ({ id: m._id, creation_time: m.timestamp, ...toAskLine(m, 0, terms) })).reverse();
-  return readSession(async () => ({ lines: newestFirst }), { maxSteps: 1, maxMs: Infinity });
+export function readRows(
+  rows: Array<AskMessage & { _id: string }>,
+  terms: string[],
+): Promise<AskRead> {
+  const newestFirst = rows
+    .map((m) => ({
+      id: m._id,
+      creation_time: m.timestamp,
+      ...toAskLine(m, 0, terms),
+    }))
+    .reverse();
+  return readSession(async () => ({ lines: newestFirst }), {
+    maxSteps: 1,
+    maxMs: Infinity,
+  });
 }
 
 // ── Choosing what the model reads ─────────────────────────────────────────
@@ -310,11 +409,17 @@ const KIND_LABEL: Record<AskLineKind, string> = {
 
 /** One line as the model reads it. `brief` drops tool results and keeps a head of the prose. */
 export function renderAskLine(l: AskLine, brief: boolean): string {
-  const text = brief && l.text.length > BRIEF_TEXT_CHARS ? `${clipText(l.text, BRIEF_TEXT_CHARS)} […]` : l.text;
-  const out = [`[msg ${l.ref ?? l.line} · ${KIND_LABEL[l.kind]}${l.error ? ", error" : ""}]${text ? ` ${text}` : ""}`];
+  const text =
+    brief && l.text.length > BRIEF_TEXT_CHARS
+      ? `${clipText(l.text, BRIEF_TEXT_CHARS)} […]`
+      : l.text;
+  const out = [
+    `[msg ${l.ref ?? l.line} · ${KIND_LABEL[l.kind]}${l.error ? ", error" : ""}]${text ? ` ${text}` : ""}`,
+  ];
   for (const t of l.tools) out.push(`  tool call: ${t}`);
   if (!brief) for (const r of l.results) out.push(`  result: ${r}`);
-  else if (l.error && l.results[0]) out.push(`  result: ${clipText(l.results[0], ERROR_RESULT_CHARS)}`);
+  else if (l.error && l.results[0])
+    out.push(`  result: ${clipText(l.results[0], ERROR_RESULT_CHARS)}`);
   return out.join("\n");
 }
 
@@ -333,10 +438,16 @@ export function renderAskLine(l: AskLine, brief: boolean): string {
  *   8. everything else, briefly, newest first; a short session fits whole.
  * Pure.
  */
-export function selectAskContext(lines: AskLine[], opts: AskContextOptions): AskContext {
+export function selectAskContext(
+  lines: AskLine[],
+  opts: AskContextOptions,
+): AskContext {
   const n = lines.length;
   const byLine = new Map(lines.map((l) => [l.line, l]));
-  const filesOf = (l: AskLine) => [...l.files, ...(opts.extraFiles?.get(l.line) ?? [])];
+  const filesOf = (l: AskLine) => [
+    ...l.files,
+    ...(opts.extraFiles?.get(l.line) ?? []),
+  ];
 
   // Rarer terms say more: weight each by inverse line frequency.
   const df = new Array(opts.termCount).fill(0);
@@ -347,20 +458,36 @@ export function selectAskContext(lines: AskLine[], opts: AskContextOptions): Ask
     return l.kind === "human" ? s * 1.5 : l.kind === "context" ? s * 0.5 : s;
   };
 
-  const scored = lines.filter((l) => l.hits.length > 0).map((l) => ({ l, s: score(l) }));
-  const anchors = [...scored].sort((a, b) => b.s - a.s || b.l.line - a.l.line).slice(0, ANCHORS).map((x) => x.l);
-  const firstAnchor = anchors.reduce((min, l) => Math.min(min, l.line), Infinity);
+  const scored = lines
+    .filter((l) => l.hits.length > 0)
+    .map((l) => ({ l, s: score(l) }));
+  const anchors = [...scored]
+    .sort((a, b) => b.s - a.s || b.l.line - a.l.line)
+    .slice(0, ANCHORS)
+    .map((x) => x.l);
+  const firstAnchor = anchors.reduce(
+    (min, l) => Math.min(min, l.line),
+    Infinity,
+  );
 
   // The topic: terms at least as specific as the median anchor term, and the files the anchors changed.
-  const anchorTerms = [...new Set(anchors.flatMap((l) => l.hits))].sort((a, b) => idf[b] - idf[a]);
-  const cut = anchorTerms.length ? idf[anchorTerms[Math.floor((anchorTerms.length - 1) / 2)]] : Infinity;
+  const anchorTerms = [...new Set(anchors.flatMap((l) => l.hits))].sort(
+    (a, b) => idf[b] - idf[a],
+  );
+  const cut = anchorTerms.length
+    ? idf[anchorTerms[Math.floor((anchorTerms.length - 1) / 2)]]
+    : Infinity;
   const topicTerms = new Set(anchorTerms.filter((t) => idf[t] >= cut));
   const topicFiles = new Set(anchors.flatMap(filesOf));
-  const onTopic = (l: AskLine) => l.hits.some((t) => topicTerms.has(t)) || filesOf(l).some((f) => topicFiles.has(f));
+  const onTopic = (l: AskLine) =>
+    l.hits.some((t) => topicTerms.has(t)) ||
+    filesOf(l).some((f) => topicFiles.has(f));
 
   const newestFirst = [...lines].reverse();
   const later = newestFirst.filter((l) => l.line > firstAnchor && onTopic(l));
-  const humansAfter = newestFirst.filter((l) => l.line > firstAnchor && l.kind === "human");
+  const humansAfter = newestFirst.filter(
+    (l) => l.line > firstAnchor && l.kind === "human",
+  );
   const tail = lines.slice(-TAIL_LINES).reverse();
   const compactions = newestFirst.filter((l) => l.kind === "compaction");
   const neighbors: AskLine[] = [];
@@ -403,13 +530,19 @@ export function selectAskContext(lines: AskLine[], opts: AskContextOptions): Ask
   // Mark what lies between two shown lines: lines skipped for the budget, or
   // the stretch of a long session that was never read at all.
   const skipped = (from: number, to: number) => {
-    if (from <= to) parts.push(`[… ${to - from + 1} ${to === from ? "message" : "messages"} not shown …]`);
+    if (from <= to)
+      parts.push(
+        `[… ${to - from + 1} ${to === from ? "message" : "messages"} not shown …]`,
+      );
   };
   const gap = (from: number, to: number) => {
     const unread = opts.unreadAfter;
-    if (unread === undefined || unread < from - 1 || unread > to) return skipped(from, to);
+    if (unread === undefined || unread < from - 1 || unread > to)
+      return skipped(from, to);
     skipped(from, unread);
-    parts.push(`[… NOT READ: every message between msg ${refOf(unread)} and msg ${refOf(unread + 1)} …]`);
+    parts.push(
+      `[… NOT READ: every message between msg ${refOf(unread)} and msg ${refOf(unread + 1)} …]`,
+    );
     skipped(unread + 1, to);
   };
   let prev = 0;
@@ -425,7 +558,10 @@ export function selectAskContext(lines: AskLine[], opts: AskContextOptions): Ask
   return {
     text: parts.join("\n"),
     shownLines,
-    anchorLines: anchors.map((l) => l.line).sort((a, b) => a - b).map(refOf),
+    anchorLines: anchors
+      .map((l) => l.line)
+      .sort((a, b) => a - b)
+      .map(refOf),
     matchedLines: scored.length,
   };
 }
@@ -448,7 +584,9 @@ export function parseTermsReply(reply: string | null | undefined): string[] {
   if (!match) return [];
   try {
     const parsed = JSON.parse(match[0]);
-    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((t): t is string => typeof t === "string")
+      : [];
   } catch {
     return [];
   }
@@ -481,7 +619,10 @@ export function buildAskPrompt(input: AskPromptInput): string {
     ? `Messages: too many to read whole. Read msg 1–${input.unread.headLines} from the start and the last ${input.unread.tailLines}, numbered back from the end (msg -1 is the last message). Everything between msg ${input.unread.headLines} and msg -${input.unread.tailLines} was not read. ${input.shownLines} shown below.`
     : `Messages: ${input.totalLines} in all, ${input.shownLines} shown below.`;
   // A transcript can quote the closing tag; break it so the excerpts cannot end early.
-  const excerpts = input.excerpts.replaceAll(`</${EXCERPTS_TAG}`, `<\\/${EXCERPTS_TAG}`);
+  const excerpts = input.excerpts.replaceAll(
+    `</${EXCERPTS_TAG}`,
+    `<\\/${EXCERPTS_TAG}`,
+  );
   return `Session: ${input.title}
 ${extent}
 
@@ -504,12 +645,22 @@ export const ASK_BUDGET_CHARS = 180_000;
 
 /** The first call: the model's extra search terms for the question. */
 export function askTermsRequest(question: string): SurfaceRequest {
-  return { model: CHEAP_MODEL, max_tokens: 200, prompt: buildTermsPrompt(question) };
+  return {
+    model: CHEAP_MODEL,
+    max_tokens: 200,
+    prompt: buildTermsPrompt(question),
+  };
 }
 
 /** What the scan searches for: the question's own words plus the terms call's reply. */
-export function askTerms(question: string, termsReply: string | null | undefined): string[] {
-  return dedupeTerms([...questionTerms(question), ...parseTermsReply(termsReply)]);
+export function askTerms(
+  question: string,
+  termsReply: string | null | undefined,
+): string[] {
+  return dedupeTerms([
+    ...questionTerms(question),
+    ...parseTermsReply(termsReply),
+  ]);
 }
 
 export interface AskAnswerInput {
@@ -521,9 +672,14 @@ export interface AskAnswerInput {
 }
 
 /** The second call: the lines chosen from a read, and the answer request over them. */
-export function askAnswerRequest(input: AskAnswerInput): { context: AskContext; request: SurfaceRequest } {
+export function askAnswerRequest(input: AskAnswerInput): {
+  context: AskContext;
+  request: SurfaceRequest;
+} {
   const { read } = input;
-  const unread = read.complete ? undefined : { headLines: read.headLines, tailLines: read.tailLines };
+  const unread = read.complete
+    ? undefined
+    : { headLines: read.headLines, tailLines: read.tailLines };
   const context = selectAskContext(read.lines, {
     budget: ASK_BUDGET_CHARS,
     termCount: input.termCount,
@@ -538,13 +694,22 @@ export function askAnswerRequest(input: AskAnswerInput): { context: AskContext; 
     excerpts: context.text,
     unread,
   });
-  return { context, request: { model: CHEAP_MODEL, max_tokens: 1500, system: ASK_SYSTEM_PROMPT, prompt } };
+  return {
+    context,
+    request: {
+      model: CHEAP_MODEL,
+      max_tokens: 1500,
+      system: ASK_SYSTEM_PROMPT,
+      prompt,
+    },
+  };
 }
 
 /** Message numbers the answer cites (msg 12, msg 12–15, msg 12-msg 15, msg -3), in order, deduplicated. */
 export function citedLines(answer: string): number[] {
   const out: number[] = [];
-  for (const span of citationSpans(answer)) for (const i of spanLines(span)) if (!out.includes(i)) out.push(i);
+  for (const span of citationSpans(answer))
+    for (const i of spanLines(span)) if (!out.includes(i)) out.push(i);
   return out;
 }
 

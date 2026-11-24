@@ -5,7 +5,10 @@
 // other object is its card. In a strip it is a small card that says what it is.
 import { memo, useContext, type ReactNode } from "react";
 import { ExternalLink, FileText, Globe, Lock, PinOff } from "lucide-react";
-import { isArtifactDocType, type ArtifactType } from "@codecast/shared/artifacts";
+import {
+  isArtifactDocType,
+  type ArtifactType,
+} from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
 import type { StagePinRow } from "../../hooks/useStagePins";
 import { useSyncDocDetail } from "../../hooks/useSyncDocs";
@@ -16,7 +19,10 @@ import { EntityObjectCard } from "../EntityObjectCard";
 import { DocTypeMark } from "../docs/DocTypeMark";
 import { AppLoader } from "../AppLoader";
 import { useEntityResolution } from "../../lib/entityDisplay";
-import { useActiveMentionScope, useMentionQuery } from "../../hooks/useMentionQuery";
+import {
+  useActiveMentionScope,
+  useMentionQuery,
+} from "../../hooks/useMentionQuery";
 import { useImageUpload } from "../../hooks/useImageUpload";
 import { ErrorBoundary } from "../ErrorBoundary";
 import type { StagePinShare } from "./stageHost";
@@ -25,7 +31,10 @@ import { pinPath, pinTitle, StagePinContext } from "../../lib/calls/stagePins";
 /** An object pin's own title (a task's, a plan's), else the pin's stored one. */
 function usePinTitle(row: StagePinRow): string {
   const r = useEntityResolution(row.kind === "object" ? row.ref : "");
-  const named = row.kind === "object" ? r.entity?.title ?? r.entity?.display_title ?? r.entity?.name ?? null : null;
+  const named =
+    row.kind === "object"
+      ? (r.entity?.title ?? r.entity?.display_title ?? r.entity?.name ?? null)
+      : null;
   return named || pinTitle(row);
 }
 
@@ -35,18 +44,39 @@ export function StagePinLabel({ share }: { share: StagePinShare }) {
 }
 
 function PinMark({ row, size = 14 }: { row: StagePinRow; size?: number }) {
-  if (row.kind === "doc" && row.doc_type) return <DocTypeMark type={row.doc_type} size={size} />;
-  if (row.kind === "page") return <Globe className="shrink-0 text-sol-blue" style={{ width: size, height: size }} />;
-  return <FileText className="shrink-0 text-sol-text-muted" style={{ width: size, height: size }} />;
+  if (row.kind === "doc" && row.doc_type)
+    return <DocTypeMark type={row.doc_type} size={size} />;
+  if (row.kind === "page")
+    return (
+      <Globe
+        className="shrink-0 text-sol-blue"
+        style={{ width: size, height: size }}
+      />
+    );
+  return (
+    <FileText
+      className="shrink-0 text-sol-text-muted"
+      style={{ width: size, height: size }}
+    />
+  );
 }
 
-export const StagePinTile = memo(function StagePinTile({ share, small }: { share: StagePinShare; small?: boolean }) {
+export const StagePinTile = memo(function StagePinTile({
+  share,
+  small,
+}: {
+  share: StagePinShare;
+  small?: boolean;
+}) {
   const row = share.pin as StagePinRow;
   if (small) return <PinCard row={row} />;
   // Its own surface, lighter than the stage, the way a screen share is a
   // picture in a frame: the thing is the room's to work on.
   return (
-    <div className="h-full w-full overflow-hidden rounded-xl bg-sol-bg-alt ring-1 ring-white/[0.06]" data-stage-pin={row.ref}>
+    <div
+      className="h-full w-full overflow-hidden rounded-xl bg-sol-bg-alt ring-1 ring-white/[0.06]"
+      data-stage-pin={row.ref}
+    >
       <PinWhole row={row} />
     </div>
   );
@@ -60,7 +90,9 @@ function PinCard({ row }: { row: StagePinRow }) {
     <div className="stage-tile-small flex aspect-video w-full shrink-0 flex-col justify-between rounded-lg bg-white/[0.05] p-2 ring-1 ring-white/[0.06]">
       <PinMark row={row} size={16} />
       <div className="min-w-0">
-        <div className="truncate font-mono text-meta text-sol-text">{title}</div>
+        <div className="truncate font-mono text-meta text-sol-text">
+          {title}
+        </div>
         <PinnedBy row={row} />
       </div>
     </div>
@@ -70,29 +102,47 @@ function PinCard({ row }: { row: StagePinRow }) {
 function PinnedBy({ row }: { row: StagePinRow }) {
   const who = row.pinned_by_agent ?? row.pinned_by_name;
   if (!who) return null;
-  return <div className="truncate text-meta text-sol-text-dim">{row.pinned_by_agent ? `✳ ${who}` : who}</div>;
+  return (
+    <div className="truncate text-meta text-sol-text-dim">
+      {row.pinned_by_agent ? `✳ ${who}` : who}
+    </div>
+  );
 }
 
 function PinWhole({ row }: { row: StagePinRow }) {
-  const isLive = row.kind === "doc" && !!row.doc_type && isArtifactDocType(row.doc_type);
+  const isLive =
+    row.kind === "doc" && !!row.doc_type && isArtifactDocType(row.doc_type);
   if (!row.readable) {
     return (
       <PinFrame row={row}>
         <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
           <Lock className="h-6 w-6 text-sol-text-dim" />
           <div className="font-mono text-[13px] text-sol-text-muted">
-            {row.kind === "doc" ? "You can't open this doc" : "This page is gone"}
+            {row.kind === "doc"
+              ? "You can't open this doc"
+              : "This page is gone"}
           </div>
           {row.kind === "doc" && row.pinned_by_name && (
-            <div className="text-meta text-sol-text-dim">Ask {row.pinned_by_name} to share it with the team</div>
+            <div className="text-meta text-sol-text-dim">
+              Ask {row.pinned_by_name} to share it with the team
+            </div>
           )}
         </div>
       </PinFrame>
     );
   }
   if (isLive && row.doc_id) {
-    const doc = { _id: row.doc_id, title: pinTitle(row), doc_type: row.doc_type as ArtifactType };
-    return <LiveArtifactEmbed doc={doc} toolbarSlot={(toolbar) => <PinHead row={row} toolbar={toolbar} />} />;
+    const doc = {
+      _id: row.doc_id,
+      title: pinTitle(row),
+      doc_type: row.doc_type as ArtifactType,
+    };
+    return (
+      <LiveArtifactEmbed
+        doc={doc}
+        toolbarSlot={(toolbar) => <PinHead row={row} toolbar={toolbar} />}
+      />
+    );
   }
   return (
     <PinFrame row={row}>
@@ -110,7 +160,13 @@ function PinWhole({ row }: { row: StagePinRow }) {
 }
 
 /** The tile around a pin that draws no controls of its own. */
-function PinFrame({ row, children }: { row: StagePinRow; children: ReactNode }) {
+function PinFrame({
+  row,
+  children,
+}: {
+  row: StagePinRow;
+  children: ReactNode;
+}) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PinHead row={row} />
@@ -130,15 +186,29 @@ function PinHead({ row, toolbar }: { row: StagePinRow; toolbar?: ReactNode }) {
   const path = pinPath(row);
   const title = usePinTitle(row);
   return (
-    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-white/[0.06] px-2.5" data-stage-pin-head={row.ref}>
+    <div
+      className="flex h-9 shrink-0 items-center gap-2 border-b border-white/[0.06] px-2.5"
+      data-stage-pin-head={row.ref}
+    >
       <PinMark row={row} />
-      <span className="min-w-0 max-w-[40%] truncate font-mono text-[12.5px] text-sol-text" title={title}>{title}</span>
+      <span
+        className="min-w-0 max-w-[40%] truncate font-mono text-[12.5px] text-sol-text"
+        title={title}
+      >
+        {title}
+      </span>
       {(row.pinned_by_agent || row.pinned_by_name) && (
         <span className="hidden shrink-0 truncate text-meta text-sol-text-dim md:inline">
-          · {row.pinned_by_agent ? `✳ ${row.pinned_by_agent}` : row.pinned_by_name}
+          ·{" "}
+          {row.pinned_by_agent
+            ? `✳ ${row.pinned_by_agent}`
+            : row.pinned_by_name}
         </span>
       )}
-      <div data-live-toolbar className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
+      <div
+        data-live-toolbar
+        className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden"
+      >
         {toolbar}
       </div>
       {path && actions && (
@@ -155,7 +225,9 @@ function PinHead({ row, toolbar }: { row: StagePinRow; toolbar?: ReactNode }) {
       {actions && (
         <button
           type="button"
-          onClick={() => useInboxStore.getState().unpinFromStage(actions.roomKey, row.ref)}
+          onClick={() =>
+            useInboxStore.getState().unpinFromStage(actions.roomKey, row.ref)
+          }
           className="shrink-0 rounded-md p-1 text-sol-text-muted transition-colors hover:bg-white/[0.06] hover:text-sol-text"
           title="Take it off the stage for everyone"
           aria-label="Take it off the stage"
@@ -170,15 +242,27 @@ function PinHead({ row, toolbar }: { row: StagePinRow; toolbar?: ReactNode }) {
 /** A prose doc, editable together: the same collaborative editor as its page. */
 function ProseDoc({ id }: { id: string }) {
   const detailResult = useSyncDocDetail(id);
-  const detail = useInboxStore((s: any) => s.docDetails[id] ?? s.docs[id]) as { content?: string; title?: string } | undefined;
+  const detail = useInboxStore((s: any) => s.docDetails[id] ?? s.docs[id]) as
+    | { content?: string; title?: string }
+    | undefined;
   // The same mentions and image drops as the doc's own page.
   const onMentionQuery = useMentionQuery(useActiveMentionScope());
   const onImageUpload = useImageUpload();
-  if (!detail && detailResult === undefined) return <AppLoader className="h-full" />;
+  if (!detail && detailResult === undefined)
+    return <AppLoader className="h-full" />;
   return (
     <div className="h-full overflow-y-auto px-6 py-4">
       <div className="mx-auto max-w-[760px]">
-      <CollabDocEditor key={id} docId={id} markdownContent={detail?.content ?? ""} onMentionQuery={onMentionQuery} onImageUpload={onImageUpload} editable contentReady={!!detail} placeholder="Write together…" />
+        <CollabDocEditor
+          key={id}
+          docId={id}
+          markdownContent={detail?.content ?? ""}
+          onMentionQuery={onMentionQuery}
+          onImageUpload={onImageUpload}
+          editable
+          contentReady={!!detail}
+          placeholder="Write together…"
+        />
       </div>
     </div>
   );

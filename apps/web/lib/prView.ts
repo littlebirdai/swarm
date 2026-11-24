@@ -6,8 +6,15 @@
 // Both are plain functions over plain rows, so the page's arithmetic is
 // testable without a DOM and the components stay layout only.
 
-import { isQuietExternalEvent, type ExternalEventAccent } from "./externalEvents";
-import { checkLabel, checkOutcome, type CheckOutcome } from "@codecast/shared/contracts";
+import {
+  isQuietExternalEvent,
+  type ExternalEventAccent,
+} from "./externalEvents";
+import {
+  checkLabel,
+  checkOutcome,
+  type CheckOutcome,
+} from "@codecast/shared/contracts";
 
 // The phone reads a check's outcome from here, as it always has; the rule lives in shared/contracts/prRefs.
 export { checkOutcome, type CheckOutcome };
@@ -49,7 +56,13 @@ export type ChecksFold = {
 };
 
 export function foldChecks(checks: PrCheck[] | undefined): ChecksFold {
-  const fold: ChecksFold = { passed: 0, failed: 0, pending: 0, skipped: 0, total: 0 };
+  const fold: ChecksFold = {
+    passed: 0,
+    failed: 0,
+    pending: 0,
+    skipped: 0,
+    total: 0,
+  };
   for (const check of checks ?? []) {
     fold[checkOutcome(check)] += 1;
     fold.total += 1;
@@ -57,11 +70,17 @@ export function foldChecks(checks: PrCheck[] | undefined): ChecksFold {
   return fold;
 }
 
-const CHECK_SORT_RANK: Record<CheckOutcome, number> = { failed: 0, pending: 1, passed: 2, skipped: 3 };
+const CHECK_SORT_RANK: Record<CheckOutcome, number> = {
+  failed: 0,
+  pending: 1,
+  passed: 2,
+  skipped: 3,
+};
 
 /** Failed checks first, then still running, then the quiet ones. */
 export function compareChecks(a: PrCheck, b: PrCheck): number {
-  const rank = CHECK_SORT_RANK[checkOutcome(a)] - CHECK_SORT_RANK[checkOutcome(b)];
+  const rank =
+    CHECK_SORT_RANK[checkOutcome(a)] - CHECK_SORT_RANK[checkOutcome(b)];
   return rank !== 0 ? rank : checkLabel(a).localeCompare(checkLabel(b));
 }
 
@@ -84,7 +103,10 @@ export function prStateKey(pr: PrStateRow): PrStateKey {
   return pr.draft ? "draft" : "open";
 }
 
-export const PR_STATE_META: Record<PrStateKey, { label: string; accent: ExternalEventAccent }> = {
+export const PR_STATE_META: Record<
+  PrStateKey,
+  { label: string; accent: ExternalEventAccent }
+> = {
   open: { label: "Open", accent: "green" },
   draft: { label: "Draft", accent: "muted" },
   merged: { label: "Merged", accent: "violet" },
@@ -93,11 +115,14 @@ export const PR_STATE_META: Record<PrStateKey, { label: string; accent: External
 
 /** The one sentence about whether this PR can land: conflicts, behind, blocked,
  *  or ready. Null when GitHub has told us nothing yet. */
-export function mergeStateMeta(pr: PrStateRow): { label: string; accent: ExternalEventAccent } | null {
+export function mergeStateMeta(
+  pr: PrStateRow,
+): { label: string; accent: ExternalEventAccent } | null {
   if (pr.state === "merged" || pr.state === "closed") return null;
   const state = (pr.mergeable_state ?? "").toLowerCase();
   if (state === "dirty") return { label: "Conflicts", accent: "red" };
-  if ((pr.behind_by ?? 0) > 0) return { label: `Behind by ${pr.behind_by}`, accent: "yellow" };
+  if ((pr.behind_by ?? 0) > 0)
+    return { label: `Behind by ${pr.behind_by}`, accent: "yellow" };
   if (state === "behind") return { label: "Behind base", accent: "yellow" };
   if (state === "blocked") return { label: "Blocked", accent: "yellow" };
   if (state === "unstable") return { label: "Checks failing", accent: "red" };
@@ -170,23 +195,37 @@ export function pendingNotes(comments: CodeCommentRow[]): CodeCommentRow[] {
 }
 
 /** `file:12` or `file:12-15`, the way a reviewer names a spot. */
-export function notePlace(note: Pick<CodeCommentRow, "file_path" | "line_number" | "line_end">): string {
+export function notePlace(
+  note: Pick<CodeCommentRow, "file_path" | "line_number" | "line_end">,
+): string {
   if (!note.file_path) return "the pull request";
   const name = note.file_path.split("/").pop() ?? note.file_path;
   if (note.line_number === undefined) return name;
-  const end = note.line_end !== undefined && note.line_end !== note.line_number ? `-${note.line_end}` : "";
+  const end =
+    note.line_end !== undefined && note.line_end !== note.line_number
+      ? `-${note.line_end}`
+      : "";
   return `${name}:${note.line_number}${end}`;
 }
 
 /** One stop in the reader's walk through the threads: a file and an anchor. */
-export type ThreadStop = { file: string; anchor: DiffLineAnchor; key: string; open: boolean; pending: boolean };
+export type ThreadStop = {
+  file: string;
+  anchor: DiffLineAnchor;
+  key: string;
+  open: boolean;
+  pending: boolean;
+};
 
 /**
  * Every thread in the order the files are listed, then by line, so `n` and `p`
  * walk the review the way the eye does. A pending note is a stop too: it is
  * where the reader last spoke.
  */
-export function threadStops(files: { filename: string }[], comments: CodeCommentRow[]): ThreadStop[] {
+export function threadStops(
+  files: { filename: string }[],
+  comments: CodeCommentRow[],
+): ThreadStop[] {
   const byFile = groupCommentsByFileLine(comments);
   const order = new Map(files.map((f, i) => [f.filename, i]));
   const stops: ThreadStop[] = [];
@@ -201,14 +240,19 @@ export function threadStops(files: { filename: string }[], comments: CodeComment
       });
     }
   }
-  return stops.sort((a, b) =>
-    (order.get(a.file) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.file) ?? Number.MAX_SAFE_INTEGER)
-    || a.file.localeCompare(b.file)
-    || a.anchor.lineNumber - b.anchor.lineNumber);
+  return stops.sort(
+    (a, b) =>
+      (order.get(a.file) ?? Number.MAX_SAFE_INTEGER) -
+        (order.get(b.file) ?? Number.MAX_SAFE_INTEGER) ||
+      a.file.localeCompare(b.file) ||
+      a.anchor.lineNumber - b.anchor.lineNumber,
+  );
 }
 
 /** Open threads and pending notes per file, for the tree's marks. */
-export function fileThreadMarks(comments: CodeCommentRow[]): Map<string, { open: number; pending: number }> {
+export function fileThreadMarks(
+  comments: CodeCommentRow[],
+): Map<string, { open: number; pending: number }> {
   const marks = new Map<string, { open: number; pending: number }>();
   for (const [file, byLine] of groupCommentsByFileLine(comments)) {
     let open = 0;
@@ -243,7 +287,9 @@ export function serverCommentId(id: string | undefined): string | undefined {
 export function commentResolved(comment: CodeCommentRow): boolean {
   // The server writes both together; the flag is the one a local resolve or
   // reopen paints (resolveCodeCommentThread), so it wins when present.
-  return typeof comment.resolved === "boolean" ? comment.resolved : comment.resolved_at !== undefined;
+  return typeof comment.resolved === "boolean"
+    ? comment.resolved
+    : comment.resolved_at !== undefined;
 }
 
 /** A thread is open while any comment in it is unresolved, so a reply after
@@ -252,7 +298,8 @@ export function threadResolved(thread: CodeCommentRow[]): boolean {
   return thread.length > 0 && thread.every(commentResolved);
 }
 
-const byCreatedAsc = (a: CodeCommentRow, b: CodeCommentRow) => a.created_at - b.created_at;
+const byCreatedAsc = (a: CodeCommentRow, b: CodeCommentRow) =>
+  a.created_at - b.created_at;
 
 /** The side a comment sits on. Line 40 of the old file and line 40 of the new
  *  file are different lines, so the side is part of a thread's identity. */
@@ -261,10 +308,16 @@ export function commentSide(comment: CodeCommentRow): DiffSide {
 }
 
 export function commentAnchor(comment: CodeCommentRow): DiffLineAnchor {
-  const anchor: DiffLineAnchor = { side: commentSide(comment), lineNumber: comment.line_number! };
+  const anchor: DiffLineAnchor = {
+    side: commentSide(comment),
+    lineNumber: comment.line_number!,
+  };
   // A run of lines is its own thread: a note on lines 10 to 13 is about the
   // block, not about line 13, so it does not join the thread on that one line.
-  if (comment.line_end !== undefined && comment.line_end !== anchor.lineNumber) {
+  if (
+    comment.line_end !== undefined &&
+    comment.line_end !== anchor.lineNumber
+  ) {
     anchor.lineEnd = comment.line_end;
   }
   return anchor;
@@ -292,13 +345,16 @@ export function groupCommentsByFileLine(
     if (thread) thread.push(comment);
     else byLine.set(key, [comment]);
   }
-  for (const byLine of byFile.values()) for (const thread of byLine.values()) thread.sort(byCreatedAsc);
+  for (const byLine of byFile.values())
+    for (const thread of byLine.values()) thread.sort(byCreatedAsc);
   return byFile;
 }
 
 /** Comments on the PR itself: no file anchor, and not a reply to another one. */
 export function prComments(comments: CodeCommentRow[]): CodeCommentRow[] {
-  return comments.filter((c) => !c.file_path && !c.parent_id).sort(byCreatedAsc);
+  return comments
+    .filter((c) => !c.file_path && !c.parent_id)
+    .sort(byCreatedAsc);
 }
 
 export function unresolvedThreadCount(comments: CodeCommentRow[]): number {
@@ -327,10 +383,18 @@ export type PrReviewRow = {
 };
 
 /** The line comments submitted inside one review, oldest first. */
-export function reviewLineComments(review: PrReviewRow, comments: CodeCommentRow[]): CodeCommentRow[] {
+export function reviewLineComments(
+  review: PrReviewRow,
+  comments: CodeCommentRow[],
+): CodeCommentRow[] {
   if (review.github_review_id === undefined) return [];
   return comments
-    .filter((c) => c.github_review_id === review.github_review_id && !!c.file_path && !c.parent_id)
+    .filter(
+      (c) =>
+        c.github_review_id === review.github_review_id &&
+        !!c.file_path &&
+        !c.parent_id,
+    )
     .sort(byCreatedAsc);
 }
 
@@ -349,12 +413,22 @@ export type PrEventRow = { _id: string; created_at: number; kind?: string };
 export type PrTimelineItem =
   | { key: string; at: number; kind: "event"; event: PrEventRow }
   | { key: string; at: number; kind: "review"; review: PrReviewRow }
-  | { key: string; at: number; kind: "comment"; comment: CodeCommentRow; replies: CodeCommentRow[] };
+  | {
+      key: string;
+      at: number;
+      kind: "comment";
+      comment: CodeCommentRow;
+      replies: CodeCommentRow[];
+    };
 
 /** Merge-state kinds say where the PR stands, not that something happened.
  *  Two of the same in a row therefore carry one piece of news, and only the
  *  latest of them is still true, so a run collapses to its last member. */
-const MERGE_STATE_EVENT_KINDS: ReadonlySet<string> = new Set(["pr_behind", "pr_conflict", "pr_ready"]);
+const MERGE_STATE_EVENT_KINDS: ReadonlySet<string> = new Set([
+  "pr_behind",
+  "pr_conflict",
+  "pr_ready",
+]);
 
 export function collapseMergeStateEvents(events: PrEventRow[]): PrEventRow[] {
   const ordered = [...events].sort((a, b) => a.created_at - b.created_at);
@@ -397,9 +471,13 @@ export function buildPrTimeline(input: {
     // A review arrives twice: as GitHub's event and as the review row. The
     // row is the one with the verdict and the notes, so once rows are in hand
     // the event is only an echo of it.
-    ...collapseMergeStateEvents(input.events.filter((event) =>
-      !isQuietExternalEvent(event) && !(event.kind === "pr_review" && input.reviews.length > 0),
-    )).map<PrTimelineItem>((event) => ({
+    ...collapseMergeStateEvents(
+      input.events.filter(
+        (event) =>
+          !isQuietExternalEvent(event) &&
+          !(event.kind === "pr_review" && input.reviews.length > 0),
+      ),
+    ).map<PrTimelineItem>((event) => ({
       key: `e:${event._id}`,
       at: event.created_at,
       kind: "event",
@@ -408,21 +486,28 @@ export function buildPrTimeline(input: {
     // GitHub wraps a lone reply or a mirrored line comment in a "commented"
     // review with no words of its own. That review is scaffolding, not a
     // thing the reviewer said, so it stays out of the list.
-    ...input.reviews.filter((review) =>
-      review.state !== "commented" || !!review.body?.trim() || reviewLineComments(review, input.comments).length > 0,
-    ).map<PrTimelineItem>((review) => ({
-      key: `r:${review._id}`,
-      at: review.submitted_at,
-      kind: "review",
-      review,
-    })),
-    ...prComments(input.comments).filter((c) => !c.pending_review).map<PrTimelineItem>((comment) => ({
-      key: `c:${comment._id}`,
-      at: comment.created_at,
-      kind: "comment",
-      comment,
-      replies: (repliesByParent.get(comment._id) ?? []).sort(byCreatedAsc),
-    })),
+    ...input.reviews
+      .filter(
+        (review) =>
+          review.state !== "commented" ||
+          !!review.body?.trim() ||
+          reviewLineComments(review, input.comments).length > 0,
+      )
+      .map<PrTimelineItem>((review) => ({
+        key: `r:${review._id}`,
+        at: review.submitted_at,
+        kind: "review",
+        review,
+      })),
+    ...prComments(input.comments)
+      .filter((c) => !c.pending_review)
+      .map<PrTimelineItem>((comment) => ({
+        key: `c:${comment._id}`,
+        at: comment.created_at,
+        kind: "comment",
+        comment,
+        replies: (repliesByParent.get(comment._id) ?? []).sort(byCreatedAsc),
+      })),
   ];
 
   return items.sort((a, b) => a.at - b.at || a.key.localeCompare(b.key));
@@ -433,7 +518,8 @@ export function buildPrTimeline(input: {
 export function dayLabel(ts: number, now: number = Date.now()): string {
   const at = new Date(ts);
   const today = new Date(now);
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const startOf = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOf(today) - startOf(at)) / 86_400_000);
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
@@ -453,12 +539,21 @@ export function dayLabel(ts: number, now: number = Date.now()): string {
 
 export type PrView = "conversation" | "guide" | "files" | "commits" | "checks";
 
-export const PR_VIEWS: readonly PrView[] = ["conversation", "guide", "files", "commits", "checks"];
+export const PR_VIEWS: readonly PrView[] = [
+  "conversation",
+  "guide",
+  "files",
+  "commits",
+  "checks",
+];
 
 /** The view a PR page path names: its last segment, or the conversation. */
 export function prViewOf(pathname: string): PrView {
   const last = pathname.replace(/\/+$/, "").split("/").pop() ?? "";
-  return (PR_VIEWS as readonly string[]).includes(last) && last !== "conversation" ? (last as PrView) : "conversation";
+  return (PR_VIEWS as readonly string[]).includes(last) &&
+    last !== "conversation"
+    ? (last as PrView)
+    : "conversation";
 }
 
 /** The page for one view of a pull request, with an optional fragment. */
@@ -483,16 +578,25 @@ export function formatDiffHash(target: DiffTarget): string {
   const { file, anchor } = target;
   if (!anchor) return `#diff-${file}`;
   const letter = SIDE_LETTER[anchor.side];
-  const end = anchor.lineEnd !== undefined && anchor.lineEnd !== anchor.lineNumber ? `-${letter}${anchor.lineEnd}` : "";
+  const end =
+    anchor.lineEnd !== undefined && anchor.lineEnd !== anchor.lineNumber
+      ? `-${letter}${anchor.lineEnd}`
+      : "";
   return `#diff-${file}:${letter}${anchor.lineNumber}${end}`;
 }
 
 /** Read a fragment back. Anything that is not a diff address is null, and a
  *  backwards run (`R20-R12`, a shift click up the file) reads as the same run. */
-export function parseDiffHash(hash: string | null | undefined): DiffTarget | null {
+export function parseDiffHash(
+  hash: string | null | undefined,
+): DiffTarget | null {
   if (!hash) return null;
   let raw = hash.replace(/^#/, "");
-  try { raw = decodeURIComponent(raw); } catch { /* keep it as written */ }
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    /* keep it as written */
+  }
   if (!raw.startsWith("diff-")) return null;
   const body = raw.slice(5);
   if (!body) return null;
@@ -501,7 +605,10 @@ export function parseDiffHash(hash: string | null | undefined): DiffTarget | nul
   const first = Number(match[3]);
   const second = match[4] === undefined ? first : Number(match[4]);
   if (first < 1 || second < 1) return { file: match[1] };
-  const anchor: DiffLineAnchor = { side: match[2] === "L" ? "LEFT" : "RIGHT", lineNumber: Math.min(first, second) };
+  const anchor: DiffLineAnchor = {
+    side: match[2] === "L" ? "LEFT" : "RIGHT",
+    lineNumber: Math.min(first, second),
+  };
   if (first !== second) anchor.lineEnd = Math.max(first, second);
   return { file: match[1], anchor };
 }
@@ -517,11 +624,18 @@ export function checkRunId(url: string | undefined): string | undefined {
  * failure instead of guessing at it.
  */
 export function formatFailingChecksPrompt(
-  pr: { repository: string; number: number; head_ref?: string; head_sha?: string },
+  pr: {
+    repository: string;
+    number: number;
+    head_ref?: string;
+    head_sha?: string;
+  },
   checks: PrCheck[],
 ): string {
   const repo = `--repo ${pr.repository}`;
-  const where = [pr.head_ref, pr.head_sha?.slice(0, 7)].filter(Boolean).join(" at ");
+  const where = [pr.head_ref, pr.head_sha?.slice(0, 7)]
+    .filter(Boolean)
+    .join(" at ");
   const lines = [
     `${checks.length === 1 ? "A check is" : `${checks.length} checks are`} failing on ${pr.repository}#${pr.number}${where ? ` (${where})` : ""}. Read the logs, find the cause, fix it, and push to ${pr.head_ref ?? "the pull request's branch"}.`,
     "",
@@ -533,6 +647,9 @@ export function formatFailingChecksPrompt(
     if (run) lines.push(`  logs: gh run view ${run} ${repo} --log-failed`);
     else if (check.url) lines.push(`  details: ${check.url}`);
   }
-  lines.push("", `All checks on the pull request: gh pr checks ${pr.number} ${repo}`);
+  lines.push(
+    "",
+    `All checks on the pull request: gh pr checks ${pr.number} ${repo}`,
+  );
   return lines.join("\n");
 }

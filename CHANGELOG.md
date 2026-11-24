@@ -11,6 +11,7 @@ then extend that file.
 ---
 
 ## September 2026: The org, pull requests, and sessions in the cloud
+
 **v1.1.114 – v1.1.143 · Desktop v1.1.112**
 
 This month codecast got a shape for standing work. A role sits in an org tree
@@ -37,6 +38,7 @@ Chrome.
 - **A calmer interface** (Sep 1 to 19). A minimal interface style, side by side as a tab split you drag into, `ctrl+tab` over recent objects, and chat and work as their own desktop windows.
 
 ## August 2026: Decisions, a browser for agents, and a team that talks
+
 **v1.1.95 – v1.1.113 · Desktop v1.1.98**
 
 This month agents learned to ask. `cast decide` puts a question in a queue you
@@ -61,6 +63,7 @@ transcripts, and push to talk.
 - **Notifications and security** (Aug 2 to 17). Push routing that knows where you are, API tokens bound to their device, email verification, reads across tenants closed, and a kill that is final.
 
 ## July 2026: Triggers, more agents, and published pages
+
 **v1.1.72 – v1.1.94 · Desktop v1.1.88**
 
 This month codecast grew beyond a single agent. OpenCode and pi joined Claude
@@ -77,6 +80,7 @@ work on a timer or a GitHub event and live in the inbox like sessions do. And
 - **Hardened and faster.** The daemon survives macOS sleep; device identity binds to hardware so a copied config can't impersonate its source; search falls back to titles on timeout; cross-tenant access holes closed.
 
 ## June 2026: Messaging, comments, and cast blame
+
 **v1.1.51 – v1.1.67 · Desktop v1.1.80**
 
 This month we built for teams working together. You can message any session
@@ -91,6 +95,7 @@ any line of code back to the conversation that wrote it with `cast blame`.
 - **Faster and more reliable.** Typing no longer drops frames in big lists; user messages don't get dropped (the send queue re-drives on reconnect); per-message model tracking.
 
 ## May 2026: Run sessions on any machine
+
 **v1.1.34 – v1.1.50 · Desktop v1.1.76**
 
 This month codecast started working across machines. Register a laptop, a cloud
@@ -104,6 +109,7 @@ the month hardening sync.
 - **Performance.** Heavy libraries load on demand and we precompress assets; the conversation view stops remounting on session switch; core data moved into a local-first cache.
 
 ## April 2026: Workspaces, windows, and shared documents
+
 **v1.1.21 – v1.1.32 · Desktop v1.1.64**
 
 This month we added structure for bigger work: projects to group sessions,
@@ -117,6 +123,7 @@ and documents that grew into a small knowledge base.
 - **Under the hood.** The CLI now encrypts its auth token at rest (AES-256-GCM); a local message cache loads conversations right away; an HTTP hook server pushes agent status the moment it changes; large-display zoom defaults on desktop.
 
 ## March 2026: Plans, workflows, and orchestration
+
 **v1.0.48 – v1.1.7 · first 1.1 desktop builds**
 
 Our biggest month so far. We shipped plans and tasks to track multi-session
@@ -132,6 +139,7 @@ Vite and shipped a collaborative document editor.
 - **Self-hosted backend.** Moved to self-hosted infrastructure with daily backups, cutting latency and cost.
 
 ## February 2026: Mobile, the inbox, and forking
+
 **v1.0.31 – v1.0.45 · first desktop build · Mobile v1.0 (App Store)**
 
 This month we put codecast on more screens. The iOS app caught up to the web
@@ -145,6 +153,7 @@ added the inbox: one place that gathers every session waiting on you.
 - **Desktop debut and more agents.** The first native desktop build with a self-restarting daemon watchdog; Gemini CLI sessions recorded alongside Claude Code, Codex, and Cursor; remote control from the web.
 
 ## January 2026: Memory, teams, and reliable sync
+
 **v1.0.2 – v1.0.26**
 
 This month we made past sessions useful. The CLI can search your history,
@@ -157,6 +166,7 @@ something new.
 - **Reliable sync.** A ledger tracks every message with hourly reconciliation; a health command finds and repairs gaps; the daemon starts on login and restarts itself if it stalls.
 
 ## December 2025: The first release
+
 **v1.0**
 
 This is the first release. We shipped a background daemon that watches your

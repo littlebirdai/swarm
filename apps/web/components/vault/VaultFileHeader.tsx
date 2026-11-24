@@ -35,7 +35,11 @@ export const VaultFileHeader = memo(function VaultFileHeader({
               type="button"
               className="hover:text-sol-text-muted transition-colors"
               title="Reveal in explorer"
-              onClick={() => useVaultStore.getState().requestReveal(segments.slice(0, i + 1).join("/"))}
+              onClick={() =>
+                useVaultStore
+                  .getState()
+                  .requestReveal(segments.slice(0, i + 1).join("/"))
+              }
             >
               {seg}
             </button>
@@ -52,7 +56,9 @@ export const VaultFileHeader = memo(function VaultFileHeader({
         </button>
       </nav>
       <div className="flex items-start gap-3 mb-3">
-        <h1 className="flex-1 text-2xl font-semibold text-sol-text break-words">{title}</h1>
+        <h1 className="flex-1 text-2xl font-semibold text-sol-text break-words">
+          {title}
+        </h1>
         <BookmarkToggle
           target={{ kind: "note", path }}
           label="Bookmark this file"

@@ -10,27 +10,53 @@
 // renaming a key moves every role that never chose a face.
 
 export const AVATAR_KEYS = [
-  "fox", "owl", "otter", "crane", "bear", "hare",
-  "moth", "whale", "hedgehog", "stag", "raccoon", "penguin",
-  "seal", "lynx", "octopus", "toucan", "frog", "goat",
-  "swan", "snail", "elephant", "koala", "squirrel", "robin",
+  "fox",
+  "owl",
+  "otter",
+  "crane",
+  "bear",
+  "hare",
+  "moth",
+  "whale",
+  "hedgehog",
+  "stag",
+  "raccoon",
+  "penguin",
+  "seal",
+  "lynx",
+  "octopus",
+  "toucan",
+  "frog",
+  "goat",
+  "swan",
+  "snail",
+  "elephant",
+  "koala",
+  "squirrel",
+  "robin",
 ] as const;
 
 export type AvatarKey = (typeof AVATAR_KEYS)[number];
 
 export function isAvatarKey(x: unknown): x is AvatarKey {
-  return typeof x === "string" && (AVATAR_KEYS as readonly string[]).includes(x);
+  return (
+    typeof x === "string" && (AVATAR_KEYS as readonly string[]).includes(x)
+  );
 }
 
 /** A stable hash of the handle into the set, so every role has a face before
  *  anyone picks one and the same handle always gets the same face. */
 export function defaultAvatarFor(handle: string): AvatarKey {
   let h = 5381;
-  for (const ch of (handle ?? "").toLowerCase()) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+  for (const ch of (handle ?? "").toLowerCase())
+    h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
   return AVATAR_KEYS[h % AVATAR_KEYS.length];
 }
 
 /** The face a role row wears: its chosen key, else the default for its handle. */
-export function avatarOf(role: { avatar?: string | null; handle: string }): AvatarKey {
+export function avatarOf(role: {
+  avatar?: string | null;
+  handle: string;
+}): AvatarKey {
   return isAvatarKey(role.avatar) ? role.avatar : defaultAvatarFor(role.handle);
 }

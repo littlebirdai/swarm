@@ -52,34 +52,59 @@ export type SetupFacts = {
 
 export function setupSteps(f: SetupFacts): SetupStep[] {
   const steps: SetupStep[] = [];
-  steps.push({ key: "connect", label: "Connect your computer", state: f.connected ? "Connected" : "Not connected", done: f.connected });
+  steps.push({
+    key: "connect",
+    label: "Connect your computer",
+    state: f.connected ? "Connected" : "Not connected",
+    done: f.connected,
+  });
   const t = f.team;
-  steps.push({ key: "team", label: "Start or join a team", state: t ? t.name : "Solo", done: !!t });
+  steps.push({
+    key: "team",
+    label: "Start or join a team",
+    state: t ? t.name : "Solo",
+    done: !!t,
+  });
   const members = t?.member_count ?? 1;
   steps.push({
     key: "invite",
     label: "Invite a teammate",
-    state: !t ? "Needs a team" : members <= 1 ? "Just you" : `${members} people`,
+    state: !t
+      ? "Needs a team"
+      : members <= 1
+        ? "Just you"
+        : `${members} people`,
     done: members >= 2,
   });
   const repos = t?.shared_project_count ?? 0;
   steps.push({
     key: "share_repo",
     label: "Share a repo with the team",
-    state: !t ? "Needs a team" : repos === 0 ? "None shared" : `${repos} shared`,
+    state: !t
+      ? "Needs a team"
+      : repos === 0
+        ? "None shared"
+        : `${repos} shared`,
     done: repos >= 1,
   });
   steps.push({
     key: "share_full",
     label: "Show teammates whole sessions",
-    state: !t ? "Needs a team" : members <= 1 ? "Needs a teammate" : t.sharesFull ? "Full" : "Partial",
+    state: !t
+      ? "Needs a team"
+      : members <= 1
+        ? "Needs a teammate"
+        : t.sharesFull
+          ? "Full"
+          : "Partial",
     done: !!t?.sharesFull && members >= 2,
   });
   steps.push({
     key: "agents",
     label: "Turn on agent features",
     state: `${f.agentFeatures.on} of ${f.agentFeatures.total} on`,
-    done: f.agentFeatures.total > 0 && f.agentFeatures.on >= f.agentFeatures.total,
+    done:
+      f.agentFeatures.total > 0 && f.agentFeatures.on >= f.agentFeatures.total,
   });
   if (f.notifications !== "n/a" && f.notifications !== "unknown") {
     steps.push({
@@ -98,7 +123,12 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     });
   }
   if (f.desktopOffered) {
-    steps.push({ key: "desktop", label: "Install the Mac app", state: "Browser", done: false });
+    steps.push({
+      key: "desktop",
+      label: "Install the Mac app",
+      state: "Browser",
+      done: false,
+    });
   }
   return steps;
 }
@@ -124,7 +154,12 @@ export function nextStep(steps: SetupStep[]): SetupStep | null {
 
 /** The steps that are worth a strip across the top of the app, in order:
  *  the ones that turn codecast from a personal log into the team's view. */
-export const NUDGE_STEPS: SetupStepKey[] = ["team", "invite", "share_repo", "agents"];
+export const NUDGE_STEPS: SetupStepKey[] = [
+  "team",
+  "invite",
+  "share_repo",
+  "agents",
+];
 
 const DAY = 24 * 60 * 60 * 1000;
 /** Each dismiss of a step's strip holds longer: 3 days, a week, three weeks,
@@ -140,7 +175,10 @@ export function nudgeCountKey(key: SetupStepKey) {
 
 type DismissBag = Record<string, unknown> | undefined;
 
-export function nudgeSnoozedUntil(dismissed: DismissBag, key: SetupStepKey): number {
+export function nudgeSnoozedUntil(
+  dismissed: DismissBag,
+  key: SetupStepKey,
+): number {
   const at = Number(dismissed?.[nudgeSnoozeKey(key)] ?? 0);
   if (!at) return 0;
   const n = Math.max(1, Number(dismissed?.[nudgeCountKey(key)] ?? 1));
@@ -149,7 +187,11 @@ export function nudgeSnoozedUntil(dismissed: DismissBag, key: SetupStepKey): num
 
 /** The one step the strip asks for now: the first undone nudge step that is
  *  not snoozed. A step waits for the ones before it (an invite needs a team). */
-export function pickSetupNudge(steps: SetupStep[], dismissed: DismissBag, now = Date.now()): SetupStep | null {
+export function pickSetupNudge(
+  steps: SetupStep[],
+  dismissed: DismissBag,
+  now = Date.now(),
+): SetupStep | null {
   const connect = steps.find((s) => s.key === "connect");
   if (!connect?.done) return null;
   for (const key of NUDGE_STEPS) {

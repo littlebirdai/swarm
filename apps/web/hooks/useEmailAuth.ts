@@ -18,11 +18,17 @@ function failure(flow: EmailAuthFlow, err: unknown): string {
   if (!(err instanceof Error)) return "An unexpected error occurred.";
   const m = err.message;
   if (flow === "signUp") {
-    if (m.includes("already") || m.includes("exists") || m.includes("registered")) return "Email already registered";
+    if (
+      m.includes("already") ||
+      m.includes("exists") ||
+      m.includes("registered")
+    )
+      return "Email already registered";
     if (m.includes("password")) return "Password must be at least 8 characters";
     return "Sign up failed. Please try again.";
   }
-  if (m.includes("Invalid") || m.includes("credentials")) return "Invalid email or password. Please try again.";
+  if (m.includes("Invalid") || m.includes("credentials"))
+    return "Invalid email or password. Please try again.";
   if (m.includes("not found")) return "No account found with this email.";
   return "Sign in failed. Please try again.";
 }
@@ -32,7 +38,11 @@ export const leaveTo = (redirectTo: string) => {
   window.location.href = redirectTo;
 };
 
-export function useEmailAuth(flow: EmailAuthFlow, redirectTo: string, initialEmail = "") {
+export function useEmailAuth(
+  flow: EmailAuthFlow,
+  redirectTo: string,
+  initialEmail = "",
+) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -64,8 +74,15 @@ export function useEmailAuth(flow: EmailAuthFlow, redirectTo: string, initialEma
   };
 
   return {
-    email, setEmail, password, setPassword, confirmPassword, setConfirmPassword,
-    error, loading, submit,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    error,
+    loading,
+    submit,
     pendingVerification,
     /** The code was accepted: on to the app. */
     verified: () => leaveTo(redirectTo),
@@ -86,7 +103,11 @@ export function useEmailCode(email: string, onVerified: () => void) {
     setLoading(true);
     setError("");
     try {
-      await signIn("password", { email, code: code.trim(), flow: "email-verification" });
+      await signIn("password", {
+        email,
+        code: code.trim(),
+        flow: "email-verification",
+      });
       onVerified();
     } catch {
       setError("Invalid or expired code. Check the email and try again.");
@@ -94,7 +115,14 @@ export function useEmailCode(email: string, onVerified: () => void) {
     }
   };
 
-  return { code, setCode: (v: string) => setCode(v.toUpperCase()), error, loading, ready: code.trim().length >= 6, submit };
+  return {
+    code,
+    setCode: (v: string) => setCode(v.toUpperCase()),
+    error,
+    loading,
+    ready: code.trim().length >= 6,
+    submit,
+  };
 }
 
 /** Step one of a forgotten password: mail a reset code to the address. */
@@ -114,8 +142,10 @@ export function useResetRequest(initialEmail = "") {
       setSent(true);
     } catch (err) {
       setError(
-        !(err instanceof Error) ? "An unexpected error occurred."
-          : err.message.includes("not found") ? "No account found with this email."
+        !(err instanceof Error)
+          ? "An unexpected error occurred."
+          : err.message.includes("not found")
+            ? "No account found with this email."
             : "Failed to send reset code. Please try again.",
       );
     } finally {
@@ -123,7 +153,15 @@ export function useResetRequest(initialEmail = "") {
     }
   };
 
-  return { email, setEmail, error, loading, sent, submit, /** No mail arrived: back to the address. */ again: () => setSent(false) };
+  return {
+    email,
+    setEmail,
+    error,
+    loading,
+    sent,
+    submit,
+    /** No mail arrived: back to the address. */ again: () => setSent(false),
+  };
 }
 
 /** Step two: the mailed code and a new password. Accepting them signs the
@@ -135,7 +173,9 @@ export function useResetConfirm(email: string, onDone: () => void) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuthActions();
-  const notifyPasswordChanged = useMutation(api.emails.send.notifyPasswordChanged);
+  const notifyPasswordChanged = useMutation(
+    api.emails.send.notifyPasswordChanged,
+  );
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -150,7 +190,12 @@ export function useResetConfirm(email: string, onDone: () => void) {
     }
     setLoading(true);
     try {
-      await signIn("password", { email, code, newPassword, flow: "reset-verification" });
+      await signIn("password", {
+        email,
+        code,
+        newPassword,
+        flow: "reset-verification",
+      });
       // Security notice to the account's inbox. The reset just signed us in,
       // so the authenticated mutation targets our own address. Best effort:
       // never block the redirect on it.
@@ -158,8 +203,10 @@ export function useResetConfirm(email: string, onDone: () => void) {
       onDone();
     } catch (err) {
       setError(
-        !(err instanceof Error) ? "An unexpected error occurred."
-          : err.message.includes("Invalid") || err.message.includes("code") ? "Invalid or expired reset code. Please try again."
+        !(err instanceof Error)
+          ? "An unexpected error occurred."
+          : err.message.includes("Invalid") || err.message.includes("code")
+            ? "Invalid or expired reset code. Please try again."
             : "Failed to reset password. Please try again.",
       );
       setLoading(false);
@@ -167,8 +214,14 @@ export function useResetConfirm(email: string, onDone: () => void) {
   };
 
   return {
-    code, setCode: (v: string) => setCode(v.toUpperCase()),
-    newPassword, setNewPassword, confirmPassword, setConfirmPassword,
-    error, loading, submit,
+    code,
+    setCode: (v: string) => setCode(v.toUpperCase()),
+    newPassword,
+    setNewPassword,
+    confirmPassword,
+    setConfirmPassword,
+    error,
+    loading,
+    submit,
   };
 }

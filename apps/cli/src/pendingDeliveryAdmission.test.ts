@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { PendingDeliveryHeldError, createDeliveryAdmission } from "./pendingDeliveryAdmission.js";
+import {
+  PendingDeliveryHeldError,
+  createDeliveryAdmission,
+} from "./pendingDeliveryAdmission.js";
 
 // Shape of the 2026-09-07 strand: the terminal path marks the row "injected"
 // before it pastes, the paste fails, and the auto-resume fallback in the SAME

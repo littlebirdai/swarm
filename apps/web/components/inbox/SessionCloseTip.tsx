@@ -7,6 +7,8 @@ import { closeFactsInStore } from "../../lib/closeFactsInStore";
  *  group are read then, not by every card. */
 export function SessionCloseTip({ session }: { session: InboxSession }) {
   const now = Date.now();
-  const words = useInboxStore((s) => closeTooltip(closeFactsInStore(s as any, session, now)));
+  const words = useInboxStore((s) =>
+    closeTooltip(closeFactsInStore(s as any, session, now)),
+  );
   return <>{words}</>;
 }

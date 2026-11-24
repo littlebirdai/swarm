@@ -47,18 +47,25 @@ export const slackTables = {
     // The person's direct messages, when they switched them on: every DM of
     // theirs becomes a codecast DM (see slackSync.scanDms). `status` follows
     // the scan that lists and links them; each DM's own import is on its link.
-    dm_sync: v.optional(v.object({
-      enabled: v.boolean(),
-      window: v.string(),
-      enabled_at: v.number(),
-      status: v.optional(v.union(v.literal("scanning"), v.literal("done"), v.literal("failed"))),
-      conversations: v.optional(v.number()),
-      error: v.optional(v.string()),
-    })),
+    dm_sync: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        window: v.string(),
+        enabled_at: v.number(),
+        status: v.optional(
+          v.union(
+            v.literal("scanning"),
+            v.literal("done"),
+            v.literal("failed"),
+          ),
+        ),
+        conversations: v.optional(v.number()),
+        error: v.optional(v.string()),
+      }),
+    ),
     created_at: v.number(),
     updated_at: v.number(),
-  })
-    .index("by_installation_user", ["installation_id", "user_id"]),
+  }).index("by_installation_user", ["installation_id", "user_id"]),
 
   // Idempotency for inbound Slack events: Slack retries on slow/failed acks, and
   // a double-wake would make the anchor answer the same mention twice (Aivery's
@@ -128,17 +135,23 @@ export const slackTables = {
     last_error_at: v.optional(v.number()),
     // The history import, when one was asked for. Runs page by page in
     // scheduled actions; the settings surface reads `fetched` as it grows.
-    backfill: v.optional(v.object({
-      window: v.string(), // "1d" | "7d" | "30d" | "90d" | "all"
-      status: v.union(v.literal("running"), v.literal("done"), v.literal("failed")),
-      fetched: v.number(), // lines brought over so far (roots and replies)
-      skipped: v.optional(v.number()), // lines that failed to convert; the import went on without them
-      started_at: v.number(),
-      heartbeat_at: v.optional(v.number()), // last run that reported in; the stall sweep reads this, not updated_at
-      finished_at: v.optional(v.number()),
-      capped: v.optional(v.boolean()), // stopped at the per import ceiling
-      error: v.optional(v.string()),
-    })),
+    backfill: v.optional(
+      v.object({
+        window: v.string(), // "1d" | "7d" | "30d" | "90d" | "all"
+        status: v.union(
+          v.literal("running"),
+          v.literal("done"),
+          v.literal("failed"),
+        ),
+        fetched: v.number(), // lines brought over so far (roots and replies)
+        skipped: v.optional(v.number()), // lines that failed to convert; the import went on without them
+        started_at: v.number(),
+        heartbeat_at: v.optional(v.number()), // last run that reported in; the stall sweep reads this, not updated_at
+        finished_at: v.optional(v.number()),
+        capped: v.optional(v.boolean()), // stopped at the per import ceiling
+        error: v.optional(v.string()),
+      }),
+    ),
     // Who is in the Slack channel (Slack user ids), for the room's member
     // panel. Read whole by slackSync.refreshSlackMembers, kept live by the
     // member_joined/left events, edited by slackSync.setSlackMember. Absent
@@ -147,10 +160,16 @@ export const slackTables = {
     slack_members_at: v.optional(v.number()),
     // The last invite or remove Slack refused, undone on the roster and shown
     // in the panel. null (not absent) once a later change clears it.
-    member_error: v.optional(v.union(
-      v.object({ message: v.string(), slack_user_id: v.string(), at: v.number() }),
-      v.null(),
-    )),
+    member_error: v.optional(
+      v.union(
+        v.object({
+          message: v.string(),
+          slack_user_id: v.string(),
+          at: v.number(),
+        }),
+        v.null(),
+      ),
+    ),
     created_by: v.id("users"),
     created_at: v.number(),
     updated_at: v.number(),
@@ -198,7 +217,12 @@ export const slackTables = {
     link_id: v.id("slack_channel_links"),
     kind: v.string(), // event type + subtype, for the ledger
     payload: v.any(),
-    status: v.union(v.literal("queued"), v.literal("done"), v.literal("failed"), v.literal("skipped")),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("done"),
+      v.literal("failed"),
+      v.literal("skipped"),
+    ),
     attempts: v.number(),
     error: v.optional(v.string()),
     created_at: v.number(),

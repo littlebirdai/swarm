@@ -1,4 +1,7 @@
-import { useMachineResourceDeviceIds, useSyncMachineResource } from "../../hooks/useResourceMonitor";
+import {
+  useMachineResourceDeviceIds,
+  useSyncMachineResource,
+} from "../../hooks/useResourceMonitor";
 
 function MachineResourceFeeder({ deviceId }: { deviceId: string }) {
   useSyncMachineResource(deviceId);
@@ -9,5 +12,11 @@ function MachineResourceFeeder({ deviceId }: { deviceId: string }) {
  *  only. The pressure notice and /resources read the rows from the store. */
 export function MachineResourceFeeders() {
   const ids = useMachineResourceDeviceIds();
-  return <>{ids.map((id) => <MachineResourceFeeder key={id} deviceId={id} />)}</>;
+  return (
+    <>
+      {ids.map((id) => (
+        <MachineResourceFeeder key={id} deviceId={id} />
+      ))}
+    </>
+  );
 }

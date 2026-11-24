@@ -1,6 +1,13 @@
 // How a value reads in a cell: the cell's number format (number, percent,
 // currency, date, ...) with its decimals and sign, or a TEXT() format code.
-import { isError, serialToDate, numberToText, type NumberFormatKind, type Scalar, type ImpliedFormat } from "./values";
+import {
+  isError,
+  serialToDate,
+  numberToText,
+  type NumberFormatKind,
+  type Scalar,
+  type ImpliedFormat,
+} from "./values";
 
 export type CellNumberFormat = {
   nf?: NumberFormatKind;
@@ -14,10 +21,44 @@ export type CellNumberFormat = {
   code?: string;
 };
 
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const MONTHS_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 function groupThousands(intPart: string): string {
   return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -37,27 +78,41 @@ export function formatFixed(n: number, dp: number, group = true): string {
 /** A time of day or a duration: 9:05, 14:30:15, or 27:30 past a day (hours keep counting, as a timesheet needs). */
 export function formatTime(v: number): string {
   const total = Math.round(Math.abs(v) * 86400);
-  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
+  const h = Math.floor(total / 3600),
+    m = Math.floor((total % 3600) / 60),
+    sec = total % 60;
   return `${v < 0 ? "-" : ""}${h}:${String(m).padStart(2, "0")}${sec ? `:${String(sec).padStart(2, "0")}` : ""}`;
 }
 
 export function formatDate(serial: number, withTime = false): string {
   const d = serialToDate(serial);
   const base = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
-  return withTime ? `${base} ${String(d.h).padStart(2, "0")}:${String(d.min).padStart(2, "0")}` : base;
+  return withTime
+    ? `${base} ${String(d.h).padStart(2, "0")}:${String(d.min).padStart(2, "0")}`
+    : base;
 }
 
 /** Plain display of a number with no format: up to 10 significant decimals, no grouping. */
 function plainNumber(n: number): string {
   if (!Number.isFinite(n)) return "#NUM!";
-  if (Math.abs(n) >= 1e15 || (Math.abs(n) < 1e-9 && n !== 0)) return n.toExponential(4).replace("e+", "E+").replace("e-", "E-");
+  if (Math.abs(n) >= 1e15 || (Math.abs(n) < 1e-9 && n !== 0))
+    return n.toExponential(4).replace("e+", "E+").replace("e-", "E-");
   return numberToText(Number(n.toPrecision(12)));
 }
 
 /** The text a cell shows for its value. */
-export function formatValue(v: Scalar, fmt: CellNumberFormat | undefined, implied?: ImpliedFormat): string {
+export function formatValue(
+  v: Scalar,
+  fmt: CellNumberFormat | undefined,
+  implied?: ImpliedFormat,
+): string {
   // A checkbox cell reads TRUE/FALSE (or 1/0, or empty) as a box.
-  if (fmt?.nf === "check" && !isError(v)) return v === true || v === 1 || (typeof v === "string" && v.toUpperCase() === "TRUE") ? "☑" : "☐";
+  if (fmt?.nf === "check" && !isError(v))
+    return v === true ||
+      v === 1 ||
+      (typeof v === "string" && v.toUpperCase() === "TRUE")
+      ? "☑"
+      : "☐";
   if (v === null) return "";
   if (isError(v)) return v.error;
   if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
@@ -82,7 +137,14 @@ export function formatValue(v: Scalar, fmt: CellNumberFormat | undefined, implie
       return v < 0 ? `(${sym}${body})` : `${sym}${body}`;
     }
     case "scientific":
-      return plus + v.toExponential(dp ?? 2).toUpperCase().replace(/E\+?(-?)(\d)$/, "E+$10$2").replace("E+-", "E-");
+      return (
+        plus +
+        v
+          .toExponential(dp ?? 2)
+          .toUpperCase()
+          .replace(/E\+?(-?)(\d)$/, "E+$10$2")
+          .replace("E+-", "E-")
+      );
     case "custom": {
       const code = fmt?.code ?? implied?.code;
       return code ? formatWithCode(v, code) : plainNumber(v);
@@ -96,7 +158,9 @@ export function formatValue(v: Scalar, fmt: CellNumberFormat | undefined, implie
     case "text":
       return plainNumber(v);
     default:
-      return plus + (dp !== undefined ? formatFixed(v, dp, false) : plainNumber(v));
+      return (
+        plus + (dp !== undefined ? formatFixed(v, dp, false) : plainNumber(v))
+      );
   }
 }
 
@@ -111,9 +175,14 @@ export function isNumericValue(v: Scalar): boolean {
  * Dates: yyyy yy mmmm mmm mm m dddd ddd dd d hh h mm(min) ss AM/PM.
  */
 /** The section of a format code a value uses (positive;negative), and the color it names ([Red], [Blue], ...). */
-function codeSection(v: number, code: string): { section: string; color?: string } {
+function codeSection(
+  v: number,
+  code: string,
+): { section: string; color?: string } {
   const raw = code.split(";")[v < 0 && code.includes(";") ? 1 : 0] ?? code;
-  const color = raw.match(/\[(red|blue|green|yellow|magenta|cyan)\]/i)?.[1]?.toLowerCase();
+  const color = raw
+    .match(/\[(red|blue|green|yellow|magenta|cyan)\]/i)?.[1]
+    ?.toLowerCase();
   // Colors and conditions ([Red], [>100]) drop out; elapsed-time units ([h], [mm]) are part of the format.
   return { section: raw.replace(/\[(?![hms]+\])[^\]]*\]/gi, ""), color };
 }
@@ -128,11 +197,19 @@ export function formatWithCode(v: number, code: string): string {
   const useAbs = v < 0 && code.includes(";");
   const n = useAbs ? Math.abs(v) : v;
   // A section with no digit placeholder is plain text: it shows as written.
-  if (!/[0#?]/.test(section.replace(/"[^"]*"/g, "")) && !/[ymdhs]/i.test(section.replace(/"[^"]*"/g, ""))) return strip(section);
-  if (/[ymdhs]/i.test(section.replace(/"[^"]*"/g, "")) && !/[0#]/.test(section)) return formatDateCode(n, section);
+  if (
+    !/[0#?]/.test(section.replace(/"[^"]*"/g, "")) &&
+    !/[ymdhs]/i.test(section.replace(/"[^"]*"/g, ""))
+  )
+    return strip(section);
+  if (/[ymdhs]/i.test(section.replace(/"[^"]*"/g, "")) && !/[0#]/.test(section))
+    return formatDateCode(n, section);
   const literalPrefix = section.match(/^[^0#.,%]*/)?.[0] ?? "";
   const literalSuffix = section.match(/[^0#.,%]*$/)?.[0] ?? "";
-  let core = section.slice(literalPrefix.length, section.length - literalSuffix.length);
+  let core = section.slice(
+    literalPrefix.length,
+    section.length - literalSuffix.length,
+  );
   const percent = section.includes("%");
   // Each comma after the last digit placeholder divides by 1,000 ("#,##0.0,," shows millions).
   const thousands = core.replace(/%/g, "").match(/,+$/)?.[0].length ?? 0;
@@ -140,7 +217,14 @@ export function formatWithCode(v: number, code: string): string {
   const scaled = (percent ? n * 100 : n) / 1000 ** thousands;
   if (/E\+/i.test(core)) {
     const dp = (core.split(".")[1] ?? "").replace(/E.*/i, "").length;
-    return strip(literalPrefix) + scaled.toExponential(dp).toUpperCase().replace(/E\+?(-?)(\d)$/, "E+$10$2") + strip(literalSuffix);
+    return (
+      strip(literalPrefix) +
+      scaled
+        .toExponential(dp)
+        .toUpperCase()
+        .replace(/E\+?(-?)(\d)$/, "E+$10$2") +
+      strip(literalSuffix)
+    );
   }
   const [intSpec, decSpec = ""] = core.replace(/%/g, "").split(".");
   const dp = decSpec.replace(/[^0#]/g, "").length;
@@ -154,8 +238,14 @@ export function formatWithCode(v: number, code: string): string {
     body = f ? `${i}.${f}` : i;
   }
   const minInt = intSpec.replace(/[^0]/g, "").length;
-  if (minInt === 0 && /^-?0(\.|$)/.test(body) && dp > 0) body = body.replace(/^(-?)0\./, "$1.");
-  return strip(literalPrefix) + body + (percent ? "%" : "") + strip(literalSuffix.replace(/%/g, ""));
+  if (minInt === 0 && /^-?0(\.|$)/.test(body) && dp > 0)
+    body = body.replace(/^(-?)0\./, "$1.");
+  return (
+    strip(literalPrefix) +
+    body +
+    (percent ? "%" : "") +
+    strip(literalSuffix.replace(/%/g, ""))
+  );
 }
 
 function strip(s: string): string {
@@ -166,21 +256,32 @@ function formatDateCode(serial: number, code: string): string {
   const d = serialToDate(serial);
   const ampm = /AM\/PM/i.test(code);
   // [h], [mm], [ss]: elapsed time that keeps counting past a day (a 29:45 timesheet total).
-  const tokens = code.match(/"[^"]*"|\[h+\]|\[m+\]|\[s+\]|yyyy|yy|mmmm|mmm|mm|m|dddd|ddd|dd|d|hh|h|ss|s|AM\/PM|./gi) ?? [];
+  const tokens =
+    code.match(
+      /"[^"]*"|\[h+\]|\[m+\]|\[s+\]|yyyy|yy|mmmm|mmm|mm|m|dddd|ddd|dd|d|hh|h|ss|s|AM\/PM|./gi,
+    ) ?? [];
   let out = "";
   let lastWasHour = false;
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     const lower = t.toLowerCase();
-    const nextIsSecond = tokens.slice(i + 1).find((x) => /[a-z]/i.test(x))?.toLowerCase().startsWith("s");
+    const nextIsSecond = tokens
+      .slice(i + 1)
+      .find((x) => /[a-z]/i.test(x))
+      ?.toLowerCase()
+      .startsWith("s");
     if (t.startsWith('"')) out += t.slice(1, -1);
     else if (/^\[[hms]+\]$/i.test(t)) {
       const secs = Math.round(serial * 86400);
       const unit = lower[1];
-      const total = unit === "h" ? Math.floor(secs / 3600) : unit === "m" ? Math.floor(secs / 60) : secs;
+      const total =
+        unit === "h"
+          ? Math.floor(secs / 3600)
+          : unit === "m"
+            ? Math.floor(secs / 60)
+            : secs;
       out += String(total).padStart(t.length - 2, "0");
-    }
-    else if (lower === "yyyy") out += d.y;
+    } else if (lower === "yyyy") out += d.y;
     else if (lower === "yy") out += String(d.y).slice(-2);
     else if (lower === "mmmm") out += MONTHS_LONG[d.m - 1];
     else if (lower === "mmm") out += MONTHS_SHORT[d.m - 1];

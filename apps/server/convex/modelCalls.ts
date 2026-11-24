@@ -7,7 +7,14 @@
 // start a session.
 
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery, query, mutation } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+  mutation,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -17,38 +24,94 @@ import { requireTeamAdmin, requireTeamMembership } from "./lib/access";
 import { isStaff } from "./lib/staff";
 import { parseWorkspaceKey } from "./lib/accessKeys";
 import { callModelMetered, estimatedUsage, modelCost } from "./lib/anthropic";
-import { readBudget, setBudgetCap, settleBudget, takeBudget, worstCaseCost } from "./lib/teamBudget";
+import {
+  readBudget,
+  setBudgetCap,
+  settleBudget,
+  takeBudget,
+  worstCaseCost,
+} from "./lib/teamBudget";
 import { recordModelSpend } from "./lib/modelSpend";
 import { resolveWorkspaceProject } from "./lib/projectRef";
-import { modelCallProblem, parseJsonBlock, type BudgetPurpose, type BudgetSummary, type ModelCallResult, type ModelCallSpec } from "@codecast/shared/contracts/modelCall";
+import {
+  modelCallProblem,
+  parseJsonBlock,
+  type BudgetPurpose,
+  type BudgetSummary,
+  type ModelCallResult,
+  type ModelCallSpec,
+} from "@codecast/shared/contracts/modelCall";
 import { vendorRefusalFor } from "./lib/vendorGuard";
 
-const purposeValidator = v.union(v.literal("judge"), v.literal("grouping"), v.literal("call"));
+const purposeValidator = v.union(
+  v.literal("judge"),
+  v.literal("grouping"),
+  v.literal("call"),
+);
 
 /** Whether a workspace pays for model calls at all (a cap above zero): with none, grouping is off, never refused. */
 export const budgetSet = internalQuery({
   args: { workspace: v.string() },
-  handler: async (ctx, args): Promise<boolean> => ((await ctx.db.query("team_budgets").withIndex("by_workspace", (q: any) => q.eq("workspace", args.workspace)).first())?.cap_usd ?? 0) > 0,
+  handler: async (ctx, args): Promise<boolean> =>
+    ((
+      await ctx.db
+        .query("team_budgets")
+        .withIndex("by_workspace", (q: any) =>
+          q.eq("workspace", args.workspace),
+        )
+        .first()
+    )?.cap_usd ?? 0) > 0,
 });
 
 export const reserve = internalMutation({
-  args: { workspace: v.string(), team_id: v.optional(v.id("teams")), amount: v.number() },
-  handler: async (ctx, args): Promise<boolean> => takeBudget(ctx, args.workspace, args.team_id, args.amount, Date.now()),
+  args: {
+    workspace: v.string(),
+    team_id: v.optional(v.id("teams")),
+    amount: v.number(),
+  },
+  handler: async (ctx, args): Promise<boolean> =>
+    takeBudget(ctx, args.workspace, args.team_id, args.amount, Date.now()),
 });
 
 export const settle = internalMutation({
-  args: { workspace: v.string(), purpose: purposeValidator, held: v.number(), cost: v.number(), project_ids: v.optional(v.array(v.id("projects"))) },
+  args: {
+    workspace: v.string(),
+    purpose: purposeValidator,
+    held: v.number(),
+    cost: v.number(),
+    project_ids: v.optional(v.array(v.id("projects"))),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
-    await settleBudget(ctx, args.workspace, args.purpose, args.held, args.cost, now);
-    await recordModelSpend(ctx, args.workspace, args.project_ids ?? [], args.purpose, args.cost, now);
+    await settleBudget(
+      ctx,
+      args.workspace,
+      args.purpose,
+      args.held,
+      args.cost,
+      now,
+    );
+    await recordModelSpend(
+      ctx,
+      args.workspace,
+      args.project_ids ?? [],
+      args.purpose,
+      args.cost,
+      now,
+    );
   },
 });
 
 /** Where a call is charged: the workspace's budget, and the project (or projects) it served, which model_spend_hours splits it among. */
-export type CallScope = { workspace: string; team_id?: Id<"teams">; project_id?: Id<"projects">; project_ids?: Id<"projects">[] };
+export type CallScope = {
+  workspace: string;
+  team_id?: Id<"teams">;
+  project_id?: Id<"projects">;
+  project_ids?: Id<"projects">[];
+};
 
-const projectsOf = (scope: CallScope): Id<"projects">[] => scope.project_ids ?? (scope.project_id ? [scope.project_id] : []);
+const projectsOf = (scope: CallScope): Id<"projects">[] =>
+  scope.project_ids ?? (scope.project_id ? [scope.project_id] : []);
 
 const BUDGET_CONFLICT = /changed while this mutation was being run/;
 
@@ -58,13 +121,23 @@ const BUDGET_CONFLICT = /changed while this mutation was being run/;
  * nothing has been spent then, so it waits a moment and asks again rather
  * than failing the caller (a merge pass died mid-list on this, 2026-10-21).
  */
-async function reserveBudget(ctx: { runMutation: any }, scope: CallScope, held: number): Promise<boolean> {
+async function reserveBudget(
+  ctx: { runMutation: any },
+  scope: CallScope,
+  held: number,
+): Promise<boolean> {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await ctx.runMutation(internal.modelCalls.reserve, { workspace: scope.workspace, team_id: scope.team_id, amount: held });
+      return await ctx.runMutation(internal.modelCalls.reserve, {
+        workspace: scope.workspace,
+        team_id: scope.team_id,
+        amount: held,
+      });
     } catch (err) {
       if (attempt >= 4 || !BUDGET_CONFLICT.test(String(err))) throw err;
-      await new Promise((r) => setTimeout(r, 250 * 2 ** attempt * (1 + Math.random())));
+      await new Promise((r) =>
+        setTimeout(r, 250 * 2 ** attempt * (1 + Math.random())),
+      );
     }
   }
 }
@@ -92,7 +165,13 @@ export async function withinBudget<T>(
   try {
     return { room: true, value: await run((usd) => (cost = usd)) };
   } finally {
-    const settle = { workspace: scope.workspace, purpose, held, cost, project_ids: projectsOf(scope) };
+    const settle = {
+      workspace: scope.workspace,
+      purpose,
+      held,
+      cost,
+      project_ids: projectsOf(scope),
+    };
     try {
       await ctx.runMutation(internal.modelCalls.settle, settle);
     } catch {
@@ -106,27 +185,110 @@ export async function withinBudget<T>(
  * anything when the cap has no room; otherwise charges what the call cost,
  * failed or not (a call that reported no usage is charged its prompt).
  */
-export async function runModelCall(ctx: { runQuery: any; runMutation: any; scheduler: any }, scope: CallScope, purpose: BudgetPurpose, spec: ModelCallSpec, label: string, timeoutMs = 60_000): Promise<ModelCallResult> {
+export async function runModelCall(
+  ctx: { runQuery: any; runMutation: any; scheduler: any },
+  scope: CallScope,
+  purpose: BudgetPurpose,
+  spec: ModelCallSpec,
+  label: string,
+  timeoutMs = 60_000,
+): Promise<ModelCallResult> {
   const problem = modelCallProblem(spec);
-  if (problem) return { ok: false, reason: "failed", error: problem, cost_usd: 0, model: spec.model };
+  if (problem)
+    return {
+      ok: false,
+      reason: "failed",
+      error: problem,
+      cost_usd: 0,
+      model: spec.model,
+    };
   // A regulated team's call is refused before its budget is touched, so it costs nothing.
   const gate = { ctx, scope: { workspace: scope.workspace } };
   const refusal = await vendorRefusalFor(ctx, gate.scope, "anthropic");
-  if (refusal) return { ok: false, reason: "failed", error: refusal, cost_usd: 0, model: spec.model };
-  const held = worstCaseCost(spec.model, (spec.system?.length ?? 0) + spec.prompt.length, spec.max_tokens);
-  const spent = await withinBudget(ctx, scope, purpose, held, async (charge): Promise<ModelCallResult> => {
-    const { reply, usage, error } = await callModelMetered({ model: spec.model, system: spec.system, prompt: spec.prompt, max_tokens: spec.max_tokens, output_schema: spec.output_schema, label, timeout_ms: timeoutMs, gate });
-    const cost = modelCost(spec.model, usage ?? estimatedUsage(spec.system, spec.prompt));
-    charge(cost);
-    if (!reply) return { ok: false, reason: "failed", error: error ?? "the model gave no answer", cost_usd: cost, model: spec.model };
-    if (spec.output === "json") {
-      const json = parseJsonBlock(reply.text);
-      if (json === null) return { ok: false, reason: "failed", error: reply.stop_reason === "max_tokens" ? "the answer ran past max_tokens before its JSON closed" : "the answer held no JSON", cost_usd: cost, model: spec.model };
-      return { ok: true, text: reply.text, json, usage: reply.usage, cost_usd: cost, model: spec.model, stop_reason: reply.stop_reason };
-    }
-    return { ok: true, text: reply.text, usage: reply.usage, cost_usd: cost, model: spec.model, stop_reason: reply.stop_reason };
-  });
-  if (!spent.room) return { ok: false, reason: "budget", error: "the team's model budget for this month has no room", cost_usd: 0, model: spec.model, worst_case_usd: held };
+  if (refusal)
+    return {
+      ok: false,
+      reason: "failed",
+      error: refusal,
+      cost_usd: 0,
+      model: spec.model,
+    };
+  const held = worstCaseCost(
+    spec.model,
+    (spec.system?.length ?? 0) + spec.prompt.length,
+    spec.max_tokens,
+  );
+  const spent = await withinBudget(
+    ctx,
+    scope,
+    purpose,
+    held,
+    async (charge): Promise<ModelCallResult> => {
+      const { reply, usage, error } = await callModelMetered({
+        model: spec.model,
+        system: spec.system,
+        prompt: spec.prompt,
+        max_tokens: spec.max_tokens,
+        output_schema: spec.output_schema,
+        label,
+        timeout_ms: timeoutMs,
+        gate,
+      });
+      const cost = modelCost(
+        spec.model,
+        usage ?? estimatedUsage(spec.system, spec.prompt),
+      );
+      charge(cost);
+      if (!reply)
+        return {
+          ok: false,
+          reason: "failed",
+          error: error ?? "the model gave no answer",
+          cost_usd: cost,
+          model: spec.model,
+        };
+      if (spec.output === "json") {
+        const json = parseJsonBlock(reply.text);
+        if (json === null)
+          return {
+            ok: false,
+            reason: "failed",
+            error:
+              reply.stop_reason === "max_tokens"
+                ? "the answer ran past max_tokens before its JSON closed"
+                : "the answer held no JSON",
+            cost_usd: cost,
+            model: spec.model,
+          };
+        return {
+          ok: true,
+          text: reply.text,
+          json,
+          usage: reply.usage,
+          cost_usd: cost,
+          model: spec.model,
+          stop_reason: reply.stop_reason,
+        };
+      }
+      return {
+        ok: true,
+        text: reply.text,
+        usage: reply.usage,
+        cost_usd: cost,
+        model: spec.model,
+        stop_reason: reply.stop_reason,
+      };
+    },
+  );
+  if (!spent.room)
+    return {
+      ok: false,
+      reason: "budget",
+      error: "the team's model budget for this month has no room",
+      cost_usd: 0,
+      model: spec.model,
+      worst_case_usd: held,
+    };
   return spent.value;
 }
 
@@ -143,14 +305,29 @@ export const scopeFor = internalQuery({
   handler: async (ctx, args): Promise<CallScope> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const { db } = await createWorkContext(ctx, { userId: auth.userId, workspace: args.workspace, team_id: args.team_id, project_path: args.project_path, conversation_id: args.conversation_id });
+    const { db } = await createWorkContext(ctx, {
+      userId: auth.userId,
+      workspace: args.workspace,
+      team_id: args.team_id,
+      project_path: args.project_path,
+      conversation_id: args.conversation_id,
+    });
     const workspace = db.workspaceKey as string;
-    return { workspace, ...(db.axes.team_id ? { team_id: db.axes.team_id } : {}), ...(await callProject(ctx, workspace, args.run_id, args.project)) };
+    return {
+      workspace,
+      ...(db.axes.team_id ? { team_id: db.axes.team_id } : {}),
+      ...(await callProject(ctx, workspace, args.run_id, args.project)),
+    };
   },
 });
 
 /** The project a CLI call served: its workflow run's problem's (a graph's call node), else the project it names (`--project`); none when neither is in the workspace. */
-async function callProject(ctx: any, workspace: string, runId: string | undefined, ref: string | undefined): Promise<{ project_id?: Id<"projects"> }> {
+async function callProject(
+  ctx: any,
+  workspace: string,
+  runId: string | undefined,
+  ref: string | undefined,
+): Promise<{ project_id?: Id<"projects"> }> {
   const id = runId ? ctx.db.normalizeId("workflow_runs", runId) : null;
   const run = id ? await ctx.db.get(id) : null;
   const task = run?.task_id ? await ctx.db.get(run.task_id) : null;
@@ -183,15 +360,44 @@ export const callForCli = action({
     run_id: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<ModelCallResult> => {
-    const { api_token, workspace, team_id, project_path, conversation_id, project, run_id, label, ...spec } = args;
-    const scope: CallScope = await ctx.runQuery(internal.modelCalls.scopeFor, { api_token, workspace, team_id, project_path, conversation_id, project, run_id });
-    return await runModelCall(ctx, scope, "call", spec, label ? `Call node ${label.slice(0, 60)}` : "Call node");
+    const {
+      api_token,
+      workspace,
+      team_id,
+      project_path,
+      conversation_id,
+      project,
+      run_id,
+      label,
+      ...spec
+    } = args;
+    const scope: CallScope = await ctx.runQuery(internal.modelCalls.scopeFor, {
+      api_token,
+      workspace,
+      team_id,
+      project_path,
+      conversation_id,
+      project,
+      run_id,
+    });
+    return await runModelCall(
+      ctx,
+      scope,
+      "call",
+      spec,
+      label ? `Call node ${label.slice(0, 60)}` : "Call node",
+    );
   },
 });
 
 // ── Reading and setting the budget ──
 
-async function teamScope(ctx: any, userId: Id<"users">, teamId: Id<"teams">, admin: boolean): Promise<string> {
+async function teamScope(
+  ctx: any,
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+  admin: boolean,
+): Promise<string> {
   if (admin) await requireTeamAdmin(ctx, userId, teamId);
   else await requireTeamMembership(ctx, userId, teamId);
   return `team:${teamId}`;
@@ -200,12 +406,23 @@ async function teamScope(ctx: any, userId: Id<"users">, teamId: Id<"teams">, adm
 /** A team's budget for its settings: any member reads it. Feeds the web store key `teamBudgets`. */
 export const budgetForTeam = query({
   args: { team_id: v.id("teams") },
-  handler: async (ctx, args): Promise<(BudgetSummary & { team_id: Id<"teams"> }) | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<(BudgetSummary & { team_id: Id<"teams"> }) | null> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    const membership = await ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", args.team_id)).first();
+    const membership = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_team", (q: any) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
+      .first();
     if (!membership) return null;
-    return { team_id: args.team_id, ...(await readBudget(ctx, `team:${args.team_id}`, Date.now())) };
+    return {
+      team_id: args.team_id,
+      ...(await readBudget(ctx, `team:${args.team_id}`, Date.now())),
+    };
   },
 });
 
@@ -215,9 +432,21 @@ export const setTeamBudget = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    if (!Number.isFinite(args.cap_usd) || args.cap_usd < 0 || args.cap_usd > 100_000) throw new Error("A monthly budget is from $0 to $100,000");
+    if (
+      !Number.isFinite(args.cap_usd) ||
+      args.cap_usd < 0 ||
+      args.cap_usd > 100_000
+    )
+      throw new Error("A monthly budget is from $0 to $100,000");
     const workspace = await teamScope(ctx, userId, args.team_id, true);
-    await setBudgetCap(ctx, workspace, args.team_id, Math.round(args.cap_usd * 100) / 100, userId, Date.now());
+    await setBudgetCap(
+      ctx,
+      workspace,
+      args.team_id,
+      Math.round(args.cap_usd * 100) / 100,
+      userId,
+      Date.now(),
+    );
     return await readBudget(ctx, workspace, Date.now());
   },
 });
@@ -233,28 +462,64 @@ export const setTeamBudget = mutation({
  */
 export const PERSONAL_BUDGET_CEILING_USD = 250;
 
-async function requirePersonalCapAllowed(ctx: any, userId: Id<"users">, workspace: string, capUsd: number): Promise<void> {
+async function requirePersonalCapAllowed(
+  ctx: any,
+  userId: Id<"users">,
+  workspace: string,
+  capUsd: number,
+): Promise<void> {
   if (capUsd <= PERSONAL_BUDGET_CEILING_USD) return;
   if (isStaff(await ctx.db.get(userId))) return;
   const { cap_usd: stored } = await readBudget(ctx, workspace, Date.now());
   if (capUsd <= stored) return;
-  throw new Error(`A personal monthly budget is at most $${Math.max(PERSONAL_BUDGET_CEILING_USD, stored).toLocaleString("en-US")}`);
+  throw new Error(
+    `A personal monthly budget is at most $${Math.max(PERSONAL_BUDGET_CEILING_USD, stored).toLocaleString("en-US")}`,
+  );
 }
 
 /** `cast line budget [--set <usd>]`: the caller's workspace budget, set by a team admin. */
 export const budgetForCli = mutation({
-  args: { api_token: v.string(), ...scopeArgs, set_usd: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    ...scopeArgs,
+    set_usd: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const { db } = await createWorkContext(ctx, { userId: auth.userId, workspace: args.workspace, team_id: args.team_id, project_path: args.project_path, conversation_id: args.conversation_id });
+    const { db } = await createWorkContext(ctx, {
+      userId: auth.userId,
+      workspace: args.workspace,
+      team_id: args.team_id,
+      project_path: args.project_path,
+      conversation_id: args.conversation_id,
+    });
     const workspace = db.workspaceKey;
     if (args.set_usd !== undefined) {
-      if (!Number.isFinite(args.set_usd) || args.set_usd < 0 || args.set_usd > 100_000) throw new Error("A monthly budget is from $0 to $100,000");
+      if (
+        !Number.isFinite(args.set_usd) ||
+        args.set_usd < 0 ||
+        args.set_usd > 100_000
+      )
+        throw new Error("A monthly budget is from $0 to $100,000");
       const parsed = parseWorkspaceKey(workspace);
-      if (parsed?.type === "team") await requireTeamAdmin(ctx, auth.userId, parsed.teamId);
-      else await requirePersonalCapAllowed(ctx, auth.userId, workspace, args.set_usd);
-      await setBudgetCap(ctx, workspace, db.axes.team_id, Math.round(args.set_usd * 100) / 100, auth.userId, Date.now());
+      if (parsed?.type === "team")
+        await requireTeamAdmin(ctx, auth.userId, parsed.teamId);
+      else
+        await requirePersonalCapAllowed(
+          ctx,
+          auth.userId,
+          workspace,
+          args.set_usd,
+        );
+      await setBudgetCap(
+        ctx,
+        workspace,
+        db.axes.team_id,
+        Math.round(args.set_usd * 100) / 100,
+        auth.userId,
+        Date.now(),
+      );
     }
     return await readBudget(ctx, workspace, Date.now());
   },
@@ -268,11 +533,32 @@ export const budgetForCli = mutation({
  * before it existed.
  */
 export const judgeSpendPage = internalQuery({
-  args: { workspace: v.string(), from: v.number(), to: v.number(), limit: v.number() },
+  args: {
+    workspace: v.string(),
+    from: v.number(),
+    to: v.number(),
+    limit: v.number(),
+  },
   handler: async (ctx, args) => {
-    const rows = await ctx.db.query("judge_runs").withIndex("by_workspace_at", (q: any) => q.eq("workspace", args.workspace).gte("at", args.from).lt("at", args.to)).take(args.limit);
+    const rows = await ctx.db
+      .query("judge_runs")
+      .withIndex("by_workspace_at", (q: any) =>
+        q
+          .eq("workspace", args.workspace)
+          .gte("at", args.from)
+          .lt("at", args.to),
+      )
+      .take(args.limit);
     return {
-      items: rows.filter((r: any) => (r.cost_usd ?? 0) > 0).map((r: any) => ({ at: r.at, usd: r.cost_usd, project_ids: [...new Set(r.expectations.map((e: any) => e.project_id))] as Id<"projects">[] })),
+      items: rows
+        .filter((r: any) => (r.cost_usd ?? 0) > 0)
+        .map((r: any) => ({
+          at: r.at,
+          usd: r.cost_usd,
+          project_ids: [
+            ...new Set(r.expectations.map((e: any) => e.project_id)),
+          ] as Id<"projects">[],
+        })),
       next: rows.length === args.limit ? rows[rows.length - 1].at + 1 : null,
     };
   },
@@ -283,11 +569,18 @@ export const callNodeSpend = internalQuery({
   args: { project: v.id("projects"), from: v.number(), to: v.number() },
   handler: async (ctx, args) => {
     const items: Array<{ at: number; usd: number }> = [];
-    for (const task of await ctx.db.query("tasks").withIndex("by_project_id", (q: any) => q.eq("project_id", args.project)).collect()) {
-      for (const run of await ctx.db.query("workflow_runs").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).collect()) {
+    for (const task of await ctx.db
+      .query("tasks")
+      .withIndex("by_project_id", (q: any) => q.eq("project_id", args.project))
+      .collect()) {
+      for (const run of await ctx.db
+        .query("workflow_runs")
+        .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+        .collect()) {
         for (const n of (run as any).node_statuses ?? []) {
           const at = n.completed_at ?? n.started_at;
-          if ((n.cost_usd ?? 0) > 0 && at >= args.from && at < args.to) items.push({ at, usd: n.cost_usd });
+          if ((n.cost_usd ?? 0) > 0 && at >= args.from && at < args.to)
+            items.push({ at, usd: n.cost_usd });
         }
       }
     }
@@ -296,9 +589,27 @@ export const callNodeSpend = internalQuery({
 });
 
 export const recordSpendBatch = internalMutation({
-  args: { workspace: v.string(), purpose: purposeValidator, items: v.array(v.object({ at: v.number(), usd: v.number(), project_ids: v.array(v.id("projects")) })) },
+  args: {
+    workspace: v.string(),
+    purpose: purposeValidator,
+    items: v.array(
+      v.object({
+        at: v.number(),
+        usd: v.number(),
+        project_ids: v.array(v.id("projects")),
+      }),
+    ),
+  },
   handler: async (ctx, args) => {
-    for (const i of args.items) await recordModelSpend(ctx, args.workspace, i.project_ids, args.purpose, i.usd, i.at);
+    for (const i of args.items)
+      await recordModelSpend(
+        ctx,
+        args.workspace,
+        i.project_ids,
+        args.purpose,
+        i.usd,
+        i.at,
+      );
     return args.items.length;
   },
 });
@@ -310,17 +621,51 @@ export const recordSpendBatch = internalMutation({
  * Run once per project, with `to` the moment the ledger started.
  */
 export const backfillProjectSpend = internalAction({
-  args: { project: v.id("projects"), workspace: v.string(), from: v.number(), to: v.number() },
+  args: {
+    project: v.id("projects"),
+    workspace: v.string(),
+    from: v.number(),
+    to: v.number(),
+  },
   handler: async (ctx, args): Promise<{ judge: number; call: number }> => {
     let judge = 0;
-    for (let from: number | null = args.from; from !== null; ) {
-      const page: { items: Array<{ at: number; usd: number; project_ids: Id<"projects">[] }>; next: number | null } = await ctx.runQuery(internal.modelCalls.judgeSpendPage, { workspace: args.workspace, from, to: args.to, limit: 400 });
-      const mine = page.items.filter((i) => i.project_ids.includes(args.project));
-      if (mine.length) judge += await ctx.runMutation(internal.modelCalls.recordSpendBatch, { workspace: args.workspace, purpose: "judge", items: mine });
+    for (let from: number | null = args.from; from !== null;) {
+      const page: {
+        items: Array<{
+          at: number;
+          usd: number;
+          project_ids: Id<"projects">[];
+        }>;
+        next: number | null;
+      } = await ctx.runQuery(internal.modelCalls.judgeSpendPage, {
+        workspace: args.workspace,
+        from,
+        to: args.to,
+        limit: 400,
+      });
+      const mine = page.items.filter((i) =>
+        i.project_ids.includes(args.project),
+      );
+      if (mine.length)
+        judge += await ctx.runMutation(internal.modelCalls.recordSpendBatch, {
+          workspace: args.workspace,
+          purpose: "judge",
+          items: mine,
+        });
       from = page.next;
     }
-    const calls: Array<{ at: number; usd: number }> = await ctx.runQuery(internal.modelCalls.callNodeSpend, { project: args.project, from: args.from, to: args.to });
-    for (let i = 0; i < calls.length; i += 200) await ctx.runMutation(internal.modelCalls.recordSpendBatch, { workspace: args.workspace, purpose: "call", items: calls.slice(i, i + 200).map((c) => ({ ...c, project_ids: [args.project] })) });
+    const calls: Array<{ at: number; usd: number }> = await ctx.runQuery(
+      internal.modelCalls.callNodeSpend,
+      { project: args.project, from: args.from, to: args.to },
+    );
+    for (let i = 0; i < calls.length; i += 200)
+      await ctx.runMutation(internal.modelCalls.recordSpendBatch, {
+        workspace: args.workspace,
+        purpose: "call",
+        items: calls
+          .slice(i, i + 200)
+          .map((c) => ({ ...c, project_ids: [args.project] })),
+      });
     return { judge, call: calls.length };
   },
 });

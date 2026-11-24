@@ -63,25 +63,48 @@ export function InboxViewOptions(props: {
             className="cc-panel__btn relative text-sol-text-dim/80 hover:text-sol-text data-[state=open]:text-sol-text data-[state=open]:bg-sol-text/[0.06]"
           >
             <SlidersHorizontal className="w-3 h-3" />
-            {changed && <span aria-hidden className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-sol-cyan ring-1 ring-sol-bg-alt" />}
+            {changed && (
+              <span
+                aria-hidden
+                className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-sol-cyan ring-1 ring-sol-bg-alt"
+              />
+            )}
           </button>
         </DropdownMenuTrigger>
       </ShortcutTooltip>
       <DropdownMenuContent align="end" className="w-52 text-xs">
-        {hasList && <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Show</DropdownMenuLabel>}
+        {hasList && (
+          <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+            Show
+          </DropdownMenuLabel>
+        )}
         {p.showTeam && (
-          <DropdownMenuCheckboxItem checked={p.teamScope} onCheckedChange={(on) => p.onTeamScope(!!on)} onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuCheckboxItem
+            checked={p.teamScope}
+            onCheckedChange={(on) => p.onTeamScope(!!on)}
+            onSelect={(e) => e.preventDefault()}
+          >
             Team's sessions
           </DropdownMenuCheckboxItem>
         )}
         {p.subagentCount > 0 && (
-          <DropdownMenuCheckboxItem checked={p.showSubagents} onCheckedChange={(on) => p.onShowSubagents(!!on)} onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuCheckboxItem
+            checked={p.showSubagents}
+            onCheckedChange={(on) => p.onShowSubagents(!!on)}
+            onSelect={(e) => e.preventDefault()}
+          >
             <span className="flex-1">Subagents</span>
-            <span className="tabular-nums text-sol-text-dim">{p.subagentCount}</span>
+            <span className="tabular-nums text-sol-text-dim">
+              {p.subagentCount}
+            </span>
           </DropdownMenuCheckboxItem>
         )}
         {p.oldCount > 0 && (
-          <DropdownMenuCheckboxItem checked={p.showOld} onCheckedChange={(on) => p.onShowOld(!!on)} onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuCheckboxItem
+            checked={p.showOld}
+            onCheckedChange={(on) => p.onShowOld(!!on)}
+            onSelect={(e) => e.preventDefault()}
+          >
             <span className="flex-1">Old sessions</span>
             <span className="tabular-nums text-sol-text-dim">{p.oldCount}</span>
           </DropdownMenuCheckboxItem>
@@ -89,10 +112,19 @@ export function InboxViewOptions(props: {
         {p.showCardBars && (
           <>
             {hasList && <DropdownMenuSeparator />}
-            <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Triggers and tasks on cards</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={p.cardBars} onValueChange={(v) => p.onCardBars(v as CardBarsMode)}>
+            <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+              Triggers and tasks on cards
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={p.cardBars}
+              onValueChange={(v) => p.onCardBars(v as CardBarsMode)}
+            >
               {CARD_BARS.map((option) => (
-                <DropdownMenuRadioItem key={option.value} value={option.value} onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuRadioItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={(e) => e.preventDefault()}
+                >
                   {option.label}
                 </DropdownMenuRadioItem>
               ))}
@@ -102,7 +134,10 @@ export function InboxViewOptions(props: {
         {p.showFavorites && (
           <>
             {(hasList || p.showCardBars) && <DropdownMenuSeparator />}
-            <DropdownMenuCheckboxItem checked={p.favorites} onCheckedChange={(on) => p.onFavorites(!!on)}>
+            <DropdownMenuCheckboxItem
+              checked={p.favorites}
+              onCheckedChange={(on) => p.onFavorites(!!on)}
+            >
               Favorites only
             </DropdownMenuCheckboxItem>
           </>

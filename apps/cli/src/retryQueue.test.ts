@@ -3,20 +3,37 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { RetryQueue } from "./retryQueue.js";
-import { withTranscriptDeadline, IngestDeadlineExceeded } from "./workers/ingestDeadline.js";
-import { serializeTranscript, IngestCapacityError } from "./workers/ingestClient.js";
+import {
+  withTranscriptDeadline,
+  IngestDeadlineExceeded,
+} from "./workers/ingestDeadline.js";
+import {
+  serializeTranscript,
+  IngestCapacityError,
+} from "./workers/ingestClient.js";
 
 it("durable retries get a fresh transaction after the enqueueing ingest expires", async () => {
-  const queue = new RetryQueue({ initialDelayMs: 30, maxDelayMs: 30, maxAttempts: 2 });
+  const queue = new RetryQueue({
+    initialDelayMs: 30,
+    maxDelayMs: 30,
+    maxAttempts: 2,
+  });
   let completed = 0;
-  queue.setExecutor(async () => serializeTranscript("retry-deadline-regression", async () => {
-    completed++;
-    return true;
-  }));
+  queue.setExecutor(async () =>
+    serializeTranscript("retry-deadline-regression", async () => {
+      completed++;
+      return true;
+    }),
+  );
   try {
-    await withTranscriptDeadline(async () => {
-      queue.add("createConversation", { sessionId: "retry-deadline-regression" });
-    }, { timeoutMs: 5 });
+    await withTranscriptDeadline(
+      async () => {
+        queue.add("createConversation", {
+          sessionId: "retry-deadline-regression",
+        });
+      },
+      { timeoutMs: 5 },
+    );
     expect(await queue.waitForCompletion(1000)).toBe(true);
     expect(completed).toBe(1);
     expect(queue.getDroppedOperationCount()).toBe(0);
@@ -30,10 +47,15 @@ it("durable retries get a fresh transaction after the enqueueing ingest expires"
 // starve the event loop past any margin; these tests tripped the CLI release
 // gate that way, 2026-07-13). The generous deadline only bounds a genuinely
 // broken invariant, it never paces a healthy run.
-async function until(cond: () => boolean, timeoutMs = 15_000, stepMs = 10): Promise<void> {
+async function until(
+  cond: () => boolean,
+  timeoutMs = 15_000,
+  stepMs = 10,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!cond()) {
-    if (Date.now() > deadline) throw new Error("until(): condition not met before deadline");
+    if (Date.now() > deadline)
+      throw new Error("until(): condition not met before deadline");
     await new Promise((r) => setTimeout(r, stepMs));
   }
 }
@@ -144,10 +166,22 @@ describe("RetryQueue", () => {
   // None of them says anything is wrong with the op.
   it.each([
     ["local transcript pool full", new IngestCapacityError().message],
-    ["transcript pass deadline", new IngestDeadlineExceeded("ingest transaction deadline").message],
-    ["Convex concurrency cap", '{"code":"TooManyConcurrentRequests","message":"Too many concurrent requests. Your backend is limited to 64 concurrent mutations."}'],
-    ["Convex queue expiry", '{"code":"ExpiredInQueue","message":"Too many concurrent requests in a short period of time."}'],
-    ["Convex OCC contention", '{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"rate_limits\\" table changed"}'],
+    [
+      "transcript pass deadline",
+      new IngestDeadlineExceeded("ingest transaction deadline").message,
+    ],
+    [
+      "Convex concurrency cap",
+      '{"code":"TooManyConcurrentRequests","message":"Too many concurrent requests. Your backend is limited to 64 concurrent mutations."}',
+    ],
+    [
+      "Convex queue expiry",
+      '{"code":"ExpiredInQueue","message":"Too many concurrent requests in a short period of time."}',
+    ],
+    [
+      "Convex OCC contention",
+      '{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"rate_limits\\" table changed"}',
+    ],
     ["fetch abort timeout", "The operation timed out."],
   ])("never drops an op refused for load (%s)", async (_label, error) => {
     let attempts = 0;
@@ -218,27 +252,29 @@ describe("RetryQueue", () => {
     ];
 
     // Run all in parallel to avoid sequential timeout
-    const results = await Promise.all(networkErrors.map(async (errMsg) => {
-      let attempts = 0;
-      const q = new RetryQueue({
-        initialDelayMs: 10,
-        maxDelayMs: 30,
-        maxAttempts: 2,
-        onLog: () => {},
-      });
+    const results = await Promise.all(
+      networkErrors.map(async (errMsg) => {
+        let attempts = 0;
+        const q = new RetryQueue({
+          initialDelayMs: 10,
+          maxDelayMs: 30,
+          maxAttempts: 2,
+          onLog: () => {},
+        });
 
-      q.setExecutor(async () => {
-        attempts++;
-        if (attempts >= 4) return true;
-        throw new Error(errMsg);
-      });
+        q.setExecutor(async () => {
+          attempts++;
+          if (attempts >= 4) return true;
+          throw new Error(errMsg);
+        });
 
-      q.add("addMessage", { content: "test" });
-      await new Promise((r) => setTimeout(r, 1000));
-      const result = { errMsg, attempts, queueSize: q.getQueueSize() };
-      q.stop();
-      return result;
-    }));
+        q.add("addMessage", { content: "test" });
+        await new Promise((r) => setTimeout(r, 1000));
+        const result = { errMsg, attempts, queueSize: q.getQueueSize() };
+        q.stop();
+        return result;
+      }),
+    );
 
     for (const { errMsg, attempts, queueSize } of results) {
       expect(attempts).toBeGreaterThanOrEqual(3);
@@ -322,7 +358,10 @@ describe("RetryQueue", () => {
       });
 
       // Single-message batch so the timed-out split path can't consume the failure.
-      q.add("addMessages", { conversationId: "conv1", messages: [{ message_uuid: "u1", content: "x" }] });
+      q.add("addMessages", {
+        conversationId: "conv1",
+        messages: [{ message_uuid: "u1", content: "x" }],
+      });
       await until(() => attempts > 2);
 
       expect(q.getQueueSize()).toBe(1);
@@ -351,7 +390,10 @@ describe("RetryQueue", () => {
       throw new Error("addMessages batch (1 msgs) timed out after 28000ms");
     });
 
-    q.add("addMessages", { conversationId: "conv1", messages: [{ message_uuid: "u1", content: "x" }] });
+    q.add("addMessages", {
+      conversationId: "conv1",
+      messages: [{ message_uuid: "u1", content: "x" }],
+    });
     await until(() => q.getQueueSize() === 0);
 
     expect(testLogs.some((l) => l.includes("DROPPED"))).toBe(true);
@@ -444,7 +486,10 @@ describe("RetryQueue", () => {
   it("reports time without progress apart from the age of the head", async () => {
     // A long backlog drained in order keeps an old head while ops complete;
     // that is a drain, not a stall, and noProgressMs is what says so.
-    queue.add("addMessages", { conversationId: "slow", messages: [{ messageUuid: "s1" }] });
+    queue.add("addMessages", {
+      conversationId: "slow",
+      messages: [{ messageUuid: "s1" }],
+    });
     queue.getPendingOperations()[0].createdAt = Date.now() - 5 * 60 * 1000;
     const before = queue.getHealth();
     // Nothing has completed since the queue was built: no progress for as
@@ -453,7 +498,10 @@ describe("RetryQueue", () => {
     expect(before.noProgressMs).toBeLessThan(5 * 60 * 1000);
 
     queue.setExecutor(async (op) => op.params.conversationId === "fast");
-    queue.add("addMessages", { conversationId: "fast", messages: [{ messageUuid: "f1" }] });
+    queue.add("addMessages", {
+      conversationId: "fast",
+      messages: [{ messageUuid: "f1" }],
+    });
     queue.notifyConnectionRestored();
     await until(() => queue.getQueueSize() === 1);
 
@@ -477,10 +525,22 @@ describe("RetryQueue", () => {
 
   it("reports message and conversation counts across queued addMessages ops", () => {
     // Two conversations, several messages each, plus a non-addMessages op.
-    queue.add("addMessages", { conversationId: "hot-a", messages: [{ messageUuid: "a1" }, { messageUuid: "a2" }] });
-    queue.add("addMessages", { conversationId: "hot-a", messages: [{ messageUuid: "a3" }] });
-    queue.add("addMessages", { conversationId: "hot-b", messages: [{ messageUuid: "b1" }] });
-    queue.add("createConversation", { conversationId: "hot-c", sessionId: "s1" });
+    queue.add("addMessages", {
+      conversationId: "hot-a",
+      messages: [{ messageUuid: "a1" }, { messageUuid: "a2" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot-a",
+      messages: [{ messageUuid: "a3" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot-b",
+      messages: [{ messageUuid: "b1" }],
+    });
+    queue.add("createConversation", {
+      conversationId: "hot-c",
+      sessionId: "s1",
+    });
 
     // Backdate the oldest op so age reflects how far behind we are.
     const oldest = queue.getPendingOperations()[0];
@@ -499,9 +559,18 @@ describe("RetryQueue", () => {
   });
 
   it("reports logical queue size by conversation for addMessages", () => {
-    queue.add("addMessages", { conversationId: "hot-a", messages: [{ messageUuid: "a1" }] });
-    queue.add("addMessages", { conversationId: "hot-a", messages: [{ messageUuid: "a2" }] });
-    queue.add("addMessages", { conversationId: "hot-b", messages: [{ messageUuid: "b1" }] });
+    queue.add("addMessages", {
+      conversationId: "hot-a",
+      messages: [{ messageUuid: "a1" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot-a",
+      messages: [{ messageUuid: "a2" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot-b",
+      messages: [{ messageUuid: "b1" }],
+    });
     queue.add("addMessage", { conversationId: "other", content: "single" });
 
     expect(queue.getQueueSize()).toBe(3);
@@ -517,7 +586,9 @@ describe("RetryQueue", () => {
     let attempts = 0;
     queue.setExecutor(async () => {
       attempts++;
-      throw new Error("Unauthorized: can only add messages to your own conversations");
+      throw new Error(
+        "Unauthorized: can only add messages to your own conversations",
+      );
     });
 
     queue.add("addMessages", { conversationId: "stale-conv-id" });
@@ -525,7 +596,9 @@ describe("RetryQueue", () => {
 
     expect(attempts).toBe(1);
     expect(queue.getQueueSize()).toBe(0);
-    expect(logs.some(l => l.startsWith("DROPPED addMessages: stale conversation"))).toBe(true);
+    expect(
+      logs.some((l) => l.startsWith("DROPPED addMessages: stale conversation")),
+    ).toBe(true);
   });
 
   it("should drop Conversation-not-found errors on first failure", async () => {
@@ -546,7 +619,9 @@ describe("RetryQueue", () => {
     let attempts = 0;
     queue.setExecutor(async () => {
       attempts++;
-      throw new Error("Uncaught Error: Session moved to another account as jx74yqy; run `cast pull jx74yqy` to bring it back here");
+      throw new Error(
+        "Uncaught Error: Session moved to another account as jx74yqy; run `cast pull jx74yqy` to bring it back here",
+      );
     });
 
     queue.add("createConversation", { sessionId: "moved-session" });
@@ -554,7 +629,13 @@ describe("RetryQueue", () => {
 
     expect(attempts).toBe(1);
     expect(queue.getQueueSize()).toBe(0);
-    expect(logs.some(l => l.startsWith("DROPPED createConversation: the server refuses session moved-session"))).toBe(true);
+    expect(
+      logs.some((l) =>
+        l.startsWith(
+          "DROPPED createConversation: the server refuses session moved-session",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("splits oversized addMessages batches into 25-message chunks", () => {
@@ -568,9 +649,18 @@ describe("RetryQueue", () => {
       const params = op.params as { messages: unknown[] };
       expect(params.messages.length).toBeLessThanOrEqual(25);
     }
-    const totalMsgs = pending.reduce((n, op) => n + (op.params as { messages: unknown[] }).messages.length, 0);
+    const totalMsgs = pending.reduce(
+      (n, op) => n + (op.params as { messages: unknown[] }).messages.length,
+      0,
+    );
     expect(totalMsgs).toBe(130);
-    expect(logs.some(l => l.includes("Split oversized addMessages (130 msgs) into 6 retry chunks"))).toBe(true);
+    expect(
+      logs.some((l) =>
+        l.includes(
+          "Split oversized addMessages (130 msgs) into 6 retry chunks",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("does not split addMessages batches at or below the chunk size", () => {
@@ -579,7 +669,9 @@ describe("RetryQueue", () => {
 
     const pending = queue.getPendingOperations();
     expect(pending.length).toBe(1);
-    expect((pending[0].params as { messages: unknown[] }).messages.length).toBe(25);
+    expect((pending[0].params as { messages: unknown[] }).messages.length).toBe(
+      25,
+    );
   });
 
   it("splits addMessages batches by serialized bytes, not only count", () => {
@@ -591,9 +683,14 @@ describe("RetryQueue", () => {
     ];
     queue.add("addMessages", { conversationId: "conv", messages: msgs });
 
-    const pending = queue.getPendingOperations().filter((o) => o.params.conversationId === "conv");
+    const pending = queue
+      .getPendingOperations()
+      .filter((o) => o.params.conversationId === "conv");
     expect(pending.length).toBeGreaterThan(1);
-    const totalMsgs = pending.reduce((n, op) => n + (op.params as { messages: unknown[] }).messages.length, 0);
+    const totalMsgs = pending.reduce(
+      (n, op) => n + (op.params as { messages: unknown[] }).messages.length,
+      0,
+    );
     expect(totalMsgs).toBe(3);
   });
 
@@ -602,7 +699,12 @@ describe("RetryQueue", () => {
     // doc, so parallel ops for one conversation collided on that hot-doc → OCC
     // retries → 60s timeouts → re-queue → a self-amplifying stall. The queue must
     // serialize per-conversation even though global concurrency is >1.
-    const q = new RetryQueue({ initialDelayMs: 10, maxDelayMs: 50, concurrency: 5, onLog: () => {} });
+    const q = new RetryQueue({
+      initialDelayMs: 10,
+      maxDelayMs: 50,
+      concurrency: 5,
+      onLog: () => {},
+    });
     let activeForConv = 0;
     let maxConcurrentForConv = 0;
     q.setExecutor(async (op) => {
@@ -616,8 +718,15 @@ describe("RetryQueue", () => {
     });
 
     // 4 ops for the same conversation + 1 for another, all ready at once.
-    for (let i = 0; i < 4; i++) q.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: `h${i}` }] });
-    q.add("addMessages", { conversationId: "other", messages: [{ messageUuid: "o0" }] });
+    for (let i = 0; i < 4; i++)
+      q.add("addMessages", {
+        conversationId: "hot",
+        messages: [{ messageUuid: `h${i}` }],
+      });
+    q.add("addMessages", {
+      conversationId: "other",
+      messages: [{ messageUuid: "o0" }],
+    });
 
     await q.waitForCompletion(2000);
     expect(maxConcurrentForConv).toBe(1);
@@ -625,7 +734,12 @@ describe("RetryQueue", () => {
   });
 
   it("does not let one hanging retry block ready work for other conversations", async () => {
-    const q = new RetryQueue({ initialDelayMs: 10, maxDelayMs: 50, concurrency: 2, onLog: () => {} });
+    const q = new RetryQueue({
+      initialDelayMs: 10,
+      maxDelayMs: 50,
+      concurrency: 2,
+      onLog: () => {},
+    });
     let fastCompleted = 0;
     q.setExecutor(async (op) => {
       if (op.params.conversationId === "hot") {
@@ -635,13 +749,25 @@ describe("RetryQueue", () => {
       return true;
     });
 
-    q.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "h0" }] });
-    q.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "a" }] });
-    q.add("addMessages", { conversationId: "c2", messages: [{ messageUuid: "b" }] });
+    q.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "h0" }],
+    });
+    q.add("addMessages", {
+      conversationId: "c1",
+      messages: [{ messageUuid: "a" }],
+    });
+    q.add("addMessages", {
+      conversationId: "c2",
+      messages: [{ messageUuid: "b" }],
+    });
 
     await new Promise((r) => setTimeout(r, 250));
     expect(fastCompleted).toBe(2);
-    expect(q.getPendingOperations().filter((o) => o.params.conversationId !== "hot").length).toBe(0);
+    expect(
+      q.getPendingOperations().filter((o) => o.params.conversationId !== "hot")
+        .length,
+    ).toBe(0);
     q.stop();
   });
 
@@ -649,33 +775,70 @@ describe("RetryQueue", () => {
     // Regression: while a batch is stuck, the live sync path re-reads the same
     // backlog every poll and re-enqueues it, piling the same messages up 12x.
     // Re-adding messages already queued for a conversation must be a no-op.
-    queue.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "a" }, { messageUuid: "b" }] });
+    queue.add("addMessages", {
+      conversationId: "c1",
+      messages: [{ messageUuid: "a" }, { messageUuid: "b" }],
+    });
     expect(queue.getQueueSize()).toBe(1);
 
     // Same two messages again → fully coalesced, no new op.
-    const dup = queue.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "a" }, { messageUuid: "b" }] });
+    const dup = queue.add("addMessages", {
+      conversationId: "c1",
+      messages: [{ messageUuid: "a" }, { messageUuid: "b" }],
+    });
     expect(dup).toBe("");
     expect(queue.getQueueSize()).toBe(1);
 
     // Overlapping batch → only the genuinely-new message is queued.
-    queue.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "b" }, { messageUuid: "c" }] });
-    const ops = queue.getPendingOperations().filter((o) => o.params.conversationId === "c1");
-    const queuedUuids = ops.flatMap((o) => (o.params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid));
+    queue.add("addMessages", {
+      conversationId: "c1",
+      messages: [{ messageUuid: "b" }, { messageUuid: "c" }],
+    });
+    const ops = queue
+      .getPendingOperations()
+      .filter((o) => o.params.conversationId === "c1");
+    const queuedUuids = ops.flatMap((o) =>
+      (o.params.messages as Array<{ messageUuid: string }>).map(
+        (m) => m.messageUuid,
+      ),
+    );
     expect(queuedUuids.sort()).toEqual(["a", "b", "c"]);
 
     // A different conversation is unaffected by c1's pending set.
-    queue.add("addMessages", { conversationId: "c2", messages: [{ messageUuid: "a" }] });
-    expect(queue.getPendingOperations().some((o) => o.params.conversationId === "c2")).toBe(true);
+    queue.add("addMessages", {
+      conversationId: "c2",
+      messages: [{ messageUuid: "a" }],
+    });
+    expect(
+      queue
+        .getPendingOperations()
+        .some((o) => o.params.conversationId === "c2"),
+    ).toBe(true);
   });
 
   it("compacts a conversation backlog into chunked addMessages ops", () => {
-    queue.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "a" }] });
-    queue.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "b" }, { messageUuid: "c" }] });
-    queue.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "d" }] });
+    queue.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "a" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "b" }, { messageUuid: "c" }],
+    });
+    queue.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "d" }],
+    });
 
-    const hotOps = queue.getPendingOperations().filter((o) => o.params.conversationId === "hot");
+    const hotOps = queue
+      .getPendingOperations()
+      .filter((o) => o.params.conversationId === "hot");
     expect(hotOps.length).toBe(1);
-    expect((hotOps[0].params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid)).toEqual(["a", "b", "c", "d"]);
+    expect(
+      (hotOps[0].params.messages as Array<{ messageUuid: string }>).map(
+        (m) => m.messageUuid,
+      ),
+    ).toEqual(["a", "b", "c", "d"]);
   });
 
   it("should handle rate limit delays", async () => {
@@ -698,12 +861,20 @@ describe("RetryQueue", () => {
   });
 
   it("splits a timed-out addMessages retry into smaller chunks instead of retrying the same payload forever", async () => {
-    const q = new RetryQueue({ initialDelayMs: 10, maxDelayMs: 50, maxAttempts: 5, onLog: () => {} });
+    const q = new RetryQueue({
+      initialDelayMs: 10,
+      maxDelayMs: 50,
+      maxAttempts: 5,
+      onLog: () => {},
+    });
     const attempts: number[] = [];
     q.setExecutor(async (op) => {
       const len = (op.params.messages as unknown[]).length;
       attempts.push(len);
-      if (len > 3) throw new Error(`addMessages batch (${len} msgs) timed out after 60000ms`);
+      if (len > 3)
+        throw new Error(
+          `addMessages batch (${len} msgs) timed out after 60000ms`,
+        );
       return true;
     });
 
@@ -729,7 +900,10 @@ describe("RetryQueue", () => {
       const dupOp = (n: number) => ({
         id: `addMessages-${n}`,
         type: "addMessages",
-        params: { conversationId: "hot", messages: [{ messageUuid: "a" }, { messageUuid: "b" }] },
+        params: {
+          conversationId: "hot",
+          messages: [{ messageUuid: "a" }, { messageUuid: "b" }],
+        },
         attempts: 0,
         nextRetryAt: Date.now(),
         createdAt: Date.now(),
@@ -738,25 +912,42 @@ describe("RetryQueue", () => {
       // 12 identical ops for one conversation + one op for another conversation.
       const persisted = [
         ...Array.from({ length: 12 }, (_, i) => dupOp(i)),
-        { id: "addMessages-other", type: "addMessages", params: { conversationId: "cold", messages: [{ messageUuid: "z" }] }, attempts: 0, nextRetryAt: Date.now(), createdAt: Date.now() },
+        {
+          id: "addMessages-other",
+          type: "addMessages",
+          params: { conversationId: "cold", messages: [{ messageUuid: "z" }] },
+          attempts: 0,
+          nextRetryAt: Date.now(),
+          createdAt: Date.now(),
+        },
       ];
       fs.writeFileSync(persistPath, JSON.stringify(persisted));
 
       const logs: string[] = [];
-      const loaded = new RetryQueue({ persistPath, onLog: (m) => logs.push(m) });
+      const loaded = new RetryQueue({
+        persistPath,
+        onLog: (m) => logs.push(m),
+      });
 
       // hot: only the first op survives (a,b once); cold: untouched.
       const ops = loaded.getPendingOperations();
       const hotUuids = ops
         .filter((o) => o.params.conversationId === "hot")
-        .flatMap((o) => (o.params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid));
+        .flatMap((o) =>
+          (o.params.messages as Array<{ messageUuid: string }>).map(
+            (m) => m.messageUuid,
+          ),
+        );
       expect(hotUuids.sort()).toEqual(["a", "b"]);
       expect(ops.some((o) => o.params.conversationId === "cold")).toBe(true);
       expect(logs.some((l) => l.includes("deduped"))).toBe(true);
 
       // And the healed (collapsed) queue is rewritten to disk so the bloat is gone.
       const rewritten = JSON.parse(fs.readFileSync(persistPath, "utf-8"));
-      const totalMsgs = rewritten.reduce((n: number, o: any) => n + (o.params?.messages?.length ?? 0), 0);
+      const totalMsgs = rewritten.reduce(
+        (n: number, o: any) => n + (o.params?.messages?.length ?? 0),
+        0,
+      );
       expect(totalMsgs).toBe(3); // a, b, z
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -770,8 +961,15 @@ describe("RetryQueue", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rq-persist-"));
     const persistPath = path.join(dir, "retry-queue.json");
     try {
-      const q = new RetryQueue({ persistPath, persistDebounceMs: 20, onLog: () => {} });
-      q.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "a" }] });
+      const q = new RetryQueue({
+        persistPath,
+        persistDebounceMs: 20,
+        onLog: () => {},
+      });
+      q.add("addMessages", {
+        conversationId: "c1",
+        messages: [{ messageUuid: "a" }],
+      });
 
       // Debounced: the enqueue does NOT write to disk synchronously.
       expect(fs.existsSync(persistPath)).toBe(false);
@@ -785,7 +983,9 @@ describe("RetryQueue", () => {
       // A fresh queue restores the op from disk.
       const reloaded = new RetryQueue({ persistPath, onLog: () => {} });
       expect(reloaded.getPendingOperations().length).toBe(1);
-      expect(reloaded.getPendingOperations()[0].params.conversationId).toBe("c1");
+      expect(reloaded.getPendingOperations()[0].params.conversationId).toBe(
+        "c1",
+      );
       reloaded.stop();
       q.stop();
     } finally {
@@ -808,41 +1008,74 @@ describe("RetryQueue", () => {
       fs.writeFileSync(persistPath, JSON.stringify(persisted));
 
       const loaded = new RetryQueue({ persistPath, onLog: () => {} });
-      const ops = loaded.getPendingOperations().filter((o) => o.params.conversationId === "hot");
+      const ops = loaded
+        .getPendingOperations()
+        .filter((o) => o.params.conversationId === "hot");
       expect(ops.length).toBe(1);
-      expect((ops[0].params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid)).toEqual([
-        "m0", "m1", "m2", "m3", "m4", "m5",
-      ]);
+      expect(
+        (ops[0].params.messages as Array<{ messageUuid: string }>).map(
+          (m) => m.messageUuid,
+        ),
+      ).toEqual(["m0", "m1", "m2", "m3", "m4", "m5"]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
   it("compacts newly queued backlog behind an active conversation write", async () => {
-    const q = new RetryQueue({ initialDelayMs: 10, maxDelayMs: 50, concurrency: 1, onLog: () => {} });
+    const q = new RetryQueue({
+      initialDelayMs: 10,
+      maxDelayMs: 50,
+      concurrency: 1,
+      onLog: () => {},
+    });
     let releaseFirst!: () => void;
     const firstStarted = new Promise<void>((resolve) => {
       q.setExecutor(async (op) => {
-        const uuids = (op.params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid);
+        const uuids = (
+          op.params.messages as Array<{ messageUuid: string }>
+        ).map((m) => m.messageUuid);
         if (uuids[0] === "m1") {
           resolve();
-          await new Promise<void>((r) => { releaseFirst = r; });
+          await new Promise<void>((r) => {
+            releaseFirst = r;
+          });
         }
         return true;
       });
     });
 
-    q.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "m1" }] });
+    q.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "m1" }],
+    });
     await firstStarted;
 
-    q.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "m2" }] });
-    q.add("addMessages", { conversationId: "hot", messages: [{ messageUuid: "m3" }] });
+    q.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "m2" }],
+    });
+    q.add("addMessages", {
+      conversationId: "hot",
+      messages: [{ messageUuid: "m3" }],
+    });
 
-    const hotOps = q.getPendingOperations().filter((o) => o.params.conversationId === "hot");
+    const hotOps = q
+      .getPendingOperations()
+      .filter((o) => o.params.conversationId === "hot");
     expect(hotOps.length).toBe(2);
-    const waiting = hotOps.find((o) => !(o.params.messages as Array<{ messageUuid: string }>).some((m) => m.messageUuid === "m1"));
+    const waiting = hotOps.find(
+      (o) =>
+        !(o.params.messages as Array<{ messageUuid: string }>).some(
+          (m) => m.messageUuid === "m1",
+        ),
+    );
     expect(waiting).toBeDefined();
-    expect((waiting!.params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid)).toEqual(["m2", "m3"]);
+    expect(
+      (waiting!.params.messages as Array<{ messageUuid: string }>).map(
+        (m) => m.messageUuid,
+      ),
+    ).toEqual(["m2", "m3"]);
 
     releaseFirst();
     await q.waitForCompletion(1000);
@@ -850,25 +1083,38 @@ describe("RetryQueue", () => {
   });
 
   it("learns a smaller retry chunk size for a conversation after a timeout", async () => {
-    const q = new RetryQueue({ initialDelayMs: 10, maxDelayMs: 50, concurrency: 1, onLog: () => {} });
+    const q = new RetryQueue({
+      initialDelayMs: 10,
+      maxDelayMs: 50,
+      concurrency: 1,
+      onLog: () => {},
+    });
     let attempts = 0;
     q.setExecutor(async (op) => {
       attempts++;
       const len = (op.params.messages as Array<unknown>).length;
-      if (attempts === 1) throw new Error(`addMessages batch (${len} msgs) timed out after 60000ms`);
+      if (attempts === 1)
+        throw new Error(
+          `addMessages batch (${len} msgs) timed out after 60000ms`,
+        );
       return false; // keep the reshaped queue around for inspection
     });
 
-    const mk = (start: number) => Array.from({ length: 25 }, (_, i) => ({ messageUuid: `m${start + i}` }));
+    const mk = (start: number) =>
+      Array.from({ length: 25 }, (_, i) => ({ messageUuid: `m${start + i}` }));
     q.add("addMessages", { conversationId: "hot", messages: mk(0) });
     q.add("addMessages", { conversationId: "hot", messages: mk(100) });
     q.add("addMessages", { conversationId: "hot", messages: mk(200) });
 
     await new Promise((r) => setTimeout(r, 120));
 
-    const hotOps = q.getPendingOperations().filter((o) => o.params.conversationId === "hot");
+    const hotOps = q
+      .getPendingOperations()
+      .filter((o) => o.params.conversationId === "hot");
     expect(hotOps.length).toBeGreaterThan(3);
-    expect(hotOps.every((o) => (o.params.messages as Array<unknown>).length <= 13)).toBe(true);
+    expect(
+      hotOps.every((o) => (o.params.messages as Array<unknown>).length <= 13),
+    ).toBe(true);
     q.stop();
   });
 
@@ -889,7 +1135,10 @@ describe("RetryQueue", () => {
     // and the queue silently stopped draining.
     const q = new RetryQueue({ onLog: () => {} });
     let ran = 0;
-    q.setExecutor(async () => { ran++; return true; });
+    q.setExecutor(async () => {
+      ran++;
+      return true;
+    });
     q.add("addMessage", { content: "test" });
     expect(q.getPendingOperations()[0].nextRetryAt).toBeGreaterThan(Date.now());
     await until(() => ran === 1 && q.getQueueSize() === 0, 5_000);
@@ -902,17 +1151,33 @@ describe("RetryQueue", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rq-dedupe-"));
     const persistPath = path.join(dir, "retry-queue.json");
     try {
-      fs.writeFileSync(persistPath, JSON.stringify([{
-        id: "addMessages-1",
-        type: "addMessages",
-        params: { conversationId: "hot", messages: [{ messageUuid: "a" }, { messageUuid: "a" }, { messageUuid: "b" }] },
-        attempts: 0,
-        nextRetryAt: Date.now(),
-        createdAt: Date.now(),
-      }]));
+      fs.writeFileSync(
+        persistPath,
+        JSON.stringify([
+          {
+            id: "addMessages-1",
+            type: "addMessages",
+            params: {
+              conversationId: "hot",
+              messages: [
+                { messageUuid: "a" },
+                { messageUuid: "a" },
+                { messageUuid: "b" },
+              ],
+            },
+            attempts: 0,
+            nextRetryAt: Date.now(),
+            createdAt: Date.now(),
+          },
+        ]),
+      );
 
       const loaded = new RetryQueue({ persistPath, onLog: () => {} });
-      const uuids = (loaded.getPendingOperations()[0].params.messages as Array<{ messageUuid: string }>).map((m) => m.messageUuid);
+      const uuids = (
+        loaded.getPendingOperations()[0].params.messages as Array<{
+          messageUuid: string;
+        }>
+      ).map((m) => m.messageUuid);
       expect(uuids).toEqual(["a", "b"]);
 
       const onDisk = JSON.parse(fs.readFileSync(persistPath, "utf-8"));
@@ -933,11 +1198,16 @@ describe("RetryQueue", () => {
     let snapshots = 0;
     const q = new RetryQueue({
       initialDelayMs: 1000,
-      onEnqueue: () => { snapshots++; },
+      onEnqueue: () => {
+        snapshots++;
+      },
       onLog: () => {},
     });
     expect(snapshots).toBe(0);
-    q.add("addMessages", { conversationId: "c1", messages: [{ messageUuid: "m1" }] });
+    q.add("addMessages", {
+      conversationId: "c1",
+      messages: [{ messageUuid: "m1" }],
+    });
     expect(snapshots).toBe(1); // refreshed on the first enqueue, before any drain
     q.add("addMessage", { conversationId: "c2", content: "x" });
     expect(snapshots).toBe(2);

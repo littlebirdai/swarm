@@ -52,7 +52,9 @@ export interface CapabilityStateReport {
  */
 export function buildCapabilityStateReport(
   inventory: Inventory,
-  opts: { client?: string; enumeratedAll: boolean; maxRows?: number } = { enumeratedAll: false },
+  opts: { client?: string; enumeratedAll: boolean; maxRows?: number } = {
+    enumeratedAll: false,
+  },
 ): CapabilityStateReport {
   const client = opts.client ?? "claude";
   const maxRows = opts.maxRows ?? MAX_SCOPE_ROWS;
@@ -61,13 +63,16 @@ export function buildCapabilityStateReport(
   // two identical inventories serialize identically and the hash gate holds.
   const byScope = new Map<string, InventoryItem[]>();
   for (const item of inventory.items) {
-    const key = item.scope === "user" ? "" : (item.meta?.scopeKey ?? item.scope);
+    const key =
+      item.scope === "user" ? "" : (item.meta?.scopeKey ?? item.scope);
     const rows = byScope.get(key) ?? [];
     rows.push(item);
     byScope.set(key, rows);
   }
 
-  const keys = [...byScope.keys()].sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a < b ? -1 : 1));
+  const keys = [...byScope.keys()].sort((a, b) =>
+    a === "" ? -1 : b === "" ? 1 : a < b ? -1 : 1,
+  );
   const kept = keys.slice(0, maxRows);
   const folded = keys.slice(maxRows);
 
@@ -81,7 +86,9 @@ export function buildCapabilityStateReport(
 
   return {
     rows,
-    ...(folded.length > 0 ? { overflow: { scopes: folded.length, items: overflowItems } } : {}),
+    ...(folded.length > 0
+      ? { overflow: { scopes: folded.length, items: overflowItems } }
+      : {}),
     // A report that folded scopes away has not shown all of them, whatever the
     // caller believes about its enumeration.
     full: opts.enumeratedAll && folded.length === 0,

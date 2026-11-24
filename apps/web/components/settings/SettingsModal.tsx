@@ -1,8 +1,36 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
-  Terminal, Bot, RefreshCw, User, KeyRound, Users, Plug, Monitor, Bell, Laptop, UserCog, Blocks, X,
-  Search, Volume2, Keyboard, Video, ArrowRightLeft, MonitorSmartphone, Unplug, Cable, Cpu, ArrowUpRight, CircleGauge, ShieldCheck, Layers, ScrollText, BadgeCheck, ChevronLeft } from "lucide-react";
+  Terminal,
+  Bot,
+  RefreshCw,
+  User,
+  KeyRound,
+  Users,
+  Plug,
+  Monitor,
+  Bell,
+  Laptop,
+  UserCog,
+  Blocks,
+  X,
+  Search,
+  Volume2,
+  Keyboard,
+  Video,
+  ArrowRightLeft,
+  MonitorSmartphone,
+  Unplug,
+  Cable,
+  Cpu,
+  ArrowUpRight,
+  CircleGauge,
+  ShieldCheck,
+  Layers,
+  ScrollText,
+  BadgeCheck,
+  ChevronLeft,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { useInboxStore, useTrackedStore } from "../../store/inboxStore";
@@ -39,34 +67,41 @@ import DesktopPanel from "../../app/settings/desktop/page";
 import AppsPanel from "../../app/settings/apps/page";
 import ConnectedAgentsPanel from "../../app/settings/connected-agents/page";
 import PlanPanel from "../../app/settings/plan/page";
-import { modernButton, modernDialog, modernField, modernLook, modernMenuLabel, modernScrim } from "../ui/modernLook";
+import {
+  modernButton,
+  modernDialog,
+  modernField,
+  modernLook,
+  modernMenuLabel,
+  modernScrim,
+} from "../ui/modernLook";
 
 const PANELS: Record<PanelId, React.ComponentType> = {
-  "general": ProfilePanel,
-  "accounts": AccountsPanel,
-  "plan": PlanPanel,
-  "notifications": NotificationsPanel,
-  "sounds": SoundsPanel,
-  "keyboard": KeyboardPanel,
-  "calls": CallsPanel,
-  "team": TeamPanel,
+  general: ProfilePanel,
+  accounts: AccountsPanel,
+  plan: PlanPanel,
+  notifications: NotificationsPanel,
+  sounds: SoundsPanel,
+  keyboard: KeyboardPanel,
+  calls: CallsPanel,
+  team: TeamPanel,
   "managed-devices": ManagedDevicesPanel,
   "access-log": AccessLogPage,
-  "sync": SyncPanel,
-  "integrations": IntegrationsPanel,
-  "agents": AgentsPanel,
+  sync: SyncPanel,
+  integrations: IntegrationsPanel,
+  agents: AgentsPanel,
   "agent-library": AgentLibraryPanel,
-  "harness": HarnessPanel,
-  "approvals": ApprovalsPanel,
-  "daemon": DaemonPanel,
+  harness: HarnessPanel,
+  approvals: ApprovalsPanel,
+  daemon: DaemonPanel,
   "provider-keys": ProviderKeysPanel,
   "claude-accounts": ClaudeAccountsPanel,
   "account-pool": AccountPoolPanel,
-  "cli": CliPanel,
-  "devices": DevicesPanel,
-  "migrate": MigratePanel,
-  "desktop": DesktopPanel,
-  "apps": AppsPanel,
+  cli: CliPanel,
+  devices: DevicesPanel,
+  migrate: MigratePanel,
+  desktop: DesktopPanel,
+  apps: AppsPanel,
   "connected-agents": ConnectedAgentsPanel,
 };
 
@@ -96,48 +131,230 @@ const GROUPS: { label: string; sections: NavDef[] }[] = [
   {
     label: "Account",
     sections: [
-      { id: "general", label: "General", icon: User, desc: "Your profile and how the app looks and behaves", keywords: "profile preferences appearance theme bio timezone username public simple view badges" },
-      { id: "plan", label: "Plan", icon: CircleGauge, desc: "Your assistant's plan, this month's use and extra credit", keywords: "billing usage allowance meter credit top up topup subscription stripe card payment invoice receipts upgrade wallet" },
-      { id: "notifications", label: "Notifications", icon: Bell, desc: "What reaches you, and on which device", keywords: "push email digest mentions mute presence away" },
-      { id: "sounds", label: "Sounds", icon: Volume2, desc: "What this machine says out loud, and how loudly", keywords: "audio volume mute chime cue walkie chat ring quiet" },
-      { id: "keyboard", label: "Keyboard", icon: Keyboard, desc: "Every shortcut, and the keys you'd rather press", keywords: "shortcuts keys hotkeys keybindings rebind chords customize" },
-      { id: "calls", label: "Calls", icon: Video, desc: "How a call starts for you: camera, mic, devices, walkie, meetings", keywords: "camera microphone mic mute devices walkie huddle meeting record join always on recording light hands free press" },
-      { id: "accounts", label: "Accounts", icon: KeyRound, desc: "Sign-in identities linked to this account", keywords: "github oauth email login delete danger" },
-      { id: "apps", label: "Apps", icon: MonitorSmartphone, desc: "Codecast on your Mac, your iPhone and in Chrome", keywords: "desktop mac macos download dmg ios iphone ipad app store mobile phone push chrome extension install" },
-      { id: "connected-agents", label: "Connected agents", icon: Cable, desc: "Claude, Cursor, Codex and other agents that read codecast as you", keywords: "mcp claude cursor codex chatgpt connector oauth outside agent connect disconnect revoke address" },
+      {
+        id: "general",
+        label: "General",
+        icon: User,
+        desc: "Your profile and how the app looks and behaves",
+        keywords:
+          "profile preferences appearance theme bio timezone username public simple view badges",
+      },
+      {
+        id: "plan",
+        label: "Plan",
+        icon: CircleGauge,
+        desc: "Your assistant's plan, this month's use and extra credit",
+        keywords:
+          "billing usage allowance meter credit top up topup subscription stripe card payment invoice receipts upgrade wallet",
+      },
+      {
+        id: "notifications",
+        label: "Notifications",
+        icon: Bell,
+        desc: "What reaches you, and on which device",
+        keywords: "push email digest mentions mute presence away",
+      },
+      {
+        id: "sounds",
+        label: "Sounds",
+        icon: Volume2,
+        desc: "What this machine says out loud, and how loudly",
+        keywords: "audio volume mute chime cue walkie chat ring quiet",
+      },
+      {
+        id: "keyboard",
+        label: "Keyboard",
+        icon: Keyboard,
+        desc: "Every shortcut, and the keys you'd rather press",
+        keywords: "shortcuts keys hotkeys keybindings rebind chords customize",
+      },
+      {
+        id: "calls",
+        label: "Calls",
+        icon: Video,
+        desc: "How a call starts for you: camera, mic, devices, walkie, meetings",
+        keywords:
+          "camera microphone mic mute devices walkie huddle meeting record join always on recording light hands free press",
+      },
+      {
+        id: "accounts",
+        label: "Accounts",
+        icon: KeyRound,
+        desc: "Sign-in identities linked to this account",
+        keywords: "github oauth email login delete danger",
+      },
+      {
+        id: "apps",
+        label: "Apps",
+        icon: MonitorSmartphone,
+        desc: "Codecast on your Mac, your iPhone and in Chrome",
+        keywords:
+          "desktop mac macos download dmg ios iphone ipad app store mobile phone push chrome extension install",
+      },
+      {
+        id: "connected-agents",
+        label: "Connected agents",
+        icon: Cable,
+        desc: "Claude, Cursor, Codex and other agents that read codecast as you",
+        keywords:
+          "mcp claude cursor codex chatgpt connector oauth outside agent connect disconnect revoke address",
+      },
     ],
   },
   {
     label: "Workspace",
     sections: [
-      { id: "team", label: "Team", icon: Users, desc: "Members, identity and the features your team runs", keywords: "members invite roles icon org statuses" },
-      { id: "managed-devices", label: "Managed devices", icon: ShieldCheck, desc: "Deploy codecast to your team's Macs with an MDM, and the policy they carry", adminOnly: true, keywords: "mdm jamf kandji intune mosyle enrollment profile pkg installer policy restrictions fleet it admin" },
-      { id: "access-log", label: "Access log", icon: ScrollText, desc: "Every open, export, download and staff read of your team's regulated data", regulatedOnly: true, keywords: "audit hipaa access log compliance views exports downloads staff reads" },
-      { id: "account-pool", label: "Account pool", icon: Layers, desc: "Claude accounts your team shares, and who spends them", keywords: "shared pool team claude accounts usage tokens who spent" },
-      { id: "sync", label: "Sync & Privacy", icon: RefreshCw, desc: "Which projects sync, and who can see them", keywords: "projects sharing visibility private workspace directories" },
-      { id: "integrations", label: "Integrations", icon: Plug, desc: "The Chrome extension, Slack, GitHub, Linear, Google, Notion, and the product sources Ops reads", keywords: "whisk mail email calendar assistant chrome browser extension web store pair slack github linear google gmail notion connect oauth install repositories issues sync apps sentry posthog sdk ingest key product sources ops" },
+      {
+        id: "team",
+        label: "Team",
+        icon: Users,
+        desc: "Members, identity and the features your team runs",
+        keywords: "members invite roles icon org statuses",
+      },
+      {
+        id: "managed-devices",
+        label: "Managed devices",
+        icon: ShieldCheck,
+        desc: "Deploy codecast to your team's Macs with an MDM, and the policy they carry",
+        adminOnly: true,
+        keywords:
+          "mdm jamf kandji intune mosyle enrollment profile pkg installer policy restrictions fleet it admin",
+      },
+      {
+        id: "access-log",
+        label: "Access log",
+        icon: ScrollText,
+        desc: "Every open, export, download and staff read of your team's regulated data",
+        regulatedOnly: true,
+        keywords:
+          "audit hipaa access log compliance views exports downloads staff reads",
+      },
+      {
+        id: "account-pool",
+        label: "Account pool",
+        icon: Layers,
+        desc: "Claude accounts your team shares, and who spends them",
+        keywords: "shared pool team claude accounts usage tokens who spent",
+      },
+      {
+        id: "sync",
+        label: "Sync & Privacy",
+        icon: RefreshCw,
+        desc: "Which projects sync, and who can see them",
+        keywords: "projects sharing visibility private workspace directories",
+      },
+      {
+        id: "integrations",
+        label: "Integrations",
+        icon: Plug,
+        desc: "The Chrome extension, Slack, GitHub, Linear, Google, Notion, and the product sources Ops reads",
+        keywords:
+          "whisk mail email calendar assistant chrome browser extension web store pair slack github linear google gmail notion connect oauth install repositories issues sync apps sentry posthog sdk ingest key product sources ops",
+      },
     ],
   },
   {
     label: "Machines",
     sections: [
-      { href: "/agent-features", label: "Agent Features", icon: Blocks, desc: "What codecast teaches your agents, per device", keywords: "snippets skills capabilities device memory messaging tasks triggers browser" },
-      { id: "harness", label: "Harness", icon: Unplug, desc: "Codecast's hooks, and every change it made to your agent setup", keywords: "hooks claude.md agents.md settings.json statusline changes history harness automatic" },
-      { id: "provider-keys", label: "Provider Keys", icon: KeyRound, desc: "Model provider credentials per device", keywords: "api key anthropic openai secret" },
-      { id: "cli", label: "CLI", icon: Terminal, desc: "Install the cast CLI, sign a machine in and pair Chrome", keywords: "install token terminal shell chrome browser extension web store pair" },
-      { id: "agents", label: "Agents", icon: Bot, desc: "Permission modes and default parameters", keywords: "permissions yolo model parameters defaults" },
-      { id: "approvals", label: "Approvals", icon: BadgeCheck, desc: "Commands and edits your agents run without asking, per project", keywords: "permissions always allow saved approvals rules deny never git push" },
-      { id: "agent-library", label: "Agent Library", icon: Bot, desc: "Named agent definitions and chains: client, model, effort, tools, prompt", keywords: "definitions roles reviewer scout chain pipeline subagent model effort prompt as" },
-      { id: "claude-accounts", label: "Claude Accounts", icon: UserCog, desc: "Saved Claude sign-ins, and whether codecast continues stopped sessions", keywords: "usage limits switch profiles anthropic recovery auto continue resume retry revive crash" },
-      { id: "devices", label: "Devices", icon: Laptop, desc: "Every machine running the daemon", keywords: "machines daemon ssh checkouts online share team shared" },
-      { id: "daemon", label: "Daemon", icon: Cpu, desc: "Version, health and updates of each machine's daemon", keywords: "version update automatic auto update status running health restart upgrade" },
-      { id: "migrate", label: "Migration", icon: ArrowRightLeft, desc: "Move many sessions to a cloud host or back, in one go", keywords: "migrate move bulk cloud host laptop transfer sessions batch" },
-      { id: "desktop", label: "Desktop", icon: Monitor, desc: "The desktop app: shortcuts and meeting detection", keywords: "shortcuts hotkeys meetings version updates", desktopOnly: true },
+      {
+        href: "/agent-features",
+        label: "Agent Features",
+        icon: Blocks,
+        desc: "What codecast teaches your agents, per device",
+        keywords:
+          "snippets skills capabilities device memory messaging tasks triggers browser",
+      },
+      {
+        id: "harness",
+        label: "Harness",
+        icon: Unplug,
+        desc: "Codecast's hooks, and every change it made to your agent setup",
+        keywords:
+          "hooks claude.md agents.md settings.json statusline changes history harness automatic",
+      },
+      {
+        id: "provider-keys",
+        label: "Provider Keys",
+        icon: KeyRound,
+        desc: "Model provider credentials per device",
+        keywords: "api key anthropic openai secret",
+      },
+      {
+        id: "cli",
+        label: "CLI",
+        icon: Terminal,
+        desc: "Install the cast CLI, sign a machine in and pair Chrome",
+        keywords:
+          "install token terminal shell chrome browser extension web store pair",
+      },
+      {
+        id: "agents",
+        label: "Agents",
+        icon: Bot,
+        desc: "Permission modes and default parameters",
+        keywords: "permissions yolo model parameters defaults",
+      },
+      {
+        id: "approvals",
+        label: "Approvals",
+        icon: BadgeCheck,
+        desc: "Commands and edits your agents run without asking, per project",
+        keywords:
+          "permissions always allow saved approvals rules deny never git push",
+      },
+      {
+        id: "agent-library",
+        label: "Agent Library",
+        icon: Bot,
+        desc: "Named agent definitions and chains: client, model, effort, tools, prompt",
+        keywords:
+          "definitions roles reviewer scout chain pipeline subagent model effort prompt as",
+      },
+      {
+        id: "claude-accounts",
+        label: "Claude Accounts",
+        icon: UserCog,
+        desc: "Saved Claude sign-ins, and whether codecast continues stopped sessions",
+        keywords:
+          "usage limits switch profiles anthropic recovery auto continue resume retry revive crash",
+      },
+      {
+        id: "devices",
+        label: "Devices",
+        icon: Laptop,
+        desc: "Every machine running the daemon",
+        keywords: "machines daemon ssh checkouts online share team shared",
+      },
+      {
+        id: "daemon",
+        label: "Daemon",
+        icon: Cpu,
+        desc: "Version, health and updates of each machine's daemon",
+        keywords:
+          "version update automatic auto update status running health restart upgrade",
+      },
+      {
+        id: "migrate",
+        label: "Migration",
+        icon: ArrowRightLeft,
+        desc: "Move many sessions to a cloud host or back, in one go",
+        keywords: "migrate move bulk cloud host laptop transfer sessions batch",
+      },
+      {
+        id: "desktop",
+        label: "Desktop",
+        icon: Monitor,
+        desc: "The desktop app: shortcuts and meeting detection",
+        keywords: "shortcuts hotkeys meetings version updates",
+        desktopOnly: true,
+      },
     ],
   },
 ];
 
-const ALL_SECTIONS = GROUPS.flatMap((g) => g.sections).filter((d): d is SectionDef => !!d.id);
+const ALL_SECTIONS = GROUPS.flatMap((g) => g.sections).filter(
+  (d): d is SectionDef => !!d.id,
+);
 
 export function SettingsModal() {
   useDesktopSettings();
@@ -145,7 +362,9 @@ export function SettingsModal() {
   const isDesktop = useIsDesktop();
   const isTeamAdmin = useInboxStore((s) => {
     const active = s.clientState.ui?.active_team_id;
-    return !!active && s.teams.some((t) => t?._id === active && t.role === "admin");
+    return (
+      !!active && s.teams.some((t) => t?._id === active && t.role === "admin")
+    );
   });
   const logsAccess = useActiveTeamLogsAccess();
   const router = useRouter();
@@ -157,7 +376,10 @@ export function SettingsModal() {
   const [phoneNav, setPhoneNav] = useState(false);
 
   const section = s.settingsModalSection;
-  const close = useCallback(() => useInboxStore.getState().closeSettingsModal(), []);
+  const close = useCallback(
+    () => useInboxStore.getState().closeSettingsModal(),
+    [],
+  );
 
   // Take focus on open and give it back on close. Without this, opening the
   // modal from the keyboard leaves focus in the background composer and every
@@ -180,17 +402,24 @@ export function SettingsModal() {
 
   useEventListener(
     "keydown",
-    useCallback((e: KeyboardEvent) => {
-      if (section && e.key === "Escape") {
-        // A nested dialog (a confirm dialog, the invite modal) owns this
-        // Escape: Radix closes it in its capture-phase listener and the same
-        // native event still bubbles here. Our own backdrop is one dialog, so
-        // more than one means something is stacked on top.
-        if (document.querySelectorAll('[role="dialog"], [role="alertdialog"]').length > 1) return;
-        e.stopPropagation();
-        close();
-      }
-    }, [section, close]),
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (section && e.key === "Escape") {
+          // A nested dialog (a confirm dialog, the invite modal) owns this
+          // Escape: Radix closes it in its capture-phase listener and the same
+          // native event still bubbles here. Our own backdrop is one dialog, so
+          // more than one means something is stacked on top.
+          if (
+            document.querySelectorAll('[role="dialog"], [role="alertdialog"]')
+              .length > 1
+          )
+            return;
+          e.stopPropagation();
+          close();
+        }
+      },
+      [section, close],
+    ),
     document,
   );
 
@@ -234,7 +463,9 @@ export function SettingsModal() {
         if (d.adminOnly && !isTeamAdmin) return false;
         if (d.regulatedOnly && !logsAccess) return false;
         if (!q) return true;
-        return `${d.label} ${d.desc} ${d.keywords} ${group.label}`.toLowerCase().includes(q);
+        return `${d.label} ${d.desc} ${d.keywords} ${group.label}`
+          .toLowerCase()
+          .includes(q);
       }),
     })).filter((g) => g.sections.length > 0);
   }, [q, isDesktop, isTeamAdmin, logsAccess]);
@@ -256,7 +487,9 @@ export function SettingsModal() {
     <div
       ref={backdropRef}
       className={`fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-[2px] ${modernScrim}`}
-      onMouseDown={(e) => { if (e.target === backdropRef.current) close(); }}
+      onMouseDown={(e) => {
+        if (e.target === backdropRef.current) close();
+      }}
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
@@ -267,10 +500,14 @@ export function SettingsModal() {
         onKeyDown={trapFocus}
         className={`w-full max-w-[1080px] h-[min(880px,94dvh)] bg-sol-bg border border-sol-border rounded-xl shadow-2xl flex overflow-hidden animate-fadeSlideIn outline-none ${modernDialog({ scroll: false })}`}
       >
-        <nav className={`${phoneNav ? "flex w-full" : "hidden"} sm:flex sm:w-56 shrink-0 border-r border-sol-border bg-sol-bg-alt/40 flex-col modern:bg-sol-bg-alt`}>
+        <nav
+          className={`${phoneNav ? "flex w-full" : "hidden"} sm:flex sm:w-56 shrink-0 border-r border-sol-border bg-sol-bg-alt/40 flex-col modern:bg-sol-bg-alt`}
+        >
           <div className="px-3 pt-3.5 pb-2">
             <div className="flex items-center justify-between gap-2 px-1.5 pb-2.5">
-              <span className="text-sm font-semibold text-sol-text">Settings</span>
+              <span className="text-sm font-semibold text-sol-text">
+                Settings
+              </span>
               <button
                 onClick={close}
                 className={`sm:hidden shrink-0 p-1.5 -my-1.5 rounded-md text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-highlight/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-cyan/40 ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
@@ -305,7 +542,9 @@ export function SettingsModal() {
           <div className="scrollbar-auto flex-1 overflow-y-auto px-2 pt-0.5 pb-3">
             {visibleGroups.map((group) => (
               <div key={group.label} className="mb-1">
-                <div className={`px-3 pt-2.5 pb-1 text-mark font-medium uppercase tracking-wider text-sol-text-dim ${modernLook(modernMenuLabel, "modern:px-3")}`}>
+                <div
+                  className={`px-3 pt-2.5 pb-1 text-mark font-medium uppercase tracking-wider text-sol-text-dim ${modernLook(modernMenuLabel, "modern:px-3")}`}
+                >
                   {group.label}
                 </div>
                 {group.sections.map((d) => {
@@ -323,9 +562,13 @@ export function SettingsModal() {
                           : "text-sol-text-secondary hover:text-sol-text hover:bg-sol-bg-highlight/50"
                       } modern:min-h-control-sm modern:rounded-control modern:py-1 modern:text-ui modern:focus-visible:ring-0 modern:focus-visible:outline modern:focus-visible:outline-2 modern:focus-visible:outline-offset-1 modern:focus-visible:outline-[color:var(--focus-ring)] ${isActive ? "modern:bg-sol-cyan/10" : "modern:hover:bg-sol-text/[0.06]"}`}
                     >
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "" : "text-sol-text-dim"}`} />
+                      <Icon
+                        className={`w-4 h-4 flex-shrink-0 ${isActive ? "" : "text-sol-text-dim"}`}
+                      />
                       <span className="truncate">{d.label}</span>
-                      {!d.id && <ArrowUpRight className="ml-auto h-3.5 w-3.5 shrink-0 text-sol-text-dim" />}
+                      {!d.id && (
+                        <ArrowUpRight className="ml-auto h-3.5 w-3.5 shrink-0 text-sol-text-dim" />
+                      )}
                     </button>
                   );
                 })}
@@ -339,7 +582,9 @@ export function SettingsModal() {
           </div>
         </nav>
 
-        <div className={`${phoneNav ? "hidden" : "flex"} sm:flex flex-1 min-w-0 flex-col`}>
+        <div
+          className={`${phoneNav ? "hidden" : "flex"} sm:flex flex-1 min-w-0 flex-col`}
+        >
           <header className="flex items-center justify-between gap-4 pl-2 sm:pl-6 pr-3 py-3 border-b border-sol-border">
             <button
               onClick={() => setPhoneNav(true)}
@@ -350,7 +595,12 @@ export function SettingsModal() {
               <ChevronLeft className="w-[18px] h-[18px]" />
             </button>
             <div className="min-w-0 flex-1">
-              <h2 data-cc-sheet-title className="text-base font-semibold text-sol-text leading-tight modern:text-title">{active.label}</h2>
+              <h2
+                data-cc-sheet-title
+                className="text-base font-semibold text-sol-text leading-tight modern:text-title"
+              >
+                {active.label}
+              </h2>
               <p className="truncate text-xs text-sol-text-muted">
                 {active.desc}
               </p>
@@ -363,7 +613,10 @@ export function SettingsModal() {
               <X className="w-[18px] h-[18px]" />
             </button>
           </header>
-          <div key={active.id} className="scrollbar-auto flex-1 overflow-y-auto px-4 sm:px-6 py-5">
+          <div
+            key={active.id}
+            className="scrollbar-auto flex-1 overflow-y-auto px-4 sm:px-6 py-5"
+          >
             <ErrorBoundary name="SettingsPanel" level="panel">
               <Panel />
             </ErrorBoundary>
@@ -373,5 +626,3 @@ export function SettingsModal() {
     </div>
   );
 }
-
-

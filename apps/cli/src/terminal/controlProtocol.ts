@@ -60,7 +60,8 @@ export class ControlModeParser {
   private blockLines: string[] = [];
 
   feed(chunk: Buffer | string, emit: (ev: ControlEvent) => void): void {
-    const bytes = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk;
+    const bytes =
+      typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk;
     this.buf = this.buf.length === 0 ? bytes : Buffer.concat([this.buf, bytes]);
     let idx: number;
     while ((idx = this.buf.indexOf(0x0a)) >= 0) {
@@ -97,7 +98,11 @@ export class ControlModeParser {
     if (line.startsWith("%output ")) {
       const sp = line.indexOf(" ", 8);
       if (sp > 0) {
-        emit({ type: "output", paneId: line.slice(8, sp), data: unescapeControlData(bytes.subarray(sp + 1)) });
+        emit({
+          type: "output",
+          paneId: line.slice(8, sp),
+          data: unescapeControlData(bytes.subarray(sp + 1)),
+        });
       }
       return;
     }
@@ -106,12 +111,19 @@ export class ControlModeParser {
       const colon = line.indexOf(" : ");
       const sp = line.indexOf(" ", 17);
       if (colon > 0 && sp > 0) {
-        emit({ type: "output", paneId: line.slice(17, sp), data: unescapeControlData(bytes.subarray(colon + 3)) });
+        emit({
+          type: "output",
+          paneId: line.slice(17, sp),
+          data: unescapeControlData(bytes.subarray(colon + 3)),
+        });
       }
       return;
     }
     if (line.startsWith("%exit")) {
-      emit({ type: "exit", reason: line.length > 6 ? line.slice(6) : undefined });
+      emit({
+        type: "exit",
+        reason: line.length > 6 ? line.slice(6) : undefined,
+      });
       return;
     }
     if (line.startsWith("%pause ")) {

@@ -41,4 +41,3 @@ export async function releasePreviousOwner(
     target_device_id: opts.priorDeviceId,
   });
 }
-

@@ -37,7 +37,9 @@ describe("strip face sizes", () => {
   });
 
   it("are each smaller than the wall's, so the strip never outgrows its row", () => {
-    for (const tier of Object.keys(WALL_FACE_PX) as (keyof typeof WALL_FACE_PX)[]) {
+    for (const tier of Object.keys(
+      WALL_FACE_PX,
+    ) as (keyof typeof WALL_FACE_PX)[]) {
       expect(STRIP_FACE_PX[tier]).toBeLessThan(WALL_FACE_PX[tier]);
     }
   });

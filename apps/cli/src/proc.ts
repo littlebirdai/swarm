@@ -14,7 +14,12 @@ import * as fs from "node:fs";
 import * as nodePath from "node:path";
 import { routeProbe } from "./workers/bridge.js";
 import { promisify } from "node:util";
-import { SLOW_SYNC_SPAWN_MS, reportKeychainLock, reportSpawnTimeout, timeSync } from "./slowSync.js";
+import {
+  SLOW_SYNC_SPAWN_MS,
+  reportKeychainLock,
+  reportSpawnTimeout,
+  timeSync,
+} from "./slowSync.js";
 import { loginKeychainLocked } from "./keychainLock.js";
 
 export type {
@@ -66,25 +71,42 @@ export function withWindowsHide(args: unknown[]): unknown[] {
 export { SLOW_SYNC_SPAWN_MS } from "./slowSync.js";
 function describeSpawnArgs(args: unknown[]): string {
   const cmd = typeof args[0] === "string" ? args[0] : String(args[0]);
-  const list = Array.isArray(args[1]) ? ` ${(args[1] as unknown[]).join(" ")}` : "";
+  const list = Array.isArray(args[1])
+    ? ` ${(args[1] as unknown[]).join(" ")}`
+    : "";
   return `${cmd}${list}`.slice(0, 200);
 }
-function wrapSync<T extends (...args: never[]) => unknown>(name: string, fn: T): T {
+function wrapSync<T extends (...args: never[]) => unknown>(
+  name: string,
+  fn: T,
+): T {
   const wrapped = (...args: unknown[]) =>
-    timeSync("SLOW-SYNC-SPAWN", SLOW_SYNC_SPAWN_MS, name, () => describeSpawnArgs(args), () =>
-      (fn as unknown as (...a: unknown[]) => unknown)(...withWindowsHide(args)));
+    timeSync(
+      "SLOW-SYNC-SPAWN",
+      SLOW_SYNC_SPAWN_MS,
+      name,
+      () => describeSpawnArgs(args),
+      () =>
+        (fn as unknown as (...a: unknown[]) => unknown)(
+          ...withWindowsHide(args),
+        ),
+    );
   return wrapped as unknown as T;
 }
 
 function wrap<T extends (...args: never[]) => unknown>(fn: T): T {
-  const wrapped = (...args: unknown[]) => (fn as unknown as (...a: unknown[]) => unknown)(...withWindowsHide(args));
+  const wrapped = (...args: unknown[]) =>
+    (fn as unknown as (...a: unknown[]) => unknown)(...withWindowsHide(args));
   // promisify(execFile)/promisify(exec) resolve {stdout, stderr} only via the
   // promisify.custom implementation on the ORIGINAL function; a bare wrapper
   // would fall back to generic promisification and break destructuring.
-  const custom = (fn as Record<symbol, unknown>)[promisify.custom as unknown as symbol];
+  const custom = (fn as Record<symbol, unknown>)[
+    promisify.custom as unknown as symbol
+  ];
   if (typeof custom === "function") {
     Object.defineProperty(wrapped, promisify.custom, {
-      value: (...args: unknown[]) => (custom as (...a: unknown[]) => unknown)(...withWindowsHide(args)),
+      value: (...args: unknown[]) =>
+        (custom as (...a: unknown[]) => unknown)(...withWindowsHide(args)),
       enumerable: false,
     });
   }
@@ -103,38 +125,77 @@ export function refuseKeychainCallsWhileLocked(on = true): void {
   refuseLockedKeychain = on;
 }
 function lockedKeychainRefusal(file: unknown, args: unknown): Error | null {
-  if (!refuseLockedKeychain || typeof file !== "string" || nodePath.basename(file) !== "security") return null;
+  if (
+    !refuseLockedKeychain ||
+    typeof file !== "string" ||
+    nodePath.basename(file) !== "security"
+  )
+    return null;
   // Lock and unlock leave the keychain usable; only a read or write prompts.
-  if (Array.isArray(args) && /^(un)?lock-keychain$/.test(String(args[0]))) return null;
+  if (Array.isArray(args) && /^(un)?lock-keychain$/.test(String(args[0])))
+    return null;
   const locked = loginKeychainLocked();
   if (locked !== keychainWasLocked) {
     keychainWasLocked = locked;
     reportKeychainLock(locked);
   }
   if (!locked) return null;
-  return Object.assign(new Error(`login keychain is locked: ${describeSpawnArgs([file, args])}`), { code: "KEYCHAIN_LOCKED", status: 36, stdout: "", stderr: "" });
+  return Object.assign(
+    new Error(`login keychain is locked: ${describeSpawnArgs([file, args])}`),
+    { code: "KEYCHAIN_LOCKED", status: 36, stdout: "", stderr: "" },
+  );
 }
 
-function gateSync<T extends (...args: never[]) => unknown>(fn: T, refused: (error: Error) => unknown): T {
+function gateSync<T extends (...args: never[]) => unknown>(
+  fn: T,
+  refused: (error: Error) => unknown,
+): T {
   return ((...args: unknown[]) => {
     const error = lockedKeychainRefusal(args[0], args[1]);
-    return error ? refused(error) : (fn as unknown as (...a: unknown[]) => unknown)(...args);
+    return error
+      ? refused(error)
+      : (fn as unknown as (...a: unknown[]) => unknown)(...args);
   }) as unknown as T;
 }
 
 export const spawn: typeof cp.spawn = wrap(cp.spawn);
-export const spawnSync: typeof cp.spawnSync = gateSync(wrapSync("spawnSync", cp.spawnSync), error =>
-  ({ pid: 0, output: [null, "", ""], stdout: "", stderr: "", status: null, signal: null, error }));
+export const spawnSync: typeof cp.spawnSync = gateSync(
+  wrapSync("spawnSync", cp.spawnSync),
+  (error) => ({
+    pid: 0,
+    output: [null, "", ""],
+    stdout: "",
+    stderr: "",
+    status: null,
+    signal: null,
+    error,
+  }),
+);
 export const exec: typeof cp.exec = wrap(cp.exec);
 export const execSync: typeof cp.execSync = wrapSync("execSync", cp.execSync);
 export const execFile: typeof cp.execFile = wrap(cp.execFile);
-export const execFileSync: typeof cp.execFileSync = gateSync(wrapSync("execFileSync", cp.execFileSync), error => { throw error; });
+export const execFileSync: typeof cp.execFileSync = gateSync(
+  wrapSync("execFileSync", cp.execFileSync),
+  (error) => {
+    throw error;
+  },
+);
 /** The promise form of the wrapped execFile, shared so no caller promisifies its own copy. */
 const execFileDirectAsync = promisify(execFile);
-export const execFileAsync: typeof execFileDirectAsync = ((file: string, args: string[], options?: unknown) => {
+export const execFileAsync: typeof execFileDirectAsync = ((
+  file: string,
+  args: string[],
+  options?: unknown,
+) => {
   const refused = lockedKeychainRefusal(file, args);
   if (refused) return Promise.reject(refused);
-  return routeProbe(file, args, options, opts => execFileDirectAsync(file, args, opts as cp.ExecFileOptionsWithStringEncoding));
+  return routeProbe(file, args, options, (opts) =>
+    execFileDirectAsync(
+      file,
+      args,
+      opts as cp.ExecFileOptionsWithStringEncoding,
+    ),
+  );
 }) as typeof execFileDirectAsync;
 
 // A keychain read answers in tens of milliseconds on an idle machine. A locked
@@ -145,13 +206,22 @@ export const execFileAsync: typeof execFileDirectAsync = ((file: string, args: s
 export const KEYCHAIN_READ_TIMEOUT_MS = 30_000;
 const keychainTimeoutsReported = new Set<string>();
 /** `security <args>` off the loop, trimmed. Rejects like execFileAsync. */
-export async function keychainReadAsync(args: string[], timeoutMs = KEYCHAIN_READ_TIMEOUT_MS): Promise<string> {
+export async function keychainReadAsync(
+  args: string[],
+  timeoutMs = KEYCHAIN_READ_TIMEOUT_MS,
+): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("security", args, { encoding: "utf-8", timeout: timeoutMs });
+    const { stdout } = await execFileAsync("security", args, {
+      encoding: "utf-8",
+      timeout: timeoutMs,
+    });
     return stdout.trim();
   } catch (err) {
     const detail = args.join(" ");
-    if ((err as { killed?: boolean }).killed && !keychainTimeoutsReported.has(detail)) {
+    if (
+      (err as { killed?: boolean }).killed &&
+      !keychainTimeoutsReported.has(detail)
+    ) {
       keychainTimeoutsReported.add(detail);
       reportSpawnTimeout("security", detail, timeoutMs);
     }
@@ -163,7 +233,10 @@ export async function keychainReadAsync(args: string[], timeoutMs = KEYCHAIN_REA
  *  The PATH is walked here rather than by spawning `which`: Windows has none, and
  *  in the daemon each spawn held the event loop for over a second under load. */
 export function whichBin(name: string, pathEnv?: string): string | null {
-  return findOnPath(name, pathEnv ?? process.env.PATH ?? process.env.Path ?? "");
+  return findOnPath(
+    name,
+    pathEnv ?? process.env.PATH ?? process.env.Path ?? "",
+  );
 }
 
 /** `which` done by hand: the first directory on `pathEnv` holding `name`, as
@@ -173,7 +246,11 @@ export function whichBin(name: string, pathEnv?: string): string | null {
 export function findOnPath(
   name: string,
   pathEnv: string,
-  opts: { platform?: NodeJS.Platform; pathext?: string; isFile?: (p: string) => boolean } = {},
+  opts: {
+    platform?: NodeJS.Platform;
+    pathext?: string;
+    isFile?: (p: string) => boolean;
+  } = {},
 ): string | null {
   const platform = opts.platform ?? process.platform;
   const win = platform === "win32";
@@ -190,11 +267,18 @@ export function findOnPath(
       }
     });
   const exts = win
-    ? ["", ...(opts.pathext ?? process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)]
+    ? [
+        "",
+        ...(opts.pathext ?? process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+          .split(";")
+          .filter(Boolean),
+      ]
     : [""];
   // A name that already carries its extension (`ffmpeg.exe`) is tried as is.
-  const candidates = (dir: string) => exts.map((ext) => pathLib.join(dir, name + ext));
-  if (name.includes("/") || (win && name.includes("\\"))) return candidates("").find(isFile) ?? null;
+  const candidates = (dir: string) =>
+    exts.map((ext) => pathLib.join(dir, name + ext));
+  if (name.includes("/") || (win && name.includes("\\")))
+    return candidates("").find(isFile) ?? null;
   for (const dir of pathEnv.split(win ? ";" : ":")) {
     if (!dir) continue;
     const hit = candidates(dir.replace(/^"(.*)"$/, "$1")).find(isFile);
@@ -219,8 +303,14 @@ export function findOnPath(
  *  The real PATH comes first, so a tool found today keeps the same hit. */
 export const TOOL_PATH =
   process.platform === "win32"
-    ? process.env.PATH ?? process.env.Path ?? ""
-    : [process.env.PATH, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", process.env.HOME && nodePath.join(process.env.HOME, ".local/bin")]
+    ? (process.env.PATH ?? process.env.Path ?? "")
+    : [
+        process.env.PATH,
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        process.env.HOME && nodePath.join(process.env.HOME, ".local/bin"),
+      ]
         .filter(Boolean)
         .join(nodePath.delimiter);
 
@@ -238,7 +328,10 @@ function commandName(bin: string): string | null {
  *  or null when there is none we know. Runnable as is. `reinstall` asks for
  *  the form that replaces an install already there (a binary left broken by
  *  an upgrade of a library it links), which a plain install skips. */
-export function installCommandFor(pkg: string, opts: { reinstall?: boolean } = {}): string | null {
+export function installCommandFor(
+  pkg: string,
+  opts: { reinstall?: boolean } = {},
+): string | null {
   const again = !!opts.reinstall;
   if (process.platform === "darwin") {
     const brew = commandName("brew");
@@ -246,7 +339,10 @@ export function installCommandFor(pkg: string, opts: { reinstall?: boolean } = {
   }
   if (process.platform === "linux") {
     for (const [bin, args] of [
-      ["apt-get", again ? `install --reinstall -y ${pkg}` : `install -y ${pkg}`],
+      [
+        "apt-get",
+        again ? `install --reinstall -y ${pkg}` : `install -y ${pkg}`,
+      ],
       ["dnf", `${again ? "reinstall" : "install"} -y ${pkg}`],
       ["yum", `${again ? "reinstall" : "install"} -y ${pkg}`],
       ["pacman", `-S --noconfirm ${pkg}`],
@@ -262,11 +358,16 @@ export function installCommandFor(pkg: string, opts: { reinstall?: boolean } = {
 /** One sentence a person can act on: the install command when there is one,
  *  otherwise what to do first. `winget` is the package id on Windows, where
  *  a tool's id rarely matches its name. */
-export function installHintFor(pkg: string, opts: { winget?: string } = {}): string {
+export function installHintFor(
+  pkg: string,
+  opts: { winget?: string } = {},
+): string {
   const cmd = installCommandFor(pkg);
   if (cmd) return `Install it with: ${cmd}`;
-  if (process.platform === "darwin") return `Install Homebrew (https://brew.sh), then run: brew install ${pkg}`;
-  if (process.platform === "win32" && opts.winget) return `Install it with: winget install ${opts.winget}`;
+  if (process.platform === "darwin")
+    return `Install Homebrew (https://brew.sh), then run: brew install ${pkg}`;
+  if (process.platform === "win32" && opts.winget)
+    return `Install it with: winget install ${opts.winget}`;
   return `Install ${pkg} with your system package manager.`;
 }
 
@@ -285,14 +386,27 @@ export function installHintFor(pkg: string, opts: { winget?: string } = {}): str
  * names its cause. A Bun crash ends with its version banner, so that is skipped.
  */
 export function lastErrorLine(text: string | undefined | null): string {
-  return (text ?? "").split("\n").map((l) => l.trim()).filter((l) => l && !/^Bun v\d\S* \(/.test(l)).pop() ?? "";
+  return (
+    (text ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !/^Bun v\d\S* \(/.test(l))
+      .pop() ?? ""
+  );
 }
 
-export function childErrorDetail(stderr: string, stdout = "", maxLen = 500): string {
+export function childErrorDetail(
+  stderr: string,
+  stdout = "",
+  maxLen = 500,
+): string {
   return (stderr || stdout || "")
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("at ") && !/^\d+ \|/.test(l) && !/^\^+$/.test(l))
+    .filter(
+      (l) =>
+        l && !l.startsWith("at ") && !/^\d+ \|/.test(l) && !/^\^+$/.test(l),
+    )
     .join(" — ")
     .slice(0, maxLen);
 }

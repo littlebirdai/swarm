@@ -12,8 +12,18 @@ const TEAMMATE = "user-teammate" as any;
 
 const db = makeFakeDb({
   users: [
-    { _id: OWNER, name: "Ashot Petrosian", email: "ashot@union.app", image: "https://img/ashot.png" },
-    { _id: TEAMMATE, name: "Samvit Ramadurgam", email: "samvit@union.app", github_avatar_url: "https://img/samvit.png" },
+    {
+      _id: OWNER,
+      name: "Ashot Petrosian",
+      email: "ashot@union.app",
+      image: "https://img/ashot.png",
+    },
+    {
+      _id: TEAMMATE,
+      name: "Samvit Ramadurgam",
+      email: "samvit@union.app",
+      github_avatar_url: "https://img/samvit.png",
+    },
   ],
 });
 const ctx = { db } as any;
@@ -21,7 +31,11 @@ const ctx = { db } as any;
 describe("attachSenderIdentities", () => {
   test("a teammate's user turn gets the sender's name and avatar", async () => {
     const [msg] = await attachSenderIdentities(ctx, OWNER, [
-      { role: "user", from_user_id: TEAMMATE, content: "why not just contacts?" } as any,
+      {
+        role: "user",
+        from_user_id: TEAMMATE,
+        content: "why not just contacts?",
+      } as any,
     ]);
     expect((msg as any).sender_name).toBe("Samvit Ramadurgam");
     expect((msg as any).sender_avatar_url).toBe("https://img/samvit.png");
@@ -41,7 +55,11 @@ describe("attachSenderIdentities", () => {
 
   test("a sender with no user row (deleted account) stays bare rather than mislabeled", async () => {
     const [msg] = await attachSenderIdentities(ctx, OWNER, [
-      { role: "user", from_user_id: "user-gone" as any, content: "orphan" } as any,
+      {
+        role: "user",
+        from_user_id: "user-gone" as any,
+        content: "orphan",
+      } as any,
     ]);
     expect((msg as any).sender_name).toBeUndefined();
   });

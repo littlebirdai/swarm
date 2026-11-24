@@ -6,12 +6,22 @@
 import type { ReactNode } from "react";
 import { RoleAvatar } from "../org/avatars";
 import { avatarLength } from "../../lib/orgAvatars";
-import { faceBadgeSize, viewerFace, type IdentityRow } from "../../lib/sessionIdentity";
+import {
+  faceBadgeSize,
+  viewerFace,
+  type IdentityRow,
+} from "../../lib/sessionIdentity";
 import { useLiveIdentityRow } from "../../hooks/useLiveIdentityRow";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
 import { RoleIconTile } from "./RoleIconTile";
 
-export function SessionFace({ row: rawRow, size = 18, className, title, badge }: {
+export function SessionFace({
+  row: rawRow,
+  size = 18,
+  className,
+  title,
+  badge,
+}: {
   row: IdentityRow;
   /** Pixels, or any CSS length: a face in a sentence draws at "1em" so it
    *  rides the prose it sits in. */
@@ -32,18 +42,38 @@ export function SessionFace({ row: rawRow, size = 18, className, title, badge }:
   const showBadge = badge && badgeSize > 0;
   const box = avatarLength(size);
   if (id.kind === "none") {
-    return badge ? <span className={`inline-flex items-center justify-center flex-shrink-0 text-sol-text-muted ${className ?? ""}`} style={{ width: box, height: box, lineHeight: 0 }} data-identity="plain">{badge}</span> : null;
+    return badge ? (
+      <span
+        className={`inline-flex items-center justify-center flex-shrink-0 text-sol-text-muted ${className ?? ""}`}
+        style={{ width: box, height: box, lineHeight: 0 }}
+        data-identity="plain"
+      >
+        {badge}
+      </span>
+    ) : null;
   }
   return (
-    <span className={`relative inline-block flex-shrink-0 ${className ?? ""}`} style={{ width: box, height: box, lineHeight: 0 }}>
+    <span
+      className={`relative inline-block flex-shrink-0 ${className ?? ""}`}
+      style={{ width: box, height: box, lineHeight: 0 }}
+    >
       {id.kind === "tile" ? (
-        <span className="block" style={{ width: box, height: box, lineHeight: 0 }} data-identity="role">
-          <RoleIconTile tile={id.tile} size={size} title={title ?? id.name} block />
+        <span
+          className="block"
+          style={{ width: box, height: box, lineHeight: 0 }}
+          data-identity="role"
+        >
+          <RoleIconTile
+            tile={id.tile}
+            size={size}
+            title={title ?? id.name}
+            block
+          />
         </span>
       ) : (
         <span
           className="block rounded-full"
-          style={{ width: box, height: box, lineHeight: 0,  }}
+          style={{ width: box, height: box, lineHeight: 0 }}
           data-identity={id.role ? "role" : "character"}
         >
           <RoleAvatar avatar={id.avatar} size={size} title={title ?? id.name} />
@@ -54,7 +84,13 @@ export function SessionFace({ row: rawRow, size = 18, className, title, badge }:
           aria-hidden
           data-face-badge
           className="absolute rounded-full bg-sol-card flex items-center justify-center text-sol-text-muted"
-          style={{ width: badgeSize, height: badgeSize, right: -1, bottom: -1, boxShadow: "0 0 0 1px var(--sol-bg)" }}
+          style={{
+            width: badgeSize,
+            height: badgeSize,
+            right: -1,
+            bottom: -1,
+            boxShadow: "0 0 0 1px var(--sol-bg)",
+          }}
         >
           {badge}
         </span>

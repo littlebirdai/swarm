@@ -4,7 +4,11 @@
  *  without importing each other. */
 export function PeopleLegend({ inline = false }: { inline?: boolean }) {
   return (
-    <div className={inline ? "people-legend people-legend-inline" : "people-legend"}>
+    <div
+      className={
+        inline ? "people-legend people-legend-inline" : "people-legend"
+      }
+    >
       <b>CLICK</b> a face for <b>Talk</b> · <b>Ring</b> · <b>Message</b>
     </div>
   );

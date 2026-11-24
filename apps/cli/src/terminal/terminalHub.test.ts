@@ -3,7 +3,13 @@ import { OutputRing } from "./terminalHub.js";
 
 const out = (s: string) => Buffer.from(s);
 const text = (recs: ReturnType<OutputRing["since"]>) =>
-  (recs ?? []).map((r) => (r.kind === "output" ? r.data.toString() : `[reseed ${r.cols}x${r.rows}:${r.seed.toString()}]`)).join("");
+  (recs ?? [])
+    .map((r) =>
+      r.kind === "output"
+        ? r.data.toString()
+        : `[reseed ${r.cols}x${r.rows}:${r.seed.toString()}]`,
+    )
+    .join("");
 
 describe("OutputRing", () => {
   it("addresses output by absolute byte offset and trims the first record to the cursor", () => {
@@ -80,4 +86,3 @@ describe("OutputRing", () => {
     expect(ring.offset).toBe(0);
   });
 });
-

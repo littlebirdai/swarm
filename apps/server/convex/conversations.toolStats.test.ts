@@ -19,7 +19,12 @@ describe("collectConversationToolStats", () => {
       conversation_id: CONV,
       role: "assistant",
       timestamp: ts,
-      tool_calls: [{ name: "Write", input: `{"file_path":"f${i}.ts","content":"${"x".repeat(200)}"}` }],
+      tool_calls: [
+        {
+          name: "Write",
+          input: `{"file_path":"f${i}.ts","content":"${"x".repeat(200)}"}`,
+        },
+      ],
     };
   }
 
@@ -29,7 +34,12 @@ describe("collectConversationToolStats", () => {
       conversation_id: CONV,
       role: "assistant",
       timestamp: ts,
-      tool_calls: [{ name: "TodoWrite", input: JSON.stringify({ todos: [{ content, status: "pending" }] }) }],
+      tool_calls: [
+        {
+          name: "TodoWrite",
+          input: JSON.stringify({ todos: [{ content, status: "pending" }] }),
+        },
+      ],
     };
   }
 

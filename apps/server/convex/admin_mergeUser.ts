@@ -4,85 +4,133 @@ import type { Id } from "./_generated/dataModel";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { patchCommentWithRevision } from "./commentViewWrites";
 import { getComment } from "./commentStore";
-import { commentIdOf, isConversationComment } from "./lib/conversationCommentRows";
+import {
+  commentIdOf,
+  isConversationComment,
+} from "./lib/conversationCommentRows";
 import { moveBookmarkPrincipalWithRevision } from "./bookmarkViewWrites";
 
 // (table, field, indexName | null) — when indexName is present, use the
 // indexed query; otherwise fall back to a small filter scan. All app tables
 // that reference v.id("users") in the schema are covered, plus the two auth
 // tables that carry a userId.
-const USER_REFS: Array<{ table: string; field: string; index: string | null }> = [
-  // App tables with by_user_id (or equivalent leading-on-user) index.
-  { table: "daemon_commands", field: "user_id", index: "by_user_pending" },
-  { table: "team_memberships", field: "user_id", index: "by_user_id" },
-  { table: "directory_team_mappings", field: "user_id", index: "by_user_id" },
-  { table: "conversations", field: "user_id", index: "by_user_id" },
-  { table: "bookmarks", field: "user_id", index: "by_user_id" },
-  { table: "decisions", field: "user_id", index: "by_user_id" },
-  { table: "patterns", field: "user_id", index: "by_user_id" },
-  { table: "file_touches", field: "user_id", index: "by_user_file" },
-  { table: "comments", field: "user_id", index: "by_user_id" },
-  { table: "sync_cursors", field: "user_id", index: "by_user_id" },
-  { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
-  { table: "api_tokens", field: "user_id", index: "by_user_id" },
-  // The same transfer moves the dependent heartbeat row.
-  { table: "managed_sessions", field: "user_id", index: "by_user_id" },
-  { table: "session_metrics", field: "user_id", index: "by_user_collected" },
-  { table: "reviews", field: "reviewer_user_id", index: "by_reviewer" },
-  { table: "team_activity_events", field: "actor_user_id", index: "by_actor" },
-  { table: "session_insights", field: "actor_user_id", index: "by_actor_generated_at" },
-  { table: "day_timelines", field: "user_id", index: "by_user_date" },
-  // Team Changes editions have no user_id; the index equality never reaches
-  // them, so a merge leaves a team's editions alone.
-  { table: "digests", field: "user_id", index: "by_user_scope_date" },
-  { table: "notifications", field: "recipient_user_id", index: "by_recipient" },
-  { table: "agent_tasks", field: "user_id", index: "by_user_run_at" },
-  { table: "projects", field: "user_id", index: "by_user_id" },
-  { table: "plans", field: "user_id", index: "by_user_id" },
-  { table: "tasks", field: "user_id", index: "by_user_id" },
-  { table: "orchestration_events", field: "user_id", index: "by_user_id" },
-  { table: "progress_events", field: "user_id", index: "by_user_id" },
-  { table: "docs", field: "user_id", index: "by_user_id" },
-  { table: "doc_presence", field: "user_id", index: "by_user_doc" },
-  { table: "workflows", field: "user_id", index: "by_user_id" },
-  { table: "workflow_runs", field: "user_id", index: "by_user_id" },
-  { table: "client_state", field: "user_id", index: "by_user_id" },
-  { table: "daemon_logs", field: "user_id", index: "by_user_timestamp" },
-  { table: "plan_templates", field: "user_id", index: "by_user_id" },
-  { table: "entity_subscriptions", field: "user_id", index: "by_user" },
-  // v2 local-first substrate. Comment view revisions live in the conversation
-  // OWNER's domain, so remapping conversations.user_id without migrating these
-  // heads resets every merged conversation's revision to 0 for viewers —
-  // clients then reject the "moved backwards" coverage and their durable
-  // comment views freeze (matrix SRV-05). Receipts must follow the principal
-  // or replayed command ids re-execute as duplicates after a merge.
-  { table: "local_view_heads", field: "principal_id", index: "by_principal_contract_view" },
-  { table: "local_command_receipts", field: "principal_id", index: "by_principal_command" },
-  { table: "authSessions", field: "userId", index: "userId" },
-  { table: "authAccounts", field: "userId", index: "userIdAndProvider" },
-  { table: "pending_messages", field: "from_user_id", index: "by_user_status" },
-  // App tables without an index on the user field — small filter scans.
-  // Caller may need to re-run if `more` returns true.
-  { table: "public_conversations", field: "user_id", index: null },
-  { table: "public_comments", field: "user_id", index: null },
-  { table: "review_comments", field: "author_user_id", index: null },
-  { table: "pending_permissions", field: "resolved_by", index: null },
-  { table: "github_app_installations", field: "installed_by_user_id", index: null },
-  { table: "message_shares", field: "user_id", index: null },
-  { table: "system_config", field: "updated_by", index: null },
-  { table: "plans", field: "owner_id", index: null },
-  { table: "projects", field: "owner_id", index: null },
-  { table: "entity_conversations", field: "user_id", index: null },
-];
+const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
+  [
+    // App tables with by_user_id (or equivalent leading-on-user) index.
+    { table: "daemon_commands", field: "user_id", index: "by_user_pending" },
+    { table: "team_memberships", field: "user_id", index: "by_user_id" },
+    { table: "directory_team_mappings", field: "user_id", index: "by_user_id" },
+    { table: "conversations", field: "user_id", index: "by_user_id" },
+    { table: "bookmarks", field: "user_id", index: "by_user_id" },
+    { table: "decisions", field: "user_id", index: "by_user_id" },
+    { table: "patterns", field: "user_id", index: "by_user_id" },
+    { table: "file_touches", field: "user_id", index: "by_user_file" },
+    { table: "comments", field: "user_id", index: "by_user_id" },
+    { table: "sync_cursors", field: "user_id", index: "by_user_id" },
+    { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
+    { table: "api_tokens", field: "user_id", index: "by_user_id" },
+    // The same transfer moves the dependent heartbeat row.
+    { table: "managed_sessions", field: "user_id", index: "by_user_id" },
+    { table: "session_metrics", field: "user_id", index: "by_user_collected" },
+    { table: "reviews", field: "reviewer_user_id", index: "by_reviewer" },
+    {
+      table: "team_activity_events",
+      field: "actor_user_id",
+      index: "by_actor",
+    },
+    {
+      table: "session_insights",
+      field: "actor_user_id",
+      index: "by_actor_generated_at",
+    },
+    { table: "day_timelines", field: "user_id", index: "by_user_date" },
+    // Team Changes editions have no user_id; the index equality never reaches
+    // them, so a merge leaves a team's editions alone.
+    { table: "digests", field: "user_id", index: "by_user_scope_date" },
+    {
+      table: "notifications",
+      field: "recipient_user_id",
+      index: "by_recipient",
+    },
+    { table: "agent_tasks", field: "user_id", index: "by_user_run_at" },
+    { table: "projects", field: "user_id", index: "by_user_id" },
+    { table: "plans", field: "user_id", index: "by_user_id" },
+    { table: "tasks", field: "user_id", index: "by_user_id" },
+    { table: "orchestration_events", field: "user_id", index: "by_user_id" },
+    { table: "progress_events", field: "user_id", index: "by_user_id" },
+    { table: "docs", field: "user_id", index: "by_user_id" },
+    { table: "doc_presence", field: "user_id", index: "by_user_doc" },
+    { table: "workflows", field: "user_id", index: "by_user_id" },
+    { table: "workflow_runs", field: "user_id", index: "by_user_id" },
+    { table: "client_state", field: "user_id", index: "by_user_id" },
+    { table: "daemon_logs", field: "user_id", index: "by_user_timestamp" },
+    { table: "plan_templates", field: "user_id", index: "by_user_id" },
+    { table: "entity_subscriptions", field: "user_id", index: "by_user" },
+    // v2 local-first substrate. Comment view revisions live in the conversation
+    // OWNER's domain, so remapping conversations.user_id without migrating these
+    // heads resets every merged conversation's revision to 0 for viewers —
+    // clients then reject the "moved backwards" coverage and their durable
+    // comment views freeze (matrix SRV-05). Receipts must follow the principal
+    // or replayed command ids re-execute as duplicates after a merge.
+    {
+      table: "local_view_heads",
+      field: "principal_id",
+      index: "by_principal_contract_view",
+    },
+    {
+      table: "local_command_receipts",
+      field: "principal_id",
+      index: "by_principal_command",
+    },
+    { table: "authSessions", field: "userId", index: "userId" },
+    { table: "authAccounts", field: "userId", index: "userIdAndProvider" },
+    {
+      table: "pending_messages",
+      field: "from_user_id",
+      index: "by_user_status",
+    },
+    // App tables without an index on the user field — small filter scans.
+    // Caller may need to re-run if `more` returns true.
+    { table: "public_conversations", field: "user_id", index: null },
+    { table: "public_comments", field: "user_id", index: null },
+    { table: "review_comments", field: "author_user_id", index: null },
+    { table: "pending_permissions", field: "resolved_by", index: null },
+    {
+      table: "github_app_installations",
+      field: "installed_by_user_id",
+      index: null,
+    },
+    { table: "message_shares", field: "user_id", index: null },
+    { table: "system_config", field: "updated_by", index: null },
+    { table: "plans", field: "owner_id", index: null },
+    { table: "projects", field: "owner_id", index: null },
+    { table: "entity_conversations", field: "user_id", index: null },
+  ];
 
 // Tables we deliberately skip because they have no user-keyed index and are
 // too large to scan within one mutation's read budget. The caller gets a
 // `skipped_tables` field listing them so the gap is visible — typically
 // these only carry historical provenance and don't affect access checks.
-const SKIPPED_LARGE_TABLES: Array<{ table: string; field: string; reason: string }> = [
-  { table: "messages", field: "from_user_id", reason: "no index on optional field; messages table too large to scan" },
-  { table: "notifications", field: "actor_user_id", reason: "no index on actor; large table" },
-  { table: "task_history", field: "user_id", reason: "no index; potentially large" },
+const SKIPPED_LARGE_TABLES: Array<{
+  table: string;
+  field: string;
+  reason: string;
+}> = [
+  {
+    table: "messages",
+    field: "from_user_id",
+    reason: "no index on optional field; messages table too large to scan",
+  },
+  {
+    table: "notifications",
+    field: "actor_user_id",
+    reason: "no index on actor; large table",
+  },
+  {
+    table: "task_history",
+    field: "user_id",
+    reason: "no index; potentially large",
+  },
 ];
 
 // Caps to keep one mutation under the 100MB read budget. Indexed tables can
@@ -108,7 +156,8 @@ async function mergeLocalViewHead(
       q
         .eq("principal_id", toUserId)
         .eq("contract_id", row.contract_id)
-        .eq("view_key", row.view_key))
+        .eq("view_key", row.view_key),
+    )
     .unique();
   const revision = Math.max(row.revision, existing?.revision ?? 0) + 1;
   if (existing) {
@@ -140,7 +189,11 @@ export const mergeDuplicateUser = internalMutation({
     if (!from || !to) {
       throw new Error("from or to user not found");
     }
-    if (from.email && to.email && from.email.toLowerCase() !== to.email.toLowerCase()) {
+    if (
+      from.email &&
+      to.email &&
+      from.email.toLowerCase() !== to.email.toLowerCase()
+    ) {
       throw new Error(
         `email mismatch — from=${from.email} to=${to.email}; aborting to avoid merging unrelated accounts`,
       );
@@ -179,13 +232,23 @@ export const mergeDuplicateUser = internalMutation({
         for (const row of rows) {
           if (table === "bookmarks" && field === "user_id") {
             await moveBookmarkPrincipalWithRevision(ctx, row, args.to_user_id);
-          } else if (table === "review_comments" && isConversationComment(row)) {
+          } else if (
+            table === "review_comments" &&
+            isConversationComment(row)
+          ) {
             // A conversation comment: its author moves through the comment
             // writer, so the conversation's comment view advances.
             const comment = await getComment(ctx, commentIdOf(row));
-            if (comment) await patchCommentWithRevision(ctx, comment, { user_id: args.to_user_id });
+            if (comment)
+              await patchCommentWithRevision(ctx, comment, {
+                user_id: args.to_user_id,
+              });
           } else if (table === "managed_sessions") {
-            await transferManagedSession(ctx, row._id as Id<"managed_sessions">, args.to_user_id);
+            await transferManagedSession(
+              ctx,
+              row._id as Id<"managed_sessions">,
+              args.to_user_id,
+            );
           } else if (table === "local_view_heads") {
             await mergeLocalViewHead(ctx, row as any, args.to_user_id);
           } else {
@@ -207,7 +270,9 @@ export const mergeDuplicateUser = internalMutation({
       if (!muted || !muted.includes(args.from_user_id)) continue;
       mutedTouched++;
       if (!args.dry_run) {
-        const updated = muted.map((m) => (m === args.from_user_id ? args.to_user_id : m));
+        const updated = muted.map((m) =>
+          m === args.from_user_id ? args.to_user_id : m,
+        );
         await ctx.db.patch(u._id, { muted_members: updated } as any);
       }
     }
@@ -224,7 +289,9 @@ export const mergeDuplicateUser = internalMutation({
         const row = index
           ? await ctx.db
               .query(table as any)
-              .withIndex(index as any, (q: any) => q.eq(field, args.from_user_id))
+              .withIndex(index as any, (q: any) =>
+                q.eq(field, args.from_user_id),
+              )
               .first()
           : await ctx.db
               .query(table as any)
@@ -242,7 +309,11 @@ export const mergeDuplicateUser = internalMutation({
     }
 
     return {
-      from: { _id: from._id, email: (from as any).email, name: (from as any).name },
+      from: {
+        _id: from._id,
+        email: (from as any).email,
+        name: (from as any).name,
+      },
       to: { _id: to._id, email: (to as any).email, name: (to as any).name },
       dry_run: args.dry_run,
       total_updated: totalUpdated,

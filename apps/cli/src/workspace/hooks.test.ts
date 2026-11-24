@@ -2,7 +2,13 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildHookEnv, HookError, HOOKS_DIR, runHook, type HookContext } from "./hooks.js";
+import {
+  buildHookEnv,
+  HookError,
+  HOOKS_DIR,
+  runHook,
+  type HookContext,
+} from "./hooks.js";
 
 let wtDir: string;
 
@@ -65,7 +71,10 @@ describe("buildHookEnv", () => {
 
   test("manifest [env] vars are layered with CODECAST_* taking precedence", () => {
     const ctx = baseCtx();
-    ctx.extraEnv = { NODE_ENV: "development", CODECAST_WORKTREE_NAME: "shouldnt-override" };
+    ctx.extraEnv = {
+      NODE_ENV: "development",
+      CODECAST_WORKTREE_NAME: "shouldnt-override",
+    };
     const env = buildHookEnv(ctx, "after-create");
     expect(env.NODE_ENV).toBe("development");
     // CODECAST_* canonical wins over extraEnv attempt to spoof it.
@@ -113,10 +122,7 @@ describe("runHook", () => {
   });
 
   test("non-zero exit throws HookError carrying exit code + captured output", async () => {
-    writeHook(
-      "after-agent",
-      `echo "broken thing" >&2; exit 13`,
-    );
+    writeHook("after-agent", `echo "broken thing" >&2; exit 13`);
     let err: unknown;
     try {
       await runHook("after-agent", baseCtx());
@@ -144,7 +150,10 @@ describe("runHook", () => {
     try {
       const extHookDir = path.join(extRoot, HOOKS_DIR);
       fs.mkdirSync(extHookDir, { recursive: true });
-      fs.writeFileSync(path.join(extHookDir, "after-create.sh"), "touch from-external.txt\n");
+      fs.writeFileSync(
+        path.join(extHookDir, "after-create.sh"),
+        "touch from-external.txt\n",
+      );
       const ctx = baseCtx();
       ctx.hooksRoot = extRoot;
       const r = await runHook("after-create", ctx);

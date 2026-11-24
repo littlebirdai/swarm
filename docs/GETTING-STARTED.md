@@ -6,17 +6,17 @@ A CLI daemon watches the history files coding agents write (Claude Code, Codex, 
 
 ![Local development: dev.sh runs Vite and the gated Convex pusher, cast start runs the daemon, and both talk to the Convex deployment named in apps/server/.env.local](diagrams/dev-setup.svg)
 
-| Package | What it does |
-|---------|-------------|
-| `apps/cli` | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages |
-| `apps/server` | Backend: schema, queries, mutations, auth, HTTP routes |
-| `apps/web` | React + Vite web app |
-| `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff) |
-| `apps/desktop` | Desktop app (Electron wrapper around the web app) |
-| `apps/mobile` | iOS app (Expo / React Native) |
-| `apps/browser-extension` | Chrome extension behind `cast browser` |
-| `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
-| `apps/evals` | Prompt evals against frozen moments (`./evals`) |
+| Package                  | What it does                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `apps/cli`               | `cast` CLI and daemon: watches sessions, syncs to Convex, injects messages     |
+| `apps/server`            | Backend: schema, queries, mutations, auth, HTTP routes                         |
+| `apps/web`               | React + Vite web app                                                           |
+| `packages/shared`        | Contracts and utilities shared by every package (agent registry, render, diff) |
+| `apps/desktop`           | Desktop app (Electron wrapper around the web app)                              |
+| `apps/mobile`            | iOS app (Expo / React Native)                                                  |
+| `apps/browser-extension` | Chrome extension behind `cast browser`                                         |
+| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                                    |
+| `apps/evals`             | Prompt evals against frozen moments (`./evals`)                                |
 
 ---
 
@@ -353,14 +353,14 @@ CONVEX_CLOUD_URL       # alias for CONVEX_CLOUD_ORIGIN
 
 ## Scripts
 
-| Script | What it does |
-|--------|-------------|
-| `./dev.sh` | Start Vite and the gated Convex pusher, with a watchdog |
-| `./dev.sh N` | Multi-instance (port 3200+N) |
-| `sudo ./setup-hosts.sh` | Add local domains to `/etc/hosts` and run nginx (already installed) as a launchd service |
-| `apps/server/deploy.sh` | The only way to deploy Convex: refuses a tree behind `codecast-sh/codecast`'s main |
-| `./scripts/deploy-all.sh` | Full release in order: Convex, push (Railway builds web), CLI cut in CI, mobile OTA, desktop when `apps/desktop` changed, then waits for Railway |
-| `scripts/vendor-platform.sh` | Refresh the `platform/packages/` mirror of `~/src/platform` (`--check` reports drift) |
+| Script                       | What it does                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./dev.sh`                   | Start Vite and the gated Convex pusher, with a watchdog                                                                                          |
+| `./dev.sh N`                 | Multi-instance (port 3200+N)                                                                                                                     |
+| `sudo ./setup-hosts.sh`      | Add local domains to `/etc/hosts` and run nginx (already installed) as a launchd service                                                         |
+| `apps/server/deploy.sh`      | The only way to deploy Convex: refuses a tree behind `codecast-sh/codecast`'s main                                                               |
+| `./scripts/deploy-all.sh`    | Full release in order: Convex, push (Railway builds web), CLI cut in CI, mobile OTA, desktop when `apps/desktop` changed, then waits for Railway |
+| `scripts/vendor-platform.sh` | Refresh the `platform/packages/` mirror of `~/src/platform` (`--check` reports drift)                                                            |
 
 ## Troubleshooting
 

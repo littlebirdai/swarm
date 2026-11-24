@@ -10,7 +10,13 @@
 // call page is filling in. If the recognizer cannot start, the file still
 // transcribes after stop.
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -19,26 +25,34 @@ import {
   StyleSheet,
   TouchableOpacity,
   View as RNView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useConvex } from 'convex/react';
-import { useCallList } from '@codecast/web/hooks/useSyncCalls';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as Haptics from 'expo-haptics';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { isRecRoomKey } from '@codecast/shared/contracts';
-import { formatCallTime } from '@codecast/shared/entities';
-import { Text as RNText } from '@/components/Themed';
-import { Theme, Spacing, FontSize, BorderRadius, CHROME_FONT_CAP, themedStyles, useTheme } from '@/constants/Theme';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useConvex } from "convex/react";
+import { useCallList } from "@codecast/web/hooks/useSyncCalls";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { isRecRoomKey } from "@codecast/shared/contracts";
+import { formatCallTime } from "@codecast/shared/entities";
+import { Text as RNText } from "@/components/Themed";
+import {
+  Theme,
+  Spacing,
+  FontSize,
+  BorderRadius,
+  CHROME_FONT_CAP,
+  themedStyles,
+  useTheme,
+} from "@/constants/Theme";
 import {
   getRecorderSnapshot,
   startRecording,
   stopRecording,
   subscribeLevel,
   subscribeRecorder,
-} from '@/lib/recorder';
-import { recordingIsWorking, recordingStatusLine } from '@/lib/recordingStatus';
+} from "@/lib/recorder";
+import { recordingIsWorking, recordingStatusLine } from "@/lib/recordingStatus";
 
 /** The clock, in its own component with its own interval, so a ticking second
  *  re-renders eleven characters instead of the screen. */
@@ -49,7 +63,11 @@ function Elapsed({ startedAt }: { startedAt: number }) {
     const t = setInterval(() => tick((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, []);
-  return <RNText style={styles.clock}>{formatCallTime(Date.now() - startedAt)}</RNText>;
+  return (
+    <RNText style={styles.clock}>
+      {formatCallTime(Date.now() - startedAt)}
+    </RNText>
+  );
 }
 
 /** The level, driven imperatively. It moves four times a second and must never
@@ -77,7 +95,11 @@ export default function RecordScreen() {
   const Theme = useTheme();
   const router = useRouter();
   const convex = useConvex();
-  const rec = useSyncExternalStore(subscribeRecorder, getRecorderSnapshot, getRecorderSnapshot);
+  const rec = useSyncExternalStore(
+    subscribeRecorder,
+    getRecorderSnapshot,
+    getRecorderSnapshot,
+  );
 
   // Off the store's persisted call list, so the list paints at once.
   const { calls, ready: callsReady } = useCallList(50);
@@ -89,21 +111,23 @@ export default function RecordScreen() {
 
   const onPress = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (rec.phase === 'recording') {
+    if (rec.phase === "recording") {
       const id = await stopRecording();
-      if (id) router.push({ pathname: '/recording/[id]', params: { id } } as never);
+      if (id)
+        router.push({ pathname: "/recording/[id]", params: { id } } as never);
       return;
     }
     // The error card says "tap to try again", so a tap from error is a fresh
     // attempt, not a dismissal that needs a second tap.
-    if (rec.phase === 'idle' || rec.phase === 'error') await startRecording(convex);
+    if (rec.phase === "idle" || rec.phase === "error")
+      await startRecording(convex);
   }, [rec.phase, convex, router]);
 
-  const busy = rec.phase === 'starting' || rec.phase === 'finishing';
-  const recording = rec.phase === 'recording';
+  const busy = rec.phase === "starting" || rec.phase === "finishing";
+  const recording = rec.phase === "recording";
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <RNView style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -127,13 +151,13 @@ export default function RecordScreen() {
             busy && { opacity: 0.5 },
           ]}
           accessibilityRole="button"
-          accessibilityLabel={recording ? 'Stop recording' : 'Start recording'}
+          accessibilityLabel={recording ? "Stop recording" : "Start recording"}
         >
           {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <FontAwesome
-              name={recording ? 'stop' : 'microphone'}
+              name={recording ? "stop" : "microphone"}
               size={recording ? 30 : 36}
               color="#fff"
             />
@@ -145,13 +169,16 @@ export default function RecordScreen() {
             <Elapsed startedAt={rec.startedAt} />
             <LevelBar />
             <RNText style={styles.hint} maxFontSizeMultiplier={CHROME_FONT_CAP}>
-              Records from this phone&apos;s microphone. You can lock the screen.
-              Words appear here and on the call page as they are said.
+              Records from this phone&apos;s microphone. You can lock the
+              screen. Words appear here and on the call page as they are said.
             </RNText>
             {(rec.tail.length > 0 || rec.partial) && (
               <RNView style={styles.liveBox}>
                 {rec.tail.slice(-3).map((line, i) => (
-                  <RNText key={`${i}:${line.text.slice(0, 24)}`} style={styles.liveLine}>
+                  <RNText
+                    key={`${i}:${line.text.slice(0, 24)}`}
+                    style={styles.liveLine}
+                  >
                     {line.text}
                   </RNText>
                 ))}
@@ -163,7 +190,7 @@ export default function RecordScreen() {
           </>
         ) : null}
 
-        {rec.phase === 'idle' ? (
+        {rec.phase === "idle" ? (
           <>
             <RNText style={styles.buttonLabel}>Record a meeting</RNText>
             <RNText style={styles.hint} maxFontSizeMultiplier={CHROME_FONT_CAP}>
@@ -174,18 +201,20 @@ export default function RecordScreen() {
           </>
         ) : null}
 
-        {rec.phase === 'starting' ? (
+        {rec.phase === "starting" ? (
           <RNText style={styles.hint}>Waiting for the microphone</RNText>
         ) : null}
 
-        {rec.phase === 'finishing' ? (
+        {rec.phase === "finishing" ? (
           <RNText style={styles.hint}>Saving the recording</RNText>
         ) : null}
 
-        {rec.phase === 'error' && rec.error ? (
+        {rec.phase === "error" && rec.error ? (
           <RNView style={styles.errorBox}>
             <RNText style={styles.errorText}>{rec.error}</RNText>
-            <RNText style={styles.errorDismiss}>Tap the button to try again</RNText>
+            <RNText style={styles.errorDismiss}>
+              Tap the button to try again
+            </RNText>
           </RNView>
         ) : null}
 
@@ -215,7 +244,10 @@ export default function RecordScreen() {
           <RecordingListItem
             row={item}
             onPress={() =>
-              router.push({ pathname: '/recording/[id]', params: { id: String(item._id) } } as never)
+              router.push({
+                pathname: "/recording/[id]",
+                params: { id: String(item._id) },
+              } as never)
             }
           />
         )}
@@ -224,11 +256,19 @@ export default function RecordScreen() {
   );
 }
 
-function RecordingListItem({ row, onPress }: { row: any; onPress: () => void }) {
+function RecordingListItem({
+  row,
+  onPress,
+}: {
+  row: any;
+  onPress: () => void;
+}) {
   const Theme = useTheme();
   const status = recordingStatusLine(row);
   const working = recordingIsWorking(row);
-  const duration = row.ended_at ? formatCallTime(row.ended_at - row.started_at) : null;
+  const duration = row.ended_at
+    ? formatCallTime(row.ended_at - row.started_at)
+    : null;
   const actions = row.action_items?.length ?? 0;
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
@@ -240,136 +280,154 @@ function RecordingListItem({ row, onPress }: { row: any; onPress: () => void }) 
       />
       <RNView style={styles.rowBody}>
         <RNText style={styles.rowTitle} numberOfLines={1}>
-          {row.title || 'Recording'}
+          {row.title || "Recording"}
         </RNText>
         <RNText style={styles.rowMeta} numberOfLines={1}>
           {[
             status,
             duration,
-            actions ? `${actions} action item${actions === 1 ? '' : 's'}` : null,
+            actions
+              ? `${actions} action item${actions === 1 ? "" : "s"}`
+              : null,
           ]
             .filter(Boolean)
-            .join('  ·  ')}
+            .join("  ·  ")}
         </RNText>
       </RNView>
-      {working ? <ActivityIndicator size="small" color={Theme.textMuted0} /> : null}
+      {working ? (
+        <ActivityIndicator size="small" color={Theme.textMuted0} />
+      ) : null}
     </TouchableOpacity>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.borderLight,
-    backgroundColor: Theme.bgAlt,
-  },
-  headerTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Theme.text },
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: Theme.borderLight,
+      backgroundColor: Theme.bgAlt,
+    },
+    headerTitle: {
+      fontSize: FontSize.lg,
+      fontWeight: "600",
+      color: Theme.text,
+    },
 
-  stage: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xxl,
-    gap: Spacing.md,
-  },
-  button: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: Theme.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonRecording: { backgroundColor: Theme.textMuted },
-  buttonLabel: { fontSize: FontSize.md, fontWeight: '600', color: Theme.text },
-  clock: {
-    fontSize: 34,
-    color: Theme.text,
-    fontVariant: ['tabular-nums'],
-  },
-  hint: {
-    fontSize: FontSize.sm,
-    color: Theme.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  liveBox: {
-    width: '100%',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  },
-  liveLine: {
-    fontSize: FontSize.sm,
-    color: Theme.text,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  livePartial: {
-    fontSize: FontSize.sm,
-    color: Theme.textMuted,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
+    stage: {
+      alignItems: "center",
+      paddingVertical: Spacing.xxl,
+      paddingHorizontal: Spacing.xxl,
+      gap: Spacing.md,
+    },
+    button: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: Theme.red,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    buttonRecording: { backgroundColor: Theme.textMuted },
+    buttonLabel: {
+      fontSize: FontSize.md,
+      fontWeight: "600",
+      color: Theme.text,
+    },
+    clock: {
+      fontSize: 34,
+      color: Theme.text,
+      fontVariant: ["tabular-nums"],
+    },
+    hint: {
+      fontSize: FontSize.sm,
+      color: Theme.textMuted,
+      textAlign: "center",
+      lineHeight: 18,
+    },
+    liveBox: {
+      width: "100%",
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.sm,
+    },
+    liveLine: {
+      fontSize: FontSize.sm,
+      color: Theme.text,
+      lineHeight: 20,
+      textAlign: "center",
+    },
+    livePartial: {
+      fontSize: FontSize.sm,
+      color: Theme.textMuted,
+      lineHeight: 20,
+      textAlign: "center",
+    },
 
-  levelTrack: {
-    width: '70%',
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.bgInset,
-    overflow: 'hidden',
-  },
-  levelFill: {
-    width: '100%',
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.accentAmber,
-    // scaleX grows from the centre by default, which reads as a pulse rather
-    // than a level; the origin is what makes it fill from the left edge.
-    transformOrigin: 'left',
-    transform: [{ scaleX: 0 }],
-  },
+    levelTrack: {
+      width: "70%",
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Theme.bgInset,
+      overflow: "hidden",
+    },
+    levelFill: {
+      width: "100%",
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Theme.accentAmber,
+      // scaleX grows from the centre by default, which reads as a pulse rather
+      // than a level; the origin is what makes it fill from the left edge.
+      transformOrigin: "left",
+      transform: [{ scaleX: 0 }],
+    },
 
-  errorBox: {
-    backgroundColor: Theme.red + '18',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    gap: Spacing.xs,
-  },
-  errorText: { fontSize: FontSize.sm, color: Theme.red, textAlign: 'center' },
-  errorDismiss: { fontSize: FontSize.xs, color: Theme.textMuted0, textAlign: 'center' },
+    errorBox: {
+      backgroundColor: Theme.red + "18",
+      borderRadius: BorderRadius.md,
+      padding: Spacing.md,
+      gap: Spacing.xs,
+    },
+    errorText: { fontSize: FontSize.sm, color: Theme.red, textAlign: "center" },
+    errorDismiss: {
+      fontSize: FontSize.xs,
+      color: Theme.textMuted0,
+      textAlign: "center",
+    },
 
-  list: { flex: 1 },
-  listContent: { paddingBottom: Spacing.xxxl },
-  sectionLabel: {
-    fontSize: FontSize.xs,
-    color: Theme.textMuted0,
-    letterSpacing: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  empty: {
-    fontSize: FontSize.sm,
-    color: Theme.textMuted0,
-    textAlign: 'center',
-    paddingTop: Spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Theme.borderLight,
-  },
-  rowGlyph: { width: 16, textAlign: 'center' },
-  rowBody: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: FontSize.md, color: Theme.text },
-  rowMeta: { fontSize: FontSize.xs, color: Theme.textMuted },
-}));
+    list: { flex: 1 },
+    listContent: { paddingBottom: Spacing.xxxl },
+    sectionLabel: {
+      fontSize: FontSize.xs,
+      color: Theme.textMuted0,
+      letterSpacing: 1,
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.sm,
+    },
+    empty: {
+      fontSize: FontSize.sm,
+      color: Theme.textMuted0,
+      textAlign: "center",
+      paddingTop: Spacing.lg,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: Theme.borderLight,
+    },
+    rowGlyph: { width: 16, textAlign: "center" },
+    rowBody: { flex: 1, gap: 2 },
+    rowTitle: { fontSize: FontSize.md, color: Theme.text },
+    rowMeta: { fontSize: FontSize.xs, color: Theme.textMuted },
+  }),
+);

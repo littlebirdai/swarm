@@ -7,7 +7,12 @@
 
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 
-export type SdkHostStatus = "starting" | "idle" | "working" | "needs_input" | "stopped";
+export type SdkHostStatus =
+  | "starting"
+  | "idle"
+  | "working"
+  | "needs_input"
+  | "stopped";
 
 /** What Claude Code reported when it started: the init answer the version gate reads. */
 export interface SdkInitInfo {
@@ -39,7 +44,11 @@ export interface SdkPermissionRequest {
 }
 
 export type SdkPermissionAnswer =
-  | { behavior: "allow"; updatedInput?: Record<string, unknown>; updatedPermissions?: PermissionUpdate[] }
+  | {
+      behavior: "allow";
+      updatedInput?: Record<string, unknown>;
+      updatedPermissions?: PermissionUpdate[];
+    }
   | { behavior: "deny"; message: string; interrupt?: boolean };
 
 /** The host's whole state, sent on every hello and after each change. */
@@ -92,9 +101,21 @@ export type SdkImage = { mediaType: string; data: string };
 
 export type ClientFrame =
   | { op: "hello"; id?: string }
-  | { op: "send"; id: string; messageId: string; text: string; images?: SdkImage[]; uuid?: string }
+  | {
+      op: "send";
+      id: string;
+      messageId: string;
+      text: string;
+      images?: SdkImage[];
+      uuid?: string;
+    }
   | { op: "interrupt"; id: string }
-  | { op: "answer"; id?: string; requestId: string; answer: SdkPermissionAnswer }
+  | {
+      op: "answer";
+      id?: string;
+      requestId: string;
+      answer: SdkPermissionAnswer;
+    }
   | { op: "annotate"; id?: string; requestId: string; cardId: string }
   | { op: "set_model"; id: string; model: string | null }
   | { op: "set_permission_mode"; id: string; mode: string }
@@ -107,12 +128,21 @@ export type HostFrame =
   | { type: "permission_settled"; requestId: string; by: "answer" | "abort" }
   | { type: "activity"; activity: SdkActivity }
   | { type: "session"; claudeSessionId: string }
-  | { type: "result"; subtype: string; isError: boolean; text: string | null; error: SdkTurnError | null }
+  | {
+      type: "result";
+      subtype: string;
+      isError: boolean;
+      text: string | null;
+      error: SdkTurnError | null;
+    }
   | { type: "too_old"; version: string | null; minimum: string }
   | { type: "exit"; reason: string };
 
 /** Splits a byte stream into JSON frames. Malformed lines are dropped and reported. */
-export function frameReader<T>(onFrame: (frame: T) => void, onBad?: (line: string) => void): (chunk: Buffer | string) => void {
+export function frameReader<T>(
+  onFrame: (frame: T) => void,
+  onBad?: (line: string) => void,
+): (chunk: Buffer | string) => void {
   let buffer = "";
   return (chunk) => {
     buffer += typeof chunk === "string" ? chunk : chunk.toString("utf-8");
@@ -132,4 +162,5 @@ export function frameReader<T>(onFrame: (frame: T) => void, onBad?: (line: strin
   };
 }
 
-export const encodeFrame = (frame: ClientFrame | HostFrame): string => JSON.stringify(frame) + "\n";
+export const encodeFrame = (frame: ClientFrame | HostFrame): string =>
+  JSON.stringify(frame) + "\n";

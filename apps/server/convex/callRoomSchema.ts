@@ -3,7 +3,11 @@
 
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { callGuestLeftReasonValidator, callGuestStatusValidator, guestNoticeValidator } from "./lib/callValidators";
+import {
+  callGuestLeftReasonValidator,
+  callGuestStatusValidator,
+  guestNoticeValidator,
+} from "./lib/callValidators";
 
 export const callRoomTables = {
   // A HANG-UP, kept so the person's other clients hear it. A seat is one per

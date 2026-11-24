@@ -17,10 +17,27 @@ import { useInboxStore } from "../../../store/inboxStore";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useOwnedFlows } from "../../../hooks/useOwnedFlows";
 import type { LineProject, RollupRow } from "../../../lib/lineFlow";
-import { limitChangeRows, limitsLedger, roleLines, type RoleLine } from "../../../lib/line/lineStarts";
-import { admissionOf, capsWith, lineSwitchFields, useLineAdmissions } from "../map/useLineAdmission";
-import { ConsequentialSwitch, SwitchReview, type SwitchLedger } from "../../consequential/ConsequentialSwitch";
-import { lineStartLedger, startsAtOnce } from "../../consequential/lineStartLedger";
+import {
+  limitChangeRows,
+  limitsLedger,
+  roleLines,
+  type RoleLine,
+} from "../../../lib/line/lineStarts";
+import {
+  admissionOf,
+  capsWith,
+  lineSwitchFields,
+  useLineAdmissions,
+} from "../map/useLineAdmission";
+import {
+  ConsequentialSwitch,
+  SwitchReview,
+  type SwitchLedger,
+} from "../../consequential/ConsequentialSwitch";
+import {
+  lineStartLedger,
+  startsAtOnce,
+} from "../../consequential/lineStartLedger";
 import { useRunCost } from "../../consequential/useRunCost";
 import "./lineStarts.css";
 import { windowOrgTree } from "../../../store/orgSlice";
@@ -29,17 +46,32 @@ const MIN_CARDS = 1;
 const MAX_CARDS = 50;
 const MAX_PER_DAY = 200;
 
-export function LineStarts({ projects, rollups }: { projects: ReadonlyArray<LineProject>; rollups: ReadonlyArray<RollupRow> }) {
+export function LineStarts({
+  projects,
+  rollups,
+}: {
+  projects: ReadonlyArray<LineProject>;
+  rollups: ReadonlyArray<RollupRow>;
+}) {
   const roles = useInboxStore((s) => windowOrgTree(s)?.roles);
-  const flows = useOwnedFlows({ projects: projects as LineProject[], admissions: useLineAdmissions(projects) });
+  const flows = useOwnedFlows({
+    projects: projects as LineProject[],
+    admissions: useLineAdmissions(projects),
+  });
   const rows = useMemo(() => roleLines(flows, rollups), [flows, rollups]);
   return (
     <div className="lw-stage-fill lst" data-line-starts="">
       <div className="lst-head">
         <h2 className="lst-title">Who starts work</h2>
-        <span className="lst-dim lw-num">{rows.length} {rows.length === 1 ? "flow" : "flows"}</span>
+        <span className="lst-dim lw-num">
+          {rows.length} {rows.length === 1 ? "flow" : "flows"}
+        </span>
       </div>
-      {!roles ? <p className="lst-dim lst-empty">Loading the roles</p> : rows.length === 0 ? <p className="lst-dim lst-empty">No role owns a flow yet</p> : (
+      {!roles ? (
+        <p className="lst-dim lst-empty">Loading the roles</p>
+      ) : rows.length === 0 ? (
+        <p className="lst-dim lst-empty">No role owns a flow yet</p>
+      ) : (
         <table className="lst-table">
           <thead>
             <tr>
@@ -47,14 +79,23 @@ export function LineStarts({ projects, rollups }: { projects: ReadonlyArray<Line
               <th>Flow</th>
               <th data-num="">Cards</th>
               <th data-num="">A day</th>
-              <th data-num="" data-col="waiting">Waiting</th>
+              <th data-num="" data-col="waiting">
+                Waiting
+              </th>
               <th data-num="">Ready</th>
               <th data-num="">Now</th>
               <th />
             </tr>
           </thead>
           {/* A limit written anywhere starts the row's draft over from it. */}
-          <tbody>{rows.map((r) => <RoleRow key={`${r.role._id}:${r.role.caps?.cards ?? ""}:${r.role.caps?.hands_per_day ?? ""}`} line={r} />)}</tbody>
+          <tbody>
+            {rows.map((r) => (
+              <RoleRow
+                key={`${r.role._id}:${r.role.caps?.cards ?? ""}:${r.role.caps?.hands_per_day ?? ""}`}
+                line={r}
+              />
+            ))}
+          </tbody>
         </table>
       )}
     </div>
@@ -64,12 +105,16 @@ export function LineStarts({ projects, rollups }: { projects: ReadonlyArray<Line
 /** A whole number from `min` to `max`, or null for blank. */
 const wholeIn = (text: string, min: number, max: number): number | null => {
   const n = Number(text.trim());
-  return text.trim() !== "" && Number.isInteger(n) && n >= min && n <= max ? n : null;
+  return text.trim() !== "" && Number.isInteger(n) && n >= min && n <= max
+    ? n
+    : null;
 };
 
 function RoleRow({ line }: { line: RoleLine }) {
   const { role } = line;
-  const { data: queue } = useQueryNoThrow(api.orgLine.queue, { role_id: role._id });
+  const { data: queue } = useQueryNoThrow(api.orgLine.queue, {
+    role_id: role._id,
+  });
   const admission = admissionOf(role, queue);
   const cards = role.caps?.cards ?? DEFAULT_LINE_CARDS_CAP;
   const perDay = role.caps?.hands_per_day ?? null;
@@ -77,57 +122,173 @@ function RoleRow({ line }: { line: RoleLine }) {
   const [cardsText, setCardsText] = useState(String(cards));
   const [dayText, setDayText] = useState(perDay == null ? "" : String(perDay));
   const draftCards = wholeIn(cardsText, MIN_CARDS, MAX_CARDS);
-  const draftDay = dayText.trim() === "" ? null : wholeIn(dayText, 1, MAX_PER_DAY);
-  const valid = draftCards != null && (dayText.trim() === "" || draftDay != null);
+  const draftDay =
+    dayText.trim() === "" ? null : wholeIn(dayText, 1, MAX_PER_DAY);
+  const valid =
+    draftCards != null && (dayText.trim() === "" || draftDay != null);
   const changed = valid && (draftCards !== cards || draftDay !== perDay);
-  const drafted = { ...admission, slots: draftCards ?? cards, handsCap: valid ? draftDay : perDay };
+  const drafted = {
+    ...admission,
+    slots: draftCards ?? cards,
+    handsCap: valid ? draftDay : perDay,
+  };
   const cost = useRunCost(line.projects[0]?.id ?? null);
   const subject = `@${role.handle} · ${line.projects.map((p) => p.title).join(", ")}`;
-  const limitRows = limitChangeRows(cards, perDay, draftCards ?? cards, valid ? draftDay : perDay);
+  const limitRows = limitChangeRows(
+    cards,
+    perDay,
+    draftCards ?? cards,
+    valid ? draftDay : perDay,
+  );
+  // oxfmt-ignore
   const onLedger: SwitchLedger = useMemo(() => {
     const l = lineStartLedger({ project: line.projects.map((p) => p.title).join(", "), admission: drafted, roleOwnSwitchOff: !autonomyOn(role.trust), waiting: line.waiting, ready: line.ready, cost });
     return { ...l, subject, rows: [...limitRows, ...l.rows] };
   }, [drafted.slots, drafted.handsCap, admission.queued, admission.busy, admission.hands, line.waiting, line.ready, cost, role.trust, subject]); // eslint-disable-line react-hooks/exhaustive-deps
   const write = (on: boolean | null) => {
-    const caps = { cards: draftCards ?? cards, hands_per_day: valid ? draftDay : perDay };
-    if (on == null) { useInboxStore.getState().updateOrgRole(role._id, { caps: capsWith(role.caps, caps) }); return; }
+    const caps = {
+      cards: draftCards ?? cards,
+      hands_per_day: valid ? draftDay : perDay,
+    };
+    if (on == null) {
+      useInboxStore
+        .getState()
+        .updateOrgRole(role._id, { caps: capsWith(role.caps, caps) });
+      return;
+    }
     const fields = lineSwitchFields(role, on);
-    useInboxStore.getState().updateOrgRole(role._id, on ? { ...fields, caps: capsWith(fields.caps, caps) } : fields);
+    useInboxStore
+      .getState()
+      .updateOrgRole(
+        role._id,
+        on ? { ...fields, caps: capsWith(fields.caps, caps) } : fields,
+      );
   };
   const [limitsReview, setLimitsReview] = useState(false);
   // Until the sweep's count of busy places arrives, how many would start is unknown, not "all of them".
-  const startsNow = admission.on || queue == null ? null : startsAtOnce({ ...drafted, queued: line.ready || admission.queued });
+  const startsNow =
+    admission.on || queue == null
+      ? null
+      : startsAtOnce({ ...drafted, queued: line.ready || admission.queued });
   const paused = role.status !== "active";
   return (
-    <tr className="lst-row" data-line-starts-role={role.handle} data-on={admission.on ? "" : undefined}>
+    <tr
+      className="lst-row"
+      data-line-starts-role={role.handle}
+      data-on={admission.on ? "" : undefined}
+    >
       <td className="lst-who">
-        <b>@{role.handle}{paused && <span className="lst-paused">paused</span>}</b>
-        <span className="lst-dim">{line.projects.map((p) => p.title).join(" · ")}</span>
+        <b>
+          @{role.handle}
+          {paused && <span className="lst-paused">paused</span>}
+        </b>
+        <span className="lst-dim">
+          {line.projects.map((p) => p.title).join(" · ")}
+        </span>
       </td>
       <td>
-        <ConsequentialSwitch on={admission.on} ledger={onLedger} onTurnOn={() => write(true)} onTurnOff={() => write(false)} trigger={({ on, press, reviewing }) => (
-          <button type="button" role="switch" aria-checked={on} aria-haspopup={on ? undefined : "dialog"} aria-expanded={on ? undefined : reviewing} onClick={press} className="lst-switch" data-line-starts-switch={on ? "on" : "off"} aria-label={`@${role.handle}'s flow`}>
-            <span className="lst-knob" aria-hidden />{on ? "On" : "Off"}
-          </button>
-        )} />
+        <ConsequentialSwitch
+          on={admission.on}
+          ledger={onLedger}
+          onTurnOn={() => write(true)}
+          onTurnOff={() => write(false)}
+          trigger={({ on, press, reviewing }) => (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={on}
+              aria-haspopup={on ? undefined : "dialog"}
+              aria-expanded={on ? undefined : reviewing}
+              onClick={press}
+              className="lst-switch"
+              data-line-starts-switch={on ? "on" : "off"}
+              aria-label={`@${role.handle}'s flow`}
+            >
+              <span className="lst-knob" aria-hidden />
+              {on ? "On" : "Off"}
+            </button>
+          )}
+        />
       </td>
-      <td data-num=""><input className="lst-num" inputMode="numeric" value={cardsText} onChange={(e) => setCardsText(e.target.value)} aria-label={`@${role.handle}'s cards at a time`} data-invalid={draftCards == null ? "" : undefined} data-line-starts-cards /></td>
-      <td data-num=""><input className="lst-num" inputMode="numeric" value={dayText} placeholder="no limit" onChange={(e) => setDayText(e.target.value)} aria-label={`@${role.handle}'s sessions a day`} data-invalid={dayText.trim() !== "" && draftDay == null ? "" : undefined} data-line-starts-day /></td>
-      <td data-num="" data-col="waiting" className="lw-num">{line.waiting}</td>
-      <td data-num="" className="lw-num">{line.ready}</td>
+      <td data-num="">
+        <input
+          className="lst-num"
+          inputMode="numeric"
+          value={cardsText}
+          onChange={(e) => setCardsText(e.target.value)}
+          aria-label={`@${role.handle}'s cards at a time`}
+          data-invalid={draftCards == null ? "" : undefined}
+          data-line-starts-cards
+        />
+      </td>
+      <td data-num="">
+        <input
+          className="lst-num"
+          inputMode="numeric"
+          value={dayText}
+          placeholder="no limit"
+          onChange={(e) => setDayText(e.target.value)}
+          aria-label={`@${role.handle}'s sessions a day`}
+          data-invalid={
+            dayText.trim() !== "" && draftDay == null ? "" : undefined
+          }
+          data-line-starts-day
+        />
+      </td>
+      <td data-num="" data-col="waiting" className="lw-num">
+        {line.waiting}
+      </td>
+      <td data-num="" className="lw-num">
+        {line.ready}
+      </td>
       {/* On: how many of its places run now. Off: how many turning it on starts at once, with the limits as typed. */}
       <td data-num="" className="lw-num" data-line-starts-now="">
-        {admission.on ? (admission.busy != null ? `${admission.busy} of ${admission.slots} running` : "") : startsNow != null ? <span className="lst-starts">starts {startsNow}</span> : ""}
+        {admission.on ? (
+          admission.busy != null ? (
+            `${admission.busy} of ${admission.slots} running`
+          ) : (
+            ""
+          )
+        ) : startsNow != null ? (
+          <span className="lst-starts">starts {startsNow}</span>
+        ) : (
+          ""
+        )}
       </td>
       <td className="lst-acts">
         {changed && (
-          <button type="button" className="lst-apply" onClick={() => setLimitsReview(true)} data-line-starts-apply>
+          <button
+            type="button"
+            className="lst-apply"
+            onClick={() => setLimitsReview(true)}
+            data-line-starts-apply
+          >
             Set limits
           </button>
         )}
-        {limitsReview && <SwitchReview ledger={limitsLedger(subject, cards, perDay, draftCards ?? cards, valid ? draftDay : perDay, admission.on, startsAtOnce({ ...drafted, queued: line.ready || admission.queued }), limitRows)} onClose={() => setLimitsReview(false)} onConfirm={() => { setLimitsReview(false); write(null); }} />}
+        {limitsReview && (
+          <SwitchReview
+            ledger={limitsLedger(
+              subject,
+              cards,
+              perDay,
+              draftCards ?? cards,
+              valid ? draftDay : perDay,
+              admission.on,
+              startsAtOnce({
+                ...drafted,
+                queued: line.ready || admission.queued,
+              }),
+              limitRows,
+            )}
+            onClose={() => setLimitsReview(false)}
+            onConfirm={() => {
+              setLimitsReview(false);
+              write(null);
+            }}
+          />
+        )}
       </td>
     </tr>
   );
 }
-

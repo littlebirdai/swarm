@@ -1,15 +1,36 @@
 "use client";
 import { useCallback, useMemo, useRef, useEffect } from "react";
 import { sharePageUrl } from "../../lib/utils";
-import { useRouter, useSearchParams, useParams, usePathname } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+  useParams,
+  usePathname,
+} from "next/navigation";
 import Link from "next/link";
-import { useInboxStore, DocItem, DocViewPrefs, ProjectItem } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  DocItem,
+  DocViewPrefs,
+  ProjectItem,
+} from "../../store/inboxStore";
 import { AuthGuard } from "../../components/AuthGuard";
 
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { GenericListView, ListGroup, ItemRowState } from "../../components/GenericListView";
+import {
+  GenericListView,
+  ListGroup,
+  ItemRowState,
+} from "../../components/GenericListView";
 import { DocMenuItems } from "../../components/menus/ObjectContextMenus";
-import { filterDocsByShelf, DOC_SHELF_FILTER_LABELS, isOnHumanShelf, DOC_TYPES, DOC_TYPE_LABELS, docTypeLabel } from "@codecast/shared/docs";
+import {
+  filterDocsByShelf,
+  DOC_SHELF_FILTER_LABELS,
+  isOnHumanShelf,
+  DOC_TYPES,
+  DOC_TYPE_LABELS,
+  docTypeLabel,
+} from "@codecast/shared/docs";
 import { DEFAULT_LABELS } from "../../lib/labelColors";
 import { docMatchesProjectFilter } from "../../lib/docFilters";
 import { knownCheckoutRoots } from "@codecast/convex/convex/projectPaths";
@@ -32,7 +53,10 @@ import { NewDocMenu } from "../../components/docs/NewDocMenu";
 import { useArtifactContentSearch } from "../../hooks/useArtifactContentSearch";
 import { DocTypeMark } from "../../components/docs/DocTypeMark";
 import { isArtifactDocType } from "@codecast/shared/artifacts";
-import { createLiveArtifact, type WorkspaceStamp } from "../../lib/createLiveArtifact";
+import {
+  createLiveArtifact,
+  type WorkspaceStamp,
+} from "../../lib/createLiveArtifact";
 
 const api = _api as any;
 
@@ -51,11 +75,14 @@ function normalizeDocSort(rawGroup: string, rawSort: string, rawDir: string) {
   let group = DOC_GROUP_VALUES.has(rawGroup) ? rawGroup : "";
   let sort = DOC_SORT_VALUES.has(rawSort) ? rawSort : "";
   if (!group) {
-    if (DOC_GROUP_VALUES.has(rawSort)) { group = rawSort; sort = sort || "updated"; }
-    else group = "none";
+    if (DOC_GROUP_VALUES.has(rawSort)) {
+      group = rawSort;
+      sort = sort || "updated";
+    } else group = "none";
   }
   if (!sort) sort = "updated";
-  const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : docDefaultDir(sort);
+  const dir: "asc" | "desc" =
+    rawDir === "asc" || rawDir === "desc" ? rawDir : docDefaultDir(sort);
   return { group, sort, dir };
 }
 
@@ -95,28 +122,35 @@ function useDocUrlState() {
 
   // Store is the single source of truth
   const docType = docView?.doc_type ?? "";
-  const { group, sort, dir } = normalizeDocSort(docView?.group || "", docView?.sort || "", docView?.dir || "");
+  const { group, sort, dir } = normalizeDocSort(
+    docView?.group || "",
+    docView?.sort || "",
+    docView?.dir || "",
+  );
   const project = docView?.project ?? "";
   const label = docView?.label ?? "";
   const source = docView?.source ?? "";
 
-  const setParam = useCallback((updates: Record<string, string>) => {
-    const prefs: Record<string, any> = {};
-    for (const [k, v] of Object.entries(updates)) {
-      if (k === "type") prefs.doc_type = v || undefined;
-      else prefs[k] = v || undefined;
-    }
-    updateClientUI({ doc_view: { ...docView, ...prefs } as DocViewPrefs });
-    if (!isDetailPage) {
-      const params = new URLSearchParams(searchParams.toString());
+  const setParam = useCallback(
+    (updates: Record<string, string>) => {
+      const prefs: Record<string, any> = {};
       for (const [k, v] of Object.entries(updates)) {
-        if (v) params.set(k, v);
-        else params.delete(k);
+        if (k === "type") prefs.doc_type = v || undefined;
+        else prefs[k] = v || undefined;
       }
-      const qs = params.toString();
-      router.replace(qs ? `/docs?${qs}` : "/docs");
-    }
-  }, [searchParams, router, docView, updateClientUI, isDetailPage]);
+      updateClientUI({ doc_view: { ...docView, ...prefs } as DocViewPrefs });
+      if (!isDetailPage) {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const [k, v] of Object.entries(updates)) {
+          if (v) params.set(k, v);
+          else params.delete(k);
+        }
+        const qs = params.toString();
+        router.replace(qs ? `/docs?${qs}` : "/docs");
+      }
+    },
+    [searchParams, router, docView, updateClientUI, isDetailPage],
+  );
 
   // Serialize the effective view (store-derived) into a deep-linkable URL. We
   // can't copy window.location: the store is the source of truth and the URL
@@ -144,16 +178,51 @@ function useDocUrlState() {
 
   // Picking a sort field resets direction to that field's natural default; the
   // toggle flips it explicitly.
-  const setGroup = useCallback((g: string) => setParam({ group: g }), [setParam]);
-  const setSort = useCallback((s: string) => setParam({ sort: s, dir: docDefaultDir(s) }), [setParam]);
-  const toggleSortDir = useCallback(() => setParam({ dir: dir === "asc" ? "desc" : "asc" }), [setParam, dir]);
+  const setGroup = useCallback(
+    (g: string) => setParam({ group: g }),
+    [setParam],
+  );
+  const setSort = useCallback(
+    (s: string) => setParam({ sort: s, dir: docDefaultDir(s) }),
+    [setParam],
+  );
+  const toggleSortDir = useCallback(
+    () => setParam({ dir: dir === "asc" ? "desc" : "asc" }),
+    [setParam, dir],
+  );
 
-  return { docType, group, sort, dir, project, label, source, setParam, setGroup, setSort, toggleSortDir, buildShareUrl };
+  return {
+    docType,
+    group,
+    sort,
+    dir,
+    project,
+    label,
+    source,
+    setParam,
+    setGroup,
+    setSort,
+    toggleSortDir,
+    buildShareUrl,
+  };
 }
 
 export function DocListContent() {
   const params = useParams();
-  const { docType, group, sort, dir, project: projectFilter, label: labelFilter, source: sourceFilter, setParam, setGroup, setSort, toggleSortDir, buildShareUrl } = useDocUrlState();
+  const {
+    docType,
+    group,
+    sort,
+    dir,
+    project: projectFilter,
+    label: labelFilter,
+    source: sourceFilter,
+    setParam,
+    setGroup,
+    setSort,
+    toggleSortDir,
+    buildShareUrl,
+  } = useDocUrlState();
   const router = useRouter();
   const createDoc = useInboxStore((s) => s.createDoc);
   const wsStamp = workspaceStamp(useWorkspaceArgs());
@@ -161,9 +230,16 @@ export function DocListContent() {
   const docProjectPaths = useInboxStore((s) => s.docProjectPaths);
   const createSavedView = useInboxStore((s) => s.createSavedView);
   const docView = useInboxStore((s) => s.clientState.ui?.doc_view);
-  const handleSaveView = useCallback((name: string) => {
-    createSavedView({ name, page: "docs", prefs: { ...docView, doc_type: docType } as DocViewPrefs });
-  }, [createSavedView, docView, docType]);
+  const handleSaveView = useCallback(
+    (name: string) => {
+      createSavedView({
+        name,
+        page: "docs",
+        prefs: { ...docView, doc_type: docType } as DocViewPrefs,
+      });
+    },
+    [createSavedView, docView, docType],
+  );
 
   // Strict workspace boundary at read time: `store.docs` caches rows from every
   // workspace (the sync overlay never prunes on team switch, IDB persists them
@@ -185,7 +261,10 @@ export function DocListContent() {
   // board makes between agent work and triage suggestions. "all" shows
   // everything. One shared rule (@codecast/shared/docs), so web and mobile
   // can't drift. Legacy "human"/"bot" links map onto the new values.
-  const sourceFilteredDocs = useMemo(() => filterDocsByShelf(docsList, sourceFilter), [docsList, sourceFilter]);
+  const sourceFilteredDocs = useMemo(
+    () => filterDocsByShelf(docsList, sourceFilter),
+    [docsList, sourceFilter],
+  );
 
   const isShelfView = sourceFilter === "" || sourceFilter === "human";
   const hiddenAgentCount = useMemo(() => {
@@ -196,7 +275,10 @@ export function DocListContent() {
   // The checkouts the viewer's sessions name, read once per filter change: a
   // doc's folder is matched to its repository through them (docFilters).
   const checkouts = useMemo(
-    () => (projectFilter ? knownCheckoutRoots(Object.values(useInboxStore.getState().sessions)) : []),
+    () =>
+      projectFilter
+        ? knownCheckoutRoots(Object.values(useInboxStore.getState().sessions))
+        : [],
     [projectFilter],
   );
 
@@ -204,7 +286,10 @@ export function DocListContent() {
     let list = sourceFilteredDocs;
     if (docType) list = list.filter((d) => d.doc_type === docType);
     if (labelFilter) list = list.filter((d) => d.labels?.includes(labelFilter));
-    if (projectFilter) list = list.filter((d) => docMatchesProjectFilter(d, projectFilter, checkouts));
+    if (projectFilter)
+      list = list.filter((d) =>
+        docMatchesProjectFilter(d, projectFilter, checkouts),
+      );
     return list;
   }, [sourceFilteredDocs, docType, labelFilter, projectFilter, checkouts]);
 
@@ -215,7 +300,10 @@ export function DocListContent() {
   const searchScopeDocs = useMemo(() => {
     let list = sourceFilteredDocs;
     if (labelFilter) list = list.filter((d) => d.labels?.includes(labelFilter));
-    if (projectFilter) list = list.filter((d) => docMatchesProjectFilter(d, projectFilter, checkouts));
+    if (projectFilter)
+      list = list.filter((d) =>
+        docMatchesProjectFilter(d, projectFilter, checkouts),
+      );
     return [...list].sort((a, b) => b.updated_at - a.updated_at);
   }, [sourceFilteredDocs, labelFilter, projectFilter, checkouts]);
 
@@ -231,19 +319,23 @@ export function DocListContent() {
   // Starred docs lead regardless of sort or direction (a star means "keep this
   // in reach"). Ties fall back to updated_at desc (direction-independent) so
   // equal keys stay put when the user flips asc/desc.
-  const sortDocs = useCallback((list: DocItem[]) => {
-    const flip = dir === "desc" ? -1 : 1;
-    const title = (d: DocItem) => ((d as any).display_title || d.title || "").toLowerCase();
-    return [...list].sort((a, b) => {
-      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
-      let r = 0;
-      if (sort === "created") r = a.created_at - b.created_at;
-      else if (sort === "title") r = title(a).localeCompare(title(b));
-      else r = a.updated_at - b.updated_at;
-      if (r !== 0) return flip * r;
-      return b.updated_at - a.updated_at;
-    });
-  }, [sort, dir]);
+  const sortDocs = useCallback(
+    (list: DocItem[]) => {
+      const flip = dir === "desc" ? -1 : 1;
+      const title = (d: DocItem) =>
+        ((d as any).display_title || d.title || "").toLowerCase();
+      return [...list].sort((a, b) => {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        let r = 0;
+        if (sort === "created") r = a.created_at - b.created_at;
+        else if (sort === "title") r = title(a).localeCompare(title(b));
+        else r = a.updated_at - b.updated_at;
+        if (r !== 0) return flip * r;
+        return b.updated_at - a.updated_at;
+      });
+    },
+    [sort, dir],
+  );
 
   const typeGroups = useMemo(() => {
     if (group !== "type") return null;
@@ -253,26 +345,32 @@ export function DocListContent() {
       if (!byType[key]) byType[key] = [];
       byType[key].push(d);
     }
-    return DOC_TYPES
-      .filter((t) => byType[t]?.length)
-      .map((t) => ({ type: t, docs: sortDocs(byType[t]) }));
+    return DOC_TYPES.filter((t) => byType[t]?.length).map((t) => ({
+      type: t,
+      docs: sortDocs(byType[t]),
+    }));
   }, [filteredDocs, group, sortDocs]);
 
   const projectGroups = useMemo(() => {
     if (group !== "project") return null;
-    const byProject: Record<string, { project: ProjectItem | undefined; docs: DocItem[] }> = {};
+    const byProject: Record<
+      string,
+      { project: ProjectItem | undefined; docs: DocItem[] }
+    > = {};
     const ungrouped: DocItem[] = [];
     for (const d of filteredDocs) {
       const pid = (d as any).project_id;
       if (pid) {
-        if (!byProject[pid]) byProject[pid] = { project: projects[pid], docs: [] };
+        if (!byProject[pid])
+          byProject[pid] = { project: projects[pid], docs: [] };
         byProject[pid].docs.push(d);
       } else {
         ungrouped.push(d);
       }
     }
-    const ordered = Object.values(byProject)
-      .sort((a, b) => (a.project?.title || "").localeCompare(b.project?.title || ""));
+    const ordered = Object.values(byProject).sort((a, b) =>
+      (a.project?.title || "").localeCompare(b.project?.title || ""),
+    );
     if (ungrouped.length > 0) {
       ordered.push({ project: undefined, docs: ungrouped });
     }
@@ -303,9 +401,17 @@ export function DocListContent() {
       return projectGroups.map((g: any) => ({
         key: g.project?._id || "__no_project",
         label: g.project?.title || "No project",
-        icon: <FolderKanban className={`w-3.5 h-3.5 ${g.project ? "text-sol-cyan" : "text-sol-text-dim"}`} />,
+        icon: (
+          <FolderKanban
+            className={`w-3.5 h-3.5 ${g.project ? "text-sol-cyan" : "text-sol-text-dim"}`}
+          />
+        ),
         extra: g.project ? (
-          <Link href={`/projects/${g.project._id}`} onClick={(e: any) => e.stopPropagation()} className="text-meta text-sol-cyan hover:underline flex-shrink-0">
+          <Link
+            href={`/projects/${g.project._id}`}
+            onClick={(e: any) => e.stopPropagation()}
+            className="text-meta text-sol-cyan hover:underline flex-shrink-0"
+          >
             View project
           </Link>
         ) : undefined,
@@ -324,25 +430,61 @@ export function DocListContent() {
     const have = new Set(searchScopeDocs.map((d) => d._id));
     const elsewhere = contentHits.hits
       .filter((h) => !have.has(h._id))
-      .map((h) => ({ _id: h._id, title: h.title, doc_type: h.doc_type, source: "human", updated_at: h.updated_at ?? 0, created_at: h.updated_at ?? 0, where: h.where }) as unknown as DocItem);
-    const all = elsewhere.length ? [...searchScopeDocs, ...elsewhere] : searchScopeDocs;
+      .map(
+        (h) =>
+          ({
+            _id: h._id,
+            title: h.title,
+            doc_type: h.doc_type,
+            source: "human",
+            updated_at: h.updated_at ?? 0,
+            created_at: h.updated_at ?? 0,
+            where: h.where,
+          }) as unknown as DocItem,
+      );
+    const all = elsewhere.length
+      ? [...searchScopeDocs, ...elsewhere]
+      : searchScopeDocs;
     // One ranked list wherever a doc lives: a title holding the words first, then content hits in the
     // server's order (the one holding more of the words first), then the rest in list order.
     const lq = contentHits.query.toLowerCase();
     if (!lq) return all;
-    const titled = (d: DocItem) => (String(d.title ?? "").toLowerCase().includes(lq) ? 0 : 1);
+    const titled = (d: DocItem) =>
+      String(d.title ?? "")
+        .toLowerCase()
+        .includes(lq)
+        ? 0
+        : 1;
     const served = new Map(contentHits.hits.map((h, i) => [h._id, i]));
     const rank = (d: DocItem) => served.get(d._id) ?? Infinity;
     return all
       .map((d, i) => [d, i] as const)
-      .sort((a, b) => titled(a[0]) - titled(b[0]) || rank(a[0]) - rank(b[0]) || a[1] - b[1])
+      .sort(
+        (a, b) =>
+          titled(a[0]) - titled(b[0]) || rank(a[0]) - rank(b[0]) || a[1] - b[1],
+      )
       .map(([d]) => d);
   }, [searchScopeDocs, contentHits.hits, contentHits.query]);
-  const renderDocRow = useCallback((doc: DocItem, state: ItemRowState) => {
-    const where = (doc as any).where as string | undefined;
-    const match = contentHits.snippets.get(doc._id);
-    return <DocRow doc={doc} state={state} timeKey={sort === "created" ? "created_at" : "updated_at"} match={where ? [`In ${where}`, match].filter(Boolean).join(" · ") : match || undefined} query={contentHits.query} />;
-  }, [sort, contentHits.snippets, contentHits.query]);
+  const renderDocRow = useCallback(
+    (doc: DocItem, state: ItemRowState) => {
+      const where = (doc as any).where as string | undefined;
+      const match = contentHits.snippets.get(doc._id);
+      return (
+        <DocRow
+          doc={doc}
+          state={state}
+          timeKey={sort === "created" ? "created_at" : "updated_at"}
+          match={
+            where
+              ? [`In ${where}`, match].filter(Boolean).join(" · ")
+              : match || undefined
+          }
+          query={contentHits.query}
+        />
+      );
+    },
+    [sort, contentHits.snippets, contentHits.query],
+  );
 
   return (
     <GenericListView<DocItem>
@@ -375,15 +517,24 @@ export function DocListContent() {
       onSortChange={setSort}
       sortDir={dir}
       onSortDirChange={toggleSortDir}
-      listFooter={hiddenAgentCount > 0 ? (
-        <div className="px-6 py-2.5 border-t border-sol-border/15 flex items-center gap-2 text-xs text-sol-text-dim">
-          <Bot className="w-3.5 h-3.5 opacity-40" />
-          <span>{hiddenAgentCount} {hiddenAgentCount === 1 ? "agent doc" : "agent docs"} not shown</span>
-          <button data-cc-inline-link onClick={() => setParam({ source: "all" })} className="text-sol-cyan hover:underline ml-0.5">
-            Show all
-          </button>
-        </div>
-      ) : undefined}
+      listFooter={
+        hiddenAgentCount > 0 ? (
+          <div className="px-6 py-2.5 border-t border-sol-border/15 flex items-center gap-2 text-xs text-sol-text-dim">
+            <Bot className="w-3.5 h-3.5 opacity-40" />
+            <span>
+              {hiddenAgentCount}{" "}
+              {hiddenAgentCount === 1 ? "agent doc" : "agent docs"} not shown
+            </span>
+            <button
+              data-cc-inline-link
+              onClick={() => setParam({ source: "all" })}
+              className="text-sol-cyan hover:underline ml-0.5"
+            >
+              Show all
+            </button>
+          </div>
+        ) : undefined
+      }
       syncScope="docs"
       filters={{
         hasActive: !!(projectFilter || labelFilter || sourceFilter || docType),
@@ -392,31 +543,67 @@ export function DocListContent() {
           // popover — the shelf is the default and gets no header control of
           // its own (mirrors the tasks board).
           {
-            key: "source", label: "Source", icon: <Bot className="w-3 h-3" />, value: sourceFilter, showEmptyOption: true,
+            key: "source",
+            label: "Source",
+            icon: <Bot className="w-3 h-3" />,
+            value: sourceFilter,
+            showEmptyOption: true,
             options: [
-              { key: "", label: `${DOC_SHELF_FILTER_LABELS[""]} (default)`, icon: User },
-              { key: "starred", label: DOC_SHELF_FILTER_LABELS.starred, icon: Star, color: "text-sol-yellow" },
-              { key: "agent", label: DOC_SHELF_FILTER_LABELS.agent, icon: Bot, color: "text-sol-cyan" },
-              { key: "mined", label: DOC_SHELF_FILTER_LABELS.mined, icon: Lightbulb, color: "text-sol-yellow" },
+              {
+                key: "",
+                label: `${DOC_SHELF_FILTER_LABELS[""]} (default)`,
+                icon: User,
+              },
+              {
+                key: "starred",
+                label: DOC_SHELF_FILTER_LABELS.starred,
+                icon: Star,
+                color: "text-sol-yellow",
+              },
+              {
+                key: "agent",
+                label: DOC_SHELF_FILTER_LABELS.agent,
+                icon: Bot,
+                color: "text-sol-cyan",
+              },
+              {
+                key: "mined",
+                label: DOC_SHELF_FILTER_LABELS.mined,
+                icon: Lightbulb,
+                color: "text-sol-yellow",
+              },
               { key: "all", label: DOC_SHELF_FILTER_LABELS.all, icon: Layers },
             ],
             onChange: (v: string) => setParam({ source: v }),
           },
           {
-            key: "project", label: "Project", icon: <FolderOpen className="w-3 h-3" />, value: projectFilter,
+            key: "project",
+            label: "Project",
+            icon: <FolderOpen className="w-3 h-3" />,
+            value: projectFilter,
             options: [
               { key: "", label: "Any" },
-              ...docProjectPaths.map((p) => ({ key: p, label: p.split("/").pop() || p })),
+              ...docProjectPaths.map((p) => ({
+                key: p,
+                label: p.split("/").pop() || p,
+              })),
             ],
             onChange: (v: string) => setParam({ project: v }),
           },
           {
-            key: "label", label: "Label", icon: <Tag className="w-3 h-3" />, value: labelFilter,
-            options: [{ key: "", label: "Any" }, ...allLabels.map((l) => ({ key: l, label: l }))],
+            key: "label",
+            label: "Label",
+            icon: <Tag className="w-3 h-3" />,
+            value: labelFilter,
+            options: [
+              { key: "", label: "Any" },
+              ...allLabels.map((l) => ({ key: l, label: l })),
+            ],
             onChange: (v: string) => setParam({ label: v }),
           },
         ],
-        onClear: () => setParam({ project: "", label: "", source: "", type: "" }),
+        onClear: () =>
+          setParam({ project: "", label: "", source: "", type: "" }),
         onSaveView: handleSaveView,
       }}
       shareUrl={buildShareUrl}
@@ -433,12 +620,16 @@ export function DocListContent() {
       emptyIcon={<FileText className="w-8 h-8 opacity-30" />}
       emptyMessage="No documents found"
       // With no type tab picked, + asks what to make; a type tab makes that type.
-      createMenu={docType ? undefined : (trigger) => <NewDocMenu>{trigger}</NewDocMenu>}
+      createMenu={
+        docType ? undefined : (trigger) => <NewDocMenu>{trigger}</NewDocMenu>
+      }
       onCreate={async () => {
         // Stamp the active workspace so the new doc lives where it was created
         // (a doc made in a team space belongs to that team).
         if (isArtifactDocType(docType)) {
-          await createLiveArtifact(docType, wsStamp as WorkspaceStamp, (href) => router.push(href));
+          await createLiveArtifact(docType, wsStamp as WorkspaceStamp, (href) =>
+            router.push(href),
+          );
           return;
         }
         await createDoc(
@@ -451,7 +642,10 @@ export function DocListContent() {
         { action: "doc.labels", mode: "labels", label: "labels" },
       ]}
       contextMenuContent={(items) => (
-        <DocMenuItems docs={items} onOpen={(d) => router.push(`/docs/${d._id}`)} />
+        <DocMenuItems
+          docs={items}
+          onOpen={(d) => router.push(`/docs/${d._id}`)}
+        />
       )}
     />
   );

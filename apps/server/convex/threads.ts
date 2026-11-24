@@ -15,7 +15,11 @@
 // pass.
 
 import { mutation, query } from "./functions";
-import type { ListMinePayload, ThreadInboxEntry, ThreadRead } from "./threadsTypes";
+import type {
+  ListMinePayload,
+  ThreadInboxEntry,
+  ThreadRead,
+} from "./threadsTypes";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
@@ -69,7 +73,9 @@ function chatRootId(row: ThreadRead): Id<"chat_messages"> {
 }
 
 async function chatRoot(ctx: ReadCtx, row: ThreadRead, cache: PageCache) {
-  return await memo(cache.roots, row.root_key, () => ctx.db.get(chatRootId(row)));
+  return await memo(cache.roots, row.root_key, () =>
+    ctx.db.get(chatRootId(row)),
+  );
 }
 
 // The newest visible reply: a tombstone or a silent placeholder at the head
@@ -93,11 +99,18 @@ const chatKind: ThreadKindResolver = {
     const root = await chatRoot(ctx, row, cache);
     if (!root) return false;
     const channelId = row.channel_id ?? root.channel_id;
-    const channel = await memo(cache.channels, String(channelId), () => readChannel(ctx, userId, channelId));
+    const channel = await memo(cache.channels, String(channelId), () =>
+      readChannel(ctx, userId, channelId),
+    );
     return !!channel && !channel.archived_at;
   },
   async unread(ctx, userId, row) {
-    return await threadUnreadFor(ctx, userId, chatRootId(row), row.last_read_at);
+    return await threadUnreadFor(
+      ctx,
+      userId,
+      chatRootId(row),
+      row.last_read_at,
+    );
   },
   async newestAt(ctx, row) {
     // The newest reply's OWN stamp, not last_activity_at. A visible agent
@@ -106,7 +119,9 @@ const chatKind: ThreadKindResolver = {
     // clamped to activity could never clear past it.
     const newest = await ctx.db
       .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", chatRootId(row)))
+      .withIndex("by_thread_created", (q: any) =>
+        q.eq("thread_root_id", chatRootId(row)),
+      )
       .order("desc")
       .first();
     return newest?.created_at ?? 0;
@@ -119,21 +134,35 @@ const chatKind: ThreadKindResolver = {
     const root = await chatRoot(ctx, row, cache);
     if (!root) return false;
     const channelId = row.channel_id ?? root.channel_id;
-    const channel = await memo(cache.channels, String(channelId), () => readChannel(ctx, userId, channelId));
-    const unread = (await ctx.db
-      .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", root._id).gt("created_at", row.last_read_at))
-      .take(THREAD_UNREAD_SCAN))
-      .filter((r) => !r.deleted_at && !isSilentAgentRow(r) && !isLiveVoiceRow(r) && String(r.user_id) !== String(userId));
+    const channel = await memo(cache.channels, String(channelId), () =>
+      readChannel(ctx, userId, channelId),
+    );
+    const unread = (
+      await ctx.db
+        .query("chat_messages")
+        .withIndex("by_thread_created", (q: any) =>
+          q.eq("thread_root_id", root._id).gt("created_at", row.last_read_at),
+        )
+        .take(THREAD_UNREAD_SCAN)
+    ).filter(
+      (r) =>
+        !r.deleted_at &&
+        !isSilentAgentRow(r) &&
+        !isLiveVoiceRow(r) &&
+        String(r.user_id) !== String(userId),
+    );
     if (!unread.length) return false;
     if (channel?.kind === "dm") return true;
     const bots = new Set<string>();
-    for (const r of unread) if ((await userFor(ctx, cache, r.user_id))?.is_bot) bots.add(String(r.user_id));
+    for (const r of unread)
+      if ((await userFor(ctx, cache, r.user_id))?.is_bot)
+        bots.add(String(r.user_id));
     return waitsOnViewer(ctx, cache, userId, unread, {
       isAgent: (r) => r.author_kind === "agent" || bots.has(String(r.user_id)),
       // An agent replying under the viewer's own root answers them.
-      answersViewer: (r) => String(root.user_id) === String(userId)
-        || (r.mentions ?? []).some((m) => String(m) === String(userId)),
+      answersViewer: (r) =>
+        String(root.user_id) === String(userId) ||
+        (r.mentions ?? []).some((m) => String(m) === String(userId)),
       text: (r) => r.content,
     });
   },
@@ -154,10 +183,18 @@ const chatKind: ThreadKindResolver = {
 // ── comment ─────────────────────────────────────────────────────────────────
 
 function commentConversationId(row: ThreadRead): Id<"conversations"> {
-  return row.conversation_id ?? (parseCommentThreadRootKey(row.root_key).conversationId as Id<"conversations">);
+  return (
+    row.conversation_id ??
+    (parseCommentThreadRootKey(row.root_key)
+      .conversationId as Id<"conversations">)
+  );
 }
 
-async function commentThread(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<ConversationComment[]> {
+async function commentThread(
+  ctx: ReadCtx,
+  row: ThreadRead,
+  cache: PageCache,
+): Promise<ConversationComment[]> {
   return await memo(cache.commentThreads, row.root_key, async () => {
     const conversationId = commentConversationId(row);
     const anchor = {
@@ -167,11 +204,18 @@ async function commentThread(ctx: ReadCtx, row: ThreadRead, cache: PageCache): P
     };
     // Read the conversation's comments ONCE and filter per anchor, so N
     // anchored threads cost one collect, not N.
-    const all = await memo(cache.conversationComments, String(conversationId), () =>
-      listConversationComments(ctx, conversationId));
+    const all = await memo(
+      cache.conversationComments,
+      String(conversationId),
+      () => listConversationComments(ctx, conversationId),
+    );
     return all
       .filter((c) => isInCommentThread(c, anchor))
-      .sort((a, b) => a.created_at - b.created_at || String(a._id).localeCompare(String(b._id)));
+      .sort(
+        (a, b) =>
+          a.created_at - b.created_at ||
+          String(a._id).localeCompare(String(b._id)),
+      );
   });
 }
 
@@ -190,19 +234,31 @@ function isOthersComment(c: ConversationComment, userId: Id<"users">): boolean {
 const commentKind: ThreadKindResolver = {
   async access(ctx, userId, row, cache) {
     const id = commentConversationId(row);
-    const conversation = await memo(cache.conversations, String(id), () => ctx.db.get(id));
-    return !!conversation && (await canAccessConversation(ctx, userId, conversation));
+    const conversation = await memo(cache.conversations, String(id), () =>
+      ctx.db.get(id),
+    );
+    return (
+      !!conversation && (await canAccessConversation(ctx, userId, conversation))
+    );
   },
   async unread(ctx, userId, row, cache) {
     const rows = await commentThread(ctx, row, cache);
-    const counted = rows.filter((c) =>
-      c.created_at > row.last_read_at && isLandedComment(c) && isOthersComment(c, userId)).length;
+    const counted = rows.filter(
+      (c) =>
+        c.created_at > row.last_read_at &&
+        isLandedComment(c) &&
+        isOthersComment(c, userId),
+    ).length;
     return capped(counted);
   },
   async forYou(ctx, userId, row, cache) {
     const rows = await commentThread(ctx, row, cache);
-    const unread = rows.filter((c) =>
-      c.created_at > row.last_read_at && isLandedComment(c) && isOthersComment(c, userId));
+    const unread = rows.filter(
+      (c) =>
+        c.created_at > row.last_read_at &&
+        isLandedComment(c) &&
+        isOthersComment(c, userId),
+    );
     return waitsOnViewer(ctx, cache, userId, unread, {
       isAgent: (c) => c.author_kind === "agent",
       // An agent row carries the asker's user_id: it answers them.
@@ -213,11 +269,14 @@ const commentKind: ThreadKindResolver = {
   async newestAt(ctx, row, cache) {
     const rows = await commentThread(ctx, row, cache);
     let newest = 0;
-    for (const c of rows) if (isLandedComment(c) && c.created_at > newest) newest = c.created_at;
+    for (const c of rows)
+      if (isLandedComment(c) && c.created_at > newest) newest = c.created_at;
     return newest;
   },
   async load(ctx, _userId, row, cache, payload) {
-    const rows = (await commentThread(ctx, row, cache)).slice(-THREAD_PAYLOAD_ROWS);
+    const rows = (await commentThread(ctx, row, cache)).slice(
+      -THREAD_PAYLOAD_ROWS,
+    );
     for (const comment of rows) {
       const user = await userFor(ctx, cache, comment.user_id);
       payload.comments.push({
@@ -257,19 +316,28 @@ async function taskFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache) {
 }
 
 /** The newest THREAD_PAYLOAD_ROWS comments, newest first. */
-async function taskCommentsFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<Doc<"task_comments">[]> {
+async function taskCommentsFor(
+  ctx: ReadCtx,
+  row: ThreadRead,
+  cache: PageCache,
+): Promise<Doc<"task_comments">[]> {
   return await memo(cache.taskComments, row.root_key, () =>
     ctx.db
       .query("task_comments")
       .withIndex("by_task_created", (q: any) => q.eq("task_id", taskId(row)))
       .order("desc")
-      .take(THREAD_PAYLOAD_ROWS));
+      .take(THREAD_PAYLOAD_ROWS),
+  );
 }
 
 /** Did the viewer write in this thread themself? A task comment carries
  *  author_user_id only for a person's own act (never an agent's), so this is
  *  the durable trace of a touchThread actor row. */
-async function viewerCommentedOnTask(ctx: ReadCtx, userId: Id<"users">, taskId: Id<"tasks">): Promise<boolean> {
+async function viewerCommentedOnTask(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  taskId: Id<"tasks">,
+): Promise<boolean> {
   const own = await ctx.db
     .query("task_comments")
     .withIndex("by_task_created", (q: any) => q.eq("task_id", taskId))
@@ -287,17 +355,31 @@ async function taskCommentNewsFor(
   userId: Id<"users">,
   c: Doc<"task_comments">,
 ): Promise<boolean> {
-  const author = taskCommentAuthorKind(c, await userFor(ctx, cache, c.author_user_id), userId);
-  const mentioned = author === "agent" && (await namesViewer(ctx, cache, userId, c.text));
-  return taskCommentIsNews(c, author, agentCommentLevelOf(await userFor(ctx, cache, userId)), mentioned);
+  const author = taskCommentAuthorKind(
+    c,
+    await userFor(ctx, cache, c.author_user_id),
+    userId,
+  );
+  const mentioned =
+    author === "agent" && (await namesViewer(ctx, cache, userId, c.text));
+  return taskCommentIsNews(
+    c,
+    author,
+    agentCommentLevelOf(await userFor(ctx, cache, userId)),
+    mentioned,
+  );
 }
 
 /** The task comments past the viewer's mark, oldest first. */
-async function unreadTaskComments(ctx: ReadCtx, row: ThreadRead): Promise<Doc<"task_comments">[]> {
+async function unreadTaskComments(
+  ctx: ReadCtx,
+  row: ThreadRead,
+): Promise<Doc<"task_comments">[]> {
   return await ctx.db
     .query("task_comments")
     .withIndex("by_task_created", (q: any) =>
-      q.eq("task_id", taskId(row)).gt("created_at", row.last_read_at))
+      q.eq("task_id", taskId(row)).gt("created_at", row.last_read_at),
+    )
     .take(THREAD_UNREAD_SCAN);
 }
 
@@ -312,21 +394,35 @@ const taskKind: ThreadKindResolver = {
   async access(ctx, userId, row, cache) {
     const task = await taskFor(ctx, row, cache);
     if (!task || !(await canAccessTask(ctx, userId, task))) return false;
-    const membership = await memo(cache.taskMembership, row.root_key, () => taskThreadMembership(ctx, task));
+    const membership = await memo(cache.taskMembership, row.root_key, () =>
+      taskThreadMembership(ctx, task),
+    );
     if (membership.muted.has(String(userId))) return false;
-    if (membership.participants.some((id) => String(id) === String(userId))) return true;
+    if (membership.participants.some((id) => String(id) === String(userId)))
+      return true;
     return await viewerCommentedOnTask(ctx, userId, task._id);
   },
   async unread(ctx, userId, row, cache) {
     let counted = 0;
-    for (const c of await unreadTaskComments(ctx, row)) if (await taskCommentNewsFor(ctx, cache, userId, c)) counted++;
+    for (const c of await unreadTaskComments(ctx, row))
+      if (await taskCommentNewsFor(ctx, cache, userId, c)) counted++;
     return capped(counted);
   },
   async forYou(ctx, userId, row, cache) {
     for (const c of await unreadTaskComments(ctx, row)) {
-      const author = taskCommentAuthorKind(c, await userFor(ctx, cache, c.author_user_id), userId);
+      const author = taskCommentAuthorKind(
+        c,
+        await userFor(ctx, cache, c.author_user_id),
+        userId,
+      );
       if (author === "self") continue;
-      if (taskCommentIsForYou(author, await namesViewer(ctx, cache, userId, c.text))) return true;
+      if (
+        taskCommentIsForYou(
+          author,
+          await namesViewer(ctx, cache, userId, c.text),
+        )
+      )
+        return true;
     }
     return false;
   },
@@ -336,7 +432,11 @@ const taskKind: ThreadKindResolver = {
   async load(ctx, userId, row, cache, payload) {
     const task = await taskFor(ctx, row, cache);
     if (!task) return;
-    const comments = await attachCommentSessionInfo(ctx, [...(await taskCommentsFor(ctx, row, cache))].reverse(), userId);
+    const comments = await attachCommentSessionInfo(
+      ctx,
+      [...(await taskCommentsFor(ctx, row, cache))].reverse(),
+      userId,
+    );
     payload.tasks.push({ ...task, comments });
   },
   async preview(ctx, userId, row, cache) {
@@ -347,7 +447,10 @@ const taskKind: ThreadKindResolver = {
     let newest: Doc<"task_comments"> | undefined;
     for (const c of comments) {
       if (c.created_at <= row.last_read_at) break;
-      if (await taskCommentNewsFor(ctx, cache, userId, c)) { newest = c; break; }
+      if (await taskCommentNewsFor(ctx, cache, userId, c)) {
+        newest = c;
+        break;
+      }
     }
     newest ??= comments[0];
     if (!newest) return null;
@@ -356,7 +459,9 @@ const taskKind: ThreadKindResolver = {
     const [withSession] = await attachCommentSessionInfo(ctx, [newest], userId);
     return {
       _id: String(newest._id),
-      user_id: newest.author_user_id ? String(newest.author_user_id) : undefined,
+      user_id: newest.author_user_id
+        ? String(newest.author_user_id)
+        : undefined,
       author_kind: kind === "agent" ? "agent" : "user",
       author_name: displayName(user) ?? newest.author,
       session_title: withSession.session_info?.title ?? undefined,
@@ -378,11 +483,17 @@ const THREAD_KINDS: Record<ThreadKind, ThreadKindResolver> = {
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
-function scopeQuery(ctx: ReadCtx, userId: Id<"users">, teamId: Id<"teams"> | undefined) {
+function scopeQuery(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+) {
   // eq("team_id", undefined) is the personal inbox: rows with no team.
   return ctx.db
     .query("thread_reads")
-    .withIndex("by_user_team_activity", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team_activity", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .order("desc");
 }
 
@@ -392,10 +503,18 @@ function scopeQuery(ctx: ReadCtx, userId: Id<"users">, teamId: Id<"teams"> | und
  *  viewer's newest personal PAGE rows along; discussions are few, so a
  *  bounded take instead of a second cursor. */
 const PERSONAL_PAGE_CARRY = 20;
-async function personalPageRows(ctx: ReadCtx, userId: Id<"users">, teamId: Id<"teams"> | undefined): Promise<ThreadRead[]> {
+async function personalPageRows(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+): Promise<ThreadRead[]> {
   if (!teamId) return [];
-  const personal = await scopeQuery(ctx, userId, undefined).take(THREAD_BADGE_SCAN);
-  return personal.filter((r) => r.kind === "page").slice(0, PERSONAL_PAGE_CARRY);
+  const personal = await scopeQuery(ctx, userId, undefined).take(
+    THREAD_BADGE_SCAN,
+  );
+  return personal
+    .filter((r) => r.kind === "page")
+    .slice(0, PERSONAL_PAGE_CARRY);
 }
 
 export const listMine = query({
@@ -416,24 +535,38 @@ export const listMine = query({
       pages: [],
       codeComments: [],
     };
-    const empty = { entries: [] as ThreadInboxEntry[], payload, has_more: false, next_cursor: null as string | null };
+    const empty = {
+      entries: [] as ThreadInboxEntry[],
+      payload,
+      has_more: false,
+      next_cursor: null as string | null,
+    };
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     if (!userId) return empty;
 
     const limit = Math.min(Math.max(args.limit ?? 30, 1), 50);
-    const page = await scopeQuery(ctx, userId, args.team_id)
-      .paginate({ numItems: limit, cursor: args.cursor ?? null });
+    const page = await scopeQuery(ctx, userId, args.team_id).paginate({
+      numItems: limit,
+      cursor: args.cursor ?? null,
+    });
 
     // Personal page rows ride the FIRST team-scoped page only (they have no
     // cursor of their own), newest first like everything else.
-    const carried = args.cursor ? [] : await personalPageRows(ctx, userId, args.team_id);
+    const carried = args.cursor
+      ? []
+      : await personalPageRows(ctx, userId, args.team_id);
 
     const cache = newPageCache();
     const entries: ThreadInboxEntry[] = [];
     for (const row of [...carried, ...page.page]) {
       const kind = THREAD_KINDS[row.kind];
       if (!kind || !(await kind.access(ctx, userId, row, cache))) continue;
-      const { unread, unread_capped } = await kind.unread(ctx, userId, row, cache);
+      const { unread, unread_capped } = await kind.unread(
+        ctx,
+        userId,
+        row,
+        cache,
+      );
       await kind.load(ctx, userId, row, cache, payload);
       entries.push({
         _id: `${row.kind}:${row.root_key}`,
@@ -457,7 +590,10 @@ export const listMine = query({
         updated_at: row.updated_at,
         unread,
         unread_capped,
-        for_you: unread > 0 && !!kind.forYou && (await kind.forYou(ctx, userId, row, cache)),
+        for_you:
+          unread > 0 &&
+          !!kind.forYou &&
+          (await kind.forYou(ctx, userId, row, cache)),
         last_reply: await kind.preview(ctx, userId, row, cache),
       });
     }
@@ -488,10 +624,14 @@ export const unreadCount = query({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     if (!userId) return 0;
-    return (await countForYou(ctx, userId, [
-      ...(await personalPageRows(ctx, userId, args.team_id)),
-      ...(await scopeQuery(ctx, userId, args.team_id).take(THREAD_BADGE_SCAN)),
-    ])).count;
+    return (
+      await countForYou(ctx, userId, [
+        ...(await personalPageRows(ctx, userId, args.team_id)),
+        ...(await scopeQuery(ctx, userId, args.team_id).take(
+          THREAD_BADGE_SCAN,
+        )),
+      ])
+    ).count;
   },
 });
 
@@ -499,7 +639,11 @@ export const unreadCount = query({
  *  row's activity stamp (the switcher's dot compares it with the viewer's last
  *  visit). Callers pass a bounded scan of the newest-activity rows, so a deep
  *  unread tail shows a floor, never a lie. */
-async function countForYou(ctx: ReadCtx, userId: Id<"users">, rows: ThreadRead[]): Promise<{ count: number; newest_at: number }> {
+async function countForYou(
+  ctx: ReadCtx,
+  userId: Id<"users">,
+  rows: ThreadRead[],
+): Promise<{ count: number; newest_at: number }> {
   const cache = newPageCache();
   let count = 0;
   let newest_at = 0;
@@ -542,8 +686,15 @@ export const unreadByWorkspace = query({
       .query("team_memberships")
       .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
       .collect();
-    const workspaces: Array<Id<"teams"> | undefined> = [undefined, ...memberships.map((m) => m.team_id)];
-    const out: Array<{ team_id: string | null; count: number; newest_at: number }> = [];
+    const workspaces: Array<Id<"teams"> | undefined> = [
+      undefined,
+      ...memberships.map((m) => m.team_id),
+    ];
+    const out: Array<{
+      team_id: string | null;
+      count: number;
+      newest_at: number;
+    }> = [];
     for (const teamId of workspaces) {
       if ((teamId ?? "personal") === args.active) continue;
       let rows = await scopeQuery(ctx, userId, teamId).take(THREAD_BADGE_SCAN);
@@ -551,7 +702,8 @@ export const unreadByWorkspace = query({
         rows = rows.filter((r) => r.kind !== "page");
       }
       const { count, newest_at } = await countForYou(ctx, userId, rows);
-      if (count > 0) out.push({ team_id: teamId ? String(teamId) : null, count, newest_at });
+      if (count > 0)
+        out.push({ team_id: teamId ? String(teamId) : null, count, newest_at });
     }
     return out;
   },
@@ -561,9 +713,18 @@ export const unreadByWorkspace = query({
 
 /** Move one row's mark to its newest activity: max(last_activity_at, the
  *  kind's newest counted stamp), forward only. Returns the mark written. */
-async function clampRead(ctx: MutationCtx, row: ThreadRead, cache: PageCache, now: number): Promise<number> {
-  const readAt = Math.max(row.last_activity_at, await THREAD_KINDS[row.kind].newestAt(ctx, row, cache));
-  if (row.last_read_at < readAt) await ctx.db.patch(row._id, { last_read_at: readAt, updated_at: now });
+async function clampRead(
+  ctx: MutationCtx,
+  row: ThreadRead,
+  cache: PageCache,
+  now: number,
+): Promise<number> {
+  const readAt = Math.max(
+    row.last_activity_at,
+    await THREAD_KINDS[row.kind].newestAt(ctx, row, cache),
+  );
+  if (row.last_read_at < readAt)
+    await ctx.db.patch(row._id, { last_read_at: readAt, updated_at: now });
   return Math.max(row.last_read_at, readAt);
 }
 
@@ -580,9 +741,14 @@ export const markRead = mutation({
     const row = await ctx.db
       .query("thread_reads")
       .withIndex("by_user_kind_root", (q: any) =>
-        q.eq("user_id", userId).eq("kind", args.kind).eq("root_key", args.root_key))
+        q
+          .eq("user_id", userId)
+          .eq("kind", args.kind)
+          .eq("root_key", args.root_key),
+      )
       .first();
-    if (!row) return { kind: args.kind, root_key: args.root_key, last_read_at: null };
+    if (!row)
+      return { kind: args.kind, root_key: args.root_key, last_read_at: null };
     const last_read_at = await clampRead(ctx, row, newPageCache(), Date.now());
     return { kind: args.kind, root_key: args.root_key, last_read_at };
   },
@@ -600,7 +766,9 @@ export const markAllRead = mutation({
     const userId = await requireCaller(ctx, args.api_token);
     const rows = [
       // The carried personal page rows are part of the view being swept.
-      ...(!args.kind || args.kind === "page" ? await personalPageRows(ctx, userId, args.team_id) : []),
+      ...(!args.kind || args.kind === "page"
+        ? await personalPageRows(ctx, userId, args.team_id)
+        : []),
       ...(await scopeQuery(ctx, userId, args.team_id).take(THREAD_BADGE_SCAN)),
     ];
     const cache = newPageCache();

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { decisionAnswerClientId, decisionIdFromClientId, formatDecisionAnswer, parseDecisionAnswer, pickAnsweredDecision } from "./decisionAnswers";
+import {
+  decisionAnswerClientId,
+  decisionIdFromClientId,
+  formatDecisionAnswer,
+  parseDecisionAnswer,
+  pickAnsweredDecision,
+} from "./decisionAnswers";
 import { isMachineDeliveredMessage } from "./machineMessages";
 
 // The answer to a `cast decide` question is one user message that both the
@@ -8,30 +14,57 @@ import { isMachineDeliveredMessage } from "./machineMessages";
 // needs to render the answer against its ask.
 describe("decision answer wire format", () => {
   it("round-trips id, question and a chosen option", () => {
-    const wire = formatDecisionAnswer({ id: "k97abc", question: "Keep the engine vendored?", answer: "Keep vendored (current)" });
+    const wire = formatDecisionAnswer({
+      id: "k97abc",
+      question: "Keep the engine vendored?",
+      answer: "Keep vendored (current)",
+    });
     expect(wire.startsWith("Decision: Keep vendored (current)\n")).toBe(true);
-    expect(parseDecisionAnswer(wire)).toEqual({ id: "k97abc", question: "Keep the engine vendored?", answer: "Keep vendored (current)" });
+    expect(parseDecisionAnswer(wire)).toEqual({
+      id: "k97abc",
+      question: "Keep the engine vendored?",
+      answer: "Keep vendored (current)",
+    });
   });
 
   it("escapes quotes, angle brackets and newlines inside the question", () => {
     const question = 'Rename "foo" to <bar>?\nIt breaks & fixes things';
-    const parsed = parseDecisionAnswer(formatDecisionAnswer({ id: "d1", question, answer: "Yes" }));
-    expect(parsed?.question).toBe('Rename "foo" to <bar>? It breaks & fixes things');
+    const parsed = parseDecisionAnswer(
+      formatDecisionAnswer({ id: "d1", question, answer: "Yes" }),
+    );
+    expect(parsed?.question).toBe(
+      'Rename "foo" to <bar>? It breaks & fixes things',
+    );
   });
 
   it("keeps a multi-line free-text answer intact", () => {
     const answer = "Do both.\nVendor now, package later.";
-    expect(parseDecisionAnswer(formatDecisionAnswer({ id: "d1", question: "Q", answer }))?.answer).toBe(answer);
+    expect(
+      parseDecisionAnswer(
+        formatDecisionAnswer({ id: "d1", question: "Q", answer }),
+      )?.answer,
+    ).toBe(answer);
   });
 
   it("survives the tmux inject collapsing the newline to a space", () => {
-    const wire = formatDecisionAnswer({ id: "d1", question: "Q?", answer: "Hold" }).replace(/\n/g, " ");
-    expect(parseDecisionAnswer(wire)).toEqual({ id: "d1", question: "Q?", answer: "Hold" });
+    const wire = formatDecisionAnswer({
+      id: "d1",
+      question: "Q?",
+      answer: "Hold",
+    }).replace(/\n/g, " ");
+    expect(parseDecisionAnswer(wire)).toEqual({
+      id: "d1",
+      question: "Q?",
+      answer: "Hold",
+    });
   });
 
   it("recognizes the legacy bare answer, id unknown", () => {
     // Before the tag shipped the whole message was "Decision: <label>".
-    expect(parseDecisionAnswer("Decision: Hold")).toEqual({ id: "", answer: "Hold" });
+    expect(parseDecisionAnswer("Decision: Hold")).toEqual({
+      id: "",
+      answer: "Hold",
+    });
     // Single-line only: a typed message that merely opens with the word
     // stays a normal message.
     expect(parseDecisionAnswer("Decision: Hold\nAnd also do X")).toBeNull();
@@ -46,7 +79,11 @@ describe("decision answer wire format", () => {
   });
 
   it("counts as the human's own send, not machine-delivered", () => {
-    expect(isMachineDeliveredMessage(formatDecisionAnswer({ id: "d1", question: "Q", answer: "Hold" }))).toBe(false);
+    expect(
+      isMachineDeliveredMessage(
+        formatDecisionAnswer({ id: "d1", question: "Q", answer: "Hold" }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -69,7 +106,15 @@ describe("pickAnsweredDecision", () => {
   });
 
   it("matches a free-text answer when no option was chosen", () => {
-    const rows = [{ _id: "t", options: [{ label: "A" }], answer_text: "Do both", created_at: 50, resolved_at: 60 }];
+    const rows = [
+      {
+        _id: "t",
+        options: [{ label: "A" }],
+        answer_text: "Do both",
+        created_at: 50,
+        resolved_at: 60,
+      },
+    ];
     expect(pickAnsweredDecision(rows, "Do both")?._id).toBe("t");
   });
 
@@ -84,7 +129,9 @@ describe("pickAnsweredDecision", () => {
 
 describe("decision answer client ids", () => {
   it("round trip, and nothing else reads as one", () => {
-    expect(decisionIdFromClientId(decisionAnswerClientId("k97abc"))).toBe("k97abc");
+    expect(decisionIdFromClientId(decisionAnswerClientId("k97abc"))).toBe(
+      "k97abc",
+    );
     expect(decisionIdFromClientId("decision-answer:")).toBeNull();
     expect(decisionIdFromClientId("web-123")).toBeNull();
     expect(decisionIdFromClientId(undefined)).toBeNull();

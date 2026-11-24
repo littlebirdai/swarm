@@ -20,22 +20,65 @@
 // a branch name is cached for minutes, because a branch moves.
 
 import { v } from "convex/values";
-import { action, mutation, query, internalAction, internalMutation, internalQuery } from "./functions";
+import {
+  action,
+  mutation,
+  query,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./functions";
 import { internal } from "./_generated/api";
-import { cacheKeyFor, refreshSpec, type Refresh, type SpecParams } from "./lib/repoRefreshSpec";
+import {
+  cacheKeyFor,
+  refreshSpec,
+  type Refresh,
+  type SpecParams,
+} from "./lib/repoRefreshSpec";
 export { cacheKeyFor };
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { requireUser } from "./lib/auth";
-import { activeTeamMembershipFor, canAccessCommit, canAccessConversation, canAccessPullRequest, canAccessTask, isTeamMember } from "./lib/access";
-import { conversationFromSessionTrailer, extractSessionTrailer, isHarnessScratch, normalizeRepository, repositoryOwner } from "./lib/gitRefs";
-import { installationCoversRepo, installationOwner, routingTeamForInstallation } from "./githubApp";
+import {
+  activeTeamMembershipFor,
+  canAccessCommit,
+  canAccessConversation,
+  canAccessPullRequest,
+  canAccessTask,
+  isTeamMember,
+} from "./lib/access";
+import {
+  conversationFromSessionTrailer,
+  extractSessionTrailer,
+  isHarnessScratch,
+  normalizeRepository,
+  repositoryOwner,
+} from "./lib/gitRefs";
+import {
+  installationCoversRepo,
+  installationOwner,
+  routingTeamForInstallation,
+} from "./githubApp";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { resolveCreationPrivacy } from "./privacy";
 import { applyCommitFilesTo } from "./commits";
-import { inferCommitsByOverlap, matchFileLines, newResolveCaches, resolveCommitSessions, type BlameViewer } from "./blame";
-import { BLAME_ALGORITHM_VERSION, contentLinesToMatch, overlapLinesBySha } from "@codecast/shared/blame";
-import { WORKTREES_KIND, mergeWorktreesPayload, type WorktreesPayload } from "@codecast/shared/contracts";
+import {
+  inferCommitsByOverlap,
+  matchFileLines,
+  newResolveCaches,
+  resolveCommitSessions,
+  type BlameViewer,
+} from "./blame";
+import {
+  BLAME_ALGORITHM_VERSION,
+  contentLinesToMatch,
+  overlapLinesBySha,
+} from "@codecast/shared/blame";
+import {
+  WORKTREES_KIND,
+  mergeWorktreesPayload,
+  type WorktreesPayload,
+} from "@codecast/shared/contracts";
 import { localCommitFiles } from "./lib/localCommitFiles";
 import { markCommitDirty } from "./lib/changesDirty";
 import { teamRepositories } from "./lib/teamRepositories";
@@ -64,11 +107,15 @@ const FULL_SHA = /^[0-9a-f]{40}$/i;
 
 /** How long a cached answer stays good. Content pinned to a sha never moves. */
 export function ttlFor(kind: string, ref: string, path = ""): number {
-  if (FULL_SHA.test(ref) && (kind !== "compare" || FULL_SHA.test(path))) return Number.POSITIVE_INFINITY;
+  if (FULL_SHA.test(ref) && (kind !== "compare" || FULL_SHA.test(path)))
+    return Number.POSITIVE_INFINITY;
   return TTL[kind] ?? 5 * MINUTE;
 }
 
-function isFresh(row: { kind: string; ref: string; path?: string; fetched_at: number } | null, now: number): boolean {
+function isFresh(
+  row: { kind: string; ref: string; path?: string; fetched_at: number } | null,
+  now: number,
+): boolean {
   if (!row) return false;
   return now - row.fetched_at < ttlFor(row.kind, row.ref, row.path);
 }
@@ -94,9 +141,11 @@ async function installationForUser(
     // its own team, or for a personal install the owner's current team. The
     // person whose repository it is browses it wherever they are working.
     const routed = await routingTeamForInstallation(ctx, candidate, repository);
-    const team = routed ?? (String(installationOwner(candidate)) === String(userId)
-      ? (await activeTeamMembershipFor(ctx as any, userId))?.teamId
-      : undefined);
+    const team =
+      routed ??
+      (String(installationOwner(candidate)) === String(userId)
+        ? (await activeTeamMembershipFor(ctx as any, userId))?.teamId
+        : undefined);
     if (!team || !(await isTeamMember(ctx, userId, team))) continue;
     return { team_id: team, installation_id: candidate.installation_id };
   }
@@ -107,7 +156,9 @@ async function installationForUser(
 async function installationsForOwner(ctx: { db: any }, repository: string) {
   return await ctx.db
     .query("github_app_installations")
-    .withIndex("by_account_login", (q: any) => q.eq("account_login", repositoryOwner(repository)))
+    .withIndex("by_account_login", (q: any) =>
+      q.eq("account_login", repositoryOwner(repository)),
+    )
     .collect();
 }
 
@@ -136,7 +187,9 @@ async function installationForRepository(
 export async function localSourcesFor(ctx: { db: any }, repository: string) {
   const rows = await ctx.db
     .query("repo_sources")
-    .withIndex("by_repository", (q: any) => q.eq("repository", normalizeRepository(repository)))
+    .withIndex("by_repository", (q: any) =>
+      q.eq("repository", normalizeRepository(repository)),
+    )
     .collect();
   return rows.filter((row: any) => row.enabled);
 }
@@ -165,11 +218,16 @@ async function browseAccessForUser(
 ): Promise<BrowseAccess | null> {
   let local_team_id: Id<"teams"> | undefined;
   for (const source of await localSourcesFor(ctx, repository)) {
-    if (await isTeamMember(ctx, userId, source.team_id)) { local_team_id = source.team_id; break; }
+    if (await isTeamMember(ctx, userId, source.team_id)) {
+      local_team_id = source.team_id;
+      break;
+    }
   }
   const installation = await installationForUser(ctx, userId, repository);
-  if (installation) return { ...installation, source: "installation", local_team_id };
-  if (local_team_id) return { team_id: local_team_id, source: "local", local_team_id };
+  if (installation)
+    return { ...installation, source: "installation", local_team_id };
+  if (local_team_id)
+    return { team_id: local_team_id, source: "local", local_team_id };
   return null;
 }
 
@@ -183,19 +241,34 @@ async function repositoriesForUser(ctx: { db: any }, userId: Id<"users">) {
   // reach lists under each, so every workspace shows what it holds. Keyed by
   // the canonical spelling so a display-case entry and the rows activity
   // wrote are one repository; the first spelling seen is what is shown.
-  const found = new Map<string, { repository: string; team_id: Id<"teams">; installed: boolean }>();
-  const add = (repository: string, team_id: Id<"teams">, installed: boolean) => {
+  const found = new Map<
+    string,
+    { repository: string; team_id: Id<"teams">; installed: boolean }
+  >();
+  const add = (
+    repository: string,
+    team_id: Id<"teams">,
+    installed: boolean,
+  ) => {
     const key = `${team_id}|${normalizeRepository(repository)}`;
     if (!normalizeRepository(repository) || found.has(key)) return;
     found.set(key, { repository, team_id, installed });
   };
   // Each installed repository lists under the team it routes to (a person's
   // repository only where they share it).
-  const addInstallation = async (installation: any, viewerTeam?: Id<"teams">) => {
+  const addInstallation = async (
+    installation: any,
+    viewerTeam?: Id<"teams">,
+  ) => {
     if (installation.suspended_at) return;
     for (const repo of installation.repositories ?? []) {
-      const team = await routingTeamForInstallation(ctx, installation, repo.full_name);
-      if (!team || (viewerTeam && String(team) !== String(viewerTeam))) continue;
+      const team = await routingTeamForInstallation(
+        ctx,
+        installation,
+        repo.full_name,
+      );
+      if (!team || (viewerTeam && String(team) !== String(viewerTeam)))
+        continue;
       add(repo.full_name, team, true);
     }
   };
@@ -211,7 +284,8 @@ async function repositoriesForUser(ctx: { db: any }, userId: Id<"users">) {
       .withIndex("by_team_id", (q: any) => q.eq("team_id", membership.team_id))
       .collect();
 
-    for (const installation of installations) await addInstallation(installation, membership.team_id);
+    for (const installation of installations)
+      await addInstallation(installation, membership.team_id);
 
     // Repositories teammates publish from their own checkouts need no
     // installation at all; they are browsable from the cache the daemon fills.
@@ -226,12 +300,18 @@ async function repositoriesForUser(ctx: { db: any }, userId: Id<"users">) {
     // An installation with access to every repository lists none, so the
     // repositories we actually know about are the ones activity has named.
     for (const table of ["pull_requests", "commits"] as const) {
-      for (const repository of await teamRepositories(ctx, table, membership.team_id)) {
+      for (const repository of await teamRepositories(
+        ctx,
+        table,
+        membership.team_id,
+      )) {
         add(repository, membership.team_id, false);
       }
     }
   }
-  return [...found.values()].sort((a, b) => a.repository.localeCompare(b.repository));
+  return [...found.values()].sort((a, b) =>
+    a.repository.localeCompare(b.repository),
+  );
 }
 
 export const listRepositories = query({
@@ -258,13 +338,20 @@ export const repoAccess = internalQuery({
 
 export const repoAccessPublic = internalQuery({
   args: { repository: v.string() },
-  handler: async (ctx, args): Promise<{ team_id: Id<"teams">; installation_id: number } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ team_id: Id<"teams">; installation_id: number } | null> => {
     return await installationForRepository(ctx, args.repository);
   },
 });
 
 /** Does this viewer have any way to browse this repository? */
-export async function canBrowseRepository(ctx: { db: any }, userId: Id<"users">, repository: string): Promise<boolean> {
+export async function canBrowseRepository(
+  ctx: { db: any },
+  userId: Id<"users">,
+  repository: string,
+): Promise<boolean> {
   return !!(await browseAccessForUser(ctx, userId, repository));
 }
 
@@ -288,14 +375,29 @@ export const getCacheRow = internalQuery({
     local_team_id: v.optional(v.id("teams")),
   },
   handler: async (ctx, args) => {
-    return await cacheRowByKey(ctx, args.repository, args.kind, args.ref, args.path, {
-      installation: args.installation ?? true,
-      ...(args.local_team_id ? { local_team_id: args.local_team_id } : {}),
-    });
+    return await cacheRowByKey(
+      ctx,
+      args.repository,
+      args.kind,
+      args.ref,
+      args.path,
+      {
+        installation: args.installation ?? true,
+        ...(args.local_team_id ? { local_team_id: args.local_team_id } : {}),
+      },
+    );
   },
 });
 
-import { INSTALLATION_ONLY, cacheRowByKey, fitCacheContent, isLocalMeta, localWorkspaceOf, scopeOf, type CacheScope } from "./lib/repoCacheScope";
+import {
+  INSTALLATION_ONLY,
+  cacheRowByKey,
+  fitCacheContent,
+  isLocalMeta,
+  localWorkspaceOf,
+  scopeOf,
+  type CacheScope,
+} from "./lib/repoCacheScope";
 export { cacheRowByKey, fitCacheContent, type CacheScope };
 
 export const upsertCache = internalMutation({
@@ -316,7 +418,10 @@ export const upsertCache = internalMutation({
 });
 
 /** True when the cached meta row came from GitHub rather than a checkout. */
-async function metaFromGitHub(ctx: { db: any }, repository: string): Promise<boolean> {
+async function metaFromGitHub(
+  ctx: { db: any },
+  repository: string,
+): Promise<boolean> {
   const row = await cacheRowByKey(ctx, repository, "meta", "-", "");
   return !!row && !isLocalMeta(row);
 }
@@ -324,16 +429,35 @@ async function metaFromGitHub(ctx: { db: any }, repository: string): Promise<boo
 /** The one cache write: a row is replaced whole under its key, stamped now. */
 async function writeCacheRow(
   ctx: { db: any },
-  args: { team_id: Id<"teams">; repository: string; kind: string; ref: string; path: string; sha?: string; content: string; size?: number; truncated?: boolean; local_workspace?: string },
+  args: {
+    team_id: Id<"teams">;
+    repository: string;
+    kind: string;
+    ref: string;
+    path: string;
+    sha?: string;
+    content: string;
+    size?: number;
+    truncated?: boolean;
+    local_workspace?: string;
+  },
 ) {
   args = { ...args, ...fitCacheContent(args.content, args.size) };
   // A checkout replaces only its own workspace's row; GitHub replaces only GitHub's.
   const sameKey: any[] = await ctx.db
     .query("repo_cache")
     .withIndex("by_key", (q: any) =>
-      q.eq("repository", normalizeRepository(args.repository)).eq("kind", args.kind).eq("ref", args.ref).eq("path", args.path))
+      q
+        .eq("repository", normalizeRepository(args.repository))
+        .eq("kind", args.kind)
+        .eq("ref", args.ref)
+        .eq("path", args.path),
+    )
     .collect();
-  const existing = sameKey.find((r) => (r.local_workspace ?? undefined) === args.local_workspace) ?? null;
+  const existing =
+    sameKey.find(
+      (r) => (r.local_workspace ?? undefined) === args.local_workspace,
+    ) ?? null;
 
   const row = {
     team_id: args.team_id,
@@ -350,8 +474,12 @@ async function writeCacheRow(
   };
 
   if (existing) {
-    if (row.fetched_at - existing.fetched_at < MINUTE &&
-        Object.entries(row).every(([key, value]) => key === "fetched_at" || existing[key] === value)) {
+    if (
+      row.fetched_at - existing.fetched_at < MINUTE &&
+      Object.entries(row).every(
+        ([key, value]) => key === "fetched_at" || existing[key] === value,
+      )
+    ) {
       return existing._id;
     }
     await ctx.db.patch(existing._id, row);
@@ -372,7 +500,20 @@ const localRow = v.object({
 });
 
 /** The kinds a checkout can answer; code search is the one read that needs GitHub. */
-const LOCAL_KINDS = new Set(["meta", "branches", "branchdetails", "tags", "readme", "tree", "log", "lastcommits", "blob", "blame", "compare", WORKTREES_KIND]);
+const LOCAL_KINDS = new Set([
+  "meta",
+  "branches",
+  "branchdetails",
+  "tags",
+  "readme",
+  "tree",
+  "log",
+  "lastcommits",
+  "blob",
+  "blame",
+  "compare",
+  WORKTREES_KIND,
+]);
 
 /**
  * A checkout's worktrees row (@codecast/shared/contracts worktrees.ts). Every
@@ -382,24 +523,49 @@ const LOCAL_KINDS = new Set(["meta", "branches", "branchdetails", "tags", "readm
  * each other. A publish that did not look for running sessions keeps the ones
  * the row already holds.
  */
-async function worktreesRowFor(ctx: { db: any }, userId: Id<"users">, teamId: Id<"teams">, repository: string, root: string, content: string) {
-  const existing = await cacheRowByKey(ctx, repository, WORKTREES_KIND, userId, root, { installation: false, local_team_id: teamId });
-  const previous = existing ? JSON.parse(existing.content) as WorktreesPayload : null;
-  return { kind: WORKTREES_KIND, ref: userId as string, path: root, content: JSON.stringify(mergeWorktreesPayload(JSON.parse(content), previous)) };
+async function worktreesRowFor(
+  ctx: { db: any },
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+  repository: string,
+  root: string,
+  content: string,
+) {
+  const existing = await cacheRowByKey(
+    ctx,
+    repository,
+    WORKTREES_KIND,
+    userId,
+    root,
+    { installation: false, local_team_id: teamId },
+  );
+  const previous = existing
+    ? (JSON.parse(existing.content) as WorktreesPayload)
+    : null;
+  return {
+    kind: WORKTREES_KIND,
+    ref: userId as string,
+    path: root,
+    content: JSON.stringify(
+      mergeWorktreesPayload(JSON.parse(content), previous),
+    ),
+  };
 }
 
 /** How long a failed answer stands before a page asking again re-opens the request. */
 const LOCAL_READ_RETRY_MS = 60 * 1000;
 
 const commitFiles = v.object({
-  files: v.array(v.object({
-    filename: v.string(),
-    status: v.string(),
-    additions: v.number(),
-    deletions: v.number(),
-    changes: v.number(),
-    patch: v.optional(v.string()),
-  })),
+  files: v.array(
+    v.object({
+      filename: v.string(),
+      status: v.string(),
+      additions: v.number(),
+      deletions: v.number(),
+      changes: v.number(),
+      patch: v.optional(v.string()),
+    }),
+  ),
   additions: v.number(),
   deletions: v.number(),
 });
@@ -408,11 +574,20 @@ const commitFiles = v.object({
 export const LOCAL_READ_GRACE_MS = 10 * 1000;
 
 /** Every open or failed request for one cache key: at most one per team whose checkouts were asked. */
-async function readRequestsByKey(ctx: { db: any }, args: { repository: string; kind: string; ref: string; path: string }): Promise<any[]> {
+async function readRequestsByKey(
+  ctx: { db: any },
+  args: { repository: string; kind: string; ref: string; path: string },
+): Promise<any[]> {
   const repository = normalizeRepository(args.repository);
   return await ctx.db
     .query("repo_read_requests")
-    .withIndex("by_key", (q: any) => q.eq("repository", repository).eq("kind", args.kind).eq("ref", args.ref).eq("path", args.path))
+    .withIndex("by_key", (q: any) =>
+      q
+        .eq("repository", repository)
+        .eq("kind", args.kind)
+        .eq("ref", args.ref)
+        .eq("path", args.path),
+    )
     .collect();
 }
 
@@ -435,22 +610,54 @@ export const requestLocalRead = internalMutation({
     fallback_installation_id: v.optional(v.number()),
     fallback_team_id: v.optional(v.id("teams")),
   },
-  handler: async (ctx, args): Promise<{ failed: boolean; error?: string; request_id?: Id<"repo_read_requests"> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    failed: boolean;
+    error?: string;
+    request_id?: Id<"repo_read_requests">;
+  }> => {
     const repository = normalizeRepository(args.repository);
     const now = Date.now();
     // One row per key AND team: a second team asking the same key gets its own
     // request, answered by its own checkouts, instead of re-opening the first
     // team's row (which only that team's publishers ever see).
-    const existing = (await readRequestsByKey(ctx, args)).find((r) => String(r.team_id) === String(args.team_id));
-    if (existing?.status === "failed" && now - existing.updated_at < LOCAL_READ_RETRY_MS) {
-      return { failed: true, error: existing.error ?? "No checkout could answer this read" };
+    const existing = (await readRequestsByKey(ctx, args)).find(
+      (r) => String(r.team_id) === String(args.team_id),
+    );
+    if (
+      existing?.status === "failed" &&
+      now - existing.updated_at < LOCAL_READ_RETRY_MS
+    ) {
+      return {
+        failed: true,
+        error: existing.error ?? "No checkout could answer this read",
+      };
     }
-    const fallback = { fallback_installation_id: args.fallback_installation_id, fallback_team_id: args.fallback_team_id };
+    const fallback = {
+      fallback_installation_id: args.fallback_installation_id,
+      fallback_team_id: args.fallback_team_id,
+    };
     if (existing) {
-      await ctx.db.patch(existing._id, { status: "pending", error: undefined, declined_by: undefined, params: args.params, requested_by: args.requested_by, ...fallback, updated_at: now });
+      await ctx.db.patch(existing._id, {
+        status: "pending",
+        error: undefined,
+        declined_by: undefined,
+        params: args.params,
+        requested_by: args.requested_by,
+        ...fallback,
+        updated_at: now,
+      });
       return { failed: false, request_id: existing._id };
     }
-    const request_id = await ctx.db.insert("repo_read_requests", { ...args, repository, status: "pending", created_at: now, updated_at: now });
+    const request_id = await ctx.db.insert("repo_read_requests", {
+      ...args,
+      repository,
+      status: "pending",
+      created_at: now,
+      updated_at: now,
+    });
     return { failed: false, request_id };
   },
 });
@@ -462,12 +669,20 @@ export const getReadRequest = internalQuery({
 
 /** Close a request GitHub answered, or record that GitHub could not either. */
 export const settleReadRequest = internalMutation({
-  args: { request_id: v.id("repo_read_requests"), error: v.optional(v.string()) },
+  args: {
+    request_id: v.id("repo_read_requests"),
+    error: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const request = await ctx.db.get(args.request_id);
     if (!request) return;
     if (args.error === undefined) await ctx.db.delete(request._id);
-    else await ctx.db.patch(request._id, { status: "failed", error: args.error.slice(0, 500), updated_at: Date.now() });
+    else
+      await ctx.db.patch(request._id, {
+        status: "failed",
+        error: args.error.slice(0, 500),
+        updated_at: Date.now(),
+      });
   },
 });
 
@@ -486,17 +701,38 @@ export const pendingLocalReads = query({
       .query("repo_sources")
       .withIndex("by_user_root", (q: any) => q.eq("user_id", userId))
       .collect();
-    const out: { _id: Id<"repo_read_requests">; repository: string; root: string; kind: string; ref: string; path: string; params: any; created_at: number }[] = [];
+    const out: {
+      _id: Id<"repo_read_requests">;
+      repository: string;
+      root: string;
+      kind: string;
+      ref: string;
+      path: string;
+      params: any;
+      created_at: number;
+    }[] = [];
     for (const source of sources) {
       if (!source.enabled) continue;
       const requests = await ctx.db
         .query("repo_read_requests")
-        .withIndex("by_repository", (q: any) => q.eq("repository", source.repository))
+        .withIndex("by_repository", (q: any) =>
+          q.eq("repository", source.repository),
+        )
         .collect();
       for (const request of requests) {
-        if (request.status !== "pending" || request.team_id !== source.team_id) continue;
+        if (request.status !== "pending" || request.team_id !== source.team_id)
+          continue;
         if (request.declined_by?.includes(userId)) continue;
-        out.push({ _id: request._id, repository: request.repository, root: source.root, kind: request.kind, ref: request.ref, path: request.path, params: request.params ?? {}, created_at: request.created_at });
+        out.push({
+          _id: request._id,
+          repository: request.repository,
+          root: source.root,
+          kind: request.kind,
+          ref: request.ref,
+          path: request.path,
+          params: request.params ?? {},
+          created_at: request.created_at,
+        });
       }
     }
     return out;
@@ -533,34 +769,67 @@ export const answerLocalRead = mutation({
       .query("repo_sources")
       .withIndex("by_user_root", (q: any) => q.eq("user_id", userId))
       .collect();
-    if (!sources.some((s: any) => s.enabled && s.repository === request.repository && s.team_id === request.team_id)) {
-      throw new Error("Forbidden: this checkout does not publish that repository");
+    if (
+      !sources.some(
+        (s: any) =>
+          s.enabled &&
+          s.repository === request.repository &&
+          s.team_id === request.team_id,
+      )
+    ) {
+      throw new Error(
+        "Forbidden: this checkout does not publish that repository",
+      );
     }
 
     const now = Date.now();
     if (args.error !== undefined) {
-      const declined_by = [...new Set([...(request.declined_by ?? []), userId])];
+      const declined_by = [
+        ...new Set([...(request.declined_by ?? []), userId]),
+      ];
       const error = args.error.slice(0, 500);
       const publishers = (await localSourcesFor(ctx, request.repository))
         .filter((s: any) => s.team_id === request.team_id)
         .map((s: any) => s.user_id as Id<"users">);
-      const everyone = publishers.every((u: Id<"users">) => declined_by.includes(u));
+      const everyone = publishers.every((u: Id<"users">) =>
+        declined_by.includes(u),
+      );
       if (!everyone) {
-        await ctx.db.patch(request._id, { declined_by, error, updated_at: now });
+        await ctx.db.patch(request._id, {
+          declined_by,
+          error,
+          updated_at: now,
+        });
         return { ok: true, reason: "declined" };
       }
-      await ctx.db.patch(request._id, { status: "failed", declined_by, error, updated_at: now });
-      if (request.fallback_installation_id) await ctx.scheduler.runAfter(0, internal.repos.fallbackToGitHub, { request_id: request._id });
+      await ctx.db.patch(request._id, {
+        status: "failed",
+        declined_by,
+        error,
+        updated_at: now,
+      });
+      if (request.fallback_installation_id)
+        await ctx.scheduler.runAfter(0, internal.repos.fallbackToGitHub, {
+          request_id: request._id,
+        });
       return { ok: true };
     }
     if (request.kind === "commit") {
-      if (!args.commit) throw new Error("A commit request is answered with its files");
+      if (!args.commit)
+        throw new Error("A commit request is answered with its files");
       const candidates = await ctx.db
         .query("commits")
         .withIndex("by_sha", (q: any) => q.eq("sha", request.ref))
         .collect();
-      const commit = candidates.find((c: any) => !c.repository || c.repository === request.repository);
-      if (commit) await applyCommitFilesTo(ctx, { commit_id: commit._id, ...args.commit, repository: request.repository });
+      const commit = candidates.find(
+        (c: any) => !c.repository || c.repository === request.repository,
+      );
+      if (commit)
+        await applyCommitFilesTo(ctx, {
+          commit_id: commit._id,
+          ...args.commit,
+          repository: request.repository,
+        });
       await ctx.db.delete(request._id);
       return { ok: !!commit, reason: commit ? undefined : "unknown_commit" };
     }
@@ -606,39 +875,54 @@ export const ingestLocal = mutation({
     default_branch: v.optional(v.string()),
     head_sha: v.optional(v.string()),
     rows: v.array(localRow),
-    commits: v.optional(v.array(v.object({
-      sha: v.string(),
-      message: v.string(),
-      author_name: v.string(),
-      author_email: v.string(),
-      timestamp: v.number(),
-      files_changed: v.number(),
-      insertions: v.number(),
-      deletions: v.number(),
-      branch: v.optional(v.string()),
-      // Sent by CLIs up to 1.1.198 and ignored: they named the checkout's one
-      // live session for every commit newer than the last publish, pulled
-      // commits included. The reflog path (gitActivity.recordLocal) names the
-      // session for commits the checkout made itself.
-      conversation_id: v.optional(v.string()),
-      // The files the commit touched with their line counts (git log
-      // --numstat), so the activity block can read which area it landed on.
-      files: v.optional(localCommitFiles),
-    }))),
+    commits: v.optional(
+      v.array(
+        v.object({
+          sha: v.string(),
+          message: v.string(),
+          author_name: v.string(),
+          author_email: v.string(),
+          timestamp: v.number(),
+          files_changed: v.number(),
+          insertions: v.number(),
+          deletions: v.number(),
+          branch: v.optional(v.string()),
+          // Sent by CLIs up to 1.1.198 and ignored: they named the checkout's one
+          // live session for every commit newer than the last publish, pulled
+          // commits included. The reflog path (gitActivity.recordLocal) names the
+          // session for commits the checkout made itself.
+          conversation_id: v.optional(v.string()),
+          // The files the commit touched with their line counts (git log
+          // --numstat), so the activity block can read which area it landed on.
+          files: v.optional(localCommitFiles),
+        }),
+      ),
+    ),
   },
-  handler: async (ctx, args): Promise<{ published: boolean; reason?: "private" | "disabled"; rows?: number; commits_created?: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    published: boolean;
+    reason?: "private" | "disabled";
+    rows?: number;
+    commits_created?: number;
+  }> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Not authenticated");
 
     const privacy = await resolveCreationPrivacy(ctx, userId, args.root);
-    if (!privacy.team_id || privacy.is_private) return { published: false, reason: "private" };
+    if (!privacy.team_id || privacy.is_private)
+      return { published: false, reason: "private" };
     const teamId = privacy.team_id;
     const repository = normalizeRepository(args.repository);
 
     const now = Date.now();
     const existing = await ctx.db
       .query("repo_sources")
-      .withIndex("by_user_root", (q: any) => q.eq("user_id", userId).eq("root", args.root))
+      .withIndex("by_user_root", (q: any) =>
+        q.eq("user_id", userId).eq("root", args.root),
+      )
       .first();
     const source = {
       user_id: userId,
@@ -663,18 +947,44 @@ export const ingestLocal = mutation({
       // checkout cannot know GitHub's side. Once GitHub has answered, that
       // answer stands: the public route opens on it, and the About block reads
       // it, and a checkout's placeholder must not take either away.
-      if (row.kind === "meta" && await metaFromGitHub(ctx, repository)) continue;
-      const keyed = row.kind === WORKTREES_KIND ? await worktreesRowFor(ctx, userId, teamId, repository, args.root, row.content) : row;
-      await writeCacheRow(ctx, { team_id: teamId, repository, ...keyed, local_workspace: localWorkspaceOf(teamId) });
+      if (row.kind === "meta" && (await metaFromGitHub(ctx, repository)))
+        continue;
+      const keyed =
+        row.kind === WORKTREES_KIND
+          ? await worktreesRowFor(
+              ctx,
+              userId,
+              teamId,
+              repository,
+              args.root,
+              row.content,
+            )
+          : row;
+      await writeCacheRow(ctx, {
+        team_id: teamId,
+        repository,
+        ...keyed,
+        local_workspace: localWorkspaceOf(teamId),
+      });
     }
 
     let created = 0;
     for (const commit of args.commits ?? []) {
       const { conversation_id: _ignored, ...fields } = commit;
-      const result = await upsertLocalCommit(ctx, { userId, teamId, repository, root: args.root, commit: fields });
+      const result = await upsertLocalCommit(ctx, {
+        userId,
+        teamId,
+        repository,
+        root: args.root,
+        commit: fields,
+      });
       if (result.created) created++;
     }
-    return { published: true, rows: args.rows.length, commits_created: created };
+    return {
+      published: true,
+      rows: args.rows.length,
+      commits_created: created,
+    };
   },
 });
 
@@ -710,12 +1020,27 @@ export type LocalCommitFields = {
  */
 export async function upsertLocalCommit(
   ctx: { db: any },
-  args: { userId: Id<"users">; teamId: Id<"teams">; repository: string; root?: string; commit: LocalCommitFields; claimedConversationId?: string },
-): Promise<{ commit_id: Id<"commits">; created: boolean; conversation_id?: Id<"conversations"> }> {
+  args: {
+    userId: Id<"users">;
+    teamId: Id<"teams">;
+    repository: string;
+    root?: string;
+    commit: LocalCommitFields;
+    claimedConversationId?: string;
+  },
+): Promise<{
+  commit_id: Id<"commits">;
+  created: boolean;
+  conversation_id?: Id<"conversations">;
+}> {
   const repository = normalizeRepository(args.repository);
   // numstat carries no status; the commits row wants GitHub's file shape.
   const { files: numstat, ...commit } = args.commit;
-  const files = numstat?.map((f) => ({ ...f, status: "modified", changes: f.additions + f.deletions }));
+  const files = numstat?.map((f) => ({
+    ...f,
+    status: "modified",
+    changes: f.additions + f.deletions,
+  }));
   // The same sha can stand in another repository (a fork, or a row someone
   // else's checkout named): only this repository's row, or one that never
   // learned a repository, is this commit.
@@ -723,13 +1048,21 @@ export async function upsertLocalCommit(
     .query("commits")
     .withIndex("by_sha", (q: any) => q.eq("sha", args.commit.sha))
     .collect();
-  const dup = sameSha.find((c) => !c.repository || normalizeRepository(c.repository) === repository) ?? null;
-  const scratch = isHarnessScratch({ branch: args.commit.branch, root: args.root });
-  const fromTrailer = scratch ? undefined : await conversationFromSessionTrailer(ctx, args.commit.message, {
-    userId: args.userId,
-    teamId: args.teamId,
-    current: dup?.conversation_id,
+  const dup =
+    sameSha.find(
+      (c) => !c.repository || normalizeRepository(c.repository) === repository,
+    ) ?? null;
+  const scratch = isHarnessScratch({
+    branch: args.commit.branch,
+    root: args.root,
   });
+  const fromTrailer = scratch
+    ? undefined
+    : await conversationFromSessionTrailer(ctx, args.commit.message, {
+        userId: args.userId,
+        teamId: args.teamId,
+        current: dup?.conversation_id,
+      });
   let conversationId: Id<"conversations"> | undefined = fromTrailer;
   if (!scratch && !conversationId && args.claimedConversationId) {
     const id = ctx.db.normalizeId("conversations", args.claimedConversationId);
@@ -740,14 +1073,28 @@ export async function upsertLocalCommit(
     // A row that had no session learns one; a row that had no file list
     // (a push webhook from before file lists were stored) learns the checkout's.
     const patch: Record<string, any> = {};
-    if (fromTrailer ? dup.conversation_id !== fromTrailer : conversationId && !dup.conversation_id) patch.conversation_id = conversationId;
+    if (
+      fromTrailer
+        ? dup.conversation_id !== fromTrailer
+        : conversationId && !dup.conversation_id
+    )
+      patch.conversation_id = conversationId;
     if (!dup.files?.length && files?.length) patch.files = files;
-    if (!scratch && args.commit.branch && isHarnessScratch({ branch: dup.branch })) patch.branch = args.commit.branch;
+    if (
+      !scratch &&
+      args.commit.branch &&
+      isHarnessScratch({ branch: dup.branch })
+    )
+      patch.branch = args.commit.branch;
     if (Object.keys(patch).length) {
       await ctx.db.patch(dup._id, patch);
       await markCommitDirty(ctx, dup._id);
     }
-    return { commit_id: dup._id, created: false, conversation_id: fromTrailer ?? dup.conversation_id ?? conversationId };
+    return {
+      commit_id: dup._id,
+      created: false,
+      conversation_id: fromTrailer ?? dup.conversation_id ?? conversationId,
+    };
   }
   const commit_id = await ctx.db.insert("commits", {
     ...commit,
@@ -809,12 +1156,21 @@ const specArgs = {
 };
 
 /** The way the caller may browse a repository: an installation, or a teammate's published checkout. */
-async function requireRepoAccess(ctx: any, repository: string): Promise<BrowseAccess> {
+async function requireRepoAccess(
+  ctx: any,
+  repository: string,
+): Promise<BrowseAccess> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Unauthorized");
 
-  const access: BrowseAccess | null = await ctx.runQuery(internal.repos.repoAccess, { repository, user_id: userId });
-  if (!access) throw new Error(`Nobody has connected ${repository}: no GitHub App installation covers it and no teammate publishes a checkout of it`);
+  const access: BrowseAccess | null = await ctx.runQuery(
+    internal.repos.repoAccess,
+    { repository, user_id: userId },
+  );
+  if (!access)
+    throw new Error(
+      `Nobody has connected ${repository}: no GitHub App installation covers it and no teammate publishes a checkout of it`,
+    );
   return access;
 }
 
@@ -823,9 +1179,12 @@ async function requireRepoAccess(ctx: any, repository: string): Promise<BrowseAc
  * here checks what it already has first, so a cache hit costs no token call.
  */
 async function installationToken(ctx: any, access: any): Promise<string> {
-  const tokenResult = await ctx.runAction(internal.githubApp.getInstallationToken, {
-    installation_id: access.installation_id,
-  });
+  const tokenResult = await ctx.runAction(
+    internal.githubApp.getInstallationToken,
+    {
+      installation_id: access.installation_id,
+    },
+  );
   return tokenResult.token;
 }
 
@@ -838,20 +1197,43 @@ async function installationToken(ctx: any, access: any): Promise<string> {
  */
 async function askCheckouts(
   ctx: any,
-  access: { team_id: Id<"teams">; installation_id?: number; local_team_id?: Id<"teams"> },
-  read: { repository: string; kind: string; ref: string; path: string; params?: SpecParams },
+  access: {
+    team_id: Id<"teams">;
+    installation_id?: number;
+    local_team_id?: Id<"teams">;
+  },
+  read: {
+    repository: string;
+    kind: string;
+    ref: string;
+    path: string;
+    params?: SpecParams;
+  },
 ): Promise<{ requested: boolean; error?: string }> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Unauthorized");
   const request = await ctx.runMutation(internal.repos.requestLocalRead, {
     team_id: access.local_team_id ?? access.team_id,
-    repository: read.repository, kind: read.kind, ref: read.ref, path: read.path, params: read.params ?? {},
+    repository: read.repository,
+    kind: read.kind,
+    ref: read.ref,
+    path: read.path,
+    params: read.params ?? {},
     requested_by: userId,
-    ...(access.installation_id ? { fallback_installation_id: access.installation_id, fallback_team_id: access.team_id } : {}),
+    ...(access.installation_id
+      ? {
+          fallback_installation_id: access.installation_id,
+          fallback_team_id: access.team_id,
+        }
+      : {}),
   });
   if (request.failed) return { requested: false, error: request.error };
   if (access.installation_id && request.request_id) {
-    await ctx.scheduler.runAfter(LOCAL_READ_GRACE_MS, internal.repos.fallbackToGitHub, { request_id: request.request_id });
+    await ctx.scheduler.runAfter(
+      LOCAL_READ_GRACE_MS,
+      internal.repos.fallbackToGitHub,
+      { request_id: request.request_id },
+    );
   }
   return { requested: true };
 }
@@ -890,7 +1272,11 @@ async function fillFromGitHub(
 async function fillCache(
   ctx: any,
   repository: string,
-  access: { team_id: Id<"teams">; installation_id?: number; local_team_id?: Id<"teams"> },
+  access: {
+    team_id: Id<"teams">;
+    installation_id?: number;
+    local_team_id?: Id<"teams">;
+  },
   spec: Refresh,
   params: SpecParams = {},
 ): Promise<{ cached: boolean; requested?: boolean }> {
@@ -903,12 +1289,20 @@ async function fillCache(
   });
   // A checkout's meta is a placeholder (private, no counts); when GitHub can
   // answer, it is asked however fresh that placeholder is, and only GitHub is.
-  const placeholder = spec.kind === "meta" && !!access.installation_id && isLocalMeta(cached);
+  const placeholder =
+    spec.kind === "meta" && !!access.installation_id && isLocalMeta(cached);
   if (!placeholder && isFresh(cached, Date.now())) return { cached: true };
 
-  const checkoutCanAnswer = !placeholder && !!access.local_team_id && LOCAL_KINDS.has(spec.kind);
+  const checkoutCanAnswer =
+    !placeholder && !!access.local_team_id && LOCAL_KINDS.has(spec.kind);
   if (checkoutCanAnswer) {
-    const asked = await askCheckouts(ctx, access, { repository, kind: spec.kind, ref: spec.ref, path: spec.path, params });
+    const asked = await askCheckouts(ctx, access, {
+      repository,
+      kind: spec.kind,
+      ref: spec.ref,
+      path: spec.path,
+      params,
+    });
     if (asked.requested) return { cached: !!cached, requested: true };
     if (!access.installation_id) {
       if (cached) return { cached: true };
@@ -917,7 +1311,9 @@ async function fillCache(
   }
   if (!access.installation_id) {
     if (cached) return { cached: true };
-    throw new Error("This read needs the GitHub App; a checkout cannot answer it");
+    throw new Error(
+      "This read needs the GitHub App; a checkout cannot answer it",
+    );
   }
 
   await fillFromGitHub(ctx, repository, access, spec);
@@ -935,34 +1331,83 @@ async function fillCache(
 export const fallbackToGitHub = internalAction({
   args: { request_id: v.id("repo_read_requests") },
   handler: async (ctx, args): Promise<void> => {
-    const request = await ctx.runQuery(internal.repos.getReadRequest, { request_id: args.request_id });
-    if (!request || !request.fallback_installation_id || !request.fallback_team_id) return;
-    const access = { team_id: request.fallback_team_id, installation_id: request.fallback_installation_id };
+    const request = await ctx.runQuery(internal.repos.getReadRequest, {
+      request_id: args.request_id,
+    });
+    if (
+      !request ||
+      !request.fallback_installation_id ||
+      !request.fallback_team_id
+    )
+      return;
+    const access = {
+      team_id: request.fallback_team_id,
+      installation_id: request.fallback_installation_id,
+    };
     try {
       if (request.kind === "commit") {
-        await fetchCommitFromGitHub(ctx, request.repository, request.ref, access);
+        await fetchCommitFromGitHub(
+          ctx,
+          request.repository,
+          request.ref,
+          access,
+        );
       } else {
-        await fillFromGitHub(ctx, request.repository, access, refreshSpec(ctx, request.repository, request.kind, request.params ?? {}));
+        await fillFromGitHub(
+          ctx,
+          request.repository,
+          access,
+          refreshSpec(
+            ctx,
+            request.repository,
+            request.kind,
+            request.params ?? {},
+          ),
+        );
       }
-      await ctx.runMutation(internal.repos.settleReadRequest, { request_id: request._id });
+      await ctx.runMutation(internal.repos.settleReadRequest, {
+        request_id: request._id,
+      });
     } catch (e) {
       const local = request.error ? `${request.error}; ` : "";
-      await ctx.runMutation(internal.repos.settleReadRequest, { request_id: request._id, error: `${local}${(e as Error)?.message ?? String(e)}` });
+      await ctx.runMutation(internal.repos.settleReadRequest, {
+        request_id: request._id,
+        error: `${local}${(e as Error)?.message ?? String(e)}`,
+      });
     }
   },
 });
 
-async function ensureCached(ctx: any, repository: string, spec: Refresh, params: SpecParams): Promise<{ cached: boolean; requested?: boolean }> {
-  return await fillCache(ctx, repository, await requireRepoAccess(ctx, repository), spec, params);
+async function ensureCached(
+  ctx: any,
+  repository: string,
+  spec: Refresh,
+  params: SpecParams,
+): Promise<{ cached: boolean; requested?: boolean }> {
+  return await fillCache(
+    ctx,
+    repository,
+    await requireRepoAccess(ctx, repository),
+    spec,
+    params,
+  );
 }
 
 /** One ensure action per kind, so the client keeps naming what it wants. */
 function ensureAction(kind: string) {
   return action({
     args: { repository: v.string(), ...specArgs },
-    handler: async (ctx, args): Promise<{ cached: boolean; requested?: boolean }> => {
+    handler: async (
+      ctx,
+      args,
+    ): Promise<{ cached: boolean; requested?: boolean }> => {
       const { repository, ...params } = args;
-      return await ensureCached(ctx, repository, refreshSpec(ctx, repository, kind, params), params);
+      return await ensureCached(
+        ctx,
+        repository,
+        refreshSpec(ctx, repository, kind, params),
+        params,
+      );
     },
   });
 }
@@ -991,12 +1436,20 @@ export const ensurePulls = ensureAction("pulls");
  */
 export const ensureCachedPublic = internalAction({
   args: { repository: v.string(), kind: v.string(), ...specArgs },
-  handler: async (ctx, args): Promise<{ cached: boolean; installed: boolean }> => {
-    const access = await ctx.runQuery(internal.repos.repoAccessPublic, { repository: args.repository });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ cached: boolean; installed: boolean }> => {
+    const access = await ctx.runQuery(internal.repos.repoAccessPublic, {
+      repository: args.repository,
+    });
     if (!access) return { cached: false, installed: false };
 
     const spec = refreshSpec(ctx, args.repository, args.kind, args);
-    return { ...(await fillCache(ctx, args.repository, access, spec)), installed: true };
+    return {
+      ...(await fillCache(ctx, args.repository, access, spec)),
+      installed: true,
+    };
   },
 });
 
@@ -1010,11 +1463,15 @@ export const ensureCachedPublic = internalAction({
  */
 export const repoVisibility = internalQuery({
   args: { repository: v.string() },
-  handler: async (ctx, args): Promise<{ known: boolean; private: boolean; stale: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ known: boolean; private: boolean; stale: boolean }> => {
     const row = await cacheRowByKey(ctx, args.repository, "meta", "-", "");
     // A checkout's row is not an answer about visibility, only a placeholder
     // until GitHub is asked, which `stale` makes the route do.
-    if (!row || isLocalMeta(row)) return { known: false, private: true, stale: true };
+    if (!row || isLocalMeta(row))
+      return { known: false, private: true, stale: true };
 
     const meta = JSON.parse(row.content);
     return {
@@ -1033,11 +1490,26 @@ export const repoVisibility = internalQuery({
  * of that may leave through a route that never asked who is reading.
  */
 export const publicRead = internalQuery({
-  args: { repository: v.string(), kind: v.string(), ref: v.string(), path: v.string() },
+  args: {
+    repository: v.string(),
+    kind: v.string(),
+    ref: v.string(),
+    path: v.string(),
+  },
   handler: async (ctx, args) => {
-    const row = await cacheRowByKey(ctx, args.repository, args.kind, args.ref, args.path);
+    const row = await cacheRowByKey(
+      ctx,
+      args.repository,
+      args.kind,
+      args.ref,
+      args.path,
+    );
     if (!row) return null;
-    return { ...JSON.parse(row.content), _fetched_at: row.fetched_at, _stale: !isFresh(row, Date.now()) };
+    return {
+      ...JSON.parse(row.content),
+      _fetched_at: row.fetched_at,
+      _stale: !isFresh(row, Date.now()),
+    };
   },
 });
 
@@ -1049,12 +1521,20 @@ export const publicRead = internalQuery({
  */
 export const readRequestStatus = query({
   args: { repository: v.string(), kind: v.string(), ...specArgs },
-  handler: async (ctx, args): Promise<{ status: "pending" | "failed"; error?: string } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ status: "pending" | "failed"; error?: string } | null> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const { repository, kind, ...params } = args;
-    for (const request of await readRequestsByKey(ctx, { repository, kind, ...cacheKeyFor(kind, params) })) {
-      if (await isTeamMember(ctx, userId, request.team_id)) return { status: request.status, error: request.error };
+    for (const request of await readRequestsByKey(ctx, {
+      repository,
+      kind,
+      ...cacheKeyFor(kind, params),
+    })) {
+      if (await isTeamMember(ctx, userId, request.team_id))
+        return { status: request.status, error: request.error };
     }
     return null;
   },
@@ -1062,12 +1542,25 @@ export const readRequestStatus = query({
 
 // ── The reads ──
 
-async function readCache(ctx: any, repository: string, kind: string, ref: string, path: string) {
+async function readCache(
+  ctx: any,
+  repository: string,
+  kind: string,
+  ref: string,
+  path: string,
+) {
   const userId = await requireUser(ctx);
   const access = await browseAccessForUser(ctx, userId, repository);
   if (!access) return null;
 
-  const row = await cacheRowByKey(ctx, repository, kind, ref, path, scopeOf(access));
+  const row = await cacheRowByKey(
+    ctx,
+    repository,
+    kind,
+    ref,
+    path,
+    scopeOf(access),
+  );
   if (!row) return null;
 
   return {
@@ -1097,8 +1590,14 @@ async function fetchCommitFromGitHub(
   sha: string,
   access: { team_id: Id<"teams">; installation_id?: number },
 ): Promise<void> {
-  const state = await ctx.runQuery(internal.commits.commitFilesState, { repository, sha });
-  if (!state) throw new Error(`${sha.slice(0, 7)} is not a commit of ${repository} this workspace knows`);
+  const state = await ctx.runQuery(internal.commits.commitFilesState, {
+    repository,
+    sha,
+  });
+  if (!state)
+    throw new Error(
+      `${sha.slice(0, 7)} is not a commit of ${repository} this workspace knows`,
+    );
   if (state.has_files) return;
   const data = await ctx.runAction(internal.githubApi.getCommit, {
     repository,
@@ -1118,7 +1617,10 @@ async function fetchCommitFromGitHub(
 
 export const ensureCommitFiles = action({
   args: { repository: v.string(), sha: v.string() },
-  handler: async (ctx, args): Promise<{ fetched: boolean; reason?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ fetched: boolean; reason?: string }> => {
     const access = await requireRepoAccess(ctx, args.repository);
 
     const state = await ctx.runQuery(internal.commits.commitFilesState, {
@@ -1131,11 +1633,19 @@ export const ensureCommitFiles = action({
     // was ever pushed, so it is asked first; the commit row updates itself when
     // the answer lands, and GitHub takes over if no checkout answers.
     if (access.local_team_id) {
-      const asked = await askCheckouts(ctx, access, { repository: args.repository, kind: "commit", ref: args.sha, path: "" });
+      const asked = await askCheckouts(ctx, access, {
+        repository: args.repository,
+        kind: "commit",
+        ref: args.sha,
+        path: "",
+      });
       if (asked.requested) return { fetched: false, reason: "requested" };
       if (!access.installation_id) throw new Error(asked.error);
     }
-    if (!access.installation_id) throw new Error("This read needs the GitHub App; no checkout publishes this repository");
+    if (!access.installation_id)
+      throw new Error(
+        "This read needs the GitHub App; no checkout publishes this repository",
+      );
 
     await fetchCommitFromGitHub(ctx, args.repository, args.sha, access);
     return { fetched: true };
@@ -1187,7 +1697,16 @@ export const getBlameSessions = query({
     // The conversation cache rides along for the public projection only; a Map
     // is not a query result.
     const access = await browseAccessForUser(ctx, userId, args.repository);
-    const { conversations: _conversations, ...resolution } = await blameSessionsFor(ctx, userId, args.repository, ref, path, blame, access ? scopeOf(access) : INSTALLATION_ONLY);
+    const { conversations: _conversations, ...resolution } =
+      await blameSessionsFor(
+        ctx,
+        userId,
+        args.repository,
+        ref,
+        path,
+        blame,
+        access ? scopeOf(access) : INSTALLATION_ONLY,
+      );
     return resolution;
   },
 });
@@ -1204,37 +1723,98 @@ export async function blameSessionsFor(
   repository: string,
   ref: string,
   path: string,
-  blame: { ranges?: { start_line: number; end_line: number; sha: string; message?: string; committed_at?: number; session?: string }[] },
+  blame: {
+    ranges?: {
+      start_line: number;
+      end_line: number;
+      sha: string;
+      message?: string;
+      committed_at?: number;
+      session?: string;
+    }[];
+  },
   scope: CacheScope = INSTALLATION_ONLY,
 ) {
   const caches = newResolveCaches();
   const ranges = blame.ranges ?? [];
-  const bySha = new Map<string, { sha: string; summary?: string; author_time?: number; session?: string }>();
+  const bySha = new Map<
+    string,
+    { sha: string; summary?: string; author_time?: number; session?: string }
+  >();
   for (const r of ranges) {
     // The commit's own Codecast-Session trailer (the blame reader keeps it on the
     // range; the message is only a subject), when it has one, outranks every guess.
-    if (!bySha.has(r.sha)) bySha.set(r.sha, { sha: r.sha, summary: r.message?.split("\n")[0], author_time: r.committed_at || undefined, session: r.session ?? extractSessionTrailer(r.message) ?? undefined });
+    if (!bySha.has(r.sha))
+      bySha.set(r.sha, {
+        sha: r.sha,
+        summary: r.message?.split("\n")[0],
+        author_time: r.committed_at || undefined,
+        session: r.session ?? extractSessionTrailer(r.message) ?? undefined,
+      });
   }
-  const resolved = await resolveCommitSessions(ctx, viewer, [...bySha.values()], caches);
-
-  const blobRow = await cacheRowByKey(ctx, repository, "blob", ref, path, scope);
-  const blob = blobRow ? JSON.parse(blobRow.content) : null;
-  const lines: string[] = typeof blob?.content === "string" && !blob.truncated ? blob.content.split("\n") : [];
-  const blamed = ranges.flatMap((r) =>
-    lines.slice(r.start_line - 1, r.end_line).map((text) => ({ text, authorMs: r.committed_at || undefined })),
+  const resolved = await resolveCommitSessions(
+    ctx,
+    viewer,
+    [...bySha.values()],
+    caches,
   );
-  const wanted = contentLinesToMatch(blamed, Date.now()).map((l) => ({ text: l.t, deadline: l.d }));
 
-  const roots = (await localSourcesFor(ctx, repository)).map((s: any) => String(s.root).replace(/\/+$/, ""));
+  const blobRow = await cacheRowByKey(
+    ctx,
+    repository,
+    "blob",
+    ref,
+    path,
+    scope,
+  );
+  const blob = blobRow ? JSON.parse(blobRow.content) : null;
+  const lines: string[] =
+    typeof blob?.content === "string" && !blob.truncated
+      ? blob.content.split("\n")
+      : [];
+  const blamed = ranges.flatMap((r) =>
+    lines
+      .slice(r.start_line - 1, r.end_line)
+      .map((text) => ({ text, authorMs: r.committed_at || undefined })),
+  );
+  const wanted = contentLinesToMatch(blamed, Date.now()).map((l) => ({
+    text: l.t,
+    deadline: l.d,
+  }));
+
+  const roots = (await localSourcesFor(ctx, repository)).map((s: any) =>
+    String(s.root).replace(/\/+$/, ""),
+  );
   const filePaths = [...new Set(roots)].map((root) => `${root}/${path}`);
   const linesBySha = overlapLinesBySha(
-    ranges.flatMap((r) => lines.slice(r.start_line - 1, r.end_line).map((text) => ({ sha: r.sha, text, authorMs: r.committed_at || undefined }))),
+    ranges.flatMap((r) =>
+      lines.slice(r.start_line - 1, r.end_line).map((text) => ({
+        sha: r.sha,
+        text,
+        authorMs: r.committed_at || undefined,
+      })),
+    ),
     Date.now(),
   );
-  await inferCommitsByOverlap(ctx, viewer, filePaths, [...bySha.values()].map((d) => ({ ...d, lines: linesBySha.get(d.sha) })), resolved, caches);
-  const lineMatches = wanted.length > 0 ? await matchFileLines(ctx, viewer, filePaths, wanted, caches) : [];
+  await inferCommitsByOverlap(
+    ctx,
+    viewer,
+    filePaths,
+    [...bySha.values()].map((d) => ({ ...d, lines: linesBySha.get(d.sha) })),
+    resolved,
+    caches,
+  );
+  const lineMatches =
+    wanted.length > 0
+      ? await matchFileLines(ctx, viewer, filePaths, wanted, caches)
+      : [];
 
-  return { by_sha: resolved, line_matches: lineMatches, algorithm_version: BLAME_ALGORITHM_VERSION, conversations: caches.conversations };
+  return {
+    by_sha: resolved,
+    line_matches: lineMatches,
+    algorithm_version: BLAME_ALGORITHM_VERSION,
+    conversations: caches.conversations,
+  };
 }
 /**
  * Every checkout of a repository the viewer's teams publish, each with its
@@ -1249,7 +1829,11 @@ export const getWorktrees = query({
     if (!(await browseAccessForUser(ctx, userId, args.repository))) return null;
     const rows = await ctx.db
       .query("repo_cache")
-      .withIndex("by_key", (q) => q.eq("repository", normalizeRepository(args.repository)).eq("kind", WORKTREES_KIND))
+      .withIndex("by_key", (q) =>
+        q
+          .eq("repository", normalizeRepository(args.repository))
+          .eq("kind", WORKTREES_KIND),
+      )
       .collect();
     const checkouts = [];
     for (const row of rows) {
@@ -1258,11 +1842,17 @@ export const getWorktrees = query({
       const owner = ownerId ? await ctx.db.get(ownerId) : null;
       checkouts.push({
         ...(JSON.parse(row.content) as WorktreesPayload),
-        owner: owner ? { _id: owner._id, name: owner.name, image: owner.image } : null,
+        owner: owner
+          ? { _id: owner._id, name: owner.name, image: owner.image }
+          : null,
         mine: row.ref === userId,
       });
     }
-    return { checkouts: checkouts.sort((a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at) };
+    return {
+      checkouts: checkouts.sort(
+        (a, b) => Number(b.mine) - Number(a.mine) || b.at - a.at,
+      ),
+    };
   },
 });
 
@@ -1297,7 +1887,10 @@ export const getLog = query({
         .collect();
       let row = null;
       for (const candidate of candidates) {
-        if (candidate.repository === repository && await canAccessCommit(ctx, userId, candidate)) {
+        if (
+          candidate.repository === repository &&
+          (await canAccessCommit(ctx, userId, candidate))
+        ) {
           row = candidate;
           break;
         }
@@ -1306,15 +1899,22 @@ export const getLog = query({
       const tasks = [];
       for (const taskId of row?.task_ids ?? []) {
         const task = await ctx.db.get(taskId);
-        if (task && await canAccessTask(ctx, userId, task)) {
-          tasks.push({ _id: task._id, short_id: task.short_id, title: task.title });
+        if (task && (await canAccessTask(ctx, userId, task))) {
+          tasks.push({
+            _id: task._id,
+            short_id: task.short_id,
+            title: task.title,
+          });
         }
       }
 
       let session = null;
       if (row?.conversation_id) {
         const conversation = await ctx.db.get(row.conversation_id);
-        if (conversation && await canAccessConversation(ctx, userId, conversation)) {
+        if (
+          conversation &&
+          (await canAccessConversation(ctx, userId, conversation))
+        ) {
           session = { _id: conversation._id, title: conversation.title };
         }
       }
@@ -1342,7 +1942,11 @@ export const getLog = query({
  * of it.
  */
 export const getPulls = query({
-  args: { repository: v.string(), state: v.optional(v.string()), page: v.optional(v.number()) },
+  args: {
+    repository: v.string(),
+    state: v.optional(v.string()),
+    page: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { ref, path } = cacheKeyFor("pulls", args);
     const cached = await readCache(ctx, args.repository, "pulls", ref, path);
@@ -1354,7 +1958,10 @@ export const getPulls = query({
       const candidates = await ctx.db
         .query("pull_requests")
         .withIndex("by_repository_number", (q) =>
-          q.eq("repository", normalizeRepository(args.repository)).eq("number", pull.number))
+          q
+            .eq("repository", normalizeRepository(args.repository))
+            .eq("number", pull.number),
+        )
         .collect();
       let row = null;
       for (const candidate of candidates) {
@@ -1363,9 +1970,13 @@ export const getPulls = query({
           break;
         }
       }
-      const conversation = row?.shepherd_conversation_id ? await ctx.db.get(row.shepherd_conversation_id) : null;
-      const conversationId = conversation && await canAccessConversation(ctx, userId, conversation)
-        ? conversation._id : null;
+      const conversation = row?.shepherd_conversation_id
+        ? await ctx.db.get(row.shepherd_conversation_id)
+        : null;
+      const conversationId =
+        conversation && (await canAccessConversation(ctx, userId, conversation))
+          ? conversation._id
+          : null;
 
       pulls.push({
         ...pull,

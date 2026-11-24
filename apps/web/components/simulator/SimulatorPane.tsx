@@ -13,7 +13,15 @@
 import { useCallback, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "sonner";
-import { Camera, Circle, Lock, RotateCcw, RotateCw, Smartphone, Square } from "lucide-react";
+import {
+  Camera,
+  Circle,
+  Lock,
+  RotateCcw,
+  RotateCw,
+  Smartphone,
+  Square,
+} from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
@@ -24,7 +32,12 @@ import { useTabContext } from "../../lib/tabParams";
 import { stageClose, stageExpand } from "../../lib/stage";
 import { deviceDisplayName } from "../DeviceBadge";
 import type { SessionMachine } from "../tmuxAttach";
-import type { BrowserStreamReport, SimButton, SimCapture, WatchInputEvent } from "../../lib/browserWatch";
+import type {
+  BrowserStreamReport,
+  SimButton,
+  SimCapture,
+  WatchInputEvent,
+} from "../../lib/browserWatch";
 import { BrowserStream } from "../browser/BrowserStream";
 import { PaneControls } from "../stage/PaneControls";
 import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
@@ -58,9 +71,13 @@ export function SimulatorPane() {
   const session = useInboxStore(
     useShallow((s) => {
       const row = sessionUuid
-        ? (s.sessions[sessionUuid] ?? Object.values(s.sessions).find((r) => r.session_id === sessionUuid))
+        ? (s.sessions[sessionUuid] ??
+          Object.values(s.sessions).find((r) => r.session_id === sessionUuid))
         : undefined;
-      return { convId: row?._id ?? null, tmuxSession: row?.tmux_session ?? null };
+      return {
+        convId: row?._id ?? null,
+        tmuxSession: row?.tmux_session ?? null,
+      };
     }),
   );
 
@@ -68,10 +85,13 @@ export function SimulatorPane() {
   // without an answer the stream still tries this machine's daemon.
   const machineQuery = useQueryNoThrow(
     api.devices.getConversationMachine,
-    session.convId ? ({ conversation_id: session.convId as any } as any) : "skip",
+    session.convId
+      ? ({ conversation_id: session.convId as any } as any)
+      : "skip",
   );
   const machine = machineQuery.data as SessionMachine | null | undefined;
-  const machineSettled = !session.convId || machine !== undefined || !!machineQuery.error;
+  const machineSettled =
+    !session.convId || machine !== undefined || !!machineQuery.error;
   const machineName = machine ? deviceDisplayName(machine as any) : null;
 
   const tabActive = useTabActive();
@@ -97,7 +117,8 @@ export function SimulatorPane() {
   const device = report.device ?? null;
   // A screenshot and a recording come back whole only over this machine's
   // socket; through the relay the pane saves the frame it is showing.
-  const fullCapture = canTouch && report.transport === "local" && !!device?.canCapture;
+  const fullCapture =
+    canTouch && report.transport === "local" && !!device?.canCapture;
   const recording = device?.recording ?? null;
   const now = useCoarseNow(recording ? 1000 : 60_000);
 
@@ -108,9 +129,18 @@ export function SimulatorPane() {
     return () => clearTimeout(t);
   }, [waiting, tabActive, attempt, reconnect]);
 
-  const press = useCallback((events: WatchInputEvent[]) => send.current?.(events), []);
-  const button = useCallback((b: SimButton) => press([{ kind: "button", button: b }]), [press]);
-  const rotate = useCallback((direction: "left" | "right") => press([{ kind: "rotate", direction }]), [press]);
+  const press = useCallback(
+    (events: WatchInputEvent[]) => send.current?.(events),
+    [],
+  );
+  const button = useCallback(
+    (b: SimButton) => press([{ kind: "button", button: b }]),
+    [press],
+  );
+  const rotate = useCallback(
+    (direction: "left" | "right") => press([{ kind: "rotate", direction }]),
+    [press],
+  );
 
   const screenshot = useCallback(() => {
     if (fullCapture) {
@@ -120,7 +150,11 @@ export function SimulatorPane() {
     }
     if (!frame.current) return;
     const at = new Date();
-    saveFile(`${deviceName} ${at.toISOString().slice(0, 19).replace("T", " at ").replace(/:/g, ".")}.jpg`, "image/jpeg", frame.current.split(",")[1] ?? "");
+    saveFile(
+      `${deviceName} ${at.toISOString().slice(0, 19).replace("T", " at ").replace(/:/g, ".")}.jpg`,
+      "image/jpeg",
+      frame.current.split(",")[1] ?? "",
+    );
     toast.success("Saved the screen as it shows here");
   }, [fullCapture, press, deviceName]);
 
@@ -145,13 +179,19 @@ export function SimulatorPane() {
     if (!canTouch || !(e.metaKey || e.ctrlKey)) return;
     const key = e.key.toLowerCase();
     const act =
-      e.shiftKey && key === "h" ? () => button("home")
-      : !e.shiftKey && key === "l" ? () => button("lock")
-      : e.key === "ArrowLeft" ? () => rotate("left")
-      : e.key === "ArrowRight" ? () => rotate("right")
-      : !e.shiftKey && key === "s" ? screenshot
-      : !e.shiftKey && key === "r" && fullCapture ? toggleRecording
-      : null;
+      e.shiftKey && key === "h"
+        ? () => button("home")
+        : !e.shiftKey && key === "l"
+          ? () => button("lock")
+          : e.key === "ArrowLeft"
+            ? () => rotate("left")
+            : e.key === "ArrowRight"
+              ? () => rotate("right")
+              : !e.shiftKey && key === "s"
+                ? screenshot
+                : !e.shiftKey && key === "r" && fullCapture
+                  ? toggleRecording
+                  : null;
     if (!act) return;
     e.preventDefault();
     e.stopPropagation();
@@ -159,13 +199,19 @@ export function SimulatorPane() {
   };
 
   return (
-    <div className="h-full flex flex-col min-h-0 bg-sol-bg" data-simulator-pane onKeyDownCapture={onKeyDown}>
+    <div
+      className="h-full flex flex-col min-h-0 bg-sol-bg"
+      data-simulator-pane
+      onKeyDownCapture={onKeyDown}
+    >
       <div className="cc-panel__head">
         <span className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden text-meta font-mono">
           <span className="cc-panel__icon">
             <Smartphone className="w-3 h-3" />
           </span>
-          <span className="flex-shrink-0 truncate text-sol-text-muted">{deviceName}</span>
+          <span className="flex-shrink-0 truncate text-sol-text-muted">
+            {deviceName}
+          </span>
           <span
             data-simulator-status={status.kind}
             className={`flex-shrink-0 inline-flex items-center gap-1 tracking-wider ${live ? "text-sol-red" : "text-sol-text-dim"}`}
@@ -173,9 +219,21 @@ export function SimulatorPane() {
             <span
               className={`w-1.5 h-1.5 rounded-full ${live ? "bg-sol-red" : status.kind === "connecting" || waiting ? "bg-sol-yellow" : "bg-sol-text-dim/40"}`}
             />
-            {live ? "LIVE" : status.kind === "connecting" ? "CONNECTING" : status.kind === "paused" ? "PAUSED" : waiting ? "WAITING" : "OFF"}
+            {live
+              ? "LIVE"
+              : status.kind === "connecting"
+                ? "CONNECTING"
+                : status.kind === "paused"
+                  ? "PAUSED"
+                  : waiting
+                    ? "WAITING"
+                    : "OFF"}
           </span>
-          {machineName && <span className="min-w-0 truncate text-sol-text-dim/70">on {machineName}</span>}
+          {machineName && (
+            <span className="min-w-0 truncate text-sol-text-dim/70">
+              on {machineName}
+            </span>
+          )}
         </span>
         {recording && (
           <button
@@ -189,16 +247,36 @@ export function SimulatorPane() {
             {elapsed(now - recording.since)}
           </button>
         )}
-        <PaneButton label="Rotate left" accel="CmdOrCtrl+Left" disabled={!canTouch} onClick={() => rotate("left")}>
+        <PaneButton
+          label="Rotate left"
+          accel="CmdOrCtrl+Left"
+          disabled={!canTouch}
+          onClick={() => rotate("left")}
+        >
           <RotateCcw className="w-3 h-3" />
         </PaneButton>
-        <PaneButton label="Rotate right" accel="CmdOrCtrl+Right" disabled={!canTouch} onClick={() => rotate("right")}>
+        <PaneButton
+          label="Rotate right"
+          accel="CmdOrCtrl+Right"
+          disabled={!canTouch}
+          onClick={() => rotate("right")}
+        >
           <RotateCw className="w-3 h-3" />
         </PaneButton>
-        <PaneButton label="Home" accel="CmdOrCtrl+Shift+H" disabled={!canTouch} onClick={() => button("home")}>
+        <PaneButton
+          label="Home"
+          accel="CmdOrCtrl+Shift+H"
+          disabled={!canTouch}
+          onClick={() => button("home")}
+        >
           <Circle className="w-3 h-3" />
         </PaneButton>
-        <PaneButton label="Lock" accel="CmdOrCtrl+L" disabled={!canTouch} onClick={() => button("lock")}>
+        <PaneButton
+          label="Lock"
+          accel="CmdOrCtrl+L"
+          disabled={!canTouch}
+          onClick={() => button("lock")}
+        >
           <Lock className="w-3 h-3" />
         </PaneButton>
         <PaneButton
@@ -210,7 +288,11 @@ export function SimulatorPane() {
           <Camera className="w-3 h-3" />
         </PaneButton>
         {fullCapture && !recording && (
-          <PaneButton label="Record the screen" accel="CmdOrCtrl+R" onClick={toggleRecording}>
+          <PaneButton
+            label="Record the screen"
+            accel="CmdOrCtrl+R"
+            onClick={toggleRecording}
+          >
             <span className="w-2.5 h-2.5 rounded-full bg-sol-red/80" />
           </PaneButton>
         )}
@@ -219,7 +301,12 @@ export function SimulatorPane() {
             <RotateCw className="w-3 h-3" />
           </PaneButton>
         )}
-        {leafId && <PaneControls onExpand={() => stageExpand(leafId)} onClose={() => stageClose(leafId)} />}
+        {leafId && (
+          <PaneControls
+            onExpand={() => stageExpand(leafId)}
+            onClose={() => stageClose(leafId)}
+          />
+        )}
       </div>
 
       <div className="relative flex-1 min-h-0 bg-sol-bg-inset">
@@ -243,8 +330,19 @@ export function SimulatorPane() {
           <Overlay message="No session named" />
         ) : failed ? (
           <Overlay
-            message={waiting ? "Waiting for this session to take a simulator" : failed.message}
-            action={!waiting && failed.canRetry ? { label: failed.capped ? "Resume" : "Reconnect", onClick: reconnect } : undefined}
+            message={
+              waiting
+                ? "Waiting for this session to take a simulator"
+                : failed.message
+            }
+            action={
+              !waiting && failed.canRetry
+                ? {
+                    label: failed.capped ? "Resume" : "Reconnect",
+                    onClick: reconnect,
+                  }
+                : undefined
+            }
           />
         ) : status.kind === "connecting" && !report.hasFrame ? (
           <Overlay message="Connecting to the simulator" />
@@ -269,17 +367,31 @@ function PaneButton({
 }) {
   return (
     <ShortcutTooltip label={label} accel={accel}>
-      <button type="button" className="cc-panel__btn" aria-label={label} disabled={disabled} onClick={onClick}>
+      <button
+        type="button"
+        className="cc-panel__btn"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+      >
         {children}
       </button>
     </ShortcutTooltip>
   );
 }
 
-function Overlay({ message, action }: { message: string; action?: { label: string; onClick: () => void } }) {
+function Overlay({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center text-meta font-mono bg-sol-bg/80">
-      <span className="text-sol-text-dim" data-simulator-message>{message}</span>
+      <span className="text-sol-text-dim" data-simulator-message>
+        {message}
+      </span>
       {action && (
         <button
           type="button"

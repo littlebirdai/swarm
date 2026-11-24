@@ -39,7 +39,12 @@ export function AppLoader({
       role="status"
       aria-label={label ?? "Loading"}
     >
-      <div className={cn("flex flex-col items-center gap-5", deferIndicator && "app-loader-indicator-delayed")}>
+      <div
+        className={cn(
+          "flex flex-col items-center gap-5",
+          deferIndicator && "app-loader-indicator-delayed",
+        )}
+      >
         <LogoMark size={size} monochrome className="opacity-45" />
         <div className="app-loader-bar" />
       </div>
@@ -73,8 +78,12 @@ export function SlowBootNote() {
         <span className="state-offline">Offline · reloads when back</span>
       </span>
       <div className="actions">
-        <button type="button" className="primary" data-boot-action="reload">Reload</button>
-        <button type="button" data-boot-action="clear">Clear cache &amp; reload</button>
+        <button type="button" className="primary" data-boot-action="reload">
+          Reload
+        </button>
+        <button type="button" data-boot-action="clear">
+          Clear cache &amp; reload
+        </button>
       </div>
     </div>
   );

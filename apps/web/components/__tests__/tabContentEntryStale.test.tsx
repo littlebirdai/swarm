@@ -36,29 +36,48 @@ const state: {
   // The stored active id names a tab that no longer exists; the one tab left was last on /tasks.
   tabs: [{ id: "tab_a", path: "/tasks", title: "Tasks" }],
   activeTabId: "tab_gone",
-  switchTab: (id) => { switches.push(id); state.activeTabId = id; notify(); },
-  updateTab: (id, patch) => { state.tabs = state.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)); notify(); },
+  switchTab: (id) => {
+    switches.push(id);
+    state.activeTabId = id;
+    notify();
+  },
+  updateTab: (id, patch) => {
+    state.tabs = state.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    notify();
+  },
 };
 const switches: string[] = [];
 let version = 0;
 const listeners = new Set<() => void>();
-function notify() { version++; for (const l of listeners) l(); }
+function notify() {
+  version++;
+  for (const l of listeners) l();
+}
 
 const { mockInboxStore } = await import("./mockInboxStore");
 const readState = mockInboxStore(() => state, {
   useTrackedStore: (_deps: unknown[]) => {
     const React = require("react");
     React.useSyncExternalStore(
-      (cb: () => void) => { listeners.add(cb); return () => listeners.delete(cb); },
+      (cb: () => void) => {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      },
       () => version,
     );
     return readState();
   },
 });
 
-mock.module("../../hooks/useConversationMessages", () => ({ useConversationMessages: () => {} }));
-mock.module("@/app/inbox/page", () => ({ default: () => <div data-page="inbox" /> }));
-mock.module("@/app/tasks/page", () => ({ default: () => <div data-page="tasks" /> }));
+mock.module("../../hooks/useConversationMessages", () => ({
+  useConversationMessages: () => {},
+}));
+mock.module("@/app/inbox/page", () => ({
+  default: () => <div data-page="inbox" />,
+}));
+mock.module("@/app/tasks/page", () => ({
+  default: () => <div data-page="tasks" />,
+}));
 
 const { TabContent } = await import("../TabContent");
 const { MemoryRouter } = await import("react-router");
@@ -75,8 +94,18 @@ describe("an entry address with a stale active tab", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     // Its own location key: the adoption runs once per router location it enters on.
-    await act(async () => root.render(<MemoryRouter initialEntries={[{ pathname: "/inbox", key: "entry-stale" }]}><TabContent /></MemoryRouter>));
-    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () =>
+      root.render(
+        <MemoryRouter
+          initialEntries={[{ pathname: "/inbox", key: "entry-stale" }]}
+        >
+          <TabContent />
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
   });
 
   afterAll(async () => {

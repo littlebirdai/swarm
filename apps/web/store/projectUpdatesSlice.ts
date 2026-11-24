@@ -37,7 +37,10 @@ export type ProjectUpdateRow = {
 };
 
 export type ProjectUpdatesSliceActions = {
-  postProjectUpdate: (projectId: string, update: { client_key: string; body: string; title?: string }) => void;
+  postProjectUpdate: (
+    projectId: string,
+    update: { client_key: string; body: string; title?: string },
+  ) => void;
   commentProjectUpdate: (updateId: string, text: string) => void;
   editProjectUpdate: (updateId: string, body: string) => void;
   deleteProjectUpdate: (updateId: string) => void;
@@ -48,7 +51,8 @@ type ProjectUpdatesDraft = {
   currentUser?: { _id: string; name?: string; email?: string } | null;
 };
 
-const authorOf = (me: ProjectUpdatesDraft["currentUser"]): string => me?.name || me?.email || "you";
+const authorOf = (me: ProjectUpdatesDraft["currentUser"]): string =>
+  me?.name || me?.email || "you";
 
 export function newProjectUpdateKey(): string {
   return `pustub-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
@@ -56,7 +60,11 @@ export function newProjectUpdateKey(): string {
 
 export function createProjectUpdatesSlice(): ProjectUpdatesSliceActions {
   return {
-    postProjectUpdate: action(function (this: ProjectUpdatesDraft, projectId: string, update: { client_key: string; body: string; title?: string }) {
+    postProjectUpdate: action(function (
+      this: ProjectUpdatesDraft,
+      projectId: string,
+      update: { client_key: string; body: string; title?: string },
+    ) {
       const me = this.currentUser;
       const body = update.body.trim();
       if (!me?._id || !body) return;
@@ -77,18 +85,33 @@ export function createProjectUpdatesSlice(): ProjectUpdatesSliceActions {
       };
     }),
 
-    commentProjectUpdate: action(function (this: ProjectUpdatesDraft, updateId: string, text: string) {
+    commentProjectUpdate: action(function (
+      this: ProjectUpdatesDraft,
+      updateId: string,
+      text: string,
+    ) {
       const row = this.projectUpdates[updateId];
       const me = this.currentUser;
       const trimmed = text.trim();
       if (!row || !me?._id || !trimmed) return;
       row.comments = [
         ...(row.comments ?? []),
-        { _id: newProjectUpdateKey(), author: authorOf(me), author_user_id: String(me._id), author_kind: "user", text: trimmed, created_at: Date.now() },
+        {
+          _id: newProjectUpdateKey(),
+          author: authorOf(me),
+          author_user_id: String(me._id),
+          author_kind: "user",
+          text: trimmed,
+          created_at: Date.now(),
+        },
       ];
     }),
 
-    editProjectUpdate: action(function (this: ProjectUpdatesDraft, updateId: string, body: string) {
+    editProjectUpdate: action(function (
+      this: ProjectUpdatesDraft,
+      updateId: string,
+      body: string,
+    ) {
       const row = this.projectUpdates[updateId];
       const next = body.trim();
       if (!row || !next || next === row.body) return;
@@ -96,7 +119,10 @@ export function createProjectUpdatesSlice(): ProjectUpdatesSliceActions {
       row.edited_at = Date.now();
     }),
 
-    deleteProjectUpdate: action(function (this: ProjectUpdatesDraft, updateId: string) {
+    deleteProjectUpdate: action(function (
+      this: ProjectUpdatesDraft,
+      updateId: string,
+    ) {
       if (this.projectUpdates[updateId]) delete this.projectUpdates[updateId];
     }),
   };

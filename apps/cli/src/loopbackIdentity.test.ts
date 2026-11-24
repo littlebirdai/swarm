@@ -21,7 +21,8 @@ function tmpConfigDir(): string {
 }
 
 afterEach(() => {
-  for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0))
+    fs.rmSync(dir, { recursive: true, force: true });
 });
 
 function modeOf(file: string): string {
@@ -49,7 +50,12 @@ describe("loopback identity file", () => {
   });
 
   test("a junk file mints a fresh identity instead of throwing", () => {
-    for (const body of ["not json at all", "{}", '{"port":49211}', '{"token":""}']) {
+    for (const body of [
+      "not json at all",
+      "{}",
+      '{"port":49211}',
+      '{"token":""}',
+    ]) {
       const dir = tmpConfigDir();
       fs.writeFileSync(identityFile(dir), body);
       expect(readIdentity(dir)).toBeNull();
@@ -61,7 +67,11 @@ describe("loopback identity file", () => {
   test("a non numeric port is read as unassigned, not NaN", () => {
     const dir = tmpConfigDir();
     fs.writeFileSync(identityFile(dir), '{"port":"forty","token":"abc"}');
-    expect(readIdentity(dir)).toEqual({ port: 0, token: "abc", created_at: expect.any(Number) });
+    expect(readIdentity(dir)).toEqual({
+      port: 0,
+      token: "abc",
+      created_at: expect.any(Number),
+    });
   });
 
   // listen() folds an out of range number back into 16 bits rather than
@@ -70,7 +80,10 @@ describe("loopback identity file", () => {
   test("a port outside the unprivileged range is read as unassigned", () => {
     for (const port of [999999, 65536, 80, 1023, -1, 0]) {
       const dir = tmpConfigDir();
-      fs.writeFileSync(identityFile(dir), JSON.stringify({ port, token: "abc" }));
+      fs.writeFileSync(
+        identityFile(dir),
+        JSON.stringify({ port, token: "abc" }),
+      );
       expect(readIdentity(dir)!.port).toBe(0);
       expect(readIdentity(dir)!.token).toBe("abc");
     }
@@ -85,13 +98,19 @@ describe("loopback identity file", () => {
     const temps = () => fs.readdirSync(dir).filter((f) => f.endsWith(".tmp"));
     writeIdentity(dir, { ...before, port: 49216 });
     expect(temps()).toEqual([]);
-    expect(readIdentity(dir)).toMatchObject({ port: 49216, token: before.token });
+    expect(readIdentity(dir)).toMatchObject({
+      port: 49216,
+      token: before.token,
+    });
   });
 
   test("a file written before created_at existed still loads and keeps its token", () => {
     const dir = tmpConfigDir();
     // The exact shape today's daemon writes.
-    fs.writeFileSync(identityFile(dir), JSON.stringify({ port: 49212, token: "deadbeef", pid: 4242 }));
+    fs.writeFileSync(
+      identityFile(dir),
+      JSON.stringify({ port: 49212, token: "deadbeef", pid: 4242 }),
+    );
     const id = loadOrCreateIdentity(dir);
     expect(id.token).toBe("deadbeef");
     expect(id.port).toBe(49212);
@@ -130,9 +149,18 @@ describe("loopback identity file", () => {
   // daemon` silently loses its authenticated routes, so the contract is a test.
   test("the bench's reader accepts what we write", () => {
     const dir = tmpConfigDir();
-    const id = { port: 49215, token: "a".repeat(64), created_at: Date.now(), pid: process.pid };
+    const id = {
+      port: 49215,
+      token: "a".repeat(64),
+      created_at: Date.now(),
+      pid: process.pid,
+    };
     writeIdentity(dir, id);
     writeHookPort(dir, id.port);
-    expect(readLoopbackIdentity(dir)).toEqual({ port: 49215, token: id.token, reason: null });
+    expect(readLoopbackIdentity(dir)).toEqual({
+      port: 49215,
+      token: id.token,
+      reason: null,
+    });
   });
 });

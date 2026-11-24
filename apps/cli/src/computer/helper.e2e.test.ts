@@ -24,9 +24,18 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
   let token: string;
 
   beforeAll(async () => {
-    base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cast-computer-e2e-")));
+    base = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "cast-computer-e2e-")),
+    );
     const tar = path.join(base, "computer-helper.tar");
-    expect(buildComputerHelper({ stage: path.join(base, "stage"), output: tar, universal: false, version })).toBeGreaterThan(0);
+    expect(
+      buildComputerHelper({
+        stage: path.join(base, "stage"),
+        output: tar,
+        universal: false,
+        version,
+      }),
+    ).toBeGreaterThan(0);
 
     // Unpack exactly as the CLI materializes it, so the test covers the payload
     // and not just the staged build directory.
@@ -34,26 +43,35 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
     fs.mkdirSync(materialized, { recursive: true, mode: 0o700 });
     checked("/usr/bin/tar", ["-xf", tar, "-C", materialized]);
     app = path.join(materialized, "codecast computer.app");
-    expect(fs.existsSync(path.join(app, "Contents/MacOS/codecast-computer"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(app, "Contents/MacOS/codecast-computer")),
+    ).toBe(true);
     checked("/usr/bin/codesign", ["--verify", "--strict", app]);
 
     accessibilityGranted = readPermission("accessibility") === "granted";
 
     const document = path.join(base, "codecast computer e2e.txt");
     fs.writeFileSync(document, "before\n");
-    startedTextEdit = spawnSync("/usr/bin/pgrep", ["-x", "TextEdit"]).status !== 0;
+    startedTextEdit =
+      spawnSync("/usr/bin/pgrep", ["-x", "TextEdit"]).status !== 0;
     checked("/usr/bin/open", ["-a", "TextEdit", document]);
     await settle(2000);
 
-    const socketDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "codecast-computer-")));
+    const socketDir = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "codecast-computer-")),
+    );
     fs.chmodSync(socketDir, 0o700);
     socketPath = path.join(socketDir, "helper.sock");
     const tokenPath = path.join(socketDir, "helper.token");
     token = randomBytes(32).toString("hex");
     fs.writeFileSync(tokenPath, token, { mode: 0o600 });
-    helper = spawn(path.join(app, "Contents/MacOS/codecast-computer"), ["--agent", socketPath, "--token-file", tokenPath], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
+    helper = spawn(
+      path.join(app, "Contents/MacOS/codecast-computer"),
+      ["--agent", socketPath, "--token-file", tokenPath],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+      },
+    );
     helper.stderr?.on("data", (chunk) => console.error(`helper: ${chunk}`));
     client = await connect(socketPath, token);
   }, 600_000);
@@ -97,14 +115,19 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
 
   test("listApps finds the TextEdit this test opened", async () => {
     const result = await client.call("listApps");
-    const textEdit = result.result.apps.find((entry: { bundleId: string | null }) => entry.bundleId === "com.apple.TextEdit");
+    const textEdit = result.result.apps.find(
+      (entry: { bundleId: string | null }) =>
+        entry.bundleId === "com.apple.TextEdit",
+    );
 
     expect(textEdit.name).toBe("TextEdit");
     expect(textEdit.pid).toBeGreaterThan(0);
   });
 
   test("listWindows returns the document window", async () => {
-    const result = await client.call("listWindows", { app: "com.apple.TextEdit" });
+    const result = await client.call("listWindows", {
+      app: "com.apple.TextEdit",
+    });
 
     expect(result.ok).toBe(true);
     expect(result.result.windows.length).toBeGreaterThan(0);
@@ -113,15 +136,21 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
   });
 
   test("a password manager is refused before anything is read", async () => {
-    const result = await client.call("getAppState", { app: "com.1password.1password" });
+    const result = await client.call("getAppState", {
+      app: "com.1password.1password",
+    });
 
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe("app_blocked");
-    expect(result.error.message).toBe("app 'com.1password.1password' is blocked for safety");
+    expect(result.error.message).toBe(
+      "app 'com.1password.1password' is blocked for safety",
+    );
   });
 
   test("an unknown app is app_not_found", async () => {
-    const result = await client.call("getAppState", { app: "com.example.NotRunning" });
+    const result = await client.call("getAppState", {
+      app: "com.example.NotRunning",
+    });
 
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe("app_not_found");
@@ -131,22 +160,35 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
     if (!accessibilityGranted) {
       // A human grants Accessibility; nothing here can. Assert the contract the
       // agent actually meets in that state rather than passing on silence.
-      const denied = await client.call("getAppState", { app: "com.apple.TextEdit", noScreenshot: true });
+      const denied = await client.call("getAppState", {
+        app: "com.apple.TextEdit",
+        noScreenshot: true,
+      });
       expect(denied.ok).toBe(false);
       expect(denied.error.code).toBe("permission_denied");
-      expect(denied.error.message).toContain("cast computer permissions --id accessibility");
-      console.warn("Accessibility is not granted to this build of the helper, so the tree half of the loop did not run.");
+      expect(denied.error.message).toContain(
+        "cast computer permissions --id accessibility",
+      );
+      console.warn(
+        "Accessibility is not granted to this build of the helper, so the tree half of the loop did not run.",
+      );
       return;
     }
 
-    const state = await client.call("getAppState", { app: "com.apple.TextEdit", noScreenshot: true });
+    const state = await client.call("getAppState", {
+      app: "com.apple.TextEdit",
+      noScreenshot: true,
+    });
     expect(state.ok).toBe(true);
     expect(state.result.snapshot.coordinateSpace).toBe("window");
     expect(state.result.snapshot.treeText).toContain("App=com.apple.TextEdit");
     expect(state.result.snapshot.elementCount).toBeGreaterThan(0);
     expect(state.result.screenshotStatus.state).toBe("skipped");
 
-    const textArea = elementIndexOf(state.result.snapshot.treeText, "text entry area");
+    const textArea = elementIndexOf(
+      state.result.snapshot.treeText,
+      "text entry area",
+    );
     expect(textArea).not.toBeNull();
 
     const written = await client.call("setValue", {
@@ -159,7 +201,9 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
     expect(written.result.action.path).toBe("accessibility");
     expect(written.result.action.verification.state).toBe("verified");
     expect(written.result.action.verification.property).toBe("value");
-    expect(written.result.snapshot.treeText).toContain("written by the codecast computer e2e");
+    expect(written.result.snapshot.treeText).toContain(
+      "written by the codecast computer e2e",
+    );
 
     const stale = await client.call("setValue", {
       app: "com.apple.TextEdit",
@@ -189,7 +233,11 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
     const result = await client.call("terminate");
     expect(result.ok).toBe(true);
 
-    for (let attempt = 0; attempt < 50 && helper.exitCode === null && helper.signalCode === null; attempt += 1) {
+    for (
+      let attempt = 0;
+      attempt < 50 && helper.exitCode === null && helper.signalCode === null;
+      attempt += 1
+    ) {
       await settle(100);
     }
     expect(helper.exitCode ?? 0).toBe(0);
@@ -197,19 +245,32 @@ describe.skipIf(process.platform !== "darwin")("computer helper", () => {
 
   function readPermission(id: "accessibility" | "screenshots") {
     const statusFile = path.join(base, `${id}-status.json`);
-    const probe = spawnSync(path.join(app, "Contents/MacOS/codecast-computer"), ["--permission-status-file", statusFile], { timeout: 30_000 });
+    const probe = spawnSync(
+      path.join(app, "Contents/MacOS/codecast-computer"),
+      ["--permission-status-file", statusFile],
+      { timeout: 30_000 },
+    );
     if (probe.status !== 0 || !fs.existsSync(statusFile)) return "unknown";
     return JSON.parse(fs.readFileSync(statusFile, "utf8"))[id];
   }
 });
 
 function checked(command: string, args: string[]) {
-  const result = spawnSync(command, args, { encoding: "utf8", timeout: 120_000 });
-  if (result.status !== 0) throw new Error(result.stderr || result.error?.message || `${command} exited ${result.status}`);
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+  if (result.status !== 0)
+    throw new Error(
+      result.stderr ||
+        result.error?.message ||
+        `${command} exited ${result.status}`,
+    );
   return result.stdout;
 }
 
-const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const settle = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The tree's first line whose role text matches, as its element index. */
 function elementIndexOf(treeText: string, roleText: string): number | null {
@@ -220,7 +281,10 @@ function elementIndexOf(treeText: string, roleText: string): number | null {
   return null;
 }
 
-type Client = { call: (method: string, params?: object, token?: string) => Promise<any>; close: () => void };
+type Client = {
+  call: (method: string, params?: object, token?: string) => Promise<any>;
+  close: () => void;
+};
 
 async function connect(socketPath: string, token: string): Promise<Client> {
   const socket = await new Promise<net.Socket>((resolve, reject) => {
@@ -267,7 +331,9 @@ async function connect(socketPath: string, token: string): Promise<Client> {
           clearTimeout(timer);
           resolve(value);
         });
-        socket.write(`${JSON.stringify({ id: requestId, method, params: { castBinary: process.execPath, ...params }, token: override ?? token })}\n`);
+        socket.write(
+          `${JSON.stringify({ id: requestId, method, params: { castBinary: process.execPath, ...params }, token: override ?? token })}\n`,
+        );
       }),
     close: () => socket.destroy(),
   };

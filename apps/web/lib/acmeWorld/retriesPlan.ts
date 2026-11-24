@@ -8,7 +8,12 @@
 import type { AcmePart } from "./parts";
 import { MAYA_DASHBOARD, PEOPLE, SESSIONS, TASKS, session } from "./world";
 
-const live = (s: { _id: string; title: string; agent_type: string }, by: string, ago: number, now: number) => ({
+const live = (
+  s: { _id: string; title: string; agent_type: string },
+  by: string,
+  ago: number,
+  now: number,
+) => ({
   _id: s._id,
   session_id: `${s._id}-sess`,
   title: s.title,
@@ -27,10 +32,22 @@ export const ACTIVE_TASK_SESSIONS = (now: number) => ({
 const LINKABLE = [SESSIONS.lead, MAYA_DASHBOARD];
 
 const detail = (a: any) => {
-  const t: any = TASKS(Date.now()).find((r) => r._id === a?.id || r.short_id === a?.id);
+  const t: any = TASKS(Date.now()).find(
+    (r) => r._id === a?.id || r.short_id === a?.id,
+  );
   if (!t) return undefined;
-  const linked = LINKABLE.filter((s) => (t.conversation_ids ?? []).includes(s._id));
-  return { ...t, linked_conversations: linked.map((s) => ({ _id: s._id, title: s.title, agent_type: s.agent_type, short_id: s.short_id })) };
+  const linked = LINKABLE.filter((s) =>
+    (t.conversation_ids ?? []).includes(s._id),
+  );
+  return {
+    ...t,
+    linked_conversations: linked.map((s) => ({
+      _id: s._id,
+      title: s.title,
+      agent_type: s.agent_type,
+      short_id: s.short_id,
+    })),
+  };
 };
 
 export const MAYA_DASHBOARD_SESSION = (now: number) =>
@@ -40,7 +57,8 @@ export const MAYA_DASHBOARD_SESSION = (now: number) =>
     project: "~/src/billing",
     messages: 31,
     owner: PEOPLE.maya,
-    state: "Attempt history renders per webhook\nStatus: wiring the Retry button",
+    state:
+      "Attempt history renders per webhook\nStatus: wiring the Retry button",
   });
 
 export const RETRIES_PLAN_PART: AcmePart = {
@@ -50,7 +68,11 @@ export const RETRIES_PLAN_PART: AcmePart = {
     // The task feed's bootstrap read: the world's tasks, so the list settles instead of syncing.
     "tasks:webList": () => ({ items: TASKS(Date.now()) }),
     // The reconcile crawl's one page: everything, done, so no "syncing" badge stays up.
-    "tasks:webListPaginated": () => ({ page: TASKS(Date.now()), isDone: true, continueCursor: "" }),
+    "tasks:webListPaginated": () => ({
+      page: TASKS(Date.now()),
+      isDone: true,
+      continueCursor: "",
+    }),
     "tasks:webActiveSessions": () => ACTIVE_TASK_SESSIONS(Date.now()),
     "taskMining:webGetTaskDetail": detail,
   },

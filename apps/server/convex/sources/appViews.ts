@@ -23,7 +23,13 @@ import { getAuthenticatedUserId } from "../pendingMessages";
 import { workspaceKey } from "../lib/accessKeys";
 import { sourceFilingScope } from "../lib/ingestScope";
 import { appCall, cachedManifest, grantUrlFor, withManifest } from "./app";
-import { framesOwnSite, parseProductViewRef, siteOf, type ProductViewDef, type ProductViewRef } from "@codecast/shared/contracts/productView";
+import {
+  framesOwnSite,
+  parseProductViewRef,
+  siteOf,
+  type ProductViewDef,
+  type ProductViewRef,
+} from "@codecast/shared/contracts/productView";
 import { siteUrl } from "../lib/siteUrl";
 
 export { siteOf };
@@ -34,11 +40,31 @@ export const VIEW_TOKEN_ACTION = "views.token";
 
 /** What the browser gets: a url to frame, or why there is none. Null means the app declares no such view. */
 export type ProductViewMint =
-  | { ok: true; url: string; origin: string; expires_at: string; app: string; view: string; title: string }
-  | { ok: false; app: string; view: string; title: string; error: string; grant_url?: string };
+  | {
+      ok: true;
+      url: string;
+      origin: string;
+      expires_at: string;
+      app: string;
+      view: string;
+      title: string;
+    }
+  | {
+      ok: false;
+      app: string;
+      view: string;
+      title: string;
+      error: string;
+      grant_url?: string;
+    };
 
 /** A name as a reference's app part (the web writes moment refs with the same rule, web lib/productViewRefs.ts). */
-export const appSlug = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+export const appSlug = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 /** One of the caller's sources as the resolver reads it: an app connector carries its manifest. */
 export type ViewSourceRow = {
@@ -58,23 +84,42 @@ export type ViewSourceRow = {
  * fingerprint prefix names, else the one app in its workspace declaring the
  * view. Two such apps are ambiguous and answer nothing.
  */
-export function viewSourceFor(rows: ReadonlyArray<ViewSourceRow>, app: string, view: string): { index: number; def: ProductViewDef; appTitle: string } | null {
+export function viewSourceFor(
+  rows: ReadonlyArray<ViewSourceRow>,
+  app: string,
+  view: string,
+): { index: number; def: ProductViewDef; appTitle: string } | null {
   const want = appSlug(app);
   const declares = (i: number) => {
     const r = rows[i];
-    if (r.provider !== "app" || r.status === "paused" || !r.manifest) return null;
+    if (r.provider !== "app" || r.status === "paused" || !r.manifest)
+      return null;
     const def = r.manifest.views.find((d) => d.name === view);
     return def ? { index: i, def, appTitle: r.manifest.name } : null;
   };
   const apps = rows.map((_, i) => i).filter((i) => rows[i].provider === "app");
-  const isNamed = (i: number, name: string) => (!!rows[i].manifest && appSlug(rows[i].manifest!.name) === name) || appSlug(rows[i].name) === name;
-  for (const i of apps) if (isNamed(i, want)) { const hit = declares(i); if (hit) return hit; }
+  const isNamed = (i: number, name: string) =>
+    (!!rows[i].manifest && appSlug(rows[i].manifest!.name) === name) ||
+    appSlug(rows[i].name) === name;
+  for (const i of apps)
+    if (isNamed(i, want)) {
+      const hit = declares(i);
+      if (hit) return hit;
+    }
   for (const other of rows) {
     if (other.provider === "app" || appSlug(other.name) !== want) continue;
     // The app it reports for lives in its own workspace: a same-named app elsewhere never answers for its records.
-    const prefix = other.fingerprint_prefix ? appSlug(other.fingerprint_prefix) : null;
-    const pool = apps.filter((i) => rows[i].workspace === other.workspace && (!prefix || isNamed(i, prefix)));
-    const hits = pool.map(declares).filter((h): h is NonNullable<typeof h> => !!h);
+    const prefix = other.fingerprint_prefix
+      ? appSlug(other.fingerprint_prefix)
+      : null;
+    const pool = apps.filter(
+      (i) =>
+        rows[i].workspace === other.workspace &&
+        (!prefix || isNamed(i, prefix)),
+    );
+    const hits = pool
+      .map(declares)
+      .filter((h): h is NonNullable<typeof h> => !!h);
     if (hits.length === 1) return hits[0];
   }
   return null;
@@ -90,14 +135,20 @@ export function viewSourceFor(rows: ReadonlyArray<ViewSourceRow>, app: string, v
  * could drop its sandbox and read the parent. No connection, whatever base url
  * a person typed, may frame codecast into codecast.
  */
-export function readViewToken(text: string | undefined, def: Pick<ProductViewDef, "path">, base?: string, self?: string): { url: string; origin: string; expires_at: string } | { error: string } {
+export function readViewToken(
+  text: string | undefined,
+  def: Pick<ProductViewDef, "path">,
+  base?: string,
+  self?: string,
+): { url: string; origin: string; expires_at: string } | { error: string } {
   let raw: any;
   try {
     raw = JSON.parse(text ?? "");
   } catch {
     return { error: "the app's answer is not JSON" };
   }
-  if (!raw || typeof raw.url !== "string") return { error: "the app's answer has no url" };
+  if (!raw || typeof raw.url !== "string")
+    return { error: "the app's answer has no url" };
   let u: URL;
   try {
     u = new URL(raw.url);
@@ -105,9 +156,15 @@ export function readViewToken(text: string | undefined, def: Pick<ProductViewDef
     return { error: "the app's url does not parse" };
   }
   const local = u.hostname === "localhost" || u.hostname === "127.0.0.1";
-  if (u.protocol !== "https:" && !(local && u.protocol === "http:")) return { error: "the app's url is not https" };
-  if (u.pathname.replace(/\/+$/, "") !== def.path.replace(/\/+$/, "")) return { error: `the app's url is not the declared ${def.path}` };
-  if (self !== undefined && framesOwnSite(u.toString(), self)) return { error: "the app's url is on codecast's own site, which is never framed here" };
+  if (u.protocol !== "https:" && !(local && u.protocol === "http:"))
+    return { error: "the app's url is not https" };
+  if (u.pathname.replace(/\/+$/, "") !== def.path.replace(/\/+$/, ""))
+    return { error: `the app's url is not the declared ${def.path}` };
+  if (self !== undefined && framesOwnSite(u.toString(), self))
+    return {
+      error:
+        "the app's url is on codecast's own site, which is never framed here",
+    };
   if (base !== undefined) {
     let b: URL;
     try {
@@ -116,28 +173,56 @@ export function readViewToken(text: string | undefined, def: Pick<ProductViewDef
       return { error: "the connection's base url does not parse" };
     }
     const site = siteOf(b.hostname);
-    if (siteOf(u.hostname) !== site) return { error: `the app's url is not on ${site}` };
+    if (siteOf(u.hostname) !== site)
+      return { error: `the app's url is not on ${site}` };
   }
-  const expires = typeof raw.expires_at === "string" && Number.isFinite(Date.parse(raw.expires_at)) ? raw.expires_at : new Date(Date.now() + 5 * 60_000).toISOString();
+  const expires =
+    typeof raw.expires_at === "string" &&
+    Number.isFinite(Date.parse(raw.expires_at))
+      ? raw.expires_at
+      : new Date(Date.now() + 5 * 60_000).toISOString();
   return { url: u.toString(), origin: u.origin, expires_at: expires };
 }
 
 /** The sources of one of the caller's workspaces (`workspace`, a stored access key); an app connector carries its
  *  cached manifest. Null when the caller names no workspace or one that is not theirs. */
 export const viewSources = internalQuery({
-  args: { api_token: v.optional(v.string()), workspace: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    workspace: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId || !args.workspace) return null;
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q) => q.eq("user_id", userId)).take(50);
-    const mine = [workspaceKey({ type: "personal", userId }), ...memberships.map((m) => workspaceKey({ type: "team", teamId: m.team_id }))];
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+      .take(50);
+    const mine = [
+      workspaceKey({ type: "personal", userId }),
+      ...memberships.map((m) =>
+        workspaceKey({ type: "team", teamId: m.team_id }),
+      ),
+    ];
     if (!mine.includes(args.workspace)) return null;
     const keys = [args.workspace];
-    const out: Array<Omit<ViewSourceRow, "manifest"> & { short_id: string; scope: ReturnType<typeof sourceFilingScope>; manifest_json: string | null }> = [];
+    const out: Array<
+      Omit<ViewSourceRow, "manifest"> & {
+        short_id: string;
+        scope: ReturnType<typeof sourceFilingScope>;
+        manifest_json: string | null;
+      }
+    > = [];
     for (const key of keys) {
-      const rows = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q) => q.eq("workspace", key)).take(100);
+      const rows = await ctx.db
+        .query("event_sources")
+        .withIndex("by_workspace_name", (q) => q.eq("workspace", key))
+        .take(100);
       for (const row of rows) {
-        const manifest = row.provider === "app" ? cachedManifest(await withManifest(ctx, row)) : null;
+        const manifest =
+          row.provider === "app"
+            ? cachedManifest(await withManifest(ctx, row))
+            : null;
         out.push({
           short_id: row.short_id,
           name: row.name,
@@ -156,29 +241,57 @@ export const viewSources = internalQuery({
 
 /** `mint`, with the fetch it calls the app through (a test passes its own). */
 export async function mintProductView(
-  ctx: { runQuery: (ref: any, args: any) => Promise<any>; runMutation: (ref: any, args: any) => Promise<any> },
+  ctx: {
+    runQuery: (ref: any, args: any) => Promise<any>;
+    runMutation: (ref: any, args: any) => Promise<any>;
+  },
   args: { ref: string; workspace?: string; api_token?: string },
   fetchImpl: FetchLike,
 ): Promise<ProductViewMint | null> {
   const ref: ProductViewRef | null = parseProductViewRef(args.ref);
   if (!ref) return null;
-  const found = await ctx.runQuery(internal.sources.appViews.viewSources, { api_token: args.api_token, workspace: args.workspace });
+  const found = await ctx.runQuery(internal.sources.appViews.viewSources, {
+    api_token: args.api_token,
+    workspace: args.workspace,
+  });
   if (!found) return null;
-  const rows: ViewSourceRow[] = found.sources.map((s: any) => ({ ...s, manifest: s.manifest_json ? (JSON.parse(s.manifest_json) as AppManifest) : null }));
+  const rows: ViewSourceRow[] = found.sources.map((s: any) => ({
+    ...s,
+    manifest: s.manifest_json
+      ? (JSON.parse(s.manifest_json) as AppManifest)
+      : null,
+  }));
   const hit = viewSourceFor(rows, ref.app, ref.view);
   if (!hit) return null;
   const source = found.sources[hit.index];
   const base = { app: hit.appTitle, view: ref.view, title: hit.def.title };
-  const input = { view: ref.view, id: ref.id, ...(ref.at ? { at: ref.at } : {}) };
+  const input = {
+    view: ref.view,
+    id: ref.id,
+    ...(ref.at ? { at: ref.at } : {}),
+  };
   const res = await appCall(
     ctx,
     "do",
-    { ...source.scope, ...(args.api_token ? { api_token: args.api_token } : {}), source: source.short_id, name: VIEW_TOKEN_ACTION, args_json: JSON.stringify(input) },
+    {
+      ...source.scope,
+      ...(args.api_token ? { api_token: args.api_token } : {}),
+      source: source.short_id,
+      name: VIEW_TOKEN_ACTION,
+      args_json: JSON.stringify(input),
+    },
     fetchImpl,
   );
-  if (!res.ok) return { ok: false, ...base, error: res.error ?? `the app answered ${res.status ?? "an error"}`, ...(res.denied ? { grant_url: grantUrlFor(source) } : {}) };
+  if (!res.ok)
+    return {
+      ok: false,
+      ...base,
+      error: res.error ?? `the app answered ${res.status ?? "an error"}`,
+      ...(res.denied ? { grant_url: grantUrlFor(source) } : {}),
+    };
   // The frame must be on the app's own site: the connection's base url names it, whatever the manifest says.
-  if (!res.base_url) return { ok: false, ...base, error: "the connection named no base url" };
+  if (!res.base_url)
+    return { ok: false, ...base, error: "the connection named no base url" };
   const token = readViewToken(res.text, hit.def, res.base_url, siteUrl());
   if ("error" in token) return { ok: false, ...base, error: token.error };
   return { ok: true, ...base, ...token };
@@ -187,6 +300,11 @@ export async function mintProductView(
 /** Mint a frame url for one product view reference through the sources of `workspace` (the caller's active workspace,
  *  or the workspace of the row the reference sits in); null when no connected app there declares that view. */
 export const mint = action({
-  args: { ref: v.string(), workspace: v.optional(v.string()), api_token: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<ProductViewMint | null> => mintProductView(ctx, args, fetch),
+  args: {
+    ref: v.string(),
+    workspace: v.optional(v.string()),
+    api_token: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<ProductViewMint | null> =>
+    mintProductView(ctx, args, fetch),
 });

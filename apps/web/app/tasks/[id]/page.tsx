@@ -7,11 +7,30 @@ import { formatDateFull, formatRelative } from "../../../lib/utils";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { useTabActive } from "../../../hooks/usePagePresence";
 import { useParams, useRouter } from "next/navigation";
-import { useInboxStore, TaskDetail, TaskItem, resolveAssigneeInfo } from "../../../store/inboxStore";
-import { lookup, resolveTaskLinkedConversations, resolveTaskRelatedDocs, taskLinkedConversationIds, taskOwnerOf } from "../../../lib/liveEntities";
+import {
+  useInboxStore,
+  TaskDetail,
+  TaskItem,
+  resolveAssigneeInfo,
+} from "../../../store/inboxStore";
+import {
+  lookup,
+  resolveTaskLinkedConversations,
+  resolveTaskRelatedDocs,
+  taskLinkedConversationIds,
+  taskOwnerOf,
+} from "../../../lib/liveEntities";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
-import { useSyncTasks, useSyncTaskDetail, useTaskComments } from "../../../hooks/useSyncTasks";
-import { useSyncTaskExternalEvents, useExternalEvents, externalEventsOldestFirst } from "../../../hooks/useSyncExternalEvents";
+import {
+  useSyncTasks,
+  useSyncTaskDetail,
+  useTaskComments,
+} from "../../../hooks/useSyncTasks";
+import {
+  useSyncTaskExternalEvents,
+  useExternalEvents,
+  externalEventsOldestFirst,
+} from "../../../hooks/useSyncExternalEvents";
 import { type ExternalEventRecord } from "../../../lib/externalEvents";
 import { useOpenLinkedSession } from "../../../hooks/useOpenLinkedSession";
 import { DetailSplitLayout } from "../../../components/DetailSplitLayout";
@@ -19,14 +38,20 @@ import { IssueLink } from "../../../components/tasks/IssueLink";
 import { useIssueSyncSources } from "../../../hooks/useSyncIssueSyncSources";
 import { PaneLoader } from "../../../components/PaneLoader";
 import { TaskListContent } from "../page";
-import { useMentionQuery, useActiveMentionScope } from "../../../hooks/useMentionQuery";
+import {
+  useMentionQuery,
+  useActiveMentionScope,
+} from "../../../hooks/useMentionQuery";
 import { useImageUpload } from "../../../hooks/useImageUpload";
 import { teamMembersOf } from "../../../lib/activeTeam";
 // TaskCommandPalette replaced by unified CommandPalette
 import { TaskDecisions } from "../../../components/decisions/TaskDecisions";
 import { useTaskIsBlocked } from "../../../hooks/useTaskDecisions";
 import { CollapsibleBody } from "../../../components/CollapsibleBody";
-import { TaskLineStory, TaskRunPanel } from "../../../components/tasks/TaskLineStory";
+import {
+  TaskLineStory,
+  TaskRunPanel,
+} from "../../../components/tasks/TaskLineStory";
 import { ProblemSummary } from "../../../components/tasks/ProblemSummary";
 import { TaskLineChip } from "../../../components/tasks/StationStrip";
 import { TaskEvidence } from "../../../components/tasks/TaskEvidence";
@@ -37,16 +62,31 @@ import { AuthGuard } from "../../../components/AuthGuard";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { ErrorBoundary } from "../../../components/ErrorBoundary";
 import { ContextChatInput } from "../../../components/ContextChatInput";
-import { TaskCommentComposer, UserBadge } from "../../../components/tasks/TaskCommentStream";
-import { TaskSessionLink, TaskTimeline } from "../../../components/tasks/TaskTimeline";
-import { SupersededBanner, TaskRelations } from "../../../components/tasks/TaskRelations";
+import {
+  TaskCommentComposer,
+  UserBadge,
+} from "../../../components/tasks/TaskCommentStream";
+import {
+  TaskSessionLink,
+  TaskTimeline,
+} from "../../../components/tasks/TaskTimeline";
+import {
+  SupersededBanner,
+  TaskRelations,
+} from "../../../components/tasks/TaskRelations";
 import { AssigneeFace } from "../../../components/identity/AssigneeFace";
 import { useOrgRoles } from "../../../hooks/useOrgRoles";
 import { useSyncOrgTreeFeeder } from "../../../hooks/useSyncOrgTree";
 import { TaskSessionList } from "../../../components/tasks/TaskSessionList";
-import { PropertyDropdown, TaskStatusPicker } from "../../../components/tasks/TaskStatusPicker";
+import {
+  PropertyDropdown,
+  TaskStatusPicker,
+} from "../../../components/tasks/TaskStatusPicker";
 import { SubtasksSection } from "../../../components/tasks/SubtasksSection";
-import { TaskSessionEmpty, TaskSessionSection } from "../../../components/work/TaskSessionSection";
+import {
+  TaskSessionEmpty,
+  TaskSessionSection,
+} from "../../../components/work/TaskSessionSection";
 import { Badge } from "../../../components/ui/badge";
 import { getLabelColor } from "../../../lib/labelColors";
 import Link from "next/link";
@@ -66,7 +106,11 @@ import {
   CornerDownRight,
 } from "lucide-react";
 import { closeTaskWithGuard } from "../../../lib/taskActions";
-import { statusVisual, taskStatusOf, useTeamTaskStatusList } from "../../../lib/taskStatuses";
+import {
+  statusVisual,
+  taskStatusOf,
+  useTeamTaskStatusList,
+} from "../../../lib/taskStatuses";
 import { DocDates } from "../../../components/DocDates";
 import { keyBelongsElsewhere } from "../../../shortcuts/keyOwnership";
 import { matchesAction } from "../../../shortcuts";
@@ -74,17 +118,27 @@ import { useFollowScroll } from "../../../hooks/useFollowSurface";
 import { useTaskHref } from "../../../lib/taskHrefContext";
 import { useNavClose } from "../../../hooks/useNavTrail";
 import { useIsModernStyle } from "../../../hooks/useVisualStyle";
-import { TaskHeadIdRow, TaskHeadTitle, TaskModernHeader, TaskParentLine, type TaskTitleEdit } from "./TaskHead";
+import {
+  TaskHeadIdRow,
+  TaskHeadTitle,
+  TaskModernHeader,
+  TaskParentLine,
+  type TaskTitleEdit,
+} from "./TaskHead";
 import { modernPill, modernPillShape } from "../../../components/ui/modernLook";
 
 const PRIORITY_OPTIONS = [
-  { key: "urgent", icon: AlertTriangle, label: "Urgent", color: "text-sol-red" },
+  {
+    key: "urgent",
+    icon: AlertTriangle,
+    label: "Urgent",
+    color: "text-sol-red",
+  },
   { key: "high", icon: ArrowUp, label: "High", color: "text-sol-orange" },
   { key: "medium", icon: Minus, label: "Medium", color: "text-sol-text-muted" },
   { key: "low", icon: ArrowDown, label: "Low", color: "text-sol-text-dim" },
   { key: "none", icon: Minus, label: "None", color: "text-sol-text-dim" },
 ] as const;
-
 
 // The doc fields the related-docs list renders or filters on; a body edit
 // must not wake it (updated_at is left out on purpose: the server snapshot
@@ -95,17 +149,25 @@ function docOriginSig(d: any): string {
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color = pct >= 80 ? "bg-sol-green" : pct >= 50 ? "bg-sol-yellow" : "bg-sol-orange";
+  const color =
+    pct >= 80 ? "bg-sol-green" : pct >= 50 ? "bg-sol-yellow" : "bg-sol-orange";
   return (
     <div className="flex items-center gap-2 py-1">
       <div className="w-20 h-1.5 rounded-full bg-sol-bg-highlight overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+        <div
+          className={`h-full rounded-full ${color} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <span className="text-sol-text-muted text-xs tabular-nums">{pct}%</span>
     </div>
@@ -116,8 +178,12 @@ function ConfidenceBar({ value }: { value: number }) {
 // work PRODUCED (files, verification, status, PR, pages) is evidence and
 // renders in TaskEvidence (the-line.md L6), never here a second time.
 function ExecutionDetailsSection({ data }: { data: any }) {
-  const hasExecution = data.steps?.length || data.acceptance_criteria?.length ||
-    (data.execution_concerns && !data.cause) || data.estimated_minutes != null || data.actual_minutes != null;
+  const hasExecution =
+    data.steps?.length ||
+    data.acceptance_criteria?.length ||
+    (data.execution_concerns && !data.cause) ||
+    data.estimated_minutes != null ||
+    data.actual_minutes != null;
   if (!hasExecution) return null;
 
   return (
@@ -131,10 +197,20 @@ function ExecutionDetailsSection({ data }: { data: any }) {
           <div className="flex items-center gap-4 text-xs">
             <Clock className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0" />
             {data.estimated_minutes != null && (
-              <span className="text-sol-text-dim">Estimated: <span className="text-sol-text-muted font-medium">{data.estimated_minutes}m</span></span>
+              <span className="text-sol-text-dim">
+                Estimated:{" "}
+                <span className="text-sol-text-muted font-medium">
+                  {data.estimated_minutes}m
+                </span>
+              </span>
             )}
             {data.actual_minutes != null && (
-              <span className="text-sol-text-dim">Actual: <span className="text-sol-text-muted font-medium">{data.actual_minutes}m</span></span>
+              <span className="text-sol-text-dim">
+                Actual:{" "}
+                <span className="text-sol-text-muted font-medium">
+                  {data.actual_minutes}m
+                </span>
+              </span>
             )}
           </div>
         )}
@@ -154,7 +230,10 @@ function ExecutionDetailsSection({ data }: { data: any }) {
             </div>
             <div className="space-y-1.5">
               {data.acceptance_criteria.map((c: string, i: number) => (
-                <div key={i} className="flex items-start gap-2.5 text-sm text-sol-text-muted">
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5 text-sm text-sol-text-muted"
+                >
                   <ShieldCheck className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0 mt-0.5" />
                   <span>{c}</span>
                 </div>
@@ -165,17 +244,35 @@ function ExecutionDetailsSection({ data }: { data: any }) {
 
         {data.steps && data.steps.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-sol-text-dim mb-2">Steps</div>
+            <div className="text-xs font-medium text-sol-text-dim mb-2">
+              Steps
+            </div>
             <div className="space-y-1.5">
               {data.steps.map((s: any, i: number) => (
                 <div key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className={`flex-shrink-0 mt-0.5 ${s.done ? "text-sol-green" : "text-sol-text-dim"}`}>
-                    {s.done ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                  <span
+                    className={`flex-shrink-0 mt-0.5 ${s.done ? "text-sol-green" : "text-sol-text-dim"}`}
+                  >
+                    {s.done ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <Circle className="w-3.5 h-3.5" />
+                    )}
                   </span>
                   <div className="min-w-0">
-                    <span className={s.done ? "text-sol-text-muted line-through" : "text-sol-text-muted"}>{s.title}</span>
+                    <span
+                      className={
+                        s.done
+                          ? "text-sol-text-muted line-through"
+                          : "text-sol-text-muted"
+                      }
+                    >
+                      {s.title}
+                    </span>
                     {s.verification && (
-                      <div className="text-xs text-sol-text-dim mt-0.5">{s.verification}</div>
+                      <div className="text-xs text-sol-text-dim mt-0.5">
+                        {s.verification}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -183,7 +280,6 @@ function ExecutionDetailsSection({ data }: { data: any }) {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -192,7 +288,13 @@ function ExecutionDetailsSection({ data }: { data: any }) {
 // The relations block resolves blockers and parents against every task the
 // store holds, so it is the one part of the page that reads the whole
 // collection; its own subscription keeps the rest of the page off it.
-function TaskRelationsLive({ task, onAdd }: { task: TaskItem; onAdd: React.ComponentProps<typeof TaskRelations>["onAdd"] }) {
+function TaskRelationsLive({
+  task,
+  onAdd,
+}: {
+  task: TaskItem;
+  onAdd: React.ComponentProps<typeof TaskRelations>["onAdd"];
+}) {
   const tasks = useInboxStore((s) => s.tasks);
   return <TaskRelations task={task} tasks={tasks} onAdd={onAdd} />;
 }
@@ -243,21 +345,48 @@ function MaybeFolded({
 // A problem's page leads with its summary (ProblemSummary); the task's own
 // record (properties, description, sessions, activity) waits behind one
 // toggle. Any other task renders it plainly.
-function RecordFold({ on, count, children }: { on: boolean; count?: number; children: React.ReactNode }) {
+function RecordFold({
+  on,
+  count,
+  children,
+}: {
+  on: boolean;
+  count?: number;
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   if (!on) return <>{children}</>;
   return (
-    <div className="mb-6 border-t border-sol-border/30 pt-3" data-problem-record>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="inline-flex items-center gap-1.5 text-[12px] text-sol-text-dim hover:text-sol-text">
-        <CornerDownRight className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} />
-        Activity, sessions and notes{count ? <span className="tabular-nums opacity-70">{count}</span> : null}
+    <div
+      className="mb-6 border-t border-sol-border/30 pt-3"
+      data-problem-record
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 text-[12px] text-sol-text-dim hover:text-sol-text"
+      >
+        <CornerDownRight
+          className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`}
+        />
+        Activity, sessions and notes
+        {count ? (
+          <span className="tabular-nums opacity-70">{count}</span>
+        ) : null}
       </button>
       {open && <div className="mt-4">{children}</div>}
     </div>
   );
 }
 
-export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, closeHref = "/tasks" }: {
+export function TaskDetailContent({
+  taskId,
+  variant = "page",
+  onClose,
+  onOpen,
+  closeHref = "/tasks",
+}: {
   taskId?: string;
   variant?: "page" | "inline";
   onClose?: () => void;
@@ -296,7 +425,9 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   // The id may be a conversation's (legacy phantom-task cache rows, malformed
   // /tasks/<conversationId> links). When the server says "not a task" and the
   // id is a session we know, land in the conversation instead of a dead-end.
-  const sessionForBadId = useInboxStore((s) => (directData === null ? s.sessions[id] : undefined));
+  const sessionForBadId = useInboxStore((s) =>
+    directData === null ? s.sessions[id] : undefined,
+  );
   useWatchEffect(() => {
     if (!isInline && directData === null && sessionForBadId) {
       router.replace(`/conversation/${id}`);
@@ -311,8 +442,14 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   // A task is only readable by its team's members, so the viewer's own team
   // list always contains the task's team.
   const currentUser = useInboxStore((s) => s.currentUser);
-  const teamMembers = useInboxStore((s) => teamMembersOf(s).length > 0 ? teamMembersOf(s) : null);
-  const teamInfo = useInboxStore((s) => (taskTeamId ? (s.teams ?? []).find((t: any) => String(t._id) === taskTeamId) ?? null : null));
+  const teamMembers = useInboxStore((s) =>
+    teamMembersOf(s).length > 0 ? teamMembersOf(s) : null,
+  );
+  const teamInfo = useInboxStore((s) =>
+    taskTeamId
+      ? ((s.teams ?? []).find((t: any) => String(t._id) === taskTeamId) ?? null)
+      : null,
+  );
   // The project this task is filed under — omitted when the surface around it is
   // already that project, so the chip never repeats the breadcrumb above it.
   const taskProjectId = (data as any)?.project_id as string | undefined;
@@ -329,28 +466,52 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   // palette's assign mode would offer no roles.
   useSyncOrgTreeFeeder();
   const { roles: orgRoles } = useOrgRoles();
-  const assigneeInfo = resolveAssigneeInfo((data as any)?.assignee, (data as any)?.assignee_info, teamMembers as any[], currentUser, orgRoles);
+  const assigneeInfo = resolveAssigneeInfo(
+    (data as any)?.assignee,
+    (data as any)?.assignee_info,
+    teamMembers as any[],
+    currentUser,
+    orgRoles,
+  );
   // Linked sessions and related docs paint from the store on the first frame:
   // the detail snapshot when cached, else the sessions/origin badges/docs the
   // client already holds (resolveTaskLinkedConversations). Sessions churn on
   // every heartbeat, so subscribe to a signature of the rendered fields, not
   // the rows.
-  const linkedIds = useMemo(() => taskLinkedConversationIds(data), [data?.created_from_conversation, (data as any)?.conversation_ids]);
-  const linkedSig = useInboxStore((s) => linkedIds.map((cid) => {
-    const r = s.sessions[cid];
-    if (r) return `${cid}:${r.title}:${r.is_idle}:${r.updated_at}:${r.message_count}:${r.active_task?._id ?? ""}`;
-    return s.taskOriginBadges[cid] ? `${cid}:badge` : "";
-  }).join("|"));
+  const linkedIds = useMemo(
+    () => taskLinkedConversationIds(data),
+    [data?.created_from_conversation, (data as any)?.conversation_ids],
+  );
+  const linkedSig = useInboxStore((s) =>
+    linkedIds
+      .map((cid) => {
+        const r = s.sessions[cid];
+        if (r)
+          return `${cid}:${r.title}:${r.is_idle}:${r.updated_at}:${r.message_count}:${r.active_task?._id ?? ""}`;
+        return s.taskOriginBadges[cid] ? `${cid}:badge` : "";
+      })
+      .join("|"),
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps -- linkedSig stands in for the churny sessions ref
   const linkedConversations = useMemo(() => {
     const s = useInboxStore.getState();
     return resolveTaskLinkedConversations(data, s.sessions, s.taskOriginBadges);
   }, [data?.linked_conversations, linkedIds, linkedSig]);
-  const originSession = linkedConversations.find((c: any) => c._id === data?.created_from_conversation);
+  const originSession = linkedConversations.find(
+    (c: any) => c._id === data?.created_from_conversation,
+  );
   // The task's one owning session (convex lib/taskOwner.ts), read off the
   // live session rows: it heads the page as the other face of this task.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- linkedSig stands in for the churny sessions ref
-  const ownerSession = useMemo(() => taskOwnerOf(linkedConversations, useInboxStore.getState().sessions, (data as any)?._id), [linkedConversations, (data as any)?._id, linkedSig]);
+  const ownerSession = useMemo(
+    () =>
+      taskOwnerOf(
+        linkedConversations,
+        useInboxStore.getState().sessions,
+        (data as any)?._id,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- linkedSig stands in for the churny sessions ref
+    [linkedConversations, (data as any)?._id, linkedSig],
+  );
   // External events for this task are their own synced collection: mount the task
   // feeder and read the store, never the query. The route id may be the short
   // id, so match on both it and the convex id.
@@ -358,12 +519,17 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   useSyncTaskExternalEvents(taskConvexId);
   const externalWhere = useMemo(
     () => (row: ExternalEventRecord) =>
-      (!!taskConvexId && (row.task_id === taskConvexId || !!row.task_ids?.includes(taskConvexId))) ||
+      (!!taskConvexId &&
+        (row.task_id === taskConvexId ||
+          !!row.task_ids?.includes(taskConvexId))) ||
       row.task_id === id ||
       !!row.task_ids?.includes(id),
     [taskConvexId, id],
   );
-  const externalEvents = useExternalEvents(externalWhere, externalEventsOldestFirst);
+  const externalEvents = useExternalEvents(
+    externalWhere,
+    externalEventsOldestFirst,
+  );
   // Which imported container this issue came from (issue-sync S1.3). Named
   // because a workspace can import several repos or Linear projects, and
   // "synced 2m ago" does not say which one owns this task.
@@ -374,7 +540,9 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   const issueSourceName = useMemo(() => {
     const external = data?.external;
     if (!external?.source_id) return undefined;
-    const name = issueSources.find((s: any) => s._id === external.source_id)?.name;
+    const name = issueSources.find(
+      (s: any) => s._id === external.source_id,
+    )?.name;
     if (!name || external.identifier.startsWith(name)) return undefined;
     return name;
   }, [issueSources, data?.external?.source_id, data?.external?.identifier]);
@@ -383,7 +551,13 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
     const docs: Record<string, any> = {};
     for (const d of wsDocs) docs[d._id] = d;
     return resolveTaskRelatedDocs(data, docs);
-  }, [data?.related_docs, data?.created_from_conversation, data?.short_id, data?.created_at, wsDocs]);
+  }, [
+    data?.related_docs,
+    data?.created_from_conversation,
+    data?.short_id,
+    data?.created_at,
+    wsDocs,
+  ]);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   // The task's body scroller, a place a follower can follow (lib/follow.ts).
@@ -394,24 +568,34 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
   const titleRef = useRef<HTMLInputElement>(null);
   const openPalette = useInboxStore((s) => s.openPalette);
   const paletteOpen = useInboxStore((s) => s.palette.open);
-  const shortcutsPanelOpen = useInboxStore(s => s.shortcutsPanelOpen);
+  const shortcutsPanelOpen = useInboxStore((s) => s.shortcutsPanelOpen);
 
-  const handleUpdate = useCallback((fields: Record<string, any>) => {
-    if (!data?.short_id) return;
-    updateTask(data.short_id, fields);
-  }, [data?.short_id, updateTask]);
+  const handleUpdate = useCallback(
+    (fields: Record<string, any>) => {
+      if (!data?.short_id) return;
+      updateTask(data.short_id, fields);
+    },
+    [data?.short_id, updateTask],
+  );
 
   // Close-guard flow: any human move to done/dropped goes through the single
   // gateway; a parent with open subtasks opens the shared dialog (rendered once
   // in DashboardLayout) instead of writing anything.
-  const requestClose = useCallback((shortId: string, status: "done" | "dropped") => {
-    closeTaskWithGuard(shortId, status);
-  }, []);
+  const requestClose = useCallback(
+    (shortId: string, status: "done" | "dropped") => {
+      closeTaskWithGuard(shortId, status);
+    },
+    [],
+  );
 
   // The parent breadcrumb resolves live from the store, so a re-parent
   // elsewhere updates the chip instantly.
   const parentId = (data as any)?.parent_id as string | undefined;
-  const parentRow = useInboxStore((s) => (parentId ? ((s.tasks[String(parentId)] as TaskItem | undefined) ?? null) : null));
+  const parentRow = useInboxStore((s) =>
+    parentId
+      ? ((s.tasks[String(parentId)] as TaskItem | undefined) ?? null)
+      : null,
+  );
 
   // The comment composer owns its draft and uploads (components/tasks/TaskCommentStream);
   // the page's drop zone hands dropped files to it through this ref.
@@ -424,7 +608,10 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
     if (data.status) parts.push(`Status: ${data.status}`);
     if (data.priority) parts.push(`Priority: ${data.priority}`);
     if (data.description) parts.push(`\n${data.description}`);
-    if ((data as any).acceptance_criteria?.length) parts.push(`\nAcceptance Criteria:\n${(data as any).acceptance_criteria.map((c: string) => `- ${c}`).join("\n")}`);
+    if ((data as any).acceptance_criteria?.length)
+      parts.push(
+        `\nAcceptance Criteria:\n${(data as any).acceptance_criteria.map((c: string) => `- ${c}`).join("\n")}`,
+      );
     return parts.join("\n");
   }, [data]);
 
@@ -442,11 +629,17 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
     }
   }, [titleDraft, data?.title, handleUpdate]);
 
-
-  const openCmd = useCallback((mode: string) => {
-    if (!data) return;
-    openPalette({ targets: [data as unknown as TaskItem], targetType: 'task', mode });
-  }, [data, openPalette]);
+  const openCmd = useCallback(
+    (mode: string) => {
+      if (!data) return;
+      openPalette({
+        targets: [data as unknown as TaskItem],
+        targetType: "task",
+        mode,
+      });
+    },
+    [data, openPalette],
+  );
 
   const paneActive = useTabActive();
   // ✕ and the back key: to the list in Classic, along the trail in Modern.
@@ -462,7 +655,9 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
       if (e.defaultPrevented) return;
       if (keyBelongsElsewhere(e.target)) return;
 
-      const stop = () => { e.preventDefault(); };
+      const stop = () => {
+        e.preventDefault();
+      };
 
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         stop();
@@ -495,7 +690,16 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [paneActive, paletteOpen, shortcutsPanelOpen, isInline, data, openCmd, startEditTitle, navClose]);
+  }, [
+    paneActive,
+    paletteOpen,
+    shortcutsPanelOpen,
+    isInline,
+    data,
+    openCmd,
+    startEditTitle,
+    navClose,
+  ]);
 
   if (!data) {
     // directData === null: webGetTaskDetail resolved but the id is not a task
@@ -507,334 +711,580 @@ export function TaskDetailContent({ taskId, variant = "page", onClose, onOpen, c
         return <PaneLoader />;
       }
       return (
-        <div className={`flex flex-col items-center justify-center h-full gap-3 text-center px-6 ${isInline ? "w-[480px] min-w-0 flex-shrink border-l border-sol-border/30 bg-sol-bg" : ""}`}>
-          <div className="text-sol-text-muted text-sm">This task doesn&apos;t exist.</div>
-          <div className="text-sol-text-dim text-xs font-mono break-all">{id}</div>
+        <div
+          className={`flex flex-col items-center justify-center h-full gap-3 text-center px-6 ${isInline ? "w-[480px] min-w-0 flex-shrink border-l border-sol-border/30 bg-sol-bg" : ""}`}
+        >
+          <div className="text-sol-text-muted text-sm">
+            This task doesn&apos;t exist.
+          </div>
+          <div className="text-sol-text-dim text-xs font-mono break-all">
+            {id}
+          </div>
           {sessionForBadId && (
-            <Link href={`/conversation/${id}`} className="text-xs text-sol-cyan hover:underline">
+            <Link
+              href={`/conversation/${id}`}
+              className="text-xs text-sol-cyan hover:underline"
+            >
               It&apos;s a session — open it →
             </Link>
           )}
           {isInline && onClose ? (
-            <button onClick={onClose} className="text-xs text-sol-cyan hover:underline">← Close</button>
+            <button
+              onClick={onClose}
+              className="text-xs text-sol-cyan hover:underline"
+            >
+              ← Close
+            </button>
           ) : (
-            <Link href={closeHref} className="text-xs text-sol-cyan hover:underline">← Back to tasks</Link>
+            <Link
+              href={closeHref}
+              className="text-xs text-sol-cyan hover:underline"
+            >
+              ← Back to tasks
+            </Link>
           )}
         </div>
       );
     }
-    return <PaneLoader className={isInline ? "w-[480px] min-w-0 flex-shrink border-l border-sol-border/30 min-h-[16rem] h-full" : "min-h-[16rem] h-full"} />;
+    return (
+      <PaneLoader
+        className={
+          isInline
+            ? "w-[480px] min-w-0 flex-shrink border-l border-sol-border/30 min-h-[16rem] h-full"
+            : "min-h-[16rem] h-full"
+        }
+      />
+    );
   }
 
-  const status = statusVisual(taskStatusOf(data as any, taskStatuses), taskStatuses);
+  const status = statusVisual(
+    taskStatusOf(data as any, taskStatuses),
+    taskStatuses,
+  );
   // A line problem (learning-loop.md LL6) leads with its summary, its record folded.
   const isProblem = !!(data as any).cause;
-  const head = { data, teamInfo, taskProject, taskTeamId, isInline, onOpen, close: () => { if (isInline && onClose) onClose(); else navClose(); } };
-  const titleEdit: TaskTitleEdit = { editing: editingTitle, draft: titleDraft, setDraft: setTitleDraft, commit: commitTitle, cancel: () => setEditingTitle(false), start: startEditTitle, inputRef: titleRef };
+  const head = {
+    data,
+    teamInfo,
+    taskProject,
+    taskTeamId,
+    isInline,
+    onOpen,
+    close: () => {
+      if (isInline && onClose) onClose();
+      else navClose();
+    },
+  };
+  const titleEdit: TaskTitleEdit = {
+    editing: editingTitle,
+    draft: titleDraft,
+    setDraft: setTitleDraft,
+    commit: commitTitle,
+    cancel: () => setEditingTitle(false),
+    start: startEditTitle,
+    inputRef: titleRef,
+  };
 
   return (
-        <div
-          className={isInline ? "w-[480px] min-w-0 flex-shrink h-full flex flex-col relative min-w-0 border-l border-sol-border/30 bg-sol-bg" : "flex-1 h-full flex flex-col relative min-w-0"}
-          onDragEnter={(e) => { e.preventDefault(); dragCounterRef.current++; setIsDragging(true); }}
-          onDragOver={(e) => { e.preventDefault(); }}
-          onDragLeave={(e) => { e.preventDefault(); dragCounterRef.current--; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDragging(false); } }}
-          onDrop={(e) => { e.preventDefault(); dragCounterRef.current = 0; setIsDragging(false); const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")); commentDropRef.current?.(files); }}
-        >
-        {isDragging && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-sol-bg/80 border-2 border-dashed border-sol-cyan rounded-xl pointer-events-none">
-            <p className="text-sol-cyan text-sm font-medium">Drop images to attach</p>
-          </div>
-        )}
-        {modern && <TaskModernHeader {...head} status={status} edit={titleEdit} />}
-        <div ref={bodyScrollRef} className="flex-1 overflow-y-auto">
+    <div
+      className={
+        isInline
+          ? "w-[480px] min-w-0 flex-shrink h-full flex flex-col relative min-w-0 border-l border-sol-border/30 bg-sol-bg"
+          : "flex-1 h-full flex flex-col relative min-w-0"
+      }
+      onDragEnter={(e) => {
+        e.preventDefault();
+        dragCounterRef.current++;
+        setIsDragging(true);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        dragCounterRef.current--;
+        if (dragCounterRef.current <= 0) {
+          dragCounterRef.current = 0;
+          setIsDragging(false);
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        dragCounterRef.current = 0;
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files).filter((f) =>
+          f.type.startsWith("image/"),
+        );
+        commentDropRef.current?.(files);
+      }}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-sol-bg/80 border-2 border-dashed border-sol-cyan rounded-xl pointer-events-none">
+          <p className="text-sol-cyan text-sm font-medium">
+            Drop images to attach
+          </p>
+        </div>
+      )}
+      {modern && (
+        <TaskModernHeader {...head} status={status} edit={titleEdit} />
+      )}
+      <div ref={bodyScrollRef} className="flex-1 overflow-y-auto">
         <div className="flex flex-col min-h-full">
-        <div className={isInline ? "flex-1 px-4 py-4 w-full" : "flex-1 max-w-4xl mx-auto px-6 py-6 w-full"}>
-          {!modern && <TaskHeadIdRow {...head} />}
+          <div
+            className={
+              isInline
+                ? "flex-1 px-4 py-4 w-full"
+                : "flex-1 max-w-4xl mx-auto px-6 py-6 w-full"
+            }
+          >
+            {!modern && <TaskHeadIdRow {...head} />}
 
-          {!isProblem && <RepositoryLinks taskId={data._id} conversationIds={linkedIds} sessions={linkedConversations} repository={taskRepository(data) ?? undefined} />}
+            {!isProblem && (
+              <RepositoryLinks
+                taskId={data._id}
+                conversationIds={linkedIds}
+                sessions={linkedConversations}
+                repository={taskRepository(data) ?? undefined}
+              />
+            )}
 
-          <SupersededBanner task={data} />
+            <SupersededBanner task={data} />
 
-          {(data as any).parent_id && <TaskParentLine parent={parentRow} onOpen={() => parentRow && router.push(taskHref(parentRow._id))} />}
+            {(data as any).parent_id && (
+              <TaskParentLine
+                parent={parentRow}
+                onOpen={() => parentRow && router.push(taskHref(parentRow._id))}
+              />
+            )}
 
-          {!modern && <TaskHeadTitle title={data.title} status={status} edit={titleEdit} />}
+            {!modern && (
+              <TaskHeadTitle
+                title={data.title}
+                status={status}
+                edit={titleEdit}
+              />
+            )}
 
-          {isProblem && <ProblemSummary task={data as any} />}
+            {isProblem && <ProblemSummary task={data as any} />}
 
-          {/* Decisions bound to a problem lead its record: the card is the next move. */}
-          {isProblem && <TaskDecisions taskId={data._id} />}
+            {/* Decisions bound to a problem lead its record: the card is the next move. */}
+            {isProblem && <TaskDecisions taskId={data._id} />}
 
-          <RecordFold on={isProblem} count={comments.length + linkedConversations.length}>
-          {/* Primary properties — inline, editable (the card look) */}
-          <div className="flex items-center gap-1 flex-wrap mb-4 -ml-1">
-            <TaskStatusPicker task={data as any} shortcutHint="s to cycle" />
-            <TaskLineChip task={data as any} watch={false} />
-            <PropertyDropdown value={data.priority} options={PRIORITY_OPTIONS} onChange={(v) => handleUpdate({ priority: v })} shortcutHint="p to cycle" />
-            <button
-              onClick={() => openCmd("assign")}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs hover:bg-sol-bg-alt transition-colors text-left"
+            <RecordFold
+              on={isProblem}
+              count={comments.length + linkedConversations.length}
             >
-              {assigneeInfo ? (
-                <>
-                  <AssigneeFace info={assigneeInfo} size={20} />
-                  <span className="text-sol-text-muted">{assigneeInfo.name}</span>
-                </>
-              ) : (
-                <span className="text-sol-text-dim">Unassigned</span>
-              )}
-            </button>
-          </div>
+              {/* Primary properties — inline, editable (the card look) */}
+              <div className="flex items-center gap-1 flex-wrap mb-4 -ml-1">
+                <TaskStatusPicker
+                  task={data as any}
+                  shortcutHint="s to cycle"
+                />
+                <TaskLineChip task={data as any} watch={false} />
+                <PropertyDropdown
+                  value={data.priority}
+                  options={PRIORITY_OPTIONS}
+                  onChange={(v) => handleUpdate({ priority: v })}
+                  shortcutHint="p to cycle"
+                />
+                <button
+                  onClick={() => openCmd("assign")}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs hover:bg-sol-bg-alt transition-colors text-left"
+                >
+                  {assigneeInfo ? (
+                    <>
+                      <AssigneeFace info={assigneeInfo} size={20} />
+                      <span className="text-sol-text-muted">
+                        {assigneeInfo.name}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sol-text-dim">Unassigned</span>
+                  )}
+                </button>
+              </div>
 
-          {/* The line (the-line.md L3, LM7, LE16): the station strip, and for a
+              {/* The line (the-line.md L3, LM7, LE16): the station strip, and for a
               cause the story under it: where it is, its goal, signals, card answer and runs */}
-          {!isProblem && <TaskLineStory task={data as any} />}
+              {!isProblem && <TaskLineStory task={data as any} />}
 
-          {/* Secondary properties */}
-          <div className="mb-6 rounded-lg border border-sol-border/15 overflow-hidden">
-            {/* Provider twin (issue-sync S1.1): where the task came from and how
+              {/* Secondary properties */}
+              <div className="mb-6 rounded-lg border border-sol-border/15 overflow-hidden">
+                {/* Provider twin (issue-sync S1.1): where the task came from and how
                 fresh the mirror is. The row reads plainly on its own: state,
                 unmapped assignee, last sync, and the error when the last sync
                 failed. */}
-            {data.external && (
-              <div className="grid grid-cols-[7rem_1fr] items-start px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
-                <span className="text-xs text-sol-text-dim pt-0.5">Issue</span>
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-sol-text-muted min-w-0">
-                  <IssueLink external={data.external} />
-                  {data.external.state_name && <span>{data.external.state_name}</span>}
-                  {data.external.assignee_label && !data.assignee && (
-                    <span className="text-sol-text-dim">assigned to {data.external.assignee_label}</span>
-                  )}
-                  <span className="text-sol-text-dim" title={formatDateFull(data.external.synced_at)}>
-                    synced {formatRelative(data.external.synced_at)}
-                  </span>
-                  {issueSourceName && (
-                    <Link
-                      href="/settings/integrations"
-                      className="text-sol-text-dim hover:text-sol-cyan transition-colors truncate min-w-0"
-                      title={`Imported from ${issueSourceName}. Open integrations.`}
-                    >
-                      from {issueSourceName}
-                    </Link>
-                  )}
-                  {data.external.last_error && (
-                    <span className="text-sol-red truncate min-w-0" title={data.external.last_error}>{data.external.last_error}</span>
-                  )}
-                </span>
-              </div>
-            )}
-            {/* Created */}
-            <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
-              <span className="text-xs text-sol-text-dim">Created</span>
-              {/* On a phone the date and the author each stay whole and wrap as units. */}
-              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0 text-xs text-sol-text-muted" title={formatDateFull(data.created_at)}>
-                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                  <Clock className="w-3 h-3 text-sol-text-dim" />
-                  {formatDate(data.created_at)}
-                </span>
-                {originSession ? (
-                  <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full" data-task-created-by>
-                    <span className="shrink-0 text-sol-text-dim">by</span>
-                    <TaskSessionLink session={originSession} onOpen={openLinkedSession} />
-                  </span>
-                ) : data.creator && (
-                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap" data-task-created-by>
-                    <span className="text-sol-text-dim">by</span>
-                    <UserBadge name={data.creator.name} image={data.creator.image} username={(data.creator as any).github_username} />
-                  </span>
-                )}
-              </span>
-            </div>
-
-            {data.closed_at && (
-              <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
-                <span className="text-xs text-sol-text-dim">Closed</span>
-                <span className="text-xs text-sol-text-muted" title={formatDateFull(data.closed_at)}>{formatDate(data.closed_at)}</span>
-              </div>
-            )}
-
-            {(data as any).started_at && (() => {
-              // A line problem back in the queue has had a run: "Last run", so the facts agree with the sentence above (learning-loop.md LL6).
-              const stoppedRun = !!(data as any).cause && (data.status === "open" || data.status === "backlog" || data.status === "blocked");
-              return (
-                <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors" data-task-started={stoppedRun ? "stopped" : "started"}>
-                  <span className="text-xs text-sol-text-dim">{stoppedRun ? "Last run" : "Started"}</span>
-                  <span className="text-xs text-sol-text-muted" title={formatDateFull((data as any).started_at)}>{formatDate((data as any).started_at)}</span>
-                </div>
-              );
-            })()}
-
-            {/* Confidence — visual bar */}
-            {data.confidence != null && (
-              <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
-                <span className="text-xs text-sol-text-dim">Confidence</span>
-                <ConfidenceBar value={data.confidence} />
-              </div>
-            )}
-
-            {/* Labels */}
-            {data.labels && data.labels.length > 0 && (
-              <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
-                <span className="text-xs text-sol-text-dim">Labels</span>
-                <div className="flex gap-1.5 flex-wrap">
-                  {data.labels.map((l: string) => {
-                    const lc = getLabelColor(l);
-                    return (
-                      <Link key={l} href={`/tasks?label=${encodeURIComponent(l)}`} className={`inline-flex items-center gap-1 text-meta px-2 py-0.5 rounded-full border ${lc.bg} ${lc.border} ${lc.text} hover:brightness-110 transition-all cursor-pointer ${modernPillShape()}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${lc.dot}`} />
-                        {l}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* The task graph (task-graph.md TG12): blockers and waits, then links and the parent */}
-            <TaskRelationsLive task={data} onAdd={openCmd} />
-          </div>
-
-          {/* Decisions bound to this task (D3): open cards, settled ones
-              folded. A blocking one renders ABOVE the description — the
-              reader's next move is the answer, not the body. */}
-          {blockedOnDecision && !isProblem && <TaskDecisions taskId={data._id} />}
-
-          {/* Description. Folded to a few lines while a decision blocks the
-              task, so the card above stays in view; it opens on the toggle,
-              and on its own the moment the reader puts a caret in it. */}
-          <div className="mb-6">
-            <MaybeFolded
-              folded={blockedOnDecision && !isProblem}
-              expandLabel="Read the description"
-              collapseLabel="Fold the description"
-            >
-              <DocEditor
-                key={`desc-${data._id}`}
-                content={data.description || ""}
-                onUpdate={(md) => {
-                  if (md.trim() !== (data.description || "").trim()) {
-                    handleUpdate({ description: md });
-                  }
-                }}
-                onMentionQuery={handleMentionQuery}
-                onImageUpload={handleImageUpload}
-                editable={true}
-                placeholder="Add a description..."
-                className="doc-editor-compact"
-              />
-            </MaybeFolded>
-          </div>
-
-          {/* The session doing this task, read and answered in place */}
-          {ownerSession ? (
-            <TaskSessionSection session={ownerSession} task={data} onOpen={openLinkedSession} active={paneActive} rowOnly={isInline} />
-          ) : data.status !== "done" && data.status !== "dropped" && !(data as any).cause && (
-            // A line problem is run by its line (learning-loop.md LL5): the story above says where it stands, and handing it to an agent would skip the start switch.
-            <TaskSessionEmpty onStart={() => openCmd("agent_run")} />
-          )}
-
-          {!blockedOnDecision && !isProblem && <TaskDecisions taskId={data._id} />}
-
-          {/* The run (L10): its gate renders the decision card */}
-          <TaskRunPanel task={data as any} />
-
-          {/* Evidence at the station (the-line.md L6) */}
-          <TaskEvidence task={data as any} />
-
-          {/* One Ship control at the review station (docs/architecture/ship.md) */}
-          <TaskShipStation task={data as any} />
-
-          {/* The plan of the work: criteria, steps, estimates */}
-          <ExecutionDetailsSection data={data} />
-
-          {/* Subtasks — Linear's sub-issue section, always present */}
-          <SubtasksSection task={data} onNavigate={(tid) => router.push(taskHref(tid))} />
-
-          <TaskSessionList
-            sessions={ownerSession ? linkedConversations.filter((c: any) => c._id !== ownerSession._id) : linkedConversations}
-            originId={data.created_from_conversation}
-            heading={ownerSession ? "Other sessions" : "Sessions"}
-            onOpen={openLinkedSession}
-          />
-
-          {/* Source Insight */}
-          {data.source_insight && (
-            <div className="mb-6">
-              <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5" />
-                Source Insight
-              </h2>
-              <div className="border border-sol-border/30 rounded-lg p-4 bg-sol-bg-alt/20 border-l-2 border-l-sol-violet/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className={`text-meta text-sol-cyan border-sol-cyan/30 ${modernPill({ tone: "cyan" })}`}>
-                    {data.source_insight.outcome_type}
-                  </Badge>
-                </div>
-                <p className="text-sm text-sol-text-muted">{data.source_insight.summary}</p>
-                {data.source_insight.themes?.length > 0 && (
-                  <div className="flex gap-1 mt-2">
-                    {data.source_insight.themes.map((t: string) => (
-                      <span key={t} className={`text-meta px-1.5 rounded bg-sol-bg-highlight text-sol-text-dim ${modernPill()}`}>{t}</span>
-                    ))}
+                {data.external && (
+                  <div className="grid grid-cols-[7rem_1fr] items-start px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
+                    <span className="text-xs text-sol-text-dim pt-0.5">
+                      Issue
+                    </span>
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-sol-text-muted min-w-0">
+                      <IssueLink external={data.external} />
+                      {data.external.state_name && (
+                        <span>{data.external.state_name}</span>
+                      )}
+                      {data.external.assignee_label && !data.assignee && (
+                        <span className="text-sol-text-dim">
+                          assigned to {data.external.assignee_label}
+                        </span>
+                      )}
+                      <span
+                        className="text-sol-text-dim"
+                        title={formatDateFull(data.external.synced_at)}
+                      >
+                        synced {formatRelative(data.external.synced_at)}
+                      </span>
+                      {issueSourceName && (
+                        <Link
+                          href="/settings/integrations"
+                          className="text-sol-text-dim hover:text-sol-cyan transition-colors truncate min-w-0"
+                          title={`Imported from ${issueSourceName}. Open integrations.`}
+                        >
+                          from {issueSourceName}
+                        </Link>
+                      )}
+                      {data.external.last_error && (
+                        <span
+                          className="text-sol-red truncate min-w-0"
+                          title={data.external.last_error}
+                        >
+                          {data.external.last_error}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )}
+                {/* Created */}
+                <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
+                  <span className="text-xs text-sol-text-dim">Created</span>
+                  {/* On a phone the date and the author each stay whole and wrap as units. */}
+                  <span
+                    className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0 text-xs text-sol-text-muted"
+                    title={formatDateFull(data.created_at)}
+                  >
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <Clock className="w-3 h-3 text-sol-text-dim" />
+                      {formatDate(data.created_at)}
+                    </span>
+                    {originSession ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 min-w-0 max-w-full"
+                        data-task-created-by
+                      >
+                        <span className="shrink-0 text-sol-text-dim">by</span>
+                        <TaskSessionLink
+                          session={originSession}
+                          onOpen={openLinkedSession}
+                        />
+                      </span>
+                    ) : (
+                      data.creator && (
+                        <span
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap"
+                          data-task-created-by
+                        >
+                          <span className="text-sol-text-dim">by</span>
+                          <UserBadge
+                            name={data.creator.name}
+                            image={data.creator.image}
+                            username={(data.creator as any).github_username}
+                          />
+                        </span>
+                      )
+                    )}
+                  </span>
+                </div>
+
+                {data.closed_at && (
+                  <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
+                    <span className="text-xs text-sol-text-dim">Closed</span>
+                    <span
+                      className="text-xs text-sol-text-muted"
+                      title={formatDateFull(data.closed_at)}
+                    >
+                      {formatDate(data.closed_at)}
+                    </span>
+                  </div>
+                )}
+
+                {(data as any).started_at &&
+                  (() => {
+                    // A line problem back in the queue has had a run: "Last run", so the facts agree with the sentence above (learning-loop.md LL6).
+                    const stoppedRun =
+                      !!(data as any).cause &&
+                      (data.status === "open" ||
+                        data.status === "backlog" ||
+                        data.status === "blocked");
+                    return (
+                      <div
+                        className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors"
+                        data-task-started={stoppedRun ? "stopped" : "started"}
+                      >
+                        <span className="text-xs text-sol-text-dim">
+                          {stoppedRun ? "Last run" : "Started"}
+                        </span>
+                        <span
+                          className="text-xs text-sol-text-muted"
+                          title={formatDateFull((data as any).started_at)}
+                        >
+                          {formatDate((data as any).started_at)}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                {/* Confidence — visual bar */}
+                {data.confidence != null && (
+                  <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
+                    <span className="text-xs text-sol-text-dim">
+                      Confidence
+                    </span>
+                    <ConfidenceBar value={data.confidence} />
+                  </div>
+                )}
+
+                {/* Labels */}
+                {data.labels && data.labels.length > 0 && (
+                  <div className="grid grid-cols-[7rem_1fr] items-center px-4 py-1.5 hover:bg-sol-bg-alt/30 transition-colors">
+                    <span className="text-xs text-sol-text-dim">Labels</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {data.labels.map((l: string) => {
+                        const lc = getLabelColor(l);
+                        return (
+                          <Link
+                            key={l}
+                            href={`/tasks?label=${encodeURIComponent(l)}`}
+                            className={`inline-flex items-center gap-1 text-meta px-2 py-0.5 rounded-full border ${lc.bg} ${lc.border} ${lc.text} hover:brightness-110 transition-all cursor-pointer ${modernPillShape()}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${lc.dot}`}
+                            />
+                            {l}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* The task graph (task-graph.md TG12): blockers and waits, then links and the parent */}
+                <TaskRelationsLive task={data} onAdd={openCmd} />
               </div>
-            </div>
-          )}
 
-          {/* Plan */}
-          {(data as any).plan && (
-            <div className="mb-6">
-              <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2">Plan</h2>
-              <Link
-                href={`/plans/${(data as any).plan._id}`}
-                className="flex items-center gap-2.5 px-4 py-3 border border-sol-border/30 rounded-lg hover:bg-sol-bg-alt/50 transition-colors"
-              >
-                <CircleDot className="w-4 h-4 text-sol-cyan flex-shrink-0" />
-                <span className="text-sm font-medium text-sol-cyan">{(data as any).plan.title}</span>
-                <ShortId id={(data as any).plan.short_id} className="text-meta text-sol-text-dim" />
-                <Badge variant="outline" className={`text-meta px-1.5 py-0 text-sol-cyan border-sol-cyan/30 ml-auto ${modernPill({ tone: "cyan" })}`}>{(data as any).plan.status}</Badge>
-              </Link>
-            </div>
-          )}
+              {/* Decisions bound to this task (D3): open cards, settled ones
+              folded. A blocking one renders ABOVE the description — the
+              reader's next move is the answer, not the body. */}
+              {blockedOnDecision && !isProblem && (
+                <TaskDecisions taskId={data._id} />
+              )}
 
-          {/* Related Docs */}
-          {relatedDocs.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2">Related Documents</h2>
-              <div className="border border-sol-border/30 rounded-lg divide-y divide-sol-border/20 overflow-hidden">
-                {relatedDocs.map((doc: any) => (
-                  <Link key={doc._id} href={`/docs/${doc._id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-sol-bg-alt/50 transition-colors">
-                    <FileText className="w-4 h-4 text-sol-violet flex-shrink-0" />
-                    <span className="text-sm text-sol-text truncate">{(doc as any).display_title || doc.title || "Untitled"}</span>
-                    <DocDates doc={doc} className="text-meta text-sol-text-dim ml-auto" />
-                    <Badge variant="outline" className={`text-meta px-1.5 py-0 text-sol-violet border-sol-violet/30 ${modernPill({ tone: "violet" })}`}>{doc.doc_type}</Badge>
+              {/* Description. Folded to a few lines while a decision blocks the
+              task, so the card above stays in view; it opens on the toggle,
+              and on its own the moment the reader puts a caret in it. */}
+              <div className="mb-6">
+                <MaybeFolded
+                  folded={blockedOnDecision && !isProblem}
+                  expandLabel="Read the description"
+                  collapseLabel="Fold the description"
+                >
+                  <DocEditor
+                    key={`desc-${data._id}`}
+                    content={data.description || ""}
+                    onUpdate={(md) => {
+                      if (md.trim() !== (data.description || "").trim()) {
+                        handleUpdate({ description: md });
+                      }
+                    }}
+                    onMentionQuery={handleMentionQuery}
+                    onImageUpload={handleImageUpload}
+                    editable={true}
+                    placeholder="Add a description..."
+                    className="doc-editor-compact"
+                  />
+                </MaybeFolded>
+              </div>
+
+              {/* The session doing this task, read and answered in place */}
+              {ownerSession ? (
+                <TaskSessionSection
+                  session={ownerSession}
+                  task={data}
+                  onOpen={openLinkedSession}
+                  active={paneActive}
+                  rowOnly={isInline}
+                />
+              ) : (
+                data.status !== "done" &&
+                data.status !== "dropped" &&
+                !(data as any).cause && (
+                  // A line problem is run by its line (learning-loop.md LL5): the story above says where it stands, and handing it to an agent would skip the start switch.
+                  <TaskSessionEmpty onStart={() => openCmd("agent_run")} />
+                )
+              )}
+
+              {!blockedOnDecision && !isProblem && (
+                <TaskDecisions taskId={data._id} />
+              )}
+
+              {/* The run (L10): its gate renders the decision card */}
+              <TaskRunPanel task={data as any} />
+
+              {/* Evidence at the station (the-line.md L6) */}
+              <TaskEvidence task={data as any} />
+
+              {/* One Ship control at the review station (docs/architecture/ship.md) */}
+              <TaskShipStation task={data as any} />
+
+              {/* The plan of the work: criteria, steps, estimates */}
+              <ExecutionDetailsSection data={data} />
+
+              {/* Subtasks — Linear's sub-issue section, always present */}
+              <SubtasksSection
+                task={data}
+                onNavigate={(tid) => router.push(taskHref(tid))}
+              />
+
+              <TaskSessionList
+                sessions={
+                  ownerSession
+                    ? linkedConversations.filter(
+                        (c: any) => c._id !== ownerSession._id,
+                      )
+                    : linkedConversations
+                }
+                originId={data.created_from_conversation}
+                heading={ownerSession ? "Other sessions" : "Sessions"}
+                onOpen={openLinkedSession}
+              />
+
+              {/* Source Insight */}
+              {data.source_insight && (
+                <div className="mb-6">
+                  <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5" />
+                    Source Insight
+                  </h2>
+                  <div className="border border-sol-border/30 rounded-lg p-4 bg-sol-bg-alt/20 border-l-2 border-l-sol-violet/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge
+                        variant="outline"
+                        className={`text-meta text-sol-cyan border-sol-cyan/30 ${modernPill({ tone: "cyan" })}`}
+                      >
+                        {data.source_insight.outcome_type}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-sol-text-muted">
+                      {data.source_insight.summary}
+                    </p>
+                    {data.source_insight.themes?.length > 0 && (
+                      <div className="flex gap-1 mt-2">
+                        {data.source_insight.themes.map((t: string) => (
+                          <span
+                            key={t}
+                            className={`text-meta px-1.5 rounded bg-sol-bg-highlight text-sol-text-dim ${modernPill()}`}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Plan */}
+              {(data as any).plan && (
+                <div className="mb-6">
+                  <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2">
+                    Plan
+                  </h2>
+                  <Link
+                    href={`/plans/${(data as any).plan._id}`}
+                    className="flex items-center gap-2.5 px-4 py-3 border border-sol-border/30 rounded-lg hover:bg-sol-bg-alt/50 transition-colors"
+                  >
+                    <CircleDot className="w-4 h-4 text-sol-cyan flex-shrink-0" />
+                    <span className="text-sm font-medium text-sol-cyan">
+                      {(data as any).plan.title}
+                    </span>
+                    <ShortId
+                      id={(data as any).plan.short_id}
+                      className="text-meta text-sol-text-dim"
+                    />
+                    <Badge
+                      variant="outline"
+                      className={`text-meta px-1.5 py-0 text-sol-cyan border-sol-cyan/30 ml-auto ${modernPill({ tone: "cyan" })}`}
+                    >
+                      {(data as any).plan.status}
+                    </Badge>
                   </Link>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+
+              {/* Related Docs */}
+              {relatedDocs.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2">
+                    Related Documents
+                  </h2>
+                  <div className="border border-sol-border/30 rounded-lg divide-y divide-sol-border/20 overflow-hidden">
+                    {relatedDocs.map((doc: any) => (
+                      <Link
+                        key={doc._id}
+                        href={`/docs/${doc._id}`}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-sol-bg-alt/50 transition-colors"
+                      >
+                        <FileText className="w-4 h-4 text-sol-violet flex-shrink-0" />
+                        <span className="text-sm text-sol-text truncate">
+                          {(doc as any).display_title ||
+                            doc.title ||
+                            "Untitled"}
+                        </span>
+                        <DocDates
+                          doc={doc}
+                          className="text-meta text-sol-text-dim ml-auto"
+                        />
+                        <Badge
+                          variant="outline"
+                          className={`text-meta px-1.5 py-0 text-sol-violet border-sol-violet/30 ${modernPill({ tone: "violet" })}`}
+                        >
+                          {doc.doc_type}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <TaskTimeline
+                task={data as any}
+                comments={comments}
+                sessions={linkedConversations}
+                externalEvents={externalEvents}
+                openLinkedSession={openLinkedSession}
+              />
+
+              {/* Comment input */}
+              <TaskCommentComposer
+                shortId={data.short_id}
+                dropFilesRef={commentDropRef}
+                owner={ownerSession ? { sessionId: ownerSession._id } : null}
+              />
+            </RecordFold>
+          </div>
+          {!isInline && (
+            <ContextChatInput
+              contextType="task"
+              contextTitle={data.title}
+              getContextBody={getTaskContextBody}
+              linkedObjectId={data._id}
+              projectPath={data.project_path}
+            />
           )}
-
-          <TaskTimeline task={data as any} comments={comments} sessions={linkedConversations} externalEvents={externalEvents} openLinkedSession={openLinkedSession} />
-
-          {/* Comment input */}
-          <TaskCommentComposer shortId={data.short_id} dropFilesRef={commentDropRef} owner={ownerSession ? { sessionId: ownerSession._id } : null} />
-          </RecordFold>
-
         </div>
-        {!isInline && (
-          <ContextChatInput
-            contextType="task"
-            contextTitle={data.title}
-            getContextBody={getTaskContextBody}
-            linkedObjectId={data._id}
-            projectPath={data.project_path}
-          />
-        )}
-        </div>
-        </div>
+      </div>
 
-        {/* Unified palette is global via DashboardLayout */}
-
-        </div>
+      {/* Unified palette is global via DashboardLayout */}
+    </div>
   );
 }

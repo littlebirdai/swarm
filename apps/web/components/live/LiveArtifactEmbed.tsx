@@ -4,7 +4,14 @@
 // this way, so the people in the call work on the same board together with
 // the agents keeping it. What only the artifact's page has (its title field,
 // comments, history, share) stays on the page, one click away.
-import { Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { X } from "lucide-react";
 import type { ArtifactType } from "@codecast/shared/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
@@ -18,7 +25,12 @@ import { createScreenMap } from "../../lib/liveScreenMap";
 import { AskClaimProvider, useAskClaims } from "./askAgent";
 import { LIVE_VIEWS, type LiveExport, type LiveImport } from "./registry";
 
-export type LiveEmbedDoc = { _id: string; title: string; doc_type: ArtifactType; workspace?: string };
+export type LiveEmbedDoc = {
+  _id: string;
+  title: string;
+  doc_type: ArtifactType;
+  workspace?: string;
+};
 
 const noop = () => {};
 
@@ -45,13 +57,21 @@ export function LiveArtifactEmbed({
   const setSelection = useCallback(
     (keys: string[]) => {
       setSelectionState(keys);
-      live.setPresence({ selection: keys, position: keys.length ? { key: keys[keys.length - 1] } : undefined });
+      live.setPresence({
+        selection: keys,
+        position: keys.length ? { key: keys[keys.length - 1] } : undefined,
+      });
     },
     [live],
   );
-  const setPanel = useCallback((node: ReactNode | null) => setPanelNode(node), []);
+  const setPanel = useCallback(
+    (node: ReactNode | null) => setPanelNode(node),
+    [],
+  );
   const openComments = useCallback(() => onOpenPage?.(), [onOpenPage]);
-  const canEdit = useInboxStore((s: any) => s.liveHeads?.[doc._id]?.can_edit !== false);
+  const canEdit = useInboxStore(
+    (s: any) => s.liveHeads?.[doc._id]?.can_edit !== false,
+  );
   const archived = !!(doc as any).archived_at;
   const cold = !live.ready && elements.length === 0;
   const mode = archived || !canEdit || cold ? "view" : "edit";
@@ -73,25 +93,52 @@ export function LiveArtifactEmbed({
       />
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- doc fields named explicitly
-    [View, doc._id, doc.title, doc.doc_type, live, selection, setSelection, mode, setPanel, openComments],
+    [
+      View,
+      doc._id,
+      doc.title,
+      doc.doc_type,
+      live,
+      selection,
+      setSelection,
+      mode,
+      setPanel,
+      openComments,
+    ],
   );
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col" data-live-embed={doc.doc_type} data-detail-owns-keys="">
-      {toolbarSlot ? toolbarSlot(toolbar) : toolbar ? (
-        <div data-live-toolbar className="flex h-9 shrink-0 items-center justify-end gap-2 overflow-hidden border-b border-sol-border/40 px-2">{toolbar}</div>
+    <div
+      className="flex h-full min-h-0 min-w-0 flex-col"
+      data-live-embed={doc.doc_type}
+      data-detail-owns-keys=""
+    >
+      {toolbarSlot ? (
+        toolbarSlot(toolbar)
+      ) : toolbar ? (
+        <div
+          data-live-toolbar
+          className="flex h-9 shrink-0 items-center justify-end gap-2 overflow-hidden border-b border-sol-border/40 px-2"
+        >
+          {toolbar}
+        </div>
       ) : null}
       <div className="relative flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1 select-text" data-live-body>
           <ErrorBoundary name={`LiveEmbed:${doc.doc_type}`} level="panel">
             <AskClaimProvider value={askClaims.value}>
-              <Suspense fallback={<AppLoader className="h-full" />}>{view}</Suspense>
+              <Suspense fallback={<AppLoader className="h-full" />}>
+                {view}
+              </Suspense>
             </AskClaimProvider>
           </ErrorBoundary>
           <CursorLayer others={others} screenMap={screenMap} />
         </div>
         {panel && (
-          <aside className="live-panel absolute inset-y-0 right-0 z-10 flex w-[min(420px,80%)] flex-col overflow-hidden border-l border-sol-border/40 bg-sol-bg shadow-2xl" data-live-panel="product">
+          <aside
+            className="live-panel absolute inset-y-0 right-0 z-10 flex w-[min(420px,80%)] flex-col overflow-hidden border-l border-sol-border/40 bg-sol-bg shadow-2xl"
+            data-live-panel="product"
+          >
             <button
               type="button"
               onClick={() => setPanelNode(null)}

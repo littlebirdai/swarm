@@ -17,13 +17,34 @@ import { ShortcutTooltip } from "../KeyboardShortcutsHelp";
 import { AttachTabButton } from "../TabBar";
 import { useChatUnread } from "../../hooks/useChatSync";
 import { desktopHeaderClass } from "../../lib/desktop";
-import { DESKTOP_APPS, sectionForRoute, type DesktopApp } from "../../lib/desktopApps";
+import {
+  DESKTOP_APPS,
+  sectionForRoute,
+  type DesktopApp,
+} from "../../lib/desktopApps";
 import { cn } from "../../lib/utils";
 
 // The chords that jump to a section by number, in tab order.
-const SECTION_ACTIONS: readonly ShortcutAction[] = ["app.section1", "app.section2", "app.section3", "app.section4"];
+const SECTION_ACTIONS: readonly ShortcutAction[] = [
+  "app.section1",
+  "app.section2",
+  "app.section3",
+  "app.section4",
+];
 
-function SectionTab({ href, label, active, badge, index }: { href: string; label: string; active: boolean; badge?: React.ReactNode; index: number }) {
+function SectionTab({
+  href,
+  label,
+  active,
+  badge,
+  index,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  badge?: React.ReactNode;
+  index: number;
+}) {
   return (
     <ShortcutTooltip label={label} action={SECTION_ACTIONS[index]}>
       <Link
@@ -32,7 +53,9 @@ function SectionTab({ href, label, active, badge, index }: { href: string; label
         aria-current={active ? "page" : undefined}
         className={cn(
           "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] transition-colors",
-          active ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
+          active
+            ? "bg-sol-bg-highlight text-sol-text"
+            : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
         )}
       >
         {label}
@@ -55,13 +78,22 @@ function ChatBadge() {
       </span>
     );
   }
-  if (channels > 0) return <span className="h-1.5 w-1.5 rounded-full bg-sol-cyan" aria-label="Unread messages" />;
+  if (channels > 0)
+    return (
+      <span
+        className="h-1.5 w-1.5 rounded-full bg-sol-cyan"
+        aria-label="Unread messages"
+      />
+    );
   return null;
 }
 
 // The app's glyph beside its name. Here rather than in the route table,
 // which the shell loads too and must stay free of the DOM.
-const APP_ICON: Record<DesktopApp, LucideIcon> = { chat: MessageSquare, work: Layers };
+const APP_ICON: Record<DesktopApp, LucideIcon> = {
+  chat: MessageSquare,
+  work: Layers,
+};
 
 export function AppWindowBar({ app }: { app: DesktopApp }) {
   const spec = DESKTOP_APPS[app];
@@ -81,8 +113,14 @@ export function AppWindowBar({ app }: { app: DesktopApp }) {
     },
     [spec, active?.path, router],
   );
-  useShortcutAction("tab.next", useCallback(() => step(1), [step]));
-  useShortcutAction("tab.prev", useCallback(() => step(-1), [step]));
+  useShortcutAction(
+    "tab.next",
+    useCallback(() => step(1), [step]),
+  );
+  useShortcutAction(
+    "tab.prev",
+    useCallback(() => step(-1), [step]),
+  );
   const jump = useCallback(
     (i: number) => {
       const s = spec.sections[i];
@@ -91,10 +129,22 @@ export function AppWindowBar({ app }: { app: DesktopApp }) {
     },
     [spec, router],
   );
-  useShortcutAction("app.section1", useCallback(() => jump(0), [jump]));
-  useShortcutAction("app.section2", useCallback(() => jump(1), [jump]));
-  useShortcutAction("app.section3", useCallback(() => jump(2), [jump]));
-  useShortcutAction("app.section4", useCallback(() => jump(3), [jump]));
+  useShortcutAction(
+    "app.section1",
+    useCallback(() => jump(0), [jump]),
+  );
+  useShortcutAction(
+    "app.section2",
+    useCallback(() => jump(1), [jump]),
+  );
+  useShortcutAction(
+    "app.section3",
+    useCallback(() => jump(2), [jump]),
+  );
+  useShortcutAction(
+    "app.section4",
+    useCallback(() => jump(3), [jump]),
+  );
   return (
     <header
       data-cc-appbar={app}
@@ -106,23 +156,34 @@ export function AppWindowBar({ app }: { app: DesktopApp }) {
       {/* The name is the window's identity, not a control: it stays part of
           the drag surface, set apart from the tabs by a hairline. */}
       <span className="flex select-none items-center gap-1.5 pl-1 pr-1 text-[13px] font-semibold tracking-tight text-sol-text">
-        <Icon className="h-3.5 w-3.5 text-sol-cyan" strokeWidth={2} aria-hidden />
+        <Icon
+          className="h-3.5 w-3.5 text-sol-cyan"
+          strokeWidth={2}
+          aria-hidden
+        />
         {spec.title}
       </span>
-      {spec.nav === "tabs" && <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-sol-border" />}
       {spec.nav === "tabs" && (
-      <nav aria-label={`${spec.title} sections`} className="flex items-center gap-0.5">
-        {spec.sections.map((s, i) => (
-          <SectionTab
-            key={s.path}
-            index={i}
-            href={s.path}
-            label={s.label}
-            active={active?.path === s.path}
-            badge={app === "chat" && s.path === "/chat" ? <ChatBadge /> : undefined}
-          />
-        ))}
-      </nav>
+        <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-sol-border" />
+      )}
+      {spec.nav === "tabs" && (
+        <nav
+          aria-label={`${spec.title} sections`}
+          className="flex items-center gap-0.5"
+        >
+          {spec.sections.map((s, i) => (
+            <SectionTab
+              key={s.path}
+              index={i}
+              href={s.path}
+              label={s.label}
+              active={active?.path === s.path}
+              badge={
+                app === "chat" && s.path === "/chat" ? <ChatBadge /> : undefined
+              }
+            />
+          ))}
+        </nav>
       )}
       {/* The trailing edge: the one way back. The page returns to the main
           window as a tab and this window closes; the same control a plain

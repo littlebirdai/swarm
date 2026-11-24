@@ -1,4 +1,10 @@
-export type ResourceKind = "agent" | "browser" | "simulator" | "tool" | "app" | "system";
+export type ResourceKind =
+  | "agent"
+  | "browser"
+  | "simulator"
+  | "tool"
+  | "app"
+  | "system";
 export type ResourcePressure = "normal" | "elevated" | "critical" | "unknown";
 
 export interface ResourceProcess {
@@ -88,41 +94,81 @@ export interface ResourceIncident {
   reason: string;
 }
 
-export function sustainedResourcePressure(points: ResourcePoint[], now: number): ResourceIncident | null {
-  const recent = points.filter(p => p.at <= now && now - p.at <= 10 * 60_000).sort((a, b) => a.at - b.at);
-  if (recent.length < 3 || now - recent[recent.length - 1].at > RESOURCE_STALE_MS) return null;
+export function sustainedResourcePressure(
+  points: ResourcePoint[],
+  now: number,
+): ResourceIncident | null {
+  const recent = points
+    .filter((p) => p.at <= now && now - p.at <= 10 * 60_000)
+    .sort((a, b) => a.at - b.at);
+  if (
+    recent.length < 3 ||
+    now - recent[recent.length - 1].at > RESOURCE_STALE_MS
+  )
+    return null;
   const reason = (p: ResourcePoint): string | null => {
-    if (p.pressure === "critical") return "The operating system reports critical memory pressure";
-    if (p.pressure === "elevated") return "The operating system reports elevated memory pressure";
-    if (!p.memoryAvailableIsEstimate && p.memoryTotal > 0 && p.memoryAvailable / p.memoryTotal < 0.1) return "Available memory has stayed below 10%";
+    if (p.pressure === "critical")
+      return "The operating system reports critical memory pressure";
+    if (p.pressure === "elevated")
+      return "The operating system reports elevated memory pressure";
+    if (
+      !p.memoryAvailableIsEstimate &&
+      p.memoryTotal > 0 &&
+      p.memoryAvailable / p.memoryTotal < 0.1
+    )
+      return "Available memory has stayed below 10%";
     // Load average is not a reason: it counts every runnable and blocked thread, so a
     // fleet of agent processes keeps it far above the core count while the CPU idles.
     if (cpuBusy(p)) return `CPU use has stayed above ${CPU_BUSY_PERCENT}%`;
     return null;
   };
   let incident: ResourceIncident | null = null;
-  let high: ResourcePoint[] = [], recovery: ResourcePoint[] = [];
+  let high: ResourcePoint[] = [],
+    recovery: ResourcePoint[] = [];
   let previous: ResourcePoint | undefined;
   for (const point of recent) {
-    if (previous && point.at - previous.at > 90_000) { incident = null; high = []; recovery = []; }
+    if (previous && point.at - previous.at > 90_000) {
+      incident = null;
+      high = [];
+      recovery = [];
+    }
     previous = point;
     const why = reason(point);
     if (!incident) {
       high = why ? [...high, point] : [];
       if (high.length >= 3 && point.at - high[0].at >= SUSTAIN_MS) {
-        incident = { level: high.every(p => p.pressure === "critical") ? "critical" : "elevated", since: high[0].at, reason: why! };
+        incident = {
+          level: high.every((p) => p.pressure === "critical")
+            ? "critical"
+            : "elevated",
+          since: high[0].at,
+          reason: why!,
+        };
       }
       continue;
     }
     high = why ? [...high, point] : [];
     let criticalStart = high.length - 1;
-    while (criticalStart >= 0 && high[criticalStart].pressure === "critical") criticalStart--;
+    while (criticalStart >= 0 && high[criticalStart].pressure === "critical")
+      criticalStart--;
     const critical = high.slice(criticalStart + 1);
-    if (critical.length >= 3 && point.at - critical[0].at >= 60_000) incident = { ...incident, level: "critical", reason: why! };
-    else if (why && incident.level !== "critical") incident = { ...incident, reason: why };
-    const recovered = !why && point.cpuPercent !== undefined && point.cpuPercent < 75 && (point.pressure === "normal" || (!point.memoryAvailableIsEstimate && point.memoryAvailable / Math.max(point.memoryTotal, 1) >= 0.15));
+    if (critical.length >= 3 && point.at - critical[0].at >= 60_000)
+      incident = { ...incident, level: "critical", reason: why! };
+    else if (why && incident.level !== "critical")
+      incident = { ...incident, reason: why };
+    const recovered =
+      !why &&
+      point.cpuPercent !== undefined &&
+      point.cpuPercent < 75 &&
+      (point.pressure === "normal" ||
+        (!point.memoryAvailableIsEstimate &&
+          point.memoryAvailable / Math.max(point.memoryTotal, 1) >= 0.15));
     recovery = recovered ? [...recovery, point] : [];
-    if (recovery.length >= 3 && point.at - recovery[0].at >= 60_000) { incident = null; high = []; recovery = []; }
+    if (recovery.length >= 3 && point.at - recovery[0].at >= 60_000) {
+      incident = null;
+      high = [];
+      recovery = [];
+    }
   }
   return incident;
 }
@@ -140,5 +186,7 @@ export function fmtBytes(bytes: number | undefined): string {
 /** Process CPU, where one core is 100%. */
 export function fmtCpu(cpu: number | undefined): string {
   if (cpu === undefined || !Number.isFinite(cpu)) return "n/a";
-  return cpu >= 100 ? `${(cpu / 100).toFixed(1)} cores` : `${cpu.toFixed(cpu < 10 ? 1 : 0)}%`;
+  return cpu >= 100
+    ? `${(cpu / 100).toFixed(1)} cores`
+    : `${cpu.toFixed(cpu < 10 ? 1 : 0)}%`;
 }

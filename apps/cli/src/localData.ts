@@ -25,8 +25,42 @@ const REFRESH_MS = 60_000;
 export const LOCAL_DATA_MIN_BYTES = 256 * 1024 ** 2;
 
 const HOME = os.homedir();
-const SYSTEM_PREFIXES = ["/System/", "/usr/", "/bin/", "/sbin/", "/Library/", "/Applications/", "/opt/", "/private/var/", "/private/tmp/", "/tmp/", "/var/", "/dev/", "/proc/", "/sys/", "/etc/", "/nix/", "/snap/", "/run/"];
-const HOME_TOOL_DIRS = ["Library", ".codecast", ".claude", ".codex", ".bun", ".cache", ".npm", ".cargo", ".rustup", ".local", ".nvm", ".pnpm-store", ".gradle", ".m2"];
+const SYSTEM_PREFIXES = [
+  "/System/",
+  "/usr/",
+  "/bin/",
+  "/sbin/",
+  "/Library/",
+  "/Applications/",
+  "/opt/",
+  "/private/var/",
+  "/private/tmp/",
+  "/tmp/",
+  "/var/",
+  "/dev/",
+  "/proc/",
+  "/sys/",
+  "/etc/",
+  "/nix/",
+  "/snap/",
+  "/run/",
+];
+const HOME_TOOL_DIRS = [
+  "Library",
+  ".codecast",
+  ".claude",
+  ".codex",
+  ".bun",
+  ".cache",
+  ".npm",
+  ".cargo",
+  ".rustup",
+  ".local",
+  ".nvm",
+  ".pnpm-store",
+  ".gradle",
+  ".m2",
+];
 
 /** Whether an open file is the session's data rather than system, toolchain or cache. */
 export function isDataPath(p: string, home = HOME): boolean {
@@ -44,13 +78,21 @@ export function isDataPath(p: string, home = HOME): boolean {
  *  inside (`iMovie Library.imovielibrary`), else its directory. */
 export function dataRoot(p: string, home = HOME): string {
   const parts = p.split("/");
-  const bundle = parts.slice(0, -1).findIndex((seg) => /\.[A-Za-z][A-Za-z0-9]{2,}$/.test(seg) && !seg.startsWith("."));
-  const dir = bundle >= 0 ? parts.slice(0, bundle + 1).join("/") : path.dirname(p);
+  const bundle = parts
+    .slice(0, -1)
+    .findIndex(
+      (seg) => /\.[A-Za-z][A-Za-z0-9]{2,}$/.test(seg) && !seg.startsWith("."),
+    );
+  const dir =
+    bundle >= 0 ? parts.slice(0, bundle + 1).join("/") : path.dirname(p);
   return dir.startsWith(home + "/") ? "~" + dir.slice(home.length) : dir;
 }
 
 /** Each process's open data files, summed per process: distinct paths, and the root holding most of the bytes. */
-export function summarizeOpenFiles(files: OpenFile[], home = HOME): Map<number, LocalData> {
+export function summarizeOpenFiles(
+  files: OpenFile[],
+  home = HOME,
+): Map<number, LocalData> {
   const byPid = new Map<number, Map<string, number>>();
   for (const f of files) {
     if (!isDataPath(f.path, home) || !(f.size > 0)) continue;
@@ -77,15 +119,23 @@ export function summarizeOpenFiles(files: OpenFile[], home = HOME): Map<number, 
 /** `lsof -F pftsn` output: regular files only, without the executable and its mapped libraries. */
 export function parseLsof(stdout: string): OpenFile[] {
   const out: OpenFile[] = [];
-  let pid = 0, fd = "", type = "", size = 0;
+  let pid = 0,
+    fd = "",
+    type = "",
+    size = 0;
   const flush = (name: string) => {
-    if (type === "REG" && fd !== "txt" && fd !== "mem" && /^\d/.test(fd)) out.push({ pid, path: name, size });
+    if (type === "REG" && fd !== "txt" && fd !== "mem" && /^\d/.test(fd))
+      out.push({ pid, path: name, size });
   };
   for (const line of stdout.split("\n")) {
-    const tag = line[0], value = line.slice(1);
+    const tag = line[0],
+      value = line.slice(1);
     if (tag === "p") pid = Number(value);
-    else if (tag === "f") { fd = value; type = ""; size = 0; }
-    else if (tag === "t") type = value;
+    else if (tag === "f") {
+      fd = value;
+      type = "";
+      size = 0;
+    } else if (tag === "t") type = value;
     else if (tag === "s") size = Number(value);
     else if (tag === "n") flush(value);
   }
@@ -95,14 +145,27 @@ export function parseLsof(stdout: string): OpenFile[] {
 /** Null when the read did not answer (busy, timed out): what was found before still holds. */
 async function readOpenFiles(pids: number[]): Promise<OpenFile[] | null> {
   if (process.platform === "darwin") {
-    const r = await resourceProbe("lsof", () => execFileAsync("lsof", ["-nP", "-w", "-b", "-Fftsn", "-p", pids.join(",")], { timeout: 4000, killSignal: "SIGKILL", maxBuffer: 4 * 1024 * 1024 }).catch((e: any) => ({ stdout: String(e?.stdout ?? "") })), 4000);
+    const r = await resourceProbe(
+      "lsof",
+      () =>
+        execFileAsync(
+          "lsof",
+          ["-nP", "-w", "-b", "-Fftsn", "-p", pids.join(",")],
+          { timeout: 4000, killSignal: "SIGKILL", maxBuffer: 4 * 1024 * 1024 },
+        ).catch((e: any) => ({ stdout: String(e?.stdout ?? "") })),
+      4000,
+    );
     return r ? parseLsof(r.stdout) : null;
   }
   if (process.platform === "linux") {
     const out: OpenFile[] = [];
     for (const pid of pids) {
       let fds: string[] = [];
-      try { fds = fs.readdirSync(`/proc/${pid}/fd`); } catch { continue; }
+      try {
+        fds = fs.readdirSync(`/proc/${pid}/fd`);
+      } catch {
+        continue;
+      }
       for (const fd of fds) {
         try {
           const p = fs.readlinkSync(`/proc/${pid}/fd/${fd}`);
@@ -125,13 +188,22 @@ const found = (p: Pick<ResourceProcess, "pid" | "startedAt">) => {
 };
 
 /** The session processes worth looking at: owned by one session, and busy. */
-export function busySessionPids(processes: ResourceProcess[]): ResourceProcess[] {
-  return processes.filter((p) => p.sessionId && p.cpu >= BUSY_CPU).sort((a, b) => b.cpu - a.cpu).slice(0, MAX_PIDS);
+export function busySessionPids(
+  processes: ResourceProcess[],
+): ResourceProcess[] {
+  return processes
+    .filter((p) => p.sessionId && p.cpu >= BUSY_CPU)
+    .sort((a, b) => b.cpu - a.cpu)
+    .slice(0, MAX_PIDS);
 }
 
 /** Stamps `localData` on the processes it measured. Refreshes at most once a
  *  minute; between refreshes, a process keeps what was last found for it. */
-export async function annotateLocalData(processes: ResourceProcess[], now = Date.now(), read: (pids: number[]) => Promise<OpenFile[] | null> = readOpenFiles): Promise<ResourceProcess[]> {
+export async function annotateLocalData(
+  processes: ResourceProcess[],
+  now = Date.now(),
+  read: (pids: number[]) => Promise<OpenFile[] | null> = readOpenFiles,
+): Promise<ResourceProcess[]> {
   if (now - lastRefresh >= REFRESH_MS) {
     const busy = busySessionPids(processes);
     if (busy.length) {
@@ -139,7 +211,11 @@ export async function annotateLocalData(processes: ResourceProcess[], now = Date
       const files = await read(busy.map((p) => p.pid)).catch(() => null);
       if (files) {
         const byPid = summarizeOpenFiles(files);
-        for (const p of busy) cache.set(p.pid, { startedAt: p.startedAt, data: byPid.get(p.pid) ?? null });
+        for (const p of busy)
+          cache.set(p.pid, {
+            startedAt: p.startedAt,
+            data: byPid.get(p.pid) ?? null,
+          });
       }
     }
   }

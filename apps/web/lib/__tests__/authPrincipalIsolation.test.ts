@@ -12,10 +12,31 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import "fake-indexeddb/auto";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://codecast.test", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "StorageEvent", "MutationObserver", "localStorage", "sessionStorage", "BroadcastChannel"]) {
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://codecast.test",
+  pretendToBeVisual: true,
+});
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "Event",
+  "StorageEvent",
+  "MutationObserver",
+  "localStorage",
+  "sessionStorage",
+  "BroadcastChannel",
+]) {
   const value = (dom.window as any)[key];
-  if (value !== undefined) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+  if (value !== undefined)
+    Object.defineProperty(globalThis, key, {
+      value,
+      configurable: true,
+      writable: true,
+    });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,24 +46,40 @@ for (const key of ["window", "document", "navigator", "HTMLElement", "Element", 
 const relayed: Array<{ key: string | null; newValue: string | null }> = [];
 {
   const proto = dom.window.Storage.prototype;
-  const original = { setItem: proto.setItem, removeItem: proto.removeItem, clear: proto.clear };
-  const relay = (key: string | null, oldValue: string | null, newValue: string | null) => {
+  const original = {
+    setItem: proto.setItem,
+    removeItem: proto.removeItem,
+    clear: proto.clear,
+  };
+  const relay = (
+    key: string | null,
+    oldValue: string | null,
+    newValue: string | null,
+  ) => {
     relayed.push({ key, newValue });
     setTimeout(() => {
-      dom.window.dispatchEvent(new dom.window.StorageEvent("storage", {
-        key, oldValue, newValue, storageArea: dom.window.localStorage, url: dom.window.location.href,
-      }));
+      dom.window.dispatchEvent(
+        new dom.window.StorageEvent("storage", {
+          key,
+          oldValue,
+          newValue,
+          storageArea: dom.window.localStorage,
+          url: dom.window.location.href,
+        }),
+      );
     }, 0);
   };
   proto.setItem = function (this: Storage, key: string, value: string) {
     const oldValue = this.getItem(key);
     original.setItem.call(this, key, value);
-    if (this === dom.window.localStorage && oldValue !== value) relay(key, oldValue, value);
+    if (this === dom.window.localStorage && oldValue !== value)
+      relay(key, oldValue, value);
   };
   proto.removeItem = function (this: Storage, key: string) {
     const oldValue = this.getItem(key);
     original.removeItem.call(this, key);
-    if (this === dom.window.localStorage && oldValue !== null) relay(key, oldValue, null);
+    if (this === dom.window.localStorage && oldValue !== null)
+      relay(key, oldValue, null);
   };
   proto.clear = function (this: Storage) {
     original.clear.call(this);
@@ -57,11 +94,16 @@ type Root = import("react-dom/client").Root;
 const { useAuthActions, useAuthToken } = await import("@convex-dev/auth/react");
 const { CodecastAuthRoot } = await import("../authRoot");
 const { AUTH_JWT_STORAGE_KEY, CONVEX_URL } = await import("../localAuth");
-const { useInboxStore, ensureHydrated } = await import("../../store/inboxStore");
+const { useInboxStore, ensureHydrated } =
+  await import("../../store/inboxStore");
 const store = useInboxStore;
 
 function b64url(value: object): string {
-  return Buffer.from(JSON.stringify(value)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return Buffer.from(JSON.stringify(value))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 /** The fake issuer: an unsigned token shaped like Convex Auth's (`sub` = `<user>|<session>`). */
 function issue(principalId: string, sessionId: string): string {
@@ -70,7 +112,10 @@ function issue(principalId: string, sessionId: string): string {
 
 // The Convex client the providers talk to. Sign-in answers with the tokens
 // the test decided; sign-out answers at once; nothing leaves the process.
-let nextSignIn: { principalId: string; sessionId: string } = { principalId: "userB", sessionId: "sB1" };
+let nextSignIn: { principalId: string; sessionId: string } = {
+  principalId: "userB",
+  sessionId: "sB1",
+};
 function fakeClient() {
   return {
     address: CONVEX_URL,
@@ -81,21 +126,35 @@ function fakeClient() {
       const token = issue(nextSignIn.principalId, nextSignIn.sessionId);
       return { tokens: { token, refreshToken: `refresh-${token.slice(-8)}` } };
     },
-    setAuth: (_fetch: unknown, onChange: (ok: boolean) => void) => { onChange(true); },
+    setAuth: (_fetch: unknown, onChange: (ok: boolean) => void) => {
+      onChange(true);
+    },
     clearAuth: () => {},
   } as any;
 }
 
-type Probe = { token: string | null; actions: ReturnType<typeof useAuthActions>; renders: number };
+type Probe = {
+  token: string | null;
+  actions: ReturnType<typeof useAuthActions>;
+  renders: number;
+};
 const probes: Record<string, Probe> = {};
 /** Every render of a window, with the store's inbox rows at that moment. */
-const timeline: Array<{ id: string; token: string | null; sessionRows: number }> = [];
+const timeline: Array<{
+  id: string;
+  token: string | null;
+  sessionRows: number;
+}> = [];
 function WindowProbe({ id }: { id: string }) {
   const token = useAuthToken();
   const actions = useAuthActions();
   const prior = probes[id];
   probes[id] = { token, actions, renders: (prior?.renders ?? 0) + 1 };
-  timeline.push({ id, token, sessionRows: Object.keys(store.getState().sessions).length });
+  timeline.push({
+    id,
+    token,
+    sessionRows: Object.keys(store.getState().sessions).length,
+  });
   return null;
 }
 
@@ -104,15 +163,34 @@ function mountWindow(id: string): Root {
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
-    root.render(React.createElement(CodecastAuthRoot, { client: fakeClient() }, React.createElement(WindowProbe, { id })));
+    root.render(
+      React.createElement(
+        CodecastAuthRoot,
+        { client: fakeClient() },
+        React.createElement(WindowProbe, { id }),
+      ),
+    );
   });
   return root;
 }
 
-const flush = () => act(async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 2)); });
+const flush = () =>
+  act(async () => {
+    for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 2));
+  });
 const seedInbox = (owner: string) => {
   const id = owner.padEnd(32, "0");
-  store.setState({ sessions: { [id]: { _id: id, session_id: `s-${id}`, updated_at: 1, user_id: owner } as any }, currentUser: { _id: owner } as any });
+  store.setState({
+    sessions: {
+      [id]: {
+        _id: id,
+        session_id: `s-${id}`,
+        updated_at: 1,
+        user_id: owner,
+      } as any,
+    },
+    currentUser: { _id: owner } as any,
+  });
 };
 const inboxRows = () => Object.keys(store.getState().sessions).length;
 
@@ -138,7 +216,8 @@ afterAll(async () => {
   roots = [];
   localStorage.setItem(AUTH_JWT_STORAGE_KEY, tA1);
   await flush();
-  for (let i = 0; i < 500 && !store.getState().clientStateInitialized; i++) await new Promise((r) => setTimeout(r, 10));
+  for (let i = 0; i < 500 && !store.getState().clientStateInitialized; i++)
+    await new Promise((r) => setTimeout(r, 10));
 });
 
 async function twoWindowsSignedInAsA() {
@@ -159,7 +238,11 @@ describe("logout and account change across windows", () => {
     await flush();
 
     // The relay delivered the native event for the JWT key to window B.
-    expect(relayed.some((r) => r.key === AUTH_JWT_STORAGE_KEY && r.newValue === null)).toBe(true);
+    expect(
+      relayed.some(
+        (r) => r.key === AUTH_JWT_STORAGE_KEY && r.newValue === null,
+      ),
+    ).toBe(true);
     expect(probes.A.token).toBeNull();
     expect(probes.B.token).toBeNull();
     // Window B's memory of account A is gone and nothing can dispatch for it.
@@ -174,7 +257,13 @@ describe("logout and account change across windows", () => {
     await flush();
     seedInbox("userA"); // stale rows a slow window might still hold
     nextSignIn = { principalId: "userB", sessionId: "sB1" };
-    await act(async () => { await probes.A.actions.signIn("password", { email: "b@test", password: "x", flow: "signIn" }); });
+    await act(async () => {
+      await probes.A.actions.signIn("password", {
+        email: "b@test",
+        password: "x",
+        flow: "signIn",
+      });
+    });
     await flush();
 
     const tB = issue("userB", "sB1");
@@ -221,8 +310,23 @@ describe("logout and account change across windows", () => {
     const db = new Dexie("codecast-store");
     await db.open();
     const now = Date.now();
-    await db.table("conversationMessageMeta").put({ convId: "c1", pagination: { initialized: true, hasMore: false }, latestTimestamp: now });
-    await db.table("conversationMessageRows").put({ convId: "c1", messageKey: "m1", position: 0, revision: "r1", message: { _id: "m1", role: "user", content: "old account", timestamp: now } });
+    await db.table("conversationMessageMeta").put({
+      convId: "c1",
+      pagination: { initialized: true, hasMore: false },
+      latestTimestamp: now,
+    });
+    await db.table("conversationMessageRows").put({
+      convId: "c1",
+      messageKey: "m1",
+      position: 0,
+      revision: "r1",
+      message: {
+        _id: "m1",
+        role: "user",
+        content: "old account",
+        timestamp: now,
+      },
+    });
     db.close();
     const read = ensureHydrated("c1");
     // The sibling signs out while the read is in flight.

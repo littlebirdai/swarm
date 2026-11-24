@@ -28,19 +28,27 @@ import {
 
 describe("normalizeUrl", () => {
   it("keeps an http(s) URL as given", () => {
-    expect(normalizeUrl("https://github.com/codecast")).toBe("https://github.com/codecast");
-    expect(normalizeUrl("  http://localhost:3000/x  ")).toBe("http://localhost:3000/x");
+    expect(normalizeUrl("https://github.com/codecast")).toBe(
+      "https://github.com/codecast",
+    );
+    expect(normalizeUrl("  http://localhost:3000/x  ")).toBe(
+      "http://localhost:3000/x",
+    );
   });
 
   it("a bare public host gets https", () => {
     expect(normalizeUrl("github.com")).toBe("https://github.com/");
-    expect(normalizeUrl("docs.example.org/guide")).toBe("https://docs.example.org/guide");
+    expect(normalizeUrl("docs.example.org/guide")).toBe(
+      "https://docs.example.org/guide",
+    );
   });
 
   it("a bare host only this machine or this network serves gets http", () => {
     // Nothing on a dev box serves TLS, so https would fail on every one of these.
     expect(normalizeUrl("localhost:3000")).toBe("http://localhost:3000/");
-    expect(normalizeUrl("127.0.0.1:8080/app")).toBe("http://127.0.0.1:8080/app");
+    expect(normalizeUrl("127.0.0.1:8080/app")).toBe(
+      "http://127.0.0.1:8080/app",
+    );
     expect(normalizeUrl("dev-box:8080")).toBe("http://dev-box:8080/");
     expect(normalizeUrl("mini.local")).toBe("http://mini.local/");
     expect(normalizeUrl("192.168.1.4:5173")).toBe("http://192.168.1.4:5173/");
@@ -80,30 +88,61 @@ describe("displayHost", () => {
 
 describe("parseBrowserRoute / browserRoutePath", () => {
   it("round-trips a URL source", () => {
-    const path = browserRoutePath({ kind: "url", url: "http://localhost:8765/" });
+    const path = browserRoutePath({
+      kind: "url",
+      url: "http://localhost:8765/",
+    });
     expect(path.startsWith("/browser?u=")).toBe(true);
-    expect(parseBrowserRoute(path)).toEqual({ kind: "url", url: "http://localhost:8765/" });
+    expect(parseBrowserRoute(path)).toEqual({
+      kind: "url",
+      url: "http://localhost:8765/",
+    });
   });
 
   it("round-trips a watched session", () => {
     const path = browserRoutePath({ kind: "watch", sessionUuid: "abc-123" });
-    expect(parseBrowserRoute(path)).toEqual({ kind: "watch", sessionUuid: "abc-123" });
+    expect(parseBrowserRoute(path)).toEqual({
+      kind: "watch",
+      sessionUuid: "abc-123",
+    });
   });
 
   it("carries the offering session on the path, and only when there is one", () => {
-    const path = browserRoutePath({ kind: "url", url: "http://localhost:8765/", session: "509b4b48-c521-4352-bf19-eafa153745bb" });
-    expect(path).toBe("/browser?u=http%3A%2F%2Flocalhost%3A8765%2F&s=509b4b48-c521-4352-bf19-eafa153745bb");
-    expect(parseBrowserRoute(path)).toEqual({ kind: "url", url: "http://localhost:8765/", session: "509b4b48-c521-4352-bf19-eafa153745bb" });
+    const path = browserRoutePath({
+      kind: "url",
+      url: "http://localhost:8765/",
+      session: "509b4b48-c521-4352-bf19-eafa153745bb",
+    });
+    expect(path).toBe(
+      "/browser?u=http%3A%2F%2Flocalhost%3A8765%2F&s=509b4b48-c521-4352-bf19-eafa153745bb",
+    );
+    expect(parseBrowserRoute(path)).toEqual({
+      kind: "url",
+      url: "http://localhost:8765/",
+      session: "509b4b48-c521-4352-bf19-eafa153745bb",
+    });
     // A pane the human opened by hand names no session: nothing may drive it.
-    expect(parseBrowserRoute("/browser?u=http%3A%2F%2Flocalhost%3A8765%2F")).toEqual({ kind: "url", url: "http://localhost:8765/" });
-    expect(browserRoutePath({ kind: "url", url: "http://localhost:8765/" })).not.toContain("s=");
+    expect(
+      parseBrowserRoute("/browser?u=http%3A%2F%2Flocalhost%3A8765%2F"),
+    ).toEqual({ kind: "url", url: "http://localhost:8765/" });
+    expect(
+      browserRoutePath({ kind: "url", url: "http://localhost:8765/" }),
+    ).not.toContain("s=");
   });
 
   it("carries the native choice in the path so it survives a reload", () => {
-    const path = browserRoutePath({ kind: "url", url: "https://github.com/" }, { native: true });
+    const path = browserRoutePath(
+      { kind: "url", url: "https://github.com/" },
+      { native: true },
+    );
     expect(prefersNativeRoute(path)).toBe(true);
-    expect(prefersNativeRoute("/browser?u=https%3A%2F%2Fgithub.com%2F")).toBe(false);
-    expect(parseBrowserRoute(path)).toEqual({ kind: "url", url: "https://github.com/" });
+    expect(prefersNativeRoute("/browser?u=https%3A%2F%2Fgithub.com%2F")).toBe(
+      false,
+    );
+    expect(parseBrowserRoute(path)).toEqual({
+      kind: "url",
+      url: "https://github.com/",
+    });
   });
 
   it("normalizes a hand-typed url in the query", () => {
@@ -121,7 +160,9 @@ describe("parseBrowserRoute / browserRoutePath", () => {
   });
 
   it("ignores a hash the shell may append", () => {
-    expect(parseBrowserRoute("/browser?u=https%3A%2F%2Fcodecast.sh%2F#x")).toEqual({
+    expect(
+      parseBrowserRoute("/browser?u=https%3A%2F%2Fcodecast.sh%2F#x"),
+    ).toEqual({
       kind: "url",
       url: "https://codecast.sh/",
     });
@@ -138,34 +179,64 @@ describe("selectBackend", () => {
   const url = { kind: "url", url: "https://github.com/" } as const;
 
   it("a watched tab is always the stream", () => {
-    expect(selectBackend({ kind: "watch", sessionUuid: "u" }, env)).toBe("stream");
-    expect(selectBackend({ kind: "watch", sessionUuid: "u" }, { ...env, desktop: true, nativeAvailable: true, preferNative: true })).toBe("stream");
+    expect(selectBackend({ kind: "watch", sessionUuid: "u" }, env)).toBe(
+      "stream",
+    );
+    expect(
+      selectBackend(
+        { kind: "watch", sessionUuid: "u" },
+        { ...env, desktop: true, nativeAvailable: true, preferNative: true },
+      ),
+    ).toBe("stream");
   });
 
   it("a URL frames by default, everywhere", () => {
     expect(selectBackend(url, env)).toBe("frame");
-    expect(selectBackend(url, { ...env, desktop: true, nativeAvailable: true })).toBe("frame");
+    expect(
+      selectBackend(url, { ...env, desktop: true, nativeAvailable: true }),
+    ).toBe("frame");
   });
 
   it("goes native when the user asked and the desktop can", () => {
-    expect(selectBackend(url, { ...env, desktop: true, nativeAvailable: true, preferNative: true })).toBe("native");
+    expect(
+      selectBackend(url, {
+        ...env,
+        desktop: true,
+        nativeAvailable: true,
+        preferNative: true,
+      }),
+    ).toBe("native");
   });
 
   it("goes native when the frame was refused and the desktop can", () => {
-    expect(selectBackend(url, { ...env, desktop: true, nativeAvailable: true, refused: true })).toBe("native");
+    expect(
+      selectBackend(url, {
+        ...env,
+        desktop: true,
+        nativeAvailable: true,
+        refused: true,
+      }),
+    ).toBe("native");
   });
 
   it("stays framed when the native view is wanted but unreachable", () => {
     // In the web app, and on a desktop build without the bridge, the frame is
     // the only backend there is — the pane says so rather than rendering nothing.
-    expect(selectBackend(url, { ...env, preferNative: true, refused: true })).toBe("frame");
-    expect(selectBackend(url, { ...env, desktop: true, preferNative: true })).toBe("frame");
+    expect(
+      selectBackend(url, { ...env, preferNative: true, refused: true }),
+    ).toBe("frame");
+    expect(
+      selectBackend(url, { ...env, desktop: true, preferNative: true }),
+    ).toBe("frame");
   });
 });
 
 describe("browserPathLabel", () => {
   it("is the host until a backend reports a title", () => {
-    const path = browserRoutePath({ kind: "url", url: "http://localhost:8765/" });
+    const path = browserRoutePath({
+      kind: "url",
+      url: "http://localhost:8765/",
+    });
     expect(browserPathLabel(path)).toBe("localhost:8765");
     rememberBrowserTitle("http://localhost:8765/", "Local test page");
     expect(browserPathLabel(path)).toBe("Local test page");
@@ -174,7 +245,9 @@ describe("browserPathLabel", () => {
   });
 
   it("names a watched tab and falls back for a broken path", () => {
-    expect(browserPathLabel(browserRoutePath({ kind: "watch", sessionUuid: "u" }))).toBe("Agent tab");
+    expect(
+      browserPathLabel(browserRoutePath({ kind: "watch", sessionUuid: "u" })),
+    ).toBe("Agent tab");
     expect(browserPathLabel("/browser")).toBe("Browser");
   });
 });
@@ -182,7 +255,9 @@ describe("browserPathLabel", () => {
 describe("isBrowserRoutePath", () => {
   it("is true for a bare /browser pane, which still draws its own header", () => {
     expect(isBrowserRoutePath("/browser")).toBe(true);
-    expect(isBrowserRoutePath("/browser?u=http%3A%2F%2Flocalhost%3A3000")).toBe(true);
+    expect(isBrowserRoutePath("/browser?u=http%3A%2F%2Flocalhost%3A3000")).toBe(
+      true,
+    );
     expect(isBrowserRoutePath("/browser#x")).toBe(true);
     expect(isBrowserRoutePath("/browser?watch=abc")).toBe(true);
   });
@@ -197,8 +272,12 @@ describe("isBrowserRoutePath", () => {
 describe("pageAddress", () => {
   it("drops the scheme and a bare trailing slash, keeps the rest", () => {
     expect(pageAddress("http://localhost:8765/")).toBe("localhost:8765");
-    expect(pageAddress("http://localhost:8765/path/?q=1#top")).toBe("localhost:8765/path?q=1#top");
-    expect(pageAddress("https://www.github.com/codecast")).toBe("github.com/codecast");
+    expect(pageAddress("http://localhost:8765/path/?q=1#top")).toBe(
+      "localhost:8765/path?q=1#top",
+    );
+    expect(pageAddress("https://www.github.com/codecast")).toBe(
+      "github.com/codecast",
+    );
   });
 
   it("passes through what is not a URL", () => {
@@ -263,13 +342,19 @@ describe("probeAddress", () => {
     expect(
       await probeAddress("http://127.0.0.1:3000/", {
         fetch: refused,
-        permissions: permissionsWith({ "loopback-network": "denied", "local-network": "granted" }),
+        permissions: permissionsWith({
+          "loopback-network": "denied",
+          "local-network": "granted",
+        }),
       }),
     ).toBe("local-network-blocked");
     expect(
       await probeAddress("http://192.168.1.20:3000/", {
         fetch: refused,
-        permissions: permissionsWith({ "loopback-network": "denied", "local-network": "granted" }),
+        permissions: permissionsWith({
+          "loopback-network": "denied",
+          "local-network": "granted",
+        }),
       }),
     ).toBe("unreachable");
   });
@@ -291,7 +376,9 @@ describe("embed mode", () => {
   function withWindow<T>(origin: string, run: () => T): T {
     const had = "window" in globalThis;
     const before = (globalThis as Record<string, unknown>).window;
-    (globalThis as Record<string, unknown>).window = { location: { origin, search: "" } };
+    (globalThis as Record<string, unknown>).window = {
+      location: { origin, search: "" },
+    };
     try {
       return run();
     } finally {
@@ -301,20 +388,28 @@ describe("embed mode", () => {
   }
 
   it("flags an address this app serves", () => {
-    expect(paneSrc("https://codecast.sh/inbox")).toBe("https://codecast.sh/inbox?embed=1");
+    expect(paneSrc("https://codecast.sh/inbox")).toBe(
+      "https://codecast.sh/inbox?embed=1",
+    );
     expect(paneSrc("https://local.codecast.sh/tasks?p=x")).toBe(
       "https://local.codecast.sh/tasks?p=x&embed=1",
     );
     // A prod link framed on a local checkout is still codecast inside codecast.
     withWindow("http://localhost:3200", () => {
       expect(isAppOrigin("https://codecast.sh/inbox")).toBe(true);
-      expect(paneSrc("http://localhost:3200/docs")).toBe("http://localhost:3200/docs?embed=1");
+      expect(paneSrc("http://localhost:3200/docs")).toBe(
+        "http://localhost:3200/docs?embed=1",
+      );
     });
   });
 
   it("reads a codecast URL as the in-app path it names", () => {
-    expect(appPathOf("https://codecast.sh/org?proposal=op-19")).toBe("/org?proposal=op-19");
-    expect(appPathOf("https://codecast.sh/conversation/abc#msg-1")).toBe("/conversation/abc#msg-1");
+    expect(appPathOf("https://codecast.sh/org?proposal=op-19")).toBe(
+      "/org?proposal=op-19",
+    );
+    expect(appPathOf("https://codecast.sh/conversation/abc#msg-1")).toBe(
+      "/conversation/abc#msg-1",
+    );
     expect(appPathOf("https://github.com/codecast/codecast")).toBeNull();
     expect(appPathOf("https://convex.codecast.sh/cli/a/x")).toBeNull();
     expect(appPathOf("/inbox")).toBeNull();
@@ -331,7 +426,9 @@ describe("embed mode", () => {
     expect(paneSrc("https://github.com/codecast/codecast?tab=readme")).toBe(
       "https://github.com/codecast/codecast?tab=readme",
     );
-    expect(paneSrc("http://localhost:3000/app#top")).toBe("http://localhost:3000/app#top");
+    expect(paneSrc("http://localhost:3000/app#top")).toBe(
+      "http://localhost:3000/app#top",
+    );
     expect(paneSrc("not a url")).toBe("not a url");
   });
 
@@ -342,12 +439,16 @@ describe("embed mode", () => {
   });
 
   it("carries the flag on a bare path, keeping the rest of the address", () => {
-    expect(withEmbedFlag("/inbox?s=jx7abc#msg-4")).toBe("/inbox?s=jx7abc&embed=1#msg-4");
+    expect(withEmbedFlag("/inbox?s=jx7abc#msg-4")).toBe(
+      "/inbox?s=jx7abc&embed=1#msg-4",
+    );
     expect(withEmbedFlag("/tasks")).toBe("/tasks?embed=1");
   });
 
   it("takes the flag back off, and leaves an address without one alone", () => {
-    expect(withoutEmbedFlag("https://codecast.sh/inbox?embed=1")).toBe("https://codecast.sh/inbox");
+    expect(withoutEmbedFlag("https://codecast.sh/inbox?embed=1")).toBe(
+      "https://codecast.sh/inbox",
+    );
     expect(withoutEmbedFlag("/inbox?s=jx7abc&embed=1")).toBe("/inbox?s=jx7abc");
     // Untouched, not merely equivalent: the strip shows what comes back here.
     expect(withoutEmbedFlag("http://localhost:3000/a?u=http://x.test/y")).toBe(
@@ -361,7 +462,8 @@ describe("embed mode", () => {
     // (`/inbox?s=<id>`), React Router, and the stage's split sync alike.
     const written: (string | null | undefined)[] = [];
     const history = {
-      pushState: (_s: unknown, _u: string, url?: string | URL | null) => written.push(url as string),
+      pushState: (_s: unknown, _u: string, url?: string | URL | null) =>
+        written.push(url as string),
       replaceState: (_s: unknown, _u: string, url?: string | URL | null) =>
         written.push(url as string),
     };
@@ -387,47 +489,86 @@ describe("gestures from a pane's page", () => {
 
   function framedWindow(origin: string, ancestor?: string) {
     const posted: { message: unknown; target: string }[] = [];
-    const parent = { postMessage: (message: unknown, target: string) => posted.push({ message, target }) };
-    const win = { parent, location: { origin, ancestorOrigins: ancestor ? [ancestor] : undefined } };
+    const parent = {
+      postMessage: (message: unknown, target: string) =>
+        posted.push({ message, target }),
+    };
+    const win = {
+      parent,
+      location: { origin, ancestorOrigins: ancestor ? [ancestor] : undefined },
+    };
     return { win, posted };
   }
 
   it("posts the gesture to the framing window, addressed to an app origin", () => {
-    const { win, posted } = framedWindow("https://local.codecast.sh", "https://local.codecast.sh");
+    const { win, posted } = framedWindow(
+      "https://local.codecast.sh",
+      "https://local.codecast.sh",
+    );
     const source = { kind: "url" as const, url: "http://localhost:8765" };
-    expect(postToPaneHost({ type: "codecast:open-pane", source }, win)).toBe(true);
-    expect(postToPaneHost({ type: "codecast:open-beside", path: "/tasks/ct-1" }, win)).toBe(true);
+    expect(postToPaneHost({ type: "codecast:open-pane", source }, win)).toBe(
+      true,
+    );
+    expect(
+      postToPaneHost(
+        { type: "codecast:open-beside", path: "/tasks/ct-1" },
+        win,
+      ),
+    ).toBe(true);
     expect(posted).toEqual([
-      { message: { type: "codecast:open-pane", source }, target: "https://local.codecast.sh" },
-      { message: { type: "codecast:open-beside", path: "/tasks/ct-1" }, target: "https://local.codecast.sh" },
+      {
+        message: { type: "codecast:open-pane", source },
+        target: "https://local.codecast.sh",
+      },
+      {
+        message: { type: "codecast:open-beside", path: "/tasks/ct-1" },
+        target: "https://local.codecast.sh",
+      },
     ]);
   });
 
   it("addresses a prod page framed on a local checkout to the local window", () => {
-    const { win, posted } = framedWindow("https://codecast.sh", "https://local.codecast.sh");
+    const { win, posted } = framedWindow(
+      "https://codecast.sh",
+      "https://local.codecast.sh",
+    );
     postToPaneHost({ type: "codecast:open-beside", path: "/docs" }, win);
     expect(posted[0].target).toBe("https://local.codecast.sh");
   });
 
   it("never addresses a foreign site that frames a codecast page", () => {
-    const { win, posted } = framedWindow("https://codecast.sh", "https://evil.example");
+    const { win, posted } = framedWindow(
+      "https://codecast.sh",
+      "https://evil.example",
+    );
     postToPaneHost({ type: "codecast:open-beside", path: "/docs" }, win);
     // Its own origin: the browser drops the message, because the parent is not it.
     expect(posted[0].target).toBe("https://codecast.sh");
   });
 
   it("is not a pane's page without a framing window, or outside embed mode", () => {
-    const top = { parent: null as unknown, location: { origin: "https://codecast.sh" } };
+    const top = {
+      parent: null as unknown,
+      location: { origin: "https://codecast.sh" },
+    };
     top.parent = top;
     expect(hasPaneHost(top)).toBe(false);
-    expect(postToPaneHost({ type: "codecast:open-beside", path: "/docs" }, top)).toBe(false);
+    expect(
+      postToPaneHost({ type: "codecast:open-beside", path: "/docs" }, top),
+    ).toBe(false);
     // The default reads PANE_EMBED, which is false outside a framed document.
     expect(hasPaneHost()).toBe(false);
-    expect(postToPaneHost({ type: "codecast:open-beside", path: "/docs" })).toBe(false);
+    expect(
+      postToPaneHost({ type: "codecast:open-beside", path: "/docs" }),
+    ).toBe(false);
   });
 
   const frame = {};
-  const event = (data: unknown, origin = "https://codecast.sh", source: unknown = frame) => ({
+  const event = (
+    data: unknown,
+    origin = "https://codecast.sh",
+    source: unknown = frame,
+  ) => ({
     data,
     origin,
     source,
@@ -436,17 +577,24 @@ describe("gestures from a pane's page", () => {
   it("acts only on a message from its own frame, on an app origin", () => {
     const beside = { type: "codecast:open-beside", path: "/tasks/ct-1" };
     expect(readPaneMessage(event(beside), frame)).toEqual(beside);
-    expect(readPaneMessage(event(beside, "https://local.codecast.sh"), frame)).toEqual(beside);
+    expect(
+      readPaneMessage(event(beside, "https://local.codecast.sh"), frame),
+    ).toEqual(beside);
     // A foreign page in the frame (the pane navigated to a site) is not the app.
-    expect(readPaneMessage(event(beside, "http://localhost:8765"), frame)).toBeNull();
+    expect(
+      readPaneMessage(event(beside, "http://localhost:8765"), frame),
+    ).toBeNull();
     expect(readPaneMessage(event(beside, "null"), frame)).toBeNull();
     // Another pane's frame, or no frame mounted: not this pane's gesture.
-    expect(readPaneMessage(event(beside, "https://codecast.sh", {}), frame)).toBeNull();
+    expect(
+      readPaneMessage(event(beside, "https://codecast.sh", {}), frame),
+    ).toBeNull();
     expect(readPaneMessage(event(beside), null)).toBeNull();
   });
 
   it("acts only on a payload the app itself would send", () => {
-    const pane = (source: unknown) => readPaneMessage(event({ type: "codecast:open-pane", source }), frame);
+    const pane = (source: unknown) =>
+      readPaneMessage(event({ type: "codecast:open-pane", source }), frame);
     expect(pane({ kind: "url", url: "http://localhost:8765" })).toEqual({
       type: "codecast:open-pane",
       source: { kind: "url", url: "http://localhost:8765" },
@@ -460,35 +608,58 @@ describe("gestures from a pane's page", () => {
     expect(pane({ kind: "watch", sessionUuid: "" })).toBeNull();
     expect(pane(null)).toBeNull();
 
-    const beside = (path: unknown) => readPaneMessage(event({ type: "codecast:open-beside", path }), frame);
+    const beside = (path: unknown) =>
+      readPaneMessage(event({ type: "codecast:open-beside", path }), frame);
     expect(beside("//evil.example/x")).toBeNull();
     expect(beside("https://evil.example/x")).toBeNull();
     expect(beside(42)).toBeNull();
-    expect(readPaneMessage(event({ type: "something-else", path: "/docs" }), frame)).toBeNull();
+    expect(
+      readPaneMessage(event({ type: "something-else", path: "/docs" }), frame),
+    ).toBeNull();
     expect(readPaneMessage(event("codecast:open-beside"), frame)).toBeNull();
   });
 });
 
 describe("appDocumentTitle", () => {
   it("names the surface, then the thing the window shows", () => {
-    expect(appDocumentTitle("Inbox", "Fix the auth race", false)).toBe("Codecast Inbox | Fix the auth race");
+    expect(appDocumentTitle("Inbox", "Fix the auth race", false)).toBe(
+      "Codecast Inbox | Fix the auth race",
+    );
     expect(appDocumentTitle("Tasks", null, false)).toBe("Codecast Tasks");
     expect(appDocumentTitle("Tasks", "Tasks", false)).toBe("Codecast Tasks");
   });
 
   it("gives a pane's page the bare thing, for the strip that reads it", () => {
-    expect(appDocumentTitle("Inbox", "Fix the auth race", true)).toBe("Fix the auth race");
+    expect(appDocumentTitle("Inbox", "Fix the auth race", true)).toBe(
+      "Fix the auth race",
+    );
     expect(appDocumentTitle("Tasks", null, true)).toBe("Tasks");
   });
 });
 
 describe("the host screen pane", () => {
   it("round-trips through its path and draws with its own backend", () => {
-    const path = browserRoutePath({ kind: "screen", deviceId: "28d80e225ed21f45" });
+    const path = browserRoutePath({
+      kind: "screen",
+      deviceId: "28d80e225ed21f45",
+    });
     expect(path).toBe("/browser?screen=28d80e225ed21f45");
-    expect(parseBrowserRoute(path)).toEqual({ kind: "screen", deviceId: "28d80e225ed21f45" });
+    expect(parseBrowserRoute(path)).toEqual({
+      kind: "screen",
+      deviceId: "28d80e225ed21f45",
+    });
     expect(browserPathLabel(path)).toBe("Host screen");
-    expect(selectBackend({ kind: "screen", deviceId: "x" }, { desktop: true, nativeAvailable: true, refused: false, preferNative: true })).toBe("screen");
+    expect(
+      selectBackend(
+        { kind: "screen", deviceId: "x" },
+        {
+          desktop: true,
+          nativeAvailable: true,
+          refused: false,
+          preferNative: true,
+        },
+      ),
+    ).toBe("screen");
   });
   it("refuses a device id that is not one", () => {
     expect(parseBrowserRoute("/browser?screen=../../etc")).toBeNull();
@@ -497,15 +668,31 @@ describe("the host screen pane", () => {
 
 describe("a loopback page another machine serves", () => {
   it("loads through the forwarded port with the same path", () => {
-    expect(forwardedLoopbackUrl("http://localhost:3207/inbox?x=1#h", 51234)).toBe("http://localhost:51234/inbox?x=1#h");
-    expect(forwardedLoopbackUrl("http://127.0.0.1:3207/", 51234)).toBe("http://localhost:51234/");
+    expect(
+      forwardedLoopbackUrl("http://localhost:3207/inbox?x=1#h", 51234),
+    ).toBe("http://localhost:51234/inbox?x=1#h");
+    expect(forwardedLoopbackUrl("http://127.0.0.1:3207/", 51234)).toBe(
+      "http://localhost:51234/",
+    );
   });
   it("forwards nothing without a port or off loopback", () => {
     expect(forwardedLoopbackUrl("http://localhost/", 51234)).toBeNull();
     expect(forwardedLoopbackUrl("https://example.com:8443/", 51234)).toBeNull();
   });
   it("reports navigation in the serving machine's address", () => {
-    expect(unforwardedUrl("http://localhost:51234/settings", "http://localhost:51234/", "http://localhost:3207/")).toBe("http://localhost:3207/settings");
-    expect(unforwardedUrl("https://github.com/x", "http://localhost:51234/", "http://localhost:3207/")).toBe("https://github.com/x");
+    expect(
+      unforwardedUrl(
+        "http://localhost:51234/settings",
+        "http://localhost:51234/",
+        "http://localhost:3207/",
+      ),
+    ).toBe("http://localhost:3207/settings");
+    expect(
+      unforwardedUrl(
+        "https://github.com/x",
+        "http://localhost:51234/",
+        "http://localhost:3207/",
+      ),
+    ).toBe("https://github.com/x");
   });
 });

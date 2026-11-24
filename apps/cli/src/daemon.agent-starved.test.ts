@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { parseForegroundCpu, parsePsCpuTime, starvedAcross, tmuxAgentStarved } from "./daemon.js";
+import {
+  parseForegroundCpu,
+  parsePsCpuTime,
+  starvedAcross,
+  tmuxAgentStarved,
+} from "./daemon.js";
 
 test("ps cpu times parse in every shape ps prints", () => {
   expect(parsePsCpuTime("4:29.36")).toBe(269_360);
@@ -9,11 +14,14 @@ test("ps cpu times parse in every shape ps prints", () => {
 });
 
 // The 2026-10-26 pane: claude at background priority, runnable, 10 ms of CPU in 12 s.
-const sample = (claude: string, child = "S+ 0:00.05") => parseForegroundCpu([
-  " 1676  1676 1784 Ss     0:00.02",
-  ` 1784  1784 1784 ${claude}`,
-  ` 2125  1784 1784 ${child}`,
-].join("\n"));
+const sample = (claude: string, child = "S+ 0:00.05") =>
+  parseForegroundCpu(
+    [
+      " 1676  1676 1784 Ss     0:00.02",
+      ` 1784  1784 1784 ${claude}`,
+      ` 2125  1784 1784 ${child}`,
+    ].join("\n"),
+  );
 
 test("only the foreground group leader counts", () => {
   expect([...sample("R+ 4:29.36").keys()]).toEqual([1784]);

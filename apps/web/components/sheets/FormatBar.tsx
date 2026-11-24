@@ -34,8 +34,22 @@ import {
   Merge,
   Split,
 } from "lucide-react";
-import { PALETTE, formatValue, type CellStyle, type PaletteColor } from "@codecast/shared/artifacts/sheets";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  PALETTE,
+  formatValue,
+  type CellStyle,
+  type PaletteColor,
+} from "@codecast/shared/artifacts/sheets";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { KeyCap } from "../KeyCap";
 import { isMac } from "../../shortcuts/registry";
 import { solVar, tint } from "./cellPaint";
@@ -58,11 +72,27 @@ export type FormatAction =
   | { type: "merge"; on: boolean };
 
 const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24, 28];
-const MENU = "min-w-[180px] p-1 rounded-xl border border-sol-border/50 bg-sol-card/95 backdrop-blur-md shadow-xl text-sol-text";
-const ITEM = "text-[13px] rounded-lg px-2.5 py-1.5 gap-2.5 text-sol-text-secondary focus:bg-sol-cyan/10 focus:text-sol-text";
+const MENU =
+  "min-w-[180px] p-1 rounded-xl border border-sol-border/50 bg-sol-card/95 backdrop-blur-md shadow-xl text-sol-text";
+const ITEM =
+  "text-[13px] rounded-lg px-2.5 py-1.5 gap-2.5 text-sol-text-secondary focus:bg-sol-cyan/10 focus:text-sol-text";
 
 /** A bar button; its hover tip names it and shows the shortcut as keycaps. */
-function Btn({ on, title, onClick, children, wide, shortcut }: { on?: boolean; title: string; onClick?: () => void; children: ReactNode; wide?: boolean; shortcut?: string[] }) {
+function Btn({
+  on,
+  title,
+  onClick,
+  children,
+  wide,
+  shortcut,
+}: {
+  on?: boolean;
+  title: string;
+  onClick?: () => void;
+  children: ReactNode;
+  wide?: boolean;
+  shortcut?: string[];
+}) {
   return (
     <button
       type="button"
@@ -75,22 +105,48 @@ function Btn({ on, title, onClick, children, wide, shortcut }: { on?: boolean; t
       {children}
       <span className="sheet-tip" role="tooltip">
         {title}
-        {shortcut?.map((k) => <KeyCap key={k} size="xs">{k}</KeyCap>)}
+        {shortcut?.map((k) => (
+          <KeyCap key={k} size="xs">
+            {k}
+          </KeyCap>
+        ))}
       </span>
     </button>
   );
 }
 
-function Menu({ trigger, title, children, on }: { trigger: ReactNode; title: string; children: ReactNode; on?: boolean }) {
+function Menu({
+  trigger,
+  title,
+  children,
+  on,
+}: {
+  trigger: ReactNode;
+  title: string;
+  children: ReactNode;
+  on?: boolean;
+}) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <button type="button" title={title} aria-label={title} className={`sheet-fbtn is-menu ${on ? "is-on" : ""}`} onMouseDown={(e) => e.preventDefault()}>
+        <button
+          type="button"
+          title={title}
+          aria-label={title}
+          className={`sheet-fbtn is-menu ${on ? "is-on" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
+        >
           {trigger}
           <ChevronDown className="w-3 h-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="center" sideOffset={8} className={MENU} onCloseAutoFocus={(e) => e.preventDefault()}>
+      <DropdownMenuContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        className={MENU}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         {children}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -99,12 +155,24 @@ function Menu({ trigger, title, children, on }: { trigger: ReactNode; title: str
 
 /** A format code typed into the menu, previewed on a sample as you type ("#,##0.0 \"kg\"", "0.0%", "mmm d"). */
 /** Codes a person can start from: thousands, percent, red negatives, thousands as K, units, dates and durations. */
-const CODE_EXAMPLES = ['#,##0.00', '0.0%', '"$"#,##0;[Red]("$"#,##0)', '#,##0,"K"', '0 "kg"', "mmm d, yyyy", "ddd, mmm d", "h:mm AM/PM", "[h]:mm"];
+const CODE_EXAMPLES = [
+  "#,##0.00",
+  "0.0%",
+  '"$"#,##0;[Red]("$"#,##0)',
+  '#,##0,"K"',
+  '0 "kg"',
+  "mmm d, yyyy",
+  "ddd, mmm d",
+  "h:mm AM/PM",
+  "[h]:mm",
+];
 
 /** A stand-in to preview an example on when no cell is selected: a duration, a date and time, or a number. */
 function exampleValue(code: string): number {
   if (/^\[h\]/i.test(code)) return 29.75 / 24;
-  return /[dmyh]/i.test(code.replace(/"[^"]*"|\[[^\]]*\]/g, "")) ? 46336.5625 : 1234.5;
+  return /[dmyh]/i.test(code.replace(/"[^"]*"|\[[^\]]*\]/g, ""))
+    ? 46336.5625
+    : 1234.5;
 }
 
 function previewOf(v: number, code: string): string {
@@ -115,7 +183,15 @@ function previewOf(v: number, code: string): string {
   }
 }
 
-function CustomCode({ initial, onApply, sample: value }: { initial: string; onApply: (code: string) => void; sample?: number }) {
+function CustomCode({
+  initial,
+  onApply,
+  sample: value,
+}: {
+  initial: string;
+  onApply: (code: string) => void;
+  sample?: number;
+}) {
   const [code, setCode] = useState(initial || "#,##0.00");
   // Previewed on the selected cell's number (a negative shows its own section), else a stand-in.
   let sample = "";
@@ -134,15 +210,35 @@ function CustomCode({ initial, onApply, sample: value }: { initial: string; onAp
       onKeyDown={(e) => e.stopPropagation()}
     >
       <div className="sheet-custom-row">
-        <input autoFocus value={code} spellCheck={false} aria-label="Format code" onChange={(e) => setCode(e.target.value)} />
-        <button type="submit" className="sheet-custom-apply">Apply</button>
+        <input
+          autoFocus
+          value={code}
+          spellCheck={false}
+          aria-label="Format code"
+          onChange={(e) => setCode(e.target.value)}
+        />
+        <button type="submit" className="sheet-custom-apply">
+          Apply
+        </button>
       </div>
       <span className="sheet-custom-sample tabular-nums">{sample}</span>
-      <div className="sheet-custom-examples" role="list" aria-label="Example codes">
+      <div
+        className="sheet-custom-examples"
+        role="list"
+        aria-label="Example codes"
+      >
         {CODE_EXAMPLES.map((ex) => (
-          <button key={ex} type="button" role="listitem" onClick={() => setCode(ex)} className={ex === code ? "is-on" : ""}>
+          <button
+            key={ex}
+            type="button"
+            role="listitem"
+            onClick={() => setCode(ex)}
+            className={ex === code ? "is-on" : ""}
+          >
             <code>{ex}</code>
-            <span className="tabular-nums">{previewOf(value ?? exampleValue(ex), ex)}</span>
+            <span className="tabular-nums">
+              {previewOf(value ?? exampleValue(ex), ex)}
+            </span>
           </button>
         ))}
       </div>
@@ -150,10 +246,24 @@ function CustomCode({ initial, onApply, sample: value }: { initial: string; onAp
   );
 }
 
-function Swatches({ value, onPick, fill }: { value?: PaletteColor; onPick: (c: PaletteColor | null) => void; fill?: boolean }) {
+function Swatches({
+  value,
+  onPick,
+  fill,
+}: {
+  value?: PaletteColor;
+  onPick: (c: PaletteColor | null) => void;
+  fill?: boolean;
+}) {
   return (
     <div className="sheet-swatches">
-      <button type="button" title="None" aria-label="No color" className={`sheet-swatch is-none ${!value ? "is-on" : ""}`} onClick={() => onPick(null)} />
+      <button
+        type="button"
+        title="None"
+        aria-label="No color"
+        className={`sheet-swatch is-none ${!value ? "is-on" : ""}`}
+        onClick={() => onPick(null)}
+      />
       {PALETTE.map((c) => (
         <button
           key={c}
@@ -169,7 +279,19 @@ function Swatches({ value, onPick, fill }: { value?: PaletteColor; onPick: (c: P
   );
 }
 
-function ColorMenu({ title, icon, value, fill, onPick }: { title: string; icon: ReactNode; value?: PaletteColor; fill?: boolean; onPick: (c: PaletteColor | null) => void }) {
+function ColorMenu({
+  title,
+  icon,
+  value,
+  fill,
+  onPick,
+}: {
+  title: string;
+  icon: ReactNode;
+  value?: PaletteColor;
+  fill?: boolean;
+  onPick: (c: PaletteColor | null) => void;
+}) {
   return (
     <Menu
       title={title}
@@ -177,7 +299,16 @@ function ColorMenu({ title, icon, value, fill, onPick }: { title: string; icon: 
       trigger={
         <span className="sheet-color-icon">
           {icon}
-          <span className="sheet-color-bar" style={{ background: value ? (fill ? tint(value, 70) : solVar(value)) : "var(--sol-border)" }} />
+          <span
+            className="sheet-color-bar"
+            style={{
+              background: value
+                ? fill
+                  ? tint(value, 70)
+                  : solVar(value)
+                : "var(--sol-border)",
+            }}
+          />
         </span>
       }
     >
@@ -189,7 +320,11 @@ function ColorMenu({ title, icon, value, fill, onPick }: { title: string; icon: 
 /** Currency symbols the menu offers; any other comes through a custom code or the CLI (cur=). */
 const CURRENCIES = ["$", "€", "£", "¥", "₹", "CHF "];
 
-const NUMBER_FORMATS: Array<{ nf: CellStyle["nf"] | null; label: string; sample: string }> = [
+const NUMBER_FORMATS: Array<{
+  nf: CellStyle["nf"] | null;
+  label: string;
+  sample: string;
+}> = [
   { nf: null, label: "Automatic", sample: "1234.5" },
   { nf: "number", label: "Number", sample: "1,234.50" },
   { nf: "percent", label: "Percent", sample: "12.5%" },
@@ -252,7 +387,11 @@ export function FormatBar({
     ro.observe(host);
     return () => ro.disconnect();
   }, []);
-  const { text: prompt, setText: setPrompt } = useAskDraft(docId, SHEET_ASK_SLOT, () => setAsking(true));
+  const { text: prompt, setText: setPrompt } = useAskDraft(
+    docId,
+    SHEET_ASK_SLOT,
+    () => setAsking(true),
+  );
   // A blank tab opens on the ask prompt; once it holds data (a paste, a typed cell) the toolbar comes back unless a prompt is being written.
   useWatchEffect(() => {
     if (autoAsk) setAsking(true);
@@ -260,19 +399,44 @@ export function FormatBar({
   }, [autoAsk]); // eslint-disable-line react-hooks/exhaustive-deps
   const mod = isMac ? "⌘" : "Ctrl";
   if (readOnly) return null;
-  const set = (patch: Record<string, unknown>) => onAction({ type: "style", patch });
+  const set = (patch: Record<string, unknown>) =>
+    onAction({ type: "style", patch });
   // Shared by the bar and, when it is narrow, the More menu's submenus.
   const sizeItems = SIZES.map((s) => (
-    <DropdownMenuItem key={s} className={ITEM} onSelect={() => set({ fs: s === 13 ? null : s })}>
+    <DropdownMenuItem
+      key={s}
+      className={ITEM}
+      onSelect={() => set({ fs: s === 13 ? null : s })}
+    >
       <span style={{ fontSize: Math.min(s, 18) }}>{s}</span>
     </DropdownMenuItem>
   ));
   const borderItems = (
     <>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "border", mode: "all" })}><Grid2x2 className="w-4 h-4" /> All borders</DropdownMenuItem>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "border", mode: "outer" })}><Square className="w-4 h-4" /> Outline</DropdownMenuItem>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "border", mode: "bottom" })}><span className="w-4 h-4 border-b-2 border-current" /> Bottom</DropdownMenuItem>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "border", mode: "none" })}><SquareDashed className="w-4 h-4" /> No borders</DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "border", mode: "all" })}
+      >
+        <Grid2x2 className="w-4 h-4" /> All borders
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "border", mode: "outer" })}
+      >
+        <Square className="w-4 h-4" /> Outline
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "border", mode: "bottom" })}
+      >
+        <span className="w-4 h-4 border-b-2 border-current" /> Bottom
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "border", mode: "none" })}
+      >
+        <SquareDashed className="w-4 h-4" /> No borders
+      </DropdownMenuItem>
     </>
   );
   const tableSwatches = (
@@ -282,36 +446,87 @@ export function FormatBar({
   );
   const condItems = (
     <>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "cond", rule: "sign" })}>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "cond", rule: "sign" })}
+      >
         <span className="flex-1">Gains and losses</span>
         <span style={{ color: solVar("green") }}>+4</span>
         <span style={{ color: solVar("red") }}>-2</span>
       </DropdownMenuItem>
       {(["green", "blue", "red"] as const).map((c) => (
-        <DropdownMenuItem key={c} className={ITEM} onSelect={() => onAction({ type: "cond", rule: "scale", color: c })}>
+        <DropdownMenuItem
+          key={c}
+          className={ITEM}
+          onSelect={() => onAction({ type: "cond", rule: "scale", color: c })}
+        >
           <span className="flex-1">Color scale</span>
-          <span className="sheet-scale" style={{ background: `linear-gradient(90deg, ${tint(c, 6)}, ${tint(c, 45)})` }} />
+          <span
+            className="sheet-scale"
+            style={{
+              background: `linear-gradient(90deg, ${tint(c, 6)}, ${tint(c, 45)})`,
+            }}
+          />
         </DropdownMenuItem>
       ))}
       <DropdownMenuSeparator />
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "cond", rule: "clear" })}><Eraser className="w-4 h-4" /> Clear rules here</DropdownMenuItem>
-      <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "rules" })}><Palette className="w-4 h-4" /> Manage rules</DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "cond", rule: "clear" })}
+      >
+        <Eraser className="w-4 h-4" /> Clear rules here
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className={ITEM}
+        onSelect={() => onAction({ type: "rules" })}
+      >
+        <Palette className="w-4 h-4" /> Manage rules
+      </DropdownMenuItem>
     </>
   );
-  const AlignIcon = style.al === "center" ? AlignCenter : style.al === "right" ? AlignRight : AlignLeft;
-  const nfLabel = style.nf === "percent" ? "%" : style.nf === "currency" || style.nf === "accounting" ? (style.cur ?? "$").trim() : style.nf === "scientific" ? "E" : style.nf === "custom" ? "#,0" : style.nf === "date" || style.nf === "datetime" ? "Date" : style.nf === "number" ? "1,0" : "123";
+  const AlignIcon =
+    style.al === "center"
+      ? AlignCenter
+      : style.al === "right"
+        ? AlignRight
+        : AlignLeft;
+  const nfLabel =
+    style.nf === "percent"
+      ? "%"
+      : style.nf === "currency" || style.nf === "accounting"
+        ? (style.cur ?? "$").trim()
+        : style.nf === "scientific"
+          ? "E"
+          : style.nf === "custom"
+            ? "#,0"
+            : style.nf === "date" || style.nf === "datetime"
+              ? "Date"
+              : style.nf === "number"
+                ? "1,0"
+                : "123";
 
   return (
-    <div ref={barRef} className="sheet-formatbar" data-sheet-formatbar onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      ref={barRef}
+      className="sheet-formatbar"
+      data-sheet-formatbar
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       {asking ? (
         <div className="sheet-ask">
           <Bot className="w-4 h-4 text-sol-violet shrink-0" />
-          <span className="sheet-ask-scope">{autoAsk ? tabName : `${tabName}!${selectionLabel}`}</span>
+          <span className="sheet-ask-scope">
+            {autoAsk ? tabName : `${tabName}!${selectionLabel}`}
+          </span>
           <input
             autoFocus
             data-sheet-ask-input
             value={prompt}
-            placeholder={autoAsk ? "What should this sheet track or model?" : "Describe a change"}
+            placeholder={
+              autoAsk
+                ? "What should this sheet track or model?"
+                : "Describe a change"
+            }
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") setAsking(false);
@@ -322,13 +537,36 @@ export function FormatBar({
               }
             }}
           />
-          <button type="button" className="sheet-ask-alt" disabled={!prompt.trim()} onClick={() => { onAsk(prompt.trim(), "pick"); setAsking(false); }}>
-            Session… <KeyCap size="xs">{mod}</KeyCap><KeyCap size="xs">↵</KeyCap>
+          <button
+            type="button"
+            className="sheet-ask-alt"
+            disabled={!prompt.trim()}
+            onClick={() => {
+              onAsk(prompt.trim(), "pick");
+              setAsking(false);
+            }}
+          >
+            Session… <KeyCap size="xs">{mod}</KeyCap>
+            <KeyCap size="xs">↵</KeyCap>
           </button>
-          <button type="button" className="sheet-ask-send" disabled={!prompt.trim()} onClick={() => { onAsk(prompt.trim(), "new"); setAsking(false); }}>
+          <button
+            type="button"
+            className="sheet-ask-send"
+            disabled={!prompt.trim()}
+            onClick={() => {
+              onAsk(prompt.trim(), "new");
+              setAsking(false);
+            }}
+          >
             <Send className="w-3 h-3" /> New agent
           </button>
-          <button type="button" className="sheet-ask-close" aria-label="Back to formatting" title="Back to formatting" onClick={() => setAsking(false)}>
+          <button
+            type="button"
+            className="sheet-ask-close"
+            aria-label="Back to formatting"
+            title="Back to formatting"
+            onClick={() => setAsking(false)}
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -336,110 +574,404 @@ export function FormatBar({
         <>
           {/* The formatting controls scroll sideways when even the compact bar doesn't fit; Ask stays pinned at the end. */}
           <div className="sheet-fbar-tools">
-          {!compact && <Menu title="Font size" trigger={<span className="sheet-fsize">{style.fs ?? 13}</span>}>{sizeItems}</Menu>}
-          {!compact && <span className="sheet-fsep" />}
-          <Btn title="Bold" shortcut={[mod, "B"]} on={!!style.b} onClick={() => onAction({ type: "toggle", field: "b" })}><Bold className="w-4 h-4" /></Btn>
-          <Btn title="Italic" shortcut={[mod, "I"]} on={!!style.i} onClick={() => onAction({ type: "toggle", field: "i" })}><Italic className="w-4 h-4" /></Btn>
-          <Btn title="Underline" shortcut={[mod, "U"]} on={!!style.u} onClick={() => onAction({ type: "toggle", field: "u" })}><Underline className="w-4 h-4" /></Btn>
-          <Menu title="Align" trigger={<AlignIcon className="w-4 h-4" />}>
-            <DropdownMenuItem className={ITEM} onSelect={() => set({ al: "left" })}><AlignLeft className="w-4 h-4" /> Left</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => set({ al: "center" })}><AlignCenter className="w-4 h-4" /> Center</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => set({ al: "right" })}><AlignRight className="w-4 h-4" /> Right</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "toggle", field: "wrap" })}><WrapText className="w-4 h-4" /> {style.wrap ? "Don't wrap" : "Wrap text"}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "merge", on: true })}><Merge className="w-4 h-4" /> Merge cells</DropdownMenuItem>
-            {merged && <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "merge", on: false })}><Split className="w-4 h-4" /> Unmerge</DropdownMenuItem>}
-          </Menu>
-          <span className="sheet-fsep" />
-          <ColorMenu title="Text color" icon={<Type className="w-4 h-4" />} value={style.color} onPick={(c) => set({ color: c })} />
-          <ColorMenu title="Fill color" icon={<PaintBucket className="w-4 h-4" />} value={style.fill} fill onPick={(c) => set({ fill: c })} />
-          {!compact && <Menu title="Borders" trigger={<Grid2x2 className="w-4 h-4" />}>{borderItems}</Menu>}
-          <span className="sheet-fsep" />
-          <Menu title="Number format" on={!!style.nf} trigger={<span className="sheet-nf">{nfLabel}</span>}>
-            {NUMBER_FORMATS.map((f) => (
-              <DropdownMenuItem key={f.label} className={ITEM} onSelect={() => set({ nf: f.nf })}>
-                <span className={`flex-1 ${style.nf === f.nf || (!style.nf && !f.nf) ? "text-sol-text font-medium" : ""}`}>{f.label}</span>
-                <span className="text-sol-text-dim tabular-nums">{f.nf === "currency" || f.nf === "accounting" ? f.sample.replace("$", (style.cur ?? "$")) : f.sample}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className={ITEM}><span className="flex-1">Currency symbol</span><span className="text-sol-text-dim">{(style.cur ?? "$").trim()}</span></DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {CURRENCIES.map((c) => (
-                  <DropdownMenuItem key={c} className={ITEM} onSelect={() => set({ cur: c === "$" ? null : c, nf: style.nf === "accounting" ? "accounting" : "currency" })}>
-                    <span className={`flex-1 ${(style.cur ?? "$") === c ? "text-sol-text font-medium" : ""}`}>{c.trim()}</span>
-                    <span className="text-sol-text-dim tabular-nums">{c}1,234.50</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className={ITEM}><span className="flex-1">Custom format</span>{style.nf === "custom" && <span className="text-sol-text-dim truncate max-w-[96px]">{style.code}</span>}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <CustomCode sample={sample} initial={style.code ?? ""} onApply={(code) => set(code ? { nf: "custom", code } : { nf: null, code: null })} />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "toggle", field: "sign" })}>
-              <span className="flex-1">{style.sign ? "Hide + sign" : "Show + on gains"}</span>
-              <span className="text-sol-text-dim">+10%</span>
-            </DropdownMenuItem>
-          </Menu>
-          {!tight && <Btn title="Fewer decimals" onClick={() => onAction({ type: "decimals", delta: -1 })}><span className="sheet-dec">.0</span></Btn>}
-          {!tight && <Btn title="More decimals" onClick={() => onAction({ type: "decimals", delta: 1 })}><span className="sheet-dec">.00</span></Btn>}
-          {!tight && <span className="sheet-fsep" />}
-          {!tight && <Menu title="Conditional color" trigger={<Palette className="w-4 h-4" />}>{condItems}</Menu>}
-          {!compact && <Menu title="Table style" trigger={<Table2 className="w-4 h-4" />}>{tableSwatches}</Menu>}
-          <Menu title="More" trigger={<MoreHorizontal className="w-4 h-4" />}>
-            {compact && (
-              // A narrow bar folds these controls in here whole, so nothing is lost below 760px.
-              <>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className={ITEM}><Type className="w-4 h-4" /> Font size <span className="ml-auto text-sol-text-dim tabular-nums">{style.fs ?? 13}</span></DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>{sizeItems}</DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className={ITEM}><Grid2x2 className="w-4 h-4" /> Borders</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>{borderItems}</DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className={ITEM}><Table2 className="w-4 h-4" /> Table style</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>{tableSwatches}</DropdownMenuSubContent>
-                </DropdownMenuSub>
-                {tight && (
-                  // Narrower still (a phone), decimals and conditional colors come in here too.
-                  <>
-                    <DropdownMenuItem className={ITEM} onSelect={(e) => { e.preventDefault(); onAction({ type: "decimals", delta: -1 }); }}><span className="sheet-dec w-4 shrink-0 whitespace-nowrap text-mark text-center">.0</span> Fewer decimals</DropdownMenuItem>
-                    <DropdownMenuItem className={ITEM} onSelect={(e) => { e.preventDefault(); onAction({ type: "decimals", delta: 1 }); }}><span className="sheet-dec w-4 shrink-0 whitespace-nowrap text-mark text-center">.00</span> More decimals</DropdownMenuItem>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className={ITEM}><Palette className="w-4 h-4" /> Conditional color</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>{condItems}</DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-              </>
+            {!compact && (
+              <Menu
+                title="Font size"
+                trigger={<span className="sheet-fsize">{style.fs ?? 13}</span>}
+              >
+                {sizeItems}
+              </Menu>
             )}
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "sort", desc: false })}><ArrowDownAZ className="w-4 h-4" /> Sort A to Z</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "sort", desc: true })}><ArrowUpAZ className="w-4 h-4" /> Sort Z to A</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "filter" })}><Filter className="w-4 h-4" /> {filtered ? "Remove filter" : "Filter"}</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "freeze", axis: "row" })}><Pin className="w-4 h-4" /> Freeze rows to here</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "freeze", axis: "col" })}><Pin className="w-4 h-4" /> Freeze columns to here</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "freeze", axis: "none" })}>Unfreeze</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "insert", axis: "row", after: false })}>Insert row above</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "insert", axis: "row", after: true })}>Insert row below</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "insert", axis: "col", after: false })}>Insert column left</DropdownMenuItem>
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "insert", axis: "col", after: true })}>Insert column right</DropdownMenuItem>
-            <DropdownMenuItem className={`${ITEM} text-sol-red/90`} onSelect={() => onAction({ type: "delete", axis: "row" })}>Delete rows</DropdownMenuItem>
-            <DropdownMenuItem className={`${ITEM} text-sol-red/90`} onSelect={() => onAction({ type: "delete", axis: "col" })}>Delete columns</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={ITEM} onSelect={() => onAction({ type: "clearFormat" })}><Eraser className="w-4 h-4" /> Clear formatting</DropdownMenuItem>
-          </Menu>
+            {!compact && <span className="sheet-fsep" />}
+            <Btn
+              title="Bold"
+              shortcut={[mod, "B"]}
+              on={!!style.b}
+              onClick={() => onAction({ type: "toggle", field: "b" })}
+            >
+              <Bold className="w-4 h-4" />
+            </Btn>
+            <Btn
+              title="Italic"
+              shortcut={[mod, "I"]}
+              on={!!style.i}
+              onClick={() => onAction({ type: "toggle", field: "i" })}
+            >
+              <Italic className="w-4 h-4" />
+            </Btn>
+            <Btn
+              title="Underline"
+              shortcut={[mod, "U"]}
+              on={!!style.u}
+              onClick={() => onAction({ type: "toggle", field: "u" })}
+            >
+              <Underline className="w-4 h-4" />
+            </Btn>
+            <Menu title="Align" trigger={<AlignIcon className="w-4 h-4" />}>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => set({ al: "left" })}
+              >
+                <AlignLeft className="w-4 h-4" /> Left
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => set({ al: "center" })}
+              >
+                <AlignCenter className="w-4 h-4" /> Center
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => set({ al: "right" })}
+              >
+                <AlignRight className="w-4 h-4" /> Right
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "toggle", field: "wrap" })}
+              >
+                <WrapText className="w-4 h-4" />{" "}
+                {style.wrap ? "Don't wrap" : "Wrap text"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "merge", on: true })}
+              >
+                <Merge className="w-4 h-4" /> Merge cells
+              </DropdownMenuItem>
+              {merged && (
+                <DropdownMenuItem
+                  className={ITEM}
+                  onSelect={() => onAction({ type: "merge", on: false })}
+                >
+                  <Split className="w-4 h-4" /> Unmerge
+                </DropdownMenuItem>
+              )}
+            </Menu>
+            <span className="sheet-fsep" />
+            <ColorMenu
+              title="Text color"
+              icon={<Type className="w-4 h-4" />}
+              value={style.color}
+              onPick={(c) => set({ color: c })}
+            />
+            <ColorMenu
+              title="Fill color"
+              icon={<PaintBucket className="w-4 h-4" />}
+              value={style.fill}
+              fill
+              onPick={(c) => set({ fill: c })}
+            />
+            {!compact && (
+              <Menu title="Borders" trigger={<Grid2x2 className="w-4 h-4" />}>
+                {borderItems}
+              </Menu>
+            )}
+            <span className="sheet-fsep" />
+            <Menu
+              title="Number format"
+              on={!!style.nf}
+              trigger={<span className="sheet-nf">{nfLabel}</span>}
+            >
+              {NUMBER_FORMATS.map((f) => (
+                <DropdownMenuItem
+                  key={f.label}
+                  className={ITEM}
+                  onSelect={() => set({ nf: f.nf })}
+                >
+                  <span
+                    className={`flex-1 ${style.nf === f.nf || (!style.nf && !f.nf) ? "text-sol-text font-medium" : ""}`}
+                  >
+                    {f.label}
+                  </span>
+                  <span className="text-sol-text-dim tabular-nums">
+                    {f.nf === "currency" || f.nf === "accounting"
+                      ? f.sample.replace("$", style.cur ?? "$")
+                      : f.sample}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className={ITEM}>
+                  <span className="flex-1">Currency symbol</span>
+                  <span className="text-sol-text-dim">
+                    {(style.cur ?? "$").trim()}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {CURRENCIES.map((c) => (
+                    <DropdownMenuItem
+                      key={c}
+                      className={ITEM}
+                      onSelect={() =>
+                        set({
+                          cur: c === "$" ? null : c,
+                          nf:
+                            style.nf === "accounting"
+                              ? "accounting"
+                              : "currency",
+                        })
+                      }
+                    >
+                      <span
+                        className={`flex-1 ${(style.cur ?? "$") === c ? "text-sol-text font-medium" : ""}`}
+                      >
+                        {c.trim()}
+                      </span>
+                      <span className="text-sol-text-dim tabular-nums">
+                        {c}1,234.50
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className={ITEM}>
+                  <span className="flex-1">Custom format</span>
+                  {style.nf === "custom" && (
+                    <span className="text-sol-text-dim truncate max-w-[96px]">
+                      {style.code}
+                    </span>
+                  )}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <CustomCode
+                    sample={sample}
+                    initial={style.code ?? ""}
+                    onApply={(code) =>
+                      set(
+                        code
+                          ? { nf: "custom", code }
+                          : { nf: null, code: null },
+                      )
+                    }
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "toggle", field: "sign" })}
+              >
+                <span className="flex-1">
+                  {style.sign ? "Hide + sign" : "Show + on gains"}
+                </span>
+                <span className="text-sol-text-dim">+10%</span>
+              </DropdownMenuItem>
+            </Menu>
+            {!tight && (
+              <Btn
+                title="Fewer decimals"
+                onClick={() => onAction({ type: "decimals", delta: -1 })}
+              >
+                <span className="sheet-dec">.0</span>
+              </Btn>
+            )}
+            {!tight && (
+              <Btn
+                title="More decimals"
+                onClick={() => onAction({ type: "decimals", delta: 1 })}
+              >
+                <span className="sheet-dec">.00</span>
+              </Btn>
+            )}
+            {!tight && <span className="sheet-fsep" />}
+            {!tight && (
+              <Menu
+                title="Conditional color"
+                trigger={<Palette className="w-4 h-4" />}
+              >
+                {condItems}
+              </Menu>
+            )}
+            {!compact && (
+              <Menu
+                title="Table style"
+                trigger={<Table2 className="w-4 h-4" />}
+              >
+                {tableSwatches}
+              </Menu>
+            )}
+            <Menu title="More" trigger={<MoreHorizontal className="w-4 h-4" />}>
+              {compact && (
+                // A narrow bar folds these controls in here whole, so nothing is lost below 760px.
+                <>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className={ITEM}>
+                      <Type className="w-4 h-4" /> Font size{" "}
+                      <span className="ml-auto text-sol-text-dim tabular-nums">
+                        {style.fs ?? 13}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>{sizeItems}</DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className={ITEM}>
+                      <Grid2x2 className="w-4 h-4" /> Borders
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {borderItems}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className={ITEM}>
+                      <Table2 className="w-4 h-4" /> Table style
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {tableSwatches}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  {tight && (
+                    // Narrower still (a phone), decimals and conditional colors come in here too.
+                    <>
+                      <DropdownMenuItem
+                        className={ITEM}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction({ type: "decimals", delta: -1 });
+                        }}
+                      >
+                        <span className="sheet-dec w-4 shrink-0 whitespace-nowrap text-mark text-center">
+                          .0
+                        </span>{" "}
+                        Fewer decimals
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={ITEM}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          onAction({ type: "decimals", delta: 1 });
+                        }}
+                      >
+                        <span className="sheet-dec w-4 shrink-0 whitespace-nowrap text-mark text-center">
+                          .00
+                        </span>{" "}
+                        More decimals
+                      </DropdownMenuItem>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className={ITEM}>
+                          <Palette className="w-4 h-4" /> Conditional color
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {condItems}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "sort", desc: false })}
+              >
+                <ArrowDownAZ className="w-4 h-4" /> Sort A to Z
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "sort", desc: true })}
+              >
+                <ArrowUpAZ className="w-4 h-4" /> Sort Z to A
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "filter" })}
+              >
+                <Filter className="w-4 h-4" />{" "}
+                {filtered ? "Remove filter" : "Filter"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "freeze", axis: "row" })}
+              >
+                <Pin className="w-4 h-4" /> Freeze rows to here
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "freeze", axis: "col" })}
+              >
+                <Pin className="w-4 h-4" /> Freeze columns to here
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "freeze", axis: "none" })}
+              >
+                Unfreeze
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() =>
+                  onAction({ type: "insert", axis: "row", after: false })
+                }
+              >
+                Insert row above
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() =>
+                  onAction({ type: "insert", axis: "row", after: true })
+                }
+              >
+                Insert row below
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() =>
+                  onAction({ type: "insert", axis: "col", after: false })
+                }
+              >
+                Insert column left
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() =>
+                  onAction({ type: "insert", axis: "col", after: true })
+                }
+              >
+                Insert column right
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`${ITEM} text-sol-red/90`}
+                onSelect={() => onAction({ type: "delete", axis: "row" })}
+              >
+                Delete rows
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`${ITEM} text-sol-red/90`}
+                onSelect={() => onAction({ type: "delete", axis: "col" })}
+              >
+                Delete columns
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className={ITEM}
+                onSelect={() => onAction({ type: "clearFormat" })}
+              >
+                <Eraser className="w-4 h-4" /> Clear formatting
+              </DropdownMenuItem>
+            </Menu>
           </div>
           <span className="sheet-fsep" />
-          <AskButton data-sheet-ask className="sheet-ask-btn" aria-label="Ask agent" title="Ask agent" onMouseDown={(e) => e.preventDefault()} onClick={() => setAsking(true)} label={tight ? "" : compact ? "Ask" : selectionLabel.includes(":") ? `Ask about ${selectionLabel}` : "Ask agent"} />
+          <AskButton
+            data-sheet-ask
+            className="sheet-ask-btn"
+            aria-label="Ask agent"
+            title="Ask agent"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setAsking(true)}
+            label={
+              tight
+                ? ""
+                : compact
+                  ? "Ask"
+                  : selectionLabel.includes(":")
+                    ? `Ask about ${selectionLabel}`
+                    : "Ask agent"
+            }
+          />
         </>
       )}
     </div>

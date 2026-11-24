@@ -2,7 +2,14 @@
 // bare http.Server on port 0 with a fixed token, against a throwaway vault in a
 // temp dir. Deliberately never touches the daemon running on this machine.
 
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "bun:test";
 import * as fs from "fs";
 import * as http from "http";
 import * as os from "os";
@@ -10,11 +17,19 @@ import * as path from "path";
 import type { AddressInfo } from "net";
 import { WebSocket } from "ws";
 import { VAULT_MAX_SERVE_BYTES } from "@codecast/shared/contracts";
-import type { VaultScanResponse, VaultWriteResponse, VaultWsEvent } from "@codecast/shared/contracts";
+import type {
+  VaultScanResponse,
+  VaultWriteResponse,
+  VaultWsEvent,
+} from "@codecast/shared/contracts";
 import { attachTerminalServer } from "../terminal/terminalServer.js";
 import { addVault } from "./vaultRegistry.js";
 import { clearRepoScopeCache } from "./vaultScope.js";
-import { attachVaultServer, handleVaultHttp, type VaultServerOptions } from "./vaultServer.js";
+import {
+  attachVaultServer,
+  handleVaultHttp,
+  type VaultServerOptions,
+} from "./vaultServer.js";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const ORIGIN = "http://localhost:3000";
@@ -32,13 +47,22 @@ let handle: { close(): void };
 let port = 0;
 
 function opts(): VaultServerOptions {
-  return { token: TOKEN, log: () => {}, configDir, watch: { reconcileMs: 200 } };
+  return {
+    token: TOKEN,
+    log: () => {},
+    configDir,
+    watch: { reconcileMs: 200 },
+  };
 }
 
 function api(pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`http://127.0.0.1:${port}${pathAndQuery}`, {
     ...init,
-    headers: { Origin: ORIGIN, Authorization: `Bearer ${TOKEN}`, ...(init.headers ?? {}) },
+    headers: {
+      Origin: ORIGIN,
+      Authorization: `Bearer ${TOKEN}`,
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -47,10 +71,16 @@ function filePath(rel: string): string {
 }
 
 function postOp(body: unknown): Promise<Response> {
-  return api(`/vault/op?vault=${vaultId}`, { method: "POST", body: JSON.stringify(body) });
+  return api(`/vault/op?vault=${vaultId}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
-async function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<boolean> {
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 5000,
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (predicate()) return true;
@@ -88,7 +118,9 @@ afterAll(() => {
   server.closeAllConnections?.();
   server.close();
   if (REAL_HOME) process.env.HOME = REAL_HOME;
-  try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(base, { recursive: true, force: true });
+  } catch {}
 });
 
 beforeEach(() => {
@@ -107,11 +139,16 @@ beforeEach(() => {
 
 describe("auth envelope", () => {
   test("rejects a missing token and a foreign origin", async () => {
-    const noToken = await fetch(`http://127.0.0.1:${port}/vault/roots`, { headers: { Origin: ORIGIN } });
+    const noToken = await fetch(`http://127.0.0.1:${port}/vault/roots`, {
+      headers: { Origin: ORIGIN },
+    });
     expect(noToken.status).toBe(403);
 
     const badOrigin = await fetch(`http://127.0.0.1:${port}/vault/roots`, {
-      headers: { Origin: "https://evil.example.com", Authorization: `Bearer ${TOKEN}` },
+      headers: {
+        Origin: "https://evil.example.com",
+        Authorization: `Bearer ${TOKEN}`,
+      },
     });
     expect(badOrigin.status).toBe(403);
   });
@@ -122,9 +159,13 @@ describe("auth envelope", () => {
       headers: { Origin: ORIGIN },
     });
     expect(res.status).toBe(204);
-    expect(res.headers.get("access-control-allow-private-network")).toBe("true");
+    expect(res.headers.get("access-control-allow-private-network")).toBe(
+      "true",
+    );
     expect(res.headers.get("access-control-allow-methods")).toContain("PUT");
-    expect(res.headers.get("access-control-allow-headers")).toContain("If-Match");
+    expect(res.headers.get("access-control-allow-headers")).toContain(
+      "If-Match",
+    );
     expect(res.headers.get("access-control-expose-headers")).toContain("ETag");
   });
 });
@@ -135,15 +176,25 @@ describe("token as a query param", () => {
   const bare = (p: string) => fetch(`http://127.0.0.1:${port}${p}`);
 
   test("serves a file read with no header envelope at all", async () => {
-    const res = await bare(`/vault/file?vault=${vaultId}&path=notes%2Fpic.png&token=${TOKEN}`);
+    const res = await bare(
+      `/vault/file?vault=${vaultId}&path=notes%2Fpic.png&token=${TOKEN}`,
+    );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(await res.text()).toBe("notreallyapng");
   });
 
   test("refuses a wrong or missing query token", async () => {
-    expect((await bare(`/vault/file?vault=${vaultId}&path=notes%2Fpic.png&token=nope`)).status).toBe(403);
-    expect((await bare(`/vault/file?vault=${vaultId}&path=notes%2Fpic.png`)).status).toBe(403);
+    expect(
+      (
+        await bare(
+          `/vault/file?vault=${vaultId}&path=notes%2Fpic.png&token=nope`,
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await bare(`/vault/file?vault=${vaultId}&path=notes%2Fpic.png`)).status,
+    ).toBe(403);
   });
 
   test("does not extend to writes, ops, scans or roots", async () => {
@@ -152,21 +203,30 @@ describe("token as a query param", () => {
       { method: "PUT", body: "clobber\n" },
     );
     expect(put.status).toBe(403);
-    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe("one\n");
+    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe(
+      "one\n",
+    );
 
-    const op = await fetch(`http://127.0.0.1:${port}/vault/op?vault=${vaultId}&token=${TOKEN}`, {
-      method: "POST",
-      body: JSON.stringify({ op: "delete", path: "notes/one.md" }),
-    });
+    const op = await fetch(
+      `http://127.0.0.1:${port}/vault/op?vault=${vaultId}&token=${TOKEN}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ op: "delete", path: "notes/one.md" }),
+      },
+    );
     expect(op.status).toBe(403);
     expect(fs.existsSync(path.join(root, "notes/one.md"))).toBe(true);
 
-    expect((await bare(`/vault/scan?vault=${vaultId}&token=${TOKEN}`)).status).toBe(403);
+    expect(
+      (await bare(`/vault/scan?vault=${vaultId}&token=${TOKEN}`)).status,
+    ).toBe(403);
     expect((await bare(`/vault/roots?token=${TOKEN}`)).status).toBe(403);
   });
 
   test("still refuses a path that escapes the vault", async () => {
-    const res = await bare(`/vault/file?vault=${vaultId}&path=..%2F..%2Fetc%2Fpasswd&token=${TOKEN}`);
+    const res = await bare(
+      `/vault/file?vault=${vaultId}&path=..%2F..%2Fetc%2Fpasswd&token=${TOKEN}`,
+    );
     expect(res.status).toBe(400);
   });
 });
@@ -176,8 +236,13 @@ describe("GET /vault/roots and /vault/scan", () => {
     const res = await api("/vault/roots");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.vaults.map((v: any) => v.id).sort()).toEqual([vaultId, stableVaultId].sort());
-    expect(body.vaults.find((v: any) => v.id === vaultId)).toMatchObject({ root, name: "Test Vault" });
+    expect(body.vaults.map((v: any) => v.id).sort()).toEqual(
+      [vaultId, stableVaultId].sort(),
+    );
+    expect(body.vaults.find((v: any) => v.id === vaultId)).toMatchObject({
+      root,
+      name: "Test Vault",
+    });
   });
 
   test("scans the tree and skips out-of-scope files", async () => {
@@ -201,23 +266,40 @@ describe("GET /vault/roots and /vault/scan", () => {
   });
 
   test("GET /vault/locate names the vault for a local path, registering one when none holds it", async () => {
-    const inside = await api(`/vault/locate?path=${encodeURIComponent(path.join(root, "notes", "one.md"))}`);
+    const inside = await api(
+      `/vault/locate?path=${encodeURIComponent(path.join(root, "notes", "one.md"))}`,
+    );
     expect(inside.status).toBe(200);
-    expect(await inside.json()).toMatchObject({ vault: { id: vaultId }, rel: "notes/one.md" });
+    expect(await inside.json()).toMatchObject({
+      vault: { id: vaultId },
+      rel: "notes/one.md",
+    });
 
     const loose = path.join(base, "loose");
     fs.mkdirSync(loose, { recursive: true });
     fs.writeFileSync(path.join(loose, "pic.png"), "png");
-    const outside = await api(`/vault/locate?path=${encodeURIComponent(path.join(loose, "pic.png"))}`);
+    const outside = await api(
+      `/vault/locate?path=${encodeURIComponent(path.join(loose, "pic.png"))}`,
+    );
     expect(outside.status).toBe(200);
     const body = await outside.json();
     expect(body).toMatchObject({ vault: { root: loose }, rel: "pic.png" });
     // The registered vault serves the file like any other.
     const served = await api(`/vault/file?vault=${body.vault.id}&path=pic.png`);
     expect(served.status).toBe(200);
-    expect((await api("/vault/roots").then((r) => r.json())).vaults.some((v: any) => v.id === body.vault.id)).toBe(true);
+    expect(
+      (await api("/vault/roots").then((r) => r.json())).vaults.some(
+        (v: any) => v.id === body.vault.id,
+      ),
+    ).toBe(true);
 
-    expect((await api(`/vault/locate?path=${encodeURIComponent(path.join(base, "nope.md"))}`)).status).toBe(404);
+    expect(
+      (
+        await api(
+          `/vault/locate?path=${encodeURIComponent(path.join(base, "nope.md"))}`,
+        )
+      ).status,
+    ).toBe(404);
     expect((await api("/vault/locate?path=relative/nope.md")).status).toBe(404);
   });
 
@@ -229,7 +311,9 @@ describe("GET /vault/roots and /vault/scan", () => {
     fs.writeFileSync(path.join(root, "dist", "app.js"), "js\n");
     clearRepoScopeCache();
 
-    const plain = (await (await api(`/vault/scan?vault=${vaultId}`)).json()) as VaultScanResponse;
+    const plain = (await (
+      await api(`/vault/scan?vault=${vaultId}`)
+    ).json()) as VaultScanResponse;
     expect(plain.repo).toBe(true);
     expect(plain.files.map((f) => f.path)).not.toContain("dist/bundle.md");
 
@@ -237,9 +321,16 @@ describe("GET /vault/roots and /vault/scan", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as VaultScanResponse;
     expect(body.repo).toBe(true);
-    expect(body.files.find((f) => f.path === "dist")).toMatchObject({ dir: true, ignored: true });
-    expect(body.files.find((f) => f.path === "dist/app.js")).toMatchObject({ ignored: true });
-    expect(body.files.find((f) => f.path === "index.md")?.ignored).toBeUndefined();
+    expect(body.files.find((f) => f.path === "dist")).toMatchObject({
+      dir: true,
+      ignored: true,
+    });
+    expect(body.files.find((f) => f.path === "dist/app.js")).toMatchObject({
+      ignored: true,
+    });
+    expect(
+      body.files.find((f) => f.path === "index.md")?.ignored,
+    ).toBeUndefined();
     // A generated .md is not a note: the count matches the default scan.
     expect(body.vault.note_count).toBe(plain.vault.note_count);
 
@@ -248,15 +339,26 @@ describe("GET /vault/roots and /vault/scan", () => {
     expect(read.status).toBe(200);
     expect(await read.text()).toBe("generated\n");
     // ...but not written, renamed or trashed: ignored means read-only.
-    expect((await api(filePath("dist/bundle.md"), { method: "PUT", body: "edited" })).status).toBe(400);
-    expect((await postOp({ op: "delete", path: "dist/bundle.md" })).status).toBe(400);
+    expect(
+      (await api(filePath("dist/bundle.md"), { method: "PUT", body: "edited" }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await postOp({ op: "delete", path: "dist/bundle.md" })).status,
+    ).toBe(400);
   });
 
   test("a plain vault reports repo:false and lists the same tree either way", async () => {
-    const plain = (await (await api(`/vault/scan?vault=${stableVaultId}`)).json()) as VaultScanResponse;
-    const withFlag = (await (await api(`/vault/scan?vault=${stableVaultId}&ignored=1`)).json()) as VaultScanResponse;
+    const plain = (await (
+      await api(`/vault/scan?vault=${stableVaultId}`)
+    ).json()) as VaultScanResponse;
+    const withFlag = (await (
+      await api(`/vault/scan?vault=${stableVaultId}&ignored=1`)
+    ).json()) as VaultScanResponse;
     expect(plain.repo).toBe(false);
-    expect(withFlag.files.map((f) => f.path)).toEqual(plain.files.map((f) => f.path));
+    expect(withFlag.files.map((f) => f.path)).toEqual(
+      plain.files.map((f) => f.path),
+    );
   });
 });
 
@@ -265,7 +367,9 @@ describe("GET /vault/file", () => {
     const res = await api(filePath("notes/one.md"));
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("one\n");
-    expect(res.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+    expect(res.headers.get("content-type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
     expect(res.headers.get("etag")).toMatch(/^[0-9a-f]{16}$/);
     expect(Number(res.headers.get("x-vault-mtime"))).toBeGreaterThan(0);
     expect(res.headers.get("x-vault-size")).toBe("4");
@@ -304,12 +408,17 @@ describe("GET /vault/file", () => {
 
 describe("PUT /vault/file", () => {
   test("writes a new file, creating parent directories", async () => {
-    const res = await api(filePath("deep/new/note.md"), { method: "PUT", body: "hello\n" });
+    const res = await api(filePath("deep/new/note.md"), {
+      method: "PUT",
+      body: "hello\n",
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as VaultWriteResponse;
     expect(body.path).toBe("deep/new/note.md");
     expect(body.size).toBe(6);
-    expect(fs.readFileSync(path.join(root, "deep/new/note.md"), "utf-8")).toBe("hello\n");
+    expect(fs.readFileSync(path.join(root, "deep/new/note.md"), "utf-8")).toBe(
+      "hello\n",
+    );
   });
 
   test("accepts a write whose If-Match matches", async () => {
@@ -320,7 +429,9 @@ describe("PUT /vault/file", () => {
       headers: { "If-Match": etag },
     });
     expect(res.status).toBe(200);
-    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe("edited\n");
+    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe(
+      "edited\n",
+    );
   });
 
   test("a stale If-Match is a 409 carrying the current body", async () => {
@@ -333,7 +444,9 @@ describe("PUT /vault/file", () => {
     expect(res.status).toBe(409);
     expect(await res.text()).toBe("changed on disk\n");
     expect(res.headers.get("etag")).toMatch(/^[0-9a-f]{16}$/);
-    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe("changed on disk\n");
+    expect(fs.readFileSync(path.join(root, "notes/one.md"), "utf-8")).toBe(
+      "changed on disk\n",
+    );
   });
 
   test("a stale base mtime is a 409, a current one goes through", async () => {
@@ -366,7 +479,10 @@ describe("PUT /vault/file", () => {
   });
 
   test("refuses a path outside the vault", async () => {
-    const res = await api(filePath("../escape.md"), { method: "PUT", body: "x" });
+    const res = await api(filePath("../escape.md"), {
+      method: "PUT",
+      body: "x",
+    });
     expect(res.status).toBe(400);
     expect(fs.existsSync(path.join(base, "escape.md"))).toBe(false);
   });
@@ -374,30 +490,49 @@ describe("PUT /vault/file", () => {
 
 describe("POST /vault/op", () => {
   test("mkdir creates a folder", async () => {
-    expect((await postOp({ op: "mkdir", path: "notes/fresh" })).status).toBe(200);
-    expect(fs.statSync(path.join(root, "notes/fresh")).isDirectory()).toBe(true);
+    expect((await postOp({ op: "mkdir", path: "notes/fresh" })).status).toBe(
+      200,
+    );
+    expect(fs.statSync(path.join(root, "notes/fresh")).isDirectory()).toBe(
+      true,
+    );
   });
 
   test("a code file cannot be written, renamed or trashed", async () => {
     // Code became visible so the tree tells the truth about the folder. Every
     // write path stays shut: read-only has to mean read-only, or the surface
     // trashes source files from a notes browser.
-    const before = fs.readFileSync(path.join(root, "notes/ignore.txt"), "utf-8");
+    const before = fs.readFileSync(
+      path.join(root, "notes/ignore.txt"),
+      "utf-8",
+    );
 
-    expect((await postOp({ op: "create", path: "notes/new.ts", content: "x" })).status).toBe(400);
+    expect(
+      (await postOp({ op: "create", path: "notes/new.ts", content: "x" }))
+        .status,
+    ).toBe(400);
     expect(fs.existsSync(path.join(root, "notes/new.ts"))).toBe(false);
 
-    const put = await api(filePath("notes/ignore.txt"), { method: "PUT", body: "clobbered" });
+    const put = await api(filePath("notes/ignore.txt"), {
+      method: "PUT",
+      body: "clobbered",
+    });
     expect(put.status).toBe(400);
 
-    const renamed = await postOp({ op: "rename", path: "notes/ignore.txt", to: "notes/moved.txt" });
+    const renamed = await postOp({
+      op: "rename",
+      path: "notes/ignore.txt",
+      to: "notes/moved.txt",
+    });
     expect(renamed.status).toBe(400);
     expect((await renamed.json()).error).toBe("read-only");
 
     const deleted = await postOp({ op: "delete", path: "notes/ignore.txt" });
     expect(deleted.status).toBe(400);
 
-    expect(fs.readFileSync(path.join(root, "notes/ignore.txt"), "utf-8")).toBe(before);
+    expect(fs.readFileSync(path.join(root, "notes/ignore.txt"), "utf-8")).toBe(
+      before,
+    );
   });
 
   test("a folder still renames, whatever it holds", async () => {
@@ -405,20 +540,36 @@ describe("POST /vault/op", () => {
     // ordinary vault operation, and blocking it would regress notes.
     fs.mkdirSync(path.join(root, "notes/src"), { recursive: true });
     fs.writeFileSync(path.join(root, "notes/src/a.ts"), "export {}\n");
-    const res = await postOp({ op: "rename", path: "notes/src", to: "notes/source" });
+    const res = await postOp({
+      op: "rename",
+      path: "notes/src",
+      to: "notes/source",
+    });
     expect(res.status).toBe(200);
     expect(fs.existsSync(path.join(root, "notes/source/a.ts"))).toBe(true);
   });
 
   test("create writes a new note and refuses to overwrite", async () => {
-    const res = await postOp({ op: "create", path: "notes/new.md", content: "# new\n" });
+    const res = await postOp({
+      op: "create",
+      path: "notes/new.md",
+      content: "# new\n",
+    });
     expect(res.status).toBe(200);
     expect((await res.json()).file.path).toBe("notes/new.md");
-    expect(fs.readFileSync(path.join(root, "notes/new.md"), "utf-8")).toBe("# new\n");
+    expect(fs.readFileSync(path.join(root, "notes/new.md"), "utf-8")).toBe(
+      "# new\n",
+    );
 
-    const again = await postOp({ op: "create", path: "notes/new.md", content: "clobber" });
+    const again = await postOp({
+      op: "create",
+      path: "notes/new.md",
+      content: "clobber",
+    });
     expect(again.status).toBe(409);
-    expect(fs.readFileSync(path.join(root, "notes/new.md"), "utf-8")).toBe("# new\n");
+    expect(fs.readFileSync(path.join(root, "notes/new.md"), "utf-8")).toBe(
+      "# new\n",
+    );
   });
 
   test("reveal is wired and refuses a path that isn't there", async () => {
@@ -435,36 +586,61 @@ describe("POST /vault/op", () => {
     expect(escape.status).toBe(400);
 
     // An unknown mode is not a way to smuggle a different verb through.
-    const badMode = await postOp({ op: "reveal", path: "notes/nope.md", mode: "rm" });
+    const badMode = await postOp({
+      op: "reveal",
+      path: "notes/nope.md",
+      mode: "rm",
+    });
     expect(badMode.status).toBe(404);
   });
 
   test("rename moves a note and refuses an occupied target", async () => {
-    const res = await postOp({ op: "rename", path: "notes/one.md", to: "notes/sub/renamed.md" });
+    const res = await postOp({
+      op: "rename",
+      path: "notes/one.md",
+      to: "notes/sub/renamed.md",
+    });
     expect(res.status).toBe(200);
     expect((await res.json()).file.path).toBe("notes/sub/renamed.md");
     expect(fs.existsSync(path.join(root, "notes/one.md"))).toBe(false);
-    expect(fs.readFileSync(path.join(root, "notes/sub/renamed.md"), "utf-8")).toBe("one\n");
+    expect(
+      fs.readFileSync(path.join(root, "notes/sub/renamed.md"), "utf-8"),
+    ).toBe("one\n");
 
-    const occupied = await postOp({ op: "rename", path: "index.md", to: "notes/sub/two.md" });
+    const occupied = await postOp({
+      op: "rename",
+      path: "index.md",
+      to: "notes/sub/two.md",
+    });
     expect(occupied.status).toBe(409);
     expect(fs.existsSync(path.join(root, "index.md"))).toBe(true);
 
-    const missing = await postOp({ op: "rename", path: "notes/nope.md", to: "notes/x.md" });
+    const missing = await postOp({
+      op: "rename",
+      path: "notes/nope.md",
+      to: "notes/x.md",
+    });
     expect(missing.status).toBe(404);
   });
 
   test("delete moves the file to the OS trash instead of unlinking it", async () => {
     const home = path.join(base, "home");
-    const trash = path.join(home, process.platform === "darwin" ? ".Trash" : ".local/share/Trash/files");
+    const trash = path.join(
+      home,
+      process.platform === "darwin" ? ".Trash" : ".local/share/Trash/files",
+    );
     fs.mkdirSync(trash, { recursive: true });
     process.env.HOME = home;
     try {
       const res = await postOp({ op: "delete", path: "notes/one.md" });
       expect(res.status).toBe(200);
       expect(fs.existsSync(path.join(root, "notes/one.md"))).toBe(false);
-      expect(fs.readFileSync(path.join(trash, "one.md"), "utf-8")).toBe("one\n");
-      expect((await postOp({ op: "delete", path: "notes/one.md" })).status).toBe(404);
+      expect(fs.readFileSync(path.join(trash, "one.md"), "utf-8")).toBe(
+        "one\n",
+      );
+      expect(
+        (await postOp({ op: "delete", path: "notes/one.md" })).status,
+      ).toBe(404);
     } finally {
       process.env.HOME = REAL_HOME;
     }
@@ -476,7 +652,9 @@ describe("POST /vault/op", () => {
       const res = await postOp({ op: "delete", path: "notes/sub/two.md" });
       expect(res.status).toBe(200);
       expect(fs.existsSync(path.join(root, "notes/sub/two.md"))).toBe(false);
-      expect(fs.readFileSync(path.join(root, ".trash", "two.md"), "utf-8")).toBe("two\n");
+      expect(
+        fs.readFileSync(path.join(root, ".trash", "two.md"), "utf-8"),
+      ).toBe("two\n");
     } finally {
       process.env.HOME = REAL_HOME;
     }
@@ -490,10 +668,14 @@ describe("POST /vault/op", () => {
 });
 
 describe("WS /vault/ws", () => {
-  async function connect(hello: unknown): Promise<{ ws: WebSocket; events: VaultWsEvent[]; closes: number[] }> {
+  async function connect(
+    hello: unknown,
+  ): Promise<{ ws: WebSocket; events: VaultWsEvent[]; closes: number[] }> {
     // The Origin must go through `headers`: bun's ws client drops the `origin`
     // option, and the server refuses an upgrade without an allowed origin.
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/vault/ws`, { headers: { Origin: ORIGIN } });
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/vault/ws`, {
+      headers: { Origin: ORIGIN },
+    });
     const events: VaultWsEvent[] = [];
     const closes: number[] = [];
     ws.on("message", (raw) => events.push(JSON.parse(raw.toString("utf8"))));
@@ -507,26 +689,40 @@ describe("WS /vault/ws", () => {
   }
 
   test("streams add, change and removed events for a watched vault", async () => {
-    const { ws, events } = await connect({ type: "hello", token: TOKEN, vault: vaultId });
+    const { ws, events } = await connect({
+      type: "hello",
+      token: TOKEN,
+      vault: vaultId,
+    });
     try {
-      expect(await waitFor(() => events.some((e) => e.type === "reset"))).toBe(true);
+      expect(await waitFor(() => events.some((e) => e.type === "reset"))).toBe(
+        true,
+      );
 
       const added = path.join(root, "notes", "live.md");
       fs.writeFileSync(added, "live\n");
       expect(
-        await waitFor(() => events.some((e) => e.type === "add" && e.path === "notes/live.md")),
+        await waitFor(() =>
+          events.some((e) => e.type === "add" && e.path === "notes/live.md"),
+        ),
       ).toBe(true);
 
       fs.writeFileSync(added, "live edited, longer\n");
       expect(
-        await waitFor(() => events.some((e) => e.type === "change" && e.path === "notes/live.md")),
+        await waitFor(() =>
+          events.some((e) => e.type === "change" && e.path === "notes/live.md"),
+        ),
       ).toBe(true);
 
       // The watcher has no delete events at all: this one can only come from the
       // reconcile scan, which is the point of testing it.
       fs.rmSync(added);
       expect(
-        await waitFor(() => events.some((e) => e.type === "removed" && e.path === "notes/live.md")),
+        await waitFor(() =>
+          events.some(
+            (e) => e.type === "removed" && e.path === "notes/live.md",
+          ),
+        ),
       ).toBe(true);
     } finally {
       ws.close();
@@ -534,20 +730,32 @@ describe("WS /vault/ws", () => {
   }, 20_000);
 
   test("does not replay the whole vault as adds when a client connects", async () => {
-    const { ws, events } = await connect({ type: "hello", token: TOKEN, vault: stableVaultId });
+    const { ws, events } = await connect({
+      type: "hello",
+      token: TOKEN,
+      vault: stableVaultId,
+    });
     try {
-      expect(await waitFor(() => events.some((e) => e.type === "reset"))).toBe(true);
+      expect(await waitFor(() => events.some((e) => e.type === "reset"))).toBe(
+        true,
+      );
       // Several reconcile intervals: the client just scanned, so a file it
       // already knows about must not arrive again as an event.
       await new Promise((r) => setTimeout(r, 700));
-      expect(events.filter((e) => e.type === "add" || e.type === "change")).toEqual([]);
+      expect(
+        events.filter((e) => e.type === "add" || e.type === "change"),
+      ).toEqual([]);
     } finally {
       ws.close();
     }
   }, 10_000);
 
   test("closes a socket whose hello carries a bad token", async () => {
-    const { ws, events, closes } = await connect({ type: "hello", token: "wrong", vault: vaultId });
+    const { ws, events, closes } = await connect({
+      type: "hello",
+      token: "wrong",
+      vault: vaultId,
+    });
     try {
       expect(await waitFor(() => closes.length > 0)).toBe(true);
       expect(events.some((e: any) => e.type === "error")).toBe(true);
@@ -562,11 +770,16 @@ describe("WS /vault/ws", () => {
     // destroyed the other's sockets — so this asserts the terminal still
     // connects while the vault endpoint is attached, and that an unclaimed path
     // is still refused.
-    const terminal = attachTerminalServer(server, { token: TOKEN, log: () => {} });
+    const terminal = attachTerminalServer(server, {
+      token: TOKEN,
+      log: () => {},
+    });
     try {
       const opened = (wsPath: string) =>
         new Promise<boolean>((resolve) => {
-          const ws = new WebSocket(`ws://127.0.0.1:${port}${wsPath}`, { headers: { Origin: ORIGIN } });
+          const ws = new WebSocket(`ws://127.0.0.1:${port}${wsPath}`, {
+            headers: { Origin: ORIGIN },
+          });
           ws.on("error", () => resolve(false));
           ws.on("open", () => {
             ws.close();
@@ -600,10 +813,18 @@ describe("WS /vault/ws", () => {
 test("rename: case-only rename succeeds; real collision still rejected", async () => {
   fs.writeFileSync(path.join(root, "casenote.md"), "# n\n");
 
-  const caseOnly = await postOp({ op: "rename", path: "casenote.md", to: "CaseNote.md" });
+  const caseOnly = await postOp({
+    op: "rename",
+    path: "casenote.md",
+    to: "CaseNote.md",
+  });
   expect(caseOnly.status).toBe(200);
   expect(fs.readdirSync(root)).toContain("CaseNote.md");
 
-  const collision = await postOp({ op: "rename", path: "CaseNote.md", to: "index.md" });
+  const collision = await postOp({
+    op: "rename",
+    path: "CaseNote.md",
+    to: "index.md",
+  });
   expect(collision.status).toBe(409);
 });

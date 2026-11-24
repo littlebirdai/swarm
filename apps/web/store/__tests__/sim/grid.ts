@@ -7,7 +7,14 @@
 // (apps/evals/src/api/simHistory.ts) and the web fixture world
 // (components/evals/__fixtures__/world.ts) fold the same history the same way.
 // Reading a failure's result.json is the caller's job (`invariantOf`).
-import type { SimCatalogResponse, SimGridCell, SimMode, SimRunRow, SimScenario, SimSession } from "@codecast/shared/contracts/evalsApi";
+import type {
+  SimCatalogResponse,
+  SimGridCell,
+  SimMode,
+  SimRunRow,
+  SimScenario,
+  SimSession,
+} from "@codecast/shared/contracts/evalsApi";
 
 /**
  * The grid over `sessions`, newest first (unsessioned legacy folders are left
@@ -28,23 +35,48 @@ export function simGridOf(
     const k = `${scenario}\x1f${mode}`;
     let c = cells.get(k);
     if (!c) {
-      c = { scenario, mode, latest: null, history: [], gitHead: null, lastRunAt: null, newestFailure: null };
+      c = {
+        scenario,
+        mode,
+        latest: null,
+        history: [],
+        gitHead: null,
+        lastRunAt: null,
+        newestFailure: null,
+      };
       cells.set(k, c);
     }
     return c;
   };
-  for (const s of scenarios) for (const m of s.modes) cell(s.name, m as SimMode);
+  for (const s of scenarios)
+    for (const m of s.modes) cell(s.name, m as SimMode);
   const caught: Record<string, number> = {};
   // Oldest first, so each later session overwrites `latest` and `newestFailure`.
-  for (const { session, runs } of [...sessions].filter((x) => !x.session.unsessioned).reverse()) {
+  for (const { session, runs } of [...sessions]
+    .filter((x) => !x.session.unsessioned)
+    .reverse()) {
     const by = new Map<string, SimRunRow[]>();
-    for (const r of runs) by.set(`${r.scenario}\x1f${r.mode}`, [...(by.get(`${r.scenario}\x1f${r.mode}`) ?? []), r]);
+    for (const r of runs)
+      by.set(`${r.scenario}\x1f${r.mode}`, [
+        ...(by.get(`${r.scenario}\x1f${r.mode}`) ?? []),
+        r,
+      ]);
     for (const [, rs] of by) {
       const c = cell(rs[0]!.scenario, rs[0]!.mode);
       const failed = rs.filter((r) => !r.passed);
-      c.history.push({ session: session.id, seeds: rs.length, failed: failed.length });
+      c.history.push({
+        session: session.id,
+        seeds: rs.length,
+        failed: failed.length,
+      });
       const pick = failed.find((r) => r.dir) ?? failed[0] ?? rs[rs.length - 1]!;
-      c.latest = { session: session.id, run: pick.dir ?? null, seed: pick.seed, passed: pick.passed, at: session.startedAt };
+      c.latest = {
+        session: session.id,
+        run: pick.dir ?? null,
+        seed: pick.seed,
+        passed: pick.passed,
+        at: session.startedAt,
+      };
       c.gitHead = session.gitHead;
       c.lastRunAt = session.startedAt;
       let newest: SimGridCell["newestFailure"] = null;
@@ -53,7 +85,13 @@ export function simGridOf(
         if (!inv) continue;
         caught[inv] = (caught[inv] ?? 0) + 1;
         // The session's first failure with artifacts, the run `latest` picks.
-        newest ??= { session: session.id, run: r.dir!, seed: r.seed, invariant: inv, at: session.startedAt };
+        newest ??= {
+          session: session.id,
+          run: r.dir!,
+          seed: r.seed,
+          invariant: inv,
+          at: session.startedAt,
+        };
       }
       if (newest) c.newestFailure = newest;
     }

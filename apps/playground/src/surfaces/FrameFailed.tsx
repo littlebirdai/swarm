@@ -17,12 +17,28 @@ export function FrameFailed({ version, error, retry }: FailedFrame) {
     <div className={s.failed} role="alert">
       <Blob size={28} />
       <p className={s.title}>v{version} didn't load</p>
-      {error ? <p className={s.why}>{error}</p> : <p className={s.hint}>It may be the connection. Try again in a moment.</p>}
+      {error ? (
+        <p className={s.why}>{error}</p>
+      ) : (
+        <p className={s.hint}>
+          It may be the connection. Try again in a moment.
+        </p>
+      )}
       <div className={s.actions}>
         <Button onClick={retry}>Try again</Button>
-        {isLive && before >= 1 && <Button onClick={() => view(before)}>Show v{before}</Button>}
-        {isLive && error && <Button variant="text" onClick={() => askChange(fixText(error))}>Fix it</Button>}
-        {!isLive && <Button variant="text" onClick={() => view(null)}>Back to live</Button>}
+        {isLive && before >= 1 && (
+          <Button onClick={() => view(before)}>Show v{before}</Button>
+        )}
+        {isLive && error && (
+          <Button variant="text" onClick={() => askChange(fixText(error))}>
+            Fix it
+          </Button>
+        )}
+        {!isLive && (
+          <Button variant="text" onClick={() => view(null)}>
+            Back to live
+          </Button>
+        )}
       </div>
     </div>
   );

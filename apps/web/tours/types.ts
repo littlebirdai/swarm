@@ -11,7 +11,13 @@
 // one record on the store, synced across devices (tours/seen.ts): a tour that
 // starts itself the first time someone meets a feature never starts twice.
 
-export type TourArea = "org" | "flows" | "inbox" | "session" | "work" | "triggers";
+export type TourArea =
+  | "org"
+  | "flows"
+  | "inbox"
+  | "session"
+  | "work"
+  | "triggers";
 
 export type TourStep = {
   id: string;

@@ -42,7 +42,11 @@ function log(msg: string): void {
 }
 
 function inlineEnabled(): boolean {
-  return vscode.workspace.getConfiguration("codecast").get<boolean>("inlineBlame") !== false;
+  return (
+    vscode.workspace
+      .getConfiguration("codecast")
+      .get<boolean>("inlineBlame") !== false
+  );
 }
 
 // GUI-launched editors don't inherit the shell PATH, so a bare `cast` (installed
@@ -50,7 +54,10 @@ function inlineEnabled(): boolean {
 // then common install dirs, then a login shell (whatever the user's rc sets up).
 // Cached for the session.
 function configuredCli(): string | undefined {
-  const configured = vscode.workspace.getConfiguration("codecast").get<string>("cliPath")?.trim();
+  const configured = vscode.workspace
+    .getConfiguration("codecast")
+    .get<string>("cliPath")
+    ?.trim();
   return configured && configured !== "cast" ? configured : undefined;
 }
 
@@ -78,8 +85,11 @@ async function learnUserPath(): Promise<void> {
   const shell = process.env.SHELL || "/bin/zsh";
   try {
     const out = await new Promise<string>((resolve, reject) =>
-      execFile(shell, ["-lic", "printf '__CC__%s__END__' \"$PATH\""], { timeout: 6000 }, (e, so) =>
-        e ? reject(e) : resolve(so),
+      execFile(
+        shell,
+        ["-lic", "printf '__CC__%s__END__' \"$PATH\""],
+        { timeout: 6000 },
+        (e, so) => (e ? reject(e) : resolve(so)),
       ),
     );
     const m = out.match(/__CC__(.*?)__END__/s);
@@ -104,7 +114,9 @@ function augmentedEnv(): NodeJS.ProcessEnv {
     "/usr/bin",
     "/bin",
   ];
-  const PATH = [...floor, userPath || process.env.PATH || ""].filter(Boolean).join(":");
+  const PATH = [...floor, userPath || process.env.PATH || ""]
+    .filter(Boolean)
+    .join(":");
   return { ...process.env, PATH };
 }
 
@@ -114,7 +126,9 @@ function runCast(args: string[], cwd: string): Promise<string> {
   const tag = (err: any, stderr?: string) => {
     // Distinguish "cast can't be run at all" from "it ran but found nothing".
     err.castMissing =
-      err?.code === "ENOENT" || err?.code === 127 || /command not found|not found/i.test(stderr || "");
+      err?.code === "ENOENT" ||
+      err?.code === 127 ||
+      /command not found|not found/i.test(stderr || "");
     return err;
   };
   return new Promise((resolve, reject) => {
@@ -123,49 +137,79 @@ function runCast(args: string[], cwd: string): Promise<string> {
     if (process.platform === "win32" && !configuredCli()) {
       const wslArgs = wslCastArgs(args, cwd);
       log(`run: wsl.exe ${wslArgs.join(" ")}`);
-      execFile("wsl.exe", wslArgs, { cwd, windowsHide: true, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (!err) return resolve(stdout);
-        log(`  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`);
-        reject(tag(err, stderr));
-      });
+      execFile(
+        "wsl.exe",
+        wslArgs,
+        { cwd, windowsHide: true, maxBuffer: 64 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          if (!err) return resolve(stdout);
+          log(
+            `  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`,
+          );
+          reject(tag(err, stderr));
+        },
+      );
       return;
     }
     if (bin) {
       log(`run: ${bin} ${args.join(" ")}  (cwd=${cwd})`);
-      execFile(bin, args, { cwd, env, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (!err) return resolve(stdout);
-        // ENOEXEC = the launcher has a broken/missing shebang (e.g. a dev
-        // `cast` wrapper). A shell runs it regardless of shebang, so retry the
-        // binary through bash — direct `bash <file> <args>`, no rc, no noise.
-        if ((err as any).code === "ENOEXEC") {
-          log(`  ↻ ENOEXEC — retrying via bash ${bin}`);
-          execFile("/bin/bash", [bin, ...args], { cwd, env, maxBuffer: 64 * 1024 * 1024 }, (e2, so2, se2) => {
-            if (e2) {
-              log(`  ✗ exit=${(e2 as any).code} ${se2 ? "stderr=" + se2.slice(0, 300) : e2.message}`);
-              reject(tag(e2, se2));
-            } else {
-              resolve(so2);
-            }
-          });
-          return;
-        }
-        log(`  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`);
-        reject(tag(err, stderr));
-      });
+      execFile(
+        bin,
+        args,
+        { cwd, env, maxBuffer: 64 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          if (!err) return resolve(stdout);
+          // ENOEXEC = the launcher has a broken/missing shebang (e.g. a dev
+          // `cast` wrapper). A shell runs it regardless of shebang, so retry the
+          // binary through bash — direct `bash <file> <args>`, no rc, no noise.
+          if ((err as any).code === "ENOEXEC") {
+            log(`  ↻ ENOEXEC — retrying via bash ${bin}`);
+            execFile(
+              "/bin/bash",
+              [bin, ...args],
+              { cwd, env, maxBuffer: 64 * 1024 * 1024 },
+              (e2, so2, se2) => {
+                if (e2) {
+                  log(
+                    `  ✗ exit=${(e2 as any).code} ${se2 ? "stderr=" + se2.slice(0, 300) : e2.message}`,
+                  );
+                  reject(tag(e2, se2));
+                } else {
+                  resolve(so2);
+                }
+              },
+            );
+            return;
+          }
+          log(
+            `  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`,
+          );
+          reject(tag(err, stderr));
+        },
+      );
       return;
     }
     // Last resort: run through a login shell so the user's rc PATH applies.
     const shell = process.env.SHELL || "/bin/bash";
-    const quoted = ["cast", ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
+    const quoted = ["cast", ...args]
+      .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+      .join(" ");
     log(`run (login shell ${shell}): cast ${args.join(" ")}`);
-    execFile(shell, ["-lic", quoted], { cwd, env, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        log(`  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`);
-        reject(tag(err, stderr));
-      } else {
-        resolve(stdout);
-      }
-    });
+    execFile(
+      shell,
+      ["-lic", quoted],
+      { cwd, env, maxBuffer: 64 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          log(
+            `  ✗ exit=${(err as any).code} ${stderr ? "stderr=" + stderr.slice(0, 300) : err.message}`,
+          );
+          reject(tag(err, stderr));
+        } else {
+          resolve(stdout);
+        }
+      },
+    );
   });
 }
 
@@ -212,7 +256,11 @@ function warnCastMissing(): void {
       "Open Settings",
     )
     .then((choice) => {
-      if (choice) vscode.commands.executeCommand("workbench.action.openSettings", "codecast.cliPath");
+      if (choice)
+        vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "codecast.cliPath",
+        );
     });
 }
 
@@ -225,7 +273,10 @@ async function loadBlame(doc: vscode.TextDocument): Promise<void> {
   if (inFlight.has(fsPath)) return;
   inFlight.add(fsPath);
   try {
-    const out = await runCast(["blame", "--line-porcelain", "--", fsPath], path.dirname(fsPath));
+    const out = await runCast(
+      ["blame", "--line-porcelain", "--", fsPath],
+      path.dirname(fsPath),
+    );
     const map = parseLinePorcelain(out);
     blameCache.set(fsPath, map);
     log(`loadBlame ok: ${path.basename(fsPath)} → ${map.size} resolved lines`);
@@ -287,20 +338,32 @@ async function openSession(): Promise<void> {
   // resolve through the CLI when the cache is cold or stale after edits.
   const cached = infoForCursor(editor);
   if (cached?.url) {
-    const url = cached.message ? `${cached.url}#msg-${cached.message}` : cached.url;
+    const url = cached.message
+      ? `${cached.url}#msg-${cached.message}`
+      : cached.url;
     vscode.env.openExternal(vscode.Uri.parse(url));
     return;
   }
   const fsPath = editor.document.uri.fsPath;
   const lnum = editor.selection.active.line + 1;
   try {
-    const out = await runCast(["blame", `${fsPath}:${lnum}`, "--open"], path.dirname(fsPath));
+    const out = await runCast(
+      ["blame", `${fsPath}:${lnum}`, "--open"],
+      path.dirname(fsPath),
+    );
     const url = out.trim().split("\n")[0];
-    if (url.startsWith("http")) vscode.window.setStatusBarMessage(`Codecast: opened ${url}`, 4000);
-    else vscode.window.showInformationMessage("Codecast: no session resolved for this line.");
+    if (url.startsWith("http"))
+      vscode.window.setStatusBarMessage(`Codecast: opened ${url}`, 4000);
+    else
+      vscode.window.showInformationMessage(
+        "Codecast: no session resolved for this line.",
+      );
   } catch (err: any) {
     if (err?.castMissing) warnCastMissing();
-    else vscode.window.showInformationMessage("Codecast: no session resolved for this line.");
+    else
+      vscode.window.showInformationMessage(
+        "Codecast: no session resolved for this line.",
+      );
   }
 }
 
@@ -308,33 +371,57 @@ async function sessionLog(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
   const fsPath = editor.document.uri.fsPath;
-  let rows: { line: number; sha: string; relpath: string; display: string }[] = [];
+  let rows: { line: number; sha: string; relpath: string; display: string }[] =
+    [];
   try {
-    const out = await runCast(["blame", "--log", "--quickfix", "--", fsPath], path.dirname(fsPath));
+    const out = await runCast(
+      ["blame", "--log", "--quickfix", "--", fsPath],
+      path.dirname(fsPath),
+    );
     rows = out
       .split("\n")
       .filter(Boolean)
       .map((l) => l.split("\t"))
       .filter((f) => f.length >= 5)
-      .map((f) => ({ line: parseInt(f[1], 10), sha: f[2], relpath: f[3], display: f[4] }));
+      .map((f) => ({
+        line: parseInt(f[1], 10),
+        sha: f[2],
+        relpath: f[3],
+        display: f[4],
+      }));
   } catch {
     /* fall through to empty */
   }
   if (rows.length === 0) {
-    vscode.window.showInformationMessage("Codecast: no sessions resolved for this file.");
+    vscode.window.showInformationMessage(
+      "Codecast: no sessions resolved for this file.",
+    );
     return;
   }
   const picked = await vscode.window.showQuickPick(
-    rows.map((r) => ({ label: r.display, description: `line ${r.line}`, row: r })),
-    { title: "Sessions that shaped this file (newest first)", placeHolder: "Open the conversation" },
+    rows.map((r) => ({
+      label: r.display,
+      description: `line ${r.line}`,
+      row: r,
+    })),
+    {
+      title: "Sessions that shaped this file (newest first)",
+      placeHolder: "Open the conversation",
+    },
   );
   if (!picked) return;
   try {
-    const out = await runCast(["blame", `${fsPath}:${picked.row.line}`, "--open"], path.dirname(fsPath));
+    const out = await runCast(
+      ["blame", `${fsPath}:${picked.row.line}`, "--open"],
+      path.dirname(fsPath),
+    );
     const url = out.trim().split("\n")[0];
-    if (url.startsWith("http")) vscode.window.setStatusBarMessage(`Codecast: opened ${url}`, 4000);
+    if (url.startsWith("http"))
+      vscode.window.setStatusBarMessage(`Codecast: opened ${url}`, 4000);
   } catch {
-    vscode.window.showInformationMessage("Codecast: couldn't open that conversation.");
+    vscode.window.showInformationMessage(
+      "Codecast: couldn't open that conversation.",
+    );
   }
 }
 
@@ -364,10 +451,18 @@ async function runDiagnostics(): Promise<void> {
   const fsPath = editor.document.uri.fsPath;
   log(`active file: ${fsPath}`);
   try {
-    const v = await runCast(["blame", "--line-porcelain", "--", fsPath], path.dirname(fsPath));
+    const v = await runCast(
+      ["blame", "--line-porcelain", "--", fsPath],
+      path.dirname(fsPath),
+    );
     const map = parseLinePorcelain(v);
-    log(`✓ blame ran: ${v.length} bytes, ${map.size} lines resolved to sessions`);
-    if (map.size === 0) log("  (0 resolved — file may have no synced sessions, or output had no codecast-* keys)");
+    log(
+      `✓ blame ran: ${v.length} bytes, ${map.size} lines resolved to sessions`,
+    );
+    if (map.size === 0)
+      log(
+        "  (0 resolved — file may have no synced sessions, or output had no codecast-* keys)",
+      );
   } catch (e: any) {
     log(`✗ blame failed: ${e?.message || e}`);
     log(`  code=${e?.code} castMissing=${e?.castMissing}`);
@@ -379,11 +474,16 @@ async function runDiagnostics(): Promise<void> {
 export function activate(context: vscode.ExtensionContext): void {
   out = vscode.window.createOutputChannel("Codecast");
   decoration = vscode.window.createTextEditorDecorationType({});
-  statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  statusItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100,
+  );
   context.subscriptions.push(out, decoration, statusItem);
   extensionVersion = String(context.extension.packageJSON.version ?? "unknown");
   log(`════════ codecast extension activated (v${extensionVersion}) ════════`);
-  log(`config cliPath: ${vscode.workspace.getConfiguration("codecast").get("cliPath")}`);
+  log(
+    `config cliPath: ${vscode.workspace.getConfiguration("codecast").get("cliPath")}`,
+  );
   log(`process PATH: ${process.env.PATH || "(empty)"}`);
   log(`resolved cast: ${resolveCliSync() || "(none)"}`);
 
@@ -400,13 +500,18 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("codecast.diagnostics", runDiagnostics),
     vscode.commands.registerCommand("codecast.toggleInlineBlame", async () => {
       const cfg = vscode.workspace.getConfiguration("codecast");
-      await cfg.update("inlineBlame", !inlineEnabled(), vscode.ConfigurationTarget.Global);
+      await cfg.update(
+        "inlineBlame",
+        !inlineEnabled(),
+        vscode.ConfigurationTarget.Global,
+      );
       const ed = vscode.window.activeTextEditor;
       if (ed) renderCurrentLine(ed);
     }),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (!editor) return;
-      if (!blameCache.has(editor.document.uri.fsPath)) loadBlame(editor.document);
+      if (!blameCache.has(editor.document.uri.fsPath))
+        loadBlame(editor.document);
       else renderCurrentLine(editor);
     }),
     vscode.window.onDidChangeTextEditorSelection((e) => onCursor(e.textEditor)),
@@ -414,13 +519,16 @@ export function activate(context: vscode.ExtensionContext): void {
       blameCache.delete(doc.uri.fsPath);
       loadBlame(doc);
     }),
-    vscode.workspace.onDidCloseTextDocument((doc) => blameCache.delete(doc.uri.fsPath)),
+    vscode.workspace.onDidCloseTextDocument((doc) =>
+      blameCache.delete(doc.uri.fsPath),
+    ),
   );
 
   // Learn the real shell PATH first (so the dev `cast`→bun wrapper resolves),
   // then blame the file that's already open.
   void learnUserPath().finally(() => {
-    if (vscode.window.activeTextEditor) loadBlame(vscode.window.activeTextEditor.document);
+    if (vscode.window.activeTextEditor)
+      loadBlame(vscode.window.activeTextEditor.document);
   });
 }
 

@@ -26,15 +26,29 @@ function cell(v: unknown): string {
 }
 
 /** Rows as RFC 4180 CSV with a header line. */
-export function toCsv(columns: readonly string[], rows: readonly unknown[][]): string {
-  return [columns.map(cell).join(","), ...rows.map((r) => columns.map((_, i) => cell(r[i])).join(","))].join("\r\n");
+export function toCsv(
+  columns: readonly string[],
+  rows: readonly unknown[][],
+): string {
+  return [
+    columns.map(cell).join(","),
+    ...rows.map((r) => columns.map((_, i) => cell(r[i])).join(",")),
+  ].join("\r\n");
 }
 
 /** The rows a block shows: a table's shaped rows, otherwise the rows its number or chart was computed from. */
-export function blockRows(b: ArtifactElement, result: DataResult | undefined, scope?: dashboard.Where): { columns: string[]; rows: unknown[][] } | null {
+export function blockRows(
+  b: ArtifactElement,
+  result: DataResult | undefined,
+  scope?: dashboard.Where,
+): { columns: string[]; rows: unknown[][] } | null {
   if (!result || !dashboard.blockQuery(b)) return null;
   if (b.kind === "table") {
-    const ev = dashboard.evaluateTable(b as dashboard.TableBlock, result, scope);
+    const ev = dashboard.evaluateTable(
+      b as dashboard.TableBlock,
+      result,
+      scope,
+    );
     return ev.state === "ok" ? { columns: ev.columns, rows: ev.rows } : null;
   }
   const ev = dashboard.evaluateBlock(b.kind, b, result, scope);
@@ -44,7 +58,12 @@ export function blockRows(b: ArtifactElement, result: DataResult | undefined, sc
 }
 
 export function fileName(title: unknown, ext: string): string {
-  const base = String(title || "block").trim().replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-").toLowerCase() || "block";
+  const base =
+    String(title || "block")
+      .trim()
+      .replace(/[^\w\- ]+/g, "")
+      .replace(/\s+/g, "-")
+      .toLowerCase() || "block";
   return `${base}.${ext}`;
 }
 
@@ -57,9 +76,17 @@ function download(href: string, name: string) {
   a.remove();
 }
 
-export function downloadCsv(name: string, columns: readonly string[], rows: readonly unknown[][]) {
+export function downloadCsv(
+  name: string,
+  columns: readonly string[],
+  rows: readonly unknown[][],
+) {
   // A byte-order mark so Excel reads the file as UTF-8.
-  const url = URL.createObjectURL(new Blob([String.fromCharCode(0xfeff), toCsv(columns, rows)], { type: "text/csv;charset=utf-8" }));
+  const url = URL.createObjectURL(
+    new Blob([String.fromCharCode(0xfeff), toCsv(columns, rows)], {
+      type: "text/csv;charset=utf-8",
+    }),
+  );
   download(url, name);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -69,7 +96,11 @@ export function downloadCsv(name: string, columns: readonly string[], rows: read
  * above it, and every legend entry (a tile pages its legend; a picture cannot),
  * redrawn offscreen at twice the density.
  */
-export function downloadChartPng(key: string, name: string, head: { title?: string; caption?: string }): boolean {
+export function downloadChartPng(
+  key: string,
+  name: string,
+  head: { title?: string; caption?: string },
+): boolean {
   const chart = charts.get(key);
   if (!chart) return false;
   const css = getComputedStyle(document.documentElement);
@@ -81,7 +112,11 @@ export function downloadChartPng(key: string, name: string, head: { title?: stri
   host.style.cssText = `position:fixed;left:-20000px;top:0;width:${width}px;height:${height}px`;
   document.body.appendChild(host);
   try {
-    const copy = echarts.init(host, undefined, { renderer: "canvas", width, height });
+    const copy = echarts.init(host, undefined, {
+      renderer: "canvas",
+      width,
+      height,
+    });
     const opt = chart.getOption() as Record<string, any>;
     const legends = (opt.legend ?? []) as Array<Record<string, unknown>>;
     const grids = (opt.grid ?? []) as Array<Record<string, unknown>>;
@@ -89,7 +124,12 @@ export function downloadChartPng(key: string, name: string, head: { title?: stri
       ...opt,
       animation: false,
       legend: legends.map((l) => ({ ...l, type: "plain", width: width - 16 })),
-      grid: grids.map((g) => ({ ...g, bottom: (Number(g.bottom) || 0) + (legends.some((l) => l.show !== false) ? LEGEND_ROOM : 0) })),
+      grid: grids.map((g) => ({
+        ...g,
+        bottom:
+          (Number(g.bottom) || 0) +
+          (legends.some((l) => l.show !== false) ? LEGEND_ROOM : 0),
+      })),
     });
     const img = new Image();
     img.onload = () => {
@@ -108,7 +148,8 @@ export function downloadChartPng(key: string, name: string, head: { title?: stri
         ctx.font = `600 15px ${font}`;
         ctx.fillText(head.title, pad, pad + 16);
         if (head.caption) {
-          ctx.fillStyle = css.getPropertyValue("--sol-text-muted").trim() || "#666";
+          ctx.fillStyle =
+            css.getPropertyValue("--sol-text-muted").trim() || "#666";
           ctx.font = `400 12px ${font}`;
           ctx.fillText(head.caption, pad, pad + 36);
         }
@@ -116,7 +157,11 @@ export function downloadChartPng(key: string, name: string, head: { title?: stri
       ctx.drawImage(img, pad, pad + band, width, height);
       download(canvas.toDataURL("image/png"), name);
     };
-    img.src = copy.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: bg });
+    img.src = copy.getDataURL({
+      type: "png",
+      pixelRatio: 2,
+      backgroundColor: bg,
+    });
     copy.dispose();
   } finally {
     host.remove();
@@ -137,7 +182,8 @@ export function clearChartHover(): HTMLElement[] {
     // The shaded band a pointer leaves over a bar is part of the hover too.
     chart.dispatchAction({ type: "updateAxisPointer", currTrigger: "leave" });
     // ECharts draws its tooltip as a top-layer div inside the chart's box.
-    for (const el of chart.getDom().querySelectorAll<HTMLElement>("div")) if (el.style.zIndex === "9999999") tips.push(el);
+    for (const el of chart.getDom().querySelectorAll<HTMLElement>("div"))
+      if (el.style.zIndex === "9999999") tips.push(el);
   }
   return tips;
 }

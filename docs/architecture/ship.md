@@ -16,11 +16,11 @@ parked at its change card. `resolveShipPlan`
 popover renders that plan, `cast ship run --dry-run` prints it, and the press
 runs it, so all three say the same thing.
 
-| Procedure | When | What runs |
-|---|---|---|
-| `line_gate` | a task whose line run waits at its change card | Ship answers the card; the line's ship station runs the profile's `ship` command, or, when there is none, `cast ship run --task` (the `cast_ship` flow below) |
-| `profile_command` | the project's profile has `commands.ship` | a ship session runs the profile's check, then the ship command |
-| `cast_ship` | anything else | a ship session runs the check, then the cast-ship skill: commit, push, open the PR, shepherd it |
+| Procedure         | When                                           | What runs                                                                                                                                                     |
+| ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `line_gate`       | a task whose line run waits at its change card | Ship answers the card; the line's ship station runs the profile's `ship` command, or, when there is none, `cast ship run --task` (the `cast_ship` flow below) |
+| `profile_command` | the project's profile has `commands.ship`      | a ship session runs the profile's check, then the ship command                                                                                                |
+| `cast_ship`       | anything else                                  | a ship session runs the check, then the cast-ship skill: commit, push, open the PR, shepherd it                                                               |
 
 The ship session is spawned through `spawnSessionCore`, nested under the work's
 session, else under the session that asked (`shipParent`: a worker counts, and

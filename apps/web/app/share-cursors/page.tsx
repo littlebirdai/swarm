@@ -20,12 +20,26 @@ export default function ShareCursorsPage() {
   const [cursors, setCursors] = useState<ShareCursor[]>([]);
   useWatchEffect(() => onShareCursors(setCursors), []);
   const rootRef = useRef<HTMLDivElement>(null);
-  const size = useDerivedSize(rootRef, (w, h) => `${Math.round(w)}x${Math.round(h)}`, () => "0x0");
+  const size = useDerivedSize(
+    rootRef,
+    (w, h) => `${Math.round(w)}x${Math.round(h)}`,
+    () => "0x0",
+  );
   const [w, h] = size.split("x").map(Number);
   return (
-    <div ref={rootRef} className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div
+      ref={rootRef}
+      className="fixed inset-0 overflow-hidden pointer-events-none"
+      aria-hidden="true"
+    >
       {cursors.map((c) => (
-        <TeammateCursor key={c.id} identity={c.id} name={c.name} x={c.nx * w} y={c.ny * h} />
+        <TeammateCursor
+          key={c.id}
+          identity={c.id}
+          name={c.name}
+          x={c.nx * w}
+          y={c.ny * h}
+        />
       ))}
     </div>
   );

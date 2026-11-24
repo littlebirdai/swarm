@@ -32,14 +32,34 @@ afterEach(() => nowSpy.mockRestore());
 
 function row(id: string, extra: Partial<InboxSession>): InboxSession {
   return {
-    _id: id, session_id: `s-${id.slice(0, 3)}`, agent_type: "claude_code", user_id: ME, status: "completed",
-    message_count: 6, is_idle: true, has_pending: false, title: `t-${id.slice(0, 1)}`, ...extra,
+    _id: id,
+    session_id: `s-${id.slice(0, 3)}`,
+    agent_type: "claude_code",
+    user_id: ME,
+    status: "completed",
+    message_count: 6,
+    is_idle: true,
+    has_pending: false,
+    title: `t-${id.slice(0, 1)}`,
+    ...extra,
   } as InboxSession;
 }
-function killed(id: string, killedAt: number, extra: Partial<InboxSession> = {}): InboxSession {
-  return row(id, { inbox_killed_at: killedAt, inbox_dismissed_at: killedAt, updated_at: killedAt - 60_000, ...extra });
+function killed(
+  id: string,
+  killedAt: number,
+  extra: Partial<InboxSession> = {},
+): InboxSession {
+  return row(id, {
+    inbox_killed_at: killedAt,
+    inbox_dismissed_at: killedAt,
+    updated_at: killedAt - 60_000,
+    ...extra,
+  });
 }
-function state(sessions: Record<string, InboxSession>, shelfIds: string[] = []): PlaceInboxState {
+function state(
+  sessions: Record<string, InboxSession>,
+  shelfIds: string[] = [],
+): PlaceInboxState {
   return {
     sessions,
     killedShelf: { ids: shelfIds },
@@ -57,7 +77,8 @@ function state(sessions: Record<string, InboxSession>, shelfIds: string[] = []):
     pending: {},
   } as unknown as PlaceInboxState;
 }
-const dismissedIds = (s: PlaceInboxState) => placeInboxRows(s, { scope: "mine", now: NOW }).dismissed.map((r) => r._id);
+const dismissedIds = (s: PlaceInboxState) =>
+  placeInboxRows(s, { scope: "mine", now: NOW }).dismissed.map((r) => r._id);
 
 describe("the Killed bucket lists cached kills", () => {
   it("a recent unpinned kill lists in the bucket without becoming a member", () => {
@@ -85,14 +106,22 @@ describe("the Killed bucket lists cached kills", () => {
   });
 
   it("a pinned kill lists once — the shared placement already filed it", () => {
-    const s = state({ [A]: killed(A, NOW - DAY, { inbox_pinned_at: NOW - 2 * DAY, is_pinned: true }) });
+    const s = state({
+      [A]: killed(A, NOW - DAY, {
+        inbox_pinned_at: NOW - 2 * DAY,
+        is_pinned: true,
+      }),
+    });
     expect(dismissedIds(s)).toEqual([A]);
   });
 
   it("subagent children never list on their own", () => {
     const s = state({
       [D]: killed(D, NOW - DAY),
-      [KID]: killed(KID, NOW - DAY, { is_subagent: true, parent_conversation_id: D }),
+      [KID]: killed(KID, NOW - DAY, {
+        is_subagent: true,
+        parent_conversation_id: D,
+      }),
     });
     expect(dismissedIds(s)).toEqual([D]);
   });

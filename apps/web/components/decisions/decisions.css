@@ -23,18 +23,47 @@
   row-gap: 0.4rem;
   align-items: baseline;
 }
-.decision-doc .decision-meta dt { color: var(--sol-text-dim); }
-.decision-doc .decision-meta dd { min-width: 0; color: var(--sol-text); overflow-wrap: anywhere; }
-@media (max-width: 480px) {
-  .decision-doc .decision-meta { grid-template-columns: 1fr; row-gap: 0.15rem; }
-  .decision-doc .decision-meta dt { margin-top: 0.5rem; }
+.decision-doc .decision-meta dt {
+  color: var(--sol-text-dim);
 }
-.decision-doc .decision-body { max-width: 68ch; }
-.decision-doc .decision-body :where(p, li) { line-height: 1.65; }
-.decision-doc .decision-body :where(p + p) { margin-top: 0.75em; }
-.decision-doc .decision-body :where(h1, h2, h3) { color: var(--sol-text); margin-top: 1.25em; }
-.decision-doc .decision-body :where(:not(pre) > code) { font-size: 0.9em; font-weight: 400; padding: 1px 5px; border-radius: 4px; background: var(--sol-bg-alt); color: var(--sol-text); }
-.decision-doc .decision-option-body :where(p) { margin: 0.25em 0; }
+.decision-doc .decision-meta dd {
+  min-width: 0;
+  color: var(--sol-text);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .decision-doc .decision-meta {
+    grid-template-columns: 1fr;
+    row-gap: 0.15rem;
+  }
+  .decision-doc .decision-meta dt {
+    margin-top: 0.5rem;
+  }
+}
+.decision-doc .decision-body {
+  max-width: 68ch;
+}
+.decision-doc .decision-body :where(p, li) {
+  line-height: 1.65;
+}
+.decision-doc .decision-body :where(p + p) {
+  margin-top: 0.75em;
+}
+.decision-doc .decision-body :where(h1, h2, h3) {
+  color: var(--sol-text);
+  margin-top: 1.25em;
+}
+.decision-doc .decision-body :where(:not(pre) > code) {
+  font-size: 0.9em;
+  font-weight: 400;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--sol-bg-alt);
+  color: var(--sol-text);
+}
+.decision-doc .decision-option-body :where(p) {
+  margin: 0.25em 0;
+}
 .decision-doc .decision-ladder {
   position: relative;
   padding-left: 1.25rem;
@@ -64,13 +93,23 @@
   border-radius: 999px;
   border: 2px solid var(--sol-bg);
 }
-.decision-doc .decision-footer { animation: decision-rise 260ms ease-out both; }
+.decision-doc .decision-footer {
+  animation: decision-rise 260ms ease-out both;
+}
 @keyframes decision-rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .decision-doc .decision-footer { animation: none; }
+  .decision-doc .decision-footer {
+    animation: none;
+  }
 }
 
 /* Option pages (the-line.md L6): one card per option that carries a
@@ -91,15 +130,20 @@
   overflow: hidden;
   transition: border-color 120ms ease;
 }
-.decision-option-page:hover { border-color: var(--sol-border); }
-.decision-option-page[data-picked="true"] { border-color: color-mix(in srgb, var(--sol-green) 50%, transparent); }
+.decision-option-page:hover {
+  border-color: var(--sol-border);
+}
+.decision-option-page[data-picked="true"] {
+  border-color: color-mix(in srgb, var(--sol-green) 50%, transparent);
+}
 .decision-option-page-thumb {
   display: block;
   aspect-ratio: 1.91 / 1;
   width: 100%;
   background: var(--sol-bg-alt);
   border-top: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 40%, transparent);
   overflow: hidden;
   cursor: pointer;
 }
@@ -112,8 +156,12 @@
    stick while the reasoning scrolls; the column widens only to make room
    for them, and the reasoning keeps its reading measure. The question is
    sized for the sheet's smaller canvas and never runs the whole width. */
-.decision-sheet { container-type: inline-size; }
-.decision-sheet-col { max-width: var(--conv-col-w, 56rem); }
+.decision-sheet {
+  container-type: inline-size;
+}
+.decision-sheet-col {
+  max-width: var(--conv-col-w, 56rem);
+}
 .decision-sheet .decision-question {
   font-size: clamp(1.25rem, 1rem + 1vw, 1.7rem);
   max-width: 32em;
@@ -125,16 +173,25 @@
 }
 /* A change card's sheet is one column, its answer bar above the card, at
    the decision page's measure. */
-.decision-sheet[data-card="true"] .decision-sheet-col { max-width: 60rem; }
+.decision-sheet[data-card="true"] .decision-sheet-col {
+  max-width: 60rem;
+}
 @container (min-width: 64rem) {
-  .decision-sheet-col { max-width: 84rem; }
+  .decision-sheet-col {
+    max-width: 84rem;
+  }
   .decision-sheet-grid[data-split="true"] {
     grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
     column-gap: 3rem;
     align-items: start;
   }
-  .decision-sheet-grid[data-split="true"] > .decision-sheet-context { max-width: var(--conv-col-w, 56rem); }
-  .decision-sheet-grid[data-split="true"] > .decision-sheet-options { position: sticky; top: 0; }
+  .decision-sheet-grid[data-split="true"] > .decision-sheet-context {
+    max-width: var(--conv-col-w, 56rem);
+  }
+  .decision-sheet-grid[data-split="true"] > .decision-sheet-options {
+    position: sticky;
+    top: 0;
+  }
 }
 
 /* The compact card (the queue, a task, a gate) reads like the document page,
@@ -154,17 +211,28 @@
   line-height: 1.55;
   color: var(--sol-text-muted);
 }
-.decision-card .decision-card-body :where(p, li) { margin: 0.3em 0; }
+.decision-card .decision-card-body :where(p, li) {
+  margin: 0.3em 0;
+}
 .decision-card .decision-card-body :where(h1, h2, h3, h4) {
   font-size: 13px;
   font-weight: 600;
   color: var(--sol-text);
   margin: 0.6em 0 0.2em;
 }
-.decision-card .decision-card-body :where(ul, ol) { margin: 0.3em 0; padding-left: 1.1em; }
-.decision-card .decision-card-body :where(pre) { margin: 0.4em 0; }
-.decision-card .decision-card-body > :first-child { margin-top: 0; }
-.decision-card .decision-card-body > :last-child { margin-bottom: 0; }
+.decision-card .decision-card-body :where(ul, ol) {
+  margin: 0.3em 0;
+  padding-left: 1.1em;
+}
+.decision-card .decision-card-body :where(pre) {
+  margin: 0.4em 0;
+}
+.decision-card .decision-card-body > :first-child {
+  margin-top: 0;
+}
+.decision-card .decision-card-body > :last-child {
+  margin-bottom: 0;
+}
 
 /* The call to action: the decision a task is held on. A tint and a warm edge,
    no shout — the card is already the only thing between the reader and the
@@ -183,12 +251,15 @@
   border-radius: 8px;
   font-size: 13px;
   color: var(--sol-text);
-  border: 1px solid color-mix(in srgb, var(--sol-text-dim) 35%, var(--sol-border));
+  border: 1px solid
+    color-mix(in srgb, var(--sol-text-dim) 35%, var(--sol-border));
   background: color-mix(in srgb, var(--sol-text-dim) 8%, transparent);
 }
 
 .decision-doc .decision-next-bar {
-  position: sticky; bottom: 0; z-index: 10;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   padding: 0.75rem 0;
   border-top: 1px solid color-mix(in srgb, var(--sol-border) 70%, transparent);
   background: color-mix(in srgb, var(--sol-bg) 92%, transparent);

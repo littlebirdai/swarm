@@ -16,17 +16,28 @@ import { roleTenureChip } from "../components/org/orgMeta";
 import { EMPTY_COUNTS, type OrgRole } from "../components/org/orgTypes";
 
 const params = new URLSearchParams(window.location.search);
-document.documentElement.classList.add(params.get("theme") === "light" ? "light" : "dark");
+document.documentElement.classList.add(
+  params.get("theme") === "light" ? "light" : "dark",
+);
 
 const base = (over: Partial<OrgRole>): OrgRole => ({
-  _id: "r", short_id: "or-1", scope_type: "team", team_id: "t", host_user_id: "u",
-  name: "Head of Growth", handle: "growth",
+  _id: "r",
+  short_id: "or-1",
+  scope_type: "team",
+  team_id: "t",
+  host_user_id: "u",
+  name: "Head of Growth",
+  handle: "growth",
   scope: { project_ids: [], plan_ids: [] },
   reports_to: { kind: "user", user_id: "u" },
-  status: "active", trust: "understand",
-  created_by: "u", created_at: Date.now(), updated_at: Date.now(),
+  status: "active",
+  trust: "understand",
+  created_by: "u",
+  created_at: Date.now(),
+  updated_at: Date.now(),
   counts: { ...EMPTY_COUNTS, working: 2, needs_input: 1, done: 3 },
-  sessions: [], total: 6,
+  sessions: [],
+  total: 6,
   scope_names: { projects: [{ id: "p1", title: "Growth" }], plans: [] },
   ...over,
 });
@@ -35,59 +46,122 @@ const base = (over: Partial<OrgRole>): OrgRole => ({
 // ending with a plan, one ending with a date, one ending with a project, and a
 // proposed ghost seat carrying its own tenure and face.
 const ROLES: { role: OrgRole; ghost?: RoleNodeData["ghost"] }[] = [
-  { role: base({ _id: "a", short_id: "or-1", name: "Head of Growth", handle: "growth", avatar: "fox" }) },
   {
     role: base({
-      _id: "b", short_id: "or-2", name: "Sync Migration", handle: "sync-migration", avatar: "otter",
+      _id: "a",
+      short_id: "or-1",
+      name: "Head of Growth",
+      handle: "growth",
+      avatar: "fox",
+    }),
+  },
+  {
+    role: base({
+      _id: "b",
+      short_id: "or-2",
+      name: "Sync Migration",
+      handle: "sync-migration",
+      avatar: "otter",
       tenure: { kind: "program", ends: { plan: "pl-689" }, then: "retire" },
     }),
   },
   {
     role: base({
-      _id: "c", short_id: "or-3", name: "Launch Push", handle: "launch", avatar: "crane",
-      tenure: { kind: "program", ends: { date: new Date("2026-10-03T00:00:00Z").getTime() }, then: "review" },
+      _id: "c",
+      short_id: "or-3",
+      name: "Launch Push",
+      handle: "launch",
+      avatar: "crane",
+      tenure: {
+        kind: "program",
+        ends: { date: new Date("2026-10-03T00:00:00Z").getTime() },
+        then: "review",
+      },
     }),
   },
   {
     role: base({
-      _id: "d", short_id: "or-4", name: "Mobile Platform", handle: "mobile", avatar: "whale",
+      _id: "d",
+      short_id: "or-4",
+      name: "Mobile Platform",
+      handle: "mobile",
+      avatar: "whale",
       tenure: { kind: "program", ends: { project: "Mobile" }, then: "retire" },
     }),
   },
   {
     role: base({
-      _id: "e", short_id: "or-…", name: "Infra Lead", handle: "infra", avatar: "owl",
+      _id: "e",
+      short_id: "or-…",
+      name: "Infra Lead",
+      handle: "infra",
+      avatar: "owl",
       tenure: { kind: "program", ends: { plan: "pl-712" }, then: "retire" },
     }),
-    ghost: { change_id: "c1", status: "proposed", line: "Create role Infra Lead @infra", kind: "role", solid: false },
+    ghost: {
+      change_id: "c1",
+      status: "proposed",
+      line: "Create role Infra Lead @infra",
+      kind: "role",
+      solid: false,
+    },
   },
 ];
 
 const nodes: Node[] = ROLES.map((r, i) => ({
   id: r.role._id,
   type: "role",
-  position: { x: 40 + (i % 3) * (ORG_SIZES.role.w + 48), y: 40 + Math.floor(i / 3) * 360 },
+  position: {
+    x: 40 + (i % 3) * (ORG_SIZES.role.w + 48),
+    y: 40 + Math.floor(i / 3) * 360,
+  },
   draggable: false,
   // The layout resolves the tenure chip against the whole tree (orgLayout
   // roleBranch); with no tree here the refs are already short ids, so the same
   // helper on a null tree renders what the card would draw.
-  data: { role: r.role, collapsed: false, hidden: 0, overflow: 0, tenure: roleTenureChip(r.role.tenure, null) ?? undefined, ...(r.ghost ? { ghost: r.ghost } : {}) } as unknown as Record<string, unknown>,
+  data: {
+    role: r.role,
+    collapsed: false,
+    hidden: 0,
+    overflow: 0,
+    tenure: roleTenureChip(r.role.tenure, null) ?? undefined,
+    ...(r.ghost ? { ghost: r.ghost } : {}),
+  } as unknown as Record<string, unknown>,
   // The same height the layout gives a seat (orgCardModel): a program takes an extra row.
-  style: { width: ORG_SIZES.role.w, height: roleCardRows(r.role, { ghost: !!r.ghost, tenure: r.role.tenure?.kind === "program" }).h },
+  style: {
+    width: ORG_SIZES.role.w,
+    height: roleCardRows(r.role, {
+      ghost: !!r.ghost,
+      tenure: r.role.tenure?.kind === "program",
+    }).h,
+  },
 }));
 
 function Cards() {
   return (
     <div className="min-h-screen bg-sol-bg text-sol-text">
       <div className="px-6 py-5">
-        <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-serif)" }}>Org role cards</h1>
+        <h1
+          className="text-lg font-semibold"
+          style={{ fontFamily: "var(--font-serif)" }}
+        >
+          Org role cards
+        </h1>
         <p className="text-xs text-sol-text-muted mt-1">
-          Faces (S13) and tenure chips (S10) on live seats and on a proposed ghost seat (S5). Standing seats say nothing about tenure; a program names its end.
+          Faces (S13) and tenure chips (S10) on live seats and on a proposed
+          ghost seat (S5). Standing seats say nothing about tenure; a program
+          names its end.
         </p>
       </div>
       <div style={{ height: 520 }}>
         <ReactFlowProvider>
-          <ReactFlow nodes={nodes} edges={[]} nodeTypes={{ role: RoleCard }} fitView proOptions={{ hideAttribution: true }} />
+          <ReactFlow
+            nodes={nodes}
+            edges={[]}
+            nodeTypes={{ role: RoleCard }}
+            fitView
+            proOptions={{ hideAttribution: true }}
+          />
         </ReactFlowProvider>
       </div>
     </div>
@@ -98,6 +172,8 @@ function Cards() {
 // react-router's navigate — so the preview needs a router in the tree.
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <MemoryRouter><Cards /></MemoryRouter>
+    <MemoryRouter>
+      <Cards />
+    </MemoryRouter>
   </React.StrictMode>,
 );

@@ -76,56 +76,56 @@ not have to shout.
 
 Canonical strings (use these exactly):
 
-| Where | String |
-|---|---|
-| Home input placeholder | `Make something`, then after 1.2s idle an example every 3.2s, each fading in whole and short ("a guestbook of tiny planets", "a frog choir, one note per person", ...); an example that would not fit the field whole at its width is skipped, until the person taps or types in the field |
-| Home submit | `Make it` |
-| Home lede | `Describe an app and Clay builds it in seconds. Anyone with the link can change it by chatting, and everyone sees it change.` |
-| Starter row label | `Or start with` |
-| Home feed heading | `Right now` |
-| Gallery heading | `Busy right now` when anyone is in an app, else `Made recently` |
-| Capsule button | `Change it` |
-| First-visit hint | 2+ here: `{N} people are in here. Open the room to watch them or change the app.` · alone: `Anyone with this link can change this app. Say what you'd change.` |
-| Composer modes | `Auto` · `Change it` · `Just chat` |
-| Composer placeholder | Auto: `Say anything, or ask for a change` · Change it: `What should change?` · Just chat: `Say something` (beside the folded mode chip on narrow screens, Auto is `Say anything`) |
-| Composer hint | Auto: `Clay decides whether it's a change or just chat` · Change it: `Goes live for everyone` · Just chat: `Clay stays out of it` |
-| Queued row | `Starting` (nothing ahead of it) or `2nd in line` (ordinal, counting the build running ahead) |
-| Sheet peek | `Building v15` · `0:06` · {current step} · `v15 going live` · then `v15 is live` · {summary} · `Undo` |
-| Capsule callout | {what was said}, then `Starting` / `2nd in line` / `Building v15` / `v15 going live` with the asker's face and name, then `v15 is live` · {summary} · `Try it {what to do}` · `Undo` · `Open` |
-| Opening narration line | `Thinking about {the request, verb first, six words}` ("Thinking about making the bass frog wobble whenever…") |
-| A version's summary (Clay writes it) | one present-tense sentence starting with a verb, under 70 characters, naming the most visible change: `Makes the count rounder and adds a warm glow`; detail goes in the step lines. A first build says what the app is |
-| What a version did (feed rows, gallery card meta) | `{name} {what it did}`: a first build `made it`, any other build its summary from its first word in lower case (`Tango turns the scoreboard gold`), a restore `undid v14: {summary}` or `brought back v12`, a fork `forked it from {app}`, a starter `started it`. Never a bare version number |
-| Feed row | `{name} {what it did}` over `{app} · 2 min ago`, or `{app} · live now` for the live version within 5 min |
-| Building card | `Building v15`; once live on the server and on its way to the screen, `v15 going live` |
-| Live card | `v15 is live` |
-| Live card meta | `Built in 0:24 · 2 files changed` |
-| Failed card | `Didn't make it`; folded once a newer version lands: `! Didn't make it · {request} · 7:18` with Dusk's face |
-| Clay declines a request | the request as a chat row, then Clay's row with its reason and `Edit` (never a failed card); capsule title `Clay left it as is` |
-| Triage pending (Auto) | `Clay is reading this` under the message, with the 16px blob |
-| Triage could not decide | Clay replies `I couldn't tell if that was a change. Send it with Change it if it was.` |
-| A heard change can't be queued | Clay replies with the refusal plus ` Chat still works.`; past the build rate: `That's a lot of changes in a few minutes. Ask again in {N} min and I'll build it. Chat still works.` |
-| App failed to load | `v26 didn't load` + the app's own error, or `It may be the connection. Try again in a moment.`; `Try again` · `Show v25` · `Fix it` (Fix it only with an error) |
-| Boot can't reach the backend | after 5s: `Can't reach Clayground. Trying again` + dots, `Try again` |
-| Offline | room header `Reconnecting` + dots; capsule `Offline` with a muted ring, tooltip `Reconnecting. Messages send once it's back.`; a busy button past 8s offline `Waiting for connection` |
-| Composer near the cap | `1899/2000` from 1800 characters, send disabled past 2000 |
-| Live card actions | `See it` · `Undo`; on the maker's own first version, `Copy link` (then `Copied`) · `See it`, under the line `Anyone with the link can change it. Send it to a friend.` |
-| Room header while Clay makes the first version | `Making` (spinner); a first build that failed leaves `Not made yet` |
-| First build column | `{name} asked for` · {the request} · Clay's steps · `Clay is making it · 0:24`, then `Going live` |
-| Viewing pill / past bar | `v12` + its summary; under it `Only you see this. Make it live or fork it to use it.`, with company the first sentence is `Peak is here too` (`Peak and Juniper are here too`, `3 others are here too`); the buttons say the rest: `Make v12 live` · `Fork from here` · `Back to live` |
-| Sheet past row (phone) | `You're viewing v12, nobody else is` · `You and Peak are viewing v12` · `You, Peak and Juniper are viewing v12` · `You and 3 others are viewing v12` |
-| What making a version live does (peek line, Make live tooltip) | `Everyone sees v3. Takes out v4 to v6: {v6's summary}` (`Takes out v6: …` for one) |
-| Peek actions | `View` · `Make v12 live` · `Fork from here` |
-| A version's summary (folded rows, peek, timeline labels) | a build its summary; a restore with its verb: `Undid v7: {summary}` or `Brought back v3: {summary}` |
-| Forks of a version (peek, fork modal) | `Iris forked this into {fork}` (`You` for the reader, `, and 2 more`); in the modal followed by `. Join it, or make your own.` |
-| Fork modal | title `Fork v12`, lede `A new app with v12's code and a copy of today's data. Its own room, its own link.`, button `Fork it` |
-| Room header while viewing | `Viewing v12` · `v14 is live` |
-| Fork note in source room | `{name} forked v12 into {fork name}` |
-| Lineage line | `forked from {app} v12` |
-| Picker title | `Who are you today?` |
-| Picker buttons | `Surprise me` · `Be {name}` |
-| New version toast (clean link) | `v15 is live · {name}: {summary}`; a restore: `v8 is live · {name} undid v7: {v7's summary}` or `{name} brought back v3: {v3's summary}` |
-| Restore card | `v8 is live` · `Peak undid Ziggy's v7` (`your v7`, or `v7` when it was their own; `You` for the reader) + v7's summary · `See it` · `Bring back v7` (after a bring-back: `Undo`) |
-| Origin row | `{name} made {app}` + their first request, or `{name} forked {app} from {source} v3` + `Same code, a copy of the data. Change anything.` |
+| Where                                                          | String                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home input placeholder                                         | `Make something`, then after 1.2s idle an example every 3.2s, each fading in whole and short ("a guestbook of tiny planets", "a frog choir, one note per person", ...); an example that would not fit the field whole at its width is skipped, until the person taps or types in the field     |
+| Home submit                                                    | `Make it`                                                                                                                                                                                                                                                                                      |
+| Home lede                                                      | `Describe an app and Clay builds it in seconds. Anyone with the link can change it by chatting, and everyone sees it change.`                                                                                                                                                                  |
+| Starter row label                                              | `Or start with`                                                                                                                                                                                                                                                                                |
+| Home feed heading                                              | `Right now`                                                                                                                                                                                                                                                                                    |
+| Gallery heading                                                | `Busy right now` when anyone is in an app, else `Made recently`                                                                                                                                                                                                                                |
+| Capsule button                                                 | `Change it`                                                                                                                                                                                                                                                                                    |
+| First-visit hint                                               | 2+ here: `{N} people are in here. Open the room to watch them or change the app.` · alone: `Anyone with this link can change this app. Say what you'd change.`                                                                                                                                 |
+| Composer modes                                                 | `Auto` · `Change it` · `Just chat`                                                                                                                                                                                                                                                             |
+| Composer placeholder                                           | Auto: `Say anything, or ask for a change` · Change it: `What should change?` · Just chat: `Say something` (beside the folded mode chip on narrow screens, Auto is `Say anything`)                                                                                                              |
+| Composer hint                                                  | Auto: `Clay decides whether it's a change or just chat` · Change it: `Goes live for everyone` · Just chat: `Clay stays out of it`                                                                                                                                                              |
+| Queued row                                                     | `Starting` (nothing ahead of it) or `2nd in line` (ordinal, counting the build running ahead)                                                                                                                                                                                                  |
+| Sheet peek                                                     | `Building v15` · `0:06` · {current step} · `v15 going live` · then `v15 is live` · {summary} · `Undo`                                                                                                                                                                                          |
+| Capsule callout                                                | {what was said}, then `Starting` / `2nd in line` / `Building v15` / `v15 going live` with the asker's face and name, then `v15 is live` · {summary} · `Try it {what to do}` · `Undo` · `Open`                                                                                                  |
+| Opening narration line                                         | `Thinking about {the request, verb first, six words}` ("Thinking about making the bass frog wobble whenever…")                                                                                                                                                                                 |
+| A version's summary (Clay writes it)                           | one present-tense sentence starting with a verb, under 70 characters, naming the most visible change: `Makes the count rounder and adds a warm glow`; detail goes in the step lines. A first build says what the app is                                                                        |
+| What a version did (feed rows, gallery card meta)              | `{name} {what it did}`: a first build `made it`, any other build its summary from its first word in lower case (`Tango turns the scoreboard gold`), a restore `undid v14: {summary}` or `brought back v12`, a fork `forked it from {app}`, a starter `started it`. Never a bare version number |
+| Feed row                                                       | `{name} {what it did}` over `{app} · 2 min ago`, or `{app} · live now` for the live version within 5 min                                                                                                                                                                                       |
+| Building card                                                  | `Building v15`; once live on the server and on its way to the screen, `v15 going live`                                                                                                                                                                                                         |
+| Live card                                                      | `v15 is live`                                                                                                                                                                                                                                                                                  |
+| Live card meta                                                 | `Built in 0:24 · 2 files changed`                                                                                                                                                                                                                                                              |
+| Failed card                                                    | `Didn't make it`; folded once a newer version lands: `! Didn't make it · {request} · 7:18` with Dusk's face                                                                                                                                                                                    |
+| Clay declines a request                                        | the request as a chat row, then Clay's row with its reason and `Edit` (never a failed card); capsule title `Clay left it as is`                                                                                                                                                                |
+| Triage pending (Auto)                                          | `Clay is reading this` under the message, with the 16px blob                                                                                                                                                                                                                                   |
+| Triage could not decide                                        | Clay replies `I couldn't tell if that was a change. Send it with Change it if it was.`                                                                                                                                                                                                         |
+| A heard change can't be queued                                 | Clay replies with the refusal plus ` Chat still works.`; past the build rate: `That's a lot of changes in a few minutes. Ask again in {N} min and I'll build it. Chat still works.`                                                                                                            |
+| App failed to load                                             | `v26 didn't load` + the app's own error, or `It may be the connection. Try again in a moment.`; `Try again` · `Show v25` · `Fix it` (Fix it only with an error)                                                                                                                                |
+| Boot can't reach the backend                                   | after 5s: `Can't reach Clayground. Trying again` + dots, `Try again`                                                                                                                                                                                                                           |
+| Offline                                                        | room header `Reconnecting` + dots; capsule `Offline` with a muted ring, tooltip `Reconnecting. Messages send once it's back.`; a busy button past 8s offline `Waiting for connection`                                                                                                          |
+| Composer near the cap                                          | `1899/2000` from 1800 characters, send disabled past 2000                                                                                                                                                                                                                                      |
+| Live card actions                                              | `See it` · `Undo`; on the maker's own first version, `Copy link` (then `Copied`) · `See it`, under the line `Anyone with the link can change it. Send it to a friend.`                                                                                                                         |
+| Room header while Clay makes the first version                 | `Making` (spinner); a first build that failed leaves `Not made yet`                                                                                                                                                                                                                            |
+| First build column                                             | `{name} asked for` · {the request} · Clay's steps · `Clay is making it · 0:24`, then `Going live`                                                                                                                                                                                              |
+| Viewing pill / past bar                                        | `v12` + its summary; under it `Only you see this. Make it live or fork it to use it.`, with company the first sentence is `Peak is here too` (`Peak and Juniper are here too`, `3 others are here too`); the buttons say the rest: `Make v12 live` · `Fork from here` · `Back to live`         |
+| Sheet past row (phone)                                         | `You're viewing v12, nobody else is` · `You and Peak are viewing v12` · `You, Peak and Juniper are viewing v12` · `You and 3 others are viewing v12`                                                                                                                                           |
+| What making a version live does (peek line, Make live tooltip) | `Everyone sees v3. Takes out v4 to v6: {v6's summary}` (`Takes out v6: …` for one)                                                                                                                                                                                                             |
+| Peek actions                                                   | `View` · `Make v12 live` · `Fork from here`                                                                                                                                                                                                                                                    |
+| A version's summary (folded rows, peek, timeline labels)       | a build its summary; a restore with its verb: `Undid v7: {summary}` or `Brought back v3: {summary}`                                                                                                                                                                                            |
+| Forks of a version (peek, fork modal)                          | `Iris forked this into {fork}` (`You` for the reader, `, and 2 more`); in the modal followed by `. Join it, or make your own.`                                                                                                                                                                 |
+| Fork modal                                                     | title `Fork v12`, lede `A new app with v12's code and a copy of today's data. Its own room, its own link.`, button `Fork it`                                                                                                                                                                   |
+| Room header while viewing                                      | `Viewing v12` · `v14 is live`                                                                                                                                                                                                                                                                  |
+| Fork note in source room                                       | `{name} forked v12 into {fork name}`                                                                                                                                                                                                                                                           |
+| Lineage line                                                   | `forked from {app} v12`                                                                                                                                                                                                                                                                        |
+| Picker title                                                   | `Who are you today?`                                                                                                                                                                                                                                                                           |
+| Picker buttons                                                 | `Surprise me` · `Be {name}`                                                                                                                                                                                                                                                                    |
+| New version toast (clean link)                                 | `v15 is live · {name}: {summary}`; a restore: `v8 is live · {name} undid v7: {v7's summary}` or `{name} brought back v3: {v3's summary}`                                                                                                                                                       |
+| Restore card                                                   | `v8 is live` · `Peak undid Ziggy's v7` (`your v7`, or `v7` when it was their own; `You` for the reader) + v7's summary · `See it` · `Bring back v7` (after a bring-back: `Undo`)                                                                                                               |
+| Origin row                                                     | `{name} made {app}` + their first request, or `{name} forked {app} from {source} v3` + `Same code, a copy of the data. Change anything.`                                                                                                                                                       |
 
 ## 4. Tokens
 
@@ -137,14 +137,14 @@ All tokens live in `src/styles/tokens.css` as CSS custom properties on
 ```css
 :root {
   /* neutrals: warm paper, never pure white or neutral gray */
-  --paper: #f7f3ec;        /* page, room panel, timeline dock, composer */
-  --surface: #fffdf9;      /* cards, inputs, popovers, capsule, toast */
-  --sunk: #efe9df;         /* chips, tracks, segmented control, hover fill */
-  --line: #e5ddd0;         /* hairlines */
-  --line-2: #d4c9b8;       /* input borders, dividers that must read, ticks */
-  --ink: #2b2520;          /* text, ink buttons, the viewing frame */
-  --ink-2: #665c53;        /* secondary text */
-  --ink-3: #776b60;        /* meta, timestamps, hints, placeholder */
+  --paper: #f7f3ec; /* page, room panel, timeline dock, composer */
+  --surface: #fffdf9; /* cards, inputs, popovers, capsule, toast */
+  --sunk: #efe9df; /* chips, tracks, segmented control, hover fill */
+  --line: #e5ddd0; /* hairlines */
+  --line-2: #d4c9b8; /* input borders, dividers that must read, ticks */
+  --ink: #2b2520; /* text, ink buttons, the viewing frame */
+  --ink-2: #665c53; /* secondary text */
+  --ink-3: #776b60; /* meta, timestamps, hints, placeholder */
 
   /* persimmon: Clay, and the actions that start Clay's work */
   --accent: #c4491f;
@@ -154,13 +154,13 @@ All tokens live in `src/styles/tokens.css` as CSS custom properties on
   /* live: used small, as a dot, a label, a tick or a 2px line; never a fill */
   --live: #277548;
   --live-soft: #e3f0e6;
-  --live-line: #bfdcc8;    /* the live card's hairline */
-  --live-fold: #a8cdb4;    /* the bar on a collapsed live row */
+  --live-line: #bfdcc8; /* the live card's hairline */
+  --live-fold: #a8cdb4; /* the bar on a collapsed live row */
 
   /* overlays */
-  --scrim: rgba(43, 37, 32, .32);
-  --glass: rgba(255, 253, 249, .94);   /* capsule, toast, badges over the app */
-  --shadow-tint: 70, 45, 20;           /* rgb of every shadow */
+  --scrim: rgba(43, 37, 32, 0.32);
+  --glass: rgba(255, 253, 249, 0.94); /* capsule, toast, badges over the app */
+  --shadow-tint: 70, 45, 20; /* rgb of every shadow */
 }
 ```
 
@@ -193,8 +193,9 @@ of first paint.
 
 ```css
 :root {
-  --ui: "Commissioner", system-ui, sans-serif;     /* variable, 400 to 700 */
-  --mono: "Recursive Mono", ui-monospace, monospace; /* Recursive at MONO 1, CASL 0, weight 500 */
+  --ui: "Commissioner", system-ui, sans-serif; /* variable, 400 to 700 */
+  --mono:
+    "Recursive Mono", ui-monospace, monospace; /* Recursive at MONO 1, CASL 0, weight 500 */
 }
 ```
 
@@ -207,20 +208,20 @@ of first paint.
 - **Recursive Mono** is only for things that are literally code or
   addresses: file chips, element chips, URLs, the running timer, keycaps.
 
-| Token | Face | Size / line-height | Weight | Use |
-|---|---|---|---|---|
-| `--t-hero` | ui | 46 / 1.05, tracking -.02em | 700 | home headline (34 on mobile), the one display line on the page |
-| `--t-h1` | ui | 24 / 1.1 | 700 | home section heads, 404 title (32 there) |
-| `--t-h2` | ui | 20 / 1.1 | 700 | peek version number, fork modal title, picker title (24 there) |
-| `--t-h3` | ui | 18 / 1.2 | 700 | room header app name, wordmark (20) |
-| `--t-card` | ui | 14.5 / 1.2 | 650 | build card titles, collapsed version label (13), ordinals (12) |
-| `--t-input-lg` | ui | 21 / 1.3 | 500 | home input |
-| `--t-lede` | ui | 18 / 1.5 | 400 | home lede |
-| `--t-body` | ui | 14 / 1.45 | 400 | chat text, summaries (500 on the live card), narration (13.5) |
-| `--t-name` | ui | 13.5 / 1.3 | 650 | names in chat, gallery card names (15) |
-| `--t-label` | ui | 13 / 1.2 | 600 | buttons, chips, mode switch (12.5), capsule |
-| `--t-meta` | ui | 12 / 1.35 | 400 | timestamps, counts, hints, `--ink-3` |
-| `--t-mono` | mono | 11.5 / 1.4 | 500 | element and file chips, URLs, timer, keycaps (10.5) |
+| Token          | Face | Size / line-height         | Weight | Use                                                            |
+| -------------- | ---- | -------------------------- | ------ | -------------------------------------------------------------- |
+| `--t-hero`     | ui   | 46 / 1.05, tracking -.02em | 700    | home headline (34 on mobile), the one display line on the page |
+| `--t-h1`       | ui   | 24 / 1.1                   | 700    | home section heads, 404 title (32 there)                       |
+| `--t-h2`       | ui   | 20 / 1.1                   | 700    | peek version number, fork modal title, picker title (24 there) |
+| `--t-h3`       | ui   | 18 / 1.2                   | 700    | room header app name, wordmark (20)                            |
+| `--t-card`     | ui   | 14.5 / 1.2                 | 650    | build card titles, collapsed version label (13), ordinals (12) |
+| `--t-input-lg` | ui   | 21 / 1.3                   | 500    | home input                                                     |
+| `--t-lede`     | ui   | 18 / 1.5                   | 400    | home lede                                                      |
+| `--t-body`     | ui   | 14 / 1.45                  | 400    | chat text, summaries (500 on the live card), narration (13.5)  |
+| `--t-name`     | ui   | 13.5 / 1.3                 | 650    | names in chat, gallery card names (15)                         |
+| `--t-label`    | ui   | 13 / 1.2                   | 600    | buttons, chips, mode switch (12.5), capsule                    |
+| `--t-meta`     | ui   | 12 / 1.35                  | 400    | timestamps, counts, hints, `--ink-3`                           |
+| `--t-mono`     | mono | 11.5 / 1.4                 | 500    | element and file chips, URLs, timer, keycaps (10.5)            |
 
 Body text color is `--ink`, `-webkit-font-smoothing: antialiased`,
 `text-rendering: optimizeLegibility`.
@@ -230,22 +231,35 @@ Body text color is `--ink`, `-webkit-font-smoothing: antialiased`,
 ```css
 :root {
   /* 4px base; 2px steps allowed inside dense rows */
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
-  --s6: 24px; --s8: 32px; --s12: 48px; --s16: 64px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --s16: 64px;
 
-  --r-xs: 5px;    /* keycaps, ordinals */
-  --r-sm: 6px;    /* element and file chips, segmented options */
-  --r-md: 10px;   /* buttons (8 at 30px tall), queued and collapsed rows, faces 28-32 */
-  --r-lg: 14px;   /* build cards, gallery tiles, peek, callout */
-  --r-xl: 18px;   /* home maker bar, modals */
+  --r-xs: 5px; /* keycaps, ordinals */
+  --r-sm: 6px; /* element and file chips, segmented options */
+  --r-md: 10px; /* buttons (8 at 30px tall), queued and collapsed rows, faces 28-32 */
+  --r-lg: 14px; /* build cards, gallery tiles, peek, callout */
+  --r-xl: 18px; /* home maker bar, modals */
   --r-pill: 999px;
 
   --hair: 1px solid var(--line);
   --hair-2: 1px solid var(--line-2);
 
-  --shadow-sm: 0 1px 2px rgba(var(--shadow-tint), .06), 0 0 0 1px rgba(var(--shadow-tint), .02);
-  --shadow-md: 0 8px 24px -10px rgba(var(--shadow-tint), .22), 0 2px 5px rgba(var(--shadow-tint), .06);
-  --shadow-lg: 0 24px 60px -18px rgba(var(--shadow-tint), .35), 0 4px 10px rgba(var(--shadow-tint), .08);
+  --shadow-sm:
+    0 1px 2px rgba(var(--shadow-tint), 0.06),
+    0 0 0 1px rgba(var(--shadow-tint), 0.02);
+  --shadow-md:
+    0 8px 24px -10px rgba(var(--shadow-tint), 0.22),
+    0 2px 5px rgba(var(--shadow-tint), 0.06);
+  --shadow-lg:
+    0 24px 60px -18px rgba(var(--shadow-tint), 0.35),
+    0 4px 10px rgba(var(--shadow-tint), 0.08);
 }
 ```
 
@@ -275,8 +289,13 @@ Body text color is `--ink`, `-webkit-font-smoothing: antialiased`,
 
 ```css
 :root {
-  --ease-out: cubic-bezier(.2, .8, .2, 1);   /* moving, settling, leaving */
-  --ease-pop: cubic-bezier(.3, 1.35, .6, 1); /* the celebration and toasts only */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); /* moving, settling, leaving */
+  --ease-pop: cubic-bezier(
+    0.3,
+    1.35,
+    0.6,
+    1
+  ); /* the celebration and toasts only */
   --t-press: 120ms;
   --t-quick: 150ms;
   --t-move: 250ms;
@@ -305,7 +324,7 @@ Principles:
      over 550ms `--ease-pop` (when the building card turns into the live
      card in place, it only scales from .985);
    - a green ring breathes out from the card: `box-shadow 0 0 0 0
-     rgba(45,134,83,.35)` to `0 0 0 14px rgba(45,134,83,0)` over 1.4s
+rgba(45,134,83,.35)` to `0 0 0 14px rgba(45,134,83,0)` over 1.4s
      ease-out, starting at 200ms;
    - where the change landed lights up: Clay names the element its change
      is about when it finishes, and the app draws a soft `--live` ring
@@ -321,7 +340,7 @@ Principles:
    - on the clean link, the capsule's callout turns into the live callout
      (6.2) where the asker is watching; only a landing it could not show
      gets the toast, after 400ms.
-   Nothing else in the product celebrates.
+     Nothing else in the product celebrates.
 4. **The app never jumps.** A new live version cross-fades: preload the new
    iframe hidden; when its SDK says it has painted (rendered, every live
    query it reads answered, two frames drawn; or after 4s) fade it in over
@@ -469,6 +488,7 @@ Content column 1200px max, 64px side padding (24 on mobile).
    the live version within 5 min). Hover sunk. New rows slide in at the top
    over `--t-arrive`. Each row links to the app. Below 1024px the hero is one
    column and the feed follows the starters.
+
 3. **Gallery**, 48px under the hero. Heading in the UI face, 20/650, "Busy
    right now" when anyone is in an app, else "Made recently", with a
    right-aligned meta line (`LiveDot` + "41 people building in 12 apps",
@@ -729,7 +749,7 @@ Messages are rows, not bubbles. A room scrolled for an hour reads like a log.
   face spans both lines (2px top offset). Line one: name `--t-name` + time
   12/400 ink-3 ("now", "2m", "4:12"). Line two: text `--t-body`. Hover tints
   the row `rgba(239,233,223,.55)`. Long words break (`overflow-wrap:
-  anywhere`); URLs become links (ink, underline `--line-2`).
+anywhere`); URLs become links (ink, underline `--line-2`).
 - **You:** the same row, with "you" in 12/500 ink-3 after your name. Your
   messages are never right-aligned or filled.
 - **Grouping:** consecutive messages from the same person within 2 minutes
@@ -892,8 +912,7 @@ on open.
   or focus. A restore shows its restorer's face with a 12px surface badge holding a
   restore glyph at its bottom right (the ring-in-ring mark in dot mode).
 - **Live:** a 13px green dot with a 4px `--live-soft` ring (in face mode, the
-  face at full color with a 2px green ring); the label "v15 live" in green
-  600.
+  face at full color with a 2px green ring); the label "v15 live" in green 600.
 - **Building:** after the live mark, a 15px dashed persimmon circle (1.5px),
   empty, only while a build runs.
 - **Restore:** a ring-in-ring mark (surface, ink-3 at 1.5px, gap, ink-3 again).

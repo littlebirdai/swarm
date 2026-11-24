@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "./useQueryNoThrow";
-import { isConvexId, sessionRowFromConversation, type InboxSession } from "../store/inboxStore";
+import {
+  isConvexId,
+  sessionRowFromConversation,
+  type InboxSession,
+} from "../store/inboxStore";
 
 /**
  * A session the store does not hold (a teammate's, or one outside the inbox
@@ -12,7 +16,9 @@ import { isConvexId, sessionRowFromConversation, type InboxSession } from "../st
  * No-throw: the id often comes straight from a URL or a deep link, so a
  * server rejection must degrade to "unavailable", not crash the surface.
  */
-export function useMissingSessionRow(id: string | null): InboxSession | null | undefined {
+export function useMissingSessionRow(
+  id: string | null,
+): InboxSession | null | undefined {
   return useMissingSessionLookup(id).row;
 }
 
@@ -21,7 +27,10 @@ export function useMissingSessionRow(id: string | null): InboxSession | null | u
  * than an answer: nothing is known about the row then, so a surface that says
  * why it cannot open the session must not claim it was deleted or withheld.
  */
-export function useMissingSessionLookup(id: string | null): { row: InboxSession | null | undefined; failed: boolean } {
+export function useMissingSessionLookup(id: string | null): {
+  row: InboxSession | null | undefined;
+  failed: boolean;
+} {
   const valid = !!id && isConvexId(id);
   const { data, error } = useQueryNoThrow(
     api.conversations.getConversation,

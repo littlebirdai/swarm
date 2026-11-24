@@ -25,14 +25,22 @@ function orgConversationOwners(tree: OrgTree | null): Map<string, OrgRole> {
  *  The asking session's own `org_role_id` (the live store row) names its role
  *  too, so a session filed since the tree last listed sessions still counts,
  *  and a roles-only tree (org.roles, fed on every page) is enough. */
-export function orgDecisions(tree: OrgTree | null, queue: readonly QueueItem[]): { item: QueueItem; role: OrgRole }[] {
+export function orgDecisions(
+  tree: OrgTree | null,
+  queue: readonly QueueItem[],
+): { item: QueueItem; role: OrgRole }[] {
   const owners = orgConversationOwners(tree);
-  const live = new Map((tree?.roles ?? []).filter((r) => r.status !== "retired").map((r) => [r._id, r]));
+  const live = new Map(
+    (tree?.roles ?? [])
+      .filter((r) => r.status !== "retired")
+      .map((r) => [r._id, r]),
+  );
   const out: { item: QueueItem; role: OrgRole }[] = [];
   for (const item of [...queue].sort((a, b) => a.createdAt - b.createdAt)) {
     if (item.heldByRole) continue;
     const filed = item.session?.org_role_id;
-    const role = owners.get(item.conversationId) ?? (filed ? live.get(filed) : undefined);
+    const role =
+      owners.get(item.conversationId) ?? (filed ? live.get(filed) : undefined);
     if (role) out.push({ item, role });
   }
   return out;
@@ -42,5 +50,11 @@ export function orgDecisions(tree: OrgTree | null, queue: readonly QueueItem[]):
  *  anything else opens its conversation. */
 export function canAnswerInPlace(item: QueueItem): boolean {
   const single = !item.kind || item.kind === "single";
-  return item.source === "decide" && single && !!item.decisionId && item.options.length > 0 && item.options.length <= IN_PLACE_OPTIONS;
+  return (
+    item.source === "decide" &&
+    single &&
+    !!item.decisionId &&
+    item.options.length > 0 &&
+    item.options.length <= IN_PLACE_OPTIONS
+  );
 }

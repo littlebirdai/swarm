@@ -5,7 +5,11 @@
  * same steps; each surface only decides how they look.
  */
 
-import { BROWSER_EXTENSION_STORE_URL, type AgentSetupTool, type AgentToolSetupStatus } from "@codecast/shared/contracts";
+import {
+  BROWSER_EXTENSION_STORE_URL,
+  type AgentSetupTool,
+  type AgentToolSetupStatus,
+} from "@codecast/shared/contracts";
 
 export interface AgentSetupStep {
   label: string;
@@ -34,14 +38,18 @@ function browserSteps(s: BrowserStatus | undefined): AgentSetupStep[] {
     {
       label: "Pair it with this machine",
       next: "pair it",
-      hint: s?.paired && !s.connected
-        ? s.chrome_running
-          ? "Paired before but not answering: pair again, or reload it at chrome://extensions."
-          : "Chrome is not running. Pairing starts it."
-        : "Opens the extension in Chrome; click Pair there.",
+      hint:
+        s?.paired && !s.connected
+          ? s.chrome_running
+            ? "Paired before but not answering: pair again, or reload it at chrome://extensions."
+            : "Chrome is not running. Pairing starts it."
+          : "Opens the extension in Chrome; click Pair there.",
       done: !!s?.connected,
       // Pairing an extension that is not there only opens an error page.
-      action: s?.installed === false ? undefined : { label: s?.paired ? "Pair again" : "Pair", start: true },
+      action:
+        s?.installed === false
+          ? undefined
+          : { label: s?.paired ? "Pair again" : "Pair", start: true },
     },
   ];
 }
@@ -66,7 +74,10 @@ function computerSteps(s: ComputerStatus | undefined): AgentSetupStep[] {
   ];
 }
 
-export function agentSetupSteps(tool: AgentSetupTool, status: AgentToolSetupStatus | undefined): AgentSetupStep[] {
+export function agentSetupSteps(
+  tool: AgentSetupTool,
+  status: AgentToolSetupStatus | undefined,
+): AgentSetupStep[] {
   return tool === "browser"
     ? browserSteps(status as BrowserStatus | undefined)
     : computerSteps(status as ComputerStatus | undefined);
@@ -84,17 +95,30 @@ export interface ThisProfileExtension {
  * some profile is. A setup page open in a profile whose own extension is not
  * connected must not say Ready, so that profile's word wins when it spoke.
  */
-export function withThisProfile(status: AgentToolSetupStatus | undefined, ext: ThisProfileExtension | null): AgentToolSetupStatus | undefined {
+export function withThisProfile(
+  status: AgentToolSetupStatus | undefined,
+  ext: ThisProfileExtension | null,
+): AgentToolSetupStatus | undefined {
   if (!ext || status?.tool !== "browser") return status;
-  return { ...status, installed: true, connected: ext.connected, ready: ext.connected, paired: ext.connected || (status.paired && ext.state !== "no-config") };
+  return {
+    ...status,
+    installed: true,
+    connected: ext.connected,
+    ready: ext.connected,
+    paired: ext.connected || (status.paired && ext.state !== "no-config"),
+  };
 }
 
 /** Reads the extension's note off the page, or null when this profile's extension wrote none (not installed, or a build before 0.1.8). */
-export function readThisProfileExtension(raw: string | undefined): ThisProfileExtension | null {
+export function readThisProfileExtension(
+  raw: string | undefined,
+): ThisProfileExtension | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as Partial<ThisProfileExtension>;
-    return typeof v.state === "string" ? { state: v.state, connected: !!v.connected, version: v.version } : null;
+    return typeof v.state === "string"
+      ? { state: v.state, connected: !!v.connected, version: v.version }
+      : null;
   } catch {
     return null;
   }

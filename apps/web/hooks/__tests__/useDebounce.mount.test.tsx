@@ -10,8 +10,15 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
@@ -46,7 +53,10 @@ afterEach(async () => {
   await act(async () => root.unmount());
 });
 
-const wait = (ms: number) => act(async () => { await new Promise((r) => realSetTimeout(r, ms)); });
+const wait = (ms: number) =>
+  act(async () => {
+    await new Promise((r) => realSetTimeout(r, ms));
+  });
 
 test("mounting arms no timer and renders once", async () => {
   await act(async () => root.render(<Probe value="" />));
@@ -69,5 +79,9 @@ test("a value typed back to the debounced one before the delay leaves nothing pe
   await act(async () => root.render(<Probe value="a" />));
   const renders = seen.length;
   await wait(DELAY * 3);
-  expect({ armed, renders: seen.length, value: seen.at(-1) }).toEqual({ armed: 1, renders, value: "a" });
+  expect({ armed, renders: seen.length, value: seen.at(-1) }).toEqual({
+    armed: 1,
+    renders,
+    value: "a",
+  });
 });

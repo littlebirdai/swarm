@@ -3,7 +3,16 @@
 // real `cast flow intent-verify` code (intentCommands.intentVerify) against a fake server,
 // which also stands in for the model. Only a model answer that clears, and a
 // server that accepts its citation, reach Cleared; everything else reaches Ask.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -29,11 +38,20 @@ const FLOW = `digraph intentcase {
 }`;
 
 const ASKER = {
-  chain: [], starter_id: "u_ana", starter_name: "Ana",
+  chain: [],
+  starter_id: "u_ana",
+  starter_name: "Ana",
   typed: [{ short_id: "jx7lead", line: 115, provenance: "typed_local" }],
   text: "[jx7lead:115] Ana (typed_local): Yes, ship this and shepherd it into production.",
 };
-const SHIP = { ship: true, session: "jx7lead", line: 115, quote: "Yes, ship this and shepherd it into production.", in_scope: true, why: "Ana said ship it's fine; it's in scope." };
+const SHIP = {
+  ship: true,
+  session: "jx7lead",
+  line: 115,
+  quote: "Yes, ship this and shepherd it into production.",
+  in_scope: true,
+  why: "Ana said ship it's fine; it's in scope.",
+};
 
 describe("the intent segment", () => {
   let server: ReturnType<typeof Bun.serve>;
@@ -55,7 +73,14 @@ describe("the intent segment", () => {
         seen.push({ route, body: structuredClone(body) });
         if (route === "/cli/model/call") return Response.json(model);
         if (route === "/cli/intent/verify") return Response.json(clearAnswer);
-        if (route === "/cli/work/get") return Response.json({ short_id: "ct-7", title: "Fix the deploys page", description: "Three bugs on /admin/deploys", status: "open", steps: [] });
+        if (route === "/cli/work/get")
+          return Response.json({
+            short_id: "ct-7",
+            title: "Fix the deploys page",
+            description: "Three bugs on /admin/deploys",
+            status: "open",
+            steps: [],
+          });
         return Response.json({});
       },
     });
@@ -68,7 +93,12 @@ describe("the intent segment", () => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "intent-"));
     repo = path.join(tmp, "repo");
     fs.mkdirSync(repo);
-    const git = (...a: string[]) => spawnSync("git", ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", ...a], { encoding: "utf-8" });
+    const git = (...a: string[]) =>
+      spawnSync(
+        "git",
+        ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", ...a],
+        { encoding: "utf-8" },
+      );
     git("init", "-q");
     git("commit", "-q", "--allow-empty", "-m", "base");
     // The change's branch, one commit past the base.
@@ -79,7 +109,9 @@ describe("the intent segment", () => {
     const bin = path.join(tmp, "bin");
     fs.mkdirSync(bin);
     // The fake cast: canned answers for the reads, the real check for `flow intent-verify`.
-    fs.writeFileSync(path.join(bin, "cast"), `#!/usr/bin/env bun
+    fs.writeFileSync(
+      path.join(bin, "cast"),
+      `#!/usr/bin/env bun
 const fs = require("fs");
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
@@ -106,11 +138,27 @@ if (verb === "flow intent-verify") {
 }
 if (verb === "task comment") process.exit(0);
 console.error("fake cast: unplanned " + verb); process.exit(9);
-`, { mode: 0o755 });
+`,
+      { mode: 0o755 },
+    );
     process.env.PATH = `${bin}:${original.path}`;
-    console.log = (...a: unknown[]) => { out.push(a.join(" ")); };
-    model = { ok: true, text: JSON.stringify(SHIP), json: SHIP, cost_usd: 0.01, model: "claude-opus-5-5" };
-    clearAnswer = { starter_id: "u_ana", starter_name: "Ana", cite: "jx7lead:115", quote: SHIP.quote, said_at: 1 };
+    console.log = (...a: unknown[]) => {
+      out.push(a.join(" "));
+    };
+    model = {
+      ok: true,
+      text: JSON.stringify(SHIP),
+      json: SHIP,
+      cost_usd: 0.01,
+      model: "claude-opus-5-5",
+    };
+    clearAnswer = {
+      starter_id: "u_ana",
+      starter_name: "Ana",
+      cite: "jx7lead:115",
+      quote: SHIP.quote,
+      said_at: 1,
+    };
   });
   afterEach(() => {
     console.log = original.log;
@@ -124,30 +172,68 @@ console.error("fake cast: unplanned " + verb); process.exit(9);
   /** Freeze a change for the run, as `cast flow run` does; `conversation` is its session, absent from a plain shell. */
   const freeze = (conversation: string | null, branch = "fix-deploys") => {
     fs.mkdirSync(runDir(), { recursive: true });
-    fs.writeFileSync(path.join(runDir(), "change.json"), JSON.stringify({
-      source: "branch", branch, worktree: "fix-deploys", base: "b", tip: "t", paths: [], shared: [], held: [],
-      ...(conversation ? { conversation, session: "jx7lead" } : {}),
-    }));
+    fs.writeFileSync(
+      path.join(runDir(), "change.json"),
+      JSON.stringify({
+        source: "branch",
+        branch,
+        worktree: "fix-deploys",
+        base: "b",
+        tip: "t",
+        paths: [],
+        shared: [],
+        held: [],
+        ...(conversation ? { conversation, session: "jx7lead" } : {}),
+      }),
+    );
   };
-  const run = async (conversation: string | null = "conv_lead", branch?: string) => {
+  const run = async (
+    conversation: string | null = "conv_lead",
+    branch?: string,
+  ) => {
     freeze(conversation, branch);
-    const outcome = await runWorkflow(parseWorkflowSource(FLOW), { cwd: repo, taskId: "ct-7", runId: "run_1", apiToken: "tok", convexSiteUrl: server.url.origin, pollIntervalMs: 1 });
+    const outcome = await runWorkflow(parseWorkflowSource(FLOW), {
+      cwd: repo,
+      taskId: "ct-7",
+      runId: "run_1",
+      apiToken: "tok",
+      convexSiteUrl: server.url.origin,
+      pollIntervalMs: 1,
+    });
     expect(outcome).toBe("completed");
     // The station's own output, not the runner's echo of its script.
-    const routed = out.filter((l) => /ROUTE=/.test(l) && !l.includes("echo")).map((l) => l.match(/ROUTE=(\w+)/)![1]);
+    const routed = out
+      .filter((l) => /ROUTE=/.test(l) && !l.includes("echo"))
+      .map((l) => l.match(/ROUTE=(\w+)/)![1]);
     expect(routed).toHaveLength(1);
     return routed[0];
   };
-  const casts = () => (fs.existsSync(log) ? fs.readFileSync(log, "utf-8").trim().split("\n").map((l) => JSON.parse(l)) : []);
+  const casts = () =>
+    fs.existsSync(log)
+      ? fs
+          .readFileSync(log, "utf-8")
+          .trim()
+          .split("\n")
+          .map((l) => JSON.parse(l))
+      : [];
   const clears = () => seen.filter((s) => s.route === "/cli/intent/verify");
   const intentFile = () => path.join(runDir(), "intent.json");
-  const head = () => spawnSync("git", ["-C", repo, "rev-parse", "fix-deploys"], { encoding: "utf-8" }).stdout.trim();
+  const head = () =>
+    spawnSync("git", ["-C", repo, "rev-parse", "fix-deploys"], {
+      encoding: "utf-8",
+    }).stdout.trim();
 
   test("the shipped segment validates, and composed it reads the asker, the change and the run's task", async () => {
-    expect(validateWorkflow(parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.intent))).toEqual([]);
+    expect(
+      validateWorkflow(parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.intent)),
+    ).toEqual([]);
     expect(await run()).toBe("landed");
     const call = seen.find((s) => s.route === "/cli/model/call")!.body;
-    expect(call).toMatchObject({ model: "claude-opus-5-5", max_tokens: 2000, output: "json" });
+    expect(call).toMatchObject({
+      model: "claude-opus-5-5",
+      max_tokens: 2000,
+      output: "json",
+    });
     expect(call.prompt).toContain("The person who started this run is Ana.");
     expect(call.prompt).toContain(ASKER.text);
     expect(call.prompt).toContain("<task>\nFix the deploys page\n");
@@ -160,12 +246,45 @@ console.error("fake cast: unplanned " + verb); process.exit(9);
     fs.mkdirSync(runDir(), { recursive: true });
     const diffed = head();
     expect(await run()).toBe("landed");
-    expect(casts().find((a) => a[0] === "flow" && a[1] === "blind")).toEqual(
-      ["flow", "blind", "diff", "--base", "main", "--head", diffed, "--redact", "fix-deploys", "fix-deploys", "jx7lead", "conv_lead"],
-    );
-    expect(casts().find((a) => a[0] === "flow" && a[1] === "asker")).toEqual(["flow", "asker", "conv_lead", "--task", "ct-7", "--run", "run_1"]);
-    expect(clears().map((c) => c.body)).toEqual([{ api_token: "tok", run_id: "run_1", cite: { conversation_short_id: "jx7lead", line: 115 }, quote: SHIP.quote, head: diffed }]);
-    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8"))).toEqual({ starter_id: "u_ana", starter_name: "Ana", cite: "jx7lead:115", quote: SHIP.quote, head: diffed });
+    expect(casts().find((a) => a[0] === "flow" && a[1] === "blind")).toEqual([
+      "flow",
+      "blind",
+      "diff",
+      "--base",
+      "main",
+      "--head",
+      diffed,
+      "--redact",
+      "fix-deploys",
+      "fix-deploys",
+      "jx7lead",
+      "conv_lead",
+    ]);
+    expect(casts().find((a) => a[0] === "flow" && a[1] === "asker")).toEqual([
+      "flow",
+      "asker",
+      "conv_lead",
+      "--task",
+      "ct-7",
+      "--run",
+      "run_1",
+    ]);
+    expect(clears().map((c) => c.body)).toEqual([
+      {
+        api_token: "tok",
+        run_id: "run_1",
+        cite: { conversation_short_id: "jx7lead", line: 115 },
+        quote: SHIP.quote,
+        head: diffed,
+      },
+    ]);
+    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8"))).toEqual({
+      starter_id: "u_ana",
+      starter_name: "Ana",
+      cite: "jx7lead:115",
+      quote: SHIP.quote,
+      head: diffed,
+    });
   });
 
   test("a commit that lands on the branch after the read is not the head intent.json records", async () => {
@@ -173,25 +292,65 @@ console.error("fake cast: unplanned " + verb); process.exit(9);
     process.env.FAKE_MOVE_BRANCH = "1";
     expect(await run()).toBe("landed");
     expect(head()).not.toBe(diffed);
-    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8")).head).toBe(diffed);
+    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8")).head).toBe(
+      diffed,
+    );
   });
 
   test("an answer citing a card clears through the server's card check, and intent.json names the card", async () => {
-    const said = { ship: true, session: "", line: 0, card: "sd-4235", quote: "Ship both together", in_scope: true, why: "Ana chose to ship both on the card." };
+    const said = {
+      ship: true,
+      session: "",
+      line: 0,
+      card: "sd-4235",
+      quote: "Ship both together",
+      in_scope: true,
+      why: "Ana chose to ship both on the card.",
+    };
     model = { ...model, json: said };
     clearAnswer = { ...clearAnswer, cite: "card:sd-4235", quote: said.quote };
     const diffed = head();
     expect(await run()).toBe("landed");
-    expect(clears().map((c) => c.body)).toEqual([{ api_token: "tok", run_id: "run_1", card: "sd-4235", quote: said.quote, head: diffed }]);
-    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8"))).toEqual({ starter_id: "u_ana", starter_name: "Ana", cite: "card:sd-4235", quote: said.quote, head: diffed });
+    expect(clears().map((c) => c.body)).toEqual([
+      {
+        api_token: "tok",
+        run_id: "run_1",
+        card: "sd-4235",
+        quote: said.quote,
+        head: diffed,
+      },
+    ]);
+    expect(JSON.parse(fs.readFileSync(intentFile(), "utf-8"))).toEqual({
+      starter_id: "u_ana",
+      starter_name: "Ana",
+      cite: "card:sd-4235",
+      quote: said.quote,
+      head: diffed,
+    });
   });
 
   test("a card citation the server refuses asks, and says why on the task", async () => {
-    model = { ...model, json: { ...SHIP, session: "", line: 0, card: "sd-4235", quote: "Ship both together" } };
-    clearAnswer = { error: "Not verified: sd-4235 was answered by someone other than Ana who started the run" };
+    model = {
+      ...model,
+      json: {
+        ...SHIP,
+        session: "",
+        line: 0,
+        card: "sd-4235",
+        quote: "Ship both together",
+      },
+    };
+    clearAnswer = {
+      error:
+        "Not verified: sd-4235 was answered by someone other than Ana who started the run",
+    };
     expect(await run()).toBe("asked");
     expect(fs.existsSync(intentFile())).toBe(false);
-    expect(casts().filter((a) => a[0] === "task" && a[1] === "comment").map((a) => a[3])).toEqual([
+    expect(
+      casts()
+        .filter((a) => a[0] === "task" && a[1] === "comment")
+        .map((a) => a[3]),
+    ).toEqual([
       "Intent asks a person: the server did not verify the citation: Not verified: sd-4235 was answered by someone other than Ana who started the run",
     ]);
   });
@@ -205,37 +364,116 @@ console.error("fake cast: unplanned " + verb); process.exit(9);
 
   // Each ask, and the one line it leaves on the task saying why.
   const asks: Array<[string, () => void, string | null, string]> = [
-    ["ship false", () => { model = { ...model, json: { ...SHIP, ship: false, session: "", line: 0, quote: "", why: "Ana asked for the fix, not to ship it." } }; }, "conv_lead",
-      "Intent asks a person: Ana asked for the fix, not to ship it."],
-    ["out of scope", () => { model = { ...model, json: { ...SHIP, in_scope: false, why: "The change also rewrites contact records, which Ana never asked for." } }; }, "conv_lead",
-      "Intent asks a person: The change also rewrites contact records, which Ana never asked for."],
-    ["an answer that is not JSON", () => { model = { ok: true, text: "I think they wanted it shipped.", cost_usd: 0.01 }; }, "conv_lead",
-      "Intent asks a person: the intent read failed: the model's answer held no usable citation"],
-    ["no line cited", () => { model = { ...model, json: { ...SHIP, line: 0 } }; }, "conv_lead",
-      "Intent asks a person: the intent read failed: the model's answer held no usable citation"],
-    ["a failed model call", () => { model = { ok: false, reason: "budget", error: "no room", cost_usd: 0 }; }, "conv_lead",
-      "Intent asks a person: the intent read failed: no room"],
-    ["no session behind the change", () => {}, null,
-      "Intent asks a person: the intent read failed: no session started this change"],
-    ["a branch that does not resolve", () => {}, "conv_lead|no-such-branch",
-      "Intent asks a person: the intent read failed: the branch no-such-branch does not resolve to a commit here"],
-    ["the asker failing", () => { process.env.FAKE_ASKER_FAIL = "1"; }, "conv_lead",
-      "Intent asks a person: the intent read failed: Error: no /cli/sessions/originator route"],
-    ["the server refusing the citation", () => { clearAnswer = { error: "Not verified: jx7lead:115 is not a line a person typed" }; }, "conv_lead",
-      "Intent asks a person: the server did not verify the citation: Not verified: jx7lead:115 is not a line a person typed"],
+    [
+      "ship false",
+      () => {
+        model = {
+          ...model,
+          json: {
+            ...SHIP,
+            ship: false,
+            session: "",
+            line: 0,
+            quote: "",
+            why: "Ana asked for the fix, not to ship it.",
+          },
+        };
+      },
+      "conv_lead",
+      "Intent asks a person: Ana asked for the fix, not to ship it.",
+    ],
+    [
+      "out of scope",
+      () => {
+        model = {
+          ...model,
+          json: {
+            ...SHIP,
+            in_scope: false,
+            why: "The change also rewrites contact records, which Ana never asked for.",
+          },
+        };
+      },
+      "conv_lead",
+      "Intent asks a person: The change also rewrites contact records, which Ana never asked for.",
+    ],
+    [
+      "an answer that is not JSON",
+      () => {
+        model = {
+          ok: true,
+          text: "I think they wanted it shipped.",
+          cost_usd: 0.01,
+        };
+      },
+      "conv_lead",
+      "Intent asks a person: the intent read failed: the model's answer held no usable citation",
+    ],
+    [
+      "no line cited",
+      () => {
+        model = { ...model, json: { ...SHIP, line: 0 } };
+      },
+      "conv_lead",
+      "Intent asks a person: the intent read failed: the model's answer held no usable citation",
+    ],
+    [
+      "a failed model call",
+      () => {
+        model = { ok: false, reason: "budget", error: "no room", cost_usd: 0 };
+      },
+      "conv_lead",
+      "Intent asks a person: the intent read failed: no room",
+    ],
+    [
+      "no session behind the change",
+      () => {},
+      null,
+      "Intent asks a person: the intent read failed: no session started this change",
+    ],
+    [
+      "a branch that does not resolve",
+      () => {},
+      "conv_lead|no-such-branch",
+      "Intent asks a person: the intent read failed: the branch no-such-branch does not resolve to a commit here",
+    ],
+    [
+      "the asker failing",
+      () => {
+        process.env.FAKE_ASKER_FAIL = "1";
+      },
+      "conv_lead",
+      "Intent asks a person: the intent read failed: Error: no /cli/sessions/originator route",
+    ],
+    [
+      "the server refusing the citation",
+      () => {
+        clearAnswer = {
+          error: "Not verified: jx7lead:115 is not a line a person typed",
+        };
+      },
+      "conv_lead",
+      "Intent asks a person: the server did not verify the citation: Not verified: jx7lead:115 is not a line a person typed",
+    ],
   ];
-  const taskComments = () => casts().filter((a) => a[0] === "task" && a[1] === "comment");
+  const taskComments = () =>
+    casts().filter((a) => a[0] === "task" && a[1] === "comment");
   for (const [name, arrange, conversation, said] of asks) {
     test(`${name} asks, says why on the task, and leaves no intent.json`, async () => {
       fs.mkdirSync(runDir(), { recursive: true });
       // A stale clear from an earlier run never reads as this one's.
       fs.writeFileSync(intentFile(), '{"starter_id": "u_old"}');
       arrange();
-      const [conv, branch] = conversation ? conversation.split("|") : [null, undefined];
+      const [conv, branch] = conversation
+        ? conversation.split("|")
+        : [null, undefined];
       expect(await run(conv, branch)).toBe("asked");
       expect(fs.existsSync(intentFile())).toBe(false);
-      if (name !== "the server refusing the citation") expect(clears()).toEqual([]);
-      expect(taskComments()).toEqual([["task", "comment", "ct-7", said, "-t", "progress"]]);
+      if (name !== "the server refusing the citation")
+        expect(clears()).toEqual([]);
+      expect(taskComments()).toEqual([
+        ["task", "comment", "ct-7", said, "-t", "progress"],
+      ]);
     });
   }
 
@@ -245,9 +483,21 @@ console.error("fake cast: unplanned " + verb); process.exit(9);
   });
 
   test("the verify script quotes every value the model wrote", () => {
-    const clear = parseWorkflowSource(BUILTIN_WORKFLOW_TEMPLATES.intent).nodes.get("clear")!.script!;
-    const read = JSON.stringify({ ...SHIP, quote: "it's; rm -rf /", why: "$(whoami)" });
-    expect(expandScriptVars(clear, { run_id: "run_1", run_dir: "/r", "read.json": read })).toBe(
+    const clear = parseWorkflowSource(
+      BUILTIN_WORKFLOW_TEMPLATES.intent,
+    ).nodes.get("clear")!.script!;
+    const read = JSON.stringify({
+      ...SHIP,
+      quote: "it's; rm -rf /",
+      why: "$(whoami)",
+    });
+    expect(
+      expandScriptVars(clear, {
+        run_id: "run_1",
+        run_dir: "/r",
+        "read.json": read,
+      }),
+    ).toBe(
       `_head="$(cat '/r'/intent-head)" && cast flow intent-verify 'run_1' --cite 'jx7lead':'115' --quote 'it'\\''s; rm -rf /' --head "$_head" --record '/r'/intent.json`,
     );
   });

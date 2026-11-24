@@ -39,7 +39,9 @@ export function buildBlogFeed(posts: BlogPost[] = POSTS): string {
       ].join("\n");
     })
     .join("\n");
-  const lastBuild = sorted[0] ? `\n    <lastBuildDate>${rfc822(sorted[0].date)}</lastBuildDate>` : "";
+  const lastBuild = sorted[0]
+    ? `\n    <lastBuildDate>${rfc822(sorted[0].date)}</lastBuildDate>`
+    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>

@@ -14,7 +14,9 @@ export class AxisLayout {
   constructor(count: number, def: number, custom: Map<number, number>) {
     this.count = count;
     this.def = def;
-    const entries = [...custom.entries()].filter(([i]) => i >= 1 && i <= count).sort((a, b) => a[0] - b[0]);
+    const entries = [...custom.entries()]
+      .filter(([i]) => i >= 1 && i <= count)
+      .sort((a, b) => a[0] - b[0]);
     this.idx = entries.map((e) => e[0]);
     this.size = entries.map((e) => Math.max(0, e[1]));
     this.deltaBefore = [];
@@ -28,7 +30,8 @@ export class AxisLayout {
 
   /** Index of the first custom entry >= i. */
   private lower(i: number): number {
-    let lo = 0, hi = this.idx.length;
+    let lo = 0,
+      hi = this.idx.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       if (this.idx[mid] < i) lo = mid + 1;
@@ -45,7 +48,14 @@ export class AxisLayout {
   /** px where index i starts. offset(count + 1) === total. */
   offset(i: number): number {
     const k = this.lower(i);
-    const delta = k < this.idx.length ? this.deltaBefore[k] : this.deltaBefore.length ? this.deltaBefore[this.deltaBefore.length - 1] + this.size[this.size.length - 1] - this.def : 0;
+    const delta =
+      k < this.idx.length
+        ? this.deltaBefore[k]
+        : this.deltaBefore.length
+          ? this.deltaBefore[this.deltaBefore.length - 1] +
+            this.size[this.size.length - 1] -
+            this.def
+          : 0;
     return (i - 1) * this.def + delta;
   }
 
@@ -53,7 +63,8 @@ export class AxisLayout {
   indexAt(px: number): number {
     if (px <= 0) return this.firstVisible(1);
     if (px >= this.total) return this.count;
-    let lo = 1, hi = this.count;
+    let lo = 1,
+      hi = this.count;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
       if (this.offset(mid) <= px) lo = mid;

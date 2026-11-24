@@ -1,6 +1,17 @@
 import {
-  array, boolean, EdgeParseError, nonEmptyString, object, oneOf, optional, owns, parser, positiveInteger,
-  responseObject, string, tagged,
+  array,
+  boolean,
+  EdgeParseError,
+  nonEmptyString,
+  object,
+  oneOf,
+  optional,
+  owns,
+  parser,
+  positiveInteger,
+  responseObject,
+  string,
+  tagged,
 } from "./parse";
 import { readV1 } from "./version";
 import { response } from "./response";
@@ -21,32 +32,44 @@ const requestDelivery = { ...delivery, sender: actor };
 const responseDelivery = { ...delivery, sender: responseObject(actorFields) };
 const inputPart = tagged("type", {
   text: responseObject({ type: oneOf("text"), text: string }),
-  blob: responseObject({ type: oneOf("blob"), ...blobFields, content_type: nonEmptyString }),
+  blob: responseObject({
+    type: oneOf("blob"),
+    ...blobFields,
+    content_type: nonEmptyString,
+  }),
 });
 
 const permitsNextRequest = object({ v: readV1, ...fence });
-const permitsNextResponse = response(tagged("status", {
-  permit: responseObject({
-    v: readV1,
-    status: oneOf("permit"),
-    ...responseDelivery,
-    state: oneOf("new", "started"),
-    input: array(inputPart),
+const permitsNextResponse = response(
+  tagged("status", {
+    permit: responseObject({
+      v: readV1,
+      status: oneOf("permit"),
+      ...responseDelivery,
+      state: oneOf("new", "started"),
+      input: array(inputPart),
+    }),
+    empty: responseObject({ v: readV1, status: oneOf("empty") }),
+    stale: responseObject({ v: readV1, status: oneOf("stale") }),
   }),
-  empty: responseObject({ v: readV1, status: oneOf("empty") }),
-  stale: responseObject({ v: readV1, status: oneOf("stale") }),
-}));
+);
 const deliveryStartRequest = object({ v: readV1, ...requestDelivery });
 const startedAttempt = responseObject({
   v: readV1,
   status: oneOf("started", "already_started"),
   ...responseDelivery,
 });
-const deliveryStartResponse = response(tagged("status", {
-  started: startedAttempt,
-  already_started: startedAttempt,
-  rejected: responseObject({ v: readV1, status: oneOf("rejected"), reason: nonEmptyString }),
-}));
+const deliveryStartResponse = response(
+  tagged("status", {
+    started: startedAttempt,
+    already_started: startedAttempt,
+    rejected: responseObject({
+      v: readV1,
+      status: oneOf("rejected"),
+      reason: nonEmptyString,
+    }),
+  }),
+);
 
 const settlement = { v: readV1, ...requestDelivery, detail: optional(string) };
 const applied = { ...settlement, outcome: oneOf("applied") };
@@ -65,7 +88,12 @@ const initialSettlement = tagged("outcome", {
 const evidence = {
   resolution_evidence: (value: unknown, path: string) => {
     const proof = string(value, path);
-    if (!proof.trim()) throw new EdgeParseError("invalid_value", path, "expected non-blank evidence");
+    if (!proof.trim())
+      throw new EdgeParseError(
+        "invalid_value",
+        path,
+        "expected non-blank evidence",
+      );
     return proof;
   },
 };
@@ -73,15 +101,18 @@ const resolution = tagged("outcome", {
   applied: object({ ...applied, ...evidence }),
   failed: object({ ...failed, ...evidence }),
 });
-const deliverySettleRequest = (value: unknown, path: string) => (
-  typeof value === "object" && value !== null && owns(value, "resolution_evidence")
+const deliverySettleRequest = (value: unknown, path: string) =>
+  typeof value === "object" &&
+  value !== null &&
+  owns(value, "resolution_evidence")
     ? resolution(value, path)
-    : initialSettlement(value, path)
+    : initialSettlement(value, path);
+const deliverySettleResponse = response(
+  responseObject({
+    v: readV1,
+    status: oneOf("recorded", "duplicate", "stale"),
+  }),
 );
-const deliverySettleResponse = response(responseObject({
-  v: readV1,
-  status: oneOf("recorded", "duplicate", "stale"),
-}));
 
 export type PermitsNextRequest = ReturnType<typeof permitsNextRequest>;
 export type PermitsNextResponse = ReturnType<typeof permitsNextResponse>;

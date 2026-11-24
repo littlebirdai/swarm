@@ -8,22 +8,45 @@ import { deviceLabelWrite } from "./users";
 
 describe("deviceLabelWrite", () => {
   test("a sent label is written on patch and insert alike", () => {
-    expect(deviceLabelWrite({ deviceLabel: "macOS - Ashots-MacBook", platform: "darwin", isNew: false }))
-      .toEqual({ label: "macOS - Ashots-MacBook" });
-    expect(deviceLabelWrite({ deviceLabel: "macOS - Ashots-MacBook", platform: "darwin", isNew: true }))
-      .toEqual({ label: "macOS - Ashots-MacBook" });
+    expect(
+      deviceLabelWrite({
+        deviceLabel: "macOS - Ashots-MacBook",
+        platform: "darwin",
+        isNew: false,
+      }),
+    ).toEqual({ label: "macOS - Ashots-MacBook" });
+    expect(
+      deviceLabelWrite({
+        deviceLabel: "macOS - Ashots-MacBook",
+        platform: "darwin",
+        isNew: true,
+      }),
+    ).toEqual({ label: "macOS - Ashots-MacBook" });
   });
 
   test("a label-less beat leaves an existing label alone (no darwin clobber)", () => {
-    expect(deviceLabelWrite({ deviceLabel: undefined, platform: "darwin", isNew: false })).toEqual({});
+    expect(
+      deviceLabelWrite({
+        deviceLabel: undefined,
+        platform: "darwin",
+        isNew: false,
+      }),
+    ).toEqual({});
   });
 
   test("a blank label counts as absent, not as a label", () => {
-    expect(deviceLabelWrite({ deviceLabel: "", platform: "darwin", isNew: false })).toEqual({});
+    expect(
+      deviceLabelWrite({ deviceLabel: "", platform: "darwin", isNew: false }),
+    ).toEqual({});
   });
 
   test("a brand-new row falls back to the platform so the required field exists", () => {
-    expect(deviceLabelWrite({ deviceLabel: undefined, platform: "darwin", isNew: true }))
-      .toEqual({ label: "darwin" });
+    expect(
+      deviceLabelWrite({
+        deviceLabel: undefined,
+        platform: "darwin",
+        isNew: true,
+      }),
+    ).toEqual({ label: "darwin" });
   });
 });

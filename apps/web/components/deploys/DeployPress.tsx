@@ -7,6 +7,22 @@ import { SwitchReview } from "../consequential/ConsequentialSwitch";
 
 export type { Press };
 
-export function PressReview({ press, deploys, onClose, onConfirm }: { press: Press; deploys: ReadonlyArray<TeamDeployRow>; onClose: () => void; onConfirm: () => void }) {
-  return <SwitchReview ledger={pressLedger(press, deploys)} onClose={onClose} onConfirm={onConfirm} />;
+export function PressReview({
+  press,
+  deploys,
+  onClose,
+  onConfirm,
+}: {
+  press: Press;
+  deploys: ReadonlyArray<TeamDeployRow>;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <SwitchReview
+      ledger={pressLedger(press, deploys)}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
+  );
 }

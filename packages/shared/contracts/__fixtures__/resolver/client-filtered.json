@@ -9,20 +9,14 @@
         "scopeKey": "",
         "enabled": true,
         "updatedAt": 1000,
-        "clientFilter": [
-          "codex"
-        ]
+        "clientFilter": ["codex"]
       }
     ],
     "context": {
       "userId": "u1",
-      "teamIds": [
-        "team1"
-      ],
+      "teamIds": ["team1"],
       "deviceId": "dev1",
-      "projectKeys": [
-        "git:github.com/o/r"
-      ],
+      "projectKeys": ["git:github.com/o/r"],
       "conversationId": "conv1",
       "client": "claude"
     }

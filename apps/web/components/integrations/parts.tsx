@@ -26,10 +26,26 @@ const TEXT_COLOR: Record<DotTone, string> = {
 };
 
 /** A state in one glance: a filled dot and the word for it. */
-export function StatusDot({ tone, children, className }: { tone: DotTone; children?: React.ReactNode; className?: string }) {
+export function StatusDot({
+  tone,
+  children,
+  className,
+}: {
+  tone: DotTone;
+  children?: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-meta", TEXT_COLOR[tone], className)}>
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT_COLOR[tone])} />
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-meta",
+        TEXT_COLOR[tone],
+        className,
+      )}
+    >
+      <span
+        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT_COLOR[tone])}
+      />
       {children}
     </span>
   );
@@ -40,11 +56,23 @@ export function StatusDot({ tone, children, className }: { tone: DotTone; childr
  * separated by a middot ("connected · team · by ashot · 2h ago"). Falsy parts
  * are dropped, so an unknown fact leaves no empty slot claiming to be one.
  */
-export function LedgerLine({ parts, className }: { parts: Array<React.ReactNode>; className?: string }) {
+export function LedgerLine({
+  parts,
+  className,
+}: {
+  parts: Array<React.ReactNode>;
+  className?: string;
+}) {
   const kept = parts.filter(Boolean);
   if (kept.length === 0) return null;
   return (
-    <div data-cc-ledger className={cn("truncate font-mono text-meta leading-relaxed text-sol-text-dim", className)}>
+    <div
+      data-cc-ledger
+      className={cn(
+        "truncate font-mono text-meta leading-relaxed text-sol-text-dim",
+        className,
+      )}
+    >
       {kept.map((p, i) => (
         <span key={i}>
           {i > 0 && <span className="px-1 opacity-50">·</span>}
@@ -91,7 +119,10 @@ export function ConfirmButton({
       <button
         type="button"
         onClick={() => setArmed(true)}
-        className={cn("rounded-sm text-meta text-sol-red hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring/60 [@media(pointer:coarse)]:-mr-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-3", className)}
+        className={cn(
+          "rounded-sm text-meta text-sol-red hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring/60 [@media(pointer:coarse)]:-mr-3 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-3",
+          className,
+        )}
       >
         {label}
       </button>
@@ -99,7 +130,9 @@ export function ConfirmButton({
   }
   return (
     <span className="inline-flex items-center gap-2">
-      {question && <span className="text-meta text-sol-text-dim">{question}</span>}
+      {question && (
+        <span className="text-meta text-sol-text-dim">{question}</span>
+      )}
       <button
         type="button"
         onClick={() => {

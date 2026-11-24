@@ -29,8 +29,10 @@ export type GuestLinkRow = {
   admitted: number;
 };
 
-const rowSig = (l: GuestLinkRow) => `${l.expires_at}|${l.waiting}|${l.admitted}|${l.mine ? 1 : 0}`;
-const newestFirst = (a: GuestLinkRow, b: GuestLinkRow) => b.created_at - a.created_at;
+const rowSig = (l: GuestLinkRow) =>
+  `${l.expires_at}|${l.waiting}|${l.admitted}|${l.mine ? 1 : 0}`;
+const newestFirst = (a: GuestLinkRow, b: GuestLinkRow) =>
+  b.created_at - a.created_at;
 
 export function useGuestLinks(roomKey: string | null): {
   links: GuestLinkRow[];
@@ -42,8 +44,17 @@ export function useGuestLinks(roomKey: string | null): {
   const feed = useMemo(
     () => ({
       select: (data: any) =>
-        Array.isArray(data) ? data.map((l: any) => ({ ...l, _id: String(l.link_id), room_key: roomKey })) : null,
-      syncOpts: { isDelta: true, pruneAbsentScope: (r: any) => r.room_key === roomKey },
+        Array.isArray(data)
+          ? data.map((l: any) => ({
+              ...l,
+              _id: String(l.link_id),
+              room_key: roomKey,
+            }))
+          : null,
+      syncOpts: {
+        isDelta: true,
+        pruneAbsentScope: (r: any) => r.room_key === roomKey,
+      },
     }),
     [roomKey],
   );
@@ -53,8 +64,15 @@ export function useGuestLinks(roomKey: string | null): {
     roomKey ? { room_key: roomKey } : "skip",
     feed,
   );
-  const where = useMemo(() => (l: GuestLinkRow) => l.room_key === roomKey, [roomKey]);
-  const links = useCollectionRows<GuestLinkRow>("guestLinks", { where, sig: rowSig, sort: newestFirst });
+  const where = useMemo(
+    () => (l: GuestLinkRow) => l.room_key === roomKey,
+    [roomKey],
+  );
+  const links = useCollectionRows<GuestLinkRow>("guestLinks", {
+    where,
+    sig: rowSig,
+    sort: newestFirst,
+  });
   return {
     links: roomKey ? links : [],
     // A list that failed to load still lets the panel make a link (the

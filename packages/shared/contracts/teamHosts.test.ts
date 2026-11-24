@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { formatTeamHostMarker, parseTeamHostMarker, pickLinuxUser } from "./teamHosts";
+import {
+  formatTeamHostMarker,
+  parseTeamHostMarker,
+  pickLinuxUser,
+} from "./teamHosts";
 
 describe("pickLinuxUser", () => {
   test("GitHub login first, then the email's name, lowercased into a valid login", () => {
@@ -12,7 +16,9 @@ describe("pickLinuxUser", () => {
     expect(pickLinuxUser({ github: "ashot" }, ["ashot"])).toBe("ashot2");
     expect(pickLinuxUser({ github: "ubuntu" }, [])).toBe("ubuntu2");
     expect(pickLinuxUser({ requested: "ap", github: "ashot" }, [])).toBe("ap");
-    expect(pickLinuxUser({ requested: "Bad Name", github: "ashot" }, [])).toBe("ashot");
+    expect(pickLinuxUser({ requested: "Bad Name", github: "ashot" }, [])).toBe(
+      "ashot",
+    );
   });
 });
 

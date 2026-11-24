@@ -7,7 +7,8 @@ export type VersionKind = (typeof VERSION_KINDS)[number];
 
 /** The number the next appended version takes, given how many the app has. */
 export function nextVersionNumber(versionCount: number): number {
-  if (!Number.isInteger(versionCount) || versionCount < 0) throw new Error(`bad version count ${versionCount}`);
+  if (!Number.isInteger(versionCount) || versionCount < 0)
+    throw new Error(`bad version count ${versionCount}`);
   return versionCount + 1;
 }
 
@@ -26,8 +27,13 @@ export function cleanSummary(raw: string): string {
 /** A restore of exactly what the live version was built on undoes that
  *  version; any other restore brings an older version back. Returns the
  *  version undone, or null. A restore undone is a redo, said as bringing back. */
-export function undoneBy(live: { number: number; kind: VersionKind; parent_number?: number | null }, restoring: number): number | null {
-  return live.kind === "build" && live.parent_number === restoring ? live.number : null;
+export function undoneBy(
+  live: { number: number; kind: VersionKind; parent_number?: number | null },
+  restoring: number,
+): number | null {
+  return live.kind === "build" && live.parent_number === restoring
+    ? live.number
+    : null;
 }
 
 /** What a restore did, the way people say it: "undid v7", "brought back v3". */
@@ -38,8 +44,13 @@ export function restoreVerb(r: { undid: number | null; from: number }): string {
 /** A restore's own one-line summary: what it took out, or whose files it
  *  brought back, so the timeline, the gallery and the builder's history read
  *  what really changed. */
-export function restoreSummary(undone: { number: number; summary: string } | null, from: { summary: string }): string {
-  return cleanSummary(undone ? `Undid v${undone.number}: ${undone.summary}` : from.summary);
+export function restoreSummary(
+  undone: { number: number; summary: string } | null,
+  from: { summary: string },
+): string {
+  return cleanSummary(
+    undone ? `Undid v${undone.number}: ${undone.summary}` : from.summary,
+  );
 }
 
 /** What a version did, said after its author's name wherever Clayground
@@ -48,12 +59,22 @@ export function restoreSummary(undone: { number: number; summary: string } | nul
  *  from Night Sky". A first build made the app; any other build is its own
  *  summary, so no line needs a bare version number. */
 export function versionSaid(
-  v: { kind: VersionKind; summary: string; parent_number?: number | null; source?: { version: number } | null; undid?: number | null },
+  v: {
+    kind: VersionKind;
+    summary: string;
+    parent_number?: number | null;
+    source?: { version: number } | null;
+    undid?: number | null;
+  },
   forkedFrom: string | null,
 ): string {
-  if (v.kind === "fork") return forkedFrom ? `forked it from ${forkedFrom}` : "forked it";
+  if (v.kind === "fork")
+    return forkedFrom ? `forked it from ${forkedFrom}` : "forked it";
   if (v.kind === "seed") return "started it";
-  if (v.kind === "restore") return v.undid ? lowerFirst(v.summary) : `brought back v${v.source?.version ?? "?"}`;
+  if (v.kind === "restore")
+    return v.undid
+      ? lowerFirst(v.summary)
+      : `brought back v${v.source?.version ?? "?"}`;
   return v.parent_number ? lowerFirst(v.summary) : "made it";
 }
 

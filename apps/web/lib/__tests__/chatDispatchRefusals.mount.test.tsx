@@ -10,7 +10,16 @@
 //     paints no stub and dispatches nothing.
 //  C. The refusals that still arrive (a stale client, an older server) are
 //     handled quietly; any other permanent refusal is still reported.
-import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -18,7 +27,10 @@ import { MemoryRouter } from "react-router";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/", pretendToBeVisual: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "http://localhost/", pretendToBeVisual: true },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -39,8 +51,13 @@ const restoreGlobals = replaceGlobals({
   HTMLButtonElement: dom.window.HTMLButtonElement,
   SVGElement: dom.window.SVGElement,
   DocumentFragment: dom.window.DocumentFragment,
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0),
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(Date.now()), 0),
   cancelAnimationFrame: (id: number) => clearTimeout(id),
 });
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -51,7 +68,12 @@ afterAll(() => {
 
 const reported: { error: unknown; ctx: any }[] = [];
 const realAnalytics = await import("../analytics");
-mock.module("../analytics", () => ({ ...realAnalytics, captureError: (error: unknown, ctx: any) => { reported.push({ error, ctx }); } }));
+mock.module("../analytics", () => ({
+  ...realAnalytics,
+  captureError: (error: unknown, ctx: any) => {
+    reported.push({ error, ctx });
+  },
+}));
 const realConvexReact = { ...(await import("convex/react")) };
 mock.module("convex/react", () => ({
   ...realConvexReact,
@@ -61,30 +83,50 @@ mock.module("convex/react", () => ({
   useAction: () => async () => null,
 }));
 
-const realComposer = { ...(await import("../../components/chat/ChatComposer")) };
-mock.module("../../components/chat/ChatComposer", () => ({ ...realComposer, ChatComposer: () => null }));
+const realComposer = {
+  ...(await import("../../components/chat/ChatComposer")),
+};
+mock.module("../../components/chat/ChatComposer", () => ({
+  ...realComposer,
+  ChatComposer: () => null,
+}));
 const realList = { ...(await import("../../components/chat/ChatMessageList")) };
-mock.module("../../components/chat/ChatMessageList", () => ({ ...realList, ChatMessageList: () => null }));
+mock.module("../../components/chat/ChatMessageList", () => ({
+  ...realList,
+  ChatMessageList: () => null,
+}));
 
 const { applyDispatchFailure } = await import("../dispatchBinding");
 const { useInboxStore } = await import("../../store/inboxStore");
-const { ConversationChat } = await import("../../components/conversation/ConversationChat");
+const { ConversationChat } =
+  await import("../../components/conversation/ConversationChat");
 
 const { toast } = await import("sonner");
 
 const store = () => useInboxStore.getState();
 const CHANNEL = "c".repeat(32);
-const refusal = (code: string, message: string) => new Error(
-  "[CONVEX M(dispatch:dispatch)] [Request ID: cdae58d900b4b5bf] Server Error\n" +
-  `Uncaught ConvexError: Uncaught ConvexError: ${JSON.stringify({ code, message, retryable: false })}\n` +
-  "    at chatFail (../../convex/chat.ts:103:4)");
-const STALE_MARK = refusal("INVALID", "That message is not in this channel").message;
-const CHAT_OFF = "Team chat is not enabled for this team. A team admin can turn it on under Settings → Team.";
+const refusal = (code: string, message: string) =>
+  new Error(
+    "[CONVEX M(dispatch:dispatch)] [Request ID: cdae58d900b4b5bf] Server Error\n" +
+      `Uncaught ConvexError: Uncaught ConvexError: ${JSON.stringify({ code, message, retryable: false })}\n` +
+      "    at chatFail (../../convex/chat.ts:103:4)",
+  );
+const STALE_MARK = refusal(
+  "INVALID",
+  "That message is not in this channel",
+).message;
+const CHAT_OFF =
+  "Team chat is not enabled for this team. A team admin can turn it on under Settings → Team.";
 
 const quietly = (fn: () => void) => {
   const err = spyOn(console, "error").mockImplementation(() => {});
   const warn = spyOn(console, "warn").mockImplementation(() => {});
-  try { fn(); } finally { err.mockRestore(); warn.mockRestore(); }
+  try {
+    fn();
+  } finally {
+    err.mockRestore();
+    warn.mockRestore();
+  }
 };
 
 describe("A: a read mark refused for a stale marker", () => {
@@ -96,7 +138,12 @@ describe("A: a read mark refused for a stale marker", () => {
 
   test("is neither reported nor counted as a failed action", () => {
     const before = store().dispatchErrors;
-    quietly(() => applyDispatchFailure("markChannelRead", new Error(STALE_MARK), [CHANNEL, "m".repeat(32)]));
+    quietly(() =>
+      applyDispatchFailure("markChannelRead", new Error(STALE_MARK), [
+        CHANNEL,
+        "m".repeat(32),
+      ]),
+    );
     expect(reported).toHaveLength(0);
     expect(store().dispatchErrors).toBe(before);
   });
@@ -114,18 +161,37 @@ describe("B: the conversation chat chip", () => {
     await act(async () => {
       useInboxStore.setState({
         currentUser: { _id: ME, name: "Me" },
-        teams: [{ _id: TEAM, name: "Union", features: chatOn ? { chat: true } : {} }],
-        clientState: { ...store().clientState, ui: { ...(store().clientState?.ui ?? {}), active_team_id: TEAM } },
+        teams: [
+          { _id: TEAM, name: "Union", features: chatOn ? { chat: true } : {} },
+        ],
+        clientState: {
+          ...store().clientState,
+          ui: { ...(store().clientState?.ui ?? {}), active_team_id: TEAM },
+        },
         chatChannels: {},
         chatRail: [],
-        dispatchOpenDm: (...a: unknown[]) => { opens.push(a); return Promise.resolve(undefined); },
+        dispatchOpenDm: (...a: unknown[]) => {
+          opens.push(a);
+          return Promise.resolve(undefined);
+        },
       } as any);
     });
-    await act(async () => root.render(<MemoryRouter><ConversationChat conversationId="conv_1" people={[PEER]} /></MemoryRouter>));
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <ConversationChat conversationId="conv_1" people={[PEER]} />
+        </MemoryRouter>,
+      ),
+    );
   };
   const clickChip = async () => {
     const chip = document.querySelector(".cc-chat-chip");
-    if (chip) await act(async () => { chip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    if (chip)
+      await act(async () => {
+        chip.dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
   };
 
   beforeEach(() => {
@@ -157,16 +223,26 @@ describe("B: openDmChannel, the one door every DM surface uses", () => {
   const PEER = "p".repeat(32);
   let opens: unknown[][];
   let realOpen: any;
-  const setTeams = (teams: any[]) => useInboxStore.setState({
-    currentUser: { _id: "u".repeat(32), name: "Me" },
-    teams,
-    clientState: { ...store().clientState, ui: { ...(store().clientState?.ui ?? {}), active_team_id: TEAM } },
-    chatChannels: {},
-    chatReads: {},
-    dispatchOpenDm: (...a: unknown[]) => { opens.push(a); return Promise.resolve(undefined); },
-  } as any);
+  const setTeams = (teams: any[]) =>
+    useInboxStore.setState({
+      currentUser: { _id: "u".repeat(32), name: "Me" },
+      teams,
+      clientState: {
+        ...store().clientState,
+        ui: { ...(store().clientState?.ui ?? {}), active_team_id: TEAM },
+      },
+      chatChannels: {},
+      chatReads: {},
+      dispatchOpenDm: (...a: unknown[]) => {
+        opens.push(a);
+        return Promise.resolve(undefined);
+      },
+    } as any);
 
-  beforeEach(() => { opens = []; realOpen = store().dispatchOpenDm; });
+  beforeEach(() => {
+    opens = [];
+    realOpen = store().dispatchOpenDm;
+  });
   afterEach(() => useInboxStore.setState({ dispatchOpenDm: realOpen } as any));
 
   test("opens nothing for a team whose chat is off", () => {
@@ -210,35 +286,62 @@ describe("C: refusals that still arrive", () => {
   };
 
   test("markChannelRead: a room gone is retired, not reported", () => {
-    useInboxStore.setState({ chatChannels: { [CHANNEL]: { _id: CHANNEL, name: "gone" } } } as any);
-    expectQuiet("markChannelRead", refusal("NOT_FOUND", "Channel not found"), [CHANNEL]);
+    useInboxStore.setState({
+      chatChannels: { [CHANNEL]: { _id: CHANNEL, name: "gone" } },
+    } as any);
+    expectQuiet("markChannelRead", refusal("NOT_FOUND", "Channel not found"), [
+      CHANNEL,
+    ]);
     expect(store().chatChannels[CHANNEL]).toBeUndefined();
   });
 
   test("markChannelRead: a stale marker is dropped, not reported", () => {
-    expectQuiet("markChannelRead", refusal("INVALID", "That message is not in this channel"), [CHANNEL, "m".repeat(32)]);
+    expectQuiet(
+      "markChannelRead",
+      refusal("INVALID", "That message is not in this channel"),
+      [CHANNEL, "m".repeat(32)],
+    );
   });
 
   test("dispatchOpenDm in a chat-off team removes its stub and is not reported", () => {
     const stub = "chatstub-1";
     useInboxStore.setState({
-      chatChannels: { [stub]: { _id: stub, client_id: stub, name: "", kind: "dm" } },
+      chatChannels: {
+        [stub]: { _id: stub, client_id: stub, name: "", kind: "dm" },
+      },
       chatReads: { r1: { _id: "r1", channel_id: stub } },
     } as any);
-    expectQuiet("dispatchOpenDm", refusal("FORBIDDEN", CHAT_OFF), [stub, ["p".repeat(32)], "t".repeat(32)]);
+    expectQuiet("dispatchOpenDm", refusal("FORBIDDEN", CHAT_OFF), [
+      stub,
+      ["p".repeat(32)],
+      "t".repeat(32),
+    ]);
     expect(store().chatChannels[stub]).toBeUndefined();
-    expect(Object.values(store().chatReads).some((r: any) => r.channel_id === stub)).toBe(false);
+    expect(
+      Object.values(store().chatReads).some((r: any) => r.channel_id === stub),
+    ).toBe(false);
   });
 
   test.each([
     ["sendChatMessage", refusal("FORBIDDEN", CHAT_OFF), [CHANNEL, "hi"]],
-    ["addWait", refusal("INVALID", "That message is not in this channel"), ["task_1", { id: "w1" }]],
-    ["dispatchOpenDm", refusal("FORBIDDEN", "Not a member of that team"), ["chatstub-2", ["p".repeat(32)]]],
-  ] as const)("any other refusal (%s) is still reported and counted", (action, error, args) => {
-    const before = store().dispatchErrors;
-    quietly(() => applyDispatchFailure(action, error, [...args]));
-    expect(reported).toHaveLength(1);
-    expect(reported[0].ctx).toMatchObject({ source: "dispatch", action });
-    expect(store().dispatchErrors).toBe(before + 1);
-  });
+    [
+      "addWait",
+      refusal("INVALID", "That message is not in this channel"),
+      ["task_1", { id: "w1" }],
+    ],
+    [
+      "dispatchOpenDm",
+      refusal("FORBIDDEN", "Not a member of that team"),
+      ["chatstub-2", ["p".repeat(32)]],
+    ],
+  ] as const)(
+    "any other refusal (%s) is still reported and counted",
+    (action, error, args) => {
+      const before = store().dispatchErrors;
+      quietly(() => applyDispatchFailure(action, error, [...args]));
+      expect(reported).toHaveLength(1);
+      expect(reported[0].ctx).toMatchObject({ source: "dispatch", action });
+      expect(store().dispatchErrors).toBe(before + 1);
+    },
+  );
 });

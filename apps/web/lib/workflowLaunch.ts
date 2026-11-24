@@ -2,7 +2,10 @@
 // launch receipt ("Workflow launched in background. Task ID: … Run ID: wf_…").
 // Pure; shared by ConversationView's WorkflowToolBlock and its tests.
 
-export function parseWorkflowScriptMeta(script: string): { name?: string; description?: string } {
+export function parseWorkflowScriptMeta(script: string): {
+  name?: string;
+  description?: string;
+} {
   const head = script.slice(0, 2000);
   return {
     name: head.match(/\bname:\s*['"`]([^'"`\n]+)['"`]/)?.[1],
@@ -10,7 +13,12 @@ export function parseWorkflowScriptMeta(script: string): { name?: string; descri
   };
 }
 
-export function parseWorkflowLaunch(content: string): { taskId?: string; summary?: string; scriptFile?: string; runId?: string } {
+export function parseWorkflowLaunch(content: string): {
+  taskId?: string;
+  summary?: string;
+  scriptFile?: string;
+  runId?: string;
+} {
   return {
     taskId: content.match(/\bTask ID:\s*(\S+)/)?.[1],
     summary: content.match(/\bSummary:\s*([^\n]+)/)?.[1],

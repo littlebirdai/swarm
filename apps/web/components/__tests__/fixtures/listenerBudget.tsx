@@ -30,7 +30,10 @@ const restoreGlobals = replaceGlobals({
   Node: dom.window.Node,
   // jsdom lays nothing out: the view tabs measure their strip, and a new
   // grouping scrolls the list to its top.
-  ResizeObserver: class { observe() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    disconnect() {}
+  },
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 dom.window.HTMLElement.prototype.scrollTo = () => {};
@@ -54,13 +57,22 @@ mock.module("convex/react", () => ({
 const navigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
   ...navigation,
-  useRouter: () => ({ push: () => {}, replace: () => {}, prefetch: () => {}, back: () => {} }),
+  useRouter: () => ({
+    push: () => {},
+    replace: () => {},
+    prefetch: () => {},
+    back: () => {},
+  }),
   usePathname: () => "/inbox",
   useSearchParams: () => new URLSearchParams(),
 }));
 
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const React = await import("react");
@@ -68,7 +80,8 @@ const { createRoot } = await import("react-dom/client");
 const act: <T>(cb: () => T | Promise<T>) => Promise<T> = (React as any).act;
 
 const { useInboxStore } = await import("../../../store/inboxStore");
-const { readStoreListenerCount } = await import("../../../store/storeListenerCensus");
+const { readStoreListenerCount } =
+  await import("../../../store/storeListenerCensus");
 const { flushSyncPublishes } = await import("../../../store/syncTransaction");
 const { SessionListPanel } = await import("../../GlobalSessionPanel");
 const { SessionCard } = await import("../../inbox/SessionCard");
@@ -166,13 +179,21 @@ test("an inbox card's store listeners stay within budget", async () => {
 // that woke on a heartbeat before would just wake through one subscription
 // instead of thirteen, which is no win at all. These pin both directions
 // against the real panel (ct-49746).
-async function commitsDuring(mutate: () => void, warmUp?: () => void): Promise<number> {
+async function commitsDuring(
+  mutate: () => void,
+  warmUp?: () => void,
+): Promise<number> {
   let commits = 0;
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
   const tree = (
-    <React.Profiler id="panel" onRender={() => { commits++; }}>
+    <React.Profiler
+      id="panel"
+      onRender={() => {
+        commits++;
+      }}
+    >
       <SessionListPanel />
     </React.Profiler>
   );
@@ -180,9 +201,16 @@ async function commitsDuring(mutate: () => void, warmUp?: () => void): Promise<n
   // Steady state: the FIRST push of a shape does real work no matter what it
   // carries (syncTable's transform seeds a conversation row per session), and
   // measuring that would say nothing about a heartbeat.
-  if (warmUp) await act(async () => { warmUp(); flushSyncPublishes(); });
+  if (warmUp)
+    await act(async () => {
+      warmUp();
+      flushSyncPublishes();
+    });
   commits = 0;
-  await act(async () => { mutate(); flushSyncPublishes(); });
+  await act(async () => {
+    mutate();
+    flushSyncPublishes();
+  });
   const seen = commits;
   await act(async () => root.unmount());
   host.remove();
@@ -210,7 +238,12 @@ test("a status change repaints the sidebar", async () => {
   const target = rows.find((r) => r.agent_status === "working")!;
   const commits = await commitsDuring(() => {
     useInboxStore.getState().syncTable("sessions", [
-      { ...target, agent_status: "done", is_idle: true, updated_at: target.updated_at + 1 },
+      {
+        ...target,
+        agent_status: "done",
+        is_idle: true,
+        updated_at: target.updated_at + 1,
+      },
     ]);
   });
   expect(commits).toBeGreaterThan(0);

@@ -2,12 +2,30 @@
 // records honoured, a finish upgrades a skip, writes suppressed on stub data.
 // Run: bun test tours/seen.test.ts
 import { describe, expect, test } from "bun:test";
-import { isTourSeen, markTourSeen, tourOutcome, tourSeenId, toursWriteSuppressed, type TourSeenState } from "./seen";
+import {
+  isTourSeen,
+  markTourSeen,
+  tourOutcome,
+  tourSeenId,
+  toursWriteSuppressed,
+  type TourSeenState,
+} from "./seen";
 import type { TourDef } from "./types";
 
-const base: TourDef = { id: "org-page", title: "The org page", teaches: "x", area: "org", route: null, steps: [], legacy: { tips: ["nux-tour"], ui: ["org_nux_seen"] } };
+const base: TourDef = {
+  id: "org-page",
+  title: "The org page",
+  teaches: "x",
+  area: "org",
+  route: null,
+  steps: [],
+  legacy: { tips: ["nux-tour"], ui: ["org_nux_seen"] },
+};
 
-function store(tips: TourSeenState["clientState"]["tips"] = {}, ui: Record<string, unknown> = {}): TourSeenState & { writes: unknown[] } {
+function store(
+  tips: TourSeenState["clientState"]["tips"] = {},
+  ui: Record<string, unknown> = {},
+): TourSeenState & { writes: unknown[] } {
   const st = {
     clientState: { tips, ui },
     writes: [] as unknown[],
@@ -42,15 +60,33 @@ describe("the seen record", () => {
   });
 
   test("records written before the tours existed count", () => {
-    expect(isTourSeen(base, { tips: { completed: ["nux-tour"] }, ui: {} })).toBe(true);
-    expect(tourOutcome(base, { tips: { completed: ["nux-tour"] }, ui: {} })).toBe("finished");
-    expect(isTourSeen(base, { tips: {}, ui: { org_nux_seen: true } })).toBe(true);
-    expect(tourOutcome(base, { tips: {}, ui: { org_nux_seen: true } })).toBe("skipped");
-    expect(isTourSeen({ ...base, legacy: undefined }, { tips: { completed: ["nux-tour"] }, ui: { org_nux_seen: true } })).toBe(false);
+    expect(
+      isTourSeen(base, { tips: { completed: ["nux-tour"] }, ui: {} }),
+    ).toBe(true);
+    expect(
+      tourOutcome(base, { tips: { completed: ["nux-tour"] }, ui: {} }),
+    ).toBe("finished");
+    expect(isTourSeen(base, { tips: {}, ui: { org_nux_seen: true } })).toBe(
+      true,
+    );
+    expect(tourOutcome(base, { tips: {}, ui: { org_nux_seen: true } })).toBe(
+      "skipped",
+    );
+    expect(
+      isTourSeen(
+        { ...base, legacy: undefined },
+        { tips: { completed: ["nux-tour"] }, ui: { org_nux_seen: true } },
+      ),
+    ).toBe(false);
   });
 
   test("other tours' records do not count", () => {
-    expect(isTourSeen(base, { tips: { completed: [tourSeenId("org-role")] }, ui: {} })).toBe(false);
+    expect(
+      isTourSeen(base, {
+        tips: { completed: [tourSeenId("org-role")] },
+        ui: {},
+      }),
+    ).toBe(false);
   });
 
   test("the preview flag suppresses writes", () => {

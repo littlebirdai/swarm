@@ -4,6 +4,11 @@
 // way a hand rides its role and never surfaces on its own; under a person,
 // the field is clear and the row is that person's own card. One helper, so
 // provisioning, a role move, a retire and the backfill stamp the same thing.
-export function standingReportsToFields(role: { reports_to?: { kind: "user" | "role"; role_id?: any } | null }): { org_role_id: any | undefined } {
-  return { org_role_id: role.reports_to?.kind === "role" ? role.reports_to.role_id : undefined };
+export function standingReportsToFields(role: {
+  reports_to?: { kind: "user" | "role"; role_id?: any } | null;
+}): { org_role_id: any | undefined } {
+  return {
+    org_role_id:
+      role.reports_to?.kind === "role" ? role.reports_to.role_id : undefined,
+  };
 }

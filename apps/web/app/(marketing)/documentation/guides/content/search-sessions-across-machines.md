@@ -16,25 +16,25 @@ Press **⌘K** anywhere in the app and start typing. Sessions with matching mess
 
 Press **⌘↵** from the palette to open the full search page. Tabs across the top split results into **All**, **Sessions** and the other kinds that matched. Four menus on the right narrow sessions:
 
-| Menu | Choices |
-|------|---------|
-| **Everyone** | Sessions from everyone you share with, or **Only mine** |
+| Menu            | Choices                                                                   |
+| --------------- | ------------------------------------------------------------------------- |
+| **Everyone**    | Sessions from everyone you share with, or **Only mine**                   |
 | **Any message** | Everything said in a session, or **My prompts**, only the lines you typed |
-| **Any time** | **Past week**, **Past month** or **Past 3 months** |
-| **Recent** | Newest first, or **Relevant** for best match first |
+| **Any time**    | **Past week**, **Past month** or **Past 3 months**                        |
+| **Recent**      | Newest first, or **Relevant** for best match first                        |
 
 Put a phrase in quotes to match it exactly; words without quotes match anywhere in the session. The empty search page shows a row of filters you can add to the query by clicking them:
 
 ![The empty search page with a row of filter chips: file:, commit:, pr:, label:, author:, repo:, after:, before:](/documentation/search-sessions-across-machines/filters.webp "Click a chip to add it to the search, then type its value.")
 
-| Type | To find |
-|------|---------|
-| `file:src/webhooks.ts` | Sessions that edited a file or folder |
-| `commit:3f2a91c` | The session that made a commit |
-| `pr:482` | Sessions linked to a pull request |
-| `author:me` | Sessions a particular person ran |
-| `repo:acme-api` | Sessions in one repository |
-| `label:api` | Sessions you filed under a label |
+| Type                            | To find                                |
+| ------------------------------- | -------------------------------------- |
+| `file:src/webhooks.ts`          | Sessions that edited a file or folder  |
+| `commit:3f2a91c`                | The session that made a commit         |
+| `pr:482`                        | Sessions linked to a pull request      |
+| `author:me`                     | Sessions a particular person ran       |
+| `repo:acme-api`                 | Sessions in one repository             |
+| `label:api`                     | Sessions you filed under a label       |
 | `after:7d`, `before:2026-09-01` | Sessions active after or before a time |
 
 ## Read the results

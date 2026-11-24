@@ -2,7 +2,11 @@ import { useRef, useImperativeHandle, forwardRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { Extension } from "@tiptap/core";
 import { BubbleToolbar } from "./BubbleToolbar";
-import { createBaseExtensions, createMentionExtension, type MentionQueryFn } from "./editorExtensions";
+import {
+  createBaseExtensions,
+  createMentionExtension,
+  type MentionQueryFn,
+} from "./editorExtensions";
 import "./editor.css";
 
 export interface ComposeEditorHandle {
@@ -29,8 +33,24 @@ interface ComposeEditorProps {
   placeholder?: string;
 }
 
-export const ComposeEditor = forwardRef<ComposeEditorHandle, ComposeEditorProps>(
-  ({ initialContent, onMentionQuery, onImagePaste, onSubmit, onExit, onContentChange, onTextChange, submitOnEnter, placeholder }, ref) => {
+export const ComposeEditor = forwardRef<
+  ComposeEditorHandle,
+  ComposeEditorProps
+>(
+  (
+    {
+      initialContent,
+      onMentionQuery,
+      onImagePaste,
+      onSubmit,
+      onExit,
+      onContentChange,
+      onTextChange,
+      submitOnEnter,
+      placeholder,
+    },
+    ref,
+  ) => {
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
     const onExitRef = useRef(onExit);
@@ -70,12 +90,13 @@ export const ComposeEditor = forwardRef<ComposeEditorHandle, ComposeEditorProps>
             },
           };
         },
-      })
+      }),
     ).current;
 
     const extensions = [
       ...createBaseExtensions({
-        placeholder: placeholder || "Compose your message... / for commands, @ to mention",
+        placeholder:
+          placeholder || "Compose your message... / for commands, @ to mention",
         withTables: false,
       }),
       ...(onMentionQuery ? [createMentionExtension(onMentionQuery)] : []),
@@ -108,10 +129,12 @@ export const ComposeEditor = forwardRef<ComposeEditorHandle, ComposeEditorProps>
         handleDrop: (_view, event) => {
           const files = event.dataTransfer?.files;
           if (!files?.length || !onImagePasteRef.current) return false;
-          const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+          const imageFiles = Array.from(files).filter((f) =>
+            f.type.startsWith("image/"),
+          );
           if (!imageFiles.length) return false;
           event.preventDefault();
-          imageFiles.forEach(f => onImagePasteRef.current!(f));
+          imageFiles.forEach((f) => onImagePasteRef.current!(f));
           return true;
         },
       },
@@ -125,14 +148,20 @@ export const ComposeEditor = forwardRef<ComposeEditorHandle, ComposeEditorProps>
     useImperativeHandle(ref, () => ({
       getMarkdown: () => {
         if (!editor) return "";
-        return (editor.storage as any).markdown?.getMarkdown() ?? editor.getText();
+        return (
+          (editor.storage as any).markdown?.getMarkdown() ?? editor.getText()
+        );
       },
       focus: () => editor?.commands.focus("end"),
       clear: () => editor?.commands.clearContent(),
-      insertText: (text: string) => { editor?.chain().focus().insertContent(text).run(); },
+      insertText: (text: string) => {
+        editor?.chain().focus().insertContent(text).run();
+      },
       // Replaces the whole document, so it keeps the caret at the end rather
       // than trying to preserve a position that the new text may not have.
-      setMarkdown: (markdown: string) => { editor?.commands.setContent(markdown); },
+      setMarkdown: (markdown: string) => {
+        editor?.commands.setContent(markdown);
+      },
     }));
 
     if (!editor) return null;
@@ -143,5 +172,5 @@ export const ComposeEditor = forwardRef<ComposeEditorHandle, ComposeEditorProps>
         <EditorContent editor={editor} />
       </div>
     );
-  }
+  },
 );

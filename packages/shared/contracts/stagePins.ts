@@ -30,8 +30,11 @@ export function parseStagePinRef(input: string): StagePinTarget | null {
   if (docUrl) return { kind: "doc", id: docUrl[1], ref: `doc:${docUrl[1]}` };
   const docRef = s.match(/^doc:([a-z0-9]{20,40})$/i);
   if (docRef) return { kind: "doc", id: docRef[1], ref: `doc:${docRef[1]}` };
-  const pageUrl = s.match(/(?:^|\/\/[^/]+\/|^\/)a\/([a-z0-9][a-z0-9-]{1,80})(?:[/?#]|$)/i);
-  if (pageUrl) return { kind: "page", slug: pageUrl[1], ref: `a/${pageUrl[1]}` };
+  const pageUrl = s.match(
+    /(?:^|\/\/[^/]+\/|^\/)a\/([a-z0-9][a-z0-9-]{1,80})(?:[/?#]|$)/i,
+  );
+  if (pageUrl)
+    return { kind: "page", slug: pageUrl[1], ref: `a/${pageUrl[1]}` };
   if (/\s/.test(s) || s.includes("/")) return null;
   // A bare id: the server decides whether it is a doc (normalizeId) before
   // falling back to an object reference.
@@ -46,7 +49,10 @@ export function stagePinRowId(roomKey: string, ref: string): string {
 }
 
 /** The link a pin opens at, full size, on the web app. */
-export function stagePinHref(target: StagePinTarget, origin = ""): string | null {
+export function stagePinHref(
+  target: StagePinTarget,
+  origin = "",
+): string | null {
   if (target.kind === "doc") return `${origin}/docs/${target.id}`;
   if (target.kind === "page") return `${origin}/a/${target.slug}`;
   return null;

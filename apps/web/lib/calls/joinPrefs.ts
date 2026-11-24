@@ -25,7 +25,14 @@
 // engine's own opens and closes (a walkie burst, a snooze, a join applying
 // these very prefs) pass `remember: false` and leave the choice alone.
 import { useInboxStore } from "../../store/inboxStore";
-import { DEVICE_RANK_KEY, knownDevices, rankAfterPick, resolveDevice, trackOnDevice, type DeviceKind } from "./deviceRank";
+import {
+  DEVICE_RANK_KEY,
+  knownDevices,
+  rankAfterPick,
+  resolveDevice,
+  trackOnDevice,
+  type DeviceKind,
+} from "./deviceRank";
 
 export type JoinPrefs = {
   /** The microphone to open. Undefined means "whatever the browser picks". */
@@ -75,7 +82,10 @@ const LEGACY_DEVICE_KEY = {
 /** The device of this kind a join opens now: the best-ranked one plugged in.
  *  Undefined until the browser has listed devices, which means "whatever the
  *  browser picks". */
-export function chosenDevice(kind: DeviceKind, devices = knownDevices(kind)): string | undefined {
+export function chosenDevice(
+  kind: DeviceKind,
+  devices = knownDevices(kind),
+): string | undefined {
   const u = ui();
   const legacy = u[LEGACY_DEVICE_KEY[kind]] || undefined;
   if (!devices?.length) return legacy;
@@ -84,7 +94,10 @@ export function chosenDevice(kind: DeviceKind, devices = knownDevices(kind)): st
 
 /** Whether a capture is on the device a join would open now. True while
  *  nothing is chosen, since then any device is the browser's pick. */
-export function onChosenDevice(track: MediaStreamTrack, kind: DeviceKind): boolean {
+export function onChosenDevice(
+  track: MediaStreamTrack,
+  kind: DeviceKind,
+): boolean {
   const want = chosenDevice(kind);
   return !want || trackOnDevice(track, kind, want);
 }
@@ -99,7 +112,8 @@ export function rememberDevice(kind: DeviceKind, deviceId: string): void {
   const key = DEVICE_RANK_KEY[kind];
   const rank: string[] = ui()[key] ?? [];
   const next = rankAfterPick(rank, picked, present);
-  if (next.length === rank.length && next.every((k, i) => k === rank[i])) return;
+  if (next.length === rank.length && next.every((k, i) => k === rank[i]))
+    return;
   useInboxStore.getState().updateClientUI({ [key]: next } as any);
 }
 

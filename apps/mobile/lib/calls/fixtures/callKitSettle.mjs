@@ -48,7 +48,9 @@ mock.module("expo-callkit-telecom", () => {
     reportCallEnded: async (id, reason) => void ended.push({ id, reason }),
   };
 });
-mock.module("../../optionalNative", () => ({ nativeModulePresent: () => true }));
+mock.module("../../optionalNative", () => ({
+  nativeModulePresent: () => true,
+}));
 mock.module("../../analytics", () => ({ captureError: () => {} }));
 mock.module("../callManager", () => ({
   acceptInvite: async () => {},
@@ -96,7 +98,14 @@ const ring = async (ckId, inviteId) => {
     session: {
       id: ckId,
       origin: "incoming",
-      incomingCallEvent: { serverCallId: inviteId, metadata: { type: "huddle_ring", invite_id: inviteId, room_key: "dm:a:b" } },
+      incomingCallEvent: {
+        serverCallId: inviteId,
+        metadata: {
+          type: "huddle_ring",
+          invite_id: inviteId,
+          room_key: "dm:a:b",
+        },
+      },
     },
   });
   await flush();

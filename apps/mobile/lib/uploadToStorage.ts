@@ -6,8 +6,8 @@
 // blob, POST it. It lived inline in the chat composer until the recorder
 // needed the identical three steps for an m4a.
 
-import { api } from '@codecast/convex/convex/_generated/api';
-import type { ConvexReactClient } from 'convex/react';
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { ConvexReactClient } from "convex/react";
 
 /**
  * Upload the file at `uri`, resolving to its storage id.
@@ -26,8 +26,8 @@ export async function uploadUriToStorage(
     const uploadUrl = await convex.mutation(api.images.generateUploadUrl, {});
     const blob = await (await fetch(uri)).blob();
     const res = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': mime },
+      method: "POST",
+      headers: { "Content-Type": mime },
       body: blob,
     });
     if (!res.ok) throw new Error(`upload ${res.status}`);

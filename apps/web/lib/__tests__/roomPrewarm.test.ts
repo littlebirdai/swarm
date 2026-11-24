@@ -18,7 +18,15 @@ import { replaceGlobals } from "../../test-helpers/globals";
 // mutation-checked: with the reuse removed, the join mints a second token and
 // performs a second handshake, which is the 12.7 seconds coming back.
 
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConnectionState } from "livekit-client";
 import { useInboxStore } from "../../store/inboxStore";
@@ -29,8 +37,10 @@ import { useInboxStore } from "../../store/inboxStore";
 // the real livekit-client and overrides only the one class it drives. Nothing
 // else in the suite constructs a Room (the enums and events stay real).
 
-const realLivekit = { ...await import("livekit-client") };
-afterAll(() => { mock.module("livekit-client", () => realLivekit); });
+const realLivekit = { ...(await import("livekit-client")) };
+afterAll(() => {
+  mock.module("livekit-client", () => realLivekit);
+});
 const realAnalyser = realLivekit.createAudioAnalyser;
 let meterProbe = false;
 let meterStarts = 0;
@@ -68,7 +78,9 @@ class FakeRoom {
     };
     this.remoteParticipants.set(identity, {
       identity,
-      trackPublications: new Map([["p", { kind: "audio", isSubscribed: true, track }]]),
+      trackPublications: new Map([
+        ["p", { kind: "audio", isSubscribed: true, track }],
+      ]),
       // rebuildTiles asks every participant for its camera and screen share.
       // A stand-in that cannot answer makes joinCall throw, which reads as
       // "the sweep did not attach" and sends you looking in the wrong place.
@@ -79,7 +91,11 @@ class FakeRoom {
   /** The microphone publication, once one exists. Modelled rather than stubbed
    *  because the ORDER is the safety property: a track must be silent before it
    *  is published, never after. */
-  micPublication: { muted: boolean; track: any; mute: () => Promise<void> } | null = null;
+  micPublication: {
+    muted: boolean;
+    track: any;
+    mute: () => Promise<void>;
+  } | null = null;
   /** What the track's `enabled` was AT THE MOMENT it was handed over. A hover
    *  that publishes a live microphone and mutes it a round trip later has
    *  broadcast in the gap. */
@@ -104,7 +120,9 @@ class FakeRoom {
       return pub;
     },
     getTrackPublication: (source?: unknown) =>
-      source === realLivekit.Track.Source.Microphone ? this.micPublication ?? undefined : undefined,
+      source === realLivekit.Track.Source.Microphone
+        ? (this.micPublication ?? undefined)
+        : undefined,
   };
   constructor(opts?: any) {
     this.opts = opts;
@@ -133,9 +151,13 @@ mock.module("livekit-client", () => ({
     if (!meterProbe) return realAnalyser(...args);
     meterStarts++;
     return {
-      analyser: { fftSize: 256, getByteTimeDomainData: (bytes: Uint8Array) => {
-        for (let i = 0; i < bytes.length; i++) bytes[i] = 128 + (i % 2 ? 8 : -8);
-      } },
+      analyser: {
+        fftSize: 256,
+        getByteTimeDomainData: (bytes: Uint8Array) => {
+          for (let i = 0; i < bytes.length; i++)
+            bytes[i] = 128 + (i % 2 ? 8 : -8);
+        },
+      },
       cleanup: () => {},
     };
   },
@@ -149,10 +171,17 @@ const callManager = await import("../calls/callManager");
 // modules that inject stylesheets at load (sonner, through callManager) branch
 // on `document` existing, and a stub present during import sends them down
 // their DOM path with a document that cannot answer.
-const restoreDocument = replaceGlobals({ document: {
-  createElement: () => ({ style: {}, dataset: {} as any, appendChild() {}, remove() {} }),
-  body: { appendChild() {} },
-} });
+const restoreDocument = replaceGlobals({
+  document: {
+    createElement: () => ({
+      style: {},
+      dataset: {} as any,
+      appendChild() {},
+      remove() {},
+    }),
+    body: { appendChild() {} },
+  },
+});
 afterAll(restoreDocument);
 
 let mutations: Array<{ name: string; args: any }> = [];
@@ -335,32 +364,74 @@ describe("a prewarm takes nothing from anybody", () => {
   });
 
   test("refuses while the call plane holds a room", async () => {
-    useInboxStore.getState().setCallState({ phase: "connected", roomKey: OTHER });
+    useInboxStore
+      .getState()
+      .setCallState({ phase: "connected", roomKey: OTHER });
     await warmUp(ROOM);
     expect(prewarm.prewarmedRoomKey()).toBe(null);
     expect(FakeRoom.made).toHaveLength(0);
   });
 
   test("refuses a room somebody is already sitting in", async () => {
-    (useInboxStore.getState() as any).callOccupancy = { [ROOM]: [{ user_id: "them" }] };
+    (useInboxStore.getState() as any).callOccupancy = {
+      [ROOM]: [{ user_id: "them" }],
+    };
     await warmUp(ROOM);
     expect(prewarm.prewarmedRoomKey()).toBe(null);
     expect(FakeRoom.made).toHaveLength(0);
   });
 
   test("the rule is readable on its own", () => {
-    expect(prewarm.prewarmAllowed(ROOM, { call: {}, callOccupancy: {} })).toBe(true);
-    expect(prewarm.prewarmAllowed("", { call: {}, callOccupancy: {} })).toBe(false);
-    expect(prewarm.prewarmAllowed(ROOM, { call: { phase: "connecting" }, callOccupancy: {} })).toBe(false);
-    expect(prewarm.prewarmAllowed(ROOM, { call: { roomKey: ROOM }, callOccupancy: {} })).toBe(false);
+    expect(prewarm.prewarmAllowed(ROOM, { call: {}, callOccupancy: {} })).toBe(
+      true,
+    );
+    expect(prewarm.prewarmAllowed("", { call: {}, callOccupancy: {} })).toBe(
+      false,
+    );
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: { phase: "connecting" },
+        callOccupancy: {},
+      }),
+    ).toBe(false);
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: { roomKey: ROOM },
+        callOccupancy: {},
+      }),
+    ).toBe(false);
     // A room being recorded is walked into through its notice, never warmed.
-    expect(prewarm.prewarmAllowed(ROOM, { call: {}, callOccupancy: {}, callRooms: { [ROOM]: { recording: true } } })).toBe(false);
-    expect(prewarm.prewarmAllowed(ROOM, { call: {}, callOccupancy: {}, callRooms: { [ROOM]: { recording: false } } })).toBe(true);
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: {},
+        callOccupancy: {},
+        callRooms: { [ROOM]: { recording: true } },
+      }),
+    ).toBe(false);
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: {},
+        callOccupancy: {},
+        callRooms: { [ROOM]: { recording: false } },
+      }),
+    ).toBe(true);
     // Seated in a call another window holds (a desktop's voice host): this
     // window's call slice is idle, and the seat is the only sign of it.
     const me = { _id: "me" };
-    expect(prewarm.prewarmAllowed(ROOM, { call: {}, currentUser: me, callOccupancy: { [OTHER]: [{ user_id: "me" }] } })).toBe(false);
-    expect(prewarm.prewarmAllowed(ROOM, { call: {}, currentUser: me, callOccupancy: { [OTHER]: [{ user_id: "them" }] } })).toBe(true);
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: {},
+        currentUser: me,
+        callOccupancy: { [OTHER]: [{ user_id: "me" }] },
+      }),
+    ).toBe(false);
+    expect(
+      prewarm.prewarmAllowed(ROOM, {
+        call: {},
+        currentUser: me,
+        callOccupancy: { [OTHER]: [{ user_id: "them" }] },
+      }),
+    ).toBe(true);
   });
 });
 
@@ -377,10 +448,20 @@ describe("bounded: one room, and not for long", () => {
   test("a held room that starts recording is let go at once", async () => {
     await warmUp(ROOM);
     expect(prewarm.prewarmedRoomKey()).toBe(ROOM);
-    useInboxStore.setState({ callRooms: { ...((useInboxStore.getState() as any).callRooms ?? {}), [ROOM]: { recording: true } } } as any);
+    useInboxStore.setState({
+      callRooms: {
+        ...((useInboxStore.getState() as any).callRooms ?? {}),
+        [ROOM]: { recording: true },
+      },
+    } as any);
     expect(prewarm.prewarmedRoomKey()).toBeNull();
     expect(FakeRoom.made[0].disconnects).toBe(1);
-    useInboxStore.setState({ callRooms: { ...((useInboxStore.getState() as any).callRooms ?? {}), [ROOM]: { recording: false } } } as any);
+    useInboxStore.setState({
+      callRooms: {
+        ...((useInboxStore.getState() as any).callRooms ?? {}),
+        [ROOM]: { recording: false },
+      },
+    } as any);
   });
 
   test("re-asking for the room already held costs no second connection", async () => {
@@ -400,7 +481,10 @@ describe("bounded: one room, and not for long", () => {
     expect(named(mutations, "leaveRoom")).toHaveLength(1);
     // Named as a prewarm, so the server drops only the prewarm row: by now
     // another window of ours may be seated in this room on the same row.
-    expect(named(mutations, "leaveRoom")[0].args).toMatchObject({ room_key: ROOM, prewarm: true });
+    expect(named(mutations, "leaveRoom")[0].args).toMatchObject({
+      room_key: ROOM,
+      prewarm: true,
+    });
   });
 
   test("a fresh signal pushes the release out rather than stacking a second one", async () => {
@@ -469,7 +553,6 @@ describe("the claim spends it", () => {
   });
 });
 
-
 // THE VOICE THAT ARRIVED BEFORE ANYBODY WAS LISTENING.
 //
 // Found on the two-identity rig, not by any unit test, and it is the reason
@@ -519,7 +602,6 @@ describe("adopting a warm room that is already carrying a voice", () => {
   });
 });
 
-
 // THE VOICE DOES NOT WAIT ON THE BOOKKEEPING.
 //
 // `joinCall` used to await the control-plane seat row before it touched media,
@@ -566,7 +648,8 @@ describe("the seat row is bookkeeping, not a gate", () => {
       ...convex,
       mutation: async (fn: any, args: any) => {
         mutations.push({ name: getFunctionName(fn), args });
-        if (getFunctionName(fn).endsWith("joinRoom")) throw new Error("Cannot join room: not a member");
+        if (getFunctionName(fn).endsWith("joinRoom"))
+          throw new Error("Cannot join room: not a member");
         return { room_key: args?.room_key };
       },
     };
@@ -579,7 +662,6 @@ describe("the seat row is bookkeeping, not a gate", () => {
     expect(callManager.getRoom()).toBe(null);
   });
 });
-
 
 // ONE PERSON, ONE VOICE IN THE ROOM.
 //
@@ -618,7 +700,14 @@ describe("adopting a warm room that already carries our microphone", () => {
     const shared = fakeMicTrack();
     prewarm.bindPrewarmMic(async () => shared);
     await warmUp(ROOM);
-    const handOff: any = { kind: "audio", readyState: "live", stopped: false, stop() { this.stopped = true; } };
+    const handOff: any = {
+      kind: "audio",
+      readyState: "live",
+      stopped: false,
+      stop() {
+        this.stopped = true;
+      },
+    };
 
     await callManager.joinCall(ROOM, { micTrack: handOff });
 
@@ -627,7 +716,6 @@ describe("adopting a warm room that already carries our microphone", () => {
     await callManager.leaveCall();
   });
 });
-
 
 // A PRESS THAT LANDS MID-PUBLISH MUST NOT CUT THE VOICE OFF.
 //
@@ -665,12 +753,14 @@ describe("a press landing inside the prewarm's publish", () => {
   });
 });
 
-
 test("a prepublished warm microphone starts the live meter without a publication event", async () => {
   const realInterval = globalThis.setInterval;
   let tick = () => {};
   globalThis.setInterval = ((fn: () => void, ms: number) => {
-    if (ms === 50) { tick = fn; return realInterval(() => {}, 60_000); }
+    if (ms === 50) {
+      tick = fn;
+      return realInterval(() => {}, 60_000);
+    }
     return realInterval(fn, ms);
   }) as any;
   meterProbe = true;

@@ -33,23 +33,35 @@ export function orgRolesSig(tree: OrgTree | null | undefined): string {
   // on a person's edit, never on a heartbeat. The parent is there for a person
   // too: the task board's Chain axis nests a role under whoever it reports to
   // (lib/taskChain), so a role moved from one person to another must repaint.
-  for (const r of tree.roles) sig += `\n${r._id}|${r.handle}|${r.short_id}|${r.name}|${r.status}|${r.avatar ?? ""}|${r.given_name ?? ""}|${roleIconSig(r.icon)}|${r.scope.project_ids.join(",")}|${r.reports_to.kind}:${r.reports_to.kind === "role" ? r.reports_to.role_id : r.reports_to.user_id}`;
+  for (const r of tree.roles)
+    sig += `\n${r._id}|${r.handle}|${r.short_id}|${r.name}|${r.status}|${r.avatar ?? ""}|${r.given_name ?? ""}|${roleIconSig(r.icon)}|${r.scope.project_ids.join(",")}|${r.reports_to.kind}:${r.reports_to.kind === "role" ? r.reports_to.role_id : r.reports_to.user_id}`;
   // A role's seat is a bot user on the roster. Surfaces that list people
   // (the assignee picker, the assignee filter) leave those out, because the
   // role is the thing to name; so the pairing is part of what they draw.
-  for (const a of tree.anchors) if (a.org_role_id) sig += `\n@${a.bot_user_id}:${a.org_role_id}`;
+  for (const a of tree.anchors)
+    if (a.org_role_id) sig += `\n@${a.bot_user_id}:${a.org_role_id}`;
   return sig;
 }
 
 const NO_IDS: ReadonlySet<string> = new Set();
 
-export function useOrgRoles(): { roles: OrgRole[]; workspace: OrgWorkspace | null; roleBotUserIds: ReadonlySet<string> } {
+export function useOrgRoles(): {
+  roles: OrgRole[];
+  workspace: OrgWorkspace | null;
+  roleBotUserIds: ReadonlySet<string>;
+} {
   const sig = useInboxStore((s) => orgRolesSig(windowOrgTree(s)));
   return useMemo(() => {
     const tree = windowOrgTree(useInboxStore.getState());
     const roleBotUserIds = tree?.anchors.some((a) => a.org_role_id)
-      ? new Set(tree.anchors.filter((a) => a.org_role_id).map((a) => a.bot_user_id))
+      ? new Set(
+          tree.anchors.filter((a) => a.org_role_id).map((a) => a.bot_user_id),
+        )
       : NO_IDS;
-    return { roles: tree?.roles ?? NO_ROLES, workspace: tree?.workspace ?? null, roleBotUserIds };
+    return {
+      roles: tree?.roles ?? NO_ROLES,
+      workspace: tree?.workspace ?? null,
+      roleBotUserIds,
+    };
   }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
 }

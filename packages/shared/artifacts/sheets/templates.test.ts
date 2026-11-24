@@ -9,17 +9,33 @@ import { styleOf } from "./model";
 describe("sheet templates", () => {
   for (const t of SHEET_TEMPLATES) {
     test(`${t.label} builds a sheet with no errors`, () => {
-      const model = buildModel([...foldOps(new Map(), t.ops(new Date(2026, 10, 11, 12)))].map(([k, st]) => toElement(k, st)));
+      const model = buildModel(
+        [...foldOps(new Map(), t.ops(new Date(2026, 10, 11, 12)))].map(
+          ([k, st]) => toElement(k, st),
+        ),
+      );
       const wb = workbookFor(model);
       const tab = model.tabs[0];
       expect(model.tabs.length).toBe(1);
       expect(tab.frozenRows).toBe(1);
-      for (const n of model.byId.get(tab.id)!.cells.keys()) expect(isError(wb.value(tab.id, n % 32768, Math.floor(n / 32768)))).toBe(false);
+      for (const n of model.byId.get(tab.id)!.cells.keys())
+        expect(
+          isError(wb.value(tab.id, n % 32768, Math.floor(n / 32768))),
+        ).toBe(false);
     });
   }
   test("budget totals and timesheet hours compute", () => {
     const read = (id: string, col: number, row: number) => {
-      const model = buildModel([...foldOps(new Map(), SHEET_TEMPLATES.find((t) => t.id === id)!.ops(new Date(2026, 10, 11, 12)))].map(([k, st]) => toElement(k, st)));
+      const model = buildModel(
+        [
+          ...foldOps(
+            new Map(),
+            SHEET_TEMPLATES.find((t) => t.id === id)!.ops(
+              new Date(2026, 10, 11, 12),
+            ),
+          ),
+        ].map(([k, st]) => toElement(k, st)),
+      );
       const tab = model.tabs[0];
       const el = model.byId.get(tab.id)!.cells.get(row * 32768 + col);
       const info = workbookFor(model).cell(tab.id, col, row);
@@ -36,36 +52,66 @@ describe("adding a line to a template", () => {
   test("a row inserted above Budget's Total takes the row above's formats and counts in the total", async () => {
     const { structuralOps, inputOps } = await import("./ops");
     let els: import("../core").ArtifactElement[] = [];
-    const all: import("../core").ArtifactOp[] = [...SHEET_TEMPLATES.find((t) => t.id === "budget")!.ops(new Date(2026, 10, 11, 12))];
+    const all: import("../core").ArtifactOp[] = [
+      ...SHEET_TEMPLATES.find((t) => t.id === "budget")!.ops(
+        new Date(2026, 10, 11, 12),
+      ),
+    ];
     const apply = (ops: import("../core").ArtifactOp[]) => {
       all.push(...ops);
-      els = [...foldOps(new Map(), all)].filter(([, st]) => !(st as { deleted?: boolean }).deleted).map(([k, st]) => toElement(k, st));
+      els = [...foldOps(new Map(), all)]
+        .filter(([, st]) => !(st as { deleted?: boolean }).deleted)
+        .map(([k, st]) => toElement(k, st));
     };
     apply([]);
     let model = buildModel(els);
     const tab = model.tabs[0].id;
     apply(structuralOps(model, tab, "row", 8, 1));
     model = buildModel(els);
-    apply(inputOps(model, tab, [{ col: 1, row: 8, input: "Insurance" }, { col: 2, row: 8, input: "500" }, { col: 3, row: 8, input: "600" }]));
+    apply(
+      inputOps(model, tab, [
+        { col: 1, row: 8, input: "Insurance" },
+        { col: 2, row: 8, input: "500" },
+        { col: 3, row: 8, input: "600" },
+      ]),
+    );
     model = buildModel(els);
     const el = model.byId.get(tab)!.cells.get(8 * 32768 + 2);
     expect(el).toMatchObject({ nf: "currency" });
     const info = workbookFor(model).cell(tab, 2, 9);
-    expect(formatValue(info?.value ?? null, styleOf(model.byId.get(tab)!.cells.get(9 * 32768 + 2)), info?.implied)).toBe("$26,300");
+    expect(
+      formatValue(
+        info?.value ?? null,
+        styleOf(model.byId.get(tab)!.cells.get(9 * 32768 + 2)),
+        info?.implied,
+      ),
+    ).toBe("$26,300");
   });
 });
 
 describe("importing a workbook beside same-named tabs", () => {
   test("formulas naming a sibling sheet follow it to its new name", async () => {
     const { importTablesOps } = await import("./importOps");
-    const base = [...foldOps(new Map(), [{ k: "tab:o", put: { kind: "tab", name: "Orders", order: 0 } }])].map(([k, st]) => toElement(k, st));
+    const base = [
+      ...foldOps(new Map(), [
+        { k: "tab:o", put: { kind: "tab", name: "Orders", order: 0 } },
+      ]),
+    ].map(([k, st]) => toElement(k, st));
     const r = importTablesOps(buildModel(base), [
       { name: "Orders", grid: [["5"]] },
       { name: "Notes", grid: [["=Orders!A1*2", "=Elsewhere!A1"]] },
     ]);
-    const m = buildModel([...foldOps(new Map(base.map((e) => [e.key, { ...e } as never])), r.ops)].map(([k, st]) => toElement(k, st)));
+    const m = buildModel(
+      [
+        ...foldOps(new Map(base.map((e) => [e.key, { ...e } as never])), r.ops),
+      ].map(([k, st]) => toElement(k, st)),
+    );
     const notes = m.tabs.find((t) => t.name === "Notes")!;
-    expect(m.byId.get(notes.id)!.cells.get(1 * 32768 + 1)?.input).toBe("='Orders 2'!A1*2");
-    expect(m.byId.get(notes.id)!.cells.get(1 * 32768 + 2)?.input).toBe("=Elsewhere!A1");
+    expect(m.byId.get(notes.id)!.cells.get(1 * 32768 + 1)?.input).toBe(
+      "='Orders 2'!A1*2",
+    );
+    expect(m.byId.get(notes.id)!.cells.get(1 * 32768 + 2)?.input).toBe(
+      "=Elsewhere!A1",
+    );
   });
 });

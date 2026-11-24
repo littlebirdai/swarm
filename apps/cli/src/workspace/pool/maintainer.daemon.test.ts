@@ -9,7 +9,10 @@ import { describe, test, expect, beforeEach, afterEach, jest } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
 import { startPoolMaintainer } from "./maintainer.js";
 import { recordWorkspaceCreate } from "./demand.js";
 
@@ -54,7 +57,9 @@ beforeEach(() => {
 afterEach(async () => {
   timers.useRealTimers();
   for (const h of handles.splice(0)) {
-    try { await h.stop(); } catch {}
+    try {
+      await h.stop();
+    } catch {}
   }
   fs.rmSync(repoRoot, { recursive: true, force: true });
   home.restore();
@@ -63,7 +68,12 @@ afterEach(async () => {
 describe("startPoolMaintainer — lifecycle on the daemon's clock", () => {
   test("ticks immediately, then once per period, and never again after stop()", async () => {
     timers.useFakeTimers();
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 30_000, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 30_000,
+      watch: false,
+    });
     handles.push(h);
 
     await flush();
@@ -84,7 +94,11 @@ describe("startPoolMaintainer — lifecycle on the daemon's clock", () => {
   });
 
   test("stop() is idempotent", async () => {
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      watch: false,
+    });
     handles.push(h);
     await h.stop();
     await h.stop();
@@ -93,7 +107,12 @@ describe("startPoolMaintainer — lifecycle on the daemon's clock", () => {
   test("a tick that overruns its period does not stack up passes", async () => {
     timers.useFakeTimers();
     release = () => {};
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 1_000, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 1_000,
+      watch: false,
+    });
     handles.push(h);
 
     await flush();
@@ -114,14 +133,24 @@ describe("startPoolMaintainer — lifecycle on the daemon's clock", () => {
 
 describe("startPoolMaintainer — the target size follows real demand", () => {
   test("a repo with no creates holds no slots", async () => {
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 60_000, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 60_000,
+      watch: false,
+    });
     handles.push(h);
     await h.tickNow();
     expect(calls.at(-1)).toEqual({ repoRoot, size: 0 });
   });
 
   test("an isolated create still earns nothing; the second one arms a slot", async () => {
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 60_000, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 60_000,
+      watch: false,
+    });
     handles.push(h);
 
     await recordWorkspaceCreate(repoRoot);
@@ -134,7 +163,13 @@ describe("startPoolMaintainer — the target size follows real demand", () => {
   });
 
   test("a burst walks up to the cap the caller sets", async () => {
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 60_000, watch: false, maxSlots: 2 });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 60_000,
+      watch: false,
+      maxSlots: 2,
+    });
     handles.push(h);
     for (let i = 0; i < 6; i++) await recordWorkspaceCreate(repoRoot);
     await h.tickNow();
@@ -142,7 +177,13 @@ describe("startPoolMaintainer — the target size follows real demand", () => {
   });
 
   test("a pinned size ignores demand entirely", async () => {
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, size: 2, periodMs: 60_000, watch: false });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      size: 2,
+      periodMs: 60_000,
+      watch: false,
+    });
     handles.push(h);
     await h.tickNow();
     expect(calls.at(-1)!.size).toBe(2);
@@ -154,7 +195,11 @@ describe("startPoolMaintainer — re-arm after a claim in another process", () =
     // One create already on the books, so the next one raises the target and
     // the maintainer has something to do when it wakes.
     await recordWorkspaceCreate(repoRoot);
-    const h = startPoolMaintainer({ maintain: fakeMaintain, repoRoot, periodMs: 600_000 });
+    const h = startPoolMaintainer({
+      maintain: fakeMaintain,
+      repoRoot,
+      periodMs: 600_000,
+    });
     handles.push(h);
     await h.tickNow();
     const before = calls.length;

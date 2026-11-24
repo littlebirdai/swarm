@@ -28,7 +28,11 @@ export function CallChatChip({ onOpen }: { onOpen: () => void }) {
         requestCallThread();
         onOpen();
       }}
-      title={agent ? `${latest!.agent!.name ?? latest!.agent!.title} replied in the call's chat. Open it` : `${unread} new in the call's chat. Open it`}
+      title={
+        agent
+          ? `${latest!.agent!.name ?? latest!.agent!.title} replied in the call's chat. Open it`
+          : `${unread} new in the call's chat. Open it`
+      }
       aria-label={`Open the call's chat, ${unread} new`}
     >
       <MessageSquare className="h-3.5 w-3.5" />

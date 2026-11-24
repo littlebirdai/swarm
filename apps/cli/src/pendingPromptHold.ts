@@ -35,7 +35,10 @@ export function setPendingRedrive(fn: (() => void) | null): void {
 // a prompt dismissed in the terminal never reports itself closed, so the
 // message waited for the next unrelated scan, up to a minute past the window
 // (2026-09-24).
-export function holdConversationForPrompt(conversationId: string, now: number = Date.now()): void {
+export function holdConversationForPrompt(
+  conversationId: string,
+  now: number = Date.now(),
+): void {
   holds.set(conversationId, now);
   clearTimeout(expiries.get(conversationId));
   const expiry = setTimeout(() => {
@@ -51,7 +54,10 @@ export function holdConversationForPrompt(conversationId: string, now: number = 
 // Milliseconds a scan should still skip this conversation; 0 when it may try
 // again (an expired hold is forgotten here, so a real prompt that stays open
 // costs one refused attempt per hold window, never a spent budget).
-export function promptHoldRemainingMs(conversationId: string, now: number = Date.now()): number {
+export function promptHoldRemainingMs(
+  conversationId: string,
+  now: number = Date.now(),
+): number {
   const at = holds.get(conversationId);
   if (at === undefined) return 0;
   const remaining = PROMPT_HOLD_MS - (now - at);

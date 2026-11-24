@@ -3,7 +3,13 @@ import { afterAll, afterEach, expect, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
-import { ImageGalleryProvider, GalleryMessageScope, useImageGallery, useGalleryMessageId, type GalleryImage } from "../ImageGallery";
+import {
+  ImageGalleryProvider,
+  GalleryMessageScope,
+  useImageGallery,
+  useGalleryMessageId,
+  type GalleryImage,
+} from "../ImageGallery";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useInboxStore } from "../../store/inboxStore";
 
@@ -37,7 +43,9 @@ afterAll(() => {
 function Registered({ src, href }: { src: string; href?: string }) {
   const gallery = useImageGallery();
   const messageId = useGalleryMessageId();
-  useWatchEffect(() => { gallery?.register({ src, href, messageId }); }, [gallery, src, href, messageId]);
+  useWatchEffect(() => {
+    gallery?.register({ src, href, messageId });
+  }, [gallery, src, href, messageId]);
   return <button data-src={src} onClick={() => gallery?.open(src)} />;
 }
 
@@ -46,7 +54,8 @@ let container: HTMLElement | null = null;
 afterEach(async () => {
   if (root) await act(() => root!.unmount());
   container?.remove();
-  root = null; container = null;
+  root = null;
+  container = null;
 });
 
 async function mount(el: React.ReactElement) {
@@ -56,15 +65,26 @@ async function mount(el: React.ReactElement) {
   await act(() => root!.render(el));
 }
 
-const lightbox = () => document.body.querySelector('div[class*="fixed inset-0"]') as HTMLElement | null;
+const lightbox = () =>
+  document.body.querySelector(
+    'div[class*="fixed inset-0"]',
+  ) as HTMLElement | null;
 const counter = () => lightbox()?.textContent?.match(/\d+ \/ \d+/)?.[0];
-const thumbSrcs = () => Array.from(lightbox()?.querySelectorAll("img.h-9") ?? []).map((i) => (i as HTMLImageElement).getAttribute("src"));
-const clickSrc = async (src: string) => act(() => { (container!.querySelector(`[data-src="${src}"]`) as HTMLElement).click(); });
+const thumbSrcs = () =>
+  Array.from(lightbox()?.querySelectorAll("img.h-9") ?? []).map((i) =>
+    (i as HTMLImageElement).getAttribute("src"),
+  );
+const clickSrc = async (src: string) =>
+  act(() => {
+    (container!.querySelector(`[data-src="${src}"]`) as HTMLElement).click();
+  });
 
 test("switching conversations drops the previous conversation's registered images", async () => {
   const view = (conversationId: string, images: GalleryImage[]) => (
     <ImageGalleryProvider conversationId={conversationId}>
-      {images.map((i) => <Registered key={i.src} {...i} />)}
+      {images.map((i) => (
+        <Registered key={i.src} {...i} />
+      ))}
     </ImageGalleryProvider>
   );
   await mount(view("A", [{ src: "a1" }, { src: "a2" }]));
@@ -84,7 +104,10 @@ test("switching conversations drops the previous conversation's registered image
 test("the open image offers its link and the way back to its message", async () => {
   const jumps: string[] = [];
   await mount(
-    <ImageGalleryProvider conversationId="conv1" onJumpToMessage={(id) => jumps.push(id)}>
+    <ImageGalleryProvider
+      conversationId="conv1"
+      onJumpToMessage={(id) => jumps.push(id)}
+    >
       <GalleryMessageScope messageId="msg9">
         <Registered src="blob:local" href="https://files.example/s1.png" />
       </GalleryMessageScope>
@@ -93,17 +116,27 @@ test("the open image offers its link and the way back to its message", async () 
   );
   await clickSrc("blob:local");
   const copy = lightbox()!.querySelector('[aria-label="Copy link to image"]');
-  const jump = lightbox()!.querySelector('button[aria-label="Locate in the conversation"]') as HTMLButtonElement;
+  const jump = lightbox()!.querySelector(
+    'button[aria-label="Locate in the conversation"]',
+  ) as HTMLButtonElement;
   expect(copy).not.toBeNull();
   expect(jump).not.toBeNull();
-  await act(() => { jump.click(); });
+  await act(() => {
+    jump.click();
+  });
   expect(jumps).toEqual(["msg9"]);
   expect(lightbox()).toBeNull();
 
   // An inline base64 image outside any message scope has nowhere to link or jump.
   await clickSrc("data:image/png;base64,AAAA");
-  expect(lightbox()!.querySelector('[aria-label="Copy link to image"]')).toBeNull();
-  expect(lightbox()!.querySelector('button[aria-label="Locate in the conversation"]')).toBeNull();
+  expect(
+    lightbox()!.querySelector('[aria-label="Copy link to image"]'),
+  ).toBeNull();
+  expect(
+    lightbox()!.querySelector(
+      'button[aria-label="Locate in the conversation"]',
+    ),
+  ).toBeNull();
 });
 
 test("a trackpad pinch zooms the open image, 0 resets, paging resets", async () => {
@@ -115,28 +148,52 @@ test("a trackpad pinch zooms the open image, 0 resets, paging resets", async () 
   );
   await clickSrc("z1");
   // The zoom transform sits on the box around the picture, which also holds its pins.
-  const zoomBox = () => lightbox()!.querySelector('img[alt="Gallery image"]')!.parentElement as HTMLElement;
-  const scaleOf = () => Number(zoomBox().style.transform.match(/scale\(([\d.]+)\)/)?.[1]);
+  const zoomBox = () =>
+    lightbox()!.querySelector('img[alt="Gallery image"]')!
+      .parentElement as HTMLElement;
+  const scaleOf = () =>
+    Number(zoomBox().style.transform.match(/scale\(([\d.]+)\)/)?.[1]);
   expect(scaleOf()).toBe(1);
 
   // Chromium reports a pinch as a ctrl+wheel with negative deltaY to zoom in.
-  const pinch = (deltaY: number) => act(() => {
-    lightbox()!.dispatchEvent(new dom.window.WheelEvent("wheel", { deltaY, ctrlKey: true, bubbles: true, cancelable: true }));
-  });
+  const pinch = (deltaY: number) =>
+    act(() => {
+      lightbox()!.dispatchEvent(
+        new dom.window.WheelEvent("wheel", {
+          deltaY,
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
   await pinch(-40);
   expect(scaleOf()).toBeGreaterThan(1.4);
   expect(lightbox()!.textContent).toContain("reset");
 
   // Zoom never goes below 100%.
-  await pinch(50); await pinch(50); await pinch(50);
+  await pinch(50);
+  await pinch(50);
+  await pinch(50);
   expect(scaleOf()).toBe(1);
 
   await pinch(-40);
-  await act(() => { document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "0", bubbles: true })); });
+  await act(() => {
+    document.dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: "0", bubbles: true }),
+    );
+  });
   expect(scaleOf()).toBe(1);
 
   await pinch(-40);
-  await act(() => { document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
+  await act(() => {
+    document.dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+      }),
+    );
+  });
   expect(counter()).toBe("2 / 2");
   expect(scaleOf()).toBe(1);
 });
@@ -149,16 +206,33 @@ test("clicking a point of the picture pins a note there, and a click before writ
     </ImageGalleryProvider>,
   );
   await clickSrc("p1");
-  const img = lightbox()!.querySelector('img[alt="Gallery image"]') as HTMLImageElement;
-  img.getBoundingClientRect = () => ({ left: 100, top: 50, width: 400, height: 200, right: 500, bottom: 250, x: 100, y: 50, toJSON() {} });
-  const clickAt = (clientX: number, clientY: number) => act(() => {
-    img.dispatchEvent(new dom.window.MouseEvent("click", { clientX, clientY, bubbles: true }));
+  const img = lightbox()!.querySelector(
+    'img[alt="Gallery image"]',
+  ) as HTMLImageElement;
+  img.getBoundingClientRect = () => ({
+    left: 100,
+    top: 50,
+    width: 400,
+    height: 200,
+    right: 500,
+    bottom: 250,
+    x: 100,
+    y: 50,
+    toJSON() {},
   });
+  const clickAt = (clientX: number, clientY: number) =>
+    act(() => {
+      img.dispatchEvent(
+        new dom.window.MouseEvent("click", { clientX, clientY, bubbles: true }),
+      );
+    });
   const pins = () => useInboxStore.getState().reviewComments.P ?? [];
 
   await clickAt(200, 100);
   expect(pins().map((c) => c.image?.point)).toEqual([{ x: 0.25, y: 0.25 }]);
-  expect(lightbox()!.querySelector('button[aria-label="Note 1"]')).not.toBeNull();
+  expect(
+    lightbox()!.querySelector('button[aria-label="Note 1"]'),
+  ).not.toBeNull();
   expect(lightbox()!.querySelector("textarea")).not.toBeNull();
 
   // Still no note: the click was a miss, so the pin moves rather than doubles.
@@ -166,9 +240,14 @@ test("clicking a point of the picture pins a note there, and a click before writ
   expect(pins().map((c) => c.image?.point)).toEqual([{ x: 0.75, y: 0.75 }]);
 
   // Once it has a note, the next click is a second pin.
-  await act(() => { useInboxStore.getState().commitReviewComment("P", pins()[0].id, "this one"); });
+  await act(() => {
+    useInboxStore.getState().commitReviewComment("P", pins()[0].id, "this one");
+  });
   await clickAt(300, 150);
-  expect(pins().map((c) => c.image?.point)).toEqual([{ x: 0.75, y: 0.75 }, { x: 0.5, y: 0.5 }]);
+  expect(pins().map((c) => c.image?.point)).toEqual([
+    { x: 0.75, y: 0.75 },
+    { x: 0.5, y: 0.5 },
+  ]);
   expect(lightbox()!.textContent).toContain("2 notes on your next message");
 });
 
@@ -178,7 +257,9 @@ test("an image still mounted when the conversation id arrives stays clickable", 
   const images = [{ src: "a1" }, { src: "a2" }];
   const view = (conversationId: string | undefined) => (
     <ImageGalleryProvider conversationId={conversationId}>
-      {images.map((i) => <Registered key={i.src} {...i} />)}
+      {images.map((i) => (
+        <Registered key={i.src} {...i} />
+      ))}
     </ImageGalleryProvider>
   );
   await mount(view(undefined));

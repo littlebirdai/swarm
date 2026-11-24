@@ -37,7 +37,12 @@ export type LiveRoom = {
   can_join: boolean;
   redacted: boolean;
   title?: string;
-  members: { user_id: string; user_name?: string; user_image?: string; muted?: boolean }[];
+  members: {
+    user_id: string;
+    user_name?: string;
+    user_image?: string;
+    muted?: boolean;
+  }[];
   /** People from outside the team let in on a guest link (callGuests).
    *  Their own list, never mixed into `members`: a member is a users id every
    *  reader resolves, a guest is `identity` (`guest:<id>`) and a typed name. */
@@ -58,7 +63,12 @@ export type GuestWaiting = {
 };
 
 /** A guest inside a live room, as calls.getLiveRooms projects them. */
-export type LiveRoomGuest = { guest_id: string; identity: string; name: string; joined_at: number };
+export type LiveRoomGuest = {
+  guest_id: string;
+  identity: string;
+  name: string;
+  joined_at: number;
+};
 
 /** Someone waiting at the door of the room I'm in (calls.getRoomKnocks). A
  *  teammate's knock is answered with a ring; a guest's (`kind: "guest"`,

@@ -5,31 +5,56 @@
 // error reporter.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { ConvexReactClient } from "convex/react";
-import { forwardHostPort, getTerminalEndpoint, termWsUrl, type TerminalEndpoint } from "../terminal/endpoint";
-import { connectBrowserWatch, watchWsUrl, type WatchHandlers } from "../browserWatch";
+import {
+  forwardHostPort,
+  getTerminalEndpoint,
+  termWsUrl,
+  type TerminalEndpoint,
+} from "../terminal/endpoint";
+import {
+  connectBrowserWatch,
+  watchWsUrl,
+  type WatchHandlers,
+} from "../browserWatch";
 import { subscribeVaultEvents } from "../vault/client";
 import { openWebSocket } from "../openWebSocket";
 
 function memoryStorage(): Storage {
   const m = new Map<string, string>();
   return {
-    get length() { return m.size; },
+    get length() {
+      return m.size;
+    },
     clear: () => m.clear(),
     getItem: (k) => (m.has(k) ? m.get(k)! : null),
     key: (i) => [...m.keys()][i] ?? null,
-    removeItem: (k) => { m.delete(k); },
-    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: (k) => {
+      m.delete(k);
+    },
+    setItem: (k, v) => {
+      m.set(k, String(v));
+    },
   };
 }
 
 const g = globalThis as any;
-const saved = { local: g.localStorage, session: g.sessionStorage, ws: g.WebSocket, fetch: g.fetch };
+const saved = {
+  local: g.localStorage,
+  session: g.sessionStorage,
+  ws: g.WebSocket,
+  fetch: g.fetch,
+};
 let constructed = 0;
 beforeEach(() => {
   g.localStorage = memoryStorage();
   g.sessionStorage = memoryStorage();
   constructed = 0;
-  g.WebSocket = class { constructor() { constructed++; } close() {} };
+  g.WebSocket = class {
+    constructor() {
+      constructed++;
+    }
+    close() {}
+  };
 });
 afterEach(() => {
   g.localStorage = saved.local;
@@ -39,7 +64,8 @@ afterEach(() => {
 });
 
 const convex = {} as ConvexReactClient;
-const ep = (port: unknown, token: unknown = "tok") => ({ port, token, deviceId: "d", tmux: true }) as unknown as TerminalEndpoint;
+const ep = (port: unknown, token: unknown = "tok") =>
+  ({ port, token, deviceId: "d", tmux: true }) as unknown as TerminalEndpoint;
 
 function watchHandlers(log: string[]): WatchHandlers {
   return {
@@ -65,7 +91,9 @@ describe("one check builds every loopback socket URL", () => {
       expect(watchWsUrl(bad)).toBeNull();
 
       const log: string[] = [];
-      expect(() => connectBrowserWatch(bad, {}, watchHandlers(log))).not.toThrow();
+      expect(() =>
+        connectBrowserWatch(bad, {}, watchHandlers(log)),
+      ).not.toThrow();
       await Promise.resolve();
       expect(log).toEqual(["error:socket"]);
 
@@ -102,11 +130,16 @@ describe("every endpoint source is checked where it is produced", () => {
   for (const [label, raw] of [
     ["malformed JSON", "{not json"],
     ["missing port", JSON.stringify({ token: "t", deviceId: "d", tmux: true })],
-    ["non-numeric port", JSON.stringify({ port: "abc", token: "t", deviceId: "d", tmux: true })],
+    [
+      "non-numeric port",
+      JSON.stringify({ port: "abc", token: "t", deviceId: "d", tmux: true }),
+    ],
   ] as const) {
     test(`a cached entry with ${label} is not handed back, and is cleared`, async () => {
       sessionStorage.setItem("cast_term_endpoint", raw);
-      expect(await getTerminalEndpoint(convex, { trustCache: true })).toBeNull();
+      expect(
+        await getTerminalEndpoint(convex, { trustCache: true }),
+      ).toBeNull();
       expect(sessionStorage.getItem("cast_term_endpoint")).toBeNull();
     });
   }
@@ -115,7 +148,8 @@ describe("every endpoint source is checked where it is produced", () => {
     localStorage.setItem("CAST_TERM_ENDPOINT", "42871:tok");
     g.fetch = async () => new Response(JSON.stringify({}), { status: 200 });
     expect(await forwardHostPort(convex, "cloud-host", 22)).toBeNull();
-    g.fetch = async () => new Response(JSON.stringify({ port: 51000 }), { status: 200 });
+    g.fetch = async () =>
+      new Response(JSON.stringify({ port: 51000 }), { status: 200 });
     expect(await forwardHostPort(convex, "cloud-host", 22)).toBe(51000);
   });
 });
@@ -124,7 +158,9 @@ describe("a WebSocket constructor that throws reaches the socket's failure path"
   beforeEach(() => {
     g.WebSocket = class {
       constructor() {
-        throw new SyntaxError("Failed to construct 'WebSocket': the provided URL is invalid.");
+        throw new SyntaxError(
+          "Failed to construct 'WebSocket': the provided URL is invalid.",
+        );
       }
     };
   });
@@ -136,7 +172,9 @@ describe("a WebSocket constructor that throws reaches the socket's failure path"
 
   test("browser watch reports a socket error", async () => {
     const log: string[] = [];
-    expect(() => connectBrowserWatch(ep(42871), {}, watchHandlers(log))).not.toThrow();
+    expect(() =>
+      connectBrowserWatch(ep(42871), {}, watchHandlers(log)),
+    ).not.toThrow();
     await Promise.resolve();
     expect(log).toEqual(["error:socket"]);
   });

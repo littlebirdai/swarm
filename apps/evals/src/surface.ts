@@ -1,7 +1,14 @@
-import type { CheckResult, ConvoMessage, Freeze, GateResult, ProductionReply, Score } from '@platform/evals';
+import type {
+  CheckResult,
+  ConvoMessage,
+  Freeze,
+  GateResult,
+  ProductionReply,
+  Score,
+} from "@platform/evals";
 
-import type { SurfaceRequest } from '../../../apps/server/convex/lib/anthropic';
-import { DRY_RUN_SCRIPT_REL } from './paths';
+import type { SurfaceRequest } from "../../../apps/server/convex/lib/anthropic";
+import { DRY_RUN_SCRIPT_REL } from "./paths";
 
 export type { SurfaceRequest };
 
@@ -12,7 +19,7 @@ export type { SurfaceRequest };
 export interface SurfaceMeta {
   id: string;
   title: string;
-  route: 'call' | 'agent';
+  route: "call" | "agent";
   /** The pinned model id (models.ts). */
   model: string;
   /** Repo paths `stale` hashes at HEAD. surfaceSources() adds the surface's own dir and the harness. */
@@ -64,7 +71,9 @@ export interface SurfaceMeta {
 /** What a capture adds to make its snapshot the world at that moment (SurfaceMeta.cut). */
 export interface SnapshotCut {
   /** The single-record reads to capture from what frozenReads returned; `prefix` also answers a longer argv that starts with it. */
-  follow(captured: Array<{ argv: string[]; out: string }>): Array<{ argv: string[]; prefix?: boolean }>;
+  follow(
+    captured: Array<{ argv: string[]; out: string }>,
+  ): Array<{ argv: string[]; prefix?: boolean }>;
   /** The repository roots whose default branch the capture pins. */
   gitRoots(captured: Array<{ argv: string[]; out: string }>): string[];
 }
@@ -76,7 +85,8 @@ export interface SnapshotCut {
  * frame asked. Only its own: `--for` names another role's brief, and
  * `brief @x edit` is not this command, so both stay refused.
  */
-export const OWN_BRIEF_EDIT = '^(?!.*(?:^| )--for(?:[ =]|$))brief(?: --team[ =]\\S+)? edit(?: |$)';
+export const OWN_BRIEF_EDIT =
+  "^(?!.*(?:^| )--for(?:[ =]|$))brief(?: --team[ =]\\S+)? edit(?: |$)";
 
 /**
  * An UNSERVED pattern for an agent reading its own brief: bare `cast brief`,
@@ -86,14 +96,19 @@ export const OWN_BRIEF_EDIT = '^(?!.*(?:^| )--for(?:[ =]|$))brief(?: --team[ =]\
  * handle is another role's, or the agent reaching for its own under a name
  * the capture would hold, so it stays a snapshot defect.
  */
-export const OWN_BRIEF_READ = '^brief(?: --team[ =]\\S+)?(?: show| --json)?$';
+export const OWN_BRIEF_READ = "^brief(?: --team[ =]\\S+)?(?: show| --json)?$";
 
 /** The directory a surface's code lives in: its id in camelCase. */
-export const surfaceDir = (id: string): string => id.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+export const surfaceDir = (id: string): string =>
+  id.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
 /** A surface's declared sources: the prod files that shape its prompt, plus its own dir and the harness. */
 export function surfaceSources(id: string, ...prod: string[]): string[] {
-  return [...prod, `apps/evals/src/surfaces/${surfaceDir(id)}`, DRY_RUN_SCRIPT_REL];
+  return [
+    ...prod,
+    `apps/evals/src/surfaces/${surfaceDir(id)}`,
+    DRY_RUN_SCRIPT_REL,
+  ];
 }
 
 /** What `capture` hands back for a real moment; the resolver redacts, hashes and stores the snapshot. */
@@ -104,7 +119,7 @@ export interface Captured {
   snapshotRef?: string;
   subject: { id: string; kind: string; title: string };
   asOf: string;
-  anchor: { kind: 'message' | 'run'; id: string };
+  anchor: { kind: "message" | "run"; id: string };
   name?: string;
   trigger?: { type: string; data?: Record<string, unknown> };
   /** Extra private meta: conversation_id, call_id, trigger_id, workspace, model. */
@@ -113,7 +128,10 @@ export interface Captured {
 
 export interface CaptureCtx {
   /** Pages /cli/read and the other access-checked reads (adapters/convo.ts). */
-  readConversation(ref: string, opts?: { from?: number; to?: number }): Promise<unknown>;
+  readConversation(
+    ref: string,
+    opts?: { from?: number; to?: number },
+  ): Promise<unknown>;
 }
 
 export interface CallResult {
@@ -121,7 +139,10 @@ export interface CallResult {
   text: string;
   outputTokens: number;
   stopReason: string | null;
-  modelUsage: Record<string, { outputTokens?: number; inputTokens?: number; costUSD?: number }>;
+  modelUsage: Record<
+    string,
+    { outputTokens?: number; inputTokens?: number; costUSD?: number }
+  >;
   costUsd: number;
   isError: boolean;
   /** Why the model never answered, when the prompt did not cause it (dryRun.ts harnessFailure). */
@@ -170,7 +191,7 @@ export interface AgentResult {
   calls: string[];
   costUsd: number;
   /** Every model the run spent on, its `Agent` subagents included. */
-  modelUsage: CallResult['modelUsage'];
+  modelUsage: CallResult["modelUsage"];
   /** The agent's own loop: top-level assistant messages per model, read from the stream (dryRun.ts loopTurnsOf). Empty for a dry run. */
   loopTurns?: Record<string, number>;
   isError: boolean;
@@ -183,7 +204,10 @@ export interface AgentResult {
 
 export interface ReplayCtx {
   /** One single-call run through prompt-dry-run.ts --call. `label` names it for the reader; `grader` marks a call that grades the reply. */
-  call(req: SurfaceRequest, opts?: { label?: string; grader?: boolean }): Promise<CallResult>;
+  call(
+    req: SurfaceRequest,
+    opts?: { label?: string; grader?: boolean },
+  ): Promise<CallResult>;
   /** One agent run through prompt-dry-run.ts with a served world. */
   agent(opts: AgentOptions): Promise<AgentResult>;
   /** Canned output, no spawn: proves the wiring, spends nothing. */
@@ -238,4 +262,8 @@ export interface SurfaceImpl {
 }
 
 /** A gate decided by code: what every surface's gates and the route gates are built from. */
-export const gate = (id: string, pass: boolean, summary: string): GateResult => ({ id, pass, decidedBy: 'mechanical', evidence: { summary } });
+export const gate = (
+  id: string,
+  pass: boolean,
+  summary: string,
+): GateResult => ({ id, pass, decidedBy: "mechanical", evidence: { summary } });

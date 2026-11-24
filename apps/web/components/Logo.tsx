@@ -1,4 +1,9 @@
-import { CODECAST_MARK_ARROW_PATH as ARROW_PATH, CODECAST_MARK_C_PATH as C_PATH, CODECAST_MARK_VIEWBOX, CODECAST_MONO_MARK } from "@codecast/shared/render/codecastMark";
+import {
+  CODECAST_MARK_ARROW_PATH as ARROW_PATH,
+  CODECAST_MARK_C_PATH as C_PATH,
+  CODECAST_MARK_VIEWBOX,
+  CODECAST_MONO_MARK,
+} from "@codecast/shared/render/codecastMark";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -15,14 +20,16 @@ const sizes = {
   xl: { icon: 40, text: "text-2xl" },
 };
 
-
 function LogoPaths({ monochrome }: { monochrome?: boolean }) {
   return (
     <>
       {/* C shape - gray. Follows the theme via --logo-c (see globals.css: dark
           mode lightens it — the light-mode #444 C vanishes on dark backgrounds).
           Pages with theme-independent light chrome pin it via [--logo-c:#444444]. */}
-      <path fill={monochrome ? "currentColor" : "var(--logo-c, #444444)"} d={C_PATH} />
+      <path
+        fill={monochrome ? "currentColor" : "var(--logo-c, #444444)"}
+        d={C_PATH}
+      />
       {/* Play arrow - coral, reads well on both themes */}
       <path fill={monochrome ? "currentColor" : "#e86c5d"} d={ARROW_PATH} />
     </>
@@ -57,22 +64,51 @@ export function LogoMark({
  * The one-color mark (CODECAST_MONO_MARK) in currentColor, so it follows
  * whatever ink it sits in.
  */
-export function MonoMark({ size = 24, className = "" }: { size?: number; className?: string }) {
+export function MonoMark({
+  size = 24,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <svg width={size} height={size} viewBox={CODECAST_MONO_MARK.viewBox} fill="currentColor" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
-      {CODECAST_MONO_MARK.paths.map((d) => <path key={d} d={d} />)}
+    <svg
+      width={size}
+      height={size}
+      viewBox={CODECAST_MONO_MARK.viewBox}
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden
+    >
+      {CODECAST_MONO_MARK.paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
     </svg>
   );
 }
 
-export function Logo({ size = "md", showText = true, className = "", mono = false }: LogoProps) {
+export function Logo({
+  size = "md",
+  showText = true,
+  className = "",
+  mono = false,
+}: LogoProps) {
   const { icon, text } = sizes[size];
 
   return (
-    <div className={`flex items-center ${mono ? "gap-2" : "gap-1.5"} ${className}`}>
-      {mono ? <MonoMark size={icon - 2} className="shrink-0" /> : <LogoMark size={icon} className="shrink-0" />}
+    <div
+      className={`flex items-center ${mono ? "gap-2" : "gap-1.5"} ${className}`}
+    >
+      {mono ? (
+        <MonoMark size={icon - 2} className="shrink-0" />
+      ) : (
+        <LogoMark size={icon} className="shrink-0" />
+      )}
       {showText && (
-        <span className={`font-semibold tracking-tight ${text} ${mono ? "" : "text-sol-text"}`}>
+        <span
+          className={`font-semibold tracking-tight ${text} ${mono ? "" : "text-sol-text"}`}
+        >
           codecast
         </span>
       )}
@@ -80,7 +116,13 @@ export function Logo({ size = "md", showText = true, className = "", mono = fals
   );
 }
 
-export function LogoIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
+export function LogoIcon({
+  size = 24,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
     <svg
       width={size}

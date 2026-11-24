@@ -65,7 +65,13 @@ describe("installSectionToFile: permissions belong to the file's owner", () => {
     // real write. `cast update` on a machine that edits its snippets looks like
     // this, and after three of them the file must still be the user's.
     for (const n of [1, 2, 3]) {
-      installSectionToFile(file, dir, SPEC, `\n## Mode Test\n\nbody ${n}\n${END}\n`, true);
+      installSectionToFile(
+        file,
+        dir,
+        SPEC,
+        `\n## Mode Test\n\nbody ${n}\n${END}\n`,
+        true,
+      );
       expect(modeOf(file)).toBe("664");
     }
     expect(fs.readFileSync(file, "utf-8")).toContain("body 3");
@@ -74,9 +80,18 @@ describe("installSectionToFile: permissions belong to the file's owner", () => {
   test("the user's own content survives a write that only replaces our section", () => {
     const { dir, file } = scratch("content");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(file, `# Mine\n\n## Keep\nkeep me\n${BODY}\n## After\nalso keep\n`);
+    fs.writeFileSync(
+      file,
+      `# Mine\n\n## Keep\nkeep me\n${BODY}\n## After\nalso keep\n`,
+    );
 
-    installSectionToFile(file, dir, SPEC, `\n## Mode Test\n\nnew body\n${END}\n`, true);
+    installSectionToFile(
+      file,
+      dir,
+      SPEC,
+      `\n## Mode Test\n\nnew body\n${END}\n`,
+      true,
+    );
 
     const out = fs.readFileSync(file, "utf-8");
     expect(out).toContain("keep me");

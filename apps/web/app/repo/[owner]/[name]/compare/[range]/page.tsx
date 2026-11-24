@@ -13,9 +13,24 @@ export default function RepoComparePage() {
   return (
     // The compare page belongs to the commit list: it is the commits and the
     // diff between two refs, so it wears the same tab and the same accent.
-    <RepoSectionPage tab="commits" accent="var(--sol-blue)" refName={range?.head} flush>
-      {range ? <RepoCompareContent repository={repository} base={range.base} head={range.head} family={family} />
-        : <p className="p-6 text-sm">A comparison needs two refs, written base...head.</p>}
+    <RepoSectionPage
+      tab="commits"
+      accent="var(--sol-blue)"
+      refName={range?.head}
+      flush
+    >
+      {range ? (
+        <RepoCompareContent
+          repository={repository}
+          base={range.base}
+          head={range.head}
+          family={family}
+        />
+      ) : (
+        <p className="p-6 text-sm">
+          A comparison needs two refs, written base...head.
+        </p>
+      )}
     </RepoSectionPage>
   );
 }

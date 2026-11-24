@@ -29,15 +29,26 @@ const SETTLE_MS = ORG_MEET_SETTLE_MS + 1200;
 
 function markSeen() {
   const st = useInboxStore.getState();
-  if (!st.clientState.ui?.theme_intro_seen) st.updateClientUI({ theme_intro_seen: true });
+  if (!st.clientState.ui?.theme_intro_seen)
+    st.updateClientUI({ theme_intro_seen: true });
 }
 
-function ThemeIntroCard({ onDone, onAll }: { onDone: () => void; onAll: () => void }) {
+function ThemeIntroCard({
+  onDone,
+  onAll,
+}: {
+  onDone: () => void;
+  onAll: () => void;
+}) {
   const { themes, current, choose } = useColorThemes();
   const title = themes.find((t) => t.key === current)?.theme.title;
   return (
     <RisingCard
-      face={<span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-sol-bg-alt text-sol-text"><Palette className="h-5 w-5" /></span>}
+      face={
+        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-sol-bg-alt text-sol-text">
+          <Palette className="h-5 w-5" />
+        </span>
+      }
       title="Color themes"
       lines={[title ? `Now on ${title}. Try another:` : "Try one:"]}
       primaryLabel="Done"
@@ -47,8 +58,19 @@ function ThemeIntroCard({ onDone, onAll }: { onDone: () => void; onAll: () => vo
       accent="var(--sol-link)"
       data-theme-intro
     >
-      <div role="radiogroup" aria-label="Color theme" className="mt-2.5 flex flex-wrap gap-1">
-        {themes.map((t) => <ThemeDot key={t.key} choice={t} checked={t.key === current} onChoose={() => choose(t.key)} />)}
+      <div
+        role="radiogroup"
+        aria-label="Color theme"
+        className="mt-2.5 flex flex-wrap gap-1"
+      >
+        {themes.map((t) => (
+          <ThemeDot
+            key={t.key}
+            choice={t}
+            checked={t.key === current}
+            onChoose={() => choose(t.key)}
+          />
+        ))}
       </div>
     </RisingCard>
   );
@@ -56,12 +78,24 @@ function ThemeIntroCard({ onDone, onAll }: { onDone: () => void; onAll: () => vo
 
 function showThemeIntro(onAll: () => void) {
   let answered = false;
-  const answer = () => { if (!answered) { answered = true; markSeen(); } };
+  const answer = () => {
+    if (!answered) {
+      answered = true;
+      markSeen();
+    }
+  };
   toast.custom(
     (id) => (
       <ThemeIntroCard
-        onDone={() => { answer(); toast.dismiss(id); }}
-        onAll={() => { answer(); toast.dismiss(id); onAll(); }}
+        onDone={() => {
+          answer();
+          toast.dismiss(id);
+        }}
+        onAll={() => {
+          answer();
+          toast.dismiss(id);
+          onAll();
+        }}
       />
     ),
     { id: TOAST_ID, duration: Infinity, onDismiss: answer },
@@ -81,7 +115,11 @@ export function ThemeIntroAnywhere() {
     (st) => cliNeverConnected(st.currentUser),
   ]);
   const risen = useRef(false);
-  const ready = s.clientStateInitialized && !!s.currentUser?._id && !phone && !cliNeverConnected(s.currentUser);
+  const ready =
+    s.clientStateInitialized &&
+    !!s.currentUser?._id &&
+    !phone &&
+    !cliNeverConnected(s.currentUser);
   const seen = s.clientState.ui?.theme_intro_seen === true;
 
   // Answered on another device while the card is up: it goes.
@@ -96,7 +134,11 @@ export function ThemeIntroAnywhere() {
     if (risen.current || !ready || seen || inSetupFlow) return;
     const t = window.setTimeout(() => {
       const st = useInboxStore.getState();
-      const busy = (st.call?.phase ?? "idle") !== "idle" || !!st.tour || composerHasText() || toast.getToasts().length > 0;
+      const busy =
+        (st.call?.phase ?? "idle") !== "idle" ||
+        !!st.tour ||
+        composerHasText() ||
+        toast.getToasts().length > 0;
       if (risen.current || busy || st.clientState.ui?.theme_intro_seen) return;
       risen.current = true;
       showThemeIntro(() => router.push(settingsPathFor("general")));
@@ -109,4 +151,5 @@ export function ThemeIntroAnywhere() {
 
 // Dev console hook: __showThemeIntro() raises the card without the gate.
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined")
-  (window as any).__showThemeIntro = () => showThemeIntro(() => window.location.assign("/settings/profile"));
+  (window as any).__showThemeIntro = () =>
+    showThemeIntro(() => window.location.assign("/settings/profile"));

@@ -112,7 +112,8 @@ function CallRingRoot() {
     if (!el || !invite) return;
     const report = () => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) callRingSize({ width: r.width, height: r.height });
+      if (r.width > 0 && r.height > 0)
+        callRingSize({ width: r.width, height: r.height });
     };
     report();
     if (typeof ResizeObserver === "undefined") return;
@@ -134,12 +135,16 @@ function CallRingRoot() {
   // there is no teardown protocol to get wrong.
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const checking = !!invite && checkingId === String(invite._id);
-  const quiet = useInboxStore((st) => st.currentUser?.status === "busy") || checking;
+  const quiet =
+    useInboxStore((st) => st.currentUser?.status === "busy") || checking;
   useWatchEffect(() => {
     if (!invite || quiet) return;
     let cycle = 0;
     soundCallRing(cycle, String(invite._id));
-    const t = setInterval(() => soundCallRing(++cycle, String(invite._id)), CALL_RING_PERIOD_MS);
+    const t = setInterval(
+      () => soundCallRing(++cycle, String(invite._id)),
+      CALL_RING_PERIOD_MS,
+    );
     return () => clearInterval(t);
   }, [invite?._id, quiet]);
 
@@ -149,12 +154,24 @@ function CallRingRoot() {
     settleRing(String(invite._id));
   };
   const decline = () => void declineInvite(String(invite._id));
-  if (checking) return <RingCheck ref={cardRef} invite={invite} onAnswer={answer} onDecline={decline} />;
+  if (checking)
+    return (
+      <RingCheck
+        ref={cardRef}
+        invite={invite}
+        onAnswer={answer}
+        onDecline={decline}
+      />
+    );
   return (
     <RingCard
       ref={cardRef}
       invite={invite}
-      onAnswer={() => (readJoinPrefs().deviceCheck ? setCheckingId(String(invite._id)) : answer())}
+      onAnswer={() =>
+        readJoinPrefs().deviceCheck
+          ? setCheckingId(String(invite._id))
+          : answer()
+      }
       onDecline={decline}
     />
   );
@@ -162,28 +179,29 @@ function CallRingRoot() {
 
 // The check, inside the ring card. One preview for as long as it is up: the
 // caller hanging up takes the card down, and the preview with it.
-const RingCheck = forwardRef<HTMLDivElement, { invite: RingInvite; onAnswer: () => void; onDecline: () => void }>(
-  function RingCheck({ invite, onAnswer, onDecline }, ref) {
-    const preview = usePreview();
-    const [skipNext, setSkipNext] = useState(false);
-    const join = () => {
-      preview?.dispose();
-      if (skipNext) rememberDeviceCheck(false);
-      onAnswer();
-    };
-    return (
-      <RingCard ref={ref} invite={invite} onAnswer={join} onDecline={onDecline}>
-        {preview && <PreviewBody preview={preview} flush />}
-        <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-sol-text-muted hover:text-sol-text">
-          <input
-            type="checkbox"
-            checked={skipNext}
-            onChange={(e) => setSkipNext(e.target.checked)}
-            className="h-3.5 w-3.5 cursor-pointer rounded border-sol-border bg-sol-bg accent-sol-violet"
-          />
-          Skip this check next time
-        </label>
-      </RingCard>
-    );
-  },
-);
+const RingCheck = forwardRef<
+  HTMLDivElement,
+  { invite: RingInvite; onAnswer: () => void; onDecline: () => void }
+>(function RingCheck({ invite, onAnswer, onDecline }, ref) {
+  const preview = usePreview();
+  const [skipNext, setSkipNext] = useState(false);
+  const join = () => {
+    preview?.dispose();
+    if (skipNext) rememberDeviceCheck(false);
+    onAnswer();
+  };
+  return (
+    <RingCard ref={ref} invite={invite} onAnswer={join} onDecline={onDecline}>
+      {preview && <PreviewBody preview={preview} flush />}
+      <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-sol-text-muted hover:text-sol-text">
+        <input
+          type="checkbox"
+          checked={skipNext}
+          onChange={(e) => setSkipNext(e.target.checked)}
+          className="h-3.5 w-3.5 cursor-pointer rounded border-sol-border bg-sol-bg accent-sol-violet"
+        />
+        Skip this check next time
+      </label>
+    </RingCard>
+  );
+});

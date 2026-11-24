@@ -27,13 +27,33 @@ export function world() {
     },
     { indexes: schemaIndexes(schema as any) },
   );
-  const scheduler = { runAfter: async (_ms: number, fn: any, args: any) => void scheduled.push({ name: getFunctionName(fn), args }) };
-  const as = (userId: string) => ({ auth: { getUserIdentity: async () => ({ subject: `${userId}|sess` }) }, db, scheduler }) as any;
-  return { db: db as any, scheduled, as, internalCtx: { db, scheduler } as any };
+  const scheduler = {
+    runAfter: async (_ms: number, fn: any, args: any) =>
+      void scheduled.push({ name: getFunctionName(fn), args }),
+  };
+  const as = (userId: string) =>
+    ({
+      auth: { getUserIdentity: async () => ({ subject: `${userId}|sess` }) },
+      db,
+      scheduler,
+    }) as any;
+  return {
+    db: db as any,
+    scheduled,
+    as,
+    internalCtx: { db, scheduler } as any,
+  };
 }
 
 export async function teamSource(w: ReturnType<typeof world>) {
-  const out = await h(createSource)(w.as("u1"), { workspace: "team", team_id: "team_1", name: "shop", provider: "sdk" });
-  return { source: w.db._tables.event_sources[0], key: out.ingest_key as string };
+  const out = await h(createSource)(w.as("u1"), {
+    workspace: "team",
+    team_id: "team_1",
+    name: "shop",
+    provider: "sdk",
+  });
+  return {
+    source: w.db._tables.event_sources[0],
+    key: out.ingest_key as string,
+  };
 }
-

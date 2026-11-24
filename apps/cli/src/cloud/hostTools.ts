@@ -36,16 +36,47 @@ import { SHARED_HOST_MARKER } from "../remote/sharedHostGuard.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { lastErrorLine, spawnSync } from "../proc.js";
-import { isCodecastHookCommand, isCodecastOwnedHomePath } from "../codecastOwned.js";
-import { INSTALLABLE_CLIENTS, parseClientVersion, readInstalledClientVersions, type InstallableClient } from "../remote/agentAuth.js";
-import { remoteHome, shq, sshBase, sshDestination, type RemoteHost } from "../remote/session-move.js";
-import { ghWrapperInstallSnippet, realGhFunction, REAL_GH_REL } from "./ghWrapper.js";
 import {
-  emptyOverrides, normalizeCommand, parseHostMcpOverrides, reconcilePins, serializeHostMcpOverrides, HOST_MCP_OVERRIDES_FILE,
-  type HostMcpOverrides, type McpClassified, type McpHarness, type McpSourceServer, type McpStatus,
+  isCodecastHookCommand,
+  isCodecastOwnedHomePath,
+} from "../codecastOwned.js";
+import {
+  INSTALLABLE_CLIENTS,
+  parseClientVersion,
+  readInstalledClientVersions,
+  type InstallableClient,
+} from "../remote/agentAuth.js";
+import {
+  remoteHome,
+  shq,
+  sshBase,
+  sshDestination,
+  type RemoteHost,
+} from "../remote/session-move.js";
+import {
+  ghWrapperInstallSnippet,
+  realGhFunction,
+  REAL_GH_REL,
+} from "./ghWrapper.js";
+import {
+  emptyOverrides,
+  normalizeCommand,
+  parseHostMcpOverrides,
+  reconcilePins,
+  serializeHostMcpOverrides,
+  HOST_MCP_OVERRIDES_FILE,
+  type HostMcpOverrides,
+  type McpClassified,
+  type McpHarness,
+  type McpSourceServer,
+  type McpStatus,
 } from "./hostMcpOverrides.js";
 import type { ProjectRegistration } from "./mirror/projectRefresh.js";
-import { remapContextPaths, splitTomlTables, tableFirstSegment } from "./mirror/transform.js";
+import {
+  remapContextPaths,
+  splitTomlTables,
+  tableFirstSegment,
+} from "./mirror/transform.js";
 
 /**
  * The remote command the tools script runs under: the host git script's
@@ -100,7 +131,9 @@ export interface RequiredHostTools {
 /** The lowest major a semver range accepts (`>=18.0.0` → 18, `^20 || >=22` → 20, `22.x` → 22), or undefined. */
 export function minMajorOfRange(range: string | undefined): number | undefined {
   if (typeof range !== "string") return undefined;
-  const majors = [...range.matchAll(/(\d+)(?:\.\d+|\.x|\.\*)*/g)].map((m) => Number(m[1])).filter((n) => Number.isFinite(n));
+  const majors = [...range.matchAll(/(\d+)(?:\.\d+|\.x|\.\*)*/g)]
+    .map((m) => Number(m[1]))
+    .filter((n) => Number.isFinite(n));
   return majors.length ? Math.min(...majors) : undefined;
 }
 
@@ -125,29 +158,60 @@ function readText(file: string): string | undefined {
  * package's engines (apps/server first, then the repo root), the repo's
  * .nvmrc / .node-version / package.json engines, the laptop's node major.
  */
-export function nodeRequirement(repoRoot: string | undefined, laptopNodeMajor: number | undefined): RequiredHostTools["node"] {
+export function nodeRequirement(
+  repoRoot: string | undefined,
+  laptopNodeMajor: number | undefined,
+): RequiredHostTools["node"] {
   const candidates: Array<{ major: number | undefined; source: string }> = [];
   if (repoRoot) {
-    for (const rel of ["apps/server/node_modules/convex/package.json", "node_modules/convex/package.json"]) {
+    for (const rel of [
+      "apps/server/node_modules/convex/package.json",
+      "node_modules/convex/package.json",
+    ]) {
       const pkg = readJson(path.join(repoRoot, rel));
-      if (pkg) { candidates.push({ major: minMajorOfRange(pkg?.engines?.node), source: `convex ${pkg.version ?? ""} engines`.trim() }); break; }
+      if (pkg) {
+        candidates.push({
+          major: minMajorOfRange(pkg?.engines?.node),
+          source: `convex ${pkg.version ?? ""} engines`.trim(),
+        });
+        break;
+      }
     }
     for (const rel of [".nvmrc", ".node-version"]) {
       const text = readText(path.join(repoRoot, rel));
-      if (text) candidates.push({ major: minMajorOfRange(text.trim().replace(/^v/, "")), source: rel });
+      if (text)
+        candidates.push({
+          major: minMajorOfRange(text.trim().replace(/^v/, "")),
+          source: rel,
+        });
     }
     const pkg = readJson(path.join(repoRoot, "package.json"));
-    if (pkg?.engines?.node) candidates.push({ major: minMajorOfRange(pkg.engines.node), source: "package.json engines" });
+    if (pkg?.engines?.node)
+      candidates.push({
+        major: minMajorOfRange(pkg.engines.node),
+        source: "package.json engines",
+      });
   }
   // The laptop's own node is a hint, not a pin: a laptop on 24 with no repo
   // pin must not make a host on the installable 22 "missing" forever.
-  if (laptopNodeMajor !== undefined) candidates.push({ major: Math.min(laptopNodeMajor, NODE_INSTALL_MAJOR), source: laptopNodeMajor > NODE_INSTALL_MAJOR ? `laptop node (capped at ${NODE_INSTALL_MAJOR})` : "laptop node" });
+  if (laptopNodeMajor !== undefined)
+    candidates.push({
+      major: Math.min(laptopNodeMajor, NODE_INSTALL_MAJOR),
+      source:
+        laptopNodeMajor > NODE_INSTALL_MAJOR
+          ? `laptop node (capped at ${NODE_INSTALL_MAJOR})`
+          : "laptop node",
+    });
   const pick = candidates.find((c) => c.major !== undefined);
   const major = pick?.major ?? NODE_FLOOR_MAJOR;
   return {
     minMajor: Math.max(NODE_FLOOR_MAJOR, major),
     install: NODE_22_VERSION,
-    source: pick ? (major < NODE_FLOOR_MAJOR ? `${pick.source} (raised to ${NODE_FLOOR_MAJOR})` : pick.source) : `floor ${NODE_FLOOR_MAJOR}`,
+    source: pick
+      ? major < NODE_FLOOR_MAJOR
+        ? `${pick.source} (raised to ${NODE_FLOOR_MAJOR})`
+        : pick.source
+      : `floor ${NODE_FLOOR_MAJOR}`,
   };
 }
 
@@ -157,20 +221,207 @@ export function nodeRequirement(repoRoot: string | undefined, laptopNodeMajor: n
 
 /** Commands the base provisioning guarantees, shell builtins, and words that are not programs. */
 const KNOWN_ON_HOST: ReadonlySet<string> = new Set([
-  "sh", "bash", "zsh", "dash", "env", "git", "python3", "python", "curl", "wget", "tar", "gzip", "unzip", "zip", "tmux", "rsync", "ssh", "scp", "jq",
-  "cat", "ls", "grep", "egrep", "fgrep", "sed", "awk", "mkdir", "rm", "rmdir", "cp", "mv", "ln", "date", "dirname", "basename", "head", "tail", "sort",
-  "uniq", "wc", "tr", "cut", "find", "xargs", "sleep", "touch", "chmod", "chown", "tee", "printf", "echo", "test", "true", "false", "which", "command",
-  "type", "pwd", "readlink", "realpath", "stat", "kill", "ps", "pgrep", "pkill", "id", "whoami", "hostname", "uname", "df", "du", "mktemp", "tail", "seq",
-  "expr", "diff", "cmp", "patch", "less", "more", "nohup", "timeout", "nproc", "base64", "md5sum", "sha256sum", "od", "hexdump", "yes", "tput", "clear",
-  "sudo", "systemctl", "service", "apt", "apt-get", "dpkg", "make", "cc", "gcc", "perl", "ruby", "openssl", "gpg", "ssh-keygen", "ssh-agent", "ssh-add",
-  "docker", "cast", "claude", "codex", "gemini", "grok", "opencode", "pi", "muse", "node", "npm", "npx", "bun", "bunx", "gh", "uv", "uvx", "pip", "pip3",
+  "sh",
+  "bash",
+  "zsh",
+  "dash",
+  "env",
+  "git",
+  "python3",
+  "python",
+  "curl",
+  "wget",
+  "tar",
+  "gzip",
+  "unzip",
+  "zip",
+  "tmux",
+  "rsync",
+  "ssh",
+  "scp",
+  "jq",
+  "cat",
+  "ls",
+  "grep",
+  "egrep",
+  "fgrep",
+  "sed",
+  "awk",
+  "mkdir",
+  "rm",
+  "rmdir",
+  "cp",
+  "mv",
+  "ln",
+  "date",
+  "dirname",
+  "basename",
+  "head",
+  "tail",
+  "sort",
+  "uniq",
+  "wc",
+  "tr",
+  "cut",
+  "find",
+  "xargs",
+  "sleep",
+  "touch",
+  "chmod",
+  "chown",
+  "tee",
+  "printf",
+  "echo",
+  "test",
+  "true",
+  "false",
+  "which",
+  "command",
+  "type",
+  "pwd",
+  "readlink",
+  "realpath",
+  "stat",
+  "kill",
+  "ps",
+  "pgrep",
+  "pkill",
+  "id",
+  "whoami",
+  "hostname",
+  "uname",
+  "df",
+  "du",
+  "mktemp",
+  "tail",
+  "seq",
+  "expr",
+  "diff",
+  "cmp",
+  "patch",
+  "less",
+  "more",
+  "nohup",
+  "timeout",
+  "nproc",
+  "base64",
+  "md5sum",
+  "sha256sum",
+  "od",
+  "hexdump",
+  "yes",
+  "tput",
+  "clear",
+  "sudo",
+  "systemctl",
+  "service",
+  "apt",
+  "apt-get",
+  "dpkg",
+  "make",
+  "cc",
+  "gcc",
+  "perl",
+  "ruby",
+  "openssl",
+  "gpg",
+  "ssh-keygen",
+  "ssh-agent",
+  "ssh-add",
+  "docker",
+  "cast",
+  "claude",
+  "codex",
+  "gemini",
+  "grok",
+  "opencode",
+  "pi",
+  "muse",
+  "node",
+  "npm",
+  "npx",
+  "bun",
+  "bunx",
+  "gh",
+  "uv",
+  "uvx",
+  "pip",
+  "pip3",
 ]);
 const SHELL_WORDS: ReadonlySet<string> = new Set([
-  "if", "then", "else", "elif", "fi", "for", "in", "do", "done", "while", "until", "case", "esac", "function", "select", "time", "coproc",
-  "exit", "return", "set", "unset", "export", "local", "declare", "typeset", "readonly", "shift", "source", ".", "trap", "eval", "exec", "read",
-  "cd", "pushd", "popd", "let", "wait", "break", "continue", "alias", "unalias", "getopts", "hash", "ulimit", "umask", "builtin", "exec", "[", "[[", "]]",
-  "{", "}", "(", ")", "!", "then", "do", "done", "fi", "esac",
-  "complete", "compgen", "compopt", "autoload", "bashcompinit", "compinit", "compdef", "zmodload", "setopt", "unsetopt", "bindkey", "zstyle",
+  "if",
+  "then",
+  "else",
+  "elif",
+  "fi",
+  "for",
+  "in",
+  "do",
+  "done",
+  "while",
+  "until",
+  "case",
+  "esac",
+  "function",
+  "select",
+  "time",
+  "coproc",
+  "exit",
+  "return",
+  "set",
+  "unset",
+  "export",
+  "local",
+  "declare",
+  "typeset",
+  "readonly",
+  "shift",
+  "source",
+  ".",
+  "trap",
+  "eval",
+  "exec",
+  "read",
+  "cd",
+  "pushd",
+  "popd",
+  "let",
+  "wait",
+  "break",
+  "continue",
+  "alias",
+  "unalias",
+  "getopts",
+  "hash",
+  "ulimit",
+  "umask",
+  "builtin",
+  "exec",
+  "[",
+  "[[",
+  "]]",
+  "{",
+  "}",
+  "(",
+  ")",
+  "!",
+  "then",
+  "do",
+  "done",
+  "fi",
+  "esac",
+  "complete",
+  "compgen",
+  "compopt",
+  "autoload",
+  "bashcompinit",
+  "compinit",
+  "compdef",
+  "zmodload",
+  "setopt",
+  "unsetopt",
+  "bindkey",
+  "zstyle",
 ]);
 const WORD = /^[A-Za-z][A-Za-z0-9._+-]*$/;
 
@@ -178,12 +429,33 @@ const WORD = /^[A-Za-z][A-Za-z0-9._+-]*$/;
 export function commandWords(line: string): string[] {
   const out: string[] = [];
   // A case label (`Darwin)`, `mac|wsl)`) names a value, not a command: drop it before the words are read.
-  const stripped = line.replace(/#.*$/, "").replace(/"[^"]*"|'[^']*'/g, " ").replace(/^\s*\(?[^\s()|;&]+(?:\s*\|\s*[^\s()|;&]+)*\)(?=\s|$)/, " ");
+  const stripped = line
+    .replace(/#.*$/, "")
+    .replace(/"[^"]*"|'[^']*'/g, " ")
+    .replace(/^\s*\(?[^\s()|;&]+(?:\s*\|\s*[^\s()|;&]+)*\)(?=\s|$)/, " ");
   for (const seg of stripped.split(/\|\||&&|\||;|\(|\)|\$\(|`/)) {
     const tokens = seg.trim().split(/\s+/).filter(Boolean);
     let i = 0;
-    while (i < tokens.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i]) || /^(\d*|&)[<>]/.test(tokens[i]) || tokens[i] === "env" || tokens[i] === "exec" || tokens[i] === "nohup" || tokens[i] === "sudo" || tokens[i] === "time" || tokens[i] === "timeout" || /^-/.test(tokens[i]) || (tokens[i] === "then" || tokens[i] === "do" || tokens[i] === "else"))) {
-      if (tokens[i] === "timeout") { i++; while (i < tokens.length && /^(-|\d)/.test(tokens[i])) i++; continue; }
+    while (
+      i < tokens.length &&
+      (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i]) ||
+        /^(\d*|&)[<>]/.test(tokens[i]) ||
+        tokens[i] === "env" ||
+        tokens[i] === "exec" ||
+        tokens[i] === "nohup" ||
+        tokens[i] === "sudo" ||
+        tokens[i] === "time" ||
+        tokens[i] === "timeout" ||
+        /^-/.test(tokens[i]) ||
+        tokens[i] === "then" ||
+        tokens[i] === "do" ||
+        tokens[i] === "else")
+    ) {
+      if (tokens[i] === "timeout") {
+        i++;
+        while (i < tokens.length && /^(-|\d)/.test(tokens[i])) i++;
+        continue;
+      }
       i++;
     }
     const word = tokens[i];
@@ -207,10 +479,17 @@ export function shebangInterpreter(text: string): string | undefined {
 export function settingsHookCommands(settings: unknown): string[] {
   const out: string[] = [];
   const walk = (v: unknown) => {
-    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+      return;
+    }
     if (!v || typeof v !== "object") return;
     const o = v as Record<string, unknown>;
-    if (typeof o.command === "string" && (o.type === "command" || o.type === undefined)) out.push(o.command);
+    if (
+      typeof o.command === "string" &&
+      (o.type === "command" || o.type === undefined)
+    )
+      out.push(o.command);
     for (const x of Object.values(o)) if (x && typeof x === "object") walk(x);
   };
   walk((settings as any)?.hooks);
@@ -218,7 +497,16 @@ export function settingsHookCommands(settings: unknown): string[] {
 }
 
 // Thin and fat, 32 and 64 bit, both byte orders: the same eight mirror/discovery.ts NATIVE_BINARY_MAGICS lists.
-const MACH_O_MAGICS = new Set(["feedface", "feedfacf", "cafebabe", "cafebabf", "cefaedfe", "cffaedfe", "bebafeca", "bfbafeca"]);
+const MACH_O_MAGICS = new Set([
+  "feedface",
+  "feedfacf",
+  "cafebabe",
+  "cafebabf",
+  "cefaedfe",
+  "cffaedfe",
+  "bebafeca",
+  "bfbafeca",
+]);
 
 /** Mach-O (macOS) executable, by magic bytes — it cannot run on the Linux host. */
 export function isMachO(file: string): boolean {
@@ -244,7 +532,12 @@ function walkFiles(dir: string, out: string[] = [], depth = 0): string[] {
     return out;
   }
   for (const e of entries) {
-    if (e.name === "node_modules" || e.name === ".git" || e.name === "__pycache__") continue;
+    if (
+      e.name === "node_modules" ||
+      e.name === ".git" ||
+      e.name === "__pycache__"
+    )
+      continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walkFiles(p, out, depth + 1);
     else if (e.isFile()) out.push(p);
@@ -257,29 +550,51 @@ export interface ScanOptions {
 }
 
 /** Helper commands and unsupported binaries from the laptop's ~/.claude hooks, skills and settings.json. */
-export function scanMirroredHelpers(opts: ScanOptions): { tools: HostToolRequirement[]; unsupported: UnsupportedItem[]; needsUv: boolean } {
+export function scanMirroredHelpers(opts: ScanOptions): {
+  tools: HostToolRequirement[];
+  unsupported: UnsupportedItem[];
+  needsUv: boolean;
+} {
   const tools = new Map<string, HostToolRequirement>();
   const unsupported: UnsupportedItem[] = [];
   let needsUv = false;
   const home = opts.laptopHome;
   const add = (tool: string, referenced_by: string) => {
-    if (tool === "uv" || tool === "uvx") { needsUv = true; return; }
+    if (tool === "uv" || tool === "uvx") {
+      needsUv = true;
+      return;
+    }
     if (KNOWN_ON_HOST.has(tool)) return;
-    if (!tools.has(tool)) tools.set(tool, { tool, referenced_by: referenced_by.startsWith(home) ? `~${referenced_by.slice(home.length)}` : referenced_by });
+    if (!tools.has(tool))
+      tools.set(tool, {
+        tool,
+        referenced_by: referenced_by.startsWith(home)
+          ? `~${referenced_by.slice(home.length)}`
+          : referenced_by,
+      });
   };
   const settingsFile = path.join(home, ".claude", "settings.json");
   for (const cmd of settingsHookCommands(readJson(settingsFile))) {
     if (isCodecastHookCommand(cmd, home)) continue;
     if (/\buvx?\b/.test(cmd)) needsUv = true;
     // A script called by its path under ~/.claude is a mirrored file (scanned below), not a tool the host's PATH must carry.
-    const mirrored = new Set([...cmd.matchAll(/[^\s'"]*\/\.claude\/[^\s'";|&]+/g)].map((m) => path.posix.basename(m[0])));
-    for (const w of commandWords(cmd)) if (!mirrored.has(w)) add(w, settingsFile);
+    const mirrored = new Set(
+      [...cmd.matchAll(/[^\s'"]*\/\.claude\/[^\s'";|&]+/g)].map((m) =>
+        path.posix.basename(m[0]),
+      ),
+    );
+    for (const w of commandWords(cmd))
+      if (!mirrored.has(w)) add(w, settingsFile);
   }
   for (const rel of [".claude/hooks", ".claude/skills"]) {
     for (const file of walkFiles(path.join(home, rel))) {
       if (isCodecastOwnedHomePath(path.relative(home, file))) continue;
       if (isMachO(file)) {
-        unsupported.push({ tool: `~${file.slice(home.length)}`, referenced_by: `~${file.slice(home.length)}`, reason: "Mach-O binary — cannot run on Linux; not copied" });
+        unsupported.push({
+          tool: `~${file.slice(home.length)}`,
+          referenced_by: `~${file.slice(home.length)}`,
+          reason: "Mach-O binary — cannot run on Linux; not copied",
+        });
         continue;
       }
       const text = readText(file);
@@ -288,13 +603,34 @@ export function scanMirroredHelpers(opts: ScanOptions): { tools: HostToolRequire
       if (!/\.(sh|bash)$/.test(file) && !text.startsWith("#!")) continue;
       const interp = shebangInterpreter(text);
       if (interp) add(interp, file);
-      if (interp && interp !== "sh" && interp !== "bash" && interp !== "zsh" && interp !== "dash") continue;
-      const functions = new Set([...text.matchAll(/^\s*(?:function\s+)?([a-zA-Z_]\w*)\s*\(\s*\)\s*\{/gm)].map((match) => match[1]));
-      const shell = text.replace(/\b(python[23]?|node|ruby|perl)\s+(-c|-e)\s+("(?:\\.|[^"\\])*"|'[^']*')/g, "$1 $2 ''")
+      if (
+        interp &&
+        interp !== "sh" &&
+        interp !== "bash" &&
+        interp !== "zsh" &&
+        interp !== "dash"
+      )
+        continue;
+      const functions = new Set(
+        [
+          ...text.matchAll(
+            /^\s*(?:function\s+)?([a-zA-Z_]\w*)\s*\(\s*\)\s*\{/gm,
+          ),
+        ].map((match) => match[1]),
+      );
+      const shell = text
+        .replace(
+          /\b(python[23]?|node|ruby|perl)\s+(-c|-e)\s+("(?:\\.|[^"\\])*"|'[^']*')/g,
+          "$1 $2 ''",
+        )
         .replace(/\$\(\([^\n]*?\)\)/g, "0")
-        .replace(/<<-?\s*(['"]?)([A-Za-z_]\w*)\1[^\n]*\n[\s\S]*?^\t*\2(?:\n|$)/gm, "\n")
+        .replace(
+          /<<-?\s*(['"]?)([A-Za-z_]\w*)\1[^\n]*\n[\s\S]*?^\t*\2(?:\n|$)/gm,
+          "\n",
+        )
         .replace(/"[^"]*"|'[^']*'/g, " ");
-      for (const line of shell.split("\n").slice(0, 400)) for (const w of commandWords(line)) if (!functions.has(w)) add(w, file);
+      for (const line of shell.split("\n").slice(0, 400))
+        for (const w of commandWords(line)) if (!functions.has(w)) add(w, file);
     }
   }
   return { tools: [...tools.values()], unsupported, needsUv };
@@ -315,7 +651,13 @@ export interface RequiredHostToolsOptions {
   projects?: readonly ProjectRegistration[];
   env?: NodeJS.ProcessEnv;
   /** Injection for tests: the laptop's installed versions. */
-  versions?: { node?: string; bun?: string; gh?: string; clients?: Partial<Record<InstallableClient, string>>; cli?: Record<string, string | undefined> };
+  versions?: {
+    node?: string;
+    bun?: string;
+    gh?: string;
+    clients?: Partial<Record<InstallableClient, string>>;
+    cli?: Record<string, string | undefined>;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -339,26 +681,71 @@ const npmGlobal = (pkg: string, ver: string | undefined) =>
  * go through npm, not bun, so their postinstall downloads run (the Railway
  * CLI fetches its binary there).
  */
-export const TOOL_CLIS: ReadonlyArray<{ bin: string; install: (version: string | undefined) => string; /** Installs on a Mac host too (an npm package). */ portable?: boolean }> = [
+export const TOOL_CLIS: ReadonlyArray<{
+  bin: string;
+  install: (version: string | undefined) => string;
+  /** Installs on a Mac host too (an npm package). */ portable?: boolean;
+}> = [
   { bin: "vercel", install: (v) => npmGlobal("vercel", v), portable: true },
-  { bin: "railway", install: (v) => npmGlobal("@railway/cli", v), portable: true },
+  {
+    bin: "railway",
+    install: (v) => npmGlobal("@railway/cli", v),
+    portable: true,
+  },
   { bin: "cf", install: (v) => npmGlobal("cf", v), portable: true },
   { bin: "wrangler", install: (v) => npmGlobal("wrangler", v), portable: true },
-  { bin: "netlify", install: (v) => npmGlobal("netlify-cli", v), portable: true },
-  { bin: "supabase", install: (v) => v
-    ? releaseBinary(`https://github.com/supabase/cli/releases/download/v${v}/supabase_linux_$ga.tar.gz`, "supabase", "supabase")
-    : "false" },
-  { bin: "stripe", install: (v) => v
-    ? releaseBinary(`https://github.com/stripe/stripe-cli/releases/download/v${v}/stripe_${v}_linux_$sa.tar.gz`, "stripe", "stripe")
-    : "false" },
-  { bin: "fly", install: (v) => `(curl ${CURL_LIMITS} https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s${v ? ` ${v}` : ""}) >/dev/null 2>&1 && mkdir -p "$HOME/.local/bin" && ln -sf "$HOME/.fly/bin/flyctl" "$HOME/.local/bin/fly" && ln -sf "$HOME/.fly/bin/flyctl" "$HOME/.local/bin/flyctl"` },
-  { bin: "aws", install: (v) => `${ARCH_SH}; tmp=$(mktemp -d); curl ${CURL_LIMITS} -o "$tmp/aws.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$ua${v ? `-${v}` : ""}.zip" && python3 -c 'import sys, zipfile, os
+  {
+    bin: "netlify",
+    install: (v) => npmGlobal("netlify-cli", v),
+    portable: true,
+  },
+  {
+    bin: "supabase",
+    install: (v) =>
+      v
+        ? releaseBinary(
+            `https://github.com/supabase/cli/releases/download/v${v}/supabase_linux_$ga.tar.gz`,
+            "supabase",
+            "supabase",
+          )
+        : "false",
+  },
+  {
+    bin: "stripe",
+    install: (v) =>
+      v
+        ? releaseBinary(
+            `https://github.com/stripe/stripe-cli/releases/download/v${v}/stripe_${v}_linux_$sa.tar.gz`,
+            "stripe",
+            "stripe",
+          )
+        : "false",
+  },
+  {
+    bin: "fly",
+    install: (v) =>
+      `(curl ${CURL_LIMITS} https://fly.io/install.sh | FLYCTL_INSTALL="$HOME/.fly" sh -s${v ? ` ${v}` : ""}) >/dev/null 2>&1 && mkdir -p "$HOME/.local/bin" && ln -sf "$HOME/.fly/bin/flyctl" "$HOME/.local/bin/fly" && ln -sf "$HOME/.fly/bin/flyctl" "$HOME/.local/bin/flyctl"`,
+  },
+  {
+    bin: "aws",
+    install: (
+      v,
+    ) => `${ARCH_SH}; tmp=$(mktemp -d); curl ${CURL_LIMITS} -o "$tmp/aws.zip" "https://awscli.amazonaws.com/awscli-exe-linux-$ua${v ? `-${v}` : ""}.zip" && python3 -c 'import sys, zipfile, os
 z = zipfile.ZipFile(sys.argv[1])
 for i in z.infolist():
     p = z.extract(i, sys.argv[2]); m = i.external_attr >> 16
-    if m: os.chmod(p, m)' "$tmp/aws.zip" "$tmp" && "$tmp/aws/install" -i "$HOME/.local/aws-cli" -b "$HOME/.local/bin" --update >/dev/null 2>&1; rc=$?; rm -rf "$tmp"; [ $rc = 0 ]` },
-  { bin: "gcloud", install: (v) => `${ARCH_SH}; [ "$ua" = aarch64 ] && gc=arm || gc=x86_64; tmp=$(mktemp -d); curl ${CURL_LIMITS} "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${v ? `${v}-` : ""}linux-$gc.tar.gz" | tar -xz -C "$tmp" && rm -rf "$HOME/.local/google-cloud-sdk" && mv "$tmp/google-cloud-sdk" "$HOME/.local/google-cloud-sdk" && mkdir -p "$HOME/.local/bin" && for b in gcloud gsutil bq; do ln -sf "$HOME/.local/google-cloud-sdk/bin/$b" "$HOME/.local/bin/$b"; done; rc=$?; rm -rf "$tmp"; [ $rc = 0 ]` },
-  { bin: "kubectl", install: (v) => `${ARCH_SH}; ver=${v ? `v${v}` : "$(curl -fsSL --max-time 30 https://dl.k8s.io/release/stable.txt)"}; mkdir -p "$HOME/.local/bin" && curl ${CURL_LIMITS} -o "$HOME/.local/bin/kubectl" "https://dl.k8s.io/release/$ver/bin/linux/$ga/kubectl" && chmod 755 "$HOME/.local/bin/kubectl"` },
+    if m: os.chmod(p, m)' "$tmp/aws.zip" "$tmp" && "$tmp/aws/install" -i "$HOME/.local/aws-cli" -b "$HOME/.local/bin" --update >/dev/null 2>&1; rc=$?; rm -rf "$tmp"; [ $rc = 0 ]`,
+  },
+  {
+    bin: "gcloud",
+    install: (v) =>
+      `${ARCH_SH}; [ "$ua" = aarch64 ] && gc=arm || gc=x86_64; tmp=$(mktemp -d); curl ${CURL_LIMITS} "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${v ? `${v}-` : ""}linux-$gc.tar.gz" | tar -xz -C "$tmp" && rm -rf "$HOME/.local/google-cloud-sdk" && mv "$tmp/google-cloud-sdk" "$HOME/.local/google-cloud-sdk" && mkdir -p "$HOME/.local/bin" && for b in gcloud gsutil bq; do ln -sf "$HOME/.local/google-cloud-sdk/bin/$b" "$HOME/.local/bin/$b"; done; rc=$?; rm -rf "$tmp"; [ $rc = 0 ]`,
+  },
+  {
+    bin: "kubectl",
+    install: (v) =>
+      `${ARCH_SH}; ver=${v ? `v${v}` : "$(curl -fsSL --max-time 30 https://dl.k8s.io/release/stable.txt)"}; mkdir -p "$HOME/.local/bin" && curl ${CURL_LIMITS} -o "$HOME/.local/bin/kubectl" "https://dl.k8s.io/release/$ver/bin/linux/$ga/kubectl" && chmod 755 "$HOME/.local/bin/kubectl"`,
+  },
 ];
 
 /**
@@ -366,15 +753,31 @@ for i in z.infolist():
  * covers it: the npm package that ships it (any host with node), else the
  * Homebrew formula (a Mac host, under its name unless listed here).
  */
-export const HELPER_PACKAGES: Readonly<Record<string, { npm?: string; brew?: string }>> = {
-  pnpm: { npm: "pnpm" }, yarn: { npm: "yarn" }, tsc: { npm: "typescript" }, eas: { npm: "eas-cli" }, expo: { npm: "expo" },
-  prettier: { npm: "prettier" }, turbo: { npm: "turbo" }, nx: { npm: "nx" }, firebase: { npm: "firebase-tools" },
-  rg: { brew: "ripgrep" }, convert: { brew: "imagemagick" }, magick: { brew: "imagemagick" }, gsed: { brew: "gnu-sed" },
-  psql: { brew: "libpq" }, http: { brew: "httpie" },
+export const HELPER_PACKAGES: Readonly<
+  Record<string, { npm?: string; brew?: string }>
+> = {
+  pnpm: { npm: "pnpm" },
+  yarn: { npm: "yarn" },
+  tsc: { npm: "typescript" },
+  eas: { npm: "eas-cli" },
+  expo: { npm: "expo" },
+  prettier: { npm: "prettier" },
+  turbo: { npm: "turbo" },
+  nx: { npm: "nx" },
+  firebase: { npm: "firebase-tools" },
+  rg: { brew: "ripgrep" },
+  convert: { brew: "imagemagick" },
+  magick: { brew: "imagemagick" },
+  gsed: { brew: "gnu-sed" },
+  psql: { brew: "libpq" },
+  http: { brew: "httpie" },
 };
 
 /** Whether a host installs `tool` when it lacks it (the same rules hostToolsScript writes). */
-export function hostInstalls(req: Pick<HostToolRequirement, "tool" | "install">, host: { mac: boolean; brew: boolean }): boolean {
+export function hostInstalls(
+  req: Pick<HostToolRequirement, "tool" | "install">,
+  host: { mac: boolean; brew: boolean },
+): boolean {
   const cli = TOOL_CLIS.find((c) => c.bin === req.tool);
   if (cli) return !host.mac || !!cli.portable;
   if (req.tool === "uv") return !host.mac || host.brew;
@@ -383,7 +786,10 @@ export function hostInstalls(req: Pick<HostToolRequirement, "tool" | "install">,
 }
 
 /** What installs a helper: the laptop's own source when known, else the table above. Nothing is guessed from the name alone. */
-function helperPackage(req: Pick<HostToolRequirement, "tool" | "install">): { npm?: string; brew?: string } {
+function helperPackage(req: Pick<HostToolRequirement, "tool" | "install">): {
+  npm?: string;
+  brew?: string;
+} {
   if (req.install) return req.install;
   return HELPER_PACKAGES[req.tool] ?? {};
 }
@@ -412,10 +818,22 @@ const CLI_VERSION_RE = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/;
  * login shell, because the daemon's own PATH lacks what the person's rc adds
  * (gcloud lives in ~/src/google-cloud-sdk/bin here). One shell for all of them.
  */
-export function readLaptopCliVersions(shell = process.env.SHELL || "/bin/bash"): Record<string, string | undefined> {
+export function readLaptopCliVersions(
+  shell = process.env.SHELL || "/bin/bash",
+): Record<string, string | undefined> {
   const bins = TOOL_CLIS.map((c) => c.bin);
-  const probe = bins.map((b) => `if p=$(command -v ${b} 2>/dev/null); then v=$(${b === "kubectl" ? "kubectl version --client 2>/dev/null" : `${b} --version 2>/dev/null`} </dev/null | head -3 | tr '\n' ' '); printf '%s\t%s\n' ${b} "$v"; fi`).join("\n");
-  const r = spawnSync(shell, ["-lc", probe], { encoding: "utf-8", timeout: 60_000, env: process.env, stdio: ["ignore", "pipe", "ignore"] });
+  const probe = bins
+    .map(
+      (b) =>
+        `if p=$(command -v ${b} 2>/dev/null); then v=$(${b === "kubectl" ? "kubectl version --client 2>/dev/null" : `${b} --version 2>/dev/null`} </dev/null | head -3 | tr '\n' ' '); printf '%s\t%s\n' ${b} "$v"; fi`,
+    )
+    .join("\n");
+  const r = spawnSync(shell, ["-lc", probe], {
+    encoding: "utf-8",
+    timeout: 60_000,
+    env: process.env,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
   const out: Record<string, string | undefined> = {};
   for (const line of (r.stdout ?? "").split("\n")) {
     const [bin, text = ""] = line.split("\t");
@@ -428,7 +846,11 @@ export function readLaptopCliVersions(shell = process.env.SHELL || "/bin/bash"):
 
 function localVersion(bin: string, args = ["--version"]): string | undefined {
   try {
-    const r = spawnSync(bin, args, { encoding: "utf-8", timeout: 10_000, env: process.env });
+    const r = spawnSync(bin, args, {
+      encoding: "utf-8",
+      timeout: 10_000,
+      env: process.env,
+    });
     if (r.status !== 0) return undefined;
     return parseClientVersion(`${r.stdout ?? ""}\n${r.stderr ?? ""}`);
   } catch {
@@ -436,27 +858,57 @@ function localVersion(bin: string, args = ["--version"]): string | undefined {
   }
 }
 
-export function requiredHostTools(opts: RequiredHostToolsOptions): RequiredHostTools {
-  const v = opts.versions ?? { node: localVersion("node"), bun: localVersion("bun"), gh: localVersion("gh"), clients: readInstalledClientVersions() };
+export function requiredHostTools(
+  opts: RequiredHostToolsOptions,
+): RequiredHostTools {
+  const v = opts.versions ?? {
+    node: localVersion("node"),
+    bun: localVersion("bun"),
+    gh: localVersion("gh"),
+    clients: readInstalledClientVersions(),
+  };
   const nodeMajor = v.node ? Number(v.node.split(".")[0]) : undefined;
   const scan = scanMirroredHelpers({ laptopHome: opts.laptopHome });
-  const tools: HostToolRequirement[] = [{ tool: "gh", version: v.gh ?? GH_DEFAULT_VERSION, referenced_by: "the authorized GitHub workflow" }];
-  if (scan.needsUv) tools.push({ tool: "uv", referenced_by: "mirrored hooks/skills" });
+  const tools: HostToolRequirement[] = [
+    {
+      tool: "gh",
+      version: v.gh ?? GH_DEFAULT_VERSION,
+      referenced_by: "the authorized GitHub workflow",
+    },
+  ];
+  if (scan.needsUv)
+    tools.push({ tool: "uv", referenced_by: "mirrored hooks/skills" });
   tools.push(...scan.tools);
   const cli = v.cli ?? (opts.versions ? {} : readLaptopCliVersions());
-  const known = new Set([...tools.map((t) => t.tool), ...Object.keys(cli), ...Object.keys(v.clients ?? {}), "node", "bun"]);
-  for (const t of opts.extraTools ?? []) if (!known.has(t.tool)) { known.add(t.tool); tools.push(t); }
+  const known = new Set([
+    ...tools.map((t) => t.tool),
+    ...Object.keys(cli),
+    ...Object.keys(v.clients ?? {}),
+    "node",
+    "bun",
+  ]);
+  for (const t of opts.extraTools ?? [])
+    if (!known.has(t.tool)) {
+      known.add(t.tool);
+      tools.push(t);
+    }
   return {
-    node: nodeRequirement(opts.repoRoot, Number.isFinite(nodeMajor) ? nodeMajor : undefined),
+    node: nodeRequirement(
+      opts.repoRoot,
+      Number.isFinite(nodeMajor) ? nodeMajor : undefined,
+    ),
     ...(v.bun ? { bun: v.bun } : {}),
     clients: { ...(v.clients ?? {}) },
     tools,
     unsupported: scan.unsupported,
-    mcp: mcpChecks(readMcpSources(opts.laptopHome, opts.env ?? process.env, opts.projects), opts.laptopHome, opts.hostHome),
+    mcp: mcpChecks(
+      readMcpSources(opts.laptopHome, opts.env ?? process.env, opts.projects),
+      opts.laptopHome,
+      opts.hostHome,
+    ),
     cli,
   };
 }
-
 
 // ---------------------------------------------------------------------------
 // MCP servers: which of the laptop's definitions can run on the host
@@ -490,22 +942,51 @@ export interface McpCheck extends McpSourceServer {
 }
 
 /** Package launchers: a definition that goes through one runs anywhere the launcher does. */
-const MCP_LAUNCHERS: ReadonlySet<string> = new Set(["npx", "uvx", "bunx", "npm", "pnpm", "yarn", "deno", "node", "bun", "uv", "python", "python3", "docker", "podman"]);
+const MCP_LAUNCHERS: ReadonlySet<string> = new Set([
+  "npx",
+  "uvx",
+  "bunx",
+  "npm",
+  "pnpm",
+  "yarn",
+  "deno",
+  "node",
+  "bun",
+  "uv",
+  "python",
+  "python3",
+  "docker",
+  "podman",
+]);
 /** Path prefixes that only exist on macOS. */
-const MAC_ONLY_PREFIXES = ["/Applications/", "/System/", "/Library/", "/opt/homebrew/", "/usr/local/Cellar/", "/private/var/", "/Volumes/"];
-const BROWSER_LIKE = /computer[-_ ]?use|browser|chrome|chromium|playwright|puppeteer|safari/i;
+const MAC_ONLY_PREFIXES = [
+  "/Applications/",
+  "/System/",
+  "/Library/",
+  "/opt/homebrew/",
+  "/usr/local/Cellar/",
+  "/private/var/",
+  "/Volumes/",
+];
+const BROWSER_LIKE =
+  /computer[-_ ]?use|browser|chrome|chromium|playwright|puppeteer|safari/i;
 
 const TRIPLE_BASIC = '"'.repeat(3);
 const TRIPLE_LITERAL = "'".repeat(3);
 
 /** A TOML string literal's value at the start of `text`, and how many chars it consumed. */
-function tomlString(text: string): { value: string; length: number } | undefined {
+function tomlString(
+  text: string,
+): { value: string; length: number } | undefined {
   if (text.startsWith(TRIPLE_BASIC) || text.startsWith(TRIPLE_LITERAL)) {
     const q = text.slice(0, 3);
     const end = text.indexOf(q, 3);
     if (end === -1) return undefined;
     const raw = text.slice(3, end).replace(/^\n/, "");
-    return { value: q === TRIPLE_BASIC ? unescapeToml(raw) : raw, length: end + 3 };
+    return {
+      value: q === TRIPLE_BASIC ? unescapeToml(raw) : raw,
+      length: end + 3,
+    };
   }
   if (text.startsWith("'")) {
     const end = text.indexOf("'", 1);
@@ -514,7 +995,10 @@ function tomlString(text: string): { value: string; length: number } | undefined
   }
   if (text.startsWith('"')) {
     let i = 1;
-    while (i < text.length && text[i] !== '"') { if (text[i] === "\\") i++; i++; }
+    while (i < text.length && text[i] !== '"') {
+      if (text[i] === "\\") i++;
+      i++;
+    }
     if (i >= text.length) return undefined;
     return { value: unescapeToml(text.slice(1, i)), length: i + 1 };
   }
@@ -522,19 +1006,32 @@ function tomlString(text: string): { value: string; length: number } | undefined
 }
 
 function unescapeToml(raw: string): string {
-  return raw.replace(/\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)/g, (_m, e: string) => {
-    switch (e[0]) {
-      case "n": return "\n";
-      case "t": return "\t";
-      case "r": return "\r";
-      case "b": return "\b";
-      case "f": return "\f";
-      case '"': return '"';
-      case "\\": return "\\";
-      case "u": case "U": return String.fromCodePoint(parseInt(e.slice(1), 16));
-      default: return e;
-    }
-  });
+  return raw.replace(
+    /\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)/g,
+    (_m, e: string) => {
+      switch (e[0]) {
+        case "n":
+          return "\n";
+        case "t":
+          return "\t";
+        case "r":
+          return "\r";
+        case "b":
+          return "\b";
+        case "f":
+          return "\f";
+        case '"':
+          return '"';
+        case "\\":
+          return "\\";
+        case "u":
+        case "U":
+          return String.fromCodePoint(parseInt(e.slice(1), 16));
+        default:
+          return e;
+      }
+    },
+  );
 }
 
 /** The strings of a TOML array starting at `[`. */
@@ -545,7 +1042,12 @@ function tomlStringArray(text: string): string[] | undefined {
   while (i < text.length) {
     const c = text[i]!;
     if (c === "]") return out;
-    if (c === "#") { const nl = text.indexOf("\n", i); if (nl === -1) return undefined; i = nl + 1; continue; }
+    if (c === "#") {
+      const nl = text.indexOf("\n", i);
+      if (nl === -1) return undefined;
+      i = nl + 1;
+      continue;
+    }
     if (c === '"' || c === "'") {
       const str = tomlString(text.slice(i));
       if (!str) return undefined;
@@ -564,10 +1066,13 @@ function tomlStringArray(text: string): string[] | undefined {
  * servers (no `command`) are left out; a server the laptop itself disabled
  * (`enabled = false`) is reported with `enabled: false` so it is not classified.
  */
-export function parseCodexMcpServers(toml: string): Record<string, McpSourceServer & { enabled?: boolean }> {
+export function parseCodexMcpServers(
+  toml: string,
+): Record<string, McpSourceServer & { enabled?: boolean }> {
   const out: Record<string, McpSourceServer & { enabled?: boolean }> = {};
   for (const t of splitTomlTables(toml)) {
-    if (t.name === null || tableFirstSegment(t.name) !== "mcp_servers") continue;
+    if (t.name === null || tableFirstSegment(t.name) !== "mcp_servers")
+      continue;
     const rest = t.name.slice(t.name.indexOf(".") + 1).trim();
     const m = /^(?:"([^"]*)"|'([^']*)'|([A-Za-z0-9_-]+))$/.exec(rest);
     if (!m) continue; // a sub-table or a name we cannot read
@@ -605,11 +1110,20 @@ export interface McpSources {
 /** Stdio servers (`command` plus string args) of an `mcpServers` table; http/sse ones need no executable. */
 function claudeStdioServers(servers: unknown): Record<string, McpSourceServer> {
   const out: Record<string, McpSourceServer> = {};
-  if (!servers || typeof servers !== "object" || Array.isArray(servers)) return out;
+  if (!servers || typeof servers !== "object" || Array.isArray(servers))
+    return out;
   for (const [name, def] of Object.entries(servers as Record<string, any>)) {
-    if (!def || typeof def !== "object" || typeof def.command !== "string" || !def.command) continue;
+    if (
+      !def ||
+      typeof def !== "object" ||
+      typeof def.command !== "string" ||
+      !def.command
+    )
+      continue;
     if (typeof def.type === "string" && def.type !== "stdio") continue;
-    const args = Array.isArray(def.args) ? def.args.filter((a: unknown) => typeof a === "string") : undefined;
+    const args = Array.isArray(def.args)
+      ? def.args.filter((a: unknown) => typeof a === "string")
+      : undefined;
     out[name] = { command: def.command, ...(args?.length ? { args } : {}) };
   }
   return out;
@@ -624,29 +1138,57 @@ function claudeStdioServers(servers: unknown): Record<string, McpSourceServer> {
  * each registered repo root. Servers the laptop disabled itself are skipped. Readiness reconciles pins over this whole
  * roster, so a server defined only for a project keeps its pin.
  */
-export function readMcpSources(laptopHome: string, env: NodeJS.ProcessEnv = process.env, projects: readonly ProjectRegistration[] = []): Required<McpSources> {
+export function readMcpSources(
+  laptopHome: string,
+  env: NodeJS.ProcessEnv = process.env,
+  projects: readonly ProjectRegistration[] = [],
+): Required<McpSources> {
   const live = projects.filter((p) => !p.retired);
-  const out: Required<McpSources> = { codex: {}, claude: {}, claudeProjects: {}, mappings: live.map((p) => ({ from: p.sourceRoot, to: p.targetRoot })) };
-  const toml = readText(path.join(env.CODEX_HOME || path.join(laptopHome, ".codex"), "config.toml"));
+  const out: Required<McpSources> = {
+    codex: {},
+    claude: {},
+    claudeProjects: {},
+    mappings: live.map((p) => ({ from: p.sourceRoot, to: p.targetRoot })),
+  };
+  const toml = readText(
+    path.join(env.CODEX_HOME || path.join(laptopHome, ".codex"), "config.toml"),
+  );
   if (toml) {
     for (const [name, s] of Object.entries(parseCodexMcpServers(toml))) {
       if (s.enabled === false) continue;
-      out.codex[name] = { command: s.command, ...(s.args ? { args: s.args } : {}) };
+      out.codex[name] = {
+        command: s.command,
+        ...(s.args ? { args: s.args } : {}),
+      };
     }
   }
   const claude = readJson(path.join(laptopHome, ".claude.json"));
   const scoped = (root: string, servers: Record<string, McpSourceServer>) => {
     if (!Object.keys(servers).length) return;
-    out.claudeProjects[root] = { ...(out.claudeProjects[root] ?? {}), ...servers };
+    out.claudeProjects[root] = {
+      ...(out.claudeProjects[root] ?? {}),
+      ...servers,
+    };
   };
   if (claude && typeof claude === "object") {
     Object.assign(out.claude, claudeStdioServers(claude.mcpServers));
-    const roots = claude.projects && typeof claude.projects === "object" && !Array.isArray(claude.projects) ? claude.projects as Record<string, any> : {};
-    for (const [root, project] of Object.entries(roots)) if (path.isAbsolute(root) && project && typeof project === "object") scoped(root, claudeStdioServers(project.mcpServers));
+    const roots =
+      claude.projects &&
+      typeof claude.projects === "object" &&
+      !Array.isArray(claude.projects)
+        ? (claude.projects as Record<string, any>)
+        : {};
+    for (const [root, project] of Object.entries(roots))
+      if (path.isAbsolute(root) && project && typeof project === "object")
+        scoped(root, claudeStdioServers(project.mcpServers));
   }
-  for (const root of [...(laptopHome ? [laptopHome] : []), ...live.map((p) => p.sourceRoot)]) {
+  for (const root of [
+    ...(laptopHome ? [laptopHome] : []),
+    ...live.map((p) => p.sourceRoot),
+  ]) {
     const file = readJson(path.join(root, ".mcp.json"));
-    if (file && typeof file === "object") scoped(root, claudeStdioServers(file.mcpServers));
+    if (file && typeof file === "object")
+      scoped(root, claudeStdioServers(file.mcpServers));
   }
   return out;
 }
@@ -658,15 +1200,27 @@ export function readMcpSources(laptopHome: string, env: NodeJS.ProcessEnv = proc
  * else is unchanged. The same remapContextPaths the mirror's transform uses,
  * so `source_command` compares host-side against host-side.
  */
-export function remapForHost(word: string, laptopHome: string, hostHome = "~", mappings: ReadonlyArray<{ from: string; to: string }> = []): string {
-  return remapContextPaths(word, { fromHome: laptopHome, toHome: hostHome, pathMappings: [...mappings] });
+export function remapForHost(
+  word: string,
+  laptopHome: string,
+  hostHome = "~",
+  mappings: ReadonlyArray<{ from: string; to: string }> = [],
+): string {
+  return remapContextPaths(word, {
+    fromHome: laptopHome,
+    toHome: hostHome,
+    pathMappings: [...mappings],
+  });
 }
 
 /**
  * What the laptop can tell without the host: an executable that cannot
  * exist on Linux. Everything else is a host probe.
  */
-export function staticMcpVerdict(command: string, laptopHome: string): { status: "unsupported"; reason: string } | undefined {
+export function staticMcpVerdict(
+  command: string,
+  laptopHome: string,
+): { status: "unsupported"; reason: string } | undefined {
   // `command` is the executable itself (args live beside it), so a path with
   // spaces ("Codex Computer Use.app") is one path, never split.
   const head = command.trim();
@@ -674,14 +1228,33 @@ export function staticMcpVerdict(command: string, laptopHome: string): { status:
   let p = head;
   if (p === "~" || p.startsWith("~/")) p = laptopHome + p.slice(1);
   if (!p.startsWith("/")) return undefined; // a bare name: the host's PATH decides
-  if (/\.app\//.test(p)) return { status: "unsupported", reason: "a macOS .app bundle — nothing on Linux runs it" };
-  const underHome = laptopHome && laptopHome !== "/" && p.startsWith(laptopHome + "/");
-  const macPrefix = !underHome && MAC_ONLY_PREFIXES.find((pre) => p.startsWith(pre));
-  if (macPrefix) return { status: "unsupported", reason: `under ${macPrefix.replace(/\/$/, "")}, a macOS-only path` };
+  if (/\.app\//.test(p))
+    return {
+      status: "unsupported",
+      reason: "a macOS .app bundle — nothing on Linux runs it",
+    };
+  const underHome =
+    laptopHome && laptopHome !== "/" && p.startsWith(laptopHome + "/");
+  const macPrefix =
+    !underHome && MAC_ONLY_PREFIXES.find((pre) => p.startsWith(pre));
+  if (macPrefix)
+    return {
+      status: "unsupported",
+      reason: `under ${macPrefix.replace(/\/$/, "")}, a macOS-only path`,
+    };
   // Only a file under the laptop home is the laptop's own: /usr/local/bin/node
   // is Mach-O on a Mac and a working symlink on the host, so the host's
   // `[ -x ]` probe decides those, not the laptop's bytes.
-  if (laptopHome && laptopHome !== "/" && p.startsWith(laptopHome + "/") && isMachO(p)) return { status: "unsupported", reason: "a Mach-O (macOS) binary — cannot run on Linux; not copied" };
+  if (
+    laptopHome &&
+    laptopHome !== "/" &&
+    p.startsWith(laptopHome + "/") &&
+    isMachO(p)
+  )
+    return {
+      status: "unsupported",
+      reason: "a Mach-O (macOS) binary — cannot run on Linux; not copied",
+    };
   return undefined;
 }
 
@@ -692,35 +1265,65 @@ export function staticMcpVerdict(command: string, laptopHome: string): { status:
  * repeating its repo's) collapsed into it. `hostHome` spells the host side
  * exactly as the mirror will write it; `~` when the host is not known yet.
  */
-export function mcpChecks(sources: McpSources, laptopHome: string, hostHome = "~"): McpCheck[] {
+export function mcpChecks(
+  sources: McpSources,
+  laptopHome: string,
+  hostHome = "~",
+): McpCheck[] {
   const out: McpCheck[] = [];
   const seen = new Set<string>();
   const mappings = sources.mappings ?? [];
-  const add = (harness: McpHarness, name: string, src: McpSourceServer, scope?: string) => {
-    const args = (src.args ?? []).map((a) => remapForHost(a, laptopHome, hostHome, mappings));
+  const add = (
+    harness: McpHarness,
+    name: string,
+    src: McpSourceServer,
+    scope?: string,
+  ) => {
+    const args = (src.args ?? []).map((a) =>
+      remapForHost(a, laptopHome, hostHome, mappings),
+    );
     const laptopArgs = (src.args ?? []).map((a) => remapForHost(a, laptopHome));
     const head = src.command.trim();
     const hostHead = remapForHost(head, laptopHome, hostHome, mappings);
     const key = `${harness}\0${name}\0${normalizeCommand({ command: hostHead, args }, hostHome)}`;
     if (seen.has(key)) return;
     seen.add(key);
-    const check: McpCheck = { harness, name, laptop_command: normalizeCommand({ command: remapForHost(head, laptopHome), args: laptopArgs }, "~"), command: hostHead, ...(args.length ? { args } : {}) };
-    const verdict = hostHome.startsWith("/Users/") ? undefined : staticMcpVerdict(src.command, laptopHome);
+    const check: McpCheck = {
+      harness,
+      name,
+      laptop_command: normalizeCommand(
+        { command: remapForHost(head, laptopHome), args: laptopArgs },
+        "~",
+      ),
+      command: hostHead,
+      ...(args.length ? { args } : {}),
+    };
+    const verdict = hostHome.startsWith("/Users/")
+      ? undefined
+      : staticMcpVerdict(src.command, laptopHome);
     if (verdict) check.verdict = verdict;
-    else if (hostHead.includes("/")) check.probe = { kind: "path", path: hostHead };
+    else if (hostHead.includes("/"))
+      check.probe = { kind: "path", path: hostHead };
     else check.probe = { kind: "which", word: hostHead };
     if (MCP_LAUNCHERS.has(path.posix.basename(hostHead))) check.launcher = true;
-    if (head === "~" || head.startsWith("~/") || remapForHost(head, laptopHome) !== head) check.underHome = true;
+    if (
+      head === "~" ||
+      head.startsWith("~/") ||
+      remapForHost(head, laptopHome) !== head
+    )
+      check.underHome = true;
     if (scope !== undefined) check.scope = scope;
     out.push(check);
   };
   for (const harness of ["codex", "claude"] as const) {
-    for (const name of Object.keys(sources[harness]).sort()) add(harness, name, sources[harness][name]!);
+    for (const name of Object.keys(sources[harness]).sort())
+      add(harness, name, sources[harness][name]!);
   }
   const projects = sources.claudeProjects ?? {};
   for (const root of Object.keys(projects).sort()) {
     const scope = remapForHost(root, laptopHome, hostHome, mappings);
-    for (const name of Object.keys(projects[root]!).sort()) add("claude", name, projects[root]![name]!, scope);
+    for (const name of Object.keys(projects[root]!).sort())
+      add("claude", name, projects[root]![name]!, scope);
   }
   return out;
 }
@@ -734,30 +1337,52 @@ function mcpScriptLines(checks: McpCheck[]): string {
   const lines: string[] = [];
   checks.forEach((c, i) => {
     if (!c.probe) return;
-    if (c.probe.kind === "which") lines.push(`if command -v ${shq(c.probe.word)} >/dev/null 2>&1; then echo "__MCP__ ${i} 1"; else echo "__MCP__ ${i} 0"; fi`);
+    if (c.probe.kind === "which")
+      lines.push(
+        `if command -v ${shq(c.probe.word)} >/dev/null 2>&1; then echo "__MCP__ ${i} 1"; else echo "__MCP__ ${i} 0"; fi`,
+      );
     else {
       const p = c.probe.path;
-      const expanded = p.startsWith("~/") ? `"$HOME"/${shq(p.slice(2))}` : shq(p);
-      lines.push(`if [ -x ${expanded} ]; then echo "__MCP__ ${i} 1"; else echo "__MCP__ ${i} 0"; fi`);
+      const expanded = p.startsWith("~/")
+        ? `"$HOME"/${shq(p.slice(2))}`
+        : shq(p);
+      lines.push(
+        `if [ -x ${expanded} ]; then echo "__MCP__ ${i} 1"; else echo "__MCP__ ${i} 0"; fi`,
+      );
     }
   });
-  lines.push(`if [ -f "$HOME/.codecast/${HOST_MCP_OVERRIDES_FILE}" ]; then printf '__MCP_OVERRIDES__ %s\\n' "$(base64 < "$HOME/.codecast/${HOST_MCP_OVERRIDES_FILE}" | tr -d '\\n')"; fi`);
+  lines.push(
+    `if [ -f "$HOME/.codecast/${HOST_MCP_OVERRIDES_FILE}" ]; then printf '__MCP_OVERRIDES__ %s\\n' "$(base64 < "$HOME/.codecast/${HOST_MCP_OVERRIDES_FILE}" | tr -d '\\n')"; fi`,
+  );
   return lines.join("\n");
 }
 
 /** The host's answers: which checks resolved, and its manifest text when it has one. */
-export function parseMcpLines(out: string): { resolved: Map<number, boolean>; overridesText?: string } {
+export function parseMcpLines(out: string): {
+  resolved: Map<number, boolean>;
+  overridesText?: string;
+} {
   const resolved = new Map<number, boolean>();
   let overridesText: string | undefined;
   for (const line of out.split("\n")) {
     const m = /^__MCP__ (\d+) ([01])$/.exec(line.trim());
-    if (m) { resolved.set(Number(m[1]), m[2] === "1"); continue; }
+    if (m) {
+      resolved.set(Number(m[1]), m[2] === "1");
+      continue;
+    }
     const o = /^__MCP_OVERRIDES__ (\S*)$/.exec(line.trim());
     if (o) {
-      try { overridesText = Buffer.from(o[1]!, "base64").toString("utf-8"); } catch { /* garbled: treated as absent */ }
+      try {
+        overridesText = Buffer.from(o[1]!, "base64").toString("utf-8");
+      } catch {
+        /* garbled: treated as absent */
+      }
     }
   }
-  return { resolved, ...(overridesText !== undefined ? { overridesText } : {}) };
+  return {
+    resolved,
+    ...(overridesText !== undefined ? { overridesText } : {}),
+  };
 }
 
 export interface McpReportItem {
@@ -774,10 +1399,35 @@ export interface McpReportItem {
 }
 
 /** Classify every check with the host's probe answers (a check the host did not answer counts as unresolved). */
-export function classifyMcp(checks: McpCheck[], resolved: ReadonlyMap<number, boolean>): Array<McpClassified & { harness: McpHarness; laptop_command: string; scope?: string }> {
+export function classifyMcp(
+  checks: McpCheck[],
+  resolved: ReadonlyMap<number, boolean>,
+): Array<
+  McpClassified & {
+    harness: McpHarness;
+    laptop_command: string;
+    scope?: string;
+  }
+> {
   return checks.map((c, i) => {
-    const base = { harness: c.harness, name: c.name, ...(c.scope !== undefined ? { scope: c.scope } : {}), laptop_command: c.laptop_command, command: c.command, ...(c.args ? { args: c.args } : {}) };
-    if (c.verdict) return { ...base, status: "unsupported" as const, reason: c.verdict.reason + (BROWSER_LIKE.test(`${c.name} ${c.laptop_command}`) ? " — the host's own Chrome is reachable through `cast browser` there instead" : "") };
+    const base = {
+      harness: c.harness,
+      name: c.name,
+      ...(c.scope !== undefined ? { scope: c.scope } : {}),
+      laptop_command: c.laptop_command,
+      command: c.command,
+      ...(c.args ? { args: c.args } : {}),
+    };
+    if (c.verdict)
+      return {
+        ...base,
+        status: "unsupported" as const,
+        reason:
+          c.verdict.reason +
+          (BROWSER_LIKE.test(`${c.name} ${c.laptop_command}`)
+            ? " — the host's own Chrome is reachable through `cast browser` there instead"
+            : ""),
+      };
     if (resolved.get(i) === true) return { ...base, status: "ok" as const };
     const head = path.posix.basename(c.command);
     const reason = c.launcher
@@ -799,18 +1449,38 @@ export function classifyMcp(checks: McpCheck[], resolved: ReadonlyMap<number, bo
  */
 export function codecastFileWriteCommand(name: string): string {
   const dir = '"$HOME/.codecast"';
-  return `umask 077; if [ -L ${dir} ]; then echo "refusing to write through a symlinked ~/.codecast" >&2; exit 3; fi; `
-    + `mkdir -p ${dir} && [ -d ${dir} ] && tmp=$(mktemp "$HOME/.codecast/.${name}.XXXXXX") || exit 1; `
-    + `if cat > "$tmp" && mv -f "$tmp" "$HOME/.codecast/${name}"; then exit 0; else rm -f "$tmp"; exit 1; fi`;
+  return (
+    `umask 077; if [ -L ${dir} ]; then echo "refusing to write through a symlinked ~/.codecast" >&2; exit 3; fi; ` +
+    `mkdir -p ${dir} && [ -d ${dir} ] && tmp=$(mktemp "$HOME/.codecast/.${name}.XXXXXX") || exit 1; ` +
+    `if cat > "$tmp" && mv -f "$tmp" "$HOME/.codecast/${name}"; then exit 0; else rm -f "$tmp"; exit 1; fi`
+  );
 }
 
 /** Write the manifest on the host (codecastFileWriteCommand), one ssh with the bytes on stdin. */
-export function writeHostMcpOverridesRemote(host: RemoteHost, o: HostMcpOverrides): void {
-  const r = spawnSync("ssh", [...sshBase(host), sshDestination(host), codecastFileWriteCommand(HOST_MCP_OVERRIDES_FILE)], {
-    encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], input: serializeHostMcpOverrides(o), timeout: 30_000, env: process.env,
-  });
+export function writeHostMcpOverridesRemote(
+  host: RemoteHost,
+  o: HostMcpOverrides,
+): void {
+  const r = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      codecastFileWriteCommand(HOST_MCP_OVERRIDES_FILE),
+    ],
+    {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      input: serializeHostMcpOverrides(o),
+      timeout: 30_000,
+      env: process.env,
+    },
+  );
   if (r.error) throw r.error;
-  if (r.status !== 0) throw new Error(`writing ${HOST_MCP_OVERRIDES_FILE} on ${host.user}@${host.address} failed (exit ${r.status})${r.stderr?.trim() ? `: ${r.stderr.trim().split("\n").pop()}` : ""}`);
+  if (r.status !== 0)
+    throw new Error(
+      `writing ${HOST_MCP_OVERRIDES_FILE} on ${host.user}@${host.address} failed (exit ${r.status})${r.stderr?.trim() ? `: ${r.stderr.trim().split("\n").pop()}` : ""}`,
+    );
 }
 
 /**
@@ -827,9 +1497,20 @@ export function reconcileMcp(
   checks: McpCheck[],
   answers: { resolved: ReadonlyMap<number, boolean>; overridesText?: string },
   opts: { hostHome: string; at: string; install: boolean },
-): { mcp: McpReportItem[]; current: HostMcpOverrides; next: HostMcpOverrides; changed: boolean; invalid?: string } {
+): {
+  mcp: McpReportItem[];
+  current: HostMcpOverrides;
+  next: HostMcpOverrides;
+  changed: boolean;
+  invalid?: string;
+} {
   let invalid: string | undefined;
-  const current = answers.overridesText !== undefined ? parseHostMcpOverrides(answers.overridesText, (reason) => { invalid = reason; }) : emptyOverrides();
+  const current =
+    answers.overridesText !== undefined
+      ? parseHostMcpOverrides(answers.overridesText, (reason) => {
+          invalid = reason;
+        })
+      : emptyOverrides();
   const classified = classifyMcp(checks, answers.resolved);
   let next = current;
   for (const harness of ["codex", "claude"] as const) {
@@ -837,23 +1518,60 @@ export function reconcileMcp(
     for (const c of classified) {
       if (c.harness !== harness) continue;
       const prev = roster.get(c.name);
-      if (!prev || (prev.status !== "unsupported" && c.status === "unsupported")) roster.set(c.name, c);
+      if (
+        !prev ||
+        (prev.status !== "unsupported" && c.status === "unsupported")
+      )
+        roster.set(c.name, c);
     }
-    next = reconcilePins(next, harness, [...roster.values()], opts.at, opts.hostHome);
+    next = reconcilePins(
+      next,
+      harness,
+      [...roster.values()],
+      opts.at,
+      opts.hostHome,
+    );
   }
-  const changed = serializeHostMcpOverrides(next) !== serializeHostMcpOverrides(current);
+  const changed =
+    serializeHostMcpOverrides(next) !== serializeHostMcpOverrides(current);
   const mcp: McpReportItem[] = classified.map((c) => {
     const wasPinned = !!current[c.harness][c.name];
     const pinned = !!next[c.harness][c.name];
-    const how = c.harness === "codex" ? "the mirror sets enabled = false on the host's copy" : "the mirror leaves it out of the host's ~/.claude.json";
-    const action = c.status === "unsupported"
-      ? (opts.install ? (wasPinned ? `disabled on the host (pinned in ~/.codecast/${HOST_MCP_OVERRIDES_FILE}; ${how})` : `disabled on the host now (pinned in ~/.codecast/${HOST_MCP_OVERRIDES_FILE}; ${how})`) : `would be disabled on the host (check-only run; ${how})`)
-      : wasPinned && !pinned
-        ? (opts.install ? "pin dropped — it resolves on the host again" : "would drop its pin (check-only run)")
-        : c.status === "ok" ? "none — runs on the host" : "none — left enabled; it fails to start on the host until installed";
-    return { harness: c.harness, name: c.name, ...(c.scope !== undefined ? { scope: c.scope } : {}), command: c.laptop_command, status: c.status, ...(c.reason ? { reason: c.reason } : {}), action };
+    const how =
+      c.harness === "codex"
+        ? "the mirror sets enabled = false on the host's copy"
+        : "the mirror leaves it out of the host's ~/.claude.json";
+    const action =
+      c.status === "unsupported"
+        ? opts.install
+          ? wasPinned
+            ? `disabled on the host (pinned in ~/.codecast/${HOST_MCP_OVERRIDES_FILE}; ${how})`
+            : `disabled on the host now (pinned in ~/.codecast/${HOST_MCP_OVERRIDES_FILE}; ${how})`
+          : `would be disabled on the host (check-only run; ${how})`
+        : wasPinned && !pinned
+          ? opts.install
+            ? "pin dropped — it resolves on the host again"
+            : "would drop its pin (check-only run)"
+          : c.status === "ok"
+            ? "none — runs on the host"
+            : "none — left enabled; it fails to start on the host until installed";
+    return {
+      harness: c.harness,
+      name: c.name,
+      ...(c.scope !== undefined ? { scope: c.scope } : {}),
+      command: c.laptop_command,
+      status: c.status,
+      ...(c.reason ? { reason: c.reason } : {}),
+      action,
+    };
   });
-  return { mcp, current, next, changed, ...(invalid !== undefined ? { invalid } : {}) };
+  return {
+    mcp,
+    current,
+    next,
+    changed,
+    ...(invalid !== undefined ? { invalid } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -880,11 +1598,15 @@ export function safeVersion(v: string | undefined): string | undefined {
  * /usr/local/bin when passwordless sudo is available (the only place that
  * shadows /usr/bin/node on the daemon's PATH). apt's node stays.
  */
-export function nodeInstallSnippet(minMajor: number, version = NODE_22_VERSION): string {
+export function nodeInstallSnippet(
+  minMajor: number,
+  version = NODE_22_VERSION,
+): string {
   const ver = safeVersion(version) ?? NODE_22_VERSION;
   // A requirement the tarball cannot meet (a repo pinned above its major)
   // is reported, never "fixed" by a pointless download.
-  if (minMajor > Number(ver.split(".")[0])) return `node_major=0
+  if (minMajor > Number(ver.split(".")[0]))
+    return `node_major=0
 if command -v node >/dev/null 2>&1; then node_major=$(node -v 2>/dev/null | sed 's/^v\\([0-9]*\\).*/\\1/'); fi
 [ -n "$node_major" ] || node_major=0
 [ "$node_major" -ge ${minMajor} ] || node_err="node ${minMajor} is above the ${ver} this step installs: install it on the host by hand"`;
@@ -916,18 +1638,27 @@ fi`;
 }
 
 /** The `command -v` guarded install line for one agent CLI at a pinned version (unpinned when malformed). */
-export function clientInstallSnippet(client: InstallableClient, version: string | undefined): string {
+export function clientInstallSnippet(
+  client: InstallableClient,
+  version: string | undefined,
+): string {
   const ver = safeVersion(version);
   switch (client) {
-    case "claude": return `command -v claude >/dev/null 2>&1 || (curl ${CURL_LIMITS} https://claude.ai/install.sh | bash -s${ver ? ` ${ver}` : ""}) >/dev/null 2>&1`;
-    case "codex": return `command -v codex >/dev/null 2>&1 || bun install -g @openai/codex${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
-    case "gemini": return `command -v gemini >/dev/null 2>&1 || bun install -g @google/gemini-cli${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
-    case "grok": return `command -v grok >/dev/null 2>&1 || (curl ${CURL_LIMITS} https://x.ai/cli/install.sh | bash -s${ver ? ` ${ver}` : ""}) >/dev/null 2>&1`;
+    case "claude":
+      return `command -v claude >/dev/null 2>&1 || (curl ${CURL_LIMITS} https://claude.ai/install.sh | bash -s${ver ? ` ${ver}` : ""}) >/dev/null 2>&1`;
+    case "codex":
+      return `command -v codex >/dev/null 2>&1 || bun install -g @openai/codex${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
+    case "gemini":
+      return `command -v gemini >/dev/null 2>&1 || bun install -g @google/gemini-cli${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
+    case "grok":
+      return `command -v grok >/dev/null 2>&1 || (curl ${CURL_LIMITS} https://x.ai/cli/install.sh | bash -s${ver ? ` ${ver}` : ""}) >/dev/null 2>&1`;
     // The opencode.ai installer writes ~/.opencode/bin/opencode (the dir opencodeServer.ts
     // puts on PATH); the ~/.local/bin link reaches the daemon's PATH without sudo.
-    case "opencode": return `command -v opencode >/dev/null 2>&1 || { (curl ${CURL_LIMITS} https://opencode.ai/install | bash -s -- --no-modify-path${ver ? ` --version ${ver}` : ""}) >/dev/null 2>&1; [ -x "$HOME/.opencode/bin/opencode" ] && mkdir -p "$HOME/.local/bin" && ln -sf "$HOME/.opencode/bin/opencode" "$HOME/.local/bin/opencode"; }`;
+    case "opencode":
+      return `command -v opencode >/dev/null 2>&1 || { (curl ${CURL_LIMITS} https://opencode.ai/install | bash -s -- --no-modify-path${ver ? ` --version ${ver}` : ""}) >/dev/null 2>&1; [ -x "$HOME/.opencode/bin/opencode" ] && mkdir -p "$HOME/.local/bin" && ln -sf "$HOME/.opencode/bin/opencode" "$HOME/.local/bin/opencode"; }`;
     // pi is the node script of @mariozechner/pi-coding-agent (daemon.ts matches its process by that path).
-    case "pi": return `command -v pi >/dev/null 2>&1 || bun install -g @mariozechner/pi-coding-agent${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
+    case "pi":
+      return `command -v pi >/dev/null 2>&1 || bun install -g @mariozechner/pi-coding-agent${ver ? `@${ver}` : ""} >/dev/null 2>&1`;
   }
 }
 
@@ -937,24 +1668,41 @@ export interface HostToolsScriptOptions {
 }
 
 /** The PATH every tool check and install runs under on the host. */
-export const HOST_TOOLS_PATH = 'export PATH="$HOME/.bun/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.opencode/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"';
+export const HOST_TOOLS_PATH =
+  'export PATH="$HOME/.bun/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.opencode/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"';
 
-export function hostToolsScript(required: RequiredHostTools, opts: HostToolsScriptOptions = {}): string {
+export function hostToolsScript(
+  required: RequiredHostTools,
+  opts: HostToolsScriptOptions = {},
+): string {
   const install = opts.install !== false;
   const bun = safeVersion(required.bun);
-  const gh = safeVersion(required.tools.find((t) => t.tool === "gh")?.version) ?? GH_DEFAULT_VERSION;
+  const gh =
+    safeVersion(required.tools.find((t) => t.tool === "gh")?.version) ??
+    GH_DEFAULT_VERSION;
   const needsUv = required.tools.some((t) => t.tool === "uv");
   // Only what the laptop has: provisioning installs the agent CLIs
   // once; every wake must not retry an unpinned install of a CLI the
   // laptop itself lacks.
   const clients = INSTALLABLE_CLIENTS.filter((c) => c in required.clients);
-  const helpers = required.tools.filter((t) => t.tool !== "gh" && t.tool !== "uv" && TOOL_RE.test(t.tool));
-  const unsupported = JSON.stringify(required.unsupported.map((u) => ({ tool: u.tool, referenced_by: u.referenced_by, reason: u.reason })));
+  const helpers = required.tools.filter(
+    (t) => t.tool !== "gh" && t.tool !== "uv" && TOOL_RE.test(t.tool),
+  );
+  const unsupported = JSON.stringify(
+    required.unsupported.map((u) => ({
+      tool: u.tool,
+      referenced_by: u.referenced_by,
+      reason: u.reason,
+    })),
+  );
   const lines: string[] = [];
   // Install branches exist only in install mode: a check-only script carries no installer at all.
-  const inst = (code: string) => (install ? `elif [ "$INSTALL" = 1 ]; then
+  const inst = (code: string) =>
+    install
+      ? `elif [ "$INSTALL" = 1 ]; then
 ${code}
-` : "");
+`
+      : "";
   lines.push(`set -u
 umask 022
 exec </dev/null
@@ -995,9 +1743,13 @@ ${ghWrapperInstallSnippet()}
   rm -rf "$tmp"`)}else miss gh "the authorized GitHub workflow" "not installed"; fi`);
   if (needsUv) {
     lines.push(`if command -v uv >/dev/null 2>&1; then add ok uv
-${inst(`  if err=$( (curl ${CURL_LIMITS} https://astral.sh/uv/install.sh | sh) 2>&1 >/dev/null ) && command -v uv >/dev/null 2>&1; then add installed uv; else miss uv "mirrored hooks/skills" "$err"; fi`)}${install ? `elif [ "$BREW" = 1 ]; then
+${inst(`  if err=$( (curl ${CURL_LIMITS} https://astral.sh/uv/install.sh | sh) 2>&1 >/dev/null ) && command -v uv >/dev/null 2>&1; then add installed uv; else miss uv "mirrored hooks/skills" "$err"; fi`)}${
+      install
+        ? `elif [ "$BREW" = 1 ]; then
   if err=$(brew_install uv 2>&1) && command -v uv >/dev/null 2>&1; then add installed uv; else miss uv "mirrored hooks/skills" "$(printf '%s' "$err" | tail -c 160)"; fi
-` : ""}else miss uv "mirrored hooks/skills" "not installed"; fi`);
+`
+        : ""
+    }else miss uv "mirrored hooks/skills" "not installed"; fi`);
   }
   for (const client of clients) {
     const ver = required.clients[client];
@@ -1016,13 +1768,19 @@ ${install ? `elif [ "$INSTALL" = 1 ]${cli.portable ? ' || [ "$(uname -s)" = Darw
   for (const h of helpers) {
     const ref = (h.referenced_by ?? "").replace(/["\\\n\r$`]/g, "");
     const pkg = helperPackage(h);
-    const npm = pkg.npm && NPM_SPEC_RE.test(pkg.npm) ? `elif command -v npm >/dev/null 2>&1; then
+    const npm =
+      pkg.npm && NPM_SPEC_RE.test(pkg.npm)
+        ? `elif command -v npm >/dev/null 2>&1; then
   if err=$( { ${npmGlobal(pkg.npm, undefined)}; } 2>&1 ) && command -v ${h.tool} >/dev/null 2>&1; then add installed ${h.tool}; else miss ${h.tool} "${ref}" "$(printf '%s' "$err" | tail -c 160)"; fi
-` : "";
+`
+        : "";
     const formula = pkg.brew;
-    const brew = !npm && formula && TOOL_RE.test(formula) ? `elif [ "$BREW" = 1 ]; then
+    const brew =
+      !npm && formula && TOOL_RE.test(formula)
+        ? `elif [ "$BREW" = 1 ]; then
   if err=$(brew_install ${formula} 2>&1) && command -v ${h.tool} >/dev/null 2>&1; then add installed ${h.tool}; else miss ${h.tool} "${ref}" "$(printf '%s' "$err" | tail -c 160)"; fi
-` : "";
+`
+        : "";
     lines.push(`if command -v ${h.tool} >/dev/null 2>&1; then add ok ${h.tool}
 ${install ? npm + brew : ""}else miss ${h.tool} "${ref}" "no portable install known — install it by hand on the host"; fi`);
   }
@@ -1040,8 +1798,15 @@ exit 0`);
 // Result
 // ---------------------------------------------------------------------------
 
-export interface HostToolItem { tool: string; version?: string }
-export interface HostToolMissing { tool: string; referenced_by?: string; error?: string }
+export interface HostToolItem {
+  tool: string;
+  version?: string;
+}
+export interface HostToolMissing {
+  tool: string;
+  referenced_by?: string;
+  error?: string;
+}
 
 export interface HostToolsReport {
   ok: HostToolItem[];
@@ -1063,7 +1828,11 @@ export interface HostToolsReport {
 
 /** The report from the script's stdout (the last JSON line) or from the host's ~/.codecast/host-tools.json. */
 export function parseHostToolsOutput(out: string): HostToolsReport {
-  const line = out.trim().split("\n").reverse().find((l) => l.trimStart().startsWith("{"));
+  const line = out
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.trimStart().startsWith("{"));
   if (!line) throw new Error("the host tools script printed no JSON");
   let parsed: any;
   try {
@@ -1071,12 +1840,42 @@ export function parseHostToolsOutput(out: string): HostToolsReport {
   } catch {
     throw new Error("the host tools script printed invalid JSON");
   }
-  const items = (v: unknown): HostToolItem[] => (Array.isArray(v) ? v : []).filter((x) => x && typeof x.tool === "string").map((x) => ({ tool: x.tool, ...(typeof x.version === "string" && x.version ? { version: x.version } : {}) }));
-  const missing = (v: unknown): HostToolMissing[] => (Array.isArray(v) ? v : []).filter((x) => x && typeof x.tool === "string").map((x) => ({ tool: x.tool, ...(typeof x.referenced_by === "string" ? { referenced_by: x.referenced_by } : {}), ...(typeof x.error === "string" && x.error ? { error: x.error } : {}) }));
-  const unsupported = (v: unknown): UnsupportedItem[] => (Array.isArray(v) ? v : []).filter((x) => x && typeof x.tool === "string").map((x) => ({ tool: x.tool, referenced_by: typeof x.referenced_by === "string" ? x.referenced_by : "", reason: typeof x.reason === "string" ? x.reason : "" }));
+  const items = (v: unknown): HostToolItem[] =>
+    (Array.isArray(v) ? v : [])
+      .filter((x) => x && typeof x.tool === "string")
+      .map((x) => ({
+        tool: x.tool,
+        ...(typeof x.version === "string" && x.version
+          ? { version: x.version }
+          : {}),
+      }));
+  const missing = (v: unknown): HostToolMissing[] =>
+    (Array.isArray(v) ? v : [])
+      .filter((x) => x && typeof x.tool === "string")
+      .map((x) => ({
+        tool: x.tool,
+        ...(typeof x.referenced_by === "string"
+          ? { referenced_by: x.referenced_by }
+          : {}),
+        ...(typeof x.error === "string" && x.error ? { error: x.error } : {}),
+      }));
+  const unsupported = (v: unknown): UnsupportedItem[] =>
+    (Array.isArray(v) ? v : [])
+      .filter((x) => x && typeof x.tool === "string")
+      .map((x) => ({
+        tool: x.tool,
+        referenced_by:
+          typeof x.referenced_by === "string" ? x.referenced_by : "",
+        reason: typeof x.reason === "string" ? x.reason : "",
+      }));
   return {
-    ok: items(parsed.ok), installed: items(parsed.installed), missing: missing(parsed.missing), unsupported: unsupported(parsed.unsupported),
-    ...(parsed.install !== undefined ? { install: parsed.install === 1 || parsed.install === true } : {}),
+    ok: items(parsed.ok),
+    installed: items(parsed.installed),
+    missing: missing(parsed.missing),
+    unsupported: unsupported(parsed.unsupported),
+    ...(parsed.install !== undefined
+      ? { install: parsed.install === 1 || parsed.install === true }
+      : {}),
     ...(typeof parsed.at === "string" ? { at: parsed.at } : {}),
   };
 }
@@ -1089,54 +1888,114 @@ export function summarizeHostTools(r: HostToolsReport): string {
 /** The detail lines behind the summary (--verbose): what is missing and why, what cannot run. */
 export function hostToolsDetailLines(r: HostToolsReport): string[] {
   const lines: string[] = [];
-  for (const i of r.installed) lines.push(`installed ${i.tool}${i.version ? ` ${i.version}` : ""}`);
-  for (const m of r.missing) lines.push(`missing ${m.tool}${m.referenced_by ? ` (for ${m.referenced_by})` : ""}${m.error ? ` — ${m.error}` : ""}`);
-  for (const u of r.unsupported) lines.push(`unsupported ${u.tool} — ${u.reason}`);
-  for (const m of r.mcp ?? []) if (m.status !== "ok") lines.push(`mcp ${m.harness}/${m.name}${m.scope ? ` in ${m.scope}` : ""} (${m.command}): ${m.status}${m.reason ? ` — ${m.reason}` : ""}; ${m.action}`);
-  if (r.mcpOverridesInvalid) lines.push(`mcp: the host's ~/.codecast/${HOST_MCP_OVERRIDES_FILE} did not parse (${r.mcpOverridesInvalid}); treated as empty`);
+  for (const i of r.installed)
+    lines.push(`installed ${i.tool}${i.version ? ` ${i.version}` : ""}`);
+  for (const m of r.missing)
+    lines.push(
+      `missing ${m.tool}${m.referenced_by ? ` (for ${m.referenced_by})` : ""}${m.error ? ` — ${m.error}` : ""}`,
+    );
+  for (const u of r.unsupported)
+    lines.push(`unsupported ${u.tool} — ${u.reason}`);
+  for (const m of r.mcp ?? [])
+    if (m.status !== "ok")
+      lines.push(
+        `mcp ${m.harness}/${m.name}${m.scope ? ` in ${m.scope}` : ""} (${m.command}): ${m.status}${m.reason ? ` — ${m.reason}` : ""}; ${m.action}`,
+      );
+  if (r.mcpOverridesInvalid)
+    lines.push(
+      `mcp: the host's ~/.codecast/${HOST_MCP_OVERRIDES_FILE} did not parse (${r.mcpOverridesInvalid}); treated as empty`,
+    );
   return lines;
 }
 
 /** `, 1 MCP server disabled (codex: computer_use)` — appended to the summary when the host pins any. */
 export function mcpSummarySuffix(o: HostMcpOverrides | undefined): string {
   if (!o) return "";
-  const names = [...Object.keys(o.codex).sort().map((n) => `codex: ${n}`), ...Object.keys(o.claude).sort().map((n) => `claude: ${n}`)];
-  return names.length ? `, ${names.length} MCP server${names.length === 1 ? "" : "s"} disabled (${names.join(", ")})` : "";
+  const names = [
+    ...Object.keys(o.codex)
+      .sort()
+      .map((n) => `codex: ${n}`),
+    ...Object.keys(o.claude)
+      .sort()
+      .map((n) => `claude: ${n}`),
+  ];
+  return names.length
+    ? `, ${names.length} MCP server${names.length === 1 ? "" : "s"} disabled (${names.join(", ")})`
+    : "";
 }
 
 export interface RunHostToolsOptions extends HostToolsScriptOptions {
   timeoutMs?: number;
   /** Injection for tests: how the script reaches the host. */
-  run?: (host: RemoteHost, script: string) => { status: number | null; stdout: string; stderr: string; error?: Error };
+  run?: (
+    host: RemoteHost,
+    script: string,
+  ) => { status: number | null; stdout: string; stderr: string; error?: Error };
   /** Injection for tests: how the MCP manifest reaches the host. */
   writeOverrides?: (host: RemoteHost, o: HostMcpOverrides) => void;
   now?: () => Date;
 }
 
 function runOverSsh(host: RemoteHost, script: string, timeoutMs: number) {
-  const r = spawnSync("ssh", [...sshBase(host), sshDestination(host), HOST_TOOLS_REMOTE_COMMAND], {
-    encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], input: (remoteHome(host).startsWith("/Users/") ? 'export PATH="$PATH:/opt/homebrew/bin"\n' : "") + script, timeout: timeoutMs, env: process.env, maxBuffer: 16 * 1024 * 1024,
-  });
-  return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", ...(r.error ? { error: r.error } : {}) };
+  const r = spawnSync(
+    "ssh",
+    [...sshBase(host), sshDestination(host), HOST_TOOLS_REMOTE_COMMAND],
+    {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      input:
+        (remoteHome(host).startsWith("/Users/")
+          ? 'export PATH="$PATH:/opt/homebrew/bin"\n'
+          : "") + script,
+      timeout: timeoutMs,
+      env: process.env,
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
+  return {
+    status: r.status,
+    stdout: r.stdout ?? "",
+    stderr: r.stderr ?? "",
+    ...(r.error ? { error: r.error } : {}),
+  };
 }
 
 /** Run the check/install script on a host. Throws on transport failure; a missing tool is a result. */
-export function runHostTools(host: RemoteHost, required: RequiredHostTools, opts: RunHostToolsOptions = {}): HostToolsReport {
+export function runHostTools(
+  host: RemoteHost,
+  required: RequiredHostTools,
+  opts: RunHostToolsOptions = {},
+): HostToolsReport {
   const script = hostToolsScript(required, { install: opts.install });
   const timeoutMs = opts.timeoutMs ?? 15 * 60_000;
-  const r = opts.run ? opts.run(host, script) : runOverSsh(host, script, timeoutMs);
+  const r = opts.run
+    ? opts.run(host, script)
+    : runOverSsh(host, script, timeoutMs);
   const label = `${host.user}@${host.address}`;
-  if (r.error) throw new Error(`host tools check on ${label} failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})`);
+  if (r.error)
+    throw new Error(
+      `host tools check on ${label} failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})`,
+    );
   if (r.status !== 0) {
     const detail = lastErrorLine(r.stderr);
-    throw new Error(`host tools check on ${label} failed (exit ${r.status})${detail ? `: ${detail}` : ""}`);
+    throw new Error(
+      `host tools check on ${label} failed (exit ${r.status})${detail ? `: ${detail}` : ""}`,
+    );
   }
   const report = parseHostToolsOutput(r.stdout);
   if (required.mcp) {
     // The MCP manifest: the readiness path is its sole writer. Rewritten only
     // on change, and only on a real (installing) run — a check-only run reports.
     const install = opts.install !== false;
-    const { mcp, next, changed, invalid } = reconcileMcp(required.mcp, parseMcpLines(r.stdout), { hostHome: remoteHome(host), at: (opts.now ?? (() => new Date()))().toISOString(), install });
+    const { mcp, next, changed, invalid } = reconcileMcp(
+      required.mcp,
+      parseMcpLines(r.stdout),
+      {
+        hostHome: remoteHome(host),
+        at: (opts.now ?? (() => new Date()))().toISOString(),
+        install,
+      },
+    );
     report.mcp = mcp;
     report.mcpOverrides = next;
     if (invalid !== undefined) report.mcpOverridesInvalid = invalid;

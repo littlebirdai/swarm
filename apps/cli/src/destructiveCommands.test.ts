@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DESTRUCTIVE_COMMANDS, destructiveGate, isDestructivePath } from "./destructiveCommands.js";
+import {
+  DESTRUCTIVE_COMMANDS,
+  destructiveGate,
+  isDestructivePath,
+} from "./destructiveCommands.js";
 
 /**
  * The table is only worth anything if every path in it is a command someone can
@@ -15,7 +19,8 @@ function registeredCommands(): Set<string> {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name !== "node_modules" && entry.name !== "__fixtures__") walk(full);
+        if (entry.name !== "node_modules" && entry.name !== "__fixtures__")
+          walk(full);
       } else if (entry.name.endsWith(".ts") && !entry.name.includes(".test.")) {
         files.push(full);
       }
@@ -34,7 +39,9 @@ function registeredCommands(): Set<string> {
     for (const match of src.matchAll(/\.command\(\s*"([^"\s)]+)/g)) {
       // Bounded windows: the receiver and its `const` sit within a line or two,
       // and slicing whole files here would be quadratic on daemon.ts.
-      const before = src.slice(Math.max(0, match.index! - 200), match.index!).replace(/\s+$/, "");
+      const before = src
+        .slice(Math.max(0, match.index! - 200), match.index!)
+        .replace(/\s+$/, "");
       const receiver = /([A-Za-z_$][\w$]*)$/.exec(before)?.[1];
       if (!receiver) continue;
       const name = match[1]!;
@@ -56,7 +63,9 @@ function registeredCommands(): Set<string> {
     return [...pathOf(definition.receiver, seen), definition.name];
   };
 
-  return new Set(registrations.map((reg) => [...pathOf(reg.receiver), reg.name].join(" ")));
+  return new Set(
+    registrations.map((reg) => [...pathOf(reg.receiver), reg.name].join(" ")),
+  );
 }
 
 describe("DESTRUCTIVE_COMMANDS", () => {
@@ -71,9 +80,9 @@ describe("DESTRUCTIVE_COMMANDS", () => {
   });
 
   test("names only registered commands", () => {
-    const missing = DESTRUCTIVE_COMMANDS.map((cmd) => cmd.path.join(" ")).filter(
-      (full) => !registered.has(full),
-    );
+    const missing = DESTRUCTIVE_COMMANDS.map((cmd) =>
+      cmd.path.join(" "),
+    ).filter((full) => !registered.has(full));
     expect(missing).toEqual([]);
   });
 
@@ -83,8 +92,18 @@ describe("DESTRUCTIVE_COMMANDS", () => {
   });
 
   test("covers the verbs that cannot be undone", () => {
-    const verbs = new Set(DESTRUCTIVE_COMMANDS.map((cmd) => cmd.path[cmd.path.length - 1]!));
-    for (const verb of ["destroy", "rm", "kill", "delete", "cancel", "drop", "stop"]) {
+    const verbs = new Set(
+      DESTRUCTIVE_COMMANDS.map((cmd) => cmd.path[cmd.path.length - 1]!),
+    );
+    for (const verb of [
+      "destroy",
+      "rm",
+      "kill",
+      "delete",
+      "cancel",
+      "drop",
+      "stop",
+    ]) {
       expect(verbs.has(verb)).toBe(true);
     }
   });
@@ -117,8 +136,12 @@ describe("destructiveGate", () => {
   });
 
   test("--yes passes either gate", () => {
-    expect(destructiveGate(["doc", "delete"], { yes: true, args: ["doc-7"] })).toEqual({ kind: "pass" });
-    expect(destructiveGate(["uninstall"], { yes: true })).toEqual({ kind: "pass" });
+    expect(
+      destructiveGate(["doc", "delete"], { yes: true, args: ["doc-7"] }),
+    ).toEqual({ kind: "pass" });
+    expect(destructiveGate(["uninstall"], { yes: true })).toEqual({
+      kind: "pass",
+    });
   });
 
   test("passes a destructive command that declares no gate", () => {
@@ -126,6 +149,8 @@ describe("destructiveGate", () => {
   });
 
   test("throws when asked about a command the table does not know", () => {
-    expect(() => destructiveGate(["label", "rename"])).toThrow(/not in DESTRUCTIVE_COMMANDS/);
+    expect(() => destructiveGate(["label", "rename"])).toThrow(
+      /not in DESTRUCTIVE_COMMANDS/,
+    );
   });
 });

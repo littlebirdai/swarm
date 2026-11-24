@@ -25,7 +25,10 @@ export function CallSearchField({
 }) {
   return (
     <div className="cs-field" role="search">
-      <Search className="h-3.5 w-3.5 shrink-0 text-sol-text-dim" aria-hidden="true" />
+      <Search
+        className="h-3.5 w-3.5 shrink-0 text-sol-text-dim"
+        aria-hidden="true"
+      />
       <input
         ref={inputRef}
         value={value}
@@ -63,31 +66,60 @@ export function CallSearchField({
 }
 
 /** `text` with each term marked, cut to a window around the first one. */
-export const Marked = memo(function Marked({ text, terms, around = 0 }: { text: string; terms: string[]; around?: number }) {
+export const Marked = memo(function Marked({
+  text,
+  terms,
+  around = 0,
+}: {
+  text: string;
+  terms: string[];
+  around?: number;
+}) {
   let shown = text;
   let lead = false;
   if (around > 0) {
     const low = text.toLowerCase();
-    const first = Math.min(...terms.map((t) => low.indexOf(t)).filter((i) => i >= 0), Infinity);
+    const first = Math.min(
+      ...terms.map((t) => low.indexOf(t)).filter((i) => i >= 0),
+      Infinity,
+    );
     if (first !== Infinity && first > around) {
       const cut = text.lastIndexOf(" ", first - around);
       shown = text.slice(cut > 0 ? cut + 1 : first - around);
       lead = true;
     }
   }
-  const escaped = terms.filter(Boolean).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const parts = escaped.length ? shown.split(new RegExp(`(${escaped.join("|")})`, "gi")) : [shown];
+  const escaped = terms
+    .filter(Boolean)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const parts = escaped.length
+    ? shown.split(new RegExp(`(${escaped.join("|")})`, "gi"))
+    : [shown];
   return (
     <>
       {lead && "…"}
-      {parts.map((p, i) => (i % 2 === 1 ? <mark key={i} className="cs-mark">{p}</mark> : p))}
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <mark key={i} className="cs-mark">
+            {p}
+          </mark>
+        ) : (
+          p
+        ),
+      )}
     </>
   );
 });
 
 /** What matched inside one found call: its spoken lines (each opens the
  *  call at that line), or the recap sentence that matched. */
-export function CallSearchHits({ result, terms }: { result: CallSearchResult; terms: string[] }) {
+export function CallSearchHits({
+  result,
+  terms,
+}: {
+  result: CallSearchResult;
+  terms: string[];
+}) {
   const ref = callPathRef(result.call);
   if (result.lines.length === 0 && !result.recap) return null;
   return (
@@ -95,19 +127,29 @@ export function CallSearchHits({ result, terms }: { result: CallSearchResult; te
       {result.lines.map((l) => (
         <Link
           key={l.seq}
-          href={callAnchorHref(ref, { kind: "turns", from_seq: l.seq, to_seq: l.seq })}
+          href={callAnchorHref(ref, {
+            kind: "turns",
+            from_seq: l.seq,
+            to_seq: l.seq,
+          })}
           className="cs-hit"
           title={`Open the call at ${formatCallTime(l.t0)}`}
         >
           <span className="cs-hit-time">{formatCallTime(l.t0)}</span>
           <span className="cs-hit-text">
-            <span className={speakerColor(l.speaker_id)}>{firstName(l.speaker_name)}</span>{" "}
+            <span className={speakerColor(l.speaker_id)}>
+              {firstName(l.speaker_name)}
+            </span>{" "}
             <Marked text={l.text} terms={terms} around={36} />
           </span>
         </Link>
       ))}
       {result.recap && (
-        <Link href={callAnchorHref(ref, { kind: "summary" })} className="cs-hit" title="Open the call's recap">
+        <Link
+          href={callAnchorHref(ref, { kind: "summary" })}
+          className="cs-hit"
+          title="Open the call's recap"
+        >
           <span className="cs-hit-time">recap</span>
           <span className="cs-hit-text">
             <Marked text={result.recap} terms={terms} around={36} />

@@ -17,31 +17,42 @@
 import { createContext, useContext } from "react";
 import { useInboxStore } from "../store/inboxStore";
 import { activeTeamIdOf } from "./activeTeam";
-import { workspaceFeatureEnabled, workspaceFeatureState, type FeatureState, type TeamFeatureKey } from "@codecast/shared/contracts";
+import {
+  workspaceFeatureEnabled,
+  workspaceFeatureState,
+  type FeatureState,
+  type TeamFeatureKey,
+} from "@codecast/shared/contracts";
 import { TEAM_FEATURE_CATALOG, teamHasFeature } from "./teamFeatureRule";
 
 export { TEAM_FEATURE_CATALOG, teamHasFeature };
 
 /** A fixed answer for every feature, in place of the viewer's teams: the
  *  marketing hero renders the same views whatever team the visitor is in. */
-export const TeamFeatureOverride = createContext<Partial<Record<TeamFeatureKey, boolean>> | null>(null);
+export const TeamFeatureOverride = createContext<Partial<
+  Record<TeamFeatureKey, boolean>
+> | null>(null);
 
 /** Is `key` on for the ACTIVE team? Personal workspace = off. Subscribes to a
  *  boolean, so a teams-list refresh that changes nothing re-renders nobody. */
 export function useTeamFeature(key: TeamFeatureKey): boolean {
   const override = useContext(TeamFeatureOverride);
-  const live = useInboxStore((s) => !override && teamHasFeature(s.teams, activeTeamIdOf(s), key));
+  const live = useInboxStore(
+    (s) => !override && teamHasFeature(s.teams, activeTeamIdOf(s), key),
+  );
   return override ? !!override[key] : live;
 }
-
 
 /** Calls affordances (huddle buttons, occupancy chips, palette entry): the
  *  deployment must be configured AND the active team must have calls on. The
  *  ring pipeline deliberately does not use this — a ring from a teammate in
  *  another team must still reach you (see useCallSync). */
 export function useCallsAvailable(): boolean {
-  return useInboxStore((s) =>
-    !!s.callConfig?.enabled && teamHasFeature(s.teams, activeTeamIdOf(s), "calls"));
+  return useInboxStore(
+    (s) =>
+      !!s.callConfig?.enabled &&
+      teamHasFeature(s.teams, activeTeamIdOf(s), "calls"),
+  );
 }
 
 /** Is `key` on in the ACTIVE workspace, personal included: a team reads its
@@ -49,27 +60,42 @@ export function useCallsAvailable(): boolean {
  *  catalog marks the feature `personal` (org roles), else it is off there.
  *  Shared rule: workspaceFeatureEnabled. */
 export function useWorkspaceFeature(key: TeamFeatureKey): boolean {
-  return useInboxStore((s) => workspaceFeatureEnabled(s.teams || [], s.clientState.ui?.active_team_id, key));
+  return useInboxStore((s) =>
+    workspaceFeatureEnabled(
+      s.teams || [],
+      s.clientState.ui?.active_team_id,
+      key,
+    ),
+  );
 }
 
 /** The same answer as useWorkspaceFeature, read once off the store, for code
  *  that cannot call a hook (a palette row's hidden() predicate). */
 export function workspaceHasFeatureNow(key: TeamFeatureKey): boolean {
   const s = useInboxStore.getState();
-  return workspaceFeatureEnabled(s.teams || [], s.clientState.ui?.active_team_id, key);
+  return workspaceFeatureEnabled(
+    s.teams || [],
+    s.clientState.ui?.active_team_id,
+    key,
+  );
 }
 
 /** The feature's state in the ACTIVE workspace: on, offered (its team never
  *  decided, so one door stays open to it), or off. Shared rule:
  *  workspaceFeatureState. */
 export function useWorkspaceFeatureState(key: TeamFeatureKey): FeatureState {
-  return useInboxStore((s) => workspaceFeatureState(s.teams || [], s.clientState.ui?.active_team_id, key));
+  return useInboxStore((s) =>
+    workspaceFeatureState(s.teams || [], s.clientState.ui?.active_team_id, key),
+  );
 }
 
 /** The page to show instead of `path` while the Flows feature is off: the
  *  Flows app's pages land on /flows, which says what Flows is and how to turn
  *  it on (FeatureLanding), and stays put itself. Null when `path` shows. */
-export function featurePageRedirect(path: string, flowsOn: boolean): string | null {
+export function featurePageRedirect(
+  path: string,
+  flowsOn: boolean,
+): string | null {
   if (flowsOn) return null;
   const p = path.split("?")[0].split("#")[0];
   return /^\/(line|trial)(\/|$)/.test(p) ? "/flows" : null;

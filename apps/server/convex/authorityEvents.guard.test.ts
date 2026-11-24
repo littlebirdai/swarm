@@ -21,7 +21,8 @@ function sources(dir: string, out: string[] = []): string[] {
     if (name === "_generated" || name === "node_modules") continue;
     const abs = join(dir, name);
     if (statSync(abs).isDirectory()) sources(abs, out);
-    else if (/\.ts$/.test(name) && !/\.(test|testing)\.ts$/.test(name)) out.push(abs);
+    else if (/\.ts$/.test(name) && !/\.(test|testing)\.ts$/.test(name))
+      out.push(abs);
   }
   return out;
 }
@@ -34,14 +35,17 @@ describe("authority_events has one writer and is append only", () => {
     const src = readFileSync(abs, "utf8");
     if (rel === WRITER) {
       expect(INSERT.test(src)).toBe(true);
-      if (PATCH_OR_DELETE.test(src)) offenders.push(`${rel}: the writer may only insert`);
+      if (PATCH_OR_DELETE.test(src))
+        offenders.push(`${rel}: the writer may only insert`);
       continue;
     }
     if (rel === "schema.ts") continue;
-    if (INSERT.test(src)) offenders.push(`${rel}: inserts into authority_events`);
+    if (INSERT.test(src))
+      offenders.push(`${rel}: inserts into authority_events`);
     // Any file that names the table and also patches or deletes something is
     // suspect: the read query is the only reader and it writes nothing.
-    if (TABLE.test(src) && PATCH_OR_DELETE.test(src)) offenders.push(`${rel}: names authority_events and patches or deletes`);
+    if (TABLE.test(src) && PATCH_OR_DELETE.test(src))
+      offenders.push(`${rel}: names authority_events and patches or deletes`);
   }
   test("no file outside the writer inserts, patches or deletes", () => {
     expect(offenders).toEqual([]);

@@ -11,7 +11,13 @@ import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
 import { SessionFace } from "./SessionFace";
 import { useLiveIdentityRow } from "../../hooks/useLiveIdentityRow";
 
-export function SessionGlyph({ row: rawRow, size = 16, className, fallback = null, badge }: {
+export function SessionGlyph({
+  row: rawRow,
+  size = 16,
+  className,
+  fallback = null,
+  badge,
+}: {
   row: IdentityRow | null | undefined;
   size?: number | string;
   className?: string;
@@ -23,5 +29,7 @@ export function SessionGlyph({ row: rawRow, size = 16, className, fallback = nul
   const row = useLiveIdentityRow(rawRow ?? null);
   if (!row) return <>{fallback}</>;
   if (sessionIdentity(row, prefs).kind === "plain") return <>{fallback}</>;
-  return <SessionFace row={row} size={size} className={className} badge={badge} />;
+  return (
+    <SessionFace row={row} size={size} className={className} badge={badge} />
+  );
 }

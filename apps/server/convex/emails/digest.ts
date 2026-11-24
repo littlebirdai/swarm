@@ -32,7 +32,11 @@ import { MAX_CHANNELS_PER_TEAM, UNREAD_CAP, plainPreview } from "../chatText";
 import { canAccessChannel } from "../chatAccess";
 import { rewriteNotificationMessage } from "../lib/notificationActor";
 import { deliver } from "./send";
-import { notificationDigest, type DigestEntry, type DigestSection } from "./templates";
+import {
+  notificationDigest,
+  type DigestEntry,
+  type DigestSection,
+} from "./templates";
 import { BRAND } from "./render";
 import { decisionOwnerOf } from "@codecast/shared/contracts/decisionAreas";
 
@@ -103,9 +107,14 @@ export function entityUrl(
   },
 ): string {
   if (n.link) return n.link;
-  const simple: Record<string, string> = { task: "/tasks/", doc: "/docs/", plan: "/plans/" };
+  const simple: Record<string, string> = {
+    task: "/tasks/",
+    doc: "/docs/",
+    plan: "/plans/",
+  };
   if (n.entity_type && n.entity_id) {
-    if (simple[n.entity_type]) return `${siteUrl}${simple[n.entity_type]}${n.entity_id}`;
+    if (simple[n.entity_type])
+      return `${siteUrl}${simple[n.entity_type]}${n.entity_id}`;
     if (n.entity_type === "chat_channel") {
       const m = n.chat_message_id ? `?m=${n.chat_message_id}` : "";
       return `${siteUrl}/chat/${n.entity_id}${m}`;
@@ -146,9 +155,12 @@ export function digestSubject(args: {
 }): { subject: string; preheader: string } {
   const parts: string[] = [];
   const decisions = args.blockingDecisions + args.advisoryDecisions;
-  if (decisions > 0) parts.push(`${decisions} decision${decisions === 1 ? "" : "s"}`);
+  if (decisions > 0)
+    parts.push(`${decisions} decision${decisions === 1 ? "" : "s"}`);
   if (args.personalCount > 0)
-    parts.push(`${args.personalCount} mention${args.personalCount === 1 ? "" : "s"} & comments`);
+    parts.push(
+      `${args.personalCount} mention${args.personalCount === 1 ? "" : "s"} & comments`,
+    );
   if (args.chatCount > 0) parts.push(`${args.chatCount} chat messages`);
   const preheader = `Waiting for you: ${parts.join(" · ")}.`;
 
@@ -181,10 +193,18 @@ export function digestSubject(args: {
 
 /** chat.ts channel-unread rules: no tombstones, not mine, channel level only. */
 export function countableChatMessage(
-  row: { deleted_at?: number; user_id: { toString(): string }; thread_root_id?: unknown },
+  row: {
+    deleted_at?: number;
+    user_id: { toString(): string };
+    thread_root_id?: unknown;
+  },
   userId: string,
 ): boolean {
-  return !row.deleted_at && row.user_id.toString() !== userId && row.thread_root_id === undefined;
+  return (
+    !row.deleted_at &&
+    row.user_id.toString() !== userId &&
+    row.thread_root_id === undefined
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -215,21 +235,28 @@ export const sweep = internalMutation({
         async candidates({ from, to }) {
           const recentNotifs = await ctx.db
             .query("notifications")
-            .withIndex("by_created", (q) => q.gte("created_at", from).lte("created_at", to))
+            .withIndex("by_created", (q) =>
+              q.gte("created_at", from).lte("created_at", to),
+            )
             .collect();
           const recentDecisions = await ctx.db
             .query("session_decisions")
             .withIndex("by_status_created", (q) =>
-              q.eq("status", "pending").gte("created_at", from).lte("created_at", to),
+              q
+                .eq("status", "pending")
+                .gte("created_at", from)
+                .lte("created_at", to),
             )
             .collect();
 
           const ids: string[] = [];
           for (const n of recentNotifs) {
-            if (!n.read && EMAIL_WORTHY.has(n.type)) ids.push(n.recipient_user_id.toString());
+            if (!n.read && EMAIL_WORTHY.has(n.type))
+              ids.push(n.recipient_user_id.toString());
           }
           // A trial's decisions wait in the trial's own stack, never in an email.
-          for (const d of recentDecisions) if (!d.trial) ids.push(digestOwnerOf(d));
+          for (const d of recentDecisions)
+            if (!d.trial) ids.push(digestOwnerOf(d));
           return ids;
         },
 
@@ -255,17 +282,24 @@ export const sweep = internalMutation({
           };
         },
 
-        build: (recipient, range) => buildDigestForUser(ctx, recipient.id as Id<"users">, range),
+        build: (recipient, range) =>
+          buildDigestForUser(ctx, recipient.id as Id<"users">, range),
 
         async saveToken(id, token) {
           await ctx.db.patch(id as Id<"users">, { email_unsub_token: token });
         },
 
         async markSent(id, now) {
-          await ctx.db.patch(id as Id<"users">, { email_digest_last_sent_at: now });
+          await ctx.db.patch(id as Id<"users">, {
+            email_digest_last_sent_at: now,
+          });
         },
 
-        async send(recipient: DigestRecipient, digest: Digest, unsubToken: string) {
+        async send(
+          recipient: DigestRecipient,
+          digest: Digest,
+          unsubToken: string,
+        ) {
           await ctx.scheduler.runAfter(0, internal.emails.digest.sendDigest, {
             to: recipient.email!,
             subject: digest.subject,
@@ -282,23 +316,44 @@ export const sweep = internalMutation({
 });
 
 /** Who a decision's email goes to: its owner (passed to, held by, or asked of them), else the asking session's owner. */
-export function digestOwnerOf(d: Pick<Doc<"session_decisions">, "passed_to" | "holder" | "asked_user_ids" | "user_id">): string {
+export function digestOwnerOf(
+  d: Pick<
+    Doc<"session_decisions">,
+    "passed_to" | "holder" | "asked_user_ids" | "user_id"
+  >,
+): string {
   const owner = decisionOwnerOf(d as Parameters<typeof decisionOwnerOf>[0]);
   return owner?.kind === "user" ? owner.id : String(d.user_id);
 }
 
 /** The open decisions a person owns: the ones in their queue they own, and the older rows asked of nobody that their sessions asked. */
 const OWNED_READ_CAP = 500;
-async function ownedPendingDecisions(ctx: { db: any }, userId: Id<"users">): Promise<Doc<"session_decisions">[]> {
+async function ownedPendingDecisions(
+  ctx: { db: any },
+  userId: Id<"users">,
+): Promise<Doc<"session_decisions">[]> {
   const out = new Map<string, Doc<"session_decisions">>();
-  const queued = await ctx.db.query("decision_inbox").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "pending")).take(OWNED_READ_CAP);
+  const queued = await ctx.db
+    .query("decision_inbox")
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("user_id", userId).eq("status", "pending"),
+    )
+    .take(OWNED_READ_CAP);
   for (const r of queued) {
     const d: Doc<"session_decisions"> | null = await ctx.db.get(r.decision_id);
     if (d) out.set(String(d._id), d);
   }
-  const asked: Doc<"session_decisions">[] = await ctx.db.query("session_decisions").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "pending")).take(OWNED_READ_CAP);
+  const asked: Doc<"session_decisions">[] = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("user_id", userId).eq("status", "pending"),
+    )
+    .take(OWNED_READ_CAP);
   for (const d of asked) out.set(String(d._id), d);
-  return [...out.values()].filter((d) => d.status === "pending" && !d.trial && digestOwnerOf(d) === String(userId));
+  return [...out.values()].filter(
+    (d) =>
+      d.status === "pending" && !d.trial && digestOwnerOf(d) === String(userId),
+  );
 }
 
 async function buildDigestForUser(
@@ -330,7 +385,9 @@ async function buildDigestForUser(
     actorNames.set(key, actor?.name || actor?.github_username || "Someone");
   }
   const toEntry = (n: Doc<"notifications">): DigestEntry => {
-    const live = n.actor_user_id ? actorNames.get(n.actor_user_id.toString()) : undefined;
+    const live = n.actor_user_id
+      ? actorNames.get(n.actor_user_id.toString())
+      : undefined;
     const actor = n.actor_name ?? live;
     return notificationEntry(base, {
       type: n.type,
@@ -365,7 +422,9 @@ async function buildDigestForUser(
   const newDecisions = pendingDecisions.filter(
     (d) => d.created_at > since && d.created_at <= cutoff,
   );
-  const olderPending = pendingDecisions.filter((d) => d.created_at <= since).length;
+  const olderPending = pendingDecisions.filter(
+    (d) => d.created_at <= since,
+  ).length;
 
   // --- Plain unread chat, using chat.ts's own counting rules ---
   const chatLines: DigestEntry[] = [];
@@ -378,7 +437,9 @@ async function buildDigestForUser(
   for (const membership of memberships.slice(0, 5)) {
     const channels = await ctx.db
       .query("chat_channels")
-      .withIndex("by_team_name", (q: any) => q.eq("team_id", membership.team_id))
+      .withIndex("by_team_name", (q: any) =>
+        q.eq("team_id", membership.team_id),
+      )
       .take(MAX_CHANNELS_PER_TEAM);
     for (const channel of channels) {
       // Chat's own read rule: a restricted room counts only while the person
@@ -401,7 +462,8 @@ async function buildDigestForUser(
         )
         .take(UNREAD_CAP * 2 + 1);
       const counted = rows.filter(
-        (r) => countableChatMessage(r, userId.toString()) && r.created_at <= cutoff,
+        (r) =>
+          countableChatMessage(r, userId.toString()) && r.created_at <= cutoff,
       );
       if (counted.length === 0) continue;
       const capped = counted.length > UNREAD_CAP;
@@ -431,16 +493,14 @@ async function buildDigestForUser(
   const cap = createEntryCapper(DEFAULT_DIGEST_POLICY.maxEntriesPerSection);
 
   if (newDecisions.length > 0 || olderPending > 0) {
-    const entries = cap.take(newDecisions).map(
-      (d): DigestEntry => ({
-        title: `**${d.question}**`,
-        excerpt: d.context_md
-          ? plainPreview(d.context_md, 200)
-          : d.options.map((o) => o.label).join(" / "),
-        url: `${base}/decisions/${d.short_id ?? d._id}`,
-        linkLabel: d.blocking ? "Answer — the agent is parked on this" : "Review",
-      }),
-    );
+    const entries = cap.take(newDecisions).map((d): DigestEntry => ({
+      title: `**${d.question}**`,
+      excerpt: d.context_md
+        ? plainPreview(d.context_md, 200)
+        : d.options.map((o) => o.label).join(" / "),
+      url: `${base}/decisions/${d.short_id ?? d._id}`,
+      linkLabel: d.blocking ? "Answer — the agent is parked on this" : "Review",
+    }));
     if (olderPending > 0) {
       entries.push({
         title: `…and **${olderPending}** older decision${olderPending === 1 ? "" : "s"} still waiting`,
@@ -451,10 +511,16 @@ async function buildDigestForUser(
     sections.push({ heading: "Decisions waiting on you", entries });
   }
   if (personal.length > 0) {
-    sections.push({ heading: "Mentions & comments", entries: cap.take(personal).map(toEntry) });
+    sections.push({
+      heading: "Mentions & comments",
+      entries: cap.take(personal).map(toEntry),
+    });
   }
   if (handed.length > 0) {
-    sections.push({ heading: "Handed to you", entries: cap.take(handed).map(toEntry) });
+    sections.push({
+      heading: "Handed to you",
+      entries: cap.take(handed).map(toEntry),
+    });
   }
   if (chatLines.length > 0) {
     sections.push({ heading: "Unread chat", entries: cap.take(chatLines) });
@@ -487,7 +553,9 @@ export const sendDigest = internalAction({
     to: v.string(),
     subject: v.string(),
     preheader: v.string(),
-    sections: v.array(v.object({ heading: v.string(), entries: v.array(ENTRY_VALIDATOR) })),
+    sections: v.array(
+      v.object({ heading: v.string(), entries: v.array(ENTRY_VALIDATOR) }),
+    ),
     more_count: v.number(),
     unsub_token: v.string(),
   },
@@ -505,7 +573,9 @@ export const sendDigest = internalAction({
       settingsUrl: `${base}/settings/notifications`,
       unsubscribeUrl: unsubUrl,
     });
-    await deliver(args.to, email, "digest", { headers: listUnsubscribeHeaders(unsubUrl) });
+    await deliver(args.to, email, "digest", {
+      headers: listUnsubscribeHeaders(unsubUrl),
+    });
   },
 });
 
@@ -518,7 +588,9 @@ export const unsubscribeByToken = internalMutation({
       async lookup(token) {
         const user = await ctx.db
           .query("users")
-          .withIndex("by_email_unsub_token", (q) => q.eq("email_unsub_token", token))
+          .withIndex("by_email_unsub_token", (q) =>
+            q.eq("email_unsub_token", token),
+          )
           .first();
         return user ? { id: user._id } : null;
       },

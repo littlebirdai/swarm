@@ -19,7 +19,11 @@ export function handleTab(editor: Editor): boolean {
  *  swallow the event so focus doesn't jump backward out of the editor. */
 export function handleShiftTab(editor: Editor): boolean {
   const { from, empty } = editor.state.selection;
-  if (empty && from > 0 && editor.state.doc.textBetween(from - 1, from) === "\t") {
+  if (
+    empty &&
+    from > 0 &&
+    editor.state.doc.textBetween(from - 1, from) === "\t"
+  ) {
     return editor.commands.deleteRange({ from: from - 1, to: from });
   }
   return true;

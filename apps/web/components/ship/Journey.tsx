@@ -9,77 +9,199 @@ import { memo, useMemo, useState } from "react";
 import Link from "next/link";
 import { useInboxStore } from "../../store/inboxStore";
 import { ArrowRight, Check, CornerDownLeft, Loader2, X } from "lucide-react";
-import { WHO_WORDS, gateWaitWords, holdWords, sentBackWords, stopWords, targetsFromLine, waitWords, type Journey as JourneyModel, type JourneyStage, type JourneyNow, type JourneyWait, type TargetState } from "../../lib/ship/journey";
+import {
+  WHO_WORDS,
+  gateWaitWords,
+  holdWords,
+  sentBackWords,
+  stopWords,
+  targetsFromLine,
+  waitWords,
+  type Journey as JourneyModel,
+  type JourneyStage,
+  type JourneyNow,
+  type JourneyWait,
+  type TargetState,
+} from "../../lib/ship/journey";
 import { ageShort } from "../../lib/lineFlow";
 import { RunGate } from "../WorkflowContextPanel";
 import { useDeployTargets } from "../../hooks/useSyncDeployTargets";
 import { sessionTargets, targetNow } from "../../lib/deploys/targets";
-import { deploysFocusHref, deploysHref, runFocus, type DeployFocus } from "../../lib/deploys/focus";
+import {
+  deploysFocusHref,
+  deploysHref,
+  runFocus,
+  type DeployFocus,
+} from "../../lib/deploys/focus";
 import { useDeployPress } from "../../hooks/useDeployPress";
 import "./ship.css";
 
-export const JourneyTrack = memo(function JourneyTrack({ stages, compact = false, open, onOpen }: { stages: JourneyStage[]; compact?: boolean; open?: string | null; onOpen?: (id: string | null) => void }) {
+export const JourneyTrack = memo(function JourneyTrack({
+  stages,
+  compact = false,
+  open,
+  onOpen,
+}: {
+  stages: JourneyStage[];
+  compact?: boolean;
+  open?: string | null;
+  onOpen?: (id: string | null) => void;
+}) {
   // A finished journey says only what happened: no one acts any more, and nothing goes back.
-  const finished = stages.length > 0 && stages.every((s) => s.state === "done" || s.state === "skipped") && stages.some((s) => s.state === "done");
+  const finished =
+    stages.length > 0 &&
+    stages.every((s) => s.state === "done" || s.state === "skipped") &&
+    stages.some((s) => s.state === "done");
   // The stages whose findings come back to the session, as one return line under them.
-  const looping = finished ? [] : stages.map((s, i) => (s.loops.length ? i : -1)).filter((i) => i >= 0);
+  const looping = finished
+    ? []
+    : stages.map((s, i) => (s.loops.length ? i : -1)).filter((i) => i >= 0);
   const back = stages.some((s) => s.state === "back");
   return (
-    <div className="sj-track" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} data-compact={compact ? "" : undefined}>
+    <div
+      className="sj-track"
+      style={{
+        gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))`,
+      }}
+      data-compact={compact ? "" : undefined}
+    >
       <ol className="sj-stages" aria-label="Stages">
         {stages.map((s, i) => {
           const next = stages[i + 1];
           return (
-            <li key={s.id} className="sj-stage" data-state={s.state} data-who={s.who} data-past={next && (next.state !== "idle" || s.state === "done") ? "" : undefined} data-stage={s.id}>
+            <li
+              key={s.id}
+              className="sj-stage"
+              data-state={s.state}
+              data-who={s.who}
+              data-past={
+                next && (next.state !== "idle" || s.state === "done")
+                  ? ""
+                  : undefined
+              }
+              data-stage={s.id}
+            >
               {onOpen && s.steps?.length ? (
-                <button type="button" className="sj-stage-btn" aria-expanded={open === s.id} onClick={() => onOpen(open === s.id ? null : s.id)} data-journey-stage={s.id}>
+                <button
+                  type="button"
+                  className="sj-stage-btn"
+                  aria-expanded={open === s.id}
+                  onClick={() => onOpen(open === s.id ? null : s.id)}
+                  data-journey-stage={s.id}
+                >
                   <StageFace s={s} finished={finished} />
                 </button>
-              ) : <StageFace s={s} finished={finished} />}
+              ) : (
+                <StageFace s={s} finished={finished} />
+              )}
             </li>
           );
         })}
       </ol>
       {looping.length && !compact ? (
-        <div className="sj-return" data-active={back ? "" : undefined} style={{ gridColumn: `${looping[0] + 1} / ${looping[looping.length - 1] + 2}`, ["--n" as string]: looping[looping.length - 1] - looping[0] + 1 }}
-          title={`Back to this session from ${looping.map((i) => stages[i].label).join(", ")}`} data-journey-return>
+        <div
+          className="sj-return"
+          data-active={back ? "" : undefined}
+          style={{
+            gridColumn: `${looping[0] + 1} / ${looping[looping.length - 1] + 2}`,
+            ["--n" as string]: looping[looping.length - 1] - looping[0] + 1,
+          }}
+          title={`Back to this session from ${looping.map((i) => stages[i].label).join(", ")}`}
+          data-journey-return
+        >
           <span className="sj-return-line" aria-hidden />
-          <span className="sj-return-words"><CornerDownLeft className="w-2.5 h-2.5" aria-hidden />findings come back to this session</span>
+          <span className="sj-return-words">
+            <CornerDownLeft className="w-2.5 h-2.5" aria-hidden />
+            findings come back to this session
+          </span>
         </div>
       ) : null}
     </div>
   );
 });
 
-function StageFace({ s, finished = false }: { s: JourneyStage; finished?: boolean }) {
+function StageFace({
+  s,
+  finished = false,
+}: {
+  s: JourneyStage;
+  finished?: boolean;
+}) {
   return (
     <>
-      <span className="sj-node" aria-hidden><Mark state={s.state} /></span>
+      <span className="sj-node" aria-hidden>
+        <Mark state={s.state} />
+      </span>
       {s.branches ? (
         // A fan-out's branches run side by side: each says its own state.
         <span className="sj-branches" data-journey-branches>
-          {s.branches.map((b) => <span key={b.id} className="sj-branch" data-state={b.state} data-stage={b.id}><i className="sj-branch-mark" aria-hidden><Mark state={b.state} /></i>{b.label}</span>)}
+          {s.branches.map((b) => (
+            <span
+              key={b.id}
+              className="sj-branch"
+              data-state={b.state}
+              data-stage={b.id}
+            >
+              <i className="sj-branch-mark" aria-hidden>
+                <Mark state={b.state} />
+              </i>
+              {b.label}
+            </span>
+          ))}
         </span>
-      ) : <span className="sj-label">{s.label}</span>}
+      ) : (
+        <span className="sj-label">{s.label}</span>
+      )}
       <span className="sj-who">
-        {finished ? (s.round ? `round ${s.round}` : "") : s.state === "back" ? "This session" : s.role === "live" || s.state === "skipped" ? "" : WHO_WORDS[s.who]}
-        {!finished && s.round ? <span className="sj-round">· round {s.round}</span> : null}
+        {finished
+          ? s.round
+            ? `round ${s.round}`
+            : ""
+          : s.state === "back"
+            ? "This session"
+            : s.role === "live" || s.state === "skipped"
+              ? ""
+              : WHO_WORDS[s.who]}
+        {!finished && s.round ? (
+          <span className="sj-round">· round {s.round}</span>
+        ) : null}
       </span>
     </>
   );
 }
 
 /** What one stage did on the run: each of its steps with its words, rounds and the session that did it. */
-function StageDetail({ stage, now_ms }: { stage: JourneyStage; now_ms: number }) {
+function StageDetail({
+  stage,
+  now_ms,
+}: {
+  stage: JourneyStage;
+  now_ms: number;
+}) {
   return (
     <ul className="sj-detail" data-journey-detail={stage.id}>
       {(stage.steps ?? []).map((st) => (
         <li key={st.id} data-status={st.status}>
-          <span className="sj-detail-mark" data-status={st.status} aria-hidden />
+          <span
+            className="sj-detail-mark"
+            data-status={st.status}
+            aria-hidden
+          />
           <b>{st.label}</b>
-          {st.visits && st.visits > 1 ? <span className="sj-round">round {st.visits}</span> : null}
-          {st.session ? <Link className="sj-detail-session" href={`/conversation/${st.session.id}`}>{st.session.title ?? "Open session"}</Link> : null}
-          {st.at ? <span className="sj-since">{ageShort(now_ms - st.at)}</span> : null}
+          {st.visits && st.visits > 1 ? (
+            <span className="sj-round">round {st.visits}</span>
+          ) : null}
+          {st.session ? (
+            <Link
+              className="sj-detail-session"
+              href={`/conversation/${st.session.id}`}
+            >
+              {st.session.title ?? "Open session"}
+            </Link>
+          ) : null}
+          {st.at ? (
+            <span className="sj-since">{ageShort(now_ms - st.at)}</span>
+          ) : null}
           {st.said ? <p>{st.said}</p> : null}
         </li>
       ))}
@@ -90,23 +212,53 @@ function StageDetail({ stage, now_ms }: { stage: JourneyStage; now_ms: number })
 function Mark({ state }: { state: JourneyStage["state"] }) {
   if (state === "done") return <Check className="w-3 h-3" strokeWidth={3} />;
   if (state === "stopped") return <X className="w-3 h-3" strokeWidth={3} />;
-  if (state === "back") return <CornerDownLeft className="w-3 h-3" strokeWidth={2.6} />;
-  if (state === "routed") return <ArrowRight className="w-3 h-3" strokeWidth={2.6} />;
+  if (state === "back")
+    return <CornerDownLeft className="w-3 h-3" strokeWidth={2.6} />;
+  if (state === "routed")
+    return <ArrowRight className="w-3 h-3" strokeWidth={2.6} />;
   if (state === "active") return <i className="sj-pulse" />;
   if (state === "waiting") return <i className="sj-wait" />;
   return null;
 }
 
 /** Each thing the run waits on, in a few words; a wait on the station the bar already names leaves its name off. */
-function Waits({ waits, named, now_ms, fallback }: { waits: JourneyWait[]; named?: string; now_ms: number; fallback?: string | null }) {
-  if (!waits.length) return fallback ? <span className="sj-what">{fallback}</span> : null;
+function Waits({
+  waits,
+  named,
+  now_ms,
+  fallback,
+}: {
+  waits: JourneyWait[];
+  named?: string;
+  now_ms: number;
+  fallback?: string | null;
+}) {
+  if (!waits.length)
+    return fallback ? <span className="sj-what">{fallback}</span> : null;
   return (
     <>
       {waits.map((w, i) => {
         // A line that already says what it waits on ("Waiting on CI for #12 …") needs neither the station's name nor the prefix.
         const own = w.on === named || /^waiting\b/i.test(w.line ?? "");
-        const words = waitWords({ ...w, on: own ? "" : w.on, line: w.line ?? (own ? fallback ?? null : null) }, now_ms, ageShort);
-        return words ? <span key={i} className="sj-what" data-journey-wait={w.on} data-late={w.deadline && w.deadline < now_ms ? "" : undefined}>{own ? words : `Waiting on ${words}`}</span> : null;
+        const words = waitWords(
+          {
+            ...w,
+            on: own ? "" : w.on,
+            line: w.line ?? (own ? (fallback ?? null) : null),
+          },
+          now_ms,
+          ageShort,
+        );
+        return words ? (
+          <span
+            key={i}
+            className="sj-what"
+            data-journey-wait={w.on}
+            data-late={w.deadline && w.deadline < now_ms ? "" : undefined}
+          >
+            {own ? words : `Waiting on ${words}`}
+          </span>
+        ) : null;
       })}
     </>
   );
@@ -114,39 +266,97 @@ function Waits({ waits, named, now_ms, fallback }: { waits: JourneyWait[]; named
 
 /** The brief a run sent this conversation when it last sent work back: the newest user message from just before the fix
  *  station started until two minutes after. */
-function useBriefMessageId(conversationId: string | null, at: number | null): string | null {
+function useBriefMessageId(
+  conversationId: string | null,
+  at: number | null,
+): string | null {
   return useInboxStore((s) => {
     if (!conversationId || !at) return null;
-    const msgs = (s.messages as Record<string, Array<{ _id: string; role?: string; timestamp?: number }>>)[conversationId] ?? [];
+    const msgs =
+      (
+        s.messages as Record<
+          string,
+          Array<{ _id: string; role?: string; timestamp?: number }>
+        >
+      )[conversationId] ?? [];
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
       const t = m.timestamp ?? 0;
-      if (m.role === "user" && t >= at - 5_000 && t <= at + 120_000) return String(m._id);
+      if (m.role === "user" && t >= at - 5_000 && t <= at + 120_000)
+        return String(m._id);
     }
     return null;
   });
 }
 
 /** What is happening now, and the person's part in it. `again` draws Ship again, primary when re-running is the fix. */
-export function JourneyNowBar({ now, run, now_ms, children, again }: { now: JourneyNow; run: any; now_ms: number; children?: React.ReactNode; again?: (primary: boolean) => React.ReactNode }) {
-  const since = (at: number | null | undefined) => (at ? <span className="sj-since">{ageShort(now_ms - at)}</span> : null);
+export function JourneyNowBar({
+  now,
+  run,
+  now_ms,
+  children,
+  again,
+}: {
+  now: JourneyNow;
+  run: any;
+  now_ms: number;
+  children?: React.ReactNode;
+  again?: (primary: boolean) => React.ReactNode;
+}) {
+  const since = (at: number | null | undefined) =>
+    at ? <span className="sj-since">{ageShort(now_ms - at)}</span> : null;
   // The conversation on screen: opening the run's session from inside it goes nowhere, so the brief it sent is the press.
-  const here = useInboxStore((s) => (s.currentSessionId ? String(s.currentSessionId) : null));
+  const here = useInboxStore((s) =>
+    s.currentSessionId ? String(s.currentSessionId) : null,
+  );
   const stop = now.kind === "stopped" || now.kind === "failed" ? now : null;
-  const inSession = !!stop && stop.fix === "session" && !!stop.session && stop.session === here;
-  const briefId = useBriefMessageId(inSession ? here : null, stop?.briefAt ?? null);
-  const openRun = run?._id ? <Link className="sj-act" data-primary href={`/workflows/runs/${run._id}`} data-journey-open-run>Open run</Link> : null;
+  const inSession =
+    !!stop && stop.fix === "session" && !!stop.session && stop.session === here;
+  const briefId = useBriefMessageId(
+    inSession ? here : null,
+    stop?.briefAt ?? null,
+  );
+  const openRun = run?._id ? (
+    <Link
+      className="sj-act"
+      data-primary
+      href={`/workflows/runs/${run._id}`}
+      data-journey-open-run
+    >
+      Open run
+    </Link>
+  ) : null;
   switch (now.kind) {
-    case "idle": return null;
+    case "idle":
+      return null;
     case "starting":
-      return <div className="sj-now" data-kind="working"><Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /><b>Starting</b>{children}</div>;
+      return (
+        <div className="sj-now" data-kind="working">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+          <b>Starting</b>
+          {children}
+        </div>
+      );
     case "working":
       return (
         <div className="sj-now" data-kind="working" data-who={now.who}>
           <i className="sj-pulse" aria-hidden />
           <b>{now.stage}</b>
-          <Waits waits={now.waits} named={now.stage} now_ms={now_ms} fallback={now.who === "agent" ? "an agent is on it" : "running"} />
-          {now.session ? <Link className="sj-act" href={`/conversation/${now.session.id}`} data-journey-open-session>Open {now.who === "agent" ? "agent" : "session"}</Link> : null}
+          <Waits
+            waits={now.waits}
+            named={now.stage}
+            now_ms={now_ms}
+            fallback={now.who === "agent" ? "an agent is on it" : "running"}
+          />
+          {now.session ? (
+            <Link
+              className="sj-act"
+              href={`/conversation/${now.session.id}`}
+              data-journey-open-session
+            >
+              Open {now.who === "agent" ? "agent" : "session"}
+            </Link>
+          ) : null}
           {children}
         </div>
       );
@@ -155,10 +365,17 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
         <div className="sj-now" data-kind="session">
           <CornerDownLeft className="w-3.5 h-3.5" aria-hidden />
           <b>{sentBackWords(now)}</b>
-          <span className="sj-what">this session is fixing it{now.round && now.max ? ` · round ${now.round} of ${now.max}` : ""}</span>
+          <span className="sj-what">
+            this session is fixing it
+            {now.round && now.max ? ` · round ${now.round} of ${now.max}` : ""}
+          </span>
           {since(now.since)}
           {children}
-          {now.note ? <p className="sj-note" data-journey-note>{now.note}</p> : null}
+          {now.note ? (
+            <p className="sj-note" data-journey-note>
+              {now.note}
+            </p>
+          ) : null}
         </div>
       );
     case "gate":
@@ -168,9 +385,21 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
           <b>{now.mine ? "Your call" : gateWaitWords(now.holder)}</b>
           <span className="sj-what">{now.prompt ?? now.stage}</span>
           {since(now.since)}
-          {!now.mine && now.decisionId ? <Link className="sj-act" href={`/decisions/${run?.gate_decision_short_id ?? now.decisionId}`} data-journey-open-card>Open card</Link> : null}
+          {!now.mine && now.decisionId ? (
+            <Link
+              className="sj-act"
+              href={`/decisions/${run?.gate_decision_short_id ?? now.decisionId}`}
+              data-journey-open-card
+            >
+              Open card
+            </Link>
+          ) : null}
           {children}
-          {now.mine && run?.gate_decision_id ? <div className="sj-gate"><RunGate run={run} className="w-full" /></div> : null}
+          {now.mine && run?.gate_decision_id ? (
+            <div className="sj-gate">
+              <RunGate run={run} className="w-full" />
+            </div>
+          ) : null}
         </div>
       );
     case "landed":
@@ -179,16 +408,43 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
           <Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden />
           <b>Landed</b>
           <code className="sj-sha">{now.sha.slice(0, 7)}</code>
-          <span className="sj-what" data-journey-hold={now.hold.kind}>{holdWords(now.hold).words}</span>
-          <Waits waits={now.waits} named="Deploy" now_ms={now_ms} fallback={now.line} />
-          <Link className="sj-act" href={deploysHref(run, now.line)} data-journey-deploys>Deploys</Link>
+          <span className="sj-what" data-journey-hold={now.hold.kind}>
+            {holdWords(now.hold).words}
+          </span>
+          <Waits
+            waits={now.waits}
+            named="Deploy"
+            now_ms={now_ms}
+            fallback={now.line}
+          />
+          <Link
+            className="sj-act"
+            href={deploysHref(run, now.line)}
+            data-journey-deploys
+          >
+            Deploys
+          </Link>
           {children}
         </div>
       );
     case "merged":
-      return <div className="sj-now" data-kind="landed"><Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden /><b>Landed</b><code className="sj-sha">{now.sha.slice(0, 7)}</code>{since(now.at)}{children}</div>;
+      return (
+        <div className="sj-now" data-kind="landed">
+          <Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden />
+          <b>Landed</b>
+          <code className="sj-sha">{now.sha.slice(0, 7)}</code>
+          {since(now.at)}
+          {children}
+        </div>
+      );
     case "passed":
-      return <div className="sj-now" data-kind="live"><Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden /><b>Done</b>{children}</div>;
+      return (
+        <div className="sj-now" data-kind="live">
+          <Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden />
+          <b>Done</b>
+          {children}
+        </div>
+      );
     case "unlanded":
       return (
         <div className="sj-now" data-kind="stopped" data-journey-unlanded>
@@ -197,7 +453,11 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
           <span className="sj-what">{now.why}</span>
           {openRun}
           {children}
-          {now.waits.length ? <p className="sj-note"><Waits waits={now.waits} now_ms={now_ms} /></p> : null}
+          {now.waits.length ? (
+            <p className="sj-note">
+              <Waits waits={now.waits} now_ms={now_ms} />
+            </p>
+          ) : null}
         </div>
       );
     case "deploying":
@@ -205,27 +465,85 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
         <div className="sj-now" data-kind="working">
           <i className="sj-pulse" aria-hidden />
           <b>Deploying</b>
-          <Waits waits={now.waits} named="Deploy" now_ms={now_ms} fallback={now.line ?? now.targets.join(", ")} />
-          <Link className="sj-act" href={deploysHref(run, now.line)} data-journey-deploys>Deploys</Link>
+          <Waits
+            waits={now.waits}
+            named="Deploy"
+            now_ms={now_ms}
+            fallback={now.line ?? now.targets.join(", ")}
+          />
+          <Link
+            className="sj-act"
+            href={deploysHref(run, now.line)}
+            data-journey-deploys
+          >
+            Deploys
+          </Link>
           {children}
         </div>
       );
     case "live":
-      return <div className="sj-now" data-kind="live"><Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden /><b>Live</b><span className="sj-what">{(now.line ?? now.targets.join(", ")).replace(/^Live:\s*/, "")}</span>{children}</div>;
+      return (
+        <div className="sj-now" data-kind="live">
+          <Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden />
+          <b>Live</b>
+          <span className="sj-what">
+            {(now.line ?? now.targets.join(", ")).replace(/^Live:\s*/, "")}
+          </span>
+          {children}
+        </div>
+      );
     case "stopped":
     case "failed":
       return (
         <div className="sj-now" data-kind="stopped" data-journey-fix={now.fix}>
           <X className="w-3.5 h-3.5" strokeWidth={3} aria-hidden />
-          <b>{now.kind === "failed" && !now.end ? `Failed${now.stage ? ` at ${now.stage}` : ""}` : stopWords(now)}</b>
+          <b>
+            {now.kind === "failed" && !now.end
+              ? `Failed${now.stage ? ` at ${now.stage}` : ""}`
+              : stopWords(now)}
+          </b>
           {/* The action that can work for this stop leads: re-running a refusal, or a session out of rounds, repeats it. */}
-          {now.fix === "deploy" ? <Link className="sj-act" data-primary href={deploysHref(run, now.why)} data-journey-deploys>Open {now.why?.match(/\b([a-z][a-z0-9-]{0,31}) dp-\d+/)?.[1] ?? "Deploys"}</Link>
-            : now.fix === "session" && !inSession && now.session ? <Link className="sj-act" data-primary href={`/conversation/${now.session}`} data-journey-open-session>Open session</Link>
-            : now.fix === "session" && briefId ? <button type="button" className="sj-act" data-primary onClick={() => useInboxStore.getState().requestNavigate(here!, { scrollToMessageId: briefId })} data-journey-open-brief>Open the brief</button>
-            : now.fix === "run" ? openRun
-            : null}
+          {now.fix === "deploy" ? (
+            <Link
+              className="sj-act"
+              data-primary
+              href={deploysHref(run, now.why)}
+              data-journey-deploys
+            >
+              Open{" "}
+              {now.why?.match(/\b([a-z][a-z0-9-]{0,31}) dp-\d+/)?.[1] ??
+                "Deploys"}
+            </Link>
+          ) : now.fix === "session" && !inSession && now.session ? (
+            <Link
+              className="sj-act"
+              data-primary
+              href={`/conversation/${now.session}`}
+              data-journey-open-session
+            >
+              Open session
+            </Link>
+          ) : now.fix === "session" && briefId ? (
+            <button
+              type="button"
+              className="sj-act"
+              data-primary
+              onClick={() =>
+                useInboxStore
+                  .getState()
+                  .requestNavigate(here!, { scrollToMessageId: briefId })
+              }
+              data-journey-open-brief
+            >
+              Open the brief
+            </button>
+          ) : now.fix === "run" ? (
+            openRun
+          ) : null}
           {/* Ship again, never for a deploy (it would land the change again); it leads when re-running is the fix, or when nothing else here can. */}
-          {now.fix !== "deploy" && again ? again(now.fix === "again" || (inSession && !briefId)) : null}
+          {now.fix !== "deploy" && again
+            ? again(now.fix === "again" || (inSession && !briefId))
+            : null}
           {children}
           {now.why ? <p className="sj-note">{now.why}</p> : null}
         </div>
@@ -234,17 +552,63 @@ export function JourneyNowBar({ now, run, now_ms, children, again }: { now: Jour
 }
 
 /** `targets`, when the caller knows them from the landed commit's deploy reach, are where the change is: never guessed from the session's commits. */
-export function JourneyView({ journey, run, now_ms, compact, actions, again, targets }: { journey: JourneyModel; run?: any; now_ms: number; compact?: boolean; actions?: React.ReactNode; again?: (primary: boolean) => React.ReactNode; targets?: ReadonlyArray<TargetState> }) {
+export function JourneyView({
+  journey,
+  run,
+  now_ms,
+  compact,
+  actions,
+  again,
+  targets,
+}: {
+  journey: JourneyModel;
+  run?: any;
+  now_ms: number;
+  compact?: boolean;
+  actions?: React.ReactNode;
+  again?: (primary: boolean) => React.ReactNode;
+  targets?: ReadonlyArray<TargetState>;
+}) {
   const [open, setOpen] = useState<string | null>(null);
-  const opened = open ? journey.stages.find((s) => s.id === open) ?? null : null;
-  const landed = journey.now.kind === "landed" || journey.now.kind === "deploying" || journey.now.kind === "live";
-  const team = typeof run?.workspace === "string" && run.workspace.startsWith("team:") ? run.workspace.slice(5) : null;
+  const opened = open
+    ? (journey.stages.find((s) => s.id === open) ?? null)
+    : null;
+  const landed =
+    journey.now.kind === "landed" ||
+    journey.now.kind === "deploying" ||
+    journey.now.kind === "live";
+  const team =
+    typeof run?.workspace === "string" && run.workspace.startsWith("team:")
+      ? run.workspace.slice(5)
+      : null;
   return (
     <div className="sj" data-journey={journey.now.kind}>
-      <JourneyTrack stages={journey.stages} compact={compact} open={open} onOpen={run ? setOpen : undefined} />
+      <JourneyTrack
+        stages={journey.stages}
+        compact={compact}
+        open={open}
+        onOpen={run ? setOpen : undefined}
+      />
       {opened ? <StageDetail stage={opened} now_ms={now_ms} /> : null}
-      {run ? <JourneyNowBar now={journey.now} run={run} now_ms={now_ms} again={again}>{actions}</JourneyNowBar> : null}
-      {run && landed && team && run.spawner_conversation_id ? <SessionTargets teamId={team} conversationId={String(run.spawner_conversation_id)} line={"line" in journey.now ? journey.now.line : null} known={targets} focus={runFocus(run)} /> : null}
+      {run ? (
+        <JourneyNowBar
+          now={journey.now}
+          run={run}
+          now_ms={now_ms}
+          again={again}
+        >
+          {actions}
+        </JourneyNowBar>
+      ) : null}
+      {run && landed && team && run.spawner_conversation_id ? (
+        <SessionTargets
+          teamId={team}
+          conversationId={String(run.spawner_conversation_id)}
+          line={"line" in journey.now ? journey.now.line : null}
+          known={targets}
+          focus={runFocus(run)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -252,19 +616,44 @@ export function JourneyView({ journey, run, now_ms, compact, actions, again, tar
 /** Where the session's landed change is on each target, each a step from its place on the Deploys page (`focus`, the
  *  landed commit when the caller knows it, else the session, highlighted there), with the press that sends it where it
  *  waits on a person. */
-export function SessionTargets({ teamId, conversationId, line, known: reached, focus }: { teamId: string; conversationId: string; line?: string | null; known?: ReadonlyArray<TargetState>; focus?: DeployFocus | null }) {
+export function SessionTargets({
+  teamId,
+  conversationId,
+  line,
+  known: reached,
+  focus,
+}: {
+  teamId: string;
+  conversationId: string;
+  line?: string | null;
+  known?: ReadonlyArray<TargetState>;
+  focus?: DeployFocus | null;
+}) {
   const { targets, deploys } = useDeployTargets(teamId);
   // What the store knows about the session's commits, then whatever else the Deploy stage's own line names.
   const mine = useMemo(() => {
     // The landed commit's own reach is the answer: an open deploy is not proof it carries the change.
     if (reached) return [...reached];
     const known = sessionTargets(conversationId, targets, deploys);
-    const all = [...known, ...targetsFromLine(line).filter((t) => !known.some((k) => k.name === t.name))];
+    const all = [
+      ...known,
+      ...targetsFromLine(line).filter(
+        (t) => !known.some((k) => k.name === t.name),
+      ),
+    ];
     // A deploy going out sends main's head, which holds the landed change whatever its commits link to.
     return all.map((t) => {
       const row = targets.find((x) => x.name === t.name);
-      const open = t.state === "waiting" && row ? targetNow(row, deploys).open : null;
-      return open ? { ...t, state: "deploying" as const, deploy: open.short_id || null, at: open.created_at } : t;
+      const open =
+        t.state === "waiting" && row ? targetNow(row, deploys).open : null;
+      return open
+        ? {
+            ...t,
+            state: "deploying" as const,
+            deploy: open.short_id || null,
+            at: open.created_at,
+          }
+        : t;
     });
   }, [conversationId, targets, deploys, line, reached]);
   const press = useDeployPress(teamId, deploys);
@@ -273,13 +662,49 @@ export function SessionTargets({ teamId, conversationId, line, known: reached, f
     <ul className="sj-targets" data-session-targets>
       {mine.map((t) => {
         const row = targets.find((x) => x.name === t.name);
-        const canPress = t.state === "waiting" && !!row && row.runs === "here" && row.can_deploy && !targetNow(row, deploys).open;
+        const canPress =
+          t.state === "waiting" &&
+          !!row &&
+          row.runs === "here" &&
+          row.can_deploy &&
+          !targetNow(row, deploys).open;
         return (
           <li key={t.name} className="sj-target-item">
-            <Link className="sj-target" data-state={t.state} href={deploysFocusHref({ team: teamId, target: t.name, focus: focus ?? { kind: "session", id: conversationId } })} data-session-target={t.name}>
-              <i aria-hidden />{t.name}<span>{t.state === "live" ? t.deploy ?? "live" : t.state === "deploying" ? `going out${t.deploy ? ` · ${t.deploy}` : ""}` : t.state === "failed" ? "failed" : "waiting"}</span>
+            <Link
+              className="sj-target"
+              data-state={t.state}
+              href={deploysFocusHref({
+                team: teamId,
+                target: t.name,
+                focus: focus ?? { kind: "session", id: conversationId },
+              })}
+              data-session-target={t.name}
+            >
+              <i aria-hidden />
+              {t.name}
+              <span>
+                {t.state === "live"
+                  ? (t.deploy ?? "live")
+                  : t.state === "deploying"
+                    ? `going out${t.deploy ? ` · ${t.deploy}` : ""}`
+                    : t.state === "failed"
+                      ? "failed"
+                      : "waiting"}
+              </span>
             </Link>
-            {canPress ? <button type="button" className="sj-btn" data-primary onClick={() => press.open({ target: row!, action: "deploy", of: null })} data-session-deploy={t.name}>Deploy</button> : null}
+            {canPress ? (
+              <button
+                type="button"
+                className="sj-btn"
+                data-primary
+                onClick={() =>
+                  press.open({ target: row!, action: "deploy", of: null })
+                }
+                data-session-deploy={t.name}
+              >
+                Deploy
+              </button>
+            ) : null}
           </li>
         );
       })}

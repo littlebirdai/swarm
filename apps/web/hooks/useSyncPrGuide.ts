@@ -40,28 +40,39 @@ export const PR_GUIDE_WRITING_STALE_MS = 5 * 60_000;
 const selectRow = (r: any): PrGuideRow[] => {
   if (!r?.pr_id || !r.latest) return [];
   const { latest, guide } = r;
-  return [{
-    _id: String(r.pr_id),
-    attempt_id: String(latest._id),
-    status: latest.status,
-    error: latest.error ?? "",
-    created_at: latest.created_at,
-    guide_id: guide ? String(guide._id) : "",
-    head_sha: guide?.head_sha ?? "",
-    summary: guide?.summary ?? "",
-    steps: guide?.steps ?? [],
-    model: guide?.model ?? latest.model,
-    cost_usd: guide?.cost_usd ?? 0,
-    finished_at: guide?.finished_at ?? 0,
-  }];
+  return [
+    {
+      _id: String(r.pr_id),
+      attempt_id: String(latest._id),
+      status: latest.status,
+      error: latest.error ?? "",
+      created_at: latest.created_at,
+      guide_id: guide ? String(guide._id) : "",
+      head_sha: guide?.head_sha ?? "",
+      summary: guide?.summary ?? "",
+      steps: guide?.steps ?? [],
+      model: guide?.model ?? latest.model,
+      cost_usd: guide?.cost_usd ?? 0,
+      finished_at: guide?.finished_at ?? 0,
+    },
+  ];
 };
 
 export function useSyncPrGuide(prId: string | null | undefined) {
-  return useSyncCollection("prGuides", api.prGuides.forPr, prId ? { pr_id: prId } : "skip", useMemo(() => ({ select: selectRow }), []));
+  return useSyncCollection(
+    "prGuides",
+    api.prGuides.forPr,
+    prId ? { pr_id: prId } : "skip",
+    useMemo(() => ({ select: selectRow }), []),
+  );
 }
 
-export function usePrGuide(prId: string | null | undefined): PrGuideRow | undefined {
-  return useInboxStore((s) => (prId ? ((s as any).prGuides?.[prId] as PrGuideRow | undefined) : undefined));
+export function usePrGuide(
+  prId: string | null | undefined,
+): PrGuideRow | undefined {
+  return useInboxStore((s) =>
+    prId ? ((s as any).prGuides?.[prId] as PrGuideRow | undefined) : undefined,
+  );
 }
 
 /**
@@ -75,16 +86,34 @@ export function useWritePrGuide(prId: string | null | undefined) {
     if (!prId) return;
     const store = useInboxStore.getState();
     const before = (store as any).prGuides?.[prId] as PrGuideRow | undefined;
-    store.syncRecord("prGuides", prId, { _id: prId, status: "writing", error: "", created_at: Date.now() });
+    store.syncRecord("prGuides", prId, {
+      _id: prId,
+      status: "writing",
+      error: "",
+      created_at: Date.now(),
+    });
     void write({ pr_id: prId }).catch((error: unknown) => {
-      const message = String((error as any)?.data ?? (error instanceof Error ? error.message : error));
-      const now = (useInboxStore.getState() as any).prGuides?.[prId] as PrGuideRow | undefined;
+      const message = String(
+        (error as any)?.data ??
+          (error instanceof Error ? error.message : error),
+      );
+      const now = (useInboxStore.getState() as any).prGuides?.[prId] as
+        | PrGuideRow
+        | undefined;
       // No new attempt on the server: the write was refused before it began, so put back what was there.
       // A write that began and failed arrives as its own failed attempt through the feed.
       if (now?.attempt_id === before?.attempt_id) {
-        useInboxStore.getState().syncRecord("prGuides", prId, before
-          ? { status: before.status, error: before.error ?? "", created_at: before.created_at }
-          : { status: "failed", error: message });
+        useInboxStore.getState().syncRecord(
+          "prGuides",
+          prId,
+          before
+            ? {
+                status: before.status,
+                error: before.error ?? "",
+                created_at: before.created_at,
+              }
+            : { status: "failed", error: message },
+        );
       }
       toast.error(message);
     });

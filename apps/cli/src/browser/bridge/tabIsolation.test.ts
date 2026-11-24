@@ -3,15 +3,24 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { CdpConnection, cdpHttpUrl, listTargets } from "../cdp.js";
-import { ensurePinnedTab, readBoundTarget, writeBoundTarget } from "../pinnedTab.js";
+import {
+  ensurePinnedTab,
+  readBoundTarget,
+  writeBoundTarget,
+} from "../pinnedTab.js";
 import { grantTab, writeBridgeState } from "./host.js";
 import { FakeExtension, testBridgeHost } from "./host.testutil.js";
 import { targetIdOfTab } from "./protocol.js";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
 
 // Every write below lands under browserHome(); keep it out of the human's ~/.codecast.
 let codecastDir: IsolatedCodecastDir;
-beforeEach(() => { codecastDir = isolateCodecastDir("cast-tabiso-"); });
+beforeEach(() => {
+  codecastDir = isolateCodecastDir("cast-tabiso-");
+});
 afterEach(() => codecastDir.restore());
 
 let host: Awaited<ReturnType<typeof testBridgeHost>>;
@@ -27,19 +36,26 @@ beforeEach(async () => {
   previousSocketDir = process.env.AGENT_BROWSER_SOCKET_DIR;
   process.env.AGENT_BROWSER_SOCKET_DIR = dir;
   host = await testBridgeHost();
-  extension = await new FakeExtension([FakeExtension.tab(humanId, humanUrl)]).connect(host.port);
+  extension = await new FakeExtension([
+    FakeExtension.tab(humanId, humanUrl),
+  ]).connect(host.port);
 });
 
 afterEach(async () => {
   for (const conn of connections.splice(0)) conn.close();
   extension?.ws.close();
   await host?.close();
-  if (previousSocketDir === undefined) delete process.env.AGENT_BROWSER_SOCKET_DIR;
+  if (previousSocketDir === undefined)
+    delete process.env.AGENT_BROWSER_SOCKET_DIR;
   else process.env.AGENT_BROWSER_SOCKET_DIR = previousSocketDir;
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-const endpoint = (session?: string) => ({ port: host.port, token: host.token, ...(session ? { session } : {}) });
+const endpoint = (session?: string) => ({
+  port: host.port,
+  token: host.token,
+  ...(session ? { session } : {}),
+});
 
 async function connect(session: string): Promise<CdpConnection> {
   const conn = await CdpConnection.fromPort(endpoint(session));
@@ -50,18 +66,30 @@ async function connect(session: string): Promise<CdpConnection> {
 test("HTTP discovery carries the session and matches the WebSocket partition", async () => {
   const a = await connect("env-a-real");
   const b = await connect("env-b-real");
-  const { targetId } = await a.send("Target.createTarget", { url: "https://a.example/" });
-  expect((await listTargets(endpoint("env-a-real"))).map(t => t.targetId)).toEqual([targetId]);
+  const { targetId } = await a.send("Target.createTarget", {
+    url: "https://a.example/",
+  });
+  expect(
+    (await listTargets(endpoint("env-a-real"))).map((t) => t.targetId),
+  ).toEqual([targetId]);
   expect(await listTargets(endpoint("env-b-real"))).toEqual([]);
   expect((await b.send("Target.getTargets")).targetInfos).toEqual([]);
-  expect((await listTargets(endpoint())).map(t => t.targetId)).toContain(targetIdOfTab(humanId));
-  const version = await fetch(cdpHttpUrl(endpoint("env-a-real"), "/json/version")).then(r => r.json());
-  expect(new URL(version.webSocketDebuggerUrl).searchParams.get("session")).toBe("env-a-real");
+  expect((await listTargets(endpoint())).map((t) => t.targetId)).toContain(
+    targetIdOfTab(humanId),
+  );
+  const version = await fetch(
+    cdpHttpUrl(endpoint("env-a-real"), "/json/version"),
+  ).then((r) => r.json());
+  expect(
+    new URL(version.webSocketDebuggerUrl).searchParams.get("session"),
+  ).toBe("env-a-real");
 });
 
 test("a fresh session opens its requested page while human and other agent tabs stay untouched", async () => {
   const other = await connect("env-other-real");
-  const { targetId: otherId } = await other.send("Target.createTarget", { url: "https://other.example/" });
+  const { targetId: otherId } = await other.send("Target.createTarget", {
+    url: "https://other.example/",
+  });
   const session = "env-workspace-real";
   const url = "https://admin.google.com/ac/apps/gmail/defaultrouting";
   expect(await ensurePinnedTab(session, url)).toBe(true);
@@ -71,26 +99,49 @@ test("a fresh session opens its requested page while human and other agent tabs 
   expect(targetId).not.toBe(targetIdOfTab(humanId));
   expect(await ensurePinnedTab(session)).toBe(false);
   const conn = await connect(session);
-  const { sessionId } = await conn.send("Target.attachToTarget", { targetId, flatten: true });
-  const result = await conn.send("Runtime.evaluate", { expression: "location.href" }, sessionId);
+  const { sessionId } = await conn.send("Target.attachToTarget", {
+    targetId,
+    flatten: true,
+  });
+  const result = await conn.send(
+    "Runtime.evaluate",
+    { expression: "location.href" },
+    sessionId,
+  );
   expect(targetIdOfTab(result.echo.tabId)).toBe(targetId);
-  expect(extension.tabs.map(t => t.url)).toEqual([humanUrl, "https://other.example/", url]);
-  expect(extension.seen.filter(m => m.op === "attach")).toMatchObject([{ owned: true }]);
+  expect(extension.tabs.map((t) => t.url)).toEqual([
+    humanUrl,
+    "https://other.example/",
+    url,
+  ]);
+  expect(extension.seen.filter((m) => m.op === "attach")).toMatchObject([
+    { owned: true },
+  ]);
 });
 
 test("opening a page allows a slow bridge browser-socket discovery", async () => {
   const proxy = Bun.serve({
-    hostname: "127.0.0.1", port: 0,
+    hostname: "127.0.0.1",
+    port: 0,
     async fetch(request) {
       const url = new URL(request.url);
-      if (url.pathname === "/json/version") await new Promise(resolve => setTimeout(resolve, 5_200));
+      if (url.pathname === "/json/version")
+        await new Promise((resolve) => setTimeout(resolve, 5_200));
       return fetch(`http://127.0.0.1:${host.port}${url.pathname}${url.search}`);
     },
   });
   writeBridgeState({ port: proxy.port!, token: host.token });
   try {
-    expect(await ensurePinnedTab("env-slow-discovery-real", "https://requested.example/")).toBe(true);
-    expect(extension.tabs.map(t => t.url)).toEqual([humanUrl, "https://requested.example/"]);
+    expect(
+      await ensurePinnedTab(
+        "env-slow-discovery-real",
+        "https://requested.example/",
+      ),
+    ).toBe(true);
+    expect(extension.tabs.map((t) => t.url)).toEqual([
+      humanUrl,
+      "https://requested.example/",
+    ]);
   } finally {
     proxy.stop(true);
   }
@@ -99,7 +150,7 @@ test("opening a page allows a slow bridge browser-socket discovery", async () =>
 test("the tabs command waits for a slow extension without opening a page", async () => {
   const dispatch = extension.ws.listeners("message")[0];
   extension.ws.removeAllListeners("message");
-  extension.ws.on("message", raw => {
+  extension.ws.on("message", (raw) => {
     if (JSON.parse(String(raw)).op === "tabs.list") {
       setTimeout(() => {
         if (extension.ws.readyState === 1) dispatch.call(extension.ws, raw);
@@ -107,31 +158,51 @@ test("the tabs command waits for a slow extension without opening a page", async
     } else dispatch.call(extension.ws, raw);
   });
   const runner = path.join(dir, "tabs-cli.ts");
-  fs.writeFileSync(runner, `import { Command } from ${JSON.stringify(import.meta.resolve("commander"))};
+  fs.writeFileSync(
+    runner,
+    `import { Command } from ${JSON.stringify(import.meta.resolve("commander"))};
 import { registerEngineCommands } from ${JSON.stringify(path.resolve(import.meta.dir, "../cliEngine.ts"))};
 const program = new Command();
 registerEngineCommands(program.command("browser"), { detectCurrentSessionId: () => null });
 await program.parseAsync(["node", "fixture", "browser", "tabs"]);
-`);
+`,
+  );
   const child = Bun.spawn([process.execPath, runner], {
-    env: { ...process.env, CLAUDE_CODE_SESSION_ID: "slow-tab-list" }, stdout: "pipe", stderr: "pipe",
+    env: { ...process.env, CLAUDE_CODE_SESSION_ID: "slow-tab-list" },
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  const [status, , stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  const [status, , stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
   expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
-  expect(extension.tabs.map(t => t.url)).toEqual([humanUrl]);
+  expect(extension.tabs.map((t) => t.url)).toEqual([humanUrl]);
   expect(readBoundTarget("env-slow-tab-list-real")).toBeNull();
 }, 30_000);
 
 test("a stale saved tab ID cannot claim a human tab even with a live engine; the session gets a fresh tab instead", async () => {
   const session = "env-stale-real";
-  writeBoundTarget(session, targetIdOfTab(humanId), dir, "https://mail.google.com/");
+  writeBoundTarget(
+    session,
+    targetIdOfTab(humanId),
+    dir,
+    "https://mail.google.com/",
+  );
   fs.writeFileSync(path.join(dir, `${session}.pid`), String(process.pid));
   // The doubtful binding is dropped and a new agent tab opened: the human's
   // tab is never attached, granted or listed as the session's.
-  expect(await ensurePinnedTab(session, "https://admin.google.com/")).toBe(true);
+  expect(await ensurePinnedTab(session, "https://admin.google.com/")).toBe(
+    true,
+  );
   expect(readBoundTarget(session)).not.toBe(targetIdOfTab(humanId));
-  expect((await listTargets(endpoint(session))).map((t) => t.url)).toEqual(["https://admin.google.com/"]);
-  expect(extension.seen.filter(m => m.op !== "tabs.list").map((m) => m.op)).toEqual(["tabs.create"]);
+  expect((await listTargets(endpoint(session))).map((t) => t.url)).toEqual([
+    "https://admin.google.com/",
+  ]);
+  expect(
+    extension.seen.filter((m) => m.op !== "tabs.list").map((m) => m.op),
+  ).toEqual(["tabs.create"]);
   expect(extension.tabs.find((t) => t.tabId === humanId)?.url).toBe(humanUrl);
 });
 
@@ -144,22 +215,33 @@ test("a closed owned tab is replaced on open without adopting another tab", asyn
   fs.writeFileSync(path.join(dir, `${session}.pid`), String(process.pid));
   expect(await ensurePinnedTab(session, "https://after.example/")).toBe(true);
   expect(readBoundTarget(session)).not.toBe(oldTarget);
-  expect(extension.tabs.map(t => t.url)).toEqual([humanUrl, "https://after.example/"]);
+  expect(extension.tabs.map((t) => t.url)).toEqual([
+    humanUrl,
+    "https://after.example/",
+  ]);
 });
 
 test("a tab the human took back stops the session with the reason, never a quiet switch to another tab", async () => {
   const session = "env-takeback-real";
   await ensurePinnedTab(session, "https://first.example/");
-  const other = (await (await connect(session)).send("Target.createTarget", { url: "https://other.example/" })).targetId;
+  const other = (
+    await (
+      await connect(session)
+    ).send("Target.createTarget", { url: "https://other.example/" })
+  ).targetId;
   const taken = readBoundTarget(session)!;
   const tab = extension.tabs.find((t) => targetIdOfTab(t.tabId) === taken)!;
   // Take back, as background.js does it: out of the Cast group, then `detached` with the reason.
   delete tab.group;
   tab.owned = false;
-  extension.ws.send(JSON.stringify({ op: "detached", tabId: tab.tabId, reason: "reclaimed" }));
+  extension.ws.send(
+    JSON.stringify({ op: "detached", tabId: tab.tabId, reason: "reclaimed" }),
+  );
   await Bun.sleep(100);
 
-  await expect(ensurePinnedTab(session)).rejects.toThrow(`the human took tab ${taken} back from agents; do not touch it again unless they lend it to you`);
+  await expect(ensurePinnedTab(session)).rejects.toThrow(
+    `the human took tab ${taken} back from agents; do not touch it again unless they lend it to you`,
+  );
   await expect(ensurePinnedTab(session)).rejects.toThrow("took tab");
   expect(readBoundTarget(session)).toBe(taken);
   expect(readBoundTarget(session)).not.toBe(other);
@@ -177,32 +259,64 @@ test("a tab the human took back stops the session with the reason, never a quiet
 test("scoped target commands require an existing grant; explicit agent sharing still works", async () => {
   const a = await connect("env-owner-real");
   const b = await connect("env-stranger-real");
-  const { targetId } = await a.send("Target.createTarget", { url: "https://owned.example/" });
+  const { targetId } = await a.send("Target.createTarget", {
+    url: "https://owned.example/",
+  });
   for (const id of [targetId, targetIdOfTab(humanId)]) {
-    for (const method of ["Target.attachToTarget", "Target.getTargetInfo", "Target.activateTarget", "Target.closeTarget"]) {
-      await expect(b.send(method, { targetId: id })).rejects.toThrow("not granted");
+    for (const method of [
+      "Target.attachToTarget",
+      "Target.getTargetInfo",
+      "Target.activateTarget",
+      "Target.closeTarget",
+    ]) {
+      await expect(b.send(method, { targetId: id })).rejects.toThrow(
+        "not granted",
+      );
     }
     // A saved binding to a tab the host cannot vouch for is refused as a
     // binding to drop (false), never adopted: no attach, no close below.
-    expect(await grantTab(endpoint(), "env-stranger-real", id, { own: true })).toBe(false);
+    expect(
+      await grantTab(endpoint(), "env-stranger-real", id, { own: true }),
+    ).toBe(false);
   }
-  expect(extension.seen.filter(m => ["attach", "tabs.close", "tabs.activate"].includes(m.op))).toEqual([]);
+  expect(
+    extension.seen.filter((m) =>
+      ["attach", "tabs.close", "tabs.activate"].includes(m.op),
+    ),
+  ).toEqual([]);
   await grantTab(endpoint(), "env-stranger-real", targetId);
-  expect((await listTargets(endpoint("env-stranger-real"))).map(t => t.targetId)).toEqual([targetId]);
-  await expect(b.send("Target.attachToTarget", { targetId })).resolves.toHaveProperty("sessionId");
-  expect(extension.tabs.find(t => t.tabId === humanId)?.url).toBe(humanUrl);
+  expect(
+    (await listTargets(endpoint("env-stranger-real"))).map((t) => t.targetId),
+  ).toEqual([targetId]);
+  await expect(
+    b.send("Target.attachToTarget", { targetId }),
+  ).resolves.toHaveProperty("sessionId");
+  expect(extension.tabs.find((t) => t.tabId === humanId)?.url).toBe(humanUrl);
 });
 
 test("tab switch can explicitly share an agent tab as a session's first command", async () => {
   const owner = await connect("env-share-owner-real");
-  const { targetId } = await owner.send("Target.createTarget", { url: "https://shared.example/" });
+  const { targetId } = await owner.send("Target.createTarget", {
+    url: "https://shared.example/",
+  });
   const binary = path.join(dir, "engine");
-  const data = JSON.stringify({ success: true, data: { tabs: [{ targetId, tabId: "t1", active: true, url: "https://shared.example/" }] } });
-  fs.writeFileSync(binary, `#!/bin/sh\nprintf '%s\\n' '${data}'\n`, { mode: 0o700 });
+  const data = JSON.stringify({
+    success: true,
+    data: {
+      tabs: [
+        { targetId, tabId: "t1", active: true, url: "https://shared.example/" },
+      ],
+    },
+  });
+  fs.writeFileSync(binary, `#!/bin/sh\nprintf '%s\\n' '${data}'\n`, {
+    mode: 0o700,
+  });
   const runner = path.join(dir, "cli.ts");
   const module = path.resolve(import.meta.dir, "../cliEngine.ts");
   const commander = import.meta.resolve("commander");
-  fs.writeFileSync(runner, `import { Command } from ${JSON.stringify(commander)};
+  fs.writeFileSync(
+    runner,
+    `import { Command } from ${JSON.stringify(commander)};
 import { registerEngineCommands } from ${JSON.stringify(module)};
 const program = new Command();
 registerEngineCommands(program.command("browser"), { detectCurrentSessionId: () => null });
@@ -210,41 +324,73 @@ const args = process.env.CAST_TEST_SHARE_FLOW === "1"
   ? ["do", "tab switch ${targetId}", "--no-shot", "--no-capture"]
   : ["tab", "switch", ${JSON.stringify(targetId)}, "--no-shot", "--no-capture"];
 await program.parseAsync(["node", "fixture", "browser", ...args]);
-`);
+`,
+  );
   for (const flow of [false, true]) {
     const recipient = `share-recipient-${flow}`;
     const child = Bun.spawn([process.execPath, runner], {
-      env: { ...process.env, CLAUDE_CODE_SESSION_ID: recipient, CAST_BROWSER_ENGINE: binary, CAST_TEST_SHARE_FLOW: flow ? "1" : "0" },
-      stdout: "pipe", stderr: "pipe",
+      env: {
+        ...process.env,
+        CLAUDE_CODE_SESSION_ID: recipient,
+        CAST_BROWSER_ENGINE: binary,
+        CAST_TEST_SHARE_FLOW: flow ? "1" : "0",
+      },
+      stdout: "pipe",
+      stderr: "pipe",
     });
-    const [status, , stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+    const [status, , stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
     expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
     expect(readBoundTarget(`env-${recipient}-real`)).toBe(targetId);
     expect(extension.tabs).toHaveLength(2);
-    expect((await listTargets(endpoint(`env-${recipient}-real`))).map(t => t.targetId)).toEqual([targetId]);
+    expect(
+      (await listTargets(endpoint(`env-${recipient}-real`))).map(
+        (t) => t.targetId,
+      ),
+    ).toEqual([targetId]);
   }
   // Two child processes each import the whole CLI; on a loaded machine one import alone took 18 s.
 }, 120_000);
 
 test("only a socket that asks with raise=1 may raise the human's Chrome", async () => {
   const agent = await connect("env-a-real");
-  const { targetId } = await agent.send("Target.createTarget", { url: "https://a.example/", background: false });
-  expect(extension.seen.find(m => m.op === "tabs.create")?.background).toBe(true);
+  const { targetId } = await agent.send("Target.createTarget", {
+    url: "https://a.example/",
+    background: false,
+  });
+  expect(extension.seen.find((m) => m.op === "tabs.create")?.background).toBe(
+    true,
+  );
   await agent.send("Target.activateTarget", { targetId });
-  const { sessionId } = await agent.send("Target.attachToTarget", { targetId, flatten: true });
+  const { sessionId } = await agent.send("Target.attachToTarget", {
+    targetId,
+    flatten: true,
+  });
   await agent.send("Page.bringToFront", {}, sessionId);
 
   // An agent's own raw CDP script connects with no session at all.
   const script = await CdpConnection.fromPort(endpoint());
   connections.push(script);
   await script.send("Target.activateTarget", { targetId });
-  const { sessionId: scriptSession } = await script.send("Target.attachToTarget", { targetId, flatten: true });
+  const { sessionId: scriptSession } = await script.send(
+    "Target.attachToTarget",
+    { targetId, flatten: true },
+  );
   await script.send("Page.bringToFront", {}, scriptSession);
-  expect(extension.seen.filter(m => m.op === "tabs.activate")).toEqual([]);
-  expect(extension.seen.filter(m => m.op === "cdp" && m.method === "Page.bringToFront")).toEqual([]);
+  expect(extension.seen.filter((m) => m.op === "tabs.activate")).toEqual([]);
+  expect(
+    extension.seen.filter(
+      (m) => m.op === "cdp" && m.method === "Page.bringToFront",
+    ),
+  ).toEqual([]);
 
   const focus = await CdpConnection.fromPort({ ...endpoint(), raise: true });
   connections.push(focus);
   await focus.send("Target.activateTarget", { targetId });
-  expect(extension.seen.filter(m => m.op === "tabs.activate")).toHaveLength(1);
+  expect(extension.seen.filter((m) => m.op === "tabs.activate")).toHaveLength(
+    1,
+  );
 });

@@ -7,7 +7,13 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { withTeamRoster } from "../../../test-helpers/teamRoster";
-import type { FaceCard, FaceEntry, FaceRow as FaceRowModel, Link, LinkKind } from "../../../lib/faces/faceRow";
+import type {
+  FaceCard,
+  FaceEntry,
+  FaceRow as FaceRowModel,
+  Link,
+  LinkKind,
+} from "../../../lib/faces/faceRow";
 import type { PushToTalk } from "../../../hooks/useWalkie";
 
 // ── the world the row talks to ──────────────────────────────────────────────
@@ -27,16 +33,29 @@ export const ptt: PushToTalk = {
   press: () => {},
   release: () => {},
 };
-mock.module("../../../hooks/useWalkie", () => ({ ...realWalkieHooks, usePushToTalk: () => ptt }));
+mock.module("../../../hooks/useWalkie", () => ({
+  ...realWalkieHooks,
+  usePushToTalk: () => ptt,
+}));
 
 // The card's session lookups: a router context and a server query.
 const realOpenSession = await import("../../../hooks/useOpenSession");
-mock.module("../../../hooks/useOpenSession", () => ({ ...realOpenSession, useOpenSession: () => () => {} }));
+mock.module("../../../hooks/useOpenSession", () => ({
+  ...realOpenSession,
+  useOpenSession: () => () => {},
+}));
 const realMissingRow = await import("../../../hooks/useMissingSessionRow");
-mock.module("../../../hooks/useMissingSessionRow", () => ({ ...realMissingRow, useMissingSessionRow: () => null }));
+mock.module("../../../hooks/useMissingSessionRow", () => ({
+  ...realMissingRow,
+  useMissingSessionRow: () => null,
+}));
 
 const realChatSync = await import("../../../hooks/useChatSync");
-mock.module("../../../hooks/useChatSync", () => ({ ...realChatSync, useChannelMessagesSync: () => ({}), useThreadSync: () => ({ loading: false, unavailable: false }) }));
+mock.module("../../../hooks/useChatSync", () => ({
+  ...realChatSync,
+  useChannelMessagesSync: () => ({}),
+  useThreadSync: () => ({ loading: false, unavailable: false }),
+}));
 
 // Where the card sent the reader in chat.
 export const openedChat: string[] = [];
@@ -84,7 +103,9 @@ mock.module("../../../lib/calls/walkie", () => ({
   },
 }));
 
-export const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+export const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -97,13 +118,15 @@ const restoreGlobals = replaceGlobals({
   KeyboardEvent: dom.window.KeyboardEvent,
   getComputedStyle: dom.window.getComputedStyle,
   // The crop loop and the float's hit measure both ask for a frame.
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0),
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0),
   cancelAnimationFrame: (id: number) => clearTimeout(id),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 const { createRoot } = await import("react-dom/client");
 export const { FaceRow, FloatingFaceRow } = await import("../FaceRow");
-export const { faceRowSize, floatingRowSize } = await import("../../../lib/faces/layout");
+export const { faceRowSize, floatingRowSize } =
+  await import("../../../lib/faces/layout");
 export const { EngagementCard } = await import("../EngagementCard");
 export const { walkieStageWords } = await import("../../../hooks/useWalkie");
 export const { useInboxStore } = await import("../../../store/inboxStore");
@@ -125,7 +148,11 @@ export const ANN = "u-ann";
 export const BO = "u-bo";
 export const CY = "u-cy";
 
-export function entry(id: string, name: string, over: Partial<FaceEntry> = {}): FaceEntry {
+export function entry(
+  id: string,
+  name: string,
+  over: Partial<FaceEntry> = {},
+): FaceEntry {
   return {
     id,
     name,
@@ -145,11 +172,25 @@ export function entry(id: string, name: string, over: Partial<FaceEntry> = {}): 
 export function me(over: Partial<FaceEntry> = {}): FaceEntry {
   return entry(ME, "Me", { me: true, tier: "me", state: "in-call", ...over });
 }
-export function rowOf(entries: FaceEntry[], links: Link[] = [], card: FaceCard = { kind: "none" }): FaceRowModel {
+export function rowOf(
+  entries: FaceEntry[],
+  links: Link[] = [],
+  card: FaceCard = { kind: "none" },
+): FaceRowModel {
   const mine = entries.find((e) => e.me) ?? null;
-  return { entries, links, card, me: mine, room: mine ? "dm:u-ann:u-me" : null };
+  return {
+    entries,
+    links,
+    card,
+    me: mine,
+    room: mine ? "dm:u-ann:u-me" : null,
+  };
 }
-export const link = (to: string, kind: LinkKind): Link => ({ from: ME, to, kind });
+export const link = (to: string, kind: LinkKind): Link => ({
+  from: ME,
+  to,
+  kind,
+});
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -157,11 +198,24 @@ let host: HTMLElement | null = null;
 beforeEach(() => {
   useInboxStore.setState({
     currentUser: { _id: ME, name: "Me" },
-    ...withTeamRoster([
-      { _id: ME, name: "Me", presence_state: "active", status: "available" },
-      { _id: ANN, name: "Ann", presence_state: "active", github_username: "ann" },
-      { _id: BO, name: "Bo", presence_state: "active", github_username: "bo" },
-    ], { clientState: useInboxStore.getState().clientState }),
+    ...withTeamRoster(
+      [
+        { _id: ME, name: "Me", presence_state: "active", status: "available" },
+        {
+          _id: ANN,
+          name: "Ann",
+          presence_state: "active",
+          github_username: "ann",
+        },
+        {
+          _id: BO,
+          name: "Bo",
+          presence_state: "active",
+          github_username: "bo",
+        },
+      ],
+      { clientState: useInboxStore.getState().clientState },
+    ),
     followLeaderId: null,
   } as any);
 });
@@ -177,19 +231,29 @@ afterEach(async () => {
 });
 
 export async function mount(node: React.ReactNode) {
-  host = dom.window.document.body.appendChild(dom.window.document.createElement("div"));
+  host = dom.window.document.body.appendChild(
+    dom.window.document.createElement("div"),
+  );
   root = createRoot(host);
   await act(async () => root!.render(node));
   return {
     draw: async (next: React.ReactNode) => {
       await act(async () => root!.render(next));
     },
-    q: <T extends Element = HTMLElement>(sel: string) => host!.querySelector(sel) as T | null,
-    all: (sel: string) => Array.from(host!.querySelectorAll(sel)) as HTMLElement[],
-    circle: (id: string) => host!.querySelector(`[data-face-id="${id}"] .face`) as HTMLElement,
+    q: <T extends Element = HTMLElement>(sel: string) =>
+      host!.querySelector(sel) as T | null,
+    all: (sel: string) =>
+      Array.from(host!.querySelectorAll(sel)) as HTMLElement[],
+    circle: (id: string) =>
+      host!.querySelector(`[data-face-id="${id}"] .face`) as HTMLElement,
     click: async (el: Element) => {
       await act(async () => {
-        el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+        el.dispatchEvent(
+          new dom.window.MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
       });
     },
   };

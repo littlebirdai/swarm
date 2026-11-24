@@ -7,7 +7,11 @@
 // on, never the whole row or the whole map.
 
 import { memo, Suspense, useCallback, useMemo } from "react";
-import { useTrackedStore, useInboxStore, getSessionRenderKey } from "../../store/inboxStore";
+import {
+  useTrackedStore,
+  useInboxStore,
+  getSessionRenderKey,
+} from "../../store/inboxStore";
 import { animatedHideSession } from "../../store/undoActions";
 import { useMissingSessionLookup } from "../../hooks/useMissingSessionRow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -23,7 +27,10 @@ import { lazyNamed } from "../../lib/lazyNamed";
 // opening a session renders anywhere (initiatives-projects-role-page.md I3):
 // a role's standing session is the role page here too, with the pane's own
 // expand and close controls kept in its header.
-const SessionPage = lazyNamed(() => import("../../app/inbox/QueuePageClient"), "SessionPage");
+const SessionPage = lazyNamed(
+  () => import("../../app/inbox/QueuePageClient"),
+  "SessionPage",
+);
 
 const noop = () => {};
 
@@ -53,21 +60,36 @@ export const SessionPane = memo(function SessionPane({
   const killed = s.pending[`sessions:${sessionId}`]?.type === "exclude";
   // A row the store does not hold (a teammate's session, one outside the inbox
   // window) loads here and lands in the store; the pane then paints from it.
-  const { row: missing, failed } = useMissingSessionLookup(session || killed ? null : sessionId);
+  const { row: missing, failed } = useMissingSessionLookup(
+    session || killed ? null : sessionId,
+  );
   useWatchEffect(() => {
     if (missing) useInboxStore.getState().seedSession(missing);
   }, [missing]);
   // Stable, so the memoized conversation below holds across this pane's renders.
-  const onSendAndDismiss = useCallback(() => animatedHideSession(sessionId, "stash"), [sessionId]);
+  const onSendAndDismiss = useCallback(
+    () => animatedHideSession(sessionId, "stash"),
+    [sessionId],
+  );
   const headerEnd = useMemo(
-    () => (onClose || onExpand ? <PaneControls onExpand={onExpand} onClose={onClose} /> : undefined),
+    () =>
+      onClose || onExpand ? (
+        <PaneControls onExpand={onExpand} onClose={onClose} />
+      ) : undefined,
     [onClose, onExpand],
   );
   if (!session) {
-    if (!killed && missing !== null) return <ConversationPlaceholder id={sessionId} />;
+    if (!killed && missing !== null)
+      return <ConversationPlaceholder id={sessionId} />;
     // Killed here, or the server will not hand it over (deleted, private):
     // say so honestly instead of painting an empty column.
-    return <ConversationUnavailable failed={!killed && failed} actionLabel={onClose ? "Close pane" : undefined} onAction={onClose} />;
+    return (
+      <ConversationUnavailable
+        failed={!killed && failed}
+        actionLabel={onClose ? "Close pane" : undefined}
+        onAction={onClose}
+      />
+    );
   }
   return (
     <ErrorBoundary name="StageSessionPane" level="panel">

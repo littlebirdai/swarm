@@ -17,10 +17,18 @@ export type SeenMark = string | (SeenVersion & { prev?: SeenVersion });
 export type SeenMarks = Record<string, SeenMark>;
 
 const versionOf = (mark: SeenMark | undefined): SeenVersion | undefined =>
-  mark === undefined ? undefined : typeof mark === "string" ? { h: mark } : { h: mark.h, ...(mark.at && { at: mark.at }) };
+  mark === undefined
+    ? undefined
+    : typeof mark === "string"
+      ? { h: mark }
+      : { h: mark.h, ...(mark.at && { at: mark.at }) };
 
 /** Marked, and not changed since. */
-export function isSeen(marks: SeenMarks | undefined, path: string, contentHash: string): boolean {
+export function isSeen(
+  marks: SeenMarks | undefined,
+  path: string,
+  contentHash: string,
+): boolean {
   return versionOf(marks?.[path])?.h === contentHash;
 }
 
@@ -28,7 +36,12 @@ export function isSeen(marks: SeenMarks | undefined, path: string, contentHash: 
  *  counts as unmarked, so the gesture on a file that changed since marks it
  *  again and keeps the old version as the one before. Clearing a live mark
  *  steps back to the version before it, when there is one. */
-export function toggleSeen(marks: SeenMarks | undefined, path: string, contentHash: string, at?: string): SeenMarks {
+export function toggleSeen(
+  marks: SeenMarks | undefined,
+  path: string,
+  contentHash: string,
+  at?: string,
+): SeenMarks {
   const next = { ...marks };
   const current = marks?.[path];
   if (isSeen(marks, path, contentHash)) {
@@ -45,7 +58,10 @@ export function toggleSeen(marks: SeenMarks | undefined, path: string, contentHa
 /** The change the "review" base diffs a file from, given its last change: the
  *  reviewed version when the file moved since, else the review before that.
  *  Undefined means the file has no reviewed version to start from. */
-export function reviewBaseId(mark: SeenMark | undefined, lastChangeId: string): string | undefined {
+export function reviewBaseId(
+  mark: SeenMark | undefined,
+  lastChangeId: string,
+): string | undefined {
   if (!mark || typeof mark === "string") return undefined;
   if (mark.at && mark.at !== lastChangeId) return mark.at;
   return mark.prev?.at;
@@ -53,13 +69,27 @@ export function reviewBaseId(mark: SeenMark | undefined, lastChangeId: string): 
 
 /** Does any mark carry a version the "review" base can start from? */
 export function hasReviewBase(marks: SeenMarks | undefined): boolean {
-  return !!marks && Object.values(marks).some((m) => typeof m === "object" && !!(m.at || m.prev?.at));
+  return (
+    !!marks &&
+    Object.values(marks).some(
+      (m) => typeof m === "object" && !!(m.at || m.prev?.at),
+    )
+  );
 }
 
-export function toggleSeenFile(conversationId: string, path: string, contentHash: string, at?: string): void {
+export function toggleSeenFile(
+  conversationId: string,
+  path: string,
+  contentHash: string,
+  at?: string,
+): void {
   const s = useInboxStore.getState();
   const all = s.clientState.ui?.diff_seen_files ?? {};
   const next = toggleSeen(all[conversationId], path, contentHash, at);
   const { [conversationId]: _old, ...rest } = all;
-  s.updateClientUI({ diff_seen_files: Object.keys(next).length ? { ...rest, [conversationId]: next } : rest });
+  s.updateClientUI({
+    diff_seen_files: Object.keys(next).length
+      ? { ...rest, [conversationId]: next }
+      : rest,
+  });
 }

@@ -4,7 +4,11 @@
 // mounted hidden, and its `j` must not answer for the page in front. They
 // decline as well while a menu is open over the page.
 import { useCallback } from "react";
-import { useShortcutAction, useShortcutContext, useShortcutParts } from "../../shortcuts";
+import {
+  useShortcutAction,
+  useShortcutContext,
+  useShortcutParts,
+} from "../../shortcuts";
 import type { ShortcutAction } from "../../shortcuts";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 
@@ -23,8 +27,12 @@ export type ChangesKeyHandlers = {
 };
 
 /** An open menu or listbox owns the keyboard: its arrows, letters, Enter and Escape are its own. */
-export function layerOpen(doc: Pick<Document, "querySelector"> = document): boolean {
-  return !!doc.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"]');
+export function layerOpen(
+  doc: Pick<Document, "querySelector"> = document,
+): boolean {
+  return !!doc.querySelector(
+    '[role="menu"][data-state="open"], [role="listbox"][data-state="open"]',
+  );
 }
 
 /**
@@ -35,15 +43,28 @@ export function layerOpen(doc: Pick<Document, "querySelector"> = document): bool
  */
 export function keepsOwnEnter(active: Element | null): boolean {
   const ctl = active?.closest("button, a, input, [role=menuitem]");
-  return !!ctl && !ctl.matches("[data-story-trigger]") && !ctl.matches("button[data-story-key]");
+  return (
+    !!ctl &&
+    !ctl.matches("[data-story-trigger]") &&
+    !ctl.matches("button[data-story-key]")
+  );
 }
 
 /** The commit page the focused control belongs to, when focus is in a commit row of an evidence drawer (`o` opens it, spec 3.3). */
 export function focusedCommitHref(active: Element | null): string | null {
-  return active?.closest<HTMLElement>("[data-commit-href]")?.dataset.commitHref ?? null;
+  return (
+    active?.closest<HTMLElement>("[data-commit-href]")?.dataset.commitHref ??
+    null
+  );
 }
 
-export type EscapeStep = "clear-text" | "leave-field" | "close-story" | "clear-filters" | "close-filter" | null;
+export type EscapeStep =
+  | "clear-text"
+  | "leave-field"
+  | "close-story"
+  | "clear-filters"
+  | "close-filter"
+  | null;
 
 /**
  * What one Escape does. In the filter field it works on the field first: the
@@ -51,7 +72,13 @@ export type EscapeStep = "clear-text" | "leave-field" | "close-story" | "clear-f
  * it closes the open evidence, then clears every filter, then closes the
  * filter bar.
  */
-export function escapeStep(s: { inFilterField: boolean; q: string | undefined; story: string | undefined; filtered: boolean; filterOpen: boolean }): EscapeStep {
+export function escapeStep(s: {
+  inFilterField: boolean;
+  q: string | undefined;
+  story: string | undefined;
+  filtered: boolean;
+  filterOpen: boolean;
+}): EscapeStep {
   if (s.inFilterField) return s.q ? "clear-text" : "leave-field";
   if (s.story) return "close-story";
   if (s.filtered) return "clear-filters";
@@ -61,7 +88,10 @@ export function escapeStep(s: { inFilterField: boolean; q: string | undefined; s
 export function useChangesKeys(active: boolean, h: ChangesKeyHandlers): void {
   useShortcutContext("changes", active);
   // One gate for every key: the page must be the active pane, with no menu open over it.
-  const here = useCallback((fn: Handler) => () => (active && !layerOpen() ? fn() : false), [active]);
+  const here = useCallback(
+    (fn: Handler) => () => (active && !layerOpen() ? fn() : false),
+    [active],
+  );
   useShortcutAction("changes.today", here(h.today));
   useShortcutAction("changes.next", here(h.next));
   useShortcutAction("changes.prev", here(h.prev));
@@ -74,8 +104,22 @@ export function useChangesKeys(active: boolean, h: ChangesKeyHandlers): void {
 }
 
 /** The first binding of a Changes action, as keycaps. */
-export function KeyHint({ action, size = "xs" }: { action: ShortcutAction; size?: "sm" | "xs" }) {
+export function KeyHint({
+  action,
+  size = "xs",
+}: {
+  action: ShortcutAction;
+  size?: "sm" | "xs";
+}) {
   const parts = useShortcutParts(action);
   if (!parts) return null;
-  return <>{parts.map((k) => <KeyCap key={k} size={size}>{k}</KeyCap>)}</>;
+  return (
+    <>
+      {parts.map((k) => (
+        <KeyCap key={k} size={size}>
+          {k}
+        </KeyCap>
+      ))}
+    </>
+  );
 }

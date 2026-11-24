@@ -3,7 +3,8 @@ import { CheckCircle2, Circle, CircleDot, XCircle } from "lucide-react";
 export function dayLabel(ts: number, now: number): string {
   const d = new Date(ts);
   const today = new Date(now);
-  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const startOf = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diffDays = Math.round((startOf(today) - startOf(d)) / 86_400_000);
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
@@ -15,7 +16,10 @@ export function dayLabel(ts: number, now: number): string {
 }
 
 /** Walks an already ordered list and cuts it wherever the calendar day changes. */
-export function groupByDay<T extends { ts: number }>(list: T[], now: number): { label: string; events: T[] }[] {
+export function groupByDay<T extends { ts: number }>(
+  list: T[],
+  now: number,
+): { label: string; events: T[] }[] {
   const out: { label: string; events: T[] }[] = [];
   for (const e of list) {
     const label = dayLabel(e.ts, now);

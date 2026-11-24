@@ -2,17 +2,11 @@
   "hello": [
     {
       "status": "upgrade_required",
-      "supported_versions": [
-        3,
-        2
-      ]
+      "supported_versions": [3, 2]
     },
     {
       "status": "server_behind",
-      "supported_versions": [
-        2,
-        1
-      ]
+      "supported_versions": [2, 1]
     }
   ],
   "events.append": [

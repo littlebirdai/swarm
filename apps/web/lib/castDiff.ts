@@ -50,8 +50,11 @@ export function parseCastDiff(raw: string): DiffFileSection[] {
           ? "deleted"
           : "modified";
     const path =
-      (status === "deleted" ? oldHeader : newHeader && newHeader !== "/dev/null" ? newHeader : oldHeader) ??
-      gitHeader;
+      (status === "deleted"
+        ? oldHeader
+        : newHeader && newHeader !== "/dev/null"
+          ? newHeader
+          : oldHeader) ?? gitHeader;
     if (!path || path === "/dev/null") continue;
 
     const parsed = parsePatch(segment);
@@ -73,7 +76,10 @@ export function parseCastDiff(raw: string): DiffFileSection[] {
       additions,
       deletions,
       fullContext:
-        status === "modified" && parsed.hunks.length === 1 && parsed.hunks[0].oldStart <= 1 && parsed.hunks[0].newStart <= 1,
+        status === "modified" &&
+        parsed.hunks.length === 1 &&
+        parsed.hunks[0].oldStart <= 1 &&
+        parsed.hunks[0].newStart <= 1,
     });
   }
   return files;

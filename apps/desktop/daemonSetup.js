@@ -30,23 +30,43 @@ const TAIL_CHARS = 2000;
 function runInstaller({ token, timeout }) {
   return new Promise((resolve) => {
     // The token travels as a positional argument, never inside the script text.
-    const child = spawn("/bin/sh", ["-c", `curl -fsSL ${INSTALL_URL} | sh -s -- "$1"`, "sh", token], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawn(
+      "/bin/sh",
+      ["-c", `curl -fsSL ${INSTALL_URL} | sh -s -- "$1"`, "sh", token],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     let tail = "";
-    const keep = (chunk) => { tail = (tail + String(chunk)).slice(-TAIL_CHARS); };
+    const keep = (chunk) => {
+      tail = (tail + String(chunk)).slice(-TAIL_CHARS);
+    };
     child.stdout.on("data", keep);
     child.stderr.on("data", keep);
     const timer = setTimeout(() => child.kill("SIGTERM"), timeout);
-    child.on("error", (err) => { clearTimeout(timer); resolve({ code: -1, tail: String(err && err.message) }); });
-    child.on("close", (code) => { clearTimeout(timer); resolve({ code: code ?? -1, tail }); });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      resolve({ code: -1, tail: String(err && err.message) });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? -1, tail });
+    });
   });
 }
 
 // `run`, `exists`, `home` and `platform` are injected so the rules stay
 // testable under plain node, the way computerPermissions.js does it.
-function createDaemonSetup({ run, exists = fs.existsSync, readFile = (p) => fs.readFileSync(p, "utf8"), home = os.homedir(), platform = process.platform, env = process.env } = {}) {
-  const install = run ?? ((token) => runInstaller({ token, timeout: SETUP_TIMEOUT_MS }));
+function createDaemonSetup({
+  run,
+  exists = fs.existsSync,
+  readFile = (p) => fs.readFileSync(p, "utf8"),
+  home = os.homedir(),
+  platform = process.platform,
+  env = process.env,
+} = {}) {
+  const install =
+    run ?? ((token) => runInstaller({ token, timeout: SETUP_TIMEOUT_MS }));
   let inFlight = null;
 
   // installed: a cast binary is on this machine. linked: it holds a sign-in.
@@ -62,16 +82,23 @@ function createDaemonSetup({ run, exists = fs.existsSync, readFile = (p) => fs.r
     const daemon = linked ? daemonState() : {};
     const authFailed = daemon.authExpired === true;
     return {
-      supported, installed, linked, authFailed,
+      supported,
+      installed,
+      linked,
+      authFailed,
       // The team whose admins removed this machine: signing in again is theirs to allow.
-      ...(authFailed && typeof daemon.removedBy === "string" ? { removedBy: daemon.removedBy } : {}),
+      ...(authFailed && typeof daemon.removedBy === "string"
+        ? { removedBy: daemon.removedBy }
+        : {}),
       running: inFlight !== null,
     };
   }
 
   function daemonState() {
     try {
-      return JSON.parse(readFile(path.join(home, ".codecast", "daemon.state"))) ?? {};
+      return (
+        JSON.parse(readFile(path.join(home, ".codecast", "daemon.state"))) ?? {}
+      );
     } catch {
       return {};
     }
@@ -80,12 +107,20 @@ function createDaemonSetup({ run, exists = fs.existsSync, readFile = (p) => fs.r
   // One run at a time: a second click joins the run already going.
   function setup(token) {
     const value = String(token ?? "");
-    if (!TOKEN_SHAPE.test(value)) return Promise.resolve({ ok: false, error: "invalid_token" });
-    if (!state().supported) return Promise.resolve({ ok: false, error: "unsupported_platform" });
+    if (!TOKEN_SHAPE.test(value))
+      return Promise.resolve({ ok: false, error: "invalid_token" });
+    if (!state().supported)
+      return Promise.resolve({ ok: false, error: "unsupported_platform" });
     if (!inFlight) {
       inFlight = install(value)
-        .then(({ code, tail }) => (code === 0 ? { ok: true } : { ok: false, error: "installer_failed", detail: tail }))
-        .finally(() => { inFlight = null; });
+        .then(({ code, tail }) =>
+          code === 0
+            ? { ok: true }
+            : { ok: false, error: "installer_failed", detail: tail },
+        )
+        .finally(() => {
+          inFlight = null;
+        });
     }
     return inFlight;
   }
@@ -93,4 +128,9 @@ function createDaemonSetup({ run, exists = fs.existsSync, readFile = (p) => fs.r
   return { state, setup };
 }
 
-module.exports = { INSTALL_URL, SETUP_TIMEOUT_MS, TOKEN_SHAPE, createDaemonSetup };
+module.exports = {
+  INSTALL_URL,
+  SETUP_TIMEOUT_MS,
+  TOKEN_SHAPE,
+  createDaemonSetup,
+};

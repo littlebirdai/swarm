@@ -22,7 +22,12 @@
 // it starts only while that line's start switch is on and its hands last; a
 // finding waits until then, saying why (waiting_on), and the sweep starts it.
 import { ConvexError, v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, mutation } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
@@ -31,13 +36,26 @@ import { canAccessSignal } from "./lib/access";
 import { parseWorkspaceKey } from "./lib/accessKeys";
 import { insertTaskComment } from "./tasks";
 import { retireSignals } from "./judgeRetire";
-import { attachJudgeRequest, commitSignal, foldProblem, normalizeSignal, parseAttachJudgeReply, type CauseCandidate, type SignalInput } from "./signals";
+import {
+  attachJudgeRequest,
+  commitSignal,
+  foldProblem,
+  normalizeSignal,
+  parseAttachJudgeReply,
+  type CauseCandidate,
+  type SignalInput,
+} from "./signals";
 import { runModelCall } from "./modelCalls";
 import { isTerminalTaskStatus } from "@codecast/shared/tasks";
 import { isExpectationId } from "@codecast/shared/contracts/expectations";
 import { latestExpectations } from "./lib/expectationsApply";
 import { leadRoleOf } from "./lineCause";
-import { admitRoleRun, roleMayStartHands, startRoleRun, type LineLoads } from "./orgLine";
+import {
+  admitRoleRun,
+  roleMayStartHands,
+  startRoleRun,
+  type LineLoads,
+} from "./orgLine";
 import { lineStartsOn } from "@codecast/shared/contracts/roleAutonomy";
 import { isLiveRunStatus } from "./workflow_runs";
 import {
@@ -78,9 +96,15 @@ async function authed(ctx: any, apiToken: string): Promise<Id<"users">> {
   return auth.userId;
 }
 
-async function signalByRef(ctx: any, ref: string): Promise<Doc<"signals"> | null> {
+async function signalByRef(
+  ctx: any,
+  ref: string,
+): Promise<Doc<"signals"> | null> {
   const t = ref.trim();
-  const byShort = await ctx.db.query("signals").withIndex("by_short_id", (q: any) => q.eq("short_id", t)).first();
+  const byShort = await ctx.db
+    .query("signals")
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", t))
+    .first();
   if (byShort) return byShort;
   const id = ctx.db.normalizeId("signals", t);
   return id ? await ctx.db.get(id) : null;
@@ -95,16 +119,34 @@ async function signalByRef(ctx: any, ref: string): Promise<Doc<"signals"> | null
 export async function markFindingWrong(
   ctx: any,
   finding: Doc<"signals">,
-  o: { trigger: Trigger; by?: Id<"users">; run_id?: Id<"workflow_runs">; note?: string; sentence?: string; now: number; loads?: LineLoads },
+  o: {
+    trigger: Trigger;
+    by?: Id<"users">;
+    run_id?: Id<"workflow_runs">;
+    note?: string;
+    sentence?: string;
+    now: number;
+    loads?: LineLoads;
+  },
 ): Promise<Review> {
-  if (!finding.judge) throw new ConvexError(`${finding.short_id} was not made by a judge, so there is no judge to improve`);
-  if (finding.case_of) throw new ConvexError(`${finding.short_id} is a case against a judge, not a judge's finding`);
+  if (!finding.judge)
+    throw new ConvexError(
+      `${finding.short_id} was not made by a judge, so there is no judge to improve`,
+    );
+  if (finding.case_of)
+    throw new ConvexError(
+      `${finding.short_id} is a case against a judge, not a judge's finding`,
+    );
   const note = clip(o.note, NOTE_MAX);
   const sentence = clip(o.sentence, NOTE_MAX);
   const had = finding.judge_review;
   if (had && had.state !== "failed") {
-    const words = { ...(note ? { note } : {}), ...(sentence ? { sentence } : {}) };
-    if (Object.keys(words).length) await ctx.db.patch(finding._id, { judge_review: { ...had, ...words } });
+    const words = {
+      ...(note ? { note } : {}),
+      ...(sentence ? { sentence } : {}),
+    };
+    if (Object.keys(words).length)
+      await ctx.db.patch(finding._id, { judge_review: { ...had, ...words } });
     return { ...had, ...words };
   }
   const review: Review = {
@@ -118,7 +160,13 @@ export async function markFindingWrong(
     attempts: 0,
   };
   await ctx.db.patch(finding._id, { judge_review: review });
-  return await startDiagnosis(ctx, { ...finding, judge_review: review }, o.now, undefined, o.loads);
+  return await startDiagnosis(
+    ctx,
+    { ...finding, judge_review: review },
+    o.now,
+    undefined,
+    o.loads,
+  );
 }
 
 /**
@@ -130,13 +178,25 @@ export async function markFindingWrong(
 export async function findingLabeled(
   ctx: any,
   findingId: Id<"signals">,
-  label: { verdict: "right" | "wrong" | null; note?: string; by: Id<"users">; now: number },
+  label: {
+    verdict: "right" | "wrong" | null;
+    note?: string;
+    by: Id<"users">;
+    now: number;
+  },
 ): Promise<Review | null> {
   const finding: Doc<"signals"> | null = await ctx.db.get(findingId);
   if (!finding?.judge || finding.case_of) return null;
-  if (label.verdict === "wrong") return await markFindingWrong(ctx, finding, { trigger: "label", by: label.by, note: label.note, now: label.now });
+  if (label.verdict === "wrong")
+    return await markFindingWrong(ctx, finding, {
+      trigger: "label",
+      by: label.by,
+      note: label.note,
+      now: label.now,
+    });
   const had = finding.judge_review;
-  if (had?.trigger === "label" && had.state === "waiting") await ctx.db.patch(finding._id, { judge_review: undefined });
+  if (had?.trigger === "label" && had.state === "waiting")
+    await ctx.db.patch(finding._id, { judge_review: undefined });
   return null;
 }
 
@@ -159,10 +219,17 @@ export async function labelFinding(
   note?: string,
 ): Promise<string | null> {
   const finding: Doc<"signals"> | null = await ctx.db.get(findingId);
-  if (!finding || !(await canAccessSignal(ctx, userId, finding))) throw new Error("Not found");
-  if (!finding.judge || finding.case_of) throw new ConvexError("Only a judge's finding can be marked right or wrong");
+  if (!finding || !(await canAccessSignal(ctx, userId, finding)))
+    throw new Error("Not found");
+  if (!finding.judge || finding.case_of)
+    throw new ConvexError(
+      "Only a judge's finding can be marked right or wrong",
+    );
   const now = Date.now();
-  const had = await ctx.db.query("line_labels").withIndex("by_key", (q: any) => q.eq("key", key)).first();
+  const had = await ctx.db
+    .query("line_labels")
+    .withIndex("by_key", (q: any) => q.eq("key", key))
+    .first();
   await findingLabeled(ctx, finding._id, { verdict, note, by: userId, now });
   if (verdict === null) {
     if (had) await ctx.db.delete(had._id);
@@ -172,33 +239,53 @@ export async function labelFinding(
     await ctx.db.patch(had._id, { verdict, note, at: now });
     return String(had._id);
   }
-  return String(await ctx.db.insert("line_labels", {
-    key,
-    workspace: finding.workspace,
-    ...(finding.team_id ? { team_id: finding.team_id } : {}),
-    ...(finding.project_id ? { project_id: finding.project_id } : {}),
-    signal_id: finding._id,
-    node_id: stepId,
-    verdict,
-    ...(note ? { note } : {}),
-    by: userId,
-    at: now,
-  }));
+  return String(
+    await ctx.db.insert("line_labels", {
+      key,
+      workspace: finding.workspace,
+      ...(finding.team_id ? { team_id: finding.team_id } : {}),
+      ...(finding.project_id ? { project_id: finding.project_id } : {}),
+      signal_id: finding._id,
+      node_id: stepId,
+      verdict,
+      ...(note ? { note } : {}),
+      by: userId,
+      at: now,
+    }),
+  );
 }
 
 /** Why the finding's project cannot diagnose it now, or the role that can. */
-async function diagnosingRole(ctx: any, finding: Doc<"signals">, now: number): Promise<{ role: any } | { waiting_on: string }> {
-  const project: Doc<"projects"> | null = finding.project_id ? await ctx.db.get(finding.project_id) : null;
-  if (!project) return { waiting_on: "The finding is in no project, so no flow diagnoses it." };
+async function diagnosingRole(
+  ctx: any,
+  finding: Doc<"signals">,
+  now: number,
+): Promise<{ role: any } | { waiting_on: string }> {
+  const project: Doc<"projects"> | null = finding.project_id
+    ? await ctx.db.get(finding.project_id)
+    : null;
+  if (!project)
+    return {
+      waiting_on: "The finding is in no project, so no flow diagnoses it.",
+    };
   // A trial's line never starts on its own (LL12): the run that ruled the
   // finding wrong records the diagnosis itself.
-  if (project.line_trial) return { waiting_on: `${project.title} is a trial, so its flow never starts a diagnosis; the run that ruled it wrong records one with cast signal diagnosis.` };
+  if (project.line_trial)
+    return {
+      waiting_on: `${project.title} is a trial, so its flow never starts a diagnosis; the run that ruled it wrong records one with cast signal diagnosis.`,
+    };
   const role = await leadRoleOf(ctx, project);
-  if (!role) return { waiting_on: `No role leads ${project.title}, so no flow diagnoses its findings.` };
+  if (!role)
+    return {
+      waiting_on: `No role leads ${project.title}, so no flow diagnoses its findings.`,
+    };
   if (!roleMayStartHands(role, now)) {
-    return { waiting_on: role.status === "active" && lineStartsOn(role)
-      ? `@${role.handle} has started all the sessions it may today; the diagnosis starts tomorrow.`
-      : `The flow for ${project.title} is off; the diagnosis starts once "Start problems on their own" is on.` };
+    return {
+      waiting_on:
+        role.status === "active" && lineStartsOn(role)
+          ? `@${role.handle} has started all the sessions it may today; the diagnosis starts tomorrow.`
+          : `The flow for ${project.title} is off; the diagnosis starts once "Start problems on their own" is on.`,
+    };
   }
   return { role };
 }
@@ -212,16 +299,26 @@ async function diagnosingRole(ctx: any, finding: Doc<"signals">, now: number): P
  * many as there is room for and the rest wait for the sweep; `loads` carries
  * the room through the pass.
  */
-async function startDiagnosis(ctx: any, finding: Doc<"signals">, now: number, waits?: Map<string, string>, loads: LineLoads = new Map()): Promise<Review> {
+async function startDiagnosis(
+  ctx: any,
+  finding: Doc<"signals">,
+  now: number,
+  waits?: Map<string, string>,
+  loads: LineLoads = new Map(),
+): Promise<Review> {
   const review = finding.judge_review!;
   if (review.state !== "waiting") return review;
   const project = String(finding.project_id ?? "");
   const known = waits?.get(project);
-  const place = known !== undefined ? { waiting_on: known } : await diagnosingRole(ctx, finding, now);
+  const place =
+    known !== undefined
+      ? { waiting_on: known }
+      : await diagnosingRole(ctx, finding, now);
   if ("waiting_on" in place) {
     waits?.set(project, place.waiting_on);
     const next = { ...review, waiting_on: place.waiting_on };
-    if (next.waiting_on !== review.waiting_on) await ctx.db.patch(finding._id, { judge_review: next });
+    if (next.waiting_on !== review.waiting_on)
+      await ctx.db.patch(finding._id, { judge_review: next });
     return next;
   }
   const room = await admitRoleRun(ctx, place.role, now, loads);
@@ -229,22 +326,43 @@ async function startDiagnosis(ctx: any, finding: Doc<"signals">, now: number, wa
     const waiting_on = `${room.waiting}; the diagnosis starts when one finishes.`;
     waits?.set(project, waiting_on);
     const next = { ...review, waiting_on };
-    if (next.waiting_on !== review.waiting_on) await ctx.db.patch(finding._id, { judge_review: next });
+    if (next.waiting_on !== review.waiting_on)
+      await ctx.db.patch(finding._id, { judge_review: next });
     return next;
   }
-  const { runId } = await startRoleRun(ctx, place.role, { slug: JUDGE_REVIEW_GRAPH, goal: finding.short_id, now, place: room.place });
+  const { runId } = await startRoleRun(ctx, place.role, {
+    slug: JUDGE_REVIEW_GRAPH,
+    goal: finding.short_id,
+    now,
+    place: room.place,
+  });
   const { waiting_on: _w, ...rest } = review;
-  const next: Review = { ...rest, state: "diagnosing", attempts: review.attempts + 1, diagnosis_run_id: runId };
+  const next: Review = {
+    ...rest,
+    state: "diagnosing",
+    attempts: review.attempts + 1,
+    diagnosis_run_id: runId,
+  };
   await ctx.db.patch(finding._id, { judge_review: next });
   return next;
 }
 
 /** The expectation a judge's finding said was broken, with its words when the finding's project still carries it. */
-async function expectationOf(ctx: any, finding: Doc<"signals">): Promise<{ expectation?: string; expectation_text?: string }> {
+async function expectationOf(
+  ctx: any,
+  finding: Doc<"signals">,
+): Promise<{ expectation?: string; expectation_text?: string }> {
   if (!isExpectationId(finding.subject)) return {};
-  const doc = finding.project_id ? await latestExpectations(ctx, finding.project_id) : null;
-  const item = (doc?.items ?? []).find((i: { id: string }) => i.id === finding.subject);
-  return { expectation: finding.subject, ...(item?.text ? { expectation_text: item.text } : {}) };
+  const doc = finding.project_id
+    ? await latestExpectations(ctx, finding.project_id)
+    : null;
+  const item = (doc?.items ?? []).find(
+    (i: { id: string }) => i.id === finding.subject,
+  );
+  return {
+    expectation: finding.subject,
+    ...(item?.text ? { expectation_text: item.text } : {}),
+  };
 }
 
 /**
@@ -260,17 +378,36 @@ export async function recordDiagnosis(
   d: { answer: DiagnosisAnswer; fact?: string; why?: string; now: number },
 ): Promise<{ review: Review; case_short_id: string; task_short_id?: string }> {
   const review = finding.judge_review;
-  if (!review) throw new ConvexError(`${finding.short_id} has not been marked wrong, so there is nothing to diagnose`);
+  if (!review)
+    throw new ConvexError(
+      `${finding.short_id} has not been marked wrong, so there is nothing to diagnose`,
+    );
   // Recorded once: a second answer, the same or another, files nothing new.
   if (review.state === "diagnosed") {
-    const had: Doc<"signals"> | null = review.case_id ? await ctx.db.get(review.case_id) : null;
-    const task: Doc<"tasks"> | null = had?.task_id ? await ctx.db.get(had.task_id) : null;
-    return { review, case_short_id: had?.short_id ?? "", task_short_id: task?.short_id };
+    const had: Doc<"signals"> | null = review.case_id
+      ? await ctx.db.get(review.case_id)
+      : null;
+    const task: Doc<"tasks"> | null = had?.task_id
+      ? await ctx.db.get(had.task_id)
+      : null;
+    return {
+      review,
+      case_short_id: had?.short_id ?? "",
+      task_short_id: task?.short_id,
+    };
   }
-  if (!DIAGNOSIS_ANSWERS.includes(d.answer)) throw new ConvexError(`The answer is one of ${DIAGNOSIS_ANSWERS.join(", ")}`);
+  if (!DIAGNOSIS_ANSWERS.includes(d.answer))
+    throw new ConvexError(
+      `The answer is one of ${DIAGNOSIS_ANSWERS.join(", ")}`,
+    );
   const fact = clip(d.fact, FACT_MAX);
   const why = clip(d.why, NOTE_MAX);
-  const settled = { answer: d.answer, ...(fact ? { fact } : {}), ...(why ? { why } : {}), diagnosed_at: d.now };
+  const settled = {
+    answer: d.answer,
+    ...(fact ? { fact } : {}),
+    ...(why ? { why } : {}),
+    diagnosed_at: d.now,
+  };
 
   const answer = d.answer;
   if (answer === "upheld") {
@@ -290,23 +427,37 @@ export async function recordDiagnosis(
   }
 
   const moment: Doc<"moments"> | null = finding.moment
-    ? await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", finding.moment)).first()
+    ? await ctx.db
+        .query("moments")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", finding.moment))
+        .first()
     : null;
-  const momentSource: Doc<"event_sources"> | null = moment ? await ctx.db.get(moment.source_id) : null;
-  const route = caseRoute({
-    judge: finding.judge!,
-    source: finding.source,
-    ...(finding.moment ? { moment: finding.moment } : {}),
-    ...(moment ? { moment_kind: moment.kind } : {}),
-    ...(momentSource ? { moment_source: momentSource.name } : {}),
-    ...(await expectationOf(ctx, finding)),
-    finding: finding.short_id,
-  }, answer);
+  const momentSource: Doc<"event_sources"> | null = moment
+    ? await ctx.db.get(moment.source_id)
+    : null;
+  const route = caseRoute(
+    {
+      judge: finding.judge!,
+      source: finding.source,
+      ...(finding.moment ? { moment: finding.moment } : {}),
+      ...(moment ? { moment_kind: moment.kind } : {}),
+      ...(momentSource ? { moment_source: momentSource.name } : {}),
+      ...(await expectationOf(ctx, finding)),
+      finding: finding.short_id,
+    },
+    answer,
+  );
 
   const ws = parseWorkspaceKey(finding.workspace);
   if (!ws) throw new ConvexError("The finding's workspace is unknown");
-  const db = await createDataContext(ctx, ws.type === "team" ? { userId, workspace: "team", team_id: ws.teamId } : { userId, workspace: "personal" });
-  if (db.workspaceKey !== finding.workspace) throw new ConvexError("This finding is in another workspace");
+  const db = await createDataContext(
+    ctx,
+    ws.type === "team"
+      ? { userId, workspace: "team", team_id: ws.teamId }
+      : { userId, workspace: "personal" },
+  );
+  if (db.workspaceKey !== finding.workspace)
+    throw new ConvexError("This finding is in another workspace");
 
   const signal = normalizeSignal({
     source: JUDGE_CASE_SOURCE,
@@ -333,13 +484,31 @@ export async function recordDiagnosis(
     ...(finding.judge_version ? { judge_version: finding.judge_version } : {}),
     ...(finding.moment ? { moment: finding.moment } : {}),
   });
-  const filed = await commitSignal(ctx, db, userId, signal, null, d.now, finding.project_id ?? null, { title: route.title });
+  const filed = await commitSignal(
+    ctx,
+    db,
+    userId,
+    signal,
+    null,
+    d.now,
+    finding.project_id ?? null,
+    { title: route.title },
+  );
   await ctx.db.patch(filed.signal_id, { case_of: finding._id });
   // Its own problem until grouping finds the sibling with the same fix.
-  if (filed.attach === "new") await ctx.scheduler.runAfter(0, internal.judgeReview.groupCase, { case_id: filed.signal_id });
+  if (filed.attach === "new")
+    await ctx.scheduler.runAfter(0, internal.judgeReview.groupCase, {
+      case_id: filed.signal_id,
+    });
 
   const { waiting_on: _w, ...rest } = review;
-  const next: Review = { ...rest, ...settled, state: "diagnosed", against: route.against, case_id: filed.signal_id };
+  const next: Review = {
+    ...rest,
+    ...settled,
+    state: "diagnosed",
+    against: route.against,
+    case_id: filed.signal_id,
+  };
   await ctx.db.patch(finding._id, { judge_review: next });
 
   if (finding.task_id && filed.task_id && finding.task_id !== filed.task_id) {
@@ -349,7 +518,11 @@ export async function recordDiagnosis(
       text: `${finding.short_id} was the ${finding.judge} judge's mistake (${answer === "missing" ? "the fact it needed was missing from what it saw" : "it misread what it saw"}). It is a case on ${filed.task_short_id}.`,
     });
   }
-  return { review: next, case_short_id: filed.short_id, task_short_id: filed.task_short_id };
+  return {
+    review: next,
+    case_short_id: filed.short_id,
+    task_short_id: filed.task_short_id,
+  };
 }
 
 /**
@@ -357,31 +530,59 @@ export async function recordDiagnosis(
  * diagnosis whose run ended without an answer back to waiting, up to
  * JUDGE_REVIEW_ATTEMPTS runs; past that it fails and says so on the finding.
  */
-export async function sweepJudgeReviews(ctx: any, now: number): Promise<{ started: number; retried: number; failed: number }> {
+export async function sweepJudgeReviews(
+  ctx: any,
+  now: number,
+): Promise<{ started: number; retried: number; failed: number }> {
   let started = 0;
   let retried = 0;
   let failed = 0;
-  const running: Doc<"signals">[] = await ctx.db.query("signals")
-    .withIndex("by_judge_review_state", (q: any) => q.eq("judge_review.state", "diagnosing")).take(SWEEP_BATCH);
+  const running: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_judge_review_state", (q: any) =>
+      q.eq("judge_review.state", "diagnosing"),
+    )
+    .take(SWEEP_BATCH);
   for (const f of running) {
     const review = f.judge_review!;
-    const run: Doc<"workflow_runs"> | null = review.diagnosis_run_id ? await ctx.db.get(review.diagnosis_run_id) : null;
+    const run: Doc<"workflow_runs"> | null = review.diagnosis_run_id
+      ? await ctx.db.get(review.diagnosis_run_id)
+      : null;
     if (run && isLiveRunStatus(run.status)) continue;
     if (review.attempts >= JUDGE_REVIEW_ATTEMPTS) {
-      await ctx.db.patch(f._id, { judge_review: { ...review, state: "failed", waiting_on: `${review.attempts} diagnosis runs ended without an answer; mark it wrong again to retry.` } });
+      await ctx.db.patch(f._id, {
+        judge_review: {
+          ...review,
+          state: "failed",
+          waiting_on: `${review.attempts} diagnosis runs ended without an answer; mark it wrong again to retry.`,
+        },
+      });
       failed++;
     } else {
-      await ctx.db.patch(f._id, { judge_review: { ...review, state: "waiting", waiting_on: "The last diagnosis ended without an answer." } });
+      await ctx.db.patch(f._id, {
+        judge_review: {
+          ...review,
+          state: "waiting",
+          waiting_on: "The last diagnosis ended without an answer.",
+        },
+      });
       retried++;
     }
   }
   // After the retries, so a diagnosis put back to waiting starts again in this pass.
-  const waiting: Doc<"signals">[] = await ctx.db.query("signals")
-    .withIndex("by_judge_review_state", (q: any) => q.eq("judge_review.state", "waiting")).take(WAITING_SCAN);
+  const waiting: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_judge_review_state", (q: any) =>
+      q.eq("judge_review.state", "waiting"),
+    )
+    .take(WAITING_SCAN);
   const waits = new Map<string, string>();
   const loads: LineLoads = new Map();
   for (const f of waiting) {
-    if ((await startDiagnosis(ctx, f, now, waits, loads)).state === "diagnosing") started++;
+    if (
+      (await startDiagnosis(ctx, f, now, waits, loads)).state === "diagnosing"
+    )
+      started++;
   }
   return { started, retried, failed };
 }
@@ -396,13 +597,25 @@ export const sweep = internalMutation({
  * the signal of the run's cause whose words or link carry the id the prove
  * station copied from the product (a product's own finding id).
  */
-async function defectFinding(ctx: any, ref: string, causeId: Id<"tasks"> | undefined): Promise<Doc<"signals"> | null> {
+async function defectFinding(
+  ctx: any,
+  ref: string,
+  causeId: Id<"tasks"> | undefined,
+): Promise<Doc<"signals"> | null> {
   const direct = await signalByRef(ctx, ref);
   if (direct) return direct;
   if (!causeId || ref.trim().length < 6) return null;
-  const rows: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", causeId)).collect();
+  const rows: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", causeId))
+    .collect();
   const t = ref.trim();
-  return rows.find((r) => r.judge && (r.evidence_url?.includes(t) || r.detail_md?.includes(t))) ?? null;
+  return (
+    rows.find(
+      (r) =>
+        r.judge && (r.evidence_url?.includes(t) || r.detail_md?.includes(t)),
+    ) ?? null
+  );
 }
 
 /**
@@ -416,20 +629,47 @@ export const defectsForCli = mutation({
   args: {
     api_token: v.string(),
     run_id: v.optional(v.string()),
-    defects: v.array(v.object({ finding: v.string(), judge: v.optional(v.string()), sentence: v.optional(v.string()), name: v.optional(v.string()) })),
+    defects: v.array(
+      v.object({
+        finding: v.string(),
+        judge: v.optional(v.string()),
+        sentence: v.optional(v.string()),
+        name: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await authed(ctx, args.api_token);
-    const runId = args.run_id ? ctx.db.normalizeId("workflow_runs", args.run_id.trim()) : null;
-    const run: Doc<"workflow_runs"> | null = runId ? await ctx.db.get(runId) : null;
+    const runId = args.run_id
+      ? ctx.db.normalizeId("workflow_runs", args.run_id.trim())
+      : null;
+    const run: Doc<"workflow_runs"> | null = runId
+      ? await ctx.db.get(runId)
+      : null;
     const now = Date.now();
     // One admission for the whole hand-off: the defects start as far as there is room.
     const loads: LineLoads = new Map();
-    const out: Array<{ finding: string; short_id?: string; state?: string; waiting_on?: string; skipped?: string }> = [];
+    const out: Array<{
+      finding: string;
+      short_id?: string;
+      state?: string;
+      waiting_on?: string;
+      skipped?: string;
+    }> = [];
     for (const d of args.defects.slice(0, 100)) {
       const finding = await defectFinding(ctx, d.finding, run?.task_id);
-      if (!finding || !(await canAccessSignal(ctx, userId, finding))) { out.push({ finding: d.finding, skipped: "no such finding" }); continue; }
-      if (!finding.judge) { out.push({ finding: d.finding, short_id: finding.short_id, skipped: "not a judge's finding" }); continue; }
+      if (!finding || !(await canAccessSignal(ctx, userId, finding))) {
+        out.push({ finding: d.finding, skipped: "no such finding" });
+        continue;
+      }
+      if (!finding.judge) {
+        out.push({
+          finding: d.finding,
+          short_id: finding.short_id,
+          skipped: "not a judge's finding",
+        });
+        continue;
+      }
       const review = await markFindingWrong(ctx, finding, {
         trigger: "dissolve",
         ...(run ? { run_id: run._id } : {}),
@@ -437,8 +677,17 @@ export const defectsForCli = mutation({
         now,
         loads,
       });
-      if (!finding.retired) await retireSignals(ctx, [finding], { reason: `found wrong by a flow run's proof${d.sentence ? `: ${d.sentence.slice(0, 300)}` : ""}`, actor: userId });
-      out.push({ finding: d.finding, short_id: finding.short_id, state: review.state, ...(review.waiting_on ? { waiting_on: review.waiting_on } : {}) });
+      if (!finding.retired)
+        await retireSignals(ctx, [finding], {
+          reason: `found wrong by a flow run's proof${d.sentence ? `: ${d.sentence.slice(0, 300)}` : ""}`,
+          actor: userId,
+        });
+      out.push({
+        finding: d.finding,
+        short_id: finding.short_id,
+        state: review.state,
+        ...(review.waiting_on ? { waiting_on: review.waiting_on } : {}),
+      });
     }
     return out;
   },
@@ -456,9 +705,15 @@ export const diagnosisForCli = mutation({
   handler: async (ctx, args) => {
     const userId = await authed(ctx, args.api_token);
     const finding = await signalByRef(ctx, args.signal);
-    if (!finding || !(await canAccessSignal(ctx, userId, finding))) throw new ConvexError("Finding not found");
+    if (!finding || !(await canAccessSignal(ctx, userId, finding)))
+      throw new ConvexError("Finding not found");
     const answer = args.answer.trim().toLowerCase() as DiagnosisAnswer;
-    return await recordDiagnosis(ctx, userId, finding, { answer, fact: args.fact, why: args.why, now: Date.now() });
+    return await recordDiagnosis(ctx, userId, finding, {
+      answer,
+      fact: args.fact,
+      why: args.why,
+      now: Date.now(),
+    });
   },
 });
 
@@ -479,23 +734,49 @@ const CASE_SCAN = 2000;
 const CASE_CANDIDATES = 12;
 const CASE_LINES = 8;
 
-type CaseFacts = { short_id: string; against: CaseTarget; gist: string; signal: SignalInput };
+type CaseFacts = {
+  short_id: string;
+  against: CaseTarget;
+  gist: string;
+  signal: SignalInput;
+};
 
 /** A case as grouping reads it: the kind of part at fault, its gist, and itself as an observation. */
 async function caseFacts(ctx: any, row: Doc<"signals">): Promise<CaseFacts> {
-  const finding: Doc<"signals"> | null = row.case_of ? await ctx.db.get(row.case_of) : null;
-  const against: CaseTarget = finding?.judge_review?.against ?? (row.kind === "prompt_miss" ? "judge" : "extractor");
-  const expectation = finding && isExpectationId(finding.subject) ? finding.subject : undefined;
-  const gist = caseGist({ moment: row.moment, part: row.subject, expectation, detail_md: row.detail_md });
+  const finding: Doc<"signals"> | null = row.case_of
+    ? await ctx.db.get(row.case_of)
+    : null;
+  const against: CaseTarget =
+    finding?.judge_review?.against ??
+    (row.kind === "prompt_miss" ? "judge" : "extractor");
+  const expectation =
+    finding && isExpectationId(finding.subject) ? finding.subject : undefined;
+  const gist = caseGist({
+    moment: row.moment,
+    part: row.subject,
+    expectation,
+    detail_md: row.detail_md,
+  });
   const at = row.detail_md?.indexOf("Diagnosis:") ?? -1;
-  const diagnosis = at >= 0 ? row.detail_md!.slice(at) : row.detail_md ?? "";
+  const diagnosis = at >= 0 ? row.detail_md!.slice(at) : (row.detail_md ?? "");
   return {
     short_id: row.short_id,
     against,
     gist,
     // Titled by what hid the fact, not by the finding the judge got wrong: two cases share a fix when the same fold, cap
     // or rule hid their facts, whatever each email said.
-    signal: normalizeSignal({ source: row.source, kind: row.kind, fingerprint: row.fingerprint, title: `Against ${row.subject ?? "the judge"}: ${gist.split(" · why: ")[1] ?? gist.split(" · fact: ")[1] ?? row.title}`.slice(0, 300), ...(row.subject ? { subject: row.subject } : {}), detail_md: [gist.split(" · fact: ")[0], diagnosis].join("\n") }),
+    signal: normalizeSignal({
+      source: row.source,
+      kind: row.kind,
+      fingerprint: row.fingerprint,
+      title:
+        `Against ${row.subject ?? "the judge"}: ${gist.split(" · why: ")[1] ?? gist.split(" · fact: ")[1] ?? row.title}`.slice(
+          0,
+          300,
+        ),
+      ...(row.subject ? { subject: row.subject } : {}),
+      detail_md: [gist.split(" · fact: ")[0], diagnosis].join("\n"),
+    }),
   };
 }
 
@@ -507,26 +788,61 @@ export const caseGroupInputs = internalQuery({
     const own: Doc<"tasks"> | null = await ctx.db.get(row.task_id);
     if (!own || isTerminalTaskStatus(own.status)) return null;
     const mine = await caseFacts(ctx, row);
-    const recent: Doc<"signals">[] = await ctx.db.query("signals")
-      .withIndex("by_project_created", (q: any) => q.eq("project_id", row.project_id)).order("desc").take(CASE_SCAN);
+    const recent: Doc<"signals">[] = await ctx.db
+      .query("signals")
+      .withIndex("by_project_created", (q: any) =>
+        q.eq("project_id", row.project_id),
+      )
+      .order("desc")
+      .take(CASE_SCAN);
     const byTask = new Map<string, Doc<"signals">[]>();
     for (const r of recent) {
-      if (r.source !== JUDGE_CASE_SOURCE || !r.case_of || !r.task_id || r.task_id === row.task_id || r.workspace !== row.workspace) continue;
-      byTask.set(String(r.task_id), [...(byTask.get(String(r.task_id)) ?? []), r]);
+      if (
+        r.source !== JUDGE_CASE_SOURCE ||
+        !r.case_of ||
+        !r.task_id ||
+        r.task_id === row.task_id ||
+        r.workspace !== row.workspace
+      )
+        continue;
+      byTask.set(String(r.task_id), [
+        ...(byTask.get(String(r.task_id)) ?? []),
+        r,
+      ]);
     }
     const candidates: CauseCandidate[] = [];
     for (const [id, rows] of byTask) {
       if (candidates.length >= CASE_CANDIDATES) break;
       const task: Doc<"tasks"> | null = await ctx.db.get(id as Id<"tasks">);
-      if (!task || isTerminalTaskStatus(task.status) || !isJudgeProblem(task.cause)) continue;
-      const facts = await Promise.all(rows.slice(0, CASE_LINES).map((r) => caseFacts(ctx, r)));
+      if (
+        !task ||
+        isTerminalTaskStatus(task.status) ||
+        !isJudgeProblem(task.cause)
+      )
+        continue;
+      const facts = await Promise.all(
+        rows.slice(0, CASE_LINES).map((r) => caseFacts(ctx, r)),
+      );
       // One fix answers one kind of part: a problem whose cases name another never takes this one.
       if (!facts.every((f) => f.against === mine.against)) continue;
-      candidates.push({ task_id: task._id, short_id: task.short_id, title: task.title, subjects: [...new Set(rows.map((r) => r.subject).filter(Boolean) as string[])], signal_count: task.cause?.signal_count ?? rows.length, cases: facts.map((f) => f.gist) });
+      candidates.push({
+        task_id: task._id,
+        short_id: task.short_id,
+        title: task.title,
+        subjects: [
+          ...new Set(rows.map((r) => r.subject).filter(Boolean) as string[]),
+        ],
+        signal_count: task.cause?.signal_count ?? rows.length,
+        cases: facts.map((f) => f.gist),
+      });
     }
     return {
       signal: mine.signal,
-      scope: { workspace: row.workspace, ...(row.team_id ? { team_id: row.team_id } : {}), project_id: row.project_id },
+      scope: {
+        workspace: row.workspace,
+        ...(row.team_id ? { team_id: row.team_id } : {}),
+        project_id: row.project_id,
+      },
       candidates,
     };
   },
@@ -535,17 +851,42 @@ export const caseGroupInputs = internalQuery({
 /** After a case is filed: fold its own problem into the open case problem with the same fix, when the judge names one. */
 export const groupCase = internalAction({
   args: { case_id: v.id("signals"), dry: v.optional(v.boolean()) },
-  handler: async (ctx, args): Promise<{ joined: string | null; reply?: string }> => {
-    const inputs: { signal: SignalInput; scope: any; candidates: CauseCandidate[] } | null = await ctx.runQuery(internal.judgeReview.caseGroupInputs, { case_id: args.case_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ joined: string | null; reply?: string }> => {
+    const inputs: {
+      signal: SignalInput;
+      scope: any;
+      candidates: CauseCandidate[];
+    } | null = await ctx.runQuery(internal.judgeReview.caseGroupInputs, {
+      case_id: args.case_id,
+    });
     if (!inputs?.candidates.length) return { joined: null };
     const req = attachJudgeRequest(inputs.signal, inputs.candidates);
-    const r = await runModelCall(ctx, inputs.scope, "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "json" }, "Case grouping", 20_000);
+    const r = await runModelCall(
+      ctx,
+      inputs.scope,
+      "grouping",
+      {
+        model: req.model,
+        system: req.system,
+        prompt: req.prompt,
+        max_tokens: req.max_tokens,
+        output: "json",
+      },
+      "Case grouping",
+      20_000,
+    );
     const id = r.ok ? parseAttachJudgeReply(r.text, inputs.candidates) : null;
     const reply = r.ok ? r.text : r.error;
     if (!id) return { joined: null, reply };
     const short = inputs.candidates.find((c) => c.task_id === id)!.short_id;
     if (args.dry) return { joined: short, reply };
-    const done: string | null = await ctx.runMutation(internal.judgeReview.joinCase, { case_id: args.case_id, task_id: id });
+    const done: string | null = await ctx.runMutation(
+      internal.judgeReview.joinCase,
+      { case_id: args.case_id, task_id: id },
+    );
     return { joined: done, reply };
   },
 });
@@ -555,15 +896,37 @@ export const joinCase = internalMutation({
   args: { case_id: v.id("signals"), task_id: v.id("tasks") },
   handler: async (ctx, args): Promise<string | null> => {
     const row: Doc<"signals"> | null = await ctx.db.get(args.case_id);
-    const own: Doc<"tasks"> | null = row?.task_id ? await ctx.db.get(row.task_id) : null;
+    const own: Doc<"tasks"> | null = row?.task_id
+      ? await ctx.db.get(row.task_id)
+      : null;
     const into: Doc<"tasks"> | null = await ctx.db.get(args.task_id);
-    if (!row || !own || !into || own._id === into._id || isTerminalTaskStatus(own.status) || isTerminalTaskStatus(into.status) || !isJudgeProblem(into.cause)) return null;
-    const held: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", own._id)).collect();
+    if (
+      !row ||
+      !own ||
+      !into ||
+      own._id === into._id ||
+      isTerminalTaskStatus(own.status) ||
+      isTerminalTaskStatus(into.status) ||
+      !isJudgeProblem(into.cause)
+    )
+      return null;
+    const held: Doc<"signals">[] = await ctx.db
+      .query("signals")
+      .withIndex("by_task", (q: any) => q.eq("task_id", own._id))
+      .collect();
     if (held.some((r) => r._id !== row._id)) return null;
     const now = Date.now();
     await foldProblem(ctx, row.user_id, own, into, now);
-    await insertTaskComment(ctx, own._id, { author: "line", comment_type: "note", text: `Merged into ${into.short_id}: ${row.short_id} names the same fact, so one fix answers both.` });
-    await insertTaskComment(ctx, into._id, { author: "line", comment_type: "note", text: `${row.short_id} joined from ${own.short_id}: the same fact, so this fix answers it too.` });
+    await insertTaskComment(ctx, own._id, {
+      author: "line",
+      comment_type: "note",
+      text: `Merged into ${into.short_id}: ${row.short_id} names the same fact, so one fix answers both.`,
+    });
+    await insertTaskComment(ctx, into._id, {
+      author: "line",
+      comment_type: "note",
+      text: `${row.short_id} joined from ${own.short_id}: the same fact, so this fix answers it too.`,
+    });
     return into.short_id;
   },
 });
@@ -577,25 +940,64 @@ export const joinCase = internalMutation({
  */
 export const simulateCaseGrouping = internalAction({
   args: { cases: v.array(v.string()) },
-  handler: async (ctx, args): Promise<Array<{ case: string; group: number; reply?: string }>> => {
-    const facts: Array<CaseFacts & { scope: any }> = await ctx.runQuery(internal.judgeReview.caseFactsFor, { cases: args.cases });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Array<{ case: string; group: number; reply?: string }>> => {
+    const facts: Array<CaseFacts & { scope: any }> = await ctx.runQuery(
+      internal.judgeReview.caseFactsFor,
+      { cases: args.cases },
+    );
     const groups: Array<{ against: CaseTarget; members: CaseFacts[] }> = [];
     const out: Array<{ case: string; group: number; reply?: string }> = [];
     for (const f of facts) {
-      const open = groups.map((g, i) => ({ g, i })).filter(({ g }) => g.against === f.against);
+      const open = groups
+        .map((g, i) => ({ g, i }))
+        .filter(({ g }) => g.against === f.against);
       let group = -1;
       let reply: string | undefined;
       if (open.length) {
-        const candidates = open.map(({ g, i }) => ({ task_id: `g${i + 1}` as unknown as Id<"tasks">, short_id: `g${i + 1}`, title: g.members[0]!.signal.title, subjects: [...new Set(g.members.map((m) => m.signal.subject).filter(Boolean) as string[])], signal_count: g.members.length, cases: g.members.map((m) => m.gist) }));
+        const candidates = open.map(({ g, i }) => ({
+          task_id: `g${i + 1}` as unknown as Id<"tasks">,
+          short_id: `g${i + 1}`,
+          title: g.members[0]!.signal.title,
+          subjects: [
+            ...new Set(
+              g.members
+                .map((m) => m.signal.subject)
+                .filter(Boolean) as string[],
+            ),
+          ],
+          signal_count: g.members.length,
+          cases: g.members.map((m) => m.gist),
+        }));
         const req = attachJudgeRequest(f.signal, candidates);
-        const r = await runModelCall(ctx, f.scope, "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "json" }, "Case grouping probe", 20_000);
+        const r = await runModelCall(
+          ctx,
+          f.scope,
+          "grouping",
+          {
+            model: req.model,
+            system: req.system,
+            prompt: req.prompt,
+            max_tokens: req.max_tokens,
+            output: "json",
+          },
+          "Case grouping probe",
+          20_000,
+        );
         reply = r.ok ? r.text : r.error;
         const id = r.ok ? parseAttachJudgeReply(r.text, candidates) : null;
         if (id) group = Number(String(id).slice(1)) - 1;
       }
-      if (group < 0) group = groups.push({ against: f.against, members: [] }) - 1;
+      if (group < 0)
+        group = groups.push({ against: f.against, members: [] }) - 1;
       groups[group]!.members.push(f);
-      out.push({ case: f.short_id, group: group + 1, ...(reply ? { reply } : {}) });
+      out.push({
+        case: f.short_id,
+        group: group + 1,
+        ...(reply ? { reply } : {}),
+      });
     }
     return out;
   },
@@ -607,8 +1009,16 @@ export const caseFactsFor = internalQuery({
     const out: Array<CaseFacts & { scope: any }> = [];
     for (const ref of args.cases) {
       const row = await signalByRef(ctx, ref);
-      if (!row?.case_of) throw new ConvexError(`${ref} is not a case against a judge`);
-      out.push({ ...(await caseFacts(ctx, row)), scope: { workspace: row.workspace, ...(row.team_id ? { team_id: row.team_id } : {}), ...(row.project_id ? { project_id: row.project_id } : {}) } });
+      if (!row?.case_of)
+        throw new ConvexError(`${ref} is not a case against a judge`);
+      out.push({
+        ...(await caseFacts(ctx, row)),
+        scope: {
+          workspace: row.workspace,
+          ...(row.team_id ? { team_id: row.team_id } : {}),
+          ...(row.project_id ? { project_id: row.project_id } : {}),
+        },
+      });
     }
     return out;
   },

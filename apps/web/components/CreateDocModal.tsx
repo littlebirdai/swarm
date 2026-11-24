@@ -1,11 +1,19 @@
 import { useId, useState, useRef } from "react";
-import { useMentionQuery, useActiveMentionScope } from "../hooks/useMentionQuery";
+import {
+  useMentionQuery,
+  useActiveMentionScope,
+} from "../hooks/useMentionQuery";
 import { useImageUpload } from "../hooks/useImageUpload";
 import { useWorkspaceArgs, workspaceStamp } from "../hooks/useWorkspaceArgs";
 import { useInboxStore } from "../store/inboxStore";
 import { toast } from "sonner";
 import { ChevronRight, FileText, Map as MapIcon } from "lucide-react";
-import { CreateDialog, CreateDialogSubtitle, CreateDialogTitle, createChipClass } from "./CreateDialog";
+import {
+  CreateDialog,
+  CreateDialogSubtitle,
+  CreateDialogTitle,
+  createChipClass,
+} from "./CreateDialog";
 import { DocEditor } from "./editor/DocEditor";
 import { RETYPABLE_DOC_TYPES, DOC_TYPE_LABELS } from "@codecast/shared/docs";
 
@@ -27,7 +35,13 @@ const JOIN_POLICY_OPTIONS = [
   { value: "quorum", label: "Quorum (>50%)" },
 ];
 
-export function CreateDocModal({ onClose, initialType }: { onClose: () => void; initialType?: string }) {
+export function CreateDocModal({
+  onClose,
+  initialType,
+}: {
+  onClose: () => void;
+  initialType?: string;
+}) {
   const createDoc = useInboxStore((s) => s.createDoc);
   const createPlan = useInboxStore((s) => s.createPlan);
   // Mentions offered while composing follow the ACTIVE workspace, same strict
@@ -53,7 +67,8 @@ export function CreateDocModal({ onClose, initialType }: { onClose: () => void; 
 
   const isPlan = docType === "plan";
   const fieldId = useId();
-  const selectClass = "w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text focus:outline-none focus:border-sol-cyan appearance-none";
+  const selectClass =
+    "w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text focus:outline-none focus:border-sol-cyan appearance-none";
 
   const handleSubmit = async () => {
     if (!title.trim() || submitting) return;
@@ -64,18 +79,25 @@ export function CreateDocModal({ onClose, initialType }: { onClose: () => void; 
           ? acceptance.trim().split("\n").filter(Boolean)
           : undefined;
         const desc = contentRef.current.trim();
-        const goalText = [goal.trim(), desc].filter(Boolean).join("\n\n") || undefined;
-        await createPlan({
-          title: title.trim(),
-          goal: goalText,
-          status: "active",
-          model_stylesheet: modelStylesheet.trim() || undefined,
-          fidelity: fidelity || undefined,
-          join_policy: joinPolicy || undefined,
-          join_k: joinPolicy === "k_of_n" && joinK ? parseInt(joinK, 10) : undefined,
-          acceptance_criteria: criteria,
-          ...wsStamp,
-        }, { version: 1, kind: "navigate" });
+        const goalText =
+          [goal.trim(), desc].filter(Boolean).join("\n\n") || undefined;
+        await createPlan(
+          {
+            title: title.trim(),
+            goal: goalText,
+            status: "active",
+            model_stylesheet: modelStylesheet.trim() || undefined,
+            fidelity: fidelity || undefined,
+            join_policy: joinPolicy || undefined,
+            join_k:
+              joinPolicy === "k_of_n" && joinK
+                ? parseInt(joinK, 10)
+                : undefined,
+            acceptance_criteria: criteria,
+            ...wsStamp,
+          },
+          { version: 1, kind: "navigate" },
+        );
         toast.success("Plan created");
         onClose();
       } else {
@@ -95,128 +117,191 @@ export function CreateDocModal({ onClose, initialType }: { onClose: () => void; 
 
   return (
     <CreateDialog
-      icon={isPlan ? <MapIcon className="h-3 w-3 text-sol-yellow" /> : <FileText className="h-3 w-3 text-sol-text-muted" />}
+      icon={
+        isPlan ? (
+          <MapIcon className="h-3 w-3 text-sol-yellow" />
+        ) : (
+          <FileText className="h-3 w-3 text-sol-text-muted" />
+        )
+      }
       noun={isPlan ? "plan" : "doc"}
       onClose={onClose}
       onSubmit={handleSubmit}
       canSubmit={!!title.trim() && !submitting}
-      submitLabel={submitting ? "Creating…" : isPlan ? "Create plan" : "Create doc"}
+      submitLabel={
+        submitting ? "Creating…" : isPlan ? "Create plan" : "Create doc"
+      }
       width="lg"
     >
-        <div className="px-5 pt-3">
-          <CreateDialogTitle
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={isPlan ? "Plan title" : "Doc title"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) e.preventDefault();
-            }}
+      <div className="px-5 pt-3">
+        <CreateDialogTitle
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={isPlan ? "Plan title" : "Doc title"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey)
+              e.preventDefault();
+          }}
+        />
+      </div>
+
+      {isPlan && (
+        <div className="px-5 pt-1.5">
+          <CreateDialogSubtitle
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="Goal (optional)"
           />
         </div>
+      )}
 
-        {isPlan && (
-          <div className="px-5 pt-1.5">
-            <CreateDialogSubtitle
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="Goal (optional)"
+      <div className="px-5 pb-3 pt-1 min-h-[260px] max-h-[50vh] overflow-y-auto doc-editor-compact">
+        <DocEditor
+          content=""
+          onUpdate={(md) => {
+            contentRef.current = md;
+          }}
+          onMentionQuery={handleMentionQuery}
+          onImageUpload={handleImageUpload}
+          placeholder={
+            isPlan
+              ? "Add details... use @ to mention, paste images"
+              : "Start writing... use @ to mention, paste images"
+          }
+          className="text-sm"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 px-5 pb-3.5">
+        {RETYPABLE_DOC_TYPES.map((dt) => (
+          <button
+            key={dt}
+            type="button"
+            onClick={() => setDocType(dt)}
+            aria-pressed={docType === dt}
+            className={createChipClass(docType === dt)}
+          >
+            {DOC_TYPE_LABELS[dt]}
+          </button>
+        ))}
+      </div>
+
+      {isPlan && (
+        <div className="px-5 pb-3.5">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-cyan transition-colors"
+          >
+            <ChevronRight
+              className={`w-3 h-3 transition-transform ${showAdvanced ? "rotate-90" : ""}`}
             />
-          </div>
-        )}
+            Workflow config
+          </button>
 
-        <div className="px-5 pb-3 pt-1 min-h-[260px] max-h-[50vh] overflow-y-auto doc-editor-compact">
-          <DocEditor
-            content=""
-            onUpdate={(md) => { contentRef.current = md; }}
-            onMentionQuery={handleMentionQuery}
-            onImageUpload={handleImageUpload}
-            placeholder={isPlan ? "Add details... use @ to mention, paste images" : "Start writing... use @ to mention, paste images"}
-            className="text-sm"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 px-5 pb-3.5">
-          {RETYPABLE_DOC_TYPES.map((dt) => (
-            <button
-              key={dt}
-              type="button"
-              onClick={() => setDocType(dt)}
-              aria-pressed={docType === dt}
-              className={createChipClass(docType === dt)}
-            >
-              {DOC_TYPE_LABELS[dt]}
-            </button>
-          ))}
-        </div>
-
-        {isPlan && (
-          <div className="px-5 pb-3.5">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-cyan transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 transition-transform ${showAdvanced ? "rotate-90" : ""}`} />
-              Workflow config
-            </button>
-
-            {showAdvanced && (
-              <div className="space-y-2 pl-1 border-l-2 border-sol-border/20 ml-1 mt-2">
-                <div>
-                  <label htmlFor={`${fieldId}-acceptance`} className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">Acceptance Criteria</label>
-                  <textarea
-                    id={`${fieldId}-acceptance`}
-                    value={acceptance}
-                    onChange={(e) => setAcceptance(e.target.value)}
-                    placeholder={"One criterion per line...\ne.g. All tests pass\ne.g. No new lint warnings"}
-                    rows={3}
-                    className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim/50 focus:outline-none focus:border-sol-cyan resize-none mt-0.5 font-mono"
-                  />
-                </div>
-                <div>
-                  <label htmlFor={`${fieldId}-stylesheet`} className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">Model Stylesheet</label>
-                  <textarea
-                    id={`${fieldId}-stylesheet`}
-                    value={modelStylesheet}
-                    onChange={(e) => setModelStylesheet(e.target.value)}
-                    placeholder={"CSS-like model routing rules...\ne.g. * { model: sonnet }\n#planning { model: opus }"}
-                    rows={3}
-                    className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim/50 focus:outline-none focus:border-sol-cyan resize-none mt-0.5 font-mono"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label htmlFor={`${fieldId}-fidelity`} className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">Fidelity</label>
-                    <select id={`${fieldId}-fidelity`} value={fidelity} onChange={(e) => setFidelity(e.target.value)} className={selectClass + " mt-0.5"}>
-                      {FIDELITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label htmlFor={`${fieldId}-join`} className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">Join Policy</label>
-                    <select id={`${fieldId}-join`} value={joinPolicy} onChange={(e) => setJoinPolicy(e.target.value)} className={selectClass + " mt-0.5"}>
-                      {JOIN_POLICY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  {joinPolicy === "k_of_n" && (
-                    <div className="w-16">
-                      <label htmlFor={`${fieldId}-k`} className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">K</label>
-                      <input
-                        id={`${fieldId}-k`}
-                        type="number"
-                        min={1}
-                        value={joinK}
-                        onChange={(e) => setJoinK(e.target.value)}
-                        placeholder="K"
-                        className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text focus:outline-none focus:border-sol-cyan mt-0.5"
-                      />
-                    </div>
-                  )}
-                </div>
+          {showAdvanced && (
+            <div className="space-y-2 pl-1 border-l-2 border-sol-border/20 ml-1 mt-2">
+              <div>
+                <label
+                  htmlFor={`${fieldId}-acceptance`}
+                  className="text-mark font-medium text-sol-text-dim uppercase tracking-wide"
+                >
+                  Acceptance Criteria
+                </label>
+                <textarea
+                  id={`${fieldId}-acceptance`}
+                  value={acceptance}
+                  onChange={(e) => setAcceptance(e.target.value)}
+                  placeholder={
+                    "One criterion per line...\ne.g. All tests pass\ne.g. No new lint warnings"
+                  }
+                  rows={3}
+                  className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim/50 focus:outline-none focus:border-sol-cyan resize-none mt-0.5 font-mono"
+                />
               </div>
-            )}
-          </div>
-        )}
-
+              <div>
+                <label
+                  htmlFor={`${fieldId}-stylesheet`}
+                  className="text-mark font-medium text-sol-text-dim uppercase tracking-wide"
+                >
+                  Model Stylesheet
+                </label>
+                <textarea
+                  id={`${fieldId}-stylesheet`}
+                  value={modelStylesheet}
+                  onChange={(e) => setModelStylesheet(e.target.value)}
+                  placeholder={
+                    "CSS-like model routing rules...\ne.g. * { model: sonnet }\n#planning { model: opus }"
+                  }
+                  rows={3}
+                  className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text placeholder:text-sol-text-dim/50 focus:outline-none focus:border-sol-cyan resize-none mt-0.5 font-mono"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label
+                    htmlFor={`${fieldId}-fidelity`}
+                    className="text-mark font-medium text-sol-text-dim uppercase tracking-wide"
+                  >
+                    Fidelity
+                  </label>
+                  <select
+                    id={`${fieldId}-fidelity`}
+                    value={fidelity}
+                    onChange={(e) => setFidelity(e.target.value)}
+                    className={selectClass + " mt-0.5"}
+                  >
+                    {FIDELITY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label
+                    htmlFor={`${fieldId}-join`}
+                    className="text-mark font-medium text-sol-text-dim uppercase tracking-wide"
+                  >
+                    Join Policy
+                  </label>
+                  <select
+                    id={`${fieldId}-join`}
+                    value={joinPolicy}
+                    onChange={(e) => setJoinPolicy(e.target.value)}
+                    className={selectClass + " mt-0.5"}
+                  >
+                    {JOIN_POLICY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {joinPolicy === "k_of_n" && (
+                  <div className="w-16">
+                    <label
+                      htmlFor={`${fieldId}-k`}
+                      className="text-mark font-medium text-sol-text-dim uppercase tracking-wide"
+                    >
+                      K
+                    </label>
+                    <input
+                      id={`${fieldId}-k`}
+                      type="number"
+                      min={1}
+                      value={joinK}
+                      onChange={(e) => setJoinK(e.target.value)}
+                      placeholder="K"
+                      className="w-full text-xs px-2 py-1.5 rounded-lg bg-sol-bg border border-sol-border/50 text-sol-text focus:outline-none focus:border-sol-cyan mt-0.5"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </CreateDialog>
   );
 }

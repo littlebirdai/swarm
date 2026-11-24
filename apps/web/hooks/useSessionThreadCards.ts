@@ -19,17 +19,18 @@ import { useCoarseNow } from "./useCoarseNow";
  *  is off. Dep list mirrors hooks/useNeedsInputCount. */
 export function useSessionThreadCards(enabled: boolean): ThreadCardModel[] {
   const s = useTrackedStore([
-    s => sessionsWakeSig(s.sessions),
-    s => s.sessionsWithQueuedMessages,
-    s => s.blockedReviveRequestedAt,
-    s => pendingSendWakeSig(s.pendingMessages),
-    s => s.currentUser?._id,
-    s => resolveShowOld(s.clientState.ui),
+    (s) => sessionsWakeSig(s.sessions),
+    (s) => s.sessionsWithQueuedMessages,
+    (s) => s.blockedReviveRequestedAt,
+    (s) => pendingSendWakeSig(s.pendingMessages),
+    (s) => s.currentUser?._id,
+    (s) => resolveShowOld(s.clientState.ui),
   ]);
   const meId = s.currentUser?._id;
   // The chokepoint's time-driven flips (trust TTL, revive expiry, the epoch)
   // ride its deadline signature; a coarse clock keeps them honest.
   const coarseNow = useCoarseNow(15_000);
+  // oxfmt-ignore
   return useMemo(() => {
     if (!enabled) return [];
     const placed = placeInboxRows(s as any, { scope: "mine", now: coarseNow });

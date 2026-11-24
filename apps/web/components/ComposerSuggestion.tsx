@@ -1,6 +1,12 @@
 "use client";
 
-import { forwardRef, memo, useCallback, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { useComposerSuggestion } from "../hooks/useComposerSuggestion";
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -36,60 +42,83 @@ export interface ComposerSuggestionHandle {
   settleSend(text: string): void;
 }
 
-export const ComposerSuggestion = memo(forwardRef<ComposerSuggestionHandle, {
-  conversationId: string;
-  // The session is waiting on the user (not streaming, not mid-task).
-  idle: boolean;
-  // Composer holds text/images — keep hooks alive but render nothing.
-  hidden: boolean;
-  onAccept: (text: string) => void;
-  // The ghost text on show, null on hide: the composer blanks its own
-  // placeholder while the ghost is showing and lays its row out for the
-  // ghost's words as it would for typed ones.
-  onShownChange?: (text: string | null) => void;
-}>(function ComposerSuggestion({ conversationId, idle, hidden, onAccept, onShownChange }, ref) {
-  const { text, accept: take, settleSend } = useComposerSuggestion({ conversationId, idle, hidden });
-  const visible = text !== null;
-  useWatchEffect(() => { onShownChange?.(text); }, [text, onShownChange]);
+export const ComposerSuggestion = memo(
+  forwardRef<
+    ComposerSuggestionHandle,
+    {
+      conversationId: string;
+      // The session is waiting on the user (not streaming, not mid-task).
+      idle: boolean;
+      // Composer holds text/images — keep hooks alive but render nothing.
+      hidden: boolean;
+      onAccept: (text: string) => void;
+      // The ghost text on show, null on hide: the composer blanks its own
+      // placeholder while the ghost is showing and lays its row out for the
+      // ghost's words as it would for typed ones.
+      onShownChange?: (text: string | null) => void;
+    }
+  >(function ComposerSuggestion(
+    { conversationId, idle, hidden, onAccept, onShownChange },
+    ref,
+  ) {
+    const {
+      text,
+      accept: take,
+      settleSend,
+    } = useComposerSuggestion({ conversationId, idle, hidden });
+    const visible = text !== null;
+    useWatchEffect(() => {
+      onShownChange?.(text);
+    }, [text, onShownChange]);
 
-  const accept = useCallback(() => {
-    const t = take();
-    if (t === null) return false;
-    onAccept(t);
-    return true;
-  }, [take, onAccept]);
+    const accept = useCallback(() => {
+      const t = take();
+      if (t === null) return false;
+      onAccept(t);
+      return true;
+    }, [take, onAccept]);
 
-  const visibleRef = useRef(visible);
-  visibleRef.current = visible;
-  useImperativeHandle(ref, () => ({
-    visible: () => visibleRef.current,
-    accept,
-    settleSend,
-  }), [accept, settleSend]);
+    const visibleRef = useRef(visible);
+    visibleRef.current = visible;
+    useImperativeHandle(
+      ref,
+      () => ({
+        visible: () => visibleRef.current,
+        accept,
+        settleSend,
+      }),
+      [accept, settleSend],
+    );
 
-  if (!visible) return null;
+    if (!visible) return null;
 
-  // Stacked on the textarea in the same grid cell, in its font and rhythm, so
-  // the ghost sits exactly where typed words would — and inert to the
-  // pointer, so a click into the box focuses it as ever and never inserts
-  // text by accident. The Tab cap is the one live spot: the key it names,
-  // for a mouse; it holds the first line's height so it centres on that line
-  // whether the text wraps or not.
-  return (
-    <div data-composer-ghost className="pointer-events-none [grid-area:1/1] flex items-start gap-2 py-1 min-w-0 text-sm leading-relaxed animate-in fade-in-0 duration-200">
-      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sol-text-dim">{text}</span>
-      <span className="shrink-0 flex items-center gap-1.5 h-[calc(0.875rem*1.625)] text-meta text-sol-text-dim/70 select-none">
-        <button
-          type="button"
-          // preventDefault so the composer keeps focus through the click.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={accept}
-          title="Insert this suggestion"
-          className="pointer-events-auto flex rounded-[4px] transition-opacity hover:opacity-70"
-        >
-          <KeyCap size="xs">Tab</KeyCap>
-        </button>
-      </span>
-    </div>
-  );
-}));
+    // Stacked on the textarea in the same grid cell, in its font and rhythm, so
+    // the ghost sits exactly where typed words would — and inert to the
+    // pointer, so a click into the box focuses it as ever and never inserts
+    // text by accident. The Tab cap is the one live spot: the key it names,
+    // for a mouse; it holds the first line's height so it centres on that line
+    // whether the text wraps or not.
+    return (
+      <div
+        data-composer-ghost
+        className="pointer-events-none [grid-area:1/1] flex items-start gap-2 py-1 min-w-0 text-sm leading-relaxed animate-in fade-in-0 duration-200"
+      >
+        <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sol-text-dim">
+          {text}
+        </span>
+        <span className="shrink-0 flex items-center gap-1.5 h-[calc(0.875rem*1.625)] text-meta text-sol-text-dim/70 select-none">
+          <button
+            type="button"
+            // preventDefault so the composer keeps focus through the click.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={accept}
+            title="Insert this suggestion"
+            className="pointer-events-auto flex rounded-[4px] transition-opacity hover:opacity-70"
+          >
+            <KeyCap size="xs">Tab</KeyCap>
+          </button>
+        </span>
+      </div>
+    );
+  }),
+);

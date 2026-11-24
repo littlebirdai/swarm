@@ -36,7 +36,13 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import { action, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { consumePresence, grantChallengeId, grantString } from "./lib/presence";
@@ -73,7 +79,8 @@ export function rpIdFor(origin: string): string {
 
 /** The relying party a ceremony runs for: the caller's origin's, which must be one passkeys run on, or the web's when it names none (a desktop or phone handing off). */
 function ceremonyRp(origin?: string): { rp_id: string } | { error: string } {
-  if (origin && !passkeyOrigins().has(origin)) return { error: `Touch ID runs on ${siteUrl()} only` };
+  if (origin && !passkeyOrigins().has(origin))
+    return { error: `Touch ID runs on ${siteUrl()} only` };
   return { rp_id: rpIdFor(origin ?? siteUrl()) };
 }
 
@@ -83,7 +90,8 @@ function ceremonyRp(origin?: string): { rp_id: string } | { error: string } {
  * the hash of the certificate that signed the app; iOS names it by the
  * associated domain, which is the web's origin already.
  */
-const ANDROID_APP_CERT_SHA256 = "F9:B9:DA:55:6A:22:2A:B8:94:40:B3:91:FF:CE:8A:95:73:C8:93:7B:BA:2E:4C:F7:4F:22:D5:BA:4E:1D:A2:85";
+const ANDROID_APP_CERT_SHA256 =
+  "F9:B9:DA:55:6A:22:2A:B8:94:40:B3:91:FF:CE:8A:95:73:C8:93:7B:BA:2E:4C:F7:4F:22:D5:BA:4E:1D:A2:85";
 
 export const androidAppOrigin = (certSha256: string) =>
   `android:apk-key-hash:${isoBase64URL.fromBuffer(Uint8Array.from(certSha256.split(":"), (h) => parseInt(h, 16)))}`;
@@ -91,18 +99,27 @@ export const androidAppOrigin = (certSha256: string) =>
 /** Every origin passkeys run on that answers to this relying party, the phone app's for the web's; none for a relying party they no longer run for. */
 export const originsFor = (rpId: string) => {
   const web = [...passkeyOrigins()].filter((o) => rpIdFor(o) === rpId);
-  return web.length && rpId === rpIdFor(siteUrl()) ? [...web, androidAppOrigin(ANDROID_APP_CERT_SHA256)] : web;
+  return web.length && rpId === rpIdFor(siteUrl())
+    ? [...web, androidAppOrigin(ANDROID_APP_CERT_SHA256)]
+    : web;
 };
 
 /** Whether a passkey may confirm a challenge for this relying party: made for it, and a relying party passkeys still run for. */
-const confirmsFor = (p: Doc<"passkeys">, rpId: string) => p.rp_id === rpId && originsFor(rpId).length > 0;
+const confirmsFor = (p: Doc<"passkeys">, rpId: string) =>
+  p.rp_id === rpId && originsFor(rpId).length > 0;
 
 const OTHER_SITE = "This passkey was made for another site: set up a new one";
 
 // ── Reads ────────────────────────────────────────────────────────────────────
 
-async function passkeysOf(ctx: any, userId: Id<"users">): Promise<Doc<"passkeys">[]> {
-  return await ctx.db.query("passkeys").withIndex("by_user", (q: any) => q.eq("user_id", userId)).collect();
+async function passkeysOf(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<Doc<"passkeys">[]> {
+  return await ctx.db
+    .query("passkeys")
+    .withIndex("by_user", (q: any) => q.eq("user_id", userId))
+    .collect();
 }
 
 /** The signed-in person's passkeys, newest first. Never the public key. */
@@ -114,19 +131,37 @@ export const list = query({
     const rows = await passkeysOf(ctx, userId);
     return rows
       .sort((a, b) => b.created_at - a.created_at)
-      .map((r) => ({ _id: String(r._id), name: r.name, created_at: r.created_at, last_used_at: r.last_used_at }));
+      .map((r) => ({
+        _id: String(r._id),
+        name: r.name,
+        created_at: r.created_at,
+        last_used_at: r.last_used_at,
+      }));
   },
 });
 
 /** The WebAuthn options a pending challenge's ceremony runs with, rebuilt from the row so the /confirm page can fetch them by id. */
 async function optionsFor(ctx: any, row: Doc<"passkey_challenges">) {
   const now = Date.now();
-  const passkeys = (await passkeysOf(ctx, row.user_id)).filter((p) => (row.purpose === "presence" ? confirmsFor(p, row.rp_id) : p.rp_id === row.rp_id));
-  const credentials = passkeys.map((p) => ({ id: p.credential_id, transports: p.transports }));
+  const passkeys = (await passkeysOf(ctx, row.user_id)).filter((p) =>
+    row.purpose === "presence"
+      ? confirmsFor(p, row.rp_id)
+      : p.rp_id === row.rp_id,
+  );
+  const credentials = passkeys.map((p) => ({
+    id: p.credential_id,
+    transports: p.transports,
+  }));
   const challenge = isoBase64URL.toBuffer(row.challenge);
   const timeout = PRESENCE_TTL_MS;
   if (row.purpose === "presence") {
-    return await generateAuthenticationOptions({ rpID: row.rp_id, allowCredentials: credentials, challenge, timeout, userVerification: "required" });
+    return await generateAuthenticationOptions({
+      rpID: row.rp_id,
+      allowCredentials: credentials,
+      challenge,
+      timeout,
+      userVerification: "required",
+    });
   }
   // The options reach whoever holds the challenge id, so the account is named by its id, never its email.
   const user = await ctx.db.get(row.user_id);
@@ -140,12 +175,18 @@ async function optionsFor(ctx: any, row: Doc<"passkey_challenges">) {
     timeout,
     attestationType: "none",
     excludeCredentials: credentials,
-    authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+    authenticatorSelection: {
+      residentKey: "preferred",
+      userVerification: "required",
+    },
     supportedAlgorithmIDs: ALGORITHMS,
   });
 }
 
-function stateOf(row: Doc<"passkey_challenges">, now: number): PresenceChallengeState["status"] {
+function stateOf(
+  row: Doc<"passkey_challenges">,
+  now: number,
+): PresenceChallengeState["status"] {
   if (row.status === "used") return "used";
   return row.expires_at <= now ? "expired" : row.status;
 }
@@ -165,7 +206,8 @@ export const challenge = query({
     if (!row) return null;
     const status = stateOf(row, Date.now());
     const open = status === "pending";
-    const owner = String((await getAuthUserId(ctx)) ?? "") === String(row.user_id);
+    const owner =
+      String((await getAuthUserId(ctx)) ?? "") === String(row.user_id);
     return {
       purpose: row.purpose,
       status,
@@ -180,13 +222,22 @@ export const challenge = query({
 // ── Challenges ───────────────────────────────────────────────────────────────
 
 /** What a presence challenge confirms, in a few words, and that the target is the asker's to act on; or why it is not. */
-async function presenceSubject(ctx: any, userId: Id<"users">, action: PresenceAction, target: string): Promise<{ label?: string } | { error: string }> {
-  const missing = { error: "Nothing to confirm: it was removed, or it is not yours" };
+async function presenceSubject(
+  ctx: any,
+  userId: Id<"users">,
+  action: PresenceAction,
+  target: string,
+): Promise<{ label?: string } | { error: string }> {
+  const missing = {
+    error: "Nothing to confirm: it was removed, or it is not yours",
+  };
   if (action === "add_passkey") return target === String(userId) ? {} : missing;
   if (action === "reveal" || action === "ask_first_off") {
     const id = ctx.db.normalizeId("secrets", target);
     const row = id ? await ctx.db.get(id) : null;
-    return row && (await heldKeysFor(ctx, userId)).has(row.workspace) ? { label: row.name } : missing;
+    return row && (await heldKeysFor(ctx, userId)).has(row.workspace)
+      ? { label: row.name }
+      : missing;
   }
   if (action === "approve") {
     // An Ask first read's decision or a run card takes it. Its label is the Vault's words or the command, never the question the asking agent may edit.
@@ -199,13 +250,21 @@ async function presenceSubject(ctx: any, userId: Id<"users">, action: PresenceAc
     }
     if (String(row.user_id) !== String(userId)) return missing;
     const approval = await pendingApproval(ctx, row._id);
-    if (!approval) return { error: "Only an Ask first read or a Run card takes Touch ID" };
-    const [secret, conversation] = await Promise.all([ctx.db.get(approval.secret_id), ctx.db.get(approval.conversation_id)]);
-    return secret && conversation ? { label: `${secret.name} for ${conversation.short_id ?? "a session"}` } : missing;
+    if (!approval)
+      return { error: "Only an Ask first read or a Run card takes Touch ID" };
+    const [secret, conversation] = await Promise.all([
+      ctx.db.get(approval.secret_id),
+      ctx.db.get(approval.conversation_id),
+    ]);
+    return secret && conversation
+      ? { label: `${secret.name} for ${conversation.short_id ?? "a session"}` }
+      : missing;
   }
   const id = ctx.db.normalizeId("passkeys", target);
   const row = id ? await ctx.db.get(id) : null;
-  return row && String(row.user_id) === String(userId) ? { label: row.name } : missing;
+  return row && String(row.user_id) === String(userId)
+    ? { label: row.name }
+    : missing;
 }
 
 export const openChallenge = internalMutation({
@@ -227,18 +286,37 @@ export const openChallenge = internalMutation({
     let label: string | undefined;
     let authorized_by: Id<"passkey_challenges"> | undefined;
     if (args.purpose === "register") {
-      if (passkeys.length >= MAX_PASSKEYS) return { error: `You have ${MAX_PASSKEYS} passkeys: remove one in Settings first` };
+      if (passkeys.length >= MAX_PASSKEYS)
+        return {
+          error: `You have ${MAX_PASSKEYS} passkeys: remove one in Settings first`,
+        };
       // A second passkey is one more way to confirm as this person, so adding it spends a grant the first earned, here, before any ceremony.
       if (passkeys.length) {
-        const refusal = await consumePresence(ctx, args.user_id, "add_passkey", String(args.user_id), args.grant);
+        const refusal = await consumePresence(
+          ctx,
+          args.user_id,
+          "add_passkey",
+          String(args.user_id),
+          args.grant,
+        );
         if (refusal) return { error: refusal };
         authorized_by = grantChallengeId(ctx, args.grant)!;
       }
     } else {
       const here = passkeys.filter((p) => p.rp_id === args.rp_id);
-      if (!here.length) return { error: "Set up Touch ID first: you have no passkey here yet", needs_passkey: true };
-      if (!here.some((p) => confirmsFor(p, args.rp_id))) return { error: OTHER_SITE };
-      const subject = await presenceSubject(ctx, args.user_id, args.action!, args.target!);
+      if (!here.length)
+        return {
+          error: "Set up Touch ID first: you have no passkey here yet",
+          needs_passkey: true,
+        };
+      if (!here.some((p) => confirmsFor(p, args.rp_id)))
+        return { error: OTHER_SITE };
+      const subject = await presenceSubject(
+        ctx,
+        args.user_id,
+        args.action!,
+        args.target!,
+      );
       if ("error" in subject) return subject;
       label = subject.label;
     }
@@ -257,11 +335,16 @@ export const openChallenge = internalMutation({
       expires_at: now + PRESENCE_TTL_MS,
     });
     const row = (await ctx.db.get(id))!;
-    return { challenge_id: String(id), options: await optionsFor(ctx, row), expires_at: row.expires_at };
+    return {
+      challenge_id: String(id),
+      options: await optionsFor(ctx, row),
+      expires_at: row.expires_at,
+    };
   },
 });
 
-const random32 = () => isoBase64URL.fromBuffer(crypto.getRandomValues(new Uint8Array(32)));
+const random32 = () =>
+  isoBase64URL.fromBuffer(crypto.getRandomValues(new Uint8Array(32)));
 
 /**
  * Start enrolling a passkey for the signed-in person. `origin` is the page
@@ -276,7 +359,13 @@ export const registrationBegin = action({
     if (!userId) return { error: "Sign in to codecast to set up Touch ID" };
     const rp = ceremonyRp(args.origin);
     if ("error" in rp) return rp;
-    return await ctx.runMutation(internal.passkeys.openChallenge, { user_id: userId, purpose: "register", challenge: random32(), rp_id: rp.rp_id, grant: args.grant });
+    return await ctx.runMutation(internal.passkeys.openChallenge, {
+      user_id: userId,
+      purpose: "register",
+      challenge: random32(),
+      rp_id: rp.rp_id,
+      grant: args.grant,
+    });
   },
 });
 
@@ -289,12 +378,20 @@ export const registrationBegin = action({
  * passkey to assert with yet.
  */
 export const presenceBegin = action({
-  args: { action: actionValidator, target: v.optional(v.string()), origin: v.optional(v.string()) },
+  args: {
+    action: actionValidator,
+    target: v.optional(v.string()),
+    origin: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<any> => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { error: "Sign in to codecast to confirm with Touch ID" };
+    if (!userId)
+      return { error: "Sign in to codecast to confirm with Touch ID" };
     const target = args.action === "add_passkey" ? String(userId) : args.target;
-    if (!target) return { error: "Name what to confirm: the secret, the decision or the passkey" };
+    if (!target)
+      return {
+        error: "Name what to confirm: the secret, the decision or the passkey",
+      };
     const rp = ceremonyRp(args.origin);
     if ("error" in rp) return rp;
     const secret = random32();
@@ -307,7 +404,9 @@ export const presenceBegin = action({
       rp_id: rp.rp_id,
       grant_hash: await sha256Hex(secret),
     });
-    return "error" in opened ? opened : { ...opened, grant: grantString(opened.challenge_id, secret) };
+    return "error" in opened
+      ? opened
+      : { ...opened, grant: grantString(opened.challenge_id, secret) };
   },
 });
 
@@ -319,16 +418,33 @@ export const ceremony = internalQuery({
     if (!row) return null;
     // Only a passkey of the person who asked answers their challenge.
     const passkey = args.credential_id
-      ? await ctx.db.query("passkeys").withIndex("by_credential", (q) => q.eq("credential_id", args.credential_id!)).first()
+      ? await ctx.db
+          .query("passkeys")
+          .withIndex("by_credential", (q) =>
+            q.eq("credential_id", args.credential_id!),
+          )
+          .first()
       : null;
-    return { row, passkey: passkey && String(passkey.user_id) === String(row.user_id) ? passkey : null };
+    return {
+      row,
+      passkey:
+        passkey && String(passkey.user_id) === String(row.user_id)
+          ? passkey
+          : null,
+    };
   },
 });
 
 /** Why this challenge cannot take a ceremony now, or null. */
-function closedReason(row: Doc<"passkey_challenges"> | undefined | null, purpose: Doc<"passkey_challenges">["purpose"], now: number): string | null {
-  if (!row || row.purpose !== purpose) return "This confirmation is not open: start again";
-  if (row.status !== "pending") return "This confirmation was already used: start again";
+function closedReason(
+  row: Doc<"passkey_challenges"> | undefined | null,
+  purpose: Doc<"passkey_challenges">["purpose"],
+  now: number,
+): string | null {
+  if (!row || row.purpose !== purpose)
+    return "This confirmation is not open: start again";
+  if (row.status !== "pending")
+    return "This confirmation was already used: start again";
   if (row.expires_at <= now) return "This confirmation expired: start again";
   return null;
 }
@@ -351,12 +467,20 @@ export const storePasskey = internalMutation({
     if (closed) return { error: closed };
     await ctx.db.patch(row!._id, { status: "used" });
     const userId = row!.user_id;
-    if (await ctx.db.query("passkeys").withIndex("by_credential", (q) => q.eq("credential_id", args.credential_id)).first()) {
+    if (
+      await ctx.db
+        .query("passkeys")
+        .withIndex("by_credential", (q) =>
+          q.eq("credential_id", args.credential_id),
+        )
+        .first()
+    ) {
       return { error: "This passkey is already set up" };
     }
     // A passkey added since this enrollment began makes it a second one, which only a grant spent at the begin lets in.
     const existing = await passkeysOf(ctx, userId);
-    if (existing.length && !row!.authorized_by) return { error: presenceRequiredMessage("add_passkey") };
+    if (existing.length && !row!.authorized_by)
+      return { error: presenceRequiredMessage("add_passkey") };
     const id = await ctx.db.insert("passkeys", {
       user_id: userId,
       credential_id: args.credential_id,
@@ -388,14 +512,26 @@ export const storePasskey = internalMutation({
  * codecast session; a signed-in caller must be the person who began it.
  */
 export const registrationFinish = action({
-  args: { challenge_id: v.string(), response: v.any(), name: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ id: string; name: string; first: boolean } | { error: string }> => {
-    const got = await ctx.runQuery(internal.passkeys.ceremony, { challenge_id: args.challenge_id });
+  args: {
+    challenge_id: v.string(),
+    response: v.any(),
+    name: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    { id: string; name: string; first: boolean } | { error: string }
+  > => {
+    const got = await ctx.runQuery(internal.passkeys.ceremony, {
+      challenge_id: args.challenge_id,
+    });
     const closed = closedReason(got?.row, "register", Date.now());
     if (closed) return { error: closed };
     const row = got!.row;
     const caller = await getAuthUserId(ctx);
-    if (caller && String(caller) !== String(row.user_id)) return { error: "This confirmation belongs to another account" };
+    if (caller && String(caller) !== String(row.user_id))
+      return { error: "This confirmation belongs to another account" };
     let verified;
     try {
       verified = await verifyRegistrationResponse({
@@ -407,9 +543,12 @@ export const registrationFinish = action({
         supportedAlgorithmIDs: ALGORITHMS,
       });
     } catch (e) {
-      return { error: `The passkey could not be verified: ${(e as Error).message}` };
+      return {
+        error: `The passkey could not be verified: ${(e as Error).message}`,
+      };
     }
-    if (!verified.verified) return { error: "The passkey could not be verified" };
+    if (!verified.verified)
+      return { error: "The passkey could not be verified" };
     const { credential } = verified.registrationInfo;
     return await ctx.runMutation(internal.passkeys.storePasskey, {
       challenge_id: row._id,
@@ -425,20 +564,34 @@ export const registrationFinish = action({
 // ── Presence ─────────────────────────────────────────────────────────────────
 
 export const grantPresence = internalMutation({
-  args: { challenge_id: v.id("passkey_challenges"), passkey_id: v.id("passkeys"), counter: v.number() },
+  args: {
+    challenge_id: v.id("passkey_challenges"),
+    passkey_id: v.id("passkeys"),
+    counter: v.number(),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     const row = await ctx.db.get(args.challenge_id);
     const closed = closedReason(row, "presence", now);
     if (closed) return { error: closed };
     const passkey = await ctx.db.get(args.passkey_id);
-    if (!passkey || String(passkey.user_id) !== String(row!.user_id)) return { error: "This passkey is not set up for the account that asked" };
+    if (!passkey || String(passkey.user_id) !== String(row!.user_id))
+      return { error: "This passkey is not set up for the account that asked" };
     if (!confirmsFor(passkey, row!.rp_id)) return { error: OTHER_SITE };
     // A signature count that fails to rise means the key was copied: an authenticator that counts never repeats one.
-    if ((args.counter > 0 || passkey.counter > 0) && args.counter <= passkey.counter) {
-      return { error: "This passkey's signature count went backwards, so it may have been copied: remove it in Settings and set up a new one" };
+    if (
+      (args.counter > 0 || passkey.counter > 0) &&
+      args.counter <= passkey.counter
+    ) {
+      return {
+        error:
+          "This passkey's signature count went backwards, so it may have been copied: remove it in Settings and set up a new one",
+      };
     }
-    await ctx.db.patch(passkey._id, { counter: args.counter, last_used_at: now });
+    await ctx.db.patch(passkey._id, {
+      counter: args.counter,
+      last_used_at: now,
+    });
     const expires_at = now + PRESENCE_TTL_MS;
     await ctx.db.patch(row!._id, { status: "granted", expires_at });
     return { granted: true as const, action: row!.action!, expires_at };
@@ -453,13 +606,24 @@ export const grantPresence = internalMutation({
  */
 export const presenceFinish = action({
   args: { challenge_id: v.string(), response: v.any() },
-  handler: async (ctx, args): Promise<{ granted: true; action: PresenceAction; expires_at: number } | { error: string }> => {
-    const credentialId = typeof args.response?.id === "string" ? args.response.id : undefined;
-    const got = await ctx.runQuery(internal.passkeys.ceremony, { challenge_id: args.challenge_id, credential_id: credentialId });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { granted: true; action: PresenceAction; expires_at: number }
+    | { error: string }
+  > => {
+    const credentialId =
+      typeof args.response?.id === "string" ? args.response.id : undefined;
+    const got = await ctx.runQuery(internal.passkeys.ceremony, {
+      challenge_id: args.challenge_id,
+      credential_id: credentialId,
+    });
     const closed = closedReason(got?.row, "presence", Date.now());
     if (closed) return { error: closed };
     const { row, passkey } = got!;
-    if (!passkey || passkey.rp_id !== row.rp_id) return { error: "This passkey is not set up for the account that asked" };
+    if (!passkey || passkey.rp_id !== row.rp_id)
+      return { error: "This passkey is not set up for the account that asked" };
     let verified;
     try {
       verified = await verifyAuthenticationResponse({
@@ -467,13 +631,21 @@ export const presenceFinish = action({
         expectedChallenge: row.challenge,
         expectedOrigin: originsFor(row.rp_id),
         expectedRPID: row.rp_id,
-        credential: { id: passkey.credential_id, publicKey: isoBase64URL.toBuffer(passkey.public_key), counter: passkey.counter, transports: passkey.transports as any },
+        credential: {
+          id: passkey.credential_id,
+          publicKey: isoBase64URL.toBuffer(passkey.public_key),
+          counter: passkey.counter,
+          transports: passkey.transports as any,
+        },
         requireUserVerification: true,
       });
     } catch (e) {
-      return { error: `The passkey could not be verified: ${(e as Error).message}` };
+      return {
+        error: `The passkey could not be verified: ${(e as Error).message}`,
+      };
     }
-    if (!verified.verified) return { error: "The passkey could not be verified" };
+    if (!verified.verified)
+      return { error: "The passkey could not be verified" };
     return await ctx.runMutation(internal.passkeys.grantPresence, {
       challenge_id: row._id,
       passkey_id: passkey._id,
@@ -485,7 +657,12 @@ export const presenceFinish = action({
 // ── Managing ─────────────────────────────────────────────────────────────────
 
 /** A passkey change, on the bell and pushed to the phone: a channel an agent at the person's laptop cannot dismiss before they see it. */
-async function tellOwner(ctx: any, userId: Id<"users">, message: string, body?: string) {
+async function tellOwner(
+  ctx: any,
+  userId: Id<"users">,
+  message: string,
+  body?: string,
+) {
   await emitNotification(ctx, {
     event_type: "passkey_changed",
     actor_name: "Codecast",
@@ -498,12 +675,16 @@ async function tellOwner(ctx: any, userId: Id<"users">, message: string, body?: 
   });
 }
 
-async function ownPasskey(ctx: any, ref: string): Promise<{ userId: Id<"users">; row: Doc<"passkeys"> } | { error: string }> {
+async function ownPasskey(
+  ctx: any,
+  ref: string,
+): Promise<{ userId: Id<"users">; row: Doc<"passkeys"> } | { error: string }> {
   const userId = await getAuthUserId(ctx);
   if (!userId) return { error: "Sign in to codecast to manage passkeys" };
   const id = ctx.db.normalizeId("passkeys", ref);
   const row = id ? await ctx.db.get(id) : null;
-  if (!row || String(row.user_id) !== String(userId)) return { error: "No such passkey" };
+  if (!row || String(row.user_id) !== String(userId))
+    return { error: "No such passkey" };
   return { userId, row };
 }
 
@@ -528,7 +709,13 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const got = await ownPasskey(ctx, args.id);
     if ("error" in got) return got;
-    const refusal = await consumePresence(ctx, got.userId, "remove_passkey", String(got.row._id), args.grant);
+    const refusal = await consumePresence(
+      ctx,
+      got.userId,
+      "remove_passkey",
+      String(got.row._id),
+      args.grant,
+    );
     if (refusal) return { error: refusal };
     await ctx.db.delete(got.row._id);
     await tellOwner(ctx, got.userId, `Touch ID removed: ${got.row.name}`);
@@ -540,7 +727,10 @@ export const remove = mutation({
 export const purgeExpiredChallenges = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const rows = await ctx.db.query("passkey_challenges").withIndex("by_expires", (q) => q.lt("expires_at", Date.now())).take(500);
+    const rows = await ctx.db
+      .query("passkey_challenges")
+      .withIndex("by_expires", (q) => q.lt("expires_at", Date.now()))
+      .take(500);
     for (const r of rows) await ctx.db.delete(r._id);
     return { deleted: rows.length };
   },

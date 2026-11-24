@@ -8,7 +8,11 @@
  * host's chip, so laptop and cloud sessions read side by side.
  */
 
-import { AgentStatusPill, ConversationHeaderBar, ConversationHeaderTitle } from "@/components/conversation/ConversationHeaderBar";
+import {
+  AgentStatusPill,
+  ConversationHeaderBar,
+  ConversationHeaderTitle,
+} from "@/components/conversation/ConversationHeaderBar";
 import { ConversationMetadata } from "@/components/conversation/sessionChrome";
 import { AssistantBlock } from "@/components/conversation/blocks/turnBlocks";
 import { CastCommandBlock } from "@/components/conversation/blocks/castBlocks";
@@ -45,17 +49,31 @@ const HOST_CHIP = (
 export function WorkerHeader(_: PartProps) {
   if (!useFilmTime(opened)) return null;
   return (
-    <div {...fly("desk/remote.headCover")} className="absolute inset-0 bg-sol-bg">
+    <div
+      {...fly("desk/remote.headCover")}
+      className="absolute inset-0 bg-sol-bg"
+    >
       <div {...fly("desk/remote.head")} className="h-full">
-      <ConversationHeaderBar
-        title={<ConversationHeaderTitle text={SESSIONS.api.title} />}
-        status={<AgentStatusPill agentStatus="working" />}
-        facts={<>
-          <ConversationMetadata agentType={SESSIONS.api.agent} model={WORKERS.api.model} />
-          {HOST_CHIP}
-        </>}
-        actions={<TmuxAttachPill tmuxSession={TMUX_PANE} agentType={SESSIONS.api.agent} isLive />}
-      />
+        <ConversationHeaderBar
+          title={<ConversationHeaderTitle text={SESSIONS.api.title} />}
+          status={<AgentStatusPill agentStatus="working" />}
+          facts={
+            <>
+              <ConversationMetadata
+                agentType={SESSIONS.api.agent}
+                model={WORKERS.api.model}
+              />
+              {HOST_CHIP}
+            </>
+          }
+          actions={
+            <TmuxAttachPill
+              tmuxSession={TMUX_PANE}
+              agentType={SESSIONS.api.agent}
+              isLive
+            />
+          }
+        />
       </div>
     </div>
   );
@@ -66,25 +84,56 @@ export function WorkerTail({ now }: PartProps) {
   if (!useFilmTime(opened)) return null;
   return (
     <div {...fly("desk/remote.cover")} className="absolute inset-0 bg-sol-bg">
-    <div {...fly("desk/remote.feed")} className="absolute inset-0 flex flex-col justify-end pb-2">
-      {/* Where its conversation began: the lead's task and its plan, the turns the pair showed it boot with. */}
-      <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
-        <WorkerTask which="api" now={now - 60_000} />
-        <WorkerPlan which="api" now={now - 60_000} />
+      <div
+        {...fly("desk/remote.feed")}
+        className="absolute inset-0 flex flex-col justify-end pb-2"
+      >
+        {/* Where its conversation began: the lead's task and its plan, the turns the pair showed it boot with. */}
+        <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
+          <WorkerTask which="api" now={now - 60_000} />
+          <WorkerPlan which="api" now={now - 60_000} />
+        </div>
+        <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
+          <AssistantBlock
+            toolCalls={[TESTS.tool]}
+            toolResults={[TESTS.result]}
+            timestamp={now - 70_000}
+            messageId="hero-m-remote-tests"
+            agentType={SESSIONS.api.agent}
+            showHeader
+          />
+        </div>
+        <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
+          <AssistantBlock
+            content={BEFORE}
+            timestamp={now - 40_000}
+            messageId="hero-m-remote-before"
+            agentType={SESSIONS.api.agent}
+            showHeader={false}
+          />
+        </div>
+        <div
+          {...fly("desk/remote.browse")}
+          className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1"
+        >
+          <CastCommandBlock
+            tool={BROWSE.tool}
+            result={BROWSE.result}
+            defaultExpanded
+          />
+        </div>
+        <div
+          {...fly("desk/remote.after")}
+          className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1"
+        >
+          <AssistantBlock
+            content={AFTER}
+            timestamp={now - 4_000}
+            messageId="hero-m-remote-after"
+            agentType={SESSIONS.api.agent}
+          />
+        </div>
       </div>
-      <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
-        <AssistantBlock toolCalls={[TESTS.tool]} toolResults={[TESTS.result]} timestamp={now - 70_000} messageId="hero-m-remote-tests" agentType={SESSIONS.api.agent} showHeader />
-      </div>
-      <div className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
-        <AssistantBlock content={BEFORE} timestamp={now - 40_000} messageId="hero-m-remote-before" agentType={SESSIONS.api.agent} showHeader={false} />
-      </div>
-      <div {...fly("desk/remote.browse")} className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
-        <CastCommandBlock tool={BROWSE.tool} result={BROWSE.result} defaultExpanded />
-      </div>
-      <div {...fly("desk/remote.after")} className="conv-col mx-auto w-full px-4 sm:px-5 md:px-6 py-0.5 sm:py-1">
-        <AssistantBlock content={AFTER} timestamp={now - 4_000} messageId="hero-m-remote-after" agentType={SESSIONS.api.agent} />
-      </div>
-    </div>
     </div>
   );
 }

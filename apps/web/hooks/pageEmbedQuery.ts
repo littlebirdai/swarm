@@ -35,14 +35,23 @@ export function pageGateKeys(info: PageInfo | undefined): string {
   return `${info.m ? `&m=${info.m}` : ""}${info.k ? `&k=${info.k}` : ""}${info.e ? `&e=${info.e}` : ""}`;
 }
 
-const selectRows = (rows: any) => (Array.isArray(rows) ? rows.map((r) => ({ ...r, _id: r.slug })) : rows);
+const selectRows = (rows: any) =>
+  Array.isArray(rows) ? rows.map((r) => ({ ...r, _id: r.slug })) : rows;
 
 /** Feeds pageEmbeds from artifacts.embedInfo once the caller says the viewer is settled. Web's usePageEmbedFeed
  *  (./usePageInfo) decides that from its stored token and the server's word; the phone, always signed in, from
  *  Convex auth. Free of web-only auth imports so the phone's bundle can reach it. */
-export function usePageEmbedQuery(args: { pages: Array<{ slug: string; decision?: string }> } | "skip") {
+export function usePageEmbedQuery(
+  args: { pages: Array<{ slug: string; decision?: string }> } | "skip",
+) {
   const { data, error } = useQueryNoThrow(api.artifacts.embedInfo, args as any);
   useFeederError("artifacts.embedInfo", error);
-  useConvexSync(data, useCallback((payload: any) => applyCollectionFeed("pageEmbeds", payload, selectRows), []));
+  useConvexSync(
+    data,
+    useCallback(
+      (payload: any) => applyCollectionFeed("pageEmbeds", payload, selectRows),
+      [],
+    ),
+  );
   return { ready: data !== undefined, error };
 }

@@ -80,7 +80,7 @@ unless the asker proposed another protected category.
   hears, through its needs-input trigger (`tellHearingRole`), and the
   decision waits for it before entering any person's queue. The role answers
   under a grant, or hands the same card up (`handUp`): `cast decide recommend
-  <sd> <n> [--note -]` favours an option, `cast decide pass <sd> [--note -]`
+<sd> <n> [--note -]` favours an option, `cast decide pass <sd> [--note -]`
   favours none (the hop records `passed_at` and the role gives up any hold),
   and either note shows on the role's ladder line. A role that does neither
   within the hop deadline of 5 minutes (`HOP_DEADLINE_MS`) hands it up by
@@ -131,8 +131,8 @@ unless the asker proposed another protected category.
 
 - A stack is an ordered set of decisions one person clears in one sitting.
   Created by an agent (`cast stack create "Launch checklist" --policy
-  auto-default:24h`) or by the queue ("group into a stack"). `cast decide
-  --stack ds-N` appends. The queue groups by stack, then by role, then by
+auto-default:24h`) or by the queue ("group into a stack"). `cast decide
+--stack ds-N` appends. The queue groups by stack, then by role, then by
   scope; a stack renders as a checklist with next and previous, keyboard 1 to
   9, and "answer all defaults" for advisory members.
 - Policies: `auto_default_after_ms` answers advisory members with their

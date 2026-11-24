@@ -22,7 +22,8 @@ const ROOT = join(import.meta.dir, "..");
 const ALLOWLIST = join(import.meta.dir, "childProcessImports.allowlist.txt");
 
 // Static import, re-export, bare require and dynamic import alike.
-const CHILD_PROCESS_IMPORT = /(?:from\s*["'](?:node:)?child_process["']|(?:require|import)\s*\(\s*["'](?:node:)?child_process["'])/;
+const CHILD_PROCESS_IMPORT =
+  /(?:from\s*["'](?:node:)?child_process["']|(?:require|import)\s*\(\s*["'](?:node:)?child_process["'])/;
 
 /** How many files import node:child_process directly. May only fall. */
 const PIN = 17;
@@ -34,12 +35,15 @@ const result = checkRatchet({
   exempt: (rel) =>
     // The wrapper owns the import. Tests may spawn freely: they are not
     // shipped, and several exist to drive a raw child against the wrapper.
-    rel === "src/proc.ts" || /\.test\.ts$/.test(rel) || rel.includes("/__tests__/"),
+    rel === "src/proc.ts" ||
+    /\.test\.ts$/.test(rel) ||
+    rel.includes("/__tests__/"),
   count: (src) => countMatches(src, CHILD_PROCESS_IMPORT),
   allowlist: ALLOWLIST,
   pin: PIN,
   fix: "Import the same names from src/proc.ts instead — identical signatures, plus windowsHide and the slow-sync spawn report.",
-  pruneCommand: "cd apps/cli && RATCHET_WRITE=prune bun test src/childProcessImports.ratchet.test.ts",
+  pruneCommand:
+    "cd apps/cli && RATCHET_WRITE=prune bun test src/childProcessImports.ratchet.test.ts",
   minScanned: 200,
 });
 

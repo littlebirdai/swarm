@@ -8,14 +8,23 @@
 // suffix.
 
 /** Zero-width space: invisible in the field, and never typed by a keyboard. */
-export const SENTINEL = '\u200b';
-export const DEL = '\x7f';
-export const ENTER = '\r';
+export const SENTINEL = "\u200b";
+export const DEL = "\x7f";
+export const ENTER = "\r";
 
 const SENTINEL_RE = /\u200b/g;
 
 // iOS smart punctuation, back to what a terminal means: curly quotes are straight, an em dash is --.
-const SMART: Record<string, string> = { '\u201c': '"', '\u201d': '"', '\u2018': "'", '\u2019': "'", '\u2014': '--', '\u2013': '-', '\u2026': '...', '\u00a0': ' ' };
+const SMART: Record<string, string> = {
+  "\u201c": '"',
+  "\u201d": '"',
+  "\u2018": "'",
+  "\u2019": "'",
+  "\u2014": "--",
+  "\u2013": "-",
+  "\u2026": "...",
+  "\u00a0": " ",
+};
 const SMART_RE = /[\u201c\u201d\u2018\u2019\u2014\u2013\u2026\u00a0]/g;
 
 /** The keyboard's text as the pane should receive it. */
@@ -29,15 +38,27 @@ export function bracketedPaste(text: string): string {
 
 // Ported from agentboard src/client/utils/mobileAutocorrect.ts (MIT).
 /** Replace a tracked suffix using terminal DEL, without splitting Unicode code points. */
-export function correctionDelta(previous: string, next: string, explicitReplacement = false): string {
+export function correctionDelta(
+  previous: string,
+  next: string,
+  explicitReplacement = false,
+): string {
   const before = Array.from(previous);
   const after = Array.from(next);
   let common = 0;
-  while (common < before.length && common < after.length && before[common] === after[common]) common++;
-  const inserted = after.slice(common).join('');
+  while (
+    common < before.length &&
+    common < after.length &&
+    before[common] === after[common]
+  )
+    common++;
+  const inserted = after.slice(common).join("");
   // A bracketed replacement ends Codex's paste-burst Enter suppression, so an
   // autocorrect pick followed by Return is not read as a typed newline.
-  return DEL.repeat(before.length - common) + (explicitReplacement && inserted ? bracketedPaste(inserted) : inserted);
+  return (
+    DEL.repeat(before.length - common) +
+    (explicitReplacement && inserted ? bracketedPaste(inserted) : inserted)
+  );
 }
 
 export interface InputStep {
@@ -52,30 +73,30 @@ export interface InputStep {
  * field's new value and returns the bytes to send plus the value to put back.
  */
 export class SentinelInput {
-  private sent = '';
+  private sent = "";
 
   reset(): string {
-    this.sent = '';
+    this.sent = "";
     return SENTINEL;
   }
 
   change(value: string): InputStep {
     // The sentinel itself was deleted: a backspace with nothing of ours left
     // to erase, which the pane must still receive.
-    if (value === '') {
+    if (value === "") {
       // Erasing typed text took the sentinel with it (select-all, a word
       // delete): only that text goes. A bare sentinel gone is one backspace.
       const bytes = DEL.repeat(Array.from(this.sent).length || 1);
-      this.sent = '';
+      this.sent = "";
       return { bytes, field: SENTINEL };
     }
-    const text = plainKeyboardText(value.replace(SENTINEL_RE, ''));
+    const text = plainKeyboardText(value.replace(SENTINEL_RE, ""));
     const nl = text.search(/[\r\n]/);
     if (nl >= 0) {
       // A newline inside the field (a paste, a hardware Return) ends the line.
       const bytes = this.delta(text.slice(0, nl)) + ENTER;
-      this.sent = '';
-      const rest = text.slice(nl + 1).replace(/^\n/, '');
+      this.sent = "";
+      const rest = text.slice(nl + 1).replace(/^\n/, "");
       if (!rest) return { bytes, field: SENTINEL };
       const tail = this.change(SENTINEL + rest);
       return { bytes: bytes + tail.bytes, field: tail.field };
@@ -86,8 +107,13 @@ export class SentinelInput {
   /** Return: whatever is pending, then Enter, and a fresh line. */
   submit(value: string): InputStep {
     const step = this.change(value);
-    this.sent = '';
-    return { bytes: step.bytes + (step.field === SENTINEL && step.bytes.endsWith(ENTER) ? '' : ENTER), field: SENTINEL };
+    this.sent = "";
+    return {
+      bytes:
+        step.bytes +
+        (step.field === SENTINEL && step.bytes.endsWith(ENTER) ? "" : ENTER),
+      field: SENTINEL,
+    };
   }
 
   private delta(next: string): string {
@@ -103,24 +129,24 @@ export class SentinelInput {
 /** The byte sequence each quick key sends. */
 export const QUICK_KEY_BYTES = {
   enter: ENTER,
-  esc: '\x1b',
-  tab: '\t',
-  up: '\x1b[A',
-  down: '\x1b[B',
-  right: '\x1b[C',
-  left: '\x1b[D',
-  ctrlC: '\x03',
-  shiftTab: '\x1b[Z',
-  pageUp: '\x1b[5~',
-  pageDown: '\x1b[6~',
+  esc: "\x1b",
+  tab: "\t",
+  up: "\x1b[A",
+  down: "\x1b[B",
+  right: "\x1b[C",
+  left: "\x1b[D",
+  ctrlC: "\x03",
+  shiftTab: "\x1b[Z",
+  pageUp: "\x1b[5~",
+  pageDown: "\x1b[6~",
 } as const;
 
 /** Ctrl held with a quick key, where a terminal has a sequence for it (Ctrl-arrows move by word). */
 export const CTRL_KEY_BYTES: Partial<Record<QuickKey, string>> = {
-  up: '\x1b[1;5A',
-  down: '\x1b[1;5B',
-  right: '\x1b[1;5C',
-  left: '\x1b[1;5D',
+  up: "\x1b[1;5A",
+  down: "\x1b[1;5B",
+  right: "\x1b[1;5C",
+  left: "\x1b[1;5D",
 };
 
 /** Ctrl plus one typed key, as a terminal sends it (Ctrl-D is 0x04), or null for a key Ctrl does not change. */
@@ -128,8 +154,8 @@ export function ctrlChord(key: string): string | null {
   if (key.length !== 1) return null;
   const c = key.toUpperCase().charCodeAt(0);
   if (c >= 0x40 && c <= 0x5f) return String.fromCharCode(c & 0x1f);
-  if (key === ' ') return '\x00';
-  if (key === '?') return DEL;
+  if (key === " ") return "\x00";
+  if (key === "?") return DEL;
   return null;
 }
 
@@ -143,7 +169,9 @@ export type QuickKey = keyof typeof QUICK_KEY_BYTES;
  */
 export function pasteBytes(text: string, raw = false): string {
   // eslint-disable-next-line no-control-regex
-  const clean = text.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
-  if (!clean) return '';
-  return raw ? clean.replace(/\n/g, '\r') : bracketedPaste(clean);
+  const clean = text
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+  if (!clean) return "";
+  return raw ? clean.replace(/\n/g, "\r") : bracketedPaste(clean);
 }

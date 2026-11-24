@@ -16,18 +16,34 @@ import { readLocalConfig } from "./config/readLocalConfig.js";
 export const CHECK_WATCHERS_BACKSTOP = 16;
 
 export const MACHINE_CAPS = {
-  check: { env: "CAST_CHECK_MAX_WATCHERS", fallback: CHECK_WATCHERS_BACKSTOP, what: "typecheck watchers" },
-  interactive_jobs: { env: "CAST_INTERACTIVE_JOBS_MAX", fallback: 8, what: "commands run as Interactive jobs" },
+  check: {
+    env: "CAST_CHECK_MAX_WATCHERS",
+    fallback: CHECK_WATCHERS_BACKSTOP,
+    what: "typecheck watchers",
+  },
+  interactive_jobs: {
+    env: "CAST_INTERACTIVE_JOBS_MAX",
+    fallback: 8,
+    what: "commands run as Interactive jobs",
+  },
 } as const;
 
 export type MachineCapKey = keyof typeof MACHINE_CAPS;
 
 const positive = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
+  const n =
+    typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
   return Number.isInteger(n) && n >= 1 ? n : null;
 };
 
-export function machineCap(key: MachineCapKey, env: NodeJS.ProcessEnv = process.env): number {
+export function machineCap(
+  key: MachineCapKey,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
   const cap = MACHINE_CAPS[key];
-  return positive(env[cap.env]) ?? positive(readLocalConfig()?.[key]?.per_machine) ?? cap.fallback;
+  return (
+    positive(env[cap.env]) ??
+    positive(readLocalConfig()?.[key]?.per_machine) ??
+    cap.fallback
+  );
 }

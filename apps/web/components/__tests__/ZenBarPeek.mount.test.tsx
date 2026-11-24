@@ -9,7 +9,9 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { ZenTopEdge } from "../ZenBarPeek";
 import { useZenBarPeek } from "../../hooks/useZenBarPeek";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -31,11 +33,18 @@ function Shell({ zen, menuOpen }: { zen: boolean; menuOpen: boolean }) {
   const peek = useZenBarPeek(zen, bar);
   return (
     <div>
-      <header ref={bar} data-open={peek.open ? "yes" : "no"} onMouseEnter={peek.onBarEnter} onMouseLeave={peek.onBarLeave}>
+      <header
+        ref={bar}
+        data-open={peek.open ? "yes" : "no"}
+        onMouseEnter={peek.onBarEnter}
+        onMouseLeave={peek.onBarLeave}
+      >
         <button aria-expanded={menuOpen}>Workspace</button>
       </header>
       <main>page</main>
-      {zen && <ZenTopEdge onEnter={peek.onEdgeEnter} onLeave={peek.onEdgeLeave} />}
+      {zen && (
+        <ZenTopEdge onEnter={peek.onEdgeEnter} onLeave={peek.onEdgeLeave} />
+      )}
     </div>
   );
 }
@@ -45,13 +54,23 @@ async function mount(opts: { zen?: boolean; menuOpen?: boolean } = {}) {
   document.body.appendChild(container);
   const root = createRoot(container);
   const render = (o: { zen?: boolean; menuOpen?: boolean }) =>
-    act(async () => { root.render(<Shell zen={o.zen ?? true} menuOpen={o.menuOpen ?? false} />); });
+    act(async () => {
+      root.render(<Shell zen={o.zen ?? true} menuOpen={o.menuOpen ?? false} />);
+    });
   await render(opts);
   const q = (sel: string) => container.querySelector(sel) as HTMLElement;
   // React derives enter/leave inside a root from the mouseout of the element
   // the pointer left (relatedTarget: where it went), so a move is one mouseout.
   const move = (from: HTMLElement, to: HTMLElement, buttons = 0) =>
-    act(() => { from.dispatchEvent(new dom.window.MouseEvent("mouseout", { bubbles: true, buttons, relatedTarget: to })); });
+    act(() => {
+      from.dispatchEvent(
+        new dom.window.MouseEvent("mouseout", {
+          bubbles: true,
+          buttons,
+          relatedTarget: to,
+        }),
+      );
+    });
   return {
     render,
     edge: () => q("[data-zen-top-edge]"),
@@ -59,7 +78,10 @@ async function mount(opts: { zen?: boolean; menuOpen?: boolean } = {}) {
     page: () => q("main"),
     isOpen: () => q("header").dataset.open === "yes",
     move,
-    cleanup: () => { root.unmount(); container.remove(); },
+    cleanup: () => {
+      root.unmount();
+      container.remove();
+    },
   };
 }
 

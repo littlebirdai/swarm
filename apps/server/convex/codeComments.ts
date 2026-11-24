@@ -9,7 +9,13 @@
 // already work.
 
 import { v } from "convex/values";
-import { mutation, query, internalMutation, internalQuery, internalAction } from "./functions";
+import {
+  mutation,
+  query,
+  internalMutation,
+  internalQuery,
+  internalAction,
+} from "./functions";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireUserOrToken } from "./lib/auth";
@@ -25,14 +31,20 @@ import { recordExternalEvent } from "./externalEvents";
 import { resolveTeamForRepository } from "./githubWebhooks";
 import { commitUrl, normalizeRepository, shortSha } from "./lib/gitRefs";
 import { resolveMentions, resolveSessionMentions } from "./lib/mentionResolve";
-import { canSendProductMessage, enqueuePendingMessage } from "./pendingMessages";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+} from "./pendingMessages";
 import { webBaseUrl } from "./lib/slackOAuth";
 import { touchThread } from "./threadReads";
 import type { MutationCtx } from "./_generated/server";
 import { codeThreadRootKey } from "@codecast/shared/comments";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
 import { isQuoteRow } from "./lib/quoteRows";
-import { isConversationComment, withoutBorrowedRows } from "./lib/conversationCommentRows";
+import {
+  isConversationComment,
+  withoutBorrowedRows,
+} from "./lib/conversationCommentRows";
 
 const GITHUB_API_BASE = "https://api.github.com";
 // The feed row clips a long summary and expands it on click, so keep the whole
@@ -57,7 +69,11 @@ export async function canAccessComment(
   // A conversation comment is read and written through comments.ts
   // (commentStore), never through this table's paths, its author included.
   if (isConversationComment(comment)) return false;
-  if (comment.author_user_id && String(comment.author_user_id) === String(userId)) return true;
+  if (
+    comment.author_user_id &&
+    String(comment.author_user_id) === String(userId)
+  )
+    return true;
   // A note in an unsubmitted review is the author's alone, as it is on GitHub.
   if (comment.pending_review) return false;
   // So is a composer quote, sent or not (lib/quoteRows).
@@ -78,7 +94,11 @@ export async function canAccessComment(
   }
   if (comment.conversation_id) {
     const conversation = await ctx.db.get(comment.conversation_id);
-    if (conversation && (await canAccessConversation(ctx, userId, conversation))) return true;
+    if (
+      conversation &&
+      (await canAccessConversation(ctx, userId, conversation))
+    )
+      return true;
   }
   if (comment.repository) {
     const teamId = await resolveTeamForRepository(ctx, comment.repository);
@@ -94,14 +114,20 @@ async function requireRepositoryTeam(
   repository: string,
 ): Promise<Id<"teams">> {
   const teamId = await resolveTeamForRepository(ctx, repository);
-  if (!teamId) throw new Error(`No GitHub App installation covers ${repository}`);
-  if (!(await isTeamMember(ctx, userId, teamId))) throw new Error("Forbidden: team membership required");
+  if (!teamId)
+    throw new Error(`No GitHub App installation covers ${repository}`);
+  if (!(await isTeamMember(ctx, userId, teamId)))
+    throw new Error("Forbidden: team membership required");
   return teamId;
 }
 
 /** A pending note is its author's alone; every other row passes through. */
-export function withoutOthersPending<T extends { pending_review?: boolean; author_user_id?: any }>(rows: T[], userId: any): T[] {
-  return rows.filter((r) => !r.pending_review || String(r.author_user_id) === String(userId));
+export function withoutOthersPending<
+  T extends { pending_review?: boolean; author_user_id?: any },
+>(rows: T[], userId: any): T[] {
+  return rows.filter(
+    (r) => !r.pending_review || String(r.author_user_id) === String(userId),
+  );
 }
 
 async function filterAccessible(
@@ -125,10 +151,14 @@ async function openPRsTouchingFile(
   if (!filePath) return [];
   const prs: Doc<"pull_requests">[] = await ctx.db
     .query("pull_requests")
-    .withIndex("by_repository", (q: any) => q.eq("repository", normalizeRepository(repository)))
+    .withIndex("by_repository", (q: any) =>
+      q.eq("repository", normalizeRepository(repository)),
+    )
     .collect();
   return prs.filter(
-    (pr) => pr.state === "open" && (pr.files ?? []).some((f: any) => f.filename === filePath),
+    (pr) =>
+      pr.state === "open" &&
+      (pr.files ?? []).some((f: any) => f.filename === filePath),
   );
 }
 
@@ -140,22 +170,39 @@ async function openPRsTouchingFile(
  */
 export async function codeThreadRows(
   ctx: Ctx,
-  anchor: { repository: string; ref?: string; file_path?: string; line_number?: number },
+  anchor: {
+    repository: string;
+    ref?: string;
+    file_path?: string;
+    line_number?: number;
+  },
 ): Promise<Doc<"review_comments">[]> {
   const rows: Doc<"review_comments">[] = await ctx.db
     .query("review_comments")
     .withIndex("by_repository_file", (q: any) =>
-      q.eq("repository", normalizeRepository(anchor.repository)).eq("file_path", anchor.file_path))
+      q
+        .eq("repository", normalizeRepository(anchor.repository))
+        .eq("file_path", anchor.file_path),
+    )
     .collect();
   // A shared thread has no viewer to be private to: a pending note is out.
   return rows
     .filter((c) => !c.pending_review)
-    .filter((c) => c.ref === anchor.ref && (c.line_number ?? undefined) === (anchor.line_number ?? undefined))
+    .filter(
+      (c) =>
+        c.ref === anchor.ref &&
+        (c.line_number ?? undefined) === (anchor.line_number ?? undefined),
+    )
     .sort((a, b) => a.created_at - b.created_at);
 }
 
 /** Where a comment is, for a person: `foo.ts:42` or `commit 1a2b3c4`. */
-function codeCommentPlace(c: { ref?: string; file_path?: string; line_number?: number; line_end?: number }): string {
+function codeCommentPlace(c: {
+  ref?: string;
+  file_path?: string;
+  line_number?: number;
+  line_end?: number;
+}): string {
   if (c.file_path) {
     const name = c.file_path.split("/").pop();
     const range = c.line_number
@@ -168,7 +215,10 @@ function codeCommentPlace(c: { ref?: string; file_path?: string; line_number?: n
 
 /** The page a code comment is read on: the pull request when it has one, the
  *  commit otherwise. Relative, so the web routes it in place. */
-async function codeCommentPath(ctx: Ctx, c: Doc<"review_comments">): Promise<string | null> {
+async function codeCommentPath(
+  ctx: Ctx,
+  c: Doc<"review_comments">,
+): Promise<string | null> {
   if (c.pull_request_id) {
     const pr = await ctx.db.get(c.pull_request_id);
     if (pr) return `/pr/${pr.repository}/${pr.number}`;
@@ -178,7 +228,10 @@ async function codeCommentPath(ctx: Ctx, c: Doc<"review_comments">): Promise<str
 }
 
 /** `owner/repo#12` or `owner/repo@sha`: the notification entity of a code comment. */
-async function codeCommentEntityId(ctx: Ctx, c: Doc<"review_comments">): Promise<string | null> {
+async function codeCommentEntityId(
+  ctx: Ctx,
+  c: Doc<"review_comments">,
+): Promise<string | null> {
   if (c.pull_request_id) {
     const pr = await ctx.db.get(c.pull_request_id);
     if (pr) return `${pr.repository}#${pr.number}`;
@@ -236,10 +289,15 @@ export function buildCodeCommentPrompt(opts: {
 async function fanOutCodeComment(
   ctx: MutationCtx,
   comment: Doc<"review_comments">,
-  opts: { teamId: Id<"teams">; actorId: Id<"users">; parent?: Doc<"review_comments"> | null },
+  opts: {
+    teamId: Id<"teams">;
+    actorId: Id<"users">;
+    parent?: Doc<"review_comments"> | null;
+  },
 ): Promise<void> {
   const actor = await ctx.db.get(opts.actorId);
-  const actorName = actor?.name || actor?.github_username || actor?.email || "Someone";
+  const actorName =
+    actor?.name || actor?.github_username || actor?.email || "Someone";
   const repository = comment.repository ?? "";
   const place = codeCommentPlace(comment);
   const entityId = await codeCommentEntityId(ctx, comment);
@@ -247,7 +305,11 @@ async function fanOutCodeComment(
   const url = path ? `${webBaseUrl()}${path}` : null;
   const notified = new Set<string>([String(opts.actorId)]);
 
-  const emit = async (userId: Id<"users">, eventType: "mention" | "comment_reply" | "conversation_comment", message: string) => {
+  const emit = async (
+    userId: Id<"users">,
+    eventType: "mention" | "comment_reply" | "conversation_comment",
+    message: string,
+  ) => {
     if (notified.has(String(userId)) || !entityId) return;
     notified.add(String(userId));
     await ctx.runMutation(internal.notificationRouter.emit, {
@@ -257,18 +319,29 @@ async function fanOutCodeComment(
       entity_id: entityId,
       message,
       direct_recipient_id: userId,
-      ...(comment.conversation_id ? { conversation_id: comment.conversation_id } : {}),
+      ...(comment.conversation_id
+        ? { conversation_id: comment.conversation_id }
+        : {}),
     });
   };
 
   // People named in the comment, against the repository's team.
-  const mentioned = await resolveMentions(ctx, opts.teamId, comment.content, opts.actorId);
-  for (const userId of mentioned) await emit(userId, "mention", `${actorName} mentioned you on ${place}`);
+  const mentioned = await resolveMentions(
+    ctx,
+    opts.teamId,
+    comment.content,
+    opts.actorId,
+  );
+  for (const userId of mentioned)
+    await emit(userId, "mention", `${actorName} mentioned you on ${place}`);
 
   // Sessions named in the comment: the comment arrives as a message, exactly
   // as `cast send` would deliver it, gated by the writer's send access.
-  const sessions = await resolveSessionMentions(ctx, comment.content, (conversation) =>
-    canSendProductMessage(ctx, opts.actorId, conversation));
+  const sessions = await resolveSessionMentions(
+    ctx,
+    comment.content,
+    (conversation) => canSendProductMessage(ctx, opts.actorId, conversation),
+  );
   for (const conversation of sessions) {
     await enqueuePendingMessage(ctx, conversation, opts.actorId, {
       content: buildCodeCommentPrompt({
@@ -289,7 +362,11 @@ async function fanOutCodeComment(
 
   // A reply reaches the comment it answers.
   if (opts.parent?.author_user_id) {
-    await emit(opts.parent.author_user_id, "comment_reply", `${actorName} replied to your comment on ${place}`);
+    await emit(
+      opts.parent.author_user_id,
+      "comment_reply",
+      `${actorName} replied to your comment on ${place}`,
+    );
   }
 
   // The session that wrote the commit, when codecast knows it.
@@ -300,9 +377,16 @@ async function fanOutCodeComment(
       .withIndex("by_sha", (q: any) => q.eq("sha", comment.ref))
       .filter((q: any) => q.eq(q.field("repository"), repository))
       .first();
-    const conversation = commit?.conversation_id ? await ctx.db.get(commit.conversation_id) : null;
+    const conversation = commit?.conversation_id
+      ? await ctx.db.get(commit.conversation_id)
+      : null;
     commitOwner = conversation?.user_id;
-    if (commitOwner) await emit(commitOwner, "conversation_comment", `${actorName} commented on ${place}`);
+    if (commitOwner)
+      await emit(
+        commitOwner,
+        "conversation_comment",
+        `${actorName} commented on ${place}`,
+      );
   }
 
   // The thread, in everyone's inbox who is part of it.
@@ -366,13 +450,20 @@ export const create = mutation({
   },
   handler: async (ctx, rawArgs) => {
     // The row is keyed by the canonical spelling whatever the caller typed.
-    const args = { ...rawArgs, repository: normalizeRepository(rawArgs.repository) };
+    const args = {
+      ...rawArgs,
+      repository: normalizeRepository(rawArgs.repository),
+    };
     const userId = await requireUserOrToken(ctx, args.api_token);
     const teamId = await requireRepositoryTeam(ctx, userId, args.repository);
 
     let conversationId: Id<"conversations"> | undefined;
     if (args.conversation_ref) {
-      const conversation = await findConversationByAnyRef(ctx, args.conversation_ref, userId);
+      const conversation = await findConversationByAnyRef(
+        ctx,
+        args.conversation_ref,
+        userId,
+      );
       conversationId = conversation?._id;
     }
 
@@ -386,7 +477,8 @@ export const create = mutation({
     let parent: Doc<"review_comments"> | null = null;
     if (args.parent_id) {
       parent = await ctx.db.get(args.parent_id);
-      if (!parent || !(await canAccessComment(ctx, userId, parent))) throw new Error("Parent comment not found");
+      if (!parent || !(await canAccessComment(ctx, userId, parent)))
+        throw new Error("Parent comment not found");
       pullRequestId = pullRequestId ?? parent.pull_request_id;
       parentRef = parent.ref;
       args.file_path = args.file_path ?? parent.file_path;
@@ -396,10 +488,14 @@ export const create = mutation({
       args.anchor_lines = args.anchor_lines ?? parent.anchor_lines;
     }
     const pr = pullRequestId ? await ctx.db.get(pullRequestId) : null;
-    if (pullRequestId && (!pr || !(await canAccessPullRequest(ctx, userId, pr)))) {
+    if (
+      pullRequestId &&
+      (!pr || !(await canAccessPullRequest(ctx, userId, pr)))
+    ) {
       throw new Error("Pull request not found");
     }
-    if (args.pending && !pullRequestId) throw new Error("A pending review note needs a pull request");
+    if (args.pending && !pullRequestId)
+      throw new Error("A pending review note needs a pull request");
 
     const now = Date.now();
     const commentId = await ctx.db.insert("review_comments", {
@@ -431,12 +527,21 @@ export const create = mutation({
     if (args.pending) return { comment_id: commentId };
 
     const inserted = await ctx.db.get(commentId);
-    if (inserted) await fanOutCodeComment(ctx, inserted, { teamId, actorId: userId, parent });
+    if (inserted)
+      await fanOutCodeComment(ctx, inserted, {
+        teamId,
+        actorId: userId,
+        parent,
+      });
 
     // The row supplies the verb ("commented on"); the title names the place.
     const where = args.file_path
-      ? (args.line_number ? `${args.file_path}:${args.line_number}` : args.file_path)
-      : pr ? `PR #${pr.number}: ${pr.title}` : "the pull request";
+      ? args.line_number
+        ? `${args.file_path}:${args.line_number}`
+        : args.file_path
+      : pr
+        ? `PR #${pr.number}: ${pr.title}`
+        : "the pull request";
     await recordExternalEvent(ctx, {
       source: "codecast",
       team_id: teamId,
@@ -462,9 +567,12 @@ export const create = mutation({
       const targets = pr
         ? [pr]
         : await openPRsTouchingFile(ctx, args.repository, args.file_path);
-      const target = targets.filter(Boolean)[0] as Doc<"pull_requests"> | undefined;
+      const target = targets.filter(Boolean)[0] as
+        | Doc<"pull_requests">
+        | undefined;
       if (target && target.state === "open") {
-        if (!pullRequestId) await ctx.db.patch(commentId, { pull_request_id: target._id });
+        if (!pullRequestId)
+          await ctx.db.patch(commentId, { pull_request_id: target._id });
         await ctx.scheduler.runAfter(0, internal.codeComments.mirrorToGitHub, {
           comment_id: commentId,
           pr_id: target._id,
@@ -492,10 +600,15 @@ export const mirrorToGitHub = internalAction({
     attempt: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<{ ok: boolean; reason?: string }> => {
-    const comment = await ctx.runQuery(internal.codeComments.getComment, { comment_id: args.comment_id });
-    const pr = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: args.pr_id });
+    const comment = await ctx.runQuery(internal.codeComments.getComment, {
+      comment_id: args.comment_id,
+    });
+    const pr = await ctx.runQuery(internal.prShepherd.getPR, {
+      pr_id: args.pr_id,
+    });
     if (!comment || !pr) return { ok: false, reason: "not_found" };
-    if (comment.github_comment_id) return { ok: false, reason: "already_mirrored" };
+    if (comment.github_comment_id)
+      return { ok: false, reason: "already_mirrored" };
 
     // A reply goes under its parent on GitHub, which needs the parent's GitHub
     // id. A parent still on its way there makes the reply wait a moment rather
@@ -503,19 +616,32 @@ export const mirrorToGitHub = internalAction({
     // out unthreaded, because a reply nobody can see is worse than one out of
     // place.
     const parent = comment.parent_id
-      ? await ctx.runQuery(internal.codeComments.getComment, { comment_id: comment.parent_id })
+      ? await ctx.runQuery(internal.codeComments.getComment, {
+          comment_id: comment.parent_id,
+        })
       : null;
     const attempt = args.attempt ?? 0;
-    if (parent && !parent.github_comment_id && attempt < REPLY_MIRROR_ATTEMPTS) {
-      await ctx.scheduler.runAfter(REPLY_MIRROR_WAIT_MS * (attempt + 1), internal.codeComments.mirrorToGitHub, {
-        comment_id: args.comment_id,
-        pr_id: args.pr_id,
-        attempt: attempt + 1,
-      });
+    if (
+      parent &&
+      !parent.github_comment_id &&
+      attempt < REPLY_MIRROR_ATTEMPTS
+    ) {
+      await ctx.scheduler.runAfter(
+        REPLY_MIRROR_WAIT_MS * (attempt + 1),
+        internal.codeComments.mirrorToGitHub,
+        {
+          comment_id: args.comment_id,
+          pr_id: args.pr_id,
+          attempt: attempt + 1,
+        },
+      );
       return { ok: false, reason: "parent_pending" };
     }
 
-    const token: string | null = await ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: args.pr_id });
+    const token: string | null = await ctx.runAction(
+      internal.prShepherd.tokenForPR,
+      { pr_id: args.pr_id },
+    );
     if (!token) return { ok: false, reason: "no_token" };
 
     const [owner, repo] = pr.repository.split("/");
@@ -523,7 +649,11 @@ export const mirrorToGitHub = internalAction({
 
     // A line comment needs a commit to anchor to; without a line there is
     // nothing to anchor and the comment goes on the conversation instead.
-    const anchored = !!(comment.file_path && comment.line_number && pr.head_sha);
+    const anchored = !!(
+      comment.file_path &&
+      comment.line_number &&
+      pr.head_sha
+    );
     // GitHub threads review comments only; a reply on the conversation is
     // another conversation comment.
     const threaded = !!(parent?.github_comment_id && parent.file_path);
@@ -536,7 +666,8 @@ export const mirrorToGitHub = internalAction({
     // to be sent as both ends or it lands on one line and loses what it was
     // pointing at. Stored rows always read line_number = start, line_end = end.
     const side = comment.side ?? "RIGHT";
-    const isRange = comment.line_end != null && comment.line_end !== comment.line_number;
+    const isRange =
+      comment.line_end != null && comment.line_end !== comment.line_number;
     const body = threaded
       ? { body: comment.content }
       : anchored
@@ -546,11 +677,17 @@ export const mirrorToGitHub = internalAction({
             path: comment.file_path,
             line: isRange ? comment.line_end : comment.line_number,
             side,
-            ...(isRange ? { start_line: comment.line_number, start_side: side } : {}),
+            ...(isRange
+              ? { start_line: comment.line_number, start_side: side }
+              : {}),
           }
         : { body: comment.content };
 
-    const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
     if (!response.ok) {
       const text = await response.text();
       console.error(`[codeComments] mirror failed: ${response.status} ${text}`);
@@ -588,7 +725,10 @@ function githubHeaders(token: string) {
  * comment; one on the conversation is an issue comment. The two live under
  * different paths for edit and delete.
  */
-function githubCommentUrl(repository: string, comment: { file_path?: string; github_comment_id: number }): string {
+function githubCommentUrl(
+  repository: string,
+  comment: { file_path?: string; github_comment_id: number },
+): string {
   const [owner, repo] = repository.split("/");
   return comment.file_path
     ? `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/comments/${comment.github_comment_id}`
@@ -599,20 +739,33 @@ function githubCommentUrl(repository: string, comment: { file_path?: string; git
 export const mirrorEditToGitHub = internalAction({
   args: { comment_id: v.id("review_comments") },
   handler: async (ctx, args): Promise<{ ok: boolean; reason?: string }> => {
-    const comment = await ctx.runQuery(internal.codeComments.getComment, { comment_id: args.comment_id });
-    if (!comment?.github_comment_id || !comment.pull_request_id) return { ok: false, reason: "not_mirrored" };
-    const pr = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: comment.pull_request_id });
+    const comment = await ctx.runQuery(internal.codeComments.getComment, {
+      comment_id: args.comment_id,
+    });
+    if (!comment?.github_comment_id || !comment.pull_request_id)
+      return { ok: false, reason: "not_mirrored" };
+    const pr = await ctx.runQuery(internal.prShepherd.getPR, {
+      pr_id: comment.pull_request_id,
+    });
     if (!pr) return { ok: false, reason: "not_found" };
-    const token: string | null = await ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id });
+    const token: string | null = await ctx.runAction(
+      internal.prShepherd.tokenForPR,
+      { pr_id: pr._id },
+    );
     if (!token) return { ok: false, reason: "no_token" };
 
-    const response = await fetch(githubCommentUrl(pr.repository, comment as any), {
-      method: "PATCH",
-      headers: githubHeaders(token),
-      body: JSON.stringify({ body: comment.content }),
-    });
+    const response = await fetch(
+      githubCommentUrl(pr.repository, comment as any),
+      {
+        method: "PATCH",
+        headers: githubHeaders(token),
+        body: JSON.stringify({ body: comment.content }),
+      },
+    );
     if (!response.ok) {
-      console.error(`[codeComments] edit mirror failed: ${response.status} ${await response.text()}`);
+      console.error(
+        `[codeComments] edit mirror failed: ${response.status} ${await response.text()}`,
+      );
       return { ok: false, reason: `github ${response.status}` };
     }
     return { ok: true };
@@ -630,9 +783,14 @@ export const mirrorDeleteToGitHub = internalAction({
     file_path: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ ok: boolean; reason?: string }> => {
-    const pr = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: args.pr_id });
+    const pr = await ctx.runQuery(internal.prShepherd.getPR, {
+      pr_id: args.pr_id,
+    });
     if (!pr) return { ok: false, reason: "not_found" };
-    const token: string | null = await ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id });
+    const token: string | null = await ctx.runAction(
+      internal.prShepherd.tokenForPR,
+      { pr_id: pr._id },
+    );
     if (!token) return { ok: false, reason: "no_token" };
 
     const response = await fetch(githubCommentUrl(pr.repository, args), {
@@ -641,7 +799,9 @@ export const mirrorDeleteToGitHub = internalAction({
     });
     // Already gone on GitHub is the outcome we wanted.
     if (!response.ok && response.status !== 404) {
-      console.error(`[codeComments] delete mirror failed: ${response.status} ${await response.text()}`);
+      console.error(
+        `[codeComments] delete mirror failed: ${response.status} ${await response.text()}`,
+      );
       return { ok: false, reason: `github ${response.status}` };
     }
     return { ok: true };
@@ -665,30 +825,40 @@ export const mirrorThreadResolution = internalAction({
     user_id: v.optional(v.id("users")),
   },
   handler: async (ctx, args): Promise<{ ok: boolean; reason?: string }> => {
-    const comment = await ctx.runQuery(internal.codeComments.getComment, { comment_id: args.comment_id });
-    if (!comment?.github_comment_id || !comment.pull_request_id || !comment.file_path) {
+    const comment = await ctx.runQuery(internal.codeComments.getComment, {
+      comment_id: args.comment_id,
+    });
+    if (
+      !comment?.github_comment_id ||
+      !comment.pull_request_id ||
+      !comment.file_path
+    ) {
       return { ok: false, reason: "not_a_review_thread" };
     }
-    const pr = await ctx.runQuery(internal.prShepherd.getPR, { pr_id: comment.pull_request_id });
+    const pr = await ctx.runQuery(internal.prShepherd.getPR, {
+      pr_id: comment.pull_request_id,
+    });
     if (!pr) return { ok: false, reason: "not_found" };
     const person: any = args.user_id
-      ? await ctx.runQuery(internal.reviews.reviewerFor, { user_id: args.user_id, pull_request_id: pr._id })
+      ? await ctx.runQuery(internal.reviews.reviewerFor, {
+          user_id: args.user_id,
+          pull_request_id: pr._id,
+        })
       : null;
-    const token: string | null = person?.github_token
-      ?? (await ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id }));
+    const token: string | null =
+      person?.github_token ??
+      (await ctx.runAction(internal.prShepherd.tokenForPR, { pr_id: pr._id }));
     if (!token) return { ok: false, reason: "no_token" };
 
-    const result: { thread_id: string | null; changed: boolean } = await ctx.runAction(
-      internal.githubApi.setReviewThreadResolved,
-      {
+    const result: { thread_id: string | null; changed: boolean } =
+      await ctx.runAction(internal.githubApi.setReviewThreadResolved, {
         repository: pr.repository,
         pr_number: pr.number,
         github_comment_id: comment.github_comment_id,
         thread_id: comment.github_thread_id,
         resolved: args.resolved,
         github_access_token: token,
-      },
-    );
+      });
     if (!result.thread_id) return { ok: false, reason: "thread_not_found" };
     if (result.thread_id !== comment.github_thread_id) {
       await ctx.runMutation(internal.codeComments.recordThreadId, {
@@ -734,7 +904,9 @@ export const recordThreadId = internalMutation({
     if (!comment) return;
     for (const row of await threadRows(ctx, comment)) {
       if (row.github_thread_id !== args.github_thread_id) {
-        await ctx.db.patch(row._id, { github_thread_id: args.github_thread_id });
+        await ctx.db.patch(row._id, {
+          github_thread_id: args.github_thread_id,
+        });
       }
     }
   },
@@ -745,8 +917,13 @@ export const recordThreadId = internalMutation({
  * replies. A thread is one file and line on one pull request, which is how
  * both codecast (parent_id) and GitHub (in_reply_to) chain them.
  */
-async function threadRows(ctx: Ctx, comment: Doc<"review_comments">): Promise<Doc<"review_comments">[]> {
-  const root = comment.parent_id ? ((await ctx.db.get(comment.parent_id)) ?? comment) : comment;
+async function threadRows(
+  ctx: Ctx,
+  comment: Doc<"review_comments">,
+): Promise<Doc<"review_comments">[]> {
+  const root = comment.parent_id
+    ? ((await ctx.db.get(comment.parent_id)) ?? comment)
+    : comment;
   const replies: Doc<"review_comments">[] = await ctx.db
     .query("review_comments")
     .withIndex("by_parent", (q: any) => q.eq("parent_id", root._id))
@@ -754,14 +931,25 @@ async function threadRows(ctx: Ctx, comment: Doc<"review_comments">): Promise<Do
   const rows = [root, ...replies];
   // A pending note is its author's private draft: it joins no line's thread,
   // and no line's thread reaches into it.
-  if (!comment.pending_review && comment.pull_request_id && comment.file_path && comment.line_number != null) {
+  if (
+    !comment.pending_review &&
+    comment.pull_request_id &&
+    comment.file_path &&
+    comment.line_number != null
+  ) {
     const siblings: Doc<"review_comments">[] = await ctx.db
       .query("review_comments")
-      .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", comment.pull_request_id))
+      .withIndex("by_pull_request", (q: any) =>
+        q.eq("pull_request_id", comment.pull_request_id),
+      )
       .collect();
     for (const row of siblings) {
       if (row.pending_review) continue;
-      if (row.file_path === comment.file_path && row.line_number === comment.line_number && !rows.some((r) => r._id === row._id)) {
+      if (
+        row.file_path === comment.file_path &&
+        row.line_number === comment.line_number &&
+        !rows.some((r) => r._id === row._id)
+      ) {
         rows.push(row);
       }
     }
@@ -774,7 +962,11 @@ async function threadRows(ctx: Ctx, comment: Doc<"review_comments">): Promise<Do
  * GitHub does not hold, and the scheduler is optional so tests and plain reads
  * can call the mutations without one.
  */
-async function queueMirror(ctx: Ctx, reference: any, args: Record<string, unknown>): Promise<void> {
+async function queueMirror(
+  ctx: Ctx,
+  reference: any,
+  args: Record<string, unknown>,
+): Promise<void> {
   if (ctx.scheduler) await ctx.scheduler.runAfter(0, reference, args);
 }
 
@@ -789,12 +981,19 @@ export async function pendingRowsFor(
 ): Promise<Doc<"review_comments">[]> {
   const rows: Doc<"review_comments">[] = await ctx.db
     .query("review_comments")
-    .withIndex("by_pull_request", (q: any) => q.eq("pull_request_id", pullRequestId))
+    .withIndex("by_pull_request", (q: any) =>
+      q.eq("pull_request_id", pullRequestId),
+    )
     .collect();
   // A pending note the reviewer handed to a session and resolved is done: it
   // leaves the batch and never goes to GitHub. Discard still clears it.
   return rows
-    .filter((r) => r.pending_review && String(r.author_user_id) === String(userId) && (opts.includeResolved || !handedOffAndResolved(r)))
+    .filter(
+      (r) =>
+        r.pending_review &&
+        String(r.author_user_id) === String(userId) &&
+        (opts.includeResolved || !handedOffAndResolved(r)),
+    )
     .sort((a, b) => a.created_at - b.created_at);
 }
 
@@ -802,12 +1001,26 @@ export async function pendingRowsFor(
  *  a pending note resolved any other way (before pending drafts were kept out
  *  of line threads, a teammate resolving the line also stamped the draft)
  *  still belongs to its author's review. */
-export function handedOffAndResolved(r: Pick<Doc<"review_comments">, "resolved" | "resolved_at" | "resolved_by" | "sent_at" | "author_user_id">): boolean {
-  return !!r.resolved && r.sent_at != null && (r.resolved_at ?? 0) >= r.sent_at && r.resolved_by != null && String(r.resolved_by) === String(r.author_user_id);
+export function handedOffAndResolved(
+  r: Pick<
+    Doc<"review_comments">,
+    "resolved" | "resolved_at" | "resolved_by" | "sent_at" | "author_user_id"
+  >,
+): boolean {
+  return (
+    !!r.resolved &&
+    r.sent_at != null &&
+    (r.resolved_at ?? 0) >= r.sent_at &&
+    r.resolved_by != null &&
+    String(r.resolved_by) === String(r.author_user_id)
+  );
 }
 
 export const pendingReview = query({
-  args: { api_token: v.optional(v.string()), pull_request_id: v.id("pull_requests") },
+  args: {
+    api_token: v.optional(v.string()),
+    pull_request_id: v.id("pull_requests"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     return await pendingRowsFor(ctx, userId, args.pull_request_id);
@@ -816,10 +1029,15 @@ export const pendingReview = query({
 
 /** Throw the caller's pending notes on a pull request away. */
 export const discardPendingReview = mutation({
-  args: { api_token: v.optional(v.string()), pull_request_id: v.id("pull_requests") },
+  args: {
+    api_token: v.optional(v.string()),
+    pull_request_id: v.id("pull_requests"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    const rows = await pendingRowsFor(ctx, userId, args.pull_request_id, { includeResolved: true });
+    const rows = await pendingRowsFor(ctx, userId, args.pull_request_id, {
+      includeResolved: true,
+    });
     for (const row of rows) await ctx.db.delete(row._id);
     return { discarded: rows.length };
   },
@@ -827,7 +1045,8 @@ export const discardPendingReview = mutation({
 
 export const pendingRowsInternal = internalQuery({
   args: { user_id: v.id("users"), pull_request_id: v.id("pull_requests") },
-  handler: async (ctx, args) => await pendingRowsFor(ctx, args.user_id, args.pull_request_id),
+  handler: async (ctx, args) =>
+    await pendingRowsFor(ctx, args.user_id, args.pull_request_id),
 });
 
 /**
@@ -841,18 +1060,24 @@ export const recordSubmittedReview = internalMutation({
     pull_request_id: v.id("pull_requests"),
     github_review_id: v.number(),
     review_url: v.optional(v.string()),
-    state: v.union(v.literal("approved"), v.literal("changes_requested"), v.literal("commented")),
+    state: v.union(
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("commented"),
+    ),
     body: v.optional(v.string()),
     commit_sha: v.optional(v.string()),
     // GitHub's comments of that review, to match against the pending rows.
-    comments: v.array(v.object({
-      id: v.number(),
-      path: v.string(),
-      line: v.optional(v.number()),
-      start_line: v.optional(v.number()),
-      body: v.string(),
-      html_url: v.optional(v.string()),
-    })),
+    comments: v.array(
+      v.object({
+        id: v.number(),
+        path: v.string(),
+        line: v.optional(v.number()),
+        start_line: v.optional(v.number()),
+        body: v.string(),
+        html_url: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const rows = await pendingRowsFor(ctx, args.user_id, args.pull_request_id);
@@ -861,9 +1086,13 @@ export const recordSubmittedReview = internalMutation({
     for (const row of rows) {
       const start = row.line_number;
       const end = row.line_end ?? row.line_number;
-      const at = unmatched.findIndex((c) =>
-        c.path === row.file_path && c.body === row.content
-        && (c.start_line ?? c.line) === start && (c.line ?? c.start_line) === end);
+      const at = unmatched.findIndex(
+        (c) =>
+          c.path === row.file_path &&
+          c.body === row.content &&
+          (c.start_line ?? c.line) === start &&
+          (c.line ?? c.start_line) === end,
+      );
       const hit = at >= 0 ? unmatched.splice(at, 1)[0] : undefined;
       await ctx.db.patch(row._id, {
         pending_review: undefined,
@@ -877,7 +1106,9 @@ export const recordSubmittedReview = internalMutation({
     const user = await ctx.db.get(args.user_id);
     const existing = await ctx.db
       .query("reviews")
-      .withIndex("by_github_review_id", (q: any) => q.eq("github_review_id", args.github_review_id))
+      .withIndex("by_github_review_id", (q: any) =>
+        q.eq("github_review_id", args.github_review_id),
+      )
       .first();
     const fields = {
       pull_request_id: args.pull_request_id,
@@ -910,7 +1141,10 @@ export const listForFile = query({
     const rows = await ctx.db
       .query("review_comments")
       .withIndex("by_repository_file", (q) =>
-        q.eq("repository", normalizeRepository(args.repository)).eq("file_path", args.file_path))
+        q
+          .eq("repository", normalizeRepository(args.repository))
+          .eq("file_path", args.file_path),
+      )
       .collect();
     const matching = args.ref ? rows.filter((c) => c.ref === args.ref) : rows;
     return await filterAccessible(ctx, userId, withoutBorrowedRows(matching));
@@ -927,9 +1161,15 @@ export const listForRef = query({
     const userId = await requireUserOrToken(ctx, args.api_token);
     const rows = await ctx.db
       .query("review_comments")
-      .withIndex("by_repository_file", (q) => q.eq("repository", normalizeRepository(args.repository)))
+      .withIndex("by_repository_file", (q) =>
+        q.eq("repository", normalizeRepository(args.repository)),
+      )
       .collect();
-    return await filterAccessible(ctx, userId, withoutBorrowedRows(rows.filter((c) => c.ref === args.ref)));
+    return await filterAccessible(
+      ctx,
+      userId,
+      withoutBorrowedRows(rows.filter((c) => c.ref === args.ref)),
+    );
   },
 });
 
@@ -944,9 +1184,13 @@ export const listForPR = query({
     if (!pr || !(await canAccessPullRequest(ctx, userId, pr))) return [];
     const rows = await ctx.db
       .query("review_comments")
-      .withIndex("by_pull_request", (q) => q.eq("pull_request_id", args.pull_request_id))
+      .withIndex("by_pull_request", (q) =>
+        q.eq("pull_request_id", args.pull_request_id),
+      )
       .collect();
-    return withoutOthersPending(withoutBorrowedRows(rows), userId).sort((a, b) => a.created_at - b.created_at);
+    return withoutOthersPending(withoutBorrowedRows(rows), userId).sort(
+      (a, b) => a.created_at - b.created_at,
+    );
   },
 });
 
@@ -958,20 +1202,33 @@ export const listForConversation = query({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return [];
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return [];
     const rows = await ctx.db
       .query("review_comments")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
-    return withoutOthersPending(withoutBorrowedRows(rows), userId).sort((a, b) => a.created_at - b.created_at);
+    return withoutOthersPending(withoutBorrowedRows(rows), userId).sort(
+      (a, b) => a.created_at - b.created_at,
+    );
   },
 });
 
 // ── Writes on an existing comment ──
 
-async function requireOwnComment(ctx: Ctx, userId: Id<"users">, commentId: Id<"review_comments">) {
+async function requireOwnComment(
+  ctx: Ctx,
+  userId: Id<"users">,
+  commentId: Id<"review_comments">,
+) {
   const comment = await ctx.db.get(commentId);
-  if (!comment || !(await canAccessComment(ctx, userId, comment))) throw new Error("Comment not found");
+  if (!comment || !(await canAccessComment(ctx, userId, comment)))
+    throw new Error("Comment not found");
   return comment;
 }
 
@@ -985,15 +1242,27 @@ export const update = mutation({
     const userId = await requireUserOrToken(ctx, args.api_token);
     const comment = await requireOwnComment(ctx, userId, args.comment_id);
     // A comment that came from GitHub belongs to whoever wrote it there.
-    if (comment.author_kind === "github") throw new Error("Forbidden: edit this comment on GitHub");
-    if (comment.author_user_id && String(comment.author_user_id) !== String(userId)) {
+    if (comment.author_kind === "github")
+      throw new Error("Forbidden: edit this comment on GitHub");
+    if (
+      comment.author_user_id &&
+      String(comment.author_user_id) !== String(userId)
+    ) {
       throw new Error("Forbidden: only the author may edit a comment");
     }
     // An edited note has not been sent: clearing sent_at puts it back in the
     // batch so `cast review send` delivers the words the author now means.
-    await ctx.db.patch(args.comment_id, { content: args.content, updated_at: Date.now(), sent_at: undefined, answered_message_id: undefined, answered_at: undefined });
+    await ctx.db.patch(args.comment_id, {
+      content: args.content,
+      updated_at: Date.now(),
+      sent_at: undefined,
+      answered_message_id: undefined,
+      answered_at: undefined,
+    });
     if (comment.github_comment_id) {
-      await queueMirror(ctx, internal.codeComments.mirrorEditToGitHub, { comment_id: args.comment_id });
+      await queueMirror(ctx, internal.codeComments.mirrorEditToGitHub, {
+        comment_id: args.comment_id,
+      });
     }
     return { ok: true };
   },
@@ -1007,10 +1276,14 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const comment = await requireOwnComment(ctx, userId, args.comment_id);
-    if (comment.author_user_id && String(comment.author_user_id) !== String(userId)) {
+    if (
+      comment.author_user_id &&
+      String(comment.author_user_id) !== String(userId)
+    ) {
       throw new Error("Forbidden: only the author may delete a comment");
     }
-    if (comment.author_kind === "github") throw new Error("Forbidden: delete this comment on GitHub");
+    if (comment.author_kind === "github")
+      throw new Error("Forbidden: delete this comment on GitHub");
     await ctx.db.delete(args.comment_id);
     if (comment.github_comment_id && comment.pull_request_id) {
       await queueMirror(ctx, internal.codeComments.mirrorDeleteToGitHub, {
@@ -1046,7 +1319,11 @@ export async function setThreadResolved(
     });
   }
   if (comment.github_comment_id && comment.file_path) {
-    await queueMirror(ctx, internal.codeComments.mirrorThreadResolution, { comment_id: commentId, resolved, user_id: userId });
+    await queueMirror(ctx, internal.codeComments.mirrorThreadResolution, {
+      comment_id: commentId,
+      resolved,
+      user_id: userId,
+    });
   }
 }
 

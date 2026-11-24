@@ -21,7 +21,7 @@ export function isPaneHold(reason: string | null | undefined): boolean {
   return !!reason && PANE_HOLD.test(reason);
 }
 
-export type TerminalOffer = 'held' | 'stuck';
+export type TerminalOffer = "held" | "stuck";
 
 export function terminalOffer(input: {
   /** The pane exists and this person may drive it. */
@@ -36,9 +36,15 @@ export function terminalOffer(input: {
   now: number;
 }): TerminalOffer | null {
   if (!input.reachable) return null;
-  if (isPaneHold(input.holdReason)) return 'held';
-  if (input.holdReason || !input.isLive || input.agentBusy || input.pendingSince === null) return null;
-  return input.now - input.pendingSince > STUCK_AFTER_MS ? 'stuck' : null;
+  if (isPaneHold(input.holdReason)) return "held";
+  if (
+    input.holdReason ||
+    !input.isLive ||
+    input.agentBusy ||
+    input.pendingSince === null
+  )
+    return null;
+  return input.now - input.pendingSince > STUCK_AFTER_MS ? "stuck" : null;
 }
 
 export interface PendingRowLike {
@@ -54,7 +60,7 @@ export interface PendingLike extends PendingRowLike {
   inflight?: PendingRowLike[];
 }
 
-const UNDELIVERED = new Set(['pending', 'injected']);
+const UNDELIVERED = new Set(["pending", "injected"]);
 
 /**
  * The session-wide offer, read from the server's pending rows rather than from
@@ -71,7 +77,9 @@ export function sessionTerminalOffer(input: {
   now: number;
 }): { offer: TerminalOffer | null; nextAt: number | null } {
   if (!input.reachable || !input.pending) return { offer: null, nextAt: null };
-  const rows = [input.pending, ...(input.pending.inflight ?? [])].filter((r) => !!r.status && UNDELIVERED.has(r.status));
+  const rows = [input.pending, ...(input.pending.inflight ?? [])].filter(
+    (r) => !!r.status && UNDELIVERED.has(r.status),
+  );
   let nextAt: number | null = null;
   let stuck = false;
   for (const r of rows) {
@@ -80,16 +88,16 @@ export function sessionTerminalOffer(input: {
       reachable: true,
       isLive: input.isLive,
       agentBusy: input.agentBusy,
-      holdReason: r.status === 'pending' ? r.hold_reason : null,
+      holdReason: r.status === "pending" ? r.hold_reason : null,
       pendingSince: r.created_at ?? null,
       now: input.now,
     });
-    if (offer === 'held') return { offer, nextAt: null };
-    if (offer === 'stuck') stuck = true;
-    else if (!r.hold_reason && typeof r.created_at === 'number') {
+    if (offer === "held") return { offer, nextAt: null };
+    if (offer === "stuck") stuck = true;
+    else if (!r.hold_reason && typeof r.created_at === "number") {
       const at = r.created_at + STUCK_AFTER_MS + 1;
       if (at > input.now) nextAt = nextAt === null ? at : Math.min(nextAt, at);
     }
   }
-  return { offer: stuck ? 'stuck' : null, nextAt: stuck ? null : nextAt };
+  return { offer: stuck ? "stuck" : null, nextAt: stuck ? null : nextAt };
 }

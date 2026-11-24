@@ -22,7 +22,11 @@ export interface FleetState {
 export function readFleetState(): FleetState | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(fleetStatePath(), "utf-8"));
-    if (typeof parsed?.profile === "string" && typeof parsed?.expires_at === "number") return parsed;
+    if (
+      typeof parsed?.profile === "string" &&
+      typeof parsed?.expires_at === "number"
+    )
+      return parsed;
   } catch {}
   return null;
 }

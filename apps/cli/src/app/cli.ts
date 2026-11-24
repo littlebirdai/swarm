@@ -21,15 +21,29 @@ import * as net from "node:net";
 import { spawnSync } from "../proc.js";
 import { c, fmt } from "../colors.js";
 import { inlineImageMarker } from "../inlineImage.js";
-import { APP_SURFACES, findAppSurface, type AppSurface } from "@codecast/shared/contracts";
+import {
+  APP_SURFACES,
+  findAppSurface,
+  type AppSurface,
+} from "@codecast/shared/contracts";
 import { didYouMean, nearMatches } from "../commandSuggestion.js";
-import { CdpConnection, listTargets, isCdpAlive, type CdpClient } from "../browser/cdp.js";
+import {
+  CdpConnection,
+  listTargets,
+  isCdpAlive,
+  type CdpClient,
+} from "../browser/cdp.js";
 import { engineSession, realSessionKey } from "../browser/engine.js";
 import { ownerKey } from "../browser/owner.js";
 import { engineBrowserFor, isRealMode } from "../browser/bridge/real.js";
 import { targetFlags as browserTargetFlags } from "../browser/bridge/commands.js";
 import { runVerb } from "../browser/cliEngine.js";
-import { connectToTab, evaluateOn, type EvalOutcome, type PageCtx } from "../browser/pageEval.js";
+import {
+  connectToTab,
+  evaluateOn,
+  type EvalOutcome,
+  type PageCtx,
+} from "../browser/pageEval.js";
 import { readState } from "../browser/instance.js";
 import { defaultShotPath } from "../browser/shotFile.js";
 import { secureTempFile, TEMP_FILE_MODE } from "../tempFiles.js";
@@ -49,9 +63,11 @@ const LOCAL_VITE_PORT = 3200;
 const LOAD_SETTLE_MS = 45_000;
 const DESKTOP_CDP_PORT = Number(process.env.CODECAST_CDP_PORT || 9333);
 /** A page that is the codecast app: production, local dev through nginx, or vite directly. */
-const CODECAST_ORIGIN = /^https?:\/\/((www\.|local\.)?codecast\.sh|localhost:\d+|127\.0\.0\.1:\d+)(\/|$)/;
+const CODECAST_ORIGIN =
+  /^https?:\/\/((www\.|local\.)?codecast\.sh|localhost:\d+|127\.0\.0\.1:\d+)(\/|$)/;
 /** Chromeless desktop windows that are never the page a driver wants. */
-const DESKTOP_SIDE_WINDOWS = /\/(palette|people|call-panel|faces|meeting-offer|call-ring)(\?|$)/;
+const DESKTOP_SIDE_WINDOWS =
+  /\/(palette|people|call-panel|faces|meeting-offer|call-ring)(\?|$)/;
 
 // ---------------------------------------------------------------------------
 // Targets
@@ -82,7 +98,10 @@ interface TargetOpts {
 function portListening(port: number, timeoutMs = 1000): Promise<boolean> {
   return new Promise((resolve) => {
     const sock = net.connect({ host: "127.0.0.1", port });
-    const done = (up: boolean) => { sock.destroy(); resolve(up); };
+    const done = (up: boolean) => {
+      sock.destroy();
+      resolve(up);
+    };
     sock.setTimeout(timeoutMs, () => done(false));
     sock.once("connect", () => done(true));
     sock.once("error", () => done(false));
@@ -91,13 +110,18 @@ function portListening(port: number, timeoutMs = 1000): Promise<boolean> {
 
 async function originFor(o: TargetOpts): Promise<string> {
   if (o.origin) {
-    if (!/^https?:\/\/[^/\s]+/.test(o.origin)) die(`--origin takes a full origin like http://localhost:3200, not '${o.origin}'`);
+    if (!/^https?:\/\/[^/\s]+/.test(o.origin))
+      die(
+        `--origin takes a full origin like http://localhost:3200, not '${o.origin}'`,
+      );
     return o.origin.replace(/\/+$/, "");
   }
-  if (process.env.CAST_APP_ORIGIN) return process.env.CAST_APP_ORIGIN.replace(/\/+$/, "");
+  if (process.env.CAST_APP_ORIGIN)
+    return process.env.CAST_APP_ORIGIN.replace(/\/+$/, "");
   // The dev server `cast dev` runs for this checkout (a worktree, a cloud
   // host): the tree being edited, on whatever port it was given.
-  const { checkoutRoot, runningDevServer } = await import("../workspace/dev.js");
+  const { checkoutRoot, runningDevServer } =
+    await import("../workspace/dev.js");
   const dev = runningDevServer(checkoutRoot());
   if (dev) return dev.url;
   // Local dev when it answers; the tree an agent is editing is what it
@@ -113,7 +137,10 @@ async function webTarget(o: TargetOpts, deps: PublishDeps): Promise<AppTarget> {
   // The same session key and the same real-or-clone choice `cast browser`
   // makes, so this is the very tab the session's other verbs drive.
   const session = engineSession(deps.detectCurrentSessionId);
-  const real = isRealMode({ real: o.real, clone: o.clone }, ownerKey(deps.detectCurrentSessionId));
+  const real = isRealMode(
+    { real: o.real, clone: o.clone },
+    ownerKey(deps.detectCurrentSessionId),
+  );
   let ctx: PageCtx;
   try {
     ctx = real ? await engineBrowserFor(realSessionKey(session)) : { session };
@@ -129,7 +156,9 @@ async function webTarget(o: TargetOpts, deps: PublishDeps): Promise<AppTarget> {
     openFresh: async () => {
       // `open` starts the browser, pins the tab and carries logins; the one
       // path every page-touching verb takes.
-      const code = await runVerb("open", [`${origin}/inbox`], ctx, { quiet: true });
+      const code = await runVerb("open", [`${origin}/inbox`], ctx, {
+        quiet: true,
+      });
       if (code !== 0) die(`could not open ${origin}`, "cast browser start");
     },
   };
@@ -139,9 +168,18 @@ async function desktopTarget(o: TargetOpts): Promise<AppTarget> {
   const port = DESKTOP_CDP_PORT;
   const pick = async () => {
     const targets = await listTargets(port);
-    const pages = targets.filter((t) => t.type === "page" && !DESKTOP_SIDE_WINDOWS.test(t.url));
-    const wanted = o.origin ? pages.find((t) => t.url.startsWith(o.origin!)) : undefined;
-    return wanted ?? pages.find((t) => CODECAST_ORIGIN.test(t.url)) ?? pages[0] ?? null;
+    const pages = targets.filter(
+      (t) => t.type === "page" && !DESKTOP_SIDE_WINDOWS.test(t.url),
+    );
+    const wanted = o.origin
+      ? pages.find((t) => t.url.startsWith(o.origin!))
+      : undefined;
+    return (
+      wanted ??
+      pages.find((t) => CODECAST_ORIGIN.test(t.url)) ??
+      pages[0] ??
+      null
+    );
   };
   const alive = await isCdpAlive(port);
   if (!alive) {
@@ -155,13 +193,22 @@ async function desktopTarget(o: TargetOpts): Promise<AppTarget> {
   // a driver must know it has codecast before it drives anything.
   const all = await listTargets(port);
   if (!all.some((t) => t.type === "page" && CODECAST_ORIGIN.test(t.url))) {
-    const seen = all.filter((t) => t.type === "page").map((t) => t.url).slice(0, 3).join(", ") || "no pages";
+    const seen =
+      all
+        .filter((t) => t.type === "page")
+        .map((t) => t.url)
+        .slice(0, 3)
+        .join(", ") || "no pages";
     die(
       `127.0.0.1:${port} is not the codecast desktop app (it shows ${seen})`,
       "another app owns the port; run codecast with CODECAST_CDP_PORT=<free port> and pass the same env to cast app",
     );
   }
-  const origin = o.origin?.replace(/\/+$/, "") ?? (first && first.url.startsWith("http") ? new URL(first.url).origin : PROD_ORIGIN);
+  const origin =
+    o.origin?.replace(/\/+$/, "") ??
+    (first && first.url.startsWith("http")
+      ? new URL(first.url).origin
+      : PROD_ORIGIN);
   return {
     kind: "desktop",
     origin,
@@ -172,17 +219,23 @@ async function desktopTarget(o: TargetOpts): Promise<AppTarget> {
     },
     attach: async () => {
       const page = await pick();
-      if (!page) return { error: "the desktop app has no main window to drive" };
+      if (!page)
+        return { error: "the desktop app has no main window to drive" };
       const conn = await CdpConnection.fromPort(port, 8000);
       try {
-        const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", {
-          targetId: page.targetId,
-          flatten: true,
-        });
+        const { sessionId } = await conn.send<{ sessionId: string }>(
+          "Target.attachToTarget",
+          {
+            targetId: page.targetId,
+            flatten: true,
+          },
+        );
         return { conn, sessionId, url: page.url };
       } catch (err) {
         conn.close();
-        return { error: `could not attach to the desktop window: ${(err as Error).message}` };
+        return {
+          error: `could not attach to the desktop window: ${(err as Error).message}`,
+        };
       }
     },
   };
@@ -203,13 +256,27 @@ function die(msg: string, hint?: string): never {
 }
 
 /** Run a script that returns a JSON value; parsed, or a refusal. */
-async function evalJson<T>(at: Attached, script: string, timeoutMs = 15_000): Promise<{ ok: true; value: T } | { ok: false; error: string; hint?: string }> {
-  const out: EvalOutcome = await evaluateOn(at.conn, at.sessionId, script, timeoutMs);
+async function evalJson<T>(
+  at: Attached,
+  script: string,
+  timeoutMs = 15_000,
+): Promise<
+  { ok: true; value: T } | { ok: false; error: string; hint?: string }
+> {
+  const out: EvalOutcome = await evaluateOn(
+    at.conn,
+    at.sessionId,
+    script,
+    timeoutMs,
+  );
   if (!out.ok) return { ok: false, error: out.output, hint: out.hint };
   try {
     return { ok: true, value: JSON.parse(out.output) as T };
   } catch {
-    return { ok: false, error: `the page answered something that is not JSON: ${out.output.slice(0, 200)}` };
+    return {
+      ok: false,
+      error: `the page answered something that is not JSON: ${out.output.slice(0, 200)}`,
+    };
   }
 }
 
@@ -218,7 +285,10 @@ async function evalJson<T>(at: Attached, script: string, timeoutMs = 15_000): Pr
  * tab yet gets one; a tab parked elsewhere is brought to the app first, so
  * every verb starts from a booted codecast page.
  */
-async function withPage<T>(target: AppTarget, fn: (at: Attached) => Promise<T>): Promise<T> {
+async function withPage<T>(
+  target: AppTarget,
+  fn: (at: Attached) => Promise<T>,
+): Promise<T> {
   let at = await target.attach();
   if ("error" in at && /no tab|no managed browser/.test(at.error)) {
     await target.openFresh();
@@ -239,7 +309,13 @@ async function withPage<T>(target: AppTarget, fn: (at: Attached) => Promise<T>):
 async function navigate(at: Attached, url: string): Promise<void> {
   await at.conn.send("Page.enable", {}, at.sessionId, 5000);
   await at.conn.send("Page.navigate", { url }, at.sessionId, 10_000);
-  await at.conn.waitFor((ev) => ev.method === "Page.loadEventFired" && ev.sessionId === at.sessionId, 20_000).catch(() => {});
+  await at.conn
+    .waitFor(
+      (ev) =>
+        ev.method === "Page.loadEventFired" && ev.sessionId === at.sessionId,
+      20_000,
+    )
+    .catch(() => {});
 }
 
 /**
@@ -249,9 +325,16 @@ async function navigate(at: Attached, url: string): Promise<void> {
  * booted, does a full document load instead — on local dev that is a
  * 20-30s vite pass, so it is opt-in.
  */
-async function go(at: Attached, target: AppTarget, path: string, reload?: boolean): Promise<"in-app" | "load" | "load-after-bounce"> {
+async function go(
+  at: Attached,
+  target: AppTarget,
+  path: string,
+  reload?: boolean,
+): Promise<"in-app" | "load" | "load-after-bounce"> {
   if (!reload) {
-    const r = await evalJson<{ ok: boolean }>(at, `(() => {
+    const r = await evalJson<{ ok: boolean }>(
+      at,
+      `(() => {
       const root = document.getElementById("root");
       if (!root || root.children.length === 0) return { ok: false };
       // A crashed boundary does not re-render on a route change; only a
@@ -260,12 +343,16 @@ async function go(at: Attached, target: AppTarget, path: string, reload?: boolea
       history.pushState(null, "", ${JSON.stringify(path)});
       dispatchEvent(new PopStateEvent("popstate", { state: null }));
       return { ok: true };
-    })()`);
+    })()`,
+    );
     if (r.ok && r.value.ok) {
       // The shell may re-assert its own URL (a tab-shell surface leaving for
       // settings, say). Give it a beat; if the address did not stick, a full
       // load is what a typed URL does.
-      const check = await evalJson<{ path: string }>(at, `await new Promise((r) => setTimeout(r, 300)); ({ path: location.pathname })`);
+      const check = await evalJson<{ path: string }>(
+        at,
+        `await new Promise((r) => setTimeout(r, 300)); ({ path: location.pathname })`,
+      );
       if (check.ok && check.value.path.startsWith(path)) return "in-app";
       await navigate(at, `${target.origin}${path}`);
       return "load-after-bounce";
@@ -289,7 +376,11 @@ function collectErrors(at: Attached): { stop: () => string[] } {
     if (ev.sessionId !== at.sessionId) return;
     if (ev.method === "Runtime.exceptionThrown") {
       const d = (ev.params as any)?.exceptionDetails;
-      errors.push(d?.exception?.description?.split("\n")[0] ?? d?.text ?? "uncaught exception");
+      errors.push(
+        d?.exception?.description?.split("\n")[0] ??
+          d?.text ??
+          "uncaught exception",
+      );
     } else if (ev.method === "Log.entryAdded") {
       const e = (ev.params as any)?.entry;
       if (e?.level === "error") errors.push(`${e.source}: ${e.text}`);
@@ -297,7 +388,12 @@ function collectErrors(at: Attached): { stop: () => string[] } {
   });
   void at.conn.send("Runtime.enable", {}, at.sessionId, 5000).catch(() => {});
   void at.conn.send("Log.enable", {}, at.sessionId, 5000).catch(() => {});
-  return { stop: () => { off(); return errors; } };
+  return {
+    stop: () => {
+      off();
+      return errors;
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -370,11 +466,22 @@ interface Probe {
   user: { id: string; email: string | null; name: string | null } | null;
   activeTeam: string | null;
   syncRole: string | null;
-  replication: { role: string; elected: boolean; holdsLock: boolean; synced: boolean } | null;
+  replication: {
+    role: string;
+    elected: boolean;
+    holdsLock: boolean;
+    synced: boolean;
+  } | null;
   pendingSends: number | null;
   inflight: number | null;
   clientStateInitialized: boolean | null;
-  lastNav: { field: string; from: string | null; to: string | null; source: string; blocked?: string } | null;
+  lastNav: {
+    field: string;
+    from: string | null;
+    to: string | null;
+    source: string;
+    blocked?: string;
+  } | null;
 }
 
 interface Settle {
@@ -393,19 +500,32 @@ async function probe(at: Attached): Promise<Probe> {
   return r.value;
 }
 
-async function settle(at: Attached, timeoutMs: number, quietMs = 400): Promise<Settle> {
+async function settle(
+  at: Attached,
+  timeoutMs: number,
+  quietMs = 400,
+): Promise<Settle> {
   const started = Date.now();
   let quietSince: number | null = null;
   let lastSeq = -1;
   let last: Omit<Settle, "settled" | "waitedMs"> | null = null;
   while (Date.now() - started < timeoutMs) {
-    const r = await evalJson<Omit<Settle, "settled" | "waitedMs">>(at, SETTLE_SNAPSHOT, 5000);
+    const r = await evalJson<Omit<Settle, "settled" | "waitedMs">>(
+      at,
+      SETTLE_SNAPSHOT,
+      5000,
+    );
     if (r.ok) {
       last = r.value;
-      const quiet = last.init && last.inflight === 0 && last.pending === 0 && last.seq === lastSeq;
+      const quiet =
+        last.init &&
+        last.inflight === 0 &&
+        last.pending === 0 &&
+        last.seq === lastSeq;
       if (quiet) {
         quietSince ??= Date.now();
-        if (Date.now() - quietSince >= quietMs) return { settled: true, waitedMs: Date.now() - started, ...last };
+        if (Date.now() - quietSince >= quietMs)
+          return { settled: true, waitedMs: Date.now() - started, ...last };
       } else {
         quietSince = null;
       }
@@ -416,16 +536,32 @@ async function settle(at: Attached, timeoutMs: number, quietMs = 400): Promise<S
     }
     await new Promise((r) => setTimeout(r, 150));
   }
-  return { settled: false, waitedMs: Date.now() - started, ...(last ?? { inflight: 0, pending: 0, init: false, booted: false, seq: 0 }) };
+  return {
+    settled: false,
+    waitedMs: Date.now() - started,
+    ...(last ?? {
+      inflight: 0,
+      pending: 0,
+      init: false,
+      booted: false,
+      seq: 0,
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
 // CLI-side facts
 // ---------------------------------------------------------------------------
 
-function cliConfig(): { user_id?: string; convex_url?: string; web_url?: string } {
+function cliConfig(): {
+  user_id?: string;
+  convex_url?: string;
+  web_url?: string;
+} {
   try {
-    return JSON.parse(fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8"));
+    return JSON.parse(
+      fs.readFileSync(path.join(defaultConfigDir(), "config.json"), "utf-8"),
+    );
   } catch {
     return {};
   }
@@ -434,14 +570,18 @@ function cliConfig(): { user_id?: string; convex_url?: string; web_url?: string 
 /** The repo checkout that owns apps/server/run.sh, or null. */
 async function codecastCheckout(): Promise<string | null> {
   const root = await repoRootFor(process.env.CODECAST_CWD || process.cwd());
-  if (root && fs.existsSync(path.join(root, "apps", "server", "run.sh"))) return root;
+  if (root && fs.existsSync(path.join(root, "apps", "server", "run.sh")))
+    return root;
   return null;
 }
 
 /** The web's localStorage key layout (lib/localAuth.ts): base + "_" + url with non-alphanumerics stripped. */
 function authKeys(convexUrl: string): { jwt: string; refresh: string } {
   const ns = convexUrl.replace(/[^a-zA-Z0-9]/g, "");
-  return { jwt: `__convexAuthJWT_${ns}`, refresh: `__convexAuthRefreshToken_${ns}` };
+  return {
+    jwt: `__convexAuthJWT_${ns}`,
+    refresh: `__convexAuthRefreshToken_${ns}`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -452,11 +592,22 @@ function short(sha: string | undefined): string {
   return sha ? sha.slice(0, 10) : "unknown";
 }
 
-async function doctor(o: TargetOpts & { json?: boolean }, deps: PublishDeps): Promise<void> {
+async function doctor(
+  o: TargetOpts & { json?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
   const cfg = cliConfig();
-  const checks: { name: string; status: "pass" | "warn" | "fail"; detail: string }[] = [];
-  const add = (name: string, status: "pass" | "warn" | "fail", detail: string) => checks.push({ name, status, detail });
+  const checks: {
+    name: string;
+    status: "pass" | "warn" | "fail";
+    detail: string;
+  }[] = [];
+  const add = (
+    name: string,
+    status: "pass" | "warn" | "fail",
+    detail: string,
+  ) => checks.push({ name, status, detail });
 
   const p = await withPage(target, async (at) => {
     const s = await settle(at, 10_000);
@@ -466,48 +617,104 @@ async function doctor(o: TargetOpts & { json?: boolean }, deps: PublishDeps): Pr
   const { pr, s } = p;
 
   add("target", "pass", target.label);
-  add("page", pr.rootRendered && !pr.crashed ? "pass" : "fail",
-    pr.crashed ? `${pr.href} — "${pr.crashed}" crashed into its error boundary` : `${pr.href} (${pr.readyState})`);
-  add("build", pr.build ? "pass" : "warn",
-    pr.build ? `${short(pr.build.sha)} ${pr.build.mode}, built ${pr.build.builtAt}` : "no build identity on the page (bundle predates window.__CODECAST_BUILD)");
+  add(
+    "page",
+    pr.rootRendered && !pr.crashed ? "pass" : "fail",
+    pr.crashed
+      ? `${pr.href} — "${pr.crashed}" crashed into its error boundary`
+      : `${pr.href} (${pr.readyState})`,
+  );
+  add(
+    "build",
+    pr.build ? "pass" : "warn",
+    pr.build
+      ? `${short(pr.build.sha)} ${pr.build.mode}, built ${pr.build.builtAt}`
+      : "no build identity on the page (bundle predates window.__CODECAST_BUILD)",
+  );
   if (pr.build && target.origin === LOCAL_ORIGIN) {
-    const head = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim();
+    const head = spawnSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf-8",
+    }).stdout?.trim();
     if (head && pr.build.sha !== "unknown" && head !== pr.build.sha) {
       // In development the stamp is the commit vite STARTED on: sources still
       // hot-reload, but a config or dependency change since then is not served.
-      add("freshness", "warn", pr.build.mode === "development"
-        ? `vite started on ${short(pr.build.sha)}, tree is at ${short(head)} — sources hot-reload, but restart vite if config or deps changed since`
-        : `page built from ${short(pr.build.sha)}, tree is at ${short(head)} — a stale bundle`);
+      add(
+        "freshness",
+        "warn",
+        pr.build.mode === "development"
+          ? `vite started on ${short(pr.build.sha)}, tree is at ${short(head)} — sources hot-reload, but restart vite if config or deps changed since`
+          : `page built from ${short(pr.build.sha)}, tree is at ${short(head)} — a stale bundle`,
+      );
     } else if (head) {
       add("freshness", "pass", `page and tree agree on ${short(head)}`);
     }
   }
-  add("handles", pr.devHandles ? "pass" : "warn",
-    pr.devHandles ? "store handle present (__inboxStore); store-level verbs available" : "no __inboxStore on the page (a bundle from before the handle shipped in prod); drive through the UI only");
-  add("signed in", pr.signedIn ? "pass" : "fail",
+  add(
+    "handles",
+    pr.devHandles ? "pass" : "warn",
+    pr.devHandles
+      ? "store handle present (__inboxStore); store-level verbs available"
+      : "no __inboxStore on the page (a bundle from before the handle shipped in prod); drive through the UI only",
+  );
+  add(
+    "signed in",
+    pr.signedIn ? "pass" : "fail",
     pr.signedIn
-      ? pr.user ? `${pr.user.email ?? pr.user.name ?? "?"} (${pr.user.id})` : "token present (identity unreadable without dev handles)"
-      : "no auth token in localStorage — cast browser login, or cast app as-user <email>");
+      ? pr.user
+        ? `${pr.user.email ?? pr.user.name ?? "?"} (${pr.user.id})`
+        : "token present (identity unreadable without dev handles)"
+      : "no auth token in localStorage — cast browser login, or cast app as-user <email>",
+  );
   if (pr.user && cfg.user_id) {
-    add("daemon owner", pr.user.id === cfg.user_id ? "pass" : "warn",
+    add(
+      "daemon owner",
+      pr.user.id === cfg.user_id ? "pass" : "warn",
       pr.user.id === cfg.user_id
         ? "the page's user owns this machine's daemon"
-        : `page user ${pr.user.id} is not this daemon's user ${cfg.user_id} — daemon-backed surfaces (terminal, vault, device commands) will read as offline`);
+        : `page user ${pr.user.id} is not this daemon's user ${cfg.user_id} — daemon-backed surfaces (terminal, vault, device commands) will read as offline`,
+    );
   }
-  add("workspace", "pass", pr.activeTeam ? `team ${pr.activeTeam}` : "personal");
-  add("sync", pr.syncRole ? "pass" : "warn",
+  add(
+    "workspace",
+    "pass",
+    pr.activeTeam ? `team ${pr.activeTeam}` : "personal",
+  );
+  add(
+    "sync",
+    pr.syncRole ? "pass" : "warn",
     pr.syncRole
       ? `${pr.syncRole}${pr.replication ? ` (elected ${pr.replication.elected}, synced ${pr.replication.synced})` : ""}`
-      : "no sync role reported");
-  add("settled", s.settled ? "pass" : "warn",
+      : "no sync role reported",
+  );
+  add(
+    "settled",
+    s.settled ? "pass" : "warn",
     s.settled
       ? `quiet after ${s.waitedMs}ms`
-      : `still busy after ${s.waitedMs}ms: inflight ${s.inflight}, pending sends ${s.pending}, client state ${s.init ? "ready" : "hydrating"}`);
-  add("desktop", pr.electron ? "pass" : "pass", pr.electron ? "page runs inside the desktop shell" : "browser page");
+      : `still busy after ${s.waitedMs}ms: inflight ${s.inflight}, pending sends ${s.pending}, client state ${s.init ? "ready" : "hydrating"}`,
+  );
+  add(
+    "desktop",
+    pr.electron ? "pass" : "pass",
+    pr.electron ? "page runs inside the desktop shell" : "browser page",
+  );
 
   const failed = checks.filter((k) => k.status === "fail");
   if (o.json) {
-    console.log(JSON.stringify({ ok: failed.length === 0, target: target.label, origin: target.origin, checks, probe: pr, settle: s }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: failed.length === 0,
+          target: target.label,
+          origin: target.origin,
+          checks,
+          probe: pr,
+          settle: s,
+        },
+        null,
+        2,
+      ),
+    );
   } else {
     console.log(`\n  ${c.bold}cast app doctor${c.reset}\n`);
     for (const k of checks) {
@@ -515,37 +722,64 @@ async function doctor(o: TargetOpts & { json?: boolean }, deps: PublishDeps): Pr
       console.log(`  ${glyph} ${k.name.padEnd(13)} ${k.detail}`);
     }
     console.log("");
-    console.log(failed.length ? `${BAD} not drivable: ${failed.map((k) => k.name).join(", ")}` : `${OK} drivable`);
+    console.log(
+      failed.length
+        ? `${BAD} not drivable: ${failed.map((k) => k.name).join(", ")}`
+        : `${OK} drivable`,
+    );
   }
   process.exit(failed.length ? 1 : 0);
 }
 
 function surfaces(o: { json?: boolean; kind?: string }): void {
-  const list = o.kind ? APP_SURFACES.filter((s) => s.kind === o.kind) : APP_SURFACES;
+  const list = o.kind
+    ? APP_SURFACES.filter((s) => s.kind === o.kind)
+    : APP_SURFACES;
   if (o.json) {
     console.log(JSON.stringify(list, null, 2));
     return;
   }
-  for (const s of list) console.log(`  ${s.name.padEnd(22)} ${fmt.muted(s.kind.padEnd(11))} ${s.what}`);
+  for (const s of list)
+    console.log(
+      `  ${s.name.padEnd(22)} ${fmt.muted(s.kind.padEnd(11))} ${s.what}`,
+    );
 }
 
 /** The surfaces a mistyped name was reaching for, then where the full list is. */
 function notSurfaceHint(typed: string): string {
-  const near = didYouMean(nearMatches(typed, APP_SURFACES.map((s) => s.name)).map((name) => `'cast app goto ${name}'`));
-  return near ? `${near} cast app surfaces lists them all.` : "cast app surfaces lists them; or pass /path or a conversation id";
+  const near = didYouMean(
+    nearMatches(
+      typed,
+      APP_SURFACES.map((s) => s.name),
+    ).map((name) => `'cast app goto ${name}'`),
+  );
+  return near
+    ? `${near} cast app surfaces lists them all.`
+    : "cast app surfaces lists them; or pass /path or a conversation id";
 }
 
 const SHORT_ID = /^[a-z0-9]{7,31}$/;
 const CONVEX_ID = /^[a-z0-9]{32}$/;
 
 /** Navigate by surface name, path, or conversation id; confirm where the app landed. */
-async function goto(what: string, o: TargetOpts & { timeout?: string; reload?: boolean; json?: boolean }, deps: PublishDeps): Promise<void> {
+async function goto(
+  what: string,
+  o: TargetOpts & { timeout?: string; reload?: boolean; json?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const timeoutMs = Number(o.timeout ?? 15_000);
-  if (!(timeoutMs > 0)) die(`--timeout takes milliseconds, like --timeout 30000, not '${o.timeout}'`);
+  if (!(timeoutMs > 0))
+    die(
+      `--timeout takes milliseconds, like --timeout 30000, not '${o.timeout}'`,
+    );
   const surface = findAppSurface(what);
   const isId = SHORT_ID.test(what) || CONVEX_ID.test(what);
   // Refused before attaching to any page, so a typo costs nothing.
-  if (!surface && !isId && !what.startsWith("/")) die(`"${what}" is not a surface, a path, or a conversation id`, notSurfaceHint(what));
+  if (!surface && !isId && !what.startsWith("/"))
+    die(
+      `"${what}" is not a surface, a path, or a conversation id`,
+      notSurfaceHint(what),
+    );
   const target = await targetFor(o, deps);
 
   const result = await withPage(target, async (at) => {
@@ -558,25 +792,34 @@ async function goto(what: string, o: TargetOpts & { timeout?: string; reload?: b
       // the route then does exactly what a click on the inbox row does.
       let full = what;
       if (CONVEX_ID.test(what) === false) {
-        const r = await evalJson<{ id: string | null }>(at, `(() => {
+        const r = await evalJson<{ id: string | null }>(
+          at,
+          `(() => {
           const s = window.__inboxStore && window.__inboxStore.getState ? window.__inboxStore.getState() : null;
           if (!s) return { id: null };
           const want = ${JSON.stringify(what)};
           const rows = Object.values(s.conversations || {}).concat(Object.values(s.sessions || {}));
           const row = rows.find((r) => r && String(r._id).startsWith(want));
           return { id: row ? String(row._id) : null };
-        })()`);
+        })()`,
+        );
         if (r.ok && r.value.id) full = r.value.id;
       }
       route = `/conversation/${full}`;
     } else if (what.startsWith("/")) {
       route = what;
     } else {
-      die(`"${what}" is not a surface, a path, or a conversation id`, "cast app surfaces");
+      die(
+        `"${what}" is not a surface, a path, or a conversation id`,
+        "cast app surfaces",
+      );
     }
     const mode = await go(at, target, route, o.reload);
     const how = `${mode === "in-app" ? "navigate" : mode === "load" ? "load" : "load (in-app navigation bounced)"} ${route}`;
-    const s = await settle(at, mode === "in-app" ? timeoutMs : Math.max(timeoutMs, LOAD_SETTLE_MS));
+    const s = await settle(
+      at,
+      mode === "in-app" ? timeoutMs : Math.max(timeoutMs, LOAD_SETTLE_MS),
+    );
     const after = await probe(at);
     const errors = errs.stop();
     return { how, route, settle: s, probe: after, errors };
@@ -587,27 +830,68 @@ async function goto(what: string, o: TargetOpts & { timeout?: string; reload?: b
   const landed = new URL(after.href).pathname;
   // A short conversation id lands on the full one; a route may add a child segment.
   const arrived = arrivedAt(after.href, result.route, surface);
-  const ok = after.rootRendered && !after.crashed && !blocked && arrived && !/\/login(\?|$)/.test(after.href);
+  const ok =
+    after.rootRendered &&
+    !after.crashed &&
+    !blocked &&
+    arrived &&
+    !/\/login(\?|$)/.test(after.href);
   if (o.json) {
-    console.log(JSON.stringify({ ok, how, href: after.href, title: after.title, crashed: after.crashed, blocked: blocked ?? null, settled: result.settle, errors }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok,
+          how,
+          href: after.href,
+          title: after.title,
+          crashed: after.crashed,
+          blocked: blocked ?? null,
+          settled: result.settle,
+          errors,
+        },
+        null,
+        2,
+      ),
+    );
   } else {
-    console.log(`${ok ? OK : BAD} ${how} → ${after.href}${after.title ? fmt.muted(` — ${after.title}`) : ""}`);
-    if (after.crashed) console.log(`  ${BAD} "${after.crashed}" crashed into its error boundary`);
-    if (blocked) console.log(`  ${BAD} the navigation guard blocked the move: ${blocked}`);
-    if (/\/login(\?|$)/.test(after.href)) console.log(`  ${BAD} landed on /login — not signed in (cast app as-user <email>)`);
-    else if (!arrived) console.log(`  ${BAD} landed on ${landed}, not ${result.route}`);
-    if (!result.settle.settled) console.log(`  ${WARN} not settled after ${result.settle.waitedMs}ms (inflight ${result.settle.inflight}, pending ${result.settle.pending})`);
+    console.log(
+      `${ok ? OK : BAD} ${how} → ${after.href}${after.title ? fmt.muted(` — ${after.title}`) : ""}`,
+    );
+    if (after.crashed)
+      console.log(
+        `  ${BAD} "${after.crashed}" crashed into its error boundary`,
+      );
+    if (blocked)
+      console.log(`  ${BAD} the navigation guard blocked the move: ${blocked}`);
+    if (/\/login(\?|$)/.test(after.href))
+      console.log(
+        `  ${BAD} landed on /login — not signed in (cast app as-user <email>)`,
+      );
+    else if (!arrived)
+      console.log(`  ${BAD} landed on ${landed}, not ${result.route}`);
+    if (!result.settle.settled)
+      console.log(
+        `  ${WARN} not settled after ${result.settle.waitedMs}ms (inflight ${result.settle.inflight}, pending ${result.settle.pending})`,
+      );
     for (const e of errors.slice(0, 6)) console.log(`  ${WARN} ${e}`);
   }
   process.exit(ok ? 0 : 1);
 }
 
-async function waitSettle(o: TargetOpts & { timeout?: string; quiet?: string; json?: boolean }, deps: PublishDeps): Promise<void> {
+async function waitSettle(
+  o: TargetOpts & { timeout?: string; quiet?: string; json?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
-  const s = await withPage(target, (at) => settle(at, Number(o.timeout ?? 30_000), Number(o.quiet ?? 400)));
+  const s = await withPage(target, (at) =>
+    settle(at, Number(o.timeout ?? 30_000), Number(o.quiet ?? 400)),
+  );
   if (o.json) console.log(JSON.stringify(s));
   else if (s.settled) console.log(`${OK} settled after ${s.waitedMs}ms`);
-  else console.log(`${BAD} not settled after ${s.waitedMs}ms: inflight ${s.inflight}, pending sends ${s.pending}, client state ${s.init ? "ready" : "hydrating"}`);
+  else
+    console.log(
+      `${BAD} not settled after ${s.waitedMs}ms: inflight ${s.inflight}, pending sends ${s.pending}, client state ${s.init ? "ready" : "hydrating"}`,
+    );
   process.exit(s.settled ? 0 : 1);
 }
 
@@ -622,20 +906,45 @@ interface SweepRow {
 }
 
 /** Walk every surface: open, settle, check it rendered without crashing or erroring. */
-async function sweep(o: TargetOpts & { only?: string; kind?: string; timeout?: string; reload?: boolean; json?: boolean }, deps: PublishDeps): Promise<void> {
+async function sweep(
+  o: TargetOpts & {
+    only?: string;
+    kind?: string;
+    timeout?: string;
+    reload?: boolean;
+    json?: boolean;
+  },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
   const timeoutMs = Number(o.timeout ?? 15_000);
-  let list: AppSurface[] = o.kind ? APP_SURFACES.filter((s) => s.kind === o.kind) : APP_SURFACES;
+  let list: AppSurface[] = o.kind
+    ? APP_SURFACES.filter((s) => s.kind === o.kind)
+    : APP_SURFACES;
   if (o.only) {
-    const names = o.only.split(",").map((n) => n.trim()).filter(Boolean);
-    list = names.map((n) => findAppSurface(n) ?? die(`"${n}" is not a surface`, "cast app surfaces"));
+    const names = o.only
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
+    list = names.map(
+      (n) =>
+        findAppSurface(n) ??
+        die(`"${n}" is not a surface`, "cast app surfaces"),
+    );
   }
 
   const rows: SweepRow[] = [];
   await withPage(target, async (at) => {
     const first = await probe(at);
-    if (!first.signedIn) die("not signed in — a sweep of signed-in surfaces would only measure the login page", "cast app as-user <email>");
-    if (!o.json) console.log(`\n  ${c.bold}cast app sweep${c.reset} ${fmt.muted(`${list.length} surfaces on ${target.label}`)}\n`);
+    if (!first.signedIn)
+      die(
+        "not signed in — a sweep of signed-in surfaces would only measure the login page",
+        "cast app as-user <email>",
+      );
+    if (!o.json)
+      console.log(
+        `\n  ${c.bold}cast app sweep${c.reset} ${fmt.muted(`${list.length} surfaces on ${target.label}`)}\n`,
+      );
     for (const s of list) {
       const t0 = Date.now();
       const errs = collectErrors(at);
@@ -644,23 +953,43 @@ async function sweep(o: TargetOpts & { only?: string; kind?: string; timeout?: s
       let href = "";
       try {
         const mode = await go(at, target, s.path, o.reload);
-        if (mode === "load-after-bounce") notes.push("in-app navigation bounced; loaded the URL instead");
-        const st = await settle(at, mode === "in-app" ? timeoutMs : Math.max(timeoutMs, LOAD_SETTLE_MS));
+        if (mode === "load-after-bounce")
+          notes.push("in-app navigation bounced; loaded the URL instead");
+        const st = await settle(
+          at,
+          mode === "in-app" ? timeoutMs : Math.max(timeoutMs, LOAD_SETTLE_MS),
+        );
         const pr = await probe(at);
         href = pr.href;
         if (!pr.rootRendered) problems.push("nothing rendered under #root");
-        if (pr.crashed) problems.push(`"${pr.crashed}" crashed into its error boundary`);
-        if (/\/login(\?|$)/.test(pr.href)) problems.push("redirected to /login");
-        else if (!arrivedAt(pr.href, s.path, s)) problems.push(`landed on ${new URL(pr.href).pathname} instead`);
-        if (!st.settled) problems.push(`not settled after ${st.waitedMs}ms (inflight ${st.inflight}, pending ${st.pending})`);
+        if (pr.crashed)
+          problems.push(`"${pr.crashed}" crashed into its error boundary`);
+        if (/\/login(\?|$)/.test(pr.href))
+          problems.push("redirected to /login");
+        else if (!arrivedAt(pr.href, s.path, s))
+          problems.push(`landed on ${new URL(pr.href).pathname} instead`);
+        if (!st.settled)
+          problems.push(
+            `not settled after ${st.waitedMs}ms (inflight ${st.inflight}, pending ${st.pending})`,
+          );
       } catch (err) {
         problems.push((err as Error).message);
       }
       for (const e of errs.stop().slice(0, 4)) problems.push(`error: ${e}`);
-      const row: SweepRow = { name: s.name, path: s.path, ok: problems.length === 0, href, ms: Date.now() - t0, problems, notes };
+      const row: SweepRow = {
+        name: s.name,
+        path: s.path,
+        ok: problems.length === 0,
+        href,
+        ms: Date.now() - t0,
+        problems,
+        notes,
+      };
       rows.push(row);
       if (!o.json) {
-        console.log(`  ${row.ok ? OK : BAD} ${s.name.padEnd(22)} ${fmt.muted(`${row.ms}ms`)}`);
+        console.log(
+          `  ${row.ok ? OK : BAD} ${s.name.padEnd(22)} ${fmt.muted(`${row.ms}ms`)}`,
+        );
         for (const p of problems) console.log(`      ${p}`);
         for (const n of notes) console.log(fmt.muted(`      ${n}`));
       }
@@ -669,10 +998,25 @@ async function sweep(o: TargetOpts & { only?: string; kind?: string; timeout?: s
 
   const failed = rows.filter((r) => !r.ok);
   if (o.json) {
-    console.log(JSON.stringify({ ok: failed.length === 0, target: target.label, origin: target.origin, surfaces: rows }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: failed.length === 0,
+          target: target.label,
+          origin: target.origin,
+          surfaces: rows,
+        },
+        null,
+        2,
+      ),
+    );
   } else {
     console.log("");
-    console.log(failed.length ? `${BAD} ${failed.length} of ${rows.length} surfaces failed: ${failed.map((r) => r.name).join(", ")}` : `${OK} all ${rows.length} surfaces render`);
+    console.log(
+      failed.length
+        ? `${BAD} ${failed.length} of ${rows.length} surfaces failed: ${failed.map((r) => r.name).join(", ")}`
+        : `${OK} all ${rows.length} surfaces render`,
+    );
   }
   process.exit(failed.length ? 1 : 0);
 }
@@ -684,7 +1028,11 @@ async function sweep(o: TargetOpts & { only?: string; kind?: string; timeout?: s
  * refresh token the moment it sees it, so all of them must be parked on a
  * blank page while the pair changes hands.
  */
-async function appWindows(target: AppTarget): Promise<{ conn: CdpClient; pages: { targetId: string; url: string; sessionId: string }[]; main: number }> {
+async function appWindows(target: AppTarget): Promise<{
+  conn: CdpClient;
+  pages: { targetId: string; url: string; sessionId: string }[];
+  main: number;
+}> {
   let conn: CdpClient;
   let targets: { targetId: string; url: string; type: string }[];
   if (target.kind === "desktop") {
@@ -693,14 +1041,19 @@ async function appWindows(target: AppTarget): Promise<{ conn: CdpClient; pages: 
   } else {
     const state = readState();
     if (!state) die("no managed browser is running", "cast browser start");
-    conn = state.wsUrl ? await CdpConnection.connect(state.wsUrl, 8000) : await CdpConnection.fromPort(state.port, 8000);
+    conn = state.wsUrl
+      ? await CdpConnection.connect(state.wsUrl, 8000)
+      : await CdpConnection.fromPort(state.port, 8000);
     targets = await listTargets(state.port);
   }
   const pages = [] as { targetId: string; url: string; sessionId: string }[];
   for (const t of targets) {
     if (t.type !== "page" || !t.url.startsWith(target.origin)) continue;
     try {
-      const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: t.targetId, flatten: true });
+      const { sessionId } = await conn.send<{ sessionId: string }>(
+        "Target.attachToTarget",
+        { targetId: t.targetId, flatten: true },
+      );
       pages.push({ targetId: t.targetId, url: t.url, sessionId });
     } catch {}
   }
@@ -713,17 +1066,27 @@ async function appWindows(target: AppTarget): Promise<{ conn: CdpClient; pages: 
   return { conn, pages, main };
 }
 
-async function parkAll(conn: CdpClient, pages: { sessionId: string }[], url: string): Promise<void> {
+async function parkAll(
+  conn: CdpClient,
+  pages: { sessionId: string }[],
+  url: string,
+): Promise<void> {
   for (const p of pages) {
     await conn.send("Page.enable", {}, p.sessionId, 5000).catch(() => {});
-    await conn.send("Page.navigate", { url }, p.sessionId, 10_000).catch(() => {});
+    await conn
+      .send("Page.navigate", { url }, p.sessionId, 10_000)
+      .catch(() => {});
   }
   // Let each document settle on the blank page before touching storage.
   await new Promise((r) => setTimeout(r, 1200));
 }
 
 /** Become a named account for this run (or `--restore` the one that was there). */
-async function asUser(who: string | undefined, o: TargetOpts & { restore?: boolean; force?: boolean; json?: boolean }, deps: PublishDeps): Promise<void> {
+async function asUser(
+  who: string | undefined,
+  o: TargetOpts & { restore?: boolean; force?: boolean; json?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
   const cfg = cliConfig();
   const convexUrl = cfg.convex_url || "https://convex.codecast.sh";
@@ -731,16 +1094,39 @@ async function asUser(who: string | undefined, o: TargetOpts & { restore?: boole
   const landing = `${target.origin}/inbox`;
   const parked = `${target.origin}/robots.txt`;
 
-  let minted: { user: { _id: string; email?: string; name?: string }; token: string; refreshToken: string } | null = null;
+  let minted: {
+    user: { _id: string; email?: string; name?: string };
+    token: string;
+    refreshToken: string;
+  } | null = null;
   if (!o.restore) {
-    if (!who) die("who? an email or a user id", "cast app as-user someone@example.com");
+    if (!who)
+      die("who? an email or a user id", "cast app as-user someone@example.com");
     const root = await codecastCheckout();
-    if (!root) die("minting a session needs the codecast checkout (apps/server/run.sh with the admin key)", "run from ~/src/codecast");
+    if (!root)
+      die(
+        "minting a session needs the codecast checkout (apps/server/run.sh with the admin key)",
+        "run from ~/src/codecast",
+      );
     const args = who.includes("@") ? { email: who } : { user_id: who };
-    const res = spawnSync("bash", [path.join(root, "apps", "server", "run.sh"), "verification:mintSession", JSON.stringify(args)], {
-      encoding: "utf-8", cwd: root, timeout: 60_000,
-    });
-    if (res.status !== 0) die(`minting failed: ${(res.stderr || res.stdout).trim().split("\n").slice(-3).join(" | ")}`, "is verification.ts deployed? apps/server/deploy.sh");
+    const res = spawnSync(
+      "bash",
+      [
+        path.join(root, "apps", "server", "run.sh"),
+        "verification:mintSession",
+        JSON.stringify(args),
+      ],
+      {
+        encoding: "utf-8",
+        cwd: root,
+        timeout: 60_000,
+      },
+    );
+    if (res.status !== 0)
+      die(
+        `minting failed: ${(res.stderr || res.stdout).trim().split("\n").slice(-3).join(" | ")}`,
+        "is verification.ts deployed? apps/server/deploy.sh",
+      );
     try {
       minted = JSON.parse(res.stdout.slice(res.stdout.indexOf("{")));
     } catch {
@@ -765,7 +1151,11 @@ async function asUser(who: string | undefined, o: TargetOpts & { restore?: boole
       );
     }
     await parkAll(conn, pages, parked);
-    const at: Attached = { conn, sessionId: pages[main].sessionId, url: parked };
+    const at: Attached = {
+      conn,
+      sessionId: pages[main].sessionId,
+      url: parked,
+    };
     const script = o.restore
       ? `(() => {
         const saved = localStorage.getItem("__castApp_savedAuth");
@@ -791,7 +1181,9 @@ async function asUser(who: string | undefined, o: TargetOpts & { restore?: boole
     // Main window to the app; the others back to where they were.
     for (let i = 0; i < pages.length; i++) {
       const url = i === main ? landing : pages[i].url;
-      await conn.send("Page.navigate", { url }, pages[i].sessionId, 10_000).catch(() => {});
+      await conn
+        .send("Page.navigate", { url }, pages[i].sessionId, 10_000)
+        .catch(() => {});
     }
   } finally {
     conn.close();
@@ -802,14 +1194,32 @@ async function asUser(who: string | undefined, o: TargetOpts & { restore?: boole
     return;
   }
   const label = minted!.user.email ?? minted!.user.name ?? minted!.user._id;
-  if (o.json) console.log(JSON.stringify({ ok: true, user: minted!.user, windows: pages.length, restoredBy: "cast app as-user --restore" }));
+  if (o.json)
+    console.log(
+      JSON.stringify({
+        ok: true,
+        user: minted!.user,
+        windows: pages.length,
+        restoredBy: "cast app as-user --restore",
+      }),
+    );
   else {
-    console.log(`${OK} signed in as ${label} (${minted!.user._id}) across ${pages.length} window(s); reloading ${landing}`);
-    console.log(fmt.muted(`  the previous identity is saved on the page — cast app as-user --restore puts it back`));
+    console.log(
+      `${OK} signed in as ${label} (${minted!.user._id}) across ${pages.length} window(s); reloading ${landing}`,
+    );
+    console.log(
+      fmt.muted(
+        `  the previous identity is saved on the page — cast app as-user --restore puts it back`,
+      ),
+    );
   }
 }
 
-async function shot(pathArg: string | undefined, o: TargetOpts & { inline?: boolean }, deps: PublishDeps): Promise<void> {
+async function shot(
+  pathArg: string | undefined,
+  o: TargetOpts & { inline?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
   // The shared scratch policy: a 0700 directory of ours, the file owner-only,
   // swept after a day (tempFiles.ts, ct-49556). A screenshot of the app shows
@@ -817,8 +1227,15 @@ async function shot(pathArg: string | undefined, o: TargetOpts & { inline?: bool
   const out = pathArg ?? defaultShotPath("png");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   await withPage(target, async (at) => {
-    const res = await at.conn.send<{ data: string }>("Page.captureScreenshot", { format: "png" }, at.sessionId, 20_000);
-    fs.writeFileSync(out, Buffer.from(res.data, "base64"), { mode: TEMP_FILE_MODE });
+    const res = await at.conn.send<{ data: string }>(
+      "Page.captureScreenshot",
+      { format: "png" },
+      at.sessionId,
+      20_000,
+    );
+    fs.writeFileSync(out, Buffer.from(res.data, "base64"), {
+      mode: TEMP_FILE_MODE,
+    });
     secureTempFile(out);
   });
   console.log(`${OK} ${out}`);
@@ -826,10 +1243,16 @@ async function shot(pathArg: string | undefined, o: TargetOpts & { inline?: bool
 }
 
 /** Run a script on the app page and print its settled value (the desktop app has no other eval). */
-async function evalOnApp(script: string, o: TargetOpts & { timeout?: string; json?: boolean }, deps: PublishDeps): Promise<void> {
+async function evalOnApp(
+  script: string,
+  o: TargetOpts & { timeout?: string; json?: boolean },
+  deps: PublishDeps,
+): Promise<void> {
   const target = await targetFor(o, deps);
-  const out = await withPage(target, (at) => evaluateOn(at.conn, at.sessionId, script, Number(o.timeout ?? 15_000)));
-  console.log(o.json ? out.output : out.display ?? out.output);
+  const out = await withPage(target, (at) =>
+    evaluateOn(at.conn, at.sessionId, script, Number(o.timeout ?? 15_000)),
+  );
+  console.log(o.json ? out.output : (out.display ?? out.output));
   if (out.hint) console.log(fmt.muted(`  ${out.hint}`));
   process.exit(out.ok ? 0 : 1);
 }
@@ -839,8 +1262,14 @@ async function evalOnApp(script: string, o: TargetOpts & { timeout?: string; jso
 // ---------------------------------------------------------------------------
 
 function targetFlags<T extends Command>(cmd: T): T {
-  cmd.option("--desktop", `drive the desktop app over its CDP port (${DESKTOP_CDP_PORT}) instead of this session's tab`);
-  cmd.option("--origin <url>", "app origin (default: local dev when it answers, else production)");
+  cmd.option(
+    "--desktop",
+    `drive the desktop app over its CDP port (${DESKTOP_CDP_PORT}) instead of this session's tab`,
+  );
+  cmd.option(
+    "--origin <url>",
+    "app origin (default: local dev when it answers, else production)",
+  );
   browserTargetFlags(cmd);
   return cmd;
 }
@@ -849,7 +1278,9 @@ export function registerAppCommand(program: Command, deps: PublishDeps): void {
   const app = program
     .command("app")
     .description(commandGroup("app").description)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 The loop: doctor (is this page worth driving?), goto a surface or conversation,
 wait-settle, then prove with cast browser (snapshot, get text, shot) or eval.
 
@@ -864,56 +1295,112 @@ wait-settle, then prove with cast browser (snapshot, get text, shot) or eval.
 The web target is this session's tab in your own Chrome through the extension.
 A missing or disconnected extension never falls back to another browser; this is the same choice
 \`cast browser\` makes. as-user only re-signs the desktop app.
-`);
+`,
+    );
 
   // The target flags parse both before and after the verb.
   targetFlags(app);
-  const withTarget = <O extends object>(o: O): O & TargetOpts => ({ ...app.opts<TargetOpts>(), ...o });
+  const withTarget = <O extends object>(o: O): O & TargetOpts => ({
+    ...app.opts<TargetOpts>(),
+    ...o,
+  });
 
-  targetFlags(app.command("doctor").description("Is this page worth driving? origin, build, account, daemon owner, sync role, settled; exit 1 if not"))
+  targetFlags(
+    app
+      .command("doctor")
+      .description(
+        "Is this page worth driving? origin, build, account, daemon owner, sync role, settled; exit 1 if not",
+      ),
+  )
     .option("--json", "machine-readable report")
     .action((o) => doctor(withTarget(o), deps));
 
-  app.command("surfaces").description("The surfaces cast app goto accepts and sweep walks")
+  app
+    .command("surfaces")
+    .description("The surfaces cast app goto accepts and sweep walks")
     .option("--json", "as JSON")
     .option("--kind <kind>", "dashboard | standalone | settings")
     .action((o) => surfaces(o));
 
-  targetFlags(app.command("goto").description("Navigate to a surface name, a path, or a conversation id; wait for settle; confirm where it landed"))
-    .argument("<what>", "surface name (cast app surfaces), /path, or conversation id")
+  targetFlags(
+    app
+      .command("goto")
+      .description(
+        "Navigate to a surface name, a path, or a conversation id; wait for settle; confirm where it landed",
+      ),
+  )
+    .argument(
+      "<what>",
+      "surface name (cast app surfaces), /path, or conversation id",
+    )
     .option("--timeout <ms>", "settle timeout", "15000")
     .option("--reload", "full document load instead of in-app navigation")
     .option("--json", "machine-readable result")
     .action((what, o) => goto(what, withTarget(o), deps));
 
-  targetFlags(app.command("wait-settle").description("Wait until sync catch-up is quiet and the outbox is empty"))
+  targetFlags(
+    app
+      .command("wait-settle")
+      .description("Wait until sync catch-up is quiet and the outbox is empty"),
+  )
     .option("--timeout <ms>", "give up after", "30000")
     .option("--quiet <ms>", "how long it must stay quiet", "400")
     .option("--json", "as JSON")
     .action((o) => waitSettle(withTarget(o), deps));
 
-  targetFlags(app.command("sweep").description("Open every surface and report the ones that fail to render, crash, redirect or throw"))
+  targetFlags(
+    app
+      .command("sweep")
+      .description(
+        "Open every surface and report the ones that fail to render, crash, redirect or throw",
+      ),
+  )
     .option("--only <names>", "comma-separated surface names")
     .option("--kind <kind>", "dashboard | standalone | settings")
     .option("--timeout <ms>", "settle timeout per surface", "15000")
-    .option("--reload", "full document load per surface instead of in-app navigation")
+    .option(
+      "--reload",
+      "full document load per surface instead of in-app navigation",
+    )
     .option("--json", "machine-readable report")
     .action((o) => sweep(withTarget(o), deps));
 
-  targetFlags(app.command("as-user").description("Sign the page in as a named account for this run (mints a real session; needs the codecast checkout)"))
+  targetFlags(
+    app
+      .command("as-user")
+      .description(
+        "Sign the page in as a named account for this run (mints a real session; needs the codecast checkout)",
+      ),
+  )
     .argument("[who]", "email or user id")
     .option("--restore", "put back the identity that was there before")
-    .option("--force", "web target: swap even when other sessions' tabs share the origin")
+    .option(
+      "--force",
+      "web target: swap even when other sessions' tabs share the origin",
+    )
     .option("--json", "as JSON")
     .action((who, o) => asUser(who, withTarget(o), deps));
 
-  targetFlags(app.command("eval").description("Run JavaScript on the app page (promises awaited, top-level await allowed); the way to inspect the desktop app"))
+  targetFlags(
+    app
+      .command("eval")
+      .description(
+        "Run JavaScript on the app page (promises awaited, top-level await allowed); the way to inspect the desktop app",
+      ),
+  )
     .argument("<script>", "the script")
     .option("--timeout <ms>", "settle timeout", "15000")
     .option("--json", "the value JSON-encoded exactly (a string comes quoted)")
     .action((script, o) => evalOnApp(script, withTarget(o), deps));
 
-  targetFlags(app.command("shot").alias("screenshot").description("Screenshot the app page into the conversation (works for --desktop too)"))
+  targetFlags(
+    app
+      .command("shot")
+      .alias("screenshot")
+      .description(
+        "Screenshot the app page into the conversation (works for --desktop too)",
+      ),
+  )
     .argument("[path]", "where to write the png")
     .option("--no-inline", "do not show it in the conversation")
     .action((p, o) => shot(p, withTarget(o), deps));

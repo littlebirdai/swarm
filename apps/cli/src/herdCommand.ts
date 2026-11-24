@@ -2,19 +2,53 @@
 
 import * as path from "node:path";
 import { spawn } from "./proc.js";
-import { HERD_PROJECT_TOKEN, HERD_SESSION, HERDR_INSTALL_HINT, herdrAlive, herdrBin, herdrRequest, herdrSnapshot, herdrSocketPath } from "./herdr.js";
-import { HerdFocus, herdMembers, serverTitles, syncHerd } from "./herdMirror.js";
+import {
+  HERD_PROJECT_TOKEN,
+  HERD_SESSION,
+  HERDR_INSTALL_HINT,
+  herdrAlive,
+  herdrBin,
+  herdrRequest,
+  herdrSnapshot,
+  herdrSocketPath,
+} from "./herdr.js";
+import {
+  HerdFocus,
+  herdMembers,
+  serverTitles,
+  syncHerd,
+} from "./herdMirror.js";
 import { claimHerdViewer } from "./herdViewer.js";
-import { formatElapsed, formatProgress, requestHerdTake, resolveSessionRef } from "./herdTake.js";
+import {
+  formatElapsed,
+  formatProgress,
+  requestHerdTake,
+  resolveSessionRef,
+} from "./herdTake.js";
 import { readLocalConversationMap } from "./localConversationMap.js";
 import { readTitleCache } from "./titleCache.js";
 import { SESSION_SOCKET_PREFIX, outsideTmuxEnv } from "./tmuxRoute.js";
 import { snapshotProcessTableAsync, type ProcRow } from "./processTable.js";
-import { ensureTmux, listCodecastPanes, parseCodecastPaneRows, PANE_LIST_FORMAT, tmuxRun, tmuxRunAsync, type CodecastPane } from "./tmux.js";
+import {
+  ensureTmux,
+  listCodecastPanes,
+  parseCodecastPaneRows,
+  PANE_LIST_FORMAT,
+  tmuxRun,
+  tmuxRunAsync,
+  type CodecastPane,
+} from "./tmux.js";
 
-async function ensureHerdServer(bin: string, socketPath: string): Promise<boolean> {
+async function ensureHerdServer(
+  bin: string,
+  socketPath: string,
+): Promise<boolean> {
   if (await herdrAlive(socketPath)) return true;
-  spawn(bin, ["--session", HERD_SESSION, "server"], { detached: true, stdio: "ignore", env: outsideTmuxEnv() }).unref();
+  spawn(bin, ["--session", HERD_SESSION, "server"], {
+    detached: true,
+    stdio: "ignore",
+    env: outsideTmuxEnv(),
+  }).unref();
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 200));
@@ -34,7 +68,9 @@ async function clearRestoredWorkspaces(socketPath: string): Promise<void> {
   const snap = await herdrSnapshot(socketPath, 3000).catch(() => null);
   for (const ws of snap?.workspaces ?? []) {
     if (ws.tokens?.[HERD_PROJECT_TOKEN]) continue;
-    await herdrRequest(socketPath, "workspace.close", { workspace_id: ws.workspace_id }).catch(() => {});
+    await herdrRequest(socketPath, "workspace.close", {
+      workspace_id: ws.workspace_id,
+    }).catch(() => {});
   }
 }
 
@@ -43,7 +79,10 @@ function onListedSocket(command: string): boolean {
   const argv = command.trim().split(/\s+/);
   if (!/^tmux:?$/.test(path.basename(argv[0] ?? ""))) return false;
   const flag = argv.findIndex((a) => a === "-L" || a === "-S");
-  const socket = path.basename(command.match(/\(([^)]*)\)\s*$/)?.[1] ?? (flag >= 0 ? argv[flag + 1] ?? "" : "default"));
+  const socket = path.basename(
+    command.match(/\(([^)]*)\)\s*$/)?.[1] ??
+      (flag >= 0 ? (argv[flag + 1] ?? "") : "default"),
+  );
   return socket === "default" || socket.startsWith(SESSION_SOCKET_PREFIX);
 }
 
@@ -62,8 +101,13 @@ export async function listCodecastPanesComplete(
   if (r.status === 0) return parseCodecastPaneRows(r.stdout);
   const uid = process.getuid?.();
   const table = await procs();
-  const serverAlive = table.some((p) => p.uid === uid && onListedSocket(p.command));
-  if (serverAlive || table.length === 0) throw new Error(`tmux listing incomplete: ${r.stderr.trim() || "a server did not answer"}`);
+  const serverAlive = table.some(
+    (p) => p.uid === uid && onListedSocket(p.command),
+  );
+  if (serverAlive || table.length === 0)
+    throw new Error(
+      `tmux listing incomplete: ${r.stderr.trim() || "a server did not answer"}`,
+    );
   return [];
 }
 
@@ -72,19 +116,25 @@ export async function runHerdCommand(
   options: { open?: boolean } = {},
 ): Promise<void> {
   if (options.open === false || !process.stdout.isTTY) {
-    console.log("Open cast herd in an interactive terminal to view agent sessions. No mirrors started.");
+    console.log(
+      "Open cast herd in an interactive terminal to view agent sessions. No mirrors started.",
+    );
     return;
   }
   if (!ensureTmux()) return;
   const bin = herdrBin();
   if (!bin) {
-    console.error("cast herd runs on herdr (herdr.dev), which is not installed.");
+    console.error(
+      "cast herd runs on herdr (herdr.dev), which is not installed.",
+    );
     console.error(HERDR_INSTALL_HINT);
     process.exit(1);
   }
   const socketPath = herdrSocketPath(HERD_SESSION);
   if (!(await ensureHerdServer(bin, socketPath))) {
-    console.error(`herdr did not start. Try it by hand: herdr --session ${HERD_SESSION} server`);
+    console.error(
+      `herdr did not start. Try it by hand: herdr --session ${HERD_SESSION} server`,
+    );
     process.exit(1);
   }
 
@@ -94,28 +144,49 @@ export async function runHerdCommand(
   const problems = new Set<string>();
   let viewer: ReturnType<typeof spawn> | undefined;
   let closed = false;
-  const stop = () => { closed = true; viewer?.kill("SIGTERM"); };
+  const stop = () => {
+    closed = true;
+    viewer?.kill("SIGTERM");
+  };
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
   process.once("SIGHUP", stop);
   try {
     await syncHerd(socketPath, []);
-    viewer = spawn(bin, ["--session", HERD_SESSION], { stdio: "inherit", env: outsideTmuxEnv() });
-    viewer.once("exit", () => { closed = true; });
-    viewer.once("error", (err) => { console.error(err.message); closed = true; });
+    viewer = spawn(bin, ["--session", HERD_SESSION], {
+      stdio: "inherit",
+      env: outsideTmuxEnv(),
+    });
+    viewer.once("exit", () => {
+      closed = true;
+    });
+    viewer.once("error", (err) => {
+      console.error(err.message);
+      closed = true;
+    });
     let nextRefresh = 0;
     let members: ReturnType<typeof herdMembers> = [];
     // One failed pass must not close the viewer, and a failing refresh must not starve focus; each retries on its own. Stderr would draw over herdr's screen, so problems wait for it to exit.
-    const note = (err: unknown) => { problems.add(err instanceof Error ? err.message : String(err)); };
+    const note = (err: unknown) => {
+      problems.add(err instanceof Error ? err.message : String(err));
+    };
     while (!closed) {
       if (Date.now() >= nextRefresh) {
         try {
           const panes = await listCodecastPanesComplete();
           await titles.refresh(panes.flatMap((p) => p.sessionId ?? []));
           const cachedTitles = readTitleCache();
-          members = herdMembers(panes, { status: () => null, title: (sid) => titles.get(sid) ?? cachedTitles[sid] });
+          members = herdMembers(panes, {
+            status: () => null,
+            title: (sid) => titles.get(sid) ?? cachedTitles[sid],
+          });
           if (closed) break;
-          await syncHerd(socketPath, members, (message) => problems.add(message), () => !closed);
+          await syncHerd(
+            socketPath,
+            members,
+            (message) => problems.add(message),
+            () => !closed,
+          );
         } catch (err) {
           note(err);
         }
@@ -148,15 +219,27 @@ const SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
  * when the next step starts or the take ends. Events with the same `step` are
  * one step said again.
  */
-export function progressPrinter(out: { isTTY?: boolean; write(text: string): unknown }, now: () => number = Date.now) {
+export function progressPrinter(
+  out: { isTTY?: boolean; write(text: string): unknown },
+  now: () => number = Date.now,
+) {
   type Progress = { message: string; step?: string; elapsedSec?: number };
   if (!out.isTTY) {
-    return { step: (p: Progress) => { out.write(`${formatProgress(p.message, p.elapsedSec)}\n`); }, end: () => {} };
+    return {
+      step: (p: Progress) => {
+        out.write(`${formatProgress(p.message, p.elapsedSec)}\n`);
+      },
+      end: () => {},
+    };
   }
-  let current: { key: string; message: string; startedAt: number } | null = null;
+  let current: { key: string; message: string; startedAt: number } | null =
+    null;
   let frame = 0;
   const draw = () => {
-    if (current) out.write(`\r\x1b[2K${SPINNER_FRAMES[frame++ % SPINNER_FRAMES.length]} ${current.message} · ${formatElapsed(Math.floor((now() - current.startedAt) / 1000))}`);
+    if (current)
+      out.write(
+        `\r\x1b[2K${SPINNER_FRAMES[frame++ % SPINNER_FRAMES.length]} ${current.message} · ${formatElapsed(Math.floor((now() - current.startedAt) / 1000))}`,
+      );
   };
   const finish = () => {
     if (current) out.write(`\r\x1b[2K${current.message}\n`);
@@ -182,11 +265,16 @@ export function progressPrinter(out: { isTTY?: boolean; write(text: string): unk
 }
 
 /** `cast herd take <session>`: from inside a herdr pane, move the session's claude out of tmux into a tab beside it. */
-export async function runHerdTakeCommand(ref: string, options: { force?: boolean }): Promise<void> {
+export async function runHerdTakeCommand(
+  ref: string,
+  options: { force?: boolean },
+): Promise<void> {
   const socketPath = process.env.HERDR_SOCKET_PATH;
   const workspaceId = process.env.HERDR_WORKSPACE_ID;
   if (!socketPath || !workspaceId) {
-    console.error("cast herd take runs from inside a herdr pane (HERDR_SOCKET_PATH and HERDR_WORKSPACE_ID are not set).");
+    console.error(
+      "cast herd take runs from inside a herdr pane (HERDR_SOCKET_PATH and HERDR_WORKSPACE_ID are not set).",
+    );
     process.exit(1);
   }
   console.log(`Resolving ${ref}`);
@@ -197,10 +285,21 @@ export async function runHerdTakeCommand(ref: string, options: { force?: boolean
   }
   const printer = progressPrinter(process.stdout);
   // Ctrl-C ends the process, which hangs up on the daemon and so cancels a take that has not killed anything yet.
-  process.once("SIGINT", () => { printer.end(); process.exit(130); });
+  process.once("SIGINT", () => {
+    printer.end();
+    process.exit(130);
+  });
   let result;
   try {
-    result = await requestHerdTake({ sessionId: resolved.sessionId, socketPath, workspaceId, force: !!options.force }, printer.step);
+    result = await requestHerdTake(
+      {
+        sessionId: resolved.sessionId,
+        socketPath,
+        workspaceId,
+        force: !!options.force,
+      },
+      printer.step,
+    );
   } finally {
     printer.end();
   }
@@ -220,10 +319,15 @@ function idleTmuxSessions(): Array<{ pane: CodecastPane; idleSec: number }> {
     .map((pane) => ({ pane, idleSec: nowSec - pane.activitySec }));
 }
 
-export function runGcCommand(options: { mins?: string; dryRun?: boolean }): void {
+export function runGcCommand(options: {
+  mins?: string;
+  dryRun?: boolean;
+}): void {
   const mins = options.mins === undefined ? 60 : Number(options.mins);
   if (!Number.isInteger(mins) || mins < 1) {
-    console.error(`--mins takes whole minutes, at least 1 (got "${options.mins}"). Example: cast gc --mins 120 --dry-run`);
+    console.error(
+      `--mins takes whole minutes, at least 1 (got "${options.mins}"). Example: cast gc --mins 120 --dry-run`,
+    );
     process.exit(1);
   }
   if (!ensureTmux()) {
@@ -238,11 +342,18 @@ export function runGcCommand(options: { mins?: string; dryRun?: boolean }): void
   const plural = stale.length === 1 ? "" : "s";
   if (options.dryRun) {
     console.log(`Would kill ${stale.length} session${plural}:`);
-    for (const s of stale) console.log(`  ${s.pane.tmux}  (idle ${Math.floor(s.idleSec / 60)}m)`);
+    for (const s of stale)
+      console.log(`  ${s.pane.tmux}  (idle ${Math.floor(s.idleSec / 60)}m)`);
     return;
   }
-  const killed = stale.filter((s) => tmuxRun(["kill-session", "-t", `=${s.pane.tmux}`]).status === 0).map((s) => s.pane.tmux);
-  console.log(killed.length > 0
-    ? `Killed ${killed.length} stale session${killed.length === 1 ? "" : "s"}: ${killed.join(", ")}`
-    : `No sessions idle for >${mins}m.`);
+  const killed = stale
+    .filter(
+      (s) => tmuxRun(["kill-session", "-t", `=${s.pane.tmux}`]).status === 0,
+    )
+    .map((s) => s.pane.tmux);
+  console.log(
+    killed.length > 0
+      ? `Killed ${killed.length} stale session${killed.length === 1 ? "" : "s"}: ${killed.join(", ")}`
+      : `No sessions idle for >${mins}m.`,
+  );
 }

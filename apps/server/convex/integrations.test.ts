@@ -34,14 +34,24 @@ describe("cliConnectToken", () => {
     expect(actions).toEqual([
       {
         name: "tokenConnectors:connectWithToken",
-        args: { provider: "sentry", token: "sntrys_x", config: { org: "acme" }, scope: "personal", api_token: "t" },
+        args: {
+          provider: "sentry",
+          token: "sntrys_x",
+          config: { org: "acme" },
+          scope: "personal",
+          api_token: "t",
+        },
       },
     ]);
   });
 
   test("a browser-flow app is refused without calling anything", async () => {
     const { ctx, actions } = recordingCtx();
-    const res = await (cliConnectToken as any)._handler(ctx, { api_token: "t", provider: "linear", token: "x" });
+    const res = await (cliConnectToken as any)._handler(ctx, {
+      api_token: "t",
+      provider: "linear",
+      token: "x",
+    });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/browser/);
     expect(actions).toHaveLength(0);
@@ -49,7 +59,11 @@ describe("cliConnectToken", () => {
 
   test("an unknown provider names the catalog", async () => {
     const { ctx } = recordingCtx();
-    const res = await (cliConnectToken as any)._handler(ctx, { api_token: "t", provider: "datadog", token: "x" });
+    const res = await (cliConnectToken as any)._handler(ctx, {
+      api_token: "t",
+      provider: "datadog",
+      token: "x",
+    });
     expect(res.ok).toBe(false);
     expect(res.error).toContain("posthog");
   });
@@ -59,7 +73,10 @@ describe("cliConnectUrl", () => {
   test("a token app has no URL to open and says how to connect it", async () => {
     const { ctx, actions } = recordingCtx();
     for (const provider of ["sentry", "posthog", "app"]) {
-      const res = await (cliConnectUrl as any)._handler(ctx, { api_token: "t", provider });
+      const res = await (cliConnectUrl as any)._handler(ctx, {
+        api_token: "t",
+        provider,
+      });
       expect(res.ok).toBe(false);
       expect(res.error).toMatch(/token/);
     }

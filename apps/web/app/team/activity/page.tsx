@@ -22,7 +22,9 @@ export default function TeamActivityPage() {
   // The store's copy (local-first): a warm cache paints the feed at once,
   // and offline it still paints.
   const { user } = useCurrentUser();
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const teamId = activeTeamId || user?.active_team_id || user?.team_id;
 
   const mode: "personal" | "team" =
@@ -36,8 +38,14 @@ export default function TeamActivityPage() {
   useWatchEffect(() => {
     if (mode !== "team") return;
     void markTeamSeen({});
-    return () => { void markTeamSeen({}); };
+    return () => {
+      void markTeamSeen({});
+    };
   }, [mode, teamId, markTeamSeen]);
 
-  return <DashboardLayout><ActivityPage tab="activity" /></DashboardLayout>;
+  return (
+    <DashboardLayout>
+      <ActivityPage tab="activity" />
+    </DashboardLayout>
+  );
 }

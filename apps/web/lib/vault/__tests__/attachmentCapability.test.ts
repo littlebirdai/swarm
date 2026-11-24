@@ -10,14 +10,19 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ensureVaultCapability, vaultAssetUrl } from "../client";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
-const ep = { port: 41999, token: TOKEN } as unknown as Parameters<typeof vaultAssetUrl>[0];
+const ep = { port: 41999, token: TOKEN } as unknown as Parameters<
+  typeof vaultAssetUrl
+>[0];
 
 const realFetch = globalThis.fetch;
 let requested: string[] = [];
 let answer: (url: string) => Response;
 
 function capBody(expiresIn: number, value = "v1.x.y"): Response {
-  return new Response(JSON.stringify({ value, expires_at: Date.now() + expiresIn }), { status: 200 });
+  return new Response(
+    JSON.stringify({ value, expires_at: Date.now() + expiresIn }),
+    { status: 200 },
+  );
 }
 
 beforeEach(() => {
@@ -45,7 +50,9 @@ describe("attachment URLs", () => {
 
   test("the mint itself goes through the authenticated envelope", async () => {
     await ensureVaultCapability(ep, "vault-b");
-    expect(requested.some((u) => u.includes("/vault/cap?vault=vault-b"))).toBe(true);
+    expect(requested.some((u) => u.includes("/vault/cap?vault=vault-b"))).toBe(
+      true,
+    );
   });
 
   test("one mint serves every asset in a vault, and vaults do not share one", async () => {
@@ -75,7 +82,11 @@ describe("attachment URLs", () => {
     answer = () => capBody(12 * 60 * 60 * 1000, "v1.fresh.bb");
     // Drain whatever mint the line above started before asking for a new one:
     // it was answered with the stale body and is still in flight.
-    for (let i = 0; i < 4 && vaultAssetUrl(ep, "vault-d", "a.png") === null; i++) {
+    for (
+      let i = 0;
+      i < 4 && vaultAssetUrl(ep, "vault-d", "a.png") === null;
+      i++
+    ) {
       await ensureVaultCapability(ep, "vault-d");
     }
     expect(vaultAssetUrl(ep, "vault-d", "a.png")).toContain("v1.fresh.bb");

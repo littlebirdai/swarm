@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { EyeOff } from "lucide-react";
 import { Switch } from "../ui/switch";
-import { teamVisibilityOption, type TeamVisibilityLevel } from "../../lib/teamVisibility";
+import {
+  teamVisibilityOption,
+  type TeamVisibilityLevel,
+} from "../../lib/teamVisibility";
 import {
   describeShareSpan,
   describeTeammates,
@@ -52,10 +55,15 @@ export function ShareImpactBand({
 }: ShareImpactBandProps) {
   // The date field keeps its own text so a half typed date does not move
   // the share start until it parses.
-  const [dateText, setDateText] = useState(() => dateInputValue(since ?? Date.now()));
+  const [dateText, setDateText] = useState(() =>
+    dateInputValue(since ?? Date.now()),
+  );
   if (impact.repos === 0) {
     return (
-      <p className={`flex items-center gap-1.5 text-xs text-sol-text-dim ${className}`} aria-live="polite">
+      <p
+        className={`flex items-center gap-1.5 text-xs text-sol-text-dim ${className}`}
+        aria-live="polite"
+      >
         <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
         Nothing selected. Your sessions stay private to you.
       </p>
@@ -81,7 +89,10 @@ export function ShareImpactBand({
     >
       <p className="text-sm text-sol-text leading-relaxed">
         <span className="font-semibold">{teamName}</span>
-        <span className="text-sol-text-muted"> ({describeTeammates(memberCount)})</span>
+        <span className="text-sol-text-muted">
+          {" "}
+          ({describeTeammates(memberCount)})
+        </span>
         {" will see "}
         <span className="font-semibold">{level.sees}</span>
         {" for "}
@@ -89,12 +100,15 @@ export function ShareImpactBand({
       </p>
       {hidden ? (
         <p className="text-xs text-sol-yellow">
-          Your level for this team is Hidden, so nothing shows until you raise it.
+          Your level for this team is Hidden, so nothing shows until you raise
+          it.
         </p>
       ) : (
         <p className="text-xs text-sol-text-muted tabular-nums">
           {describeShareSpan(impact, since)}
-          {!impact.exact && <span className="text-sol-text-dim"> Still counting.</span>}
+          {!impact.exact && (
+            <span className="text-sol-text-dim"> Still counting.</span>
+          )}
         </p>
       )}
       {hasPast && !hidden && controls === "switch" && (
@@ -108,24 +122,48 @@ export function ShareImpactBand({
         </label>
       )}
       {hasPast && !hidden && controls === "scope" && (
-        <div role="radiogroup" aria-label="Which sessions" className="grid gap-1 pt-1 text-xs text-sol-text">
+        <div
+          role="radiogroup"
+          aria-label="Which sessions"
+          className="grid gap-1 pt-1 text-xs text-sol-text"
+        >
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="share-scope" checked={scope === "all"} onChange={() => onSinceChange(null)} className="accent-[var(--tf-acc)]" />
+            <input
+              type="radio"
+              name="share-scope"
+              checked={scope === "all"}
+              onChange={() => onSinceChange(null)}
+              className="accent-[var(--tf-acc)]"
+            />
             <span>Everything, past sessions included</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="share-scope" checked={scope === "today"} onChange={() => onSinceChange(today)} className="accent-[var(--tf-acc)]" />
+            <input
+              type="radio"
+              name="share-scope"
+              checked={scope === "today"}
+              onChange={() => onSinceChange(today)}
+              className="accent-[var(--tf-acc)]"
+            />
             <span>From today on</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="share-scope" checked={scope === "date"} onChange={() => pickDate(dateText)} className="accent-[var(--tf-acc)]" />
+            <input
+              type="radio"
+              name="share-scope"
+              checked={scope === "date"}
+              onChange={() => pickDate(dateText)}
+              className="accent-[var(--tf-acc)]"
+            />
             <span>Since a date</span>
             <input
               type="date"
               value={dateText}
               max={dateInputValue(Date.now())}
               onChange={(e) => pickDate(e.target.value)}
-              onFocus={() => { if (scope !== "date") pickDate(dateText); }}
+              onFocus={() => {
+                if (scope !== "date") pickDate(dateText);
+              }}
               aria-label="Share sessions started on or after this date"
               className="ml-1 rounded border border-sol-border bg-sol-bg px-1.5 py-0.5 text-xs text-sol-text"
             />

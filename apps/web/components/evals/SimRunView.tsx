@@ -6,16 +6,35 @@
 import { useMemo, useState } from "react";
 import { useInterval } from "../../hooks/useInterval";
 import { GitBranch, Pause, Play, Scissors } from "lucide-react";
-import type { SimFailureResult, SimRunResponse } from "@codecast/shared/contracts/evalsApi";
+import type {
+  SimFailureResult,
+  SimRunResponse,
+} from "@codecast/shared/contracts/evalsApi";
 import { evalsHref } from "./evalsPaths";
-import { CopyCommand, EvalsLink, KeyHint, LogTail, StallChip, useEvalsHost, VerdictGlyph } from "@platform/evals/react";
+import {
+  CopyCommand,
+  EvalsLink,
+  KeyHint,
+  LogTail,
+  StallChip,
+  useEvalsHost,
+  VerdictGlyph,
+} from "@platform/evals/react";
 import { plural, shortSha, whenLabel } from "@platform/evals/client";
 import { DeliveryTimeline } from "./DeliveryTimeline";
 import { OrderStrip } from "./OrderStrip";
 import { parseOrder } from "../../store/__tests__/sim/replay";
 import { splitOrderLine } from "../../store/__tests__/sim/shrink";
 import { SimLabels } from "../../store/__tests__/sim/labels";
-import { buildTimeline, failIndex, feedTone, keptIndexes, rowDiffSides, splitRowDiff, traceLabels } from "./simLanes";
+import {
+  buildTimeline,
+  failIndex,
+  feedTone,
+  keptIndexes,
+  rowDiffSides,
+  splitRowDiff,
+  traceLabels,
+} from "./simLanes";
 import "./sim.css";
 import { PLAY_STEP_MS } from "./simModel";
 import { isJobStalled, type JobState } from "./simJobState";
@@ -32,19 +51,51 @@ export interface SimRunViewProps {
   keysActive?: boolean;
 }
 
-const isFailure = (r: SimRunResponse["result"]): r is SimFailureResult => r.passed !== true;
-const seconds = (ms: number | undefined) => (ms === undefined ? null : ms >= 10_000 ? `${(ms / 1000).toFixed(0)} s` : `${(ms / 1000).toFixed(1)} s`);
+const isFailure = (r: SimRunResponse["result"]): r is SimFailureResult =>
+  r.passed !== true;
+const seconds = (ms: number | undefined) =>
+  ms === undefined
+    ? null
+    : ms >= 10_000
+      ? `${(ms / 1000).toFixed(0)} s`
+      : `${(ms / 1000).toFixed(1)} s`;
 
-export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRunViewProps) {
+export function SimRunView({
+  data,
+  shrink,
+  onShrink,
+  keysActive = true,
+}: SimRunViewProps) {
   const { result, session, run, minimal, shrinking } = data;
   const failure = isFailure(result) ? result : null;
-  const timeline = useMemo(() => buildTimeline(data.events, data.world), [data.events, data.world]);
-  const labels = useMemo(() => SimLabels.from({ ...(data.world?.labels ?? {}), ...(failure?.labels ?? {}) }), [data.world, failure]);
+  const timeline = useMemo(
+    () => buildTimeline(data.events, data.world),
+    [data.events, data.world],
+  );
+  const labels = useMemo(
+    () =>
+      SimLabels.from({
+        ...(data.world?.labels ?? {}),
+        ...(failure?.labels ?? {}),
+      }),
+    [data.world, failure],
+  );
   const failAt = failure ? failIndex(failure.delivery, timeline.count) : null;
-  const order = useMemo(() => splitOrderLine(parseOrder(failure?.order ?? "")), [failure]);
-  const recorded = order.channels.length ? order.channels : timeline.marks.map((m) => m.channel);
-  const kept = useMemo(() => keptIndexes(recorded.length, minimal?.removed), [recorded.length, minimal]);
-  const traces = useMemo(() => traceLabels(timeline.marks, labels), [timeline.marks, labels]);
+  const order = useMemo(
+    () => splitOrderLine(parseOrder(failure?.order ?? "")),
+    [failure],
+  );
+  const recorded = order.channels.length
+    ? order.channels
+    : timeline.marks.map((m) => m.channel);
+  const kept = useMemo(
+    () => keptIndexes(recorded.length, minimal?.removed),
+    [recorded.length, minimal],
+  );
+  const traces = useMemo(
+    () => traceLabels(timeline.marks, labels),
+    [timeline.marks, labels],
+  );
 
   const [playhead, setPlayhead] = useState<number | null>(failAt);
   const [playing, setPlaying] = useState(false);
@@ -77,25 +128,57 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
   const active = host.useActive() && keysActive && timeline.count > 0;
   host.useShortcuts(
     {
-      "evalsSim.prev": { keys: "ArrowLeft", label: "Playhead back one delivery", run: () => move((playhead ?? 0) - 1) },
-      "evalsSim.next": { keys: "ArrowRight", label: "Playhead forward one delivery", run: () => move(playhead === null ? 0 : playhead + 1) },
-      "evalsSim.first": { keys: "Home", label: "Playhead to the first delivery", run: () => move(0) },
-      "evalsSim.last": { keys: "End", label: "Playhead to the failing delivery, else the last", run: () => move(failAt ?? last) },
-      "evalsSim.play": { keys: "p", label: "Play or pause the deliveries", run: togglePlay },
+      "evalsSim.prev": {
+        keys: "ArrowLeft",
+        label: "Playhead back one delivery",
+        run: () => move((playhead ?? 0) - 1),
+      },
+      "evalsSim.next": {
+        keys: "ArrowRight",
+        label: "Playhead forward one delivery",
+        run: () => move(playhead === null ? 0 : playhead + 1),
+      },
+      "evalsSim.first": {
+        keys: "Home",
+        label: "Playhead to the first delivery",
+        run: () => move(0),
+      },
+      "evalsSim.last": {
+        keys: "End",
+        label: "Playhead to the failing delivery, else the last",
+        run: () => move(failAt ?? last),
+      },
+      "evalsSim.play": {
+        keys: "p",
+        label: "Play or pause the deliveries",
+        run: togglePlay,
+      },
     },
     active,
   );
 
-  const at = playhead === null ? null : timeline.marks[playhead] ?? null;
-  const stepAt = at ? [...timeline.steps].reverse().find((s) => s.at <= at.i) ?? null : null;
+  const at = playhead === null ? null : (timeline.marks[playhead] ?? null);
+  const stepAt = at
+    ? ([...timeline.steps].reverse().find((s) => s.at <= at.i) ?? null)
+    : null;
 
   return (
-    <div className="ev-page evs-page" data-evals-page="sim-run" data-evs-result={failure ? "fail" : "pass"}>
+    <div
+      className="ev-page evs-page"
+      data-evals-page="sim-run"
+      data-evs-result={failure ? "fail" : "pass"}
+    >
       <nav className="evs-crumbs" aria-label="Where this run sits">
         <EvalsLink href={evalsHref.sim()}>Multiplayer sim</EvalsLink>
         <span>/</span>
-        <span title={`Session ${session.id}`}>{session.unsessioned ? session.id : `session ${whenLabel(session.startedAt)}`}</span>
-        {session.unsessioned && <span className="ev-chip">unsessioned, read-only</span>}
+        <span title={`Session ${session.id}`}>
+          {session.unsessioned
+            ? session.id
+            : `session ${whenLabel(session.startedAt)}`}
+        </span>
+        {session.unsessioned && (
+          <span className="ev-chip">unsessioned, read-only</span>
+        )}
       </nav>
 
       <header className="evs-head">
@@ -106,28 +189,49 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
         <span className="ev-chips">
           <span className="ev-chip">{run.mode}</span>
           <span className="ev-chip">seed {run.seed}</span>
-          <span className="ev-chip" title={result.gitHead ?? session.gitHead ?? "no head recorded"}>
+          <span
+            className="ev-chip"
+            title={result.gitHead ?? session.gitHead ?? "no head recorded"}
+          >
             <GitBranch /> {shortSha(result.gitHead ?? session.gitHead)}
           </span>
           {(result.dirty ?? session.dirty) &&
             (session.treePatch ? (
-              <EvalsLink className="ev-chip ev-chip--dirty" href={evalsHref.patch(session.treePatch)} title={`Uncommitted edits, kept as trees/${session.treePatch}.patch.gz: open them`}>
+              <EvalsLink
+                className="ev-chip ev-chip--dirty"
+                href={evalsHref.patch(session.treePatch)}
+                title={`Uncommitted edits, kept as trees/${session.treePatch}.patch.gz: open them`}
+              >
                 dirty, patch {shortSha(session.treePatch, 6)}
               </EvalsLink>
             ) : (
-              <span className="ev-chip ev-chip--dirty" title="Uncommitted edits, no patch kept">
+              <span
+                className="ev-chip ev-chip--dirty"
+                title="Uncommitted edits, no patch kept"
+              >
                 dirty
               </span>
             ))}
-          {seconds(result.realMs ?? run.ms) && <span className="ev-chip">{seconds(result.realMs ?? run.ms)}</span>}
+          {seconds(result.realMs ?? run.ms) && (
+            <span className="ev-chip">{seconds(result.realMs ?? run.ms)}</span>
+          )}
           {failure?.expected && (
-            <EvalsLink className="ev-chip" href={`/tasks/${failure.expected}`} title="A red marker expected this failure">
+            <EvalsLink
+              className="ev-chip"
+              href={`/tasks/${failure.expected}`}
+              title="A red marker expected this failure"
+            >
               expected, red {failure.expected}
             </EvalsLink>
           )}
         </span>
         {/* The run has its own address: the header shares it. */}
-        {run.dir && <ShareControl label="sim run" path={evalsHref.simRun(session.id, run.dir)} />}
+        {run.dir && (
+          <ShareControl
+            label="sim run"
+            path={evalsHref.simRun(session.id, run.dir)}
+          />
+        )}
         <div className="evs-head-stats">
           <div className="evs-stat">
             <b>{timeline.count}</b>
@@ -146,11 +250,24 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
         </div>
       </header>
 
-      {failure ? <FailureCard failure={failure} data={data} labels={labels} /> : <div className="ev-card px-4 py-3 text-[12.5px]">Passed after {timeline.count} deliveries. Kept with --keep, so its lanes are here to read.</div>}
+      {failure ? (
+        <FailureCard failure={failure} data={data} labels={labels} />
+      ) : (
+        <div className="ev-card px-4 py-3 text-[12.5px]">
+          Passed after {timeline.count} deliveries. Kept with --keep, so its
+          lanes are here to read.
+        </div>
+      )}
 
       <section className="ev-card evs-tape" data-evs-tape>
         <div className="evs-tape-bar">
-          <button type="button" className="ev-btn ev-btn--lg" onClick={togglePlay} disabled={!timeline.count} data-evs-play={playing ? "playing" : "paused"}>
+          <button
+            type="button"
+            className="ev-btn ev-btn--lg"
+            onClick={togglePlay}
+            disabled={!timeline.count}
+            data-evs-play={playing ? "playing" : "paused"}
+          >
             {playing ? <Pause /> : <Play />}
             {playing ? "Pause" : "Play"}
           </button>
@@ -163,7 +280,12 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
           </span>
           {minimal && (
             <label className="evs-keys" style={{ cursor: "pointer" }}>
-              <input type="checkbox" checked={showKept} onChange={(e) => setShowKept(e.target.checked)} data-evs-show-kept />
+              <input
+                type="checkbox"
+                checked={showKept}
+                onChange={(e) => setShowKept(e.target.checked)}
+                data-evs-show-kept
+              />
               dim what the shrink removed
             </label>
           )}
@@ -181,8 +303,16 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
           <div className="evs-tape-bar evs-trace" data-evs-trace={trace ?? ""}>
             <span className="evs-note">Trace a label</span>
             {traces.map((t) => (
-              <button key={t.label} type="button" className="ev-chip" aria-pressed={trace === t.label} onClick={() => setTrace(trace === t.label ? null : t.label)} title={`${t.count} deliveries touch ${t.label} (--trace ${t.label})`}>
-                {t.label} <span className="ev-tabular evs-readout-dim">{t.count}</span>
+              <button
+                key={t.label}
+                type="button"
+                className="ev-chip"
+                aria-pressed={trace === t.label}
+                onClick={() => setTrace(trace === t.label ? null : t.label)}
+                title={`${t.count} deliveries touch ${t.label} (--trace ${t.label})`}
+              >
+                {t.label}{" "}
+                <span className="ev-tabular evs-readout-dim">{t.count}</span>
               </button>
             ))}
           </div>
@@ -191,32 +321,76 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
           {at ? (
             <>
               <span className="evs-readout-n">
-                #{at.i + 1} <span className="evs-readout-dim font-normal">of {timeline.count}</span>
+                #{at.i + 1}{" "}
+                <span className="evs-readout-dim font-normal">
+                  of {timeline.count}
+                </span>
               </span>
               <code>{at.channel}</code>
               <span>{at.label}</span>
               <span className="evs-readout-dim">
                 by <code>{at.producer}</code>, enqueued #{at.seq}
               </span>
-              {stepAt && <span className="evs-readout-dim">in step: {stepAt.label}</span>}
-              {kept && <span className={kept.has(at.i) ? "ev-pass" : "evs-readout-dim"}>{kept.has(at.i) ? "needed" : "removed by the shrink"}</span>}
-              {failAt === at.i && <span className="ev-fail">the check failed after this delivery</span>}
+              {stepAt && (
+                <span className="evs-readout-dim">in step: {stepAt.label}</span>
+              )}
+              {kept && (
+                <span
+                  className={kept.has(at.i) ? "ev-pass" : "evs-readout-dim"}
+                >
+                  {kept.has(at.i) ? "needed" : "removed by the shrink"}
+                </span>
+              )}
+              {failAt === at.i && (
+                <span className="ev-fail">
+                  the check failed after this delivery
+                </span>
+              )}
             </>
           ) : (
-            <span className="evs-readout-dim">Drag across the lanes, or use the arrow keys, to step one delivery at a time.</span>
+            <span className="evs-readout-dim">
+              Drag across the lanes, or use the arrow keys, to step one delivery
+              at a time.
+            </span>
           )}
         </div>
         {timeline.count ? (
-          <DeliveryTimeline timeline={timeline} failAt={failAt} failLabel={failure?.invariant.id ?? ""} playhead={playhead} onPlayhead={move} kept={kept} showKept={showKept} trace={trace} labels={labels} />
+          <DeliveryTimeline
+            timeline={timeline}
+            failAt={failAt}
+            failLabel={failure?.invariant.id ?? ""}
+            playhead={playhead}
+            onPlayhead={move}
+            kept={kept}
+            showKept={showKept}
+            trace={trace}
+            labels={labels}
+          />
         ) : (
-          <div className="px-4 py-6 text-[12px] ev-quiet">No deliveries recorded: the failure came before the first one.</div>
+          <div className="px-4 py-6 text-[12px] ev-quiet">
+            No deliveries recorded: the failure came before the first one.
+          </div>
         )}
       </section>
 
       {failure && (
         <section className="ev-card">
-          <OrderStrip channels={recorded} scripted={order.mark !== null} minimal={minimal} failAt={failAt} playhead={playhead} onPick={move} feeds={timeline.feeds} />
-          <ShrinkBar minimal={!!minimal} shrinking={shrinking} shrink={shrink} onShrink={onShrink} recorded={recorded.length} />
+          <OrderStrip
+            channels={recorded}
+            scripted={order.mark !== null}
+            minimal={minimal}
+            failAt={failAt}
+            playhead={playhead}
+            onPick={move}
+            feeds={timeline.feeds}
+          />
+          <ShrinkBar
+            minimal={!!minimal}
+            shrinking={shrinking}
+            shrink={shrink}
+            onShrink={onShrink}
+            recorded={recorded.length}
+          />
         </section>
       )}
 
@@ -226,13 +400,24 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
         <span>Full order</span>
         <CopyCommand command={data.replay.order} />
         <span>Minimal order</span>
-        {data.replay.minimal ? <CopyCommand command={data.replay.minimal} /> : <span className="evs-note">After a shrink, the shortest order that still fails the same way.</span>}
+        {data.replay.minimal ? (
+          <CopyCommand command={data.replay.minimal} />
+        ) : (
+          <span className="evs-note">
+            After a shrink, the shortest order that still fails the same way.
+          </span>
+        )}
         {data.replay.bisect && (
           <>
-            <span title="Probes each commit between the newest clean session where this passed and this run, deterministically: no reps, no spend">Bisect this failure</span>
+            <span title="Probes each commit between the newest clean session where this passed and this run, deterministically: no reps, no spend">
+              Bisect this failure
+            </span>
             <span className="flex flex-col gap-1" data-evs-bisect-line>
               <CopyCommand command={data.replay.bisect} />
-              <span className="evs-note">Free: it names the commit that broke this run. Run it from the checkout root.</span>
+              <span className="evs-note">
+                Free: it names the commit that broke this run. Run it from the
+                checkout root.
+              </span>
             </span>
           </>
         )}
@@ -243,29 +428,69 @@ export function SimRunView({ data, shrink, onShrink, keysActive = true }: SimRun
   );
 }
 
-function FailureCard({ failure, data, labels }: { failure: SimFailureResult; data: SimRunResponse; labels: SimLabels }) {
+function FailureCard({
+  failure,
+  data,
+  labels,
+}: {
+  failure: SimFailureResult;
+  data: SimRunResponse;
+  labels: SimLabels;
+}) {
   const meaning = data.invariant?.meaning ?? failure.invariant.meaning;
-  const sides = rowDiffSides(failure.invariant.id, failure.window?.name, data.world);
+  const sides = rowDiffSides(
+    failure.invariant.id,
+    failure.window?.name,
+    data.world,
+  );
   const [showOmitted, setShowOmitted] = useState(false);
-  const split = failure.row ? splitRowDiff(failure.row.diff, { message: failure.message, keys: data.invariant?.keys }) : null;
-  const rows = split ? (showOmitted ? [...split.shown, ...split.omitted] : split.shown) : [];
+  const split = failure.row
+    ? splitRowDiff(failure.row.diff, {
+        message: failure.message,
+        keys: data.invariant?.keys,
+      })
+    : null;
+  const rows = split
+    ? showOmitted
+      ? [...split.shown, ...split.omitted]
+      : split.shown
+    : [];
   return (
-    <section className="ev-card evs-fail" data-evs-failure={failure.invariant.id}>
+    <section
+      className="ev-card evs-fail"
+      data-evs-failure={failure.invariant.id}
+    >
       <div className="evs-fail-main">
         <div className="evs-fail-inv">
           <b>{failure.invariant.id}</b>
-          {data.invariant?.keys.length ? <span className="evs-note">compares {data.invariant.keys.join(", ")}</span> : null}
+          {data.invariant?.keys.length ? (
+            <span className="evs-note">
+              compares {data.invariant.keys.join(", ")}
+            </span>
+          ) : null}
         </div>
         <div className="evs-fail-meaning">{meaning}</div>
         <div className="evs-fail-where">
-          At step <b>{failure.step}</b>, after <b className="ev-tabular">{failure.delivery}</b> deliveries.
+          At step <b>{failure.step}</b>, after{" "}
+          <b className="ev-tabular">{failure.delivery}</b> deliveries.
         </div>
-        {failure.message && <div className="evs-fail-msg">{failure.message}</div>}
+        {failure.message && (
+          <div className="evs-fail-msg">{failure.message}</div>
+        )}
         {failure.window && (
           <span className="ev-chips">
-            <span className="ev-chip" title="The window the check read">window {failure.window.name}</span>
-            <span className="ev-chip" title={`Who the window is signed in as (${failure.window.principal})`}>as {labels.relabel(failure.window.principal)}</span>
-            <span className="ev-chip" title="The scope it held">{failure.window.scope}</span>
+            <span className="ev-chip" title="The window the check read">
+              window {failure.window.name}
+            </span>
+            <span
+              className="ev-chip"
+              title={`Who the window is signed in as (${failure.window.principal})`}
+            >
+              as {labels.relabel(failure.window.principal)}
+            </span>
+            <span className="ev-chip" title="The scope it held">
+              {failure.window.scope}
+            </span>
           </span>
         )}
       </div>
@@ -276,7 +501,10 @@ function FailureCard({ failure, data, labels }: { failure: SimFailureResult; dat
               <code>{failure.row.table}</code>
               <span>{failure.row.label}</span>
               <span className="flex-1" />
-              <span>{plural(split!.shown.length, "field")} {split!.shown.length === 1 ? "differs" : "differ"}</span>
+              <span>
+                {plural(split!.shown.length, "field")}{" "}
+                {split!.shown.length === 1 ? "differs" : "differ"}
+              </span>
             </div>
             <table className="evs-diff">
               <thead>
@@ -297,26 +525,53 @@ function FailureCard({ failure, data, labels }: { failure: SimFailureResult; dat
               </tbody>
             </table>
             {split!.omitted.length > 0 && (
-              <button type="button" className="ev-btn evs-diff-more" aria-expanded={showOmitted} onClick={() => setShowOmitted((v) => !v)} data-evs-omitted={split!.omitted.length}>
-                {showOmitted ? "Hide" : "Show"} {plural(split!.omitted.length, "field")} one side lacks and the other leaves empty
+              <button
+                type="button"
+                className="ev-btn evs-diff-more"
+                aria-expanded={showOmitted}
+                onClick={() => setShowOmitted((v) => !v)}
+                data-evs-omitted={split!.omitted.length}
+              >
+                {showOmitted ? "Hide" : "Show"}{" "}
+                {plural(split!.omitted.length, "field")} one side lacks and the
+                other leaves empty
               </button>
             )}
           </>
         ) : (
-          <div className="px-4 py-2 text-[12px] ev-quiet">The check names no row: the invariant holds over the whole window.</div>
+          <div className="px-4 py-2 text-[12px] ev-quiet">
+            The check names no row: the invariant holds over the whole window.
+          </div>
         )}
       </div>
     </section>
   );
 }
 
-function ShrinkBar({ minimal, shrinking, shrink, onShrink, recorded }: { minimal: boolean; shrinking: SimRunResponse["shrinking"]; shrink: ShrinkState; onShrink: () => void; recorded: number }) {
-  const running = !!shrinking || shrink.state === "running" || shrink.state === "starting";
+function ShrinkBar({
+  minimal,
+  shrinking,
+  shrink,
+  onShrink,
+  recorded,
+}: {
+  minimal: boolean;
+  shrinking: SimRunResponse["shrinking"];
+  shrink: ShrinkState;
+  onShrink: () => void;
+  recorded: number;
+}) {
+  const running =
+    !!shrinking || shrink.state === "running" || shrink.state === "starting";
   const job = shrink.state === "running" ? shrink.job : null;
   const now = useEvalsHost().useNow(30_000);
   const stalled = !!job && isJobStalled(job, now);
   return (
-    <div className="evs-sweep" style={{ borderTop: "1px solid var(--ev-rule)" }} data-evs-shrink={minimal ? "done" : running ? "running" : shrink.state}>
+    <div
+      className="evs-sweep"
+      style={{ borderTop: "1px solid var(--ev-rule)" }}
+      data-evs-shrink={minimal ? "done" : running ? "running" : shrink.state}
+    >
       {running ? (
         <span className="evs-job" role="status">
           <Scissors className={`w-3.5 h-3.5 ${stalled ? "" : "ev-pulse"}`} />
@@ -330,7 +585,13 @@ function ShrinkBar({ minimal, shrinking, shrink, onShrink, recorded }: { minimal
         </span>
       ) : (
         <>
-          <Button type="button" variant="cyan" size="sm" onClick={onShrink} data-evs-shrink-button>
+          <Button
+            type="button"
+            variant="cyan"
+            size="sm"
+            onClick={onShrink}
+            data-evs-shrink-button
+          >
             <Scissors />
             {minimal ? "Shrink again" : "Shrink"}
           </Button>
@@ -339,26 +600,46 @@ function ShrinkBar({ minimal, shrinking, shrink, onShrink, recorded }: { minimal
               ? "The shrink's minimal order is above; a new one replaces it."
               : `Finds the shortest delivery order that still fails the same invariant on the same row. Up to 400 attempts or 10 minutes over ${recorded} deliveries.`}
           </span>
-          {shrink.state === "failed" && <span className="ev-fail text-meta">{shrink.error}</span>}
-          {shrink.state === "failed" && <LogTail lines={shrink.logTail ?? []} label="What the shrink printed before it ended" data-evs-shrink-log />}
+          {shrink.state === "failed" && (
+            <span className="ev-fail text-meta">{shrink.error}</span>
+          )}
+          {shrink.state === "failed" && (
+            <LogTail
+              lines={shrink.logTail ?? []}
+              label="What the shrink printed before it ended"
+              data-evs-shrink-log
+            />
+          )}
         </>
       )}
     </div>
   );
 }
 
-function FinalDetails({ final }: { final: NonNullable<SimRunResponse["final"]> }) {
+function FinalDetails({
+  final,
+}: {
+  final: NonNullable<SimRunResponse["final"]>;
+}) {
   const calls = final.calls.filter((c) => !c.ok);
   const actors = final.actors.filter((a) => !a.ok);
-  const windows = Object.entries(final.windowErrors).filter(([, errs]) => errs.length);
-  const count = calls.length + actors.length + windows.reduce((n, [, e]) => n + e.length, 0);
+  const windows = Object.entries(final.windowErrors).filter(
+    ([, errs]) => errs.length,
+  );
+  const count =
+    calls.length +
+    actors.length +
+    windows.reduce((n, [, e]) => n + e.length, 0);
   return (
     <details className="ev-card evs-details" data-evs-final={count}>
       <summary>
         <VerdictGlyph state={count ? "fail" : "pass"} size={11} />
         What errored on the way
         <span className="evs-note">
-          {count ? `${plural(calls.length, "call")}, ${plural(actors.length, "actor verb")}, ${plural(windows.length, "window")}` : "nothing"}, {final.writesSpent} server writes spent
+          {count
+            ? `${plural(calls.length, "call")}, ${plural(actors.length, "actor verb")}, ${plural(windows.length, "window")}`
+            : "nothing"}
+          , {final.writesSpent} server writes spent
         </span>
       </summary>
       <div className="evs-details-body">
@@ -401,7 +682,11 @@ function FinalDetails({ final }: { final: NonNullable<SimRunResponse["final"]> }
             )}
           </div>
         )}
-        {!count && <span className="ev-quiet">Every call, verb and window ran clean.</span>}
+        {!count && (
+          <span className="ev-quiet">
+            Every call, verb and window ran clean.
+          </span>
+        )}
       </div>
     </details>
   );

@@ -4,25 +4,49 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  addUserRootScript, addUserSelfScript, BASHRC_PATH_MARK, claudeFirstRunScript, enableUserDaemonScript,
-  removeUserRootScript, sharedHostMarkScript, sharedHostSetupScript, teammateSteps, userDaemonUnits,
+  addUserRootScript,
+  addUserSelfScript,
+  BASHRC_PATH_MARK,
+  claudeFirstRunScript,
+  enableUserDaemonScript,
+  removeUserRootScript,
+  sharedHostMarkScript,
+  sharedHostSetupScript,
+  teammateSteps,
+  userDaemonUnits,
 } from "./sharedHost.js";
 import { daemonUnitScript } from "./provisionLinux.js";
-import { SHARED_HOST_MARKER, SHARED_HOST_PUSH_GUARD, SHARED_HOST_REFUSAL, SHARED_HOST_REFUSED_STATUS } from "../remote/sharedHostGuard.js";
+import {
+  SHARED_HOST_MARKER,
+  SHARED_HOST_PUSH_GUARD,
+  SHARED_HOST_REFUSAL,
+  SHARED_HOST_REFUSED_STATUS,
+} from "../remote/sharedHostGuard.js";
 import { parseAgentAuthReceiverOutput } from "../remote/session-move.js";
 import { agentCliInstallScript } from "./provisionAgents.js";
 import { nodeInstallSnippet } from "../cloud/hostTools.js";
 import { hostReleaseScript } from "../hosts/installRelease.js";
 
 const homes: string[] = [];
-afterEach(() => { for (const h of homes.splice(0)) fs.rmSync(h, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const h of homes.splice(0))
+    fs.rmSync(h, { recursive: true, force: true });
+});
 function tempHome(): string {
   const h = fs.mkdtempSync(path.join(os.tmpdir(), "shared-host-home-"));
   homes.push(h);
   return h;
 }
-function bash(script: string, env: Record<string, string> = {}, input?: string) {
-  return spawnSync("bash", ["-c", script], { encoding: "utf-8", env: { ...process.env, ...env }, input });
+function bash(
+  script: string,
+  env: Record<string, string> = {},
+  input?: string,
+) {
+  return spawnSync("bash", ["-c", script], {
+    encoding: "utf-8",
+    env: { ...process.env, ...env },
+    input,
+  });
 }
 /** `bash -n`: the script parses. Every generator here ships to a host that runs it unseen. */
 function parses(script: string): string {
@@ -35,8 +59,17 @@ describe("generated scripts", () => {
     ["shared host setup", sharedHostSetupScript()],
     ["add user (root, github)", addUserRootScript("cam", "cameron417")],
     ["add user (root, no github)", addUserRootScript("cam")],
-    ["add user (root, team join)", addUserRootScript("cam", "cameron417", { lenientKeys: true, owner: "jh7abc123" })],
-    ["add user (self)", addUserSelfScript({ claude: "2.1.301", codex: "0.150.0" })],
+    [
+      "add user (root, team join)",
+      addUserRootScript("cam", "cameron417", {
+        lenientKeys: true,
+        owner: "jh7abc123",
+      }),
+    ],
+    [
+      "add user (self)",
+      addUserSelfScript({ claude: "2.1.301", codex: "0.150.0" }),
+    ],
     ["enable daemon", enableUserDaemonScript("cam")],
     ["owner daemon unit (shared)", daemonUnitScript({ shared: true })],
   ];
@@ -70,21 +103,29 @@ describe("per-user daemon units", () => {
   });
 
   test("its own tools come before anything shared on PATH", () => {
-    const line = service.split("\n").find((l) => l.startsWith("Environment=PATH="))!;
+    const line = service
+      .split("\n")
+      .find((l) => l.startsWith("Environment=PATH="))!;
     const dirs = line.slice("Environment=PATH=".length).split(":");
     expect(dirs.indexOf("/home/%i/.local/bin")).toBe(0);
-    expect(dirs.indexOf("/home/%i/.bun/bin")).toBeLessThan(dirs.indexOf("/usr/local/bin"));
+    expect(dirs.indexOf("/home/%i/.bun/bin")).toBeLessThan(
+      dirs.indexOf("/usr/local/bin"),
+    );
   });
 
   test("the person starts and stops their own daemon with a file they own: the path unit starts on it, the service will not run without it", () => {
     expect(pathUnit).toContain("PathExists=/home/%i/.codecast/daemon.wanted");
     expect(pathUnit).toContain("Unit=codecast-daemon-user@%i.service");
     // ExecCondition, not Condition=: systemd skips a Condition= on a Restart= start, and the daemon came back after `cast stop` (e2e 2026-10-23).
-    expect(userDaemonUnits().service).toContain("ExecCondition=/usr/bin/test -e /home/%i/.codecast/daemon.wanted");
+    expect(userDaemonUnits().service).toContain(
+      "ExecCondition=/usr/bin/test -e /home/%i/.codecast/daemon.wanted",
+    );
   });
 
   test("setup gives everyone already signed in the wanted file, so the new units keep their daemons", () => {
-    expect(sharedHostSetupScript()).toContain('for cfg in /home/*/.codecast/config.json');
+    expect(sharedHostSetupScript()).toContain(
+      "for cfg in /home/*/.codecast/config.json",
+    );
   });
 
   test("setup installs both units and the marker, naming its user the admin", () => {
@@ -96,7 +137,9 @@ describe("per-user daemon units", () => {
   });
 
   test("enabling arms the path unit, not the service, so a user who has not signed in is not crash-looped", () => {
-    expect(enableUserDaemonScript("cam")).toContain("systemctl enable --now codecast-daemon-user@cam.path");
+    expect(enableUserDaemonScript("cam")).toContain(
+      "systemctl enable --now codecast-daemon-user@cam.path",
+    );
   });
 });
 
@@ -107,7 +150,9 @@ describe("the owner's daemon unit", () => {
     expect(s).toContain("rm -f /home/ubuntu/.codecast/remote-device");
     expect(s).toContain("EnvironmentFile=-/home/ubuntu/.codecast/claude.env");
     expect(s).toContain("ExecStart=/home/ubuntu/.local/bin/cast _daemon");
-    expect(s).toContain("systemctl disable --now codecast-daemon-user@ubuntu.path codecast-daemon-user@ubuntu.service");
+    expect(s).toContain(
+      "systemctl disable --now codecast-daemon-user@ubuntu.path codecast-daemon-user@ubuntu.service",
+    );
   });
 
   test("not shared: unchanged, a remote device", () => {
@@ -121,23 +166,37 @@ describe("the owner's daemon unit", () => {
 
 describe("binaries outside private homes", () => {
   test("setup removes exactly the /usr/local/bin links that point into a home", () => {
-    const loop = sharedHostSetupScript().match(/for l in \/usr\/local\/bin\/\*; do[\s\S]*?\ndone/)![0];
+    const loop = sharedHostSetupScript().match(
+      /for l in \/usr\/local\/bin\/\*; do[\s\S]*?\ndone/,
+    )![0];
     const bin = tempHome();
     fs.symlinkSync("/home/ubuntu/.local/bin/claude", path.join(bin, "claude"));
     fs.symlinkSync("/home/ubuntu/.bun/bin/bun", path.join(bin, "bun"));
     fs.symlinkSync("/opt/node-22/bin/node", path.join(bin, "node"));
     fs.writeFileSync(path.join(bin, "cast"), "#!/bin/sh\n");
-    const r = bash(loop.replaceAll("/usr/local/bin", bin).replaceAll("sudo ", ""));
+    const r = bash(
+      loop.replaceAll("/usr/local/bin", bin).replaceAll("sudo ", ""),
+    );
     expect(r.status).toBe(0);
     expect(fs.readdirSync(bin).sort()).toEqual(["cast", "node"]);
   });
 
   test("every step that links a tool into /usr/local/bin first checks the host is not shared", () => {
     const guard = `[ ! -e ${SHARED_HOST_MARKER} ]`;
-    for (const script of [agentCliInstallScript({}), nodeInstallSnippet(22), hostReleaseScript("linux")]) {
-      const linking = script.split("\n").filter((l) => /sudo (-n )?ln -sf/.test(l));
+    for (const script of [
+      agentCliInstallScript({}),
+      nodeInstallSnippet(22),
+      hostReleaseScript("linux"),
+    ]) {
+      const linking = script
+        .split("\n")
+        .filter((l) => /sudo (-n )?ln -sf/.test(l));
       expect(linking.length).toBeGreaterThan(0);
-      for (const line of linking) expect(line.includes(guard) || script.includes(`if ${guard}; then sudo ln -sf`)).toBe(true);
+      for (const line of linking)
+        expect(
+          line.includes(guard) ||
+            script.includes(`if ${guard}; then sudo ln -sf`),
+        ).toBe(true);
     }
   });
 
@@ -148,7 +207,9 @@ describe("binaries outside private homes", () => {
   test("a member runs the box's own cast bundle when it has one, on their own bun", () => {
     const s = addUserSelfScript({});
     expect(s).toContain("if [ -f /usr/local/lib/codecast/index.js ]");
-    expect(s).toContain('exec "$HOME/.bun/bin/bun" /usr/local/lib/codecast/index.js "$@"');
+    expect(s).toContain(
+      'exec "$HOME/.bun/bin/bun" /usr/local/lib/codecast/index.js "$@"',
+    );
   });
 
   test("a new user's installs run with their own PATH, so a tool linked for the owner is never taken as theirs", () => {
@@ -156,7 +217,8 @@ describe("binaries outside private homes", () => {
     const paths = s.split("\n").filter((l) => l.startsWith("export PATH="));
     // The release install runs in its own subshell; every other PATH leaves /usr/local/bin out.
     const release = s.slice(s.indexOf("(\n"), s.indexOf("\n)") + 2);
-    for (const p of paths.filter((l) => !release.includes(l))) expect(p).not.toContain("/usr/local/bin");
+    for (const p of paths.filter((l) => !release.includes(l)))
+      expect(p).not.toContain("/usr/local/bin");
     expect(s).toContain('[ -x "$HOME/.bun/bin/bun" ]');
   });
 
@@ -172,7 +234,8 @@ describe("the PATH line in ~/.bashrc", () => {
 
   test("goes above Ubuntu's interactive guard, once", () => {
     const home = tempHome();
-    const original = "# ~/.bashrc\ncase $- in\n    *i*) ;;\n      *) return;;\nesac\nalias ll='ls -l'\n";
+    const original =
+      "# ~/.bashrc\ncase $- in\n    *i*) ;;\n      *) return;;\nesac\nalias ll='ls -l'\n";
     fs.writeFileSync(path.join(home, ".bashrc"), original);
     expect(bash(block, { HOME: home }).status).toBe(0);
     expect(bash(block, { HOME: home }).status).toBe(0);
@@ -184,10 +247,19 @@ describe("the PATH line in ~/.bashrc", () => {
 
   test("a non-interactive shell reading it gets the user's own tools first", () => {
     const home = tempHome();
-    fs.writeFileSync(path.join(home, ".bashrc"), "case $- in *i*) ;; *) return;; esac\n");
+    fs.writeFileSync(
+      path.join(home, ".bashrc"),
+      "case $- in *i*) ;; *) return;; esac\n",
+    );
     bash(block, { HOME: home });
-    const r = bash(`. "$HOME/.bashrc"; echo "$PATH"`, { HOME: home, PATH: "/usr/bin:/bin" });
-    expect(r.stdout.trim().split(":").slice(0, 2)).toEqual([`${home}/.local/bin`, `${home}/.bun/bin`]);
+    const r = bash(`. "$HOME/.bashrc"; echo "$PATH"`, {
+      HOME: home,
+      PATH: "/usr/bin:/bin",
+    });
+    expect(r.stdout.trim().split(":").slice(0, 2)).toEqual([
+      `${home}/.local/bin`,
+      `${home}/.bun/bin`,
+    ]);
   });
 });
 
@@ -196,27 +268,50 @@ describe("claude's first-run screens", () => {
     const home = tempHome();
     const r = bash(claudeFirstRunScript(), { HOME: home });
     expect(r.stdout).toContain("claude-first-run=ok");
-    const state = JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf-8"));
+    const state = JSON.parse(
+      fs.readFileSync(path.join(home, ".claude.json"), "utf-8"),
+    );
     expect(state.hasCompletedOnboarding).toBe(true);
     expect(state.theme).toBe("dark");
     expect(state.projects[home].hasTrustDialogAccepted).toBe(true);
-    const settings = JSON.parse(fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"));
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"),
+    );
     expect(settings.skipDangerousModePermissionPrompt).toBe(true);
-    expect((fs.statSync(path.join(home, ".claude.json")).mode & 0o777).toString(8)).toBe("600");
+    expect(
+      (fs.statSync(path.join(home, ".claude.json")).mode & 0o777).toString(8),
+    ).toBe("600");
   });
 
   test("a re-run keeps what the user already set", () => {
     const home = tempHome();
     fs.mkdirSync(path.join(home, ".claude"));
-    fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify({ theme: "light", userID: "u1", projects: { "/x": { allowedTools: ["Bash"] } } }));
-    fs.writeFileSync(path.join(home, ".claude", "settings.json"), JSON.stringify({ model: "opus" }));
+    fs.writeFileSync(
+      path.join(home, ".claude.json"),
+      JSON.stringify({
+        theme: "light",
+        userID: "u1",
+        projects: { "/x": { allowedTools: ["Bash"] } },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(home, ".claude", "settings.json"),
+      JSON.stringify({ model: "opus" }),
+    );
     bash(claudeFirstRunScript(), { HOME: home });
-    const state = JSON.parse(fs.readFileSync(path.join(home, ".claude.json"), "utf-8"));
+    const state = JSON.parse(
+      fs.readFileSync(path.join(home, ".claude.json"), "utf-8"),
+    );
     expect(state.theme).toBe("light");
     expect(state.userID).toBe("u1");
     expect(state.projects["/x"]).toEqual({ allowedTools: ["Bash"] });
-    const settings = JSON.parse(fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"));
-    expect(settings).toEqual({ model: "opus", skipDangerousModePermissionPrompt: true });
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"),
+    );
+    expect(settings).toEqual({
+      model: "opus",
+      skipDangerousModePermissionPrompt: true,
+    });
   });
 });
 
@@ -243,15 +338,28 @@ describe("no laptop logins reach a shared host", () => {
   test("the admin's own logins go through: the box's only sudoer is the one home nobody else reads", () => {
     const dir = tempHome();
     const marker = path.join(dir, "shared-host");
-    fs.writeFileSync(marker, `key=abc\nadmin=${os.userInfo().username}\nteam=t1\n`);
+    fs.writeFileSync(
+      marker,
+      `key=abc\nadmin=${os.userInfo().username}\nteam=t1\n`,
+    );
     const target = path.join(dir, "credentials.json");
-    const r = bash(`${SHARED_HOST_PUSH_GUARD.replaceAll(SHARED_HOST_MARKER, marker)}cat > ${target}`, {}, "secret");
+    const r = bash(
+      `${SHARED_HOST_PUSH_GUARD.replaceAll(SHARED_HOST_MARKER, marker)}cat > ${target}`,
+      {},
+      "secret",
+    );
     expect(r.status).toBe(0);
     expect(fs.readFileSync(target, "utf-8")).toBe("secret");
   });
 
   test("the agent auth receiver's refusal reads as the shared-host reason", () => {
-    expect(parseAgentAuthReceiverOutput("", SHARED_HOST_REFUSED_STATUS, SHARED_HOST_REFUSAL)).toEqual({ pushed: false, kept: [], reason: SHARED_HOST_REFUSAL });
+    expect(
+      parseAgentAuthReceiverOutput(
+        "",
+        SHARED_HOST_REFUSED_STATUS,
+        SHARED_HOST_REFUSAL,
+      ),
+    ).toEqual({ pushed: false, kept: [], reason: SHARED_HOST_REFUSAL });
   });
 });
 
@@ -267,34 +375,58 @@ describe("the steps a person runs", () => {
   test("the token step writes a 0600 env file the unit can read", () => {
     const home = tempHome();
     fs.mkdirSync(path.join(home, ".codecast"));
-    const write = teammateSteps("cam", "h")[2].replace(/^read -rsp 'Claude token: ' t && /, 't=$(cat) && ');
+    const write = teammateSteps("cam", "h")[2].replace(
+      /^read -rsp 'Claude token: ' t && /,
+      "t=$(cat) && ",
+    );
     expect(bash(write, { HOME: home }, "sk-ant-oat01-abc").status).toBe(0);
     const file = path.join(home, ".codecast", "claude.env");
-    expect(fs.readFileSync(file, "utf-8")).toBe("CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-abc\n");
+    expect(fs.readFileSync(file, "utf-8")).toBe(
+      "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-abc\n",
+    );
     expect((fs.statSync(file).mode & 0o777).toString(8)).toBe("600");
   });
 });
 
 describe("joining and leaving", () => {
   test("a join from the web tolerates a GitHub account with no keys, and adds the joining laptop's key", () => {
-    const s = addUserRootScript("ashot", "ashot", { pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIabc ashot@laptop", lenientKeys: true });
+    const s = addUserRootScript("ashot", "ashot", {
+      pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIabc ashot@laptop",
+      lenientKeys: true,
+    });
     expect(s).not.toContain("has no public ssh keys");
-    expect(s).toContain("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIabc ashot@laptop");
+    expect(s).toContain(
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIabc ashot@laptop",
+    );
     expect(parses(s)).toBe("");
-    expect(() => addUserRootScript("ashot", undefined, { pubkey: "x'; rm -rf /" })).toThrow("not an ssh public key");
+    expect(() =>
+      addUserRootScript("ashot", undefined, { pubkey: "x'; rm -rf /" }),
+    ).toThrow("not an ssh public key");
   });
 
   // F28: a join adopts an existing Linux account only when it was made for
   // the same codecast account; a removed member's kept home, a hand-made
   // account or an administrator is someone else's.
   describe("an existing account on a team join", () => {
-    const run = (opts: { exists: boolean; record?: string; config?: string; groups?: string }) => {
+    const run = (opts: {
+      exists: boolean;
+      record?: string;
+      config?: string;
+      groups?: string;
+    }) => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "join-owner-"));
       const members = path.join(dir, "members");
       const home = path.join(dir, "home");
       fs.mkdirSync(path.join(home, "cam", ".codecast"), { recursive: true });
-      if (opts.record) { fs.mkdirSync(members, { recursive: true }); fs.writeFileSync(path.join(members, "cam"), opts.record + "\n"); }
-      if (opts.config) fs.writeFileSync(path.join(home, "cam", ".codecast", "config.json"), opts.config);
+      if (opts.record) {
+        fs.mkdirSync(members, { recursive: true });
+        fs.writeFileSync(path.join(members, "cam"), opts.record + "\n");
+      }
+      if (opts.config)
+        fs.writeFileSync(
+          path.join(home, "cam", ".codecast", "config.json"),
+          opts.config,
+        );
       const marker = path.join(dir, "shared");
       fs.writeFileSync(marker, "");
       const script = addUserRootScript("cam", undefined, { owner: "jhme" })
@@ -305,10 +437,30 @@ describe("joining and leaving", () => {
 id() { case "$1" in -u) ${opts.exists ? "return 0" : "return 1"};; -nG) echo "${opts.groups ?? "cam"}";; esac; }
 getent() { echo "cam:x:1001:1001::${home}/cam:/bin/bash"; }
 `;
-      const res = spawnSync("bash", ["-c", shims + script.replace("set -euo pipefail", "set -euo pipefail\nmkdir -p " + members)], { encoding: "utf-8" });
-      const record = fs.existsSync(path.join(members, "cam")) ? fs.readFileSync(path.join(members, "cam"), "utf-8").trim() : null;
-      const ran = fs.existsSync(path.join(dir, "ran")) ? fs.readFileSync(path.join(dir, "ran"), "utf-8") : "";
-      return { ok: res.stdout.includes("ADD-USER-ROOT-OK"), stderr: res.stderr, record, ran };
+      const res = spawnSync(
+        "bash",
+        [
+          "-c",
+          shims +
+            script.replace(
+              "set -euo pipefail",
+              "set -euo pipefail\nmkdir -p " + members,
+            ),
+        ],
+        { encoding: "utf-8" },
+      );
+      const record = fs.existsSync(path.join(members, "cam"))
+        ? fs.readFileSync(path.join(members, "cam"), "utf-8").trim()
+        : null;
+      const ran = fs.existsSync(path.join(dir, "ran"))
+        ? fs.readFileSync(path.join(dir, "ran"), "utf-8")
+        : "";
+      return {
+        ok: res.stdout.includes("ADD-USER-ROOT-OK"),
+        stderr: res.stderr,
+        record,
+        ran,
+      };
     };
 
     test("a new account is created and recorded as this member's", () => {
@@ -319,12 +471,19 @@ getent() { echo "cam:x:1001:1001::${home}/cam:/bin/bash"; }
     });
     test("their own account, by record or by their own sign-in, is kept", () => {
       expect(run({ exists: true, record: "jhme" }).ok).toBe(true);
-      const legacy = run({ exists: true, config: '{ "user_id": "jhme", "auth_token": "x" }' });
+      const legacy = run({
+        exists: true,
+        config: '{ "user_id": "jhme", "auth_token": "x" }',
+      });
       expect(legacy.ok).toBe(true);
       expect(legacy.record).toBe("jhme");
     });
     test("someone else's account is refused and not unlocked", () => {
-      for (const r of [run({ exists: true, record: "jhother" }), run({ exists: true }), run({ exists: true, config: '{"user_id":"jhother"}' })]) {
+      for (const r of [
+        run({ exists: true, record: "jhother" }),
+        run({ exists: true }),
+        run({ exists: true, config: '{"user_id":"jhother"}' }),
+      ]) {
         expect(r.ok).toBe(false);
         expect(r.stderr).toContain("belongs to someone else");
         expect(r.ran).not.toContain("usermod");
@@ -340,7 +499,9 @@ getent() { echo "cam:x:1001:1001::${home}/cam:/bin/bash"; }
   test("a removal stops and disables their daemon and locks the login, and keeps their home", () => {
     const s = removeUserRootScript("ashot");
     expect(s).toContain("rm -f /home/ashot/.codecast/daemon.wanted");
-    expect(s).toContain("systemctl disable --now codecast-daemon-user@ashot.path");
+    expect(s).toContain(
+      "systemctl disable --now codecast-daemon-user@ashot.path",
+    );
     expect(s).toContain("usermod -L -e 1 ashot");
     expect(s).not.toMatch(/userdel|rm -rf \/home/);
     expect(parses(s)).toBe("");
@@ -350,10 +511,15 @@ getent() { echo "cam:x:1001:1001::${home}/cam:/bin/bash"; }
     const dir = tempHome();
     const marker = path.join(dir, "shared-host");
     fs.writeFileSync(marker, "key=k1\nteam=t1\n");
-    const script = sharedHostMarkScript().replaceAll(SHARED_HOST_MARKER, marker).replace("sudo install -d -m 755 /etc/codecast", ":")
-      .replaceAll("sudo ", "").replace(/^if ! grep -qF[\s\S]*?^fi$/m, ":");
+    const script = sharedHostMarkScript()
+      .replaceAll(SHARED_HOST_MARKER, marker)
+      .replace("sudo install -d -m 755 /etc/codecast", ":")
+      .replaceAll("sudo ", "")
+      .replace(/^if ! grep -qF[\s\S]*?^fi$/m, ":");
     expect(bash(script, { HOME: dir }).status).toBe(0);
     expect(bash(script, { HOME: dir }).status).toBe(0);
-    expect(fs.readFileSync(marker, "utf-8").split("\n").filter(Boolean).sort()).toEqual([`admin=${os.userInfo().username}`, "key=k1", "team=t1"]);
+    expect(
+      fs.readFileSync(marker, "utf-8").split("\n").filter(Boolean).sort(),
+    ).toEqual([`admin=${os.userInfo().username}`, "key=k1", "team=t1"]);
   });
 });

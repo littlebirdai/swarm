@@ -1,6 +1,14 @@
 // The call node (learning-loop.md LL1): one prompt, one answer, no tools, no
 // session, through the server's one call path.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -32,14 +40,31 @@ describe("parsing a call node", () => {
   });
 
   test("a call without a prompt is refused", () => {
-    const g = parseWorkflowSource(`digraph g { start [shape=Mdiamond] c [shape=note] done [shape=Msquare] start -> c -> done }`);
-    expect(validateWorkflow(g)).toContain("Call node 'c' has no prompt attribute");
+    const g = parseWorkflowSource(
+      `digraph g { start [shape=Mdiamond] c [shape=note] done [shape=Msquare] start -> c -> done }`,
+    );
+    expect(validateWorkflow(g)).toContain(
+      "Call node 'c' has no prompt attribute",
+    );
   });
 
   test("the body is the node's words with $vars expanded and nothing appended", () => {
     const g = parseWorkflowSource(GRAPH);
-    const body = callNodeBody(g.nodes.get("grade")!, g, { who: "Dana", task_title: "not appended" }, "/repo");
-    expect(body).toEqual({ model: "claude-haiku-5-5", max_tokens: 200, system: "You grade replies.", prompt: "Grade this reply from Dana.", output: "json", label: "grade", project_path: "/repo" });
+    const body = callNodeBody(
+      g.nodes.get("grade")!,
+      g,
+      { who: "Dana", task_title: "not appended" },
+      "/repo",
+    );
+    expect(body).toEqual({
+      model: "claude-haiku-5-5",
+      max_tokens: 200,
+      system: "You grade replies.",
+      prompt: "Grade this reply from Dana.",
+      output: "json",
+      label: "grade",
+      project_path: "/repo",
+    });
   });
 });
 
@@ -69,7 +94,9 @@ describe("running a call node", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "call-node-"));
     logs = [];
-    console.log = (...args: unknown[]) => { logs.push(args.join(" ")); };
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(" "));
+    };
   });
   afterEach(() => {
     console.log = original;
@@ -77,17 +104,43 @@ describe("running a call node", () => {
   });
 
   test("its parsed answer and cost reach the next node", async () => {
-    answer = { ok: true, text: '{"verdict": "pass"}', json: { verdict: "pass" }, usage: { input_tokens: 40, output_tokens: 6 }, cost_usd: 0.0002, model: "claude-haiku-5-5" };
+    answer = {
+      ok: true,
+      text: '{"verdict": "pass"}',
+      json: { verdict: "pass" },
+      usage: { input_tokens: 40, output_tokens: 6 },
+      cost_usd: 0.0002,
+      model: "claude-haiku-5-5",
+    };
     const g = parseWorkflowSource(GRAPH);
-    const outcome = await runWorkflow(g, { cwd: tmpDir, convexSiteUrl: server.url.origin, apiToken: "tok" });
+    const outcome = await runWorkflow(g, {
+      cwd: tmpDir,
+      convexSiteUrl: server.url.origin,
+      apiToken: "tok",
+    });
     expect(outcome).toBe("completed");
-    expect(seen.at(-1)).toMatchObject({ api_token: "tok", prompt: "Grade this reply from .", output: "json", max_tokens: 200 });
+    expect(seen.at(-1)).toMatchObject({
+      api_token: "tok",
+      prompt: "Grade this reply from .",
+      output: "json",
+      max_tokens: 200,
+    });
     expect(logs.some((l) => l.includes("verdict=pass cost=0.0002"))).toBe(true);
   });
 
   test("a call the budget refuses fails the node with the server's words", async () => {
-    answer = { ok: false, reason: "budget", error: "the team's model budget for this month has no room", cost_usd: 0, model: "claude-haiku-5-5" };
-    const outcome = await runWorkflow(parseWorkflowSource(GRAPH), { cwd: tmpDir, convexSiteUrl: server.url.origin, apiToken: "tok" });
+    answer = {
+      ok: false,
+      reason: "budget",
+      error: "the team's model budget for this month has no room",
+      cost_usd: 0,
+      model: "claude-haiku-5-5",
+    };
+    const outcome = await runWorkflow(parseWorkflowSource(GRAPH), {
+      cwd: tmpDir,
+      convexSiteUrl: server.url.origin,
+      apiToken: "tok",
+    });
     expect(outcome).toBe("completed");
     expect(logs.some((l) => l.includes("call-failed"))).toBe(true);
     expect(logs.some((l) => l.includes("no room"))).toBe(true);

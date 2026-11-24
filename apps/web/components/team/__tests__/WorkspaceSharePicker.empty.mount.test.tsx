@@ -6,21 +6,66 @@ import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test/settings/team/join", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "sessionStorage", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test/settings/team/join", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "sessionStorage",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const convex = await import("convex/react");
-mock.module("convex/react", () => ({ ...convex, useMutation: () => async () => ({ token: "setup_tok_123456", expiresAt: Date.now() + 3_600_000 }), useQuery: () => undefined, useQueries: () => ({}) }));
+mock.module("convex/react", () => ({
+  ...convex,
+  useMutation: () => async () => ({
+    token: "setup_tok_123456",
+    expiresAt: Date.now() + 3_600_000,
+  }),
+  useQuery: () => undefined,
+  useQueries: () => ({}),
+}));
 
 const { WorkspaceSharePicker } = await import("../WorkspaceSharePicker");
 const { CLI_CONNECTED_KEY } = await import("../../../lib/cliConnected");
 
-const data: any = { suggestions: null, allProjects: [], suggestedPaths: new Set(), matched: [], other: [], teamName: "Littlebird", teamOnlyRepos: [], getSuggestion: () => undefined };
+const data: any = {
+  suggestions: null,
+  allProjects: [],
+  suggestedPaths: new Set(),
+  matched: [],
+  other: [],
+  teamName: "Littlebird",
+  teamOnlyRepos: [],
+  getSuggestion: () => undefined,
+};
 let root: Root;
-const render = () => act(async () => root.render(<WorkspaceSharePicker data={data} teamId={null} selectedPaths={{}} onToggle={() => {}} />));
+const render = () =>
+  act(async () =>
+    root.render(
+      <WorkspaceSharePicker
+        data={data}
+        teamId={null}
+        selectedPaths={{}}
+        onToggle={() => {}}
+      />,
+    ),
+  );
 const text = () => document.body.textContent ?? "";
 
 beforeEach(() => {
@@ -28,7 +73,9 @@ beforeEach(() => {
   root = createRoot(document.getElementById("root")!);
   sessionStorage.removeItem(CLI_CONNECTED_KEY);
 });
-afterEach(async () => { await act(async () => root.unmount()); });
+afterEach(async () => {
+  await act(async () => root.unmount());
+});
 
 test("a joiner with no synced machine is offered the one-step setup", async () => {
   await render();

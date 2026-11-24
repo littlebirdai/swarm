@@ -9,7 +9,10 @@ import { useInboxStore } from "../../store/inboxStore";
 // it only locates the ask's message for the scroll, and the switch never
 // waited for that answer. A stashed or dismissed asker comes back into the inbox for good.
 const { JSDOM } = await import("jsdom");
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh/decisions/sd-1", pretendToBeVisual: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://local.codecast.sh/decisions/sd-1", pretendToBeVisual: true },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -21,11 +24,18 @@ const restoreGlobals = replaceGlobals({
 });
 
 // The server's findAskMessage answers only when the test says so.
-let answer: (v: { message_id: string; timestamp: number } | null) => void = () => {};
+let answer: (
+  v: { message_id: string; timestamp: number } | null,
+) => void = () => {};
 const real = { ...(await import("convex/react")) };
 mock.module("convex/react", () => ({
   ...real,
-  useConvex: () => ({ query: () => new Promise((resolve) => { answer = resolve; }) }),
+  useConvex: () => ({
+    query: () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+  }),
 }));
 
 const React = await import("react");
@@ -57,7 +67,9 @@ describe("useJumpToDecisionAsk", () => {
     useInboxStore.setState({
       tabs: [],
       activeTabId: null,
-      sessions: { [CONV]: { _id: CONV, title: "Asker", inbox_dismissed_at: 1_000 } },
+      sessions: {
+        [CONV]: { _id: CONV, title: "Asker", inbox_dismissed_at: 1_000 },
+      },
       messages: {},
       currentSessionId: null,
       viewingDismissedId: null,
@@ -65,9 +77,17 @@ describe("useJumpToDecisionAsk", () => {
       pendingScrollToMessageId: null,
     } as any);
     const root = createRoot(document.getElementById("root")!);
-    await act(async () => root.render(<MemoryRouter initialEntries={["/decisions/sd-1"]}><Probe /></MemoryRouter>));
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/decisions/sd-1"]}>
+          <Probe />
+        </MemoryRouter>,
+      ),
+    );
 
-    await act(async () => { void jump!(); });
+    await act(async () => {
+      void jump!();
+    });
     const st = useInboxStore.getState();
     expect(st.currentSessionId).toBe(CONV);
     expect(st.viewingDismissedId).toBeNull();
@@ -76,7 +96,9 @@ describe("useJumpToDecisionAsk", () => {
     expect(st.pendingScrollToMessageId).toBeNull();
 
     // The server names the ask later; the thread then scrolls to it.
-    await act(async () => { answer({ message_id: "m_ask", timestamp: 42 }); });
+    await act(async () => {
+      answer({ message_id: "m_ask", timestamp: 42 });
+    });
     expect(useInboxStore.getState().pendingScrollToMessageId).toBe("m_ask");
     expect(useInboxStore.getState().pendingScrollToMessageTimestamp).toBe(42);
     await act(async () => root.unmount());
@@ -84,15 +106,31 @@ describe("useJumpToDecisionAsk", () => {
 
   it("restores and adopts a killed asker (a finished flow station)", async () => {
     useInboxStore.setState({
-      sessions: { [CONV]: { _id: CONV, title: "Station", is_subagent: true, parent_conversation_id: "p".repeat(32), inbox_killed_at: 1_000 } },
+      sessions: {
+        [CONV]: {
+          _id: CONV,
+          title: "Station",
+          is_subagent: true,
+          parent_conversation_id: "p".repeat(32),
+          inbox_killed_at: 1_000,
+        },
+      },
       currentSessionId: null,
       viewingDismissedId: null,
       pendingNavigateId: null,
       pendingScrollToMessageId: null,
     } as any);
     const root = createRoot(document.getElementById("root")!);
-    await act(async () => root.render(<MemoryRouter initialEntries={["/decisions/sd-1"]}><Probe /></MemoryRouter>));
-    await act(async () => { void jump!(); });
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/decisions/sd-1"]}>
+          <Probe />
+        </MemoryRouter>,
+      ),
+    );
+    await act(async () => {
+      void jump!();
+    });
     const st = useInboxStore.getState();
     expect(st.currentSessionId).toBe(CONV);
     expect(st.sessions[CONV].inbox_killed_at).toBeNull();

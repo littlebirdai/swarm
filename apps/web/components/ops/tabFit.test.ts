@@ -24,7 +24,17 @@ test("a narrow bar keeps the most opened tabs first, drawn in bar order", () => 
 
 test("j and k from the home walk every issue the rows hold, once each: a folded row's variants and an alerting watch's metric issue", () => {
   const NOW = Date.UTC(2026, 10, 3, 12);
-  const g = (id: string) => ({ _id: id, short_id: id, kind: "error", status: "open", first_seen: NOW - 3_600_000, last_seen: NOW - 60_000, count: 3, buckets: [] }) as any;
+  const g = (id: string) =>
+    ({
+      _id: id,
+      short_id: id,
+      kind: "error",
+      status: "open",
+      first_seen: NOW - 3_600_000,
+      last_seen: NOW - 60_000,
+      count: 3,
+      buckets: [],
+    }) as any;
   const items = [
     { kind: "watch", group: g("eg-1") },
     { kind: "issue", group: g("eg-2"), variants: [g("eg-2"), g("eg-4")] },

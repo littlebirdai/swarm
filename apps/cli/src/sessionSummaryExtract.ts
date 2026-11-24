@@ -30,7 +30,10 @@ export function parseToolInput(input: unknown): Record<string, unknown> | null {
 }
 
 export function extractFileChanges(messages: SummaryMessage[]): FileChange[] {
-  const fileChanges = new Map<string, { additions: number; deletions: number }>();
+  const fileChanges = new Map<
+    string,
+    { additions: number; deletions: number }
+  >();
 
   for (const msg of messages) {
     if (!msg.tool_calls) continue;
@@ -43,7 +46,10 @@ export function extractFileChanges(messages: SummaryMessage[]): FileChange[] {
         const filePath = input.file_path as string;
         if (!filePath) continue;
 
-        const existing = fileChanges.get(filePath) || { additions: 0, deletions: 0 };
+        const existing = fileChanges.get(filePath) || {
+          additions: 0,
+          deletions: 0,
+        };
 
         if (tc.name === "Edit") {
           const oldStr = (input.old_string as string) || "";
@@ -62,7 +68,7 @@ export function extractFileChanges(messages: SummaryMessage[]): FileChange[] {
 
   return Array.from(fileChanges.entries())
     .map(([path, stats]) => ({ path, ...stats }))
-    .sort((a, b) => (b.additions + b.deletions) - (a.additions + a.deletions));
+    .sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions));
 }
 
 export function extractGoal(messages: SummaryMessage[]): string {
@@ -90,8 +96,12 @@ export function extractApproach(messages: SummaryMessage[]): string[] {
     if (seen.has(firstLine)) continue;
     seen.add(firstLine);
 
-    if (content.includes("I'll ") || content.includes("I will ") ||
-        content.includes("Let me ") || content.includes("I'm going to ")) {
+    if (
+      content.includes("I'll ") ||
+      content.includes("I will ") ||
+      content.includes("Let me ") ||
+      content.includes("I'm going to ")
+    ) {
       const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
       for (const sentence of sentences.slice(0, 2)) {
         const trimmed = sentence.trim();
@@ -115,15 +125,25 @@ export function extractKeyDecisions(messages: SummaryMessage[]): string[] {
     if (msg.role !== "assistant" || !msg.content) continue;
 
     const content = msg.content.toLowerCase();
-    if (content.includes("chose ") || content.includes("decided ") ||
-        content.includes("instead of ") || content.includes("rather than ") ||
-        content.includes("better to ") || content.includes("approach is ")) {
+    if (
+      content.includes("chose ") ||
+      content.includes("decided ") ||
+      content.includes("instead of ") ||
+      content.includes("rather than ") ||
+      content.includes("better to ") ||
+      content.includes("approach is ")
+    ) {
       const sentences = msg.content.match(/[^.!?]+[.!?]+/g) || [];
       for (const sentence of sentences) {
         const lower = sentence.toLowerCase();
-        if (lower.includes("chose") || lower.includes("decided") ||
-            lower.includes("instead") || lower.includes("rather than") ||
-            lower.includes("better to") || lower.includes("approach")) {
+        if (
+          lower.includes("chose") ||
+          lower.includes("decided") ||
+          lower.includes("instead") ||
+          lower.includes("rather than") ||
+          lower.includes("better to") ||
+          lower.includes("approach")
+        ) {
           const trimmed = sentence.trim();
           if (trimmed.length > 20 && trimmed.length < 200) {
             decisions.push("- " + trimmed);
@@ -140,26 +160,34 @@ export function extractKeyDecisions(messages: SummaryMessage[]): string[] {
 }
 
 export function summarizeOutcome(messages: SummaryMessage[]): string {
-  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && m.content);
   if (!lastAssistant) return "Session ended";
 
   const content = lastAssistant.content.trim();
 
-  if (content.toLowerCase().includes("successfully") ||
-      content.toLowerCase().includes("complete") ||
-      content.toLowerCase().includes("done") ||
-      content.toLowerCase().includes("finished")) {
+  if (
+    content.toLowerCase().includes("successfully") ||
+    content.toLowerCase().includes("complete") ||
+    content.toLowerCase().includes("done") ||
+    content.toLowerCase().includes("finished")
+  ) {
     const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
     for (const sentence of sentences) {
-      if (sentence.toLowerCase().includes("success") ||
-          sentence.toLowerCase().includes("complete") ||
-          sentence.toLowerCase().includes("done") ||
-          sentence.toLowerCase().includes("finished")) {
+      if (
+        sentence.toLowerCase().includes("success") ||
+        sentence.toLowerCase().includes("complete") ||
+        sentence.toLowerCase().includes("done") ||
+        sentence.toLowerCase().includes("finished")
+      ) {
         return sentence.trim().slice(0, 150);
       }
     }
   }
 
   const firstSentence = content.match(/^[^.!?]+[.!?]+/);
-  return firstSentence ? firstSentence[0].trim().slice(0, 150) : "Session ended";
+  return firstSentence
+    ? firstSentence[0].trim().slice(0, 150)
+    : "Session ended";
 }

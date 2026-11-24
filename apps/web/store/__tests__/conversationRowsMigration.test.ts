@@ -9,14 +9,19 @@ const rows = [
   { _id: "conversation", title: "Local title", is_favorite: true },
   { _id: "optimistic-stub", session_id: "client-session" },
 ];
-const pending = { "conversations:conversation:title": { type: "field", value: "Local title" } };
+const pending = {
+  "conversations:conversation:title": { type: "field", value: "Local title" },
+};
 
 async function legacyDatabase() {
   const indexedDB = new IDBFactory();
   const legacy = new Dexie(db.name, { indexedDB, IDBKeyRange });
   legacy.version(111).stores({ ...COLLECTION_INDEXES, ...SYSTEM_TABLES });
   await legacy.meta.bulkPut([
-    { key: "conversations", value: Object.fromEntries(rows.map((row) => [row._id, row])) },
+    {
+      key: "conversations",
+      value: Object.fromEntries(rows.map((row) => [row._id, row])),
+    },
     { key: "pending", value: pending },
   ]);
   legacy.close();
@@ -36,16 +41,20 @@ test("aborting after the row puts rolls back the upgrade and allows an exact ret
   const { indexedDB, legacy } = await legacyDatabase();
   let interrupted = false;
   const remove = IDBObjectStore.prototype.delete;
-  const abort = spyOn(IDBObjectStore.prototype, "delete").mockImplementation(function (this: IDBObjectStore, key) {
-    const request = remove.call(this, key);
-    if (this.name === "meta" && key === "conversations") {
-      interrupted = true;
-      this.transaction.abort();
-    }
-    return request;
-  });
+  const abort = spyOn(IDBObjectStore.prototype, "delete").mockImplementation(
+    function (this: IDBObjectStore, key) {
+      const request = remove.call(this, key);
+      if (this.name === "meta" && key === "conversations") {
+        interrupted = true;
+        this.transaction.abort();
+      }
+      return request;
+    },
+  );
   try {
-    const error = await _reopenForTests({ indexedDB, IDBKeyRange }).catch((error) => error);
+    const error = await _reopenForTests({ indexedDB, IDBKeyRange }).catch(
+      (error) => error,
+    );
     expect(error).toHaveProperty("name", "AbortError");
     expect(interrupted).toBe(true);
   } finally {
@@ -53,8 +62,12 @@ test("aborting after the row puts rolls back the upgrade and allows an exact ret
   }
 
   await legacy.open();
-  expect(legacy.tables.map((table) => table.name)).not.toContain("conversations");
-  expect(Object.values((await legacy.meta.get("conversations")).value)).toEqual(rows);
+  expect(legacy.tables.map((table) => table.name)).not.toContain(
+    "conversations",
+  );
+  expect(Object.values((await legacy.meta.get("conversations")).value)).toEqual(
+    rows,
+  );
   legacy.close();
 
   await _reopenForTests({ indexedDB, IDBKeyRange });

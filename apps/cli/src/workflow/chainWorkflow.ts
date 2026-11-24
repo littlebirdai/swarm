@@ -15,7 +15,10 @@
 // Recording never blocks the work. When the backend cannot be reached the
 // chain still runs and one line on stderr says the run was not recorded.
 
-import type { AgentChainSpec, AgentDefinitionSpec } from "@codecast/shared/contracts";
+import type {
+  AgentChainSpec,
+  AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import type { WorkflowEdge, WorkflowGraph, WorkflowNode } from "./types.js";
 import { keepEnds } from "./keepEnds.js";
@@ -48,19 +51,32 @@ export function resultPreview(output: string): string | undefined {
  *  trailing fields dropped, so it still parses. Null when the text is not one object. */
 export function jsonThatFits(text: string, cap: number): string | null {
   let value: unknown;
-  try { value = JSON.parse(text); } catch { return null; }
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return null;
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const shorten = (v: unknown, n: number): unknown =>
-    typeof v === "string" ? (v.length > n ? `${v.slice(0, n)}…` : v)
-      : Array.isArray(v) ? v.map((x) => shorten(x, n))
-      : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shorten(x, n)]))
-      : v;
+    typeof v === "string"
+      ? v.length > n
+        ? `${v.slice(0, n)}…`
+        : v
+      : Array.isArray(v)
+        ? v.map((x) => shorten(x, n))
+        : v && typeof v === "object"
+          ? Object.fromEntries(
+              Object.entries(v).map(([k, x]) => [k, shorten(x, n)]),
+            )
+          : v;
   for (const n of [240, 120, 60, 24]) {
     const out = JSON.stringify(shorten(value, n));
     if (out.length <= cap) return out;
   }
   const kept: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(shorten(value, 24) as Record<string, unknown>)) {
+  for (const [k, v] of Object.entries(
+    shorten(value, 24) as Record<string, unknown>,
+  )) {
     if (JSON.stringify({ ...kept, [k]: v }).length > cap) continue;
     kept[k] = v;
   }
@@ -91,7 +107,12 @@ function exitNode(): WorkflowNode {
   return { id: "exit", label: "Done", shape: "Msquare", type: "exit" };
 }
 
-function graphOf(name: string, goal: string | undefined, nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowGraph {
+function graphOf(
+  name: string,
+  goal: string | undefined,
+  nodes: WorkflowNode[],
+  edges: WorkflowEdge[],
+): WorkflowGraph {
   return { name, goal, nodes: new Map(nodes.map((n) => [n.id, n])), edges };
 }
 
@@ -100,7 +121,10 @@ function graphOf(name: string, goal: string | undefined, nodes: WorkflowNode[], 
  * name, carrying the step's prompt template and `definition=` the step's
  * agent. Edges run start -> step-1 -> ... -> step-N -> exit.
  */
-export function compileChainWorkflow(chain: AgentChainSpec, definitions: Record<string, AgentDefinitionSpec>): WorkflowGraph {
+export function compileChainWorkflow(
+  chain: AgentChainSpec,
+  definitions: Record<string, AgentDefinitionSpec>,
+): WorkflowGraph {
   const steps: WorkflowNode[] = chain.steps.map((step, i) => {
     const def = definitions[step.agent];
     return {
@@ -118,8 +142,14 @@ export function compileChainWorkflow(chain: AgentChainSpec, definitions: Record<
   });
   const nodes = [startNode(), ...steps, exitNode()];
   const edges: WorkflowEdge[] = [];
-  for (let i = 0; i + 1 < nodes.length; i++) edges.push({ from: nodes[i].id, to: nodes[i + 1].id });
-  return graphOf(`chain-${chain.name}`, chain.description || undefined, nodes, edges);
+  for (let i = 0; i + 1 < nodes.length; i++)
+    edges.push({ from: nodes[i].id, to: nodes[i + 1].id });
+  return graphOf(
+    `chain-${chain.name}`,
+    chain.description || undefined,
+    nodes,
+    edges,
+  );
 }
 
 /**
@@ -127,7 +157,10 @@ export function compileChainWorkflow(chain: AgentChainSpec, definitions: Record<
  * input (`input-<n>`, prompt = the input, first line as the label), a
  * `tripleoctagon` fanin, then exit.
  */
-export function compileParallelWorkflow(prompts: string[], definition?: AgentDefinitionSpec): WorkflowGraph {
+export function compileParallelWorkflow(
+  prompts: string[],
+  definition?: AgentDefinitionSpec,
+): WorkflowGraph {
   const inputs: WorkflowNode[] = prompts.map((prompt, i) => ({
     id: `input-${i + 1}`,
     label: prompt.split("\n")[0].slice(0, 80) || `input ${i + 1}`,
@@ -137,13 +170,26 @@ export function compileParallelWorkflow(prompts: string[], definition?: AgentDef
     ...(definition ? { definition: definition.name } : {}),
     ...(definition?.agent ? { agent: definition.agent } : {}),
   }));
-  const fanout: WorkflowNode = { id: "fanout", label: `${prompts.length} inputs`, shape: "component", type: "parallel_fanout" };
-  const fanin: WorkflowNode = { id: "fanin", label: "Collect", shape: "tripleoctagon", type: "parallel_fanin" };
+  const fanout: WorkflowNode = {
+    id: "fanout",
+    label: `${prompts.length} inputs`,
+    shape: "component",
+    type: "parallel_fanout",
+  };
+  const fanin: WorkflowNode = {
+    id: "fanin",
+    label: "Collect",
+    shape: "tripleoctagon",
+    type: "parallel_fanin",
+  };
   const nodes = [startNode(), fanout, ...inputs, fanin, exitNode()];
   const edges: WorkflowEdge[] = [{ from: "start", to: "fanout" }];
-  for (const n of inputs) edges.push({ from: "fanout", to: n.id }, { from: n.id, to: "fanin" });
+  for (const n of inputs)
+    edges.push({ from: "fanout", to: n.id }, { from: n.id, to: "fanin" });
   edges.push({ from: "fanin", to: "exit" });
-  const name = definition ? `exec-parallel-${definition.name}` : "exec-parallel";
+  const name = definition
+    ? `exec-parallel-${definition.name}`
+    : "exec-parallel";
   return graphOf(name, undefined, nodes, edges);
 }
 
@@ -168,7 +214,10 @@ export function renderDotSource(graph: WorkflowGraph): string {
  * (index.ts, "Push workflow to Convex so the web UI can render it"), with the
  * L8 node attributes (`definition`, `reviewer`, `timeout`, `temperature`).
  */
-export function workflowUpsertPayload(graph: WorkflowGraph, source?: string): Record<string, unknown> {
+export function workflowUpsertPayload(
+  graph: WorkflowGraph,
+  source?: string,
+): Record<string, unknown> {
   const nodes = graphNodesPayload(graph);
   const edges = graphEdgesPayload(graph);
   return {
@@ -198,7 +247,11 @@ export interface RecordedRun {
   /** The run id once created; undefined when recording failed. */
   runId: string | undefined;
   /** Report one node. Failures are swallowed and noted once. */
-  node(nodeId: string, status: NodeStatus, extra?: { outcome?: string; result_preview?: string; fail_reason?: string }): Promise<void>;
+  node(
+    nodeId: string,
+    status: NodeStatus,
+    extra?: { outcome?: string; result_preview?: string; fail_reason?: string },
+  ): Promise<void>;
   /** The run's terminal status, posted the way the runner posts it. */
   finish(nodeId: string, status: RunStatus, failReason?: string): Promise<void>;
 }
@@ -208,7 +261,10 @@ export interface RecordedRun {
  * a no-op and one note says why. `cast exec -j` needs no auth to run, so it
  * keeps running and only the record is skipped.
  */
-export function unrecordedRun(reason: string, note?: (line: string) => void): RecordedRun {
+export function unrecordedRun(
+  reason: string,
+  note?: (line: string) => void,
+): RecordedRun {
   note?.(`cast exec: run not recorded (${reason})`);
   return { runId: undefined, node: async () => {}, finish: async () => {} };
 }
@@ -218,14 +274,21 @@ export function unrecordedRun(reason: string, note?: (line: string) => void): Re
  * reporter. Every call swallows transport failures so the chain still runs
  * when the backend is unreachable; the first failure prints one note.
  */
-export async function startRecordedRun(deps: PublishDeps, graph: WorkflowGraph, opts: RecordedRunOptions): Promise<RecordedRun> {
+export async function startRecordedRun(
+  deps: PublishDeps,
+  graph: WorkflowGraph,
+  opts: RecordedRunOptions,
+): Promise<RecordedRun> {
   let noted = false;
   const noteOnce = (reason: string) => {
     if (noted) return;
     noted = true;
     opts.note?.(`cast exec: run not recorded (${reason})`);
   };
-  const post = async (urlPath: string, body: Record<string, unknown>): Promise<any> => {
+  const post = async (
+    urlPath: string,
+    body: Record<string, unknown>,
+  ): Promise<any> => {
     try {
       return await apiPost(deps, urlPath, body, { exitOnError: false });
     } catch (err) {
@@ -235,7 +298,10 @@ export async function startRecordedRun(deps: PublishDeps, graph: WorkflowGraph, 
   };
 
   let runId: string | undefined;
-  const pushed = await post("/cli/workflows/upsert", workflowUpsertPayload(graph));
+  const pushed = await post(
+    "/cli/workflows/upsert",
+    workflowUpsertPayload(graph),
+  );
   if (pushed) {
     const created = await post("/cli/workflow-runs/create", {
       workflow_name: graph.name,
@@ -260,13 +326,24 @@ export async function startRecordedRun(deps: PublishDeps, graph: WorkflowGraph, 
 
   // L7: the run is created pending; flip it to running at the start node the
   // way the runner does, so the scope feed shows it as live from the first step.
-  const startId = [...graph.nodes.values()].find((n) => n.type === "start")?.id ?? "start";
-  await progress({ current_node_id: startId, node_id: startId, node_status: "running", run_status: "running" });
+  const startId =
+    [...graph.nodes.values()].find((n) => n.type === "start")?.id ?? "start";
+  await progress({
+    current_node_id: startId,
+    node_id: startId,
+    node_status: "running",
+    run_status: "running",
+  });
 
   return {
     runId,
     node: (nodeId, status, extra = {}) =>
-      progress({ current_node_id: nodeId, node_id: nodeId, node_status: status, ...extra }),
+      progress({
+        current_node_id: nodeId,
+        node_id: nodeId,
+        node_status: status,
+        ...extra,
+      }),
     finish: (nodeId, status, failReason) =>
       progress({
         current_node_id: nodeId,

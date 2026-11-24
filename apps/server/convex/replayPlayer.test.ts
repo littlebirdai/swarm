@@ -8,19 +8,41 @@ import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import { parseReplayDomChunkKey, replayDomChunkKey } from "./lib/r2";
 import { mintReplayCap, openReplayCap, replayCapKey } from "./lib/replayCap";
-import { chunkObject, playerLink, playerManifestRow, playerTarget, saveDomSpans, saveImported, saveSummary } from "./replays";
+import {
+  chunkObject,
+  playerLink,
+  playerManifestRow,
+  playerTarget,
+  saveDomSpans,
+  saveImported,
+  saveSummary,
+} from "./replays";
 import { recordReplayChunk } from "./lib/replayWrites";
 import { chunkDomEvents, storeReplayDom } from "./lib/replayChunks";
-import { replayFrameAdmit, replayPlayerManifest, validateReplaySign } from "./replaysHttp";
+import {
+  replayFrameAdmit,
+  replayPlayerManifest,
+  validateReplaySign,
+} from "./replaysHttp";
 import { bump } from "./ipRateLimit";
 import { importVendorRecording } from "./sources/vendorReplay";
-import { REPLAY_DOM_LIMITS, REPLAY_FRAME_LIMITS, REPLAY_PLAYER_ORIGIN, parseReplayPlayerUrl } from "@codecast/shared/contracts/replayPlayer";
+import {
+  REPLAY_DOM_LIMITS,
+  REPLAY_FRAME_LIMITS,
+  REPLAY_PLAYER_ORIGIN,
+  parseReplayPlayerUrl,
+} from "@codecast/shared/contracts/replayPlayer";
 import { REPLAY_LIMITS } from "@codecast/shared/contracts/replay";
 
 const h = (fn: any) => fn._handler;
 const NOW = Date.now();
 const SHA = (c: string) => c.repeat(64);
-const ENV = ["R2_ENDPOINT", "REPLAYS_R2_BUCKET", "REPLAYS_R2_ACCESS_KEY_ID", "REPLAYS_R2_SECRET_ACCESS_KEY"];
+const ENV = [
+  "R2_ENDPOINT",
+  "REPLAYS_R2_BUCKET",
+  "REPLAYS_R2_ACCESS_KEY_ID",
+  "REPLAYS_R2_SECRET_ACCESS_KEY",
+];
 const saved = Object.fromEntries(ENV.map((k) => [k, process.env[k]]));
 const realFetch = globalThis.fetch;
 
@@ -42,8 +64,10 @@ function inProcessImport() {
     },
     runMutation: async (fn: any, args: any) => {
       const name = getFunctionName(fn);
-      if (name === "replays:openImport") return { replay_id: "r1", short_id: "rp-1" };
-      if (name === "replays:saveImported") return (saved.push(args), { saved: true });
+      if (name === "replays:openImport")
+        return { replay_id: "r1", short_id: "rp-1" };
+      if (name === "replays:saveImported")
+        return (saved.push(args), { saved: true });
       return null;
     },
   };
@@ -63,7 +87,15 @@ function world(rows: Record<string, unknown>[] = []) {
       teams: [{ _id: "team_1", name: "Acme" }],
       team_memberships: [{ _id: "m1", user_id: "u1", team_id: "team_1" }],
       counters: [],
-      event_sources: [{ _id: "src_row", workspace: "team:team_1", team_id: "team_1", name: "shop", provider: "sdk" }],
+      event_sources: [
+        {
+          _id: "src_row",
+          workspace: "team:team_1",
+          team_id: "team_1",
+          name: "shop",
+          provider: "sdk",
+        },
+      ],
       replays: rows.map((over) => ({
         workspace: "team:team_1",
         team_id: "team_1",
@@ -83,55 +115,143 @@ function world(rows: Record<string, unknown>[] = []) {
     },
     { indexes: schemaIndexes(schema as any) },
   );
-  const as = (userId: string) => ({ auth: { getUserIdentity: async () => ({ subject: `${userId}|sess` }) }, db }) as any;
-  return { db: db as any, as, internalCtx: { db, scheduler: { runAfter: async () => {} } } as any };
+  const as = (userId: string) =>
+    ({
+      auth: { getUserIdentity: async () => ({ subject: `${userId}|sess` }) },
+      db,
+    }) as any;
+  return {
+    db: db as any,
+    as,
+    internalCtx: { db, scheduler: { runAfter: async () => {} } } as any,
+  };
 }
 
-const domKey = (seq: number, sha = SHA("d")) => replayDomChunkKey({ sourceId: "src_row", replay: "rec", seq, sha256: sha });
+const domKey = (seq: number, sha = SHA("d")) =>
+  replayDomChunkKey({ sourceId: "src_row", replay: "rec", seq, sha256: sha });
 
 describe("DOM chunks", () => {
   test("sit under the recording's dom/ prefix and parse back; a stream key is not one", () => {
     const k = domKey(3);
     expect(k).toBe(`replays/src_row/rec/dom/0003-${SHA("d")}.json.gz`);
     expect(parseReplayDomChunkKey(k)).toEqual({ seq: 3, sha256: SHA("d") });
-    expect(parseReplayDomChunkKey(`replays/src_row/rec/0003-${SHA("d")}.json.gz`)).toBeNull();
+    expect(
+      parseReplayDomChunkKey(`replays/src_row/rec/0003-${SHA("d")}.json.gz`),
+    ).toBeNull();
   });
 
   test("the SDK signs them with kind dom, held to the DOM limits", () => {
-    const ok = { replay_id: "r1", seq: 0, sha256: SHA("a"), size: REPLAY_LIMITS.chunk_max_bytes + 1, kind: "dom" };
+    const ok = {
+      replay_id: "r1",
+      seq: 0,
+      sha256: SHA("a"),
+      size: REPLAY_LIMITS.chunk_max_bytes + 1,
+      kind: "dom",
+    };
     expect(validateReplaySign(ok)).toEqual(ok);
     expect(validateReplaySign({ ...ok, kind: "events" })).toContain("at most");
-    expect(validateReplaySign({ ...ok, size: REPLAY_DOM_LIMITS.chunk_max_bytes + 1 })).toContain("DOM chunk is at most");
+    expect(
+      validateReplaySign({
+        ...ok,
+        size: REPLAY_DOM_LIMITS.chunk_max_bytes + 1,
+      }),
+    ).toContain("DOM chunk is at most");
     expect(validateReplaySign({ ...ok, kind: "pixels" })).toContain("kind");
   });
 
   test("a signed DOM chunk is listed apart from the stream, one key per seq", async () => {
     const w = world();
     const source = w.db._tables.event_sources[0];
-    await recordReplayChunk(w.internalCtx, source, "rec", 1, domKey(1), NOW, "dom");
-    await recordReplayChunk(w.internalCtx, source, "rec", 0, domKey(0), NOW, "dom");
+    await recordReplayChunk(
+      w.internalCtx,
+      source,
+      "rec",
+      1,
+      domKey(1),
+      NOW,
+      "dom",
+    );
+    await recordReplayChunk(
+      w.internalCtx,
+      source,
+      "rec",
+      0,
+      domKey(0),
+      NOW,
+      "dom",
+    );
     // Other content for a held seq keeps the held key unless the caller vouches it never landed.
-    expect(await recordReplayChunk(w.internalCtx, source, "rec", 0, domKey(0, SHA("e")), NOW, "dom")).toMatchObject({ held: domKey(0) });
-    expect(w.db._tables.replays[0].dom_chunk_keys).toEqual([domKey(0), domKey(1)]);
-    await recordReplayChunk(w.internalCtx, source, "rec", 0, domKey(0, SHA("e")), NOW, "dom", domKey(0));
+    expect(
+      await recordReplayChunk(
+        w.internalCtx,
+        source,
+        "rec",
+        0,
+        domKey(0, SHA("e")),
+        NOW,
+        "dom",
+      ),
+    ).toMatchObject({ held: domKey(0) });
+    expect(w.db._tables.replays[0].dom_chunk_keys).toEqual([
+      domKey(0),
+      domKey(1),
+    ]);
+    await recordReplayChunk(
+      w.internalCtx,
+      source,
+      "rec",
+      0,
+      domKey(0, SHA("e")),
+      NOW,
+      "dom",
+      domKey(0),
+    );
     const row = w.db._tables.replays[0];
     expect(row.chunk_keys).toEqual([]);
     expect(row.dom_chunk_keys).toEqual([domKey(0, SHA("e")), domKey(1)]);
-    expect(await h(chunkObject)(w.internalCtx, { user_id: "u1", replay: row.short_id, seq: 1, kind: "dom" })).toBe(domKey(1));
-    expect(await h(chunkObject)(w.internalCtx, { user_id: "u1", replay: row.short_id, seq: 1 })).toBeNull();
-    expect(await h(chunkObject)(w.internalCtx, { user_id: "u2", replay: row.short_id, seq: 1, kind: "dom" })).toBeNull();
+    expect(
+      await h(chunkObject)(w.internalCtx, {
+        user_id: "u1",
+        replay: row.short_id,
+        seq: 1,
+        kind: "dom",
+      }),
+    ).toBe(domKey(1));
+    expect(
+      await h(chunkObject)(w.internalCtx, {
+        user_id: "u1",
+        replay: row.short_id,
+        seq: 1,
+      }),
+    ).toBeNull();
+    expect(
+      await h(chunkObject)(w.internalCtx, {
+        user_id: "u2",
+        replay: row.short_id,
+        seq: 1,
+        kind: "dom",
+      }),
+    ).toBeNull();
   });
 
   test("an import packs the capture into gzipped chunks and drops an event too heavy to keep", () => {
-    const small = Array.from({ length: 50 }, (_, i) => ({ type: 3, timestamp: i, data: { source: 2, x: "y".repeat(10) } }));
+    const small = Array.from({ length: 50 }, (_, i) => ({
+      type: 3,
+      timestamp: i,
+      data: { source: 2, x: "y".repeat(10) },
+    }));
     const { chunks, dropped } = chunkDomEvents(small);
     expect(chunks).toHaveLength(1);
     expect(dropped).toBe(0);
     expect(JSON.parse(strFromU8(gunzipSync(chunks[0])))).toEqual(small);
     // Incompressible text past the gzipped cap cannot be kept whole.
     let noise = "";
-    for (let i = 0; noise.length < REPLAY_DOM_LIMITS.chunk_max_bytes * 1.5; i++) noise += Math.random().toString(36).slice(2);
-    const heavy = chunkDomEvents([{ type: 2, timestamp: 0, data: { noise } }, { type: 3, timestamp: 1, data: {} }]);
+    for (let i = 0; noise.length < REPLAY_DOM_LIMITS.chunk_max_bytes * 1.5; i++)
+      noise += Math.random().toString(36).slice(2);
+    const heavy = chunkDomEvents([
+      { type: 2, timestamp: 0, data: { noise } },
+      { type: 3, timestamp: 1, data: {} },
+    ]);
     expect(heavy.dropped).toBe(1);
     expect(heavy.chunks).toHaveLength(1);
   });
@@ -141,58 +261,145 @@ describe("DOM chunks", () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url: string, init?: RequestInit) => {
       calls.push(`${init?.method ?? "GET"} ${new URL(url).pathname}`);
-      return new Response(null, { status: init?.method === "HEAD" ? 404 : 200 });
+      return new Response(null, {
+        status: init?.method === "HEAD" ? 404 : 200,
+      });
     }) as any;
-    const events = [{ type: 4, timestamp: 5_000, data: { href: "https://shop.test/" } }, { type: 2, timestamp: 5_001, data: { node: {} } }];
-    const out = await storeReplayDom({ endpoint: process.env.R2_ENDPOINT!, accessKeyId: "rk", secretAccessKey: "rs", bucket: "codecast-replays" }, { source_id: "src_row", external_id: "rec", events });
+    const events = [
+      { type: 4, timestamp: 5_000, data: { href: "https://shop.test/" } },
+      { type: 2, timestamp: 5_001, data: { node: {} } },
+    ];
+    const out = await storeReplayDom(
+      {
+        endpoint: process.env.R2_ENDPOINT!,
+        accessKeyId: "rk",
+        secretAccessKey: "rs",
+        bucket: "codecast-replays",
+      },
+      { source_id: "src_row", external_id: "rec", events },
+    );
     expect(out.dom_chunk_keys).toHaveLength(1);
     expect(parseReplayDomChunkKey(out.dom_chunk_keys[0])?.seq).toBe(0);
     expect(out.dom_t0).toBe(5_000);
     expect(out.dom_bytes).toBeGreaterThan(0);
     expect(calls.map((c) => c.split(" ")[0])).toEqual(["HEAD", "PUT"]);
     // Each chunk's span rides beside its key, so the player can open a long capture a stretch at a time.
-    expect(out.dom_chunk_meta).toEqual([{ first: 5_000, last: 5_001, full: 5_001, raw: expect.any(Number) }]);
+    expect(out.dom_chunk_meta).toEqual([
+      { first: 5_000, last: 5_001, full: 5_001, raw: expect.any(Number) },
+    ]);
   });
 });
 
 describe("a long capture plays a stretch at a time", () => {
   const MB = 1024 * 1024;
   const keys = Array.from({ length: 10 }, (_, i) => domKey(i));
-  const meta = keys.map((_, i) => ({ first: 1000 + i * 60_000, last: 1000 + i * 60_000 + 59_000, raw: 20 * MB, ...(i % 3 === 0 ? { full: 1000 + i * 60_000 } : {}) }));
+  const meta = keys.map((_, i) => ({
+    first: 1000 + i * 60_000,
+    last: 1000 + i * 60_000 + 59_000,
+    raw: 20 * MB,
+    ...(i % 3 === 0 ? { full: 1000 + i * 60_000 } : {}),
+  }));
 
   test("the link names the stretch around its time, and the manifest serves only those chunks", async () => {
     withBucket();
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: keys, dom_chunk_meta: meta, dom_t0: 1000 }]);
-    const actionCtx = { runQuery: async (_fn: any, args: any) => h(playerTarget)(w.as("u1"), args), scheduler: { runAfter: async () => {} } } as any;
-    const link = await h(playerLink)(actionCtx, { replay: "rp-1", t_ms: 4 * 60_000 + 10_000 });
-    expect(link.window).toEqual({ start_ms: 3 * 60_000, end_ms: 5 * 60_000 + 59_000 });
-    const cap = await openReplayCap((await replayCapKey())!, link.cap, Date.now());
+    const w = world([
+      {
+        _id: "r1",
+        short_id: "rp-1",
+        dom_chunk_keys: keys,
+        dom_chunk_meta: meta,
+        dom_t0: 1000,
+      },
+    ]);
+    const actionCtx = {
+      runQuery: async (_fn: any, args: any) =>
+        h(playerTarget)(w.as("u1"), args),
+      scheduler: { runAfter: async () => {} },
+    } as any;
+    const link = await h(playerLink)(actionCtx, {
+      replay: "rp-1",
+      t_ms: 4 * 60_000 + 10_000,
+    });
+    expect(link.window).toEqual({
+      start_ms: 3 * 60_000,
+      end_ms: 5 * 60_000 + 59_000,
+    });
+    const cap = await openReplayCap(
+      (await replayCapKey())!,
+      link.cap,
+      Date.now(),
+    );
     expect(cap?.t).toBe(4 * 60_000 + 10_000);
-    const row = await h(playerManifestRow)(w.internalCtx, { replay_id: "r1", user_id: "u1", t_ms: cap!.t });
+    const row = await h(playerManifestRow)(w.internalCtx, {
+      replay_id: "r1",
+      user_id: "u1",
+      t_ms: cap!.t,
+    });
     expect(row?.dom_chunk_keys).toEqual(keys.slice(3, 6));
     // The frame renderer seeks anywhere with one capability: it reads the whole.
-    const frame = await h(playerLink)(actionCtx, { replay: "rp-1", t_ms: 4 * 60_000, mode: "frame" });
+    const frame = await h(playerLink)(actionCtx, {
+      replay: "rp-1",
+      t_ms: 4 * 60_000,
+      mode: "frame",
+    });
     expect(frame.window).toBeNull();
-    expect((await openReplayCap((await replayCapKey())!, frame.cap, Date.now()))?.t).toBeUndefined();
+    expect(
+      (await openReplayCap((await replayCapKey())!, frame.cap, Date.now()))?.t,
+    ).toBeUndefined();
   });
 
   test("spans read while a long recording's rest adds chunks keep the leading ones, never misaligned", async () => {
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: keys, dom_t0: 1000 }]);
+    const w = world([
+      { _id: "r1", short_id: "rp-1", dom_chunk_keys: keys, dom_t0: 1000 },
+    ]);
     // Read for the first six keys while the row already holds ten: kept, as the first six.
-    expect(await h(saveDomSpans)(w.internalCtx, { replay_id: "r1", keys: keys.slice(0, 6), meta: meta.slice(0, 6) })).toBe(true);
+    expect(
+      await h(saveDomSpans)(w.internalCtx, {
+        replay_id: "r1",
+        keys: keys.slice(0, 6),
+        meta: meta.slice(0, 6),
+      }),
+    ).toBe(true);
     expect(w.db._tables.replays[0].dom_chunk_meta).toHaveLength(6);
     // Keys that are not the row's leading keys are refused.
-    expect(await h(saveDomSpans)(w.internalCtx, { replay_id: "r1", keys: keys.slice(1, 7), meta: meta.slice(1, 7) })).toBe(false);
+    expect(
+      await h(saveDomSpans)(w.internalCtx, {
+        replay_id: "r1",
+        keys: keys.slice(1, 7),
+        meta: meta.slice(1, 7),
+      }),
+    ).toBe(false);
     // A shorter read never shortens what is kept.
-    expect(await h(saveDomSpans)(w.internalCtx, { replay_id: "r1", keys: keys.slice(0, 3), meta: meta.slice(0, 3) })).toBe(true);
+    expect(
+      await h(saveDomSpans)(w.internalCtx, {
+        replay_id: "r1",
+        keys: keys.slice(0, 3),
+        meta: meta.slice(0, 3),
+      }),
+    ).toBe(true);
     expect(w.db._tables.replays[0].dom_chunk_meta).toHaveLength(6);
   });
 
   test("spans that no longer match the keys are ignored, and a long capture without them is queued to be read", async () => {
     withBucket();
     const queued: unknown[] = [];
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: keys, dom_chunk_meta: meta.slice(1), dom_t0: 1000 }]);
-    const actionCtx = { runQuery: async (_fn: any, args: any) => h(playerTarget)(w.as("u1"), args), scheduler: { runAfter: async (_ms: number, fn: any, args: any) => void queued.push([getFunctionName(fn), args]) } } as any;
+    const w = world([
+      {
+        _id: "r1",
+        short_id: "rp-1",
+        dom_chunk_keys: keys,
+        dom_chunk_meta: meta.slice(1),
+        dom_t0: 1000,
+      },
+    ]);
+    const actionCtx = {
+      runQuery: async (_fn: any, args: any) =>
+        h(playerTarget)(w.as("u1"), args),
+      scheduler: {
+        runAfter: async (_ms: number, fn: any, args: any) =>
+          void queued.push([getFunctionName(fn), args]),
+      },
+    } as any;
     const link = await h(playerLink)(actionCtx, { replay: "rp-1", t_ms: 0 });
     expect(link.window).toBeNull();
     expect(queued).toEqual([["replays:domMetaOne", { replay_id: "r1" }]]);
@@ -200,36 +407,115 @@ describe("a long capture plays a stretch at a time", () => {
 });
 
 describe("what an import records", () => {
-  const summary = { provider: "posthog" as const, chunk_keys: ["k"], timeline_md: "t", counts: { clicks: 0, errors: 0, failed_requests: 0 }, duration_ms: 10 };
+  const summary = {
+    provider: "posthog" as const,
+    chunk_keys: ["k"],
+    timeline_md: "t",
+    counts: { clicks: 0, errors: 0, failed_requests: 0 },
+    duration_ms: 10,
+  };
 
   test("the capture's keys and the replay clock's epoch (capture start plus the stream's first t)", async () => {
     const w = world([{ _id: "r1", short_id: "rp-1" }]);
-    await h(saveImported)(w.internalCtx, { replay_id: "r1", ...summary, dom_chunk_keys: [domKey(0)], dom_bytes: 42, dom_t0: 5_000, first_t: 30 });
-    expect(w.db._tables.replays[0]).toMatchObject({ dom_chunk_keys: [domKey(0)], dom_bytes: 42, dom_t0: 5_030 });
+    await h(saveImported)(w.internalCtx, {
+      replay_id: "r1",
+      ...summary,
+      dom_chunk_keys: [domKey(0)],
+      dom_bytes: 42,
+      dom_t0: 5_000,
+      first_t: 30,
+    });
+    expect(w.db._tables.replays[0]).toMatchObject({
+      dom_chunk_keys: [domKey(0)],
+      dom_bytes: 42,
+      dom_t0: 5_030,
+    });
   });
 
   test("a re-import that kept no capture clears the old one", async () => {
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0)], dom_bytes: 42 }]);
+    const w = world([
+      {
+        _id: "r1",
+        short_id: "rp-1",
+        dom_chunk_keys: [domKey(0)],
+        dom_bytes: 42,
+      },
+    ]);
     await h(saveImported)(w.internalCtx, { replay_id: "r1", ...summary });
-    expect(w.db._tables.replays[0]).toMatchObject({ dom_chunk_keys: [], dom_bytes: 0 });
+    expect(w.db._tables.replays[0]).toMatchObject({
+      dom_chunk_keys: [],
+      dom_bytes: 0,
+    });
   });
 
   test("our recorder's clock zero is its start plus the first event's t", async () => {
-    const w = world([{ _id: "r1", short_id: "rp-1", provider: "sdk", chunk_keys: ["k"], started_at: 9_000 }]);
-    await h(saveSummary)(w.internalCtx, { replay_id: "r1", chunk_keys: ["k"], timeline_md: "t", counts: summary.counts, duration_ms: 1, first_t: 120 });
+    const w = world([
+      {
+        _id: "r1",
+        short_id: "rp-1",
+        provider: "sdk",
+        chunk_keys: ["k"],
+        started_at: 9_000,
+      },
+    ]);
+    await h(saveSummary)(w.internalCtx, {
+      replay_id: "r1",
+      chunk_keys: ["k"],
+      timeline_md: "t",
+      counts: summary.counts,
+      duration_ms: 1,
+      first_t: 120,
+    });
     expect(w.db._tables.replays[0].dom_t0).toBe(9_120);
   });
 
   test("a vendor import stores the masked capture beside the stream", async () => {
     withBucket();
-    globalThis.fetch = (async (_url: string, init?: RequestInit) => new Response(null, { status: init?.method === "HEAD" ? 404 : 200 })) as any;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) =>
+      new Response(null, {
+        status: init?.method === "HEAD" ? 404 : 200,
+      })) as any;
     const { ctx, saved } = inProcessImport();
     const rrweb = [
-      { type: 4, timestamp: 1_000, data: { href: "https://shop.test/cart?token=abc", width: 800, height: 600 } },
-      { type: 2, timestamp: 1_001, data: { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: "input", attributes: { value: "secret" }, childNodes: [] }] } } },
-      { type: 3, timestamp: 1_500, data: { source: 5, id: 2, text: "hunter2" } },
+      {
+        type: 4,
+        timestamp: 1_000,
+        data: {
+          href: "https://shop.test/cart?token=abc",
+          width: 800,
+          height: 600,
+        },
+      },
+      {
+        type: 2,
+        timestamp: 1_001,
+        data: {
+          node: {
+            type: 0,
+            id: 1,
+            childNodes: [
+              {
+                type: 2,
+                id: 2,
+                tagName: "input",
+                attributes: { value: "secret" },
+                childNodes: [],
+              },
+            ],
+          },
+        },
+      },
+      {
+        type: 3,
+        timestamp: 1_500,
+        data: { source: 5, id: 2, text: "hunter2" },
+      },
     ];
-    await importVendorRecording(ctx as any, { source_id: "src_row" as any, provider: "posthog", external_id: "rec" }, async () => ({ events: rrweb, truncated: false }));
+    await importVendorRecording(
+      ctx as any,
+      { source_id: "src_row" as any, provider: "posthog", external_id: "rec" },
+      async () => ({ events: rrweb, truncated: false }),
+    );
     // The import runs in this action (importExternalCore), never through runAction with the events as its arguments.
     expect(saved).toHaveLength(1);
     const args = saved[0];
@@ -248,9 +534,19 @@ describe("what an import records", () => {
     withBucket();
     // R2 takes the stream's chunks; no DOM chunk is ever put.
     const puts: string[] = [];
-    globalThis.fetch = (async (url: string, init?: RequestInit) => (init?.method === "PUT" && puts.push(url), new Response(null, { status: init?.method === "HEAD" ? 404 : 200 }))) as any;
+    globalThis.fetch = (async (url: string, init?: RequestInit) => (
+      init?.method === "PUT" && puts.push(url),
+      new Response(null, { status: init?.method === "HEAD" ? 404 : 200 })
+    )) as any;
     const { ctx, saved } = inProcessImport();
-    await importVendorRecording(ctx as any, { source_id: "src_row" as any, provider: "sentry", external_id: "rec" }, async () => ({ events: [{ type: 4, timestamp: 1, data: { href: "https://x.test/" } }], truncated: true }));
+    await importVendorRecording(
+      ctx as any,
+      { source_id: "src_row" as any, provider: "sentry", external_id: "rec" },
+      async () => ({
+        events: [{ type: 4, timestamp: 1, data: { href: "https://x.test/" } }],
+        truncated: true,
+      }),
+    );
     expect(saved[0].dom_chunk_keys).toBeUndefined();
     expect(puts.some((u) => u.includes("/dom/"))).toBe(false);
     expect(saved[0].whole).toBeUndefined();
@@ -260,14 +556,27 @@ describe("what an import records", () => {
 describe("the capability", () => {
   test("opens what it names until it lapses; a forged or foreign one opens nothing", async () => {
     const key = (await replayCapKey({ REPLAYS_R2_SECRET_ACCESS_KEY: "rs" }))!;
-    const { cap, expires_at } = await mintReplayCap(key, { replay_id: "r1", user_id: "u1", now: NOW });
+    const { cap, expires_at } = await mintReplayCap(key, {
+      replay_id: "r1",
+      user_id: "u1",
+      now: NOW,
+    });
     expect(cap).toMatch(/^[A-Za-z0-9_-]+\.[0-9a-f]{64}$/);
-    expect(await openReplayCap(key, cap, NOW)).toEqual({ v: 1, r: "r1", u: "u1", exp: expires_at });
+    expect(await openReplayCap(key, cap, NOW)).toEqual({
+      v: 1,
+      r: "r1",
+      u: "u1",
+      exp: expires_at,
+    });
     expect(await openReplayCap(key, cap, expires_at)).toBeNull();
-    const other = (await replayCapKey({ REPLAYS_R2_SECRET_ACCESS_KEY: "other" }))!;
+    const other = (await replayCapKey({
+      REPLAYS_R2_SECRET_ACCESS_KEY: "other",
+    }))!;
     expect(await openReplayCap(other, cap, NOW)).toBeNull();
     const [body, sig] = cap.split(".");
-    const forged = btoa(atob(body.replace(/-/g, "+").replace(/_/g, "/")).replace('"r1"', '"r2"')).replace(/=+$/, "");
+    const forged = btoa(
+      atob(body.replace(/-/g, "+").replace(/_/g, "/")).replace('"r1"', '"r2"'),
+    ).replace(/=+$/, "");
     expect(await openReplayCap(key, `${forged}.${sig}`, NOW)).toBeNull();
     expect(await openReplayCap(null, cap, NOW)).toBeNull();
     expect(await replayCapKey({})).toBeNull();
@@ -275,58 +584,151 @@ describe("the capability", () => {
 
   test("is minted only for a reader, and only when there is a capture to play", async () => {
     withBucket();
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0)] }, { _id: "r2", short_id: "rp-2", external_id: "other" }]);
-    const actionCtx = (userId: string) => ({ runQuery: async (_fn: any, args: any) => h(playerTarget)(w.as(userId), args) }) as any;
-    const link = await h(playerLink)(actionCtx("u1"), { replay: "rp-1", t_ms: 83_000, mode: "frame" });
-    expect(link).toMatchObject({ short_id: "rp-1", has_dom: true, frame_url: `${REPLAY_PLAYER_ORIGIN}/frame` });
-    expect(parseReplayPlayerUrl(link.player_url)).toMatchObject({ cap: link.cap, t_ms: 83_000, mode: "frame" });
+    const w = world([
+      { _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0)] },
+      { _id: "r2", short_id: "rp-2", external_id: "other" },
+    ]);
+    const actionCtx = (userId: string) =>
+      ({
+        runQuery: async (_fn: any, args: any) =>
+          h(playerTarget)(w.as(userId), args),
+      }) as any;
+    const link = await h(playerLink)(actionCtx("u1"), {
+      replay: "rp-1",
+      t_ms: 83_000,
+      mode: "frame",
+    });
+    expect(link).toMatchObject({
+      short_id: "rp-1",
+      has_dom: true,
+      frame_url: `${REPLAY_PLAYER_ORIGIN}/frame`,
+    });
+    expect(parseReplayPlayerUrl(link.player_url)).toMatchObject({
+      cap: link.cap,
+      t_ms: 83_000,
+      mode: "frame",
+    });
     const none = await h(playerLink)(actionCtx("u1"), { replay: "rp-2" });
     expect(none).toMatchObject({ has_dom: false, cap: null, player_url: null });
-    await expect(h(playerLink)(actionCtx("u2"), { replay: "rp-1" })).rejects.toThrow();
+    await expect(
+      h(playerLink)(actionCtx("u2"), { replay: "rp-1" }),
+    ).rejects.toThrow();
   });
 
   test("the manifest re-checks the person it was minted for", async () => {
-    const w = world([{ _id: "r1", short_id: "rp-1", url: "https://shop.test/", dom_chunk_keys: [domKey(0)], dom_t0: 777 }]);
-    expect(await h(playerManifestRow)(w.internalCtx, { replay_id: "r1", user_id: "u1" })).toMatchObject({ dom_chunk_keys: [domKey(0)], t0: 777, replay: { short_id: "rp-1", url: "https://shop.test/" } });
-    expect(await h(playerManifestRow)(w.internalCtx, { replay_id: "r1", user_id: "u2" })).toBeNull();
+    const w = world([
+      {
+        _id: "r1",
+        short_id: "rp-1",
+        url: "https://shop.test/",
+        dom_chunk_keys: [domKey(0)],
+        dom_t0: 777,
+      },
+    ]);
+    expect(
+      await h(playerManifestRow)(w.internalCtx, {
+        replay_id: "r1",
+        user_id: "u1",
+      }),
+    ).toMatchObject({
+      dom_chunk_keys: [domKey(0)],
+      t0: 777,
+      replay: { short_id: "rp-1", url: "https://shop.test/" },
+    });
+    expect(
+      await h(playerManifestRow)(w.internalCtx, {
+        replay_id: "r1",
+        user_id: "u2",
+      }),
+    ).toBeNull();
   });
 
   test("the route trades a live capability for signed DOM URLs and refuses anything else alike", async () => {
     withBucket();
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0), domKey(1)] }]);
-    const ctx = { runQuery: async (fn: any, args: any) => (expect(getFunctionName(fn)).toBe("replays:playerManifestRow"), h(playerManifestRow)(w.internalCtx, args)) };
-    const { cap } = await mintReplayCap((await replayCapKey())!, { replay_id: "r1", user_id: "u1", now: Date.now() });
-    const call = (c: string) => h(replayPlayerManifest)(ctx, new Request(`https://convex.codecast.sh/cli/replays/player?cap=${encodeURIComponent(c)}`));
+    const w = world([
+      { _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0), domKey(1)] },
+    ]);
+    const ctx = {
+      runQuery: async (fn: any, args: any) => (
+        expect(getFunctionName(fn)).toBe("replays:playerManifestRow"),
+        h(playerManifestRow)(w.internalCtx, args)
+      ),
+    };
+    const { cap } = await mintReplayCap((await replayCapKey())!, {
+      replay_id: "r1",
+      user_id: "u1",
+      now: Date.now(),
+    });
+    const call = (c: string) =>
+      h(replayPlayerManifest)(
+        ctx,
+        new Request(
+          `https://convex.codecast.sh/cli/replays/player?cap=${encodeURIComponent(c)}`,
+        ),
+      );
     const ok = await call(cap);
     expect(ok.status).toBe(200);
     expect(ok.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const body = await ok.json();
     expect(body.dom_urls).toHaveLength(2);
-    expect(body.dom_urls[0]).toContain("/codecast-replays/replays/src_row/rec/dom/0000-");
+    expect(body.dom_urls[0]).toContain(
+      "/codecast-replays/replays/src_row/rec/dom/0000-",
+    );
     expect(body.dom_urls[0]).toContain("X-Amz-Signature=");
-    expect((await call(`${cap.slice(0, -1)}${cap.endsWith("0") ? "1" : "0"}`)).status).toBe(404);
+    expect(
+      (await call(`${cap.slice(0, -1)}${cap.endsWith("0") ? "1" : "0"}`))
+        .status,
+    ).toBe(404);
     expect((await call("nonsense")).status).toBe(404);
   });
 
   test("a frame request is admitted only on a live capability, and each capability buys a fixed number", async () => {
     withBucket();
-    const w = world([{ _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0)] }]);
+    const w = world([
+      { _id: "r1", short_id: "rp-1", dom_chunk_keys: [domKey(0)] },
+    ]);
     const ctx = {
-      runQuery: async (fn: any, args: any) => (expect(getFunctionName(fn)).toBe("replays:playerManifestRow"), h(playerManifestRow)(w.internalCtx, args)),
-      runMutation: async (fn: any, args: any) => (expect(getFunctionName(fn)).toBe("ipRateLimit:bump"), h(bump)({ db: w.db }, args)),
+      runQuery: async (fn: any, args: any) => (
+        expect(getFunctionName(fn)).toBe("replays:playerManifestRow"),
+        h(playerManifestRow)(w.internalCtx, args)
+      ),
+      runMutation: async (fn: any, args: any) => (
+        expect(getFunctionName(fn)).toBe("ipRateLimit:bump"),
+        h(bump)({ db: w.db }, args)
+      ),
     };
-    const admit = (cap: string) => h(replayFrameAdmit)(ctx, new Request("https://convex.codecast.sh/cli/replays/frame-admit", { method: "POST", body: JSON.stringify({ cap }) }));
+    const admit = (cap: string) =>
+      h(replayFrameAdmit)(
+        ctx,
+        new Request("https://convex.codecast.sh/cli/replays/frame-admit", {
+          method: "POST",
+          body: JSON.stringify({ cap }),
+        }),
+      );
     const key = (await replayCapKey())!;
-    const { cap } = await mintReplayCap(key, { replay_id: "r1", user_id: "u1", now: Date.now() });
+    const { cap } = await mintReplayCap(key, {
+      replay_id: "r1",
+      user_id: "u1",
+      now: Date.now(),
+    });
     expect((await admit("nonsense")).status).toBe(404);
-    const foreign = await mintReplayCap(key, { replay_id: "r1", user_id: "u2", now: Date.now() });
+    const foreign = await mintReplayCap(key, {
+      replay_id: "r1",
+      user_id: "u2",
+      now: Date.now(),
+    });
     expect((await admit(foreign.cap)).status).toBe(404);
-    for (let i = 0; i < REPLAY_FRAME_LIMITS.requests_per_cap; i++) expect((await admit(cap)).status).toBe(204);
+    for (let i = 0; i < REPLAY_FRAME_LIMITS.requests_per_cap; i++)
+      expect((await admit(cap)).status).toBe(204);
     const spent = await admit(cap);
     expect(spent.status).toBe(429);
     expect(Number(spent.headers.get("Retry-After"))).toBeGreaterThan(0);
     // A fresh capability for the same person has its own budget, up to the person's own.
-    const fresh = await mintReplayCap(key, { replay_id: "r1", user_id: "u1", now: Date.now() + 1 });
+    const fresh = await mintReplayCap(key, {
+      replay_id: "r1",
+      user_id: "u1",
+      now: Date.now() + 1,
+    });
     expect((await admit(fresh.cap)).status).toBe(204);
   });
 });

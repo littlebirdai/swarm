@@ -8,13 +8,17 @@ import { defaultConfigDir } from "./config/configDir.js";
 // ledger entries that predate the ledger. The file is never written anymore, so read
 // it once and cache: findUnsyncedFiles runs on every sweep and getSyncRecord on every
 // synced file, and re-parsing a legacy blob from disk each call is pure event-loop tax.
-let cachedPositions: { filePath: string; positions: Record<string, number> } | null = null;
+let cachedPositions: {
+  filePath: string;
+  positions: Record<string, number>;
+} | null = null;
 function loadPositions(): Record<string, number> {
   const filePath = path.join(defaultConfigDir(), "positions.json");
   if (cachedPositions?.filePath === filePath) return cachedPositions.positions;
   let positions: Record<string, number> = {};
   try {
-    if (fs.existsSync(filePath)) positions = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    if (fs.existsSync(filePath))
+      positions = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch {}
   cachedPositions = { filePath, positions };
   return positions;
@@ -48,12 +52,17 @@ interface SyncLedger {
 // Cached, debounced store. Replaces the old full-file read-modify-write on every
 // markSynced (which on a 1MB+ ledger blocked the daemon event loop ~15ms per sync
 // and grew without bound). Dead transcripts are pruned on load.
-const store = rebindingStore<SyncRecord>(() => path.join(defaultConfigDir(), "sync-ledger.json"), {
-  keepOnLoadAsync: (filePath) => fs.promises.access(filePath).then(
-    () => true,
-    (error: NodeJS.ErrnoException) => error.code !== "ENOENT" && error.code !== "ENOTDIR",
-  ),
-});
+const store = rebindingStore<SyncRecord>(
+  () => path.join(defaultConfigDir(), "sync-ledger.json"),
+  {
+    keepOnLoadAsync: (filePath) =>
+      fs.promises.access(filePath).then(
+        () => true,
+        (error: NodeJS.ErrnoException) =>
+          error.code !== "ENOENT" && error.code !== "ENOTDIR",
+      ),
+  },
+);
 
 export function getSyncRecord(filePath: string): SyncRecord | null {
   const record = store().get(filePath);
@@ -77,7 +86,7 @@ export function getSyncRecord(filePath: string): SyncRecord | null {
 
 export function updateSyncRecord(
   filePath: string,
-  update: Partial<SyncRecord>
+  update: Partial<SyncRecord>,
 ): void {
   const existing = store().get(filePath) || {
     lastSyncedAt: 0,
@@ -91,7 +100,7 @@ export function markSynced(
   filePath: string,
   position: number,
   messageCount: number,
-  conversationId?: string
+  conversationId?: string,
 ): void {
   updateSyncRecord(filePath, {
     lastSyncedAt: Date.now(),
@@ -138,7 +147,7 @@ export function oldestTimestampInChunk(chunk: string): number | null {
 export function readOldestUnsyncedTimestamp(
   filePath: string,
   position: number,
-  windowBytes: number = 64 * 1024
+  windowBytes: number = 64 * 1024,
 ): number | null {
   let fd: number | undefined;
   try {
@@ -150,7 +159,11 @@ export function readOldestUnsyncedTimestamp(
     return null;
   } finally {
     if (fd !== undefined) {
-      try { fs.closeSync(fd); } catch { /* ignore */ }
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
@@ -228,7 +241,10 @@ export function findUnsyncedFiles(
 export async function findUnsyncedFilesAsync(
   baseDir: string,
   maxAgeMs: number = 7 * 24 * 60 * 60 * 1000,
-  includeFile?: (filePath: string, observation?: import("./fsWalk.js").WalkFile) => boolean,
+  includeFile?: (
+    filePath: string,
+    observation?: import("./fsWalk.js").WalkFile,
+  ) => boolean,
   // Which directories to enter (fsWalk semantics). The daemon passes the
   // watcher's rule so a sweep skips every tool-results/memory/checkpoint dir
   // instead of reading and discarding them (3947 dirs for 7918 files on one
@@ -246,10 +262,16 @@ export async function findUnsyncedFilesAsync(
       dirFilter,
       policy,
       observeCwd: !!policy && !!includeFile,
-      fileFilter: (rel) => rel.endsWith(".jsonl") && (!!policy || !includeFile || includeFile(path.join(baseDir, rel))),
+      fileFilter: (rel) =>
+        rel.endsWith(".jsonl") &&
+        (!!policy || !includeFile || includeFile(path.join(baseDir, rel))),
     },
     (f) => {
-      if ((!includeFile || includeFile(f.path, f)) && isUnsynced(f.path, f.stat, now, maxAgeMs, ledger, positions)) unsynced.push(f.path);
+      if (
+        (!includeFile || includeFile(f.path, f)) &&
+        isUnsynced(f.path, f.stat, now, maxAgeMs, ledger, positions)
+      )
+        unsynced.push(f.path);
     },
   );
   return unsynced;

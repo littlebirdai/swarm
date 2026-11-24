@@ -10,8 +10,14 @@ export const FIXTURE_TEAM = "fixture-team";
  * seeded without both reads empty. Pass the `clientState` to keep (the store's
  * current one, or the fixture's) and it is merged, not replaced.
  */
-export function withTeamRoster(members: readonly unknown[], opts: { team?: string; clientState?: any } = {}): { teamMembers: any[]; clientState: any } {
+export function withTeamRoster(
+  members: readonly unknown[],
+  opts: { team?: string; clientState?: any } = {},
+): { teamMembers: any[]; clientState: any } {
   const team = opts.team ?? FIXTURE_TEAM;
   const cs = opts.clientState ?? {};
-  return { teamMembers: stampRoster(members, team), clientState: { ...cs, ui: { ...(cs.ui ?? {}), active_team_id: team } } };
+  return {
+    teamMembers: stampRoster(members, team),
+    clientState: { ...cs, ui: { ...(cs.ui ?? {}), active_team_id: team } },
+  };
 }

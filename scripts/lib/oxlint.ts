@@ -17,7 +17,10 @@ type OxlintReport = {
 
 export function parseOxlintReport(stdout: string): OxlintReport {
   const report = JSON.parse(stdout);
-  if (!Array.isArray(report?.diagnostics) || !Number.isSafeInteger(report.number_of_files)) {
+  if (
+    !Array.isArray(report?.diagnostics) ||
+    !Number.isSafeInteger(report.number_of_files)
+  ) {
     throw new Error("Oxlint returned an invalid JSON report.");
   }
   return report;
@@ -35,9 +38,15 @@ export function oxlintCommand(args: string[]) {
 
 export function lintLocation(diagnostic: OxlintDiagnostic) {
   const { filename, code, message, severity, labels } = diagnostic;
-  const rule = code?.replace(/^([^()]+)\(([^()]+)\)$/, "$1/$2") ?? "oxlint/parse";
+  const rule =
+    code?.replace(/^([^()]+)\(([^()]+)\)$/, "$1/$2") ?? "oxlint/parse";
   return {
-    file: filename ? path.relative(LINT_ROOT, path.resolve(LINT_ROOT, filename)).split(path.sep).join("/") : null,
+    file: filename
+      ? path
+          .relative(LINT_ROOT, path.resolve(LINT_ROOT, filename))
+          .split(path.sep)
+          .join("/")
+      : null,
     line: labels?.[0]?.span.line ?? 1,
     rule,
     message,

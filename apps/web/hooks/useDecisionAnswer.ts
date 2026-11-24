@@ -2,8 +2,15 @@ import { useCallback, useMemo } from "react";
 import { isUsageLimitDialog } from "@codecast/shared/contracts";
 import { useInboxStore } from "../store/inboxStore";
 import { usePendingPermissions } from "./useSyncPendingPermissions";
-import { openQuestionFromMessages, lastAssistantText, visibleOptions } from "./useDecisionQueue";
-import { buildSingleAnswerPayload, buildFreeTextPayload } from "../lib/pollPayload";
+import {
+  openQuestionFromMessages,
+  lastAssistantText,
+  visibleOptions,
+} from "./useDecisionQueue";
+import {
+  buildSingleAnswerPayload,
+  buildFreeTextPayload,
+} from "../lib/pollPayload";
 import { sendToSession } from "../lib/sendToSession";
 import { PERMISSION_SKIP_TOOLS } from "../components/PermissionCard";
 import type { QueueItem } from "../lib/decisionQueue";
@@ -22,62 +29,100 @@ import { useApproveGate } from "../lib/passkeyPresence";
 export function useDecisionAnswer(item: QueueItem | null) {
   const answerDecision = useInboxStore((s) => s.answerDecision);
   const resolveSessionQuestion = useInboxStore((s) => s.resolveSessionQuestion);
-  const decisionRow = useInboxStore((s) => (item?.source === "decide" && item.decisionId ? s.sessionDecisions[item.decisionId] : undefined));
+  const decisionRow = useInboxStore((s) =>
+    item?.source === "decide" && item.decisionId
+      ? s.sessionDecisions[item.decisionId]
+      : undefined,
+  );
   // Approving an Ask first read confirms with Touch ID first (lib/passkeyPresence).
   const { gated, answer: gatedAnswer } = useApproveGate(decisionRow);
 
   const conversationId = item?.conversationId ?? null;
   const needsMessages = !!item && item.source !== "decide";
-  const messages = useInboxStore((s) => (conversationId ? s.messages[conversationId] : undefined));
-
-  const permissionsRaw = usePendingPermissions(item?.source === "permission" ? conversationId : null);
-  const permissions = useMemo(
-    () => (permissionsRaw ?? []).filter((p: any) => !PERMISSION_SKIP_TOOLS.has(p.tool_name)),
-    [permissionsRaw]
+  const messages = useInboxStore((s) =>
+    conversationId ? s.messages[conversationId] : undefined,
   );
-  const isPermissionCard = item?.source === "permission" && permissions.length > 0;
 
-  const poll = useMemo(() => (needsMessages ? openQuestionFromMessages(messages as any[]) : null), [needsMessages, messages]);
-  const recentText = useMemo(() => (needsMessages ? lastAssistantText(messages as any[]) : undefined), [needsMessages, messages]);
+  const permissionsRaw = usePendingPermissions(
+    item?.source === "permission" ? conversationId : null,
+  );
+  const permissions = useMemo(
+    () =>
+      (permissionsRaw ?? []).filter(
+        (p: any) => !PERMISSION_SKIP_TOOLS.has(p.tool_name),
+      ),
+    [permissionsRaw],
+  );
+  const isPermissionCard =
+    item?.source === "permission" && permissions.length > 0;
+
+  const poll = useMemo(
+    () => (needsMessages ? openQuestionFromMessages(messages as any[]) : null),
+    [needsMessages, messages],
+  );
+  const recentText = useMemo(
+    () => (needsMessages ? lastAssistantText(messages as any[]) : undefined),
+    [needsMessages, messages],
+  );
 
   // The session title is WHO is asking, never WHAT: a poll card shows no
   // question until the poll is readable from the transcript.
-  const question = poll?.question.question ?? (item?.source === "decide" ? item.question : "");
+  const question =
+    poll?.question.question ?? (item?.source === "decide" ? item.question : "");
   const options = useMemo(() => {
     if (!item) return [];
-    if (item.source === "decide") return item.options.map((o, index) => ({ label: o.label, description: o.description, index }));
+    if (item.source === "decide")
+      return item.options.map((o, index) => ({
+        label: o.label,
+        description: o.description,
+        index,
+      }));
     return poll ? visibleOptions(poll.question) : [];
   }, [item, poll]);
 
   // A usage/billing interstitial is not a decision about the work, and its
   // options commit real money: rendered un-answerable everywhere.
-  const isInfraDialog = !!item && item.source !== "decide" && isUsageLimitDialog(options.map((o) => o.label));
+  const isInfraDialog =
+    !!item &&
+    item.source !== "decide" &&
+    isUsageLimitDialog(options.map((o) => o.label));
 
   // A decision's answer hands back its dispatch, so a card that held its
   // buttons can tell a refusal from a write still on its way; NOT_CONFIRMED
   // when its Touch ID was cancelled and nothing was sent.
-  const answer = useCallback((index: number): Promise<unknown> | undefined => {
-    if (!item) return;
-    if (item.source === "decide" && item.decisionId) {
-      const id = item.decisionId;
-      return gatedAnswer(index, (presence) => answerDecision(id, { index, presence }));
-    } else if (poll) {
-      sendToSession(item.conversationId, buildSingleAnswerPayload(poll.question, index));
-    }
-  }, [item, poll, answerDecision, gatedAnswer]);
+  const answer = useCallback(
+    (index: number): Promise<unknown> | undefined => {
+      if (!item) return;
+      if (item.source === "decide" && item.decisionId) {
+        const id = item.decisionId;
+        return gatedAnswer(index, (presence) =>
+          answerDecision(id, { index, presence }),
+        );
+      } else if (poll) {
+        sendToSession(
+          item.conversationId,
+          buildSingleAnswerPayload(poll.question, index),
+        );
+      }
+    },
+    [item, poll, answerDecision, gatedAnswer],
+  );
 
-  const answerFreeText = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!item || !trimmed) return;
-    if (item.source === "decide" && item.decisionId) {
-      answerDecision(item.decisionId, { text: trimmed });
-    } else {
-      // No parsed poll needed: the free-text payload is the decline-then-type
-      // form, which the daemon can drive at any AskUserQuestion menu — this is
-      // how a buffered question (present in no transcript yet) gets answered.
-      sendToSession(item.conversationId, buildFreeTextPayload(trimmed));
-    }
-  }, [item, answerDecision]);
+  const answerFreeText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!item || !trimmed) return;
+      if (item.source === "decide" && item.decisionId) {
+        answerDecision(item.decisionId, { text: trimmed });
+      } else {
+        // No parsed poll needed: the free-text payload is the decline-then-type
+        // form, which the daemon can drive at any AskUserQuestion menu — this is
+        // how a buffered question (present in no transcript yet) gets answered.
+        sendToSession(item.conversationId, buildFreeTextPayload(trimmed));
+      }
+    },
+    [item, answerDecision],
+  );
 
   // "I am not going to answer this." A `cast decide` row resolves as dismissed
   // (the agent is not told); a poll/permission card is marked resolved in the
@@ -85,9 +130,24 @@ export function useDecisionAnswer(item: QueueItem | null) {
   // returns only if the agent speaks again (the session itself keeps waiting).
   const dismiss = useCallback(() => {
     if (!item) return;
-    if (item.source === "decide" && item.decisionId) answerDecision(item.decisionId, { dismiss: true });
+    if (item.source === "decide" && item.decisionId)
+      answerDecision(item.decisionId, { dismiss: true });
     else resolveSessionQuestion(item.conversationId);
   }, [item, answerDecision, resolveSessionQuestion]);
 
-  return { messages, needsMessages, poll, recentText, question, options, permissions, isPermissionCard, isInfraDialog, answer, gated, answerFreeText, dismiss };
+  return {
+    messages,
+    needsMessages,
+    poll,
+    recentText,
+    question,
+    options,
+    permissions,
+    isPermissionCard,
+    isInfraDialog,
+    answer,
+    gated,
+    answerFreeText,
+    dismiss,
+  };
 }

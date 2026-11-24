@@ -31,13 +31,47 @@ describe("workflow/runner (the gate's no-card note)", () => {
     globalThis.fetch = (async (url: any, init: any) => {
       const route = String(url).replace(/^https?:\/\/[^/]+/, "");
       const body = JSON.parse(init?.body || "{}");
-      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
-      if (route === "/cli/spawn") { briefs.push(String(body.prompt ?? body.message ?? "")); return reply({ conversation_id: "conv_present", short_id: "jx7pres" }); }
-      if (route === "/cli/inbox") return reply({ sessions: [{ id: "conv_present", session_id: "uuid-present", work_state: "done", is_live: true, is_killed: false, message_count: 12 }] });
-      if (route === "/cli/sessions/state/get") return reply({ state: "Posted the card", status: "done", at: pinnedAt });
-      if (route === "/cli/messages/send") { briefs.push(String(body.body ?? "")); pinnedAt += 1000; return reply({ ok: true }); }
-      if (route === "/cli/workflow-runs/gate") return reply(++gates === 1 ? { error: "present posted no card for this gate", present_again: true } : { ok: true });
-      if (route === "/cli/workflow-runs/poll-gate") return reply({ status: "running", gate_response: "S" });
+      const reply = (v: unknown) =>
+        new Response(JSON.stringify(v), { status: 200 });
+      if (route === "/cli/spawn") {
+        briefs.push(String(body.prompt ?? body.message ?? ""));
+        return reply({ conversation_id: "conv_present", short_id: "jx7pres" });
+      }
+      if (route === "/cli/inbox")
+        return reply({
+          sessions: [
+            {
+              id: "conv_present",
+              session_id: "uuid-present",
+              work_state: "done",
+              is_live: true,
+              is_killed: false,
+              message_count: 12,
+            },
+          ],
+        });
+      if (route === "/cli/sessions/state/get")
+        return reply({
+          state: "Posted the card",
+          status: "done",
+          at: pinnedAt,
+        });
+      if (route === "/cli/messages/send") {
+        briefs.push(String(body.body ?? ""));
+        pinnedAt += 1000;
+        return reply({ ok: true });
+      }
+      if (route === "/cli/workflow-runs/gate")
+        return reply(
+          ++gates === 1
+            ? {
+                error: "present posted no card for this gate",
+                present_again: true,
+              }
+            : { ok: true },
+        );
+      if (route === "/cli/workflow-runs/poll-gate")
+        return reply({ status: "running", gate_response: "S" });
       return reply({ ok: true });
     }) as typeof fetch;
   });
@@ -64,7 +98,15 @@ describe("workflow/runner (the gate's no-card note)", () => {
       decide -> ship [label="[S] Ship :: Land it"]
       ship -> exit
     }`);
-    const outcome = await runWorkflow(graph, { cwd: tmpDir, runId: `run-nocard-${Date.now()}`, runSession: "conv_run", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1, presenterGraceMs: 50 } as RunOptions);
+    const outcome = await runWorkflow(graph, {
+      cwd: tmpDir,
+      runId: `run-nocard-${Date.now()}`,
+      runSession: "conv_run",
+      apiToken: "tok",
+      convexSiteUrl: "https://convex.test",
+      pollIntervalMs: 1,
+      presenterGraceMs: 50,
+    } as RunOptions);
     expect(outcome).toBe("completed");
     expect(briefs).toHaveLength(3);
     const told = briefs.map((b) => b.includes("No decision of yours stands"));

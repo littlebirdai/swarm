@@ -31,20 +31,21 @@ import { PlanOriginSession } from "../../../components/PlanOriginSession";
 import { EntryTimeline } from "../../../components/EntryTimeline";
 import { PlanGraphView } from "../../../components/PlanGraphView";
 import { LivenessDot } from "../../../components/LivenessDot";
-import { mergeLiveTasks, computePlanProgress, lookup } from "../../../lib/liveEntities";
+import {
+  mergeLiveTasks,
+  computePlanProgress,
+  lookup,
+} from "../../../lib/liveEntities";
 import { CharterBlock } from "../../../components/charter/CharterBlock";
-import { charterOf, type CharterPatch } from "../../../components/charter/charterMeta";
+import {
+  charterOf,
+  type CharterPatch,
+} from "../../../components/charter/charterMeta";
 import { useSyncOrgTreeFeeder } from "../../../hooks/useSyncOrgTree";
 import { useOrgRoles } from "../../../hooks/useOrgRoles";
 import { ingestPlanDetail } from "../../../hooks/useSyncPlans";
 import { useConvexSync } from "../../../hooks/useConvexSync";
-import {
-  Clock,
-  CheckCircle2,
-  Zap,
-  Layers,
-  GitBranch,
-} from "lucide-react";
+import { Clock, CheckCircle2, Zap, Layers, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { modernTab, modernTabList } from "../../../components/ui/modernLook";
 import { teamMembersOf } from "../../../lib/activeTeam";
@@ -122,7 +123,11 @@ export default function PlanDetailPage() {
 
   // id can be transiently undefined while a tab pane mounts; skip until it
   // resolves (same guard as projects/[id]).
-  const queryArgs = id ? (id.startsWith("pl-") ? { short_id: id } : { id }) : "skip";
+  const queryArgs = id
+    ? id.startsWith("pl-")
+      ? { short_id: id }
+      : { id }
+    : "skip";
   const queryPlan = useQuery(api.plans.webGet, queryArgs);
   // The detail row seeds the store: every inline write below (title, status,
   // the charter) goes through updatePlan, which patches the store row and
@@ -141,10 +146,14 @@ export default function PlanDetailPage() {
   const currentUser = useInboxStore((s) => s.currentUser);
   // The one plan row the address names (by id or short id), not the whole
   // plans collection.
-  const cachedRow = useInboxStore((s) => (id ? ((lookup(s.plans, id) as any) ?? null) : null));
+  const cachedRow = useInboxStore((s) =>
+    id ? ((lookup(s.plans, id) as any) ?? null) : null,
+  );
   // The plan's own tasks, woken only by a change to one of them.
   const planTaskIds = useMemo(
-    () => ((queryPlan as any)?.tasks?.map((t: any) => String(t._id)) ?? (cachedRow?.task_ids ?? []).map(String)) as string[],
+    () =>
+      ((queryPlan as any)?.tasks?.map((t: any) => String(t._id)) ??
+        (cachedRow?.task_ids ?? []).map(String)) as string[],
     [queryPlan, cachedRow],
   );
   const storeTasks = usePlanStoreTasks(planTaskIds);
@@ -166,17 +175,27 @@ export default function PlanDetailPage() {
   }, [queryPlan, id, cachedRow, storeTasks]);
 
   const liveTasks = useMemo(
-    () => mergeLiveTasks((plan as any)?.tasks, storeTasks, teamMembers as any[], currentUser as any),
-    [plan, storeTasks, teamMembers, currentUser]
+    () =>
+      mergeLiveTasks(
+        (plan as any)?.tasks,
+        storeTasks,
+        teamMembers as any[],
+        currentUser as any,
+      ),
+    [plan, storeTasks, teamMembers, currentUser],
   );
   const liveProgress = useMemo(() => {
     if (!Array.isArray(liveTasks)) return (plan as any)?.progress;
-    return { ...((plan as any)?.progress || {}), ...computePlanProgress(liveTasks) };
+    return {
+      ...((plan as any)?.progress || {}),
+      ...computePlanProgress(liveTasks),
+    };
   }, [liveTasks, plan]);
   // The store row for the plan on screen (the route id, else the snapshot's ids).
   const storePlan = useInboxStore((s) => {
     if (!plan) return undefined;
-    return (lookup(s.plans, plan._id) ?? (plan.short_id ? lookup(s.plans, plan.short_id) : undefined)) as any;
+    return (lookup(s.plans, plan._id) ??
+      (plan.short_id ? lookup(s.plans, plan.short_id) : undefined)) as any;
   });
   const liveStatus = storePlan?.status ?? plan?.status;
 
@@ -188,15 +207,23 @@ export default function PlanDetailPage() {
   useSyncOrgTreeFeeder();
   const { roles: orgRoles, workspace: orgWorkspace } = useOrgRoles();
   const charterRoles = orgWorkspace ? orgRoles : null;
-  const charter = useMemo(() => charterOf({ ...(plan ?? {}), ...(storePlan ?? {}) }, "plan"), [plan, storePlan]);
-  const handleCharterChange = useCallback((patch: CharterPatch) => { if (plan) webUpdate(plan.short_id, patch); }, [plan, webUpdate]);
+  const charter = useMemo(
+    () => charterOf({ ...(plan ?? {}), ...(storePlan ?? {}) }, "plan"),
+    [plan, storePlan],
+  );
+  const handleCharterChange = useCallback(
+    (patch: CharterPatch) => {
+      if (plan) webUpdate(plan.short_id, patch);
+    },
+    [plan, webUpdate],
+  );
 
   const handleTitleChange = useCallback(
     (title: string) => {
       if (!plan) return;
       webUpdate(plan.short_id, { title });
     },
-    [plan, webUpdate]
+    [plan, webUpdate],
   );
 
   const handleStatusChange = useCallback(
@@ -204,7 +231,7 @@ export default function PlanDetailPage() {
       if (!plan) return;
       webUpdate(plan.short_id, { status: newStatus });
     },
-    [plan, webUpdate]
+    [plan, webUpdate],
   );
 
   if (plan === undefined) {
@@ -247,148 +274,208 @@ export default function PlanDetailPage() {
       <DashboardLayout>
         <div className="h-full min-w-0">
           <DocumentDetailLayout
-          docId={plan.doc_id}
-          title={plan.title}
-          markdownContent={plan.doc_content || ""}
-          onTitleChange={handleTitleChange}
-          backHref="/plans"
-          linkedObjectId={plan._id}
-          placeholder="Write plan details, notes, or documentation..."
-          contextType="plan"
-          leadContent={
-            <>
-              <PlanOriginSession plan={plan} className="mb-3" />
-              <RepositoryLinks planId={plan._id} sessions={plan.sessions || []} conversationIds={plan.conversation_ids || []} />
-              <CharterBlock kind="plan" title={plan.title} charter={charter} canEdit onChange={handleCharterChange} roles={charterRoles} className="mt-2" />
-              {/* The plan's bar for done, in the body where it is read, not behind the Info toggle. */}
-              {plan.acceptance_criteria?.length > 0 && (
-                <div className="mt-3">
-                  <h3 className="text-xs font-medium text-sol-text-dim uppercase tracking-wider mb-1">
-                    Acceptance Criteria
-                  </h3>
-                  <ul className="text-sm text-sol-text-muted space-y-0.5">
-                    {plan.acceptance_criteria.map((c: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-sol-text-dim mt-0.5">-</span>
-                        <span>{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          }
-          topBarLeft={
-            <>
-              <PlanStatusSelector value={liveStatus} onChange={handleStatusChange} />
-              {plan.drive_state && plan.drive_state.total_rounds > 0 && (
-                <DriveRoundIndicator driveState={plan.drive_state} />
-              )}
-            </>
-          }
-          topBarRight={
-            <ShareControl label="plan" path={`/plans/${plan.short_id}`} publicShare={{ kind: "plan", id: plan._id, token: (storePlan ?? plan).share_token, team: policyTeamOf("plans", storePlan ?? plan) }} />
-          }
-          metaContent={
-            <>
-              <div className="flex items-center gap-4 text-xs text-sol-text-dim flex-wrap">
-                {plan.author?.image && (
-                  <span className="flex items-center gap-1.5">
-                    <img
-                      src={plan.author.image}
-                      alt={plan.author.name || ""}
-                      className="w-4 h-4 rounded-full object-cover"
-                    />
-                    <span className="text-sol-text-muted">{plan.author.name}</span>
-                  </span>
-                )}
-                <ShortId id={plan.short_id} className="text-sol-text-dim" />
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {formatDate(plan.created_at)}
-                </span>
-                {plan.updated_at !== plan.created_at && (
-                  <span>Updated {formatDate(plan.updated_at)}</span>
-                )}
-              </div>
-              {(() => {
-                const refs = (plan.comments || []).filter((e: any) => e.type === "reference");
-                return refs.length > 0 ? (
+            docId={plan.doc_id}
+            title={plan.title}
+            markdownContent={plan.doc_content || ""}
+            onTitleChange={handleTitleChange}
+            backHref="/plans"
+            linkedObjectId={plan._id}
+            placeholder="Write plan details, notes, or documentation..."
+            contextType="plan"
+            leadContent={
+              <>
+                <PlanOriginSession plan={plan} className="mb-3" />
+                <RepositoryLinks
+                  planId={plan._id}
+                  sessions={plan.sessions || []}
+                  conversationIds={plan.conversation_ids || []}
+                />
+                <CharterBlock
+                  kind="plan"
+                  title={plan.title}
+                  charter={charter}
+                  canEdit
+                  onChange={handleCharterChange}
+                  roles={charterRoles}
+                  className="mt-2"
+                />
+                {/* The plan's bar for done, in the body where it is read, not behind the Info toggle. */}
+                {plan.acceptance_criteria?.length > 0 && (
                   <div className="mt-3">
                     <h3 className="text-xs font-medium text-sol-text-dim uppercase tracking-wider mb-1">
-                      Context
+                      Acceptance Criteria
                     </h3>
-                    <div className="space-y-1">
-                      {refs.map((cp: any, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <span className="text-sol-text-dim">{cp.content}:</span>
-                          <span className="text-sol-text-muted font-mono text-xs">{cp.path_or_url}</span>
-                        </div>
+                    <ul className="text-sm text-sol-text-muted space-y-0.5">
+                      {plan.acceptance_criteria.map((c: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-sol-text-dim mt-0.5">-</span>
+                          <span>{c}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
-                ) : null;
-              })()}
-            </>
-          }
-        >
-          {liveProgress && liveProgress.total > 0 && (
-            <PlanProgressBar progress={liveProgress} />
-          )}
-
-          {(plan as any).workflow_id && !(plan as any).workflow_run_id && (
-            <StartWorkflowButton workflowId={(plan as any).workflow_id} planId={plan._id} planTitle={plan.title} />
-          )}
-
-          {(plan as any).workflow_run_id && (
-            <div className="mb-5">
-              <WorkflowContextPanel workflowRunId={(plan as any).workflow_run_id} />
-            </div>
-          )}
-
-          {hasTasks && (
-            <div className={`flex items-center gap-1 mb-5 border-b border-sol-border/15 ${modernTabList}`}>
-              {([
-                { key: "overview", icon: CheckCircle2, label: "Overview" },
-                { key: "orchestration", icon: Zap, label: "Orchestration" },
-                { key: "board", icon: Layers, label: "Board" },
-                { key: "graph", icon: GitBranch, label: "Graph" },
-              ] as const).map(({ key, icon: Icon, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-                    activeTab === key
-                      ? "text-sol-text border-sol-cyan"
-                      : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
-                  } ${modernTab({ active: activeTab === key }, "modern:mb-0")}`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${key === "orchestration" && hasActiveSessions ? "text-sol-green" : ""}`} />
-                  {label}
-                  {key === "orchestration" && hasActiveSessions && (
-                    <LivenessDot state="active" size="xs" />
+                )}
+              </>
+            }
+            topBarLeft={
+              <>
+                <PlanStatusSelector
+                  value={liveStatus}
+                  onChange={handleStatusChange}
+                />
+                {plan.drive_state && plan.drive_state.total_rounds > 0 && (
+                  <DriveRoundIndicator driveState={plan.drive_state} />
+                )}
+              </>
+            }
+            topBarRight={
+              <ShareControl
+                label="plan"
+                path={`/plans/${plan.short_id}`}
+                publicShare={{
+                  kind: "plan",
+                  id: plan._id,
+                  token: (storePlan ?? plan).share_token,
+                  team: policyTeamOf("plans", storePlan ?? plan),
+                }}
+              />
+            }
+            metaContent={
+              <>
+                <div className="flex items-center gap-4 text-xs text-sol-text-dim flex-wrap">
+                  {plan.author?.image && (
+                    <span className="flex items-center gap-1.5">
+                      <img
+                        src={plan.author.image}
+                        alt={plan.author.name || ""}
+                        className="w-4 h-4 rounded-full object-cover"
+                      />
+                      <span className="text-sol-text-muted">
+                        {plan.author.name}
+                      </span>
+                    </span>
                   )}
-                </button>
-              ))}
-            </div>
-          )}
+                  <ShortId id={plan.short_id} className="text-sol-text-dim" />
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDate(plan.created_at)}
+                  </span>
+                  {plan.updated_at !== plan.created_at && (
+                    <span>Updated {formatDate(plan.updated_at)}</span>
+                  )}
+                </div>
+                {(() => {
+                  const refs = (plan.comments || []).filter(
+                    (e: any) => e.type === "reference",
+                  );
+                  return refs.length > 0 ? (
+                    <div className="mt-3">
+                      <h3 className="text-xs font-medium text-sol-text-dim uppercase tracking-wider mb-1">
+                        Context
+                      </h3>
+                      <div className="space-y-1">
+                        {refs.map((cp: any, i: number) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <span className="text-sol-text-dim">
+                              {cp.content}:
+                            </span>
+                            <span className="text-sol-text-muted font-mono text-xs">
+                              {cp.path_or_url}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </>
+            }
+          >
+            {liveProgress && liveProgress.total > 0 && (
+              <PlanProgressBar progress={liveProgress} />
+            )}
 
-          {activeTab === "graph" ? (
-            <PlanGraphView tasks={liveTasks || []} />
-          ) : activeTab === "board" ? (
-            <PlanBoardView tasks={liveTasks || []} planShortId={plan.short_id} />
-          ) : activeTab === "overview" ? (
-            <>
-              <OrchestrationHeader tasks={liveTasks || []} sessions={plan.sessions || []} />
-              <PlanTaskSection planShortId={plan.short_id} tasks={liveTasks || []} sessions={plan.sessions || []} />
+            {(plan as any).workflow_id && !(plan as any).workflow_run_id && (
+              <StartWorkflowButton
+                workflowId={(plan as any).workflow_id}
+                planId={plan._id}
+                planTitle={plan.title}
+              />
+            )}
 
-              <EntryTimeline entries={plan.comments} />
+            {(plan as any).workflow_run_id && (
+              <div className="mb-5">
+                <WorkflowContextPanel
+                  workflowRunId={(plan as any).workflow_run_id}
+                />
+              </div>
+            )}
 
-              <PlanExternalEvents planId={plan._id} />
-            </>
-          ) : (
-            <OrchestrationTab tasks={liveTasks || []} sessions={plan.sessions || []} />
-          )}
+            {hasTasks && (
+              <div
+                className={`flex items-center gap-1 mb-5 border-b border-sol-border/15 ${modernTabList}`}
+              >
+                {(
+                  [
+                    { key: "overview", icon: CheckCircle2, label: "Overview" },
+                    { key: "orchestration", icon: Zap, label: "Orchestration" },
+                    { key: "board", icon: Layers, label: "Board" },
+                    { key: "graph", icon: GitBranch, label: "Graph" },
+                  ] as const
+                ).map(({ key, icon: Icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                      activeTab === key
+                        ? "text-sol-text border-sol-cyan"
+                        : "text-sol-text-dim border-transparent hover:text-sol-text-muted"
+                    } ${modernTab({ active: activeTab === key }, "modern:mb-0")}`}
+                  >
+                    <Icon
+                      className={`w-3.5 h-3.5 ${key === "orchestration" && hasActiveSessions ? "text-sol-green" : ""}`}
+                    />
+                    {label}
+                    {key === "orchestration" && hasActiveSessions && (
+                      <LivenessDot state="active" size="xs" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === "graph" ? (
+              <PlanGraphView tasks={liveTasks || []} />
+            ) : activeTab === "board" ? (
+              <PlanBoardView
+                tasks={liveTasks || []}
+                planShortId={plan.short_id}
+              />
+            ) : activeTab === "overview" ? (
+              <>
+                <OrchestrationHeader
+                  tasks={liveTasks || []}
+                  sessions={plan.sessions || []}
+                />
+                <PlanTaskSection
+                  planShortId={plan.short_id}
+                  tasks={liveTasks || []}
+                  sessions={plan.sessions || []}
+                />
+
+                <EntryTimeline entries={plan.comments} />
+
+                <PlanExternalEvents planId={plan._id} />
+              </>
+            ) : (
+              <OrchestrationTab
+                tasks={liveTasks || []}
+                sessions={plan.sessions || []}
+              />
+            )}
           </DocumentDetailLayout>
         </div>
       </DashboardLayout>

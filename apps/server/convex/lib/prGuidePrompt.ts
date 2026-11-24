@@ -4,7 +4,10 @@
 // writes with `cast task handoff --guide`, parsed by parseChangeGuide, so a
 // generated guide and an author's guide are one shape and one renderer.
 
-import { parseChangeGuide, type ChangeGuide } from "@codecast/shared/contracts/changeGuide";
+import {
+  parseChangeGuide,
+  type ChangeGuide,
+} from "@codecast/shared/contracts/changeGuide";
 import { STRONG_MODEL, type SurfaceRequest } from "./anthropic";
 
 export const PR_GUIDE_PROMPT_VERSION = "pr-guide-2";
@@ -15,8 +18,20 @@ export const PR_GUIDE_MAX_TOKENS = 12_000;
 export const PR_GUIDE_DIFF_CHARS = 150_000;
 export const PR_GUIDE_FILE_CHARS = 24_000;
 
-export type PrGuideFile = { filename: string; status: string; additions: number; deletions: number; patch?: string };
-export type PrGuideInput = { repository: string; number: number; title: string; body: string; files: PrGuideFile[] };
+export type PrGuideFile = {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  patch?: string;
+};
+export type PrGuideInput = {
+  repository: string;
+  number: number;
+  title: string;
+  body: string;
+  files: PrGuideFile[];
+};
 
 const SYSTEM = `You write a guide that walks a reviewer through a pull request. Someone reading it top to bottom should understand what changed and why, in the order that makes the change easiest to follow: the core change first, then what follows from it, then the mechanical or low-signal changes (renames, generated files, fixtures, config, docs) last.
 
@@ -50,14 +65,26 @@ export function numberPatch(patch: string): string {
   return out.join("\n");
 }
 
-function fileBlock(f: PrGuideFile, budget: number): { text: string; used: number } {
+function fileBlock(
+  f: PrGuideFile,
+  budget: number,
+): { text: string; used: number } {
   const head = `### ${f.filename} (${f.status}, +${f.additions} -${f.deletions})`;
-  if (!f.patch) return { text: `${head}\n(no diff text: binary, too large for GitHub, or a rename)`, used: 0 };
-  if (budget <= 0) return { text: `${head}\n(diff left out to fit the request)`, used: 0 };
+  if (!f.patch)
+    return {
+      text: `${head}\n(no diff text: binary, too large for GitHub, or a rename)`,
+      used: 0,
+    };
+  if (budget <= 0)
+    return { text: `${head}\n(diff left out to fit the request)`, used: 0 };
   const numbered = numberPatch(f.patch);
   const cap = Math.min(budget, PR_GUIDE_FILE_CHARS);
-  if (numbered.length <= cap) return { text: `${head}\n${numbered}`, used: numbered.length };
-  return { text: `${head}\n${numbered.slice(0, cap)}\n(diff cut here to fit the request)`, used: cap };
+  if (numbered.length <= cap)
+    return { text: `${head}\n${numbered}`, used: numbered.length };
+  return {
+    text: `${head}\n${numbered.slice(0, cap)}\n(diff cut here to fit the request)`,
+    used: cap,
+  };
 }
 
 export function prGuideRequest(input: PrGuideInput): SurfaceRequest {
@@ -77,7 +104,12 @@ export function prGuideRequest(input: PrGuideInput): SurfaceRequest {
     "",
     blocks.join("\n\n"),
   ].join("\n");
-  return { model: PR_GUIDE_MODEL, max_tokens: PR_GUIDE_MAX_TOKENS, system: SYSTEM, prompt };
+  return {
+    model: PR_GUIDE_MODEL,
+    max_tokens: PR_GUIDE_MAX_TOKENS,
+    system: SYSTEM,
+    prompt,
+  };
 }
 
 /**
@@ -85,10 +117,19 @@ export function prGuideRequest(input: PrGuideInput): SurfaceRequest {
  * step naming a file the PR does not change is dropped (a guide only walks
  * this diff); a reply with no step left throws, naming why.
  */
-export function parsePrGuideReply(reply: string, files: PrGuideFile[]): ChangeGuide {
+export function parsePrGuideReply(
+  reply: string,
+  files: PrGuideFile[],
+): ChangeGuide {
   const byName = new Map(files.map((f) => [f.filename, f]));
-  const guide = parseChangeGuide(reply, (file) => byName.get(file)?.patch ?? null);
+  const guide = parseChangeGuide(
+    reply,
+    (file) => byName.get(file)?.patch ?? null,
+  );
   const steps = guide.steps.filter((s) => byName.has(s.file));
-  if (!steps.length) throw new Error("the model's guide named no file this pull request changes");
+  if (!steps.length)
+    throw new Error(
+      "the model's guide named no file this pull request changes",
+    );
   return { ...guide, steps };
 }

@@ -5,15 +5,36 @@ import { mutation, query, internalQuery } from "./functions";
 import { selfUpdateBlocked } from "./lib/deviceUpdate";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { AgentClientId, AgentDefinitionSpec } from "@codecast/shared/contracts";
-import { isClosedSession, isReservedDevice, settingsAfterSnippet, stableModeOf, type DeviceSnippetChange, managedIdsAfter, type ProviderKeyCommand, isAgentSetupTool, type AgentToolSetupStatus, cloudAgentProviderOfSession, isCloudAgentActionName, isCloudAgentLoginState, type CloudAgentLoginStateName } from "@codecast/shared/contracts";
+import type {
+  AgentClientId,
+  AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
+import {
+  isClosedSession,
+  isReservedDevice,
+  settingsAfterSnippet,
+  stableModeOf,
+  type DeviceSnippetChange,
+  managedIdsAfter,
+  type ProviderKeyCommand,
+  isAgentSetupTool,
+  type AgentToolSetupStatus,
+  cloudAgentProviderOfSession,
+  isCloudAgentActionName,
+  isCloudAgentLoginState,
+  type CloudAgentLoginStateName,
+} from "@codecast/shared/contracts";
 import { verifyApiToken } from "./apiTokens";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { canAccessConversation } from "./lib/access";
 import { runnerDeviceOf } from "./lib/runnerDevice";
 import { resolveOwnerDeviceView } from "./lib/ownerDevice";
-import { canReadSessionCommand, requireSessionCommandTarget, findSessionCommandByRequest } from "./daemonCommandUtils";
+import {
+  canReadSessionCommand,
+  requireSessionCommandTarget,
+  findSessionCommandByRequest,
+} from "./daemonCommandUtils";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import {
   DEVICE_ONLINE_MS,
@@ -23,18 +44,38 @@ import {
 } from "./deviceRouting";
 import { activeTokenProfile } from "./ccAccountsShared";
 import { bucketTs } from "./presenceState";
-import { checkConversationAccess, isTeamAdmin, isTeamMember, shareATeam } from "./privacy";
+import {
+  checkConversationAccess,
+  isTeamAdmin,
+  isTeamMember,
+  shareATeam,
+} from "./privacy";
 import { isSessionOwner } from "./sessionOwners";
 import { navPromptField } from "./userMessagesFilter";
-import { localAgentTypeOf, findModelOption, deviceDisplayName, formatMachineSwitchNotice, type DeviceNameSource,
+import {
+  localAgentTypeOf,
+  findModelOption,
+  deviceDisplayName,
+  formatMachineSwitchNotice,
+  type DeviceNameSource,
   checkoutInUseMessage,
   deviceWakesOnUse,
   posixRepoBasename,
 } from "@codecast/shared/contracts";
-import { isTeamMachineFor, listTeamMachines, resolveSessionLaunchDevice, retainSessionCreator } from "./sessionLaunch";
+import {
+  isTeamMachineFor,
+  listTeamMachines,
+  resolveSessionLaunchDevice,
+  retainSessionCreator,
+} from "./sessionLaunch";
 import { notifySessionExecutionTaken } from "./sessionAssignmentNotifications";
 import { releasePreviousOwner } from "./sessionRelease";
-import { cloudPlacementNeeded, findSharedCheckoutOccupant, parkOnCloudHost, unparkForMove } from "./cloudPlacement";
+import {
+  cloudPlacementNeeded,
+  findSharedCheckoutOccupant,
+  parkOnCloudHost,
+  unparkForMove,
+} from "./cloudPlacement";
 import { getSystemConfig } from "./systemConfig";
 import { isBelowMinimum } from "@platform/flags";
 import { queueMoveContinueIfMidTurn } from "./moveContinue";
@@ -144,7 +185,10 @@ export async function getDeviceLocalRoots(
   return device.local_project_roots ?? [];
 }
 
-type ClaimDevice = { is_remote?: boolean; last_seen?: number } | null | undefined;
+type ClaimDevice =
+  | { is_remote?: boolean; last_seen?: number }
+  | null
+  | undefined;
 
 export function planConversationOwnershipClaim(opts: {
   ownerDeviceId?: string | null;
@@ -163,7 +207,8 @@ export function planConversationOwnershipClaim(opts: {
       opts.now - opts.ownerDevice.last_seen < DEVICE_ONLINE_MS;
     if (ownerOnline) return { won: false, owner };
   }
-  const claimantIsRemote = opts.claimantIsRemote ?? !!opts.claimantDevice?.is_remote;
+  const claimantIsRemote =
+    opts.claimantIsRemote ?? !!opts.claimantDevice?.is_remote;
   if (owner !== opts.claimantDeviceId && claimantIsRemote) {
     return { won: false, owner };
   }
@@ -256,7 +301,10 @@ export async function enqueueStartSession(
       paths: [gitRoot, projectPath],
     });
     if (cloudTarget && conv) {
-      return await parkOnCloudHost(ctx, userId, conv, cloudTarget.device_id, { projectPath, gitRoot });
+      return await parkOnCloudHost(ctx, userId, conv, cloudTarget.device_id, {
+        projectPath,
+        gitRoot,
+      });
     }
   }
 
@@ -275,11 +323,24 @@ export async function enqueueStartSession(
   if (target && conv) {
     const path = projectPath ?? gitRoot;
     const targetDevice = await ownDevice(ctx, userId, target);
-    if (path && targetDevice && deviceWakesOnUse(targetDevice)
-      && (targetDevice.local_project_roots ?? []).some((r: string) => pathUnderRoot(path, r))) {
-      const occupant = await findSharedCheckoutOccupant(ctx, userId, target, { projectPath: path, excludeId: opts.conversationId.toString(), merging: true });
+    if (
+      path &&
+      targetDevice &&
+      deviceWakesOnUse(targetDevice) &&
+      (targetDevice.local_project_roots ?? []).some((r: string) =>
+        pathUnderRoot(path, r),
+      )
+    ) {
+      const occupant = await findSharedCheckoutOccupant(ctx, userId, target, {
+        projectPath: path,
+        excludeId: opts.conversationId.toString(),
+        merging: true,
+      });
       if (occupant) {
-        await ctx.db.patch(opts.conversationId, { session_error: checkoutInUseMessage(path, occupant), updated_at: Date.now() });
+        await ctx.db.patch(opts.conversationId, {
+          session_error: checkoutInUseMessage(path, occupant),
+          updated_at: Date.now(),
+        });
         return null;
       }
     }
@@ -311,7 +372,8 @@ export async function enqueueStartSession(
       // stamp, or a prior session's rollup).
       if (conv && !conv.model) {
         await ctx.db.patch(opts.conversationId, {
-          model: opts.agentType === "claude" ? `claude-${preferred}` : preferred,
+          model:
+            opts.agentType === "claude" ? `claude-${preferred}` : preferred,
         });
       }
     }
@@ -336,8 +398,15 @@ export async function enqueueStartSession(
   if (!ccAccount && opts.agentType === "claude" && target) {
     const targetDevice = await ownDevice(ctx, userId, target);
     ccAccount = activeTokenProfile(targetDevice?.cc_accounts, Date.now());
-    if (ccAccount && conv && (conv.cc_account !== ccAccount || conv.cc_account_auto !== true)) {
-      await ctx.db.patch(opts.conversationId, { cc_account: ccAccount, cc_account_auto: true });
+    if (
+      ccAccount &&
+      conv &&
+      (conv.cc_account !== ccAccount || conv.cc_account_auto !== true)
+    ) {
+      await ctx.db.patch(opts.conversationId, {
+        cc_account: ccAccount,
+        cc_account_auto: true,
+      });
     }
   }
   if (ccAccount) args.cc_account = ccAccount;
@@ -403,7 +472,11 @@ export const registerDevice = mutation({
       await ctx.db.patch(existing._id, patch);
       return { device_id: args.device_id, created: false };
     }
-    await ctx.db.insert("devices", { user_id: userId, device_id: args.device_id, ...patch });
+    await ctx.db.insert("devices", {
+      user_id: userId,
+      device_id: args.device_id,
+      ...patch,
+    });
     return { device_id: args.device_id, created: true };
   },
 });
@@ -419,7 +492,10 @@ export const registerDevice = mutation({
  * if I have the checkout I should reclaim it" (the auto-claim self-heal).
  */
 export const getConversationOwner = query({
-  args: { api_token: v.optional(v.string()), conversation_id: v.id("conversations") },
+  args: {
+    api_token: v.optional(v.string()),
+    conversation_id: v.id("conversations"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -431,7 +507,8 @@ export const getConversationOwner = query({
     // null as "unowned" and carries on, so the guard that stops one machine from
     // running a session another machine already owns failed open on exactly the
     // sessions two accounts share.
-    if ((await checkConversationAccess(ctx, userId, conv as any)) === "denied") return null;
+    if ((await checkConversationAccess(ctx, userId, conv as any)) === "denied")
+      return null;
     return await resolveOwnerDeviceView(ctx, conv as any);
   },
 });
@@ -444,7 +521,9 @@ export const resolveConversationBySession = query({
     if (!userId) return null;
     const conv = await ctx.db
       .query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .filter((q: any) => q.eq(q.field("user_id"), userId))
       .first();
     if (!conv) return null;
@@ -485,7 +564,11 @@ async function insertMachineSwitchDivider(
     subtype: "machine_switch",
     message_uuid: crypto.randomUUID(),
     timestamp: Date.now(),
-    ...navPromptField({ role: "user", content: notice, subtype: "machine_switch" }),
+    ...navPromptField({
+      role: "user",
+      content: notice,
+      subtype: "machine_switch",
+    }),
   });
   await ctx.db.patch(conv._id, {
     message_count: (conv.message_count ?? 0) + 1,
@@ -502,10 +585,21 @@ async function insertMachineSwitchDivider(
 export async function performMoveSessionToDevice(
   ctx: { db: any },
   userId: Id<"users">,
-  args: { conversation_id: Id<"conversations">; owner_device_id: string; project_path: string; resume?: boolean; shared_with?: string[] },
-): Promise<{ ok: true; command_id: string | undefined; owner_device_id: string }> {
+  args: {
+    conversation_id: Id<"conversations">;
+    owner_device_id: string;
+    project_path: string;
+    resume?: boolean;
+    shared_with?: string[];
+  },
+): Promise<{
+  ok: true;
+  command_id: string | undefined;
+  owner_device_id: string;
+}> {
   const conv = await ctx.db.get(args.conversation_id);
-  if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+  if (!conv || conv.user_id.toString() !== userId.toString())
+    throw new Error("not your conversation");
   const priorDeviceId = conv.owner_device_id as string | undefined;
   // A move onto a HOST merges into its main checkout of the repo, which the
   // sessions already there keep sharing the way they share a laptop folder.
@@ -514,8 +608,19 @@ export async function performMoveSessionToDevice(
   // close the race.
   const dest = await ownDevice(ctx, userId, args.owner_device_id);
   if (dest?.is_remote) {
-    const occupant = await findSharedCheckoutOccupant(ctx, userId, args.owner_device_id, { projectPath: args.project_path, excludeId: args.conversation_id.toString(), sharedWith: args.shared_with, merging: true });
-    if (occupant) throw new Error(checkoutInUseMessage(args.project_path, occupant));
+    const occupant = await findSharedCheckoutOccupant(
+      ctx,
+      userId,
+      args.owner_device_id,
+      {
+        projectPath: args.project_path,
+        excludeId: args.conversation_id.toString(),
+        sharedWith: args.shared_with,
+        merging: true,
+      },
+    );
+    if (occupant)
+      throw new Error(checkoutInUseMessage(args.project_path, occupant));
   }
 
   await ctx.db.patch(args.conversation_id, {
@@ -524,7 +629,9 @@ export async function performMoveSessionToDevice(
     status: "active" as const,
     updated_at: Date.now(),
     ...(await unparkForMove(ctx, conv, dest)),
-    ...(args.resume !== false && isClosedSession(conv) ? { inbox_dismissed_at: undefined } : {}), // run it there: no longer closed
+    ...(args.resume !== false && isClosedSession(conv)
+      ? { inbox_dismissed_at: undefined }
+      : {}), // run it there: no longer closed
   });
 
   if (priorDeviceId && priorDeviceId !== args.owner_device_id) {
@@ -545,8 +652,15 @@ export async function performMoveSessionToDevice(
 
   let commandId: string | undefined;
   if (args.resume !== false) {
-    commandId = await enqueueTargetedResume(ctx, userId, conv, args.owner_device_id, args.project_path);
-    if (priorDeviceId !== args.owner_device_id) await queueMoveContinueIfMidTurn(ctx, args.conversation_id, userId);
+    commandId = await enqueueTargetedResume(
+      ctx,
+      userId,
+      conv,
+      args.owner_device_id,
+      args.project_path,
+    );
+    if (priorDeviceId !== args.owner_device_id)
+      await queueMoveContinueIfMidTurn(ctx, args.conversation_id, userId);
   }
   await releasePreviousOwner(ctx, {
     queueUserId: userId,
@@ -555,7 +669,11 @@ export async function performMoveSessionToDevice(
     priorDeviceId,
     newDeviceId: args.owner_device_id,
   });
-  return { ok: true, command_id: commandId, owner_device_id: args.owner_device_id };
+  return {
+    ok: true,
+    command_id: commandId,
+    owner_device_id: args.owner_device_id,
+  };
 }
 
 /**
@@ -563,7 +681,13 @@ export async function performMoveSessionToDevice(
  * untargeted, every daemon of the user's fetched it and had to decline via
  * the owner guard.
  */
-export async function enqueueTargetedResume(ctx: { db: any }, userId: Id<"users">, conv: any, deviceId: string, projectPath: string | undefined): Promise<string> {
+export async function enqueueTargetedResume(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conv: any,
+  deviceId: string,
+  projectPath: string | undefined,
+): Promise<string> {
   return await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "resume_session" as const,
@@ -611,10 +735,20 @@ export const moveToRemote = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    const replay = args.request_id !== undefined && await findSessionCommandByRequest(ctx, userId, args.request_id);
-    if (replay) return { command_id: replay._id, source: replay.target_device_id ?? null, dest: JSON.parse(replay.args ?? "{}").to_device_id ?? null };
-    const conv = await findConversationByAnyRefWhere(ctx, args.conversation_id, (candidate: any) =>
-      candidate.user_id.toString() === userId.toString());
+    const replay =
+      args.request_id !== undefined &&
+      (await findSessionCommandByRequest(ctx, userId, args.request_id));
+    if (replay)
+      return {
+        command_id: replay._id,
+        source: replay.target_device_id ?? null,
+        dest: JSON.parse(replay.args ?? "{}").to_device_id ?? null,
+      };
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.conversation_id,
+      (candidate: any) => candidate.user_id.toString() === userId.toString(),
+    );
     if (!conv) throw new Error("not your conversation");
 
     const now = Date.now();
@@ -622,7 +756,9 @@ export const moveToRemote = mutation({
       .query("devices")
       .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
       .collect();
-    const online = devices.filter((d: any) => now - d.last_seen < DEVICE_ONLINE_MS);
+    const online = devices.filter(
+      (d: any) => now - d.last_seen < DEVICE_ONLINE_MS,
+    );
 
     // The destination may be ASLEEP: a cloud box's normal idle state is
     // "stopped, costs only its disk", and the SOURCE daemon's move command
@@ -632,28 +768,59 @@ export const moveToRemote = mutation({
     const mostRecent = (a: any, b: any) => b.last_seen - a.last_seen;
     const dest = args.to_device_id
       ? devices.find((d: any) => d.device_id === args.to_device_id)
-      : online.find((d: any) => d.is_remote && !isReservedDevice(d)) ??
-        [...devices].sort(mostRecent).find((d: any) => d.is_remote && !isReservedDevice(d));
-    if (!dest) throw new Error("No destination device (provision one: cast browser hosts provision)");
+      : (online.find((d: any) => d.is_remote && !isReservedDevice(d)) ??
+        [...devices]
+          .sort(mostRecent)
+          .find((d: any) => d.is_remote && !isReservedDevice(d)));
+    if (!dest)
+      throw new Error(
+        "No destination device (provision one: cast browser hosts provision)",
+      );
     // Early refusal, before a command is queued: the move would land in the
     // destination's main checkout of this repo, which a shared session may hold.
     if (conv.project_path && dest.is_remote) {
-      const occupant = await findSharedCheckoutOccupant(ctx, userId, dest.device_id, { repoBasename: posixRepoBasename(conv.project_path), excludeId: conv._id.toString() });
-      if (occupant) throw new Error(checkoutInUseMessage(occupant.cloud_checkout_path ?? occupant.project_path ?? conv.project_path, occupant));
+      const occupant = await findSharedCheckoutOccupant(
+        ctx,
+        userId,
+        dest.device_id,
+        {
+          repoBasename: posixRepoBasename(conv.project_path),
+          excludeId: conv._id.toString(),
+        },
+      );
+      if (occupant)
+        throw new Error(
+          checkoutInUseMessage(
+            occupant.cloud_checkout_path ??
+              occupant.project_path ??
+              conv.project_path,
+            occupant,
+          ),
+        );
     }
     const destOnline = online.some((d: any) => d.device_id === dest.device_id);
-    if (!destOnline && !dest.is_remote) throw new Error("That device is offline and cannot be woken remotely");
+    if (!destOnline && !dest.is_remote)
+      throw new Error("That device is offline and cannot be woken remotely");
 
-    const ownerOnline = (conv as any).owner_device_id && online.some((d: any) => d.device_id === (conv as any).owner_device_id);
-    const source = ownerOnline ? (conv as any).owner_device_id : (online.find((d: any) => !d.is_remote)?.device_id ?? null);
+    const ownerOnline =
+      (conv as any).owner_device_id &&
+      online.some((d: any) => d.device_id === (conv as any).owner_device_id);
+    const source = ownerOnline
+      ? (conv as any).owner_device_id
+      : (online.find((d: any) => !d.is_remote)?.device_id ?? null);
     if (!source) throw new Error("No online source device to perform the move");
-    if (source === dest.device_id) throw new Error("Session is already on that device");
+    if (source === dest.device_id)
+      throw new Error("Session is already on that device");
 
     const commandId = await ctx.db.insert("daemon_commands", {
       user_id: userId,
       command: "move_to_device" as const,
       request_id: args.request_id,
-      args: JSON.stringify({ conversation_id: conv._id, session_id: conv.session_id, to_device_id: dest.device_id }),
+      args: JSON.stringify({
+        conversation_id: conv._id,
+        session_id: conv.session_id,
+        to_device_id: dest.device_id,
+      }),
       created_at: now,
       target_device_id: source,
     });
@@ -677,12 +844,31 @@ export const moveToRemote = mutation({
 export async function performReassignToDevice(
   ctx: { db: any },
   userId: Id<"users">,
-  args: { conversation_id: Id<"conversations">; device_id: string; request_id?: string; allow_cross_user?: boolean },
-): Promise<{ ok: true; command_id: any; device_id: string; label: string; cross_user?: boolean }> {
+  args: {
+    conversation_id: Id<"conversations">;
+    device_id: string;
+    request_id?: string;
+    allow_cross_user?: boolean;
+  },
+): Promise<{
+  ok: true;
+  command_id: any;
+  device_id: string;
+  label: string;
+  cross_user?: boolean;
+}> {
   const conv = await ctx.db.get(args.conversation_id);
   if (!conv) throw new Error("not your conversation");
-  const replay = args.request_id !== undefined && await findSessionCommandByRequest(ctx, userId, args.request_id);
-  if (replay) return { ok: true, command_id: replay._id, device_id: args.device_id, label: "" };
+  const replay =
+    args.request_id !== undefined &&
+    (await findSessionCommandByRequest(ctx, userId, args.request_id));
+  if (replay)
+    return {
+      ok: true,
+      command_id: replay._id,
+      device_id: args.device_id,
+      label: "",
+    };
   const device = await ownDevice(ctx, userId, args.device_id);
   // A session the caller OWNS but a teammate RUNS, or a move onto a team
   // machine, can't be re-homed by a plain device restamp — the destination
@@ -690,9 +876,11 @@ export async function performReassignToDevice(
   // Route it through the cross-user reparent, which authorizes itself.
   if (conv.user_id.toString() !== userId.toString() || !device) {
     if (args.allow_cross_user === false) {
-      throw new Error(device
-        ? "another account runs this session: moving it here makes it run and bill under yours and stops it where it runs now"
-        : "that is a team machine: the session would run and bill under the machine's account");
+      throw new Error(
+        device
+          ? "another account runs this session: moving it here makes it run and bill under yours and stops it where it runs now"
+          : "that is a team machine: the session would run and bill under the machine's account",
+      );
     }
     return performReparentSessionToDevice(ctx, userId, {
       session_id: args.conversation_id,
@@ -736,7 +924,8 @@ export async function performReassignToDevice(
     created_at: Date.now(),
     target_device_id: args.device_id,
   });
-  if (prevOwner && prevOwner !== args.device_id) await queueMoveContinueIfMidTurn(ctx, args.conversation_id, userId);
+  if (prevOwner && prevOwner !== args.device_id)
+    await queueMoveContinueIfMidTurn(ctx, args.conversation_id, userId);
 
   await releasePreviousOwner(ctx, {
     queueUserId: userId,
@@ -745,7 +934,12 @@ export async function performReassignToDevice(
     priorDeviceId: prevOwner,
     newDeviceId: args.device_id,
   });
-  return { ok: true, command_id: commandId, device_id: args.device_id, label: device.label };
+  return {
+    ok: true,
+    command_id: commandId,
+    device_id: args.device_id,
+    label: device.label,
+  };
 }
 
 // Resolve the target of a device move/pull. Two passes because the accept
@@ -765,13 +959,21 @@ export async function findPullableConversation(
   userId: Id<"users">,
   ref: string,
 ): Promise<any> {
-  const own = await findConversationByAnyRefWhere(ctx, ref, async (candidate: any) =>
-    (await checkConversationAccess(ctx, userId, candidate)) === "owner");
+  const own = await findConversationByAnyRefWhere(
+    ctx,
+    ref,
+    async (candidate: any) =>
+      (await checkConversationAccess(ctx, userId, candidate)) === "owner",
+  );
   if (own) return own;
   const caller = await ctx.db.get(userId);
   if (!caller || caller.is_bot) return null;
-  return findConversationByAnyRefWhere(ctx, ref, async (candidate: any) =>
-    (await checkConversationAccess(ctx, userId, candidate)) === "team");
+  return findConversationByAnyRefWhere(
+    ctx,
+    ref,
+    async (candidate: any) =>
+      (await checkConversationAccess(ctx, userId, candidate)) === "team",
+  );
 }
 
 export const reassignToDevice = mutation({
@@ -798,7 +1000,11 @@ export const reassignToDevice = mutation({
     // performReparentSessionToDevice's rule: runners restamp in place, everyone
     // else falls through to the cross-user reparent (which re-authorizes
     // itself).
-    const conv = await findPullableConversation(ctx, userId, args.conversation_id);
+    const conv = await findPullableConversation(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
     if (!conv) {
       throw new Error(
         "not your conversation (you can only move a session you run or own, or one visible to your team)",
@@ -844,7 +1050,8 @@ async function resolveRemoteForReparent(
   const siblings = await ctx.db
     .query("conversations")
     .withIndex("by_user_git_root", (q: any) =>
-      q.eq("user_id", conv.user_id).eq("git_root", conv.git_root))
+      q.eq("user_id", conv.user_id).eq("git_root", conv.git_root),
+    )
     .take(50);
   return siblings.find((s: any) => s.git_remote_url)?.git_remote_url;
 }
@@ -852,8 +1059,19 @@ async function resolveRemoteForReparent(
 export async function performReparentSessionToDevice(
   ctx: { db: any },
   userId: Id<"users">,
-  args: { session_id: string; device_id: string; remote_url?: string; request_id?: string },
-): Promise<{ ok: true; command_id: any; device_id: string; label: string; cross_user: boolean }> {
+  args: {
+    session_id: string;
+    device_id: string;
+    remote_url?: string;
+    request_id?: string;
+  },
+): Promise<{
+  ok: true;
+  command_id: any;
+  device_id: string;
+  label: string;
+  cross_user: boolean;
+}> {
   // Authorization is folded into resolution: the caller must RUN it (user_id),
   // OWN it (owner set / cached primary), or be a HUMAN teammate who can SEE it
   // — see findPullableConversation for the rule and why own sessions always
@@ -866,11 +1084,17 @@ export async function performReparentSessionToDevice(
     );
   }
   const device = await resolveSessionLaunchDevice(ctx, userId, args.device_id);
-  if (!device) throw new Error("Unknown device: choose one of your machines or one your team shares");
+  if (!device)
+    throw new Error(
+      "Unknown device: choose one of your machines or one your team shares",
+    );
   // Whose daemon and account the session runs under after the move.
   const runnerId: Id<"users"> = device.user_id;
   const onTeamMachine = runnerId.toString() !== userId.toString();
-  if (onTeamMachine && (await checkConversationAccess(ctx, userId, conv)) !== "owner") {
+  if (
+    onTeamMachine &&
+    (await checkConversationAccess(ctx, userId, conv)) !== "owner"
+  ) {
     throw new Error("Only a session you run or own can move to a team machine");
   }
 
@@ -889,16 +1113,20 @@ export async function performReparentSessionToDevice(
   // these describe where the session came FROM.
   const priorDeviceId: string | undefined = conv.owner_device_id;
   const deviceChanged = !priorDeviceId || priorDeviceId !== args.device_id;
-  const priorDevice = priorDeviceId && deviceChanged
-    ? await ctx.db
-        .query("devices")
-        .withIndex("by_user_device", (q: any) =>
-          q.eq("user_id", conv.user_id).eq("device_id", priorDeviceId),
-        )
-        .first()
-    : null;
-  const nameOf = (u: any): string | undefined => u?.name || u?.email || undefined;
-  const fromUser = crossUser ? nameOf(await ctx.db.get(conv.user_id)) : undefined;
+  const priorDevice =
+    priorDeviceId && deviceChanged
+      ? await ctx.db
+          .query("devices")
+          .withIndex("by_user_device", (q: any) =>
+            q.eq("user_id", conv.user_id).eq("device_id", priorDeviceId),
+          )
+          .first()
+      : null;
+  const nameOf = (u: any): string | undefined =>
+    u?.name || u?.email || undefined;
+  const fromUser = crossUser
+    ? nameOf(await ctx.db.get(conv.user_id))
+    : undefined;
   const toUser = crossUser ? nameOf(await ctx.db.get(runnerId)) : undefined;
 
   const patch: any = {
@@ -919,12 +1147,21 @@ export async function performReparentSessionToDevice(
   await ctx.db.patch(conv._id, patch);
   if (crossUser) await followNewRunner(ctx, conv._id, runnerId);
   // The prompts written so far keep their author once user_id names someone else.
-  if (crossUser) await stampPriorOwnerPage(ctx, { conversation_id: conv._id, user_id: previousConversation.user_id, until: patch.updated_at });
+  if (crossUser)
+    await stampPriorOwnerPage(ctx, {
+      conversation_id: conv._id,
+      user_id: previousConversation.user_id,
+      until: patch.updated_at,
+    });
   // Moved onto a team machine: the caller keeps the session as an owner.
-  if (onTeamMachine) await retainSessionCreator(ctx, conv._id, userId, runnerId);
+  if (onTeamMachine)
+    await retainSessionCreator(ctx, conv._id, userId, runnerId);
 
   if (deviceChanged) {
-    await insertMachineSwitchDivider(ctx, conv, { to: device, from: priorDevice });
+    await insertMachineSwitchDivider(ctx, conv, {
+      to: device,
+      from: priorDevice,
+    });
     await queueMoveContinueIfMidTurn(ctx, conv._id, userId);
   }
 
@@ -940,13 +1177,19 @@ export async function performReparentSessionToDevice(
   if (conv.session_id) {
     for (const row of await ctx.db
       .query("managed_sessions")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", conv.session_id))
-      .collect()) staleManaged.set(row._id.toString(), row);
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", conv.session_id),
+      )
+      .collect())
+      staleManaged.set(row._id.toString(), row);
   }
   for (const row of await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
-    .collect()) staleManaged.set(row._id.toString(), row);
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
+    .collect())
+    staleManaged.set(row._id.toString(), row);
   for (const row of staleManaged.values()) await ctx.db.delete(row._id);
 
   // Resume on the destination's daemon: the command goes in its RUNNER's queue
@@ -996,8 +1239,22 @@ export async function performReparentSessionToDevice(
 
   // The takeover notice says the session now bills to the caller; a move onto
   // a team machine bills to that machine's account, so it sends none.
-  if (crossUser && !onTeamMachine) await notifySessionExecutionTaken(ctx, previousConversation, userId, device.label, priorDevice?.label, !!priorDeviceId && deviceChanged);
-  return { ok: true, command_id: commandId, device_id: args.device_id, label: device.label, cross_user: crossUser };
+  if (crossUser && !onTeamMachine)
+    await notifySessionExecutionTaken(
+      ctx,
+      previousConversation,
+      userId,
+      device.label,
+      priorDevice?.label,
+      !!priorDeviceId && deviceChanged,
+    );
+  return {
+    ok: true,
+    command_id: commandId,
+    device_id: args.device_id,
+    label: device.label,
+    cross_user: crossUser,
+  };
 }
 
 export const reparentSessionToDevice = mutation({
@@ -1076,9 +1333,18 @@ export async function performClaimDeviceAccount(
   }
   const mine = await ownDevice(ctx, callerId, args.deviceId);
   if (!mine || now - (mine.last_seen ?? 0) >= DEVICE_ONLINE_MS) {
-    return { moved: 0, more: false, error: "this device is not online on the new account" };
+    return {
+      moved: 0,
+      more: false,
+      error: "this device is not online on the new account",
+    };
   }
-  if (!(await shareATeam(ctx, callerId, args.previousUserId))) return { moved: 0, more: false, error: "the two accounts do not share a team" };
+  if (!(await shareATeam(ctx, callerId, args.previousUserId)))
+    return {
+      moved: 0,
+      more: false,
+      error: "the two accounts do not share a team",
+    };
 
   const previousDevice = await ctx.db
     .query("devices")
@@ -1100,20 +1366,26 @@ export async function performClaimDeviceAccount(
   const movable: any[] = [];
   for (const conv of rows) {
     const access = await checkConversationAccess(ctx, callerId, conv);
-    if (access === "owner" || (access === "team" && !!caller && !caller.is_bot)) movable.push(conv);
+    if (access === "owner" || (access === "team" && !!caller && !caller.is_bot))
+      movable.push(conv);
   }
   const skipped = rows.length - movable.length;
   const page = movable.slice(0, CLAIM_ACCOUNT_PAGE);
   for (const conv of page) {
     if (!conv.author_user_id) {
-      await ctx.db.patch(conv._id, { user_id: callerId, author_user_id: conv.user_id });
+      await ctx.db.patch(conv._id, {
+        user_id: callerId,
+        author_user_id: conv.user_id,
+      });
     } else {
       await ctx.db.patch(conv._id, { user_id: callerId });
     }
     await followNewRunner(ctx, conv._id, callerId);
     const managed = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .collect();
     for (const row of managed) {
       if (row.user_id?.toString() === args.previousUserId.toString()) {
@@ -1145,19 +1417,33 @@ export const claimDeviceAccount = mutation({
     const caller = await deviceTokenCaller(ctx, args.api_token);
     if (!caller) throw new Error("Authentication required");
     if (caller.boundDeviceId && caller.boundDeviceId !== args.device_id) {
-      return { moved: 0, more: false, error: "this token is bound to a different machine" };
+      return {
+        moved: 0,
+        more: false,
+        error: "this token is bound to a different machine",
+      };
     }
-    if (args.previous_api_token || Date.now() >= LEGACY_DEVICE_CLAIM_SUNSET_MS) {
+    if (
+      args.previous_api_token ||
+      Date.now() >= LEGACY_DEVICE_CLAIM_SUNSET_MS
+    ) {
       const previous = await deviceTokenCaller(ctx, args.previous_api_token);
       if (
         !previous ||
         previous.userId.toString() !== args.previous_user_id.toString() ||
         (previous.boundDeviceId && previous.boundDeviceId !== args.device_id)
       ) {
-        return { moved: 0, more: false, needs_proof: true, error: "no proof this machine was signed in as the previous account" };
+        return {
+          moved: 0,
+          more: false,
+          needs_proof: true,
+          error: "no proof this machine was signed in as the previous account",
+        };
       }
     } else {
-      console.warn(`[claimDeviceAccount] legacy claim without proof: caller=${caller.userId} previous=${args.previous_user_id} device=${args.device_id}`);
+      console.warn(
+        `[claimDeviceAccount] legacy claim without proof: caller=${caller.userId} previous=${args.previous_user_id} device=${args.device_id}`,
+      );
     }
     const userId = caller.userId;
     return performClaimDeviceAccount(ctx, userId, {
@@ -1186,9 +1472,20 @@ export const listDevices = query({
       .withIndex("by_user_device", (q: any) => q.eq("user_id", userId))
       .collect();
     const sharedTeams = (deviceId: string) =>
-      shares.filter((sh: any) => sh.device_id === deviceId).map((sh: any) => sh.team_id.toString()).sort();
-    const management = await deviceManagementFor(ctx, userId, rows.map((d: any) => d.device_id));
-    const peerLinksFrom = await peerLinkRowsByDevice(ctx, userId, rows.map((d: any) => d.device_id));
+      shares
+        .filter((sh: any) => sh.device_id === deviceId)
+        .map((sh: any) => sh.team_id.toString())
+        .sort();
+    const management = await deviceManagementFor(
+      ctx,
+      userId,
+      rows.map((d: any) => d.device_id),
+    );
+    const peerLinksFrom = await peerLinkRowsByDevice(
+      ctx,
+      userId,
+      rows.map((d: any) => d.device_id),
+    );
     return rows
       .map((d: any) => ({
         device_id: d.device_id,
@@ -1218,7 +1515,9 @@ export const listDevices = query({
         settings: d.settings ?? undefined,
         cli_version: d.cli_version ?? undefined,
         update_available: d.update_available ?? undefined,
-        update_required: d.cli_version ? isBelowMinimum(d.cli_version, minCliVersion) : false,
+        update_required: d.cli_version
+          ? isBelowMinimum(d.cli_version, minCliVersion)
+          : false,
         can_self_update: d.can_self_update ?? undefined,
         distribution: d.distribution ?? undefined,
         update_requested_at: d.update_requested_at ?? undefined,
@@ -1247,7 +1546,9 @@ export const listDevices = query({
               request_at: d.cloud_wake.request_at,
               status: d.cloud_wake.status,
               attempt: d.cloud_wake.attempt,
-              ...(d.cloud_wake.last_error ? { last_error: d.cloud_wake.last_error } : {}),
+              ...(d.cloud_wake.last_error
+                ? { last_error: d.cloud_wake.last_error }
+                : {}),
             }
           : undefined,
         cloud_autoscale: d.cloud_autoscale ?? undefined,
@@ -1259,7 +1560,9 @@ export const listDevices = query({
         // the guard for any future writer that sends raw milliseconds, since a
         // moving number here re-renders every viewer's roster.
         loop_freeze_1h_ms:
-          d.loop_freeze_1h_ms === undefined ? undefined : Math.round(d.loop_freeze_1h_ms / 5000) * 5000,
+          d.loop_freeze_1h_ms === undefined
+            ? undefined
+            : Math.round(d.loop_freeze_1h_ms / 5000) * 5000,
         loop_freeze_max_ms: d.loop_freeze_max_ms ?? undefined,
         // Stripped again for the same reason the hour value is rounded again.
         // The web builds a roster signature by joining fields with "|" and rows
@@ -1334,10 +1637,14 @@ export async function performRemoveDevices(
     // consent for that machine as it was, not for whatever returns under its id.
     await performSetDeviceShares(ctx, userId, deviceId, []);
     await ctx.db.delete(device._id);
-    await ctx.scheduler.runAfter(0, internal.capabilityState.deleteDeviceState, {
-      user_id: userId,
-      device_id: deviceId,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.capabilityState.deleteDeviceState,
+      {
+        user_id: userId,
+        device_id: deviceId,
+      },
+    );
     result.removed.push(deviceId);
   }
   return result;
@@ -1419,7 +1726,11 @@ export async function resolveReachableRunnerDevice(
   ctx: { db: any },
   userId: Id<"users">,
   conv: any,
-): Promise<{ device: any; runnerUserId: Id<"users">; via_bot: boolean } | null> {
+): Promise<{
+  device: any;
+  runnerUserId: Id<"users">;
+  via_bot: boolean;
+} | null> {
   const device = await runnerDeviceOf(ctx, conv);
   if (!device) return null;
   if (conv.user_id.toString() === userId.toString()) {
@@ -1434,7 +1745,10 @@ export async function resolveReachableRunnerDevice(
 }
 
 export const getConversationMachine = query({
-  args: { conversation_id: v.id("conversations"), api_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -1534,11 +1848,14 @@ export const listAgentBoxes = query({
       local_project_roots: string[];
       cli_version: string | undefined;
     }> = [];
-    for (const { device: d, runner, teamId, canEdit } of await listTeamMachines(ctx, userId)) {
+    for (const { device: d, runner, teamId, canEdit } of await listTeamMachines(
+      ctx,
+      userId,
+    )) {
       out.push({
         device_id: d.device_id,
         owner_user_id: runner._id,
-        bot_name: runner.is_bot ? runner.name ?? null : null,
+        bot_name: runner.is_bot ? (runner.name ?? null) : null,
         runner_name: runner.name ?? null,
         is_bot: !!runner.is_bot,
         team_id: teamId,
@@ -1583,8 +1900,14 @@ export const setDeviceSshHost = mutation({
     const ownerId = args.owner_user_id ?? userId;
     if (ownerId.toString() !== userId.toString()) {
       const owner = await ctx.db.get(ownerId);
-      if (!owner?.is_bot || !owner.team_id || !(await isTeamAdmin(ctx, userId, owner.team_id))) {
-        throw new Error("Only an admin of the bot's team can set an agent box's SSH host");
+      if (
+        !owner?.is_bot ||
+        !owner.team_id ||
+        !(await isTeamAdmin(ctx, userId, owner.team_id))
+      ) {
+        throw new Error(
+          "Only an admin of the bot's team can set an agent box's SSH host",
+        );
       }
     }
     const device = await ownDevice(ctx, ownerId, args.device_id);
@@ -1596,7 +1919,7 @@ export const setDeviceSshHost = mutation({
     // whereas a non-empty input that failed validation is a typo worth surfacing.
     if (cleaned === null && args.ssh_host.trim()) {
       throw new Error(
-        "Invalid SSH host. Use letters, digits, and . - _ @ : only — e.g. \"nose\" or \"m1@10.0.0.4\".",
+        'Invalid SSH host. Use letters, digits, and . - _ @ : only — e.g. "nose" or "m1@10.0.0.4".',
       );
     }
     await ctx.db.patch(device._id, { ssh_host: cleaned ?? undefined });
@@ -1610,7 +1933,12 @@ export const setDeviceSshHost = mutation({
  * Devices, where Team machines lists it. A re-share of a machine already open
  * to the team never reaches here, so a toggle cannot spam.
  */
-async function announceDeviceShare(ctx: any, userId: Id<"users">, device: any, teamId: Id<"teams">) {
+async function announceDeviceShare(
+  ctx: any,
+  userId: Id<"users">,
+  device: any,
+  teamId: Id<"teams">,
+) {
   const team = await ctx.db.get(teamId);
   const members = await ctx.db
     .query("team_memberships")
@@ -1660,7 +1988,9 @@ export async function performSetDeviceShares(
   }
   const existing = await ctx.db
     .query("device_shares")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .collect();
   const have = new Set<string>();
   for (const row of existing) {
@@ -1671,7 +2001,12 @@ export async function performSetDeviceShares(
   const now = Date.now();
   for (const teamId of wanted) {
     if (have.has(teamId)) continue;
-    await ctx.db.insert("device_shares", { user_id: userId, device_id: deviceId, team_id: teamId as Id<"teams">, shared_at: now });
+    await ctx.db.insert("device_shares", {
+      user_id: userId,
+      device_id: deviceId,
+      team_id: teamId as Id<"teams">,
+      shared_at: now,
+    });
     await announceDeviceShare(ctx, userId, device, teamId as Id<"teams">);
   }
   return { shared_team_ids: [...wanted].sort() };
@@ -1681,7 +2016,11 @@ export async function performSetDeviceShares(
  *  the CLI's `cast devices share`. The web writes the same fact through the
  *  store's setDeviceShares dispatch. */
 export const setDeviceShares = mutation({
-  args: { api_token: v.optional(v.string()), device_id: v.string(), team_ids: v.array(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    device_id: v.string(),
+    team_ids: v.array(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -1692,14 +2031,24 @@ export const setDeviceShares = mutation({
 /** The caller's own device row, or a thrown error: every device-targeted
  *  command below is for a machine the caller owns. */
 /** The user's own device row by device id, or null: the one ownership test every device-targeted write uses. */
-export async function ownDevice(ctx: { db: any }, userId: Id<"users">, deviceId: string) {
+export async function ownDevice(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceId: string,
+) {
   return await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .first();
 }
 
-async function requireOwnDevice(ctx: any, apiToken: string | undefined, deviceId: string) {
+async function requireOwnDevice(
+  ctx: any,
+  apiToken: string | undefined,
+  deviceId: string,
+) {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
   if (!userId) throw new Error("Authentication required");
   const device = await ownDevice(ctx, userId, deviceId);
@@ -1719,21 +2068,36 @@ async function requireOwnDevice(ctx: any, apiToken: string | undefined, deviceId
 export const requestDeviceUpdate = mutation({
   args: { api_token: v.optional(v.string()), device_id: v.string() },
   handler: async (ctx, args) => {
-    const { userId, device } = await requireOwnDevice(ctx, args.api_token, args.device_id);
+    const { userId, device } = await requireOwnDevice(
+      ctx,
+      args.api_token,
+      args.device_id,
+    );
     return applyDeviceUpdateRequest(ctx, userId, device);
   },
 });
 
 /** The store's requestDeviceUpdate side effect (convex/dispatch.ts). */
-export async function performRequestDeviceUpdate(ctx: any, userId: Id<"users">, deviceId: string) {
+export async function performRequestDeviceUpdate(
+  ctx: any,
+  userId: Id<"users">,
+  deviceId: string,
+) {
   const device = await ownDevice(ctx, userId, deviceId);
   if (!device) throw new Error("Unknown device");
   return applyDeviceUpdateRequest(ctx, userId, device);
 }
 
-async function applyDeviceUpdateRequest(ctx: any, userId: Id<"users">, device: any) {
+async function applyDeviceUpdateRequest(
+  ctx: any,
+  userId: Id<"users">,
+  device: any,
+) {
   const blocked = selfUpdateBlocked(device);
-  if (blocked) throw new Error(`Cannot update this machine from here: ${blocked.toLowerCase()}`);
+  if (blocked)
+    throw new Error(
+      `Cannot update this machine from here: ${blocked.toLowerCase()}`,
+    );
   const now = Date.now();
   await ctx.db.patch(device._id, {
     update_requested_version: device.update_available || undefined,
@@ -1758,23 +2122,39 @@ export const setDeviceSnippet = mutation({
     snippet: v.string(),
     enabled: v.boolean(),
     // Stable-only: the injection mode and whether it spans all projects.
-    mode: v.optional(v.union(v.literal("solo"), v.literal("team"), v.literal("off"))),
+    mode: v.optional(
+      v.union(v.literal("solo"), v.literal("team"), v.literal("off")),
+    ),
     global: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { userId, device } = await requireOwnDevice(ctx, args.api_token, args.device_id);
+    const { userId, device } = await requireOwnDevice(
+      ctx,
+      args.api_token,
+      args.device_id,
+    );
     return applyDeviceSnippet(ctx, userId, device, args);
   },
 });
 
 /** The store's setDeviceSnippet side effect (convex/dispatch.ts). */
-export async function performSetDeviceSnippet(ctx: any, userId: Id<"users">, deviceId: string, change: DeviceSnippetChange) {
+export async function performSetDeviceSnippet(
+  ctx: any,
+  userId: Id<"users">,
+  deviceId: string,
+  change: DeviceSnippetChange,
+) {
   const device = await ownDevice(ctx, userId, deviceId);
   if (!device) throw new Error("Unknown device");
   return applyDeviceSnippet(ctx, userId, device, change);
 }
 
-async function applyDeviceSnippet(ctx: any, userId: Id<"users">, device: any, change: DeviceSnippetChange) {
+async function applyDeviceSnippet(
+  ctx: any,
+  userId: Id<"users">,
+  device: any,
+  change: DeviceSnippetChange,
+) {
   // Machine settings ride the same command (the daemon handles them in
   // apply_snippet): codecast's hooks, automatic update, the session trailer.
   const mode = stableModeOf(change);
@@ -1783,7 +2163,12 @@ async function applyDeviceSnippet(ctx: any, userId: Id<"users">, device: any, ch
     command: "apply_snippet" as const,
     args: JSON.stringify(
       change.snippet === "stable"
-        ? { snippet: "stable", enabled: mode !== "off", mode, global: change.global === true }
+        ? {
+            snippet: "stable",
+            enabled: mode !== "off",
+            mode,
+            global: change.global === true,
+          }
         : { snippet: change.snippet, enabled: change.enabled },
     ),
     created_at: Date.now(),
@@ -1792,7 +2177,9 @@ async function applyDeviceSnippet(ctx: any, userId: Id<"users">, device: any, ch
 
   // Optimistic mirror: keep the daemon as source of truth, but show the change
   // immediately rather than waiting a heartbeat cycle.
-  await ctx.db.patch(device._id, { settings: settingsAfterSnippet(device.settings, change) });
+  await ctx.db.patch(device._id, {
+    settings: settingsAfterSnippet(device.settings, change),
+  });
 
   return { command_id: commandId };
 }
@@ -1813,18 +2200,24 @@ export const enqueueProviderKeyCommand = mutation({
     op: v.union(v.literal("set"), v.literal("remove")),
     provider: v.string(),
     // Present for "set" — the encrypted payload from Web Crypto.
-    payload: v.optional(v.object({
-      provider: v.string(),
-      epk: v.string(),
-      iv: v.string(),
-      ct: v.string(),
-    })),
+    payload: v.optional(
+      v.object({
+        provider: v.string(),
+        epk: v.string(),
+        iv: v.string(),
+        ct: v.string(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    if (args.op === "set" && !args.payload) throw new Error("set requires an encrypted payload");
-    const change: ProviderKeyCommand = args.op === "set" ? { op: "set", payload: args.payload! } : { op: "remove", provider: args.provider };
+    if (args.op === "set" && !args.payload)
+      throw new Error("set requires an encrypted payload");
+    const change: ProviderKeyCommand =
+      args.op === "set"
+        ? { op: "set", payload: args.payload! }
+        : { op: "remove", provider: args.provider };
     return performSetProviderKey(ctx, userId, args.device_id, change);
   },
 });
@@ -1832,7 +2225,12 @@ export const enqueueProviderKeyCommand = mutation({
 /** A provider key set or removed on one device: the set_provider_key command,
  *  and the device row's id list mirrored at once (never the key), reconciled
  *  by the heartbeat. The store's setProviderKey side effect runs it too. */
-export async function performSetProviderKey(ctx: any, userId: Id<"users">, deviceId: string, change: ProviderKeyCommand) {
+export async function performSetProviderKey(
+  ctx: any,
+  userId: Id<"users">,
+  deviceId: string,
+  change: ProviderKeyCommand,
+) {
   const device = await ownDevice(ctx, userId, deviceId);
   if (!device) throw new Error("Unknown device");
   const commandId = await ctx.db.insert("daemon_commands", {
@@ -1842,7 +2240,9 @@ export async function performSetProviderKey(ctx: any, userId: Id<"users">, devic
     created_at: Date.now(),
     target_device_id: deviceId,
   });
-  await ctx.db.patch(device._id, { managed_provider_ids: managedIdsAfter(device.managed_provider_ids, change) });
+  await ctx.db.patch(device._id, {
+    managed_provider_ids: managedIdsAfter(device.managed_provider_ids, change),
+  });
   return { command_id: commandId };
 }
 
@@ -1863,11 +2263,19 @@ export const enqueueCloudAgentLoginCommand = mutation({
     device_code: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { userId } = await requireOwnDevice(ctx, args.api_token, args.device_id);
+    const { userId } = await requireOwnDevice(
+      ctx,
+      args.api_token,
+      args.device_id,
+    );
     const commandId = await ctx.db.insert("daemon_commands", {
       user_id: userId,
       command: "cloud_agent_login" as const,
-      args: JSON.stringify({ provider: args.provider, op: args.op, ...(args.device_code ? { device_code: true } : {}) }),
+      args: JSON.stringify({
+        provider: args.provider,
+        op: args.op,
+        ...(args.device_code ? { device_code: true } : {}),
+      }),
       created_at: Date.now(),
       target_device_id: args.device_id,
     });
@@ -1888,16 +2296,28 @@ export const enqueueCloudAgentActionCommand = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Authentication required");
-    if (!isCloudAgentActionName(args.action)) throw new Error(`Unknown action: ${args.action}`);
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
+    if (!isCloudAgentActionName(args.action))
+      throw new Error(`Unknown action: ${args.action}`);
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
     const spec = cloudAgentProviderOfSession(conv.agent_type, conv.session_id);
-    if (!spec?.actions?.includes(args.action)) throw new Error("This session does not run on a cloud agent that offers that");
-    if (!conv.owner_device_id) throw new Error("No machine hosts this session yet");
+    if (!spec?.actions?.includes(args.action))
+      throw new Error(
+        "This session does not run on a cloud agent that offers that",
+      );
+    if (!conv.owner_device_id)
+      throw new Error("No machine hosts this session yet");
     const commandId = await ctx.db.insert("daemon_commands", {
       // The runner's queue, as every session command: its daemon hosts the agent.
       user_id: conv.user_id,
       command: "cloud_agent_action" as const,
-      args: JSON.stringify({ conversation_id: args.conversation_id, action: args.action }),
+      args: JSON.stringify({
+        conversation_id: args.conversation_id,
+        action: args.action,
+      }),
       created_at: Date.now(),
       target_device_id: conv.owner_device_id,
     });
@@ -1922,25 +2342,41 @@ export const enqueueAgentToolSetupCommand = mutation({
     op: v.union(v.literal("check"), v.literal("start")),
   },
   handler: async (ctx, args) => {
-    if (!args.conversation_id === !args.device_id) throw new Error("Name a conversation or a device, not both");
+    if (!args.conversation_id === !args.device_id)
+      throw new Error("Name a conversation or a device, not both");
     let queueOwner: Id<"users">;
     let target: string;
     if (args.conversation_id) {
       const userId = await getAuthenticatedUserId(ctx, args.api_token);
       if (!userId) throw new Error("Authentication required");
-      const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
-      if (!conv.owner_device_id) throw new Error("No machine hosts this session yet");
+      const conv = await requireSessionCommandTarget(
+        ctx,
+        userId,
+        args.conversation_id,
+      );
+      if (!conv.owner_device_id)
+        throw new Error("No machine hosts this session yet");
       queueOwner = conv.user_id;
       target = conv.owner_device_id;
     } else {
-      const { userId } = await requireOwnDevice(ctx, args.api_token, args.device_id!);
+      const { userId } = await requireOwnDevice(
+        ctx,
+        args.api_token,
+        args.device_id!,
+      );
       queueOwner = userId;
       target = args.device_id!;
     }
     const commandId = await ctx.db.insert("daemon_commands", {
       user_id: queueOwner,
       command: "agent_tool_setup" as const,
-      args: JSON.stringify({ ...(args.conversation_id ? { conversation_id: args.conversation_id } : {}), tool: args.tool, op: args.op }),
+      args: JSON.stringify({
+        ...(args.conversation_id
+          ? { conversation_id: args.conversation_id }
+          : {}),
+        tool: args.tool,
+        op: args.op,
+      }),
       created_at: Date.now(),
       target_device_id: target,
     });
@@ -1949,7 +2385,12 @@ export const enqueueAgentToolSetupCommand = mutation({
 });
 
 /** Commands whose page watches the daemon's verdict: a provider key set, a cloud agent sign-in or action, an agent tool's setup. */
-const WATCHED_COMMANDS: ReadonlySet<string> = new Set(["set_provider_key", "cloud_agent_login", "cloud_agent_action", "agent_tool_setup"]);
+const WATCHED_COMMANDS: ReadonlySet<string> = new Set([
+  "set_provider_key",
+  "cloud_agent_login",
+  "cloud_agent_action",
+  "agent_tool_setup",
+]);
 
 /**
  * How a watched command went, for the page that sent it: still waiting, or
@@ -1960,21 +2401,55 @@ const WATCHED_COMMANDS: ReadonlySet<string> = new Set(["set_provider_key", "clou
  * send it (canReadSessionCommand).
  */
 export const watchedCommandOutcome = query({
-  args: { api_token: v.optional(v.string()), command_id: v.id("daemon_commands") },
+  args: {
+    api_token: v.optional(v.string()),
+    command_id: v.id("daemon_commands"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
     const row = await ctx.db.get(args.command_id);
-    if (!row || !WATCHED_COMMANDS.has(row.command) || !(await canReadSessionCommand(ctx, userId, row))) return null;
+    if (
+      !row ||
+      !WATCHED_COMMANDS.has(row.command) ||
+      !(await canReadSessionCommand(ctx, userId, row))
+    )
+      return null;
     if (!row.executed_at) return { state: "pending" as const };
     if (row.error) return { state: "failed" as const, error: row.error };
     let result: Record<string, unknown> = {};
-    try { result = JSON.parse(row.result ?? "{}") ?? {}; } catch {}
-    const text = (k: string) => (typeof result[k] === "string" && result[k] ? { [k]: result[k] as string } : {});
-    const login = row.command === "cloud_agent_login" && isCloudAgentLoginState(result.state) ? { login: result.state } : {};
-    const setup = row.command === "agent_tool_setup" && isAgentSetupTool(result.tool) ? { setup: result as unknown as AgentToolSetupStatus } : {};
-    return { state: "done" as const, ...text("account"), ...text("plan"), ...text("detail"), ...text("url"), ...login, ...setup } as {
-      state: "done"; account?: string; plan?: string; detail?: string; url?: string; login?: CloudAgentLoginStateName; setup?: AgentToolSetupStatus;
+    try {
+      result = JSON.parse(row.result ?? "{}") ?? {};
+    } catch {}
+    const text = (k: string) =>
+      typeof result[k] === "string" && result[k]
+        ? { [k]: result[k] as string }
+        : {};
+    const login =
+      row.command === "cloud_agent_login" &&
+      isCloudAgentLoginState(result.state)
+        ? { login: result.state }
+        : {};
+    const setup =
+      row.command === "agent_tool_setup" && isAgentSetupTool(result.tool)
+        ? { setup: result as unknown as AgentToolSetupStatus }
+        : {};
+    return {
+      state: "done" as const,
+      ...text("account"),
+      ...text("plan"),
+      ...text("detail"),
+      ...text("url"),
+      ...login,
+      ...setup,
+    } as {
+      state: "done";
+      account?: string;
+      plan?: string;
+      detail?: string;
+      url?: string;
+      login?: CloudAgentLoginStateName;
+      setup?: AgentToolSetupStatus;
     };
   },
 });
@@ -2035,7 +2510,8 @@ export const claimConversationForStart = mutation({
     const convId = ctx.db.normalizeId("conversations", args.conversation_id);
     if (!convId) return { won: true as const }; // unknown id — don't block the spawn
     const conv = await ctx.db.get(convId);
-    if (!conv || conv.user_id.toString() !== userId.toString()) return { won: false as const };
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      return { won: false as const };
     const owner = (conv as any).owner_device_id as string | undefined;
     if (owner && owner !== args.device_id) {
       const ownerDevice = await ctx.db
@@ -2048,7 +2524,9 @@ export const claimConversationForStart = mutation({
       // daemon that resolved a checkout is the rightful owner over a remote that
       // can't serve the session (mirrors registerManagedSession's reclaim rule).
       const ownerOnline =
-        ownerDevice && !ownerDevice.is_remote && Date.now() - ownerDevice.last_seen < DEVICE_ONLINE_MS;
+        ownerDevice &&
+        !ownerDevice.is_remote &&
+        Date.now() - ownerDevice.last_seen < DEVICE_ONLINE_MS;
       if (ownerOnline) return { won: false as const, owner }; // another live daemon owns it
       // Owner offline, or owner is a remote box → reclaim.
     }
@@ -2065,7 +2543,8 @@ export const claimConversationForStart = mutation({
           q.eq("user_id", userId).eq("device_id", args.device_id),
         )
         .first();
-      if (me?.is_remote || (me && isReservedDevice(me))) return { won: false as const, owner };
+      if (me?.is_remote || (me && isReservedDevice(me)))
+        return { won: false as const, owner };
     }
     await ctx.db.patch(convId, { owner_device_id: args.device_id });
     return { won: true as const };
@@ -2087,7 +2566,8 @@ export const setConversationOwner = mutation({
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv) throw new Error("conversation not found");
-    if (conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+    if (conv.user_id.toString() !== userId.toString())
+      throw new Error("not your conversation");
     const device = args.owner_device_id
       ? await ownDevice(ctx, userId, args.owner_device_id)
       : null;
@@ -2186,13 +2666,19 @@ export const fleetAdoption = internalQuery({
   handler: async (ctx, args) => {
     const since = Date.now() - (args.window_ms ?? 30 * 60_000);
     const macs = (await ctx.db.query("devices").collect()).filter(
-      (d) => d.platform === "darwin" && (d.last_seen ?? 0) >= since && d.cli_version,
+      (d) =>
+        d.platform === "darwin" && (d.last_seen ?? 0) >= since && d.cli_version,
     );
-    const behind = macs.filter((d) => isBelowMinimum(d.cli_version!, args.version));
+    const behind = macs.filter((d) =>
+      isBelowMinimum(d.cli_version!, args.version),
+    );
     return {
       total: macs.length,
       current: macs.length - behind.length,
-      behind: behind.map((d) => ({ hostname: d.hostname ?? null, cli_version: d.cli_version ?? null })),
+      behind: behind.map((d) => ({
+        hostname: d.hostname ?? null,
+        cli_version: d.cli_version ?? null,
+      })),
     };
   },
 });

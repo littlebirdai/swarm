@@ -23,7 +23,17 @@
  * Kept pure, and out of the component, so the ladder is testable.
  */
 
-import { cloudHostBootable, deviceServesPath, deviceWakesOnUse, isReservedDevice, machineGoneQuiet, machineOutOfService, platformCanOpenPath, THIS_DEVICE, type CloudHostReport } from "@codecast/shared/contracts";
+import {
+  cloudHostBootable,
+  deviceServesPath,
+  deviceWakesOnUse,
+  isReservedDevice,
+  machineGoneQuiet,
+  machineOutOfService,
+  platformCanOpenPath,
+  THIS_DEVICE,
+  type CloudHostReport,
+} from "@codecast/shared/contracts";
 
 export type MachineCandidate = {
   device_id: string;
@@ -51,8 +61,14 @@ export const wakesOnUse = deviceWakesOnUse;
  * A dead VM or a cloud host whose instance is gone stays out of the row;
  * Settings → Devices is where it is seen and removed.
  */
-export function listedMachines<T extends MachineCandidate>(machines: T[], keepId?: string | null, now = Date.now()): T[] {
-  return machines.filter((d) => d.device_id === keepId || !machineOutOfService(d, machines, now));
+export function listedMachines<T extends MachineCandidate>(
+  machines: T[],
+  keepId?: string | null,
+  now = Date.now(),
+): T[] {
+  return machines.filter(
+    (d) => d.device_id === keepId || !machineOutOfService(d, machines, now),
+  );
 }
 
 /**
@@ -60,7 +76,8 @@ export function listedMachines<T extends MachineCandidate>(machines: T[], keepId
  * candidate set always yields the same answer — the property `last_seen` lacked.
  */
 const stable = (list: MachineCandidate[]): string | null =>
-  [...list].sort((a, b) => a.device_id.localeCompare(b.device_id))[0]?.device_id ?? null;
+  [...list].sort((a, b) => a.device_id.localeCompare(b.device_id))[0]
+    ?.device_id ?? null;
 
 /**
  * The server's platformCanOpenPath (shared contract) — false only where the
@@ -72,7 +89,10 @@ const canOpen = (d: MachineCandidate, p?: string | null): boolean =>
   !p || deviceSeesPath(d, p) || platformCanOpenPath(d.platform, p);
 
 /** Openable candidates if any, else the whole pool — never return nothing. */
-const preferOpenable = (list: MachineCandidate[], p?: string | null): MachineCandidate[] => {
+const preferOpenable = (
+  list: MachineCandidate[],
+  p?: string | null,
+): MachineCandidate[] => {
   const openable = list.filter((d) => canOpen(d, p));
   return openable.length > 0 ? openable : list;
 };
@@ -109,8 +129,16 @@ export function resolveMachineSelection(
     lastPicked?: string | null;
     existingStamp?: string | null;
   } = {},
-): { selectedDeviceId: string | null; stampDeviceId: string | null; scopeProjectsToDeviceId: string | null } {
-  const selectedDeviceId = opts.picked ?? defaultMachineId(devices, opts) ?? opts.existingStamp ?? null;
+): {
+  selectedDeviceId: string | null;
+  stampDeviceId: string | null;
+  scopeProjectsToDeviceId: string | null;
+} {
+  const selectedDeviceId =
+    opts.picked ??
+    defaultMachineId(devices, opts) ??
+    opts.existingStamp ??
+    null;
   return {
     selectedDeviceId,
     stampDeviceId: selectedDeviceId,
@@ -128,7 +156,9 @@ export const deviceSeesPath = (
   d: Pick<MachineCandidate, "local_project_roots">,
   path: string,
 ): boolean =>
-  !!d.local_project_roots?.some((r) => path === r || path.startsWith(r.endsWith("/") ? r : r + "/"));
+  !!d.local_project_roots?.some(
+    (r) => path === r || path.startsWith(r.endsWith("/") ? r : r + "/"),
+  );
 
 /**
  * Can ANY of the user's machines open this path? The gate that keeps a
@@ -142,7 +172,11 @@ export function pathOnMyMachines(
   path: string | null | undefined,
 ): boolean {
   if (!path) return false;
-  if (devices.length === 0 || devices.every((d) => !d.local_project_roots?.length)) return true;
+  if (
+    devices.length === 0 ||
+    devices.every((d) => !d.local_project_roots?.length)
+  )
+    return true;
   return devices.some((d) => deviceSeesPath(d, path));
 }
 
@@ -179,7 +213,11 @@ export function dedupeProjectsByRepoName<T extends { path: string }>(
   const byName = new Map<string, T>();
   const order: string[] = [];
   const rank = (p: T): number =>
-    p.path === currentPath ? 2 : routedDevice && deviceSeesPath(routedDevice, p.path) ? 1 : 0;
+    p.path === currentPath
+      ? 2
+      : routedDevice && deviceSeesPath(routedDevice, p.path)
+        ? 1
+        : 0;
   for (const p of projects) {
     const name = repoName(p.path);
     const prev = byName.get(name);
@@ -190,7 +228,9 @@ export function dedupeProjectsByRepoName<T extends { path: string }>(
       byName.set(name, p);
     }
   }
-  return order.length === projects.length ? projects : order.map((n) => byName.get(n)!);
+  return order.length === projects.length
+    ? projects
+    : order.map((n) => byName.get(n)!);
 }
 
 export type MachineIntentOpts = {
@@ -229,27 +269,42 @@ export type MachineIntentOpts = {
  * cannot serve (offline, removed, unable to open the folder) falls through to
  * the next rung rather than highlight a chip that can't run anything.
  */
-export function intendedMachineId(devices: MachineCandidate[], opts: MachineIntentOpts): string | null {
+export function intendedMachineId(
+  devices: MachineCandidate[],
+  opts: MachineIntentOpts,
+): string | null {
   // A machine reserved for one job is chosen by hand each time, never by default.
   devices = devices.filter((d) => !isReservedDevice(d));
   // A saved default waits for a sleeping cloud host to boot. A last pick of one
   // waits only where there is no machine here (phone, plain web): at a laptop,
   // a host asleep for days must not pull new sessions off it.
-  const usable = (id: string | null | undefined, wake: boolean): string | null => {
+  const usable = (
+    id: string | null | undefined,
+    wake: boolean,
+  ): string | null => {
     const d = id ? devices.find((x) => x.device_id === id) : undefined;
     if (!d) return null;
     const waking = wake && !!opts.wakeOk?.(d);
     if (!(d.online || waking)) return null;
     return canOpen(d, opts.projectPath) || waking ? d.device_id : null;
   };
-  const here = opts.localDeviceId ? devices.find((d) => d.device_id === opts.localDeviceId)?.device_id ?? null : null;
-  const fromDefault = opts.defaultDevice === THIS_DEVICE ? here : usable(opts.defaultDevice, true);
+  const here = opts.localDeviceId
+    ? (devices.find((d) => d.device_id === opts.localDeviceId)?.device_id ??
+      null)
+    : null;
+  const fromDefault =
+    opts.defaultDevice === THIS_DEVICE
+      ? here
+      : usable(opts.defaultDevice, true);
   return fromDefault ?? usable(opts.lastPicked, !here) ?? here;
 }
 
 export function defaultMachineId(
   devices: MachineCandidate[],
-  opts: MachineIntentOpts & { ownerDeviceId?: string | null; now?: number } = {},
+  opts: MachineIntentOpts & {
+    ownerDeviceId?: string | null;
+    now?: number;
+  } = {},
 ): string | null {
   const { ownerDeviceId, projectPath } = opts;
   const now = opts.now ?? Date.now();
@@ -260,7 +315,9 @@ export function defaultMachineId(
   //    your standing choice on purpose: the pick is now stamped, so defaulting an
   //    already-owned session to a different machine would silently move it just by
   //    opening it. A standing preference is about where NEW work starts.
-  const owner = ownerDeviceId ? devices.find((d) => d.device_id === ownerDeviceId) : undefined;
+  const owner = ownerDeviceId
+    ? devices.find((d) => d.device_id === ownerDeviceId)
+    : undefined;
   if (owner && canServe(owner)) return owner.device_id;
 
   // Past the owner, a machine reserved for one job is never the default: it
@@ -271,37 +328,51 @@ export function defaultMachineId(
   const intended = intendedMachineId(devices, opts);
   if (intended) return intended;
 
-  const hasCheckout = (d: MachineCandidate) => !!projectPath && deviceSeesPath(d, projectPath);
+  const hasCheckout = (d: MachineCandidate) =>
+    !!projectPath && deviceSeesPath(d, projectPath);
   // Narrow to the machines that can open the path, but only on the word of
   // one that holds it or is still in service: a long-dead VM must not narrow
   // the pool down to itself.
   const openable = devices.filter((d) => canOpen(d, projectPath));
-  if (openable.some((d) => hasCheckout(d) || !machineGoneQuiet(d, now))) devices = openable;
+  if (openable.some((d) => hasCheckout(d) || !machineGoneQuiet(d, now)))
+    devices = openable;
 
   const onlineLocals = devices.filter((d) => !d.is_remote && d.online);
   if (onlineLocals.length > 0) {
     // 3/4. The machine that has the folder, else any online local that could
     //      plausibly open it.
     const withCheckout = onlineLocals.filter(hasCheckout);
-    return stable(withCheckout.length > 0 ? withCheckout : preferOpenable(onlineLocals, projectPath));
+    return stable(
+      withCheckout.length > 0
+        ? withCheckout
+        : preferOpenable(onlineLocals, projectPath),
+    );
   }
 
   // 5. No local is online. An online remote holding the checkout serves it now…
-  const remoteWithCheckout = devices.filter((d) => d.is_remote && d.online && hasCheckout(d));
+  const remoteWithCheckout = devices.filter(
+    (d) => d.is_remote && d.online && hasCheckout(d),
+  );
   if (remoteWithCheckout.length > 0) return stable(remoteWithCheckout);
 
   // …a sleeping cloud host holding it boots for the work…
-  const hostWithCheckout = devices.filter((d) => hasCheckout(d) && cloudHostBootable(d, roster));
+  const hostWithCheckout = devices.filter(
+    (d) => hasCheckout(d) && cloudHostBootable(d, roster),
+  );
   if (hostWithCheckout.length > 0) return stable(hostWithCheckout);
 
   // …otherwise the work queues for a local machine to pick up when it wakes:
   // one that has the files, else one still in service, else any.
   const locals = devices.filter((d) => !d.is_remote);
-  const holders = projectPath ? locals.filter((d) => deviceServesPath(d, [projectPath])) : [];
+  const holders = projectPath
+    ? locals.filter((d) => deviceServesPath(d, [projectPath]))
+    : [];
   const live = locals.filter((d) => !machineGoneQuiet(d, now));
   for (const pool of [holders, live, locals]) {
     if (pool.length === 0) continue;
-    return owner && pool.some((d) => d.device_id === owner.device_id) ? owner.device_id : stable(preferOpenable(pool, projectPath));
+    return owner && pool.some((d) => d.device_id === owner.device_id)
+      ? owner.device_id
+      : stable(preferOpenable(pool, projectPath));
   }
 
   // Cloud-only user: an online remote is the only machine that can serve.

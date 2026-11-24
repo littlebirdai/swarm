@@ -34,7 +34,10 @@ export type HuddleDigestInput = {
   video?: readonly HuddleVideoStretch[] | null;
 };
 
-export function huddleMinutes(startedAt: number, endedAt: number | null | undefined): number {
+export function huddleMinutes(
+  startedAt: number,
+  endedAt: number | null | undefined,
+): number {
   if (!endedAt) return 0;
   return Math.max(1, Math.round((endedAt - startedAt) / 60_000));
 }
@@ -44,7 +47,9 @@ export function huddleDigestTitle(title: string | null | undefined): string {
 }
 
 // "12 min huddle with Alice and Bob" — the one line under the title.
-export function huddleDigestLead(d: Pick<HuddleDigestInput, "startedAt" | "endedAt" | "speakers">): string {
+export function huddleDigestLead(
+  d: Pick<HuddleDigestInput, "startedAt" | "endedAt" | "speakers">,
+): string {
   const minutes = huddleMinutes(d.startedAt, d.endedAt);
   const length = minutes ? `${minutes} min huddle` : "Huddle";
   const names = d.speakers.filter(Boolean);
@@ -56,7 +61,9 @@ export function huddleDigestLead(d: Pick<HuddleDigestInput, "startedAt" | "ended
   return `${length} with ${who}`;
 }
 
-export function huddleSummaryFallback(status: HuddleDigestInput["summaryStatus"]): string {
+export function huddleSummaryFallback(
+  status: HuddleDigestInput["summaryStatus"],
+): string {
   return status === "skipped"
     ? "Too short to summarize."
     : status === "failed"
@@ -81,7 +88,11 @@ export function formatHuddleDigest(d: HuddleDigestInput): string {
   const parts = [`**${huddleDigestTitle(d.title)}**`, huddleDigestLead(d)];
   const video = d.video?.length ? d.video : null;
   const summary = (d.summary ?? "").trim();
-  const body = summary || (video && d.summaryStatus === "skipped" ? "" : huddleSummaryFallback(d.summaryStatus));
+  const body =
+    summary ||
+    (video && d.summaryStatus === "skipped"
+      ? ""
+      : huddleSummaryFallback(d.summaryStatus));
   const out = [`${parts[0]} · ${parts[1]}`];
   if (video) out.push("", huddleVideoLine(video));
   if (body) out.push("", body);
@@ -104,7 +115,10 @@ export type HuddleDigestHead = {
 
 /** The video line at the head of a digest body, split off: the stretches and
  *  the body without it. A body with no such line is returned whole. */
-function splitVideoLine(body: string): { body: string; video: HuddleVideoStretch[] | null } {
+function splitVideoLine(body: string): {
+  body: string;
+  video: HuddleVideoStretch[] | null;
+} {
   const nl = body.indexOf("\n");
   const first = (nl === -1 ? body : body.slice(0, nl)).trim();
   const m = VIDEO_LINE.exec(first);
@@ -118,7 +132,9 @@ function splitVideoLine(body: string): { body: string; video: HuddleVideoStretch
  *  — a system row about the call — instead of as bold prose inside a person's
  *  message. Returns null when the content is not a digest this formatter wrote,
  *  so callers can fall back to rendering the markdown whole. */
-export function parseHuddleDigestContent(content: string): HuddleDigestHead | null {
+export function parseHuddleDigestContent(
+  content: string,
+): HuddleDigestHead | null {
   const nl = content.indexOf("\n");
   const first = (nl === -1 ? content : content.slice(0, nl)).trim();
   const m = /^\*\*(.+)\*\*\s*·\s*(.+)$/.exec(first);
@@ -186,7 +202,9 @@ export function formatHuddleSummaryTag(
     `A task you file from this huddle takes \`--from-call ${ref}\`, which links it to the call so it shows on the call's page.`,
     `Read the whole transcript with \`${huddleTranscriptCommand(transcriptId)}\` (\`cast call ${transcriptId}\` for the summary and action items alone).`,
     ...(video
-      ? [`It was recorded on video: \`cast call snap ${ref}:<line>\` shows the frame at a line said while it was filmed (\`${ref}@m:ss\` at a time).`]
+      ? [
+          `It was recorded on video: \`cast call snap ${ref}:<line>\` shows the frame at a line said while it was filmed (\`${ref}@m:ss\` at a time).`,
+        ]
       : []),
     "</huddle-summary>",
   ].join("\n");
@@ -201,7 +219,9 @@ export function isHuddleSummaryTag(text: string | null | undefined): boolean {
 // Reads the tag back into what a card renders. Tolerates a missing closing tag
 // (previews are sliced mid-message) and returns the digest markdown alone — the
 // sentence framing the agent's instructions is not something anybody said.
-export function parseHuddleSummaryTag(text: string | null | undefined): HuddleSummaryTag | null {
+export function parseHuddleSummaryTag(
+  text: string | null | undefined,
+): HuddleSummaryTag | null {
   if (!text) return null;
   const trimmed = text.trimStart();
   const open = trimmed.match(TAG_OPEN);
@@ -209,10 +229,15 @@ export function parseHuddleSummaryTag(text: string | null | undefined): HuddleSu
   const attrs: Record<string, string> = {};
   for (const m of open[1].matchAll(/([a-z]+)="([^"]*)"/g)) attrs[m[1]] = m[2];
   if (!attrs.transcript) return null;
-  let inner = trimmed.slice(open[0].length).replace(/<\/huddle-summary>[\s\S]*$/, "");
+  let inner = trimmed
+    .slice(open[0].length)
+    .replace(/<\/huddle-summary>[\s\S]*$/, "");
   // Drop the lead sentence and the trailing command line; keep the digest.
   inner = inner
-    .replace(/^(?:A huddle just ended|The huddle in this session's room just ended)[^\n]*\n\n?/, "")
+    .replace(
+      /^(?:A huddle just ended|The huddle in this session's room just ended)[^\n]*\n\n?/,
+      "",
+    )
     .replace(/\n*It was recorded on video: [^\n]*\s*$/, "")
     .replace(/\n*Read the whole transcript with[^\n]*\s*$/, "")
     .replace(/\n*A task you file from this huddle[^\n]*\s*$/, "")

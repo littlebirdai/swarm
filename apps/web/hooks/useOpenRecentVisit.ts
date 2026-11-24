@@ -25,7 +25,11 @@ export function useOpenRecentVisit(
       if (item.bucketId || item.projectName) {
         const store = useInboxStore.getState();
         if (item.bucketId) store.setActiveBucketFilter(item.bucketId);
-        else store.setActiveProjectFilter(item.projectName!, item.projectPath ?? null);
+        else
+          store.setActiveProjectFilter(
+            item.projectName!,
+            item.projectPath ?? null,
+          );
         if (!selectSessionRailOpen(store)) store.toggleSidePanel();
         // Views live in the session panel, which non-tab surfaces (Settings,
         // auth) don't render — head home to the inbox from those. The real

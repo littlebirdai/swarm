@@ -17,7 +17,12 @@ import { spawnSync } from "node:child_process";
 import { copyGitignoredFiles, type RemoteHost } from "./session-move.js";
 
 // TEST-NET-3, and nothing in this file runs ssh or rsync anyway.
-const HOST: RemoteHost = { user: "cast", address: "198.51.100.7", keyPath: "/dev/null", remoteBaseDir: "/home/cast" } as RemoteHost;
+const HOST: RemoteHost = {
+  user: "cast",
+  address: "198.51.100.7",
+  keyPath: "/dev/null",
+  remoteBaseDir: "/home/cast",
+} as RemoteHost;
 const REMOTE = "/home/cast/work/repo";
 
 let dir = "";
@@ -43,7 +48,9 @@ function copy(): string[] {
 
 /** Everything the transfer would have touched: rsync sources and destinations. */
 function transferred(): string[] {
-  return scheduled.map((args) => `${args[args.length - 2]} -> ${args[args.length - 1]}`);
+  return scheduled.map(
+    (args) => `${args[args.length - 2]} -> ${args[args.length - 1]}`,
+  );
 }
 
 beforeEach(() => {
@@ -76,23 +83,39 @@ describe("legitimate setup files still transfer", () => {
     write(repo, ".env", "SECRET\n");
     write(repo, ".env.local", "LOCAL\n");
     expect(copy().sort()).toEqual([".env", ".env.local"]);
-    expect(transferred()).toContain(`${path.join(repo, ".env")} -> cast@198.51.100.7:${REMOTE}/`);
+    expect(transferred()).toContain(
+      `${path.join(repo, ".env")} -> cast@198.51.100.7:${REMOTE}/`,
+    );
   });
 
   test("nested files and whole directories the manifest declares copy", () => {
-    write(repo, ".codecast/workspace.toml", '[setup]\ncopy = ["config/local.json", "secrets"]\ninstall = ["true"]\n');
+    write(
+      repo,
+      ".codecast/workspace.toml",
+      '[setup]\ncopy = ["config/local.json", "secrets"]\ninstall = ["true"]\n',
+    );
     write(repo, "config/local.json", "{}\n");
     write(repo, "secrets/key", "k\n");
     write(repo, "secrets/deeper/other", "o\n");
     write(repo, "not-listed", "stays\n");
-    expect(copy().sort()).toEqual(["config/local.json", "secrets/deeper/other", "secrets/key"]);
+    expect(copy().sort()).toEqual([
+      "config/local.json",
+      "secrets/deeper/other",
+      "secrets/key",
+    ]);
     expect(transferred().join("\n")).not.toContain("not-listed");
     // Each lands under its own parent inside the remote worktree.
-    expect(transferred()).toContain(`${path.join(repo, "secrets/deeper/other")} -> cast@198.51.100.7:${REMOTE}/secrets/deeper/`);
+    expect(transferred()).toContain(
+      `${path.join(repo, "secrets/deeper/other")} -> cast@198.51.100.7:${REMOTE}/secrets/deeper/`,
+    );
   });
 
   test("a declared file that does not exist here is skipped, not an error", () => {
-    write(repo, ".codecast/workspace.toml", '[setup]\ncopy = [".env.production"]\n');
+    write(
+      repo,
+      ".codecast/workspace.toml",
+      '[setup]\ncopy = [".env.production"]\n',
+    );
     expect(copy()).toEqual([]);
     expect(warnings).toEqual([]);
   });
@@ -109,28 +132,45 @@ describe("a repository cannot widen the transfer", () => {
     "./.env",
   ])("refuses %s and schedules nothing", (rel) => {
     write(dir, "outside", "NOT YOURS\n");
-    write(repo, ".codecast/workspace.toml", `[setup]\ncopy = [${JSON.stringify(rel)}]\n`);
+    write(
+      repo,
+      ".codecast/workspace.toml",
+      `[setup]\ncopy = [${JSON.stringify(rel)}]\n`,
+    );
     expect(copy()).toEqual([]);
     expect(scheduled).toEqual([]);
     expect(warnings.join("\n")).toContain("unsafe workspace copy path");
   });
 
-  test.each(["file", "parent", "nested"])("refuses a %s symlink escape before any transfer", (kind) => {
-    write(dir, "outside/key", "NOT YOURS\n");
-    write(repo, ".codecast/workspace.toml", '[setup]\ncopy = ["secrets"]\n');
-    if (kind === "nested") {
-      fs.mkdirSync(path.join(repo, "secrets"));
-      fs.symlinkSync(path.join(dir, "outside/key"), path.join(repo, "secrets/key"));
-    } else {
-      fs.symlinkSync(path.join(dir, kind === "file" ? "outside/key" : "outside"), path.join(repo, "secrets"));
-    }
-    expect(copy()).toEqual([]);
-    expect(scheduled).toEqual([]);
-    expect(warnings.join("\n")).toContain("refuses symlink");
-  });
+  test.each(["file", "parent", "nested"])(
+    "refuses a %s symlink escape before any transfer",
+    (kind) => {
+      write(dir, "outside/key", "NOT YOURS\n");
+      write(repo, ".codecast/workspace.toml", '[setup]\ncopy = ["secrets"]\n');
+      if (kind === "nested") {
+        fs.mkdirSync(path.join(repo, "secrets"));
+        fs.symlinkSync(
+          path.join(dir, "outside/key"),
+          path.join(repo, "secrets/key"),
+        );
+      } else {
+        fs.symlinkSync(
+          path.join(dir, kind === "file" ? "outside/key" : "outside"),
+          path.join(repo, "secrets"),
+        );
+      }
+      expect(copy()).toEqual([]);
+      expect(scheduled).toEqual([]);
+      expect(warnings.join("\n")).toContain("refuses symlink");
+    },
+  );
 
   test("an invalid manifest fails instead of falling back to the .env list", () => {
-    write(repo, ".codecast/workspace.toml", '[setup]\ncopy = ["SECRET_VALUE"\n');
+    write(
+      repo,
+      ".codecast/workspace.toml",
+      '[setup]\ncopy = ["SECRET_VALUE"\n',
+    );
     write(repo, ".env", "SECRET_VALUE\n");
     expect(copy()).toEqual([]);
     expect(scheduled).toEqual([]);
@@ -146,7 +186,9 @@ describe("a repository cannot widen the transfer", () => {
     copy();
     expect(remoteDirs.every((d) => d.startsWith(`${REMOTE}/`))).toBe(true);
     for (const args of scheduled) {
-      expect(args[args.length - 2]!.startsWith(`${fs.realpathSync(repo)}/`)).toBe(true);
+      expect(
+        args[args.length - 2]!.startsWith(`${fs.realpathSync(repo)}/`),
+      ).toBe(true);
       expect(args[args.length - 1]!).toContain(`:${REMOTE}/`);
       expect(args[args.length - 1]!).not.toContain("..");
     }

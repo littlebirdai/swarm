@@ -10,10 +10,21 @@
 
 import { describe, expect, test } from "bun:test";
 import * as crypto from "node:crypto";
-import { chromeEncryptionKey, cookieHostKeys, decryptCookieValue, OWN_LOGIN_REASON, provisionCredentials, provisionLocalLogins } from "./credentials.js";
+import {
+  chromeEncryptionKey,
+  cookieHostKeys,
+  decryptCookieValue,
+  OWN_LOGIN_REASON,
+  provisionCredentials,
+  provisionLocalLogins,
+} from "./credentials.js";
 
 /** Encrypt like Chrome does on macOS, to test the reverse. */
-function chromeEncrypt(plaintext: string, key: Buffer, withDomainHash = false): Buffer {
+function chromeEncrypt(
+  plaintext: string,
+  key: Buffer,
+  withDomainHash = false,
+): Buffer {
   const body = withDomainHash
     ? Buffer.concat([crypto.randomBytes(32), Buffer.from(plaintext, "utf-8")])
     : Buffer.from(plaintext, "utf-8");
@@ -24,13 +35,17 @@ function chromeEncrypt(plaintext: string, key: Buffer, withDomainHash = false): 
   return Buffer.concat([Buffer.from("v10"), c.update(padded), c.final()]);
 }
 
-const keyFrom = (secret: string) => crypto.pbkdf2Sync(secret, "saltysalt", 1003, 16, "sha1");
+const keyFrom = (secret: string) =>
+  crypto.pbkdf2Sync(secret, "saltysalt", 1003, 16, "sha1");
 
 describe("cookieHostKeys", () => {
   test("asks for the site's own cookies and its parent domain's", () => {
     // A cookie set on `.github.com` is sent to `github.com`, so both forms of
     // both names have to be requested or the session is missed.
-    expect(cookieHostKeys("github.com").sort()).toEqual([".github.com", "github.com"]);
+    expect(cookieHostKeys("github.com").sort()).toEqual([
+      ".github.com",
+      "github.com",
+    ]);
   });
 
   test("walks up through subdomains", () => {
@@ -52,7 +67,9 @@ describe("cookieHostKeys", () => {
   });
 
   test("is case-insensitive and tolerates a leading dot", () => {
-    expect(cookieHostKeys(".GitHub.com").sort()).toEqual(cookieHostKeys("github.com").sort());
+    expect(cookieHostKeys(".GitHub.com").sort()).toEqual(
+      cookieHostKeys("github.com").sort(),
+    );
   });
 
   test("leaves an IP address alone", () => {
@@ -84,7 +101,9 @@ describe("decryptCookieValue", () => {
     // rather than an error, so this must be caught by inspecting them —
     // injecting the garbage would look like a login that silently fails.
     const blob = chromeEncrypt("session-token-abc123", key);
-    expect(decryptCookieValue(blob, keyFrom("another-machines-secret"))).toBeNull();
+    expect(
+      decryptCookieValue(blob, keyFrom("another-machines-secret")),
+    ).toBeNull();
   });
 
   test("ignores a blob that is not v10", () => {
@@ -109,25 +128,51 @@ describe("the Chrome key lives in the macOS Keychain only", () => {
   // it never runs, not by an ENOENT that the catch would also swallow.
   test("chromeEncryptionKey returns null on a non-darwin platform without running `security`", () => {
     const calls: unknown[][] = [];
-    const exec = ((...a: unknown[]) => { calls.push(a); throw new Error("must not run"); }) as any;
+    const exec = ((...a: unknown[]) => {
+      calls.push(a);
+      throw new Error("must not run");
+    }) as any;
     expect(chromeEncryptionKey({ platform: "linux", exec })).toBeNull();
     expect(calls).toEqual([]);
   });
   test("on darwin it reads the Chrome Safe Storage password with a 45 s cap and no stdin", () => {
     const calls: unknown[][] = [];
     // Throwing keeps the module's key cache empty for the other tests.
-    const exec = ((...a: unknown[]) => { calls.push(a); throw new Error("no keychain here"); }) as any;
+    const exec = ((...a: unknown[]) => {
+      calls.push(a);
+      throw new Error("no keychain here");
+    }) as any;
     expect(chromeEncryptionKey({ platform: "darwin", exec })).toBeNull();
-    expect(calls).toEqual([[
-      "security",
-      ["find-generic-password", "-w", "-s", "Chrome Safe Storage", "-a", "Chrome"],
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 45_000 },
-    ]]);
+    expect(calls).toEqual([
+      [
+        "security",
+        [
+          "find-generic-password",
+          "-w",
+          "-s",
+          "Chrome Safe Storage",
+          "-a",
+          "Chrome",
+        ],
+        {
+          encoding: "utf-8",
+          stdio: ["ignore", "pipe", "ignore"],
+          timeout: 45_000,
+        },
+      ],
+    ]);
     // Chromium keeps its own entry; Canary shares Chrome's.
     calls.length = 0;
-    expect(chromeEncryptionKey({ platform: "darwin", exec, channel: "chromium" })).toBeNull();
-    expect(chromeEncryptionKey({ platform: "darwin", exec, channel: "canary" })).toBeNull();
-    expect(calls.map((c) => (c[1] as string[]).slice(2))).toEqual([["-s", "Chromium Safe Storage", "-a", "Chromium"], ["-s", "Chrome Safe Storage", "-a", "Chrome"]]);
+    expect(
+      chromeEncryptionKey({ platform: "darwin", exec, channel: "chromium" }),
+    ).toBeNull();
+    expect(
+      chromeEncryptionKey({ platform: "darwin", exec, channel: "canary" }),
+    ).toBeNull();
+    expect(calls.map((c) => (c[1] as string[]).slice(2))).toEqual([
+      ["-s", "Chromium Safe Storage", "-a", "Chromium"],
+      ["-s", "Chrome Safe Storage", "-a", "Chrome"],
+    ]);
   });
 });
 
@@ -137,12 +182,34 @@ describe("own-login hosts are never carried", () => {
   // both browsers are signed out (profile.ts). A dead port and a fake page
   // would throw if either path got that far.
   test("the local carry refuses Google before touching anything", async () => {
-    const r = await provisionLocalLogins(1, "https://ads.google.com/aw/overview", { profileDir: "Default" });
-    expect(r).toEqual({ injected: 0, host: "ads.google.com", reason: OWN_LOGIN_REASON });
+    const r = await provisionLocalLogins(
+      1,
+      "https://ads.google.com/aw/overview",
+      { profileDir: "Default" },
+    );
+    expect(r).toEqual({
+      injected: 0,
+      host: "ads.google.com",
+      reason: OWN_LOGIN_REASON,
+    });
   });
   test("the remote carry refuses Google before touching anything", async () => {
-    const page = { conn: { send: () => { throw new Error("must not be called"); } } } as any;
-    const r = await provisionCredentials(page, "https://mail.google.com/mail/u/0/", "/nonexistent");
-    expect(r).toEqual({ injected: 0, host: "mail.google.com", reason: OWN_LOGIN_REASON });
+    const page = {
+      conn: {
+        send: () => {
+          throw new Error("must not be called");
+        },
+      },
+    } as any;
+    const r = await provisionCredentials(
+      page,
+      "https://mail.google.com/mail/u/0/",
+      "/nonexistent",
+    );
+    expect(r).toEqual({
+      injected: 0,
+      host: "mail.google.com",
+      reason: OWN_LOGIN_REASON,
+    });
   });
 });

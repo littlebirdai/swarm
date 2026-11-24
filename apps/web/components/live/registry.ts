@@ -1,14 +1,25 @@
 // Product views for live artifacts, one per doc type. A product registers its
 // view here (a one-line lazy import) and receives LiveViewProps.
 import { lazy, type ComponentType, type ReactNode } from "react";
-import type { ArtifactElement, ArtifactPosition, ArtifactType } from "@codecast/shared/artifacts";
+import type {
+  ArtifactElement,
+  ArtifactPosition,
+  ArtifactType,
+} from "@codecast/shared/artifacts";
 import type { LiveHandle } from "./useLiveArtifact";
 
 export type ScreenPoint = { x: number; y: number; w?: number; h?: number };
 
 export type LiveViewProps = {
   /** workspace: the access key the doc lives in (team:<id> or user:<id>), which a view scopes its pickers to. */
-  doc: { _id: string; title: string; doc_type: ArtifactType; project_path?: string; git_root?: string; workspace?: string };
+  doc: {
+    _id: string;
+    title: string;
+    doc_type: ArtifactType;
+    project_path?: string;
+    git_root?: string;
+    workspace?: string;
+  };
   live: LiveHandle;
   selection: string[];
   setSelection: (keys: string[]) => void;
@@ -38,7 +49,12 @@ export type LiveViewProps = {
 };
 
 /** A file import: the shell opens the file picker with `accept` and hands the chosen files to `run`. */
-export type LiveImport = { label: string; accept: string; multiple?: boolean; run: (files: File[]) => void };
+export type LiveImport = {
+  label: string;
+  accept: string;
+  multiple?: boolean;
+  run: (files: File[]) => void;
+};
 
 /** One download the artifact offers. `run` produces the file; the shell names, saves and reports it. */
 export type LiveExport = {
@@ -51,7 +67,10 @@ export type LiveExport = {
 };
 
 /** The foundation's proof views. `?view=minimal` on an artifact's page forces them (the end-to-end check runs on these). */
-export const MINIMAL_VIEWS: Record<ArtifactType, ComponentType<LiveViewProps>> = {
+export const MINIMAL_VIEWS: Record<
+  ArtifactType,
+  ComponentType<LiveViewProps>
+> = {
   board: lazy(() => import("./minimal/MinimalBoardView")),
   sheet: lazy(() => import("./minimal/MinimalSheetView")),
   dashboard: lazy(() => import("./minimal/MinimalDashboardView")),
@@ -59,13 +78,21 @@ export const MINIMAL_VIEWS: Record<ArtifactType, ComponentType<LiveViewProps>> =
 
 /** What a product's shared (public link) view receives: the saved layer, read only. */
 export type LiveSharedViewProps = {
-  doc: { _id: string; title: string; doc_type: ArtifactType; updated_at?: number; user?: { name?: string; image?: string } | null };
+  doc: {
+    _id: string;
+    title: string;
+    doc_type: ArtifactType;
+    updated_at?: number;
+    user?: { name?: string; image?: string } | null;
+  };
   elements: ArtifactElement[];
   shareToken: string;
 };
 
 /** Shared-link views, one per product that has one; the rest show their text form. */
-export const LIVE_SHARED_VIEWS: Partial<Record<ArtifactType, ComponentType<LiveSharedViewProps>>> = {
+export const LIVE_SHARED_VIEWS: Partial<
+  Record<ArtifactType, ComponentType<LiveSharedViewProps>>
+> = {
   board: lazy(() => import("../boards/SharedBoard")),
   sheet: lazy(() => import("../sheets/SharedSheet")),
   dashboard: lazy(() => import("../data/SharedDashboard")),

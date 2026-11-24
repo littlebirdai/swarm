@@ -18,18 +18,47 @@ import { motion as remote } from "./chapters/remote.motion";
 import { motion as talk } from "./chapters/talk.motion";
 import { motion as team } from "./chapters/team.motion";
 import { motion as work } from "./chapters/work.motion";
-import { SURFACES, type ArcPath, type Beat, type ChapterId, type Flyer, type SurfaceId, type TextBeat } from "./world";
+import {
+  SURFACES,
+  type ArcPath,
+  type Beat,
+  type ChapterId,
+  type Flyer,
+  type SurfaceId,
+  type TextBeat,
+} from "./world";
 
 export const MOTIONS: Record<ChapterId, ChapterMotion> = {
-  inbox, conversation, fanout, phone, talk, decide, work, automation, team, integrations, publish, memory, remote,
+  inbox,
+  conversation,
+  fanout,
+  phone,
+  talk,
+  decide,
+  work,
+  automation,
+  team,
+  integrations,
+  publish,
+  memory,
+  remote,
 };
 
-const perSurface = <T>(pick: (m: ChapterMotion) => Partial<Record<SurfaceId, T[]>> | undefined) =>
+const perSurface = <T>(
+  pick: (m: ChapterMotion) => Partial<Record<SurfaceId, T[]>> | undefined,
+) =>
   Object.fromEntries(
-    SURFACES.map((s) => [s.id, Object.values(MOTIONS).flatMap((m) => pick(m)?.[s.id] ?? [])]),
+    SURFACES.map((s) => [
+      s.id,
+      Object.values(MOTIONS).flatMap((m) => pick(m)?.[s.id] ?? []),
+    ]),
   ) as Record<SurfaceId, T[]>;
 
 export const BEATS: Record<SurfaceId, Beat[]> = perSurface((m) => m.beats);
 export const TEXTS: Record<SurfaceId, TextBeat[]> = perSurface((m) => m.texts);
-export const FLYERS: Flyer[] = Object.values(MOTIONS).flatMap((m) => m.flyers ?? []);
-export const ARCS: ArcPath[] = Object.values(MOTIONS).flatMap((m) => m.arcs ?? []);
+export const FLYERS: Flyer[] = Object.values(MOTIONS).flatMap(
+  (m) => m.flyers ?? [],
+);
+export const ARCS: ArcPath[] = Object.values(MOTIONS).flatMap(
+  (m) => m.arcs ?? [],
+);

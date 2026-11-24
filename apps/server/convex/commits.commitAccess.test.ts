@@ -33,7 +33,9 @@ describe("canAccessCommit", () => {
 
   test("a commit from the git ingest is not readable outside that team", async () => {
     const commit = { team_id: TEAM };
-    expect(await canAccessCommit(ctxWith(), OUTSIDER, commit as any)).toBe(false);
+    expect(await canAccessCommit(ctxWith(), OUTSIDER, commit as any)).toBe(
+      false,
+    );
   });
 
   test("a commit with a session is readable by that session's owner", async () => {
@@ -50,9 +52,16 @@ describe("canAccessCommit", () => {
     });
     // The member does not own this private session, but the commit still names
     // their team, so the fallback is what lets them read it.
-    expect(await canAccessCommit(ctx, MEMBER, { conversation_id: "c1", team_id: TEAM } as any)).toBe(true);
+    expect(
+      await canAccessCommit(ctx, MEMBER, {
+        conversation_id: "c1",
+        team_id: TEAM,
+      } as any),
+    ).toBe(true);
     // Without that team stamp the same commit stays private to its owner.
-    expect(await canAccessCommit(ctx, MEMBER, { conversation_id: "c1" } as any)).toBe(false);
+    expect(
+      await canAccessCommit(ctx, MEMBER, { conversation_id: "c1" } as any),
+    ).toBe(false);
   });
 
   test("a commit with neither provenance is readable by nobody", async () => {

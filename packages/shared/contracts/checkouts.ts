@@ -38,11 +38,22 @@ export type CheckoutSession = {
  * One ask a stuck level made: to a session about the conflicting files it last wrote, or, for the files no session
  * wrote, a finding on the repository's project. `files`: how many of the conflicting files the ask was about.
  */
-export type CheckoutTold = { at: number; files: number } & ({ to: "session"; conversation_id: string } | { to: "finding" });
+export type CheckoutTold = { at: number; files: number } & (
+  | { to: "session"; conversation_id: string }
+  | { to: "finding" }
+);
 
 /** Who a stuck level has told, from a report of either shape: an earlier daemon reported its single ask as `filed`. */
-export function toldOf(level: { told?: CheckoutTold[]; filed?: (Omit<CheckoutTold, "files"> & { files?: number }) | null }): CheckoutTold[] {
-  return level.told ?? (level.filed ? [{ ...level.filed, files: level.filed.files ?? 0 } as CheckoutTold] : []);
+export function toldOf(level: {
+  told?: CheckoutTold[];
+  filed?: (Omit<CheckoutTold, "files"> & { files?: number }) | null;
+}): CheckoutTold[] {
+  return (
+    level.told ??
+    (level.filed
+      ? [{ ...level.filed, files: level.filed.files ?? 0 } as CheckoutTold]
+      : [])
+  );
 }
 
 /** At most this many paths a stuck level's ask names inline; the rest are in the list file it points to. */
@@ -53,7 +64,13 @@ export type CheckoutLevel =
   /** At origin's default branch: levelled then (null: never moved by the sweep since the daemon started). */
   | { state: "level"; levelled_at: number | null }
   /** Refused, the same files each pass since `since`. `told`: who has been asked for help this episode, each about its own files (empty until the grace passes). */
-  | { state: "stuck"; files: string[]; reason: string; since: number; told: CheckoutTold[] }
+  | {
+      state: "stuck";
+      files: string[];
+      reason: string;
+      since: number;
+      told: CheckoutTold[];
+    }
   /** Not levelled by the sweep, and why: off for this repo, a worktree, off the default branch, holds commits main lacks, a ship running. */
   | { state: "off"; reason: string };
 
@@ -78,7 +95,13 @@ export type CheckoutReport = {
    * `attributing`: the daemon is still reading this checkout's transcripts (a little each pass), so every path is
    * listed unattributed for now; the sessions arrive with a later report.
    */
-  uncommitted: { total: number; sessions: CheckoutSession[]; unattributed: string[]; unattributed_more: number; attributing?: true };
+  uncommitted: {
+    total: number;
+    sessions: CheckoutSession[];
+    unattributed: string[];
+    unattributed_more: number;
+    attributing?: true;
+  };
   level: CheckoutLevel;
 };
 
@@ -95,7 +118,8 @@ export type CheckoutRow = CheckoutReport & {
 export function checkoutHash(r: unknown): string {
   const text = JSON.stringify(r);
   let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  for (let i = 0; i < text.length; i++)
+    h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
   return (h >>> 0).toString(16);
 }
 
@@ -103,19 +127,27 @@ export function checkoutHash(r: unknown): string {
 export const LEVEL_STUCK_FILE_MS = 30 * 60_000;
 
 /** A word the shell reads as itself: quoted unless it is plain (a route like `routes/[id].tsx` stays literal). */
-export const shellWord = (s: string) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`);
+export const shellWord = (s: string) =>
+  /^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`;
 
 /**
  * The client id of a stuck level's ask to one writer: the device, the checkout, the episode (its files and start) and
  * the writer. The daemon's ask and the pipeline page's use the same one, so the server takes whichever comes first and
  * answers the other with that row: a writer hears of an episode once, whoever asks. A retry lands once too.
  */
-export function levelAskClientId(a: { device_id: string; path: string; files: string[]; since: number; conversation: string }): string {
+export function levelAskClientId(a: {
+  device_id: string;
+  path: string;
+  files: string[];
+  since: number;
+  conversation: string;
+}): string {
   return `level-told:${a.conversation}:${checkoutHash([a.device_id, a.path, [...a.files].sort(), a.since])}`;
 }
 
 /** What not to do in a shared checkout, said in every brief about one (the stuck level's ask, the raced level's). */
-export const LEVEL_FORBID = "Never run git pull, merge, rebase, stash, checkout, restore, reset or commit in this shared checkout: other sessions' uncommitted work lives in it.";
+export const LEVEL_FORBID =
+  "Never run git pull, merge, rebase, stash, checkout, restore, reset or commit in this shared checkout: other sessions' uncommitted work lives in it.";
 
 /** What the daemon could write for one conflicting file: a three-way merge with markers, else why there is none. */
 export type LevelMerge =
@@ -130,16 +162,28 @@ export type LevelMerge =
  * file's merge under `mergeDir` (`merges`), the upstream commits that touched them, and the upstream commit `to`
  * the merges were made against. Each part is optional; a part left out leaves its line out.
  */
-export type LevelAskLocal = { list?: string; mergeDir?: string; merges?: Record<string, LevelMerge>; commits?: string[]; to?: string };
+export type LevelAskLocal = {
+  list?: string;
+  mergeDir?: string;
+  merges?: Record<string, LevelMerge>;
+  commits?: string[];
+  to?: string;
+};
 
 /** Why a file has no ordinary merge file, in a few words; null when it has one. */
 function mergeNote(m: LevelMerge | undefined): string | null {
   switch (m?.kind) {
-    case undefined: case "merged": return null;
-    case "upstream-deleted": return "upstream deletes it: delete your copy, or move your edit to where upstream moved that code";
-    case "local-deleted": return "deleted here and changed upstream: its merge file is upstream's version, to write back if the file should stay";
-    case "binary": return "binary or a symlink, so no merge file: take upstream's version or redo your edit on it";
-    case "none": return "no merge file could be written";
+    case undefined:
+    case "merged":
+      return null;
+    case "upstream-deleted":
+      return "upstream deletes it: delete your copy, or move your edit to where upstream moved that code";
+    case "local-deleted":
+      return "deleted here and changed upstream: its merge file is upstream's version, to write back if the file should stay";
+    case "binary":
+      return "binary or a symlink, so no merge file: take upstream's version or redo your edit on it";
+    case "none":
+      return "no merge file could be written";
   }
 }
 
@@ -164,25 +208,46 @@ export function levelAskWords(
   const n = mine.length;
   const one = n === 1;
   const others = level.files.length - n;
-  const since = new Date(level.since).toISOString().replace("T", " ").slice(0, 16);
-  const what = opts.whose === "session" ? `${n} of your files` : `${n} file${one ? "" : "s"} no session wrote`;
+  const since = new Date(level.since)
+    .toISOString()
+    .replace("T", " ")
+    .slice(0, 16);
+  const what =
+    opts.whose === "session"
+      ? `${n} of your files`
+      : `${n} file${one ? "" : "s"} no session wrote`;
   const title = `${name} on ${opts.host}: ${what} conflict${one ? "s" : ""} with ${upstream}`;
-  const shown = (local?.list ? mine.slice(0, LEVEL_TOLD_PATHS_MAX) : mine).map((f) => {
-    const note = mergeNote(local?.merges?.[f]);
-    return `  ${f}${note ? ` (${note})` : ""}`;
-  });
+  const shown = (local?.list ? mine.slice(0, LEVEL_TOLD_PATHS_MAX) : mine).map(
+    (f) => {
+      const note = mergeNote(local?.merges?.[f]);
+      return `  ${f}${note ? ` (${note})` : ""}`;
+    },
+  );
   const rev = local?.to ? local.to.slice(0, 9) : upstream;
   const show = `git -C ${shellWord(r.path)} show`;
   const wayOut = local?.mergeDir
-    ? [`The way out, over these files only: bring upstream's change into each by hand. Its three-way merge, with conflict markers, is at ${local.mergeDir}/<file>: resolve the markers and write the result over the file, or redo your edit on upstream's version (\`${show} ${rev}:<file>\`).`]
-    : [`The way out, over these files only: bring upstream's change into each by hand, redoing your edit on upstream's version:`, ...mine.map((f) => `  \`${show} ${shellWord(`${rev}:${f}`)}\``)];
+    ? [
+        `The way out, over these files only: bring upstream's change into each by hand. Its three-way merge, with conflict markers, is at ${local.mergeDir}/<file>: resolve the markers and write the result over the file, or redo your edit on upstream's version (\`${show} ${rev}:<file>\`).`,
+      ]
+    : [
+        `The way out, over these files only: bring upstream's change into each by hand, redoing your edit on upstream's version:`,
+        ...mine.map((f) => `  \`${show} ${shellWord(`${rev}:${f}`)}\``),
+      ];
   const body = [
     `The shared checkout ${r.path} on ${opts.host} has not followed ${upstream} since ${since} UTC${r.behind ? ` (${r.behind} commit${r.behind === 1 ? "" : "s"} behind)` : ""}, so every session in it misses upstream's work. ${one ? "This uncommitted file" : `These ${n} uncommitted files`} ${opts.whose === "session" ? `${one ? "was" : "were"} last written by this session` : `${one ? "has" : "have"} no session that wrote ${one ? "it" : "them"}`} and conflict${one ? "s" : ""} with upstream:`,
     ...shown,
-    ...(local?.list && n > LEVEL_TOLD_PATHS_MAX ? [`  +${n - LEVEL_TOLD_PATHS_MAX} more`] : []),
+    ...(local?.list && n > LEVEL_TOLD_PATHS_MAX
+      ? [`  +${n - LEVEL_TOLD_PATHS_MAX} more`]
+      : []),
     ...(local?.list ? [`The full list: ${local.list}`] : []),
-    ...(others > 0 ? [`The other ${others} conflicting file${others === 1 ? "" : "s"} belong${others === 1 ? "s" : ""} to other sessions, which are told separately: leave ${others === 1 ? "it" : "them"} alone.`] : []),
-    ...(local?.commits?.length ? ["", `Upstream changed ${one ? "it" : "them"} in:`, ...local.commits] : []),
+    ...(others > 0
+      ? [
+          `The other ${others} conflicting file${others === 1 ? "" : "s"} belong${others === 1 ? "s" : ""} to other sessions, which are told separately: leave ${others === 1 ? "it" : "them"} alone.`,
+        ]
+      : []),
+    ...(local?.commits?.length
+      ? ["", `Upstream changed ${one ? "it" : "them"} in:`, ...local.commits]
+      : []),
     "",
     ...wayOut,
     `Edit only the files named here${local?.list ? " and in the list" : ""}. ${LEVEL_FORBID}`,
@@ -197,17 +262,34 @@ export function levelAskWords(
  * whole transcripts for this; a report carries each session's newest CHECKOUT_PATHS_MAX paths, so a file past that
  * reads as nobody's here.
  */
-export function levelWriters(r: { uncommitted: { sessions: CheckoutSession[] }; level: CheckoutLevel }): { writers: Array<{ conversation_id: string; files: string[] }>; nobody: string[] } {
+export function levelWriters(r: {
+  uncommitted: { sessions: CheckoutSession[] };
+  level: CheckoutLevel;
+}): {
+  writers: Array<{ conversation_id: string; files: string[] }>;
+  nobody: string[];
+} {
   if (r.level.state !== "stuck") return { writers: [], nobody: [] };
-  const sessions = r.uncommitted.sessions.filter((s) => !!s.conversation_id).sort((a, b) => b.last_activity - a.last_activity);
+  const sessions = r.uncommitted.sessions
+    .filter((s) => !!s.conversation_id)
+    .sort((a, b) => b.last_activity - a.last_activity);
   const by = new Map<string, string[]>();
   const nobody: string[] = [];
   for (const f of r.level.files) {
     const s = sessions.find((x) => x.paths.includes(f));
-    if (!s) { nobody.push(f); continue; }
+    if (!s) {
+      nobody.push(f);
+      continue;
+    }
     by.set(s.conversation_id!, [...(by.get(s.conversation_id!) ?? []), f]);
   }
-  return { writers: [...by].map(([conversation_id, files]) => ({ conversation_id, files })), nobody };
+  return {
+    writers: [...by].map(([conversation_id, files]) => ({
+      conversation_id,
+      files,
+    })),
+    nobody,
+  };
 }
 
 /** An ask made from the pipeline page on a stuck checkout (checkouts.ask), kept on the row apart from the daemon's report:
@@ -215,12 +297,17 @@ export function levelWriters(r: { uncommitted: { sessions: CheckoutSession[] }; 
 export type CheckoutPageAsk = CheckoutTold & { since: number };
 
 /** The level as the page reads it: the daemon's asks and the page's for this episode, one per reader. */
-export function withPageAsks(level: CheckoutLevel, asks: readonly CheckoutPageAsk[] | undefined): CheckoutLevel {
+export function withPageAsks(
+  level: CheckoutLevel,
+  asks: readonly CheckoutPageAsk[] | undefined,
+): CheckoutLevel {
   if (level.state !== "stuck" || !asks?.length) return level;
   const told = [...toldOf(level)];
-  const key = (t: CheckoutTold) => (t.to === "session" ? t.conversation_id : "finding");
+  const key = (t: CheckoutTold) =>
+    t.to === "session" ? t.conversation_id : "finding";
   for (const a of asks) {
-    if (a.since !== level.since || told.some((t) => key(t) === key(a))) continue;
+    if (a.since !== level.since || told.some((t) => key(t) === key(a)))
+      continue;
     const { since: _s, ...t } = a;
     told.push(t as CheckoutTold);
   }

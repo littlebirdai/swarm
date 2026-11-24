@@ -8,7 +8,10 @@ import type { OrgSession } from "./orgTypes";
  * page one, so the first request starts past what the page already holds;
  * later requests continue from the server's own next_cursor.
  */
-export function firstServerCursor(saved: string | null | undefined, alreadyLoaded: number): string {
+export function firstServerCursor(
+  saved: string | null | undefined,
+  alreadyLoaded: number,
+): string {
   return saved ?? String(alreadyLoaded);
 }
 
@@ -30,7 +33,11 @@ export function moveExpandedSession(
     if (kept.length !== rows.length) changed = true;
     out[k] = kept;
   }
-  if (row && targetId in out && !out[targetId].some((s) => s._id === conversationId)) {
+  if (
+    row &&
+    targetId in out &&
+    !out[targetId].some((s) => s._id === conversationId)
+  ) {
     out[targetId] = [...out[targetId], row];
     changed = true;
   }

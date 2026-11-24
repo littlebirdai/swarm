@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { ExternalLink, MonitorUp, Trash2 } from "lucide-react";
 import { formatCallTime, recordingSubject } from "@codecast/shared/contracts";
-import { takeDownFrameShare, useCallFrameShares, type CallFrameShare } from "../../hooks/useRoomRecording";
+import {
+  takeDownFrameShare,
+  useCallFrameShares,
+  type CallFrameShare,
+} from "../../hooks/useRoomRecording";
 import { ParticipantTag } from "./GuestTag";
 import { firstName } from "./speakers";
 import { modernButton } from "../ui/modernLook";
@@ -18,11 +22,19 @@ export function SharedFrames({ call }: { call: string }) {
   const shares = useCallFrameShares(call);
   if (shares.length === 0) return null;
   return (
-    <div className="space-y-1.5 pt-2" role="group" aria-label="Pictures shared by link">
+    <div
+      className="space-y-1.5 pt-2"
+      role="group"
+      aria-label="Pictures shared by link"
+    >
       <p className="text-xs font-medium text-sol-text-secondary">
-        {shares.length === 1 ? "1 picture" : `${shares.length} pictures`} shared by link
+        {shares.length === 1 ? "1 picture" : `${shares.length} pictures`} shared
+        by link
       </p>
-      <p className="text-xs leading-snug text-sol-text-muted">Anyone with a picture's link can open it, with or without the call's link.</p>
+      <p className="text-xs leading-snug text-sol-text-muted">
+        Anyone with a picture's link can open it, with or without the call's
+        link.
+      </p>
       <ul className="space-y-1">
         {shares.map((s) => (
           <SharedFrameRow key={s._id} share={s} />
@@ -35,23 +47,54 @@ export function SharedFrames({ call }: { call: string }) {
 function SharedFrameRow({ share }: { share: CallFrameShare }) {
   const [confirming, setConfirming] = useState(false);
   const time = share.at_ms != null ? formatCallTime(share.at_ms) : null;
-  const subject = share.kind ? recordingSubject({ kind: share.kind, participant_name: share.participant_name, participant_identity: share.participant_identity }, "label") : null;
-  const when = new Date(share.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const subject = share.kind
+    ? recordingSubject(
+        {
+          kind: share.kind,
+          participant_name: share.participant_name,
+          participant_identity: share.participant_identity,
+        },
+        "label",
+      )
+    : null;
+  const when = new Date(share.created_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
   return (
-    <li className="flex items-center gap-2 rounded-md bg-sol-bg-alt/40 p-1 pr-1.5" data-frame-share={share._id}>
+    <li
+      className="flex items-center gap-2 rounded-md bg-sol-bg-alt/40 p-1 pr-1.5"
+      data-frame-share={share._id}
+    >
       {share.url ? (
-        <img src={share.url} alt={time ? `The call at ${time}` : "A picture of the call"} className="h-9 w-16 shrink-0 rounded-sm bg-black object-cover" loading="lazy" draggable={false} />
+        <img
+          src={share.url}
+          alt={time ? `The call at ${time}` : "A picture of the call"}
+          className="h-9 w-16 shrink-0 rounded-sm bg-black object-cover"
+          loading="lazy"
+          draggable={false}
+        />
       ) : (
-        <span className="h-9 w-16 shrink-0 rounded-sm bg-black/60" aria-hidden="true" />
+        <span
+          className="h-9 w-16 shrink-0 rounded-sm bg-black/60"
+          aria-hidden="true"
+        />
       )}
       <span className="min-w-0 flex-1 text-xs leading-tight">
         <span className="flex items-center gap-1 text-sol-text-secondary">
           {time && <span className="font-mono tabular-nums">{time}</span>}
           {subject && (
             <span className="flex min-w-0 items-center gap-1 truncate text-sol-text-muted">
-              {share.kind === "screen" && <MonitorUp className="h-3 w-3 shrink-0" />}
+              {share.kind === "screen" && (
+                <MonitorUp className="h-3 w-3 shrink-0" />
+              )}
               <span className="truncate">{subject}</span>
-              {share.kind === "screen" && <ParticipantTag identity={share.participant_identity} name={share.participant_name} />}
+              {share.kind === "screen" && (
+                <ParticipantTag
+                  identity={share.participant_identity}
+                  name={share.participant_name}
+                />
+              )}
             </span>
           )}
         </span>

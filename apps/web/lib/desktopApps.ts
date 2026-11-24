@@ -16,7 +16,14 @@ import {
   placeRoute,
   sectionForRoute,
 } from "../../../apps/desktop/appWindows.mjs";
-import { bridge, getDesktopWindowRole, isDetachedTabWindow, isElectron, isSatelliteWindow, navigateMainWindow } from "./desktop";
+import {
+  bridge,
+  getDesktopWindowRole,
+  isDetachedTabWindow,
+  isElectron,
+  isSatelliteWindow,
+  navigateMainWindow,
+} from "./desktop";
 import { appForRoute as appOfRoute } from "../../../apps/desktop/appWindows.mjs";
 import { appWindowPresence, requestAppWindowOpen } from "./appWindowRegistry";
 import { isNonTabRoute } from "./tabRoutes";
@@ -44,7 +51,8 @@ export type DesktopApp = keyof typeof DESKTOP_APPS;
  */
 export function desktopAppWindow(path?: string): DesktopApp | null {
   if (typeof window === "undefined") return null;
-  let app = window.__CODECAST_ELECTRON__?.appWindow ?? getDesktopWindowRole().app;
+  let app =
+    window.__CODECAST_ELECTRON__?.appWindow ?? getDesktopWindowRole().app;
   if (!app && isDetachedTabWindow() && !canOpenDesktopApp()) {
     app = appForRoute(path ?? window.location.pathname);
   }
@@ -100,7 +108,10 @@ export function canOpenDesktopApp(): boolean {
 
 /** Open (or raise) an app's window, on `path` when given. False on a shell
  *  without the verb, so the caller can fall back. */
-export async function openDesktopApp(app: DesktopApp, path?: string): Promise<boolean> {
+export async function openDesktopApp(
+  app: DesktopApp,
+  path?: string,
+): Promise<boolean> {
   const open = bridge("openAppWindow");
   if (!open) return false;
   return (await open(app, path ?? null)) === true;
@@ -136,7 +147,11 @@ export function routeElsewhere(path: string): boolean {
   // window's own goes to the main window. Following a link there would boot
   // the dashboard inside the call and drop the huddle. Asked directly, since
   // the shell's router places a path that no app owns back in the sender.
-  if (isSatelliteWindow()) return path.split(/[?#]/)[0] !== window.location.pathname && navigateMainWindow(path);
+  if (isSatelliteWindow())
+    return (
+      path.split(/[?#]/)[0] !== window.location.pathname &&
+      navigateMainWindow(path)
+    );
   const place = routeOwner(path);
   if (place === "here") return false;
   const route = bridge("routeNavigate");

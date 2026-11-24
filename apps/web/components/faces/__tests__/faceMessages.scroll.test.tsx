@@ -11,14 +11,19 @@ import { closeDomWindow } from "../../../test-helpers/domGlobals";
 // The DM's server feeder and the chat router, replaced so the card reads the
 // conversation the test seeds into the store.
 const realChatSync = await import("../../../hooks/useChatSync");
-mock.module("../../../hooks/useChatSync", () => ({ ...realChatSync, useChannelMessagesSync: () => ({}) }));
+mock.module("../../../hooks/useChatSync", () => ({
+  ...realChatSync,
+  useChannelMessagesSync: () => ({}),
+}));
 const openChat = mock(() => {});
 mock.module("../../../hooks/useOpenDm", () => ({
   useOpenDm: () => () => {},
   useOpenChatPath: () => openChat,
 }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -52,27 +57,64 @@ const DM = "chatchannels:dm-ann";
 
 test("a new line scrolls the card's messages to the bottom, even once the card holds its full 30", async () => {
   const now = Date.now();
-  const line = (i: number) => ({ _id: `m${i}`, channel_id: DM, user_id: i % 2 ? ANN : ME, content: `line ${i}`, created_at: now - 100_000 + i });
+  const line = (i: number) => ({
+    _id: `m${i}`,
+    channel_id: DM,
+    user_id: i % 2 ? ANN : ME,
+    content: `line ${i}`,
+    created_at: now - 100_000 + i,
+  });
   const lines: Record<string, unknown> = {};
   for (let i = 0; i < 30; i++) lines[`m${i}`] = line(i);
-  useInboxStore.setState({ currentUser: { _id: ME, name: "Me" }, chatReads: {} } as any);
   useInboxStore.setState({
-    chatChannels: { [DM]: { _id: DM, kind: "dm", dm_key: dmKeyFor(activeTeamIdOf(useInboxStore.getState()) ?? "", [ME, ANN]) } },
+    currentUser: { _id: ME, name: "Me" },
+    chatReads: {},
+  } as any);
+  useInboxStore.setState({
+    chatChannels: {
+      [DM]: {
+        _id: DM,
+        kind: "dm",
+        dm_key: dmKeyFor(activeTeamIdOf(useInboxStore.getState()) ?? "", [
+          ME,
+          ANN,
+        ]),
+      },
+    },
     chatMessages: lines,
   } as any);
-  const host = dom.window.document.body.appendChild(dom.window.document.createElement("div"));
+  const host = dom.window.document.body.appendChild(
+    dom.window.document.createElement("div"),
+  );
   root = createRoot(host);
   const leave = mock(() => {});
-  await act(async () => root!.render(<FaceMessages memberId={ANN} name="Ann" focus={false} onLeave={leave} />));
+  await act(async () =>
+    root!.render(
+      <FaceMessages memberId={ANN} name="Ann" focus={false} onLeave={leave} />,
+    ),
+  );
   const list = host.querySelector(".fc-list")!;
   let top = 0;
-  Object.defineProperty(list, "scrollHeight", { configurable: true, get: () => 900 });
-  Object.defineProperty(list, "scrollTop", { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+  Object.defineProperty(list, "scrollHeight", {
+    configurable: true,
+    get: () => 900,
+  });
+  Object.defineProperty(list, "scrollTop", {
+    configurable: true,
+    get: () => top,
+    set: (v: number) => {
+      top = v;
+    },
+  });
   await act(async () => {
-    useInboxStore.setState({ chatMessages: { ...lines, m30: line(30) } } as any);
+    useInboxStore.setState({
+      chatMessages: { ...lines, m30: line(30) },
+    } as any);
   });
   expect(host.querySelectorAll(".fc-row")).toHaveLength(30);
-  expect(Array.from(host.querySelectorAll(".fc-text")).at(-1)?.textContent).toBe("line 30");
+  expect(
+    Array.from(host.querySelectorAll(".fc-text")).at(-1)?.textContent,
+  ).toBe("line 30");
   expect(top).toBe(900);
   const bubbles = host.querySelectorAll<HTMLButtonElement>("button.fc-msg");
   expect(bubbles).toHaveLength(30);
@@ -86,19 +128,72 @@ test("a new line scrolls the card's messages to the bottom, even once the card h
 
 test("lines an agent typed into the DM stay out of the card, on either side", async () => {
   const now = Date.now();
-  useInboxStore.setState({ currentUser: { _id: ME, name: "Me" }, chatReads: {} } as any);
   useInboxStore.setState({
-    chatChannels: { [DM]: { _id: DM, kind: "dm", dm_key: dmKeyFor(activeTeamIdOf(useInboxStore.getState()) ?? "", [ME, ANN]) } },
+    currentUser: { _id: ME, name: "Me" },
+    chatReads: {},
+  } as any);
+  useInboxStore.setState({
+    chatChannels: {
+      [DM]: {
+        _id: DM,
+        kind: "dm",
+        dm_key: dmKeyFor(activeTeamIdOf(useInboxStore.getState()) ?? "", [
+          ME,
+          ANN,
+        ]),
+      },
+    },
     chatMessages: {
-      a: { _id: "a", channel_id: DM, user_id: ANN, content: "from ann", created_at: now - 3000 },
-      b: { _id: "b", channel_id: DM, user_id: ME, content: "my session's status", origin: "agent", origin_session_id: "s1", created_at: now - 2000 },
-      c: { _id: "c", channel_id: DM, user_id: ANN, content: "ann's session's status", origin: "agent", origin_session_id: "s2", created_at: now - 1500 },
-      d: { _id: "d", channel_id: DM, user_id: ME, content: "from me", created_at: now - 1000 },
+      a: {
+        _id: "a",
+        channel_id: DM,
+        user_id: ANN,
+        content: "from ann",
+        created_at: now - 3000,
+      },
+      b: {
+        _id: "b",
+        channel_id: DM,
+        user_id: ME,
+        content: "my session's status",
+        origin: "agent",
+        origin_session_id: "s1",
+        created_at: now - 2000,
+      },
+      c: {
+        _id: "c",
+        channel_id: DM,
+        user_id: ANN,
+        content: "ann's session's status",
+        origin: "agent",
+        origin_session_id: "s2",
+        created_at: now - 1500,
+      },
+      d: {
+        _id: "d",
+        channel_id: DM,
+        user_id: ME,
+        content: "from me",
+        created_at: now - 1000,
+      },
     },
   } as any);
-  const host = dom.window.document.body.appendChild(dom.window.document.createElement("div"));
+  const host = dom.window.document.body.appendChild(
+    dom.window.document.createElement("div"),
+  );
   root = createRoot(host);
-  await act(async () => root!.render(<FaceMessages memberId={ANN} name="Ann" focus={false} onLeave={() => {}} />));
-  expect(Array.from(host.querySelectorAll(".fc-text")).map((n) => n.textContent)).toEqual(["from ann", "from me"]);
+  await act(async () =>
+    root!.render(
+      <FaceMessages
+        memberId={ANN}
+        name="Ann"
+        focus={false}
+        onLeave={() => {}}
+      />,
+    ),
+  );
+  expect(
+    Array.from(host.querySelectorAll(".fc-text")).map((n) => n.textContent),
+  ).toEqual(["from ann", "from me"]);
   host.remove();
 });

@@ -1,21 +1,50 @@
 import type { Device } from "../components/DeviceBadge";
-import { cloudHostManaged, cloudHostRetired, cloudPlacementFor, deviceDisplayName, isReservedDevice, type CloudHostReport, type CloudStartFrom } from "@codecast/shared/contracts";
-import { defaultMachineId, intendedMachineId, type MachineCandidate } from "./machinePicker";
+import {
+  cloudHostManaged,
+  cloudHostRetired,
+  cloudPlacementFor,
+  deviceDisplayName,
+  isReservedDevice,
+  type CloudHostReport,
+  type CloudStartFrom,
+} from "@codecast/shared/contracts";
+import {
+  defaultMachineId,
+  intendedMachineId,
+  type MachineCandidate,
+} from "./machinePicker";
 import { compactAge } from "./threadState";
 
-export type SessionMachine = Device & { bot_name?: string | null; runner_name?: string | null };
+export type SessionMachine = Device & {
+  bot_name?: string | null;
+  runner_name?: string | null;
+};
 
-type Candidate = MachineCandidate & { bot_name?: string | null; cloud_host?: CloudHostReport | null };
+type Candidate = MachineCandidate & {
+  bot_name?: string | null;
+  cloud_host?: CloudHostReport | null;
+};
 
 export function sessionMachineChoices(
   devices: Device[],
-  boxes: Array<Omit<Device, "local_project_roots"> & { local_project_roots?: string[]; bot_name: string | null; runner_name?: string | null }>,
+  boxes: Array<
+    Omit<Device, "local_project_roots"> & {
+      local_project_roots?: string[];
+      bot_name: string | null;
+      runner_name?: string | null;
+    }
+  >,
 ): SessionMachine[] {
   const ids = new Set(devices.map((d) => d.device_id));
-  return [...devices, ...boxes.filter((b) => !ids.has(b.device_id)).map((b) => ({
-    ...b,
-    local_project_roots: b.local_project_roots ?? [],
-  }))];
+  return [
+    ...devices,
+    ...boxes
+      .filter((b) => !ids.has(b.device_id))
+      .map((b) => ({
+        ...b,
+        local_project_roots: b.local_project_roots ?? [],
+      })),
+  ];
 }
 
 /**
@@ -27,7 +56,12 @@ export function sessionMachineChoices(
  * platform matches. Any other remote (your user on a team machine) is a
  * plain machine: the session starts there directly.
  */
-export function isCloudHost(d: { bot_name?: string | null; is_remote?: boolean; platform?: string; cloud_host?: unknown }): boolean {
+export function isCloudHost(d: {
+  bot_name?: string | null;
+  is_remote?: boolean;
+  platform?: string;
+  cloud_host?: unknown;
+}): boolean {
   return d.bot_name === undefined && cloudHostManaged(d);
 }
 
@@ -48,7 +82,11 @@ export function sleepingCloudHost(d: Candidate, roster: Candidate[]): boolean {
  */
 export function cloudHostOf<T extends Candidate>(devices: T[]): T | null {
   // A host reserved for one job (devices.reserved_for) is picked by name, never by the toggle.
-  return devices.find((d) => !isReservedDevice(d) && sleepingCloudHost(d, devices)) ?? null;
+  return (
+    devices.find(
+      (d) => !isReservedDevice(d) && sleepingCloudHost(d, devices),
+    ) ?? null
+  );
 }
 
 type SelectionOpts = Parameters<typeof defaultMachineId>[1];
@@ -69,18 +107,31 @@ type SelectionOpts = Parameters<typeof defaultMachineId>[1];
  * No toggle rung: memory above the owner rung is what let an eagerly-created
  * laptop-owned row render as "Cloud Linux" without ever being parked.
  */
-export function defaultSessionMachineId(devices: Candidate[], opts: SelectionOpts) {
+export function defaultSessionMachineId(
+  devices: Candidate[],
+  opts: SelectionOpts,
+) {
   const own = devices.filter((d) => d.bot_name === undefined);
-  const wakeOk = (d: MachineCandidate) => sleepingCloudHost(d as Candidate, devices);
-  const owner = devices.find((d) => d.device_id === opts?.ownerDeviceId && (d.online || isCloudHost(d)));
+  const wakeOk = (d: MachineCandidate) =>
+    sleepingCloudHost(d as Candidate, devices);
+  const owner = devices.find(
+    (d) => d.device_id === opts?.ownerDeviceId && (d.online || isCloudHost(d)),
+  );
   // The machine you sit at is one of yours, never a team box.
-  const localDeviceId = own.some((d) => d.device_id === opts?.localDeviceId) ? opts?.localDeviceId : null;
-  return owner?.device_id
-    ?? intendedMachineId(devices, { ...opts, localDeviceId, wakeOk })
-    ?? defaultMachineId(own.length ? own : devices, { ...opts, wakeOk });
+  const localDeviceId = own.some((d) => d.device_id === opts?.localDeviceId)
+    ? opts?.localDeviceId
+    : null;
+  return (
+    owner?.device_id ??
+    intendedMachineId(devices, { ...opts, localDeviceId, wakeOk }) ??
+    defaultMachineId(own.length ? own : devices, { ...opts, wakeOk })
+  );
 }
 
-export type MachineSelection = { pickedDeviceId: string | null; cloudMode: boolean };
+export type MachineSelection = {
+  pickedDeviceId: string | null;
+  cloudMode: boolean;
+};
 
 /** A chip click: the pick is that machine, and cloud mode follows from it. */
 export function machineSelectionAfterPick(d: Candidate): MachineSelection {
@@ -103,7 +154,10 @@ export function machineSelectionAfterCloudToggle(
     return { pickedDeviceId: host?.device_id ?? null, cloudMode: !!host };
   }
   const nonCloud = devices.filter((d) => !isCloudHost(d));
-  return { pickedDeviceId: defaultSessionMachineId(nonCloud, opts), cloudMode: false };
+  return {
+    pickedDeviceId: defaultSessionMachineId(nonCloud, opts),
+    cloudMode: false,
+  };
 }
 
 /**
@@ -111,7 +165,10 @@ export function machineSelectionAfterCloudToggle(
  * already on — a non-cloud machine to turn off to. A cloud-only roster leaves
  * it on and disabled instead of bouncing the pick to null.
  */
-export function cloudToggleAvailable(devices: Candidate[], cloudMode: boolean): boolean {
+export function cloudToggleAvailable(
+  devices: Candidate[],
+  cloudMode: boolean,
+): boolean {
   if (!cloudHostOf(devices)) return false;
   return !cloudMode || devices.some((d) => !isCloudHost(d));
 }
@@ -121,13 +178,20 @@ export function cloudToggleAvailable(devices: Candidate[], cloudMode: boolean): 
  * it boots when the session starts, so its chip must not promise a fallback
  * to another machine. A gone one says so, and where to remove it.
  */
-export function machineChipTitle(d: SessionMachine, roster: SessionMachine[]): string {
+export function machineChipTitle(
+  d: SessionMachine,
+  roster: SessionMachine[],
+): string {
   const name = deviceDisplayName(d);
-  const where = d.cloud_host ? ` (${[d.cloud_host.instance_type, d.cloud_host.region, d.cloud_host.instance_id].filter(Boolean).join(", ")})` : "";
+  const where = d.cloud_host
+    ? ` (${[d.cloud_host.instance_type, d.cloud_host.region, d.cloud_host.instance_id].filter(Boolean).join(", ")})`
+    : "";
   if (d.online) return `Run this session on ${name}${where}`;
   const seen = `last seen ${compactAge(Date.now() - d.last_seen)} ago`;
-  if (cloudHostRetired(d, roster)) return `${name}${where} no longer exists: its laptop stopped reporting it, ${seen}. Remove it in Settings → Devices`;
-  if (isCloudHost(d)) return `${name}${where} is asleep, ${seen} — it boots when the session starts`;
+  if (cloudHostRetired(d, roster))
+    return `${name}${where} no longer exists: its laptop stopped reporting it, ${seen}. Remove it in Settings → Devices`;
+  if (isCloudHost(d))
+    return `${name}${where} is asleep, ${seen} — it boots when the session starts`;
   return `${name} is offline, ${seen} — will fall back to an online machine with this repo`;
 }
 
@@ -137,14 +201,26 @@ export function machineChipTitle(d: SessionMachine, roster: SessionMachine[]): s
  * "Cloud Linux" chips read apart: the offline ones by how long they have been
  * off, the online one by where it runs.
  */
-export function machineChipNote(d: SessionMachine, roster: SessionMachine[]): string | null {
+export function machineChipNote(
+  d: SessionMachine,
+  roster: SessionMachine[],
+): string | null {
   if (cloudHostRetired(d, roster)) return "gone";
   const name = deviceDisplayName(d);
-  if (!roster.some((o) => o !== d && o.bot_name === d.bot_name && deviceDisplayName(o) === name)) return null;
-  if (!d.online) return `${isCloudHost(d) ? "asleep" : "off"} ${compactAge(Date.now() - d.last_seen)}`;
+  if (
+    !roster.some(
+      (o) =>
+        o !== d && o.bot_name === d.bot_name && deviceDisplayName(o) === name,
+    )
+  )
+    return null;
+  if (!d.online)
+    return `${isCloudHost(d) ? "asleep" : "off"} ${compactAge(Date.now() - d.last_seen)}`;
   // Region is the same for every host in one account, so it never tells two apart.
   const host = d.cloud_host;
-  return host ? [host.instance_type, host.instance_id.slice(-4)].filter(Boolean).join(" ") : d.device_id.slice(0, 6);
+  return host
+    ? [host.instance_type, host.instance_id.slice(-4)].filter(Boolean).join(" ")
+    : d.device_id.slice(0, 6);
 }
 
 /**
@@ -159,7 +235,14 @@ export function cloudParkNeeded(opts: {
   path: string;
 }): boolean {
   if (!opts.target || !isCloudHost(opts.target)) return false;
-  return !opts.path || cloudPlacementFor({ target: opts.target, locals: opts.locals, paths: [opts.path] }) !== "native";
+  return (
+    !opts.path ||
+    cloudPlacementFor({
+      target: opts.target,
+      locals: opts.locals,
+      paths: [opts.path],
+    }) !== "native"
+  );
 }
 
 /**
@@ -183,14 +266,20 @@ export function switchReconfigureArgs(opts: {
   cloudStartFrom: CloudStartFrom;
 }): Record<string, unknown> {
   return {
-    ...(opts.machineOnly ? {} : { project_path: opts.path, git_root: opts.path }),
+    ...(opts.machineOnly
+      ? {}
+      : { project_path: opts.path, git_root: opts.path }),
     isolated: opts.cloudPark ? undefined : opts.isolated || undefined,
     ...(opts.cloudPark && opts.targetDeviceId
       ? {
           cloud_device_id: opts.targetDeviceId,
           cloud_workspace: opts.cloudShared ? "shared" : "isolated",
-          cloud_start_from: opts.cloudShared ? "origin_main" : opts.cloudStartFrom,
+          cloud_start_from: opts.cloudShared
+            ? "origin_main"
+            : opts.cloudStartFrom,
         }
-      : opts.targetDeviceId ? { target_device_id: opts.targetDeviceId } : {}),
+      : opts.targetDeviceId
+        ? { target_device_id: opts.targetDeviceId }
+        : {}),
   };
 }

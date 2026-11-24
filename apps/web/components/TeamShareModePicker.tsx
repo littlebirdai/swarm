@@ -7,7 +7,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
-import { TEAM_VISIBILITY_RANK, currentMembershipVisibility, teamVisibilityFor, teamVisibilityOption } from "../lib/teamVisibility";
+import {
+  TEAM_VISIBILITY_RANK,
+  currentMembershipVisibility,
+  teamVisibilityFor,
+  teamVisibilityOption,
+} from "../lib/teamVisibility";
 import { ConsequentialSwitch } from "./consequential/ConsequentialSwitch";
 import { shareInFullLedger } from "./consequential/ledgers";
 import type { TeamShareMode } from "../lib/teamFeedRows";
@@ -65,14 +70,23 @@ export function TeamShareModePicker({
   // a feed renders one of these.
   const teamSig = useInboxStore((s) => {
     const t = teamVisibilityFor(s.teams, teamId);
-    return t ? `${t._id}|${t.name}|${t.member_count ?? 0}|${currentMembershipVisibility(t)}` : "";
+    return t
+      ? `${t._id}|${t.name}|${t.member_count ?? 0}|${currentMembershipVisibility(t)}`
+      : "";
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- teamSig stands in for the churny list
-  const team = useMemo(() => teamVisibilityFor(useInboxStore.getState().teams, teamId), [teamSig, teamId]);
-  const setTeamMembershipVisibility = useInboxStore((s) => s.setTeamMembershipVisibility);
+  const team = useMemo(
+    () => teamVisibilityFor(useInboxStore.getState().teams, teamId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- teamSig stands in for the churny list
+    [teamSig, teamId],
+  );
+  const setTeamMembershipVisibility = useInboxStore(
+    (s) => s.setTeamMembershipVisibility,
+  );
   const teamBelowFull =
-    !!team && (team.member_count ?? 0) > 1 &&
-    TEAM_VISIBILITY_RANK[currentMembershipVisibility(team)] < TEAM_VISIBILITY_RANK.full;
+    !!team &&
+    (team.member_count ?? 0) > 1 &&
+    TEAM_VISIBILITY_RANK[currentMembershipVisibility(team)] <
+      TEAM_VISIBILITY_RANK.full;
 
   const pick = async (next: TeamShareMode) => {
     if (next === mode) return;
@@ -88,16 +102,36 @@ export function TeamShareModePicker({
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs font-medium text-sol-text-muted">
-          {team?.name ? <>Team <span className="text-sol-text">{team.name}</span></> : "Team"}
+          {team?.name ? (
+            <>
+              Team <span className="text-sol-text">{team.name}</span>
+            </>
+          ) : (
+            "Team"
+          )}
         </span>
-        {isUpdating && <span className="text-meta text-sol-text-dim">Saving…</span>}
+        {isUpdating && (
+          <span className="text-meta text-sol-text-dim">Saving…</span>
+        )}
       </div>
-      <SegmentedChoice label="What the team sees" options={MODES} value={mode} onPick={pick} disabled={isUpdating} />
-      <p className="text-xs leading-snug text-sol-text-muted">{MODE_HINT[mode]}</p>
+      <SegmentedChoice
+        label="What the team sees"
+        options={MODES}
+        value={mode}
+        onPick={pick}
+        disabled={isUpdating}
+      />
+      <p className="text-xs leading-snug text-sol-text-muted">
+        {MODE_HINT[mode]}
+      </p>
       {gated && (
         <p className="text-meta leading-snug text-sol-text-dim">
           Your level for this team keeps all your sessions out of its feed.{" "}
-          <Link href="/settings/sync" className="text-sol-cyan hover:underline" onClick={onNavigate}>
+          <Link
+            href="/settings/sync"
+            className="text-sol-cyan hover:underline"
+            onClick={onNavigate}
+          >
             Change team visibility
           </Link>
         </p>
@@ -105,9 +139,15 @@ export function TeamShareModePicker({
       {mode !== "private" && sharedVia && (
         <p className="text-meta leading-snug text-sol-text-dim">
           Shared automatically: the repo{" "}
-          <span className="font-mono text-sol-text-muted">{sharedVia.split("/").pop() || sharedVia}</span>{" "}
+          <span className="font-mono text-sol-text-muted">
+            {sharedVia.split("/").pop() || sharedVia}
+          </span>{" "}
           is shared with this team.{" "}
-          <Link href="/settings/sync" className="text-sol-cyan hover:underline whitespace-nowrap" onClick={onNavigate}>
+          <Link
+            href="/settings/sync"
+            className="text-sol-cyan hover:underline whitespace-nowrap"
+            onClick={onNavigate}
+          >
             Repo settings
           </Link>
         </p>
@@ -115,21 +155,31 @@ export function TeamShareModePicker({
       {mode === "full" && teamBelowFull && team && (
         <ConsequentialSwitch
           on={false}
-          ledger={shareInFullLedger({ team: team.name, others: Math.max(1, (team.member_count ?? 2) - 1), sees: teamVisibilityOption(team.visibility).sees })}
+          ledger={shareInFullLedger({
+            team: team.name,
+            others: Math.max(1, (team.member_count ?? 2) - 1),
+            sees: teamVisibilityOption(team.visibility).sees,
+          })}
           onTurnOn={() => {
-            setTeamMembershipVisibility(String(team._id), "full", "going_forward");
-            toast.success(`${team.name} sees the whole conversation for new sessions`);
+            setTeamMembershipVisibility(
+              String(team._id),
+              "full",
+              "going_forward",
+            );
+            toast.success(
+              `${team.name} sees the whole conversation for new sessions`,
+            );
           }}
           onTurnOff={() => {}}
           trigger={({ press }) => (
-        <button
-          type="button"
-          onClick={press}
-          aria-haspopup="dialog"
-          className="text-meta text-sol-cyan hover:underline text-left"
-        >
-          Share all new sessions with {team.name} in full
-        </button>
+            <button
+              type="button"
+              onClick={press}
+              aria-haspopup="dialog"
+              className="text-meta text-sol-cyan hover:underline text-left"
+            >
+              Share all new sessions with {team.name} in full
+            </button>
           )}
         />
       )}
@@ -137,11 +187,22 @@ export function TeamShareModePicker({
   );
 }
 
-export type SegmentedOption<T extends string> = { value: T; label: string; selected: string; icon: string };
+export type SegmentedOption<T extends string> = {
+  value: T;
+  label: string;
+  selected: string;
+  icon: string;
+};
 
 /** A row of mutually exclusive share choices, one icon and label each. The
  *  team level and the link access in the share popover both pick with it. */
-export function SegmentedChoice<T extends string>({ label, options, value, onPick, disabled }: {
+export function SegmentedChoice<T extends string>({
+  label,
+  options,
+  value,
+  onPick,
+  disabled,
+}: {
   label: string;
   options: SegmentedOption<T>[];
   value: T;
@@ -149,7 +210,11 @@ export function SegmentedChoice<T extends string>({ label, options, value, onPic
   disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-lg bg-sol-bg-alt p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex gap-0.5 rounded-lg bg-sol-bg-alt p-0.5"
+    >
       {options.map((m) => {
         const on = value === m.value;
         return (
@@ -161,10 +226,18 @@ export function SegmentedChoice<T extends string>({ label, options, value, onPic
             onClick={() => onPick(m.value)}
             disabled={disabled}
             className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 outline-none focus-visible:ring-1 focus-visible:ring-sol-cyan disabled:cursor-wait ${
-              on ? `${m.selected} shadow-sm shadow-black/20` : "text-sol-text-muted hover:text-sol-text hover:bg-sol-bg/60"
+              on
+                ? `${m.selected} shadow-sm shadow-black/20`
+                : "text-sol-text-muted hover:text-sol-text hover:bg-sol-bg/60"
             }`}
           >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg
+              className="w-3.5 h-3.5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d={m.icon} />
             </svg>
             {m.label}

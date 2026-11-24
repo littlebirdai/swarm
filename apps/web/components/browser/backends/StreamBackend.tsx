@@ -23,11 +23,17 @@ import { useInboxStore } from "../../../store/inboxStore";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { deviceDisplayName } from "../../DeviceBadge";
 import type { SessionMachine } from "../../tmuxAttach";
-import { missingTabMessage, type BrowserStreamReport } from "../../../lib/browserWatch";
+import {
+  missingTabMessage,
+  type BrowserStreamReport,
+} from "../../../lib/browserWatch";
 import { BrowserStream } from "../BrowserStream";
 import { WatchAddress, WheelButton } from "../watchControls";
 import { useBrowserTabActions } from "../../../hooks/useBrowserTabActions";
-import { browserRowMapOf, lastBrowserPageOf } from "../../../hooks/useBrowserAndWakeRows";
+import {
+  browserRowMapOf,
+  lastBrowserPageOf,
+} from "../../../hooks/useBrowserAndWakeRows";
 import type { BackendProps, PaneStripAction } from "./types";
 import { hasHostScreen, openHostScreen } from "../../../lib/hostScreen";
 
@@ -49,7 +55,8 @@ export function StreamBackend({
   const session = useInboxStore(
     useShallow((s) => {
       const row = sessionUuid
-        ? (s.sessions[sessionUuid] ?? Object.values(s.sessions).find((r) => r.session_id === sessionUuid))
+        ? (s.sessions[sessionUuid] ??
+          Object.values(s.sessions).find((r) => r.session_id === sessionUuid))
         : undefined;
       return {
         convId: row?._id ?? null,
@@ -63,12 +70,15 @@ export function StreamBackend({
   // we still try local discovery, which is right on a one-machine setup.
   const machineQuery = useQueryNoThrow(
     api.devices.getConversationMachine,
-    session.convId ? ({ conversation_id: session.convId as any } as any) : "skip",
+    session.convId
+      ? ({ conversation_id: session.convId as any } as any)
+      : "skip",
   );
   const machine = machineQuery.data as SessionMachine | null | undefined;
   // A session the store has never heard of has no conversation to ask about;
   // that is settled too, and the local daemon is the honest thing to try.
-  const machineSettled = !session.convId || machine !== undefined || !!machineQuery.error;
+  const machineSettled =
+    !session.convId || machine !== undefined || !!machineQuery.error;
   const machineName = machine ? deviceDisplayName(machine as any) : null;
 
   const [report, setReport] = useState<BrowserStreamReport>({
@@ -81,13 +91,20 @@ export function StreamBackend({
   const [control, setControl] = useState(false);
   const [retry, setRetry] = useState(0);
   const screenDevice = hasHostScreen(machine) ? machine!.device_id : null;
-  const openScreen = useCallback(() => { if (screenDevice) openHostScreen(screenDevice); }, [screenDevice]);
+  const openScreen = useCallback(() => {
+    if (screenDevice) openHostScreen(screenDevice);
+  }, [screenDevice]);
   const redial = useCallback(() => setRetry((n) => n + 1), []);
 
   // The page the transcript last put the browser on. A stream that finds no
   // tab names none, and this is what a reopen brings back.
-  const messages = useInboxStore((s) => (session.convId ? s.messages[session.convId] : undefined));
-  const lastPage = useMemo(() => (messages ? lastBrowserPageOf(browserRowMapOf(messages)) : null), [messages]);
+  const messages = useInboxStore((s) =>
+    session.convId ? s.messages[session.convId] : undefined,
+  );
+  const lastPage = useMemo(
+    () => (messages ? lastBrowserPageOf(browserRowMapOf(messages)) : null),
+    [messages],
+  );
 
   const status = report.status;
   const failed = status.kind === "failed" ? status : null;
@@ -98,7 +115,8 @@ export function StreamBackend({
     { sessionUuid, tmuxSession: session.tmuxSession },
     redial,
   );
-  const tabNote = tabActions.state.kind === "note" ? tabActions.state.text : null;
+  const tabNote =
+    tabActions.state.kind === "note" ? tabActions.state.text : null;
 
   // The pane paints the states; this is the translation. A stream that failed
   // is an `error` with the sentence already written (lib/browserWatch), except
@@ -116,7 +134,11 @@ export function StreamBackend({
       failed.tabGone && !failed.capped
         ? missingTabMessage(session.title, pageUrl)
         : failed.message;
-    return { kind: "error", message, ...(tabNote ? { detail: tabNote } : {}) } as const;
+    return {
+      kind: "error",
+      message,
+      ...(tabNote ? { detail: tabNote } : {}),
+    } as const;
   }, [failed, status.kind, session.title, pageUrl, tabNote]);
 
   useWatchEffect(() => onState(paneState), [paneState, onState]);
@@ -126,7 +148,8 @@ export function StreamBackend({
   // WheelButton), because a handoff should read the same here as in the dock,
   // and the strip only has room for an icon.
   const live = status.kind === "live";
-  const offerReopen = !!failed?.tabGone && !!pageUrl && !!(sessionUuid || session.tmuxSession);
+  const offerReopen =
+    !!failed?.tabGone && !!pageUrl && !!(sessionUuid || session.tmuxSession);
   const busy = tabActions.state.kind === "busy";
   useWatchEffect(() => {
     if (!onActions) return;
@@ -150,7 +173,8 @@ export function StreamBackend({
     if (screenDevice) {
       actions.push({
         icon: <Monitor className="w-3 h-3" />,
-        label: "Open the host's whole screen: windows, dialogs and popups outside this tab",
+        label:
+          "Open the host's whole screen: windows, dialogs and popups outside this tab",
         onClick: openScreen,
       });
     }
@@ -173,7 +197,9 @@ export function StreamBackend({
 
   return (
     <div className="absolute inset-0 bg-sol-bg-inset">
-      {status.kind !== "live" && !failed && !report.hasFrame && <ViewportSkeleton />}
+      {status.kind !== "live" && !failed && !report.hasFrame && (
+        <ViewportSkeleton />
+      )}
       <BrowserStream
         sessionUuid={sessionUuid}
         tmuxSession={session.tmuxSession}
@@ -202,14 +228,26 @@ export function StreamBackend({
           >
             <span className="w-1.5 h-1.5 rounded-full bg-sol-red animate-pulse motion-reduce:animate-none flex-shrink-0" />
             <span className="text-sol-red">LIVE</span>
-            {machineName && <span className="max-w-[120px] truncate">{machineName}</span>}
+            {machineName && (
+              <span className="max-w-[120px] truncate">{machineName}</span>
+            )}
             {/* The strip above already shows the address; this line only picks it
                 up once the agent navigates, so the flash has somewhere to land. */}
-            {report.nav && tabUrl && <WatchAddress url={tabUrl} nav={report.nav} className="min-w-0 tracking-normal" />}
+            {report.nav && tabUrl && (
+              <WatchAddress
+                url={tabUrl}
+                nav={report.nav}
+                className="min-w-0 tracking-normal"
+              />
+            )}
           </span>
           {report.controlAvailable && (
             <span className="ml-auto flex-shrink-0 pointer-events-auto">
-              <WheelButton on={control} onToggle={() => setControl((v) => !v)} floating />
+              <WheelButton
+                on={control}
+                onToggle={() => setControl((v) => !v)}
+                floating
+              />
             </span>
           )}
         </div>

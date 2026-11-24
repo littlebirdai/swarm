@@ -10,16 +10,32 @@
 // off clears the token, killing every copy; turning it back on takes a new
 // one, so an old link never comes back to life.
 import { v } from "convex/values";
-import { SHARE_TOKEN_SHAPE, writeShareToken, type ShareTable } from "./lib/shareToken";
+import {
+  SHARE_TOKEN_SHAPE,
+  writeShareToken,
+  type ShareTable,
+} from "./lib/shareToken";
 import { internalQuery, query } from "./functions";
 import { SHARED_CALL_AUDIO_PATH } from "./lib/sharedCallMedia";
 import { internal } from "./_generated/api";
 import type { Doc, Id, TableNames } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { canAccessDoc, canAccessInitiative, canAccessPlan, canAccessProject, canAccessTask, isSameWorkspace, workspaceForResource } from "./lib/access";
+import {
+  canAccessDoc,
+  canAccessInitiative,
+  canAccessPlan,
+  canAccessProject,
+  canAccessTask,
+  isSameWorkspace,
+  workspaceForResource,
+} from "./lib/access";
 import { canReadCall } from "./transcripts";
 import { sharedCallVideoKey, sharedCallVideos } from "./callRecordings";
-import { callTeamRetired, mayPublishCall, restampRunShare } from "./lib/callRecordingRuns";
+import {
+  callTeamRetired,
+  mayPublishCall,
+  restampRunShare,
+} from "./lib/callRecordingRuns";
 import { stampRoomWordsPublic } from "./callRooms";
 import { postEvent } from "./callChat";
 import { assigneeNamesFor } from "./tasks";
@@ -27,9 +43,16 @@ import { userMayRead } from "./sessionDecisions";
 import { canReadStack } from "./decisionStacks";
 import { canViewTask } from "./agentTasks";
 import { canReadRun } from "./workflow_runs";
-import { CALL_LINK_REFUSED_WORDS, isRecRoomKey } from "@codecast/shared/contracts";
+import {
+  CALL_LINK_REFUSED_WORDS,
+  isRecRoomKey,
+} from "@codecast/shared/contracts";
 import { publicName } from "./lib/displayNames";
-import { publicWeekCard, weeklyCardAllowed, type WeekCardStats } from "@codecast/shared/contracts/weeklyCard";
+import {
+  publicWeekCard,
+  weeklyCardAllowed,
+  type WeekCardStats,
+} from "@codecast/shared/contracts/weeklyCard";
 import { runWorkflowOf } from "./lib/runGraph";
 
 export { SHARE_TOKEN_SHAPE, type ShareTable };
@@ -48,7 +71,13 @@ export async function claimShareToken(
   apiToken?: string,
 ): Promise<void> {
   const change = await writeShareToken(ctx, table, row, token, by, apiToken);
-  if (change) await restampCallRuns(ctx, table, row, by && { by, event: change === "minted" ? "link_on" : "link_off" });
+  if (change)
+    await restampCallRuns(
+      ctx,
+      table,
+      row,
+      by && { by, event: change === "minted" ? "link_on" : "link_off" },
+    );
 }
 
 /** A call's running recordings carry whether their video goes out with the
@@ -71,7 +100,14 @@ async function restampCallRuns(
   if (!call) return;
   await restampRunShare(ctx, call);
   await stampRoomWordsPublic(ctx, call);
-  if (told) await postEvent(ctx, { room_key: call.room_key, team_id: call.team_id, user_id: told.by, event: told.event, transcript_id: call._id });
+  if (told)
+    await postEvent(ctx, {
+      room_key: call.room_key,
+      team_id: call.team_id,
+      user_id: told.by,
+      event: told.event,
+      transcript_id: call._id,
+    });
 }
 
 // Who may turn a kind's link on or off: whoever may read the object. Docs,
@@ -82,30 +118,86 @@ async function restampCallRuns(
 // (mayPublishCall). Wrapped, not referenced: this module sits in an import
 // cycle with conversations.ts, and a bare binding read at load is a TDZ.
 const SHARE_KINDS = {
-  doc: { table: "docs", canManage: (ctx: any, u: Id<"users">, row: any) => canAccessDoc(ctx, u, row) },
-  plan: { table: "plans", canManage: (ctx: any, u: Id<"users">, row: any) => canAccessPlan(ctx, u, row) },
-  task: { table: "tasks", canManage: (ctx: any, u: Id<"users">, row: any) => canAccessTask(ctx, u, row) },
+  doc: {
+    table: "docs",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canAccessDoc(ctx, u, row),
+  },
+  plan: {
+    table: "plans",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canAccessPlan(ctx, u, row),
+  },
+  task: {
+    table: "tasks",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canAccessTask(ctx, u, row),
+  },
   call: {
     table: "transcripts",
-    canManage: async (ctx: any, u: Id<"users">, row: any, token?: string | null) => {
+    canManage: async (
+      ctx: any,
+      u: Id<"users">,
+      row: any,
+      token?: string | null,
+    ) => {
       if (!(await canReadCall(ctx, u, row))) return false;
-      if (!token || token === row.share_token || (await mayPublishCall(ctx, u, row))) return true;
+      if (
+        !token ||
+        token === row.share_token ||
+        (await mayPublishCall(ctx, u, row))
+      )
+        return true;
       // A reader already knows the call is there, so the refusal says why.
       throw new Error(CALL_LINK_REFUSED_WORDS);
     },
   },
-  project: { table: "projects", canManage: (ctx: any, u: Id<"users">, row: any) => canAccessProject(ctx, u, row) },
-  initiative: { table: "initiatives", canManage: (ctx: any, u: Id<"users">, row: any) => canAccessInitiative(ctx, u, row) },
-  decision: { table: "session_decisions", canManage: (ctx: any, u: Id<"users">, row: any) => userMayRead(ctx, u, row) },
-  stack: { table: "decision_stacks", canManage: (ctx: any, u: Id<"users">, row: any) => canReadStack(ctx, u, row) },
-  trigger: { table: "agent_tasks", canManage: (ctx: any, u: Id<"users">, row: any) => canViewTask(ctx, u, row) },
-  run: { table: "workflow_runs", canManage: (ctx: any, u: Id<"users">, row: any) => canReadRun(ctx, u, row) },
+  project: {
+    table: "projects",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canAccessProject(ctx, u, row),
+  },
+  initiative: {
+    table: "initiatives",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canAccessInitiative(ctx, u, row),
+  },
+  decision: {
+    table: "session_decisions",
+    canManage: (ctx: any, u: Id<"users">, row: any) => userMayRead(ctx, u, row),
+  },
+  stack: {
+    table: "decision_stacks",
+    canManage: (ctx: any, u: Id<"users">, row: any) =>
+      canReadStack(ctx, u, row),
+  },
+  trigger: {
+    table: "agent_tasks",
+    canManage: (ctx: any, u: Id<"users">, row: any) => canViewTask(ctx, u, row),
+  },
+  run: {
+    table: "workflow_runs",
+    canManage: (ctx: any, u: Id<"users">, row: any) => canReadRun(ctx, u, row),
+  },
   // A weekly card is its owner's alone, and only while the card is allowed to them (weeklyCardAllowed).
   card: {
     table: "weekly_cards",
-    canManage: async (ctx: any, u: Id<"users">, row: any) => String(row.user_id) === String(u) && weeklyCardAllowed(await ctx.db.get(u)),
+    canManage: async (ctx: any, u: Id<"users">, row: any) =>
+      String(row.user_id) === String(u) &&
+      weeklyCardAllowed(await ctx.db.get(u)),
   },
-} as const satisfies Record<string, { table: TableNames; canManage: (ctx: any, userId: Id<"users">, row: any, token?: string | null) => Promise<boolean> }>;
+} as const satisfies Record<
+  string,
+  {
+    table: TableNames;
+    canManage: (
+      ctx: any,
+      userId: Id<"users">,
+      row: any,
+      token?: string | null,
+    ) => Promise<boolean>;
+  }
+>;
 
 export type ObjectShareKind = keyof typeof SHARE_KINDS;
 
@@ -125,11 +217,16 @@ export async function writeObjectShareLink(
   const rowId = ctx.db.normalizeId(table, id);
   const row = rowId ? await ctx.db.get(rowId) : null;
   // One error for "no row" and "not yours", so a probe learns nothing.
-  if (!row || !(await canManage(ctx, userId, row, token))) throw new Error("Not found");
+  if (!row || !(await canManage(ctx, userId, row, token)))
+    throw new Error("Not found");
   await claimShareToken(ctx, table, row as any, token, userId);
 }
 
-async function byShareToken<T extends ShareTable>(ctx: any, table: T, token: string): Promise<Doc<T> | null> {
+async function byShareToken<T extends ShareTable>(
+  ctx: any,
+  table: T,
+  token: string,
+): Promise<Doc<T> | null> {
   if (!/^[A-Za-z0-9_-]{6,80}$/.test(token)) return null;
   return await ctx.db
     .query(table)
@@ -167,7 +264,9 @@ export const getSharedTask = query({
       created_at: task.created_at,
       updated_at: task.updated_at,
       closed_at: task.closed_at ?? null,
-      user: author ? { name: author.name ?? null, image: author.image ?? null } : null,
+      user: author
+        ? { name: author.name ?? null, image: author.image ?? null }
+        : null,
       comments: comments.map((c) => ({
         author: c.author,
         text: c.text,
@@ -202,12 +301,17 @@ export const getSharedCall = query({
       status: t.status,
       started_at: t.started_at,
       ended_at: t.ended_at ?? null,
-      participants: (t.participants ?? []).map((p) => ({ id: keyOf(p.id), name: p.name })),
+      participants: (t.participants ?? []).map((p) => ({
+        id: keyOf(p.id),
+        name: p.name,
+      })),
       summary: t.summary ?? null,
       action_items: t.action_items ?? [],
       // Through the link-checked audio route, never a storage URL: a storage
       // URL is permanent, so it would outlive the link being turned off.
-      recording_url: t.recording_storage_id ? sharedCallAudioUrl(t.share_token!) : null,
+      recording_url: t.recording_storage_id
+        ? sharedCallAudioUrl(t.share_token!)
+        : null,
       // The huddle's video, when it was recorded AND whoever shares the link
       // chose to include it: the room as people saw it, one entry per press
       // of Record, each with its time 0 on the wall clock (offset into a
@@ -238,7 +342,8 @@ export const sharedCallAudioSource = internalQuery({
   args: { share_token: v.string() },
   handler: async (ctx, args): Promise<string | null> => {
     const t = await byShareToken(ctx, "transcripts", args.share_token);
-    if (!t?.recording_storage_id || (await callTeamRetired(ctx, t))) return null;
+    if (!t?.recording_storage_id || (await callTeamRetired(ctx, t)))
+      return null;
     return await ctx.storage.getUrl(t.recording_storage_id);
   },
 });
@@ -255,7 +360,10 @@ export const sharedCallVideoObject = internalQuery({
 });
 
 // A person's display name, never their id or address.
-async function personName(ctx: any, userId: Id<"users"> | undefined | null): Promise<string | null> {
+async function personName(
+  ctx: any,
+  userId: Id<"users"> | undefined | null,
+): Promise<string | null> {
   return publicName(userId ? await ctx.db.get(userId) : null);
 }
 
@@ -264,7 +372,13 @@ async function author(ctx: any, userId: Id<"users">) {
   return u ? { name: publicName(u), image: u.image ?? null } : null;
 }
 
-async function ownerName(ctx: any, owner: { kind: "user"; user_id: Id<"users"> } | { kind: "role"; role_id: Id<"org_roles"> } | undefined) {
+async function ownerName(
+  ctx: any,
+  owner:
+    | { kind: "user"; user_id: Id<"users"> }
+    | { kind: "role"; role_id: Id<"org_roles"> }
+    | undefined,
+) {
   if (!owner) return null;
   if (owner.kind === "user") return personName(ctx, owner.user_id);
   const role = await ctx.db.get(owner.role_id);
@@ -301,8 +415,14 @@ export const getSharedProject = query({
     const project = await byShareToken(ctx, "projects", args.share_token);
     if (!project) return null;
     const [tasks, plans] = await Promise.all([
-      ctx.db.query("tasks").withIndex("by_project_id", (q) => q.eq("project_id", project._id)).collect(),
-      ctx.db.query("plans").withIndex("by_project_id", (q) => q.eq("project_id", project._id)).collect(),
+      ctx.db
+        .query("tasks")
+        .withIndex("by_project_id", (q) => q.eq("project_id", project._id))
+        .collect(),
+      ctx.db
+        .query("plans")
+        .withIndex("by_project_id", (q) => q.eq("project_id", project._id))
+        .collect(),
     ]);
     // Only what lives in the project's own workspace rides its link.
     const here = workspaceForResource(project);
@@ -323,12 +443,21 @@ export const getSharedProject = query({
       user: await author(ctx, project.user_id),
       plans: plans
         .filter((p) => isSameWorkspace(p, here))
-        .map((p) => ({ short_id: p.short_id, title: p.title, status: p.status })),
+        .map((p) => ({
+          short_id: p.short_id,
+          title: p.title,
+          status: p.status,
+        })),
       tasks: tasks
         .filter((t) => !t.parent_id && isSameWorkspace(t, here))
         .sort((a, b) => b.updated_at - a.updated_at)
         .slice(0, 200)
-        .map((t) => ({ short_id: t.short_id, title: t.title, status: t.status, priority: t.priority })),
+        .map((t) => ({
+          short_id: t.short_id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+        })),
     };
   },
 });
@@ -340,7 +469,11 @@ export const getSharedInitiative = query({
     if (!ini) return null;
     const [projects, updates] = await Promise.all([
       Promise.all(ini.project_ids.map((id) => ctx.db.get(id))),
-      ctx.db.query("initiative_updates").withIndex("by_initiative_at", (q) => q.eq("initiative_id", ini._id)).order("desc").take(50),
+      ctx.db
+        .query("initiative_updates")
+        .withIndex("by_initiative_at", (q) => q.eq("initiative_id", ini._id))
+        .order("desc")
+        .take(50),
     ]);
     return {
       short_id: ini.short_id,
@@ -356,14 +489,23 @@ export const getSharedInitiative = query({
       updated_at: ini.updated_at,
       user: await author(ctx, ini.user_id),
       projects: projects
-        .filter((p): p is Doc<"projects"> => !!p && isSameWorkspace(p, workspaceForResource(ini)))
-        .map((p) => ({ title: p.title, status: p.status, description: p.description ?? null })),
-      updates: await Promise.all(updates.map(async (u) => ({
-        body: u.body,
-        health: u.health,
-        at: u.at,
-        by: await ownerName(ctx, u.by as any),
-      }))),
+        .filter(
+          (p): p is Doc<"projects"> =>
+            !!p && isSameWorkspace(p, workspaceForResource(ini)),
+        )
+        .map((p) => ({
+          title: p.title,
+          status: p.status,
+          description: p.description ?? null,
+        })),
+      updates: await Promise.all(
+        updates.map(async (u) => ({
+          body: u.body,
+          health: u.health,
+          at: u.at,
+          by: await ownerName(ctx, u.by as any),
+        })),
+      ),
     };
   },
 });
@@ -382,7 +524,9 @@ export const getSharedStack = query({
   handler: async (ctx, args) => {
     const stack = await byShareToken(ctx, "decision_stacks", args.share_token);
     if (!stack) return null;
-    const members = await Promise.all(stack.decision_ids.map((id) => ctx.db.get(id)));
+    const members = await Promise.all(
+      stack.decision_ids.map((id) => ctx.db.get(id)),
+    );
     return {
       short_id: stack.short_id,
       title: stack.title,
@@ -390,7 +534,9 @@ export const getSharedStack = query({
       created_at: stack.created_at,
       updated_at: stack.updated_at,
       user: await author(ctx, stack.owner_user_id),
-      decisions: members.filter(Boolean).map((d) => shapeDecision(d as Doc<"session_decisions">)),
+      decisions: members
+        .filter(Boolean)
+        .map((d) => shapeDecision(d as Doc<"session_decisions">)),
     };
   },
 });
@@ -439,7 +585,9 @@ export const getSharedRun = query({
     const run = await byShareToken(ctx, "workflow_runs", args.share_token);
     if (!run) return null;
     const workflow = await runWorkflowOf(ctx, run);
-    const labelOf = new Map((workflow?.nodes ?? []).map((n) => [n.id, n.label]));
+    const labelOf = new Map(
+      (workflow?.nodes ?? []).map((n) => [n.id, n.label]),
+    );
     return {
       name: workflow?.name ?? run.workflow_name ?? "Workflow run",
       goal: run.goal_override ?? workflow?.goal ?? null,

@@ -11,7 +11,10 @@ import { join } from "path";
 import type { Hono } from "hono";
 import type { WeekCardStats } from "@codecast/shared/contracts/weeklyCard";
 import { WeekCardView } from "../components/weeklyCard/WeekCardView";
-import { WEEK_CARD_H, WEEK_CARD_W } from "@codecast/shared/contracts/weeklyCard";
+import {
+  WEEK_CARD_H,
+  WEEK_CARD_W,
+} from "@codecast/shared/contracts/weeklyCard";
 import { fetchShared } from "./shareData";
 
 const require = createRequire(import.meta.url);
@@ -23,8 +26,13 @@ let rendererPromise: Promise<Renderer> | null = null;
 
 function renderer(): Promise<Renderer> {
   rendererPromise ??= (async () => {
-    const [{ default: satori }, resvg] = await Promise.all([import("satori"), import("@resvg/resvg-wasm")]);
-    await resvg.initWasm(await readFile(require.resolve("@resvg/resvg-wasm/index_bg.wasm")));
+    const [{ default: satori }, resvg] = await Promise.all([
+      import("satori"),
+      import("@resvg/resvg-wasm"),
+    ]);
+    await resvg.initWasm(
+      await readFile(require.resolve("@resvg/resvg-wasm/index_bg.wasm")),
+    );
     const fonts = await Promise.all(
       ([400, 700] as const).map(async (weight) => ({
         name: "JetBrains Mono",
@@ -34,22 +42,40 @@ function renderer(): Promise<Renderer> {
       })),
     );
     return async (el: unknown) => {
-      const svg = await satori(el as any, { width: WEEK_CARD_W, height: WEEK_CARD_H, fonts });
-      return new resvg.Resvg(svg, { fitTo: { mode: "width", value: WEEK_CARD_W } }).render().asPng();
+      const svg = await satori(el as any, {
+        width: WEEK_CARD_W,
+        height: WEEK_CARD_H,
+        fonts,
+      });
+      return new resvg.Resvg(svg, {
+        fitTo: { mode: "width", value: WEEK_CARD_W },
+      })
+        .render()
+        .asPng();
     };
   })();
   // A failed load (no wasm in this build) is retried on the next request, not cached.
-  rendererPromise.catch(() => { rendererPromise = null; });
+  rendererPromise.catch(() => {
+    rendererPromise = null;
+  });
   return rendererPromise;
 }
 
 /** The PNG for a published card, or null when the token is closed. */
 export async function weekCardPng(token: string): Promise<Uint8Array | null> {
   const result = await fetchShared("card", token);
-  const data = result?.value as { stats: WeekCardStats; user: { name: string | null } | null } | null | undefined;
+  const data = result?.value as
+    | { stats: WeekCardStats; user: { name: string | null } | null }
+    | null
+    | undefined;
   if (!data) return null;
   const render = await renderer();
-  return await render(createElement(WeekCardView, { stats: data.stats, name: data.user?.name ?? null }));
+  return await render(
+    createElement(WeekCardView, {
+      stats: data.stats,
+      name: data.user?.name ?? null,
+    }),
+  );
 }
 
 export function registerWeekCardImage(app: Hono) {
@@ -61,7 +87,10 @@ export function registerWeekCardImage(app: Hono) {
       if (!png) return c.text("Not found", 404);
       c.header("Content-Type", "image/png");
       // The page's own cache rule: unpublishing reaches the edge within a minute.
-      c.header("Cache-Control", "public, max-age=0, s-maxage=60, stale-while-revalidate=300");
+      c.header(
+        "Cache-Control",
+        "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+      );
       return c.body(png as any);
     } catch (err) {
       console.error("[og] weekly card image failed", err);

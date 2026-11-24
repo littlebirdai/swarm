@@ -33,7 +33,10 @@ const TRACKED_TABLES: readonly TrackedPrincipalTable[] = [
   "conversations",
 ];
 
-function trackedTableOf(db: RevisionDb, id: unknown): TrackedPrincipalTable | null {
+function trackedTableOf(
+  db: RevisionDb,
+  id: unknown,
+): TrackedPrincipalTable | null {
   for (const table of TRACKED_TABLES) {
     if (db.normalizeId(table, id)) return table;
   }
@@ -41,13 +44,19 @@ function trackedTableOf(db: RevisionDb, id: unknown): TrackedPrincipalTable | nu
 }
 
 function stringIds(values: Array<Id<"users"> | undefined>): Id<"users">[] {
-  return [...new Map(
-    values.filter((value): value is Id<"users"> => value !== undefined)
-      .map((value) => [String(value), value]),
-  ).values()].sort((left, right) => String(left).localeCompare(String(right)));
+  return [
+    ...new Map(
+      values
+        .filter((value): value is Id<"users"> => value !== undefined)
+        .map((value) => [String(value), value]),
+    ).values(),
+  ].sort((left, right) => String(left).localeCompare(String(right)));
 }
 
-async function teamMemberIds(db: RevisionDb, teamId: Id<"teams">): Promise<Id<"users">[]> {
+async function teamMemberIds(
+  db: RevisionDb,
+  teamId: Id<"teams">,
+): Promise<Id<"users">[]> {
   const memberships = await db
     .query("team_memberships")
     .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
@@ -126,11 +135,13 @@ async function advanceMembershipTransition(
     await advanceTeamsViewRevision(db, principalId);
   }
 
-  const teamIds = [...new Map(
-    [before?.team_id, after?.team_id]
-      .filter(Boolean)
-      .map((teamId) => [String(teamId), teamId as Id<"teams">]),
-  ).values()];
+  const teamIds = [
+    ...new Map(
+      [before?.team_id, after?.team_id]
+        .filter(Boolean)
+        .map((teamId) => [String(teamId), teamId as Id<"teams">]),
+    ).values(),
+  ];
   for (const teamId of teamIds) {
     const afterViewers = await teamMemberIds(db, teamId);
     for (const principalId of stringIds([...beforeViewers, ...afterViewers])) {
@@ -154,8 +165,14 @@ function favoritePrincipal(doc: any | null): Id<"users"> | undefined {
   return doc?.is_favorite ? doc.user_id : undefined;
 }
 
-function sameFavoriteMembership(before: any | null, after: any | null): boolean {
-  return String(favoritePrincipal(before) ?? "") === String(favoritePrincipal(after) ?? "");
+function sameFavoriteMembership(
+  before: any | null,
+  after: any | null,
+): boolean {
+  return (
+    String(favoritePrincipal(before) ?? "") ===
+    String(favoritePrincipal(after) ?? "")
+  );
 }
 
 function teamCatalogFields(team: any | null) {
@@ -174,7 +191,10 @@ async function advanceFavoriteReplacement(
   after: any | null,
 ): Promise<void> {
   if (sameFavoriteMembership(before, after)) return;
-  for (const principalId of stringIds([favoritePrincipal(before), favoritePrincipal(after)])) {
+  for (const principalId of stringIds([
+    favoritePrincipal(before),
+    favoritePrincipal(after),
+  ])) {
     await advanceFavoritesViewRevision(db, principalId);
   }
 }
@@ -214,31 +234,39 @@ export function makePrincipalViewTrackedDb(db: RevisionDb): RevisionDb {
       // Convex documents are immutable snapshots. Some test adapters mutate
       // their backing row in place, so retain the same semantic guarantee here.
       const before = beforeDoc ? { ...beforeDoc } : null;
-      const beforeViewers = table === "teams" && before
-        ? await teamMemberIds(db, before._id)
-        : table === "team_memberships" && before
-          ? await teamMemberIds(db, before.team_id)
-          : [];
+      const beforeViewers =
+        table === "teams" && before
+          ? await teamMemberIds(db, before._id)
+          : table === "team_memberships" && before
+            ? await teamMemberIds(db, before.team_id)
+            : [];
       const result = await db.patch(id, fields);
       const after = table ? await db.get(id) : null;
       if (
-        table === "users"
-        && (before || after)
-        && !sameProjection(
+        table === "users" &&
+        (before || after) &&
+        !sameProjection(
           before ? projectCurrentUserMetadata(before) : null,
           after ? projectCurrentUserMetadata(after) : null,
         )
       ) {
-        await advanceCurrentUserViewRevision(db, (after?._id ?? before._id) as Id<"users">);
+        await advanceCurrentUserViewRevision(
+          db,
+          (after?._id ?? before._id) as Id<"users">,
+        );
       } else if (
-        table === "teams"
-        && (before || after)
-        && !sameProjection(teamCatalogFields(before), teamCatalogFields(after))
+        table === "teams" &&
+        (before || after) &&
+        !sameProjection(teamCatalogFields(before), teamCatalogFields(after))
       ) {
-        await advanceTeamTransition(db, (after?._id ?? before._id) as Id<"teams">, beforeViewers);
+        await advanceTeamTransition(
+          db,
+          (after?._id ?? before._id) as Id<"teams">,
+          beforeViewers,
+        );
       } else if (
-        table === "team_memberships"
-        && !sameProjection(
+        table === "team_memberships" &&
+        !sameProjection(
           before ? projectTeamMembership(before) : null,
           after ? projectTeamMembership(after) : null,
         )
@@ -260,31 +288,39 @@ export function makePrincipalViewTrackedDb(db: RevisionDb): RevisionDb {
       const table = trackedTableOf(db, id);
       const beforeDoc = table ? await db.get(id) : null;
       const before = beforeDoc ? { ...beforeDoc } : null;
-      const beforeViewers = table === "teams" && before
-        ? await teamMemberIds(db, before._id)
-        : table === "team_memberships" && before
-          ? await teamMemberIds(db, before.team_id)
-          : [];
+      const beforeViewers =
+        table === "teams" && before
+          ? await teamMemberIds(db, before._id)
+          : table === "team_memberships" && before
+            ? await teamMemberIds(db, before.team_id)
+            : [];
       const result = await db.replace(id, doc);
       const after = table ? await db.get(id) : null;
       if (
-        table === "users"
-        && (before || after)
-        && !sameProjection(
+        table === "users" &&
+        (before || after) &&
+        !sameProjection(
           before ? projectCurrentUserMetadata(before) : null,
           after ? projectCurrentUserMetadata(after) : null,
         )
       ) {
-        await advanceCurrentUserViewRevision(db, (after?._id ?? before._id) as Id<"users">);
+        await advanceCurrentUserViewRevision(
+          db,
+          (after?._id ?? before._id) as Id<"users">,
+        );
       } else if (
-        table === "teams"
-        && (before || after)
-        && !sameProjection(teamCatalogFields(before), teamCatalogFields(after))
+        table === "teams" &&
+        (before || after) &&
+        !sameProjection(teamCatalogFields(before), teamCatalogFields(after))
       ) {
-        await advanceTeamTransition(db, (after?._id ?? before._id) as Id<"teams">, beforeViewers);
+        await advanceTeamTransition(
+          db,
+          (after?._id ?? before._id) as Id<"teams">,
+          beforeViewers,
+        );
       } else if (
-        table === "team_memberships"
-        && !sameProjection(
+        table === "team_memberships" &&
+        !sameProjection(
           before ? projectTeamMembership(before) : null,
           after ? projectTeamMembership(after) : null,
         )
@@ -299,11 +335,12 @@ export function makePrincipalViewTrackedDb(db: RevisionDb): RevisionDb {
     async delete(id: any) {
       const table = trackedTableOf(db, id);
       const before = table ? await db.get(id) : null;
-      const beforeViewers = table === "teams" && before
-        ? await teamMemberIds(db, before._id)
-        : table === "team_memberships" && before
-          ? await teamMemberIds(db, before.team_id)
-          : [];
+      const beforeViewers =
+        table === "teams" && before
+          ? await teamMemberIds(db, before._id)
+          : table === "team_memberships" && before
+            ? await teamMemberIds(db, before.team_id)
+            : [];
       const result = await db.delete(id);
       if (table === "users" && before) {
         await advanceCurrentUserViewRevision(db, before._id);

@@ -29,7 +29,13 @@
 // touches too, with a badge while the agent is acting, since both hands share
 // the one device.
 
-import { useCallback, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useConvex } from "convex/react";
 import { deviceDisplayName } from "../DeviceBadge";
 import type { SessionMachine } from "../tmuxAttach";
@@ -52,8 +58,15 @@ import {
   type WatchStatus,
   type WatchTabInfo,
 } from "../../lib/browserWatch";
-import { browserRelayKey, connectBrowserWatchRelay } from "../../lib/browserWatchRelay";
-import { createGhostStore, ghostView, type GhostStore } from "../../lib/browserGhost";
+import {
+  browserRelayKey,
+  connectBrowserWatchRelay,
+} from "../../lib/browserWatchRelay";
+import {
+  createGhostStore,
+  ghostView,
+  type GhostStore,
+} from "../../lib/browserGhost";
 import { CursorArrow } from "../presence/CursorArrow";
 import { DrivingHint } from "./watchControls";
 import { useDerivedSize } from "../../hooks/useDerivedSize";
@@ -84,7 +97,9 @@ export function BrowserStream({
   source?: WatchSource;
   /** Filled with a sender while the stream is open, for a host's own buttons
    *  (a simulator's Home and Lock). */
-  inputRef?: React.MutableRefObject<((events: WatchInputEvent[]) => void) | null>;
+  inputRef?: React.MutableRefObject<
+    ((events: WatchInputEvent[]) => void) | null
+  >;
   /** The newest frame as a data URL, for a host that saves what is on screen. */
   frameRef?: React.MutableRefObject<string | null>;
   /** A screenshot or recording the host asked a simulator for. */
@@ -115,7 +130,10 @@ export function BrowserStream({
   const [controlAvailable, setControlAvailable] = useState(false);
   // The frame's own pixel size, from the daemon: the overlay scales the
   // agent's normalized points into the letterboxed content rect with it.
-  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null);
+  const [frameSize, setFrameSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [nav, setNav] = useState<{ url: string; at: number } | null>(null);
   const [device, setDevice] = useState<SimDeviceState | null>(null);
   const [transport, setTransport] = useState<"local" | "relay" | null>(null);
@@ -135,7 +153,11 @@ export function BrowserStream({
   const foreign = !!machine && !machine.is_mine;
   // Two facts, both outside React: the pane's tab is the visible one (the host
   // knows that) and this document is not behind another window's tab.
-  const documentVisible = useSyncExternalStore(subscribeVisibility, readVisibility, () => false);
+  const documentVisible = useSyncExternalStore(
+    subscribeVisibility,
+    readVisibility,
+    () => false,
+  );
   const visible = paneActive && documentVisible;
 
   useWatchEffect(() => {
@@ -154,62 +176,83 @@ export function BrowserStream({
         setStatus(watchUnreachableStatus({ foreign: true, machineName }));
         return;
       }
-      const endpoint = await getTerminalEndpoint(convex, { deviceId: machine?.device_id });
+      const endpoint = await getTerminalEndpoint(convex, {
+        deviceId: machine?.device_id,
+      });
       if (cancelled) return;
       const handlers: WatchHandlers = {
-      onReady(t, granted) {
-        if (cancelled) return;
-        // A new stream starts with no cursor memory: the daemon replays
-        // the tab's recent actions right after ready, so a cursor that
-        // is still current comes straight back, and a stale one from a
-        // tab this session left does not.
-        ghost.reset();
-        setTab(t);
-        setControlAvailable(granted);
-        setStatus({ kind: "live" });
-      },
-      onFrame(dataUrl, w, h) {
-        if (cancelled) return;
-        setFrame(dataUrl);
-        if (frameRef) frameRef.current = dataUrl;
-        if (w && h) setFrameSize((prev) => (prev && prev.width === w && prev.height === h ? prev : { width: w, height: h }));
-      },
-      onTab(t) {
-        if (!cancelled) setTab(t);
-      },
-      onDevice(d) {
-        if (!cancelled) setDevice(d);
-      },
-      onCapture(c) {
-        if (!cancelled) onCaptureRef.current?.(c);
-      },
-      onAction(a) {
-        if (cancelled) return;
-        ghost.push(a);
-        if (a.kind === "nav" && a.url) {
-          // The address changes the moment the page does, not on the
-          // daemon's next tab poll; the host flashes it keyed on `at`.
-          const url = a.url;
-          setTab((t) => (t && t.url !== url ? { ...t, url } : t));
-          setNav({ url, at: a.at });
-        }
-      },
-      onError(code, message) {
-        if (!cancelled) setStatus(watchErrorStatus(code, message));
-      },
-      onExit(reason) {
-        if (!cancelled) setStatus(watchExitStatus(reason));
-      },
+        onReady(t, granted) {
+          if (cancelled) return;
+          // A new stream starts with no cursor memory: the daemon replays
+          // the tab's recent actions right after ready, so a cursor that
+          // is still current comes straight back, and a stale one from a
+          // tab this session left does not.
+          ghost.reset();
+          setTab(t);
+          setControlAvailable(granted);
+          setStatus({ kind: "live" });
+        },
+        onFrame(dataUrl, w, h) {
+          if (cancelled) return;
+          setFrame(dataUrl);
+          if (frameRef) frameRef.current = dataUrl;
+          if (w && h)
+            setFrameSize((prev) =>
+              prev && prev.width === w && prev.height === h
+                ? prev
+                : { width: w, height: h },
+            );
+        },
+        onTab(t) {
+          if (!cancelled) setTab(t);
+        },
+        onDevice(d) {
+          if (!cancelled) setDevice(d);
+        },
+        onCapture(c) {
+          if (!cancelled) onCaptureRef.current?.(c);
+        },
+        onAction(a) {
+          if (cancelled) return;
+          ghost.push(a);
+          if (a.kind === "nav" && a.url) {
+            // The address changes the moment the page does, not on the
+            // daemon's next tab poll; the host flashes it keyed on `at`.
+            const url = a.url;
+            setTab((t) => (t && t.url !== url ? { ...t, url } : t));
+            setNav({ url, at: a.at });
+          }
+        },
+        onError(code, message) {
+          if (!cancelled) setStatus(watchErrorStatus(code, message));
+        },
+        onExit(reason) {
+          if (!cancelled) setStatus(watchExitStatus(reason));
+        },
       };
       if (endpoint) {
         setTransport("local");
-        connRef.current = connectBrowserWatch(endpoint, { sessionUuid, tmuxSession, control: true, source }, handlers);
-      } else if (machine?.device_id && browserRelayKey({ sessionUuid, tmuxSession, source })) {
+        connRef.current = connectBrowserWatch(
+          endpoint,
+          { sessionUuid, tmuxSession, control: true, source },
+          handlers,
+        );
+      } else if (
+        machine?.device_id &&
+        browserRelayKey({ sessionUuid, tmuxSession, source })
+      ) {
         // The agent's machine is yours but not this one: watch through the
         // relay instead of the loopback socket.
         setTransport("relay");
         connRef.current = connectBrowserWatchRelay(
-          { convex, deviceId: machine.device_id, sessionUuid, tmuxSession, source, machineName },
+          {
+            convex,
+            deviceId: machine.device_id,
+            sessionUuid,
+            tmuxSession,
+            source,
+            machineName,
+          },
           handlers,
         );
       } else {
@@ -247,21 +290,47 @@ export function BrowserStream({
   // "still a picture" would be the churn this app has a rule against.
   const hasFrame = !!frame;
   useWatchEffect(() => {
-    onState({ status, tab, controlAvailable, hasFrame, nav, device, transport });
-  }, [status, tab, controlAvailable, hasFrame, nav, device, transport, onState]);
+    onState({
+      status,
+      tab,
+      controlAvailable,
+      hasFrame,
+      nav,
+      device,
+      transport,
+    });
+  }, [
+    status,
+    tab,
+    controlAvailable,
+    hasFrame,
+    nav,
+    device,
+    transport,
+    onState,
+  ]);
 
   const live = status.kind === "live";
   const sim = source === "sim";
   // A device's screen has rounded corners; the frame is square. Clip the
   // letterboxed picture to the glass so it reads as the device, not a photo.
-  const boxSig = useDerivedSize(boxRef, (w, h) => `${Math.round(w)}x${Math.round(h)}`, () => "0x0");
-  const deviceClip = sim && frameSize ? glassClip(boxSig, frameSize, tab?.title ?? "") : undefined;
+  const boxSig = useDerivedSize(
+    boxRef,
+    (w, h) => `${Math.round(w)}x${Math.round(h)}`,
+    () => "0x0",
+  );
+  const deviceClip =
+    sim && frameSize
+      ? glassClip(boxSig, frameSize, tab?.title ?? "")
+      : undefined;
   const driving = live && controlAvailable && (control || sim);
   const paused = status.kind === "paused";
 
   useWatchEffect(() => {
     if (!inputRef) return;
-    inputRef.current = driving ? (events) => connRef.current?.sendInput(events) : null;
+    inputRef.current = driving
+      ? (events) => connRef.current?.sendInput(events)
+      : null;
     return () => {
       inputRef.current = null;
     };
@@ -273,7 +342,13 @@ export function BrowserStream({
         <img
           ref={imgRef}
           src={frame}
-          alt={tab?.title ? `Live view of ${tab.title}` : sim ? "Live view of the agent's simulator" : "Live view of the agent's browser tab"}
+          alt={
+            tab?.title
+              ? `Live view of ${tab.title}`
+              : sim
+                ? "Live view of the agent's simulator"
+                : "Live view of the agent's browser tab"
+          }
           className={`absolute inset-0 w-full h-full object-contain transition-opacity ${
             paused ? "opacity-40" : ""
           }`}
@@ -282,10 +357,22 @@ export function BrowserStream({
         />
       )}
       {frame && (
-        <GhostCursor store={ghost} boxRef={boxRef} imgRef={imgRef} frameSize={frameSize} hidden={driving && !sim} badge={sim} />
+        <GhostCursor
+          store={ghost}
+          boxRef={boxRef}
+          imgRef={imgRef}
+          frameSize={frameSize}
+          hidden={driving && !sim}
+          badge={sim}
+        />
       )}
       {driving && (
-        <ControlSurface imgRef={imgRef} connRef={connRef} onRelease={sim ? undefined : onReleaseControl} touch={sim} />
+        <ControlSurface
+          imgRef={imgRef}
+          connRef={connRef}
+          onRelease={sim ? undefined : onReleaseControl}
+          touch={sim}
+        />
       )}
       {driving && !sim && <DrivingHint />}
       {paused && frame && (
@@ -311,7 +398,8 @@ export function BrowserStream({
 // inverse of the control surface's mapToFrame, so the arrow lands where a
 // click sent from the same spot would.
 
-const GHOST_TRANSITION = "transform 160ms cubic-bezier(.2,.7,.2,1), opacity 300ms ease";
+const GHOST_TRANSITION =
+  "transform 160ms cubic-bezier(.2,.7,.2,1), opacity 300ms ease";
 
 function GhostCursor({
   store,
@@ -336,28 +424,57 @@ function GhostCursor({
    *  shared device the person should hold off until it settles. */
   badge?: boolean;
 }) {
-  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const state = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  );
   // A fade is a question of time, not of a new action: wake exactly when the
   // view says something changes, and not otherwise.
   const [, wake] = useReducer((n: number) => n + 1, 0);
   const view = ghostView(state, Date.now());
   useWatchEffect(() => {
     if (view.nextChangeAt === null) return;
-    const t = setTimeout(wake, Math.max(0, view.nextChangeAt - Date.now()) + 16);
+    const t = setTimeout(
+      wake,
+      Math.max(0, view.nextChangeAt - Date.now()) + 16,
+    );
     return () => clearTimeout(t);
   }, [view.nextChangeAt]);
   // The box only re-renders this overlay when its rounded size changes.
-  const boxSig = useDerivedSize(boxRef, (w, h) => `${Math.round(w)}x${Math.round(h)}`, () => "0x0");
+  const boxSig = useDerivedSize(
+    boxRef,
+    (w, h) => `${Math.round(w)}x${Math.round(h)}`,
+    () => "0x0",
+  );
   const [boxW, boxH] = boxSig.split("x").map(Number);
 
-  const natural = frameSize ?? (imgRef.current ? { width: imgRef.current.naturalWidth, height: imgRef.current.naturalHeight } : null);
-  const point = state.point && natural ? mapFromFrame(state.point.x, state.point.y, { left: 0, top: 0, width: boxW, height: boxH }, natural) : null;
+  const natural =
+    frameSize ??
+    (imgRef.current
+      ? {
+          width: imgRef.current.naturalWidth,
+          height: imgRef.current.naturalHeight,
+        }
+      : null);
+  const point =
+    state.point && natural
+      ? mapFromFrame(
+          state.point.x,
+          state.point.y,
+          { left: 0, top: 0, width: boxW, height: boxH },
+          natural,
+        )
+      : null;
   if (!point) return null;
   const visible = view.visible && !hidden;
   const captionText = state.caption?.text ?? null;
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div
+      className="absolute inset-0 overflow-hidden pointer-events-none"
+      aria-hidden="true"
+    >
       {badge && (
         <span
           data-sv-agent-badge
@@ -371,7 +488,11 @@ function GhostCursor({
         data-sv-ghost-cursor
         data-visible={visible ? "true" : "false"}
         className="absolute left-0 top-0 w-7 h-9 will-change-transform"
-        style={{ transform: `translate(${point.x}px, ${point.y}px)`, opacity: visible ? 1 : 0, transition: GHOST_TRANSITION }}
+        style={{
+          transform: `translate(${point.x}px, ${point.y}px)`,
+          opacity: visible ? 1 : 0,
+          transition: GHOST_TRANSITION,
+        }}
       >
         {view.ripple !== null && (
           <span
@@ -385,7 +506,10 @@ function GhostCursor({
           <span
             data-sv-ghost-caption
             className="absolute left-6 top-7 max-w-[240px] truncate px-1.5 py-0.5 rounded bg-sol-bg/90 border border-sol-violet/40 text-meta font-mono text-sol-text whitespace-nowrap"
-            style={{ opacity: view.caption !== null ? 1 : 0, transition: "opacity 300ms ease" }}
+            style={{
+              opacity: view.caption !== null ? 1 : 0,
+              transition: "opacity 300ms ease",
+            }}
           >
             {captionText}
           </span>
@@ -418,7 +542,12 @@ const TOUCH_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><circle cx="14" cy="14" r="11" fill="rgba(128,128,128,0.35)" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"/></svg>',
 )}") 14 14, pointer`;
 
-function eventModifiers(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): number {
+function eventModifiers(e: {
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}): number {
   return (
     (e.altKey ? CDP_MOD.alt : 0) |
     (e.ctrlKey ? CDP_MOD.ctrl : 0) |
@@ -429,9 +558,19 @@ function eventModifiers(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean
 
 /** Keys forwarded as key events; everything printable travels as insertText. */
 const FORWARDED_KEYS = new Set([
-  "Enter", "Backspace", "Tab", "Escape", "Delete",
-  "ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown",
-  "Home", "End", "PageUp", "PageDown",
+  "Enter",
+  "Backspace",
+  "Tab",
+  "Escape",
+  "Delete",
+  "ArrowLeft",
+  "ArrowUp",
+  "ArrowRight",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
 ]);
 
 function ControlSurface({
@@ -453,7 +592,9 @@ function ControlSurface({
   const lastMoveAt = useRef(0);
   // A touchscreen shows nothing where a finger lands; a ring at each press
   // says the tap went through, the way the agent's own ring does.
-  const [rings, setRings] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [rings, setRings] = useState<{ id: number; x: number; y: number }[]>(
+    [],
+  );
   const ringId = useRef(0);
 
   // Keys should land in the page the moment control turns on, without an
@@ -481,7 +622,8 @@ function ControlSurface({
     [connRef],
   );
 
-  const mouseButton = (b: number): "left" | "right" | "middle" => (b === 2 ? "right" : b === 1 ? "middle" : "left");
+  const mouseButton = (b: number): "left" | "right" | "middle" =>
+    b === 2 ? "right" : b === 1 ? "middle" : "left";
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -491,17 +633,38 @@ function ControlSurface({
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const id = ++ringId.current;
-      setRings((r) => [...r.slice(-3), { id, x: e.clientX - box.left, y: e.clientY - box.top }]);
+      setRings((r) => [
+        ...r.slice(-3),
+        { id, x: e.clientX - box.left, y: e.clientY - box.top },
+      ]);
       setTimeout(() => setRings((r) => r.filter((x) => x.id !== id)), 450);
     }
     const p = toNorm(e.clientX, e.clientY);
     if (!p) return;
-    send([{ kind: "mouse", type: "mousePressed", ...p, button: mouseButton(e.button), clickCount: Math.max(1, e.detail), modifiers: eventModifiers(e) }]);
+    send([
+      {
+        kind: "mouse",
+        type: "mousePressed",
+        ...p,
+        button: mouseButton(e.button),
+        clickCount: Math.max(1, e.detail),
+        modifiers: eventModifiers(e),
+      },
+    ]);
   };
   const onPointerUp = (e: React.PointerEvent) => {
     const p = toNorm(e.clientX, e.clientY);
     if (!p) return;
-    send([{ kind: "mouse", type: "mouseReleased", ...p, button: mouseButton(e.button), clickCount: Math.max(1, e.detail), modifiers: eventModifiers(e) }]);
+    send([
+      {
+        kind: "mouse",
+        type: "mouseReleased",
+        ...p,
+        button: mouseButton(e.button),
+        clickCount: Math.max(1, e.detail),
+        modifiers: eventModifiers(e),
+      },
+    ]);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const now = Date.now();
@@ -509,12 +672,29 @@ function ControlSurface({
     lastMoveAt.current = now;
     const p = toNorm(e.clientX, e.clientY);
     if (!p) return;
-    send([{ kind: "mouse", type: "mouseMoved", ...p, button: "none", modifiers: eventModifiers(e) }]);
+    send([
+      {
+        kind: "mouse",
+        type: "mouseMoved",
+        ...p,
+        button: "none",
+        modifiers: eventModifiers(e),
+      },
+    ]);
   };
   const onWheel = (e: React.WheelEvent) => {
     const p = toNorm(e.clientX, e.clientY);
     if (!p) return;
-    send([{ kind: "mouse", type: "mouseWheel", ...p, deltaX: e.deltaX, deltaY: e.deltaY, modifiers: eventModifiers(e) }]);
+    send([
+      {
+        kind: "mouse",
+        type: "mouseWheel",
+        ...p,
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        modifiers: eventModifiers(e),
+      },
+    ]);
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape" && onRelease) {
@@ -529,8 +709,20 @@ function ControlSurface({
       e.preventDefault();
       const mods = eventModifiers(e);
       send([
-        { kind: "key", type: "keyDown", key: e.key, code: e.code, modifiers: mods },
-        { kind: "key", type: "keyUp", key: e.key, code: e.code, modifiers: mods },
+        {
+          kind: "key",
+          type: "keyDown",
+          key: e.key,
+          code: e.code,
+          modifiers: mods,
+        },
+        {
+          kind: "key",
+          type: "keyUp",
+          key: e.key,
+          code: e.code,
+          modifiers: mods,
+        },
       ]);
       return;
     }
@@ -556,8 +748,19 @@ function ControlSurface({
           ? "The simulator's screen: click to tap, drag to swipe, scroll to scroll, type once clicked"
           : "You have the wheel of the agent's browser tab: clicks and typing go to the page, Esc hands it back"
       }
-      className={touch ? "absolute inset-0 outline-none" : "absolute inset-0 cursor-crosshair outline-none ring-2 ring-inset ring-sol-cyan/60 focus:ring-sol-cyan"}
-      style={touch ? { cursor: TOUCH_CURSOR } : { boxShadow: "inset 0 0 28px color-mix(in srgb, var(--sol-cyan) 18%, transparent)" }}
+      className={
+        touch
+          ? "absolute inset-0 outline-none"
+          : "absolute inset-0 cursor-crosshair outline-none ring-2 ring-inset ring-sol-cyan/60 focus:ring-sol-cyan"
+      }
+      style={
+        touch
+          ? { cursor: TOUCH_CURSOR }
+          : {
+              boxShadow:
+                "inset 0 0 28px color-mix(in srgb, var(--sol-cyan) 18%, transparent)",
+            }
+      }
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerMove={onPointerMove}

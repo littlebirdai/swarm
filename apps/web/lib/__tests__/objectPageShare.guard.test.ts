@@ -17,18 +17,29 @@ const ENTITY_PAGES: Record<EntityType, Page> = {
   task: ["app/tasks/[id]/TaskHead.tsx"],
   plan: ["app/plans/[id]/page.tsx"],
   // The board's drill-in mounts the same session page (QueuePageClient SessionPage).
-  session: ["app/inbox/QueuePageClient.tsx", "app/conversation/[id]/diff/page.tsx"],
+  session: [
+    "app/inbox/QueuePageClient.tsx",
+    "app/conversation/[id]/diff/page.tsx",
+  ],
   doc: ["app/docs/[id]/page.tsx"],
   project: ["app/projects/[id]/page.tsx"],
   initiative: ["components/org/company/SheetFrame.tsx"],
   proposal: ["components/org/OrgPanel.tsx"],
   trigger: ["app/triggers/[id]/page.tsx"],
-  decision: ["components/decisions/DecisionDocument.tsx", "components/SessionDecisionCard.tsx"],
+  decision: [
+    "components/decisions/DecisionDocument.tsx",
+    "components/SessionDecisionCard.tsx",
+  ],
   pr: ["components/pr/PRActions.tsx"],
   commit: ["app/commit/[owner]/[repo]/[sha]/page.tsx"],
   call: ["app/calls/page.tsx"],
-  source: { none: "a source opens the Ops timeline filtered to it (/ops?source=src-N), a list view, not a page of its own" },
-  replay: ["components/ops/ReplayIssues.tsx", "components/ops/ReplayPlayer.tsx"],
+  source: {
+    none: "a source opens the Ops timeline filtered to it (/ops?source=src-N), a list view, not a page of its own",
+  },
+  replay: [
+    "components/ops/ReplayIssues.tsx",
+    "components/ops/ReplayPlayer.tsx",
+  ],
   // A role's page is its standing conversation.
   role: ["app/inbox/QueuePageClient.tsx"],
   person: ["app/team/[username]/page.tsx"],
@@ -50,10 +61,18 @@ const OTHER_PAGES = [
   "components/line/pipeline/PipelineDiagram.tsx",
 ];
 
-const SHARE = /<(ShareControl|ConversationSharePopover|SharePopover|ShareMoment|CodeShareMenu|CodeShareItems)\b/;
+const SHARE =
+  /<(ShareControl|ConversationSharePopover|SharePopover|ShareMoment|CodeShareMenu|CodeShareItems)\b/;
 
 describe("every object page carries a Share button", () => {
-  const files = [...new Set([...Object.values(ENTITY_PAGES).flatMap((p) => (Array.isArray(p) ? p : [])), ...OTHER_PAGES])];
+  const files = [
+    ...new Set([
+      ...Object.values(ENTITY_PAGES).flatMap((p) =>
+        Array.isArray(p) ? p : [],
+      ),
+      ...OTHER_PAGES,
+    ]),
+  ];
   test.each(files)("%s renders a share control", (rel) => {
     expect(SHARE.test(readFileSync(join(ROOT, rel), "utf8"))).toBe(true);
   });

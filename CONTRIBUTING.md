@@ -12,6 +12,7 @@
 ### Setup
 
 1. Clone the repo and install dependencies:
+
    ```bash
    git clone https://github.com/codecast-sh/codecast.git
    cd codecast
@@ -19,6 +20,7 @@
    ```
 
 2. Copy environment files:
+
    ```bash
    cp apps/web/.env.example apps/web/.env.local
    cp apps/server/.env.example apps/server/.env.local
@@ -28,6 +30,7 @@
 3. Configure your Convex instance URL in each `.env.local`.
 
 4. Start the dev server:
+
    ```bash
    ./dev.sh      # http://local.codecast.sh (port 3200)
    ./dev.sh 1    # http://local.1.codecast.sh (port 3201, multi-instance)
@@ -47,17 +50,17 @@ Without either, use `http://localhost:3200`.
 
 Codecast is a Bun monorepo with these packages:
 
-| Package | Description |
-|---------|-------------|
-| `apps/cli` | `cast` CLI and daemon that watches coding sessions and syncs to Convex |
-| `apps/server` | Convex backend: schema, queries, mutations, auth |
-| `apps/web` | React + Vite web app |
-| `apps/desktop` | Electron desktop app |
-| `apps/mobile` | Expo/React Native iOS app |
-| `packages/shared` | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
-| `apps/browser-extension` | Chrome extension behind `cast browser` |
-| `apps/vscode-extension` | VS Code / Cursor extension for `cast blame` |
-| `apps/evals` | Prompt evals against frozen moments |
+| Package                  | Description                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| `apps/cli`               | `cast` CLI and daemon that watches coding sessions and syncs to Convex                     |
+| `apps/server`            | Convex backend: schema, queries, mutations, auth                                           |
+| `apps/web`               | React + Vite web app                                                                       |
+| `apps/desktop`           | Electron desktop app                                                                       |
+| `apps/mobile`            | Expo/React Native iOS app                                                                  |
+| `packages/shared`        | Contracts and utilities shared by every package (agent registry, render, diff, encryption) |
+| `apps/browser-extension` | Chrome extension behind `cast browser`                                                     |
+| `apps/vscode-extension`  | VS Code / Cursor extension for `cast blame`                                                |
+| `apps/evals`             | Prompt evals against frozen moments                                                        |
 
 `platform/packages/` is a generated mirror of shared `@platform/*` packages. Never edit it by hand; see [AGENTS.md](AGENTS.md).
 
@@ -114,6 +117,7 @@ Convex deploys go only through `apps/server/deploy.sh`, which refuses a tree beh
 ## Commits
 
 Keep history flat: `git pull --rebase`, and rebase on `origin/main` instead of merging it in. Use [Conventional Commits](https://www.conventionalcommits.org/):
+
 ```
 feat(api): add telemetry endpoint
 fix(cli): handle missing config gracefully

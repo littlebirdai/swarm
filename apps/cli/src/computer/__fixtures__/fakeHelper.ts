@@ -48,7 +48,10 @@ if (testParentPid > 0) {
 
 const statusFile = flag("--permission-status-file");
 if (statusFile) {
-  fs.writeFileSync(statusFile, JSON.stringify({ accessibility: "granted", screenshots: "not-granted" }));
+  fs.writeFileSync(
+    statusFile,
+    JSON.stringify({ accessibility: "granted", screenshots: "not-granted" }),
+  );
   process.exit(0);
 }
 
@@ -63,7 +66,10 @@ const launchLog = process.env.FAKE_LAUNCH_LOG;
 let launchIndex = 0;
 if (launchLog) {
   try {
-    launchIndex = fs.readFileSync(launchLog, "utf-8").split("\n").filter(Boolean).length;
+    launchIndex = fs
+      .readFileSync(launchLog, "utf-8")
+      .split("\n")
+      .filter(Boolean).length;
   } catch {
     launchIndex = 0;
   }
@@ -79,8 +85,13 @@ if (!token) process.exit(2);
 const versions = (process.env.FAKE_VERSION_SEQUENCE ?? "1.0.0").split(",");
 const providerVersion = versions[Math.min(launchIndex, versions.length - 1)];
 const protocolVersion = Number(process.env.FAKE_PROTOCOL_VERSION ?? "1");
-const hang = new Set((process.env.FAKE_HANG_METHODS ?? "").split(",").filter(Boolean));
-const errors = JSON.parse(process.env.FAKE_ERROR_METHODS ?? "{}") as Record<string, { code: string; message: string }>;
+const hang = new Set(
+  (process.env.FAKE_HANG_METHODS ?? "").split(",").filter(Boolean),
+);
+const errors = JSON.parse(process.env.FAKE_ERROR_METHODS ?? "{}") as Record<
+  string,
+  { code: string; message: string }
+>;
 
 const capabilities = {
   platform: "darwin",
@@ -128,14 +139,24 @@ function handle(socket: net.Socket, line: string): void {
     return;
   }
   if (request.token !== token) {
-    reply(socket, { id: request.id, ok: false, error: { code: "permission_denied", message: "invalid computer agent token" } });
+    reply(socket, {
+      id: request.id,
+      ok: false,
+      error: {
+        code: "permission_denied",
+        message: "invalid computer agent token",
+      },
+    });
     return;
   }
   if (requireHandshake && !handshaken && request.method !== "handshake") {
     reply(socket, {
       id: request.id,
       ok: false,
-      error: { code: "permission_denied", message: "computer agent peer is not authorized" },
+      error: {
+        code: "permission_denied",
+        message: "computer agent peer is not authorized",
+      },
     });
     return;
   }
@@ -147,7 +168,8 @@ function handle(socket: net.Socket, line: string): void {
   }
   if (request.method === "handshake") {
     handshaken = true;
-    if (process.env.FAKE_HANDSHAKE_LOG) fs.appendFileSync(process.env.FAKE_HANDSHAKE_LOG, `${process.pid}\n`);
+    if (process.env.FAKE_HANDSHAKE_LOG)
+      fs.appendFileSync(process.env.FAKE_HANDSHAKE_LOG, `${process.pid}\n`);
     reply(socket, { id: request.id, ok: true, result: capabilities });
     return;
   }
@@ -157,7 +179,15 @@ function handle(socket: net.Socket, line: string): void {
     setTimeout(() => process.exit(0), 10);
     return;
   }
-  reply(socket, { id: request.id, ok: true, result: { method: request.method, params: request.params ?? null, helperPid: process.pid } });
+  reply(socket, {
+    id: request.id,
+    ok: true,
+    result: {
+      method: request.method,
+      params: request.params ?? null,
+      helperPid: process.pid,
+    },
+  });
 }
 
 const bind = () => {

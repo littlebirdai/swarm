@@ -31,7 +31,9 @@ function useReaders(conversationId: string): PresenceRow[] {
 
 function firstNames(rows: readonly PresenceRow[]): string {
   const names = rows.map((r) => (r.user_name || "Someone").split(" ")[0]);
-  return names.length <= 2 ? names.join(" and ") : `${names[0]} and ${names.length - 1} others`;
+  return names.length <= 2
+    ? names.join(" and ")
+    : `${names[0]} and ${names.length - 1} others`;
 }
 
 /** How long since a reader last moved through the transcript: "now", "4m ago". */
@@ -42,7 +44,9 @@ function sinceLabel(row: PresenceRow, now: number): string {
 
 function ReaderCard({ row, now }: { row: PresenceRow; now: number }) {
   const st = useTrackedStore([(s) => teamMembersOf(s)]);
-  const member = (teamMembersOf(st) as any[] | undefined)?.find((m) => String(m._id) === row.user_id);
+  const member = (teamMembersOf(st) as any[] | undefined)?.find(
+    (m) => String(m._id) === row.user_id,
+  );
   const moved = row.anchor_at ? now - row.anchor_at : 0;
   // The same rule as the typing strip: a side question being typed is its author's own.
   const draft = typingRows([row])[0]?.draft_text?.trim();
@@ -51,21 +55,37 @@ function ReaderCard({ row, now }: { row: PresenceRow; now: number }) {
       <div className="flex items-center gap-2">
         <PresenceAvatar person={row} size={28} ring={false} title="" />
         <div className="min-w-0">
-          <div className="truncate font-medium text-sol-text">{row.user_name}</div>
-          {member && <div className="text-sol-text-dim">{presenceLine(member, now)}</div>}
+          <div className="truncate font-medium text-sol-text">
+            {row.user_name}
+          </div>
+          {member && (
+            <div className="text-sol-text-dim">{presenceLine(member, now)}</div>
+          )}
         </div>
       </div>
       <div className="text-sol-text-muted">
-        {moved < 60_000 ? "Reading here now" : `Stopped here ${compactDuration(moved)} ago`}
+        {moved < 60_000
+          ? "Reading here now"
+          : `Stopped here ${compactDuration(moved)} ago`}
       </div>
-      {draft && <div className="truncate italic text-sol-text-dim">Typing: {draft}</div>}
+      {draft && (
+        <div className="truncate italic text-sol-text-dim">Typing: {draft}</div>
+      )}
     </div>
   );
 }
 
 /** The faces of everyone reading this message, in the row's right padding at the line they are on, each with how long ago they moved. */
-export const ReaderFaces = memo(function ReaderFaces({ conversationId, messageId }: { conversationId: string; messageId: string }) {
-  const here = useReaders(conversationId).filter((r) => r.anchor?.message_id === messageId);
+export const ReaderFaces = memo(function ReaderFaces({
+  conversationId,
+  messageId,
+}: {
+  conversationId: string;
+  messageId: string;
+}) {
+  const here = useReaders(conversationId).filter(
+    (r) => r.anchor?.message_id === messageId,
+  );
   const now = useCoarseNow(30_000);
   if (here.length === 0) return null;
   const at = Math.min(1, Math.max(0, here[0].anchor?.offset ?? 0));
@@ -76,9 +96,18 @@ export const ReaderFaces = memo(function ReaderFaces({ conversationId, messageId
       style={{ top: `max(4px, calc(${at * 100}% - 9px))` }}
     >
       {here.map((r) => (
-        <HoverCard key={r.user_id} card={<ReaderCard row={r} now={now} />} side="left" align="start" className="w-64" triggerClassName="flex flex-col items-end">
+        <HoverCard
+          key={r.user_id}
+          card={<ReaderCard row={r} now={now} />}
+          side="left"
+          align="start"
+          className="w-64"
+          triggerClassName="flex flex-col items-end"
+        >
           <PresenceAvatar person={r} size={18} title="" />
-          <span className="mt-0.5 whitespace-nowrap text-meta leading-none text-sol-text-dim">{sinceLabel(r, now)}</span>
+          <span className="mt-0.5 whitespace-nowrap text-meta leading-none text-sol-text-dim">
+            {sinceLabel(r, now)}
+          </span>
         </HoverCard>
       ))}
     </span>
@@ -106,10 +135,14 @@ export const ReadingMarks = memo(function ReadingMarks({
   const idsRef = useRef(messageIds);
   idsRef.current = messageIds;
   const indexOf = (id: string) => idsRef.current.indexOf(id);
-  const readers = useReaders(conversationId).filter((r) => r.anchor && indexOf(r.anchor.message_id) >= 0);
+  const readers = useReaders(conversationId).filter(
+    (r) => r.anchor && indexOf(r.anchor.message_id) >= 0,
+  );
   const [away, setAway] = useState<Record<string, Direction>>({});
   const now = useCoarseNow(30_000);
-  const readersSig = readers.map((r) => `${r.user_id}:${r.anchor!.message_id}:${r.anchor!.offset}`).join("|");
+  const readersSig = readers
+    .map((r) => `${r.user_id}:${r.anchor!.message_id}:${r.anchor!.offset}`)
+    .join("|");
 
   // Which readers are off screen, and which way. Measured off the rendered
   // rows on scroll; listening only while someone else is here.
@@ -125,7 +158,10 @@ export const ReadingMarks = memo(function ReadingMarks({
       const box = el.getBoundingClientRect();
       const viewTop = box.top + top;
       const viewBottom = box.bottom - bottom;
-      const rendered = Array.from(el.querySelectorAll<HTMLElement>("[data-index]"), (n) => Number(n.dataset.index));
+      const rendered = Array.from(
+        el.querySelectorAll<HTMLElement>("[data-index]"),
+        (n) => Number(n.dataset.index),
+      );
       const minRendered = rendered.length ? Math.min(...rendered) : Infinity;
       const next: Record<string, Direction> = {};
       for (const r of readers) {
@@ -145,7 +181,9 @@ export const ReadingMarks = memo(function ReadingMarks({
         return a === Object.entries(next).sort().join() ? prev : next;
       });
     };
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
     measure();
     el.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
@@ -157,11 +195,18 @@ export const ReadingMarks = memo(function ReadingMarks({
   }, [readersSig, top, bottom]);
 
   const groups = (["above", "below"] as const)
-    .map((dir) => ({ dir, rows: readers.filter((r) => away[r.user_id] === dir) }))
+    .map((dir) => ({
+      dir,
+      rows: readers.filter((r) => away[r.user_id] === dir),
+    }))
     .filter((g) => g.rows.length > 0);
   if (groups.length === 0) return null;
   return (
-    <div data-sv-reading-marks className="absolute inset-x-0 z-20 flex justify-center gap-2 pointer-events-none" style={{ bottom: bottom + 12 }}>
+    <div
+      data-sv-reading-marks
+      className="absolute inset-x-0 z-20 flex justify-center gap-2 pointer-events-none"
+      style={{ bottom: bottom + 12 }}
+    >
       {groups.map(({ dir, rows }) => {
         const Arrow = dir === "above" ? ArrowUp : ArrowDown;
         return (
@@ -172,10 +217,16 @@ export const ReadingMarks = memo(function ReadingMarks({
             className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-sol-border bg-sol-bg-alt py-0.5 pl-0.5 pr-2.5 text-meta text-sol-text-muted shadow-lg transition-colors hover:text-sol-text animate-in fade-in"
           >
             <span className="flex -space-x-1.5">
-              {rows.slice(0, 3).map((r) => <PresenceAvatar key={r.user_id} person={r} size={18} title="" />)}
+              {rows.slice(0, 3).map((r) => (
+                <PresenceAvatar key={r.user_id} person={r} size={18} title="" />
+              ))}
             </span>
             {firstNames(rows)} {rows.length === 1 ? "is" : "are"} reading {dir}
-            {rows.length === 1 && <span className="text-sol-text-dim">· {sinceLabel(rows[0], now)}</span>}
+            {rows.length === 1 && (
+              <span className="text-sol-text-dim">
+                · {sinceLabel(rows[0], now)}
+              </span>
+            )}
             <Arrow className="h-3 w-3" />
           </button>
         );

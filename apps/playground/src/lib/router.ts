@@ -20,7 +20,8 @@ export function parseRoute(pathname: string, search: string): Route {
   if (!isSlug(slug)) return { kind: "missing" };
   const room = new URLSearchParams(search).has("room");
   if (parts.length === 1) return { kind: "app", slug, version: null, room };
-  if (parts.length === 3 && v === "v" && /^[1-9]\d{0,5}$/.test(n)) return { kind: "app", slug, version: Number(n), room };
+  if (parts.length === 3 && v === "v" && /^[1-9]\d{0,5}$/.test(n))
+    return { kind: "app", slug, version: Number(n), room };
   return { kind: "missing" };
 }
 
@@ -32,12 +33,30 @@ export const versionUrl = (slug: string, n: number) => `/${slug}/v/${n}`;
 export const absolute = (path: string) => new URL(path, location.origin).href;
 
 /** What an app's SDK is told about its own links (runtime/protocol AppLink). */
-export const appLink = (slug: string, name: string): AppLink => ({ name, link: absolute(appUrl(slug)), room: absolute(roomUrl(slug)) });
+export const appLink = (slug: string, name: string): AppLink => ({
+  name,
+  link: absolute(appUrl(slug)),
+  room: absolute(roomUrl(slug)),
+});
 
 /** Whether a click on an in-app link should move in place: a plain primary
  *  click. Modified clicks keep the browser's meaning (a new tab, a window). */
-export function isPlainClick(e: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; defaultPrevented: boolean }): boolean {
-  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.defaultPrevented;
+export function isPlainClick(e: {
+  button: number;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  defaultPrevented: boolean;
+}): boolean {
+  return (
+    e.button === 0 &&
+    !e.metaKey &&
+    !e.ctrlKey &&
+    !e.shiftKey &&
+    !e.altKey &&
+    !e.defaultPrevented
+  );
 }
 
 const CHANGE = "clayground:navigate";

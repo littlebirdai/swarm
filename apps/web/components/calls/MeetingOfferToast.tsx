@@ -16,7 +16,11 @@
 import { useState } from "react";
 import { Ban, Mic, X } from "lucide-react";
 import { getRecorderStatus, startRecording } from "../../lib/calls/recorder";
-import { getMeetingDetect, setMeetingDetect, type MeetingOffer } from "../../lib/desktopMeetings";
+import {
+  getMeetingDetect,
+  setMeetingDetect,
+  type MeetingOffer,
+} from "../../lib/desktopMeetings";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import "./recorder.css";
 
@@ -62,7 +66,8 @@ export function MeetingOfferFace({
     onClose();
     const current = await getMeetingDetect();
     const list = current?.never ?? [];
-    if (!list.includes(offer.app)) await setMeetingDetect({ never: [...list, offer.app] });
+    if (!list.includes(offer.app))
+      await setMeetingDetect({ never: [...list, offer.app] });
   };
 
   useWatchEffect(() => {
@@ -92,17 +97,33 @@ export function MeetingOfferFace({
   if (!expanded) {
     return (
       <div {...shell} className={`rec-win${leave}`}>
-        <button type="button" className="rec-win-expand" title="More choices" onClick={() => setExpanded(true)}>
+        <button
+          type="button"
+          className="rec-win-expand"
+          title="More choices"
+          onClick={() => setExpanded(true)}
+        >
           <span className="rec-win-mark" aria-hidden="true">
             <Mic className="h-2.5 w-2.5" />
           </span>
           <span className="rec-win-name">{offer.name}</span>
           <span className="rec-win-dim">meeting?</span>
         </button>
-        <button type="button" className="rec-win-go" onClick={record} disabled={starting}>
+        <button
+          type="button"
+          className="rec-win-go"
+          onClick={record}
+          disabled={starting}
+        >
           {starting ? "Mic…" : "Record"}
         </button>
-        <button type="button" className="rec-win-ghost" title="Not now" aria-label="Not now" onClick={onClose}>
+        <button
+          type="button"
+          className="rec-win-ghost"
+          title="Not now"
+          aria-label="Not now"
+          onClick={onClose}
+        >
           <X className="h-3 w-3" />
         </button>
         {drain}
@@ -112,18 +133,29 @@ export function MeetingOfferFace({
 
   return (
     <div {...shell} className={`rec-win rec-win-card${leave}`}>
-      <button type="button" className="rec-win-expand" title="Shrink" onClick={() => setExpanded(false)}>
+      <button
+        type="button"
+        className="rec-win-expand"
+        title="Shrink"
+        onClick={() => setExpanded(false)}
+      >
         <span className="rec-win-mark" aria-hidden="true">
           <Mic className="h-2.5 w-2.5" />
         </span>
         <span className="rec-win-name">Record {offer.name}?</span>
       </button>
       <p className="rec-win-copy">
-        Transcribed live from your mic, summarized when you stop. Only you see it.
+        Transcribed live from your mic, summarized when you stop. Only you see
+        it.
       </p>
       {error && <p className="rec-win-error">{error}</p>}
       <div className="rec-win-actions">
-        <button type="button" className="rec-win-go" onClick={record} disabled={starting}>
+        <button
+          type="button"
+          className="rec-win-go"
+          onClick={record}
+          disabled={starting}
+        >
           {starting ? "Waiting for the mic…" : error ? "Try again" : "Record"}
         </button>
         <button type="button" className="rec-win-quiet" onClick={onClose}>
@@ -152,7 +184,13 @@ export function MeetingRecordingNote({ offer }: { offer: MeetingOffer }) {
 
 /** When a start fails (a refused microphone is the common one), the engine's
  *  own sentence is what the person reads. */
-export function MeetingRecordFailed({ offer, message }: { offer: MeetingOffer; message: string }) {
+export function MeetingRecordFailed({
+  offer,
+  message,
+}: {
+  offer: MeetingOffer;
+  message: string;
+}) {
   return (
     <div className="rec-win rec-win-card" role="status">
       <span className="rec-win-name">{offer.name} was not recorded</span>

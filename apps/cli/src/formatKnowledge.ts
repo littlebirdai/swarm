@@ -46,16 +46,26 @@ export function formatDecisionsResults(result: DecisionsResult): string {
     if (decision.tags && decision.tags.length > 0) {
       lines.push(`  Tags: ${decision.tags.join(", ")}`);
     }
-    if (decision.files?.length) lines.push(`  Governs: ${decision.files.join(", ")}`);
-    if (decision.superseded_by) lines.push(`  Superseded by: decision ${truncateId(decision.superseded_by)}`);
-    if (decision.touches?.files.length) lines.push(`  Changed here: ${decision.touches.files.join(", ")}`);
+    if (decision.files?.length)
+      lines.push(`  Governs: ${decision.files.join(", ")}`);
+    if (decision.superseded_by)
+      lines.push(
+        `  Superseded by: decision ${truncateId(decision.superseded_by)}`,
+      );
+    if (decision.touches?.files.length)
+      lines.push(`  Changed here: ${decision.touches.files.join(", ")}`);
 
     // The conversation's short id is what `cast read` takes; session_id is the
     // agent's own uuid, which no command accepts, so a row without a
     // conversation names no session.
     if (decision.conversation_id) {
-      const msgPart = decision.message_index !== undefined ? ` msg ${decision.message_index}` : "";
-      lines.push(`  Session: ${truncateId(decision.conversation_id)}${msgPart}`);
+      const msgPart =
+        decision.message_index !== undefined
+          ? ` msg ${decision.message_index}`
+          : "";
+      lines.push(
+        `  Session: ${truncateId(decision.conversation_id)}${msgPart}`,
+      );
     }
 
     lines.push("");
@@ -77,14 +87,24 @@ export function formatTouchingResults(result: DecisionsResult): string {
   const governing = result.decisions.filter((d) => d.touches?.files.length);
   const bySession = result.decisions.filter((d) => !d.touches?.files.length);
   const lines: string[] = [];
-  lines.push(`<DECISIONS_TOUCHING governing=${governing.length} from_sessions=${bySession.length}>`);
-  if (governing.length === 0 && bySession.length === 0) lines.push("No standing decision touches this change.");
+  lines.push(
+    `<DECISIONS_TOUCHING governing=${governing.length} from_sessions=${bySession.length}>`,
+  );
+  if (governing.length === 0 && bySession.length === 0)
+    lines.push("No standing decision touches this change.");
   if (governing.length) {
     lines.push("Governing the paths this change edits:", "");
-    lines.push(formatDecisionsResults({ decisions: governing, count: governing.length }).split("\n").slice(1, -1).join("\n"));
+    lines.push(
+      formatDecisionsResults({ decisions: governing, count: governing.length })
+        .split("\n")
+        .slice(1, -1)
+        .join("\n"),
+    );
   }
   if (bySession.length) {
-    lines.push("Made in the sessions that wrote the lines this change rewrites (open one if its title bears on the diff):");
+    lines.push(
+      "Made in the sessions that wrote the lines this change rewrites (open one if its title bears on the diff):",
+    );
     const groups = new Map<string, Decision[]>();
     for (const d of bySession) {
       const key = d.conversation_id ? truncateId(d.conversation_id) : "?";
@@ -92,7 +112,10 @@ export function formatTouchingResults(result: DecisionsResult): string {
     }
     for (const [session, ds] of groups) {
       lines.push(`  session ${session}:`);
-      for (const d of ds) lines.push(`    [decision ${truncateId(d.id)}] ${d.created_at.slice(0, 10)} ${d.title}`);
+      for (const d of ds)
+        lines.push(
+          `    [decision ${truncateId(d.id)}] ${d.created_at.slice(0, 10)} ${d.title}`,
+        );
     }
   }
   lines.push("</DECISIONS_TOUCHING>");
@@ -138,7 +161,9 @@ export function formatPatternsResults(result: PatternsListResult): string {
       lines.push(`  Tags: ${pattern.tags.join(", ")}`);
     }
 
-    lines.push(`  Used: ${pattern.usage_count} time${pattern.usage_count === 1 ? "" : "s"}`);
+    lines.push(
+      `  Used: ${pattern.usage_count} time${pattern.usage_count === 1 ? "" : "s"}`,
+    );
     lines.push("");
   }
 
@@ -182,12 +207,16 @@ export function formatPatternShow(result: PatternShowResult): string {
   if (result.source_session_id) {
     lines.push("## Source");
     const sessionShort = truncateId(result.source_session_id);
-    const rangePart = result.source_range ? ` lines ${result.source_range}` : "";
+    const rangePart = result.source_range
+      ? ` lines ${result.source_range}`
+      : "";
     lines.push(`Session [${sessionShort}]${rangePart}`);
     lines.push("");
   }
 
-  lines.push(`Used: ${result.usage_count} time${result.usage_count === 1 ? "" : "s"}`);
+  lines.push(
+    `Used: ${result.usage_count} time${result.usage_count === 1 ? "" : "s"}`,
+  );
   lines.push("</PATTERN>");
 
   return lines.join("\n");

@@ -6,7 +6,11 @@ import type { SessionSearchRow } from "../../lib/instantSessionSearch";
  *  long session drifts, and the person looking for it remembers the start.
  *  Renders nothing for a row with none of these. Every search surface draws
  *  this one line set, so a drifted session reads the same wherever it is found. */
-export function SearchOrigin({ row, query, className = "" }: {
+export function SearchOrigin({
+  row,
+  query,
+  className = "",
+}: {
   row: Pick<SessionSearchRow, "origin" | "workerCount">;
   query: string;
   className?: string;
@@ -16,12 +20,17 @@ export function SearchOrigin({ row, query, className = "" }: {
   const workers = row.workerCount ?? 0;
   if (!earlier.length && !started && !workers) return null;
   return (
-    <div className={`text-meta leading-relaxed text-sol-text-dim space-y-0.5 ${className}`}>
+    <div
+      className={`text-meta leading-relaxed text-sol-text-dim space-y-0.5 ${className}`}
+    >
       {earlier.length > 0 && (
         <p className="truncate">
           <span className="text-sol-text-muted">earlier titled </span>
           {earlier.map((title, i) => (
-            <span key={title}>{i > 0 && " · "}{highlightMatch(title, query)}</span>
+            <span key={title}>
+              {i > 0 && " · "}
+              {highlightMatch(title, query)}
+            </span>
           ))}
         </p>
       )}
@@ -33,7 +42,8 @@ export function SearchOrigin({ row, query, className = "" }: {
       )}
       {workers > 0 && (
         <p className="text-sol-text-muted">
-          {workers} worker session{workers === 1 ? "" : "s"} of this one matched too
+          {workers} worker session{workers === 1 ? "" : "s"} of this one matched
+          too
         </p>
       )}
     </div>

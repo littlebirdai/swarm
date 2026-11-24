@@ -97,7 +97,10 @@ const RESTORABLE_KINDS: ReadonlySet<PaneKind> = new Set<PaneKind>([
 
 /** Kinds whose apply can legitimately produce nothing (no subject on screen,
  *  no terminal on this device) — matching excuses their absence. */
-const MAY_FAIL_TO_MATERIALIZE: ReadonlySet<PaneKind> = new Set<PaneKind>(["comments", "terminal"]);
+const MAY_FAIL_TO_MATERIALIZE: ReadonlySet<PaneKind> = new Set<PaneKind>([
+  "comments",
+  "terminal",
+]);
 
 function occupantOf(pane: Pane | null): WorkbenchOccupant {
   if (!pane) return "empty";
@@ -107,12 +110,21 @@ function occupantOf(pane: Pane | null): WorkbenchOccupant {
 /** The current chrome, in full — every slot, zen, the surface and the chip. */
 export function captureWorkbench(
   ws: WorkspaceState,
-  opts?: { zen?: boolean; path?: string; filter?: WorkbenchFilter; navSections?: Record<string, boolean> },
+  opts?: {
+    zen?: boolean;
+    path?: string;
+    filter?: WorkbenchFilter;
+    navSections?: Record<string, boolean>;
+  },
 ): WorkbenchSnapshot {
   const slots: Partial<Record<SlotId, WorkbenchSlot>> = {};
   for (const id of SLOT_IDS) {
     const s = ws[id];
-    slots[id] = { pane: occupantOf(s.pane), presentation: s.presentation, size: s.size };
+    slots[id] = {
+      pane: occupantOf(s.pane),
+      presentation: s.presentation,
+      size: s.size,
+    };
   }
   const navSections = opts?.navSections;
   return {
@@ -120,7 +132,10 @@ export function captureWorkbench(
     zen: opts?.zen ?? false,
     filter: opts?.filter,
     // An empty pin bag is the same as none — don't grow every snapshot a {}.
-    navSections: navSections && Object.keys(navSections).length ? { ...navSections } : undefined,
+    navSections:
+      navSections && Object.keys(navSections).length
+        ? { ...navSections }
+        : undefined,
     slots,
   };
 }
@@ -136,10 +151,22 @@ export function chipFilterOf(s: {
 }): WorkbenchFilter | undefined {
   const exclude = !!s.chipFilterExclude;
   if (s.activeBucketFilter) {
-    return { bucket: { id: s.activeBucketFilter, name: s.buckets?.[s.activeBucketFilter]?.name ?? "" }, exclude };
+    return {
+      bucket: {
+        id: s.activeBucketFilter,
+        name: s.buckets?.[s.activeBucketFilter]?.name ?? "",
+      },
+      exclude,
+    };
   }
   if (s.activeProjectFilter) {
-    return { project: { name: s.activeProjectFilter, path: s.activeProjectPath ?? null }, exclude };
+    return {
+      project: {
+        name: s.activeProjectFilter,
+        path: s.activeProjectPath ?? null,
+      },
+      exclude,
+    };
   }
   return undefined;
 }
@@ -154,15 +181,35 @@ export function chipFilterOf(s: {
 export function resolveWorkbenchFilter(
   filter: WorkbenchFilter | undefined,
   buckets: BucketNames,
-): { bucket: string | null; project: string | null; projectPath: string | null; exclude: boolean } {
+): {
+  bucket: string | null;
+  project: string | null;
+  projectPath: string | null;
+  exclude: boolean;
+} {
   const want = filter?.bucket;
-  const bucket = !want ? null
-    : buckets[want.id] ? want.id
-    : (Object.keys(buckets).find((id) => buckets[id]?.name === want.name) ?? null);
-  if (bucket) return { bucket, project: null, projectPath: null, exclude: !!filter?.exclude };
+  const bucket = !want
+    ? null
+    : buckets[want.id]
+      ? want.id
+      : (Object.keys(buckets).find((id) => buckets[id]?.name === want.name) ??
+        null);
+  if (bucket)
+    return {
+      bucket,
+      project: null,
+      projectPath: null,
+      exclude: !!filter?.exclude,
+    };
   const project = filter?.project;
-  if (!project) return { bucket: null, project: null, projectPath: null, exclude: false };
-  return { bucket: null, project: project.name, projectPath: project.path ?? null, exclude: !!filter?.exclude };
+  if (!project)
+    return { bucket: null, project: null, projectPath: null, exclude: false };
+  return {
+    bucket: null,
+    project: project.name,
+    projectPath: project.path ?? null,
+    exclude: !!filter?.exclude,
+  };
 }
 
 export type ApplyContext = {
@@ -174,14 +221,22 @@ export type ApplyContext = {
 
 function paneFor(kind: PaneKind, ctx: ApplyContext): Pane | null {
   switch (kind) {
-    case "nav": return NAV_PANE;
-    case "page": return { kind: "page" };
-    case "sessionList": return SESSION_LIST_PANE;
-    case "terminal": return ctx.allowTerminal === false ? null : TERMINAL_PANE;
+    case "nav":
+      return NAV_PANE;
+    case "page":
+      return { kind: "page" };
+    case "sessionList":
+      return SESSION_LIST_PANE;
+    case "terminal":
+      return ctx.allowTerminal === false ? null : TERMINAL_PANE;
     // Comments without a conversation on screen is nothing to show — the slot
     // stays empty rather than opening a rail with no subject.
-    case "comments": return ctx.conversationId ? { kind: "comments", ref: ctx.conversationId } : null;
-    default: return null;
+    case "comments":
+      return ctx.conversationId
+        ? { kind: "comments", ref: ctx.conversationId }
+        : null;
+    default:
+      return null;
   }
 }
 
@@ -209,10 +264,13 @@ export function applyWorkbench(
     if (!want) continue;
     const cur = next[id];
     const pane =
-      id === "primary" ? { kind: "page" as const }
-      : want.pane === "subject" ? cur.pane
-      : want.pane === "empty" ? null
-      : paneFor(want.pane, ctx);
+      id === "primary"
+        ? { kind: "page" as const }
+        : want.pane === "subject"
+          ? cur.pane
+          : want.pane === "empty"
+            ? null
+            : paneFor(want.pane, ctx);
     next[id] = {
       pane,
       presentation: want.presentation,
@@ -247,7 +305,8 @@ export function matchesWorkbench(
     wantFilter.bucket !== haveFilter.bucket ||
     wantFilter.project !== haveFilter.project ||
     wantFilter.exclude !== haveFilter.exclude
-  ) return false;
+  )
+    return false;
   for (const id of SLOT_IDS) {
     // Ignored on apply (see applyWorkbench), so ignored here too — an old
     // save's pinned companion must not keep a workbench from ever matching.
@@ -264,9 +323,13 @@ export function matchesWorkbench(
     // this workbench — the arrangement is right, the subject merely absent.
     // A slot the user CLOSED is different: userClosed marks the dismissal, and
     // a hand-close is exactly the drift the update affordance must surface.
-    if (have === "empty" && !cur.userClosed && MAY_FAIL_TO_MATERIALIZE.has(want.pane as PaneKind)) continue;
+    if (
+      have === "empty" &&
+      !cur.userClosed &&
+      MAY_FAIL_TO_MATERIALIZE.has(want.pane as PaneKind)
+    )
+      continue;
     return false;
   }
   return true;
 }
-

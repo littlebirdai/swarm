@@ -33,11 +33,19 @@ describe("parseAddedLines", () => {
       "+one",
       "+two",
     ].join("\n");
-    expect(parseAddedLines(diff).get("apps/web/a.ts")).toEqual([{ start: 11, end: 12 }]);
+    expect(parseAddedLines(diff).get("apps/web/a.ts")).toEqual([
+      { start: 11, end: 12 },
+    ]);
   });
 
   test("a hunk header without a count covers exactly one line", () => {
-    const diff = ["--- a/a.ts", "+++ b/a.ts", "@@ -4 +4 @@", "-old", "+new"].join("\n");
+    const diff = [
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -4 +4 @@",
+      "-old",
+      "+new",
+    ].join("\n");
     expect(parseAddedLines(diff).get("a.ts")).toEqual([{ start: 4, end: 4 }]);
   });
 
@@ -59,9 +67,14 @@ describe("parseAddedLines", () => {
   });
 
   test("a deletion-only hunk adds nothing", () => {
-    const diff = ["--- a/a.ts", "+++ b/a.ts", "@@ -8,3 +7,0 @@", "-gone", "-gone", "-gone"].join(
-      "\n",
-    );
+    const diff = [
+      "--- a/a.ts",
+      "+++ b/a.ts",
+      "@@ -8,3 +7,0 @@",
+      "-gone",
+      "-gone",
+      "-gone",
+    ].join("\n");
     expect(parseAddedLines(diff).has("a.ts")).toBe(false);
   });
 
@@ -105,12 +118,19 @@ describe("parseAddedLines", () => {
   });
 
   test("reads a path with a space, which git terminates with a tab", () => {
-    const diff = ["--- /dev/null", "+++ b/apps/web/a b.ts\t", "@@ -0,0 +1,1 @@", "+x"].join("\n");
+    const diff = [
+      "--- /dev/null",
+      "+++ b/apps/web/a b.ts\t",
+      "@@ -0,0 +1,1 @@",
+      "+x",
+    ].join("\n");
     expect([...parseAddedLines(diff).keys()]).toEqual(["apps/web/a b.ts"]);
   });
 
   test("unquotes a path git C-quoted", () => {
-    const diff = ['+++ "b/apps/web/a\\tb.ts"', "@@ -0,0 +1,1 @@", "+x"].join("\n");
+    const diff = ['+++ "b/apps/web/a\\tb.ts"', "@@ -0,0 +1,1 @@", "+x"].join(
+      "\n",
+    );
     expect([...parseAddedLines(diff).keys()]).toEqual(["apps/web/a\tb.ts"]);
   });
 });
@@ -147,12 +167,18 @@ describe("selectNewFindings", () => {
   ]);
 
   test("keeps a finding on an added line and drops one on untouched code", () => {
-    expect(selectNewFindings([finding("apps/web/a.tsx", 21)], added)).toHaveLength(1);
-    expect(selectNewFindings([finding("apps/web/a.tsx", 19)], added)).toHaveLength(0);
+    expect(
+      selectNewFindings([finding("apps/web/a.tsx", 21)], added),
+    ).toHaveLength(1);
+    expect(
+      selectNewFindings([finding("apps/web/a.tsx", 19)], added),
+    ).toHaveLength(0);
   });
 
   test("drops every finding in a file the change never touched", () => {
-    expect(selectNewFindings([finding("apps/web/other.tsx", 21)], added)).toHaveLength(0);
+    expect(
+      selectNewFindings([finding("apps/web/other.tsx", 21)], added),
+    ).toHaveLength(0);
   });
 
   test("keeps a finding with no file — no line can excuse it", () => {
@@ -162,7 +188,9 @@ describe("selectNewFindings", () => {
   test("a finding anchored above the hunk stays out, even though it spans into it", () => {
     // The legacy `useEffect` case: its call expression reaches over the added
     // line, but it starts on untouched code, so it is not this change's debt.
-    expect(selectNewFindings([finding("apps/web/a.tsx", 18)], added)).toHaveLength(0);
+    expect(
+      selectNewFindings([finding("apps/web/a.tsx", 18)], added),
+    ).toHaveLength(0);
   });
 });
 
@@ -179,11 +207,21 @@ describe("parseOxlintFindings", () => {
           message: "no useEffect",
           labels: [{ span: { line: 12 } }, { span: { line: 40 } }],
         },
-        { filename, severity: "warning", code: "react(refs)", message: "ref access" },
+        {
+          filename,
+          severity: "warning",
+          code: "react(refs)",
+          message: "ref access",
+        },
       ],
     });
     expect(parseOxlintFindings(stdout)).toEqual([
-      { file: filename, line: 12, code: "swarm/no-direct-use-effect", message: "no useEffect" },
+      {
+        file: filename,
+        line: 12,
+        code: "swarm/no-direct-use-effect",
+        message: "no useEffect",
+      },
     ]);
   });
 
@@ -222,7 +260,10 @@ describe("parseTscFindings", () => {
   });
 
   test("a whole-program error has no file, so it always blocks", () => {
-    const found = parseTscFindings("error TS2688: Cannot find type definition file for 'bun'.", cwd);
+    const found = parseTscFindings(
+      "error TS2688: Cannot find type definition file for 'bun'.",
+      cwd,
+    );
     expect(found).toHaveLength(1);
     expect(found[0]!.file).toBeNull();
   });
@@ -237,22 +278,32 @@ describe("resolveDiffBase", () => {
   test("a pull request measures from its base against the checked-out tree", () => {
     // Never against `head.sha`: the checkers read the tree on disk, so the diff
     // has to be numbered against that tree and no other.
-    expect(resolveDiffBase({ BASE_SHA: "base1", HEAD_SHA: "head1" }, refs(["base1", "head1"]))).toBe(
-      "mb(base1,HEAD)",
-    );
+    expect(
+      resolveDiffBase(
+        { BASE_SHA: "base1", HEAD_SHA: "head1" },
+        refs(["base1", "head1"]),
+      ),
+    ).toBe("mb(base1,HEAD)");
   });
 
   test("outside a pull request it falls back to origin/main", () => {
-    expect(resolveDiffBase({}, refs(["origin/main"]))).toBe("mb(origin/main,HEAD)");
-    expect(resolveDiffBase({ CHANGED_LINES_BASE: "v1" }, refs(["v1", "origin/main"]))).toBe(
-      "mb(v1,HEAD)",
+    expect(resolveDiffBase({}, refs(["origin/main"]))).toBe(
+      "mb(origin/main,HEAD)",
     );
+    expect(
+      resolveDiffBase(
+        { CHANGED_LINES_BASE: "v1" },
+        refs(["v1", "origin/main"]),
+      ),
+    ).toBe("mb(v1,HEAD)");
   });
 
   test("a base sha that is not in the checkout is an error, never a pass", () => {
     // Fail closed: a shallow clone that lost the base would otherwise report an
     // empty diff and wave every finding through.
-    expect(() => resolveDiffBase({ BASE_SHA: "missing" }, refs([]))).toThrow("BASE_SHA missing");
+    expect(() => resolveDiffBase({ BASE_SHA: "missing" }, refs([]))).toThrow(
+      "BASE_SHA missing",
+    );
   });
 
   test("a push build with nothing to diff against gates nothing", () => {
@@ -266,9 +317,16 @@ describe("resolveDiffBase", () => {
 
 describe("checks", () => {
   test("each check has a unique id and a package scope that exists", () => {
-    expect(CHECKS.map((check) => check.id)).toEqual(["oxlint-web", "tsc-cli", "tsc-convex"]);
+    expect(CHECKS.map((check) => check.id)).toEqual([
+      "oxlint-web",
+      "tsc-cli",
+      "tsc-convex",
+    ]);
     for (const check of CHECKS) {
-      expect(check.scope.endsWith("/"), `${check.id} scope is a directory prefix`).toBe(true);
+      expect(
+        check.scope.endsWith("/"),
+        `${check.id} scope is a directory prefix`,
+      ).toBe(true);
     }
   });
 });

@@ -5,4 +5,5 @@
 export type LabelVerdict = "right" | "wrong";
 
 /** One label's identity: one verdict per person per decision. */
-export const lineLabelKey = (runId: string, stepId: string, userId: string) => `${runId}:${stepId}:${userId}`;
+export const lineLabelKey = (runId: string, stepId: string, userId: string) =>
+  `${runId}:${stepId}:${userId}`;

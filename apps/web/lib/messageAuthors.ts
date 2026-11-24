@@ -1,4 +1,10 @@
-import { AGENT_CLIENTS, fromConvexAgentType, isHostedAgentType, toConvexAgentType, parseAgentSwitchNotice } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  fromConvexAgentType,
+  isHostedAgentType,
+  toConvexAgentType,
+  parseAgentSwitchNotice,
+} from "@codecast/shared/contracts";
 
 type Message = {
   _id: string;
@@ -10,14 +16,17 @@ type Message = {
 
 function agentFromLabel(label?: string): string | undefined {
   const name = label?.split(" · ", 1)[0].trim().toLowerCase();
-  const client = Object.values(AGENT_CLIENTS).find(c => c.displayName.toLowerCase() === name);
+  const client = Object.values(AGENT_CLIENTS).find(
+    (c) => c.displayName.toLowerCase() === name,
+  );
   return client ? toConvexAgentType(client.id) : undefined;
 }
 
 function agentFromModel(model?: string): string | undefined {
   const name = model?.toLowerCase();
   if (!name) return undefined;
-  if (/^(claude-|opus\b|sonnet\b|haiku\b|fable\b)/.test(name)) return "claude_code";
+  if (/^(claude-|opus\b|sonnet\b|haiku\b|fable\b)/.test(name))
+    return "claude_code";
   if (/^(gpt-|o[1-9](?:-|$)|codex(?:-|$))/.test(name)) return "codex";
   if (name.startsWith("gemini-")) return "gemini";
   if (name.startsWith("grok-")) return "grok";
@@ -26,16 +35,25 @@ function agentFromModel(model?: string): string | undefined {
   return undefined;
 }
 
-export function messageAgentTypes(messages: readonly Message[], currentAgent?: string): Map<string, string | undefined> {
+export function messageAgentTypes(
+  messages: readonly Message[],
+  currentAgent?: string,
+): Map<string, string | undefined> {
   const ordered = [...messages].sort((a, b) => a.timestamp - b.timestamp);
   const switches = new Map<string, { from?: string; to?: string }>();
   for (const message of ordered) {
     if (message.role !== "user" && message.role !== "system") continue;
     const notice = parseAgentSwitchNotice(message.content);
-    if (notice) switches.set(message._id, { from: agentFromLabel(notice.fromLabel), to: agentFromLabel(notice.toLabel) });
+    if (notice)
+      switches.set(message._id, {
+        from: agentFromLabel(notice.fromLabel),
+        to: agentFromLabel(notice.toLabel),
+      });
   }
   const firstSwitch = switches.values().next().value;
-  const fallback = currentAgent ? toConvexAgentType(fromConvexAgentType(currentAgent)) : undefined;
+  const fallback = currentAgent
+    ? toConvexAgentType(fromConvexAgentType(currentAgent))
+    : undefined;
   let agent = firstSwitch ? firstSwitch.from : fallback;
   const authors = new Map<string, string | undefined>();
   for (const message of ordered) {
@@ -44,15 +62,25 @@ export function messageAgentTypes(messages: readonly Message[], currentAgent?: s
     // Clients that run other providers' models: the model names the vendor,
     // never the author. The hosted Cast agent is one of them, and so is
     // Antigravity (gemini-4-*, claude-*, gpt-oss-* all run under agy).
-    const multiProvider = agent === "cursor" || agent === "opencode" || agent === "pi" || agent === "antigravity" || isHostedAgentType(agent);
-    const author = switches.size > 0 || multiProvider
-      ? agent ?? agentFromModel(message.model)
-      : agentFromModel(message.model) ?? agent;
+    const multiProvider =
+      agent === "cursor" ||
+      agent === "opencode" ||
+      agent === "pi" ||
+      agent === "antigravity" ||
+      isHostedAgentType(agent);
+    const author =
+      switches.size > 0 || multiProvider
+        ? (agent ?? agentFromModel(message.model))
+        : (agentFromModel(message.model) ?? agent);
     authors.set(message._id, author);
   }
   return authors;
 }
 
-export function sameMessageAuthor(a: Message, b: Message, authors: ReadonlyMap<string, string | undefined>): boolean {
+export function sameMessageAuthor(
+  a: Message,
+  b: Message,
+  authors: ReadonlyMap<string, string | undefined>,
+): boolean {
   return authors.get(a._id) === authors.get(b._id) && a.model === b.model;
 }

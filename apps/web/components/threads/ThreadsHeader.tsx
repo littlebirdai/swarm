@@ -44,10 +44,17 @@ export function ThreadsHeader({
             <CheckCheck className="w-3 h-3" aria-hidden="true" />
             All caught up · {summaryCount(total, "thread")}
           </span>
-        ) : ""}
+        ) : (
+          ""
+        )}
       </span>
       {anyUnread && (
-        <button type="button" className="th-markall" onClick={onMarkAllRead} title="Mark every thread in this view read">
+        <button
+          type="button"
+          className="th-markall"
+          onClick={onMarkAllRead}
+          title="Mark every thread in this view read"
+        >
           <CheckCheck className="w-3 h-3" />
           Mark all read
         </button>

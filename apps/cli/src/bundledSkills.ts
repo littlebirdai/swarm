@@ -74,7 +74,9 @@ export const ORCHESTRATION_BUNDLE = {
     "agent-complete.sh": agentCompleteScript,
     "reground.sh": regroundScript,
   } as Record<string, string>,
-  hooks: (orchestrationHooks as { hooks: Record<string, OrchestrationHookEntry[]> }).hooks,
+  hooks: (
+    orchestrationHooks as { hooks: Record<string, OrchestrationHookEntry[]> }
+  ).hooks,
 };
 
 export interface BundledSkill {
@@ -114,4 +116,3 @@ export const BUNDLED_SKILLS: readonly BundledSkill[] = [
   { name: "cast-motion", body: motionSkill },
   { name: "cast-dashboard", body: dashboardSkill },
 ];
-

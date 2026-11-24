@@ -18,7 +18,10 @@ export function useLinkedSessions(ids: readonly string[]): any[] {
   const dep = useMemo(
     () =>
       Object.assign(
-        (st: any) => ids.map((id) => cardSig(st.sessions?.[id] ?? st.conversations?.[id])).join("\n"),
+        (st: any) =>
+          ids
+            .map((id) => cardSig(st.sessions?.[id] ?? st.conversations?.[id]))
+            .join("\n"),
         { label: `linkedSessions(${key})` },
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the joined key stands in for the array

@@ -12,8 +12,13 @@ import { codeLines, walkSources, WEB_ROOT, MOBILE_ROOT } from "./sourceWalk";
 
 const REPO = join(WEB_ROOT, "..", "..");
 const ROOTS = [
-  join(WEB_ROOT, "app"), join(WEB_ROOT, "components"), join(WEB_ROOT, "lib"), join(WEB_ROOT, "hooks"),
-  join(MOBILE_ROOT, "app"), join(MOBILE_ROOT, "components"), join(MOBILE_ROOT, "lib"),
+  join(WEB_ROOT, "app"),
+  join(WEB_ROOT, "components"),
+  join(WEB_ROOT, "lib"),
+  join(WEB_ROOT, "hooks"),
+  join(MOBILE_ROOT, "app"),
+  join(MOBILE_ROOT, "components"),
+  join(MOBILE_ROOT, "lib"),
   join(REPO, "apps", "cli", "src"),
   join(REPO, "packages", "shared", "contracts"),
   join(REPO, "apps", "server", "convex"),
@@ -31,9 +36,16 @@ const COMMAND = /cast anchor\b/gi;
 // "Anchor" is a name a person sees.
 function readable(line: string): string[] {
   const out: string[] = [];
-  for (const m of line.matchAll(/"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) {
+  for (const m of line.matchAll(
+    /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g,
+  )) {
     const s = (m[1] ?? m[2] ?? m[3] ?? "").replace(/\$\{[^}]*\}/g, " ");
-    if (/^\s*\S+\s*$/.test(s) && s.trim() !== "Anchor" && s.trim() !== "Anchors") continue;
+    if (
+      /^\s*\S+\s*$/.test(s) &&
+      s.trim() !== "Anchor" &&
+      s.trim() !== "Anchors"
+    )
+      continue;
     out.push(s);
   }
   for (const m of line.matchAll(/>([^<>{}]+)</g)) out.push(m[1]);
@@ -53,7 +65,10 @@ const ALLOWED: ReadonlyArray<[string, string]> = [
   ["apps/cli/src/prCommand.ts", "anchors nothing"],
   ["apps/web/app/(marketing)/compare/comparisons.ts", "anchor to"],
   ["apps/web/app/(marketing)/compare/comparisons.ts", "anchors a comment"],
-  ["apps/server/convex/githubWebhooks.ts", "const where = comment.path"],
+  [
+    "apps/server/convex/githubWebhooks.ts",
+    'const where = comment.path ? `${comment.path}${anchor ? `:${anchor}${span}` : ""}` : "the pull request";',
+  ],
   ["apps/server/convex/artifactMarkdown.ts", 'class="anchor"'],
   // The analyzer's vocabulary rule names the word so the page never carries it.
   ["apps/cli/src/orgInit.ts", "invented_words"],
@@ -73,9 +88,12 @@ describe("the word anchor is retired from what a person reads (S22)", () => {
       for (const file of walkSources(root)) {
         const rel = file.slice(REPO.length + 1);
         for (const { line, n } of codeLines(readFileSync(file, "utf8"))) {
-          const hit = readable(line).some((s) => WORD.test(s.replace(COMMAND, "")));
+          const hit = readable(line).some((s) =>
+            WORD.test(s.replace(COMMAND, "")),
+          );
           if (!hit) continue;
-          if (ALLOWED.some(([f, text]) => rel === f && line.includes(text))) continue;
+          if (ALLOWED.some(([f, text]) => rel === f && line.includes(text)))
+            continue;
           offenders.push(`${rel}:${n}: ${line.trim()}`);
         }
       }

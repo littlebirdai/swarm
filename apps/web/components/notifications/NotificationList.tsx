@@ -8,7 +8,17 @@ import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { groupIdleNotifications } from "@codecast/shared/contracts";
 import { NotificationGroupRow, NotificationRow } from "./NotificationRow";
 
-export function NotificationList({ notifications, unreadCount, onOpen, onContextMenu, onViewAll, openGroups: heldGroups, onToggleGroup, floating = true, className }: {
+export function NotificationList({
+  notifications,
+  unreadCount,
+  onOpen,
+  onContextMenu,
+  onViewAll,
+  openGroups: heldGroups,
+  onToggleGroup,
+  floating = true,
+  className,
+}: {
   // Newest first.
   notifications: any[];
   unreadCount: number;
@@ -27,29 +37,39 @@ export function NotificationList({ notifications, unreadCount, onOpen, onContext
   // makes), then take 20 ENTRIES — so a fleet of twenty sessions no longer
   // pushes everything else out of the list.
   const entries = useMemo(
-    () => groupIdleNotifications(notifications, (n: any) => String(n._id)).slice(0, 20),
-    [notifications]
+    () =>
+      groupIdleNotifications(notifications, (n: any) => String(n._id)).slice(
+        0,
+        20,
+      ),
+    [notifications],
   );
   const [ownGroups, setOwnGroups] = useState<Record<string, boolean>>({});
   const ownToggle = useCallback(
     (key: string) => setOwnGroups((prev) => ({ ...prev, [key]: !prev[key] })),
-    []
+    [],
   );
   const openGroups = heldGroups ?? ownGroups;
   const toggleGroup = onToggleGroup ?? ownToggle;
 
   return (
-    <div className={`${floating ? "cc-topbar-menu absolute right-0 mt-2 w-[calc(100vw-1rem)] sm:w-[520px] max-w-[520px] " : ""}bg-sol-bg border border-sol-border rounded-lg shadow-lg overflow-hidden${floating ? " z-50" : ""}${className ? ` ${className}` : ""}`}>
+    <div
+      className={`${floating ? "cc-topbar-menu absolute right-0 mt-2 w-[calc(100vw-1rem)] sm:w-[520px] max-w-[520px] " : ""}bg-sol-bg border border-sol-border rounded-lg shadow-lg overflow-hidden${floating ? " z-50" : ""}${className ? ` ${className}` : ""}`}
+    >
       <div className="px-5 py-3 border-b border-sol-border flex items-center justify-between">
         <h3 className="text-sm font-semibold text-sol-text">Notifications</h3>
         {unreadCount !== undefined && unreadCount > 0 && (
-          <span className="text-xs text-sol-text-muted">{unreadCount} unread</span>
+          <span className="text-xs text-sol-text-muted">
+            {unreadCount} unread
+          </span>
         )}
       </div>
 
       {/* Below the top bar, the header and the footer: the list gives way so
           "View all" stays on screen in a short window. */}
-      <div className={`${floating ? "max-h-[min(600px,calc(100dvh-170px))]" : "max-h-[600px]"} overflow-y-auto`}>
+      <div
+        className={`${floating ? "max-h-[min(600px,calc(100dvh-170px))]" : "max-h-[600px]"} overflow-y-auto`}
+      >
         {entries.length === 0 ? (
           <div className="px-5 py-12 text-center text-sol-text-muted">
             No notifications yet
@@ -72,7 +92,7 @@ export function NotificationList({ notifications, unreadCount, onOpen, onContext
                 onOpen={onOpen}
                 onContextMenu={onContextMenu}
               />
-            )
+            ),
           )
         )}
       </div>

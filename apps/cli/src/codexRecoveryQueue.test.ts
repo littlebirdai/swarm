@@ -4,7 +4,13 @@ import { CodexRecoveryQueue } from "./codexRecoveryQueue.js";
 describe("CodexRecoveryQueue", () => {
   test("delivery loads only its requested conversation and releases the demand after recovery", async () => {
     const demands: string[][] = [];
-    const queue = new CodexRecoveryQueue(async (requested) => { demands.push([...requested]); }, () => {}, () => {});
+    const queue = new CodexRecoveryQueue(
+      async (requested) => {
+        demands.push([...requested]);
+      },
+      () => {},
+      () => {},
+    );
     queue.request(true);
     await queue.wait();
     await queue.demand("saved-idle-thread");
@@ -15,12 +21,18 @@ describe("CodexRecoveryQueue", () => {
 
   test("delivery arriving during a sweep gets another pass before it returns", async () => {
     let finish!: () => void;
-    const old = new Promise<void>((resolve) => { finish = resolve; });
+    const old = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     const demands: string[][] = [];
-    const queue = new CodexRecoveryQueue(async (requested) => {
-      demands.push([...requested]);
-      if (demands.length === 1) await old;
-    }, () => {}, () => {});
+    const queue = new CodexRecoveryQueue(
+      async (requested) => {
+        demands.push([...requested]);
+        if (demands.length === 1) await old;
+      },
+      () => {},
+      () => {},
+    );
     queue.request();
     await Promise.resolve();
     const delivery = queue.demand("requested-later");
@@ -31,7 +43,9 @@ describe("CodexRecoveryQueue", () => {
 
   test("reruns recovery for a new process after the old pass fails", async () => {
     let rejectOld!: (error: Error) => void;
-    const oldPass = new Promise<void>((_resolve, reject) => { rejectOld = reject; });
+    const oldPass = new Promise<void>((_resolve, reject) => {
+      rejectOld = reject;
+    });
     const events: string[] = [];
     let runs = 0;
     const queue = new CodexRecoveryQueue(
@@ -51,7 +65,12 @@ describe("CodexRecoveryQueue", () => {
     rejectOld(new Error("old process closed"));
     await finished;
 
-    expect(events).toEqual(["recover-1", "old-pass-failed", "clear-retry", "recover-2"]);
+    expect(events).toEqual([
+      "recover-1",
+      "old-pass-failed",
+      "clear-retry",
+      "recover-2",
+    ]);
     expect(runs).toBe(2);
   });
 
@@ -59,8 +78,12 @@ describe("CodexRecoveryQueue", () => {
     let runs = 0;
     let clears = 0;
     const queue = new CodexRecoveryQueue(
-      async () => { runs++; },
-      () => { clears++; },
+      async () => {
+        runs++;
+      },
+      () => {
+        clears++;
+      },
       () => {},
     );
     queue.request(true);

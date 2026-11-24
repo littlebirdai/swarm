@@ -1,9 +1,14 @@
 // The pure half of board text formatting (BoardRichText.tsx draws it): which
 // lines are list items, which runs are marks, and the editor's format keys.
 
-export const INLINE = /(\*\*(?:\*[^*\n]+\*|[^*\n])+\*\*|~~[^~\n]+~~|\*(?:\*\*[^*\n]+\*\*|[^*\n])+\*|\[[^\]\n]+\]\((?:https?:\/\/|mailto:)[^)\s]+\)|(?:https?:\/\/)[^\s)]+)/g;
+export const INLINE =
+  /(\*\*(?:\*[^*\n]+\*|[^*\n])+\*\*|~~[^~\n]+~~|\*(?:\*\*[^*\n]+\*\*|[^*\n])+\*|\[[^\]\n]+\]\((?:https?:\/\/|mailto:)[^)\s]+\)|(?:https?:\/\/)[^\s)]+)/g;
 
-export type RichLine = { kind: "text" | "bullet" | "number"; n?: number; text: string };
+export type RichLine = {
+  kind: "text" | "bullet" | "number";
+  n?: number;
+  text: string;
+};
 
 export function richLines(text: string): RichLine[] {
   return text.split("\n").map((line) => {
@@ -17,7 +22,9 @@ export function richLines(text: string): RichLine[] {
 
 /** Whether text uses any mark the canvas draws differently from plain text. */
 export function hasMarks(text: string): boolean {
-  return new RegExp(INLINE.source).test(text) || /^\s*([-*•]|\d+[.)])\s+/m.test(text);
+  return (
+    new RegExp(INLINE.source).test(text) || /^\s*([-*•]|\d+[.)])\s+/m.test(text)
+  );
 }
 
 /**
@@ -25,17 +32,39 @@ export function hasMarks(text: string): boolean {
  * the mark (or unwrap it), Cmd+K turns it into a link. Returns the new value
  * and selection, or null when the key is not a formatting key.
  */
-export function formatKey(e: { key: string; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }, value: string, start: number, end: number): { value: string; start: number; end: number } | null {
+export function formatKey(
+  e: { key: string; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean },
+  value: string,
+  start: number,
+  end: number,
+): { value: string; start: number; end: number } | null {
   if (!(e.metaKey || e.ctrlKey)) return null;
   const k = e.key.toLowerCase();
-  const mark = k === "b" ? "**" : k === "i" ? "*" : k === "x" && e.shiftKey ? "~~" : null;
+  const mark =
+    k === "b" ? "**" : k === "i" ? "*" : k === "x" && e.shiftKey ? "~~" : null;
   if (mark) {
     const sel = value.slice(start, end);
-    const before = value.slice(Math.max(0, start - mark.length), start), after = value.slice(end, end + mark.length);
-    if (before === mark && after === mark && !(mark === "*" && value.slice(start - 2, start) === "**")) {
-      return { value: value.slice(0, start - mark.length) + sel + value.slice(end + mark.length), start: start - mark.length, end: end - mark.length };
+    const before = value.slice(Math.max(0, start - mark.length), start),
+      after = value.slice(end, end + mark.length);
+    if (
+      before === mark &&
+      after === mark &&
+      !(mark === "*" && value.slice(start - 2, start) === "**")
+    ) {
+      return {
+        value:
+          value.slice(0, start - mark.length) +
+          sel +
+          value.slice(end + mark.length),
+        start: start - mark.length,
+        end: end - mark.length,
+      };
     }
-    return { value: value.slice(0, start) + mark + sel + mark + value.slice(end), start: start + mark.length, end: end + mark.length };
+    return {
+      value: value.slice(0, start) + mark + sel + mark + value.slice(end),
+      start: start + mark.length,
+      end: end + mark.length,
+    };
   }
   if (k === "k") {
     const sel = value.slice(start, end) || "link";
@@ -48,20 +77,38 @@ export function formatKey(e: { key: string; metaKey: boolean; ctrlKey: boolean; 
 }
 
 /** Turn the lines the selection touches into a bulleted list, or back into plain lines. */
-export function toggleList(value: string, start: number, end: number): { value: string; start: number; end: number } {
+export function toggleList(
+  value: string,
+  start: number,
+  end: number,
+): { value: string; start: number; end: number } {
   const from = value.lastIndexOf("\n", start - 1) + 1;
   const nl = value.indexOf("\n", end);
   const to = nl === -1 ? value.length : nl;
   const lines = value.slice(from, to).split("\n");
   const on = lines.every((l) => /^\s*[-*•]\s+/.test(l));
   // All bulleted: the bullets come off. Otherwise the lines without one get one.
-  const next = lines.map((l) => (on ? l.replace(/^\s*[-*•]\s+/, "") : /^\s*[-*•]\s+/.test(l) ? l : `- ${l}`)).join("\n");
+  const next = lines
+    .map((l) =>
+      on
+        ? l.replace(/^\s*[-*•]\s+/, "")
+        : /^\s*[-*•]\s+/.test(l)
+          ? l
+          : `- ${l}`,
+    )
+    .join("\n");
   const out = value.slice(0, from) + next + value.slice(to);
   return { value: out, start: from, end: from + next.length };
 }
 
 /** A stretch of text with one style: what an export draws as one span. */
-export type Run = { t: string; b?: boolean; i?: boolean; s?: boolean; href?: string };
+export type Run = {
+  t: string;
+  b?: boolean;
+  i?: boolean;
+  s?: boolean;
+  href?: string;
+};
 
 /**
  * One line's marks as styled runs: what the canvas, the editor and an export
@@ -75,17 +122,25 @@ export function markRuns(line: string, style: Omit<Run, "t"> = {}): Run[] {
     const at = m.index ?? 0;
     if (at > last) out.push({ ...style, t: line.slice(last, at) });
     const t = m[0];
-    if (t.startsWith("**")) out.push(...markRuns(t.slice(2, -2), { ...style, b: true }));
-    else if (t.startsWith("~~")) out.push(...markRuns(t.slice(2, -2), { ...style, s: true }));
-    else if (t.startsWith("*")) out.push(...markRuns(t.slice(1, -1), { ...style, i: true }));
+    if (t.startsWith("**"))
+      out.push(...markRuns(t.slice(2, -2), { ...style, b: true }));
+    else if (t.startsWith("~~"))
+      out.push(...markRuns(t.slice(2, -2), { ...style, s: true }));
+    else if (t.startsWith("*"))
+      out.push(...markRuns(t.slice(1, -1), { ...style, i: true }));
     else if (t.startsWith("[")) {
       const mm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(t)!;
-      if (/^(https?:\/\/|mailto:)/i.test(mm[2])) out.push(...markRuns(mm[1], { ...style, href: mm[2] }));
+      if (/^(https?:\/\/|mailto:)/i.test(mm[2]))
+        out.push(...markRuns(mm[1], { ...style, href: mm[2] }));
       else out.push({ ...style, t });
     } else {
       // A bare URL drops trailing sentence punctuation.
       const url = t.replace(/[.,;:!?]+$/, "");
-      out.push({ ...style, t: url.replace(/^https?:\/\//, ""), href: style.href ?? url });
+      out.push({
+        ...style,
+        t: url.replace(/^https?:\/\//, ""),
+        href: style.href ?? url,
+      });
       if (url.length < t.length) out.push({ ...style, t: t.slice(url.length) });
     }
     last = at + t.length;
@@ -99,17 +154,33 @@ export function markRuns(line: string, style: Omit<Run, "t"> = {}): Run[] {
  * measure of each styled word (the page's own font, in an export). List lines
  * get their bullet; a word longer than a line stays whole on its own line.
  */
-export function wrapRuns(text: string, width: number, measure: (s: string, r: Run) => number): Run[][] {
+export function wrapRuns(
+  text: string,
+  width: number,
+  measure: (s: string, r: Run) => number,
+): Run[][] {
   const out: Run[][] = [];
   for (const raw of text.split("\n")) {
     const li = richLines(raw)[0];
-    const lead: Run[] = li.kind === "bullet" ? [{ t: "• " }] : li.kind === "number" ? [{ t: `${li.n}. ` }] : [];
+    const lead: Run[] =
+      li.kind === "bullet"
+        ? [{ t: "• " }]
+        : li.kind === "number"
+          ? [{ t: `${li.n}. ` }]
+          : [];
     const words: Run[] = [];
-    for (const r of [...lead, ...markRuns(li.text)]) for (const piece of r.t.split(/(?<= )/)) if (piece) words.push({ ...r, t: piece });
-    let line: Run[] = [], used = 0;
+    for (const r of [...lead, ...markRuns(li.text)])
+      for (const piece of r.t.split(/(?<= )/))
+        if (piece) words.push({ ...r, t: piece });
+    let line: Run[] = [],
+      used = 0;
     for (const w of words) {
       const wl = measure(w.t.trimEnd(), w);
-      if (line.length && used + wl > width) { out.push(line); line = []; used = 0; }
+      if (line.length && used + wl > width) {
+        out.push(line);
+        line = [];
+        used = 0;
+      }
       line.push(w);
       used += measure(w.t, w);
     }
@@ -118,33 +189,48 @@ export function wrapRuns(text: string, width: number, measure: (s: string, r: Ru
   return out;
 }
 
-const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const escHtml = (s: string) =>
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 /** The rich editor's starting HTML for stored text: marks as tags, one <div> per line, list lines with a bullet. */
 export function marksToHtml(text: string): string {
-  return text.split("\n").map((raw) => {
-    const li = richLines(raw)[0];
-    const lead = li.kind === "bullet" ? "• " : li.kind === "number" ? `${li.n}. ` : "";
-    const body = markRuns(li.text).map((r) => {
-      let h = escHtml(r.t);
-      if (r.b) h = `<b>${h}</b>`;
-      if (r.i) h = `<i>${h}</i>`;
-      if (r.s) h = `<s>${h}</s>`;
-      if (r.href) h = `<a href="${escHtml(r.href)}">${h}</a>`;
-      return h;
-    }).join("");
-    return `<div>${escHtml(lead)}${body || (lead ? "" : "<br>")}</div>`;
-  }).join("");
+  return text
+    .split("\n")
+    .map((raw) => {
+      const li = richLines(raw)[0];
+      const lead =
+        li.kind === "bullet" ? "• " : li.kind === "number" ? `${li.n}. ` : "";
+      const body = markRuns(li.text)
+        .map((r) => {
+          let h = escHtml(r.t);
+          if (r.b) h = `<b>${h}</b>`;
+          if (r.i) h = `<i>${h}</i>`;
+          if (r.s) h = `<s>${h}</s>`;
+          if (r.href) h = `<a href="${escHtml(r.href)}">${h}</a>`;
+          return h;
+        })
+        .join("");
+      return `<div>${escHtml(lead)}${body || (lead ? "" : "<br>")}</div>`;
+    })
+    .join("");
 }
 
 /** Wrap text in a mark, keeping the spaces at its edges outside it (`a ** b**` is not bold in markdown). */
 function wrapMark(mark: string, s: string): string {
   // Bold across a line break (Shift+Enter inside a bold run) is bold on each line.
-  return s.split("\n").map((line) => {
-    if (!line.trim()) return line;
-    const lead = /^\s*/.exec(line)![0], tail = /\s*$/.exec(line)![0];
-    return `${lead}${mark}${line.trim()}${mark}${tail}`;
-  }).join("\n");
+  return s
+    .split("\n")
+    .map((line) => {
+      if (!line.trim()) return line;
+      const lead = /^\s*/.exec(line)![0],
+        tail = /\s*$/.exec(line)![0];
+      return `${lead}${mark}${line.trim()}${mark}${tail}`;
+    })
+    .join("\n");
 }
 
 function inlineMarks(n: Node): string {
@@ -156,9 +242,21 @@ function inlineMarks(n: Node): string {
   const inner = Array.from(el.childNodes).map(inlineMarks).join("");
   if (!inner.trim()) return inner;
   const style = (el.getAttribute("style") ?? "").toLowerCase();
-  if (tag === "b" || tag === "strong" || /font-weight:\s*(bold|[6-9]00)/.test(style)) return wrapMark("**", inner);
-  if (tag === "i" || tag === "em" || /font-style:\s*italic/.test(style)) return wrapMark("*", inner);
-  if (tag === "s" || tag === "strike" || tag === "del" || /line-through/.test(style)) return wrapMark("~~", inner);
+  if (
+    tag === "b" ||
+    tag === "strong" ||
+    /font-weight:\s*(bold|[6-9]00)/.test(style)
+  )
+    return wrapMark("**", inner);
+  if (tag === "i" || tag === "em" || /font-style:\s*italic/.test(style))
+    return wrapMark("*", inner);
+  if (
+    tag === "s" ||
+    tag === "strike" ||
+    tag === "del" ||
+    /line-through/.test(style)
+  )
+    return wrapMark("~~", inner);
   if (tag === "a") {
     const href = el.getAttribute("href") ?? "";
     return /^(https?:\/\/|mailto:)/i.test(href) ? `[${inner}](${href})` : inner;
@@ -175,7 +273,9 @@ export function editorToMarks(root: Node): string {
   const lines: string[] = [];
   let cur: string | null = null;
   for (const n of Array.from(root.childNodes)) {
-    const block = n.nodeType === 1 && ["div", "p"].includes((n as Element).tagName.toLowerCase());
+    const block =
+      n.nodeType === 1 &&
+      ["div", "p"].includes((n as Element).tagName.toLowerCase());
     if (block) {
       if (cur !== null) lines.push(cur);
       cur = null;
@@ -187,13 +287,24 @@ export function editorToMarks(root: Node): string {
   if (cur !== null) lines.push(cur);
   // A bullet is list formatting, never part of a mark: a link or bold laid over a whole list line
   // ("[• see](url)") keeps its "• " outside, so the line stays a list item.
-  return lines.flatMap((l) => l.split("\n")).map((l) => l.replace(/^((?:\*\*|~~|\*|\[)+)• /, "• $1").replace(/^• /, "- ")).join("\n").replace(/\n+$/, "");
+  return lines
+    .flatMap((l) => l.split("\n"))
+    .map((l) =>
+      l.replace(/^((?:\*\*|~~|\*|\[)+)• /, "• $1").replace(/^• /, "- "),
+    )
+    .join("\n")
+    .replace(/\n+$/, "");
 }
 
 /** Text with its marks read as words, for a screen reader: "**Ship** [docs](url)" is "Ship docs". */
 export function plainText(text: string): string {
-  return text.split("\n").map((raw) => {
-    const li = richLines(raw)[0];
-    return markRuns(li.text).map((r) => r.t).join("");
-  }).join("\n");
+  return text
+    .split("\n")
+    .map((raw) => {
+      const li = richLines(raw)[0];
+      return markRuns(li.text)
+        .map((r) => r.t)
+        .join("");
+    })
+    .join("\n");
 }

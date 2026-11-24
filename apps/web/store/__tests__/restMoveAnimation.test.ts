@@ -11,16 +11,24 @@ const ID = "jx7restmove0000000000000000000";
 
 beforeAll(() => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
-  for (const key of ["window", "document", "MutationObserver", "Element", "HTMLElement", "Event"] as const) {
+  for (const key of [
+    "window",
+    "document",
+    "MutationObserver",
+    "Element",
+    "HTMLElement",
+    "Event",
+  ] as const) {
     (globalThis as any)[key] = (dom.window as any)[key];
   }
 });
 
-const seed = () => useInboxStore.setState({
-  pending: {},
-  sessions: { [ID]: { _id: ID, title: "Moving row", updated_at: 1 } } as any,
-  conversations: { [ID]: { _id: ID, title: "Moving row" } } as any,
-});
+const seed = () =>
+  useInboxStore.setState({
+    pending: {},
+    sessions: { [ID]: { _id: ID, title: "Moving row", updated_at: 1 } } as any,
+    conversations: { [ID]: { _id: ID, title: "Moving row" } } as any,
+  });
 
 const mountCard = (section: string) => {
   const host = document.createElement("section");
@@ -44,12 +52,16 @@ describe("a rest verdict animates the row between sections", () => {
 
     animatedSetSessionRest(ID, "dormant");
     expect(from.wrapper.classList.contains("session-dismissing")).toBe(true);
-    expect((useInboxStore.getState().sessions[ID] as any).user_rest).toBeUndefined();
+    expect(
+      (useInboxStore.getState().sessions[ID] as any).user_rest,
+    ).toBeUndefined();
 
     from.wrapper.dispatchEvent(new Event("animationend"));
     // Every row's collapse is awaited, then the rows are filed as one undo.
     await tick();
-    expect((useInboxStore.getState().sessions[ID] as any).user_rest).toBe("dormant");
+    expect((useInboxStore.getState().sessions[ID] as any).user_rest).toBe(
+      "dormant",
+    );
 
     // React moves the row: the old section unmounts it, the dormant one mounts it.
     from.host.remove();
@@ -74,6 +86,8 @@ describe("a rest verdict animates the row between sections", () => {
     document.body.innerHTML = "";
     seed();
     await animatedSetSessionRest(ID, "done");
-    expect((useInboxStore.getState().sessions[ID] as any).user_rest).toBe("done");
+    expect((useInboxStore.getState().sessions[ID] as any).user_rest).toBe(
+      "done",
+    );
   });
 });

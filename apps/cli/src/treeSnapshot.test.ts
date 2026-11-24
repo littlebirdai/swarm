@@ -3,7 +3,15 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CHAIN_DEPTH_CAP, STALE_INDEX_LOCK_MS, chainHead, createTurnSnapshot, diffSnapshots, listChain, snapshotStateDir } from "./treeSnapshot.js";
+import {
+  CHAIN_DEPTH_CAP,
+  STALE_INDEX_LOCK_MS,
+  chainHead,
+  createTurnSnapshot,
+  diffSnapshots,
+  listChain,
+  snapshotStateDir,
+} from "./treeSnapshot.js";
 import { restoreWipSnapshot, pushWipSnapshot } from "./wipSnapshot.js";
 
 const tmps: string[] = [];
@@ -14,11 +22,20 @@ function tmpdir(name: string): string {
 }
 afterEach(() => {
   while (tmps.length) {
-    try { fs.rmSync(tmps.pop()!, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(tmps.pop()!, { recursive: true, force: true });
+    } catch {}
   }
 });
-const git = (cwd: string, args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
-const status = (cwd: string) => execFileSync("git", ["-C", cwd, "status", "--porcelain"], { encoding: "utf-8" }).split("\n").filter(Boolean).sort();
+const git = (cwd: string, args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8" }).trim();
+const status = (cwd: string) =>
+  execFileSync("git", ["-C", cwd, "status", "--porcelain"], {
+    encoding: "utf-8",
+  })
+    .split("\n")
+    .filter(Boolean)
+    .sort();
 
 function repo(): { cwd: string; remote: string } {
   const cwd = tmpdir("src");
@@ -60,9 +77,16 @@ describe("createTurnSnapshot", () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       const { cwd } = repo();
       git(cwd, ["update-index", "-q", "--refresh"]);
-      const indexSecond = Math.floor(fs.statSync(path.join(cwd, ".git", "index")).mtimeMs / 1000);
+      const indexSecond = Math.floor(
+        fs.statSync(path.join(cwd, ".git", "index")).mtimeMs / 1000,
+      );
       fs.writeFileSync(path.join(cwd, "tracked.txt"), "v2\n");
-      if (Math.floor(fs.statSync(path.join(cwd, "tracked.txt")).mtimeMs / 1000) !== indexSecond) continue;
+      if (
+        Math.floor(
+          fs.statSync(path.join(cwd, "tracked.txt")).mtimeMs / 1000,
+        ) !== indexSecond
+      )
+        continue;
       await new Promise((r) => setTimeout(r, 1100));
       const snap = await createTurnSnapshot(cwd);
       expect(snap?.changedPaths).toContain("tracked.txt");
@@ -80,8 +104,12 @@ describe("createTurnSnapshot", () => {
     expect(snap!.prev).toBeUndefined();
     expect(snap!.dirty).toBe(true);
     expect(snap!.unchanged).toBe(false);
-    expect(git(cwd, ["rev-parse", `${snap!.sha}^`])).toBe(git(cwd, ["rev-parse", "HEAD"]));
-    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap!.sha]).split("\n");
+    expect(git(cwd, ["rev-parse", `${snap!.sha}^`])).toBe(
+      git(cwd, ["rev-parse", "HEAD"]),
+    );
+    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap!.sha]).split(
+      "\n",
+    );
     expect(files).toContain("new.txt");
     expect(files).not.toContain(".env");
     expect(git(cwd, ["show", `${snap!.sha}:tracked.txt`])).toBe("dirty");
@@ -101,14 +129,22 @@ describe("createTurnSnapshot", () => {
     const two = (await createTurnSnapshot(cwd))!;
     expect(two.depth).toBe(2);
     expect(two.prev).toBe(one.sha);
-    expect(git(cwd, ["rev-parse", `${two.sha}^1`])).toBe(git(cwd, ["rev-parse", "HEAD"]));
+    expect(git(cwd, ["rev-parse", `${two.sha}^1`])).toBe(
+      git(cwd, ["rev-parse", "HEAD"]),
+    );
     expect(git(cwd, ["rev-parse", `${two.sha}^2`])).toBe(one.sha);
     expect(two.changedPaths).toEqual(["b.txt"]);
     const chain = await listChain(cwd, two.sha);
     expect(chain.map((c) => c.sha)).toEqual([two.sha, one.sha]);
     expect(chain[0].takenAt).toBeGreaterThan(0);
-    expect(await chainHead(cwd)).toEqual({ sha: two.sha, tree: two.tree, depth: 2 });
-    expect(await diffSnapshots(cwd, one.sha, two.sha, { stat: true })).toContain("b.txt");
+    expect(await chainHead(cwd)).toEqual({
+      sha: two.sha,
+      tree: two.tree,
+      depth: 2,
+    });
+    expect(
+      await diffSnapshots(cwd, one.sha, two.sha, { stat: true }),
+    ).toContain("b.txt");
   });
 
   test("a scratch file excluded after a snapshot took it leaves the next snapshot; an ignored file HEAD tracks stays", async () => {
@@ -117,10 +153,20 @@ describe("createTurnSnapshot", () => {
     fs.mkdirSync(path.join(cwd, "live-reads"));
     fs.writeFileSync(path.join(cwd, "live-reads", "a.out"), "log\n");
     const first = await createTurnSnapshot(cwd);
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", first!.tree])).toContain("[id]");
-    fs.appendFileSync(path.join(cwd, ".git", "info", "exclude"), "/[[]id]\n/live-reads/\n/tracked.txt\n");
+    expect(git(cwd, ["ls-tree", "-r", "--name-only", first!.tree])).toContain(
+      "[id]",
+    );
+    fs.appendFileSync(
+      path.join(cwd, ".git", "info", "exclude"),
+      "/[[]id]\n/live-reads/\n/tracked.txt\n",
+    );
     const second = await createTurnSnapshot(cwd);
-    const names = git(cwd, ["ls-tree", "-r", "--name-only", second!.tree]).split("\n");
+    const names = git(cwd, [
+      "ls-tree",
+      "-r",
+      "--name-only",
+      second!.tree,
+    ]).split("\n");
     expect(names).not.toContain("[id]");
     expect(names).not.toContain("live-reads/a.out");
     expect(names).toContain("tracked.txt");
@@ -129,22 +175,42 @@ describe("createTurnSnapshot", () => {
   test("a worktree nested under an untracked dir is never a gitlink, and a pass runs no status inside it", async () => {
     const { cwd } = repo();
     fs.mkdirSync(path.join(cwd, "worktrees"));
-    for (const n of [1, 2, 3]) git(cwd, ["worktree", "add", "-q", "-b", `w${n}`, path.join(cwd, "worktrees", `w${n}`)]);
-    fs.writeFileSync(path.join(cwd, "worktrees", "notes.txt"), "real content\n");
+    for (const n of [1, 2, 3])
+      git(cwd, [
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        `w${n}`,
+        path.join(cwd, "worktrees", `w${n}`),
+      ]);
+    fs.writeFileSync(
+      path.join(cwd, "worktrees", "notes.txt"),
+      "real content\n",
+    );
     const idx = path.join((await snapshotStateDir(cwd))!, "wip.index");
     const gitlinks = () =>
-      execFileSync("git", ["-C", cwd, "ls-files", "-s"], { encoding: "utf-8", env: { ...process.env, GIT_INDEX_FILE: idx } })
-        .split("\n").filter((l) => l.startsWith("160000 "));
+      execFileSync("git", ["-C", cwd, "ls-files", "-s"], {
+        encoding: "utf-8",
+        env: { ...process.env, GIT_INDEX_FILE: idx },
+      })
+        .split("\n")
+        .filter((l) => l.startsWith("160000 "));
 
     const first = (await createTurnSnapshot(cwd))!;
-    const names = git(cwd, ["ls-tree", "-r", "--name-only", first.tree]).split("\n");
+    const names = git(cwd, ["ls-tree", "-r", "--name-only", first.tree]).split(
+      "\n",
+    );
     expect(names).toContain("worktrees/notes.txt");
     expect(names.filter((n) => /^worktrees\/w\d$/.test(n))).toEqual([]);
     expect(gitlinks()).toEqual([]);
 
     // An older daemon left the gitlinks in the persistent index: the next pass
     // drops them before the add, so git never runs a status inside a nested checkout.
-    execFileSync("git", ["-C", cwd, "add", "-A", "--", "."], { env: { ...process.env, GIT_INDEX_FILE: idx }, stdio: "ignore" });
+    execFileSync("git", ["-C", cwd, "add", "-A", "--", "."], {
+      env: { ...process.env, GIT_INDEX_FILE: idx },
+      stdio: "ignore",
+    });
     expect(gitlinks().length).toBe(3);
     const trace = path.join(tmpdir("trace"), "t2.json");
     process.env.GIT_TRACE2_EVENT = trace;
@@ -156,7 +222,12 @@ describe("createTurnSnapshot", () => {
     } finally {
       delete process.env.GIT_TRACE2_EVENT;
     }
-    const statusRuns = fs.readFileSync(trace, "utf8").split("\n").filter((l) => l.includes('"event":"child_start"') && l.includes('"status"'));
+    const statusRuns = fs
+      .readFileSync(trace, "utf8")
+      .split("\n")
+      .filter(
+        (l) => l.includes('"event":"child_start"') && l.includes('"status"'),
+      );
     expect(statusRuns).toEqual([]);
     expect(gitlinks()).toEqual([]);
   });
@@ -165,25 +236,57 @@ describe("createTurnSnapshot", () => {
     const { cwd } = repo();
     const sub = tmpdir("sub");
     git(sub, ["init", "-q", "-b", "main"]);
-    git(sub, ["-c", "user.email=t@t.t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "s"]);
-    git(cwd, ["-c", "protocol.file.allow=always", "submodule", "add", "-q", sub, "vendor/sub"]);
+    git(sub, [
+      "-c",
+      "user.email=t@t.t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-q",
+      "--allow-empty",
+      "-m",
+      "s",
+    ]);
+    git(cwd, [
+      "-c",
+      "protocol.file.allow=always",
+      "submodule",
+      "add",
+      "-q",
+      sub,
+      "vendor/sub",
+    ]);
     git(cwd, ["commit", "-qm", "add submodule"]);
     fs.writeFileSync(path.join(cwd, "a.txt"), "1\n");
     const snap = (await createTurnSnapshot(cwd))!;
-    expect(git(cwd, ["ls-tree", snap.tree, "vendor/sub"])).toMatch(/^160000 commit /);
+    expect(git(cwd, ["ls-tree", snap.tree, "vendor/sub"])).toMatch(
+      /^160000 commit /,
+    );
   });
 
   test("a dir that becomes ignored after a snapshot leaves the index on the next pass", async () => {
     const { cwd } = repo();
     fs.mkdirSync(path.join(cwd, "cache"));
-    for (let i = 0; i < 20; i++) fs.writeFileSync(path.join(cwd, "cache", `f${i}`), `${i}\n`);
+    for (let i = 0; i < 20; i++)
+      fs.writeFileSync(path.join(cwd, "cache", `f${i}`), `${i}\n`);
     const first = (await createTurnSnapshot(cwd))!;
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", first.tree]).split("\n").filter((n) => n.startsWith("cache/")).length).toBe(20);
+    expect(
+      git(cwd, ["ls-tree", "-r", "--name-only", first.tree])
+        .split("\n")
+        .filter((n) => n.startsWith("cache/")).length,
+    ).toBe(20);
     fs.appendFileSync(path.join(cwd, ".gitignore"), "/cache/\n");
     const second = (await createTurnSnapshot(cwd))!;
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", second.tree]).split("\n").filter((n) => n.startsWith("cache/"))).toEqual([]);
+    expect(
+      git(cwd, ["ls-tree", "-r", "--name-only", second.tree])
+        .split("\n")
+        .filter((n) => n.startsWith("cache/")),
+    ).toEqual([]);
     const idx = path.join((await snapshotStateDir(cwd))!, "wip.index");
-    const staged = execFileSync("git", ["-C", cwd, "ls-files"], { encoding: "utf-8", env: { ...process.env, GIT_INDEX_FILE: idx } });
+    const staged = execFileSync("git", ["-C", cwd, "ls-files"], {
+      encoding: "utf-8",
+      env: { ...process.env, GIT_INDEX_FILE: idx },
+    });
     expect(staged).not.toContain("cache/");
   });
 
@@ -202,10 +305,14 @@ describe("createTurnSnapshot", () => {
     const { cwd } = repo();
     const one = (await createTurnSnapshot(cwd))!;
     expect(one.dirty).toBe(false);
-    execFileSync("sh", ["-c", "echo shelled > tracked.txt && rm doomed.txt"], { cwd });
+    execFileSync("sh", ["-c", "echo shelled > tracked.txt && rm doomed.txt"], {
+      cwd,
+    });
     const two = (await createTurnSnapshot(cwd))!;
     expect(two.changedPaths.sort()).toEqual(["doomed.txt", "tracked.txt"]);
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", two.sha]).split("\n")).not.toContain("doomed.txt");
+    expect(
+      git(cwd, ["ls-tree", "-r", "--name-only", two.sha]).split("\n"),
+    ).not.toContain("doomed.txt");
     expect(git(cwd, ["show", `${two.sha}:tracked.txt`])).toBe("shelled");
   });
 
@@ -215,9 +322,19 @@ describe("createTurnSnapshot", () => {
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "named\n");
     fs.writeFileSync(path.join(cwd, "other.txt"), "unnamed\n");
     fs.rmSync(path.join(cwd, "doomed.txt"));
-    const partial = (await createTurnSnapshot(cwd, { paths: ["tracked.txt", "missing.txt", ".env", "doomed.txt", path.join(cwd, "tracked.txt")] }))!;
+    const partial = (await createTurnSnapshot(cwd, {
+      paths: [
+        "tracked.txt",
+        "missing.txt",
+        ".env",
+        "doomed.txt",
+        path.join(cwd, "tracked.txt"),
+      ],
+    }))!;
     expect(partial.changedPaths.sort()).toEqual(["doomed.txt", "tracked.txt"]);
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", partial.sha]).split("\n")).not.toContain(".env");
+    expect(
+      git(cwd, ["ls-tree", "-r", "--name-only", partial.sha]).split("\n"),
+    ).not.toContain(".env");
     const full = (await createTurnSnapshot(cwd))!;
     expect(full.changedPaths).toEqual(["other.txt"]);
     expect(full.prev).toBe(partial.sha);
@@ -229,23 +346,36 @@ describe("createTurnSnapshot", () => {
     fs.writeFileSync(path.join(cwd, "a.txt"), "1\n");
     const one = (await createTurnSnapshot(cwd))!;
     // Pretend the chain is already at the cap.
-    fs.writeFileSync(path.join(dir, "wip.head"), `${one.sha} ${one.tree} ${CHAIN_DEPTH_CAP}\n`);
+    fs.writeFileSync(
+      path.join(dir, "wip.head"),
+      `${one.sha} ${one.tree} ${CHAIN_DEPTH_CAP}\n`,
+    );
     fs.writeFileSync(path.join(cwd, "a.txt"), "2\n");
     const next = (await createTurnSnapshot(cwd))!;
     expect(next.depth).toBe(1);
     expect(next.prev).toBeUndefined();
-    expect(git(cwd, ["rev-list", "--parents", "-n", "1", next.sha]).split(" ").length).toBe(2);
+    expect(
+      git(cwd, ["rev-list", "--parents", "-n", "1", next.sha]).split(" ")
+        .length,
+    ).toBe(2);
   });
 
   test("a stale head file (object gone) is ignored, not trusted", async () => {
     const { cwd } = repo();
     const dir = (await snapshotStateDir(cwd))!;
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "wip.head"), `${"0".repeat(40)} ${"1".repeat(40)} 7\n`);
+    fs.writeFileSync(
+      path.join(dir, "wip.head"),
+      `${"0".repeat(40)} ${"1".repeat(40)} 7\n`,
+    );
     fs.writeFileSync(path.join(cwd, "a.txt"), "1\n");
     const snap = (await createTurnSnapshot(cwd))!;
     expect(snap.depth).toBe(1);
-    expect(await chainHead(cwd)).toEqual({ sha: snap.sha, tree: snap.tree, depth: 1 });
+    expect(await chainHead(cwd)).toEqual({
+      sha: snap.sha,
+      tree: snap.tree,
+      depth: 1,
+    });
   });
 
   test("a chained snapshot still restores through the existing wip path", async () => {
@@ -255,11 +385,23 @@ describe("createTurnSnapshot", () => {
     fs.writeFileSync(path.join(cwd, "a.txt"), "2\n");
     const two = (await createTurnSnapshot(cwd))!;
     const conv = "conv_turnsnap";
-    const push = await pushWipSnapshot(cwd, { remote, conversationIds: [conv], sha: two.sha });
+    const push = await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: [conv],
+      sha: two.sha,
+    });
     expect(push.ok).toBe(true);
     const dest = tmpdir("dest");
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", "origin"]), dest]);
-    const restored = await restoreWipSnapshot(dest, { remote: "origin", conversationId: conv });
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", "origin"]),
+      dest,
+    ]);
+    const restored = await restoreWipSnapshot(dest, {
+      remote: "origin",
+      conversationId: conv,
+    });
     expect(restored).not.toBeNull();
     expect(fs.readFileSync(path.join(dest, "a.txt"), "utf8")).toBe("2\n");
     // The whole chain travelled with the tip.
@@ -269,7 +411,10 @@ describe("createTurnSnapshot", () => {
   test("concurrent calls on one checkout serialize and both see a consistent chain", async () => {
     const { cwd } = repo();
     fs.writeFileSync(path.join(cwd, "a.txt"), "1\n");
-    const [x, y] = await Promise.all([createTurnSnapshot(cwd), createTurnSnapshot(cwd)]);
+    const [x, y] = await Promise.all([
+      createTurnSnapshot(cwd),
+      createTurnSnapshot(cwd),
+    ]);
     expect(x!.sha).toBe(y!.sha);
     expect((await chainHead(cwd))!.depth).toBe(1);
   });

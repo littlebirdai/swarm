@@ -15,7 +15,10 @@ import { agentStatusAt } from "../../lib/liveness";
 import { conversationTitle } from "../../lib/conversationTitle";
 import { usePlanMeter } from "../simple/usePlanFigures";
 import { useUpgradesOpen } from "../simple/billing";
-import { THINKING_DOWN, useThinkingAvailable } from "../simple/assistantPromise";
+import {
+  THINKING_DOWN,
+  useThinkingAvailable,
+} from "../simple/assistantPromise";
 import { AskHeldLine } from "../simple/useHostedAskGate";
 import { lastNoticeKind } from "../../lib/hostedNotice";
 import { hostedConnectionWords, useHostedConnection } from "./HostedConnection";
@@ -25,16 +28,23 @@ import { hostedConnectionWords, useHostedConnection } from "./HostedConnection";
 function useBusyElsewhere(conversationId: string): string | null {
   return useInboxStore((s) => {
     for (const [id, row] of Object.entries(s.sessions)) {
-      if (id === conversationId || !isHostedAgentType(row?.agent_type)) continue;
+      if (id === conversationId || !isHostedAgentType(row?.agent_type))
+        continue;
       const status = row ? agentStatusAt(row, Date.now()) : undefined;
-      if (status === "working" || status === "thinking") return conversationTitle(row);
+      if (status === "working" || status === "thinking")
+        return conversationTitle(row);
     }
     return null;
   });
 }
 
 function Dot({ className }: { className: string }) {
-  return <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${className}`} />;
+  return (
+    <span
+      aria-hidden
+      className={`h-2 w-2 shrink-0 rounded-full ${className}`}
+    />
+  );
 }
 
 function WaitingLine({ conversationId }: { conversationId: string }) {
@@ -47,7 +57,11 @@ function WaitingLine({ conversationId }: { conversationId: string }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <Dot className="bg-sol-text-dim/50 animate-pulse" />
-      <span className="truncate">{busy ? `Finishing “${busy}” first, then this` : "Waiting for your other request to finish"}</span>
+      <span className="truncate">
+        {busy
+          ? `Finishing “${busy}” first, then this`
+          : "Waiting for your other request to finish"}
+      </span>
       {plan.id === "free" && upgradesOpen && (
         <button
           type="button"
@@ -70,7 +84,13 @@ export const STILL_WORKING_AFTER_MS = 45_000;
  *  STILL_WORKING_AFTER_MS "Still working on it…". No stopwatch: a person
  *  waiting on an answer reads a running clock as a slow one. With a
  *  conversation, a quiet Stop ends the turn (store stopHostedTurn). */
-function ThinkingLine({ phrase, conversationId }: { phrase?: string; conversationId?: string }) {
+function ThinkingLine({
+  phrase,
+  conversationId,
+}: {
+  phrase?: string;
+  conversationId?: string;
+}) {
   const [long, setLong] = useState(false);
   useMountEffect(() => {
     const timer = setTimeout(() => setLong(true), STILL_WORKING_AFTER_MS);
@@ -79,12 +99,16 @@ function ThinkingLine({ phrase, conversationId }: { phrase?: string; conversatio
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <Dot className="bg-sol-text-dim/60 animate-pulse" />
-      <span className="truncate">{phrase ?? (long ? "Still working on it…" : "Thinking…")}</span>
+      <span className="truncate">
+        {phrase ?? (long ? "Still working on it…" : "Thinking…")}
+      </span>
       {conversationId && (
         <button
           type="button"
           data-cc-hosted-stop
-          onClick={() => useInboxStore.getState().stopHostedTurn(conversationId)}
+          onClick={() =>
+            useInboxStore.getState().stopHostedTurn(conversationId)
+          }
           className="ml-1 shrink-0 text-sol-text-dim underline-offset-2 hover:text-sol-text hover:underline"
         >
           Stop
@@ -110,7 +134,8 @@ function EscapeHint() {
   // this showing stays until the composer loses focus or fills.
   const [showing] = useState(() => !seen);
   useMountEffect(() => {
-    if (!seen) useInboxStore.getState().updateClientUI({ hosted_esc_hint_seen: true });
+    if (!seen)
+      useInboxStore.getState().updateClientUI({ hosted_esc_hint_seen: true });
   });
   if (!showing) return " ";
   return (
@@ -120,7 +145,16 @@ function EscapeHint() {
   );
 }
 
-export function HostedStatusLine({ conversationId, agentStatus, phrase, sending, allowanceOut, escapeHint = false, awaitsOk = false, stopInDisc = false }: {
+export function HostedStatusLine({
+  conversationId,
+  agentStatus,
+  phrase,
+  sending,
+  allowanceOut,
+  escapeHint = false,
+  awaitsOk = false,
+  stopInDisc = false,
+}: {
   conversationId: string;
   agentStatus?: string;
   /** The step in flight, in the assistant's words (deriveHostedRunningPhrase). */
@@ -141,35 +175,58 @@ export function HostedStatusLine({ conversationId, agentStatus, phrase, sending,
   // A transcript that ends on a stop notice is settled, whatever the work
   // state says: the engine writes the notice first and the state after it,
   // so for a moment the two disagree. The notice says what happened.
-  const stopped = useInboxStore((s) => lastNoticeKind(s.messages[conversationId]) !== null);
+  const stopped = useInboxStore(
+    (s) => lastNoticeKind(s.messages[conversationId]) !== null,
+  );
   // "Getting started…" is for a conversation's first turn only; a follow-up
   // waits on the same "Thinking…" the run shows, so one wait reads one way.
-  const answeredBefore = useInboxStore((s) => (s.messages[conversationId] ?? []).some((m) => m.role === "assistant"));
+  const answeredBefore = useInboxStore((s) =>
+    (s.messages[conversationId] ?? []).some((m) => m.role === "assistant"),
+  );
   // The same link state the header's sync chip shows, said beside the reply
   // so a dropped link never reads as a slow assistant.
   const connection = useHostedConnection();
   if (connection) {
     return (
-      <span className="flex min-w-0 items-center gap-1.5 text-sol-text-muted" title={connection.detail}>
+      <span
+        className="flex min-w-0 items-center gap-1.5 text-sol-text-muted"
+        title={connection.detail}
+      >
         <Dot className="bg-sol-text-dim/50 animate-pulse" />
-        <span className="truncate">{hostedConnectionWords(connection, sending)}</span>
+        <span className="truncate">
+          {hostedConnectionWords(connection, sending)}
+        </span>
       </span>
     );
   }
   if (stopped && !sending) {
     if (allowanceOut) return <AllowanceOutLine words={allowanceOut} />;
     // The conversation the outage stopped is where its reason belongs.
-    return thinking === false ? <span className="truncate text-sol-text-muted">{THINKING_DOWN}</span> : " ";
+    return thinking === false ? (
+      <span className="truncate text-sol-text-muted">{THINKING_DOWN}</span>
+    ) : (
+      " "
+    );
   }
-  if (agentStatus === "working" || agentStatus === "thinking") return <ThinkingLine phrase={phrase} conversationId={stopInDisc ? undefined : conversationId} />;
-  if (agentStatus === "waiting") return <WaitingLine conversationId={conversationId} />;
+  if (agentStatus === "working" || agentStatus === "thinking")
+    return (
+      <ThinkingLine
+        phrase={phrase}
+        conversationId={stopInDisc ? undefined : conversationId}
+      />
+    );
+  if (agentStatus === "waiting")
+    return <WaitingLine conversationId={conversationId} />;
   // The approval card sits at the end of the transcript and the composer's
   // placeholder points at it; a third line saying so would be noise. Once the
   // card is answered the row's status lags while the turn wraps up, and the
   // rail already says Working on it, so the pane says so too.
-  if (agentStatus === "permission_blocked") return awaitsOk ? " " : <ThinkingLine phrase={phrase} />;
+  if (agentStatus === "permission_blocked")
+    return awaitsOk ? " " : <ThinkingLine phrase={phrase} />;
   if (sending) {
-    return answeredBefore ? <ThinkingLine /> : (
+    return answeredBefore ? (
+      <ThinkingLine />
+    ) : (
       <span className="flex items-center gap-1.5">
         <Dot className="bg-sol-text-dim/60 animate-pulse" />
         Getting started…
@@ -177,6 +234,9 @@ export function HostedStatusLine({ conversationId, agentStatus, phrase, sending,
     );
   }
   if (allowanceOut) return <AllowanceOutLine words={allowanceOut} />;
-  if (thinking === false) return <span className="truncate text-sol-text-muted">{THINKING_DOWN}</span>;
+  if (thinking === false)
+    return (
+      <span className="truncate text-sol-text-muted">{THINKING_DOWN}</span>
+    );
   return escapeHint ? <EscapeHint /> : " ";
 }

@@ -8,7 +8,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { ConvexProvider } from "convex/react";
 import { heroConvexStub } from "../../app/(marketing)/heroFly/convexStub";
-import { EntityFixtureContext, type EntityFixture } from "../../lib/entityDisplay";
+import {
+  EntityFixtureContext,
+  type EntityFixture,
+} from "../../lib/entityDisplay";
 import { HostedMadeLine } from "./HostedMadeLine";
 
 function render(fixtures: Record<string, EntityFixture>) {
@@ -16,7 +19,11 @@ function render(fixtures: Record<string, EntityFixture>) {
     <ConvexProvider client={heroConvexStub}>
       <MemoryRouter>
         <EntityFixtureContext.Provider value={fixtures}>
-          <HostedMadeLine words="Set up the routine" name="Weekday morning stretch" refId="tr-1448" />
+          <HostedMadeLine
+            words="Set up the routine"
+            name="Weekday morning stretch"
+            refId="tr-1448"
+          />
         </EntityFixtureContext.Provider>
       </MemoryRouter>
     </ConvexProvider>,
@@ -25,13 +32,33 @@ function render(fixtures: Record<string, EntityFixture>) {
 
 describe("HostedMadeLine", () => {
   test("a live routine links by its own name", () => {
-    const html = render({ "tr-1448": { type: "trigger", entity: { _id: "x", short_id: "tr-1448", display_title: "Morning stretch", status: "active" } } });
+    const html = render({
+      "tr-1448": {
+        type: "trigger",
+        entity: {
+          _id: "x",
+          short_id: "tr-1448",
+          display_title: "Morning stretch",
+          status: "active",
+        },
+      },
+    });
     expect(html).toContain("Morning stretch</a>");
     expect(html).not.toContain("Deleted");
   });
 
   test("a paused routine says so after its link", () => {
-    const html = render({ "tr-1448": { type: "trigger", entity: { _id: "x", short_id: "tr-1448", display_title: "Morning stretch", status: "paused" } } });
+    const html = render({
+      "tr-1448": {
+        type: "trigger",
+        entity: {
+          _id: "x",
+          short_id: "tr-1448",
+          display_title: "Morning stretch",
+          status: "paused",
+        },
+      },
+    });
     expect(html).toContain(" · Paused");
   });
 

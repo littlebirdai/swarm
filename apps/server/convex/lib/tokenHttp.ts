@@ -28,7 +28,10 @@ export const TOKEN_HTTP_MAX_BYTES = 4 * 1024 * 1024;
  * length first, then counts while streaming so a lying or absent header still
  * stops at the cap.
  */
-export async function readBodyCapped(res: Response, max: number): Promise<Uint8Array | null> {
+export async function readBodyCapped(
+  res: Response,
+  max: number,
+): Promise<Uint8Array | null> {
   const declared = Number(res.headers.get("content-length") ?? "");
   if (Number.isFinite(declared) && declared > max) {
     await res.body?.cancel().catch(() => {});
@@ -92,19 +95,45 @@ export interface TokenHttpResult {
   /** Set on every failure; a non-2xx answer gets `<vendor> answered <status>` for a wrapper to refine. */
   error?: string;
   /** Why the call failed before a status could mean anything. */
-  failure?: "refused_host" | "unreachable" | "timeout" | "redirect" | "over" | "broken";
+  failure?:
+    | "refused_host"
+    | "unreachable"
+    | "timeout"
+    | "redirect"
+    | "over"
+    | "broken";
 }
 
 /** One authenticated call under the rules at the top of this file. */
-export async function tokenHttp(fetchImpl: FetchLike, req: TokenHttpRequest): Promise<TokenHttpResult> {
+export async function tokenHttp(
+  fetchImpl: FetchLike,
+  req: TokenHttpRequest,
+): Promise<TokenHttpResult> {
   const started = Date.now();
   const ms = () => Date.now() - started;
   const timeoutMs = req.timeoutMs ?? TOKEN_HTTP_TIMEOUT_MS;
   const maxBytes = req.maxBytes ?? TOKEN_HTTP_MAX_BYTES;
-  const fail = (failure: TokenHttpResult["failure"], error: string, status = 0, bytes = 0): TokenHttpResult => ({ ok: false, status, link: null, bytes, ms: ms(), error, failure });
+  const fail = (
+    failure: TokenHttpResult["failure"],
+    error: string,
+    status = 0,
+    bytes = 0,
+  ): TokenHttpResult => ({
+    ok: false,
+    status,
+    link: null,
+    bytes,
+    ms: ms(),
+    error,
+    failure,
+  });
 
   const refused = internalHostRefusal(req.url);
-  if (refused) return fail("refused_host", `${req.vendor} is not called inside codecast's network (${refused})`);
+  if (refused)
+    return fail(
+      "refused_host",
+      `${req.vendor} is not called inside codecast's network (${refused})`,
+    );
   const origin = new URL(req.url).origin;
   let res: Response;
   try {
@@ -113,7 +142,9 @@ export async function tokenHttp(fetchImpl: FetchLike, req: TokenHttpRequest): Pr
       headers: {
         ...(req.token ? { Authorization: `Bearer ${req.token}` } : {}),
         Accept: "application/json",
-        ...(req.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(req.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...req.headers,
       },
       ...(req.body !== undefined ? { body: req.body } : {}),
@@ -124,19 +155,39 @@ export async function tokenHttp(fetchImpl: FetchLike, req: TokenHttpRequest): Pr
     const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
     return timedOut
       ? fail("timeout", `${req.vendor} gave no answer in ${timeoutMs / 1000}s`)
-      : fail("unreachable", `Could not reach ${req.vendor} at ${origin}: ${e?.message ?? "network error"}`);
+      : fail(
+          "unreachable",
+          `Could not reach ${req.vendor} at ${origin}: ${e?.message ?? "network error"}`,
+        );
   }
-  if ((res.status >= 300 && res.status < 400) || res.type === "opaqueredirect") {
+  if (
+    (res.status >= 300 && res.status < 400) ||
+    res.type === "opaqueredirect"
+  ) {
     await res.body?.cancel().catch(() => {});
-    return fail("redirect", `${req.vendor} redirected (${res.status}); redirects are not followed, so connect with the final URL`, res.status);
+    return fail(
+      "redirect",
+      `${req.vendor} redirected (${res.status}); redirects are not followed, so connect with the final URL`,
+      res.status,
+    );
   }
   let bytes: Uint8Array | null;
   try {
     bytes = await readBodyCapped(res, maxBytes);
   } catch (e: any) {
-    return fail("broken", `${req.vendor}'s answer broke off: ${e?.message ?? "read error"}`, res.status);
+    return fail(
+      "broken",
+      `${req.vendor}'s answer broke off: ${e?.message ?? "read error"}`,
+      res.status,
+    );
   }
-  if (!bytes) return fail("over", `${req.vendor}'s answer is over ${maxBytes} bytes`, res.status, maxBytes);
+  if (!bytes)
+    return fail(
+      "over",
+      `${req.vendor}'s answer is over ${maxBytes} bytes`,
+      res.status,
+      maxBytes,
+    );
   return {
     ok: res.ok,
     status: res.status,
@@ -146,12 +197,17 @@ export async function tokenHttp(fetchImpl: FetchLike, req: TokenHttpRequest): Pr
     bytes: bytes.length,
     ms: ms(),
     ...(res.ok ? {} : { error: `${req.vendor} answered ${res.status}` }),
-    ...(!res.ok && retryAfterMs(res.headers.get("retry-after")) !== null ? { retry_after_ms: retryAfterMs(res.headers.get("retry-after"))! } : {}),
+    ...(!res.ok && retryAfterMs(res.headers.get("retry-after")) !== null
+      ? { retry_after_ms: retryAfterMs(res.headers.get("retry-after"))! }
+      : {}),
   };
 }
 
 /** A Retry-After header (seconds, or an HTTP date) in ms from now, or null when absent or unreadable. */
-export function retryAfterMs(header: string | null, now: number = Date.now()): number | null {
+export function retryAfterMs(
+  header: string | null,
+  now: number = Date.now(),
+): number | null {
   const raw = header?.trim();
   if (!raw) return null;
   if (/^\d+(\.\d+)?$/.test(raw)) return Math.round(Number(raw) * 1000);

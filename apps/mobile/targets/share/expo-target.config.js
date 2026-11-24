@@ -5,12 +5,12 @@
 // Info.plist beside this file holds the activation rule: images only, up to
 // the six a message's picker allows.
 module.exports = {
-  type: 'share',
-  name: 'CodecastShare',
-  displayName: 'Codecast',
-  bundleIdentifier: '.share',
-  deploymentTarget: '16.0',
+  type: "share",
+  name: "CodecastShare",
+  displayName: "Codecast",
+  bundleIdentifier: ".share",
+  deploymentTarget: "16.0",
   entitlements: {
-    'com.apple.security.application-groups': ['group.com.ashotp.codecast'],
+    "com.apple.security.application-groups": ["group.com.ashotp.codecast"],
   },
 };

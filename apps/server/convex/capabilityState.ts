@@ -119,7 +119,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  *                allowed (the file cites them), truncated over a much larger
  *                cap so the reader can show the real document.
  */
-export type ReportedField = "text" | "identity" | "source" | "diagnostic" | "body";
+export type ReportedField =
+  | "text"
+  | "identity"
+  | "source"
+  | "diagnostic"
+  | "body";
 
 /** Whole string is a filesystem location: `/…`, `~/…`, or `C:\…`. */
 const ABSOLUTE_PATH = /^(?:\/|~[\\/]|[A-Za-z]:[\\/])/;
@@ -150,13 +155,19 @@ const ANY_CONTROL = /[\u0000-\u001f\u007f]/;
  *   disk; in an identity it can never match across machines, and in prose it
  *   leaks the machine's layout into team-visible text.
  */
-export function sanitizeReported(value: unknown, max: number, field: ReportedField = "text"): string | null {
+export function sanitizeReported(
+  value: unknown,
+  max: number,
+  field: ReportedField = "text",
+): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
   const prose = field === "text" || field === "diagnostic" || field === "body";
-  const pathIsContent = field === "source" || field === "diagnostic" || field === "body";
-  if (prose ? FORBIDDEN_CONTROLS.test(trimmed) : ANY_CONTROL.test(trimmed)) return null;
+  const pathIsContent =
+    field === "source" || field === "diagnostic" || field === "body";
+  if (prose ? FORBIDDEN_CONTROLS.test(trimmed) : ANY_CONTROL.test(trimmed))
+    return null;
   if (ENV_ASSIGNMENT.test(trimmed)) return null;
   if (!pathIsContent && ABSOLUTE_PATH.test(trimmed)) return null;
   if (trimmed.length > max) {
@@ -176,7 +187,11 @@ export function sanitizeEnvKey(value: unknown): string | null {
 
 /** `sanitizeReported`, with absence spelled the way this module's optional
  *  fields spell it. */
-export function text(value: unknown, max: number, field: ReportedField = "text"): string | undefined {
+export function text(
+  value: unknown,
+  max: number,
+  field: ReportedField = "text",
+): string | undefined {
   return sanitizeReported(value, max, field) ?? undefined;
 }
 
@@ -273,7 +288,9 @@ function normalizeItem(raw: unknown): NormalizedItem | undefined {
     // grammar refuses, or a hostile report could claim builtin/ for anything.
     slug: (() => {
       const candidate = identityText(raw.slug, MAX_CAPABILITY_SLUG_LENGTH);
-      return candidate && isWellFormedCapabilitySlug(candidate) ? candidate : undefined;
+      return candidate && isWellFormedCapabilitySlug(candidate)
+        ? candidate
+        : undefined;
     })(),
     meta: normalizeMeta(raw.meta),
   };
@@ -284,7 +301,11 @@ function normalizeMarketplace(raw: unknown): NormalizedMarketplace | undefined {
   // A marketplace's name becomes its fleet row key too — same identity rules.
   const name = identityText(raw.name, MAX_NAME_CHARS);
   if (!name) return undefined;
-  return { name, repo: text(raw.repo, MAX_NAME_CHARS), scope: observedScope(raw.scope) };
+  return {
+    name,
+    repo: text(raw.repo, MAX_NAME_CHARS),
+    scope: observedScope(raw.scope),
+  };
 }
 
 /** Marketplaces are few and they explain missing plugins, so they are budgeted
@@ -318,7 +339,9 @@ export interface NormalizedReport {
  * unsorted list would report a change every time the disk felt like it, which is
  * precisely the churn this whole design exists to avoid.
  */
-export function parseInventory(entriesJson: string): NormalizedInventory | undefined {
+export function parseInventory(
+  entriesJson: string,
+): NormalizedInventory | undefined {
   return parseInventoryCounted(entriesJson)?.inventory;
 }
 
@@ -344,7 +367,9 @@ function parseInventoryCounted(
       ? parsed.items
       : [];
   const rawMarkets: unknown[] =
-    isRecord(parsed) && Array.isArray(parsed.marketplaces) ? parsed.marketplaces : [];
+    isRecord(parsed) && Array.isArray(parsed.marketplaces)
+      ? parsed.marketplaces
+      : [];
 
   const items: NormalizedItem[] = [];
   for (const raw of rawItems.slice(0, MAX_ENTRY_COUNT)) {
@@ -358,9 +383,19 @@ function parseInventoryCounted(
   }
 
   items.sort((a, b) =>
-    a.kind < b.kind ? -1 : a.kind > b.kind ? 1
-      : a.name < b.name ? -1 : a.name > b.name ? 1
-        : a.scope < b.scope ? -1 : a.scope > b.scope ? 1 : 0,
+    a.kind < b.kind
+      ? -1
+      : a.kind > b.kind
+        ? 1
+        : a.name < b.name
+          ? -1
+          : a.name > b.name
+            ? 1
+            : a.scope < b.scope
+              ? -1
+              : a.scope > b.scope
+                ? 1
+                : 0,
   );
   marketplaces.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   // Entries past the count cap were never parsed — deliberately, so a
@@ -381,7 +416,9 @@ function parseInventoryCounted(
  * and "too big to parse", and both are returned rather than thrown so the daemon
  * logs one line instead of retrying forever.
  */
-export function normalizeReport(entriesJson: string): NormalizedReport | { error: string } {
+export function normalizeReport(
+  entriesJson: string,
+): NormalizedReport | { error: string } {
   if (entriesJson.length > MAX_REPORT_CHARS) {
     return { error: "payload_too_large" };
   }
@@ -460,14 +497,17 @@ export const reportInventory = mutation({
     if (!auth) throw new Error("Unauthorized");
 
     const deviceId = identityText(args.device_id, 200);
-    if (!deviceId) return { status: "rejected" as const, reason: "invalid_device_id" };
+    if (!deviceId)
+      return { status: "rejected" as const, reason: "invalid_device_id" };
     // Omitting the client means Claude Code. Sending one we cannot use is a
     // REFUSAL, not that default: `identityText` returns nothing in both cases,
     // and treating them alike would file an opencode daemon's inventory under
     // the machine's `claude` row. The mirror would then show one client's
     // capabilities as another's, and every other machine would read as drift.
-    const client = args.client === undefined ? "claude" : identityText(args.client, 40);
-    if (!client) return { status: "rejected" as const, reason: "invalid_client" };
+    const client =
+      args.client === undefined ? "claude" : identityText(args.client, 40);
+    if (!client)
+      return { status: "rejected" as const, reason: "invalid_client" };
     // A scope key is an identity string, never a path. The sanitizer enforces
     // the mechanical half (no controls, no bare path, refused over the cap
     // rather than clipped — it addresses the row); the semantic refusal that
@@ -475,7 +515,8 @@ export const reportInventory = mutation({
     // binding write, which is phase 2. "" — the machine-wide scope — is not a
     // rejection, so it bypasses the sanitizer's empty-means-null rule.
     const rawScopeKey = args.scope_key?.trim() ?? "";
-    const scopeKey = rawScopeKey === "" ? "" : sanitizeReported(rawScopeKey, 400, "identity");
+    const scopeKey =
+      rawScopeKey === "" ? "" : sanitizeReported(rawScopeKey, 400, "identity");
     if (scopeKey === null) {
       return { status: "rejected" as const, reason: "invalid_scope_key" };
     }
@@ -500,7 +541,11 @@ export const reportInventory = mutation({
     const machineRow = await db
       .query("capability_state")
       .withIndex("by_user_device_client_scope", (q: any) =>
-        q.eq("user_id", auth.userId).eq("device_id", deviceId).eq("client", client).eq("scope_key", ""),
+        q
+          .eq("user_id", auth.userId)
+          .eq("device_id", deviceId)
+          .eq("client", client)
+          .eq("scope_key", ""),
       )
       .first();
     const fullReport = args.full === true;
@@ -509,11 +554,15 @@ export const reportInventory = mutation({
       const deviceRowsForRetire = await db
         .query("capability_state")
         .withIndex("by_user_device_client_scope", (q: any) =>
-          q.eq("user_id", auth.userId).eq("device_id", deviceId).eq("client", client),
+          q
+            .eq("user_id", auth.userId)
+            .eq("device_id", deviceId)
+            .eq("client", client),
         )
         .collect();
       for (const row of deviceRowsForRetire) {
-        if (row.scope_key !== "" && !covered.has(row.scope_key)) await db.delete(row._id);
+        if (row.scope_key !== "" && !covered.has(row.scope_key))
+          await db.delete(row._id);
       }
     }
     // One write, and only on a transition — a steady stream of identical full
@@ -553,7 +602,11 @@ export const reportInventory = mutation({
     // The source class would refuse the first, the text class the second, and
     // either refusal silently merges "could not look" into "nothing installed"
     // — the exact distinction `last_error` exists to keep.
-    const scanError = text(args.scan_error, MAX_DESCRIPTION_CHARS, "diagnostic");
+    const scanError = text(
+      args.scan_error,
+      MAX_DESCRIPTION_CHARS,
+      "diagnostic",
+    );
     const clientVersion = text(args.client_version, 100);
 
     const existing = await db
@@ -590,10 +643,16 @@ export const reportInventory = mutation({
         (existing.dropped_count ?? 0) === normalized.dropped;
       if (sameContent) {
         if (now - existing.reported_at < LIVENESS_WRITE_INTERVAL_MS) {
-          return { status: "unchanged" as const, server_owned_ops: ownedOpsConflict };
+          return {
+            status: "unchanged" as const,
+            server_owned_ops: ownedOpsConflict,
+          };
         }
         await db.patch(existing._id, { reported_at: now });
-        return { status: "refreshed" as const, server_owned_ops: ownedOpsConflict };
+        return {
+          status: "refreshed" as const,
+          server_owned_ops: ownedOpsConflict,
+        };
       }
       // `undefined` here CLEARS the field rather than leaving it alone — which is
       // the point. A machine that fixed its unreadable `~/.claude`, or whose
@@ -688,9 +747,12 @@ export const reportAppliedOps = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     const deviceId = identityText(args.device_id, 200);
-    if (!deviceId) return { status: "rejected" as const, reason: "invalid_device_id" };
-    const client = args.client === undefined ? "claude" : identityText(args.client, 40);
-    if (!client) return { status: "rejected" as const, reason: "invalid_client" };
+    if (!deviceId)
+      return { status: "rejected" as const, reason: "invalid_device_id" };
+    const client =
+      args.client === undefined ? "claude" : identityText(args.client, 40);
+    if (!client)
+      return { status: "rejected" as const, reason: "invalid_client" };
     if (args.owned_ops_json.length > MAX_ENTRIES_CHARS) {
       return { status: "rejected" as const, reason: "payload_too_large" };
     }
@@ -698,10 +760,15 @@ export const reportAppliedOps = mutation({
     const machineRow = await db
       .query("capability_state")
       .withIndex("by_user_device_client_scope", (q: any) =>
-        q.eq("user_id", auth.userId).eq("device_id", deviceId).eq("client", client).eq("scope_key", ""),
+        q
+          .eq("user_id", auth.userId)
+          .eq("device_id", deviceId)
+          .eq("client", client)
+          .eq("scope_key", ""),
       )
       .first();
-    if (!machineRow) return { status: "rejected" as const, reason: "no_state_row" };
+    if (!machineRow)
+      return { status: "rejected" as const, reason: "no_state_row" };
     if (machineRow.owned_ops_json === args.owned_ops_json) {
       return { status: "unchanged" as const };
     }
@@ -766,10 +833,17 @@ function stringList(
  * Sanitizer refusal deliberately does NOT lower the derived surfaces: those
  * are read off the RAW structure by `structuralSurfaces` before this runs.
  */
-export function normalizeManifest(value: unknown): { manifest: CapabilityManifest; truncated: boolean } {
+export function normalizeManifest(value: unknown): {
+  manifest: CapabilityManifest;
+  truncated: boolean;
+} {
   const m = isRecord(value) ? value : {};
   let truncated = false;
-  const take = (raw: unknown, max: number, field: ReportedField): string[] | undefined => {
+  const take = (
+    raw: unknown,
+    max: number,
+    field: ReportedField,
+  ): string[] | undefined => {
     const result = stringList(raw, max, field);
     truncated = truncated || result.truncated;
     return result.list;
@@ -840,7 +914,11 @@ export function normalizeManifest(value: unknown): { manifest: CapabilityManifes
   const hooks = take(m.hooks, MAX_PATH_CHARS, "source");
   // Claude Code spells it `allowed-tools` in frontmatter; the contract spells
   // it `allowedTools`. Both arrive, depending on which layer parsed the file.
-  const allowedTools = take(m.allowedTools ?? m["allowed-tools"], MAX_NAME_CHARS, "text");
+  const allowedTools = take(
+    m.allowedTools ?? m["allowed-tools"],
+    MAX_NAME_CHARS,
+    "text",
+  );
 
   // Empty lists are OMITTED, not stored as `[]`, so "nothing observed" and
   // "field absent" canonicalize — and therefore hash — identically.
@@ -896,7 +974,8 @@ export function structuralSurfaces(raw: unknown): ExecutionSurface[] {
   if (listed(raw.bin)) found.push("ships_bin");
   if (listed(raw.scripts)) found.push("ships_scripts");
   if (listed(raw.hooks)) found.push("declares_hooks");
-  if (listed(raw.allowedTools) || listed(raw["allowed-tools"])) found.push("declares_allowed_tools");
+  if (listed(raw.allowedTools) || listed(raw["allowed-tools"]))
+    found.push("declares_allowed_tools");
   if (Array.isArray(raw.mcp)) {
     // The whole array, not the stored slice: an entry past the length cap is
     // still an MCP server this machine runs.
@@ -945,9 +1024,11 @@ export const ingestObservation = internalMutation({
   },
   handler: async (ctx, args) => {
     const deviceId = identityText(args.device_id, 200);
-    if (!deviceId) return { status: "rejected" as const, reason: "invalid_device_id" };
+    if (!deviceId)
+      return { status: "rejected" as const, reason: "invalid_device_id" };
     const client = identityText(args.client, 40);
-    if (!client) return { status: "rejected" as const, reason: "invalid_client" };
+    if (!client)
+      return { status: "rejected" as const, reason: "invalid_client" };
     if (args.raw_json.length > MAX_REPORT_CHARS) {
       return { status: "rejected" as const, reason: "payload_too_large" };
     }
@@ -957,7 +1038,8 @@ export const ingestObservation = internalMutation({
     } catch {
       return { status: "rejected" as const, reason: "unparseable_json" };
     }
-    if (!isRecord(raw)) return { status: "rejected" as const, reason: "unparseable_json" };
+    if (!isRecord(raw))
+      return { status: "rejected" as const, reason: "unparseable_json" };
 
     // Kind and name are the row's index key, so they take the identity class:
     // refused over their caps. Clipped, two different over-long names would
@@ -967,7 +1049,8 @@ export const ingestObservation = internalMutation({
     const name = identityText(raw.name, MAX_NAME_CHARS);
     // No identity, no row — same rule as the inventory. The kind stays an open
     // string (see `normalizeItem`); only the identity is non-negotiable.
-    if (!kind || !name) return { status: "rejected" as const, reason: "missing_identity" };
+    if (!kind || !name)
+      return { status: "rejected" as const, reason: "missing_identity" };
     const description = text(raw.description, MAX_DESCRIPTION_CHARS);
 
     // Accept the manifest nested (the usual shape) or flattened onto the
@@ -993,7 +1076,11 @@ export const ingestObservation = internalMutation({
     const existing = await db
       .query("capability_observation")
       .withIndex("by_user_client_kind_name", (q: any) =>
-        q.eq("user_id", args.user_id).eq("client", client).eq("kind", kind).eq("name", name),
+        q
+          .eq("user_id", args.user_id)
+          .eq("client", client)
+          .eq("kind", kind)
+          .eq("name", name),
       )
       .first();
 
@@ -1007,10 +1094,18 @@ export const ingestObservation = internalMutation({
           // The gate: a byte-identical re-observation writes nothing until the
           // row is an hour stale — same contract as `reportInventory`.
           if (now - existing.observed_at < LIVENESS_WRITE_INTERVAL_MS) {
-            return { status: "unchanged" as const, manifest_hash: hash, confirmed: existing.confirmed };
+            return {
+              status: "unchanged" as const,
+              manifest_hash: hash,
+              confirmed: existing.confirmed,
+            };
           }
           await db.patch(existing._id, { observed_at: now });
-          return { status: "refreshed" as const, manifest_hash: hash, confirmed: existing.confirmed };
+          return {
+            status: "refreshed" as const,
+            manifest_hash: hash,
+            confirmed: existing.confirmed,
+          };
         }
         // A NEW device agreeing is the event `confirmed` exists for. The list
         // stops growing at its cap — by then agreement is long proven.
@@ -1044,10 +1139,14 @@ export const ingestObservation = internalMutation({
       const deviceConsents = await db
         .query("capability_consents")
         .withIndex("by_user_device_slug", (q: any) =>
-          q.eq("user_id", args.user_id as unknown as string).eq("device_id", deviceId),
+          q
+            .eq("user_id", args.user_id as unknown as string)
+            .eq("device_id", deviceId),
         )
         .collect();
-      const oldConsent = deviceConsents.find((row) => row.manifest_hash === existing.manifest_hash);
+      const oldConsent = deviceConsents.find(
+        (row) => row.manifest_hash === existing.manifest_hash,
+      );
       const hasNew = deviceConsents.some((row) => row.manifest_hash === hash);
       if (oldConsent && !hasNew) {
         await db.insert("capability_events", {
@@ -1070,7 +1169,11 @@ export const ingestObservation = internalMutation({
         truncated: truncated || undefined,
         observed_at: now,
       });
-      return { status: "updated" as const, manifest_hash: hash, confirmed: false };
+      return {
+        status: "updated" as const,
+        manifest_hash: hash,
+        confirmed: false,
+      };
     }
 
     // First sighting. Bound how many observation rows one (user, client) may
@@ -1101,7 +1204,11 @@ export const ingestObservation = internalMutation({
       truncated: truncated || undefined,
       observed_at: now,
     });
-    return { status: "created" as const, manifest_hash: hash, confirmed: false };
+    return {
+      status: "created" as const,
+      manifest_hash: hash,
+      confirmed: false,
+    };
   },
 });
 
@@ -1153,7 +1260,11 @@ export const webList = query({
     // refused the same bytes), so the honest answer is an empty fleet — the
     // truncating class would instead drop the filter and list every machine.
     const deviceId = identityText(args.device_id, 200);
-    if (args.device_id !== undefined && args.device_id.trim() !== "" && !deviceId) {
+    if (
+      args.device_id !== undefined &&
+      args.device_id.trim() !== "" &&
+      !deviceId
+    ) {
       return { items: [] as any[], truncated: false };
     }
     const rows = await db
@@ -1164,13 +1275,16 @@ export const webList = query({
       })
       .take(MAX_STATE_ROWS + 1);
     const fresh =
-      args.since === undefined ? rows : rows.filter((r) => r.reported_at > args.since!);
+      args.since === undefined
+        ? rows
+        : rows.filter((r) => r.reported_at > args.since!);
     // One row over the cap is the only way to tell "exactly at the cap" from
     // "there is more". A raw listing that quietly ends is a listing whose reader
     // believes it has the whole fleet.
     const truncated = rows.length > MAX_STATE_ROWS;
     if (truncated) rows.length = MAX_STATE_ROWS;
-    const page = args.since === undefined ? rows : fresh.slice(0, MAX_STATE_ROWS);
+    const page =
+      args.since === undefined ? rows : fresh.slice(0, MAX_STATE_ROWS);
 
     // Machine-wide rows first. A consumer keying by device — the web store's
     // `capabilityState` slice does exactly that — then lands on the row the
@@ -1178,7 +1292,8 @@ export const webList = query({
     page.sort((a, b) => {
       const scope = Number(a.scope_key !== "") - Number(b.scope_key !== "");
       if (scope !== 0) return scope;
-      if (a.device_id !== b.device_id) return a.device_id < b.device_id ? -1 : 1;
+      if (a.device_id !== b.device_id)
+        return a.device_id < b.device_id ? -1 : 1;
       return a.client < b.client ? -1 : a.client > b.client ? 1 : 0;
     });
 
@@ -1282,7 +1397,14 @@ const SCOPE_ORDER = ["local", "project", "user"];
 /** Tie-break between rows of equal urgency. Kinds that run code, or that explain
  *  another row's failure, come first; prose comes last. `marketplace` sits beside
  *  `plugin` because a missing marketplace is usually why a plugin is missing. */
-const KIND_ORDER = ["plugin", "marketplace", "mcp", "skill", "command", "subagent"];
+const KIND_ORDER = [
+  "plugin",
+  "marketplace",
+  "mcp",
+  "skill",
+  "command",
+  "subagent",
+];
 
 /**
  * The name that means the same thing on every machine.
@@ -1323,9 +1445,15 @@ function capabilityIdentity(
  * cannot afford. A remote server's URL has no such problem and a changed URL is
  * real drift, so that one counts.
  */
-function pinOf(kind: string, meta?: Record<string, unknown>): string | undefined {
+function pinOf(
+  kind: string,
+  meta?: Record<string, unknown>,
+): string | undefined {
   if (kind === "plugin") {
-    return text(meta?.sha, MAX_META_VALUE_CHARS) ?? text(meta?.version, MAX_META_VALUE_CHARS);
+    return (
+      text(meta?.sha, MAX_META_VALUE_CHARS) ??
+      text(meta?.version, MAX_META_VALUE_CHARS)
+    );
   }
   if (kind === "mcp") {
     const url = text(meta?.url, MAX_META_VALUE_CHARS);
@@ -1343,7 +1471,10 @@ function modal(values: string[]): string | undefined {
   let best: string | undefined;
   let bestCount = 0;
   for (const [value, count] of counts) {
-    if (count > bestCount || (count === bestCount && best !== undefined && value < best)) {
+    if (
+      count > bestCount ||
+      (count === bestCount && best !== undefined && value < best)
+    ) {
       best = value;
       bestCount = count;
     }
@@ -1442,18 +1573,25 @@ export function foldFleet(
       accumulator = { key, kind, identity, description, byDevice: new Map() };
       accumulators.set(key, accumulator);
     }
-    if (!accumulator.description && description) accumulator.description = description;
+    if (!accumulator.description && description)
+      accumulator.description = description;
 
     const pin = pinOf(kind, meta);
     const scope = observedScope(opts.scope);
     // Only an explicit `false` is switched off — the same rule the wire format
     // states, applied again here because this may be somebody else's array.
     const enabled = opts.enabled !== false;
-    const installed = typeof opts.installed === "boolean" ? opts.installed : undefined;
+    const installed =
+      typeof opts.installed === "boolean" ? opts.installed : undefined;
 
     const fold = accumulator.byDevice.get(deviceId);
     if (!fold) {
-      accumulator.byDevice.set(deviceId, { enabled, pin, installed, scopes: new Set([scope]) });
+      accumulator.byDevice.set(deviceId, {
+        enabled,
+        pin,
+        installed,
+        scopes: new Set([scope]),
+      });
       return;
     }
     // Scopes stack rather than override, so one scope switching a plugin on is
@@ -1467,10 +1605,14 @@ export function foldFleet(
   for (const device of devices) {
     const inventories = reports.get(device.deviceId);
     for (const inventory of Array.isArray(inventories) ? inventories : []) {
-      for (const item of Array.isArray(inventory?.items) ? inventory.items : []) {
+      for (const item of Array.isArray(inventory?.items)
+        ? inventory.items
+        : []) {
         observe(device.deviceId, item?.kind, item?.name, item ?? {});
       }
-      for (const market of Array.isArray(inventory?.marketplaces) ? inventory.marketplaces : []) {
+      for (const market of Array.isArray(inventory?.marketplaces)
+        ? inventory.marketplaces
+        : []) {
         // A marketplace becomes an ordinary row: same identity rules, same cells,
         // one algorithm. It has no enabled flag — a machine either knows it or
         // does not.
@@ -1517,15 +1659,28 @@ export function foldFleet(
     // Having it and having it switched on is one axis; the pin is the other.
     // Machines disagree on the first when they are not all in the same one of
     // its three states — on, off, or missing.
-    const stateDrift = [activeCount, disabledCount, absentCount].filter((n) => n > 0).length > 1;
+    const stateDrift =
+      [activeCount, disabledCount, absentCount].filter((n) => n > 0).length > 1;
 
     const cells: FleetCell[] = devices.map((device) => {
       if (!device.reported) {
-        return { deviceId: device.deviceId, status: "unknown", present: false, enabled: false, scopes: [] };
+        return {
+          deviceId: device.deviceId,
+          status: "unknown",
+          present: false,
+          enabled: false,
+          scopes: [],
+        };
       }
       const fold = accumulator.byDevice.get(device.deviceId);
       if (!fold) {
-        return { deviceId: device.deviceId, status: "absent", present: false, enabled: false, scopes: [] };
+        return {
+          deviceId: device.deviceId,
+          status: "absent",
+          present: false,
+          enabled: false,
+          scopes: [],
+        };
       }
       const status: CellStatus = !fold.enabled
         ? "disabled"
@@ -1573,9 +1728,15 @@ export function foldFleet(
   // difference is next. Something only one machine has is often deliberate, so it
   // sits below the two kinds of genuine loss. Agreement is last.
   const rank = (row: FleetRow): number =>
-    row.status === "drift" ? (row.stateDrift ? 0 : 1)
-      : row.status === "unique" ? 2
-        : row.status === "in_sync" ? 3 : 4;
+    row.status === "drift"
+      ? row.stateDrift
+        ? 0
+        : 1
+      : row.status === "unique"
+        ? 2
+        : row.status === "in_sync"
+          ? 3
+          : 4;
   const kindRank = (kind: string): number => {
     const index = KIND_ORDER.indexOf(kind);
     return index === -1 ? KIND_ORDER.length : index;
@@ -1586,7 +1747,8 @@ export function foldFleet(
     // Within a rank, breadth is urgency: missing from one of five machines beats
     // missing from four of five.
     if (a.activeCount !== b.activeCount) return b.activeCount - a.activeCount;
-    if (a.presentCount !== b.presentCount) return b.presentCount - a.presentCount;
+    if (a.presentCount !== b.presentCount)
+      return b.presentCount - a.presentCount;
     const byKind = kindRank(a.kind) - kindRank(b.kind);
     if (byKind !== 0) return byKind;
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
@@ -1644,7 +1806,15 @@ export const webFleetDiff = query({
       return {
         devices: [],
         rows: [],
-        summary: { devices: 0, reporting: 0, comparable: false, total: 0, inSync: 0, drifted: 0, uniqueToOne: 0 },
+        summary: {
+          devices: 0,
+          reporting: 0,
+          comparable: false,
+          total: 0,
+          inSync: 0,
+          drifted: 0,
+          uniqueToOne: 0,
+        },
         truncated: false,
         devices_truncated: false,
       };
@@ -1665,8 +1835,13 @@ export const webFleetDiff = query({
       .withIndex("by_user_device", (q: any) => q.eq("user_id", userId))
       .collect();
 
-    const wanted = args.device_ids && args.device_ids.length > 0 ? new Set(args.device_ids) : null;
-    const roster = deviceRows.filter((d: any) => !wanted || wanted.has(d.device_id));
+    const wanted =
+      args.device_ids && args.device_ids.length > 0
+        ? new Set(args.device_ids)
+        : null;
+    const roster = deviceRows.filter(
+      (d: any) => !wanted || wanted.has(d.device_id),
+    );
     // The cap picks the machines a person is actually using; the GRID keeps the
     // roster's own order, so an ordinary heartbeat cannot reshuffle the columns
     // under someone reading them.
@@ -1714,7 +1889,9 @@ export const webFleetDiff = query({
         // Stored bytes we cannot parse are a bug on our side, not the user's.
         // The machine still counts as having reported — with an empty inventory,
         // which is the honest reading of "it told us something we cannot read".
-        inventories.push(parseInventory(state.entries_json) ?? { items: [], marketplaces: [] });
+        inventories.push(
+          parseInventory(state.entries_json) ?? { items: [], marketplaces: [] },
+        );
         reportedAt = Math.max(reportedAt, state.reported_at);
         lastError = state.last_error ?? lastError;
         entryCount += state.entry_count;
@@ -1733,11 +1910,16 @@ export const webFleetDiff = query({
     }
 
     const folded = foldFleet(devices, reports);
-    const kinds = args.kinds && args.kinds.length > 0 ? new Set(args.kinds) : null;
+    const kinds =
+      args.kinds && args.kinds.length > 0 ? new Set(args.kinds) : null;
     let rows = folded.rows;
     if (kinds) rows = rows.filter((r) => kinds.has(r.kind));
-    if (args.include_in_sync === false) rows = rows.filter((r) => r.status !== "in_sync");
-    const limit = Math.max(1, Math.min(args.limit ?? MAX_DIFF_ROWS, MAX_DIFF_ROWS));
+    if (args.include_in_sync === false)
+      rows = rows.filter((r) => r.status !== "in_sync");
+    const limit = Math.max(
+      1,
+      Math.min(args.limit ?? MAX_DIFF_ROWS, MAX_DIFF_ROWS),
+    );
     const truncated = rows.length > limit;
 
     return {
@@ -1810,7 +1992,9 @@ export const listCapabilityState = query({
     if (!auth) throw new Error("Unauthorized");
     const rows = await ctx.db
       .query("capability_state")
-      .withIndex("by_user_device_client_scope", (q) => q.eq("user_id", auth.userId))
+      .withIndex("by_user_device_client_scope", (q) =>
+        q.eq("user_id", auth.userId),
+      )
       .collect();
     // Owner-only by construction: the index leads with user_id and the caller
     // IS the user. No cross-user row can be reached from here.
@@ -1845,7 +2029,9 @@ export const getDeviceCapabilityState = query({
       )
       .collect();
     const scoped =
-      args.scope_key === undefined ? rows : rows.filter((r) => r.scope_key === args.scope_key);
+      args.scope_key === undefined
+        ? rows
+        : rows.filter((r) => r.scope_key === args.scope_key);
     return scoped.map((row) => ({
       client: row.client,
       scope_key: row.scope_key,
@@ -1889,7 +2075,9 @@ export const sweepCapabilityState = internalMutation({
 
     // One page a run (a function may hold one paginated read), continued by
     // its own cursor so every device is reached however many there are.
-    const devicePage = await ctx.db.query("devices").paginate({ cursor: args.cursor ?? null, numItems: SWEEP_DEVICE_PAGE });
+    const devicePage = await ctx.db
+      .query("devices")
+      .paginate({ cursor: args.cursor ?? null, numItems: SWEEP_DEVICE_PAGE });
     for (const device of devicePage.page) {
       if ((device.last_seen ?? 0) >= cutoff) continue;
       const rows = await db
@@ -1904,7 +2092,11 @@ export const sweepCapabilityState = internalMutation({
       // bounded transactions outrank a same-run guarantee here.
     }
     if (!devicePage.isDone) {
-      await ctx.scheduler.runAfter(0, (internal as any).capabilities.sweepCapabilityState, { cursor: devicePage.continueCursor });
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any).capabilities.sweepCapabilityState,
+        { cursor: devicePage.continueCursor },
+      );
     }
     return { deleted, done: devicePage.isDone };
   },

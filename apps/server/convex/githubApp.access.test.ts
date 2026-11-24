@@ -9,7 +9,11 @@
 // name they could guess.
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
-import { getInstallationForRepo, getInstallationForRepoInTeam, getPersonalInstallationForRepo } from "./githubApp";
+import {
+  getInstallationForRepo,
+  getInstallationForRepoInTeam,
+  getPersonalInstallationForRepo,
+} from "./githubApp";
 
 const TEAM_A = "t_a";
 const TEAM_B = "t_b";
@@ -25,8 +29,20 @@ function tables(installations: any[]): Record<string, any[]> {
       { _id: TEAM_B, name: "Team B" },
     ],
     team_memberships: [
-      { _id: "tm_a", user_id: USER_A, team_id: TEAM_A, role: "member", joined_at: 1 },
-      { _id: "tm_b", user_id: USER_B, team_id: TEAM_B, role: "member", joined_at: 1 },
+      {
+        _id: "tm_a",
+        user_id: USER_A,
+        team_id: TEAM_A,
+        role: "member",
+        joined_at: 1,
+      },
+      {
+        _id: "tm_b",
+        user_id: USER_B,
+        team_id: TEAM_B,
+        role: "member",
+        joined_at: 1,
+      },
     ],
     // Only the narrowing test links this; inert for every other case.
     conversations: [
@@ -56,7 +72,12 @@ function teamBInstallation(extra: Record<string, any> = {}) {
 // installation cannot tell "scoped correctly" apart from "found nothing at
 // all" — both return null for the outsider. Two rows on one account can.
 function teamAInstallation(extra: Record<string, any> = {}) {
-  return teamBInstallation({ _id: "gai_a", team_id: TEAM_A, installation_id: 111, ...extra });
+  return teamBInstallation({
+    _id: "gai_a",
+    team_id: TEAM_A,
+    installation_id: 111,
+    ...extra,
+  });
 }
 
 function ctx(installations: any[]) {
@@ -72,7 +93,10 @@ function lookup(installations: any[], args: Record<string, any>) {
 
 describe("getInstallationForRepo workspace scoping", () => {
   test("a member of the owning team resolves the installation", async () => {
-    const found = await lookup([teamBInstallation()], { user_id: USER_B, team_id: TEAM_B });
+    const found = await lookup([teamBInstallation()], {
+      user_id: USER_B,
+      team_id: TEAM_B,
+    });
     expect(found?.installation_id).toBe(555);
   });
 
@@ -88,12 +112,15 @@ describe("getInstallationForRepo workspace scoping", () => {
   });
 
   test("an outsider gets nothing when they name their own team", async () => {
-    expect(await lookup([teamBInstallation()], { user_id: USER_A, team_id: TEAM_A })).toBeNull();
+    expect(
+      await lookup([teamBInstallation()], { user_id: USER_A, team_id: TEAM_A }),
+    ).toBeNull();
   });
 
   test("naming a team you do not belong to is refused, not answered", async () => {
-    await expect(lookup([teamBInstallation()], { user_id: USER_A, team_id: TEAM_B }))
-      .rejects.toThrow(/team membership required/i);
+    await expect(
+      lookup([teamBInstallation()], { user_id: USER_A, team_id: TEAM_B }),
+    ).rejects.toThrow(/team membership required/i);
   });
 
   // Repository coverage still decides within a team the caller does belong to:
@@ -103,18 +130,25 @@ describe("getInstallationForRepo workspace scoping", () => {
       repository_selection: "selected",
       repositories: [{ id: 1, name: "gadgets", full_name: "acme/gadgets" }],
     });
-    expect(await lookup([selected], { user_id: USER_B, team_id: TEAM_B })).toBeNull();
+    expect(
+      await lookup([selected], { user_id: USER_B, team_id: TEAM_B }),
+    ).toBeNull();
 
     const covering = teamBInstallation({
       repository_selection: "selected",
       repositories: [{ id: 2, name: "widgets", full_name: "acme/widgets" }],
     });
-    expect((await lookup([covering], { user_id: USER_B, team_id: TEAM_B }))?.installation_id).toBe(555);
+    expect(
+      (await lookup([covering], { user_id: USER_B, team_id: TEAM_B }))
+        ?.installation_id,
+    ).toBe(555);
   });
 
   test("a different account login never matches", async () => {
     const other = teamBInstallation({ account_login: "other-org" });
-    expect(await lookup([other], { user_id: USER_B, team_id: TEAM_B })).toBeNull();
+    expect(
+      await lookup([other], { user_id: USER_B, team_id: TEAM_B }),
+    ).toBeNull();
   });
 
   // The sharpest cross-tenant case, and the one every test above is too weak to
@@ -123,16 +157,25 @@ describe("getInstallationForRepo workspace scoping", () => {
   // Scoping has to PICK the caller's own row, not merely fail to find one.
   test("two teams on one account each resolve their own installation", async () => {
     const both = [teamBInstallation(), teamAInstallation()];
-    expect((await lookup(both, { user_id: USER_A, team_id: TEAM_A }))?.installation_id).toBe(111);
-    expect((await lookup(both, { user_id: USER_A }))?.installation_id).toBe(111);
-    expect((await lookup(both, { user_id: USER_B }))?.installation_id).toBe(555);
+    expect(
+      (await lookup(both, { user_id: USER_A, team_id: TEAM_A }))
+        ?.installation_id,
+    ).toBe(111);
+    expect((await lookup(both, { user_id: USER_A }))?.installation_id).toBe(
+      111,
+    );
+    expect((await lookup(both, { user_id: USER_B }))?.installation_id).toBe(
+      555,
+    );
   });
 
   // GitHub refuses every token minted from a suspended installation, so
   // resolving one buys a failed round trip instead of a clean null.
   test("a suspended installation stops answering, even for its own team", async () => {
     const suspended = teamBInstallation({ suspended_at: 1_700_000_000_000 });
-    expect(await lookup([suspended], { user_id: USER_B, team_id: TEAM_B })).toBeNull();
+    expect(
+      await lookup([suspended], { user_id: USER_B, team_id: TEAM_B }),
+    ).toBeNull();
   });
 
   // effectiveTeamForResource narrows any record linking a private conversation
@@ -142,8 +185,9 @@ describe("getInstallationForRepo workspace scoping", () => {
   // loud rather than becoming a silent denial for the owning team.
   test("an installation that resolves to no team throws instead of vanishing", async () => {
     const narrowed = teamBInstallation({ conversation_id: PRIVATE_CONV });
-    await expect(lookup([narrowed], { user_id: USER_B, team_id: TEAM_B }))
-      .rejects.toThrow(/resolved to no team/);
+    await expect(
+      lookup([narrowed], { user_id: USER_B, team_id: TEAM_B }),
+    ).rejects.toThrow(/resolved to no team/);
   });
 });
 
@@ -158,7 +202,9 @@ describe("getInstallationForRepoInTeam", () => {
   }
 
   test("returns the installation the named team owns", async () => {
-    expect((await lookupInTeam([teamBInstallation()], TEAM_B))?.installation_id).toBe(555);
+    expect(
+      (await lookupInTeam([teamBInstallation()], TEAM_B))?.installation_id,
+    ).toBe(555);
   });
 
   test("another team's installation is never substituted", async () => {
@@ -226,7 +272,8 @@ describe("the webhook lookup is scoped too", () => {
     const src = await Bun.file(
       new URL("./githubWebhooks.ts", import.meta.url).pathname,
     ).text();
-    const calls = src.match(/internal\.githubApp\.getInstallationForRepoInTeam/g) ?? [];
+    const calls =
+      src.match(/internal\.githubApp\.getInstallationForRepoInTeam/g) ?? [];
     expect(calls.length).toBe(2);
   });
 });
@@ -237,62 +284,120 @@ describe("the webhook lookup is scoped too", () => {
 // activity, triggers and browsing run through the owner's grant. With no
 // active team it serves the owner's own imports and pushes only.
 describe("personal installations", () => {
-  function personalInstallation(owner: string, extra: Record<string, any> = {}) {
-    return teamBInstallation({ _id: `gai_${owner}`, team_id: undefined, scope_user_id: owner, installation_id: 777, ...extra });
+  function personalInstallation(
+    owner: string,
+    extra: Record<string, any> = {},
+  ) {
+    return teamBInstallation({
+      _id: `gai_${owner}`,
+      team_id: undefined,
+      scope_user_id: owner,
+      installation_id: 777,
+      ...extra,
+    });
   }
 
   /** A db where `owner` is looking at `activeTeam` (and is a member there). */
-  function ctxWithActive(installations: any[], owner: string, activeTeam: string | null) {
+  function ctxWithActive(
+    installations: any[],
+    owner: string,
+    activeTeam: string | null,
+  ) {
     const t = tables(installations);
     t.users = [{ _id: owner, active_team_id: activeTeam ?? undefined }];
-    t.directory_team_mappings = activeTeam ? [shareRule(owner, activeTeam)] : [];
+    t.directory_team_mappings = activeTeam
+      ? [shareRule(owner, activeTeam)]
+      : [];
     return { db: makeFakeDb(t) } as any;
   }
 
   /** The owner shares acme/widgets with `team` (Settings › Sync); without it nothing routes. */
   function shareRule(owner: string, team: string) {
-    return { _id: `rule_${owner}`, user_id: owner, team_id: team, auto_share: true, path_prefix: "/code/widgets", repository: "acme/widgets" };
+    return {
+      _id: `rule_${owner}`,
+      user_id: owner,
+      team_id: team,
+      auto_share: true,
+      path_prefix: "/code/widgets",
+      repository: "acme/widgets",
+    };
   }
 
   test("the owner resolves it with no team named", async () => {
-    expect((await lookup([personalInstallation(USER_A)], { user_id: USER_A }))?.installation_id).toBe(777);
+    expect(
+      (await lookup([personalInstallation(USER_A)], { user_id: USER_A }))
+        ?.installation_id,
+    ).toBe(777);
   });
 
   test("the owner resolves it inside a team that has no install of its own", async () => {
-    expect((await lookup([personalInstallation(USER_A)], { user_id: USER_A, team_id: TEAM_A }))?.installation_id).toBe(777);
+    expect(
+      (
+        await lookup([personalInstallation(USER_A)], {
+          user_id: USER_A,
+          team_id: TEAM_A,
+        })
+      )?.installation_id,
+    ).toBe(777);
   });
 
   test("the team's own install outranks the member's personal one", async () => {
     const both = [personalInstallation(USER_A), teamAInstallation()];
-    expect((await lookup(both, { user_id: USER_A, team_id: TEAM_A }))?.installation_id).toBe(111);
+    expect(
+      (await lookup(both, { user_id: USER_A, team_id: TEAM_A }))
+        ?.installation_id,
+    ).toBe(111);
   });
 
   test("with no team named the person's own install comes first", async () => {
     const both = [teamAInstallation(), personalInstallation(USER_A)];
-    expect((await lookup(both, { user_id: USER_A }))?.installation_id).toBe(777);
+    expect((await lookup(both, { user_id: USER_A }))?.installation_id).toBe(
+      777,
+    );
   });
 
   test("with no active team it reaches nobody else, and no team", async () => {
     // USER_B is in team B only; USER_A's install routes nowhere yet.
-    expect(await lookup([personalInstallation(USER_A)], { user_id: USER_B })).toBeNull();
-    expect(await lookup([personalInstallation(USER_A)], { user_id: USER_B, team_id: TEAM_B })).toBeNull();
-    const found = await (getInstallationForRepoInTeam as any)._handler(ctx([personalInstallation(USER_A)]), {
-      repository: "acme/widgets",
-      team_id: TEAM_A,
-    });
+    expect(
+      await lookup([personalInstallation(USER_A)], { user_id: USER_B }),
+    ).toBeNull();
+    expect(
+      await lookup([personalInstallation(USER_A)], {
+        user_id: USER_B,
+        team_id: TEAM_B,
+      }),
+    ).toBeNull();
+    const found = await (getInstallationForRepoInTeam as any)._handler(
+      ctx([personalInstallation(USER_A)]),
+      {
+        repository: "acme/widgets",
+        team_id: TEAM_A,
+      },
+    );
     expect(found).toBeNull();
   });
 
   test("it routes to the owner's active team: the team-only entry point serves that team", async () => {
     const c = ctxWithActive([personalInstallation(USER_A)], USER_A, TEAM_A);
-    const inA = await (getInstallationForRepoInTeam as any)._handler(c, { repository: "acme/widgets", team_id: TEAM_A });
+    const inA = await (getInstallationForRepoInTeam as any)._handler(c, {
+      repository: "acme/widgets",
+      team_id: TEAM_A,
+    });
     expect(inA?.installation_id).toBe(777);
     // Not any other team, even one the owner could see.
-    const inB = await (getInstallationForRepoInTeam as any)._handler(c, { repository: "acme/widgets", team_id: TEAM_B });
+    const inB = await (getInstallationForRepoInTeam as any)._handler(c, {
+      repository: "acme/widgets",
+      team_id: TEAM_B,
+    });
     expect(inB).toBeNull();
     // A repository the owner never shared with the team routes nowhere.
     c.db._tables.directory_team_mappings.length = 0;
-    expect(await (getInstallationForRepoInTeam as any)._handler(c, { repository: "acme/widgets", team_id: TEAM_A })).toBeNull();
+    expect(
+      await (getInstallationForRepoInTeam as any)._handler(c, {
+        repository: "acme/widgets",
+        team_id: TEAM_A,
+      }),
+    ).toBeNull();
   });
 
   test("a member of the routing team reaches it in that team; a stranger does not", async () => {
@@ -302,27 +407,51 @@ describe("personal installations", () => {
     // Put USER_B into team A too, as a plain member.
     const t = tables([personalInstallation(USER_A)]);
     t.users = [{ _id: USER_A, active_team_id: TEAM_A }];
-    t.team_memberships.push({ _id: "tm_b_in_a", user_id: USER_B, team_id: TEAM_A, role: "member", joined_at: 2 });
+    t.team_memberships.push({
+      _id: "tm_b_in_a",
+      user_id: USER_B,
+      team_id: TEAM_A,
+      role: "member",
+      joined_at: 2,
+    });
     t.directory_team_mappings = [shareRule(USER_A, TEAM_A)];
     const both = { db: makeFakeDb(t) } as any;
-    const asTeammate = await (getInstallationForRepo as any)._handler(both, { repository: "acme/widgets", user_id: USER_B, team_id: TEAM_A });
+    const asTeammate = await (getInstallationForRepo as any)._handler(both, {
+      repository: "acme/widgets",
+      user_id: USER_B,
+      team_id: TEAM_A,
+    });
     expect(asTeammate?.installation_id).toBe(777);
     // The stranger (team B only) with no team named: nothing.
-    const asStranger = await (getInstallationForRepo as any)._handler(teammateCtx, { repository: "acme/widgets", user_id: USER_B });
+    const asStranger = await (getInstallationForRepo as any)._handler(
+      teammateCtx,
+      { repository: "acme/widgets", user_id: USER_B },
+    );
     expect(asStranger).toBeNull();
   });
 
   test("a stale active pointer without membership routes nowhere", async () => {
     // USER_A points at team B but holds no membership there.
     const c = ctxWithActive([personalInstallation(USER_A)], USER_A, TEAM_B);
-    const inB = await (getInstallationForRepoInTeam as any)._handler(c, { repository: "acme/widgets", team_id: TEAM_B });
+    const inB = await (getInstallationForRepoInTeam as any)._handler(c, {
+      repository: "acme/widgets",
+      team_id: TEAM_B,
+    });
     expect(inB).toBeNull();
   });
 
   test("the personal entry point answers for the owner alone", async () => {
     const c = ctx([personalInstallation(USER_A), teamAInstallation()]);
-    const mine = await (getPersonalInstallationForRepo as any)._handler(c, { repository: "acme/widgets", user_id: USER_A });
+    const mine = await (getPersonalInstallationForRepo as any)._handler(c, {
+      repository: "acme/widgets",
+      user_id: USER_A,
+    });
     expect(mine?.installation_id).toBe(777);
-    expect(await (getPersonalInstallationForRepo as any)._handler(c, { repository: "acme/widgets", user_id: USER_B })).toBeNull();
+    expect(
+      await (getPersonalInstallationForRepo as any)._handler(c, {
+        repository: "acme/widgets",
+        user_id: USER_B,
+      }),
+    ).toBeNull();
   });
 });

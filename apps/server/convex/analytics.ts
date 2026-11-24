@@ -1,6 +1,9 @@
 import { v } from "convex/values";
 import { createServerAnalytics } from "@platform/analytics/server";
-import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "@codecast/shared/analytics";
+import {
+  CODECAST_EVENTS,
+  TELEMETRY_DISABLED_VAR,
+} from "@codecast/shared/analytics";
 import { internalAction } from "./_generated/server";
 
 // Server-side PostHog capture for funnel steps that happen off-browser (CLI
@@ -40,7 +43,9 @@ const analytics = POSTHOG_KEY
 if (!analytics) {
   // A deployment missing the variable would otherwise look identical to one
   // where nobody happens to be authing: silent, green, and reporting nothing.
-  console.warn("[analytics] POSTHOG_KEY is unset on this deployment — Convex funnel events go nowhere");
+  console.warn(
+    "[analytics] POSTHOG_KEY is unset on this deployment — Convex funnel events go nowhere",
+  );
 }
 
 // Fire-and-forget: callers schedule this via ctx.scheduler.runAfter(0, ...) so

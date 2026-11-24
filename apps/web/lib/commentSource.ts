@@ -6,7 +6,9 @@
 //
 // Pure: no store import, so the store's readers and the phone can use it.
 
-type UiState = { clientState?: { ui?: { comments_from_review?: boolean } | null } | null };
+type UiState = {
+  clientState?: { ui?: { comments_from_review?: boolean } | null } | null;
+};
 
 /** On for everyone unless the person set clientState.ui.comments_from_review to false. */
 export function commentsFromReviewOn(state: UiState): boolean {

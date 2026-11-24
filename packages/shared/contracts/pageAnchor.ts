@@ -17,7 +17,9 @@ export interface PageAnchor {
   t?: number;
 }
 
-export function parsePageAnchor(raw: string | null | undefined): PageAnchor | null {
+export function parsePageAnchor(
+  raw: string | null | undefined,
+): PageAnchor | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -41,8 +43,11 @@ export function formatTimelineAt(t: number): string {
 export function describePageAnchor(a: PageAnchor | null): string[] {
   if (!a) return [];
   const parts: string[] = [];
-  if (typeof a.sel === "string" && a.sel) parts.push(`on element \`${a.sel.slice(0, 160)}\``);
-  if (typeof a.t === "number" && Number.isFinite(a.t)) parts.push(`at ${formatTimelineAt(a.t)} of the timeline`);
-  if (a.snippet) parts.push(`on the words "${String(a.snippet).slice(0, 120)}"`);
+  if (typeof a.sel === "string" && a.sel)
+    parts.push(`on element \`${a.sel.slice(0, 160)}\``);
+  if (typeof a.t === "number" && Number.isFinite(a.t))
+    parts.push(`at ${formatTimelineAt(a.t)} of the timeline`);
+  if (a.snippet)
+    parts.push(`on the words "${String(a.snippet).slice(0, 120)}"`);
   return parts;
 }

@@ -11,18 +11,48 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const READERS: Array<[file: string, guard: string]> = [
-  ["notifications.ts", "if (isClosedSession(conv)) return { notified: false, reason: \"closed\" };"],
-  ["workerSettle.ts", "if (isClosedSession(worker)) return { told: 0, reason: \"closed\" };"],
-  ["workerSettle.ts", "c.hand_wake_notified_key === episodeOf(c) || isClosedSession(c)"],
-  ["agentTasks.ts", "if (conv.inbox_killed_at || isClosedSession(conv)) return \"nobody\";"],
-  ["idleSummary.ts", "if (isClosedSession(conv)) return { scheduled: false, reason: \"closed\" };"],
-  ["pendingMessages.ts", "senderConv.inbox_killed_at || isClosedSession(senderConv)"],
-  ["cloudPlacement.ts", "conv.inbox_killed_at || isClosedSession(conv) || conv.status === \"completed\""],
+  [
+    "notifications.ts",
+    'if (isClosedSession(conv)) return { notified: false, reason: "closed" };',
+  ],
+  [
+    "workerSettle.ts",
+    'if (isClosedSession(worker)) return { told: 0, reason: "closed" };',
+  ],
+  [
+    "workerSettle.ts",
+    "c.hand_wake_notified_key === episodeOf(c) || isClosedSession(c)",
+  ],
+  [
+    "agentTasks.ts",
+    'if (conv.inbox_killed_at || isClosedSession(conv)) return "nobody";',
+  ],
+  [
+    "idleSummary.ts",
+    'if (isClosedSession(conv)) return { scheduled: false, reason: "closed" };',
+  ],
+  [
+    "pendingMessages.ts",
+    "senderConv.inbox_killed_at || isClosedSession(senderConv)",
+  ],
+  [
+    "cloudPlacement.ts",
+    'conv.inbox_killed_at || isClosedSession(conv) || conv.status === "completed"',
+  ],
   ["accountSwitch.ts", "conv.inbox_killed_at != null || isClosedSession(conv)"],
   ["castMachines.ts", "!conv || conv.inbox_killed_at || isClosedSession(conv)"],
-  ["lib/paneRefusal.ts", "!unattended || conv.inbox_killed_at || isClosedSession(conv)"],
-  ["lib/sessionTell.ts", "const hold = line.hold || isClosedSession(conversation);"],
-  ["conversations.ts", "if (c.inbox_killed_at || isClosedSession(c)) continue;"],
+  [
+    "lib/paneRefusal.ts",
+    "!unattended || conv.inbox_killed_at || isClosedSession(conv)",
+  ],
+  [
+    "lib/sessionTell.ts",
+    "const hold = line.hold || isClosedSession(conversation);",
+  ],
+  [
+    "conversations.ts",
+    "if (c.inbox_killed_at || isClosedSession(c)) continue;",
+  ],
   ["conversations.ts", "c.inbox_killed_at || isClosedSession(c) || !pooledAt"],
   ["conversations.ts", "if (isClosedSession(conv)) return;"],
 ];
@@ -30,7 +60,8 @@ const READERS: Array<[file: string, guard: string]> = [
 describe("machine readers of the retirement marker know about Close", () => {
   for (const [file, guard] of READERS) {
     test(`${file}: ${guard.slice(0, 60)}`, () => {
-      expect(readFileSync(join(import.meta.dir, file), "utf8")).toContain(guard);
+      const source = readFileSync(join(import.meta.dir, file), "utf8");
+      expect(source.replace(/\s+/g, " ")).toContain(guard);
     });
   }
 });

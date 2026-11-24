@@ -5,17 +5,48 @@
  * it imports nothing of theirs.
  */
 import { v } from "convex/values";
-import { CLOUD_HOST_ACTIONS, CLOUD_HOST_SIZES, CLOUD_PLACEMENT_STEPS, LOCAL_MIRROR_MODES, LOCAL_MIRROR_STATUSES, SYNC_SKIP_REASONS } from "@codecast/shared/contracts";
+import {
+  CLOUD_HOST_ACTIONS,
+  CLOUD_HOST_SIZES,
+  CLOUD_PLACEMENT_STEPS,
+  LOCAL_MIRROR_MODES,
+  LOCAL_MIRROR_STATUSES,
+  SYNC_SKIP_REASONS,
+} from "@codecast/shared/contracts";
 
 // A cloud host's own readiness (its heartbeat) and its managing laptop's report
 // (AWS state, cost, images, held logins, last action): contracts/cloudHostReport.ts.
 export const hostReadinessValidator = v.object({
-  mirror: v.optional(v.object({ complete: v.boolean(), files: v.number(), applied_at: v.optional(v.string()), host_edited: v.array(v.string()) })),
-  tools: v.optional(v.object({ ok: v.number(), installed: v.number(), missing: v.array(v.object({ tool: v.string(), referenced_by: v.optional(v.string()) })), at: v.optional(v.string()) })),
-  setup: v.optional(v.object({
-    ok: v.boolean(), applied_at: v.optional(v.string()), step: v.optional(v.string()), error: v.optional(v.string()), at: v.optional(v.string()),
-    packages: v.optional(v.array(v.string())), services: v.optional(v.array(v.string())), commands: v.optional(v.number()),
-  })),
+  mirror: v.optional(
+    v.object({
+      complete: v.boolean(),
+      files: v.number(),
+      applied_at: v.optional(v.string()),
+      host_edited: v.array(v.string()),
+    }),
+  ),
+  tools: v.optional(
+    v.object({
+      ok: v.number(),
+      installed: v.number(),
+      missing: v.array(
+        v.object({ tool: v.string(), referenced_by: v.optional(v.string()) }),
+      ),
+      at: v.optional(v.string()),
+    }),
+  ),
+  setup: v.optional(
+    v.object({
+      ok: v.boolean(),
+      applied_at: v.optional(v.string()),
+      step: v.optional(v.string()),
+      error: v.optional(v.string()),
+      at: v.optional(v.string()),
+      packages: v.optional(v.array(v.string())),
+      services: v.optional(v.array(v.string())),
+      commands: v.optional(v.number()),
+    }),
+  ),
   logins: v.optional(v.array(v.string())),
   cast_version: v.optional(v.string()),
   run_ends_at: v.optional(v.number()),
@@ -25,23 +56,43 @@ export const cloudHostReportValidator = v.object({
   managed_by: v.string(),
   instance_id: v.string(),
   name: v.optional(v.string()),
-  provider: v.union(v.literal("aws"), v.literal("scaleway-mac"), v.literal("codecast"), v.literal("namespace")),
+  provider: v.union(
+    v.literal("aws"),
+    v.literal("scaleway-mac"),
+    v.literal("codecast"),
+    v.literal("namespace"),
+  ),
   region: v.optional(v.string()),
   instance_type: v.optional(v.string()),
-  state: v.union(v.literal("running"), v.literal("stopped"), v.literal("pending"), v.literal("stopping"), v.literal("missing"), v.literal("unknown")),
+  state: v.union(
+    v.literal("running"),
+    v.literal("stopped"),
+    v.literal("pending"),
+    v.literal("stopping"),
+    v.literal("missing"),
+    v.literal("unknown"),
+  ),
   hourly_usd: v.optional(v.number()),
   disk_monthly_usd: v.optional(v.number()),
   disk_gib: v.optional(v.number()),
   idle_stop_minutes: v.optional(v.number()),
   max_run_minutes: v.optional(v.number()),
-  images: v.array(v.object({ id: v.string(), name: v.string(), created: v.string() })),
+  images: v.array(
+    v.object({ id: v.string(), name: v.string(), created: v.string() }),
+  ),
   logins_held: v.array(v.object({ id: v.string(), reason: v.string() })),
-  last_action: v.optional(v.object({
-    action: v.union(...CLOUD_HOST_ACTIONS.map((a) => v.literal(a))),
-    status: v.union(v.literal("running"), v.literal("ok"), v.literal("failed")),
-    detail: v.optional(v.string()),
-    at: v.number(),
-  })),
+  last_action: v.optional(
+    v.object({
+      action: v.union(...CLOUD_HOST_ACTIONS.map((a) => v.literal(a))),
+      status: v.union(
+        v.literal("running"),
+        v.literal("ok"),
+        v.literal("failed"),
+      ),
+      detail: v.optional(v.string()),
+      at: v.number(),
+    }),
+  ),
   autoscaled: v.optional(v.boolean()),
   at: v.number(),
 });
@@ -65,12 +116,16 @@ export const localMirrorFields = {
   to_host: v.optional(v.number()),
   files: v.optional(v.array(v.string())),
   conflicts: v.optional(v.array(v.string())),
-  skipped: v.optional(v.array(v.object({
-    path: v.string(),
-    reason: v.union(...SYNC_SKIP_REASONS.map((r) => v.literal(r))),
-    bytes: v.optional(v.number()),
-    side: v.union(v.literal("laptop"), v.literal("cloud")),
-  }))),
+  skipped: v.optional(
+    v.array(
+      v.object({
+        path: v.string(),
+        reason: v.union(...SYNC_SKIP_REASONS.map((r) => v.literal(r))),
+        bytes: v.optional(v.number()),
+        side: v.union(v.literal("laptop"), v.literal("cloud")),
+      }),
+    ),
+  ),
   skipped_count: v.optional(v.number()),
   error: v.optional(v.string()),
 };
@@ -83,13 +138,23 @@ export const localMirrorValidator = v.object({
 
 // Where a cloud placement stands (contracts/cloudPlacementProgress.ts),
 // written by the preparing laptop's child onto the conversation.
-export const cloudPlacementStepValidator = v.union(...CLOUD_PLACEMENT_STEPS.map((s) => v.literal(s)));
+export const cloudPlacementStepValidator = v.union(
+  ...CLOUD_PLACEMENT_STEPS.map((s) => v.literal(s)),
+);
 export const cloudPlacementProgressValidator = v.object({
   token: v.string(),
   host_id: v.string(),
   host_device_id: v.optional(v.string()),
-  moved_from: v.optional(v.object({ host_id: v.string(), host_device_id: v.optional(v.string()), why: v.string() })),
-  steps: v.array(v.object({ step: cloudPlacementStepValidator, at: v.number() })),
+  moved_from: v.optional(
+    v.object({
+      host_id: v.string(),
+      host_device_id: v.optional(v.string()),
+      why: v.string(),
+    }),
+  ),
+  steps: v.array(
+    v.object({ step: cloudPlacementStepValidator, at: v.number() }),
+  ),
   started_at: v.number(),
   lines: v.array(v.string()),
   failed_at: v.optional(v.number()),

@@ -1,9 +1,24 @@
 "use client";
 
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { Check, Copy, DoorOpen, Globe, Link2, MessageSquareOff, RefreshCw, Unlink, UserMinus, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  DoorOpen,
+  Globe,
+  Link2,
+  MessageSquareOff,
+  RefreshCw,
+  Unlink,
+  UserMinus,
+  X,
+} from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { GUEST_LINK_TTL_MS, guestIdFromIdentity, isGuestIdentity } from "@codecast/shared/contracts";
+import {
+  GUEST_LINK_TTL_MS,
+  guestIdFromIdentity,
+  isGuestIdentity,
+} from "@codecast/shared/contracts";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useGuestLinks } from "../../hooks/useGuestLinks";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -12,7 +27,11 @@ import { copyToClipboard, copyToClipboardWhenReady } from "../../lib/utils";
 import { guestLinkUrl, removeGuest } from "../../lib/calls/guestDoorActions";
 import { sayRefusal } from "../../lib/calls/sayRefusal";
 import { useGuestDoor } from "../../hooks/useGuestDoor";
-import { GUEST_LINK_TTL_CHOICES, guestLinkExpiry, meetingTitle } from "../../lib/calls/roomGuests";
+import {
+  GUEST_LINK_TTL_CHOICES,
+  guestLinkExpiry,
+  meetingTitle,
+} from "../../lib/calls/roomGuests";
 import { firstName } from "./speakers";
 import { Popover, PopoverAnchor, PopoverContent } from "../ui/popover";
 import { Button } from "../ui/button";
@@ -75,7 +94,12 @@ export function GuestRemoveButton({
     setConfirm(false);
     // The guest's face card offers this on the desktop float too, which has
     // no toasts (lib/calls/sayRefusal).
-    void removeGuest(roomKey, guestId, revokeLink, sayRefusal(`Could not remove ${who}`));
+    void removeGuest(
+      roomKey,
+      guestId,
+      revokeLink,
+      sayRefusal(`Could not remove ${who}`),
+    );
   };
   if (confirm) {
     const armed = `${base} bg-sol-red/80 text-white hover:bg-sol-red`;
@@ -116,7 +140,9 @@ export function GuestRemoveButton({
     : tile
       ? " opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
       : " max-w-0 overflow-hidden whitespace-nowrap !px-0 opacity-0 group-hover:max-w-32 group-hover:!px-1.5 group-hover:opacity-100 focus-visible:max-w-32 focus-visible:!px-1.5 focus-visible:opacity-100 [@media(hover:none)]:max-w-32 [@media(hover:none)]:!px-1.5 [@media(hover:none)]:opacity-100";
-  const tone = tile ? " bg-black/45 text-white/80 hover:bg-sol-red/70 hover:text-white" : " text-sol-text-muted hover:bg-sol-red/15 hover:text-sol-red";
+  const tone = tile
+    ? " bg-black/45 text-white/80 hover:bg-sol-red/70 hover:text-white"
+    : " text-sol-text-muted hover:bg-sol-red/15 hover:text-sol-red";
   return (
     <button
       type="button"
@@ -190,7 +216,10 @@ export function GuestInvite({
         }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          if (!pressedOutside.current) anchorRef.current?.querySelector<HTMLElement>("button, [tabindex]")?.focus();
+          if (!pressedOutside.current)
+            anchorRef.current
+              ?.querySelector<HTMLElement>("button, [tabindex]")
+              ?.focus();
         }}
         // Radix closes on Escape; the stage behind must not hear it too.
         onKeyDown={(e) => {
@@ -215,7 +244,13 @@ const GUEST_FACTS = [
   { icon: MessageSquareOff, text: "Sees and hears the call, not its chat" },
 ];
 
-function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () => void }) {
+function GuestInvitePanel({
+  roomKey,
+  onClose,
+}: {
+  roomKey: string;
+  onClose: () => void;
+}) {
   const door = useGuestDoor();
   const now = useCoarseNow(30_000);
   const { links, ready } = useGuestLinks(roomKey);
@@ -252,8 +287,13 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
   // clipboard write made after an await (copyToClipboardWhenReady).
   const create = (fresh: boolean) => {
     setBusy(fresh ? "fresh" : "create");
-    const made = door.createLink(roomKey, fresh ? { fresh: true, ttlMs: ttl } : { ttlMs: ttl });
-    void copyToClipboardWhenReady(made.then((link) => (link ? guestLinkUrl(link.path) : null)))
+    const made = door.createLink(
+      roomKey,
+      fresh ? { fresh: true, ttlMs: ttl } : { ttlMs: ttl },
+    );
+    void copyToClipboardWhenReady(
+      made.then((link) => (link ? guestLinkUrl(link.path) : null)),
+    )
       .then((ok) => ok && copied_())
       .catch(copyMissed)
       .finally(() => setBusy(null));
@@ -263,14 +303,19 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
     await door.revokeLink(linkId);
     setBusy(null);
   };
-  const ttlLabel = GUEST_LINK_TTL_CHOICES.find((c) => c.ms === ttl)?.label ?? "7 days";
+  const ttlLabel =
+    GUEST_LINK_TTL_CHOICES.find((c) => c.ms === ttl)?.label ?? "7 days";
   // What travels with the viewer's link: the guest's page and every unfurl
   // of it. The server says it (callGuests.guestLinkPreview), from the same
   // two functions the guest's page uses, before any link exists, because
   // that is when the person decides what to send: a private channel's name
   // stays inside, and the meeting is then named after whoever invites.
-  const preview = useQueryNoThrow(api.callGuests.guestLinkPreview, { room_key: roomKey }).data;
-  const seenAs = preview ? meetingTitle(preview.title, { name: preview.inviter }) : null;
+  const preview = useQueryNoThrow(api.callGuests.guestLinkPreview, {
+    room_key: roomKey,
+  }).data;
+  const seenAs = preview
+    ? meetingTitle(preview.title, { name: preview.inviter })
+    : null;
 
   return (
     <>
@@ -279,7 +324,13 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
           <Link2 className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1 text-[13px] font-medium">Guest link</div>
-        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close" className="-mr-1 text-sol-text-dim">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Close"
+          className="-mr-1 text-sol-text-dim"
+        >
           <X />
         </Button>
       </div>
@@ -309,7 +360,12 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
                   className="min-w-0 flex-1 bg-transparent font-mono text-meta text-sol-text-secondary outline-none"
                   style={{ fontVariantLigatures: "none" }}
                 />
-                <Button size="xs" variant={copied ? "green" : "yellow"} onClick={() => void copy(mine.path)} className="shrink-0">
+                <Button
+                  size="xs"
+                  variant={copied ? "green" : "yellow"}
+                  onClick={() => void copy(mine.path)}
+                  className="shrink-0"
+                >
                   {copied ? <Check /> : <Copy />}
                   {copied ? "Copied" : "Copy"}
                 </Button>
@@ -317,12 +373,21 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
               <div className="mt-1.5 flex items-center gap-2 px-0.5 font-mono text-meta text-sol-text-muted">
                 <span className="min-w-0 truncate">
                   {copyFailed ? (
-                    <span className="text-sol-orange">couldn't copy: the link is selected, copy it with a key</span>
+                    <span className="text-sol-orange">
+                      couldn't copy: the link is selected, copy it with a key
+                    </span>
                   ) : (
                     <>
                       {guestLinkExpiry(mine.expires_at, now)}
-                      {mine.waiting > 0 && <span className="text-sol-yellow"> · {mine.waiting} waiting</span>}
-                      {mine.admitted > 0 && <span> · {mine.admitted} in the call</span>}
+                      {mine.waiting > 0 && (
+                        <span className="text-sol-yellow">
+                          {" "}
+                          · {mine.waiting} waiting
+                        </span>
+                      )}
+                      {mine.admitted > 0 && (
+                        <span> · {mine.admitted} in the call</span>
+                      )}
                     </>
                   )}
                 </span>
@@ -342,9 +407,17 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
           )}
           {/* How long the next link stays open: always in sight, because a
               replacement is a new choice, not the old link's. */}
-          <div className={`flex items-center gap-2 ${mine ? "mt-3 border-t border-sol-border/50 pt-3" : "mt-3"}`}>
-            <span className="w-[62px] shrink-0 text-meta text-sol-text-dim">{mine ? "New link" : "Expires"}</span>
-            <div role="radiogroup" aria-label="Link lasts" className="flex flex-1 rounded-md bg-sol-bg p-0.5 ring-1 ring-sol-border/60">
+          <div
+            className={`flex items-center gap-2 ${mine ? "mt-3 border-t border-sol-border/50 pt-3" : "mt-3"}`}
+          >
+            <span className="w-[62px] shrink-0 text-meta text-sol-text-dim">
+              {mine ? "New link" : "Expires"}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Link lasts"
+              className="flex flex-1 rounded-md bg-sol-bg p-0.5 ring-1 ring-sol-border/60"
+            >
               {GUEST_LINK_TTL_CHOICES.map((c) => (
                 <button
                   key={c.ms}
@@ -353,7 +426,9 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
                   aria-checked={ttl === c.ms}
                   onClick={() => setTtl(c.ms)}
                   className={`flex-1 rounded px-1.5 py-1 text-meta transition-colors ${
-                    ttl === c.ms ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:text-sol-text"
+                    ttl === c.ms
+                      ? "bg-sol-bg-highlight text-sol-text"
+                      : "text-sol-text-muted hover:text-sol-text"
                   }`}
                 >
                   {c.label}
@@ -374,17 +449,26 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
               {busy === "fresh" ? "Replacing…" : "Replace link"}
             </Button>
           ) : (
-            <Button variant="yellow" size="sm" disabled={!!busy} onClick={() => create(false)} className="mt-2 w-full">
+            <Button
+              variant="yellow"
+              size="sm"
+              disabled={!!busy}
+              onClick={() => create(false)}
+              className="mt-2 w-full"
+            >
               <Link2 />
               {busy === "create" ? "Making a link…" : "Create and copy link"}
             </Button>
           )}
           {!mine && copyFailed && (
-            <p className="mt-1.5 px-0.5 font-mono text-meta text-sol-orange">The link was made but not copied. Press copy above.</p>
+            <p className="mt-1.5 px-0.5 font-mono text-meta text-sol-orange">
+              The link was made but not copied. Press copy above.
+            </p>
           )}
           {seenAs && (
             <p className="mt-2 truncate text-meta text-sol-text-dim">
-              Shown to guests as <span className="text-sol-text-muted">{seenAs}</span>
+              Shown to guests as{" "}
+              <span className="text-sol-text-muted">{seenAs}</span>
             </p>
           )}
         </div>
@@ -392,12 +476,25 @@ function GuestInvitePanel({ roomKey, onClose }: { roomKey: string; onClose: () =
 
       {others.length > 0 && (
         <div className="mt-3 border-t border-sol-border/50 pt-2">
-          <div className="mb-1 text-meta text-sol-text-dim">Other open links</div>
+          <div className="mb-1 text-meta text-sol-text-dim">
+            Other open links
+          </div>
           {others.map((l) => (
-            <div key={l.link_id} className="flex items-center gap-2 rounded-md px-0.5 py-1 font-mono text-meta text-sol-text-muted">
+            <div
+              key={l.link_id}
+              className="flex items-center gap-2 rounded-md px-0.5 py-1 font-mono text-meta text-sol-text-muted"
+            >
               <span className="min-w-0 flex-1 truncate">
-                {l.mine ? "your older link" : `${firstName(l.created_by_name)}'s link`} · {guestLinkExpiry(l.expires_at, now)}
-                {l.waiting > 0 && <span className="text-sol-yellow"> · {l.waiting} waiting</span>}
+                {l.mine
+                  ? "your older link"
+                  : `${firstName(l.created_by_name)}'s link`}{" "}
+                · {guestLinkExpiry(l.expires_at, now)}
+                {l.waiting > 0 && (
+                  <span className="text-sol-yellow">
+                    {" "}
+                    · {l.waiting} waiting
+                  </span>
+                )}
               </span>
               <Button
                 variant="ghost"

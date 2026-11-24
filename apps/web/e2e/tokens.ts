@@ -3,4 +3,9 @@
 import { mintTokens } from "../scripts/rig/auth.mjs";
 import { dep, userId } from "./target";
 
-console.log(JSON.stringify({ convexUrl: dep.convexUrl, tokens: await mintTokens(dep, userId) }));
+console.log(
+  JSON.stringify({
+    convexUrl: dep.convexUrl,
+    tokens: await mintTokens(dep, userId),
+  }),
+);

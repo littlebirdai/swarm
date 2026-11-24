@@ -5,15 +5,33 @@
 // A row from a server older than that carries neither, and its raw
 // `blocked_by` is the best it can say.
 
-import { blockerLabel, type Blocker, type WaitLabelOptions } from "@codecast/shared/tasks";
+import {
+  blockerLabel,
+  type Blocker,
+  type WaitLabelOptions,
+} from "@codecast/shared/tasks";
 
-type ListedTask = { status?: string; blocked_by?: string[] | null; open_blockers?: (Blocker | string)[]; ready?: boolean };
+type ListedTask = {
+  status?: string;
+  blocked_by?: string[] | null;
+  open_blockers?: (Blocker | string)[];
+  ready?: boolean;
+};
 
 /** What still holds the task back, one label each ("ct-12", "PR #42 merges").
  *  `words` names PRs as the checkout reads them (checkoutWords). */
-export function listedBlockers(t: ListedTask, words: WaitLabelOptions = {}): string[] {
+export function listedBlockers(
+  t: ListedTask,
+  words: WaitLabelOptions = {},
+): string[] {
   // A string entry is a label from a server that labelled in UTC itself.
-  return t.open_blockers?.map((b) => typeof b === "string" ? b : blockerLabel(b, words)) ?? t.blocked_by ?? [];
+  return (
+    t.open_blockers?.map((b) =>
+      typeof b === "string" ? b : blockerLabel(b, words),
+    ) ??
+    t.blocked_by ??
+    []
+  );
 }
 
 /** Whether `cast task ready` would list it. */

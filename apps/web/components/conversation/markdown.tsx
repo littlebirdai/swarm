@@ -1,4 +1,11 @@
-import { useMemo, memo, useContext, Fragment, ComponentProps, type ReactElement } from "react";
+import {
+  useMemo,
+  memo,
+  useContext,
+  Fragment,
+  ComponentProps,
+  type ReactElement,
+} from "react";
 import ReactMarkdownBase from "react-markdown";
 import { rehypeSearchHighlight } from "../../lib/rehypeSearchHighlight";
 import { parseSearchTerms } from "@codecast/shared/search";
@@ -6,7 +13,13 @@ import { splitMarkdownBlocks } from "../../lib/markdownBlocks";
 import { RevealHost } from "../ObjectReveal";
 import { tryRenderHtmlMessage } from "../HtmlSnippet";
 import { entityRemarkPlugins } from "../../lib/remarkEntityIds";
-import { MESSAGE_MD_REHYPE, MESSAGE_MD_COMPONENTS, USER_MD_COMPONENTS, USER_MD_REMARK, ASSISTANT_MD_REMARK } from "../messageMarkdown";
+import {
+  MESSAGE_MD_REHYPE,
+  MESSAGE_MD_COMPONENTS,
+  USER_MD_COMPONENTS,
+  USER_MD_REMARK,
+  ASSISTANT_MD_REMARK,
+} from "../messageMarkdown";
 import { QuotedText } from "../ReplyQuote";
 import { HighlightContext } from "../HighlightContext";
 import { MD_COMPONENTS_NO_IMG } from "../../lib/conversationMarkdown";
@@ -14,10 +27,10 @@ import { compactionProgressMessage } from "../../lib/compactionProgress";
 import { CompactionProgressCard } from "./CompactionProgressCard";
 
 function extractTextFromHast(node: any): string {
-  if (!node) return '';
-  if (node.type === 'text') return node.value || '';
-  if (node.children) return node.children.map(extractTextFromHast).join('');
-  return '';
+  if (!node) return "";
+  if (node.type === "text") return node.value || "";
+  if (node.children) return node.children.map(extractTextFromHast).join("");
+  return "";
 }
 
 type ReactMarkdownProps = ComponentProps<typeof ReactMarkdownBase>;
@@ -34,7 +47,9 @@ type ReactMarkdownProps = ComponentProps<typeof ReactMarkdownBase>;
  * arrays and component maps — never inline literals. Context updates (search
  * query) bypass memo, so highlights still repaint.
  */
-export const ReactMarkdown = memo(function ReactMarkdown(props: ReactMarkdownProps) {
+export const ReactMarkdown = memo(function ReactMarkdown(
+  props: ReactMarkdownProps,
+) {
   const query = useContext(HighlightContext);
   const userPlugins = props.rehypePlugins;
   const plugins = useMemo(() => {
@@ -52,7 +67,11 @@ export const ReactMarkdown = memo(function ReactMarkdown(props: ReactMarkdownPro
   // message from another session) as much as a message's. Keyed by the body,
   // so the band survives the virtualizer recycling the row.
   return (
-    <RevealHost persistKey={typeof props.children === "string" ? props.children : undefined}>
+    <RevealHost
+      persistKey={
+        typeof props.children === "string" ? props.children : undefined
+      }
+    >
       <ReactMarkdownBase {...props} rehypePlugins={plugins} />
     </RevealHost>
   );
@@ -87,7 +106,10 @@ function mdCachePut(key: string, el: ReactElement): ReactElement {
   return el;
 }
 
-function renderMessageMarkdownCached(content: string, userText?: boolean): ReactElement {
+function renderMessageMarkdownCached(
+  content: string,
+  userText?: boolean,
+): ReactElement {
   const key = userText ? "\u0000u" + content : content;
   const hit = MD_RENDER_CACHE.get(key);
   if (hit) {
@@ -131,7 +153,13 @@ function renderMessageMarkdownCached(content: string, userText?: boolean): React
 // markdown would collapse them. Assistant bodies keep markdown at any size.
 const USER_PLAIN_TEXT_THRESHOLD = 4000;
 
-export const MessageMarkdown = memo(function MessageMarkdown({ content, userText }: { content: string; userText?: boolean }) {
+export const MessageMarkdown = memo(function MessageMarkdown({
+  content,
+  userText,
+}: {
+  content: string;
+  userText?: boolean;
+}) {
   const query = useContext(HighlightContext);
   // Claude's compaction screen sometimes lands as the message body (a status
   // line, a block bar, a tip). Paint it as a progress row.
@@ -142,32 +170,60 @@ export const MessageMarkdown = memo(function MessageMarkdown({ content, userText
   const html = tryRenderHtmlMessage(content);
   if (html) return html;
   if (userText && !query && content.length > USER_PLAIN_TEXT_THRESHOLD) {
-    return <div className="whitespace-pre-wrap break-words"><QuotedText text={content} /></div>;
+    return (
+      <div className="whitespace-pre-wrap break-words">
+        <QuotedText text={content} />
+      </div>
+    );
   }
   if (query) {
     return (
-      <ReactMarkdown remarkPlugins={userText ? USER_MD_REMARK : ASSISTANT_MD_REMARK} rehypePlugins={MESSAGE_MD_REHYPE} components={userText ? USER_MD_COMPONENTS : MESSAGE_MD_COMPONENTS}>
+      <ReactMarkdown
+        remarkPlugins={userText ? USER_MD_REMARK : ASSISTANT_MD_REMARK}
+        rehypePlugins={MESSAGE_MD_REHYPE}
+        components={userText ? USER_MD_COMPONENTS : MESSAGE_MD_COMPONENTS}
+      >
         {content}
       </ReactMarkdown>
     );
   }
   // The cached render bypasses the wrapper, so it mounts the host itself.
-  return <RevealHost persistKey={content}>{renderMessageMarkdownCached(content, userText)}</RevealHost>;
+  return (
+    <RevealHost persistKey={content}>
+      {renderMessageMarkdownCached(content, userText)}
+    </RevealHost>
+  );
 });
 
-export function InsightCard({ label, content }: { label: string; content: string }) {
+export function InsightCard({
+  label,
+  content,
+}: {
+  label: string;
+  content: string;
+}) {
   return (
     <div className="my-3 rounded-lg overflow-hidden border border-sol-violet/30 bg-gradient-to-br from-sol-bg-alt via-sol-bg-alt to-sol-violet/5">
       <div className="flex items-center gap-2 px-4 py-2 border-b border-sol-violet/20 bg-sol-violet/8">
-        <svg className="w-3.5 h-3.5 text-sol-violet flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+        <svg
+          className="w-3.5 h-3.5 text-sol-violet flex-shrink-0"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+        >
           <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" />
         </svg>
-        <span className="text-xs font-semibold tracking-wide uppercase text-sol-violet">{label}</span>
+        <span className="text-xs font-semibold tracking-wide uppercase text-sol-violet">
+          {label}
+        </span>
       </div>
       <div className="px-4 py-3 text-sm text-sol-text-secondary leading-relaxed prose prose-invert prose-sm max-w-none">
-        <ReactMarkdown remarkPlugins={entityRemarkPlugins} rehypePlugins={MESSAGE_MD_REHYPE}
+        <ReactMarkdown
+          remarkPlugins={entityRemarkPlugins}
+          rehypePlugins={MESSAGE_MD_REHYPE}
           components={MD_COMPONENTS_NO_IMG}
-        >{content}</ReactMarkdown>
+        >
+          {content}
+        </ReactMarkdown>
       </div>
     </div>
   );

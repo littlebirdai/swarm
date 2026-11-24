@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { SCOPE_KINDS, type CapabilityBinding, type ScopeKind } from "./capabilities";
+import {
+  SCOPE_KINDS,
+  type CapabilityBinding,
+  type ScopeKind,
+} from "./capabilities";
 import {
   desiredCapabilities,
   desiredCapabilitySlugs,
@@ -108,7 +112,9 @@ describe("resolveCapabilities — the precedence table", () => {
       bind("b_session", "session", true),
     ];
     const forward = projectDesiredState(resolveCapabilities(rows, FULL));
-    const backward = projectDesiredState(resolveCapabilities([...rows].reverse(), FULL));
+    const backward = projectDesiredState(
+      resolveCapabilities([...rows].reverse(), FULL),
+    );
     expect(backward).toEqual(forward);
     expect(forward.entries[SLUG]).toBe("on@session:b_session");
   });
@@ -125,7 +131,11 @@ describe("resolveCapabilities — the precedence table", () => {
     );
     const entry = findResolved(state, SLUG)!;
     expect(entry.decidedBy.scopeKind).toBe("project");
-    expect(entry.overrode.map((o) => o.scopeKind)).toEqual(["device", "user", "team"]);
+    expect(entry.overrode.map((o) => o.scopeKind)).toEqual([
+      "device",
+      "user",
+      "team",
+    ]);
     // The trace carries the flag too — "your team turned this on, your device
     // turned it off" is the sentence the card renders.
     expect(entry.overrode.map((o) => o.enabled)).toEqual([true, false, true]);
@@ -146,11 +156,17 @@ describe("resolveCapabilities — ordering inside one scope", () => {
 
   it("the row id breaks an identical timestamp, so there is no tie", () => {
     const a = resolveCapabilities(
-      [bind("b_zzz", "user", true, { updatedAt: 5 }), bind("b_aaa", "user", false, { updatedAt: 5 })],
+      [
+        bind("b_zzz", "user", true, { updatedAt: 5 }),
+        bind("b_aaa", "user", false, { updatedAt: 5 }),
+      ],
       FULL,
     );
     const b = resolveCapabilities(
-      [bind("b_aaa", "user", false, { updatedAt: 5 }), bind("b_zzz", "user", true, { updatedAt: 5 })],
+      [
+        bind("b_aaa", "user", false, { updatedAt: 5 }),
+        bind("b_zzz", "user", true, { updatedAt: 5 }),
+      ],
       FULL,
     );
     expect(findResolved(a, SLUG)!.decidedBy.bindingId).toBe("b_aaa");
@@ -177,7 +193,11 @@ describe("resolveCapabilities — ordering inside one scope", () => {
     const state = resolveCapabilities(
       [
         bind("b_t1", "team", true, { updatedAt: 5 }),
-        bind("b_t2", "team", false, { scopeKey: "team_other", teamId: "team_other", updatedAt: 9 }),
+        bind("b_t2", "team", false, {
+          scopeKey: "team_other",
+          teamId: "team_other",
+          updatedAt: 9,
+        }),
       ],
       twoTeams,
     );
@@ -196,11 +216,23 @@ describe("resolveCapabilities — scope applicability", () => {
 
   it("sets aside a binding for every other scope instance, with a reason", () => {
     const elsewhere: Array<[string, CapabilityBinding]> = [
-      ["another team", bind("b_team", "team", true, { scopeKey: "team_x", teamId: "team_x" })],
+      [
+        "another team",
+        bind("b_team", "team", true, { scopeKey: "team_x", teamId: "team_x" }),
+      ],
       ["another user", bind("b_user", "user", true, { scopeKey: "user_x" })],
-      ["another device", bind("b_device", "device", true, { scopeKey: "device_x" })],
-      ["another project", bind("b_project", "project", true, { scopeKey: "git:elsewhere" })],
-      ["another session", bind("b_session", "session", true, { scopeKey: "conv_x" })],
+      [
+        "another device",
+        bind("b_device", "device", true, { scopeKey: "device_x" }),
+      ],
+      [
+        "another project",
+        bind("b_project", "project", true, { scopeKey: "git:elsewhere" }),
+      ],
+      [
+        "another session",
+        bind("b_session", "session", true, { scopeKey: "conv_x" }),
+      ],
     ];
     for (const [detail, row] of elsewhere) {
       const state = resolveCapabilities([row], FULL);
@@ -217,9 +249,19 @@ describe("resolveCapabilities — scope applicability", () => {
     // capability. Only the key was checked before, and every one of these keys
     // matches. Team is the one scope where owner and recipient legitimately
     // differ — an admin writes it for everyone.
-    for (const scope of ["user", "device", "project", "session"] as ScopeKind[]) {
+    for (const scope of [
+      "user",
+      "device",
+      "project",
+      "session",
+    ] as ScopeKind[]) {
       const state = resolveCapabilities(
-        [bind("b_evil", scope, true, { userId: "user_sam", capabilitySlug: "mkt/evil/thing" })],
+        [
+          bind("b_evil", scope, true, {
+            userId: "user_sam",
+            capabilitySlug: "mkt/evil/thing",
+          }),
+        ],
         FULL,
       );
       expect(state.entries).toEqual([]);
@@ -259,7 +301,10 @@ describe("resolveCapabilities — scope applicability", () => {
   });
 
   it("still accepts a team row that names no team, so older rows keep working", () => {
-    const state = resolveCapabilities([bind("b_team", "team", true, { teamId: undefined })], FULL);
+    const state = resolveCapabilities(
+      [bind("b_team", "team", true, { teamId: undefined })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.enabled).toBe(true);
   });
 
@@ -275,7 +320,9 @@ describe("resolveCapabilities — scope applicability", () => {
       bare,
     );
     expect(state.entries).toEqual([]);
-    const reasons = Object.fromEntries(state.ignored.map((i) => [i.bindingId, i.detail]));
+    const reasons = Object.fromEntries(
+      state.ignored.map((i) => [i.bindingId, i.detail]),
+    );
     expect(reasons).toEqual({
       b_device: "no device in this context",
       b_project: "no project in this context",
@@ -285,9 +332,16 @@ describe("resolveCapabilities — scope applicability", () => {
   });
 
   it("matches a project by any of its keys", () => {
-    const ctx: ScopeContext = { ...FULL, projectKeys: [PROJECT, `local:${USER}:/Users/ashot/src/codecast`] };
+    const ctx: ScopeContext = {
+      ...FULL,
+      projectKeys: [PROJECT, `local:${USER}:/Users/ashot/src/codecast`],
+    };
     const state = resolveCapabilities(
-      [bind("b_local", "project", true, { scopeKey: `local:${USER}:/Users/ashot/src/codecast` })],
+      [
+        bind("b_local", "project", true, {
+          scopeKey: `local:${USER}:/Users/ashot/src/codecast`,
+        }),
+      ],
       ctx,
     );
     expect(findResolved(state, SLUG)!.enabled).toBe(true);
@@ -295,13 +349,24 @@ describe("resolveCapabilities — scope applicability", () => {
 
   it("treats a blank user scope key as the row's owner", () => {
     // Older writers left it blank because `user_id` already said whose it was.
-    const state = resolveCapabilities([bind("b_blank", "user", true, { scopeKey: "" })], FULL);
+    const state = resolveCapabilities(
+      [bind("b_blank", "user", true, { scopeKey: "" })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.decidedBy.scopeKey).toBe(USER);
   });
 
   it("still refuses a blank key at every other scope", () => {
-    for (const scope of ["team", "device", "project", "session"] as ScopeKind[]) {
-      const state = resolveCapabilities([bind("b_blank", scope, true, { scopeKey: "  " })], FULL);
+    for (const scope of [
+      "team",
+      "device",
+      "project",
+      "session",
+    ] as ScopeKind[]) {
+      const state = resolveCapabilities(
+        [bind("b_blank", scope, true, { scopeKey: "  " })],
+        FULL,
+      );
       expect(state.ignored[0]!.reason).toBe("malformed_binding");
       expect(state.ignored[0]!.detail).toBe(`no scope key for ${scope} scope`);
     }
@@ -310,9 +375,15 @@ describe("resolveCapabilities — scope applicability", () => {
 
 describe("resolveCapabilities — client filter", () => {
   it("sets aside a binding bound to other clients", () => {
-    const state = resolveCapabilities([bind("b_codex", "user", true, { clientFilter: ["codex"] })], FULL);
+    const state = resolveCapabilities(
+      [bind("b_codex", "user", true, { clientFilter: ["codex"] })],
+      FULL,
+    );
     expect(state.entries).toEqual([]);
-    expect(state.ignored[0]).toMatchObject({ reason: "client_filtered", detail: "bound to codex" });
+    expect(state.ignored[0]).toMatchObject({
+      reason: "client_filtered",
+      detail: "bound to codex",
+    });
   });
 
   it("applies a binding that names this client", () => {
@@ -325,12 +396,18 @@ describe("resolveCapabilities — client filter", () => {
 
   it("ignores the filter when no client was named — that view is the union", () => {
     const noClient: ScopeContext = { ...FULL, client: undefined };
-    const state = resolveCapabilities([bind("b_codex", "user", true, { clientFilter: ["codex"] })], noClient);
+    const state = resolveCapabilities(
+      [bind("b_codex", "user", true, { clientFilter: ["codex"] })],
+      noClient,
+    );
     expect(findResolved(state, SLUG)!.enabled).toBe(true);
   });
 
   it("an empty filter means every client", () => {
-    const state = resolveCapabilities([bind("b_any", "user", true, { clientFilter: [] })], FULL);
+    const state = resolveCapabilities(
+      [bind("b_any", "user", true, { clientFilter: [] })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.enabled).toBe(true);
   });
 });
@@ -338,7 +415,10 @@ describe("resolveCapabilities — client filter", () => {
 describe("resolveCapabilities — config trust", () => {
   it("carries the owner's own config at user and device scope", () => {
     for (const scope of ["user", "device"] as ScopeKind[]) {
-      const state = resolveCapabilities([bind("b", scope, true, { config: { REGION: "eu" } })], FULL);
+      const state = resolveCapabilities(
+        [bind("b", scope, true, { config: { REGION: "eu" } })],
+        FULL,
+      );
       expect(findResolved(state, SLUG)!.config).toEqual({ REGION: "eu" });
       expect(findResolved(state, SLUG)!.withheld).toBeUndefined();
     }
@@ -352,7 +432,12 @@ describe("resolveCapabilities — config trust", () => {
     ];
     for (const [scope, over] of cases) {
       const state = resolveCapabilities(
-        [bind("b", scope, true, { config: { CMD: "npx -y @evil/thing" }, ...over })],
+        [
+          bind("b", scope, true, {
+            config: { CMD: "npx -y @evil/thing" },
+            ...over,
+          }),
+        ],
         FULL,
       );
       const entry = findResolved(state, SLUG)!;
@@ -366,7 +451,10 @@ describe("resolveCapabilities — config trust", () => {
   });
 
   it("an empty config object is not a config", () => {
-    const state = resolveCapabilities([bind("b", "project", true, { config: {} })], FULL);
+    const state = resolveCapabilities(
+      [bind("b", "project", true, { config: {} })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.withheld).toBeUndefined();
     expect(desiredCapabilitySlugs(state)).toEqual([SLUG]);
   });
@@ -380,7 +468,10 @@ describe("resolveCapabilities — config trust", () => {
     // that client writes, so withholding on it would switch off a whole fleet's
     // capabilities at once.
     for (const junk of ["npx", ["npx"], null]) {
-      const state = resolveCapabilities([bind("b", "user", true, { config: junk as never })], FULL);
+      const state = resolveCapabilities(
+        [bind("b", "user", true, { config: junk as never })],
+        FULL,
+      );
       expect(findResolved(state, SLUG)!.config).toBeUndefined();
       expect(findResolved(state, SLUG)!.withheld).toBeUndefined();
     }
@@ -394,7 +485,10 @@ describe("resolveCapabilities — config trust", () => {
   });
 
   it("does not withhold a config on a binding that resolved to off", () => {
-    const state = resolveCapabilities([bind("b", "team", false, { config: { A: "1" }, userId: "user_sam" })], FULL);
+    const state = resolveCapabilities(
+      [bind("b", "team", false, { config: { A: "1" }, userId: "user_sam" })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.withheld).toBeUndefined();
     expect(findResolved(state, SLUG)!.enabled).toBe(false);
   });
@@ -419,7 +513,10 @@ describe("resolveCapabilities — config trust", () => {
   });
 
   it("names no separate source when the deciding row carried the config itself", () => {
-    const state = resolveCapabilities([bind("b", "device", true, { config: { A: "1" } })], FULL);
+    const state = resolveCapabilities(
+      [bind("b", "device", true, { config: { A: "1" } })],
+      FULL,
+    );
     expect(findResolved(state, SLUG)!.configFrom).toBeUndefined();
   });
 
@@ -445,7 +542,10 @@ describe("resolveCapabilities — config trust", () => {
     const state = resolveCapabilities(
       [
         bind("b_user", "user", true),
-        bind("b_team", "team", true, { config: { CMD: "npx -y @evil/thing" }, userId: "user_sam" }),
+        bind("b_team", "team", true, {
+          config: { CMD: "npx -y @evil/thing" },
+          userId: "user_sam",
+        }),
       ],
       FULL,
     );
@@ -461,7 +561,11 @@ describe("resolveCapabilities — config trust", () => {
     // server the withhold exists to prevent — and it is my own row, so the
     // honest answer is to say the config is unreadable rather than launch.
     const state = resolveCapabilities(
-      [bind("b", "user", true, { config: { OK: "1", BAD: { nested: true } } as never })],
+      [
+        bind("b", "user", true, {
+          config: { OK: "1", BAD: { nested: true } } as never,
+        }),
+      ],
       FULL,
     );
     const entry = findResolved(state, SLUG)!;
@@ -473,19 +577,35 @@ describe("resolveCapabilities — config trust", () => {
 
 describe("resolveCapabilities — bad rows", () => {
   it("drops each malformed shape with the field that failed, and keeps going", () => {
-    const good = bind("b_good", "user", true, { capabilitySlug: "builtin/tasks" });
+    const good = bind("b_good", "user", true, {
+      capabilitySlug: "builtin/tasks",
+    });
     const bad: Array<[CapabilityBinding, string]> = [
       [{ ...bind("b1", "user", true), id: "" }, "no binding id"],
-      [{ ...bind("b2", "user", true), capabilitySlug: "   " }, "no capability slug"],
-      [{ ...bind("b3", "user", true), enabled: "yes" as never }, "enabled is not a boolean"],
-      [{ ...bind("b4", "user", true), scopeKind: "org" as never }, 'unknown scope "org"'],
+      [
+        { ...bind("b2", "user", true), capabilitySlug: "   " },
+        "no capability slug",
+      ],
+      [
+        { ...bind("b3", "user", true), enabled: "yes" as never },
+        "enabled is not a boolean",
+      ],
+      [
+        { ...bind("b4", "user", true), scopeKind: "org" as never },
+        'unknown scope "org"',
+      ],
       [{ ...bind("b5", "user", true), userId: "" }, "no owner"],
-      [{ ...bind("b6", "user", true), scopeKey: 42 as never }, "scope key is not a string"],
+      [
+        { ...bind("b6", "user", true), scopeKey: 42 as never },
+        "scope key is not a string",
+      ],
     ];
     for (const [row, detail] of bad) {
       const state = resolveCapabilities([row, good], FULL);
       expect(desiredCapabilitySlugs(state)).toEqual(["builtin/tasks"]);
-      const dropped = state.ignored.find((i) => i.reason === "malformed_binding");
+      const dropped = state.ignored.find(
+        (i) => i.reason === "malformed_binding",
+      );
       expect(dropped?.detail).toBe(detail);
     }
   });
@@ -505,7 +625,10 @@ describe("resolveCapabilities — bad rows", () => {
       `builtin/${"a".repeat(300)}`,
     ];
     for (const slug of bad) {
-      const state = resolveCapabilities([bind("b", "user", true, { capabilitySlug: slug })], FULL);
+      const state = resolveCapabilities(
+        [bind("b", "user", true, { capabilitySlug: slug })],
+        FULL,
+      );
       expect(state.entries).toEqual([]);
       expect(state.ignored[0]!.reason).toBe("malformed_binding");
       expect(state.ignored[0]!.detail).toContain("is not a valid reference");
@@ -514,7 +637,11 @@ describe("resolveCapabilities — bad rows", () => {
 
   it("keeps a rejected slug printable and short in the phrase it renders", () => {
     const state = resolveCapabilities(
-      [bind("b", "user", true, { capabilitySlug: `unknown/${"x".repeat(120)}\nrm -rf /` })],
+      [
+        bind("b", "user", true, {
+          capabilitySlug: `unknown/${"x".repeat(120)}\nrm -rf /`,
+        }),
+      ],
       FULL,
     );
     const detail = state.ignored[0]!.detail!;
@@ -555,7 +682,9 @@ describe("resolveCapabilities — bad rows", () => {
       [bind("b", "user", true, { capabilitySlug: "mkt/official/simplifier" })],
       { ...FULL, client: "claude" },
     );
-    expect(desiredCapabilitySlugs(forClaude)).toEqual(["mkt/official/simplifier"]);
+    expect(desiredCapabilitySlugs(forClaude)).toEqual([
+      "mkt/official/simplifier",
+    ]);
   });
 
   it("a fleet-wide resolve (no client) never guesses at support", () => {
@@ -568,7 +697,10 @@ describe("resolveCapabilities — bad rows", () => {
 
   it("survives a non-array and null rows without throwing", () => {
     expect(resolveCapabilities(undefined as never, FULL).entries).toEqual([]);
-    const state = resolveCapabilities([null as never, bind("b", "user", true)], FULL);
+    const state = resolveCapabilities(
+      [null as never, bind("b", "user", true)],
+      FULL,
+    );
     expect(desiredCapabilitySlugs(state)).toEqual([SLUG]);
     expect(state.ignored[0]!.reason).toBe("malformed_binding");
   });
@@ -584,7 +716,11 @@ describe("resolveCapabilities — reading the result", () => {
       ],
       FULL,
     );
-    expect(state.entries.map((e) => e.slug)).toEqual(["builtin/a", "git/x/m@sha", "mkt/acme/z"]);
+    expect(state.entries.map((e) => e.slug)).toEqual([
+      "builtin/a",
+      "git/x/m@sha",
+      "mkt/acme/z",
+    ]);
   });
 
   it("explains one capability from both sides", () => {
@@ -618,7 +754,9 @@ describe("resolveCapabilities — reading the result", () => {
 describe("golden precedence table", () => {
   for (const c of GOLDEN_CASES) {
     it(c.name, () => {
-      const projected = projectDesiredState(resolveCapabilities(c.bindings, c.context));
+      const projected = projectDesiredState(
+        resolveCapabilities(c.bindings, c.context),
+      );
       expect(projected.entries).toEqual(c.entries);
       expect(projected.ignored).toEqual(c.ignored);
     });
@@ -640,10 +778,16 @@ describe("the pin gate", () => {
 
   it("a pinned git source passes the gate", () => {
     const state = resolveCapabilities(
-      [bind("b", "user", true, { capabilitySlug: "git/anthropics/skills@30287f5" })],
+      [
+        bind("b", "user", true, {
+          capabilitySlug: "git/anthropics/skills@30287f5",
+        }),
+      ],
       FULL,
     );
-    expect(desiredCapabilitySlugs(state)).toEqual(["git/anthropics/skills@30287f5"]);
+    expect(desiredCapabilitySlugs(state)).toEqual([
+      "git/anthropics/skills@30287f5",
+    ]);
   });
 });
 
@@ -651,10 +795,13 @@ describe("the client version gate", () => {
   const needs2 = { capabilitySlug: SLUG, minClientVersion: "2.0.0" } as const;
 
   it("an old client is told client_too_old, with both versions in the detail", () => {
-    const state = resolveCapabilities([bind("b", "user", true, { ...needs2 })], {
-      ...FULL,
-      clientVersion: "1.9.3",
-    });
+    const state = resolveCapabilities(
+      [bind("b", "user", true, { ...needs2 })],
+      {
+        ...FULL,
+        clientVersion: "1.9.3",
+      },
+    );
     expect(desiredCapabilitySlugs(state)).toEqual([]);
     expect(state.ignored[0]!.reason).toBe("client_too_old");
     expect(state.ignored[0]!.detail).toContain("2.0.0");
@@ -662,14 +809,20 @@ describe("the client version gate", () => {
   });
 
   it("a new-enough client passes; missing versions on either side never guess", () => {
-    const newEnough = resolveCapabilities([bind("b", "user", true, { ...needs2 })], {
-      ...FULL,
-      clientVersion: "2.1.0",
-    });
+    const newEnough = resolveCapabilities(
+      [bind("b", "user", true, { ...needs2 })],
+      {
+        ...FULL,
+        clientVersion: "2.1.0",
+      },
+    );
     expect(desiredCapabilitySlugs(newEnough)).toEqual([SLUG]);
 
     // No context version: the binding cannot be evaluated, so it applies.
-    const unstated = resolveCapabilities([bind("b", "user", true, { ...needs2 })], FULL);
+    const unstated = resolveCapabilities(
+      [bind("b", "user", true, { ...needs2 })],
+      FULL,
+    );
     expect(desiredCapabilitySlugs(unstated)).toEqual([SLUG]);
 
     // No binding minimum: any client will do.
@@ -690,7 +843,10 @@ describe("the client version gate", () => {
 describe("availability is a third state", () => {
   it("an unavailable entry stays desired and keeps enabled", () => {
     const state = resolveCapabilities([bind("b", "user", true)], FULL);
-    const stamped = withAvailability(state, () => ({ ok: false, lastOk: 1234 }));
+    const stamped = withAvailability(state, () => ({
+      ok: false,
+      lastOk: 1234,
+    }));
     expect(stamped.entries).toHaveLength(1);
     expect(stamped.entries[0]!.enabled).toBe(true);
     expect(stamped.entries[0]!.availability).toBe("unavailable");
@@ -756,7 +912,11 @@ describe("withConsent holds at the consented pin, never drops", () => {
   });
 
   it("no consent record means no drift judgment", () => {
-    const out = withConsent(resolved(), () => undefined, () => ({ manifestHash: "x" }));
+    const out = withConsent(
+      resolved(),
+      () => undefined,
+      () => ({ manifestHash: "x" }),
+    );
     expect(out.needsConsent).toEqual([]);
     expect(out.entries[0]!.enabled).toBe(true);
   });
@@ -778,23 +938,39 @@ describe("withConsent holds at the consented pin, never drops", () => {
 // case is a row a support thread will one day hinge on.
 describe("precedence matrix", () => {
   const CTX = FULL;
-  const at = (scope: ScopeKind, enabled: boolean, id: string, over: Partial<CapabilityBinding> = {}) =>
-    bind(id, scope, enabled, over);
+  const at = (
+    scope: ScopeKind,
+    enabled: boolean,
+    id: string,
+    over: Partial<CapabilityBinding> = {},
+  ) => bind(id, scope, enabled, over);
 
-  const NARROWING: ScopeKind[] = ["team", "user", "device", "project", "session"];
+  const NARROWING: ScopeKind[] = [
+    "team",
+    "user",
+    "device",
+    "project",
+    "session",
+  ];
 
   it("every narrower scope beats every broader one, both directions", () => {
     for (let broad = 0; broad < NARROWING.length; broad++) {
       for (let narrow = broad + 1; narrow < NARROWING.length; narrow++) {
         // narrower ON beats broader OFF…
         const on = resolveCapabilities(
-          [at(NARROWING[broad]!, false, "b1"), at(NARROWING[narrow]!, true, "b2")],
+          [
+            at(NARROWING[broad]!, false, "b1"),
+            at(NARROWING[narrow]!, true, "b2"),
+          ],
           CTX,
         );
         expect(on.entries[0]!.enabled).toBe(true);
         // …and narrower OFF revokes broader ON.
         const off = resolveCapabilities(
-          [at(NARROWING[broad]!, true, "b1"), at(NARROWING[narrow]!, false, "b2")],
+          [
+            at(NARROWING[broad]!, true, "b1"),
+            at(NARROWING[narrow]!, false, "b2"),
+          ],
           CTX,
         );
         expect(off.entries[0]!.enabled).toBe(false);
@@ -843,13 +1019,41 @@ describe("precedence matrix", () => {
 
   it("every unsupported reason has a producing fixture", () => {
     const cases: Array<[string, CapabilityBinding[], Partial<ScopeContext>]> = [
-      ["scope_not_in_context", [bind("b", "project", true, { scopeKey: "git:github.com/not/here" })], {}],
-      ["client_filtered", [bind("b", "user", true, { clientFilter: ["codex"] })], { client: "claude" }],
-      ["client_cannot_express", [bind("b", "user", true, { capabilitySlug: "mkt/official/x" })], { client: "codex" }],
-      ["loadout_not_expanded", [bind("b", "user", true, { capabilitySlug: "loadout/lo-1" })], {}],
-      ["unpinned_source", [bind("b", "user", true, { capabilitySlug: "git/o/r" })], {}],
-      ["client_too_old", [bind("b", "user", true, { minClientVersion: "9.0" })], { clientVersion: "1.0" }],
-      ["malformed_binding", [bind("b", "user", true, { capabilitySlug: "../etc/passwd" })], {}],
+      [
+        "scope_not_in_context",
+        [bind("b", "project", true, { scopeKey: "git:github.com/not/here" })],
+        {},
+      ],
+      [
+        "client_filtered",
+        [bind("b", "user", true, { clientFilter: ["codex"] })],
+        { client: "claude" },
+      ],
+      [
+        "client_cannot_express",
+        [bind("b", "user", true, { capabilitySlug: "mkt/official/x" })],
+        { client: "codex" },
+      ],
+      [
+        "loadout_not_expanded",
+        [bind("b", "user", true, { capabilitySlug: "loadout/lo-1" })],
+        {},
+      ],
+      [
+        "unpinned_source",
+        [bind("b", "user", true, { capabilitySlug: "git/o/r" })],
+        {},
+      ],
+      [
+        "client_too_old",
+        [bind("b", "user", true, { minClientVersion: "9.0" })],
+        { clientVersion: "1.0" },
+      ],
+      [
+        "malformed_binding",
+        [bind("b", "user", true, { capabilitySlug: "../etc/passwd" })],
+        {},
+      ],
     ];
     for (const [reason, rows, ctxOver] of cases) {
       const state = resolveCapabilities(rows, { ...FULL, ...ctxOver });

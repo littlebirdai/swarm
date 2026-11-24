@@ -5,76 +5,151 @@ import { makeFunctionReference } from "convex/server";
 const listMine = makeFunctionReference<"query">("machineResources:listMine");
 const getMine = makeFunctionReference<"query">("machineResources:getMine");
 import { hashToken } from "./apiTokens";
-import { ATTENDED_AFTER_MESSAGE_MS, OVERLOAD_REALERT_MS, overloadAlertDue, overloadMessage, storeResourceSnapshot } from "./machineResources";
+import {
+  ATTENDED_AFTER_MESSAGE_MS,
+  OVERLOAD_REALERT_MS,
+  overloadAlertDue,
+  overloadMessage,
+  storeResourceSnapshot,
+} from "./machineResources";
 import type { MachineResourceSnapshot } from "@codecast/shared/contracts";
 
 const modules = {
-
   "./_generated/server.ts": () => import("./_generated/server"),
 
-  "./syncOutbox.ts": () => import("./syncOutbox"), "./machineResources.ts": () => import("./machineResources"),
-
+  "./syncOutbox.ts": () => import("./syncOutbox"),
+  "./machineResources.ts": () => import("./machineResources"),
 };
 const sample = (at: number): MachineResourceSnapshot => ({
-  version: 1, deviceId: "mac", platform: "darwin", collectionDurationMs: 4, limitations: [], processes: [], groups: [], omittedProcessCount: 0,
-  sample: { at, memoryTotal: 1000, memoryAvailable: 500, memoryAvailableIsEstimate: true, load1: 2, logicalCpus: 8, processCount: 20, pressure: "normal" },
+  version: 1,
+  deviceId: "mac",
+  platform: "darwin",
+  collectionDurationMs: 4,
+  limitations: [],
+  processes: [],
+  groups: [],
+  omittedProcessCount: 0,
+  sample: {
+    at,
+    memoryTotal: 1000,
+    memoryAvailable: 500,
+    memoryAvailableIsEstimate: true,
+    load1: 2,
+    logicalCpus: 8,
+    processCount: 20,
+    pressure: "normal",
+  },
 });
 
 test("resource report to authenticated read uses real schema and isolates machine owner", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const [owner, other] = await t.run(async ctx => {
+  const [owner, other] = await t.run(async (ctx) => {
     const owner = await ctx.db.insert("users", { name: "Owner" });
     const other = await ctx.db.insert("users", { name: "Other" });
-    await ctx.db.insert("devices", { user_id: owner, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
+    await ctx.db.insert("devices", {
+      user_id: owner,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
     return [owner, other];
   });
-  await t.run(ctx => storeResourceSnapshot(ctx, owner, sample(now), now));
+  await t.run((ctx) => storeResourceSnapshot(ctx, owner, sample(now), now));
   expect(await t.query(listMine, {})).toEqual([]);
-  expect(await t.withIdentity({ subject: other }).query(listMine, {})).toEqual([]);
+  expect(await t.withIdentity({ subject: other }).query(listMine, {})).toEqual(
+    [],
+  );
   const rows = await t.withIdentity({ subject: owner }).query(listMine, {});
   expect(rows).toHaveLength(1);
   expect(rows[0].snapshot.sample.memoryTotal).toBe(1000);
   expect(rows[0].history).toHaveLength(1);
-  await expect(t.run(ctx => storeResourceSnapshot(ctx, other, sample(now), now))).rejects.toThrow("not registered");
-  expect(await t.run(ctx => storeResourceSnapshot(ctx, owner, sample(now), now + 100))).toEqual({ accepted: false, background_sessions: [] });
-  expect(await t.run(ctx => storeResourceSnapshot(ctx, owner, sample(now + 30_000), now + 30_000))).toEqual({ accepted: false, background_sessions: [] });
-  await t.run(ctx => storeResourceSnapshot(ctx, owner, sample(now + 60_000), now + 60_000));
-  expect((await t.withIdentity({ subject: owner }).query(listMine, {}))[0].history).toHaveLength(2);
+  await expect(
+    t.run((ctx) => storeResourceSnapshot(ctx, other, sample(now), now)),
+  ).rejects.toThrow("not registered");
+  expect(
+    await t.run((ctx) =>
+      storeResourceSnapshot(ctx, owner, sample(now), now + 100),
+    ),
+  ).toEqual({ accepted: false, background_sessions: [] });
+  expect(
+    await t.run((ctx) =>
+      storeResourceSnapshot(ctx, owner, sample(now + 30_000), now + 30_000),
+    ),
+  ).toEqual({ accepted: false, background_sessions: [] });
+  await t.run((ctx) =>
+    storeResourceSnapshot(ctx, owner, sample(now + 60_000), now + 60_000),
+  );
+  expect(
+    (await t.withIdentity({ subject: owner }).query(listMine, {}))[0].history,
+  ).toHaveLength(2);
 });
 
 test("malformed or oversized reports cannot overwrite the last good reading", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
     return id;
   });
-  await t.run(ctx => storeResourceSnapshot(ctx, user, sample(now), now));
+  await t.run((ctx) => storeResourceSnapshot(ctx, user, sample(now), now));
   for (const invalid of [
     { ...sample(now), sample: { ...sample(now).sample, cpuPercent: 101 } },
     { ...sample(now), limitations: ["x".repeat(241)] },
     sample(now - 600_000),
-  ]) await expect(t.run(ctx => storeResourceSnapshot(ctx, user, invalid, now))).rejects.toThrow();
-  expect((await t.withIdentity({ subject: user }).query(listMine, {}))[0].snapshot).toEqual(sample(now));
+  ])
+    await expect(
+      t.run((ctx) => storeResourceSnapshot(ctx, user, invalid, now)),
+    ).rejects.toThrow();
+  expect(
+    (await t.withIdentity({ subject: user }).query(listMine, {}))[0].snapshot,
+  ).toEqual(sample(now));
 });
-
 
 test("daemon bearer report reaches the authenticated dashboard and rejects invalid tokens", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
   const token = "resource-test-token";
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
-    await ctx.db.insert("api_tokens", { user_id: id, token_hash: await hashToken(token), name: "test", created_at: now, last_used_at: now });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
+    await ctx.db.insert("api_tokens", {
+      user_id: id,
+      token_hash: await hashToken(token),
+      name: "test",
+      created_at: now,
+      last_used_at: now,
+    });
     return id;
   });
   const report = makeFunctionReference<"mutation">("machineResources:report");
-  await expect(t.mutation(report, { api_token: "invalid", snapshot: sample(now) })).rejects.toThrow("Authentication");
-  expect(await t.mutation(report, { api_token: token, snapshot: sample(now) })).toEqual({ accepted: true, background_sessions: [], unattended_sessions: [] });
-  expect((await t.withIdentity({ subject: user }).query(listMine, {}))[0].snapshot).toEqual(sample(now));
+  await expect(
+    t.mutation(report, { api_token: "invalid", snapshot: sample(now) }),
+  ).rejects.toThrow("Authentication");
+  expect(
+    await t.mutation(report, { api_token: token, snapshot: sample(now) }),
+  ).toEqual({
+    accepted: true,
+    background_sessions: [],
+    unattended_sessions: [],
+  });
+  expect(
+    (await t.withIdentity({ subject: user }).query(listMine, {}))[0].snapshot,
+  ).toEqual(sample(now));
 });
 
 // The press is stored on the machine's row and answered to its daemon on the
@@ -83,33 +158,80 @@ test("a session put at background priority reaches its machine's daemon in the n
   const t = convexTest(schema, modules);
   const now = Date.now();
   const token = "resource-bg-token";
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
-    await ctx.db.insert("api_tokens", { user_id: id, token_hash: await hashToken(token), name: "test", created_at: now, last_used_at: now });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
+    await ctx.db.insert("api_tokens", {
+      user_id: id,
+      token_hash: await hashToken(token),
+      name: "test",
+      created_at: now,
+      last_used_at: now,
+    });
     return id;
   });
   const report = makeFunctionReference<"mutation">("machineResources:report");
-  const setBackground = makeFunctionReference<"mutation">("machineResources:setSessionBackground");
+  const setBackground = makeFunctionReference<"mutation">(
+    "machineResources:setSessionBackground",
+  );
   const as = t.withIdentity({ subject: user });
-  await expect(as.mutation(setBackground, { device_id: "mac", session_id: "s1", background: true })).rejects.toThrow("not reported");
+  await expect(
+    as.mutation(setBackground, {
+      device_id: "mac",
+      session_id: "s1",
+      background: true,
+    }),
+  ).rejects.toThrow("not reported");
   await t.mutation(report, { api_token: token, snapshot: sample(now) });
-  await as.mutation(setBackground, { device_id: "mac", session_id: "s1", background: true });
-  await as.mutation(setBackground, { device_id: "mac", session_id: "s1", background: true });
-  expect(await t.mutation(report, { api_token: token, snapshot: sample(now + 1) })).toEqual({ accepted: false, background_sessions: ["s1"] });
-  await expect(t.withIdentity({ subject: "someone-else" as any }).mutation(setBackground, { device_id: "mac", session_id: "s2", background: true })).rejects.toThrow();
-  await as.mutation(setBackground, { device_id: "mac", session_id: "s1", background: false });
+  await as.mutation(setBackground, {
+    device_id: "mac",
+    session_id: "s1",
+    background: true,
+  });
+  await as.mutation(setBackground, {
+    device_id: "mac",
+    session_id: "s1",
+    background: true,
+  });
+  expect(
+    await t.mutation(report, { api_token: token, snapshot: sample(now + 1) }),
+  ).toEqual({ accepted: false, background_sessions: ["s1"] });
+  await expect(
+    t.withIdentity({ subject: "someone-else" as any }).mutation(setBackground, {
+      device_id: "mac",
+      session_id: "s2",
+      background: true,
+    }),
+  ).rejects.toThrow();
+  await as.mutation(setBackground, {
+    device_id: "mac",
+    session_id: "s1",
+    background: false,
+  });
   expect((await as.query(listMine, {}))[0].background_sessions).toEqual([]);
 });
 
 test("an overload incident rings once when it starts, again only when it turns critical or after a quiet spell", () => {
   const now = 10 * 3600_000;
-  const elevated = { level: "elevated" as const, since: now - 3 * 60_000, reason: "CPU use has stayed above 90%" };
+  const elevated = {
+    level: "elevated" as const,
+    since: now - 3 * 60_000,
+    reason: "CPU use has stayed above 90%",
+  };
   expect(overloadAlertDue(null, undefined, now)).toBeNull();
   expect(overloadAlertDue(elevated, undefined, now)).toEqual(elevated);
   const rang = { since: elevated.since, level: "elevated" as const, at: now };
   expect(overloadAlertDue(elevated, rang, now + 60_000)).toBeNull();
-  expect(overloadAlertDue({ ...elevated, level: "critical" }, rang, now + 60_000)?.level).toBe("critical");
+  expect(
+    overloadAlertDue({ ...elevated, level: "critical" }, rang, now + 60_000)
+      ?.level,
+  ).toBe("critical");
   const next = { ...elevated, since: now + 5 * 60_000 };
   expect(overloadAlertDue(next, rang, now + 8 * 60_000)).toBeNull();
   expect(overloadAlertDue(next, rang, now + OVERLOAD_REALERT_MS)).toEqual(next);
@@ -119,100 +241,246 @@ test("the overload message names the cause, the vitals and the heaviest sessions
   const now = 10 * 3600_000;
   const words = overloadMessage({
     machine: "MacBook-Pro-182",
-    incident: { level: "elevated", since: now - 4 * 60_000, reason: "CPU use has stayed above 90%" },
-    sample: { at: now, cpuPercent: 96, memoryTotal: 128 * 2 ** 30, memoryAvailable: 34.5 * 2 ** 30, memoryAvailableIsEstimate: true, pressure: "normal", load1: 110, logicalCpus: 16 },
-    top: [{ title: "Agent feedback controls", cpu: 860, rss: 1.1 * 2 ** 30 }, { title: "Website warm cards", cpu: 40, rss: 684 * 2 ** 20 }],
+    incident: {
+      level: "elevated",
+      since: now - 4 * 60_000,
+      reason: "CPU use has stayed above 90%",
+    },
+    sample: {
+      at: now,
+      cpuPercent: 96,
+      memoryTotal: 128 * 2 ** 30,
+      memoryAvailable: 34.5 * 2 ** 30,
+      memoryAvailableIsEstimate: true,
+      pressure: "normal",
+      load1: 110,
+      logicalCpus: 16,
+    },
+    top: [
+      { title: "Agent feedback controls", cpu: 860, rss: 1.1 * 2 ** 30 },
+      { title: "Website warm cards", cpu: 40, rss: 684 * 2 ** 20 },
+    ],
     now,
   });
-  expect(words.message).toBe("MacBook-Pro-182 is overloaded. CPU use has stayed above 90% for 4 min. CPU 96%, memory 93.5 GB of 128 GB. Heaviest: Agent feedback controls (8.6 cores, 1.1 GB); Website warm cards (40%, 684 MB). Open it to move load to the cloud.");
+  expect(words.message).toBe(
+    "MacBook-Pro-182 is overloaded. CPU use has stayed above 90% for 4 min. CPU 96%, memory 93.5 GB of 128 GB. Heaviest: Agent feedback controls (8.6 cores, 1.1 GB); Website warm cards (40%, 684 MB). Open it to move load to the cloud.",
+  );
   expect(words.subtitle).toBe("CPU use has stayed above 90% for 4 min");
 });
 
 test("a laptop's sustained overload rings once from the sample that confirms it", async () => {
   const t = convexTest(schema, modules);
   const start = Date.now() - 10 * 60_000;
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", { name: "Owner" });
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "macOS - MacBook-Pro-182", platform: "darwin", last_seen: start });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "macOS - MacBook-Pro-182",
+      platform: "darwin",
+      last_seen: start,
+    });
     return id;
   });
-  const hot = (at: number): MachineResourceSnapshot => ({ ...sample(at), sample: { ...sample(at).sample, cpuPercent: 97 } });
+  const hot = (at: number): MachineResourceSnapshot => ({
+    ...sample(at),
+    sample: { ...sample(at).sample, cpuPercent: 97 },
+  });
   for (let i = 0; i <= 10; i++) {
     const at = start + i * 30_000;
-    await t.run(ctx => storeResourceSnapshot(ctx, user, hot(at), at));
+    await t.run((ctx) => storeResourceSnapshot(ctx, user, hot(at), at));
   }
-  const rows = await t.run(ctx => ctx.db.query("notifications").collect());
+  const rows = await t.run((ctx) => ctx.db.query("notifications").collect());
   expect(rows).toHaveLength(1);
-  expect(rows[0]).toMatchObject({ type: "machine_overloaded", entity_type: "machine", entity_id: "mac" });
-  expect(rows[0].message).toStartWith("MacBook-Pro-182 is overloaded. CPU use has stayed above 90%");
+  expect(rows[0]).toMatchObject({
+    type: "machine_overloaded",
+    entity_type: "machine",
+    entity_id: "mac",
+  });
+  expect(rows[0].message).toStartWith(
+    "MacBook-Pro-182 is overloaded. CPU use has stayed above 90%",
+  );
 });
 
 test("the governor's unattended set leaves out a person's session that hosts a workflow, and a session a person wrote to in the last half hour", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
-    const run = await ctx.db.insert("workflow_runs", { user_id: id, name: "deals-build", status: "running", started_at: now, updated_at: now } as any);
-    const session = async (session_id: string, fields: Record<string, unknown>) => {
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
+    const run = await ctx.db.insert("workflow_runs", {
+      user_id: id,
+      name: "deals-build",
+      status: "running",
+      started_at: now,
+      updated_at: now,
+    } as any);
+    const session = async (
+      session_id: string,
+      fields: Record<string, unknown>,
+    ) => {
       const conversation_id = await ctx.db.insert("conversations", {
-        user_id: id, agent_type: "claude_code", session_id, status: "active", message_count: 0, started_at: now, updated_at: now, is_private: true, ...fields,
+        user_id: id,
+        agent_type: "claude_code",
+        session_id,
+        status: "active",
+        message_count: 0,
+        started_at: now,
+        updated_at: now,
+        is_private: true,
+        ...fields,
       } as any);
-      await ctx.db.insert("managed_sessions", { session_id, conversation_id, user_id: id, pid: 1, started_at: now, last_heartbeat: now, agent_status: "working" });
+      await ctx.db.insert("managed_sessions", {
+        session_id,
+        conversation_id,
+        user_id: id,
+        pid: 1,
+        started_at: now,
+        last_heartbeat: now,
+        agent_status: "working",
+      });
       return conversation_id;
     };
     await session("host", { workflow_run_id: run });
     await session("station", { workflow_run_id: run, is_workflow_sub: true });
     await session("worker", { is_subagent: true });
     const talkedTo = await session("talked-to", { unattended: true });
-    await ctx.db.insert("pending_messages", { conversation_id: talkedTo, from_user_id: id, content: "continue", status: "delivered", created_at: now, human: true } as any);
+    await ctx.db.insert("pending_messages", {
+      conversation_id: talkedTo,
+      from_user_id: id,
+      content: "continue",
+      status: "delivered",
+      created_at: now,
+      human: true,
+    } as any);
     return id;
   });
-  const report = (at: number) => t.run(ctx => storeResourceSnapshot(ctx, user, {
-    ...sample(at),
-    processes: ["host", "station", "worker", "talked-to"].map((sessionId, i) => ({ pid: 100 + i, name: "claude", cpu: 1, rss: 1, sessionId })),
-  } as MachineResourceSnapshot, at));
-  expect([...((await report(now)).unattended_sessions ?? [])].sort()).toEqual(["station", "worker"]);
+  const report = (at: number) =>
+    t.run((ctx) =>
+      storeResourceSnapshot(
+        ctx,
+        user,
+        {
+          ...sample(at),
+          processes: ["host", "station", "worker", "talked-to"].map(
+            (sessionId, i) => ({
+              pid: 100 + i,
+              name: "claude",
+              cpu: 1,
+              rss: 1,
+              sessionId,
+            }),
+          ),
+        } as MachineResourceSnapshot,
+        at,
+      ),
+    );
+  expect([...((await report(now)).unattended_sessions ?? [])].sort()).toEqual([
+    "station",
+    "worker",
+  ]);
   const later = now + ATTENDED_AFTER_MESSAGE_MS + 60_000;
-  expect([...((await report(later)).unattended_sessions ?? [])].sort()).toEqual(["station", "talked-to", "worker"]);
+  expect([...((await report(later)).unattended_sessions ?? [])].sort()).toEqual(
+    ["station", "talked-to", "worker"],
+  );
 });
 
 test("the governor's unattended set leaves out a session with a message still on its way in, until it lands", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const { user, waiting } = await t.run(async ctx => {
+  const { user, waiting } = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
     const conversation_id = await ctx.db.insert("conversations", {
-      user_id: id, agent_type: "claude_code", session_id: "role", status: "active", message_count: 0, started_at: now, updated_at: now, is_private: true, unattended: true,
+      user_id: id,
+      agent_type: "claude_code",
+      session_id: "role",
+      status: "active",
+      message_count: 0,
+      started_at: now,
+      updated_at: now,
+      is_private: true,
+      unattended: true,
     } as any);
-    await ctx.db.insert("managed_sessions", { session_id: "role", conversation_id, user_id: id, pid: 1, started_at: now, last_heartbeat: now, agent_status: "idle" });
-    const waiting = await ctx.db.insert("pending_messages", { conversation_id, from_user_id: id, content: "<session-message from=\"jx7864d\">update</session-message>", status: "injected", created_at: now } as any);
+    await ctx.db.insert("managed_sessions", {
+      session_id: "role",
+      conversation_id,
+      user_id: id,
+      pid: 1,
+      started_at: now,
+      last_heartbeat: now,
+      agent_status: "idle",
+    });
+    const waiting = await ctx.db.insert("pending_messages", {
+      conversation_id,
+      from_user_id: id,
+      content: '<session-message from="jx7864d">update</session-message>',
+      status: "injected",
+      created_at: now,
+    } as any);
     return { user: id, waiting };
   });
-  const report = (at: number) => t.run(ctx => storeResourceSnapshot(ctx, user, {
-    ...sample(at),
-    processes: [{ pid: 100, name: "claude", cpu: 1, rss: 1, sessionId: "role" }],
-  } as MachineResourceSnapshot, at));
+  const report = (at: number) =>
+    t.run((ctx) =>
+      storeResourceSnapshot(
+        ctx,
+        user,
+        {
+          ...sample(at),
+          processes: [
+            { pid: 100, name: "claude", cpu: 1, rss: 1, sessionId: "role" },
+          ],
+        } as MachineResourceSnapshot,
+        at,
+      ),
+    );
   expect((await report(now)).unattended_sessions).toEqual([]);
-  await t.run(ctx => ctx.db.patch(waiting, { status: "delivered" }));
+  await t.run((ctx) => ctx.db.patch(waiting, { status: "delivered" }));
   expect((await report(now + 60_000)).unattended_sessions).toEqual(["role"]);
 });
 
 test("one device's report reads alone, scoped to its owner", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const [owner, other] = await t.run(async ctx => {
+  const [owner, other] = await t.run(async (ctx) => {
     const owner = await ctx.db.insert("users", { name: "Owner" });
     const other = await ctx.db.insert("users", { name: "Other" });
-    await ctx.db.insert("devices", { user_id: owner, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
+    await ctx.db.insert("devices", {
+      user_id: owner,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
     return [owner, other];
   });
-  await t.run(ctx => storeResourceSnapshot(ctx, owner, sample(now), now));
+  await t.run((ctx) => storeResourceSnapshot(ctx, owner, sample(now), now));
   expect(await t.query(getMine, { device_id: "mac" })).toBeNull();
-  expect(await t.withIdentity({ subject: other }).query(getMine, { device_id: "mac" })).toBeNull();
-  expect(await t.withIdentity({ subject: owner }).query(getMine, { device_id: "other-mac" })).toBeNull();
-  const row = await t.withIdentity({ subject: owner }).query(getMine, { device_id: "mac" });
+  expect(
+    await t
+      .withIdentity({ subject: other })
+      .query(getMine, { device_id: "mac" }),
+  ).toBeNull();
+  expect(
+    await t
+      .withIdentity({ subject: owner })
+      .query(getMine, { device_id: "other-mac" }),
+  ).toBeNull();
+  const row = await t
+    .withIdentity({ subject: owner })
+    .query(getMine, { device_id: "mac" });
   expect(row.device_id).toBe("mac");
   expect(row.history).toHaveLength(1);
 });
@@ -220,26 +488,61 @@ test("one device's report reads alone, scoped to its owner", async () => {
 test("a report whose process capture timed out keeps the last list while it is recent, stamped with its age", async () => {
   const t = convexTest(schema, modules);
   const now = Date.now();
-  const user = await t.run(async ctx => {
+  const user = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", {});
-    await ctx.db.insert("devices", { user_id: id, device_id: "mac", label: "Mac", platform: "darwin", last_seen: now });
+    await ctx.db.insert("devices", {
+      user_id: id,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: now,
+    });
     return id;
   });
-  const listed: MachineResourceSnapshot = { ...sample(now), processes: [{ pid: 7, ppid: 1, name: "claude", kind: "agent", cpu: 40, rss: 900, sessionId: "s1" }], groups: [{ kind: "agent", cpu: 40, rss: 900, processCount: 1 }] };
-  const timedOut = (at: number): MachineResourceSnapshot => ({ ...sample(at), sample: { ...sample(at).sample, processCount: undefined }, limitations: ["Process capture failed or timed out; process totals and session attribution are unavailable."] });
-  const read = async () => (await t.withIdentity({ subject: user }).query(listMine, {}))[0];
-  await t.run(ctx => storeResourceSnapshot(ctx, user, listed, now));
-  await t.run(ctx => storeResourceSnapshot(ctx, user, timedOut(now + 60_000), now + 60_000));
+  const listed: MachineResourceSnapshot = {
+    ...sample(now),
+    processes: [
+      {
+        pid: 7,
+        ppid: 1,
+        name: "claude",
+        kind: "agent",
+        cpu: 40,
+        rss: 900,
+        sessionId: "s1",
+      },
+    ],
+    groups: [{ kind: "agent", cpu: 40, rss: 900, processCount: 1 }],
+  };
+  const timedOut = (at: number): MachineResourceSnapshot => ({
+    ...sample(at),
+    sample: { ...sample(at).sample, processCount: undefined },
+    limitations: [
+      "Process capture failed or timed out; process totals and session attribution are unavailable.",
+    ],
+  });
+  const read = async () =>
+    (await t.withIdentity({ subject: user }).query(listMine, {}))[0];
+  await t.run((ctx) => storeResourceSnapshot(ctx, user, listed, now));
+  await t.run((ctx) =>
+    storeResourceSnapshot(ctx, user, timedOut(now + 60_000), now + 60_000),
+  );
   let row = await read();
-  expect(row.snapshot.processes.map((p: { sessionId?: string }) => p.sessionId)).toEqual(["s1"]);
+  expect(
+    row.snapshot.processes.map((p: { sessionId?: string }) => p.sessionId),
+  ).toEqual(["s1"]);
   expect(row.snapshot.processesAt).toBe(now);
   expect(row.snapshot.sample.at).toBe(now + 60_000);
   expect(row.snapshot.limitations[0]).toContain("60s before this sample");
   expect(row.history.at(-1).processCount).toBeUndefined();
   // A second miss keeps the original capture time, so the list ages out instead of renewing itself.
-  await t.run(ctx => storeResourceSnapshot(ctx, user, timedOut(now + 240_000), now + 240_000));
+  await t.run((ctx) =>
+    storeResourceSnapshot(ctx, user, timedOut(now + 240_000), now + 240_000),
+  );
   expect((await read()).snapshot.processesAt).toBe(now);
-  await t.run(ctx => storeResourceSnapshot(ctx, user, timedOut(now + 360_000), now + 360_000));
+  await t.run((ctx) =>
+    storeResourceSnapshot(ctx, user, timedOut(now + 360_000), now + 360_000),
+  );
   row = await read();
   expect(row.snapshot.processes).toEqual([]);
   expect(row.snapshot.processesAt).toBeUndefined();

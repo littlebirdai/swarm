@@ -24,15 +24,40 @@ const TOKEN = "revive-gate-test-token";
 async function setup(recovery: { cc_auto_continue?: boolean }) {
   const t = convexTest(schema, modules);
   const { conv } = await t.run(async (ctx) => {
-    const user = await ctx.db.insert("users", { emailVerificationTime: 1 } as any);
-    await ctx.db.insert("api_tokens", { user_id: user, token_hash: await hashToken(TOKEN), name: "cli", created_at: Date.now(), last_used_at: Date.now() } as any);
-    await ctx.db.insert("devices", { user_id: user, device_id: "mac", label: "Mac", platform: "darwin", last_seen: Date.now(), ...recovery } as any);
-    const conv = await ctx.db.insert("conversations", { user_id: user, agent_type: "claude_code", started_at: Date.now() } as any);
+    const user = await ctx.db.insert("users", {
+      emailVerificationTime: 1,
+    } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: user,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: Date.now(),
+      last_used_at: Date.now(),
+    } as any);
+    await ctx.db.insert("devices", {
+      user_id: user,
+      device_id: "mac",
+      label: "Mac",
+      platform: "darwin",
+      last_seen: Date.now(),
+      ...recovery,
+    } as any);
+    const conv = await ctx.db.insert("conversations", {
+      user_id: user,
+      agent_type: "claude_code",
+      started_at: Date.now(),
+    } as any);
     return { conv };
   });
   const send = (client_id: string) =>
-    t.mutation(api.pendingMessages.sendMessageToSession, { conversation_id: conv, content: "continue", client_id, api_token: TOKEN });
-  const queued = () => t.run((ctx) => ctx.db.query("pending_messages").collect());
+    t.mutation(api.pendingMessages.sendMessageToSession, {
+      conversation_id: conv,
+      content: "continue",
+      client_id,
+      api_token: TOKEN,
+    });
+  const queued = () =>
+    t.run((ctx) => ctx.db.query("pending_messages").collect());
   return { conv, send, queued };
 }
 

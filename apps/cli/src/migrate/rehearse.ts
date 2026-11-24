@@ -19,7 +19,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync, spawnSync } from "../proc.js";
-import type { MoveRehearsal, MoveRehearsalPath } from "@codecast/shared/contracts/moveRehearsal";
+import type {
+  MoveRehearsal,
+  MoveRehearsalPath,
+} from "@codecast/shared/contracts/moveRehearsal";
 import type { CloudHost } from "../browser/cloudHost.js";
 import { HOST_TOOLS_PATH, hostInstalls } from "../cloud/hostTools.js";
 import {
@@ -39,18 +42,41 @@ import { hostLoginGap, hostRoom } from "./hosts.js";
 
 /** Bytes of the files a folder transfer carries: everything under `dir` but what git ignores and the folder excludes. */
 export function transferBytes(dir: string): number | undefined {
-  const inRepo = spawnSync("git", ["-C", dir, "rev-parse", "--is-inside-work-tree"], { encoding: "utf-8" }).stdout?.trim() === "true";
+  const inRepo =
+    spawnSync("git", ["-C", dir, "rev-parse", "--is-inside-work-tree"], {
+      encoding: "utf-8",
+    }).stdout?.trim() === "true";
   if (inRepo) {
-    const r = spawnSync("git", ["-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard"], { encoding: "utf-8", maxBuffer: 256 * 1024 * 1024 });
+    const r = spawnSync(
+      "git",
+      [
+        "-C",
+        dir,
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+      ],
+      { encoding: "utf-8", maxBuffer: 256 * 1024 * 1024 },
+    );
     if (r.status !== 0) return undefined;
     let total = 0;
     for (const rel of (r.stdout ?? "").split("\0")) {
       if (!rel) continue;
-      try { const st = fs.lstatSync(path.join(dir, rel)); if (st.isFile()) total += st.size; } catch { /* deleted in the tree */ }
+      try {
+        const st = fs.lstatSync(path.join(dir, rel));
+        if (st.isFile()) total += st.size;
+      } catch {
+        /* deleted in the tree */
+      }
     }
     return total;
   }
-  const du = spawnSync("du", ["-sk", "-I", "node_modules", "-I", ".git", dir], { encoding: "utf-8", timeout: 30_000 });
+  const du = spawnSync("du", ["-sk", "-I", "node_modules", "-I", ".git", dir], {
+    encoding: "utf-8",
+    timeout: 30_000,
+  });
   const kb = Number((du.stdout ?? "").split(/\s/)[0]);
   return du.status === 0 && Number.isFinite(kb) ? kb * 1024 : undefined;
 }
@@ -65,14 +91,23 @@ export function formatBytes(n: number | undefined): string {
 /** This machine's OS as one short phrase ("macOS 26.2", "Linux 6.8"). */
 function localOs(): string {
   if (process.platform === "darwin") {
-    try { return `macOS ${execFileSync("sw_vers", ["-productVersion"], { encoding: "utf-8" }).trim()}`; } catch { return "macOS"; }
+    try {
+      return `macOS ${execFileSync("sw_vers", ["-productVersion"], { encoding: "utf-8" }).trim()}`;
+    } catch {
+      return "macOS";
+    }
   }
-  try { return `Linux ${execFileSync("uname", ["-r"], { encoding: "utf-8" }).trim().split("-")[0]}`; } catch { return process.platform; }
+  try {
+    return `Linux ${execFileSync("uname", ["-r"], { encoding: "utf-8" }).trim().split("-")[0]}`;
+  } catch {
+    return process.platform;
+  }
 }
 
 /** Two OS phrases differ in a way a toolchain notices: another OS, or another major version. */
 export function osDiffers(a: string, b: string): boolean {
-  const [na, va] = a.split(" "), [nb, vb] = b.split(" ");
+  const [na, va] = a.split(" "),
+    [nb, vb] = b.split(" ");
   if (na !== nb) return true;
   return !!va && !!vb && va.split(".")[0] !== vb.split(".")[0];
 }
@@ -82,11 +117,21 @@ export function hostProbeScript(paths: string[], tools: string[]): string {
   return [
     HOST_TOOLS_PATH,
     'export PATH="$PATH:/opt/homebrew/bin"',
-    hostFactLine("os", `if [ "$(uname -s)" = Darwin ]; then echo "macOS $(sw_vers -productVersion)"; else echo "Linux $(uname -r | cut -d- -f1)"; fi`),
+    hostFactLine(
+      "os",
+      `if [ "$(uname -s)" = Darwin ]; then echo "macOS $(sw_vers -productVersion)"; else echo "Linux $(uname -r | cut -d- -f1)"; fi`,
+    ),
     // Homebrew installs for this login: its own, or through sudo as the login that owns it (provisionMac: ec2-user).
-    hostFactLine("brew", `command -v brew >/dev/null && { [ "$(stat -f %Su "$(brew --prefix)" 2>/dev/null)" = "$(id -un)" ] || sudo -n true; } && echo yes`),
-    ...paths.map((p, i) => hostFactLine(`path${i}`, `test -e ${shellWord(p)} && echo yes`)),
-    ...tools.map((t, i) => hostFactLine(`tool${i}`, `command -v ${shellWord(t)}`)),
+    hostFactLine(
+      "brew",
+      `command -v brew >/dev/null && { [ "$(stat -f %Su "$(brew --prefix)" 2>/dev/null)" = "$(id -un)" ] || sudo -n true; } && echo yes`,
+    ),
+    ...paths.map((p, i) =>
+      hostFactLine(`path${i}`, `test -e ${shellWord(p)} && echo yes`),
+    ),
+    ...tools.map((t, i) =>
+      hostFactLine(`tool${i}`, `command -v ${shellWord(t)}`),
+    ),
   ].join("; ");
 }
 
@@ -103,7 +148,10 @@ export interface RehearseContext {
   now?: () => number;
 }
 
-export async function rehearseMove(sessionId: string, ctx: RehearseContext): Promise<MoveRehearsal> {
+export async function rehearseMove(
+  sessionId: string,
+  ctx: RehearseContext,
+): Promise<MoveRehearsal> {
   const s = resolveLocalSession(sessionId);
   const repo = isWorktree(s.cwd);
   const root = repo ? gitRootOf(s.cwd) : s.cwd;
@@ -112,12 +160,25 @@ export async function rehearseMove(sessionId: string, ctx: RehearseContext): Pro
   // The session's own checkout: the plan a move makes, stopped before it lands.
   let transfer: MoveRehearsal["transfer"];
   if (repo) {
-    const landing = await rehearseLanding(ctx.host, root, remoteRepoPath(ctx.host, root));
+    const landing = await rehearseLanding(
+      ctx.host,
+      root,
+      remoteRepoPath(ctx.host, root),
+    );
     if (landing.error) blockers.push(landing.error);
-    transfer = { method: "git", note: landing.hostHas ? "merges into the host checkout" : "clones the repository onto the host" };
+    transfer = {
+      method: "git",
+      note: landing.hostHas
+        ? "merges into the host checkout"
+        : "clones the repository onto the host",
+    };
   } else {
     const ignored = gitIgnoredPatterns(s.cwd).length;
-    transfer = { method: "files", bytes: transferBytes(s.cwd), ...(ignored ? { note: "leaves what git ignores" } : {}) };
+    transfer = {
+      method: "files",
+      bytes: transferBytes(s.cwd),
+      ...(ignored ? { note: "leaves what git ignores" } : {}),
+    };
   }
 
   const gap = await hostLoginGap(async () => ctx.host);
@@ -129,17 +190,38 @@ export async function rehearseMove(sessionId: string, ctx: RehearseContext): Pro
   const bring = new Set((ctx.bring ?? []).map((p) => path.resolve(p)));
   const areas = fp.areas.filter((a) => !bring.has(a.path));
   const facts = parseHostFacts(
-    ssh(ctx.host, hostProbeScript(areas.map((a) => remoteRepoPath(ctx.host, a.path)), fp.tools.map((t) => t.tool)), 60_000),
-    ["os", "brew", ...areas.map((_, i) => `path${i}`), ...fp.tools.map((_, i) => `tool${i}`)],
+    ssh(
+      ctx.host,
+      hostProbeScript(
+        areas.map((a) => remoteRepoPath(ctx.host, a.path)),
+        fp.tools.map((t) => t.tool),
+      ),
+      60_000,
+    ),
+    [
+      "os",
+      "brew",
+      ...areas.map((_, i) => `path${i}`),
+      ...fp.tools.map((_, i) => `tool${i}`),
+    ],
   );
 
   const missing: MoveRehearsalPath[] = areas
     .filter((_, i) => !facts[`path${i}`])
-    .map((a) => ({ path: a.path, kind: a.kind, bytes: transferBytes(a.path), writes: a.writes, uses: a.uses }));
+    .map((a) => ({
+      path: a.path,
+      kind: a.kind,
+      bytes: transferBytes(a.path),
+      writes: a.writes,
+      uses: a.uses,
+    }));
   const absentTools = fp.tools.filter((_, i) => !facts[`tool${i}`]);
   const brew = facts.brew === "yes";
   const here = localOs();
-  const machine = facts.os && osDiffers(here, facts.os) ? [`${here} here, ${facts.os} on the host`] : [];
+  const machine =
+    facts.os && osDiffers(here, facts.os)
+      ? [`${here} here, ${facts.os} on the host`]
+      : [];
 
   return {
     session_id: sessionId,
@@ -148,25 +230,59 @@ export async function rehearseMove(sessionId: string, ctx: RehearseContext): Pro
     blockers,
     transfer,
     missing,
-    services: fp.services.map((sv) => ({ label: sv.label, running: sv.running })),
-    tools: { missing: absentTools.map((t) => t.tool), installs: absentTools.filter((t) => hostInstalls(t, { mac: facts.os.startsWith("macOS"), brew })).map((t) => t.tool) },
+    services: fp.services.map((sv) => ({
+      label: sv.label,
+      running: sv.running,
+    })),
+    tools: {
+      missing: absentTools.map((t) => t.tool),
+      installs: absentTools
+        .filter((t) =>
+          hostInstalls(t, { mac: facts.os.startsWith("macOS"), brew }),
+        )
+        .map((t) => t.tool),
+    },
     machine,
   };
 }
 
 /** The rehearsal of a move to a destination this machine cannot reach: that alone blocks it. */
-export function unreachableRehearsal(sessionId: string, destinationId: string, why: string, now = Date.now()): MoveRehearsal {
-  return { session_id: sessionId, destination_id: destinationId, at: now, blockers: [why], transfer: { method: "files" }, missing: [], services: [], tools: { missing: [], installs: [] }, machine: [] };
+export function unreachableRehearsal(
+  sessionId: string,
+  destinationId: string,
+  why: string,
+  now = Date.now(),
+): MoveRehearsal {
+  return {
+    session_id: sessionId,
+    destination_id: destinationId,
+    at: now,
+    blockers: [why],
+    transfer: { method: "files" },
+    missing: [],
+    services: [],
+    tools: { missing: [], installs: [] },
+    machine: [],
+  };
 }
 
 /** The rehearsal as lines a moved agent reads in its notice: what it will not find on the host. */
 export function rehearsalNotice(r: MoveRehearsal): string[] {
   const out: string[] = [];
-  for (const m of r.missing) out.push(`${m.path} (${m.kind === "repo" ? "a repository" : "a folder"} this session ${m.writes ? "wrote to" : "used"}) is not on this host`);
+  for (const m of r.missing)
+    out.push(
+      `${m.path} (${m.kind === "repo" ? "a repository" : "a folder"} this session ${m.writes ? "wrote to" : "used"}) is not on this host`,
+    );
   const running = r.services.filter((sv) => sv.running);
-  if (running.length) out.push(`still running on the previous machine: ${running.map((sv) => sv.label).join(", ")}`);
+  if (running.length)
+    out.push(
+      `still running on the previous machine: ${running.map((sv) => sv.label).join(", ")}`,
+    );
   const absent = r.tools.missing.filter((t) => !r.tools.installs.includes(t));
-  if (absent.length) out.push(`commands this session ran that this host lacks: ${absent.join(", ")}`);
+  if (absent.length)
+    out.push(
+      `commands this session ran that this host lacks: ${absent.join(", ")}`,
+    );
   out.push(...r.machine);
   return out;
 }

@@ -19,12 +19,26 @@ type Review = Extract<WorksRow, { kind: "review" }>;
 type Insight = Extract<WorksRow, { kind: "stuck" | "building" }>;
 type Branch = Extract<WorksRow, { kind: "branch" }>;
 
-function Group({ label, unit, children }: { label: string; unit?: string; children: ReactNode }) {
+function Group({
+  label,
+  unit,
+  children,
+}: {
+  label: string;
+  unit?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-1.5">
       <div>
-        <h4 className="chg-ui text-[12px] font-medium text-sol-text/75">{label}</h4>
-        {unit && <p className="font-mono text-meta" style={{ color: ink(45) }}>{unit}</p>}
+        <h4 className="chg-ui text-[12px] font-medium text-sol-text/75">
+          {label}
+        </h4>
+        {unit && (
+          <p className="font-mono text-meta" style={{ color: ink(45) }}>
+            {unit}
+          </p>
+        )}
       </div>
       {children}
     </section>
@@ -32,7 +46,17 @@ function Group({ label, unit, children }: { label: string; unit?: string; childr
 }
 
 /** A group's first `cap` rows, then a quiet "+N more" that shows the rest. */
-function Capped<T>({ label, rows, cap, render }: { label: string; rows: readonly T[]; cap: number; render: (row: T) => ReactNode }) {
+function Capped<T>({
+  label,
+  rows,
+  cap,
+  render,
+}: {
+  label: string;
+  rows: readonly T[];
+  cap: number;
+  render: (row: T) => ReactNode;
+}) {
   const [all, setAll] = useState(false);
   if (!rows.length) return null;
   const more = rows.length - cap;
@@ -40,7 +64,11 @@ function Capped<T>({ label, rows, cap, render }: { label: string; rows: readonly
     <Group label={label}>
       {(all || more <= 0 ? rows : rows.slice(0, cap)).map(render)}
       {more > 0 && !all && (
-        <button type="button" onClick={() => setAll(true)} className="font-mono text-meta text-sol-text-dim transition-colors hover:text-sol-text">
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="font-mono text-meta text-sol-text-dim transition-colors hover:text-sol-text"
+        >
           +{more} more
         </button>
       )}
@@ -53,8 +81,17 @@ function Quote({ row, rule }: { row: Insight; rule: string }) {
     // The 2px rule is the quote mark. The pill sits at the end of the last line, never on a row of its own.
     <div className="border-l-2 pl-2.5" style={{ borderColor: rule }}>
       <div className="flex items-end gap-2">
-        <p className="chg-ui line-clamp-2 min-w-0 flex-1 text-[12.5px] leading-[1.5] text-sol-text/60" title={row.headline}>{row.headline}</p>
-        <SessionPills story={{ conversation_ids: [String(row.conversation_id)] }} max={1} className="shrink-0 leading-[1.5]" />
+        <p
+          className="chg-ui line-clamp-2 min-w-0 flex-1 text-[12.5px] leading-[1.5] text-sol-text/60"
+          title={row.headline}
+        >
+          {row.headline}
+        </p>
+        <SessionPills
+          story={{ conversation_ids: [String(row.conversation_id)] }}
+          max={1}
+          className="shrink-0 leading-[1.5]"
+        />
       </div>
       {row.shots?.length ? <Shots shots={row.shots} /> : null}
     </div>
@@ -68,8 +105,18 @@ function Shots({ shots }: { shots: readonly string[] }) {
   return (
     <div className="mt-1.5 flex gap-1.5">
       {shots.map((src, i) => (
-        <button key={src} type="button" onClick={() => gallery?.openList(images, i)} className="overflow-hidden rounded-[4px] border border-sol-border/30 hover:border-sol-border/70">
-          <img src={src} alt="" loading="lazy" className="h-14 w-24 object-cover object-top" />
+        <button
+          key={src}
+          type="button"
+          onClick={() => gallery?.openList(images, i)}
+          className="overflow-hidden rounded-[4px] border border-sol-border/30 hover:border-sol-border/70"
+        >
+          <img
+            src={src}
+            alt=""
+            loading="lazy"
+            className="h-14 w-24 object-cover object-top"
+          />
         </button>
       ))}
     </div>
@@ -77,11 +124,30 @@ function Shots({ shots }: { shots: readonly string[] }) {
 }
 
 function ReviewRow({ row }: { row: Review }) {
-  const state = row.draft ? "draft" : foldShepherdState({ checks_state: row.checks_state ?? undefined, review_decision: row.review_decision ?? undefined });
+  const state = row.draft
+    ? "draft"
+    : foldShepherdState({
+        checks_state: row.checks_state ?? undefined,
+        review_decision: row.review_decision ?? undefined,
+      });
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <PrStatusChip status={{ pr_id: String(row.pr_id), repository: row.repository, number: row.number, title: row.title, state, at: row.updated_at }} />
-      <span className="chg-ui min-w-0 flex-1 truncate text-[13px] text-sol-text/70" title={row.title}>{row.title}</span>
+      <PrStatusChip
+        status={{
+          pr_id: String(row.pr_id),
+          repository: row.repository,
+          number: row.number,
+          title: row.title,
+          state,
+          at: row.updated_at,
+        }}
+      />
+      <span
+        className="chg-ui min-w-0 flex-1 truncate text-[13px] text-sol-text/70"
+        title={row.title}
+      >
+        {row.title}
+      </span>
     </div>
   );
 }
@@ -89,9 +155,21 @@ function ReviewRow({ row }: { row: Review }) {
 function BranchRow({ row }: { row: Branch }) {
   return (
     <div className="flex min-w-0 items-center gap-2 font-mono text-meta">
-      <span className="min-w-0 flex-1 truncate text-sol-text/70" title={row.branch}>{row.branch}</span>
-      <span className="shrink-0 tabular-nums text-sol-text-dim" title={`${plural(row.commits, "commit")} in ${plural(row.stories, "story", "stories")}`}>{plural(row.commits, "commit")}</span>
-      {row.top_area && <AreaTag area={row.top_area} className="shrink-0 text-meta" />}
+      <span
+        className="min-w-0 flex-1 truncate text-sol-text/70"
+        title={row.branch}
+      >
+        {row.branch}
+      </span>
+      <span
+        className="shrink-0 tabular-nums text-sol-text-dim"
+        title={`${plural(row.commits, "commit")} in ${plural(row.stories, "story", "stories")}`}
+      >
+        {plural(row.commits, "commit")}
+      </span>
+      {row.top_area && (
+        <AreaTag area={row.top_area} className="shrink-0 text-meta" />
+      )}
     </div>
   );
 }
@@ -100,7 +178,8 @@ const touchCount = (n: number) => plural(n, "file touch", "file touches");
 
 /** An area with stories of its own names its commits; one without says its touches sit inside other stories. */
 function barTip(a: AreaTouch): string {
-  if (!a.stories) return `${areaLabel(a.area)}: ${touchCount(a.touches)}, inside other stories`;
+  if (!a.stories)
+    return `${areaLabel(a.area)}: ${touchCount(a.touches)}, inside other stories`;
   return `${areaLabel(a.area)}: ${touchCount(a.touches)} in ${plural(a.commits, "commit")}`;
 }
 
@@ -109,7 +188,15 @@ function barTip(a: AreaTouch): string {
  * words on hover, focus and to a screen reader. An area whose touches all sit
  * inside other stories has no story to filter to: it still answers, and does nothing.
  */
-function AreaBars({ areas, active, onArea }: { areas: readonly AreaTouch[]; active: readonly string[]; onArea?: (area: string) => void }) {
+function AreaBars({
+  areas,
+  active,
+  onArea,
+}: {
+  areas: readonly AreaTouch[];
+  active: readonly string[];
+  onArea?: (area: string) => void;
+}) {
   const colors = useAreaColors();
   const max = Math.max(1, ...areas.map((a) => a.touches));
   return (
@@ -123,14 +210,28 @@ function AreaBars({ areas, active, onArea }: { areas: readonly AreaTouch[]; acti
             aria-disabled={a.stories > 0 && onArea ? undefined : true}
             onClick={() => a.stories > 0 && onArea?.(a.area)}
             className={`-mx-1 grid w-[calc(100%+0.5rem)] grid-cols-[5.5rem_minmax(0,1fr)_2.5rem] items-center gap-2 rounded px-1 py-[1px] text-left transition-colors ${
-              a.stories > 0 && onArea ? "hover:bg-sol-bg-alt/60" : "cursor-default"
+              a.stories > 0 && onArea
+                ? "hover:bg-sol-bg-alt/60"
+                : "cursor-default"
             } ${active.includes(a.area) ? "bg-sol-bg-alt/60" : ""}`}
           >
-            <span className="truncate font-mono text-meta text-sol-text/60">{areaLabel(a.area)}</span>
-            <span className="h-1 rounded-[1px]" style={{ background: ink(8) }}>
-              <span className="block h-full rounded-[1px]" style={{ width: `${Math.max(3, (a.touches / max) * 100)}%`, background: a.stories ? areaFill(a.area, 55, colors) : ink(30) }} />
+            <span className="truncate font-mono text-meta text-sol-text/60">
+              {areaLabel(a.area)}
             </span>
-            <span className="text-right font-mono text-meta tabular-nums text-sol-text-dim">{a.touches}</span>
+            <span className="h-1 rounded-[1px]" style={{ background: ink(8) }}>
+              <span
+                className="block h-full rounded-[1px]"
+                style={{
+                  width: `${Math.max(3, (a.touches / max) * 100)}%`,
+                  background: a.stories
+                    ? areaFill(a.area, 55, colors)
+                    : ink(30),
+                }}
+              />
+            </span>
+            <span className="text-right font-mono text-meta tabular-nums text-sol-text-dim">
+              {a.touches}
+            </span>
           </button>
         </Tip>
       ))}
@@ -138,7 +239,15 @@ function AreaBars({ areas, active, onArea }: { areas: readonly AreaTouch[]; acti
   );
 }
 
-export function InTheWorks({ works, areas, areasLabel, live, viewed, activeAreas = [], onArea }: {
+export function InTheWorks({
+  works,
+  areas,
+  areasLabel,
+  live,
+  viewed,
+  activeAreas = [],
+  onArea,
+}: {
   works: readonly WorksRow[];
   areas: readonly AreaTouch[];
   /** The area filter, which the bars toggle. */
@@ -154,7 +263,8 @@ export function InTheWorks({ works, areas, areasLabel, live, viewed, activeAreas
   const building = works.filter((w): w is Insight => w.kind === "building");
   const reviews = works.filter((w): w is Review => w.kind === "review");
   const branches = works.filter((w): w is Branch => w.kind === "branch");
-  const moving = stuck.length + building.length + reviews.length + branches.length > 0;
+  const moving =
+    stuck.length + building.length + reviews.length + branches.length > 0;
   const bars = areas.length > 0 && (
     <Group label={areasLabel} unit="file touches">
       <AreaBars areas={areas} active={activeAreas} onArea={onArea} />
@@ -163,22 +273,52 @@ export function InTheWorks({ works, areas, areasLabel, live, viewed, activeAreas
   const rule = bars && <div className="h-px bg-sol-border/15" />;
   return (
     <ImageGalleryProvider>
-    <div className="chg-works-inner space-y-4">
-      {/* A past edition leads with the one group that is its own. */}
-      {!live && bars}
-      {!live && rule}
-      <div>
-        <h3 className="chg-ui text-[13px] font-semibold text-sol-text">{live ? "In the works" : "In the works now"}</h3>
-        {!live && <p className="mt-0.5 font-mono text-meta text-sol-text-dim">Live state, not {viewed}</p>}
+      <div className="chg-works-inner space-y-4">
+        {/* A past edition leads with the one group that is its own. */}
+        {!live && bars}
+        {!live && rule}
+        <div>
+          <h3 className="chg-ui text-[13px] font-semibold text-sol-text">
+            {live ? "In the works" : "In the works now"}
+          </h3>
+          {!live && (
+            <p className="mt-0.5 font-mono text-meta text-sol-text-dim">
+              Live state, not {viewed}
+            </p>
+          )}
+        </div>
+        {!moving && (
+          <p className="chg-ui text-[13px] text-sol-text-muted">
+            Nothing stuck, in progress or in review in the last two days.
+          </p>
+        )}
+        <Capped
+          label="Stuck"
+          rows={stuck}
+          cap={2}
+          render={(w) => <Quote key={w._id} row={w} rule={STUCK_RULE} />}
+        />
+        <Capped
+          label="In progress"
+          rows={building}
+          cap={2}
+          render={(w) => <Quote key={w._id} row={w} rule={ink(18)} />}
+        />
+        <Capped
+          label="In review"
+          rows={reviews}
+          cap={4}
+          render={(w) => <ReviewRow key={w._id} row={w} />}
+        />
+        <Capped
+          label="On branches now"
+          rows={branches}
+          cap={4}
+          render={(w) => <BranchRow key={w._id} row={w} />}
+        />
+        {live && rule}
+        {live && bars}
       </div>
-      {!moving && <p className="chg-ui text-[13px] text-sol-text-muted">Nothing stuck, in progress or in review in the last two days.</p>}
-      <Capped label="Stuck" rows={stuck} cap={2} render={(w) => <Quote key={w._id} row={w} rule={STUCK_RULE} />} />
-      <Capped label="In progress" rows={building} cap={2} render={(w) => <Quote key={w._id} row={w} rule={ink(18)} />} />
-      <Capped label="In review" rows={reviews} cap={4} render={(w) => <ReviewRow key={w._id} row={w} />} />
-      <Capped label="On branches now" rows={branches} cap={4} render={(w) => <BranchRow key={w._id} row={w} />} />
-      {live && rule}
-      {live && bars}
-    </div>
     </ImageGalleryProvider>
   );
 }

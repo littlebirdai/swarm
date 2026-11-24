@@ -63,21 +63,83 @@ import { browserHome } from "../profile.js";
 import { isRemoteDevice } from "../../remote/device.js";
 import { withSession, type CdpEndpoint } from "../cdp.js";
 import {
-  BRIDGE_DEFAULT_PORT, BRIDGE_PROTOCOL, LINK_HOST_PORT_BASE, LINK_HOST_PORT_SPAN, BRIDGE_STORE_URL, bridgeProof, CLOSE_BAD_TOKEN, CLOSE_EXTENSION_STANDBY, CLOSE_HANDSHAKE_TIMEOUT, CLOSE_SESSIONS_DROPPED, isNonce, isWebAuthnMethod, randomNonce, secretMatches, tabIdOfTarget,
-  targetIdOfTab, WEBAUTHN_REFUSAL, type BridgeGroup, type BridgeReply, type BridgeTab,
+  BRIDGE_DEFAULT_PORT,
+  BRIDGE_PROTOCOL,
+  LINK_HOST_PORT_BASE,
+  LINK_HOST_PORT_SPAN,
+  BRIDGE_STORE_URL,
+  bridgeProof,
+  CLOSE_BAD_TOKEN,
+  CLOSE_EXTENSION_STANDBY,
+  CLOSE_HANDSHAKE_TIMEOUT,
+  CLOSE_SESSIONS_DROPPED,
+  isNonce,
+  isWebAuthnMethod,
+  randomNonce,
+  secretMatches,
+  tabIdOfTarget,
+  targetIdOfTab,
+  WEBAUTHN_REFUSAL,
+  type BridgeGroup,
+  type BridgeReply,
+  type BridgeTab,
 } from "./protocol.js";
-import { eventMessage, RawJson, readEventFrame, readReplyFrame, replyId, replyMessage, TrafficMeter, UNRELAYED_EVENTS } from "./frames.js";
-import { FrameSessions, type FrameOut, type FrameRoute } from "./frameSessions.js";
-import { COOKIE_READS, filterCookieReply, methodRefusal, needsScope, scopeRefusal, webHost } from "./guardrails.js";
-import { checkUrl, isInternalUrl, loadMachinePolicy, loadSitePolicy, type SitePolicy } from "../policy.js";
+import {
+  eventMessage,
+  RawJson,
+  readEventFrame,
+  readReplyFrame,
+  replyId,
+  replyMessage,
+  TrafficMeter,
+  UNRELAYED_EVENTS,
+} from "./frames.js";
+import {
+  FrameSessions,
+  type FrameOut,
+  type FrameRoute,
+} from "./frameSessions.js";
+import {
+  COOKIE_READS,
+  filterCookieReply,
+  methodRefusal,
+  needsScope,
+  scopeRefusal,
+  webHost,
+} from "./guardrails.js";
+import {
+  checkUrl,
+  isInternalUrl,
+  loadMachinePolicy,
+  loadSitePolicy,
+  type SitePolicy,
+} from "../policy.js";
 import { humanInput } from "../humanInput.js";
-import { hashHostToken, matchHostClient, newHostClient, scopedSession, visibleSessions, type HostClients } from "./hostClients.js";
+import {
+  hashHostToken,
+  matchHostClient,
+  newHostClient,
+  scopedSession,
+  visibleSessions,
+  type HostClients,
+} from "./hostClients.js";
 import { extensionProfiles } from "./chromeProfiles.js";
 import { LEGACY_LINK_KEY, Links, TabIds, type ExtLink } from "./links.js";
 import { currentBuild, formatBuild, shouldReplaceHost } from "./hostBuild.js";
 import { fetchBridge, RETIRING_HEADER } from "./retiring.js";
 import {
-  consumePairingCode, hasPendingCodes, hmacHex, isProfileKey, issueProfileKey, matchPendingCode, pairingPath, profileSlug, readPairing, recordPairingFailure, xorHex, type ProfileRecord,
+  consumePairingCode,
+  hasPendingCodes,
+  hmacHex,
+  isProfileKey,
+  issueProfileKey,
+  matchPendingCode,
+  pairingPath,
+  profileSlug,
+  readPairing,
+  recordPairingFailure,
+  xorHex,
+  type ProfileRecord,
 } from "./pairing.js";
 
 // ---------------------------------------------------------------------------
@@ -126,7 +188,10 @@ export interface RememberedTab {
 }
 
 /** session key → the tabs granted to it, each with its last known URL. */
-export type SessionTabs = Record<string, Array<RememberedTab & { url: string }>>;
+export type SessionTabs = Record<
+  string,
+  Array<RememberedTab & { url: string }>
+>;
 
 /** session key → the tabs the human took back from it. */
 export type TakenBack = Record<string, RememberedTab[]>;
@@ -137,7 +202,9 @@ export function bridgeStatePath(): string {
 
 export function readBridgeState(): BridgeState | null {
   try {
-    return JSON.parse(fs.readFileSync(bridgeStatePath(), "utf-8")) as BridgeState;
+    return JSON.parse(
+      fs.readFileSync(bridgeStatePath(), "utf-8"),
+    ) as BridgeState;
   } catch {
     return null;
   }
@@ -153,10 +220,25 @@ export function writeBridgeState(state: BridgeState): void {
 
 export function updateBridgeHostState(
   owner: Pick<BridgeState, "port" | "token"> & { hostPid: number },
-  patch: Partial<Pick<BridgeState, "extensionConnected" | "extensionSeenAt" | "sessionTabs" | "takenBack" | "sessionProfiles">>,
+  patch: Partial<
+    Pick<
+      BridgeState,
+      | "extensionConnected"
+      | "extensionSeenAt"
+      | "sessionTabs"
+      | "takenBack"
+      | "sessionProfiles"
+    >
+  >,
 ): boolean {
   const current = readBridgeState();
-  if (!current || current.port !== owner.port || current.token !== owner.token || current.hostPid !== owner.hostPid) return false;
+  if (
+    !current ||
+    current.port !== owner.port ||
+    current.token !== owner.token ||
+    current.hostPid !== owner.hostPid
+  )
+    return false;
   writeBridgeState({ ...current, ...patch });
   return true;
 }
@@ -169,10 +251,16 @@ export function updateBridgeHostState(
  * user gets their own, from their uid. A host's extension is paired with its
  * port explicitly (hostExtension.ts), so it needs no default to find it.
  */
-export function defaultPort(env: NodeJS.ProcessEnv = process.env, remote = isRemoteDevice(), uid = process.getuid?.() ?? 0): number {
+export function defaultPort(
+  env: NodeJS.ProcessEnv = process.env,
+  remote = isRemoteDevice(),
+  uid = process.getuid?.() ?? 0,
+): number {
   const fromEnv = parseInt(env.CAST_BRIDGE_PORT ?? "", 10);
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
-  return remote ? REMOTE_BRIDGE_PORT_BASE + (uid % REMOTE_BRIDGE_PORT_SPAN) : BRIDGE_DEFAULT_PORT;
+  return remote
+    ? REMOTE_BRIDGE_PORT_BASE + (uid % REMOTE_BRIDGE_PORT_SPAN)
+    : BRIDGE_DEFAULT_PORT;
 }
 
 /** Per-user bridge ports on a remote device: below the shared default and the laptop links' range (laptopLink.ts LINK_HOST_PORT_BASE). */
@@ -205,12 +293,19 @@ export function rotateBridgeToken(): BridgeState {
  * live process holds that host's link: replacing its token would cut its
  * clients, and its own exit would then revoke the new one.
  */
-export function mintHostClientToken(hostId: string, label: string, holder = process.pid): { token: string } | { heldBy: number } {
+export function mintHostClientToken(
+  hostId: string,
+  label: string,
+  holder = process.pid,
+): { token: string } | { heldBy: number } {
   const state = ensureBridgeConfig();
   const cur = state.hostClients?.[hostId]?.holder;
   if (cur && cur !== holder && isPidAlive(cur)) return { heldBy: cur };
   const { token, record } = newHostClient(label, Date.now(), holder);
-  writeBridgeState({ ...state, hostClients: { ...(state.hostClients ?? {}), [hostId]: record } });
+  writeBridgeState({
+    ...state,
+    hostClients: { ...(state.hostClients ?? {}), [hostId]: record },
+  });
   return { token };
 }
 
@@ -224,7 +319,11 @@ export function revokeHostClient(hostId: string, hash?: string): boolean {
   // a read-back shows it gone.
   for (let i = 0; i < 5; i++) {
     const cur = readBridgeState();
-    if (!cur?.hostClients?.[hostId] || cur.hostClients[hostId].hash !== rec.hash) return true;
+    if (
+      !cur?.hostClients?.[hostId] ||
+      cur.hostClients[hostId].hash !== rec.hash
+    )
+      return true;
     const rest = { ...cur.hostClients };
     delete rest[hostId];
     writeBridgeState({ ...cur, hostClients: rest });
@@ -245,14 +344,23 @@ export type ProvenBridge = BridgeState & { readonly proven: true };
  * CAST_BROWSER_PROFILE): every endpoint built from here on carries it, and
  * the host opens the session's new tabs there and keeps the session in it.
  */
-let requestedProfile: string | null = process.env.CAST_BROWSER_PROFILE?.trim() || null;
+let requestedProfile: string | null =
+  process.env.CAST_BROWSER_PROFILE?.trim() || null;
 export function requestBrowserProfile(id: string | null | undefined): void {
   requestedProfile = id?.trim() || null;
 }
 
 /** The CDP HTTP face of the bridge, for listTargets/CdpConnection.fromPort. */
-export function bridgeEndpoint(state: ProvenBridge, session?: string | null): Exclude<CdpEndpoint, number> {
-  return { port: state.port, token: state.token, ...(session ? { session } : {}), ...(requestedProfile ? { profile: requestedProfile } : {}) };
+export function bridgeEndpoint(
+  state: ProvenBridge,
+  session?: string | null,
+): Exclude<CdpEndpoint, number> {
+  return {
+    port: state.port,
+    token: state.token,
+    ...(session ? { session } : {}),
+    ...(requestedProfile ? { profile: requestedProfile } : {}),
+  };
 }
 
 /**
@@ -286,11 +394,16 @@ export async function grantTab(
   const GRANT_TIMEOUT_MS = 45_000;
   let res: Response;
   try {
-    res = await fetchBridge(url, { method: "POST", signal: AbortSignal.timeout(GRANT_TIMEOUT_MS) });
+    res = await fetchBridge(url, {
+      method: "POST",
+      signal: AbortSignal.timeout(GRANT_TIMEOUT_MS),
+    });
   } catch (err) {
     const name = (err as { name?: string } | null)?.name;
     if (name === "TimeoutError" || name === "AbortError") {
-      throw new Error(`/grant did not answer within ${GRANT_TIMEOUT_MS}ms (the bridge host verifies a grant through the extension, whose process runs at background priority and was not scheduled)`);
+      throw new Error(
+        `/grant did not answer within ${GRANT_TIMEOUT_MS}ms (the bridge host verifies a grant through the extension, whose process runs at background priority and was not scheduled)`,
+      );
     }
     throw err;
   }
@@ -306,13 +419,20 @@ export async function grantTab(
     body = (await res.json()) as typeof body;
   } catch {}
   const detail = String(body.error ?? "");
-  if (opts.own && res.status === 409 && body.takenBack) throw new TabTakenBackError(detail || `the human took tab ${targetId} back from agents`, targetId);
+  if (opts.own && res.status === 409 && body.takenBack)
+    throw new TabTakenBackError(
+      detail || `the human took tab ${targetId} back from agents`,
+      targetId,
+    );
   throw new Error(detail || `bridge host answered ${res.status}`);
 }
 
 /** The session's own saved tab was taken back by the human from the toolbar (/grant answered 409). */
 export class TabTakenBackError extends Error {
-  constructor(message: string, readonly targetId: string) {
+  constructor(
+    message: string,
+    readonly targetId: string,
+  ) {
     super(message);
     this.name = "TabTakenBackError";
   }
@@ -338,11 +458,17 @@ export type HostProbe = "alive" | "impostor" | "down" | "busy";
  * leaves this process: the host is challenged with a nonce and must return
  * HMAC(token, "healthz:" + nonce).
  */
-export async function probeHost(state: Pick<BridgeState, "port" | "token">, timeoutMs = 1200): Promise<HostProbe> {
+export async function probeHost(
+  state: Pick<BridgeState, "port" | "token">,
+  timeoutMs = 1200,
+): Promise<HostProbe> {
   const nonce = randomNonce();
   let body: string;
   try {
-    const res = await fetch(`http://127.0.0.1:${state.port}/healthz?nonce=${nonce}`, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(
+      `http://127.0.0.1:${state.port}/healthz?nonce=${nonce}`,
+      { signal: AbortSignal.timeout(timeoutMs) },
+    );
     if (!res.ok) return "down";
     body = await res.text();
   } catch (err) {
@@ -351,7 +477,10 @@ export async function probeHost(state: Pick<BridgeState, "port" | "token">, time
   }
   if (!body.startsWith("cast-bridge")) return "down";
   const proof = /\bproof=([0-9a-f]{64})\b/.exec(body)?.[1];
-  const alive = secretMatches(bridgeProof(state.token, "healthz", nonce), proof);
+  const alive = secretMatches(
+    bridgeProof(state.token, "healthz", nonce),
+    proof,
+  );
   if (alive) probedBuilds.set(state.port, /\bbuild=(\S+)/.exec(body)?.[1]);
   return alive ? "alive" : "impostor";
 }
@@ -366,23 +495,47 @@ const retireAsked = new Set<number>();
  * that finds the host idle.
  */
 const RETIRE_BUSY_TTL_MS = 60_000;
-const retireBusyPath = (): string => path.join(browserHome(), "retire-busy.json");
-export function retireBusyNow(port: number, build: string | undefined, now = Date.now()): boolean {
+const retireBusyPath = (): string =>
+  path.join(browserHome(), "retire-busy.json");
+export function retireBusyNow(
+  port: number,
+  build: string | undefined,
+  now = Date.now(),
+): boolean {
   try {
-    const b = JSON.parse(fs.readFileSync(retireBusyPath(), "utf-8")) as { port?: number; build?: string; until?: number };
-    return b.port === port && b.build === build && typeof b.until === "number" && b.until > now;
+    const b = JSON.parse(fs.readFileSync(retireBusyPath(), "utf-8")) as {
+      port?: number;
+      build?: string;
+      until?: number;
+    };
+    return (
+      b.port === port &&
+      b.build === build &&
+      typeof b.until === "number" &&
+      b.until > now
+    );
   } catch {
     return false;
   }
 }
-function markRetireBusy(port: number, build: string | undefined, busy: boolean): void {
+function markRetireBusy(
+  port: number,
+  build: string | undefined,
+  busy: boolean,
+): void {
   try {
     if (!busy) return fs.rmSync(retireBusyPath(), { force: true });
     fs.mkdirSync(browserHome(), { recursive: true, mode: 0o700 });
     const tmp = `${retireBusyPath()}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ port, build, until: Date.now() + RETIRE_BUSY_TTL_MS }), { mode: 0o600 });
+    fs.writeFileSync(
+      tmp,
+      JSON.stringify({ port, build, until: Date.now() + RETIRE_BUSY_TTL_MS }),
+      { mode: 0o600 },
+    );
     fs.renameSync(tmp, retireBusyPath());
-  } catch { /* the next process asks again; nothing depends on the stamp */ }
+  } catch {
+    /* the next process asks again; nothing depends on the stamp */
+  }
 }
 
 /** The build each proven host stamped on its last /healthz (hostBuild.ts); undefined for a host from before stamps. */
@@ -395,29 +548,43 @@ const probedBuilds = new Map<number, string | undefined>();
  * running: the command uses it as it is, never waiting on the swap, and no
  * process asks again until the busy stamp lapses.
  */
-export async function retireOlderHost(state: BridgeState, note?: (line: string) => void): Promise<"retired" | "busy" | "kept"> {
+export async function retireOlderHost(
+  state: BridgeState,
+  note?: (line: string) => void,
+): Promise<"retired" | "busy" | "kept"> {
   const theirs = probedBuilds.get(state.port);
-  if (process.env.CAST_BRIDGE_NO_SWAP === "1" || !shouldReplaceHost(theirs)) return "kept";
+  if (process.env.CAST_BRIDGE_NO_SWAP === "1" || !shouldReplaceHost(theirs))
+    return "kept";
   // Once per process: a command looks the bridge up several times, and a
   // busy host would cost it the drain on every lookup. The next command asks again.
-  if (retireAsked.has(state.port) || retireBusyNow(state.port, theirs)) return "busy";
+  if (retireAsked.has(state.port) || retireBusyNow(state.port, theirs))
+    return "busy";
   retireAsked.add(state.port);
   let res: Response;
   try {
-    res = await fetch(`http://127.0.0.1:${state.port}/retire?token=${encodeURIComponent(state.token)}`, { method: "POST", signal: AbortSignal.timeout(3_000) });
+    res = await fetch(
+      `http://127.0.0.1:${state.port}/retire?token=${encodeURIComponent(state.token)}`,
+      { method: "POST", signal: AbortSignal.timeout(3_000) },
+    );
   } catch {
     return "busy";
   }
   markRetireBusy(state.port, theirs, res.status === 409);
   if (!res.ok) return res.status === 409 ? "busy" : "kept";
-  note?.(`replacing the bridge host (build ${theirs}) with this cast's (build ${formatBuild(currentBuild())}); the extension reconnects on its own…`);
+  note?.(
+    `replacing the bridge host (build ${theirs}) with this cast's (build ${formatBuild(currentBuild())}); the extension reconnects on its own…`,
+  );
   const gone = Date.now() + 10_000;
-  while (Date.now() < gone && (await probeHost(state, 500)) !== "down") await sleep(150);
+  while (Date.now() < gone && (await probeHost(state, 500)) !== "down")
+    await sleep(150);
   return "retired";
 }
 
 /** The config as a proven host, or the reason the port cannot be trusted. */
-export async function proveBridgeHost(state: BridgeState, timeoutMs = 1200): Promise<ProvenBridge> {
+export async function proveBridgeHost(
+  state: BridgeState,
+  timeoutMs = 1200,
+): Promise<ProvenBridge> {
   const probe = await probeHost(state, timeoutMs);
   if (probe === "alive") return { ...state, proven: true };
   throw unprovenHostError(state, probe, timeoutMs);
@@ -429,7 +596,11 @@ export async function proveBridgeHost(state: BridgeState, timeoutMs = 1200): Pro
  * session's in-flight command and tab attachment died with it while the
  * machine stayed exactly as loaded.
  */
-function unprovenHostError(state: BridgeState, probe: Exclude<HostProbe, "alive">, waitedMs: number): Error {
+function unprovenHostError(
+  state: BridgeState,
+  probe: Exclude<HostProbe, "alive">,
+  waitedMs: number,
+): Error {
   return new Error(
     probe === "impostor"
       ? `something on 127.0.0.1:${state.port} answers like a bridge host but cannot prove it holds the token — ` +
@@ -449,7 +620,10 @@ function unprovenHostError(state: BridgeState, probe: Exclude<HostProbe, "alive"
  */
 const PATIENT_PROBE_MS = 15_000;
 
-export async function probeHostPatiently(state: Pick<BridgeState, "port" | "token">, budgetMs = PATIENT_PROBE_MS): Promise<HostProbe> {
+export async function probeHostPatiently(
+  state: Pick<BridgeState, "port" | "token">,
+  budgetMs = PATIENT_PROBE_MS,
+): Promise<HostProbe> {
   const deadline = Date.now() + budgetMs;
   let timeout = 1200;
   let probe = await probeHost(state, timeout);
@@ -479,12 +653,25 @@ export const bridgeHostPlistXml = launchdJobPlistXml;
 const respawnDetached: BridgeHostStarter = (state) => {
   const base = path.basename(process.execPath).toLowerCase();
   const viaRuntime = base.includes("bun") || base.includes("node");
-  const args = viaRuntime ? [process.argv[1], "browser", "bridge-host"] : ["browser", "bridge-host"];
+  const args = viaRuntime
+    ? [process.argv[1], "browser", "bridge-host"]
+    : ["browser", "bridge-host"];
   fs.mkdirSync(browserHome(), { recursive: true, mode: 0o700 });
-  if (startLaunchdJob({ label: `sh.codecast.bridge-host.${state.port}`, argv: [process.execPath, ...args], plistPath: path.join(browserHome(), "bridge-host.plist"), logPath: bridgeHostLogPath() })) return;
+  if (
+    startLaunchdJob({
+      label: `sh.codecast.bridge-host.${state.port}`,
+      argv: [process.execPath, ...args],
+      plistPath: path.join(browserHome(), "bridge-host.plist"),
+      logPath: bridgeHostLogPath(),
+    })
+  )
+    return;
   const log = fs.openSync(bridgeHostLogPath(), "a", 0o600);
   try {
-    const child = spawn(process.execPath, args, { detached: true, stdio: ["ignore", log, log] });
+    const child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: ["ignore", log, log],
+    });
     child.unref();
   } finally {
     fs.closeSync(log);
@@ -502,14 +689,22 @@ export const HOST_START_WAIT_MS = 90_000;
 
 export async function ensureBridgeHost(
   start: BridgeHostStarter = respawnDetached,
-  deps: { staleHostPids?: (port: number) => number[]; kill?: (pid: number) => void; note?: (line: string) => void } = {},
+  deps: {
+    staleHostPids?: (port: number) => number[];
+    kill?: (pid: number) => void;
+    note?: (line: string) => void;
+  } = {},
 ): Promise<ProvenBridge & { started: boolean }> {
   const state = ensureBridgeConfig();
   // Patient on purpose: a host whose loop is starved on a loaded machine
   // reads as "busy", and the right move is to wait for it, never to spawn a
   // second one against its port.
   let probe = await probeHostPatiently(state);
-  if (probe === "alive" && (await retireOlderHost(state, deps.note)) === "retired") probe = await probeHost(state, 500);
+  if (
+    probe === "alive" &&
+    (await retireOlderHost(state, deps.note)) === "retired"
+  )
+    probe = await probeHost(state, 500);
   if (probe === "alive") return { ...state, proven: true, started: false };
   if (probe === "impostor") {
     // A bridge host of ours that holds another token: left behind by a
@@ -519,16 +714,19 @@ export async function ensureBridgeHost(
     // rather than reported for a person to hunt down. Anything else on the
     // port is not ours to touch and is named as before.
     const stale = (deps.staleHostPids ?? bridgeHostPidsOnPort)(state.port);
-    if (!stale.length) return { ...(await proveBridgeHost(state)), started: false };
+    if (!stale.length)
+      return { ...(await proveBridgeHost(state)), started: false };
     for (const pid of stale) {
       try {
         (deps.kill ?? ((p) => process.kill(p, "SIGTERM")))(pid);
       } catch {}
     }
     const gone = Date.now() + 5_000;
-    while (Date.now() < gone && (await probeHost(state, 500)) !== "down") await sleep(150);
+    while (Date.now() < gone && (await probeHost(state, 500)) !== "down")
+      await sleep(150);
     probe = await probeHost(state, 500);
-    if (probe !== "down") return { ...(await proveBridgeHost(state)), started: false };
+    if (probe !== "down")
+      return { ...(await proveBridgeHost(state)), started: false };
   } else if (probe === "busy") {
     // Already waited out probeHostPatiently's whole budget: report that wait,
     // not a fresh one-second probe that says less.
@@ -549,12 +747,16 @@ export async function ensureBridgeHost(
   let noted = false;
   while (Date.now() < deadline) {
     const p = await probeHost(state, 3_000);
-    if (p === "alive") return { ...(readBridgeState() ?? state), proven: true, started: true };
-    if (p === "impostor") return { ...(await proveBridgeHost(state)), started: false };
+    if (p === "alive")
+      return { ...(readBridgeState() ?? state), proven: true, started: true };
+    if (p === "impostor")
+      return { ...(await proveBridgeHost(state)), started: false };
     if (p === "down") await sleep(150);
     if (!noted && deps.note && Date.now() - startedAt > 5_000) {
       noted = true;
-      deps.note(`waiting for the bridge host to start (a fresh cast process, slow on a loaded machine; up to ${HOST_START_WAIT_MS / 1000}s)…`);
+      deps.note(
+        `waiting for the bridge host to start (a fresh cast process, slow on a loaded machine; up to ${HOST_START_WAIT_MS / 1000}s)…`,
+      );
     }
   }
   throw new Error(
@@ -572,11 +774,19 @@ export async function ensureBridgeHost(
 export function bridgeHostPidsOnPort(port: number): number[] {
   const out: number[] = [];
   try {
-    const listing = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], { encoding: "utf-8", timeout: 5_000 }).stdout ?? "";
+    const listing =
+      spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
+        encoding: "utf-8",
+        timeout: 5_000,
+      }).stdout ?? "";
     for (const line of listing.split("\n")) {
       const pid = parseInt(line.trim(), 10);
       if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) continue;
-      const cmd = spawnSync("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf-8", timeout: 3_000 }).stdout ?? "";
+      const cmd =
+        spawnSync("ps", ["-p", String(pid), "-o", "command="], {
+          encoding: "utf-8",
+          timeout: 3_000,
+        }).stdout ?? "";
       if (/\bbrowser bridge-host\b/.test(cmd)) out.push(pid);
     }
   } catch {
@@ -623,11 +833,19 @@ export interface BridgeProfileStatus {
 }
 
 /** Ask a running host whether the extension is connected. */
-export async function bridgeStatus(state: ProvenBridge): Promise<BridgeHostStatus> {
-  const res = await fetchBridge(`http://127.0.0.1:${state.port}/status?token=${encodeURIComponent(state.token)}`, {
-    signal: AbortSignal.timeout(3000),
-  });
-  if (!res.ok) throw new Error(`bridge host answered ${res.status} — token mismatch? re-run \`cast browser extension setup\``);
+export async function bridgeStatus(
+  state: ProvenBridge,
+): Promise<BridgeHostStatus> {
+  const res = await fetchBridge(
+    `http://127.0.0.1:${state.port}/status?token=${encodeURIComponent(state.token)}`,
+    {
+      signal: AbortSignal.timeout(3000),
+    },
+  );
+  if (!res.ok)
+    throw new Error(
+      `bridge host answered ${res.status} — token mismatch? re-run \`cast browser extension setup\``,
+    );
   return (await res.json()) as BridgeHostStatus;
 }
 
@@ -637,17 +855,24 @@ export async function bridgeStatus(state: ProvenBridge): Promise<BridgeHostStatu
  * the op exists answers "unknown op", which the host relays as the error.
  */
 export async function reloadExtension(state: ProvenBridge): Promise<void> {
-  const res = await fetchBridge(`http://127.0.0.1:${state.port}/reload?token=${encodeURIComponent(state.token)}`, {
-    method: "POST",
-    signal: AbortSignal.timeout(8000),
-  });
+  const res = await fetchBridge(
+    `http://127.0.0.1:${state.port}/reload?token=${encodeURIComponent(state.token)}`,
+    {
+      method: "POST",
+      signal: AbortSignal.timeout(8000),
+    },
+  );
   if (res.ok) return;
   let detail = "";
   try {
     detail = String(((await res.json()) as { error?: string }).error ?? "");
   } catch {}
-  if (res.status === 404) detail = "this bridge host predates the reload route — stop it (cast browser extension revoke rotates the token; or kill the hostPid in bridge.json) and run any verb to start a fresh one";
-  throw new Error(`bridge host answered ${res.status}${detail ? ` — ${detail}` : ""}`);
+  if (res.status === 404)
+    detail =
+      "this bridge host predates the reload route — stop it (cast browser extension revoke rotates the token; or kill the hostPid in bridge.json) and run any verb to start a fresh one";
+  throw new Error(
+    `bridge host answered ${res.status}${detail ? ` — ${detail}` : ""}`,
+  );
 }
 
 /**
@@ -677,7 +902,9 @@ export async function waitForExtension(
     if (last.extensionConnected || Date.now() >= deadline) return last;
     if (!noted && opts.note && Date.now() >= noteAt) {
       noted = true;
-      opts.note(`waiting for the Chrome extension to reconnect (up to ${Math.round(timeoutMs / 1000)}s)…`);
+      opts.note(
+        `waiting for the Chrome extension to reconnect (up to ${Math.round(timeoutMs / 1000)}s)…`,
+      );
     }
     await sleep(250);
   }
@@ -687,7 +914,11 @@ export async function waitForExtension(
  * The first connected profile `match` accepts, within `timeoutMs`; null when
  * none arrives. What `setup` waits on after handing Chrome a pairing code.
  */
-export async function waitForPairedProfile(state: ProvenBridge, timeoutMs: number, match: (p: BridgeProfileStatus) => boolean): Promise<BridgeProfileStatus | null> {
+export async function waitForPairedProfile(
+  state: ProvenBridge,
+  timeoutMs: number,
+  match: (p: BridgeProfileStatus) => boolean,
+): Promise<BridgeProfileStatus | null> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const s = await bridgeStatus(state).catch(() => null);
@@ -746,13 +977,25 @@ interface PendingExt {
 }
 
 /** Events the host reads for child sessions (frameSessions.ts); the two Target ones are never relayed as Chrome sent them. */
-const FRAME_EVENTS: ReadonlySet<string> = new Set(["Target.attachedToTarget", "Target.detachedFromTarget", "Page.frameNavigated"]);
+const FRAME_EVENTS: ReadonlySet<string> = new Set([
+  "Target.attachedToTarget",
+  "Target.detachedFromTarget",
+  "Page.frameNavigated",
+]);
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 
 /** The HTTP routes a cloud host's token reaches (hostClients.ts): what a CDP client asks, and the status that says whether the extension is there. */
 const HOST_CLIENT_SWEEP_MS = 2_000;
-const HOST_CLIENT_ROUTES = new Set(["/json/version", "/json/version/", "/json", "/json/list", "/json/list/", "/status", "/grant"]);
+const HOST_CLIENT_ROUTES = new Set([
+  "/json/version",
+  "/json/version/",
+  "/json",
+  "/json/list",
+  "/json/list/",
+  "/status",
+  "/grant",
+]);
 
 /** How long a fresh extension socket may stay silent before its hello is due. */
 const HELLO_TIMEOUT_MS = 15_000;
@@ -792,7 +1035,9 @@ const MAX_PENDING_EXT_HANDSHAKES = 4;
  * token check means a probing page learns nothing, not even whether a stolen
  * token would have worked.
  */
-export function bridgeUpgradeOriginAllowed(origin: string | string[] | undefined): boolean {
+export function bridgeUpgradeOriginAllowed(
+  origin: string | string[] | undefined,
+): boolean {
   if (origin === undefined) return true;
   if (typeof origin !== "string") return false;
   return /^(chrome|moz)-extension:\/\/[a-z0-9-]+\/?$/i.test(origin);
@@ -816,7 +1061,8 @@ const EXTENSION_SILENCE_MS = 5 * 60_000;
 function parseGroup(raw: unknown): BridgeGroup | null {
   if (!raw || typeof raw !== "object") return null;
   const { title, color } = raw as Record<string, unknown>;
-  if (typeof title !== "string" || !title.trim() || typeof color !== "string") return null;
+  if (typeof title !== "string" || !title.trim() || typeof color !== "string")
+    return null;
   return { title, color: color as BridgeGroup["color"] };
 }
 
@@ -856,12 +1102,17 @@ export async function startBridgeHost(opts: {
   /** Whether a cloud host may still drive the Chrome (`laptopBrowser`); its token may stay alive for the computer face alone. */
   hostAllowsBrowser?: (host: string) => boolean;
   /** Serve one cloud host's `/computer` socket (computer/remoteServe.ts); absent, the face is refused. */
-  computer?: (ws: BridgeSocket, caller: { host: string; session: string | null; tokenLive: () => boolean }) => void;
+  computer?: (
+    ws: BridgeSocket,
+    caller: { host: string; session: string | null; tokenLive: () => boolean },
+  ) => void;
   /** Take-back marks and each session's profile, as a previous host left them. */
   takenBack?: TakenBack;
   sessionProfiles?: Record<string, string>;
   /** Called with all the tab state whenever any of it changes, for the host process to persist. */
-  onTabState?: (state: Pick<BridgeState, "sessionTabs" | "takenBack" | "sessionProfiles">) => void;
+  onTabState?: (
+    state: Pick<BridgeState, "sessionTabs" | "takenBack" | "sessionProfiles">,
+  ) => void;
   /** The paired profiles as they stand now (pairing.ts); read on every hello and swept for revokes. */
   profiles?: () => Record<string, ProfileRecord> | undefined;
   /** Profile keys revoked one by one (pairing.ts): the shared token never migrates one back in. */
@@ -883,7 +1134,9 @@ export async function startBridgeHost(opts: {
   /** Each live cloud-host socket and the hash of the token that opened it. */
   const hostClientTokens = new Map<Client, string>();
   /** Who a presented CDP token belongs to: this machine (host null), one cloud host, or nobody. */
-  const clientOf = (presented: string | null | undefined): { host: string | null } | null => {
+  const clientOf = (
+    presented: string | null | undefined,
+  ): { host: string | null } | null => {
     if (secretMatches(token, presented)) return { host: null };
     const host = matchHostClient(opts.hostClients?.(), presented);
     return host && (opts.hostAllowsBrowser?.(host) ?? true) ? { host } : null;
@@ -907,7 +1160,8 @@ export async function startBridgeHost(opts: {
       lastActivityAt = Date.now();
     });
   };
-  const defaultLink = (): ExtLink | undefined => links.default(opts.pinnedProfile?.());
+  const defaultLink = (): ExtLink | undefined =>
+    links.default(opts.pinnedProfile?.());
   const notConnected = (): Error =>
     new Error(
       `the cast bridge extension is not connected (Codecast, ${BRIDGE_STORE_URL}): \`cast browser extension status\` puts the pairing card in front of the person when it is missing`,
@@ -928,7 +1182,13 @@ export async function startBridgeHost(opts: {
    * id on the way out. A request with no tab goes to `via`, else the default
    * profile.
    */
-  const extRequest = (op: string, payload: Record<string, unknown> = {}, timeoutMs = 30_000, raw = false, via?: ExtLink): Promise<BridgeReply> => {
+  const extRequest = (
+    op: string,
+    payload: Record<string, unknown> = {},
+    timeoutMs = 30_000,
+    raw = false,
+    via?: ExtLink,
+  ): Promise<BridgeReply> => {
     let link = via;
     let out = payload;
     if (typeof payload.tabId === "number") {
@@ -936,16 +1196,27 @@ export async function startBridgeHost(opts: {
       if (at) {
         link = links.get(at.link);
         out = { ...payload, tabId: at.tab };
-        if (!link) return Promise.reject(new Error(`tab ${targetIdOfTab(payload.tabId)} is in Chrome profile "${at.link}", which is not connected`));
+        if (!link)
+          return Promise.reject(
+            new Error(
+              `tab ${targetIdOfTab(payload.tabId)} is in Chrome profile "${at.link}", which is not connected`,
+            ),
+          );
       } else {
         // A tab no listing has named yet: with one profile its id is Chrome's own.
         const all = links.list();
-        if (all.length > 1) return Promise.reject(new Error(`No target with given id found (tab ${targetIdOfTab(payload.tabId)})`));
+        if (all.length > 1)
+          return Promise.reject(
+            new Error(
+              `No target with given id found (tab ${targetIdOfTab(payload.tabId)})`,
+            ),
+          );
         link = all[0];
       }
     }
     link ??= defaultLink();
-    if (!link || link.ws.readyState !== WebSocket.OPEN) return Promise.reject(notConnected());
+    if (!link || link.ws.readyState !== WebSocket.OPEN)
+      return Promise.reject(notConnected());
     const to = link;
     return new Promise((resolve, reject) => {
       const id = nextExtId++;
@@ -963,7 +1234,10 @@ export async function startBridgeHost(opts: {
         );
       }, timeoutMs);
       extPending.set(id, {
-        label: op === "cdp" && typeof payload.method === "string" ? payload.method : op,
+        label:
+          op === "cdp" && typeof payload.method === "string"
+            ? payload.method
+            : op,
         raw,
         link: to,
         resolve: (r) => {
@@ -979,7 +1253,13 @@ export async function startBridgeHost(opts: {
     });
   };
 
-  const extCall = async (op: string, payload: Record<string, unknown> = {}, timeoutMs?: number, raw = false, via?: ExtLink): Promise<BridgeReply> => {
+  const extCall = async (
+    op: string,
+    payload: Record<string, unknown> = {},
+    timeoutMs?: number,
+    raw = false,
+    via?: ExtLink,
+  ): Promise<BridgeReply> => {
     const r = await extRequest(op, payload, timeoutMs, raw, via);
     if (!r.ok) throw new Error(String(r.error ?? `${op} failed`));
     return r;
@@ -1010,7 +1290,9 @@ export async function startBridgeHost(opts: {
   const takenBack = new Map<string, Set<number>>();
   // The profile each session works in (links.ts id): its first tab's, or the
   // one it asked for. A session stays there; it never sees another's tabs.
-  const sessionProfiles = new Map<string, string>(Object.entries(opts.sessionProfiles ?? {}));
+  const sessionProfiles = new Map<string, string>(
+    Object.entries(opts.sessionProfiles ?? {}),
+  );
   const restored = opts.sessionTabs ?? {};
   // Restored tabs whose profile is not known yet (state from before
   // profiles): the first profile to list its tabs claims them.
@@ -1025,38 +1307,64 @@ export async function startBridgeHost(opts: {
   }
   for (const [session, tabs] of Object.entries(opts.takenBack ?? {})) {
     takenBack.set(session, new Set(tabs.map((t) => t.tabId)));
-    for (const t of tabs) if (t.profile) tabIds.seed(t.tabId, t.profile, t.chromeTabId ?? t.tabId);
+    for (const t of tabs)
+      if (t.profile) tabIds.seed(t.tabId, t.profile, t.chromeTabId ?? t.tabId);
   }
   /** Profiles whose first listing has checked the restored partition against their live tabs. */
   const prunedLinks = new Set<string>();
   const remembered = (tabId: number): RememberedTab => {
     const at = tabIds.chrome(tabId);
-    return { tabId, ...(at ? { profile: at.link, ...(at.tab !== tabId ? { chromeTabId: at.tab } : {}) } : {}) };
+    return {
+      tabId,
+      ...(at
+        ? {
+            profile: at.link,
+            ...(at.tab !== tabId ? { chromeTabId: at.tab } : {}),
+          }
+        : {}),
+    };
   };
   const persist = (): void => {
     const out: SessionTabs = {};
     for (const [session, tabs] of sessionTabs) {
-      if (tabs.size) out[session] = [...tabs].map(([tabId, url]) => ({ ...remembered(tabId), url }));
+      if (tabs.size)
+        out[session] = [...tabs].map(([tabId, url]) => ({
+          ...remembered(tabId),
+          url,
+        }));
     }
     const back: TakenBack = {};
-    for (const [session, tabs] of takenBack) if (tabs.size) back[session] = [...tabs].map(remembered);
+    for (const [session, tabs] of takenBack)
+      if (tabs.size) back[session] = [...tabs].map(remembered);
     opts.onSessionTabs?.(out);
-    opts.onTabState?.({ sessionTabs: out, takenBack: back, sessionProfiles: Object.fromEntries(sessionProfiles) });
+    opts.onTabState?.({
+      sessionTabs: out,
+      takenBack: back,
+      sessionProfiles: Object.fromEntries(sessionProfiles),
+    });
   };
   const grantedTo = (session: string): Map<number, string> => {
     let tabs = sessionTabs.get(session);
     if (!tabs) sessionTabs.set(session, (tabs = new Map()));
     return tabs;
   };
-  const sessionsOf = (tabId: number): string[] => [...sessionTabs].filter(([, tabs]) => tabs.has(tabId)).map(([k]) => k);
-  const isCast = (t: BridgeTab) => castTabs.has(t.tabId) || (t.owned ?? !!t.group) || sessionsOf(t.tabId).length > 0;
+  const sessionsOf = (tabId: number): string[] =>
+    [...sessionTabs].filter(([, tabs]) => tabs.has(tabId)).map(([k]) => k);
+  const isCast = (t: BridgeTab) =>
+    castTabs.has(t.tabId) ||
+    (t.owned ?? !!t.group) ||
+    sessionsOf(t.tabId).length > 0;
   /**
    * A session's socket sees the tabs granted to it. A socket that names none
    * sees every agent tab, and a cloud host's only those of its own sessions
    * (hostClients.ts scopedSession): never a laptop session's, never the human's.
    */
-  const canSee = (client: Pick<Client, "session" | "host">, tabId: number): boolean =>
-    client.session ? grantedTo(client.session).has(tabId)
+  const canSee = (
+    client: Pick<Client, "session" | "host">,
+    tabId: number,
+  ): boolean =>
+    client.session
+      ? grantedTo(client.session).has(tabId)
       : !client.host || visibleSessions(client, sessionsOf(tabId)).length > 0;
   // The site allowlist each session's project sets (policy.ts), loaded from
   // the working directory its CLI names on every /grant, so an edit to the
@@ -1065,8 +1373,12 @@ export async function startBridgeHost(opts: {
   // answers to the machine's own list (~/.codecast/config.json).
   const sessionPolicies = new Map<string, SitePolicy | null>();
   const policiesOf = (sessions: string[]): SitePolicy[] => {
-    const known = sessions.filter((s) => sessionPolicies.has(s)).map((s) => sessionPolicies.get(s) ?? null);
-    return (known.length ? known : [loadMachinePolicy()]).filter((p): p is SitePolicy => !!p);
+    const known = sessions
+      .filter((s) => sessionPolicies.has(s))
+      .map((s) => sessionPolicies.get(s) ?? null);
+    return (known.length ? known : [loadMachinePolicy()]).filter(
+      (p): p is SitePolicy => !!p,
+    );
   };
   /** Why `url` is off a policy that binds these sessions' tabs, or null. */
   const offPolicy = (sessions: string[], url: string): string | null => {
@@ -1081,25 +1393,45 @@ export async function startBridgeHost(opts: {
   const frames = new FrameSessions<Client>({
     rootSessions: (tabId) => {
       const out: Array<[Client, string]> = [];
-      for (const c of clients) for (const [sid, t] of c.sessions) if (t === tabId) out.push([c, sid]);
+      for (const c of clients)
+        for (const [sid, t] of c.sessions) if (t === tabId) out.push([c, sid]);
       return out;
     },
     mint: () => crypto.randomBytes(16).toString("hex").toUpperCase(),
     // A frame not committed yet ("" or about:blank) is admitted; its commands are checked against where it lands.
-    admit: (tabId, url) => url === "" || url === "about:blank" || (webHost(url) !== null && !offPolicy(sessionsOf(tabId), url)),
+    admit: (tabId, url) =>
+      url === "" ||
+      url === "about:blank" ||
+      (webHost(url) !== null && !offPolicy(sessionsOf(tabId), url)),
   });
   /** Target.attachedToTarget, Target.detachedFromTarget and a child's own navigation, from Chrome's side. */
-  const onFrameEvent = (tabId: number, session: string | undefined, method: string, params: any): void => {
-    if (method === "Target.attachedToTarget") sendFrames(frames.attached(tabId, session ?? null, params));
-    else if (method === "Target.detachedFromTarget") sendFrames(frames.detached(tabId, String(params?.sessionId ?? "")));
-    else if (session && method === "Page.frameNavigated" && params?.frame && !params.frame.parentId) sendFrames(frames.navigated(tabId, session, String(params.frame.url ?? "")));
+  const onFrameEvent = (
+    tabId: number,
+    session: string | undefined,
+    method: string,
+    params: any,
+  ): void => {
+    if (method === "Target.attachedToTarget")
+      sendFrames(frames.attached(tabId, session ?? null, params));
+    else if (method === "Target.detachedFromTarget")
+      sendFrames(frames.detached(tabId, String(params?.sessionId ?? "")));
+    else if (
+      session &&
+      method === "Page.frameNavigated" &&
+      params?.frame &&
+      !params.frame.parentId
+    )
+      sendFrames(
+        frames.navigated(tabId, session, String(params.frame.url ?? "")),
+      );
   };
   /** Each tab's URL as its last tab event, attach or listing gave it: what clientHosts reads instead of listing every profile per call. */
   const tabUrls = new Map<number, string>();
   /** The hostnames of the web pages this client's attached tabs show: the reach of its cookie and storage calls. */
   const clientHosts = async (client: Client): Promise<string[]> => {
     const mine = [...new Set(client.sessions.values())];
-    if (mine.some((id) => !tabUrls.has(id))) for (const t of await listTabs()) tabUrls.set(t.tabId, t.url);
+    if (mine.some((id) => !tabUrls.has(id)))
+      for (const t of await listTabs()) tabUrls.set(t.tabId, t.url);
     const hosts = mine.map((id) => webHost(tabUrls.get(id) ?? ""));
     return [...new Set(hosts.filter((h): h is string => !!h))];
   };
@@ -1117,18 +1449,36 @@ export async function startBridgeHost(opts: {
     if (isInternalUrl(t.url)) return;
     const why = offPolicy(sessionsOf(t.tabId), t.url);
     if (!why) return;
-    console.log(`[bridge] tab ${t.tabId} landed off the site allowlist (${why}); sending it to about:blank`);
-    extCall("cdp", { tabId: t.tabId, method: "Page.navigate", params: { url: "about:blank" } }, 10_000)
-      .catch((err) => console.log(`[bridge] could not blank tab ${t.tabId}: ${(err as Error).message}`))
+    console.log(
+      `[bridge] tab ${t.tabId} landed off the site allowlist (${why}); sending it to about:blank`,
+    );
+    extCall(
+      "cdp",
+      {
+        tabId: t.tabId,
+        method: "Page.navigate",
+        params: { url: "about:blank" },
+      },
+      10_000,
+    )
+      .catch((err) =>
+        console.log(
+          `[bridge] could not blank tab ${t.tabId}: ${(err as Error).message}`,
+        ),
+      )
       .finally(() => release(t.tabId));
   };
-  const remember = (session: string, t: { tabId: number; url: string }): void => {
+  const remember = (
+    session: string,
+    t: { tabId: number; url: string },
+  ): void => {
     const tabs = grantedTo(session);
     if (tabs.get(t.tabId) === t.url) return;
     tabs.set(t.tabId, t.url);
     castTabs.add(t.tabId);
     const profile = tabIds.chrome(t.tabId)?.link;
-    if (profile && !sessionProfiles.has(session)) sessionProfiles.set(session, profile);
+    if (profile && !sessionProfiles.has(session))
+      sessionProfiles.set(session, profile);
     persist();
   };
   /**
@@ -1139,7 +1489,12 @@ export async function startBridgeHost(opts: {
    * tab no session held, left for the 30 minute idle cleanup while its
    * session was told it had no tab (soak ct-87421).
    */
-  const vanished: Array<{ session: string; url: string; link: string; at: number }> = [];
+  const vanished: Array<{
+    session: string;
+    url: string;
+    link: string;
+    at: number;
+  }> = [];
   const VANISHED_MS = 5 * 60_000;
   /**
    * Hand `t` back to the session whose grant vanished at its exact URL. Only
@@ -1148,14 +1503,28 @@ export async function startBridgeHost(opts: {
    */
   const readopt = (t: BridgeTab): void => {
     const now = Date.now();
-    for (let i = vanished.length - 1; i >= 0; i--) if (now - vanished[i].at > VANISHED_MS) vanished.splice(i, 1);
-    if (!vanished.length || !t.url || !(t.owned ?? !!t.group) || sessionsOf(t.tabId).length) return;
+    for (let i = vanished.length - 1; i >= 0; i--)
+      if (now - vanished[i].at > VANISHED_MS) vanished.splice(i, 1);
+    if (
+      !vanished.length ||
+      !t.url ||
+      !(t.owned ?? !!t.group) ||
+      sessionsOf(t.tabId).length
+    )
+      return;
     const link = tabIds.chrome(t.tabId)?.link;
-    const i = vanished.findIndex((v) => v.url === t.url && v.link === link && !takenBack.get(v.session)?.has(t.tabId));
+    const i = vanished.findIndex(
+      (v) =>
+        v.url === t.url &&
+        v.link === link &&
+        !takenBack.get(v.session)?.has(t.tabId),
+    );
     if (i < 0) return;
     const [v] = vanished.splice(i, 1);
     remember(v.session, t);
-    console.log(`[bridge] tab ${t.tabId} at ${t.url} came back after a Chrome restart; granted to ${v.session} again`);
+    console.log(
+      `[bridge] tab ${t.tabId} at ${t.url} came back after a Chrome restart; granted to ${v.session} again`,
+    );
     announce(t);
   };
   /** A restored partition against the tabs one profile's Chrome actually has: once per connection, on its first tab list. */
@@ -1166,7 +1535,8 @@ export async function startBridgeHost(opts: {
     let changed = false;
     for (const [session, granted] of sessionTabs) {
       for (const [tabId, url] of granted) {
-        const mine = tabIds.chrome(tabId)?.link === link.id || unclaimed.has(tabId);
+        const mine =
+          tabIds.chrome(tabId)?.link === link.id || unclaimed.has(tabId);
         if (!mine) continue;
         unclaimed.delete(tabId);
         const t = byId.get(tabId);
@@ -1175,7 +1545,8 @@ export async function startBridgeHost(opts: {
         else {
           granted.delete(tabId);
           changed = true;
-          if (!t && url) vanished.push({ session, url, link: link.id, at: Date.now() });
+          if (!t && url)
+            vanished.push({ session, url, link: link.id, at: Date.now() });
         }
       }
     }
@@ -1187,9 +1558,13 @@ export async function startBridgeHost(opts: {
   // later grant all funnel through here.
   const announce = (t: BridgeTab): void => {
     for (const c of clients) {
-      if (!c.discover || !canSee(c, t.tabId) || c.announced.has(t.tabId)) continue;
+      if (!c.discover || !canSee(c, t.tabId) || c.announced.has(t.tabId))
+        continue;
       c.announced.add(t.tabId);
-      sendJson(c.ws, { method: "Target.targetCreated", params: { targetInfo: targetInfo(t) } });
+      sendJson(c.ws, {
+        method: "Target.targetCreated",
+        params: { targetInfo: targetInfo(t) },
+      });
     }
   };
   const grant = async (session: string, tabId: number): Promise<void> => {
@@ -1203,7 +1578,8 @@ export async function startBridgeHost(opts: {
     checkedLanding.delete(tabId);
     humanInput.forget(tabId);
     let changed = false;
-    for (const tabs of sessionTabs.values()) if (tabs.delete(tabId)) changed = true;
+    for (const tabs of sessionTabs.values())
+      if (tabs.delete(tabId)) changed = true;
     for (const c of clients) c.announced.delete(tabId);
     if (changed) persist();
   };
@@ -1211,7 +1587,9 @@ export async function startBridgeHost(opts: {
   const hostTab = (link: ExtLink, t: BridgeTab): BridgeTab => ({
     ...t,
     tabId: tabIds.host(link.id, t.tabId),
-    ...(typeof t.opener === "number" ? { opener: tabIds.host(link.id, t.opener) } : {}),
+    ...(typeof t.opener === "number"
+      ? { opener: tabIds.host(link.id, t.opener) }
+      : {}),
     profile: link.id,
   });
   // Profiles whose last listing failed, so a lookup can tell "no such tab"
@@ -1226,7 +1604,9 @@ export async function startBridgeHost(opts: {
     pendingTabList = (async () => {
       const all = links.list();
       if (!all.length) throw notConnected();
-      const replies = await Promise.allSettled(all.map((link) => extCall("tabs.list", {}, 40_000, false, link)));
+      const replies = await Promise.allSettled(
+        all.map((link) => extCall("tabs.list", {}, 40_000, false, link)),
+      );
       const tabs: BridgeTab[] = [];
       replies.forEach((r, i) => {
         const link = all[i];
@@ -1239,9 +1619,12 @@ export async function startBridgeHost(opts: {
         pruneRestored(link, mine);
         tabs.push(...mine);
       });
-      if (!tabs.length && unlisted.size === all.length) throw [...unlisted.values()][0];
+      if (!tabs.length && unlisted.size === all.length)
+        throw [...unlisted.values()][0];
       return [...tabs.filter(isCast), ...tabs.filter((t) => !isCast(t))];
-    })().finally(() => { pendingTabList = null; });
+    })().finally(() => {
+      pendingTabList = null;
+    });
     return pendingTabList;
   };
   /** A tab missing from the listing because its profile did not answer: that error, not "no such tab". */
@@ -1266,11 +1649,13 @@ export async function startBridgeHost(opts: {
   // the last session anywhere lets go of it.
   const holders = (tabId: number): number => {
     let n = 0;
-    for (const c of clients) for (const t of c.sessions.values()) if (t === tabId) n++;
+    for (const c of clients)
+      for (const t of c.sessions.values()) if (t === tabId) n++;
     return n;
   };
   const release = (tabId: number): void => {
-    if (holders(tabId) === 0) extRequest("detach", { tabId }, 10_000).catch(() => {});
+    if (holders(tabId) === 0)
+      extRequest("detach", { tabId }, 10_000).catch(() => {});
   };
 
   const targetInfo = (t: BridgeTab) => ({
@@ -1296,7 +1681,8 @@ export async function startBridgeHost(opts: {
   const disconnect = (stale: Iterable<Client>, reason: string): void => {
     const sockets = [...stale].map((c) => c.ws);
     setImmediate(() => {
-      for (const ws of sockets) ws.close(CLOSE_SESSIONS_DROPPED, reason.slice(0, 120));
+      for (const ws of sockets)
+        ws.close(CLOSE_SESSIONS_DROPPED, reason.slice(0, 120));
     });
   };
 
@@ -1309,7 +1695,10 @@ export async function startBridgeHost(opts: {
         if (t !== tabId) continue;
         c.sessions.delete(sessionId);
         if (!held.includes(c)) held.push(c);
-        sendJson(c.ws, { method: "Target.detachedFromTarget", params: { sessionId, targetId: targetIdOfTab(tabId), reason } });
+        sendJson(c.ws, {
+          method: "Target.detachedFromTarget",
+          params: { sessionId, targetId: targetIdOfTab(tabId), reason },
+        });
       }
     }
     return held;
@@ -1325,7 +1714,10 @@ export async function startBridgeHost(opts: {
       event.tabId = tabIds.host(link.id, event.tabId);
       traffic.note(event.method, raw.length);
       if (UNRELAYED_EVENTS.has(event.method)) return;
-      if (FRAME_EVENTS.has(event.method) && (event.session || event.method !== "Page.frameNavigated")) {
+      if (
+        FRAME_EVENTS.has(event.method) &&
+        (event.session || event.method !== "Page.frameNavigated")
+      ) {
         let params: any;
         try {
           params = JSON.parse(event.params.toString("utf-8"));
@@ -1338,7 +1730,11 @@ export async function startBridgeHost(opts: {
       }
       const targets: Array<[Client, string]> = event.session
         ? frames.eventTargets(event.tabId, event.session)
-        : [...clients].flatMap((c) => [...c.sessions].filter(([, t]) => t === event.tabId).map(([sid]): [Client, string] => [c, sid]));
+        : [...clients].flatMap((c) =>
+            [...c.sessions]
+              .filter(([, t]) => t === event.tabId)
+              .map(([sid]): [Client, string] => [c, sid]),
+          );
       for (const [c, sessionId] of targets) {
         if (c.ws.readyState !== WebSocket.OPEN) continue;
         const out = eventMessage(event.method, event.params, sessionId);
@@ -1353,7 +1749,11 @@ export async function startBridgeHost(opts: {
     const reply = pending?.raw ? readReplyFrame(raw) : null;
     if (reply) {
       extPending.delete(reply.id);
-      pending!.resolve({ id: reply.id, ok: true, raw: new RawJson(reply.result) });
+      pending!.resolve({
+        id: reply.id,
+        ok: true,
+        raw: new RawJson(reply.result),
+      });
       return;
     }
     let msg: any;
@@ -1368,8 +1768,10 @@ export async function startBridgeHost(opts: {
       p.resolve(msg as BridgeReply);
       return;
     }
-    if (typeof msg.tabId === "number") msg.tabId = tabIds.host(link.id, msg.tabId);
-    if (msg.op === "tab" && msg.tab && typeof msg.tab.tabId === "number") msg.tab = hostTab(link, msg.tab as BridgeTab);
+    if (typeof msg.tabId === "number")
+      msg.tabId = tabIds.host(link.id, msg.tabId);
+    if (msg.op === "tab" && msg.tab && typeof msg.tab.tabId === "number")
+      msg.tab = hostTab(link, msg.tab as BridgeTab);
     switch (msg.op) {
       case "pong":
         return;
@@ -1381,18 +1783,29 @@ export async function startBridgeHost(opts: {
       case "event": {
         // An event in a shape frames.ts does not read. Fan out to every
         // session bound to that tab, stamped with ITS id.
-        const session = typeof msg.session === "string" ? msg.session : undefined;
+        const session =
+          typeof msg.session === "string" ? msg.session : undefined;
         if (FRAME_EVENTS.has(msg.method)) {
           onFrameEvent(msg.tabId, session, msg.method, msg.params);
           if (msg.method !== "Page.frameNavigated") return;
         }
         if (session) {
-          for (const [c, sessionId] of frames.eventTargets(msg.tabId, session)) sendJson(c.ws, { method: msg.method, params: msg.params ?? {}, sessionId });
+          for (const [c, sessionId] of frames.eventTargets(msg.tabId, session))
+            sendJson(c.ws, {
+              method: msg.method,
+              params: msg.params ?? {},
+              sessionId,
+            });
           return;
         }
         for (const c of clients) {
           for (const [sessionId, tabId] of c.sessions) {
-            if (tabId === msg.tabId) sendJson(c.ws, { method: msg.method, params: msg.params ?? {}, sessionId });
+            if (tabId === msg.tabId)
+              sendJson(c.ws, {
+                method: msg.method,
+                params: msg.params ?? {},
+                sessionId,
+              });
           }
         }
         return;
@@ -1405,7 +1818,12 @@ export async function startBridgeHost(opts: {
           forget(t.tabId);
           tabIds.drop(t.tabId);
           // Destroyed goes out unconditionally: a target a client never heard of is ignored.
-          for (const c of clients) if (c.discover) sendJson(c.ws, { method: "Target.targetDestroyed", params: { targetId: targetIdOfTab(t.tabId) } });
+          for (const c of clients)
+            if (c.discover)
+              sendJson(c.ws, {
+                method: "Target.targetDestroyed",
+                params: { targetId: targetIdOfTab(t.tabId) },
+              });
           return;
         }
         tabUrls.set(t.tabId, t.url);
@@ -1414,11 +1832,18 @@ export async function startBridgeHost(opts: {
         enforceLanding(t);
         // A tab an agent's page opened (popup, target=_blank) goes to every
         // session that holds its opener (background.js adoptOpened).
-        if (typeof t.opener === "number") for (const session of sessionsOf(t.opener)) if (!grantedTo(session).has(t.tabId)) remember(session, t);
+        if (typeof t.opener === "number")
+          for (const session of sessionsOf(t.opener))
+            if (!grantedTo(session).has(t.tabId)) remember(session, t);
         if (msg.kind === "created") announce(t);
         else {
           for (const session of sessionsOf(t.tabId)) remember(session, t);
-          for (const c of clients) if (c.discover && canSee(c, t.tabId)) sendJson(c.ws, { method: "Target.targetInfoChanged", params: { targetInfo: targetInfo(t) } });
+          for (const c of clients)
+            if (c.discover && canSee(c, t.tabId))
+              sendJson(c.ws, {
+                method: "Target.targetInfoChanged",
+                params: { targetInfo: targetInfo(t) },
+              });
         }
         return;
       }
@@ -1427,7 +1852,10 @@ export async function startBridgeHost(opts: {
         // Cancel, DevTools, a crash). Its clients reconnect and attach again
         // on their next command; the tab itself is gone only on "removed".
         // A tab the human took back from the toolbar leaves every grant too.
-        const reason = msg.reason === "reclaimed" ? "the human took this tab back from agents" : "Chrome detached the debugger from this tab";
+        const reason =
+          msg.reason === "reclaimed"
+            ? "the human took this tab back from agents"
+            : "Chrome detached the debugger from this tab";
         disconnect(dropTab(msg.tabId, reason), reason);
         if (msg.reason === "reclaimed") {
           for (const session of sessionsOf(msg.tabId)) {
@@ -1444,11 +1872,21 @@ export async function startBridgeHost(opts: {
 
   // --------------------------------------------------------------- clients
 
-  const grantedTarget = async (client: Client, targetId: unknown): Promise<BridgeTab> => {
+  const grantedTarget = async (
+    client: Client,
+    targetId: unknown,
+  ): Promise<BridgeTab> => {
     const tabId = tabIdOfTarget(String(targetId ?? ""));
-    const tab = (await listTabs()).find(t => t.tabId === tabId);
-    if (!tab) throw (tabId !== null && unlistedError(tabId)) || new Error("No target with given id found");
-    if (!canSee(client, tab.tabId) || (client.host && !isCast(tab))) throw new Error(`tab ${targetIdOfTab(tab.tabId)} is not granted to this session`);
+    const tab = (await listTabs()).find((t) => t.tabId === tabId);
+    if (!tab)
+      throw (
+        (tabId !== null && unlistedError(tabId)) ||
+        new Error("No target with given id found")
+      );
+    if (!canSee(client, tab.tabId) || (client.host && !isCast(tab)))
+      throw new Error(
+        `tab ${targetIdOfTab(tab.tabId)} is not granted to this session`,
+      );
     return tab;
   };
 
@@ -1462,16 +1900,24 @@ export async function startBridgeHost(opts: {
 
   /** Does this session hold a tab in that profile? Then it stays there. */
   const holdsTabsIn = (session: string, profile: string): boolean =>
-    [...grantedTo(session).keys()].some((tabId) => tabIds.chrome(tabId)?.link === profile);
+    [...grantedTo(session).keys()].some(
+      (tabId) => tabIds.chrome(tabId)?.link === profile,
+    );
   const bindSession = (session: string | null, profile: string): void => {
     if (!session || sessionProfiles.get(session) === profile) return;
     sessionProfiles.set(session, profile);
     persist();
   };
-  const connectedIds = (): string => links.list().map((l) => l.id).join(", ") || "none";
+  const connectedIds = (): string =>
+    links
+      .list()
+      .map((l) => l.id)
+      .join(", ") || "none";
   /** The profile this client's session works in, if it is connected. */
   const clientLink = (client: Client): ExtLink | undefined => {
-    const id = client.profile ?? (client.session ? sessionProfiles.get(client.session) : undefined);
+    const id =
+      client.profile ??
+      (client.session ? sessionProfiles.get(client.session) : undefined);
     return id ? links.get(id) : undefined;
   };
   /**
@@ -1481,12 +1927,24 @@ export async function startBridgeHost(opts: {
    * session's tabs never span two profiles.
    */
   const linkForCreate = (client: Client): ExtLink => {
-    const bound = client.session ? sessionProfiles.get(client.session) : undefined;
+    const bound = client.session
+      ? sessionProfiles.get(client.session)
+      : undefined;
     if (client.profile) {
       const link = links.get(client.profile);
-      if (!link) throw new Error(`no connected Chrome profile "${client.profile}" (connected: ${connectedIds()}; \`cast browser extension status\` lists them)`);
-      if (client.session && bound && bound !== link.id && holdsTabsIn(client.session, bound)) {
-        throw new Error(`this session works in Chrome profile "${bound}" and stays there; start a new session to use "${link.id}"`);
+      if (!link)
+        throw new Error(
+          `no connected Chrome profile "${client.profile}" (connected: ${connectedIds()}; \`cast browser extension status\` lists them)`,
+        );
+      if (
+        client.session &&
+        bound &&
+        bound !== link.id &&
+        holdsTabsIn(client.session, bound)
+      ) {
+        throw new Error(
+          `this session works in Chrome profile "${bound}" and stays there; start a new session to use "${link.id}"`,
+        );
       }
       bindSession(client.session, link.id);
       return link;
@@ -1494,7 +1952,10 @@ export async function startBridgeHost(opts: {
     if (bound) {
       const link = links.get(bound);
       if (link) return link;
-      if (client.session && holdsTabsIn(client.session, bound)) throw new Error(`this session works in Chrome profile "${bound}", which is not connected right now`);
+      if (client.session && holdsTabsIn(client.session, bound))
+        throw new Error(
+          `this session works in Chrome profile "${bound}", which is not connected right now`,
+        );
     }
     const link = defaultLink();
     if (!link) throw notConnected();
@@ -1503,25 +1964,35 @@ export async function startBridgeHost(opts: {
   };
 
   /** Browser-scope CDP, emulated. Returns the `result` or throws. */
-  const browserMethod = async (client: Client, method: string, params: any): Promise<unknown> => {
+  const browserMethod = async (
+    client: Client,
+    method: string,
+    params: any,
+  ): Promise<unknown> => {
     switch (method) {
       case "Browser.getVersion":
         return {
           protocolVersion: "1.3",
           product: `Chrome (cast bridge, extension ${defaultLink()?.meta.version ?? "?"})`,
           revision: "",
-          userAgent: (clientLink(client) ?? defaultLink())?.meta.userAgent ?? "",
+          userAgent:
+            (clientLink(client) ?? defaultLink())?.meta.userAgent ?? "",
           jsVersion: "",
         };
       case "Target.getTargets":
-        return { targetInfos: (await discoverableTabs(client)).map(targetInfo) };
+        return {
+          targetInfos: (await discoverableTabs(client)).map(targetInfo),
+        };
       case "Target.setDiscoverTargets": {
         const on = !!params?.discover;
         if (on && !client.discover) {
           // Chrome replays the existing targets on enable; clients rely on it.
           for (const t of await discoverableTabs(client)) {
             client.announced.add(t.tabId);
-            sendJson(client.ws, { method: "Target.targetCreated", params: { targetInfo: targetInfo(t) } });
+            sendJson(client.ws, {
+              method: "Target.targetCreated",
+              params: { targetInfo: targetInfo(t) },
+            });
           }
         }
         client.discover = on;
@@ -1559,23 +2030,41 @@ export async function startBridgeHost(opts: {
         if (frame) {
           // The client lets go of a child; Chrome's own session stays for other clients.
           frames.dropSession(client, sessionId);
-          sendJson(client.ws, { method: "Target.detachedFromTarget", params: { sessionId }, sessionId: frame.parent });
+          sendJson(client.ws, {
+            method: "Target.detachedFromTarget",
+            params: { sessionId },
+            sessionId: frame.parent,
+          });
           return {};
         }
         const tabId = client.sessions.get(sessionId);
         if (tabId === undefined) throw new Error("No session with given id");
         frames.dropSession(client, sessionId);
         client.sessions.delete(sessionId);
-        sendJson(client.ws, { method: "Target.detachedFromTarget", params: { sessionId, targetId: targetIdOfTab(tabId) } });
+        sendJson(client.ws, {
+          method: "Target.detachedFromTarget",
+          params: { sessionId, targetId: targetIdOfTab(tabId) },
+        });
         release(tabId);
         return {};
       }
       case "Target.createTarget": {
         // A cloud host's tab belongs to one of its sessions; one made on a
         // session-less socket would belong to nobody it could see.
-        if (client.host && !client.session) throw new Error("a cloud host opens tabs only for a session: connect with ?session=");
-        const off = params?.url ? offPolicy(client.session ? [client.session] : [], String(params.url)) : null;
-        if (off) throw new Error(`the cast bridge refuses to open ${params.url}: ${off}`);
+        if (client.host && !client.session)
+          throw new Error(
+            "a cloud host opens tabs only for a session: connect with ?session=",
+          );
+        const off = params?.url
+          ? offPolicy(
+              client.session ? [client.session] : [],
+              String(params.url),
+            )
+          : null;
+        if (off)
+          throw new Error(
+            `the cast bridge refuses to open ${params.url}: ${off}`,
+          );
         const group = parseGroup(params?.castGroup) ?? client.group;
         const link = linkForCreate(client);
         // A tab is created in the background unless the client says
@@ -1583,7 +2072,11 @@ export async function startBridgeHost(opts: {
         // would otherwise raise the human's Chrome on every fresh session.
         const r = await extCall(
           "tabs.create",
-          { url: params?.url || "about:blank", background: !mayRaise(client) || params?.background !== false, ...(group ? { group } : {}) },
+          {
+            url: params?.url || "about:blank",
+            background: !mayRaise(client) || params?.background !== false,
+            ...(group ? { group } : {}),
+          },
           40_000, // the worker's process may be frozen for a while; it answers when it wakes
           false,
           link,
@@ -1591,7 +2084,11 @@ export async function startBridgeHost(opts: {
         if (group) client.group = group;
         const tabId = tabIds.host(link.id, r.tabId as number);
         castTabs.add(tabId);
-        if (client.session) remember(client.session, { tabId, url: String(params?.url ?? "about:blank") });
+        if (client.session)
+          remember(client.session, {
+            tabId,
+            url: String(params?.url ?? "about:blank"),
+          });
         const created = (await listTabs()).find((t) => t.tabId === tabId);
         if (created) announce(created);
         return { targetId: targetIdOfTab(tabId) };
@@ -1615,7 +2112,9 @@ export async function startBridgeHost(opts: {
       case "Security.setIgnoreCertificateErrors":
         return {};
       default:
-        throw Object.assign(new Error(`'${method}' wasn't found`), { code: -32601 });
+        throw Object.assign(new Error(`'${method}' wasn't found`), {
+          code: -32601,
+        });
     }
   };
 
@@ -1626,11 +2125,26 @@ export async function startBridgeHost(opts: {
    * (children never wait for a debugger), and each client sees the children
    * under the sessions it asked on (frameSessions.ts).
    */
-  const sessionMethod = async (client: Client, sessionId: string, tabId: number, method: string, params: any, frame?: FrameRoute): Promise<unknown> => {
+  const sessionMethod = async (
+    client: Client,
+    sessionId: string,
+    tabId: number,
+    method: string,
+    params: any,
+    frame?: FrameRoute,
+  ): Promise<unknown> => {
     if (method === "Page.bringToFront" && !mayRaise(client)) return {};
     switch (method) {
       case "Target.setAutoAttach":
-        sendFrames(frames.setAutoAttach(client, sessionId, tabId, frame?.chrome ?? null, !!params?.autoAttach));
+        sendFrames(
+          frames.setAutoAttach(
+            client,
+            sessionId,
+            tabId,
+            frame?.chrome ?? null,
+            !!params?.autoAttach,
+          ),
+        );
         return {};
       case "Runtime.runIfWaitingForDebugger":
         return {};
@@ -1639,17 +2153,28 @@ export async function startBridgeHost(opts: {
       // before any click, rather than pass on Chrome's "wasn't found".
       case "Browser.setDownloadBehavior":
       case "Page.setDownloadBehavior":
-        throw Object.assign(new Error(`the cast bridge cannot set ${method}: downloads in the human's Chrome go to their own Downloads folder, where cast cannot choose or find the file`), { code: -32000 });
+        throw Object.assign(
+          new Error(
+            `the cast bridge cannot set ${method}: downloads in the human's Chrome go to their own Downloads folder, where cast cannot choose or find the file`,
+          ),
+          { code: -32000 },
+        );
       default: {
         if (frame) {
           // A frame answers to the site policy for its own URL, like a tab.
           const url = frames.url(frame);
           const off = webHost(url) ? offPolicy(sessionsOf(tabId), url) : null;
-          if (off) throw new Error(`the cast bridge refuses ${method} in a frame at ${url}: ${off}`);
+          if (off)
+            throw new Error(
+              `the cast bridge refuses ${method} in a frame at ${url}: ${off}`,
+            );
         }
         if (method === "Page.navigate") {
           const off = offPolicy(sessionsOf(tabId), String(params?.url ?? ""));
-          if (off) throw new Error(`the cast bridge refuses to navigate to ${params?.url}: ${off}`);
+          if (off)
+            throw new Error(
+              `the cast bridge refuses to navigate to ${params?.url}: ${off}`,
+            );
         }
         let hosts: string[] | undefined;
         const scope = async () => (hosts ??= await clientHosts(client));
@@ -1661,10 +2186,28 @@ export async function startBridgeHost(opts: {
         // and timing (humanInput.ts); it adjusts params.x/y in place, so it
         // runs before params are forwarded. Its own calls decode the reply.
         // A frame's coordinates are its own, not the tab's: its input goes as sent.
-        if (!frame) await humanInput.beforeInput(tabId, method, params, (m, p) => extCall("cdp", { tabId, method: m, params: p }).then((x) => x.result));
-        const r = await extCall("cdp", { tabId, ...(frame ? { sessionId: frame.chrome } : {}), method, params: params ?? {} }, undefined, true);
+        if (!frame)
+          await humanInput.beforeInput(tabId, method, params, (m, p) =>
+            extCall("cdp", { tabId, method: m, params: p }).then(
+              (x) => x.result,
+            ),
+          );
+        const r = await extCall(
+          "cdp",
+          {
+            tabId,
+            ...(frame ? { sessionId: frame.chrome } : {}),
+            method,
+            params: params ?? {},
+          },
+          undefined,
+          true,
+        );
         if (COOKIE_READS.has(method)) {
-          const result = r.raw instanceof RawJson ? JSON.parse(r.raw.bytes.toString("utf-8")) : (r.result ?? {});
+          const result =
+            r.raw instanceof RawJson
+              ? JSON.parse(r.raw.bytes.toString("utf-8"))
+              : (r.result ?? {});
           return filterCookieReply(result, await scope());
         }
         return r.raw instanceof RawJson ? r.raw : (r.result ?? {});
@@ -1672,7 +2215,10 @@ export async function startBridgeHost(opts: {
     }
   };
 
-  const onClientMessage = async (client: Client, raw: string): Promise<void> => {
+  const onClientMessage = async (
+    client: Client,
+    raw: string,
+  ): Promise<void> => {
     let msg: any;
     try {
       msg = JSON.parse(raw);
@@ -1689,22 +2235,37 @@ export async function startBridgeHost(opts: {
         const frame = frames.route(client, msg.sessionId);
         const tabId = frame?.tabId ?? client.sessions.get(msg.sessionId);
         if (tabId === undefined) {
-          sendJson(client.ws, cdpError(msg.id, "Session with given id not found."));
+          sendJson(
+            client.ws,
+            cdpError(msg.id, "Session with given id not found."),
+          );
           return;
         }
-        result = await sessionMethod(client, msg.sessionId, tabId, msg.method, msg.params, frame);
+        result = await sessionMethod(
+          client,
+          msg.sessionId,
+          tabId,
+          msg.method,
+          msg.params,
+          frame,
+        );
         if (result instanceof RawJson) {
           const out = replyMessage(msg.id, result.bytes, msg.sessionId);
           traffic.sent(client.session, out.length);
-          if (client.ws.readyState === WebSocket.OPEN) client.ws.send(out, { binary: false });
-        } else sendJson(client.ws, { id: msg.id, sessionId: msg.sessionId, result });
+          if (client.ws.readyState === WebSocket.OPEN)
+            client.ws.send(out, { binary: false });
+        } else
+          sendJson(client.ws, { id: msg.id, sessionId: msg.sessionId, result });
       } else {
         result = await browserMethod(client, msg.method, msg.params);
         sendJson(client.ws, { id: msg.id, result });
       }
     } catch (err) {
       const e = err as Error & { code?: number };
-      sendJson(client.ws, { ...cdpError(msg.id, e.message, e.code ?? -32000), ...(msg.sessionId ? { sessionId: msg.sessionId } : {}) });
+      sendJson(client.ws, {
+        ...cdpError(msg.id, e.message, e.code ?? -32000),
+        ...(msg.sessionId ? { sessionId: msg.sessionId } : {}),
+      });
     }
   };
 
@@ -1721,7 +2282,11 @@ export async function startBridgeHost(opts: {
     // client names that port. The loopback name is what refuses a rebound
     // page; the port only says which forward the request came through.
     const asked = parseInt(m[2], 10);
-    return asked === port || (asked >= LINK_HOST_PORT_BASE && asked < LINK_HOST_PORT_BASE + LINK_HOST_PORT_SPAN);
+    return (
+      asked === port ||
+      (asked >= LINK_HOST_PORT_BASE &&
+        asked < LINK_HOST_PORT_BASE + LINK_HOST_PORT_SPAN)
+    );
   };
 
   /** Set once a retire is granted: the host is about to exit, so new work is turned away with a retry. */
@@ -1730,7 +2295,16 @@ export async function startBridgeHost(opts: {
   const handleHttp = (req: Request): Promise<Response> => {
     const route = new URL(req.url).pathname;
     if (UNCOUNTED_ROUTES.has(route)) return serveHttp(req);
-    if (retiring) return Promise.resolve(Response.json({ error: "the bridge host is restarting for a newer cast; retry in a moment" }, { status: 503, headers: { [RETIRING_HEADER]: "1" } }));
+    if (retiring)
+      return Promise.resolve(
+        Response.json(
+          {
+            error:
+              "the bridge host is restarting for a newer cast; retry in a moment",
+          },
+          { status: 503, headers: { [RETIRING_HEADER]: "1" } },
+        ),
+      );
     return busy(serveHttp(req));
   };
   const serveHttp = async (req: Request): Promise<Response> => {
@@ -1743,7 +2317,9 @@ export async function startBridgeHost(opts: {
       // A cloud host proves us with its own token's hash as the key (hostClients.ts).
       const client = url.searchParams.get("client");
       const key = client ? opts.hostClients?.()?.[client]?.hash : token;
-      return new Response(`cast-bridge protocol=${BRIDGE_PROTOCOL}${opts.build ? ` build=${opts.build}` : ""}${isNonce(nonce) && key ? ` proof=${bridgeProof(key, "healthz", nonce)}` : ""}`);
+      return new Response(
+        `cast-bridge protocol=${BRIDGE_PROTOCOL}${opts.build ? ` build=${opts.build}` : ""}${isNonce(nonce) && key ? ` proof=${bridgeProof(key, "healthz", nonce)}` : ""}`,
+      );
     }
     // Reject DNS rebinding: a page at evil.example resolving to 127.0.0.1
     // arrives with Host: evil.example and would otherwise read these bodies.
@@ -1753,9 +2329,11 @@ export async function startBridgeHost(opts: {
     }
     // A cloud host's token reaches what a CDP client needs and nothing that
     // manages the extension.
-    if (caller.host && !HOST_CLIENT_ROUTES.has(url.pathname)) return new Response("forbidden\n", { status: 403 });
+    if (caller.host && !HOST_CLIENT_ROUTES.has(url.pathname))
+      return new Response("forbidden\n", { status: 403 });
     const callerToken = url.searchParams.get("token")!;
-    const json = (status: number, body: unknown) => Response.json(body, { status });
+    const json = (status: number, body: unknown) =>
+      Response.json(body, { status });
     try {
       switch (url.pathname) {
         case "/json/version":
@@ -1764,66 +2342,104 @@ export async function startBridgeHost(opts: {
             Browser: `Chrome (cast bridge, extension ${defaultLink()?.meta.version ?? "?"})`,
             "Protocol-Version": "1.3",
             "User-Agent": defaultLink()?.meta.userAgent ?? "",
-            webSocketDebuggerUrl: withSession(`ws://127.0.0.1:${port}/devtools/browser/${callerToken}`, {
-              port, session: url.searchParams.get("session") || undefined, profile: url.searchParams.get("profile") || undefined,
-            }),
+            webSocketDebuggerUrl: withSession(
+              `ws://127.0.0.1:${port}/devtools/browser/${callerToken}`,
+              {
+                port,
+                session: url.searchParams.get("session") || undefined,
+                profile: url.searchParams.get("profile") || undefined,
+              },
+            ),
           });
         case "/json":
         case "/json/list":
         case "/json/list/": {
           // A cloud host sees only agent tabs granted to its own sessions: the
           // one it names, or with none named, any of its namespace's.
-          const session = scopedSession(caller, url.searchParams.get("session"));
+          const session = scopedSession(
+            caller,
+            url.searchParams.get("session"),
+          );
           return json(
             200,
-            (await listTabs()).filter((t) => (!caller.host || isCast(t)) && canSee({ session, host: caller.host }, t.tabId)).map((t) => ({
-              id: targetIdOfTab(t.tabId),
-              type: "page",
-              title: t.title,
-              url: t.url,
-              // cast's own fields: an agent's tab, and the sessions it is
-              // granted to. `cast browser tabs --all` reads them.
-              cast: isCast(t),
-              sessions: visibleSessions(caller, sessionsOf(t.tabId)),
-              ...(t.profile ? { profile: t.profile } : {}),
-              description: "",
-              attached: t.attached,
-              // The extension's word on the tab: lent by the human, a handoff
-              // and where it stands, why no reaper may close it.
-              ...(t.lent ? { lent: true } : {}),
-              ...(t.handoff ? { handoff: t.handoff } : {}),
-              ...(t.keep ? { keep: t.keep } : {}),
-            })),
+            (await listTabs())
+              .filter(
+                (t) =>
+                  (!caller.host || isCast(t)) &&
+                  canSee({ session, host: caller.host }, t.tabId),
+              )
+              .map((t) => ({
+                id: targetIdOfTab(t.tabId),
+                type: "page",
+                title: t.title,
+                url: t.url,
+                // cast's own fields: an agent's tab, and the sessions it is
+                // granted to. `cast browser tabs --all` reads them.
+                cast: isCast(t),
+                sessions: visibleSessions(caller, sessionsOf(t.tabId)),
+                ...(t.profile ? { profile: t.profile } : {}),
+                description: "",
+                attached: t.attached,
+                // The extension's word on the tab: lent by the human, a handoff
+                // and where it stands, why no reaper may close it.
+                ...(t.lent ? { lent: true } : {}),
+                ...(t.handoff ? { handoff: t.handoff } : {}),
+                ...(t.keep ? { keep: t.keep } : {}),
+              })),
           );
         }
         case "/status": {
-          const all = links.list().filter((l) => l.ws.readyState === WebSocket.OPEN);
+          const all = links
+            .list()
+            .filter((l) => l.ws.readyState === WebSocket.OPEN);
           const dflt = defaultLink();
           return json(200, {
             extensionConnected: all.length > 0,
             extensionVersion: dflt?.meta.version,
             extensionProtocol: dflt?.meta.protocol,
             profiles: all.map((l) => ({
-              id: l.id, name: l.name, ...(l.dir ? { dir: l.dir } : {}), default: l === dflt, legacy: l.key === LEGACY_LINK_KEY,
-              version: l.meta.version, protocol: l.meta.protocol, connectedAt: l.connectedAt,
-              sessions: visibleSessions(caller, [...sessionProfiles].filter(([, p]) => p === l.id).map(([s]) => s)).length,
+              id: l.id,
+              name: l.name,
+              ...(l.dir ? { dir: l.dir } : {}),
+              default: l === dflt,
+              legacy: l.key === LEGACY_LINK_KEY,
+              version: l.meta.version,
+              protocol: l.meta.protocol,
+              connectedAt: l.connectedAt,
+              sessions: visibleSessions(
+                caller,
+                [...sessionProfiles]
+                  .filter(([, p]) => p === l.id)
+                  .map(([s]) => s),
+              ).length,
             })),
             protocol: BRIDGE_PROTOCOL,
             build: opts.build,
             // How this machine's host is doing is the laptop's business.
-            ...(caller.host ? {} : { transport: server.stats(), memory: process.memoryUsage() }),
+            ...(caller.host
+              ? {}
+              : { transport: server.stats(), memory: process.memoryUsage() }),
           });
         }
         case "/retire": {
           // A newer CLI asks this host to make way (ensureBridgeHost). Only
           // when idle, answered at once either way, so no command ever waits
           // on a swap: the caller uses a busy host as it is.
-          if (req.method !== "POST" || caller.host) return new Response("forbidden\n", { status: 403 });
+          if (req.method !== "POST" || caller.host)
+            return new Response("forbidden\n", { status: 403 });
           // A connected CDP client counts even when idle between commands: an
           // engine socket, a watch stream or a cloud host loses its tabs'
           // attachments when the host goes.
-          const idle = inFlight === 0 && extPending.size === 0 && clients.size === 0 && Date.now() - lastActivityAt >= (opts.idleQuietMs ?? 1_500);
-          if (!idle) return json(409, { error: `busy: ${clients.size} CDP client(s) connected, ${inFlight} request(s) in flight, ${extPending.size} extension call(s) pending`, busy: true });
+          const idle =
+            inFlight === 0 &&
+            extPending.size === 0 &&
+            clients.size === 0 &&
+            Date.now() - lastActivityAt >= (opts.idleQuietMs ?? 1_500);
+          if (!idle)
+            return json(409, {
+              error: `busy: ${clients.size} CDP client(s) connected, ${inFlight} request(s) in flight, ${extPending.size} extension call(s) pending`,
+              busy: true,
+            });
           retiring = true;
           setImmediate(() => opts.onRetire?.());
           return json(200, { ok: true, build: opts.build });
@@ -1832,55 +2448,94 @@ export async function startBridgeHost(opts: {
           if (req.method !== "POST") {
             return new Response("POST\n", { status: 405 });
           }
-          const session = scopedSession(caller, url.searchParams.get("session")) ?? "";
+          const session =
+            scopedSession(caller, url.searchParams.get("session")) ?? "";
           const tabId = tabIdOfTarget(url.searchParams.get("target") ?? "");
           if (!session || tabId === null) {
             return json(400, { error: "grant needs session and target" });
           }
           const own = url.searchParams.get("own") === "1";
           if (own && takenBack.get(session)?.has(tabId)) {
-            return json(409, { error: `the human took tab ${targetIdOfTab(tabId)} back from agents; do not touch it again unless they lend it to you`, takenBack: true });
+            return json(409, {
+              error: `the human took tab ${targetIdOfTab(tabId)} back from agents; do not touch it again unless they lend it to you`,
+              takenBack: true,
+            });
           }
           const t = (await listTabs()).find((x) => x.tabId === tabId);
           if (!t) {
             // Its profile did not answer the listing: unknown, not gone, so the session keeps its binding.
             const unanswered = unlistedError(tabId);
             if (unanswered) return json(503, { error: unanswered.message });
-            return json(404, { error: `no tab ${targetIdOfTab(tabId)} in the real Chrome` });
+            return json(404, {
+              error: `no tab ${targetIdOfTab(tabId)} in the real Chrome`,
+            });
           }
           const bound = sessionProfiles.get(session);
-          if (!own && t.profile && bound && bound !== t.profile && holdsTabsIn(session, bound)) {
-            return json(409, { error: `tab ${targetIdOfTab(tabId)} is in Chrome profile "${t.profile}"; this session works in "${bound}" and stays there` });
+          if (
+            !own &&
+            t.profile &&
+            bound &&
+            bound !== t.profile &&
+            holdsTabsIn(session, bound)
+          ) {
+            return json(409, {
+              error: `tab ${targetIdOfTab(tabId)} is in Chrome profile "${t.profile}"; this session works in "${bound}" and stays there`,
+            });
           }
           // `--browser <id>` from a session that already works in another profile.
           const asked = caller.host ? null : url.searchParams.get("profile");
-          if (own && asked && bound && asked !== bound && holdsTabsIn(session, bound)) {
-            return json(409, { error: `this session works in Chrome profile "${bound}" and stays there; start a new session to use "${asked}"`, profileConflict: true });
+          if (
+            own &&
+            asked &&
+            bound &&
+            asked !== bound &&
+            holdsTabsIn(session, bound)
+          ) {
+            return json(409, {
+              error: `this session works in Chrome profile "${bound}" and stays there; start a new session to use "${asked}"`,
+              profileConflict: true,
+            });
           }
           if (own && !grantedTo(session).has(tabId)) {
-            return json(403, { error: `saved tab ${targetIdOfTab(tabId)} ownership could not be verified for this session; no tab was adopted` });
+            return json(403, {
+              error: `saved tab ${targetIdOfTab(tabId)} ownership could not be verified for this session; no tab was adopted`,
+            });
           }
           if (!isCast(t)) {
-            return json(403, { error: `tab ${targetIdOfTab(tabId)} is the human's, not an agent's — only agent tabs can be shared` });
+            return json(403, {
+              error: `tab ${targetIdOfTab(tabId)} is the human's, not an agent's — only agent tabs can be shared`,
+            });
           }
           // A cloud host shares a tab only between its own sessions.
-          if (caller.host && !own && !visibleSessions(caller, sessionsOf(tabId)).length) {
-            return json(403, { error: `tab ${targetIdOfTab(tabId)} belongs to none of this host's sessions` });
+          if (
+            caller.host &&
+            !own &&
+            !visibleSessions(caller, sessionsOf(tabId)).length
+          ) {
+            return json(403, {
+              error: `tab ${targetIdOfTab(tabId)} belongs to none of this host's sessions`,
+            });
           }
           await grant(session, tabId);
           if (takenBack.get(session)?.delete(tabId)) persist();
           // A cloud host's cwd names a directory on that host, not here: its
           // sessions answer to this machine's own list.
           const cwd = caller.host ? null : url.searchParams.get("cwd");
-          if (cwd && path.isAbsolute(cwd)) sessionPolicies.set(session, loadSitePolicy(cwd));
-          return json(200, { ok: true, sessions: visibleSessions(caller, sessionsOf(tabId)) });
+          if (cwd && path.isAbsolute(cwd))
+            sessionPolicies.set(session, loadSitePolicy(cwd));
+          return json(200, {
+            ok: true,
+            sessions: visibleSessions(caller, sessionsOf(tabId)),
+          });
         }
         case "/reload":
           if (req.method !== "POST") {
             return new Response("POST\n", { status: 405 });
           }
           // Every connected profile: an unpacked load is the same files in each.
-          await Promise.all(links.list().map((l) => extCall("reload", {}, 5_000, false, l)));
+          await Promise.all(
+            links.list().map((l) => extCall("reload", {}, 5_000, false, l)),
+          );
           return json(200, { ok: true });
         default:
           return new Response("not found\n", { status: 404 });
@@ -1919,7 +2574,11 @@ export async function startBridgeHost(opts: {
     const deadline = Date.now() + (opts.incumbentProbeMs ?? 2_000);
     while (Date.now() < deadline) {
       if (incumbent.framesHeard !== heard) return true;
-      if (links.get(incumbent.id) !== incumbent || incumbent.ws.readyState !== WebSocket.OPEN) return false;
+      if (
+        links.get(incumbent.id) !== incumbent ||
+        incumbent.ws.readyState !== WebSocket.OPEN
+      )
+        return false;
       await sleep(50);
     }
     return incumbent.framesHeard !== heard;
@@ -1931,7 +2590,8 @@ export async function startBridgeHost(opts: {
     for (const c of clients) {
       for (const tabId of new Set(c.sessions.values())) {
         const at = tabIds.chrome(tabId);
-        if (at ? at.link === link.id : links.list().length === 0) for (const h of dropTab(tabId, reason)) held.add(h);
+        if (at ? at.link === link.id : links.list().length === 0)
+          for (const h of dropTab(tabId, reason)) held.add(h);
       }
     }
     disconnect(held, reason);
@@ -1973,7 +2633,9 @@ export async function startBridgeHost(opts: {
   const legacyIdentity = (): { id: string; name: string; dir?: string } => {
     const dir = opts.pinnedProfile?.();
     const name = (dir && opts.profileName?.(dir)) || "Chrome";
-    const taken = new Set(Object.values(opts.profiles?.() ?? {}).map((r) => r.id));
+    const taken = new Set(
+      Object.values(opts.profiles?.() ?? {}).map((r) => r.id),
+    );
     let id = profileSlug(name === "Chrome" ? undefined : name, dir);
     if (taken.has(id)) id = `${id}-legacy`;
     return { id, name, ...(dir ? { dir } : {}) };
@@ -1986,63 +2648,121 @@ export async function startBridgeHost(opts: {
    * that predates profiles; or a one-time code, exchanged here for a key.
    * Returns null when the socket was refused and closed.
    */
-  const admit = async (ws: BridgeSocket, msg: any): Promise<Admitted | null> => {
+  const admit = async (
+    ws: BridgeSocket,
+    msg: any,
+  ): Promise<Admitted | null> => {
     const refuse = (why: string): null => {
       ws.close(CLOSE_BAD_TOKEN, why.slice(0, 120));
       // A revoked profile asks again every 30 s; the log says so once, with a count when it changes.
       const line = `extension refused: ${why}${isProfileKey(msg?.key) ? ` (profile key ${String(msg.key).slice(0, 6)}…)` : ""}`;
       const seen = refusals.get(line) ?? 0;
       refusals.set(line, seen + 1);
-      if (seen === 0 || (seen + 1) % 100 === 0) opts.onProfile?.(seen ? `${line} x${seen + 1}` : line);
+      if (seen === 0 || (seen + 1) % 100 === 0)
+        opts.onProfile?.(seen ? `${line} x${seen + 1}` : line);
       return null;
     };
     if (msg?.op !== "hello" || !isNonce(msg.nonce)) return refuse("bad hello");
     const nonce: string = msg.nonce;
     const mode = msg.mode;
     if (mode === "key") {
-      const rec = isProfileKey(msg.key) ? opts.profiles?.()?.[msg.key] : undefined;
-      if (!rec || !secretMatches(bridgeProof(rec.hash, "ext", nonce), msg.auth)) return refuse("bad token");
-      return { key: msg.key, id: rec.id, name: rec.name, dir: rec.dir, hash: rec.hash, welcome: { proof: bridgeProof(rec.hash, "host", nonce), profile: rec.id } };
+      const rec = isProfileKey(msg.key)
+        ? opts.profiles?.()?.[msg.key]
+        : undefined;
+      if (!rec || !secretMatches(bridgeProof(rec.hash, "ext", nonce), msg.auth))
+        return refuse("bad token");
+      return {
+        key: msg.key,
+        id: rec.id,
+        name: rec.name,
+        dir: rec.dir,
+        hash: rec.hash,
+        welcome: {
+          proof: bridgeProof(rec.hash, "host", nonce),
+          profile: rec.id,
+        },
+      };
     }
     if (mode === "code") {
       if (!isProfileKey(msg.key)) return refuse("bad hello");
-      if (!hasPendingCodes()) return refuse("no pairing code is pending; run `cast browser extension setup`");
+      if (!hasPendingCodes())
+        return refuse(
+          "no pairing code is pending; run `cast browser extension setup`",
+        );
       const hostNonce = randomNonce();
       const answer = nextPreAuthMessage(ws);
       sendJson(ws, { op: "challenge", nonce: hostNonce });
       const pair = await answer;
       if (!pair) return null;
-      const match = pair.op === "pair" ? matchPendingCode(pair.proof, port, nonce, hostNonce) : null;
+      const match =
+        pair.op === "pair"
+          ? matchPendingCode(pair.proof, port, nonce, hostNonce)
+          : null;
       if (!match) {
         const exhausted = recordPairingFailure();
-        return refuse(exhausted ? "too many wrong pairing codes; run setup for a new one" : "pairing code wrong, used or expired");
+        return refuse(
+          exhausted
+            ? "too many wrong pairing codes; run setup for a new one"
+            : "pairing code wrong, used or expired",
+        );
       }
       consumePairingCode(match.code.key);
-      const { secret, record } = issueProfileKey(msg.key, { name: match.code.name, dir: match.code.dir, via: "code" });
+      const { secret, record } = issueProfileKey(msg.key, {
+        name: match.code.name,
+        dir: match.code.dir,
+        via: "code",
+      });
       return {
-        key: msg.key, id: record.id, name: record.name, dir: record.dir, hash: record.hash,
-        welcome: { proof: hmacHex(match.session, "host"), issue: xorHex(secret, hmacHex(match.session, "wrap")), profile: record.id },
+        key: msg.key,
+        id: record.id,
+        name: record.name,
+        dir: record.dir,
+        hash: record.hash,
+        welcome: {
+          proof: hmacHex(match.session, "host"),
+          issue: xorHex(secret, hmacHex(match.session, "wrap")),
+          profile: record.id,
+        },
         paired: `paired Chrome profile ${record.id} with a one-time code`,
       };
     }
     // The shared token: an extension paired before profiles existed.
-    if (!secretMatches(bridgeProof(token, "ext", nonce), msg.auth)) return refuse("bad token");
+    if (!secretMatches(bridgeProof(token, "ext", nonce), msg.auth))
+      return refuse("bad token");
     const welcome = { proof: bridgeProof(token, "host", nonce) };
     if (mode === "legacy" && isProfileKey(msg.key)) {
       // A revoked profile is out until the human pairs it again with a code,
       // whatever token its extension still holds.
-      if (opts.revokedProfiles?.()?.[msg.key]) return refuse("this Chrome profile was revoked; run `cast browser extension setup` to pair it again");
+      if (opts.revokedProfiles?.()?.[msg.key])
+        return refuse(
+          "this Chrome profile was revoked; run `cast browser extension setup` to pair it again",
+        );
       // A build that knows profiles: its own key from now on, handed over
       // masked, and it forgets the shared token. The pinned profile goes to
       // the first profile to migrate; another one is named without it.
       const known = opts.profiles?.() ?? {};
       const pinned = opts.pinnedProfile?.();
-      const dirTaken = Object.entries(known).some(([k, r]) => k !== msg.key && r.dir === pinned);
-      const dir = known[msg.key]?.dir ?? (pinned && !dirTaken ? pinned : undefined);
-      const { secret, record } = issueProfileKey(msg.key, { name: dir ? opts.profileName?.(dir) : undefined, dir, via: "migrated" });
+      const dirTaken = Object.entries(known).some(
+        ([k, r]) => k !== msg.key && r.dir === pinned,
+      );
+      const dir =
+        known[msg.key]?.dir ?? (pinned && !dirTaken ? pinned : undefined);
+      const { secret, record } = issueProfileKey(msg.key, {
+        name: dir ? opts.profileName?.(dir) : undefined,
+        dir,
+        via: "migrated",
+      });
       return {
-        key: msg.key, id: record.id, name: record.name, dir: record.dir, hash: record.hash,
-        welcome: { ...welcome, issue: xorHex(secret, hmacHex(token, `issue:${nonce}`)), profile: record.id },
+        key: msg.key,
+        id: record.id,
+        name: record.name,
+        dir: record.dir,
+        hash: record.hash,
+        welcome: {
+          ...welcome,
+          issue: xorHex(secret, hmacHex(token, `issue:${nonce}`)),
+          profile: record.id,
+        },
         paired: `migrated Chrome profile ${record.id} off the shared token`,
       };
     }
@@ -2055,7 +2775,10 @@ export async function startBridgeHost(opts: {
    * extension can tell us from a squatter too. Only a proven socket becomes a
    * profile's link; until then it can neither replace one nor drive anything.
    */
-  const adoptExtension = (ws: BridgeSocket, preAuth: { release(): void }): void => {
+  const adoptExtension = (
+    ws: BridgeSocket,
+    preAuth: { release(): void },
+  ): void => {
     // A silent socket is a slow worker, not a wrong token: the code says
     // "try again", never "re-pair".
     const hello = setTimeout(() => {
@@ -2088,10 +2811,19 @@ export async function startBridgeHost(opts: {
       // back and forth every few seconds. The current worker keeps it while
       // it answers a ping; the newcomer stands by. A profile with its own key
       // reconnecting is the same profile, and the newer socket wins.
-      if (who.key === LEGACY_LINK_KEY && prev && prev.ws !== ws && prev.ws.readyState === WebSocket.OPEN && (boot === undefined || boot !== prev.meta.boot)) {
+      if (
+        who.key === LEGACY_LINK_KEY &&
+        prev &&
+        prev.ws !== ws &&
+        prev.ws.readyState === WebSocket.OPEN &&
+        (boot === undefined || boot !== prev.meta.boot)
+      ) {
         if (await incumbentAnswers(prev)) {
           const detail = `worker ${boot ?? "?"} (${typeof msg.userAgent === "string" ? msg.userAgent : "?"}) stands by: worker ${prev.meta.boot ?? "?"} holds the bridge and answers`;
-          ws.close(CLOSE_EXTENSION_STANDBY, "another Chrome profile's extension holds the bridge");
+          ws.close(
+            CLOSE_EXTENSION_STANDBY,
+            "another Chrome profile's extension holds the bridge",
+          );
           opts.onStandby?.(detail);
           return;
         }
@@ -2101,18 +2833,36 @@ export async function startBridgeHost(opts: {
       const sameWorker = boot !== undefined && boot === lastBoot.get(who.id);
       if (boot) lastBoot.set(who.id, boot);
       const link: ExtLink = {
-        id: who.id, key: who.key, name: who.name, ...(who.dir ? { dir: who.dir } : {}), ...(who.hash ? { hash: who.hash } : {}),
-        ws, meta: { version: msg.version, protocol: msg.protocol, userAgent: msg.userAgent, boot, bootAt },
-        heardAt: Date.now(), framesHeard: 0, connectedAt: prev?.connectedAt ?? Date.now(),
+        id: who.id,
+        key: who.key,
+        name: who.name,
+        ...(who.dir ? { dir: who.dir } : {}),
+        ...(who.hash ? { hash: who.hash } : {}),
+        ws,
+        meta: {
+          version: msg.version,
+          protocol: msg.protocol,
+          userAgent: msg.userAgent,
+          boot,
+          bootAt,
+        },
+        heardAt: Date.now(),
+        framesHeard: 0,
+        connectedAt: prev?.connectedAt ?? Date.now(),
       };
       const replaced = links.set(link);
-      if (replaced) replaced.ws.close(1000, "replaced by a newer extension connection");
+      if (replaced)
+        replaced.ws.close(1000, "replaced by a newer extension connection");
       if (who.paired) opts.onProfile?.(who.paired);
       // Which worker, how old, and why it connected: a new boot id means
       // Chrome ended the previous worker; the same one means only the
       // socket dropped.
-      const age = bootAt ? `${Math.round((Date.now() - bootAt) / 1000)}s old` : "age unknown";
-      const recent = Array.isArray(msg.recent) ? msg.recent.filter((r: unknown) => typeof r === "string").slice(-12) : [];
+      const age = bootAt
+        ? `${Math.round((Date.now() - bootAt) / 1000)}s old`
+        : "age unknown";
+      const recent = Array.isArray(msg.recent)
+        ? msg.recent.filter((r: unknown) => typeof r === "string").slice(-12)
+        : [];
       onExtension?.(
         true,
         `worker ${boot ?? "?"} (${sameWorker ? "same worker, " : ""}${age}) via ${typeof msg.trigger === "string" ? msg.trigger : "?"}, v${msg.version ?? "?"}` +
@@ -2128,14 +2878,25 @@ export async function startBridgeHost(opts: {
         for (const [id, p] of extPending) {
           if (p.link !== link) continue;
           extPending.delete(id);
-          p.reject(new Error("the extension disconnected mid-command — check the cast bridge extension in Chrome"));
+          p.reject(
+            new Error(
+              "the extension disconnected mid-command — check the cast bridge extension in Chrome",
+            ),
+          );
         }
         if (links.remove(ws) !== link) return;
         const why = String(reason ?? "");
-        onExtension?.(links.list().length > 0, `close ${code}${why ? ` ${why}` : ""}; profile ${link.id}`);
+        onExtension?.(
+          links.list().length > 0,
+          `close ${code}${why ? ` ${why}` : ""}; profile ${link.id}`,
+        );
         failClientsOf(link, "the extension disconnected");
       });
-      sendJson(ws, { op: "welcome", protocol: BRIDGE_PROTOCOL, ...who.welcome });
+      sendJson(ws, {
+        op: "welcome",
+        protocol: BRIDGE_PROTOCOL,
+        ...who.welcome,
+      });
       prunedLinks.delete(link.id);
     });
   };
@@ -2145,18 +2906,34 @@ export async function startBridgeHost(opts: {
     const origin = req.headers.get("origin") ?? undefined;
     const pathToken = /^\/devtools\/browser\/([^/?]+)$/.exec(url.pathname)?.[1];
     const role: "ext" | "cdp" | "computer" | null =
-      url.pathname === "/ext" ? "ext" : url.pathname === "/computer" ? "computer" : pathToken || url.pathname === "/devtools/browser" ? "cdp" : null;
+      url.pathname === "/ext"
+        ? "ext"
+        : url.pathname === "/computer"
+          ? "computer"
+          : pathToken || url.pathname === "/devtools/browser"
+            ? "cdp"
+            : null;
     const presented = url.searchParams.get("token") ?? pathToken;
 
     // A cloud host's own token only: this machine's processes talk to the
     // helper directly, so the machine token has no business on this face.
     if (role === "computer") {
       const host = matchHostClient(opts.hostClients?.(), presented);
-      if (!bridgeUpgradeOriginAllowed(origin) || !isLoopbackHost(req.headers.get("host") ?? undefined)) return new Response("forbidden\n", { status: 403 });
-      if (!host || !opts.computer) return (ws) => ws.close(CLOSE_BAD_TOKEN, "bad token");
+      if (
+        !bridgeUpgradeOriginAllowed(origin) ||
+        !isLoopbackHost(req.headers.get("host") ?? undefined)
+      )
+        return new Response("forbidden\n", { status: 403 });
+      if (!host || !opts.computer)
+        return (ws) => ws.close(CLOSE_BAD_TOKEN, "bad token");
       const hash = hashHostToken(presented!);
       const tokenLive = () => opts.hostClients?.()?.[host]?.hash === hash;
-      return (ws) => opts.computer!(ws, { host, session: url.searchParams.get("session") || null, tokenLive });
+      return (ws) =>
+        opts.computer!(ws, {
+          host,
+          session: url.searchParams.get("session") || null,
+          tokenLive,
+        });
     }
 
     // CDP clients present the token in the URL (they are our own processes,
@@ -2169,7 +2946,11 @@ export async function startBridgeHost(opts: {
     // non-loopback Host are all "you are not a bridge client"; there is no
     // close code worth spending on them, and completing the upgrade would put
     // a stranger in front of the frame reader.
-    if (!role || !bridgeUpgradeOriginAllowed(origin) || !isLoopbackHost(req.headers.get("host") ?? undefined)) {
+    if (
+      !role ||
+      !bridgeUpgradeOriginAllowed(origin) ||
+      !isLoopbackHost(req.headers.get("host") ?? undefined)
+    ) {
       return new Response("forbidden\n", { status: 403 });
     }
 
@@ -2196,8 +2977,13 @@ export async function startBridgeHost(opts: {
       const host = caller?.host ?? null;
       const session = scopedSession({ host }, url.searchParams.get("session"));
       const client: Client = {
-        ws, sessions: new Map(), discover: false, group: null,
-        session, announced: new Set(), host,
+        ws,
+        sessions: new Map(),
+        discover: false,
+        group: null,
+        session,
+        announced: new Set(),
+        host,
         // A cloud host's tabs open in the profile its session is bound to, or the default; it cannot pick one.
         profile: host ? null : url.searchParams.get("profile") || null,
         // A cloud host's session never pulls a tab over the human's work.
@@ -2206,10 +2992,14 @@ export async function startBridgeHost(opts: {
       clients.add(client);
       if (client.host) {
         hostClientTokens.set(client, hashHostToken(presented!));
-        opts.onHostClient?.(`cloud host ${client.host} connected a CDP client${client.session ? ` for session ${visibleSessions(client, [client.session])[0]}` : ""}`);
+        opts.onHostClient?.(
+          `cloud host ${client.host} connected a CDP client${client.session ? ` for session ${visibleSessions(client, [client.session])[0]}` : ""}`,
+        );
         ws.on("close", () => {
           hostClientTokens.delete(client);
-          opts.onHostClient?.(`cloud host ${client.host} CDP client${client.session ? ` for session ${visibleSessions(client, [client.session])[0]}` : ""} left`);
+          opts.onHostClient?.(
+            `cloud host ${client.host} CDP client${client.session ? ` for session ${visibleSessions(client, [client.session])[0]}` : ""} left`,
+          );
         });
       }
       ws.on("message", (raw) => {
@@ -2227,7 +3017,13 @@ export async function startBridgeHost(opts: {
     };
   };
 
-  const server = await serveBridge({ port, maxPayload: MAX_MESSAGE_BYTES, fetch: handleHttp, upgrade, onOverflow: opts.onTraffic });
+  const server = await serveBridge({
+    port,
+    maxPayload: MAX_MESSAGE_BYTES,
+    fetch: handleHttp,
+    upgrade,
+    onOverflow: opts.onTraffic,
+  });
 
   // Application-level keepalive: protocol pings are invisible to the
   // extension's JavaScript, and it is JS-visible traffic that keeps an MV3
@@ -2242,7 +3038,9 @@ export async function startBridgeHost(opts: {
     const paired = opts.profiles?.();
     for (const link of links.list()) {
       if (!link.hash || paired?.[link.key]?.hash === link.hash) continue;
-      opts.onProfile?.(`profile ${link.id} revoked; closing its extension link`);
+      opts.onProfile?.(
+        `profile ${link.id} revoked; closing its extension link`,
+      );
       link.ws.close(CLOSE_BAD_TOKEN, "this profile's pairing was revoked");
     }
     if (!hostClientTokens.size) return;
@@ -2250,7 +3048,9 @@ export async function startBridgeHost(opts: {
     for (const [client, hash] of hostClientTokens) {
       if (current?.[client.host!]?.hash === hash) continue;
       hostClientTokens.delete(client);
-      opts.onHostClient?.(`cloud host ${client.host} token revoked; closing its CDP client`);
+      opts.onHostClient?.(
+        `cloud host ${client.host} token revoked; closing its CDP client`,
+      );
       client.ws.close(CLOSE_BAD_TOKEN, "bad token");
     }
   }, HOST_CLIENT_SWEEP_MS);
@@ -2270,7 +3070,8 @@ export async function startBridgeHost(opts: {
 
   return {
     port,
-    extensionConnected: () => links.list().some((l) => l.ws.readyState === WebSocket.OPEN),
+    extensionConnected: () =>
+      links.list().some((l) => l.ws.readyState === WebSocket.OPEN),
     profiles: () => links.list().map((l) => l.id),
     async close() {
       clearInterval(pinger);
@@ -2289,8 +3090,13 @@ function fileReader<T>(file: string, read: () => T): () => T | undefined {
     try {
       const st = fs.statSync(file);
       stamp = `${st.mtimeMs}:${st.size}`;
-    } catch { /* gone */ }
-    if (stamp !== seen) { seen = stamp; value = stamp ? read() : undefined; }
+    } catch {
+      /* gone */
+    }
+    if (stamp !== seen) {
+      seen = stamp;
+      value = stamp ? read() : undefined;
+    }
     return value;
   };
 }
@@ -2304,9 +3110,25 @@ function hostClientsReader(): () => HostClients | undefined {
  * The cloud hosts' switches as hosts.json holds them now, and the `/computer`
  * face that serves a granted host's session (computer/remoteServe.ts).
  */
-async function remoteComputerFace(log: (line: string) => void): Promise<Pick<Parameters<typeof startBridgeHost>[0], "hostAllowsBrowser" | "computer">> {
-  const [{ readHosts, registryFile }, { serveComputerSocket }, { noticeDue }, { createComputerClient }, os, { execFile }] = await Promise.all([
-    import("../cloudHost.js"), import("../../computer/remoteServe.js"), import("../../computer/remoteGrant.js"), import("../../computer/run.js"), import("node:os"), import("../../proc.js"),
+async function remoteComputerFace(
+  log: (line: string) => void,
+): Promise<
+  Pick<Parameters<typeof startBridgeHost>[0], "hostAllowsBrowser" | "computer">
+> {
+  const [
+    { readHosts, registryFile },
+    { serveComputerSocket },
+    { noticeDue },
+    { createComputerClient },
+    os,
+    { execFile },
+  ] = await Promise.all([
+    import("../cloudHost.js"),
+    import("../../computer/remoteServe.js"),
+    import("../../computer/remoteGrant.js"),
+    import("../../computer/run.js"),
+    import("node:os"),
+    import("../../proc.js"),
   ]);
   const hosts = fileReader(registryFile(), () => readHosts());
   const entry = (id: string) => hosts()?.find((h) => h.id === id);
@@ -2314,18 +3136,26 @@ async function remoteComputerFace(log: (line: string) => void): Promise<Pick<Par
   const seen: Record<string, string> = {};
   return {
     hostAllowsBrowser: (id) => entry(id)?.laptopBrowser !== false,
-    computer: (ws, caller) => serveComputerSocket(ws, {
-      host: caller.host,
-      session: caller.session,
-      laptop,
-      hostEntry: () => (caller.tokenLive() ? entry(caller.host) : undefined),
-      client: () => createComputerClient({}),
-      log,
-      onFirstUse: (id) => {
-        if (!noticeDue(seen, id) || process.platform !== "darwin") return;
-        execFile("osascript", ["-e", `display notification "A session on cloud host ${id} is using this Mac's apps. cast computer remote revoke --host ${id} stops it." with title "codecast"`], () => {});
-      },
-    }),
+    computer: (ws, caller) =>
+      serveComputerSocket(ws, {
+        host: caller.host,
+        session: caller.session,
+        laptop,
+        hostEntry: () => (caller.tokenLive() ? entry(caller.host) : undefined),
+        client: () => createComputerClient({}),
+        log,
+        onFirstUse: (id) => {
+          if (!noticeDue(seen, id) || process.platform !== "darwin") return;
+          execFile(
+            "osascript",
+            [
+              "-e",
+              `display notification "A session on cloud host ${id} is using this Mac's apps. cast computer remote revoke --host ${id} stops it." with title "codecast"`,
+            ],
+            () => {},
+          );
+        },
+      }),
   };
 }
 
@@ -2334,12 +3164,17 @@ export async function runBridgeHost(): Promise<void> {
   const state = ensureBridgeConfig();
   const standing = await probeHostPatiently(state);
   if (standing === "alive" || standing === "busy") {
-    console.error(`a bridge host is already ${standing === "alive" ? "answering" : "listening but not answering"} on 127.0.0.1:${state.port}`);
+    console.error(
+      `a bridge host is already ${standing === "alive" ? "answering" : "listening but not answering"} on 127.0.0.1:${state.port}`,
+    );
     process.exit(0);
   }
   // Detached, this process's stderr is bridgeHostLogPath(): the only trace
   // a host leaves of why it is no longer running.
-  const log = (line: string): void => console.error(`${new Date().toISOString()} [host ${process.pid} port ${state.port}] ${line}`);
+  const log = (line: string): void =>
+    console.error(
+      `${new Date().toISOString()} [host ${process.pid} port ${state.port}] ${line}`,
+    );
   // The state file is how every short-lived CLI process learns, without a
   // round trip, whether the extension is here: the host is the only writer
   // of these two fields, and it clears the flag on the way out.
@@ -2347,11 +3182,20 @@ export async function runBridgeHost(): Promise<void> {
   // `connected` is whether ANY profile is on the socket; each profile's
   // arrival and departure is logged with its id.
   const record = (connected: boolean, detail = ""): void => {
-    if (detail) log(`extension ${detail.startsWith("close ") ? "disconnected" : "connected"}: ${detail}`);
-    updateBridgeHostState(owner, { extensionConnected: connected, ...(connected ? { extensionSeenAt: Date.now() } : {}) });
+    if (detail)
+      log(
+        `extension ${detail.startsWith("close ") ? "disconnected" : "connected"}: ${detail}`,
+      );
+    updateBridgeHostState(owner, {
+      extensionConnected: connected,
+      ...(connected ? { extensionSeenAt: Date.now() } : {}),
+    });
   };
   const build = formatBuild(currentBuild());
-  const pinned = fileReader(bridgeStatePath(), () => readBridgeState()?.profile);
+  const pinned = fileReader(
+    bridgeStatePath(),
+    () => readBridgeState()?.profile,
+  );
   let host: RunningHost;
   try {
     host = await startBridgeHost({
@@ -2363,34 +3207,54 @@ export async function runBridgeHost(): Promise<void> {
       sessionTabs: state.sessionTabs,
       takenBack: state.takenBack,
       sessionProfiles: state.sessionProfiles,
-      onTabState: (tabState) => { updateBridgeHostState(owner, tabState); },
+      onTabState: (tabState) => {
+        updateBridgeHostState(owner, tabState);
+      },
       onTraffic: log,
       hostClients: hostClientsReader(),
       onHostClient: log,
-      ...await remoteComputerFace(log),
+      ...(await remoteComputerFace(log)),
       profiles: fileReader(pairingPath(), () => readPairing().profiles),
       revokedProfiles: fileReader(pairingPath(), () => readPairing().revoked),
       pinnedProfile: pinned,
-      profileName: (dir) => extensionProfiles().all.find((p) => p.dir === dir)?.name,
+      profileName: (dir) =>
+        extensionProfiles().all.find((p) => p.dir === dir)?.name,
       onProfile: log,
-      onRetire: () => { void shutdown(`retired for a newer cast (this host is build ${build})`); },
+      onRetire: () => {
+        void shutdown(`retired for a newer cast (this host is build ${build})`);
+      },
     });
   } catch (err) {
     // Lost the port to a host that bound between the probe and the listen:
     // that host is the bridge, and this one has nothing to add but noise.
     if ((err as { code?: string })?.code === "EADDRINUSE") {
-      console.error(`another bridge host bound 127.0.0.1:${state.port} first; leaving it to it`);
+      console.error(
+        `another bridge host bound 127.0.0.1:${state.port} first; leaving it to it`,
+      );
       process.exit(0);
     }
     throw err;
   }
   const current = readBridgeState();
-  if (!current || current.port !== state.port || current.token !== state.token) {
+  if (
+    !current ||
+    current.port !== state.port ||
+    current.token !== state.token
+  ) {
     await host.close();
-    throw new Error("bridge configuration changed during startup; the stale host stopped");
+    throw new Error(
+      "bridge configuration changed during startup; the stale host stopped",
+    );
   }
-  writeBridgeState({ ...current, hostPid: process.pid, startedAt: Date.now(), extensionConnected: false });
-  log(`bridge host pid ${process.pid} (build ${build}) listening on 127.0.0.1:${state.port}`);
+  writeBridgeState({
+    ...current,
+    hostPid: process.pid,
+    startedAt: Date.now(),
+    extensionConnected: false,
+  });
+  log(
+    `bridge host pid ${process.pid} (build ${build}) listening on 127.0.0.1:${state.port}`,
+  );
   const shutdown = async (why: string, code = 0) => {
     log(`stopping: ${why}`);
     await host.close();
@@ -2401,8 +3265,12 @@ export async function runBridgeHost(): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
   // A crash leaves a line and a clean state file behind: with stdio ignored
   // and the flag left set, a host that died took the reason with it.
-  process.on("uncaughtException", (err: Error) => shutdown(`uncaught exception: ${err?.stack ?? err}`, 1));
-  process.on("unhandledRejection", (err) => shutdown(`unhandled rejection: ${(err as Error)?.stack ?? err}`, 1));
+  process.on("uncaughtException", (err: Error) =>
+    shutdown(`uncaught exception: ${err?.stack ?? err}`, 1),
+  );
+  process.on("unhandledRejection", (err) =>
+    shutdown(`unhandled rejection: ${(err as Error)?.stack ?? err}`, 1),
+  );
   // Keep the event loop alive forever; the sockets do the actual work.
   await new Promise(() => {});
 }

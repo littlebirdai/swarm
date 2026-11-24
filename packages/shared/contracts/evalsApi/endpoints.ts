@@ -21,7 +21,21 @@ import type {
   TokenUsage,
 } from "@platform/evals/contract";
 import type { EvalRoute, GuardStatus, RunRow, StalenessWord } from "./core";
-import type { SimEvent, SimFinal, SimGridCell, SimInvariant, SimJob, SimMinimal, SimResult, SimRunRow, SimScenario, SimSession, SimSessionSummary, SimShrinkProgress, SimWorld } from "./sim";
+import type {
+  SimEvent,
+  SimFinal,
+  SimGridCell,
+  SimInvariant,
+  SimJob,
+  SimMinimal,
+  SimResult,
+  SimRunRow,
+  SimScenario,
+  SimSession,
+  SimSessionSummary,
+  SimShrinkProgress,
+  SimWorld,
+} from "./sim";
 
 export type {
   AttributionQuery,
@@ -62,7 +76,13 @@ export interface SurfaceOverview extends CoreSurfaceOverview {
 }
 
 /** A "What moved" line for a multiplayer sim run that failed: codecast's own kind. */
-export type SimFailureMoved = { at: string; surface: string | null } & { kind: "sim-failure"; session: string; run: string; scenario: string; invariant: string };
+export type SimFailureMoved = { at: string; surface: string | null } & {
+  kind: "sim-failure";
+  session: string;
+  run: string;
+  scenario: string;
+  invariant: string;
+};
 
 /** A "What moved" line. */
 export type MovedEvent = CoreMovedEvent | SimFailureMoved;
@@ -133,7 +153,13 @@ export interface CallDetail {
 export type AgentItem =
   | { kind: "text"; text: string }
   | { kind: "thinking"; text: string }
-  | { kind: "tool"; name: string; input: unknown; output: string | null; isError: boolean };
+  | {
+      kind: "tool";
+      name: string;
+      input: unknown;
+      output: string | null;
+      isError: boolean;
+    };
 
 /** One `agentN` folder. */
 export interface AgentDetail {
@@ -147,7 +173,15 @@ export interface AgentDetail {
   said: string[];
   brief: string | null;
   /** args.json. */
-  args: { model: string; call: boolean; maxOutputTokens: number | null; tools: string[] | null; maxTurns: number | null; serve: string | null; guard: string | null };
+  args: {
+    model: string;
+    call: boolean;
+    maxOutputTokens: number | null;
+    tools: string[] | null;
+    maxTurns: number | null;
+    serve: string | null;
+    guard: string | null;
+  };
   tokens: TokenUsage;
   costUsd: number;
 }
@@ -210,7 +244,12 @@ export interface SearchQuery {
 /** What the nav's search finds in the index that no page has loaded yet (section 4.1): freezes and runs by id prefix. */
 export interface SearchResponse {
   freezes: Array<{ id: string; name: string; surface: string }>;
-  runs: Array<{ id: string; surface: string; freezeName: string | null; batch: string | null }>;
+  runs: Array<{
+    id: string;
+    surface: string;
+    freezeName: string | null;
+    batch: string | null;
+  }>;
 }
 
 /** How many of each kind a search answers. */
@@ -221,17 +260,44 @@ export const EVALS_SEARCH_LIMIT = 8;
  * world (over its rows): a freeze id or a run id that starts with the query,
  * at least three characters, newest runs first.
  */
-export function searchRows(rows: ReadonlyArray<Pick<RunRow, "id" | "surface" | "freezeId" | "freezeName" | "batch" | "stamp">>, query: string): SearchResponse {
+export function searchRows(
+  rows: ReadonlyArray<
+    Pick<
+      RunRow,
+      "id" | "surface" | "freezeId" | "freezeName" | "batch" | "stamp"
+    >
+  >,
+  query: string,
+): SearchResponse {
   const q = query.trim().toLowerCase();
   if (q.length < 3) return { freezes: [], runs: [] };
   const freezes = new Map<string, SearchResponse["freezes"][number]>();
   const runs: Array<SearchResponse["runs"][number] & { stamp: string }> = [];
   for (const r of rows) {
-    if (freezes.size < EVALS_SEARCH_LIMIT && r.freezeId.toLowerCase().startsWith(q) && !freezes.has(r.freezeId)) freezes.set(r.freezeId, { id: r.freezeId, name: r.freezeName ?? r.freezeId.slice(0, 8), surface: r.surface });
-    if (r.id.toLowerCase().startsWith(q)) runs.push({ id: r.id, surface: r.surface, freezeName: r.freezeName, batch: r.batch, stamp: r.stamp });
+    if (
+      freezes.size < EVALS_SEARCH_LIMIT &&
+      r.freezeId.toLowerCase().startsWith(q) &&
+      !freezes.has(r.freezeId)
+    )
+      freezes.set(r.freezeId, {
+        id: r.freezeId,
+        name: r.freezeName ?? r.freezeId.slice(0, 8),
+        surface: r.surface,
+      });
+    if (r.id.toLowerCase().startsWith(q))
+      runs.push({
+        id: r.id,
+        surface: r.surface,
+        freezeName: r.freezeName,
+        batch: r.batch,
+        stamp: r.stamp,
+      });
   }
   runs.sort((a, b) => b.stamp.localeCompare(a.stamp));
-  return { freezes: [...freezes.values()], runs: runs.slice(0, EVALS_SEARCH_LIMIT).map(({ stamp: _stamp, ...r }) => r) };
+  return {
+    freezes: [...freezes.values()],
+    runs: runs.slice(0, EVALS_SEARCH_LIMIT).map(({ stamp: _stamp, ...r }) => r),
+  };
 }
 export interface ChangesResponse extends CoreChangesResponse<RunRow> {
   jobs: SimJob[];

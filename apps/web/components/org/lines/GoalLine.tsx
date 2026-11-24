@@ -10,11 +10,28 @@ import { GoalGlyph } from "./lineAtoms";
 import { goalFacts } from "./lineFacts";
 import { ObjectLine, type ObjectLineProps } from "./ObjectLine";
 
-export { GoalGlyph, GoalMeasure, GoalOwnerPick, GoalStatusPick } from "./lineAtoms";
+export {
+  GoalGlyph,
+  GoalMeasure,
+  GoalOwnerPick,
+  GoalStatusPick,
+} from "./lineAtoms";
 
-export type GoalLineProps = { goal: InitiativeRow; now: number; editable?: boolean } & Pick<ObjectLineProps, "depth" | "expanded" | "onToggle" | "sub" | "selected">;
+export type GoalLineProps = {
+  goal: InitiativeRow;
+  now: number;
+  editable?: boolean;
+} & Pick<
+  ObjectLineProps,
+  "depth" | "expanded" | "onToggle" | "sub" | "selected"
+>;
 
-export function GoalLine({ goal, now, editable = true, ...rest }: GoalLineProps) {
+export function GoalLine({
+  goal,
+  now,
+  editable = true,
+  ...rest
+}: GoalLineProps) {
   return (
     <ObjectLine
       kind="goal"
@@ -23,7 +40,9 @@ export function GoalLine({ goal, now, editable = true, ...rest }: GoalLineProps)
       glyph={<GoalGlyph />}
       title={goal.title}
       {...goalFacts(goal, now, editable)}
-      face={goal.owner ? <OwnerChip owner={goal.owner} size={16} nameless /> : null}
+      face={
+        goal.owner ? <OwnerChip owner={goal.owner} size={16} nameless /> : null
+      }
       data-line-ref={goal.short_id || undefined}
       {...rest}
     />

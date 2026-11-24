@@ -5,12 +5,25 @@
 import type { ArtifactElement } from "./core";
 
 /** Fields that hold a person's words, in any product. */
-const WORD_FIELDS = ["text", "title", "name", "label", "input", "headline", "summary", "say", "say_title"] as const;
+const WORD_FIELDS = [
+  "text",
+  "title",
+  "name",
+  "label",
+  "input",
+  "headline",
+  "summary",
+  "say",
+  "say_title",
+] as const;
 
 /** Characters of text one artifact indexes. */
 export const SEARCH_TEXT_MAX = 32_000;
 
-export function artifactSearchText(title: string, elements: readonly ArtifactElement[]): string {
+export function artifactSearchText(
+  title: string,
+  elements: readonly ArtifactElement[],
+): string {
   const parts: string[] = [title];
   let size = title.length;
   for (const el of elements) {
@@ -22,7 +35,8 @@ export function artifactSearchText(title: string, elements: readonly ArtifactEle
       if (s.length < 2 || (f === "input" && s.startsWith("="))) continue;
       parts.push(s);
       size += s.length + 1;
-      if (size >= SEARCH_TEXT_MAX) return parts.join("\n").slice(0, SEARCH_TEXT_MAX);
+      if (size >= SEARCH_TEXT_MAX)
+        return parts.join("\n").slice(0, SEARCH_TEXT_MAX);
     }
   }
   return parts.join("\n");
@@ -38,7 +52,11 @@ export function searchSnippet(text: string, query: string, width = 80): string {
     if (at >= 0) break;
   }
   // A result line reads as words: markdown marks (emphasis, headings, quotes, links' brackets, code ticks) go.
-  const clean = (s: string) => s.replace(/[*_#>`~]+|\[|\]\([^)]*\)|\]/g, "").replace(/\s+/g, " ").trim();
+  const clean = (s: string) =>
+    s
+      .replace(/[*_#>`~]+|\[|\]\([^)]*\)|\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   // A title-only hit shows no words from inside: there are none that match.
   if (at < 0) return "";
   // Never run one sticky's words into the next: the snippet stays inside the matching line.

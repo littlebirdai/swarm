@@ -13,5 +13,6 @@ export type MdmVendorId = (typeof MDM_VENDORS)[number]["id"];
 export const DEFAULT_MDM_VENDOR: MdmVendorId = "jamf_kandji";
 
 export function mdmEmailVariable(id: string | undefined): string {
-  return (MDM_VENDORS.find((m) => m.id === id) ?? MDM_VENDORS[0]).email_variable;
+  return (MDM_VENDORS.find((m) => m.id === id) ?? MDM_VENDORS[0])
+    .email_variable;
 }

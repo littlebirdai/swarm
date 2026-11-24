@@ -24,7 +24,9 @@ export interface AppSigner {
 }
 
 /** The signer of a source row. */
-export const signerOf = (source: Pick<Doc<"event_sources">, "short_id" | "workspace">): AppSigner => ({ source: source.short_id, workspace: source.workspace });
+export const signerOf = (
+  source: Pick<Doc<"event_sources">, "short_id" | "workspace">,
+): AppSigner => ({ source: source.short_id, workspace: source.workspace });
 
 /**
  * One request to the product, signed by codecast for `sign`'s source, with
@@ -37,11 +39,31 @@ export const signerOf = (source: Pick<Doc<"event_sources">, "short_id" | "worksp
 export async function appHttp(
   fetchImpl: FetchLike,
   req: { url: string; method: string; body?: string },
-  headers: { token?: string; actor: string; idempotency_key?: string; sign?: AppSigner },
+  headers: {
+    token?: string;
+    actor: string;
+    idempotency_key?: string;
+    sign?: AppSigner;
+  },
 ): Promise<AppHttpResult> {
-  const signed = headers.sign ? await signatureHeaders({ method: req.method, url: req.url, body: req.body, ...headers.sign }) : null;
+  const signed = headers.sign
+    ? await signatureHeaders({
+        method: req.method,
+        url: req.url,
+        body: req.body,
+        ...headers.sign,
+      })
+    : null;
   if (!headers.token && !signed?.ok) {
-    return { ok: false, bytes: 0, ms: 0, error: signed && !signed.ok ? signed.error : "the connection has no secret and the request is unsigned" };
+    return {
+      ok: false,
+      bytes: 0,
+      ms: 0,
+      error:
+        signed && !signed.ok
+          ? signed.error
+          : "the connection has no secret and the request is unsigned",
+    };
   }
   const res = await tokenHttp(fetchImpl, {
     url: req.url,
@@ -51,7 +73,9 @@ export async function appHttp(
     headers: {
       ...(signed?.ok ? signed.headers : {}),
       "X-Codecast-Actor": headers.actor,
-      ...(headers.idempotency_key ? { "Idempotency-Key": headers.idempotency_key } : {}),
+      ...(headers.idempotency_key
+        ? { "Idempotency-Key": headers.idempotency_key }
+        : {}),
     },
     maxBytes: APP_LIMITS.response_bytes,
     timeoutMs: APP_LIMITS.timeout_ms,

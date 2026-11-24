@@ -23,7 +23,10 @@ import { useStillMode } from "../kit";
 export default function TriggersPage() {
   const still = useStillMode();
   return (
-    <main className={`tg-root${still ? " tg-static" : ""}`} style={{ backgroundColor: SOL.base3 }}>
+    <main
+      className={`tg-root${still ? " tg-static" : ""}`}
+      style={{ backgroundColor: SOL.base3 }}
+    >
       <style>{TRIGGER_CSS}</style>
       <Hero />
       <Clocks />

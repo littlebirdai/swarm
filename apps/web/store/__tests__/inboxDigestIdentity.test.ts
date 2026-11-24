@@ -5,7 +5,10 @@ import {
   collectInboxSessionsByIds,
 } from "@codecast/convex/convex/conversations";
 import { makeFakeDb } from "@codecast/convex/convex/testDb";
-import { INBOX_PROJECTION_VERSION, inboxEpoch } from "@codecast/shared/contracts";
+import {
+  INBOX_PROJECTION_VERSION,
+  inboxEpoch,
+} from "@codecast/shared/contracts";
 import {
   useInboxStore,
   placeInboxRows,
@@ -13,7 +16,10 @@ import {
   __resetInboxPlacementCacheForTests,
   type InboxSession,
 } from "../inboxStore";
-import { evaluateInboxCompare, type InboxCompareState } from "../inboxDigestCompare";
+import {
+  evaluateInboxCompare,
+  type InboxCompareState,
+} from "../inboxDigestCompare";
 import { __resetSyncActivityForTests } from "../syncActivity";
 import { syncMetaKey } from "../../hooks/reconcileCrawl";
 import { inboxCrawlWsKey } from "../../hooks/useSyncInboxSessions";
@@ -39,7 +45,8 @@ const EPOCH = inboxEpoch(NOW);
 const ME = "u".repeat(32);
 const CRAWL_KEY = syncMetaKey("sessions", inboxCrawlWsKey(ME));
 
-const cid = (tag: string) => (tag.toLowerCase().replace(/[^a-z0-9]/g, "") + "0".repeat(32)).slice(0, 32);
+const cid = (tag: string) =>
+  (tag.toLowerCase().replace(/[^a-z0-9]/g, "") + "0".repeat(32)).slice(0, 32);
 
 function conv(tag: string, overrides: Record<string, any> = {}) {
   return {
@@ -55,7 +62,11 @@ function conv(tag: string, overrides: Record<string, any> = {}) {
   };
 }
 
-function managed(tag: string, agent_status: string, over: Record<string, any> = {}) {
+function managed(
+  tag: string,
+  agent_status: string,
+  over: Record<string, any> = {},
+) {
   return {
     _id: `ms_${tag}`,
     user_id: ME,
@@ -87,7 +98,11 @@ function fixture() {
       conv("done", { thread_state_status: "done" }),
       conv("blank", { message_count: 0, last_message_role: undefined }),
       conv("parent", { updated_at: EPOCH - MIN }),
-      conv("child", { is_subagent: true, parent_conversation_id: cid("parent"), updated_at: EPOCH - MIN }),
+      conv("child", {
+        is_subagent: true,
+        parent_conversation_id: cid("parent"),
+        updated_at: EPOCH - MIN,
+      }),
       conv("standing", { armed_trigger_kind: "standing" }),
       conv("decide"),
       conv("ancient", { updated_at: EPOCH - 40 * DAY }), // outside every window
@@ -98,7 +113,14 @@ function fixture() {
     ],
     messages: [],
     session_decisions: [
-      { _id: "sd_1", user_id: ME, conversation_id: cid("decide"), status: "pending", blocking: true, created_at: EPOCH - MIN },
+      {
+        _id: "sd_1",
+        user_id: ME,
+        conversation_id: cid("decide"),
+        status: "pending",
+        blocking: true,
+        created_at: EPOCH - MIN,
+      },
     ],
   });
 }
@@ -128,7 +150,13 @@ beforeEach(() => {
 afterEach(() => nowSpy.mockRestore());
 
 const MONO = 1_000_000;
-const ctx = { now: NOW, nowMono: MONO + 1_000, crawlMetaKey: CRAWL_KEY, lastApplyMono: MONO - 10 * MIN, inflight: 0 };
+const ctx = {
+  now: NOW,
+  nowMono: MONO + 1_000,
+  crawlMetaKey: CRAWL_KEY,
+  lastApplyMono: MONO - 10 * MIN,
+  inflight: 0,
+};
 
 function replica(): InboxCompareState {
   return useInboxStore.getState() as unknown as InboxCompareState;
@@ -149,7 +177,10 @@ async function feedServer(db: any) {
   store.applyInboxLivenessPayload("mine", overlay);
   // Receipt clock is the harness's, not performance.now().
   useInboxStore.setState((s: any) => ({
-    sessionsProjection: { ...s.sessionsProjection, mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO } },
+    sessionsProjection: {
+      ...s.sessionsProjection,
+      mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO },
+    },
   }));
   return { base, overlay };
 }
@@ -180,25 +211,49 @@ describe("server projection == replica projection", () => {
 
     // The heal: hydrate exactly the missing ids through the byIds channel,
     // then the overlay lands its facts on the now-present row.
-    const healed = await collectInboxSessionsByIds({ db }, ME as any, first.diff.missing);
-    useInboxStore.getState().syncTable("sessions", healed.sessions as unknown as InboxSession[]);
+    const healed = await collectInboxSessionsByIds(
+      { db },
+      ME as any,
+      first.diff.missing,
+    );
+    useInboxStore
+      .getState()
+      .syncTable("sessions", healed.sessions as unknown as InboxSession[]);
     useInboxStore.getState().applyInboxLivenessPayload("mine", overlay);
     useInboxStore.setState((s: any) => ({
-      sessionsProjection: { ...s.sessionsProjection, mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO } },
+      sessionsProjection: {
+        ...s.sessionsProjection,
+        mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO },
+      },
     }));
 
     const after = evaluateInboxCompare(replica(), ctx);
-    expect(after).toMatchObject({ kind: "clean", short_circuit: true, epoch: EPOCH });
+    expect(after).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+      epoch: EPOCH,
+    });
 
     // Per row: the replica's placement equals the server's stamp for every
     // stamped member, and the tallies agree.
-    const { proj } = projectReplicaInbox(replica(), { scope: "mine", focusedId: null, epoch: EPOCH, now: NOW });
+    const { proj } = projectReplicaInbox(replica(), {
+      scope: "mine",
+      focusedId: null,
+      epoch: EPOCH,
+      now: NOW,
+    });
     expect(proj.set_digest).toBe(overlay.projection.set_digest!);
-    const stamped = Object.entries(overlay.liveness).filter(([, r]) => r.bucket !== undefined);
+    const stamped = Object.entries(overlay.liveness).filter(
+      ([, r]) => r.bucket !== undefined,
+    );
     expect(stamped.length).toBeGreaterThanOrEqual(13);
     for (const [id, stamp] of stamped) {
       const local = proj.placements.get(id);
-      expect({ id, bucket: local?.bucket, below_fold: local?.below_fold }).toEqual({ id, bucket: stamp.bucket, below_fold: stamp.below_fold });
+      expect({
+        id,
+        bucket: local?.bucket,
+        below_fold: local?.below_fold,
+      }).toEqual({ id, bucket: stamp.bucket, below_fold: stamp.below_fold });
     }
     expect(proj.placements.size).toBe(stamped.length);
     expect(proj.tally).toEqual(overlay.projection.tally);
@@ -237,7 +292,11 @@ describe("server projection == replica projection", () => {
       session_owners: [],
       conversations: [
         conv("planner", { inbox_dismissed_at: EPOCH - H }),
-        conv("impl", { parent_conversation_id: cid("planner"), parent_message_uuid: "plan-handoff", updated_at: EPOCH - MIN }),
+        conv("impl", {
+          parent_conversation_id: cid("planner"),
+          parent_message_uuid: "plan-handoff",
+          updated_at: EPOCH - MIN,
+        }),
         conv("working", { updated_at: EPOCH - MIN }),
       ],
       managed_sessions: [managed("working", "working")],
@@ -246,7 +305,10 @@ describe("server projection == replica projection", () => {
     });
     const { overlay } = await feedServer(db);
     expect(overlay.liveness[cid("impl")]?.bucket).toBe("needs_input");
-    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({ kind: "clean", short_circuit: true });
+    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+    });
     const placed = placeInboxRows(replica(), { scope: "mine", now: NOW });
     expect(placed.placements.get(cid("impl"))?.bucket).toBe("needs_input");
     expect(placed.tally).toEqual(overlay.projection.tally);
@@ -266,15 +328,37 @@ describe("server projection == replica projection", () => {
       session_owners: [],
       conversations: [
         conv("parent", { updated_at: EPOCH - MIN }),
-        conv("worker", { is_subagent: true, parent_conversation_id: cid("parent"), updated_at: EPOCH - MIN }),
+        conv("worker", {
+          is_subagent: true,
+          parent_conversation_id: cid("parent"),
+          updated_at: EPOCH - MIN,
+        }),
         conv("lead", { updated_at: EPOCH - MIN }),
-        conv("mate", { spawned_by_conversation_id: cid("lead"), agent_team_name: "team", updated_at: EPOCH - MIN }),
-        conv("banner", { pending_api_error: true, pending_api_error_kind: "auth", updated_at: EPOCH - MIN }),
+        conv("mate", {
+          spawned_by_conversation_id: cid("lead"),
+          agent_team_name: "team",
+          updated_at: EPOCH - MIN,
+        }),
+        conv("banner", {
+          pending_api_error: true,
+          pending_api_error_kind: "auth",
+          updated_at: EPOCH - MIN,
+        }),
       ],
-      managed_sessions: [managed("mate", "permission_blocked"), managed("banner", "permission_blocked")],
+      managed_sessions: [
+        managed("mate", "permission_blocked"),
+        managed("banner", "permission_blocked"),
+      ],
       messages: [],
       session_decisions: [
-        { _id: "sd_w", user_id: ME, conversation_id: cid("worker"), status: "pending", blocking: true, created_at: EPOCH - MIN },
+        {
+          _id: "sd_w",
+          user_id: ME,
+          conversation_id: cid("worker"),
+          status: "pending",
+          blocking: true,
+          created_at: EPOCH - MIN,
+        },
       ],
     });
     const { overlay } = await feedServer(db);
@@ -283,10 +367,16 @@ describe("server projection == replica projection", () => {
     expect(b("lead")).toBe("questions");
     expect(b("mate")).toBe("questions");
     expect(b("banner")).toBe("needs_input");
-    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({ kind: "clean", short_circuit: true });
+    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+    });
     const placed = placeInboxRows(replica(), { scope: "mine", now: NOW });
     for (const tag of ["parent", "lead", "mate", "banner"]) {
-      expect({ tag, bucket: placed.placements.get(cid(tag))?.bucket }).toEqual({ tag, bucket: b(tag) });
+      expect({ tag, bucket: placed.placements.get(cid(tag))?.bucket }).toEqual({
+        tag,
+        bucket: b(tag),
+      });
     }
     expect(placed.tally).toEqual(overlay.projection.tally);
   });
@@ -294,14 +384,25 @@ describe("server projection == replica projection", () => {
   it("show old on both sides changes nothing about the digest (shown + folded is the headline, not the set)", async () => {
     const db = fixture();
     const { overlay } = await feedServer(db);
-    const healed = await collectInboxSessionsByIds({ db }, ME as any, [cid("edge"), cid("folded")]);
-    useInboxStore.getState().syncTable("sessions", healed.sessions as unknown as InboxSession[]);
+    const healed = await collectInboxSessionsByIds({ db }, ME as any, [
+      cid("edge"),
+      cid("folded"),
+    ]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", healed.sessions as unknown as InboxSession[]);
     useInboxStore.getState().applyInboxLivenessPayload("mine", overlay);
     useInboxStore.setState((s: any) => ({
       clientState: { ui: { inbox_scope: "mine", inbox_show_old: true } },
-      sessionsProjection: { ...s.sessionsProjection, mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO } },
+      sessionsProjection: {
+        ...s.sessionsProjection,
+        mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO },
+      },
     }));
-    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({ kind: "clean", short_circuit: true });
+    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+    });
     const placed = placeInboxRows(replica(), { scope: "mine", now: NOW });
     expect(placed.set_digest).toBe(overlay.projection.set_digest!);
     // The fold still counts (it is membership data), and show-old renders it.
@@ -312,8 +413,13 @@ describe("server projection == replica projection", () => {
   it("a fact the overlay changes moves the replica's placement with it — stamps and facts from one payload always agree", async () => {
     const db = fixture();
     const { overlay } = await feedServer(db);
-    const healed = await collectInboxSessionsByIds({ db }, ME as any, [cid("edge"), cid("folded")]);
-    useInboxStore.getState().syncTable("sessions", healed.sessions as unknown as InboxSession[]);
+    const healed = await collectInboxSessionsByIds({ db }, ME as any, [
+      cid("edge"),
+      cid("folded"),
+    ]);
+    useInboxStore
+      .getState()
+      .syncTable("sessions", healed.sessions as unknown as InboxSession[]);
     useInboxStore.getState().applyInboxLivenessPayload("mine", overlay);
     // The working agent goes idle server-side: a NEW overlay execution.
     db._tables.managed_sessions[0].agent_status = "idle";
@@ -323,10 +429,21 @@ describe("server projection == replica projection", () => {
     expect(next.projection.set_digest).not.toBe(overlay.projection.set_digest);
     useInboxStore.getState().applyInboxLivenessPayload("mine", next);
     useInboxStore.setState((s: any) => ({
-      sessionsProjection: { ...s.sessionsProjection, mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO } },
+      sessionsProjection: {
+        ...s.sessionsProjection,
+        mine: { ...s.sessionsProjection.mine, receivedAtMono: MONO },
+      },
     }));
-    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({ kind: "clean", short_circuit: true });
-    const { proj } = projectReplicaInbox(replica(), { scope: "mine", focusedId: null, epoch: EPOCH, now: NOW });
+    expect(evaluateInboxCompare(replica(), ctx)).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+    });
+    const { proj } = projectReplicaInbox(replica(), {
+      scope: "mine",
+      focusedId: null,
+      epoch: EPOCH,
+      now: NOW,
+    });
     expect(proj.placements.get(cid("working"))?.bucket).toBe("needs_input");
     expect(proj.set_digest).toBe(next.projection.set_digest!);
   });

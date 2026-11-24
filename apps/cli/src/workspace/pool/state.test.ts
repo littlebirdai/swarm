@@ -28,7 +28,11 @@ describe("initPool", () => {
   test("creates N empty slots with stable ids", () => {
     const p = initPool(3);
     expect(p.size).toBe(3);
-    expect(p.slots.map((s) => s.slotId)).toEqual(["pool-0", "pool-1", "pool-2"]);
+    expect(p.slots.map((s) => s.slotId)).toEqual([
+      "pool-0",
+      "pool-1",
+      "pool-2",
+    ]);
     expect(p.slots.every((s) => s.state === "empty")).toBe(true);
   });
 });
@@ -93,7 +97,10 @@ describe("transitionSlot — legal moves", () => {
 
   test("claimed → empty (post-release recycle)", () => {
     const p = initPool(1);
-    transitionSlot(p, "pool-0", "warming", { workspaceName: "pool-0", headSha: "x" });
+    transitionSlot(p, "pool-0", "warming", {
+      workspaceName: "pool-0",
+      headSha: "x",
+    });
     transitionSlot(p, "pool-0", "ready");
     transitionSlot(p, "pool-0", "claimed");
     transitionSlot(p, "pool-0", "empty");
@@ -115,13 +122,17 @@ describe("transitionSlot — legal moves", () => {
 describe("transitionSlot — illegal moves", () => {
   test("empty → claimed throws", () => {
     const p = initPool(1);
-    expect(() => transitionSlot(p, "pool-0", "claimed")).toThrow(PoolTransitionError);
+    expect(() => transitionSlot(p, "pool-0", "claimed")).toThrow(
+      PoolTransitionError,
+    );
   });
   test("ready → empty throws (must go through claimed or stale)", () => {
     const p = initPool(1);
     transitionSlot(p, "pool-0", "warming");
     transitionSlot(p, "pool-0", "ready");
-    expect(() => transitionSlot(p, "pool-0", "empty")).toThrow(PoolTransitionError);
+    expect(() => transitionSlot(p, "pool-0", "empty")).toThrow(
+      PoolTransitionError,
+    );
   });
   test("missing slot id throws", () => {
     const p = initPool(1);
@@ -178,7 +189,10 @@ describe("markStaleByAge — a tree that only LOOKS current", () => {
   test("a ready slot past the max age goes stale even with a matching fingerprint", () => {
     const state = initPool(1);
     transitionSlot(state, "pool-0", "warming", { workspaceName: "pool-0" });
-    transitionSlot(state, "pool-0", "ready", { headSha: "abc", lockHash: "def" });
+    transitionSlot(state, "pool-0", "ready", {
+      headSha: "abc",
+      lockHash: "def",
+    });
     const born = Date.parse(state.slots[0]!.updatedAt);
 
     markStaleByAge(state, POOL_MAX_AGE_MS, born + POOL_MAX_AGE_MS - 1);
@@ -202,7 +216,11 @@ describe("resizePool — never forgets a slot that holds a worktree", () => {
     const state = initPool(1);
     resizePool(state, 3);
     expect(state.size).toBe(3);
-    expect(state.slots.map((s) => s.slotId)).toEqual(["pool-0", "pool-1", "pool-2"]);
+    expect(state.slots.map((s) => s.slotId)).toEqual([
+      "pool-0",
+      "pool-1",
+      "pool-2",
+    ]);
     expect(state.slots.every((s) => s.state === "empty")).toBe(true);
   });
 
@@ -215,7 +233,9 @@ describe("resizePool — never forgets a slot that holds a worktree", () => {
     resizePool(state, 1);
     // The tree is still named, so maintainPool can remove it.
     expect(state.slots.find((s) => s.slotId === "pool-1")!.state).toBe("stale");
-    expect(state.slots.find((s) => s.slotId === "pool-1")!.workspaceName).toBe("pool-1");
+    expect(state.slots.find((s) => s.slotId === "pool-1")!.workspaceName).toBe(
+      "pool-1",
+    );
     expect(state.slots.find((s) => s.slotId === "pool-0")!.state).toBe("ready");
   });
 

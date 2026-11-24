@@ -20,8 +20,18 @@ export const STALLED_MS = 8 * 3_600_000;
 
 export type FlowMapGroup = "conversations" | "people" | "product" | "pipeline";
 export type FlowMapState = "flowing" | "quiet" | "stopped";
-export type FlowMapOutcome = "queued" | "notReady" | "running" | "waiting" | "shipped" | "closed" | "failed" | "parked";
-export type FlowMapOutcomes = Record<FlowMapOutcome, number> & { total: number };
+export type FlowMapOutcome =
+  | "queued"
+  | "notReady"
+  | "running"
+  | "waiting"
+  | "shipped"
+  | "closed"
+  | "failed"
+  | "parked";
+export type FlowMapOutcomes = Record<FlowMapOutcome, number> & {
+  total: number;
+};
 
 /** A lane: one flow of the live flow's family (the spine, a variant, the judge flow). */
 export type FlowMapLane = {
@@ -38,7 +48,13 @@ export type FlowMapLane = {
 
 /** A station and the live runs standing at it: waiting on a person (paused at a card, named by a pending blocking
  *  decision, or its task holding a wait), else running, of those stalled when unchanged for STALLED_MS. */
-export type FlowMapStep = { id: string; label: string; running: number; stalled: number; waiting: number };
+export type FlowMapStep = {
+  id: string;
+  label: string;
+  running: number;
+  stalled: number;
+  waiting: number;
+};
 
 /** One source of a team's problems: a finding source, or an event source's kind that files none. */
 export type FlowMapSource = {
@@ -66,7 +82,12 @@ export type FlowMapSource = {
   /** Open event groups (or watches in alert) that never became a problem. */
   unfiled: number;
   /** What the row opens. */
-  opens: { eventSourceId?: string; judgeIds?: string[]; finderId?: string; metricWatchIds?: string[] };
+  opens: {
+    eventSourceId?: string;
+    judgeIds?: string[];
+    finderId?: string;
+    metricWatchIds?: string[];
+  };
 };
 
 export type FlowMap = {
@@ -129,7 +150,15 @@ export type FlowMapShipped = {
   reopenedBy: { source: string; title: string; ref: string | null } | null;
 };
 
-type ShipTask = { _id: string; short_id?: string | null; title: string; status: string; closed_at?: number | null; watch_until?: number | null; cause?: { named?: { name: string } | null } | null };
+type ShipTask = {
+  _id: string;
+  short_id?: string | null;
+  title: string;
+  status: string;
+  closed_at?: number | null;
+  watch_until?: number | null;
+  cause?: { named?: { name: string } | null } | null;
+};
 
 /**
  * The shipped list from a workspace's tasks with a watch ending in the window (`watched`) and the problems a finding
@@ -139,7 +168,11 @@ type ShipTask = { _id: string; short_id?: string | null; title: string; status: 
  */
 export function shippedFixes(o: {
   watched: ReadonlyArray<ShipTask>;
-  reopened: ReadonlyArray<{ task: ShipTask; at: number; by: { source: string; title: string; ref: string | null } | null }>;
+  reopened: ReadonlyArray<{
+    task: ShipTask;
+    at: number;
+    by: { source: string; title: string; ref: string | null } | null;
+  }>;
   now: number;
 }): FlowMapShipped[] {
   const name = (t: ShipTask) => t.cause?.named?.name ?? t.title;
@@ -148,26 +181,65 @@ export function shippedFixes(o: {
     if (typeof t.watch_until !== "number") continue;
     const watching = t.watch_until > o.now;
     if (!watching && t.status !== "done") continue;
-    rows.set(t._id, { taskId: t._id, ref: t.short_id ?? null, title: name(t), state: watching ? "watching" : "verified", shippedAt: t.closed_at ?? null, until: t.watch_until, reopenedAt: null, reopenedBy: null });
+    rows.set(t._id, {
+      taskId: t._id,
+      ref: t.short_id ?? null,
+      title: name(t),
+      state: watching ? "watching" : "verified",
+      shippedAt: t.closed_at ?? null,
+      until: t.watch_until,
+      reopenedAt: null,
+      reopenedBy: null,
+    });
   }
   for (const r of o.reopened) {
     // Shipped again after it came back: its new watch is what stands now.
     if (rows.has(r.task._id)) continue;
-    rows.set(r.task._id, { taskId: r.task._id, ref: r.task.short_id ?? null, title: name(r.task), state: "regressed", shippedAt: r.task.closed_at ?? null, until: null, reopenedAt: r.at, reopenedBy: r.by });
+    rows.set(r.task._id, {
+      taskId: r.task._id,
+      ref: r.task.short_id ?? null,
+      title: name(r.task),
+      state: "regressed",
+      shippedAt: r.task.closed_at ?? null,
+      until: null,
+      reopenedAt: r.at,
+      reopenedBy: r.by,
+    });
   }
-  const rank: Record<FlowMapShippedState, number> = { regressed: 0, watching: 1, verified: 2 };
-  return [...rows.values()].sort((a, b) => rank[a.state] - rank[b.state]
-    || (a.state === "regressed" ? (b.reopenedAt ?? 0) - (a.reopenedAt ?? 0) : a.state === "watching" ? (a.until ?? 0) - (b.until ?? 0) : (b.until ?? 0) - (a.until ?? 0)));
+  const rank: Record<FlowMapShippedState, number> = {
+    regressed: 0,
+    watching: 1,
+    verified: 2,
+  };
+  return [...rows.values()].sort(
+    (a, b) =>
+      rank[a.state] - rank[b.state] ||
+      (a.state === "regressed"
+        ? (b.reopenedAt ?? 0) - (a.reopenedAt ?? 0)
+        : a.state === "watching"
+          ? (a.until ?? 0) - (b.until ?? 0)
+          : (b.until ?? 0) - (a.until ?? 0)),
+  );
 }
 
-type WatchedTask = { status: string; watch_until?: number | null; resolved_at?: number | null; closed_at?: number | null };
+type WatchedTask = {
+  status: string;
+  watch_until?: number | null;
+  resolved_at?: number | null;
+  closed_at?: number | null;
+};
 
 /** When a closed cause's watch ended quiet (LE12), or null: swept, it carries resolved_at (stamped at the quiet end,
  *  its watch_until cleared; a close after it is a later ship of a reopened cause); not swept yet, it still holds its
  *  past watch_until. The one rule /line, the map, a trace and the Volume chart read "held" by. */
 export function quietWatchEnd(t: WatchedTask, now: number): number | null {
-  if ((t.status !== "done" && t.status !== "dropped") || (typeof t.watch_until === "number" && t.watch_until > now)) return null;
-  if (typeof t.resolved_at === "number" && t.resolved_at >= (t.closed_at ?? 0)) return t.resolved_at;
+  if (
+    (t.status !== "done" && t.status !== "dropped") ||
+    (typeof t.watch_until === "number" && t.watch_until > now)
+  )
+    return null;
+  if (typeof t.resolved_at === "number" && t.resolved_at >= (t.closed_at ?? 0))
+    return t.resolved_at;
   return typeof t.watch_until === "number" ? t.watch_until : null;
 }
 
@@ -179,25 +251,57 @@ export function stationWords(id: string): string {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : id;
 }
 
-export const emptyOutcomes = (): FlowMapOutcomes => ({ queued: 0, notReady: 0, running: 0, waiting: 0, shipped: 0, closed: 0, failed: 0, parked: 0, total: 0 });
+export const emptyOutcomes = (): FlowMapOutcomes => ({
+  queued: 0,
+  notReady: 0,
+  running: 0,
+  waiting: 0,
+  shipped: 0,
+  closed: 0,
+  failed: 0,
+  parked: 0,
+  total: 0,
+});
 
 // ── a problem's outcome ─────────────────────────────────────────────────────
 
-export type OutcomeTask = { status: string; readiness?: string | null; workflow_run_id?: string | null; waiting_since?: number | null; cause?: { merged_into?: unknown } | null };
-export type OutcomeRun = ({ status: string } & LineRunStations & AnsweredGate) | null | undefined;
+export type OutcomeTask = {
+  status: string;
+  readiness?: string | null;
+  workflow_run_id?: string | null;
+  waiting_since?: number | null;
+  cause?: { merged_into?: unknown } | null;
+};
+export type OutcomeRun =
+  | ({ status: string } & LineRunStations & AnsweredGate)
+  | null
+  | undefined;
 
 /** The end a run reached (lineRunEnd.runEnd), as an outcome. */
 function runEndKind(run: OutcomeRun): "shipped" | "closed" | "parked" | null {
   const end = run ? runEnd(run) : null;
-  return !end ? null : end.kind === "shipped" ? "shipped" : end.kind === "parked" ? "parked" : "closed";
+  return !end
+    ? null
+    : end.kind === "shipped"
+      ? "shipped"
+      : end.kind === "parked"
+        ? "parked"
+        : "closed";
 }
 
-const failedAt = (run: OutcomeRun) => (run?.node_statuses ?? []).some((n) => n.node_id.startsWith("failed_at_") && n.status === "completed");
+const failedAt = (run: OutcomeRun) =>
+  (run?.node_statuses ?? []).some(
+    (n) => n.node_id.startsWith("failed_at_") && n.status === "completed",
+  );
 
 /** Where a problem stands, from its task and its newest run; null for one merged into another problem (it counts there). */
-export function problemOutcome(task: OutcomeTask, run: OutcomeRun): FlowMapOutcome | null {
+export function problemOutcome(
+  task: OutcomeTask,
+  run: OutcomeRun,
+): FlowMapOutcome | null {
   if (task.cause?.merged_into) return null;
-  if (run && (run.status === "running" || run.status === "pending")) return "running";
+  if (run && (run.status === "running" || run.status === "pending"))
+    return "running";
   if ((run && run.status === "paused") || task.waiting_since) return "waiting";
   const end = runEndKind(run);
   if (end === "shipped") return "shipped";
@@ -206,17 +310,21 @@ export function problemOutcome(task: OutcomeTask, run: OutcomeRun): FlowMapOutco
   if (end) return end;
   if (task.status === "in_review") return "waiting";
   if (task.status === "in_progress") return "running";
-  if (!task.workflow_run_id) return task.readiness === "ready" ? "queued" : "notReady";
+  if (!task.workflow_run_id)
+    return task.readiness === "ready" ? "queued" : "notReady";
   return "failed";
 }
 
 // ── a source's day and state ────────────────────────────────────────────────
 
-export const utcDayKey = (at: number) => new Date(at).toISOString().slice(0, 10);
+export const utcDayKey = (at: number) =>
+  new Date(at).toISOString().slice(0, 10);
 
 /** The FLOW_MAP_DAYS day keys ending today, oldest first. */
 export function windowDays(now: number, n = FLOW_MAP_DAYS): string[] {
-  return Array.from({ length: n }, (_, i) => utcDayKey(now - (n - 1 - i) * DAY_MS));
+  return Array.from({ length: n }, (_, i) =>
+    utcDayKey(now - (n - 1 - i) * DAY_MS),
+  );
 }
 
 /** A normal day: the median of the days that had any, so a source that reports in batches is measured by its batches. */
@@ -224,7 +332,9 @@ export function normalDay(days: ReadonlyArray<number>): number {
   const active = days.filter((d) => d > 0).sort((a, b) => a - b);
   if (!active.length) return 0;
   const mid = active.length >> 1;
-  return active.length % 2 ? active[mid] : Math.round((active[mid - 1] + active[mid]) / 2);
+  return active.length % 2
+    ? active[mid]
+    : Math.round((active[mid - 1] + active[mid]) / 2);
 }
 
 /**
@@ -232,11 +342,22 @@ export function normalDay(days: ReadonlyArray<number>): number {
  * gap between active days, and at least a day. Stopped: nothing in the whole
  * window, or its event source says it is erroring or paused.
  */
-export function sourceState(o: { lastAt: number | null; days: ReadonlyArray<number>; now: number; broken?: boolean }): FlowMapState {
-  if (o.broken || !o.lastAt || o.now - o.lastAt > o.days.length * DAY_MS) return "stopped";
+export function sourceState(o: {
+  lastAt: number | null;
+  days: ReadonlyArray<number>;
+  now: number;
+  broken?: boolean;
+}): FlowMapState {
+  if (o.broken || !o.lastAt || o.now - o.lastAt > o.days.length * DAY_MS)
+    return "stopped";
   const active = o.days.flatMap((d, i) => (d > 0 ? [i] : []));
-  const gaps = active.slice(1).map((d, i) => d - active[i]).sort((a, b) => a - b);
+  const gaps = active
+    .slice(1)
+    .map((d, i) => d - active[i])
+    .sort((a, b) => a - b);
   // The lower median: a source that came daily and then in one long gap is judged by its daily rhythm.
   const usual = gaps.length ? gaps[(gaps.length - 1) >> 1] : 1;
-  return o.now - o.lastAt > Math.max(1, 2 * usual) * DAY_MS ? "quiet" : "flowing";
+  return o.now - o.lastAt > Math.max(1, 2 * usual) * DAY_MS
+    ? "quiet"
+    : "flowing";
 }

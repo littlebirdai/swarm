@@ -4,7 +4,12 @@ import { Hash, Lock, Plus, BellOff, Users, SquarePen, Bot } from "lucide-react";
 import type { ChatChannelView } from "./chatTypes";
 import { OccupancyChip } from "../calls/OccupancyChip";
 import { CommentAvatar } from "../comments/CommentAvatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import {
   channelDisplayName,
   chatViewRoomKey,
@@ -83,7 +88,10 @@ function RailRow({
   viewer: string;
   standalone?: boolean;
   onSelect: (channelId: string) => void;
-  onChannelContextMenu?: (e: React.MouseEvent, channel: ChatChannelView) => void;
+  onChannelContextMenu?: (
+    e: React.MouseEvent,
+    channel: ChatChannelView,
+  ) => void;
 }) {
   const unread = (c.unreadCount ?? 0) > 0;
   const mentions = c.mentionCount ?? 0;
@@ -93,7 +101,9 @@ function RailRow({
   const roomKey = chatViewRoomKey(c, viewer, members);
   // The same question HuddleButton asks: the strip has no room for the chip,
   // so a live room shows as a ring on the tile and a word in the tooltip.
-  const live = useInboxStore((st) => !standalone && (st.callOccupancy[roomKey]?.length ?? 0) > 0);
+  const live = useInboxStore(
+    (st) => !standalone && (st.callOccupancy[roomKey]?.length ?? 0) > 0,
+  );
   const cls = [
     "ch-chan",
     active ? "ch-chan-active" : "",
@@ -106,64 +116,77 @@ function RailRow({
     .join(" ");
   return (
     <RailTip tip={railRowTip(c, members, { live })}>
-    <button
-      key={c.id}
-      type="button"
-      className={cls}
-      onClick={() => onSelect(c.id)}
-      onContextMenu={onChannelContextMenu ? (e) => onChannelContextMenu(e, c) : undefined}
-      aria-current={active ? "page" : undefined}
-      aria-label={isDm ? name : `#${name}`}
-    >
-      {!isDm && (
-        <span
-          className="ch-chan-mono"
-          aria-hidden="true"
-          style={{ backgroundColor: hueFor(name) }}
-        >
-          {initials(name, 2)}
-          {c.isPrivate && <Lock className="ch-chan-mono-lock" />}
-        </span>
-      )}
-      <span className="ch-chan-hash" aria-hidden="true">
-        {isDm ? (
-          counterpart ? (
-            <CommentAvatar
-              name={memberName(counterpart)}
-              image={memberAvatarUrl(counterpart)}
-              size={15}
-              letters={1}
-            />
-          ) : (
-            <Users className="w-3 h-3" />
-          )
-        ) : c.isPrivate ? (
-          <Lock className="w-3 h-3" />
-        ) : c.kind === "agents" ? (
-          // A room roles and sessions post in: the icon says who talks here.
-          <Bot className="w-3 h-3" />
-        ) : (
-          <Hash className="w-3 h-3" />
+      <button
+        key={c.id}
+        type="button"
+        className={cls}
+        onClick={() => onSelect(c.id)}
+        onContextMenu={
+          onChannelContextMenu ? (e) => onChannelContextMenu(e, c) : undefined
+        }
+        aria-current={active ? "page" : undefined}
+        aria-label={isDm ? name : `#${name}`}
+      >
+        {!isDm && (
+          <span
+            className="ch-chan-mono"
+            aria-hidden="true"
+            style={{ backgroundColor: hueFor(name) }}
+          >
+            {initials(name, 2)}
+            {c.isPrivate && <Lock className="ch-chan-mono-lock" />}
+          </span>
         )}
-      </span>
-      <span className="ch-chan-name">{name}</span>
-      {c.slack && (
-        // The label of a mirrored channel: the name IS the Slack channel's
-        // name, so the mark says where it comes from and the tooltip the rest.
-        <SlackLogo className="ch-chan-slack" quiet muted={c.slack.state !== "live"} title={MIRROR_STATE_LABEL[c.slack.state]} />
-      )}
-      {!standalone && <OccupancyChip roomKey={roomKey} className="shrink-0 ch-chan-occ" />}
-      {c.muted && <BellOff className="w-3 h-3 shrink-0 opacity-70" aria-label="Muted" />}
-      {mentions > 0 ? (
-        <span className="ch-chan-badge" aria-label={`${mentions} mentions`}>
-          {mentions > 99 ? "99+" : mentions}
+        <span className="ch-chan-hash" aria-hidden="true">
+          {isDm ? (
+            counterpart ? (
+              <CommentAvatar
+                name={memberName(counterpart)}
+                image={memberAvatarUrl(counterpart)}
+                size={15}
+                letters={1}
+              />
+            ) : (
+              <Users className="w-3 h-3" />
+            )
+          ) : c.isPrivate ? (
+            <Lock className="w-3 h-3" />
+          ) : c.kind === "agents" ? (
+            // A room roles and sessions post in: the icon says who talks here.
+            <Bot className="w-3 h-3" />
+          ) : (
+            <Hash className="w-3 h-3" />
+          )}
         </span>
-      ) : (
-        // A muted channel with unread messages gets a dot, not a count:
-        // you asked not to be counted at, but the room is still alive.
-        unread && !active && c.muted && <span className="ch-chan-dot" aria-label="Unread" />
-      )}
-    </button>
+        <span className="ch-chan-name">{name}</span>
+        {c.slack && (
+          // The label of a mirrored channel: the name IS the Slack channel's
+          // name, so the mark says where it comes from and the tooltip the rest.
+          <SlackLogo
+            className="ch-chan-slack"
+            quiet
+            muted={c.slack.state !== "live"}
+            title={MIRROR_STATE_LABEL[c.slack.state]}
+          />
+        )}
+        {!standalone && (
+          <OccupancyChip roomKey={roomKey} className="shrink-0 ch-chan-occ" />
+        )}
+        {c.muted && (
+          <BellOff className="w-3 h-3 shrink-0 opacity-70" aria-label="Muted" />
+        )}
+        {mentions > 0 ? (
+          <span className="ch-chan-badge" aria-label={`${mentions} mentions`}>
+            {mentions > 99 ? "99+" : mentions}
+          </span>
+        ) : (
+          // A muted channel with unread messages gets a dot, not a count:
+          // you asked not to be counted at, but the room is still alive.
+          unread &&
+          !active &&
+          c.muted && <span className="ch-chan-dot" aria-label="Unread" />
+        )}
+      </button>
     </RailTip>
   );
 }
@@ -195,10 +218,17 @@ export const ChatChannelRail = memo(function ChatChannelRail({
   /** A suggested teammate was clicked — open (or create) the 1:1 room. */
   onOpenDm?: (memberId: string) => void;
   /** Right-click on a row — opens the shared channel menu. */
-  onChannelContextMenu?: (e: React.MouseEvent, channel: ChatChannelView) => void;
+  onChannelContextMenu?: (
+    e: React.MouseEvent,
+    channel: ChatChannelView,
+  ) => void;
 }) {
-  const members = useInboxStore((s) => (standalone ? NO_MEMBERS : teamMembersOf(s))) as ChatMember[];
-  const viewer = useInboxStore((s) => (standalone ? "" : (s as any).currentUser?._id ?? ""));
+  const members = useInboxStore((s) =>
+    standalone ? NO_MEMBERS : teamMembersOf(s),
+  ) as ChatMember[];
+  const viewer = useInboxStore((s) =>
+    standalone ? "" : ((s as any).currentUser?._id ?? ""),
+  );
   // The channels pinned in the main sidebar, first here too, so the Chat
   // window's rail carries chat's pins the way the main rail does. Pin ids
   // resolve to live channel ids (a channel pinned as a stub keeps the stub).
@@ -221,97 +251,116 @@ export const ChatChannelRail = memo(function ChatChannelRail({
   const titlebarStripRef = useTitlebarHead<HTMLDivElement>();
   return (
     <TooltipProvider delayDuration={200} skipDelayDuration={400}>
-    <nav className="ch-rail" aria-label="Channels">
-      <div ref={titlebarStripRef} className="titlebar-strip shrink-0" />
-      {pinned.length > 0 && (<>
-      <div className="ch-rail-head">
-        <span className="ch-rail-title">Pinned</span>
-      </div>
-      <div className="ch-rail-list ch-rail-list-pinned">
-        {pinned.map((c) => (
-          <RailRow
-            key={c.id}
-            c={c}
-            active={c.id === activeChannelId}
-            members={members}
-            viewer={String(viewer)}
-            standalone={standalone}
-            onSelect={onSelect}
-            onChannelContextMenu={onChannelContextMenu}
-          />
-        ))}
-      </div>
-      </>)}
-      <div className="ch-rail-head">
-        <span className="ch-rail-title">Channels</span>
-        {onCreate && (
-          <button type="button" className="ch-rail-add" title="New channel" onClick={onCreate}>
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+      <nav className="ch-rail" aria-label="Channels">
+        <div ref={titlebarStripRef} className="titlebar-strip shrink-0" />
+        {pinned.length > 0 && (
+          <>
+            <div className="ch-rail-head">
+              <span className="ch-rail-title">Pinned</span>
+            </div>
+            <div className="ch-rail-list ch-rail-list-pinned">
+              {pinned.map((c) => (
+                <RailRow
+                  key={c.id}
+                  c={c}
+                  active={c.id === activeChannelId}
+                  members={members}
+                  viewer={String(viewer)}
+                  standalone={standalone}
+                  onSelect={onSelect}
+                  onChannelContextMenu={onChannelContextMenu}
+                />
+              ))}
+            </div>
+          </>
         )}
-      </div>
-      <div className="ch-rail-list">
-        {rooms.map((c) => (
-          <RailRow
-            key={c.id}
-            c={c}
-            active={c.id === activeChannelId}
-            members={members}
-            viewer={String(viewer)}
-            standalone={standalone}
-            onSelect={onSelect}
-            onChannelContextMenu={onChannelContextMenu}
-          />
-        ))}
-      </div>
-      {showDms && (<>
-      <div className="ch-rail-head ch-rail-head-dms">
-        <span className="ch-rail-title">Direct messages</span>
-        {onNewMessage && (
-          <button type="button" className="ch-rail-add" title="New message" onClick={onNewMessage}>
-            <SquarePen className="w-3.5 h-3.5" />
-          </button>
+        <div className="ch-rail-head">
+          <span className="ch-rail-title">Channels</span>
+          {onCreate && (
+            <button
+              type="button"
+              className="ch-rail-add"
+              title="New channel"
+              onClick={onCreate}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="ch-rail-list">
+          {rooms.map((c) => (
+            <RailRow
+              key={c.id}
+              c={c}
+              active={c.id === activeChannelId}
+              members={members}
+              viewer={String(viewer)}
+              standalone={standalone}
+              onSelect={onSelect}
+              onChannelContextMenu={onChannelContextMenu}
+            />
+          ))}
+        </div>
+        {showDms && (
+          <>
+            <div className="ch-rail-head ch-rail-head-dms">
+              <span className="ch-rail-title">Direct messages</span>
+              {onNewMessage && (
+                <button
+                  type="button"
+                  className="ch-rail-add"
+                  title="New message"
+                  onClick={onNewMessage}
+                >
+                  <SquarePen className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="ch-rail-list">
+              {dms.map((c) => (
+                <RailRow
+                  key={c.id}
+                  c={c}
+                  active={c.id === activeChannelId}
+                  members={members}
+                  viewer={String(viewer)}
+                  standalone={standalone}
+                  onSelect={onSelect}
+                  onChannelContextMenu={onChannelContextMenu}
+                />
+              ))}
+              {suggested.map((m) => (
+                <RailTip
+                  key={String(m._id)}
+                  tip={{ title: memberName(m), state: "Start a conversation" }}
+                >
+                  <button
+                    type="button"
+                    className="ch-chan ch-chan-suggest"
+                    aria-label={`Message ${memberName(m)}`}
+                    onClick={() => onOpenDm!(String(m._id))}
+                  >
+                    <span className="ch-chan-hash" aria-hidden="true">
+                      <CommentAvatar
+                        name={memberName(m)}
+                        image={memberAvatarUrl(m)}
+                        size={15}
+                        letters={1}
+                      />
+                    </span>
+                    <span className="ch-chan-name">{memberName(m)}</span>
+                  </button>
+                </RailTip>
+              ))}
+              {dms.length === 0 && suggested.length === 0 && (
+                <div className="ch-rail-empty-dms">
+                  Messages with teammates land here.
+                </div>
+              )}
+            </div>
+          </>
         )}
-      </div>
-      <div className="ch-rail-list">
-        {dms.map((c) => (
-          <RailRow
-            key={c.id}
-            c={c}
-            active={c.id === activeChannelId}
-            members={members}
-            viewer={String(viewer)}
-            standalone={standalone}
-            onSelect={onSelect}
-            onChannelContextMenu={onChannelContextMenu}
-          />
-        ))}
-        {suggested.map((m) => (
-          <RailTip key={String(m._id)} tip={{ title: memberName(m), state: "Start a conversation" }}>
-          <button
-            type="button"
-            className="ch-chan ch-chan-suggest"
-            aria-label={`Message ${memberName(m)}`}
-            onClick={() => onOpenDm!(String(m._id))}
-          >
-            <span className="ch-chan-hash" aria-hidden="true">
-              <CommentAvatar
-                name={memberName(m)}
-                image={memberAvatarUrl(m)}
-                size={15}
-                letters={1}
-              />
-            </span>
-            <span className="ch-chan-name">{memberName(m)}</span>
-          </button>
-          </RailTip>
-        ))}
-        {dms.length === 0 && suggested.length === 0 && (
-          <div className="ch-rail-empty-dms">Messages with teammates land here.</div>
-        )}
-      </div>
-      </>)}
-    </nav>
+      </nav>
     </TooltipProvider>
   );
 });

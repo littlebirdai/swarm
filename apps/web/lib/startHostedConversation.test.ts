@@ -6,17 +6,30 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
 import { useInboxStore } from "../store/inboxStore";
-import { DispatchNotWiredError, StaleDispatchBindingError } from "../store/mutativeMiddleware";
-import { settleHostedStart, startHostedConversation } from "./startHostedConversation";
+import {
+  DispatchNotWiredError,
+  StaleDispatchBindingError,
+} from "../store/mutativeMiddleware";
+import {
+  settleHostedStart,
+  startHostedConversation,
+} from "./startHostedConversation";
 
 const owner = {};
 const calls: Array<{ action: string; args: any[] }> = [];
-beforeAll(() => useInboxStore.getState()._setDispatch(async (action, args) => {
-  calls.push({ action, args });
-  return action === "createSession" ? "conv_hosted_1" : null;
-}, { owner }));
+beforeAll(() =>
+  useInboxStore.getState()._setDispatch(
+    async (action, args) => {
+      calls.push({ action, args });
+      return action === "createSession" ? "conv_hosted_1" : null;
+    },
+    { owner },
+  ),
+);
 afterAll(() => useInboxStore.getState()._clearDispatch(owner));
-beforeEach(() => { calls.length = 0; });
+beforeEach(() => {
+  calls.length = 0;
+});
 
 const settle = () => new Promise((r) => setTimeout(r, 20));
 
@@ -40,9 +53,16 @@ test("a hosted stub creates with no project, machine, model or placement", async
     projectPath: "/Users/me/repo",
     gitRoot: "/Users/me/repo",
     deferCreate: true,
-    create: (sid) => useInboxStore.getState().createSessionFromStub(sid, { firstMessage: { content: "Plan my week", clientId: "c1" } }),
+    create: (sid) =>
+      useInboxStore.getState().createSessionFromStub(sid, {
+        firstMessage: { content: "Plan my week", clientId: "c1" },
+      }),
   });
-  useInboxStore.getState().syncRecord("sessions", stubId, { target_device_id: "dev_1", model: "claude-opus-4-8", effort: "high" });
+  useInboxStore.getState().syncRecord("sessions", stubId, {
+    target_device_id: "dev_1",
+    model: "claude-opus-4-8",
+    effort: "high",
+  });
   await materialize();
   const create = calls.find((c) => c.action === "createSession");
   expect(create?.args[0]).toEqual({
@@ -62,7 +82,10 @@ test("a pathless hosted stub may be created by the send path", async () => {
   });
   await useInboxStore.getState().ensureSessionCreated(stubId);
   const create = calls.find((c) => c.action === "createSession");
-  expect(create?.args[0]).toEqual({ agent_type: HOSTED_AGENT_TYPE, session_id: stubId });
+  expect(create?.args[0]).toEqual({
+    agent_type: HOSTED_AGENT_TYPE,
+    session_id: stubId,
+  });
 });
 
 // One rule for a hosted create that did not land, shared by the compose popup,
@@ -78,11 +101,29 @@ test("a hosted create still on its way leaves the bubble; a refused one marks it
   const staleId = store.addOptimisticMessage(convId, "stale binding start");
   const refusedId = store.addOptimisticMessage(convId, "refused start");
   const reports: string[] = [];
-  settleHostedStart(Promise.reject(new DispatchNotWiredError("createSession", true)), convId, parkedId, (m) => reports.push(m));
-  settleHostedStart(Promise.reject(new StaleDispatchBindingError()), convId, staleId, (m) => reports.push(m));
-  settleHostedStart(Promise.reject(new Error("Uncaught Error: over the plan")), convId, refusedId, (m) => reports.push(m));
+  settleHostedStart(
+    Promise.reject(new DispatchNotWiredError("createSession", true)),
+    convId,
+    parkedId,
+    (m) => reports.push(m),
+  );
+  settleHostedStart(
+    Promise.reject(new StaleDispatchBindingError()),
+    convId,
+    staleId,
+    (m) => reports.push(m),
+  );
+  settleHostedStart(
+    Promise.reject(new Error("Uncaught Error: over the plan")),
+    convId,
+    refusedId,
+    (m) => reports.push(m),
+  );
   await settle();
-  const failed = (id: string) => (useInboxStore.getState().pendingMessages[convId] ?? []).find((m: any) => m._clientId === id)?._isFailed === true;
+  const failed = (id: string) =>
+    (useInboxStore.getState().pendingMessages[convId] ?? []).find(
+      (m: any) => m._clientId === id,
+    )?._isFailed === true;
   expect(failed(parkedId)).toBe(false);
   expect(failed(staleId)).toBe(false);
   expect(failed(refusedId)).toBe(true);

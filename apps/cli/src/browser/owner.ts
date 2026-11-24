@@ -34,7 +34,9 @@ export const OWNER_HARNESS_ENV = [
   "CODEX_THREAD_ID",
 ] as const;
 
-export function harnessOwnerId(env: NodeJS.ProcessEnv = process.env): string | null {
+export function harnessOwnerId(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   for (const name of OWNER_HARNESS_ENV) {
     const v = env[name];
     if (v) return v;
@@ -43,7 +45,10 @@ export function harnessOwnerId(env: NodeJS.ProcessEnv = process.env): string | n
 }
 
 /** Identify the calling agent. Null only when nothing distinguishing exists. */
-export function ownerKey(detectSessionId?: () => string | null, env: NodeJS.ProcessEnv = process.env): string | null {
+export function ownerKey(
+  detectSessionId?: () => string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   // 1. Harness ids. Always present for an agent, never go quiet when other
   //    sessions are live (detectCurrentSessionId does).
   const harness = harnessOwnerId(env);

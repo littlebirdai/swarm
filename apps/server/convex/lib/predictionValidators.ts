@@ -21,7 +21,11 @@ export const predictedValidator = v.object({
 });
 
 export const realisedValidator = v.object({
-  verdict: v.union(...PREDICTION_VERDICTS.map((x: (typeof PREDICTION_VERDICTS)[number]) => v.literal(x))),
+  verdict: v.union(
+    ...PREDICTION_VERDICTS.map((x: (typeof PREDICTION_VERDICTS)[number]) =>
+      v.literal(x),
+    ),
+  ),
   value_before: v.union(v.number(), v.null()),
   value_after: v.union(v.number(), v.null()),
   delta: v.union(v.number(), v.null()),

@@ -2,7 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { acquireLock, releaseLock, withLock, LOCK_CEILING_MS, UNREADABLE_LOCK_GRACE_MS } from "./lock.js";
+import {
+  acquireLock,
+  releaseLock,
+  withLock,
+  LOCK_CEILING_MS,
+  UNREADABLE_LOCK_GRACE_MS,
+} from "./lock.js";
 
 const dirs: string[] = [];
 function root(): string {
@@ -11,7 +17,8 @@ function root(): string {
   return d;
 }
 afterEach(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 const lockFile = (r: string) => path.join(r, ".codecast-capability.lock");
@@ -48,7 +55,9 @@ describe("acquireLock", () => {
       lockFile(r),
       JSON.stringify({
         pid: process.pid, // alive, but the timestamp is ancient
-        acquired_at: new Date(Date.now() - LOCK_CEILING_MS - 1000).toISOString(),
+        acquired_at: new Date(
+          Date.now() - LOCK_CEILING_MS - 1000,
+        ).toISOString(),
       }),
     );
     expect(acquireLock(r, () => {}).acquired).toBe(true);
@@ -76,13 +85,18 @@ describe("acquireLock", () => {
   test("the lock is complete the moment it exists, and leaves no temp files", () => {
     const r = root();
     expect(acquireLock(r).acquired).toBe(true);
-    expect(JSON.parse(fs.readFileSync(lockFile(r), "utf-8")).pid).toBe(process.pid);
+    expect(JSON.parse(fs.readFileSync(lockFile(r), "utf-8")).pid).toBe(
+      process.pid,
+    );
     expect(fs.readdirSync(r)).toEqual([".codecast-capability.lock"]);
   });
 
   test("reclaiming leaves no stray files behind", () => {
     const r = root();
-    fs.writeFileSync(lockFile(r), JSON.stringify({ pid: 999999999, acquired_at: new Date().toISOString() }));
+    fs.writeFileSync(
+      lockFile(r),
+      JSON.stringify({ pid: 999999999, acquired_at: new Date().toISOString() }),
+    );
     expect(acquireLock(r, () => {}).acquired).toBe(true);
     expect(fs.readdirSync(r)).toEqual([".codecast-capability.lock"]);
   });

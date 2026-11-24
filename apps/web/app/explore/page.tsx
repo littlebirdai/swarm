@@ -6,7 +6,13 @@ import { useQuery } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { LoadingSkeleton } from "../../components/LoadingSkeleton";
 import { EmptyState } from "../../components/EmptyState";
@@ -40,7 +46,11 @@ type PublicConversation = {
   share_token: string | null;
 };
 
-function ConversationCard({ conversation }: { conversation: PublicConversation }) {
+function ConversationCard({
+  conversation,
+}: {
+  conversation: PublicConversation;
+}) {
   if (!conversation.share_token) {
     return null;
   }
@@ -50,15 +60,24 @@ function ConversationCard({ conversation }: { conversation: PublicConversation }
       <Card className="h-full hover:bg-sol-bg-alt/50 transition-colors cursor-pointer border-sol-border">
         <CardHeader>
           <div className="flex items-start justify-between gap-2 mb-2">
-            <CardTitle className="text-base font-serif line-clamp-2">{conversation.title}</CardTitle>
-            <AgentTypeIcon agentType={conversation.agent_type} className="w-5 h-5 flex-shrink-0" />
+            <CardTitle className="text-base font-serif line-clamp-2">
+              {conversation.title}
+            </CardTitle>
+            <AgentTypeIcon
+              agentType={conversation.agent_type}
+              className="w-5 h-5 flex-shrink-0"
+            />
           </div>
           {conversation.description && (
-            <CardDescription className="line-clamp-2">{conversation.description}</CardDescription>
+            <CardDescription className="line-clamp-2">
+              {conversation.description}
+            </CardDescription>
           )}
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-sol-text-muted line-clamp-3 mb-4">{conversation.preview_text}</p>
+          <p className="text-sm text-sol-text-muted line-clamp-3 mb-4">
+            {conversation.preview_text}
+          </p>
 
           <div className="flex items-center gap-2 mb-3 text-xs text-sol-text-muted">
             <span>{conversation.author_name}</span>
@@ -127,7 +146,9 @@ export default function ExplorePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-serif text-sol-text mb-2">Explore</h1>
-          <p className="text-sol-text-muted">Discover public conversations from the community</p>
+          <p className="text-sol-text-muted">
+            Discover public conversations from the community
+          </p>
         </div>
 
         <div className="mb-6 space-y-4">

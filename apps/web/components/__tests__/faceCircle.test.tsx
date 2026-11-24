@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FaceCircle } from "../calls/FaceCircle";
-import { CHROME_BUTTON, CHROME_BUTTON_W, TIER_DIAMETER, type FacePerson } from "../../lib/calls/faceCrop";
+import {
+  CHROME_BUTTON,
+  CHROME_BUTTON_W,
+  TIER_DIAMETER,
+  type FacePerson,
+} from "../../lib/calls/faceCrop";
 
 // The circles are the call as most people will see it most of the time: a face
 // floating over their work. What makes that read as a person rather than as a
@@ -37,17 +42,26 @@ function render(person: FacePerson, speaking: boolean) {
   );
 }
 
-const css = readFileSync(new URL("../calls/faces.css", import.meta.url), "utf8");
+const css = readFileSync(
+  new URL("../calls/faces.css", import.meta.url),
+  "utf8",
+);
 
 /** One rule's declarations, by its exact selector. Comments dropped. */
 function rule(selector: string): Record<string, string> {
   const at = css.indexOf(`\n${selector} {`);
   expect(at).toBeGreaterThan(-1);
-  const body = css.slice(at + selector.length + 3, css.indexOf("}", at)).replace(/\/\*[\s\S]*?\*\//g, "");
+  const body = css
+    .slice(at + selector.length + 3, css.indexOf("}", at))
+    .replace(/\/\*[\s\S]*?\*\//g, "");
   const out: Record<string, string> = {};
   for (const d of body.split(";")) {
     const i = d.indexOf(":");
-    if (i > 0) out[d.slice(0, i).trim()] = d.slice(i + 1).trim().replace(/\s+/g, " ");
+    if (i > 0)
+      out[d.slice(0, i).trim()] = d
+        .slice(i + 1)
+        .trim()
+        .replace(/\s+/g, " ");
   }
   return out;
 }
@@ -93,7 +107,9 @@ describe("a circle whose person is talking", () => {
   });
 
   test("and reduced motion keeps the ring but drops the easing", () => {
-    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    const reduced = css.slice(
+      css.indexOf("@media (prefers-reduced-motion: reduce)"),
+    );
     expect(reduced).toContain('.face[data-speaking="true"]');
     expect(reduced).toContain("transition: none");
   });
@@ -136,12 +152,17 @@ describe("muted", () => {
 
 describe("camera off", () => {
   test("shows the avatar cropped to the same circle", () => {
-    const html = render({ ...riley, image: "https://example.com/riley.png" }, true);
+    const html = render(
+      { ...riley, image: "https://example.com/riley.png" },
+      true,
+    );
     expect(html).toContain('class="face-avatar-img"');
     // Same circle, same ring: a person with their camera off is still somebody
     // you are talking to.
     expect(html).toContain('data-speaking="true"');
-    expect(rule(".face-avatar-img,\n.face-avatar-fallback")["object-fit"]).toBe("cover");
+    expect(rule(".face-avatar-img,\n.face-avatar-fallback")["object-fit"]).toBe(
+      "cover",
+    );
   });
 });
 
@@ -180,6 +201,8 @@ describe("the tracking line the settings show", () => {
     // bun is such a browser, which is exactly the case worth pinning: the two
     // pictures look alike at a glance, so the honest line is the whole feature.
     const { faceTrackingNote } = await import("../calls/useFaceCrop");
-    expect(faceTrackingNote()).toBe("Face tracking: centered (detector unavailable)");
+    expect(faceTrackingNote()).toBe(
+      "Face tracking: centered (detector unavailable)",
+    );
   });
 });

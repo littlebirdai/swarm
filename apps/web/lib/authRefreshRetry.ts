@@ -15,9 +15,14 @@
 // untouched: a null token, or an error that came from the auth function (the
 // http client's 560 path), passes straight through as before.
 
-type FetchToken = (args: { forceRefreshToken: boolean }) => Promise<string | null | undefined>;
+type FetchToken = (args: {
+  forceRefreshToken: boolean;
+}) => Promise<string | null | undefined>;
 type AuthClient = {
-  setAuth: (fetchToken: FetchToken, onChange?: (isAuthenticated: boolean) => void) => void;
+  setAuth: (
+    fetchToken: FetchToken,
+    onChange?: (isAuthenticated: boolean) => void,
+  ) => void;
   clearAuth: () => void;
 };
 
@@ -33,13 +38,25 @@ const MAX_DELAY_MS = 30_000;
  * throws verbatim) died on the way and is worth asking again.
  */
 export function isRefreshInTransit(error: unknown): boolean {
-  if ((error as { codecastInTransit?: unknown } | null)?.codecastInTransit === true) return true;
-  if ((error as { name?: unknown } | null)?.name === "ConvexError") return false;
-  const message = String((error as { message?: unknown } | null)?.message ?? error);
+  if (
+    (error as { codecastInTransit?: unknown } | null)?.codecastInTransit ===
+    true
+  )
+    return true;
+  if ((error as { name?: unknown } | null)?.name === "ConvexError")
+    return false;
+  const message = String(
+    (error as { message?: unknown } | null)?.message ?? error,
+  );
   return !/Server Error|Uncaught /.test(message);
 }
 
-function waitToRetry(attempt: number, lastAttemptAt: number, cancelled: () => boolean, signal: AbortSignal): Promise<void> {
+function waitToRetry(
+  attempt: number,
+  lastAttemptAt: number,
+  cancelled: () => boolean,
+  signal: AbortSignal,
+): Promise<void> {
   return new Promise((resolve) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const done = () => {
@@ -50,7 +67,10 @@ function waitToRetry(attempt: number, lastAttemptAt: number, cancelled: () => bo
     };
     const onOnline = () => {
       clearTimeout(timer);
-      timer = setTimeout(done, Math.max(0, lastAttemptAt + MIN_GAP_MS - Date.now()));
+      timer = setTimeout(
+        done,
+        Math.max(0, lastAttemptAt + MIN_GAP_MS - Date.now()),
+      );
     };
     if (cancelled()) return resolve();
     signal.addEventListener("abort", done);
@@ -62,7 +82,10 @@ function waitToRetry(attempt: number, lastAttemptAt: number, cancelled: () => bo
 }
 
 /** Wrap a Convex fetchToken so a forced refresh that fails in transit is retried, not thrown or reported as a sign-out. */
-export function retryRefreshInTransit(fetchToken: FetchToken, signal: AbortSignal): FetchToken {
+export function retryRefreshInTransit(
+  fetchToken: FetchToken,
+  signal: AbortSignal,
+): FetchToken {
   let lastToken: string | null | undefined;
   return async (args) => {
     if (!args.forceRefreshToken) {

@@ -6,7 +6,12 @@
 // imported, so the markdown pipeline (which the store's own graph reaches) can
 // call this without a cycle.
 
-import { EXTERNAL_OBJECT_ID_RE, OBJECT_REF_SCAN_SOURCE, OBJECT_SHORT_ID_RE, type ModObjectKind } from "@codecast/shared/contracts/mods";
+import {
+  EXTERNAL_OBJECT_ID_RE,
+  OBJECT_REF_SCAN_SOURCE,
+  OBJECT_SHORT_ID_RE,
+  type ModObjectKind,
+} from "@codecast/shared/contracts/mods";
 import { activeWorkspaceKeyOf } from "../workspaceScope";
 
 export type KindEntry = ModObjectKind & { mod: string; modTitle?: string };
@@ -26,7 +31,8 @@ export function objectKinds(): Map<string, KindEntry> {
   const next = new Map<string, KindEntry>();
   for (const row of Object.values((mods ?? {}) as Record<string, any>)) {
     for (const k of (row?.manifest?.objects ?? []) as ModObjectKind[]) {
-      if (!next.has(k.prefix)) next.set(k.prefix, { ...k, mod: row.name, modTitle: row.title });
+      if (!next.has(k.prefix))
+        next.set(k.prefix, { ...k, mod: row.name, modTitle: row.title });
     }
   }
   cacheKinds = next;
@@ -38,7 +44,9 @@ export function objectKind(prefix: string | undefined): KindEntry | undefined {
 }
 
 /** The kind an external id (`contact-3f9a21bc`) names and the other system's id inside it, when its prefix is an external kind. */
-export function externalObjectRef(text: string): { kind: KindEntry; id: string } | undefined {
+export function externalObjectRef(
+  text: string,
+): { kind: KindEntry; id: string } | undefined {
   const m = EXTERNAL_OBJECT_ID_RE.exec((text || "").toLowerCase());
   const kind = m ? objectKinds().get(m[1]) : undefined;
   return kind?.external ? { kind, id: m![2] } : undefined;
@@ -62,7 +70,10 @@ let index = new Map<string, any[]>();
  * workspace, so `bug-1` can exist in several: the active workspace's wins,
  * then the newest. Indexed once per collection ref.
  */
-export function objectByShortId(collection: Record<string, any> | undefined, shortId: string): any | undefined {
+export function objectByShortId(
+  collection: Record<string, any> | undefined,
+  shortId: string,
+): any | undefined {
   if (collection !== indexRef) {
     indexRef = collection;
     index = new Map();
@@ -77,7 +88,10 @@ export function objectByShortId(collection: Record<string, any> | undefined, sho
   if (!rows?.length) return undefined;
   const st = state();
   const active = st ? activeWorkspaceKeyOf(st) : null;
-  return rows.find((r) => r.workspace === active) ?? rows.reduce((a, b) => ((b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a));
+  return (
+    rows.find((r) => r.workspace === active) ??
+    rows.reduce((a, b) => ((b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a))
+  );
 }
 
 export function objectHref(shortId: string): string {
@@ -89,9 +103,19 @@ export function objectsHref(prefix: string): string {
 }
 
 /** A status's color: the lifecycle's last status is done (green), the rest take accents in order. */
-const STATUS_TONES = ["var(--sol-blue)", "var(--sol-yellow)", "var(--sol-violet)", "var(--sol-orange)", "var(--sol-cyan)", "var(--sol-magenta)"];
+const STATUS_TONES = [
+  "var(--sol-blue)",
+  "var(--sol-yellow)",
+  "var(--sol-violet)",
+  "var(--sol-orange)",
+  "var(--sol-cyan)",
+  "var(--sol-magenta)",
+];
 
-export function statusTone(kind: Pick<ModObjectKind, "statuses">, status: string | undefined): string {
+export function statusTone(
+  kind: Pick<ModObjectKind, "statuses">,
+  status: string | undefined,
+): string {
   const list = kind.statuses ?? [];
   const i = status ? list.indexOf(status) : -1;
   if (i < 0) return "var(--sol-text-dim)";

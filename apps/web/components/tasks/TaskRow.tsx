@@ -17,7 +17,11 @@ import { LabelChips } from "../LabelChips";
 import { AgentTypeIcon, formatAgentType } from "../AgentTypeIcon";
 import type { ItemRowState } from "../ListRowShell";
 import { taskLivenessState } from "../../lib/liveness";
-import { statusVisual, taskStatusOf, useTeamTaskStatusList } from "../../lib/taskStatuses";
+import {
+  statusVisual,
+  taskStatusOf,
+  useTeamTaskStatusList,
+} from "../../lib/taskStatuses";
 import { getLabelColor } from "../../lib/labelColors";
 import { taskOrigin } from "@codecast/shared/tasks";
 import {
@@ -47,10 +51,26 @@ export function SubtaskRing({ done, total }: { done: number; total: number }) {
   const c = 2 * Math.PI * r;
   const pct = total > 0 ? done / total : 0;
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" className="flex-shrink-0 -rotate-90">
-      <circle cx="6" cy="6" r={r} fill="none" strokeWidth="2" className="stroke-current opacity-25" />
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      className="flex-shrink-0 -rotate-90"
+    >
       <circle
-        cx="6" cy="6" r={r} fill="none" strokeWidth="2"
+        cx="6"
+        cy="6"
+        r={r}
+        fill="none"
+        strokeWidth="2"
+        className="stroke-current opacity-25"
+      />
+      <circle
+        cx="6"
+        cy="6"
+        r={r}
+        fill="none"
+        strokeWidth="2"
         strokeDasharray={`${c * pct} ${c}`}
         strokeLinecap="round"
         className="stroke-current"
@@ -61,7 +81,19 @@ export function SubtaskRing({ done, total }: { done: number; total: number }) {
 
 export type { TaskPriority } from "../../lib/taskPriority";
 
-export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, indent = 0, hiddenDescendantCount = 0, progress, collapsed = false, onToggleCollapse, parentChip }: {
+export function TaskRow({
+  task,
+  state,
+  onFilterLabel,
+  triageMode,
+  onTriage,
+  indent = 0,
+  hiddenDescendantCount = 0,
+  progress,
+  collapsed = false,
+  onToggleCollapse,
+  parentChip,
+}: {
   task: TaskItem;
   state: ItemRowState;
   onFilterLabel: (label: string) => void;
@@ -93,7 +125,9 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
   const PriorityIcon = priority.icon;
   const [editValue, setEditValue] = useState(task.title);
 
-  useWatchEffect(() => { setEditValue(task.title); }, [task.title]);
+  useWatchEffect(() => {
+    setEditValue(task.title);
+  }, [task.title]);
 
   const commitEdit = useCallback(() => {
     const trimmed = editValue.trim();
@@ -102,11 +136,12 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
   }, [editValue, task.title, state.onTitleCommit, state.onEditDone]);
 
   const age = Date.now() - task.updated_at;
-  const ageStr = age < 3600000
-    ? `${Math.round(age / 60000)}m`
-    : age < 86400000
-      ? `${Math.round(age / 3600000)}h`
-      : `${Math.round(age / 86400000)}d`;
+  const ageStr =
+    age < 3600000
+      ? `${Math.round(age / 60000)}m`
+      : age < 86400000
+        ? `${Math.round(age / 3600000)}h`
+        : `${Math.round(age / 86400000)}d`;
 
   return (
     <>
@@ -120,18 +155,31 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
         />
       )}
       <button
-        onClick={(e) => { e.stopPropagation(); state.onOpenPalette("status"); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          state.onOpenPalette("status");
+        }}
         className="flex-shrink-0 hover:scale-125 transition-transform"
         title={withShortcut("Change status", "task.status")}
       >
-        {activeSession && taskLivenessState(task.status, activeSession) === "active" ? (
-          <LivePulseHalo><StatusIcon className={`w-4 h-4 ${status.color}`} /></LivePulseHalo>
+        {activeSession &&
+        taskLivenessState(task.status, activeSession) === "active" ? (
+          <LivePulseHalo>
+            <StatusIcon className={`w-4 h-4 ${status.color}`} />
+          </LivePulseHalo>
         ) : (
           <StatusIcon className={`w-4 h-4 ${status.color}`} />
         )}
       </button>
-      {<ShortId id={task.short_id} className="text-xs text-sol-text-dim w-16 cq-hide-compact" />}
-      {task.external && <IssueLink external={task.external} className="cq-hide-compact" />}
+      {
+        <ShortId
+          id={task.short_id}
+          className="text-xs text-sol-text-dim w-16 cq-hide-compact"
+        />
+      }
+      {task.external && (
+        <IssueLink external={task.external} className="cq-hide-compact" />
+      )}
       <TaskDecisionChip taskId={task._id} />
       {<TaskLineChip task={task as any} />}
       {state.isEditing ? (
@@ -142,7 +190,10 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
           onBlur={commitEdit}
           onKeyDown={(e) => {
             if (e.key === "Enter") commitEdit();
-            if (e.key === "Escape") { setEditValue(task.title); state.onEditDone(); }
+            if (e.key === "Escape") {
+              setEditValue(task.title);
+              state.onEditDone();
+            }
             e.stopPropagation();
           }}
           onClick={(e) => e.stopPropagation()}
@@ -150,14 +201,19 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
         />
       ) : (
         <>
-          <span className="flex-1 text-sm text-sol-text truncate">{task.title}</span>
+          <span className="flex-1 text-sm text-sol-text truncate">
+            {task.title}
+          </span>
         </>
       )}
       {/* Floated subtask: the parent was filtered out of this view, so the row
           carries a small chip pointing back at it — never context-free. */}
       {parentChip && (
         <button
-          onClick={(e) => { e.stopPropagation(); router.push(`/tasks/${parentChip.id}`); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            router.push(`/tasks/${parentChip.id}`);
+          }}
           className={`flex items-center gap-1 text-meta px-1.5 py-0 rounded border border-sol-border/40 text-sol-text-dim hover:text-sol-cyan hover:border-sol-cyan/40 flex-shrink-0 font-mono cq-hide-compact transition-colors max-w-[10rem]${m ? ` ${modernPill({}, "modern:font-mono modern:font-normal modern:hover:text-sol-cyan")}` : ""}`}
           title={`Subtask of ${parentChip.short_id}: ${parentChip.title}`}
         >
@@ -180,30 +236,57 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
           progress chip over direct children, with the hidden agent-internal
           breakdown in the tooltip and glyph — never two competing numbers.
           Clicking it collapses/expands the on-screen subtree. */}
-      {progress && progress.total > 0 && (() => {
-        const tip =
-          `${progress.total} subtask${progress.total > 1 ? "s" : ""}: ${progress.done} done, ${progress.inProgress} in progress` +
-          (hiddenDescendantCount > 0 ? ` — ${hiddenDescendantCount} agent-internal, not shown in this view` : "") +
-          (onToggleCollapse ? (collapsed ? " (click to expand)" : " (click to collapse)") : "");
-        const body = (
-          <>
-            {onToggleCollapse ? (collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />) : null}
-            <SubtaskRing done={progress.done} total={progress.total} />
-            {progress.done}/{progress.total}
-            {hiddenDescendantCount > 0 && <Bot className="w-3 h-3" />}
-          </>
-        );
-        const cls = `flex items-center gap-1 text-meta px-1.5 py-0 rounded border flex-shrink-0 font-mono cq-hide-compact ${
-          hiddenDescendantCount > 0 ? "border-sol-cyan/30 text-sol-cyan/80" : "border-sol-border/40 text-sol-text-dim"
-        }`;
-        // A button only when it actually toggles something; otherwise a span so
-        // it doesn't look pressable-but-dead (the all-hidden case).
-        return onToggleCollapse ? (
-          <button onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }} className={`${cls} transition-colors ${hiddenDescendantCount > 0 ? "hover:bg-sol-cyan/10" : "hover:text-sol-text"}`} title={tip}>{body}</button>
-        ) : (
-          <span className={cls} title={tip}>{body}</span>
-        );
-      })()}
+      {progress &&
+        progress.total > 0 &&
+        (() => {
+          const tip =
+            `${progress.total} subtask${progress.total > 1 ? "s" : ""}: ${progress.done} done, ${progress.inProgress} in progress` +
+            (hiddenDescendantCount > 0
+              ? ` — ${hiddenDescendantCount} agent-internal, not shown in this view`
+              : "") +
+            (onToggleCollapse
+              ? collapsed
+                ? " (click to expand)"
+                : " (click to collapse)"
+              : "");
+          const body = (
+            <>
+              {onToggleCollapse ? (
+                collapsed ? (
+                  <ChevronRight className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )
+              ) : null}
+              <SubtaskRing done={progress.done} total={progress.total} />
+              {progress.done}/{progress.total}
+              {hiddenDescendantCount > 0 && <Bot className="w-3 h-3" />}
+            </>
+          );
+          const cls = `flex items-center gap-1 text-meta px-1.5 py-0 rounded border flex-shrink-0 font-mono cq-hide-compact ${
+            hiddenDescendantCount > 0
+              ? "border-sol-cyan/30 text-sol-cyan/80"
+              : "border-sol-border/40 text-sol-text-dim"
+          }`;
+          // A button only when it actually toggles something; otherwise a span so
+          // it doesn't look pressable-but-dead (the all-hidden case).
+          return onToggleCollapse ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse();
+              }}
+              className={`${cls} transition-colors ${hiddenDescendantCount > 0 ? "hover:bg-sol-cyan/10" : "hover:text-sol-text"}`}
+              title={tip}
+            >
+              {body}
+            </button>
+          ) : (
+            <span className={cls} title={tip}>
+              {body}
+            </span>
+          );
+        })()}
       {/* Origin. A task pulled from a call names the call and opens it. A
           meeting task was written by an agent but decided by people,
           so it gets its own marker — a bot icon here would file real
@@ -216,16 +299,29 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
           className={`flex items-center gap-1 text-meta px-1.5 py-0 rounded bg-sol-magenta/10 text-sol-magenta border border-sol-magenta/20 flex-shrink-0 cq-hide-compact${m ? ` ${modernPill({ tone: "magenta" })}` : ""}`}
           title="Captured from a meeting"
         >
-          <Users className="w-3 h-3" />meeting
+          <Users className="w-3 h-3" />
+          meeting
         </span>
-      ) : taskOrigin(task) === "agent" && (
-        task.source_agent_type ? (
-          <span className="flex-shrink-0 opacity-60 cq-hide-compact" title={`Created by ${formatAgentType(task.source_agent_type)}`}>
-            <AgentTypeIcon agentType={task.source_agent_type} className="w-3.5 h-3.5" />
+      ) : (
+        taskOrigin(task) === "agent" &&
+        (task.source_agent_type ? (
+          <span
+            className="flex-shrink-0 opacity-60 cq-hide-compact"
+            title={`Created by ${formatAgentType(task.source_agent_type)}`}
+          >
+            <AgentTypeIcon
+              agentType={task.source_agent_type}
+              className="w-3.5 h-3.5"
+            />
           </span>
         ) : (
-          <span className="flex-shrink-0 cq-hide-compact" title={`${task.source} created`}><Bot className="w-3.5 h-3.5 text-sol-text-dim/60" /></span>
-        )
+          <span
+            className="flex-shrink-0 cq-hide-compact"
+            title={`${task.source} created`}
+          >
+            <Bot className="w-3.5 h-3.5 text-sol-text-dim/60" />
+          </span>
+        ))
       )}
       {activeSession ? (
         <TaskSessionBadge task={task} className="cq-hide-compact" />
@@ -233,14 +329,22 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
         <span className="flex items-center gap-1 flex-shrink-0 cq-hide-compact">
           <TaskSessionBadge task={task} />
           {task.session_count && task.session_count > 1 ? (
-            <span className="text-meta text-sol-text-dim font-mono" title={`${task.session_count} sessions`}>
-              <Link2 className="w-3 h-3 inline mr-0.5" />{task.session_count}
+            <span
+              className="text-meta text-sol-text-dim font-mono"
+              title={`${task.session_count} sessions`}
+            >
+              <Link2 className="w-3 h-3 inline mr-0.5" />
+              {task.session_count}
             </span>
           ) : null}
         </span>
       ) : task.session_count && task.session_count > 0 ? (
-        <span className="text-meta text-sol-text-dim flex-shrink-0 font-mono cq-hide-compact" title={`${task.session_count} session${task.session_count > 1 ? "s" : ""}`}>
-          <Link2 className="w-3 h-3 inline mr-0.5" />{task.session_count}
+        <span
+          className="text-meta text-sol-text-dim flex-shrink-0 font-mono cq-hide-compact"
+          title={`${task.session_count} session${task.session_count > 1 ? "s" : ""}`}
+        >
+          <Link2 className="w-3 h-3 inline mr-0.5" />
+          {task.session_count}
         </span>
       ) : null}
       {(task as any).plan && (
@@ -254,40 +358,62 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
         </Link>
       )}
       {task.source === "insight" && (
-        <span className={`text-meta px-1.5 py-0 rounded bg-sol-violet/10 text-sol-violet border border-sol-violet/20 flex-shrink-0 cq-hide-compact${m ? ` ${modernPill({ tone: "violet" })}` : ""}`}>mined</span>
+        <span
+          className={`text-meta px-1.5 py-0 rounded bg-sol-violet/10 text-sol-violet border border-sol-violet/20 flex-shrink-0 cq-hide-compact${m ? ` ${modernPill({ tone: "violet" })}` : ""}`}
+        >
+          mined
+        </span>
       )}
       {task.execution_status && (
-        <TaskStatusBadge status={task.execution_status} type="execution" className="flex-shrink-0 cq-hide-compact" />
+        <TaskStatusBadge
+          status={task.execution_status}
+          type="execution"
+          className="flex-shrink-0 cq-hide-compact"
+        />
       )}
       <TaskBlockedMark task={task} className="cq-hide-compact" />
       {task.labels && task.labels.length > 0 && (
-        <LabelChips labels={task.labels} onLabelClick={onFilterLabel} className="cq-hide-compact" />
+        <LabelChips
+          labels={task.labels}
+          onLabelClick={onFilterLabel}
+          className="cq-hide-compact"
+        />
       )}
-      {task.assignee_info && (() => {
-        const avatar = <AssigneeFace info={task.assignee_info} size={20} />;
-        return (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); state.onOpenPalette("assign"); }}
-            className="flex items-center gap-1 flex-shrink-0 rounded-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan cq-hide-compact"
-            title={`Change assignee: ${task.assignee_info.name}`}
-            aria-label={`Change assignee: ${task.assignee_info.name}`}
-          >
-            {avatar}
-          </button>
-        );
-      })()}
+      {task.assignee_info &&
+        (() => {
+          const avatar = <AssigneeFace info={task.assignee_info} size={20} />;
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                state.onOpenPalette("assign");
+              }}
+              className="flex items-center gap-1 flex-shrink-0 rounded-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan cq-hide-compact"
+              title={`Change assignee: ${task.assignee_info.name}`}
+              aria-label={`Change assignee: ${task.assignee_info.name}`}
+            >
+              {avatar}
+            </button>
+          );
+        })()}
       {triageMode && onTriage ? (
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
-            onClick={(e) => { e.stopPropagation(); onTriage(task, "active"); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTriage(task, "active");
+            }}
             className="p-1 rounded hover:bg-sol-green/20 text-sol-text-dim hover:text-sol-green transition-colors"
             title="Promote to active"
           >
             <Check className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onTriage(task, "dismissed"); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTriage(task, "dismissed");
+            }}
             className="p-1 rounded hover:bg-sol-red/20 text-sol-text-dim hover:text-sol-red transition-colors"
             title="Dismiss"
           >
@@ -296,18 +422,22 @@ export function TaskRow({ task, state, onFilterLabel, triageMode, onTriage, inde
         </div>
       ) : (
         <button
-          onClick={(e) => { e.stopPropagation(); state.onOpenPalette("priority"); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            state.onOpenPalette("priority");
+          }}
           className="flex-shrink-0 hover:scale-125 transition-transform cq-hide-compact"
           title={withShortcut("Set priority", "task.priority")}
         >
           <PriorityIcon className={`w-3.5 h-3.5 ${priority.color}`} />
         </button>
       )}
-      <span className="text-xs text-sol-text-dim w-8 text-right tabular-nums cq-hide-compact">{ageStr}</span>
+      <span className="text-xs text-sol-text-dim w-8 text-right tabular-nums cq-hide-compact">
+        {ageStr}
+      </span>
     </>
   );
 }
-
 
 function fmtDate(ms: number): string {
   const d = new Date(ms);
@@ -362,55 +492,83 @@ export function KanbanCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <span className="flex items-center gap-1.5 min-w-0 text-meta font-mono text-sol-text-dim leading-none mt-0.5">
           <ShortId id={task.short_id} />
-          {task.external && <IssueLink external={task.external} className="max-w-[9rem]" />}
+          {task.external && (
+            <IssueLink external={task.external} className="max-w-[9rem]" />
+          )}
           {parentChip && (
-            <span className="flex items-center gap-0.5 min-w-0 opacity-80" title={`Subtask of ${parentChip.short_id}: ${parentChip.title}`}>
+            <span
+              className="flex items-center gap-0.5 min-w-0 opacity-80"
+              title={`Subtask of ${parentChip.short_id}: ${parentChip.title}`}
+            >
               <CornerDownRight className="w-2.5 h-2.5 flex-shrink-0" />
-              <span className="truncate max-w-[7rem]">{parentChip.short_id}</span>
+              <span className="truncate max-w-[7rem]">
+                {parentChip.short_id}
+              </span>
             </span>
           )}
         </span>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <TaskSessionBadge task={task} compact />
-          {assignee ? (() => {
-            const av = <AssigneeFace info={assignee} size={16} />;
-            return (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); if (onAssign) onAssign(); else useInboxStore.getState().openPalette({ targets: [task], targetType: "task", mode: "assign" }); }}
-                className="rounded-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan"
-                title={`Change assignee: ${assignee.name}`}
-                aria-label={`Change assignee: ${assignee.name}`}
-              >
-                {av}
-              </button>
-            );
-          })() : null}
+          {assignee
+            ? (() => {
+                const av = <AssigneeFace info={assignee} size={16} />;
+                return (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onAssign) onAssign();
+                      else
+                        useInboxStore.getState().openPalette({
+                          targets: [task],
+                          targetType: "task",
+                          mode: "assign",
+                        });
+                    }}
+                    className="rounded-full hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan"
+                    title={`Change assignee: ${assignee.name}`}
+                    aria-label={`Change assignee: ${assignee.name}`}
+                  >
+                    {av}
+                  </button>
+                );
+              })()
+            : null}
         </div>
       </div>
-      <p className={`text-[13px] text-sol-text leading-snug mb-3 line-clamp-3 font-medium${m ? " modern:text-ui" : ""}`}>{task.title}</p>
+      <p
+        className={`text-[13px] text-sol-text leading-snug mb-3 line-clamp-3 font-medium${m ? " modern:text-ui" : ""}`}
+      >
+        {task.title}
+      </p>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <PriorityIcon className={`w-3 h-3 flex-shrink-0 ${priority.color}`} />
           <TaskBlockedMark task={task} small />
           <TaskLineChip task={task as any} />
-          {firstLabel && (() => {
-            const lc = getLabelColor(firstLabel);
-            return (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onFilterLabel(firstLabel); }}
-                title={`Filter by label: ${firstLabel}`}
-                aria-label={`Filter by label: ${firstLabel}`}
-                className={`inline-flex items-center gap-1 text-meta px-1.5 py-0.5 rounded-full border hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan ${lc.bg} ${lc.border} ${lc.text}${m ? ` ${modernPillShape()}` : ""}`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${lc.dot}`} />
-                {firstLabel}
-              </button>
-            );
-          })()}
+          {firstLabel &&
+            (() => {
+              const lc = getLabelColor(firstLabel);
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFilterLabel(firstLabel);
+                  }}
+                  title={`Filter by label: ${firstLabel}`}
+                  aria-label={`Filter by label: ${firstLabel}`}
+                  className={`inline-flex items-center gap-1 text-meta px-1.5 py-0.5 rounded-full border hover:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sol-cyan ${lc.bg} ${lc.border} ${lc.text}${m ? ` ${modernPillShape()}` : ""}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${lc.dot}`} />
+                  {firstLabel}
+                </button>
+              );
+            })()}
         </div>
-        <span className="text-meta text-sol-text-dim tabular-nums">{fmtDate(task.updated_at)}</span>
+        <span className="text-meta text-sol-text-dim tabular-nums">
+          {fmtDate(task.updated_at)}
+        </span>
       </div>
     </div>
   );

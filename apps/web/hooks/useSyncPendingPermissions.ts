@@ -19,34 +19,67 @@ const PENDING_WINDOW_MS = 2 * 3600_000;
  * pending set for that conversation, so absent in-scope rows are pruned
  * (a resolved permission must leave the store, and the disk).
  */
-export function useSyncPendingPermissions(conversationId: string | null | undefined, enabled = true, asProposer = false) {
+export function useSyncPendingPermissions(
+  conversationId: string | null | undefined,
+  enabled = true,
+  asProposer = false,
+) {
   const syncOpts = useMemo(
-    () => (conversationId ? { pruneAbsentScope: (row: any) => row?.conversation_id === conversationId } : undefined),
+    () =>
+      conversationId
+        ? {
+            pruneAbsentScope: (row: any) =>
+              row?.conversation_id === conversationId,
+          }
+        : undefined,
     [conversationId],
   );
   return useSyncCollection(
     "pendingPermissions",
     api.permissions.getPendingPermissions,
-    enabled && conversationId ? { conversation_id: conversationId, ...(asProposer ? { as_proposer: true } : {}) } : "skip",
+    enabled && conversationId
+      ? {
+          conversation_id: conversationId,
+          ...(asProposer ? { as_proposer: true } : {}),
+        }
+      : "skip",
     { syncOpts },
   );
 }
 
-const permSig = (p: any) => `${p.status}|${p.tool_name}|${p.arguments_preview ?? ""}|${p.resolved_at ?? ""}`;
-const byCreatedAsc = (a: any, b: any) => (a.created_at ?? 0) - (b.created_at ?? 0);
+const permSig = (p: any) =>
+  `${p.status}|${p.tool_name}|${p.arguments_preview ?? ""}|${p.resolved_at ?? ""}`;
+const byCreatedAsc = (a: any, b: any) =>
+  (a.created_at ?? 0) - (b.created_at ?? 0);
 
 /** Reader: one conversation's pending permissions, oldest first (the server's
  *  order). Undefined only while cold with an empty cache. */
-export function usePendingPermissions(conversationId: string | null | undefined, enabled = true, asProposer = false): any[] | undefined {
-  const { ready } = useSyncPendingPermissions(conversationId, enabled, asProposer);
+export function usePendingPermissions(
+  conversationId: string | null | undefined,
+  enabled = true,
+  asProposer = false,
+): any[] | undefined {
+  const { ready } = useSyncPendingPermissions(
+    conversationId,
+    enabled,
+    asProposer,
+  );
   const now = useCoarseNow(60_000);
   const where = useMemo(
-    () => (conversationId
-      ? (p: any) => p.conversation_id === conversationId && p.status === "pending" && (p.created_at ?? 0) > now - PENDING_WINDOW_MS
-      : () => false),
+    () =>
+      conversationId
+        ? (p: any) =>
+            p.conversation_id === conversationId &&
+            p.status === "pending" &&
+            (p.created_at ?? 0) > now - PENDING_WINDOW_MS
+        : () => false,
     [conversationId, now],
   );
-  const rows = useCollectionRows<any>("pendingPermissions", { where, sig: permSig, sort: byCreatedAsc });
+  const rows = useCollectionRows<any>("pendingPermissions", {
+    where,
+    sig: permSig,
+    sort: byCreatedAsc,
+  });
   if (!conversationId || !enabled) return undefined;
   if (rows.length > 0) return rows;
   return ready ? rows : undefined;
@@ -59,7 +92,10 @@ export function usePendingPermissions(conversationId: string | null | undefined,
  * directly (transient, non-localFirst collection — no tombstone per sent
  * message).
  */
-export function usePendingMessageStatus(conversationId: string | null | undefined, enabled = true): any | null | undefined {
+export function usePendingMessageStatus(
+  conversationId: string | null | undefined,
+  enabled = true,
+): any | null | undefined {
   const { data } = useQueryNoThrow(
     api.pendingMessages.getConversationPendingMessage,
     enabled && conversationId ? { conversation_id: conversationId } : "skip",
@@ -71,13 +107,20 @@ export function usePendingMessageStatus(conversationId: string | null | undefine
     useCallback(
       (row: any) => {
         if (!conversationId) return;
-        if (row) syncTable("pendingMessageStatus", [{ _id: conversationId, conversation_id: conversationId, ...row }]);
+        if (row)
+          syncTable("pendingMessageStatus", [
+            { _id: conversationId, conversation_id: conversationId, ...row },
+          ]);
         else dropRows("pendingMessageStatus", [conversationId]);
       },
       [conversationId, syncTable, dropRows],
     ),
   );
-  const stored = useInboxStore((s) => (conversationId ? (s.pendingMessageStatus as any)[conversationId] : undefined));
+  const stored = useInboxStore((s) =>
+    conversationId
+      ? (s.pendingMessageStatus as any)[conversationId]
+      : undefined,
+  );
   if (!conversationId || !enabled) return undefined;
   return stored ?? (data !== undefined ? null : undefined);
 }

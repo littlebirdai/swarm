@@ -9,20 +9,34 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { BRIDGE_EXTENSION_ID, BRIDGE_STORE_URL, bridgePairingPage, bridgePairingUrl, bridgeWakeUrl, extensionIdOfKey } from "./protocol.js";
+import {
+  BRIDGE_EXTENSION_ID,
+  BRIDGE_STORE_URL,
+  bridgePairingPage,
+  bridgePairingUrl,
+  bridgeWakeUrl,
+  extensionIdOfKey,
+} from "./protocol.js";
 
-const manifestPath = path.join(import.meta.dir, "../../../../../apps/browser-extension/manifest.json");
+const manifestPath = path.join(
+  import.meta.dir,
+  "../../../../../apps/browser-extension/manifest.json",
+);
 
 describe("BRIDGE_EXTENSION_ID", () => {
   test("pairing, wake and installation use the published store item", () => {
     expect(BRIDGE_EXTENSION_ID).toBe("odfpgkdaibmjhhnbndgbjlhdbciciifd");
-    expect(new URL(BRIDGE_STORE_URL).pathname.split("/").at(-1)).toBe(BRIDGE_EXTENSION_ID);
+    expect(new URL(BRIDGE_STORE_URL).pathname.split("/").at(-1)).toBe(
+      BRIDGE_EXTENSION_ID,
+    );
     expect(new URL(bridgeWakeUrl()).host).toBe(BRIDGE_EXTENSION_ID);
     expect(new URL(bridgeWakeUrl()).hash).toBe("#wake");
   });
 
   test("is what Chrome derives from the manifest key", () => {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as { key?: string };
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as {
+      key?: string;
+    };
     expect(manifest.key).toBeTruthy();
     expect(extensionIdOfKey(manifest.key!)).toBe(BRIDGE_EXTENSION_ID);
   });
@@ -37,7 +51,9 @@ describe("BRIDGE_EXTENSION_ID", () => {
 
   test("an ID is 32 letters from a to p", () => {
     expect(BRIDGE_EXTENSION_ID).toMatch(/^[a-p]{32}$/);
-    expect(extensionIdOfKey(Buffer.from("not a real key").toString("base64"))).toMatch(/^[a-p]{32}$/);
+    expect(
+      extensionIdOfKey(Buffer.from("not a real key").toString("base64")),
+    ).toMatch(/^[a-p]{32}$/);
   });
 });
 
@@ -59,7 +75,15 @@ describe("bridgePairingUrl with the legacy token", () => {
   // The Store's 0.1.5 reads only #token=&port= (rig, 2026-11-07), so the URL setup opens carries both.
   test("carries the code, the token and the port, the token exactly as 0.1.5 reads it", () => {
     const token = "ab".repeat(32);
-    const frag = new URLSearchParams(new URL(bridgePairingUrl({ code: "ABCD-EFGH", port: 41729, legacyToken: token })).hash.slice(1));
+    const frag = new URLSearchParams(
+      new URL(
+        bridgePairingUrl({
+          code: "ABCD-EFGH",
+          port: 41729,
+          legacyToken: token,
+        }),
+      ).hash.slice(1),
+    );
     expect(frag.get("code")).toBe("ABCD-EFGH");
     expect(frag.get("token")).toBe(token);
     expect(frag.get("port")).toBe("41729");
@@ -76,7 +100,9 @@ describe("bridgePairingPage", () => {
   });
 
   test("a URL cannot break out of the script", () => {
-    const page = bridgePairingPage("chrome-extension://x/options.html#t=</script><script>alert(1)");
+    const page = bridgePairingPage(
+      "chrome-extension://x/options.html#t=</script><script>alert(1)",
+    );
     expect(page.match(/<script>/g)).toHaveLength(1);
     expect(page).not.toContain("</script><script>alert");
   });

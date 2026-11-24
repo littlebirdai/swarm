@@ -10,8 +10,22 @@ const people = [
   { _id: "u2", name: "Ashot", github_username: "ashot" },
 ];
 const roles = [
-  { _id: "r1", short_id: "or-1", name: "Growth", handle: "growth", avatar: "fox", status: "active" },
-  { _id: "r2", short_id: "or-2", name: "Old", handle: "old", avatar: "owl", status: "retired" },
+  {
+    _id: "r1",
+    short_id: "or-1",
+    name: "Growth",
+    handle: "growth",
+    avatar: "fox",
+    status: "active",
+  },
+  {
+    _id: "r2",
+    short_id: "or-2",
+    name: "Old",
+    handle: "old",
+    avatar: "owl",
+    status: "retired",
+  },
 ];
 
 describe("rolesAndPeopleOptions", () => {
@@ -22,17 +36,30 @@ describe("rolesAndPeopleOptions", () => {
     // Alone, people carry no heading; with roles, both lists do.
     expect(cold.people.every((p) => p.section === undefined)).toBe(true);
     const warm = rolesAndPeopleOptions(people, roles);
-    expect(warm.people.map((p) => [p.key, p.section])).toEqual([["u1", "People"], ["u2", "People"]]);
+    expect(warm.people.map((p) => [p.key, p.section])).toEqual([
+      ["u1", "People"],
+      ["u2", "People"],
+    ]);
   });
 
   it("live roles are listed under Roles with their handle and the contract's info; retired ones are not", () => {
     const { roles: out } = rolesAndPeopleOptions(people, roles);
-    expect(out.map((r) => [r.key, r.label, r.hint, r.section])).toEqual([["r1", "Growth", "@growth", "Roles"]]);
-    expect(out[0].info).toMatchObject({ kind: "role", handle: "growth", role_short_id: "or-1" });
+    expect(out.map((r) => [r.key, r.label, r.hint, r.section])).toEqual([
+      ["r1", "Growth", "@growth", "Roles"],
+    ]);
+    expect(out[0].info).toMatchObject({
+      kind: "role",
+      handle: "growth",
+      role_short_id: "or-1",
+    });
   });
 
   it("a person's info is the shape every surface draws", () => {
     const { people: out } = rolesAndPeopleOptions(people, roles);
-    expect(out[0].info).toEqual({ name: "Jason", image: undefined, github_username: "jbenn" });
+    expect(out[0].info).toEqual({
+      name: "Jason",
+      image: undefined,
+      github_username: "jbenn",
+    });
   });
 });

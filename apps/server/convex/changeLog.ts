@@ -21,8 +21,17 @@ import {
   type ActionExtra,
   type SyncAckCollector,
 } from "./syncLog";
-import { accessStampFor, computeWorkspaceKeyDb, firstLinkedConversationStamp, type AccessStamp } from "./lib/accessKeys";
-import { countBucket, moveProjectCount, touchesProjectCount } from "./lib/projectTaskCounts";
+import {
+  accessStampFor,
+  computeWorkspaceKeyDb,
+  firstLinkedConversationStamp,
+  type AccessStamp,
+} from "./lib/accessKeys";
+import {
+  countBucket,
+  moveProjectCount,
+  touchesProjectCount,
+} from "./lib/projectTaskCounts";
 import { withdrawDeletedConversation } from "./lib/changesDirty";
 import { agentTypeChangeRefusal } from "@codecast/shared/contracts";
 
@@ -30,21 +39,32 @@ import { agentTypeChangeRefusal } from "@codecast/shared/contracts";
 // it for three things (sync-log-cargo): the access-derived fan-out scopes, the
 // access stamp (always fresh — never reused across writes), and the partial
 // self-heal (a full cargo when the merged one can no longer prove itself).
-function postWriteDoc(rawDb: any, id: any, known?: any): () => Promise<any | null> {
-  let cached: Promise<any> | null = known !== undefined ? Promise.resolve(known) : null;
+function postWriteDoc(
+  rawDb: any,
+  id: any,
+  known?: any,
+): () => Promise<any | null> {
+  let cached: Promise<any> | null =
+    known !== undefined ? Promise.resolve(known) : null;
   return () => (cached ??= rawDb.get(id));
 }
 
 // One memoized stamp per write, shared by every fan-out scope and by the sync
 // scope derivation below (a stamp for a pre-backfill row reads its linked
 // conversation, so computing it once per write matters).
-function syncExtra(rawDb: any, table: string, doc: () => Promise<any | null>, cargo: ActionExtra["cargo"]): ActionExtra {
+function syncExtra(
+  rawDb: any,
+  table: string,
+  doc: () => Promise<any | null>,
+  cargo: ActionExtra["cargo"],
+): ActionExtra {
   let stamp: Promise<AccessStamp | null> | null = null;
   return {
     cargo,
     table,
     fullDoc: doc,
-    access: () => (stamp ??= doc().then((d) => accessStampFor({ db: rawDb }, table, d))),
+    access: () =>
+      (stamp ??= doc().then((d) => accessStampFor({ db: rawDb }, table, d))),
   };
 }
 
@@ -110,7 +130,9 @@ export function patchNeedsDocRead(
   patchFields: Record<string, any>,
   hasExistingRow: boolean,
 ): boolean {
-  return !hasExistingRow || "user_id" in patchFields || "team_id" in patchFields;
+  return (
+    !hasExistingRow || "user_id" in patchFields || "team_id" in patchFields
+  );
 }
 
 // Identify which tracked table an id belongs to. `db.normalizeId(table, id)` is a
@@ -128,7 +150,10 @@ export function trackedTableOf(db: any, id: any): ChangeEntity | null {
 // The single existing change_log row for an entity (or null). first() not
 // unique(): a rare concurrent double-insert leaves a duplicate that is harmless
 // (catch-up dedups by entity id) rather than throwing on read.
-export async function lookupChangeRow(db: any, entityId: string): Promise<any | null> {
+export async function lookupChangeRow(
+  db: any,
+  entityId: string,
+): Promise<any | null> {
   return db
     .query("change_log")
     .withIndex("by_entity", (q: any) => q.eq("entity_id", entityId))
@@ -149,7 +174,8 @@ export async function emitChange(
 ): Promise<void> {
   if (!scope.owner_user_id) return;
   const seq = Date.now();
-  const row = existing !== undefined ? existing : await lookupChangeRow(db, entityId);
+  const row =
+    existing !== undefined ? existing : await lookupChangeRow(db, entityId);
   const fields = {
     entity_type: entityType,
     entity_id: entityId,
@@ -159,7 +185,13 @@ export async function emitChange(
     seq,
   };
   if (row) {
-    await db.patch(row._id, { op, seq, owner_user_id: fields.owner_user_id, team_id: fields.team_id, entity_type: entityType });
+    await db.patch(row._id, {
+      op,
+      seq,
+      owner_user_id: fields.owner_user_id,
+      team_id: fields.team_id,
+      entity_type: entityType,
+    });
   } else {
     await db.insert("change_log", fields);
   }
@@ -180,13 +212,26 @@ export async function emitChange(
 // leaves their inbox list, and their client asks byIds about it without
 // pruning (web settleDisownClaims): a returned row keeps its stamps, an
 // omitted one loses only its ownership claim.
-async function emitOwnerAdded(rawDb: any, collector: SyncAckCollector | null, conversationId: any, ownerId: string): Promise<void> {
+async function emitOwnerAdded(
+  rawDb: any,
+  collector: SyncAckCollector | null,
+  conversationId: any,
+  ownerId: string,
+): Promise<void> {
   const conv = await rawDb.get(conversationId);
   if (!conv?.user_id || String(conv.user_id) === ownerId) return;
-  await appendSyncAction(rawDb, collector, userScopeKey(ownerId), "conversations", String(conversationId), "upsert", {
-    table: "conversations",
-    access: () => accessStampFor({ db: rawDb }, "conversations", conv),
-  });
+  await appendSyncAction(
+    rawDb,
+    collector,
+    userScopeKey(ownerId),
+    "conversations",
+    String(conversationId),
+    "upsert",
+    {
+      table: "conversations",
+      access: () => accessStampFor({ db: rawDb }, "conversations", conv),
+    },
+  );
 }
 
 // Wrap a raw Convex DatabaseWriter so every insert/patch/replace/delete to a
@@ -203,11 +248,16 @@ async function emitOwnerAdded(rawDb: any, collector: SyncAckCollector | null, co
 // `collector` (optional) accumulates the sync positions this transaction appended;
 // dispatch returns them to an opting-in client as its write acknowledgement.
 function assertAgentTypeKept(preDoc: any, next: string | undefined) {
-  const refusal = preDoc ? agentTypeChangeRefusal(preDoc.agent_type, next) : null;
+  const refusal = preDoc
+    ? agentTypeChangeRefusal(preDoc.agent_type, next)
+    : null;
   if (refusal) throw new Error(refusal);
 }
 
-export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | null = null): any {
+export function makeChangeTrackedDb(
+  rawDb: any,
+  collector: SyncAckCollector | null = null,
+): any {
   // Only wrap a real Convex DatabaseWriter, detected via normalizeId — the
   // table-from-id primitive the interceptor relies on. A partial test mock that
   // lacks it is returned untouched, so the interceptor never changes a mock's
@@ -225,30 +275,72 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
       const id = await rawDb.insert(table, doc);
       if (TRACKED_TABLES.has(table as any)) {
         const scope = scopeFromDoc(doc);
-        await emitChange(rawDb, table as ChangeEntity, String(id), "upsert", scope, null);
+        await emitChange(
+          rawDb,
+          table as ChangeEntity,
+          String(id),
+          "upsert",
+          scope,
+          null,
+        );
         // Stamp the stored ACCESS key at the one chokepoint every tracked insert
         // passes through (review): raw insert sites (doc/project/template task
         // creates) still mint rows without `workspace`, and every such row would
         // otherwise pay a linked-conversation read on each later write and a
         // membership query per list row, forever.
-        if (table !== "conversations" && doc?.user_id && !(typeof doc.workspace === "string" && doc.workspace)) {
-          const key = await computeWorkspaceKeyDb({ db: rawDb }, { _id: id, ...doc });
+        if (
+          table !== "conversations" &&
+          doc?.user_id &&
+          !(typeof doc.workspace === "string" && doc.workspace)
+        ) {
+          const key = await computeWorkspaceKeyDb(
+            { db: rawDb },
+            { _id: id, ...doc },
+          );
           await rawDb.patch(id, { workspace: key });
           doc = { ...doc, workspace: key };
         }
-        if (table === "tasks" && countBucket(doc)) await moveProjectCount({ db: rawDb }, null, await rawDb.get(id));
+        if (table === "tasks" && countBucket(doc))
+          await moveProjectCount({ db: rawDb }, null, await rawDb.get(id));
         if (!syncLogDisabled()) {
           const full = { _id: id, ...doc };
-          const extra = syncExtra(rawDb, table, postWriteDoc(rawDb, id, full), buildCargo(table, doc, { full: true }));
+          const extra = syncExtra(
+            rawDb,
+            table,
+            postWriteDoc(rawDb, id, full),
+            buildCargo(table, doc, { full: true }),
+          );
           await emitSyncActions(
-            rawDb, collector, table as ChangeEntity, String(id), "upsert",
-            syncScopeFromStamp(await extra.access!()), null, extra,
+            rawDb,
+            collector,
+            table as ChangeEntity,
+            String(id),
+            "upsert",
+            syncScopeFromStamp(await extra.access!()),
+            null,
+            extra,
           );
         }
       } else if (table === "team_memberships" && doc?.user_id && doc?.team_id) {
-        await emitScopeAction(rawDb, collector, String(doc.user_id), String(doc.team_id), "scope_added");
-      } else if (table === "session_owners" && doc?.user_id && doc?.conversation_id && !syncLogDisabled()) {
-        await emitOwnerAdded(rawDb, collector, doc.conversation_id, String(doc.user_id));
+        await emitScopeAction(
+          rawDb,
+          collector,
+          String(doc.user_id),
+          String(doc.team_id),
+          "scope_added",
+        );
+      } else if (
+        table === "session_owners" &&
+        doc?.user_id &&
+        doc?.conversation_id &&
+        !syncLogDisabled()
+      ) {
+        await emitOwnerAdded(
+          rawDb,
+          collector,
+          doc.conversation_id,
+          String(doc.user_id),
+        );
       }
       return id;
     },
@@ -259,18 +351,24 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
       if (link) fields = { ...fields, ...link };
       // A patch that touches scope fields can MOVE the entity between scopes; the
       // departed scope needs a revocation action, which requires the pre-write doc.
-      const movesScope = !!table && Object.keys(fields).some((k) => SCOPE_FIELDS.has(k));
+      const movesScope =
+        !!table && Object.keys(fields).some((k) => SCOPE_FIELDS.has(k));
       const movesAgent = table === "conversations" && "agent_type" in fields;
       const movesCount = table === "tasks" && touchesProjectCount(fields);
-      const preDoc = movesScope || movesAgent || movesCount ? await rawDb.get(id) : null;
+      const preDoc =
+        movesScope || movesAgent || movesCount ? await rawDb.get(id) : null;
       // Every writer passes here, so a conversation can never cross between
       // hosted and local, whichever mutation writes agent_type first.
       if (movesAgent) assertAgentTypeKept(preDoc, fields.agent_type);
-      const preScope = movesScope && preDoc && table
-        ? syncScopeFromStamp(await accessStampFor({ db: rawDb }, table, preDoc))
-        : null;
+      const preScope =
+        movesScope && preDoc && table
+          ? syncScopeFromStamp(
+              await accessStampFor({ db: rawDb }, table, preDoc),
+            )
+          : null;
       const res = await rawDb.patch(id, fields);
-      if (movesCount) await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
+      if (movesCount)
+        await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
         const entityId = String(id);
         const existing = await lookupChangeRow(rawDb, entityId);
@@ -279,9 +377,15 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
           const doc = await rawDb.get(id);
           scope = doc
             ? scopeFromDoc(doc)
-            : { owner_user_id: existing?.owner_user_id, team_id: existing?.team_id };
+            : {
+                owner_user_id: existing?.owner_user_id,
+                team_id: existing?.team_id,
+              };
         } else {
-          scope = { owner_user_id: existing.owner_user_id, team_id: existing.team_id };
+          scope = {
+            owner_user_id: existing.owner_user_id,
+            team_id: existing.team_id,
+          };
         }
         await emitChange(rawDb, table, entityId, "upsert", scope, existing);
         // Churn exemption (design D1): counter/liveness-only patches never touch
@@ -292,17 +396,35 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
           // The sync log's scopes and stamp come from the POST-write document
           // (one memoized read; the D1 cost note anticipated it) — never from
           // the change_log row, which knows only owner/team_id.
-          const extra = syncExtra(rawDb, table, postWriteDoc(rawDb, id), buildCargo(table, fields, { full: false }));
+          const extra = syncExtra(
+            rawDb,
+            table,
+            postWriteDoc(rawDb, id),
+            buildCargo(table, fields, { full: false }),
+          );
           const stamp = await extra.access!();
           if (stamp) {
             const syncScope = syncScopeFromStamp(stamp);
             await emitSyncActions(
-              rawDb, collector, table, entityId, "upsert",
-              syncScope, preScope, extra,
+              rawDb,
+              collector,
+              table,
+              entityId,
+              "upsert",
+              syncScope,
+              preScope,
+              extra,
             );
             // Routing-era row in the change_log's team scope? Flip it (review).
             if (existing?.team_id) {
-              await revokeStaleScope(rawDb, collector, table, entityId, `team:${String(existing.team_id)}`, scopesForChange(table, syncScope));
+              await revokeStaleScope(
+                rawDb,
+                collector,
+                table,
+                entityId,
+                `team:${String(existing.team_id)}`,
+                scopesForChange(table, syncScope),
+              );
             }
           }
         }
@@ -315,22 +437,38 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
       const link = table && firstLinkedConversationStamp(table, doc);
       if (link) doc = { ...doc, ...link };
       const preDoc = table ? await rawDb.get(id) : null;
-      if (table === "conversations") assertAgentTypeKept(preDoc, doc?.agent_type);
-      const preScope = preDoc && table
-        ? syncScopeFromStamp(await accessStampFor({ db: rawDb }, table, preDoc))
-        : null;
+      if (table === "conversations")
+        assertAgentTypeKept(preDoc, doc?.agent_type);
+      const preScope =
+        preDoc && table
+          ? syncScopeFromStamp(
+              await accessStampFor({ db: rawDb }, table, preDoc),
+            )
+          : null;
       const res = await rawDb.replace(id, doc);
-      if (table === "tasks") await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
+      if (table === "tasks")
+        await moveProjectCount({ db: rawDb }, preDoc, await rawDb.get(id));
       if (table) {
         // `undefined` (not null): a replaced entity usually already has a
         // change_log row from its insert — look it up and flip it, don't add one.
         await emitChange(rawDb, table, String(id), "upsert", scopeFromDoc(doc));
         if (!syncLogDisabled()) {
           const full = { _id: id, ...doc };
-          const extra = syncExtra(rawDb, table, postWriteDoc(rawDb, id, full), buildCargo(table, doc, { full: true }));
+          const extra = syncExtra(
+            rawDb,
+            table,
+            postWriteDoc(rawDb, id, full),
+            buildCargo(table, doc, { full: true }),
+          );
           await emitSyncActions(
-            rawDb, collector, table, String(id), "upsert",
-            syncScopeFromStamp(await extra.access!()), preScope, extra,
+            rawDb,
+            collector,
+            table,
+            String(id),
+            "upsert",
+            syncScopeFromStamp(await extra.access!()),
+            preScope,
+            extra,
           );
         }
       }
@@ -340,27 +478,46 @@ export function makeChangeTrackedDb(rawDb: any, collector: SyncAckCollector | nu
     async delete(id: any) {
       const table = trackedTableOf(rawDb, id);
       const membershipDoc =
-        !table && typeof rawDb.normalizeId === "function" && rawDb.normalizeId("team_memberships", id)
+        !table &&
+        typeof rawDb.normalizeId === "function" &&
+        rawDb.normalizeId("team_memberships", id)
           ? await rawDb.get(id)
           : null;
       // Read scope BEFORE the row is gone.
       const preDoc = table ? await rawDb.get(id) : null;
       const scope = table ? scopeFromDoc(preDoc) : null;
-      const syncScope = table && preDoc
-        ? syncScopeFromStamp(await accessStampFor({ db: rawDb }, table, preDoc))
-        : null;
+      const syncScope =
+        table && preDoc
+          ? syncScopeFromStamp(
+              await accessStampFor({ db: rawDb }, table, preDoc),
+            )
+          : null;
       const res = await rawDb.delete(id);
-      if (table === "tasks" && preDoc) await moveProjectCount({ db: rawDb }, preDoc, null);
+      if (table === "tasks" && preDoc)
+        await moveProjectCount({ db: rawDb }, preDoc, null);
       // Changes stories built from a deleted session lose it in this transaction.
-      if (table === "conversations") await withdrawDeletedConversation({ db: rawDb }, id);
+      if (table === "conversations")
+        await withdrawDeletedConversation({ db: rawDb }, id);
       if (table && scope) {
         // `undefined`: find the entity's existing upsert row and flip it to a
         // delete tombstone, rather than inserting a duplicate.
         await emitChange(rawDb, table, String(id), "delete", scope);
-        if (syncScope) await emitSyncActions(rawDb, collector, table, String(id), "delete", syncScope);
+        if (syncScope)
+          await emitSyncActions(
+            rawDb,
+            collector,
+            table,
+            String(id),
+            "delete",
+            syncScope,
+          );
       } else if (membershipDoc?.user_id && membershipDoc?.team_id) {
         await emitScopeAction(
-          rawDb, collector, String(membershipDoc.user_id), String(membershipDoc.team_id), "scope_removed",
+          rawDb,
+          collector,
+          String(membershipDoc.user_id),
+          String(membershipDoc.team_id),
+          "scope_removed",
         );
       }
       return res;

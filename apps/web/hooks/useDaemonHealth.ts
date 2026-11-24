@@ -137,21 +137,45 @@ export type DaemonHealth =
   // last minute — deliveries and echoes are delayed, not lost.
   // `hourMs`, `maxMs` and `topCause` are present only when the hour tier fired,
   // so the object stays exactly {kind, freezeMs} on the minute tier.
-  | { kind: "overloaded"; freezeMs: number; hourMs?: number; maxMs?: number; topCause?: string }
+  | {
+      kind: "overloaded";
+      freezeMs: number;
+      hourMs?: number;
+      maxMs?: number;
+      topCause?: string;
+    }
   // `pending` is the logical op count; `messages`/`conversations` are the honest
   // backlog depth so the chip can say "syncing N messages across M convos".
-  | { kind: "sync_stalled"; pending: number; messages: number; conversations: number; stalledMs: number }
+  | {
+      kind: "sync_stalled";
+      pending: number;
+      messages: number;
+      conversations: number;
+      stalledMs: number;
+    }
   // The same backlog, but ops are completing: the daemon is draining it in
   // order and the old head is how far behind it is, not a symptom. `behindMs`
   // is the head's age, `noProgressMs` how long since the last success.
-  | { kind: "syncing"; pending: number; messages: number; conversations: number; behindMs: number; noProgressMs: number };
+  | {
+      kind: "syncing";
+      pending: number;
+      messages: number;
+      conversations: number;
+      behindMs: number;
+      noProgressMs: number;
+    };
 
 // Every state in which a pending message may be late because of the DAEMON
 // rather than the session. The per-message delivery note reads this to stop
 // blaming the session (and offering a kill & restart that goes through the
 // very daemon that is struggling).
 export const isDegradedDaemonHealth = (h: DaemonHealth): boolean =>
-  h.kind === "offline" || h.kind === "quiet" || h.kind === "restarting" || h.kind === "overloaded" || h.kind === "sync_stalled" || h.kind === "syncing";
+  h.kind === "offline" ||
+  h.kind === "quiet" ||
+  h.kind === "restarting" ||
+  h.kind === "overloaded" ||
+  h.kind === "sync_stalled" ||
+  h.kind === "syncing";
 
 // Narrower than degraded: the states in which a message is late RIGHT NOW.
 // The hour tier reports an SLO, not a live symptom — a machine that froze for
@@ -160,7 +184,8 @@ export const isDegradedDaemonHealth = (h: DaemonHealth): boolean =>
 // button on it, for the rest of the hour. Everything else that degrades still
 // does.
 export const blocksDelivery = (h: DaemonHealth): boolean =>
-  isDegradedDaemonHealth(h) && !(h.kind === "overloaded" && h.freezeMs < OVERLOADED_FREEZE_MS);
+  isDegradedDaemonHealth(h) &&
+  !(h.kind === "overloaded" && h.freezeMs < OVERLOADED_FREEZE_MS);
 
 // Narrower again, for a message the daemon has not yet put into its session.
 // The sync backlog counts transcript UPLOADS (machine to server), which cannot
@@ -266,12 +291,17 @@ export function computeDaemonHealth(
   const maxMs = user?.daemon_loop_freeze_max_ms ?? 0;
   const topCause = user?.daemon_loop_freeze_top || "";
   const hourFields = hourTier
-    ? { hourMs, ...(maxMs > 0 ? { maxMs } : {}), ...(topCause ? { topCause } : {}) }
+    ? {
+        hourMs,
+        ...(maxMs > 0 ? { maxMs } : {}),
+        ...(topCause ? { topCause } : {}),
+      }
     : {};
 
   // The minute tier outranks a sync backlog: the loop is blocked right now, so
   // the backlog is a symptom of it.
-  if (freezeMs >= OVERLOADED_FREEZE_MS) return { kind: "overloaded", freezeMs, ...hourFields };
+  if (freezeMs >= OVERLOADED_FREEZE_MS)
+    return { kind: "overloaded", freezeMs, ...hourFields };
 
   // Daemon is online (fresh heartbeat) but data may not be flowing. Surface a
   // sustained retry backlog as a distinct "sync stalled" state.
@@ -295,8 +325,17 @@ export function computeDaemonHealth(
     // the queue is moving. A daemon that predates the field reports nothing
     // and keeps the stall verdict.
     const noProgress = user?.daemon_sync_no_progress_ms;
-    if (noProgress !== undefined && noProgress !== null && noProgress < SYNC_STALL_AFTER_MS) {
-      return { kind: "syncing", ...backlog, behindMs: oldest, noProgressMs: noProgress };
+    if (
+      noProgress !== undefined &&
+      noProgress !== null &&
+      noProgress < SYNC_STALL_AFTER_MS
+    ) {
+      return {
+        kind: "syncing",
+        ...backlog,
+        behindMs: oldest,
+        noProgressMs: noProgress,
+      };
     }
     return { kind: "sync_stalled", ...backlog, stalledMs: oldest };
   }
@@ -378,26 +417,41 @@ const getClock = () => clock;
 const getServerClock = () => clock;
 
 const ROSTER_SIG_FIELDS: Array<keyof DaemonDeviceRow> = [
-  "device_id", "label", "last_seen", "daemon_started_at", "loop_freeze_ms",
-  "pending_sync_count", "oldest_pending_ms", "pending_sync_messages", "pending_sync_conversations",
+  "device_id",
+  "label",
+  "last_seen",
+  "daemon_started_at",
+  "loop_freeze_ms",
+  "pending_sync_count",
+  "oldest_pending_ms",
+  "pending_sync_messages",
+  "pending_sync_conversations",
   "is_remote",
   // Appended at the END on purpose: the decode below reads by index, so a new
   // field inserted anywhere else silently shifts every other one.
-  "loop_freeze_1h_ms", "loop_freeze_max_ms", "loop_freeze_top",
+  "loop_freeze_1h_ms",
+  "loop_freeze_max_ms",
+  "loop_freeze_top",
   "sync_no_progress_ms",
 ];
 
 // One cell of the roster signature: never empty of meaning, never carrying a
 // separator. Exported so the decode's contract can be tested directly.
 export const sigCell = (v: unknown): string =>
-  v === null || v === undefined || v === false ? "" : String(v).replace(/[|\n\r]+/g, " ");
+  v === null || v === undefined || v === false
+    ? ""
+    : String(v).replace(/[|\n\r]+/g, " ");
 
 /**
  * True while this tab is inside its observe grace after it slept or was hidden
  * (the cold-load grace is excluded): the roster it holds may predate the gap.
  */
 export function useObserverSettling(): boolean {
-  const { now, wokeAt } = useSyncExternalStore(subscribeClock, getClock, getServerClock);
+  const { now, wokeAt } = useSyncExternalStore(
+    subscribeClock,
+    getClock,
+    getServerClock,
+  );
   return now - wokeAt < OBSERVE_GRACE_MS && wokeAt !== COLD_LOAD_AT;
 }
 
@@ -406,31 +460,54 @@ export function useObserverSettling(): boolean {
  * grace, for a reader that waits for a live roster and applies the grace
  * itself where silence is its only evidence (useHostWake).
  */
-export function useDaemonHealth(deviceId: string | null | undefined, opts?: { grace?: boolean }): DeviceDaemonHealth {
+export function useDaemonHealth(
+  deviceId: string | null | undefined,
+  opts?: { grace?: boolean },
+): DeviceDaemonHealth {
   const rosterSig = useInboxStore((s) => {
     const row = deviceId
-      ? (s.machineRoster as DaemonDeviceRow[]).find((d) => d.device_id === deviceId)
+      ? (s.machineRoster as DaemonDeviceRow[]).find(
+          (d) => d.device_id === deviceId,
+        )
       : undefined;
-    return row ? ROSTER_SIG_FIELDS.map((f) => (row[f] === true ? "1" : sigCell(row[f]))).join("|") : "";
+    return row
+      ? ROSTER_SIG_FIELDS.map((f) =>
+          row[f] === true ? "1" : sigCell(row[f]),
+        ).join("|")
+      : "";
   });
   const row = useMemo<DaemonDeviceRow | null>(() => {
     if (!rosterSig) return null;
     const v = rosterSig.split("|");
     const num = (i: number) => (v[i] === "" ? null : Number(v[i]));
     return {
-      device_id: v[0], label: v[1] || undefined, last_seen: num(2), daemon_started_at: num(3),
-      loop_freeze_ms: num(4), pending_sync_count: num(5), oldest_pending_ms: num(6),
-      pending_sync_messages: num(7), pending_sync_conversations: num(8),
+      device_id: v[0],
+      label: v[1] || undefined,
+      last_seen: num(2),
+      daemon_started_at: num(3),
+      loop_freeze_ms: num(4),
+      pending_sync_count: num(5),
+      oldest_pending_ms: num(6),
+      pending_sync_messages: num(7),
+      pending_sync_conversations: num(8),
       is_remote: v[9] === "1",
-      loop_freeze_1h_ms: num(10), loop_freeze_max_ms: num(11),
+      loop_freeze_1h_ms: num(10),
+      loop_freeze_max_ms: num(11),
       loop_freeze_top: v[12] || undefined,
       sync_no_progress_ms: num(13),
     };
   }, [rosterSig]);
-  const { now, wokeAt } = useSyncExternalStore(subscribeClock, getClock, getServerClock);
+  const { now, wokeAt } = useSyncExternalStore(
+    subscribeClock,
+    getClock,
+    getServerClock,
+  );
   const recentlyWoke = opts?.grace !== false && now - wokeAt < OBSERVE_GRACE_MS;
   return useMemo(() => {
     if (!row) return { kind: "unknown" };
-    return { ...computeDaemonHealth(deviceHealthInput(row), now, { recentlyWoke }), device: row.label };
+    return {
+      ...computeDaemonHealth(deviceHealthInput(row), now, { recentlyWoke }),
+      device: row.label,
+    };
   }, [row, now, recentlyWoke]);
 }

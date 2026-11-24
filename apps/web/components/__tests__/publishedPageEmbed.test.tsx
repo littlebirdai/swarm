@@ -12,10 +12,26 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 const client = offlineConvexClient("https://example.convex.cloud");
 // The page's embed info answers (an open page, so the frame mounts); every other query is still loading.
-const INFO = [{ slug: "my-page", title: "A page", kind: "html", version: 1, gated: false, user: null }];
-const watchQuery = spyOn(client, "watchQuery").mockImplementation(((query: unknown) => ({
+const INFO = [
+  {
+    slug: "my-page",
+    title: "A page",
+    kind: "html",
+    version: 1,
+    gated: false,
+    user: null,
+  },
+];
+const watchQuery = spyOn(client, "watchQuery").mockImplementation(((
+  query: unknown,
+) => ({
   onUpdate: () => () => {},
-  localQueryResult: () => (String((query as { [k: symbol]: unknown })[Symbol.for("functionName")] ?? "") === "artifacts:embedInfo" ? INFO : undefined),
+  localQueryResult: () =>
+    String(
+      (query as { [k: symbol]: unknown })[Symbol.for("functionName")] ?? "",
+    ) === "artifacts:embedInfo"
+      ? INFO
+      : undefined,
   localQueryLogs: () => undefined,
   journal: () => undefined,
 })) as never);
@@ -30,17 +46,29 @@ function markup(slug = "abc") {
 
 // The verbs on the page's floating toolbar, in the order a reader meets them.
 function toolbarVerbs(html: string): string[] {
-  const bar = html.match(/<span class="page-embed__bar"[\s\S]*?<\/span><span class="page-embed__grip"/)?.[0] ?? "";
-  return [...bar.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((m) => m[1]);
+  const bar =
+    html.match(
+      /<span class="page-embed__bar"[\s\S]*?<\/span><span class="page-embed__grip"/,
+    )?.[0] ?? "";
+  return [...bar.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map(
+    (m) => m[1],
+  );
 }
 
 describe("PublishedPageEmbed header actions", () => {
   test("copy link to the published page is first, then the two ways to open it, and collapse", () => {
-    expect(toolbarVerbs(markup("my-page"))).toEqual(["Copy link", "Open beside your work", "Open in a new tab", "Collapse"]);
+    expect(toolbarVerbs(markup("my-page"))).toEqual([
+      "Copy link",
+      "Open beside your work",
+      "Open in a new tab",
+      "Collapse",
+    ]);
   });
 
   test("a page taller than its frame shows Expand under it, outside the hover toolbar", () => {
-    expect(markup("my-page")).toMatch(/<button[^>]*class="page-embed__expand[^"]*"[^>]*>.*?Expand<\/button>/);
+    expect(markup("my-page")).toMatch(
+      /<button[^>]*class="page-embed__expand[^"]*"[^>]*>.*?Expand<\/button>/,
+    );
   });
 
   test("open points at the public share URL, not the serving origin", () => {
@@ -51,12 +79,20 @@ describe("PublishedPageEmbed header actions", () => {
 });
 
 const written: string[] = [];
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/inbox",
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400 }),
   document: dom.window.document,
   navigator: Object.assign(dom.window.navigator, {
-    clipboard: { writeText: (t: string) => { written.push(t); return Promise.resolve(); } },
+    clipboard: {
+      writeText: (t: string) => {
+        written.push(t);
+        return Promise.resolve();
+      },
+    },
   }),
   HTMLElement: dom.window.HTMLElement,
   // useFrameTheme posts the theme to a framed page on the next frame.
@@ -66,7 +102,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(async () => {
   watchQuery.mockRestore();
@@ -78,7 +114,9 @@ afterAll(async () => {
 describe("PublishedPageEmbed copy", () => {
   test("the copy button writes the public share URL", async () => {
     written.length = 0;
-    mock.module("sonner", () => ({ toast: { success: () => {}, error: () => {} } }));
+    mock.module("sonner", () => ({
+      toast: { success: () => {}, error: () => {} },
+    }));
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -89,7 +127,9 @@ describe("PublishedPageEmbed copy", () => {
         </ConvexProvider>,
       ),
     );
-    const btn = container.querySelector('[aria-label="Copy link"]') as HTMLButtonElement;
+    const btn = container.querySelector(
+      '[aria-label="Copy link"]',
+    ) as HTMLButtonElement;
     expect(btn).toBeTruthy();
     await act(() => btn.click());
     expect(written).toEqual(["https://codecast.sh/a/my-page"]);
@@ -113,17 +153,36 @@ describe("PublishedPageEmbed height", () => {
     );
     try {
       const frame = container.querySelector("iframe") as HTMLIFrameElement;
-      const stage = () => (container.querySelector(".page-embed__stage") as HTMLElement).style.height;
+      const stage = () =>
+        (container.querySelector(".page-embed__stage") as HTMLElement).style
+          .height;
       const report = (height: number, preferred: number | null) =>
-        act(() => { dom.window.dispatchEvent(new dom.window.MessageEvent("message", { data: { type: "codecast:height", height, preferred }, source: frame.contentWindow as any })); });
+        act(() => {
+          dom.window.dispatchEvent(
+            new dom.window.MessageEvent("message", {
+              data: { type: "codecast:height", height, preferred },
+              source: frame.contentWindow as any,
+            }),
+          );
+        });
       await report(3000, null);
       expect(stage()).toBe("420px");
       await report(3000, 700);
       expect(stage()).toBe("700px");
-      await act(() => (container.querySelector(".page-embed__expand") as HTMLButtonElement).click());
+      await act(() =>
+        (
+          container.querySelector(".page-embed__expand") as HTMLButtonElement
+        ).click(),
+      );
       expect(stage()).toBe("1400px");
-      expect(container.querySelector(".page-embed__expand")!.textContent).toBe("Shrink");
-      await act(() => (container.querySelector(".page-embed__expand") as HTMLButtonElement).click());
+      expect(container.querySelector(".page-embed__expand")!.textContent).toBe(
+        "Shrink",
+      );
+      await act(() =>
+        (
+          container.querySelector(".page-embed__expand") as HTMLButtonElement
+        ).click(),
+      );
       expect(stage()).toBe("700px");
       await report(500, 700);
       expect(stage()).toBe("500px");
@@ -144,7 +203,16 @@ describe("ClaudeArtifactEmbed publish suggestion", () => {
   const ID = "2c5e5d6e-0a70-4e04-9c7a-1c4f1f5b8b6d";
   const seed = (snippets: Record<string, boolean> | null) =>
     useInboxStore.setState({
-      machineRoster: snippets ? [{ device_id: "dev-1", online: true, last_seen: 1, settings: { snippets } }] : [],
+      machineRoster: snippets
+        ? [
+            {
+              device_id: "dev-1",
+              online: true,
+              last_seen: 1,
+              settings: { snippets },
+            },
+          ]
+        : [],
     } as any);
 
   async function mount(): Promise<HTMLElement> {
@@ -187,10 +255,17 @@ describe("ClaudeArtifactEmbed publish suggestion", () => {
     const dismissed = useInboxStore.getState().clientState.dismissed;
     try {
       seed({ memory: true });
-      useInboxStore.setState((s: any) => ({ clientState: { ...s.clientState, dismissed: { ...dismissed, snippet_intro_publish: 1 } } }));
+      useInboxStore.setState((s: any) => ({
+        clientState: {
+          ...s.clientState,
+          dismissed: { ...dismissed, snippet_intro_publish: 1 },
+        },
+      }));
       expect((await mount()).querySelector(OFFER)).toBeNull();
     } finally {
-      useInboxStore.setState((s: any) => ({ clientState: { ...s.clientState, dismissed } }));
+      useInboxStore.setState((s: any) => ({
+        clientState: { ...s.clientState, dismissed },
+      }));
       seed(null);
     }
   });
@@ -201,7 +276,8 @@ describe("ClaudeArtifactEmbed publish suggestion", () => {
 // page note quoting the spot, and the frame is sent the notes to draw.
 describe("PublishedPageEmbed notes", () => {
   test("a pin from the frame joins the quote batch and is mirrored back", async () => {
-    const { ImageGalleryProvider, GalleryMessageScope } = await import("../ImageGallery");
+    const { ImageGalleryProvider, GalleryMessageScope } =
+      await import("../ImageGallery");
     const container = dom.window.document.createElement("div");
     dom.window.document.body.appendChild(container);
     const root = createRoot(container);
@@ -219,27 +295,72 @@ describe("PublishedPageEmbed notes", () => {
     try {
       const frame = container.querySelector("iframe") as HTMLIFrameElement;
       const sent: any[] = [];
-      frame.contentWindow!.postMessage = ((m: unknown) => { sent.push(m); }) as any;
-      const toggle = container.querySelector('[aria-pressed]') as HTMLButtonElement;
-      expect(toggle.getAttribute("aria-label")).toBe("Pin a note, or select text on the page");
+      frame.contentWindow!.postMessage = ((m: unknown) => {
+        sent.push(m);
+      }) as any;
+      const toggle = container.querySelector(
+        "[aria-pressed]",
+      ) as HTMLButtonElement;
+      expect(toggle.getAttribute("aria-label")).toBe(
+        "Pin a note, or select text on the page",
+      );
       await act(() => toggle.click());
-      expect(sent.at(-1)).toMatchObject({ type: "codecast:notes", pinMode: true, notes: [] });
+      expect(sent.at(-1)).toMatchObject({
+        type: "codecast:notes",
+        pinMode: true,
+        notes: [],
+      });
 
-      const fromFrame = (data: unknown, source: unknown = frame.contentWindow) =>
-        act(() => { dom.window.dispatchEvent(new dom.window.MessageEvent("message", { data, source: source as any })); });
+      const fromFrame = (
+        data: unknown,
+        source: unknown = frame.contentWindow,
+      ) =>
+        act(() => {
+          dom.window.dispatchEvent(
+            new dom.window.MessageEvent("message", {
+              data,
+              source: source as any,
+            }),
+          );
+        });
       // Another window cannot write into the batch.
-      await fromFrame({ type: "codecast:note-add", point: { x: 0.5, y: 0.5 } }, dom.window);
+      await fromFrame(
+        { type: "codecast:note-add", point: { x: 0.5, y: 0.5 } },
+        dom.window,
+      );
       expect(useInboxStore.getState().getReviewComments("conv-1")).toEqual([]);
 
-      await fromFrame({ type: "codecast:note-add", point: { x: 0.25, y: 0.4 }, snippet: "Needs you now" });
+      await fromFrame({
+        type: "codecast:note-add",
+        point: { x: 0.25, y: 0.4 },
+        snippet: "Needs you now",
+      });
       const [note] = useInboxStore.getState().getReviewComments("conv-1");
-      expect(note).toMatchObject({ messageId: "msg-1", page: { slug: "notes-page", point: { x: 0.25, y: 0.4 }, snippet: "Needs you now" } });
-      expect(note.quote).toBe('Published page "Published page" (https://codecast.sh/a/notes-page), at "Needs you now"');
-      expect(sent.at(-1)).toMatchObject({ editing: note.id, notes: [{ id: note.id, n: 1, x: 0.25, y: 0.4, body: "" }] });
+      expect(note).toMatchObject({
+        messageId: "msg-1",
+        page: {
+          slug: "notes-page",
+          point: { x: 0.25, y: 0.4 },
+          snippet: "Needs you now",
+        },
+      });
+      expect(note.quote).toBe(
+        'Published page "Published page" (https://codecast.sh/a/notes-page), at "Needs you now"',
+      );
+      expect(sent.at(-1)).toMatchObject({
+        editing: note.id,
+        notes: [{ id: note.id, n: 1, x: 0.25, y: 0.4, body: "" }],
+      });
 
-      await fromFrame({ type: "codecast:note-body", id: note.id, body: " fix this first " });
-      expect(useInboxStore.getState().getReviewComments("conv-1")[0].body).toBe("fix this first");
-      expect(container.querySelector('[aria-pressed]')!.textContent).toBe("1");
+      await fromFrame({
+        type: "codecast:note-body",
+        id: note.id,
+        body: " fix this first ",
+      });
+      expect(useInboxStore.getState().getReviewComments("conv-1")[0].body).toBe(
+        "fix this first",
+      );
+      expect(container.querySelector("[aria-pressed]")!.textContent).toBe("1");
 
       await fromFrame({ type: "codecast:note-remove", id: note.id });
       expect(useInboxStore.getState().getReviewComments("conv-1")).toEqual([]);

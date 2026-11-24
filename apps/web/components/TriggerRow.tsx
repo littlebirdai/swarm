@@ -1,5 +1,5 @@
 import { WAKE_BADGE, RUNNING_BADGE_TONE } from "../lib/triggerBadges";
-"use client";
+("use client");
 
 // ONE trigger row, everywhere a trigger renders as a row: the inbox dock
 // roster, the bars stacked under a session card, and the /triggers page. One
@@ -32,20 +32,65 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { WorkState } from "@codecast/shared/contracts";
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Copy, History, Pause, Pencil, Play, RotateCcw, Trash2, X, XCircle } from "lucide-react";
-import { ContextMenu, useContextMenu, CtxItem, CtxHeader, CtxSeparator } from "./ui/context-menu";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  Copy,
+  History,
+  Pause,
+  Pencil,
+  Play,
+  RotateCcw,
+  Trash2,
+  X,
+  XCircle,
+} from "lucide-react";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxHeader,
+  CtxSeparator,
+} from "./ui/context-menu";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import { StatusDot } from "./StatusDot";
 import { ORG_STATE_META } from "./org/orgMeta";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
-import { useInboxStore, classifySession, isSessionHidden, getProjectName, type InboxSession } from "../store/inboxStore";
+import {
+  useInboxStore,
+  classifySession,
+  isSessionHidden,
+  getProjectName,
+  type InboxSession,
+} from "../store/inboxStore";
 import { threadStateView } from "../lib/threadState";
 import { sessionCardTitle } from "../lib/sessionCard";
 import { getLabelColor } from "../lib/labelColors";
 import { copyToClipboard } from "../lib/utils";
-import { fmtClock, fmtDuration, describeTaskCadence, isTaskOverdue, readableTimes, taskStateLabel } from "./triggerCadence";
-import { triggerEndVerb, triggerEndWords, taskDisplayTitle, taskGist, lastRunHeadline, type TriggerRow, type TriggerHomeGroup, type TaskRow } from "./triggerTasks";
-import { TriggerRunList, useTriggerRuns, type TriggerRun } from "./TriggerRunHistory";
+import {
+  fmtClock,
+  fmtDuration,
+  describeTaskCadence,
+  isTaskOverdue,
+  readableTimes,
+  taskStateLabel,
+} from "./triggerCadence";
+import {
+  triggerEndVerb,
+  triggerEndWords,
+  taskDisplayTitle,
+  taskGist,
+  lastRunHeadline,
+  type TriggerRow,
+  type TriggerHomeGroup,
+  type TaskRow,
+} from "./triggerTasks";
+import {
+  TriggerRunList,
+  useTriggerRuns,
+  type TriggerRun,
+} from "./TriggerRunHistory";
 import { isTriggerEditable } from "../lib/triggerEditable";
 
 const SCHED_ACCENT: Record<SchedAccent, string> = {
@@ -54,25 +99,48 @@ const SCHED_ACCENT: Record<SchedAccent, string> = {
   paused: "border-l-sol-border",
   normal: "border-l-sol-amber/50",
 };
-function schedBadgeTone(task: { status: string; run_at?: number }, now: number): string {
-  if (task.status === "paused" || task.status === "completed") return "bg-sol-bg-alt text-sol-text-dim border-sol-border/50";
-  if (task.status === "failed") return "bg-sol-red/10 text-sol-red border-sol-red/30";
+function schedBadgeTone(
+  task: { status: string; run_at?: number },
+  now: number,
+): string {
+  if (task.status === "paused" || task.status === "completed")
+    return "bg-sol-bg-alt text-sol-text-dim border-sol-border/50";
+  if (task.status === "failed")
+    return "bg-sol-red/10 text-sol-red border-sol-red/30";
   if (task.status === "running") return RUNNING_BADGE_TONE;
   // Stuck-due is the one badge state that earns red: the daemon should claim
   // due work within seconds, so minutes overdue means nothing is listening.
-  if (isTaskOverdue(task, now)) return "bg-sol-red/10 text-sol-red border-sol-red/40 font-bold";
+  if (isTaskOverdue(task, now))
+    return "bg-sol-red/10 text-sol-red border-sol-red/40 font-bold";
   const ms = task.run_at !== undefined ? task.run_at - now : undefined;
-  if (ms !== undefined && ms <= 10 * 60_000) return "bg-sol-amber/20 text-sol-amber border-sol-amber/50 font-bold";
+  if (ms !== undefined && ms <= 10 * 60_000)
+    return "bg-sol-amber/20 text-sol-amber border-sol-amber/50 font-bold";
   return "bg-sol-amber/[0.08] text-sol-amber/90 border-sol-amber/25";
 }
 
 // The ↳ corner arrow an attached/grouped row wears — the SAME glyph the
 // subagent rows carry (in schedule-amber, not subagent violet), so the child
 // connectors line up under a card and the amber alone says "schedule".
-export function SchedChildArrow({ label, className }: { label: string; className?: string }) {
+export function SchedChildArrow({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
   return (
-    <span className={`flex items-center self-start mt-[3px] shrink-0 ${className ?? "text-sol-amber/70"}`} role="img" aria-label={label}>
-      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <span
+      className={`flex items-center self-start mt-[3px] shrink-0 ${className ?? "text-sol-amber/70"}`}
+      role="img"
+      aria-label={label}
+    >
+      <svg
+        className="w-3 h-3"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
         <title>{label}</title>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 4v12h12" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M14 12l4 4-4 4" />
@@ -83,7 +151,13 @@ export function SchedChildArrow({ label, className }: { label: string; className
 
 // The health dot beside a schedule's name: green pulse while a run is live,
 // red when the last run failed or flagged itself; nothing at rest.
-export function SchedHealthDot({ accent, task }: { accent: SchedAccent; task: { last_run_failed?: boolean } }) {
+export function SchedHealthDot({
+  accent,
+  task,
+}: {
+  accent: SchedAccent;
+  task: { last_run_failed?: boolean };
+}) {
   if (accent === "running") {
     return (
       <ShortcutTooltip label="Running now">
@@ -96,7 +170,11 @@ export function SchedHealthDot({ accent, task }: { accent: SchedAccent; task: { 
   }
   if (accent === "attention") {
     return (
-      <ShortcutTooltip label={task.last_run_failed ? "Last run failed" : "Flagged for attention"}>
+      <ShortcutTooltip
+        label={
+          task.last_run_failed ? "Last run failed" : "Flagged for attention"
+        }
+      >
         <span className="w-1.5 h-1.5 rounded-full bg-sol-red shrink-0" />
       </ShortcutTooltip>
     );
@@ -107,11 +185,19 @@ export function SchedHealthDot({ accent, task }: { accent: SchedAccent; task: { 
 // The next-fire badge — one tone function, one label function, so every
 // surface shows the same countdown for the same schedule. Memoized on its own
 // label-keyed clock: a badge re-renders only when its text would change.
-export const SchedFireBadge = memo(function SchedFireBadge({ task, className = "" }: { task: TaskRow; className?: string }) {
+export const SchedFireBadge = memo(function SchedFireBadge({
+  task,
+  className = "",
+}: {
+  task: TaskRow;
+  className?: string;
+}) {
   const now = useNowWhen((t) => taskStateLabel(task, t), 30_000);
   const badge = (
     <span
-      data-sv-wake-badge={task.status === "failed" || isTaskOverdue(task, now) ? "alert" : ""}
+      data-sv-wake-badge={
+        task.status === "failed" || isTaskOverdue(task, now) ? "alert" : ""
+      }
       className={`${className} ${WAKE_BADGE} transition-colors ${schedBadgeTone(task, now)}`}
     >
       {taskStateLabel(task, now)}
@@ -120,7 +206,14 @@ export const SchedFireBadge = memo(function SchedFireBadge({ task, className = "
   if (task.status !== "scheduled") return badge;
   const cadence = describeTaskCadence(task);
   return (
-    <ShortcutTooltip label={task.run_at !== undefined ? `Fires at ${fmtClock(task.run_at)}` : `Fires ${cadence}`} hint={task.run_at !== undefined ? cadence : undefined}>
+    <ShortcutTooltip
+      label={
+        task.run_at !== undefined
+          ? `Fires at ${fmtClock(task.run_at)}`
+          : `Fires ${cadence}`
+      }
+      hint={task.run_at !== undefined ? cadence : undefined}
+    >
       {badge}
     </ShortcutTooltip>
   );
@@ -129,8 +222,10 @@ export const SchedFireBadge = memo(function SchedFireBadge({ task, className = "
 // The outcome glyph + word, shared by the row's third line and the attached
 // row's right-hand meta. One vocabulary: ok / failed / flagged.
 function outcomeOf(task: TaskRow) {
-  if (task.last_run_failed) return { Icon: XCircle, tone: "text-sol-red", word: "failed" };
-  if (task.last_run_needs_attention) return { Icon: AlertTriangle, tone: "text-sol-orange", word: "flagged" };
+  if (task.last_run_failed)
+    return { Icon: XCircle, tone: "text-sol-red", word: "failed" };
+  if (task.last_run_needs_attention)
+    return { Icon: AlertTriangle, tone: "text-sol-orange", word: "flagged" };
   return { Icon: CheckCircle2, tone: "text-sol-green", word: "ok" };
 }
 
@@ -147,14 +242,29 @@ export type TriggerRowVariant =
 
 // Modern: a 24px icon button with the control radius and the one focus ring;
 // its colours stay the verb's own.
-const VERB_BTN = "p-1 rounded transition-[color,background-color,transform] duration-100 active:scale-90 modern:inline-flex modern:size-6 modern:items-center modern:justify-center modern:rounded-control modern:p-0 modern:active:scale-100 modern:focus-visible:outline modern:focus-visible:outline-2 modern:focus-visible:outline-offset-1 modern:focus-visible:outline-[color:var(--focus-ring)]";
+const VERB_BTN =
+  "p-1 rounded transition-[color,background-color,transform] duration-100 active:scale-90 modern:inline-flex modern:size-6 modern:items-center modern:justify-center modern:rounded-control modern:p-0 modern:active:scale-100 modern:focus-visible:outline modern:focus-visible:outline-2 modern:focus-visible:outline-offset-1 modern:focus-visible:outline-[color:var(--focus-ring)]";
 
 // A trigger verb: the store's triggerAction signature, so a caller can supply
 // its own (the marketing hero plays verbs on fixture rows without a store).
-export type TriggerVerbAction = (taskId: string, verb: "pause" | "resume" | "runNow" | "cancel" | "reactivate") => void;
+export type TriggerVerbAction = (
+  taskId: string,
+  verb: "pause" | "resume" | "runNow" | "cancel" | "reactivate",
+) => void;
 
 export const TriggerRowItem = memo(function TriggerRowItem({
-  row, variant = "roster", activeSessionId, onOpen, highlighted, isNext, onNavigated, onEdit, onDuplicate, onDelete, actions, history,
+  row,
+  variant = "roster",
+  activeSessionId,
+  onOpen,
+  highlighted,
+  isNext,
+  onNavigated,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  actions,
+  history,
 }: {
   row: TriggerRow;
   variant?: TriggerRowVariant;
@@ -195,7 +305,9 @@ export const TriggerRowItem = memo(function TriggerRowItem({
   // real mutation. Same actions on every surface.
   const storeTriggerAction = useInboxStore((st) => st.triggerAction);
   const triggerAction = actions ?? storeTriggerAction;
-  const confirm = (fire: () => void) => { if (!actions) fire(); };
+  const confirm = (fire: () => void) => {
+    if (!actions) fire();
+  };
   // One rule for ending a trigger, shared with the phone and the dock: an
   // armed one is cancelled, a finished one deleted (triggerTasks.ts).
   const endVerb = triggerEndVerb(task.status);
@@ -204,14 +316,22 @@ export const TriggerRowItem = memo(function TriggerRowItem({
   // the right-click menu.
   const openPageLabel = "Open trigger page";
   const taskId = task._id as Id<"agent_tasks">;
-  const runNow = () => { triggerAction(taskId, "runNow"); confirm(() => toast.success("Run queued")); };
-  const runAgain = () => { triggerAction(taskId, "reactivate"); confirm(() => toast.success("Re-armed: runs within ~30s")); };
+  const runNow = () => {
+    triggerAction(taskId, "runNow");
+    confirm(() => toast.success("Run queued"));
+  };
+  const runAgain = () => {
+    triggerAction(taskId, "reactivate");
+    confirm(() => toast.success("Re-armed: runs within ~30s"));
+  };
   const pause = () => triggerAction(taskId, "pause");
   const resume = () => triggerAction(taskId, "resume");
   // Cancel is never undoable, so its toast just says it happened.
   const cancel = () => {
     triggerAction(taskId, "cancel");
-    confirm(() => toast("Trigger canceled", { description: taskDisplayTitle(task) }));
+    confirm(() =>
+      toast("Trigger canceled", { description: taskDisplayTitle(task) }),
+    );
   };
   const paused = task.status === "paused";
   const terminal = endVerb === "delete";
@@ -228,54 +348,97 @@ export const TriggerRowItem = memo(function TriggerRowItem({
   // Inline run history (the hover rail's History verb). Query only while
   // open, so a resting roster costs nothing.
   const [runsOpen, setRunsOpen] = useState(false);
-  const storeRuns = useTriggerRuns(runsOpen && !isPseudo && !history ? task._id : null);
+  const storeRuns = useTriggerRuns(
+    runsOpen && !isPseudo && !history ? task._id : null,
+  );
   const runs = history ? history.runs : storeRuns;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const ctxMenu = useContextMenu<void>();
 
   // ── The outcome line ──
   const outcome = outcomeOf(task);
-  const ago = task.last_run_at !== undefined ? `${fmtDuration(Math.max(0, now - task.last_run_at))} ago` : undefined;
+  const ago =
+    task.last_run_at !== undefined
+      ? `${fmtDuration(Math.max(0, now - task.last_run_at))} ago`
+      : undefined;
   const headline = lastRunHeadline(task, now);
-  const skipped = task.last_precheck_skip_at !== undefined && task.last_precheck_skip_at > (task.last_run_at ?? 0);
+  const skipped =
+    task.last_precheck_skip_at !== undefined &&
+    task.last_precheck_skip_at > (task.last_run_at ?? 0);
   const retrying = (task.retry_count ?? 0) > 0 && (
     <ShortcutTooltip label="The last run errored; the daemon is retrying">
-      <span className="shrink-0 text-sol-red/80 font-medium">retrying ×{task.retry_count}</span>
+      <span className="shrink-0 text-sol-red/80 font-medium">
+        retrying ×{task.retry_count}
+      </span>
     </ShortcutTooltip>
   );
-  const runsLabel = task.run_count > 0 ? `${task.run_count} run${task.run_count === 1 ? "" : "s"}` : undefined;
+  const runsLabel =
+    task.run_count > 0
+      ? `${task.run_count} run${task.run_count === 1 ? "" : "s"}`
+      : undefined;
   const outcomeTip = task.last_run_summary
-    ? { label: readableTimes(task.last_run_summary, now), hint: `last run ${outcome.word}${task.last_run_at ? ` at ${fmtClock(task.last_run_at)}` : ""}` }
+    ? {
+        label: readableTimes(task.last_run_summary, now),
+        hint: `last run ${outcome.word}${task.last_run_at ? ` at ${fmtClock(task.last_run_at)}` : ""}`,
+      }
     : undefined;
   const dot = "text-sol-text-dim/60";
   const sep = <span className={`shrink-0 ${dot}`}>·</span>;
   const outcomeLine = isPseudo ? null : (
-    <div className={`flex items-center gap-1.5 min-w-0 ${page ? "text-meta" : "text-meta"} tabular-nums`}>
+    <div
+      className={`flex items-center gap-1.5 min-w-0 ${page ? "text-meta" : "text-meta"} tabular-nums`}
+    >
       {ago ? (
         <>
           <outcome.Icon className={`w-3 h-3 shrink-0 ${outcome.tone}`} />
-          <span className={`shrink-0 ${outcome.tone} font-medium`}>{outcome.word}</span>
+          <span className={`shrink-0 ${outcome.tone} font-medium`}>
+            {outcome.word}
+          </span>
           <span className="shrink-0 text-sol-text-dim">{ago}</span>
-          {runsLabel && (<>{sep}<span className="shrink-0 text-sol-text-dim">{runsLabel}</span></>)}
-          {retrying && (<>{sep}{retrying}</>)}
+          {runsLabel && (
+            <>
+              {sep}
+              <span className="shrink-0 text-sol-text-dim">{runsLabel}</span>
+            </>
+          )}
+          {retrying && (
+            <>
+              {sep}
+              {retrying}
+            </>
+          )}
           {headline && (
             <>
               {sep}
-              <span className="truncate min-w-0 text-sol-text-muted">{headline}</span>
+              <span className="truncate min-w-0 text-sol-text-muted">
+                {headline}
+              </span>
             </>
           )}
         </>
       ) : skipped ? (
         <>
           <span className="w-[7px] h-[7px] mx-px rounded-full border border-sol-text-dim/70 shrink-0" />
-          <span className="shrink-0 text-sol-text-dim">skipped {fmtDuration(Math.max(0, now - task.last_precheck_skip_at!))} ago</span>
-          {task.last_precheck_skip_reason && (<>{sep}<span className="truncate min-w-0 text-sol-text-muted">{task.last_precheck_skip_reason}</span></>)}
+          <span className="shrink-0 text-sol-text-dim">
+            skipped{" "}
+            {fmtDuration(Math.max(0, now - task.last_precheck_skip_at!))} ago
+          </span>
+          {task.last_precheck_skip_reason && (
+            <>
+              {sep}
+              <span className="truncate min-w-0 text-sol-text-muted">
+                {task.last_precheck_skip_reason}
+              </span>
+            </>
+          )}
         </>
       ) : (
         <>
           <span className="w-[7px] h-[7px] mx-px rounded-full border border-sol-text-dim/50 shrink-0" />
           <span className="text-sol-text-dim">
-            {task.status === "scheduled" && task.run_at !== undefined && task.run_at > now
+            {task.status === "scheduled" &&
+            task.run_at !== undefined &&
+            task.run_at > now
               ? `no runs yet · first fires ${fmtClock(task.run_at)}`
               : "no runs yet"}
           </span>
@@ -284,7 +447,13 @@ export const TriggerRowItem = memo(function TriggerRowItem({
     </div>
   );
   const wrapTip = (el: React.ReactNode) =>
-    outcomeTip ? <ShortcutTooltip label={outcomeTip.label} hint={outcomeTip.hint}>{el}</ShortcutTooltip> : el;
+    outcomeTip ? (
+      <ShortcutTooltip label={outcomeTip.label} hint={outcomeTip.hint}>
+        {el}
+      </ShortcutTooltip>
+    ) : (
+      el
+    );
 
   const open = () => {
     setClickFlash((n) => n + 1);
@@ -305,10 +474,16 @@ export const TriggerRowItem = memo(function TriggerRowItem({
         attached ? "" : "border-b border-sol-border/30"
       } ${
         isActive
-          ? attached ? "bg-sol-cyan/[0.10]" : "border-l-2 border-l-sol-cyan/60 bg-sol-cyan/[0.10]"
-          : attached ? "" : `border-l-2 ${isNext ? "border-l-sol-cyan" : SCHED_ACCENT[accent]}`
+          ? attached
+            ? "bg-sol-cyan/[0.10]"
+            : "border-l-2 border-l-sol-cyan/60 bg-sol-cyan/[0.10]"
+          : attached
+            ? ""
+            : `border-l-2 ${isNext ? "border-l-sol-cyan" : SCHED_ACCENT[accent]}`
       } ${
-        highlighted ? "bg-[color-mix(in_srgb,var(--sol-bg-alt)_70%,transparent)] ring-1 ring-inset ring-sol-amber/40" : ""
+        highlighted
+          ? "bg-[color-mix(in_srgb,var(--sol-bg-alt)_70%,transparent)] ring-1 ring-inset ring-sol-amber/40"
+          : ""
       }`}
     >
       {/* Inner relative wrapper: the click-flash and the hover verb rail size
@@ -321,14 +496,30 @@ export const TriggerRowItem = memo(function TriggerRowItem({
           role="button"
           tabIndex={0}
           onClick={open}
-          onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.target === e.currentTarget) open();
+          }}
           className={`w-full text-left cursor-pointer transition-[background-color,opacity] hover:bg-sol-amber/[0.05] ${
-            page ? "px-4 py-2.5" : attached ? "pl-2 pr-3 py-1" : "pl-2.5 pr-3 py-1.5"
+            page
+              ? "px-4 py-2.5"
+              : attached
+                ? "pl-2 pr-3 py-1"
+                : "pl-2.5 pr-3 py-1.5"
           } ${paused ? "opacity-55 hover:opacity-90" : ""}`}
         >
           <div className="flex gap-1.5 min-w-0">
-            {arrow && <SchedChildArrow label={row.kind === "loop" ? "Loop: the agent wakes itself in this session" : "Trigger: fires into this session"} />}
-            <div className={`min-w-0 flex-1 ${page ? "space-y-1" : "space-y-0.5"}`}>
+            {arrow && (
+              <SchedChildArrow
+                label={
+                  row.kind === "loop"
+                    ? "Loop: the agent wakes itself in this session"
+                    : "Trigger: fires into this session"
+                }
+              />
+            )}
+            <div
+              className={`min-w-0 flex-1 ${page ? "space-y-1" : "space-y-0.5"}`}
+            >
               {/* ── Line 1: name · cadence · next fire ── */}
               <div className="flex items-center gap-1.5 min-w-0">
                 <SchedHealthDot accent={accent} task={task} />
@@ -336,9 +527,17 @@ export const TriggerRowItem = memo(function TriggerRowItem({
                     underlines it and grows the ↗. Attached rows recede to the
                     same muted treatment the subagent child rows use. */}
                 {isPseudo ? (
-                  <span className={`truncate min-w-0 ${page ? "text-[13px]" : "text-xs"} ${attached ? "text-gray-400 font-normal" : "text-sol-text font-medium"}`}>{title}</span>
+                  <span
+                    className={`truncate min-w-0 ${page ? "text-[13px]" : "text-xs"} ${attached ? "text-gray-400 font-normal" : "text-sol-text font-medium"}`}
+                  >
+                    {title}
+                  </span>
                 ) : (
-                  <ShortcutTooltip label={title} hint={openPageLabel.toLowerCase()} side="top">
+                  <ShortcutTooltip
+                    label={title}
+                    hint={openPageLabel.toLowerCase()}
+                    side="top"
+                  >
                     <Link
                       href={pagePath}
                       onClick={stop}
@@ -347,14 +546,22 @@ export const TriggerRowItem = memo(function TriggerRowItem({
                       } ${attached ? "text-gray-400 font-normal" : terminal ? "text-sol-text-muted font-medium" : "text-sol-text font-medium"}`}
                     >
                       <span className="truncate min-w-0">{title}</span>
-                      <ArrowUpRight className={`w-3 h-3 shrink-0 text-sol-amber opacity-0 group-hover/title:opacity-100 transition-opacity`} />
+                      <ArrowUpRight
+                        className={`w-3 h-3 shrink-0 text-sol-amber opacity-0 group-hover/title:opacity-100 transition-opacity`}
+                      />
                     </Link>
                   </ShortcutTooltip>
                 )}
-                {isNext && <span className="shrink-0 text-mark font-semibold uppercase tracking-wider text-sol-cyan">next up</span>}
+                {isNext && (
+                  <span className="shrink-0 text-mark font-semibold uppercase tracking-wider text-sol-cyan">
+                    next up
+                  </span>
+                )}
                 {unread && !attached && (
                   <ShortcutTooltip label="Outcome landed since you last opened this list">
-                    <span className="shrink-0 px-1 rounded-full text-meta font-medium bg-sol-amber/15 text-sol-amber">new</span>
+                    <span className="shrink-0 px-1 rounded-full text-meta font-medium bg-sol-amber/15 text-sol-amber">
+                      new
+                    </span>
                   </ShortcutTooltip>
                 )}
                 {/* Cadence text stays off attached rows (the countdown is
@@ -366,19 +573,36 @@ export const TriggerRowItem = memo(function TriggerRowItem({
                     {row.kind === "loop" ? "loop" : describeTaskCadence(task)}
                   </span>
                 )}
-                <SchedFireBadge task={task} className={attached && row.kind !== "loop" ? "ml-auto" : ""} />
+                <SchedFireBadge
+                  task={task}
+                  className={attached && row.kind !== "loop" ? "ml-auto" : ""}
+                />
               </div>
               {/* ── Line 2: what each run does (+ outcome meta when attached) ── */}
               <div className="flex items-center gap-1.5 min-w-0">
-                <ShortcutTooltip label={gist} hint={task.display_summary ? undefined : "a summary is on its way"}>
-                  <span className={`block min-w-0 flex-1 truncate ${page ? "text-xs" : "text-meta"} leading-snug text-sol-text-dim`}>{gist}</span>
+                <ShortcutTooltip
+                  label={gist}
+                  hint={
+                    task.display_summary ? undefined : "a summary is on its way"
+                  }
+                >
+                  <span
+                    className={`block min-w-0 flex-1 truncate ${page ? "text-xs" : "text-meta"} leading-snug text-sol-text-dim`}
+                  >
+                    {gist}
+                  </span>
                 </ShortcutTooltip>
-                {attached && ago && !isPseudo && wrapTip(
-                  <span className={`shrink-0 inline-flex items-center gap-1 text-meta tabular-nums ${outcome.tone}`}>
-                    <outcome.Icon className="w-3 h-3" />
-                    <span className="text-sol-text-dim">{ago}</span>
-                  </span>,
-                )}
+                {attached &&
+                  ago &&
+                  !isPseudo &&
+                  wrapTip(
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-1 text-meta tabular-nums ${outcome.tone}`}
+                    >
+                      <outcome.Icon className="w-3 h-3" />
+                      <span className="text-sol-text-dim">{ago}</span>
+                    </span>,
+                  )}
                 {attached && retrying}
               </div>
               {/* ── Line 3: the last run ── */}
@@ -386,62 +610,137 @@ export const TriggerRowItem = memo(function TriggerRowItem({
             </div>
           </div>
         </div>
-        {clickFlash > 0 && <span key={clickFlash} aria-hidden className="sched-click-flash absolute inset-0 pointer-events-none" />}
+        {clickFlash > 0 && (
+          <span
+            key={clickFlash}
+            aria-hidden
+            className="sched-click-flash absolute inset-0 pointer-events-none"
+          />
+        )}
         {/* Hover action rail — a right-hand strip that fades in over a
             gradient, holding compact icon verbs. Absolute + full-height so
             revealing it never changes the row's height. */}
         {!isPseudo && (
           <div className="absolute top-0 bottom-0 right-0 flex items-center gap-0.5 pl-12 pr-2 opacity-0 group-hover/schedrow:opacity-100 transition-opacity duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--sol-bg-alt)_80%,transparent)] to-sol-bg-alt">
-            <ShortcutTooltip label={runsOpen ? "Hide run history" : "Run history"} hint="every run links to its trigger message" side="top">
+            <ShortcutTooltip
+              label={runsOpen ? "Hide run history" : "Run history"}
+              hint="every run links to its trigger message"
+              side="top"
+            >
               <button
                 aria-label={runsOpen ? "Hide run history" : "Show run history"}
                 aria-expanded={runsOpen}
-                onClick={(e) => { stop(e); setRunsOpen((v) => !v); }}
+                onClick={(e) => {
+                  stop(e);
+                  setRunsOpen((v) => !v);
+                }}
                 className={`${VERB_BTN} ${runsOpen ? "text-sol-amber bg-sol-amber/10" : "text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt"}`}
               >
                 <History className="w-3.5 h-3.5" />
               </button>
             </ShortcutTooltip>
             {!page && (
-              <ShortcutTooltip label={openPageLabel} hint="full detail, history, edit" side="top">
-                <Link href={pagePath} aria-label={openPageLabel} onClick={stop} className={`${VERB_BTN} text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt`}>
+              <ShortcutTooltip
+                label={openPageLabel}
+                hint="full detail, history, edit"
+                side="top"
+              >
+                <Link
+                  href={pagePath}
+                  aria-label={openPageLabel}
+                  onClick={stop}
+                  className={`${VERB_BTN} text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt`}
+                >
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
               </ShortcutTooltip>
             )}
             {editable && (
               <ShortcutTooltip label="Edit" side="top">
-                <button aria-label="Edit" onClick={(e) => { stop(e); onEdit!(); }} className={`${VERB_BTN} text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt`}>
+                <button
+                  aria-label="Edit"
+                  onClick={(e) => {
+                    stop(e);
+                    onEdit!();
+                  }}
+                  className={`${VERB_BTN} text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt`}
+                >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               </ShortcutTooltip>
             )}
             {terminal ? (
-              <ShortcutTooltip label="Run again" hint="re-arms, runs within ~30s" side="top">
-                <button aria-label="Run again" onClick={(e) => { stop(e); runAgain(); }} className={`${VERB_BTN} text-sol-text-dim hover:text-sol-amber hover:bg-sol-amber/10`}>
+              <ShortcutTooltip
+                label="Run again"
+                hint="re-arms, runs within ~30s"
+                side="top"
+              >
+                <button
+                  aria-label="Run again"
+                  onClick={(e) => {
+                    stop(e);
+                    runAgain();
+                  }}
+                  className={`${VERB_BTN} text-sol-text-dim hover:text-sol-amber hover:bg-sol-amber/10`}
+                >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </ShortcutTooltip>
-            ) : task.status !== "running" && (
-              <ShortcutTooltip label="Run now" side="top">
-                <button aria-label="Run now" onClick={(e) => { stop(e); runNow(); }} className={`${VERB_BTN} text-sol-text-dim hover:text-sol-amber hover:bg-sol-amber/10`}>
-                  <Play className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} />
-                </button>
-              </ShortcutTooltip>
+            ) : (
+              task.status !== "running" && (
+                <ShortcutTooltip label="Run now" side="top">
+                  <button
+                    aria-label="Run now"
+                    onClick={(e) => {
+                      stop(e);
+                      runNow();
+                    }}
+                    className={`${VERB_BTN} text-sol-text-dim hover:text-sol-amber hover:bg-sol-amber/10`}
+                  >
+                    <Play
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      strokeWidth={0}
+                    />
+                  </button>
+                </ShortcutTooltip>
+              )
             )}
             {!terminal && (
-              <ShortcutTooltip label={paused ? "Resume trigger" : "Pause trigger"} side="top">
+              <ShortcutTooltip
+                label={paused ? "Resume trigger" : "Pause trigger"}
+                side="top"
+              >
                 <button
                   aria-label={paused ? "Resume trigger" : "Pause trigger"}
-                  onClick={(e) => { stop(e); if (paused) resume(); else pause(); }}
+                  onClick={(e) => {
+                    stop(e);
+                    if (paused) resume();
+                    else pause();
+                  }}
                   className={`${VERB_BTN} text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt`}
                 >
-                  {paused ? <Play className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} /> : <Pause className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} />}
+                  {paused ? (
+                    <Play
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      strokeWidth={0}
+                    />
+                  ) : (
+                    <Pause
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      strokeWidth={0}
+                    />
+                  )}
                 </button>
               </ShortcutTooltip>
             )}
             {terminal && ending && onDelete && (
-              <ShortcutTooltip label={confirmDelete ? "Click again to delete" : ending.label} side="top">
+              <ShortcutTooltip
+                label={confirmDelete ? "Click again to delete" : ending.label}
+                side="top"
+              >
                 <button
                   aria-label={ending.label}
                   onClick={(e) => {
@@ -465,13 +764,27 @@ export const TriggerRowItem = memo(function TriggerRowItem({
       {/* Past runs, inline: every run of this schedule, newest first, each
           entry landing on the message that triggered it. */}
       {runsOpen && !isPseudo && (
-        <div className={`${page ? "pl-4" : arrow ? "pl-6" : "pl-2.5"} pr-2 pb-1.5`} onClick={stop}>
+        <div
+          className={`${page ? "pl-4" : arrow ? "pl-6" : "pl-2.5"} pr-2 pb-1.5`}
+          onClick={stop}
+        >
           {runs === undefined ? (
-            <div className="text-meta text-sol-text-dim py-1 pl-1.5">Loading runs…</div>
+            <div className="text-meta text-sol-text-dim py-1 pl-1.5">
+              Loading runs…
+            </div>
           ) : runs.length === 0 ? (
-            <div className="text-meta text-sol-text-dim py-1 pl-1.5">No runs recorded yet</div>
+            <div className="text-meta text-sol-text-dim py-1 pl-1.5">
+              No runs recorded yet
+            </div>
           ) : (
-            <TriggerRunList runs={runs} now={now} currentConversationId={activeSessionId} onOpened={onNavigated} ensureInboxRoute={page} onOpenRun={history?.open} />
+            <TriggerRunList
+              runs={runs}
+              now={now}
+              currentConversationId={activeSessionId}
+              onOpened={onNavigated}
+              ensureInboxRoute={page}
+              onOpenRun={history?.open}
+            />
           )}
         </div>
       )}
@@ -481,25 +794,69 @@ export const TriggerRowItem = memo(function TriggerRowItem({
             <>
               <CtxHeader title={title} id={task.short_id} />
               {terminal ? (
-                <CtxItem icon={RotateCcw} onSelect={runAgain}>Run again</CtxItem>
-              ) : task.status !== "running" && (
-                <CtxItem icon={Play} onSelect={runNow}>Run now</CtxItem>
+                <CtxItem icon={RotateCcw} onSelect={runAgain}>
+                  Run again
+                </CtxItem>
+              ) : (
+                task.status !== "running" && (
+                  <CtxItem icon={Play} onSelect={runNow}>
+                    Run now
+                  </CtxItem>
+                )
               )}
               {!terminal && (
-                <CtxItem icon={paused ? Play : Pause} onSelect={() => { if (paused) resume(); else pause(); }}>
+                <CtxItem
+                  icon={paused ? Play : Pause}
+                  onSelect={() => {
+                    if (paused) resume();
+                    else pause();
+                  }}
+                >
                   {paused ? "Resume trigger" : "Pause trigger"}
                 </CtxItem>
               )}
-              <CtxItem icon={History} onSelect={() => setRunsOpen((v) => !v)}>{runsOpen ? "Hide run history" : "Run history"}</CtxItem>
-              <CtxItem icon={ArrowUpRight} onSelect={() => router.push(pagePath)}>{openPageLabel}</CtxItem>
-              {editable && <CtxItem icon={Pencil} onSelect={onEdit!}>Edit</CtxItem>}
-              {onDuplicate && <CtxItem icon={Copy} onSelect={onDuplicate}>Duplicate</CtxItem>}
+              <CtxItem icon={History} onSelect={() => setRunsOpen((v) => !v)}>
+                {runsOpen ? "Hide run history" : "Run history"}
+              </CtxItem>
+              <CtxItem
+                icon={ArrowUpRight}
+                onSelect={() => router.push(pagePath)}
+              >
+                {openPageLabel}
+              </CtxItem>
+              {editable && (
+                <CtxItem icon={Pencil} onSelect={onEdit!}>
+                  Edit
+                </CtxItem>
+              )}
+              {onDuplicate && (
+                <CtxItem icon={Copy} onSelect={onDuplicate}>
+                  Duplicate
+                </CtxItem>
+              )}
               <CtxSeparator />
-              <CtxItem icon={Copy} onSelect={() => { copyToClipboard(task.prompt || ""); toast.success("Prompt copied"); }}>Copy prompt</CtxItem>
+              <CtxItem
+                icon={Copy}
+                onSelect={() => {
+                  copyToClipboard(task.prompt || "");
+                  toast.success("Prompt copied");
+                }}
+              >
+                Copy prompt
+              </CtxItem>
               <CtxSeparator />
-              {ending && (endVerb === "delete"
-                ? onDelete && <CtxItem danger icon={Trash2} onSelect={onDelete}>{ending.label}</CtxItem>
-                : <CtxItem danger icon={X} onSelect={cancel}>{ending.label}</CtxItem>)}
+              {ending &&
+                (endVerb === "delete" ? (
+                  onDelete && (
+                    <CtxItem danger icon={Trash2} onSelect={onDelete}>
+                      {ending.label}
+                    </CtxItem>
+                  )
+                ) : (
+                  <CtxItem danger icon={X} onSelect={cancel}>
+                    {ending.label}
+                  </CtxItem>
+                ))}
             </>
           )}
         </ContextMenu>
@@ -513,7 +870,15 @@ export const TriggerRowItem = memo(function TriggerRowItem({
 // group (no home — every run is a fresh session) says so and names the
 // project instead. The home's pinned thread state rides the tooltip. Shared by
 // the dock roster and the /triggers page so the two group the same way.
-export function TriggerHomeHeader({ group, home, now, isActive, showProject, onOpen, size = "sm" }: {
+export function TriggerHomeHeader({
+  group,
+  home,
+  now,
+  isActive,
+  showProject,
+  onOpen,
+  size = "sm",
+}: {
   group: TriggerHomeGroup;
   home?: InboxSession;
   now: number;
@@ -523,11 +888,20 @@ export function TriggerHomeHeader({ group, home, now, isActive, showProject, onO
   size?: "sm" | "md";
 }) {
   const count = group.rows.length;
-  const projectPath = home?.project_path ?? home?.git_root ?? group.projectPath ?? group.rows[0].task.project_path;
-  const project = showProject && projectPath ? getProjectName(undefined, projectPath) : undefined;
+  const projectPath =
+    home?.project_path ??
+    home?.git_root ??
+    group.projectPath ??
+    group.rows[0].task.project_path;
+  const project =
+    showProject && projectPath
+      ? getProjectName(undefined, projectPath)
+      : undefined;
   const projectChip = project ? (
     <ShortcutTooltip label={projectPath!}>
-      <span className={`shrink-0 px-1 rounded text-meta font-medium border ${getLabelColor(project).bg} ${getLabelColor(project).text} ${getLabelColor(project).border}`}>
+      <span
+        className={`shrink-0 px-1 rounded text-meta font-medium border ${getLabelColor(project).bg} ${getLabelColor(project).text} ${getLabelColor(project).border}`}
+      >
         {project}
       </span>
     </ShortcutTooltip>
@@ -536,7 +910,9 @@ export function TriggerHomeHeader({ group, home, now, isActive, showProject, onO
   // header would be the roster's most repeated words.
   const countEl = (
     <span className="ml-auto shrink-0 text-meta tabular-nums text-sol-text-dim">
-      {count > 1 ? `${count} ${group.rows.every((r) => r.kind === "loop") ? "loops" : "triggers"}` : ""}
+      {count > 1
+        ? `${count} ${group.rows.every((r) => r.kind === "loop") ? "loops" : "triggers"}`
+        : ""}
     </span>
   );
   const pad = size === "md" ? "px-4 py-1.5" : "px-3 py-1";
@@ -546,30 +922,62 @@ export function TriggerHomeHeader({ group, home, now, isActive, showProject, onO
   if (!group.homeId) {
     return (
       <button onClick={onOpen} className={shell}>
-        <ShortcutTooltip label="Every run starts a fresh session (--spawn)" hint="opens the newest run">
-          <span aria-hidden className="w-2 h-2 shrink-0 rounded-full border border-dashed border-sol-amber/70" />
+        <ShortcutTooltip
+          label="Every run starts a fresh session (--spawn)"
+          hint="opens the newest run"
+        >
+          <span
+            aria-hidden
+            className="w-2 h-2 shrink-0 rounded-full border border-dashed border-sol-amber/70"
+          />
         </ShortcutTooltip>
-        <span className="text-meta font-medium text-sol-text-muted truncate min-w-0">Fresh session per run</span>
+        <span className="text-meta font-medium text-sol-text-muted truncate min-w-0">
+          Fresh session per run
+        </span>
         {projectChip}
         {countEl}
       </button>
     );
   }
   const verdict = home ? classifySession(home) : null;
-  const ws: WorkState = !verdict ? "idle" : verdict.waiting ? verdict.rest : verdict.idle ? "idle" : "working";
+  const ws: WorkState = !verdict
+    ? "idle"
+    : verdict.waiting
+      ? verdict.rest
+      : verdict.idle
+        ? "idle"
+        : "working";
   const meta = ORG_STATE_META[ws];
   const hidden = !!home && isSessionHidden(home);
   const title = home
     ? sessionCardTitle(home)
     : group.rows[0].task.originating_conversation_title || "Session";
-  const stateLine = home ? threadStateView(home, home.message_count, now)?.cardLine : undefined;
-  const stateWord = home ? `${meta.label}${hidden ? " · stashed" : ""}` : "not loaded";
+  const stateLine = home
+    ? threadStateView(home, home.message_count, now)?.cardLine
+    : undefined;
+  const stateWord = home
+    ? `${meta.label}${hidden ? " · stashed" : ""}`
+    : "not loaded";
   return (
-    <ShortcutTooltip label={stateLine ?? title} hint={stateLine ? `${meta.label} · open session` : "open session"} side="top">
-      <button onClick={onOpen} className={shell} data-trigger-home={group.homeId}>
+    <ShortcutTooltip
+      label={stateLine ?? title}
+      hint={stateLine ? `${meta.label} · open session` : "open session"}
+      side="top"
+    >
+      <button
+        onClick={onOpen}
+        className={shell}
+        data-trigger-home={group.homeId}
+      >
         <StatusDot color={meta.color} ping={ws === "working"} />
-        <span className={`text-meta font-medium truncate min-w-0 ${hidden ? "text-sol-text-muted" : "text-sol-text"}`}>{title}</span>
-        <span className="shrink-0 text-meta" style={{ color: meta.color }}>{stateWord}</span>
+        <span
+          className={`text-meta font-medium truncate min-w-0 ${hidden ? "text-sol-text-muted" : "text-sol-text"}`}
+        >
+          {title}
+        </span>
+        <span className="shrink-0 text-meta" style={{ color: meta.color }}>
+          {stateWord}
+        </span>
         {projectChip}
         {countEl}
       </button>
